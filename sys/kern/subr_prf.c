@@ -257,7 +257,7 @@ log(int level, const char *fmt, ...)
 void
 log_console(struct uio *uio)
 {
-	int c, i, error, nl;
+	int c, i, error;
 	char *consbuffer;
 	int pri;
 
@@ -268,22 +268,14 @@ log_console(struct uio *uio)
 	uio = cloneuio(uio);
 	consbuffer = malloc(CONSCHUNK, M_TEMP, M_WAITOK);
 
-	nl = 0;
 	while (uio->uio_resid > 0) {
 		c = imin(uio->uio_resid, CONSCHUNK);
 		error = uiomove(consbuffer, c, uio);
 		if (error != 0)
 			break;
-		for (i = 0; i < c; i++) {
+		for (i = 0; i < c; i++)
 			msglogchar(consbuffer[i], pri);
-			if (consbuffer[i] == '\n')
-				nl = 1;
-			else
-				nl = 0;
-		}
 	}
-	if (!nl)
-		msglogchar('\n', pri);
 	msgbuftrigger = 1;
 	free(uio, M_IOV);
 	free(consbuffer, M_TEMP);
