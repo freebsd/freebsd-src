@@ -110,6 +110,12 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+struct vnet_ipfw vnet_ipfw_0;
+#endif
+#endif
+
 /*
  * set_disable contains one bit per set value (0..31).
  * If the bit is set, all rules with the corresponding set
@@ -118,12 +124,13 @@ __FBSDID("$FreeBSD$");
  * and CANNOT be disabled.
  * Rules in set RESVD_SET can only be deleted explicitly.
  */
+#ifdef VIMAGE_GLOBALS
 static u_int32_t set_disable;
-
 static int fw_verbose;
+static struct callout ipfw_timeout;
+#endif
 static int verbose_limit;
 
-static struct callout ipfw_timeout;
 static uma_zone_t ipfw_dyn_rule_zone;
 
 /*
@@ -159,8 +166,10 @@ struct table_entry {
 	u_int32_t		value;
 };
 
-static int fw_debug = 1;
-static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
+#ifdef VIMAGE_GLOBALS
+static int fw_debug;
+static int autoinc_step;
+#endif
 
 extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
@@ -171,7 +180,7 @@ SYSCTL_V_PROC(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, enable,
     ipfw_chg_hook, "I", "Enable ipfw");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, autoinc_step,
     CTLFLAG_RW, autoinc_step, 0, "Rule number autincrement step");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, one_pass,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_RW | CTLFLAG_SECURE3, fw_one_pass, 0,
     "Only do a single pass through ipfw when using dummynet(4)");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW,
@@ -222,9 +231,11 @@ SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
  * obey the 'randomized match', and we do not do multiple
  * passes through the firewall. XXX check the latter!!!
  */
-static ipfw_dyn_rule **ipfw_dyn_v = NULL;
-static u_int32_t dyn_buckets = 256; /* must be power of 2 */
-static u_int32_t curr_dyn_buckets = 256; /* must be power of 2 */
+#ifdef VIMAGE_GLOBALS
+static ipfw_dyn_rule **ipfw_dyn_v;
+static u_int32_t dyn_buckets;
+static u_int32_t curr_dyn_buckets;
+#endif
 
 static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
 #define	IPFW_DYN_LOCK_INIT() \
@@ -237,12 +248,13 @@ static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
 /*
  * Timeouts for various events in handing dynamic rules.
  */
-static u_int32_t dyn_ack_lifetime = 300;
-static u_int32_t dyn_syn_lifetime = 20;
-static u_int32_t dyn_fin_lifetime = 1;
-static u_int32_t dyn_rst_lifetime = 1;
-static u_int32_t dyn_udp_lifetime = 10;
-static u_int32_t dyn_short_lifetime = 5;
+#ifdef VIMAGE_GLOBALS
+static u_int32_t dyn_ack_lifetime;
+static u_int32_t dyn_syn_lifetime;
+static u_int32_t dyn_fin_lifetime;
+static u_int32_t dyn_rst_lifetime;
+static u_int32_t dyn_udp_lifetime;
+static u_int32_t dyn_short_lifetime;
 
 /*
  * Keepalives are sent if dyn_keepalive is set. They are sent every
@@ -252,14 +264,15 @@ static u_int32_t dyn_short_lifetime = 5;
  * than dyn_keepalive_period.
  */
 
-static u_int32_t dyn_keepalive_interval = 20;
-static u_int32_t dyn_keepalive_period = 5;
-static u_int32_t dyn_keepalive = 1;	/* do send keepalives */
+static u_int32_t dyn_keepalive_interval;
+static u_int32_t dyn_keepalive_period;
+static u_int32_t dyn_keepalive;
 
 static u_int32_t static_count;	/* # of static rules */
 static u_int32_t static_len;	/* size in bytes of static rules */
-static u_int32_t dyn_count;		/* # of dynamic rules */
-static u_int32_t dyn_max = 4096;	/* max # of dynamic rules */
+static u_int32_t dyn_count;	/* # of dynamic rules */
+static u_int32_t dyn_max;	/* max # of dynamic rules */
+#endif /* VIMAGE_GLOBALS */
 
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_buckets,
     CTLFLAG_RW, dyn_buckets, 0, "Number of dyn. buckets");
@@ -299,8 +312,9 @@ static struct sysctl_oid *ip6_fw_sysctl_tree;
 #endif /* INET6 */
 #endif /* SYSCTL_NODE */
 
-static int fw_deny_unknown_exthdrs = 1;
-
+#ifdef VIMAGE_GLOBALS
+static int fw_deny_unknown_exthdrs;
+#endif
 
 /*
  * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
@@ -748,7 +762,9 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 
 #endif /* INET6 */
 
+#ifdef VIMAGE_GLOBALS
 static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
+#endif
 
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
@@ -4509,6 +4525,28 @@ ipfw_init(void)
 	INIT_VNET_IPFW(curvnet);
 	struct ip_fw default_rule;
 	int error;
+
+	V_fw_debug = 1;
+	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
+
+	V_ipfw_dyn_v = NULL;
+	V_dyn_buckets = 256;	/* must be power of 2 */
+	V_curr_dyn_buckets = 256; /* must be power of 2 */
+
+	V_dyn_ack_lifetime = 300;
+	V_dyn_syn_lifetime = 20;
+	V_dyn_fin_lifetime = 1;
+	V_dyn_rst_lifetime = 1;
+	V_dyn_udp_lifetime = 10;
+	V_dyn_short_lifetime = 5;
+
+	V_dyn_keepalive_interval = 20;
+	V_dyn_keepalive_period = 5;
+	V_dyn_keepalive = 1;	/* do send keepalives */
+
+	V_dyn_max = 4096;	/* max # of dynamic rules */
+
+	V_fw_deny_unknown_exthdrs = 1;
 
 #ifdef INET6
 	/* Setup IPv6 fw sysctl tree. */

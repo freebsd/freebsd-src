@@ -72,6 +72,12 @@
 
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+struct vnet_netgraph vnet_netgraph_0;
+#endif
+#endif
+
 /* Mutex to protect topology events. */
 static struct mtx	ng_topo_mtx;
 
@@ -167,7 +173,9 @@ static struct mtx	ng_typelist_mtx;
 
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
+#ifdef VIMAGE_GLOBALS
 static LIST_HEAD(, ng_node) ng_ID_hash[NG_ID_HASH_SIZE];
+#endif
 static struct mtx	ng_idhash_mtx;
 /* Method to find a node.. used twice so do it here */
 #define NG_IDHASH_FN(ID) ((ID) % (NG_ID_HASH_SIZE))
@@ -183,7 +191,9 @@ static struct mtx	ng_idhash_mtx;
 		}							\
 	} while (0)
 
+#ifdef VIMAGE_GLOBALS
 static LIST_HEAD(, ng_node) ng_name_hash[NG_NAME_HASH_SIZE];
+#endif
 static struct mtx	ng_namehash_mtx;
 #define NG_NAMEHASH(NAME, HASH)				\
 	do {						\
@@ -348,7 +358,9 @@ ng_alloc_node(void)
 #define TRAP_ERROR()
 #endif
 
-static	ng_ID_t nextID = 1;
+#ifdef VIMAGE_GLOBALS
+static	ng_ID_t nextID;
+#endif
 
 #ifdef INVARIANTS
 #define CHECK_DATA_MBUF(m)	do {					\
@@ -3063,6 +3075,7 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Initialize everything. */
+		V_nextID = 1;
 		NG_WORKLIST_LOCK_INIT();
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
 		    MTX_DEF);

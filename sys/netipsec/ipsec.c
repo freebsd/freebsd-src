@@ -97,6 +97,12 @@
 
 #include <opencrypto/cryptodev.h>
 
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+struct vnet_ipsec vnet_ipsec_0;
+#endif
+#endif
+
 #ifdef VIMAGE_GLOBALS
 /* NB: name changed so netstat doesn't use it */
 struct ipsecstat ipsec4stat;

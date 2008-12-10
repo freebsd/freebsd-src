@@ -177,6 +177,7 @@ struct sockopt;
 
 extern struct	ipstat	ipstat;
 extern u_short	ip_id;			/* ip packet ctr, for ids */
+extern int	ip_do_randomid;
 extern int	ip_defttl;		/* default IP ttl */
 extern int	ipforwarding;		/* ip forwarding */
 #ifdef IPSTEALTH

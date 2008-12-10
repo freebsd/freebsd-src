@@ -1198,7 +1198,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	sin = (struct sockaddr_in *)nam;
 	if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&udbinfo);
+		INP_INFO_WUNLOCK(&V_udbinfo);
 		return (EAFNOSUPPORT);
 	}
 	error = in_pcbconnect(inp, nam, td->td_ucred);

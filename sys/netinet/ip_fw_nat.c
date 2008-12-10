@@ -71,7 +71,9 @@ MALLOC_DECLARE(M_IPFW);
 
 extern struct ip_fw_chain layer3_chain;
 
+#ifdef VIMAGE_GLOBALS
 static eventhandler_tag ifaddr_event_tag;
+#endif
 
 extern ipfw_nat_t *ipfw_nat_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
