@@ -1,4 +1,4 @@
-.\" $OpenBSD: pfctl.8,v 1.128 2007/01/30 21:01:56 jmc Exp $
+.\" $OpenBSD: pfctl.8,v 1.133 2007/07/01 11:38:51 henning Exp $
 .\"
 .\" Copyright (c) 2001 Kjell Wooding.  All rights reserved.
 .\"
@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 20, 2002
+.Dd $Mdocdate: May 31 2007 $
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -42,14 +42,14 @@
 .Op Fl i Ar interface
 .Op Fl K Ar host | network
 .Op Fl k Ar host | network
-.Op Fl o Op Ar level
+.Op Fl o Ar level
 .Op Fl p Ar device
 .Op Fl s Ar modifier
-.Oo
-.Fl t Ar table
+.Xo
+.Oo Fl t Ar table
 .Fl T Ar command
-.Op Ar address ...
-.Oc
+.Op Ar address ... Oc
+.Xc
 .Op Fl x Ar level
 .Ek
 .Sh DESCRIPTION
@@ -209,7 +209,7 @@ Flush the NAT rules.
 Flush the queue rules.
 .It Fl F Cm rules
 Flush the filter rules.
-.It Fl F Cm state
+.It Fl F Cm states
 Flush the state table (NAT and filter).
 .It Fl F Cm Sources
 Flush the source tracking table.
@@ -296,58 +296,20 @@ Do not actually load rules, just parse them.
 .It Fl O
 Load only the options present in the rule file.
 Other rules and options are ignored.
-.It Fl o Op Ar level
-Control the ruleset optimizer.
-The ruleset optimizer attempts to improve rulesets by removing rule
-duplication and making better use of rule ordering.
+.It Fl o Ar level
+Control the ruleset optimizer, overriding any rule file settings.
 .Pp
 .Bl -tag -width xxxxxxxxxxxx -compact
 .It Fl o Cm none
 Disable the ruleset optimizer.
 .It Fl o Cm basic
 Enable basic ruleset optimizations.
+This is the default behaviour.
 .It Fl o Cm profile
 Enable basic ruleset optimizations with profiling.
 .El
-.Pp
-.Cm basic
-optimization does does four things:
-.Pp
-.Bl -enum -compact
-.It
-remove duplicate rules
-.It
-remove rules that are a subset of another rule
-.It
-combine multiple rules into a table when advantageous
-.It
-re-order the rules to improve evaluation performance
-.El
-.Pp
-If
-.Cm profile
-is specified, the currently loaded ruleset will be examined as a feedback
-profile to tailor the optimization of the
-.Ar quick
-rules to the actual network behavior.
-.Pp
-It is important to note that the ruleset optimizer will modify the ruleset
-to improve performance.
-A side effect of the ruleset modification is that per-rule accounting
-statistics will have different meanings than before.
-If per-rule accounting is important for billing purposes or whatnot, either
-the ruleset optimizer should not be used or a
-.Ar label
-field should be added to all of the accounting rules to act as optimization
-barriers.
-.Pp
-To retain compatibility with previous behaviour, a single
-.Fl o
-without any options will enable
-.Cm basic
-optimizations, and a second
-.Fl o
-will enable profiling.
+For further information on the ruleset optimizer, see
+.Xr pf.conf 5 .
 .It Fl p Ar device
 Use the device file
 .Ar device
@@ -402,7 +364,7 @@ If
 .Fl v
 is specified, all anchors attached under the target anchor will be
 displayed recursively.
-.It Fl s Cm state
+.It Fl s Cm states
 Show the contents of the state table.
 .It Fl s Cm Sources
 Show the contents of the source tracking table.

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ftp-proxy.8,v 1.7 2006/12/30 13:01:54 camield Exp $
+.\"	$OpenBSD: ftp-proxy.8,v 1.10 2007/08/01 15:45:41 jmc Exp $
 .\"
 .\" Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd November 28, 2004
+.Dd $Mdocdate$
 .Dt FTP-PROXY 8
 .Os
 .Sh NAME
@@ -22,6 +22,7 @@
 .Nd Internet File Transfer Protocol proxy daemon
 .Sh SYNOPSIS
 .Nm ftp-proxy
+.Bk -words
 .Op Fl 6Adrv
 .Op Fl a Ar address
 .Op Fl b Ar address
@@ -31,7 +32,9 @@
 .Op Fl p Ar port
 .Op Fl q Ar queue
 .Op Fl R Ar address
+.Op Fl T Ar tag
 .Op Fl t Ar timeout
+.Ek
 .Sh DESCRIPTION
 .Nm
 is a proxy for the Internet File Transfer Protocol.
@@ -128,6 +131,10 @@ connections to another proxy.
 .It Fl r
 Rewrite sourceport to 20 in active mode to suit ancient clients that insist
 on this RFC property.
+.It Fl T Ar tag
+Automatically tag packets passing through the
+.Xr pf 4
+rule with the name supplied.
 .It Fl t Ar timeout
 Number of seconds that the control connection can be idle, before the
 proxy will disconnect.

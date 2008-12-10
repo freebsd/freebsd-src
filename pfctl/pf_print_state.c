@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_print_state.c,v 1.44 2007/03/01 17:20:53 deraadt Exp $	*/
+/*	$OpenBSD: pf_print_state.c,v 1.45 2007/05/31 04:13:37 mcbride Exp $	*/
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -151,7 +151,7 @@ print_name(struct pf_addr *addr, sa_family_t af)
 }
 
 void
-print_host(struct pf_state_host *h, sa_family_t af, int opts)
+print_host(struct pfsync_state_host *h, sa_family_t af, int opts)
 {
 	u_int16_t p = ntohs(h->port);
 
@@ -180,7 +180,7 @@ print_host(struct pf_state_host *h, sa_family_t af, int opts)
 }
 
 void
-print_seq(struct pf_state_peer *p)
+print_seq(struct pfsync_state_peer *p)
 {
 	if (p->seqdiff)
 		printf("[%u + %u](+%u)", p->seqlo, p->seqhi - p->seqlo,
@@ -190,9 +190,9 @@ print_seq(struct pf_state_peer *p)
 }
 
 void
-print_state(struct pf_state *s, int opts)
+print_state(struct pfsync_state *s, int opts)
 {
-	struct pf_state_peer *src, *dst;
+	struct pfsync_state_peer *src, *dst;
 	struct protoent *p;
 	int min, sec;
 
@@ -203,7 +203,7 @@ print_state(struct pf_state *s, int opts)
 		src = &s->dst;
 		dst = &s->src;
 	}
-	printf("%s ", s->u.ifname);
+	printf("%s ", s->ifname);
 	if ((p = getprotobynumber(s->proto)) != NULL)
 		printf("%s ", p->p_name);
 	else
@@ -278,20 +278,23 @@ print_state(struct pf_state *s, int opts)
 		s->expire /= 60;
 		printf(", expires in %.2u:%.2u:%.2u", s->expire, min, sec);
 		printf(", %llu:%llu pkts, %llu:%llu bytes",
-		    s->packets[0], s->packets[1], s->bytes[0], s->bytes[1]);
-		if (s->anchor.nr != -1)
-			printf(", anchor %u", s->anchor.nr);
-		if (s->rule.nr != -1)
-			printf(", rule %u", s->rule.nr);
-		if (s->src_node != NULL)
+		    pf_state_counter_from_pfsync(s->packets[0]),
+		    pf_state_counter_from_pfsync(s->packets[1]),
+		    pf_state_counter_from_pfsync(s->bytes[0]),
+		    pf_state_counter_from_pfsync(s->bytes[1]));
+		if (s->anchor != -1)
+			printf(", anchor %u", s->anchor);
+		if (s->rule != -1)
+			printf(", rule %u", s->rule);
+		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
 			printf(", source-track");
-		if (s->nat_src_node != NULL)
+		if (s->sync_flags & PFSYNC_FLAG_NATSRCNODE)
 			printf(", sticky-address");
 		printf("\n");
 	}
 	if (opts & PF_OPT_VERBOSE2) {
 		printf("   id: %016llx creatorid: %08x%s\n",
-		    betoh64(s->id), ntohl(s->creatorid),
+		    pf_state_counter_from_pfsync(s->id), ntohl(s->creatorid),
 		    ((s->sync_flags & PFSTATE_NOSYNC) ? " (no-sync)" : ""));
 	}
 }

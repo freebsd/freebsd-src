@@ -1,4 +1,4 @@
-/*	$OpenBSD: parse.y,v 1.517 2007/02/03 23:26:40 dhartmei Exp $	*/
+/*	$OpenBSD: parse.y,v 1.519 2007/06/21 19:30:03 henning Exp $	*/
 
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -425,7 +425,7 @@ typedef struct {
 %type	<v.number>		tos not yesno
 %type	<v.i>			no dir af fragcache optimizer
 %type	<v.i>			sourcetrack flush unaryop statelock
-%type	<v.b>			action nataction natpass scrubaction
+%type	<v.b>			action nataction natpasslog scrubaction
 %type	<v.b>			flags flag blockspec
 %type	<v.range>		port rport
 %type	<v.hashkey>		hashkey
@@ -3439,12 +3439,13 @@ redirection	: /* empty */			{ $$ = NULL; }
 		}
 		;
 
-natpass		: /* empty */	{ $$.b1 = $$.b2 = 0; }
-		| PASS		{ $$.b1 = 1; $$.b2 = 0; }
+natpasslog	: /* empty */	{ $$.b1 = $$.b2 = 0; $$.w2 = 0; }
+		| PASS		{ $$.b1 = 1; $$.b2 = 0; $$.w2 = 0; }
 		| PASS log	{ $$.b1 = 1; $$.b2 = $2.log; $$.w2 = $2.logif; }
+		| log		{ $$.b1 = 0; $$.b2 = $1.log; $$.w2 = $1.logif; }
 		;
 
-nataction	: no NAT natpass {
+nataction	: no NAT natpasslog {
 			if ($1 && $3.b1) {
 				yyerror("\"pass\" not valid with \"no\"");
 				YYERROR;
@@ -3457,7 +3458,7 @@ nataction	: no NAT natpass {
 			$$.w = $3.b2;
 			$$.w2 = $3.w2;
 		}
-		| no RDR natpass {
+		| no RDR natpasslog {
 			if ($1 && $3.b1) {
 				yyerror("\"pass\" not valid with \"no\"");
 				YYERROR;
@@ -3631,7 +3632,7 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 		}
 		;
 
-binatrule	: no BINAT natpass interface af proto FROM host TO ipspec tag
+binatrule	: no BINAT natpasslog interface af proto FROM host TO ipspec tag
 		    tagged rtable redirection
 		{
 			struct pf_rule		binat;

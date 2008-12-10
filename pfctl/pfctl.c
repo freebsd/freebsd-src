@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl.c,v 1.262 2007/03/01 17:20:53 deraadt Exp $ */
+/*	$OpenBSD: pfctl.c,v 1.268 2007/06/30 18:25:08 henning Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -201,11 +201,11 @@ static const struct {
 
 static const char *clearopt_list[] = {
 	"nat", "queue", "rules", "Sources",
-	"state", "info", "Tables", "osfp", "all", NULL
+	"states", "info", "Tables", "osfp", "all", NULL
 };
 
 static const char *showopt_list[] = {
-	"nat", "queue", "rules", "Anchors", "Sources", "state", "info",
+	"nat", "queue", "rules", "Anchors", "Sources", "states", "info",
 	"Interfaces", "labels", "timeouts", "memory", "Tables", "osfp",
 	"all", NULL
 };
@@ -220,7 +220,7 @@ static const char *debugopt_list[] = {
 };
 
 static const char *optiopt_list[] = {
-	"o", "none", "basic", "profile", NULL
+	"none", "basic", "profile", NULL
 };
 
 void
@@ -231,8 +231,8 @@ usage(void)
 	fprintf(stderr, "usage: %s [-AdeghmNnOqRrvz] ", __progname);
 	fprintf(stderr, "[-a anchor] [-D macro=value] [-F modifier]\n");
 	fprintf(stderr, "\t[-f file] [-i interface] [-K host | network] ");
-	fprintf(stderr, "[-k host | network ]\n");
-	fprintf(stderr, "\t[-o [level]] [-p device] [-s modifier ]\n");
+	fprintf(stderr, "[-k host | network]\n");
+	fprintf(stderr, "\t[-o level] [-p device] [-s modifier]\n");
 	fprintf(stderr, "\t[-t table -T command [address ...]] [-x level]\n");
 	exit(1);
 }
@@ -998,7 +998,7 @@ int
 pfctl_show_states(int dev, const char *iface, int opts)
 {
 	struct pfioc_states ps;
-	struct pf_state *p;
+	struct pfsync_state *p;
 	char *inbuf = NULL, *newinbuf = NULL;
 	unsigned len = 0;
 	int i, dotitle = (opts & PF_OPT_SHOWALL);
@@ -1029,7 +1029,7 @@ pfctl_show_states(int dev, const char *iface, int opts)
 	}
 	p = ps.ps_states;
 	for (i = 0; i < ps.ps_len; i += sizeof(*p), p++) {
-		if (iface != NULL && strcmp(p->u.ifname, iface))
+		if (iface != NULL && strcmp(p->ifname, iface))
 			continue;
 		if (dotitle) {
 			pfctl_print_title("STATES:");
@@ -1954,7 +1954,7 @@ main(int argc, char *argv[])
 	int	 ch;
 	int	 mode = O_RDONLY;
 	int	 opts = 0;
-	int	 optimize = 0;
+	int	 optimize = PF_OPTIMIZE_BASIC;
 	char	 anchorname[MAXPATHLEN];
 	char	*path;
 	FILE	*fin = NULL;
@@ -1963,7 +1963,7 @@ main(int argc, char *argv[])
 		usage();
 
 	while ((ch = getopt(argc, argv,
-	    "a:AdD:eqf:F:ghi:k:K:mnNOo::p:rRs:t:T:vx:z")) != -1) {
+	    "a:AdD:eqf:F:ghi:k:K:mnNOo:p:rRs:t:T:vx:z")) != -1) {
 		switch (ch) {
 		case 'a':
 			anchoropt = optarg;
@@ -2039,24 +2039,11 @@ main(int argc, char *argv[])
 			loadopt |= PFCTL_FLAG_FILTER;
 			break;
 		case 'o':
-			if (optarg) {
-				optiopt = pfctl_lookup_option(optarg,
-				    optiopt_list);
-					if (optiopt == NULL) {
-					warnx("Unknown optimization '%s'",
-					    optarg);
-					usage();
-				}
+			optiopt = pfctl_lookup_option(optarg, optiopt_list);
+			if (optiopt == NULL) {
+				warnx("Unknown optimization '%s'", optarg);
+				usage();
 			}
-			if (opts & PF_OPT_OPTIMIZE) {
-				if (optiopt != NULL) {
-					warnx("Cannot specify -o multiple times"
-					    "with optimizer level");
-					usage();
-				}
-				optimize |= PF_OPTIMIZE_PROFILE;
-			}
-			optimize |= PF_OPTIMIZE_BASIC;
 			opts |= PF_OPT_OPTIMIZE;
 			break;
 		case 'O':

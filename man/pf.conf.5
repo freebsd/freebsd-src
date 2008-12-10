@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pf.conf.5,v 1.376 2006/12/01 07:23:26 camield Exp $
+.\"	$OpenBSD: pf.conf.5,v 1.383 2007/07/17 16:27:38 jmc Exp $
 .\"
 .\" Copyright (c) 2002, Daniel Hartmeier
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 19, 2002
+.Dd $Mdocdate: June 26 2007 $
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -402,9 +402,10 @@ set limit { states 20000, frags 20000, src-nodes 2000 }
 .Bl -tag -width xxxxxxxx -compact
 .It Ar none
 Disable the ruleset optimizer.
-This is the default behaviour.
 .It Ar basic
-Enable basic ruleset optimization, which does four things to improve the
+Enable basic ruleset optimization.
+This is the default behaviour.
+Basic ruleset optimization does four things to improve the
 performance of ruleset evaluations:
 .Pp
 .Bl -enum -compact
@@ -1247,7 +1248,7 @@ block all
 .Ed
 .It Ar pass
 The packet is passed;
-state is created state unless the
+state is created unless the
 .Ar no state
 option is specified.
 .El
@@ -1418,7 +1419,8 @@ This rule applies only to packets with the specified source and destination
 addresses and ports.
 .Pp
 Addresses can be specified in CIDR notation (matching netblocks), as
-symbolic host names or interface names, or as any of the following keywords:
+symbolic host names, interface names or interface group names, or as any
+of the following keywords:
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxx -compact
 .It Ar any
@@ -1440,7 +1442,7 @@ the route back to the packet's source address.
 Any address that matches the given table.
 .El
 .Pp
-Interface names can have modifiers appended:
+Interface names and interface group names can have modifiers appended:
 .Pp
 .Bl -tag -width xxxxxxxxxxxx -compact
 .It Ar :network
@@ -1603,7 +1605,7 @@ Flags not specified in
 are ignored.
 For stateful connections, the default is
 .Ar flags S/SA .
-To indicate that flags should not be checkd at all, specify
+To indicate that flags should not be checked at all, specify
 .Ar flags any .
 The flags are: (F)IN, (S)YN, (R)ST, (P)USH, (A)CK, (U)RG, (E)CE, and C(W)R.
 .Bl -tag -width Fl
@@ -1687,13 +1689,14 @@ pass all tos 0x10
 pass all tos 16
 .Ed
 .It Ar allow-opts
-By default, packets which contain IP options are blocked.
+By default, IPv4 packets with IP options or IPv6 packets with routing
+extension headers are blocked.
 When
 .Ar allow-opts
 is specified for a
 .Ar pass
 rule, packets that pass the filter based on that rule (last matching)
-do so even if they contain IP options.
+do so even if they contain IP options or routing extension headers.
 For packets that match state, the rule that initially created the
 state is used.
 The implicit
@@ -1914,7 +1917,7 @@ pool options.
 Note that by default these associations are destroyed as soon as there are
 no longer states which refer to them; in order to make the mappings last
 beyond the lifetime of the states, increase the global options with
-.Ar set timeout source-track
+.Ar set timeout src.track .
 See
 .Sx STATEFUL TRACKING OPTIONS
 for more ways to control the source tracking.
@@ -2759,7 +2762,7 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
                  [ "state-policy" ( "if-bound" | "floating" ) ]
                  [ "require-order" ( "yes" | "no" ) ]
                  [ "fingerprints" filename ] |
-                 [ "skip on" ( interface-name | "{" interface-list "}" ) ] |
+                 [ "skip on" ifspec ] |
                  [ "debug" ( "none" | "urgent" | "misc" | "loud" ) ] )
 
 pf-rule        = action [ ( "in" | "out" ) ]
@@ -2801,8 +2804,7 @@ rdr-rule       = [ "no" ] "rdr" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ portspec ] [ pooltype ] ]
 
 antispoof-rule = "antispoof" [ "log" ] [ "quick" ]
-                 "for" ( interface-name | "{" interface-list "}" )
-                 [ af ] [ "label" string ]
+                 "for" ifspec [ af ] [ "label" string ]
 
 table-rule     = "table" "\*(Lt" string "\*(Gt" [ tableopts-list ]
 tableopts-list = tableopts-list tableopts | tableopts
@@ -2810,8 +2812,8 @@ tableopts      = "persist" | "const" | "file" string |
                  "{" [ tableaddr-list ] "}"
 tableaddr-list = tableaddr-list [ "," ] tableaddr-spec | tableaddr-spec
 tableaddr-spec = [ "!" ] tableaddr [ "/" mask-bits ]
-tableaddr      = hostname | ipv4-dotted-quad | ipv6-coloned-hex |
-                 interface-name | "self"
+tableaddr      = hostname | ifspec | "self" |
+                 ipv4-dotted-quad | ipv6-coloned-hex
 
 altq-rule      = "altq on" interface-name queueopts-list
                  "queue" subqueue
@@ -2842,8 +2844,10 @@ return         = "drop" | "return" | "return-rst" [ "( ttl" number ")" ] |
 icmpcode       = ( icmp-code-name | icmp-code-number )
 icmp6code      = ( icmp6-code-name | icmp6-code-number )
 
-ifspec         = ( [ "!" ] interface-name ) | "{" interface-list "}"
-interface-list = [ "!" ] interface-name [ [ "," ] interface-list ]
+ifspec         = ( [ "!" ] ( interface-name | interface-group ) ) |
+                 "{" interface-list "}"
+interface-list = [ "!" ] ( interface-name | interface-group )
+                 [ [ "," ] interface-list ]
 route          = ( "route-to" | "reply-to" | "dup-to" )
                  ( routehost | "{" routehost-list "}" )
                  [ pooltype ]
@@ -2863,8 +2867,9 @@ ipspec         = "any" | host | "{" host-list "}"
 host           = [ "!" ] ( address [ "/" mask-bits ] | "\*(Lt" string "\*(Gt" )
 redirhost      = address [ "/" mask-bits ]
 routehost      = "(" interface-name [ address [ "/" mask-bits ] ] ")"
-address        = ( interface-name | "(" interface-name ")" | hostname |
-                 ipv4-dotted-quad | ipv6-coloned-hex )
+address        = ( interface-name | interface-group |
+                 "(" ( interface-name | interface-group ) ")" |
+                 hostname | ipv4-dotted-quad | ipv6-coloned-hex )
 host-list      = host [ [ "," ] host-list ]
 redirhost-list = redirhost [ [ "," ] redirhost-list ]
 routehost-list = routehost [ [ "," ] routehost-list ]

@@ -1,4 +1,4 @@
-/*	$OpenBSD: filter.c,v 1.5 2006/12/01 07:31:21 camield Exp $ */
+/*	$OpenBSD: filter.c,v 1.6 2007/08/01 09:31:41 henning Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -53,7 +53,7 @@ static struct pfioc_rule	pfr;
 static struct pfioc_trans	pft;
 static struct pfioc_trans_e	pfte[TRANS_SIZE];
 static int dev, rule_log;
-static char *qname;
+static char *qname, *tagname;
 
 int
 add_filter(u_int32_t id, u_int8_t dir, struct sockaddr *src,
@@ -159,11 +159,12 @@ do_rollback(void)
 }
 
 void
-init_filter(char *opt_qname, int opt_verbose)
+init_filter(char *opt_qname, char *opt_tagname, int opt_verbose)
 {
 	struct pf_status status;
 
 	qname = opt_qname;
+	tagname = opt_tagname;
 
 	if (opt_verbose == 1)
 		rule_log = PF_LOG;
@@ -276,6 +277,8 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 	}
 	pfr.rule.dst.port_op = PF_OP_EQ;
 	pfr.rule.dst.port[0] = htons(d_port);
+	if (tagname != NULL)
+		strlcpy(pfr.rule.tagname, tagname, sizeof pfr.rule.tagname);
 
 	switch (rs_num) {
 	case PF_RULESET_FILTER:
