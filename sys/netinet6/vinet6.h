@@ -89,7 +89,7 @@ struct vnet_inet6 {
 	int				_dad_init;
 
 	int				_icmp6errpps_count;
-	int				_icmp6errppslim_last;
+	struct timeval			_icmp6errppslim_last;
 
 	int 				_ip6_forwarding;
 	int				_ip6_sendredirects;
@@ -155,6 +155,12 @@ struct vnet_inet6 {
 
 	struct ip6_pktopts		_ip6_opts;
 };
+
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_inet6 vnet_inet6_0;
+#endif
+#endif
 
 #define	INIT_VNET_INET6(vnet) \
 	INIT_FROM_VNET(vnet, VNET_MOD_INET6, struct vnet_inet6, vnet_inet6)

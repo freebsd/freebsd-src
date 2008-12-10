@@ -90,6 +90,12 @@
 
 #include <security/mac/mac_framework.h>
 
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+struct vnet_net vnet_net_0;
+#endif
+#endif
+
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -160,6 +166,19 @@ static int	filt_netdev(struct knote *kn, long hint);
 
 static struct filterops netdev_filtops =
     { 1, NULL, filt_netdetach, filt_netdev };
+
+#ifndef VIMAGE_GLOBALS
+static struct vnet_symmap vnet_net_symmap[] = {
+        VNET_SYMMAP(net, ifnet),
+        VNET_SYMMAP(net, rt_tables),
+        VNET_SYMMAP(net, rtstat),
+        VNET_SYMMAP(net, rttrash),
+        VNET_SYMMAP_END
+};
+
+VNET_MOD_DECLARE(NET, net, vnet_net_iattach, vnet_net_idetach,
+    NONE, vnet_net_symmap)
+#endif
 
 /*
  * System initialization
@@ -360,6 +379,10 @@ static void
 if_init(void *dummy __unused)
 {
 	INIT_VNET_NET(curvnet);
+
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_net_modinfo);
+#endif
 
 	V_if_index = 0;
 	V_ifindex_table = NULL;

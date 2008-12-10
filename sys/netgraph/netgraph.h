@@ -1205,6 +1205,12 @@ struct vnet_netgraph {
 	struct unrhdr		*_ng_wormhole_unit;
 };
 
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_netgraph vnet_netgraph_0;
+#endif
+#endif
+
 /* Symbol translation macros */
 #define	V_nextID		VNET_NETGRAPH(nextID)
 #define	V_ng_ID_hash		VNET_NETGRAPH(ng_ID_hash)

@@ -42,10 +42,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mbuf.h>
 #include <sys/random.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -71,6 +73,7 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/vinet.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
@@ -426,7 +429,7 @@ int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct ip_fw **rule, int shared)
 {
-	INIT_VNET_IPFW(dst->if_vnet);
+	INIT_VNET_INET(dst->if_vnet);
 	struct ether_header *eh;
 	struct ether_header save_eh;
 	struct mbuf *m;

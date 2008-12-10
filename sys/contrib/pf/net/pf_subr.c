@@ -124,15 +124,14 @@ static MD5_CTX isn_ctx;
 u_int32_t
 pf_new_isn(struct pf_state *s)
 {
-	INIT_VNET_INET(curvnet);
 	u_int32_t md5_buffer[4];
 	u_int32_t new_isn;
 	struct pf_state_host *src, *dst;
 
 	/* Seed if this is the first use, reseed if requested. */
-	if (V_isn_last_reseed == 0) {
-		read_random(&V_isn_secret, sizeof(V_isn_secret));
-		V_isn_last_reseed = ticks;
+	if (isn_last_reseed == 0) {
+		read_random(&isn_secret, sizeof(isn_secret));
+		isn_last_reseed = ticks;
 	}
 
 	if (s->direction == PF_IN) {
@@ -144,28 +143,28 @@ pf_new_isn(struct pf_state *s)
 	}
 
 	/* Compute the md5 hash and return the ISN. */
-	MD5Init(&V_isn_ctx);
-	MD5Update(&V_isn_ctx, (u_char *) &dst->port, sizeof(u_short));
-	MD5Update(&V_isn_ctx, (u_char *) &src->port, sizeof(u_short));
+	MD5Init(&isn_ctx);
+	MD5Update(&isn_ctx, (u_char *) &dst->port, sizeof(u_short));
+	MD5Update(&isn_ctx, (u_char *) &src->port, sizeof(u_short));
 #ifdef INET6
 	if (s->af == AF_INET6) {
-		MD5Update(&V_isn_ctx, (u_char *) &dst->addr,
+		MD5Update(&isn_ctx, (u_char *) &dst->addr,
 			  sizeof(struct in6_addr));
-		MD5Update(&V_isn_ctx, (u_char *) &src->addr,
+		MD5Update(&isn_ctx, (u_char *) &src->addr,
 			  sizeof(struct in6_addr));
 	} else
 #endif
 	{
-		MD5Update(&V_isn_ctx, (u_char *) &dst->addr,
+		MD5Update(&isn_ctx, (u_char *) &dst->addr,
 			  sizeof(struct in_addr));
-		MD5Update(&V_isn_ctx, (u_char *) &src->addr,
+		MD5Update(&isn_ctx, (u_char *) &src->addr,
 			  sizeof(struct in_addr));
 	}
-	MD5Update(&V_isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
-	MD5Final((u_char *) &md5_buffer, &V_isn_ctx);
+	MD5Update(&isn_ctx, (u_char *) &isn_secret, sizeof(isn_secret));
+	MD5Final((u_char *) &md5_buffer, &isn_ctx);
 	new_isn = (tcp_seq) md5_buffer[0];
-	V_isn_offset += ISN_STATIC_INCREMENT +
+	isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
-	new_isn += V_isn_offset;
+	new_isn += isn_offset;
 	return (new_isn);
 }

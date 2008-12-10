@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/vimage.h>
 
 #include <net/bpf.h>
@@ -3041,7 +3042,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	}
 
 	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
-		INIT_VNET_IPFW(curvnet);
+		INIT_VNET_INET(curvnet);
 
 		error = -1;
 		args.rule = ip_dn_claim_rule(*mp);

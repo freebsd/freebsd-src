@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/vimage.h>
@@ -89,6 +91,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CTASSERT
 CTASSERT(sizeof(struct ip) == 20);
+#endif
+
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+struct vnet_inet vnet_inet_0;
+#endif
 #endif
 
 #ifdef VIMAGE_GLOBALS
@@ -170,7 +178,9 @@ SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
     ipstat, ipstat, "IP statistics (struct ipstat, netinet/ip_var.h)");
 
+#ifdef VIMAGE_GLOBALS
 static uma_zone_t ipq_zone;
+#endif
 static struct mtx ipqlock;
 
 #define	IPQ_LOCK()	mtx_lock(&ipqlock)
@@ -207,7 +217,9 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
  */
 ip_fw_chk_t *ip_fw_chk_ptr = NULL;
 ip_dn_io_t *ip_dn_io_ptr = NULL;
-int fw_one_pass = 1;
+#ifdef VIMAGE_GLOBALS
+int fw_one_pass;
+#endif
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
@@ -245,6 +257,8 @@ ip_init(void)
 	V_ipport_randomcps = 10;	/* user controlled via sysctl */
 	V_ipport_randomtime = 45;	/* user controlled via sysctl */
 	V_ipport_stoprandom = 0;	/* toggled by ipport_tick */
+
+	V_fw_one_pass = 1;
 
 #ifdef NOTYET
 	/* XXX global static but not instantiated in this file */
