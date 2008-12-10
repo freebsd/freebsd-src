@@ -238,8 +238,10 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
 /*
  * Initialise maxsockets.
  */
-static void init_maxsockets(void *ignored)
+static void
+init_maxsockets(void *ignored)
 {
+
 	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
 	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
 }
