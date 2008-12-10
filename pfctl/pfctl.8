@@ -1,4 +1,4 @@
-.\" $OpenBSD: pfctl.8,v 1.133 2007/07/01 11:38:51 henning Exp $
+.\" $OpenBSD: pfctl.8,v 1.139 2008/06/11 07:23:36 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Kjell Wooding.  All rights reserved.
 .\"
@@ -24,12 +24,12 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: May 31 2007 $
+.Dd $Mdocdate: June 10 2008 $
 .Dt PFCTL 8
 .Os
 .Sh NAME
 .Nm pfctl
-.Nd "control the packet filter (PF) and network address translation (NAT) device"
+.Nd control the packet filter (PF) device
 .Sh SYNOPSIS
 .Nm pfctl
 .Bk -words
@@ -41,7 +41,10 @@
 .Op Fl f Ar file
 .Op Fl i Ar interface
 .Op Fl K Ar host | network
-.Op Fl k Ar host | network
+.Xo
+.Oo Fl k
+.Ar host | network | label | id
+.Oc Xc
 .Op Fl o Ar level
 .Op Fl p Ar device
 .Op Fl s Ar modifier
@@ -249,22 +252,28 @@ or
 .Fl K Ar network
 option may be specified, which will kill all the source tracking
 entries from the first host/network to the second.
-.It Fl k Ar host | network
-Kill all of the state entries originating from the specified
-.Ar host
+.It Xo
+.Fl k
+.Ar host | network | label | id
+.Xc
+Kill all of the state entries matching the specified
+.Ar host ,
+.Ar network ,
+.Ar label ,
 or
-.Ar network .
+.Ar id .
+.Pp
+For example, to kill all of the state entries originating from
+.Dq host :
+.Pp
+.Dl # pfctl -k host
+.Pp
 A second
 .Fl k Ar host
 or
 .Fl k Ar network
 option may be specified, which will kill all the state entries
 from the first host/network to the second.
-For example, to kill all of the state entries originating from
-.Dq host :
-.Pp
-.Dl # pfctl -k host
-.Pp
 To kill all of the state entries from
 .Dq host1
 to
@@ -281,6 +290,32 @@ To kill all states with the target
 .Dq host2 :
 .Pp
 .Dl # pfctl -k 0.0.0.0/0 -k host2
+.Pp
+It is also possible to kill states by rule label or state ID.
+In this mode the first
+.Fl k
+argument is used to specify the type
+of the second argument.
+The following command would kill all states that have been created
+from rules carrying the label
+.Dq foobar :
+.Pp
+.Dl # pfctl -k label -k foobar
+.Pp
+To kill one specific state by its unique state ID
+(as shown by pfctl -s state -vv),
+use the
+.Ar id
+modifier and as a second argument the state ID and optional creator ID.
+To kill a state with ID 4823e84500000003 use:
+.Pp
+.Dl # pfctl -k id -k 4823e84500000003
+.Pp
+To kill a state with ID 4823e84500000018 created from a backup
+firewall with hostid 00000002 use:
+.Pp
+.Dl # pfctl -k id -k 4823e84500000018/2
+.Pp
 .It Fl m
 Merge in explicitly given options without resetting those
 which are omitted.
@@ -375,7 +410,7 @@ When used together with
 source tracking statistics are also shown.
 .It Fl s Cm labels
 Show per-rule statistics (label, evaluations, packets total, bytes total,
-packets in, bytes in, packets out, bytes out) of
+packets in, bytes in, packets out, bytes out, state creations) of
 filter rules with labels, useful for accounting.
 .It Fl s Cm timeouts
 Show the current global timeouts.
@@ -486,7 +521,7 @@ attributes.
 The address/network has been cleared (statistics).
 .El
 .Pp
-Each table maintains a set of counters that can be retrieved using the
+Each table can maintain a set of counters that can be retrieved using the
 .Fl v
 flag of
 .Nm .
@@ -497,7 +532,7 @@ FTP server.
 The following commands configure the firewall and send 10 pings to the FTP
 server:
 .Bd -literal -offset indent
-# printf "table <test> { ftp.openbsd.org }\en \e
+# printf "table <test> counters { ftp.openbsd.org }\en \e
     pass out to <test>\en" | pfctl -f-
 # ping -qc10 ftp.openbsd.org
 .Ed
@@ -531,7 +566,7 @@ the number of rules which reference the table, and the global
 packet statistics for the whole table:
 .Bd -literal -offset indent
 # pfctl -vvsTables
---a-r-  test
+--a-r-C test
     Addresses:   1
     Cleared:     Thu Feb 13 18:55:18 2003
     References:  [ Anchors: 0        Rules: 1        ]
@@ -591,6 +626,8 @@ For tables which are referenced (used) by rules.
 .It h
 This flag is set when a table in the main ruleset is hidden by one or more
 tables of the same name from anchors attached below it.
+.It C
+This flag is set when per-address counters are enabled on the table.
 .El
 .It Fl t Ar table
 Specify the name of the table.

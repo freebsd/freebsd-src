@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pfsync.4,v 1.26 2007/09/20 20:50:07 mpf Exp $
+.\"	$OpenBSD: pfsync.4,v 1.27 2008/06/03 19:51:02 jmc Exp $
 .\"
 .\" Copyright (c) 2002 Michael Shalayeff
 .\" Copyright (c) 2003-2004 Ryan McBride
@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: May 31 2007 $
+.Dd $Mdocdate: September 20 2007 $
 .Dt PFSYNC 4
 .Os
 .Sh NAME
@@ -121,7 +121,7 @@ e.g.:
 It is important that the pfsync traffic be well secured
 as there is no authentication on the protocol and it would
 be trivial to spoof packets which create states, bypassing the pf ruleset.
-Either run the pfsync protocol on a trusted network \- ideally  a network
+Either run the pfsync protocol on a trusted network \- ideally a network
 dedicated to pfsync messages such as a crossover cable between two firewalls,
 or specify a peer address and protect the traffic with
 .Xr ipsec 4 .

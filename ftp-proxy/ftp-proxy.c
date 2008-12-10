@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftp-proxy.c,v 1.16 2008/02/26 18:52:53 henning Exp $ */
+/*	$OpenBSD: ftp-proxy.c,v 1.19 2008/06/13 07:25:26 claudio Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -91,7 +91,7 @@ int	client_parse_cmd(struct session *s);
 void	client_read(struct bufferevent *, void *);
 int	drop_privs(void);
 void	end_session(struct session *);
-int	exit_daemon(void);
+void	exit_daemon(void);
 int	getline(char *, size_t *);
 void	handle_connection(const int, short, void *);
 void	handle_signal(int, short, void *);
@@ -282,6 +282,12 @@ end_session(struct session *s)
 
 	logmsg(LOG_INFO, "#%d ending session", s->id);
 
+	/* Flush output buffers. */
+	if (s->client_bufev && s->client_fd != -1)
+		evbuffer_write(s->client_bufev->output, s->client_fd);
+	if (s->server_bufev && s->server_fd != -1)
+		evbuffer_write(s->server_bufev->output, s->server_fd);
+
 	if (s->client_fd != -1)
 		close(s->client_fd);
 	if (s->server_fd != -1)
@@ -309,7 +315,7 @@ end_session(struct session *s)
 	session_count--;
 }
 
-int
+void
 exit_daemon(void)
 {
 	struct session *s, *next;
@@ -323,9 +329,6 @@ exit_daemon(void)
 		closelog();
 
 	exit(0);
-
-	/* NOTREACHED */
-	return (-1);
 }
 
 int
@@ -519,7 +522,7 @@ handle_signal(int sig, short event, void *arg)
 	 * Signal handler rules don't apply, libevent decouples for us.
 	 */
 
-	logmsg(LOG_ERR, "%s exiting on signal %d", __progname, sig);
+	logmsg(LOG_ERR, "exiting on signal %d", sig);
 
 	exit_daemon();
 }
@@ -834,8 +837,8 @@ u_int16_t
 pick_proxy_port(void)
 {
 	/* Random should be good enough for avoiding port collisions. */
-	return (IPPORT_HIFIRSTAUTO + (arc4random() %
-	    (IPPORT_HILASTAUTO - IPPORT_HIFIRSTAUTO)));
+	return (IPPORT_HIFIRSTAUTO +
+	    arc4random_uniform(IPPORT_HILASTAUTO - IPPORT_HIFIRSTAUTO));
 }
 
 void

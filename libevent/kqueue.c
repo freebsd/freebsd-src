@@ -48,10 +48,13 @@
 #include <inttypes.h>
 #endif
 
-#if defined(HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__)
-#define INTPTR(x)	(intptr_t)x
+/* Some platforms apparently define the udata field of struct kevent as
+ * ntptr_t, whereas others define it as void*.  There doesn't seem to be an
+ * easy way to tell them apart via autoconf, so we need to use OS macros. */
+#if defined(HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__) && !defined(__darwin__) && !defined(__APPLE__)
+#define PTR_TO_UDATA(x) ((intptr_t)(x))
 #else
-#define INTPTR(x)	x
+#define PTR_TO_UDATA(x) (x)
 #endif
 
 #include "event.h"
@@ -69,13 +72,13 @@ struct kqop {
 	int kq;
 };
 
-void *kq_init	(void);
+void *kq_init	(struct event_base *);
 int kq_add	(void *, struct event *);
 int kq_del	(void *, struct event *);
 int kq_recalc	(struct event_base *, void *, int);
 int kq_dispatch	(struct event_base *, void *, struct timeval *);
 int kq_insert	(struct kqop *, struct kevent *);
-void kq_dealloc (void *);
+void kq_dealloc (struct event_base *, void *);
 
 const struct eventop kqops = {
 	"kqueue",
@@ -88,7 +91,7 @@ const struct eventop kqops = {
 };
 
 void *
-kq_init(void)
+kq_init(struct event_base *base)
 {
 	int kq;
 	struct kqop *kqueueop;
@@ -212,13 +215,16 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct kevent *changes = kqop->changes;
 	struct kevent *events = kqop->events;
 	struct event *ev;
-	struct timespec ts;
+	struct timespec ts, *ts_p = NULL;
 	int i, res;
 
-	TIMEVAL_TO_TIMESPEC(tv, &ts);
+	if (tv != NULL) {
+		TIMEVAL_TO_TIMESPEC(tv, &ts);
+		ts_p = &ts;
+	}
 
 	res = kevent(kqop->kq, changes, kqop->nchanges,
-	    events, kqop->nevents, &ts);
+	    events, kqop->nevents, ts_p);
 	kqop->nchanges = 0;
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -294,7 +300,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = INTPTR(ev);
+		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
@@ -317,7 +323,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = INTPTR(ev);
+		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
@@ -332,7 +338,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = INTPTR(ev);
+		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
@@ -398,7 +404,7 @@ kq_del(void *arg, struct event *ev)
 }
 
 void
-kq_dealloc(void *arg)
+kq_dealloc(struct event_base *base, void *arg)
 {
 	struct kqop *kqop = arg;
 

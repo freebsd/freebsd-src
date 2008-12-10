@@ -1,4 +1,4 @@
-/*	$OpenBSD: filter.c,v 1.7 2008/02/26 18:52:53 henning Exp $ */
+/*	$OpenBSD: filter.c,v 1.8 2008/06/13 07:25:26 claudio Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -173,7 +173,7 @@ init_filter(char *opt_qname, char *opt_tagname, int opt_verbose)
 
 	dev = open("/dev/pf", O_RDWR);	
 	if (dev == -1)
-		err(1, "/dev/pf");
+		err(1, "open /dev/pf");
 	if (ioctl(dev, DIOCGETSTATUS, &status) == -1)
 		err(1, "DIOCGETSTATUS");
 	if (!status.running)

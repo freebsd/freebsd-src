@@ -1,4 +1,4 @@
-.\" $OpenBSD: authpf.8,v 1.45 2008/02/14 01:49:17 mcbride Exp $
+.\" $OpenBSD: authpf.8,v 1.46 2008/03/18 23:03:14 merdely Exp $
 .\"
 .\" Copyright (c) 1998-2007 Bob Beck (beck@openbsd.org>.  All rights reserved.
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: May 31 2007 $
+.Dd $Mdocdate: February 14 2008 $
 .Dt AUTHPF 8
 .Os
 .Sh NAME
@@ -56,7 +56,7 @@ in this case the client's IP address
 is not provided to the packet filter via the
 .Ar client_ip
 macro or the
-.Ar authpf users
+.Ar authpf_users
 table.
 Additionally, states associated with the client IP address
 are not purged when the session is ended.
