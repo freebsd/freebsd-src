@@ -680,7 +680,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 	if (ifa == NULL)
 		ifa = ifa_ifwithnet(gateway);
 	if (ifa == NULL) {
-		struct rtentry *rt = rtalloc1_fib(gateway, 0, 0UL, fibnum);
+		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
 			return (NULL);
 		/*
@@ -1161,7 +1161,7 @@ deldone:
 			 * then we just blow it away and retry the insertion
 			 * of the new one.
 			 */
-			rt2 = rtalloc1_fib(dst, 0, 0, fibnum);
+			rt2 = rtalloc1_fib(dst, 0, RTF_RNH_LOCKED, fibnum);
 			if (rt2 && rt2->rt_parent) {
 				rtexpunge(rt2);
 				RT_UNLOCK(rt2);
