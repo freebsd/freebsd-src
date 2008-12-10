@@ -101,6 +101,11 @@ int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 struct mbstat mbstat;
 
+/*
+ * tunable_mbinit() has to be run before init_maxsockets() thus
+ * the SYSINIT order below is SI_ORDER_MIDDLE while init_maxsockets()
+ * runs at SI_ORDER_ANY.
+ */
 static void
 tunable_mbinit(void *dummy)
 {
@@ -113,7 +118,7 @@ tunable_mbinit(void *dummy)
 	nmbjumbo9 = nmbjumbop / 2;
 	nmbjumbo16 = nmbjumbo9 / 2;
 }
-SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
+SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 
 /* XXX: These should be tuneables. Can't change UMA limits on the fly. */
 static int

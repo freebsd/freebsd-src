@@ -236,7 +236,8 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
     "Maximum number of sockets avaliable");
 
 /*
- * Initialise maxsockets.
+ * Initialise maxsockets.  This SYSINIT must be run after
+ * tunable_mbinit().
  */
 static void
 init_maxsockets(void *ignored)
