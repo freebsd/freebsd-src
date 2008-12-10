@@ -101,7 +101,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 				    (ifa->ifa_addr))->sin_addr;
 				LibAliasSetAddress(ptr->lib, ptr->ip);
 			}
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_UNLOCK(ifp);
 		}
 	}
 	IPFW_WUNLOCK(&V_layer3_chain);	
