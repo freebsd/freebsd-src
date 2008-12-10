@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pf.4,v 1.59 2007/05/31 19:19:51 jmc Exp $
+.\"	$OpenBSD: pf.4,v 1.60 2007/12/02 12:08:04 pascoe Exp $
 .\"
 .\" Copyright (C) 2001, Kjell Wooding.  All rights reserved.
 .\"
@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd $Mdocdate$
+.Dd $Mdocdate: May 31 2007 $
 .Dt PF 4
 .Os
 .Sh NAME
@@ -292,14 +292,17 @@ if another process is concurrently updating a ruleset.
 Add a state entry.
 .Bd -literal
 struct pfioc_state {
-	u_int32_t	 nr;
-	struct pf_state	 state;
+	struct pfsync_state	state;
 };
 .Ed
 .It Dv DIOCGETSTATE Fa "struct pfioc_state *ps"
-Extract the entry with the specified number
-.Va nr
-from the state table.
+Extract the entry identified by the
+.Va id
+and
+.Va creatorid
+fields of the
+.Va state
+structure from the state table.
 .It Dv DIOCKILLSTATES Fa "struct pfioc_state_kill *psk"
 Remove matching entries from the state table.
 This ioctl returns the number of killed states in

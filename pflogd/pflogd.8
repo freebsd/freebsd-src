@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pflogd.8,v 1.35 2007/05/31 19:19:47 jmc Exp $
+.\"	$OpenBSD: pflogd.8,v 1.36 2008/01/14 17:03:42 okan Exp $
 .\"
 .\" Copyright (c) 2001 Can Erkin Acar.  All rights reserved.
 .\"
@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate$
+.Dd $Mdocdate: May 31 2007 $
 .Dt PFLOGD 8
 .Os
 .Sh NAME
@@ -118,13 +118,12 @@ By default,
 will use
 .Ar pflog0 .
 .It Fl p Ar pidfile
-Writes a file containing the process ID of the program.
+Writes a file containing the process ID of the program to
+.Pa /var/run .
 The file name has the form
-.Pa /var/run/pidname.pid .
-If the option is not given,
-.Ar pidfile
-defaults to
-.Pa pflogd .
+.Ao Ar pidfile Ac Ns .pid .
+The default is
+.Ar pflogd .
 .It Fl s Ar snaplen
 Analyze at most the first
 .Ar snaplen

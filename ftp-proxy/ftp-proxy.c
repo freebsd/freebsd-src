@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftp-proxy.c,v 1.15 2007/08/15 15:18:02 camield Exp $ */
+/*	$OpenBSD: ftp-proxy.c,v 1.16 2008/02/26 18:52:53 henning Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -1117,6 +1117,7 @@ usage(void)
 {
 	fprintf(stderr, "usage: %s [-6Adrv] [-a address] [-b address]"
 	    " [-D level] [-m maxsessions]\n                 [-P port]"
-	    " [-p port] [-q queue] [-R address] [-T tag] [-t timeout]\n", __progname);
+	    " [-p port] [-q queue] [-R address] [-T tag]\n"
+            "                 [-t timeout]\n", __progname);
 	exit(1);
 }

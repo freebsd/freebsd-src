@@ -1,4 +1,4 @@
-/*	$OpenBSD: filter.c,v 1.6 2007/08/01 09:31:41 henning Exp $ */
+/*	$OpenBSD: filter.c,v 1.7 2008/02/26 18:52:53 henning Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -277,15 +277,13 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 	}
 	pfr.rule.dst.port_op = PF_OP_EQ;
 	pfr.rule.dst.port[0] = htons(d_port);
-	if (tagname != NULL)
-		strlcpy(pfr.rule.tagname, tagname, sizeof pfr.rule.tagname);
 
 	switch (rs_num) {
 	case PF_RULESET_FILTER:
 		/*
-		 * pass quick [log] inet[6] proto tcp \
+		 * pass [quick] [log] inet[6] proto tcp \
 		 *     from $src to $dst port = $d_port flags S/SA keep state
-		 *     (max 1) [queue qname]
+		 *     (max 1) [queue qname] [tag tagname]
 		 */
 		pfr.rule.action = PF_PASS;
 		pfr.rule.quick = 1;
@@ -296,6 +294,11 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 		pfr.rule.max_states = 1;
 		if (qname != NULL)
 			strlcpy(pfr.rule.qname, qname, sizeof pfr.rule.qname);
+		if (tagname != NULL) {
+			pfr.rule.quick = 0;
+			strlcpy(pfr.rule.tagname, tagname,
+                                sizeof pfr.rule.tagname);
+		}
 		break;
 	case PF_RULESET_NAT:
 		/*

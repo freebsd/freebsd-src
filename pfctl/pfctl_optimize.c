@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_optimize.c,v 1.13 2006/10/31 14:17:45 mcbride Exp $ */
+/*	$OpenBSD: pfctl_optimize.c,v 1.16 2008/01/26 13:16:36 mcbride Exp $ */
 
 /*
  * Copyright (c) 2004 Mike Frantzen <frantzen@openbsd.org>
@@ -395,7 +395,7 @@ optimize_superblock(struct pfctl *pf, struct superblock *block)
 	 *     out rules.
 	 */
 
-	/* shortcut.  there will be alot of 1-rule superblocks */
+	/* shortcut.  there will be a lot of 1-rule superblocks */
 	if (!TAILQ_NEXT(TAILQ_FIRST(&block->sb_rules), por_entry))
 		return (0);
 
@@ -1313,8 +1313,9 @@ again:
 
 
 	if (pfctl_define_table(tbl->pt_name, PFR_TFLAG_CONST, 1,
-	    pf->anchor->name, tbl->pt_buf, pf->anchor->ruleset.tticket)) {
-		warn("failed to create table %s", tbl->pt_name);
+	    pf->astack[0]->name, tbl->pt_buf, pf->astack[0]->ruleset.tticket)) {
+		warn("failed to create table %s in %s",
+		    tbl->pt_name, pf->astack[0]->name);
 		return (1);
 	}
 	return (0);
@@ -1417,7 +1418,7 @@ superblock_inclusive(struct superblock *block, struct pf_opt_rule *por)
 		return (0);
 
 	/*
-	 * Have to handle interface groups seperately.  Consider the following
+	 * Have to handle interface groups separately.  Consider the following
 	 * rules:
 	 *	block on EXTIFS to any port 22
 	 *	pass  on em0 to any port 22
@@ -1465,7 +1466,7 @@ superblock_inclusive(struct superblock *block, struct pf_opt_rule *por)
 			}
 
 			if (closest >= 0)
-				DEBUG("superblock break @ %d on %s+%xh",
+				DEBUG("superblock break @ %d on %s+%lxh",
 				    por->por_rule.nr,
 				    pf_rule_desc[closest].prf_name,
 				    i - pf_rule_desc[closest].prf_offset -

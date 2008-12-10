@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_parser.c,v 1.234 2006/10/31 23:46:24 mcbride Exp $ */
+/*	$OpenBSD: pfctl_parser.c,v 1.235 2007/10/15 02:16:35 deraadt Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -491,7 +491,7 @@ print_status(struct pf_status *s, int opts)
 	running = s->running ? "Enabled" : "Disabled";
 
 	if (s->since) {
-		unsigned	sec, min, hrs, day = runtime;
+		unsigned int	sec, min, hrs, day = runtime;
 
 		sec = day % 60;
 		day /= 60;

@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_altq.c,v 1.92 2007/05/27 05:15:17 claudio Exp $	*/
+/*	$OpenBSD: pfctl_altq.c,v 1.93 2007/10/15 02:16:35 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2002
@@ -138,8 +138,8 @@ qname_to_qid(const char *qname)
 }
 
 void
-print_altq(const struct pf_altq *a, unsigned level, struct node_queue_bw *bw,
-	struct node_queue_opt *qopts)
+print_altq(const struct pf_altq *a, unsigned int level,
+    struct node_queue_bw *bw, struct node_queue_opt *qopts)
 {
 	if (a->qname[0] != 0) {
 		print_queue(a, level, bw, 1, qopts);
@@ -175,10 +175,11 @@ print_altq(const struct pf_altq *a, unsigned level, struct node_queue_bw *bw,
 }
 
 void
-print_queue(const struct pf_altq *a, unsigned level, struct node_queue_bw *bw,
-    int print_interface, struct node_queue_opt *qopts)
+print_queue(const struct pf_altq *a, unsigned int level,
+    struct node_queue_bw *bw, int print_interface,
+    struct node_queue_opt *qopts)
 {
-	unsigned	i;
+	unsigned int	i;
 
 	printf("queue ");
 	for (i = 0; i < level; ++i)

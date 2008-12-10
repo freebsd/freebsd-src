@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_print_state.c,v 1.45 2007/05/31 04:13:37 mcbride Exp $	*/
+/*	$OpenBSD: pf_print_state.c,v 1.46 2007/08/30 09:28:49 dhartmei Exp $	*/
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -79,6 +79,19 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 		else
 			printf("<%s>", addr->v.tblname);
 		return;
+	case PF_ADDR_RANGE: {
+		char buf[48];
+
+		if (inet_ntop(af, &addr->v.a.addr, buf, sizeof(buf)) == NULL)
+			printf("?");
+		else
+			printf("%s", buf);
+		if (inet_ntop(af, &addr->v.a.mask, buf, sizeof(buf)) == NULL)
+			printf(" - ?");
+		else
+			printf(" - %s", buf);
+		break;
+	}
 	case PF_ADDR_ADDRMASK:
 		if (PF_AZERO(&addr->v.a.addr, AF_INET6) &&
 		    PF_AZERO(&addr->v.a.mask, AF_INET6))
@@ -108,7 +121,8 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 	}
 
 	/* mask if not _both_ address and mask are zero */
-	if (!(PF_AZERO(&addr->v.a.addr, AF_INET6) &&
+	if (addr->type != PF_ADDR_RANGE &&
+	    !(PF_AZERO(&addr->v.a.addr, AF_INET6) &&
 	    PF_AZERO(&addr->v.a.mask, AF_INET6))) {
 		int bits = unmask(&addr->v.a.mask, af);
 

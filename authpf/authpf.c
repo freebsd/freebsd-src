@@ -1,4 +1,4 @@
-/*	$OpenBSD: authpf.c,v 1.104 2007/02/24 17:35:08 beck Exp $	*/
+/*	$OpenBSD: authpf.c,v 1.107 2008/02/14 01:49:17 mcbride Exp $	*/
 
 /*
  * Copyright (C) 1998 - 2007 Bob Beck (beck@openbsd.org).
@@ -46,6 +46,7 @@ static void	print_message(char *);
 static int	allowed_luser(char *);
 static int	check_luser(char *, char *);
 static int	remove_stale_rulesets(void);
+static int	recursive_ruleset_purge(char *, char *);
 static int	change_filter(int, const char *, const char *);
 static int	change_table(int, const char *);
 static void	authpf_kill_states(void);
@@ -54,6 +55,7 @@ int	dev;			/* pf device */
 char	anchorname[PF_ANCHOR_NAME_SIZE] = "authpf";
 char	rulesetname[MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 2];
 char	tablename[PF_TABLE_NAME_SIZE] = "authpf_users";
+int	user_ip = 1;	/* controls whether $user_ip is set */
 
 FILE	*pidfp;
 char	 luser[MAXLOGNAME];	/* username */
@@ -65,6 +67,7 @@ struct timeval	Tstart, Tend;	/* start and end times of session */
 volatile sig_atomic_t	want_death;
 static void		need_death(int signo);
 static __dead void	do_death(int);
+extern char *__progname;	/* program name */
 
 /*
  * User shell for authenticating gateways. Sole purpose is to allow
@@ -84,6 +87,9 @@ main(int argc, char *argv[])
 	uid_t		 uid;
 	char		*shell;
 	login_cap_t	*lc;
+
+	if (strcmp(__progname, "-authpf-noip") == 0)
+                user_ip = 0;
 
 	config = fopen(PATH_CONFFILE, "r");
 	if (config == NULL) {
@@ -139,7 +145,8 @@ main(int argc, char *argv[])
 
 	login_close(lc);
 
-	if (strcmp(shell, PATH_AUTHPF_SHELL)) {
+	if (strcmp(shell, PATH_AUTHPF_SHELL) && 
+	    strcmp(shell, PATH_AUTHPF_SHELL_NOIP)) {
 		syslog(LOG_ERR, "wrong shell for user %s, uid %u",
 		    pw->pw_name, pw->pw_uid);
 		if (shell != pw->pw_shell)
@@ -171,8 +178,9 @@ main(int argc, char *argv[])
 	}
 
 
-	/* Make our entry in /var/authpf as /var/authpf/ipaddr */
-	n = snprintf(pidfile, sizeof(pidfile), "%s/%s", PATH_PIDFILE, ipsrc);
+	/* Make our entry in /var/authpf as ipaddr or username */
+	n = snprintf(pidfile, sizeof(pidfile), "%s/%s",
+	    PATH_PIDFILE, user_ip ? ipsrc : luser);
 	if (n < 0 || (u_int)n >= sizeof(pidfile)) {
 		syslog(LOG_ERR, "path to pidfile too long");
 		goto die;
@@ -292,7 +300,7 @@ main(int argc, char *argv[])
 		printf("Unable to modify filters\r\n");
 		do_death(0);
 	}
-	if (change_table(1, ipsrc) == -1) {
+	if (user_ip && change_table(1, ipsrc) == -1) {
 		printf("Unable to modify table\r\n");
 		change_filter(0, luser, ipsrc);
 		do_death(0);
@@ -349,6 +357,8 @@ read_config(FILE *f)
 		}
 		i++;
 		len = strlen(buf);
+		if (len == 0)
+			continue;
 		if (buf[len - 1] != '\n' && !feof(f)) {
 			syslog(LOG_ERR, "line %d too long in %s", i,
 			    PATH_CONFFILE);
@@ -569,7 +579,7 @@ static int
 remove_stale_rulesets(void)
 {
 	struct pfioc_ruleset	 prs;
-	u_int32_t		 nr, mnr;
+	u_int32_t		 nr;
 
 	memset(&prs, 0, sizeof(prs));
 	strlcpy(prs.path, anchorname, sizeof(prs.path));
@@ -580,13 +590,12 @@ remove_stale_rulesets(void)
 			return (1);
 	}
 
-	mnr = prs.nr;
-	nr = 0;
-	while (nr < mnr) {
+	nr = prs.nr;
+	while (nr) {
 		char	*s, *t;
 		pid_t	 pid;
 
-		prs.nr = nr;
+		prs.nr = nr - 1;
 		if (ioctl(dev, DIOCGETRULESET, &prs))
 			return (1);
 		errno = 0;
@@ -598,31 +607,75 @@ remove_stale_rulesets(void)
 		if (!prs.name[0] || errno ||
 		    (*s && (t == prs.name || *s != ')')))
 			return (1);
-		if (kill(pid, 0) && errno != EPERM) {
-			int			i;
-			struct pfioc_trans_e	t_e[PF_RULESET_MAX+1];
-			struct pfioc_trans	t;
-
-			bzero(&t, sizeof(t));
-			bzero(t_e, sizeof(t_e));
-			t.size = PF_RULESET_MAX+1;
-			t.esize = sizeof(t_e[0]);
-			t.array = t_e;
-			for (i = 0; i < PF_RULESET_MAX+1; ++i) {
-				t_e[i].rs_num = i;
-				snprintf(t_e[i].anchor, sizeof(t_e[i].anchor),
-				    "%s/%s", anchorname, prs.name);
-			}
-			t_e[PF_RULESET_MAX].rs_num = PF_RULESET_TABLE;
-			if ((ioctl(dev, DIOCXBEGIN, &t) ||
-			    ioctl(dev, DIOCXCOMMIT, &t)) &&
-			    errno != EINVAL)
+		if ((kill(pid, 0) && errno != EPERM) || pid == getpid()) {
+			if (recursive_ruleset_purge(anchorname, prs.name))
 				return (1);
-			mnr--;
-		} else
-			nr++;
+		}
+		nr--;
 	}
 	return (0);
+}
+
+static int
+recursive_ruleset_purge(char *an, char *rs)
+{
+	struct pfioc_trans_e     *t_e = NULL;
+	struct pfioc_trans	 *t = NULL;
+	struct pfioc_ruleset	 *prs = NULL;
+	int			  i;
+
+
+	/* purge rules */
+	errno = 0;
+	if ((t = calloc(1, sizeof(struct pfioc_trans))) == NULL)
+		goto no_mem;
+	if ((t_e = calloc(PF_RULESET_MAX+1,
+	    sizeof(struct pfioc_trans_e))) == NULL)
+		goto no_mem;
+	t->size = PF_RULESET_MAX+1;
+	t->esize = sizeof(struct pfioc_trans_e);
+	t->array = t_e;
+	for (i = 0; i < PF_RULESET_MAX+1; ++i) {
+		t_e[i].rs_num = i;
+		snprintf(t_e[i].anchor, sizeof(t_e[i].anchor), "%s/%s", an, rs);
+	}
+	t_e[PF_RULESET_MAX].rs_num = PF_RULESET_TABLE;
+	if ((ioctl(dev, DIOCXBEGIN, t) ||
+	    ioctl(dev, DIOCXCOMMIT, t)) &&
+	    errno != EINVAL)
+		goto cleanup;
+
+	/* purge any children */
+	if ((prs = calloc(1, sizeof(struct pfioc_ruleset))) == NULL)
+		goto no_mem;
+	snprintf(prs->path, sizeof(prs->path), "%s/%s", an, rs);
+	if (ioctl(dev, DIOCGETRULESETS, prs)) {
+		if (errno != EINVAL)
+			goto cleanup;
+		errno = 0;
+	} else {
+		int nr = prs->nr;
+
+		while (nr) {
+			prs->nr = 0;
+			if (ioctl(dev, DIOCGETRULESET, prs))
+				goto cleanup;
+
+			if (recursive_ruleset_purge(prs->path, prs->name))
+				goto cleanup;
+			nr--;
+		}
+	}
+
+no_mem:
+	if (errno == ENOMEM)
+		syslog(LOG_ERR, "calloc failed");
+
+cleanup:
+	free(t);
+	free(t_e);
+	free(prs);
+	return (errno);
 }
 
 /*
@@ -631,78 +684,79 @@ remove_stale_rulesets(void)
 static int
 change_filter(int add, const char *luser, const char *ipsrc)
 {
-	char	*pargv[13] = {
-		"pfctl", "-p", "/dev/pf", "-q", "-a", "anchor/ruleset",
-		"-D", "user_ip=X", "-D", "user_id=X", "-f",
-		"file", NULL
-	};
 	char	*fdpath = NULL, *userstr = NULL, *ipstr = NULL;
 	char	*rsn = NULL, *fn = NULL;
 	pid_t	pid;
 	gid_t   gid;
 	int	s;
 
-	if (luser == NULL || !luser[0] || ipsrc == NULL || !ipsrc[0]) {
-		syslog(LOG_ERR, "invalid luser/ipsrc");
-		goto error;
-	}
-
-	if (asprintf(&rsn, "%s/%s", anchorname, rulesetname) == -1)
-		goto no_mem;
-	if (asprintf(&fdpath, "/dev/fd/%d", dev) == -1)
-		goto no_mem;
-	if (asprintf(&ipstr, "user_ip=%s", ipsrc) == -1)
-		goto no_mem;
-	if (asprintf(&userstr, "user_id=%s", luser) == -1)
-		goto no_mem;
-
 	if (add) {
 		struct stat sb;
+		char	*pargv[13] = {
+			"pfctl", "-p", "/dev/pf", "-q", "-a", "anchor/ruleset",
+			"-D", "user_id=X", "-D", "user_ip=X", "-f", "file", NULL
+		};
 
-		if (asprintf(&fn, "%s/%s/authpf.rules", PATH_USER_DIR, luser)
-		    == -1)
+		if (luser == NULL || !luser[0] || ipsrc == NULL || !ipsrc[0]) {
+			syslog(LOG_ERR, "invalid luser/ipsrc");
+			goto error;
+		}
+
+		if (asprintf(&rsn, "%s/%s", anchorname, rulesetname) == -1)
+			goto no_mem;
+		if (asprintf(&fdpath, "/dev/fd/%d", dev) == -1)
+			goto no_mem;
+		if (asprintf(&ipstr, "user_ip=%s", ipsrc) == -1)
+			goto no_mem;
+		if (asprintf(&userstr, "user_id=%s", luser) == -1)
+			goto no_mem;
+		if (asprintf(&fn, "%s/%s/authpf.rules",
+		    PATH_USER_DIR, luser) == -1)
 			goto no_mem;
 		if (stat(fn, &sb) == -1) {
 			free(fn);
 			if ((fn = strdup(PATH_PFRULES)) == NULL)
 				goto no_mem;
 		}
-	}
-	pargv[2] = fdpath;
-	pargv[5] = rsn;
-	pargv[7] = userstr;
-	pargv[9] = ipstr;
-	if (!add)
-		pargv[11] = "/dev/null";
-	else
-		pargv[11] = fn;
-
-	switch (pid = fork()) {
-	case -1:
-		syslog(LOG_ERR, "fork failed");
-		goto error;
-	case 0:
-		/* revoke group privs before exec */
-		gid = getgid();
-		if (setregid(gid, gid) == -1) {
-			err(1, "setregid");
+		pargv[2] = fdpath;
+		pargv[5] = rsn;
+		pargv[7] = userstr;
+		if (user_ip) {
+			pargv[9] = ipstr;
+			pargv[11] = fn;
+		} else {
+			pargv[8] = "-f";
+			pargv[9] = fn;
+			pargv[10] = NULL;
 		}
-		execvp(PATH_PFCTL, pargv);
-		warn("exec of %s failed", PATH_PFCTL);
-		_exit(1);
-	}
 
-	/* parent */
-	waitpid(pid, &s, 0);
-	if (s != 0) {
-		syslog(LOG_ERR, "pfctl exited abnormally");
-		goto error;
-	}
+		switch (pid = fork()) {
+		case -1:
+			syslog(LOG_ERR, "fork failed");
+			goto error;
+		case 0:
+			/* revoke group privs before exec */
+			gid = getgid();
+			if (setregid(gid, gid) == -1) {
+				err(1, "setregid");
+			}
+			execvp(PATH_PFCTL, pargv);
+			warn("exec of %s failed", PATH_PFCTL);
+			_exit(1);
+		}
 
-	if (add) {
+		/* parent */
+		waitpid(pid, &s, 0);
+		if (s != 0) {
+			syslog(LOG_ERR, "pfctl exited abnormally");
+			goto error;
+		}
+
 		gettimeofday(&Tstart, NULL);
 		syslog(LOG_INFO, "allowing %s, user %s", ipsrc, luser);
 	} else {
+		remove_stale_rulesets();
+
 		gettimeofday(&Tend, NULL);
 		syslog(LOG_INFO, "removed %s, user %s - duration %ld seconds",
 		    ipsrc, luser, Tend.tv_sec - Tstart.tv_sec);
@@ -819,9 +873,10 @@ do_death(int active)
 
 	if (active) {
 		change_filter(0, luser, ipsrc);
-		change_table(0, ipsrc);
-		authpf_kill_states();
-		remove_stale_rulesets();
+		if (user_ip) {
+			change_table(0, ipsrc);
+			authpf_kill_states();
+		}
 	}
 	if (pidfile[0] && (pidfp != NULL))
 		if (unlink(pidfile) == -1)

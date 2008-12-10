@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_qstats.c,v 1.30 2004/04/27 21:47:32 kjc Exp $ */
+/*	$OpenBSD: pfctl_qstats.c,v 1.31 2007/10/15 02:16:35 deraadt Exp $ */
 
 /*
  * Copyright (c) Henning Brauer <henning@openbsd.org>
@@ -233,8 +233,8 @@ pfctl_find_altq_node(struct pf_altq_node *root, const char *qname,
 }
 
 void
-pfctl_print_altq_node(int dev, const struct pf_altq_node *node, unsigned level,
-    int opts)
+pfctl_print_altq_node(int dev, const struct pf_altq_node *node,
+    unsigned int level, int opts)
 {
 	const struct pf_altq_node	*child;
 
