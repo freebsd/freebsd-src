@@ -172,7 +172,7 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
 	    "RealTek 8101E/8102E/8102EL PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
-	    "RealTek 8168/8168B/8168C/8168CP/8111B/8111C/8111CP PCIe "
+	    "RealTek 8168/8168B/8168C/8168CP/8168D/8111B/8111C/8111CP PCIe "
 	    "Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
@@ -213,6 +213,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C"},
 	{ RL_HWREV_8168C_SPIN2, RL_8169, "8168C/8111C"},
 	{ RL_HWREV_8168CP, RL_8169, "8168CP/8111CP"},
+	{ RL_HWREV_8168D, RL_8169, "8168D"},
 	{ 0, 0, NULL }
 };
 
@@ -1225,6 +1226,7 @@ re_attach(device_t dev)
 	case RL_HWREV_8168C:
 	case RL_HWREV_8168C_SPIN2:
 	case RL_HWREV_8168CP:
+	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT;
 		/*
