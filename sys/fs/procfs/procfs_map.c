@@ -219,12 +219,11 @@ procfs_doprocmap(PFS_FILL_ARGS)
 
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
-
+		vm_map_lock_read(map);
 		if (error == -1) {
 			error = 0;
 			break;
 		}
-		vm_map_lock_read(map);
 		if (last_timestamp + 1 != map->timestamp) {
 			/*
 			 * Look again for the entry because the map was
