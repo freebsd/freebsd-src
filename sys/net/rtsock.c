@@ -672,9 +672,11 @@ route_output(struct mbuf *m, struct socket *so)
 			     !sa_equal(info.rti_info[RTAX_IFA],
 				       rt->rt_ifa->ifa_addr))) {
 				RT_UNLOCK(rt);
+				RADIX_NODE_HEAD_LOCK(rnh);
 				if ((error = rt_getifa_fib(&info,
 				    rt->rt_fibnum)) != 0)
 					senderr(error);
+				RADIX_NODE_HEAD_UNLOCK(rnh);
 				RT_LOCK(rt);
 			}
 			if (info.rti_ifa != NULL &&
@@ -686,8 +688,14 @@ route_output(struct mbuf *m, struct socket *so)
 				IFAFREE(rt->rt_ifa);
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL) {
-				if ((error = rt_setgate(rt, rt_key(rt),
-					info.rti_info[RTAX_GATEWAY])) != 0) {
+				RT_UNLOCK(rt);
+				RADIX_NODE_HEAD_LOCK(rnh);
+				RT_LOCK(rt);
+				
+				error = rt_setgate(rt, rt_key(rt),
+				    info.rti_info[RTAX_GATEWAY]);
+				RADIX_NODE_HEAD_UNLOCK(rnh);
+				if (error != 0) {
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
