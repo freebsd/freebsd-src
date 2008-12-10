@@ -623,7 +623,7 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 	uint64_t pool_txg, pool_guid;
 	const char *pool_name;
 	const unsigned char *vdevs;
-	int i;
+	int i, rc;
 	char upbuf[1024];
 	const struct uberblock *up;
 
@@ -723,7 +723,9 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 			DATA_TYPE_NVLIST, 0, &vdevs)) {
 		return (EIO);
 	}
-	vdev_init_from_nvlist(vdevs, &top_vdev);
+	rc = vdev_init_from_nvlist(vdevs, &top_vdev);
+	if (rc)
+		return (rc);
 
 	/*
 	 * Add the toplevel vdev to the pool if its not already there.
