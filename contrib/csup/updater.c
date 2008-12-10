@@ -813,6 +813,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (sr->sr_serverattr == NULL)
 				return (UPDATER_ERR_PROTO);
 			position = strtol(pos, NULL, 10);
+			lprintf(1, " Append to %s\n", name);
 			error = updater_append_file(up, fup, position);
 			if (error)
 				return (error);
