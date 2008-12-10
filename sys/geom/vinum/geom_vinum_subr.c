@@ -961,7 +961,8 @@ gv_consumer_is_open(struct g_consumer *cp)
 }
 
 int
-gv_provider_is_open(struct g_provider *pp) {
+gv_provider_is_open(struct g_provider *pp)
+{
 	if (pp == NULL)
 		return (0);
 
