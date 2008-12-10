@@ -1128,7 +1128,8 @@ gv_attach_plex(struct gv_plex *p, struct gv_volume *v, int rename)
 	g_topology_assert();
 
 	if (p->vol_sc != NULL) {
-		G_VINUM_DEBUG(1, "plex %s already attached", p->name);
+		G_VINUM_DEBUG(1, "unable to attach %s: already attached to %s",
+		    p->name, p->volume);
 		return (GV_ERR_ISATTACHED);
 	}
 
@@ -1139,20 +1140,16 @@ gv_attach_plex(struct gv_plex *p, struct gv_volume *v, int rename)
 	}
 	/* Attach to volume. Make sure volume is not up and running. */
 	if (gv_provider_is_open(v->provider)) {
-		G_VINUM_DEBUG(1, "volume %s is busy, cannot attach %s",
-		    v->name, p->name);
+		G_VINUM_DEBUG(1, "unable to attach %s: volume %s is busy",
+		    p->name, v->name);
 		return (GV_ERR_ISBUSY);
 	}
 	p->vol_sc = v;
 	strlcpy(p->volume, v->name, sizeof(p->volume));
 	v->plexcount++;
 	if (rename) {
-		/* XXX: Check if taken?. */
 		snprintf(p->name, sizeof(p->name), "%s.p%d", v->name,
-		    v->plexcount - 1);
-		/* XXX: Rename subdisks? Original vinum does not. */
-/*		LIST_FOREACH(s, &p->subdisks, in_plex)
-			strlcpy(s->plex, newplexname, GV_MAXPLEXNAME);*/
+		    v->plexcount);
 	}
 	LIST_INSERT_HEAD(&v->plexes, p, in_volume);
 
@@ -1173,7 +1170,8 @@ gv_attach_sd(struct gv_sd *s, struct gv_plex *p, off_t offset, int rename)
 
 	/* If subdisk is attached, don't do it. */
 	if (s->plex_sc != NULL) {
-		G_VINUM_DEBUG(1, "subdisk %s already attached", s->name);
+		G_VINUM_DEBUG(1, "unable to attach %s: already attached to %s",
+		    s->name, s->plex);
 		return (GV_ERR_ISATTACHED);
 	}
 
@@ -1199,7 +1197,7 @@ gv_attach_sd(struct gv_sd *s, struct gv_plex *p, off_t offset, int rename)
 
 	if (rename) {
 		snprintf(s->name, sizeof(s->name), "%s.s%d", s->plex,
-		    p->sdcount - 1);
+		    p->sdcount);
 	}
 	if (p->vol_sc != NULL)
 		gv_update_vol_size(p->vol_sc, gv_vol_size(p->vol_sc));
@@ -1219,17 +1217,18 @@ gv_detach_plex(struct gv_plex *p, int flags)
 	v = p->vol_sc;
 
 	if (v == NULL) {
-		G_VINUM_DEBUG(1, "plex %s already detached", p->name);
+		G_VINUM_DEBUG(1, "unable to detach %s: already detached",
+		    p->name);
 		return (0); /* Not an error. */
 	}
 
 	/*
 	 * Only proceed if forced or volume inactive.
-	 * XXX: Safe dropout if we're mirrored. 
 	 */
 	if (!(flags & GV_FLAG_F) && (gv_provider_is_open(v->provider) ||
 	    p->state == GV_PLEX_UP)) {
-		G_VINUM_DEBUG(1, "volume busy");
+		G_VINUM_DEBUG(1, "unable to detach %s: volume %s is busy",
+		    p->name, p->volume);
 		return (GV_ERR_ISBUSY);
 	}
 	v->plexcount--;
@@ -1253,7 +1252,8 @@ gv_detach_sd(struct gv_sd *s, int flags)
 	p = s->plex_sc;
 
 	if (p == NULL) {
-		G_VINUM_DEBUG(1, "subdisk %s already detached", s->name);
+		G_VINUM_DEBUG(1, "unable to detach %s: already detached",
+		    s->name);
 		return (0); /* Not an error. */
 	}
 
@@ -1261,9 +1261,12 @@ gv_detach_sd(struct gv_sd *s, int flags)
 	 * Don't proceed if we're not forcing, and the plex is up, or degraded
 	 * with this subdisk up.
 	 */
-	if (!(flags & GV_FLAG_F) && ((p->state != GV_PLEX_DOWN) ||
-	    ((p->state == GV_PLEX_DEGRADED) && (s->state == GV_SD_UP))))
+	if (!(flags & GV_FLAG_F) && ((p->state > GV_PLEX_DEGRADED) ||
+	    ((p->state == GV_PLEX_DEGRADED) && (s->state == GV_SD_UP)))) {
+	    	G_VINUM_DEBUG(1, "unable to detach %s: plex %s is busy",
+		    s->name, s->plex);
 		return (GV_ERR_ISBUSY);
+	}
 
 	LIST_REMOVE(s, in_plex);
 	s->plex_sc = NULL;
