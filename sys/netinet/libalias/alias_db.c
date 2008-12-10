@@ -146,7 +146,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/rwlock.h>
 #include <sys/syslog.h>
 #else
 #include <stdarg.h>

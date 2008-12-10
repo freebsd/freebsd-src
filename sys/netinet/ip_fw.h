@@ -650,8 +650,6 @@ typedef	int ip_fw_chk_t(struct ip_fw_args *args);
 extern	ip_fw_chk_t	*ip_fw_chk_ptr;
 #define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
 
-#ifdef IPFW_INTERNAL
-
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
@@ -659,6 +657,9 @@ struct ip_fw_chain {
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
 	struct rwlock	rwmtx;
 };
+
+#ifdef IPFW_INTERNAL
+
 #define	IPFW_LOCK_INIT(_chain) \
 	rw_init(&(_chain)->rwmtx, "IPFW static rules")
 #define	IPFW_LOCK_DESTROY(_chain)	rw_destroy(&(_chain)->rwmtx)
@@ -684,9 +685,7 @@ typedef int ipfw_nat_cfg_t(struct sockopt *);
 /*
  * Stack virtualization support.
  */
-#ifdef VIMAGE
 struct vnet_ipfw {
-	int	_fw_one_pass;
 	int	_fw_enable;
 	int	_fw6_enable;
 	u_int32_t _set_disable;
@@ -716,6 +715,11 @@ struct vnet_ipfw {
 	struct callout _ipfw_timeout;
 	eventhandler_tag _ifaddr_event_tag;
 };
+
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_ipfw vnet_ipfw_0;
+#endif
 #endif
 
 /*
@@ -726,7 +730,6 @@ struct vnet_ipfw {
  
 #define	VNET_IPFW(sym)		VSYM(vnet_ipfw, sym)
  
-#define	V_fw_one_pass		VNET_IPFW(fw_one_pass)
 #define	V_fw_enable		VNET_IPFW(fw_enable)
 #define	V_fw6_enable		VNET_IPFW(fw6_enable)
 #define	V_set_disable		VNET_IPFW(set_disable)

@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/kernel.h>
 #include <sys/domain.h>
@@ -518,9 +519,6 @@ SYSCTL_V_OID(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
    	sysctl_ip6_tempvltime, "I", "");
 SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_V6ONLY,
 	v6only,	CTLFLAG_RW,	ip6_v6only,			0, "");
-#ifndef VIMAGE
-TUNABLE_INT("net.inet6.ip6.auto_linklocal", &ip6_auto_linklocal);
-#endif
 SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL,
 	auto_linklocal, CTLFLAG_RW, ip6_auto_linklocal,	0, "");
 SYSCTL_V_STRUCT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RIP6STATS,

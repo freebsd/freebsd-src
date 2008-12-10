@@ -415,6 +415,7 @@ TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
+VIMAGE_GLOBALS		opt_global.h
 XBONEHACK
 
 #

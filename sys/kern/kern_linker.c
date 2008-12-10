@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -1301,8 +1302,23 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 				break;
 			}
 		}
+#ifndef VIMAGE_GLOBALS
+		/*
+		 * If the symbol is not found in global namespace,
+		 * try to look it up in the current vimage namespace.
+		 */
+		if (lf == NULL) {
+			CURVNET_SET(TD_TO_VNET(td));
+			error = vi_symlookup(&lookup, symstr);
+			CURVNET_RESTORE();
+			if (error == 0)
+				error = copyout(&lookup, uap->data,
+						sizeof(lookup));
+		}
+#else
 		if (lf == NULL)
 			error = ENOENT;
+#endif
 	}
 	KLD_UNLOCK();
 out:

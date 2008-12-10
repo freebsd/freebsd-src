@@ -208,7 +208,9 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
+#ifdef VIMAGE_GLOBALS
 static struct unrhdr	*ng_iface_unit;
+#endif
 
 /************************************************************************
 			HELPER STUFF
