@@ -33,14 +33,54 @@
 #ifndef	_SYS_VIMAGE_H_
 #define	_SYS_VIMAGE_H_
 
-#define VIMAGE_GLOBALS 1
+#include <sys/queue.h>
+
+struct kld_sym_lookup;
+
+struct vnet_symmap {
+	char	*name;
+	void	*base;
+	size_t	size;
+};
+
+struct vnet_modinfo {
+	char				*vmi_name;
+	struct vnet_symmap		*vmi_symmap;
+};
+
+struct vnet_modlink {
+	TAILQ_ENTRY(vnet_modlink)	vml_mod_le;
+	const struct vnet_modinfo	*vml_modinfo;
+};
+
+#define VNET_MOD_DECLARE(m_name_uc, m_name_lc, m_iattach, m_idetach, 	\
+    m_dependson, m_symmap)						\
+	static const struct vnet_modinfo vnet_##m_name_lc##_modinfo = {	\
+		.vmi_name		= #m_name_lc,			\
+		.vmi_symmap		= m_symmap			\
+};
+
+#ifdef VIMAGE_GLOBALS
+#define	VSYM(base, sym) (sym)
+#else
+#ifdef VIMAGE
+#error "No option VIMAGE yet!"
+#else
+#define	VSYM(base, sym) (base ## _0._ ## sym)
+#endif
+#endif
+
+#define VNET_SYMMAP(mod, name)						\
+	{ #name, &(vnet_ ## mod ## _0._ ## name),			\
+	sizeof(vnet_ ## mod ## _0._ ## name) }
+
+#define VNET_SYMMAP_END		{ NULL, 0 }
 
 /* Non-VIMAGE null-macros */
 #define	CURVNET_SET(arg)
 #define	CURVNET_SET_QUIET(arg)
 #define	CURVNET_RESTORE()
 #define	VNET_ASSERT(condition)
-#define	VSYM(base, sym) (sym)
 #define	INIT_FROM_VNET(vnet, modindex, modtype, sym)
 #define	VNET_ITERATOR_DECL(arg)
 #define	VNET_FOREACH(arg)
@@ -58,11 +98,14 @@
 #define	P_TO_VCPU(p)
 
 /* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
-#define	VPROCG(sym)		VSYM(vprocg, sym)
-#define	VCPU(sym)		VSYM(vcpu, sym)
+#define	VPROCG(sym)		(sym)
+#define	VCPU(sym)		(sym)
 
 #define	V_hostname		VPROCG(hostname)
-#define	G_hostname		VSYM(basevprocg, hostname) /* global hostname */
+#define	G_hostname		VPROCG(hostname) /* global hostname */
 #define	V_domainname		VPROCG(domainname)
+
+int	vi_symlookup(struct kld_sym_lookup *, char *);
+void	vnet_mod_register(const struct vnet_modinfo *);
 
 #endif /* !_SYS_VIMAGE_H_ */

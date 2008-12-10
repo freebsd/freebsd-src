@@ -59,11 +59,11 @@ SCTP6_ARE_ADDR_EQUAL(struct sockaddr_in6 *a, struct sockaddr_in6 *b)
 	struct sockaddr_in6 tmp_a, tmp_b;
 
 	memcpy(&tmp_a, a, sizeof(struct sockaddr_in6));
-	if (sa6_embedscope(&tmp_a, MODULE_GLOBAL(MOD_INET6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone))) != 0) {
+	if (sa6_embedscope(&tmp_a, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
 		return 0;
 	}
 	memcpy(&tmp_b, b, sizeof(struct sockaddr_in6));
-	if (sa6_embedscope(&tmp_b, MODULE_GLOBAL(MOD_INET6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone))) != 0) {
+	if (sa6_embedscope(&tmp_b, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
 		return 0;
 	}
 	return (IN6_ARE_ADDR_EQUAL(&tmp_a.sin6_addr, &tmp_b.sin6_addr));
@@ -2008,7 +2008,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 			/* Get the scopes in properly to the sin6 addr's */
 			/* we probably don't need these operations */
 			(void)sa6_recoverscope(from6);
-			sa6_embedscope(from6, MODULE_GLOBAL(MOD_INET6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)));
+			sa6_embedscope(from6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
 			break;
 		}
 #endif
@@ -2049,7 +2049,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 			/* Get the scopes in properly to the sin6 addr's */
 			/* we probably don't need these operations */
 			(void)sa6_recoverscope(to6);
-			sa6_embedscope(to6, MODULE_GLOBAL(MOD_INET6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)));
+			sa6_embedscope(to6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
 			break;
 		}
 #endif

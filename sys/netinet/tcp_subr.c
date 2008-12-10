@@ -203,7 +203,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
     "Enable tcp_drain routine for extra help when low on mbufs");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, pcbcount,
-    CTLFLAG_RD, V_tcbinfo.ipi_count, 0, "Number of active PCBs");
+    CTLFLAG_RD, tcbinfo.ipi_count, 0, "Number of active PCBs");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, icmp_may_rst,
     CTLFLAG_RW, icmp_may_rst, 0,
@@ -358,6 +358,8 @@ tcp_init(void)
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
+
+	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 
 	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
 	LIST_INIT(&V_tcb);

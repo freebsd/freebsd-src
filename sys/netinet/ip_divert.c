@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -167,7 +168,7 @@ div_init(void)
 	V_divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
 	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR,
 	    UMA_ZONE_NOFREE);
-	uma_zone_set_max(divcbinfo.ipi_zone, maxsockets);
+	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
 	EVENTHANDLER_REGISTER(maxsockets_change, div_zone_change,
 		NULL, EVENTHANDLER_PRI_ANY);
 }
