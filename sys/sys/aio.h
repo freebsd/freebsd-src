@@ -69,7 +69,8 @@ typedef struct aiocb {
 	off_t	aio_offset;		/* File offset for I/O */
 	volatile void *aio_buf;         /* I/O buffer in process space */
 	size_t	aio_nbytes;		/* Number of bytes for I/O */
-	char 	__spare__[sizeof(int) * 2 + sizeof(void *)]; /* osigevent. */
+	int	__spare__[2];
+	void	*__spare2__;
 	int	aio_lio_opcode;		/* LIO opcode */
 	int	aio_reqprio;		/* Request priority -- ignored */
 	struct	__aiocb_private	_aiocb_private;
