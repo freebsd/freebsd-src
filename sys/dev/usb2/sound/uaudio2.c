@@ -316,64 +316,77 @@ static usb2_callback_t umidi_bulk_read_callback;
 static usb2_callback_t umidi_write_clear_stall_callback;
 static usb2_callback_t umidi_bulk_write_callback;
 
+static void	uaudio_chan_fill_info_sub(struct uaudio_softc *,
+		    struct usb2_device *, uint32_t, uint16_t, uint8_t, uint8_t);
+static void	uaudio_chan_fill_info(struct uaudio_softc *,
+		    struct usb2_device *);
+static void	uaudio_mixer_add_ctl_sub(struct uaudio_softc *,
+		    struct uaudio_mixer_node *);
+static void	uaudio_mixer_add_ctl(struct uaudio_softc *,
+		    struct uaudio_mixer_node *);
+static void	uaudio_mixer_add_input(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static void	uaudio_mixer_add_output(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static void	uaudio_mixer_add_mixer(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static void	uaudio_mixer_add_selector(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static uint32_t	uaudio_mixer_feature_get_bmaControls(
+		    const struct usb2_audio_feature_unit *, uint8_t);
+static void	uaudio_mixer_add_feature(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static void	uaudio_mixer_add_processing_updown(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static void	uaudio_mixer_add_processing(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static void	uaudio_mixer_add_extension(struct uaudio_softc *,
+		    const struct uaudio_terminal_node *, int);
+static struct	usb2_audio_cluster uaudio_mixer_get_cluster(uint8_t,
+		    const struct uaudio_terminal_node *);
+static uint16_t	uaudio_mixer_determine_class(const struct uaudio_terminal_node *,
+		    struct uaudio_mixer_node *);
+static uint16_t	uaudio_mixer_feature_name(const struct uaudio_terminal_node *,
+		    struct uaudio_mixer_node *);
+static const struct uaudio_terminal_node *uaudio_mixer_get_input(
+		    const struct uaudio_terminal_node *, uint8_t);
+static const struct uaudio_terminal_node *uaudio_mixer_get_output(
+		    const struct uaudio_terminal_node *, uint8_t);
+static void	uaudio_mixer_find_inputs_sub(struct uaudio_terminal_node *,
+		    const uint8_t *, uint8_t, struct uaudio_search_result *);
+static void	uaudio_mixer_find_outputs_sub(struct uaudio_terminal_node *,
+		    uint8_t, uint8_t, struct uaudio_search_result *);
+static void	uaudio_mixer_fill_info(struct uaudio_softc *,
+		    struct usb2_device *, void *);
+static uint16_t	uaudio_mixer_get(struct usb2_device *, uint8_t,
+		    struct uaudio_mixer_node *);
+static void	uaudio_mixer_ctl_set(struct uaudio_softc *,
+		    struct uaudio_mixer_node *, uint8_t, int32_t val);
+static usb2_error_t uaudio_set_speed(struct usb2_device *, uint8_t, uint32_t);
+static int	uaudio_mixer_signext(uint8_t, int);
+static int	uaudio_mixer_bsd2value(struct uaudio_mixer_node *, int32_t val);
+static const void *uaudio_mixer_verify_desc(const void *, uint32_t);
+static void	uaudio_mixer_init(struct uaudio_softc *);
+static uint8_t	umidi_convert_to_usb(struct umidi_sub_chan *, uint8_t, uint8_t);
+static struct	umidi_sub_chan *umidi_sub_by_fifo(struct usb2_fifo *);
+static void	umidi_start_read(struct usb2_fifo *);
+static void	umidi_stop_read(struct usb2_fifo *);
+static void	umidi_start_write(struct usb2_fifo *);
+static void	umidi_stop_write(struct usb2_fifo *);
+static int	umidi_open(struct usb2_fifo *, int, struct thread *);
+static int	umidi_ioctl(struct usb2_fifo *, u_long cmd, void *, int, struct thread *);
+static void	umidi_close(struct usb2_fifo *, int, struct thread *);
+static void	umidi_init(device_t dev);
+static int32_t	umidi_probe(device_t dev);
+static int32_t	umidi_detach(device_t dev);
+
 #if USB_DEBUG
-static void uaudio_chan_dump_ep_desc(const usb2_endpoint_descriptor_audio_t *ed);
-
+static void	uaudio_chan_dump_ep_desc(
+		    const usb2_endpoint_descriptor_audio_t *);
+static void	uaudio_mixer_dump_cluster(uint8_t,
+		    const struct uaudio_terminal_node *);
+static const char *uaudio_mixer_get_terminal_name(uint16_t);
 #endif
-
-static void uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb2_device *udev, uint32_t rate, uint16_t fps, uint8_t channels, uint8_t bit_resolution);
-static void uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb2_device *udev);
-static void uaudio_mixer_add_ctl_sub(struct uaudio_softc *sc, struct uaudio_mixer_node *mc);
-static void uaudio_mixer_add_ctl(struct uaudio_softc *sc, struct uaudio_mixer_node *mc);
-static void uaudio_mixer_add_input(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static void uaudio_mixer_add_output(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static void uaudio_mixer_add_mixer(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static void uaudio_mixer_add_selector(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static uint32_t uaudio_mixer_feature_get_bmaControls(const struct usb2_audio_feature_unit *d, uint8_t index);
-static void uaudio_mixer_add_feature(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static void uaudio_mixer_add_processing_updown(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static void uaudio_mixer_add_processing(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static void uaudio_mixer_add_extension(struct uaudio_softc *sc, const struct uaudio_terminal_node *iot, int id);
-static const void *uaudio_mixer_verify_desc(const void *arg, uint32_t len);
-
-#if USB_DEBUG
-static void uaudio_mixer_dump_cluster(uint8_t id, const struct uaudio_terminal_node *iot);
-
-#endif
-
-static struct usb2_audio_cluster uaudio_mixer_get_cluster(uint8_t id, const struct uaudio_terminal_node *iot);
-
-#if USB_DEBUG
-static const char *uaudio_mixer_get_terminal_name(uint16_t terminal_type);
-
-#endif
-
-static uint16_t uaudio_mixer_determine_class(const struct uaudio_terminal_node *iot, struct uaudio_mixer_node *mix);
-static uint16_t uaudio_mixer_feature_name(const struct uaudio_terminal_node *iot, struct uaudio_mixer_node *mix);
-static const struct uaudio_terminal_node *uaudio_mixer_get_input(const struct uaudio_terminal_node *iot, uint8_t index);
-static const struct uaudio_terminal_node *uaudio_mixer_get_output(const struct uaudio_terminal_node *iot, uint8_t index);
-static void uaudio_mixer_find_inputs_sub(struct uaudio_terminal_node *root, const uint8_t *p_id, uint8_t n_id, struct uaudio_search_result *info);
-static void uaudio_mixer_find_outputs_sub(struct uaudio_terminal_node *root, uint8_t id, uint8_t n_id, struct uaudio_search_result *info);
-static void uaudio_mixer_fill_info(struct uaudio_softc *sc, struct usb2_device *udev, void *desc);
-static uint16_t uaudio_mixer_get(struct usb2_device *udev, uint8_t what, struct uaudio_mixer_node *mc);
-static usb2_error_t uaudio_set_speed(struct usb2_device *udev, uint8_t endpt, uint32_t speed);
-static int uaudio_mixer_signext(uint8_t type, int val);
-static int uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int32_t val);
-
-static void uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc, uint8_t chan, int32_t val);
-static void uaudio_mixer_init(struct uaudio_softc *sc);
-static uint8_t umidi_convert_to_usb(struct umidi_sub_chan *sub, uint8_t cn, uint8_t b);
-static struct umidi_sub_chan *umidi_sub_by_fifo(struct usb2_fifo *fifo);
-static void umidi_start_read(struct usb2_fifo *fifo);
-static void umidi_stop_read(struct usb2_fifo *fifo);
-static void umidi_start_write(struct usb2_fifo *fifo);
-static void umidi_stop_write(struct usb2_fifo *fifo);
-static int umidi_open(struct usb2_fifo *fifo, int fflags, struct thread *td);
-static int umidi_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data, int fflags, struct thread *td);
-static void umidi_close(struct usb2_fifo *fifo, int fflags, struct thread *td);
-static void umidi_init(device_t dev);
-static int32_t umidi_probe(device_t dev);
-static int32_t umidi_detach(device_t dev);
 
 static const struct usb2_config
 	uaudio_cfg_record_full_speed[UAUDIO_NCHANBUFS] = {

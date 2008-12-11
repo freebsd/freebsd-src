@@ -111,19 +111,21 @@ static usb2_config_td_command_t cue_cfg_init;
 static usb2_config_td_command_t cue_cfg_pre_stop;
 static usb2_config_td_command_t cue_cfg_stop;
 
-static void cue_cfg_do_request(struct cue_softc *sc, struct usb2_device_request *req, void *data);
-static uint8_t cue_cfg_csr_read_1(struct cue_softc *sc, uint16_t reg);
-static uint16_t cue_cfg_csr_read_2(struct cue_softc *sc, uint8_t reg);
-static void cue_cfg_csr_write_1(struct cue_softc *sc, uint16_t reg, uint16_t val);
-static void cue_cfg_mem(struct cue_softc *sc, uint8_t cmd, uint16_t addr, void *buf, uint16_t len);
-static void cue_cfg_getmac(struct cue_softc *sc, void *buf);
-static void cue_mchash(struct usb2_config_td_cc *cc, const uint8_t *addr);
-static void cue_cfg_reset(struct cue_softc *sc);
-static void cue_start_cb(struct ifnet *ifp);
-static void cue_start_transfers(struct cue_softc *sc);
-static void cue_init_cb(void *arg);
-static int cue_ioctl_cb(struct ifnet *ifp, u_long command, caddr_t data);
-static void cue_watchdog(void *arg);
+static void	cue_cfg_do_request(struct cue_softc *,
+		    struct usb2_device_request *, void *);
+static uint8_t	cue_cfg_csr_read_1(struct cue_softc *, uint16_t);
+static uint16_t	cue_cfg_csr_read_2(struct cue_softc *, uint8_t);
+static void	cue_cfg_csr_write_1(struct cue_softc *, uint16_t, uint16_t);
+static void	cue_cfg_mem(struct cue_softc *, uint8_t, uint16_t, void *,
+		    uint16_t);
+static void	cue_cfg_getmac(struct cue_softc *, void *);
+static void	cue_mchash(struct usb2_config_td_cc *, const uint8_t *);
+static void	cue_cfg_reset(struct cue_softc *);
+static void	cue_start_cb(struct ifnet *);
+static void	cue_start_transfers(struct cue_softc *);
+static void	cue_init_cb(void *);
+static int	cue_ioctl_cb(struct ifnet *, u_long, caddr_t);
+static void	cue_watchdog(void *);
 
 #if USB_DEBUG
 static int cue_debug = 0;

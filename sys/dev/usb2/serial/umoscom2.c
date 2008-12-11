@@ -183,22 +183,23 @@ static usb2_callback_t umoscom_read_clear_stall_callback;
 static usb2_callback_t umoscom_intr_callback;
 static usb2_callback_t umoscom_intr_clear_stall_callback;
 
-static void umoscom_cfg_open(struct usb2_com_softc *ucom);
-static void umoscom_cfg_close(struct usb2_com_softc *ucom);
-static void umoscom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static void umoscom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void umoscom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static int umoscom_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void umoscom_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static void umoscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static void umoscom_cfg_write(struct umoscom_softc *sc, uint16_t reg, uint16_t val);
-static uint8_t umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg);
-static void umoscom_cfg_do_request(struct umoscom_softc *sc, struct usb2_device_request *req, void *data);
-
-static void umoscom_start_read(struct usb2_com_softc *ucom);
-static void umoscom_stop_read(struct usb2_com_softc *ucom);
-static void umoscom_start_write(struct usb2_com_softc *ucom);
-static void umoscom_stop_write(struct usb2_com_softc *ucom);
+static void	umoscom_cfg_open(struct usb2_com_softc *);
+static void	umoscom_cfg_close(struct usb2_com_softc *);
+static void	umoscom_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	umoscom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	umoscom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static int	umoscom_pre_param(struct usb2_com_softc *, struct termios *);
+static void	umoscom_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	umoscom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static void	umoscom_cfg_write(struct umoscom_softc *, uint16_t, uint16_t);
+static uint8_t	umoscom_cfg_read(struct umoscom_softc *, uint16_t);
+static void	umoscom_cfg_do_request(struct umoscom_softc *,
+		    struct usb2_device_request *, void *);
+static void	umoscom_start_read(struct usb2_com_softc *);
+static void	umoscom_stop_read(struct usb2_com_softc *);
+static void	umoscom_start_write(struct usb2_com_softc *);
+static void	umoscom_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config umoscom_config_data[UMOSCOM_N_DATA_TRANSFER] = {
 

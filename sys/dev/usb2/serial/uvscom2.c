@@ -158,22 +158,24 @@ static usb2_callback_t uvscom_read_clear_stall_callback;
 static usb2_callback_t uvscom_intr_callback;
 static usb2_callback_t uvscom_intr_clear_stall_callback;
 
-static void uvscom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uvscom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uvscom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static int uvscom_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uvscom_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static int uvscom_pre_open(struct usb2_com_softc *ucom);
-static void uvscom_cfg_open(struct usb2_com_softc *ucom);
-static void uvscom_cfg_close(struct usb2_com_softc *ucom);
-static void uvscom_start_read(struct usb2_com_softc *ucom);
-static void uvscom_stop_read(struct usb2_com_softc *ucom);
-static void uvscom_start_write(struct usb2_com_softc *ucom);
-static void uvscom_stop_write(struct usb2_com_softc *ucom);
-static void uvscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static int uvscom_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data, int fflag, struct thread *td);
-static void uvscom_cfg_write(struct uvscom_softc *sc, uint8_t index, uint16_t value);
-static uint16_t uvscom_cfg_read_status(struct uvscom_softc *sc);
+static void	uvscom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	uvscom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	uvscom_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static int	uvscom_pre_param(struct usb2_com_softc *, struct termios *);
+static void	uvscom_cfg_param(struct usb2_com_softc *, struct termios *);
+static int	uvscom_pre_open(struct usb2_com_softc *);
+static void	uvscom_cfg_open(struct usb2_com_softc *);
+static void	uvscom_cfg_close(struct usb2_com_softc *);
+static void	uvscom_start_read(struct usb2_com_softc *);
+static void	uvscom_stop_read(struct usb2_com_softc *);
+static void	uvscom_start_write(struct usb2_com_softc *);
+static void	uvscom_stop_write(struct usb2_com_softc *);
+static void	uvscom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static int	uvscom_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
+		    struct thread *);
+static void	uvscom_cfg_write(struct uvscom_softc *, uint8_t, uint16_t);
+static uint16_t	uvscom_cfg_read_status(struct uvscom_softc *);
 
 static const struct usb2_config uvscom_config[UVSCOM_N_TRANSFER] = {
 

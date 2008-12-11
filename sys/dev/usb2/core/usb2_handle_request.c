@@ -52,12 +52,15 @@ enum {
 
 /* function prototypes */
 
-static uint8_t usb2_handle_get_stall(struct usb2_device *udev, uint8_t ea_val);
-static usb2_error_t usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on);
-static usb2_error_t usb2_handle_request(struct usb2_xfer *xfer);
-static usb2_error_t usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no);
-static usb2_error_t usb2_handle_set_stall(struct usb2_xfer *xfer, uint8_t ep, uint8_t do_stall);
-static usb2_error_t usb2_handle_iface_request(struct usb2_xfer *xfer, void **ppdata, uint16_t *plen, struct usb2_device_request req, uint16_t off, uint8_t state);
+static uint8_t usb2_handle_get_stall(struct usb2_device *, uint8_t);
+static usb2_error_t	 usb2_handle_remote_wakeup(struct usb2_xfer *, uint8_t);
+static usb2_error_t	 usb2_handle_request(struct usb2_xfer *);
+static usb2_error_t	 usb2_handle_set_config(struct usb2_xfer *, uint8_t);
+static usb2_error_t	 usb2_handle_set_stall(struct usb2_xfer *, uint8_t,
+			    uint8_t);
+static usb2_error_t	 usb2_handle_iface_request(struct usb2_xfer *, void **,
+			    uint16_t *, struct usb2_device_request, uint16_t,
+			    uint8_t);
 
 /*------------------------------------------------------------------------*
  *	usb2_handle_request_callback

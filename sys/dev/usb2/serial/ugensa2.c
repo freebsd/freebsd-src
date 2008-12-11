@@ -97,10 +97,10 @@ static usb2_callback_t ugensa_bulk_write_clear_stall_callback;
 static usb2_callback_t ugensa_bulk_read_callback;
 static usb2_callback_t ugensa_bulk_read_clear_stall_callback;
 
-static void ugensa_start_read(struct usb2_com_softc *ucom);
-static void ugensa_stop_read(struct usb2_com_softc *ucom);
-static void ugensa_start_write(struct usb2_com_softc *ucom);
-static void ugensa_stop_write(struct usb2_com_softc *ucom);
+static void	ugensa_start_read(struct usb2_com_softc *);
+static void	ugensa_stop_read(struct usb2_com_softc *);
+static void	ugensa_start_write(struct usb2_com_softc *);
+static void	ugensa_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config
 	ugensa_xfer_config[UGENSA_N_TRANSFER] = {

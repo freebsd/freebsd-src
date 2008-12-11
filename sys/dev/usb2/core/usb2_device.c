@@ -56,18 +56,24 @@
 
 /* function prototypes */
 
-static void usb2_fill_pipe_data(struct usb2_device *udev, uint8_t iface_index, struct usb2_endpoint_descriptor *edesc, struct usb2_pipe *pipe);
-static void usb2_free_pipe_data(struct usb2_device *udev, uint8_t iface_index, uint8_t iface_mask);
-static void usb2_free_iface_data(struct usb2_device *udev);
-static void usb2_detach_device_sub(struct usb2_device *udev, device_t *ppdev, uint8_t free_subdev);
-static uint8_t usb2_probe_and_attach_sub(struct usb2_device *udev, struct usb2_attach_arg *uaa);
-static void usb2_init_attach_arg(struct usb2_device *udev, struct usb2_attach_arg *uaa);
-static void usb2_suspend_resume_sub(struct usb2_device *udev, device_t dev, uint8_t do_suspend);
-static void usb2_clear_stall_proc(struct usb2_proc_msg *_pm);
-static void usb2_check_strings(struct usb2_device *udev);
-static usb2_error_t usb2_fill_iface_data(struct usb2_device *udev, uint8_t iface_index, uint8_t alt_index);
-static void usb2_notify_addq(const char *type, struct usb2_device *udev);
-static void usb2_fifo_free_wrap(struct usb2_device *udev, uint8_t iface_index, uint8_t flag);
+static void	usb2_fill_pipe_data(struct usb2_device *, uint8_t,
+		    struct usb2_endpoint_descriptor *, struct usb2_pipe *);
+static void	usb2_free_pipe_data(struct usb2_device *, uint8_t, uint8_t);
+static void	usb2_free_iface_data(struct usb2_device *);
+static void	usb2_detach_device_sub(struct usb2_device *, device_t *,
+		    uint8_t);
+static uint8_t	usb2_probe_and_attach_sub(struct usb2_device *,
+		    struct usb2_attach_arg *);
+static void	usb2_init_attach_arg(struct usb2_device *,
+		    struct usb2_attach_arg *);
+static void	usb2_suspend_resume_sub(struct usb2_device *, device_t,
+		    uint8_t);
+static void	usb2_clear_stall_proc(struct usb2_proc_msg *_pm);
+static void	usb2_check_strings(struct usb2_device *);
+static usb2_error_t usb2_fill_iface_data(struct usb2_device *, uint8_t,
+		    uint8_t);
+static void	usb2_notify_addq(const char *type, struct usb2_device *);
+static void	usb2_fifo_free_wrap(struct usb2_device *, uint8_t, uint8_t);
 
 /* static structures */
 

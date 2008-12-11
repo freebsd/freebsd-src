@@ -240,22 +240,18 @@ static const uint8_t ukbd_trtab[256] = {
 };
 
 /* prototypes */
-static void ukbd_timeout(void *arg);
-static void ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds);
-static int ukbd_set_typematic(keyboard_t *kbd, int code);
-
+static void	ukbd_timeout(void *);
+static void	ukbd_set_leds(struct ukbd_softc *, uint8_t);
+static int	ukbd_set_typematic(keyboard_t *, int);
 #ifdef UKBD_EMULATE_ATSCANCODE
-static int
-ukbd_key2scan(struct ukbd_softc *sc, int keycode,
-    int shift, int up);
-
+static int	ukbd_key2scan(struct ukbd_softc *, int, int, int);
 #endif
-static uint32_t ukbd_read_char(keyboard_t *kbd, int wait);
-static void ukbd_clear_state(keyboard_t *kbd);
-static int ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg);
-static int ukbd_enable(keyboard_t *kbd);
-static int ukbd_disable(keyboard_t *kbd);
-static void ukbd_interrupt(struct ukbd_softc *sc);
+static uint32_t	ukbd_read_char(keyboard_t *, int);
+static void	ukbd_clear_state(keyboard_t *);
+static int	ukbd_ioctl(keyboard_t *, u_long, caddr_t);
+static int	ukbd_enable(keyboard_t *);
+static int	ukbd_disable(keyboard_t *);
+static void	ukbd_interrupt(struct ukbd_softc *);
 
 static device_probe_t ukbd_probe;
 static device_attach_t ukbd_attach;

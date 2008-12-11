@@ -144,19 +144,30 @@ struct usb2_device {
 
 /* function prototypes */
 
-struct usb2_device *usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus, struct usb2_device *parent_hub, uint8_t depth, uint8_t port_index, uint8_t port_no, uint8_t speed, uint8_t usb2_mode);
-struct usb2_pipe *usb2_get_pipe(struct usb2_device *udev, uint8_t iface_index, const struct usb2_config *setup);
+struct usb2_device *usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
+		    struct usb2_device *parent_hub, uint8_t depth,
+		    uint8_t port_index, uint8_t port_no, uint8_t speed,
+		    uint8_t usb2_mode);
+struct usb2_pipe *usb2_get_pipe(struct usb2_device *udev, uint8_t iface_index,
+		    const struct usb2_config *setup);
 struct usb2_pipe *usb2_get_pipe_by_addr(struct usb2_device *udev, uint8_t ea_val);
-usb2_error_t usb2_interface_count(struct usb2_device *udev, uint8_t *count);
-usb2_error_t usb2_probe_and_attach(struct usb2_device *udev, uint8_t iface_index);
-usb2_error_t usb2_reset_iface_endpoints(struct usb2_device *udev, uint8_t iface_index);
-usb2_error_t usb2_set_config_index(struct usb2_device *udev, uint8_t index);
-usb2_error_t usb2_set_endpoint_stall(struct usb2_device *udev, struct usb2_pipe *pipe, uint8_t do_stall);
-usb2_error_t usb2_suspend_resume(struct usb2_device *udev, uint8_t do_suspend);
-void	usb2_detach_device(struct usb2_device *udev, uint8_t iface_index, uint8_t free_subdev);
+usb2_error_t	usb2_interface_count(struct usb2_device *udev, uint8_t *count);
+usb2_error_t	usb2_probe_and_attach(struct usb2_device *udev,
+		    uint8_t iface_index);
+usb2_error_t	usb2_reset_iface_endpoints(struct usb2_device *udev,
+		    uint8_t iface_index);
+usb2_error_t	usb2_set_config_index(struct usb2_device *udev, uint8_t index);
+usb2_error_t	usb2_set_endpoint_stall(struct usb2_device *udev,
+		    struct usb2_pipe *pipe, uint8_t do_stall);
+usb2_error_t	usb2_suspend_resume(struct usb2_device *udev,
+		    uint8_t do_suspend);
+void	usb2_detach_device(struct usb2_device *udev, uint8_t iface_index,
+	    uint8_t free_subdev);
 void	usb2_devinfo(struct usb2_device *udev, char *dst_ptr, uint16_t dst_len);
 void	usb2_free_device(struct usb2_device *udev);
-void   *usb2_find_descriptor(struct usb2_device *udev, void *id, uint8_t iface_index, uint8_t type, uint8_t type_mask, uint8_t subtype, uint8_t subtype_mask);
+void	*usb2_find_descriptor(struct usb2_device *udev, void *id,
+	    uint8_t iface_index, uint8_t type, uint8_t type_mask,
+	    uint8_t subtype, uint8_t subtype_mask);
 void	usb_linux_free_device(struct usb_device *dev);
 
 #endif					/* _USB2_DEVICE_H_ */
