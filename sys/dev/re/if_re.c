@@ -419,10 +419,10 @@ re_gmii_readreg(device_t dev, int phy, int reg)
 	CSR_WRITE_4(sc, RL_PHYAR, reg << 16);
 
 	for (i = 0; i < RL_TIMEOUT; i++) {
-		DELAY(30);
 		rval = CSR_READ_4(sc, RL_PHYAR);
 		if (rval & RL_PHYAR_BUSY)
 			break;
+		DELAY(100);
 	}
 
 	if (i == RL_TIMEOUT) {
@@ -446,10 +446,10 @@ re_gmii_writereg(device_t dev, int phy, int reg, int data)
 	    (data & RL_PHYAR_PHYDATA) | RL_PHYAR_BUSY);
 
 	for (i = 0; i < RL_TIMEOUT; i++) {
-		DELAY(30);
 		rval = CSR_READ_4(sc, RL_PHYAR);
 		if (!(rval & RL_PHYAR_BUSY))
 			break;
+		DELAY(100);
 	}
 
 	if (i == RL_TIMEOUT) {
