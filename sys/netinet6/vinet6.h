@@ -77,6 +77,7 @@ struct vnet_inet6 {
 
 	int				_nd6_inuse;
 	int				_nd6_allocated;
+	int				_nd6_onlink_ns_rfc4861;
 	struct llinfo_nd6		_llinfo_nd6;
 	struct nd_drhead		_nd_defrouter;
 	struct nd_prhead 		_nd_prefix;
@@ -109,7 +110,6 @@ struct vnet_inet6 {
 	int				_ip6_keepfaith;
 	int				_ip6stealth;
 	time_t				_ip6_log_time;
-	int				_nd6_onlink_ns_rfc4861;
 
 	int				_pmtu_expire;
 	int				_pmtu_probe;

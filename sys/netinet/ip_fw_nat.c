@@ -69,9 +69,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_IPFW);
 
-extern struct ip_fw_chain layer3_chain;
-
 #ifdef VIMAGE_GLOBALS
+extern struct ip_fw_chain layer3_chain;
 static eventhandler_tag ifaddr_event_tag;
 #endif
 

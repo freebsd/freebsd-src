@@ -390,9 +390,7 @@ int	ip6_keepfaith;
 time_t	ip6_log_time;
 int	ip6stealth;
 int	nd6_onlink_ns_rfc4861;
-#endif
 
-#ifdef VIMAGE_GLOBALS
 /* icmp6 */
 /*
  * BSDI4 defines these variables in in_proto.c...
