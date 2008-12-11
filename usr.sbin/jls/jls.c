@@ -86,7 +86,7 @@ char *print_xprison_v3(void *p, char *end, unsigned flags)
 		errx(1, "Invalid length for jail");
 	xp = (struct xprison *)p;
 
-	if (xp->pr_state < 0 || xp->pr_state > (int)
+	if (xp->pr_state < 0 || xp->pr_state >= (int)
 	    ((sizeof(prison_states) / sizeof(struct prison_state))))
 		state = "(bogus)";
 	else
@@ -110,7 +110,7 @@ char *print_xprison_v3(void *p, char *end, unsigned flags)
 	/* Jail state and name. */
 	if (flags & FLAG_V)
 		printf("%6s  %-29.29s %.74s\n",
-		    "", (xp->pr_name != NULL) ? xp->pr_name : "", state);
+		    "", (xp->pr_name[0] != '\0') ? xp->pr_name : "", state);
 
 	/* cpusetid. */
 	if (flags & FLAG_V)
