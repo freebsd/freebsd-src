@@ -103,14 +103,14 @@ static usb2_callback_t ucycom_ctrl_write_callback;
 static usb2_callback_t ucycom_intr_read_clear_stall_callback;
 static usb2_callback_t ucycom_intr_read_callback;
 
-static void ucycom_cfg_open(struct usb2_com_softc *ucom);
-static void ucycom_start_read(struct usb2_com_softc *ucom);
-static void ucycom_stop_read(struct usb2_com_softc *ucom);
-static void ucycom_start_write(struct usb2_com_softc *ucom);
-static void ucycom_stop_write(struct usb2_com_softc *ucom);
-static void ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg);
-static int ucycom_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
+static void	ucycom_cfg_open(struct usb2_com_softc *);
+static void	ucycom_start_read(struct usb2_com_softc *);
+static void	ucycom_stop_read(struct usb2_com_softc *);
+static void	ucycom_start_write(struct usb2_com_softc *);
+static void	ucycom_stop_write(struct usb2_com_softc *);
+static void	ucycom_cfg_write(struct ucycom_softc *, uint32_t, uint8_t);
+static int	ucycom_pre_param(struct usb2_com_softc *, struct termios *);
+static void	ucycom_cfg_param(struct usb2_com_softc *, struct termios *);
 
 static const struct usb2_config ucycom_config[UCYCOM_ENDPT_MAX] = {
 

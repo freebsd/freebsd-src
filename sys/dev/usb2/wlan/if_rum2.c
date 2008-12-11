@@ -92,53 +92,69 @@ static usb2_config_td_command_t rum_cfg_amrr_timeout;
 static usb2_config_td_command_t rum_cfg_prepare_beacon;
 static usb2_config_td_command_t rum_cfg_newstate;
 
-static const char *rum_get_rf(uint32_t rev);
-static int rum_ioctl_cb(struct ifnet *ifp, u_long cmd, caddr_t data);
-static void rum_std_command(struct ieee80211com *ic, usb2_config_td_command_t *func);
-static void rum_scan_start_cb(struct ieee80211com *);
-static void rum_scan_end_cb(struct ieee80211com *);
-static void rum_set_channel_cb(struct ieee80211com *);
-static uint16_t rum_cfg_eeprom_read_2(struct rum_softc *sc, uint16_t addr);
-static uint32_t rum_cfg_bbp_disbusy(struct rum_softc *sc);
-static uint32_t rum_cfg_read(struct rum_softc *sc, uint16_t reg);
-static uint8_t rum_cfg_bbp_init(struct rum_softc *sc);
-static uint8_t rum_cfg_bbp_read(struct rum_softc *sc, uint8_t reg);
-static void rum_cfg_amrr_start(struct rum_softc *sc);
-static void rum_cfg_bbp_write(struct rum_softc *sc, uint8_t reg, uint8_t val);
-static void rum_cfg_do_request(struct rum_softc *sc, struct usb2_device_request *req, void *data);
-static void rum_cfg_eeprom_read(struct rum_softc *sc, uint16_t addr, void *buf, uint16_t len);
-static void rum_cfg_load_microcode(struct rum_softc *sc, const uint8_t *ucode, uint16_t size);
-static void rum_cfg_read_eeprom(struct rum_softc *sc);
-static void rum_cfg_read_multi(struct rum_softc *sc, uint16_t reg, void *buf, uint16_t len);
-static void rum_cfg_rf_write(struct rum_softc *sc, uint8_t reg, uint32_t val);
-static void rum_cfg_set_bssid(struct rum_softc *sc, uint8_t *bssid);
-static void rum_cfg_set_macaddr(struct rum_softc *sc, uint8_t *addr);
-static void rum_cfg_write(struct rum_softc *sc, uint16_t reg, uint32_t val);
-static void rum_cfg_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, uint16_t len);
-static void rum_end_of_commands(struct rum_softc *sc);
-static void rum_init_cb(void *arg);
-static void rum_start_cb(struct ifnet *ifp);
-static void rum_watchdog(void *arg);
-static uint8_t rum_get_rssi(struct rum_softc *sc, uint8_t raw);
-static struct ieee80211vap *rum_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit, int opmode, int flags, const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void rum_vap_delete(struct ieee80211vap *);
-static struct ieee80211_node *rum_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void rum_newassoc(struct ieee80211_node *, int);
-static void rum_cfg_disable_tsf_sync(struct rum_softc *sc);
-static void rum_cfg_set_run(struct rum_softc *sc, struct rum_config_copy *cc);
-static void rum_fill_write_queue(struct rum_softc *sc);
-static void rum_tx_clean_queue(struct rum_softc *sc);
-static void rum_tx_freem(struct mbuf *m);
-static void rum_tx_mgt(struct rum_softc *sc, struct mbuf *m, struct ieee80211_node *ni);
-static struct ieee80211vap *rum_get_vap(struct rum_softc *sc);
-static void rum_tx_data(struct rum_softc *sc, struct mbuf *m, struct ieee80211_node *ni);
-static void rum_tx_prot(struct rum_softc *sc, const struct mbuf *m, struct ieee80211_node *ni, uint8_t prot, uint16_t rate);
-static void rum_tx_raw(struct rum_softc *sc, struct mbuf *m, struct ieee80211_node *ni, const struct ieee80211_bpf_params *params);
-static int rum_raw_xmit_cb(struct ieee80211_node *ni, struct mbuf *m, const struct ieee80211_bpf_params *params);
-static void rum_setup_desc_and_tx(struct rum_softc *sc, struct mbuf *m, uint32_t flags, uint16_t xflags, uint16_t rate);
-static int rum_newstate_cb(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg);
-static void rum_update_mcast_cb(struct ifnet *ifp);
-static void rum_update_promisc_cb(struct ifnet *ifp);
+static const char *rum_get_rf(uint32_t);
+static int	rum_ioctl_cb(struct ifnet *, u_long, caddr_t);
+static void	rum_std_command(struct ieee80211com *, usb2_config_td_command_t *);
+static void	rum_scan_start_cb(struct ieee80211com *);
+static void	rum_scan_end_cb(struct ieee80211com *);
+static void	rum_set_channel_cb(struct ieee80211com *);
+static uint16_t	rum_cfg_eeprom_read_2(struct rum_softc *, uint16_t);
+static uint32_t	rum_cfg_bbp_disbusy(struct rum_softc *);
+static uint32_t	rum_cfg_read(struct rum_softc *, uint16_t);
+static uint8_t	rum_cfg_bbp_init(struct rum_softc *);
+static uint8_t	rum_cfg_bbp_read(struct rum_softc *, uint8_t);
+static void	rum_cfg_amrr_start(struct rum_softc *);
+static void	rum_cfg_bbp_write(struct rum_softc *, uint8_t, uint8_t);
+static void	rum_cfg_do_request(struct rum_softc *,
+		    struct usb2_device_request *, void *);
+static void	rum_cfg_eeprom_read(struct rum_softc *, uint16_t, void *,
+		    uint16_t);
+static void	rum_cfg_load_microcode(struct rum_softc *, const uint8_t *,
+		    uint16_t);
+static void	rum_cfg_read_eeprom(struct rum_softc *);
+static void	rum_cfg_read_multi(struct rum_softc *, uint16_t, void *,
+		    uint16_t);
+static void	rum_cfg_rf_write(struct rum_softc *, uint8_t, uint32_t);
+static void	rum_cfg_set_bssid(struct rum_softc *, uint8_t *);
+static void	rum_cfg_set_macaddr(struct rum_softc *, uint8_t *);
+static void	rum_cfg_write(struct rum_softc *, uint16_t, uint32_t);
+static void	rum_cfg_write_multi(struct rum_softc *, uint16_t, void *,
+		    uint16_t);
+static void	rum_end_of_commands(struct rum_softc *);
+static void	rum_init_cb(void *);
+static void	rum_start_cb(struct ifnet *);
+static void	rum_watchdog(void *);
+static uint8_t	rum_get_rssi(struct rum_softc *, uint8_t);
+static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
+		    const char[], int, int, int, const uint8_t[],
+		    const uint8_t[]);
+static void	rum_vap_delete(struct ieee80211vap *);
+static struct ieee80211_node *rum_node_alloc(struct ieee80211vap *,
+		    const uint8_t[]);
+static void	rum_newassoc(struct ieee80211_node *, int);
+static void	rum_cfg_disable_tsf_sync(struct rum_softc *);
+static void	rum_cfg_set_run(struct rum_softc *, struct rum_config_copy *);
+static void	rum_fill_write_queue(struct rum_softc *);
+static void	rum_tx_clean_queue(struct rum_softc *);
+static void	rum_tx_freem(struct mbuf *);
+static void	rum_tx_mgt(struct rum_softc *, struct mbuf *,
+		    struct ieee80211_node *);
+static struct ieee80211vap *rum_get_vap(struct rum_softc *);
+static void	rum_tx_data(struct rum_softc *, struct mbuf *,
+		    struct ieee80211_node *);
+static void	rum_tx_prot(struct rum_softc *, const struct mbuf *,
+		    struct ieee80211_node *, uint8_t, uint16_t);
+static void	rum_tx_raw(struct rum_softc *, struct mbuf *,
+		    struct ieee80211_node *,
+		    const struct ieee80211_bpf_params *);
+static int	rum_raw_xmit_cb(struct ieee80211_node *, struct mbuf *,
+		    const struct ieee80211_bpf_params *);
+static void	rum_setup_desc_and_tx(struct rum_softc *, struct mbuf *,
+		    uint32_t, uint16_t, uint16_t);
+static int	rum_newstate_cb(struct ieee80211vap *,
+		    enum ieee80211_state nstate, int arg);
+static void	rum_update_mcast_cb(struct ifnet *);
+static void	rum_update_promisc_cb(struct ifnet *);
 
 /* various supported device vendors/products */
 static const struct usb2_device_id rum_devs[] = {

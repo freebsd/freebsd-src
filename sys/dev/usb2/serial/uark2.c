@@ -89,16 +89,16 @@ static usb2_callback_t uark_bulk_write_clear_stall_callback;
 static usb2_callback_t uark_bulk_read_callback;
 static usb2_callback_t uark_bulk_read_clear_stall_callback;
 
-static void uark_start_read(struct usb2_com_softc *ucom);
-static void uark_stop_read(struct usb2_com_softc *ucom);
-static void uark_start_write(struct usb2_com_softc *ucom);
-static void uark_stop_write(struct usb2_com_softc *ucom);
-
-static int uark_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uark_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uark_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static void uark_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uark_cfg_write(struct uark_softc *sc, uint16_t index, uint16_t value);
+static void	uark_start_read(struct usb2_com_softc *);
+static void	uark_stop_read(struct usb2_com_softc *);
+static void	uark_start_write(struct usb2_com_softc *);
+static void	uark_stop_write(struct usb2_com_softc *);
+static int	uark_pre_param(struct usb2_com_softc *, struct termios *);
+static void	uark_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	uark_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static void	uark_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	uark_cfg_write(struct uark_softc *, uint16_t, uint16_t);
 
 static const struct usb2_config
 	uark_xfer_config[UARK_N_TRANSFER] = {

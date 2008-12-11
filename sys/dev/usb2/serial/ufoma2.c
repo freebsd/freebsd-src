@@ -195,23 +195,27 @@ static usb2_callback_t ufoma_bulk_write_clear_stall_callback;
 static usb2_callback_t ufoma_bulk_read_callback;
 static usb2_callback_t ufoma_bulk_read_clear_stall_callback;
 
-static void ufoma_cfg_do_request(struct ufoma_softc *sc, struct usb2_device_request *req, void *data);
-static void *ufoma_get_intconf(struct usb2_config_descriptor *cd, struct usb2_interface_descriptor *id, uint8_t type, uint8_t subtype);
-static void ufoma_cfg_link_state(struct ufoma_softc *sc);
-static void ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state);
-static void ufoma_cfg_open(struct usb2_com_softc *ucom);
-static void ufoma_cfg_close(struct usb2_com_softc *ucom);
-static void ufoma_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static void ufoma_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static void ufoma_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void ufoma_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static int ufoma_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void ufoma_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static int ufoma_modem_setup(device_t dev, struct ufoma_softc *sc, struct usb2_attach_arg *uaa);
-static void ufoma_start_read(struct usb2_com_softc *ucom);
-static void ufoma_stop_read(struct usb2_com_softc *ucom);
-static void ufoma_start_write(struct usb2_com_softc *ucom);
-static void ufoma_stop_write(struct usb2_com_softc *ucom);
+static void	ufoma_cfg_do_request(struct ufoma_softc *,
+		    struct usb2_device_request *, void *);
+static void	*ufoma_get_intconf(struct usb2_config_descriptor *,
+		    struct usb2_interface_descriptor *, uint8_t, uint8_t);
+static void	ufoma_cfg_link_state(struct ufoma_softc *);
+static void	ufoma_cfg_activate_state(struct ufoma_softc *, uint16_t);
+static void	ufoma_cfg_open(struct usb2_com_softc *);
+static void	ufoma_cfg_close(struct usb2_com_softc *);
+static void	ufoma_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	ufoma_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static void	ufoma_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	ufoma_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static int	ufoma_pre_param(struct usb2_com_softc *, struct termios *);
+static void	ufoma_cfg_param(struct usb2_com_softc *, struct termios *);
+static int	ufoma_modem_setup(device_t, struct ufoma_softc *,
+		    struct usb2_attach_arg *);
+static void	ufoma_start_read(struct usb2_com_softc *);
+static void	ufoma_stop_read(struct usb2_com_softc *);
+static void	ufoma_start_write(struct usb2_com_softc *);
+static void	ufoma_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config
 	ufoma_ctrl_config[UFOMA_CTRL_ENDPT_MAX] = {

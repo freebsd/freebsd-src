@@ -119,17 +119,17 @@ static const struct usb2_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 
 /* function prototypes */
 
-static void usb2_update_max_frame_size(struct usb2_xfer *xfer);
-static uint32_t usb2_get_dma_delay(struct usb2_bus *bus);
-static void usb2_transfer_unsetup_sub(struct usb2_xfer_root *info, uint8_t needs_delay);
-static void usb2_control_transfer_init(struct usb2_xfer *xfer);
-static uint8_t usb2_start_hardware_sub(struct usb2_xfer *xfer);
-static void usb2_callback_proc(struct usb2_proc_msg *_pm);
-static void usb2_callback_ss_done_defer(struct usb2_xfer *xfer);
-static void usb2_callback_wrapper(struct usb2_xfer_queue *pq);
-static void usb2_dma_delay_done_cb(void *arg);
-static void usb2_transfer_start_cb(void *arg);
-static uint8_t usb2_callback_wrapper_sub(struct usb2_xfer *xfer);
+static void	usb2_update_max_frame_size(struct usb2_xfer *);
+static uint32_t	usb2_get_dma_delay(struct usb2_bus *);
+static void	usb2_transfer_unsetup_sub(struct usb2_xfer_root *, uint8_t);
+static void	usb2_control_transfer_init(struct usb2_xfer *);
+static uint8_t	usb2_start_hardware_sub(struct usb2_xfer *);
+static void	usb2_callback_proc(struct usb2_proc_msg *);
+static void	usb2_callback_ss_done_defer(struct usb2_xfer *);
+static void	usb2_callback_wrapper(struct usb2_xfer_queue *);
+static void	usb2_dma_delay_done_cb(void *);
+static void	usb2_transfer_start_cb(void *);
+static uint8_t	usb2_callback_wrapper_sub(struct usb2_xfer *);
 
 /*------------------------------------------------------------------------*
  *	usb2_update_max_frame_size

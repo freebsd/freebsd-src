@@ -190,13 +190,15 @@ static usb2_callback_t aue_bulk_read_callback;
 static usb2_callback_t aue_bulk_write_clear_stall_callback;
 static usb2_callback_t aue_bulk_write_callback;
 
-static void aue_cfg_do_request(struct aue_softc *sc, struct usb2_device_request *req, void *data);
-static uint8_t aue_cfg_csr_read_1(struct aue_softc *sc, uint16_t reg);
-static uint16_t aue_cfg_csr_read_2(struct aue_softc *sc, uint16_t reg);
-static void aue_cfg_csr_write_1(struct aue_softc *sc, uint16_t reg, uint8_t val);
-static void aue_cfg_csr_write_2(struct aue_softc *sc, uint16_t reg, uint16_t val);
-static void aue_cfg_eeprom_getword(struct aue_softc *sc, uint8_t addr, uint8_t *dest);
-static void aue_cfg_read_eeprom(struct aue_softc *sc, uint8_t *dest, uint16_t off, uint16_t len);
+static void	aue_cfg_do_request(struct aue_softc *,
+		    struct usb2_device_request *, void *);
+static uint8_t	aue_cfg_csr_read_1(struct aue_softc *, uint16_t);
+static uint16_t	aue_cfg_csr_read_2(struct aue_softc *, uint16_t);
+static void	aue_cfg_csr_write_1(struct aue_softc *, uint16_t, uint8_t);
+static void	aue_cfg_csr_write_2(struct aue_softc *, uint16_t, uint16_t);
+static void	aue_cfg_eeprom_getword(struct aue_softc *, uint8_t, uint8_t *);
+static void	aue_cfg_read_eeprom(struct aue_softc *, uint8_t *, uint16_t,
+		    uint16_t);
 
 static miibus_readreg_t aue_cfg_miibus_readreg;
 static miibus_writereg_t aue_cfg_miibus_writereg;
@@ -213,15 +215,15 @@ static usb2_config_td_command_t aue_cfg_ifmedia_upd;
 static usb2_config_td_command_t aue_cfg_pre_stop;
 static usb2_config_td_command_t aue_cfg_stop;
 
-static void aue_cfg_reset_pegasus_II(struct aue_softc *sc);
-static void aue_cfg_reset(struct aue_softc *sc);
-static void aue_start_cb(struct ifnet *ifp);
-static void aue_init_cb(void *arg);
-static void aue_start_transfers(struct aue_softc *sc);
-static int aue_ifmedia_upd_cb(struct ifnet *ifp);
-static void aue_ifmedia_sts_cb(struct ifnet *ifp, struct ifmediareq *ifmr);
-static int aue_ioctl_cb(struct ifnet *ifp, u_long command, caddr_t data);
-static void aue_watchdog(void *arg);
+static void	aue_cfg_reset_pegasus_II(struct aue_softc *);
+static void	aue_cfg_reset(struct aue_softc *);
+static void	aue_start_cb(struct ifnet *);
+static void	aue_init_cb(void *);
+static void	aue_start_transfers(struct aue_softc *);
+static int	aue_ifmedia_upd_cb(struct ifnet *);
+static void	aue_ifmedia_sts_cb(struct ifnet *, struct ifmediareq *);
+static int	aue_ioctl_cb(struct ifnet *, u_long, caddr_t);
+static void	aue_watchdog(void *);
 
 static const struct usb2_config aue_config[AUE_ENDPT_MAX] = {
 

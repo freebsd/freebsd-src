@@ -139,13 +139,13 @@ extern struct usb2_pipe_methods uhci_root_ctrl_methods;
 extern struct usb2_pipe_methods uhci_root_intr_methods;
 
 static usb2_config_td_command_t uhci_root_ctrl_task;
-static void uhci_root_ctrl_poll(struct uhci_softc *sc);
-static void uhci_do_poll(struct usb2_bus *bus);
-static void uhci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
-static void uhci_transfer_intr_enqueue(struct usb2_xfer *xfer);
-static void uhci_root_intr_check(void *arg);
-static void uhci_timeout(void *arg);
-static uint8_t uhci_check_transfer(struct usb2_xfer *xfer);
+static void	uhci_root_ctrl_poll(struct uhci_softc *);
+static void	uhci_do_poll(struct usb2_bus *);
+static void	uhci_device_done(struct usb2_xfer *, usb2_error_t);
+static void	uhci_transfer_intr_enqueue(struct usb2_xfer *);
+static void	uhci_root_intr_check(void *);
+static void	uhci_timeout(void *);
+static uint8_t	uhci_check_transfer(struct usb2_xfer *);
 
 void
 uhci_iterate_hw_softc(struct usb2_bus *bus, usb2_bus_mem_sub_cb_t *cb)

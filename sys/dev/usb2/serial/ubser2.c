@@ -148,13 +148,14 @@ static usb2_callback_t ubser_write_callback;
 static usb2_callback_t ubser_read_clear_stall_callback;
 static usb2_callback_t ubser_read_callback;
 
-static int ubser_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void ubser_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static void ubser_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static void ubser_start_read(struct usb2_com_softc *ucom);
-static void ubser_stop_read(struct usb2_com_softc *ucom);
-static void ubser_start_write(struct usb2_com_softc *ucom);
-static void ubser_stop_write(struct usb2_com_softc *ucom);
+static int	ubser_pre_param(struct usb2_com_softc *, struct termios *);
+static void	ubser_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	ubser_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static void	ubser_start_read(struct usb2_com_softc *);
+static void	ubser_stop_read(struct usb2_com_softc *);
+static void	ubser_start_write(struct usb2_com_softc *);
+static void	ubser_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config ubser_config[UBSER_TR_MAX] = {
 

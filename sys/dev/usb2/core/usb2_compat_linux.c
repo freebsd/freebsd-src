@@ -67,14 +67,17 @@ static usb2_callback_t usb_linux_non_isoc_callback;
 
 static usb_complete_t usb_linux_wait_complete;
 
-static uint16_t usb_max_isoc_frames(struct usb_device *dev);
-static int usb_start_wait_urb(struct urb *urb, uint32_t timeout, uint16_t *p_actlen);
-static const struct usb_device_id *usb_linux_lookup_id(const struct usb_device_id *id, struct usb2_attach_arg *uaa);
-static struct usb_driver *usb_linux_get_usb_driver(struct usb_linux_softc *sc);
-static struct usb_device *usb_linux_create_usb_device(struct usb2_device *udev, device_t dev);
-static void usb_linux_cleanup_interface(struct usb_device *dev, struct usb_interface *iface);
-static void usb_linux_complete(struct usb2_xfer *xfer);
-static int usb_unlink_urb_sub(struct urb *urb, uint8_t drain);
+static uint16_t	usb_max_isoc_frames(struct usb_device *);
+static int	usb_start_wait_urb(struct urb *, uint32_t, uint16_t *);
+static const struct usb_device_id *usb_linux_lookup_id(
+		    const struct usb_device_id *, struct usb2_attach_arg *);
+static struct	usb_driver *usb_linux_get_usb_driver(struct usb_linux_softc *);
+static struct	usb_device *usb_linux_create_usb_device(struct usb2_device *,
+		    device_t);
+static void	usb_linux_cleanup_interface(struct usb_device *,
+		    struct usb_interface *);
+static void	usb_linux_complete(struct usb2_xfer *);
+static int	usb_unlink_urb_sub(struct urb *, uint8_t);
 
 /*------------------------------------------------------------------------*
  * FreeBSD USB interface

@@ -81,14 +81,14 @@ static usb2_callback_t cdce_bulk_read_callback;
 static usb2_callback_t cdce_intr_read_callback;
 static usb2_callback_t cdce_intr_write_callback;
 
-static void cdce_start_cb(struct ifnet *ifp);
-static void cdce_start_transfers(struct cdce_softc *sc);
-static uint32_t cdce_m_crc32(struct mbuf *m, uint32_t src_offset, uint32_t src_len);
-static void cdce_stop(struct cdce_softc *sc);
-static int cdce_ioctl_cb(struct ifnet *ifp, u_long command, caddr_t data);
-static void cdce_init_cb(void *arg);
-static int cdce_ifmedia_upd_cb(struct ifnet *ifp);
-static void cdce_ifmedia_sts_cb(struct ifnet *const ifp, struct ifmediareq *req);
+static void	cdce_start_cb(struct ifnet *);
+static void	cdce_start_transfers(struct cdce_softc *);
+static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
+static void	cdce_stop(struct cdce_softc *);
+static int	cdce_ioctl_cb(struct ifnet *, u_long, caddr_t);
+static void	cdce_init_cb(void *);
+static int	cdce_ifmedia_upd_cb(struct ifnet *);
+static void	cdce_ifmedia_sts_cb(struct ifnet *, struct ifmediareq *);
 
 #if USB_DEBUG
 static int cdce_debug = 0;

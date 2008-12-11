@@ -426,17 +426,28 @@ typedef struct malloc_type *usb2_malloc_type;
 /* prototypes */
 
 const char *usb2_errstr(usb2_error_t error);
-struct usb2_config_descriptor *usb2_get_config_descriptor(struct usb2_device *udev);
-struct usb2_device_descriptor *usb2_get_device_descriptor(struct usb2_device *udev);
-struct usb2_interface *usb2_get_iface(struct usb2_device *udev, uint8_t iface_index);
-struct usb2_interface_descriptor *usb2_get_interface_descriptor(struct usb2_interface *iface);
-uint8_t	usb2_clear_stall_callback(struct usb2_xfer *xfer1, struct usb2_xfer *xfer2);
+struct usb2_config_descriptor *usb2_get_config_descriptor(
+	    struct usb2_device *udev);
+struct usb2_device_descriptor *usb2_get_device_descriptor(
+	    struct usb2_device *udev);
+struct usb2_interface *usb2_get_iface(struct usb2_device *udev,
+	    uint8_t iface_index);
+struct usb2_interface_descriptor *usb2_get_interface_descriptor(
+	    struct usb2_interface *iface);
+uint8_t	usb2_clear_stall_callback(struct usb2_xfer *xfer1,
+	    struct usb2_xfer *xfer2);
 uint8_t	usb2_get_interface_altindex(struct usb2_interface *iface);
-usb2_error_t usb2_set_alt_interface_index(struct usb2_device *udev, uint8_t iface_index, uint8_t alt_index);
+usb2_error_t usb2_set_alt_interface_index(struct usb2_device *udev,
+	    uint8_t iface_index, uint8_t alt_index);
 uint8_t	usb2_get_speed(struct usb2_device *udev);
-usb2_error_t usb2_transfer_setup(struct usb2_device *udev, const uint8_t *ifaces, struct usb2_xfer **pxfer, const struct usb2_config *setup_start, uint16_t n_setup, void *priv_sc, struct mtx *priv_mtx);
-void	usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr, uint32_t frindex);
-void	usb2_set_frame_offset(struct usb2_xfer *xfer, uint32_t offset, uint32_t frindex);
+usb2_error_t usb2_transfer_setup(struct usb2_device *udev,
+	    const uint8_t *ifaces, struct usb2_xfer **pxfer,
+	    const struct usb2_config *setup_start, uint16_t n_setup,
+	    void *priv_sc, struct mtx *priv_mtx);
+void	usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr,
+	    uint32_t frindex);
+void	usb2_set_frame_offset(struct usb2_xfer *xfer, uint32_t offset,
+	    uint32_t frindex);
 void	usb2_start_hardware(struct usb2_xfer *xfer);
 void	usb2_transfer_clear_stall(struct usb2_xfer *xfer);
 void	usb2_transfer_drain(struct usb2_xfer *xfer);
@@ -444,10 +455,13 @@ void	usb2_transfer_set_stall(struct usb2_xfer *xfer);
 void	usb2_transfer_start(struct usb2_xfer *xfer);
 void	usb2_transfer_stop(struct usb2_xfer *xfer);
 void	usb2_transfer_unsetup(struct usb2_xfer **pxfer, uint16_t n_setup);
-usb2_error_t usb2_ref_device(struct file *fp, struct usb2_location *ploc, uint32_t devloc);
+usb2_error_t usb2_ref_device(struct file *fp, struct usb2_location *ploc,
+	    uint32_t devloc);
 void	usb2_unref_device(struct usb2_location *ploc);
-void	usb2_set_parent_iface(struct usb2_device *udev, uint8_t iface_index, uint8_t parent_index);
-void	usb2_set_iface_perm(struct usb2_device *udev, uint8_t iface_index, uint32_t uid, uint32_t gid, uint16_t mode);
+void	usb2_set_parent_iface(struct usb2_device *udev, uint8_t iface_index,
+	    uint8_t parent_index);
+void	usb2_set_iface_perm(struct usb2_device *udev, uint8_t iface_index,
+	    uint32_t uid, uint32_t gid, uint16_t mode);
 uint8_t	usb2_get_bus_index(struct usb2_device *udev);
 uint8_t	usb2_get_device_index(struct usb2_device *udev);
 

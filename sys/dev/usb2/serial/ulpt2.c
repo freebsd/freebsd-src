@@ -124,8 +124,8 @@ static usb2_callback_t ulpt_read_callback;
 static usb2_callback_t ulpt_read_clear_stall_callback;
 static usb2_callback_t ulpt_status_callback;
 
-static void ulpt_reset(struct ulpt_softc *sc);
-static void ulpt_watchdog(void *arg);
+static void	ulpt_reset(struct ulpt_softc *);
+static void	ulpt_watchdog(void *);
 
 static usb2_fifo_close_t ulpt_close;
 static usb2_fifo_cmd_t ulpt_start_read;
