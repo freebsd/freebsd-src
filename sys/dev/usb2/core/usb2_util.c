@@ -119,7 +119,6 @@ device_set_usb2_desc(device_t dev)
 	device_set_desc_copy(dev, temp_p);
 	device_printf(dev, "<%s> on %s\n", temp_p,
 	    device_get_nameunit(udev->bus->bdev));
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -155,7 +154,6 @@ usb2_pause_mtx(struct mtx *mtx, uint32_t ms)
 		if (mtx != NULL)
 			mtx_lock(mtx);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -171,7 +169,6 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 	if (snprintf(p, p_len, "%x.%02x", bcd >> 8, bcd & 0xff)) {
 		/* ignore any errors */
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -195,7 +192,6 @@ usb2_trim_spaces(char *p)
 		if (*p++ != ' ')	/* remember last non-space */
 			e = p;
 	*e = 0;				/* kill trailing spaces */
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -259,7 +255,6 @@ void
 usb2_cv_init(struct cv *cv, const char *desc)
 {
 	cv_init(cv, desc);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -269,7 +264,6 @@ void
 usb2_cv_destroy(struct cv *cv)
 {
 	cv_destroy(cv);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -281,7 +275,6 @@ usb2_cv_wait(struct cv *cv, struct mtx *mtx)
 	int err;
 
 	err = usb2_msleep(cv, mtx, 0, cv_wmesg(cv), 0);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -317,7 +310,6 @@ void
 usb2_cv_signal(struct cv *cv)
 {
 	wakeup_one(cv);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -327,7 +319,6 @@ void
 usb2_cv_broadcast(struct cv *cv)
 {
 	wakeup(cv);
-	return;
 }
 
 /*------------------------------------------------------------------------*

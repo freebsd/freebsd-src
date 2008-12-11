@@ -414,7 +414,6 @@ uvscom_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UVSCOM_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -456,7 +455,6 @@ uvscom_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UVSCOM_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -526,7 +524,6 @@ uvscom_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UVSCOM_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -542,7 +539,6 @@ uvscom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 		sc->sc_line &= ~UVSCOM_DTR;
 
 	uvscom_cfg_write(sc, UVSCOM_LINE_CTL, sc->sc_line);
-	return;
 }
 
 static void
@@ -558,7 +554,6 @@ uvscom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 		sc->sc_line &= ~UVSCOM_RTS;
 
 	uvscom_cfg_write(sc, UVSCOM_LINE_CTL, sc->sc_line);
-	return;
 }
 
 static void
@@ -574,7 +569,6 @@ uvscom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 		sc->sc_line &= ~UVSCOM_BREAK;
 
 	uvscom_cfg_write(sc, UVSCOM_LINE_CTL, sc->sc_line);
-	return;
 }
 
 static int
@@ -678,7 +672,6 @@ uvscom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	}
 
 	uvscom_cfg_write(sc, UVSCOM_SET_PARAM, value);
-	return;
 }
 
 static int
@@ -705,8 +698,6 @@ uvscom_cfg_open(struct usb2_com_softc *ucom)
 	DPRINTF("sc = %p\n", sc);
 
 	uvscom_cfg_read_status(sc);
-
-	return;
 }
 
 static void
@@ -717,8 +708,6 @@ uvscom_cfg_close(struct usb2_com_softc *ucom)
 	DPRINTF("sc=%p\n", sc);
 
 	uvscom_cfg_write(sc, UVSCOM_SHUTDOWN, 0);
-
-	return;
 }
 
 static void
@@ -727,7 +716,6 @@ uvscom_start_read(struct usb2_com_softc *ucom)
 	struct uvscom_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -737,7 +725,6 @@ uvscom_stop_read(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -746,7 +733,6 @@ uvscom_start_write(struct usb2_com_softc *ucom)
 	struct uvscom_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -756,7 +742,6 @@ uvscom_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -766,7 +751,6 @@ uvscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-	return;
 }
 
 static int
@@ -797,7 +781,6 @@ uvscom_cfg_write(struct uvscom_softc *sc, uint8_t index, uint16_t value)
 		DPRINTFN(0, "device request failed, err=%s "
 		    "(ignored)\n", usb2_errstr(err));
 	}
-	return;
 }
 
 static uint16_t

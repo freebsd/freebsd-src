@@ -468,7 +468,6 @@ ehci_pci_takecontroller(device_t self)
 			usb2_pause_mtx(NULL, 10);	/* wait 10ms */
 		}
 	}
-	return;
 }
 
 static driver_t ehci_driver =

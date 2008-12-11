@@ -59,7 +59,6 @@ musbotg_vbus_interrupt(struct musbotg_super_softc *sc)
 
 	(sc->sc_otg.sc_bus.methods->vbus_interrupt)
 	    (&sc->sc_otg.sc_bus, vbus_val);
-	return;
 }
 
 static void
@@ -69,8 +68,6 @@ musbotg_clocks_on(void *arg)
 	struct musbotg_super_softc *sc = arg;
 
 #endif
-
-	return;
 }
 
 static void
@@ -80,8 +77,6 @@ musbotg_clocks_off(void *arg)
 	struct musbotg_super_softc *sc = arg;
 
 #endif
-
-	return;
 }
 
 static int

@@ -318,7 +318,6 @@ error:
 			bzero(buf, length);
 		}
 	}
-	return;
 }
 
 static int
@@ -438,7 +437,6 @@ axe_cfg_miibus_statchg(device_t dev)
 	if (do_unlock) {
 		mtx_unlock(&sc->sc_mtx);
 	}
-	return;
 }
 
 /*
@@ -479,8 +477,6 @@ axe_cfg_ifmedia_upd(struct axe_softc *sc,
 		}
 	}
 	mii_mediachg(mii);
-
-	return;
 }
 
 /*
@@ -495,8 +491,6 @@ axe_ifmedia_sts_cb(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_active = sc->sc_media_active;
 	ifmr->ifm_status = sc->sc_media_status;
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -506,7 +500,6 @@ axe_mchash(struct usb2_config_td_cc *cc, const uint8_t *ptr)
 
 	h = (ether_crc32_be(ptr, ETHER_ADDR_LEN) >> 26);
 	cc->if_hash[(h >> 3)] |= (1 << (h & 7));
-	return;
 }
 
 static void
@@ -515,7 +508,6 @@ axe_config_copy(struct axe_softc *sc,
 {
 	bzero(cc, sizeof(*cc));
 	usb2_ether_cc(sc->sc_ifp, &axe_mchash, cc);
-	return;
 }
 
 static void
@@ -537,8 +529,6 @@ axe_cfg_setmulti(struct axe_softc *sc,
 
 	axe_cfg_cmd(sc, AXE_CMD_WRITE_MCAST, 0, 0, cc->if_hash);
 	axe_cfg_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, rxmode, NULL);
-
-	return;
 }
 
 static void
@@ -558,8 +548,6 @@ axe_cfg_reset(struct axe_softc *sc)
 	 * wait a little while for the chip to get its brains in order:
 	 */
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
-
-	return;
 }
 
 /*
@@ -704,7 +692,6 @@ axe_cfg_ax88178_init(struct axe_softc *sc)
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 4);
 
 	axe_cfg_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
-	return;
 }
 
 static void
@@ -751,7 +738,6 @@ axe_cfg_ax88772_init(struct axe_softc *sc)
 
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 4);
 	axe_cfg_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
-	return;
 }
 
 static void
@@ -904,7 +890,6 @@ axe_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~AXE_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -947,7 +932,6 @@ axe_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~AXE_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 #if (AXE_BULK_BUF_SIZE >= 0x10000)
@@ -1100,7 +1084,6 @@ axe_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~AXE_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 #if ((AXE_BULK_BUF_SIZE >= 0x10000) || (AXE_BULK_BUF_SIZE < (MCLBYTES+4)))
@@ -1238,8 +1221,6 @@ axe_cfg_tick(struct axe_softc *sc,
 	/* start stopped transfers, if any */
 
 	axe_start_transfers(sc);
-
-	return;
 }
 
 static void
@@ -1252,8 +1233,6 @@ axe_start_cb(struct ifnet *ifp)
 	axe_start_transfers(sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1269,7 +1248,6 @@ axe_start_transfers(struct axe_softc *sc)
 		usb2_transfer_start(sc->sc_xfer[1]);
 		usb2_transfer_start(sc->sc_xfer[0]);
 	}
-	return;
 }
 
 static void
@@ -1281,8 +1259,6 @@ axe_init_cb(void *arg)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, &axe_cfg_pre_init, &axe_cfg_init, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1298,7 +1274,6 @@ axe_cfg_pre_init(struct axe_softc *sc,
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	sc->sc_flags |= AXE_FLAG_HL_READY;
-	return;
 }
 
 static void
@@ -1356,8 +1331,6 @@ axe_cfg_init(struct axe_softc *sc,
 	    AXE_FLAG_LL_READY);
 
 	axe_start_transfers(sc);
-
-	return;
 }
 
 static void
@@ -1379,8 +1352,6 @@ axe_cfg_promisc_upd(struct axe_softc *sc,
 	axe_cfg_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, rxmode, NULL);
 
 	axe_cfg_setmulti(sc, cc, 0);
-
-	return;
 }
 
 static int
@@ -1454,7 +1425,6 @@ axe_watchdog(void *arg)
 	    hz, &axe_watchdog, sc);
 
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 /*
@@ -1490,7 +1460,6 @@ axe_cfg_pre_stop(struct axe_softc *sc,
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[4]);
 	usb2_transfer_stop(sc->sc_xfer[5]);
-	return;
 }
 
 static void
@@ -1498,7 +1467,6 @@ axe_cfg_stop(struct axe_softc *sc,
     struct usb2_config_td_cc *cc, uint16_t refcount)
 {
 	axe_cfg_reset(sc);
-	return;
 }
 
 /*

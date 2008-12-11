@@ -1192,7 +1192,6 @@ uipaq_start_read(struct usb2_com_softc *ucom)
 
 	/* start read endpoint */
 	usb2_transfer_start(sc->sc_xfer_data[1]);
-	return;
 }
 
 static void
@@ -1203,7 +1202,6 @@ uipaq_stop_read(struct usb2_com_softc *ucom)
 	/* stop read endpoint */
 	usb2_transfer_stop(sc->sc_xfer_data[3]);
 	usb2_transfer_stop(sc->sc_xfer_data[1]);
-	return;
 }
 
 static void
@@ -1212,7 +1210,6 @@ uipaq_start_write(struct usb2_com_softc *ucom)
 	struct uipaq_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer_data[0]);
-	return;
 }
 
 static void
@@ -1222,7 +1219,6 @@ uipaq_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer_data[2]);
 	usb2_transfer_stop(sc->sc_xfer_data[0]);
-	return;
 }
 
 static void
@@ -1249,7 +1245,6 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
 
 static void
@@ -1273,7 +1268,6 @@ uipaq_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wLength, 0);
 
 	uipaq_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -1297,7 +1291,6 @@ uipaq_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wLength, 0);
 
 	uipaq_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -1317,7 +1310,6 @@ uipaq_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wLength, 0);
 
 	uipaq_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -1362,7 +1354,6 @@ uipaq_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UIPAQ_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1404,5 +1395,4 @@ uipaq_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UIPAQ_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }

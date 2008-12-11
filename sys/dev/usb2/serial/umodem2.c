@@ -427,7 +427,6 @@ umodem_start_read(struct usb2_com_softc *ucom)
 	}
 	/* start read endpoint */
 	usb2_transfer_start(sc->sc_xfer_data[1]);
-	return;
 }
 
 static void
@@ -442,7 +441,6 @@ umodem_stop_read(struct usb2_com_softc *ucom)
 	/* stop read endpoint */
 	usb2_transfer_stop(sc->sc_xfer_data[3]);
 	usb2_transfer_stop(sc->sc_xfer_data[1]);
-	return;
 }
 
 static void
@@ -451,7 +449,6 @@ umodem_start_write(struct usb2_com_softc *ucom)
 	struct umodem_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer_data[0]);
-	return;
 }
 
 static void
@@ -461,7 +458,6 @@ umodem_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer_data[2]);
 	usb2_transfer_stop(sc->sc_xfer_data[0]);
-	return;
 }
 
 static void
@@ -485,8 +481,6 @@ umodem_get_caps(struct usb2_attach_arg *uaa, uint8_t *cm, uint8_t *acm)
 		return;
 	}
 	*acm = cad->bmCapabilities;
-
-	return;
 }
 
 static void
@@ -498,7 +492,6 @@ umodem_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-	return;
 }
 
 static int
@@ -554,7 +547,6 @@ umodem_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	USETW(req.wLength, sizeof(ls));
 
 	umodem_cfg_do_request(sc, &req, &ls);
-	return;
 }
 
 static int
@@ -607,7 +599,6 @@ umodem_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wLength, 0);
 
 	umodem_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -631,7 +622,6 @@ umodem_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wLength, 0);
 
 	umodem_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -656,7 +646,6 @@ umodem_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 
 		umodem_cfg_do_request(sc, &req, NULL);
 	}
-	return;
 }
 
 static void
@@ -760,7 +749,6 @@ umodem_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UMODEM_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -805,7 +793,6 @@ umodem_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UMODEM_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -851,7 +838,6 @@ umodem_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UMODEM_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void *
@@ -923,5 +909,4 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
