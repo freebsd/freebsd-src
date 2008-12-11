@@ -115,7 +115,6 @@ struct syncache {
 	struct		in_conninfo sc_inc;	/* addresses */
 	int		sc_rxttime;		/* retransmit time */
 	u_int16_t	sc_rxmits;		/* retransmit counter */
-
 	u_int32_t	sc_tsreflect;		/* timestamp to reflect */
 	u_int32_t	sc_ts;			/* our timestamp to send */
 	u_int32_t	sc_tsoff;		/* ts offset w/ syncookies */
@@ -123,7 +122,6 @@ struct syncache {
 	tcp_seq		sc_irs;			/* seq from peer */
 	tcp_seq		sc_iss;			/* our ISS */
 	struct		mbuf *sc_ipopts;	/* source route */
-
 	u_int16_t	sc_peer_mss;		/* peer's MSS */
 	u_int16_t	sc_wnd;			/* advertised window */
 	u_int8_t	sc_ip_ttl;		/* IPv4 TTL */
@@ -131,13 +129,6 @@ struct syncache {
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
 	u_int8_t	sc_flags;
-#define SCF_NOOPT	0x01			/* no TCP options */
-#define SCF_WINSCALE	0x02			/* negotiated window scaling */
-#define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
-						/* MSS is implicit */
-#define SCF_UNREACH	0x10			/* icmp unreachable received */
-#define SCF_SIGNATURE	0x20			/* send MD5 digests */
-#define SCF_SACK	0x80			/* send SACK option */
 #ifndef TCP_OFFLOAD_DISABLE
 	struct toe_usrreqs *sc_tu;		/* TOE operations */
 	void 		*sc_toepcb;		/* TOE protocol block */
@@ -147,6 +138,17 @@ struct syncache {
 #endif
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
 };
+
+/*
+ * Flags for the sc_flags field.
+ */
+#define SCF_NOOPT	0x01			/* no TCP options */
+#define SCF_WINSCALE	0x02			/* negotiated window scaling */
+#define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
+						/* MSS is implicit */
+#define SCF_UNREACH	0x10			/* icmp unreachable received */
+#define SCF_SIGNATURE	0x20			/* send MD5 digests */
+#define SCF_SACK	0x80			/* send SACK option */
 
 #ifdef TCP_OFFLOAD_DISABLE
 #define TOEPCB_ISSET(sc) (0)
