@@ -60,6 +60,10 @@ struct vnet_modlink {
 		.vmi_symmap		= m_symmap			\
 };
 
+#if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
+#error "You cannot have both option VIMAGE and option VIMAGE_GLOBALS!"
+#endif
+
 #ifdef VIMAGE_GLOBALS
 #define	VSYM(base, sym) (sym)
 #else
