@@ -756,7 +756,6 @@ re_diag(struct rl_softc *sc)
 
 	ifp->if_flags |= IFF_PROMISC;
 	sc->rl_testmode = 1;
-	re_reset(sc);
 	re_init_locked(sc);
 	sc->rl_flags |= RL_FLAG_LINK;
 	if (sc->rl_type == RL_8169)
@@ -2091,10 +2090,8 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		 * XXX check behaviour on receiver stalls.
 		 */
 
-		if (status & RL_ISR_SYSTEM_ERR) {
-			re_reset(sc);
+		if (status & RL_ISR_SYSTEM_ERR)
 			re_init_locked(sc);
-		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -2158,10 +2155,8 @@ re_int_task(void *arg, int npending)
 	    RL_ISR_TX_ERR|RL_ISR_TX_DESC_UNAVAIL))
 		re_txeof(sc);
 
-	if (status & RL_ISR_SYSTEM_ERR) {
-		re_reset(sc);
+	if (status & RL_ISR_SYSTEM_ERR)
 		re_init_locked(sc);
-	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
@@ -2481,6 +2476,9 @@ re_init_locked(struct rl_softc *sc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	re_stop(sc);
+
+	/* Put controller into known state. */
+	re_reset(sc);
 
 	/*
 	 * Enable C+ RX and TX mode, as well as VLAN stripping and
