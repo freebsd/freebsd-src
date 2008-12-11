@@ -301,6 +301,7 @@ lapic_setup(int boot)
 	/* Program LINT[01] LVT entries. */
 	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
 	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
+
 #ifdef	HWPMC_HOOKS
 	/* Program the PMC LVT entry if present. */
 	if (maxlvt >= LVT_PMC)
@@ -644,6 +645,18 @@ lapic_eoi(void)
 {
 
 	lapic->eoi = 0;
+}
+
+/*
+ * Read the contents of the error status register.  We have to write
+ * to the register first before reading from it.
+ */
+u_int
+lapic_error(void)
+{
+
+	lapic->esr = 0;
+	return (lapic->esr);
 }
 
 void
