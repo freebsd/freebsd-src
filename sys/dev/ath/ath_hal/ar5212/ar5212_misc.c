@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_misc.c,v 1.12 2008/11/27 22:30:00 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -803,6 +803,7 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			return (ahp->ah_staId1Defaults &
 			    AR_STA_ID1_CRPT_MIC_ENABLE) ?  HAL_OK : HAL_ENXIO;
 		}
+		return HAL_EINVAL;
 	case HAL_CAP_TKIP_SPLIT:	/* hardware TKIP uses split keys */
 		switch (capability) {
 		case 0:			/* hardware capability */
