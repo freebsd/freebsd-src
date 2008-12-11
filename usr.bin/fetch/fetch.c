@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2000-2004 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -375,7 +375,8 @@ fetch(char *URL, const char *path)
 	}
 
 	/* HTTP specific flags */
-	if (strcmp(url->scheme, SCHEME_HTTP) == 0) {
+	if (strcmp(url->scheme, SCHEME_HTTP) == 0 ||
+	    strcmp(url->scheme, SCHEME_HTTPS) == 0) {
 		if (d_flag)
 			strcat(flags, "d");
 		if (A_flag)
