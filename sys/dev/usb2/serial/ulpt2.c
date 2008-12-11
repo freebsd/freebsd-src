@@ -188,7 +188,6 @@ ulpt_reset(struct ulpt_softc *sc)
 		}
 	}
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 static void
@@ -228,7 +227,6 @@ ulpt_write_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -242,7 +240,6 @@ ulpt_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~ULPT_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -302,7 +299,6 @@ ulpt_read_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -316,7 +312,6 @@ ulpt_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~ULPT_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -370,7 +365,6 @@ ulpt_status_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
@@ -428,7 +422,6 @@ ulpt_start_read(struct usb2_fifo *fifo)
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -438,7 +431,6 @@ ulpt_stop_read(struct usb2_fifo *fifo)
 
 	usb2_transfer_stop(sc->sc_xfer[4]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -447,7 +439,6 @@ ulpt_start_write(struct usb2_fifo *fifo)
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -457,7 +448,6 @@ ulpt_stop_write(struct usb2_fifo *fifo)
 
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static int
@@ -521,7 +511,6 @@ ulpt_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 static int
@@ -775,7 +764,6 @@ ulpt_watchdog(void *arg)
 	    hz, &ulpt_watchdog, sc);
 
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 static devclass_t ulpt_devclass;

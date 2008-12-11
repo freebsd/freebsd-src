@@ -159,7 +159,6 @@ uhub_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UHUB_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -832,7 +831,6 @@ static void
 uhub_driver_added(device_t dev, driver_t *driver)
 {
 	usb2_needs_explore_all();
-	return;
 }
 
 struct hub_result {
@@ -872,7 +870,6 @@ uhub_find_iface_index(struct usb2_hub *hub, device_t child,
 	res->iface_index = 0;
 	res->udev = NULL;
 	res->portno = 0;
-	return;
 }
 
 static int
@@ -1060,7 +1057,6 @@ usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
 	    USB_FS_BYTES_PER_HS_UFRAME);
 	fss->frame_bytes = (USB_FS_BYTES_PER_HS_UFRAME);
 	fss->frame_slot = 0;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1078,7 +1074,6 @@ usb2_fs_isoc_schedule_init_all(struct usb2_fs_isoc_schedule *fss)
 		usb2_fs_isoc_schedule_init_sub(fss);
 		fss++;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1276,8 +1271,6 @@ usb2_bus_port_set_device(struct usb2_bus *bus, struct usb2_port *up,
 	 * Debug print
 	 */
 	DPRINTFN(2, "bus %p devices[%u] = %p\n", bus, device_index, udev);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1303,7 +1296,6 @@ usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe)
 		/* ignore */
 	}
 	USB_BUS_UNLOCK(bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1341,5 +1333,4 @@ usb2_needs_explore_all(void)
 		}
 		max--;
 	}
-	return;
 }

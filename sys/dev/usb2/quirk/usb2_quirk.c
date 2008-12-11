@@ -356,7 +356,6 @@ usb2_quirk_init(void *arg)
 	/* register our function */
 	usb2_test_quirk_p = &usb2_test_quirk_by_info;
 	usb2_quirk_ioctl_p = &usb2_quirk_ioctl;
-	return;
 }
 
 static void
@@ -366,7 +365,6 @@ usb2_quirk_uninit(void *arg)
 
 	/* destroy mutex */
 	mtx_destroy(&usb2_quirk_mtx);
-	return;
 }
 
 SYSINIT(usb2_quirk_init, SI_SUB_LOCK, SI_ORDER_FIRST, usb2_quirk_init, NULL);

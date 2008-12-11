@@ -466,7 +466,6 @@ uscanner_read_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 /*
@@ -483,7 +482,6 @@ uscanner_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~USCANNER_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 /*
@@ -527,7 +525,6 @@ uscanner_write_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 /*
@@ -544,7 +541,6 @@ uscanner_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~USCANNER_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 /*
@@ -588,7 +584,6 @@ uscanner_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 /*

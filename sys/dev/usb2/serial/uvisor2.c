@@ -546,7 +546,6 @@ uvisor_cfg_close(struct usb2_com_softc *ucom)
 		DPRINTFN(0, "close notification failed, error=%s\n",
 		    usb2_errstr(err));
 	}
-	return;
 }
 
 static void
@@ -555,7 +554,6 @@ uvisor_start_read(struct usb2_com_softc *ucom)
 	struct uvisor_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -565,7 +563,6 @@ uvisor_stop_read(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -574,7 +571,6 @@ uvisor_start_write(struct usb2_com_softc *ucom)
 	struct uvisor_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -584,7 +580,6 @@ uvisor_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -629,7 +624,6 @@ uvisor_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UVISOR_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -671,5 +665,4 @@ uvisor_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UVISOR_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }

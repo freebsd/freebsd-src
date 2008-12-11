@@ -467,7 +467,6 @@ udbp_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UDBP_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -508,8 +507,6 @@ done:
 	usb2_transfer_start(sc->sc_xfer[UDBP_T_RD]);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -578,7 +575,6 @@ udbp_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UDBP_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 /***********************************************************************

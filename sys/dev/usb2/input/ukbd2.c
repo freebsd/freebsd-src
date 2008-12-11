@@ -276,7 +276,6 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 	} else {
 		DPRINTF("input buffer is full\n");
 	}
-	return;
 }
 
 static int32_t
@@ -448,8 +447,6 @@ ukbd_timeout(void *arg)
 	usb2_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
 
 	mtx_unlock(&Giant);
-
-	return;
 }
 
 static void
@@ -463,7 +460,6 @@ ukbd_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UKBD_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1319,7 +1315,6 @@ ukbd_clear_state(keyboard_t *kbd)
 	bzero(&sc->sc_odata, sizeof(sc->sc_odata));
 	bzero(&sc->sc_ntime, sizeof(sc->sc_ntime));
 	bzero(&sc->sc_otime, sizeof(sc->sc_otime));
-	return;
 }
 
 /* save the internal state, not used */
@@ -1369,8 +1364,6 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 	/* start transfer, if not already started */
 
 	usb2_transfer_start(sc->sc_xfer[2]);
-
-	return;
 }
 
 static int

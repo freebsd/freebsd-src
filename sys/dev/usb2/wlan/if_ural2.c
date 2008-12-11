@@ -586,7 +586,6 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
 
 static void
@@ -601,7 +600,6 @@ ural_cfg_set_testmode(struct ural_softc *sc)
 	USETW(req.wLength, 0);
 
 	ural_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -617,7 +615,6 @@ ural_cfg_eeprom_read(struct ural_softc *sc, uint16_t addr,
 	USETW(req.wLength, len);
 
 	ural_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static uint16_t
@@ -650,7 +647,6 @@ ural_cfg_read_multi(struct ural_softc *sc, uint16_t reg,
 	USETW(req.wLength, len);
 
 	ural_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static void
@@ -665,7 +661,6 @@ ural_cfg_write(struct ural_softc *sc, uint16_t reg, uint16_t val)
 	USETW(req.wLength, 0);
 
 	ural_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -681,7 +676,6 @@ ural_cfg_write_multi(struct ural_softc *sc, uint16_t reg,
 	USETW(req.wLength, len);
 
 	ural_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static uint8_t
@@ -719,7 +713,6 @@ ural_cfg_bbp_write(struct ural_softc *sc, uint8_t reg, uint8_t val)
 	}
 	tmp = (reg << 8) | val;
 	ural_cfg_write(sc, RAL_PHY_CSR7, tmp);
-	return;
 }
 
 static uint8_t
@@ -771,7 +764,6 @@ ural_cfg_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val)
 	ural_cfg_write(sc, RAL_PHY_CSR10, tmp >> 16);
 
 	DPRINTFN(16, "RF R[%u] <- 0x%05x\n", reg, val & 0xfffff);
-	return;
 }
 
 static void
@@ -893,7 +885,6 @@ ural_end_of_commands(struct ural_softc *sc)
 
 	/* start write transfer, if not started */
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -918,7 +909,6 @@ ural_config_copy_chan(struct ural_config_copy_chan *cc,
 		if (IEEE80211_IS_CHAN_ANYG(c))
 			cc->chan_is_g = 1;
 	}
-	return;
 }
 
 static void
@@ -966,7 +956,6 @@ ural_config_copy(struct ural_softc *sc,
 		}
 	}
 	sc->sc_flags |= URAL_FLAG_WAIT_COMMAND;
-	return;
 }
 
 static const char *
@@ -1144,7 +1133,6 @@ ural_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~URAL_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static uint8_t
@@ -1306,7 +1294,6 @@ ural_setup_desc_and_tx(struct ural_softc *sc, struct mbuf *m,
 	_IF_ENQUEUE(&sc->sc_tx_queue, mm);
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -1389,7 +1376,6 @@ ural_bulk_write_callback(struct usb2_xfer *xfer)
 		ifp->if_oerrors++;
 		break;
 	}
-	return;
 }
 
 static void
@@ -1403,7 +1389,6 @@ ural_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~URAL_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1422,8 +1407,6 @@ ural_watchdog(void *arg)
 	    hz, &ural_watchdog, sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 /*========================================================================*
@@ -1440,8 +1423,6 @@ ural_init_cb(void *arg)
 	    (&sc->sc_config_td, &ural_cfg_pre_init,
 	    &ural_cfg_init, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static int
@@ -1491,8 +1472,6 @@ ural_start_cb(struct ifnet *ifp)
 	/* start write transfer, if not started */
 	usb2_transfer_start(sc->sc_xfer[0]);
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1534,7 +1513,6 @@ ural_cfg_newstate(struct ural_softc *sc,
 		vap->iv_newstate_cb(vap, nstate, arg);
 	IEEE80211_UNLOCK(ic);
 	mtx_lock(&sc->sc_mtx);
-	return;
 }
 
 static int
@@ -1593,29 +1571,24 @@ ural_std_command(struct ieee80211com *ic, usb2_config_td_command_t *func)
 	    (&sc->sc_config_td, &ural_config_copy, func, 0, 0);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
 ural_scan_start_cb(struct ieee80211com *ic)
 {
 	ural_std_command(ic, &ural_cfg_scan_start);
-	return;
 }
 
 static void
 ural_scan_end_cb(struct ieee80211com *ic)
 {
 	ural_std_command(ic, &ural_cfg_scan_end);
-	return;
 }
 
 static void
 ural_set_channel_cb(struct ieee80211com *ic)
 {
 	ural_std_command(ic, &ural_cfg_set_chan);
-	return;
 }
 
 /*========================================================================*
@@ -1629,7 +1602,6 @@ ural_cfg_scan_start(struct ural_softc *sc,
 	/* abort TSF synchronization */
 	ural_cfg_disable_tsf_sync(sc);
 	ural_cfg_set_bssid(sc, cc->if_broadcastaddr);
-	return;
 }
 
 static void
@@ -1639,7 +1611,6 @@ ural_cfg_scan_end(struct ural_softc *sc,
 	/* enable TSF synchronization */
 	ural_cfg_enable_tsf_sync(sc, cc, 0);
 	ural_cfg_set_bssid(sc, cc->iv_bss.ni_bssid);
-	return;
 }
 
 static void
@@ -1771,7 +1742,6 @@ ural_cfg_set_chan(struct ural_softc *sc,
 	if (usb2_config_td_sleep(&sc->sc_config_td, hz / 100)) {
 		return;
 	}
-	return;
 }
 
 static void
@@ -1813,7 +1783,6 @@ ural_cfg_set_run(struct ural_softc *sc,
 		/* enable automatic rate adaptation */
 		ural_cfg_amrr_start(sc);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1832,8 +1801,6 @@ ural_cfg_disable_rf_tune(struct ural_softc *sc)
 	ural_cfg_rf_write(sc, RAL_RF3, tmp);
 
 	DPRINTFN(3, "disabling RF autotune\n");
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1869,8 +1836,6 @@ ural_cfg_enable_tsf_sync(struct ural_softc *sc,
 	ural_cfg_write(sc, RAL_TXRX_CSR19, tmp);
 
 	DPRINTF("enabling TSF synchronization\n");
-
-	return;
 }
 
 static void
@@ -1881,8 +1846,6 @@ ural_cfg_disable_tsf_sync(struct ural_softc *sc)
 
 	/* force tx led to stop blinking */
 	ural_cfg_write(sc, RAL_MAC_CSR20, 0);
-
-	return;
 }
 
 #define	RAL_RXTX_TURNAROUND    5	/* us */
@@ -1912,7 +1875,6 @@ ural_cfg_update_slot(struct ural_softc *sc,
 	ural_cfg_write(sc, RAL_MAC_CSR10, slottime);
 	ural_cfg_write(sc, RAL_MAC_CSR11, sifs);
 	ural_cfg_write(sc, RAL_MAC_CSR12, eifs);
-	return;
 }
 
 static void
@@ -1930,7 +1892,6 @@ ural_cfg_set_txpreamble(struct ural_softc *sc,
 	}
 
 	ural_cfg_write(sc, RAL_TXRX_CSR10, tmp);
-	return;
 }
 
 static void
@@ -1941,7 +1902,6 @@ ural_cfg_set_bssid(struct ural_softc *sc, uint8_t *bssid)
 	DPRINTF("setting BSSID to 0x%02x%02x%02x%02x%02x%02x\n",
 	    bssid[5], bssid[4], bssid[3],
 	    bssid[2], bssid[1], bssid[0]);
-	return;
 }
 
 static void
@@ -1952,7 +1912,6 @@ ural_cfg_set_macaddr(struct ural_softc *sc, uint8_t *addr)
 	DPRINTF("setting MAC to 0x%02x%02x%02x%02x%02x%02x\n",
 	    addr[5], addr[4], addr[3],
 	    addr[2], addr[1], addr[0]);
-	return;
 }
 
 static void
@@ -1974,7 +1933,6 @@ ural_cfg_update_promisc(struct ural_softc *sc,
 	DPRINTF("%s promiscuous mode\n",
 	    (cc->if_flags & IFF_PROMISC) ?
 	    "entering" : "leaving");
-	return;
 }
 
 static void
@@ -2005,8 +1963,6 @@ ural_cfg_set_txantenna(struct ural_softc *sc, uint8_t antenna)
 
 	tmp = ural_cfg_read(sc, RAL_PHY_CSR6) & ~0x7;
 	ural_cfg_write(sc, RAL_PHY_CSR6, tmp | (tx & 0x7));
-
-	return;
 }
 
 static void
@@ -2029,7 +1985,6 @@ ural_cfg_set_rxantenna(struct ural_softc *sc, uint8_t antenna)
 		rx &= ~RAL_BBP_FLIPIQ;
 	}
 	ural_cfg_bbp_write(sc, RAL_BBP_RX, rx);
-	return;
 }
 
 static void
@@ -2061,7 +2016,6 @@ ural_cfg_read_eeprom(struct ural_softc *sc)
 	/* read Tx power for all b/g channels */
 	ural_cfg_eeprom_read(sc, RAL_EEPROM_TXPOWER, sc->sc_txpow,
 	    sizeof(sc->sc_txpow));
-	return;
 }
 
 static uint8_t
@@ -2123,8 +2077,6 @@ ural_cfg_pre_init(struct ural_softc *sc,
 	sc->sc_flags |= URAL_FLAG_HL_READY;
 
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-
-	return;
 }
 
 static void
@@ -2245,7 +2197,6 @@ fail:
 	if (cc) {
 		ural_cfg_stop(sc, cc, 0);
 	}
-	return;
 }
 
 static void
@@ -2277,7 +2228,6 @@ ural_cfg_pre_stop(struct ural_softc *sc,
 
 	/* clean up transmission */
 	ural_tx_clean_queue(sc);
-	return;
 }
 
 static void
@@ -2298,8 +2248,6 @@ ural_cfg_stop(struct ural_softc *sc,
 
 	/* wait a little */
 	usb2_config_td_sleep(&sc->sc_config_td, hz / 10);
-
-	return;
 }
 
 static void
@@ -2323,7 +2271,6 @@ ural_cfg_amrr_start(struct ural_softc *sc)
 	/* enable AMRR timer */
 
 	sc->sc_amrr_timer = 1;
-	return;
 }
 
 static void
@@ -2365,7 +2312,6 @@ ural_cfg_amrr_timeout(struct ural_softc *sc,
 		}
 		ifp->if_oerrors += fail;
 	}
-	return;
 }
 
 static struct ieee80211vap *
@@ -2432,7 +2378,6 @@ ural_vap_delete(struct ieee80211vap *vap)
 	ieee80211_amrr_cleanup(&uvp->amrr);
 	ieee80211_vap_detach(vap);
 	free(uvp, M_80211_VAP);
-	return;
 }
 
 /* ARGUSED */
@@ -2452,7 +2397,6 @@ ural_newassoc(struct ieee80211_node *ni, int isnew)
 	struct ieee80211vap *vap = ni->ni_vap;
 
 	ieee80211_amrr_node_init(&URAL_VAP(vap)->amrr, &URAL_NODE(ni)->amn, ni);
-	return;
 }
 
 static void
@@ -2481,7 +2425,6 @@ ural_fill_write_queue(struct ural_softc *sc)
 		}
 		ural_tx_data(sc, m, ni);
 	}
-	return;
 }
 
 static void
@@ -2497,8 +2440,6 @@ ural_tx_clean_queue(struct ural_softc *sc)
 		}
 		ural_tx_freem(m);
 	}
-
-	return;
 }
 
 static void
@@ -2520,7 +2461,6 @@ ural_tx_freem(struct mbuf *m)
 
 		break;
 	}
-	return;
 }
 
 static void
@@ -2563,7 +2503,6 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 	m->m_pkthdr.rcvif = (void *)ni;
 	ural_setup_desc_and_tx(sc, m, flags, tp->mgmtrate);
-	return;
 }
 
 static struct ieee80211vap *
@@ -2619,7 +2558,6 @@ ural_tx_bcn(struct ural_softc *sc)
 	m->m_pkthdr.rcvif = (void *)ieee80211_ref_node(ni);
 	ural_setup_desc_and_tx(sc, m, RAL_TX_IFS_NEWBACKOFF | RAL_TX_TIMESTAMP,
 	    tp->mgmtrate);
-	return;
 }
 
 static void
@@ -2677,7 +2615,6 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 	m->m_pkthdr.rcvif = (void *)ni;
 	ural_setup_desc_and_tx(sc, m, flags, rate);
-	return;
 }
 
 static void
@@ -2724,7 +2661,6 @@ ural_tx_prot(struct ural_softc *sc,
 	}
 	mprot->m_pkthdr.rcvif = (void *)ieee80211_ref_node(ni);
 	ural_setup_desc_and_tx(sc, mprot, flags, protrate);
-	return;
 }
 
 static void
@@ -2756,7 +2692,6 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	}
 	m->m_pkthdr.rcvif = (void *)ni;
 	ural_setup_desc_and_tx(sc, m, flags, rate);
-	return;
 }
 
 static int
@@ -2789,7 +2724,6 @@ static void
 ural_update_mcast_cb(struct ifnet *ifp)
 {
 	/* not supported */
-	return;
 }
 
 static void
@@ -2802,5 +2736,4 @@ ural_update_promisc_cb(struct ifnet *ifp)
 	    (&sc->sc_config_td, &ural_config_copy,
 	    &ural_cfg_update_promisc, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }

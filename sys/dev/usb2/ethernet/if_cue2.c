@@ -227,7 +227,6 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
 
 #define	CUE_CFG_SETBIT(sc, reg, x)				\
@@ -280,7 +279,6 @@ cue_cfg_csr_write_1(struct cue_softc *sc, uint16_t reg, uint16_t val)
 	USETW(req.wLength, 0);
 
 	cue_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -300,7 +298,6 @@ cue_cfg_mem(struct cue_softc *sc, uint8_t cmd, uint16_t addr,
 	USETW(req.wLength, len);
 
 	cue_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static void
@@ -315,7 +312,6 @@ cue_cfg_getmac(struct cue_softc *sc, void *buf)
 	USETW(req.wLength, ETHER_ADDR_LEN);
 
 	cue_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 #define	CUE_BITS 9
@@ -328,7 +324,6 @@ cue_mchash(struct usb2_config_td_cc *cc, const uint8_t *addr)
 	h = ether_crc32_le(addr, ETHER_ADDR_LEN) &
 	    ((1 << CUE_BITS) - 1);
 	cc->if_hash[h >> 3] |= 1 << (h & 0x7);
-	return;
 }
 
 static void
@@ -347,7 +342,6 @@ cue_cfg_promisc_upd(struct cue_softc *sc,
 
 	cue_cfg_mem(sc, CUE_CMD_WRITESRAM, CUE_MCAST_TABLE_ADDR,
 	    cc->if_hash, CUE_MCAST_TABLE_LEN);
-	return;
 }
 
 static void
@@ -356,7 +350,6 @@ cue_config_copy(struct cue_softc *sc,
 {
 	bzero(cc, sizeof(*cc));
 	usb2_ether_cc(sc->sc_ifp, &cue_mchash, cc);
-	return;
 }
 
 static void
@@ -377,7 +370,6 @@ cue_cfg_reset(struct cue_softc *sc)
 	 */
 
 	(void)usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
-	return;
 }
 
 static int
@@ -554,7 +546,6 @@ cue_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~CUE_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -649,8 +640,6 @@ cue_cfg_tick(struct cue_softc *sc,
 	/* start stopped transfers, if any */
 
 	cue_start_transfers(sc);
-
-	return;
 }
 
 static void
@@ -663,8 +652,6 @@ cue_start_cb(struct ifnet *ifp)
 	cue_start_transfers(sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -679,7 +666,6 @@ cue_start_transfers(struct cue_softc *sc)
 		usb2_transfer_start(sc->sc_xfer[1]);
 		usb2_transfer_start(sc->sc_xfer[0]);
 	}
-	return;
 }
 
 static void
@@ -693,7 +679,6 @@ cue_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~CUE_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -774,8 +759,6 @@ cue_init_cb(void *arg)
 	    (&sc->sc_config_td, &cue_cfg_pre_init,
 	    &cue_cfg_init, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -791,8 +774,6 @@ cue_cfg_pre_init(struct cue_softc *sc,
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	sc->sc_flags |= CUE_FLAG_HL_READY;
-
-	return;
 }
 
 static void
@@ -839,7 +820,6 @@ cue_cfg_init(struct cue_softc *sc,
 	    CUE_FLAG_LL_READY);
 
 	cue_start_transfers(sc);
-	return;
 }
 
 static int
@@ -901,7 +881,6 @@ cue_watchdog(void *arg)
 	    hz, &cue_watchdog, sc);
 
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 /*
@@ -934,7 +913,6 @@ cue_cfg_pre_stop(struct cue_softc *sc,
 	usb2_transfer_stop(sc->sc_xfer[1]);
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[3]);
-	return;
 }
 
 static void
@@ -943,7 +921,6 @@ cue_cfg_stop(struct cue_softc *sc,
 {
 	cue_cfg_csr_write_1(sc, CUE_ETHCTL, 0);
 	cue_cfg_reset(sc);
-	return;
 }
 
 /*
