@@ -220,8 +220,6 @@ usb2_com_units_free(uint32_t root_unit, uint32_t sub_units)
 	}
 
 	mtx_unlock(&Giant);
-
-	return;
 }
 
 /*
@@ -302,8 +300,6 @@ usb2_com_detach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
 	}
 
 	usb2_config_td_unsetup(&ssc->sc_config_td);
-
-	return;
 }
 
 static int
@@ -381,7 +377,6 @@ usb2_com_detach_sub(struct usb2_com_softc *sc)
 		mtx_unlock(sc->sc_parent_mtx);
 	}
 	usb2_cv_destroy(&sc->sc_cv);
-	return;
 }
 
 static void
@@ -393,7 +388,6 @@ usb2_com_config_copy(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 	cc->cc_flag1 = (refcount / (2 * UCOM_SUB_UNIT_MAX)) % 2;
 	cc->cc_flag2 = (refcount / (4 * UCOM_SUB_UNIT_MAX)) % 2;
 	cc->cc_flag3 = (refcount / (8 * UCOM_SUB_UNIT_MAX)) % 2;
-	return;
 }
 
 static void
@@ -406,7 +400,6 @@ usb2_com_queue_command(struct usb2_com_softc *sc, usb2_config_td_command_t *cmd,
 	    cmd, (cmd == &usb2_com_cfg_status_change) ? 1 : 0,
 	    ((sc->sc_local_unit % UCOM_SUB_UNIT_MAX) +
 	    (flag ? UCOM_SUB_UNIT_MAX : 0)));
-	return;
 }
 
 static void
@@ -424,7 +417,6 @@ usb2_com_shutdown(struct usb2_com_softc *sc)
 	if (tp->t_termios.c_cflag & HUPCL) {
 		usb2_com_modem(tp, 0, SER_DTR);
 	}
-	return;
 }
 
 /*
@@ -474,7 +466,6 @@ usb2_com_cfg_start_transfers(struct usb2_com_softc *sc, struct usb2_com_config_c
 	if (sc->sc_callback->usb2_com_start_write) {
 		(sc->sc_callback->usb2_com_start_write) (sc);
 	}
-	return;
 }
 
 static void
@@ -496,7 +487,6 @@ usb2_com_start_transfers(struct usb2_com_softc *sc)
 	if (!(sc->sc_flag & UCOM_FLAG_GP_DATA)) {
 		usb2_com_queue_command(sc, &usb2_com_cfg_start_transfers, 0);
 	}
-	return;
 }
 
 static void
@@ -522,7 +512,6 @@ usb2_com_cfg_open(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 			usb2_com_cfg_sleep(sc, hz / 10);
 		}
 	}
-	return;
 }
 
 static int
@@ -593,7 +582,6 @@ usb2_com_cfg_close(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 	} else {
 		/* already closed */
 	}
-	return;
 }
 
 static void
@@ -623,7 +611,6 @@ usb2_com_close(struct tty *tp)
 	if (sc->sc_callback->usb2_com_stop_write) {
 		(sc->sc_callback->usb2_com_stop_write) (sc);
 	}
-	return;
 }
 
 static int
@@ -728,7 +715,6 @@ usb2_com_cfg_break(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 	if (sc->sc_callback->usb2_com_cfg_set_break) {
 		(sc->sc_callback->usb2_com_cfg_set_break) (sc, cc->cc_flag0);
 	}
-	return;
 }
 
 static void
@@ -742,7 +728,6 @@ usb2_com_break(struct usb2_com_softc *sc, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	usb2_com_queue_command(sc, &usb2_com_cfg_break, onoff);
-	return;
 }
 
 static void
@@ -759,7 +744,6 @@ usb2_com_cfg_dtr(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 	if (sc->sc_callback->usb2_com_cfg_set_dtr) {
 		(sc->sc_callback->usb2_com_cfg_set_dtr) (sc, cc->cc_flag0);
 	}
-	return;
 }
 
 static void
@@ -773,7 +757,6 @@ usb2_com_dtr(struct usb2_com_softc *sc, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	usb2_com_queue_command(sc, &usb2_com_cfg_dtr, onoff);
-	return;
 }
 
 static void
@@ -790,7 +773,6 @@ usb2_com_cfg_rts(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 	if (sc->sc_callback->usb2_com_cfg_set_rts) {
 		(sc->sc_callback->usb2_com_cfg_set_rts) (sc, cc->cc_flag0);
 	}
-	return;
 }
 
 static void
@@ -804,8 +786,6 @@ usb2_com_rts(struct usb2_com_softc *sc, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	usb2_com_queue_command(sc, &usb2_com_cfg_rts, onoff);
-
-	return;
 }
 
 static void
@@ -853,7 +833,6 @@ usb2_com_cfg_status_change(struct usb2_com_softc *sc,
 
 		ttydisc_modem(tp, onoff);
 	}
-	return;
 }
 
 void
@@ -867,7 +846,6 @@ usb2_com_status_change(struct usb2_com_softc *sc)
 	DPRINTF("\n");
 
 	usb2_com_queue_command(sc, &usb2_com_cfg_status_change, 0);
-	return;
 }
 
 static void
@@ -890,8 +868,6 @@ usb2_com_cfg_param(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 
 	/* wait a little */
 	usb2_com_cfg_sleep(sc, hz / 10);
-
-	return;
 }
 
 static int
@@ -982,8 +958,6 @@ usb2_com_start_write(struct tty *tp)
 	sc->sc_flag |= UCOM_FLAG_WR_START;
 
 	usb2_com_start_transfers(sc);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1097,7 +1071,6 @@ usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
 		}
 	}
 	ttydisc_rint_done(tp);
-	return;
 }
 
 static void

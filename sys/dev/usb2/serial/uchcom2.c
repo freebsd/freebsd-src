@@ -436,7 +436,6 @@ done:
 			bzero(USB_ADD_BYTES(data, actlen), length - actlen);
 		}
 	}
-	return;
 }
 
 static void
@@ -452,7 +451,6 @@ uchcom_ctrl_write(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wLength, 0);
 
 	uchcom_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -468,7 +466,6 @@ uchcom_ctrl_read(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wLength, buflen);
 
 	uchcom_do_request(sc, &req, buf);
-	return;
 }
 
 static void
@@ -481,7 +478,6 @@ uchcom_write_reg(struct uchcom_softc *sc,
 	uchcom_ctrl_write(
 	    sc, UCHCOM_REQ_WRITE_REG,
 	    reg1 | ((uint16_t)reg2 << 8), val1 | ((uint16_t)val2 << 8));
-	return;
 }
 
 static void
@@ -502,8 +498,6 @@ uchcom_read_reg(struct uchcom_softc *sc,
 		*rval1 = buf[0];
 	if (rval2)
 		*rval2 = buf[1];
-
-	return;
 }
 
 static void
@@ -516,29 +510,24 @@ uchcom_get_version(struct uchcom_softc *sc, uint8_t *rver)
 
 	if (rver)
 		*rver = buf[0];
-
-	return;
 }
 
 static void
 uchcom_get_status(struct uchcom_softc *sc, uint8_t *rval)
 {
 	uchcom_read_reg(sc, UCHCOM_REG_STAT1, rval, UCHCOM_REG_STAT2, NULL);
-	return;
 }
 
 static void
 uchcom_set_dtrrts_10(struct uchcom_softc *sc, uint8_t val)
 {
 	uchcom_write_reg(sc, UCHCOM_REG_STAT1, val, UCHCOM_REG_STAT1, val);
-	return;
 }
 
 static void
 uchcom_set_dtrrts_20(struct uchcom_softc *sc, uint8_t val)
 {
 	uchcom_ctrl_write(sc, UCHCOM_REQ_SET_DTRRTS, val, 0);
-	return;
 }
 
 
@@ -550,7 +539,6 @@ static void
 uchcom_update_version(struct uchcom_softc *sc)
 {
 	uchcom_get_version(sc, &sc->sc_version);
-	return;
 }
 
 static void
@@ -570,7 +558,6 @@ uchcom_update_status(struct uchcom_softc *sc)
 
 	uchcom_get_status(sc, &cur);
 	uchcom_convert_status(sc, cur);
-	return;
 }
 
 
@@ -588,8 +575,6 @@ uchcom_set_dtrrts(struct uchcom_softc *sc)
 		uchcom_set_dtrrts_10(sc, ~val);
 	else
 		uchcom_set_dtrrts_20(sc, ~val);
-
-	return;
 }
 
 static void
@@ -610,8 +595,6 @@ uchcom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 		brk2 |= UCHCOM_BRK2_MASK;
 	}
 	uchcom_write_reg(sc, UCHCOM_REG_BREAK1, brk1, UCHCOM_REG_BREAK2, brk2);
-
-	return;
 }
 
 static int
@@ -669,7 +652,6 @@ uchcom_set_dte_rate(struct uchcom_softc *sc, uint32_t rate)
 	uchcom_write_reg(sc,
 	    UCHCOM_REG_BPS_MOD, dv.dv_mod,
 	    UCHCOM_REG_BPS_PAD, 0);
-	return;
 }
 
 static void
@@ -700,8 +682,6 @@ uchcom_set_line_control(struct uchcom_softc *sc, tcflag_t cflag)
 			lcr2 |= UCHCOM_LCR2_PAREVEN;
 	}
 	uchcom_write_reg(sc, UCHCOM_REG_LCR1, lcr1, UCHCOM_REG_LCR2, lcr2);
-
-	return;
 }
 
 static void
@@ -709,7 +689,6 @@ uchcom_clear_chip(struct uchcom_softc *sc)
 {
 	DPRINTF("\n");
 	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0, 0);
-	return;
 }
 
 static void
@@ -743,8 +722,6 @@ uchcom_reset_chip(struct uchcom_softc *sc)
 	DPRINTF("reset v=0x%04X, i=0x%04X\n", val, idx);
 
 	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, val, idx);
-
-	return;
 }
 
 /* ----------------------------------------------------------------------
@@ -759,7 +736,6 @@ uchcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-	return;
 }
 
 static int
@@ -778,7 +754,6 @@ uchcom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 
 	sc->sc_dtr = onoff;
 	uchcom_set_dtrrts(sc);
-	return;
 }
 
 static void
@@ -790,7 +765,6 @@ uchcom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 
 	sc->sc_rts = onoff;
 	uchcom_set_dtrrts(sc);
-	return;
 }
 
 static int
@@ -820,7 +794,6 @@ uchcom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 
 	uchcom_set_line_control(sc, t->c_cflag);
 	uchcom_set_dte_rate(sc, t->c_ospeed);
-	return;
 }
 
 static void
@@ -833,7 +806,6 @@ uchcom_start_read(struct usb2_com_softc *ucom)
 
 	/* start read endpoint */
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -847,7 +819,6 @@ uchcom_stop_read(struct usb2_com_softc *ucom)
 	/* stop read endpoint */
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -856,7 +827,6 @@ uchcom_start_write(struct usb2_com_softc *ucom)
 	struct uchcom_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -866,7 +836,6 @@ uchcom_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 /* ----------------------------------------------------------------------
@@ -910,7 +879,6 @@ uchcom_intr_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -924,7 +892,6 @@ uchcom_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UCHCOM_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -971,7 +938,6 @@ uchcom_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UCHCOM_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1013,7 +979,6 @@ uchcom_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UCHCOM_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static device_method_t uchcom_methods[] = {

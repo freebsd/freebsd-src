@@ -470,7 +470,6 @@ usb_unlink_bsd(struct usb2_xfer *xfer,
 		}
 		usb2_transfer_start(xfer);
 	}
-	return;
 }
 
 static int
@@ -1134,7 +1133,6 @@ usb_linux_register(void *arg)
 	mtx_unlock(&Giant);
 
 	usb2_needs_explore_all();
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1164,7 +1162,6 @@ repeat:
 	}
 	LIST_REMOVE(drv, linux_driver_list);
 	mtx_unlock(&Giant);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1188,7 +1185,6 @@ usb_linux_free_device(struct usb_device *dev)
 	}
 	err = usb_setup_endpoint(dev, &dev->ep0, 0);
 	free(dev, M_USBDEV);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1199,7 +1195,6 @@ usb_buffer_free(struct usb_device *dev, uint32_t size,
     void *addr, uint8_t dma_addr)
 {
 	free(addr, M_USBDEV);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1219,7 +1214,6 @@ usb_free_urb(struct urb *urb)
 
 	/* just free it */
 	free(urb, M_USBDEV);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1236,7 +1230,6 @@ usb_init_urb(struct urb *urb)
 		return;
 	}
 	bzero(urb, sizeof(*urb));
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1248,7 +1241,6 @@ usb_kill_urb(struct urb *urb)
 	if (usb_unlink_urb_sub(urb, 1)) {
 		/* ignore */
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1261,7 +1253,6 @@ void
 usb_set_intfdata(struct usb_interface *intf, void *data)
 {
 	intf->bsd_priv_sc = data;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1290,7 +1281,6 @@ usb_linux_cleanup_interface(struct usb_device *dev, struct usb_interface *iface)
 		}
 		uhi++;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1306,7 +1296,6 @@ usb_linux_wait_complete(struct urb *urb)
 		usb2_cv_signal(&urb->cv_wait);
 	}
 	urb->transfer_flags &= ~URB_WAIT_WAKEUP;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1322,7 +1311,6 @@ usb_linux_complete(struct usb2_xfer *xfer)
 	if (urb->complete) {
 		(urb->complete) (urb);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*

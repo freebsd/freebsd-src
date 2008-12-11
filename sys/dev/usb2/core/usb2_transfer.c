@@ -149,7 +149,6 @@ usb2_update_max_frame_size(struct usb2_xfer *xfer)
 	} else {
 		xfer->max_frame_size = xfer->max_packet_size;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -698,7 +697,6 @@ done:
 		xfer->nframes = 0;
 		xfer->max_frame_count = 0;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1078,7 +1076,6 @@ usb2_transfer_unsetup_sub(struct usb2_xfer_root *info, uint8_t needs_delay)
 	 * contained within the "memory_base"!
 	 */
 	free(info->memory_base, M_USB);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1169,7 +1166,6 @@ usb2_transfer_unsetup(struct usb2_xfer **pxfer, uint16_t n_setup)
 			}
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1201,8 +1197,6 @@ usb2_control_transfer_init(struct usb2_xfer *xfer)
 	xfer->endpoint &= ~(UE_DIR_IN | UE_DIR_OUT);
 	xfer->endpoint |=
 	    (req.bmRequestType & UT_READ) ? UE_DIR_IN : UE_DIR_OUT;
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1500,7 +1494,6 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	 * Device Controller schedule:
 	 */
 	usb2_pipe_enter(xfer);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1539,7 +1532,6 @@ usb2_pipe_enter(struct usb2_xfer *xfer)
 	/* start the transfer */
 	usb2_command_wrapper(&pipe->pipe_q, xfer);
 	USB_BUS_UNLOCK(xfer->udev->bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1572,7 +1564,6 @@ usb2_transfer_start(struct usb2_xfer *xfer)
 	/* call the USB transfer callback */
 	usb2_callback_ss_done_defer(xfer);
 	USB_BUS_UNLOCK(xfer->udev->bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1656,7 +1647,6 @@ usb2_transfer_stop(struct usb2_xfer *xfer)
 	}
 
 	USB_BUS_UNLOCK(xfer->udev->bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1733,8 +1723,6 @@ usb2_transfer_drain(struct usb2_xfer *xfer)
 		usb2_cv_wait(&xfer->usb2_root->cv_drain, xfer->xfer_mtx);
 	}
 	USB_XFER_UNLOCK(xfer);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1750,7 +1738,6 @@ usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr, uint32_t frindex)
 {
 	/* set virtual address to load and length */
 	xfer->frbuffers[frindex].buffer = ptr;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1769,7 +1756,6 @@ usb2_set_frame_offset(struct usb2_xfer *xfer, uint32_t offset,
 	/* set virtual address to load */
 	xfer->frbuffers[frindex].buffer =
 	    USB_ADD_BYTES(xfer->local_buffer, offset);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1798,7 +1784,6 @@ usb2_callback_proc(struct usb2_proc_msg *_pm)
 	    info->done_q.curr);
 
 	mtx_unlock(info->priv_mtx);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1944,7 +1929,6 @@ done:
 	/* do the next callback, if any */
 	usb2_command_wrapper(&info->done_q,
 	    info->done_q.curr);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1968,7 +1952,6 @@ usb2_dma_delay_done_cb(void *arg)
 	usb2_transfer_done(xfer, 0);
 
 	USB_BUS_UNLOCK(xfer->udev->bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1989,7 +1972,6 @@ usb2_transfer_dequeue(struct usb2_xfer *xfer)
 		TAILQ_REMOVE(&pq->head, xfer, wait_entry);
 		xfer->wait_queue = NULL;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2011,7 +1993,6 @@ usb2_transfer_enqueue(struct usb2_xfer_queue *pq, struct usb2_xfer *xfer)
 		xfer->wait_queue = pq;
 		TAILQ_INSERT_TAIL(&pq->head, xfer, wait_entry);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2079,7 +2060,6 @@ usb2_transfer_done(struct usb2_xfer *xfer, usb2_error_t error)
 
 	/* call the USB transfer callback */
 	usb2_callback_ss_done_defer(xfer);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2113,8 +2093,6 @@ usb2_transfer_start_cb(void *arg)
 		xfer->flags_int.can_cancel_immed = 0;
 	}
 	USB_BUS_UNLOCK(xfer->udev->bus);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2138,8 +2116,6 @@ usb2_transfer_set_stall(struct usb2_xfer *xfer)
 	xfer->flags.stall_pipe = 1;
 
 	USB_BUS_UNLOCK(xfer->udev->bus);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2163,8 +2139,6 @@ usb2_transfer_clear_stall(struct usb2_xfer *xfer)
 	xfer->flags.stall_pipe = 0;
 
 	USB_BUS_UNLOCK(xfer->udev->bus);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2271,7 +2245,6 @@ usb2_pipe_start(struct usb2_xfer_queue *pq)
 	} else {
 		xfer->flags_int.can_cancel_immed = 0;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2290,7 +2263,6 @@ usb2_transfer_timeout_ms(struct usb2_xfer *xfer,
 	/* defer delay */
 	usb2_callout_reset(&xfer->timeout_handle,
 	    USB_MS_TO_TICKS(ms), cb, xfer);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2519,7 +2491,6 @@ usb2_command_wrapper(struct usb2_xfer_queue *pq, struct usb2_xfer *xfer)
 		/* clear second recurse flag */
 		pq->recurse_2 = 0;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2590,7 +2561,6 @@ repeat:
 	} else {
 		goto repeat;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2607,7 +2577,6 @@ usb2_clear_data_toggle(struct usb2_device *udev, struct usb2_pipe *pipe)
 	USB_BUS_LOCK(udev->bus);
 	pipe->toggle_next = 0;
 	USB_BUS_UNLOCK(udev->bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2746,7 +2715,6 @@ usb2_callout_poll(struct usb2_xfer *xfer)
 	} else {
 		mtx_unlock(mtx);
 	}
-	return;
 }
 
 
@@ -2813,7 +2781,6 @@ usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max)
 			USB_BUS_UNLOCK(xfer->udev->bus);
 		}
 	}
-	return;
 }
 
 #else
@@ -2822,7 +2789,6 @@ void
 usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max)
 {
 	/* polling not supported */
-	return;
 }
 
 #endif

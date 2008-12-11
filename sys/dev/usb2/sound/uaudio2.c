@@ -814,7 +814,6 @@ uaudio_chan_dump_ep_desc(const usb2_endpoint_descriptor_audio_t *ed)
 		    UGETW(ed->wMaxPacketSize), ed->bInterval,
 		    ed->bRefresh, ed->bSynchAddress);
 	}
-	return;
 }
 
 #endif
@@ -1097,7 +1096,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb2_device *udev,
 			continue;
 		}
 	}
-	return;
 }
 
 static void
@@ -1136,7 +1134,6 @@ done:
 	if (sc->sc_sndstat_valid) {
 		sbuf_finish(&sc->sc_sndstat);
 	}
-	return;
 }
 
 static void
@@ -1224,7 +1221,6 @@ tr_transferred:
 		}
 		goto tr_transferred;
 	}
-	return;
 }
 
 static void
@@ -1535,7 +1531,6 @@ uaudio_mixer_add_ctl_sub(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 	} else {
 		DPRINTF("out of memory\n");
 	}
-	return;
 }
 
 static void
@@ -1596,7 +1591,6 @@ uaudio_mixer_add_ctl(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 		    mc->minval, mc->maxval);
 	}
 #endif
-	return;
 }
 
 static void
@@ -1613,7 +1607,6 @@ uaudio_mixer_add_input(struct uaudio_softc *sc,
 	    d->bNrChannels, UGETW(d->wChannelConfig),
 	    d->iChannelNames);
 #endif
-	return;
 }
 
 static void
@@ -1628,7 +1621,6 @@ uaudio_mixer_add_output(struct uaudio_softc *sc,
 	    d->bTerminalId, UGETW(d->wTerminalType), d->bAssocTerminal,
 	    d->bSourceId, d->iTerminal);
 #endif
-	return;
 }
 
 static void
@@ -1714,7 +1706,6 @@ uaudio_mixer_add_mixer(struct uaudio_softc *sc,
 		}
 		p += chs;
 	}
-	return;
 }
 
 static void
@@ -1759,7 +1750,6 @@ uaudio_mixer_add_selector(struct uaudio_softc *sc,
 	mix.class = 0;			/* not used */
 
 	uaudio_mixer_add_ctl(sc, &mix);
-	return;
 }
 
 static uint32_t
@@ -1908,7 +1898,6 @@ uaudio_mixer_add_feature(struct uaudio_softc *sc,
 			uaudio_mixer_add_ctl(sc, &mix);
 		}
 	}
-	return;
 }
 
 static void
@@ -1951,7 +1940,6 @@ uaudio_mixer_add_processing_updown(struct uaudio_softc *sc,
 	}
 
 	uaudio_mixer_add_ctl(sc, &mix);
-	return;
 }
 
 static void
@@ -1997,7 +1985,6 @@ uaudio_mixer_add_processing(struct uaudio_softc *sc,
 		    d0->bUnitId, ptype);
 		break;
 	}
-	return;
 }
 
 static void
@@ -2030,7 +2017,6 @@ uaudio_mixer_add_extension(struct uaudio_softc *sc,
 
 		uaudio_mixer_add_ctl(sc, &mix);
 	}
-	return;
 }
 
 static const void *
@@ -2185,7 +2171,6 @@ uaudio_mixer_dump_cluster(uint8_t id, const struct uaudio_terminal_node *iot)
 		}
 		cc >>= 1;
 	}
-	return;
 }
 
 #endif
@@ -2633,7 +2618,6 @@ uaudio_mixer_find_inputs_sub(struct uaudio_terminal_node *root,
 		}
 	}
 	info->recurse_level--;
-	return;
 }
 
 static void
@@ -2659,8 +2643,6 @@ uaudio_mixer_find_outputs_sub(struct uaudio_terminal_node *root, uint8_t id,
 			}
 		}
 	} while (j--);
-
-	return;
 }
 
 static void
@@ -2906,7 +2888,6 @@ done:
 	if (iot) {
 		free(iot, M_TEMP);
 	}
-	return;
 }
 
 static uint16_t
@@ -3090,8 +3071,6 @@ uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc,
 	/* start the transfer, if not already started */
 
 	usb2_transfer_start(sc->sc_mixer_xfer[0]);
-
-	return;
 }
 
 static void
@@ -3121,7 +3100,6 @@ uaudio_mixer_init(struct uaudio_softc *sc)
 			}
 		}
 	}
-	return;
 }
 
 int
@@ -3173,7 +3151,6 @@ uaudio_mixer_set(struct uaudio_softc *sc, unsigned type,
 			uaudio_mixer_ctl_set(sc, mc, 0, (int)(left * 255) / 100);
 		}
 	}
-	return;
 }
 
 uint32_t
@@ -3235,7 +3212,6 @@ umidi_read_clear_stall_callback(struct usb2_xfer *xfer)
 		chan->flags &= ~UMIDI_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -3315,7 +3291,6 @@ umidi_write_clear_stall_callback(struct usb2_xfer *xfer)
 		chan->flags &= ~UMIDI_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 /*
@@ -3578,7 +3553,6 @@ umidi_start_read(struct usb2_fifo *fifo)
 	struct umidi_chan *chan = fifo->priv_sc0;
 
 	usb2_transfer_start(chan->xfer[1]);
-	return;
 }
 
 static void
@@ -3598,7 +3572,6 @@ umidi_stop_read(struct usb2_fifo *fifo)
 		 */
 		DPRINTF("(stopping read transfer)\n");
 	}
-	return;
 }
 
 static void
@@ -3607,7 +3580,6 @@ umidi_start_write(struct usb2_fifo *fifo)
 	struct umidi_chan *chan = fifo->priv_sc0;
 
 	usb2_transfer_start(chan->xfer[0]);
-	return;
 }
 
 static void
@@ -3625,7 +3597,6 @@ umidi_stop_write(struct usb2_fifo *fifo)
 		usb2_transfer_stop(chan->xfer[2]);
 		usb2_transfer_stop(chan->xfer[0]);
 	}
-	return;
 }
 
 static int
@@ -3669,7 +3640,6 @@ umidi_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & FWRITE) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 
@@ -3687,7 +3657,6 @@ umidi_init(device_t dev)
 	struct umidi_chan *chan = &sc->sc_midi_chan;
 
 	mtx_init(&chan->mtx, "umidi lock", NULL, MTX_DEF | MTX_RECURSE);
-	return;
 }
 
 static struct usb2_fifo_methods umidi_fifo_methods = {

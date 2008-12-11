@@ -83,7 +83,6 @@ usb2_do_request_callback(struct usb2_xfer *xfer)
 		usb2_cv_signal(xfer->udev->default_cv);
 		break;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -168,7 +167,6 @@ tr_setup:
 	/* store current pipe */
 	xfer->udev->pipe_curr = pipe;
 	USB_BUS_UNLOCK(xfer->udev->bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*

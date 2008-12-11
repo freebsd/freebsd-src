@@ -291,7 +291,6 @@ uark_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UARK_FLAG_BULK_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -334,7 +333,6 @@ uark_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UARK_FLAG_BULK_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -343,7 +341,6 @@ uark_start_read(struct usb2_com_softc *ucom)
 	struct uark_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -353,7 +350,6 @@ uark_stop_read(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -362,7 +358,6 @@ uark_start_write(struct usb2_com_softc *ucom)
 	struct uark_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -372,7 +367,6 @@ uark_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static int
@@ -431,7 +425,6 @@ uark_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	}
 	uark_cfg_write(sc, 3, 0x00);
 	uark_cfg_write(sc, 3, data);
-	return;
 }
 
 static void
@@ -441,7 +434,6 @@ uark_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-	return;
 }
 
 static void
@@ -452,7 +444,6 @@ uark_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	DPRINTF("onoff=%d\n", onoff);
 
 	uark_cfg_write(sc, 4, onoff ? 0x01 : 0x00);
-	return;
 }
 
 static void
@@ -477,5 +468,4 @@ uark_cfg_write(struct uark_softc *sc, uint16_t index, uint16_t value)
 		DPRINTFN(0, "device request failed, err=%s "
 		    "(ignored)\n", usb2_errstr(err));
 	}
-	return;
 }

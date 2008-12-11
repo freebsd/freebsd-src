@@ -155,8 +155,6 @@ ums_put_queue_timeout(void *__sc)
 	ums_put_queue(sc, 0, 0, 0, 0, 0);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -170,7 +168,6 @@ ums_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UMS_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -664,7 +661,6 @@ ums_start_read(struct usb2_fifo *fifo)
 	struct ums_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -675,7 +671,6 @@ ums_stop_read(struct usb2_fifo *fifo)
 	usb2_transfer_stop(sc->sc_xfer[1]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
 	usb2_callout_stop(&sc->sc_callout);
-	return;
 }
 
 
@@ -727,8 +722,6 @@ ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy,
 	} else {
 		DPRINTF("Buffer full, discarded packet\n");
 	}
-
-	return;
 }
 
 static void
@@ -736,7 +729,6 @@ ums_reset_buf(struct ums_softc *sc)
 {
 	/* reset read queue */
 	usb2_fifo_reset(sc->sc_fifo.fp[USB_FIFO_RX]);
-	return;
 }
 
 static int
@@ -772,7 +764,6 @@ ums_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & FREAD) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 static int

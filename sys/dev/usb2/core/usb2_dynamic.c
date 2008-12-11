@@ -73,7 +73,6 @@ usb2_temp_get_desc_w(struct usb2_device *udev, struct usb2_device_request *req, 
 	/* stall */
 	*pPtr = NULL;
 	*pLength = 0;
-	return;
 }
 
 static void
@@ -85,7 +84,6 @@ usb2_temp_unsetup_w(struct usb2_device *udev)
 
 		udev->usb2_template_ptr = NULL;
 	}
-	return;
 }
 
 void
@@ -101,8 +99,6 @@ usb2_quirk_unload(void *arg)
 	/* XXX this is a tradeoff */
 
 	pause("WAIT", hz);
-
-	return;
 }
 
 void
@@ -119,8 +115,6 @@ usb2_temp_unload(void *arg)
 	/* XXX this is a tradeoff */
 
 	pause("WAIT", hz);
-
-	return;
 }
 
 void
@@ -135,6 +129,4 @@ usb2_bus_unload(void *arg)
 	/* XXX this is a tradeoff */
 
 	pause("WAIT", hz);
-
-	return;
 }

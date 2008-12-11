@@ -366,7 +366,6 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
 
 static void
@@ -380,7 +379,6 @@ zyd_intr_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~ZYD_FLAG_INTR_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 /*
@@ -499,7 +497,6 @@ handle_notif_iord:
 	 * We pause reading data from the interrupt endpoint until the
 	 * data has been picked up!
 	 */
-	return;
 }
 
 /*
@@ -589,7 +586,6 @@ zyd_intr_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~ZYD_FLAG_INTR_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -635,7 +631,6 @@ wakeup:
 		sc->sc_intr_owakeup = 0;
 		usb2_cv_signal(&sc->sc_intr_cv);
 	}
-	return;
 }
 
 /*
@@ -686,7 +681,6 @@ zyd_cfg_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, uint16_t ile
 	if (flags & ZYD_CMD_FLAG_READ) {
 		zyd_cfg_usb2_intr_read(sc, odata, olen);
 	}
-	return;
 }
 
 static void
@@ -698,7 +692,6 @@ zyd_cfg_read16(struct zyd_softc *sc, uint16_t addr, uint16_t *value)
 	zyd_cfg_cmd(sc, ZYD_CMD_IORD, &addr, sizeof(addr),
 	    tmp, sizeof(tmp), ZYD_CMD_FLAG_READ);
 	*value = le16toh(tmp[0].val);
-	return;
 }
 
 static void
@@ -715,7 +708,6 @@ zyd_cfg_read32(struct zyd_softc *sc, uint16_t addr, uint32_t *value)
 	zyd_cfg_cmd(sc, ZYD_CMD_IORD, regs, sizeof(regs),
 	    tmp, sizeof(tmp), ZYD_CMD_FLAG_READ);
 	*value = (le16toh(tmp[0].val) << 16) | le16toh(tmp[1].val);
-	return;
 }
 
 static void
@@ -727,7 +719,6 @@ zyd_cfg_write16(struct zyd_softc *sc, uint16_t reg, uint16_t val)
 	pair[0].val = htole16(val);
 
 	zyd_cfg_cmd(sc, ZYD_CMD_IOWR, pair, sizeof(pair), NULL, 0, 0);
-	return;
 }
 
 static void
@@ -741,7 +732,6 @@ zyd_cfg_write32(struct zyd_softc *sc, uint16_t reg, uint32_t val)
 	pair[1].val = htole16(val & 0xffff);
 
 	zyd_cfg_cmd(sc, ZYD_CMD_IOWR, pair, sizeof(pair), NULL, 0, 0);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -766,7 +756,6 @@ zyd_cfg_rfwrite(struct zyd_softc *sc, uint32_t value)
 			req.bit[i] |= htole16(ZYD_RF_DATA);
 	}
 	zyd_cfg_cmd(sc, ZYD_CMD_RFCFG, &req, 4 + (2 * rf->width), NULL, 0, 0);
-	return;
 }
 
 static void
@@ -780,7 +769,6 @@ zyd_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~ZYD_FLAG_BULK_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -857,8 +845,6 @@ zyd_bulk_read_callback_sub(struct usb2_xfer *xfer, struct zyd_ifq *mq,
 		m->m_hdr.pad[0] = stat.rssi;	/* XXX hack */
 	}
 	_IF_ENQUEUE(mq, m);
-
-	return;
 }
 
 static void
@@ -979,7 +965,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1170,7 +1155,6 @@ zyd_cfg_set_beacon_interval(struct zyd_softc *sc, uint32_t bintval)
 	zyd_cfg_write32(sc, ZYD_CR_ATIM_WND_PERIOD, bintval - 2);
 	zyd_cfg_write32(sc, ZYD_CR_PRE_TBTT, bintval - 1);
 	zyd_cfg_write32(sc, ZYD_CR_BCN_INTERVAL, bintval);
-	return;
 }
 
 /*
@@ -1208,7 +1192,6 @@ zyd_cfg_rf_rfmd_init(struct zyd_softc *sc, struct zyd_rf *rf)
 	for (i = 0; i != INDEXES(rfini); i++) {
 		zyd_cfg_rfwrite(sc, rfini[i]);
 	}
-	return;
 }
 
 /*
@@ -1219,7 +1202,6 @@ zyd_cfg_rf_rfmd_switch_radio(struct zyd_softc *sc, uint8_t on)
 {
 	zyd_cfg_write16(sc, ZYD_CR10, on ? 0x89 : 0x15);
 	zyd_cfg_write16(sc, ZYD_CR11, on ? 0x00 : 0x81);
-	return;
 }
 
 /*
@@ -1235,7 +1217,6 @@ zyd_cfg_rf_rfmd_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 
 	zyd_cfg_rfwrite(sc, rfprog[channel - 1].r1);
 	zyd_cfg_rfwrite(sc, rfprog[channel - 1].r2);
-	return;
 }
 
 /*
@@ -1248,7 +1229,6 @@ zyd_cfg_rf_al2230_switch_radio(struct zyd_softc *sc, uint8_t on)
 
 	zyd_cfg_write16(sc, ZYD_CR11, on ? 0x00 : 0x04);
 	zyd_cfg_write16(sc, ZYD_CR251, on ? on251 : 0x2f);
-	return;
 }
 
 /*
@@ -1270,7 +1250,6 @@ zyd_cfg_rf_al2230_init(struct zyd_softc *sc, struct zyd_rf *rf)
 	for (i = 0; i != INDEXES(rfini); i++) {
 		zyd_cfg_rfwrite(sc, rfini[i]);
 	}
-	return;
 }
 
 static void
@@ -1289,7 +1268,6 @@ zyd_cfg_rf_al2230_init_b(struct zyd_softc *sc, struct zyd_rf *rf)
 	for (i = 0; i != INDEXES(rfini); i++) {
 		zyd_cfg_rfwrite(sc, rfini[i]);
 	}
-	return;
 }
 
 /*
@@ -1309,7 +1287,6 @@ zyd_cfg_rf_al2230_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 
 	zyd_cfg_write16(sc, ZYD_CR138, 0x28);
 	zyd_cfg_write16(sc, ZYD_CR203, 0x06);
-	return;
 }
 
 /*
@@ -1320,7 +1297,6 @@ zyd_cfg_rf_al7230b_switch_radio(struct zyd_softc *sc, uint8_t on)
 {
 	zyd_cfg_write16(sc, ZYD_CR11, on ? 0x00 : 0x04);
 	zyd_cfg_write16(sc, ZYD_CR251, on ? 0x3f : 0x2f);
-	return;
 }
 
 static void
@@ -1355,7 +1331,6 @@ zyd_cfg_rf_al7230b_init(struct zyd_softc *sc, struct zyd_rf *rf)
 	for (i = 0; i != INDEXES(phyini_3); i++) {
 		zyd_cfg_write16(sc, phyini_3[i].reg, phyini_3[i].val);
 	}
-	return;
 }
 
 static void
@@ -1389,7 +1364,6 @@ zyd_cfg_rf_al7230b_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 	zyd_cfg_write16(sc, ZYD_CR203, 0x06);
 	zyd_cfg_write16(sc, ZYD_CR240, 0x08);
 
-	return;
 }
 
 /*
@@ -1427,8 +1401,6 @@ zyd_cfg_rf_al2210_init(struct zyd_softc *sc, struct zyd_rf *rf)
 	zyd_cfg_write32(sc, ZYD_CR_RFCFG, 0x00);
 	zyd_cfg_write16(sc, ZYD_CR47, 0x1e);
 	zyd_cfg_write32(sc, ZYD_CR18, 3);
-
-	return;
 }
 
 static void
@@ -1452,7 +1424,6 @@ zyd_cfg_rf_al2210_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 	zyd_cfg_rfwrite(sc, rfprog[channel - 1]);
 
 	zyd_cfg_write32(sc, ZYD_CR18, 3);
-	return;
 }
 
 /*
@@ -1462,8 +1433,6 @@ static void
 zyd_cfg_rf_gct_switch_radio(struct zyd_softc *sc, uint8_t on)
 {
 	/* vendor driver does nothing for this RF chip */
-
-	return;
 }
 
 static void
@@ -1481,7 +1450,6 @@ zyd_cfg_rf_gct_init(struct zyd_softc *sc, struct zyd_rf *rf)
 	for (i = 0; i != INDEXES(rfini); i++) {
 		zyd_cfg_rfwrite(sc, rfini[i]);
 	}
-	return;
 }
 
 static void
@@ -1493,8 +1461,6 @@ zyd_cfg_rf_gct_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 	zyd_cfg_rfwrite(sc, 0x1c0000);
 	zyd_cfg_rfwrite(sc, rfprog[channel - 1]);
 	zyd_cfg_rfwrite(sc, 0x1c0008);
-
-	return;
 }
 
 /*
@@ -1505,7 +1471,6 @@ zyd_cfg_rf_maxim_switch_radio(struct zyd_softc *sc, uint8_t on)
 {
 	/* vendor driver does nothing for this RF chip */
 
-	return;
 }
 
 static void
@@ -1529,8 +1494,6 @@ zyd_cfg_rf_maxim_init(struct zyd_softc *sc, struct zyd_rf *rf)
 	}
 	zyd_cfg_read16(sc, ZYD_CR203, &tmp);
 	zyd_cfg_write16(sc, ZYD_CR203, tmp | (1 << 4));
-
-	return;
 }
 
 static void
@@ -1569,8 +1532,6 @@ zyd_cfg_rf_maxim_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 	}
 	zyd_cfg_read16(sc, ZYD_CR203, &tmp);
 	zyd_cfg_write16(sc, ZYD_CR203, tmp | (1 << 4));
-
-	return;
 }
 
 /*
@@ -1580,7 +1541,6 @@ static void
 zyd_cfg_rf_maxim2_switch_radio(struct zyd_softc *sc, uint8_t on)
 {
 	/* vendor driver does nothing for this RF chip */
-	return;
 }
 
 static void
@@ -1604,7 +1564,6 @@ zyd_cfg_rf_maxim2_init(struct zyd_softc *sc, struct zyd_rf *rf)
 	}
 	zyd_cfg_read16(sc, ZYD_CR203, &tmp);
 	zyd_cfg_write16(sc, ZYD_CR203, tmp | (1 << 4));
-	return;
 }
 
 static void
@@ -1643,7 +1602,6 @@ zyd_cfg_rf_maxim2_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 	}
 	zyd_cfg_read16(sc, ZYD_CR203, &tmp);
 	zyd_cfg_write16(sc, ZYD_CR203, tmp | (1 << 4));
-	return;
 }
 
 /*
@@ -1843,7 +1801,6 @@ zyd_cfg_read_eeprom(struct zyd_softc *sc)
 		sc->sc_ofdm54_cal[(i * 2)] = val >> 8;
 		sc->sc_ofdm54_cal[(i * 2) + 1] = val & 0xff;
 	}
-	return;
 }
 
 static void
@@ -1856,7 +1813,6 @@ zyd_cfg_set_mac_addr(struct zyd_softc *sc, const uint8_t *addr)
 
 	tmp = (addr[5] << 8) | addr[4];
 	zyd_cfg_write32(sc, ZYD_MAC_MACADRH, tmp);
-	return;
 }
 
 /*
@@ -1868,8 +1824,6 @@ zyd_cfg_switch_radio(struct zyd_softc *sc, uint8_t onoff)
 	zyd_cfg_lock_phy(sc);
 	(sc->sc_rf.cfg_switch_radio) (sc, onoff);
 	zyd_cfg_unlock_phy(sc);
-
-	return;
 }
 
 /*
@@ -1885,7 +1839,6 @@ zyd_cfg_set_bssid(struct zyd_softc *sc, uint8_t *addr)
 
 	tmp = (addr[5] << 8) | addr[4];
 	zyd_cfg_write32(sc, ZYD_MAC_BSSADRH, tmp);
-	return;
 }
 
 /*
@@ -2118,7 +2071,6 @@ zyd_cfg_newstate(struct zyd_softc *sc,
 		vap->iv_newstate_cb(vap, nstate, arg);
 	IEEE80211_UNLOCK(ic);
 	mtx_lock(&sc->sc_mtx);
-	return;
 }
 
 static void
@@ -2140,7 +2092,6 @@ zyd_cfg_set_run(struct zyd_softc *sc,
 		/* enable automatic rate adaptation */
 		zyd_cfg_amrr_start(sc);
 	}
-	return;
 }
 
 static int
@@ -2200,7 +2151,6 @@ zyd_cfg_update_promisc(struct zyd_softc *sc,
 	/* reprogram multicast global hash table */
 	zyd_cfg_write32(sc, ZYD_MAC_GHTBL, low);
 	zyd_cfg_write32(sc, ZYD_MAC_GHTBH, high);
-	return;
 }
 
 /*
@@ -2259,29 +2209,24 @@ zyd_std_command(struct ieee80211com *ic, usb2_config_td_command_t *func)
 	    (&sc->sc_config_td, &zyd_config_copy, func, 0, 0);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
 zyd_scan_start_cb(struct ieee80211com *ic)
 {
 	zyd_std_command(ic, &zyd_cfg_scan_start);
-	return;
 }
 
 static void
 zyd_scan_end_cb(struct ieee80211com *ic)
 {
 	zyd_std_command(ic, &zyd_cfg_scan_end);
-	return;
 }
 
 static void
 zyd_set_channel_cb(struct ieee80211com *ic)
 {
 	zyd_std_command(ic, &zyd_cfg_set_chan);
-	return;
 }
 
 /*========================================================================*
@@ -2293,7 +2238,6 @@ zyd_cfg_scan_start(struct zyd_softc *sc,
     struct usb2_config_td_cc *cc, uint16_t refcount)
 {
 	zyd_cfg_set_bssid(sc, cc->if_broadcastaddr);
-	return;
 }
 
 static void
@@ -2301,7 +2245,6 @@ zyd_cfg_scan_end(struct zyd_softc *sc,
     struct usb2_config_td_cc *cc, uint16_t refcount)
 {
 	zyd_cfg_set_bssid(sc, cc->iv_bss.ni_bssid);
-	return;
 }
 
 static void
@@ -2352,8 +2295,6 @@ zyd_cfg_set_chan(struct zyd_softc *sc,
 	sc->sc_rxtap.wr_chan_flags =
 	    sc->sc_txtap.wt_chan_flags =
 	    htole16(cc->ic_flags);
-
-	return;
 }
 
 /*
@@ -2376,8 +2317,6 @@ zyd_cfg_pre_init(struct zyd_softc *sc,
 	sc->sc_flags |= ZYD_FLAG_HL_READY;
 
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-
-	return;
 }
 
 /* delayed configuration */
@@ -2453,7 +2392,6 @@ zyd_cfg_init(struct zyd_softc *sc,
 		ieee80211_start_all(ic);
 		mtx_lock(&sc->sc_mtx);
 	}
-	return;
 }
 
 /* immediate configuration */
@@ -2485,7 +2423,6 @@ zyd_cfg_pre_stop(struct zyd_softc *sc,
 
 	/* clean up transmission */
 	zyd_tx_clean_queue(sc);
-	return;
 }
 
 /* delayed configuration */
@@ -2502,8 +2439,6 @@ zyd_cfg_stop(struct zyd_softc *sc,
 
 	/* disable interrupts */
 	zyd_cfg_write32(sc, ZYD_CR_INTERRUPT, 0);
-
-	return;
 }
 
 static void
@@ -2516,7 +2451,6 @@ zyd_update_mcast_cb(struct ifnet *ifp)
 	    (&sc->sc_config_td, &zyd_config_copy,
 	    &zyd_cfg_update_promisc, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 static void
@@ -2529,7 +2463,6 @@ zyd_update_promisc_cb(struct ifnet *ifp)
 	    (&sc->sc_config_td, &zyd_config_copy,
 	    &zyd_cfg_update_promisc, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 static void
@@ -2554,7 +2487,6 @@ zyd_cfg_set_rxfilter(struct zyd_softc *sc,
 		return;
 	}
 	zyd_cfg_write32(sc, ZYD_MAC_RXFILTER, rxfilter);
-	return;
 }
 
 static void
@@ -2569,7 +2501,6 @@ zyd_cfg_set_led(struct zyd_softc *sc, uint32_t which, uint8_t on)
 		tmp &= ~which;
 
 	zyd_cfg_write32(sc, ZYD_MAC_TX_PE_CONTROL, tmp);
-	return;
 }
 
 static void
@@ -2580,7 +2511,6 @@ zyd_start_cb(struct ifnet *ifp)
 	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_start(sc->sc_xfer[ZYD_TR_BULK_DT_WR]);
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 static void
@@ -2594,7 +2524,6 @@ zyd_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~ZYD_FLAG_BULK_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 /*
@@ -2693,7 +2622,6 @@ zyd_setup_desc_and_tx(struct zyd_softc *sc, struct mbuf *m,
 	_IF_ENQUEUE(&sc->sc_tx_queue, mm);
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -2765,7 +2693,6 @@ zyd_bulk_write_callback(struct usb2_xfer *xfer)
 		ifp->if_oerrors++;
 		break;
 	}
-	return;
 }
 
 static void
@@ -2778,8 +2705,6 @@ zyd_init_cb(void *arg)
 	    (&sc->sc_config_td, &zyd_cfg_pre_init,
 	    &zyd_cfg_init, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static int
@@ -2838,8 +2763,6 @@ zyd_watchdog(void *arg)
 	    hz, &zyd_watchdog, sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -2865,7 +2788,6 @@ zyd_config_copy_chan(struct zyd_config_copy_chan *cc,
 		if (IEEE80211_IS_CHAN_ANYG(c))
 			cc->chan_is_g = 1;
 	}
-	return;
 }
 
 static void
@@ -2932,7 +2854,6 @@ zyd_config_copy(struct zyd_softc *sc,
 		}
 	}
 	sc->sc_flags |= ZYD_FLAG_WAIT_COMMAND;
-	return;
 }
 
 static void
@@ -2942,7 +2863,6 @@ zyd_end_of_commands(struct zyd_softc *sc)
 
 	/* start write transfer, if not started */
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -2951,7 +2871,6 @@ zyd_newassoc_cb(struct ieee80211_node *ni, int isnew)
 	struct ieee80211vap *vap = ni->ni_vap;
 
 	ieee80211_amrr_node_init(&ZYD_VAP(vap)->amrr, &ZYD_NODE(ni)->amn, ni);
-	return;
 }
 
 static void
@@ -2979,7 +2898,6 @@ zyd_cfg_amrr_timeout(struct zyd_softc *sc,
 			}
 		}
 	}
-	return;
 }
 
 static void
@@ -3004,7 +2922,6 @@ zyd_cfg_amrr_start(struct zyd_softc *sc)
 	/* enable AMRR timer */
 
 	sc->sc_amrr_timer = 1;
-	return;
 }
 
 static struct ieee80211vap *
@@ -3069,7 +2986,6 @@ zyd_vap_delete(struct ieee80211vap *vap)
 	ieee80211_amrr_cleanup(&zvp->amrr);
 	ieee80211_vap_detach(vap);
 	free(zvp, M_80211_VAP);
-	return;
 }
 
 /* ARGUSED */
@@ -3109,7 +3025,6 @@ zyd_fill_write_queue(struct zyd_softc *sc)
 		}
 		zyd_tx_data(sc, m, ni);
 	}
-	return;
 }
 
 static void
@@ -3125,8 +3040,6 @@ zyd_tx_clean_queue(struct zyd_softc *sc)
 		}
 		zyd_tx_freem(m);
 	}
-
-	return;
 }
 
 static void
@@ -3148,7 +3061,6 @@ zyd_tx_freem(struct mbuf *m)
 
 		break;
 	}
-	return;
 }
 
 static void
@@ -3201,7 +3113,6 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	m->m_pkthdr.rcvif = (void *)ni;
 	zyd_setup_desc_and_tx(sc, m, rate);
-	return;
 }
 
 static void
@@ -3261,7 +3172,6 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	m->m_pkthdr.rcvif = (void *)ni;
 	zyd_setup_desc_and_tx(sc, m, rate);
-	return;
 }
 
 static int

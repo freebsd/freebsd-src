@@ -279,7 +279,6 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
 
 #define	RUE_CFG_SETBIT(sc, reg, x) \
@@ -301,7 +300,6 @@ rue_cfg_read_mem(struct rue_softc *sc, uint16_t addr, void *buf,
 	USETW(req.wLength, len);
 
 	rue_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static void
@@ -317,7 +315,6 @@ rue_cfg_write_mem(struct rue_softc *sc, uint16_t addr, void *buf,
 	USETW(req.wLength, len);
 
 	rue_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static uint8_t
@@ -342,7 +339,6 @@ static void
 rue_cfg_csr_write_1(struct rue_softc *sc, uint16_t reg, uint8_t val)
 {
 	rue_cfg_write_mem(sc, reg, &val, 1);
-	return;
 }
 
 static void
@@ -352,7 +348,6 @@ rue_cfg_csr_write_2(struct rue_softc *sc, uint16_t reg, uint16_t val)
 
 	USETW(temp, val);
 	rue_cfg_write_mem(sc, reg, &temp, 2);
-	return;
 }
 
 static void
@@ -362,7 +357,6 @@ rue_cfg_csr_write_4(struct rue_softc *sc, int reg, uint32_t val)
 
 	USETDW(temp, val);
 	rue_cfg_write_mem(sc, reg, &temp, 4);
-	return;
 }
 
 static int
@@ -525,7 +519,6 @@ rue_cfg_miibus_statchg(device_t dev)
 		mtx_unlock(&sc->sc_mtx);
 	}
 #endif
-	return;
 }
 
 static void
@@ -536,7 +529,6 @@ rue_mchash(struct usb2_config_td_cc *cc, const uint8_t *ptr)
 	h = ether_crc32_be(ptr, ETHER_ADDR_LEN) >> 26;
 	cc->if_hash[h / 8] |= 1 << (h & 7);
 	cc->if_nhash = 1;
-	return;
 }
 
 static void
@@ -545,7 +537,6 @@ rue_config_copy(struct rue_softc *sc,
 {
 	bzero(cc, sizeof(*cc));
 	usb2_ether_cc(sc->sc_ifp, &rue_mchash, cc);
-	return;
 }
 
 /*
@@ -582,7 +573,6 @@ rue_cfg_promisc_upd(struct rue_softc *sc,
 	rue_cfg_csr_write_2(sc, RUE_RCR, rxcfg);
 	rue_cfg_write_mem(sc, RUE_MAR0, cc->if_hash, 4);
 	rue_cfg_write_mem(sc, RUE_MAR4, cc->if_hash + 4, 4);
-	return;
 }
 
 static void
@@ -613,7 +603,6 @@ rue_cfg_reset(struct rue_softc *sc)
 	}
 
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
-	return;
 }
 
 /*
@@ -827,7 +816,6 @@ rue_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~RUE_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -879,7 +867,6 @@ rue_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~RUE_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -974,7 +961,6 @@ rue_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~RUE_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1083,8 +1069,6 @@ rue_cfg_tick(struct rue_softc *sc,
 	/* start stopped transfers, if any */
 
 	rue_start_transfers(sc);
-
-	return;
 }
 
 static void
@@ -1097,8 +1081,6 @@ rue_start_cb(struct ifnet *ifp)
 	rue_start_transfers(sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1114,7 +1096,6 @@ rue_start_transfers(struct rue_softc *sc)
 		usb2_transfer_start(sc->sc_xfer[1]);
 		usb2_transfer_start(sc->sc_xfer[0]);
 	}
-	return;
 }
 
 static void
@@ -1127,8 +1108,6 @@ rue_init_cb(void *arg)
 	    (&sc->sc_config_td, &rue_cfg_pre_init,
 	    &rue_cfg_init, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1144,8 +1123,6 @@ rue_cfg_pre_init(struct rue_softc *sc,
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	sc->sc_flags |= RUE_FLAG_HL_READY;
-
-	return;
 }
 
 static void
@@ -1193,8 +1170,6 @@ rue_cfg_init(struct rue_softc *sc,
 	    RUE_FLAG_LL_READY);
 
 	rue_start_transfers(sc);
-
-	return;
 }
 
 /*
@@ -1236,8 +1211,6 @@ rue_cfg_ifmedia_upd(struct rue_softc *sc,
 		}
 	}
 	mii_mediachg(mii);
-
-	return;
 }
 
 /*
@@ -1254,8 +1227,6 @@ rue_ifmedia_sts_cb(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status = sc->sc_media_status;
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static int
@@ -1330,7 +1301,6 @@ rue_watchdog(void *arg)
 	    hz, &rue_watchdog, sc);
 
 	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 /*
@@ -1366,7 +1336,6 @@ rue_cfg_pre_stop(struct rue_softc *sc,
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[4]);
 	usb2_transfer_stop(sc->sc_xfer[5]);
-	return;
 }
 
 static void
@@ -1376,7 +1345,6 @@ rue_cfg_stop(struct rue_softc *sc,
 	rue_cfg_csr_write_1(sc, RUE_CR, 0x00);
 
 	rue_cfg_reset(sc);
-	return;
 }
 
 /*

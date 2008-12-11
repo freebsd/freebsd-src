@@ -130,7 +130,6 @@ usb2_make_raw_desc(struct usb2_temp_setup *temp,
 		}
 		temp->size += len;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -231,7 +230,6 @@ usb2_make_endpoint_desc(struct usb2_temp_setup *temp,
 		}
 	}
 	temp->bNumEndpoints++;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -303,7 +301,6 @@ usb2_make_interface_desc(struct usb2_temp_setup *temp,
 		id->bInterfaceProtocol = tid->bInterfaceProtocol;
 		id->iInterface = tid->iInterface;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -366,7 +363,6 @@ usb2_make_config_desc(struct usb2_temp_setup *temp,
 			cd->bmAttributes &= ~UC_SELF_POWERED;
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -462,7 +458,6 @@ usb2_make_device_desc(struct usb2_temp_setup *temp,
 			break;
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1168,7 +1163,6 @@ tr_valid:
 tr_stalled:
 	*pPtr = NULL;
 	*pLength = 0;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1281,7 +1275,6 @@ usb2_temp_unsetup(struct usb2_device *udev)
 
 		udev->usb2_template_ptr = NULL;
 	}
-	return;
 }
 
 static usb2_error_t
@@ -1313,7 +1306,6 @@ usb2_temp_init(void *arg)
 	usb2_temp_get_desc_p = &usb2_temp_get_desc;
 	usb2_temp_setup_by_index_p = &usb2_temp_setup_by_index;
 	usb2_temp_unsetup_p = &usb2_temp_unsetup;
-	return;
 }
 
 SYSINIT(usb2_temp_init, SI_SUB_LOCK, SI_ORDER_FIRST, usb2_temp_init, NULL);

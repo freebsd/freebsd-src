@@ -220,7 +220,6 @@ bbb_done(struct bbb_transfer *sc, uint8_t error)
 	sc->state = ST_COMMAND;
 	sc->status_try = 1;
 	usb2_cv_signal(&sc->cv);
-	return;
 }
 
 static void
@@ -228,7 +227,6 @@ bbb_transfer_start(struct bbb_transfer *sc, uint8_t xfer_index)
 {
 	sc->state = xfer_index;
 	usb2_transfer_start(sc->xfer[xfer_index]);
-	return;
 }
 
 static void
@@ -248,7 +246,6 @@ bbb_data_clear_stall_callback(struct usb2_xfer *xfer,
 			break;
 		}
 	}
-	return;
 }
 
 static void
@@ -288,7 +285,6 @@ bbb_command_callback(struct usb2_xfer *xfer)
 		bbb_done(sc, 1);
 		break;
 	}
-	return;
 }
 
 static void
@@ -333,7 +329,6 @@ bbb_data_read_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -341,7 +336,6 @@ bbb_data_rd_cs_callback(struct usb2_xfer *xfer)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_RD);
-	return;
 }
 
 static void
@@ -394,7 +388,6 @@ bbb_data_wr_cs_callback(struct usb2_xfer *xfer)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_WR);
-	return;
 }
 
 static void
@@ -436,7 +429,6 @@ bbb_status_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*

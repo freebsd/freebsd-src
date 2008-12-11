@@ -378,7 +378,6 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
 
 static void
@@ -413,7 +412,6 @@ uftdi_cfg_open(struct usb2_com_softc *ucom)
 	 * "uftdi_cfg_param()" call after "open()", so there is no need for
 	 * "open()" to configure anything
 	 */
-	return;
 }
 
 static void
@@ -465,7 +463,6 @@ uftdi_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UFTDI_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -535,7 +532,6 @@ uftdi_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UFTDI_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -554,7 +550,6 @@ uftdi_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
 	uftdi_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -573,7 +568,6 @@ uftdi_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
 	uftdi_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -598,7 +592,6 @@ uftdi_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
 	uftdi_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static int
@@ -745,8 +738,6 @@ uftdi_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	USETW2(req.wIndex, cfg.v_flow, wIndex);
 	USETW(req.wLength, 0);
 	uftdi_cfg_do_request(sc, &req, NULL);
-
-	return;
 }
 
 static void
@@ -759,7 +750,6 @@ uftdi_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*msr = sc->sc_msr;
 	*lsr = sc->sc_lsr;
-	return;
 }
 
 static void
@@ -768,7 +758,6 @@ uftdi_start_read(struct usb2_com_softc *ucom)
 	struct uftdi_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -778,7 +767,6 @@ uftdi_stop_read(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -787,7 +775,6 @@ uftdi_start_write(struct usb2_com_softc *ucom)
 	struct uftdi_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -797,7 +784,6 @@ uftdi_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 /*------------------------------------------------------------------------*
