@@ -27,8 +27,10 @@
 #ifndef _USB2_MSCTEST_H_
 #define	_USB2_MSCTEST_H_
 
-usb2_error_t usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index, uint8_t do_eject);
-usb2_error_t usb2_test_huawei(struct usb2_device *udev, struct usb2_attach_arg *uaa);
+usb2_error_t usb2_test_autoinstall(struct usb2_device *udev,
+	    uint8_t iface_index, uint8_t do_eject);
+usb2_error_t usb2_test_huawei(struct usb2_device *udev,
+	    struct usb2_attach_arg *uaa);
 int	usb2_lookup_huawei(struct usb2_attach_arg *uaa);
 
 /* Huawei specific defines */

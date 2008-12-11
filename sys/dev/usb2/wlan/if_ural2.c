@@ -97,54 +97,72 @@ static usb2_config_td_command_t ural_cfg_stop;
 static usb2_config_td_command_t ural_cfg_amrr_timeout;
 static usb2_config_td_command_t ural_cfg_newstate;
 
-static void ural_cfg_do_request(struct ural_softc *sc, struct usb2_device_request *req, void *data);
-static void ural_cfg_set_testmode(struct ural_softc *sc);
-static void ural_cfg_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, uint16_t len);
-static uint16_t ural_cfg_read(struct ural_softc *sc, uint16_t reg);
-static void ural_cfg_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, uint16_t len);
-static void ural_cfg_write(struct ural_softc *sc, uint16_t reg, uint16_t val);
-static void ural_cfg_write_multi(struct ural_softc *sc, uint16_t reg, void *buf, uint16_t len);
-static void ural_cfg_bbp_write(struct ural_softc *sc, uint8_t reg, uint8_t val);
-static uint8_t ural_cfg_bbp_read(struct ural_softc *sc, uint8_t reg);
-static void ural_cfg_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val);
-static void ural_end_of_commands(struct ural_softc *sc);
+static void	ural_cfg_do_request(struct ural_softc *,
+		    struct usb2_device_request *, void *);
+static void	ural_cfg_set_testmode(struct ural_softc *);
+static void	ural_cfg_eeprom_read(struct ural_softc *, uint16_t, void *,
+		    uint16_t);
+static uint16_t	ural_cfg_read(struct ural_softc *, uint16_t);
+static void	ural_cfg_read_multi(struct ural_softc *, uint16_t, void *,
+		    uint16_t);
+static void	ural_cfg_write(struct ural_softc *, uint16_t, uint16_t);
+static void	ural_cfg_write_multi(struct ural_softc *, uint16_t, void *,
+		    uint16_t);
+static void	ural_cfg_bbp_write(struct ural_softc *, uint8_t, uint8_t);
+static uint8_t	ural_cfg_bbp_read(struct ural_softc *, uint8_t);
+static void	ural_cfg_rf_write(struct ural_softc *, uint8_t, uint32_t);
+static void	ural_end_of_commands(struct ural_softc *);
 static const char *ural_get_rf(int rev);
-static void ural_watchdog(void *arg);
-static void ural_init_cb(void *arg);
-static int ural_ioctl_cb(struct ifnet *ifp, u_long cmd, caddr_t data);
-static void ural_start_cb(struct ifnet *ifp);
-static int ural_newstate_cb(struct ieee80211vap *ic, enum ieee80211_state nstate, int arg);
-static void ural_std_command(struct ieee80211com *ic, usb2_config_td_command_t *func);
-static void ural_scan_start_cb(struct ieee80211com *);
-static void ural_scan_end_cb(struct ieee80211com *);
-static void ural_set_channel_cb(struct ieee80211com *);
-static void ural_cfg_disable_rf_tune(struct ural_softc *sc);
-static void ural_cfg_set_bssid(struct ural_softc *sc, uint8_t *bssid);
-static void ural_cfg_set_macaddr(struct ural_softc *sc, uint8_t *addr);
-static void ural_cfg_set_txantenna(struct ural_softc *sc, uint8_t antenna);
-static void ural_cfg_set_rxantenna(struct ural_softc *sc, uint8_t antenna);
-static void ural_cfg_read_eeprom(struct ural_softc *sc);
-static uint8_t ural_cfg_bbp_init(struct ural_softc *sc);
-static void ural_cfg_amrr_start(struct ural_softc *sc);
-static struct ieee80211vap *ural_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit, int opmode, int flags, const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void ural_vap_delete(struct ieee80211vap *);
-static struct ieee80211_node *ural_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void ural_newassoc(struct ieee80211_node *, int);
-static void ural_cfg_disable_tsf_sync(struct ural_softc *sc);
-static void ural_cfg_set_run(struct ural_softc *sc, struct usb2_config_td_cc *cc);
-static void ural_fill_write_queue(struct ural_softc *sc);
-static void ural_tx_clean_queue(struct ural_softc *sc);
-static void ural_tx_freem(struct mbuf *m);
-static void ural_tx_mgt(struct ural_softc *sc, struct mbuf *m, struct ieee80211_node *ni);
-static struct ieee80211vap *ural_get_vap(struct ural_softc *sc);
-static void ural_tx_bcn(struct ural_softc *sc);
-static void ural_tx_data(struct ural_softc *sc, struct mbuf *m, struct ieee80211_node *ni);
-static void ural_tx_prot(struct ural_softc *sc, const struct mbuf *m, struct ieee80211_node *ni, uint8_t prot, uint16_t rate);
-static void ural_tx_raw(struct ural_softc *sc, struct mbuf *m, struct ieee80211_node *ni, const struct ieee80211_bpf_params *params);
-static int ural_raw_xmit_cb(struct ieee80211_node *ni, struct mbuf *m, const struct ieee80211_bpf_params *params);
-static void ural_setup_desc_and_tx(struct ural_softc *sc, struct mbuf *m, uint32_t flags, uint16_t rate);
-static void ural_update_mcast_cb(struct ifnet *ifp);
-static void ural_update_promisc_cb(struct ifnet *ifp);
+static void	ural_watchdog(void *);
+static void	ural_init_cb(void *);
+static int	ural_ioctl_cb(struct ifnet *, u_long cmd, caddr_t data);
+static void	ural_start_cb(struct ifnet *);
+static int	ural_newstate_cb(struct ieee80211vap *,
+		    enum ieee80211_state, int);
+static void	ural_std_command(struct ieee80211com *,
+		    usb2_config_td_command_t *);
+static void	ural_scan_start_cb(struct ieee80211com *);
+static void	ural_scan_end_cb(struct ieee80211com *);
+static void	ural_set_channel_cb(struct ieee80211com *);
+static void	ural_cfg_disable_rf_tune(struct ural_softc *);
+static void	ural_cfg_set_bssid(struct ural_softc *, uint8_t *);
+static void	ural_cfg_set_macaddr(struct ural_softc *, uint8_t *);
+static void	ural_cfg_set_txantenna(struct ural_softc *, uint8_t);
+static void	ural_cfg_set_rxantenna(struct ural_softc *, uint8_t);
+static void	ural_cfg_read_eeprom(struct ural_softc *);
+static uint8_t	ural_cfg_bbp_init(struct ural_softc *);
+static void	ural_cfg_amrr_start(struct ural_softc *);
+static struct ieee80211vap *ural_vap_create(struct ieee80211com *,
+		    const char name[IFNAMSIZ], int unit, int opmode, int flags,
+		    const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t
+		    mac[IEEE80211_ADDR_LEN]);
+static void	ural_vap_delete(struct ieee80211vap *);
+static struct ieee80211_node *ural_node_alloc(struct ieee80211vap *,
+		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static void	ural_newassoc(struct ieee80211_node *, int);
+static void	ural_cfg_disable_tsf_sync(struct ural_softc *);
+static void	ural_cfg_set_run(struct ural_softc *,
+		    struct usb2_config_td_cc *);
+static void	ural_fill_write_queue(struct ural_softc *);
+static void	ural_tx_clean_queue(struct ural_softc *);
+static void	ural_tx_freem(struct mbuf *);
+static void	ural_tx_mgt(struct ural_softc *, struct mbuf *,
+		    struct ieee80211_node *);
+static struct ieee80211vap *ural_get_vap(struct ural_softc *);
+static void	ural_tx_bcn(struct ural_softc *);
+static void	ural_tx_data(struct ural_softc *, struct mbuf *,
+		    struct ieee80211_node *);
+static void	ural_tx_prot(struct ural_softc *, const struct mbuf *,
+		    struct ieee80211_node *, uint8_t, uint16_t);
+static void	ural_tx_raw(struct ural_softc *, struct mbuf *,
+		    struct ieee80211_node *,
+		    const struct ieee80211_bpf_params *);
+static int	ural_raw_xmit_cb(struct ieee80211_node *, struct mbuf *,
+		    const struct ieee80211_bpf_params *);
+static void	ural_setup_desc_and_tx(struct ural_softc *, struct mbuf *,
+		    uint32_t, uint16_t);
+static void	ural_update_mcast_cb(struct ifnet *);
+static void	ural_update_promisc_cb(struct ifnet *);
 
 /* various supported device vendors/products */
 static const struct usb2_device_id ural_devs[] = {

@@ -193,10 +193,10 @@ static usb2_callback_t ubt_bulk_write_clear_stall_callback;
 static usb2_callback_t ubt_isoc_read_callback;
 static usb2_callback_t ubt_isoc_write_callback;
 
-static int ubt_modevent(module_t mod, int event, void *data);
-static void ubt_intr_read_complete(node_p node, hook_p hook, void *arg1, int arg2);
-static void ubt_bulk_read_complete(node_p node, hook_p hook, void *arg1, int arg2);
-static void ubt_isoc_read_complete(node_p node, hook_p hook, void *arg1, int arg2);
+static int	ubt_modevent(module_t, int, void *);
+static void	ubt_intr_read_complete(node_p, hook_p, void *, int);
+static void	ubt_bulk_read_complete(node_p, hook_p, void *, int);
+static void	ubt_isoc_read_complete(node_p, hook_p, void *, int);
 
 /* USB config */
 static const struct usb2_config ubt_config_if_0[UBT_IF_0_N_TRANSFER] = {

@@ -93,11 +93,11 @@ static musbotg_cmd_t musbotg_setup_data_tx;
 static musbotg_cmd_t musbotg_setup_status;
 static musbotg_cmd_t musbotg_data_rx;
 static musbotg_cmd_t musbotg_data_tx;
-static void musbotg_device_done(struct usb2_xfer *xfer, usb2_error_t error);
-static void musbotg_do_poll(struct usb2_bus *bus);
-static void musbotg_root_ctrl_poll(struct musbotg_softc *sc);
-static void musbotg_standard_done(struct usb2_xfer *xfer);
-static void musbotg_interrupt_poll(struct musbotg_softc *sc);
+static void	musbotg_device_done(struct usb2_xfer *, usb2_error_t);
+static void	musbotg_do_poll(struct usb2_bus *);
+static void	musbotg_root_ctrl_poll(struct musbotg_softc *);
+static void	musbotg_standard_done(struct usb2_xfer *);
+static void	musbotg_interrupt_poll(struct musbotg_softc *);
 
 static usb2_sw_transfer_func_t musbotg_root_intr_done;
 static usb2_sw_transfer_func_t musbotg_root_ctrl_done;

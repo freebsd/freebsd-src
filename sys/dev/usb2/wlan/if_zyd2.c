@@ -89,58 +89,72 @@ static usb2_config_td_command_t zyd_cfg_scan_end;
 static usb2_config_td_command_t zyd_cfg_set_rxfilter;
 static usb2_config_td_command_t zyd_cfg_amrr_timeout;
 
-static uint8_t zyd_plcp2ieee(uint8_t signal, uint8_t isofdm);
-static void zyd_cfg_usbrequest(struct zyd_softc *sc, struct usb2_device_request *req, uint8_t *data);
-static void zyd_cfg_usb2_intr_read(struct zyd_softc *sc, void *data, uint32_t size);
-static void zyd_cfg_usb2_intr_write(struct zyd_softc *sc, const void *data, uint16_t code, uint32_t size);
-static void zyd_cfg_read16(struct zyd_softc *sc, uint16_t addr, uint16_t *value);
-static void zyd_cfg_read32(struct zyd_softc *sc, uint16_t addr, uint32_t *value);
-static void zyd_cfg_write16(struct zyd_softc *sc, uint16_t addr, uint16_t value);
-static void zyd_cfg_write32(struct zyd_softc *sc, uint16_t addr, uint32_t value);
-static void zyd_cfg_rfwrite(struct zyd_softc *sc, uint32_t value);
-static uint8_t zyd_cfg_uploadfirmware(struct zyd_softc *sc, const uint8_t *fw_ptr, uint32_t fw_len);
-static void zyd_cfg_lock_phy(struct zyd_softc *sc);
-static void zyd_cfg_unlock_phy(struct zyd_softc *sc);
-static void zyd_cfg_set_beacon_interval(struct zyd_softc *sc, uint32_t interval);
-static const char *zyd_rf_name(uint8_t type);
-static void zyd_cfg_rf_rfmd_init(struct zyd_softc *sc, struct zyd_rf *rf);
-static void zyd_cfg_rf_rfmd_switch_radio(struct zyd_softc *sc, uint8_t onoff);
-static void zyd_cfg_rf_rfmd_set_channel(struct zyd_softc *sc, struct zyd_rf *rf, uint8_t channel);
-static void zyd_cfg_rf_al2230_switch_radio(struct zyd_softc *sc, uint8_t onoff);
-static void zyd_cfg_rf_al2230_init(struct zyd_softc *sc, struct zyd_rf *rf);
-static void zyd_cfg_rf_al2230_init_b(struct zyd_softc *sc, struct zyd_rf *rf);
-static void zyd_cfg_rf_al2230_set_channel(struct zyd_softc *sc, struct zyd_rf *rf, uint8_t channel);
-static uint8_t zyd_cfg_rf_init_hw(struct zyd_softc *sc, struct zyd_rf *rf);
-static uint8_t zyd_cfg_hw_init(struct zyd_softc *sc);
-static void zyd_cfg_set_mac_addr(struct zyd_softc *sc, const uint8_t *addr);
-static void zyd_cfg_switch_radio(struct zyd_softc *sc, uint8_t onoff);
-static void zyd_cfg_set_bssid(struct zyd_softc *sc, uint8_t *addr);
-static void zyd_start_cb(struct ifnet *ifp);
-static void zyd_init_cb(void *arg);
-static int zyd_ioctl_cb(struct ifnet *ifp, u_long command, caddr_t data);
-static void zyd_watchdog(void *arg);
-static void zyd_end_of_commands(struct zyd_softc *sc);
-static void zyd_newassoc_cb(struct ieee80211_node *ni, int isnew);
-static void zyd_scan_start_cb(struct ieee80211com *ic);
-static void zyd_scan_end_cb(struct ieee80211com *ic);
-static void zyd_set_channel_cb(struct ieee80211com *ic);
-static void zyd_cfg_set_led(struct zyd_softc *sc, uint32_t which, uint8_t on);
-static struct ieee80211vap *zyd_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit, int opmode, int flags, const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void zyd_vap_delete(struct ieee80211vap *);
-static struct ieee80211_node *zyd_node_alloc_cb(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void zyd_cfg_set_run(struct zyd_softc *sc, struct usb2_config_td_cc *cc);
-static void zyd_fill_write_queue(struct zyd_softc *sc);
-static void zyd_tx_clean_queue(struct zyd_softc *sc);
-static void zyd_tx_freem(struct mbuf *m);
-static void zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m, struct ieee80211_node *ni);
-static struct ieee80211vap *zyd_get_vap(struct zyd_softc *sc);
-static void zyd_tx_data(struct zyd_softc *sc, struct mbuf *m, struct ieee80211_node *ni);
-static int zyd_raw_xmit_cb(struct ieee80211_node *ni, struct mbuf *m, const struct ieee80211_bpf_params *params);
-static void zyd_setup_desc_and_tx(struct zyd_softc *sc, struct mbuf *m, uint16_t rate);
-static int zyd_newstate_cb(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg);
-static void zyd_cfg_amrr_start(struct zyd_softc *sc);
-static void zyd_update_mcast_cb(struct ifnet *ifp);
-static void zyd_update_promisc_cb(struct ifnet *ifp);
+static uint8_t	zyd_plcp2ieee(uint8_t, uint8_t);
+static void	zyd_cfg_usbrequest(struct zyd_softc *,
+		    struct usb2_device_request *, uint8_t *);
+static void	zyd_cfg_usb2_intr_read(struct zyd_softc *, void *, uint32_t);
+static void	zyd_cfg_usb2_intr_write(struct zyd_softc *, const void *,
+		    uint16_t, uint32_t);
+static void	zyd_cfg_read16(struct zyd_softc *, uint16_t, uint16_t *);
+static void	zyd_cfg_read32(struct zyd_softc *, uint16_t, uint32_t *);
+static void	zyd_cfg_write16(struct zyd_softc *, uint16_t, uint16_t);
+static void	zyd_cfg_write32(struct zyd_softc *, uint16_t, uint32_t);
+static void	zyd_cfg_rfwrite(struct zyd_softc *, uint32_t);
+static uint8_t	zyd_cfg_uploadfirmware(struct zyd_softc *, const uint8_t *,
+		    uint32_t);
+static void	zyd_cfg_lock_phy(struct zyd_softc *);
+static void	zyd_cfg_unlock_phy(struct zyd_softc *);
+static void	zyd_cfg_set_beacon_interval(struct zyd_softc *, uint32_t);
+static const char *zyd_rf_name(uint8_t);
+static void	zyd_cfg_rf_rfmd_init(struct zyd_softc *, struct zyd_rf *);
+static void	zyd_cfg_rf_rfmd_switch_radio(struct zyd_softc *, uint8_t);
+static void	zyd_cfg_rf_rfmd_set_channel(struct zyd_softc *,
+		    struct zyd_rf *, uint8_t);
+static void	zyd_cfg_rf_al2230_switch_radio(struct zyd_softc *, uint8_t);
+static void	zyd_cfg_rf_al2230_init(struct zyd_softc *, struct zyd_rf *);
+static void	zyd_cfg_rf_al2230_init_b(struct zyd_softc *, struct zyd_rf *);
+static void	zyd_cfg_rf_al2230_set_channel(struct zyd_softc *,
+		    struct zyd_rf *, uint8_t);
+static uint8_t	zyd_cfg_rf_init_hw(struct zyd_softc *, struct zyd_rf *);
+static uint8_t	zyd_cfg_hw_init(struct zyd_softc *);
+static void	zyd_cfg_set_mac_addr(struct zyd_softc *, const uint8_t *);
+static void	zyd_cfg_switch_radio(struct zyd_softc *, uint8_t);
+static void	zyd_cfg_set_bssid(struct zyd_softc *, uint8_t *);
+static void	zyd_start_cb(struct ifnet *);
+static void	zyd_init_cb(void *);
+static int	zyd_ioctl_cb(struct ifnet *, u_long command, caddr_t data);
+static void	zyd_watchdog(void *);
+static void	zyd_end_of_commands(struct zyd_softc *);
+static void	zyd_newassoc_cb(struct ieee80211_node *, int isnew);
+static void	zyd_scan_start_cb(struct ieee80211com *);
+static void	zyd_scan_end_cb(struct ieee80211com *);
+static void	zyd_set_channel_cb(struct ieee80211com *);
+static void	zyd_cfg_set_led(struct zyd_softc *, uint32_t, uint8_t);
+static struct ieee80211vap *zyd_vap_create(struct ieee80211com *,
+		    const char name[IFNAMSIZ], int unit, int opmode, int flags,
+		    const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t
+		    mac[IEEE80211_ADDR_LEN]);
+static void	zyd_vap_delete(struct ieee80211vap *);
+static struct ieee80211_node *zyd_node_alloc_cb(struct ieee80211vap *,
+		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static void	zyd_cfg_set_run(struct zyd_softc *, struct usb2_config_td_cc *);
+static void	zyd_fill_write_queue(struct zyd_softc *);
+static void	zyd_tx_clean_queue(struct zyd_softc *);
+static void	zyd_tx_freem(struct mbuf *);
+static void	zyd_tx_mgt(struct zyd_softc *, struct mbuf *,
+		    struct ieee80211_node *);
+static struct ieee80211vap *zyd_get_vap(struct zyd_softc *);
+static void	zyd_tx_data(struct zyd_softc *, struct mbuf *,
+		    struct ieee80211_node *);
+static int	zyd_raw_xmit_cb(struct ieee80211_node *, struct mbuf *,
+		    const struct ieee80211_bpf_params *);
+static void	zyd_setup_desc_and_tx(struct zyd_softc *, struct mbuf *,
+		    uint16_t);
+static int	zyd_newstate_cb(struct ieee80211vap *,
+		    enum ieee80211_state nstate, int arg);
+static void	zyd_cfg_amrr_start(struct zyd_softc *);
+static void	zyd_update_mcast_cb(struct ifnet *);
+static void	zyd_update_promisc_cb(struct ifnet *);
 
 static const struct zyd_phy_pair zyd_def_phy[] = ZYD_DEF_PHY;
 static const struct zyd_phy_pair zyd_def_phyB[] = ZYD_DEF_PHYB;

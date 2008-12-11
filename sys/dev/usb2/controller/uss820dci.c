@@ -88,12 +88,13 @@ static uss820dci_cmd_t uss820dci_setup_rx;
 static uss820dci_cmd_t uss820dci_data_rx;
 static uss820dci_cmd_t uss820dci_data_tx;
 static uss820dci_cmd_t uss820dci_data_tx_sync;
-static void uss820dci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
-static void uss820dci_do_poll(struct usb2_bus *bus);
-static void uss820dci_root_ctrl_poll(struct uss820dci_softc *sc);
-static void uss820dci_standard_done(struct usb2_xfer *xfer);
-static void uss820dci_intr_set(struct usb2_xfer *xfer, uint8_t set);
-static void uss820dci_update_shared_1(struct uss820dci_softc *sc, uint8_t reg, uint8_t keep_mask, uint8_t set_mask);
+static void	uss820dci_device_done(struct usb2_xfer *, usb2_error_t);
+static void	uss820dci_do_poll(struct usb2_bus *);
+static void	uss820dci_root_ctrl_poll(struct uss820dci_softc *);
+static void	uss820dci_standard_done(struct usb2_xfer *);
+static void	uss820dci_intr_set(struct usb2_xfer *, uint8_t);
+static void	uss820dci_update_shared_1(struct uss820dci_softc *, uint8_t,
+		    uint8_t, uint8_t);
 
 static usb2_sw_transfer_func_t uss820dci_root_intr_done;
 static usb2_sw_transfer_func_t uss820dci_root_ctrl_done;

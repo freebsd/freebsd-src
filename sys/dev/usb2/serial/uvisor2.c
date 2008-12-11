@@ -180,13 +180,14 @@ static usb2_callback_t uvisor_write_clear_stall_callback;
 static usb2_callback_t uvisor_read_callback;
 static usb2_callback_t uvisor_read_clear_stall_callback;
 
-static usb2_error_t uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_config *config);
-static void uvisor_cfg_open(struct usb2_com_softc *ucom);
-static void uvisor_cfg_close(struct usb2_com_softc *ucom);
-static void uvisor_start_read(struct usb2_com_softc *ucom);
-static void uvisor_stop_read(struct usb2_com_softc *ucom);
-static void uvisor_start_write(struct usb2_com_softc *ucom);
-static void uvisor_stop_write(struct usb2_com_softc *ucom);
+static usb2_error_t uvisor_init(struct uvisor_softc *, struct usb2_device *,
+		    struct usb2_config *);
+static void	uvisor_cfg_open(struct usb2_com_softc *);
+static void	uvisor_cfg_close(struct usb2_com_softc *);
+static void	uvisor_start_read(struct usb2_com_softc *);
+static void	uvisor_stop_read(struct usb2_com_softc *);
+static void	uvisor_start_write(struct usb2_com_softc *);
+static void	uvisor_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 

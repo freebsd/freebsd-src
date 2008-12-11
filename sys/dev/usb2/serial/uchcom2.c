@@ -196,27 +196,28 @@ static const struct usb2_device_id uchcom_devs[] = {
 
 /* protypes */
 
-static int uchcom_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data, int flag, struct thread *td);
-static int uchcom_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uchcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static void uchcom_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uchcom_cfg_set_break(struct usb2_com_softc *sc, uint8_t onoff);
-static void uchcom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uchcom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uchcom_start_read(struct usb2_com_softc *ucom);
-static void uchcom_start_write(struct usb2_com_softc *ucom);
-static void uchcom_stop_read(struct usb2_com_softc *ucom);
-static void uchcom_stop_write(struct usb2_com_softc *ucom);
-
-static void uchcom_update_version(struct uchcom_softc *sc);
-static void uchcom_convert_status(struct uchcom_softc *sc, uint8_t cur);
-static void uchcom_update_status(struct uchcom_softc *sc);
-static void uchcom_set_dtrrts(struct uchcom_softc *sc);
-static int uchcom_calc_divider_settings(struct uchcom_divider *dp, uint32_t rate);
-static void uchcom_set_dte_rate(struct uchcom_softc *sc, uint32_t rate);
-static void uchcom_set_line_control(struct uchcom_softc *sc, tcflag_t cflag);
-static void uchcom_clear_chip(struct uchcom_softc *sc);
-static void uchcom_reset_chip(struct uchcom_softc *sc);
+static int	uchcom_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
+		    struct thread *);
+static int	uchcom_pre_param(struct usb2_com_softc *, struct termios *);
+static void	uchcom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static void	uchcom_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	uchcom_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	uchcom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	uchcom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	uchcom_start_read(struct usb2_com_softc *);
+static void	uchcom_start_write(struct usb2_com_softc *);
+static void	uchcom_stop_read(struct usb2_com_softc *);
+static void	uchcom_stop_write(struct usb2_com_softc *);
+static void	uchcom_update_version(struct uchcom_softc *);
+static void	uchcom_convert_status(struct uchcom_softc *, uint8_t);
+static void	uchcom_update_status(struct uchcom_softc *);
+static void	uchcom_set_dtrrts(struct uchcom_softc *);
+static int	uchcom_calc_divider_settings(struct uchcom_divider *, uint32_t);
+static void	uchcom_set_dte_rate(struct uchcom_softc *, uint32_t);
+static void	uchcom_set_line_control(struct uchcom_softc *, tcflag_t);
+static void	uchcom_clear_chip(struct uchcom_softc *);
+static void	uchcom_reset_chip(struct uchcom_softc *);
 
 static device_probe_t uchcom_probe;
 static device_attach_t uchcom_attach;

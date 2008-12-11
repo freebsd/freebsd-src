@@ -39,22 +39,22 @@
 #include <dev/usb2/controller/usb2_controller.h>
 #include <dev/usb2/controller/usb2_bus.h>
 
-static void usb2_dma_tag_create(struct usb2_dma_tag *udt, uint32_t size, uint32_t align);
-static void usb2_dma_tag_destroy(struct usb2_dma_tag *udt);
+static void	usb2_dma_tag_create(struct usb2_dma_tag *, uint32_t, uint32_t);
+static void	usb2_dma_tag_destroy(struct usb2_dma_tag *);
 
 #ifdef __FreeBSD__
-static void usb2_dma_lock_cb(void *arg, bus_dma_lock_op_t op);
-static int32_t usb2_m_copy_in_cb(void *arg, void *src, uint32_t count);
-static void usb2_pc_alloc_mem_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error);
-static void usb2_pc_load_mem_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error);
-static void usb2_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error, uint8_t isload);
-
+static void	usb2_dma_lock_cb(void *, bus_dma_lock_op_t);
+static int32_t	usb2_m_copy_in_cb(void *, void *, uint32_t);
+static void	usb2_pc_alloc_mem_cb(void *, bus_dma_segment_t *, int, int);
+static void	usb2_pc_load_mem_cb(void *, bus_dma_segment_t *, int, int);
+static void	usb2_pc_common_mem_cb(void *, bus_dma_segment_t *, int, int,
+		    uint8_t);
 #endif
 
 #ifdef __NetBSD__
-static int32_t usb2_m_copy_in_cb(void *arg, caddr_t src, uint32_t count);
-static void usb2_pc_common_mem_cb(struct usb2_page_cache *pc, bus_dma_segment_t *segs, int nseg, int error, uint8_t isload);
-
+static int32_t	usb2_m_copy_in_cb(void *, caddr_t, uint32_t);
+static void	usb2_pc_common_mem_cb(struct usb2_page_cache *,
+		    bus_dma_segment_t *, int, int, uint8_t);
 #endif
 
 /*------------------------------------------------------------------------*
