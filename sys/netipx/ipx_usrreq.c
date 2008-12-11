@@ -412,6 +412,7 @@ ipx_ctloutput(struct socket *so, struct sockopt *sopt)
 
 		case SO_IPX_CHECKSUM:
 			mask = IPXP_CHECKSUM;
+			goto set_head;
 
 		case SO_HEADERS_ON_OUTPUT:
 			mask = IPXP_RAWOUT;
