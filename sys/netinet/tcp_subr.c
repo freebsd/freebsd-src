@@ -155,7 +155,7 @@ SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
 static int
 sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(curvnet);
+	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	new = V_tcp_v6mssdflt;
