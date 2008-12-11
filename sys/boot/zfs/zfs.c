@@ -486,6 +486,7 @@ zfs_dev_open(struct open_file *f, ...)
 	}
 
 	f->f_devdata = spa;
+	free(dev);
 	return (0);
 }
 
