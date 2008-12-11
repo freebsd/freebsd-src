@@ -1256,6 +1256,8 @@ re_attach(device_t dev)
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
+		sc->rl_flags |= RL_FLAG_WOLRXENB;
+		/* FALLTHROUGH */
 	case RL_HWREV_8168_SPIN3:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
 		    RL_FLAG_MACSTAT;
@@ -3016,6 +3018,9 @@ re_setwol(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
+	    (sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
+		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
 	/* Enable config register write. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
