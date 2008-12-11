@@ -149,7 +149,9 @@ struct ip_fw_ugid {
 /*
  * list of rules for layer 3
  */
+#ifdef VIMAGE_GLOBALS
 struct ip_fw_chain layer3_chain;
+#endif
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");

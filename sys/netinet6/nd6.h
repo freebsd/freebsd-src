@@ -328,6 +328,7 @@ struct nd_pfxrouter {
 LIST_HEAD(nd_prhead, nd_prefix);
 
 /* nd6.c */
+#ifdef VIMAGE_GLOBALS
 extern int nd6_prune;
 extern int nd6_delay;
 extern int nd6_umaxtries;
@@ -341,8 +342,6 @@ extern struct nd_prhead nd_prefix;
 extern int nd6_debug;
 extern int nd6_onlink_ns_rfc4861;
 
-#define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
-
 extern struct callout nd6_timer_ch;
 
 /* nd6_rtr.c */
@@ -351,6 +350,9 @@ extern int ip6_desync_factor;	/* seconds */
 extern u_int32_t ip6_temp_preferred_lifetime; /* seconds */
 extern u_int32_t ip6_temp_valid_lifetime; /* seconds */
 extern int ip6_temp_regen_advance; /* seconds */
+#endif /* VIMAGE_GLOBALS */
+
+#define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
 
 union nd_opts {
 	struct nd_opt_hdr *nd_opt_array[8];	/* max = target address list */

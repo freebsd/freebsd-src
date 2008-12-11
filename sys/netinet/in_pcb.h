@@ -450,6 +450,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
 
 #ifdef _KERNEL
+#ifdef VIMAGE_GLOBALS
 extern int	ipport_reservedhigh;
 extern int	ipport_reservedlow;
 extern int	ipport_lowfirstauto;
@@ -463,6 +464,7 @@ extern int	ipport_randomcps;
 extern int	ipport_randomtime;
 extern int	ipport_stoprandom;
 extern int	ipport_tcpallocs;
+#endif
 extern struct callout ipport_tick_callout;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
