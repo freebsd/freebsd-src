@@ -408,7 +408,6 @@ ubser_inc_tx_unit(struct ubser_softc *sc)
 	if (sc->sc_curr_tx_unit >= sc->sc_numser) {
 		sc->sc_curr_tx_unit = 0;
 	}
-	return;
 }
 
 static void
@@ -422,7 +421,6 @@ ubser_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UBSER_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -483,7 +481,6 @@ ubser_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UBSER_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -553,7 +550,6 @@ ubser_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 			    usb2_errstr(err));
 		}
 	}
-	return;
 }
 
 static void
@@ -562,7 +558,6 @@ ubser_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 	/* fake status bits */
 	*lsr = 0;
 	*msr = SER_DCD;
-	return;
 }
 
 static void
@@ -571,7 +566,6 @@ ubser_start_read(struct usb2_com_softc *ucom)
 	struct ubser_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[UBSER_TR_DT_READ]);
-	return;
 }
 
 static void
@@ -581,7 +575,6 @@ ubser_stop_read(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_CS_READ]);
 	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_DT_READ]);
-	return;
 }
 
 static void
@@ -590,7 +583,6 @@ ubser_start_write(struct usb2_com_softc *ucom)
 	struct ubser_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[UBSER_TR_DT_WRITE]);
-	return;
 }
 
 static void
@@ -600,5 +592,4 @@ ubser_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_CS_WRITE]);
 	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_DT_WRITE]);
-	return;
 }

@@ -391,7 +391,6 @@ ubsa_cfg_request(struct ubsa_softc *sc, uint8_t index, uint16_t value)
 		DPRINTFN(0, "device request failed, err=%s "
 		    "(ignored)\n", usb2_errstr(err));
 	}
-	return;
 }
 
 static void
@@ -402,7 +401,6 @@ ubsa_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	ubsa_cfg_request(sc, UBSA_REG_DTR, onoff ? 1 : 0);
-	return;
 }
 
 static void
@@ -413,7 +411,6 @@ ubsa_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	ubsa_cfg_request(sc, UBSA_REG_RTS, onoff ? 1 : 0);
-	return;
 }
 
 static void
@@ -424,7 +421,6 @@ ubsa_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	ubsa_cfg_request(sc, UBSA_REG_BREAK, onoff ? 1 : 0);
-	return;
 }
 
 static int
@@ -523,7 +519,6 @@ ubsa_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 		value |= UBSA_FLOW_OXON | UBSA_FLOW_IXON;
 
 	ubsa_cfg_request(sc, UBSA_REG_FLOW_CTRL, value);
-	return;
 }
 
 static void
@@ -536,7 +531,6 @@ ubsa_start_read(struct usb2_com_softc *ucom)
 
 	/* start read endpoint */
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -551,7 +545,6 @@ ubsa_stop_read(struct usb2_com_softc *ucom)
 	/* stop read endpoint */
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -560,7 +553,6 @@ ubsa_start_write(struct usb2_com_softc *ucom)
 	struct ubsa_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -570,7 +562,6 @@ ubsa_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -582,7 +573,6 @@ ubsa_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-	return;
 }
 
 static void
@@ -627,7 +617,6 @@ ubsa_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UBSA_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -669,7 +658,6 @@ ubsa_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UBSA_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -731,5 +719,4 @@ ubsa_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UBSA_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }

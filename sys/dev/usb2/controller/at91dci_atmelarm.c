@@ -87,7 +87,6 @@ at91_vbus_interrupt(struct at91_udp_softc *sc)
 	vbus_val = at91_pio_gpio_get(VBUS_BASE, VBUS_MASK);
 	(sc->sc_dci.sc_bus.methods->vbus_interrupt)
 	    (&sc->sc_dci.sc_bus, vbus_val);
-	return;
 }
 
 static void
@@ -97,7 +96,6 @@ at91_udp_clocks_on(void *arg)
 
 	at91_pmc_clock_enable(sc->sc_iclk);
 	at91_pmc_clock_enable(sc->sc_fclk);
-	return;
 }
 
 static void
@@ -107,21 +105,18 @@ at91_udp_clocks_off(void *arg)
 
 	at91_pmc_clock_disable(sc->sc_fclk);
 	at91_pmc_clock_disable(sc->sc_iclk);
-	return;
 }
 
 static void
 at91_udp_pull_up(void *arg)
 {
 	at91_pio_gpio_set(PULLUP_BASE, PULLUP_MASK);
-	return;
 }
 
 static void
 at91_udp_pull_down(void *arg)
 {
 	at91_pio_gpio_clear(PULLUP_BASE, PULLUP_MASK);
-	return;
 }
 
 static int

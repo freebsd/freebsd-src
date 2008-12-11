@@ -244,7 +244,6 @@ usb2_set_iface_perm(struct usb2_device *udev, uint8_t iface_index,
 		mtx_unlock(&usb2_ref_lock);
 
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -709,7 +708,6 @@ usb2_unref_device(struct usb2_location *ploc)
 		}
 	}
 	mtx_unlock(&usb2_ref_lock);
-	return;
 }
 
 static struct usb2_fifo *
@@ -936,7 +934,6 @@ usb2_fifo_free(struct usb2_fifo *f)
 	usb2_cv_destroy(&f->cv_drain);
 
 	free(f, M_USBDEV);
-	return;
 }
 
 static struct usb2_pipe *
@@ -1076,7 +1073,6 @@ usb2_fifo_reset(struct usb2_fifo *f)
 			break;
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1156,7 +1152,6 @@ usb2_fifo_close(struct usb2_fifo *f, struct thread *td, int fflags)
 	(f->methods->f_close) (f, fflags, td);
 
 	DPRINTF("closed\n");
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1448,7 +1443,6 @@ usb2_clone(void *arg, USB_UCRED char *name, int namelen, struct cdev **dev)
 	}
 	dev_ref(usb2_dev);
 	*dev = usb2_dev;
-	return;
 }
 
 static void
@@ -1460,7 +1454,6 @@ usb2_dev_init(void *arg)
 
 	/* check the UGEN methods */
 	usb2_fifo_check_methods(&usb2_ugen_methods);
-	return;
 }
 
 SYSINIT(usb2_dev_init, SI_SUB_KLD, SI_ORDER_FIRST, usb2_dev_init, NULL);
@@ -1487,7 +1480,6 @@ usb2_dev_init_post(void *arg)
 	if (usb2_clone_tag == NULL) {
 		DPRINTFN(0, "Registering clone handler failed!\n");
 	}
-	return;
 }
 
 SYSINIT(usb2_dev_init_post, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, usb2_dev_init_post, NULL);
@@ -1505,7 +1497,6 @@ usb2_dev_uninit(void *arg)
 	}
 	mtx_destroy(&usb2_ref_lock);
 	sx_destroy(&usb2_sym_lock);
-	return;
 }
 
 SYSUNINIT(usb2_dev_uninit, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, usb2_dev_uninit, NULL);
@@ -2062,7 +2053,6 @@ usb2_fifo_signal(struct usb2_fifo *f)
 		f->flag_sleeping = 0;
 		usb2_cv_broadcast(&f->cv_io);
 	}
-	return;
 }
 
 void
@@ -2079,7 +2069,6 @@ usb2_fifo_wakeup(struct usb2_fifo *f)
 		psignal(f->async_p, SIGIO);
 		PROC_UNLOCK(f->async_p);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2137,7 +2126,6 @@ static void
 usb2_fifo_dummy_cmd(struct usb2_fifo *fifo)
 {
 	fifo->flag_flushing = 0;	/* not flushing */
-	return;
 }
 
 static void
@@ -2168,8 +2156,6 @@ usb2_fifo_check_methods(struct usb2_fifo_methods *pm)
 
 	if (pm->f_stop_write == NULL)
 		pm->f_stop_write = &usb2_fifo_dummy_cmd;
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2347,7 +2333,6 @@ usb2_fifo_free_buffer(struct usb2_fifo *f)
 
 	bzero(&f->free_q, sizeof(f->free_q));
 	bzero(&f->used_q, sizeof(f->used_q));
-	return;
 }
 
 void
@@ -2363,8 +2348,6 @@ usb2_fifo_detach(struct usb2_fifo_sc *f_sc)
 	f_sc->fp[USB_FIFO_RX] = NULL;
 
 	DPRINTFN(2, "detached %p\n", f_sc);
-
-	return;
 }
 
 uint32_t
@@ -2426,7 +2409,6 @@ usb2_fifo_put_data(struct usb2_fifo *f, struct usb2_page_cache *pc,
 			break;
 		}
 	}
-	return;
 }
 
 void
@@ -2465,7 +2447,6 @@ usb2_fifo_put_data_linear(struct usb2_fifo *f, void *ptr,
 			break;
 		}
 	}
-	return;
 }
 
 uint8_t
@@ -2490,7 +2471,6 @@ usb2_fifo_put_data_error(struct usb2_fifo *f)
 {
 	f->flag_iserror = 1;
 	usb2_fifo_wakeup(f);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2642,7 +2622,6 @@ usb2_fifo_get_data_error(struct usb2_fifo *f)
 {
 	f->flag_iserror = 1;
 	usb2_fifo_wakeup(f);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2691,7 +2670,6 @@ usb2_free_symlink(struct usb2_symlink *ps)
 	sx_unlock(&usb2_sym_lock);
 
 	free(ps, M_USBDEV);
-	return;
 }
 
 /*------------------------------------------------------------------------*

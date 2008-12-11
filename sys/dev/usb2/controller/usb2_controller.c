@@ -207,7 +207,6 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
 
 		USB_BUS_LOCK(bus);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -245,7 +244,6 @@ usb2_bus_detach(struct usb2_proc_msg *pm)
 	USB_BUS_LOCK(bus);
 	/* clear bdev variable last */
 	bus->bdev = NULL;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -331,7 +329,6 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 	}
 	/* set softc - we are ready */
 	device_set_softc(dev, bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -377,8 +374,6 @@ usb2_post_init(void *arg)
 	usb2_needs_explore_all();
 
 	mtx_unlock(&Giant);
-
-	return;
 }
 
 SYSINIT(usb2_post_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, usb2_post_init, NULL);
@@ -392,7 +387,6 @@ usb2_bus_mem_flush_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
     struct usb2_page *pg, uint32_t size, uint32_t align)
 {
 	usb2_pc_cpu_flush(pc);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -404,7 +398,6 @@ usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 	if (cb) {
 		cb(bus, &usb2_bus_mem_flush_all_cb);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -420,7 +413,6 @@ usb2_bus_mem_alloc_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
 	if (usb2_pc_alloc_mem(pc, pg, size, align)) {
 		bus->alloc_failed = 1;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -463,7 +455,6 @@ usb2_bus_mem_free_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
     struct usb2_page *pg, uint32_t size, uint32_t align)
 {
 	usb2_pc_free_mem(pc);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -478,6 +469,4 @@ usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 	usb2_dma_tag_unsetup(bus->dma_parent_tag);
 
 	mtx_destroy(&bus->bus_mtx);
-
-	return;
 }

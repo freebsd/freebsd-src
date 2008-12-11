@@ -133,7 +133,6 @@ musbotg_get_hw_ep_profile(struct usb2_device *udev,
 	} else {
 		*ppf = NULL;
 	}
-	return;
 }
 
 static void
@@ -151,7 +150,6 @@ musbotg_clocks_on(struct musbotg_softc *sc)
 
 		/* XXX enable Transceiver */
 	}
-	return;
 }
 
 static void
@@ -168,7 +166,6 @@ musbotg_clocks_off(struct musbotg_softc *sc)
 		}
 		sc->sc_flags.clocks_off = 1;
 	}
-	return;
 }
 
 static void
@@ -183,7 +180,6 @@ musbotg_pull_common(struct musbotg_softc *sc, uint8_t on)
 		temp &= ~MUSB2_MASK_SOFTC;
 
 	MUSB2_WRITE_1(sc, MUSB2_REG_POWER, temp);
-	return;
 }
 
 static void
@@ -196,7 +192,6 @@ musbotg_pull_up(struct musbotg_softc *sc)
 		sc->sc_flags.d_pulled_up = 1;
 		musbotg_pull_common(sc, 1);
 	}
-	return;
 }
 
 static void
@@ -208,7 +203,6 @@ musbotg_pull_down(struct musbotg_softc *sc)
 		sc->sc_flags.d_pulled_up = 0;
 		musbotg_pull_common(sc, 0);
 	}
-	return;
 }
 
 static void
@@ -239,14 +233,12 @@ musbotg_wakeup_peer(struct usb2_xfer *xfer)
 	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
 	temp &= ~MUSB2_MASK_RESUME;
 	MUSB2_WRITE_1(sc, MUSB2_REG_POWER, temp);
-	return;
 }
 
 static void
 musbotg_rem_wakeup_set(struct usb2_device *udev, uint8_t is_on)
 {
 	DPRINTFN(4, "is_on=%u\n", is_on);
-	return;
 }
 
 static void
@@ -255,7 +247,6 @@ musbotg_set_address(struct musbotg_softc *sc, uint8_t addr)
 	DPRINTFN(4, "addr=%d\n", addr);
 	addr &= 0x7F;
 	MUSB2_WRITE_1(sc, MUSB2_REG_FADDR, addr);
-	return;
 }
 
 static uint8_t
@@ -971,8 +962,6 @@ repeat:
 			goto repeat;
 		}
 	}
-
-	return;
 }
 
 static void
@@ -1008,8 +997,6 @@ musbotg_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
 	}
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 void
@@ -1117,8 +1104,6 @@ repeat:
 		goto repeat;
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 static void
@@ -1142,7 +1127,6 @@ musbotg_setup_standard_chain_sub(struct musbotg_std_temp *temp)
 	td->did_stall = 0;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
-	return;
 }
 
 static void
@@ -1262,7 +1246,6 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 	/* must have at least one frame! */
 	td = temp.td;
 	xfer->td_transfer_last = td;
-	return;
 }
 
 static void
@@ -1279,8 +1262,6 @@ musbotg_timeout(void *arg)
 	musbotg_device_done(xfer, USB_ERR_TIMEOUT);
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 static void
@@ -1321,7 +1302,6 @@ musbotg_ep_int_set(struct usb2_xfer *xfer, uint8_t on)
 			MUSB2_WRITE_2(sc, MUSB2_REG_INTTXE, temp);
 		}
 	}
-	return;
 }
 
 static void
@@ -1345,7 +1325,6 @@ musbotg_start_standard_chain(struct usb2_xfer *xfer)
 			    &musbotg_timeout, xfer->timeout);
 		}
 	}
-	return;
 }
 
 static void
@@ -1481,7 +1460,6 @@ musbotg_standard_done(struct usb2_xfer *xfer)
 	}
 done:
 	musbotg_device_done(xfer, err);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1506,7 +1484,6 @@ musbotg_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	}
 	/* dequeue transfer and start next transfer */
 	usb2_transfer_done(xfer, error);
-	return;
 }
 
 static void
@@ -1539,7 +1516,6 @@ musbotg_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
 		MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRL,
 		    MUSB2_MASK_CSRL_RXSENDSTALL);
 	}
-	return;
 }
 
 static void
@@ -1691,7 +1667,6 @@ musbotg_clear_stall_sub(struct musbotg_softc *sc, uint16_t wMaxPacket,
 			MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRL, 0);
 		}
 	}
-	return;
 }
 
 static void
@@ -1721,7 +1696,6 @@ musbotg_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	    (ed->bEndpointAddress & UE_ADDR),
 	    (ed->bmAttributes & UE_XFERTYPE),
 	    (ed->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT)));
-	return;
 }
 
 usb2_error_t
@@ -1900,8 +1874,6 @@ musbotg_uninit(struct musbotg_softc *sc)
 	musbotg_pull_down(sc);
 	musbotg_clocks_off(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 void
@@ -1925,7 +1897,6 @@ musbotg_do_poll(struct usb2_bus *bus)
 	musbotg_interrupt_poll(sc);
 	musbotg_root_ctrl_poll(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1941,7 +1912,6 @@ static void
 musbotg_device_bulk_close(struct usb2_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -1956,7 +1926,6 @@ musbotg_device_bulk_start(struct usb2_xfer *xfer)
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
 	musbotg_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods musbotg_device_bulk_methods =
@@ -1982,7 +1951,6 @@ static void
 musbotg_device_ctrl_close(struct usb2_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -1997,7 +1965,6 @@ musbotg_device_ctrl_start(struct usb2_xfer *xfer)
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
 	musbotg_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods musbotg_device_ctrl_methods =
@@ -2023,7 +1990,6 @@ static void
 musbotg_device_intr_close(struct usb2_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -2038,7 +2004,6 @@ musbotg_device_intr_start(struct usb2_xfer *xfer)
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
 	musbotg_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods musbotg_device_intr_methods =
@@ -2064,7 +2029,6 @@ static void
 musbotg_device_isoc_close(struct usb2_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -2124,7 +2088,6 @@ musbotg_device_isoc_enter(struct usb2_xfer *xfer)
 
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
-	return;
 }
 
 static void
@@ -2132,7 +2095,6 @@ musbotg_device_isoc_start(struct usb2_xfer *xfer)
 {
 	/* start TD chain */
 	musbotg_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods musbotg_device_isoc_methods =
@@ -2166,7 +2128,6 @@ musbotg_root_ctrl_close(struct usb2_xfer *xfer)
 		sc->sc_root_ctrl.xfer = NULL;
 	}
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 /*
@@ -2272,8 +2233,6 @@ musbotg_root_ctrl_start(struct usb2_xfer *xfer)
 
 	usb2_config_td_queue_command(
 	    &sc->sc_config_td, NULL, &musbotg_root_ctrl_task, 0, 0);
-
-	return;
 }
 
 static void
@@ -2281,7 +2240,6 @@ musbotg_root_ctrl_task(struct musbotg_softc *sc,
     struct musbotg_config_copy *cc, uint16_t refcount)
 {
 	musbotg_root_ctrl_poll(sc);
-	return;
 }
 
 static void
@@ -2693,7 +2651,6 @@ musbotg_root_ctrl_poll(struct musbotg_softc *sc)
 {
 	usb2_sw_transfer(&sc->sc_root_ctrl,
 	    &musbotg_root_ctrl_done);
-	return;
 }
 
 struct usb2_pipe_methods musbotg_root_ctrl_methods =
@@ -2724,7 +2681,6 @@ musbotg_root_intr_close(struct usb2_xfer *xfer)
 		sc->sc_root_intr.xfer = NULL;
 	}
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -2739,7 +2695,6 @@ musbotg_root_intr_start(struct usb2_xfer *xfer)
 	struct musbotg_softc *sc = xfer->usb2_sc;
 
 	sc->sc_root_intr.xfer = xfer;
-	return;
 }
 
 struct usb2_pipe_methods musbotg_root_intr_methods =
@@ -2862,7 +2817,6 @@ musbotg_xfer_setup(struct usb2_setup_params *parm)
 	}
 
 	xfer->td_start[0] = last_obj;
-	return;
 }
 
 static void
@@ -2928,7 +2882,6 @@ musbotg_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *ede
 			break;
 		}
 	}
-	return;
 }
 
 struct usb2_bus_methods musbotg_bus_methods =

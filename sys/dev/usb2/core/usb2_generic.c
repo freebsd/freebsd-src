@@ -196,7 +196,6 @@ ugen_close(struct usb2_fifo *f, int fflags, struct thread *td)
 		/* ignore any errors - we are closing */
 		DPRINTFN(6, "no FIFOs\n");
 	}
-	return;
 }
 
 static int
@@ -348,7 +347,6 @@ ugen_start_read(struct usb2_fifo *f)
 	/* start transfers */
 	usb2_transfer_start(f->xfer[0]);
 	usb2_transfer_start(f->xfer[1]);
-	return;
 }
 
 static void
@@ -362,7 +360,6 @@ ugen_start_write(struct usb2_fifo *f)
 	/* start transfers */
 	usb2_transfer_start(f->xfer[0]);
 	usb2_transfer_start(f->xfer[1]);
-	return;
 }
 
 static void
@@ -371,7 +368,6 @@ ugen_stop_io(struct usb2_fifo *f)
 	/* stop transfers */
 	usb2_transfer_stop(f->xfer[0]);
 	usb2_transfer_stop(f->xfer[1]);
-	return;
 }
 
 static void
@@ -422,7 +418,6 @@ ugen_default_read_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -461,7 +456,6 @@ ugen_default_write_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -479,7 +473,6 @@ ugen_read_clear_stall_callback(struct usb2_xfer *xfer)
 		f->flag_stall = 0;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -497,7 +490,6 @@ ugen_write_clear_stall_callback(struct usb2_xfer *xfer)
 		f->flag_stall = 0;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -537,7 +529,6 @@ tr_setup:
 		}
 		goto tr_setup;
 	}
-	return;
 }
 
 static void
@@ -578,7 +569,6 @@ tr_setup:
 		}
 		goto tr_setup;
 	}
-	return;
 }
 
 static int
@@ -1024,8 +1014,6 @@ ugen_fs_set_complete(struct usb2_fifo *f, uint8_t index)
 	f->flag_iscomplete = 1;
 
 	usb2_fifo_wakeup(f);
-
-	return;
 }
 
 static int
@@ -2189,5 +2177,4 @@ ugen_default_fs_callback(struct usb2_xfer *xfer)
 		ugen_fs_set_complete(xfer->priv_sc, USB_P2U(xfer->priv_fifo));
 		break;
 	}
-	return;
 }

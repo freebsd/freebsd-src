@@ -114,7 +114,6 @@ tr_restart:
 	xfer->flags.force_short_xfer = 0;
 	xfer->flags.stall_pipe = 1;	/* cancel previous transfer, if any */
 	usb2_start_hardware(xfer);
-	return;
 }
 
 /*------------------------------------------------------------------------*
