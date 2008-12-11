@@ -567,13 +567,6 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	if (__use_xprintf > 0)
 		return (__xvprintf(fp, fmt0, ap));
 
-	thousands_sep = '\0';
-	grouping = NULL;
-	convbuf = NULL;
-#ifndef NO_FLOATING_POINT
-	dtoaresult = NULL;
-	decimal_point = localeconv()->decimal_point;
-#endif
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
 	if (prepwrite(fp) != 0)
 		return (EOF);
@@ -583,6 +576,9 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	    fp->_file >= 0)
 		return (__sbprintf(fp, fmt0, ap));
 
+	thousands_sep = '\0';
+	grouping = NULL;
+	convbuf = NULL;
 	fmt = (char *)fmt0;
 	argtable = NULL;
 	nextarg = 1;
@@ -591,6 +587,10 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	uio.uio_resid = 0;
 	uio.uio_iovcnt = 0;
 	ret = 0;
+#ifndef NO_FLOATING_POINT
+	dtoaresult = NULL;
+	decimal_point = localeconv()->decimal_point;
+#endif
 
 	/*
 	 * Scan the format for conversions (`%' character).
