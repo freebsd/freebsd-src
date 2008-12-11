@@ -1574,13 +1574,13 @@ DB_SHOW_COMMAND(jails, db_show_jails)
 		    pr->pr_ip4s, pr->pr_ip6s);
 		db_printf("%6s  %-29.29s %.74s\n",
 		    "", pr->pr_host, pr->pr_path);
-		if (pr->pr_state < 0 || pr->pr_state > (int)((sizeof(
+		if (pr->pr_state < 0 || pr->pr_state >= (int)((sizeof(
 		    prison_states) / sizeof(struct prison_state))))
 			state = "(bogus)";
 		else
 			state = prison_states[pr->pr_state].state_name;
 		db_printf("%6s  %-29.29s %.74s\n",
-		    "", (pr->pr_name != NULL) ? pr->pr_name : "", state);
+		    "", (pr->pr_name[0] != '\0') ? pr->pr_name : "", state);
 		db_printf("%6s  %-6d\n",
 		    "", pr->pr_cpuset->cs_id);
 #ifdef INET

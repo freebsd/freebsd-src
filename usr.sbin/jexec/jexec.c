@@ -80,13 +80,13 @@ char *lookup_xprison_v3(void *p, char *end, int *id, char *jailname)
 	ok = 1;
 
 	/* Jail state and name. */
-	if (xp->pr_state < 0 || xp->pr_state >
+	if (xp->pr_state < 0 || xp->pr_state >=
 	    (int)((sizeof(prison_states) / sizeof(struct prison_state))))
 		errx(1, "Invalid jail state.");
 	else if (xp->pr_state != PRISON_STATE_ALIVE)
 		ok = 0;
 	if (jailname != NULL) {
-		if (xp->pr_name == NULL)
+		if (xp->pr_name[0] == '\0')
 			ok = 0;
 		else if (strcmp(jailname, xp->pr_name) != 0)
 			ok = 0;
