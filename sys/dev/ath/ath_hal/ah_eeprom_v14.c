@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_eeprom_v14.c,v 1.4 2008/11/10 19:04:26 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -54,6 +54,7 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 			    __func__, ath_hal_ether_sprintf(macaddr));
 			return HAL_EEBADMAC;
 		}
+		return HAL_OK;
         case AR_EEP_REGDMN_0:
 		return pBase->regDmn[0];
         case AR_EEP_REGDMN_1:
