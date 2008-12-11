@@ -68,9 +68,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
+#ifdef VIMAGE_GLOBALS
 int fw_enable = 1;
 #ifdef INET6
 int fw6_enable = 1;
+#endif
 #endif
 
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);

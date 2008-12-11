@@ -175,6 +175,7 @@ struct inpcb;
 struct route;
 struct sockopt;
 
+#ifdef VIMAGE_GLOBALS
 extern struct	ipstat	ipstat;
 extern u_short	ip_id;			/* ip packet ctr, for ids */
 extern int	ip_do_randomid;
@@ -183,12 +184,13 @@ extern int	ipforwarding;		/* ip forwarding */
 #ifdef IPSTEALTH
 extern int	ipstealth;		/* stealth forwarding */
 #endif
-extern u_char	ip_protox[];
+extern int rsvp_on;
 extern struct socket *ip_rsvpd;		/* reservation protocol daemon */
 extern struct socket *ip_mrouter;	/* multicast routing daemon */
+#endif
+extern u_char	ip_protox[];
 extern int	(*legal_vif_num)(int);
 extern u_long	(*ip_mcast_src)(int);
-extern int rsvp_on;
 extern struct	pr_usrreqs rip_usrreqs;
 
 void	inp_freemoptions(struct ip_moptions *);

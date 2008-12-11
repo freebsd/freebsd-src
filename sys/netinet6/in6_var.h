@@ -470,9 +470,11 @@ struct	in6_rrenumreq {
 #endif
 
 #ifdef _KERNEL
+#ifdef VIMAGE_GLOBALS
 extern struct in6_ifaddr *in6_ifaddr;
 
 extern struct icmp6stat icmp6stat;
+#endif /* VIMAGE_GLOBALS */
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
