@@ -97,19 +97,22 @@ static usb2_config_td_command_t udav_cfg_stop;
 static usb2_config_td_command_t udav_cfg_ifmedia_change;
 static usb2_config_td_command_t udav_cfg_tick;
 
-static void udav_cfg_do_request(struct udav_softc *sc, struct usb2_device_request *req, void *data);
-static void udav_cfg_csr_read(struct udav_softc *sc, uint16_t offset, void *buf, uint16_t len);
-static void udav_cfg_csr_write(struct udav_softc *sc, uint16_t offset, void *buf, uint16_t len);
-static uint8_t udav_cfg_csr_read1(struct udav_softc *sc, uint16_t offset);
-static void udav_cfg_csr_write1(struct udav_softc *sc, uint16_t offset, uint8_t ch);
-static void udav_init_cb(void *arg);
-static void udav_cfg_reset(struct udav_softc *sc);
-static void udav_start_cb(struct ifnet *ifp);
-static void udav_start_transfers(struct udav_softc *sc);
-static int udav_ioctl_cb(struct ifnet *ifp, u_long cmd, caddr_t data);
-static void udav_watchdog(void *arg);
-static int udav_ifmedia_change_cb(struct ifnet *ifp);
-static void udav_ifmedia_status_cb(struct ifnet *ifp, struct ifmediareq *ifmr);
+static void	udav_cfg_do_request(struct udav_softc *,
+		    struct usb2_device_request *, void *);
+static void	udav_cfg_csr_read(struct udav_softc *, uint16_t, void *,
+		    uint16_t);
+static void	udav_cfg_csr_write(struct udav_softc *, uint16_t, void *,
+		    uint16_t);
+static uint8_t	udav_cfg_csr_read1(struct udav_softc *, uint16_t);
+static void	udav_cfg_csr_write1(struct udav_softc *, uint16_t, uint8_t);
+static void	udav_init_cb(void *);
+static void	udav_cfg_reset(struct udav_softc *);
+static void	udav_start_cb(struct ifnet *);
+static void	udav_start_transfers(struct udav_softc *);
+static int	udav_ioctl_cb(struct ifnet *, u_long, caddr_t);
+static void	udav_watchdog(void *);
+static int	udav_ifmedia_change_cb(struct ifnet *);
+static void	udav_ifmedia_status_cb(struct ifnet *, struct ifmediareq *);
 
 static miibus_readreg_t udav_cfg_miibus_readreg;
 static miibus_writereg_t udav_cfg_miibus_writereg;

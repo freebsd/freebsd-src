@@ -48,11 +48,17 @@ static device_probe_t usb2_probe;
 static device_attach_t usb2_attach;
 static device_detach_t usb2_detach;
 
-static void usb2_attach_sub(device_t dev, struct usb2_bus *bus);
-static void usb2_post_init(void *arg);
-static void usb2_bus_mem_flush_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc, struct usb2_page *pg, uint32_t size, uint32_t align);
-static void usb2_bus_mem_alloc_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc, struct usb2_page *pg, uint32_t size, uint32_t align);
-static void usb2_bus_mem_free_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc, struct usb2_page *pg, uint32_t size, uint32_t align);
+static void	usb2_attach_sub(device_t, struct usb2_bus *);
+static void	usb2_post_init(void *);
+static void	usb2_bus_mem_flush_all_cb(struct usb2_bus *,
+		    struct usb2_page_cache *, struct usb2_page *, uint32_t,
+		    uint32_t);
+static void	usb2_bus_mem_alloc_all_cb(struct usb2_bus *,
+		    struct usb2_page_cache *, struct usb2_page *, uint32_t,
+		    uint32_t);
+static void	usb2_bus_mem_free_all_cb(struct usb2_bus *,
+		    struct usb2_page_cache *, struct usb2_page *, uint32_t,
+		    uint32_t);
 
 /* static variables */
 

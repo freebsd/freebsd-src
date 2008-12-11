@@ -130,20 +130,23 @@ static usb2_callback_t uftdi_write_clear_stall_callback;
 static usb2_callback_t uftdi_read_callback;
 static usb2_callback_t uftdi_read_clear_stall_callback;
 
-static void uftdi_cfg_do_request(struct uftdi_softc *sc, struct usb2_device_request *req, void *data);
-static void uftdi_cfg_open(struct usb2_com_softc *ucom);
-static void uftdi_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uftdi_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uftdi_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static int uftdi_set_parm_soft(struct termios *t, struct uftdi_param_config *cfg, uint8_t type);
-static int uftdi_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uftdi_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uftdi_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static void uftdi_start_read(struct usb2_com_softc *ucom);
-static void uftdi_stop_read(struct usb2_com_softc *ucom);
-static void uftdi_start_write(struct usb2_com_softc *ucom);
-static void uftdi_stop_write(struct usb2_com_softc *ucom);
-static uint8_t uftdi_8u232am_getrate(uint32_t speed, uint16_t *rate);
+static void	uftdi_cfg_do_request(struct uftdi_softc *,
+		    struct usb2_device_request *, void *);
+static void	uftdi_cfg_open(struct usb2_com_softc *);
+static void	uftdi_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	uftdi_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	uftdi_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static int	uftdi_set_parm_soft(struct termios *,
+		    struct uftdi_param_config *, uint8_t);
+static int	uftdi_pre_param(struct usb2_com_softc *, struct termios *);
+static void	uftdi_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	uftdi_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static void	uftdi_start_read(struct usb2_com_softc *);
+static void	uftdi_stop_read(struct usb2_com_softc *);
+static void	uftdi_start_write(struct usb2_com_softc *);
+static void	uftdi_stop_write(struct usb2_com_softc *);
+static uint8_t	uftdi_8u232am_getrate(uint32_t, uint16_t *);
 
 static const struct usb2_config uftdi_config[UFTDI_ENDPT_MAX] = {
 

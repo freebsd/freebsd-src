@@ -148,11 +148,16 @@ struct usb2_com_softc {
 	uint8_t	sc_ttyfreed;		/* set when TTY has been freed */
 };
 
-int	usb2_com_attach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc, uint32_t sub_units, void *parent, const struct usb2_com_callback *callback, struct mtx *p_mtx);
-void	usb2_com_detach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc, uint32_t sub_units);
+int	usb2_com_attach(struct usb2_com_super_softc *ssc,
+	    struct usb2_com_softc *sc, uint32_t sub_units, void *parent,
+	    const struct usb2_com_callback *callback, struct mtx *p_mtx);
+void	usb2_com_detach(struct usb2_com_super_softc *ssc,
+	    struct usb2_com_softc *sc, uint32_t sub_units);
 void	usb2_com_status_change(struct usb2_com_softc *);
-uint8_t	usb2_com_get_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc, uint32_t offset, uint32_t len, uint32_t *actlen);
-void	usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc, uint32_t offset, uint32_t len);
+uint8_t	usb2_com_get_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
+	    uint32_t offset, uint32_t len, uint32_t *actlen);
+void	usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
+	    uint32_t offset, uint32_t len);
 uint8_t	usb2_com_cfg_sleep(struct usb2_com_softc *sc, uint32_t timeout);
 uint8_t	usb2_com_cfg_is_gone(struct usb2_com_softc *sc);
 

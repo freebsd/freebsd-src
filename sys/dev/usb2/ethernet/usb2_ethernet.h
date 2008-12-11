@@ -61,7 +61,8 @@ struct usb2_ether_cc {
 
 typedef void (usb2_ether_mchash_t)(struct usb2_ether_cc *cc, const uint8_t *ptr);
 
-struct mbuf *usb2_ether_get_mbuf(void);
-void	usb2_ether_cc(struct ifnet *ifp, usb2_ether_mchash_t *fhash, struct usb2_ether_cc *cc);
+struct mbuf	*usb2_ether_get_mbuf(void);
+void		usb2_ether_cc(struct ifnet *ifp, usb2_ether_mchash_t *fhash,
+		    struct usb2_ether_cc *cc);
 
 #endif					/* _USB2_ETHERNET_H_ */

@@ -158,20 +158,23 @@ struct uplcom_softc {
 
 /* prototypes */
 
-static usb2_error_t uplcom_reset(struct uplcom_softc *sc, struct usb2_device *udev);
-static int uplcom_pl2303x_init(struct usb2_device *udev);
-static void uplcom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uplcom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uplcom_cfg_set_break(struct usb2_com_softc *sc, uint8_t onoff);
-static int uplcom_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uplcom_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static void uplcom_start_read(struct usb2_com_softc *ucom);
-static void uplcom_stop_read(struct usb2_com_softc *ucom);
-static void uplcom_start_write(struct usb2_com_softc *ucom);
-static void uplcom_stop_write(struct usb2_com_softc *ucom);
-static void uplcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static int uplcom_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data, int flag, struct thread *td);
-static void uplcom_cfg_do_request(struct uplcom_softc *sc, struct usb2_device_request *req, void *data);
+static usb2_error_t uplcom_reset(struct uplcom_softc *, struct usb2_device *);
+static int	uplcom_pl2303x_init(struct usb2_device *);
+static void	uplcom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	uplcom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	uplcom_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static int	uplcom_pre_param(struct usb2_com_softc *, struct termios *);
+static void	uplcom_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	uplcom_start_read(struct usb2_com_softc *);
+static void	uplcom_stop_read(struct usb2_com_softc *);
+static void	uplcom_start_write(struct usb2_com_softc *);
+static void	uplcom_stop_write(struct usb2_com_softc *);
+static void	uplcom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static int	uplcom_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
+		    struct thread *);
+static void	uplcom_cfg_do_request(struct uplcom_softc *,
+		    struct usb2_device_request *, void *);
 
 static device_probe_t uplcom_probe;
 static device_attach_t uplcom_attach;

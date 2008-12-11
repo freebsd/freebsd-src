@@ -171,17 +171,18 @@ static usb2_callback_t ubsa_read_clear_stall_callback;
 static usb2_callback_t ubsa_intr_callback;
 static usb2_callback_t ubsa_intr_clear_stall_callback;
 
-static void ubsa_cfg_request(struct ubsa_softc *sc, uint8_t index, uint16_t value);
-static void ubsa_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void ubsa_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static void ubsa_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static int ubsa_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void ubsa_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static void ubsa_start_read(struct usb2_com_softc *ucom);
-static void ubsa_stop_read(struct usb2_com_softc *ucom);
-static void ubsa_start_write(struct usb2_com_softc *ucom);
-static void ubsa_stop_write(struct usb2_com_softc *ucom);
-static void ubsa_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
+static void	ubsa_cfg_request(struct ubsa_softc *, uint8_t, uint16_t);
+static void	ubsa_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	ubsa_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	ubsa_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static int	ubsa_pre_param(struct usb2_com_softc *, struct termios *);
+static void	ubsa_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	ubsa_start_read(struct usb2_com_softc *);
+static void	ubsa_stop_read(struct usb2_com_softc *);
+static void	ubsa_start_write(struct usb2_com_softc *);
+static void	ubsa_stop_write(struct usb2_com_softc *);
+static void	ubsa_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
 
 static const struct usb2_config ubsa_config[UBSA_N_TRANSFER] = {
 

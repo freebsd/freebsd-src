@@ -102,14 +102,15 @@ static usb2_callback_t uipaq_read_callback;
 static usb2_callback_t uipaq_write_clear_stall_callback;
 static usb2_callback_t uipaq_read_clear_stall_callback;
 
-static void uipaq_start_read(struct usb2_com_softc *ucom);
-static void uipaq_stop_read(struct usb2_com_softc *ucom);
-static void uipaq_start_write(struct usb2_com_softc *ucom);
-static void uipaq_stop_write(struct usb2_com_softc *ucom);
-static void uipaq_cfg_do_request(struct uipaq_softc *sc, struct usb2_device_request *req, void *data);
-static void uipaq_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uipaq_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static void uipaq_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
+static void	uipaq_start_read(struct usb2_com_softc *);
+static void	uipaq_stop_read(struct usb2_com_softc *);
+static void	uipaq_start_write(struct usb2_com_softc *);
+static void	uipaq_stop_write(struct usb2_com_softc *);
+static void	uipaq_cfg_do_request(struct uipaq_softc *,
+		    struct usb2_device_request *, void *);
+static void	uipaq_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	uipaq_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	uipaq_cfg_set_break(struct usb2_com_softc *, uint8_t);
 
 static const struct usb2_config uipaq_config_data[UIPAQ_N_DATA_TRANSFER] = {
 

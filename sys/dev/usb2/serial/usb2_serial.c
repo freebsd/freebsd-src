@@ -117,16 +117,17 @@ static usb2_config_td_command_t usb2_com_cfg_rts;
 static usb2_config_td_command_t usb2_com_cfg_status_change;
 static usb2_config_td_command_t usb2_com_cfg_param;
 
-static uint8_t usb2_com_units_alloc(uint32_t sub_units, uint32_t *p_root_unit);
-static void usb2_com_units_free(uint32_t root_unit, uint32_t sub_units);
-static int usb2_com_attach_sub(struct usb2_com_softc *sc);
-static void usb2_com_detach_sub(struct usb2_com_softc *sc);
-static void usb2_com_queue_command(struct usb2_com_softc *sc, usb2_config_td_command_t *cmd, int flag);
-static void usb2_com_shutdown(struct usb2_com_softc *sc);
-static void usb2_com_start_transfers(struct usb2_com_softc *sc);
-static void usb2_com_break(struct usb2_com_softc *sc, uint8_t onoff);
-static void usb2_com_dtr(struct usb2_com_softc *sc, uint8_t onoff);
-static void usb2_com_rts(struct usb2_com_softc *sc, uint8_t onoff);
+static uint8_t	usb2_com_units_alloc(uint32_t, uint32_t *);
+static void	usb2_com_units_free(uint32_t, uint32_t);
+static int	usb2_com_attach_sub(struct usb2_com_softc *);
+static void	usb2_com_detach_sub(struct usb2_com_softc *);
+static void	usb2_com_queue_command(struct usb2_com_softc *,
+		    usb2_config_td_command_t *, int);
+static void	usb2_com_shutdown(struct usb2_com_softc *);
+static void	usb2_com_start_transfers(struct usb2_com_softc *);
+static void	usb2_com_break(struct usb2_com_softc *, uint8_t);
+static void	usb2_com_dtr(struct usb2_com_softc *, uint8_t);
+static void	usb2_com_rts(struct usb2_com_softc *, uint8_t);
 
 static tsw_open_t usb2_com_open;
 static tsw_close_t usb2_com_close;

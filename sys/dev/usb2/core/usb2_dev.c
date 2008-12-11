@@ -72,19 +72,22 @@ SYSCTL_INT(_hw_usb2_dev, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-static uint32_t usb2_path_convert_one(const char **pp);
-static uint32_t usb2_path_convert(const char *path);
-static int usb2_check_access(int fflags, struct usb2_perm *puser);
-static int usb2_fifo_open(struct usb2_fifo *f, struct file *fp, struct thread *td, int fflags);
-static void usb2_fifo_close(struct usb2_fifo *f, struct thread *td, int fflags);
-static void usb2_dev_init(void *arg);
-static void usb2_dev_init_post(void *arg);
-static void usb2_dev_uninit(void *arg);
-static int usb2_fifo_uiomove(struct usb2_fifo *f, void *cp, int n, struct uio *uio);
-static void usb2_fifo_check_methods(struct usb2_fifo_methods *pm);
-static void usb2_clone(void *arg, USB_UCRED char *name, int namelen, struct cdev **dev);
-static struct usb2_fifo *usb2_fifo_alloc(void);
-static struct usb2_pipe *usb2_dev_get_pipe(struct usb2_device *udev, uint8_t iface_index, uint8_t ep_index, uint8_t dir);
+static uint32_t	usb2_path_convert_one(const char **);
+static uint32_t	usb2_path_convert(const char *);
+static int	usb2_check_access(int, struct usb2_perm *);
+static int	usb2_fifo_open(struct usb2_fifo *, struct file *,
+		    struct thread *, int);
+static void	usb2_fifo_close(struct usb2_fifo *, struct thread *, int);
+static void	usb2_dev_init(void *);
+static void	usb2_dev_init_post(void *);
+static void	usb2_dev_uninit(void *);
+static int	usb2_fifo_uiomove(struct usb2_fifo *, void *, int,
+		    struct uio *);
+static void	usb2_fifo_check_methods(struct usb2_fifo_methods *);
+static void	usb2_clone(void *, USB_UCRED char *, int, struct cdev **);
+static struct	usb2_fifo *usb2_fifo_alloc(void);
+static struct	usb2_pipe *usb2_dev_get_pipe(struct usb2_device *, uint8_t,
+		    uint8_t, uint8_t);
 
 static d_fdopen_t usb2_fdopen;
 static d_close_t usb2_close;

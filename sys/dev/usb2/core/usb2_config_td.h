@@ -60,10 +60,15 @@ struct usb2_config_td {
 
 /* prototypes */
 
-uint8_t	usb2_config_td_setup(struct usb2_config_td *ctd, void *priv_sc, struct mtx *priv_mtx, usb2_config_td_end_of_commands_t *p_func_eoc, uint16_t item_size, uint16_t item_count);
+uint8_t	usb2_config_td_setup(struct usb2_config_td *ctd, void *priv_sc,
+	    struct mtx *priv_mtx, usb2_config_td_end_of_commands_t *p_func_eoc,
+	    uint16_t item_size, uint16_t item_count);
 void	usb2_config_td_drain(struct usb2_config_td *ctd);
 void	usb2_config_td_unsetup(struct usb2_config_td *ctd);
-void	usb2_config_td_queue_command(struct usb2_config_td *ctd, usb2_config_td_command_t *pre_func, usb2_config_td_command_t *post_func, uint16_t command_sync, uint16_t command_ref);
+void	usb2_config_td_queue_command(struct usb2_config_td *ctd,
+	    usb2_config_td_command_t *pre_func,
+	    usb2_config_td_command_t *post_func, uint16_t command_sync,
+	    uint16_t command_ref);
 uint8_t	usb2_config_td_is_gone(struct usb2_config_td *ctd);
 uint8_t	usb2_config_td_sleep(struct usb2_config_td *ctd, uint32_t timeout);
 uint8_t	usb2_config_td_sync(struct usb2_config_td *ctd);

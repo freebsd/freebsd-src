@@ -99,10 +99,10 @@ static at91dci_cmd_t at91dci_setup_rx;
 static at91dci_cmd_t at91dci_data_rx;
 static at91dci_cmd_t at91dci_data_tx;
 static at91dci_cmd_t at91dci_data_tx_sync;
-static void at91dci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
-static void at91dci_do_poll(struct usb2_bus *bus);
-static void at91dci_root_ctrl_poll(struct at91dci_softc *sc);
-static void at91dci_standard_done(struct usb2_xfer *xfer);
+static void	at91dci_device_done(struct usb2_xfer *, usb2_error_t);
+static void	at91dci_do_poll(struct usb2_bus *);
+static void	at91dci_root_ctrl_poll(struct at91dci_softc *);
+static void	at91dci_standard_done(struct usb2_xfer *);
 
 static usb2_sw_transfer_func_t at91dci_root_intr_done;
 static usb2_sw_transfer_func_t at91dci_root_ctrl_done;
