@@ -279,6 +279,7 @@ struct ip6aux {
 #define IP6_HDR_ALIGNED_P(ip)	((((intptr_t) (ip)) & 3) == 0)
 #endif
 
+#ifdef VIMAGE_GLOBALS
 extern struct	ip6stat ip6stat;	/* statistics */
 extern int	ip6_defhlim;		/* default hop limit */
 extern int	ip6_defmcasthlim;	/* default multicast hop limit */
@@ -290,8 +291,10 @@ extern int	ip6_rr_prune;		/* router renumbering prefix
 					 * walk list every 5 sec.    */
 extern int	ip6_mcast_pmtu;		/* enable pMTU discovery for multicast? */
 extern int	ip6_v6only;
+#endif /* VIMAGE_GLOBALS */
 
 extern struct socket *ip6_mrouter;	/* multicast routing daemon */
+#ifdef VIMAGE_GLOBALS
 extern int	ip6_sendredirects;	/* send IP redirects when forwarding? */
 extern int	ip6_maxfragpackets; /* Maximum packets in reassembly queue */
 extern int	ip6_maxfrags;	/* Maximum fragments in reassembly queue */
@@ -304,17 +307,13 @@ extern time_t	ip6_log_time;
 extern int	ip6_hdrnestlimit; /* upper limit of # of extension headers */
 extern int	ip6_dad_count;		/* DupAddrDetectionTransmits */
 
-extern int ip6_auto_flowlabel;
-extern int ip6_auto_linklocal;
-
-extern int   ip6_anonportmin;		/* minimum ephemeral port */
-extern int   ip6_anonportmax;		/* maximum ephemeral port */
-extern int   ip6_lowportmin;		/* minimum reserved port */
-extern int   ip6_lowportmax;		/* maximum reserved port */
+extern int	ip6_auto_flowlabel;
+extern int	ip6_auto_linklocal;
 
 extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
 extern int	ip6_prefer_tempaddr; /* whether to prefer temporary addresses
 					in the source address selection */
+#endif /* VIMAGE_GLOBALS */
 
 extern int	ip6_use_defzone; /* whether to use the default scope zone
 				    when unspecified */
