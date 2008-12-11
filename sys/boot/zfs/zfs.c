@@ -474,7 +474,6 @@ zfs_dev_open(struct open_file *f, ...)
 	 * the pool.
 	 */
 	unit = dev->d_unit;
-	free(dev);
 	
 	i = 0;
 	STAILQ_FOREACH(spa, &zfs_pools, spa_link) {
