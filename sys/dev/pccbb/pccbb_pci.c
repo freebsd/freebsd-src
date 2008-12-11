@@ -682,40 +682,67 @@ cbb_pci_shutdown(device_t brdev)
 	return (0);
 }
 
-#define DELTA (CBB_SOCKET_MASK_CD)
 static int
 cbb_pci_filt(void *arg)
 {
 	struct cbb_softc *sc = arg;
 	uint32_t sockevent;
+	uint8_t csc;
 	int retval = FILTER_STRAY;
 
 	/*
-	 * Read the socket event.  Sometimes, the theory goes, the PCI
-	 * bus is so loaded that it cannot satisfy the read request, so
-	 * we get garbage back from the following read.  We have to filter
-	 * out the garbage so that we don't spontaneously reset the card
-	 * under high load.  PCI isn't supposed to act like this.  No doubt
-	 * this is a bug in the PCI bridge chipset (or cbb brige) that's being
-	 * used in certain amd64 laptops today.  Work around the issue by
-	 * assuming that any bits we don't know about being set means that
-	 * we got garbage.
+	 * Some chips also require us to read the old ExCA registe for card
+	 * status change when we route CSC vis PCI.  This isn't supposed to be
+	 * required, but it clears the interrupt state on some chipsets.
+	 * Maybe there's a setting that would obviate its need.  Maybe we
+	 * should test the status bits and deal with them, but so far we've
+	 * not found any machines that don't also give us the socket status
+	 * indication above.
+	 *
+	 * This call used to be unconditional.  However, further research
+	 * suggests that we hit this condition when the card READY interrupt
+	 * fired.  So now we only read it for 16-bit cards, and we only claim
+	 * the interrupt if READY is set.  If this still causes problems, then
+	 * the next step would be to read this if we have a 16-bit card *OR*
+	 * we have no card.  We treat the READY signal as if it were the power
+	 * completion signal.  Some bridges may double signal things here, bit
+	 * signalling twice should be OK since we only sleep on the powerintr
+	 * in one place and a double wakeup would be benign there.
+	 */
+	if (sc->flags & CBB_16BIT_CARD) {
+		csc = exca_getb(&sc->exca[0], EXCA_CSC);
+		if (csc & EXCA_CSC_READY) {
+			atomic_add_int(&sc->powerintr, 1);
+			wakeup((void *)&sc->powerintr);
+			retval = FILTER_HANDLED;
+		}
+	}
+
+	/*
+	 * Read the socket event.  Sometimes, the theory goes, the PCI bus is
+	 * so loaded that it cannot satisfy the read request, so we get
+	 * garbage back from the following read.  We have to filter out the
+	 * garbage so that we don't spontaneously reset the card under high
+	 * load.  PCI isn't supposed to act like this.  No doubt this is a bug
+	 * in the PCI bridge chipset (or cbb brige) that's being used in
+	 * certain amd64 laptops today.  Work around the issue by assuming
+	 * that any bits we don't know about being set means that we got
+	 * garbage.
 	 */
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
 	if (sockevent != 0 && (sockevent & ~CBB_SOCKET_EVENT_VALID_MASK) == 0) {
 		/*
-		 * If anything has happened to the socket, we assume that
-		 * the card is no longer OK, and we shouldn't call its
-		 * ISR.  We set cardok as soon as we've attached the
-		 * card.  This helps in a noisy eject, which happens
-		 * all too often when users are ejecting their PC Cards.
+		 * If anything has happened to the socket, we assume that the
+		 * card is no longer OK, and we shouldn't call its ISR.  We
+		 * set cardok as soon as we've attached the card.  This helps
+		 * in a noisy eject, which happens all too often when users
+		 * are ejecting their PC Cards.
 		 *
-		 * We use this method in preference to checking to see if
-		 * the card is still there because the check suffers from
-		 * a race condition in the bouncing case.  Prior versions
-		 * of the pccard software used a similar trick and achieved
-		 * excellent results.
+		 * We use this method in preference to checking to see if the
+		 * card is still there because the check suffers from a race
+		 * condition in the bouncing case.
 		 */
+#define DELTA (CBB_SOCKET_MASK_CD)
 		if (sockevent & DELTA) {
 			cbb_clrb(sc, CBB_SOCKET_MASK, DELTA);
 			cbb_set(sc, CBB_SOCKET_EVENT, DELTA);
@@ -723,9 +750,11 @@ cbb_pci_filt(void *arg)
 			cbb_disable_func_intr(sc);
 			wakeup(&sc->intrhand);
 		}
+#undef DELTA
+
 		/*
-		 * If we get a power interrupt, wakeup anybody that might
-		 * be waiting for one.
+		 * Wakeup anybody waiting for a power interrupt.  We have to
+		 * use atomic_add_int for wakups on other cores.
 		 */
 		if (sockevent & CBB_SOCKET_EVENT_POWER) {
 			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_EVENT_POWER);
@@ -733,21 +762,15 @@ cbb_pci_filt(void *arg)
 			atomic_add_int(&sc->powerintr, 1);
 			wakeup((void *)&sc->powerintr);
 		}
+
+		/*
+		 * Status change interrupts aren't presently used in the
+		 * rest of the driver.  For now, just ACK them.
+		 */
+		if (sockevent & CBB_SOCKET_EVENT_CSTS)
+			cbb_set(sc, CBB_SOCKET_EVENT, CBB_SOCKET_EVENT_CSTS);
 		retval = FILTER_HANDLED;
 	}
-	/*
-	 * Some chips also require us to read the old ExCA registe for
-	 * card status change when we route CSC vis PCI.  This isn't supposed
-	 * to be required, but it clears the interrupt state on some chipsets.
-	 * Maybe there's a setting that would obviate its need.  Maybe we
-	 * should test the status bits and deal with them, but so far we've
-	 * not found any machines that don't also give us the socket status
-	 * indication above.
-	 *
-	 * We have to call this unconditionally because some bridges deliver
-	 * the event independent of the CBB_SOCKET_EVENT_CD above.
-	 */
-	exca_getb(&sc->exca[0], EXCA_CSC);
 	return retval;
 }
 
