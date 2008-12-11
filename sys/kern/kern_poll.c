@@ -33,19 +33,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/socket.h>			/* needed by net/if.h		*/
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
 #include <net/vnet.h>
-
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/kthread.h>
-#include <sys/vimage.h>
 
 static void netisr_poll(void);		/* the two netisr handlers      */
 static void netisr_pollmore(void);
