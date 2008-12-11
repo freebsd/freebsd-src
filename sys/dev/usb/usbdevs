@@ -620,6 +620,7 @@ vendor AMIT		0x18c5	AMIT
 vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
+vendor STELERA		0x1a8d	Stelera Wireless
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
 vendor ERICSSON		0x2282	Ericsson
@@ -1876,6 +1877,7 @@ product OPTION VODAFONEMC3G	0x5000	Vodafone Mobile Connect 3G datacard
 product OPTION GT3G		0x6000	GlobeTrotter 3G datacard
 product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
+product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 
@@ -2125,12 +2127,14 @@ product SIERRA AIRCARD595	0x0019	Sierra Wireless AirCard 595
 product SIERRA AC595U		0x0120	Sierra Wireless AirCard 595U
 product SIERRA AC597E		0x0021	Sierra Wireless AirCard 597E
 product SIERRA C597		0x0023	Sierra Wireless Compass 597
+product SIERRA AC875		0x6820	Sierra Wireless AirCard 875
 product SIERRA AC880		0x6850	Sierra Wireless AirCard 880
 product SIERRA AC881		0x6851	Sierra Wireless AirCard 881
 product SIERRA AC880E		0x6852	Sierra Wireless AirCard 880E
 product SIERRA AC881E		0x6853	Sierra Wireless AirCard 881E
 product SIERRA AC880U		0x6855	Sierra Wireless AirCard 880U
 product SIERRA AC881U		0x6856	Sierra Wireless AirCard 881U
+product SIERRA AC885U		0x6880	Sierra Wireless AirCard 885U
 product SIERRA EM5625		0x0017	EM5625
 product SIERRA MC5720		0x0218	MC5720 Wireless Modem
 product SIERRA MC5720_2		0x0018	MC5720
@@ -2252,6 +2256,10 @@ product SPARKLAN RT2573		0x0004	 RT2573
 
 /* Sphairon Access Systems GmbH products */
 product SPHAIRON UB801R		0x0110	UB801R
+
+/* Stelera Wireless products */
+product STELERA ZEROCD		0x1000	Zerocd Installer
+product STELERA C105		0x1002	Stelera/Bandrish C105 USB
 
 /* STMicroelectronics products */
 product STMICRO BIOCPU		0x2016	Biometric Coprocessor
