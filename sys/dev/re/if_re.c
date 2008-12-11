@@ -700,7 +700,12 @@ re_reset(struct rl_softc *sc)
 	if (i == RL_TIMEOUT)
 		device_printf(sc->rl_dev, "reset never completed!\n");
 
-	CSR_WRITE_1(sc, 0x82, 1);
+	if ((sc->rl_flags & RL_FLAG_PHY8169) != 0)
+		CSR_WRITE_1(sc, 0x82, 1);
+	if ((sc->rl_flags & RL_FLAG_PHY8110S) != 0) {
+		CSR_WRITE_1(sc, 0x82, 1);
+		re_gmii_writereg(sc->rl_dev, 1, 0x0B, 0);
+	}
 }
 
 #ifdef RE_DIAG
@@ -1235,6 +1240,9 @@ re_attach(device_t dev)
 	case RL_HWREV_8139CPLUS:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER;
 		break;
+	case RL_HWREV_8110S:
+		sc->rl_flags |= RL_FLAG_PHY8110S;
+		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
@@ -1271,10 +1279,14 @@ re_attach(device_t dev)
 		 */
 		sc->rl_flags |= RL_FLAG_NOJUMBO;
 		break;
+	case RL_HWREV_8169:
+	case RL_HWREV_8169S:
+		sc->rl_flags |= RL_FLAG_PHY8169;
+		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SC:
 	case RL_HWREV_8169_8110SBL:
-		sc->rl_flags |= RL_FLAG_PHYWAKE;
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHY8169;
 		break;
 	default:
 		break;
