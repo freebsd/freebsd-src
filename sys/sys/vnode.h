@@ -659,6 +659,7 @@ int	vop_stdvptofh(struct vop_vptofh_args *ap);
 int	vop_eopnotsupp(struct vop_generic_args *ap);
 int	vop_ebadf(struct vop_generic_args *ap);
 int	vop_einval(struct vop_generic_args *ap);
+int	vop_enoent(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
@@ -723,6 +724,7 @@ extern struct vop_vector default_vnodeops;
 #define VOP_EBADF	((void*)(uintptr_t)vop_ebadf)
 #define VOP_ENOTTY	((void*)(uintptr_t)vop_enotty)
 #define VOP_EINVAL	((void*)(uintptr_t)vop_einval)
+#define VOP_ENOENT	((void*)(uintptr_t)vop_enoent)
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
 
 /* vfs_hash.c */
