@@ -169,7 +169,6 @@
 #define VAR_NO_HOME			"noHome"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
-#define	VAR_OSF1_ENABLE			"osf1_enable"
 #define	VAR_RPCBIND_ENABLE		"rpcbind_enable"
 #define VAR_NTPDATE_FLAGS		"ntpdate_flags"
 #define VAR_PACKAGE			"package"
@@ -533,9 +532,6 @@ extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configLinux(dialogMenuItem *self);
 #endif
 extern int	configNTP(dialogMenuItem *self);
-#ifdef __alpha__
-extern int	configOSF1(dialogMenuItem *self);
-#endif
 extern int	configCountry(dialogMenuItem *self);
 extern int	configUsers(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);

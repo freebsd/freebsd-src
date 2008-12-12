@@ -692,12 +692,6 @@ nodisks:
 	(void)configLinux(self);
 #endif
 
-#ifdef __alpha__
-    dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to enable OSF/1 binary compatibility?"))
-	(void)configOSF1(self);
-#endif
-
 #ifdef WITH_MICE
     dialog_clear_norefresh();
     if (!msgNoYes("Does this system have a PS/2, serial, or bus mouse?"))
