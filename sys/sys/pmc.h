@@ -814,6 +814,7 @@ struct pmc_sample {
 	uint8_t			ps_cpu;		/* cpu number */
 	uint8_t			ps_flags;	/* other flags */
 	pid_t			ps_pid;		/* process PID or -1 */
+	struct thread		*ps_td;		/* which thread */
 	struct pmc		*ps_pmc;	/* interrupting PMC */
 	uintptr_t		*ps_pc;		/* (const) callchain start */
 };
