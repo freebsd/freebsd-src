@@ -426,6 +426,7 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	tp->tun_flags |= TUN_OPEN;
 	mtx_unlock(&tp->tun_mtx);
 	ifp = TUN2IFP(tp);
+	if_link_state_change(ifp, LINK_STATE_UP);
 	TUNDEBUG(ifp, "open\n");
 
 	return (0);
@@ -482,6 +483,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		splx(s);
 	}
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 	CURVNET_RESTORE();
 
 	funsetown(&tp->tun_sigio);
