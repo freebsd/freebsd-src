@@ -98,6 +98,7 @@ struct vop_vector default_vnodeops = {
 	.vop_revoke =		VOP_PANIC,
 	.vop_strategy =		vop_nostrategy,
 	.vop_unlock =		vop_stdunlock,
+	.vop_vptocnp =		VOP_ENOENT,
 	.vop_vptofh =		vop_stdvptofh,
 };
 
@@ -135,6 +136,13 @@ vop_einval(struct vop_generic_args *ap)
 {
 
 	return (EINVAL);
+}
+
+int
+vop_enoent(struct vop_generic_args *ap)
+{
+
+	return (ENOENT);
 }
 
 int
