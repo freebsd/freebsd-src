@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/dfr/xenhvm/6/sys/xen/evtchn/evtchn.c 184235 2008-10-25 00:25:25Z kmacy $");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
