@@ -185,6 +185,69 @@ devfs_clear_cdevpriv(void)
 	devfs_fpdrop(fp);
 }
 
+static int
+devfs_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode **dvp = ap->a_vpp;
+	struct devfs_mount *dmp;
+	char *buf = ap->a_buf;
+	int *buflen = ap->a_buflen;
+	struct devfs_dirent *dd, *de;
+	int i, error;
+
+	dmp = VFSTODEVFS(vp->v_mount);
+	i = *buflen;
+	dd = vp->v_data;
+	error = 0;
+
+	sx_xlock(&dmp->dm_lock);
+
+	if (vp->v_type == VCHR) {
+		i -= strlen(dd->de_cdp->cdp_c.si_name);
+		if (i < 0) {
+			error = ENOMEM;
+			goto finished;
+		}
+		bcopy(dd->de_cdp->cdp_c.si_name, buf + i,
+		    strlen(dd->de_cdp->cdp_c.si_name));
+		de = dd->de_dir;
+	} else if (vp->v_type == VDIR) {
+		if (dd == dmp->dm_rootdir) {
+			*dvp = vp;
+			vhold(*dvp);
+			goto finished;
+		}
+		i -= dd->de_dirent->d_namlen;
+		if (i < 0) {
+			error = ENOMEM;
+			goto finished;
+		}
+		bcopy(dd->de_dirent->d_name, buf + i,
+		    dd->de_dirent->d_namlen);
+		de = dd;
+	} else {
+		error = ENOENT;
+		goto finished;
+	}
+	*buflen = i;
+	de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+	de = TAILQ_NEXT(de, de_list);		/* ".." */
+	de = de->de_dir;
+	mtx_lock(&devfs_de_interlock);
+	*dvp = de->de_vnode;
+	if (*dvp != NULL) {
+		VI_LOCK(*dvp);
+		mtx_unlock(&devfs_de_interlock);
+		vholdl(*dvp);
+		VI_UNLOCK(*dvp);
+	} else
+		error = ENOENT;
+finished:
+	sx_xunlock(&dmp->dm_lock);
+	return (error);
+}
+
 /*
  * Construct the fully qualified path name relative to the mountpoint
  */
@@ -1465,6 +1528,7 @@ static struct vop_vector devfs_vnodeops = {
 	.vop_setlabel =		devfs_setlabel,
 #endif
 	.vop_symlink =		devfs_symlink,
+	.vop_vptocnp =		devfs_vptocnp,
 };
 
 static struct vop_vector devfs_specops = {
@@ -1499,6 +1563,7 @@ static struct vop_vector devfs_specops = {
 #endif
 	.vop_strategy =		VOP_PANIC,
 	.vop_symlink =		VOP_PANIC,
+	.vop_vptocnp =		devfs_vptocnp,
 	.vop_write =		VOP_PANIC,
 };
 
