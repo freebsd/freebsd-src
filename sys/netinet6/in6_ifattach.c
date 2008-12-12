@@ -834,7 +834,7 @@ in6_ifdetach(struct ifnet *ifp)
 	/* XXX grab lock first to avoid LOR */
 	if (V_rt_tables[0][AF_INET6] != NULL) {
 		RADIX_NODE_HEAD_LOCK(V_rt_tables[0][AF_INET6]);
-		rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
+		rt = rtalloc1((struct sockaddr *)&sin6, RTF_RNH_LOCKED, 0UL);
 		if (rt) {
 			if (rt->rt_ifp == ifp)
 				rtexpunge(rt);
