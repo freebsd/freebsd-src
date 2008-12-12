@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
@@ -318,6 +320,10 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xfast_syscall") == 0)
 			frame_type = SYSCALL;
+#ifdef COMPAT_IA32
+		else if (strcmp(name, "Xint0x80_syscall") == 0)
+			frame_type = SYSCALL;
+#endif
 		/* XXX: These are interrupts with trap frames. */
 		else if (strcmp(name, "Xtimerint") == 0 ||
 		    strcmp(name, "Xcpustop") == 0 ||
