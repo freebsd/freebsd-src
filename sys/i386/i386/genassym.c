@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
 #include "opt_compat.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -44,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/assym.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/mount.h>
@@ -233,4 +237,8 @@ ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
 #include <machine/xen/hypervisor.h>
 ASSYM(PC_CR3, offsetof(struct pcpu, pc_cr3));
 ASSYM(HYPERVISOR_VIRT_START, __HYPERVISOR_VIRT_START);
+#endif
+
+#ifdef	HWPMC_HOOKS
+ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #endif
