@@ -348,6 +348,7 @@ MAN=	accept_filter.9 \
 	VOP_SETACL.9 \
 	VOP_SETEXTATTR.9 \
 	VOP_STRATEGY.9 \
+	VOP_VPTOCNP.9 \
 	VOP_VPTOFH.9 \
 	vput.9 \
 	vref.9 \
