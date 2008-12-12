@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
@@ -874,7 +875,8 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 static int
 linprocfs_doprocmaps(PFS_FILL_ARGS)
 {
-	vm_map_t map = &p->p_vmspace->vm_map;
+	struct vmspace *vm;
+	vm_map_t map;
 	vm_map_entry_t entry, tmp_entry;
 	vm_object_t obj, tobj, lobj;
 	vm_offset_t e_start, e_end;
@@ -899,6 +901,10 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		return (EOPNOTSUPP);
 
 	error = 0;
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL)
+		return (ESRCH);
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
@@ -985,6 +991,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 
 	return (error);
 }

@@ -1357,6 +1357,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	struct vnode *vp;
 	struct proc *p;
 	vm_map_t map;
+	struct vmspace *vm;
 
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
@@ -1371,7 +1372,11 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	}
 	_PHOLD(p);
 	PROC_UNLOCK(p);
-
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL) {
+		PRELE(p);
+		return (ESRCH);
+	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
 	map = &p->p_vmspace->vm_map;	/* XXXRW: More locking required? */
@@ -1501,6 +1506,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
@@ -1523,6 +1529,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	int error, *name;
 	struct vnode *vp;
 	struct proc *p;
+	struct vmspace *vm;
 	vm_map_t map;
 
 	name = (int *)arg1;
@@ -1538,10 +1545,14 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	}
 	_PHOLD(p);
 	PROC_UNLOCK(p);
-
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL) {
+		PRELE(p);
+		return (ESRCH);
+	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
-	map = &p->p_vmspace->vm_map;	/* XXXRW: More locking required? */
+	map = &vm->vm_map;	/* XXXRW: More locking required? */
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
@@ -1672,6 +1683,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
