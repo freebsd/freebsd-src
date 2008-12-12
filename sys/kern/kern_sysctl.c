@@ -1423,9 +1423,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		error = sysctl_root(0, name, namelen, &req);
 		if (error != EAGAIN)
 			break;
-		DROP_GIANT();
 		uio_yield();
-		PICKUP_GIANT();
 	}
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
