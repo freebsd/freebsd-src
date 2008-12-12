@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/dfr/xenhvm/6/sys/xen/evtchn/evtchn.c 184235 2008-10-25 00:25:25Z kmacy $");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,6 +70,7 @@ static struct {
 	int close:1; /* close on unbind_from_irqhandler()? */
 	int inuse:1;
 	int in_handler:1;
+	int mpsafe:1;
 } irq_evtchn[256];
 static int evtchn_to_irq[NR_EVENT_CHANNELS] = {
 	[0 ...  NR_EVENT_CHANNELS-1] = -1 };
@@ -167,6 +168,7 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 	irq_evtchn[irq].arg     = arg;
 	irq_evtchn[irq].evtchn  = alloc_unbound.port;
 	irq_evtchn[irq].close   = 1;
+	irq_evtchn[irq].mpsafe  = (irqflags & INTR_MPSAFE) != 0;
 
 	evtchn_to_irq[alloc_unbound.port] = irq;
 
@@ -196,6 +198,7 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
 	irq_evtchn[irq].arg     = arg;
 	irq_evtchn[irq].evtchn  = caller_port;
 	irq_evtchn[irq].close   = 0;
+	irq_evtchn[irq].mpsafe  = (irqflags & INTR_MPSAFE) != 0;
 
 	evtchn_to_irq[caller_port] = irq;
 
@@ -262,7 +265,7 @@ evtchn_interrupt(void *arg)
 	int cpu = 0; /*smp_processor_id();*/
 	driver_intr_t *handler;
 	void *handler_arg;
-	int irq;
+	int irq, handler_mpsafe;
 	shared_info_t *s = HYPERVISOR_shared_info;
 	vcpu_info_t *v = &s->vcpu_info[cpu];
 	struct pcpu *pc = pcpu_find(cpu);
@@ -317,6 +320,7 @@ evtchn_interrupt(void *arg)
 			mtx_lock(&irq_evtchn[irq].lock);
 			handler = irq_evtchn[irq].handler;
 			handler_arg = irq_evtchn[irq].arg;
+			handler_mpsafe = irq_evtchn[irq].mpsafe;
 			if (unlikely(handler == NULL)) {
 				printf("Xen IRQ%d (port %d) has no handler!\n",
 				       irq, port);
@@ -327,7 +331,11 @@ evtchn_interrupt(void *arg)
 			mtx_unlock(&irq_evtchn[irq].lock);
 
 			//local_irq_enable();
+			if (!handler_mpsafe)
+				mtx_lock(&Giant);
 			handler(handler_arg);
+			if (!handler_mpsafe)
+				mtx_unlock(&Giant);
 			//local_irq_disable();
 
 			mtx_lock(&irq_evtchn[irq].lock);
@@ -399,7 +407,7 @@ xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 	}
 
 	error = BUS_SETUP_INTR(device_get_parent(device), device,
-	    scp->res_irq, INTR_TYPE_MISC, evtchn_interrupt, NULL,
+	    scp->res_irq, INTR_MPSAFE|INTR_TYPE_MISC, evtchn_interrupt, NULL,
 	    &scp->intr_cookie);
 	if (error)
 		return (error);
