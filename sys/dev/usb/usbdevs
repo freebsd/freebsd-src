@@ -503,7 +503,7 @@ vendor ADDONICS2	0x0bf6	Addonics Technology
 vendor FSC		0x0bf8	Fujitsu Siemens Computers
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
-vendor MICRODIA		0x0c45	Chicony
+vendor CHICONY2		0x0c45	Chicony
 vendor SEALEVEL		0x0c52	Sealevel System
 vendor LUWEN		0x0c76	Luwen
 vendor KYOCERA2		0x0c88	Kyocera Wireless Corp.
@@ -1687,9 +1687,6 @@ product MSI RT2573_1		0x6874	RT2573
 product MSI RT2573_2		0x6877	RT2573
 product MSI RT2573_3		0xa861	RT2573
 product MSI RT2573_4		0xa874	RT2573
-
-/* Microdia products */
-product MICRODIA TWINKLECAM	0x600d	TwinkleCam USB camera
 
 /* Microsoft products */
 product MICROSOFT SIDEPREC	0x0008	SideWinder Precision Pro
