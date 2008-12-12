@@ -548,17 +548,6 @@ configLinux(dialogMenuItem *self)
 }
 #endif
 
-#ifdef __alpha__
-int
-configOSF1(dialogMenuItem *self)
-{
-
-    variable_set2(VAR_OSF1_ENABLE, "YES", 1);
-    Mkdir("/compat/osf1");
-    return DITEM_SUCCESS;
-}
-#endif
-
 int
 configSecurelevel(dialogMenuItem *self)
 {
