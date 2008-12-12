@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  */
 
+#if defined(__FreeBSD__)
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -42,11 +44,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
+#if defined(__FreeBSD__)
 #include <sys/eui64.h>
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/fwphyreg.h>
 #include <dev/firewire/iec68113.h>
+#elif defined(__NetBSD__)
+#include "eui64.h"
+#include <dev/ieee1394/firewire.h>
+#include <dev/ieee1394/iec13213.h>
+#include <dev/ieee1394/fwphyreg.h>
+#include <dev/ieee1394/iec68113.h>
+#else
+#warning "You need to add support for your OS"
+#endif
+
 
 #include <netinet/in.h>
 #include <fcntl.h>
@@ -66,7 +79,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"fwcontrol [-u bus_num] [-prt] [-c node] [-d node] [-o node] [-s node]\n"
+		"%s [-u bus_num] [-prt] [-c node] [-d node] [-o node] [-s node]\n"
 		"\t  [-l file] [-g gap_count] [-f force_root ] [-b pri_req]\n"
 		"\t  [-M mode] [-R filename] [-S filename] [-m EUI64 | hostname]\n"
 		"\t-u: specify bus number\n"
@@ -78,14 +91,15 @@ usage(void)
 		"\t-o: send link-on packet to the node\n"
 		"\t-s: write RESET_START register on the node\n"
 		"\t-l: load and parse hex dump file of configuration ROM\n"
-		"\t-g: broadcast gap_count by phy_config packet\n"
-		"\t-f: broadcast force_root by phy_config packet\n"
+		"\t-g: set gap count\n"
+		"\t-f: force root node\n"
 		"\t-b: set PRIORITY_BUDGET register on all supported nodes\n"
 		"\t-M: specify dv or mpeg\n"
 		"\t-R: Receive DV or MPEG TS stream\n"
 		"\t-S: Send DV stream\n"
-		"\t-m: set fwmem target\n");
-	exit(EX_USAGE);
+		"\t-m: set fwmem target\n"
+		, getprogname() );
+	fprintf(stderr, "\n");
 }
 
 static void
@@ -488,7 +502,7 @@ load_crom(char *filename, u_int32_t *p)
 	int len=1024, i;
 
 	if ((file = fopen(filename, "r")) == NULL)
-		err(1, "load_crom");
+	  err(1, "load_crom %s", filename);
 	for (i = 0; i < len/(4*8); i ++) {
 		fscanf(file, DUMP_FORMAT,
 			p, p+1, p+2, p+3, p+4, p+5, p+6, p+7);
@@ -691,7 +705,7 @@ detect_recv_fn(int fd, char ich)
 	 */
 	len = read(fd, buf, RECV_NUM_PACKET * RECV_PACKET_SZ);
 	if (len < 0)
-		err(EX_IOERR, "%s: error reading from device\n", __func__);
+		err(EX_IOERR, "%s: error reading from device", __func__);
 	ptr = (u_int32_t *) buf;
 	ciph = (struct ciphdr *)(ptr + 1);
 
@@ -757,10 +771,12 @@ main(int argc, char **argv)
 
 	if (argc < 2) {
 		for (current_board = 0; current_board < MAX_BOARDS; current_board++) {
-			snprintf(devbase, sizeof(devbase), "%s%d", device_string, current_board);
+			snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
 			if (open_dev(&fd, devbase) < 0) {
 				if (current_board == 0) {
 					usage();
+		  			err(EX_IOERR, "%s: Error opening firewire controller #%d %s",
+						      __func__, current_board, devbase);
 				}
 				return(EIO);
 			}
@@ -777,7 +793,7 @@ main(int argc, char **argv)
 		case 'b':
 			priority_budget = strtol(optarg, NULL, 0);
 			if (priority_budget < 0 || priority_budget > INT32_MAX)
-				errx(EX_USAGE, "%s: invalid number: %s", __func__, optarg);
+				errx(EX_USAGE, "%s: priority_budget out of range: %s", __func__, optarg);
 			command_set = true;
 			open_needed = true;
 			display_board_only = false;
@@ -787,7 +803,7 @@ main(int argc, char **argv)
 			if (crom_string == NULL)
 				err(EX_SOFTWARE, "%s:crom_string malloc", __func__);
 			if ( (strtol(crom_string, NULL, 0) < 0) || strtol(crom_string, NULL, 0) > MAX_BOARDS)
-				err(EX_USAGE, "%s:Invalid value for node", __func__);
+				errx(EX_USAGE, "%s:Invalid value for node", __func__);
 			strcpy(crom_string, optarg);
 			display_crom = 1;
 			open_needed = true;
@@ -808,7 +824,7 @@ main(int argc, char **argv)
 #define MAX_PHY_CONFIG 0x3f
 			set_root_node = strtol(optarg, NULL, 0);
 			if ( (set_root_node < 0) || (set_root_node > MAX_PHY_CONFIG) )
-				err(EX_USAGE, "%s:set_root_node out of range", __func__);
+				errx(EX_USAGE, "%s:set_root_node out of range", __func__);
 			open_needed = true;
 			command_set = true;
 			display_board_only = false;
@@ -816,7 +832,7 @@ main(int argc, char **argv)
 		case 'g':
 			set_gap_count = strtol(optarg, NULL, 0);
 			if ( (set_gap_count < 0) || (set_gap_count > MAX_PHY_CONFIG) )
-				err(EX_USAGE, "%s:set_gap_count out of range", __func__);
+				errx(EX_USAGE, "%s:set_gap_count out of range", __func__);
 			open_needed = true;
 			command_set = true;
 			display_board_only = false;
@@ -834,12 +850,12 @@ main(int argc, char **argv)
 			display_board_only = false;
 			if (eui64_hostton(optarg, &target) != 0 &&
 			    eui64_aton(optarg, &target) != 0)
-				err(EX_USAGE, "%s: invalid target: %s", __func__, optarg);
+				errx(EX_USAGE, "%s: invalid target: %s", __func__, optarg);
 			break;
 		case 'o':
 			send_link_on = str2node(fd, optarg);
-			if ( (send_link_on < 0) || (send_link_on > INT32_MAX) )
-				err(EX_USAGE, "%s: node out of range: %s\n",__func__, optarg);
+			if ( (send_link_on < 0) || (send_link_on > MAX_PHY_CONFIG) )
+				errx(EX_USAGE, "%s: node out of range: %s\n",__func__, optarg);
 			open_needed = true;
 			command_set = true;
 			display_board_only = false;
@@ -858,8 +874,8 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			send_reset_start  = str2node(fd, optarg);
-			if ( (send_reset_start < 0) || (send_reset_start > INT32_MAX) )
-				err(EX_USAGE, "%s: node out of range: %s\n", __func__, optarg);
+			if ( (send_reset_start < 0) || (send_reset_start > MAX_PHY_CONFIG) )
+				errx(EX_USAGE, "%s: node out of range: %s\n", __func__, optarg);
 			open_needed = true;
 			command_set = true;
 			display_board_only = false;
@@ -909,11 +925,25 @@ main(int argc, char **argv)
 			command_set = true;
 			display_board_only = false;
 			break;
+		case '?':
 		default:
 			usage();
+		        warnc(EINVAL, "%s: Unknown command line arguments", __func__);
 			return 0;
 		}
 	} /* end while */
+
+       /*
+	* Catch the error case when the user
+	* executes the command with non ''-''
+	* delimited arguments.
+	* Generate the usage() display and exit.
+	*/
+	if (!command_set && !display_board_only) {
+		usage();
+		warnc(EINVAL, "%s: Unknown command line arguments", __func__);
+		return 0;
+	}
 
        /*
 	* If -u <bus_number> is passed, execute 
@@ -924,9 +954,9 @@ main(int argc, char **argv)
 	*
 	*/
 	if(open_needed){
-		snprintf(devbase, sizeof(devbase), "%s%d", device_string, current_board);
+		snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
 		if (open_dev(&fd, devbase) < 0) {
-			errx(EX_IOERR, "%s: Error opening board #%d\n", __func__, current_board);
+		  err(EX_IOERR, "%s: Error opening firewire controller #%d %s", __func__, current_board, devbase);
 		}
 	}
 	/*
@@ -947,7 +977,7 @@ main(int argc, char **argv)
 	 */
 	if (send_bus_reset) {
 		if(ioctl(fd, FW_IBUSRST, &tmp) < 0)
-               		err(EX_IOERR, "%s: ioctl", __func__);
+               		err(EX_IOERR, "%s: Ioctl of bus reset failed for %s", __func__, devbase);
 	}
 	/*
 	 * Print out the CROM for this node "-c"
@@ -996,8 +1026,16 @@ main(int argc, char **argv)
 	if (set_fwmem_target) {
 		eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
 		eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
+#if defined(__FreeBSD__)
 		sysctl_set_int("hw.firewire.fwmem.eui64_hi", eui.hi);
 		sysctl_set_int("hw.firewire.fwmem.eui64_lo", eui.lo);
+#elif defined(__NetBSD__)
+		sysctl_set_int("hw.fwmem.eui64_hi", eui.hi);
+		sysctl_set_int("hw.fwmem.eui64_lo", eui.lo);
+#else
+#warning "You need to add support for your OS"
+#endif
+
 	}
 
 	/*
@@ -1028,9 +1066,9 @@ main(int argc, char **argv)
 			recvfn = detect_recv_fn(fd, TAG | CHANNEL);
 			close(fd);
 		}
-		snprintf(devbase, sizeof(devbase), "%s%d", device_string, current_board);
+		snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
 		if (open_dev(&fd, devbase) < 0)
-			errx(EX_IOERR, "%s: Error opening board #%d in recv_data\n", __func__, current_board);
+		  err(EX_IOERR, "%s: Error opening firewire controller #%d %s in recv_data\n", __func__, current_board, devbase);
 		(*recvfn)(fd, recv_data, TAG | CHANNEL, -1);
 		free(recv_data);
 	}
