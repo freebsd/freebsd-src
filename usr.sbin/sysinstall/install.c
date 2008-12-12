@@ -686,12 +686,6 @@ nodisks:
     if (!msgYesNo("Would you like to set this machine's time zone now?"))
 	systemExecute("tzsetup");
 
-#ifdef WITH_LINUX
-    dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to enable Linux binary compatibility?"))
-	(void)configLinux(self);
-#endif
-
 #ifdef WITH_MICE
     dialog_clear_norefresh();
     if (!msgNoYes("Does this system have a PS/2, serial, or bus mouse?"))
