@@ -61,10 +61,6 @@
 #define	WITH_SLICES
 #endif
 
-#if defined(__i386__)
-#define	WITH_LINUX
-#endif
-
 /* device limits */
 #define DEV_NAME_MAX		128	/* The maximum length of a device name	*/
 #define DEV_MAX			100	/* The maximum number of devices we'll deal with */
