@@ -169,6 +169,7 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
 
 
 static void cache_zap(struct namecache *ncp);
+static int vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen);
 
@@ -840,6 +841,38 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 	return (error);
 }
 
+static int
+vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen)
+{
+	struct vnode *dvp;
+	int error, vfslocked;
+
+	vhold(*vp);
+	CACHE_UNLOCK();
+	vfslocked = VFS_LOCK_GIANT((*vp)->v_mount);
+	vn_lock(*vp, LK_SHARED | LK_RETRY);
+	vdrop(*vp);
+	error = VOP_VPTOCNP(*vp, &dvp, buf, buflen);
+	VOP_UNLOCK(*vp, 0);
+	VFS_UNLOCK_GIANT(vfslocked);
+	if (error) {
+		numfullpathfail2++;
+		return (error);
+	}
+	*bp = buf + *buflen;
+	*vp = dvp;
+	CACHE_LOCK();
+	if ((*vp)->v_iflag & VI_DOOMED) {
+		/* forced unmount */
+		CACHE_UNLOCK();
+		vdrop(*vp);
+		return (ENOENT);
+	}
+	vdrop(*vp);
+
+	return (0);
+}
+
 /*
  * The magic behind kern___getcwd() and vn_fullpath().
  */
@@ -851,7 +884,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	int error, i, slash_prefixed;
 	struct namecache *ncp;
 
-	bp = buf + buflen - 1;
+	buflen--;
+	bp = buf + buflen;
 	*bp = '\0';
 	error = 0;
 	slash_prefixed = 0;
@@ -860,58 +894,77 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	numfullpathcalls++;
 	if (vp->v_type != VDIR) {
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
-		if (!ncp) {
-			numfullpathfail2++;
-			CACHE_UNLOCK();
-			return (ENOENT);
+		if (ncp != NULL) {
+			for (i = ncp->nc_nlen - 1; i >= 0 && bp > buf; i--)
+				*--bp = ncp->nc_name[i];
+			if (bp == buf) {
+				numfullpathfail4++;
+				CACHE_UNLOCK();
+				return (ENOMEM);
+			}
+			vp = ncp->nc_dvp;
+		} else {
+			error = vn_vptocnp(&vp, &bp, buf, &buflen);
+			if (error) {
+				return (error);
+			}
 		}
-		for (i = ncp->nc_nlen - 1; i >= 0 && bp > buf; i--)
-			*--bp = ncp->nc_name[i];
-		if (bp == buf) {
+		*--bp = '/';
+		buflen--;
+		if (buflen < 0) {
 			numfullpathfail4++;
 			CACHE_UNLOCK();
 			return (ENOMEM);
 		}
-		*--bp = '/';
 		slash_prefixed = 1;
-		vp = ncp->nc_dvp;
 	}
 	while (vp != rdir && vp != rootvnode) {
 		if (vp->v_vflag & VV_ROOT) {
 			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
+				CACHE_UNLOCK();
 				error = EBADF;
 				break;
 			}
 			vp = vp->v_mount->mnt_vnodecovered;
 			continue;
 		}
-		if (vp->v_dd == NULL) {
+		if (vp->v_type != VDIR) {
 			numfullpathfail1++;
+			CACHE_UNLOCK();
 			error = ENOTDIR;
 			break;
 		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
-		if (!ncp) {
-			numfullpathfail2++;
-			error = ENOENT;
-			break;
+		if (ncp != NULL) {
+			MPASS(ncp->nc_dvp == vp->v_dd);
+			buflen -= ncp->nc_nlen - 1;
+			for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
+				*--bp = ncp->nc_name[i];
+			if (bp == buf) {
+				numfullpathfail4++;
+				CACHE_UNLOCK();
+				error = ENOMEM;
+				break;
+			}
+			vp = ncp->nc_dvp;
+		} else {
+			error = vn_vptocnp(&vp, &bp, buf, &buflen);
+			if (error) {
+				break;
+			}
 		}
-		MPASS(ncp->nc_dvp == vp->v_dd);
-		for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
-			*--bp = ncp->nc_name[i];
-		if (bp == buf) {
+		*--bp = '/';
+		buflen--;
+		if (buflen < 0) {
 			numfullpathfail4++;
+			CACHE_UNLOCK();
 			error = ENOMEM;
 			break;
 		}
-		*--bp = '/';
 		slash_prefixed = 1;
-		vp = ncp->nc_dvp;
 	}
-	if (error) {
-		CACHE_UNLOCK();
+	if (error)
 		return (error);
-	}
 	if (!slash_prefixed) {
 		if (bp == buf) {
 			numfullpathfail4++;

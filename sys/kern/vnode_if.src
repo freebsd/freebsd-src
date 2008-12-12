@@ -595,3 +595,13 @@ vop_vptofh {
 	IN struct vnode *vp;
 	IN struct fid *fhp;
 };
+
+%% vptocnp		vp	L L L
+%% vptocnp		vpp	- U -
+
+vop_vptocnp {
+	IN struct vnode *vp;
+	OUT struct vnode **vpp;
+	INOUT char *buf;
+	INOUT int *buflen;
+};
