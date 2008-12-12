@@ -354,11 +354,6 @@ main(int argc, char *argv[])
 		mediasize = st.st_size;
 		/* set fssize from the partition */
 	} else {
-	    part_name = special[strlen(special) - 1];
-	    if ((part_name < 'a' || part_name > 'h') && !isdigit(part_name))
-		errx(1, "%s: can't figure out file system partition",
-				special);
-
 	    if (sectorsize == 0)
 		if (ioctl(disk.d_fd, DIOCGSECTORSIZE, &sectorsize) == -1)
 		    sectorsize = 0;	/* back out on error for safety */
@@ -368,6 +363,12 @@ main(int argc, char *argv[])
 	pp = NULL;
 	lp = getdisklabel(special);
 	if (lp != NULL) {
+		if (!is_file) /* already set for files */
+			part_name = special[strlen(special) - 1];
+		if ((part_name < 'a' || part_name - 'a' >= MAXPARTITIONS) &&
+				!isdigit(part_name))
+			errx(1, "%s: can't figure out file system partition",
+					special);
 		cp = &part_name;
 		if (isdigit(*cp))
 			pp = &lp->d_partitions[RAW_PART];
