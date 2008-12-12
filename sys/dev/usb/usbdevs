@@ -205,7 +205,7 @@ vendor ELAN		0x04f3	Elan
 vendor NEWNEX		0x04f7	Newnex
 vendor BROTHER		0x04f9	Brother Industries
 vendor DALLAS		0x04fa	Dallas Semiconductor
-vendor SUNPLUS		0x04fc	Sunplus
+vendor AIPTEK2		0x04fc	AIPTEK International
 vendor PFU		0x04fe	PFU
 vendor FUJIKURA		0x0501	Fujikura/DDK
 vendor ACER		0x0502	Acer
