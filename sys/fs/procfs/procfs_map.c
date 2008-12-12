@@ -53,6 +53,7 @@
 #include <fs/procfs/procfs.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
@@ -82,7 +83,8 @@ extern struct sysentvec ia32_freebsd_sysvec;
 int
 procfs_doprocmap(PFS_FILL_ARGS)
 {
-	vm_map_t map = &p->p_vmspace->vm_map;
+	struct vmspace *vm;
+	vm_map_t map;
 	vm_map_entry_t entry, tmp_entry;
 	struct vnode *vp;
 	char *fullpath, *freepath;
@@ -109,6 +111,10 @@ procfs_doprocmap(PFS_FILL_ARGS)
         }
 #endif
 
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL)
+		return (ESRCH);
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	     entry = entry->next) {
@@ -235,5 +241,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 	return (error);
 }
