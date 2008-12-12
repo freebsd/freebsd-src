@@ -241,8 +241,10 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 		mtx_unlock(&devfs_de_interlock);
 		vholdl(*dvp);
 		VI_UNLOCK(*dvp);
-	} else
+	} else {
+		mtx_unlock(&devfs_de_interlock);
 		error = ENOENT;
+	}
 finished:
 	sx_xunlock(&dmp->dm_lock);
 	return (error);
