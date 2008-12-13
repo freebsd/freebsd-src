@@ -313,15 +313,16 @@ extern int	ip6_auto_linklocal;
 extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
 extern int	ip6_prefer_tempaddr; /* whether to prefer temporary addresses
 					in the source address selection */
-#endif /* VIMAGE_GLOBALS */
 
-extern int	ip6_use_defzone; /* whether to use the default scope zone
-				    when unspecified */
-
-extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
 #ifdef IPSTEALTH
 extern int	ip6stealth;
 #endif
+
+extern int	ip6_use_defzone; /* whether to use the default scope zone
+				    when unspecified */
+#endif /* VIMAGE_GLOBALS */
+
+extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
 
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;

@@ -659,10 +659,12 @@ struct ifnet	*ifnet_byindex(u_short idx);
 struct ifaddr	*ifaddr_byindex(u_short idx);
 struct cdev	*ifdev_byindex(u_short idx);
 
+#ifdef VIMAGE_GLOBALS
 extern	struct ifnethead ifnet;
-extern	int ifqmaxlen;
 extern	struct ifnet *loif;	/* first loopback interface */
 extern	int if_index;
+#endif
+extern	int ifqmaxlen;
 
 int	if_addgroup(struct ifnet *, const char *);
 int	if_delgroup(struct ifnet *, const char *);
