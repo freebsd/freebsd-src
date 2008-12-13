@@ -711,10 +711,11 @@ fetch(char *URL, const char *path)
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: fetch [-146AFMPRUadlmnpqrsv] [-N netrc] [-o outputfile]",
-	    "             [-S bytes] [-B bytes] [-T seconds] [-w seconds]",
-	    "             [-h host -f file [-c dir] | URL ...]");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+"usage: fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [-N file] [-o file] [-S bytes]",
+"       [-T seconds] [-w seconds] URL ...",
+"       fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [-N file] [-o file] [-S bytes]",
+"       [-T seconds] [-w seconds] -h host -f file [-c dir]");
 }
 
 
