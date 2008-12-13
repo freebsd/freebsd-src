@@ -1814,6 +1814,7 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	INIT_VNET_IPFW(curvnet);
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
+	struct radix_node *rn;
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
@@ -1827,9 +1828,9 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
 	IPFW_WLOCK(ch);
 	RADIX_NODE_HEAD_LOCK(rnh);
-	if (rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent) ==
+	rn = rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
-	    NULL) {
+	if (rn == NULL) {
 		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
 		return (EEXIST);
