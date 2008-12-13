@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 #include <arm/xscale/ixp425/if_npereg.h>
 
+#include <machine/armreg.h>
+
 #include "miibus_if.h"
 
 /* 
@@ -121,6 +123,7 @@ struct npe_softc {
 	bus_space_handle_t sc_ioh;	/* MAC register window */
 	device_t	sc_mii;		/* child miibus */
 	bus_space_handle_t sc_miih;	/* MII register window */
+	int		sc_npeid;
 	struct ixpnpe_softc *sc_npe;	/* NPE support */
 	int		sc_debug;	/* DPRINTF* control */
 	int		sc_tickinterval;
@@ -143,7 +146,7 @@ struct npe_softc {
 };
 
 /*
- * Per-unit static configuration for IXP425.  The tx and
+ * Static configuration for IXP425.  The tx and
  * rx free Q id's are fixed by the NPE microcode.  The
  * rx Q id's are programmed to be separate to simplify
  * multi-port processing.  It may be better to handle
@@ -154,39 +157,39 @@ struct npe_softc {
  * assumptions probably need to be handled through hints.
  */
 static const struct {
-	const char	*desc;		/* device description */
-	int		npeid;		/* NPE assignment */
-	uint32_t	imageid;	/* NPE firmware image id */
-	uint32_t	regbase;
-	int		regsize;
+	uint32_t	imageid;	/* default fw image */
+	uint32_t	macbase;
 	uint32_t	miibase;
-	int		miisize;
 	int		phy;		/* phy id */
 	uint8_t		rx_qid;
 	uint8_t		rx_freeqid;
 	uint8_t		tx_qid;
 	uint8_t		tx_doneqid;
-} npeconfig[NPE_PORTS_MAX] = {
-	{ .desc		= "IXP NPE-B",
-	  .npeid	= NPE_B,
+} npeconfig[NPE_MAX] = {
+	[NPE_A] = {
+	  .imageid	= IXP425_NPE_A_IMAGEID,
+	  .macbase	= IXP435_MAC_A_HWBASE,
+	  .miibase	= IXP425_MAC_C_HWBASE,
+	  .phy		= 2,
+	  .rx_qid	= 4,
+	  .rx_freeqid	= 26,
+	  .tx_qid	= 23,
+	  .tx_doneqid	= 31
+	},
+	[NPE_B] = {
 	  .imageid	= IXP425_NPE_B_IMAGEID,
-	  .regbase	= IXP425_MAC_A_HWBASE,
-	  .regsize	= IXP425_MAC_A_SIZE,
-	  .miibase	= IXP425_MAC_A_HWBASE,
-	  .miisize	= IXP425_MAC_A_SIZE,
+	  .macbase	= IXP425_MAC_B_HWBASE,
+	  .miibase	= IXP425_MAC_C_HWBASE,
 	  .phy		= 0,
 	  .rx_qid	= 4,
 	  .rx_freeqid	= 27,
 	  .tx_qid	= 24,
 	  .tx_doneqid	= 31
 	},
-	{ .desc		= "IXP NPE-C",
-	  .npeid	= NPE_C,
+	[NPE_C] = {
 	  .imageid	= IXP425_NPE_C_IMAGEID,
-	  .regbase	= IXP425_MAC_B_HWBASE,
-	  .regsize	= IXP425_MAC_B_SIZE,
-	  .miibase	= IXP425_MAC_A_HWBASE,
-	  .miisize	= IXP425_MAC_A_SIZE,
+	  .macbase	= IXP425_MAC_C_HWBASE,
+	  .miibase	= IXP425_MAC_C_HWBASE,
 	  .phy		= 1,
 	  .rx_qid	= 12,
 	  .rx_freeqid	= 28,
@@ -219,6 +222,7 @@ WR4(struct npe_softc *sc, bus_size_t off, uint32_t val)
 
 static devclass_t npe_devclass;
 
+static int	override_npeid(device_t, const char *resname, int *val);
 static int	npe_activate(device_t dev);
 static void	npe_deactivate(device_t dev);
 static int	npe_ifmedia_update(struct ifnet *ifp);
@@ -238,6 +242,7 @@ static int	npeioctl(struct ifnet * ifp, u_long, caddr_t);
 
 static int	npe_setrxqosentry(struct npe_softc *, int classix,
 			int trafclass, int qid);
+static int	npe_setfirewallmode(struct npe_softc *, int onoff);
 static int	npe_updatestats(struct npe_softc *);
 #if 0
 static int	npe_getstats(struct npe_softc *);
@@ -248,11 +253,11 @@ static int	npe_setloopback(struct npe_softc *, int ena);
 /* NB: all tx done processing goes through one queue */
 static int tx_doneqid = -1;
 
-SYSCTL_NODE(_hw, OID_AUTO, npe, CTLFLAG_RD, 0, "IXP425 NPE driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, npe, CTLFLAG_RD, 0, "IXP4XX NPE driver parameters");
 
 static int npe_debug = 0;
 SYSCTL_INT(_hw_npe, OID_AUTO, debug, CTLFLAG_RW, &npe_debug,
-	   0, "IXP425 NPE network interface debug msgs");
+	   0, "IXP4XX NPE network interface debug msgs");
 TUNABLE_INT("hw.npe.npe", &npe_debug);
 #define	DPRINTF(sc, fmt, ...) do {					\
 	if (sc->sc_debug) device_printf(sc->sc_dev, fmt, __VA_ARGS__);	\
@@ -275,16 +280,38 @@ SYSCTL_INT(_hw_npe, OID_AUTO, txbuf, CTLFLAG_RD, &npe_txbuf,
 TUNABLE_INT("hw.npe.txbuf", &npe_txbuf);
 
 static int
+unit2npeid(int unit)
+{
+	static const int npeidmap[2][3] = {
+		/* on 425 A is for HSS, B & C are for Ethernet */
+		{ NPE_B, NPE_C, -1 },	/* IXP425 */
+		/* 435 only has A & C, order C then A */
+		{ NPE_C, NPE_A, -1 },	/* IXP435 */
+	};
+	/* XXX check feature register instead */
+	return (unit < 3 ? npeidmap[
+	    (cpu_id() & CPU_ID_CPU_MASK) == CPU_ID_IXP435][unit] : -1);
+}
+
+static int
 npe_probe(device_t dev)
 {
-	int unit = device_get_unit(dev);
+	static const char *desc[NPE_MAX] = {
+		[NPE_A] = "IXP NPE-A",
+		[NPE_B] = "IXP NPE-B",
+		[NPE_C] = "IXP NPE-C"
+	};
+	int npeid;
 
-	if (unit >= NPE_PORTS_MAX) {
-		device_printf(dev, "unit %d not supported\n", unit);
+	npeid = -1;
+	if (!override_npeid(dev, "npeid", &npeid))
+		npeid = unit2npeid(device_get_unit(dev));
+	if (npeid == -1) {
+		device_printf(dev, "unit not supported\n");
 		return EINVAL;
 	}
 	/* XXX check feature register to see if enabled */
-	device_set_desc(dev, npeconfig[unit].desc);
+	device_set_desc(dev, desc[npeid]);
 	return 0;
 }
 
@@ -295,7 +322,7 @@ npe_attach(device_t dev)
 	struct ixp425_softc *sa = device_get_softc(device_get_parent(dev));
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
-	struct ifnet *ifp = NULL;
+	struct ifnet *ifp;
 	int error;
 	u_char eaddr[6];
 
@@ -306,25 +333,22 @@ npe_attach(device_t dev)
 	sc->sc_debug = npe_debug;
 	sc->sc_tickinterval = npe_tickinterval;
 
-	sc->sc_npe = ixpnpe_attach(dev);
-	if (sc->sc_npe == NULL) {
+	ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "cannot allocate ifnet\n");
 		error = EIO;		/* XXX */
 		goto out;
 	}
+	/* NB: must be setup prior to invoking mii code */
+	sc->sc_ifp = ifp;
 
 	error = npe_activate(dev);
-	if (error)
-		goto out;
-
-	npe_getmac(sc, eaddr);
-
-	/* NB: must be setup prior to invoking mii code */
-	sc->sc_ifp = ifp = if_alloc(IFT_ETHER);
-	if (mii_phy_probe(dev, &sc->sc_mii, npe_ifmedia_update, npe_ifmedia_status)) {
-		device_printf(dev, "Cannot find my PHY.\n");
-		error = ENXIO;
+	if (error) {
+		device_printf(dev, "cannot activate npe\n");
 		goto out;
 	}
+
+	npe_getmac(sc, eaddr);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -350,9 +374,10 @@ npe_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	return 0;
 out:
-	npe_deactivate(dev);
 	if (ifp != NULL)
 		if_free(ifp);
+	NPE_LOCK_DESTROY(sc);
+	npe_deactivate(dev);
 	return error;
 }
 
@@ -373,8 +398,6 @@ npe_detach(device_t dev)
 	}
 	NPE_LOCK_DESTROY(sc);
 	npe_deactivate(dev);
-	if (sc->sc_npe != NULL)
-		ixpnpe_detach(sc->sc_npe);
 	return 0;
 }
 
@@ -536,7 +559,6 @@ npe_dma_destroy(struct npe_softc *sc, struct npedma *dma)
 		}
 		bus_dmamap_unload(dma->buf_tag, dma->buf_map);
 		bus_dmamem_free(dma->buf_tag, dma->hwbuf, dma->buf_map);
-		bus_dmamap_destroy(dma->buf_tag, dma->buf_map);
 	}
 	if (dma->buf != NULL)
 		free(dma->buf, M_TEMP);
@@ -548,7 +570,7 @@ npe_dma_destroy(struct npe_softc *sc, struct npedma *dma)
 }
 
 static int
-override_addr(device_t dev, const char *resname, int *base, int *size)
+override_addr(device_t dev, const char *resname, int *base)
 {
 	int unit = device_get_unit(dev);
 	const char *resval;
@@ -558,13 +580,38 @@ override_addr(device_t dev, const char *resname, int *base, int *size)
 		return 0;
 	switch (resval[0]) {
 	case 'A':
-		*base = IXP425_MAC_A_HWBASE;
-		*size = IXP425_MAC_A_SIZE;
+		*base = IXP435_MAC_A_HWBASE;
 		break;
 	case 'B':
 		*base = IXP425_MAC_B_HWBASE;
-		*size = IXP425_MAC_B_SIZE;
 		break;
+	case 'C':
+		*base = IXP425_MAC_C_HWBASE;
+		break;
+	default:
+		device_printf(dev, "Warning, bad value %s for "
+		    "npe.%d.%s ignored\n", resval, unit, resname);
+		return 0;
+	}
+	if (bootverbose)
+		device_printf(dev, "using npe.%d.%s=%s override\n",
+		    unit, resname, resval);
+	return 1;
+}
+
+static int
+override_npeid(device_t dev, const char *resname, int *npeid)
+{
+	int unit = device_get_unit(dev);
+	const char *resval;
+
+	/* XXX warn for wrong hint type */
+	if (resource_string_value("npe", unit, resname, &resval) != 0)
+		return 0;
+	switch (resval[0]) {
+	case 'A': *npeid = NPE_A; break;
+	case 'B': *npeid = NPE_B; break;
+	case 'C': *npeid = NPE_C; break;
 	default:
 		device_printf(dev, "Warning, bad value %s for "
 		    "npe.%d.%s ignored\n", resval, unit, resname);
@@ -598,12 +645,81 @@ override_unit(device_t dev, const char *resname, int *val, int min, int max)
 }
 
 static int
+override_imageid(device_t dev, const char *resname, uint32_t *val)
+{
+	int unit = device_get_unit(dev);
+	int resval;
+
+	if (resource_int_value("npe", unit, resname, &resval) != 0)
+		return 0;
+	/* XXX validate */
+	if (bootverbose)
+		device_printf(dev, "using npe.%d.%s=0x%x override\n",
+		    unit, resname, resval);
+	*val = resval;
+	return 1;
+}
+
+static void
+npe_mac_reset(struct npe_softc *sc)
+{
+	/*
+	 * Reset MAC core.
+	 */
+	WR4(sc, NPE_MAC_CORE_CNTRL, NPE_CORE_RESET);
+	DELAY(NPE_MAC_RESET_DELAY);
+	/* configure MAC to generate MDC clock */
+	WR4(sc, NPE_MAC_CORE_CNTRL, NPE_CORE_MDC_EN);
+}
+
+static int
 npe_activate(device_t dev)
 {
 	struct npe_softc * sc = device_get_softc(dev);
-	int unit = device_get_unit(dev);
-	int error, i, regbase, regsize, miibase, miisize;
-	uint32_t imageid;
+	int error, i, macbase, miibase;
+	uint32_t imageid, msg[2];
+
+	/*
+	 * Setup NEP ID, MAC, and MII bindings.  We allow override
+	 * via hints to handle unexpected board configs.
+	 */
+	if (!override_npeid(dev, "npeid", &sc->sc_npeid))
+		sc->sc_npeid = unit2npeid(device_get_unit(dev));
+	sc->sc_npe = ixpnpe_attach(dev, sc->sc_npeid);
+	if (sc->sc_npe == NULL) {
+		device_printf(dev, "cannot attach ixpnpe\n");
+		return EIO;		/* XXX */
+	}
+
+	/* MAC */
+	if (!override_addr(dev, "mac", &macbase))
+		macbase = npeconfig[sc->sc_npeid].macbase;
+	device_printf(sc->sc_dev, "MAC at 0x%x\n", macbase);
+	if (bus_space_map(sc->sc_iot, macbase, IXP425_REG_SIZE, 0, &sc->sc_ioh)) {
+		device_printf(dev, "cannot map mac registers 0x%x:0x%x\n",
+		    macbase, IXP425_REG_SIZE);
+		return ENOMEM;
+	}
+
+	/* PHY */
+	if (!override_unit(dev, "phy", &sc->sc_phy, 0, MII_NPHY-1))
+		sc->sc_phy = npeconfig[sc->sc_npeid].phy;
+	if (!override_addr(dev, "mii", &miibase))
+		miibase = npeconfig[sc->sc_npeid].miibase;
+	device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
+	if (miibase != macbase) {
+		/*
+		 * PHY is mapped through a different MAC, setup an
+		 * additional mapping for frobbing the PHY registers.
+		 */
+		if (bus_space_map(sc->sc_iot, miibase, IXP425_REG_SIZE, 0, &sc->sc_miih)) {
+			device_printf(dev,
+			    "cannot map MII registers 0x%x:0x%x\n",
+			    miibase, IXP425_REG_SIZE);
+			return ENOMEM;
+		}
+	} else
+		sc->sc_miih = sc->sc_ioh;
 
 	/*
 	 * Load NPE firmware and start it running.  We assume
@@ -611,47 +727,38 @@ npe_activate(device_t dev)
 	 * the firmware image starting with the expected version
 	 * and then bump the minor version up to the max.
 	 */
-	imageid = npeconfig[unit].imageid;
+	if (!override_imageid(dev, "imageid", &imageid))
+		imageid = npeconfig[sc->sc_npeid].imageid;
 	for (;;) {
 		error = ixpnpe_init(sc->sc_npe, "npe_fw", imageid);
 		if (error == 0)
 			break;
 		/* ESRCH is returned when the requested image is not present */
-		if (error != ESRCH)
+		if (error != ESRCH) {
+			device_printf(dev, "cannot init NPE (error %d)\n",
+			    error);
 			return error;
+		}
 		/* bump the minor version up to the max possible */
-		if (NPEIMAGE_MINOR(imageid) == 0xff)
+		if (NPEIMAGE_MINOR(imageid) == 0xff) {
+			device_printf(dev, "cannot locate firmware "
+			    "(imageid 0x%08x)\n", imageid);
 			return error;
+		}
 		imageid++;
 	}
-
-	if (!override_addr(dev, "mac", &regbase, &regsize)) {
-		regbase = npeconfig[unit].regbase;
-		regbase = npeconfig[unit].regsize;
-	}
-	if (bus_space_map(sc->sc_iot, regbase, regsize, 0, &sc->sc_ioh)) {
-		device_printf(dev, "Cannot map registers 0x%x:0x%x\n",
-		    regbase, regsize);
-		return ENOMEM;
+	/* NB: firmware should respond with a status msg */
+	if (ixpnpe_recvmsg_sync(sc->sc_npe, msg) != 0) {
+		device_printf(dev, "firmware did not respond as expected\n");
+		return EIO;
 	}
 
-	if (!override_addr(dev, "mii", &miibase, &miisize)) {
-		miibase = npeconfig[unit].miibase;
-		miisize = npeconfig[unit].miisize;
+	/* probe for PHY */
+	if (mii_phy_probe(dev, &sc->sc_mii, npe_ifmedia_update, npe_ifmedia_status)) {
+		device_printf(dev, "cannot find PHY %d.\n", sc->sc_phy);
+		return ENXIO;
 	}
-	if (miibase != regbase) {
-		/*
-		 * PHY is mapped through a different MAC, setup an
-		 * additional mapping for frobbing the PHY registers.
-		 */
-		if (bus_space_map(sc->sc_iot, miibase, miisize, 0, &sc->sc_miih)) {
-			device_printf(dev,
-			    "Cannot map MII registers 0x%x:0x%x\n",
-			    miibase, miisize);
-			return ENOMEM;
-		}
-	} else
-		sc->sc_miih = sc->sc_ioh;
+
 	error = npe_dma_setup(sc, &sc->txdma, "tx", npe_txbuf, NPE_MAXSEG);
 	if (error != 0)
 		return error;
@@ -685,8 +792,6 @@ npe_activate(device_t dev)
 	}
 	sc->sc_stats_phys = sc->buf_phys;
 
-	/* XXX disable half-bridge LEARNING+FILTERING feature */
-
 	/*
 	 * Setup h/w rx/tx queues.  There are four q's:
 	 *   rx		inbound q of rx'd frames
@@ -703,22 +808,24 @@ npe_activate(device_t dev)
 	 * when the rx q has at least one frame.  These setings can
 	 * changed at the time the q is configured.
 	 */
-	sc->rx_qid = npeconfig[unit].rx_qid;
+	sc->rx_qid = npeconfig[sc->sc_npeid].rx_qid;
 	ixpqmgr_qconfig(sc->rx_qid, npe_rxbuf, 0,  1,
 		IX_QMGR_Q_SOURCE_ID_NOT_E, npe_rxdone, sc);
-	sc->rx_freeqid = npeconfig[unit].rx_freeqid;
+	sc->rx_freeqid = npeconfig[sc->sc_npeid].rx_freeqid;
 	ixpqmgr_qconfig(sc->rx_freeqid,	npe_rxbuf, 0, npe_rxbuf/2, 0, NULL, sc);
-	/* tell the NPE to direct all traffic to rx_qid */
-#if 0
+	/*
+	 * Setup the NPE to direct all traffic to rx_qid.
+	 * When QoS is enabled in the firmware there are
+	 * 8 traffic classes; otherwise just 4.
+	 */
 	for (i = 0; i < 8; i++)
-#else
-device_printf(sc->sc_dev, "remember to fix rx q setup\n");
-	for (i = 0; i < 4; i++)
-#endif
 		npe_setrxqosentry(sc, i, 0, sc->rx_qid);
 
-	sc->tx_qid = npeconfig[unit].tx_qid;
-	sc->tx_doneqid = npeconfig[unit].tx_doneqid;
+	/* disable firewall mode just in case (should be off) */
+	npe_setfirewallmode(sc, 0);
+
+	sc->tx_qid = npeconfig[sc->sc_npeid].tx_qid;
+	sc->tx_doneqid = npeconfig[sc->sc_npeid].tx_doneqid;
 	ixpqmgr_qconfig(sc->tx_qid, npe_txbuf, 0, npe_txbuf, 0, NULL, sc);
 	if (tx_doneqid == -1) {
 		ixpqmgr_qconfig(sc->tx_doneqid,	npe_txbuf, 0,  2,
@@ -726,16 +833,9 @@ device_printf(sc->sc_dev, "remember to fix rx q setup\n");
 		tx_doneqid = sc->tx_doneqid;
 	}
 
-	/*
-	 * Setup phy port number.  We allow override via hints
-	 * to handle different board configs.
-	 */
-	if (!override_unit(dev, "phy", &sc->sc_phy, 0, MII_NPHY-1))
-		sc->sc_phy = npeconfig[unit].phy;
-
-	KASSERT(npes[npeconfig[unit].npeid] == NULL,
-	    ("npe %u already setup", npeconfig[unit].npeid));
-	npes[npeconfig[unit].npeid] = sc;
+	KASSERT(npes[sc->sc_npeid] == NULL,
+	    ("npe %u already setup", sc->sc_npeid));
+	npes[sc->sc_npeid] = sc;
 
 	return 0;
 }
@@ -744,33 +844,26 @@ static void
 npe_deactivate(device_t dev)
 {
 	struct npe_softc *sc = device_get_softc(dev);
-	int unit = device_get_unit(dev);
 
-	npes[npeconfig[unit].npeid] = NULL;
+	npes[sc->sc_npeid] = NULL;
 
 	/* XXX disable q's */
-	if (sc->sc_npe != NULL)
+	if (sc->sc_npe != NULL) {
 		ixpnpe_stop(sc->sc_npe);
+		ixpnpe_detach(sc->sc_npe);
+	}
 	if (sc->sc_stats != NULL) {
 		bus_dmamap_unload(sc->sc_stats_tag, sc->sc_stats_map);
 		bus_dmamem_free(sc->sc_stats_tag, sc->sc_stats,
 			sc->sc_stats_map);
-		bus_dmamap_destroy(sc->sc_stats_tag, sc->sc_stats_map);
 	}
 	if (sc->sc_stats_tag != NULL)
 		bus_dma_tag_destroy(sc->sc_stats_tag);
 	npe_dma_destroy(sc, &sc->txdma);
 	npe_dma_destroy(sc, &sc->rxdma);
 	bus_generic_detach(sc->sc_dev);
-	if (sc->sc_mii)
+	if (sc->sc_mii != NULL)
 		device_delete_child(sc->sc_dev, sc->sc_mii);
-#if 0
-	/* XXX sc_ioh and sc_miih */
-	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_IOPORT,
-		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
-#endif
 }
 
 /*
@@ -867,7 +960,7 @@ npe_tick(void *xsc)
 	 * code that talks via the mailbox's (except at setup).
 	 * This likely can be handled better.
 	 */
-	if (ixpnpe_recvmsg(sc->sc_npe, msg) == 0 && msg[0] == ACK) {
+	if (ixpnpe_recvmsg_async(sc->sc_npe, msg) == 0 && msg[0] == ACK) {
 		bus_dmamap_sync(sc->sc_stats_tag, sc->sc_stats_map,
 		    BUS_DMASYNC_POSTREAD);
 		npe_addstats(sc);
@@ -1139,10 +1232,7 @@ if (ifp->if_drv_flags & IFF_DRV_RUNNING) return;/*XXX*/
 	/*
 	 * Reset MAC core.
 	 */
-	WR4(sc, NPE_MAC_CORE_CNTRL, NPE_CORE_RESET);
-	DELAY(NPE_MAC_RESET_DELAY);
-	/* configure MAC to generate MDC clock */
-	WR4(sc, NPE_MAC_CORE_CNTRL, NPE_CORE_MDC_EN);
+	npe_mac_reset(sc);
 
 	/* disable transmitter and reciver in the MAC */
  	WR4(sc, NPE_MAC_RX_CNTRL1,
@@ -1470,12 +1560,22 @@ npeioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 npe_setrxqosentry(struct npe_softc *sc, int classix, int trafclass, int qid)
 {
-	int npeid = npeconfig[device_get_unit(sc->sc_dev)].npeid;
 	uint32_t msg[2];
 
-	msg[0] = (NPE_SETRXQOSENTRY << 24) | (npeid << 20) | classix;
+	msg[0] = (NPE_SETRXQOSENTRY << 24) | (sc->sc_npeid << 20) | classix;
 	msg[1] = (trafclass << 24) | (1 << 23) | (qid << 16) | (qid << 4);
-	return ixpnpe_sendandrecvmsg(sc->sc_npe, msg, msg);
+	return ixpnpe_sendandrecvmsg_sync(sc->sc_npe, msg, msg);
+}
+
+static int
+npe_setfirewallmode(struct npe_softc *sc, int onoff)
+{
+	uint32_t msg[2];
+
+	/* XXX honor onoff */
+	msg[0] = (NPE_SETFIREWALLMODE << 24) | (sc->sc_npeid << 20);
+	msg[1] = 0;
+	return ixpnpe_sendandrecvmsg_sync(sc->sc_npe, msg, msg);
 }
 
 /*
@@ -1488,7 +1588,7 @@ npe_updatestats(struct npe_softc *sc)
 
 	msg[0] = NPE_RESETSTATS << NPE_MAC_MSGID_SHL;
 	msg[1] = sc->sc_stats_phys;	/* physical address of stat block */
-	return ixpnpe_sendmsg(sc->sc_npe, msg);		/* NB: no recv */
+	return ixpnpe_sendmsg_async(sc->sc_npe, msg);
 }
 
 #if 0
@@ -1515,7 +1615,7 @@ npe_getimageid(struct npe_softc *sc)
 
 	msg[0] = NPE_GETSTATUS << NPE_MAC_MSGID_SHL;
 	msg[1] = 0;
-	return ixpnpe_sendandrecvmsg(sc->sc_npe, msg, msg) == 0 ? msg[1] : 0;
+	return ixpnpe_sendandrecvmsg_sync(sc->sc_npe, msg, msg) == 0 ? msg[1] : 0;
 }
 
 /*
@@ -1528,7 +1628,7 @@ npe_setloopback(struct npe_softc *sc, int ena)
 
 	msg[0] = (NPE_SETLOOPBACK << NPE_MAC_MSGID_SHL) | (ena != 0);
 	msg[1] = 0;
-	return ixpnpe_sendandrecvmsg(sc->sc_npe, msg, msg);
+	return ixpnpe_sendandrecvmsg_sync(sc->sc_npe, msg, msg);
 }
 #endif
 
@@ -1545,10 +1645,13 @@ npe_child_detached(device_t dev, device_t child)
 /*
  * MII bus support routines.
  */
+#define	MII_RD4(sc, reg)	bus_space_read_4(sc->sc_iot, sc->sc_miih, reg)
+#define	MII_WR4(sc, reg, v) \
+	bus_space_write_4(sc->sc_iot, sc->sc_miih, reg, v)
+
 static uint32_t
 npe_mii_mdio_read(struct npe_softc *sc, int reg)
 {
-#define	MII_RD4(sc, reg)	bus_space_read_4(sc->sc_iot, sc->sc_miih, reg)
 	uint32_t v;
 
 	/* NB: registers are known to be sequential */
@@ -1557,37 +1660,34 @@ npe_mii_mdio_read(struct npe_softc *sc, int reg)
 	v |= (MII_RD4(sc, reg+8) & 0xff) << 16;
 	v |= (MII_RD4(sc, reg+12) & 0xff) << 24;
 	return v;
-#undef MII_RD4
 }
 
 static void
 npe_mii_mdio_write(struct npe_softc *sc, int reg, uint32_t cmd)
 {
-#define	MII_WR4(sc, reg, v) \
-	bus_space_write_4(sc->sc_iot, sc->sc_miih, reg, v)
-
 	/* NB: registers are known to be sequential */
 	MII_WR4(sc, reg+0, cmd & 0xff);
 	MII_WR4(sc, reg+4, (cmd >> 8) & 0xff);
 	MII_WR4(sc, reg+8, (cmd >> 16) & 0xff);
 	MII_WR4(sc, reg+12, (cmd >> 24) & 0xff);
-#undef MII_WR4
 }
 
 static int
 npe_mii_mdio_wait(struct npe_softc *sc)
 {
-#define	MAXTRIES	100	/* XXX */
 	uint32_t v;
 	int i;
 
-	for (i = 0; i < MAXTRIES; i++) {
+	/* NB: typically this takes 25-30 trips */
+	for (i = 0; i < 1000; i++) {
 		v = npe_mii_mdio_read(sc, NPE_MAC_MDIO_CMD);
 		if ((v & NPE_MII_GO) == 0)
 			return 1;
+		DELAY(1);
 	}
+	device_printf(sc->sc_dev, "%s: timeout after ~1ms, cmd 0x%x\n",
+	    __func__, v);
 	return 0;		/* NB: timeout */
-#undef MAXTRIES
 }
 
 static int
@@ -1598,15 +1698,13 @@ npe_miibus_readreg(device_t dev, int phy, int reg)
 
 	if (phy != sc->sc_phy)		/* XXX no auto-detect */
 		return 0xffff;
-	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL)
-	  | NPE_MII_GO;
+	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL) | NPE_MII_GO;
 	npe_mii_mdio_write(sc, NPE_MAC_MDIO_CMD, v);
 	if (npe_mii_mdio_wait(sc))
 		v = npe_mii_mdio_read(sc, NPE_MAC_MDIO_STS);
 	else
 		v = 0xffff | NPE_MII_READ_FAIL;
 	return (v & NPE_MII_READ_FAIL) ? 0xffff : (v & 0xffff);
-#undef MAXTRIES
 }
 
 static void

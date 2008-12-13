@@ -44,3 +44,5 @@ IxNpeMicrocode.dat			optional npe_fw			\
 # Q-Manager support
 #
 arm/xscale/ixp425/ixp425_qmgr.c		optional qmgr
+#
+arm/xscale/ixp425/ixp435_ehci.c		optional ehci

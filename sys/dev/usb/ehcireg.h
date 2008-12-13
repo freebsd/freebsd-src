@@ -173,6 +173,15 @@
 #define  EHCI_PS_CS		0x00000001 /* RO connect status */
 #define  EHCI_PS_CLEAR		(EHCI_PS_OCC|EHCI_PS_PEC|EHCI_PS_CSC)
 
+#define	EHCI_USBMODE		0x68	/* RW USB Device mode register */
+#define	 EHCI_UM_CM		0x00000003 /* R/WO Controller Mode */
+#define	  EHCI_UM_CM_IDLE	0x0	/* Idle */
+#define	  EHCI_UM_CM_HOST	0x3	/* Host Controller */
+#define	 EHCI_UM_ES		0x00000004 /* R/WO Endian Select */
+#define	  EHCI_UM_ES_LE		0x0	/* Little-endian byte alignment */
+#define	  EHCI_UM_ES_BE		0x4	/* Big-endian byte alignment */
+#define	 EHCI_UM_SDIS		0x00000010 /* R/WO Stream Disable Mode */
+
 #define EHCI_PORT_RESET_COMPLETE 2 /* ms */
 
 #define EHCI_FLALIGN_ALIGN	0x1000
@@ -278,6 +287,9 @@ typedef struct {
 	ehci_physaddr_t qtd_buffer_hi[EHCI_QTD_NBUFFERS];
 } ehci_qtd_t;
 #define EHCI_QTD_ALIGN 32
+
+#define	EHCI_QTD_STATUS_BITS \
+	"\20\10ACTIVE\7HALTED\6BUFERR\5BABBLE\4XACTERR\3MISSED\2SPLIT\1PING"
 
 /* Queue Head */
 typedef struct {

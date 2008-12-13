@@ -95,6 +95,11 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/ixp425/ixp425reg.h>
 #include <arm/xscale/ixp425/ixp425var.h>
 
+/* kernel text starts where we were loaded at boot */
+#define	KERNEL_TEXT_OFF		(KERNPHYSADDR  - PHYSADDR)
+#define	KERNEL_TEXT_BASE	(KERNBASE + KERNEL_TEXT_OFF)
+#define	KERNEL_TEXT_PHYS	(PHYSADDR + KERNEL_TEXT_OFF)
+
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
 #define	KERNEL_PT_IO		1
 #define KERNEL_PT_IO_NUM	3
@@ -142,114 +147,109 @@ static struct trapframe proc0_tf;
 /* Static device mappings. */
 static const struct pmap_devmap ixp425_devmap[] = {
 	/* Physical/Virtual address for I/O space */
-    {
-	IXP425_IO_VBASE,
-	IXP425_IO_HWBASE,
-	IXP425_IO_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
+    { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
 	/* Expansion Bus */
-    {
-	IXP425_EXP_VBASE,
-	IXP425_EXP_HWBASE,
-	IXP425_EXP_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
+    { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
 	/* IXP425 PCI Configuration */
-    {
-	IXP425_PCI_VBASE,
-	IXP425_PCI_HWBASE,
-	IXP425_PCI_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
+    { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
 	/* SDRAM Controller */
-    {
-	IXP425_MCU_VBASE,
-	IXP425_MCU_HWBASE,
-	IXP425_MCU_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
+    { IXP425_MCU_VBASE, IXP425_MCU_HWBASE, IXP425_MCU_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
 	/* PCI Memory Space */
-    {
-	IXP425_PCI_MEM_VBASE,
-	IXP425_PCI_MEM_HWBASE,
-	IXP425_PCI_MEM_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
-	/* NPE-A Memory Space */
-    {
-	IXP425_NPE_A_VBASE,
-	IXP425_NPE_A_HWBASE,
-	IXP425_NPE_A_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
-	/* NPE-B Memory Space */
-    {
-	IXP425_NPE_B_VBASE,
-	IXP425_NPE_B_HWBASE,
-	IXP425_NPE_B_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
-	/* NPE-C Memory Space */
-    {
-	IXP425_NPE_C_VBASE,
-	IXP425_NPE_C_HWBASE,
-	IXP425_NPE_C_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
-	/* MAC-A Memory Space */
-    {
-	IXP425_MAC_A_VBASE,
-	IXP425_MAC_A_HWBASE,
-	IXP425_MAC_A_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
-	/* MAC-B Memory Space */
-    {
-	IXP425_MAC_B_VBASE,
-	IXP425_MAC_B_HWBASE,
-	IXP425_MAC_B_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
-	/* Q-Mgr Memory Space */
-    {
-	IXP425_QMGR_VBASE,
-	IXP425_QMGR_HWBASE,
-	IXP425_QMGR_SIZE,
-	VM_PROT_READ|VM_PROT_WRITE,
-	PTE_NOCACHE,
-    },
+    { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
-    {
-	0,
-	0,
-	0,
-	0,
-	0,
-    }
+	/* Q-Mgr Memory Space */
+    { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* NPE-A Memory Space */
+    { IXP425_NPE_A_VBASE, IXP425_NPE_A_HWBASE, IXP425_NPE_A_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+	/* NPE-B Memory Space */
+    { IXP425_NPE_B_VBASE, IXP425_NPE_B_HWBASE, IXP425_NPE_B_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+	/* NPE-C Memory Space */
+    { IXP425_NPE_C_VBASE, IXP425_NPE_C_HWBASE, IXP425_NPE_C_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* MAC-B Memory Space */
+    { IXP425_MAC_B_VBASE, IXP425_MAC_B_HWBASE, IXP425_MAC_B_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+	/* MAC-C Memory Space */
+    { IXP425_MAC_C_VBASE, IXP425_MAC_C_HWBASE, IXP425_MAC_C_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+    { 0 },
 };
 
-#define SDRAM_START 0x10000000
+/* Static device mappings. */
+static const struct pmap_devmap ixp435_devmap[] = {
+	/* Physical/Virtual address for I/O space */
+    { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* Expansion Bus */
+    { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* IXP425 PCI Configuration */
+    { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* DDRII Controller NB: mapped same place as IXP425 */
+    { IXP425_MCU_VBASE, IXP435_MCU_HWBASE, IXP425_MCU_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* PCI Memory Space */
+    { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* Q-Mgr Memory Space */
+    { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* NPE-A Memory Space */
+    { IXP425_NPE_A_VBASE, IXP425_NPE_A_HWBASE, IXP425_NPE_A_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+	/* NPE-C Memory Space */
+    { IXP425_NPE_C_VBASE, IXP425_NPE_C_HWBASE, IXP425_NPE_C_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* MAC-C Memory Space */
+    { IXP425_MAC_C_VBASE, IXP425_MAC_C_HWBASE, IXP425_MAC_C_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+	/* MAC-B Memory Space */
+    { IXP425_MAC_B_VBASE, IXP425_MAC_B_HWBASE, IXP425_MAC_B_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+	/* MAC-A Memory Space */
+    { IXP435_MAC_A_VBASE, IXP435_MAC_A_HWBASE, IXP435_MAC_A_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* USB1 Memory Space */
+    { IXP435_USB1_VBASE, IXP435_USB1_HWBASE, IXP435_USB1_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+	/* USB2 Memory Space */
+    { IXP435_USB2_VBASE, IXP435_USB2_HWBASE, IXP435_USB2_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+    { 0 }
+};
 
 extern vm_offset_t xscale_cache_clean_addr;
 
 void *
 initarm(void *arg, void *arg2)
 {
+#define	next_chunk2(a,b)	(((a) + (b)) &~ ((b)-1))
+#define	next_page(a)		next_chunk2(a,PAGE_SIZE)
 	struct pv_addr  kernel_l1pt;
 	int loop, i;
 	u_int l1pagetable;
@@ -260,25 +260,40 @@ initarm(void *arg, void *arg2)
 	vm_offset_t lastaddr;
 	uint32_t memsize;
 
-	set_cpufuncs();
+	set_cpufuncs();		/* NB: sets cputype */
 	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
-	freemempos = 0x10200000;
-	/* Define a macro to simplify memory allocation */
-#define	valloc_pages(var, np)			\
-	alloc_pages((var).pv_pa, (np));		\
-	(var).pv_va = (var).pv_pa + 0xb0000000;
+	/*
+	 * We allocate memory downwards from where we were loaded
+	 * by RedBoot; first the L1 page table, then NUM_KERNEL_PTS
+	 * entries in the L2 page table.  Past that we re-align the
+	 * allocation boundary so later data structures (stacks, etc)
+	 * can be mapped with different attributes (write-back vs
+	 * write-through).  Note this leaves a gap for expansion
+	 * (or might be repurposed).
+	 */
+	freemempos = KERNPHYSADDR;
 
-#define alloc_pages(var, np)			\
-	freemempos -= (np * PAGE_SIZE);		\
-	(var) = freemempos;		\
-	memset((char *)(var), 0, ((np) * PAGE_SIZE));
+	/* macros to simplify initial memory allocation */
+#define alloc_pages(var, np) do {					\
+	freemempos -= (np * PAGE_SIZE);					\
+	(var) = freemempos;						\
+	/* NB: this works because locore maps PA=VA */			\
+	memset((char *)(var), 0, ((np) * PAGE_SIZE));			\
+} while (0)
+#define	valloc_pages(var, np) do {					\
+	alloc_pages((var).pv_pa, (np));					\
+	(var).pv_va = (var).pv_pa + (KERNVIRTADDR - KERNPHYSADDR);	\
+} while (0)
 
+	/* force L1 page table alignment */
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
 		freemempos -= PAGE_SIZE;
+	/* allocate contiguous L1 page table */
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
+	/* now allocate L2 page tables; they are linked to L1 below */
 	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
 		if (!(loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
 			valloc_pages(kernel_pt_table[loop],
@@ -288,11 +303,18 @@ initarm(void *arg, void *arg2)
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[loop].pv_va = 
-			    kernel_pt_table[loop].pv_pa + 0xb0000000;
+			    kernel_pt_table[loop].pv_pa +
+				(KERNVIRTADDR - KERNPHYSADDR);
 		}
 	}
-	freemem_pt = freemempos;
-	freemempos = 0x10100000;
+	freemem_pt = freemempos;		/* base of allocated pt's */
+
+	/*
+	 * Re-align allocation boundary so we can map the area
+	 * write-back instead of write-through for the stacks and
+	 * related structures allocated below.
+	 */
+	freemempos = PHYSADDR + 0x100000;
 	/*
 	 * Allocate a page for the system page mapped to V0x00000000
 	 * This page will just contain the system vectors and can be
@@ -308,30 +330,25 @@ initarm(void *arg, void *arg2)
 	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
 #ifdef ARM_USE_SMALL_ALLOC
+#error "I am broken"		/* XXX save people grief */
 	freemempos -= PAGE_SIZE;
 	freemem_pt = trunc_page(freemem_pt);
 	freemem_after = freemempos - ((freemem_pt - 0x10100000) /
 	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0xb0000000)
+	arm_add_smallalloc_pages((void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)
 	    , (void *)0xc0100000, freemem_pt - 0x10100000, 1);
 	freemem_after -= ((freemem_after - 0x10001000) / PAGE_SIZE) *
 	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0xb0000000)
+	arm_add_smallalloc_pages((void *)(freemem_after + (KEYVIRTADDR - KERNPHYSADDR))
 	, (void *)0xc0001000, trunc_page(freemem_after) - 0x10001000, 0);
 	freemempos = trunc_page(freemem_after);
 	freemempos -= PAGE_SIZE;
 #endif
-	/*
-	 * Allocate memory for the l1 and l2 page tables. The scheme to avoid
-	 * wasting memory by allocating the l1pt on the first 16k memory was
-	 * taken from NetBSD rpc_machdep.c. NKPT should be greater than 12 for
-	 * this to work (which is supposed to be the case).
-	 */
 
 	/*
-	 * Now we start construction of the L1 page table
-	 * We start by mapping the L2 page tables into the L1.
-	 * This means that we can replace L1 mappings later on if necessary
+	 * Now construct the L1 page table.  First map the L2
+	 * page tables into the L1 so we can replace L1 mappings
+	 * later on if necessary
 	 */
 	l1pagetable = kernel_l1pt.pv_va;
 
@@ -339,30 +356,28 @@ initarm(void *arg, void *arg2)
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
 	    &kernel_pt_table[KERNEL_PT_SYS]);
 	pmap_link_l2pt(l1pagetable, IXP425_IO_VBASE,
-	                &kernel_pt_table[KERNEL_PT_IO]);
+	    &kernel_pt_table[KERNEL_PT_IO]);
 	pmap_link_l2pt(l1pagetable, IXP425_MCU_VBASE,
-	    		&kernel_pt_table[KERNEL_PT_IO + 1]);
+	    &kernel_pt_table[KERNEL_PT_IO + 1]);
 	pmap_link_l2pt(l1pagetable, IXP425_PCI_MEM_VBASE,
-	    		&kernel_pt_table[KERNEL_PT_IO + 2]);
+	    &kernel_pt_table[KERNEL_PT_IO + 2]);
 	pmap_link_l2pt(l1pagetable, KERNBASE,
 	    &kernel_pt_table[KERNEL_PT_BEFOREKERN]);
-	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START, 0x100000,
+	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR, 0x100000,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
+	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, PHYSADDR + 0x100000,
 	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
-	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
+	pmap_map_chunk(l1pagetable, KERNEL_TEXT_BASE, KERNEL_TEXT_PHYS,
+	    next_chunk2(((uint32_t)lastaddr) - KERNEL_TEXT_BASE, L1_S_SIZE),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
-	    - 1));
+	freemem_after = next_page((int)lastaddr);
+	afterkern = round_page(next_chunk2((vm_offset_t)lastaddr, L1_S_SIZE));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
 	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	
 
 #ifdef ARM_USE_SMALL_ALLOC
 	if ((freemem_after + 2 * PAGE_SIZE) <= afterkern) {
@@ -380,7 +395,10 @@ initarm(void *arg, void *arg2)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_devmap_bootstrap(l1pagetable, ixp425_devmap);
+	if (cpu_is_ixp43x())
+		pmap_devmap_bootstrap(l1pagetable, ixp435_devmap);
+	else
+		pmap_devmap_bootstrap(l1pagetable, ixp425_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000
@@ -392,6 +410,7 @@ initarm(void *arg, void *arg2)
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
+
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
@@ -400,16 +419,9 @@ initarm(void *arg, void *arg2)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-
-				   
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
-
-
+	set_stackptr(PSR_IRQ32_MODE, irqstack.pv_va + IRQ_STACK_SIZE*PAGE_SIZE);
+	set_stackptr(PSR_ABT32_MODE, abtstack.pv_va + ABT_STACK_SIZE*PAGE_SIZE);
+	set_stackptr(PSR_UND32_MODE, undstack.pv_va + UND_STACK_SIZE*PAGE_SIZE);
 
 	/*
 	 * We must now clean the cache again....
@@ -422,21 +434,25 @@ initarm(void *arg, void *arg2)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
-	/*
-	 * Fetch the SDRAM start/size from the ixp425 SDRAM configration
-	 * registers.
-	 */
+	/* ready to setup the console (XXX move earlier if possible) */
 	cninit();
-	memsize = ixp425_sdram_size();
+	/*
+	 * Fetch the RAM size from the MCU registers.  The
+	 * expansion bus was mapped above so we can now read 'em.
+	 */
+	if (cpu_is_ixp43x())
+		memsize = ixp435_ddram_size();
+	else
+		memsize = ixp425_sdram_size();
 	physmem = memsize / PAGE_SIZE;
 
 	/* Set stack for exception handlers */
-	
+
 	data_abort_handler_address = (u_int)data_abort_handler;
 	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
-				
+
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)
@@ -444,38 +460,33 @@ initarm(void *arg, void *arg2)
 	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
-	
-	/* Enable MMU, I-cache, D-cache, write buffer. */
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
-
-
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	dump_avail[0] = 0x10000000;
-	dump_avail[1] = 0x10000000 + memsize;
+	dump_avail[0] = PHYSADDR;
+	dump_avail[1] = PHYSADDR + memsize;
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
-					
-	pmap_bootstrap(pmap_curmaxkvaddr, 
-	    0xd0000000, &kernel_l1pt);
+
+	pmap_bootstrap(pmap_curmaxkvaddr, 0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 	mutex_init();
-	
+
 	i = 0;
 #ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[i++] = 0x10000000;
-	phys_avail[i++] = 0x10001000; 	/*
+	phys_avail[i++] = PHYSADDR;
+	phys_avail[i++] = PHYSADDR + PAGE_SIZE; 	/*
 					 *XXX: Gross hack to get our
 					 * pages in the vm_page_array
 					 . */
 #endif
-	phys_avail[i++] = round_page(virtual_avail - KERNBASE + SDRAM_START);
-	phys_avail[i++] = trunc_page(0x10000000 + memsize - 1);
+	phys_avail[i++] = round_page(virtual_avail - KERNBASE + PHYSADDR);
+	phys_avail[i++] = trunc_page(PHYSADDR + memsize - 1);
 	phys_avail[i++] = 0;
 	phys_avail[i] = 0;
-	
+
 	/* Do basic tuning, hz etc */
 	init_param1();
 	init_param2(physmem);
@@ -487,4 +498,6 @@ initarm(void *arg, void *arg2)
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
+#undef next_page
+#undef next_chunk2
 }

@@ -58,58 +58,15 @@ __FBSDID("$FreeBSD$");
 volatile uint32_t intr_enabled;
 uint32_t intr_steer = 0;
 
+/* ixp43x et. al have +32 IRQ's */
+volatile uint32_t intr_enabled2;
+uint32_t intr_steer2 = 0;
+
 struct	ixp425_softc *ixp425_softc = NULL;
 
 static int	ixp425_probe(device_t);
 static void	ixp425_identify(driver_t *, device_t);
 static int	ixp425_attach(device_t);
-
-static struct {
-	uint32_t	hwbase;
-	uint32_t	size;
-	uint32_t	vbase;
-} hwvtrans[] = {
-	{ IXP425_IO_HWBASE,	IXP425_IO_SIZE,		IXP425_IO_VBASE },
-	{ IXP425_EXP_HWBASE,	IXP425_EXP_SIZE,	IXP425_EXP_VBASE },
-	{ IXP425_PCI_HWBASE,	IXP425_PCI_SIZE,	IXP425_PCI_VBASE },
-	{ IXP425_PCI_MEM_HWBASE,IXP425_PCI_MEM_SIZE,	IXP425_PCI_MEM_VBASE },
-#if 0
-	{ IXP425_PCI_IO_HWBASE,	IXP425_PCI_IO_SIZE,	IXP425_PCI_IO_VBASE },
-#endif
-	{ IXP425_MCU_HWBASE,	IXP425_MCU_SIZE,	IXP425_MCU_VBASE },
-	{ IXP425_QMGR_HWBASE,	IXP425_QMGR_SIZE,	IXP425_QMGR_VBASE },
-	{ IXP425_NPE_A_HWBASE,	IXP425_NPE_A_SIZE,	IXP425_NPE_A_VBASE },
-	{ IXP425_NPE_B_HWBASE,	IXP425_NPE_B_SIZE,	IXP425_NPE_B_VBASE },
-	{ IXP425_NPE_C_HWBASE,	IXP425_NPE_C_SIZE,	IXP425_NPE_C_VBASE },
-	{ IXP425_MAC_A_HWBASE,	IXP425_MAC_A_SIZE,	IXP425_MAC_A_VBASE },
-	{ IXP425_MAC_B_HWBASE,	IXP425_MAC_B_SIZE,	IXP425_MAC_B_VBASE },
-	/* Gateworks Avila IDE/CF is mapped here */
-	{ IXP425_EXP_BUS_CS1_HWBASE, IXP425_EXP_BUS_SIZE,
-	  IXP425_EXP_BUS_CS1_VBASE },
-	{ IXP425_EXP_BUS_CS2_HWBASE, IXP425_EXP_BUS_SIZE,
-	  IXP425_EXP_BUS_CS2_VBASE },
-	/* ADI Pronghorn Metro IDE/CF is mapped here */
-	{ IXP425_EXP_BUS_CS3_HWBASE, IXP425_EXP_BUS_SIZE,
-	  IXP425_EXP_BUS_CS3_VBASE },
-	{ IXP425_EXP_BUS_CS4_HWBASE, IXP425_EXP_BUS_SIZE,
-	  IXP425_EXP_BUS_CS4_VBASE },
-};
-
-int
-getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
-{
-	int i;
-
-	for (i = 0; i < sizeof hwvtrans / sizeof *hwvtrans; i++) {
-		if (hwbase >= hwvtrans[i].hwbase &&
-		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size) {
-			*vbase = hwbase - hwvtrans[i].hwbase + hwvtrans[i].vbase;
-			return (0);
-		}
-	}
-
-	return (ENOENT);
-}
 
 struct arm32_dma_range *
 bus_dma_get_range(void)
@@ -146,11 +103,16 @@ arm_mask_irq(uintptr_t nb)
 	int i;
 	
 	i = disable_interrupts(I32_bit);
-	intr_enabled &= ~(1 << nb);
-	ixp425_set_intrmask();
+	if (nb < 32) {
+		intr_enabled &= ~(1 << nb);
+		ixp425_set_intrmask();
+	} else {
+		intr_enabled2 &= ~(1 << (nb - 32));
+		ixp435_set_intrmask();
+	}
 	restore_interrupts(i);
 	/*XXX; If it's a GPIO interrupt, ACK it know. Can it be a problem ?*/
-	if ((1 << nb) & IXP425_INT_GPIOMASK)
+	if (nb < 32 && ((1 << nb) & IXP425_INT_GPIOMASK))
 		IXPREG(IXP425_GPIO_VBASE + IXP425_GPIO_GPISR) =
 		    ixp425_irq2gpio_bit(nb);
 }
@@ -161,8 +123,13 @@ arm_unmask_irq(uintptr_t nb)
 	int i;
 	
 	i = disable_interrupts(I32_bit);
-	intr_enabled |= (1 << nb);
-	ixp425_set_intrmask();
+	if (nb < 32) {
+		intr_enabled |= (1 << nb);
+		ixp425_set_intrmask();
+	} else {
+		intr_enabled2 |= (1 << (nb - 32));
+		ixp435_set_intrmask();
+	}
 	restore_interrupts(i);
 }
 
@@ -172,13 +139,21 @@ ixp425_irq_read(void)
 	return IXPREG(IXP425_INT_STATUS) & intr_enabled;
 }
 
+static __inline uint32_t
+ixp435_irq_read(void)
+{
+	return IXPREG(IXP435_INT_STATUS2) & intr_enabled2;
+}
+
 int
 arm_get_next_irq(void)
 {
-	int irq;
+	uint32_t irq;
 
 	if ((irq = ixp425_irq_read()))
 		return (ffs(irq) - 1);
+	if (cpu_is_ixp43x() && (irq = ixp435_irq_read()))
+		return (32 + ffs(irq) - 1);
 	return (-1);
 }
 
@@ -206,7 +181,7 @@ ixp425_identify(driver_t *driver, device_t parent)
 static int
 ixp425_probe(device_t dev)
 {
-	device_set_desc(dev, "Intel IXP425");
+	device_set_desc(dev, "Intel IXP4XX");
 	return (0);
 }
 
@@ -217,29 +192,34 @@ ixp425_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_iot = &ixp425_bs_tag;
-	KASSERT(ixp425_softc == NULL, ("ixp425_attach called twice?"));
+	KASSERT(ixp425_softc == NULL, ("%s called twice?", __func__));
 	ixp425_softc = sc;
 
 	intr_enabled = 0;
 	ixp425_set_intrmask();
 	ixp425_set_intrsteer();
+	if (cpu_is_ixp43x()) {
+		intr_enabled2 = 0;
+		ixp435_set_intrmask();
+		ixp435_set_intrsteer();
+	}
 
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
 	    NULL, NULL, &sc->sc_dmat))
-		panic("couldn't create the IXP425 dma tag !");
+		panic("%s: failed to create dma tag", __func__);
 
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
-	sc->sc_irq_rman.rm_descr = "IXP425 IRQs";
+	sc->sc_irq_rman.rm_descr = "IXP4XX IRQs";
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
-	    rman_manage_region(&sc->sc_irq_rman, 0, 31) != 0)
-		panic("ixp425_attach: failed to set up IRQ rman");
+	    rman_manage_region(&sc->sc_irq_rman, 0, cpu_is_ixp43x() ? 63 : 31) != 0)
+		panic("%s: failed to set up IRQ rman", __func__);
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "IXP425 Memory";
+	sc->sc_mem_rman.rm_descr = "IXP4XX Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
 	    rman_manage_region(&sc->sc_mem_rman, 0, ~0) != 0)
-		panic("ixp425_attach: failed to set up memory rman");
+		panic("%s: failed to set up memory rman", __func__);
 
 	BUS_ADD_CHILD(dev, 0, "pcib", 0);
 	BUS_ADD_CHILD(dev, 0, "ixpclk", 0);
@@ -252,10 +232,10 @@ ixp425_attach(device_t dev)
 
 	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
 	    0, &sc->sc_gpio_ioh))
-		panic("ixp425_attach: unable to map GPIO registers");
+		panic("%s: unable to map GPIO registers", __func__);
 	if (bus_space_map(sc->sc_iot, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
 	    0, &sc->sc_exp_ioh))
-		panic("ixp425_attach: unable to map Expansion Bus registers");
+		panic("%s: unable to map Expansion Bus registers", __func__);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -317,6 +297,44 @@ ixp425_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	return EINVAL;
 }
 
+/*
+ * NB: This table handles P->V translations for regions mapped
+ * through bus_alloc_resource.  Anything done with bus_space_map
+ * is handled elsewhere and does not require an entry here.
+ *
+ * XXX getvbase is also used by uart_cpu_getdev (hence public)
+ */
+static const struct {
+	uint32_t	hwbase;
+	uint32_t	size;
+	uint32_t	vbase;
+} hwvtrans[] = {
+	{ IXP425_IO_HWBASE,	IXP425_IO_SIZE,		IXP425_IO_VBASE },
+	{ IXP425_PCI_HWBASE,	IXP425_PCI_SIZE,	IXP425_PCI_VBASE },
+	{ IXP425_PCI_MEM_HWBASE,IXP425_PCI_MEM_SIZE,	IXP425_PCI_MEM_VBASE },
+	/* NB: needed only for uart_cpu_getdev */
+	{ IXP425_UART0_HWBASE,	IXP425_REG_SIZE,	IXP425_UART0_VBASE },
+	{ IXP425_UART1_HWBASE,	IXP425_REG_SIZE,	IXP425_UART1_VBASE },
+	/* NB: need for ixp435 ehci controllers */
+	{ IXP435_USB1_HWBASE,	IXP435_USB1_SIZE,	IXP435_USB1_VBASE },
+	{ IXP435_USB2_HWBASE,	IXP435_USB2_SIZE,	IXP435_USB2_VBASE },
+};
+
+int
+getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
+{
+	int i;
+
+	for (i = 0; i < sizeof hwvtrans / sizeof *hwvtrans; i++) {
+		if (hwbase >= hwvtrans[i].hwbase &&
+		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size) {
+			*vbase = hwbase - hwvtrans[i].hwbase + hwvtrans[i].vbase;
+			return (0);
+		}
+	}
+	return (ENOENT);
+}
+
 static struct resource *
 ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -346,8 +364,12 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			start = addr;
 			end = start + 0x1000;	/* XXX */
 		}
-		if (getvbase(start, end - start, &vbase))
+		if (getvbase(start, end - start, &vbase) != 0) {
+			/* likely means above table needs to be updated */
+			device_printf(dev, "%s: no mapping for 0x%lx:0x%lx\n",
+			    __func__, start, end-start);
 			return NULL;
+		}
 		rv = rman_reserve_resource(rmanp, start, end, count,
 			flags, child);
 		if (rv != NULL) {
@@ -366,22 +388,43 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return rv;
 }
 
-static int
-ixp425_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)    
+static __inline void
+get_masks(struct resource *res, uint32_t *mask, uint32_t *mask2)
 {
-	uint32_t mask;
 	int i;
 
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr,
+	*mask = 0;
+	for (i = rman_get_start(res); i < 32 && i <= rman_get_end(res); i++)
+		*mask |= 1 << i;
+	*mask2 = 0;
+	for (; i <= rman_get_end(res); i++)
+		*mask2 |= 1 << (i - 32);
+}
+
+static __inline void
+update_masks(uint32_t mask, uint32_t mask2)
+{
+
+	intr_enabled = mask;
+	ixp425_set_intrmask();
+	if (cpu_is_ixp43x()) {
+		intr_enabled2 = mask2;
+		ixp435_set_intrmask();
+	}
+}
+
+static int
+ixp425_setup_intr(device_t dev, device_t child,
+    struct resource *res, int flags, driver_filter_t *filt, 
+    driver_intr_t *intr, void *arg, void **cookiep)    
+{
+	uint32_t mask, mask2;
+
+	BUS_SETUP_INTR(device_get_parent(dev), child, res, flags, filt, intr,
 	     arg, cookiep);
 
-	mask = 0;
-	for (i = rman_get_start(ires); i <= rman_get_end(ires); i++)
-		mask |= 1 << i;
-	intr_enabled |= mask;
-	ixp425_set_intrmask();
+	get_masks(res, &mask, &mask2);
+	update_masks(intr_enabled | mask, intr_enabled2 | mask2);
 
 	return (0);
 }
@@ -390,14 +433,10 @@ static int
 ixp425_teardown_intr(device_t dev, device_t child, struct resource *res,
     void *cookie)
 {
-	uint32_t mask;
-	int i;
+	uint32_t mask, mask2;
 
-	mask = 0;
-	for (i = rman_get_start(res); i <= rman_get_end(res); i++)
-		mask |= 1 << i;
-	intr_enabled &= ~mask;
-	ixp425_set_intrmask();
+	get_masks(res, &mask, &mask2);
+	update_masks(intr_enabled &~ mask, intr_enabled2 &~ mask2);
 
 	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
 }

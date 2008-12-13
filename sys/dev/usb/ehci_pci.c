@@ -61,8 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/queue.h>
 #include <sys/lockmgr.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/endian.h>
+
+#include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcivar.h>
