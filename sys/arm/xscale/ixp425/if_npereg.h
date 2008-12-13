@@ -84,12 +84,6 @@ struct npehwbuf {
 	} ix_ne[NPE_MAXSEG];
 };
 
-/* NPE ID's */
-#define	NPE_A		0
-#define	NPE_B		1
-#define	NPE_C		2
-#define	NPE_MAX		(NPE_C+1)
-
 #define NPE_PORTS_MAX		2	/* logical ports */
 #define NPE_FRAME_SIZE_DEFAULT	1536
 #define NPE_FRAME_SIZE_MAX	(65536-64)
