@@ -160,18 +160,6 @@ v14EepromDiag(struct ath_hal *ah, int request,
 	return AH_FALSE;
 }
 
-/* XXX conditionalize by target byte order */
-#ifndef bswap16
-static __inline__ uint16_t
-__bswap16(uint16_t _x)
-{
- 	return ((uint16_t)(
-	      (((const uint8_t *)(&_x))[0]    ) |
-	      (((const uint8_t *)(&_x))[1]<< 8))
-	);
-}
-#endif
-
 /* Do structure specific swaps if Eeprom format is non native to host */
 static void
 eepromSwap(struct ar5416eeprom *ee)
