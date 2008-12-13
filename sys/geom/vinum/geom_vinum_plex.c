@@ -210,10 +210,11 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 	off_t real_len, real_off;
 	int i, err, sdno;
 
-	err = ENXIO;
 	s = NULL;
 	sdno = -1;
 	real_len = real_off = 0;
+
+	err = ENXIO;
 
 	if (p == NULL || LIST_EMPTY(&p->subdisks)) 
 		goto bad;
@@ -225,8 +226,11 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 		bioq_disksort(p->rqueue, bp);
 		return (-1); /* "Fail", and delay request. */
 	}
-	if (err)
+	if (err) {
+		err = ENXIO;
 		goto bad;
+	}
+	err = ENXIO;
 
 	/* Find the right subdisk. */
 	i = 0;
@@ -245,9 +249,17 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 	case GV_SD_UP:
 		/* If the subdisk is up, just continue. */
 		break;
+	case GV_SD_DOWN:
+		if (bp->bio_cflags & GV_BIO_INTERNAL)
+			G_VINUM_DEBUG(0, "subdisk must be in the stale state in"
+			    " order to perform administrative requests");
+		goto bad;
 	case GV_SD_STALE:
-		if (!(bp->bio_cflags & GV_BIO_SYNCREQ))
+		if (!(bp->bio_cflags & GV_BIO_SYNCREQ)) {
+			G_VINUM_DEBUG(0, "subdisk stale, unable to perform "
+			    "regular requests");
 			goto bad;
+		}
 
 		G_VINUM_DEBUG(1, "sd %s is initializing", s->name);
 		gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE);
@@ -258,7 +270,6 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 		break;
 	default:
 		/* All other subdisk states mean it's not accessible. */
-		err = EINVAL;
 		goto bad;
 	}
 
@@ -280,8 +291,18 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 	bioq_insert_tail(p->bqueue, cbp); 
 	return (real_len);
 bad:
-	/* Building the sub-request failed. */
 	G_VINUM_LOGREQ(0, bp, "plex request failed.");
+	/* Building the sub-request failed. If internal BIO, do not deliver. */
+	if (bp->bio_cflags & GV_BIO_INTERNAL) {
+		if (bp->bio_cflags & GV_BIO_MALLOC)
+			g_free(bp->bio_data);
+		g_destroy_bio(bp);
+		/* Reset flags. */
+		p->flags &= ~GV_PLEX_SYNCING;
+		p->flags &= ~GV_PLEX_REBUILDING;
+		p->flags &= ~GV_PLEX_GROWING;
+		return (-1);
+	}
 	g_io_deliver(bp, err);
 	return (-1);
 }
@@ -427,6 +448,8 @@ gv_plex_raid5_done(struct gv_plex *p, struct bio *bp)
 			gv_rebuild_complete(p, pbp);
 		} else if (pbp->bio_cflags & GV_BIO_INIT) {
 			gv_init_complete(p, pbp);
+		} else if (pbp->bio_cflags & GV_BIO_SYNCREQ) {
+			gv_sync_complete(p, pbp);
 		} else if (pbp->bio_pflags & GV_BIO_SYNCREQ) {
 			gv_grow_complete(p, pbp);
 		} else {
@@ -545,6 +568,9 @@ gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
 {
 	struct bio *bp;
 
+	KASSERT(from != NULL, ("NULL from"));
+	KASSERT(to != NULL, ("NULL to"));
+
 	bp = g_new_bio();
 	if (bp == NULL) {
 		G_VINUM_DEBUG(0, "sync from '%s' failed at offset "
@@ -583,9 +609,14 @@ gv_sync_complete(struct gv_plex *to, struct bio *bp)
 	g_topology_assert_not();
 
 	err = 0;
+	KASSERT(to != NULL, ("NULL to"));
+	KASSERT(bp != NULL, ("NULL bp"));
 	from = bp->bio_caller2;
+	KASSERT(from != NULL, ("NULL from"));
 	v = to->vol_sc;
+	KASSERT(v != NULL, ("NULL v"));
 	sc = v->vinumconf;
+	KASSERT(sc != NULL, ("NULL sc"));
 
 	/* If it was a read, write it. */
 	if (bp->bio_cmd == BIO_READ) {
@@ -600,11 +631,11 @@ gv_sync_complete(struct gv_plex *to, struct bio *bp)
 		if (bp->bio_offset + bp->bio_length >= from->size) {
 			G_VINUM_DEBUG(1, "syncing of %s from %s completed",
 			    to->name, from->name);
-			to->flags &= ~GV_PLEX_SYNCING;
-			to->synced = 0;
 			/* Update our state. */
 			LIST_FOREACH(s, &to->subdisks, in_plex)
 				gv_set_sd_state(s, GV_SD_UP, 0);
+			to->flags &= ~GV_PLEX_SYNCING;
+			to->synced = 0;
 		} else {
 			offset = bp->bio_offset + bp->bio_length;
 			err = gv_sync_request(from, to, offset,
@@ -701,11 +732,7 @@ gv_grow_complete(struct gv_plex *p, struct bio *bp)
 		/* Find the real size of the plex. */
 		sdcount = gv_sdcount(p, 1);
 		s = LIST_FIRST(&p->subdisks);
-		/* XXX: should not ever happen */
-		if (s == NULL) {
-			G_VINUM_DEBUG(0, "error growing plex without subdisks");
-			return;
-		}
+		KASSERT(s != NULL, ("NULL s"));
 		origsize = (s->size * (sdcount - 1));
 		if (bp->bio_offset + bp->bio_length >= origsize) {
 			G_VINUM_DEBUG(1, "growing of %s completed", p->name);

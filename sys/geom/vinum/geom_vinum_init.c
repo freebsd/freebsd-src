@@ -104,13 +104,8 @@ gv_start_plex(struct gv_plex *p)
 
 	KASSERT(p != NULL, ("gv_start_plex: NULL p"));
 
-/*	if (p->state == GV_PLEX_UP)
-		return (0);*/
-
 	error = 0;
 	v = p->vol_sc;
-/*	if ((v != NULL) && (v->plexcount > 1))
-		error = gv_sync(v);*/
 	if (p->org == GV_PLEX_STRIPED) {
 		grow = 0;
 		LIST_FOREACH(s, &p->subdisks, in_plex) {

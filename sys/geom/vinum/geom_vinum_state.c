@@ -243,8 +243,11 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 			if (p == NULL || flags & GV_SETSTATE_FORCE)
 				break;
 
-			if ((p->org != GV_PLEX_RAID5) &&
-			    (p->vol_sc->plexcount == 1))
+			if ((p->org != GV_PLEX_RAID5 &&
+			    p->vol_sc->plexcount == 1) ||
+			    (p->flags & GV_PLEX_SYNCING &&
+			    p->synced > 0 &&
+			    p->org == GV_PLEX_RAID5))
 				break;
 			else
 				return (GV_ERR_SETSTATE);

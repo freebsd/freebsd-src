@@ -486,9 +486,6 @@ gv_update_plex_config(struct gv_plex *p)
 
 	KASSERT(p != NULL, ("gv_update_plex_config: NULL p"));
 
-	/* This is what we want the plex to be. */
-	state = GV_PLEX_UP;
-
 	/* The plex was added to an already running volume. */
 	if (p->flags & GV_PLEX_ADDED)
 		gv_set_plex_state(p, GV_PLEX_DOWN, GV_SETSTATE_FORCE);
@@ -540,16 +537,23 @@ gv_update_plex_config(struct gv_plex *p)
 	p->size = gv_plex_size(p);
 	if (p->sdcount == 0)
 		gv_set_plex_state(p, GV_PLEX_DOWN, GV_SETSTATE_FORCE);
-	else if ((p->flags & GV_PLEX_ADDED) ||
-	    ((p->org == GV_PLEX_RAID5) && (p->flags & GV_PLEX_NEWBORN))) {
+	else if (p->org == GV_PLEX_RAID5 && p->flags & GV_PLEX_NEWBORN) {
+		LIST_FOREACH(s, &p->subdisks, in_plex)
+			gv_set_sd_state(s, GV_SD_UP, GV_SETSTATE_FORCE);
+		/* If added to a volume, we want the plex to be down. */
+		state = (p->flags & GV_PLEX_ADDED) ? GV_PLEX_DOWN : GV_PLEX_UP;
+		gv_set_plex_state(p, state, GV_SETSTATE_FORCE);
+		p->flags &= ~GV_PLEX_ADDED;
+	} else if (p->flags & GV_PLEX_ADDED) {
 		LIST_FOREACH(s, &p->subdisks, in_plex)
 			gv_set_sd_state(s, GV_SD_STALE, GV_SETSTATE_FORCE);
-		p->flags &= ~GV_PLEX_ADDED;
 		gv_set_plex_state(p, GV_PLEX_DOWN, GV_SETSTATE_FORCE);
+		p->flags &= ~GV_PLEX_ADDED;
 	} else if (p->state == GV_PLEX_UP) {
 		LIST_FOREACH(s, &p->subdisks, in_plex) {
 			if (s->flags & GV_SD_GROW) {
-				p->state = GV_PLEX_GROWABLE;
+				gv_set_plex_state(p, GV_PLEX_GROWABLE,
+				    GV_SETSTATE_FORCE);
 				break;
 			}
 		}
@@ -1124,8 +1128,12 @@ int
 gv_attach_plex(struct gv_plex *p, struct gv_volume *v, int rename)
 {
 	struct gv_sd *s;
+	struct gv_softc *sc;
 
 	g_topology_assert();
+
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("NULL sc"));
 
 	if (p->vol_sc != NULL) {
 		G_VINUM_DEBUG(1, "unable to attach %s: already attached to %s",

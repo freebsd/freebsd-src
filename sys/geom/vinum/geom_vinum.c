@@ -111,6 +111,8 @@ gv_done(struct bio *bp)
 	struct g_geom *gp;
 	struct gv_softc *sc;
 	
+	KASSERT(bp != NULL, ("NULL bp"));
+
 	gp = bp->bio_from->geom;
 	sc = gp->softc;
 	bp->bio_cflags |= GV_BIO_DONE;

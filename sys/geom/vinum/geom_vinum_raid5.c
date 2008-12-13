@@ -61,6 +61,8 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 	delay = 0;
 	wp = g_malloc(sizeof(*wp), M_WAITOK | M_ZERO);
 	wp->bio = bp;
+	wp->waiting = NULL;
+	wp->parity = NULL;
 	TAILQ_INIT(&wp->bits);
 
 	if (bp->bio_cflags & GV_BIO_REBUILD)
@@ -80,7 +82,7 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 	 * Building the sub-request failed, we probably need to clean up a lot.
 	 */
 	if (err) {
-		G_VINUM_LOGREQ(0, bp, "plex request failed.");
+		G_VINUM_LOGREQ(0, bp, "raid5 plex request failed.");
 		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
 			TAILQ_REMOVE(&wp->bits, bq, queue);
 			g_free(bq);
@@ -117,6 +119,17 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 			cbp = bioq_takefirst(p->bqueue);
 		}
 
+		/* If internal, stop and reset state. */
+		if (bp->bio_cflags & GV_BIO_INTERNAL) {
+			if (bp->bio_cflags & GV_BIO_MALLOC)
+				g_free(cbp->bio_data);
+			g_destroy_bio(bp);
+			/* Reset flags. */
+			p->flags &= ~GV_PLEX_SYNCING;
+			p->flags &= ~GV_PLEX_REBUILDING;
+			p->flags &= ~GV_PLEX_GROWING;
+			return (NULL);
+		}
 		g_io_deliver(bp, err);
 		return (NULL);
 	}
@@ -385,8 +398,13 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 	/* Our data stripe is missing. */
 	if (original->state != GV_SD_UP)
 		type = REQ_TYPE_DEGRADED;
+
+	/* If synchronizing request, just write it if disks are stale. */
+	if (original->state == GV_SD_STALE && parity->state == GV_SD_STALE &&
+	    bp->bio_cflags & GV_BIO_SYNCREQ && bp->bio_cmd == BIO_WRITE) {
+		type = REQ_TYPE_NORMAL;
 	/* Our parity stripe is missing. */
-	if (parity->state != GV_SD_UP) {
+	} else if (parity->state != GV_SD_UP) {
 		/* We cannot take another failure if we're already degraded. */
 		if (type != REQ_TYPE_NORMAL)
 			return (ENXIO);

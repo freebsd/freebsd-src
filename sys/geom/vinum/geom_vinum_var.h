@@ -117,6 +117,8 @@
 #define	GV_BIO_CHECK	0x40
 #define	GV_BIO_PARITY	0x80
 #define	GV_BIO_RETRY	0x100
+#define GV_BIO_INTERNAL \
+    (GV_BIO_SYNCREQ | GV_BIO_INIT | GV_BIO_REBUILD |GV_BIO_CHECK)
 
 /* Error codes to be used within gvinum. */
 #define	GV_ERR_SETSTATE		(-1)	/* Error setting state. */
