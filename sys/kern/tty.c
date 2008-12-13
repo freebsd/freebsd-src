@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/filio.h>
 #ifdef COMPAT_43TTY
 #include <sys/ioctl_compat.h>
@@ -1673,18 +1674,24 @@ ttyhook_defrint(struct tty *tp, char c, int flags)
 }
 
 int
-ttyhook_register(struct tty **rtp, struct thread *td, int fd,
+ttyhook_register(struct tty **rtp, struct proc *p, int fd,
     struct ttyhook *th, void *softc)
 {
 	struct tty *tp;
 	struct file *fp;
 	struct cdev *dev;
 	struct cdevsw *cdp;
+	struct filedesc *fdp;
 	int error;
 
 	/* Validate the file descriptor. */
-	if (fget(td, fd, &fp) != 0)
-		return (EINVAL);
+	if ((fdp = p->p_fd) == NULL)
+		return (EBADF);
+	FILEDESC_SLOCK(fdp);
+	if ((fp = fget_locked(fdp, fd)) == NULL || fp->f_ops == &badfileops) {
+		FILEDESC_SUNLOCK(fdp);
+		return (EBADF);
+	}
 	
 	/* Make sure the vnode is bound to a character device. */
 	error = EINVAL;
@@ -1723,7 +1730,7 @@ ttyhook_register(struct tty **rtp, struct thread *td, int fd,
 
 done3:	tty_unlock(tp);
 done2:	dev_relthread(dev);
-done1:	fdrop(fp, td);
+done1:	FILEDESC_SUNLOCK(fdp);
 	return (error);
 }
 
