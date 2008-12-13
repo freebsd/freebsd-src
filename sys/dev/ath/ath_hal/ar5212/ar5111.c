@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5111.c,v 1.7 2008/11/10 04:08:03 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -90,7 +90,7 @@ ar5111SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
 		uint16_t	channel5111;	/* 11a channel for 5111 */
 	} CHAN_INFO_2GHZ;
 
-	const static CHAN_INFO_2GHZ chan2GHzData[] = {
+	static const CHAN_INFO_2GHZ chan2GHzData[] = {
 		{ 1, 0x46, 96  },	/* 2312 -19 */
 		{ 1, 0x46, 97  },	/* 2317 -18 */
 		{ 1, 0x46, 98  },	/* 2322 -17 */
