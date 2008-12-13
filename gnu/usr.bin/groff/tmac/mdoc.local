@@ -62,10 +62,11 @@
 .ds doc-volume-as-arm      arm
 .
 .\" Default .Os value
-.ds doc-default-operating-system FreeBSD\~6.2
+.ds doc-default-operating-system FreeBSD\~6.4
 .
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-6.3    6.3
+.ds doc-operating-system-FreeBSD-6.4    6.4
 .
 .ec
 .
