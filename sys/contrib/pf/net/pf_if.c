@@ -115,7 +115,9 @@ void		 pfi_change_group_event(void * __unused, char *);
 void		 pfi_detach_group_event(void * __unused, struct ifg_group *);
 void		 pfi_ifaddr_event(void * __unused, struct ifnet *);
 
+#ifdef VIMAGE_GLOBALS
 extern struct ifgrouphead ifg_head;
+#endif
 #endif
 
 RB_PROTOTYPE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
