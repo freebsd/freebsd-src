@@ -474,6 +474,8 @@ struct	in6_rrenumreq {
 extern struct in6_ifaddr *in6_ifaddr;
 
 extern struct icmp6stat icmp6stat;
+
+extern unsigned long in6_maxmtu;
 #endif /* VIMAGE_GLOBALS */
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
@@ -483,7 +485,6 @@ do {								\
 
 extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
-extern unsigned long in6_maxmtu;
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IP6MADDR);
 #endif /* MALLOC_DECLARE */
