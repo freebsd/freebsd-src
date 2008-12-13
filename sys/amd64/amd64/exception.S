@@ -480,16 +480,20 @@ outofnmi:
 	/*
 	 * At this point the processor has exited NMI mode and is running
 	 * with interrupts turned off on the normal kernel stack.
-	 * We turn interrupts back on, and take the usual 'doreti' exit
-	 * path.
 	 *
 	 * If a pending NMI gets recognized at or after this point, it 
-	 * will cause a kernel callchain to be traced.  Since this path
-	 * is only taken for NMI interrupts from user space, our `swapgs'
-	 * state is correct for taking the doreti path.
+	 * will cause a kernel callchain to be traced.
+	 *
+	 * We turn interrupts back on, and call the user callchain capture hook.
 	 */
+	movq	pmc_hook,%rax
+	orq	%rax,%rax
+	jz	nocallchain
+	movq	PCPU(CURTHREAD),%rdi		/* thread */
+	movq	$PMC_FN_USER_CALLCHAIN,%rsi	/* command */
+	movq	%rsp,%rdx			/* frame */
 	sti
-	jmp	doreti
+	call	*%rax
 nocallchain:
 #endif
 	testl	%ebx,%ebx
