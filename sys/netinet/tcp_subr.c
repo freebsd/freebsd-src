@@ -1486,13 +1486,13 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 static u_char isn_secret[32];
 static int isn_last_reseed;
 static u_int32_t isn_offset, isn_offset_old;
-static MD5_CTX isn_ctx;
 #endif
 
 tcp_seq
 tcp_new_isn(struct tcpcb *tp)
 {
 	INIT_VNET_INET(tp->t_vnet);
+	MD5_CTX isn_ctx;
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 
@@ -1508,25 +1508,25 @@ tcp_new_isn(struct tcpcb *tp)
 	}
 
 	/* Compute the md5 hash and return the ISN. */
-	MD5Init(&V_isn_ctx);
-	MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_fport, sizeof(u_short));
-	MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_lport, sizeof(u_short));
+	MD5Init(&isn_ctx);
+	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_fport, sizeof(u_short));
+	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_lport, sizeof(u_short));
 #ifdef INET6
 	if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0) {
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->in6p_faddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_faddr,
 			  sizeof(struct in6_addr));
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->in6p_laddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_laddr,
 			  sizeof(struct in6_addr));
 	} else
 #endif
 	{
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_faddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_faddr,
 			  sizeof(struct in_addr));
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_laddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_laddr,
 			  sizeof(struct in_addr));
 	}
-	MD5Update(&V_isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
-	MD5Final((u_char *) &md5_buffer, &V_isn_ctx);
+	MD5Update(&isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
+	MD5Final((u_char *) &md5_buffer, &isn_ctx);
 	new_isn = (tcp_seq) md5_buffer[0];
 	V_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
