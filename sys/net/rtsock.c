@@ -673,10 +673,10 @@ route_output(struct mbuf *m, struct socket *so)
 				       rt->rt_ifa->ifa_addr))) {
 				RT_UNLOCK(rt);
 				RADIX_NODE_HEAD_LOCK(rnh);
-				if ((error = rt_getifa_fib(&info,
-				    rt->rt_fibnum)) != 0)
-					senderr(error);
+				error = rt_getifa_fib(&info, rt->rt_fibnum);
 				RADIX_NODE_HEAD_UNLOCK(rnh);
+				if (error != 0)
+					senderr(error);
 				RT_LOCK(rt);
 			}
 			if (info.rti_ifa != NULL &&
