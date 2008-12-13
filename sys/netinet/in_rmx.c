@@ -115,7 +115,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		 * ARP entry and delete it if so.
 		 */
 		rt2 = in_rtalloc1((struct sockaddr *)sin, 0,
-		    RTF_CLONING, rt->rt_fibnum);
+		    RTF_CLONING|RTF_RNH_LOCKED, rt->rt_fibnum);
 		if (rt2) {
 			if (rt2->rt_flags & RTF_LLINFO &&
 			    rt2->rt_flags & RTF_HOST &&
