@@ -1,5 +1,5 @@
 #
-# Gateworks Avila XScale board
+# Gateworks Avila IXP425 XScale board
 # kernel configuration file for FreeBSD/arm
 #
 # $FreeBSD$
