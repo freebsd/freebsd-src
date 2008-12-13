@@ -64,31 +64,52 @@
  *
  * 4000 0000 ---------------------------
  *           SDRAM
- * 1000 0000 ---------------------------
+ * 0000 0000 ---------------------------
  */           
 
 /*
- * Virtual memory map for the Intel IXP425 integrated devices
+ * Virtual memory map for the Intel IXP425/IXP435 integrated devices
  */
 /*
  * FFFF FFFF ---------------------------
  *
+ *           Global cache clean area
+ * FF00 0000 ---------------------------
+ *
  * FC00 0000 ---------------------------
  *           PCI Data (memory space)
- * F800 0000 ---------------------------
+ * F800 0000 --------------------------- IXP425_PCI_MEM_VBASE
  *
  * F020 1000 ---------------------------
- *           SDRAM Controller
- * F020 0000 ---------------------------
+ *           SDRAM/DDR Memory Controller
+ * F020 0000 --------------------------- IXP425_MCU_VBASE
  *
- * F001 2000 ---------------------------
- *           PCI Configuration and Status Registers
- * F001 1000 ---------------------------
- *           Expansion bus Configuration Registers
- * F001 0000 ---------------------------
- *           System and Peripheral Registers
- *            VA F000 0000 = PA C800 0000 (SIZE 0x10000)
- * F000 0000 ---------------------------
+ * F001 7000 EHCI USB 2 (IXP435)
+ * F001 6000 EHCI USB 1 (IXP435)
+ * F020 6000 ---------------------------
+ *           Queue manager
+ * F001 2000 --------------------------- IXP425_QMGR_VBASE
+ *           PCI Configuration and Status
+ * F001 1000 --------------------------- IXP425_PCI_VBASE
+ *           Expansion Bus Configuration
+ * F001 0000 --------------------------- IXP425_EXP_VBASE
+ * F000 F000 Expansion Bus Chip Select 4
+ * F000 E000 Expansion Bus Chip Select 3
+ * F000 D000 Expansion Bus Chip Select 2
+ * F000 C000 Expansion Bus Chip Select 1
+ * F000 B000 USB (option on IXP425)
+ * F000 A000 MAC-B (IXP425) | MAC-C (IXP435)
+ * F000 9000 MAC-A
+ * F000 8000 NPE-C
+ * F000 7000 NPE-B (IXP425)
+ * F000 6000 NPE-A
+ * F000 5000 Timers
+ * F000 4000 GPIO Controller
+ * F000 3000 Interrupt Controller
+ * F000 2000 Performance Monitor Controller (PMC)
+ * F000 1000 UART 1 (IXP425)
+ * F000 0000 UART 0
+ * F000 0000 --------------------------- IXP425_IO_VBASE
  *
  * 0000 0000 ---------------------------
  *
@@ -111,9 +132,10 @@
 #define	IXP425_NPE_A_OFFSET	0x00006000UL	/* Not User Programmable */
 #define	IXP425_NPE_B_OFFSET	0x00007000UL	/* Not User Programmable */
 #define	IXP425_NPE_C_OFFSET	0x00008000UL	/* Not User Programmable */
-#define	IXP425_MAC_A_OFFSET	0x00009000UL
-#define	IXP425_MAC_B_OFFSET	0x0000a000UL
+#define	IXP425_MAC_B_OFFSET	0x00009000UL	/* Ethernet MAC on NPE-B */
+#define	IXP425_MAC_C_OFFSET	0x0000a000UL	/* Ethernet MAC on NPE-C */
 #define	IXP425_USB_OFFSET	0x0000b000UL
+#define	IXP435_MAC_A_OFFSET	0x0000c000UL	/* Ethernet MAC on NPE-A */
 
 #define	IXP425_REG_SIZE		0x1000
 
@@ -142,7 +164,6 @@
 
 /*
  * Timers
- *
  */
 #define	IXP425_TIMER_HWBASE	(IXP425_IO_HWBASE + IXP425_TIMER_OFFSET)
 #define	IXP425_TIMER_VBASE	(IXP425_IO_VBASE + IXP425_TIMER_OFFSET)
@@ -224,6 +245,18 @@
 #define	IXP425_INT_NPE_B	 1	/* NPE B */
 #define	IXP425_INT_NPE_A	 0	/* NPE A */
 
+/* NB: IXP435 has an additional 32 IRQ's */
+#define	IXP435_INT_STATUS2	(IXP425_IRQ_VBASE + 0x20)
+#define	IXP435_INT_ENABLE2	(IXP425_IRQ_VBASE + 0x24)
+#define	IXP435_INT_SELECT2	(IXP425_IRQ_VBASE + 0x28)
+#define	IXP435_IRQ_STATUS2	(IXP425_IRQ_VBASE + 0x2C)
+#define	IXP435_FIQ_STATUS2	(IXP425_IRQ_VBASE + 0x30)
+
+#define	IXP435_INT_USB0		32	/* USB Host 2.0 Host 0 */
+#define	IXP435_INT_USB1		33	/* USB Host 2.0 Host 1 */
+#define	IXP435_INT_QMGR_PER	60	/* Queue manager parity error */
+#define	IXP435_INT_ECC		61	/* Single or multi-bit ECC error */
+
 /*
  * software interrupt
  */
@@ -238,6 +271,11 @@
 					  (1 << IXP425_INT_bit14) | \
 					  (1 << IXP425_INT_bit11)))
 #define	IXP425_INT_GPIOMASK	(0x3ff800c0u)
+
+#define	IXP435_INT_HWMASK	((1 << (IXP435_INT_USB0 - 32)) | \
+				 (1 << (IXP435_INT_USB1 - 32)) | \
+				 (1 << (IXP435_INT_QMGR_PER - 32)) | \
+				 (1 << (IXP435_INT_ECC - 32)))
 
 /*
  * GPIO
@@ -383,6 +421,8 @@
 							/* 0xf0011000 */
 #define	IXP425_PCI_SIZE		IXP425_REG_SIZE		/* 0x1000 */
 
+#define	IXP425_AHB_OFFSET	0x00000000UL	/* AHB bus */
+
 /*
  * Mapping registers of IXP425 PCI Configuration
  */
@@ -491,6 +531,28 @@
 #define	MCU_SDR_IR		0x08
 
 /*
+ * IXP435 DDR MCU Registers
+ */
+#define	IXP435_MCU_HWBASE	0xcc00e500UL
+#define	MCU_DDR_SDIR		0x00		/* DDR SDAM Initialization Reg*/
+#define	MCU_DDR_SDCR0		0x04		/* DDR SDRAM Control Reg 0 */
+#define	MCU_DDR_SDCR1		0x08		/* DDR SDRAM Control Reg 1 */
+#define	MCU_DDR_SDBR		0x0c		/* SDRAM Base Register */
+#define	MCU_DDR_SBR0		0x10		/* SDRAM Boundary Register 0 */
+#define	MCU_DDR_SBR1		0x14		/* SDRAM Boundary Register 1 */
+#define	MCU_DDR_ECCR		0x1c		/* ECC Control Register */
+#define	MCU_DDR_ELOG0		0x20		/* ECC Log Register 0 */
+#define	MCU_DDR_ELOG1		0x24		/* ECC Log Register 1 */
+#define	MCU_DDR_ECAR0		0x28		/* ECC Address Register 0 */
+#define	MCU_DDR_ECAR1		0x2c		/* ECC Address Register 1 */
+#define	MCU_DDR_ECTST		0x30		/* ECC Test Register */
+#define	MCU_DDR_MCISR		0x34		/* MC Interrupt Status Reg */
+#define	MCU_DDR_MPTCR		0x3c		/* MC Port Transaction Cnt Reg*/
+#define	MCU_DDR_RFR		0x48		/* Refresh Frequency Register */
+#define	MCU_DDR_SDPR(n)		(0x50+(n)*4)	/* SDRAM Page Register 0-7 */
+/* NB: RCVDLY at 0x1050 and LEGOVERIDE at 0x1074 */
+
+/*
  * Performance Monitoring Unit          (CP14)
  *
  *      CP14.0.1	Performance Monitor Control Register(PMNC)
@@ -549,13 +611,17 @@
 #define IXP425_NPE_C_VBASE	(IXP425_IO_VBASE + IXP425_NPE_C_OFFSET)
 #define IXP425_NPE_C_SIZE	0x1000		/* Actually only 256 bytes */
 
-#define IXP425_MAC_A_HWBASE	(IXP425_IO_HWBASE + IXP425_MAC_A_OFFSET)
-#define IXP425_MAC_A_VBASE	(IXP425_IO_VBASE + IXP425_MAC_A_OFFSET)
-#define IXP425_MAC_A_SIZE	0x1000		/* Actually only 256 bytes */
-
 #define IXP425_MAC_B_HWBASE	(IXP425_IO_HWBASE + IXP425_MAC_B_OFFSET)
 #define IXP425_MAC_B_VBASE	(IXP425_IO_VBASE + IXP425_MAC_B_OFFSET)
 #define IXP425_MAC_B_SIZE	0x1000 		/* Actually only 256 bytes */
+
+#define IXP425_MAC_C_HWBASE	(IXP425_IO_HWBASE + IXP425_MAC_C_OFFSET)
+#define IXP425_MAC_C_VBASE	(IXP425_IO_VBASE + IXP425_MAC_C_OFFSET)
+#define IXP425_MAC_C_SIZE	0x1000		/* Actually only 256 bytes */
+
+#define IXP435_MAC_A_HWBASE	(IXP425_IO_HWBASE + IXP435_MAC_A_OFFSET)
+#define IXP435_MAC_A_VBASE	(IXP425_IO_VBASE + IXP435_MAC_A_OFFSET)
+#define IXP435_MAC_A_SIZE	0x1000 		/* Actually only 256 bytes */
 
 /*
  * Expansion Bus Data Space.
@@ -565,7 +631,6 @@
 
 #define	IXP425_EXP_BUS_CSx_HWBASE(i) \
 	(IXP425_EXP_BUS_HWBASE + (i)*IXP425_EXP_BUS_SIZE)
-
 #define	IXP425_EXP_BUS_CSx_VBASE(i) \
 	(IXP425_MAC_B_VBASE + (i)*IXP425_MAC_B_SIZE)
 
@@ -587,5 +652,27 @@
 #define	IXP425_EXP_BUS_CS5_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(5)
 #define	IXP425_EXP_BUS_CS6_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(6)
 #define	IXP425_EXP_BUS_CS7_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(7)
+
+/*
+ * IXP435/Gateworks Cambria
+ */
+#define	CAMBRIA_GPS_HWBASE	0x53FC0000UL	/* optional GPS Serial Port */
+#define	CAMBRIA_GPS_SIZE	0x40000
+#define	CAMBRIA_RS485_HWBASE	0x53F80000UL	/* optional RS485 Serial Port */
+#define	CAMBRIA_RS485_SIZE	0x40000
+#define	CAMBRIA_OCTAL_LED_HWBASE 0x53F40000UL	/* Octal Status LED Latch */
+#define	CAMBRIA_OCTAL_LED_SIZE	0x1000
+#define	CAMBRIA_CFSEL1_HWBASE	0x53E40000UL	/* Compact Flash Socket Sel 0 */
+#define	CAMBRIA_CFSEL1_SIZE	0x40000
+#define	CAMBRIA_CFSEL0_HWBASE	0x53E00000UL	/* Compact Flash Socket Sel 1 */
+#define	CAMBRIA_CFSEL0_SIZE	0x40000
+
+#define IXP435_USB1_HWBASE	0xcd000000UL	/* USB host controller 1 */
+#define IXP435_USB1_VBASE	(IXP425_QMGR_VBASE + IXP425_QMGR_SIZE)
+#define IXP435_USB1_SIZE	0x1000		/* NB: only uses 0x300 */
+
+#define IXP435_USB2_HWBASE	0xce000000UL	/* USB host controller 2 */
+#define IXP435_USB2_VBASE	(IXP435_USB1_VBASE + IXP435_USB1_SIZE)
+#define IXP435_USB2_SIZE	0x1000		/* NB: only uses 0x300 */
 
 #endif /* _IXP425REG_H_ */
