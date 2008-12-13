@@ -66,7 +66,7 @@ struct ttyhook {
 	th_close_t		*th_close;
 };
 
-int	ttyhook_register(struct tty **, struct thread *, int,
+int	ttyhook_register(struct tty **, struct proc *, int,
     struct ttyhook *, void *);
 void	ttyhook_unregister(struct tty *);
 #define	ttyhook_softc(tp)		((tp)->t_hooksoftc)
