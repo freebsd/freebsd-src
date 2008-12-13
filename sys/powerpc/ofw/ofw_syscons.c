@@ -308,35 +308,13 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 {
 	struct ofwfb_softc *sc;
 	video_info_t *vi;
-	char name[64];
-	ihandle_t ih;
-	int i;
 	int cborder;
 	int font_height;
-	int retval;
 
 	sc = (struct ofwfb_softc *)adp;
 	vi = &adp->va_info;
 
 	vid_init_struct(adp, "ofwfb", -1, unit);
-
-	if (sc->sc_depth == 8) {
-		/*
-		 * Install the ISO6429 colormap - older OFW systems
-		 * don't do this by default
-		 */
-		memset(name, 0, sizeof(name));
-		OF_package_to_path(sc->sc_node, name, sizeof(name));
-		ih = OF_open(name);
-		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", ih, 4, 1,
-				       ofwfb_cmap[i].red,
-				       ofwfb_cmap[i].green,
-				       ofwfb_cmap[i].blue,
-				       i,
-				       &retval);
-		}
-	}
 
 	/* The default font size can be overridden by loader */
 	font_height = 16;
@@ -379,10 +357,13 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 	 */
 	adp->va_window = (vm_offset_t) ofwfb_static_window;
 
-	/* Enable future font-loading and flag color support */
-	adp->va_flags |= V_ADP_FONT | V_ADP_COLOR;
-
-	ofwfb_blank_display(&sc->sc_va, V_DISPLAY_ON);
+	/*
+	 * Enable future font-loading and flag color support, as well as 
+	 * adding V_ADP_MODECHANGE so that we ofwfb_set_mode() gets called
+	 * when the X server shuts down. This enables us to get the console
+	 * back when X disappears.
+	 */
+	adp->va_flags |= V_ADP_FONT | V_ADP_COLOR | V_ADP_MODECHANGE;
 
 	ofwfb_set_mode(&sc->sc_va, 0);
 
@@ -408,6 +389,37 @@ ofwfb_query_mode(video_adapter_t *adp, video_info_t *info)
 static int
 ofwfb_set_mode(video_adapter_t *adp, int mode)
 {
+	struct ofwfb_softc *sc;
+	char name[64];
+	ihandle_t ih;
+	int i, retval;
+
+	sc = (struct ofwfb_softc *)adp;
+
+	/*
+	 * Open the display device, which will initialize it.
+	 */
+
+	memset(name, 0, sizeof(name));
+	OF_package_to_path(sc->sc_node, name, sizeof(name));
+	ih = OF_open(name);
+
+	if (sc->sc_depth == 8) {
+		/*
+		 * Install the ISO6429 colormap - older OFW systems
+		 * don't do this by default
+		 */
+		for (i = 0; i < 16; i++) {
+			OF_call_method("color!", ih, 4, 1,
+				       ofwfb_cmap[i].red,
+				       ofwfb_cmap[i].green,
+				       ofwfb_cmap[i].blue,
+				       i,
+				       &retval);
+		}
+	}
+
+	ofwfb_blank_display(&sc->sc_va, V_DISPLAY_ON);
 
 	return (0);
 }
