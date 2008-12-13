@@ -130,7 +130,6 @@ struct vnet_inet6 vnet_inet6_0;
 static int ip6qmaxlen;
 struct in6_ifaddr *in6_ifaddr;
 struct ip6stat ip6stat;
-#endif
 
 extern struct callout in6_tmpaddrtimer_ch;
 
@@ -144,7 +143,8 @@ extern int icmp6_nodeinfo;
 extern int udp6_sendspace;
 extern int udp6_recvspace;
 
-#ifdef VIMAGE_GLOBALS
+extern struct	route_in6 ip6_forward_rt;
+
 int ip6_forward_srcrt;			/* XXX */
 int ip6_sourcecheck;			/* XXX */
 int ip6_sourcecheck_interval;		/* XXX */
@@ -300,8 +300,6 @@ ip6_init2(void *dummy)
 /* cheat */
 /* This must be after route_init(), which is now SI_ORDER_THIRD */
 SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ip6_init2, NULL);
-
-extern struct	route_in6 ip6_forward_rt;
 
 void
 ip6_input(struct mbuf *m)
