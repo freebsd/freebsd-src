@@ -61,6 +61,23 @@ static int	acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst);
 
 ACPI_SERIAL_DECL(smbat, "ACPI Smart Battery");
 
+SYSCTL_DECL(_debug_acpi);
+SYSCTL_NODE(_debug_acpi, OID_AUTO, batt, CTLFLAG_RD, NULL, "Battery debugging");
+
+/* On some laptops with smart batteries, enabling battery monitoring
+ * software causes keystrokes from atkbd to be lost.  This has also been
+ * reported on Linux, and is apparently due to the keyboard and I2C line
+ * for the battery being routed through the same chip.  Whether that's
+ * accurate or not, adding extra sleeps to the status checking code
+ * causes the problem to go away.
+ *
+ * If you experience that problem, try a value of 10ms and move up
+ * from there.
+ */
+static int      batt_sleep_ms;
+SYSCTL_INT(_debug_acpi_batt, OID_AUTO, batt_sleep_ms, CTLFLAG_RW, &batt_sleep_ms, 0,
+    "Sleep during battery status updates to prevent keystroke loss.");
+
 static device_method_t acpi_smbat_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe, acpi_smbat_probe),
@@ -176,6 +193,9 @@ acpi_smbus_read_2(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
 
 	ACPI_SERIAL_ASSERT(smbat);
 
+	if (batt_sleep_ms)
+	    AcpiOsSleep(batt_sleep_ms);
+
 	val = addr;
 	error = ACPI_EC_WRITE(sc->ec_dev, sc->sb_base_addr + SMBUS_ADDR,
 	    val, 1);
@@ -193,6 +213,9 @@ acpi_smbus_read_2(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
 	    val, 1);
 	if (error)
 		goto out;
+
+	if (batt_sleep_ms)
+	    AcpiOsSleep(batt_sleep_ms);
 
 	for (to = SMBUS_TIMEOUT; to != 0; to--) {
 		error = ACPI_EC_READ(sc->ec_dev, sc->sb_base_addr + SMBUS_PRTCL,
@@ -239,6 +262,9 @@ acpi_smbus_read_multi_1(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
 
 	ACPI_SERIAL_ASSERT(smbat);
 
+	if (batt_sleep_ms)
+	    AcpiOsSleep(batt_sleep_ms);
+
 	val = addr;
 	error = ACPI_EC_WRITE(sc->ec_dev, sc->sb_base_addr + SMBUS_ADDR,
 	    val, 1);
@@ -256,6 +282,9 @@ acpi_smbus_read_multi_1(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
 	    val, 1);
 	if (error)
 		goto out;
+
+	if (batt_sleep_ms)
+	    AcpiOsSleep(batt_sleep_ms);
 
 	for (to = SMBUS_TIMEOUT; to != 0; to--) {
 		error = ACPI_EC_READ(sc->ec_dev, sc->sb_base_addr + SMBUS_PRTCL,
@@ -292,6 +321,9 @@ acpi_smbus_read_multi_1(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
 	if (len > val)
 		len = val;
 
+	if (batt_sleep_ms)
+	    AcpiOsSleep(batt_sleep_ms);
+
 	while (len--) {
 		error = ACPI_EC_READ(sc->ec_dev, sc->sb_base_addr + SMBUS_DATA
 		    + len, &val, 1);
@@ -299,6 +331,8 @@ acpi_smbus_read_multi_1(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
 			goto out;
 
 		ptr[len] = val;
+		if (batt_sleep_ms)
+		    AcpiOsSleep(1);
 	}
 
 out:
