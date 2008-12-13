@@ -37,17 +37,23 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm
-.Op Fl 146AFMPRUadlmnpqrsv
+.Op Fl 146AadFlMmnPpqRrsUv
 .Op Fl B Ar bytes
-.Op Fl S Ar bytes
-.Op Fl T Ar seconds
 .Op Fl N Ar file
 .Op Fl o Ar file
+.Op Fl S Ar bytes
+.Op Fl T Ar seconds
 .Op Fl w Ar seconds
-.Op Fl h Ar host
-.Op Fl c Ar dir
-.Op Fl f Ar file
-.Op Ar URL ...
+.Ar URL ...
+.Nm
+.Op Fl 146AadFlMmnPpqRrsUv
+.Op Fl B Ar bytes
+.Op Fl N Ar file
+.Op Fl o Ar file
+.Op Fl S Ar bytes
+.Op Fl T Ar seconds
+.Op Fl w Ar seconds
+.Fl h Ar host Fl f Ar file Oo Fl c Ar dir Oc
 .Sh DESCRIPTION
 The
 .Nm
@@ -59,7 +65,7 @@ command line.
 .Pp
 The following options are available:
 .Bl -tag -width Fl
-.It Fl \&1
+.It Fl 1
 Stop and return exit code 0 at the first successfully retrieved file.
 .It Fl 4
 Forces
