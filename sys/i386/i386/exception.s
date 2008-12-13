@@ -438,9 +438,18 @@ doreti_nmi:
 	iret
 outofnmi:
 	/*
-	 * Clear interrupts and jump to AST handling code.
+	 * Call the callchain capture hook after turning interrupts back on.
 	 */
+	movl	pmc_hook,%ecx
+	orl	%ecx,%ecx
+	jz	doreti_exit
+	pushl	%esp			/* frame pointer */
+	pushl	$PMC_FN_USER_CALLCHAIN	/* command */
+	movl	PCPU(CURTHREAD),%eax
+	pushl	%eax			/* curthread */
 	sti
+	call	*%ecx
+	addl	$12,%esp
 	jmp	doreti_ast
 	ENTRY(end_exceptions)
 #endif
