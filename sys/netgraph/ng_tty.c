@@ -252,7 +252,6 @@ static int
 ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct proc *p;
-	struct thread *td;
 	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg, *resp = NULL;
 	int error = 0;
@@ -266,12 +265,13 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				return (EBUSY);
 			
 			p = pfind(((int *)msg->data)[0]);
-			if (p == NULL)
+			if (p == NULL || (p->p_flag & P_WEXIT))
 				return (ESRCH);
-			td = FIRST_THREAD_IN_PROC(p);
-			error = ttyhook_register(&sc->tp, td, ((int *)msg->data)[1],
-			    &ngt_hook, sc);
+			_PHOLD(p);
 			PROC_UNLOCK(p);
+			error = ttyhook_register(&sc->tp, p, ((int *)msg->data)[1],
+			    &ngt_hook, sc);
+			PRELE(p);
 			if (error != 0)
 				return (error);
 			break;
