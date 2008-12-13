@@ -211,7 +211,7 @@ g_metadata_store(const char *name, u_char *md, size_t size)
 	sector = NULL;
 	error = 0;
 
-	fd = open(path, O_WRONLY);
+	fd = open(path, O_RDWR);
 	if (fd == -1)
 		return (errno);
 	mediasize = g_get_mediasize(name);
