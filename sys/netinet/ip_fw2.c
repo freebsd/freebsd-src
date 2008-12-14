@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <sys/vimage.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/pf_mtag.h>
@@ -162,9 +164,47 @@ ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
+static __inline int ether_addr_allow(ipfw_ether_addr *want, 
+	ipfw_ether_addr *a)
+{
+	static ipfw_ether_addr mask = {
+		.octet = { 0xff, 0xff, 0xff, 0xff, 0xff,0xff },
+		.flags = 0
+	};
+	if ((want->flags & IPFW_EA_CHECK) == 0)
+		return (1);
+
+	if ((a->flags & IPFW_EA_CHECK) == 0)
+		return (0);
+
+	if (want->flags & IPFW_EA_MULTICAST) {
+		return (ETHER_IS_MULTICAST(a->octet));
+	}
+	
+#define EA_CMP(a) (*((u_int64_t*)(a)) & *((u_int64_t*)&mask))
+	return (EA_CMP(want) == EA_CMP(a));
+#undef EA_CMP
+}
+
+static __inline int ether_addr_allow_dyn(ipfw_ether_addr *want, ipfw_ether_addr *a)
+{
+	if ((a->flags & IPFW_EA_CHECK) == 0) {
+		return (1);
+	}
+	return (ether_addr_allow(want, a));
+}
+
+struct table_entry_addr {
+	u_char			len;
+	u_char			__reserved;
+	struct ether_addr	ether_addr;
+	in_addr_t		in_addr;
+};
+
 struct table_entry {
-	struct radix_node	rn[2];
-	struct sockaddr_in	addr, mask;
+	struct radix_node	in_rn[2], ether_rn[2];
+	struct table_entry_addr	addr, mask;
+	int			refcnt;
 	u_int32_t		value;
 };
 
@@ -744,18 +784,6 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 		 */
 		tcp_respond(NULL, ip6, tcp, m, ack, seq, flags);
 	} else if (code != ICMP6_UNREACH_RST) { /* Send an ICMPv6 unreach. */
-#if 0
-		/*
-		 * Unlike above, the mbufs need to line up with the ip6 hdr,
-		 * as the contents are read. We need to m_adj() the
-		 * needed amount.
-		 * The mbuf will however be thrown away so we can adjust it.
-		 * Remember we did an m_pullup on it already so we
-		 * can make some assumptions about contiguousness.
-		 */
-		if (args->L3offset)
-			m_adj(m, args->L3offset);
-#endif
 		icmp6_error(m, ICMP6_DST_UNREACH, code, 0);
 	} else
 		m_freem(m);
@@ -782,7 +810,6 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
     struct ip *ip)
 {
 	INIT_VNET_IPFW(curvnet);
-	struct ether_header *eh = args->eh;
 	char *action;
 	int limit_reached = 0;
 	char action2[40], proto[128], fragment[32];
@@ -909,7 +936,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 	}
 
 	if (hlen == 0) {	/* non-ip */
-		snprintf(SNPARGS(proto, 0), "MAC");
+		snprintf(SNPARGS(proto, 0), "ether");
 
 	} else {
 		int len;
@@ -1011,13 +1038,8 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 #endif
 		{
 			int ip_off, ip_len;
-			if (eh != NULL) { /* layer 2 packets are as on the wire */
-				ip_off = ntohs(ip->ip_off);
-				ip_len = ntohs(ip->ip_len);
-			} else {
-				ip_off = ip->ip_off;
-				ip_len = ip->ip_len;
-			}
+			ip_off = ip->ip_off;
+			ip_len = ip->ip_len;
 			if (ip_off & (IP_MF | IP_OFFMASK))
 				snprintf(SNPARGS(fragment, 0),
 				    " (frag %d:%d@%d%s)",
@@ -1244,7 +1266,21 @@ next:
 	if (q == NULL)
 		goto done; /* q = NULL, not found */
 
-	if ( prev != NULL) { /* found and not in front */
+	/*
+	 * Only check {src,dst}_ether if it was specified in rule and packet
+	 * mbuf has mtag_ether_header.
+	 */
+	if (dir == MATCH_NONE ||
+	    !ether_addr_allow_dyn(&q->id.src_ether,
+	    (dir == MATCH_FORWARD ? &pkt->src_ether : &pkt->dst_ether)) ||
+	    !ether_addr_allow_dyn(&q->id.dst_ether,
+	    (dir == MATCH_FORWARD ? &pkt->dst_ether : &pkt->src_ether))) {
+		q = NULL;
+		dir = MATCH_NONE;
+		goto done;
+	}
+
+	if (prev != NULL) { /* found and not in front */
 		prev->next = q->next;
 		q->next = V_ipfw_dyn_v[i];
 		V_ipfw_dyn_v[i] = q;
@@ -1370,7 +1406,7 @@ realloc_dynamic_table(void)
  * - "parent" rules for the above (O_LIMIT_PARENT).
  */
 static ipfw_dyn_rule *
-add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
+add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule, uint32_t stateopts)
 {
 	INIT_VNET_IPFW(curvnet);
 	ipfw_dyn_rule *r;
@@ -1403,6 +1439,10 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	}
 
 	r->id = *id;
+	if ((stateopts & IP_FW_STATEOPT_ETHER) == 0) {
+		r->id.src_ether.flags = 0;
+		r->id.dst_ether.flags = 0;
+	}
 	r->expire = time_uptime + V_dyn_syn_lifetime;
 	r->rule = rule;
 	r->dyn_type = dyn_type;
@@ -1426,7 +1466,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
  * If the lookup fails, then install one.
  */
 static ipfw_dyn_rule *
-lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
+lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule, uint32_t stateopts)
 {
 	INIT_VNET_IPFW(curvnet);
 	ipfw_dyn_rule *q;
@@ -1459,7 +1499,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
 				return q;
 			}
 	}
-	return add_dyn_rule(pkt, O_LIMIT_PARENT, rule);
+	return add_dyn_rule(pkt, O_LIMIT_PARENT, rule, stateopts);
 }
 
 /**
@@ -1469,7 +1509,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
  * session limitations are enforced.
  */
 static int
-install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
+install_state(struct ip_fw *rule, uint32_t stateopts, ipfw_insn_limit *cmd,
     struct ip_fw_args *args, uint32_t tablearg)
 {
 	INIT_VNET_IPFW(curvnet);
@@ -1517,7 +1557,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 
 	switch (cmd->o.opcode) {
 	case O_KEEP_STATE:	/* bidir rule */
-		add_dyn_rule(&args->f_id, O_KEEP_STATE, rule);
+		add_dyn_rule(&args->f_id, O_KEEP_STATE, rule, stateopts);
 		break;
 
 	case O_LIMIT: {		/* limit number of sessions */
@@ -1558,7 +1598,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			id.src_port = args->f_id.src_port;
 		if (limit_mask & DYN_DST_PORT)
 			id.dst_port = args->f_id.dst_port;
-		if ((parent = lookup_dyn_parent(&id, rule)) == NULL) {
+		if ((parent = lookup_dyn_parent(&id, rule, stateopts)) == NULL) {
 			printf("ipfw: %s: add parent failed\n", __func__);
 			IPFW_DYN_UNLOCK();
 			return (1);
@@ -1605,7 +1645,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 				return (1);
 			}
 		}
-		add_dyn_rule(&args->f_id, O_LIMIT, (struct ip_fw *)parent);
+		add_dyn_rule(&args->f_id, O_LIMIT, (struct ip_fw *)parent, stateopts);
 		break;
 	}
 	default:
@@ -1725,22 +1765,7 @@ static void
 send_reject(struct ip_fw_args *args, int code, int ip_len, struct ip *ip)
 {
 
-#if 0
-	/* XXX When ip is not guaranteed to be at mtod() we will
-	 * need to account for this */
-	 * The mbuf will however be thrown away so we can adjust it.
-	 * Remember we did an m_pullup on it already so we
-	 * can make some assumptions about contiguousness.
-	 */
-	if (args->L3offset)
-		m_adj(m, args->L3offset);
-#endif
 	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
-		/* We need the IP header in host order for icmp_error(). */
-		if (args->eh != NULL) {
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
-		}
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
 	} else if (args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
@@ -1807,88 +1832,153 @@ lookup_next_rule(struct ip_fw *me, u_int32_t tablearg)
 	return rule;
 }
 
+static void
+init_table_entry_addr(struct table_entry_addr *addr, struct table_entry_addr *mask,
+    in_addr_t in_addr, uint8_t mlen, ipfw_ether_addr *ether_addr)
+{
+	addr->len = mask->len = sizeof(struct table_entry_addr);
+	mask->in_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
+	addr->in_addr = in_addr & mask->in_addr;
+	if (ether_addr && (ether_addr->flags & IPFW_EA_CHECK)) {
+		if (ether_addr->flags & IPFW_EA_MULTICAST) {
+			bzero(addr->ether_addr.octet, ETHER_ADDR_LEN);
+			addr->ether_addr.octet[0] = 0x01;
+			bzero(mask->ether_addr.octet, ETHER_ADDR_LEN);
+			mask->ether_addr.octet[0] = 0x01;
+		} else {
+			memcpy(addr->ether_addr.octet, ether_addr->octet, ETHER_ADDR_LEN);
+			memset(mask->ether_addr.octet, 0xff, ETHER_ADDR_LEN);
+		}
+	} else {
+		/* set any ether addr */
+		bzero(addr->ether_addr.octet, ETHER_ADDR_LEN);
+		memset(mask->ether_addr.octet, 0xff, ETHER_ADDR_LEN);
+	}
+}
+
+static __inline struct table_entry *
+__rn_to_table_entry(struct radix_node *_rn, int off)
+{
+	char *rn = (char*) _rn;
+
+	if (rn == NULL)
+		return NULL;
+	return (struct table_entry*)(rn - off);
+
+}
+
+#define RN_TO_ENT(e, r) (__rn_to_table_entry(e, __offsetof(struct table_entry, r)))
+
+static __inline void
+release_table_entry(struct ipfw_table_head *th, struct table_entry *ent)
+{
+	IPFW_WLOCK_ASSERT(&V_layer3_chain);	/* FIXME */
+
+	if (refcount_release(&ent->refcnt)) {
+		if (ent->in_rn[0].rn_flags)
+			th->in_rnh->rnh_deladdr(&ent->addr, &ent->mask, th->in_rnh);
+		free(ent, M_IPFW_TBL);
+	}
+}
+
 static int
 add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint8_t mlen, uint32_t value)
+    uint8_t mlen, ipfw_ether_addr *ether_addr, uint32_t value)
 {
 	INIT_VNET_IPFW(curvnet);
-	struct radix_node_head *rnh;
-	struct table_entry *ent;
+	struct ipfw_table_head *th;
+	struct table_entry *ent, *in_ent;
 	struct radix_node *rn;
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
-	rnh = ch->tables[tbl];
+	th = &ch->tables[tbl];
 	ent = malloc(sizeof(*ent), M_IPFW_TBL, M_NOWAIT | M_ZERO);
 	if (ent == NULL)
 		return (ENOMEM);
+	refcount_init(&ent->refcnt, 1);
 	ent->value = value;
-	ent->addr.sin_len = ent->mask.sin_len = 8;
-	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
-	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
+	init_table_entry_addr(&ent->addr, &ent->mask, addr, mlen, ether_addr);
 	IPFW_WLOCK(ch);
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rn = rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
+	RADIX_NODE_HEAD_LOCK(th->ether_rnh);
+	rh = th->ether_rnh->rnh_addaddr(&ent->addr, &ent->mask, th->ether_rnh,
+	    ent->ether_rn);
+	RADIX_NODE_HEAD_UNLOCK(th->ether_rnh);
 	if (rn == NULL) {
 		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
 		return (EEXIST);
 	}
+	in_ent = RN_TO_ENT(th->in_rnh->rnh_lookup(&ent->addr, &ent->mask, th->in_rnh),
+	    in_rn);
+	if (in_ent == NULL) {
+		in_ent = RN_TO_ENT(th->in_rnh->rnh_addaddr(&ent->addr, &ent->mask,
+		    th->in_rnh, ent->in_rn), in_rn);
+		if (in_ent == NULL) {
+			th->ether_rnh->rnh_deladdr(&ent->addr, &ent->mask, th->ether_rnh);
+			IPFW_WUNLOCK(ch);
+			free(ent, M_IPFW_TBL);
+			return (EEXIST);
+		}
+	}
+	refcount_acquire(&in_ent->refcnt);
 	IPFW_WUNLOCK(ch);
+	return (0);
+}
+
+static __inline int
+delete_table_entry_rn(struct ipfw_table_head *th, void *addr, void *mask)
+{
+	struct table_entry *ent, *in_ent;
+
+	ent = RN_TO_ENT(th->ether_rnh->rnh_deladdr(addr, mask, th->ether_rnh),
+	    ether_rn);
+	if (ent == NULL)
+		return (ESRCH);
+	in_ent = RN_TO_ENT(th->in_rnh->rnh_lookup(&ent->addr, &ent->mask, th->in_rnh),
+	    in_rn);
+	release_table_entry(th, in_ent);
+	release_table_entry(th, ent);
 	return (0);
 }
 
 static int
 del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint8_t mlen)
+    uint8_t mlen, ipfw_ether_addr *ether_addr)
 {
-	struct radix_node_head *rnh;
-	struct table_entry *ent;
-	struct sockaddr_in sa, mask;
+	struct ipfw_table_head *th;
+	struct table_entry_addr sa, mask;
+	int err;
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
-	rnh = ch->tables[tbl];
-	sa.sin_len = mask.sin_len = 8;
-	mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
-	sa.sin_addr.s_addr = addr & mask.sin_addr.s_addr;
+	th = &ch->tables[tbl];
+	init_table_entry_addr(&sa, &mask, addr, mlen, ether_addr);
 	IPFW_WLOCK(ch);
-	ent = (struct table_entry *)rnh->rnh_deladdr(&sa, &mask, rnh);
-	if (ent == NULL) {
-		IPFW_WUNLOCK(ch);
-		return (ESRCH);
-	}
+	err = delete_table_entry_rn(th, &sa, &mask);
 	IPFW_WUNLOCK(ch);
-	free(ent, M_IPFW_TBL);
-	return (0);
+	return (err);
 }
 
 static int
 flush_table_entry(struct radix_node *rn, void *arg)
 {
-	struct radix_node_head * const rnh = arg;
-	struct table_entry *ent;
-
-	ent = (struct table_entry *)
-	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
-	if (ent != NULL)
-		free(ent, M_IPFW_TBL);
+	delete_table_entry_rn((struct ipfw_table_head *)arg, rn->rn_key, rn->rn_mask);
 	return (0);
 }
 
 static int
 flush_table(struct ip_fw_chain *ch, uint16_t tbl)
 {
-	struct radix_node_head *rnh;
+	struct ipfw_table_head *th;
 
 	IPFW_WLOCK_ASSERT(ch);
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
-	rnh = ch->tables[tbl];
-	KASSERT(rnh != NULL, ("NULL IPFW table"));
-	rnh->rnh_walktree(rnh, flush_table_entry, rnh);
+	th = &ch->tables[tbl];
+	KASSERT(th->ether_rnh != NULL, ("NULL IPFW table"));
+	th->ether_rnh->rnh_walktree(th->ether_rnh, flush_table_entry, th);
 	return (0);
 }
 
@@ -1910,7 +2000,12 @@ init_tables(struct ip_fw_chain *ch)
 	uint16_t j;
 
 	for (i = 0; i < IPFW_TABLES_MAX; i++) {
-		if (!rn_inithead((void **)&ch->tables[i], 32)) {
+		struct ipfw_table_head *th = &ch->tables[i];
+
+		if (!rn_inithead((void**)&(th->in_rnh), 
+		    __offsetof(struct table_entry_addr, in_addr) * 8) ||
+		    !rn_inithead((void**)&(th->ether_rnh),
+		    __offsetof(struct table_entry_addr, ether_addr) * 8)) {
 			for (j = 0; j < i; j++) {
 				(void) flush_table(ch, j);
 			}
@@ -1922,18 +2017,34 @@ init_tables(struct ip_fw_chain *ch)
 
 static int
 lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint32_t *val)
+    ipfw_ether_addr *ether_addr, uint32_t *val)
 {
-	struct radix_node_head *rnh;
-	struct table_entry *ent;
-	struct sockaddr_in sa;
+	struct ipfw_table_head *th;
+	struct table_entry_addr sa, mask;
+	struct table_entry *ent = NULL;
+	const int has_ether_addr = (ether_addr && (ether_addr->flags & IPFW_EA_CHECK));
+	const int has_in_addr = (addr != INADDR_ANY);
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (0);
-	rnh = ch->tables[tbl];
-	sa.sin_len = 8;
-	sa.sin_addr.s_addr = addr;
-	ent = (struct table_entry *)(rnh->rnh_lookup(&sa, NULL, rnh));
+	th = &ch->tables[tbl];
+	init_table_entry_addr(&sa, &mask, addr, (addr == INADDR_ANY ? 0 : 32), ether_addr);
+	if (has_ether_addr) {
+		ent = RN_TO_ENT(th->ether_rnh->rnh_lookup(&sa, NULL, th->ether_rnh),
+		    ether_rn);
+		if (ent == NULL && has_in_addr) {
+			/* 
+			 * Try to lookup entry with any (zero) ether_addr. It's
+			 * handled this way not to deal with non-continuous
+			 * masks in radix trees.
+			 */
+			bzero(sa.ether_addr.octet, ETHER_ADDR_LEN);
+			ent = RN_TO_ENT(th->ether_rnh->rnh_lookup(&sa, NULL, th->ether_rnh),
+			    ether_rn);
+		}
+	} else if (has_in_addr) {
+		ent = RN_TO_ENT(th->in_rnh->rnh_lookup(&sa, NULL, th->in_rnh), in_rn);
+	}
 	if (ent != NULL) {
 		*val = ent->value;
 		return (1);
@@ -1953,20 +2064,20 @@ count_table_entry(struct radix_node *rn, void *arg)
 static int
 count_table(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt)
 {
-	struct radix_node_head *rnh;
+	struct ipfw_table_head *th;
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
-	rnh = ch->tables[tbl];
+	th = &ch->tables[tbl];
 	*cnt = 0;
-	rnh->rnh_walktree(rnh, count_table_entry, cnt);
+	th->ether_rnh->rnh_walktree(th->ether_rnh, count_table_entry, cnt);
 	return (0);
 }
 
 static int
 dump_table_entry(struct radix_node *rn, void *arg)
 {
-	struct table_entry * const n = (struct table_entry *)rn;
+	struct table_entry * const n = RN_TO_ENT(rn, ether_rn);
 	ipfw_table * const tbl = arg;
 	ipfw_table_entry *ent;
 
@@ -1974,11 +2085,23 @@ dump_table_entry(struct radix_node *rn, void *arg)
 		return (1);
 	ent = &tbl->ent[tbl->cnt];
 	ent->tbl = tbl->tbl;
-	if (in_nullhost(n->mask.sin_addr))
+	if (n->mask.in_addr == INADDR_ANY)
 		ent->masklen = 0;
 	else
-		ent->masklen = 33 - ffs(ntohl(n->mask.sin_addr.s_addr));
-	ent->addr = n->addr.sin_addr.s_addr;
+		ent->masklen = 33 - ffs(ntohl(n->mask.in_addr));
+	ent->addr = n->addr.in_addr;
+	memcpy(ent->ether_addr.octet, n->addr.ether_addr.octet, ETHER_ADDR_LEN);
+	ent->ether_addr.flags = 0;
+
+#define __ETHER_IS_ZERO(a) (((a)[0] | (a)[1] | (a)[2] | (a)[3] | (a)[4] | (a)[5]) == 0)
+	if (!__ETHER_IS_ZERO(n->mask.ether_addr.octet) &&
+	    !__ETHER_IS_ZERO(n->addr.ether_addr.octet)) {
+		ent->ether_addr.flags = IPFW_EA_CHECK;
+		/* Should be fixed after adding new flags */
+		if (n->mask.ether_addr.octet[0] == 0x01)
+			ent->ether_addr.flags |= IPFW_EA_MULTICAST;
+	}
+#undef __ETHER_IS_ZERO
 	ent->value = n->value;
 	tbl->cnt++;
 	return (0);
@@ -1987,13 +2110,13 @@ dump_table_entry(struct radix_node *rn, void *arg)
 static int
 dump_table(struct ip_fw_chain *ch, ipfw_table *tbl)
 {
-	struct radix_node_head *rnh;
+	struct ipfw_table_head *th;
 
 	if (tbl->tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
-	rnh = ch->tables[tbl->tbl];
+	th = &ch->tables[tbl->tbl];
 	tbl->cnt = 0;
-	rnh->rnh_walktree(rnh, dump_table_entry, tbl);
+	th->ether_rnh->rnh_walktree(th->ether_rnh, dump_table_entry, tbl);
 	return (0);
 }
 
@@ -2101,10 +2224,9 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
  * Parameters:
  *
  *	args->m	(in/out) The packet; we set to NULL when/if we nuke it.
- *		Starts with the IP header.
- *	args->eh (in)	Mac header if present, or NULL for layer3 packet.
- *	args->L3offset	Number of bytes bypassed if we came from L2.
- *			e.g. often sizeof(eh)  ** NOTYET **
+ *		Starts with the IP header or with layer2 header if IP_FW_ARGS_LAYER2
+ *		is set in args->flags.
+ *	args->eh (in)	ethernet header if present, or NULL for layer3 packet.
  *	args->oif	Outgoing interface, or NULL if packet is incoming.
  *		The incoming interface is in the mbuf. (in)
  *	args->divert_rule (in/out)
@@ -2115,6 +2237,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
  *	args->next_hop	Socket we are forwarding to (out).
  *	args->f_id	Addresses grabbed from the packet (out)
  * 	args->cookie	a cookie depending on rule action
+ * 	args->flags	Flags
  *
  * Return value:
  *
@@ -2141,10 +2264,8 @@ ipfw_chk(struct ip_fw_args *args)
 	 * the implementation of the various instructions to make sure
 	 * that they still work.
 	 *
-	 * args->eh	The MAC header. It is non-null for a layer2
+	 * args->eh	The ethernet header. It is non-null for a layer2
 	 *	packet, it is NULL for a layer-3 packet.
-	 * **notyet**
-	 * args->L3offset Offset in the packet to the L3 (IP or equiv.) header.
 	 *
 	 * m | args->m	Pointer to the mbuf, as received from the caller.
 	 *	It may change if ipfw_chk() does an m_pullup, or if it
@@ -2152,12 +2273,10 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	XXX This has to change, so that ipfw_chk() never modifies
 	 *	or consumes the buffer.
 	 * ip	is the beginning of the ip(4 or 6) header.
-	 *	Calculated by adding the L3offset to the start of data.
-	 *	(Until we start using L3offset, the packet is
 	 *	supposed to start with the ip header).
 	 */
 	struct mbuf *m = args->m;
-	struct ip *ip = mtod(m, struct ip *);
+	struct ip *ip = NULL;
 
 	/*
 	 * For rules which contain uid/gid or jail constraints, cache
@@ -2253,6 +2372,9 @@ ipfw_chk(struct ip_fw_args *args)
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (IP_FW_PASS);	/* accept */
 
+	if ((args->flags & IP_FW_ARGS_LAYER2) == 0)
+		ip = mtod(m, struct ip *);
+
 	pktlen = m->m_pkthdr.len;
 	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
@@ -2278,12 +2400,22 @@ do {									\
 	/*
 	 * if we have an ether header,
 	 */
-	if (args->eh)
+	if (args->eh != NULL) {
 		etype = ntohs(args->eh->ether_type);
+		memcpy(args->f_id.src_ether.octet, args->eh->ether_shost, 
+				ETHER_ADDR_LEN);
+		args->f_id.src_ether.flags = IPFW_EA_CHECK;
+		memcpy(args->f_id.dst_ether.octet, args->eh->ether_dhost, 
+				ETHER_ADDR_LEN);
+		args->f_id.dst_ether.flags = IPFW_EA_CHECK;
+	} else {
+		args->f_id.src_ether.flags = 0;
+		args->f_id.dst_ether.flags = 0;
+	}
 
 	/* Identify IP packets and fill up variables. */
 	if (pktlen >= sizeof(struct ip6_hdr) &&
-	    (args->eh == NULL || etype == ETHERTYPE_IPV6) && ip->ip_v == 6) {
+	    (args->flags & IP_FW_ARGS_LAYER2) == 0 && ip->ip_v == 6) {
 		struct ip6_hdr *ip6 = (struct ip6_hdr *)ip;
 		is_ipv6 = 1;
 		args->f_id.addr_type = 6;
@@ -2448,7 +2580,7 @@ do {									\
 		args->f_id.dst_ip = 0;
 		args->f_id.flow_id6 = ntohl(ip6->ip6_flow);
 	} else if (pktlen >= sizeof(struct ip) &&
-	    (args->eh == NULL || etype == ETHERTYPE_IP) && ip->ip_v == 4) {
+	    (args->flags & IP_FW_ARGS_LAYER2) == 0 && ip->ip_v == 4) {
 	    	is_ipv4 = 1;
 		hlen = ip->ip_hl << 2;
 		args->f_id.addr_type = 4;
@@ -2459,13 +2591,8 @@ do {									\
 		proto = ip->ip_p;
 		src_ip = ip->ip_src;
 		dst_ip = ip->ip_dst;
-		if (args->eh != NULL) { /* layer 2 packets are as on the wire */
-			offset = ntohs(ip->ip_off) & IP_OFFMASK;
-			ip_len = ntohs(ip->ip_len);
-		} else {
-			offset = ip->ip_off & IP_OFFMASK;
-			ip_len = ip->ip_len;
-		}
+		offset = ip->ip_off & IP_OFFMASK;
+		ip_len = ip->ip_len;
 		pktlen = ip_len < pktlen ? ip_len : pktlen;
 
 		if (offset == 0) {
@@ -2496,6 +2623,13 @@ do {									\
 		ip = mtod(m, struct ip *);
 		args->f_id.src_ip = ntohl(src_ip.s_addr);
 		args->f_id.dst_ip = ntohl(dst_ip.s_addr);
+	} else if (pktlen >= ETHER_HDR_LEN && args->eh != NULL &&
+	    (args->flags & IP_FW_ARGS_LAYER2)) {
+		void *hdr;
+		switch (ntohs(args->eh->ether_type)) {
+		case ETHERTYPE_ARP:
+			PULLUP_TO(ETHER_HDR_LEN, hdr, struct arphdr);
+		}
 	}
 #undef PULLUP_TO
 	if (proto) { /* we may have port numbers, store them */
@@ -2531,7 +2665,7 @@ do {									\
 		int skipto = mtag ? divert_cookie(mtag) : 0;
 
 		f = chain->rules;
-		if (args->eh == NULL && skipto != 0) {
+		if ((args->flags & IP_FW_ARGS_LAYER2) == 0 && skipto != 0) {
 			if (skipto >= IPFW_DEFAULT_RULE) {
 				IPFW_RUNLOCK(chain);
 				return (IP_FW_DENY); /* invalid */
@@ -2557,6 +2691,7 @@ do {									\
 	for (; f; f = f->next) {
 		ipfw_insn *cmd;
 		uint32_t tablearg = 0;
+		uint32_t stateopts = 0;
 		int l, cmdlen, skip_or; /* skip rest of OR block */
 
 again:
@@ -2602,11 +2737,6 @@ check_body:
 				match = 1;
 				break;
 
-			case O_FORWARD_MAC:
-				printf("ipfw: opcode %d unimplemented\n",
-				    cmd->opcode);
-				break;
-
 			case O_GID:
 			case O_UID:
 			case O_JAIL:
@@ -2643,23 +2773,20 @@ check_body:
 				    m->m_pkthdr.rcvif, (ipfw_insn_if *)cmd);
 				break;
 
-			case O_MACADDR2:
-				if (args->eh != NULL) {	/* have MAC header */
-					u_int32_t *want = (u_int32_t *)
-						((ipfw_insn_mac *)cmd)->addr;
-					u_int32_t *mask = (u_int32_t *)
-						((ipfw_insn_mac *)cmd)->mask;
-					u_int32_t *hdr = (u_int32_t *)args->eh;
-
-					match =
-					    ( want[0] == (hdr[0] & mask[0]) &&
-					      want[1] == (hdr[1] & mask[1]) &&
-					      want[2] == (hdr[2] & mask[2]) );
+			case O_ETHER_SRC:
+			case O_ETHER_DST:
+				if (args->eh != NULL) {	/* have ethernet header */
+					ipfw_ether_addr *want = 
+						&(((ipfw_insn_ether *)cmd)->ether);
+					ipfw_ether_addr *a = (cmd->opcode == O_ETHER_SRC ?
+						&args->f_id.src_ether :
+						&args->f_id.dst_ether);
+					match = ether_addr_allow(want, a);
 				}
 				break;
 
-			case O_MAC_TYPE:
-				if (args->eh != NULL) {
+			case O_ETHER_TYPE:
+				if (args->eh != NULL) {	/* have ethernet header */
 					u_int16_t *p =
 					    ((ipfw_insn_u16 *)cmd)->ports;
 					int i;
@@ -2680,7 +2807,7 @@ check_body:
 				break;
 
 			case O_LAYER2:
-				match = (args->eh != NULL);
+				match = ((args->flags & IP_FW_ARGS_LAYER2) != 0);
 				break;
 
 			case O_DIVERTED:
@@ -2706,14 +2833,23 @@ check_body:
 
 			case O_IP_SRC_LOOKUP:
 			case O_IP_DST_LOOKUP:
-				if (is_ipv4) {
-				    uint32_t a =
-					(cmd->opcode == O_IP_DST_LOOKUP) ?
-					    dst_ip.s_addr : src_ip.s_addr;
+				if (is_ipv4 || (args->flags & IP_FW_ARGS_LAYER2)) {
+				    ipfw_ether_addr *ea;
+				    uint32_t a;
 				    uint32_t v;
 
+				    if (cmd->opcode == O_IP_DST_LOOKUP) {
+					    a = dst_ip.s_addr;
+					    ea = &args->f_id.dst_ether;
+				    } else {
+					    a = src_ip.s_addr;
+					    ea = &args->f_id.src_ether;
+				    }
+				    if (args->flags & IP_FW_ARGS_LAYER2)
+					    a = INADDR_ANY;
+
 				    match = lookup_table(chain, cmd->arg1, a,
-					&v);
+					ea, &v);
 				    if (!match)
 					break;
 				    if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
@@ -3105,6 +3241,92 @@ check_body:
 					match = 1;
 				break;
 
+			case O_STATEOPTS:
+				if ((cmd->arg1 & IP_FW_STATEOPT_ETHER)) {
+					match = (args->eh != NULL);
+					if (!match)
+						break;
+				}
+				stateopts = cmd->arg1 & 0xff;
+				break;
+
+			case O_ARP_OP:
+			case O_ARP_SRC_LOOKUP:
+			case O_ARP_DST_LOOKUP:
+				if (args->flags & IP_FW_ARGS_LAYER2 &&
+					pktlen >= ETHER_HDR_LEN && args->eh != NULL) {
+				    struct arphdr *ah;
+				    int op;
+
+				    op = ntohs(args->eh->ether_type);
+				    if (op != ETHERTYPE_ARP && op != ETHERTYPE_REVARP)
+					break;
+
+				    ah = (struct arphdr*)(mtod(m, char*) + ETHER_HDR_LEN);
+				    op = ntohs(ah->ar_op);
+
+				    if (ntohs(ah->ar_pro) != ETHERTYPE_IP ||
+					    ntohs(ah->ar_hrd) != ARPHRD_ETHER)
+					break;
+
+				    if (cmd->opcode == O_ARP_OP) {
+					u_int16_t *p =
+					    ((ipfw_insn_u16 *)cmd)->ports;
+					int i;
+
+					for (i = cmdlen - 1; !match && i > 0;
+						i--, p += 2)
+					    match = (op >= p[0] &&
+						    op <= p[1]);
+				    } else {
+					ipfw_ether_addr ha;
+					uint32_t pa, v;
+
+					/*
+					 * XXX: Drop RARP requests
+					 * Protocol addresses are undefined
+					 * and table lookup by hardware address is not supported
+					 */
+					if (op == ARPOP_REVREQUEST)
+					    break;
+
+					if (cmd->opcode == O_ARP_DST_LOOKUP) {
+					    /* 
+					     * XXX: Drop Inverse ARP requests
+					     * Target protocol address is not specified
+					     * and table lookup by hardware address is not supported
+					     */
+					    if (op == ARPOP_INVREQUEST)
+						break;
+					    pa = *(uint32_t *) ar_tpa(ah);
+
+					    /*
+					     * Ignore hardware address for requests 
+					     */
+					    if (op != ARPOP_REQUEST) {
+						memcpy(ha.octet, ar_tha(ah), ETHER_ADDR_LEN);
+						ha.flags = IPFW_EA_CHECK;
+					    } else {
+						ha.flags = 0;
+					    }
+					} else {
+					    pa = *(uint32_t *) ar_spa(ah);
+					    memcpy(ha.octet, ar_sha(ah), ETHER_ADDR_LEN);
+					    ha.flags = IPFW_EA_CHECK;
+					}
+
+					match = lookup_table(chain, cmd->arg1, pa, 
+						(ha.flags ? &ha : NULL), &v);
+					if (!match)
+					    break;
+					if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
+					    match = ((ipfw_insn_u32 *)cmd)->d[0] == v;
+					else
+					    tablearg = v;
+				    }
+				}
+				break;
+
 			case O_TAGGED: {
 				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
 				    tablearg : cmd->arg1;
@@ -3178,7 +3400,7 @@ check_body:
 			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
-				if (install_state(f,
+				if (install_state(f, stateopts,
 				    (ipfw_insn_limit *)cmd, args, tablearg)) {
 					retval = IP_FW_DENY;
 					goto done; /* error/limit violation */
@@ -3243,7 +3465,7 @@ check_body:
 			case O_TEE: {
 				struct divert_tag *dt;
 
-				if (args->eh) /* not on layer 2 */
+				if (args->flags & IP_FW_ARGS_LAYER2) /* not valid on layer2 pkts */
 					break;
 				mtag = m_tag_get(PACKET_TAG_DIVERT,
 						sizeof(struct divert_tag),
@@ -3319,7 +3541,7 @@ check_body:
 			case O_FORWARD_IP: {
 				struct sockaddr_in *sa;
 				sa = &(((ipfw_insn_sa *)cmd)->sa);
-				if (args->eh)	/* not valid on layer2 pkts */
+				if (args->flags & IP_FW_ARGS_LAYER2) /* not valid on layer2 pkts */
 					break;
 				if (!q || dyn_dir == MATCH_FORWARD) {
 					if (sa->sin_addr.s_addr == INADDR_ANY) {
@@ -3865,6 +4087,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 #endif
 		case O_IP4:
 		case O_TAG:
+		case O_STATEOPTS:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
@@ -3937,6 +4160,8 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_IP_SRC_LOOKUP:
 		case O_IP_DST_LOOKUP:
+		case O_ARP_SRC_LOOKUP:
+		case O_ARP_DST_LOOKUP:
 			if (cmd->arg1 >= IPFW_TABLES_MAX) {
 				printf("ipfw: invalid table number %d\n",
 				    cmd->arg1);
@@ -3947,8 +4172,9 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			break;
 
-		case O_MACADDR2:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
+		case O_ETHER_SRC:
+		case O_ETHER_DST:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_ether))
 				goto bad_size;
 			break;
 
@@ -3962,9 +4188,10 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			break;
 
-		case O_MAC_TYPE:
 		case O_IP_SRCPORT:
 		case O_IP_DSTPORT: /* XXX artificial limit, 30 port pairs */
+		case O_ETHER_TYPE:
+		case O_ARP_OP:
 			if (cmdlen < 2 || cmdlen > 31)
 				goto bad_size;
 			break;
@@ -4014,7 +4241,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
  				goto bad_size;		
  			goto check_action;
-		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
 		case O_COUNT:
 		case O_ACCEPT:
@@ -4333,7 +4559,7 @@ ipfw_ctl(struct sockopt *sopt)
 			if (error)
 				break;
 			error = add_table_entry(&V_layer3_chain, ent.tbl,
-			    ent.addr, ent.masklen, ent.value);
+			    ent.addr, ent.masklen, &ent.ether_addr, ent.value);
 		}
 		break;
 
@@ -4346,7 +4572,7 @@ ipfw_ctl(struct sockopt *sopt)
 			if (error)
 				break;
 			error = del_table_entry(&V_layer3_chain, ent.tbl,
-			    ent.addr, ent.masklen);
+			    ent.addr, ent.masklen, &ent.ether_addr);
 		}
 		break;
 

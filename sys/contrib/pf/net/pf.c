@@ -341,6 +341,8 @@ struct pf_pool_limit pf_pool_limits[PF_LIMIT_MAX] = {
 			    kif, &key, PF_LAN_EXT);			\
 		if (*state == NULL || (*state)->timeout == PFTM_PURGE)	\
 			return (PF_DROP);				\
+		if (!pf_state_match_addr_ether(*state, pd, direction))	\
+			return (PF_DROP);				\
 		if (direction == PF_OUT &&				\
 		    (((*state)->rule.ptr->rt == PF_ROUTETO &&		\
 		    (*state)->rule.ptr->direction == PF_OUT) ||		\
@@ -703,6 +705,34 @@ pf_find_state_all(struct pf_state_cmp *key, u_int8_t tree, int *more)
 	default:
 		panic("pf_find_state_all");
 	}
+}
+
+static __inline int
+pf_state_match_addr_ether(struct pf_state *state, struct pf_pdesc *pd, int direction)
+{
+	struct pf_addr_ether	*src, *dst;
+
+#ifdef __FreeBSD__
+	if ((state->local_flags & PFSTATE_ETHER) == 0)
+		return (1);
+#else
+	if ((state->rule.ptr->rule_flag & PFRULE_ETHERSTATE) == 0)
+		return (1);
+#endif
+
+	if (direction == PF_IN) {
+		src = &state->ext.addr_ether;
+		dst = &state->gwy.addr_ether;
+	} else {
+		src = &state->lan.addr_ether;
+		dst = &state->ext.addr_ether;
+	}
+
+	if (pf_match_addr_ether(src, &pd->src_ether, 1) &&
+		pf_match_addr_ether(dst, &pd->dst_ether, 1))
+		return (1);
+
+	return (0);
 }
 
 void
@@ -2113,6 +2143,26 @@ pf_match_addr(u_int8_t n, struct pf_addr *a, struct pf_addr *m,
 }
 
 int
+pf_match_addr_ether(struct pf_addr_ether *want, struct pf_addr_ether *a, int match_empty)
+{
+	static struct pf_addr_ether mask = {
+		.octet = { 0xff, 0xff, 0xff, 0xff, 0xff,0xff },
+		.flags = 0
+	};
+	if (want == NULL || (want->flags & PFAE_CHECK) == 0)
+		return (1);
+	if (a == NULL || (a->flags & PFAE_CHECK) == 0)
+		return (match_empty);
+
+	if (want->flags & PFAE_MULTICAST) {
+		return (ETHER_IS_MULTICAST(a->octet));
+	}
+#define EA_CMP(x) (*((u_int64_t*)(x)) & *((u_int64_t*)&mask))
+	return (EA_CMP(want) == EA_CMP(a));
+#undef EA_CMP
+}
+
+int
 pf_match(u_int8_t op, u_int32_t a1, u_int32_t a2, u_int32_t p)
 {
 	switch (op) {
@@ -3314,14 +3364,14 @@ pf_test_tcp(struct pf_rule **rm, struct pf_state **sm, int direction,
 			r = r->skip[PF_SKIP_AF].ptr;
 		else if (r->proto && r->proto != IPPROTO_TCP)
 			r = r->skip[PF_SKIP_PROTO].ptr;
-		else if (PF_MISMATCHAW(&r->src.addr, saddr, af,
-		    r->src.neg, kif))
+		else if (PF_MISMATCHAW_L2(&r->src.addr, saddr, &pd->src_ether,
+		    af, r->src.neg, kif))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 		    r->src.port[0], r->src.port[1], th->th_sport))
 			r = r->skip[PF_SKIP_SRC_PORT].ptr;
-		else if (PF_MISMATCHAW(&r->dst.addr, daddr, af,
-		    r->dst.neg, NULL))
+		else if (PF_MISMATCHAW_L2(&r->dst.addr, daddr, &pd->dst_ether,
+		    af, r->dst.neg, NULL))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (r->dst.port_op && !pf_match_port(r->dst.port_op,
 		    r->dst.port[0], r->dst.port[1], th->th_dport))
@@ -3505,11 +3555,17 @@ cleanup:
 		s->proto = IPPROTO_TCP;
 		s->direction = direction;
 		s->af = af;
+#ifdef __FreeBSD__
+		if (r->rule_flag & PFRULE_ETHERSTATE)
+			s->local_flags |= PFSTATE_ETHER;
+#endif
 		if (direction == PF_OUT) {
 			PF_ACPY(&s->gwy.addr, saddr, af);
 			s->gwy.port = th->th_sport;		/* sport */
+			s->gwy.addr_ether = pd->src_ether;
 			PF_ACPY(&s->ext.addr, daddr, af);
 			s->ext.port = th->th_dport;
+			s->ext.addr_ether = pd->dst_ether;
 			if (nr != NULL) {
 				PF_ACPY(&s->lan.addr, &pd->baddr, af);
 				s->lan.port = bport;
@@ -3520,8 +3576,10 @@ cleanup:
 		} else {
 			PF_ACPY(&s->lan.addr, daddr, af);
 			s->lan.port = th->th_dport;
+			s->lan.addr_ether = pd->dst_ether;
 			PF_ACPY(&s->ext.addr, saddr, af);
 			s->ext.port = th->th_sport;
+			s->ext.addr_ether = pd->src_ether;
 			if (nr != NULL) {
 				PF_ACPY(&s->gwy.addr, &pd->baddr, af);
 				s->gwy.port = bport;
@@ -3736,14 +3794,14 @@ pf_test_udp(struct pf_rule **rm, struct pf_state **sm, int direction,
 			r = r->skip[PF_SKIP_AF].ptr;
 		else if (r->proto && r->proto != IPPROTO_UDP)
 			r = r->skip[PF_SKIP_PROTO].ptr;
-		else if (PF_MISMATCHAW(&r->src.addr, saddr, af,
-		    r->src.neg, kif))
+		else if (PF_MISMATCHAW_L2(&r->src.addr, saddr, &pd->src_ether,
+		    af, r->src.neg, kif))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 		    r->src.port[0], r->src.port[1], uh->uh_sport))
 			r = r->skip[PF_SKIP_SRC_PORT].ptr;
-		else if (PF_MISMATCHAW(&r->dst.addr, daddr, af,
-		    r->dst.neg, NULL))
+		else if (PF_MISMATCHAW_L2(&r->dst.addr, daddr, &pd->dst_ether,
+		    af, r->dst.neg, NULL))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (r->dst.port_op && !pf_match_port(r->dst.port_op,
 		    r->dst.port[0], r->dst.port[1], uh->uh_dport))
@@ -3902,11 +3960,17 @@ cleanup:
 		s->proto = IPPROTO_UDP;
 		s->direction = direction;
 		s->af = af;
+#ifdef __FreeBSD__
+		if (r->rule_flag & PFRULE_ETHERSTATE)
+			s->local_flags |= PFSTATE_ETHER;
+#endif
 		if (direction == PF_OUT) {
 			PF_ACPY(&s->gwy.addr, saddr, af);
 			s->gwy.port = uh->uh_sport;
+			s->gwy.addr_ether = pd->src_ether;
 			PF_ACPY(&s->ext.addr, daddr, af);
 			s->ext.port = uh->uh_dport;
+			s->ext.addr_ether = pd->dst_ether;
 			if (nr != NULL) {
 				PF_ACPY(&s->lan.addr, &pd->baddr, af);
 				s->lan.port = bport;
@@ -3917,8 +3981,10 @@ cleanup:
 		} else {
 			PF_ACPY(&s->lan.addr, daddr, af);
 			s->lan.port = uh->uh_dport;
+			s->lan.addr_ether = pd->dst_ether;
 			PF_ACPY(&s->ext.addr, saddr, af);
 			s->ext.port = uh->uh_sport;
+			s->ext.addr_ether = pd->src_ether;
 			if (nr != NULL) {
 				PF_ACPY(&s->gwy.addr, &pd->baddr, af);
 				s->gwy.port = bport;
@@ -4093,11 +4159,11 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 			r = r->skip[PF_SKIP_AF].ptr;
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO].ptr;
-		else if (PF_MISMATCHAW(&r->src.addr, saddr, af,
-		    r->src.neg, kif))
+		else if (PF_MISMATCHAW_L2(&r->src.addr, saddr, &pd->src_ether,
+		    af, r->src.neg, kif))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
-		else if (PF_MISMATCHAW(&r->dst.addr, daddr, af,
-		    r->dst.neg, NULL))
+		else if (PF_MISMATCHAW_L2(&r->dst.addr, daddr, &pd->dst_ether,
+		    af, r->dst.neg, NULL))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (r->type && r->type != icmptype + 1)
 			r = TAILQ_NEXT(r, entries);
@@ -4215,11 +4281,17 @@ cleanup:
 		s->proto = pd->proto;
 		s->direction = direction;
 		s->af = af;
+#ifdef __FreeBSD__
+		if (r->rule_flag & PFRULE_ETHERSTATE)
+			s->local_flags |= PFSTATE_ETHER;
+#endif
 		if (direction == PF_OUT) {
 			PF_ACPY(&s->gwy.addr, saddr, af);
 			s->gwy.port = nport;
+			s->gwy.addr_ether = pd->src_ether;
 			PF_ACPY(&s->ext.addr, daddr, af);
 			s->ext.port = 0;
+			s->ext.addr_ether = pd->dst_ether;
 			if (nr != NULL) {
 				PF_ACPY(&s->lan.addr, &pd->baddr, af);
 				s->lan.port = bport;
@@ -4230,8 +4302,10 @@ cleanup:
 		} else {
 			PF_ACPY(&s->lan.addr, daddr, af);
 			s->lan.port = nport;
+			s->lan.addr_ether = pd->dst_ether;
 			PF_ACPY(&s->ext.addr, saddr, af);
 			s->ext.port = 0; 
+			s->ext.addr_ether = pd->src_ether;
 			if (nr != NULL) {
 				PF_ACPY(&s->gwy.addr, &pd->baddr, af);
 				s->gwy.port = bport;
@@ -4356,11 +4430,11 @@ pf_test_other(struct pf_rule **rm, struct pf_state **sm, int direction,
 			r = r->skip[PF_SKIP_AF].ptr;
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO].ptr;
-		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af,
-		    r->src.neg, kif))
+		else if (PF_MISMATCHAW_L2(&r->src.addr, pd->src, &pd->src_ether,
+		    af, r->src.neg, kif))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
-		else if (PF_MISMATCHAW(&r->dst.addr, pd->dst, af,
-		    r->dst.neg, NULL))
+		else if (PF_MISMATCHAW_L2(&r->dst.addr, pd->dst, &pd->dst_ether,
+		    af, r->dst.neg, NULL))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (r->tos && !(r->tos == pd->tos))
 			r = TAILQ_NEXT(r, entries);
@@ -4502,16 +4576,24 @@ cleanup:
 		s->proto = pd->proto;
 		s->direction = direction;
 		s->af = af;
+#ifdef __FreeBSD__
+		if (r->rule_flag & PFRULE_ETHERSTATE)
+			s->local_flags |= PFSTATE_ETHER;
+#endif
 		if (direction == PF_OUT) {
 			PF_ACPY(&s->gwy.addr, saddr, af);
+			s->gwy.addr_ether = pd->src_ether;
 			PF_ACPY(&s->ext.addr, daddr, af);
+			s->ext.addr_ether = pd->dst_ether;
 			if (nr != NULL)
 				PF_ACPY(&s->lan.addr, &pd->baddr, af);
 			else
 				PF_ACPY(&s->lan.addr, &s->gwy.addr, af);
 		} else {
 			PF_ACPY(&s->lan.addr, daddr, af);
+			s->lan.addr_ether = pd->dst_ether;
 			PF_ACPY(&s->ext.addr, saddr, af);
+			s->ext.addr_ether = pd->src_ether;
 			if (nr != NULL)
 				PF_ACPY(&s->gwy.addr, &pd->baddr, af);
 			else
@@ -4573,11 +4655,11 @@ pf_test_fragment(struct pf_rule **rm, int direction, struct pfi_kif *kif,
 			r = r->skip[PF_SKIP_AF].ptr;
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO].ptr;
-		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af,
-		    r->src.neg, kif))
+		else if (PF_MISMATCHAW_L2(&r->src.addr, pd->src, &pd->src_ether,
+		    af, r->src.neg, kif))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
-		else if (PF_MISMATCHAW(&r->dst.addr, pd->dst, af,
-		    r->dst.neg, NULL))
+		else if (PF_MISMATCHAW_L2(&r->dst.addr, pd->dst, &pd->dst_ether,
+		    af, r->dst.neg, NULL))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (r->tos && !(r->tos == pd->tos))
 			r = TAILQ_NEXT(r, entries);
@@ -6878,6 +6960,12 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 	pd.tos = h->ip_tos;
 	pd.tot_len = ntohs(h->ip_len);
 	pd.eh = eh;
+	if (eh) {
+		memcpy(pd.src_ether.octet, eh->ether_shost, ETHER_ADDR_LEN);
+		pd.src_ether.flags = PFAE_CHECK;
+		memcpy(pd.dst_ether.octet, eh->ether_dhost, ETHER_ADDR_LEN);
+		pd.dst_ether.flags = PFAE_CHECK;
+	}
 
 	/* handle fragments that didn't get reassembled by normalization */
 	if (h->ip_off & htons(IP_MF | IP_OFFMASK)) {
@@ -7272,6 +7360,12 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	pd.tos = 0;
 	pd.tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 	pd.eh = eh;
+	if (eh) {
+		memcpy(pd.src_ether.octet, eh->ether_shost, ETHER_ADDR_LEN);
+		pd.src_ether.flags = PFAE_CHECK;
+		memcpy(pd.dst_ether.octet, eh->ether_dhost, ETHER_ADDR_LEN);
+		pd.dst_ether.flags = PFAE_CHECK;
+	}
 
 	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
 	pd.proto = h->ip6_nxt;

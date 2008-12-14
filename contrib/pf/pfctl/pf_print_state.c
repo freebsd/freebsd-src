@@ -119,6 +119,26 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 		if (bits != (af == AF_INET ? 32 : 128))
 			printf("/%d", bits);
 	}
+
+	putchar(' ');
+	print_addr_ether(&addr->addr_ether, 0);
+}
+
+void
+print_addr_ether(struct pf_addr_ether *addr, int verbose)
+{
+	if ((addr->flags & PFAE_CHECK) == 0) {
+		if (verbose)
+			printf("ether any");
+		return;
+	}
+	if (addr->flags & PFAE_MULTICAST) {
+		printf("ether multicast");
+	} else {
+                u_int8_t *ea = addr->octet;
+                printf("ether %02x:%02x:%02x:%02x:%02x:%02x",
+                    ea[0], ea[1], ea[2], ea[3], ea[4], ea[5]);
+	}
 }
 
 void
@@ -299,6 +319,28 @@ print_state(struct pf_state *s, int opts)
 		if (s->nat_src_node != NULL)
 			printf(", sticky-address");
 		printf("\n");
+		if (s->local_flags & PFSTATE_ETHER) {
+			int left_printed = 0;
+
+			printf("   ");
+			if (s->lan.addr_ether.flags & PFAE_CHECK) {
+				print_addr_ether(&s->lan.addr_ether, 1);
+				if (s->direction == PF_OUT)
+					printf(" -> ");
+				else
+					printf(" <- ");
+				left_printed = 1;
+			}
+			if (!left_printed || (s->gwy.addr_ether.flags & PFAE_CHECK)) {
+				print_addr_ether(&s->gwy.addr_ether, 1);
+				if (s->direction == PF_OUT)
+					printf(" -> ");
+				else
+					printf(" <- ");
+			}
+			print_addr_ether(&s->ext.addr_ether, 1);
+			printf("\n");
+		}
 	}
 	if (opts & PF_OPT_VERBOSE2) {
 		printf("   id: %016llx creatorid: %08x%s\n",

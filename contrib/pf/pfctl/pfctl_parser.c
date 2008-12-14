@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
 #include <net/pfvar.h>
+#include <net/ethernet.h>
 #include <arpa/inet.h>
 
 #include <stdio.h>
@@ -876,6 +877,8 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 	for (i = 0; !opts && i < PFTM_MAX; ++i)
 		if (r->timeout[i])
 			opts = 1;
+	if (r->rule_flag & PFRULE_ETHERSTATE)
+		opts = 1;
 	if (opts) {
 		printf(" (");
 		if (r->max_states) {
@@ -954,6 +957,12 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 				    "inv.timeout" : pf_timeouts[j].name,
 				    r->timeout[i]);
 			}
+		if (r->rule_flag & PFRULE_ETHERSTATE) {
+			if (!opts)
+				printf(", ");
+			printf("ether");
+			opts = 0;
+		}
 		printf(")");
 	}
 	if (r->rule_flag & PFRULE_FRAGMENT)
@@ -1419,6 +1428,35 @@ host(const char *s)
 }
 
 struct node_host *
+host_ether(const char *s)
+{
+	struct pf_addr_ether	*addr;
+	struct node_host	*h = NULL;
+
+	if (strcmp(s, "any") == 0) {
+		return (NULL);
+	} 
+
+	h = calloc(1, sizeof(*h));
+	if (h == NULL)
+		err(1, "host_ether: malloc");
+	addr = &h->addr.addr_ether;
+
+	if (strcmp(s, "multicast") == 0) {
+		addr->flags = PFAE_CHECK | PFAE_MULTICAST;
+		return (h);
+	} 
+	if (!ether_aton_r(s, (struct ether_addr*)addr->octet)) {
+		fprintf(stderr, "can't parse ethernet address: %s\n", s);
+		free(h);
+		return (NULL);
+	}
+	addr->flags = PFAE_CHECK;
+
+	return (h);
+}
+
+struct node_host *
 host_if(const char *s, int mask)
 {
 	struct node_host	*n, *h = NULL;
@@ -1606,16 +1644,39 @@ host_dns(const char *s, int v4mask, int v6mask)
 int
 append_addr(struct pfr_buffer *b, char *s, int test)
 {
-	char			 *r;
+	char			 *r, *rs, *p;
 	struct node_host	*h, *n;
+	struct pf_addr_ether	 addr_ether;
 	int			 rv, not = 0;
 
 	for (r = s; *r == '!'; r++)
 		not = !not;
-	if ((n = host(r)) == NULL) {
+	if ((rs = strdup(r)) == NULL)
+		err(1, "append_addr: strdup");
+	bzero(&addr_ether, sizeof (addr_ether));
+	if ((p = strstr(rs, "ether")) != NULL) {
+		char *s_ether = p + strlen("ether");
+		if (p > rs && isspace(*(p - 1)) && isspace(*s_ether++)) {
+			while (isspace(*s_ether)) 
+				s_ether++;
+			h = host_ether(s_ether);
+			if (h) {
+				addr_ether = h->addr.addr_ether;
+				free(h);
+				h = NULL;
+			}
+			for (p--; p >= rs && isspace(*p); p--) 
+				*p = '\0';
+		}
+	}
+	if ((n = host(rs)) == NULL) {
 		errno = 0;
 		return (-1);
 	}
+	for (h = n; h != NULL; h = h->next)
+		h->addr.addr_ether = addr_ether;
+	h = NULL;
+	free(rs);
 	rv = append_addr_host(b, n, test, not);
 	do {
 		h = n;
@@ -1661,6 +1722,7 @@ append_addr_host(struct pfr_buffer *b, struct node_host *n, int test, int not)
 			errno = EINVAL;
 			return (-1);
 		}
+		addr.pfra_ether = n->addr.addr_ether;
 		if (pfr_buf_add(b, &addr))
 			return (-1);
 	} while ((n = n->next) != NULL);

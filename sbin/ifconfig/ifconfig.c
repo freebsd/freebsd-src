@@ -782,7 +782,7 @@ setifname(const char *val, int dummy __unused, int s,
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
-"\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP\25NEEDSGIANT"
+"\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP\25NEEDSGIANT\26L2FILTER\27L2TAG"
 
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
@@ -1020,6 +1020,10 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-monitor",	-IFF_MONITOR,	setifflags),
 	DEF_CMD("staticarp",	IFF_STATICARP,	setifflags),
 	DEF_CMD("-staticarp",	-IFF_STATICARP,	setifflags),
+	DEF_CMD("l2filter",	IFF_L2FILTER,	setifflags),
+	DEF_CMD("-l2filter",	-IFF_L2FILTER,	setifflags),
+	DEF_CMD("l2tag",	IFF_L2TAG,	setifflags),
+	DEF_CMD("-l2tag",	-IFF_L2TAG,	setifflags),
 	DEF_CMD("rxcsum",	IFCAP_RXCSUM,	setifcap),
 	DEF_CMD("-rxcsum",	-IFCAP_RXCSUM,	setifcap),
 	DEF_CMD("txcsum",	IFCAP_TXCSUM,	setifcap),

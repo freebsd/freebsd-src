@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipfw.h"
 #include "opt_carp.h"
 
 #include <sys/param.h>
@@ -128,6 +129,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #include <netinet/if_ether.h> /* for struct arpcom */
 #include <net/bridgestp.h>
+#include <net/ethernet.h> /* for ether_pfil_hook */
 #include <net/if_bridgevar.h>
 #include <net/if_llc.h>
 #include <net/if_vlan_var.h>
@@ -345,16 +347,15 @@ SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 static int pfil_onlyip = 1; /* only pass IP[46] packets when pfil is enabled */
 static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
 static int pfil_member = 1; /* run pfil hooks on the member interface */
-static int pfil_ipfw = 0;   /* layer2 filter with ipfw */
-static int pfil_ipfw_arp = 0;   /* layer2 filter with ipfw */
+static int pfil_layer2_arp = 0;   /* layer2 filter with PFIL */
 static int pfil_local_phys = 0; /* run pfil hooks on the physical interface for
                                    locally destined packets */
 static int log_stp   = 0;   /* log STP state changes */
 static int bridge_inherit_mac = 0;   /* share MAC with first bridge member */
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
     &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
-SYSCTL_INT(_net_link_bridge, OID_AUTO, ipfw_arp, CTLFLAG_RW,
-    &pfil_ipfw_arp, 0, "Filter ARP packets through IPFW layer2");
+SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_layer2_arp, CTLFLAG_RW,
+    &pfil_layer2_arp, 0, "Filter ARP packets through PFIL layer2");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
@@ -513,39 +514,6 @@ static moduledata_t bridge_mod = {
 
 DECLARE_MODULE(if_bridge, bridge_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_DEPEND(if_bridge, bridgestp, 1, 1, 1);
-
-/*
- * handler for net.link.bridge.pfil_ipfw
- */
-static int
-sysctl_pfil_ipfw(SYSCTL_HANDLER_ARGS)
-{
-	int enable = pfil_ipfw;
-	int error;
-
-	error = sysctl_handle_int(oidp, &enable, 0, req);
-	enable = (enable) ? 1 : 0;
-
-	if (enable != pfil_ipfw) {
-		pfil_ipfw = enable;
-
-		/*
-		 * Disable pfil so that ipfw doesnt run twice, if the user
-		 * really wants both then they can re-enable pfil_bridge and/or
-		 * pfil_member. Also allow non-ip packets as ipfw can filter by
-		 * layer2 type.
-		 */
-		if (pfil_ipfw) {
-			pfil_onlyip = 0;
-			pfil_bridge = 0;
-			pfil_member = 0;
-		}
-	}
-
-	return (error);
-}
-SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw, CTLTYPE_INT|CTLFLAG_RW,
-	    &pfil_ipfw, 0, &sysctl_pfil_ipfw, "I", "Layer2 filter with IPFW");
 
 /*
  * bridge_clone_create:
@@ -1804,11 +1772,7 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 		return;
 	}
 
-	if (PFIL_HOOKED(&inet_pfil_hook)
-#ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
-#endif
-	    ) {
+	if (PFIL_HOOKED(&ether_pfil_hook)) {
 		if (bridge_pfil(&m, sc->sc_ifp, ifp, PFIL_OUT) != 0)
 			return;
 		if (m == NULL)
@@ -2937,7 +2901,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 {
 	int snap, error, i, hlen;
 	struct ether_header *eh1, eh2;
-	struct ip_fw_args args;
+	struct m_tag *mtag_ether_header;
 	struct ip *ip;
 	struct llc llc1;
 	u_int16_t ether_type;
@@ -2950,7 +2914,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	KASSERT(M_WRITABLE(*mp), ("%s: modifying a shared mbuf", __func__));
 #endif
 
-	if (pfil_bridge == 0 && pfil_member == 0 && pfil_ipfw == 0)
+	if (pfil_bridge == 0 && pfil_member == 0 && !(bifp != NULL && (bifp->if_flags & IFF_L2FILTER)))
 		return (0); /* filtering is disabled */
 
 	i = min((*mp)->m_pkthdr.len, max_protohdr);
@@ -2992,7 +2956,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	switch (ether_type) {
 		case ETHERTYPE_ARP:
 		case ETHERTYPE_REVARP:
-			if (pfil_ipfw_arp == 0)
+			if (pfil_layer2_arp == 0)
 				return (0); /* Automatically pass */
 			break;
 
@@ -3009,6 +2973,13 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			 */
 			if (pfil_onlyip)
 				goto bad;
+	}
+
+	if (PFIL_HOOKED(&ether_pfil_hook) && dir == PFIL_OUT && bifp != NULL &&
+			(bifp->if_flags & IFF_L2FILTER)) {
+		if (pfil_run_hooks(&ether_pfil_hook, mp, bifp, PFIL_OUT, NULL) != 0 ||
+				*mp == NULL)
+			return EACCES;
 	}
 
 	/* Strip off the Ethernet header and keep a copy. */
@@ -3041,48 +3012,20 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
-		INIT_VNET_INET(curvnet);
-
-		error = -1;
-		args.rule = ip_dn_claim_rule(*mp);
-		if (args.rule != NULL && V_fw_one_pass)
-			goto ipfwpass; /* packet already partially processed */
-
-		args.m = *mp;
-		args.oif = ifp;
-		args.next_hop = NULL;
-		args.eh = &eh2;
-		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
-		i = ip_fw_chk_ptr(&args);
-		*mp = args.m;
-
-		if (*mp == NULL)
-			return (error);
-
-		if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
-
-			/* put the Ethernet header back on */
-			M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
-			if (*mp == NULL)
-				return (error);
-			bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
-
-			/*
-			 * Pass the pkt to dummynet, which consumes it. The
-			 * packet will return to us via bridge_dummynet().
-			 */
-			args.oif = ifp;
-			ip_dn_io_ptr(mp, DN_TO_IFB_FWD, &args);
-			return (error);
-		}
-
-		if (i != IP_FW_PASS) /* drop */
-			goto bad;
-	}
-
-ipfwpass:
 	error = 0;
+	/* Add tag if member or bridge interface has IFF_L2TAG set */
+	if (((bifp ? bifp->if_flags : 0) | (ifp ? ifp->if_flags : 0)) & IFF_L2TAG) {
+		mtag_ether_header = m_tag_locate(*mp, MTAG_ETHER, MTAG_ETHER_HEADER,
+		    NULL);
+		if (mtag_ether_header == NULL) {
+			mtag_ether_header = m_tag_alloc(MTAG_ETHER, MTAG_ETHER_HEADER,
+					ETHER_HDR_LEN, M_NOWAIT);
+			if (mtag_ether_header != NULL) {
+				memcpy(mtag_ether_header + 1, &eh2, ETHER_HDR_LEN);
+				m_tag_prepend(*mp, mtag_ether_header);
+			}
+		}
+	}
 
 	/*
 	 * Run the packet through pfil
@@ -3120,8 +3063,25 @@ ipfwpass:
 			break;
 
 		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
+#ifdef IPFIREWALL
+	  	{
+			/* 
+			 * Mark packets as received from bridge interface.
+			 * Without this hack ipfw can't distinguish filtering
+			 * on bridge from filtering on member interface.
+			 */
+			struct ifnet *orig_rcvif;
+
+			orig_rcvif = (*mp)->m_pkthdr.rcvif;
+			(*mp)->m_pkthdr.rcvif = bifp;
+#endif
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
 					dir, NULL);
+#ifdef IPFIREWALL
+			if (*mp)
+				(*mp)->m_pkthdr.rcvif = orig_rcvif;
+		}
+#endif
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
@@ -3174,8 +3134,25 @@ ipfwpass:
 			break;
 
 		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
+#ifdef IPFIREWALL
+	  	{
+			/* 
+			 * Mark packets as received from bridge interface.
+			 * Without this hack ipfw can't distinguish filtering
+			 * on bridge from filtering on member interface.
+			 */
+			struct ifnet *orig_rcvif;
+
+			orig_rcvif = (*mp)->m_pkthdr.rcvif;
+			(*mp)->m_pkthdr.rcvif = bifp;
+#endif
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
+#ifdef IPFIREWALL
+			if (*mp)
+				(*mp)->m_pkthdr.rcvif = orig_rcvif;
+		}
+#endif
 		break;
 #endif
 	default:

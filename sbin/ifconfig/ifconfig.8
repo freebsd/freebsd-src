@@ -240,6 +240,27 @@ and will never send any requests.
 If the Address Resolution Protocol is enabled,
 the host will perform normally,
 sending out requests and listening for replies.
+.It Cm l2tag
+Special tag containing source and destination layer 2 addresses will be
+attached to every packet passing through interface.
+Note that only incoming or outgoing packets may be tagged (but not both), it is
+interface dependant.
+.It Fl l2tag
+Disable special packet tagging with layer 2 addresses.
+.It Cm l2filter
+Perform layer 2 filtering of packets passing through interface.
+This option doesn't imply
+.Cm l2tag
+option.
+With
+.Cm l2filter
+specified packets are passed to firewall as they were received from wire.
+But
+.Cm l2tag
+just tags packet and usual layer 3 filtering is performed.
+.It Fl l2filter
+Disable layer 2 filtering.
+Higher level filtering will perform normally.
 .It Cm broadcast
 (Inet only.)
 Specify the address to use to represent broadcasts to the

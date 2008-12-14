@@ -128,7 +128,7 @@ enum	{ PF_STATE_OPT_MAX, PF_STATE_OPT_NOSYNC, PF_STATE_OPT_SRCTRACK,
 	    PF_STATE_OPT_MAX_SRC_STATES, PF_STATE_OPT_MAX_SRC_CONN,
 	    PF_STATE_OPT_MAX_SRC_CONN_RATE, PF_STATE_OPT_MAX_SRC_NODES,
 	    PF_STATE_OPT_OVERLOAD, PF_STATE_OPT_STATELOCK,
-	    PF_STATE_OPT_TIMEOUT };
+	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_ETHER };
 
 enum	{ PF_SRCTRACK_NONE, PF_SRCTRACK, PF_SRCTRACK_GLOBAL, PF_SRCTRACK_RULE };
 
@@ -409,7 +409,7 @@ typedef struct {
 
 %}
 
-%token	PASS BLOCK SCRUB RETURN IN OS OUT LOG QUICK ON FROM TO FLAGS
+%token	PASS BLOCK SCRUB RETURN IN OS OUT LOG QUICK ON ETHER FROM TO FLAGS
 %token	RETURNRST RETURNICMP RETURNICMP6 PROTO INET INET6 ALL ANY ICMPTYPE
 %token	ICMP6TYPE CODE KEEP MODULATE STATE PORT RDR NAT BINAT ARROW NODF
 %token	MINTTL ERROR ALLOWOPTS FASTROUTE FILENAME ROUTETO DUPTO REPLYTO NO LABEL
@@ -442,7 +442,7 @@ typedef struct {
 %type	<v.icmp>		icmp6_list icmp6_item
 %type	<v.fromto>		fromto
 %type	<v.peer>		ipportspec from to
-%type	<v.host>		ipspec xhost host dynaddr host_list
+%type	<v.host>		ipspec ether xhost host dynaddr host_list
 %type	<v.host>		redir_host_list redirspec
 %type	<v.host>		route_host route_host_list routespec
 %type	<v.os>			os xos os_list
@@ -1906,6 +1906,10 @@ pfrule		: action dir logquick interface route af proto fromto
 					}
 					r.timeout[o->data.timeout.number] =
 					    o->data.timeout.seconds;
+					break;
+				case PF_STATE_OPT_ETHER:
+					r.rule_flag |= PFRULE_ETHERSTATE;
+					break;
 				}
 				o = o->next;
 				free(p);
@@ -2471,12 +2475,38 @@ host_list	: ipspec			{ $$ = $1; }
 		}
 		;
 
-xhost		: not host			{
+ether		: /* empty */			{ $$ = NULL; }
+		| ETHER ANY			{ $$ = NULL; }
+		| ETHER STRING			{
+			$$ = host_ether($2);
+			free($2);
+			if ($$ == NULL) {
+				YYERROR;
+			}
+		}
+		;
+
+xhost		: not host ether		{
 			struct node_host	*n;
 
 			for (n = $2; n != NULL; n = n->next)
 				n->not = $1;
 			$$ = $2;
+			if ($3) {
+				for (n = $$; n != NULL; n = n->next) {
+					if (n->addr.type != PF_ADDR_ADDRMASK &&
+					    n->addr.type != PF_ADDR_DYNIFTL) {
+						yyerror("ethernet address can be specified only for host or interface name");
+						free($3);
+						$3 = NULL;
+						YYERROR;
+					} else {
+						n->addr.addr_ether = $3->addr.addr_ether;
+					}
+				}
+				if ($3)
+					free($3);
+			}
 		}
 		| not NOROUTE			{
 			$$ = calloc(1, sizeof(struct node_host));
@@ -3195,6 +3225,14 @@ state_opt_item	: MAXIMUM number		{
 				err(1, "state_opt_item: calloc");
 			$$->type = PF_STATE_OPT_MAX_SRC_NODES;
 			$$->data.max_src_nodes = $2;
+			$$->next = NULL;
+			$$->tail = $$;
+		}
+		| ETHER {
+			$$ = calloc(1, sizeof(struct node_state_opt));
+			if ($$ == NULL)
+				err(1, "state_opt_item: calloc");
+			$$->type = PF_STATE_OPT_ETHER;
 			$$->next = NULL;
 			$$->tail = $$;
 		}
@@ -4894,6 +4932,7 @@ lookup(char *s)
 		{ "drop",		DROP},
 		{ "drop-ovl",		FRAGDROP},
 		{ "dup-to",		DUPTO},
+		{ "ether",		ETHER},
 		{ "fastroute",		FASTROUTE},
 		{ "file",		FILENAME},
 		{ "fingerprints",	FINGERPRINTS},

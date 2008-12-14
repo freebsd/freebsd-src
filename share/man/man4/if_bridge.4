@@ -187,6 +187,14 @@ Set to
 to only allow IP packets to pass (subject to firewall rules), set to
 .Li 0
 to unconditionally pass all non-IP Ethernet frames.
+.It Va net.link.bridge.pfil_layer2_arp
+Set to
+.Li 1
+to enable layer2 ARP filtering with
+.Xr pfil 9 ,
+set to
+.Li 0
+to disable it.
 .It Va net.link.bridge.pfil_member
 Set to
 .Li 1
@@ -208,36 +216,6 @@ to additionally filter on the physical interface for locally destined packets.
 Set to
 .Li 0
 to disable this feature.
-.It Va net.link.bridge.ipfw
-Set to
-.Li 1
-to enable layer2 filtering with
-.Xr ipfirewall 4 ,
-set to
-.Li 0
-to disable it.
-This needs to be enabled for
-.Xr dummynet 4
-support.
-When
-.Va ipfw
-is enabled,
-.Va pfil_bridge
-and
-.Va pfil_member
-will be disabled so that IPFW
-is not run twice; these can be re-enabled if desired.
-.It Va net.link.bridge.ipfw_arp
-Set to
-.Li 1
-to enable layer2 ARP filtering with
-.Xr ipfirewall 4 ,
-set to
-.Li 0
-to disable it.
-Requires
-.Va ipfw
-to be enabled.
 .El
 .Pp
 ARP and REVARP packets are forwarded without being filtered and others

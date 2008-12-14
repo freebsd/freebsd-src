@@ -45,7 +45,7 @@
 .Cm set show
 .Pp
 .Nm
-.Cm table Ar number Cm add Ar addr Ns Oo / Ns Ar masklen Oc Op Ar value
+.Cm table Ar number Cm add Ar addr Ns Oo / Ns Ar masklen Oc Oo Cm ether Ar etheraddr Oc Op Ar value
 .Nm
 .Cm table Ar number Cm delete Ar addr Ns Op / Ns Ar masklen
 .Nm
@@ -336,9 +336,9 @@ You can use
 to temporarily disable the firewall to regain access to the network,
 allowing you to fix the problem.
 .Sh PACKET FLOW
-A packet is checked against the active ruleset in multiple places
-in the protocol stack, under control of several sysctl variables.
-These places and variables are shown below, and it is important to
+A packet is checked against the active ruleset in multiple places in the
+protocol stack, under control of several sysctl variables and interface flags.
+These places and variables and flags are shown below, and it is important to
 have this picture in mind in order to design a correct ruleset.
 .Bd -literal -offset indent
        ^    to upper layers    V
@@ -346,11 +346,12 @@ have this picture in mind in order to design a correct ruleset.
        +----------->-----------+
        ^                       V
  [ip(6)_input]           [ip(6)_output]     net.inet(6).ip(6).fw.enable=1
+       |                       |            (l2tag interface flag)
        |                       |
        ^                       V
- [ether_demux]        [ether_output_frame]  net.link.ether.ipfw=1
+ [ether_demux]        [ether_output_frame]  l2filter interface flag
        |                       |
-       +-->--[bdg_forward]-->--+            net.link.bridge.ipfw=1
+       +-->----[bridge]----->--+            l2filter interface flag
        ^                       V
        |      to devices       |
 .Ed
@@ -374,13 +375,39 @@ is invoked from
 or
 .Cm ip6_input() .
 .Pp
+Note that packets do 
+.Em not
+contain IP header when invoked from 
+.Cm ether_demux() , ether_output_frame()
+or
+.Cm bridge .
+.Pp
+In order to filter by both MAC and IP headers interface flag
+.Cm l2tag
+should be used.
+When enabled a special tag containing MAC header is appended to incoming
+packets. Tag is used when
+.Nm
+invoked from
+.Cm ip_input()
+or
+.Cm ip6_input() .
+Note that as a rule only incoming packets are tagged, but
+.Cm bridge
+appends tag to outgoing packets too.
+Therefore dynamic rules (like rules created by 
+.Cm keep-state
+option) do not check specified MAC header options if there is no
+.Cm l2tag
+tag appended to packet.
+.Pp
 Also note that each packet is always checked against the complete ruleset,
 irrespective of the place where the check occurs, or the source of the packet.
 If a rule contains some match patterns or actions which are not valid
 for the place of invocation (e.g.\& trying to match a MAC header within
 .Cm ip_input
 or
-.Cm ip6_input ),
+.Cm ip6_input ) Ns ,
 the match pattern will not match, but a
 .Cm not
 operator in front of such patterns
@@ -394,7 +421,7 @@ differentiate among the possible places.
 .Cm skipto
 rules can be useful here, as an example:
 .Bd -literal -offset indent
-# packets from ether_demux or bdg_forward
+# packets from ether_demux or bridge
 ipfw add 10 skipto 1000 all from any to any layer2 in
 # packets from ip_input
 ipfw add 10 skipto 2000 all from any to any not layer2 in
@@ -405,7 +432,7 @@ ipfw add 10 skipto 4000 all from any to any layer2 out
 .Ed
 .Pp
 (yes, at the moment there is no way to differentiate between
-ether_demux and bdg_forward).
+ether_demux and bridge).
 .Sh SYNTAX
 In general, each keyword or argument must be provided as
 a separate command line argument, with no leading or trailing
@@ -1123,6 +1150,19 @@ Everything following // is considered as a comment and stored in the rule.
 You can have comment-only rules, which are listed as having a
 .Cm count
 action followed by the comment.
+.It Cm arp-op Ar arp-op
+Matches Address Resolution Protocol (ARP) packets whose 
+.Em Operation
+field corresponds to one of those specified as argument.
+.Ar arp-op
+is specified in the same way as port numbers (i.e., one or more
+comma-separated single values or ranges).  You can use symbolic names
+for known values such as
+.Em request , reply , rev_request , rev_reply , inv_request , inv_reply .
+Values can be entered as decimal or hexadecimal (if prefixed by 0x), and
+they are always printed as hexadecimal (unless the
+.Cm -N
+option is used, in which case symbolic resolution will be attempted).
 .It Cm bridged
 Alias for
 .Cm layer2 .
@@ -1134,6 +1174,25 @@ input for delivery.
 .It Cm diverted-output
 Matches only packets going from a divert socket back outward to the IP
 stack output for delivery.
+.It Cm dst-arp Ar dst-arp
+Matches Address Resolution Protocol (ARP) packets whose 
+.Em Target protocol address (TPA)
+and optionally
+.Em Target hardware address (THA)
+fields correspond to entry in the lookup table
+.Ar dst-arp .
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
+.It Cm dst-ether Ar dst-ether
+Match packets with a given destination MAC address
+.Ar dst-ether Ns ,
+specified as the
+.Cm any
+keyword (matching any MAC address),
+.Cm muticast
+keyword (matching multicast MAC addresses), or six groups of hex digits
+separated by colons.
 .It Cm dst-ip Ar ip-address
 Matches IPv4 packets whose destination IP is one of the address(es)
 specified as argument.
@@ -1145,6 +1204,19 @@ Matches IP packets whose destination port is one of the port(s)
 specified as argument.
 .It Cm established
 Matches TCP packets that have the RST or ACK bits set.
+.It Cm ether-type Ar ether-type
+Matches packets whose Ethernet Type field
+corresponds to one of those specified as argument.
+.Ar ether-type
+is specified in the same way as
+.Cm port numbers
+(i.e., one or more comma-separated single values or ranges).
+You can use symbolic names for known values such as
+.Em vlan , ipv4, ipv6 .
+Values can be entered as decimal or hexadecimal (if prefixed by 0x),
+and they are always printed as hexadecimal (unless the
+.Cm -N
+option is used, in which case symbolic resolution will be attempted).
 .It Cm ext6hdr Ar header
 Matches IPv6 packets containing the extended header given by
 .Ar header .
@@ -1349,57 +1421,6 @@ of source and destination addresses and ports can be
 specified.
 Currently,
 only IPv4 flows are supported.
-.It Cm { MAC | mac } Ar dst-mac src-mac
-Match packets with a given
-.Ar dst-mac
-and
-.Ar src-mac
-addresses, specified as the
-.Cm any
-keyword (matching any MAC address), or six groups of hex digits
-separated by colons,
-and optionally followed by a mask indicating the significant bits.
-The mask may be specified using either of the following methods:
-.Bl -enum -width indent
-.It
-A slash
-.Pq /
-followed by the number of significant bits.
-For example, an address with 33 significant bits could be specified as:
-.Pp
-.Dl "MAC 10:20:30:40:50:60/33 any"
-.Pp
-.It
-An ampersand
-.Pq &
-followed by a bitmask specified as six groups of hex digits separated
-by colons.
-For example, an address in which the last 16 bits are significant could
-be specified as:
-.Pp
-.Dl "MAC 10:20:30:40:50:60&00:00:00:00:ff:ff any"
-.Pp
-Note that the ampersand character has a special meaning in many shells
-and should generally be escaped.
-.Pp
-.El
-Note that the order of MAC addresses (destination first,
-source second) is
-the same as on the wire, but the opposite of the one used for
-IP addresses.
-.It Cm mac-type Ar mac-type
-Matches packets whose Ethernet Type field
-corresponds to one of those specified as argument.
-.Ar mac-type
-is specified in the same way as
-.Cm port numbers
-(i.e., one or more comma-separated single values or ranges).
-You can use symbolic names for known values such as
-.Em vlan , ipv4, ipv6 .
-Values can be entered as decimal or hexadecimal (if prefixed by 0x),
-and they are always printed as hexadecimal (unless the
-.Cm -N
-option is used, in which case symbolic resolution will be attempted).
 .It Cm proto Ar protocol
 Matches packets with the corresponding IP protocol.
 .It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar ipno | Ar any
@@ -1448,6 +1469,40 @@ interface.
 Matches TCP packets that have the SYN bit set but no ACK bit.
 This is the short form of
 .Dq Li tcpflags\ syn,!ack .
+.It Cm state-options Ar spec
+Specifies options for dynamic rule creation by
+.Cm keep-state
+or
+.Cm limit .
+.Ar spec
+is comma separated list of options.
+The supported options are:
+.Bl -tag -width xxxxxxxx -compact
+.It Cm ether
+Enable layer 2 stateful filtering for a rule.
+Source and destination ethernet addresses (MAC addresses) are used to
+create a state entry (dynamic rule) and to check if packet matches any
+state entry.
+.El
+.It Cm src-arp Ar src-arp
+Matches Address Resolution Protocol (ARP) packets whose 
+.Em Sender protocol address (SPA)
+and optionally
+.Em Sender hardware address (SHA)
+fields correspond to entry in the lookup table
+.Ar src-arp .
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
+.It Cm src-ether Ar src-ether
+Match packets with a given source MAC address
+.Ar src-ether Ns ,
+specified as the
+.Cm any
+keyword (matching any MAC address),
+.Cm muticast
+keyword (matching multicast MAC addresses), or six groups of hex digits
+separated by colons.
 .It Cm src-ip Ar ip-address
 Matches IPv4 packets whose source IP is one of the address(es)
 specified as an argument.
@@ -1604,6 +1659,8 @@ If
 is not specified, it defaults to 32.
 When looking up an IP address in a table, the most specific
 entry will match.
+Optionally each entry specifies MAC address
+.Pq Cm ether Ar etheraddr Ns .
 Associated with each entry is a 32-bit unsigned
 .Ar value ,
 which can optionally be checked by a rule matching code.
@@ -1737,6 +1794,13 @@ and
 .Em dst
 are used here only to denote the initial match addresses, but they
 are completely equivalent afterwards).
+If rule specifies ethernet source or destination address it is also used
+by dynamic rule to match packets.
+But note that packets without
+.Cm l2tag
+appended to them match against such dynamic rules, because
+.Cm l2tag
+usually presents only in incoming or outgoing packets, but not in both.
 Dynamic rules will be checked at the first
 .Cm check-state, keep-state
 or

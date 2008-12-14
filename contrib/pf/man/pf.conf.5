@@ -123,6 +123,7 @@ and
 rules and in the routing options of filter rules, but only for
 .Ar round-robin
 pools.
+Table entry can contain optional ethernet address (MAC address).
 .Pp
 Tables can be defined with any of the following
 .Xr pfctl 8
@@ -1485,6 +1486,10 @@ The ruleset does not need to be reloaded.
 This is especially useful with
 .Ar nat .
 .Pp
+Optional ethernet address (MAC address) can be assigned to addresses
+specified in CIDR notation (matching netblocks), as symbolic host names or
+interface names.
+.Pp
 Ports can be specified either by number or by name.
 For example, port 80 can be specified as
 .Em www .
@@ -2044,6 +2049,10 @@ support these options, and
 must be specified explicitly to apply options to a rule.
 .Pp
 .Bl -tag -width xxxx -compact
+.It Ar ether
+Enable layer 2 stateful filtering for a rule.
+Source and destination ethernet addresses (MAC addresses) are used to
+create a state entry and to check if packet matches any state entry.
 .It Ar max Aq Ar number
 Limits the number of concurrent states the rule may create.
 When this limit is reached, further packets matching the rule that would
@@ -2735,6 +2744,9 @@ pass in on $ext_if proto tcp from any to any port { ssh, smtp, domain, \e
 block in on $ext_if proto tcp from any os {"Windows 95", "Windows 98"} \e
       to any port smtp
 
+pass in on $bridge_if proto tcp from 10.1.1.1 ether 00:11:11:11:11:11 \e
+      to ($int_if) ether 00:22:22:22:22:22 keep state (ether)
+
 # IPv6
 # pass in/out all IPv6 traffic: note that we have to enable this in two
 # different ways, on both our physical interface and our tunnel
@@ -2835,7 +2847,7 @@ tableopts-list = tableopts-list tableopts | tableopts
 tableopts      = "persist" | "const" | "file" string |
                  "{" [ tableaddr-list ] "}"
 tableaddr-list = tableaddr-list [ "," ] tableaddr-spec | tableaddr-spec
-tableaddr-spec = [ "!" ] tableaddr [ "/" mask-bits ]
+tableaddr-spec = [ "!" ] tableaddr [ "/" mask-bits ] [ "ether" ether-addr ]
 tableaddr      = hostname | ipv4-dotted-quad | ipv6-coloned-hex |
                  interface-name | "self"
 
@@ -2890,7 +2902,7 @@ host           = [ "!" ] ( address [ "/" mask-bits ] | "\*(Lt" string "\*(Gt" )
 redirhost      = address [ "/" mask-bits ]
 routehost      = "(" interface-name [ address [ "/" mask-bits ] ] ")"
 address        = ( interface-name | "(" interface-name ")" | hostname |
-                 ipv4-dotted-quad | ipv6-coloned-hex )
+                 ipv4-dotted-quad | ipv6-coloned-hex ) [ "ether" ether-addr ]
 host-list      = host [ [ "," ] host-list ]
 redirhost-list = redirhost [ [ "," ] redirhost-list ]
 routehost-list = routehost [ [ "," ] routehost-list ]
@@ -2923,7 +2935,7 @@ tos            = "tos" ( "lowdelay" | "throughput" | "reliability" |
                  [ "0x" ] number )
 
 state-opts     = state-opt [ [ "," ] state-opts ]
-state-opt      = ( "max" number | "no-sync" | timeout |
+state-opt      = ( "ether" | "max" number | "no-sync" | timeout |
                  "source-track" [ ( "rule" | "global" ) ] |
                  "max-src-nodes" number | "max-src-states" number |
                  "max-src-conn" number |

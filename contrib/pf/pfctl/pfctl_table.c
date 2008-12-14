@@ -438,6 +438,8 @@ print_addrx(struct pfr_addr *ad, struct pfr_addr *rad, int dns)
 	printf("%c %c%s", ch, (ad->pfra_not?'!':' '), buf);
 	if (ad->pfra_net < hostnet)
 		printf("/%d", ad->pfra_net);
+	putchar(' ');
+	print_addr_ether(&ad->pfra_ether, 0);
 	if (rad != NULL && fback != PFR_FB_NONE) {
 		if (strlcpy(buf, "{error}", sizeof(buf)) >= sizeof(buf))
 			errx(1, "print_addrx: strlcpy");

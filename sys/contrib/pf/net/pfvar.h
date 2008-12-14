@@ -165,6 +165,14 @@ struct pf_addr {
 #define PFI_AFLAG_MODEMASK	0x07
 #define PFI_AFLAG_NOALIAS	0x08
 
+#define PFAE_CHECK		0x01
+#define PFAE_MULTICAST		0x02
+
+struct pf_addr_ether {
+	u_int8_t		octet[6];
+	u_int16_t		flags;
+};
+
 struct pf_addr_wrap {
 	union {
 		struct {
@@ -185,6 +193,7 @@ struct pf_addr_wrap {
 		int			 dyncnt;
 		int			 tblcnt;
 	}			 p;
+	struct pf_addr_ether	 addr_ether;
 	u_int8_t		 type;		/* PF_ADDR_* */
 	u_int8_t		 iflags;	/* PFI_AFLAG_* */
 };
@@ -401,7 +410,7 @@ extern void destroy_pf_mutex(void);
 #endif /* PF_INET6_ONLY */
 #endif /* PF_INET_INET6 */
 
-#define	PF_MISMATCHAW(aw, x, af, neg, ifp)				\
+#define	PF_MISMATCHAW_L2(aw, x, xl2, af, neg, ifp)			\
 	(								\
 		(((aw)->type == PF_ADDR_NOROUTE &&			\
 		    pf_routable((x), (af), NULL)) ||			\
@@ -410,15 +419,23 @@ extern void destroy_pf_mutex(void);
 		((aw)->type == PF_ADDR_RTLABEL &&			\
 		    !pf_rtlabel_match((x), (af), (aw))) ||		\
 		((aw)->type == PF_ADDR_TABLE &&				\
-		    !pfr_match_addr((aw)->p.tbl, (x), (af))) ||		\
+		    !pfr_match_addr_ether((aw)->p.tbl, (x),		\
+		    (af), (xl2))) ||					\
 		((aw)->type == PF_ADDR_DYNIFTL &&			\
-		    !pfi_match_addr((aw)->p.dyn, (x), (af))) || 	\
+		    !(pfi_match_addr((aw)->p.dyn, (x), (af)) &&		\
+		    pf_match_addr_ether(&(aw)->addr_ether,		\
+		    (xl2), 0))) || 					\
 		((aw)->type == PF_ADDR_ADDRMASK &&			\
 		    !PF_AZERO(&(aw)->v.a.mask, (af)) &&			\
-		    !PF_MATCHA(0, &(aw)->v.a.addr,			\
-		    &(aw)->v.a.mask, (x), (af))))) !=			\
+		    !(PF_MATCHA(0, &(aw)->v.a.addr,			\
+		    &(aw)->v.a.mask, (x), (af)) &&			\
+		    pf_match_addr_ether(&(aw)->addr_ether,		\
+		    (xl2), 0))))) !=					\
 		(neg)							\
 	)
+
+#define	PF_MISMATCHAW(aw, x, af, neg, ifp)				\
+	PF_MISMATCHAW_L2(aw, x, NULL, af, neg, ifp)
 
 
 struct pf_rule_uid {
@@ -690,6 +707,7 @@ struct pf_rule {
 #define	PFRULE_NOSYNC		0x0010
 #define PFRULE_SRCTRACK		0x0020  /* track source states */
 #define PFRULE_RULESRCTRACK	0x0040  /* per rule */
+#define PFRULE_ETHERSTATE	0x0080  /* per rule */
 
 /* scrub flags */
 #define	PFRULE_NODF		0x0100
@@ -752,6 +770,8 @@ struct pf_state_scrub {
 
 struct pf_state_host {
 	struct pf_addr	addr;
+	struct pf_addr_ether
+			addr_ether;
 	u_int16_t	port;
 	u_int16_t	pad;
 };
@@ -796,6 +816,7 @@ struct pf_state {
 #ifdef __FreeBSD__
 	u_int8_t	 local_flags;
 #define	PFSTATE_EXPIRING 0x01
+#define	PFSTATE_ETHER	 0x02
 #else
 	u_int8_t	 pad;
 #endif
@@ -902,6 +923,7 @@ struct pfr_addr {
 	u_int8_t	 pfra_net;
 	u_int8_t	 pfra_not;
 	u_int8_t	 pfra_fback;
+	struct pf_addr_ether	 pfra_ether;
 };
 #define	pfra_ip4addr	pfra_u._pfra_ip4addr
 #define	pfra_ip6addr	pfra_u._pfra_ip6addr
@@ -945,6 +967,7 @@ SLIST_HEAD(pfr_kentryworkq, pfr_kentry);
 struct pfr_kentry {
 	struct radix_node	 pfrke_node[2];
 	union sockaddr_union	 pfrke_sa;
+	struct pf_addr_ether	 pfrke_ether;
 	u_int64_t		 pfrke_packets[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
 	u_int64_t		 pfrke_bytes[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
 	SLIST_ENTRY(pfr_kentry)	 pfrke_workq;
@@ -1054,6 +1077,10 @@ struct pf_pdesc {
 	struct pf_addr	*dst;
 	struct ether_header
 			*eh;
+	struct pf_addr_ether
+			 src_ether;
+	struct pf_addr_ether
+			 dst_ether;
 	struct pf_mtag	*pf_mtag;
 	u_int16_t	*ip_sum;
 	u_int32_t	 p_len;		/* total length of payload */
@@ -1650,6 +1677,7 @@ int	pflog_packet(struct pfi_kif *, struct mbuf *, sa_family_t, u_int8_t,
 	    struct pf_pdesc *);
 int	pf_match_addr(u_int8_t, struct pf_addr *, struct pf_addr *,
 	    struct pf_addr *, sa_family_t);
+int	pf_match_addr_ether(struct pf_addr_ether *, struct pf_addr_ether *, int);
 int	pf_match(u_int8_t, u_int32_t, u_int32_t, u_int32_t);
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 int	pf_match_uid(u_int8_t, uid_t, uid_t, uid_t);
@@ -1680,6 +1708,7 @@ int	pf_socket_lookup(int, struct pf_pdesc *);
 #endif
 void	pfr_initialize(void);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
+int	pfr_match_addr_ether(struct pfr_ktable *, struct pf_addr *, sa_family_t, struct pf_addr_ether *);
 void	pfr_update_stats(struct pfr_ktable *, struct pf_addr *, sa_family_t,
 	    u_int64_t, int, int, int);
 int	pfr_pool_get(struct pfr_ktable *, int *, struct pf_addr *,

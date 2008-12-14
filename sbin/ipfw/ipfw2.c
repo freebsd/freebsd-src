@@ -52,6 +52,7 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_arp.h>
 #include <net/pfvar.h>
 #include <net/route.h> /* def. of struct route */
 #include <netinet/in.h>
@@ -188,6 +189,11 @@ static struct _s_x f_iptos[] = {
 	{ NULL,	0 }
 };
 
+static struct _s_x f_stateopts[] = {
+	{ "ether",	IP_FW_STATEOPT_ETHER},
+	{ NULL,	0 }
+};
+
 static struct _s_x limit_masks[] = {
 	{"all",		DYN_SRC_ADDR|DYN_SRC_PORT|DYN_DST_ADDR|DYN_DST_PORT},
 	{"src-addr",	DYN_SRC_ADDR},
@@ -202,6 +208,7 @@ static struct _s_x limit_masks[] = {
  * This is only used in this code.
  */
 #define IPPROTO_ETHERTYPE	0x1000
+#define IPPROTO_ARPOP		0x1001
 static struct _s_x ether_types[] = {
     /*
      * Note, we cannot use "-:&/" in the names because they are field
@@ -227,6 +234,15 @@ static struct _s_x ether_types[] = {
 	{ "ipx_snap",	0x8137 },
 	{ "ipx",	0x8137 },
 	{ "ns",		0x0600 },
+	{ NULL,		0 }
+};
+static struct _s_x arp_ops[] = {
+	{ "request",		ARPOP_REQUEST },
+	{ "reply",		ARPOP_REPLY },
+	{ "rev_request",	ARPOP_REVREQUEST  },
+	{ "rev_reply",		ARPOP_REVREPLY },
+	{ "inv_request",	ARPOP_INVREQUEST },
+	{ "inv_reply",		ARPOP_INVREPLY },
 	{ NULL,		0 }
 };
 
@@ -294,8 +310,10 @@ enum tokens {
 	TOK_TCPACK,
 	TOK_TCPWIN,
 	TOK_ICMPTYPES,
-	TOK_MAC,
-	TOK_MACTYPE,
+	TOK_ETHER,
+	TOK_ETHER_SRC,
+	TOK_ETHER_DST,
+	TOK_ETHER_TYPE,
 	TOK_VERREVPATH,
 	TOK_VERSRCREACH,
 	TOK_ANTISPOOF,
@@ -344,6 +362,12 @@ enum tokens {
 
 	TOK_FIB,
 	TOK_SETFIB,
+
+	TOK_STATEOPTS,
+
+	TOK_ARP_OP,
+	TOK_ARP_SRC,
+	TOK_ARP_DST,
 };
 
 struct _s_x dummynet_params[] = {
@@ -475,9 +499,13 @@ struct _s_x rule_options[] = {
 	{ "dst-port",		TOK_DSTPORT },
 	{ "src-port",		TOK_SRCPORT },
 	{ "proto",		TOK_PROTO },
-	{ "MAC",		TOK_MAC },
-	{ "mac",		TOK_MAC },
-	{ "mac-type",		TOK_MACTYPE },
+	{ "MAC",		TOK_ETHER },
+	{ "mac",		TOK_ETHER },
+	{ "ether",		TOK_ETHER },
+	{ "src-ether",		TOK_ETHER_SRC },
+	{ "dst-ether",		TOK_ETHER_DST },
+	{ "mac-type",		TOK_ETHER_TYPE },
+	{ "ether-type",		TOK_ETHER_TYPE },
 	{ "verrevpath",		TOK_VERREVPATH },
 	{ "versrcreach",	TOK_VERSRCREACH },
 	{ "antispoof",		TOK_ANTISPOOF },
@@ -494,6 +522,11 @@ struct _s_x rule_options[] = {
 	{ "dst-ip6",		TOK_DSTIP6},
 	{ "src-ipv6",		TOK_SRCIP6},
 	{ "src-ip6",		TOK_SRCIP6},
+	{ "state-options",	TOK_STATEOPTS },
+	{ "state-opts",		TOK_STATEOPTS },
+	{ "arp-op",		TOK_ARP_OP},
+	{ "src-arp",		TOK_ARP_SRC},
+	{ "dst-arp",		TOK_ARP_DST},
 	{ "//",			TOK_COMMENT },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
@@ -639,6 +672,13 @@ print_port(int proto, uint16_t port)
 			printf("%s", s);
 		else
 			printf("0x%04x", port);
+	} else if (proto == IPPROTO_ARPOP) { 
+		char const *s;
+
+		if (do_resolv && (s = match_value(arp_ops, port)) )
+			printf("%s", s);
+		else
+			printf("0x%04x", port);
 	} else {
 		struct servent *se = NULL;
 		if (do_resolv) {
@@ -659,7 +699,8 @@ struct _s_x _port_name[] = {
 	{"ipid",	O_IPID},
 	{"iplen",	O_IPLEN},
 	{"ipttl",	O_IPTTL},
-	{"mac-type",	O_MAC_TYPE},
+	{"ether-type",	O_ETHER_TYPE},
+	{"arp-op",	O_ARP_OP},
 	{"tcpdatalen",	O_TCPDATALEN},
 	{"tagged",	O_TAGGED},
 	{NULL,		0}
@@ -700,6 +741,7 @@ print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
  * In particular:
  *	proto == -1 disables the protocol check;
  *	proto == IPPROTO_ETHERTYPE looks up an internal table
+ *	proto == IPPROTO_ARPOP looks up an internal table
  *	proto == <some value in /etc/protocols> matches the values there.
  * Returns *end == s in case the parameter is not found.
  */
@@ -738,6 +780,13 @@ strtoport(char *s, char **end, int base, int proto)
 
 	if (proto == IPPROTO_ETHERTYPE) {
 		i = match_token(ether_types, buf);
+		free(buf);
+		if (i != -1) {	/* found */
+			*end = s1;
+			return i;
+		}
+	} else if (proto == IPPROTO_ARPOP) {
+		i = match_token(arp_ops, buf);
 		free(buf);
 		if (i != -1) {	/* found */
 			*end = s1;
@@ -1130,24 +1179,19 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
 }
 
 /*
- * prints a MAC address/mask pair
+ * prints a ethernet (MAC) address/mask pair
  */
 static void
-print_mac(uint8_t *addr, uint8_t *mask)
+print_ether(ipfw_ether_addr *addr)
 {
-	int l = contigmask(mask, 48);
-
-	if (l == 0)
+	if ((addr->flags & IPFW_EA_CHECK) == 0) {
 		printf(" any");
-	else {
+	} else if (addr->flags & IPFW_EA_MULTICAST) {
+		printf(" multicast");
+	} else {
+		u_char *ea = addr->octet;
 		printf(" %02x:%02x:%02x:%02x:%02x:%02x",
-		    addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
-		if (l == -1)
-			printf("&%02x:%02x:%02x:%02x:%02x:%02x",
-			    mask[0], mask[1], mask[2],
-			    mask[3], mask[4], mask[5]);
-		else if (l < 48)
-			printf("/%d", l);
+		    ea[0], ea[1], ea[2], ea[3], ea[4], ea[5]);
 	}
 }
 
@@ -1417,7 +1461,7 @@ print_ext6hdr( ipfw_insn *cmd )
  * The first argument is the list of fields we have, the second is
  * the list of fields we want to be printed.
  *
- * Special cases if we have provided a MAC header:
+ * Special cases if we have provided a ethernet header:
  *   + if the rule does not contain IP addresses/ports, do not print them;
  *   + if the rule does not contain an IP proto, print "all" instead of "ip";
  *
@@ -1807,16 +1851,23 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			if (cmd->len & F_NOT && cmd->opcode != O_IN)
 				printf(" not");
 			switch(cmd->opcode) {
-			case O_MACADDR2: {
-				ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
+			case O_ETHER_SRC: {
+				ipfw_insn_ether *m = (ipfw_insn_ether *)cmd;
 
-				printf(" MAC");
-				print_mac(m->addr, m->mask);
-				print_mac(m->addr + 6, m->mask + 6);
+				printf(" src-ether");
+				print_ether(&m->ether);
 				}
 				break;
 
-			case O_MAC_TYPE:
+			case O_ETHER_DST: {
+				ipfw_insn_ether *m = (ipfw_insn_ether *)cmd;
+
+				printf(" dst-ether");
+				print_ether(&m->ether);
+				}
+				break;
+
+			case O_ETHER_TYPE:
 				print_newports((ipfw_insn_u16 *)cmd,
 						IPPROTO_ETHERTYPE, cmd->opcode);
 				break;
@@ -1828,6 +1879,21 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_FIB:
 				printf(" fib %u", cmd->arg1 );
+				break;
+
+			case O_ARP_OP:
+				print_newports((ipfw_insn_u16 *)cmd,
+						IPPROTO_ARPOP, cmd->opcode);
+				break;
+
+			case O_ARP_SRC_LOOKUP:
+			case O_ARP_DST_LOOKUP:
+				printf(" %s-arp table(%u", 
+				    cmd->opcode == O_ARP_DST_LOOKUP ? "dst" : "src",
+				    ((ipfw_insn *)cmd)->arg1);
+				if (F_LEN((ipfw_insn *)cmd) == F_INSN_SIZE(ipfw_insn_u32))
+					printf(",%u", *((ipfw_insn_u32 *)cmd)->d);
+				printf(")");
 				break;
 
 			case O_IN:
@@ -1995,6 +2061,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_NOP:
 				comment = (char *)(cmd + 1);
+				break;
+
+			case O_STATEOPTS:
+				print_flags("state-options", cmd, f_stateopts);
 				break;
 
 			case O_KEEP_STATE:
@@ -2720,7 +2790,7 @@ help(void)
 "		redirect_port linkspec|redirect_proto linkspec}\n"
 "set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
 "set N {show|list|zero|resetlog|delete} [N{,N}] | flush\n"
-"table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
+"table N {add ip[/bits] [ether ETHERADDR] [value] | delete ip[/bits] | flush | list}\n"
 "table all {flush | list}\n"
 "\n"
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
@@ -2735,17 +2805,20 @@ help(void)
 "IP6ADDR:	[not] { any | me | me6 | ip6/bits | IP6LIST }\n"
 "IP6LIST:	{ ip6 | ip6/bits }[,IP6LIST]\n"
 "IPLIST:	{ ip | ip/bits | ip:mask }[,IPLIST]\n"
+"ETHERADDR:	{ any | multicast | ether }\n"
 "OPTION_LIST:	OPTION [OPTION_LIST]\n"
-"OPTION:	bridged | diverted | diverted-loopback | diverted-output |\n"
+"OPTION:	arp-op LIST | bridged | diverted | diverted-loopback |\n"
+"	{dst-arp|src-arp} table(t[,v]) | diverted-output |\n"
 "	{dst-ip|src-ip} IPADDR | {dst-ip6|src-ip6|dst-ipv6|src-ipv6} IP6ADDR |\n"
 "	{dst-port|src-port} LIST |\n"
 "	estab | frag | {gid|uid} N | icmptypes LIST | in | out | ipid LIST |\n"
 "	iplen LIST | ipoptions SPEC | ipprecedence | ipsec | iptos SPEC |\n"
 "	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
 "	icmp6types LIST | ext6hdr LIST | flow-id N[,N] | fib FIB |\n"
-"	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
-"	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
-"	tcpdatalen LIST | verrevpath | versrcreach | antispoof\n"
+"	{src-ether|dst-ether} ETHERADDR | ether-type LIST | proto LIST |\n"
+"	{recv|xmit|via} {IF|IPADDR} | setup | {tcpack|tcpseq|tcpwin} NN |\n"
+"	tcpflags SPEC | tcpoptions SPEC | tcpdatalen LIST |\n"
+"	verrevpath | versrcreach | antispoof\n"
 );
 exit(0);
 }
@@ -4446,50 +4519,27 @@ end_mask:
 }
 
 static void
-get_mac_addr_mask(const char *p, uint8_t *addr, uint8_t *mask)
+get_ether_addr(const char *p, ipfw_ether_addr *addr)
 {
 	int i, l;
-	char *ap, *ptr, *optr;
-	struct ether_addr *mac;
-	const char *macset = "0123456789abcdefABCDEF:";
+	struct ether_addr *ether;
+	const char *etherset = "0123456789abcdefABCDEF:";
 
+	bzero(addr, sizeof(*addr));
 	if (strcmp(p, "any") == 0) {
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			addr[i] = mask[i] = 0;
+		return;
+	}
+	if (strcmp(p, "multicast") == 0) {
+		addr->flags = IPFW_EA_CHECK | IPFW_EA_MULTICAST;
 		return;
 	}
 
-	optr = ptr = strdup(p);
-	if ((ap = strsep(&ptr, "&/")) != NULL && *ap != 0) {
-		l = strlen(ap);
-		if (strspn(ap, macset) != l || (mac = ether_aton(ap)) == NULL)
-			errx(EX_DATAERR, "Incorrect MAC address");
-		bcopy(mac, addr, ETHER_ADDR_LEN);
-	} else
-		errx(EX_DATAERR, "Incorrect MAC address");
+	if (strspn(p, etherset) != strlen(p) ||
+			(ether = ether_aton(p)) == NULL)
+		errx(EX_DATAERR, "Incorrect ethernet (MAC) address");
 
-	if (ptr != NULL) { /* we have mask? */
-		if (p[ptr - optr - 1] == '/') { /* mask len */
-			l = strtol(ptr, &ap, 10);
-			if (*ap != 0 || l > ETHER_ADDR_LEN * 8 || l < 0)
-				errx(EX_DATAERR, "Incorrect mask length");
-			for (i = 0; l > 0 && i < ETHER_ADDR_LEN; l -= 8, i++)
-				mask[i] = (l >= 8) ? 0xff: (~0) << (8 - l);
-		} else { /* mask */
-			l = strlen(ptr);
-			if (strspn(ptr, macset) != l ||
-			    (mac = ether_aton(ptr)) == NULL)
-				errx(EX_DATAERR, "Incorrect mask");
-			bcopy(mac, mask, ETHER_ADDR_LEN);
-		}
-	} else { /* default mask: ff:ff:ff:ff:ff:ff */
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			mask[i] = 0xff;
-	}
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		addr[i] &= mask[i];
-
-	free(optr);
+	memcpy(addr->octet, ether, ETHER_ADDR_LEN);
+	addr->flags = IPFW_EA_CHECK;
 }
 
 /*
@@ -4552,31 +4602,44 @@ fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int flags, uint16_t arg)
  * two microinstructions, and returns the pointer to the last one.
  */
 static ipfw_insn *
-add_mac(ipfw_insn *cmd, int ac, char *av[])
+add_ether(ipfw_insn *cmd, int opcode, char *arg)
 {
-	ipfw_insn_mac *mac;
+	ipfw_insn_ether *ether;
 
-	if (ac < 2)
-		errx(EX_DATAERR, "MAC dst src");
+	cmd->opcode = opcode;
+	cmd->len = (cmd->len & (F_NOT | F_OR)) | F_INSN_SIZE(ipfw_insn_ether);
 
-	cmd->opcode = O_MACADDR2;
-	cmd->len = (cmd->len & (F_NOT | F_OR)) | F_INSN_SIZE(ipfw_insn_mac);
-
-	mac = (ipfw_insn_mac *)cmd;
-	get_mac_addr_mask(av[0], mac->addr, mac->mask);	/* dst */
-	get_mac_addr_mask(av[1], &(mac->addr[ETHER_ADDR_LEN]),
-	    &(mac->mask[ETHER_ADDR_LEN])); /* src */
+	ether = (ipfw_insn_ether *)cmd;
+	get_ether_addr(arg, &ether->ether);
 	return cmd;
 }
 
 static ipfw_insn *
-add_mactype(ipfw_insn *cmd, int ac, char *av)
+add_ether_src(ipfw_insn *cmd, int ac, char *av[])
 {
 	if (ac < 1)
-		errx(EX_DATAERR, "missing MAC type");
+		errx(EX_DATAERR, "src-ether src");
+
+	return add_ether(cmd, O_ETHER_SRC, av[0]);
+}
+
+static ipfw_insn *
+add_ether_dst(ipfw_insn *cmd, int ac, char *av[])
+{
+	if (ac < 1)
+		errx(EX_DATAERR, "dst-ether dst");
+
+	return add_ether(cmd, O_ETHER_DST, av[0]);
+}
+
+static ipfw_insn *
+add_ethertype(ipfw_insn *cmd, int ac, char *av)
+{
+	if (ac < 1)
+		errx(EX_DATAERR, "missing ether-type argument");
 	if (strcmp(av, "any") != 0) { /* we have a non-null type */
 		fill_newports((ipfw_insn_u16 *)cmd, av, IPPROTO_ETHERTYPE);
-		cmd->opcode = O_MAC_TYPE;
+		cmd->opcode = O_ETHER_TYPE;
 		return cmd;
 	} else
 		return NULL;
@@ -5585,16 +5648,31 @@ read_options:
 				    *av);
 			break;
 
-		case TOK_MAC:
-			if (add_mac(cmd, ac, av)) {
-				ac -= 2; av += 2;
+		case TOK_ETHER:
+			if (ac >= 2 && add_ether_dst(cmd, ac, av)) {
+				/*
+				 * XXX will not allocate next command here
+				 */
+				av[0] = strdup("src-ether");
 			}
 			break;
 
-		case TOK_MACTYPE:
-			NEED1("missing mac type");
-			if (!add_mactype(cmd, ac, *av))
-				errx(EX_DATAERR, "invalid mac type %s", *av);
+		case TOK_ETHER_SRC:
+			if (add_ether_src(cmd, ac, av)) {
+				ac--; av++;
+			}
+			break;
+
+		case TOK_ETHER_DST:
+			if (add_ether_dst(cmd, ac, av)) {
+				ac--; av++;
+			}
+			break;
+
+		case TOK_ETHER_TYPE:
+			NEED1("missing ether type");
+			if (!add_ethertype(cmd, ac, *av))
+				errx(EX_DATAERR, "invalid ether type %s", *av);
 			ac--; av++;
 			break;
 
@@ -5660,6 +5738,37 @@ read_options:
 		case TOK_FIB:
 			NEED1("fib requires fib number");
 			fill_cmd(cmd, O_FIB, 0, strtoul(*av, NULL, 0));
+			ac--; av++;
+			break;
+
+		case TOK_ARP_OP:
+			NEED1("missing arp operation");
+			if (strcmp(*av, "any") != 0) {
+				if (!fill_newports((ipfw_insn_u16 *)cmd, *av, IPPROTO_ARPOP))
+					errx(EX_DATAERR, "invalid arp operation %s", *av);
+				cmd->opcode = O_ARP_OP;
+			}
+			ac--; av++;
+			break;
+
+		case TOK_STATEOPTS:
+			NEED1("missing argument for state-options");
+			fill_flags(cmd, O_STATEOPTS, f_stateopts, *av);
+			if ((cmd->arg1 >> 8) & 0xff) /* clear flags specified */
+				errx(EX_DATAERR, "invalid state-options %s", *av);
+			ac--; av++;
+			break;
+
+		case TOK_ARP_SRC:
+		case TOK_ARP_DST:
+			NEED1("missing lookup table argument");
+			fill_ip((ipfw_insn_ip *)cmd, *av);
+			if (cmd->opcode != O_IP_DST_LOOKUP)	/* table */
+				errx(EX_USAGE, "invalid lookup table %s\n", *av);
+			if (i == TOK_ARP_DST)
+				cmd->opcode = O_ARP_DST_LOOKUP;
+			else
+				cmd->opcode = O_ARP_SRC_LOOKUP;
 			ac--; av++;
 			break;
 
@@ -5913,7 +6022,7 @@ table_handler(int ac, char *av[])
 		do_add = **av == 'a';
 		ac--; av++;
 		if (!ac)
-			errx(EX_USAGE, "IP address required");
+			errx(EX_USAGE, "Address required");
 		p = strchr(*av, '/');
 		if (p) {
 			*p++ = '\0';
@@ -5922,9 +6031,22 @@ table_handler(int ac, char *av[])
 				errx(EX_DATAERR, "bad width ``%s''", p);
 		} else
 			ent.masklen = 32;
-		if (lookup_host(*av, (struct in_addr *)&ent.addr) != 0)
-			errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
-		ac--; av++;
+		if (strcmp(*av, "ether") == 0 || strcmp(*av, "any") == 0) {
+			ent.addr = INADDR_ANY;
+			ent.masklen = 0;
+			if ((*av)[0] == 'a') {	/* any */
+				ac--; av++;
+			}
+		} else {
+			if (lookup_host(*av, (struct in_addr *)&ent.addr) != 0)
+				errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
+			ac--; av++;
+		}
+		bzero(&ent.ether_addr, sizeof(ent.ether_addr));
+		if (ac >= 2 && strcmp(*av, "ether") == 0) {
+			get_ether_addr(av[1], &ent.ether_addr);
+			ac-=2; av+=2;
+		}
 		if (do_add && ac) {
 			unsigned int tval;
 			/* isdigit is a bit of a hack here.. */
@@ -5999,20 +6121,36 @@ table_list(ipfw_table_entry ent, int need_header)
 		printf("---table(%d)---\n", tbl->tbl);
 	for (a = 0; a < tbl->cnt; a++) {
 		unsigned int tval;
+		char tval_buf[128];
+		char tether_buf[128];
 		tval = tbl->ent[a].value;
 		if (do_value_as_ip) {
-			char tbuf[128];
-			strncpy(tbuf, inet_ntoa(*(struct in_addr *)
-				&tbl->ent[a].addr), 127);
-			/* inet_ntoa expects network order */
-			tval = htonl(tval);
-			printf("%s/%u %s\n", tbuf, tbl->ent[a].masklen,
-				inet_ntoa(*(struct in_addr *)&tval));
+		    /* inet_ntoa expects network order */
+		    tval = htonl(tval);
+		    strlcpy(tval_buf, inet_ntoa(*(struct in_addr *)
+			&tval), sizeof(tval_buf));
 		} else {
-			printf("%s/%u %u\n",
-				inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
-				tbl->ent[a].masklen, tval);
+		    snprintf(tval_buf, sizeof(tval_buf), "%u", tval);
 		}
+		if (tbl->ent[a].ether_addr.flags & IPFW_EA_CHECK) {
+		    uint8_t *x = (uint8_t *)&tbl->ent[a].ether_addr;
+		    if (tbl->ent[a].ether_addr.flags & IPFW_EA_MULTICAST)
+			strlcpy(tether_buf, "ether multicast ", sizeof(tether_buf));
+		    else
+			snprintf(tether_buf, sizeof(tether_buf), 
+			    "ether %02x:%02x:%02x:%02x:%02x:%02x ",
+			    x[0], x[1], x[2], x[3], x[4], x[5]);
+		} else {
+		    tether_buf[0] = 0;
+		}
+
+		if (tbl->ent[a].addr == INADDR_ANY && tbl->ent[a].masklen == 0)
+			printf("any");
+		else
+			printf("%s/%u",
+			    inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
+			    tbl->ent[a].masklen);
+		printf(" %s%s\n", tether_buf, tval_buf);
 	}
 	free(tbl);
 }

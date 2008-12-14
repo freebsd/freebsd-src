@@ -607,12 +607,20 @@ pfr_next_token(char buf[BUF_SIZE], FILE *fp)
 	do {
 		if (i < BUF_SIZE)
 			buf[i++] = next_ch;
-		next_ch = fgetc(fp);
-	} while (!feof(fp) && !isspace(next_ch));
+		/* leave only 1 space */
+		if (isspace(next_ch)) {
+			while (isspace(next_ch) && next_ch != '\n' && !feof(fp))
+				next_ch = fgetc(fp);
+		} else {
+			next_ch = fgetc(fp);
+		}
+	} while (!feof(fp) && next_ch != '\n');
 	if (i >= BUF_SIZE) {
 		errno = EINVAL;
 		return (-1);
 	}
+	if (i > 0 && isspace(buf[i-1]))
+		i--;
 	buf[i] = '\0';
 	return (1);
 }

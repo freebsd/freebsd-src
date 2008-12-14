@@ -362,6 +362,10 @@ struct ether_addr {
 } while (0)
 
 #ifdef _KERNEL
+#include <net/pfil.h>
+
+#define	MTAG_ETHER		1080579719
+#define	MTAG_ETHER_HEADER	0
 
 struct ifnet;
 struct mbuf;
@@ -382,6 +386,8 @@ extern	char *ether_sprintf(const u_int8_t *);
 void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
 	    void *, u_int);
 struct mbuf  *ether_vlanencap(struct mbuf *, uint16_t);
+
+extern struct pfil_head ether_pfil_hook;	/* Packet filter hooks */
 
 #else /* _KERNEL */
 

@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #include <net/pfil.h>
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_fw.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/if_ether.h>
 
 #include <netgraph/ng_ipfw.h>
 
@@ -97,6 +99,7 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 {
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
+	struct m_tag *tag_ether_hdr;
 	struct m_tag *dn_tag;
 	int ipfw = 0;
 	int divert;
@@ -117,6 +120,11 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 		args.rule = ng_tag->rule;
 		m_tag_delete(*m0, (struct m_tag *)ng_tag);
 	}
+
+	tag_ether_hdr = m_tag_locate(*m0, MTAG_ETHER, MTAG_ETHER_HEADER,
+	    NULL);
+	if (tag_ether_hdr != NULL)
+		args.eh = (struct ether_header *)(tag_ether_hdr + 1);
 
 again:
 	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
@@ -219,6 +227,7 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 {
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
+	struct m_tag *tag_ether_hdr;
 	struct m_tag *dn_tag;
 	int ipfw = 0;
 	int divert;
@@ -239,6 +248,11 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 		args.rule = ng_tag->rule;
 		m_tag_delete(*m0, (struct m_tag *)ng_tag);
 	}
+
+	tag_ether_hdr = m_tag_locate(*m0, MTAG_ETHER, MTAG_ETHER_HEADER,
+	    NULL);
+	if (tag_ether_hdr != NULL)
+		args.eh = (struct ether_header *)(tag_ether_hdr + 1);
 
 again:
 	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
@@ -426,17 +440,114 @@ nodivert:
 	return 1;
 }
 
+int
+ipfw_ether_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
+{
+	struct ip_fw_args args;
+	int error;
+
+	KASSERT(dir == PFIL_IN, ("ipfw_ether_check_in wrong direction!"));
+
+	bzero(&args, sizeof(args));
+
+	args.rule = ip_dn_claim_rule(*m0);
+	if (args.rule != NULL && fw_one_pass)
+		return 0; /* packet already partially processed */
+
+	args.m = *m0;
+	args.flags = IP_FW_ARGS_LAYER2;
+	args.eh = mtod(*m0, struct ether_header *);
+	args.inp = inp;
+	error = ip_fw_chk_ptr(&args);
+	*m0 = args.m;
+
+	if (error == IP_FW_PASS)
+		return 0;
+
+	if (DUMMYNET_LOADED && (error == IP_FW_DUMMYNET)) {
+		ip_dn_io_ptr(m0, DN_TO_ETH_DEMUX, &args);
+		return 0;
+	}
+
+	/*
+	 * XXX at some point add support for divert/forward actions.
+	 * If none of the above matches, we have to drop the pkt.
+	 */
+
+	if (*m0)
+		m_freem(*m0);
+	*m0 = NULL;
+	return (EACCES);
+}
+
+int
+ipfw_ether_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
+{
+	struct ip_fw_args args;
+	int error;
+
+	KASSERT(dir == PFIL_OUT, ("ipfw_ether_check_out wrong direction!"));
+
+	bzero(&args, sizeof(args));
+
+	args.rule = ip_dn_claim_rule(*m0);
+	if (args.rule != NULL && fw_one_pass)
+		return 0; /* packet already partially processed */
+
+	args.m = *m0;
+	args.oif = ifp;
+	args.flags = IP_FW_ARGS_LAYER2;
+	args.eh = mtod(*m0, struct ether_header *);
+	args.inp = inp;
+	error = ip_fw_chk_ptr(&args);
+	*m0 = args.m;
+
+	if (error == IP_FW_PASS)
+		return 0;
+
+	if (DUMMYNET_LOADED && (error == IP_FW_DUMMYNET)) {
+		int dn_dir;
+
+		if (ifp->if_type == IFT_BRIDGE)
+			dn_dir = DN_TO_IFB_FWD;
+		else
+			dn_dir = DN_TO_ETH_OUT;
+		ip_dn_io_ptr(m0, dn_dir, &args);
+		return 0;
+	}
+
+	/*
+	 * XXX at some point add support for divert/forward actions.
+	 * If none of the above matches, we have to drop the pkt.
+	 */
+
+	if (*m0)
+		m_freem(*m0);
+	*m0 = NULL;
+	return (EACCES);
+}
+
 static int
 ipfw_hook(void)
 {
-	struct pfil_head *pfh_inet;
+	struct pfil_head *pfh_inet, *pfh_ether;
 
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
-	if (pfh_inet == NULL)
-		return ENOENT;
+	if (pfh_inet != NULL) {
+		pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
+		pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+	}
 
-	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
-	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+	pfh_ether = pfil_head_get(PFIL_TYPE_IFT, IFT_ETHER);
+	if (pfh_ether != NULL) {
+		pfil_add_hook(ipfw_ether_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_ether);
+		pfil_add_hook(ipfw_ether_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_ether);
+	}
+
+	if (pfh_inet == NULL || pfh_ether == NULL)
+		return ENOENT;
 
 	return 0;
 }
@@ -444,14 +555,22 @@ ipfw_hook(void)
 static int
 ipfw_unhook(void)
 {
-	struct pfil_head *pfh_inet;
+	struct pfil_head *pfh_inet, *pfh_ether;
 
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
-	if (pfh_inet == NULL)
-		return ENOENT;
+	if (pfh_inet != NULL) {
+		pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
+		pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+	}
 
-	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
-	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+	pfh_ether = pfil_head_get(PFIL_TYPE_IFT, IFT_ETHER);
+	if (pfh_ether != NULL) {
+		pfil_remove_hook(ipfw_ether_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_ether);
+		pfil_remove_hook(ipfw_ether_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_ether);
+	}
+
+	if (pfh_inet == NULL || pfh_ether == NULL)
+		return ENOENT;
 
 	return 0;
 }

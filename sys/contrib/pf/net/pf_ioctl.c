@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef __FreeBSD__
 #include <sys/md5.h>
+#include <net/ethernet.h>
 #else
 #include <dev/rndvar.h>
 #include <crypto/md5.h>
@@ -3640,6 +3641,7 @@ pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 * byte order. 
 	 */
 	struct ip *h = NULL;
+	struct m_tag *tag_ether_hdr;
 	int chk;
 
 	if ((*m)->m_pkthdr.len >= (int)sizeof(struct ip)) {
@@ -3648,7 +3650,10 @@ pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	        HTONS(h->ip_len);
 	        HTONS(h->ip_off);
 	}
-	chk = pf_test(PF_IN, ifp, m, NULL, inp);
+	tag_ether_hdr = m_tag_locate(*m, MTAG_ETHER, MTAG_ETHER_HEADER, NULL);
+	chk = pf_test(PF_IN, ifp, m, 
+	    tag_ether_hdr ? (struct ether_header *)(tag_ether_hdr + 1) : NULL, 
+	    inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;
@@ -3675,6 +3680,7 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 * byte order. 
 	 */
 	struct ip *h = NULL;
+	struct m_tag *tag_ether_hdr;
 	int chk;
 
 	/* We need a proper CSUM befor we start (s. OpenBSD ip_output) */
@@ -3688,7 +3694,10 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	        HTONS(h->ip_len);
 	        HTONS(h->ip_off);
 	}
-	chk = pf_test(PF_OUT, ifp, m, NULL, inp);
+	tag_ether_hdr = m_tag_locate(*m, MTAG_ETHER, MTAG_ETHER_HEADER, NULL);
+	chk = pf_test(PF_OUT, ifp, m, 
+	    tag_ether_hdr ? (struct ether_header *)(tag_ether_hdr + 1) : NULL, 
+	    inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;
@@ -3712,6 +3721,7 @@ pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	/*
 	 * IPv6 is not affected by ip_len/ip_off byte order changes.
 	 */
+	struct m_tag *tag_ether_hdr;
 	int chk;
 
 	/*
@@ -3719,8 +3729,10 @@ pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 * order to support scoped addresses. In order to support stateful
 	 * filtering we have change this to lo0 as it is the case in IPv4.
 	 */
+	tag_ether_hdr = m_tag_locate(*m, MTAG_ETHER, MTAG_ETHER_HEADER, NULL);
 	chk = pf_test6(PF_IN, (*m)->m_flags & M_LOOP ? &V_loif[0] : ifp, m,
-	    NULL, inp);
+	    tag_ether_hdr ? (struct ether_header *)(tag_ether_hdr + 1) : NULL, 
+	    inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;
@@ -3735,6 +3747,7 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	/*
 	 * IPv6 does not affected ip_len/ip_off byte order changes.
 	 */
+	struct m_tag *tag_ether_hdr;
 	int chk;
 
 	/* We need a proper CSUM befor we start (s. OpenBSD ip_output) */
@@ -3742,7 +3755,10 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		in_delayed_cksum(*m);
 		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
-	chk = pf_test6(PF_OUT, ifp, m, NULL, inp);
+	tag_ether_hdr = m_tag_locate(*m, MTAG_ETHER, MTAG_ETHER_HEADER, NULL);
+	chk = pf_test6(PF_OUT, ifp, m,
+	    tag_ether_hdr ? (struct ether_header *)(tag_ether_hdr + 1) : NULL, 
+	    inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;

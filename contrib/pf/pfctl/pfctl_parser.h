@@ -296,6 +296,7 @@ void			 ifa_load(void);
 struct node_host	*ifa_exists(const char *);
 struct node_host	*ifa_lookup(const char *, int);
 struct node_host	*host(const char *);
+struct node_host	*host_ether(const char *);
 
 int			 append_addr(struct pfr_buffer *, char *, int);
 int			 append_addr_host(struct pfr_buffer *,

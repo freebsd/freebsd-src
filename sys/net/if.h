@@ -150,6 +150,8 @@ struct if_data {
 #define	IFF_MONITOR	0x40000		/* (n) user-requested monitor mode */
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_NEEDSGIANT	0x100000	/* (i) hold Giant over if_start calls */
+#define	IFF_L2FILTER	0x200000	/* (n) perform layer2 filtering on interface */
+#define	IFF_L2TAG	0x400000	/* (n) tag packets with layer2 header */
 
 /*
  * Old names for driver flags so that user space tools can continue to use

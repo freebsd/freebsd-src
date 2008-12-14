@@ -1902,8 +1902,8 @@ pfctl_test_altqsupport(int dev, int opts)
 
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
 		if (errno == ENODEV) {
-			if (!(opts & PF_OPT_QUIET))
-				fprintf(stderr, "No ALTQ support in kernel\n"
+			if (opts & PF_OPT_VERBOSE)
+				fprintf(stderr, "No ALTQ support in kernel. "
 				    "ALTQ related functions disabled\n");
 			return (0);
 		} else

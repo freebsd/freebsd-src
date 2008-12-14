@@ -64,6 +64,7 @@ typedef	TAILQ_HEAD(pfil_list, packet_filter_hook) pfil_list_t;
 
 #define	PFIL_TYPE_AF		1	/* key is AF_* type */
 #define	PFIL_TYPE_IFNET		2	/* key is ifnet pointer */
+#define	PFIL_TYPE_IFT		3	/* key is IFT_* type */
 
 struct pfil_head {
 	pfil_list_t	ph_in;

@@ -81,8 +81,9 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_IP_DSTPORT,		/* (n)port list:mask 4 byte ea	*/
 	O_PROTO,		/* arg1=protocol		*/
 
-	O_MACADDR2,		/* 2 mac addr:mask		*/
-	O_MAC_TYPE,		/* same as srcport		*/
+	O_ETHER_SRC,		/* 2 ethernet (mac) addr:mask	*/
+	O_ETHER_DST,		/* 2 ethernet (mac) addr:mask	*/
+	O_ETHER_TYPE,		/* same as srcport		*/
 
 	O_LAYER2,		/* none				*/
 	O_IN,			/* none				*/
@@ -137,7 +138,6 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_DIVERT,		/* arg1=port number		*/
 	O_TEE,			/* arg1=port number		*/
 	O_FORWARD_IP,		/* fwd sockaddr			*/
-	O_FORWARD_MAC,		/* fwd mac			*/
 	O_NAT,                  /* nope                         */
 
 	/*
@@ -177,6 +177,15 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_SETFIB,		/* arg1=FIB number */
 	O_FIB,			/* arg1=FIB desired fib number */
+
+	O_STATEOPTS,
+
+	/*
+	 * ARP opcodes
+	 */
+	O_ARP_OP,		/* same as srcport		*/
+	O_ARP_SRC_LOOKUP,	/* arg1=table number, u32=value	*/
+	O_ARP_DST_LOOKUP,	/* arg1=table number, u32=value	*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -275,13 +284,21 @@ typedef struct  _ipfw_insn_sa {
 } ipfw_insn_sa;
 
 /*
- * This is used for MAC addr-mask pairs.
+ * This is used for ethernet (MAC) addr-mask pairs.
  */
-typedef struct	_ipfw_insn_mac {
+
+#define IPFW_EA_CHECK		0x01
+#define IPFW_EA_MULTICAST	0x02
+
+typedef struct _ipfw_ether_addr {
+	u_char octet[6];
+	u_int16_t flags;
+} ipfw_ether_addr;
+
+typedef struct	_ipfw_insn_ether {
 	ipfw_insn o;
-	u_char addr[12];	/* dst[6] + src[6] */
-	u_char mask[12];	/* dst[6] + src[6] */
-} ipfw_insn_mac;
+	ipfw_ether_addr ether;
+} ipfw_insn_ether;
 
 /*
  * This is used for interface match rules (recv xx, xmit xx).
@@ -490,6 +507,8 @@ struct ipfw_flow_id {
 	struct in6_addr src_ip6;
 	u_int32_t	flow_id6;
 	u_int32_t	frag_id6;
+	ipfw_ether_addr src_ether;
+	ipfw_ether_addr dst_ether;
 };
 
 #define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
@@ -541,10 +560,16 @@ struct _ipfw_dyn_rule {
 #define	ICMP6_UNREACH_RST	0x100	/* fake ICMPv6 code (send a TCP RST) */
 
 /*
+ * Definitions for state (dynamic rule) option names.
+ */
+#define	IP_FW_STATEOPT_ETHER	0x01
+
+/*
  * These are used for lookup tables.
  */
 typedef struct	_ipfw_table_entry {
 	in_addr_t	addr;		/* network address		*/
+	ipfw_ether_addr ether_addr;	/* ethernet address		*/
 	u_int32_t	value;		/* value			*/
 	u_int16_t	tbl;		/* table number			*/
 	u_int8_t	masklen;	/* mask length			*/
@@ -595,6 +620,8 @@ struct _ip6dn_args {
        struct route_in6 ro_pmtu_or;
 };
 
+#define IP_FW_ARGS_LAYER2		0x01
+
 /*
  * Arguments for calling ipfw_chk() and dummynet_io(). We put them
  * all into a structure because this way it is easier and more
@@ -605,7 +632,8 @@ struct ip_fw_args {
 	struct ifnet	*oif;		/* output interface		*/
 	struct sockaddr_in *next_hop;	/* forward address		*/
 	struct ip_fw	*rule;		/* matching rule		*/
-	struct ether_header *eh;	/* for bridged packets		*/
+	struct ether_header *eh;	/* for saved ethernet header	*/
+	int flags;
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
 	u_int32_t	cookie;		/* a cookie depending on rule action */
@@ -625,6 +653,8 @@ struct dn_flow_set;
 
 int ipfw_check_in(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
 int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
+int ipfw_ether_check_in(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
+int ipfw_ether_check_out(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
 
 int ipfw_chk(struct ip_fw_args *);
 
@@ -650,11 +680,15 @@ typedef	int ip_fw_chk_t(struct ip_fw_args *args);
 extern	ip_fw_chk_t	*ip_fw_chk_ptr;
 #define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
 
+struct ipfw_table_head {
+	struct radix_node_head *in_rnh, *ether_rnh;
+};
+
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
 	LIST_HEAD(, cfg_nat) nat;       /* list of nat entries */
-	struct radix_node_head *tables[IPFW_TABLES_MAX];
+ 	struct ipfw_table_head tables[IPFW_TABLES_MAX];
 	struct rwlock	rwmtx;
 };
 

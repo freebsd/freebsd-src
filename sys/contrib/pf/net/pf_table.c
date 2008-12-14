@@ -919,6 +919,7 @@ pfr_create_kentry(struct pfr_addr *ad, int intr)
 	ke->pfrke_net = ad->pfra_net;
 	ke->pfrke_not = ad->pfra_not;
 	ke->pfrke_intrpool = intr;
+	ke->pfrke_ether = ad->pfra_ether;
 	return (ke);
 }
 
@@ -1147,6 +1148,7 @@ pfr_copyout_addr(struct pfr_addr *ad, struct pfr_kentry *ke)
 		ad->pfra_ip4addr = ke->pfrke_sa.sin.sin_addr;
 	else if (ad->pfra_af == AF_INET6)
 		ad->pfra_ip6addr = ke->pfrke_sa.sin6.sin6_addr;
+	ad->pfra_ether = ke->pfrke_ether;
 }
 
 int
@@ -2091,6 +2093,12 @@ pfr_lookup_table(struct pfr_table *tbl)
 int
 pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 {
+	return pfr_match_addr_ether(kt, a, af, NULL);
+}
+
+int
+pfr_match_addr_ether(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af, struct pf_addr_ether *ae)
+{
 	struct pfr_kentry	*ke = NULL;
 	int			 match;
 
@@ -2117,7 +2125,10 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 		break;
 #endif /* INET6 */
 	}
-	match = (ke && !ke->pfrke_not);
+	match = (ke != NULL);
+	if (match && ae)
+		match = pf_match_addr_ether(&ke->pfrke_ether, ae, 0);
+	match = (match && !ke->pfrke_not);
 	if (match)
 		kt->pfrkt_match++;
 	else
