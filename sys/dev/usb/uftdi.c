@@ -100,7 +100,7 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
  * These are the maximum number of bytes transferred per frame.
  * The output buffer size cannot be increased due to the size encoding.
  */
-#define UFTDIIBUFSIZE 64
+#define UFTDIIBUFSIZE 256
 #define UFTDIOBUFSIZE 64
 
 struct uftdi_softc {
@@ -458,32 +458,33 @@ uftdi_read(void *vsc, int portno, u_char **ptr, u_int32_t *count)
 {
 	struct uftdi_softc *sc = vsc;
 	u_char msr, lsr;
+	unsigned l;
 
-	DPRINTFN(15,("uftdi_read: sc=%p, port=%d count=%d\n", sc, portno,
-		     *count));
+	DPRINTFN(15,("uftdi_read: sc=%p, port=%d count=%d\n",
+	    sc, portno, *count));
+	while (*count > 0) {
+		l = *count;
+		if (l > 64)
+			l = 64;
 
-	msr = FTDI_GET_MSR(*ptr);
-	lsr = FTDI_GET_LSR(*ptr);
+		msr = FTDI_GET_MSR(*ptr);
+		lsr = FTDI_GET_LSR(*ptr);
 
-#ifdef USB_DEBUG
-	if (*count != 2)
-		DPRINTFN(10,("uftdi_read: sc=%p, port=%d count=%d data[0]="
-			    "0x%02x\n", sc, portno, *count, (*ptr)[2]));
-#endif
+		if (sc->sc_msr != msr ||
+		    (sc->sc_lsr & FTDI_LSR_MASK) != (lsr & FTDI_LSR_MASK)) {
+			DPRINTF(("uftdi_read: status change msr=0x%02x(0x%02x) "
+				 "lsr=0x%02x(0x%02x)\n", msr, sc->sc_msr,
+				 lsr, sc->sc_lsr));
+			sc->sc_msr = msr;
+			sc->sc_lsr = lsr;
+			ucom_status_change(&sc->sc_ucom);
+		}
 
-	if (sc->sc_msr != msr ||
-	    (sc->sc_lsr & FTDI_LSR_MASK) != (lsr & FTDI_LSR_MASK)) {
-		DPRINTF(("uftdi_read: status change msr=0x%02x(0x%02x) "
-			 "lsr=0x%02x(0x%02x)\n", msr, sc->sc_msr,
-			 lsr, sc->sc_lsr));
-		sc->sc_msr = msr;
-		sc->sc_lsr = lsr;
-		ucom_status_change(&sc->sc_ucom);
+		if (l > 2)
+			ucomrxchars(&sc->sc_ucom, (*ptr) + 2, l - 2);
+		*ptr += l;
+		*count -= l;
 	}
-
-	/* Pick up status and adjust data part. */
-	*ptr += 2;
-	*count -= 2;
 }
 
 static size_t
