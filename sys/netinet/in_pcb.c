@@ -695,6 +695,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
 
 		if (cred == NULL || !jailed(cred)) {
+#if __FreeBSD_version < 800000
+			if (ia == NULL)
+				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+#endif
 			if (ia == NULL) {
 				error = ENETUNREACH;
 				goto done;
