@@ -307,7 +307,7 @@ void
 config::parse_one_file(const char *fn)
 {
 	if (Dflag)
-		printf("Parsing %s\n", fn);
+		fprintf(stderr, "Parsing %s\n", fn);
 	yyin = fopen(fn, "r");
 	if (yyin == NULL)
 		err(1, "Cannot open config file %s", fn);
@@ -325,7 +325,7 @@ config::parse_files_in_dir(const char *dirname)
 	char path[PATH_MAX];
 
 	if (Dflag)
-		printf("Parsing files in %s\n", dirname);
+		fprintf(stderr, "Parsing files in %s\n", dirname);
 	dirp = opendir(dirname);
 	if (dirp == NULL)
 		return;
