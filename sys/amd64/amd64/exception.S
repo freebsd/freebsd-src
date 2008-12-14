@@ -459,9 +459,9 @@ nmi_calltrap:
 	 */
 	movq	%rsp,%rsi	/* source stack pointer */
 	movq	$TF_SIZE,%rcx
-	movq	PCPU(RSP0),%rbx
-	subq	%rcx,%rbx
-	movq	%rbx,%rdi	/* destination stack pointer */
+	movq	PCPU(RSP0),%rdx
+	subq	%rcx,%rdx
+	movq	%rdx,%rdi	/* destination stack pointer */
 
 	shrq	$3,%rcx		/* trap frame size in long words */
 	cld
@@ -470,7 +470,7 @@ nmi_calltrap:
 
 	movl	%ss,%eax
 	pushq	%rax		/* tf_ss */
-	pushq	%rbx		/* tf_rsp (on kernel stack) */
+	pushq	%rdx		/* tf_rsp (on kernel stack) */
 	pushfq			/* tf_rflags */
 	movl	%cs,%eax
 	pushq	%rax		/* tf_cs */
