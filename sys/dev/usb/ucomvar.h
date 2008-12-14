@@ -166,3 +166,4 @@ void ucom_attach_tty(struct ucom_softc *, char*, int);
 int ucom_attach(struct ucom_softc *);
 int ucom_detach(struct ucom_softc *);
 void ucom_status_change(struct ucom_softc *);
+void ucomrxchars(struct ucom_softc *sc, u_char *cp, u_int32_t cc);
