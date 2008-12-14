@@ -61,7 +61,7 @@
 /*
  * Minimum partition sizes
  */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
+#if defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
 #define ROOT_MIN_SIZE			128
 #else
 #define ROOT_MIN_SIZE			118
@@ -1093,27 +1093,6 @@ diskLabel(Device *dev)
 		    clear_wins();
 		    break;
 		}
-
-#ifdef __alpha__
-		/*
-		 * SRM requires that the root partition is at the
-		 * begining of the disk and cannot boot otherwise. 
-		 * Warn Alpha users if they are about to shoot themselves in
-		 * the foot in this way.
-		 *
-		 * Since partitions may not start precisely at offset 0 we
-		 * check for a "close to 0" instead. :-(
-		 */
-		if ((flags & CHUNK_IS_ROOT) && (tmp->offset > 1024)) {
-		    msgConfirm("Your root partition `a' does not seem to be the first\n"
-			       "partition.  The Alpha's firmware can only boot from the\n"
-			       "first partition.  So it is unlikely that your current\n"
-			       "disk layout will be bootable boot after installation.\n"
-			       "\n"
-			       "Please allocate the root partition before allocating\n"
-			       "any others.\n");
-		}
-#endif	/* alpha */
 
 		tmp->private_data = p;
 		tmp->private_free = safe_free;
