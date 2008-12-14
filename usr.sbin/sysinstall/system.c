@@ -190,10 +190,6 @@ systemInitialize(int argc, char **argv)
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
-#ifdef __alpha__
-	i = 0;
-	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
-#endif
 #if 0
 	signal(SIGCHLD, reap_children);
 #endif
@@ -261,7 +257,7 @@ systemShutdown(int status)
     if (RunningAsInit) {
 	/* Put the console back */
 	ioctl(0, VT_ACTIVATE, 2);
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__sparc64__)
 	reboot(RB_HALT);
 #else
 	reboot(RB_AUTOBOOT);
