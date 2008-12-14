@@ -724,10 +724,12 @@ static void
 ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct ucom_softc *sc = (struct ucom_softc *)p;
+	struct tty *tp = sc->sc_tty;
 	usbd_status err;
 	u_int32_t cc;
 	u_char *cp;
 
+	(void)tp;	/* Used for debugging */
 	DPRINTF(("ucomreadcb: status = %d\n", status));
 
 	if (status != USBD_NORMAL_COMPLETION) {
