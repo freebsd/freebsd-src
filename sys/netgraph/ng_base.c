@@ -62,6 +62,9 @@
 #include <sys/refcount.h>
 #include <sys/proc.h>
 #include <sys/vimage.h>
+#include <sys/unistd.h>
+#include <sys/kthread.h>
+#include <sys/smp.h>
 #include <machine/cpu.h>
 
 #include <net/netisr.h>
@@ -211,7 +214,7 @@ static int	ng_generic_msg(node_p here, item_p item, hook_p lasthook);
 static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
 static void	ng_worklist_add(node_p node);
-static void	ngintr(void);
+static void	ngthread(void *);
 static int	ng_apply_item(node_p node, item_p item, int rw);
 static void	ng_flush_input_queue(node_p node);
 static node_p	ng_ID2noderef(ng_ID_t ID);
@@ -259,6 +262,10 @@ MALLOC_DEFINE(M_NETGRAPH_MSG, "netgraph_msg", "netgraph name storage");
 	mtx_lock(&ng_worklist_mtx)
 #define	NG_WORKLIST_UNLOCK()			\
 	mtx_unlock(&ng_worklist_mtx)
+#define	NG_WORKLIST_SLEEP()			\
+	mtx_sleep(&ng_worklist, &ng_worklist_mtx, PI_NET, "sleep", 0)
+#define	NG_WORKLIST_WAKEUP()			\
+	wakeup_one(&ng_worklist)
 
 #ifdef NETGRAPH_DEBUG /*----------------------------------------------*/
 /*
@@ -2868,9 +2875,13 @@ out:
 
 uma_zone_t			ng_qzone;
 uma_zone_t			ng_qdzone;
+static int			numthreads = 0; /* number of queue threads */
 static int			maxalloc = 4096;/* limit the damage of a leak */
 static int			maxdata = 512;	/* limit the damage of a DoS */
 
+TUNABLE_INT("net.graph.threads", &numthreads);
+SYSCTL_INT(_net_graph, OID_AUTO, threads, CTLFLAG_RDTUN, &numthreads,
+    0, "Number of queue processing threads");
 TUNABLE_INT("net.graph.maxalloc", &maxalloc);
 SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
     0, "Maximum number of non-data queue items to allocate");
@@ -3064,7 +3075,9 @@ ng_mod_event(module_t mod, int event, void *data)
 static int
 ngb_mod_event(module_t mod, int event, void *data)
 {
-	int error = 0;
+	struct proc *p;
+	struct thread *td;
+	int i, error = 0;
 
 	switch (event) {
 	case MOD_LOAD:
@@ -3091,7 +3104,18 @@ ngb_mod_event(module_t mod, int event, void *data)
 		ng_qdzone = uma_zcreate("NetGraph data items", sizeof(struct ng_item),
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 		uma_zone_set_max(ng_qdzone, maxdata);
-		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL, 0);
+		/* Autoconfigure number of threads. */
+		if (numthreads <= 0)
+			numthreads = mp_ncpus;
+		/* Create threads. */
+    		p = NULL; /* start with no process */
+		for (i = 0; i < numthreads; i++) {
+			if (kproc_kthread_add(ngthread, NULL, &p, &td,
+			    RFHIGHPID, 0, "ng_queue", "ng_queue%d", i)) {
+				numthreads = i;
+				break;
+			}
+		}
 		break;
 	case MOD_UNLOAD:
 		/* You can't unload it because an interface may be using it. */
@@ -3246,25 +3270,20 @@ SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items, CTLTYPE_INT | CTLFLAG_RW,
 /***********************************************************************
 * Worklist routines
 **********************************************************************/
-/* NETISR thread enters here */
 /*
  * Pick a node off the list of nodes with work,
- * try get an item to process off it.
- * If there are no more, remove the node from the list.
+ * try get an item to process off it. Remove the node from the list.
  */
 static void
-ngintr(void)
+ngthread(void *arg)
 {
 	for (;;) {
 		node_p  node;
 
 		/* Get node from the worklist. */
 		NG_WORKLIST_LOCK();
-		node = STAILQ_FIRST(&ng_worklist);
-		if (!node) {
-			NG_WORKLIST_UNLOCK();
-			break;
-		}
+		while ((node = STAILQ_FIRST(&ng_worklist)) == NULL)
+			NG_WORKLIST_SLEEP();
 		STAILQ_REMOVE_HEAD(&ng_worklist, nd_input_queue.q_work);
 		NG_WORKLIST_UNLOCK();
 		CTR3(KTR_NET, "%20s: node [%x] (%p) taken off worklist",
@@ -3320,9 +3339,9 @@ ng_worklist_add(node_p node)
 		NG_WORKLIST_LOCK();
 		STAILQ_INSERT_TAIL(&ng_worklist, node, nd_input_queue.q_work);
 		NG_WORKLIST_UNLOCK();
-		schednetisr(NETISR_NETGRAPH);
 		CTR3(KTR_NET, "%20s: node [%x] (%p) put on worklist", __func__,
 		    node->nd_ID, node);
+		NG_WORKLIST_WAKEUP();
 	} else {
 		CTR3(KTR_NET, "%20s: node [%x] (%p) already on worklist",
 		    __func__, node->nd_ID, node);
