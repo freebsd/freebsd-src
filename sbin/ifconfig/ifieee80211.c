@@ -1982,8 +1982,12 @@ DECL_CMD_FUNC(set80211country, val, d)
 
 	cc = lib80211_country_findbyname(rdp, val);
 	if (cc == NULL) {
-		cc = lib80211_country_findbycc(rdp, atoi(val));
-		if (cc == NULL)
+		char *eptr;
+		long code = strtol(val, &eptr, 0);
+
+		if (eptr != val)
+			cc = lib80211_country_findbycc(rdp, code);
+		if (eptr == val || cc == NULL)
 			errx(1, "unknown ISO country code %s", val);
 	}
 	getregdomain(s);
