@@ -69,18 +69,18 @@ typedef unsigned long cell_t;
 typedef	unsigned int	ihandle_t;
 typedef unsigned int	phandle_t;
 
-/*
- * Other than in Open Firmware calls, the size of a bus cell seems to be
- * always the same.
- */
-typedef u_int32_t pcell_t;
-
 #ifdef _KERNEL
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
 
 MALLOC_DECLARE(M_OFWPROP);
+
+/*
+ * Other than in Open Firmware calls, the size of a bus cell seems to be
+ * always the same.
+ */
+typedef u_int32_t pcell_t;
 
 /*
  * Stuff that is used by the Open Firmware code.
