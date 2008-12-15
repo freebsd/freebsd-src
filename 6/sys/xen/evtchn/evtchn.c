@@ -265,6 +265,7 @@ bind_caller_port_to_irq(unsigned int caller_port)
         }
 
         irq_bindcount[irq]++;
+	unmask_evtchn(caller_port);
 
  out:
         mtx_unlock_spin(&irq_mapping_update_lock);
@@ -291,6 +292,7 @@ bind_local_port_to_irq(unsigned int local_port)
         evtchn_to_irq[local_port] = irq;
         irq_info[irq] = mk_irq_info(IRQT_LOCAL_PORT, 0, local_port);
         irq_bindcount[irq]++;
+	unmask_evtchn(local_port);
 
  out:
         mtx_unlock_spin(&irq_mapping_update_lock);
@@ -752,7 +754,7 @@ notify_remote_via_irq(int irq)
 	if (VALID_EVTCHN(evtchn))
 		notify_remote_via_evtchn(evtchn);
 	else
-		panic("invalid evtchn");
+		panic("invalid evtchn %d", irq);
 }
 
 /* required for support of physical devices */

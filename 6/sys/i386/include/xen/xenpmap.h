@@ -49,6 +49,8 @@ void xen_check_queue(void);
 #if 0
 void pmap_ref(pt_entry_t *pte, vm_paddr_t ma);
 #endif
+void pmap_suspend(void);
+void pmap_resume(void);
 
 #ifdef INVARIANTS
 #define xen_queue_pt_update(a, b) _xen_queue_pt_update((a), (b), __FILE__, __LINE__)
