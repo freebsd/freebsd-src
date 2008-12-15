@@ -201,8 +201,7 @@ main(int argc, char **argv)
 #if defined(__sparc64__)
 	    || !msgNoYes("Are you sure you wish to exit?  The system will halt.")
 #else
-	    || !msgNoYes("Are you sure you wish to exit?  The system will reboot\n"
-		         "(be sure to remove any floppies/CDs/DVDs from the drives).")
+	    || !msgNoYes("Are you sure you wish to exit?  The system will reboot.")
 #endif
 	    )
 	    break;
