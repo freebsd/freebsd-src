@@ -542,7 +542,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	 */
 	db_printf("\tnchans %d", ic->ic_nchans);
 #if 0
-	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX+1];
+	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX];
 	uint8_t			ic_chan_avail[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];

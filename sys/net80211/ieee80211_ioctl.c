@@ -1556,7 +1556,7 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211req_chanlist list;
 	u_char chanlist[IEEE80211_CHAN_BYTES];
-	int i, j, nchan, error;
+	int i, nchan, error;
 
 	if (ireq->i_len != sizeof(list))
 		return EINVAL;
@@ -1564,22 +1564,16 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	if (error)
 		return error;
 	memset(chanlist, 0, sizeof(chanlist));
-	/*
-	 * Since channel 0 is not available for DS, channel 1
-	 * is assigned to LSB on WaveLAN.
-	 */
-	if (ic->ic_phytype == IEEE80211_T_DS)
-		i = 1;
-	else
-		i = 0;
 	nchan = 0;
-	for (j = 0; i <= IEEE80211_CHAN_MAX; i++, j++) {
+	for (i = 0; i < ic->ic_nchans; i++) {
+		const struct ieee80211_channel *c = &ic->ic_channels[i];
 		/*
-		 * NB: silently discard unavailable channels so users
-		 *     can specify 1-255 to get all available channels.
+		 * Calculate the intersection of the user list and the
+		 * available channels so users can do things like specify
+		 * 1-255 to get all available channels.
 		 */
-		if (isset(list.ic_channels, j) && isset(ic->ic_chan_avail, i)) {
-			setbit(chanlist, i);
+		if (isset(list.ic_channels, c->ic_ieee)) {
+			setbit(chanlist, c->ic_ieee);
 			nchan++;
 		}
 	}
@@ -1890,8 +1884,6 @@ ieee80211_ioctl_setchannel(struct ieee80211vap *vap,
 	if (ireq->i_val == 0 ||
 	    ireq->i_val == (int16_t) IEEE80211_CHAN_ANY) {
 		c = IEEE80211_CHAN_ANYC;
-	} else if ((u_int) ireq->i_val > IEEE80211_CHAN_MAX) {
-		return EINVAL;
 	} else {
 		struct ieee80211_channel *c2;
 

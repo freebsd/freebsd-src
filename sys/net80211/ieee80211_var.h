@@ -156,7 +156,7 @@ struct ieee80211com {
 	 *    (e.g. for dynamic turbo)
 	 */
 	int			ic_nchans;	/* # entries in ic_channels */
-	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX+1];
+	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX];
 	uint8_t			ic_chan_avail[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];
