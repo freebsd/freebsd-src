@@ -371,14 +371,6 @@ carp_setroute(struct carp_softc *sc, int cmd)
 			    (cmd == RTM_DELETE && count == 0))
 				rtinit(ifa, cmd, RTF_UP | RTF_HOST);
 		}
-#ifdef INET6
-		if (ifa->ifa_addr->sa_family == AF_INET6) {
-			if (cmd == RTM_ADD)
-				in6_ifaddloop(ifa);
-			else
-				in6_ifremloop(ifa);
-		}
-#endif /* INET6 */
 	}
 	splx(s);
 }

@@ -605,9 +605,6 @@ newroute(argc, argv)
 			case K_NOSTATIC:
 				flags &= ~RTF_STATIC;
 				break;
-			case K_LLINFO:
-				flags |= RTF_LLINFO;
-				break;
 			case K_LOCK:
 				locking = 1;
 				break;
@@ -631,9 +628,6 @@ newroute(argc, argv)
 				break;
 			case K_PROXY:
 				proxy = 1;
-				break;
-			case K_CLONING:
-				flags |= RTF_CLONING;
 				break;
 			case K_XRESOLVE:
 				flags |= RTF_XRESOLVE;

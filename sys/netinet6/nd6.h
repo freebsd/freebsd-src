@@ -41,20 +41,7 @@
 #include <sys/queue.h>
 #include <sys/callout.h>
 
-struct	llinfo_nd6 {
-	struct	llinfo_nd6 *ln_next;
-	struct	llinfo_nd6 *ln_prev;
-	struct	rtentry *ln_rt;
-	struct	mbuf *ln_hold;	/* last packet until resolved/timeout */
-	long	ln_asked;	/* number of queries already sent for this addr */
-	u_long	ln_expire;	/* lifetime for NDP state transition */
-	short	ln_state;	/* reachability state */
-	short	ln_router;	/* 2^0: ND6 router bit */
-	int	ln_byhint;	/* # of times we made it reachable by UL hint */
-
-	long	ln_ntick;
-	struct callout ln_timer_ch;
-};
+struct llentry;
 
 #define ND6_LLINFO_NOSTATE	-2
 /*
@@ -72,7 +59,7 @@ struct	llinfo_nd6 {
 #define ND6_LLINFO_PROBE	4
 
 #define ND6_IS_LLINFO_PROBREACH(n) ((n)->ln_state > ND6_LLINFO_INCOMPLETE)
-#define ND6_LLINFO_PERMANENT(n) (((n)->ln_expire == 0) && ((n)->ln_state > ND6_LLINFO_INCOMPLETE))
+#define ND6_LLINFO_PERMANENT(n) (((n)->la_expire == 0) && ((n)->ln_state > ND6_LLINFO_INCOMPLETE))
 
 struct nd_ifinfo {
 	u_int32_t linkmtu;		/* LinkMTU */
@@ -97,6 +84,9 @@ struct nd_ifinfo {
 				     * DAD failure.  (XXX: not ND-specific)
 				     */
 #define ND6_IFF_DONT_SET_IFROUTE	0x10
+
+#define	ND6_CREATE		LLE_CREATE
+#define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
 
 #ifdef _KERNEL
 #define ND_IFINFO(ifp) \
@@ -336,7 +326,6 @@ extern int nd6_mmaxtries;
 extern int nd6_useloopback;
 extern int nd6_maxnudhint;
 extern int nd6_gctimer;
-extern struct llinfo_nd6 llinfo_nd6;
 extern struct nd_drhead nd_defrouter;
 extern struct nd_prhead nd_prefix;
 extern int nd6_debug;
@@ -388,23 +377,28 @@ int nd6_is_addr_neighbor __P((struct sockaddr_in6 *, struct ifnet *));
 void nd6_option_init __P((void *, int, union nd_opts *));
 struct nd_opt_hdr *nd6_option __P((union nd_opts *));
 int nd6_options __P((union nd_opts *));
-struct	rtentry *nd6_lookup __P((struct in6_addr *, int, struct ifnet *));
+struct	llentry *nd6_lookup __P((struct in6_addr *, int, struct ifnet *));
 void nd6_setmtu __P((struct ifnet *));
-void nd6_llinfo_settimer __P((struct llinfo_nd6 *, long));
+void nd6_llinfo_settimer __P((struct llentry *, long));
+void nd6_llinfo_settimer_locked __P((struct llentry *, long));
 void nd6_timer __P((void *));
 void nd6_purge __P((struct ifnet *));
 void nd6_nud_hint __P((struct rtentry *, struct in6_addr *, int));
 int nd6_resolve __P((struct ifnet *, struct rtentry *, struct mbuf *,
 	struct sockaddr *, u_char *));
-void nd6_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
 int nd6_ioctl __P((u_long, caddr_t, struct ifnet *));
-struct rtentry *nd6_cache_lladdr __P((struct ifnet *, struct in6_addr *,
+struct llentry *nd6_cache_lladdr __P((struct ifnet *, struct in6_addr *,
 	char *, int, int, int));
 int nd6_output __P((struct ifnet *, struct ifnet *, struct mbuf *,
 	struct sockaddr_in6 *, struct rtentry *));
+int nd6_output_lle __P((struct ifnet *, struct ifnet *, struct mbuf *,
+	struct sockaddr_in6 *, struct rtentry *, struct llentry *,
+	struct mbuf **));
+int nd6_output_flush __P((struct ifnet *, struct ifnet *, struct mbuf *,
+	struct sockaddr_in6 *, struct rtentry *));
 int nd6_need_cache __P((struct ifnet *));
 int nd6_storelladdr __P((struct ifnet *, struct rtentry *, struct mbuf *,
-	struct sockaddr *, u_char *));
+	struct sockaddr *, u_char *, struct llentry **));
 
 /* nd6_nbr.c */
 void nd6_na_input __P((struct mbuf *, int, int));
@@ -412,7 +406,7 @@ void nd6_na_output __P((struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, u_long, int, struct sockaddr *));
 void nd6_ns_input __P((struct mbuf *, int, int));
 void nd6_ns_output __P((struct ifnet *, const struct in6_addr *,
-	const struct in6_addr *, struct llinfo_nd6 *, int));
+	const struct in6_addr *, struct llentry *, int));
 caddr_t nd6_ifptomac __P((struct ifnet *));
 void nd6_dad_start __P((struct ifaddr *, int));
 void nd6_dad_stop __P((struct ifaddr *));

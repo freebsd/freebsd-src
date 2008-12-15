@@ -152,7 +152,6 @@ tryagain:
 	sdl = (struct sockaddr_dl *)(sin->sin_len + (char *)sin);
 	if (sin->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
-		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) switch (sdl->sdl_type) {
 		case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
 		case IFT_ISO88024: case IFT_ISO88025:

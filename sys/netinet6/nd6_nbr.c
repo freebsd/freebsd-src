@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -63,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <net/if_llatbl.h>
+#define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet/ip6.h>
@@ -167,7 +171,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		src_sa6.sin6_family = AF_INET6;
 		src_sa6.sin6_len = sizeof(src_sa6);
 		src_sa6.sin6_addr = saddr6;
-		if (!nd6_is_addr_neighbor(&src_sa6, ifp)) {
+		if (nd6_is_addr_neighbor(&src_sa6, ifp) == 0) {
 			nd6log((LOG_INFO, "nd6_ns_input: "
 				"NS packet from non-neighbor\n"));
 			goto bad;
@@ -378,8 +382,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
  *  dad - duplicate address detection
  */
 void
-nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
-    const struct in6_addr *taddr6, struct llinfo_nd6 *ln, int dad)
+nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6, 
+    const struct in6_addr *taddr6, struct llentry *ln, int dad)
 {
 	INIT_VNET_INET6(ifp->if_vnet);
 	struct mbuf *m;
@@ -470,14 +474,14 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		struct ip6_hdr *hip6;		/* hold ip6 */
 		struct in6_addr *hsrc = NULL;
 
-		if (ln && ln->ln_hold) {
+		if (ln && ln->la_hold) {
 			/*
-			 * assuming every packet in ln_hold has the same IP
+			 * assuming every packet in la_hold has the same IP
 			 * header
 			 */
-			hip6 = mtod(ln->ln_hold, struct ip6_hdr *);
+			hip6 = mtod(ln->la_hold, struct ip6_hdr *);
 			/* XXX pullup? */
-			if (sizeof(*hip6) < ln->ln_hold->m_len)
+			if (sizeof(*hip6) < ln->la_hold->m_len)
 				hsrc = &hip6->ip6_src;
 			else
 				hsrc = NULL;
@@ -600,10 +604,10 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	char *lladdr = NULL;
 	int lladdrlen = 0;
 	struct ifaddr *ifa;
-	struct llinfo_nd6 *ln;
-	struct rtentry *rt;
-	struct sockaddr_dl *sdl;
+	struct llentry *ln = NULL;
 	union nd_opts ndopts;
+	struct mbuf *chain = NULL;
+	struct sockaddr_in6 sin6;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 	if (ip6->ip6_hlim != 255) {
@@ -697,35 +701,37 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	rt = nd6_lookup(&taddr6, 0, ifp);
-	if ((rt == NULL) ||
-	   ((ln = (struct llinfo_nd6 *)rt->rt_llinfo) == NULL) ||
-	   ((sdl = SDL(rt->rt_gateway)) == NULL))
+	IF_AFDATA_LOCK(ifp);
+	ln = nd6_lookup(&taddr6, LLE_EXCLUSIVE, ifp);
+	IF_AFDATA_UNLOCK(ifp);
+	if (ln == NULL) {
 		goto freeit;
+	}
 
 	if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
 		/*
 		 * If the link-layer has address, and no lladdr option came,
 		 * discard the packet.
 		 */
-		if (ifp->if_addrlen && lladdr == NULL)
+		if (ifp->if_addrlen && lladdr == NULL) {
 			goto freeit;
+		}
 
 		/*
 		 * Record link-layer address, and update the state.
 		 */
-		sdl->sdl_alen = ifp->if_addrlen;
-		bcopy(lladdr, LLADDR(sdl), ifp->if_addrlen);
+		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+		ln->la_flags |= LLE_VALID;
 		if (is_solicited) {
 			ln->ln_state = ND6_LLINFO_REACHABLE;
 			ln->ln_byhint = 0;
 			if (!ND6_LLINFO_PERMANENT(ln)) {
-				nd6_llinfo_settimer(ln,
-				    (long)ND_IFINFO(rt->rt_ifp)->reachable * hz);
+				nd6_llinfo_settimer_locked(ln,
+				    (long)ND_IFINFO(ln->lle_tbl->llt_ifp)->reachable * hz);
 			}
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE;
-			nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
+			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
 		}
 		if ((ln->ln_router = is_router) != 0) {
 			/*
@@ -744,8 +750,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		if (lladdr == NULL)
 			llchange = 0;
 		else {
-			if (sdl->sdl_alen) {
-				if (bcmp(lladdr, LLADDR(sdl), ifp->if_addrlen))
+			if (ln->la_flags & LLE_VALID) {
+				if (bcmp(lladdr, &ln->ll_addr, ifp->if_addrlen))
 					llchange = 1;
 				else
 					llchange = 0;
@@ -779,7 +785,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 */
 			if (ln->ln_state == ND6_LLINFO_REACHABLE) {
 				ln->ln_state = ND6_LLINFO_STALE;
-				nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
+				nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
 			}
 			goto freeit;
 		} else if (is_override				   /* (2a) */
@@ -789,8 +795,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Update link-local address, if any.
 			 */
 			if (lladdr != NULL) {
-				sdl->sdl_alen = ifp->if_addrlen;
-				bcopy(lladdr, LLADDR(sdl), ifp->if_addrlen);
+				bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+				ln->la_flags |= LLE_VALID;
 			}
 
 			/*
@@ -802,13 +808,13 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 				ln->ln_state = ND6_LLINFO_REACHABLE;
 				ln->ln_byhint = 0;
 				if (!ND6_LLINFO_PERMANENT(ln)) {
-					nd6_llinfo_settimer(ln,
+					nd6_llinfo_settimer_locked(ln,
 					    (long)ND_IFINFO(ifp)->reachable * hz);
 				}
 			} else {
 				if (lladdr != NULL && llchange) {
 					ln->ln_state = ND6_LLINFO_STALE;
-					nd6_llinfo_settimer(ln,
+					nd6_llinfo_settimer_locked(ln,
 					    (long)V_nd6_gctimer * hz);
 				}
 			}
@@ -822,9 +828,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 */
 			struct nd_defrouter *dr;
 			struct in6_addr *in6;
-			int s;
 
-			in6 = &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr;
+			in6 = &L3_ADDR_SIN6(ln)->sin6_addr;
 
 			/*
 			 * Lock to protect the default router list.
@@ -832,8 +837,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * is only called under the network software interrupt
 			 * context.  However, we keep it just for safety.
 			 */
-			s = splnet();
-			dr = defrouter_lookup(in6, ifp);
+			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
 			if (dr)
 				defrtrlist_del(dr);
 			else if (!V_ip6_forwarding) {
@@ -846,21 +850,23 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 				 */
 				rt6_flush(&ip6->ip6_src, ifp);
 			}
-			splx(s);
 		}
 		ln->ln_router = is_router;
 	}
-	rt->rt_flags &= ~RTF_REJECT;
-	ln->ln_asked = 0;
-	if (ln->ln_hold) {
+        /* XXX - QL
+	 *  Does this matter?
+	 *  rt->rt_flags &= ~RTF_REJECT;
+	 */
+	ln->la_asked = 0;
+	if (ln->la_hold) {
 		struct mbuf *m_hold, *m_hold_next;
 
 		/*
-		 * reset the ln_hold in advance, to explicitly
-		 * prevent a ln_hold lookup in nd6_output()
+		 * reset the la_hold in advance, to explicitly
+		 * prevent a la_hold lookup in nd6_output()
 		 * (wouldn't happen, though...)
 		 */
-		for (m_hold = ln->ln_hold;
+		for (m_hold = ln->la_hold, ln->la_hold = NULL;
 		    m_hold; m_hold = m_hold_next) {
 			m_hold_next = m_hold->m_nextpkt;
 			m_hold->m_nextpkt = NULL;
@@ -868,17 +874,25 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * we assume ifp is not a loopback here, so just set
 			 * the 2nd argument as the 1st one.
 			 */
-			nd6_output(ifp, ifp, m_hold,
-			    (struct sockaddr_in6 *)rt_key(rt), rt);
+			nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
 		}
-		ln->ln_hold = NULL;
 	}
-
  freeit:
+	if (ln) {
+		if (chain)
+			memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
+		LLE_WUNLOCK(ln);
+
+		if (chain)
+			nd6_output_flush(ifp, ifp, chain, &sin6, NULL);
+	}
 	m_freem(m);
 	return;
 
  bad:
+	if (ln)
+		LLE_WUNLOCK(ln);
+
 	V_icmp6stat.icp6s_badna++;
 	m_freem(m);
 }

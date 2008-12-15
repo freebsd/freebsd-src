@@ -157,13 +157,21 @@ static struct bits {
   { RTF_DYNAMIC, 'D' },
   { RTF_MODIFIED, 'M' },
   { RTF_DONE, 'd' },
-  { RTF_CLONING, 'C' },
   { RTF_XRESOLVE, 'X' },
-  { RTF_LLINFO, 'L' },
+#ifdef RTF_CLONING
+  { RTF_CLONING, 'C' },
+#endif
   { RTF_STATIC, 'S' },
   { RTF_PROTO1, '1' },
   { RTF_PROTO2, '2' },
   { RTF_BLACKHOLE, 'B' },
+
+#ifdef RTF_LLINFO
+  { RTF_LLINFO, 'L' },
+#endif
+#ifdef RTF_CLONING  
+  { RTF_CLONING, 'C' },
+#endif
 #ifdef RTF_WASCLONED
   { RTF_WASCLONED, 'W' },
 #endif

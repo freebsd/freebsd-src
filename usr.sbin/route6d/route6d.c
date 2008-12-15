@@ -1752,7 +1752,6 @@ rtrecv()
 			continue;
 		case RTM_LOSING:
 		case RTM_MISS:
-		case RTM_RESOLVE:
 		case RTM_GET:
 		case RTM_LOCK:
 			/* nothing to be done here */
@@ -1790,7 +1789,6 @@ rtrecv()
 		case RTM_ADD:
 		case RTM_LOSING:
 		case RTM_MISS:
-		case RTM_RESOLVE:
 		case RTM_GET:
 		case RTM_LOCK:
 			/* should already be handled */
@@ -2141,10 +2139,7 @@ ifrt(ifcp, again)
 			rrt->rrt_info.rip6_tag = htons(routetag & 0xffff);
 			rrt->rrt_info.rip6_metric = 1 + ifcp->ifc_metric;
 			rrt->rrt_info.rip6_plen = ifa->ifa_plen;
-			if (ifa->ifa_plen == 128)
-				rrt->rrt_flags = RTF_HOST;
-			else
-				rrt->rrt_flags = RTF_CLONING;
+			rrt->rrt_flags = RTF_HOST;
 			rrt->rrt_rflags |= RRTF_CHANGED;
 			applyplen(&rrt->rrt_info.rip6_dest, ifa->ifa_plen);
 			memset(&rrt->rrt_gw, 0, sizeof(struct in6_addr));
@@ -2433,7 +2428,6 @@ do { \
 	RTTYPE("LOCK", RTM_LOCK);
 	RTTYPE("OLDADD", RTM_OLDADD);
 	RTTYPE("OLDDEL", RTM_OLDDEL);
-	RTTYPE("RESOLVE", RTM_RESOLVE);
 	RTTYPE("NEWADDR", RTM_NEWADDR);
 	RTTYPE("DELADDR", RTM_DELADDR);
 	RTTYPE("IFINFO", RTM_IFINFO);
@@ -2484,7 +2478,9 @@ do { \
 #ifdef	RTF_MASK
 	RTFLAG("m", RTF_MASK);
 #endif
+#ifdef RTF_CLONING
 	RTFLAG("C", RTF_CLONING);
+#endif
 #ifdef RTF_CLONED
 	RTFLAG("c", RTF_CLONED);
 #endif
@@ -2495,7 +2491,9 @@ do { \
 	RTFLAG("W", RTF_WASCLONED);
 #endif
 	RTFLAG("X", RTF_XRESOLVE);
+#ifdef RTF_LLINFO
 	RTFLAG("L", RTF_LLINFO);
+#endif
 	RTFLAG("S", RTF_STATIC);
 	RTFLAG("B", RTF_BLACKHOLE);
 #ifdef RTF_PROTO3
@@ -2631,7 +2629,7 @@ rt_entry(rtm, again)
 
 	sin6_dst = sin6_gw = sin6_mask = sin6_genmask = sin6_ifp = 0;
 	if ((rtm->rtm_flags & RTF_UP) == 0 || rtm->rtm_flags &
-		(RTF_CLONING|RTF_XRESOLVE|RTF_LLINFO|RTF_BLACKHOLE)) {
+		(RTF_XRESOLVE|RTF_BLACKHOLE)) {
 		return;		/* not interested in the link route */
 	}
 	/* do not look at cloned routes */

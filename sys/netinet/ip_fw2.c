@@ -528,7 +528,7 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
 	dst->sin_addr = src;
-	in_rtalloc_ign(&ro, RTF_CLONING, fib);
+	in_rtalloc_ign(&ro, 0, fib);
 
 	if (ro.ro_rt == NULL)
 		return 0;
@@ -620,7 +620,7 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp)
 	dst->sin6_len = sizeof(*dst);
 	dst->sin6_addr = *src;
 	/* XXX MRT 0 for ipv6 at this time */
-	rtalloc_ign((struct route *)&ro, RTF_CLONING);
+	rtalloc_ign((struct route *)&ro, 0);
 
 	if (ro.ro_rt == NULL)
 		return 0;

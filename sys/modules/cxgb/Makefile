@@ -25,7 +25,7 @@ _toe_header = ${_sysdir}/netinet/toedev.h
 
 .if exists(${_toe_header})
 _toecore = toecore
-_tom = tom
+#_tom = tom
 .endif
 
 .if ${MACHINE_ARCH} == "i386" && exists(${_toe_header})
