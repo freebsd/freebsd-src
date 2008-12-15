@@ -218,7 +218,7 @@ static __inline void
 ieee80211_crypto_resetkey(struct ieee80211vap *vap,
 	struct ieee80211_key *k, ieee80211_keyix ix)
 {
-	k->wk_cipher = &ieee80211_cipher_none;;
+	k->wk_cipher = &ieee80211_cipher_none;
 	k->wk_private = k->wk_cipher->ic_attach(vap, k);
 	k->wk_keyix = k->wk_rxkeyix = ix;
 	k->wk_flags = IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;
