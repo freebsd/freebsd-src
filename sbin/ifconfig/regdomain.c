@@ -48,6 +48,7 @@ static const char rcsid[] = "$FreeBSD$";
 #define	MAXLEVEL	20
 
 struct mystate {
+	XML_Parser		parser;
 	struct regdata		*rdp;
 	struct regdomain	*rd;		/* current domain */
 	struct netband		*netband;	/* current netband */
@@ -107,7 +108,8 @@ start_element(void *data, const char *name, const char **attr)
 	}
 	if (iseq(name, "netband") && mt->curband == NULL && mt->rd != NULL) {
 		if (mode == NULL) {
-			/* XXX complain */
+			warnx("no mode for netband at line %ld",
+			    XML_GetCurrentLineNumber(mt->parser));
 			return;
 		}
 		if (iseq(mode, "11b"))
@@ -120,12 +122,16 @@ start_element(void *data, const char *name, const char **attr)
 			mt->curband = &mt->rd->bands_11ng;
 		else if (iseq(mode, "11na"))
 			mt->curband = &mt->rd->bands_11na;
-		/* XXX else complain */
+		else
+			warnx("unknown mode \"%s\" at line %ld",
+			    __DECONST(char *, mode),
+			    XML_GetCurrentLineNumber(mt->parser));
 		return;
 	}
 	if (iseq(name, "band") && mt->netband == NULL) {
 		if (mt->curband == NULL) {
-			/* XXX complain */
+			warnx("band without enclosing netband at line %ld",
+			    XML_GetCurrentLineNumber(mt->parser));
 			return;
 		}
 		mt->netband = calloc(1, sizeof(struct netband));
@@ -135,6 +141,8 @@ start_element(void *data, const char *name, const char **attr)
 	if (iseq(name, "freqband") && mt->freqband == NULL && mt->netband != NULL) {
 		/* XXX handle inlines and merge into table? */
 		if (mt->netband->band != NULL) {
+			warnx("duplicate freqband at line %ld ignored",
+			    XML_GetCurrentLineNumber(mt->parser));
 			/* XXX complain */
 		} else
 			mt->netband->band = (void *)strdup(ref);
@@ -144,6 +152,7 @@ start_element(void *data, const char *name, const char **attr)
 	if (iseq(name, "country") && mt->country == NULL) {
 		mt->country = calloc(1, sizeof(struct country));
 		mt->country->isoname = strdup(id);
+		mt->country->code = NO_COUNTRY;
 		mt->nident++;
 		LIST_INSERT_HEAD(&mt->rdp->countries, mt->country, next);
 		return;
@@ -159,8 +168,8 @@ start_element(void *data, const char *name, const char **attr)
 #undef iseq
 }
 
-static uint32_t
-decode_flag(const char *p, int len)
+static int
+decode_flag(struct mystate *mt, const char *p, int len)
 {
 #define	iseq(a,b)	(strcasecmp(a,b) == 0)
 	static const struct {
@@ -168,7 +177,7 @@ decode_flag(const char *p, int len)
 		int len;
 		uint32_t value;
 	} flags[] = {
-#define	FLAG(x)	{ #x, sizeof(#x), x }
+#define	FLAG(x)	{ #x, sizeof(#x)-1, x }
 		FLAG(IEEE80211_CHAN_A),
 		FLAG(IEEE80211_CHAN_B),
 		FLAG(IEEE80211_CHAN_G),
@@ -205,6 +214,8 @@ decode_flag(const char *p, int len)
 	for (i = 0; i < sizeof(flags)/sizeof(flags[0]); i++)
 		if (len == flags[i].len && iseq(p, flags[i].name))
 			return flags[i].value;
+	warnx("unknown flag \"%.*s\" at line %ld ignored",
+	    len, p, XML_GetCurrentLineNumber(mt->parser));
 	return 0;
 #undef iseq
 }
@@ -241,11 +252,12 @@ end_element(void *data, const char *name)
 	}
 	if (iseq(name, "flags")) {
 		if (mt->freqband != NULL)
-			mt->freqband->flags |= decode_flag(p, len);
+			mt->freqband->flags |= decode_flag(mt, p, len);
 		else if (mt->netband != NULL)
-			mt->netband->flags |= decode_flag(p, len);
+			mt->netband->flags |= decode_flag(mt, p, len);
 		else {
-			/* XXX complain */
+			warnx("flags without freqband or netband at line %ld ignored",
+			    XML_GetCurrentLineNumber(mt->parser));
 		}
 		goto done;
 	}
@@ -289,7 +301,8 @@ end_element(void *data, const char *name)
 	}
 
 	if (len != 0) {
-		printf("Unexpected XML: name \"%s\" data \"%s\"\n", name, p);
+		warnx("unexpected XML token \"%s\" data \"%s\" at line %ld",
+		    name, p, XML_GetCurrentLineNumber(mt->parser));
 		/* XXX goto done? */
 	}
 	/* </freqband> */
@@ -307,15 +320,12 @@ end_element(void *data, const char *name)
 	/* </band> */
 	if (iseq(name, "band") && mt->netband != NULL) {
 		if (mt->netband->band == NULL) {
-			printf("No frequency band information at line %d\n",
-#if 0
-			   XML_GetCurrentLineNumber(parser));
-#else
-			0);
-#endif
+			warnx("no freqbands for band at line %ld",
+			   XML_GetCurrentLineNumber(mt->parser));
 		}
 		if (mt->netband->maxPower == 0) {
-			/* XXX complain */
+			warnx("no maxpower for band at line %ld",
+			   XML_GetCurrentLineNumber(mt->parser));
 		}
 		/* default max power w/ DFS to max power */
 		if (mt->netband->maxPowerDFS == 0)
@@ -330,14 +340,17 @@ end_element(void *data, const char *name)
 	}
 	/* </country> */
 	if (iseq(name, "country") && mt->country != NULL) {
-		if (mt->country->code == 0) {
-			/* XXX must have iso cc */
+		if (mt->country->code == NO_COUNTRY) {
+			warnx("no ISO cc for country at line %ld",
+			   XML_GetCurrentLineNumber(mt->parser));
 		}
 		if (mt->country->name == NULL) {
-			/* XXX must have name */
+			warnx("no name for country at line %ld",
+			   XML_GetCurrentLineNumber(mt->parser));
 		}
 		if (mt->country->rd == NULL) {
-			/* XXX? rd ref? */
+			warnx("no regdomain reference for country at line %ld",
+			   XML_GetCurrentLineNumber(mt->parser));
 		}
 		mt->country = NULL;
 		goto done;
@@ -383,7 +396,6 @@ findid(struct regdata *rdp, const void *id, int type)
 int
 lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 {
-	XML_Parser parser;
 	struct mystate *mt;
 	struct regdomain *dp;
 	struct country *cp;
@@ -398,17 +410,17 @@ lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 		return ENOMEM;
 	/* parse the XML input */
 	mt->rdp = rdp;
-	parser = XML_ParserCreate(NULL);
-	XML_SetUserData(parser, mt);
-	XML_SetElementHandler(parser, start_element, end_element);
-	XML_SetCharacterDataHandler(parser, char_data);
-	if (XML_Parse(parser, p, len, 1) != XML_STATUS_OK) {
+	mt->parser = XML_ParserCreate(NULL);
+	XML_SetUserData(mt->parser, mt);
+	XML_SetElementHandler(mt->parser, start_element, end_element);
+	XML_SetCharacterDataHandler(mt->parser, char_data);
+	if (XML_Parse(mt->parser, p, len, 1) != XML_STATUS_OK) {
 		warnx("%s: %s at line %ld", __func__,
-		   XML_ErrorString(XML_GetErrorCode(parser)),
-		   XML_GetCurrentLineNumber(parser));
+		   XML_ErrorString(XML_GetErrorCode(mt->parser)),
+		   XML_GetCurrentLineNumber(mt->parser));
 		return -1;
 	}
-	XML_ParserFree(parser);
+	XML_ParserFree(mt->parser);
 
 	/* setup the identifer table */
 	rdp->ident = calloc(sizeof(struct ident), mt->nident + 1);
