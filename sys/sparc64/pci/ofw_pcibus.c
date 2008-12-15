@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/pciio.h>
 
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/openfirm.h>
 
@@ -69,6 +68,8 @@ static device_probe_t ofw_pcibus_probe;
 static device_attach_t ofw_pcibus_attach;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
+static int ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child, 
+    char *buf, size_t buflen);
 
 static device_method_t ofw_pcibus_methods[] = {
 	/* Device interface */
@@ -76,6 +77,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_pcibus_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_child_pnpinfo_str_method),
 
 	/* PCI interface */
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
@@ -302,3 +304,18 @@ ofw_pcibus_get_devinfo(device_t bus, device_t dev)
 	dinfo = device_get_ivars(dev);
 	return (&dinfo->opd_obdinfo);
 }
+
+static int
+ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+	pci_child_pnpinfo_str_method(cbdev, child, buf, buflen);
+
+	if (ofw_bus_get_node(child) != -1)  {
+		strlcat(buf, " ", buflen); /* Separate info */
+		ofw_bus_gen_child_pnpinfo_str(cbdev, child, buf, buflen);
+	}
+
+	return (0);
+}
+

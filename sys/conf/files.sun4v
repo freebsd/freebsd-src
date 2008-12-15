@@ -65,7 +65,6 @@ sun4v/sun4v/mp_locore.S		optional	smp
 sun4v/sun4v/mp_machdep.c	optional	smp
 sun4v/sun4v/nexus.c		standard
 sun4v/cddl/t1_copy.S		standard
-sparc64/sparc64/ofw_bus.c	standard
 sparc64/sparc64/ofw_machdep.c	standard
 sun4v/sun4v/pmap.c		standard
 sparc64/sparc64/prof_machdep.c	optional	profiling-routine

@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/fsr.h>
 #include <machine/iommureg.h>
 #include <machine/iommuvar.h>
-#include <machine/ofw_bus.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
