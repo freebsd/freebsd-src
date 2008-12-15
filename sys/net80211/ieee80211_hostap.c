@@ -928,6 +928,11 @@ hostap_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	 * after the transaction completes.
 	 */
 	ni->ni_flags |= IEEE80211_NODE_AREF;
+	/*
+	 * Mark the node as requiring a valid associatio id
+	 * before outbound traffic is permitted.
+	 */
+	ni->ni_flags |= IEEE80211_NODE_ASSOCID;
 
 	if (vap->iv_acl != NULL &&
 	    vap->iv_acl->iac_getpolicy(vap) == IEEE80211_MACCMD_POLICY_RADIUS) {
@@ -1054,6 +1059,11 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 * after the transaction completes.
 		 */
 		ni->ni_flags |= IEEE80211_NODE_AREF;
+		/*
+		 * Mark the node as requiring a valid associatio id
+		 * before outbound traffic is permitted.
+		 */
+		ni->ni_flags |= IEEE80211_NODE_ASSOCID;
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = noise;
 		ni->ni_rstamp = rstamp;
