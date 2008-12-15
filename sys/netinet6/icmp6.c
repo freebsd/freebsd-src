@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -2573,32 +2574,32 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 
 	{
 		/* target lladdr option */
-		struct rtentry *rt_router = NULL;
 		int len;
-		struct sockaddr_dl *sdl;
+		struct llentry *ln;
 		struct nd_opt_hdr *nd_opt;
 		char *lladdr;
 
-		rt_router = nd6_lookup(router_ll6, 0, ifp);
-		if (!rt_router)
+		IF_AFDATA_LOCK(ifp);
+		ln = nd6_lookup(router_ll6, 0, ifp);
+		IF_AFDATA_UNLOCK(ifp);
+		if (!ln)
 			goto nolladdropt;
+
 		len = sizeof(*nd_opt) + ifp->if_addrlen;
 		len = (len + 7) & ~7;	/* round by 8 */
 		/* safety check */
 		if (len + (p - (u_char *)ip6) > maxlen)
 			goto nolladdropt;
-		if (!(rt_router->rt_flags & RTF_GATEWAY) &&
-		    (rt_router->rt_flags & RTF_LLINFO) &&
-		    (rt_router->rt_gateway->sa_family == AF_LINK) &&
-		    (sdl = (struct sockaddr_dl *)rt_router->rt_gateway) &&
-		    sdl->sdl_alen) {
+
+		if (ln->la_flags & LLE_VALID) {
 			nd_opt = (struct nd_opt_hdr *)p;
 			nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 			nd_opt->nd_opt_len = len >> 3;
 			lladdr = (char *)(nd_opt + 1);
-			bcopy(LLADDR(sdl), lladdr, ifp->if_addrlen);
+			bcopy(&ln->ll_addr, lladdr, ifp->if_addrlen);
 			p += len;
 		}
+		LLE_RUNLOCK(ln);
 	}
 nolladdropt:;
 

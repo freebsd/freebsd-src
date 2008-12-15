@@ -2172,6 +2172,7 @@ net/if_gre.c			optional gre
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg
 net/if_loop.c			optional loop
+net/if_llatbl.c			standard
 net/if_media.c			standard
 net/if_mib.c			standard
 net/if_ppp.c			optional ppp

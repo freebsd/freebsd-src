@@ -64,6 +64,7 @@
 #include <net/if_arc.h>
 #include <net/if_arp.h>
 #include <net/bpf.h>
+#include <net/if_llatbl.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -108,6 +109,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
 	int			isphds;
+	struct llentry		*lle;
 
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
@@ -127,7 +129,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
 		else {
-			error = arpresolve(ifp, rt0, m, dst, &adst);
+			error = arpresolve(ifp, rt0, m, dst, &adst, &lle);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -165,7 +167,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)&adst);
+		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)&adst, &lle);
 		if (error)
 			return (error);
 		atype = ARCTYPE_INET6;

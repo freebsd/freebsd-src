@@ -60,6 +60,7 @@
 #include <sys/jail.h>
 #include <sys/vimage.h>
 #include <machine/stdarg.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -1365,6 +1366,9 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 done:
 	return (ifa);
 }
+
+#include <net/route.h>
+#include <net/if_llatbl.h>
 
 /*
  * Default action when installing a route with a Link Level gateway.
