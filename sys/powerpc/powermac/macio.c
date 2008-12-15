@@ -107,6 +107,8 @@ static device_method_t macio_methods[] = {
         DEVMETHOD(bus_deactivate_resource, macio_deactivate_resource),
         DEVMETHOD(bus_get_resource_list, macio_get_resource_list),	
 
+	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
+
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	macio_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
