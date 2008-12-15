@@ -119,9 +119,10 @@ vlan_set(int s, struct ifreq *ifr)
 	}
 }
 
-static void
-getvlantag(const char *val)
+static
+DECL_CMD_FUNC(setvlantag, val, d)
 {
+	struct vlanreq vreq;
 	u_long ul;
 	char *endp;
 
@@ -132,31 +133,11 @@ getvlantag(const char *val)
 	/* check if the value can be represented in vlr_tag */
 	if (params.vlr_tag != ul)
 		errx(1, "value for vlan out of range");
-}
 
-static
-DECL_CMD_FUNC(setvlantag_clone, val, d)
-{
-	getvlantag(val);
-	clone_setcallback(vlan_create);
-}
-
-static
-DECL_CMD_FUNC(setvlantag, val, d)
-{
-	struct vlanreq vreq;
-
-	getvlantag(val);
-	if (getvlan(s, &ifr, &vreq) == -1)
-		errx(1, "no existing vlan");
-	vlan_set(s, &ifr);
-}
-
-static
-DECL_CMD_FUNC(setvlandev_clone, val, d)
-{
-	strlcpy(params.vlr_parent, val, sizeof(params.vlr_parent));
-	clone_setcallback(vlan_create);
+	if (getvlan(s, &ifr, &vreq) != -1)
+		vlan_set(s, &ifr);
+	else
+		clone_setcallback(vlan_create);
 }
 
 static
@@ -165,9 +146,11 @@ DECL_CMD_FUNC(setvlandev, val, d)
 	struct vlanreq vreq;
 
 	strlcpy(params.vlr_parent, val, sizeof(params.vlr_parent));
+
 	if (getvlan(s, &ifr, &vreq) != -1)
-		errx(1, "no existing vlan");
-	vlan_set(s, &ifr);
+		vlan_set(s, &ifr);
+	else
+		clone_setcallback(vlan_create);
 }
 
 static
@@ -189,8 +172,8 @@ DECL_CMD_FUNC(unsetvlandev, val, d)
 }
 
 static struct cmd vlan_cmds[] = {
-	DEF_CLONE_CMD_ARG("vlan",			setvlantag_clone),
-	DEF_CLONE_CMD_ARG("vlandev",			setvlandev_clone),
+	DEF_CLONE_CMD_ARG("vlan",			setvlantag),
+	DEF_CLONE_CMD_ARG("vlandev",			setvlandev),
 	/* NB: non-clone cmds */
 	DEF_CMD_ARG("vlan",				setvlantag),
 	DEF_CMD_ARG("vlandev",				setvlandev),
