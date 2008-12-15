@@ -673,14 +673,6 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	IEEE80211_VERIFY_ELEMENT(scan->ssid, IEEE80211_NWID_LEN,
 	    scan->status |= IEEE80211_BPARSE_SSID_INVALID);
-#if IEEE80211_CHAN_MAX < 255
-	if (scan->chan > IEEE80211_CHAN_MAX) {
-		IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID,
-		    wh, NULL, "invalid channel %u", scan->chan);
-		vap->iv_stats.is_rx_badchan++;
-		scan->status |= IEEE80211_BPARSE_CHAN_INVALID;
-	}
-#endif
 	if (scan->chan != scan->bchan && ic->ic_phytype != IEEE80211_T_FH) {
 		/*
 		 * Frame was received on a channel different from the

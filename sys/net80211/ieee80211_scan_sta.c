@@ -87,6 +87,9 @@ struct sta_entry {
 #define	STA_HASH(addr)	\
 	(((const uint8_t *)(addr))[IEEE80211_ADDR_LEN - 1] % STA_HASHSIZE)
 
+#define	MAX_IEEE_CHAN	256			/* max acceptable IEEE chan # */
+CTASSERT(MAX_IEEE_CHAN >= 256);
+
 struct sta_table {
 	struct mtx	st_lock;		/* on scan table */
 	TAILQ_HEAD(, sta_entry) st_entry;	/* all entries */
@@ -96,7 +99,7 @@ struct sta_table {
 	u_int		st_scangen;		/* scan generation # */
 	int		st_newscan;
 	/* ap-related state */
-	int		st_maxrssi[IEEE80211_CHAN_MAX];
+	int		st_maxrssi[MAX_IEEE_CHAN];
 };
 
 static void sta_flush_table(struct sta_table *);
@@ -343,6 +346,7 @@ found:
 	se->se_seen = 1;
 	se->se_notseen = 0;
 
+	KASSERT(sizeof(sp->bchan) == 1, ("bchan size"));
 	if (rssi > st->st_maxrssi[sp->bchan])
 		st->st_maxrssi[sp->bchan] = rssi;
 
@@ -1604,6 +1608,7 @@ ap_pick_channel(struct ieee80211_scan_state *ss, int flags)
 		/* check channel attributes for band compatibility */
 		if (flags != 0 && (chan->ic_flags & flags) != flags)
 			continue;
+		KASSERT(sizeof(chan->ic_ieee) == 1, ("ic_chan size"));
 		/* XXX channel have interference */
 		if (st->st_maxrssi[chan->ic_ieee] == 0) {
 			/* XXX use other considerations */
