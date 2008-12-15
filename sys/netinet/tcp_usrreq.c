@@ -1167,9 +1167,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
-	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
-	if (inp->in6p_flags & IN6P_AUTOFLOWLABEL)
-		inp->in6p_flowinfo |=
+	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
+	if (inp->inp_flags & IN6P_AUTOFLOWLABEL)
+		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 	in_pcbrehash(inp);
 

@@ -168,10 +168,10 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		/* XXX inp locking */
-		if ((in6p->in6p_vflag & INP_IPV6) == 0)
+		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
-		if (in6p->in6p_ip6_nxt &&
-		    in6p->in6p_ip6_nxt != proto)
+		if (in6p->inp_ip_p &&
+		    in6p->inp_ip_p != proto)
 			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr, &ip6->ip6_dst))
@@ -207,12 +207,12 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			} else
 #endif /* IPSEC */
 			if (n) {
-				if (last->in6p_flags & IN6P_CONTROLOPTS ||
-				    last->in6p_socket->so_options & SO_TIMESTAMP)
+				if (last->inp_flags & IN6P_CONTROLOPTS ||
+				    last->inp_socket->so_options & SO_TIMESTAMP)
 					ip6_savecontrol(last, n, &opts);
 				/* strip intermediate headers */
 				m_adj(n, *offp);
-				if (sbappendaddr(&last->in6p_socket->so_rcv,
+				if (sbappendaddr(&last->inp_socket->so_rcv,
 						(struct sockaddr *)&fromsa,
 						 n, opts) == 0) {
 					m_freem(n);
@@ -220,7 +220,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 						m_freem(opts);
 					V_rip6stat.rip6s_fullsock++;
 				} else
-					sorwakeup(last->in6p_socket);
+					sorwakeup(last->inp_socket);
 				opts = NULL;
 			}
 			INP_RUNLOCK(last);
@@ -241,19 +241,19 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	} else
 #endif /* IPSEC */
 	if (last) {
-		if (last->in6p_flags & IN6P_CONTROLOPTS ||
-		    last->in6p_socket->so_options & SO_TIMESTAMP)
+		if (last->inp_flags & IN6P_CONTROLOPTS ||
+		    last->inp_socket->so_options & SO_TIMESTAMP)
 			ip6_savecontrol(last, m, &opts);
 		/* Strip intermediate headers. */
 		m_adj(m, *offp);
-		if (sbappendaddr(&last->in6p_socket->so_rcv,
+		if (sbappendaddr(&last->inp_socket->so_rcv,
 		    (struct sockaddr *)&fromsa, m, opts) == 0) {
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
 			V_rip6stat.rip6s_fullsock++;
 		} else
-			sorwakeup(last->in6p_socket);
+			sorwakeup(last->inp_socket);
 		INP_RUNLOCK(last);
 	} else {
 		V_rip6stat.rip6s_nosock++;
@@ -353,7 +353,7 @@ rip6_output(m, va_alist)
 	control = va_arg(ap, struct mbuf *);
 	va_end(ap);
 
-	in6p = sotoin6pcb(so);
+	in6p = sotoinpcb(so);
 	INP_WLOCK(in6p);
 
 	dst = &dstsock->sin6_addr;
@@ -437,14 +437,14 @@ rip6_output(m, va_alist)
 	 * Fill in the rest of the IPv6 header fields.
 	 */
 	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
-	    (in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK);
+	    (in6p->inp_flow & IPV6_FLOWINFO_MASK);
 	ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
 	    (IPV6_VERSION & IPV6_VERSION_MASK);
 
 	/*
 	 * ip6_plen will be filled in ip6_output, so not fill it here.
 	 */
-	ip6->ip6_nxt = in6p->in6p_ip6_nxt;
+	ip6->ip6_nxt = in6p->inp_ip_p;
 	ip6->ip6_hlim = in6_selecthlim(in6p, oifp);
 
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6 ||
@@ -595,7 +595,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	inp = (struct inpcb *)so->so_pcb;
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	inp->inp_vflag |= INP_IPV6;
-	inp->in6p_ip6_nxt = (long)proto;
+	inp->inp_ip_p = (long)proto;
 	inp->in6p_hops = -1;	/* use kernel default */
 	inp->in6p_cksum = -1;
 	inp->in6p_icmp6filt = filter;
