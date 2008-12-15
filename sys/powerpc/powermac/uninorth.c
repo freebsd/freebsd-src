@@ -35,6 +35,7 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -163,8 +164,7 @@ uninorth_attach(device_t dev)
 {
 	struct		uninorth_softc *sc;
 	const char	*compatible;
-	phandle_t	node;
-	phandle_t	child;
+	phandle_t	node, child, iparent;
 	u_int32_t	reg[2], busrange[2];
 	struct		uninorth_range *rp, *io, *mem[2];
 	int		nmem, i, error;
@@ -294,6 +294,14 @@ uninorth_attach(device_t dev)
 		}
 	}
 
+	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(cell_t));
+
+	/* We need the number of interrupt cells to read the imap */
+	sc->sc_icells = 2;
+	if (OF_getprop(node, "interrupt-parent", &iparent,sizeof(iparent)) > 0)
+		OF_getprop(iparent,"#interrupt-cells",&sc->sc_icells, 
+		    sizeof(sc->sc_icells));
+
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
 }
@@ -360,8 +368,25 @@ uninorth_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 uninorth_route_interrupt(device_t bus, device_t dev, int pin)
 {
+	struct uninorth_softc *sc;
+	struct ofw_pci_register reg;
+	uint32_t pintr, mintr[2];
+	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
-	return (0);
+	sc = device_get_softc(bus);
+	pintr = pin;
+	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
+	    sizeof(reg), &pintr, sizeof(pintr), mintr, 
+	    sizeof(mintr[0])*sc->sc_icells, maskbuf))
+		return (mintr[0]);
+
+	/* Maybe it's a real interrupt, not an intpin */
+	if (pin > 4)
+		return (pin);
+
+	device_printf(bus, "could not route pin %d for device %d.%d\n",
+	    pin, pci_get_slot(dev), pci_get_function(dev));
+	return (PCI_INVALID_IRQ);
 }
 
 static int
