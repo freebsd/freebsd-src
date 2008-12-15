@@ -321,6 +321,9 @@ void	ip_input(struct mbuf *);
 int	in_ifadown(struct ifaddr *ifa, int);
 void	in_ifscrub(struct ifnet *, struct in_ifaddr *);
 struct	mbuf	*ip_fastforward(struct mbuf *);
+void	*in_domifattach(struct ifnet *);
+void	in_domifdetach(struct ifnet *, void *);
+
 
 /* XXX */
 void	 in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum);

@@ -1659,7 +1659,7 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = inc->inc_faddr;
-		in_rtalloc_ign(&sro, RTF_CLONING, inc->inc_fibnum);
+		in_rtalloc_ign(&sro, 0, inc->inc_fibnum);
 	}
 	if (sro.ro_rt != NULL) {
 		ifp = sro.ro_rt->rt_ifp;
@@ -1694,7 +1694,7 @@ tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 		sro6.ro_dst.sin6_family = AF_INET6;
 		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
 		sro6.ro_dst.sin6_addr = inc->inc6_faddr;
-		rtalloc_ign((struct route *)&sro6, RTF_CLONING);
+		rtalloc_ign((struct route *)&sro6, 0);
 	}
 	if (sro6.ro_rt != NULL) {
 		ifp = sro6.ro_rt->rt_ifp;

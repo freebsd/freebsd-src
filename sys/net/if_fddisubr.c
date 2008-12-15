@@ -55,6 +55,7 @@
 #include <net/if_dl.h>
 #include <net/if_llc.h>
 #include <net/if_types.h>
+#include <net/if_llatbl.h>
 
 #include <net/ethernet.h>
 #include <net/netisr.h>
@@ -120,6 +121,7 @@ fddi_output(ifp, m, dst, rt0)
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct fddi_header *fh;
+	struct llentry *lle;
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -137,7 +139,7 @@ fddi_output(ifp, m, dst, rt0)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
-		error = arpresolve(ifp, rt0, m, dst, edst);
+		error = arpresolve(ifp, rt0, m, dst, edst, &lle);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -173,7 +175,7 @@ fddi_output(ifp, m, dst, rt0)
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)edst);
+		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)edst, &lle);
 		if (error)
 			return (error); /* Something bad happened */
 		type = htons(ETHERTYPE_IPV6);

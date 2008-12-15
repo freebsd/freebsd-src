@@ -398,7 +398,7 @@ struct in6_addr *in6_selectsrc __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ifnet **, int *));
 int in6_selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **, int));
+	struct rtentry **));
 u_int32_t ip6_randomid __P((void));
 u_int32_t ip6_randomflowlabel __P((void));
 #endif /* _KERNEL */
