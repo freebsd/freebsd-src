@@ -130,6 +130,15 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
+static int tcp_do_rfc3465 = 1;
+static int tcp_abc_l_var = 1;
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
+    tcp_do_rfc3465, 0,
+    "Enable RFC 3465 (Appropriate Byte Counting)");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
+    tcp_abc_l_var, 1,
+    "Max # segments)");
+
 int	tcp_do_ecn = 0;
 int	tcp_ecn_maxretries = 1;
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
@@ -2113,7 +2122,10 @@ process_ACK:
 		    !IN_FASTRECOVERY(tp)) {
 			u_int cw = tp->snd_cwnd;
 			u_int incr = tp->t_maxseg;
-			if (cw > tp->snd_ssthresh)
+			if (V_tcp_do_rfc3465)
+				incr = min(acked,
+				    V_tcp_abc_l_var * tp->t_maxseg);
+			else if (cw > tp->snd_ssthresh)
 				incr = max((incr * incr / cw), 1);
 			tp->snd_cwnd = min(cw+incr, TCP_MAXWIN<<tp->snd_scale);
 		}
