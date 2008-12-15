@@ -664,30 +664,38 @@ getchannelflags(const char *val, int freq)
 }
 
 static void
+getchannel(int s, struct ieee80211_channel *chan, const char *val)
+{
+	int v, flags;
+	char *eptr;
+
+	memset(chan, 0, sizeof(*chan));
+	if (isanyarg(val)) {
+		chan->ic_freq = IEEE80211_CHAN_ANY;
+		return;
+	}
+	getchaninfo(s);
+	errno = 0;
+	v = strtol(val, &eptr, 10);
+	if (val[0] == '\0' || val == eptr || errno == ERANGE ||
+	    /* channel may be suffixed with nothing, :flag, or /width */
+	    (eptr[0] != '\0' && eptr[0] != ':' && eptr[0] != '/'))
+		errx(1, "invalid channel specification%s",
+		    errno == ERANGE ? " (out of range)" : "");
+	flags = getchannelflags(val, v);
+	if (v > 255) {		/* treat as frequency */
+		mapfreq(chan, v, flags);
+	} else {
+		mapchan(chan, v, flags);
+	}
+}
+
+static void
 set80211channel(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211_channel chan;
 
-	memset(&chan, 0, sizeof(chan));
-	if (!isanyarg(val)) {
-		int v, flags;
-		char *ep;
-
-		getchaninfo(s);
-		v = strtol(val, &ep, 10);
-		if (val[0] == '\0' || val == ep || errno == ERANGE ||
-		    /* channel may be suffixed with nothing, :flag, or /width */
-		    (ep[0] != '\0' && ep[0] != ':' && ep[0] != '/'))
-			errx(1, "invalid channel specification");
-		flags = getchannelflags(val, v);
-		if (v > 255) {		/* treat as frequency */
-			mapfreq(&chan, v, flags);
-		} else {
-			mapchan(&chan, v, flags);
-		}
-	} else {
-		chan.ic_freq = IEEE80211_CHAN_ANY;
-	}
+	getchannel(s, &chan, val);
 	set80211(s, IEEE80211_IOC_CURCHAN, 0, sizeof(chan), &chan);
 }
 
@@ -695,17 +703,8 @@ static void
 set80211chanswitch(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211_chanswitch_req csr;
-	int v, flags;
 
-	memset(&csr, 0, sizeof(csr));
-	getchaninfo(s);
-	v = atoi(val);
-	flags = getchannelflags(val, v);
-	if (v > 255) {		/* treat as frequency */
-		mapfreq(&csr.csa_chan, v, flags);
-	} else {
-		mapchan(&csr.csa_chan, v, flags);
-	}
+	getchannel(s, &csr.csa_chan, val);
 	csr.csa_mode = 1;
 	csr.csa_count = 5;
 	set80211(s, IEEE80211_IOC_CHANSWITCH, 0, sizeof(csr), &csr);
