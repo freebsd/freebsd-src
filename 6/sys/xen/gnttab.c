@@ -515,12 +515,10 @@ gnttab_resume(void)
 int
 gnttab_suspend(void)
 {	
-	int i, pages;
+	int i;
 
-	pages = (PAGE_SIZE*nr_grant_frames) >> PAGE_SHIFT;
-
-	for (i = 0; i < pages; i++)
-		PT_SET_MA(shared + (i*PAGE_SIZE), (vm_paddr_t)0);
+	for (i = 0; i < nr_grant_frames; i++)
+		pmap_kremove((vm_offset_t) shared + i * PAGE_SIZE);
 
 	return (0);
 }

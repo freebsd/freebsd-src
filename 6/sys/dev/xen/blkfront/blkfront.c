@@ -370,6 +370,19 @@ blkfront_attach(device_t dev)
 }
 
 static int
+blkfront_suspend(device_t dev)
+{
+	struct blkfront_info *info = device_get_softc(dev);
+
+	/* Prevent new requests being issued until we fix things up. */
+	mtx_lock(&blkif_io_lock);
+	info->connected = BLKIF_STATE_SUSPENDED;
+	mtx_unlock(&blkif_io_lock);
+
+	return (0);
+}
+
+static int
 blkfront_resume(device_t dev)
 {
 	struct blkfront_info *info = device_get_softc(dev);
@@ -377,7 +390,7 @@ blkfront_resume(device_t dev)
 
 	DPRINTK("blkfront_resume: %s\n", xenbus_get_node(dev));
 
-	blkif_free(info, info->connected == BLKIF_STATE_CONNECTED);
+	blkif_free(info, 1);
 	err = talk_to_backend(dev, info);
 	if (info->connected == BLKIF_STATE_SUSPENDED && !err)
 		blkif_recover(info);
@@ -1082,7 +1095,7 @@ static device_method_t blkfront_methods[] = {
 	DEVMETHOD(device_attach,        blkfront_attach), 
 	DEVMETHOD(device_detach,        blkfront_detach), 
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       bus_generic_suspend), 
+	DEVMETHOD(device_suspend,       blkfront_suspend), 
 	DEVMETHOD(device_resume,        blkfront_resume), 
  
 	/* Xenbus interface */

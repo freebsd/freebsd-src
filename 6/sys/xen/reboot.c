@@ -169,7 +169,7 @@ static void
 xen_suspend()
 {
 	int i, j, k, fpp;
-	unsigned long max_pfn;
+	unsigned long max_pfn, start_info_mfn;
 
 #ifdef SMP
 	cpumask_t map;
@@ -212,7 +212,10 @@ xen_suspend()
 	 * We'll stop somewhere inside this hypercall. When it returns,
 	 * we'll start resuming after the restore.
 	 */
-	HYPERVISOR_suspend(VTOMFN(xen_start_info));
+	start_info_mfn = VTOMFN(xen_start_info);
+	pmap_suspend();
+	HYPERVISOR_suspend(start_info_mfn);
+	pmap_resume();
 
 	pmap_kenter_ma((vm_offset_t) shared_info, xen_start_info->shared_info);
 	HYPERVISOR_shared_info = shared_info;
@@ -235,11 +238,8 @@ xen_suspend()
 
 	gnttab_resume();
 	irq_resume();
-	cpu_initclocks();
 	local_irq_enable();
 	xencons_resume();
-
-	printf("UP\n");
 
 #ifdef CONFIG_SMP
 	for_each_cpu(i)
