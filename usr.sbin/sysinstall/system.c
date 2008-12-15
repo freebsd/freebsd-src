@@ -235,8 +235,13 @@ void
 systemShutdown(int status)
 {
     /* If some media is open, close it down */
-    if (status >=0)
-	mediaClose();
+    if (status >=0) {
+	if (mediaDevice != NULL && mediaDevice->type == DEVICE_TYPE_CDROM) {
+	    mediaClose();
+	    msgConfirm("Be sure to remove the media from the drive.");
+	} else
+	    mediaClose();
+    }
 
     /* write out any changes to rc.conf .. */
     configRC_conf();
