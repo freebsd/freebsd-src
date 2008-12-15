@@ -425,7 +425,7 @@ setregdomain_cb(int s, void *arg)
 	struct ieee80211_devcaps_req dc;
 	struct regdata *rdp = getregdata();
 
-	if (rd->country != 0) {
+	if (rd->country != NO_COUNTRY) {
 		const struct country *cc;
 		/*
 		 * Check current country seting to make sure it's
@@ -456,7 +456,7 @@ setregdomain_cb(int s, void *arg)
 				errx(1, "country %s (%s) is not usable with "
 				    "regdomain %d", cc->isoname, cc->name,
 				    rd->regdomain);
-			else if (rp->cc != 0 && rp->cc != cc)
+			else if (rp->cc != NULL && rp->cc != cc)
 				errx(1, "country %s (%s) is not usable with "
 				   "regdomain %s", cc->isoname, cc->name,
 				   rp->name);
