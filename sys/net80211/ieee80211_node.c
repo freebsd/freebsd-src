@@ -732,6 +732,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	ni->ni_erp = se->se_erp;
 	IEEE80211_RSSI_LPF(ni->ni_avgrssi, se->se_rssi);
 	ni->ni_noise = se->se_noise;
+	ni->ni_flags |= IEEE80211_NODE_ASSOCID;
 
 	if (ieee80211_ies_init(&ni->ni_ies, se->se_ies.data, se->se_ies.len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
@@ -898,8 +899,10 @@ node_cleanup(struct ieee80211_node *ni)
 	 * has happened.  This is probably not needed as the node
 	 * should always be removed from the table so not found but
 	 * do it just in case.
+	 * Likewise clear the ASSOCID flag as these flags are intended
+	 * to be managed in tandem.
 	 */
-	ni->ni_flags &= ~IEEE80211_NODE_AREF;
+	ni->ni_flags &= ~(IEEE80211_NODE_AREF | IEEE80211_NODE_ASSOCID);
 
 	/*
 	 * Drain power save queue and, if needed, clear TIM.
@@ -1511,19 +1514,8 @@ ieee80211_find_txnode(struct ieee80211vap *vap,
 	    vap->iv_opmode == IEEE80211_M_WDS ||
 	    IEEE80211_IS_MULTICAST(macaddr))
 		ni = ieee80211_ref_node(vap->iv_bss);
-	else {
+	else
 		ni = ieee80211_find_node_locked(nt, macaddr);
-		if (vap->iv_opmode == IEEE80211_M_HOSTAP && 
-		    (ni != NULL && ni->ni_associd == 0)) {
-			/*
-			 * Station is not associated; don't permit the
-			 * data frame to be sent by returning NULL.  This
-			 * is kinda a kludge but the least intrusive way
-			 * to add this check into all drivers.
-			 */
-			ieee80211_unref_node(&ni);	/* NB: null's ni */
-		}
-	}
 	IEEE80211_NODE_UNLOCK(nt);
 
 	if (ni == NULL) {
