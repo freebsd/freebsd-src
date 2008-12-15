@@ -73,6 +73,7 @@ struct regdomain {
 
 struct country {
 	enum ISOCountryCode	code;	   
+#define	NO_COUNTRY	0xffff
 	const struct regdomain	*rd;
 	const char*		isoname;
 	const char*		name;
