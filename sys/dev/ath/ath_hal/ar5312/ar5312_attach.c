@@ -122,7 +122,7 @@ ar5312Attach(uint16_t devid, HAL_SOFTC sc,
 
 	/* setup common ini data; rf backends handle remainder */
 	HAL_INI_INIT(&ahp->ah_ini_modes, ar5212Modes, 6);
-	HAL_INI_INIT(&ahp->ah_ini_common, ar5212Common, 6);
+	HAL_INI_INIT(&ahp->ah_ini_common, ar5212Common, 2);
 
 	if (!ar5312ChipReset(ah, AH_NULL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
