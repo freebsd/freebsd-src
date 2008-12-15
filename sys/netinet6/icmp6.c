@@ -1899,8 +1899,8 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	struct in6pcb *in6p;
-	struct in6pcb *last = NULL;
+	struct inpcb *in6p;
+	struct inpcb *last = NULL;
 	struct sockaddr_in6 fromsa;
 	struct icmp6_hdr *icmp6;
 	struct mbuf *opts = NULL;
@@ -1933,7 +1933,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
-		if (in6p->in6p_ip6_nxt != IPPROTO_ICMPV6)
+		if (in6p->inp_ip_p != IPPROTO_ICMPV6)
 			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
 		   !IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr, &ip6->ip6_dst))
@@ -1983,13 +1983,13 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			}
 			if (n != NULL ||
 			    (n = m_copy(m, 0, (int)M_COPYALL)) != NULL) {
-				if (last->in6p_flags & IN6P_CONTROLOPTS)
+				if (last->inp_flags & IN6P_CONTROLOPTS)
 					ip6_savecontrol(last, n, &opts);
 				/* strip intermediate headers */
 				m_adj(n, off);
-				SOCKBUF_LOCK(&last->in6p_socket->so_rcv);
+				SOCKBUF_LOCK(&last->inp_socket->so_rcv);
 				if (sbappendaddr_locked(
-				    &last->in6p_socket->so_rcv,
+				    &last->inp_socket->so_rcv,
 				    (struct sockaddr *)&fromsa, n, opts)
 				    == 0) {
 					/* should notify about lost packet */
@@ -1998,9 +1998,9 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 						m_freem(opts);
 					}
 					SOCKBUF_UNLOCK(
-					    &last->in6p_socket->so_rcv);
+					    &last->inp_socket->so_rcv);
 				} else
-					sorwakeup_locked(last->in6p_socket);
+					sorwakeup_locked(last->inp_socket);
 				opts = NULL;
 			}
 			INP_RUNLOCK(last);
@@ -2009,7 +2009,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
 	if (last) {
-		if (last->in6p_flags & IN6P_CONTROLOPTS)
+		if (last->inp_flags & IN6P_CONTROLOPTS)
 			ip6_savecontrol(last, m, &opts);
 		/* strip intermediate headers */
 		m_adj(m, off);
@@ -2033,15 +2033,15 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 				}
 			}
 		}
-		SOCKBUF_LOCK(&last->in6p_socket->so_rcv);
-		if (sbappendaddr_locked(&last->in6p_socket->so_rcv,
+		SOCKBUF_LOCK(&last->inp_socket->so_rcv);
+		if (sbappendaddr_locked(&last->inp_socket->so_rcv,
 		    (struct sockaddr *)&fromsa, m, opts) == 0) {
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
-			SOCKBUF_UNLOCK(&last->in6p_socket->so_rcv);
+			SOCKBUF_UNLOCK(&last->inp_socket->so_rcv);
 		} else
-			sorwakeup_locked(last->in6p_socket);
+			sorwakeup_locked(last->inp_socket);
 		INP_RUNLOCK(last);
 	} else {
 		m_freem(m);

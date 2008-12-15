@@ -1160,8 +1160,13 @@ key_freeso(struct socket *so)
 	IPSEC_ASSERT(so != NULL, ("null so"));
 
 	switch (so->so_proto->pr_domain->dom_family) {
+#if defined(INET) || defined(INET6)
 #ifdef INET
 	case PF_INET:
+#endif
+#ifdef INET6
+	case PF_INET6:
+#endif
 	    {
 		struct inpcb *pcb = sotoinpcb(so);
 
@@ -1172,30 +1177,7 @@ key_freeso(struct socket *so)
 		key_freesp_so(&pcb->inp_sp->sp_out);
 	    }
 		break;
-#endif
-#ifdef INET6
-	case PF_INET6:
-	    {
-#ifdef HAVE_NRL_INPCB
-		struct inpcb *pcb  = sotoinpcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->inp_sp->sp_in);
-		key_freesp_so(&pcb->inp_sp->sp_out);
-#else
-		struct in6pcb *pcb  = sotoin6pcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->in6p_sp->sp_in);
-		key_freesp_so(&pcb->in6p_sp->sp_out);
-#endif
-	    }
-		break;
-#endif /* INET6 */
+#endif /* INET || INET6 */
 	default:
 		ipseclog((LOG_DEBUG, "%s: unknown address family=%d.\n",
 		    __func__, so->so_proto->pr_domain->dom_family));

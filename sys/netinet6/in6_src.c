@@ -785,7 +785,7 @@ in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
  * 3. The system default hoplimit.
  */
 int
-in6_selecthlim(struct in6pcb *in6p, struct ifnet *ifp)
+in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 {
 	INIT_VNET_INET6(curvnet);
 
