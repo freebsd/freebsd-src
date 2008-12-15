@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <net/if_llatbl.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet/ip6.h>
@@ -471,10 +472,8 @@ defrouter_addreq(struct nd_defrouter *new)
 	    (struct sockaddr *)&gate, (struct sockaddr *)&mask,
 	    RTF_GATEWAY, &newrt);
 	if (newrt) {
-		RT_LOCK(newrt);
 		nd6_rtmsg(RTM_ADD, newrt); /* tell user process */
-		RT_REMREF(newrt);
-		RT_UNLOCK(newrt);
+		RTFREE(newrt);
 	}
 	if (error == 0)
 		new->installed = 1;
@@ -615,8 +614,7 @@ defrouter_select(void)
 	INIT_VNET_INET6(curvnet);
 	int s = splnet();
 	struct nd_defrouter *dr, *selected_dr = NULL, *installed_dr = NULL;
-	struct rtentry *rt = NULL;
-	struct llinfo_nd6 *ln = NULL;
+	struct llentry *ln = NULL;
 
 	/*
 	 * This function should be called only when acting as an autoconfigured
@@ -648,12 +646,13 @@ defrouter_select(void)
 	 */
 	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
 	     dr = TAILQ_NEXT(dr, dr_entry)) {
+		IF_AFDATA_LOCK(dr->ifp);
 		if (selected_dr == NULL &&
-		    (rt = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
-		    (ln = (struct llinfo_nd6 *)rt->rt_llinfo) &&
+		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
 			selected_dr = dr;
 		}
+		IF_AFDATA_UNLOCK(dr->ifp);
 
 		if (dr->installed && installed_dr == NULL)
 			installed_dr = dr;
@@ -676,12 +675,14 @@ defrouter_select(void)
 			selected_dr = TAILQ_FIRST(&V_nd_defrouter);
 		else
 			selected_dr = TAILQ_NEXT(installed_dr, dr_entry);
-	} else if (installed_dr &&
-	    (rt = nd6_lookup(&installed_dr->rtaddr, 0, installed_dr->ifp)) &&
-	    (ln = (struct llinfo_nd6 *)rt->rt_llinfo) &&
-	    ND6_IS_LLINFO_PROBREACH(ln) &&
-	    rtpref(selected_dr) <= rtpref(installed_dr)) {
-		selected_dr = installed_dr;
+	} else if (installed_dr) {
+		IF_AFDATA_LOCK(installed_dr->ifp);
+		if ((ln = nd6_lookup(&installed_dr->rtaddr, 0, installed_dr->ifp)) &&
+		    ND6_IS_LLINFO_PROBREACH(ln) &&
+		    rtpref(selected_dr) <= rtpref(installed_dr)) {
+			selected_dr = installed_dr;
+		}
+		IF_AFDATA_UNLOCK(installed_dr->ifp);
 	}
 
 	/*
@@ -1323,18 +1324,19 @@ static struct nd_pfxrouter *
 find_pfxlist_reachable_router(struct nd_prefix *pr)
 {
 	struct nd_pfxrouter *pfxrtr;
-	struct rtentry *rt;
-	struct llinfo_nd6 *ln;
+	struct llentry *ln;
 
 	for (pfxrtr = LIST_FIRST(&pr->ndpr_advrtrs); pfxrtr;
 	     pfxrtr = LIST_NEXT(pfxrtr, pfr_entry)) {
-		if ((rt = nd6_lookup(&pfxrtr->router->rtaddr, 0,
+		IF_AFDATA_LOCK(pfxrtr->router->ifp);
+		if ((ln = nd6_lookup(&pfxrtr->router->rtaddr, 0,
 		    pfxrtr->router->ifp)) &&
-		    (ln = (struct llinfo_nd6 *)rt->rt_llinfo) &&
-		    ND6_IS_LLINFO_PROBREACH(ln))
+		    ND6_IS_LLINFO_PROBREACH(ln)) {
+			IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
 			break;	/* found */
+		}
+		IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
 	}
-
 	return (pfxrtr);
 }
 
@@ -1541,8 +1543,10 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	struct nd_prefix *opr;
 	u_long rtflags;
 	int error = 0;
+	struct radix_node_head *rnh;
 	struct rtentry *rt = NULL;
 	char ip6buf[INET6_ADDRSTRLEN];
+	struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 
 	/* sanity check */
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0) {
@@ -1609,21 +1613,24 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	bzero(&mask6, sizeof(mask6));
 	mask6.sin6_len = sizeof(mask6);
 	mask6.sin6_addr = pr->ndpr_mask;
-	rtflags = ifa->ifa_flags | RTF_CLONING | RTF_UP;
-	if (nd6_need_cache(ifp)) {
-		/* explicitly set in case ifa_flags does not set the flag. */
-		rtflags |= RTF_CLONING;
-	} else {
-		/*
-		 * explicitly clear the cloning bit in case ifa_flags sets it.
-		 */
-		rtflags &= ~RTF_CLONING;
-	}
+	rtflags = ifa->ifa_flags | RTF_UP;
 	error = rtrequest(RTM_ADD, (struct sockaddr *)&pr->ndpr_prefix,
 	    ifa->ifa_addr, (struct sockaddr *)&mask6, rtflags, &rt);
 	if (error == 0) {
-		if (rt != NULL) /* this should be non NULL, though */
+		if (rt != NULL) /* this should be non NULL, though */ {
+			rnh = V_rt_tables[rt->rt_fibnum][AF_INET6];
+			RADIX_NODE_HEAD_LOCK(rnh);
+			RT_LOCK(rt);
+			if (!rt_setgate(rt, rt_key(rt), (struct sockaddr *)&null_sdl)) {
+				((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
+					rt->rt_ifp->if_type;
+				((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+					rt->rt_ifp->if_index;
+			}
+			RADIX_NODE_HEAD_UNLOCK(rnh);
 			nd6_rtmsg(RTM_ADD, rt);
+			RT_UNLOCK(rt);
+		}
 		pr->ndpr_stateflags |= NDPRF_ONLINK;
 	} else {
 		char ip6bufg[INET6_ADDRSTRLEN], ip6bufm[INET6_ADDRSTRLEN];

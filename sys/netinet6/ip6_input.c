@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <net/if_llatbl.h>
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
@@ -311,9 +312,11 @@ ip6_input(struct mbuf *m)
 	u_int32_t plen;
 	u_int32_t rtalert = ~0;
 	int nxt, ours = 0;
-	struct ifnet *deliverifp = NULL;
+	struct ifnet *deliverifp = NULL, *ifp = NULL;
 	struct in6_addr odst;
 	int srcrt = 0;
+	struct llentry *lle = NULL;
+	struct sockaddr_in6 dst6;
 
 #ifdef IPSEC
 	/*
@@ -548,6 +551,24 @@ passin:
 	/*
 	 *  Unicast check
 	 */
+
+	bzero(&dst6, sizeof(dst6));
+	dst6.sin6_family = AF_INET6;
+	dst6.sin6_len = sizeof(struct sockaddr_in6);
+	dst6.sin6_addr = ip6->ip6_dst;
+	ifp = m->m_pkthdr.rcvif;
+	IF_AFDATA_LOCK(ifp);
+	lle = lla_lookup(LLTABLE6(ifp), 0,
+	     (struct sockaddr *)&dst6);
+	IF_AFDATA_UNLOCK(ifp);
+	if ((lle != NULL) && (lle->la_flags & LLE_IFADDR)) {
+		ours = 1;
+		deliverifp = ifp;
+		LLE_RUNLOCK(lle);
+		goto hbhcheck;
+	}
+	LLE_RUNLOCK(lle);
+
 	if (V_ip6_forward_rt.ro_rt != NULL &&
 	    (V_ip6_forward_rt.ro_rt->rt_flags & RTF_UP) != 0 &&
 	    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
