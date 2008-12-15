@@ -1958,8 +1958,12 @@ DECL_CMD_FUNC(set80211regdomain, val, d)
 
 	rd = lib80211_regdomain_findbyname(rdp, val);
 	if (rd == NULL) {
-		rd = lib80211_regdomain_findbysku(rdp, atoi(val));
-		if (rd == NULL)
+		char *eptr;
+		long sku = strtol(val, &eptr, 0);
+
+		if (eptr != val)
+			rd = lib80211_regdomain_findbysku(rdp, sku);
+		if (eptr == val || rd == NULL)
 			errx(1, "unknown regdomain %s", val);
 	}
 	getregdomain(s);
