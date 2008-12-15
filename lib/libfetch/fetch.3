@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2007
+.Dd December 14, 2008
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -165,8 +165,15 @@ struct url {
     char	*doc;
     off_t	 offset;
     size_t	 length;
+    time_t	 ims_time;
 };
 .Ed
+.Pp
+The
+.Va ims_time
+field stores the time value for
+.Li If-Modified-Since
+HTTP requests.
 .Pp
 The pointer returned by
 .Fn fetchMakeURL
@@ -352,6 +359,22 @@ If the
 and
 .Fn fetchPutHTTP
 will use a direct connection even if a proxy server is defined.
+.Pp
+If the
+.Ql i
+(if-modified-since) flag is specified, and
+the
+.Va ims_time
+field is set in 
+.Vt "struct url" ,
+then
+.Fn fetchXGetHTTP
+and
+.Fn fetchGetHTTP
+will send a conditional
+.Li If-Modified-Since
+HTTP header to only fetch the content if it is newer than
+.Va ims_time .
 .Pp
 Since there seems to be no good way of implementing the HTTP PUT
 method in a manner consistent with the rest of the
