@@ -1770,14 +1770,21 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 					printf("%u: skip, flags 0x%x not available\n", freq, chanFlags);
 				continue;
 			}
+			/*
+			 * NB: don't enforce 1/2 and 1/4 rate channels being
+			 * specified in the device's calibration list for
+			 * 900MHz cards because most are not self-identifying.
+			 */
 			if ((flags & IEEE80211_CHAN_HALF) &&
-			    (chanFlags & IEEE80211_CHAN_HALF) == 0) {
+			    ((chanFlags & IEEE80211_CHAN_HALF) == 0 &&
+			     (flags & IEEE80211_CHAN_GSM) == 0)) {
 				if (verbose)
 					printf("%u: skip, device does not support half-rate channels\n", freq);
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_QUARTER) &&
-			    (chanFlags & IEEE80211_CHAN_QUARTER) == 0) {
+			    ((chanFlags & IEEE80211_CHAN_HALF) == 0 &&
+			     (flags & IEEE80211_CHAN_GSM) == 0)) {
 				if (verbose)
 					printf("%u: skip, device does not support quarter-rate channels\n", freq);
 				continue;
@@ -3534,8 +3541,12 @@ get80211opmode(int s)
 	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
 
 	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0) {
-		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC)
-			return IEEE80211_M_IBSS;	/* XXX ahdemo */
+		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC) {
+			if (ifmr.ifm_current & IFM_FLAG0)
+				return IEEE80211_M_AHDEMO;
+			else
+				return IEEE80211_M_IBSS;
+		}
 		if (ifmr.ifm_current & IFM_IEEE80211_HOSTAP)
 			return IEEE80211_M_HOSTAP;
 		if (ifmr.ifm_current & IFM_IEEE80211_MONITOR)
@@ -4244,6 +4255,7 @@ end:
 			}
 		}
 	}
+
 	if (get80211val(s, IEEE80211_IOC_BEACON_INTERVAL, &val) != -1) {
 		/* XXX default define not visible */
 		if (val != 100 || verbose)
