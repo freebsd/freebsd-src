@@ -1329,19 +1329,20 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 {
 	struct nd_pfxrouter *pfxrtr;
 	struct llentry *ln;
+	int canreach;
 
 	for (pfxrtr = LIST_FIRST(&pr->ndpr_advrtrs); pfxrtr;
 	     pfxrtr = LIST_NEXT(pfxrtr, pfr_entry)) {
 		IF_AFDATA_LOCK(pfxrtr->router->ifp);
-		if (((ln = nd6_lookup(&pfxrtr->router->rtaddr, 0,
-				pfxrtr->router->ifp)) != NULL) &&
-		    ND6_IS_LLINFO_PROBREACH(ln)) {
-			LLE_RUNLOCK(ln); 
-			break;	/* found */
-		}
-		if (ln != NULL) 
-			LLE_RUNLOCK(ln); 
+		ln = nd6_lookup(&pfxrtr->router->rtaddr, 0, pfxrtr->router->ifp);
 		IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
+		canreach = 0;		
+		if (ln != NULL) {			
+			canreach = ND6_IS_LLINFO_PROBREACH(ln);
+			LLE_RUNLOCK(ln);
+		}
+		if (canreach)
+			break;
 	}
 	return (pfxrtr);
 }
