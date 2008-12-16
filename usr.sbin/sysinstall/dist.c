@@ -45,7 +45,6 @@
 
 unsigned int Dists;
 unsigned int SrcDists;
-unsigned int XOrgDists;
 unsigned int KernelDists;
 
 enum _disttype { DT_TARBALL, DT_SUBDIST, DT_PACKAGE };
@@ -63,7 +62,6 @@ typedef struct _dist {
 
 static Distribution KernelDistTable[];
 static Distribution SrcDistTable[];
-static Distribution XOrgDistTable[];
 
 #define	DTE_TARBALL(name, mask, flag, directory)			\
 	{ name, mask, DIST_ ## flag, DT_TARBALL, { directory } }
@@ -92,7 +90,6 @@ static Distribution DistTable[] = {
     DTE_SUBDIST("src",	    &Dists, SRC,      SrcDistTable),
     DTE_TARBALL("ports",    &Dists, PORTS,    "/usr"),
     DTE_TARBALL("local",    &Dists, LOCAL,    "/"),
-    DTE_PACKAGE("X.Org",    &Dists, XORG,     "xorg"),
     DTE_END,
 };
 
@@ -138,15 +135,11 @@ distVerifyFlags(void)
 {
     if (SrcDists)
 	Dists |= DIST_SRC;
-    if (XOrgDists)
-	Dists |= DIST_XORG;
     if (KernelDists)
 	Dists |= DIST_KERNEL;
-    if (isDebug()) {
+    if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, Srcs: %0x Kernels: %0x\n", Dists,
 	    SrcDists, KernelDists);
-	msgDebug("XServer: %0x\n", XOrgDists);
-    }
 }
 
 int
@@ -154,7 +147,6 @@ distReset(dialogMenuItem *self)
 {
     Dists = 0;
     SrcDists = 0;
-    XOrgDists = 0;
     KernelDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
@@ -172,22 +164,11 @@ distConfig(dialogMenuItem *self)
     if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
 	SrcDists = atoi(cp);
 
-    if ((cp = variable_get(VAR_DIST_X11)) != NULL)
-	XOrgDists = atoi(cp);
-
     if ((cp = variable_get(VAR_DIST_KERNEL)) != NULL)
 	KernelDists = atoi(cp);
 
     distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-distSetX(void)
-{
-    Dists |= DIST_XORG;
-    XOrgDists = DIST_XORG_ALL;
-    return DITEM_SUCCESS;
 }
 
 int
@@ -216,17 +197,6 @@ distSetDeveloper(dialogMenuItem *self)
 }
 
 int
-distSetXDeveloper(dialogMenuItem *self)
-{
-    int i;
-
-    i = distSetDeveloper(self);
-    i |= distSetX();
-    distVerifyFlags();
-    return i;
-}
-
-int
 distSetKernDeveloper(dialogMenuItem *self)
 {
     int i;
@@ -241,17 +211,6 @@ distSetKernDeveloper(dialogMenuItem *self)
 }
 
 int
-distSetXKernDeveloper(dialogMenuItem *self)
-{
-    int i;
-
-    i = distSetKernDeveloper(self);
-    i |= distSetX();
-    distVerifyFlags();
-    return i;
-}
-
-int
 distSetUser(dialogMenuItem *self)
 {
     int i;
@@ -260,17 +219,6 @@ distSetUser(dialogMenuItem *self)
     Dists = _DIST_USER;
     KernelDists = selectKernel();
     i = distMaybeSetPorts(self);
-    distVerifyFlags();
-    return i;
-}
-
-int
-distSetXUser(dialogMenuItem *self)
-{
-    int i;
-
-    i = distSetUser(self);
-    i |= distSetX();
     distVerifyFlags();
     return i;
 }
@@ -292,7 +240,6 @@ distSetEverything(dialogMenuItem *self)
 
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
-    XOrgDists = DIST_XORG_ALL;
     KernelDists = DIST_KERNEL_ALL;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
