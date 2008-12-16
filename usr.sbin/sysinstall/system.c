@@ -187,7 +187,7 @@ systemInitialize(int argc, char **argv)
 	printf("%s running as init on %s\n", argv[0], OnVTY ? "vty0" : "serial console");
 	ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
-	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
+	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
 #if 0

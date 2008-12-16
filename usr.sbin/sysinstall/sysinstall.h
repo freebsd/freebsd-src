@@ -102,7 +102,6 @@
 #define VAR_DISTS			"dists"
 #define VAR_DIST_MAIN			"distMain"
 #define VAR_DIST_SRC			"distSRC"
-#define VAR_DIST_X11			"distX11"
 #define VAR_DIST_KERNEL			"distKernel"
 #define VAR_DEDICATE_DISK		"dedicateDisk"
 #define VAR_DOMAINNAME			"domainname"
@@ -191,7 +190,6 @@
 #define VAR_VAR_SIZE			"varSize"
 #define VAR_TMP_SIZE			"tmpSize"
 #define VAR_HOME_SIZE			"homeSize"
-#define VAR_XORG_CONFIG			"_xorgconfig"
 #define VAR_TERM			"TERM"
 #define VAR_CONSTERM                    "_consterm"
 
@@ -417,7 +415,6 @@ extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
-extern unsigned int	XOrgDists;		/* Which X.Org dists we want			*/
 extern unsigned int	KernelDists;		/* Which kernel dists we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
@@ -593,11 +590,8 @@ extern int	distConfig(dialogMenuItem *self);
 extern int	distSetCustom(dialogMenuItem *self);
 extern int	distUnsetCustom(dialogMenuItem *self);
 extern int	distSetDeveloper(dialogMenuItem *self);
-extern int	distSetXDeveloper(dialogMenuItem *self);
 extern int	distSetKernDeveloper(dialogMenuItem *self);
-extern int	distSetXKernDeveloper(dialogMenuItem *self);
 extern int	distSetUser(dialogMenuItem *self);
-extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
