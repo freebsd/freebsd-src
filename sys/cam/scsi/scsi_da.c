@@ -772,8 +772,8 @@ daclose(struct disk *dp)
 
 	softc->flags &= ~DA_FLAG_OPEN;
 	cam_periph_unhold(periph);
-	cam_periph_release(periph);
 	cam_periph_unlock(periph);
+	cam_periph_release(periph);
 	return (0);	
 }
 
@@ -995,10 +995,8 @@ dacleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 
-	cam_periph_unlock(periph);
 	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
-	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
 }
 
