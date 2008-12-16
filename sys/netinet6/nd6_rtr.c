@@ -1333,13 +1333,14 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 	for (pfxrtr = LIST_FIRST(&pr->ndpr_advrtrs); pfxrtr;
 	     pfxrtr = LIST_NEXT(pfxrtr, pfr_entry)) {
 		IF_AFDATA_LOCK(pfxrtr->router->ifp);
-		if ((ln = nd6_lookup(&pfxrtr->router->rtaddr, 0,
-		    pfxrtr->router->ifp)) &&
+		if (((ln = nd6_lookup(&pfxrtr->router->rtaddr, 0,
+				pfxrtr->router->ifp)) != NULL) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
 			LLE_RUNLOCK(ln); 
 			break;	/* found */
 		}
-		LLE_RUNLOCK(ln); 
+		if (ln != NULL) 
+			LLE_RUNLOCK(ln); 
 		IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
 	}
 	return (pfxrtr);
