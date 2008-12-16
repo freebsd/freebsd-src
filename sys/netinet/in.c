@@ -1060,6 +1060,8 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 static void
 in_lltable_free(struct lltable *llt, struct llentry *lle)
 {
+	LLE_WUNLOCK(lle);
+	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
 }
 
