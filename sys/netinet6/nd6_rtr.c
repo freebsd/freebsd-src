@@ -1336,9 +1336,10 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 		if ((ln = nd6_lookup(&pfxrtr->router->rtaddr, 0,
 		    pfxrtr->router->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
-			IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
+			LLE_RUNLOCK(ln); 
 			break;	/* found */
 		}
+		LLE_RUNLOCK(ln); 
 		IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
 	}
 	return (pfxrtr);
