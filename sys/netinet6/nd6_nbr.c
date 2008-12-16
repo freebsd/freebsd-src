@@ -474,7 +474,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		struct ip6_hdr *hip6;		/* hold ip6 */
 		struct in6_addr *hsrc = NULL;
 
-		if (ln && ln->la_hold) {
+		if ((ln != NULL) && ln->la_hold) {
 			/*
 			 * assuming every packet in la_hold has the same IP
 			 * header
@@ -878,7 +878,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		}
 	}
  freeit:
-	if (ln) {
+	if (ln != NULL) {
 		if (chain)
 			memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
 		LLE_WUNLOCK(ln);
@@ -890,7 +890,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	return;
 
  bad:
-	if (ln)
+	if (ln != NULL)
 		LLE_WUNLOCK(ln);
 
 	V_icmp6stat.icp6s_badna++;
