@@ -929,7 +929,7 @@ hostap_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	 */
 	ni->ni_flags |= IEEE80211_NODE_AREF;
 	/*
-	 * Mark the node as requiring a valid associatio id
+	 * Mark the node as requiring a valid association id
 	 * before outbound traffic is permitted.
 	 */
 	ni->ni_flags |= IEEE80211_NODE_ASSOCID;
