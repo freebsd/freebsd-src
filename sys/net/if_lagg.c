@@ -310,6 +310,7 @@ lagg_capabilities(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
 	int cap = ~0, ena = ~0;
+	u_long hwa = ~0UL;
 
 	LAGG_WLOCK_ASSERT(sc);
 
@@ -317,14 +318,18 @@ lagg_capabilities(struct lagg_softc *sc)
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 		cap &= lp->lp_ifp->if_capabilities;
 		ena &= lp->lp_ifp->if_capenable;
+		hwa &= lp->lp_ifp->if_hwassist;
 	}
 	cap = (cap == ~0 ? 0 : cap);
 	ena = (ena == ~0 ? 0 : ena);
+	hwa = (hwa == ~0 ? 0 : hwa);
 
 	if (sc->sc_ifp->if_capabilities != cap ||
-	    sc->sc_ifp->if_capenable != ena) {
+	    sc->sc_ifp->if_capenable != ena ||
+	    sc->sc_ifp->if_hwassist != hwa) {
 		sc->sc_ifp->if_capabilities = cap;
 		sc->sc_ifp->if_capenable = ena;
+		sc->sc_ifp->if_hwassist = hwa;
 		getmicrotime(&sc->sc_ifp->if_lastchange);
 
 		if (sc->sc_ifflags & IFF_DEBUG)
