@@ -7408,7 +7408,6 @@ bce_stats_update(struct bce_softc *sc)
 		(u_long) sc->stat_IfInMBUFDiscards +
 		(u_long) sc->stat_Dot3StatsAlignmentErrors +
 		(u_long) sc->stat_Dot3StatsFCSErrors +
-		(u_long) sc->stat_IfInFramesL2FilterDiscards +
 		(u_long) sc->stat_IfInRuleCheckerDiscards +
 		(u_long) sc->stat_IfInFTQDiscards +
 		(u_long) sc->com_no_buffers;
