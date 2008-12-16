@@ -698,19 +698,6 @@ static struct cdevsw xpt_cdevsw = {
 };
 
 
-static void dead_sim_action(struct cam_sim *sim, union ccb *ccb);
-static void dead_sim_poll(struct cam_sim *sim);
-
-/* Dummy SIM that is used when the real one has gone. */
-static struct cam_sim cam_dead_sim = {
-	.sim_action =	dead_sim_action,
-	.sim_poll =	dead_sim_poll,
-	.sim_name =	"dead_sim",
-};
-
-#define SIM_DEAD(sim)	((sim) == &cam_dead_sim)
-
-
 /* Storage for debugging datastructures */
 #ifdef	CAMDEBUG
 struct cam_path *cam_dpath;
@@ -3023,18 +3010,9 @@ xpt_action(union ccb *start_ccb)
 	case XPT_ENG_EXEC:
 	{
 		struct cam_path *path;
-		struct cam_sim *sim;
 		int runq;
 
 		path = start_ccb->ccb_h.path;
-
-		sim = path->bus->sim;
-		if (SIM_DEAD(sim)) {
-			/* The SIM has gone; just execute the CCB directly. */
-			cam_ccbq_send_ccb(&path->device->ccbq, start_ccb);
-			(*(sim->sim_action))(sim, start_ccb);
-			break;
-		}
 
 		cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
 		if (path->device->qfrozen_cnt == 0)
@@ -3623,7 +3601,6 @@ void
 xpt_schedule(struct cam_periph *perph, u_int32_t new_priority)
 {
 	struct cam_ed *device;
-	union ccb *work_ccb;
 	int runq;
 
 	mtx_assert(perph->sim->mtx, MA_OWNED);
@@ -3640,15 +3617,6 @@ xpt_schedule(struct cam_periph *perph, u_int32_t new_priority)
 					     new_priority);
 		}
 		runq = 0;
-	} else if (SIM_DEAD(perph->path->bus->sim)) {
-		/* The SIM is gone so just call periph_start directly. */
-		work_ccb = xpt_get_ccb(perph->path->device);
-		if (work_ccb == NULL)
-			return; /* XXX */
-		xpt_setup_ccb(&work_ccb->ccb_h, perph->path, new_priority);
-		perph->pinfo.priority = new_priority;
-		perph->periph_start(perph, work_ccb);
-		return;
 	} else {
 		/* New entry on the queue */
 		CAM_DEBUG(perph->path, CAM_DEBUG_SUBTRACE,
@@ -4372,14 +4340,7 @@ int32_t
 xpt_bus_deregister(path_id_t pathid)
 {
 	struct cam_path bus_path;
-	struct cam_ed *device;
-	struct cam_ed_qinfo *qinfo;
-	struct cam_devq *devq;
-	struct cam_periph *periph;
-	struct cam_sim *ccbsim;
-	union ccb *work_ccb;
 	cam_status status;
-
 
 	status = xpt_compile_path(&bus_path, NULL, pathid,
 				  CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
@@ -4388,42 +4349,6 @@ xpt_bus_deregister(path_id_t pathid)
 
 	xpt_async(AC_LOST_DEVICE, &bus_path, NULL);
 	xpt_async(AC_PATH_DEREGISTERED, &bus_path, NULL);
-
-	/* The SIM may be gone, so use a dummy SIM for any stray operations. */
-	devq = bus_path.bus->sim->devq;
-	ccbsim = bus_path.bus->sim;
-	bus_path.bus->sim = &cam_dead_sim;
-
-	/* Execute any pending operations now. */
-	while ((qinfo = (struct cam_ed_qinfo *)camq_remove(&devq->send_queue,
-	    CAMQ_HEAD)) != NULL ||
-	    (qinfo = (struct cam_ed_qinfo *)camq_remove(&devq->alloc_queue,
-	    CAMQ_HEAD)) != NULL) {
-		do {
-			device = qinfo->device;
-			work_ccb = cam_ccbq_peek_ccb(&device->ccbq, CAMQ_HEAD);
-			if (work_ccb != NULL) {
-				devq->active_dev = device;
-				cam_ccbq_remove_ccb(&device->ccbq, work_ccb);
-				cam_ccbq_send_ccb(&device->ccbq, work_ccb);
-				(*(ccbsim->sim_action))(ccbsim, work_ccb);
-			}
-
-			periph = (struct cam_periph *)camq_remove(&device->drvq,
-			    CAMQ_HEAD);
-			if (periph != NULL)
-				xpt_schedule(periph, periph->pinfo.priority);
-		} while (work_ccb != NULL || periph != NULL);
-	}
-
-	/* Make sure all completed CCBs are processed. */
-	while (!TAILQ_EMPTY(&ccbsim->sim_doneq)) {
-		camisr_runqueue(&ccbsim->sim_doneq);
-
-		/* Repeat the async's for the benefit of any new devices. */
-		xpt_async(AC_LOST_DEVICE, &bus_path, NULL);
-		xpt_async(AC_PATH_DEREGISTERED, &bus_path, NULL);
-	}
 
 	/* Release the reference count held while registered. */
 	xpt_release_bus(bus_path.bus);
@@ -4982,9 +4907,6 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	struct	   cam_devq *devq;
 	cam_status status;
 
-	if (SIM_DEAD(bus->sim))
-		return (NULL);
-
 	/* Make space for us in the device queue on our bus */
 	devq = bus->sim->devq;
 	status = cam_devq_resize(devq, devq->alloc_queue.array_size + 1);
@@ -5094,11 +5016,9 @@ xpt_release_device(struct cam_eb *bus, struct cam_et *target,
 		TAILQ_REMOVE(&target->ed_entries, device,links);
 		target->generation++;
 		bus->sim->max_ccbs -= device->ccbq.devq_openings;
-		if (!SIM_DEAD(bus->sim)) {
-			/* Release our slot in the devq */
-			devq = bus->sim->devq;
-			cam_devq_resize(devq, devq->alloc_queue.array_size - 1);
-		}
+		/* Release our slot in the devq */
+		devq = bus->sim->devq;
+		cam_devq_resize(devq, devq->alloc_queue.array_size - 1);
 		camq_fini(&device->drvq);
 		camq_fini(&device->ccbq.queue);
 		free(device, M_CAMXPT);
@@ -7269,11 +7189,8 @@ camisr_runqueue(void *V_queue)
 			dev = ccb_h->path->device;
 
 			cam_ccbq_ccb_done(&dev->ccbq, (union ccb *)ccb_h);
-
-			if (!SIM_DEAD(ccb_h->path->bus->sim)) {
-				ccb_h->path->bus->sim->devq->send_active--;
-				ccb_h->path->bus->sim->devq->send_openings++;
-			}
+			ccb_h->path->bus->sim->devq->send_active--;
+			ccb_h->path->bus->sim->devq->send_openings++;
 
 			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
 			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)
@@ -7317,15 +7234,3 @@ camisr_runqueue(void *V_queue)
 	}
 }
 
-static void
-dead_sim_action(struct cam_sim *sim, union ccb *ccb)
-{
-
-	ccb->ccb_h.status = CAM_DEV_NOT_THERE;
-	xpt_done(ccb);
-}
-
-static void
-dead_sim_poll(struct cam_sim *sim)
-{
-}
