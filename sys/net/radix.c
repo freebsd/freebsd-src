@@ -274,6 +274,7 @@ rn_match(v_arg, head)
 	int off = t->rn_offset, vlen = LEN(cp), matched_off;
 	register int test, b, rn_bit;
 
+	RADIX_NODE_HEAD_LOCK_ASSERT(head);
 	/*
 	 * Open code rn_search(v, top) to avoid overhead of extra
 	 * subroutine call.
@@ -618,6 +619,8 @@ rn_addroute(v_arg, n_arg, head, treenodes)
 	caddr_t mmask;
 	struct radix_mask *m, **mp;
 
+
+	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	/*
 	 * In dealing with non-contiguous masks, there may be
 	 * many different routes which have the same mask.
@@ -788,6 +791,7 @@ rn_delete(v_arg, netmask_arg, head)
 	caddr_t v, netmask;
 	int b, head_off, vlen;
 
+	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	v = v_arg;
 	netmask = netmask_arg;
 	x = head->rnh_treetop;
@@ -981,6 +985,7 @@ rn_walktree_from(h, a, m, f, w)
 	int stopping = 0;
 	int lastb;
 
+	RADIX_NODE_HEAD_LOCK_ASSERT(h);
 	/*
 	 * rn_search_m is sort-of-open-coded here. We cannot use the
 	 * function because we need to keep track of the last node seen.
@@ -1087,6 +1092,8 @@ rn_walktree(h, f, w)
 	 * while applying the function f to it, so we need to calculate
 	 * the successor node in advance.
 	 */
+
+	RADIX_NODE_HEAD_LOCK_ASSERT(h);
 	/* First time through node, go left */
 	while (rn->rn_bit >= 0)
 		rn = rn->rn_left;
