@@ -777,7 +777,8 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	if (lle == NULL)
 		log(LOG_INFO, "arp_ifinit: cannot create arp "
 		    "entry for interface address\n");
-	LLE_RUNLOCK(lle);
+	else
+		LLE_RUNLOCK(lle);
 	ifa->ifa_rtrequest = NULL;
 }
 
