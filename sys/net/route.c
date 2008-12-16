@@ -303,7 +303,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		goto done;
 
 	} else if (needlock)
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
 	
 	/*
 	 * Either we hit the root or couldn't find any match,
