@@ -1827,9 +1827,7 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
 	IPFW_WLOCK(ch);
-	RADIX_NODE_HEAD_LOCK(rnh);
 	rn = rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
 	if (rn == NULL) {
 		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
