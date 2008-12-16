@@ -2453,6 +2453,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	struct mbuf *m = NULL;	/* newly allocated one */
 	struct ip6_hdr *ip6;	/* m as struct ip6_hdr */
 	struct nd_redirect *nd_rd;
+	struct llentry *ln = NULL;
 	size_t maxlen;
 	u_char *p;
 	struct ifnet *outif = NULL;
@@ -2575,20 +2576,19 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	{
 		/* target lladdr option */
 		int len;
-		struct llentry *ln;
 		struct nd_opt_hdr *nd_opt;
 		char *lladdr;
 
 		IF_AFDATA_LOCK(ifp);
 		ln = nd6_lookup(router_ll6, 0, ifp);
 		IF_AFDATA_UNLOCK(ifp);
-		if (!ln)
+		if (ln == NULL)
 			goto nolladdropt;
 
 		len = sizeof(*nd_opt) + ifp->if_addrlen;
 		len = (len + 7) & ~7;	/* round by 8 */
 		/* safety check */
-		if (len + (p - (u_char *)ip6) > maxlen)
+		if (len + (p - (u_char *)ip6) > maxlen) 			
 			goto nolladdropt;
 
 		if (ln->la_flags & LLE_VALID) {
@@ -2599,10 +2599,11 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 			bcopy(&ln->ll_addr, lladdr, ifp->if_addrlen);
 			p += len;
 		}
-		LLE_RUNLOCK(ln);
 	}
-nolladdropt:;
-
+nolladdropt:
+	if (ln != NULL)
+		LLE_RUNLOCK(ln);
+		
 	m->m_pkthdr.len = m->m_len = p - (u_char *)ip6;
 
 	/* just to be safe */
