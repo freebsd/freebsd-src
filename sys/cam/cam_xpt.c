@@ -4304,6 +4304,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 
 	TAILQ_INIT(&new_bus->et_entries);
 	new_bus->path_id = sim->path_id;
+	cam_sim_hold(sim);
 	new_bus->sim = sim;
 	timevalclear(&new_bus->last_reset);
 	new_bus->flags = 0;
@@ -4846,6 +4847,7 @@ xpt_release_bus(struct cam_eb *bus)
 		TAILQ_REMOVE(&xsoftc.xpt_busses, bus, links);
 		xsoftc.bus_generation++;
 		mtx_unlock(&xsoftc.xpt_topo_lock);
+		cam_sim_release(bus->sim);
 		free(bus, M_CAMXPT);
 	}
 }
