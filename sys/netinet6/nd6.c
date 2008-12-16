@@ -1407,7 +1407,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int newstate = 0;
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
-	struct mbuf *tail = NULL, *chain = NULL;
+	struct mbuf *chain = NULL;
 	int static_route = 0;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
@@ -1526,11 +1526,14 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 					 * just set the 2nd argument as the
 					 * 1st one.
 					 */
-					nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &tail);
-					if ((tail != NULL) && chain == (NULL))
-						chain = tail;					
+					nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
 				}
-				if (chain)
+				/*
+				 * If we have mbufs in the chain we need to do
+				 * deferred transmit. Copy the address from the
+				 * llentry before dropping the lock down below.
+				 */
+				if (chain != NULL)
 					memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
 			}
 		} else if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
@@ -1706,7 +1709,7 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 int
 nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
     struct sockaddr_in6 *dst, struct rtentry *rt0, struct llentry *lle,
-	struct mbuf **tail)
+	struct mbuf **chain)
 {
 	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = m0;
@@ -1720,7 +1723,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		
 		LLE_WLOCK_ASSERT(lle);
 
-		KASSERT(tail != NULL, (" lle locked but no tail pointer passed"));
+		KASSERT(chain != NULL, (" lle locked but no mbuf chain pointer passed"));
 	}
 #endif
 	if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr))
@@ -1888,12 +1891,25 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 #ifdef MAC
 	mac_netinet6_nd6_send(ifp, m);
 #endif
+	/*
+	 * We were passed in a pointer to an lle with the lock held 
+	 * this means that we can't call if_output as we will
+	 * recurse on the lle lock - so what we do is we create
+	 * a list of mbufs to send and transmit them in the caller
+	 * after the lock is dropped
+	 */
 	if (lle != NULL) {
-		if (*tail == NULL)
-			*tail = m;
-		else {			
-			(*tail)->m_nextpkt = m;
-			*tail = m;			
+		if (*chain == NULL)
+			*chain = m;
+		else {
+			struct mbuf *m = *chain;
+
+			/*
+			 * append mbuf to end of deferred chain
+			 */
+			while (m->m_nextpkt != NULL)
+				m = m->m_nextpkt;
+			m->m_nextpkt = m;
 		}
 		return (error);
 	}
