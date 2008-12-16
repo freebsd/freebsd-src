@@ -40,9 +40,11 @@
 
 /* Information taken from MIPS ABI supplemental */
 
-#include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
-
+#ifndef __ELF_WORD_SIZE
 #define	__ELF_WORD_SIZE 32	/* Used by <sys/elf_generic.h> */
+#endif
+#include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
+#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_MIPS
@@ -114,6 +116,16 @@ typedef union {
 		Elf32_Word gt_bytes;	/* This many bytes would be used */
 	} gt_entry;			/* Subsequent entries in section */
 } Elf32_gptab;
+typedef union {
+	struct {
+		Elf64_Word gt_current_g_value;	/* -G val used in compilation */
+		Elf64_Word gt_unused;	/* Not used */
+	} gt_header;			/* First entry in section */
+	struct {
+		Elf64_Word gt_g_value;	/* If this val were used for -G */
+		Elf64_Word gt_bytes;	/* This many bytes would be used */
+	} gt_entry;			/* Subsequent entries in section */
+} Elf64_gptab;
 
 /*
  * Entry found in sections of type SHT_MIPS_REGINFO.
@@ -123,6 +135,11 @@ typedef struct {
 	Elf32_Word	ri_cprmask[4];	/* Coprocessor registers used */
 	Elf32_Sword	ri_gp_value;	/* $gp register value */
 } Elf32_RegInfo;
+typedef struct {
+	Elf64_Word	ri_gprmask;	/* General registers used */
+	Elf64_Word	ri_cprmask[4];	/* Coprocessor registers used */
+	Elf64_Sword	ri_gp_value;	/* $gp register value */
+} Elf64_RegInfo;
 
 
 /*
@@ -147,10 +164,38 @@ typedef struct {
 #define	R_MIPS_CALLHI16 30	/* upper 16 bit GOT entry for function */
 #define	R_MIPS_CALLLO16 31	/* lower 16 bit GOT entry for function */
 
-#define R_TYPE(name)		__CONCAT(R_MIPS_,name)
+/*
+ * These are from the 64-bit Irix ELF ABI
+ */
+#define	R_MIPS_SHIFT5	16
+#define	R_MIPS_SHIFT6	17
+#define	R_MIPS_64	18
+#define	R_MIPS_GOT_DISP	19
+#define	R_MIPS_GOT_PAGE	20
+#define	R_MIPS_GOT_OFST	21
+#define	R_MIPS_GOT_HI16	22
+#define	R_MIPS_GOT_LO16	23
+#define	R_MIPS_SUB	24
+#define	R_MIPS_INSERT_A	25
+#define	R_MIPS_INSERT_B	26
+#define	R_MIPS_DELETE	27
+#define	R_MIPS_HIGHER	28
+#define	R_MIPS_HIGHEST	29
+#define	R_MIPS_SCN_DISP	32
+#define	R_MIPS_REL16	33
+#define	R_MIPS_ADD_IMMEDIATE 34
+#define	R_MIPS_PJUMP	35
+#define	R_MIPS_ERLGOT	36
+
+#define	R_MIPS_max	37
+#define	R_TYPE(name)		__CONCAT(R_MIPS_,name)
 
 /* Define "machine" characteristics */
+#if __ELF_WORD_SIZE == 32
 #define	ELF_TARG_CLASS	ELFCLASS32
+#else
+#define	ELF_TARG_CLASS	ELFCLASS64
+#endif
 #ifdef __MIPSEB__
 #define	ELF_TARG_DATA	ELFDATA2MSB
 #else
@@ -159,22 +204,29 @@ typedef struct {
 #define	ELF_TARG_MACH	EM_MIPS
 #define	ELF_TARG_VER	1
 
-
 /*
  * Auxiliary vector entries for passing information to the interpreter.
  *
  * The i386 supplement to the SVR4 ABI specification names this "auxv_t",
  * but POSIX lays claim to all symbols ending with "_t".
  */
-
 typedef struct {	/* Auxiliary vector entry on initial stack */
 	int	a_type;			/* Entry type. */
+	union {
+		int	a_val;		/* Integer value. */
+		void	*a_ptr;		/* Address. */
+		void	(*a_fcn)(void); /* Function pointer (not used). */
+	} a_un;
+} Elf32_Auxinfo;
+
+typedef struct {	/* Auxiliary vector entry on initial stack */
+	long	a_type;			/* Entry type. */
 	union {
 		long	a_val;		/* Integer value. */
 		void	*a_ptr;		/* Address. */
 		void	(*a_fcn)(void); /* Function pointer (not used). */
 	} a_un;
-} Elf32_Auxinfo;
+} Elf64_Auxinfo;
 
 __ElfType(Auxinfo);
 
