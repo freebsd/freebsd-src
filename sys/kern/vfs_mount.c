@@ -507,29 +507,20 @@ vfs_mount_destroy(struct mount *mp)
 {
 
 	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_REFEXPIRE;
+	if (mp->mnt_kern_flag & MNTK_MWAIT) {
+		mp->mnt_kern_flag &= ~MNTK_MWAIT;
+		wakeup(mp);
+	}
 	while (mp->mnt_ref)
 		msleep(mp, MNT_MTX(mp), PVFS, "mntref", 0);
-	if (mp->mnt_writeopcount > 0) {
-		printf("Waiting for mount point write ops\n");
-		while (mp->mnt_writeopcount > 0) {
-			mp->mnt_kern_flag |= MNTK_SUSPEND;
-			msleep(&mp->mnt_writeopcount,
-			       MNT_MTX(mp),
-			       PZERO, "mntdestroy2", 0);
-		}
-		printf("mount point write ops completed\n");
-	}
-	if (mp->mnt_secondary_writes > 0) {
-		printf("Waiting for mount point secondary write ops\n");
-		while (mp->mnt_secondary_writes > 0) {
-			mp->mnt_kern_flag |= MNTK_SUSPEND;
-			msleep(&mp->mnt_secondary_writes,
-			       MNT_MTX(mp),
-			       PZERO, "mntdestroy3", 0);
-		}
-		printf("mount point secondary write ops completed\n");
-	}
-	MNT_IUNLOCK(mp);
+	KASSERT(mp->mnt_ref == 0,
+	    ("%s: invalid refcount in the drain path @ %s:%d", __func__,
+	    __FILE__, __LINE__));
+	if (mp->mnt_writeopcount != 0)
+		panic("vfs_mount_destroy: nonzero writeopcount");
+	if (mp->mnt_secondary_writes != 0)
+		panic("vfs_mount_destroy: nonzero secondary_writes");
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist)) {
 		struct vnode *vp;
@@ -538,18 +529,10 @@ vfs_mount_destroy(struct mount *mp)
 			vprint("", vp);
 		panic("unmount: dangling vnode");
 	}
-	MNT_ILOCK(mp);
-	if (mp->mnt_kern_flag & MNTK_MWAIT)
-		wakeup(mp);
-	if (mp->mnt_writeopcount != 0)
-		panic("vfs_mount_destroy: nonzero writeopcount");
-	if (mp->mnt_secondary_writes != 0)
-		panic("vfs_mount_destroy: nonzero secondary_writes");
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
-	mp->mnt_writeopcount = -1000;
-	mp->mnt_nvnodelistsize = -1000;
-	mp->mnt_secondary_writes = -1000;
+	if (mp->mnt_lockref != 0)
+		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
 #ifdef MAC
 	mac_mount_destroy(mp);
