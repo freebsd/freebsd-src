@@ -1405,6 +1405,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int llchange;
 	int flags = 0;
 	int newstate = 0;
+	uint16_t router;
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
 
@@ -1599,11 +1600,14 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	}
 
 	if (ln) {
+		int static_route = (ln->la_flags & LLE_STATIC);
+		router = ln->ln_router;
+
 		if (flags & ND6_EXCLUSIVE)
 			LLE_WUNLOCK(ln);
 		else
 			LLE_RUNLOCK(ln);
-		if (ln->la_flags & LLE_STATIC)
+		if (static_route)
 			ln = NULL;
 	}
 	if (chain)
@@ -1624,7 +1628,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * for those are not autoconfigured hosts, we explicitly avoid such
 	 * cases for safety.
 	 */
-	if (do_update && ln->ln_router && !V_ip6_forwarding && V_ip6_accept_rtadv) {
+	if (do_update && router && !V_ip6_forwarding && V_ip6_accept_rtadv) {
 		/*
 		 * guaranteed recursion
 		 */
