@@ -1593,7 +1593,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR | LLE_EXCLUSIVE),
 		    (struct sockaddr *)&ia->ia_addr);
 		IF_AFDATA_UNLOCK(ifp);
-		if (ln) {
+		if (ln != NULL) {
 			ln->la_expire = 0;  /* for IPv6 this means permanent */
 			ln->ln_state = ND6_LLINFO_REACHABLE;
 			LLE_WUNLOCK(ln);
