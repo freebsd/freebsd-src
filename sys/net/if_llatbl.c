@@ -287,7 +287,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			laflags = lle->la_flags;
 			LLE_WUNLOCK(lle);
 #ifdef INET
-			/*  gratuious ARP */
+			/*  gratuitous ARP */
 			if ((laflags & LLE_PUB) && dst->sa_family == AF_INET) {
 				arprequest(ifp, 
 				    &((struct sockaddr_in *)dst)->sin_addr,
