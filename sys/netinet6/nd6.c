@@ -1405,9 +1405,10 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int llchange;
 	int flags = 0;
 	int newstate = 0;
-	uint16_t router;
+	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
+	int static_route = 0;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 
@@ -1441,8 +1442,10 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		is_newentry = 1;
 	} else {
 		/* do nothing if static ndp is set */
-		if (ln->la_flags & LLE_STATIC)
+		if (ln->la_flags & LLE_STATIC) {
+			static_route = 1;
 			goto done;
+		}
 		is_newentry = 0;
 	}
 	if (ln == NULL)
@@ -1600,7 +1603,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	}
 
 	if (ln) {
-		int static_route = (ln->la_flags & LLE_STATIC);
+		static_route = (ln->la_flags & LLE_STATIC);
 		router = ln->ln_router;
 
 		if (flags & ND6_EXCLUSIVE)
@@ -1642,7 +1645,7 @@ done:
 			LLE_WUNLOCK(ln);
 		else
 			LLE_RUNLOCK(ln);
-		if (ln->la_flags & LLE_STATIC)
+		if (static_route)
 			ln = NULL;
 	}
 	return (ln);
