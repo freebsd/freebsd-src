@@ -1595,7 +1595,7 @@ xpt_remove_periph(struct cam_periph *periph)
 {
 	struct cam_ed *device;
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_lock(periph);
 
 	device = periph->path->device;
 
@@ -1615,6 +1615,7 @@ xpt_remove_periph(struct cam_periph *periph)
 	mtx_lock(&xsoftc.xpt_topo_lock);
 	xsoftc.xpt_generation++;
 	mtx_unlock(&xsoftc.xpt_topo_lock);
+	cam_periph_unlock(periph);
 }
 
 
