@@ -1407,7 +1407,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int newstate = 0;
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
-	struct mbuf *chain = NULL;
+	struct mbuf *tail = NULL, *chain = NULL;
 	int static_route = 0;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
@@ -1526,7 +1526,9 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 					 * just set the 2nd argument as the
 					 * 1st one.
 					 */
-					nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
+					nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &tail);
+					if ((tail != NULL) && chain == (NULL))
+						chain = tail;					
 				}
 				if (chain)
 					memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
@@ -1889,8 +1891,10 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	if (lle != NULL) {
 		if (*tail == NULL)
 			*tail = m;
-		else
+		else {			
 			(*tail)->m_nextpkt = m;
+			*tail = m;			
+		}
 		return (error);
 	}
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
@@ -2037,7 +2041,7 @@ nd6_storelladdr(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	ln = lla_lookup(LLTABLE6(ifp), 0, dst);
 	IF_AFDATA_UNLOCK(ifp);
 	if ((ln == NULL) || !(ln->la_flags & LLE_VALID)) {
-		if (ln)
+		if (ln != NULL)
 			LLE_RUNLOCK(ln);
 		/* this could happen, if we could not allocate memory */
 		m_freem(m);
