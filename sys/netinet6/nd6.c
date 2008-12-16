@@ -1433,14 +1433,14 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	flags |= lladdr ? ND6_EXCLUSIVE : 0;
 	IF_AFDATA_LOCK(ifp);
 	ln = nd6_lookup(from, flags, ifp);
-	if (ln)
-		IF_AFDATA_UNLOCK(ifp);
+
 	if (ln == NULL) {
 		flags |= LLE_EXCLUSIVE;
 		ln = nd6_lookup(from, flags |ND6_CREATE, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		is_newentry = 1;
 	} else {
+		IF_AFDATA_UNLOCK(ifp);		
 		/* do nothing if static ndp is set */
 		if (ln->la_flags & LLE_STATIC) {
 			static_route = 1;
@@ -1604,7 +1604,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		break;
 	}
 
-	if (ln) {
+	if (ln != NULL) {
 		static_route = (ln->la_flags & LLE_STATIC);
 		router = ln->ln_router;
 
@@ -1878,7 +1878,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	 * ln is valid and the caller did not pass in 
 	 * an llentry
 	 */
-	if (ln && (lle == NULL)) {
+	if ((ln != NULL) && (lle == NULL)) {
 		if (flags & LLE_EXCLUSIVE)
 			LLE_WUNLOCK(ln);
 		else
@@ -1909,7 +1909,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	 * ln is valid and the caller did not pass in 
 	 * an llentry
 	 */
-	if (ln && (lle == NULL)) {
+	if ((ln != NULL) && (lle == NULL)) {
 		if (flags & LLE_EXCLUSIVE)
 			LLE_WUNLOCK(ln);
 		else
