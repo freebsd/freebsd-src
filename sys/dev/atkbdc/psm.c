@@ -4267,10 +4267,15 @@ enable_synaptics(struct psm_softc *sc)
 	sc->hw.buttons = 3;
 	sc->squelch = 0;
 
-	/* Just to be on the safe side */
+	/*
+	 * Just to be on the safe side: this avoids troubles with
+	 * following mouse_ext_command() when the previous command
+	 * was PSMC_SET_RESOLUTION. Set Scaling has no effect on
+	 * Synaptics Touchpad behaviour.
+	 */
 	set_mouse_scaling(kbdc, 1);
 
-	/* Identify the Touchpad version */
+	/* Identify the Touchpad version. */
 	if (mouse_ext_command(kbdc, 0) == 0)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
@@ -4290,7 +4295,7 @@ enable_synaptics(struct psm_softc *sc)
 		return (FALSE);
 	}
 
-	/* Get the Touchpad model information */
+	/* Get the Touchpad model information. */
 	if (mouse_ext_command(kbdc, 3) == 0)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
@@ -4321,7 +4326,7 @@ enable_synaptics(struct psm_softc *sc)
 		printf("   infoGeometry: %d\n", sc->synhw.infoGeometry);
 	}
 
-	/* Read the extended capability bits */
+	/* Read the extended capability bits. */
 	if (mouse_ext_command(kbdc, 2) == 0)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
@@ -4331,7 +4336,7 @@ enable_synaptics(struct psm_softc *sc)
 		return (FALSE);
 	}
 
-	/* Set the different capabilities when they exist */
+	/* Set the different capabilities when they exist. */
 	if ((status[0] & 0x80) >> 7) {
 		sc->synhw.capExtended    = (status[0] & 0x80) >> 7;
 		sc->synhw.capPassthrough = (status[2] & 0x80) >> 7;
@@ -4355,8 +4360,8 @@ enable_synaptics(struct psm_softc *sc)
 		}
 
 		/*
-		 * if we have bits set in status[0] & 0x70 - then we can load
-		 * more information about buttons using query 0x09
+		 * If we have bits set in status[0] & 0x70, then we can load
+		 * more information about buttons using query 0x09.
 		 */
 		if (status[0] & 0x70) {
 			if (mouse_ext_command(kbdc, 0x09) == 0)
@@ -4376,7 +4381,7 @@ enable_synaptics(struct psm_softc *sc)
 	}
 
 	/*
-	 * Read the mode byte
+	 * Read the mode byte.
 	 *
 	 * XXX: Note the Synaptics documentation also defines the first
 	 * byte of the response to this query to be a constant 0x3b, this
@@ -4391,13 +4396,13 @@ enable_synaptics(struct psm_softc *sc)
 		return (FALSE);
 	}
 
-	/* Set the mode byte -- request wmode where available */
+	/* Set the mode byte; request wmode where available. */
 	if (sc->synhw.capExtended)
 		mouse_ext_command(kbdc, 0xc1);
 	else
 		mouse_ext_command(kbdc, 0xc0);
 
-	/* Reset the sampling rate */
+	/* "Commit" the Set Mode Byte command sent above. */
 	set_mouse_sampling_rate(kbdc, 20);
 
 	/*
