@@ -574,7 +574,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		IF_AFDATA_LOCK(ifp);
 		la = lla_lookup(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6_next->sin6_addr);
 		IF_AFDATA_UNLOCK(ifp);
-		if (la) 
+		if (la != NULL) 
 			LLE_RUNLOCK(la);
 		else {
 			error = EHOSTUNREACH;
