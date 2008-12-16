@@ -394,15 +394,15 @@ print_kshmtotal(struct shminfo shminfo)
 {
 
 	printf("shminfo:\n");
-	printf("\tshmmax: %12d\t(max shared memory segment size)\n",
+	printf("\tshmmax: %12lu\t(max shared memory segment size)\n",
 	    shminfo.shmmax);
-	printf("\tshmmin: %12d\t(min shared memory segment size)\n",
+	printf("\tshmmin: %12lu\t(min shared memory segment size)\n",
 	    shminfo.shmmin);
-	printf("\tshmmni: %12d\t(max number of shared memory identifiers)\n",
+	printf("\tshmmni: %12lu\t(max number of shared memory identifiers)\n",
 	    shminfo.shmmni);
-	printf("\tshmseg: %12d\t(max shared memory segments per process)\n",
+	printf("\tshmseg: %12lu\t(max shared memory segments per process)\n",
 	    shminfo.shmseg);
-	printf("\tshmall: %12d\t(max amount of shared memory in pages)\n\n",
+	printf("\tshmall: %12lu\t(max amount of shared memory in pages)\n\n",
 	    shminfo.shmall);
 }
 
