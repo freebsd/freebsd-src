@@ -232,7 +232,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	/*
 	 * Check AH/ESP integrity.
 	 */
-	if (last && ipsec6_in_reject(m, last)) {
+	if ((last != NULL) && ipsec6_in_reject(m, last)) {
 		m_freem(m);
 		V_ipsec6stat.in_polvio++;
 		V_ip6stat.ip6s_delivered--;
@@ -357,7 +357,7 @@ rip6_output(m, va_alist)
 	INP_WLOCK(in6p);
 
 	dst = &dstsock->sin6_addr;
-	if (control) {
+	if (control != NULL) {
 		if ((error = ip6_setpktopts(control, &opt,
 		    in6p->in6p_outputopts, so->so_cred,
 		    so->so_proto->pr_protocol)) != 0) {
@@ -491,7 +491,7 @@ rip6_output(m, va_alist)
 		m_freem(m);
 
  freectl:
-	if (control) {
+	if (control != NULL) {
 		ip6_clearpktopts(&opt, -1);
 		m_freem(control);
 	}
