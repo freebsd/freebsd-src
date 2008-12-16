@@ -1642,7 +1642,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	
 	return (ln);
 done:	
-	if (ln) {
+	if (ln != NULL) {
 		if (flags & ND6_EXCLUSIVE)
 			LLE_WUNLOCK(ln);
 		else
@@ -1716,7 +1716,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	int flags = 0;
 
 #ifdef INVARIANTS
-	if (lle) {
+	if (lle != NULL) {
 		
 		LLE_WLOCK_ASSERT(lle);
 

@@ -193,7 +193,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 				continue;
 			}
 		}
-		if (last) {
+		if (last != NULL) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
 #ifdef IPSEC
@@ -240,7 +240,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		INP_RUNLOCK(last);
 	} else
 #endif /* IPSEC */
-	if (last) {
+	if (last != NULL) {
 		if (last->inp_flags & IN6P_CONTROLOPTS ||
 		    last->inp_socket->so_options & SO_TIMESTAMP)
 			ip6_savecontrol(last, m, &opts);

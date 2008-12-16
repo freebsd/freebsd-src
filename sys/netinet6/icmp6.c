@@ -1947,7 +1947,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			INP_RUNLOCK(in6p);
 			continue;
 		}
-		if (last) {
+		if (last != NULL) {
 			struct	mbuf *n = NULL;
 
 			/*
@@ -2008,7 +2008,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		last = in6p;
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
-	if (last) {
+	if (last != NULL) {
 		if (last->inp_flags & IN6P_CONTROLOPTS)
 			ip6_savecontrol(last, m, &opts);
 		/* strip intermediate headers */
