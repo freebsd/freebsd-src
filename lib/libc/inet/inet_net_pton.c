@@ -135,11 +135,11 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 			assert(n >= 0 && n <= 9);
 			bits *= 10;
 			bits += n;
+			if (bits > 32)
+				goto enoent;
 		} while ((ch = *src++) != '\0' && isascii(ch) && isdigit(ch));
 		if (ch != '\0')
 			goto enoent;
-		if (bits > 32)
-			goto emsgsize;
 	}
 
 	/* Firey death and destruction unless we prefetched EOS. */
