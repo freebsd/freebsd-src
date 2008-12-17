@@ -1148,7 +1148,7 @@ icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 		mtu = IPV6_MMTU - 8;
 
 	bzero(&inc, sizeof(inc));
-	inc.inc_flags = 1; /* IPv6 */
+	inc.inc_flags |= INC_ISIPV6;
 	inc.inc6_faddr = *dst;
 	if (in6_setscope(&inc.inc6_faddr, m->m_pkthdr.rcvif, NULL))
 		return;

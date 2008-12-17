@@ -1700,7 +1700,7 @@ db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
 	indent += 2;
 
 #ifdef INET6
-	if (inc->inc_flags == 1) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		/* IPv6. */
 		ip6_sprintf(laddr_str, &inc->inc6_laddr);
 		ip6_sprintf(faddr_str, &inc->inc6_faddr);

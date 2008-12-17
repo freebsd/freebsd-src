@@ -1306,7 +1306,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					     * value (if given) and then notify.
 					     */
 					    bzero(&inc, sizeof(inc));
-					    inc.inc_flags = 0;	/* IPv4 */
 					    inc.inc_faddr = faddr;
 					    inc.inc_fibnum =
 						inp->inp_inc.inc_fibnum;
@@ -1343,13 +1342,11 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 			if (inp != NULL)
 				INP_WUNLOCK(inp);
 		} else {
+			bzero(&inc, sizeof(inc));
 			inc.inc_fport = th->th_dport;
 			inc.inc_lport = th->th_sport;
 			inc.inc_faddr = faddr;
 			inc.inc_laddr = ip->ip_src;
-#ifdef INET6
-			inc.inc_isipv6 = 0;
-#endif
 			syncache_unreach(&inc, th);
 		}
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1419,11 +1416,12 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		    (struct sockaddr *)ip6cp->ip6c_src,
 		    th.th_sport, cmd, NULL, notify);
 
+		bzero(&inc, sizeof(inc));
 		inc.inc_fport = th.th_dport;
 		inc.inc_lport = th.th_sport;
 		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
 		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
-		inc.inc_isipv6 = 1;
+		inc.inc_flags |= INC_ISIPV6;
 		INP_INFO_WLOCK(&V_tcbinfo);
 		syncache_unreach(&inc, &th);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -2263,7 +2261,7 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	strcat(s, "TCP: [");
 	sp = s + strlen(s);
 
-	if (inc && inc->inc_isipv6 == 0) {
+	if (inc && ((inc->inc_flags & INC_ISIPV6) == 0)) {
 		inet_ntoa_r(inc->inc_faddr, sp);
 		sp = s + strlen(s);
 		sprintf(sp, "]:%i to [", ntohs(inc->inc_fport));
