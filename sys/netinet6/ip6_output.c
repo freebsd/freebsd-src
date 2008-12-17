@@ -1320,7 +1320,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 		struct in_conninfo inc;
 
 		bzero(&inc, sizeof(inc));
-		inc.inc_flags = 1; /* IPv6 */
+		inc.inc_flags |= INC_ISIPV6;
 		inc.inc6_faddr = *dst;
 
 		if (ifp == NULL)
