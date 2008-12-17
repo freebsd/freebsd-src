@@ -90,22 +90,40 @@
 	</listitem>
 
 	<listitem>
-	  <para>&intel; 64-bit &xeon; (<quote>Nocona</quote>).  This
-	    processor is fabricated on 90nm process technology, and
-	    operates with 2.80 to 3.60 GHz (FSB 800MHz) and &intel;
-	    E7520/E7525/E7320 chipsets.</para>
+	  <para>All multi-core &intel; &xeon; processors except
+	    Sossaman have EM64T support.</parA>
 	</listitem>
 
 	<listitem>
-	  <para>&intel; &pentium; 4 Processor supporting &intel; EM64T
-	    (<quote>Prescott</quote>).  This is fabricated on 90nm
-	    process technology, uses FC-LGA775 package, and operates
-	    with 3.20F/3.40F/3.60F GHz and &intel; 925X Express
-	    chipsets.  The corresponding S-Spec numbers are SL7L9,
-	    SL7L8, SL7LA, SL7NZ, SL7PZ, and SL7PX. Note that
-	    processors marked as 5xx numbers do not support
-	    EM64T.</para>
+          <para>The single-core &intel; &xeon;
+            processors <quote>Nocona</quote>, <quote>Irwindale</quote>,
+	    <quote>Potomac</quote>, and <quote>Cranford</quote> have
+	    EM64T support.</para>
 	</listitem>
+
+	<listitem>
+	  <para>All &intel; Core 2 (not Core Duo) and later
+	    processors</para>
+	</listitem>
+
+	<listitem>
+	  <para>All &intel; &pentium; D processors</para>
+	</listitem>
+
+	<listitem>
+	  <para>&intel; &pentium; 4s and Celeron Ds using
+	    the <quote>Cedar Mill</quote> core have EM64T
+	    support.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Some &intel; &pentium; 4s and Celeron Ds using
+	    the <quote>Prescott</quote> core have EM64T support.  See
+	    the <ulink url="http://processorfinder.intel.com">Intel
+	    Processor Spec Finder</ulink> for the definitive answer about
+	    EM64T support in Intel processors.</para>
+	</listitem>
+
       </itemizedlist>
 
       <para>&intel; EM64T is an extended version of IA-32 (x86) and
@@ -114,7 +132,7 @@
 	to &intel; EM64T as <quote>64-bit extension technology</quote>
 	or <quote>IA-32e</quote>.</para>
 
-      <para>The largest tested memory configuration to date is 8GB.
+      <para>The largest tested memory configuration to date is 32GB.
 	SMP support has been recently completed and is reasonably
 	robust.</para>
 
