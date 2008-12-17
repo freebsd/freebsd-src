@@ -311,6 +311,8 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 	struct mtx *mtx;
 	int error;
 
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+
 	/*
 	 * Increment the reference count on the peripheral
 	 * while we wait for our lock attempt to succeed
@@ -322,8 +324,6 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 		return (ENXIO);
 
 	mtx = periph->sim->mtx;
-	mtx_assert(mtx, MA_OWNED);
-
 	if (mtx == &Giant)
 		mtx = NULL;
 
