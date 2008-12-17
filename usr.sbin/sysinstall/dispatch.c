@@ -95,7 +95,6 @@ static struct _word {
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
     { "mediaSetDOS",		mediaSetDOS		},
-    { "mediaSetTape",		mediaSetTape		},
     { "mediaSetFTP",		mediaSetFTP		},
     { "mediaSetFTPActive",	mediaSetFTPActive	},
     { "mediaSetFTPPassive",	mediaSetFTPPassive	},
