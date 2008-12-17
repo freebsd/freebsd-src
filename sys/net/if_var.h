@@ -77,6 +77,7 @@ struct  ifvlantrunk;
 #ifdef _KERNEL
 #include <sys/mbuf.h>
 #include <sys/eventhandler.h>
+#include <sys/buf_ring.h>
 #endif /* _KERNEL */
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
@@ -547,6 +548,32 @@ do {									\
 	(ifq)->ifq_drv_len = 0;						\
 	IFQ_PURGE(ifq);							\
 } while (0)
+
+#ifdef _KERNEL
+static __inline int
+drbr_enqueue(struct buf_ring *br, struct mbuf *m)
+{	
+	int error = 0;
+
+	if ((error = buf_ring_enqueue(br, m)) == ENOBUFS) {
+		br->br_drops++;
+		m_freem(m);
+	}
+
+	return (error);
+}
+
+static __inline void
+drbr_free(struct buf_ring *br, struct malloc_type *type)
+{
+	struct mbuf *m;
+
+	while ((m = buf_ring_dequeue_sc(br)) != NULL)
+		m_freem(m);
+
+	buf_ring_free(br, type);
+}
+#endif
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP
