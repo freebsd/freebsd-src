@@ -97,9 +97,6 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
 TUNABLE_INT("kern.elf" __XSTRING(__ELF_WORD_SIZE) ".fallback_brand",
     &__elfN(fallback_brand));
 
-static int elf_trace = 0;
-SYSCTL_INT(_debug, OID_AUTO, __elfN(trace), CTLFLAG_RW, &elf_trace, 0, "");
-
 static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
@@ -839,7 +836,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	elf_auxargs->base = addr;
 	elf_auxargs->flags = 0;
 	elf_auxargs->entry = entry;
-	elf_auxargs->trace = elf_trace;
 
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
