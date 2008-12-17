@@ -22,5 +22,5 @@ device		uart_ns8250
 #device		uart_i8251
 
 # Default partitioning schemes
-options 	GEOM_BSD
-options 	GEOM_PC98
+options 	GEOM_PART_BSD
+options 	GEOM_PART_PC98
