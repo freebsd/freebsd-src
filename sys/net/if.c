@@ -197,9 +197,9 @@ ifnet_byindex(u_short idx)
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_WLOCK();
 	ifp = V_ifindex_table[idx].ife_ifnet;
-	IFNET_RUNLOCK();
+	IFNET_WUNLOCK();
 	return (ifp);
 }
 
@@ -218,9 +218,9 @@ ifaddr_byindex(u_short idx)
 {
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_WLOCK();
 	ifa = ifnet_byindex(idx)->if_addr;
-	IFNET_RUNLOCK();
+	IFNET_WUNLOCK();
 	return (ifa);
 }
 
