@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -865,7 +864,7 @@ main(int argc, char *argv[])
 			break;
 		default:
 			usage();
-			exit(EX_USAGE);
+			exit(1);
 		}
 
 	argc -= optind;
@@ -874,7 +873,7 @@ main(int argc, char *argv[])
 	if (h_hostname || f_filename || c_dirname) {
 		if (!h_hostname || !f_filename || argc) {
 			usage();
-			exit(EX_USAGE);
+			exit(1);
 		}
 		/* XXX this is a hack. */
 		if (strcspn(h_hostname, "@:/") != strlen(h_hostname))
@@ -887,7 +886,7 @@ main(int argc, char *argv[])
 
 	if (!argc) {
 		usage();
-		exit(EX_USAGE);
+		exit(1);
 	}
 
 	/* allocate buffer */
@@ -928,10 +927,10 @@ main(int argc, char *argv[])
 		} else if (stat(o_filename, &sb) == -1) {
 			if (errno == ENOENT) {
 				if (argc > 1)
-					errx(EX_USAGE, "%s is not a directory",
+					errx(1, "%s is not a directory",
 					    o_filename);
 			} else {
-				err(EX_IOERR, "%s", o_filename);
+				err(1, "%s", o_filename);
 			}
 		} else {
 			if (sb.st_mode & S_IFDIR)
