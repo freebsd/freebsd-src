@@ -550,16 +550,29 @@ do {									\
 } while (0)
 
 #ifdef _KERNEL
+static __inline void
+drbr_stats_update(struct ifnet *ifp, int len, int mflags)
+{
+
+	ifp->if_obytes += len;
+	if (mflags & M_MCAST)
+		ifp->if_omcasts++;
+}
+
 static __inline int
-drbr_enqueue(struct buf_ring *br, struct mbuf *m)
+drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 {	
 	int error = 0;
+	int len = m->m_pkthdr.len;
+	int mflags = m->m_flags;
 
 	if ((error = buf_ring_enqueue(br, m)) == ENOBUFS) {
 		br->br_drops++;
+		_IF_DROP(&ifp->if_snd);
 		m_freem(m);
-	}
-
+	} else
+		drbr_stats_update(ifp, len, mflags);
+	
 	return (error);
 }
 
