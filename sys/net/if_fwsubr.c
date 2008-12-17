@@ -167,7 +167,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #ifdef INET6
 	case AF_INET6:
 		if (unicast) {
-			error = nd6_storelladdr(fc->fc_ifp, rt0, m, dst,
+			error = nd6_storelladdr(fc->fc_ifp, m, dst,
 			    (u_char *) destfw, &lle);
 			if (error)
 				return (error);

@@ -1554,7 +1554,6 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	char ip6buf[INET6_ADDRSTRLEN];
 	struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 
-
 	/* sanity check */
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0) {
 		nd6log((LOG_ERR,
@@ -1623,7 +1622,6 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	rtflags = ifa->ifa_flags | RTF_UP;
 	error = rtrequest(RTM_ADD, (struct sockaddr *)&pr->ndpr_prefix,
 	    ifa->ifa_addr, (struct sockaddr *)&mask6, rtflags, &rt);
-
 	if (error == 0) {
 		if (rt != NULL) /* this should be non NULL, though */ {
 			rnh = V_rt_tables[rt->rt_fibnum][AF_INET6];
