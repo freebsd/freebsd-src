@@ -94,6 +94,7 @@ int
 ata_ahci_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    int	error;
     u_int32_t version;
 
     /* if we have a memory BAR(5) we are likely on an AHCI part */
@@ -105,14 +106,19 @@ ata_ahci_chipinit(device_t dev)
 
     /* setup interrupt delivery if not done allready by a vendor driver */
     if (!ctlr->r_irq) {
-	if (ata_setup_interrupt(dev, ata_generic_intr))
+	if (ata_setup_interrupt(dev, ata_generic_intr)) {
+	    bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
 	    return ENXIO;
+	}
     }
     else
 	device_printf(dev, "AHCI called from vendor specific driver\n");
 
     /* reset controller */
-    ata_ahci_ctlr_reset(dev);
+    if ((error = ata_ahci_ctlr_reset(dev)) != 0) {
+	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
+	return (error);
+    };
 
     /* get the number of HW channels */
     ctlr->channels =
@@ -154,7 +160,6 @@ ata_ahci_ctlr_reset(device_t dev)
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_HR);
     DELAY(1000000);
     if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
-	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
 	device_printf(dev, "AHCI controller reset failure\n");
 	return ENXIO;
     }
