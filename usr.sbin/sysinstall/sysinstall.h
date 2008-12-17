@@ -271,7 +271,6 @@ typedef enum {
     DEVICE_TYPE_FTP,
     DEVICE_TYPE_NETWORK,
     DEVICE_TYPE_CDROM,
-    DEVICE_TYPE_TAPE,
     DEVICE_TYPE_DOS,
     DEVICE_TYPE_UFS,
     DEVICE_TYPE_NFS,
@@ -443,7 +442,6 @@ extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
 extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
 extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
-extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
 extern DMenu		MenuSecurity;		/* System security options menu			*/
@@ -717,7 +715,6 @@ extern int	mediaTimeout(void);
 extern int	mediaSetCDROM(dialogMenuItem *self);
 extern int	mediaSetFloppy(dialogMenuItem *self);
 extern int	mediaSetDOS(dialogMenuItem *self);
-extern int	mediaSetTape(dialogMenuItem *self);
 extern int	mediaSetFTP(dialogMenuItem *self);
 extern int	mediaSetFTPActive(dialogMenuItem *self);
 extern int	mediaSetFTPPassive(dialogMenuItem *self);
@@ -834,11 +831,6 @@ extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mo
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern void	systemCreateHoloshell(void);
 extern int	vsystem(char *fmt, ...) __printflike(1, 2);
-
-/* tape.c */
-extern Boolean	mediaInitTape(Device *dev);
-extern FILE	*mediaGetTape(Device *dev, char *file, Boolean probe);
-extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);

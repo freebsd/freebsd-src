@@ -186,7 +186,6 @@ DMenu MenuIndex = {
       { " Install, Custom",	"The custom installation menu",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
       { " Label",		"The disk Label editor",		NULL, diskLabelEditor },
       { " Media",		"Top level media selection menu.",	NULL, dmenuSubmenu, NULL, &MenuMedia },
-      { " Media, Tape",		"Select tape installation media.",	NULL, mediaSetTape },
       { " Media, NFS",		"Select NFS installation media.",	NULL, mediaSetNFS },
       { " Media, Floppy",	"Select floppy installation media.",	NULL, mediaSetFloppy },
       { " Media, CDROM/DVD",	"Select CDROM/DVD installation media.",	NULL, mediaSetCDROM },
@@ -794,20 +793,6 @@ DMenu MenuMediaFTP = {
       { NULL } }
 };
 
-DMenu MenuMediaTape = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Choose a tape drive type",
-    "FreeBSD can be installed from tape drive, though this installation\n"
-    "method requires a certain amount of temporary storage in addition\n"
-    "to the space required by the distribution itself (tape drives make\n"
-    "poor random-access devices, so we extract _everything_ on the tape\n"
-    "in one pass).  If you have sufficient space for this, then you should\n"
-    "select one of the following tape devices detected on your system.",
-    NULL,
-    NULL,
-    { { NULL } },
-};
-
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
@@ -852,7 +837,6 @@ DMenu MenuMedia = {
       { "6 NFS",		"Install over NFS",			NULL, mediaSetNFS },
       { "7 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
       { "8 Floppy",		"Install from a floppy disk set",	NULL, mediaSetFloppy },
-      { "9 Tape",		"Install from SCSI or QIC tape",	NULL, mediaSetTape },
       { "X Options",		"Go to the Options screen",		NULL, optionsEditor },
       { NULL } },
 };
