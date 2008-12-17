@@ -92,7 +92,9 @@ __RCSID("$NetBSD: walk.c,v 1.17 2004/06/20 22:20:18 jmc Exp $");
 #include <unistd.h>
 
 #include "makefs.h"
+
 #include "mtree.h"
+#include "extern.h"		/* NB: mtree */
 
 static	void	 apply_specdir(const char *, NODE *, fsnode *);
 static	void	 apply_specentry(const char *, NODE *, fsnode *);
@@ -228,7 +230,7 @@ apply_specfile(const char *specfile, const char *dir, fsnode *parent)
 	if ((fp = fopen(specfile, "r")) == NULL)
 		err(1, "Can't open `%s'", specfile);
 	TIMER_START(start);
-	root = spec(fp);
+	root = mtree_readspec(fp);
 	TIMER_RESULTS(start, "spec");
 	if (fclose(fp) == EOF)
 		err(1, "Can't close `%s'", specfile);
@@ -241,6 +243,32 @@ apply_specfile(const char *specfile, const char *dir, fsnode *parent)
 
 				/* merge in the changes */
 	apply_specdir(dir, root, parent);
+}
+
+static u_int
+nodetoino(u_int type)
+{
+
+	switch (type) {
+	case F_BLOCK:
+		return S_IFBLK;
+	case F_CHAR:
+		return S_IFCHR;
+	case F_DIR:
+		return S_IFDIR;
+	case F_FIFO:
+		return S_IFIFO;
+	case F_FILE:
+		return S_IFREG;
+	case F_LINK:
+		return S_IFLNK;
+	case F_SOCK:
+		return S_IFSOCK;
+	default:
+		printf("unknown type %d", type);
+		abort();
+	}
+	/* NOTREACHED */
 }
 
 static void
@@ -306,9 +334,6 @@ apply_specdir(const char *dir, NODE *specnode, fsnode *dirnode)
 			    curnode->flags & F_GNAME, "group");
 			NODETEST(curnode->flags & F_UID ||
 			    curnode->flags & F_UNAME, "user");
-			if (curnode->type == F_BLOCK || curnode->type == F_CHAR)
-				NODETEST(curnode->flags & F_DEV,
-				    "device number");
 #undef NODETEST
 
 			if (debug & DEBUG_APPLY_SPECFILE)
@@ -425,11 +450,6 @@ apply_specentry(const char *dir, NODE *specnode, fsnode *dirnode)
 		dirnode->inode->st.st_flags = specnode->st_flags;
 	}
 #endif
-	if (specnode->flags & F_DEV) {
-		ASEPRINT("rdev", "%#x",
-		    dirnode->inode->st.st_rdev, specnode->st_rdev);
-		dirnode->inode->st.st_rdev = specnode->st_rdev;
-	}
 #undef ASEPRINT
 
 	dirnode->flags |= FSNODE_F_HASSPEC;
@@ -479,15 +499,29 @@ dump_fsnodes(const char *dir, fsnode *root)
 /*
  * inode_type --
  *	for a given inode type `mode', return a descriptive string.
- *	for most cases, uses inotype() from mtree/misc.c
  */
 const char *
 inode_type(mode_t mode)
 {
 
+	if (S_ISREG(mode))
+		return ("file");
 	if (S_ISLNK(mode))
-		return ("symlink");	/* inotype() returns "link"...  */
-	return (inotype(mode));
+		return ("symlink");
+	if (S_ISDIR(mode))
+		return ("dir");
+	if (S_ISLNK(mode))
+		return ("link");
+	if (S_ISFIFO(mode))
+		return ("fifo");
+	if (S_ISSOCK(mode))
+		return ("socket");
+	/* XXX should not happen but handle them */
+	if (S_ISCHR(mode))
+		return ("char");
+	if (S_ISBLK(mode))
+		return ("block");
+	return ("unknown");
 }
 
 

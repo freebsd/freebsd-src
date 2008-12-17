@@ -82,6 +82,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "mtree.h"
 #include "extern.h"
 
 static	struct group *	gi_getgrnam(const char *);
