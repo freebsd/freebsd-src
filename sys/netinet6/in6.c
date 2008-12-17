@@ -987,6 +987,13 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			}
 		}
 		if (!rt) {
+
+		  printf("in6_update_ifa #1: addr= %s, mask= %s, ia= %s, ifp = %s\n", 
+		      ip6_sprintf(ip6buf, &mltaddr.sin6_addr),
+		      ip6_sprintf(ip6buf, &mltmask.sin6_addr),
+		      ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
+		      if_name(ifp));
+
 			error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
 			    (struct sockaddr *)&ia->ia_addr,
 			    (struct sockaddr *)&mltmask, RTF_UP,
@@ -1061,6 +1068,12 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			}
 		}
 		if (!rt) {
+		  printf("in6_update_ifa #2: addr= %s, mask= %s, ia= %s, ifp = %s\n", 
+		      ip6_sprintf(ip6buf, &mltaddr.sin6_addr),
+		      ip6_sprintf(ip6buf, &mltmask.sin6_addr),
+		      ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
+		      if_name(ifp));
+
 			error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
 			    (struct sockaddr *)&ia->ia_addr,
 			    (struct sockaddr *)&mltmask, RTF_UP,
