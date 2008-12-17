@@ -441,7 +441,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	IN6P_RECVIF		INP_RECVIF
 #define	IN6P_MTUDISC		INP_MTUDISC
 #define	IN6P_FAITH		INP_FAITH
-#define	IN6P_CONTROLOPTS INP_CONTROLOPTS
+#define	IN6P_CONTROLOPTS	INP_CONTROLOPTS
 	/*
 	 * socket AF version is {newer than,or include}
 	 * actual datagram AF version

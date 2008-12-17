@@ -153,7 +153,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	}
 #endif
 	opts = NULL;
-	if (inp->inp_flags & IN6P_CONTROLOPTS ||
+	if (inp->inp_flags & INP_CONTROLOPTS ||
 	    inp->inp_socket->so_options & SO_TIMESTAMP)
 		ip6_savecontrol(inp, n, &opts);
 	m_adj(n, off + sizeof(struct udphdr));
