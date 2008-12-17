@@ -131,6 +131,8 @@
 #define RL_TBI_ANAR		0x0068
 #define RL_TBI_LPAR		0x006A
 #define RL_GMEDIASTAT		0x006C	/* 8 bits */
+#define RL_MACDBG		0x006D	/* 8 bits, 8168C SPIN2 only */
+#define RL_GPIO			0x006E	/* 8 bits, 8168C SPIN2 only */
 #define RL_MAXRXPKTLEN		0x00DA	/* 16 bits, chip multiplies by 8 */
 #define RL_GTXSTART		0x0038	/* 8 bits */
 
@@ -888,6 +890,7 @@ struct rl_softc {
 #define	RL_FLAG_PHY8169		0x0400
 #define	RL_FLAG_PHY8110S	0x0800
 #define	RL_FLAG_WOLRXENB	0x1000
+#define	RL_FLAG_MACSLEEP	0x2000
 #define	RL_FLAG_LINK		0x8000
 };
 
