@@ -1211,7 +1211,7 @@ lagg_linkstate(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
 	int new_link = LINK_STATE_DOWN;
-	uint64_t speed = 0;
+	uint64_t speed;
 
 	/* Our link is considered up if at least one of our ports is active */
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
@@ -1225,12 +1225,13 @@ lagg_linkstate(struct lagg_softc *sc)
 	/* Update if_baudrate to reflect the max possible speed */
 	switch (sc->sc_proto) {
 		case LAGG_PROTO_FAILOVER:
-			sc->sc_ifp->if_baudrate =
-			    sc->sc_primary->lp_ifp->if_baudrate;
+			sc->sc_ifp->if_baudrate = sc->sc_primary != NULL ?
+			    sc->sc_primary->lp_ifp->if_baudrate : 0;
 			break;
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
 		case LAGG_PROTO_ETHERCHANNEL:
+			speed = 0;
 			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 				speed += lp->lp_ifp->if_baudrate;
 			sc->sc_ifp->if_baudrate = speed;
