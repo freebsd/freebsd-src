@@ -10,8 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -88,7 +86,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -137,6 +134,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/reboot.h>
 
+#include <powerpc/mpc85xx/ocpbus.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
+
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
 #else
@@ -180,8 +180,8 @@ static void cpu_e500_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
 
 void print_kernel_section_addr(void);
-void dump_bootinfo(void);
-void dump_kenv(void);
+void print_bootinfo(void);
+void print_kenv(void);
 u_int e500_init(u_int32_t, u_int32_t, void *);
 
 static void
@@ -204,16 +204,17 @@ cpu_e500_startup(void *dummy)
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			size = phys_avail[indx + 1] - phys_avail[indx];
+
 			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n",
-			    phys_avail[indx], phys_avail[indx + 1] - 1, size,
-			    size / PAGE_SIZE);
+			    phys_avail[indx], phys_avail[indx + 1] - 1,
+			    size, size / PAGE_SIZE);
 		}
 	}
 
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
-			ptoa(cnt.v_free_count) / 1048576);
+	    ptoa(cnt.v_free_count) / 1048576);
 
 	/* Set up buffers, so they can be used to read disk labels. */
 	bufinit();
@@ -235,7 +236,7 @@ kenv_next(char *cp)
 }
 
 void
-dump_kenv(void)
+print_kenv(void)
 {
 	int len;
 	char *cp;
@@ -253,7 +254,7 @@ dump_kenv(void)
 }
 
 void
-dump_bootinfo(void)
+print_bootinfo(void)
 {
 	struct bi_mem_region *mr;
 	struct bi_eth_addr *eth;
@@ -291,20 +292,20 @@ print_kernel_section_addr(void)
 {
 
 	debugf("kernel image addresses:\n");
-	debugf(" kernel_text    = 0x%08x\n", (u_int32_t)kernel_text);
-	debugf(" _etext (sdata) = 0x%08x\n", (u_int32_t)_etext);
-	debugf(" _edata         = 0x%08x\n", (u_int32_t)_edata);
-	debugf(" __sbss_start   = 0x%08x\n", (u_int32_t)__sbss_start);
-	debugf(" __sbss_end     = 0x%08x\n", (u_int32_t)__sbss_end);
-	debugf(" __sbss_start   = 0x%08x\n", (u_int32_t)__bss_start);
-	debugf(" _end           = 0x%08x\n", (u_int32_t)_end);
+	debugf(" kernel_text    = 0x%08x\n", (uint32_t)kernel_text);
+	debugf(" _etext (sdata) = 0x%08x\n", (uint32_t)_etext);
+	debugf(" _edata         = 0x%08x\n", (uint32_t)_edata);
+	debugf(" __sbss_start   = 0x%08x\n", (uint32_t)__sbss_start);
+	debugf(" __sbss_end     = 0x%08x\n", (uint32_t)__sbss_end);
+	debugf(" __sbss_start   = 0x%08x\n", (uint32_t)__bss_start);
+	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
 }
 
 struct bi_mem_region *
 bootinfo_mr(void)
 {
 
-	return((struct bi_mem_region *)bootinfo->bi_data);
+	return ((struct bi_mem_region *)bootinfo->bi_data);
 }
 
 struct bi_eth_addr *
@@ -346,7 +347,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		kmdp = preload_search_by_type("elf kernel");
 		if (kmdp != NULL) {
 			bootinfo = (struct bootinfo *)preload_search_info(kmdp,
-			    MODINFO_METADATA|MODINFOMD_BOOTINFO);
+			    MODINFO_METADATA | MODINFOMD_BOOTINFO);
 
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
@@ -384,7 +385,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
 	 * HID0[SEL_TBCLK] = 0
 	 */
-	decr_config(bootinfo->bi_bus_clk/8);
+	decr_config(bootinfo->bi_bus_clk / 8);
 
 	/* Init params/tunables that can be overridden by the loader. */
 	init_param1();
@@ -397,7 +398,6 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	pc = &__pcpu[0];
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
-	pc->pc_cpuid = 0;
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/* Initialize system mutexes. */
@@ -410,14 +410,17 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	debugf("e500_init: console initialized\n");
 	debugf(" arg1 startkernel = 0x%08x\n", startkernel);
 	debugf(" arg2 endkernel = 0x%08x\n", endkernel);
-	debugf(" arg3 midp = 0x%08x\n", (u_int32_t)mdp);
+	debugf(" arg3 mdp = 0x%08x\n", (u_int32_t)mdp);
 	debugf(" end = 0x%08x\n", (u_int32_t)end);
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	debugf(" kernel ccsrbar = 0x%08x\n", CCSRBAR_VA);
 	debugf(" MSR = 0x%08x\n", mfmsr());
-	dump_bootinfo();
+	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));
+	debugf(" HID1 = 0x%08x\n", mfspr(SPR_HID1));
+
+	print_bootinfo();
 	print_kernel_section_addr();
-	dump_kenv();
+	print_kenv();
 	//tlb1_print_entries();
 	//tlb1_print_tlbentries();
 
@@ -459,6 +462,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		dcache_inval();
 		dcache_enable();
 	}
+
 	csr = mfspr(SPR_L1CSR0);
 	if ((boothowto & RB_VERBOSE) != 0 || (csr & L1CSR0_DCE) == 0)
 		printf("L1 D-cache %sabled\n",
@@ -470,6 +474,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		icache_inval();
 		icache_enable();
 	}
+
 	csr = mfspr(SPR_L1CSR1);
 	if ((boothowto & RB_VERBOSE) != 0 || (csr & L1CSR1_ICE) == 0)
 		printf("L1 I-cache %sabled\n",
