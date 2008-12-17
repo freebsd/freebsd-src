@@ -1372,8 +1372,8 @@ wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 				break;
 			if (!strncmp(f->f_un.f_uname[i], ut.ut_name,
 			    UT_NAMESIZE)) {
-				if ((p = ttymsg(iov, IOV_SIZE, line,
-				    TTYMSGTIME)) != NULL) {
+				if ((p = ttymsg(iov, iovlen, line, TTYMSGTIME))
+				    != NULL) {
 					errno = 0;	/* already in msg */
 					logerror(p);
 				}
