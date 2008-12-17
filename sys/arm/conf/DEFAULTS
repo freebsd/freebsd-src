@@ -7,5 +7,5 @@ machine 	arm
 
 device		mem
 
-options 	GEOM_BSD
-options 	GEOM_MBR
+options 	GEOM_PART_BSD
+options 	GEOM_PART_MBR
