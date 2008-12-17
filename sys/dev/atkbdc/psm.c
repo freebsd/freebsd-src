@@ -3956,6 +3956,9 @@ static void
 synaptics_sysctl_create_tree(struct psm_softc *sc)
 {
 
+	if (sc->syninfo.sysctl_tree != NULL)
+		return;
+
 	/* Attach extra synaptics sysctl nodes under hw.psm.synaptics */
 	sysctl_ctx_init(&sc->syninfo.sysctl_ctx);
 	sc->syninfo.sysctl_tree = SYSCTL_ADD_NODE(&sc->syninfo.sysctl_ctx,
@@ -4263,7 +4266,6 @@ enable_synaptics(struct psm_softc *sc)
 
 	kbdc = sc->kbdc;
 	VLOG(3, (LOG_DEBUG, "synaptics: BEGIN init\n"));
-	disable_aux_dev(kbdc);
 	sc->hw.buttons = 3;
 	sc->squelch = 0;
 
@@ -4418,6 +4420,12 @@ enable_synaptics(struct psm_softc *sc)
 
 	/* Create sysctl tree. */
 	synaptics_sysctl_create_tree(sc);
+
+	/*
+	 * The touchpad will have to be reinitialized after
+	 * suspend/resume.
+	 */
+	sc->config |= PSM_CONFIG_HOOKRESUME | PSM_CONFIG_INITAFTERSUSPEND;
 
 	return (TRUE);
 }
