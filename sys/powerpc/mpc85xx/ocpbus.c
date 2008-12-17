@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 
 #include <powerpc/mpc85xx/ocpbus.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
 
 #include "pic_if.h"
 
@@ -114,23 +115,6 @@ devclass_t ocpbus_devclass;
 DRIVER_MODULE(ocpbus, nexus, ocpbus_driver, ocpbus_devclass, 0, 0);
 
 static int law_max = 0;
-
-static __inline uint32_t
-ccsr_read4(uintptr_t addr)
-{
-	volatile uint32_t *ptr = (void *)addr;
-
-	return (*ptr);
-}
-
-static __inline void
-ccsr_write4(uintptr_t addr, uint32_t val)
-{
-	volatile uint32_t *ptr = (void *)addr;
-
-	*ptr = val;
-	__asm __volatile("eieio; sync");
-}
 
 static device_t
 ocpbus_mk_child(device_t dev, int type, int unit)
@@ -230,15 +214,15 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 }
 
 static int
-ocpbus_probe (device_t dev)
+ocpbus_probe(device_t dev)
 {
 	struct ocpbus_softc *sc;
-	uint32_t svr;
+	uint32_t ver;
 
 	sc = device_get_softc(dev);
 
-	svr = mfspr(SPR_SVR);
-	if (svr == SVR_MPC8572E || svr == SVR_MPC8572)
+	ver = SVR_VER(mfspr(SPR_SVR));
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
 		law_max = 12;
 	else
 		law_max = 8;
