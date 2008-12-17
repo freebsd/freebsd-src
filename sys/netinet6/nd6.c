@@ -1713,7 +1713,6 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 {
 	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = m0;
-	struct rtentry *rt = rt0;
 	struct llentry *ln = lle;
 	int error = 0;
 	int flags = 0;
@@ -1746,9 +1745,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	flags = ((m != NULL) || (lle != NULL)) ? LLE_EXCLUSIVE : 0;
 	if (ln == NULL) {
 	retry:
-		IF_AFDATA_LOCK(rt->rt_ifp);
+		IF_AFDATA_LOCK(ifp);
 		ln = lla_lookup(LLTABLE6(ifp), flags, (struct sockaddr *)dst);
-		IF_AFDATA_UNLOCK(rt->rt_ifp);
+		IF_AFDATA_UNLOCK(ifp);
 		if ((ln == NULL) && nd6_is_addr_neighbor(dst, ifp))  {
 			/*
 			 * Since nd6_is_addr_neighbor() internally calls nd6_lookup(),
@@ -1756,9 +1755,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 			 * it is tolerable, because this should be a rare case.
 			 */
 			flags = ND6_CREATE | (m ? ND6_EXCLUSIVE : 0);
-			IF_AFDATA_LOCK(rt->rt_ifp);
+			IF_AFDATA_LOCK(ifp);
 			ln = nd6_lookup(&dst->sin6_addr, flags, ifp);
-			IF_AFDATA_UNLOCK(rt->rt_ifp);
+			IF_AFDATA_UNLOCK(ifp);
 		}
 	} 
 	if (ln == NULL) {
@@ -1767,8 +1766,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 			char ip6buf[INET6_ADDRSTRLEN];
 			log(LOG_DEBUG,
 			    "nd6_output: can't allocate llinfo for %s "
-			    "(ln=%p, rt=%p)\n",
-			    ip6_sprintf(ip6buf, &dst->sin6_addr), ln, rt);
+			    "(ln=%p)\n",
+			    ip6_sprintf(ip6buf, &dst->sin6_addr), ln);
 			senderr(EIO);	/* XXX: good error? */
 		}
 		goto sendpkt;	/* send anyway */
@@ -1915,9 +1914,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	}
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
-		    rt));
+		    NULL));
 	}
-	error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, rt);
+	error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, NULL);
 	return (error);
 
   bad:
@@ -2008,7 +2007,7 @@ nd6_need_cache(struct ifnet *ifp)
  * the lle lock, drop here for now
  */
 int
-nd6_storelladdr(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
+nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
     struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *ln;
