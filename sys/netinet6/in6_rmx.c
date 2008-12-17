@@ -220,33 +220,6 @@ SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMAXCACHE,
     rtmaxcache, CTLFLAG_RW, rtq_toomany6 , 0, "");
 
 
-/*
- * On last reference drop, mark the route as belong to us so that it can be
- * timed out.
- */
-static void
-in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
-{
-	INIT_VNET_INET6(curvnet);
-	struct rtentry *rt = (struct rtentry *)rn;
-
-	RT_LOCK_ASSERT(rt);
-
-	if (!(rt->rt_flags & RTF_UP))
-		return;		/* prophylactic measures */
-
-	/*
-	 * As requested by David Greenman:
-	 * If rtq_reallyold6 is 0, just delete the route without
-	 * waiting for a timeout cycle to kill it.
-	 */
-	if (V_rtq_reallyold6 != 0) {
-		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_rmx.rmx_expire = time_uptime + V_rtq_reallyold6;
-	} else {
-		rtexpunge(rt);
-	}
-}
 
 struct rtqk_arg {
 	struct radix_node_head *rnh;
@@ -469,7 +442,6 @@ in6_inithead(void **head, int off)
 	rnh = *head;
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
-	rnh->rnh_close = in6_clsroute;
 	callout_init(&V_rtq_timer6, CALLOUT_MPSAFE);
 	in6_rtqtimo(rnh);	/* kick off timeout first time */
 	callout_init(&V_rtq_mtutimer, CALLOUT_MPSAFE);
