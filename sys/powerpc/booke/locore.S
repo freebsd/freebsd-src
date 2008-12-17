@@ -1,4 +1,5 @@
 /*-
+ * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
  * All rights reserved.
  *
@@ -10,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -29,8 +28,8 @@
 
 #include "assym.s"
 
-#include <machine/param.h>
 #include <machine/asm.h>
+#include <machine/param.h>
 #include <machine/spr.h>
 #include <machine/psl.h>
 #include <machine/pte.h>
@@ -60,205 +59,138 @@ kernel_text:
 __start:
 
 /*
- * Assumption on a boot loader:
+ * Assumptions on the boot loader:
  *  - system memory starts from physical address 0
- *  - kernel is loaded at 16MB boundary
  *  - it's mapped by a single TBL1 entry
  *  - TLB1 mapping is 1:1 pa to va
+ *  - kernel is loaded at 16MB boundary
  *  - all PID registers are set to the same value
+ *  - CPU is running in AS=0
  *
- * Loader register use:
+ * Registers contents provided by the loader(8):
  *	r1	: stack pointer
  *	r3	: metadata pointer
  *
  * We rearrange the TLB1 layout as follows:
- *  - find AS and entry kernel started in
+ *  - find TLB1 entry we started in
  *  - make sure it's protected, ivalidate other entries
- *  - create temp entry in the second AS (make sure it's not TLB[15])
+ *  - create temp entry in the second AS (make sure it's not TLB[1])
  *  - switch to temp mapping
- *  - map 16MB of RAM in TLB1[15]
+ *  - map 16MB of RAM in TLB1[1]
  *  - use AS=1, set EPN to KERNBASE and RPN to kernel load address
- *  - switch to to TLB1[15] mapping
+ *  - switch to to TLB1[1] mapping
  *  - invalidate temp mapping
  *
- * locore register use:
+ * locore registers use:
  *	r1	: stack pointer
- *	r2	: unused
- *	r3	: kernel_text
- *	r4	: _end
- *	r5	: metadata pointer
- *	r6-r9	: unused
- *	r10	: entry we started in
- *	r11	: temp entry
- *	r12	: AS we started in
- *	r13-r31 : auxiliary registers
+ *	r2	: trace pointer (AP only, for early diagnostics)
+ *	r3-r27	: scratch registers
+ *	r28	: kernload
+ *	r29	: temp TLB1 entry
+ *	r30	: initial TLB1 entry we started in
+ *	r31	: metadata pointer
  */
 
 /*
- * Move metadata ptr to r5
+ * Keep metadata ptr in r31 for later use.
  */
-	mr	%r5, %r3
+	mr	%r31, %r3
 
 /*
  * Initial cleanup
  */
-	li	%r16, 0x200		/* Keep debug exceptions for CodeWarrior. */
-	mtmsr	%r16
+	li	%r3, PSL_DE	/* Keep debug exceptions for CodeWarrior. */
+	mtmsr	%r3
 	isync
-#if 0
-	mtspr	SPR_HID0, %r16
-	isync
-	msync
-	mtspr	SPR_HID1, %r16
-	isync
-#endif
 
-	/* Issue INV_ALL Invalidate on TLB0 */
-	li      %r16, 0x04
-	tlbivax	0, %r16
-	isync
-	msync
+	/* Invalidate all entries in TLB0 */
+	li	%r3, 0
+	bl	tlb_inval_all
 
 /*
- * Use tblsx to locate the TLB1 entry that maps kernel code
+ * Locate the TLB1 entry that maps this code
  */
-	bl	1f			/* Current address */
-1:	mflr	%r15
+	bl	1f
+1:	mflr	%r3
+	bl	tlb1_find_current	/* the entry number found is returned in r30 */
 
-	/* Find entry that maps current address */
-	mfspr	%r17, SPR_PID0
-	slwi	%r17, %r17, MAS6_SPID0_SHIFT
-	mtspr	SPR_MAS6, %r17
-	isync
-	tlbsx	0, %r15
-
-	/* Copy entry number to r10 */
-	mfspr	%r17, SPR_MAS0
-	rlwinm	%r10, %r17, 16, 28, 31
-
-	/* Invalidate TLB1, skipping our entry. */
-	mfspr	%r17, SPR_TLB1CFG	/* Get number of entries */
-	andi.	%r17, %r17, TLBCFG_NENTRY_MASK@l
-	li	%r16, 0			/* Start from Entry 0 */
-
-2:	lis	%r15, MAS0_TLBSEL1@h	/* Select TLB1 */
-	rlwimi	%r15, %r16, 16, 12, 15
-	mtspr	SPR_MAS0, %r15
-	isync
-	tlbre
-	mfspr	%r15, SPR_MAS1
-	cmpw	%r16, %r10
-	beq	3f
-	/* Clear VALID and IPROT bits for other entries */
-	rlwinm	%r15, %r15, 0, 2, 31
-	mtspr	SPR_MAS1, %r15
-	isync
-	tlbwe
-	isync
-	msync
-3:	addi	%r16, %r16, 1
-	cmpw	%r16, %r17		/* Check if this is the last entry */
-	bne	2b
-
+	bl	tlb1_inval_all_but_current
 /*
- * Create temporary mapping in the other Address Space
+ * Create temporary mapping in AS=1 and switch to it
  */
-	lis	%r17, MAS0_TLBSEL1@h	/* Select TLB1 */
-	rlwimi	%r17, %r10, 16, 12, 15	/* Select our entry */
-	mtspr	SPR_MAS0, %r17
-	isync
-	tlbre				/* Read it in */
+	bl	tlb1_temp_mapping_as1
 
-	/* Prepare and write temp entry */
-	lis	%r17, MAS0_TLBSEL1@h	/* Select TLB1 */
-	addi	%r11, %r10, 0x1		/* Use next entry. */
-	rlwimi	%r17, %r11, 16, 12, 15	/* Select temp entry */
-	mtspr	SPR_MAS0, %r17
-	isync
-
-	mfspr	%r16, SPR_MAS1
-	li	%r15, 1			/* AS 1 */
-	rlwimi	%r16, %r15, 12, 19, 19
-	mtspr	SPR_MAS1, %r16
-	li	%r17, 0
-	rlwimi	%r16, %r17, 0, 8, 15	/* Global mapping, TID=0 */
-	isync
-
-	tlbwe
-	isync
-	msync
-
-	mfmsr	%r16
-	ori	%r16, %r16, 0x30	/* Switch to AS 1. */
-
-	bl	4f			/* Find current execution address */
-4:	mflr	%r15
-	addi	%r15, %r15, 20		/* Increment to instruction after rfi */
-	mtspr	SPR_SRR0, %r15
-	mtspr	SPR_SRR1, %r16
+	mfmsr	%r3
+	ori	%r3, %r3, (PSL_IS | PSL_DS)
+	bl	2f
+2:	mflr	%r4
+	addi	%r4, %r4, 20
+	mtspr	SPR_SRR0, %r4
+	mtspr	SPR_SRR1, %r3
 	rfi				/* Switch context */
 
 /*
  * Invalidate initial entry
  */
-	mr	%r22, %r10
+	mr	%r3, %r30
 	bl	tlb1_inval_entry
 
 /*
  * Setup final mapping in TLB1[1] and switch to it
  */
 	/* Final kernel mapping, map in 16 MB of RAM */
-	lis	%r16, MAS0_TLBSEL1@h	/* Select TLB1 */
-	li	%r17, 1			/* Entry 1 */
-	rlwimi	%r16, %r17, 16, 12, 15
-	mtspr	SPR_MAS0, %r16
+	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
+	li	%r4, 1			/* Entry 1 */
+	rlwimi	%r3, %r4, 16, 12, 15
+	mtspr	SPR_MAS0, %r3
 	isync
 
-	li	%r16, (TLB_SIZE_16M << MAS1_TSIZE_SHIFT)@l
-	oris	%r16, %r16, (MAS1_VALID | MAS1_IPROT)@h
-	mtspr	SPR_MAS1, %r16
+	li	%r3, (TLB_SIZE_16M << MAS1_TSIZE_SHIFT)@l
+	oris	%r3, %r3, (MAS1_VALID | MAS1_IPROT)@h
+	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
 	isync
 
-	lis	%r19, KERNBASE@h
-	ori	%r19, %r19, KERNBASE@l
-	mtspr	SPR_MAS2, %r19		/* Set final EPN, clear WIMG */
+	lis	%r3, KERNBASE@h
+	ori	%r3, %r3, KERNBASE@l	/* EPN = KERNBASE */
+	mtspr	SPR_MAS2, %r3
 	isync
 
-	bl	5f
-5:	mflr	%r16			/* Use current address */
-	lis	%r18, 0xff00		/* 16MB alignment mask */
-	and	%r16, %r16, %r18
-	mr	%r25, %r16		/* Copy kernel load address */
-	ori	%r16, %r16, (MAS3_SX | MAS3_SW | MAS3_SR)@l
-	mtspr	SPR_MAS3, %r16		/* Set RPN and protection */
+	/* Discover phys load address */
+	bl	3f
+3:	mflr	%r4			/* Use current address */
+	rlwinm	%r4, %r4, 0, 0, 7	/* 16MB alignment mask */
+	mr	%r28, %r4		/* Keep kernel load address */
+	ori	%r4, %r4, (MAS3_SX | MAS3_SW | MAS3_SR)@l
+	mtspr	SPR_MAS3, %r4		/* Set RPN and protection */
 	isync
 	tlbwe
 	isync
 	msync
 
 	/* Switch to the above TLB1[1] mapping */
-	lis	%r18, 0x00ff		/* 16MB offset mask */
-	ori	%r18, %r18, 0xffff
-	bl	6f
-6:	mflr	%r20			/* Use current address */
-	and	%r20, %r20, %r18	/* Offset from kernel load address */
-	add	%r20, %r20, %r19	/* Move to kernel virtual address */
-	addi	%r20, %r20, 32		/* Increment to instr. after rfi  */
-	li	%r21, 0x200
-	mtspr   SPR_SRR0, %r20
-	mtspr   SPR_SRR1, %r21
+	bl	4f
+4:	mflr	%r4
+	rlwinm	%r4, %r4, 0, 8, 31	/* Current offset from kernel load address */
+	rlwinm	%r3, %r3, 0, 0, 19
+	add	%r4, %r4, %r3		/* Convert to kernel virtual address */
+	addi	%r4, %r4, 36
+	li	%r3, PSL_DE		/* Note AS=0 */
+	mtspr   SPR_SRR0, %r4
+	mtspr   SPR_SRR1, %r3
 	rfi
-
-	/* Save kernel load address for later use */
-	lis	%r24, kernload@ha
-	addi	%r24, %r24, kernload@l
-	stw	%r25, 0(%r24)
 
 /*
  * Invalidate temp mapping
  */
-	mr	%r22, %r11
+	mr	%r3, %r29
 	bl	tlb1_inval_entry
+
+/*
+ * Save kernel load address for later use.
+ */
+	lis	%r3, kernload@ha
+	addi	%r3, %r3, kernload@l
+	stw	%r28, 0(%r3)
 
 /*
  * Setup a temporary stack
@@ -273,114 +205,198 @@ __start:
 	bl	ivor_setup
 
 /*
- * Jump to system initialization code
- *
- * Setup first two arguments for e500_init, metadata (r5) is already in place.
+ * Set up arguments and jump to system initialization code
  */
 	lis	%r3, kernel_text@ha
 	addi	%r3, %r3, kernel_text@l
 	lis	%r4, _end@ha
 	addi	%r4, %r4, _end@l
+	mr	%r5, %r31		/* metadata ptr */
 
+	/* Prepare e500 core */
 	bl	e500_init
 
-	/* Switch to thread0.td_kstack */
+	/* Switch to thread0.td_kstack now */
 	mr	%r1, %r3
 	li	%r3, 0
 	stw	%r3, 0(%r1)
 
-	bl	mi_startup  /* Machine independet part, does not return */
+	/* Machine independet part, does not return */
+	bl	mi_startup
+	/* NOT REACHED */
+5:	b	5b
 
-/************************************************************************/
-/* locore subroutines */
-/************************************************************************/
-
-tlb1_inval_entry:
-	lis	%r17, MAS0_TLBSEL1@h	/* Select TLB1 */
-	rlwimi	%r17, %r22, 16, 12, 15	/* Select our entry */
-	mtspr	SPR_MAS0, %r17
+/*
+ * Invalidate all entries in the given TLB.
+ *
+ * r3	TLBSEL
+ */
+tlb_inval_all:
+	rlwinm	%r3, %r3, 3, 0x18	/* TLBSEL */
+	ori	%r3, %r3, 0x4		/* INVALL */
+	tlbivax	0, %r3
 	isync
-	tlbre				/* Read it in */
+	msync
 
-	li	%r16, 0
-	mtspr	SPR_MAS1, %r16
+	tlbsync
+	msync
+	blr
+
+/*
+ * expects address to look up in r3, returns entry number in r30
+ *
+ * FIXME: the hidden assumption is we are now running in AS=0, but we should
+ * retrieve actual AS from MSR[IS|DS] and put it in MAS6[SAS]
+ */
+tlb1_find_current:
+	mfspr	%r17, SPR_PID0
+	slwi	%r17, %r17, MAS6_SPID0_SHIFT
+	mtspr	SPR_MAS6, %r17
+	isync
+	tlbsx	0, %r3
+	mfspr	%r17, SPR_MAS0
+	rlwinm	%r30, %r17, 16, 20, 31		/* MAS0[ESEL] -> r30 */
+
+	/* Make sure we have IPROT set on the entry */
+	mfspr	%r17, SPR_MAS1
+	oris	%r17, %r17, MAS1_IPROT@h
+	mtspr	SPR_MAS1, %r17
 	isync
 	tlbwe
 	isync
 	msync
 	blr
 
+/*
+ * Invalidates a single entry in TLB1.
+ *
+ * r3		ESEL
+ * r4-r5	scratched
+ */
+tlb1_inval_entry:
+	lis	%r4, MAS0_TLBSEL1@h	/* Select TLB1 */
+	rlwimi	%r4, %r3, 16, 12, 15	/* Select our entry */
+	mtspr	SPR_MAS0, %r4
+	isync
+	tlbre
+	li	%r5, 0			/* MAS1[V] = 0 */
+	mtspr	SPR_MAS1, %r5
+	isync
+	tlbwe
+	isync
+	msync
+	blr
+
+/*
+ * r30		current entry number
+ * r29		returned temp entry
+ * r3-r5	scratched
+ */
+tlb1_temp_mapping_as1:
+	/* Read our current translation */
+	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
+	rlwimi	%r3, %r30, 16, 12, 15	/* Select our current entry */
+	mtspr	SPR_MAS0, %r3
+	isync
+	tlbre
+
+	/*
+	 * Prepare and write temp entry
+	 *
+	 * FIXME this is not robust against overflow i.e. when the current
+	 * entry is the last in TLB1
+	 */
+	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
+	addi	%r29, %r30, 1		/* Use next entry. */
+	li	%r4, 1
+	cmpw	%r4, %r29
+	bne	1f
+	addi	%r29, %r29, 1
+1:	rlwimi	%r3, %r29, 16, 12, 15	/* Select temp entry */
+	mtspr	SPR_MAS0, %r3
+	isync
+	mfspr	%r5, SPR_MAS1
+	li	%r4, 1			/* AS=1 */
+	rlwimi	%r5, %r4, 12, 19, 19
+	li	%r4, 0			/* Global mapping, TID=0 */
+	rlwimi	%r5, %r4, 16, 8, 15
+	oris	%r5, %r5, (MAS1_VALID | MAS1_IPROT)@h
+	mtspr	SPR_MAS1, %r5
+	isync
+	tlbwe
+	isync
+	msync
+	blr
+
+/*
+ * Loops over TLB1, invalidates all entries skipping the one which currently
+ * maps this code.
+ *
+ * r30		current entry
+ * r3-r5	scratched
+ */
+tlb1_inval_all_but_current:
+	mr	%r6, %r3
+	mfspr	%r3, SPR_TLB1CFG	/* Get number of entries */
+	andi.	%r3, %r3, TLBCFG_NENTRY_MASK@l
+	li	%r4, 0			/* Start from Entry 0 */
+1:	lis	%r5, MAS0_TLBSEL1@h
+	rlwimi	%r5, %r4, 16, 12, 15
+	mtspr	SPR_MAS0, %r5
+	isync
+	tlbre
+	mfspr	%r5, SPR_MAS1
+	cmpw	%r4, %r30		/* our current entry? */
+	beq	2f
+	rlwinm	%r5, %r5, 0, 2, 31	/* clear VALID and IPROT bits */
+	mtspr	SPR_MAS1, %r5
+	isync
+	tlbwe
+	isync
+	msync
+2:	addi	%r4, %r4, 1
+	cmpw	%r4, %r3		/* Check if this is the last entry */
+	bne	1b
+	blr
+
+/************************************************************************/
+/* locore subroutines */
+/************************************************************************/
+
 ivor_setup:
 	/* Set base address of interrupt handler routines */
-	lis	%r21, interrupt_vector_base@h
-	mtspr	SPR_IVPR, %r21
+	lis	%r3, interrupt_vector_base@h
+	mtspr	SPR_IVPR, %r3
 
 	/* Assign interrupt handler routines offsets */
-	li	%r21, int_critical_input@l
-	mtspr	SPR_IVOR0, %r21
-	li	%r21, int_machine_check@l
-	mtspr	SPR_IVOR1, %r21
-	li	%r21, int_data_storage@l
-	mtspr	SPR_IVOR2, %r21
-	li	%r21, int_instr_storage@l
-	mtspr	SPR_IVOR3, %r21
-	li	%r21, int_external_input@l
-	mtspr	SPR_IVOR4, %r21
-	li	%r21, int_alignment@l
-	mtspr	SPR_IVOR5, %r21
-	li	%r21, int_program@l
-	mtspr	SPR_IVOR6, %r21
-	li	%r21, int_syscall@l
-	mtspr	SPR_IVOR8, %r21
-	li	%r21, int_decrementer@l
-	mtspr	SPR_IVOR10, %r21
-	li	%r21, int_fixed_interval_timer@l
-	mtspr	SPR_IVOR11, %r21
-	li	%r21, int_watchdog@l
-	mtspr	SPR_IVOR12, %r21
-	li	%r21, int_data_tlb_error@l
-	mtspr	SPR_IVOR13, %r21
-	li	%r21, int_inst_tlb_error@l
-	mtspr	SPR_IVOR14, %r21
-	li	%r21, int_debug@l
-	mtspr	SPR_IVOR15, %r21
-	blr
-
-/*
- * void tlb1_inval_va(vm_offset_t va)
- *
- * r3 - va to invalidate
- */
-ENTRY(tlb1_inval_va)
-	/* EA mask */
-	lis	%r6, 0xffff
-	ori	%r6, %r6, 0xf000
-	and	%r3, %r3, %r6
-
-	/* Select TLB1 */
-	ori	%r3, %r3, 0x08
-
-	isync
-	tlbivax 0, %r3
-	isync
-	msync
-	blr
-
-/*
- * void tlb0_inval_va(vm_offset_t va)
- *
- * r3 - va to invalidate
- */
-ENTRY(tlb0_inval_va)
-	/* EA mask, this also clears TLBSEL, selecting TLB0 */
-	lis	%r6, 0xffff
-	ori	%r6, %r6, 0xf000
-	and	%r3, %r3, %r6
-
-	isync
-	tlbivax 0, %r3
-	isync
-	msync
+	li	%r3, int_critical_input@l
+	mtspr	SPR_IVOR0, %r3
+	li	%r3, int_machine_check@l
+	mtspr	SPR_IVOR1, %r3
+	li	%r3, int_data_storage@l
+	mtspr	SPR_IVOR2, %r3
+	li	%r3, int_instr_storage@l
+	mtspr	SPR_IVOR3, %r3
+	li	%r3, int_external_input@l
+	mtspr	SPR_IVOR4, %r3
+	li	%r3, int_alignment@l
+	mtspr	SPR_IVOR5, %r3
+	li	%r3, int_program@l
+	mtspr	SPR_IVOR6, %r3
+	li	%r3, int_syscall@l
+	mtspr	SPR_IVOR8, %r3
+	li	%r3, int_decrementer@l
+	mtspr	SPR_IVOR10, %r3
+	li	%r3, int_fixed_interval_timer@l
+	mtspr	SPR_IVOR11, %r3
+	li	%r3, int_watchdog@l
+	mtspr	SPR_IVOR12, %r3
+	li	%r3, int_data_tlb_error@l
+	mtspr	SPR_IVOR13, %r3
+	li	%r3, int_inst_tlb_error@l
+	mtspr	SPR_IVOR14, %r3
+	li	%r3, int_debug@l
+	mtspr	SPR_IVOR15, %r3
 	blr
 
 /*
@@ -495,7 +511,7 @@ tmpstack:
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 
 GLOBAL(kernload)
-	.long
+	.long	0
 GLOBAL(intrnames)
 	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 GLOBAL(eintrnames)
