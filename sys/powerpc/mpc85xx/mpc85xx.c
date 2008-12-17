@@ -38,33 +38,51 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/pio.h>
 #include <machine/spr.h>
 
 #include <powerpc/mpc85xx/ocpbus.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
 
 /*
  * MPC85xx system specific routines
  */
 
-void
-cpu_reset()
+uint32_t
+ccsr_read4(uintptr_t addr)
 {
-	uint32_t svr = mfspr(SPR_SVR);
+	volatile uint32_t *ptr = (void *)addr;
 
-	if (svr == SVR_MPC8572E || svr == SVR_MPC8572)
+	return (*ptr);
+}
+
+void
+ccsr_write4(uintptr_t addr, uint32_t val)
+{
+	volatile uint32_t *ptr = (void *)addr;
+
+	*ptr = val;
+	__asm __volatile("eieio; sync");
+}
+
+void
+cpu_reset(void)
+{
+	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
+
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
 		/* Systems with dedicated reset register */
-		out32(OCP85XX_RSTCR, 2);
+		ccsr_write4(OCP85XX_RSTCR, 2);
 	else {
 		/* Clear DBCR0, disables debug interrupts and events. */
 		mtspr(SPR_DBCR0, 0);
-		__asm volatile("isync");
+		__asm __volatile("isync");
 
 		/* Enable Debug Interrupts in MSR. */
 		mtmsr(mfmsr() | PSL_DE);
 
 		/* Enable debug interrupts and issue reset. */
-		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
+		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
+		    DBCR0_RST_SYSTEM);
 	}
 
 	printf("Reset failed...\n");
