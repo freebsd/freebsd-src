@@ -225,7 +225,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)edst, &lle);
+		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);
