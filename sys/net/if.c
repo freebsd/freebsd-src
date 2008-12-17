@@ -158,7 +158,7 @@ static struct	knlist ifklist;
 #endif
 
 int	ifqmaxlen = IFQ_MAXLEN;
-struct	mtx ifnet_lock;
+struct rwlock ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 

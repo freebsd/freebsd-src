@@ -80,6 +80,7 @@ struct  ifvlantrunk;
 #endif /* _KERNEL */
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
+#include <sys/rwlock.h>		/* XXX */
 #include <sys/event.h>		/* XXX */
 #include <sys/_task.h>
 
@@ -175,7 +176,7 @@ struct ifnet {
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
-	struct	mtx if_afdata_mtx;
+	struct	rwlock if_afdata_lock;
 	struct	task if_starttask;	/* task for IFF_NEEDSGIANT */
 	struct	task if_linktask;	/* task for link change events */
 	struct	mtx if_addr_mtx;	/* mutex to protect address lists */
@@ -185,8 +186,8 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
-	void	*if_pspare[8];		/* multiq/TOE 3; vimage 3; general use 4 */
-	void	(*if_qflush)	/* flush any queues */
+	void	*if_pspare[8];		/* TOE 3; vimage 3; general use 4 */
+	void	(*if_qflush)		/* flush any queues */
 		(struct ifnet *);
 	int	(*if_transmit)	/* initiate output routine */
 		(struct ifnet *, struct mbuf *);
@@ -358,14 +359,19 @@ typedef void (*group_change_event_handler_t)(void *, const char *);
 EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 
 #define	IF_AFDATA_LOCK_INIT(ifp)	\
-    mtx_init(&(ifp)->if_afdata_mtx, "if_afdata", NULL, MTX_DEF)
-#define	IF_AFDATA_LOCK(ifp)	mtx_lock(&(ifp)->if_afdata_mtx)
-#define	IF_AFDATA_TRYLOCK(ifp)	mtx_trylock(&(ifp)->if_afdata_mtx)
-#define	IF_AFDATA_UNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_mtx)
-#define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_mtx)
+	rw_init(&(ifp)->if_afdata_lock, "if_afdata")
 
-#define	IF_AFDATA_LOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_mtx, MA_OWNED)
-#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_mtx, MA_NOTOWNED)
+#define	IF_AFDATA_WLOCK(ifp)	rw_wlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_RLOCK(ifp)	rw_rlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_WUNLOCK(ifp)	rw_wunlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_RUNLOCK(ifp)	rw_runlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
+#define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
+#define	IF_AFDATA_TRYLOCK(ifp)	rw_try_wlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_DESTROY(ifp)	rw_destroy(&(ifp)->if_afdata_lock)
+
+#define	IF_AFDATA_LOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_LOCKED)
+#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
 
 #define	IFF_LOCKGIANT(ifp) do {						\
 	if ((ifp)->if_flags & IFF_NEEDSGIANT)				\
@@ -637,14 +643,14 @@ struct ifmultiaddr {
 		IFA_UNLOCK(ifa);			\
 	} while (0)
 
-extern	struct mtx ifnet_lock;
+extern	struct rwlock ifnet_lock;
 #define	IFNET_LOCK_INIT() \
-    mtx_init(&ifnet_lock, "ifnet", NULL, MTX_DEF | MTX_RECURSE)
-#define	IFNET_WLOCK()		mtx_lock(&ifnet_lock)
-#define	IFNET_WUNLOCK()		mtx_unlock(&ifnet_lock)
-#define	IFNET_WLOCK_ASSERT()	mtx_assert(&ifnet_lock, MA_OWNED)
-#define	IFNET_RLOCK()		IFNET_WLOCK()
-#define	IFNET_RUNLOCK()		IFNET_WUNLOCK()
+   rw_init_flags(&ifnet_lock, "ifnet",  RW_RECURSE)
+#define	IFNET_WLOCK()		rw_wlock(&ifnet_lock)
+#define	IFNET_WUNLOCK()		rw_wunlock(&ifnet_lock)
+#define	IFNET_WLOCK_ASSERT()	rw_assert(&ifnet_lock, RA_LOCKED)
+#define	IFNET_RLOCK()		rw_rlock(&ifnet_lock)
+#define	IFNET_RUNLOCK()		rw_runlock(&ifnet_lock)	
 
 struct ifindex_entry {
 	struct	ifnet *ife_ifnet;
