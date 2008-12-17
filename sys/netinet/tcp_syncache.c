@@ -430,7 +430,7 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 	struct syncache_head *sch;
 
 #ifdef INET6
-	if (inc->inc_isipv6) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		sch = &V_tcp_syncache.hashbase[
 		    SYNCACHE_HASH6(inc, V_tcp_syncache.hashmask)];
 		*schp = sch;
@@ -454,7 +454,7 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 		/* Circle through bucket row to find matching entry. */
 		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
 #ifdef INET6
-			if (sc->sc_inc.inc_isipv6)
+			if (sc->sc_inc.inc_flags & INC_ISIPV6)
 				continue;
 #endif
 			if (ENDPTS_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
@@ -643,9 +643,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	INP_WLOCK(inp);
 
 	/* Insert new socket into PCB hash list. */
-	inp->inp_inc.inc_isipv6 = sc->sc_inc.inc_isipv6;
+	inp->inp_inc.inc_flags = sc->sc_inc.inc_flags;
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		inp->in6p_laddr = sc->sc_inc.inc6_laddr;
 	} else {
 		inp->inp_vflag &= ~INP_IPV6;
@@ -662,7 +662,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		 * put the PCB on the hash lists.
 		 */
 #ifdef INET6
-		if (sc->sc_inc.inc_isipv6)
+		if (sc->sc_inc.inc_flags & INC_ISIPV6)
 			inp->in6p_laddr = in6addr_any;
 		else
 #endif
@@ -676,7 +676,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		printf("syncache_socket: could not copy policy\n");
 #endif
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		struct inpcb *oinp = sotoinpcb(lso);
 		struct in6_addr laddr6;
 		struct sockaddr_in6 sin6;
@@ -993,7 +993,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	cred = crhold(so->so_cred);
 
 #ifdef INET6
-	if (inc->inc_isipv6 &&
+	if ((inc->inc_flags & INC_ISIPV6) &&
 	    (inp->inp_flags & IN6P_AUTOFLOWLABEL))
 		autoflowlabel = 1;
 #endif
@@ -1022,7 +1022,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Remember the IP options, if any.
 	 */
 #ifdef INET6
-	if (!inc->inc_isipv6)
+	if (!(inc->inc_flags & INC_ISIPV6))
 #endif
 		ipopts = (m) ? ip_srcroute(m) : NULL;
 
@@ -1123,10 +1123,11 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sc->sc_cred = cred;
 	cred = NULL;
 	sc->sc_ipopts = ipopts;
+	/* XXX-BZ this fib assignment is just useless. */
 	sc->sc_inc.inc_fibnum = inp->inp_inc.inc_fibnum;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
-	if (!inc->inc_isipv6)
+	if (!(inc->inc_flags & INC_ISIPV6))
 #endif
 	{
 		sc->sc_ip_tos = ip_tos;
@@ -1272,7 +1273,7 @@ syncache_respond(struct syncache *sc)
 
 	hlen =
 #ifdef INET6
-	       (sc->sc_inc.inc_isipv6) ? sizeof(struct ip6_hdr) :
+	       (sc->sc_inc.inc_flags & INC_ISIPV6) ? sizeof(struct ip6_hdr) :
 #endif
 		sizeof(struct ip);
 	tlen = hlen + sizeof(struct tcphdr);
@@ -1299,7 +1300,7 @@ syncache_respond(struct syncache *sc)
 	m->m_pkthdr.rcvif = NULL;
 
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_nxt = IPPROTO_TCP;
@@ -1390,7 +1391,7 @@ syncache_respond(struct syncache *sc)
 			    to.to_signature, IPSEC_DIR_OUTBOUND);
 #endif
 #ifdef INET6
-		if (sc->sc_inc.inc_isipv6)
+		if (sc->sc_inc.inc_flags & INC_ISIPV6)
 			ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) + optlen);
 		else
 #endif
@@ -1399,7 +1400,7 @@ syncache_respond(struct syncache *sc)
 		optlen = 0;
 
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		th->th_sum = 0;
 		th->th_sum = in6_cksum(m, IPPROTO_TCP, hlen,
 				       tlen + optlen - hlen);
@@ -1653,7 +1654,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	sc->sc_iss = ack;
 
 #ifdef INET6
-	if (inc->inc_isipv6) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		if (sotoinpcb(so)->inp_flags & IN6P_AUTOFLOWLABEL)
 			sc->sc_flowlabel = md5_buffer[1] & IPV6_FLOWLABEL_MASK;
 	} else
@@ -1743,7 +1744,7 @@ syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported)
 				continue;
 			bzero(&xt, sizeof(xt));
 			xt.xt_len = sizeof(xt);
-			if (sc->sc_inc.inc_isipv6)
+			if (sc->sc_inc.inc_flags & INC_ISIPV6)
 				xt.xt_inp.inp_vflag = INP_IPV6;
 			else
 				xt.xt_inp.inp_vflag = INP_IPV4;
