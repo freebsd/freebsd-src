@@ -192,7 +192,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	/* Verify the magic signature on the file header. */
 	if (strncmp(h + AR_fmag_offset, "`\n", 2) != 0) {
 		archive_set_error(&a->archive, EINVAL,
-		    "Consistency check failed");
+		    "Incorrect file header signature");
 		return (ARCHIVE_WARN);
 	}
 
