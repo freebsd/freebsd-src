@@ -891,6 +891,7 @@ struct rl_softc {
 #define	RL_FLAG_PHY8110S	0x0800
 #define	RL_FLAG_WOLRXENB	0x1000
 #define	RL_FLAG_MACSLEEP	0x2000
+#define	RL_FLAG_PCIE		0x4000
 #define	RL_FLAG_LINK		0x8000
 };
 
