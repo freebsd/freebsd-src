@@ -331,7 +331,7 @@ static void	reapchild(int);
 static void	usage(void);
 static int	validate(struct sockaddr *, const char *);
 static void	unmapped(struct sockaddr *);
-static void	wallmsg(struct filed *, struct iovec *);
+static void	wallmsg(struct filed *, struct iovec *, const int iovlen);
 static int	waitdaemon(int, int, int);
 static void	timedout(int);
 static void	double_rbuf(int);
@@ -1065,10 +1065,11 @@ dofsync(void)
 	}
 }
 
+#define IOV_SIZE 7
 static void
 fprintlog(struct filed *f, int flags, const char *msg)
 {
-	struct iovec iov[7];
+	struct iovec iov[IOV_SIZE];
 	struct iovec *v;
 	struct addrinfo *r;
 	int i, l, lsent = 0;
@@ -1253,7 +1254,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		dprintf(" %s\n", f->f_un.f_fname);
 		v->iov_base = lf;
 		v->iov_len = 1;
-		if (writev(f->f_file, iov, 7) < 0) {
+		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
 			/*
 			 * If writev(2) fails for potentially transient errors
 			 * like the filesystem being full, ignore it.
@@ -1284,7 +1285,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				break;
 			}
 		}
-		if (writev(f->f_file, iov, 7) < 0) {
+		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
 			int e = errno;
 			(void)close(f->f_file);
 			if (f->f_un.f_pipe.f_pid > 0)
@@ -1309,7 +1310,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_len = 2;
 
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
-		if ((msgret = ttymsg(iov, 7, f->f_un.f_fname, 10))) {
+		if ((msgret = ttymsg(iov, IOV_SIZE, f->f_un.f_fname, 10))) {
 			f->f_type = F_UNUSED;
 			logerror(msgret);
 		}
@@ -1320,7 +1321,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		dprintf("\n");
 		v->iov_base = crlf;
 		v->iov_len = 2;
-		wallmsg(f, iov);
+		wallmsg(f, iov, IOV_SIZE);
 		break;
 	}
 	f->f_prevcount = 0;
@@ -1334,7 +1335,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
  *	world, or a list of approved users.
  */
 static void
-wallmsg(struct filed *f, struct iovec *iov)
+wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 {
 	static int reenter;			/* avoid calling ourselves */
 	FILE *uf;
@@ -1358,7 +1359,8 @@ wallmsg(struct filed *f, struct iovec *iov)
 		strncpy(line, ut.ut_line, sizeof(line) - 1);
 		line[sizeof(line) - 1] = '\0';
 		if (f->f_type == F_WALL) {
-			if ((p = ttymsg(iov, 7, line, TTYMSGTIME)) != NULL) {
+			if ((p = ttymsg(iov, iovlen, line, TTYMSGTIME)) !=
+			    NULL) {
 				errno = 0;	/* already in msg */
 				logerror(p);
 			}
@@ -1370,8 +1372,8 @@ wallmsg(struct filed *f, struct iovec *iov)
 				break;
 			if (!strncmp(f->f_un.f_uname[i], ut.ut_name,
 			    UT_NAMESIZE)) {
-				if ((p = ttymsg(iov, 7, line, TTYMSGTIME))
-								!= NULL) {
+				if ((p = ttymsg(iov, IOV_SIZE, line,
+				    TTYMSGTIME)) != NULL) {
 					errno = 0;	/* already in msg */
 					logerror(p);
 				}
