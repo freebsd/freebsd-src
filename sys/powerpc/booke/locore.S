@@ -411,6 +411,9 @@ ENTRY(dcache_inval)
 	isync
 	mtspr	SPR_L1CSR0, %r3
 	isync
+1:	mfspr	%r3, SPR_L1CSR0
+	andi.	%r3, %r3, L1CSR0_DCFI
+	bne	1b
 	blr
 
 ENTRY(dcache_disable)
@@ -443,6 +446,9 @@ ENTRY(icache_inval)
 	isync
 	mtspr	SPR_L1CSR1, %r3
 	isync
+1:	mfspr	%r3, SPR_L1CSR1
+	andi.	%r3, %r3, L1CSR1_ICFI
+	bne	1b
 	blr
 
 ENTRY(icache_disable)
