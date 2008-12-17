@@ -1555,11 +1555,6 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 
 
-	log(LOG_DEBUG, "##1 nd6_prefix_onlink: %s, vltime = %x, pltime = %x\n", 
-		    ip6_sprintf(ip6buf, &pr->ndpr_prefix.sin6_addr),
-	    pr->ndpr_vltime, pr->ndpr_pltime);
-
-
 	/* sanity check */
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0) {
 		nd6log((LOG_ERR,
@@ -1628,11 +1623,6 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	rtflags = ifa->ifa_flags | RTF_UP;
 	error = rtrequest(RTM_ADD, (struct sockaddr *)&pr->ndpr_prefix,
 	    ifa->ifa_addr, (struct sockaddr *)&mask6, rtflags, &rt);
-
-	log(LOG_DEBUG, "##2 nd6_prefix_onlink: %s, vltime = %x, pltime = %x\n", 
-		    ip6_sprintf(ip6buf, &pr->ndpr_prefix.sin6_addr),
-	    pr->ndpr_vltime, pr->ndpr_pltime);
-
 
 	if (error == 0) {
 		if (rt != NULL) /* this should be non NULL, though */ {
