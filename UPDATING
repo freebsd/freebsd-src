@@ -21,6 +21,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
+20081216:
+	The afdata and ifnet locks have been changed from mutexes to 
+	rwlocks, network modules will need to be re-compiled.
 
 20081214:
 	__FreeBSD_version 800059 incorporates the new arp-v2 rewrite.
