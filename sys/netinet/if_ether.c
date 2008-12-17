@@ -251,7 +251,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 {
 	INIT_VNET_INET(ifp->if_vnet);
 	struct llentry *la = 0;
-	u_int flags;
+	u_int flags = 0;
 	int error, renew;
 
 	*lle = NULL;
@@ -268,18 +268,19 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 			return (0);
 		}
 	}
-
-	flags = (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) ? 0 : LLE_CREATE;
-
 	/* XXXXX
-	 * Since this function returns an llentry, the 
-	 * lock is held by the caller.
-	 * XXX if caller is required to hold lock, assert it
 	 */
 retry:
-	IF_AFDATA_LOCK(ifp);	
+	IF_AFDATA_RLOCK(ifp);	
 	la = lla_lookup(LLTABLE(ifp), flags, dst);
-	IF_AFDATA_UNLOCK(ifp);	
+	IF_AFDATA_RUNLOCK(ifp);	
+	if ((la == NULL) && ((flags & LLE_EXCLUSIVE) == 0)
+	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {		
+		flags |= (LLE_CREATE | LLE_EXCLUSIVE);
+		IF_AFDATA_WLOCK(ifp);	
+		la = lla_lookup(LLTABLE(ifp), flags, dst);
+		IF_AFDATA_WUNLOCK(ifp);	
+	}
 	if (la == NULL) {
 		if (flags & LLE_CREATE)
 			log(LOG_DEBUG,
