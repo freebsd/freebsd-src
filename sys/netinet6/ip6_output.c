@@ -1558,7 +1558,7 @@ do { \
 					break;
 
 				case IPV6_FAITH:
-					OPTSET(IN6P_FAITH);
+					OPTSET(INP_FAITH);
 					break;
 
 				case IPV6_RECVPATHMTU:
@@ -1768,18 +1768,18 @@ do { \
 
 				switch (optval) {
 				case IPV6_PORTRANGE_DEFAULT:
-					in6p->inp_flags &= ~(IN6P_LOWPORT);
-					in6p->inp_flags &= ~(IN6P_HIGHPORT);
+					in6p->inp_flags &= ~(INP_LOWPORT);
+					in6p->inp_flags &= ~(INP_HIGHPORT);
 					break;
 
 				case IPV6_PORTRANGE_HIGH:
-					in6p->inp_flags &= ~(IN6P_LOWPORT);
-					in6p->inp_flags |= IN6P_HIGHPORT;
+					in6p->inp_flags &= ~(INP_LOWPORT);
+					in6p->inp_flags |= INP_HIGHPORT;
 					break;
 
 				case IPV6_PORTRANGE_LOW:
-					in6p->inp_flags &= ~(IN6P_HIGHPORT);
-					in6p->inp_flags |= IN6P_LOWPORT;
+					in6p->inp_flags &= ~(INP_HIGHPORT);
+					in6p->inp_flags |= INP_LOWPORT;
 					break;
 
 				default:
@@ -1881,7 +1881,7 @@ do { \
 					break;
 
 				case IPV6_FAITH:
-					optval = OPTBIT(IN6P_FAITH);
+					optval = OPTBIT(INP_FAITH);
 					break;
 
 				case IPV6_V6ONLY:
@@ -1892,9 +1892,9 @@ do { \
 				    {
 					int flags;
 					flags = in6p->inp_flags;
-					if (flags & IN6P_HIGHPORT)
+					if (flags & INP_HIGHPORT)
 						optval = IPV6_PORTRANGE_HIGH;
-					else if (flags & IN6P_LOWPORT)
+					else if (flags & INP_LOWPORT)
 						optval = IPV6_PORTRANGE_LOW;
 					else
 						optval = 0;
