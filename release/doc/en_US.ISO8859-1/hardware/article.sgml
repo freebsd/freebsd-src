@@ -132,7 +132,7 @@
 	to &intel; EM64T as <quote>64-bit extension technology</quote>
 	or <quote>IA-32e</quote>.</para>
 
-      <para>The largest tested memory configuration to date is 32GB.
+      <para>The largest tested memory configuration to date is 64GB.
 	SMP support has been recently completed and is reasonably
 	robust.</para>
 
