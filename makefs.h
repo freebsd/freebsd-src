@@ -269,7 +269,7 @@ extern	struct timespec	start_time;
 #endif
 
 #define	cg_chkmagic_swap(cgp, ns) \
-    (ufs_rw32(cg_chkmagic(cgp), (ns)) == CG_MAGIC)
+    (ufs_rw32((cgp)->cg_magic, (ns)) == CG_MAGIC)
 #define	cg_inosused_swap(cgp, ns)	cg_inosused(cgp)
 #define	cg_blksfree_swap(cgp, ns)	cg_blksfree(cgp)
 #define	cg_clustersfree_swap(cgp, ns)	cg_clustersfree(cgp)
