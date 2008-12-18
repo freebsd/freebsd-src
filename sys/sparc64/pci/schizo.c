@@ -394,9 +394,10 @@ schizo_attach(device_t dev)
 
 	/*
 	 * Hunt through all the interrupt mapping regs and register
-	 * the interrupt controller for our interrupt vectors.  This
-	 * is complicated by the fact that a pair of Schizo PBMs
-	 * share one IGN.
+	 * the interrupt controller for our interrupt vectors.  We do
+	 * this early in order to be able to catch stray interrupts.
+	 * This is complicated by the fact that a pair of Schizo PBMs
+	 * shares one IGN.
 	 */
 	n = OF_getprop(node, "ino-bitmap", (void *)prop_array,
 	    sizeof(prop_array));
@@ -411,8 +412,8 @@ schizo_attach(device_t dev)
 			continue;
 		i = schizo_intr_register(sc, n);
 		if (i != 0)
-			panic("%s: could not register interrupt controller "
-			    "for INO %d (%d)", __func__, n, i);
+			device_printf(dev, "could not register interrupt "
+			    "controller for INO %d (%d)\n", n, i);
 	}
 
 	/*
@@ -1127,13 +1128,37 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	sc = device_get_softc(dev);
 	/*
-	 * Make sure the vector is fully specified and we registered
-	 * our interrupt controller for it.
+	 * Make sure the vector is fully specified.
 	 */
 	vec = rman_get_start(ires);
-	if (INTIGN(vec) != sc->sc_ign ||
-	    intr_vectors[vec].iv_ic != &schizo_ic) {
+	if (INTIGN(vec) != sc->sc_ign) {
 		device_printf(dev, "invalid interrupt vector 0x%lx\n", vec);
+		return (EINVAL);
+	}
+
+	if (intr_vectors[vec].iv_ic == &schizo_ic) {
+		/*
+		 * Ensure we use the right softc in case the interrupt
+		 * is routed to our companion PBM for some odd reason.
+		 */
+		sc = ((struct schizo_icarg *)intr_vectors[vec].iv_icarg)->
+		    sica_sc;
+	} else if (intr_vectors[vec].iv_ic == NULL) {
+		/*
+		 * Work around broken firmware which misses entries in
+		 * the ino-bitmap.
+		 */
+		error = schizo_intr_register(sc, INTINO(vec));
+		if (error != 0) {
+			device_printf(dev, "could not register interrupt "
+			    "controller for vector 0x%lx (%d)\n", vec, error);
+			return (error);
+		}
+		device_printf(dev, "belatedly registered as interrupt "
+		    "controller for vector 0x%lx\n", vec);
+	} else {
+		device_printf(dev,
+		    "invalid interrupt controller for vector 0x%lx\n", vec);
 		return (EINVAL);
 	}
 
@@ -1205,7 +1230,7 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 		return (error);
 	} else if (found != 0)
 		device_printf(dev, "WARNING: using devices behind PCI-PCI "
-		    "bridges may cause data corruption");
+		    "bridges may cause data corruption\n");
 	return (bus_generic_setup_intr(dev, child, ires, flags, filt, intr,
 	    arg, cookiep));
 }
