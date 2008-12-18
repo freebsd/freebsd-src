@@ -263,7 +263,6 @@ TAILQ_HEAD(JobList, Job);
 /*
  * error handling variables
  */
-static int	errors = 0;	/* number of errors reported */
 static int	aborting = 0;	/* why is the make aborting? */
 #define	ABORT_ERROR	1	/* Because of an error */
 #define	ABORT_INTERRUPT	2	/* Because it was interrupted */
@@ -849,7 +848,7 @@ JobClose(Job *job)
  *
  *	If we got an error and are aborting (aborting == ABORT_ERROR) and
  *	the job list is now empty, we are done for the day.
- *	If we recognized an error (errors !=0), we set the aborting flag
+ *	If we recognized an error (makeErrors !=0), we set the aborting flag
  *	to ABORT_ERROR so no more jobs will be started.
  */
 static void
@@ -1124,7 +1123,7 @@ JobFinish(Job *job, int *status)
 		free(job);
 
 	} else if (*status != 0) {
-		errors += 1;
+		makeErrors++;
 		free(job);
 	}
 
@@ -1133,7 +1132,7 @@ JobFinish(Job *job, int *status)
 	/*
 	 * Set aborting if any error.
 	 */
-	if (errors && !keepgoing && aborting != ABORT_INTERRUPT) {
+	if (makeErrors && !keepgoing && aborting != ABORT_INTERRUPT) {
 		/*
 		 * If we found any errors in this batch of children and the -k
 		 * flag wasn't given, we set the aborting flag so no more jobs
@@ -1146,7 +1145,7 @@ JobFinish(Job *job, int *status)
 		/*
 		 * If we are aborting and the job table is now empty, we finish.
 		 */
-		Finish(errors);
+		Finish(makeErrors);
 	}
 }
 
@@ -2347,7 +2346,7 @@ Job_Init(int maxproc)
 	nJobs = 0;
 
 	aborting = 0;
-	errors = 0;
+	makeErrors = 0;
 
 	lastNode = NULL;
 
@@ -2539,14 +2538,14 @@ JobInterrupt(int runINTERRUPT, int signo)
  *	attached to the .END target.
  *
  * Results:
- *	Number of errors reported.
+ *	None.
  */
-int
+void
 Job_Finish(void)
 {
 
 	if (postCommands != NULL && !Lst_IsEmpty(&postCommands->commands)) {
-		if (errors) {
+		if (makeErrors) {
 			Error("Errors reported so .END ignored");
 		} else {
 			JobStart(postCommands, JOB_SPECIAL | JOB_IGNDOTS, NULL);
@@ -2563,7 +2562,6 @@ Job_Finish(void)
 		if (fifoMaster)
 			unlink(fifoName);
 	}
-	return (errors);
 }
 
 /**
@@ -3327,7 +3325,6 @@ void
 Compat_Run(Lst *targs)
 {
 	GNode	*gn = NULL;	/* Current root target */
-	int	error_cnt;		/* Number of targets not remade due to errors */
 	LstNode	*ln;
 
 	Compat_InstallSignalHandlers();
@@ -3360,7 +3357,7 @@ Compat_Run(Lst *targs)
 	 *	ABORTED	  gn was not remade because one of its inferiors
 	 *		  could not be made due to errors.
 	 */
-	error_cnt = 0;
+	makeErrors = 0;
 	while (!Lst_IsEmpty(targs)) {
 		gn = Lst_DeQueue(targs);
 		Compat_Make(gn, gn);
@@ -3370,18 +3367,17 @@ Compat_Run(Lst *targs)
 		} else if (gn->made == ABORTED) {
 			printf("`%s' not remade because of errors.\n",
 			    gn->name);
-			error_cnt += 1;
+			makeErrors++;
 		}
 	}
 
 	/*
 	 * If the user has defined a .END target, run its commands.
 	 */
-	if (error_cnt == 0) {
+	if (makeErrors == 0) {
 		LST_FOREACH(ln, &ENDNode->commands) {
 			if (Compat_RunCommand(Lst_Datum(ln), ENDNode))
 				break;
 		}
 	}
 }
-
