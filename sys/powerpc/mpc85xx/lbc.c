@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006-2008, Juniper Networks, Inc.
+ * Copyright (c) 2008 Semihalf, Rafal Czubak
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <powerpc/mpc85xx/lbc.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
+#include <powerpc/mpc85xx/ocpbus.h>
 
 struct lbc_softc {
 	device_t		sc_dev;
@@ -54,14 +57,39 @@ struct lbc_softc {
 	int			sc_rid;
 
 	struct rman		sc_rman;
-	uintptr_t		sc_kva;
+	vm_offset_t		sc_kva[LBC_DEV_MAX];
 };
 
 struct lbc_devinfo {
 	int		lbc_devtype;
-	int		lbc_memtype;
-	/* Also the BAR number */
+	/* LBC child unit. It also represents resource table entry number */
 	int		lbc_unit;
+};
+
+/* Resources for MPC8555CDS system */
+const struct lbc_resource mpc85xx_lbc_resources[] = {
+	/* Boot flash bank */
+	{
+		LBC_DEVTYPE_CFI, 0, 0xff800000, 0x00800000, 16,
+		LBCRES_MSEL_GPCM, LBCRES_DECC_DISABLED,
+		LBCRES_ATOM_DISABLED, 0
+	},
+
+	/* Second flash bank */
+	{
+		LBC_DEVTYPE_CFI, 1, 0xff000000, 0x00800000, 16,
+		LBCRES_MSEL_GPCM, LBCRES_DECC_DISABLED,
+		LBCRES_ATOM_DISABLED, 0
+	},
+
+	/* DS1553 RTC/NVRAM */
+	{
+		LBC_DEVTYPE_RTC, 2, 0xf8000000, 0x8000, 8,
+		LBCRES_MSEL_GPCM, LBCRES_DECC_DISABLED,
+		LBCRES_ATOM_DISABLED, 0
+	},
+
+	{0}
 };
 
 static int lbc_probe(device_t);
@@ -108,23 +136,167 @@ static driver_t lbc_driver = {
 devclass_t lbc_devclass;
 DRIVER_MODULE(lbc, ocpbus, lbc_driver, lbc_devclass, 0, 0);
 
+static __inline void
+lbc_write_reg(struct lbc_softc *sc, bus_size_t off, uint32_t val)
+{
+
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
+}
+
+static __inline uint32_t
+lbc_read_reg(struct lbc_softc *sc, bus_size_t off)
+{
+
+	return (bus_space_read_4(sc->sc_bst, sc->sc_bsh, off));
+}
+
+/*
+ * Calculate address mask used by OR(n) registers. Use memory region size to
+ * determine mask value. The size must be a power of two and within the range
+ * of 32KB - 4GB. Otherwise error code is returned. Value representing
+ * 4GB size can be passed as 0xffffffff.
+ */
+static uint32_t
+lbc_address_mask(uint32_t size)
+{
+	int n = 15;
+
+	if (size == ~0UL)
+		return (0);
+
+	while (n < 32) {
+		if (size == (1UL << n))
+			break;
+		n++;
+	}
+
+	if (n == 32)
+		return (EINVAL);
+
+	return (0xffff8000 << (n - 15));
+}
+
 static device_t
-lbc_mk_child(device_t dev, int type, int mtype, int unit)
+lbc_mk_child(device_t dev, const struct lbc_resource *lbcres)
 {
 	struct lbc_devinfo *dinfo;
 	device_t child;
 
+	if (lbcres->lbr_unit > LBC_DEV_MAX - 1)
+		return (NULL);
+
 	child = device_add_child(dev, NULL, -1);
 	if (child == NULL) {
-		device_printf(dev, "could not add child device\n");
+		device_printf(dev, "could not add LBC child device\n");
 		return (NULL);
 	}
 	dinfo = malloc(sizeof(struct lbc_devinfo), M_DEVBUF, M_WAITOK | M_ZERO);
-	dinfo->lbc_devtype = type;
-	dinfo->lbc_memtype = mtype;
-	dinfo->lbc_unit = unit;
+	dinfo->lbc_devtype = lbcres->lbr_devtype;
+	dinfo->lbc_unit = lbcres->lbr_unit;
 	device_set_ivars(child, dinfo);
 	return (child);
+}
+
+static int
+lbc_init_child(device_t dev, device_t child)
+{
+	struct lbc_softc *sc;
+	struct lbc_devinfo *dinfo;
+	const struct lbc_resource *res;
+	u_long start, size;
+	uint32_t regbuff;
+	int error, unit;
+
+	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
+
+	res = mpc85xx_lbc_resources;
+
+	regbuff = 0;
+	unit = -1;
+	for (; res->lbr_devtype; res++) {
+		if (res->lbr_unit != dinfo->lbc_unit)
+			continue;
+
+		start = res->lbr_base_addr;
+		size = res->lbr_size;
+		unit = res->lbr_unit;
+
+		/*
+		 * Configure LAW for this LBC device and map its physical
+		 * memory region into KVA
+		 */
+		error = law_enable(OCP85XX_TGTIF_LBC, start, size);
+		if (error)
+			return (error);
+
+		sc->sc_kva[unit] = (vm_offset_t)pmap_mapdev(start, size);
+		if (sc->sc_kva[unit] == 0) {
+			law_disable(OCP85XX_TGTIF_LBC, start, size);
+			return (ENOSPC);
+		}
+
+		/*
+		 * Compute and program BR value
+		 */
+		regbuff |= start;
+
+		switch (res->lbr_port_size) {
+		case 8:
+			regbuff |= (1 << 11);
+			break;
+		case 16:
+			regbuff |= (2 << 11);
+			break;
+		case 32:
+			regbuff |= (3 << 11);
+			break;
+		default:
+			error = EINVAL;
+			goto fail;
+		}
+		regbuff |= (res->lbr_decc << 9);
+		regbuff |= (res->lbr_wp << 8);
+		regbuff |= (res->lbr_msel << 5);
+		regbuff |= (res->lbr_atom << 2);
+		regbuff |= 1;
+
+		lbc_write_reg(sc, LBC85XX_BR(unit), regbuff);
+
+		/*
+		 * Compute and program OR value
+		 */
+		regbuff = 0;
+		regbuff |= lbc_address_mask(size);
+
+		switch (res->lbr_msel) {
+		case LBCRES_MSEL_GPCM:
+			/* TODO Add flag support for option registers */
+			regbuff |= 0x00000ff7;
+			break;
+		case LBCRES_MSEL_FCM:
+			printf("FCM mode not supported yet!");
+			error = ENOSYS;
+			goto fail;
+		case LBCRES_MSEL_UPMA:
+		case LBCRES_MSEL_UPMB:
+		case LBCRES_MSEL_UPMC:
+			printf("UPM mode not supported yet!");
+			error = ENOSYS;
+			goto fail;
+		}
+
+		lbc_write_reg(sc, LBC85XX_OR(unit), regbuff);
+
+		return (0);
+	}
+fail:
+	if (unit != -1) {
+		law_disable(OCP85XX_TGTIF_LBC, start, size);
+		pmap_unmapdev(sc->sc_kva[unit], size);
+		return (error);
+	} else
+		return (ENOENT);
 }
 
 static int
@@ -150,7 +322,7 @@ lbc_attach(device_t dev)
 {
 	struct lbc_softc *sc;
 	struct rman *rm;
-	u_long start, size;
+	const struct lbc_resource *lbcres;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -165,15 +337,11 @@ lbc_attach(device_t dev)
 	sc->sc_bst = rman_get_bustag(sc->sc_res);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_res);
 
-	error = bus_get_resource(dev, SYS_RES_MEMORY, 1, &start, &size);
-	if (error)
-		goto fail;
-
 	rm = &sc->sc_rman;
 	rm->rm_type = RMAN_ARRAY;
 	rm->rm_descr = "MPC85XX Local Bus Space";
-	rm->rm_start = start;
-	rm->rm_end = start + size - 1;
+	rm->rm_start = 0UL;
+	rm->rm_end = ~0UL;
 	error = rman_init(rm);
 	if (error)
 		goto fail;
@@ -184,13 +352,35 @@ lbc_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->sc_kva = (uintptr_t)pmap_mapdev(start, size);
+	/*
+	 * Initialize configuration register:
+	 * - enable Local Bus
+	 * - set data buffer control signal function
+	 * - disable parity byte select
+	 * - set ECC parity type
+	 * - set bus monitor timing and timer prescale
+	 */
+	lbc_write_reg(sc, LBC85XX_LBCR, 0x00000000);
 
-	lbc_mk_child(dev, LBC_DEVTYPE_CFI, 0, 0);
+	/*
+	 * Initialize clock ratio register:
+	 * - disable PLL bypass mode
+	 * - configure LCLK delay cycles for the assertion of LALE
+	 * - set system clock divider
+	 */
+	lbc_write_reg(sc, LBC85XX_LCRR, 0x00030008);
+
+	lbcres = mpc85xx_lbc_resources;
+
+	for (; lbcres->lbr_devtype; lbcres++)
+		if (!lbc_mk_child(dev, lbcres)) {
+			error = ENXIO;
+			goto fail;
+		}
 
 	return (bus_generic_attach(dev));
 
- fail:
+fail:
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_res);
 	return (error);
 }
@@ -208,11 +398,13 @@ lbc_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct lbc_softc *sc;
+	struct lbc_devinfo *dinfo;
 	struct resource *rv;
 	struct rman *rm;
 	int error;
 
 	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
 
 	if (type != SYS_RES_MEMORY && type != SYS_RES_IRQ)
 		return (NULL);
@@ -225,6 +417,12 @@ lbc_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (bus_alloc_resource(dev, type, rid, start, end, count,
 		    flags));
 
+	if (!sc->sc_kva[dinfo->lbc_unit]) {
+		error = lbc_init_child(dev, child);
+		if (error)
+			return (NULL);
+	}
+
 	error = lbc_get_resource(dev, child, type, *rid, &start, &count);
 	if (error)
 		return (NULL);
@@ -234,8 +432,7 @@ lbc_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv != NULL) {
 		rman_set_bustag(rv, &bs_be_tag);
-		rman_set_bushandle(rv, sc->sc_kva + rman_get_start(rv) -
-		    rm->rm_start);
+		rman_set_bushandle(rv, rman_get_start(rv));
 	}
 	return (rv);
 }
@@ -279,12 +476,6 @@ lbc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	case LBC_IVAR_DEVTYPE:
 		*result = dinfo->lbc_devtype;
 		return (0);
-	case LBC_IVAR_CLOCK:
-		*result = 1843200;
-		return (0);
-	case LBC_IVAR_REGSHIFT:
-		*result = 0;
-		return (0);
 	default:
 		break;
 	}
@@ -305,24 +496,35 @@ lbc_get_resource(device_t dev, device_t child, int type, int rid,
 {
 	struct lbc_softc *sc;
 	struct lbc_devinfo *dinfo;
+	const struct lbc_resource *lbcres;
 
 	if (type != SYS_RES_MEMORY)
 		return (ENOENT);
 
-	/* Currently all devices have a single RID per type. */
+	/* Currently all LBC devices have a single RID per type. */
 	if (rid != 0)
 		return (ENOENT);
 
 	sc = device_get_softc(dev);
 	dinfo = device_get_ivars(child);
 
+	if ((dinfo->lbc_unit < 0) || (dinfo->lbc_unit > (LBC_DEV_MAX - 1)))
+		return (EINVAL);
+
+	lbcres = mpc85xx_lbc_resources;
+
 	switch (dinfo->lbc_devtype) {
 	case LBC_DEVTYPE_CFI:
-		*startp = sc->sc_rman.rm_start;
-		*countp = sc->sc_rman.rm_end - sc->sc_rman.rm_start + 1;
-		break;
+	case LBC_DEVTYPE_RTC:
+		for (; lbcres->lbr_devtype; lbcres++) {
+			if (dinfo->lbc_unit == lbcres->lbr_unit) {
+				*startp = sc->sc_kva[lbcres->lbr_unit];
+				*countp = lbcres->lbr_size;
+				return (0);
+			}
+		}
 	default:
-		return(EDOOFUS);
+		return (EDOOFUS);
 	}
-	return(0);
+	return (0);
 }
