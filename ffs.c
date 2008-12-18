@@ -368,9 +368,13 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 
 		/* now check calculated sizes vs requested sizes */
 	if (fsopts->maxsize > 0 && size > fsopts->maxsize) {
-		warnx("`%s' size of %lld is larger than the maxsize of %lld; rounding down to %lld.",
-		    dir, (long long)size, (long long)fsopts->maxsize,
-		    rounddown(fsopts->size, fsopts->bsize));
+		if (debug & DEBUG_FS_VALIDATE) {
+			printf("%s: `%s' size of %lld is larger than the "
+			    "maxsize of %lld; rounding down to %lld.",
+			    __func__, dir, (long long)size,
+			    (long long)fsopts->maxsize,
+			    rounddown(fsopts->size, fsopts->bsize));
+		}
 		size = rounddown(fsopts->size, fsopts->bsize);
 	}
 	fsopts->size = size;
