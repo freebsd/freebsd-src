@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081123_0118"
+#define HDA_DRV_TEST_REV	"20081219_0119"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -179,6 +179,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define SIS_VENDORID		0x1039
 #define HDA_SIS_966		HDA_MODEL_CONSTRUCT(SIS, 0x7502)
 #define HDA_SIS_ALL		HDA_MODEL_CONSTRUCT(SIS, 0xffff)
+
+/* ULI */
+#define ULI_VENDORID		0x10b9
+#define HDA_ULI_M5461		HDA_MODEL_CONSTRUCT(ULI, 0x5461)
+#define HDA_ULI_ALL		HDA_MODEL_CONSTRUCT(ULI, 0xffff)
 
 /* OEM/subvendors */
 
@@ -467,12 +472,14 @@ static const struct {
 	{ HDA_ATI_SB600,     "ATI SB600"    },
 	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A" },
 	{ HDA_SIS_966,       "SiS 966" },
+	{ HDA_ULI_M5461,     "ULI M5461" },
 	/* Unknown */
 	{ HDA_INTEL_ALL,  "Intel (Unknown)"  },
 	{ HDA_NVIDIA_ALL, "NVidia (Unknown)" },
 	{ HDA_ATI_ALL,    "ATI (Unknown)"    },
 	{ HDA_VIA_ALL,    "VIA (Unknown)"    },
 	{ HDA_SIS_ALL,    "SiS (Unknown)"    },
+	{ HDA_ULI_ALL,    "ULI (Unknown)"    },
 };
 #define HDAC_DEVICES_LEN (sizeof(hdac_devices) / sizeof(hdac_devices[0]))
 
