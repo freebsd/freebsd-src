@@ -67,10 +67,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/param.h>
 
 #include <grp.h>
@@ -81,6 +77,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "makefs.h"
 
 #include "mtree.h"
 #include "extern.h"
@@ -433,4 +431,3 @@ pwmatchline(int search, uid_t uid, const char *name)
 
 	return 1;
 }
-

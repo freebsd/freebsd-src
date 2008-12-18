@@ -66,16 +66,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-/*
- * XXX Undefine the renames of these functions so that we don't
- * XXX rename the versions found in the host's <pwd.h> by mistake!
- */
-#undef group_from_gid
-#undef user_from_uid
-#endif
-
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0
@@ -84,8 +74,6 @@ static char sccsid[] = "@(#)cache.c	8.1 (Berkeley) 5/31/93";
 __RCSID("$NetBSD: pwcache.c,v 1.29 2004/06/20 22:20:14 jmc Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
-
-#include "namespace.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -98,12 +86,6 @@ __RCSID("$NetBSD: pwcache.c,v 1.29 2004/06/20 22:20:14 jmc Exp $");
 #include <string.h>
 #include <unistd.h>
 
-#if HAVE_NBTOOL_CONFIG_H
-/* XXX Now, re-apply the renaming that we undid above. */
-#define	group_from_gid	__nbcompat_group_from_gid
-#define	user_from_uid	__nbcompat_user_from_uid
-#endif
-
 #ifdef __weak_alias
 __weak_alias(user_from_uid,_user_from_uid)
 __weak_alias(group_from_gid,_group_from_gid)
@@ -111,7 +93,6 @@ __weak_alias(pwcache_userdb,_pwcache_userdb)
 __weak_alias(pwcache_groupdb,_pwcache_groupdb)
 #endif
 
-#if !HAVE_PWCACHE_USERDB || HAVE_NBTOOL_CONFIG_H
 #include "pwcache.h"
 
 /*
@@ -161,8 +142,6 @@ static u_int
 st_hash(const char *name, size_t len, int tabsz)
 {
 	u_int key = 0;
-
-	_DIAGASSERT(name != NULL);
 
 	while (len--) {
 		key += *name++;
@@ -648,4 +627,3 @@ main(int argc, char *argv[])
 	return (0);
 }
 #endif	/* TEST_PWCACHE */
-#endif	/* !HAVE_PWCACHE_USERDB */

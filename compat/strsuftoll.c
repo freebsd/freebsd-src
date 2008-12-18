@@ -67,21 +67,11 @@
  * SUCH DAMAGE.
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: strsuftoll.c,v 1.6 2004/03/05 05:58:29 lukem Exp $");
 #endif /* LIBC_SCCS and not lint */
-
-#ifdef _LIBC
-#include "namespace.h"
-#endif
-
-#if !HAVE_STRSUFTOLL
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -118,19 +108,6 @@ __weak_alias(strsuftollx, _strsuftollx)
  * appropriate error.
  * 
  */
-/* LONGLONG */
-long long
-strsuftoll(const char *desc, const char *val,
-    long long min, long long max)
-{
-	long long result;
-	char	errbuf[100];
-
-	result = strsuftollx(desc, val, min, max, errbuf, sizeof(errbuf));
-	if (*errbuf != '\0')
-		errx(1, "%s", errbuf);
-	return (result);
-}
 
 /*
  * As strsuftoll(), but returns the error message into the provided buffer
@@ -143,10 +120,6 @@ strsuftollx(const char *desc, const char *val,
 {
 	long long num, t;
 	char	*expr;
-
-	_DIAGASSERT(desc != NULL);
-	_DIAGASSERT(val != NULL);
-	_DIAGASSERT(ebuf != NULL);
 
 	errno = 0;
 	ebuf[0] = '\0';
@@ -244,4 +217,16 @@ strsuftollx(const char *desc, const char *val,
 	return (num);
 }
 
-#endif /* !HAVE_STRSUFTOLL */
+/* LONGLONG */
+long long
+strsuftoll(const char *desc, const char *val,
+    long long min, long long max)
+{
+	long long result;
+	char	errbuf[100];
+
+	result = strsuftollx(desc, val, min, max, errbuf, sizeof(errbuf));
+	if (*errbuf != '\0')
+		errx(1, "%s", errbuf);
+	return (result);
+}

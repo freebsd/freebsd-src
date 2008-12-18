@@ -31,141 +31,34 @@
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
+#if 0
 __KERNEL_RCSID(0, "$NetBSD: ffs_subr.c,v 1.32 2003/12/30 12:33:24 pk Exp $");
+#endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-/* in ffs_tables.c */
-extern const int inside[], around[];
-extern const u_char * const fragtbl[];
-
-#ifndef _KERNEL
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+/* XXX temporary */
+struct ufsmount;
+struct bufobj;
+struct mount;
+struct vnode;
+typedef int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
+                    struct vnode **vpp);
 #include <ufs/ffs/ffs_extern.h>
-#include <ufs/ufs/ufs_bswap.h>
+#include "ffs/ufs_bswap.h"
 void    panic __P((const char *, ...))
     __attribute__((__noreturn__,__format__(__printf__,1,2)));
-
-#else	/* _KERNEL */
-#include <sys/systm.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/buf.h>
-#include <sys/inttypes.h>
-#include <sys/pool.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_extern.h>
-#include <ufs/ffs/fs.h>
-#include <ufs/ffs/ffs_extern.h>
-#include <ufs/ufs/ufs_bswap.h>
-
-/*
- * Return buffer with the contents of block "offset" from the beginning of
- * directory "ip".  If "res" is non-zero, fill it in with a pointer to the
- * remaining space in the directory.
- */
-int
-ffs_blkatoff(v)
-	void *v;
-{
-	struct vop_blkatoff_args /* {
-		struct vnode *a_vp;
-		off_t a_offset;
-		char **a_res;
-		struct buf **a_bpp;
-	} */ *ap = v;
-	struct inode *ip;
-	struct fs *fs;
-	struct buf *bp;
-	daddr_t lbn;
-	int bsize, error;
-
-	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
-	lbn = lblkno(fs, ap->a_offset);
-	bsize = blksize(fs, ip, lbn);
-
-	*ap->a_bpp = NULL;
-	if ((error = bread(ap->a_vp, lbn, bsize, NOCRED, &bp)) != 0) {
-		brelse(bp);
-		return (error);
-	}
-	if (ap->a_res)
-		*ap->a_res = (char *)bp->b_data + blkoff(fs, ap->a_offset);
-	*ap->a_bpp = bp;
-	return (0);
-}
-
-
-/*
- * Load up the contents of an inode and copy the appropriate pieces
- * to the incore copy.
- */
-void
-ffs_load_inode(bp, ip, fs, ino)
-	struct buf *bp;
-	struct inode *ip;
-	struct fs *fs;
-	ino_t ino;
-{
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
-
-	if (ip->i_ump->um_fstype == UFS1) {
-		dp1 = (struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino);
-#ifdef FFS_EI
-		if (UFS_FSNEEDSWAP(fs))
-			ffs_dinode1_swap(dp1, ip->i_din.ffs1_din);
-		else
-#endif
-		*ip->i_din.ffs1_din = *dp1;
-
-		ip->i_mode = ip->i_ffs1_mode;
-		ip->i_nlink = ip->i_ffs1_nlink;
-		ip->i_size = ip->i_ffs1_size;
-		ip->i_flags = ip->i_ffs1_flags;
-		ip->i_gen = ip->i_ffs1_gen;
-		ip->i_uid = ip->i_ffs1_uid;
-		ip->i_gid = ip->i_ffs1_gid;
-	} else {
-		dp2 = (struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino);
-#ifdef FFS_EI
-		if (UFS_FSNEEDSWAP(fs))
-			ffs_dinode2_swap(dp2, ip->i_din.ffs2_din);
-		else
-#endif
-		*ip->i_din.ffs2_din = *dp2;
-
-		ip->i_mode = ip->i_ffs2_mode;
-		ip->i_nlink = ip->i_ffs2_nlink;
-		ip->i_size = ip->i_ffs2_size;
-		ip->i_flags = ip->i_ffs2_flags;
-		ip->i_gen = ip->i_ffs2_gen;
-		ip->i_uid = ip->i_ffs2_uid;
-		ip->i_gid = ip->i_ffs2_gid;
-	}
-}
-
-#endif	/* _KERNEL */
 
 /*
  * Update the frsum fields to reflect addition or deletion 
  * of some frags.
  */
 void
-ffs_fragacct(fs, fragmap, fraglist, cnt, needswap)
-	struct fs *fs;
-	int fragmap;
-	int32_t fraglist[];
-	int cnt;
-	int needswap;
+ffs_fragacct_swap(struct fs *fs, int fragmap, int32_t fraglist[], int cnt, int needswap)
 {
 	int inblk;
 	int field, subfield;
@@ -192,45 +85,6 @@ ffs_fragacct(fs, fragmap, fraglist, cnt, needswap)
 		}
 	}
 }
-
-#if defined(_KERNEL) && defined(DIAGNOSTIC)
-void
-ffs_checkoverlap(bp, ip)
-	struct buf *bp;
-	struct inode *ip;
-{
-#if 0
-	struct buf *ebp, *ep;
-	daddr_t start, last;
-	struct vnode *vp;
-
-	ebp = &buf[nbuf];
-	start = bp->b_blkno;
-	last = start + btodb(bp->b_bcount) - 1;
-	for (ep = buf; ep < ebp; ep++) {
-		if (ep == bp || (ep->b_flags & B_INVAL) ||
-		    ep->b_vp == NULLVP)
-			continue;
-		if (VOP_BMAP(ep->b_vp, (daddr_t)0, &vp, (daddr_t)0, NULL))
-			continue;
-		if (vp != ip->i_devvp)
-			continue;
-		/* look for overlap */
-		if (ep->b_bcount == 0 || ep->b_blkno > last ||
-		    ep->b_blkno + btodb(ep->b_bcount) <= start)
-			continue;
-		vprint("Disk overlap", vp);
-		printf("\tstart %" PRId64 ", end %" PRId64 " overlap start "
-		    "%" PRId64 ", end %" PRId64 "\n",
-		    start, last, ep->b_blkno,
-		    ep->b_blkno + btodb(ep->b_bcount) - 1);
-		panic("Disk buffer overlap");
-	}
-#else
-	printf("ffs_checkoverlap disabled due to buffer cache implementation changes\n");
-#endif
-}
-#endif /* _KERNEL && DIAGNOSTIC */
 
 /*
  * block operations

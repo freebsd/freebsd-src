@@ -35,10 +35,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(__lint)
 __RCSID("$NetBSD: makefs.c,v 1.20 2004/06/20 22:20:18 jmc Exp $");

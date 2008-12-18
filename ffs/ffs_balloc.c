@@ -32,10 +32,6 @@
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(__lint)
 __RCSID("$NetBSD: ffs_balloc.c,v 1.13 2004/06/20 22:20:18 jmc Exp $");
@@ -53,9 +49,9 @@ __RCSID("$NetBSD: ffs_balloc.c,v 1.13 2004/06/20 22:20:18 jmc Exp $");
 #include "makefs.h"
 
 #include <ufs/ufs/dinode.h>
-#include <ufs/ufs/ufs_bswap.h>
 #include <ufs/ffs/fs.h>
 
+#include "ffs/ufs_bswap.h"
 #include "ffs/buf.h"
 #include "ffs/ufs_inode.h"
 #include "ffs/ffs_extern.h"

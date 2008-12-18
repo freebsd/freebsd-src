@@ -38,16 +38,6 @@
 #ifndef	_MAKEFS_H
 #define	_MAKEFS_H
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#else
-#define HAVE_STRUCT_STAT_ST_FLAGS 1
-#define HAVE_STRUCT_STAT_ST_GEN 1
-#define HAVE_STRUCT_STAT_ST_MTIMENSEC 1
-#define HAVE_STRUCT_STATVFS_F_IOSIZE 1
-#define HAVE_STRUCT_STAT_BIRTHTIME 1
-#endif
-
 #include <sys/stat.h>
 #include <err.h>
 
@@ -231,7 +221,7 @@ extern	struct timespec	start_time;
 		gettimeofday(&end, NULL);		\
 		timersub(&end, &(x), &td);		\
 		printf("%s took %ld.%06ld seconds\n",	\
-		    (d), td.tv_sec, td.tv_usec);	\
+		    (d), (long) td.tv_sec, (long) td.tv_usec);	\
 	}
 
 
@@ -247,5 +237,64 @@ extern	struct timespec	start_time;
 
 #define	FFS_EI		/* for opposite endian support in ffs headers */
 
+/*
+ * Write-arounds/compat shims for endian-agnostic support.
+ * These belong in the kernel if/when it's possible to mount
+ * filesystems w/ either byte order.
+ */
+
+/*
+ * File system internal flags, also in fs_flags.
+ * (Pick highest number to avoid conflicts with others)
+ */
+#define	FS_SWAPPED	0x80000000	/* file system is endian swapped */
+#define	FS_INTERNAL	0x80000000	/* mask for internal flags */
+
+#define	FS_ISCLEAN	1
+
+#define	DINODE1_SIZE	(sizeof(struct ufs1_dinode))
+#define	DINODE2_SIZE	(sizeof(struct ufs2_dinode))
+
+#define MAXSYMLINKLEN_UFS1	((NDADDR + NIADDR) * sizeof(ufs1_daddr_t))
+#define MAXSYMLINKLEN_UFS2	((NDADDR + NIADDR) * sizeof(ufs2_daddr_t))
+
+#if (BYTE_ORDER == LITTLE_ENDIAN)
+#define DIRSIZ_SWAP(oldfmt, dp, needswap)	\
+    (((oldfmt) && !(needswap)) ?	\
+    DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
+#else
+#define DIRSIZ_SWAP(oldfmt, dp, needswap)	\
+    (((oldfmt) && (needswap)) ?		\
+    DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
+#endif
+
+#define	cg_chkmagic_swap(cgp, ns) \
+    (ufs_rw32(cg_chkmagic(cgp), (ns)) == CG_MAGIC)
+#define	cg_inosused_swap(cgp, ns)	cg_inosused(cgp)
+#define	cg_blksfree_swap(cgp, ns)	cg_blksfree(cgp)
+#define	cg_clustersfree_swap(cgp, ns)	cg_clustersfree(cgp)
+#define	cg_clustersum_swap(cgp, ns) \
+    ((int32_t *)((uintptr_t)(cgp) + ufs_rw32((cgp)->cg_clustersumoff, ns)))
+
+struct fs;
+void	ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
+
+/*
+ * Declarations for compat routines.
+ */
+long long strsuftoll(const char *, const char *, long long, long long);
+long long strsuftollx(const char *, const char *,
+			long long, long long, char *, size_t);
+
+struct passwd;
+int uid_from_user(const char *, uid_t *);
+int pwcache_userdb(int (*)(int), void (*)(void),
+		struct passwd * (*)(const char *), struct passwd * (*)(uid_t));
+struct group;
+int gid_from_group(const char *, gid_t *);
+int pwcache_groupdb(int (*)(int), void (*)(void),
+		struct group * (*)(const char *), struct group * (*)(gid_t));
+
+int setup_getid(const char *dir);
 
 #endif	/* _MAKEFS_H */

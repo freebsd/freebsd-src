@@ -30,12 +30,11 @@
  *
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
+#if 0
 __KERNEL_RCSID(0, "$NetBSD: ffs_bswap.c,v 1.28 2004/05/25 14:54:59 hannken Exp $");
+#endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #if defined(_KERNEL)
@@ -43,8 +42,15 @@ __KERNEL_RCSID(0, "$NetBSD: ffs_bswap.c,v 1.28 2004/05/25 14:54:59 hannken Exp $
 #endif
 
 #include <ufs/ufs/dinode.h>
-#include <ufs/ufs/ufs_bswap.h>
+#include "ffs/ufs_bswap.h"
 #include <ufs/ffs/fs.h>
+/* XXX temporary */
+struct ufsmount;
+struct bufobj;
+struct mount;
+struct vnode;
+typedef int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
+                    struct vnode **vpp);
 #include <ufs/ffs/ffs_extern.h>
 
 #if !defined(_KERNEL)
@@ -54,6 +60,20 @@ __KERNEL_RCSID(0, "$NetBSD: ffs_bswap.c,v 1.28 2004/05/25 14:54:59 hannken Exp $
 #include <string.h>
 #define panic(x)	printf("%s\n", (x)), abort()
 #endif
+
+#define	fs_old_postbloff	fs_spare5[0]
+#define	fs_old_rotbloff		fs_spare5[1]
+#define	fs_old_postbl_start	fs_maxbsize
+#define	fs_old_headswitch	fs_id[0]
+#define	fs_old_trkseek	fs_id[1]
+#define	fs_old_csmask	fs_spare1[0]
+#define	fs_old_csshift	fs_spare1[1]
+
+#define	FS_42POSTBLFMT		-1	/* 4.2BSD rotational table format */
+#define	FS_DYNAMICPOSTBLFMT	1	/* dynamic rotational table format */
+
+void ffs_csum_swap(struct csum *o, struct csum *n, int size);
+void ffs_csumtotal_swap(struct csum_total *o, struct csum_total *n);
 
 void
 ffs_sb_swap(struct fs *o, struct fs *n)
@@ -211,60 +231,43 @@ ffs_cg_swap(struct cg *o, struct cg *n, struct fs *fs)
 	for (i = 0; i < MAXFRAG; i++)
 		n->cg_frsum[i] = bswap32(o->cg_frsum[i]);
 	
-	if ((fs->fs_magic != FS_UFS2_MAGIC) &&
-			(fs->fs_old_postblformat == FS_42POSTBLFMT)) { /* old format */
-		struct ocg *on, *oo;
-		int j;
-		on = (struct ocg *)n;
-		oo = (struct ocg *)o;
+	n->cg_old_btotoff = bswap32(o->cg_old_btotoff);
+	n->cg_old_boff = bswap32(o->cg_old_boff);
+	n->cg_iusedoff = bswap32(o->cg_iusedoff);
+	n->cg_freeoff = bswap32(o->cg_freeoff);
+	n->cg_nextfreeoff = bswap32(o->cg_nextfreeoff);
+	n->cg_clustersumoff = bswap32(o->cg_clustersumoff);
+	n->cg_clusteroff = bswap32(o->cg_clusteroff);
+	n->cg_nclusterblks = bswap32(o->cg_nclusterblks);
+	n->cg_niblk = bswap32(o->cg_niblk);
+	n->cg_initediblk = bswap32(o->cg_initediblk);
+	n->cg_time = bswap64(o->cg_time);
 
-		for (i = 0; i < 32; i++) {
-			on->cg_btot[i] = bswap32(oo->cg_btot[i]);
-			for (j = 0; j < 8; j++)
-				on->cg_b[i][j] = bswap16(oo->cg_b[i][j]);
-		}
-		memmove(on->cg_iused, oo->cg_iused, 256);
-		on->cg_magic = bswap32(oo->cg_magic);
-	} else {  /* new format */
+	if (fs->fs_magic == FS_UFS2_MAGIC)
+		return;
 
-		n->cg_old_btotoff = bswap32(o->cg_old_btotoff);
-		n->cg_old_boff = bswap32(o->cg_old_boff);
-		n->cg_iusedoff = bswap32(o->cg_iusedoff);
-		n->cg_freeoff = bswap32(o->cg_freeoff);
-		n->cg_nextfreeoff = bswap32(o->cg_nextfreeoff);
-		n->cg_clustersumoff = bswap32(o->cg_clustersumoff);
-		n->cg_clusteroff = bswap32(o->cg_clusteroff);
-		n->cg_nclusterblks = bswap32(o->cg_nclusterblks);
-		n->cg_niblk = bswap32(o->cg_niblk);
-		n->cg_initediblk = bswap32(o->cg_initediblk);
-		n->cg_time = bswap64(o->cg_time);
-
-		if (fs->fs_magic == FS_UFS2_MAGIC)
-			return;
-
-		if (n->cg_magic == CG_MAGIC) {
-			btotoff = n->cg_old_btotoff;
-			boff = n->cg_old_boff;
-			clustersumoff = n->cg_clustersumoff;
-		} else {
-			btotoff = bswap32(n->cg_old_btotoff);
-			boff = bswap32(n->cg_old_boff);
-			clustersumoff = bswap32(n->cg_clustersumoff);
-		}
-		n32 = (u_int32_t *)((u_int8_t *)n + btotoff);
-		o32 = (u_int32_t *)((u_int8_t *)o + btotoff);
-		n16 = (u_int16_t *)((u_int8_t *)n + boff);
-		o16 = (u_int16_t *)((u_int8_t *)o + boff);
-
-		for (i = 0; i < fs->fs_old_cpg; i++)
-			n32[i] = bswap32(o32[i]);
-		
-		for (i = 0; i < fs->fs_old_cpg * fs->fs_old_nrpos; i++)
-			n16[i] = bswap16(o16[i]);
-
-		n32 = (u_int32_t *)((u_int8_t *)n + clustersumoff);
-		o32 = (u_int32_t *)((u_int8_t *)o + clustersumoff);
-		for (i = 1; i < fs->fs_contigsumsize + 1; i++)
-			n32[i] = bswap32(o32[i]);
+	if (n->cg_magic == CG_MAGIC) {
+		btotoff = n->cg_old_btotoff;
+		boff = n->cg_old_boff;
+		clustersumoff = n->cg_clustersumoff;
+	} else {
+		btotoff = bswap32(n->cg_old_btotoff);
+		boff = bswap32(n->cg_old_boff);
+		clustersumoff = bswap32(n->cg_clustersumoff);
 	}
+	n32 = (u_int32_t *)((u_int8_t *)n + btotoff);
+	o32 = (u_int32_t *)((u_int8_t *)o + btotoff);
+	n16 = (u_int16_t *)((u_int8_t *)n + boff);
+	o16 = (u_int16_t *)((u_int8_t *)o + boff);
+
+	for (i = 0; i < fs->fs_old_cpg; i++)
+		n32[i] = bswap32(o32[i]);
+	
+	for (i = 0; i < fs->fs_old_cpg * fs->fs_old_nrpos; i++)
+		n16[i] = bswap16(o16[i]);
+
+	n32 = (u_int32_t *)((u_int8_t *)n + clustersumoff);
+	o32 = (u_int32_t *)((u_int8_t *)o + clustersumoff);
+	for (i = 1; i < fs->fs_contigsumsize + 1; i++)
+		n32[i] = bswap32(o32[i]);
 }
