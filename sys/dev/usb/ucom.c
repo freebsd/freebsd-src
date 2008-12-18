@@ -708,7 +708,7 @@ ucomrxchars(struct ucom_softc *sc, u_char *cp, u_int32_t cc)
 	/* Give characters to tty layer. */
 	if (ttydisc_can_bypass(tp)) {
 		DPRINTFN(7, ("ucomreadcb: buf = %*D\n", cc, cp, ""));
-		cc = ttydisc_rint_bypass(tp, cp, cc);
+		cc -= ttydisc_rint_bypass(tp, cp, cc);
 	} else {
 		while (cc > 0) {
 			DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
