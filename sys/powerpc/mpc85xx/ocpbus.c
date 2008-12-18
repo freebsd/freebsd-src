@@ -138,8 +138,6 @@ static int
 ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 {
 	u_long addr, size;
-	int i;
-	uint32_t bar, sr;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -155,10 +153,6 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 		case OCP85XX_TGTIF_PCI2:
 			addr = 0xA0000000;
 			size = 0x10000000;
-			break;
-		case OCP85XX_TGTIF_LBC:
-			addr = 0xff800000;
-			size = 0x00800000;
 			break;
 		default:
 			return (EINVAL);
@@ -189,28 +183,7 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 	*startp = addr;
 	*countp = size;
 
-	/* Program the LAWs for this memory range. */
-	bar = addr >> 12;
-	sr = 0x80000000 | (trgt << 20) | (ffsl(size) - 2);
-
-	/* Check if already programmed. */
-	for (i = 0; i < law_max; i++) {
-		if (sr == ccsr_read4(OCP85XX_LAWSR(i)) &&
-		    bar == ccsr_read4(OCP85XX_LAWBAR(i)))
-			return (0);
-	}
-
-	/* Find an unused access window .*/
-	for (i = 0; i < law_max; i++) {
-		if ((ccsr_read4(OCP85XX_LAWSR(i)) & 0x80000000) == 0)
-			break;
-	}
-	if (i == law_max)
-		return (ENOSPC);
-
-	ccsr_write4(OCP85XX_LAWBAR(i), bar);
-	ccsr_write4(OCP85XX_LAWSR(i), sr);
-	return (0);
+	return (law_enable(trgt, *startp, *countp));
 }
 
 static int
@@ -232,7 +205,7 @@ ocpbus_probe(device_t dev)
 }
 
 static int
-ocpbus_attach (device_t dev)
+ocpbus_attach(device_t dev)
 {
 	struct ocpbus_softc *sc;
 	int error, i, tgt;
@@ -377,7 +350,6 @@ const struct ocp_resource mpc8555_resources[] = {
 
 	{OCPBUS_DEVTYPE_LBC, 0, SYS_RES_MEMORY, 0, OCP85XX_LBC_OFF,
 	    OCP85XX_LBC_SIZE},
-	{OCPBUS_DEVTYPE_LBC, 0, SYS_RES_MEMORY, 1, 0, OCP85XX_TGTIF_LBC},
 
 	{OCPBUS_DEVTYPE_I2C, 0, SYS_RES_MEMORY, 0, OCP85XX_I2C0_OFF,
 	    OCP85XX_I2C_SIZE},
