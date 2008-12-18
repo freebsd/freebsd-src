@@ -73,8 +73,9 @@ ata_ahci_probe(device_t dev)
     char buffer[64];
 
     /* is this a possible AHCI candidate ? */
-    if (pci_get_subclass(dev) != PCIS_STORAGE_SATA)
-	return ENXIO;
+    if (pci_get_class(dev) != PCIC_STORAGE ||
+	pci_get_subclass(dev) != PCIS_STORAGE_SATA)
+	    return (ENXIO);
 
     /* is this PCI device flagged as an AHCI compliant chip ? */
     if (pci_read_config(dev, PCIR_PROGIF, 1) != PCIP_STORAGE_SATA_AHCI_1_0)
