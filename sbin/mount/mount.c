@@ -68,6 +68,8 @@ static const char rcsid[] =
 #define MOUNT_META_OPTION_FSTAB		"fstab"
 #define MOUNT_META_OPTION_CURRENT	"current"
 
+#define	MAX_ARGS			100
+
 int debug, fstab_style, verbose;
 
 char   *catopt(char *, const char *);
@@ -501,7 +503,7 @@ int
 mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	const char *options, const char *mntopts)
 {
-	char *argv[100];
+	char *argv[MAX_ARGS];
 	struct statfs sf;
 	int argc, i, ret;
 	char *optbuf, execname[PATH_MAX], mntpath[PATH_MAX];
@@ -545,6 +547,10 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	argv[argc++] = strdup(spec);
 	argv[argc++] = strdup(name);
 	argv[argc] = NULL;
+
+	if (MAX_ARGS <= argc )
+		errx(1, "Cannot process more than %d mount arguments",
+		    MAX_ARGS);
 
 	if (debug) {
 		if (use_mountprog(vfstype))
