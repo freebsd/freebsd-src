@@ -200,7 +200,7 @@ __start:
 	addi	%r1, %r1, (TMPSTACKSZ - 8)
 
 /*
- * Intialise exception vector offsets
+ * Initialise exception vector offsets
  */
 	bl	ivor_setup
 
