@@ -191,15 +191,24 @@ MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
-struct ifnet *
-ifnet_byindex(u_short idx)
+static struct ifnet *
+ifnet_byindex_locked(u_short idx)
 {
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
-	IFNET_WLOCK();
 	ifp = V_ifindex_table[idx].ife_ifnet;
-	IFNET_WUNLOCK();
+	return (ifp);
+}
+
+struct ifnet *
+ifnet_byindex(u_short idx)
+{
+	struct ifnet *ifp;
+
+	IFNET_RLOCK();
+	ifp = ifnet_byindex_locked(idx);
+	IFNET_RUNLOCK();
 	return (ifp);
 }
 
@@ -218,9 +227,9 @@ ifaddr_byindex(u_short idx)
 {
 	struct ifaddr *ifa;
 
-	IFNET_WLOCK();
-	ifa = ifnet_byindex(idx)->if_addr;
-	IFNET_WUNLOCK();
+	IFNET_RLOCK();
+	ifa = ifnet_byindex_locked(idx)->if_addr;
+	IFNET_RUNLOCK();
 	return (ifa);
 }
 
@@ -499,7 +508,7 @@ if_free_type(struct ifnet *ifp, u_char type)
 	ifnet_setbyindex(ifp->if_index, NULL);
 
 	/* XXX: should be locked with if_findindex() */
-	while (V_if_index > 0 && ifnet_byindex(V_if_index) == NULL)
+	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
 		V_if_index--;
 	IFNET_WUNLOCK();
 
