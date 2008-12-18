@@ -75,6 +75,8 @@ __FBSDID("$FreeBSD$");
 
 enum VM_GUEST { VM_GUEST_NO, VM_GUEST_VM, VM_GUEST_XEN };
 
+static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
+
 int	hz;
 int	tick;
 int	maxusers;			/* base tunable */
@@ -88,7 +90,7 @@ int	nswbuf;
 int	maxswzone;			/* max swmeta KVA storage */
 int	maxbcache;			/* max buffer cache KVA storage */
 int	maxpipekva;			/* Limit on pipe KVA */
-int	vm_guest;			/* Running as virtual machine guest? */
+int 	vm_guest;			/* Running as virtual machine guest? */
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
 u_long	maxdsiz;			/* max data size */
@@ -113,8 +115,9 @@ SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RDTUN, &maxssiz, 0,
     "max stack size");
 SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
     "amount to grow stack");
-SYSCTL_INT(_kern, OID_AUTO, vm_guest, CTLFLAG_RD, &vm_guest, 0,
-    "Running under a virtual machine?");
+SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
+    NULL, 0, sysctl_kern_vm_guest, "A",
+    "Virtual machine detected? (none|generic|xen)");
 
 /*
  * These have to be allocated somewhere; allocating
@@ -138,6 +141,17 @@ static const char *const vm_pnames[] = {
 	NULL
 };
 
+static const char *const vm_guest_sysctl_names[] = {
+	"none",
+	"generic",
+	"xen",
+	NULL
+};
+
+
+/*
+ * Detect known Virtual Machine hosts by inspecting the emulated BIOS.
+ */
 static enum VM_GUEST
 detect_virtual(void)
 {
@@ -265,4 +279,14 @@ init_param3(long kmempages)
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
 	TUNABLE_INT_FETCH("kern.ipc.maxpipekva", &maxpipekva);
+}
+
+/*
+ * Sysctl stringiying handler for kern.vm_guest.
+ */
+static int
+sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)
+{
+	return (SYSCTL_OUT(req, vm_guest_sysctl_names[vm_guest], 
+	    strlen(vm_guest_sysctl_names[vm_guest])));
 }
