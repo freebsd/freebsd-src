@@ -140,7 +140,7 @@ sta_attach(struct ieee80211_scan_state *ss)
 {
 	struct sta_table *st;
 
-	MALLOC(st, struct sta_table *, sizeof(struct sta_table),
+	st = (struct sta_table *) malloc(sizeof(struct sta_table),
 		M_80211_SCAN, M_NOWAIT | M_ZERO);
 	if (st == NULL)
 		return 0;
@@ -164,7 +164,7 @@ sta_detach(struct ieee80211_scan_state *ss)
 		sta_flush_table(st);
 		mtx_destroy(&st->st_lock);
 		mtx_destroy(&st->st_scanlock);
-		FREE(st, M_80211_SCAN);
+		free(st, M_80211_SCAN);
 		KASSERT(nrefs > 0, ("imbalanced attach/detach"));
 		nrefs--;		/* NB: we assume caller locking */
 	}
@@ -198,7 +198,7 @@ sta_flush_table(struct sta_table *st)
 		TAILQ_REMOVE(&st->st_entry, se, se_list);
 		LIST_REMOVE(se, se_hash);
 		ieee80211_ies_cleanup(&se->base.se_ies);
-		FREE(se, M_80211_SCAN);
+		free(se, M_80211_SCAN);
 	}
 	memset(st->st_maxrssi, 0, sizeof(st->st_maxrssi));
 }
@@ -231,7 +231,7 @@ sta_add(struct ieee80211_scan_state *ss,
 	LIST_FOREACH(se, &st->st_hash[hash], se_hash)
 		if (IEEE80211_ADDR_EQ(se->base.se_macaddr, macaddr))
 			goto found;
-	MALLOC(se, struct sta_entry *, sizeof(struct sta_entry),
+	se = (struct sta_entry *) malloc(sizeof(struct sta_entry),
 		M_80211_SCAN, M_NOWAIT | M_ZERO);
 	if (se == NULL) {
 		mtx_unlock(&st->st_lock);
@@ -1509,7 +1509,7 @@ adhoc_age(struct ieee80211_scan_state *ss)
 			TAILQ_REMOVE(&st->st_entry, se, se_list);
 			LIST_REMOVE(se, se_hash);
 			ieee80211_ies_cleanup(&se->base.se_ies);
-			FREE(se, M_80211_SCAN);
+			free(se, M_80211_SCAN);
 		}
 	}
 	mtx_unlock(&st->st_lock);
