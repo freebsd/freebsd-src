@@ -65,10 +65,6 @@
  *	@(#)ffs_alloc.c	8.19 (Berkeley) 7/13/95
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(__lint)
 __RCSID("$NetBSD: ffs.c,v 1.30 2004/06/24 22:30:13 lukem Exp $");
@@ -94,8 +90,8 @@ __RCSID("$NetBSD: ffs.c,v 1.30 2004/06/24 22:30:13 lukem Exp $");
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
-#include <ufs/ufs/ufs_bswap.h>
 
+#include "ffs/ufs_bswap.h"
 #include "ffs/ufs_inode.h"
 #include "ffs/newfs_extern.h"
 #include "ffs/ffs_extern.h"
@@ -516,7 +512,7 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 
 #define	ADDDIRENT(e) do {						\
 	tmpdir.d_namlen = strlen((e));					\
-	this = DIRSIZ(0, &tmpdir, 0);					\
+	this = DIRSIZ_SWAP(0, &tmpdir, 0);				\
 	if (debug & DEBUG_FS_SIZE_DIR_ADD_DIRENT)			\
 		printf("ADDDIRENT: was: %s (%d) this %d cur %d\n",	\
 		    e, tmpdir.d_namlen, this, curdirsize);		\
@@ -943,13 +939,13 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 	de.d_type = IFTODT(node->type);
 	de.d_namlen = (uint8_t)strlen(name);
 	strcpy(de.d_name, name);
-	reclen = DIRSIZ(0, &de, needswap);
+	reclen = DIRSIZ_SWAP(0, &de, needswap);
 	de.d_reclen = ufs_rw16(reclen, needswap);
 
 	dp = (struct direct *)(dbuf->buf + dbuf->cur);
 	llen = 0;
 	if (dp != NULL)
-		llen = DIRSIZ(0, dp, needswap);
+		llen = DIRSIZ_SWAP(0, dp, needswap);
 
 	if (debug & DEBUG_FS_MAKE_DIRBUF)
 		printf(
@@ -1008,10 +1004,10 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	ffs_rdfs(fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize, &sbbuf,
 	    fsopts);
 	cgp = (struct cg *)sbbuf;
-	if (!cg_chkmagic(cgp, fsopts->needswap))
+	if (!cg_chkmagic_swap(cgp, fsopts->needswap))
 		errx(1, "ffs_write_inode: cg %d: bad magic number", cg);
 
-	assert (isclr(cg_inosused(cgp, fsopts->needswap), cgino));
+	assert (isclr(cg_inosused_swap(cgp, fsopts->needswap), cgino));
 
 	buf = malloc(fs->fs_bsize);
 	if (buf == NULL)
@@ -1027,7 +1023,7 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 		errx(1,
 		    "ffs_write_inode: cg %d out of inodes for ino %u",
 		    cg, ino);
-	setbit(cg_inosused(cgp, fsopts->needswap), cgino);
+	setbit(cg_inosused_swap(cgp, fsopts->needswap), cgino);
 	ufs_add32(cgp->cg_cs.cs_nifree, -1, fsopts->needswap);
 	fs->fs_cstotal.cs_nifree--;
 	fs->fs_cs(fs, cg).cs_nifree--;

@@ -37,10 +37,6 @@
  *	@(#)ufs_bmap.c	8.8 (Berkeley) 8/11/95
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(__lint)
 __RCSID("$NetBSD: ufs_bmap.c,v 1.14 2004/06/20 22:20:18 jmc Exp $");
@@ -56,9 +52,9 @@ __RCSID("$NetBSD: ufs_bmap.c,v 1.14 2004/06/20 22:20:18 jmc Exp $");
 #include "makefs.h"
 
 #include <ufs/ufs/dinode.h>
-#include <ufs/ufs/ufs_bswap.h>
 #include <ufs/ffs/fs.h>
 
+#include "ffs/ufs_bswap.h"
 #include "ffs/ufs_inode.h"
 #include "ffs/ffs_extern.h"
 

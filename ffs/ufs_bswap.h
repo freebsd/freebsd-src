@@ -37,7 +37,7 @@
 #include "opt_ffs.h"
 #endif
 
-#include <machine/bswap.h>
+#include <sys/endian.h>
 
 /* Macros to access UFS flags */
 #ifdef FFS_EI

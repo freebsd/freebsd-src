@@ -38,10 +38,6 @@
  * SUCH DAMAGE.
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
@@ -66,9 +62,9 @@ __RCSID("$NetBSD: mkfs.c,v 1.20 2004/06/24 22:30:13 lukem Exp $");
 #include "makefs.h"
 
 #include <ufs/ufs/dinode.h>
-#include <ufs/ufs/ufs_bswap.h>
 #include <ufs/ffs/fs.h>
 
+#include "ffs/ufs_bswap.h"
 #include "ffs/ufs_inode.h"
 #include "ffs/ffs_extern.h"
 #include "ffs/newfs_extern.h"
@@ -114,7 +110,6 @@ static int     opt;		   /* optimization preference (space or time) */
 static int     density;	   /* number of bytes per inode */
 static int     maxcontig;	   /* max contiguous blocks to allocate */
 static int     maxbpg;	   /* maximum blocks per file in a cyl group */
-static int     bbsize;	   /* boot block size */
 static int     sbsize;	   /* superblock size */
 static int     avgfilesize;	   /* expected average file size */
 static int     avgfpdir;	   /* expected number of files per directory */
@@ -143,7 +138,6 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 	maxbpg =        fsopts->maxbpg;
 	avgfilesize =   fsopts->avgfilesize;
 	avgfpdir =      fsopts->avgfpdir;
-	bbsize =        BBSIZE;
 	sbsize =        SBLOCKSIZE;
 	
 	if (Oflag == 0) {
@@ -663,7 +657,7 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 	acg.cg_cs.cs_nifree += sblock.fs_ipg;
 	if (cylno == 0)
 		for (i = 0; i < ROOTINO; i++) {
-			setbit(cg_inosused(&acg, 0), i);
+			setbit(cg_inosused_swap(&acg, 0), i);
 			acg.cg_cs.cs_nifree--;
 		}
 	if (cylno > 0) {
@@ -672,9 +666,9 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 		 * for boot and super blocks.
 		 */
 		for (d = 0, blkno = 0; d < dlower;) {
-			ffs_setblock(&sblock, cg_blksfree(&acg, 0), blkno);
+			ffs_setblock(&sblock, cg_blksfree_swap(&acg, 0), blkno);
 			if (sblock.fs_contigsumsize > 0)
-				setbit(cg_clustersfree(&acg, 0), blkno);
+				setbit(cg_clustersfree_swap(&acg, 0), blkno);
 			acg.cg_cs.cs_nbfree++;
 			d += sblock.fs_frag;
 			blkno++;
@@ -683,15 +677,15 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 	if ((i = (dupper & (sblock.fs_frag - 1))) != 0) {
 		acg.cg_frsum[sblock.fs_frag - i]++;
 		for (d = dupper + sblock.fs_frag - i; dupper < d; dupper++) {
-			setbit(cg_blksfree(&acg, 0), dupper);
+			setbit(cg_blksfree_swap(&acg, 0), dupper);
 			acg.cg_cs.cs_nffree++;
 		}
 	}
 	for (d = dupper, blkno = dupper >> sblock.fs_fragshift;
 	     d + sblock.fs_frag <= acg.cg_ndblk; ) {
-		ffs_setblock(&sblock, cg_blksfree(&acg, 0), blkno);
+		ffs_setblock(&sblock, cg_blksfree_swap(&acg, 0), blkno);
 		if (sblock.fs_contigsumsize > 0)
-			setbit(cg_clustersfree(&acg, 0), blkno);
+			setbit(cg_clustersfree_swap(&acg, 0), blkno);
 		acg.cg_cs.cs_nbfree++;
 		d += sblock.fs_frag;
 		blkno++;
@@ -699,13 +693,13 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 	if (d < acg.cg_ndblk) {
 		acg.cg_frsum[acg.cg_ndblk - d]++;
 		for (; d < acg.cg_ndblk; d++) {
-			setbit(cg_blksfree(&acg, 0), d);
+			setbit(cg_blksfree_swap(&acg, 0), d);
 			acg.cg_cs.cs_nffree++;
 		}
 	}
 	if (sblock.fs_contigsumsize > 0) {
-		int32_t *sump = cg_clustersum(&acg, 0);
-		u_char *mapp = cg_clustersfree(&acg, 0);
+		int32_t *sump = cg_clustersum_swap(&acg, 0);
+		u_char *mapp = cg_clustersfree_swap(&acg, 0);
 		int map = *mapp++;
 		int bit = 1;
 		int run = 0;
