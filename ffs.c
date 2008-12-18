@@ -72,9 +72,7 @@ __RCSID("$NetBSD: ffs.c,v 1.30 2004/06/24 22:30:13 lukem Exp $");
 
 #include <sys/param.h>
 
-#if !HAVE_NBTOOL_CONFIG_H
 #include <sys/mount.h>
-#endif
 
 #include <assert.h>
 #include <errno.h>
