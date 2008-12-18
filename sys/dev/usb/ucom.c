@@ -706,17 +706,20 @@ ucomrxchars(struct ucom_softc *sc, u_char *cp, u_int32_t cc)
 	struct tty *tp = sc->sc_tty;
 
 	/* Give characters to tty layer. */
-	while (cc > 0) {
-		DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
-		if (ttydisc_rint(tp, *cp, 0) == -1) {
-			/* XXX what should we do? */
-			printf("%s: lost %d chars\n",
-			       device_get_nameunit(sc->sc_dev), cc);
-			break;
+	if (ttydisc_can_bypass(tp)) {
+		DPRINTFN(7, ("ucomreadcb: buf = %*D\n", cc, cp, ""));
+		cc = ttydisc_rint_bypass(tp, cp, cc);
+	} else {
+		while (cc > 0) {
+			DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
+			if (ttydisc_rint(tp, *cp, 0) == -1)
+				break;
+			cc--;
+			cp++;
 		}
-		cc--;
-		cp++;
 	}
+	if (cc > 0)
+		device_printf(sc->sc_dev, "lost %d chars\n", cc);
 	ttydisc_rint_done(tp);
 }
 
