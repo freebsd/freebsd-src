@@ -473,11 +473,13 @@ typedef struct drm_agp_head {
 } drm_agp_head_t;
 
 typedef struct drm_sg_mem {
-	unsigned long   handle;
-	void            *virtual;
-	int             pages;
-	dma_addr_t	*busaddr;
-	drm_dma_handle_t *dmah;	/* Handle to PCI memory for ATI PCIGART table */
+	unsigned long		  handle;
+	void			 *virtual;
+	int			  pages;
+	dma_addr_t		 *busaddr;
+	struct drm_dma_handle	 *sg_dmah;	/* Handle for sg_pages   */
+	struct drm_dma_handle	 *dmah;		/* Handle to PCI memory  */
+						/* for ATI PCIGART table */
 } drm_sg_mem_t;
 
 typedef TAILQ_HEAD(drm_map_list, drm_local_map) drm_map_list_t;
