@@ -2185,10 +2185,13 @@ allowaddr(char *s)
 	char *cp1, *cp2;
 	struct allowedpeer ap;
 	struct servent *se;
-	int masklen = -1, i;
+	int masklen = -1;
 	struct addrinfo hints, *res;
 	struct in_addr *addrp, *maskp;
+#ifdef INET6
+	int i;
 	u_int32_t *addr6p, *mask6p;
+#endif
 	char ip[NI_MAXHOST];
 
 #ifdef INET6
@@ -2344,12 +2347,15 @@ allowaddr(char *s)
 static int
 validate(struct sockaddr *sa, const char *hname)
 {
-	int i, j, reject;
+	int i;
 	size_t l1, l2;
 	char *cp, name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
 	struct allowedpeer *ap;
 	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
+#ifdef INET6
+	int j, reject;
 	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
+#endif
 	struct addrinfo hints, *res;
 	u_short sport;
 
