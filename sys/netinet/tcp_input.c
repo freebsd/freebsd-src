@@ -131,12 +131,12 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
 static int tcp_do_rfc3465 = 1;
-static int tcp_abc_l_var = 1;
+static int tcp_abc_l_var = 2;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
     tcp_do_rfc3465, 0,
     "Enable RFC 3465 (Appropriate Byte Counting)");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
-    tcp_abc_l_var, 1,
+    tcp_abc_l_var, 2,
     "Cap the max cwnd increment during slow-start to this number of segments");
 
 int	tcp_do_ecn = 0;
@@ -2134,7 +2134,7 @@ process_ACK:
 		 *   Grow cwnd linearly by approximately maxseg per RTT using
 		 *   maxseg^2 / cwnd per ACK as the increment.
 		 *   If cwnd > maxseg^2, fix the cwnd increment at 1 byte to
-		 *   avoid capping cwnd (as suggested in RFC 2581).
+		 *   avoid capping cwnd.
 		 */
 		if ((!V_tcp_do_newreno && !(tp->t_flags & TF_SACK_PERMIT)) ||
 		    !IN_FASTRECOVERY(tp)) {
@@ -2179,8 +2179,10 @@ process_ACK:
 			tp->snd_recover = th->th_ack - 1;
 		if ((V_tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
 		    IN_FASTRECOVERY(tp) &&
-		    SEQ_GEQ(th->th_ack, tp->snd_recover))
+		    SEQ_GEQ(th->th_ack, tp->snd_recover)) {
 			EXIT_FASTRECOVERY(tp);
+			tp->t_bytes_acked = 0;
+		}
 		tp->snd_una = th->th_ack;
 		if (tp->t_flags & TF_SACK_PERMIT) {
 			if (SEQ_GT(tp->snd_una, tp->snd_recover))
