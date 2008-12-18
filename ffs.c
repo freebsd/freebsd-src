@@ -281,6 +281,7 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 #if notyet
 	int32_t	spc, nspf, ncyl, fssize;
 #endif
+	off_t size;
 
 	assert(dir != NULL);
 	assert(root != NULL);
@@ -365,7 +366,16 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		fsopts->size = fsopts->minsize;
 
 		/* round up to the next block */
-	fsopts->size = roundup(fsopts->size, fsopts->bsize);
+	size = roundup(fsopts->size, fsopts->bsize);
+
+		/* now check calculated sizes vs requested sizes */
+	if (fsopts->maxsize > 0 && size > fsopts->maxsize) {
+		warnx("`%s' size of %lld is larger than the maxsize of %lld; rounding down to %lld.",
+		    dir, (long long)size, (long long)fsopts->maxsize,
+		    rounddown(fsopts->size, fsopts->bsize));
+		size = rounddown(fsopts->size, fsopts->bsize);
+	}
+	fsopts->size = size;
 
 		/* calculate density if necessary */
 	if (fsopts->density == -1)
@@ -378,12 +388,6 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		    dir, (long long)fsopts->size, (long long)fsopts->inodes);
 	}
 	sectorsize = fsopts->sectorsize;	/* XXX - see earlier */
-
-		/* now check calculated sizes vs requested sizes */
-	if (fsopts->maxsize > 0 && fsopts->size > fsopts->maxsize) {
-		errx(1, "`%s' size of %lld is larger than the maxsize of %lld.",
-		    dir, (long long)fsopts->size, (long long)fsopts->maxsize);
-	}
 }
 
 
