@@ -87,6 +87,7 @@ struct drm_file;
 #include <sys/agpio.h>
 #include <sys/mutex.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
