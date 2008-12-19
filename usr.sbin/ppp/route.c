@@ -910,8 +910,10 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
     p += memcpy_roundup(p, dst, dst->sa_len);
   }
 
-  rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+  if (gw != NULL && (gw->sa_family != AF_LINK))
+    rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
   p += memcpy_roundup(p, gw, gw->sa_len);
+
   if (mask) {
     rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
     p += memcpy_roundup(p, mask, mask->sa_len);
