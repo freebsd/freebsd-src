@@ -330,6 +330,7 @@ cfenable16(void)
 
 	val = *dskinf.cs1to;
 	*dskinf.cs1to = val &~ EXP_BYTE_EN;
+	DELAY(100);
 #if 0
 	DPRINTF("%s: cs1 timing reg %x\n", *dskinf.cs1to, __func__);
 #endif
@@ -340,6 +341,7 @@ cfdisable16(void)
 {
 	u_int32_t val;
 
+	DELAY(100);
 	val = *dskinf.cs1to;
 	*dskinf.cs1to = val | EXP_BYTE_EN;
 #if 0
