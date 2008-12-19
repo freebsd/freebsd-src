@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_ani.c,v 1.7 2008/11/21 00:16:21 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -267,7 +267,7 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	case HAL_ANI_NOISE_IMMUNITY_LEVEL: {
 		u_int level = param;
 
-		if (level >= params->maxNoiseImmunityLevel) {
+		if (level > params->maxNoiseImmunityLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANY,
 			    "%s: level out of range (%u > %u)\n",
 			    __func__, level, params->maxNoiseImmunityLevel);
@@ -342,7 +342,7 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	case HAL_ANI_FIRSTEP_LEVEL: {
 		u_int level = param;
 
-		if (level >= params->maxFirstepLevel) {
+		if (level > params->maxFirstepLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANY,
 			    "%s: level out of range (%u > %u)\n",
 			    __func__, level, params->maxFirstepLevel);
@@ -360,7 +360,7 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	case HAL_ANI_SPUR_IMMUNITY_LEVEL: {
 		u_int level = param;
 
-		if (level >= params->maxSpurImmunityLevel) {
+		if (level > params->maxSpurImmunityLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANY,
 			    "%s: level out of range (%u > %u)\n",
 			    __func__, level, params->maxSpurImmunityLevel);
@@ -433,7 +433,7 @@ ar5212AniOfdmErrTrigger(struct ath_hal *ah)
 	aniState = ahp->ah_curani;
 	params = aniState->params;
 	/* First, raise noise immunity level, up to max */
-	if (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel) {
+	if (aniState->noiseImmunityLevel+1 <= params->maxNoiseImmunityLevel) {
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: raise NI to %u\n", __func__,
 		    aniState->noiseImmunityLevel + 1);
 		ar5212AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
@@ -441,7 +441,7 @@ ar5212AniOfdmErrTrigger(struct ath_hal *ah)
 		return;
 	}
 	/* then, raise spur immunity level, up to max */
-	if (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel) {
+	if (aniState->spurImmunityLevel+1 <= params->maxSpurImmunityLevel) {
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: raise SI to %u\n", __func__,
 		    aniState->spurImmunityLevel + 1);
 		ar5212AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
@@ -470,7 +470,7 @@ ar5212AniOfdmErrTrigger(struct ath_hal *ah)
 			 * If weak sig detect is already off, as last resort,
 			 * raise firstep level 
 			 */
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
+			if (aniState->firstepLevel+1 <= params->maxFirstepLevel) {
 				HALDEBUG(ah, HAL_DEBUG_ANI,
 				    "%s: rssi %d raise ST %u\n", __func__, rssi,
 				    aniState->firstepLevel+1);
@@ -490,7 +490,7 @@ ar5212AniOfdmErrTrigger(struct ath_hal *ah)
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				    AH_TRUE);
 			}
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
+			if (aniState->firstepLevel+1 <= params->maxFirstepLevel) {
 				HALDEBUG(ah, HAL_DEBUG_ANI,
 				    "%s: rssi %d raise ST %u\n", __func__, rssi,
 				    aniState->firstepLevel+1);
@@ -544,7 +544,7 @@ ar5212AniCckErrTrigger(struct ath_hal *ah)
 	/* first, raise noise immunity level, up to max */
 	aniState = ahp->ah_curani;
 	params = aniState->params;
-	if (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel) {
+	if (aniState->noiseImmunityLevel+1 <= params->maxNoiseImmunityLevel) {
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: raise NI to %u\n", __func__,
 		    aniState->noiseImmunityLevel + 1);
 		ar5212AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
@@ -559,7 +559,7 @@ ar5212AniCckErrTrigger(struct ath_hal *ah)
 			 * Beacon signal in mid and high range,
 			 * raise firstep level.
 			 */
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
+			if (aniState->firstepLevel+1 <= params->maxFirstepLevel) {
 				HALDEBUG(ah, HAL_DEBUG_ANI,
 				    "%s: rssi %d raise ST %u\n", __func__, rssi,
 				    aniState->firstepLevel+1);
