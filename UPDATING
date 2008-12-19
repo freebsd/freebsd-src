@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
+
+20081219:
+	With __FreeBSD_version 800060 incorporates the makefs tool is
+	part of the base system (it was a port).
+
 20081216:
 	The afdata and ifnet locks have been changed from mutexes to 
 	rwlocks, network modules will need to be re-compiled.
