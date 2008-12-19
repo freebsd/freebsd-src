@@ -371,7 +371,7 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 			    "maxsize of %lld; rounding down to %lld.",
 			    __func__, dir, (long long)size,
 			    (long long)fsopts->maxsize,
-			    rounddown(fsopts->size, fsopts->bsize));
+			    (long long) rounddown(fsopts->size, fsopts->bsize));
 		}
 		size = rounddown(fsopts->size, fsopts->bsize);
 	}
