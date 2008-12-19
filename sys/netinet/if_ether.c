@@ -660,69 +660,64 @@ reply:
 		(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
 		(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
 	} else {
-		if (la == NULL) {
-			if (!V_arp_proxyall)
-				goto drop;
+		struct llentry *lle = NULL;
 
-			sin.sin_addr = itaddr;
-			/* XXX MRT use table 0 for arp reply  */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
-				goto drop;
-			/*
-			 * Don't send proxies for nodes on the same interface
-			 * as this one came out of, or we'll get into a fight
-			 * over who claims what Ether address.
-			 */
-			if (rt->rt_ifp == ifp) {
-				RTFREE_LOCKED(rt);
-				goto drop;
-			}
+		if (!V_arp_proxyall)
+			goto drop;
+
+		sin.sin_addr = itaddr;
+		/* XXX MRT use table 0 for arp reply  */
+		rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
+		if (!rt)
+			goto drop;
+
+		/*
+		 * Don't send proxies for nodes on the same interface
+		 * as this one came out of, or we'll get into a fight
+		 * over who claims what Ether address.
+		 */
+		if (!rt->rt_ifp || rt->rt_ifp == ifp) {
+			RTFREE_LOCKED(rt);
+			goto drop;
+		}
+		IF_AFDATA_LOCK(rt->rt_ifp); 
+		lle = lla_lookup(LLTABLE(rt->rt_ifp), 0, (struct sockaddr *)&sin);
+		IF_AFDATA_UNLOCK(rt->rt_ifp);
+		RTFREE_LOCKED(rt);
+
+		if (lle != NULL) {
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
-			(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
-			RTFREE_LOCKED(rt);
+			(void)memcpy(ar_sha(ah), &lle->ll_addr, ah->ar_hln);
+			LLE_RUNLOCK(lle);
+		} else
+			goto drop;
 
-			/*
-			 * Also check that the node which sent the ARP packet
-			 * is on the the interface we expect it to be on. This
-			 * avoids ARP chaos if an interface is connected to the
-			 * wrong network.
-			 */
-			sin.sin_addr = isaddr;
+		/*
+		 * Also check that the node which sent the ARP packet
+		 * is on the the interface we expect it to be on. This
+		 * avoids ARP chaos if an interface is connected to the
+		 * wrong network.
+		 */
+		sin.sin_addr = isaddr;
 
-			/* XXX MRT use table 0 for arp checks */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
-				goto drop;
-			if (rt->rt_ifp != ifp) {
-				log(LOG_INFO, "arp_proxy: ignoring request"
-				    " from %s via %s, expecting %s\n",
-				    inet_ntoa(isaddr), ifp->if_xname,
-				    rt->rt_ifp->if_xname);
-				RTFREE_LOCKED(rt);
-				goto drop;
-			}
+		/* XXX MRT use table 0 for arp checks */
+		rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
+		if (!rt)
+			goto drop;
+		if (rt->rt_ifp != ifp) {
+			log(LOG_INFO, "arp_proxy: ignoring request"
+			    " from %s via %s, expecting %s\n",
+			    inet_ntoa(isaddr), ifp->if_xname,
+			    rt->rt_ifp->if_xname);
 			RTFREE_LOCKED(rt);
+			goto drop;
+		}
+		RTFREE_LOCKED(rt);
 
 #ifdef DEBUG_PROXY
-			printf("arp: proxying for %s\n",
-			       inet_ntoa(itaddr));
+		printf("arp: proxying for %s\n",
+		       inet_ntoa(itaddr));
 #endif
-		} else {
-			/*
-			 * Return proxied ARP replies only on the interface
-			 * or bridge cluster where this network resides.
-			 * Otherwise we may conflict with the host we are
-			 * proxying for.
-			 */
-			if (la->lle_tbl->llt_ifp != ifp &&
-			    (la->lle_tbl->llt_ifp->if_bridge != ifp->if_bridge ||
-			    ifp->if_bridge == NULL)) {
-				goto drop;
-			}
-			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
-			(void)memcpy(ar_sha(ah), &la->ll_addr, ah->ar_hln);
-		}
 	}
 
 	if (la != NULL)
