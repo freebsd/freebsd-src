@@ -19,6 +19,7 @@ kinfo_getfile(pid_t pid, int *cntp)
 	char *buf, *bp, *eb;
 	struct kinfo_file *kif, *kp, *kf;
 
+	*cntp = 0;
 	len = 0;
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
@@ -27,15 +28,15 @@ kinfo_getfile(pid_t pid, int *cntp)
 
 	error = sysctl(mib, 4, NULL, &len, NULL, 0);
 	if (error)
-		return (0);
+		return (NULL);
 	len = len * 4 / 3;
 	buf = malloc(len);
 	if (buf == NULL)
-		return (0);
+		return (NULL);
 	error = sysctl(mib, 4, buf, &len, NULL, 0);
 	if (error) {
 		free(buf);
-		return (0);
+		return (NULL);
 	}
 	/* Pass 1: count items */
 	cnt = 0;
@@ -50,7 +51,7 @@ kinfo_getfile(pid_t pid, int *cntp)
 	kif = calloc(cnt, sizeof(*kif));
 	if (kif == NULL) {
 		free(buf);
-		return (0);
+		return (NULL);
 	}
 	bp = buf;
 	eb = buf + len;
