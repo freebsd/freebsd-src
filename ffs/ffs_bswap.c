@@ -31,9 +31,6 @@
  */
 
 #include <sys/cdefs.h>
-#if 0
-__KERNEL_RCSID(0, "$NetBSD: ffs_bswap.c,v 1.28 2004/05/25 14:54:59 hannken Exp $");
-#endif
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>

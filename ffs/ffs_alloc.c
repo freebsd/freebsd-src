@@ -42,9 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(__RCSID) && !defined(__lint)
-__RCSID("$NetBSD: ffs_alloc.c,v 1.14 2004/06/20 22:20:18 jmc Exp $");
-#endif	/* !__lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>

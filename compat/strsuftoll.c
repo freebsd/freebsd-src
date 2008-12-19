@@ -68,10 +68,7 @@
  */
 
 #include <sys/cdefs.h>
-
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: strsuftoll.c,v 1.6 2004/03/05 05:58:29 lukem Exp $");
-#endif /* LIBC_SCCS and not lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>

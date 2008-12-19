@@ -67,13 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)cache.c	8.1 (Berkeley) 5/31/93";
-#else
-__RCSID("$NetBSD: pwcache.c,v 1.29 2004/06/20 22:20:14 jmc Exp $");
-#endif
-#endif /* LIBC_SCCS and not lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
