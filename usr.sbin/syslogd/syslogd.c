@@ -128,7 +128,7 @@ const char	ctty[] = _PATH_CONSOLE;
  */
 struct funix {
 	int			s;
-	char			*name;
+	const char		*name;
 	mode_t			mode;
 	STAILQ_ENTRY(funix)	next;
 };
