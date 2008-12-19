@@ -66,9 +66,7 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(__RCSID) && !defined(__lint)
-__RCSID("$NetBSD: ffs.c,v 1.30 2004/06/24 22:30:13 lukem Exp $");
-#endif	/* !__lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 

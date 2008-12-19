@@ -39,15 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
-#else
-#ifdef __RCSID
-__RCSID("$NetBSD: mkfs.c,v 1.20 2004/06/24 22:30:13 lukem Exp $");
-#endif
-#endif
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
