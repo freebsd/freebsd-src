@@ -871,9 +871,9 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 
 	tty_init_termios(tp);
 
-	cv_init(&tp->t_inwait, "ttyinp");
+	cv_init(&tp->t_inwait, "ttyin");
 	cv_init(&tp->t_outwait, "ttyout");
-	cv_init(&tp->t_bgwait, "ttybgw");
+	cv_init(&tp->t_bgwait, "ttybg");
 	cv_init(&tp->t_dcdwait, "ttydcd");
 
 	ttyinq_init(&tp->t_inq);
@@ -884,7 +884,7 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 		tp->t_mtx = mutex;
 	} else {
 		tp->t_mtx = &tp->t_mtxobj;
-		mtx_init(&tp->t_mtxobj, "ttylck", NULL, MTX_DEF);
+		mtx_init(&tp->t_mtxobj, "ttymtx", NULL, MTX_DEF);
 	}
 
 	knlist_init(&tp->t_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
