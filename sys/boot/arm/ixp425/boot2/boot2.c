@@ -163,7 +163,7 @@ main(void)
 	p_memset((char *)dmadat, 0, 32 * 1024);
 	bt = board_init();
 
-	printf("FreeBSD ARM (%s) boot2 v%d.%d\n", bt, 0, 3);
+	printf("FreeBSD ARM (%s) boot2 v%d.%d\n", bt, 0, 4);
 
 	autoboot = 1;
 
