@@ -125,6 +125,7 @@ struct ehci_soft_islot {
 #define EHCI_SCFLG_SETMODE	0x0004	/* set bridge mode again after init (Marvell) */
 #define EHCI_SCFLG_FORCESPEED	0x0008	/* force speed (Marvell) */
 #define EHCI_SCFLG_NORESTERM	0x0010	/* don't terminate reset sequence (Marvell) */
+#define	EHCI_SCFLG_BIGEDESC	0x0020	/* big-endian byte order descriptors */
 
 typedef struct ehci_softc {
 	struct usbd_bus sc_bus;		/* base device */
@@ -132,22 +133,16 @@ typedef struct ehci_softc {
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_size_t sc_size;
-#if defined(__FreeBSD__)
 	void *ih;
 
 	struct resource *io_res;
 	struct resource *irq_res;
-#endif
 	u_int sc_offs;			/* offset to operational regs */
 
 	char sc_vendor[32];		/* vendor string for root hub */
 	int sc_id_vendor;		/* vendor ID for root hub */
 
 	u_int32_t sc_cmd;		/* shadow of cmd reg during suspend */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	void *sc_powerhook;		/* cookie from power hook */
-	void *sc_shutdownhook;		/* cookie from shutdown hook */
-#endif
 
 	u_int sc_ncomp;
 	u_int sc_npcomp;
@@ -156,9 +151,6 @@ typedef struct ehci_softc {
 	usb_dma_t sc_fldma;
 	ehci_link_t *sc_flist;
 	u_int sc_flsize;
-#ifndef __FreeBSD__
-	u_int sc_rand;			/* XXX need proper intr scheduling */
-#endif
 
 	struct ehci_soft_islot sc_islots[EHCI_INTRQHS];
 
@@ -192,9 +184,6 @@ typedef struct ehci_softc {
 	struct callout sc_tmo_intrlist;
 
 	char sc_dying;
-#if defined(__NetBSD__)
-	struct usb_dma_reserve sc_dma_reserve;
-#endif
 } ehci_softc_t;
 
 #define EREAD1(sc, a) bus_space_read_1((sc)->iot, (sc)->ioh, (a))
@@ -210,14 +199,77 @@ typedef struct ehci_softc {
 #define EOWRITE2(sc, a, x) bus_space_write_2((sc)->iot, (sc)->ioh, (sc)->sc_offs+(a), (x))
 #define EOWRITE4(sc, a, x) bus_space_write_4((sc)->iot, (sc)->ioh, (sc)->sc_offs+(a), (x))
 
+#ifdef USB_EHCI_BIG_ENDIAN_DESC
+/*
+ * Handle byte order conversion between host and ``host controller''.
+ * Typically the latter is little-endian but some controllers require
+ * big-endian in which case we may need to manually swap.
+ */
+static __inline uint32_t
+htohc32(const struct ehci_softc *sc, const uint32_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? htobe32(v) : htole32(v);
+}
+
+static __inline uint16_t
+htohc16(const struct ehci_softc *sc, const uint16_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? htobe16(v) : htole16(v);
+}
+
+static __inline uint32_t
+hc32toh(const struct ehci_softc *sc, const uint32_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? be32toh(v) : le32toh(v);
+}
+
+static __inline uint16_t
+hc16toh(const struct ehci_softc *sc, const uint16_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? be16toh(v) : le16toh(v);
+}
+#else
+/*
+ * Normal little-endian only conversion routines.
+ */
+static __inline uint32_t
+htohc32(const struct ehci_softc *sc, const uint32_t v)
+{
+	return htole32(v);
+}
+
+static __inline uint16_t
+htohc16(const struct ehci_softc *sc, const uint16_t v)
+{
+	return htole16(v);
+}
+
+static __inline uint32_t
+hc32toh(const struct ehci_softc *sc, const uint32_t v)
+{
+	return le32toh(v);
+}
+
+static __inline uint16_t
+hc16toh(const struct ehci_softc *sc, const uint16_t v)
+{
+	return le16toh(v);
+}
+#endif
+
 usbd_status	ehci_init(ehci_softc_t *);
 int		ehci_intr(void *);
 int		ehci_detach(ehci_softc_t *, int);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int		ehci_activate(device_t, enum devact);
-#endif
 void		ehci_power(int state, void *priv);
 void		ehci_shutdown(void *v);
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
+void		ehci_dump_regs(ehci_softc_t *);
+void		ehci_dump_sqtds(ehci_softc_t *, ehci_soft_qtd_t *);
+void		ehci_dump_qtd(ehci_softc_t *, ehci_qtd_t *);
+void		ehci_dump_sqtd(ehci_softc_t *, ehci_soft_qtd_t *);
+void		ehci_dump_sqh(ehci_softc_t *, ehci_soft_qh_t *);
+void		ehci_dump_itd(ehci_softc_t *, struct ehci_soft_itd *);
+void		ehci_dump_sitd(ehci_softc_t *, struct ehci_soft_itd *);
+void		ehci_dump_exfer(struct ehci_xfer *);
