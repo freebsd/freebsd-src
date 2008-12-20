@@ -570,7 +570,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * Find out route to destination.
 	 */
 	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-		in_rtalloc_ign(&sro, RTF_CLONING, inp->inp_inc.inc_fibnum);
+		in_rtalloc_ign(&sro, 0, inp->inp_inc.inc_fibnum);
 
 	/*
 	 * If we found a route, use the address corresponding to
@@ -695,6 +695,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
 
 		if (cred == NULL || !jailed(cred)) {
+#if __FreeBSD_version < 800000
+			if (ia == NULL)
+				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+#endif
 			if (ia == NULL) {
 				error = ENETUNREACH;
 				goto done;
@@ -1696,7 +1700,7 @@ db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
 	indent += 2;
 
 #ifdef INET6
-	if (inc->inc_flags == 1) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		/* IPv6. */
 		ip6_sprintf(laddr_str, &inc->inc6_laddr);
 		ip6_sprintf(faddr_str, &inc->inc6_faddr);

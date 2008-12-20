@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah.c,v 1.15 2008/11/15 22:15:44 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -32,7 +32,7 @@ OS_SET_DECLARE(ah_chips, struct ath_hal_chip);
 const char*
 ath_hal_probe(uint16_t vendorid, uint16_t devid)
 {
-	struct ath_hal_chip **pchip;
+	struct ath_hal_chip * const *pchip;
 
 	OS_SET_FOREACH(pchip, ah_chips) {
 		const char *name = (*pchip)->probe(vendorid, devid);
@@ -53,7 +53,7 @@ struct ath_hal*
 ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *error)
 {
-	struct ath_hal_chip **pchip;
+	struct ath_hal_chip * const *pchip;
 
 	OS_SET_FOREACH(pchip, ah_chips) {
 		struct ath_hal_chip *chip = *pchip;
@@ -88,7 +88,7 @@ OS_SET_DECLARE(ah_rfs, struct ath_hal_rf);
 struct ath_hal_rf *
 ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode)
 {
-	struct ath_hal_rf **prf;
+	struct ath_hal_rf * const *prf;
 
 	OS_SET_FOREACH(prf, ah_rfs) {
 		struct ath_hal_rf *rf = *prf;

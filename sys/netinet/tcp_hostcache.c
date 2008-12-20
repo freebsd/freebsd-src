@@ -249,7 +249,7 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	/*
 	 * Hash the foreign ip address.
 	 */
-	if (inc->inc_isipv6)
+	if (inc->inc_flags & INC_ISIPV6)
 		hash = HOSTCACHE_HASH6(&inc->inc6_faddr);
 	else
 		hash = HOSTCACHE_HASH(&inc->inc_faddr);
@@ -267,7 +267,7 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	 * Iterate through entries in bucket row looking for a match.
 	 */
 	TAILQ_FOREACH(hc_entry, &hc_head->hch_bucket, rmx_q) {
-		if (inc->inc_isipv6) {
+		if (inc->inc_flags & INC_ISIPV6) {
 			if (memcmp(&inc->inc6_faddr, &hc_entry->ip6,
 			    sizeof(inc->inc6_faddr)) == 0)
 				return hc_entry;
@@ -305,7 +305,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	/*
 	 * Hash the foreign ip address.
 	 */
-	if (inc->inc_isipv6)
+	if (inc->inc_flags & INC_ISIPV6)
 		hash = HOSTCACHE_HASH6(&inc->inc6_faddr);
 	else
 		hash = HOSTCACHE_HASH(&inc->inc_faddr);
@@ -360,7 +360,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	 * Initialize basic information of hostcache entry.
 	 */
 	bzero(hc_entry, sizeof(*hc_entry));
-	if (inc->inc_isipv6)
+	if (inc->inc_flags & INC_ISIPV6)
 		bcopy(&inc->inc6_faddr, &hc_entry->ip6, sizeof(hc_entry->ip6));
 	else
 		hc_entry->ip4 = inc->inc_faddr;

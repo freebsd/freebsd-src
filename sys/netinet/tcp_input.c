@@ -737,9 +737,9 @@ findpcb:
 		    "tp not listening", __func__));
 
 		bzero(&inc, sizeof(inc));
-		inc.inc_isipv6 = isipv6;
 #ifdef INET6
 		if (isipv6) {
+			inc.inc_flags |= INC_ISIPV6;
 			inc.inc6_faddr = ip6->ip6_src;
 			inc.inc6_laddr = ip6->ip6_dst;
 		} else
@@ -3338,14 +3338,11 @@ tcp_mssopt(struct in_conninfo *inc)
 	u_long maxmtu = 0;
 	u_long thcmtu = 0;
 	size_t min_protoh;
-#ifdef INET6
-	int isipv6 = inc->inc_isipv6 ? 1 : 0;
-#endif
 
 	KASSERT(inc != NULL, ("tcp_mssopt with NULL in_conninfo pointer"));
 
 #ifdef INET6
-	if (isipv6) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		mss = V_tcp_v6mssdflt;
 		maxmtu = tcp_maxmtu6(inc, NULL);
 		thcmtu = tcp_hc_getmtu(inc); /* IPv4 and IPv6 */

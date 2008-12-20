@@ -142,7 +142,6 @@ struct vnet_inet {
 	int	_isn_last_reseed;
 	u_int32_t _isn_offset;
 	u_int32_t _isn_offset_old;
-	MD5_CTX	_isn_ctx;
 
 	struct	inpcbhead _udb;
 	struct	inpcbinfo _udbinfo;
@@ -265,7 +264,6 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_ipsendredirects	VNET_INET(ipsendredirects)
 #define	V_ipstat		VNET_INET(ipstat)
 #define	V_ipstealth		VNET_INET(ipstealth)
-#define	V_isn_ctx		VNET_INET(isn_ctx)
 #define	V_isn_last_reseed	VNET_INET(isn_last_reseed)
 #define	V_isn_offset		VNET_INET(isn_offset)
 #define	V_isn_offset_old	VNET_INET(isn_offset_old)

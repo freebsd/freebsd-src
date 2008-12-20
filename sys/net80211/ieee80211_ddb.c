@@ -92,7 +92,8 @@ __FBSDID("$FreeBSD$");
 
 #define	IEEE80211_NODE_BITS \
 	"\20\1AUTH\2QOS\3ERP\5PWR_MGT\6AREF\7HT\10HTCOMPAT\11WPS\12TSN" \
-	"\13AMPDU_RX\14AMPDU_TX\15MIMO_PS\16MIMO_RTS\17RIFS\20SGI20\21SGI40"
+	"\13AMPDU_RX\14AMPDU_TX\15MIMO_PS\16MIMO_RTS\17RIFS\20SGI20\21SGI40" \
+	"\22ASSOCID"
 
 #define	IEEE80211_ERP_BITS \
 	"\20\1NON_ERP_PRESENT\2USE_PROTECTION\3LONG_PREAMBLE"
@@ -541,7 +542,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	 */
 	db_printf("\tnchans %d", ic->ic_nchans);
 #if 0
-	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX+1];
+	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX];
 	uint8_t			ic_chan_avail[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];

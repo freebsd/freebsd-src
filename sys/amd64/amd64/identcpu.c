@@ -322,15 +322,15 @@ printcpuinfo(void)
 				"\003SVM"	/* Secure Virtual Mode */
 				"\004ExtAPIC"	/* Extended APIC register */
 				"\005CR8"	/* CR8 in legacy mode */
-				"\006<b5>"
-				"\007<b6>"
-				"\010<b7>"
+				"\006ABM"	/* LZCNT instruction */
+				"\007SSE4A"	/* SSE4A */
+				"\010MAS"	/* Misaligned SSE mode */
 				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
-				"\012<b9>"
-				"\013<b10>"
-				"\014<b11>"
-				"\015<b12>"
-				"\016<b13>"
+				"\012OSVW"	/* OS visible workaround */
+				"\013IBS"	/* Instruction based sampling */
+				"\014SSE5"	/* SSE5 */
+				"\015SKINIT"	/* SKINIT/STGI */
+				"\016WDT"	/* Watchdog timer */
 				"\017<b14>"
 				"\020<b15>"
 				"\021<b16>"

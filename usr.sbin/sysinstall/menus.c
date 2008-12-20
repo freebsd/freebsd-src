@@ -87,33 +87,15 @@ checkDistDeveloper(dialogMenuItem *self)
 }
 
 static int
-checkDistXDeveloper(dialogMenuItem *self)
-{
-    return IS_DEVELOPER(Dists, DIST_XORG) && _IS_SET(SrcDists, DIST_SRC_ALL);
-}
-
-static int
 checkDistKernDeveloper(dialogMenuItem *self)
 {
     return IS_DEVELOPER(Dists, 0) && _IS_SET(SrcDists, DIST_SRC_SYS);
 }
 
 static int
-checkDistXKernDeveloper(dialogMenuItem *self)
-{
-    return IS_DEVELOPER(Dists, DIST_XORG) && _IS_SET(SrcDists, DIST_SRC_SYS);
-}
-
-static int
 checkDistUser(dialogMenuItem *self)
 {
     return IS_USER(Dists, 0);
-}
-
-static int
-checkDistXUser(dialogMenuItem *self)
-{
-    return IS_USER(Dists, DIST_XORG);
 }
 
 static int
@@ -127,7 +109,6 @@ checkDistEverything(dialogMenuItem *self)
 {
     return Dists == DIST_ALL &&
 	_IS_SET(SrcDists, DIST_SRC_ALL) &&
-	_IS_SET(XOrgDists, DIST_XORG_ALL) &&
 	_IS_SET(KernelDists, DIST_KERNEL_ALL);
 }
 
@@ -135,17 +116,6 @@ static int
 srcFlagCheck(dialogMenuItem *item)
 {
     return SrcDists;
-}
-
-static int
-x11FlagCheck(dialogMenuItem *item)
-{
-    if (XOrgDists != 0)
-	Dists |= DIST_XORG;
-    else
-	Dists &= ~DIST_XORG;
-
-    return Dists & DIST_XORG;
 }
 
 static int
@@ -191,10 +161,8 @@ DMenu MenuIndex = {
       { " Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
       { " Dists, Developer",	"Select developer's distribution.",	checkDistDeveloper, distSetDeveloper },
       { " Dists, Src",		"Src distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuSrcDistributions },
-      { " Dists, X Developer",	"Select X developer's distribution.",	checkDistXDeveloper, distSetXDeveloper },
       { " Dists, Kern Developer", "Select kernel developer's distribution.", checkDistKernDeveloper, distSetKernDeveloper },
       { " Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
-      { " Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
       { " Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
       { " Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { " Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
@@ -218,7 +186,6 @@ DMenu MenuIndex = {
       { " Install, Custom",	"The custom installation menu",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
       { " Label",		"The disk Label editor",		NULL, diskLabelEditor },
       { " Media",		"Top level media selection menu.",	NULL, dmenuSubmenu, NULL, &MenuMedia },
-      { " Media, Tape",		"Select tape installation media.",	NULL, mediaSetTape },
       { " Media, NFS",		"Select NFS installation media.",	NULL, mediaSetNFS },
       { " Media, Floppy",	"Select floppy installation media.",	NULL, mediaSetFloppy },
       { " Media, CDROM/DVD",	"Select CDROM/DVD installation media.",	NULL, mediaSetCDROM },
@@ -826,20 +793,6 @@ DMenu MenuMediaFTP = {
       { NULL } }
 };
 
-DMenu MenuMediaTape = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Choose a tape drive type",
-    "FreeBSD can be installed from tape drive, though this installation\n"
-    "method requires a certain amount of temporary storage in addition\n"
-    "to the space required by the distribution itself (tape drives make\n"
-    "poor random-access devices, so we extract _everything_ on the tape\n"
-    "in one pass).  If you have sufficient space for this, then you should\n"
-    "select one of the following tape devices detected on your system.",
-    NULL,
-    NULL,
-    { { NULL } },
-};
-
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
@@ -884,7 +837,6 @@ DMenu MenuMedia = {
       { "6 NFS",		"Install over NFS",			NULL, mediaSetNFS },
       { "7 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
       { "8 Floppy",		"Install from a floppy disk set",	NULL, mediaSetFloppy },
-      { "9 Tape",		"Install from SCSI or QIC tape",	NULL, mediaSetTape },
       { "X Options",		"Go to the Options screen",		NULL, optionsEditor },
       { NULL } },
 };
@@ -904,22 +856,16 @@ DMenu MenuDistributions = {
     "distributions",
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",			"All system sources, binaries and X Window System",
+      { "All",			"All system sources and binaries",
 	checkDistEverything,	distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",		"Reset selected distribution list to nothing",
 	NULL,			distReset, NULL, NULL, ' ', ' ', ' ' },
       { "4 Developer",		"Full sources, binaries and doc but no games", 
 	checkDistDeveloper,	distSetDeveloper },
-      { "5 X-Developer",	"Same as above + X Window System",
-	checkDistXDeveloper,	distSetXDeveloper },
-      { "6 Kern-Developer",	"Full binaries and doc, kernel sources only",
+      { "5 Kern-Developer",	"Full binaries and doc, kernel sources only",
 	checkDistKernDeveloper, distSetKernDeveloper },
-      { "7 X-Kern-Developer",	"Same as above + X Window System",
-	checkDistXKernDeveloper, distSetXKernDeveloper },
-      { "8 User",		"Average user - binaries and doc only",
+      { "6 User",		"Average user - binaries and doc only",
 	checkDistUser,		distSetUser },
-      { "9 X-User",		"Same as above + X Window System",
-	checkDistXUser,		distSetXUser },
       { "A Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
       { "B Custom",		"Specify your own distribution set",
@@ -936,7 +882,7 @@ DMenu MenuSubDistributions = {
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"All system sources, binaries and X Window System",
+      { "All",		"All system sources and binaries",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all of the below",
 	NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
@@ -968,8 +914,6 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
       { " local",	"Local additions collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
-      { " X.Org",	"The X.Org distribution",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XORG },
       { NULL } },
 };
 

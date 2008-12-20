@@ -60,6 +60,19 @@ static struct mtx kobj_mtx;
 static int kobj_mutex_inited;
 static int kobj_next_id = 1;
 
+/*
+ * In the event that kobj_mtx has not been initialized yet,
+ * we will ignore it, and run without locks in order to support
+ * use of KOBJ before mutexes are available. This early in the boot
+ * process, everything is single threaded and so races should not
+ * happen. This is used to provide the PMAP layer on PowerPC, as well
+ * as board support.
+ */
+
+#define KOBJ_LOCK()	if (kobj_mutex_inited) mtx_lock(&kobj_mtx);
+#define KOBJ_UNLOCK()	if (kobj_mutex_inited) mtx_unlock(&kobj_mtx);
+#define KOBJ_ASSERT(what) if (kobj_mutex_inited) mtx_assert(&kobj_mtx,what);
+
 SYSCTL_UINT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
 	   &kobj_next_id, 0, "");
 
@@ -73,12 +86,6 @@ kobj_init_mutex(void *arg)
 }
 
 SYSINIT(kobj, SI_SUB_LOCK, SI_ORDER_ANY, kobj_init_mutex, NULL);
-
-void
-kobj_machdep_init(void)
-{
-	kobj_init_mutex(NULL);
-}
 
 /*
  * This method structure is used to initialise new caches. Since the
@@ -99,8 +106,8 @@ kobj_error_method(void)
 static void
 kobj_register_method(struct kobjop_desc *desc)
 {
+	KOBJ_ASSERT(MA_OWNED);
 
-	mtx_assert(&kobj_mtx, MA_OWNED);
 	if (desc->id == 0) {
 		desc->id = kobj_next_id++;
 	}
@@ -117,7 +124,7 @@ kobj_class_compile_common(kobj_class_t cls, kobj_ops_t ops)
 	kobj_method_t *m;
 	int i;
 
-	mtx_assert(&kobj_mtx, MA_OWNED);
+	KOBJ_ASSERT(MA_OWNED);
 
 	/*
 	 * Don't do anything if we are already compiled.
@@ -145,7 +152,7 @@ kobj_class_compile(kobj_class_t cls)
 {
 	kobj_ops_t ops;
 
-	mtx_assert(&kobj_mtx, MA_NOTOWNED);
+	KOBJ_ASSERT(MA_NOTOWNED);
 
 	/*
 	 * Allocate space for the compiled ops table.
@@ -154,7 +161,7 @@ kobj_class_compile(kobj_class_t cls)
 	if (!ops)
 		panic("kobj_compile_methods: out of memory");
 
-	mtx_lock(&kobj_mtx);
+	KOBJ_LOCK();
 	
 	/*
 	 * We may have lost a race for kobj_class_compile here - check
@@ -162,28 +169,30 @@ kobj_class_compile(kobj_class_t cls)
 	 * class.
 	 */
 	if (cls->ops) {
-		mtx_unlock(&kobj_mtx);
+		KOBJ_UNLOCK();
 		free(ops, M_KOBJ);
 		return;
 	}
 
 	kobj_class_compile_common(cls, ops);
-	mtx_unlock(&kobj_mtx);
+	KOBJ_UNLOCK();
 }
 
 void
 kobj_class_compile_static(kobj_class_t cls, kobj_ops_t ops)
 {
 
-	mtx_assert(&kobj_mtx, MA_NOTOWNED);
+	KOBJ_ASSERT(MA_NOTOWNED);
 
 	/*
 	 * Increment refs to make sure that the ops table is not freed.
 	 */
-	mtx_lock(&kobj_mtx);
+	KOBJ_LOCK();
+
 	cls->refs++;
 	kobj_class_compile_common(cls, ops);
-	mtx_unlock(&kobj_mtx);
+
+	KOBJ_UNLOCK();
 }
 
 static kobj_method_t*
@@ -254,8 +263,8 @@ kobj_class_free(kobj_class_t cls)
 	kobj_method_t *m;
 	void* ops = 0;
 
-	mtx_assert(&kobj_mtx, MA_NOTOWNED);
-	mtx_lock(&kobj_mtx);
+	KOBJ_ASSERT(MA_NOTOWNED);
+	KOBJ_LOCK();
 
 	/*
 	 * Protect against a race between kobj_create and
@@ -275,7 +284,7 @@ kobj_class_free(kobj_class_t cls)
 		cls->ops = 0;
 	}
 	
-	mtx_unlock(&kobj_mtx);
+	KOBJ_UNLOCK();
 
 	if (ops)
 		free(ops, M_KOBJ);
@@ -302,9 +311,9 @@ kobj_create(kobj_class_t cls,
 void
 kobj_init(kobj_t obj, kobj_class_t cls)
 {
-	mtx_assert(&kobj_mtx, MA_NOTOWNED);
+	KOBJ_ASSERT(MA_NOTOWNED);
   retry:
-	mtx_lock(&kobj_mtx);
+	KOBJ_LOCK();
 
 	/*
 	 * Consider compiling the class' method table.
@@ -315,7 +324,7 @@ kobj_init(kobj_t obj, kobj_class_t cls)
 		 * because of the call to malloc - we drop the lock
 		 * and re-try.
 		 */
-		mtx_unlock(&kobj_mtx);
+		KOBJ_UNLOCK();
 		kobj_class_compile(cls);
 		goto retry;
 	}
@@ -323,7 +332,7 @@ kobj_init(kobj_t obj, kobj_class_t cls)
 	obj->ops = cls->ops;
 	cls->refs++;
 
-	mtx_unlock(&kobj_mtx);
+	KOBJ_UNLOCK();
 }
 
 void
@@ -337,11 +346,11 @@ kobj_delete(kobj_t obj, struct malloc_type *mtype)
 	 * after its last instance is deleted. As an optimisation, we
 	 * should defer this for a short while to avoid thrashing.
 	 */
-	mtx_assert(&kobj_mtx, MA_NOTOWNED);
-	mtx_lock(&kobj_mtx);
+	KOBJ_ASSERT(MA_NOTOWNED);
+	KOBJ_LOCK();
 	cls->refs--;
 	refs = cls->refs;
-	mtx_unlock(&kobj_mtx);
+	KOBJ_UNLOCK();
 
 	if (!refs)
 		kobj_class_free(cls);

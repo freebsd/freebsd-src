@@ -44,7 +44,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 #ifdef __i386__
@@ -179,13 +178,6 @@ ast(struct trapframe *framep)
 		td->td_profil_ticks = 0;
 		td->td_pflags &= ~TDP_OWEUPC;
 	}
-#if defined(HWPMC_HOOKS)
-	if (td->td_pflags & TDP_CALLCHAIN) {
-		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_USER_CALLCHAIN,
-		    (void *) framep);
-		td->td_pflags &= ~TDP_CALLCHAIN;
-	}
-#endif
 	if (flags & TDF_ALRMPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGVTALRM);

@@ -203,10 +203,8 @@ ieee80211_start(struct ifnet *ifp)
 			continue;
 		}
 		/* XXX AUTH'd */
-		/* XXX mark vap to identify if associd is required */
 		if (ni->ni_associd == 0 &&
-		    (vap->iv_opmode == IEEE80211_M_STA ||
-		     vap->iv_opmode == IEEE80211_M_HOSTAP || IS_DWDS(vap))) {
+		    (ni->ni_flags & IEEE80211_NODE_ASSOCID)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
 			    eh->ether_dhost, NULL,
 			    "sta not associated (type 0x%04x)",

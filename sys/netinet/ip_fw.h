@@ -637,7 +637,7 @@ void ipfw_nat_destroy(void);
 typedef int ip_fw_ctl_t(struct sockopt *);
 extern ip_fw_ctl_t *ip_fw_ctl_ptr;
 
-#ifndef VIMAGE
+#ifdef VIMAGE_GLOBALS
 extern int fw_one_pass;
 extern int fw_enable;
 #ifdef INET6

@@ -60,6 +60,7 @@
 #include <sys/jail.h>
 #include <sys/vimage.h>
 #include <machine/stdarg.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -157,7 +158,7 @@ static struct	knlist ifklist;
 #endif
 
 int	ifqmaxlen = IFQ_MAXLEN;
-struct	mtx ifnet_lock;
+struct rwlock ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
@@ -190,14 +191,23 @@ MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
-struct ifnet *
-ifnet_byindex(u_short idx)
+static struct ifnet *
+ifnet_byindex_locked(u_short idx)
 {
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
 	ifp = V_ifindex_table[idx].ife_ifnet;
+	return (ifp);
+}
+
+struct ifnet *
+ifnet_byindex(u_short idx)
+{
+	struct ifnet *ifp;
+
+	IFNET_RLOCK();
+	ifp = ifnet_byindex_locked(idx);
 	IFNET_RUNLOCK();
 	return (ifp);
 }
@@ -218,7 +228,7 @@ ifaddr_byindex(u_short idx)
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	ifa = ifnet_byindex(idx)->if_addr;
+	ifa = ifnet_byindex_locked(idx)->if_addr;
 	IFNET_RUNLOCK();
 	return (ifa);
 }
@@ -498,7 +508,7 @@ if_free_type(struct ifnet *ifp, u_char type)
 	ifnet_setbyindex(ifp->if_index, NULL);
 
 	/* XXX: should be locked with if_findindex() */
-	while (V_if_index > 0 && ifnet_byindex(V_if_index) == NULL)
+	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
 		V_if_index--;
 	IFNET_WUNLOCK();
 
@@ -1110,7 +1120,7 @@ if_rtdel(struct radix_node *rn, void *arg)
 			return (0);
 
 		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt), rt->rt_flags,
+				rt_mask(rt), rt->rt_flags|RTF_RNH_LOCKED,
 				(struct rtentry **) NULL, rt->rt_fibnum);
 		if (err) {
 			log(LOG_WARNING, "if_rtdel: error %d\n", err);
@@ -1365,6 +1375,9 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 done:
 	return (ifa);
 }
+
+#include <net/route.h>
+#include <net/if_llatbl.h>
 
 /*
  * Default action when installing a route with a Link Level gateway.

@@ -97,33 +97,26 @@ pfil_head_register(struct pfil_head *ph)
 	struct pfil_head *lph;
 
 	PFIL_LIST_LOCK();
-	LIST_FOREACH(lph, &pfil_head_list, ph_list)
+	LIST_FOREACH(lph, &pfil_head_list, ph_list) {
 		if (ph->ph_type == lph->ph_type &&
 		    ph->ph_un.phu_val == lph->ph_un.phu_val) {
 			PFIL_LIST_UNLOCK();
 			return EEXIST;
 		}
-	PFIL_LIST_UNLOCK();
-
+	}
 	PFIL_LOCK_INIT(ph);
-	PFIL_WLOCK(ph);
 	ph->ph_nhooks = 0;
-
 	TAILQ_INIT(&ph->ph_in);
 	TAILQ_INIT(&ph->ph_out);
-
-	PFIL_LIST_LOCK();
 	LIST_INSERT_HEAD(&pfil_head_list, ph, ph_list);
 	PFIL_LIST_UNLOCK();
-
-	PFIL_WUNLOCK(ph);
-
 	return (0);
 }
 
 /*
- * pfil_head_unregister() removes a pfil_head from the packet filter
- * hook mechanism.
+ * pfil_head_unregister() removes a pfil_head from the packet filter hook
+ * mechanism.  The producer of the hook promises that all outstanding
+ * invocations of the hook have completed before it unregisters the hook.
  */
 int
 pfil_head_unregister(struct pfil_head *ph)
@@ -131,21 +124,13 @@ pfil_head_unregister(struct pfil_head *ph)
 	struct packet_filter_hook *pfh, *pfnext;
 		
 	PFIL_LIST_LOCK();
-	/* 
-	 * LIST_REMOVE is safe for unlocked pfil_heads in ph_list.
-	 * No need to WLOCK all of them.
-	 */
 	LIST_REMOVE(ph, ph_list);
 	PFIL_LIST_UNLOCK();
-
-	PFIL_WLOCK(ph);
-	
 	TAILQ_FOREACH_SAFE(pfh, &ph->ph_in, pfil_link, pfnext)
 		free(pfh, M_IFADDR);
 	TAILQ_FOREACH_SAFE(pfh, &ph->ph_out, pfil_link, pfnext)
 		free(pfh, M_IFADDR);
 	PFIL_LOCK_DESTROY(ph);
-	
 	return (0);
 }
 
@@ -175,14 +160,13 @@ pfil_head_get(int type, u_long val)
  *	PFIL_WAITOK	OK to call malloc with M_WAITOK.
  */
 int
-pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
-    void *arg, int flags, struct pfil_head *ph)
+pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int,
+  struct inpcb *), void *arg, int flags, struct pfil_head *ph)
 {
 	struct packet_filter_hook *pfh1 = NULL;
 	struct packet_filter_hook *pfh2 = NULL;
 	int err;
 
-	/* Get memory */
 	if (flags & PFIL_IN) {
 		pfh1 = (struct packet_filter_hook *)malloc(sizeof(*pfh1), 
 		    M_IFADDR, (flags & PFIL_WAITOK) ? M_WAITOK : M_NOWAIT);
@@ -199,17 +183,13 @@ pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct in
 			goto error;
 		}
 	}
-
-	/* Lock */
 	PFIL_WLOCK(ph);
-
-	/* Add */
 	if (flags & PFIL_IN) {
 		pfh1->pfil_func = func;
 		pfh1->pfil_arg = arg;
 		err = pfil_list_add(&ph->ph_in, pfh1, flags & ~PFIL_OUT);
 		if (err)
-			goto done;
+			goto locked_error;
 		ph->ph_nhooks++;
 	}
 	if (flags & PFIL_OUT) {
@@ -219,15 +199,13 @@ pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct in
 		if (err) {
 			if (flags & PFIL_IN)
 				pfil_list_remove(&ph->ph_in, func, arg);
-			goto done;
+			goto locked_error;
 		}
 		ph->ph_nhooks++;
 	}
-
 	PFIL_WUNLOCK(ph);
-
 	return 0;
-done:
+locked_error:
 	PFIL_WUNLOCK(ph);
 error:
 	if (pfh1 != NULL)

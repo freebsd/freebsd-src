@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_internal.h,v 1.21 2008/11/27 22:29:27 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AH_INTERAL_H_
 #define _ATH_AH_INTERAL_H_
@@ -40,23 +40,6 @@
 
 #ifndef offsetof
 #define	offsetof(type, field)	((size_t)(&((type *)0)->field))
-#endif
-
-/*
- * Remove const in a way that keeps the compiler happy.
- * This works for gcc but may require other magic for
- * other compilers (not sure where this should reside).
- * Note that uintptr_t is C99.
- */
-#ifndef __DECONST
-#ifndef _UINTPTR_T
-#if AH_WORDSIZE == 64
-typedef unsigned long int uintptr_t;
-#else
-typedef unsigned int uintptr_t;
-#endif
-#endif
-#define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
 #endif
 
 typedef struct {
@@ -114,12 +97,12 @@ struct ath_hal_rf {
 };
 #ifndef AH_RF
 #define	AH_RF(_name, _probe, _attach)				\
-static struct ath_hal_rf name##_rf = {				\
-	.name		= #_name,				\
+static struct ath_hal_rf _name##_rf = {				\
+	.name		= __STRING(_name),			\
 	.probe		= _probe,				\
 	.attach		= _attach				\
 };								\
-OS_DATA_SET(ah_rfs, name##_rf)
+OS_DATA_SET(ah_rfs, _name##_rf)
 #endif
 
 struct ath_hal_rf *ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode);

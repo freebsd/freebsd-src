@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5312_attach.c,v 1.8 2008/11/27 22:30:03 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -122,7 +122,7 @@ ar5312Attach(uint16_t devid, HAL_SOFTC sc,
 
 	/* setup common ini data; rf backends handle remainder */
 	HAL_INI_INIT(&ahp->ah_ini_modes, ar5212Modes, 6);
-	HAL_INI_INIT(&ahp->ah_ini_common, ar5212Common, 6);
+	HAL_INI_INIT(&ahp->ah_ini_common, ar5212Common, 2);
 
 	if (!ar5312ChipReset(ah, AH_NULL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
@@ -317,7 +317,6 @@ ar5312Probe(uint16_t vendorid, uint16_t devid)
 			return "Atheros 5312 WiSoC";
 		case AR5212_AR2313_REV8:
 			return "Atheros 2313 WiSoC";
-		case AR5212_AR2315_REV6:
 		case AR5212_AR2315_REV6:
 		case AR5212_AR2315_REV7:
 			return "Atheros 2315 WiSoC";
