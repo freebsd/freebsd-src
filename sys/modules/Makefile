@@ -30,9 +30,6 @@ SUBDIR=	${_3dfx} \
 	${_asr} \
 	ata \
 	ath \
-	ath_rate_amrr \
-	ath_rate_onoe \
-	ath_rate_sample \
 	aue \
 	${_auxio} \
 	axe \

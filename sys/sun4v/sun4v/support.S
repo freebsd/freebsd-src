@@ -622,9 +622,9 @@ ENTRY(setjmp)
 END(setjmp)
 
 /*
- * void openfirmware(cell_t args[])
+ * void ofw_entry(cell_t args[])
  */
-ENTRY(openfirmware)
+ENTRY(ofw_entry)
 	save	%sp, -CCFSZ, %sp
 	SET(ofw_vec, %l7, %l6)
 	ldx	[%l6], %l6
@@ -635,14 +635,14 @@ ENTRY(openfirmware)
 	wrpr	%l7, 0, %pil
 	ret
 	 restore %o0, %g0, %o0
-END(openfirmware)
+END(ofw_entry)
 
 #ifdef notyet
 /* SUN4V_FIXME - uses a now illegal ASI */
 /*
  * void ofw_exit(cell_t args[])
  */
-ENTRY(openfirmware_exit)
+ENTRY(ofw_exit)
 	save	%sp, -CCFSZ, %sp
 	flushw
 	wrpr	%g0, PIL_TICK, %pil
@@ -661,7 +661,7 @@ ENTRY(openfirmware_exit)
 	call	%l6
 	 mov	%i0, %o0
 	! never to return
-END(openfirmware_exit)
+END(ofw_exit)
 
 #endif
 ENTRY(set_mmfsa_scratchpad)

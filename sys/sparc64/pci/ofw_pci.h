@@ -34,7 +34,7 @@
 #ifndef _SPARC64_PCI_OFW_PCI_H_
 #define	_SPARC64_PCI_OFW_PCI_H_
 
-#include <machine/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 typedef uint32_t ofw_pci_intr_t;
 

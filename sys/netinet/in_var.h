@@ -84,9 +84,13 @@ extern	u_char	inetctlerrmap[];
 /*
  * Hash table for IP addresses.
  */
-extern	LIST_HEAD(in_ifaddrhashhead, in_ifaddr) *in_ifaddrhashtbl;
-extern	TAILQ_HEAD(in_ifaddrhead, in_ifaddr) in_ifaddrhead;
+TAILQ_HEAD(in_ifaddrhead, in_ifaddr);
+LIST_HEAD(in_ifaddrhashhead, in_ifaddr);
+#ifdef VIMAGE_GLOBALS
+extern	struct in_ifaddrhashhead *in_ifaddrhashtbl;
+extern	struct in_ifaddrhead in_ifaddrhead;
 extern	u_long in_ifaddrhmask;			/* mask for hash table */
+#endif
 
 #define INADDR_NHASH_LOG2       9
 #define INADDR_NHASH		(1 << INADDR_NHASH_LOG2)
@@ -227,7 +231,10 @@ SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_raw);
 #endif
 
-extern LIST_HEAD(in_multihead, in_multi) in_multihead;
+LIST_HEAD(in_multihead, in_multi);
+#ifdef VIMAGE_GLOBALS
+extern struct in_multihead in_multihead;
+#endif
 
 /*
  * Lock macros for IPv4 layer multicast address lists.  IPv4 lock goes
@@ -314,6 +321,9 @@ void	ip_input(struct mbuf *);
 int	in_ifadown(struct ifaddr *ifa, int);
 void	in_ifscrub(struct ifnet *, struct in_ifaddr *);
 struct	mbuf	*ip_fastforward(struct mbuf *);
+void	*in_domifattach(struct ifnet *);
+void	in_domifdetach(struct ifnet *, void *);
+
 
 /* XXX */
 void	 in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum);

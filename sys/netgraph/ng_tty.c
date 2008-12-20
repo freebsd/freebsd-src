@@ -114,7 +114,6 @@ static th_getc_poll_t		ngt_getc_poll;
 static th_rint_t		ngt_rint;
 static th_rint_bypass_t		ngt_rint_bypass;
 static th_rint_poll_t		ngt_rint_poll;
-static th_close_t		ngt_close;
 
 static struct ttyhook ngt_hook = {
 	.th_getc_inject = ngt_getc_inject,
@@ -122,7 +121,6 @@ static struct ttyhook ngt_hook = {
 	.th_rint = ngt_rint,
 	.th_rint_bypass = ngt_rint_bypass,
 	.th_rint_poll = ngt_rint_poll,
-	.th_close = ngt_close,
 };
 
 /* Netgraph node type descriptor */
@@ -252,7 +250,6 @@ static int
 ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct proc *p;
-	struct thread *td;
 	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg, *resp = NULL;
 	int error = 0;
@@ -266,12 +263,13 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				return (EBUSY);
 			
 			p = pfind(((int *)msg->data)[0]);
-			if (p == NULL)
+			if (p == NULL || (p->p_flag & P_WEXIT))
 				return (ESRCH);
-			td = FIRST_THREAD_IN_PROC(p);
-			error = ttyhook_register(&sc->tp, td, ((int *)msg->data)[1],
-			    &ngt_hook, sc);
+			_PHOLD(p);
 			PROC_UNLOCK(p);
+			error = ttyhook_register(&sc->tp, p, ((int *)msg->data)[1],
+			    &ngt_hook, sc);
+			PRELE(p);
 			if (error != 0)
 				return (error);
 			break;
@@ -513,14 +511,5 @@ ngt_rint_poll(struct tty *tp)
 {
 	/* We can always accept input */
 	return (1);
-}
-
-static void
-ngt_close(struct tty *tp)
-{
-	sc_p sc = ttyhook_softc(tp);
-
-	/* Must be queued to drop the tty lock */
-	ng_rmnode_flags(sc->node, NG_QUEUE);
 }
 

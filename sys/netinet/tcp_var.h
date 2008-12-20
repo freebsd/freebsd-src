@@ -38,7 +38,9 @@
 /*
  * Kernel variables for tcp.
  */
+#ifdef VIMAGE_GLOBALS
 extern int	tcp_do_rfc1323;
+#endif
 
 /* TCP segment queue entry */
 struct tseg_qent {
@@ -48,7 +50,9 @@ struct tseg_qent {
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
 LIST_HEAD(tsegqe_head, tseg_qent);
+#ifdef VIMAGE_GLOBALS
 extern int	tcp_reass_qsize;
+#endif
 extern struct uma_zone *tcp_reass_zone;
 
 struct sackblk {

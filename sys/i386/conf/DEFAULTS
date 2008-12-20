@@ -20,8 +20,8 @@ device		io		# I/O device
 device		uart_ns8250
 
 # Default partitioning schemes
-options 	GEOM_BSD
-options 	GEOM_MBR
+options 	GEOM_PART_BSD
+options 	GEOM_PART_MBR
 
 # enable support for native hardware
 options 	NATIVE

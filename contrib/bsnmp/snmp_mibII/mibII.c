@@ -48,8 +48,7 @@ static void *route_fd;
 /* if-index allocator */
 static uint32_t next_if_index = 1;
 
-/* re-fetch arp table */
-static int update_arp;
+/* currently fetching the arp table */
 static int in_update_arp;
 
 /* OR registrations */
@@ -911,36 +910,6 @@ mib_find_ifa(struct in_addr addr)
 }
 
 /*
- * Process a new ARP entry
- */
-static void
-process_arp(const struct rt_msghdr *rtm, const struct sockaddr_dl *sdl,
-    const struct sockaddr_in *sa)
-{
-	struct mibif *ifp;
-	struct mibarp *at;
-
-	/* IP arp table entry */
-	if (sdl->sdl_alen == 0) {
-		update_arp = 1;
-		return;
-	}
-	if ((ifp = mib_find_if_sys(sdl->sdl_index)) == NULL)
-		return;
-	/* have a valid entry */
-	if ((at = mib_find_arp(ifp, sa->sin_addr)) == NULL &&
-	    (at = mib_arp_create(ifp, sa->sin_addr,
-	    sdl->sdl_data + sdl->sdl_nlen, sdl->sdl_alen)) == NULL)
-		return;
-
-	if (rtm->rtm_rmx.rmx_expire == 0)
-		at->flags |= MIBARP_PERM;
-	else
-		at->flags &= ~MIBARP_PERM;
-	at->flags |= MIBARP_FOUND;
-}
-
-/*
  * Handle a routing socket message.
  */
 static void
@@ -1080,46 +1049,12 @@ handle_rtmsg(struct rt_msghdr *rtm)
 		}
 		break;
 #endif
-
 	  case RTM_GET:
-		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
-		if (rtm->rtm_flags & RTF_LLINFO) {
-			if (addrs[RTAX_DST] == NULL ||
-			    addrs[RTAX_GATEWAY] == NULL ||
-			    addrs[RTAX_DST]->sa_family != AF_INET ||
-			    addrs[RTAX_GATEWAY]->sa_family != AF_LINK)
-				break;
-			process_arp(rtm,
-			    (struct sockaddr_dl *)(void *)addrs[RTAX_GATEWAY],
-			    (struct sockaddr_in *)(void *)addrs[RTAX_DST]);
-		} else {
-			if (rtm->rtm_errno == 0 && (rtm->rtm_flags & RTF_UP))
-				mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
-				    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
-		}
-		break;
-
 	  case RTM_ADD:
-		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
-		if (rtm->rtm_flags & RTF_LLINFO) {
-			if (addrs[RTAX_DST] == NULL ||
-			    addrs[RTAX_GATEWAY] == NULL ||
-			    addrs[RTAX_DST]->sa_family != AF_INET ||
-			    addrs[RTAX_GATEWAY]->sa_family != AF_LINK)
-				break;
-			process_arp(rtm,
-			    (struct sockaddr_dl *)(void *)addrs[RTAX_GATEWAY],
-			    (struct sockaddr_in *)(void *)addrs[RTAX_DST]);
-		} else {
-			if (rtm->rtm_errno == 0 && (rtm->rtm_flags & RTF_UP))
-				mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
-				    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
-		}
-		break;
-
 	  case RTM_DELETE:
 		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
-		if (rtm->rtm_errno == 0 && !(rtm->rtm_flags & RTF_LLINFO))
+
+		if (rtm->rtm_errno == 0 && (rtm->rtm_flags & RTF_UP))
 			mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
 			    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
 		break;
@@ -1289,7 +1224,8 @@ update_ifa_info(void)
 
 /*
  * Update arp table
- */
+ *
+*/
 void
 mib_arp_update(void)
 {
@@ -1305,11 +1241,11 @@ mib_arp_update(void)
 	TAILQ_FOREACH(at, &mibarp_list, link)
 		at->flags &= ~MIBARP_FOUND;
 
-	if ((buf = mib_fetch_rtab(AF_INET, NET_RT_FLAGS, RTF_LLINFO, &needed)) == NULL) {
+	if ((buf = mib_fetch_rtab(AF_INET, NET_RT_FLAGS, 0, &needed)) == NULL) {
 		in_update_arp = 0;
 		return;
 	}
-
+	
 	next = buf;
 	while (next < buf + needed) {
 		rtm = (struct rt_msghdr *)(void *)next;
@@ -1326,7 +1262,6 @@ mib_arp_update(void)
 		at = at1;
 	}
 	mibarpticks = get_ticks();
-	update_arp = 0;
 	in_update_arp = 0;
 }
 
@@ -1634,8 +1569,8 @@ mibII_idle(void)
 		mib_arp_update();
 		mib_iflist_bad = 0;
 	}
-	if (update_arp)
-		mib_arp_update();
+
+	mib_arp_update();
 }
 
 

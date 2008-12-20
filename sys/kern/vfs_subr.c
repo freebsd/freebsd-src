@@ -345,7 +345,7 @@ vfs_busy(struct mount *mp, int flags)
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		if (flags & MBF_NOWAIT) {
+		if (flags & MBF_NOWAIT || mp->mnt_kern_flag & MNTK_REFEXPIRE) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);

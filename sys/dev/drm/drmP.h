@@ -87,6 +87,7 @@ struct drm_file;
 #include <sys/agpio.h>
 #include <sys/mutex.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
@@ -210,15 +211,6 @@ enum {
 #define DRM_AGP_FIND_DEVICE()	agp_find_device()
 #define DRM_MTRR_WC		MDF_WRITECOMBINE
 #define jiffies			ticks
-
-/* Capabilities taken from src/sys/dev/pci/pcireg.h. */
-#ifndef PCIY_AGP
-#define PCIY_AGP	0x02
-#endif
-
-#ifndef PCIY_EXPRESS
-#define PCIY_EXPRESS	0x10
-#endif
 
 typedef unsigned long dma_addr_t;
 typedef u_int64_t u64;
@@ -473,11 +465,13 @@ typedef struct drm_agp_head {
 } drm_agp_head_t;
 
 typedef struct drm_sg_mem {
-	unsigned long   handle;
-	void            *virtual;
-	int             pages;
-	dma_addr_t	*busaddr;
-	drm_dma_handle_t *dmah;	/* Handle to PCI memory for ATI PCIGART table */
+	unsigned long		  handle;
+	void			 *virtual;
+	int			  pages;
+	dma_addr_t		 *busaddr;
+	struct drm_dma_handle	 *sg_dmah;	/* Handle for sg_pages   */
+	struct drm_dma_handle	 *dmah;		/* Handle to PCI memory  */
+						/* for ATI PCIGART table */
 } drm_sg_mem_t;
 
 typedef TAILQ_HEAD(drm_map_list, drm_local_map) drm_map_list_t;

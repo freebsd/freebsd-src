@@ -1157,6 +1157,7 @@ re_attach(device_t dev)
 
 	msic = 0;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		sc->rl_flags |= RL_FLAG_PCIE;
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);
@@ -1262,8 +1263,13 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
 		    RL_FLAG_MACSTAT;
 		break;
-	case RL_HWREV_8168C:
 	case RL_HWREV_8168C_SPIN2:
+		sc->rl_flags |= RL_FLAG_MACSLEEP;
+		/* FALLTHROUGH */
+	case RL_HWREV_8168C:
+		if ((hwrev & 0x00700000) == 0x00200000)
+			sc->rl_flags |= RL_FLAG_MACSLEEP;
+		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
@@ -1349,6 +1355,16 @@ re_attach(device_t dev)
 		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
+	}
+
+	/* Take controller out of deep sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) | 0x01);
+		else
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
 	}
 
 	/* Take PHY out of power down mode. */
@@ -2027,16 +2043,6 @@ re_txeof(struct rl_softc *sc)
 	/* No changes made to the TX ring, so no flush needed */
 
 	if (sc->rl_ldata.rl_tx_free != sc->rl_ldata.rl_tx_desc_cnt) {
-		/*
-		 * Some chips will ignore a second TX request issued
-		 * while an existing transmission is in progress. If
-		 * the transmitter goes idle but there are still
-		 * packets waiting to be sent, we need to restart the
-		 * channel here to flush them out. This only seems to
-		 * be required with the PCIe devices.
-		 */
-		CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
-
 #ifdef RE_TX_MODERATION
 		/*
 		 * If not all descriptors have been reaped yet, reload
@@ -2100,6 +2106,9 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			return;
 		if (status)
 			CSR_WRITE_2(sc, RL_ISR, status);
+		if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
+		    (sc->rl_flags & RL_FLAG_PCIE))
+			CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 
 		/*
 		 * XXX check behaviour on receiver stalls.
@@ -2161,6 +2170,17 @@ re_int_task(void *arg, int npending)
 	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW))
 		rval = re_rxeof(sc);
 
+	/*
+	 * Some chips will ignore a second TX request issued
+	 * while an existing transmission is in progress. If
+	 * the transmitter goes idle but there are still
+	 * packets waiting to be sent, we need to restart the
+	 * channel here to flush them out. This only seems to
+	 * be required with the PCIe devices.
+	 */
+	if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
+	    (sc->rl_flags & RL_FLAG_PCIE))
+		CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 	if (status & (
 #ifdef RE_TX_MODERATION
 	    RL_ISR_TIMEOUT_EXPIRED|
@@ -2963,6 +2983,12 @@ re_resume(device_t dev)
 	RL_LOCK(sc);
 
 	ifp = sc->rl_ifp;
+	/* Take controller out of sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) | 0x01);
+	}
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
@@ -3018,6 +3044,12 @@ re_setwol(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+	/* Put controller into sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
+	}
 	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
 	    (sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
 		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);

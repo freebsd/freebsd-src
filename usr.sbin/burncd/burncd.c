@@ -29,6 +29,7 @@
  */
 
 #include <unistd.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,6 +68,8 @@ int write_file(int fd, struct track_info *);
 int roundup_blocks(struct track_info *);
 void cue_ent(struct cdr_cue_entry *, int, int, int, int, int, int, int);
 void cleanup(int);
+void cleanup_flush(void);
+void cleanup_signal(int);
 void usage(void);
 
 int
@@ -157,6 +160,9 @@ main(int argc, char **argv)
 
 	global_fd_for_cleanup = fd;
 	err_set_exit(cleanup);
+	signal(SIGHUP, cleanup_signal);
+	signal(SIGINT, cleanup_signal);
+	signal(SIGTERM, cleanup_signal);
 
 	for (arg = 0; arg < argc; arg++) {
 		if (!strcasecmp(argv[arg], "fixate")) {
@@ -319,6 +325,10 @@ main(int argc, char **argv)
 	if (eject)
 		if (ioctl(fd, CDIOCEJECT) < 0)
 			err(EX_IOERR, "ioctl(CDIOCEJECT)");
+
+	signal(SIGHUP, SIG_DFL);
+	signal(SIGINT, SIG_DFL);
+	signal(SIGTERM, SIG_DFL);
 	close(fd);
 	exit(EX_OK);
 }
@@ -469,8 +479,10 @@ do_DAO(int fd, int test_write, int multi)
 		err(EX_IOERR, "ioctl(CDRIOCSENDCUE)");
 
 	for (i = 0; i < notracks; i++) {
-		if (write_file(fd, &tracks[i]))
+		if (write_file(fd, &tracks[i])) {
+			cleanup_flush();
 			err(EX_IOERR, "write_file");
+		}
 	}
 
 	ioctl(fd, CDRIOCFLUSH);
@@ -499,8 +511,10 @@ do_TAO(int fd, int test_write, int preemp, int dvdrw)
 		if (!quiet)
 			fprintf(stderr, "next writeable LBA %d\n",
 				tracks[i].addr);
-		if (write_file(fd, &tracks[i]))
+		if (write_file(fd, &tracks[i])) {
+			cleanup_flush();
 			err(EX_IOERR, "write_file");
+		}
 		if (ioctl(fd, CDRIOCFLUSH) < 0)
 			err(EX_IOERR, "ioctl(CDRIOCFLUSH)");
 	}
@@ -630,9 +644,11 @@ write_file(int fd, struct track_info *track_info)
 				track_info->block_size;
 		}
 		if ((res = write(fd, buf, count)) != count) {
-			if (res == -1)
-				fprintf(stderr, "\n%s\n", strerror(errno));
-			else
+			if (res == -1) {
+				fprintf(stderr, "\n");
+				close(track_info->file);
+				return errno;
+			} else
 				fprintf(stderr, "\nonly wrote %d of %jd"
 				    " bytes\n", res, (intmax_t)count);
 			break;
@@ -690,6 +706,21 @@ cleanup(int dummy __unused)
 	if (ioctl(global_fd_for_cleanup, CDRIOCSETBLOCKSIZE,
 	    &saved_block_size) < 0)
 		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
+}
+
+void
+cleanup_flush(void)
+{
+	if (ioctl(global_fd_for_cleanup, CDRIOCFLUSH) < 0)
+		err(EX_IOERR, "ioctl(CDRIOCFLUSH)");
+}
+
+void
+cleanup_signal(int sig __unused)
+{
+	cleanup_flush();
+	fprintf(stderr, "\n");
+	errx(EXIT_FAILURE, "Aborted");
 }
 
 void

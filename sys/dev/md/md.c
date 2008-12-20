@@ -374,8 +374,11 @@ g_md_access(struct g_provider *pp, int r, int w, int e)
 	struct md_s *sc;
 
 	sc = pp->geom->softc;
-	if (sc == NULL)
+	if (sc == NULL) {
+		if (r <= 0 && w <= 0 && e <= 0)
+			return (0);
 		return (ENXIO);
+	}
 	r += pp->acr;
 	w += pp->acw;
 	e += pp->ace;

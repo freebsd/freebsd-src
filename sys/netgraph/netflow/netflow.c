@@ -270,7 +270,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	sin.sin_family = AF_INET;
 	sin.sin_addr = fle->f.r.r_dst;
 	/* XXX MRT 0 as a default.. need the m here to get fib */
-	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, RTF_CLONING, 0);
+	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, 0);
 	if (rt != NULL) {
 		fle->f.fle_o_ifx = rt->rt_ifp->if_index;
 
@@ -295,7 +295,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	sin.sin_family = AF_INET;
 	sin.sin_addr = fle->f.r.r_src;
 	/* XXX MRT 0 as a default  revisit.  need the mbuf for fib*/
-	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, RTF_CLONING, 0);
+	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, 0);
 	if (rt != NULL) {
 		if (rt_mask(rt))
 			fle->f.src_mask = bitcount32(((struct sockaddr_in *)

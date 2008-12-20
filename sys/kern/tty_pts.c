@@ -273,6 +273,16 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	case FIONBIO:
 		/* This device supports non-blocking operation. */
 		return (0);
+	case FIONREAD:
+		tty_lock(tp);
+		if (psc->pts_flags & PTS_FINISHED) {
+			/* Force read() to be called. */
+			*(int *)data = 1;
+		} else {
+			*(int *)data = ttydisc_getc_poll(tp);
+		}
+		tty_unlock(tp);
+		return (0);
 	case FIODGNAME: {
 		struct fiodgname_arg *fgn;
 		const char *p;

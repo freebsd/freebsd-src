@@ -230,7 +230,7 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_STATS,
 
 static int ipsec4_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
 #ifdef INET6
-static int ipsec6_setspidx_in6pcb __P((struct mbuf *, struct in6pcb *pcb));
+static int ipsec6_setspidx_in6pcb __P((struct mbuf *, struct inpcb *pcb));
 #endif
 static int ipsec_setspidx __P((struct mbuf *, struct secpolicyindex *, int));
 static void ipsec4_get_ulp __P((struct mbuf *m, struct secpolicyindex *, int));
@@ -376,7 +376,7 @@ ipsec_getpolicybysock(m, dir, inp, error)
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 #ifdef INET6
 		*error = ipsec6_setspidx_in6pcb(m, inp);
-		pcbsp = inp->in6p_sp;
+		pcbsp = inp->inp_sp;
 #else
 		*error = EINVAL;		/* should not happen */
 #endif
@@ -578,27 +578,27 @@ ipsec4_setspidx_inpcb(m, pcb)
 static int
 ipsec6_setspidx_in6pcb(m, pcb)
 	struct mbuf *m;
-	struct in6pcb *pcb;
+	struct inpcb *pcb;
 {
 	//INIT_VNET_IPSEC(curvnet);
 	struct secpolicyindex *spidx;
 	int error;
 
 	IPSEC_ASSERT(pcb != NULL, ("null pcb"));
-	IPSEC_ASSERT(pcb->in6p_sp != NULL, ("null inp_sp"));
-	IPSEC_ASSERT(pcb->in6p_sp->sp_out != NULL && pcb->in6p_sp->sp_in != NULL,
+	IPSEC_ASSERT(pcb->inp_sp != NULL, ("null inp_sp"));
+	IPSEC_ASSERT(pcb->inp_sp->sp_out != NULL && pcb->inp_sp->sp_in != NULL,
 		("null sp_in || sp_out"));
 
-	bzero(&pcb->in6p_sp->sp_in->spidx, sizeof(*spidx));
-	bzero(&pcb->in6p_sp->sp_out->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_in->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_out->spidx, sizeof(*spidx));
 
-	spidx = &pcb->in6p_sp->sp_in->spidx;
+	spidx = &pcb->inp_sp->sp_in->spidx;
 	error = ipsec_setspidx(m, spidx, 1);
 	if (error)
 		goto bad;
 	spidx->dir = IPSEC_DIR_INBOUND;
 
-	spidx = &pcb->in6p_sp->sp_out->spidx;
+	spidx = &pcb->inp_sp->sp_out->spidx;
 	error = ipsec_setspidx(m, spidx, 1);
 	if (error)
 		goto bad;
@@ -607,8 +607,8 @@ ipsec6_setspidx_in6pcb(m, pcb)
 	return 0;
 
 bad:
-	bzero(&pcb->in6p_sp->sp_in->spidx, sizeof(*spidx));
-	bzero(&pcb->in6p_sp->sp_out->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_in->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_out->spidx, sizeof(*spidx));
 	return error;
 }
 #endif
@@ -1245,7 +1245,7 @@ ipsec_delete_pcbpolicy(inp)
 #ifdef INET6
 int
 ipsec6_set_policy(in6p, optname, request, len, cred)
-	struct in6pcb *in6p;
+	struct inpcb *in6p;
 	int optname;
 	caddr_t request;
 	size_t len;
@@ -1265,10 +1265,10 @@ ipsec6_set_policy(in6p, optname, request, len, cred)
 	/* select direction */
 	switch (xpl->sadb_x_policy_dir) {
 	case IPSEC_DIR_INBOUND:
-		pcb_sp = &in6p->in6p_sp->sp_in;
+		pcb_sp = &in6p->inp_sp->sp_in;
 		break;
 	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = &in6p->in6p_sp->sp_out;
+		pcb_sp = &in6p->inp_sp->sp_out;
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
@@ -1281,7 +1281,7 @@ ipsec6_set_policy(in6p, optname, request, len, cred)
 
 int
 ipsec6_get_policy(in6p, request, len, mp)
-	struct in6pcb *in6p;
+	struct inpcb *in6p;
 	caddr_t request;
 	size_t len;
 	struct mbuf **mp;
@@ -1293,7 +1293,7 @@ ipsec6_get_policy(in6p, request, len, mp)
 	/* sanity check. */
 	if (in6p == NULL || request == NULL || mp == NULL)
 		return EINVAL;
-	IPSEC_ASSERT(in6p->in6p_sp != NULL, ("null in6p_sp"));
+	IPSEC_ASSERT(in6p->inp_sp != NULL, ("null inp_sp"));
 	if (len < sizeof(*xpl))
 		return EINVAL;
 	xpl = (struct sadb_x_policy *)request;
@@ -1301,10 +1301,10 @@ ipsec6_get_policy(in6p, request, len, mp)
 	/* select direction */
 	switch (xpl->sadb_x_policy_dir) {
 	case IPSEC_DIR_INBOUND:
-		pcb_sp = in6p->in6p_sp->sp_in;
+		pcb_sp = in6p->inp_sp->sp_in;
 		break;
 	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = in6p->in6p_sp->sp_out;
+		pcb_sp = in6p->inp_sp->sp_out;
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
@@ -1684,7 +1684,7 @@ size_t
 ipsec6_hdrsiz(m, dir, in6p)
 	struct mbuf *m;
 	u_int dir;
-	struct in6pcb *in6p;
+	struct inpcb *in6p;
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
@@ -1692,7 +1692,7 @@ ipsec6_hdrsiz(m, dir, in6p)
 	size_t size;
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(in6p == NULL || in6p->in6p_socket != NULL,
+	IPSEC_ASSERT(in6p == NULL || in6p->inp_socket != NULL,
 		("socket w/o inpcb"));
 
 	/* get SP for this packet */

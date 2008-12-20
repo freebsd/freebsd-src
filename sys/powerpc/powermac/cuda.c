@@ -104,8 +104,6 @@ static devclass_t cuda_devclass;
 DRIVER_MODULE(cuda, macio, cuda_driver, cuda_devclass, 0, 0);
 DRIVER_MODULE(adb, cuda, adb_driver, adb_devclass, 0, 0);
 
-MALLOC_DEFINE(M_CUDA, "cuda", "CUDA packet queue");
-
 static void cuda_intr(void *arg);
 static uint8_t cuda_read_reg(struct cuda_softc *sc, u_int offset);
 static void cuda_write_reg(struct cuda_softc *sc, u_int offset, uint8_t value);
@@ -178,6 +176,10 @@ cuda_attach(device_t dev)
 
 	STAILQ_INIT(&sc->sc_inq);
 	STAILQ_INIT(&sc->sc_outq);
+	STAILQ_INIT(&sc->sc_freeq);
+
+	for (i = 0; i < CUDA_MAXPACKETS; i++)
+		STAILQ_INSERT_TAIL(&sc->sc_freeq, &sc->sc_pkts[i], pkt_q);
 
 	/* Init CUDA */
 
@@ -348,11 +350,17 @@ cuda_send(void *cookie, int poll, int length, uint8_t *msg)
 
 	mtx_lock(&sc->sc_mutex);
 
-	pkt = malloc(sizeof(struct cuda_packet), M_CUDA, M_WAITOK);
+	pkt = STAILQ_FIRST(&sc->sc_freeq);
+	if (pkt == NULL) {
+		mtx_unlock(&sc->sc_mutex);
+		return (-1);
+	}
+
 	pkt->len = length - 1;
 	pkt->type = msg[0];
 	memcpy(pkt->data, &msg[1], pkt->len);
 
+	STAILQ_REMOVE_HEAD(&sc->sc_freeq, pkt_q);
 	STAILQ_INSERT_TAIL(&sc->sc_outq, pkt, pkt_q);
 
 	/*
@@ -389,8 +397,8 @@ cuda_send_outbound(struct cuda_softc *sc)
 	memcpy(sc->sc_out, &pkt->type, pkt->len + 1);
 	sc->sc_sent = 0;
 
-	free(pkt, M_CUDA);
 	STAILQ_REMOVE_HEAD(&sc->sc_outq, pkt_q);
+	STAILQ_INSERT_TAIL(&sc->sc_freeq, pkt, pkt_q);
 
 	sc->sc_waiting = 1;
 
@@ -455,9 +463,9 @@ cuda_send_inbound(struct cuda_softc *sc)
 			break;
 		}
 
-		free(pkt,M_CUDA);
-
 		mtx_lock(&sc->sc_mutex);
+
+		STAILQ_INSERT_TAIL(&sc->sc_freeq, pkt, pkt_q);
 	}
 
 	mtx_unlock(&sc->sc_mutex);
@@ -559,18 +567,22 @@ switch_start:
 			cuda_idle(sc);
 
 			/* Queue up the packet */
-			pkt = malloc(sizeof(struct cuda_packet), M_CUDA, 
-			    M_WAITOK);
+			pkt = STAILQ_FIRST(&sc->sc_freeq);
+			if (pkt != NULL) {
+				/* If we have a free packet, process it */
 
-			pkt->len = sc->sc_received - 2;
-			pkt->type = sc->sc_in[1];
-			memcpy(pkt->data, &sc->sc_in[2], pkt->len);
+				pkt->len = sc->sc_received - 2;
+				pkt->type = sc->sc_in[1];
+				memcpy(pkt->data, &sc->sc_in[2], pkt->len);
 
-			STAILQ_INSERT_TAIL(&sc->sc_inq, pkt, pkt_q);
+				STAILQ_REMOVE_HEAD(&sc->sc_freeq, pkt_q);
+				STAILQ_INSERT_TAIL(&sc->sc_inq, pkt, pkt_q);
+
+				process_inbound = 1;
+			}
 
 			sc->sc_state = CUDA_IDLE;
 			sc->sc_received = 0;
-			process_inbound = 1;
 
 			/*
 			 * If there is something waiting to be sent out,

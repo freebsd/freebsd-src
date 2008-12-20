@@ -124,6 +124,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
 	struct radix_node *ret;
 
+	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 		rt->rt_flags |= RTF_MULTICAST;
 
@@ -153,27 +154,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		rt->rt_rmx.rmx_mtu = IN6_LINKMTU(rt->rt_ifp);
 
 	ret = rn_addroute(v_arg, n_arg, head, treenodes);
-	if (ret == NULL && rt->rt_flags & RTF_HOST) {
-		struct rtentry *rt2;
-		/*
-		 * We are trying to add a host route, but can't.
-		 * Find out if it is because of an
-		 * ARP entry and delete it if so.
-		 */
-		rt2 = rtalloc1((struct sockaddr *)sin6, 0, RTF_CLONING);
-		if (rt2) {
-			if (rt2->rt_flags & RTF_LLINFO &&
-				rt2->rt_flags & RTF_HOST &&
-				rt2->rt_gateway &&
-				rt2->rt_gateway->sa_family == AF_LINK) {
-				rtexpunge(rt2);
-				RTFREE_LOCKED(rt2);
-				ret = rn_addroute(v_arg, n_arg, head,
-					treenodes);
-			} else
-				RTFREE_LOCKED(rt2);
-		}
-	} else if (ret == NULL && rt->rt_flags & RTF_CLONING) {
+	if (ret == NULL) {
 		struct rtentry *rt2;
 		/*
 		 * We are trying to add a net route, but can't.
@@ -187,10 +168,9 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		 *	net route entry, 3ffe:0501:: -> if0.
 		 *	This case should not raise an error.
 		 */
-		rt2 = rtalloc1((struct sockaddr *)sin6, 0, RTF_CLONING);
+		rt2 = rtalloc1((struct sockaddr *)sin6, 0, RTF_RNH_LOCKED);
 		if (rt2) {
-			if ((rt2->rt_flags & (RTF_CLONING|RTF_HOST|RTF_GATEWAY))
-					== RTF_CLONING
+			if (((rt2->rt_flags & (RTF_HOST|RTF_GATEWAY)) == 0)
 			 && rt2->rt_gateway
 			 && rt2->rt_gateway->sa_family == AF_LINK
 			 && rt2->rt_ifp == rt->rt_ifp) {
@@ -199,7 +179,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			RTFREE_LOCKED(rt2);
 		}
 	}
-	return ret;
+	return (ret);
 }
 
 /*
@@ -240,39 +220,6 @@ SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMAXCACHE,
     rtmaxcache, CTLFLAG_RW, rtq_toomany6 , 0, "");
 
 
-/*
- * On last reference drop, mark the route as belong to us so that it can be
- * timed out.
- */
-static void
-in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
-{
-	INIT_VNET_INET6(curvnet);
-	struct rtentry *rt = (struct rtentry *)rn;
-
-	RT_LOCK_ASSERT(rt);
-
-	if (!(rt->rt_flags & RTF_UP))
-		return;		/* prophylactic measures */
-
-	if ((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
-		return;
-
-	if ((rt->rt_flags & (RTF_WASCLONED | RTPRF_OURS)) != RTF_WASCLONED)
-		return;
-
-	/*
-	 * As requested by David Greenman:
-	 * If rtq_reallyold6 is 0, just delete the route without
-	 * waiting for a timeout cycle to kill it.
-	 */
-	if (V_rtq_reallyold6 != 0) {
-		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_rmx.rmx_expire = time_uptime + V_rtq_reallyold6;
-	} else {
-		rtexpunge(rt);
-	}
-}
 
 struct rtqk_arg {
 	struct radix_node_head *rnh;
@@ -307,7 +254,7 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 			err = rtrequest(RTM_DELETE,
 					(struct sockaddr *)rt_key(rt),
 					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags, 0);
+					rt->rt_flags|RTF_RNH_LOCKED, 0);
 			if (err) {
 				log(LOG_WARNING, "in6_rtqkill: error %d", err);
 			} else {
@@ -495,7 +442,6 @@ in6_inithead(void **head, int off)
 	rnh = *head;
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
-	rnh->rnh_close = in6_clsroute;
 	callout_init(&V_rtq_timer6, CALLOUT_MPSAFE);
 	in6_rtqtimo(rnh);	/* kick off timeout first time */
 	callout_init(&V_rtq_mtutimer, CALLOUT_MPSAFE);

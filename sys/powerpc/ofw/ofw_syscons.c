@@ -137,10 +137,12 @@ static video_switch_t ofwfbvidsw = {
  */
 static vi_blank_display_t ofwfb_blank_display8;
 static vi_putc_t ofwfb_putc8;
+static vi_putm_t ofwfb_putm8;
 static vi_set_border_t ofwfb_set_border8;
 
 static vi_blank_display_t ofwfb_blank_display32;
 static vi_putc_t ofwfb_putc32;
+static vi_putm_t ofwfb_putm32;
 static vi_set_border_t ofwfb_set_border32;
 
 VIDEO_DRIVER(ofwfb, ofwfbvidsw, ofwfb_configure);
@@ -250,10 +252,12 @@ ofwfb_configure(int flags)
 	if (depth == 8) {
 		sc->sc_blank = ofwfb_blank_display8;
 		sc->sc_putc = ofwfb_putc8;
+		sc->sc_putm = ofwfb_putm8;
 		sc->sc_set_border = ofwfb_set_border8;
 	} else if (depth == 32) {
 		sc->sc_blank = ofwfb_blank_display32;
 		sc->sc_putc = ofwfb_putc32;
+		sc->sc_putm = ofwfb_putm32;
 		sc->sc_set_border = ofwfb_set_border32;
 	} else
 		return (0);
@@ -304,35 +308,13 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 {
 	struct ofwfb_softc *sc;
 	video_info_t *vi;
-	char name[64];
-	ihandle_t ih;
-	int i;
 	int cborder;
 	int font_height;
-	int retval;
 
 	sc = (struct ofwfb_softc *)adp;
 	vi = &adp->va_info;
 
 	vid_init_struct(adp, "ofwfb", -1, unit);
-
-	if (sc->sc_depth == 8) {
-		/*
-		 * Install the ISO6429 colormap - older OFW systems
-		 * don't do this by default
-		 */
-		memset(name, 0, sizeof(name));
-		OF_package_to_path(sc->sc_node, name, sizeof(name));
-		ih = OF_open(name);
-		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", ih, 4, 1,
-				       ofwfb_cmap[i].red,
-				       ofwfb_cmap[i].green,
-				       ofwfb_cmap[i].blue,
-				       i,
-				       &retval);
-		}
-	}
 
 	/* The default font size can be overridden by loader */
 	font_height = 16;
@@ -375,10 +357,13 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 	 */
 	adp->va_window = (vm_offset_t) ofwfb_static_window;
 
-	/* Enable future font-loading and flag color support */
-	adp->va_flags |= V_ADP_FONT | V_ADP_COLOR;
-
-	ofwfb_blank_display(&sc->sc_va, V_DISPLAY_ON);
+	/*
+	 * Enable future font-loading and flag color support, as well as 
+	 * adding V_ADP_MODECHANGE so that we ofwfb_set_mode() gets called
+	 * when the X server shuts down. This enables us to get the console
+	 * back when X disappears.
+	 */
+	adp->va_flags |= V_ADP_FONT | V_ADP_COLOR | V_ADP_MODECHANGE;
 
 	ofwfb_set_mode(&sc->sc_va, 0);
 
@@ -404,6 +389,37 @@ ofwfb_query_mode(video_adapter_t *adp, video_info_t *info)
 static int
 ofwfb_set_mode(video_adapter_t *adp, int mode)
 {
+	struct ofwfb_softc *sc;
+	char name[64];
+	ihandle_t ih;
+	int i, retval;
+
+	sc = (struct ofwfb_softc *)adp;
+
+	/*
+	 * Open the display device, which will initialize it.
+	 */
+
+	memset(name, 0, sizeof(name));
+	OF_package_to_path(sc->sc_node, name, sizeof(name));
+	ih = OF_open(name);
+
+	if (sc->sc_depth == 8) {
+		/*
+		 * Install the ISO6429 colormap - older OFW systems
+		 * don't do this by default
+		 */
+		for (i = 0; i < 16; i++) {
+			OF_call_method("color!", ih, 4, 1,
+				       ofwfb_cmap[i].red,
+				       ofwfb_cmap[i].green,
+				       ofwfb_cmap[i].blue,
+				       i,
+				       &retval);
+		}
+	}
+
+	ofwfb_blank_display(&sc->sc_va, V_DISPLAY_ON);
 
 	return (0);
 }
@@ -823,7 +839,86 @@ ofwfb_putm(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 
 	sc = (struct ofwfb_softc *)adp;
 
-	/* put mouse */
+	return ((*sc->sc_putm)(adp, x, y, pixel_image, pixel_mask, size,
+	    width));
+}
+
+static int
+ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
+    uint32_t pixel_mask, int size, int width)
+{
+	struct ofwfb_softc *sc;
+	int i, j, k;
+	uint32_t *addr;
+	u_char fg, bg;
+	union {
+		uint32_t l[2];
+		uint8_t  c[8];
+	} ch;
+
+
+	sc = (struct ofwfb_softc *)adp;
+	addr = (u_int32_t *)((int)sc->sc_addr
+		+ (y + sc->sc_ymargin)*sc->sc_stride
+		+ x + sc->sc_xmargin);
+
+	fg = ofwfb_foreground(SC_NORM_ATTR);
+	bg = ofwfb_background(SC_NORM_ATTR);
+
+	for (i = 0; i < size && i+y < sc->sc_height - 2*sc->sc_ymargin; i++) {
+		/*
+		 * Use the current values for the line
+		 */
+		ch.l[0] = addr[0];
+		ch.l[1] = addr[1];
+
+		/*
+		 * Calculate 2 x 4-chars at a time, and then
+		 * write these out.
+		 */
+		for (j = 0, k = width; j < 8; j++, k--) {
+			if (x + j >= sc->sc_width - 2*sc->sc_xmargin)
+				continue;
+
+			if (pixel_image[i] & (1 << k))
+				ch.c[j] = (ch.c[j] == fg) ? bg : fg;
+		}
+
+		addr[0] = ch.l[0];
+		addr[1] = ch.l[1];
+		addr += (sc->sc_stride / sizeof(u_int32_t));
+	}
+
+	return (0);
+}
+
+static int
+ofwfb_putm32(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
+    uint32_t pixel_mask, int size, int width)
+{
+	struct ofwfb_softc *sc;
+	int i, j, k;
+	uint32_t fg, bg;
+	uint32_t *addr;
+
+	sc = (struct ofwfb_softc *)adp;
+	addr = (uint32_t *)sc->sc_addr
+		+ (y + sc->sc_ymargin)*(sc->sc_stride/4)
+		+ x + sc->sc_xmargin;
+
+	fg = ofwfb_pix32(ofwfb_foreground(SC_NORM_ATTR));
+	bg = ofwfb_pix32(ofwfb_background(SC_NORM_ATTR));
+
+	for (i = 0; i < size && i+y < sc->sc_height - 2*sc->sc_ymargin; i++) {
+		for (j = 0, k = width; j < 8; j++, k--) {
+			if (x + j >= sc->sc_width - 2*sc->sc_xmargin)
+				continue;
+
+			if (pixel_image[i] & (1 << k))
+				*(addr + j) = (*(addr + j) == fg) ? bg : fg;
+		}
+		addr += (sc->sc_stride/4);
+	}
 
 	return (0);
 }

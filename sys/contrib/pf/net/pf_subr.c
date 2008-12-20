@@ -116,22 +116,22 @@ __FBSDID("$FreeBSD$");
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
 
-static u_char isn_secret[32];
-static int isn_last_reseed;
-static u_int32_t isn_offset;
-static MD5_CTX isn_ctx;
+static u_char pf_isn_secret[32];
+static int pf_isn_last_reseed;
+static u_int32_t pf_isn_offset;
 
 u_int32_t
 pf_new_isn(struct pf_state *s)
 {
+	MD5_CTX isn_ctx;
 	u_int32_t md5_buffer[4];
 	u_int32_t new_isn;
 	struct pf_state_host *src, *dst;
 
 	/* Seed if this is the first use, reseed if requested. */
-	if (isn_last_reseed == 0) {
-		read_random(&isn_secret, sizeof(isn_secret));
-		isn_last_reseed = ticks;
+	if (pf_isn_last_reseed == 0) {
+		read_random(&pf_isn_secret, sizeof(pf_isn_secret));
+		pf_isn_last_reseed = ticks;
 	}
 
 	if (s->direction == PF_IN) {
@@ -160,11 +160,11 @@ pf_new_isn(struct pf_state *s)
 		MD5Update(&isn_ctx, (u_char *) &src->addr,
 			  sizeof(struct in_addr));
 	}
-	MD5Update(&isn_ctx, (u_char *) &isn_secret, sizeof(isn_secret));
+	MD5Update(&isn_ctx, (u_char *) &pf_isn_secret, sizeof(pf_isn_secret));
 	MD5Final((u_char *) &md5_buffer, &isn_ctx);
 	new_isn = (tcp_seq) md5_buffer[0];
-	isn_offset += ISN_STATIC_INCREMENT +
+	pf_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
-	new_isn += isn_offset;
+	new_isn += pf_isn_offset;
 	return (new_isn);
 }

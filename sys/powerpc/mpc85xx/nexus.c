@@ -70,13 +70,9 @@ __FBSDID("$FreeBSD$");
  */
 static int	nexus_probe(device_t);
 static int	nexus_activate_resource(device_t, device_t, int, int,
-		    struct resource *);
+    struct resource *);
 static int	nexus_deactivate_resource(device_t, device_t, int, int,
-		    struct resource *);
-
-/*
- * Local routines
- */
+    struct resource *);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */

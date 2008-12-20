@@ -128,8 +128,8 @@ struct vnet_ipfw vnet_ipfw_0;
 static u_int32_t set_disable;
 static int fw_verbose;
 static struct callout ipfw_timeout;
-#endif
 static int verbose_limit;
+#endif
 
 static uma_zone_t ipfw_dyn_rule_zone;
 
@@ -190,8 +190,9 @@ SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW,
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, verbose,
     CTLFLAG_RW | CTLFLAG_SECURE3,
     fw_verbose, 0, "Log matches to ipfw rules");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
-    &verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
+SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, verbose_limit,
+    CTLFLAG_RW, verbose_limit, 0,
+    "Set upper limit of matches of ipfw rules logged");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
@@ -527,7 +528,7 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
 	dst->sin_addr = src;
-	in_rtalloc_ign(&ro, RTF_CLONING, fib);
+	in_rtalloc_ign(&ro, 0, fib);
 
 	if (ro.ro_rt == NULL)
 		return 0;
@@ -619,7 +620,7 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp)
 	dst->sin6_len = sizeof(*dst);
 	dst->sin6_addr = *src;
 	/* XXX MRT 0 for ipv6 at this time */
-	rtalloc_ign((struct route *)&ro, RTF_CLONING);
+	rtalloc_ign((struct route *)&ro, 0);
 
 	if (ro.ro_rt == NULL)
 		return 0;
@@ -1813,6 +1814,7 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	INIT_VNET_IPFW(curvnet);
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
+	struct radix_node *rn;
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
@@ -1825,8 +1827,8 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
 	IPFW_WLOCK(ch);
-	if (rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent) ==
-	    NULL) {
+	rn = rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent);
+	if (rn == NULL) {
 		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
 		return (EEXIST);
