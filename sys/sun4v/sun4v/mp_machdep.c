@@ -272,7 +272,7 @@ start_ap_bycpuid(int cpuid, void *func, u_long arg)
 	args.cpuid = cpuid;
 	args.func = (cell_t)func;
 	args.arg = (cell_t)arg;
-	openfirmware(&args);
+	ofw_entry(&args);
 	return (int)args.result;
 	
 }
