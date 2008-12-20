@@ -6,9 +6,6 @@ NANO_ARCH=arm
 TARGET_CPUTYPE=xscale; export TARGET_CPUTYPE		# XXX
 TARGET_BIG_ENDIAN=true; export TARGET_BIG_ENDIAN	# XXX
 
-NANO_IMAGES=1
-FlashDevice Sandisk 64
-
 NANO_CUSTOMIZE="cust_allow_ssh_root"
 
 clean_usr_local()
