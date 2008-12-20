@@ -1,4 +1,4 @@
-# AVILA -- Gateworks Avila XScale board
+# CAMBRIA -- Gateworks Cambria 235x boards
 # kernel configuration file for FreeBSD/arm
 #
 # For more information on this file, please read the handbook section on
@@ -18,16 +18,16 @@
 #
 # $FreeBSD$
 
-ident		AVILA
+machine		arm
+ident		CAMBRIA
 
-include		"../xscale/ixp425/std.ixp425"
+include		"../xscale/ixp425/std.ixp435"
 # NB: memory mapping is defined in std.avila
 include		"../xscale/ixp425/std.avila"
 options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
 #options 	ARM_USE_SMALL_ALLOC
 #To statically compile in device wiring instead of /boot/device.hints
-hints		"AVILA.hints"		#Default places to look for devices.
-makeoptions	MODULES_OVERRIDE=""
+hints		"CAMBRIA.hints"		# Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
@@ -47,6 +47,7 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	DIAGNOSTIC
 
 options 	SCHED_4BSD		#4BSD scheduler
+#options 	PREEMPTION
 options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
@@ -56,11 +57,10 @@ options 	BOOTP
 options 	BOOTP_NFSROOT
 options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=npe0
-#options 	BOOTP_WIRED_TO=ath0
-#options 	BOOTP_WIRED_TO=rl0
 options 	BOOTP_COMPAT
-#options 	PREEMPTION
+
 #options 	VERBOSE_SYSINIT
+options 	VERBOSE_INIT_ARM
 
 #device		saarm
 
@@ -77,7 +77,8 @@ device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
-device		avila_led
+device		cambria_fled	# Font Panel LED on I2C bus
+device		cambria_led	# 8-LED latch
 
 device		ata
 device		atadisk         # ATA disk drives
@@ -98,6 +99,16 @@ device		if_bridge
 device		md
 device          random          # Entropy device
 
+# NB: 2 USB 2.0 ports standard
+device		usb
+options		USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
+#options		USB_DEBUG
+device		ehci
+device		ugen
+device		umass
+device		scbus		# SCSI bus (required for SCSI)
+device		da		# Direct Access (disks)
+
 # Wireless NIC cards
 device		wlan		# 802.11 support
 options		IEEE80211_DEBUG
@@ -112,31 +123,27 @@ options		ATH_DIAGAPI
 #options		ATH_TX99_DIAG
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
-#options		AH_DEBUG
+options		AH_DEBUG
 #options		AH_ASSERT
+options		AH_PRIVATE_DIAG
 #device		ath_ar5210
 #device		ath_ar5211
+#
 device		ath_ar5212
-device		ath_rf2413
-device		ath_rf2417
-device		ath_rf2425
-device		ath_rf5111
+#device		ath_rf2413
+#device		ath_rf2425		# NB:supports 2417 too
+#device		ath_rf5111
 device		ath_rf5112
 device		ath_rf5413
 #
-device		ath_ar5416
-options		AH_SUPPORT_AR5416
-device		ath_ar9160
+#device		ath_ar5416
+#options		AH_SUPPORT_AR5416	# NB: for 11n descriptor format
+#device		ath_rf2133
+#device		ath_ar9160
+#device		ath_ar9280
+#device		ath_rf9280
+#device		ath_ar9285
 
-device		usb
-#options 	USB_DEBUG
-device		ohci
-device		ehci
-device		ugen
-#device		umass
-#device		scbus		# SCSI bus (required for SCSI)
-#device		da		# Direct Access (disks)
-
-#device		ural
-#device		zyd
-#device		wlan_amrr
+device		ural
+device		zyd
+device		wlan_amrr

@@ -95,11 +95,18 @@
 #define NPEFW_B_DMA		0x01020100 /* DMA only */
 /* XXX ... more not include */
 
-#define	IXP425_NPE_B_IMAGEID	0x01000200
-#define	IXP425_NPE_C_IMAGEID	0x02000200
+/* NPE ID's */
+#define	NPE_A		0
+#define	NPE_B		1
+#define	NPE_C		2
+#define	NPE_MAX		(NPE_C+1)
+
+#define	IXP425_NPE_A_IMAGEID	0x10820200
+#define	IXP425_NPE_B_IMAGEID	0x01020201
+#define	IXP425_NPE_C_IMAGEID	0x02050201
 
 struct ixpnpe_softc;
-struct ixpnpe_softc *ixpnpe_attach(device_t);
+struct ixpnpe_softc *ixpnpe_attach(device_t, int npeid);
 void	ixpnpe_detach(struct ixpnpe_softc *);
 int	ixpnpe_stopandreset(struct ixpnpe_softc *);
 int	ixpnpe_start(struct ixpnpe_softc *);
@@ -108,8 +115,9 @@ int	ixpnpe_init(struct ixpnpe_softc *,
 		const char *imageName, uint32_t imageId);
 int	ixpnpe_getfunctionality(struct ixpnpe_softc *sc);
 
-int	ixpnpe_sendmsg(struct ixpnpe_softc *, const uint32_t msg[2]);
-int	ixpnpe_recvmsg(struct ixpnpe_softc *, uint32_t msg[2]);
-int	ixpnpe_sendandrecvmsg(struct ixpnpe_softc *, const uint32_t send[2],
-		uint32_t recv[2]);
+int	ixpnpe_sendmsg_async(struct ixpnpe_softc *, const uint32_t msg[2]);
+int	ixpnpe_recvmsg_async(struct ixpnpe_softc *, uint32_t msg[2]);
+int	ixpnpe_sendandrecvmsg_sync(struct ixpnpe_softc *,
+	     const uint32_t send[2], uint32_t recv[2]);
+int	ixpnpe_recvmsg_sync(struct ixpnpe_softc *, uint32_t msg[2]);
 #endif /* _IXP425_NPEVAR_H_ */

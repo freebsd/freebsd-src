@@ -47,6 +47,10 @@
 #include <dev/pci/pcivar.h>
 #include <sys/rman.h>
 
+/* NB: cputype is setup by set_cpufuncs */
+#define	cpu_is_ixp43x()	(cputype == CPU_ID_IXP435)
+#define	cpu_is_ixp46x()	(cputype == CPU_ID_IXP465)
+
 struct ixp425_softc {
 	device_t sc_dev;
 	bus_space_tag_t sc_iot;
@@ -94,6 +98,7 @@ void	ixp425_io_bs_init(bus_space_tag_t, void *);
 void	ixp425_mem_bs_init(bus_space_tag_t, void *);
 
 uint32_t ixp425_sdram_size(void);
+uint32_t ixp435_ddram_size(void);
 
 int	ixp425_md_route_interrupt(device_t, device_t, int);
 void	ixp425_md_attach(device_t);
