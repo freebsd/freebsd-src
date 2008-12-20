@@ -2,4 +2,7 @@ NANO_NAME="cambria"
 NANO_SRC="/usr/sam/base/projects/cambria"
 NANO_KERNEL="G2358"
 
+NANO_IMAGES=2
+FlashDevice Sandisk 64M
+
 . common
