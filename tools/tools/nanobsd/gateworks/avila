@@ -2,4 +2,7 @@ NANO_NAME="avila"
 NANO_SRC="/usr/sam/base/projects/cambria"
 NANO_KERNEL="G2348"
 
+NANO_IMAGES=1
+FlashDevice Sandisk 64M
+
 . common
