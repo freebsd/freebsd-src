@@ -430,7 +430,6 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-	kobj_machdep_init();
 
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);

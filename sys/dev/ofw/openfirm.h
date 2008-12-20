@@ -60,84 +60,82 @@
 #ifndef _OPENFIRM_H_
 #define _OPENFIRM_H_
 
+#include <sys/types.h>
+
 /*
  * Prototypes for Open Firmware Interface Routines
  */
 
-typedef unsigned long cell_t;
-
-typedef	unsigned int	ihandle_t;
-typedef unsigned int	phandle_t;
+typedef	uint32_t	ihandle_t;
+typedef uint32_t	phandle_t;
+typedef uint32_t	pcell_t;
 
 #ifdef _KERNEL
-#include <sys/cdefs.h>
-#include <sys/types.h>
 #include <sys/malloc.h>
+
+#include <machine/ofw_machdep.h>
 
 MALLOC_DECLARE(M_OFWPROP);
 
 /*
- * Other than in Open Firmware calls, the size of a bus cell seems to be
- * always the same.
+ * Open Firmware interface initialization. OF_install installs the named
+ * interface as the Open Firmware access mechanism, OF_init initializes it.
  */
-typedef u_int32_t pcell_t;
+
+boolean_t	OF_install(char *name, int prio);
+void		OF_init(void *cookie);
 
 /*
- * Stuff that is used by the Open Firmware code.
+ * Known Open Firmware interface names
  */
-void	set_openfirm_callback(int (*)(void *));
-int	openfirmware(void *);
 
-/*
- * This isn't actually an Open Firmware function, but it seemed like the right
- * place for it to go.
- */
-void		OF_init(int (*openfirm)(void *));
+#define	OFW_STD_DIRECT	"ofw_std"	/* Standard OF interface */
+#define	OFW_STD_REAL	"ofw_real"	/* Real-mode OF interface */
+#define	OFW_FDT		"ofw_fdt"	/* Flattened Device Tree */
 
 /* Generic functions */
-int		OF_test(char *);
+int		OF_test(const char *);
 void		OF_printf(const char *, ...);
 
 /* Device tree functions */
-phandle_t	OF_peer(phandle_t);
-phandle_t	OF_child(phandle_t);
-phandle_t	OF_parent(phandle_t);
-phandle_t	OF_instance_to_package(ihandle_t);
-int		OF_getproplen(phandle_t, char *);
-int		OF_getprop(phandle_t, char *, void *, int);
-int		OF_getprop_alloc(phandle_t package, char *propname, int elsz,
-    void **buf);
-int		OF_nextprop(phandle_t, char *, char *);
-int		OF_setprop(phandle_t, char *, void *, int);
-int		OF_canon(const char *, char *, int);
-phandle_t	OF_finddevice(const char *);
-int		OF_instance_to_path(ihandle_t, char *, int);
-int		OF_package_to_path(phandle_t, char *, int);
-int		OF_call_method(char *, ihandle_t, int, int, ...);
+phandle_t	OF_peer(phandle_t node);
+phandle_t	OF_child(phandle_t node);
+phandle_t	OF_parent(phandle_t node);
+ssize_t		OF_getproplen(phandle_t node, const char *propname);
+ssize_t		OF_getprop(phandle_t node, const char *propname, void *buf,
+		    size_t len);
+ssize_t		OF_getprop_alloc(phandle_t node, const char *propname,
+		    int elsz, void **buf);
+int		OF_nextprop(phandle_t node, const char *propname, char *buf,
+		    size_t len);
+int		OF_setprop(phandle_t node, const char *name, const void *buf,
+		    size_t len);
+ssize_t		OF_canon(const char *path, char *buf, size_t len);
+phandle_t	OF_finddevice(const char *path);
+ssize_t		OF_package_to_path(phandle_t node, char *buf, size_t len);
 
 /* Device I/O functions */
-ihandle_t	OF_open(char *);
-void		OF_close(ihandle_t);
-int		OF_read(ihandle_t, void *, int);
-int		OF_write(ihandle_t, void *, int);
-int		OF_seek(ihandle_t, u_quad_t);
+ihandle_t	OF_open(const char *path);
+void		OF_close(ihandle_t instance);
+ssize_t		OF_read(ihandle_t instance, void *buf, size_t len);
+ssize_t		OF_write(ihandle_t instance, const void *buf, size_t len);
+int		OF_seek(ihandle_t instance, uint64_t where);
+
+phandle_t	OF_instance_to_package(ihandle_t instance);
+ssize_t		OF_instance_to_path(ihandle_t instance, char *buf, size_t len);
+int		OF_call_method(const char *method, ihandle_t instance,
+		    int nargs, int nreturns, ...);
 
 /* Memory functions */
-void 		*OF_claim(void *, u_int, u_int);
-void		OF_release(void *, u_int);
+void 		*OF_claim(void *virtrequest, size_t size, u_int align);
+void		OF_release(void *virt, size_t size);
 
 /* Control transfer functions */
-void		OF_boot(char *);
 void		OF_enter(void);
 void		OF_exit(void) __attribute__((noreturn));
-void		OF_chain(void *, u_int,
-    void (*)(void *, u_int, void *, void *, u_int), void *, u_int);
 
 /* User interface functions */
-int		OF_interpret(char *, int, ...);
-
-/* Time function */
-int		OF_milliseconds(void);
+int		OF_interpret(const char *cmd, int nreturns, ...);
 
 #endif /* _KERNEL */
 #endif /* _OPENFIRM_H_ */

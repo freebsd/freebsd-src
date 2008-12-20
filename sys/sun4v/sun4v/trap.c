@@ -261,7 +261,7 @@ set_mmfsa_traptable(void *tba_addr, uint64_t mmfsa_ra)
 
 	args.tba_addr = (cell_t)tba_addr;
 	args.mmfsa_ra = mmfsa_ra;
-	openfirmware(&args);
+	ofw_entry(&args);
 }
 
 void 
