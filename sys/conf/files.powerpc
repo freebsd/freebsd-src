@@ -30,9 +30,11 @@ dev/kbd/kbd.c			optional	sc
 dev/ofw/openfirm.c		optional	aim
 dev/ofw/openfirmio.c		optional	aim
 dev/ofw/ofw_bus_if.m		optional	aim
+dev/ofw/ofw_if.m		optional	aim
 dev/ofw/ofw_bus_subr.c		optional	aim
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
+dev/ofw/ofw_standard.c		optional	aim
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_ocp.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac

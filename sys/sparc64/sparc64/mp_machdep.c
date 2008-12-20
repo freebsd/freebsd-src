@@ -221,7 +221,7 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 	args.cpu = cpu;
 	args.func = (cell_t)func;
 	args.arg = (cell_t)arg;
-	openfirmware(&args);
+	ofw_entry(&args);
 }
 
 /*
@@ -238,7 +238,7 @@ sun4u_stopself(void)
 		(cell_t)SUNW_STOPSELF,
 	};
 
-	openfirmware_exit(&args);
+	ofw_exit(&args);
 	panic("%s: failed.", __func__);
 }
 

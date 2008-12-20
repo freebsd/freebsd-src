@@ -310,16 +310,16 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	end = 0;
 	kmdp = NULL;
 
-	/*
-	 * Initialize Open Firmware (needed for console).
-	 */
-	OF_init(vec);
-
-
         /*
 	 * XXX
 	 */
 	bootverbose = 1;
+
+	/*
+	 * Set up Open Firmware entry points
+	 */
+	ofw_tba = rdpr(tba);
+	ofw_vec = (u_long)vec;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
@@ -343,6 +343,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
                 bootverbose = 1;
 
 	init_param1();
+
+	/*
+	 * Initialize Open Firmware (needed for console).
+	 */
+	OF_install(OFW_STD_DIRECT, 0);
+	OF_init(ofw_entry);
 
 	root = OF_peer(0);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
@@ -513,13 +519,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
 	BVPRINTF("sparc64_init done\n");
-}
-
-void
-set_openfirm_callback(ofw_vec_t *vec)
-{
-	ofw_tba = rdpr(tba);
-	ofw_vec = (u_long)vec;
 }
 
 void
