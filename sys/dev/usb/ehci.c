@@ -869,7 +869,7 @@ ehci_idone(struct ehci_xfer *ex)
 			splx(s);
 #ifdef EHCI_DEBUG
 			printf("ehci_idone: ex is done!\n   ");
-			ehci_dump_exfer(sc, ex);
+			ehci_dump_exfer(ex);
 #else
 			printf("ehci_idone: ex=%p is done!\n", ex);
 #endif
