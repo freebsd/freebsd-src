@@ -120,7 +120,6 @@ tunable_mbinit(void *dummy)
 }
 SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 
-/* XXX: These should be tuneables. Can't change UMA limits on the fly. */
 static int
 sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 {

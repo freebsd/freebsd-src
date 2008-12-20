@@ -412,7 +412,11 @@ DIFF_FLAG=${DIFF_FLAG:--u}
 
 # Assign the source directory
 #
-SOURCEDIR=${SOURCEDIR:-/usr/src/etc}
+SOURCEDIR=${SOURCEDIR:-/usr/src}
+
+#
+# Setup make to use system files from SOURCEDIR
+MAKE="make -m ${SOURCEDIR}/share/mk"
 
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
@@ -548,20 +552,20 @@ case "${RERUN}" in
 
   case "${PRE_WORLD}" in
   '')
-    { cd ${SOURCEDIR} &&
+    { cd ${SOURCEDIR}/etc &&
       case "${DESTDIR}" in
       '') ;;
       *)
-      make DESTDIR=${DESTDIR} ${ARCHSTRING} distrib-dirs
+      ${MAKE} DESTDIR=${DESTDIR} ${ARCHSTRING} distrib-dirs
         ;;
       esac
-      make DESTDIR=${TEMPROOT} ${ARCHSTRING} distrib-dirs &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} obj &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} all &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} \
+      ${MAKE} DESTDIR=${TEMPROOT} ${ARCHSTRING} distrib-dirs &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MAKE} ${ARCHSTRING} obj &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MAKE} ${ARCHSTRING} all &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MAKE} ${ARCHSTRING} \
 	  DESTDIR=${TEMPROOT} distribution;} ||
     { echo '';
-     echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
+     echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR}/etc and install files to";
       echo "      the temproot environment";
       echo '';
       exit 1;}
@@ -569,8 +573,8 @@ case "${RERUN}" in
   *)
     # Only set up files that are crucial to {build|install}world
     { mkdir -p ${TEMPROOT}/etc &&
-      cp -p ${SOURCEDIR}/master.passwd ${TEMPROOT}/etc &&
-      cp -p ${SOURCEDIR}/group ${TEMPROOT}/etc;} ||
+      cp -p ${SOURCEDIR}/etc/master.passwd ${TEMPROOT}/etc &&
+      cp -p ${SOURCEDIR}/etc/group ${TEMPROOT}/etc;} ||
     { echo '';
       echo '  *** FATAL ERROR: Cannot copy files to the temproot environment';
       echo '';
@@ -647,7 +651,7 @@ if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
     echo ''
     echo " *** Your umask is currently set to ${USER_UMASK}.  By default, this script"
     echo "     installs all files with the same user, group and modes that"
-    echo "     they are created with by ${SOURCEDIR}/Makefile, compared to"
+    echo "     they are created with by ${SOURCEDIR}/etc/Makefile, compared to"
     echo "     a umask of 022.  This umask allows world read permission when"
     echo "     the file's default permissions have it."
     echo ''
@@ -904,7 +908,7 @@ if [ -r "${MM_PRE_COMPARE_SCRIPT}" ]; then
 fi
 
 # Using -size +0 avoids uselessly checking the empty log files created
-# by ${SOURCEDIR}/Makefile and the device entries in ./dev, but does
+# by ${SOURCEDIR}/etc/Makefile and the device entries in ./dev, but does
 # check the scripts in ./dev, as we'd like (assuming no devfs of course).
 #
 for COMPFILE in `find . -type f -size +0`; do
@@ -1206,7 +1210,7 @@ esac
 case "${PRE_WORLD}" in
 '') ;;
 *)
-  MAKE_CONF="${SOURCEDIR%etc}share/examples/etc/make.conf"
+  MAKE_CONF="${SOURCEDIR}/share/examples/etc/make.conf"
 
   (echo ''
   echo '*** Comparing make variables'

@@ -74,7 +74,9 @@ struct	icmpstat {
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_icmp);
+#ifdef VIMAGE_GLOBALS
 extern struct icmpstat icmpstat;	/* icmp statistics */
+#endif
 extern int badport_bandlim(int);
 #define BANDLIM_UNLIMITED -1
 #define BANDLIM_ICMP_UNREACH 0

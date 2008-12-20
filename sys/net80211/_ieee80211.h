@@ -137,7 +137,7 @@ struct ieee80211_channel {
 	uint8_t		ic_extieee;	/* HT40 extension channel number */
 };
 
-#define	IEEE80211_CHAN_MAX	255
+#define	IEEE80211_CHAN_MAX	256
 #define	IEEE80211_CHAN_BYTES	32	/* howmany(IEEE80211_CHAN_MAX, NBBY) */
 #define	IEEE80211_CHAN_ANY	0xffff	/* token for ``any channel'' */
 #define	IEEE80211_CHAN_ANYC \

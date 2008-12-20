@@ -118,9 +118,6 @@ ufs_quotactl(mp, cmds, id, arg, td)
 	if ((u_int)type >= MAXQUOTAS)
 		return (EINVAL);
 
-	if (vfs_busy(mp, MBF_NOWAIT))
-		return (0);
-
 	switch (cmd) {
 	case Q_QUOTAON:
 		error = quotaon(td, mp, type, arg);
@@ -150,7 +147,6 @@ ufs_quotactl(mp, cmds, id, arg, td)
 		error = EINVAL;
 		break;
 	}
-	vfs_unbusy(mp);
 	return (error);
 #endif
 }

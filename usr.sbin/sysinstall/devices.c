@@ -57,8 +57,6 @@ static int numDevs;
 
 #define	CDROM(name, descr, max)					\
 	DEVICE_ENTRY(DEVICE_TYPE_CDROM, name, descr, max)
-#define	TAPE(name, descr, max)						\
-	DEVICE_ENTRY(DEVICE_TYPE_TAPE, name, descr, max)
 #define	DISK(name, descr, max)						\
 	DEVICE_ENTRY(DEVICE_TYPE_DISK, name, descr, max)
 #define	FLOPPY(name, descr, max)					\
@@ -78,8 +76,6 @@ static struct _devname {
     CDROM("mcd%d",	"Mitsumi (old model) CDROM drive",	4),
     CDROM("scd%d",	"Sony CDROM drive - CDU31/33A type",	4),
     CDROM("acd%d",	"ATAPI/IDE CDROM",			4),
-    TAPE("sa%d",	"SCSI tape drive",			4),
-    TAPE("rwt%d",	"Wangtek tape drive",			4),
     DISK("da%d",	"SCSI disk device",			16),
     DISK("ad%d",	"ATA/IDE disk device",			16),
     DISK("ar%d",	"ATA/IDE RAID device",			16),
@@ -364,20 +360,6 @@ skipif:
 					 mediaShutdownCDROM, NULL);
 		    if (isDebug())
 			msgDebug("Found a CDROM device for %s\n", try);
-		}
-		break;
-
-	    case DEVICE_TYPE_TAPE:
-		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0) {
-		    char n[BUFSIZ];
-
-		    close(fd);
-		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
-				   DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
-		    if (isDebug())
-			msgDebug("Found a TAPE device for %s\n", try);
 		}
 		break;
 

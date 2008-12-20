@@ -1491,15 +1491,16 @@ core_intr(int cpu, struct trapframe *tf)
 	PMCDBG(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
+	found_interrupt = 0;
 	cc = core_pcpu[cpu];
 
 	for (ri = 0; ri < core_iap_npmc; ri++) {
 
-		if (!iap_pmc_has_overflowed(ri))
-			continue;
-
 		if ((pm = cc->pc_corepmcs[ri].phw_pmc) == NULL ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
+			continue;
+
+		if (!iap_pmc_has_overflowed(ri))
 			continue;
 
 		found_interrupt = 1;
@@ -1560,7 +1561,9 @@ core2_intr(int cpu, struct trapframe *tf)
 	PMCDBG(MDP,INT, 1, "cpu=%d intrstatus=%jx", cpu,
 	    (uintmax_t) intrstatus);
 
+	found_interrupt = 0;
 	cc = core_pcpu[cpu];
+
 	KASSERT(cc != NULL, ("[core,%d] null pcpu", __LINE__));
 
 	cc->pc_globalctrl &= ~intrenable;
@@ -1573,7 +1576,6 @@ core2_intr(int cpu, struct trapframe *tf)
 	wrmsr(IA_GLOBAL_OVF_CTRL, intrenable |
 	    IA_GLOBAL_STATUS_FLAG_OVFBUF |
 	    IA_GLOBAL_STATUS_FLAG_CONDCHG);
-
 
 	/*
 	 * Look for interrupts from fixed function PMCs.
@@ -1633,9 +1635,6 @@ core2_intr(int cpu, struct trapframe *tf)
 		/* Reload sampling count. */
 		wrmsr(IAP_PMC0 + n, v);
 	}
-
-	KASSERT(found_interrupt,
-	    ("[core,%d] no interrupting PMCs were found", __LINE__));
 
 	/*
 	 * Reenable all non-stalled PMCs.

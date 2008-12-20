@@ -897,7 +897,7 @@ int main(int argc, char **argv)
 	time_t now;
 	char *refdir_alloc = NULL;
 	char *progname, *p;
-	char *tmp;
+	const char *tmp;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 

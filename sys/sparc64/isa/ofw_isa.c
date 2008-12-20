@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/ofw_bus.h>
 
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/isa/ofw_isa.h>

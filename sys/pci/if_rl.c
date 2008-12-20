@@ -901,9 +901,15 @@ rl_attach(device_t dev)
 	}
 
 	if (sc->rl_type == 0) {
-		device_printf(dev, "unknown device ID: %x\n", rl_did);
-		error = ENXIO;
-		goto fail;
+		device_printf(dev, "unknown device ID: %x assuming 8139\n",
+		    rl_did);
+		sc->rl_type = RL_8139;
+		/*
+		 * Read RL_IDR register to get ethernet address as accessing
+		 * EEPROM may not extract correct address.
+		 */
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			eaddr[i] = CSR_READ_1(sc, RL_IDR0 + i);
 	}
 
 	if ((error = rl_dma_alloc(sc)) != 0)

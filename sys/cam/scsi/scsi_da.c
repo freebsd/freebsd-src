@@ -772,8 +772,8 @@ daclose(struct disk *dp)
 
 	softc->flags &= ~DA_FLAG_OPEN;
 	cam_periph_unhold(periph);
-	cam_periph_release(periph);
 	cam_periph_unlock(periph);
+	cam_periph_release(periph);
 	return (0);	
 }
 

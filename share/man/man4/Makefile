@@ -473,6 +473,7 @@ MLINKS+=edsc.4 if_edsc.4
 MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
+MLINKS+=enc.4 if_enc.4
 MLINKS+=et.4 if_et.4
 MLINKS+=faith.4 if_faith.4
 MLINKS+=fatm.4 if_fatm.4

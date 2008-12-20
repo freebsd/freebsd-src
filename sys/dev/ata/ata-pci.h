@@ -48,6 +48,7 @@ struct ata_pci_controller {
     struct resource     *r_irq;
     void                *handle;
     struct ata_chip_id  *chip;
+    int			legacy;
     int                 channels;
     int                 (*chipinit)(device_t);
     int                 (*suspend)(device_t);

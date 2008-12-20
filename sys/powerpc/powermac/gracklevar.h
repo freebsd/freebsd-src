@@ -52,6 +52,9 @@ struct grackle_softc {
 	struct			rman sc_mem_rman;
 	bus_space_tag_t		sc_memt;
 	bus_dma_tag_t		sc_dmat;
+	int			sc_icells;
+
+	struct ofw_bus_iinfo	sc_pci_iinfo;
 };
 
 /*

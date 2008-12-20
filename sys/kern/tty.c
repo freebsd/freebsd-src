@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/filio.h>
 #ifdef COMPAT_43TTY
 #include <sys/ioctl_compat.h>
@@ -870,10 +871,10 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 
 	tty_init_termios(tp);
 
-	cv_init(&tp->t_inwait, "tty input");
-	cv_init(&tp->t_outwait, "tty output");
-	cv_init(&tp->t_bgwait, "tty background");
-	cv_init(&tp->t_dcdwait, "tty dcd");
+	cv_init(&tp->t_inwait, "ttyinp");
+	cv_init(&tp->t_outwait, "ttyout");
+	cv_init(&tp->t_bgwait, "ttybgw");
+	cv_init(&tp->t_dcdwait, "ttydcd");
 
 	ttyinq_init(&tp->t_inq);
 	ttyoutq_init(&tp->t_outq);
@@ -883,7 +884,7 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 		tp->t_mtx = mutex;
 	} else {
 		tp->t_mtx = &tp->t_mtxobj;
-		mtx_init(&tp->t_mtxobj, "tty lock", NULL, MTX_DEF);
+		mtx_init(&tp->t_mtxobj, "ttylck", NULL, MTX_DEF);
 	}
 
 	knlist_init(&tp->t_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
@@ -1673,18 +1674,24 @@ ttyhook_defrint(struct tty *tp, char c, int flags)
 }
 
 int
-ttyhook_register(struct tty **rtp, struct thread *td, int fd,
+ttyhook_register(struct tty **rtp, struct proc *p, int fd,
     struct ttyhook *th, void *softc)
 {
 	struct tty *tp;
 	struct file *fp;
 	struct cdev *dev;
 	struct cdevsw *cdp;
+	struct filedesc *fdp;
 	int error;
 
 	/* Validate the file descriptor. */
-	if (fget(td, fd, &fp) != 0)
-		return (EINVAL);
+	if ((fdp = p->p_fd) == NULL)
+		return (EBADF);
+	FILEDESC_SLOCK(fdp);
+	if ((fp = fget_locked(fdp, fd)) == NULL || fp->f_ops == &badfileops) {
+		FILEDESC_SUNLOCK(fdp);
+		return (EBADF);
+	}
 	
 	/* Make sure the vnode is bound to a character device. */
 	error = EINVAL;
@@ -1723,7 +1730,7 @@ ttyhook_register(struct tty **rtp, struct thread *td, int fd,
 
 done3:	tty_unlock(tp);
 done2:	dev_relthread(dev);
-done1:	fdrop(fp, td);
+done1:	FILEDESC_SUNLOCK(fdp);
 	return (error);
 }
 

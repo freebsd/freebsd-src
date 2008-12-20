@@ -70,6 +70,7 @@ extern struct Path parseIncPath;
 extern struct Path sysIncPath;
 
 extern int	jobLimit;	/* -j argument: maximum number of jobs */
+extern int	makeErrors;	/* Number of targets not remade due to errors */
 extern Boolean	jobsRunning;	/* True if jobs are running */
 extern Boolean	compatMake;	/* True if we are make compatible */
 extern Boolean	ignoreErrors;	/* True if should ignore all errors */

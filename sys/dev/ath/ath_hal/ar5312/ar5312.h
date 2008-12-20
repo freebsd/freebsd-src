@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5312.h,v 1.5 2008/11/22 07:37:40 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AR5312_H_
 #define _ATH_AR5312_H_
@@ -38,8 +38,6 @@
 	 AH_PRIVATE(ah)->ah_devid == AR5212_AR2317_REV1 || \
 	 AH_PRIVATE(ah)->ah_devid == AR5212_AR2317_REV2)
 
-extern	struct ath_hal * ar5312Attach(uint16_t devid, HAL_SOFTC sc,
-				      HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status);
 extern  HAL_BOOL ar5312IsInterruptPending(struct ath_hal *ah);
 
 /* AR5312 */

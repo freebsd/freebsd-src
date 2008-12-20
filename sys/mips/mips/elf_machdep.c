@@ -93,22 +93,6 @@ SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t) elf32_insert_brand_entry,
     &freebsd_brand_info);
 
-static Elf32_Brandinfo freebsd_brand_oinfo = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_MIPS,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/usr/libexec/ld-elf.so.1",
-	.sysvec		= &elf32_freebsd_sysvec,
-	.interp_newpath	= NULL,
-	.flags		= 0
-};
-
-SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&freebsd_brand_oinfo);
-
-
 void
 elf32_dump_thread(struct thread *td __unused, void *dst __unused,
     size_t *off __unused)

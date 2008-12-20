@@ -338,7 +338,7 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 		    reg->rd.isocc[0], reg->rd.isocc[1]);
 		return EINVAL;
 	}
-	if (reg->chaninfo.ic_nchans >= IEEE80211_CHAN_MAX) {
+	if (reg->chaninfo.ic_nchans > IEEE80211_CHAN_MAX) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
 		    "%s: too many channels %u, max %u\n", __func__,
 		    reg->chaninfo.ic_nchans, IEEE80211_CHAN_MAX);

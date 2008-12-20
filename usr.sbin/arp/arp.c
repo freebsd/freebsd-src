@@ -370,7 +370,6 @@ set(int argc, char **argv)
 		if (addr->sin_addr.s_addr != dst->sin_addr.s_addr)	
 			break;
 		if (sdl->sdl_family == AF_LINK &&
-		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY) &&
 		    valid_type(sdl->sdl_type) )
 			break;
@@ -426,25 +425,46 @@ delete(char *host, int do_proxy)
 	struct sockaddr_inarp *addr, *dst;
 	struct rt_msghdr *rtm;
 	struct sockaddr_dl *sdl;
+	struct sockaddr_dl sdl_m;
 
 	dst = getaddr(host);
 	if (dst == NULL)
 		return (1);
 	dst->sin_other = do_proxy;
+
+	/*
+	 * setup the data structure to notify the kernel
+	 * it is the ARP entry the RTM_GET is interested
+	 * in
+	 */
+	bzero(&sdl_m, sizeof(sdl_m));
+	sdl_m.sdl_len = sizeof(sdl_m);
+	sdl_m.sdl_family = AF_LINK;
+
 	for (;;) {	/* try twice */
-		rtm = rtmsg(RTM_GET, dst, NULL);
+		rtm = rtmsg(RTM_GET, dst, &sdl_m);
 		if (rtm == NULL) {
 			warn("%s", host);
 			return (1);
 		}
 		addr = (struct sockaddr_inarp *)(rtm + 1);
 		sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
-		if (addr->sin_addr.s_addr == dst->sin_addr.s_addr &&
-		    sdl->sdl_family == AF_LINK &&
-		    (rtm->rtm_flags & RTF_LLINFO) &&
+
+		/*
+		 * With the new L2/L3 restructure, the route 
+		 * returned is a prefix route. The important
+		 * piece of information from the previous
+		 * RTM_GET is the interface index. In the
+		 * case of ECMP, the kernel will traverse
+		 * the route group for the given entry.
+		 */
+		if (sdl->sdl_family == AF_LINK &&
 		    !(rtm->rtm_flags & RTF_GATEWAY) &&
-		    valid_type(sdl->sdl_type) )
-			break;	/* found it */
+		    valid_type(sdl->sdl_type) ) {
+			addr->sin_addr.s_addr = dst->sin_addr.s_addr;
+			break;
+		}
+
 		if (dst->sin_other & SIN_PROXY) {
 			fprintf(stderr, "delete: cannot locate %s\n",host);
 			return (1);
@@ -478,7 +498,11 @@ search(u_long addr, action_fn *action)
 	mib[2] = 0;
 	mib[3] = AF_INET;
 	mib[4] = NET_RT_FLAGS;
+#ifdef RTF_LLINFO
 	mib[5] = RTF_LLINFO;
+#else
+	mib[5] = 0;
+#endif	
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		err(1, "route-sysctl-estimate");
 	if (needed == 0)	/* empty table */
@@ -563,15 +587,9 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" permanent");
 	if (addr->sin_other & SIN_PROXY)
 		printf(" published (proxy only)");
-	if (rtm->rtm_addrs & RTA_NETMASK) {
-		addr = (struct sockaddr_inarp *)
-			(SA_SIZE(sdl) + (char *)sdl);
-		if (addr->sin_addr.s_addr == 0xffffffff)
-			printf(" published");
-		if (addr->sin_len != 8)
-			printf("(weird)");
-	}
-        switch(sdl->sdl_type) {
+	if (rtm->rtm_flags & RTF_ANNOUNCE)
+		printf(" published");
+	switch(sdl->sdl_type) {
 	case IFT_ETHER:
                 printf(" [ethernet]");
                 break;

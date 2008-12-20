@@ -435,8 +435,10 @@ ipfw_hook(void)
 	if (pfh_inet == NULL)
 		return ENOENT;
 
-	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
-	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+	(void)pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK,
+	    pfh_inet);
+	(void)pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
+	    pfh_inet);
 
 	return 0;
 }
@@ -450,8 +452,10 @@ ipfw_unhook(void)
 	if (pfh_inet == NULL)
 		return ENOENT;
 
-	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
-	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+	(void)pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK,
+	    pfh_inet);
+	(void)pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
+	    pfh_inet);
 
 	return 0;
 }
@@ -466,8 +470,10 @@ ipfw6_hook(void)
 	if (pfh_inet6 == NULL)
 		return ENOENT;
 
-	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
-	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+	(void)pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK,
+	    pfh_inet6);
+	(void)pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
+	    pfh_inet6);
 
 	return 0;
 }
@@ -481,8 +487,10 @@ ipfw6_unhook(void)
 	if (pfh_inet6 == NULL)
 		return ENOENT;
 
-	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
-	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+	(void)pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK,
+	    pfh_inet6);
+	(void)pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
+	    pfh_inet6);
 
 	return 0;
 }

@@ -39,20 +39,16 @@ __FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
-#define DEBUG_SCATTER 0
+static void drm_sg_alloc_cb(void *arg, bus_dma_segment_t *segs,
+			    int nsegs, int error);
 
-void drm_sg_cleanup(drm_sg_mem_t *entry)
+int
+drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 {
-	free((void *)entry->handle, DRM_MEM_PAGES);
-	free(entry->busaddr, DRM_MEM_PAGES);
-	free(entry, DRM_MEM_SGLISTS);
-}
-
-int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
-{
-	drm_sg_mem_t *entry;
+	struct drm_sg_mem *entry;
+	struct drm_dma_handle *dmah;
 	unsigned long pages;
-	int i;
+	int ret;
 
 	if (dev->sg)
 		return EINVAL;
@@ -69,21 +65,56 @@ int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
 	entry->busaddr = malloc(pages * sizeof(*entry->busaddr), DRM_MEM_PAGES,
 	    M_WAITOK | M_ZERO);
 	if (!entry->busaddr) {
-		drm_sg_cleanup(entry);
+		free(entry, DRM_MEM_SGLISTS);
 		return ENOMEM;
 	}
 
-	entry->handle = (long)malloc(pages << PAGE_SHIFT, DRM_MEM_PAGES,
-	    M_WAITOK | M_ZERO);
-	if (entry->handle == 0) {
-		drm_sg_cleanup(entry);
+	dmah = malloc(sizeof(struct drm_dma_handle), DRM_MEM_DMA,
+	    M_ZERO | M_NOWAIT);
+	if (dmah == NULL) {
+		free(entry->busaddr, DRM_MEM_PAGES);
+		free(entry, DRM_MEM_SGLISTS);
 		return ENOMEM;
 	}
 
-	for (i = 0; i < pages; i++) {
-		entry->busaddr[i] = vtophys(entry->handle + i * PAGE_SIZE);
+	ret = bus_dma_tag_create(NULL, PAGE_SIZE, 0, /* tag, align, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
+	    NULL, NULL, /* filtfunc, filtfuncargs */
+	    request->size, pages, /* maxsize, nsegs */
+	    PAGE_SIZE, 0, /* maxsegsize, flags */
+	    NULL, NULL, /* lockfunc, lockfuncargs */
+	    &dmah->tag);
+	if (ret != 0) {
+		free(dmah, DRM_MEM_DMA);
+		free(entry->busaddr, DRM_MEM_PAGES);
+		free(entry, DRM_MEM_SGLISTS);
+		return ENOMEM;
 	}
 
+	ret = bus_dmamem_alloc(dmah->tag, &dmah->vaddr,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_NOCACHE, &dmah->map);
+	if (ret != 0) {
+		bus_dma_tag_destroy(dmah->tag);
+		free(dmah, DRM_MEM_DMA);
+		free(entry->busaddr, DRM_MEM_PAGES);
+		free(entry, DRM_MEM_SGLISTS);
+		return ENOMEM;
+	}
+
+	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr,
+	    request->size, drm_sg_alloc_cb, entry, 0);
+	if (ret != 0) {
+		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
+		bus_dma_tag_destroy(dmah->tag);
+		free(dmah, DRM_MEM_DMA);
+		free(entry->busaddr, DRM_MEM_PAGES);
+		free(entry, DRM_MEM_SGLISTS);
+		return ENOMEM;
+	}
+
+	entry->sg_dmah = dmah;
+	entry->handle = (unsigned long)dmah->vaddr;
+	
 	DRM_DEBUG("sg alloc handle  = %08lx\n", entry->handle);
 
 	entry->virtual = (void *)entry->handle;
@@ -101,22 +132,49 @@ int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
 	return 0;
 }
 
-int drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
+static void
+drm_sg_alloc_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct drm_scatter_gather *request = data;
-	int ret;
+	struct drm_sg_mem *entry = arg;
+	int i;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	if (error != 0)
+	    return;
 
-	ret = drm_sg_alloc(dev, request);
-	return ret;
+	for(i = 0 ; i < nsegs ; i++) {
+		entry->busaddr[i] = segs[i].ds_addr;
+	}
 }
 
-int drm_sg_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int
+drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
+		   struct drm_file *file_priv)
 {
 	struct drm_scatter_gather *request = data;
-	drm_sg_mem_t *entry;
+
+	DRM_DEBUG("\n");
+
+	return drm_sg_alloc(dev, request);
+}
+
+void
+drm_sg_cleanup(struct drm_sg_mem *entry)
+{
+	struct drm_dma_handle *dmah = entry->sg_dmah;
+
+	bus_dmamap_unload(dmah->tag, dmah->map);
+	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
+	bus_dma_tag_destroy(dmah->tag);
+	free(dmah, DRM_MEM_DMA);
+	free(entry->busaddr, DRM_MEM_PAGES);
+	free(entry, DRM_MEM_SGLISTS);
+}
+
+int
+drm_sg_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	struct drm_scatter_gather *request = data;
+	struct drm_sg_mem *entry;
 
 	DRM_LOCK();
 	entry = dev->sg;
