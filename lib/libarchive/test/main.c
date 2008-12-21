@@ -846,48 +846,59 @@ extract_reference_file(const char *name)
 static char *
 get_refdir(const char *tmpdir)
 {
-	char *ref, *p;
+	char tried[512] = { '\0' };
+	char buff[128];
+	char *pwd, *p;
 
 	/* Get the current dir. */
 	systemf("/bin/pwd > %s/refdir", tmpdir);
-	ref = slurpfile(NULL, "%s/refdir", tmpdir);
-	p = ref + strlen(ref);
-	while (p[-1] == '\n') {
-		--p;
-		*p = '\0';
-	}
+	pwd = slurpfile(NULL, "%s/refdir", tmpdir);
+	while (pwd[strlen(pwd) - 1] == '\n')
+		pwd[strlen(pwd) - 1] = '\0';
+	printf("PWD: %s\n", pwd);
 	systemf("rm %s/refdir", tmpdir);
+
 	/* Look for a known file. */
-	p = slurpfile(NULL, "%s/%s", ref, KNOWNREF);
-	if (p != NULL) {
-		free(p);
-		return (ref);
+	snprintf(buff, sizeof(buff), "%s", pwd);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/test", pwd);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, LIBRARY);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	if (memcmp(pwd, "/usr/obj", 8) == 0) {
+		snprintf(buff, sizeof(buff), "%s", pwd + 8);
+		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+		if (p != NULL) goto success;
+		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+		snprintf(buff, sizeof(buff), "%s/test", pwd + 8);
+		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+		if (p != NULL) goto success;
+		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 	}
-	p = slurpfile(NULL, "%s/test/%s", ref, KNOWNREF);
-	if (p != NULL) {
-		free(p);
-		p = malloc(strlen(ref) + strlen("/test") + 1);
-		strcpy(p, ref);
-		strcat(p, "/test");
-		free(ref);
-		return (p);
-	}
-	p = slurpfile(NULL, "%s/%s/test/%s", ref, LIBRARY, KNOWNREF);
-	if (p != NULL) {
-		free(p);
-		p = malloc(strlen(ref) + 1 + strlen(LIBRARY) + strlen("/test") + 1);
-		strcpy(p, ref);
-		strcat(p, "/");
-		strcat(p, LIBRARY);
-		strcat(p, "/test");
-		free(ref);
-		return (p);
-	}
+
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
-	printf("  Checked directory %s\n", ref);
-	printf("  Checked directory %s/test\n", ref);
-	printf("  Checked directory %s/%s/test\n", ref, LIBRARY);
+	printf("  Checked following directories:\n%s\n", tried);
 	exit(1);
+
+success:
+	free(p);
+	free(pwd);
+	return strdup(buff);
 }
 
 int main(int argc, char **argv)
