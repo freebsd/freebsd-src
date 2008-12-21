@@ -38,7 +38,7 @@
 
 #ifdef AGP_DEBUG
 #define AGP_DPF(fmt, ...) do {				\
-    printf("agp: " fmt, __VA_ARGS__);			\
+    printf("agp: " fmt, ##__VA_ARGS__);			\
 } while (0)
 #else
 #define AGP_DPF(fmt, ...) do {} while (0)
