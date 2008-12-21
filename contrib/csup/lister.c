@@ -421,7 +421,7 @@ lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr)
 		return (0);
 	config = l->config;
 	wr = l->wr;
-	if (!coll->co_options & CO_TRUSTSTATUSFILE) {
+	if (!(coll->co_options & CO_TRUSTSTATUSFILE)) {
 		path = cvspath(coll->co_prefix, sr->sr_file, 0);
 		if (path == NULL) {
 			spath = coll_statuspath(coll);
