@@ -346,12 +346,12 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	if ((softc->flags & PASS_FLAG_OPEN) == 0) {
 		softc->flags |= PASS_FLAG_OPEN;
+		cam_periph_unlock(periph);
 	} else {
 		/* Device closes aren't symmertical, so fix up the refcount */
+		cam_periph_unlock(periph);
 		cam_periph_release(periph);
 	}
-
-	cam_periph_unlock(periph);
 
 	return (error);
 }
