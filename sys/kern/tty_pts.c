@@ -630,10 +630,9 @@ ptsdrv_close(struct tty *tp)
 	struct pts_softc *psc = tty_softc(tp);
 
 	/* Wake up any blocked readers/writers. */
+	psc->pts_flags |= PTS_FINISHED;
 	ptsdrv_outwakeup(tp);
 	ptsdrv_inwakeup(tp);
-
-	psc->pts_flags |= PTS_FINISHED;
 }
 
 static void
