@@ -300,16 +300,16 @@ for ( ret = 0 ; !ret && !(condition) ; ) {			\
 	DRM_LOCK();						\
 }
 
-#define DRM_ERROR(fmt, arg...) \
+#define DRM_ERROR(fmt, ...) \
 	printf("error: [" DRM_NAME ":pid%d:%s] *ERROR* " fmt,		\
-	    DRM_CURRENTPID, __func__ , ## arg)
+	    DRM_CURRENTPID, __func__ , ##__VA_ARGS__)
 
-#define DRM_INFO(fmt, arg...)  printf("info: [" DRM_NAME "] " fmt , ## arg)
+#define DRM_INFO(fmt, ...)  printf("info: [" DRM_NAME "] " fmt , ##__VA_ARGS__)
 
-#define DRM_DEBUG(fmt, arg...) do {					\
+#define DRM_DEBUG(fmt, ...) do {					\
 	if (drm_debug_flag)						\
 		printf("[" DRM_NAME ":pid%d:%s] " fmt, DRM_CURRENTPID,	\
-			__func__ , ## arg);				\
+			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
 typedef struct drm_pci_id_list
