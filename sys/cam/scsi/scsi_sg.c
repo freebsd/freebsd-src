@@ -399,12 +399,12 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	if ((softc->flags & SG_FLAG_OPEN) == 0) {
 		softc->flags |= SG_FLAG_OPEN;
+		cam_periph_unlock(periph);
 	} else {
 		/* Device closes aren't symmetrical, fix up the refcount. */
+		cam_periph_unlock(periph);
 		cam_periph_release(periph);
 	}
-
-	cam_periph_unlock(periph);
 
 	return (error);
 }

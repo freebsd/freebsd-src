@@ -996,12 +996,6 @@ cdopen(struct disk *dp)
 		return (error);
 	}
 
-	/* Closes aren't symmetrical with opens, so fix up the refcounting. */
-	if (softc->flags & CD_FLAG_OPEN)
-		cam_periph_release(periph);
-	else
-		softc->flags |= CD_FLAG_OPEN;
-
 	/*
 	 * Check for media, and set the appropriate flags.  We don't bail
 	 * if we don't have media, but then we don't allow anything but the
@@ -1011,7 +1005,15 @@ cdopen(struct disk *dp)
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("leaving cdopen\n"));
 	cam_periph_unhold(periph);
-	cam_periph_unlock(periph);
+
+	/* Closes aren't symmetrical with opens, so fix up the refcounting. */
+	if ((softc->flags & CD_FLAG_OPEN) == 0) {
+		softc->flags |= CD_FLAG_OPEN;
+		cam_periph_unlock(periph);
+	} else {
+		cam_periph_unlock(periph);
+		cam_periph_release(periph);
+	}
 
 	return (0);
 }
