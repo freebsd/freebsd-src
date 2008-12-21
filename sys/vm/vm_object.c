@@ -672,7 +672,7 @@ vm_object_terminate(vm_object_t object)
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
 			("vm_object_terminate: freeing busy page %p "
-			"p->busy = %d, p->flags %x\n", p, p->busy, p->flags));
+			"p->busy = %d, p->oflags %x\n", p, p->busy, p->oflags));
 		if (p->wire_count == 0) {
 			vm_page_free(p);
 			cnt.v_pfree++;
