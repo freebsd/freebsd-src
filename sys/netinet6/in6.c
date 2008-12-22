@@ -2204,12 +2204,14 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		lle->lle_head = lleh;
 		LIST_INSERT_HEAD(lleh, lle, lle_next);
 	} else if (flags & LLE_DELETE) {
-		LLE_WLOCK(lle);
-		lle->la_flags = LLE_DELETED;
-		LLE_WUNLOCK(lle);
+		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
+			LLE_WLOCK(lle);
+			lle->la_flags = LLE_DELETED;
+			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTICS
-		log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
+			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
 #endif	
+		}
 		lle = (void *)-1;
 	}
 	if (LLE_IS_VALID(lle)) {
