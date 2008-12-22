@@ -1594,7 +1594,7 @@ dev/usb2/ethernet/if_cdce2.c		optional usb2_core usb2_ethernet usb2_ethernet_cdc
 dev/usb2/ethernet/if_cue2.c		optional usb2_core usb2_ethernet usb2_ethernet_cue
 dev/usb2/ethernet/if_kue2.c		optional usb2_core usb2_ethernet usb2_ethernet_kue
 dev/usb2/ethernet/if_rue2.c		optional usb2_core usb2_ethernet usb2_ethernet_rue
-dev/usb2/ethernet/if_udav2.c		optional usb2_core usb2_ethernet usb2_ethernet_udav
+dev/usb2/ethernet/if_udav2.c		optional usb2_core usb2_ethernet usb2_ethernet_dav
 dev/usb2/ethernet/usb2_ethernet.c	optional usb2_core usb2_ethernet
 #
 # USB2 WLAN drivers
@@ -1623,6 +1623,7 @@ dev/usb2/serial/uplcom2.c	optional usb2_core usb2_serial usb2_serial_plcom
 dev/usb2/serial/usb2_serial.c	optional usb2_core usb2_serial
 dev/usb2/serial/uvisor2.c	optional usb2_core usb2_serial usb2_serial_visor
 dev/usb2/serial/uvscom2.c	optional usb2_core usb2_serial usb2_serial_vscom
+dev/usb2/serial/u3g2.c		optional usb2_core usb2_serial usb2_serial_3g
 #
 # USB2 bluetooth drivers
 #
