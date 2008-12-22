@@ -2068,6 +2068,8 @@ re_tick(void *xsc)
 
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
+	if ((sc->rl_flags & RL_FLAG_LINK) == 0)
+		re_miibus_statchg(sc->rl_dev);
 	re_watchdog(sc);
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
