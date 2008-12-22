@@ -1518,6 +1518,8 @@ rl_tick(void *xsc)
 	 */
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
+	if ((sc->rl_flags & RL_FLAG_LINK) == 0)
+		rl_miibus_statchg(sc->rl_dev);
 	if (sc->rl_twister_enable) {
 		if (sc->rl_twister == DONE)
 			rl_watchdog(sc);
