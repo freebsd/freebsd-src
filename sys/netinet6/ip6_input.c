@@ -248,7 +248,7 @@ ip6_init(void)
 	if (pr == 0)
 		panic("ip6_init");
 
-	/* Initialize the entire ip_protox[] array to IPPROTO_RAW. */
+	/* Initialize the entire ip6_protox[] array to IPPROTO_RAW. */
 	for (i = 0; i < IPPROTO_MAX; i++)
 		ip6_protox[i] = pr - inet6sw;
 	/*
