@@ -104,6 +104,7 @@ musbotg_attach(device_t dev)
 
 	/* get all DMA memory */
 
+	sc->sc_otg.sc_bus.parent = dev;
 	if (usb2_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);

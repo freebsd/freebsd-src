@@ -75,6 +75,7 @@ ohci_atmelarm_attach(device_t dev)
 	}
 	/* get all DMA memory */
 
+	sc->sc_ohci.sc_bus.parent = dev;
 	if (usb2_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
 	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
 		return ENOMEM;

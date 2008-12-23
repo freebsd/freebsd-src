@@ -253,6 +253,7 @@ uhci_pci_attach(device_t self)
 	}
 	/* get all DMA memory */
 
+	sc->sc_bus.parent = self;
 	if (usb2_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
 	    &uhci_iterate_hw_softc)) {
 		return ENOMEM;
