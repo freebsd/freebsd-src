@@ -15,12 +15,14 @@
 
 	tar zxvf bind-9.<x.y>.tar.gz -X dist/FREEBSD-Xlist
 
+	Check to see if any files have been added or deleted using
+	diff -ur dist bind-9.<x.y> -x \.svn | grep 'Only in'
+
 4) Copy new files over the old ones:
 
 	cp -Rp bind-9.<x.y>/* dist/
 
-5) Check to see if any files have been added or deleted using 'svn status'
-   and 'diff -ur bind-9.<x.y> dist -x \.svn | grep 'Only in'
+5) Double-check for changes using 'svn status'
 
 6) Use 'svn add' and 'svn rm' to bring dist up to date for files found above.
    Update FREEBSD-Xlist as needed.
