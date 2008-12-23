@@ -310,6 +310,42 @@ static struct usbd_pipe_methods ehci_device_isoc_methods = {
 	ehci_device_isoc_done,
 };
 
+usbd_status
+ehci_reset(ehci_softc_t *sc)
+{
+	u_int32_t hcr;
+	u_int i;
+
+	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
+	for (i = 0; i < 100; i++) {
+		usb_delay_ms(&sc->sc_bus, 1);
+		hcr = EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_HCRESET;
+		if (!hcr) {
+			if (sc->sc_flags & (EHCI_SCFLG_SETMODE | EHCI_SCFLG_BIGEMMIO)) {
+				/*
+				 * Force USBMODE as requested.  Controllers
+				 * may have multiple operating modes.
+				 */
+				uint32_t usbmode = EOREAD4(sc, EHCI_USBMODE);
+				if (sc->sc_flags & EHCI_SCFLG_SETMODE) {
+					usbmode = (usbmode &~ EHCI_UM_CM) | EHCI_UM_CM_HOST;
+					device_printf(sc->sc_bus.bdev,
+					    "set host controller mode\n");
+				}
+				if (sc->sc_flags & EHCI_SCFLG_BIGEMMIO) {
+					usbmode = (usbmode &~ EHCI_UM_ES) | EHCI_UM_ES_BE;
+					device_printf(sc->sc_bus.bdev,
+					    "set big-endian mode\n");
+				}
+				EOWRITE4(sc,  EHCI_USBMODE, usbmode);
+			}
+			return (USBD_NORMAL_COMPLETION);
+		}
+	}
+	printf("%s: reset timeout\n", device_get_nameunit(sc->sc_bus.bdev));
+	return (USBD_IOERROR);
+}
+
 static usbd_status
 ehci_hcreset(ehci_softc_t *sc)
 {
@@ -331,29 +367,7 @@ ehci_hcreset(ehci_softc_t *sc)
                  */
 		device_printf(sc->sc_bus.bdev, "stop timeout\n");
 
-	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
-	for (i = 0; i < 100; i++) {
-		usb_delay_ms(&sc->sc_bus, 1);
-		hcr = EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_HCRESET;
-		if (!hcr) {
-			if (sc->sc_flags & EHCI_SCFLG_SETMODE) {
-				/*
-				 * Force USBMODE as requested.  Controllers
-				 * may have multiple operating modes.
-				 */
-				uint32_t usbmode = EOREAD4(sc, EHCI_USBMODE);
-				if (sc->sc_flags & EHCI_SCFLG_SETMODE) {
-					usbmode = (usbmode &~ EHCI_UM_CM) | EHCI_UM_CM_HOST;
-					device_printf(sc->sc_bus.bdev,
-					    "set host controller mode\n");
-				}
-				EOWRITE4(sc,  EHCI_USBMODE, usbmode);
-			}
-			return (USBD_NORMAL_COMPLETION);
-		}
-	}
-	printf("%s: reset timeout\n", device_get_nameunit(sc->sc_bus.bdev));
-	return (USBD_IOERROR);
+	return ehci_reset(sc);
 }
 
 usbd_status
@@ -2008,7 +2022,7 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
 
 		i = UPS_HIGH_SPEED;
 
-		if (sc->sc_flags & EHCI_SCFLG_FORCESPEED) {
+		if (sc->sc_flags & (EHCI_SCFLG_FORCESPEED | EHCI_SCFLG_TT)) {
 			if ((v & 0xc000000) == 0x8000000)
 				i = UPS_HIGH_SPEED;
 			else if ((v & 0xc000000) == 0x4000000)
@@ -2056,7 +2070,8 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
 		case UHF_PORT_RESET:
 			DPRINTFN(5,("ehci_root_ctrl_start: reset port %d\n",
 				    index));
-			if (EHCI_PS_IS_LOWSPEED(v)) {
+			if (EHCI_PS_IS_LOWSPEED(v) &&
+			    (sc->sc_flags & EHCI_SCFLG_TT) == 0) {
 				/* Low speed device, give up ownership. */
 				ehci_disown(sc, index, 1);
 				break;
@@ -2089,7 +2104,8 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
 				       device_get_nameunit(sc->sc_bus.bdev));
 				return (USBD_TIMEOUT);
 			}
-			if (!(v & EHCI_PS_PE)) {
+			if (!(v & EHCI_PS_PE) &&
+			    (sc->sc_flags & EHCI_SCFLG_TT) == 0) {
 				/* Not a high speed device, give up ownership.*/
 				ehci_disown(sc, index, 0);
 				break;
