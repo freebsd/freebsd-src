@@ -225,11 +225,14 @@ ehci_ixp_attach(device_t self)
 	 * which means port speed must be read from the Port Status
 	 * register following a port enable.
 	 */
-	sc->sc_flags |= EHCI_SCFLG_SETMODE
-		     | EHCI_SCFLG_NORESTERM
-		     | EHCI_SCFLG_FORCESPEED
+	sc->sc_flags |= EHCI_SCFLG_TT
+		     | EHCI_SCFLG_SETMODE
 		     | EHCI_SCFLG_BIGEDESC
+		     | EHCI_SCFLG_BIGEMMIO
+		     | EHCI_SCFLG_NORESTERM
 		     ;
+	(void) ehci_reset(sc);
+
 	err = ehci_init(sc);
 	if (!err) {
 		sc->sc_flags |= EHCI_SCFLG_DONEINIT;
