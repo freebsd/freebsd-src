@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2001
+.Dd December 23, 2008
 .Dt DOMAIN 9
 .Os
 .Sh NAME
@@ -103,7 +103,6 @@ struct protosw {
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
 
 	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
-	struct	pfil_head	pr_pfh;
 };
 .Ed
 .Pp
