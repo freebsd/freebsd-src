@@ -430,7 +430,7 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 
 	bus->devices_max = USB_MAX_DEVICES;
 
-	mtx_init(&bus->bus_mtx, "USB bus lock",
+	mtx_init(&bus->bus_mtx, device_get_nameunit(bus->parent),
 	    NULL, MTX_DEF | MTX_RECURSE);
 
 	TAILQ_INIT(&bus->intr_q.head);
