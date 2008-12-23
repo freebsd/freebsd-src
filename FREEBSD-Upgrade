@@ -62,9 +62,10 @@
 
 10) Generate and run configure:
 
-	$ aclocal
-	$ autoheader
-	$ autoconf
+	aclocal ; autoheader ; autoconf
+	cd lib/bind
+	aclocal ; autoheader ; autoconf
+	cd ../..
 	$ ./configure --prefix=/usr \
 		--infodir=/usr/share/info --mandir=/usr/share/man \
 		--enable-threads --enable-libbind --disable-ipv6 \
