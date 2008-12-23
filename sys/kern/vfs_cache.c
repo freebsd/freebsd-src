@@ -851,9 +851,9 @@ vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen)
 	CACHE_UNLOCK();
 	vfslocked = VFS_LOCK_GIANT((*vp)->v_mount);
 	vn_lock(*vp, LK_SHARED | LK_RETRY);
-	vdrop(*vp);
 	error = VOP_VPTOCNP(*vp, &dvp, buf, buflen);
 	VOP_UNLOCK(*vp, 0);
+	vdrop(*vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
 		numfullpathfail2++;
