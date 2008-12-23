@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20081223:	p7	FreeBSD-SA-08:12.ftpd, FreeBSD-SA-08:13.protosw
+	Prevent cross-site forgery attacks on ftpd(8) due to splitting
+	long commands into multiple requests. [08:12]
+
+	Avoid calling uninitialized function pointers in protocol switch
+	code. [08:13]
+
 20081124:	p6	FreeBSD-SA-08:11.arc4random
 	Make sure arc4random(9) is properly seeded when /etc/rc.d/initrandom
 	returns.
