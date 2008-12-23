@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.40.18.10.40.3 2008/07/23 23:16:43 marka Exp $ */
+/* $Id: controlconf.c,v 1.40.18.14 2008/07/23 23:33:02 marka Exp $ */
 
 /*! \file */
 
@@ -345,9 +345,9 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 	listener = conn->listener;
 	secret.rstart = NULL;
 
-        /* Is the server shutting down? */
-        if (listener->controls->shuttingdown)
-                goto cleanup;
+	/* Is the server shutting down? */
+	if (listener->controls->shuttingdown)
+		goto cleanup;
 
 	if (conn->ccmsg.result != ISC_R_SUCCESS) {
 		if (conn->ccmsg.result != ISC_R_CANCELED &&
@@ -364,9 +364,6 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 	{
 		ccregion.rstart = isc_buffer_base(&conn->ccmsg.buffer);
 		ccregion.rend = isc_buffer_used(&conn->ccmsg.buffer);
-		if (secret.rstart != NULL)
-			isc_mem_put(listener->mctx, secret.rstart,
-				    REGION_SIZE(secret));
 		secret.rstart = isc_mem_get(listener->mctx, key->secret.length);
 		if (secret.rstart == NULL)
 			goto cleanup;
@@ -375,7 +372,8 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 		result = isccc_cc_fromwire(&ccregion, &request, &secret);
 		if (result == ISC_R_SUCCESS)
 			break;
-		else if (result == ISCCC_R_BADAUTH) {
+		isc_mem_put(listener->mctx, secret.rstart, REGION_SIZE(secret));
+		if (result == ISCCC_R_BADAUTH) {
 			/*
 			 * For some reason, request is non-NULL when
 			 * isccc_cc_fromwire returns ISCCC_R_BADAUTH.
@@ -396,7 +394,7 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 	/* We shouldn't be getting a reply. */
 	if (isccc_cc_isreply(request)) {
 		log_invalid(&conn->ccmsg, ISC_R_FAILURE);
-		goto cleanup;
+		goto cleanup_request;
 	}
 
 	isc_stdtime_get(&now);
@@ -407,17 +405,17 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 	_ctrl = isccc_alist_lookup(request, "_ctrl");
 	if (_ctrl == NULL) {
 		log_invalid(&conn->ccmsg, ISC_R_FAILURE);
-		goto cleanup;
+		goto cleanup_request;
 	}
 
 	if (isccc_cc_lookupuint32(_ctrl, "_tim", &sent) == ISC_R_SUCCESS) {
 		if ((sent + CLOCKSKEW) < now || (sent - CLOCKSKEW) > now) {
 			log_invalid(&conn->ccmsg, ISCCC_R_CLOCKSKEW);
-			goto cleanup;
+			goto cleanup_request;
 		}
 	} else {
 		log_invalid(&conn->ccmsg, ISC_R_FAILURE);
-		goto cleanup;
+		goto cleanup_request;
 	}
 
 	/*
@@ -426,7 +424,7 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 	if (isccc_cc_lookupuint32(_ctrl, "_exp", &exp) == ISC_R_SUCCESS &&
 	    now > exp) {
 		log_invalid(&conn->ccmsg, ISCCC_R_EXPIRED);
-		goto cleanup;
+		goto cleanup_request;
 	}
 
 	/*
@@ -436,16 +434,16 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 	result = isccc_cc_checkdup(listener->controls->symtab, request, now);
 	if (result != ISC_R_SUCCESS) {
 		if (result == ISC_R_EXISTS)
-                        result = ISCCC_R_DUPLICATE; 
+			result = ISCCC_R_DUPLICATE;
 		log_invalid(&conn->ccmsg, result);
-		goto cleanup;
+		goto cleanup_request;
 	}
 
 	if (conn->nonce != 0 &&
 	    (isccc_cc_lookupuint32(_ctrl, "_nonce", &nonce) != ISC_R_SUCCESS ||
 	     conn->nonce != nonce)) {
 		log_invalid(&conn->ccmsg, ISCCC_R_BADAUTH);
-		goto cleanup;
+		goto cleanup_request;
 	}
 
 	/*
@@ -459,7 +457,7 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 
 	result = isccc_cc_createresponse(request, now, now + 60, &response);
 	if (result != ISC_R_SUCCESS)
-		goto cleanup;
+		goto cleanup_request;
 	if (eresult != ISC_R_SUCCESS) {
 		isccc_sexpr_t *data;
 
@@ -467,7 +465,7 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 		if (data != NULL) {
 			const char *estr = isc_result_totext(eresult);
 			if (isccc_cc_definestring(data, "err", estr) == NULL)
-				goto cleanup;
+				goto cleanup_response;
 		}
 	}
 
@@ -478,20 +476,20 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 		if (data != NULL) {
 			char *str = (char *)isc_buffer_base(&text);
 			if (isccc_cc_definestring(data, "text", str) == NULL)
-				goto cleanup;
+				goto cleanup_response;
 		}
 	}
 
 	_ctrl = isccc_alist_lookup(response, "_ctrl");
 	if (_ctrl == NULL ||
 	    isccc_cc_defineuint32(_ctrl, "_nonce", conn->nonce) == NULL)
-		goto cleanup;
+		goto cleanup_response;
 
 	ccregion.rstart = conn->buffer + 4;
 	ccregion.rend = conn->buffer + sizeof(conn->buffer);
 	result = isccc_cc_towire(response, &ccregion, &secret);
 	if (result != ISC_R_SUCCESS)
-		goto cleanup;
+		goto cleanup_response;
 	isc_buffer_init(&b, conn->buffer, 4);
 	len = sizeof(conn->buffer) - REGION_SIZE(ccregion);
 	isc_buffer_putuint32(&b, len - 4);
@@ -500,31 +498,27 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 
 	result = isc_socket_send(conn->sock, &r, task, control_senddone, conn);
 	if (result != ISC_R_SUCCESS)
-		goto cleanup;
+		goto cleanup_response;
 	conn->sending = ISC_TRUE;
 
-	if (secret.rstart != NULL)
-		isc_mem_put(listener->mctx, secret.rstart,
-			    REGION_SIZE(secret));
-	if (request != NULL)
-		isccc_sexpr_free(&request);
-	if (response != NULL)
-		isccc_sexpr_free(&response);
+	isc_mem_put(listener->mctx, secret.rstart, REGION_SIZE(secret));
+	isccc_sexpr_free(&request);
+	isccc_sexpr_free(&response);
 	return;
 
+ cleanup_response:
+	isccc_sexpr_free(&response);
+
+ cleanup_request:
+	isccc_sexpr_free(&request);
+	isc_mem_put(listener->mctx, secret.rstart, REGION_SIZE(secret));
+
  cleanup:
-	if (secret.rstart != NULL)
-		isc_mem_put(listener->mctx, secret.rstart,
-			    REGION_SIZE(secret));
 	isc_socket_detach(&conn->sock);
 	isccc_ccmsg_invalidate(&conn->ccmsg);
 	conn->ccmsg_valid = ISC_FALSE;
 	maybe_free_connection(conn);
 	maybe_free_listener(listener);
-	if (request != NULL)
-		isccc_sexpr_free(&request);
-	if (response != NULL)
-		isccc_sexpr_free(&response);
 }
 
 static void
@@ -548,7 +542,7 @@ newconnection(controllistener_t *listener, isc_socket_t *sock) {
 	conn = isc_mem_get(listener->mctx, sizeof(*conn));
 	if (conn == NULL)
 		return (ISC_R_NOMEMORY);
-	
+
 	conn->sock = sock;
 	isccc_ccmsg_init(listener->mctx, sock, &conn->ccmsg);
 	conn->ccmsg_valid = ISC_TRUE;
@@ -660,7 +654,7 @@ ns_controls_shutdown(ns_controls_t *controls) {
 
 static isc_result_t
 cfgkeylist_find(const cfg_obj_t *keylist, const char *keyname,
-	        const cfg_obj_t **objp)
+		const cfg_obj_t **objp)
 {
 	const cfg_listelt_t *element;
 	const char *str;
@@ -808,7 +802,7 @@ register_keys(const cfg_obj_t *control, const cfg_obj_t *keylist,
 		 if (result != ISC_R_SUCCESS) \
 			goto cleanup; \
 	} while (0)
-		
+
 static isc_result_t
 get_rndckey(isc_mem_t *mctx, controlkeylist_t *keyids) {
 	isc_result_t result;
@@ -828,14 +822,14 @@ get_rndckey(isc_mem_t *mctx, controlkeylist_t *keyids) {
 	CHECK(cfg_map_get(config, "key", &key));
 
 	keyid = isc_mem_get(mctx, sizeof(*keyid));
-	if (keyid == NULL) 
+	if (keyid == NULL)
 		CHECK(ISC_R_NOMEMORY);
 	keyid->keyname = isc_mem_strdup(mctx,
 					cfg_obj_asstring(cfg_map_getname(key)));
 	keyid->secret.base = NULL;
 	keyid->secret.length = 0;
 	ISC_LINK_INIT(keyid, link);
-	if (keyid->keyname == NULL) 
+	if (keyid->keyname == NULL)
 		CHECK(ISC_R_NOMEMORY);
 
 	CHECK(bind9_check_key(key, ns_g_lctx));
@@ -891,7 +885,7 @@ get_rndckey(isc_mem_t *mctx, controlkeylist_t *keyids) {
 		cfg_parser_destroy(&pctx);
 	return (result);
 }
-			
+
 /*
  * Ensures that both '*global_keylistp' and '*control_keylistp' are
  * valid or both are NULL.
@@ -925,7 +919,7 @@ static void
 update_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		const cfg_obj_t *control, const cfg_obj_t *config,
 		isc_sockaddr_t *addr, cfg_aclconfctx_t *aclconfctx,
-	        const char *socktext, isc_sockettype_t type)
+		const char *socktext, isc_sockettype_t type)
 {
 	controllistener_t *listener;
 	const cfg_obj_t *allow;
@@ -945,7 +939,7 @@ update_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		*listenerp = NULL;
 		return;
 	}
-		
+
 	/*
 	 * There is already a listener for this sockaddr.
 	 * Update the access list and key information.
@@ -1339,7 +1333,7 @@ ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
 
 				update_listener(cp, &listener, control, config,
 						&addr, aclconfctx,
-					        cfg_obj_asstring(path),
+						cfg_obj_asstring(path),
 						isc_sockettype_unix);
 
 				if (listener != NULL)
@@ -1385,10 +1379,10 @@ ns_controls_configure(ns_controls_t *cp, const cfg_obj_t *config,
 			isc_sockaddr_setport(&addr, NS_CONTROL_PORT);
 
 			isc_sockaddr_format(&addr, socktext, sizeof(socktext));
-			
+
 			update_listener(cp, &listener, NULL, NULL,
 					&addr, NULL, socktext,
-				        isc_sockettype_tcp);
+					isc_sockettype_tcp);
 
 			if (listener != NULL)
 				/*

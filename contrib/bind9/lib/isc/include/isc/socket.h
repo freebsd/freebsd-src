@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.57.18.6.46.4 2008/07/23 23:16:43 marka Exp $ */
+/* $Id: socket.h,v 1.57.18.15 2008/09/04 08:03:08 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -318,8 +318,53 @@ isc_socket_detach(isc_socket_t **socketp);
  */
 
 isc_result_t
+isc_socket_open(isc_socket_t *sock);
+/*%<
+ * Open a new socket file descriptor of the given socket structure.  It simply
+ * opens a new descriptor; all of the other parameters including the socket
+ * type are inherited from the existing socket.  This function is provided to
+ * avoid overhead of destroying and creating sockets when many short-lived
+ * sockets are frequently opened and closed.  When the efficiency is not an
+ * issue, it should be safer to detach the unused socket and re-create a new
+ * one.  This optimization may not be available for some systems, in which
+ * case this function will return ISC_R_NOTIMPLEMENTED and must not be used.
+ *
+ * Requires:
+ *
+ * \li	there must be no other reference to this socket.
+ *
+ * \li	'socket' is a valid and previously closed by isc_socket_close()
+ *
+ * Returns:
+ *	Same as isc_socket_create().
+ * \li	ISC_R_NOTIMPLEMENTED
+ */
+
+isc_result_t
+isc_socket_close(isc_socket_t *sock);
+/*%<
+ * Close a socket file descriptor of the given socket structure.  This function
+ * is provided as an alternative to destroying an unused socket when overhead
+ * destroying/re-creating sockets can be significant, and is expected to be
+ * used with isc_socket_open().  This optimization may not be available for some
+ * systems, in which case this function will return ISC_R_NOTIMPLEMENTED and
+ * must not be used.
+ *
+ * Requires:
+ *
+ * \li	The socket must have a valid descriptor.
+ *
+ * \li	There must be no other reference to this socket.
+ *
+ * \li	There must be no pending I/O requests.
+ *
+ * Returns:
+ * \li	#ISC_R_NOTIMPLEMENTED
+ */
+
+isc_result_t
 isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp,
-	        unsigned int options);
+		unsigned int options);
 /*%<
  * Bind 'socket' to '*addressp'.
  *
@@ -644,8 +689,15 @@ isc_socket_sendto2(isc_socket_t *sock, isc_region_t *region,
 
 isc_result_t
 isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp);
+
+isc_result_t
+isc_socketmgr_create2(isc_mem_t *mctx, isc_socketmgr_t **managerp,
+		      unsigned int maxsocks);
 /*%<
- * Create a socket manager.
+ * Create a socket manager.  If "maxsocks" is non-zero, it specifies the
+ * maximum number of sockets that the created manager should handle.
+ * isc_socketmgr_create() is equivalent of isc_socketmgr_create2() with
+ * "maxsocks" being zero.
  *
  * Notes:
  *
@@ -666,6 +718,23 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp);
  *\li	#ISC_R_SUCCESS
  *\li	#ISC_R_NOMEMORY
  *\li	#ISC_R_UNEXPECTED
+ *\li	#ISC_R_NOTIMPLEMENTED
+ */
+
+isc_result_t
+isc_socketmgr_getmaxsockets(isc_socketmgr_t *manager, unsigned int *nsockp);
+/*%<
+ * Returns in "*nsockp" the maximum number of sockets this manager may open.
+ *
+ * Requires:
+ *
+ *\li	'*manager' is a valid isc_socketmgr_t.
+ *\li	'nsockp' is not NULL.
+ *
+ * Returns:
+ *
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOTIMPLEMENTED
  */
 
 void
@@ -738,7 +807,7 @@ isc_socket_cleanunix(isc_sockaddr_t *addr, isc_boolean_t active);
 
 isc_result_t
 isc_socket_permunix(isc_sockaddr_t *sockaddr, isc_uint32_t perm,
-                    isc_uint32_t owner, isc_uint32_t group);
+		    isc_uint32_t owner, isc_uint32_t group);
 /*%<
  * Set ownership and file permissions on the UNIX domain socket.
  *
