@@ -880,7 +880,7 @@ usb2_transfer_setup(struct usb2_device *udev,
 				info->setup_refcount++;
 
 				usb2_callout_init_mtx(&xfer->timeout_handle,
-				    &udev->bus->bus_mtx, CALLOUT_RETURNUNLOCKED);
+				    &udev->bus->bus_mtx, 0);
 			} else {
 				/*
 				 * Setup a dummy xfer, hence we are
@@ -1950,8 +1950,6 @@ usb2_dma_delay_done_cb(void *arg)
 
 	/* queue callback for execution, again */
 	usb2_transfer_done(xfer, 0);
-
-	USB_BUS_UNLOCK(xfer->udev->bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -2092,7 +2090,6 @@ usb2_transfer_start_cb(void *arg)
 	} else {
 		xfer->flags_int.can_cancel_immed = 0;
 	}
-	USB_BUS_UNLOCK(xfer->udev->bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -2707,14 +2704,9 @@ usb2_callout_poll(struct usb2_xfer *xfer)
 			usb2_callout_stop(co);
 
 			(cb) (arg);
-
-			/* the callback should drop the mutex */
-		} else {
-			mtx_unlock(mtx);
 		}
-	} else {
-		mtx_unlock(mtx);
 	}
+	mtx_unlock(mtx);
 }
 
 

@@ -445,8 +445,6 @@ ukbd_timeout(void *arg)
 	ukbd_interrupt(sc);
 
 	usb2_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
-
-	mtx_unlock(&Giant);
 }
 
 static void
@@ -639,8 +637,7 @@ ukbd_attach(device_t dev)
 	sc->sc_mode = K_XLATE;
 	sc->sc_iface = uaa->iface;
 
-	usb2_callout_init_mtx(&sc->sc_callout, &Giant,
-	    CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
 	err = usb2_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ukbd_config,
@@ -705,8 +702,8 @@ ukbd_attach(device_t dev)
 
 	/* start the timer */
 
-	ukbd_timeout(sc);		/* will unlock mutex */
-
+	ukbd_timeout(sc);
+	mtx_unlock(&Giant);
 	return (0);			/* success */
 
 detach:
