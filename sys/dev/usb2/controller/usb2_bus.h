@@ -59,6 +59,7 @@ struct usb2_bus {
 	struct usb2_perm perm;
 	struct usb2_xfer_queue intr_q;
 
+	device_t parent;
 	device_t bdev;			/* filled by HC driver */
 
 	struct usb2_dma_parent_tag dma_parent_tag[1];

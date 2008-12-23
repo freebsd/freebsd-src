@@ -147,6 +147,7 @@ at91_udp_attach(device_t dev)
 
 	/* get all DMA memory */
 
+	sc->sc_dci.sc_bus.parent = dev;
 	if (usb2_bus_mem_alloc_all(&sc->sc_dci.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
