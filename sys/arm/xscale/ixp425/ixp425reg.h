@@ -397,7 +397,7 @@
 #define EXP_CNFG1_SW_INT1          (1 << 1)
 
 #define	EXP_FCTRL_RCOMP		(1<<0)
-#define	EXP_FCTRL_USB		(1<<1)
+#define	EXP_FCTRL_USB_DEVICE	(1<<1)
 #define	EXP_FCTRL_HASH		(1<<2)
 #define	EXP_FCTRL_AES		(1<<3)
 #define	EXP_FCTRL_DES		(1<<4)
@@ -407,11 +407,26 @@
 #define	EXP_FCTRL_UTOPIA	(1<<8)
 #define	EXP_FCTRL_ETH0		(1<<9)
 #define	EXP_FCTRL_ETH1		(1<<10)
-#define	EXP_FCTRL_NPEA		(1<<11)
-#define	EXP_FCTRL_NPEB		(1<<12)
-#define	EXP_FCTRL_NPEC		(1<<13)
+#define	EXP_FCTRL_NPEA		(1<<11)		/* reset */
+#define	EXP_FCTRL_NPEB		(1<<12)		/* reset */
+#define	EXP_FCTRL_NPEC		(1<<13)		/* reset */
 #define	EXP_FCTRL_PCI		(1<<14)
-/* XXX more stuff we don't care about */
+#define	EXP_FCTRL_ECC_TIMESYNC	(1<<15)
+#define	EXP_FCTRL_UTOPIA_PHY	(3<<16)		/* PHY limit */
+#define	EXP_FCTRL_USB_HOST	(1<<18)
+#define	EXP_FCTRL_NPEA_ETH	(1<<19)
+#define	EXP_FCTRL_NPEB_ETH	(1<<20)
+#define	EXP_FCTRL_RSA		(1<<21)
+#define	EXP_FCTRL_MAXFREQ	(3<<22)		/* XScale frequency */
+#define	EXP_FCTRL_RESVD		(0xff<<24)
+
+#define EXP_FCTRL_IXP46X_ONLY \
+	(EXP_FCTRL_ECC_TIMESYNC | EXP_FCTRL_USB_HOST | EXP_FCTRL_NPEA_ETH | \
+	 EXP_FCTRL_NPEB_ETH | EXP_FCTRL_RSA | EXP_FCTRL_MAXFREQ)
+
+#define	EXP_FCTRL_BITS \
+	"\20\1RCOMP\2USB\3HASH\4AES\5DES\6HDLC\7AAL\10HSS\11UTOPIA\12ETH0" \
+	"\13ETH1\17PCI\20ECC\23USB_HOST\24NPEA_ETH\25NPEB_ETH\26RSA"
 
 /*
  * PCI
