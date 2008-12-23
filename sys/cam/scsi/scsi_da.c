@@ -537,6 +537,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Storcase (Kingston) InfoStation IFS FC2/SATA-R 201A
+		 * PR: 129858
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "IFS", "FC2/SATA-R*",
+		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Samsung YP-U3 mp3-player
 		 * PR: 125398
 		 */
