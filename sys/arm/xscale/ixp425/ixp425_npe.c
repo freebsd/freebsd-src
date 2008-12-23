@@ -112,6 +112,8 @@ struct ixpnpe_softc {
 	struct mtx	sc_mtx;		/* mailbox lock */
 	uint32_t	sc_msg[2];	/* reply msg collected in ixpnpe_intr */
 	int		sc_msgwaiting;	/* sc_msg holds valid data */
+	int		sc_npeid;
+	int		sc_nrefs;	/* # of references */
 
 	int		validImage;	/* valid ucode image loaded */
 	int		started;	/* NPE is started */
@@ -121,6 +123,7 @@ struct ixpnpe_softc {
 	uint32_t	savedExecCount;
 	uint32_t	savedEcsDbgCtxtReg2;
 };
+static struct ixpnpe_softc *npes[NPE_MAX];
 
 #define	IX_NPEDL_NPEIMAGE_FIELD_MASK	0xff
 
@@ -287,6 +290,11 @@ ixpnpe_attach(device_t dev, int npeid)
 		device_printf(dev, "%s: bad npeid %d\n", __func__, npeid);
 		return NULL;
 	}
+	sc = npes[npeid];
+	if (sc != NULL) {
+		sc->sc_nrefs++;
+		return sc;
+	}
 	config = &npeconfigs[npeid];
 
 	/* XXX M_BUS */
@@ -294,6 +302,8 @@ ixpnpe_attach(device_t dev, int npeid)
 	sc->sc_dev = dev;
 	sc->sc_iot = sa->sc_iot;
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "npe driver", MTX_DEF);
+	sc->sc_npeid = npeid;
+	sc->sc_nrefs = 1;
 
 	sc->sc_size = config->size;
 	sc->insMemSize = config->ins_memsize;	/* size of instruction memory */
@@ -320,20 +330,26 @@ ixpnpe_attach(device_t dev, int npeid)
 	npe_reg_write(sc, IX_NPECTL,
 	    npe_reg_read(sc, IX_NPECTL) | (IX_NPECTL_OFE | IX_NPECTL_OFWE));
 
+	npes[npeid] = sc;
+
 	return sc;
 }
 
 void
 ixpnpe_detach(struct ixpnpe_softc *sc)
 {
-	/* disable output fifo interrupts */ 
-	npe_reg_write(sc, IX_NPECTL,
-	    npe_reg_read(sc, IX_NPECTL) &~ (IX_NPECTL_OFE | IX_NPECTL_OFWE));
+	if (--sc->sc_nrefs == 0) {
+		npes[sc->sc_npeid] = NULL;
 
-	bus_teardown_intr(sc->sc_dev, sc->sc_irq, sc->sc_ih);
-	bus_space_unmap(sc->sc_iot, sc->sc_ioh, sc->sc_size);
-	mtx_destroy(&sc->sc_mtx);
-	free(sc, M_TEMP);
+		/* disable output fifo interrupts */ 
+		npe_reg_write(sc, IX_NPECTL,
+		    npe_reg_read(sc, IX_NPECTL) &~ (IX_NPECTL_OFE | IX_NPECTL_OFWE));
+
+		bus_teardown_intr(sc->sc_dev, sc->sc_irq, sc->sc_ih);
+		bus_space_unmap(sc->sc_iot, sc->sc_ioh, sc->sc_size);
+		mtx_destroy(&sc->sc_mtx);
+		free(sc, M_TEMP);
+	}
 }
 
 int
@@ -361,7 +377,7 @@ ixpnpe_start_locked(struct ixpnpe_softc *sc)
 	if (!sc->started) {
 		error = npe_cpu_start(sc);
 		if (error == 0)
-		    sc->started = 1;
+			sc->started = 1;
 	} else
 		error = 0;
 
@@ -442,8 +458,9 @@ npe_findimage(struct ixpnpe_softc *sc,
 	return ESRCH;
 }
 
-int
-ixpnpe_init(struct ixpnpe_softc *sc, const char *imageName, uint32_t imageId)
+static int
+ixpnpe_load_firmware(struct ixpnpe_softc *sc, const char *imageName,
+    uint32_t imageId)
 {
 	static const char *devname[4] =
 	     { "IXP425", "IXP435/IXP465", "DeviceID#2", "DeviceID#3" };
@@ -502,6 +519,73 @@ done:
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	DPRINTF(sc->sc_dev, "%s: error %d\n", __func__, error);
 	return error;
+}
+
+static int
+override_imageid(device_t dev, const char *resname, uint32_t *val)
+{
+	int unit = device_get_unit(dev);
+	int resval;
+
+	if (resource_int_value("npe", unit, resname, &resval) != 0)
+		return 0;
+	/* XXX validate */
+	if (bootverbose)
+		device_printf(dev, "using npe.%d.%s=0x%x override\n",
+		    unit, resname, resval);
+	*val = resval;
+	return 1;
+}
+
+int
+ixpnpe_init(struct ixpnpe_softc *sc)
+{
+	static const uint32_t npeconfig[NPE_MAX] = {
+		[NPE_A] = IXP425_NPE_A_IMAGEID,
+		[NPE_B] = IXP425_NPE_B_IMAGEID,
+		[NPE_C] = IXP425_NPE_C_IMAGEID,
+	};
+	uint32_t imageid, msg[2];
+	int error;
+
+	if (sc->started)
+		return 0;
+	/*
+	 * Load NPE firmware and start it running.  We assume
+	 * that minor version bumps remain compatible so probe
+	 * the firmware image starting with the expected version
+	 * and then bump the minor version up to the max.
+	 */
+	if (!override_imageid(sc->sc_dev, "imageid", &imageid))
+		imageid = npeconfig[sc->sc_npeid];
+	for (;;) {
+		error = ixpnpe_load_firmware(sc, "npe_fw", imageid);
+		if (error == 0)
+			break;
+		/*
+		 * ESRCH is returned when the requested image
+		 * is not present
+		 */
+		if (error != ESRCH) {
+			device_printf(sc->sc_dev,
+			    "cannot init NPE (error %d)\n", error);
+			return error;
+		}
+		/* bump the minor version up to the max possible */
+		if (NPEIMAGE_MINOR(imageid) == 0xff) {
+			device_printf(sc->sc_dev, "cannot locate firmware "
+			    "(imageid 0x%08x)\n", imageid);
+			return error;
+		}
+		imageid++;
+	}
+	/* NB: firmware should respond with a status msg */
+	if (ixpnpe_recvmsg_sync(sc, msg) != 0) {
+		device_printf(sc->sc_dev,
+		    "firmware did not respond as expected\n");
+		return EIO;
+	}
+	return 0;
 }
 
 int

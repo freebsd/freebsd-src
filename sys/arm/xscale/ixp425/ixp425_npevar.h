@@ -111,8 +111,7 @@ void	ixpnpe_detach(struct ixpnpe_softc *);
 int	ixpnpe_stopandreset(struct ixpnpe_softc *);
 int	ixpnpe_start(struct ixpnpe_softc *);
 int	ixpnpe_stop(struct ixpnpe_softc *);
-int	ixpnpe_init(struct ixpnpe_softc *,
-		const char *imageName, uint32_t imageId);
+int	ixpnpe_init(struct ixpnpe_softc *);
 int	ixpnpe_getfunctionality(struct ixpnpe_softc *sc);
 
 int	ixpnpe_sendmsg_async(struct ixpnpe_softc *, const uint32_t msg[2]);
