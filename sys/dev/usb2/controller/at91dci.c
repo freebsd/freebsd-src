@@ -1043,16 +1043,13 @@ static void
 at91dci_timeout(void *arg)
 {
 	struct usb2_xfer *xfer = arg;
-	struct at91dci_softc *sc = xfer->usb2_sc;
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
 
 	/* transfer is transferred */
 	at91dci_device_done(xfer, USB_ERR_TIMEOUT);
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 static void

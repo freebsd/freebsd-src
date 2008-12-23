@@ -468,8 +468,7 @@ ural_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	sc->sc_unit = device_get_unit(dev);
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	iface_index = RAL_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device,
@@ -496,10 +495,8 @@ ural_attach(device_t dev)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, NULL, &ural_cfg_first_time_setup, 0, 0);
 
-	/* start watchdog (will exit mutex) */
-
 	ural_watchdog(sc);
-
+	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -1405,8 +1402,6 @@ ural_watchdog(void *arg)
 	}
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &ural_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 
 /*========================================================================*

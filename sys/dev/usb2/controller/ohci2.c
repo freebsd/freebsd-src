@@ -390,8 +390,7 @@ ohci_init(ohci_softc_t *sc)
 	/* set up the bus struct */
 	sc->sc_bus.methods = &ohci_bus_methods;
 
-	usb2_callout_init_mtx(&sc->sc_tmo_rhsc, &sc->sc_bus.bus_mtx,
-	    CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_tmo_rhsc, &sc->sc_bus.bus_mtx, 0);
 
 #if USB_DEBUG
 	if (ohcidebug > 15) {
@@ -1095,8 +1094,6 @@ ohci_rhsc_enable(ohci_softc_t *sc)
 
 	usb2_sw_transfer(&sc->sc_root_intr,
 	    &ohci_root_intr_done);
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1240,16 +1237,13 @@ static void
 ohci_timeout(void *arg)
 {
 	struct usb2_xfer *xfer = arg;
-	ohci_softc_t *sc = xfer->usb2_sc;
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
 
 	/* transfer is transferred */
 	ohci_device_done(xfer, USB_ERR_TIMEOUT);
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -2335,10 +2329,8 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 		case UHF_C_PORT_OVER_CURRENT:
 		case UHF_C_PORT_RESET:
 			/* enable RHSC interrupt if condition is cleared. */
-			if ((OREAD4(sc, port) >> 16) == 0) {
+			if ((OREAD4(sc, port) >> 16) == 0)
 				ohci_rhsc_enable(sc);
-				USB_BUS_LOCK(&sc->sc_bus);
-			}
 			break;
 		default:
 			break;

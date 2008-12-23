@@ -1494,16 +1494,13 @@ static void
 uhci_timeout(void *arg)
 {
 	struct usb2_xfer *xfer = arg;
-	uhci_softc_t *sc = xfer->usb2_sc;
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
 
 	/* transfer is transferred */
 	uhci_device_done(xfer, USB_ERR_TIMEOUT);
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -2912,7 +2909,6 @@ uhci_root_intr_check(void *arg)
 		usb2_sw_transfer(&sc->sc_root_intr,
 		    &uhci_root_intr_done);
 	}
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 struct usb2_pipe_methods uhci_root_intr_methods =

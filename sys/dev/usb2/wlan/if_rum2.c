@@ -475,8 +475,7 @@ rum_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	sc->sc_unit = device_get_unit(dev);
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	iface_index = RT2573_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
@@ -501,10 +500,8 @@ rum_attach(device_t dev)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, NULL, &rum_cfg_first_time_setup, 0, 0);
 
-	/* start watchdog (will exit mutex) */
-
 	rum_watchdog(sc);
-
+	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -1417,8 +1414,6 @@ rum_watchdog(void *arg)
 	}
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &rum_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 
 static void

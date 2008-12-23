@@ -213,8 +213,7 @@ ehci_init(ehci_softc_t *sc)
 
 	DPRINTF("start\n");
 
-	usb2_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx,
-	    CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx, 0);
 
 #if USB_DEBUG
 	if (ehcidebug > 2) {
@@ -1411,8 +1410,6 @@ ehci_pcd_enable(ehci_softc_t *sc)
 
 	usb2_sw_transfer(&sc->sc_root_intr,
 	    &ehci_root_intr_done);
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1511,16 +1508,13 @@ static void
 ehci_timeout(void *arg)
 {
 	struct usb2_xfer *xfer = arg;
-	ehci_softc_t *sc = xfer->usb2_sc;
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
 
 	/* transfer is transferred */
 	ehci_device_done(xfer, USB_ERR_TIMEOUT);
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 static void
