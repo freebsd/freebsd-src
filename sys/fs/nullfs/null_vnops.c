@@ -365,11 +365,10 @@ null_lookup(struct vop_lookup_args *ap)
 			vrele(lvp);
 		} else {
 			error = null_nodeget(dvp->v_mount, lvp, &vp);
-			if (error) {
-				/* XXX Cleanup needed... */
-				panic("null_nodeget failed");
-			}
-			*ap->a_vpp = vp;
+			if (error)
+				vput(lvp);
+			else
+				*ap->a_vpp = vp;
 		}
 	}
 	return (error);

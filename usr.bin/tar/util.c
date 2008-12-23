@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static void	bsdtar_vwarnc(struct bsdtar *, int code,
 		    const char *fmt, va_list ap);
+static const char *strip_components(const char *path, int elements);
 
 /*
  * Print a string, taking care with any non-printable characters.
@@ -346,6 +347,31 @@ do_chdir(struct bsdtar *bsdtar)
 	bsdtar->pending_chdir = NULL;
 }
 
+const char *
+strip_components(const char *path, int elements)
+{
+	const char *p = path;
+
+	while (elements > 0) {
+		switch (*p++) {
+		case '/':
+			elements--;
+			path = p;
+			break;
+		case '\0':
+			/* Path is too short, skip it. */
+			return (NULL);
+		}
+	}
+
+	while (*path == '/')
+	       ++path;
+	if (*path == '\0')
+	       return (NULL);
+
+	return (path);
+}
+
 /*
  * Handle --strip-components and any future path-rewriting options.
  * Returns non-zero if the pathname should not be extracted.
@@ -402,24 +428,20 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 #endif
 
 	/* Strip leading dir names as per --strip-components option. */
-	if ((r = bsdtar->strip_components) > 0) {
-		const char *p = name;
+	if (bsdtar->strip_components > 0) {
+		const char *linkname = archive_entry_hardlink(entry);
 
-		while (r > 0) {
-			switch (*p++) {
-			case '/':
-				r--;
-				name = p;
-				break;
-			case '\0':
-				/* Path is too short, skip it. */
-				return (1);
-			}
-		}
-		while (*name == '/')
-			++name;
-		if (*name == '\0')
+		name = strip_components(name, bsdtar->strip_components);
+		if (name == NULL)
 			return (1);
+
+		if (linkname != NULL) {
+			linkname = strip_components(linkname,
+			    bsdtar->strip_components);
+			if (linkname == NULL)
+				return (1);
+			archive_entry_copy_hardlink(entry, linkname);
+		}
 	}
 
 	/* Strip redundant leading '/' characters. */

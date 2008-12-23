@@ -103,10 +103,10 @@ unionfs_get_hashhead(struct vnode *dvp, char *path)
 }
 
 /*
- * Get the cached vnode. (only VDIR)
+ * Get the cached vnode.
  */
 static struct vnode *
-unionfs_get_cached_vdir(struct vnode *uvp, struct vnode *lvp,
+unionfs_get_cached_vnode(struct vnode *uvp, struct vnode *lvp,
 			struct vnode *dvp, char *path)
 {
 	struct unionfs_node_hashhead *hd;
@@ -114,9 +114,9 @@ unionfs_get_cached_vdir(struct vnode *uvp, struct vnode *lvp,
 	struct vnode   *vp;
 
 	KASSERT((uvp == NULLVP || uvp->v_type == VDIR),
-	        ("unionfs_get_cached_vdir: v_type != VDIR"));
+	    ("unionfs_get_cached_vnode: v_type != VDIR"));
 	KASSERT((lvp == NULLVP || lvp->v_type == VDIR),
-	        ("unionfs_get_cached_vdir: v_type != VDIR"));
+	    ("unionfs_get_cached_vnode: v_type != VDIR"));
 
 	VI_LOCK(dvp);
 	hd = unionfs_get_hashhead(dvp, path);
@@ -140,10 +140,10 @@ unionfs_get_cached_vdir(struct vnode *uvp, struct vnode *lvp,
 }
 
 /*
- * Add the new vnode into cache. (only VDIR)
+ * Add the new vnode into cache.
  */
 static struct vnode *
-unionfs_ins_cached_vdir(struct unionfs_node *uncp,
+unionfs_ins_cached_vnode(struct unionfs_node *uncp,
 			struct vnode *dvp, char *path)
 {
 	struct unionfs_node_hashhead *hd;
@@ -151,9 +151,9 @@ unionfs_ins_cached_vdir(struct unionfs_node *uncp,
 	struct vnode   *vp;
 
 	KASSERT((uncp->un_uppervp==NULLVP || uncp->un_uppervp->v_type==VDIR),
-	        ("unionfs_ins_cached_vdir: v_type != VDIR"));
+	    ("unionfs_ins_cached_vnode: v_type != VDIR"));
 	KASSERT((uncp->un_lowervp==NULLVP || uncp->un_lowervp->v_type==VDIR),
-	        ("unionfs_ins_cached_vdir: v_type != VDIR"));
+	    ("unionfs_ins_cached_vnode: v_type != VDIR"));
 
 	VI_LOCK(dvp);
 	hd = unionfs_get_hashhead(dvp, path);
@@ -180,16 +180,16 @@ unionfs_ins_cached_vdir(struct unionfs_node *uncp,
 }
 
 /*
- * Remove the vnode. (only VDIR)
+ * Remove the vnode.
  */
 static void
-unionfs_rem_cached_vdir(struct unionfs_node *unp, struct vnode *dvp)
+unionfs_rem_cached_vnode(struct unionfs_node *unp, struct vnode *dvp)
 {
-	KASSERT((unp != NULL), ("unionfs_rem_cached_vdir: null node"));
+	KASSERT((unp != NULL), ("unionfs_rem_cached_vnode: null node"));
 	KASSERT((dvp != NULLVP),
-	    ("unionfs_rem_cached_vdir: null parent vnode"));
+	    ("unionfs_rem_cached_vnode: null parent vnode"));
 	KASSERT((unp->un_hash.le_prev != NULL),
-	    ("unionfs_rem_cached_vdir: null hash"));
+	    ("unionfs_rem_cached_vnode: null hash"));
 
 	VI_LOCK(dvp);
 	LIST_REMOVE(unp, un_hash);
@@ -233,9 +233,9 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	if (cnp && !(cnp->cn_flags & ISLASTCN))
 		path = NULL;
 
-	/* check the vdir cache */
+	/* check the cache */
 	if (path != NULL && dvp != NULLVP && vt == VDIR) {
-		vp = unionfs_get_cached_vdir(uppervp, lowervp, dvp, path);
+		vp = unionfs_get_cached_vnode(uppervp, lowervp, dvp, path);
 		if (vp != NULLVP) {
 			vref(vp);
 			*vpp = vp;
@@ -255,17 +255,17 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	 * might cause a bogus v_data pointer to get dereferenced elsewhere
 	 * if MALLOC should block.
 	 */
-	MALLOC(unp, struct unionfs_node *, sizeof(struct unionfs_node),
+	unp = malloc(sizeof(struct unionfs_node),
 	    M_UNIONFSNODE, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("unionfs", mp, &unionfs_vnodeops, &vp);
 	if (error != 0) {
-		FREE(unp, M_UNIONFSNODE);
+		free(unp, M_UNIONFSNODE);
 		return (error);
 	}
 	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
 	if (error != 0) {
-		FREE(unp, M_UNIONFSNODE);
+		free(unp, M_UNIONFSNODE);
 		return (error);
 	}
 	if (dvp != NULLVP)
@@ -302,7 +302,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		vp->v_vflag |= VV_ROOT;
 
 	if (path != NULL && dvp != NULLVP && vt == VDIR)
-		*vpp = unionfs_ins_cached_vdir(unp, dvp, path);
+		*vpp = unionfs_ins_cached_vnode(unp, dvp, path);
 	if ((*vpp) != NULLVP) {
 		if (dvp != NULLVP)
 			vrele(dvp);
@@ -363,7 +363,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	vp->v_object = NULL;
 
 	if (dvp != NULLVP && unp->un_hash.le_prev != NULL)
-		unionfs_rem_cached_vdir(unp, dvp);
+		unionfs_rem_cached_vnode(unp, dvp);
 
 	if (lvp != NULLVP) {
 		vfslocked = VFS_LOCK_GIANT(lvp->v_mount);
@@ -402,7 +402,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 		LIST_REMOVE(unsp, uns_list);
 		free(unsp, M_TEMP);
 	}
-	FREE(unp, M_UNIONFSNODE);
+	free(unp, M_UNIONFSNODE);
 }
 
 /*
@@ -427,8 +427,8 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 	}
 
 	/* create a new unionfs node status */
-	MALLOC(unsp, struct unionfs_node_status *,
-	    sizeof(struct unionfs_node_status), M_TEMP, M_WAITOK | M_ZERO);
+	unsp = malloc(sizeof(struct unionfs_node_status),
+	    M_TEMP, M_WAITOK | M_ZERO);
 
 	unsp->uns_pid = pid;
 	LIST_INSERT_HEAD(&(unp->un_unshead), unsp, uns_list);
@@ -527,7 +527,7 @@ unionfs_create_uppervattr(struct unionfs_mount *ump,
  * locked, referenced vnode. If *vpp == dvp then remember that only one
  * LK_EXCLUSIVE lock is held.
  */
-static int
+int
 unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 		 struct componentname *cnp, struct componentname *cn,
 		 struct thread *td, char *path, int pathlen, u_long nameiop)
@@ -718,6 +718,7 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 
 	vp = UNIONFSTOV(unp);
 	lvp = unp->un_lowervp;
+	ASSERT_VOP_ELOCKED(lvp, "unionfs_node_update");
 	dvp = unp->un_dvp;
 
 	/*
