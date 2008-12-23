@@ -19,6 +19,7 @@ diffburst	OBSOLETE: equivalent functionality is available via split -p.
 		For example: "split -p ^diff < patchfile". See split(1).
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
+ether_reflect	An Ethernet packet reflector for low level testing.
 find-sb		Scan a disk for possible filesystem superblocks.
 gdb_regofs	A simple tool that prints out a register offset table
 		for mapping gdb(1) register numbers to struct reg and
