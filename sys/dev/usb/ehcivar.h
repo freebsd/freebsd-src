@@ -126,6 +126,8 @@ struct ehci_soft_islot {
 #define EHCI_SCFLG_FORCESPEED	0x0008	/* force speed (Marvell) */
 #define EHCI_SCFLG_NORESTERM	0x0010	/* don't terminate reset sequence (Marvell) */
 #define	EHCI_SCFLG_BIGEDESC	0x0020	/* big-endian byte order descriptors */
+#define	EHCI_SCFLG_BIGEMMIO	0x0040	/* big-endian byte order MMIO */
+#define	EHCI_SCFLG_TT		0x0080	/* transaction translator present */
 
 typedef struct ehci_softc {
 	struct usbd_bus sc_bus;		/* base device */
@@ -257,6 +259,7 @@ hc16toh(const struct ehci_softc *sc, const uint16_t v)
 }
 #endif
 
+usbd_status	ehci_reset(ehci_softc_t *);
 usbd_status	ehci_init(ehci_softc_t *);
 int		ehci_intr(void *);
 int		ehci_detach(ehci_softc_t *, int);
