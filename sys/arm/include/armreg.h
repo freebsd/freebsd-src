@@ -171,10 +171,12 @@
 #define	CPU_ID_80219_400	0x69052e20 /* A0 stepping/revision. */
 #define	CPU_ID_80219_600	0x69052e30 /* A0 stepping/revision. */
 #define	CPU_ID_81342		0x69056810
+#define	CPU_ID_IXP425		0x690541c0
 #define	CPU_ID_IXP425_533	0x690541c0
 #define	CPU_ID_IXP425_400	0x690541d0
 #define	CPU_ID_IXP425_266	0x690541f0
 #define	CPU_ID_IXP435		0x69054040
+#define	CPU_ID_IXP465		0x69054200
 
 /* ARM3-specific coprocessor 15 registers */
 #define ARM3_CP15_FLUSH		1
