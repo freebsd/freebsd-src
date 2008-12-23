@@ -560,8 +560,7 @@ ulpt_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "ulpt lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	/* search through all the descriptors looking for bidir mode */
 
@@ -671,9 +670,8 @@ found:
 	/* start reading of status */
 
 	mtx_lock(&sc->sc_mtx);
-
-	ulpt_watchdog(sc);		/* will unlock mutex */
-
+	ulpt_watchdog(sc);
+	mtx_unlock(&sc->sc_mtx);
 	return (0);
 
 detach:
@@ -762,8 +760,6 @@ ulpt_watchdog(void *arg)
 
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &ulpt_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 
 static devclass_t ulpt_devclass;
