@@ -91,6 +91,12 @@
 #define	DBL_EXPBITS	11
 #define	DBL_FRACBITS	52
 
+#if defined(__VFP_FP__)
+#define	_IEEE_WORD_ORDER	_BYTE_ORDER
+#else
+#define	_IEEE_WORD_ORDER	_BIG_ENDIAN
+#endif
+
 struct ieee_single {
 #if _BYTE_ORDER == _BIG_ENDIAN
 	u_int	sng_sign:1;
@@ -110,10 +116,15 @@ struct ieee_double {
 	u_int	dbl_frach:20;
 	u_int	dbl_fracl;
 #else
+#if _IEEE_WORD_ORDER == _LITTLE_ENDIAN
 	u_int	dbl_fracl;
+#endif
 	u_int	dbl_frach:20;
 	u_int	dbl_exp:11;
 	u_int	dbl_sign:1;
+#if _IEEE_WORD_ORDER == _BIG_ENDIAN
+	u_int   dbl_fracl;
+#endif  
 #endif
 };
 
