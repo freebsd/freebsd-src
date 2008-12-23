@@ -38,8 +38,6 @@
 #include <net/pfkeyv2.h>
 #include <net/raw_cb.h>
 
-#include <netinet/ipprotosw.h>
-
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp_var.h>
