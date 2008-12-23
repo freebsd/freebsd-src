@@ -1191,7 +1191,7 @@ lookup(struct tab *p, char *cmd)
 /*
  * getline - a hacked up version of fgets to ignore TELNET escape codes.
  */
-char *
+int
 getline(char *s, int n, FILE *iop)
 {
 	int c;
@@ -1207,7 +1207,7 @@ getline(char *s, int n, FILE *iop)
 			if (ftpdebug)
 				syslog(LOG_DEBUG, "command: %s", s);
 			tmpline[0] = '\0';
-			return(s);
+			return(0);
 		}
 		if (c == 0)
 			tmpline[0] = '\0';
@@ -1244,13 +1244,24 @@ getline(char *s, int n, FILE *iop)
 			}
 		}
 		*cs++ = c;
-		if (--n <= 0 || c == '\n')
+		if (--n <= 0) {
+			/*
+			 * If command doesn't fit into buffer, discard the
+			 * rest of the command and indicate truncation.
+			 * This prevents the command to be split up into
+			 * multiple commands.
+			 */
+			while (c != '\n' && (c = getc(iop)) != EOF)
+				;
+			return (-2);
+		}
+		if (c == '\n')
 			break;
 	}
 got_eof:
 	sigprocmask(SIG_SETMASK, &osset, NULL);
 	if (c == EOF && cs == s)
-		return (NULL);
+		return (-1);
 	*cs++ = '\0';
 	if (ftpdebug) {
 		if (!guest && strncasecmp("pass ", s, 5) == 0) {
@@ -1270,7 +1281,7 @@ got_eof:
 			syslog(LOG_DEBUG, "command: %.*s", len, s);
 		}
 	}
-	return (s);
+	return (0);
 }
 
 static void
@@ -1300,9 +1311,14 @@ yylex(void)
 		case CMD:
 			(void) signal(SIGALRM, toolong);
 			(void) alarm(timeout);
-			if (getline(cbuf, sizeof(cbuf)-1, stdin) == NULL) {
+			n = getline(cbuf, sizeof(cbuf)-1, stdin);
+			if (n == -1) {
 				reply(221, "You could at least say goodbye.");
 				dologout(0);
+			} else if (n == -2) {
+				reply(500, "Command too long.");
+				(void) alarm(0);
+				continue;
 			}
 			(void) alarm(0);
 #ifdef SETPROCTITLE
