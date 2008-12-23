@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20081223:		FreeBSD-SA-08:12.ftpd, FreeBSD-SA-08:13.protosw
+	Prevent cross-site forgery attacks on ftpd(8) due to splitting
+	long commands into multiple requests. [08:12]
+
+	Avoid calling uninitialized function pointers in protocol switch
+	code. [08:13]
+
 20080903:
 	ntpd has been upgraded to 4.2.4p5.
 
