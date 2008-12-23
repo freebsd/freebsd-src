@@ -58,7 +58,8 @@ struct track_info {
 	int	addr;
 };
 static struct track_info tracks[100];
-static int global_fd_for_cleanup, quiet, verbose, saved_block_size, notracks;
+static int quiet, verbose, saved_block_size, notracks;
+static volatile int global_fd_for_cleanup;
 
 void add_track(char *, int, int, int);
 void do_DAO(int fd, int, int);
@@ -716,11 +717,12 @@ cleanup_flush(void)
 }
 
 void
-cleanup_signal(int sig __unused)
+cleanup_signal(int sig)
 {
-	cleanup_flush();
-	fprintf(stderr, "\n");
-	errx(EXIT_FAILURE, "Aborted");
+	signal(sig, SIG_IGN);
+	ioctl(global_fd_for_cleanup, CDRIOCFLUSH);
+	write(STDERR_FILENO, "\nAborted\n", 10);
+	_exit(EXIT_FAILURE);
 }
 
 void
