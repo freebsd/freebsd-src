@@ -470,8 +470,7 @@ kue_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "kue lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	iface_index = KUE_IFACE_IDX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
@@ -495,10 +494,8 @@ kue_attach(device_t dev)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, NULL, &kue_cfg_first_time_setup, 0, 0);
 
-	/* start watchdog (will exit mutex) */
-
 	kue_watchdog(sc);
-
+	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -935,8 +932,6 @@ kue_watchdog(void *arg)
 
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &kue_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 
 static void

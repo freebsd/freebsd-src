@@ -770,8 +770,7 @@ aue_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "aue lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	iface_index = AUE_IFACE_IDX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
@@ -798,10 +797,8 @@ aue_attach(device_t dev)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, NULL, &aue_cfg_first_time_setup, 0, 0);
 
-	/* start watchdog (will exit mutex) */
-
 	aue_watchdog(sc);
-
+	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -1475,8 +1472,6 @@ aue_watchdog(void *arg)
 
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &aue_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 
 /*
