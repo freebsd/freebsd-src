@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dig.html,v 1.13.18.28 2007/05/16 06:11:27 marka Exp $ -->
+<!-- $Id: dig.html,v 1.13.18.30 2008/10/14 01:30:11 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -29,12 +29,12 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">dig</code>  [@server] [<code class="option">-b <em class="replaceable"><code>address</code></em></code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-f <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-k <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port#</code></em></code>] [<code class="option">-q <em class="replaceable"><code>name</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-x <em class="replaceable"><code>addr</code></em></code>] [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]name:key</code></em></code>] [<code class="option">-4</code>] [<code class="option">-6</code>] [name] [type] [class] [queryopt...]</p></div>
+<div class="cmdsynopsis"><p><code class="command">dig</code>  [@server] [<code class="option">-b <em class="replaceable"><code>address</code></em></code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-f <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-k <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-m</code>] [<code class="option">-p <em class="replaceable"><code>port#</code></em></code>] [<code class="option">-q <em class="replaceable"><code>name</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-x <em class="replaceable"><code>addr</code></em></code>] [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]name:key</code></em></code>] [<code class="option">-4</code>] [<code class="option">-6</code>] [name] [type] [class] [queryopt...]</p></div>
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [<code class="option">-h</code>]</p></div>
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543508"></a><h2>DESCRIPTION</h2>
+<a name="id2543515"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
@@ -62,8 +62,8 @@
       <code class="filename">/etc/resolv.conf</code>.
     </p>
 <p>
-      When no command line arguments or options are given, will perform an
-      NS query for "." (the root).
+      When no command line arguments or options are given,
+      <span><strong class="command">dig</strong></span> will perform an NS query for "." (the root).
     </p>
 <p>
       It is possible to set per-user defaults for <span><strong class="command">dig</strong></span> via
@@ -74,13 +74,13 @@
 <p>
       The IN and CH class names overlap with the IN and CH top level
       domains names.  Either use the <code class="option">-t</code> and
-      <code class="option">-c</code> options to specify the type and class or
-      use the <code class="option">-q</code> the specify the domain name or
+      <code class="option">-c</code> options to specify the type and class, 
+      use the <code class="option">-q</code> the specify the domain name, or
       use "IN." and "CH." when looking up these top level domains.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543577"></a><h2>SIMPLE USAGE</h2>
+<a name="id2543589"></a><h2>SIMPLE USAGE</h2>
 <p>
       A typical invocation of <span><strong class="command">dig</strong></span> looks like:
       </p>
@@ -126,7 +126,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543668"></a><h2>OPTIONS</h2>
+<a name="id2543680"></a><h2>OPTIONS</h2>
 <p>
       The <code class="option">-b</code> option sets the source IP address of the query
       to <em class="parameter"><code>address</code></em>.  This must be a valid
@@ -150,6 +150,10 @@
       queries, one per line.  Each entry in the file should be organized in
       the same way they would be presented as queries to
       <span><strong class="command">dig</strong></span> using the command-line interface.
+    </p>
+<p>
+      The <code class="option">-m</code> option enables memory usage debugging.
+      
     </p>
 <p>
       If a non-standard port number is to be queried, the
@@ -226,7 +230,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543939"></a><h2>QUERY OPTIONS</h2>
+<a name="id2544028"></a><h2>QUERY OPTIONS</h2>
 <p><span><strong class="command">dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
@@ -545,7 +549,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545128"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2545149"></a><h2>MULTIPLE QUERIES</h2>
 <p>
       The BIND 9 implementation of <span><strong class="command">dig </strong></span>
       supports
@@ -591,7 +595,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545258"></a><h2>IDN SUPPORT</h2>
+<a name="id2545211"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
@@ -605,14 +609,14 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545281"></a><h2>FILES</h2>
+<a name="id2545234"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545298"></a><h2>SEE ALSO</h2>
+<a name="id2545251"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
@@ -620,7 +624,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545335"></a><h2>BUGS</h2>
+<a name="id2545356"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>

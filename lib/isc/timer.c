@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.c,v 1.73.18.7.10.3 2008/07/29 18:35:53 jinmei Exp $ */
+/* $Id: timer.c,v 1.73.18.10 2008/08/22 05:59:04 marka Exp $ */
 
 /*! \file */
 
@@ -225,7 +225,7 @@ schedule(isc_timer_t *timer, isc_time_t *now, isc_boolean_t signal_ok) {
 				      "*** POKED TIMER ***");
 		}
 	}
-		
+
 	if (timer->index == 1 && signal_ok) {
 		XTRACE(isc_msgcat_get(isc_msgcat, ISC_MSGSET_TIMER,
 				      ISC_MSG_SIGNALSCHED,
