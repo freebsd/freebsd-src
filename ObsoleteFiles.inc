@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20081223: ipprotosw.h removed
+OLD_FILES+=usr/include/netinet/ipprotosw.h
 # 20081123: vfs_mountedon.9 removed
 OLD_FILES+=usr/share/man/man9/vfs_mountedon.9.gz
 # 20081023: FREE.9 and MALLOC.9 removed
