@@ -68,6 +68,21 @@ static int	ixp425_probe(device_t);
 static void	ixp425_identify(driver_t *, device_t);
 static int	ixp425_attach(device_t);
 
+/*
+ * Return a mask of the "fuse" bits that identify
+ * which h/w features are present.
+ * NB: assumes the expansion bus is mapped.
+ */
+uint32_t
+ixp4xx_read_feature_bits(void)
+{
+	uint32_t bits = ~IXPREG(IXP425_EXP_VBASE + EXP_FCTRL_OFFSET);
+	bits &= ~EXP_FCTRL_RESVD;
+	if (!cpu_is_ixp46x())
+		bits &= ~EXP_FCTRL_IXP46X_ONLY;
+	return bits;
+}
+
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -189,6 +204,8 @@ static int
 ixp425_attach(device_t dev)
 {
 	struct ixp425_softc *sc;
+
+	device_printf(dev, "%b\n", ixp4xx_read_feature_bits(), EXP_FCTRL_BITS);
 
 	sc = device_get_softc(dev);
 	sc->sc_iot = &ixp425_bs_tag;
