@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081223_0120"
+#define HDA_DRV_TEST_REV	"20081223_0121"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -658,19 +658,11 @@ static const struct {
 #define AGERE_VENDORID	0x11c1
 #define HDA_CODEC_AGEREXXXX	HDA_CODEC_CONSTRUCT(AGERE, 0xffff)
 
-/*
- * Conexant
- *
- * Ok, the truth is, I don't have any idea at all whether
- * it is "Venice" or "Waikiki" or other unnamed CXyadayada. The only
- * place that tell me it is "Venice" is from its Windows driver INF.
- *
- *  Venice - CX?????
- * Waikiki - CX20551-22
- */
+/* Conexant */
 #define CONEXANT_VENDORID	0x14f1
-#define HDA_CODEC_CXVENICE	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5045)
-#define HDA_CODEC_CXWAIKIKI	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5047)
+#define HDA_CODEC_CX20549	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5045)
+#define HDA_CODEC_CX20551	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5047)
+#define HDA_CODEC_CX20561	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5051)
 #define HDA_CODEC_CXXXXX	HDA_CODEC_CONSTRUCT(CONEXANT, 0xffff)
 
 /* VIA */
@@ -798,8 +790,9 @@ static const struct {
 	{ HDA_CODEC_IDT92HD81B1X, "IDT 92HD81B1X" },
 	{ HDA_CODEC_IDT92HD83C1C, "IDT 92HD83C1C" },
 	{ HDA_CODEC_IDT92HD83C1X, "IDT 92HD83C1X" },
-	{ HDA_CODEC_CXVENICE,  "Conexant Venice" },
-	{ HDA_CODEC_CXWAIKIKI, "Conexant Waikiki" },
+	{ HDA_CODEC_CX20549,   "Conexant CX20549 (Venice)" },
+	{ HDA_CODEC_CX20551,   "Conexant CX20551 (Waikiki)" },
+	{ HDA_CODEC_CX20561,   "Conexant CX20561 (Hermosa)" },
 	{ HDA_CODEC_VT1708_8,  "VIA VT1708_8" },
 	{ HDA_CODEC_VT1708_9,  "VIA VT1708_9" },
 	{ HDA_CODEC_VT1708_A,  "VIA VT1708_A" },
@@ -2269,7 +2262,7 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
 			break;
 		}
-	} else if (id == HDA_CODEC_CXVENICE && sc->pci_subvendor ==
+	} else if (id == HDA_CODEC_CX20549 && sc->pci_subvendor ==
 	    HP_V3000_SUBVENDOR) {
 		switch (nid) {
 		case 18:
@@ -2289,7 +2282,7 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
 			break;
 		}
-	} else if (id == HDA_CODEC_CXWAIKIKI && sc->pci_subvendor ==
+	} else if (id == HDA_CODEC_CX20551 && sc->pci_subvendor ==
 	    HP_DV5000_SUBVENDOR) {
 		switch (nid) {
 		case 20:
@@ -4494,7 +4487,7 @@ static const struct {
 	    HDA_QUIRK_IVREF80, HDA_QUIRK_IVREF50 | HDA_QUIRK_IVREF100 },
 	{ HDA_MATCH_ALL, HDA_CODEC_AD1988B,
 	    HDA_QUIRK_IVREF80, HDA_QUIRK_IVREF50 | HDA_QUIRK_IVREF100 },
-	{ HDA_MATCH_ALL, HDA_CODEC_CXVENICE,
+	{ HDA_MATCH_ALL, HDA_CODEC_CX20549,
 	    0, HDA_QUIRK_FORCESTEREO }
 };
 #define HDAC_QUIRKS_LEN (sizeof(hdac_quirks) / sizeof(hdac_quirks[0]))
