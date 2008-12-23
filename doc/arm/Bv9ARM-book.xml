@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.82.8.3 2008/07/23 12:04:32 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.97 2008/10/17 19:37:35 jreed Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -639,13 +639,11 @@
       <title>Supported Operating Systems</title>
       <para>
         ISC <acronym>BIND</acronym> 9 compiles and runs on a large
-        number
-        of Unix-like operating system and on NT-derived versions of
-        Microsoft Windows such as Windows 2000 and Windows XP.  For an
-        up-to-date
-        list of supported systems, see the README file in the top level
-        directory
-        of the BIND 9 source distribution.
+        number of Unix-like operating systems, and on some versions of
+        Microsoft Windows including Windows XP, Windows 2003, and
+        Windows 2008.  For an up-to-date list of supported systems,
+        see the README file in the top level directory of the BIND 9
+        source distribution.
       </para>
     </sect1>
   </chapter>
@@ -2930,6 +2928,33 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
             <row rowsep="0">
               <entry colname="1">
                 <para>
+                  <varname>port_list</varname>
+                </para>
+              </entry>
+              <entry colname="2">
+                <para>
+		  A list of an <varname>ip_port</varname> or a port
+		  range.
+		  A port range is specified in the form of
+		  <userinput>range</userinput> followed by
+		  two <varname>ip_port</varname>s,
+		  <varname>port_low</varname> and
+		  <varname>port_high</varname>, which represents
+		  port numbers from <varname>port_low</varname> through
+		  <varname>port_high</varname>, inclusive.
+		  <varname>port_low</varname> must not be larger than
+		  <varname>port_high</varname>.
+		  For example,
+		  <userinput>range 1024 65535</userinput> represents
+		  ports from 1024 through 65535.
+		  In either case an asterisk (`*') character is not
+		  allowed as a valid <varname>ip_port</varname>.
+                </para>
+              </entry>
+            </row>
+            <row rowsep="0">
+              <entry colname="1">
+                <para>
                   <varname>size_spec</varname>
                 </para>
               </entry>
@@ -3582,7 +3607,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
       </sect2>
       <sect2>
         <title><command>include</command> Statement Grammar</title>
-        <programlisting>include <replaceable>filename</replaceable>;</programlisting>
+        <programlisting><command>include</command> <replaceable>filename</replaceable>;</programlisting>
       </sect2>
       <sect2>
         <title><command>include</command> Statement Definition and
@@ -3603,7 +3628,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
       <sect2>
         <title><command>key</command> Statement Grammar</title>
 
-<programlisting>key <replaceable>key_id</replaceable> {
+<programlisting><command>key</command> <replaceable>key_id</replaceable> {
     algorithm <replaceable>string</replaceable>;
     secret <replaceable>string</replaceable>;
 };
@@ -4364,7 +4389,7 @@ category notify { null; };
           statement in the <filename>named.conf</filename> file:
         </para>
 
-<programlisting>options {
+<programlisting><command>options</command> {
     <optional> version <replaceable>version_string</replaceable>; </optional>
     <optional> hostname <replaceable>hostname_string</replaceable>; </optional>
     <optional> server-id <replaceable>server_id_string</replaceable>; </optional>
@@ -4425,7 +4450,9 @@ category notify { null; };
     <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
     <optional> allow-v6-synthesis { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> blackhole { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> use-v4-udp-ports { <replaceable>port_list</replaceable> }; </optional>
     <optional> avoid-v4-udp-ports { <replaceable>port_list</replaceable> }; </optional>
+    <optional> use-v6-udp-ports { <replaceable>port_list</replaceable> }; </optional>
     <optional> avoid-v6-udp-ports { <replaceable>port_list</replaceable> }; </optional>
     <optional> listen-on <optional> port <replaceable>ip_port</replaceable> </optional> { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> listen-on-v6 <optional> port <replaceable>ip_port</replaceable> </optional> { <replaceable>address_match_list</replaceable> }; </optional>
@@ -5627,11 +5654,12 @@ options {
 		  to address (A or AAAA) records and that glue
 		  address records exist for delegated zones.  For
 		  MX and SRV records only in-zone hostnames are
-		  checked (for out-of-zone hostnames use named-checkzone).
+		  checked (for out-of-zone hostnames use
+		  <command>named-checkzone</command>).
 		  For NS records only names below top of zone are
 		  checked (for out-of-zone names and glue consistency
-		  checks use named-checkzone).  The default is
-		  <command>yes</command>.
+		  checks use <command>named-checkzone</command>).
+	          The default is <command>yes</command>.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -6058,7 +6086,7 @@ listen-on-v6 port 1234 { !2001:db8::/32; any; };
           </para>
         </sect3>
 
-        <sect3>
+        <sect3 id="query_address">
           <title>Query Address</title>
           <para>
             If the server doesn't know the answer to a question, it will
@@ -6068,24 +6096,93 @@ listen-on-v6 port 1234 { !2001:db8::/32; any; };
             If <command>address</command> is <command>*</command> (asterisk) or is omitted,
             a wildcard IP address (<command>INADDR_ANY</command>)
             will be used.
+	  </para>
+
+	  <para>
             If <command>port</command> is <command>*</command> or is omitted,
-	    a random unprivileged port number is picked up and will be
-	    used for each query.
-	    It is generally strongly discouraged to
-	    specify a particular port for the
-	    <command>query-source</command> or
-	    <command>query-source-v6</command> options;
-	    it implicitly disables the use of randomized port numbers
-	    and leads to insecure operation.
-            The <command>avoid-v4-udp-ports</command>
-            and <command>avoid-v6-udp-ports</command> options can be used
-            to prevent named
-            from selecting certain ports. The defaults are:
+	    a random port number from a pre-configured
+	    range is picked up and will be used for each query.
+	    The port range(s) is that specified in
+	    the <command>use-v4-udp-ports</command> (for IPv4)
+            and <command>use-v6-udp-ports</command> (for IPv6)
+	    options, excluding the ranges specified in
+	    the <command>avoid-v4-udp-ports</command>
+            and <command>avoid-v6-udp-ports</command> options, respectively.
+	  </para>
+
+          <para>
+	    The defaults of the <command>query-source</command> and
+	    <command>query-source-v6</command> options
+	    are:
           </para>
 
 <programlisting>query-source address * port *;
 query-source-v6 address * port *;
 </programlisting>
+
+          <para>
+	    If <command>use-v4-udp-ports</command> or
+            <command>use-v6-udp-ports</command> is unspecified,
+	    <command>named</command> will check if the operating
+	    system provides a programming interface to retrieve the
+	    system's default range for ephemeral ports.
+	    If such an interface is available,
+	    <command>named</command> will use the corresponding system
+	    default range; otherwise, it will use its own defaults:
+         </para>
+
+<programlisting>use-v4-udp-ports { range 1024 65535; };
+use-v6-udp-ports { range 1024 65535; };
+</programlisting>
+
+          <para>
+	    Note: make sure the ranges be sufficiently large for
+	    security.  A desirable size depends on various parameters,
+	    but we generally recommend it contain at least 16384 ports
+	    (14 bits of entropy).
+	    Note also that the system's default range when used may be
+	    too small for this purpose, and that the range may even be
+	    changed while <command>named</command> is running; the new
+	    range will automatically be applied when <command>named</command>
+	    is reloaded.
+	    It is encouraged to
+	    configure <command>use-v4-udp-ports</command> and
+            <command>use-v6-udp-ports</command> explicitly so that the
+            ranges are sufficiently large and are reasonably
+            independent from the ranges used by other applications.
+          </para>
+
+	  <para>
+	    Note: the operational configuration
+	    where <command>named</command> runs may prohibit the use
+	    of some ports.  For example, UNIX systems will not allow
+	    <command>named</command> running without a root privilege
+	    to use ports less than 1024.
+	    If such ports are included in the specified (or detected)
+	    set of query ports, the corresponding query attempts will
+	    fail, resulting in resolution failures or delay.
+	    It is therefore important to configure the set of ports
+	    that can be safely used in the expected operational environment.
+	  </para>
+
+          <para>
+	    The defaults of the <command>avoid-v4-udp-ports</command> and
+	    <command>avoid-v6-udp-ports</command> options
+	    are:
+          </para>
+
+<programlisting>avoid-v4-udp-ports {};
+avoid-v6-udp-ports {};
+</programlisting>
+
+	  <para>
+	    Note: it is generally strongly discouraged to
+            specify a particular port for the
+	    <command>query-source</command> or
+	    <command>query-source-v6</command> options;
+	    it implicitly disables the use of randomized port numbers
+	    and can be insecure.
+          </para>
 
           <note>
             <para>
@@ -6432,17 +6529,48 @@ query-source-v6 address * port *;
         </sect3>
 
         <sect3>
-          <title>Bad UDP Port Lists</title>
-          <para><command>avoid-v4-udp-ports</command>
-	    and <command>avoid-v6-udp-ports</command> specify a list
-            of IPv4 and IPv6 UDP ports that will not be used as system
-            assigned source ports for UDP sockets.  These lists
-            prevent named from choosing as its random source port a
-            port that is blocked by your firewall.  If a query went
-            out with such a source port, the answer would not get by
-            the firewall and the name server would have to query
-            again.
+          <title>UDP Port Lists</title>
+          <para>
+	    <command>use-v4-udp-ports</command>,
+	    <command>avoid-v4-udp-ports</command>,
+	    <command>use-v6-udp-ports</command>, and
+	    <command>avoid-v6-udp-ports</command>
+	    specify a list of IPv4 and IPv6 UDP ports that will be
+	    used or not used as source ports for UDP messages.
+	    See <xref linkend="query_address"/> about how the
+	    available ports are determined.
+	    For example, with the following configuration
           </para>
+
+<programlisting>
+use-v6-udp-ports { range 32768 65535; };
+avoid-v6-udp-ports { 40000; range 50000 60000; };
+</programlisting>
+
+	   <para>
+	     UDP ports of IPv6 messages sent
+	     from <command>named</command> will be in one
+	     of the following ranges: 32768 to 39999, 40001 to 49999,
+	     and 60001 to 65535.
+	   </para>
+
+	   <para>
+	     <command>avoid-v4-udp-ports</command> and
+	     <command>avoid-v6-udp-ports</command> can be used
+             to prevent <command>named</command> from choosing as its random source port a
+             port that is blocked by your firewall or a port that is
+             used by other applications;
+	     if a query went out with a source port blocked by a
+             firewall, the
+	     answer would not get by the firewall and the name server would
+             have to query again.
+	     Note: the desired range can also be represented only with
+	     <command>use-v4-udp-ports</command> and
+	     <command>use-v6-udp-ports</command>, and the
+	     <command>avoid-</command> options are redundant in that
+	     sense; they are provided for backward compatibility and
+	     to possibly simplify the port specification.
+	   </para>
         </sect3>
 
         <sect3>
@@ -6618,8 +6746,10 @@ query-source-v6 address * port *;
 		  transfers.  The default is <literal>512</literal>.
 		  The minimum value is <literal>128</literal> and the
 		  maximum value is <literal>128</literal> less than
-		  'files' or FD_SETSIZE (whichever is smaller).  This
-		  option may be removed in the future.
+		  maxsockets (-S).  This option may be removed in the future.
+                </para>
+                <para>
+		  This option has little effect on Windows.
                 </para>
               </listitem>
             </varlistentry>
@@ -6629,16 +6759,23 @@ query-source-v6 address * port *;
               <listitem>
                 <para>
                   The maximum amount of memory to use for the
-                  server's cache, in bytes.  When the amount of data in the
-                  cache
+                  server's cache, in bytes.
+                  When the amount of data in the cache
                   reaches this limit, the server will cause records to expire
-                  prematurely so that the limit is not exceeded.  In a server
-                  with
-                  multiple views, the limit applies separately to the cache of
-                  each
-                  view.  The default is <literal>unlimited</literal>, meaning that
-                  records are purged from the cache only when their TTLs
-                  expire.
+                  prematurely so that the limit is not exceeded.
+                  A value of 0 is special, meaning that
+                  records are purged from the cache only when their
+                  TTLs expire.
+                  Another special keyword <userinput>unlimited</userinput>
+                  means the maximum value of 32-bit unsigned integers
+                  (0xffffffff), which may not have the same effect as
+                  0 on machines that support more than 32 bits of
+                  memory space.
+                  Any positive values less than 2MB will be ignored reset
+                  to 2MB.
+                  In a server with multiple views, the limit applies
+                  separately to the cache of each view.
+                  The default is 0.
                 </para>
               </listitem>
             </varlistentry>
@@ -7041,6 +7178,10 @@ query-source-v6 address * port *;
 		  Sets the maximum time for which the server will
                   cache ordinary (positive) answers. The default is
                   one week (7 days).
+		  A value of zero may cause all queries to return
+		  SERVFAIL, because of lost caches of intermediate
+		  RRsets (such as NS and glue AAAA/A records) in the
+		  resolution process.
                 </para>
               </listitem>
             </varlistentry>
@@ -7320,9 +7461,8 @@ query-source-v6 address * port *;
 	  <para>
 	    The current list of empty zones is:
 	    <itemizedlist>
+<!-- XXX: The RFC1918 addresses are #defined out in sources currently.
 	      <listitem>10.IN-ADDR.ARPA</listitem>
-	      <listitem>127.IN-ADDR.ARPA</listitem>
-	      <listitem>254.169.IN-ADDR.ARPA</listitem>
 	      <listitem>16.172.IN-ADDR.ARPA</listitem>
 	      <listitem>17.172.IN-ADDR.ARPA</listitem>
 	      <listitem>18.172.IN-ADDR.ARPA</listitem>
@@ -7340,7 +7480,12 @@ query-source-v6 address * port *;
 	      <listitem>30.172.IN-ADDR.ARPA</listitem>
 	      <listitem>31.172.IN-ADDR.ARPA</listitem>
 	      <listitem>168.192.IN-ADDR.ARPA</listitem>
+XXX: end of RFC1918 addresses #defined out -->
+	      <listitem>0.IN-ADDR.ARPA</listitem>
+	      <listitem>127.IN-ADDR.ARPA</listitem>
+	      <listitem>254.169.IN-ADDR.ARPA</listitem>
 	      <listitem>2.0.192.IN-ADDR.ARPA</listitem>
+	      <listitem>255.255.255.255.IN-ADDR.ARPA</listitem>
 	      <listitem>0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.IP6.ARPA</listitem>
 	      <listitem>1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.IP6.ARPA</listitem>
 	      <listitem>D.F.IP6.ARPA</listitem>
@@ -7567,8 +7712,10 @@ query-source-v6 address * port *;
             <command>success</command>,
             <command>referral</command>,
             <command>nxrrset</command>,
-            <command>nxdomain</command>, or
-            <command>failure</command>
+            <command>nxdomain</command>,
+            <command>failure</command>,
+            <command>duplicate</command>, or
+            <command>dropped</command>
             to be incremented, and may additionally cause the
             <command>recursion</command> counter to be
             incremented.
@@ -7699,7 +7846,7 @@ query-source-v6 address * port *;
       <sect2 id="server_statement_grammar">
         <title><command>server</command> Statement Grammar</title>
 
-<programlisting>server <replaceable>ip_addr[/prefixlen]</replaceable> {
+<programlisting><command>server</command> <replaceable>ip_addr[/prefixlen]</replaceable> {
     <optional> bogus <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> provide-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> request-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
@@ -7908,7 +8055,7 @@ query-source-v6 address * port *;
         <sect2>
           <title><command>trusted-keys</command> Statement Grammar</title>
 
-<programlisting>trusted-keys {
+<programlisting><command>trusted-keys</command> {
     <replaceable>string</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ;
     <optional> <replaceable>string</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ; <optional>...</optional></optional>
 };
@@ -7949,7 +8096,7 @@ query-source-v6 address * port *;
         <sect2 id="view_statement_grammar">
           <title><command>view</command> Statement Grammar</title>
 
-<programlisting>view <replaceable>view_name</replaceable>
+<programlisting><command>view</command> <replaceable>view_name</replaceable>
       <optional><replaceable>class</replaceable></optional> {
       match-clients { <replaceable>address_match_list</replaceable> };
       match-destinations { <replaceable>address_match_list</replaceable> };
@@ -8005,7 +8152,7 @@ query-source-v6 address * port *;
           <para>
             Zones defined within a <command>view</command>
             statement will
-            be only be accessible to clients that match the <command>view</command>.
+            only be accessible to clients that match the <command>view</command>.
             By defining a zone of the same name in multiple views, different
             zone data can be given to different clients, for example,
             "internal"
@@ -8090,7 +8237,7 @@ view "external" {
           <title><command>zone</command>
             Statement Grammar</title>
 
-<programlisting>zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
+<programlisting><command>zone</command> <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
     type master;
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
@@ -9436,6 +9583,19 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <row rowsep="0">
                     <entry colname="1">
                       <para>
+                        IPSECKEY
+                      </para>
+                    </entry>
+                    <entry colname="2">
+                      <para>
+			Provides a method for storing IPsec keying material in
+			DNS.  Described in RFC 4025.
+                      </para>
+                    </entry>
+                  </row>
+                  <row rowsep="0">
+                    <entry colname="1">
+                      <para>
                         ISDN
                       </para>
                     </entry>
@@ -9674,6 +9834,19 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <row rowsep="0">
                     <entry colname="1">
                       <para>
+                        SPF
+                      </para>
+                    </entry>
+                    <entry colname="2">
+                      <para>
+			Contains the Sender Policy Framework information
+			for a given email domain.  Described in RFC 4408.
+                      </para>
+                    </entry>
+                  </row>
+                  <row rowsep="0">
+                    <entry colname="1">
+                      <para>
                         SRV
                       </para>
                     </entry>
@@ -9681,6 +9854,19 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                       <para>
                         Information about well known network
                         services (replaces WKS).  Described in RFC 2782.
+                      </para>
+                    </entry>
+                  </row>
+                  <row rowsep="0">
+                    <entry colname="1">
+                      <para>
+                        SSHFP
+                      </para>
+                    </entry>
+                    <entry colname="2">
+                      <para>
+			Provides a way to securly publish a secure shell key's
+			fingerprint.  Described in RFC 4255.
                       </para>
                     </entry>
                   </row>
@@ -10469,7 +10655,7 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
             is equivalent to
           </para>
 
-<programlisting>0.0.0.192.IN-ADDR.ARPA NS SERVER1.EXAMPLE.
+<programlisting>0.0.0.192.IN-ADDR.ARPA. NS SERVER1.EXAMPLE.
 0.0.0.192.IN-ADDR.ARPA. NS SERVER2.EXAMPLE.
 1.0.0.192.IN-ADDR.ARPA. CNAME 1.0.0.0.192.IN-ADDR.ARPA.
 2.0.0.192.IN-ADDR.ARPA. CNAME 2.0.0.0.192.IN-ADDR.ARPA.
