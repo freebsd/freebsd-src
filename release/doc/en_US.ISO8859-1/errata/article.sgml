@@ -160,6 +160,48 @@
 	    <entry>13&nbsp;July&nbsp;2008</entry>
 	    <entry><para>DNS cache poisoning</para></entry>
 	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:07.amd64.asc"
+		>SA-08:07.amd64</ulink></entry>
+	    <entry>3&nbsp;September&nbsp;2008</entry>
+	    <entry><para>amd64 swapgs local privilege escalation</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:08.nmount.asc"
+		>SA-08:08.nmount</ulink></entry>
+	    <entry>3&nbsp;September&nbsp;2008</entry>
+	    <entry><para>&man.nmount.2; local arbitrary code execution</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:09.icmp6.asc"
+		>SA-08:09.icmp6</ulink></entry>
+	    <entry>3&nbsp;September&nbsp;2008</entry>
+	    <entry><para>Remote kernel panics on IPv6 connections</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:10.nd6.asc"
+		>SA-08:10.nd6</ulink></entry>
+	    <entry>1&nbsp;October&nbsp;2008</entry>
+	    <entry><para>IPv6 Neighbor Discovery Protocol routing vulnerability</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:11.arc4random.asc"
+		>SA-08:11.arc4random</ulink></entry>
+	    <entry>24&nbsp;November&nbsp;2008</entry>
+	    <entry><para>&man.arc4random.9; predictable sequence vulnerability</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:12.ftpd.asc"
+		>SA-08:12.ftpd</ulink></entry>
+	    <entry>23&nbsp;December&nbsp;2008</entry>
+	    <entry><para>Cross-site request forgery in &man.ftpd.8;</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:13.protosw.asc"
+		>SA-08:13.protosw</ulink></entry>
+	    <entry>23&nbsp;December&nbsp;2008</entry>
+	    <entry><para>netgraph / bluetooth privilege escalation</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
