@@ -157,7 +157,6 @@ struct npe_softc {
  * assumptions probably need to be handled through hints.
  */
 static const struct {
-	uint32_t	imageid;	/* default fw image */
 	uint32_t	macbase;
 	uint32_t	miibase;
 	int		phy;		/* phy id */
@@ -167,7 +166,6 @@ static const struct {
 	uint8_t		tx_doneqid;
 } npeconfig[NPE_MAX] = {
 	[NPE_A] = {
-	  .imageid	= IXP425_NPE_A_IMAGEID,
 	  .macbase	= IXP435_MAC_A_HWBASE,
 	  .miibase	= IXP425_MAC_C_HWBASE,
 	  .phy		= 2,
@@ -177,7 +175,6 @@ static const struct {
 	  .tx_doneqid	= 31
 	},
 	[NPE_B] = {
-	  .imageid	= IXP425_NPE_B_IMAGEID,
 	  .macbase	= IXP425_MAC_B_HWBASE,
 	  .miibase	= IXP425_MAC_C_HWBASE,
 	  .phy		= 0,
@@ -187,7 +184,6 @@ static const struct {
 	  .tx_doneqid	= 31
 	},
 	[NPE_C] = {
-	  .imageid	= IXP425_NPE_C_IMAGEID,
 	  .macbase	= IXP425_MAC_C_HWBASE,
 	  .miibase	= IXP425_MAC_C_HWBASE,
 	  .phy		= 1,
@@ -258,7 +254,7 @@ SYSCTL_NODE(_hw, OID_AUTO, npe, CTLFLAG_RD, 0, "IXP4XX NPE driver parameters");
 static int npe_debug = 0;
 SYSCTL_INT(_hw_npe, OID_AUTO, debug, CTLFLAG_RW, &npe_debug,
 	   0, "IXP4XX NPE network interface debug msgs");
-TUNABLE_INT("hw.npe.npe", &npe_debug);
+TUNABLE_INT("hw.npe.debug", &npe_debug);
 #define	DPRINTF(sc, fmt, ...) do {					\
 	if (sc->sc_debug) device_printf(sc->sc_dev, fmt, __VA_ARGS__);	\
 } while (0)
@@ -301,16 +297,21 @@ npe_probe(device_t dev)
 		[NPE_B] = "IXP NPE-B",
 		[NPE_C] = "IXP NPE-C"
 	};
+	int unit = device_get_unit(dev);
 	int npeid;
+
+	if (unit > 2 || 
+	    (ixp4xx_read_feature_bits() &
+	     (unit == 0 ? EXP_FCTRL_ETH0 : EXP_FCTRL_ETH1)) == 0)
+		return EINVAL;
 
 	npeid = -1;
 	if (!override_npeid(dev, "npeid", &npeid))
-		npeid = unit2npeid(device_get_unit(dev));
+		npeid = unit2npeid(unit);
 	if (npeid == -1) {
-		device_printf(dev, "unit not supported\n");
+		device_printf(dev, "unit %d not supported\n", unit);
 		return EINVAL;
 	}
-	/* XXX check feature register to see if enabled */
 	device_set_desc(dev, desc[npeid]);
 	return 0;
 }
@@ -644,22 +645,6 @@ override_unit(device_t dev, const char *resname, int *val, int min, int max)
 	return 1;
 }
 
-static int
-override_imageid(device_t dev, const char *resname, uint32_t *val)
-{
-	int unit = device_get_unit(dev);
-	int resval;
-
-	if (resource_int_value("npe", unit, resname, &resval) != 0)
-		return 0;
-	/* XXX validate */
-	if (bootverbose)
-		device_printf(dev, "using npe.%d.%s=0x%x override\n",
-		    unit, resname, resval);
-	*val = resval;
-	return 1;
-}
-
 static void
 npe_mac_reset(struct npe_softc *sc)
 {
@@ -677,7 +662,6 @@ npe_activate(device_t dev)
 {
 	struct npe_softc * sc = device_get_softc(dev);
 	int error, i, macbase, miibase;
-	uint32_t imageid, msg[2];
 
 	/*
 	 * Setup NEP ID, MAC, and MII bindings.  We allow override
@@ -722,35 +706,12 @@ npe_activate(device_t dev)
 		sc->sc_miih = sc->sc_ioh;
 
 	/*
-	 * Load NPE firmware and start it running.  We assume
-	 * that minor version bumps remain compatible so probe
-	 * the firmware image starting with the expected version
-	 * and then bump the minor version up to the max.
+	 * Load NPE firmware and start it running.
 	 */
-	if (!override_imageid(dev, "imageid", &imageid))
-		imageid = npeconfig[sc->sc_npeid].imageid;
-	for (;;) {
-		error = ixpnpe_init(sc->sc_npe, "npe_fw", imageid);
-		if (error == 0)
-			break;
-		/* ESRCH is returned when the requested image is not present */
-		if (error != ESRCH) {
-			device_printf(dev, "cannot init NPE (error %d)\n",
-			    error);
-			return error;
-		}
-		/* bump the minor version up to the max possible */
-		if (NPEIMAGE_MINOR(imageid) == 0xff) {
-			device_printf(dev, "cannot locate firmware "
-			    "(imageid 0x%08x)\n", imageid);
-			return error;
-		}
-		imageid++;
-	}
-	/* NB: firmware should respond with a status msg */
-	if (ixpnpe_recvmsg_sync(sc->sc_npe, msg) != 0) {
-		device_printf(dev, "firmware did not respond as expected\n");
-		return EIO;
+	error = ixpnpe_init(sc->sc_npe);
+	if (error != 0) {
+		device_printf(dev, "cannot init NPE (error %d)\n", error);
+		return error;
 	}
 
 	/* probe for PHY */
@@ -984,7 +945,6 @@ npe_setmac(struct npe_softc *sc, u_char *eaddr)
 	WR4(sc, NPE_MAC_UNI_ADDR_4, eaddr[3]);
 	WR4(sc, NPE_MAC_UNI_ADDR_5, eaddr[4]);
 	WR4(sc, NPE_MAC_UNI_ADDR_6, eaddr[5]);
-
 }
 
 static void
