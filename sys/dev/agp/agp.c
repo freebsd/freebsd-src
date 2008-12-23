@@ -564,6 +564,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		device_printf(dev, "memory already bound\n");
 		error = EINVAL;
 		VM_OBJECT_LOCK(mem->am_obj);
+		i = 0;
 		goto bad;
 	}
 	
@@ -592,7 +593,6 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				 * Bail out. Reverse all the mappings
 				 * and unwire the pages.
 				 */
-				vm_page_wakeup(m);
 				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
 					AGP_UNBIND_PAGE(dev, offset + k);
 				goto bad;
@@ -622,8 +622,10 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 bad:
 	mtx_unlock(&sc->as_lock);
 	VM_OBJECT_LOCK_ASSERT(mem->am_obj, MA_OWNED);
-	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
-		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
+	for (k = 0; k < mem->am_size; k += PAGE_SIZE) {
+		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(k));
+		if (k >= i)
+			vm_page_wakeup(m);
 		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
 		vm_page_unlock_queues();
