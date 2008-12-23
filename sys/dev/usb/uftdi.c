@@ -170,7 +170,8 @@ uftdi_match(device_t self)
 	     uaa->product == USB_PRODUCT_FTDI_UOPTBR ||
 	     uaa->product == USB_PRODUCT_FTDI_EMCU2D ||
 	     uaa->product == USB_PRODUCT_FTDI_PCMSFU ||
-	     uaa->product == USB_PRODUCT_FTDI_EMCU2H ))
+	     uaa->product == USB_PRODUCT_FTDI_EMCU2H ||
+	     uaa->product == USB_PRODUCT_FTDI_MAXSTREAM ))
 		return (UMATCH_VENDOR_PRODUCT);
 	if (uaa->vendor == USB_VENDOR_SIIG2 &&
 	    (uaa->product == USB_PRODUCT_SIIG2_US2308))
@@ -256,6 +257,7 @@ uftdi_attach(device_t self)
 		case USB_PRODUCT_FTDI_EMCU2D:
 		case USB_PRODUCT_FTDI_PCMSFU:
 		case USB_PRODUCT_FTDI_EMCU2H:
+		case USB_PRODUCT_FTDI_MAXSTREAM:
 			sc->sc_type = UFTDI_TYPE_8U232AM;
 			sc->sc_hdrlen = 0;
 			break;
