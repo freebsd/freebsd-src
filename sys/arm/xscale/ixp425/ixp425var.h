@@ -48,6 +48,7 @@
 #include <sys/rman.h>
 
 /* NB: cputype is setup by set_cpufuncs */
+#define	cpu_is_ixp42x()	(cputype == CPU_ID_IXP425)
 #define	cpu_is_ixp43x()	(cputype == CPU_ID_IXP435)
 #define	cpu_is_ixp46x()	(cputype == CPU_ID_IXP465)
 
@@ -99,6 +100,7 @@ void	ixp425_mem_bs_init(bus_space_tag_t, void *);
 
 uint32_t ixp425_sdram_size(void);
 uint32_t ixp435_ddram_size(void);
+uint32_t ixp4xx_read_feature_bits(void);
 
 int	ixp425_md_route_interrupt(device_t, device_t, int);
 void	ixp425_md_attach(device_t);
@@ -115,5 +117,4 @@ enum {
 	IXP425_IVAR_ADDR,		/* base physical address */
 	IXP425_IVAR_IRQ			/* irq/gpio pin assignment */
 };
-
 #endif /* _IXP425VAR_H_ */
