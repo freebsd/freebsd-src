@@ -4,6 +4,10 @@
 #define port_before_h
 #include <config.h>
 
+#ifdef NEED_SUN4PROTOS
+#define _PARAMS(x) x
+#endif
+
 struct group;           /* silence warning */
 struct passwd;          /* silence warning */
 struct timeval;         /* silence warning */
@@ -83,14 +87,21 @@ struct timespec {
 #define NGR_R_BAD (0)
 #define NGR_R_COPY buf, buflen
 #define NGR_R_COPY_ARGS NGR_R_ARGS
+#define NGR_R_CONST
 #define NGR_R_END_RESULT(x)  /*empty*/
 #define NGR_R_END_RETURN void
-#undef NGR_R_ENT_ARGS /*empty*/
+#undef NGR_R_END_ARGS /*empty*/
 #define NGR_R_OK 1
 #define NGR_R_RETURN int
+#define NGR_R_SET_CONST const
 #undef NGR_R_SET_RESULT /*empty*/
 #define NGR_R_SET_RETURN void
+#undef NGR_R_SET_ARGS
 
+
+#if !defined(NGR_R_SET_ARGS) && defined(NGR_R_END_ARGS)
+#define NGR_R_SET_ARGS NGR_R_END_ARGS
+#endif
 
 #define PROTO_R_ARGS char *buf, size_t buflen, struct protoent **answerp
 #define PROTO_R_BAD ERANGE
