@@ -107,9 +107,6 @@
       For more information, consult the individual advisories available from
       <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
-    <para>No advisories.</para>
-
-    <!--
     <informaltable frame="none" pgwide="0">
       <tgroup cols="3">
 	<colspec colwidth="1*">
@@ -125,14 +122,20 @@
 
 	<tbody>
 	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">SA-08:03.sendfile</ulink></entry>
-	    <entry>14&nbsp;February&nbsp;2008</entry>
-	    <entry><para>&man.sendfile.2; write-only file permission bypass</para></entry>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:12.ftpd.asc"
+		>SA-08:12.ftpd</ulink></entry>
+	    <entry>23&nbsp;December&nbsp;2008</entry>
+	    <entry><para>Cross-site request forgery in &man.ftpd.8;</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:13.protosw.asc"
+		>SA-08:13.protosw</ulink></entry>
+	    <entry>23&nbsp;December&nbsp;2008</entry>
+	    <entry><para>netgraph / bluetooth privilege escalation</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
--->
   </sect1>
 
   <sect1 id="known-problems">
