@@ -1,6 +1,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: strerror.c,v 1.4.332.1 2005/04/27 05:00:46 sra Exp $";
+static const char rcsid[] = "$Id: strerror.c,v 1.4.332.2 2008/02/18 04:04:06 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -60,12 +60,14 @@ isc_strerror(int num) {
 	static char ebuf[40] = UPREFIX;		/*%< 64-bit number + slop */
 	u_int errnum;
 	char *p, *t;
+#ifndef USE_SYSERROR_LIST
 	const char *ret;
+#endif
 	char tmp[40];
 
 	errnum = num;				/*%< convert to unsigned */
 #ifdef USE_SYSERROR_LIST
-	if (errnum < sys_nerr)
+	if (errnum < (u_int)sys_nerr)
 		return (sys_errlist[errnum]);
 #else
 #undef strerror
