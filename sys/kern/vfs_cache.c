@@ -936,7 +936,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (ncp != NULL) {
-			MPASS(ncp->nc_dvp == vp->v_dd);
+			MPASS(vp->v_dd == NULL || ncp->nc_dvp == vp->v_dd);
 			buflen -= ncp->nc_nlen - 1;
 			for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
 				*--bp = ncp->nc_name[i];
