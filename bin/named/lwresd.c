@@ -15,9 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresd.c,v 1.46.18.7.52.3 2008/07/23 23:16:43 marka Exp $ */
+/* $Id: lwresd.c,v 1.46.18.10 2008/07/23 23:33:02 marka Exp $ */
 
-/*! \file 
+/*! \file
  * \brief
  * Main program for the Lightweight Resolver Daemon.
  *
@@ -224,7 +224,7 @@ ns_lwresd_parseeresolvconf(isc_mem_t *mctx, cfg_parser_t *pctx,
 			for (i = 0; i < lwc->searchnxt; i++) {
 				CHECK(buffer_putstr(&b, "\t\t\""));
 				CHECK(buffer_putstr(&b, lwc->search[i]));
-			        CHECK(buffer_putstr(&b, "\";\n"));
+				CHECK(buffer_putstr(&b, "\";\n"));
 			}
 			CHECK(buffer_putstr(&b, "\t};\n"));
 		}

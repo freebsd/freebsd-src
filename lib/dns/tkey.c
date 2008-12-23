@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tkey.c,v 1.76.18.5 2005/11/30 03:44:39 marka Exp $
+ * $Id: tkey.c,v 1.76.18.7 2008/01/02 23:46:02 tbox Exp $
  */
 /*! \file */
 #include <config.h>
@@ -379,7 +379,7 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 				  isc_buffer_base(&secret),
 				  isc_buffer_usedlength(&secret),
 				  ISC_TRUE, signer, tkeyin->inception,
-				  tkeyin->expire, msg->mctx, ring, NULL));
+				  tkeyin->expire, ring->mctx, ring, NULL));
 
 	/* This key is good for a long time */
 	tkeyout->inception = tkeyin->inception;
@@ -440,7 +440,7 @@ process_gsstkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 	result = dns_tsigkey_createfromkey(name, &tkeyin->algorithm,
 					   dstkey, ISC_TRUE, signer,
 					   tkeyin->inception, tkeyin->expire,
-					   msg->mctx, ring, NULL);
+					   ring->mctx, ring, NULL);
 #if 1
 	if (result != ISC_R_SUCCESS)
 		goto failure;
@@ -1106,7 +1106,7 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	result = dns_tsigkey_create(tkeyname, &rtkey.algorithm,
 				    r.base, r.length, ISC_TRUE,
 				    NULL, rtkey.inception, rtkey.expire,
-				    rmsg->mctx, ring, outkey);
+				    ring->mctx, ring, outkey);
 	isc_buffer_free(&shared);
 	dns_rdata_freestruct(&rtkey);
 	dst_key_free(&theirkey);
@@ -1176,7 +1176,7 @@ dns_tkey_processgssresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	RETERR(dns_tsigkey_createfromkey(tkeyname, DNS_TSIG_GSSAPI_NAME,
 					 dstkey, ISC_TRUE, NULL,
 					 rtkey.inception, rtkey.expire,
-					 rmsg->mctx, ring, outkey));
+					 ring->mctx, ring, outkey));
 
 	dns_rdata_freestruct(&rtkey);
 	return (result);
