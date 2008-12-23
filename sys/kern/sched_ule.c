@@ -2636,9 +2636,9 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	sbuf_printf(sb, "%*s <flags>", indent, "");
 	if (cg->cg_flags != 0) {
 		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
-			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>");
+			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>\n");
 		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
-			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>");
+			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>\n");
 	}
 	sbuf_printf(sb, "</flags>\n");
 
