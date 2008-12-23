@@ -2,8 +2,6 @@
 
 # Misc. stuff
 .cvsignore
-aclocal.m4
-config.h.in
 configure
 contrib
 docutil
