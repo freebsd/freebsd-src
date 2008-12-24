@@ -79,6 +79,7 @@ struct mmcsd_softc {
 	struct bio_queue_head bio_queue;
 	daddr_t eblock, eend;	/* Range remaining after the last erase. */
 	int running;
+	int suspend;
 };
 
 /* bus entry points */
@@ -135,6 +136,8 @@ mmcsd_attach(device_t dev)
 	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
 	d->d_sectorsize = mmc_get_sector_size(dev);
 	d->d_mediasize = mmc_get_media_size(dev) * d->d_sectorsize;
+	d->d_stripeoffset = 0;
+	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
 	/*
@@ -161,6 +164,7 @@ mmcsd_attach(device_t dev)
 	bioq_init(&sc->bio_queue);
 
 	sc->running = 1;
+	sc->suspend = 0;
 	sc->eblock = sc->eend = 0;
 	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
 
@@ -172,24 +176,60 @@ mmcsd_detach(device_t dev)
 {
 	struct mmcsd_softc *sc = device_get_softc(dev);
 
-	/* kill thread */
 	MMCSD_LOCK(sc);
-	sc->running = 0;
-	wakeup(sc);
+	sc->suspend = 0;
+	if (sc->running > 0) {
+		/* kill thread */
+		sc->running = 0;
+		wakeup(sc);
+		/* wait for thread to finish. */
+		while (sc->running != -1)
+			msleep(sc, &sc->sc_mtx, 0, "detach", 0);
+	}
 	MMCSD_UNLOCK(sc);
 
-	/* wait for thread to finish.  XXX probably want timeout.  -sorbo */
-	MMCSD_LOCK(sc);
-	while (sc->running != -1)
-		msleep(sc, &sc->sc_mtx, PRIBIO, "detach", 0);
-	MMCSD_UNLOCK(sc);
-
+	/* Flush the request queue. */
+	bioq_flush(&sc->bio_queue, NULL, ENXIO);
 	/* kill disk */
 	disk_destroy(sc->disk);
-	/* XXX destroy anything in queue */
 
 	MMCSD_LOCK_DESTROY(sc);
 
+	return (0);
+}
+
+static int
+mmcsd_suspend(device_t dev)
+{
+	struct mmcsd_softc *sc = device_get_softc(dev);
+
+	MMCSD_LOCK(sc);
+	sc->suspend = 1;
+	if (sc->running > 0) {
+		/* kill thread */
+		sc->running = 0;
+		wakeup(sc);
+		/* wait for thread to finish. */
+		while (sc->running != -1)
+			msleep(sc, &sc->sc_mtx, 0, "detach", 0);
+	}
+	MMCSD_UNLOCK(sc);
+	return (0);
+}
+
+static int
+mmcsd_resume(device_t dev)
+{
+	struct mmcsd_softc *sc = device_get_softc(dev);
+
+	MMCSD_LOCK(sc);
+	sc->suspend = 0;
+	if (sc->running <= 0) {
+		sc->running = 1;
+		MMCSD_UNLOCK(sc);
+		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+	} else
+		MMCSD_UNLOCK(sc);
 	return (0);
 }
 
@@ -212,9 +252,14 @@ mmcsd_strategy(struct bio *bp)
 
 	sc = (struct mmcsd_softc *)bp->bio_disk->d_drv1;
 	MMCSD_LOCK(sc);
-	bioq_disksort(&sc->bio_queue, bp);
-	wakeup(sc);
-	MMCSD_UNLOCK(sc);
+	if (sc->running > 0 || sc->suspend > 0) {
+		bioq_disksort(&sc->bio_queue, bp);
+		MMCSD_UNLOCK(sc);
+		wakeup(sc);
+	} else {
+		MMCSD_UNLOCK(sc);
+		biofinish(bp, NULL, ENXIO);
+	}
 }
 
 static daddr_t
@@ -380,18 +425,16 @@ mmcsd_task(void *arg)
 	device_t dev;
 
 	dev = sc->dev;
-	while (sc->running) {
+	while (1) {
 		MMCSD_LOCK(sc);
 		do {
-			bp = bioq_first(&sc->bio_queue);
+			if (sc->running == 0)
+				goto out;
+			bp = bioq_takefirst(&sc->bio_queue);
 			if (bp == NULL)
 				msleep(sc, &sc->sc_mtx, PRIBIO, "jobqueue", 0);
-		} while (bp == NULL && sc->running);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
+		} while (bp == NULL);
 		MMCSD_UNLOCK(sc);
-		if (!sc->running)
-			break;
 		if (bp->bio_cmd != BIO_READ && mmc_get_read_only(dev)) {
 			bp->bio_error = EROFS;
 			bp->bio_resid = bp->bio_bcount;
@@ -419,12 +462,11 @@ mmcsd_task(void *arg)
 		}
 		biodone(bp);
 	}
-
+out:
 	/* tell parent we're done */
-	MMCSD_LOCK(sc);
 	sc->running = -1;
-	wakeup(sc);
 	MMCSD_UNLOCK(sc);
+	wakeup(sc);
 
 	kproc_exit(0);
 }
@@ -453,6 +495,8 @@ static device_method_t mmcsd_methods[] = {
 	DEVMETHOD(device_probe, mmcsd_probe),
 	DEVMETHOD(device_attach, mmcsd_attach),
 	DEVMETHOD(device_detach, mmcsd_detach),
+	DEVMETHOD(device_suspend, mmcsd_suspend),
+	DEVMETHOD(device_resume, mmcsd_resume),
 	{0, 0},
 };
 

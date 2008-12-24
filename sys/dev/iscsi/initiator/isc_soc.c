@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,157 +55,179 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/user.h>
 
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+
 #include <dev/iscsi/initiator/iscsi.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 
-#ifndef USE_MBUF
+#ifndef NO_USE_MBUF
 #define USE_MBUF
 #endif
 
 #ifdef USE_MBUF
+
+static int ou_refcnt = 0;
+
 /*
- |  a dummy function for freeing external storage for mbuf
+ | function for freeing external storage for mbuf
  */
 static void
-nil_fn(void *a, void *b)
+ext_free(void *a, void *b)
 {
+     pduq_t *pq = b;
+
+     if(pq->buf != NULL) {
+	  debug(3, "ou_refcnt=%d a=%p b=%p", ou_refcnt, a, pq->buf);
+	  free(pq->buf, M_ISCSI);
+	  pq->buf = NULL;
+     }
 }
-static int nil_refcnt = 0;
-#endif /* USE_MBUF */
 
 int
 isc_sendPDU(isc_session_t *sp, pduq_t *pq)
 {
+     struct mbuf *mh, **mp;
      pdu_t		*pp = &pq->pdu;
      int		len, error;
-#ifdef USE_MBUF
-     struct mbuf        *mh, **mp;
-#else
-     struct uio		*uio = &pq->uio;
-     struct iovec	*iv;
-#endif /* USE_MBUF */
 
      debug_called(8);
-
-#ifndef USE_MBUF
-     bzero(uio, sizeof(struct uio));
-     uio->uio_rw	= UIO_WRITE;
-     uio->uio_segflg	= UIO_SYSSPACE;
-     uio->uio_td	= sp->td;
-     uio->uio_iov 	= iv = pq->iov;
-
-     iv->iov_base	= &pp->ipdu;
-     iv->iov_len	= sizeof(union ipdu_u);
-     uio->uio_resid	= pq->len;
-     iv++;
-#else /* USE_MBUF */
-     /*  mbuf for the iSCSI header */
-     MGETHDR(mh, M_WAIT, MT_DATA);
+     /* 
+      | mbuf for the iSCSI header
+      */
+     MGETHDR(mh, M_TRYWAIT, MT_DATA);
      mh->m_len = mh->m_pkthdr.len = sizeof(union ipdu_u);
      mh->m_pkthdr.rcvif = NULL;
      MH_ALIGN(mh, sizeof(union ipdu_u));
      bcopy(&pp->ipdu, mh->m_data, sizeof(union ipdu_u));
      mh->m_next = NULL;
-#endif /* USE_MBUF */
 
      if(sp->hdrDigest)
 	  pq->pdu.hdr_dig = sp->hdrDigest(&pp->ipdu, sizeof(union ipdu_u), 0);
      if(pp->ahs_len) {
-#ifndef USE_MBUF
-	  iv->iov_base	= pp->ahs;
-	  iv->iov_len	= pp->ahs_len;
-	  iv++;
-#else /* USE_MBUF */
-          /* Add any AHS to the iSCSI hdr mbuf */
-          /* XXX Assert: (mh->m_pkthdr.len + pp->ahs_len) < MHLEN */
+          /* 
+	   | Add any AHS to the iSCSI hdr mbuf
+           |  XXX Assert: (mh->m_pkthdr.len + pp->ahs_len) < MHLEN
+	   */
           bcopy(pp->ahs, (mh->m_data + mh->m_len), pp->ahs_len);
           mh->m_len += pp->ahs_len;
           mh->m_pkthdr.len += pp->ahs_len;
-#endif /* USE_MBUF */
+
 	  if(sp->hdrDigest)
 	       pq->pdu.hdr_dig = sp->hdrDigest(&pp->ahs, pp->ahs_len, pq->pdu.hdr_dig);
      }
      if(sp->hdrDigest) {
 	  debug(2, "hdr_dig=%x", pq->pdu.hdr_dig);
-#ifndef USE_MBUF
-	  iv->iov_base	= &pp->hdr_dig;
-	  iv->iov_len	= sizeof(int);
-	  iv++;
-#else /* USE_MBUF */
-          /* Add header digest to the iSCSI hdr mbuf */ 
-          /* XXX Assert: (mh->m_pkthdr.len + 4) < MHLEN */
+          /* 
+	   | Add header digest to the iSCSI hdr mbuf
+	   | XXX Assert: (mh->m_pkthdr.len + 4) < MHLEN
+	   */
           bcopy(&pp->hdr_dig, (mh->m_data + mh->m_len), sizeof(int));
           mh->m_len += sizeof(int);
           mh->m_pkthdr.len += sizeof(int);
-#endif /* USE_MBUF */
      }
-#ifdef USE_MBUF
      mp = &mh->m_next;
-#endif /* USE_MBUF */
      if(pq->pdu.ds) {
-#ifndef USE_MBUF
-	  iv->iov_base	= pp->ds;
-	  iv->iov_len	= pp->ds_len;
-	  while(iv->iov_len & 03) // the specs say it must be int alligned
-	       iv->iov_len++;
-	  iv++;
-#else /* USE_MBUF */
           struct mbuf   *md;
           int           off = 0;
 
           len = pp->ds_len;
 	  while(len & 03) // the specs say it must be int alligned
 	       len++;
-
-          while (len > 0) {
+          while(len > 0) {
                 int       l;
           
-                MGET(md, M_WAIT, MT_DATA);
-		md->m_ext.ref_cnt = &nil_refcnt;
+	       MGET(md, M_TRYWAIT, MT_DATA);
+	       md->m_ext.ref_cnt = &ou_refcnt;
                 l = min(MCLBYTES, len);
-                MEXTADD(md, pp->ds + off, l, nil_fn,
-                        pp->ds + off, NULL, 0, EXT_EXTREF);
+	       debug(5, "setting ext_free(arg=%p len/l=%d/%d)", pq->buf, len, l);
+	       MEXTADD(md, pp->ds + off, l, ext_free, pp->ds + off, pq, 0, EXT_EXTREF);
                 md->m_len = l;
                 md->m_next = NULL;
                 mh->m_pkthdr.len += l;
                 *mp = md;
                 mp = &md->m_next;
-
                 len -= l;
                 off += l;
           } 
-#endif /* USE_MBUF */
      }
      if(sp->dataDigest) {
-#ifdef USE_MBUF
           struct mbuf   *me;
 
-#endif /* USE_MBUF */
 	  pp->ds_dig = sp->dataDigest(pp->ds, pp->ds_len, 0);
-#ifndef USE_MBUF
-	  iv->iov_base	= &pp->ds_dig;
-	  iv->iov_len	= sizeof(int);
-	  iv++;
-#else /* USE_MBUF */
-          MGET(me, M_WAIT, MT_DATA);
+
+          MGET(me, M_TRYWAIT, MT_DATA);
           me->m_len = sizeof(int);
           MH_ALIGN(mh, sizeof(int));
           bcopy(&pp->ds_dig, me->m_data, sizeof(int));
           me->m_next = NULL;
-     
           mh->m_pkthdr.len += sizeof(int);
           *mp = me;
-#endif /* USE_MBUF */
      }
+     if((error = sosend(sp->soc, NULL, NULL, mh, 0, 0, sp->td)) != 0) {
+	  sdebug(3, "error=%d", error);
+	  return error;
+     }
+     sp->stats.nsent++;
+     getbintime(&sp->stats.t_sent);
+     return 0;
+}
+#else /* NO_USE_MBUF */
+int
+isc_sendPDU(isc_session_t *sp, pduq_t *pq)
+{
+     struct uio *uio = &pq->uio;
+     struct iovec *iv;
+     pdu_t	*pp = &pq->pdu;
+     int	len, error;
 
-#ifndef USE_MBUF
+     debug_called(8);
+
+     bzero(uio, sizeof(struct uio));
+     uio->uio_rw = UIO_WRITE;
+     uio->uio_segflg = UIO_SYSSPACE;
+     uio->uio_td = sp->td;
+     uio->uio_iov = iv = pq->iov;
+
+     iv->iov_base = &pp->ipdu;
+     iv->iov_len = sizeof(union ipdu_u);
+     uio->uio_resid = pq->len;
+     iv++;
+     if(sp->hdrDigest)
+	  pq->pdu.hdr_dig = sp->hdrDigest(&pp->ipdu, sizeof(union ipdu_u), 0);
+     if(pp->ahs_len) {
+	  iv->iov_base = pp->ahs;
+	  iv->iov_len = pp->ahs_len;
+	  iv++;
+
+	  if(sp->hdrDigest)
+	       pq->pdu.hdr_dig = sp->hdrDigest(&pp->ahs, pp->ahs_len, pq->pdu.hdr_dig);
+     }
+     if(sp->hdrDigest) {
+	  debug(2, "hdr_dig=%x", pq->pdu.hdr_dig);
+	  iv->iov_base = &pp->hdr_dig;
+	  iv->iov_len = sizeof(int);
+	  iv++;
+     }
+     if(pq->pdu.ds) {
+	  iv->iov_base = pp->ds;
+	  iv->iov_len = pp->ds_len;
+	  while(iv->iov_len & 03) // the specs say it must be int alligned
+	       iv->iov_len++;
+	  iv++;
+     }
+     if(sp->dataDigest) {
+	  pp->ds_dig = sp->dataDigest(pp->ds, pp->ds_len, 0);
+	  iv->iov_base = &pp->ds_dig;
+	  iv->iov_len = sizeof(int);
+	  iv++;
+     }
      uio->uio_iovcnt	= iv - pq->iov;
      sdebug(5, "opcode=%x iovcnt=%d uio_resid=%d itt=%x",
 	    pp->ipdu.bhs.opcode, uio->uio_iovcnt, uio->uio_resid,
 	    ntohl(pp->ipdu.bhs.itt));
      sdebug(5, "sp=%p sp->soc=%p uio=%p sp->td=%p",
 	    sp, sp->soc, uio, sp->td);
-
      do {
 	  len = uio->uio_resid;
 	  error = sosend(sp->soc, NULL, uio, 0, 0, 0, sp->td);
@@ -243,20 +265,12 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
      if(error == 0) {
 	  sp->stats.nsent++;
 	  getbintime(&sp->stats.t_sent);
-#else /* USE_MBUF */
-     if ((error = sosend(sp->soc, NULL, NULL, mh, 0, 0, sp->td)) != 0) {
-           m_freem(mh);
-           return (error);
-#endif /* USE_MBUF */
+
      }
-#ifndef USE_MBUF
+
      return error;
-#else /* USE_MBUF */
-     sp->stats.nsent++;
-     getbintime(&sp->stats.t_sent);
-     return 0;
-#endif /* USE_MBUF */
 }
+#endif /* USE_MBUF */
 
 /*
  | wait till a PDU header is received
@@ -312,10 +326,10 @@ so_getbhs(isc_session_t *sp)
 		error,
 		sp->soc->so_error, uio->uio_resid, iov->iov_len);
      if(!error && (uio->uio_resid > 0)) {
+	  error = EPIPE; // was EAGAIN
 	  debug(2, "error=%d so_error=%d uio->uio_resid=%d iov.iov_len=%zd so_state=%x",
 		error,
 		sp->soc->so_error, uio->uio_resid, iov->iov_len, sp->soc->so_state);
-	  error = EAGAIN; // EPIPE;
      }
 	  
      return error;
@@ -379,7 +393,7 @@ so_recv(isc_session_t *sp, pduq_t *pq)
 	      len, sp->opt.targetAddress, sp->opt.targetName);
 #endif
 	  /*
-	   | XXX: this will realy screwup the stream.
+	   | XXX: this will really screwup the stream.
 	   | should clear up the buffer till a valid header
 	   | is found, or just close connection ...
 	   | should read the RFC.
@@ -388,13 +402,55 @@ so_recv(isc_session_t *sp, pduq_t *pq)
 	  goto out;
      }
      if(len) {
-	  int	flags;
+	  int	flags = MSG_WAITALL;
+	  struct mbuf **mp;
+
+	  mp = &pq->mp;
 
 	  uio->uio_resid = len;
 	  uio->uio_td = curthread; // why ...
-	  flags = MSG_WAITALL;
+	  if(sp->douio) {
+	       // it's more efficient to use mbufs -- why?
+	       if(bhs->opcode == ISCSI_READ_DATA) {
+		    pduq_t	*opq;
 
-	  error = soreceive(so, NULL, uio, &pq->mp, NULL, &flags);
+		    opq = i_search_hld(sp, pq->pdu.ipdu.bhs.itt, 1);
+		    if(opq != NULL) {
+			 union ccb *ccb 		= opq->ccb;
+			 struct ccb_scsiio *csio	= &ccb->csio;
+			 pdu_t *opp			= &opq->pdu;
+			 scsi_req_t *cmd		= &opp->ipdu.scsi_req;
+			 data_in_t *rcmd		= &pq->pdu.ipdu.data_in;
+			 bhs_t *bhp			= &opp->ipdu.bhs;
+			 int	r;
+			 
+			 if(bhp->opcode == ISCSI_SCSI_CMD 
+			    && cmd->R
+			    && (ntohl(cmd->edtlen) >= pq->pdu.ds_len)) {
+			      struct iovec *iov = pq->iov;
+			      iov->iov_base = csio->data_ptr + ntohl(rcmd->bo);
+			      iov->iov_len = pq->pdu.ds_len;
+
+			      uio->uio_rw = UIO_READ;
+			      uio->uio_segflg = UIO_SYSSPACE;
+			      uio->uio_iov = iov;
+			      uio->uio_iovcnt = 1;
+			      if(len > pq->pdu.ds_len) {
+				   pq->iov[1].iov_base = &r;
+				   pq->iov[1].iov_len = len - pq->pdu.ds_len;
+				   uio->uio_iovcnt++;
+			      }
+			      mp = NULL;
+			      
+			      sdebug(4, "uio_resid=0x%x itt=0x%x bp=%p bo=%x len=%x/%x",
+				     uio->uio_resid,
+				     ntohl(pq->pdu.ipdu.bhs.itt),
+				     csio->data_ptr, ntohl(rcmd->bo), ntohl(cmd->edtlen), pq->pdu.ds_len);
+			 }
+		    }
+	       }
+	  }
+	  error = soreceive(so, NULL, uio, mp, NULL, &flags);
 	  //if(error == EAGAIN)
 	  // XXX: this needs work! it hangs iscontrol
 	  if(error || uio->uio_resid)
@@ -432,6 +488,7 @@ so_recv(isc_session_t *sp, pduq_t *pq)
 	  error = EPIPE;
      return error;
 }
+
 /*
  | wait for something to arrive.
  | and if the pdu is without errors, process it.
@@ -451,7 +508,11 @@ so_input(isc_session_t *sp)
 	  /*
 	   | now read the rest.
 	   */
-	  pq = pdu_alloc(sp->isc, 1);  // OK to WAIT
+	  pq = pdu_alloc(sp->isc, M_NOWAIT); 
+	  if(pq == NULL) { // XXX: might cause a deadlock ...
+	       debug(3, "out of pdus, wait");
+	       pq = pdu_alloc(sp->isc, M_NOWAIT);  // OK to WAIT
+	  }
 	  pq->pdu.ipdu.bhs = sp->bhs;
 	  pq->len = sizeof(bhs_t);	// so far only the header was read
 	  error = so_recv(sp, pq);
@@ -484,12 +545,11 @@ isc_soc(void *vp)
      debug_called(8);
 
      sp->flags |= ISC_CON_RUNNING;
-
      if(sp->cam_path)
 	  ic_release(sp);
 
      error = 0;
-     while(sp->flags & ISC_CON_RUN) {
+     while((sp->flags & (ISC_CON_RUN | ISC_LINK_UP)) == (ISC_CON_RUN | ISC_LINK_UP)) {
 	  // XXX: hunting ...
 	  if(sp->soc == NULL || !(so->so_state & SS_ISCONNECTED)) {
 	       debug(2, "sp->soc=%p", sp->soc);
@@ -497,27 +557,22 @@ isc_soc(void *vp)
 	  }
 	  error = so_input(sp);
 	  if(error == 0) {
-#ifdef ISC_OWAITING
 	       mtx_lock(&sp->io_mtx);
 	       if(sp->flags & ISC_OWAITING) {
-		    sp->flags &= ~ISC_OWAITING;
+	       wakeup(&sp->flags);
 	       }
-	       wakeup(&sp->flags);
 	       mtx_unlock(&sp->io_mtx);
-#else
-	       wakeup(&sp->flags);
-#endif
-
-	  } else if(error == EPIPE)
+	  } else if(error == EPIPE) {
 	       break;
+	  }
 	  else if(error == EAGAIN) {
 	       if(so->so_state & SS_ISCONNECTED) 
 		    // there seems to be a problem in 6.0 ...
 		    tsleep(sp, PRIBIO, "isc_soc", 2*hz);
 	  }
      }
-     sdebug(2, "terminated, flags=%x so_count=%d so_state=%x error=%d",
-	    sp->flags, so->so_count, so->so_state, error);
+     sdebug(2, "terminated, flags=%x so_count=%d so_state=%x error=%d proc=%p",
+	    sp->flags, so->so_count, so->so_state, error, sp->proc);
      if((sp->proc != NULL) && sp->signal) {
 	  PROC_LOCK(sp->proc);
 	  psignal(sp->proc, sp->signal);
@@ -534,10 +589,11 @@ isc_soc(void *vp)
       */
      // do we need this mutex ...?
      mtx_lock(&sp->io_mtx);
-     sp->flags &= ~ISC_CON_RUNNING;
+     sp->flags &= ~(ISC_CON_RUNNING | ISC_LINK_UP);
      wakeup(&sp->soc);
-
      mtx_unlock(&sp->io_mtx);
+
+     sdebug(2, "dropped ISC_CON_RUNNING");
 
      kproc_exit(0);
 }
@@ -545,25 +601,34 @@ isc_soc(void *vp)
 void
 isc_stop_receiver(isc_session_t *sp)
 {
-     int n = 5;
-     debug_called(8);
+     int	n;
 
-     sdebug(4, "sp=%p sp->soc=%p", sp, sp? sp->soc: 0);
+     debug_called(8);
+     sdebug(3, "sp=%p sp->soc=%p", sp, sp? sp->soc: 0);
+     mtx_lock(&sp->io_mtx);
+     sp->flags &= ~ISC_LINK_UP;
+     msleep(&sp->soc, &sp->io_mtx, PRIBIO|PDROP, "isc_stpc", 5*hz);
+
      soshutdown(sp->soc, SHUT_RD);
 
      mtx_lock(&sp->io_mtx);
+     sdebug(3, "soshutdown");
      sp->flags &= ~ISC_CON_RUN;
+     n = 2;
      while(n-- && (sp->flags & ISC_CON_RUNNING)) {
 	  sdebug(3, "waiting n=%d... flags=%x", n, sp->flags);
 	  msleep(&sp->soc, &sp->io_mtx, PRIBIO, "isc_stpc", 5*hz);
      }
      mtx_unlock(&sp->io_mtx);
 
+
      if(sp->fp != NULL)
 	  fdrop(sp->fp, sp->td);
      fputsock(sp->soc);
      sp->soc = NULL;
      sp->fp = NULL;
+
+     sdebug(3, "done");
 }
 
 void
@@ -571,6 +636,7 @@ isc_start_receiver(isc_session_t *sp)
 {
      debug_called(8);
 
-     sp->flags |= ISC_CON_RUN;
+     sp->flags |= ISC_CON_RUN | ISC_LINK_UP;
+
      kproc_create(isc_soc, sp, &sp->soc_proc, 0, 0, "iscsi%d", sp->sid);
 }

@@ -50,7 +50,6 @@ extern int ip6_ipsec_ecn;
 
 struct inpcb;
 
-extern int ipsec6_delete_pcbpolicy __P((struct inpcb *));
 extern int ipsec6_set_policy __P((struct inpcb *inp, int optname,
 	caddr_t request, size_t len, struct ucred *cred));
 extern int ipsec6_get_policy

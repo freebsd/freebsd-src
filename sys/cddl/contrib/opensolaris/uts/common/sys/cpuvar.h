@@ -27,8 +27,6 @@
 #ifndef _SYS_CPUVAR_H
 #define	_SYS_CPUVAR_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/thread.h>
 #include <sys/sysinfo.h>	/* has cpu_stat_t definition */
 #include <sys/disp.h>
@@ -524,6 +522,7 @@ extern int		ncpus;		/* number of CPUs present */
 extern int		ncpus_online;	/* number of CPUs not quiesced */
 extern int		max_ncpus;	/* max present before ncpus is known */
 extern int		boot_max_ncpus;	/* like max_ncpus but for real */
+extern int		boot_ncpus;	/* # cpus present @ boot */
 extern processorid_t	max_cpuid;	/* maximum CPU number */
 extern struct cpu	*cpu_inmotion;	/* offline or partition move target */
 extern cpu_t		*clock_cpu_list;
@@ -725,6 +724,7 @@ extern void cpu_state_change_notify(int, cpu_setup_t);
 #define	CPU_IDSTRLEN	100
 
 extern void init_cpu_info(struct cpu *);
+extern void populate_idstr(struct cpu *);
 extern void cpu_vm_data_init(struct cpu *);
 extern void cpu_vm_data_destroy(struct cpu *);
 

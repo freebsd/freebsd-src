@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#33 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#35 $
  */
 
 #ifndef _LIBBSM_H_
@@ -82,6 +82,7 @@
 #define	FLAGS_CONTROL_ENTRY	"flags"
 #define	NA_CONTROL_ENTRY	"naflags"
 #define	POLICY_CONTROL_ENTRY	"policy"
+#define	AUDIT_HOST_CONTROL_ENTRY	"host"
 
 #define	AU_CLASS_NAME_MAX	8
 #define	AU_CLASS_DESC_MAX	72
@@ -764,6 +765,7 @@ int			 getacfilesz(size_t *size_val);
 int			 getacflg(char *auditstr, int len);
 int			 getacna(char *auditstr, int len);
 int			 getacpol(char *auditstr, size_t len);
+int			 getachost(char *auditstr, size_t len);
 int			 getauditflagsbin(char *auditstr, au_mask_t *masks);
 int			 getauditflagschar(char *auditstr, au_mask_t *masks,
 			    int verbose);

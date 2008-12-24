@@ -254,8 +254,6 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
-	if (args->trace)
-		AUXARGS_ENTRY_32(pos, AT_DEBUG, 1);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY_32(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY_32(pos, AT_PHDR, args->phdr);
@@ -1026,6 +1024,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= linux32_fixlimit,
 	.sv_maxssiz	= &linux32_maxssiz,
+	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32
 };
 
 static Elf32_Brandinfo linux_brand = {

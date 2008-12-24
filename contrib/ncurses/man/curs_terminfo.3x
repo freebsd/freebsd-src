@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1999-2007,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.28 2007/05/26 20:09:06 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.30 2008/08/16 20:53:27 tom Exp $
 .TH curs_terminfo 3X ""
 .ds n 5
 .na
@@ -274,6 +274,9 @@ In this implementation
 returns an error
 if its terminal parameter is null.
 .TP 5
+\fBputp\fP
+calls \fBtputs\fP, returning the same error-codes.
+.TP 5
 \fBrestartterm\fP
 returns an error
 if the associated call to \fBsetupterm\fP returns an error.
@@ -283,6 +286,12 @@ returns an error
 if it cannot allocate enough memory, or
 create the initial windows (stdscr, curscr, newscr).
 Other error conditions are documented above.
+.TP 5
+\fBtputs\fP
+returns an error if the string parameter is null.
+It does not detect I/O errors:
+X/Open states that \fBtputs\fP ignores the return value
+of the output function \fIputc\fP.
 .RE
 .SH NOTES
 The \fBsetupterm\fR routine should be used in place of \fBsetterm\fR.
@@ -291,27 +300,30 @@ committing to the allocation of storage involved in \fBinitscr\fR.
 .PP
 Note that \fBvidattr\fR and \fBvidputs\fR may be macros.
 .SH PORTABILITY
-The function \fBsetterm\fR is not described in the XSI Curses standard and must
-be considered non-portable.  All other functions are as described in the XSI
-curses standard.
+The function \fBsetterm\fR is not described by X/Open and must
+be considered non-portable.  All other functions are as described by X/Open.
 .PP
 \fBsetupterm\fP copies the terminal name to the array \fBttytype\fP.
 This is not part of X/Open Curses, but is assumed by some applications.
 .PP
 In System V Release 4, \fBset_curterm\fR has an \fBint\fR return type and
-returns \fBOK\fR or \fBERR\fR.  We have chosen to implement the XSI Curses
+returns \fBOK\fR or \fBERR\fR.  We have chosen to implement the X/Open Curses
 semantics.
 .PP
 In System V Release 4, the third argument of \fBtputs\fR has the type
 \fBint (*putc)(char)\fR.
 .PP
-The XSI Curses standard prototypes \fBtparm\fR with a fixed number of parameters,
+At least one implementation of X/Open Curses (Solaris) returns a value
+other than OK/ERR from \fBtputs\fP.
+That returns the length of the string, and does no error-checking.
+.PP
+X/Open Curses prototypes \fBtparm\fR with a fixed number of parameters,
 rather than a variable argument list.
 This implementation uses a variable argument list.
 Portable applications should provide 9 parameters after the format;
 zeroes are fine for this purpose.
 .PP
-XSI notes that after calling \fBmvcur\fR, the curses state may not match the
+X/Open notes that after calling \fBmvcur\fR, the curses state may not match the
 actual terminal state, and that an application should touch and refresh
 the window before resuming normal curses calls.
 Both ncurses and System V Release 4 curses implement \fBmvcur\fR using
@@ -319,15 +331,19 @@ the SCREEN data allocated in either \fBinitscr\fR or \fBnewterm\fR.
 So though it is documented as a terminfo function,
 \fBmvcur\fR is really a curses function which is not well specified.
 .PP
-XSI states that the old location must be given for \fBmvcur\fP.
+X/Open states that the old location must be given for \fBmvcur\fP.
 This implementation allows the caller to use -1's for the old ordinates.
 In that case, the old location is unknown.
 .PP
 Extended terminal capability names, e.g., as defined by \fBtic\ -x\fP,
 are not stored in the arrays described in this section.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_kernel\fR(3X), \fBcurs_termcap\fR(3X),
-\fBputc\fR(3), \fBterminfo\fR(\*n)
+\fBcurses\fR(3X),
+\fBcurs_initscr\fR(3X),
+\fBcurs_kernel\fR(3X),
+\fBcurs_termcap\fR(3X),
+\fBputc\fR(3),
+\fBterminfo\fR(\*n)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

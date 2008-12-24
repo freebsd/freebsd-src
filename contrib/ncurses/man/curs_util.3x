@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_util.3x,v 1.25 2007/05/26 21:44:42 tom Exp $
+.\" $Id: curs_util.3x,v 1.27 2008/10/25 23:45:41 tom Exp $
 .TH curs_util 3X ""
 .na
 .hy 0
@@ -77,10 +77,37 @@ Printing characters are displayed as is.
 The corresponding \fBwunctrl\fR returns a printable representation of
 a wide-character.
 .PP
-The \fBkeyname\fR routine returns a character string corresponding to the key \fIc\fR.
+The \fBkeyname\fR routine returns a character string corresponding to the key \fIc\fR:
+.RS 3
+.TP 3
+-
+Printable characters are displayed as themselves, e.g., a one-character string containing the key.
+.TP 3
+-
 Control characters are displayed in the \fB^\fR\fIX\fR notation.
-Values above 128 are either meta characters, shown in the \fBM-\fR\fIX\fR notation,
-or the names of function keys, or null.
+.TP 3
+-
+DEL (character 127) is displayed as \fB^?\fP.
+.TP 3
+-
+Values above 128 are either meta characters
+(if the screen has not been initialized,
+or if \fBmeta\fP has been called with a TRUE parameter),
+shown in the \fBM-\fR\fIX\fR notation,
+or are displayed as themselves.
+In the latter case, the values may not be printable;
+this follows the X/Open specification.
+.TP 3
+-
+Values above 256 may be the names of the names of function keys.
+.TP 3
+-
+Otherwise (if there is no corresponding name) the function returns null,
+to denote an error.
+X/Open also lists an "UNKNOWN KEY" return value, which some implementations
+return rather than null.
+.RE
+.LP
 The corresponding \fBkey_name\fR returns a character string corresponding
 to the wide-character value \fIw\fR.
 The two functions do not return the same set of strings;
@@ -134,9 +161,12 @@ Routines that return pointers return \fBNULL\fR on error.
 .PP
 X/Open does not define any error conditions.
 In this implementation
-.RS
+.RS 3
 .TP 5
 \fBflushinp\fR
+returns an error if the terminal was not initialized.
+.TP 5
+\fBmeta\fR
 returns an error if the terminal was not initialized.
 .TP 5
 \fBputwin\fP
@@ -206,6 +236,8 @@ user-defined strings which begin with "k".
 The keycodes start at KEY_MAX, but are not guaranteed to be 
 the same value for different runs because user-defined codes are
 merged from all terminal descriptions which have been loaded.
+The \fBuse_extended_names\fP function controls whether this data is
+loaded when the terminal description is read by the library.
 .PP
 The \fBnofilter\fP routine is specific to ncurses.
 It was not supported on Version 7, BSD or System V implementations.

@@ -32,6 +32,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <libusb20_desc.h>
 #include <libusb20.h>
@@ -40,10 +41,12 @@
 
 struct options {
 	const char *quirkname;
+	void   *buffer;
 	gid_t	gid;
 	uid_t	uid;
 	mode_t	mode;
 	uint32_t got_any;
+	struct LIBUSB20_CONTROL_SETUP_DECODED setup;
 	uint16_t bus;
 	uint16_t addr;
 	uint16_t iface;
@@ -51,6 +54,7 @@ struct options {
 	uint16_t pid;
 	uint16_t lo_rev;		/* inclusive */
 	uint16_t hi_rev;		/* inclusive */
+	uint8_t	string_index;
 	uint8_t	config_index;
 	uint8_t	alt_index;
 	uint8_t	got_list:1;
@@ -76,6 +80,8 @@ struct options {
 	uint8_t	got_dump_access:1;
 	uint8_t	got_remove_device_quirk:1;
 	uint8_t	got_add_device_quirk:1;
+	uint8_t	got_dump_string:1;
+	uint8_t	got_do_request:1;
 };
 
 struct token {
@@ -99,6 +105,7 @@ enum {
 	T_DUMP_DEVICE_DESC,
 	T_DUMP_CURR_CONFIG_DESC,
 	T_DUMP_ALL_CONFIG_DESC,
+	T_DUMP_STRING,
 	T_DUMP_ACCESS,
 	T_DUMP_INFO,
 	T_SUSPEND,
@@ -108,6 +115,7 @@ enum {
 	T_POWER_ON,
 	T_RESET,
 	T_LIST,
+	T_DO_REQUEST,
 };
 
 static struct options options;
@@ -127,6 +135,7 @@ static const struct token token[] = {
 	{"dump_device_desc", T_DUMP_DEVICE_DESC, 0},
 	{"dump_curr_config_desc", T_DUMP_CURR_CONFIG_DESC, 0},
 	{"dump_all_config_desc", T_DUMP_ALL_CONFIG_DESC, 0},
+	{"dump_string", T_DUMP_STRING, 1},
 	{"dump_access", T_DUMP_ACCESS, 0},
 	{"dump_info", T_DUMP_INFO, 0},
 	{"suspend", T_SUSPEND, 0},
@@ -136,6 +145,7 @@ static const struct token token[] = {
 	{"power_on", T_POWER_ON, 0},
 	{"reset", T_RESET, 0},
 	{"list", T_LIST, 0},
+	{"do_request", T_DO_REQUEST, 5},
 };
 
 static void
@@ -144,7 +154,7 @@ be_dev_remove_quirk(struct libusb20_backend *pbe,
     const char *str)
 {
 	struct libusb20_quirk q;
-	int err;
+	int error;
 
 	memset(&q, 0, sizeof(q));
 
@@ -154,8 +164,8 @@ be_dev_remove_quirk(struct libusb20_backend *pbe,
 	q.bcdDeviceHigh = hirev;
 	strlcpy(q.quirkname, str, sizeof(q.quirkname));
 
-	err = libusb20_be_remove_dev_quirk(pbe, &q);
-	if (err) {
+	error = libusb20_be_remove_dev_quirk(pbe, &q);
+	if (error) {
 		printf("Removing quirk '%s' failed, continuing.\n", str);
 	}
 	return;
@@ -167,7 +177,7 @@ be_dev_add_quirk(struct libusb20_backend *pbe,
     const char *str)
 {
 	struct libusb20_quirk q;
-	int err;
+	int error;
 
 	memset(&q, 0, sizeof(q));
 
@@ -177,8 +187,8 @@ be_dev_add_quirk(struct libusb20_backend *pbe,
 	q.bcdDeviceHigh = hirev;
 	strlcpy(q.quirkname, str, sizeof(q.quirkname));
 
-	err = libusb20_be_add_dev_quirk(pbe, &q);
-	if (err) {
+	error = libusb20_be_add_dev_quirk(pbe, &q);
+	if (error) {
 		printf("Adding quirk '%s' failed, continuing.\n", str);
 	}
 	return;
@@ -192,7 +202,7 @@ get_token(const char *str, uint8_t narg)
 	for (n = 0; n != (sizeof(token) / sizeof(token[0])); n++) {
 		if (strcasecmp(str, token[n].name) == 0) {
 			if (token[n].narg > narg) {
-				/* to little arguments */
+				/* too few arguments */
 				break;
 			}
 			return (token[n].value);
@@ -266,8 +276,8 @@ usage(void)
 	    "usbconfig - configure the USB subsystem" "\n"
 	    "usage: usbconfig -u <busnum> -a <devaddr> -i <ifaceindex> [cmds...]" "\n"
 	    "commands:" "\n"
-	    "  set_config <num>" "\n"
-	    "  set_alt <altno>" "\n"
+	    "  set_config <cfg_index>" "\n"
+	    "  set_alt <alt_index>" "\n"
 	    "  set_owner <user:group>" "\n"
 	    "  set_perm <mode>" "\n"
 	    "  add_dev_quirk_vplh <vid> <pid> <lo_rev> <hi_rev> <quirk>" "\n"
@@ -277,6 +287,7 @@ usage(void)
 	    "  dump_device_desc" "\n"
 	    "  dump_curr_config_desc" "\n"
 	    "  dump_all_config_desc" "\n"
+	    "  dump_string <index>" "\n"
 	    "  dump_access" "\n"
 	    "  dump_info" "\n"
 	    "  suspend" "\n"
@@ -286,6 +297,7 @@ usage(void)
 	    "  power_on" "\n"
 	    "  reset" "\n"
 	    "  list" "\n"
+	    "  do_request <bmReqTyp> <bReq> <wVal> <wIdx> <wLen> <data...>" "\n"
 	);
 	exit(1);
 }
@@ -293,6 +305,8 @@ usage(void)
 static void
 reset_options(struct options *opt)
 {
+	if (opt->buffer)
+		free(opt->buffer);
 	memset(opt, 0, sizeof(*opt));
 	return;
 }
@@ -418,6 +432,54 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		if (libusb20_dev_open(pdev, 0)) {
 			err(1, "could not open device");
 		}
+		if (opt->got_dump_string) {
+			char *pbuf;
+
+			pbuf = malloc(256);
+			if (pbuf == NULL) {
+				err(1, "out of memory");
+			}
+			if (libusb20_dev_req_string_simple_sync(pdev,
+			    opt->string_index, pbuf, 256)) {
+				printf("STRING_0x%02x = <read error>\n",
+				    opt->string_index);
+			} else {
+				printf("STRING_0x%02x = <%s>\n",
+				    opt->string_index, pbuf);
+			}
+			free(pbuf);
+		}
+		if (opt->got_do_request) {
+			uint16_t actlen;
+			uint16_t t;
+
+			if (libusb20_dev_request_sync(pdev, &opt->setup,
+			    opt->buffer, &actlen, 5000 /* 5 seconds */ , 0)) {
+				printf("REQUEST = <ERROR>\n");
+			} else if (!(opt->setup.bmRequestType &
+			    LIBUSB20_ENDPOINT_IN)) {
+				printf("REQUEST = <OK>\n");
+			} else {
+				t = actlen;
+				printf("REQUEST = <");
+				for (t = 0; t != actlen; t++) {
+					printf("0x%02x%s",
+					    ((uint8_t *)opt->buffer)[t],
+					    (t == (actlen - 1)) ? "" : " ");
+				}
+				printf("><");
+				for (t = 0; t != actlen; t++) {
+					char c;
+
+					c = ((uint8_t *)opt->buffer)[t];
+					if ((c != '<') &&
+					    (c != '>') && isprint(c)) {
+						putchar(c);
+					}
+				}
+				printf(">\n");
+			}
+		}
 		if (opt->got_set_config) {
 			if (libusb20_dev_set_config_index(pdev,
 			    opt->config_index)) {
@@ -425,7 +487,8 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 			}
 		}
 		if (opt->got_set_alt) {
-			if (libusb20_dev_set_alt_index(pdev, opt->iface, opt->alt_index)) {
+			if (libusb20_dev_set_alt_index(pdev, opt->iface,
+			    opt->alt_index)) {
 				err(1, "could not set alternate setting");
 			}
 		}
@@ -435,27 +498,32 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 			}
 		}
 		if (opt->got_suspend) {
-			if (libusb20_dev_set_power_mode(pdev, LIBUSB20_POWER_SUSPEND)) {
+			if (libusb20_dev_set_power_mode(pdev,
+			    LIBUSB20_POWER_SUSPEND)) {
 				err(1, "could not set suspend");
 			}
 		}
 		if (opt->got_resume) {
-			if (libusb20_dev_set_power_mode(pdev, LIBUSB20_POWER_RESUME)) {
+			if (libusb20_dev_set_power_mode(pdev,
+			    LIBUSB20_POWER_RESUME)) {
 				err(1, "could not set resume");
 			}
 		}
 		if (opt->got_power_off) {
-			if (libusb20_dev_set_power_mode(pdev, LIBUSB20_POWER_OFF)) {
+			if (libusb20_dev_set_power_mode(pdev,
+			    LIBUSB20_POWER_OFF)) {
 				err(1, "could not set power OFF");
 			}
 		}
 		if (opt->got_power_save) {
-			if (libusb20_dev_set_power_mode(pdev, LIBUSB20_POWER_SAVE)) {
+			if (libusb20_dev_set_power_mode(pdev,
+			    LIBUSB20_POWER_SAVE)) {
 				err(1, "could not set power SAVE");
 			}
 		}
 		if (opt->got_power_on) {
-			if (libusb20_dev_set_power_mode(pdev, LIBUSB20_POWER_ON)) {
+			if (libusb20_dev_set_power_mode(pdev,
+			    LIBUSB20_POWER_ON)) {
 				err(1, "could not set power ON");
 			}
 		}
@@ -584,13 +652,13 @@ main(int argc, char **argv)
 			n++;
 			break;
 		case T_SET_CONFIG:
-			opt->config_index = num_id(argv[n + 1], "confindex");
+			opt->config_index = num_id(argv[n + 1], "cfg_index");
 			opt->got_set_config = 1;
 			opt->got_any++;
 			n++;
 			break;
 		case T_SET_ALT:
-			opt->alt_index = num_id(argv[n + 1], "confindex");
+			opt->alt_index = num_id(argv[n + 1], "cfg_index");
 			opt->got_set_alt = 1;
 			opt->got_any++;
 			n++;
@@ -630,9 +698,18 @@ main(int argc, char **argv)
 			opt->got_dump_info = 1;
 			opt->got_any++;
 			break;
+		case T_DUMP_STRING:
+			if (opt->got_dump_string) {
+				flush_command(pbe, opt);
+			}
+			opt->string_index = num_id(argv[n + 1], "str_index");
+			opt->got_dump_string = 1;
+			opt->got_any++;
+			n++;
+			break;
 		case T_DUMP_ACCESS:
 			opt->got_dump_access = 1;
-			opt->got_any++;
+			opt->got_any += 2;
 			break;
 		case T_SUSPEND:
 			opt->got_suspend = 1;
@@ -660,6 +737,41 @@ main(int argc, char **argv)
 			break;
 		case T_LIST:
 			opt->got_list = 1;
+			opt->got_any++;
+			break;
+		case T_DO_REQUEST:
+			if (opt->got_do_request) {
+				flush_command(pbe, opt);
+			}
+			LIBUSB20_INIT(LIBUSB20_CONTROL_SETUP, &opt->setup);
+			opt->setup.bmRequestType = num_id(argv[n + 1], "bmReqTyp");
+			opt->setup.bRequest = num_id(argv[n + 2], "bReq");
+			opt->setup.wValue = num_id(argv[n + 3], "wVal");
+			opt->setup.wIndex = num_id(argv[n + 4], "wIndex");
+			opt->setup.wLength = num_id(argv[n + 5], "wLen");
+			if (opt->setup.wLength != 0) {
+				opt->buffer = malloc(opt->setup.wLength);
+			} else {
+				opt->buffer = NULL;
+			}
+
+			n += 5;
+
+			if (!(opt->setup.bmRequestType &
+			    LIBUSB20_ENDPOINT_IN)) {
+				/* copy in data */
+				t = (argc - n - 1);
+				if (t < opt->setup.wLength) {
+					err(1, "request data missing");
+				}
+				t = opt->setup.wLength;
+				while (t--) {
+					((uint8_t *)opt->buffer)[t] =
+					    num_id(argv[n + t + 1], "req_data");
+				}
+				n += opt->setup.wLength;
+			}
+			opt->got_do_request = 1;
 			opt->got_any++;
 			break;
 		default:

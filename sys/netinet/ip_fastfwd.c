@@ -103,10 +103,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_options.h>
+#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 
-static int ipfastforward_active = 0;
+#ifdef VIMAGE_GLOBALS
+static int ipfastforward_active;
+#endif
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, fastforwarding,
     CTLFLAG_RW, ipfastforward_active, 0, "Enable fast IP forwarding");
 
@@ -125,7 +128,7 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
 	dst->sin_addr.s_addr = dest.s_addr;
-	in_rtalloc_ign(ro, RTF_CLONING, M_GETFIB(m));
+	in_rtalloc_ign(ro, 0, M_GETFIB(m));
 
 	/*
 	 * Route there and interface still up?

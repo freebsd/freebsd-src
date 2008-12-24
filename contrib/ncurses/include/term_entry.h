@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,10 +29,10 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey                        1998-2004               *
+ *     and: Thomas E. Dickey                        1998-on                 *
  ****************************************************************************/
 
-/* $Id: term_entry.h,v 1.34 2005/07/16 21:15:07 tom Exp $ */
+/* $Id: term_entry.h,v 1.35 2008/08/16 16:16:03 tom Exp $ */
 
 /*
  *	term_entry.h -- interface to entry-manipulation code
@@ -52,7 +52,7 @@ extern "C" {
 
 typedef struct entry {
 	TERMTYPE	tterm;
-	int		nuses;
+	unsigned	nuses;
 	struct
         {
 	    char		*name;

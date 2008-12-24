@@ -51,7 +51,6 @@ usb2_config_td_dispatch(struct usb2_proc_msg *pm)
 			(ctd->p_end_of_commands) (ctd->p_softc);
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -120,7 +119,6 @@ usb2_config_td_drain(struct usb2_config_td *ctd)
 	if (ctd->p_msgs) {
 		usb2_proc_drain(&ctd->usb2_proc);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -141,7 +139,6 @@ usb2_config_td_unsetup(struct usb2_config_td *ctd)
 		free(ctd->p_msgs, M_USBDEV);
 		ctd->p_msgs = NULL;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -234,7 +231,6 @@ usb2_config_td_queue_command(struct usb2_config_td *ctd,
 	if (command_sync == USB2_CONFIG_TD_SYNC) {
 		usb2_proc_mwait(&ctd->usb2_proc, pi_0, pi_1);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*

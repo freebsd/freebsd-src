@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004-2008 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -26,19 +26,29 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#26 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#39 $
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+
+#include <config/config.h>
+
 #include <sys/dirent.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
+#else /* !HAVE_FULL_QUEUE_H */
+#include <compat/queue.h>
+#endif /* !HAVE_FULL_QUEUE_H */
 #include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <bsm/audit.h>
 #include <bsm/audit_uevents.h>
 #include <bsm/libbsm.h>
+
+#include <netinet/in.h>
 
 #include <err.h>
 #include <errno.h>
@@ -51,19 +61,46 @@
 #include <signal.h>
 #include <string.h>
 #include <syslog.h>
+#include <netdb.h>
 
 #include "auditd.h"
+#ifdef USE_MACH_IPC
+#include <notify.h>
+#include <mach/port.h>
+#include <mach/mach_error.h>
+#include <mach/mach_traps.h>
+#include <mach/mach.h>
+#include <mach/host_special_ports.h>
+
+#include "auditd_control_server.h"
+#include "audit_triggers_server.h"
+#endif /* USE_MACH_IPC */
+
+#ifndef HAVE_STRLCPY
+#include <compat/strlcpy.h>
+#endif
 
 #define	NA_EVENT_STR_SIZE	25
 #define	POL_STR_SIZE		128
-
 static int	 ret, minval;
 static char	*lastfile = NULL;
 static int	 allhardcount = 0;
-static int	 triggerfd = 0;
 static int	 sigchlds, sigchlds_handled;
 static int	 sighups, sighups_handled;
+#ifndef USE_MACH_IPC
 static int	 sigterms, sigterms_handled;
+static int	 triggerfd = 0;
+
+#else /* USE_MACH_IPC */
+
+static mach_port_t      control_port = MACH_PORT_NULL;
+static mach_port_t      signal_port = MACH_PORT_NULL;
+static mach_port_t      port_set = MACH_PORT_NULL;
+
+#ifndef __BSM_INTERNAL_NOTIFY_KEY
+#define	__BSM_INTERNAL_NOTIFY_KEY "com.apple.audit.change"
+#endif /* __BSM_INTERNAL_NOTIFY_KEY */
+#endif /* USE_MACH_IPC */
 
 static TAILQ_HEAD(, dir_ent)	dir_q;
 
@@ -120,19 +157,17 @@ getTSstr(char *buf, int len)
 static char *
 affixdir(char *name, struct dir_ent *dirent)
 {
-	char *fn;
-	char *curdir;
-	const char *sep = "/";
+	char *fn = NULL;
 
-	curdir = dirent->dirname;
 	syslog(LOG_DEBUG, "dir = %s", dirent->dirname);
-
-	fn = malloc(strlen(curdir) + strlen(sep) + (2 * POSTFIX_LEN) + 1);
-	if (fn == NULL)
+	/* 
+	 * Sanity check on file name.
+	 */
+	if (strlen(name) != (FILENAME_LEN - 1)) {
+		syslog(LOG_ERR, "Invalid file name: %s", name);
 		return (NULL);
-	strcpy(fn, curdir);
-	strcat(fn, sep);
-	strcat(fn, name);
+	}
+	asprintf(&fn, "%s/%s", dirent->dirname, name);
 	return (fn);
 }
 
@@ -144,17 +179,18 @@ close_lastfile(char *TS)
 {
 	char *ptr;
 	char *oldname;
+	size_t len;
 
 	if (lastfile != NULL) {
-		oldname = (char *)malloc(strlen(lastfile) + 1);
+		len = strlen(lastfile) + 1;
+		oldname = (char *)malloc(len);
 		if (oldname == NULL)
 			return (-1);
-		strcpy(oldname, lastfile);
+		strlcpy(oldname, lastfile, len);
 
 		/* Rename the last file -- append timestamp. */
 		if ((ptr = strstr(lastfile, NOT_TERMINATED)) != NULL) {
-			*ptr = '.';
-			strcpy(ptr+1, TS);
+			strlcpy(ptr, TS, TIMESTAMP_LEN);
 			if (rename(oldname, lastfile) != 0)
 				syslog(LOG_ERR,
 				    "Could not rename %s to %s: %m", oldname,
@@ -164,7 +200,9 @@ close_lastfile(char *TS)
 				    oldname, lastfile);
 				audit_warn_closefile(lastfile);
 			}
-		}
+		} else 
+			syslog(LOG_ERR, "Could not rename %s to %s", oldname,
+			    lastfile);
 		free(lastfile);
 		free(oldname);
 		lastfile = NULL;
@@ -206,9 +244,9 @@ open_trail(const char *fname)
 static int
 swap_audit_file(void)
 {
-	char timestr[2 * POSTFIX_LEN];
+	char timestr[FILENAME_LEN];
 	char *fn;
-	char TS[POSTFIX_LEN];
+	char TS[TIMESTAMP_LEN];
 	struct dir_ent *dirent;
 #ifdef AUDIT_REVIEW_GROUP
 	struct group *grp;
@@ -217,11 +255,10 @@ swap_audit_file(void)
 #endif
 	int error, fd;
 
-	if (getTSstr(TS, POSTFIX_LEN) != 0)
+	if (getTSstr(TS, TIMESTAMP_LEN) != 0)
 		return (-1);
 
-	strcpy(timestr, TS);
-	strcat(timestr, NOT_TERMINATED);
+	snprintf(timestr, FILENAME_LEN, "%s.%s", TS, NOT_TERMINATED);
 
 #ifdef AUDIT_REVIEW_GROUP
 	/*
@@ -268,6 +305,14 @@ swap_audit_file(void)
 				close(fd);
 			} else {
 				/* Success. */
+#ifdef USE_MACH_IPC
+				/* 
+			 	 * auditctl() potentially changes the audit
+				 * state so post that the audit config (may
+				 * have) changed. 
+			 	 */
+				notify_post(__BSM_INTERNAL_NOTIFY_KEY);
+#endif
 				close_lastfile(TS);
 				lastfile = fn;
 				close(fd);
@@ -321,7 +366,7 @@ read_control_file(void)
 			free(dirent);
 			return (-1);
 		}
-		strcpy(dirent->dirname, cur_dir);
+		strlcpy(dirent->dirname, cur_dir, MAXNAMLEN);
 		TAILQ_INSERT_TAIL(&dir_q, dirent, dirs);
 	}
 
@@ -367,7 +412,7 @@ close_all(void)
 {
 	struct auditinfo ai;
 	int err_ret = 0;
-	char TS[POSTFIX_LEN];
+	char TS[TIMESTAMP_LEN];
 	int aufd;
 	token_t *tok;
 	long cond;
@@ -402,7 +447,13 @@ close_all(void)
 		    strerror(errno));
 		err_ret = 1;
 	}
-	if (getTSstr(TS, POSTFIX_LEN) == 0)
+#ifdef USE_MACH_IPC
+	/* 
+	 * Post a notification that the audit config changed. 
+	 */
+	notify_post(__BSM_INTERNAL_NOTIFY_KEY);
+#endif
+	if (getTSstr(TS, TIMESTAMP_LEN) == 0)
 		close_lastfile(TS);
 	if (lastfile != NULL)
 		free(lastfile);
@@ -415,8 +466,10 @@ close_all(void)
 	}
 	endac();
 
+#ifndef USE_MACH_IPC
 	if (close(triggerfd) != 0)
 		syslog(LOG_ERR, "Error closing control file");
+#endif
 	syslog(LOG_INFO, "Finished");
 	return (0);
 }
@@ -427,6 +480,22 @@ close_all(void)
  * main servicing loop to do proper handling from a non-signal-handler
  * context.
  */
+#ifdef USE_MACH_IPC
+static void
+relay_signal(int signal)
+{
+	mach_msg_empty_send_t msg;
+
+	msg.header.msgh_id = signal;
+	msg.header.msgh_remote_port = signal_port;
+	msg.header.msgh_local_port = MACH_PORT_NULL;
+	msg.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
+	mach_msg(&(msg.header), MACH_SEND_MSG|MACH_SEND_TIMEOUT, sizeof(msg),
+	    0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+}
+
+#else /* ! USE_MACH_IPC */
+
 static void
 relay_signal(int signal)
 {
@@ -438,6 +507,7 @@ relay_signal(int signal)
 	if (signal == SIGCHLD)
 		sigchlds++;
 }
+#endif /* ! USE_MACH_IPC */
 
 /*
  * Registering the daemon.
@@ -492,6 +562,48 @@ register_daemon(void)
 	return (0);
 }
 
+#ifdef USE_MACH_IPC
+/*
+ * Implementation of the auditd_control() MIG simpleroutine.
+ *
+ * React to input from the audit(1) tool.
+ */
+
+/* ARGSUSED */
+kern_return_t
+auditd_control(mach_port_t __unused auditd_port, int trigger)
+{
+	int err_ret = 0;
+
+	switch (trigger) {
+
+	case AUDIT_TRIGGER_ROTATE_USER:
+		/*
+		 * Create a new file and swap with the one
+		 * being used in kernel.
+		 */
+		if (swap_audit_file() == -1)
+			syslog(LOG_ERR, "Error swapping audit file");
+		break;
+
+	case AUDIT_TRIGGER_READ_FILE:
+		if (read_control_file() == -1)
+			syslog(LOG_ERR, "Error in audit control file");
+		 break;
+
+	case AUDIT_TRIGGER_CLOSE_AND_DIE:
+		err_ret = close_all();
+		exit (err_ret);
+		break;
+
+	default:
+		break;
+	}
+
+	return (KERN_SUCCESS);
+}
+#endif /* USE_MACH_IPC */
+
 /*
  * Handle the audit trigger event.
  *
@@ -503,8 +615,18 @@ register_daemon(void)
  * not be retransmitted, and the log file will grow in an unbounded fashion.
  */
 #define	DUPLICATE_INTERVAL	30
-static void
+#ifdef USE_MACH_IPC
+#define	AT_SUCCESS	KERN_SUCCESS
+
+/* ARGSUSED */
+kern_return_t
+audit_triggers(mach_port_t __unused audit_port, int trigger)
+#else
+#define	AT_SUCCESS	0
+
+static int
 handle_audit_trigger(int trigger)
+#endif
 {
 	static int last_trigger, last_warning;
 	static time_t last_time;
@@ -533,7 +655,7 @@ handle_audit_trigger(int trigger)
 					syslog(LOG_INFO,
 					    "Suppressing duplicate trigger %d",
 					    trigger);
-				return;
+				return (AT_SUCCESS);
 			}
 			last_warning = tt;
 			break;
@@ -634,7 +756,11 @@ handle_audit_trigger(int trigger)
 		syslog(LOG_ERR, "Got unknown trigger %d", trigger);
 		break;
 	}
+
+	return (AT_SUCCESS);
 }
+
+#undef	AT_SUCCESS
 
 static void
 handle_sighup(void)
@@ -642,6 +768,69 @@ handle_sighup(void)
 
 	sighups_handled = sighups;
 	config_audit_controls();
+}
+
+static int
+config_audit_host(void)
+{
+	char hoststr[MAXHOSTNAMELEN];
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	struct addrinfo *res;
+	struct auditinfo_addr aia;
+	int error;
+
+	if (getachost(hoststr, MAXHOSTNAMELEN) != 0) {
+		syslog(LOG_WARNING,
+		    "warning: failed to read 'host' param in control file");
+		/*
+		 * To maintain reverse compatability with older audit_control
+		 * files, simply drop a warning if the host parameter has not
+		 * been set.  However, we will explicitly disable the
+		 * generation of extended audit header by passing in a zeroed
+		 * termid structure.
+		 */
+		bzero(&aia, sizeof(aia));
+		aia.ai_termid.at_type = AU_IPv4;
+		error = auditon(A_SETKAUDIT, &aia, sizeof(aia));
+		if (error < 0 && errno == ENOSYS)
+			return (0);
+		else if (error < 0) {
+			syslog(LOG_ERR,
+			    "Failed to set audit host info");
+			return (-1);
+		}
+		return (0);
+	}
+	error = getaddrinfo(hoststr, NULL, NULL, &res);
+	if (error) {
+		syslog(LOG_ERR, "Failed to lookup hostname: %s",  hoststr);
+		return (-1);
+	}
+	switch (res->ai_family) {
+	case PF_INET6:
+		sin6 = (struct sockaddr_in6 *) res->ai_addr;
+		bcopy(&sin6->sin6_addr.s6_addr,
+		    &aia.ai_termid.at_addr[0], sizeof(struct in6_addr));
+		aia.ai_termid.at_type = AU_IPv6;
+		break;
+	case PF_INET:
+		sin = (struct sockaddr_in *) res->ai_addr;
+		bcopy(&sin->sin_addr.s_addr,
+		    &aia.ai_termid.at_addr[0], sizeof(struct in_addr));
+		aia.ai_termid.at_type = AU_IPv4;
+		break;
+	default:
+		syslog(LOG_ERR,
+		    "Un-supported address family in host parameter");
+		return (-1);
+	}
+	if (auditon(A_SETKAUDIT, &aia, sizeof(aia)) < 0) {
+		syslog(LOG_ERR,
+		    "auditon: failed to set audit host information");
+		return (-1);
+	}
+	return (0);
 }
 
 /*
@@ -675,6 +864,61 @@ handle_sigchld(void)
 /*
  * Read the control file for triggers/signals and handle appropriately.
  */
+#ifdef USE_MACH_IPC
+#define	MAX_MSG_SIZE	4096
+
+static boolean_t
+auditd_combined_server(mach_msg_header_t *InHeadP,
+    mach_msg_header_t *OutHeadP)
+{
+	mach_port_t local_port = InHeadP->msgh_local_port;
+
+	if (local_port == signal_port) {
+		int signo = InHeadP->msgh_id;
+		int ret;
+
+		switch(signo) {
+		case SIGTERM:
+			ret = close_all();
+			exit(ret);
+
+		case SIGCHLD:
+			handle_sigchld();
+			return (TRUE);
+
+		case SIGHUP:
+			handle_sighup();
+			return (TRUE);
+
+		default:
+			syslog(LOG_INFO, "Received signal %d", signo);
+			return (TRUE);
+		}
+	} else if (local_port == control_port) {
+		boolean_t result;
+
+		result = audit_triggers_server(InHeadP, OutHeadP);
+		if (!result)
+			result = auditd_control_server(InHeadP, OutHeadP);
+			return (result);
+	}
+	syslog(LOG_INFO, "Recevied msg on bad port 0x%x.", local_port);
+	return (FALSE);
+}
+
+static int
+wait_for_events(void)
+{
+	kern_return_t   result;
+
+	result = mach_msg_server(auditd_combined_server, MAX_MSG_SIZE,
+	    port_set, MACH_MSG_OPTION_NONE);
+	syslog(LOG_ERR, "abnormal exit\n");
+	return (close_all());
+}
+
+#else /* ! USE_MACH_IPC */
+
 static int
 wait_for_events(void)
 {
@@ -706,10 +950,11 @@ wait_for_events(void)
 		if (trigger == AUDIT_TRIGGER_CLOSE_AND_DIE)
 			break;
 		else
-			handle_audit_trigger(trigger);
+			(void)handle_audit_trigger(trigger);
 	}
 	return (close_all());
 }
+#endif /* ! USE_MACH_IPC */
 
 /*
  * Configure the audit controls in the kernel: the event to class mapping,
@@ -817,8 +1062,61 @@ config_audit_controls(void)
 	} else
 		syslog(LOG_ERR, "Failed to obtain filesz: %m");
 
-	return (0);
+	return (config_audit_host());
 }
+
+#ifdef USE_MACH_IPC
+static void
+mach_setup(void)
+{
+	mach_msg_type_name_t poly;
+
+	/*
+	 * Allocate a port set
+	 */
+	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_PORT_SET,
+	    &port_set) != KERN_SUCCESS)  {
+		syslog(LOG_ERR, "Allocation of port set failed");
+		fail_exit();
+	}
+
+	/*
+	 * Allocate a signal reflection port
+	 */
+	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE,
+	    &signal_port) != KERN_SUCCESS ||
+	    mach_port_move_member(mach_task_self(), signal_port, port_set) !=
+	    KERN_SUCCESS)  {
+		syslog(LOG_ERR, "Allocation of signal port failed");
+		fail_exit();
+	}
+
+	/*
+	 * Allocate a trigger port
+	 */
+	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE,
+	    &control_port) != KERN_SUCCESS ||
+	    mach_port_move_member(mach_task_self(), control_port, port_set)
+	    != KERN_SUCCESS)
+		syslog(LOG_ERR, "Allocation of trigger port failed");
+
+        /*
+	 * Create a send right on our trigger port.
+	 */
+	mach_port_extract_right(mach_task_self(), control_port,
+	    MACH_MSG_TYPE_MAKE_SEND, &control_port, &poly);
+
+        /*
+	 * Register the trigger port with the kernel.
+	 */
+	if (host_set_audit_control_port(mach_host_self(), control_port) != 
+	    KERN_SUCCESS) {
+		syslog(LOG_ERR, "Cannot set Mach control port");
+		fail_exit();
+	} else
+		syslog(LOG_DEBUG, "Mach control port registered");
+}
+#endif /* USE_MACH_IPC */
 
 static void
 setup(void)
@@ -828,13 +1126,17 @@ setup(void)
 	int aufd;
 	token_t *tok;
 
+#ifdef USE_MACH_IPC
+	mach_setup();
+#else
 	if ((triggerfd = open(AUDIT_TRIGGER_FILE, O_RDONLY, 0)) < 0) {
 		syslog(LOG_ERR, "Error opening trigger file");
 		fail_exit();
 	}
+#endif
 
 	/*
-	 * To provide event feedback cycles and avoid auditd becoming
+	 * To prevent event feedback cycles and avoid auditd becoming
 	 * stalled if auditing is suspended, auditd and its children run
 	 * without their events being audited.  We allow the uid, tid, and
 	 * mask fields to be implicitly set to zero, but do set the pid.  We
@@ -890,7 +1192,7 @@ main(int argc, char **argv)
 {
 	int ch;
 	int debug = 0;
-	int rc;
+	int rc, logopts;
 
 	while ((ch = getopt(argc, argv, "d")) != -1) {
 		switch(ch) {
@@ -907,10 +1209,14 @@ main(int argc, char **argv)
 		}
 	}
 
+	logopts = LOG_CONS | LOG_PID;
+	if (debug != 0)
+		logopts |= LOG_PERROR;
+
 #ifdef LOG_SECURITY
-	openlog("auditd", LOG_CONS | LOG_PID, LOG_SECURITY);
+	openlog("auditd", logopts, LOG_SECURITY);
 #else
-	openlog("auditd", LOG_CONS | LOG_PID, LOG_AUTH);
+	openlog("auditd", logopts, LOG_AUTH);
 #endif
 	syslog(LOG_INFO, "starting...");
 

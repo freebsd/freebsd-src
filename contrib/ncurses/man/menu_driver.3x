@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_driver.3x,v 1.14 2007/06/02 22:50:09 tom Exp $
+.\" $Id: menu_driver.3x,v 1.15 2008/06/21 21:55:30 tom Exp $
 .TH menu_driver 3X ""
 .SH NAME
 \fBmenu_driver\fR - command-processing loop of the menu system
@@ -37,9 +37,21 @@ int menu_driver(MENU *menu, int c);
 .br
 .SH DESCRIPTION
 Once a menu has been posted (displayed), you should funnel input events to it
-through \fBmenu_driver\fR.  This routine has three major input cases; either
-the input is a menu navigation request, it is a printable ASCII character or it
-is the KEY_MOUSE special key associated with an mouse event.
+through \fBmenu_driver\fR.  This routine has three major input cases:
+.TP 3
+-
+The input is a form navigation request.
+Navigation request codes are constants defined in \fB<form.h>\fP,
+which are distinct from the key- and character codes returned by \fBwgetch\fP.
+.TP 3
+-
+The input is a printable character.
+Printable characters (which must be positive, less than 256) are
+checked according to the program's locale settings.
+.TP 3
+-
+The input is the KEY_MOUSE special key associated with an mouse event.
+.PP
 The menu driver requests are as follows:
 .TP 5
 REQ_LEFT_ITEM
@@ -93,7 +105,7 @@ Move to the next item matching the pattern match.
 REQ_PREV_MATCH
 Move to the previous item matching the pattern match.
 .PP
-If the second argument is a printable ASCII character, the code appends
+If the second argument is a printable character, the code appends
 it to the pattern buffer and attempts to move to the next item matching
 the new pattern.  If there is no such match, \fBmenu_driver\fR returns
 \fBE_NO_MATCH\fR and deletes the appended character from the buffer.
@@ -147,11 +159,11 @@ If a translation
 into a request was done, \fBmenu_driver\fR returns the result of this request.
 .RE
 .PP
-If you clicked outside the user window or the mouse event couldn't be translated
+If you clicked outside the user window or the mouse event could not be translated
 into a menu request an \fBE_REQUEST_DENIED\fR is returned.
 .SS APPLICATION-DEFINED COMMANDS
 .PP
-If the second argument is neither printable ASCII nor one of the above
+If the second argument is neither printable nor one of the above
 pre-defined menu requests or KEY_MOUSE, the drive assumes it is an application-specific
 command and returns \fBE_UNKNOWN_COMMAND\fR.  Application-defined commands
 should be defined relative to \fBMAX_COMMAND\fR, the maximum value of these
@@ -183,7 +195,9 @@ Character failed to match.
 .B E_REQUEST_DENIED
 The menu driver could not process the request.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
+\fBcurses\fR(3X),
+\fBmenu\fR(3X),
+\fBwgetch\fR(3X).
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header files
 \fB<curses.h>\fR.

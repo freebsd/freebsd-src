@@ -68,7 +68,7 @@ flag bits, as described below
 .Pp
 The flags are defined as follows:
 .Pp
-.Bl -tag -width VFCF_SYNTHETIC -compact
+.Bl -tag -width VFCF_DELEGADMIN -compact
 .It Dv VFCF_STATIC
 statically compiled into kernel
 .It Dv VFCF_NETWORK
@@ -85,7 +85,12 @@ stores file names as Unicode
 can be mounted from within a jail if
 .Va security.jail.mount_allowed
 sysctl is set to
-.Dv 1 .
+.Dv 1
+.It Dv VFCF_DELEGADMIN
+supports delegated administration if
+.Va vfs.usermount
+sysctl is set to
+.Dv 1
 .El
 .Sh RETURN VALUES
 .Rv -std getvfsbyname

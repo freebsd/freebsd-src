@@ -63,7 +63,7 @@ static struct ixpiic_softc *ixpiic_sc = NULL;
 static int
 ixpiic_probe(device_t dev)
 {
-	device_set_desc(dev, "IXP425 GPIO-Based I2C Interface");
+	device_set_desc(dev, "IXP4XX GPIO-Based I2C Interface");
 	return (0);
 }
 

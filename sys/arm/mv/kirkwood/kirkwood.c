@@ -98,22 +98,19 @@ struct obio_device obio_devices[] = {
 		{ -1 }, { -1 },
 		CPU_PM_CTRL_NONE
 	},
-	{ "pcib", MV_PCIE_BASE, MV_PCIE_SIZE,
-		{ MV_INT_PEX0_ERR, -1 },
-		{ -1 },
-		CPU_PM_CTRL_PEX0
-	},
 	{ NULL, 0, 0, { 0 }, { 0 }, 0 }
 };
 
-#if 0
-const struct mv_pci_info pci_info[] = {
-	{ 1,    MV_PCIE_IO_BASE, MV_PCIE_IO_SIZE,
-		MV_PCIE_MEM_BASE, MV_PCIE_MEM_SIZE,
+const struct obio_pci mv_pci_info[] = {
+	{ MV_TYPE_PCIE,
+		MV_PCIE_BASE, MV_PCIE_SIZE,
+		MV_PCIE_IO_BASE, MV_PCIE_IO_SIZE,	4, 0xE0,
+		MV_PCIE_MEM_BASE, MV_PCIE_MEM_SIZE,	4, 0xE8,
 		NULL, MV_INT_PEX0
-	}
+	},
+
+	{ 0, 0, 0 }
 };
-#endif
 
 struct resource_spec mv_gpio_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -139,12 +136,6 @@ struct resource_spec mv_xor_spec[] = {
 };
 
 const struct decode_win cpu_win_tbl[] = {
-	/* PCIE IO */
-	{ 4, 0xE0, MV_PCIE_IO_PHYS_BASE, MV_PCIE_IO_SIZE, -1 },
-
-	/* PCIE MEM */
-	{ 4, 0xE8, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
-
 	/* Device bus BOOT */
 	{ 1, 0x0f, MV_DEV_BOOT_PHYS_BASE, MV_DEV_BOOT_SIZE, -1 },
 

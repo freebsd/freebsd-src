@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004-2008 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
@@ -14,7 +14,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#63 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#72 $
  */
 
 #include <sys/types.h>
@@ -87,7 +87,7 @@
 			memset((dptr), 0, (length));			\
 	} else								\
 		(dptr) = NULL;						\
-	assert(t == NULL || dptr != NULL);				\
+	assert((t) == NULL || (dptr) != NULL);				\
 } while (0)
 
 /*
@@ -98,7 +98,7 @@
  * text                    N bytes + 1 terminating NULL byte
  */
 token_t *
-au_to_arg32(char n, char *text, u_int32_t v)
+au_to_arg32(char n, const char *text, u_int32_t v)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -119,11 +119,10 @@ au_to_arg32(char n, char *text, u_int32_t v)
 	ADD_STRING(dptr, text, textlen);
 
 	return (t);
-
 }
 
 token_t *
-au_to_arg64(char n, char *text, u_int64_t v)
+au_to_arg64(char n, const char *text, u_int64_t v)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -144,11 +143,10 @@ au_to_arg64(char n, char *text, u_int64_t v)
 	ADD_STRING(dptr, text, textlen);
 
 	return (t);
-
 }
 
 token_t *
-au_to_arg(char n, char *text, u_int32_t v)
+au_to_arg(char n, const char *text, u_int32_t v)
 {
 
 	return (au_to_arg32(n, text, v));
@@ -180,8 +178,8 @@ au_to_attr32(struct vnode_au_info *vni)
 	ADD_U_CHAR(dptr, AUT_ATTR32);
 
 	/*
-	 * Darwin defines the size for the file mode
-	 * as 2 bytes; BSM defines 4 so pad with 0
+	 * Darwin defines the size for the file mode as 2 bytes; BSM defines
+	 * 4 so pad with 0.
 	 */
 	ADD_U_INT16(dptr, pad0_16);
 	ADD_U_INT16(dptr, vni->vn_mode);
@@ -191,7 +189,7 @@ au_to_attr32(struct vnode_au_info *vni)
 	ADD_U_INT32(dptr, vni->vn_fsid);
 
 	/*
-	 * Some systems use 32-bit file ID's, other's use 64-bit file IDs.
+	 * Some systems use 32-bit file ID's, others use 64-bit file IDs.
 	 * Attempt to handle both, and let the compiler sort it out.  If we
 	 * could pick this out at compile-time, it would be better, so as to
 	 * avoid the else case below.
@@ -225,8 +223,8 @@ au_to_attr64(struct vnode_au_info *vni)
 	ADD_U_CHAR(dptr, AUT_ATTR64);
 
 	/*
-	 * Darwin defines the size for the file mode
-	 * as 2 bytes; BSM defines 4 so pad with 0
+	 * Darwin defines the size for the file mode as 2 bytes; BSM defines
+	 * 4 so pad with 0.
 	 */
 	ADD_U_INT16(dptr, pad0_16);
 	ADD_U_INT16(dptr, vni->vn_mode);
@@ -270,7 +268,7 @@ au_to_attr(struct vnode_au_info *vni)
  * data items              (depends on basic unit)
  */
 token_t *
-au_to_data(char unit_print, char unit_type, char unit_count, char *p)
+au_to_data(char unit_print, char unit_type, char unit_count, const char *p)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -298,7 +296,7 @@ au_to_data(char unit_print, char unit_type, char unit_count, char *p)
 
 	default:
 		errno = EINVAL;
- 		return (NULL);
+		return (NULL);
 	}
 
 	totdata = datasize * unit_count;
@@ -345,7 +343,7 @@ token_t *
 au_to_groups(int *groups)
 {
 
-	return (au_to_newgroups(AUDIT_MAX_GROUPS, (gid_t*)groups));
+	return (au_to_newgroups(AUDIT_MAX_GROUPS, (gid_t *)groups));
 }
 
 /*
@@ -396,7 +394,7 @@ au_to_in_addr(struct in_addr *internet_addr)
 /*
  * token ID                1 byte
  * address type/length     4 bytes
- * Address                16 bytes
+ * address                16 bytes
  */
 token_t *
 au_to_in_addr_ex(struct in6_addr *internet_addr)
@@ -484,8 +482,8 @@ au_to_ipc_perm(struct ipc_perm *perm)
 	ADD_U_CHAR(dptr, AUT_IPC_PERM);
 
 	/*
-	 * Darwin defines the sizes for ipc_perm members
-	 * as 2 bytes; BSM defines 4 so pad with 0
+	 * Darwin defines the sizes for ipc_perm members as 2 bytes; BSM
+	 * defines 4 so pad with 0.
 	 */
 	ADD_U_INT16(dptr, pad0);
 	ADD_U_INT16(dptr, perm->uid);
@@ -506,15 +504,23 @@ au_to_ipc_perm(struct ipc_perm *perm)
 
 #ifdef HAVE_IPC_PERM___SEQ
 	ADD_U_INT16(dptr, perm->__seq);
-#else
+#else	/* HAVE_IPC_PERM___SEQ */
+#ifdef  HAVE_IPC_PERM__SEQ
+	ADD_U_INT16(dptr, perm->_seq);
+#else	/* HAVE_IPC_PERM__SEQ */
 	ADD_U_INT16(dptr, perm->seq);
-#endif
+#endif	/* HAVE_IPC_PERM__SEQ */
+#endif	/* HAVE_IPC_PERM___SEQ */
 
 #ifdef HAVE_IPC_PERM___KEY
 	ADD_U_INT32(dptr, perm->__key);
-#else
+#else	/* HAVE_IPC_PERM___KEY */
+#ifdef  HAVE_IPC_PERM__KEY
+	ADD_U_INT32(dptr, perm->_key);
+#else	/* HAVE_IPC_PERM__KEY */
 	ADD_U_INT32(dptr, perm->key);
-#endif
+#endif	/* HAVE_IPC_PERM__KEY */
+#endif	/* HAVE_IPC_PERM___KEY */
 
 	return (t);
 }
@@ -545,7 +551,7 @@ au_to_iport(u_int16_t iport)
  * data                    size bytes
  */
 token_t *
-au_to_opaque(char *data, u_int16_t bytes)
+au_to_opaque(const char *data, u_int16_t bytes)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -569,7 +575,7 @@ au_to_opaque(char *data, u_int16_t bytes)
  * file pathname           N bytes + 1 terminating NULL byte
  */
 token_t *
-au_to_file(char *file, struct timeval tm)
+au_to_file(const char *file, struct timeval tm)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -601,7 +607,7 @@ au_to_file(char *file, struct timeval tm)
  * text                    N bytes + 1 terminating NULL byte
  */
 token_t *
-au_to_text(char *text)
+au_to_text(const char *text)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -627,7 +633,7 @@ au_to_text(char *text)
  * path                    N bytes + 1 terminating NULL byte
  */
 token_t *
-au_to_path(char *text)
+au_to_path(const char *text)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -906,7 +912,7 @@ au_to_sock_unix(struct sockaddr_un *so)
 	if (t == NULL)
 		return (NULL);
 
-	ADD_U_CHAR(dptr, AU_SOCK_UNIX_TOKEN);
+	ADD_U_CHAR(dptr, AUT_SOCKUNIX);
 	/* BSM token has two bytes for family */
 	ADD_U_CHAR(dptr, 0);
 	ADD_U_CHAR(dptr, so->sun_family);
@@ -943,14 +949,13 @@ au_to_sock_inet32(struct sockaddr_in *so)
 	 *
 	 * XXXRW: Should a name space conversion be taking place on the value
 	 * of sin_family?
- 	 */
+	 */
 	family = so->sin_family;
 	ADD_U_INT16(dptr, family);
 	ADD_MEM(dptr, &so->sin_port, sizeof(uint16_t));
 	ADD_MEM(dptr, &so->sin_addr.s_addr, sizeof(uint32_t));
 
 	return (t);
-
 }
 
 token_t *
@@ -967,8 +972,8 @@ au_to_sock_inet128(struct sockaddr_in6 *so)
 	ADD_U_CHAR(dptr, AUT_SOCKINET128);
 	/*
 	 * In Darwin, sin6_family is one octet, but BSM defines the token
- 	 * to store two. So we copy in a 0 first.
- 	 */
+	 * to store two. So we copy in a 0 first.
+	 */
 	ADD_U_CHAR(dptr, 0);
 	ADD_U_CHAR(dptr, so->sin6_family);
 
@@ -976,7 +981,6 @@ au_to_sock_inet128(struct sockaddr_in6 *so)
 	ADD_MEM(dptr, &so->sin6_addr, 4 * sizeof(uint32_t));
 
 	return (t);
-
 }
 
 token_t *
@@ -1162,8 +1166,8 @@ au_to_subject_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 
 #if !defined(_KERNEL) && !defined(KERNEL) && defined(HAVE_AUDIT_SYSCALLS)
 /*
- * Collects audit information for the current process
- * and creates a subject token from it
+ * Collects audit information for the current process and creates a subject
+ * token from it.
  */
 token_t *
 au_to_me(void)
@@ -1225,7 +1229,7 @@ au_to_exec_args(char **argv)
  * zonename                N bytes + 1 terminating NULL byte
  */
 token_t *
-au_to_zonename(char *zonename)
+au_to_zonename(const char *zonename)
 {
 	u_char *dptr = NULL;
 	u_int16_t textlen;
@@ -1317,6 +1321,53 @@ au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	return (t);
 }
 
+/*
+ * token ID                1 byte
+ * record byte count       4 bytes
+ * version #               1 byte    [2]
+ * event type              2 bytes
+ * event modifier          2 bytes
+ * address type/length     4 bytes
+ * machine address         4 bytes/16 bytes (IPv4/IPv6 address)
+ * seconds of time         4 bytes/8 bytes (32-bit/64-bit value)
+ * milliseconds of time    4 bytes/8 bytes (32-bit/64-bit value)
+ */
+token_t *
+au_to_header32_ex_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
+    struct timeval tm, struct auditinfo_addr *aia)
+{
+	token_t *t;
+	u_char *dptr = NULL;
+	u_int32_t timems, hostid;
+	au_tid_addr_t *tid = &aia->ai_termid;
+
+	if (tid->at_type != AU_IPv4 && tid->at_type != AU_IPv6)
+		return (NULL);
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
+	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 3 *
+	    sizeof(u_int32_t) + tid->at_type);
+	if (t == NULL) 
+		return (NULL);
+
+	ADD_U_CHAR(dptr, AUT_HEADER32_EX);
+	ADD_U_INT32(dptr, rec_size);
+	ADD_U_CHAR(dptr, AUDIT_HEADER_VERSION_OPENBSM);
+	ADD_U_INT16(dptr, e_type);
+	ADD_U_INT16(dptr, e_mod);
+
+	ADD_U_INT32(dptr, tid->at_type);
+	if (tid->at_type == AU_IPv6)
+		ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
+	else
+		ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
+	timems = tm.tv_usec/1000;
+	/* Add the timestamp */
+	ADD_U_INT32(dptr, tm.tv_sec);
+	ADD_U_INT32(dptr, timems);      /* We need time in ms. */
+
+	return (t);   
+}
+
 token_t *
 au_to_header64_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
     struct timeval tm)
@@ -1345,6 +1396,24 @@ au_to_header64_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 }
 
 #if !defined(KERNEL) && !defined(_KERNEL)
+#ifdef HAVE_AUDIT_SYSCALLS
+token_t *
+au_to_header32_ex(int rec_size, au_event_t e_type, au_emod_t e_mod)
+{
+	struct timeval tm;
+	struct auditinfo_addr aia;
+
+	if (gettimeofday(&tm, NULL) == -1)
+		return (NULL);
+	if (auditon(A_GETKAUDIT, &aia, sizeof(aia)) < 0) {
+		if (errno != ENOSYS)
+			return (NULL);
+		return (au_to_header32_tm(rec_size, e_type, e_mod, tm));
+	}
+	return (au_to_header32_ex_tm(rec_size, e_type, e_mod, tm, &aia));
+}
+#endif /* HAVE_AUDIT_SYSCALLS */
+
 token_t *
 au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod)
 {
@@ -1372,7 +1441,16 @@ au_to_header(int rec_size, au_event_t e_type, au_emod_t e_mod)
 
 	return (au_to_header32(rec_size, e_type, e_mod));
 }
-#endif
+
+#ifdef HAVE_AUDIT_SYSCALLS
+token_t *
+au_to_header_ex(int rec_size, au_event_t e_type, au_emod_t e_mod)
+{
+
+	return (au_to_header32_ex(rec_size, e_type, e_mod));
+}
+#endif /* HAVE_AUDIT_SYSCALLS */
+#endif /* !defined(KERNEL) && !defined(_KERNEL) */
 
 /*
  * token ID                1 byte

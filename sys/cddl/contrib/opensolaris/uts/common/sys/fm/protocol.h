@@ -20,14 +20,12 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_SYS_FM_PROTOCOL_H
 #define	_SYS_FM_PROTOCOL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -55,6 +53,8 @@ extern "C" {
 #define	FM_LIST_SUSPECT_CLASS		FM_LIST_EVENT ".suspect"
 #define	FM_LIST_ISOLATED_CLASS		FM_LIST_EVENT ".isolated"
 #define	FM_LIST_REPAIRED_CLASS		FM_LIST_EVENT ".repaired"
+#define	FM_LIST_UPDATED_CLASS		FM_LIST_EVENT ".updated"
+#define	FM_LIST_RESOLVED_CLASS		FM_LIST_EVENT ".resolved"
 
 /* ereport class subcategory values */
 #define	FM_ERROR_CPU			"cpu"
@@ -71,7 +71,10 @@ extern "C" {
 /* list.* event payload member names */
 #define	FM_LIST_EVENT_SIZE		"list-sz"
 
-/* list.suspect, isolated, and repaired versions and payload member names */
+/*
+ * list.suspect, isolated, updated, repaired and resolved
+ * versions/payload member names.
+ */
 #define	FM_SUSPECT_UUID			"uuid"
 #define	FM_SUSPECT_DIAG_CODE		"code"
 #define	FM_SUSPECT_DIAG_TIME		"diag-time"
@@ -80,9 +83,19 @@ extern "C" {
 #define	FM_SUSPECT_FAULT_SZ		"fault-list-sz"
 #define	FM_SUSPECT_FAULT_STATUS		"fault-status"
 #define	FM_SUSPECT_MESSAGE		"message"
+#define	FM_SUSPECT_RETIRE		"retire"
+#define	FM_SUSPECT_RESPONSE		"response"
 
 #define	FM_SUSPECT_VERS0		0
 #define	FM_SUSPECT_VERSION		FM_SUSPECT_VERS0
+
+#define	FM_SUSPECT_FAULTY		0x1
+#define	FM_SUSPECT_UNUSABLE		0x2
+#define	FM_SUSPECT_NOT_PRESENT		0x4
+#define	FM_SUSPECT_DEGRADED		0x8
+#define	FM_SUSPECT_REPAIRED		0x10
+#define	FM_SUSPECT_REPLACED		0x20
+#define	FM_SUSPECT_ACQUITTED		0x40
 
 /* fault event versions and payload member names */
 #define	FM_FAULT_VERS0			0
@@ -104,6 +117,9 @@ extern "C" {
 #define	FM_RSRC_ASRU_UUID		"uuid"
 #define	FM_RSRC_ASRU_CODE		"code"
 #define	FM_RSRC_ASRU_FAULTY		"faulty"
+#define	FM_RSRC_ASRU_REPAIRED		"repaired"
+#define	FM_RSRC_ASRU_REPLACED		"replaced"
+#define	FM_RSRC_ASRU_ACQUITTED		"acquitted"
 #define	FM_RSRC_ASRU_UNUSABLE		"unusable"
 #define	FM_RSRC_ASRU_EVENT		"event"
 
@@ -146,6 +162,7 @@ extern "C" {
 #define	FM_FMRI_AUTHORITY		"authority"
 #define	FM_FMRI_SCHEME			"scheme"
 #define	FM_FMRI_SVC_AUTHORITY		"svc-authority"
+#define	FM_FMRI_FACILITY		"facility"
 
 /* FMRI authority-type member names */
 #define	FM_FMRI_AUTH_CHASSIS		"chassis-id"
@@ -199,6 +216,10 @@ extern "C" {
 #define	FM_FMRI_HC_LIST			"hc-list"
 #define	FM_FMRI_HC_SPECIFIC		"hc-specific"
 
+/* facility member names */
+#define	FM_FMRI_FACILITY_NAME		"facility-name"
+#define	FM_FMRI_FACILITY_TYPE		"facility-type"
+
 /* hc-list version and member names */
 #define	FM_FMRI_HC_NAME			"hc-name"
 #define	FM_FMRI_HC_ID			"hc-id"
@@ -208,6 +229,7 @@ extern "C" {
 
 /* hc-specific member names */
 #define	FM_FMRI_HC_SPECIFIC_OFFSET	"offset"
+#define	FM_FMRI_HC_SPECIFIC_PHYSADDR	"physaddr"
 
 /* fmd module scheme member names */
 #define	FM_FMRI_FMD_NAME		"mod-name"
@@ -238,6 +260,13 @@ extern "C" {
 #define	FM_FMRI_CPU_MASK		"cpumask"
 #define	FM_FMRI_CPU_VID			"cpuvid"
 #define	FM_FMRI_CPU_CPUFRU		"cpufru"
+#define	FM_FMRI_CPU_CACHE_INDEX		"cacheindex"
+#define	FM_FMRI_CPU_CACHE_WAY		"cacheway"
+#define	FM_FMRI_CPU_CACHE_BIT		"cachebit"
+#define	FM_FMRI_CPU_CACHE_TYPE		"cachetype"
+
+#define	FM_FMRI_CPU_CACHE_TYPE_L2	0
+#define	FM_FMRI_CPU_CACHE_TYPE_L3	1
 
 /* legacy-hc scheme member names */
 #define	FM_FMRI_LEGACY_HC		"component"

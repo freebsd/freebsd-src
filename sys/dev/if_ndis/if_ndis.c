@@ -142,6 +142,8 @@ static void ndis_tick		(void *);
 static void ndis_ticktask	(device_object *, void *);
 static int ndis_raw_xmit	(struct ieee80211_node *, struct mbuf *,
 	const struct ieee80211_bpf_params *);
+static void ndis_update_mcast	(struct ifnet *ifp);
+static void ndis_update_promisc	(struct ifnet *ifp);
 static void ndis_start		(struct ifnet *);
 static void ndis_starttask	(device_object *, void *);
 static void ndis_resettask	(device_object *, void *);
@@ -915,6 +917,8 @@ got_crypto:
 		//ic->ic_bss->ni_chan = ic->ic_bsschan;
 		ic->ic_vap_create = ndis_vap_create;
 		ic->ic_vap_delete = ndis_vap_delete;
+		ic->ic_update_mcast = ndis_update_mcast;
+		ic->ic_update_promisc = ndis_update_promisc;
 
 	} else {
 		ifmedia_init(&sc->ifmedia, IFM_IMASK, ndis_ifmedia_upd,
@@ -1764,6 +1768,20 @@ ndis_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	m_freem(m);
 	ieee80211_free_node(ni);
 	return 0;
+}
+
+static void
+ndis_update_mcast(struct ifnet *ifp)
+{
+       struct ndis_softc       *sc = ifp->if_softc;
+
+       ndis_setmulti(sc);
+}
+
+static void
+ndis_update_promisc(struct ifnet *ifp)
+{
+       /* not supported */
 }
 
 static void

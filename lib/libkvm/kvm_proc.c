@@ -54,10 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_task.h>
-#define	_WANT_PRISON	/* make jail.h give us 'struct prison' */
-#include <sys/jail.h>
+#include <sys/cpuset.h>
 #include <sys/user.h>
 #include <sys/proc.h>
+#define	_WANT_PRISON	/* make jail.h give us 'struct prison' */
+#include <sys/jail.h>
 #include <sys/exec.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>

@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#13 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#15 $
 .\"
 .Dd April 19, 2005
 .Dt AU_TOKEN 3
@@ -72,6 +72,8 @@
 .Nm au_to_header ,
 .Nm au_to_header32 ,
 .Nm au_to_header64 ,
+.Nm au_to_header_ex ,
+.Nm au_to_header32_ex ,
 .Nm au_to_trailer ,
 .Nm au_to_zonename
 .Nd "routines for generating BSM audit tokens"
@@ -80,11 +82,11 @@
 .Sh SYNOPSIS
 .In bsm/libbsm.h
 .Ft "token_t *"
-.Fn au_to_arg32 "char n" "char *text" "u_int32_t v"
+.Fn au_to_arg32 "char n" "const char *text" "u_int32_t v"
 .Ft "token_t *"
-.Fn au_to_arg64 "char n" "char *text" "u_int64_t v"
+.Fn au_to_arg64 "char n" "const char *text" "u_int64_t v"
 .Ft "token_t *"
-.Fn au_to_arg "char n" "char *text" "u_int32_t v"
+.Fn au_to_arg "char n" "const char *text" "u_int32_t v"
 .Ft "token_t *"
 .Fn au_to_attr32 "struct vattr *attr"
 .Ft "token_t *"
@@ -92,7 +94,7 @@
 .Ft "token_t *"
 .Fn au_to_attr "struct vattr *attr"
 .Ft "token_t *"
-.Fn au_to_data "char unit_print" "char unit_type" "char unit_count" "char *p"
+.Fn au_to_data "char unit_print" "char unit_type" "char unit_count" "const char *p"
 .Ft "token_t *"
 .Fn au_to_exit "int retval" "int err"
 .Ft "token_t *"
@@ -112,13 +114,13 @@
 .Ft "token_t *"
 .Fn au_to_iport "u_int16_t iport"
 .Ft "token_t *"
-.Fn au_to_opaque "char *data" "u_int16_t bytes"
+.Fn au_to_opaque "const char *data" "u_int16_t bytes"
 .Ft "token_t *"
-.Fn au_to_file "char *file" "struct timeval tm"
+.Fn au_to_file "const char *file" "struct timeval tm"
 .Ft "token_t *"
-.Fn au_to_text "char *text"
+.Fn au_to_text "const char *text"
 .Ft "token_t *"
-.Fn au_to_path "char *text"
+.Fn au_to_path "const char *text"
 .Ft "token_t *"
 .Fo au_to_process32
 .Fa "au_id_t auid" "uid_t euid" "gid_t egid" "uid_t ruid"
@@ -196,9 +198,13 @@
 .Ft "token_t *"
 .Fn au_to_header64 "int rec_size" "au_event_t e_type" "au_emod_t e_mod"
 .Ft "token_t *"
+.Fn au_to_header_ex "int rec_size" "au_event_t e_type" "au_emod_t e_mod"
+.Ft "token_t *"
+.Fn au_to_header32_ex "int rec_size" "au_event_t e_type" "au_emod_t e_mod"
+.Ft "token_t *"
 .Fn au_to_trailer "int rec_size"
 .Ft "token_t *"
-.Fn au_to_zonename "char *zonename"
+.Fn au_to_zonename "const char *zonename"
 .Sh DESCRIPTION
 These interfaces support the allocation of BSM audit tokens, represented by
 .Vt token_t ,

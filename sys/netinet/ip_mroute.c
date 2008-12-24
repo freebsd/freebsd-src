@@ -96,6 +96,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/pim.h>
 #include <netinet/pim_var.h>
 #include <netinet/udp.h>
+#include <netinet/vinet.h>
+
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>

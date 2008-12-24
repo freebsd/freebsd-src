@@ -198,7 +198,7 @@ struct ppb_device {
 					 * IEEE1284 code is used */
 	struct ppb_xfer
 		put_xfer[PPB_MAX_XFER];
-  
+
  	struct resource *intr_resource;
  	void *intr_cookie;
 };
@@ -206,10 +206,10 @@ struct ppb_device {
 /* EPP standards */
 #define EPP_1_9		0x0			/* default */
 #define EPP_1_7		0x1
-  
+
 /* Parallel Port Chipset IVARS */		/* elsewhere XXX */
 #define PPC_IVAR_EPP_PROTO	0
- 
+
 /*
  * Maximum size of the PnP info string
  */

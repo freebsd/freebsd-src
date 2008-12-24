@@ -46,6 +46,7 @@
 #define	FXP_CSR_EEPROMCONTROL	14	/* eeprom control (2 bytes) */
 #define	FXP_CSR_MDICONTROL	16	/* mdi control (4 bytes) */
 #define	FXP_CSR_FLOWCONTROL	0x19	/* flow control (2 bytes) */
+#define	FXP_CSR_PMDR		0x1B	/* power management driver (1 byte) */
 #define	FXP_CSR_GENCONTROL	0x1C	/* general control (1 byte) */
 
 /*
@@ -223,7 +224,7 @@ struct fxp_cb_config {
 
 	/* Bytes 22 - 31 -- i82550 only */
 	u_int		__FXP_BITFIELD3(gamla_rx:1,
-			    vlan_drop_en:1,
+			    vlan_strip_en:1,
 			    :6);
 	uint8_t		pad[9];
 };
@@ -287,12 +288,12 @@ struct fxp_cb_tx {
 	/*
 	 * The following structure isn't actually part of the TxCB,
 	 * unless the extended TxCB feature is being used.  In this
-	 * case, the first two elements of the structure below are 
+	 * case, the first two elements of the structure below are
 	 * fetched along with the TxCB.
 	 */
 	union {
 		struct fxp_ipcb ipcb;
-		struct fxp_tbd tbd[FXP_NTXSEG];
+		struct fxp_tbd tbd[FXP_NTXSEG + 1];
 	} tx_cb_u;
 };
 
@@ -376,6 +377,7 @@ struct fxp_rfa {
 #define FXP_RFA_STATUS_RNR	0x0200	/* no resources */
 #define FXP_RFA_STATUS_ALIGN	0x0400	/* alignment error */
 #define FXP_RFA_STATUS_CRC	0x0800	/* CRC error */
+#define FXP_RFA_STATUS_VLAN	0x1000	/* VLAN tagged frame */
 #define FXP_RFA_STATUS_OK	0x2000	/* packet received okay */
 #define FXP_RFA_STATUS_C	0x8000	/* packet reception complete */
 #define FXP_RFA_CONTROL_SF	0x08	/* simple/flexible memory mode */
@@ -420,7 +422,7 @@ struct fxp_stats {
 };
 #define FXP_STATS_DUMP_COMPLETE	0xa005
 #define FXP_STATS_DR_COMPLETE	0xa007
-	
+
 /*
  * Serial EEPROM control register bits
  */

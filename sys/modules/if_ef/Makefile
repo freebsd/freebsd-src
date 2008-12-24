@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../net
 
 KMOD=	if_ef
-SRCS=	if_ef.c opt_ipx.h opt_inet.h opt_ef.h
+SRCS=	if_ef.c opt_ipx.h opt_inet.h opt_ef.h opt_route.h
 
 .if defined(EFDEBUG)
 CFLAGS+= -DEF_DEBUG

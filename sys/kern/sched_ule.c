@@ -946,7 +946,7 @@ tdq_idled(struct tdq *tdq)
 static void
 tdq_notify(struct tdq *tdq, struct thread *td)
 {
-	int cpri;
+	struct thread *ctd;
 	int pri;
 	int cpu;
 
@@ -954,10 +954,10 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		return;
 	cpu = td->td_sched->ts_cpu;
 	pri = td->td_priority;
-	cpri = pcpu_find(cpu)->pc_curthread->td_priority;
-	if (!sched_shouldpreempt(pri, cpri, 1))
+	ctd = pcpu_find(cpu)->pc_curthread;
+	if (!sched_shouldpreempt(pri, ctd->td_priority, 1))
 		return;
-	if (TD_IS_IDLETHREAD(td)) {
+	if (TD_IS_IDLETHREAD(ctd)) {
 		/*
 		 * If the idle thread is still 'running' it's probably
 		 * waiting on us to release the tdq spinlock already.  No
@@ -2636,9 +2636,9 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	sbuf_printf(sb, "%*s <flags>", indent, "");
 	if (cg->cg_flags != 0) {
 		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
-			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>");
+			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>\n");
 		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
-			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>");
+			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>\n");
 	}
 	sbuf_printf(sb, "</flags>\n");
 

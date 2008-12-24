@@ -647,7 +647,7 @@ ENTRY(spitfire_block_copy)
 	stda	%f32, [%o1] %asi
 	add	%o0, 64, %o0
 	sub	%o2, 64, %o2
-	ba	%xcc, 2b
+	ba,pt	%xcc, 2b
 	 add	%o1, 64, %o1
 
 3:	membar	#Sync
@@ -655,10 +655,8 @@ ENTRY(spitfire_block_copy)
 	stda	%f16, [%o1] %asi
 	membar	#Sync
 
-	wr	%g0, 0, %fprs
-
 	retl
-	 nop
+	 wr	%g0, 0, %fprs
 END(spitfire_block_copy)
 
 /*
@@ -704,14 +702,12 @@ ENTRY(spitfire_block_zero)
 	stda	%f0, [%o0 + 128] %asi
 	stda	%f0, [%o0 + 192] %asi
 	sub	%o1, 256, %o1
-	brnz	%o1, 1b
+	brnz,pt	%o1, 1b
 	 add	%o0, 256, %o0
 	membar	#Sync
 
-	wr	%g0, 0, %fprs
-
 	retl
-	 nop
+	 wr	%g0, 0, %fprs
 END(spitfire_block_zero)
 
 	.globl	fpu_fault_end
@@ -749,9 +745,9 @@ ENTRY(setjmp)
 END(setjmp)
 
 /*
- * void openfirmware(cell_t args[])
+ * void ofw_entry(cell_t args[])
  */
-ENTRY(openfirmware)
+ENTRY(ofw_entry)
 	save	%sp, -CCFSZ, %sp
 	SET(ofw_vec, %l7, %l6)
 	ldx	[%l6], %l6
@@ -762,12 +758,12 @@ ENTRY(openfirmware)
 	wrpr	%l7, 0, %pil
 	ret
 	 restore %o0, %g0, %o0
-END(openfirmware)
+END(ofw_entry)
 
 /*
- * void openfirmware_exit(cell_t args[])
+ * void ofw_exit(cell_t args[])
  */
-ENTRY(openfirmware_exit)
+ENTRY(ofw_exit)
 	save	%sp, -CCFSZ, %sp
 	flushw
 	wrpr	%g0, PIL_TICK, %pil
@@ -787,7 +783,7 @@ ENTRY(openfirmware_exit)
 	call	%l6
 	 mov	%i0, %o0
 	! never to return
-END(openfirmware_exit)
+END(ofw_exit)
 
 #ifdef GPROF
 
@@ -805,7 +801,6 @@ ENTRY(bintr)
 
 ENTRY(eintr)
 	nop
-
 
 /*
  * XXX including sys/gmon.h in genassym.c is not possible due to uintfptr_t

@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2007
+.Dd November 29, 2008
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -41,11 +41,12 @@
 .Nd "imprison process and its descendants"
 .Sh SYNOPSIS
 .Nm
-.Op Fl i
+.Op Fl hi
+.Op Fl n Ar jailname
 .Op Fl J Ar jid_file
 .Op Fl s Ar securelevel
 .Op Fl l u Ar username | Fl U Ar username
-.Ar path hostname ip-number command ...
+.Ar path hostname [ip[,..]] command ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,8 +54,26 @@ utility imprisons a process and all future descendants.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl u Ar username"
+.It Fl h
+Resolve
+.Va hostname
+and add all IP addresses returned by the resolver
+to the list of
+.Va ip-addresses
+for this prison.
+This may affect default address selection for outgoing IPv4 connections
+of prisons.
+The address first returned by the resolver for the IPv4 address family
+will be used as default.
+For IPv6 source address selection is done by a well defined algorithm.
 .It Fl i
 Output the jail identifier of the newly created jail.
+.It Fl n Ar jailname
+Assign and administrative name to the jail that can be used for management
+or auditing purposes.
+The system will
+.Sy not enforce
+the name to be unique.
 .It Fl J Ar jid_file
 Write a
 .Ar jid_file
@@ -92,8 +111,14 @@ should run.
 Directory which is to be the root of the prison.
 .It Ar hostname
 Hostname of the prison.
-.It Ar ip-number
-IP number assigned to the prison.
+.It Ar ip-addresses
+None, one or more IPv4 and IPv6 addresses assigned to the prison.
+The first address of each address family that was assigned to the jail will
+be used as the source address in case source address selection on unbound
+sockets cannot find a better match.
+It is only possible to start multiple jails with the same IP address,
+if none of the jails has more than this single overlapping IP address
+assigned to itself for the address family in question.
 .It Ar command
 Pathname of the program which is to be executed.
 .El
@@ -179,7 +204,7 @@ is to disable IP services on the host system that listen on all local
 IP addresses for a service.
 If a network service is present in the host environment that binds all
 available IP addresses rather than specific IP addresses, it may service
-requests sent to jail IP addresses.
+requests sent to jail IP addresses if the jail did not bind the port.
 This means changing
 .Xr inetd 8
 to only listen on the
@@ -555,6 +580,9 @@ command can be used to find file system types available for mount from within
 a jail.
 This functionality is disabled by default, but can be enabled by setting this
 MIB entry to 1.
+.It Va security.jail.jail_max_af_ips
+This MIB entry determines how may address per address family a prison
+may have. The default is 255.
 .El
 .Pp
 The read-only sysctl variable
@@ -622,6 +650,12 @@ who contributed it to
 .An Robert Watson
 wrote the extended documentation, found a few bugs, added
 a few new features, and cleaned up the userland jail environment.
+.Pp
+.An Bjoern A. Zeeb
+added multi-IP jail support for IPv4 and IPv6 based on a patch
+originally done by
+.An Pawel Jakub Dawidek
+for IPv4.
 .Sh BUGS
 Jail currently lacks the ability to allow access to
 specific jail information via

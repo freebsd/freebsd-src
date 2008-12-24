@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
+#include <net/vnet.h>
 
 #include <rpc/rpcclnt.h>
 

@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/apicreg.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -422,8 +423,7 @@ cpu_mp_start(void)
 	 * First determine if this is an Intel processor which claims
 	 * to have hyperthreading support.
 	 */
-	if ((cpu_feature & CPUID_HTT) &&
-	    (strcmp(cpu_vendor, "GenuineIntel") == 0)) {
+	if ((cpu_feature & CPUID_HTT) && cpu_vendor_id == CPU_VENDOR_INTEL) {
 		/*
 		 * If the "deterministic cache parameters" cpuid calls
 		 * are available, use them.

@@ -278,7 +278,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		mcopy->m_flags |= M_MCAST | M_WDS;
 		mcopy->m_pkthdr.rcvif = (void *) ni;
 
-		IFQ_HANDOFF(parent, mcopy, err);
+		err = (parent->if_transmit)(parent, mcopy);
 		if (err) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ifp->if_oerrors++;

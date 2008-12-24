@@ -901,9 +901,15 @@ rl_attach(device_t dev)
 	}
 
 	if (sc->rl_type == 0) {
-		device_printf(dev, "unknown device ID: %x\n", rl_did);
-		error = ENXIO;
-		goto fail;
+		device_printf(dev, "unknown device ID: %x assuming 8139\n",
+		    rl_did);
+		sc->rl_type = RL_8139;
+		/*
+		 * Read RL_IDR register to get ethernet address as accessing
+		 * EEPROM may not extract correct address.
+		 */
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			eaddr[i] = CSR_READ_1(sc, RL_IDR0 + i);
 	}
 
 	if ((error = rl_dma_alloc(sc)) != 0)
@@ -1302,18 +1308,13 @@ rl_rxeof(struct rl_softc *sc)
 		if (total_len > wrap) {
 			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
 			    NULL);
-			if (m == NULL) {
-				ifp->if_ierrors++;
-			} else {
+			if (m != NULL)
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
-			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
 			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
 			    NULL);
-			if (m == NULL)
-				ifp->if_ierrors++;
 			cur_rx += total_len + 4 + ETHER_CRC_LEN;
 		}
 
@@ -1321,8 +1322,10 @@ rl_rxeof(struct rl_softc *sc)
 		cur_rx = (cur_rx + 3) & ~3;
 		CSR_WRITE_2(sc, RL_CURRXADDR, cur_rx - 16);
 
-		if (m == NULL)
+		if (m == NULL) {
+			ifp->if_iqdrops++;
 			continue;
+		}
 
 		ifp->if_ipackets++;
 		RL_UNLOCK(sc);
@@ -1515,6 +1518,8 @@ rl_tick(void *xsc)
 	 */
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
+	if ((sc->rl_flags & RL_FLAG_LINK) == 0)
+		rl_miibus_statchg(sc->rl_dev);
 	if (sc->rl_twister_enable) {
 		if (sc->rl_twister == DONE)
 			rl_watchdog(sc);

@@ -2555,7 +2555,7 @@ bce_get_media(struct bce_softc *sc)
 	} else if (BCE_CHIP_BOND_ID(sc) & BCE_CHIP_BOND_ID_SERDES_BIT)
 		sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 
-	if (sc->bce_phy_flags && BCE_PHY_SERDES_FLAG) {
+	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
 		sc->bce_flags |= BCE_NO_WOL_FLAG;
 		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
 			sc->bce_phy_addr = 2;
@@ -5114,7 +5114,7 @@ bce_free_tx_chain(struct bce_softc *sc)
 	/* Unmap, unload, and free any mbufs still in the TX mbuf chain. */
 	for (i = 0; i < TOTAL_TX_BD; i++) {
 		if (sc->tx_mbuf_ptr[i] != NULL) {
-			if (sc->tx_mbuf_map != NULL)
+			if (sc->tx_mbuf_map[i] != NULL)
 				bus_dmamap_sync(sc->tx_mbuf_tag, sc->tx_mbuf_map[i],
 					BUS_DMASYNC_POSTWRITE);
 			m_freem(sc->tx_mbuf_ptr[i]);
@@ -7030,13 +7030,14 @@ bce_intr(void *xsc)
 
 		/* Was it a link change interrupt? */
 		if ((status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) !=
-			(sc->status_block->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE))
+			(sc->status_block->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE)) {
 			bce_phy_intr(sc);
 
-		/* Clear any transient status updates during link state change. */
-		REG_WR(sc, BCE_HC_COMMAND,
-			sc->hc_command | BCE_HC_COMMAND_COAL_NOW_WO_INT);
-		REG_RD(sc, BCE_HC_COMMAND);
+			/* Clear any transient status updates during link state change. */
+			REG_WR(sc, BCE_HC_COMMAND,
+				sc->hc_command | BCE_HC_COMMAND_COAL_NOW_WO_INT);
+			REG_RD(sc, BCE_HC_COMMAND);
+		}
 
 		/* If any other attention is asserted then the chip is toast. */
 		if (((status_attn_bits & ~STATUS_ATTN_BITS_LINK_STATE) !=
@@ -7407,7 +7408,6 @@ bce_stats_update(struct bce_softc *sc)
 		(u_long) sc->stat_IfInMBUFDiscards +
 		(u_long) sc->stat_Dot3StatsAlignmentErrors +
 		(u_long) sc->stat_Dot3StatsFCSErrors +
-		(u_long) sc->stat_IfInFramesL2FilterDiscards +
 		(u_long) sc->stat_IfInRuleCheckerDiscards +
 		(u_long) sc->stat_IfInFTQDiscards +
 		(u_long) sc->com_no_buffers;

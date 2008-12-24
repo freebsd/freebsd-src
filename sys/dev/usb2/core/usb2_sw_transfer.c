@@ -167,5 +167,4 @@ done:
 	DPRINTF("done err=%s\n", usb2_errstr(std->err));
 	std->state = USB_SW_TR_PRE_CALLBACK;
 	(func) (xfer, std);
-	return;
 }

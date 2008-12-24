@@ -266,6 +266,8 @@ maketempfile(char *dest, const char *root)
 		p = dest;
 	strcpy(p, "lhint.XXXXXX");
 	fd = mkstemp(dest);
+	if (fd >= 0)
+		fchmod(fd, 0644);	/* nothing secret in the file */
 	return ((fd == -1) ? NULL : fdopen(fd, "w+"));
 }
 

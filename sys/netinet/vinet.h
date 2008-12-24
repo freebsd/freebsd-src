@@ -33,7 +33,6 @@
 #ifndef _NETINET_VINET_H_
 #define _NETINET_VINET_H_
 
-#ifdef VIMAGE
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/md5.h>
@@ -89,12 +88,16 @@ struct vnet_inet {
 	struct	tcpstat _tcpstat;	/* tcp statistics */
 	struct	tcp_hostcache _tcp_hostcache;
 	struct  callout _tcp_hc_callout;
+
 	struct	tcp_syncache _tcp_syncache;
+	int	_tcp_syncookies;
+	int	_tcp_syncookiesonly;
+	int	_tcp_sc_rst_sock_fail;
+
 	struct	inpcbhead _divcb;
 	struct	inpcbinfo _divcbinfo;
 	TAILQ_HEAD(, tcptw) _twq_2msl;
 
-	int	_tcp_sc_rst_sock_fail;
 	int	_tcp_mssdflt;
 	int	_tcp_v6mssdflt;
 	int	_tcp_minmss;
@@ -141,7 +144,6 @@ struct vnet_inet {
 	int	_isn_last_reseed;
 	u_int32_t _isn_offset;
 	u_int32_t _isn_offset_old;
-	MD5_CTX	_isn_ctx;
 
 	struct	inpcbhead _udb;
 	struct	inpcbinfo _udbinfo;
@@ -193,9 +195,15 @@ struct vnet_inet {
 	int	_icmp_rfi;
 	int	_icmp_quotelen;
 	int	_icmpbmcastecho;
-};
-#endif
 
+	int	_fw_one_pass;
+};
+
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_inet vnet_inet_0;
+#endif
+#endif
 
 /*
  * Symbol translation macros
@@ -208,12 +216,12 @@ struct vnet_inet {
 #define	V_arp_maxtries		VNET_INET(arp_maxtries)
 #define	V_arp_proxyall		VNET_INET(arp_proxyall)
 #define	V_arpt_keep		VNET_INET(arpt_keep)
-#define	V_arpt_prune		VNET_INET(arpt_prune)
 #define	V_blackhole		VNET_INET(blackhole)
 #define	V_divcb			VNET_INET(divcb)
 #define	V_divcbinfo		VNET_INET(divcbinfo)
 #define	V_drop_redirect		VNET_INET(drop_redirect)
 #define	V_drop_synfin		VNET_INET(drop_synfin)
+#define	V_fw_one_pass		VNET_INET(fw_one_pass)
 #define	V_icmp_may_rst		VNET_INET(icmp_may_rst)
 #define	V_icmp_quotelen		VNET_INET(icmp_quotelen)
 #define	V_icmp_rfi		VNET_INET(icmp_rfi)
@@ -258,7 +266,6 @@ struct vnet_inet {
 #define	V_ipsendredirects	VNET_INET(ipsendredirects)
 #define	V_ipstat		VNET_INET(ipstat)
 #define	V_ipstealth		VNET_INET(ipstealth)
-#define	V_isn_ctx		VNET_INET(isn_ctx)
 #define	V_isn_last_reseed	VNET_INET(isn_last_reseed)
 #define	V_isn_offset		VNET_INET(isn_offset)
 #define	V_isn_offset_old	VNET_INET(isn_offset_old)
@@ -323,6 +330,8 @@ struct vnet_inet {
 #define	V_tcp_sack_maxholes	VNET_INET(tcp_sack_maxholes)
 #define	V_tcp_sc_rst_sock_fail	VNET_INET(tcp_sc_rst_sock_fail)
 #define	V_tcp_syncache		VNET_INET(tcp_syncache)
+#define	V_tcp_syncookies	VNET_INET(tcp_syncookies)
+#define	V_tcp_syncookiesonly	VNET_INET(tcp_syncookiesonly)
 #define	V_tcp_v6mssdflt		VNET_INET(tcp_v6mssdflt)
 #define	V_tcpstat		VNET_INET(tcpstat)
 #define	V_twq_2msl		VNET_INET(twq_2msl)
@@ -331,5 +340,7 @@ struct vnet_inet {
 #define	V_udp_blackhole		VNET_INET(udp_blackhole)
 #define	V_udpstat		VNET_INET(udpstat)
 #define	V_useloopback		VNET_INET(useloopback)
+
+#define ip_newid() ((V_ip_do_randomid != 0) ? ip_randomid() : htons(V_ip_id++))
 
 #endif /* !_NETINET_VINET_H_ */

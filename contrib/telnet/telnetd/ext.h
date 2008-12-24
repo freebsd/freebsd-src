@@ -77,7 +77,7 @@ extern char	*neturg;		/* one past last bye of urgent data */
 extern int	pcc, ncc;
 
 extern int	pty, net;
-extern char	line[16];
+extern char	line[32];
 extern int	SYNCHing;		/* we are in TELNET SYNCH mode */
 
 extern void

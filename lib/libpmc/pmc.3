@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2008
+.Dd November 24, 2008
 .Os
 .Dt PMC 3
 .Sh NAME
@@ -446,6 +446,29 @@ optional parameters modifying the semantics of the hardware event
 being probed.
 Event names are PMC architecture dependent, but the PMC library defines
 machine independent aliases for commonly used events.
+.Pp
+Event specifiers spellings are case-insensitive and space characters,
+periods, underscores and hyphens are considered equivalent to each other.
+Thus the event specifiers
+.Qq "Example Event" ,
+.Qq "example-event" ,
+and
+.Qq "EXAMPLE_EVENT"
+are equivalent.
+.Ss PMC Architecture Dependent Events
+PMC architecture dependent event specifiers are described in the
+following manual pages:
+.Bl -column " PMC_CLASS_TSC " "MANUAL PAGE "
+.It Em "PMC Class"      Ta Em "Manual Page"
+.It Li PMC_CLASS_IAF    Ta Xr pmc.iaf 3
+.It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
+.It Li PMC_CLASS_K7     Ta Xr pmc.k7 3
+.It Li PMC_CLASS_K8     Ta Xr pmc.k8 3
+.It Li PMC_CLASS_P4     Ta Xr pmc.p4 3
+.It Li PMC_CLASS_P5     Ta Xr pmc.p5 3
+.It Li PMC_CLASS_P6     Ta Xr pmc.p6 3
+.It Li PMC_CLASS_TSC    Ta Xr pmc.tsc 3
+.El
 .Ss Event Name Aliases
 Event name aliases are PMC-independent names for commonly used events.
 The following aliases are known to this version of the
@@ -471,21 +494,6 @@ Measure the number of interrupts seen.
 .It Li unhalted-cycles
 Measure the number of cycles the processor is not in a halted
 or sleep state.
-.El
-.Pp
-.Ss PMC Architecture Dependent Events
-PMC architecture dependent event specifiers are described in the
-following manual pages:
-.Bl -column " PMC_CLASS_TSC " "MANUAL PAGE "
-.It Em "PMC Class"      Ta Em "Manual Page"
-.It Li PMC_CLASS_IAF    Ta Xr pmc.iaf 3
-.It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
-.It Li PMC_CLASS_K7     Ta Xr pmc.k7 3
-.It Li PMC_CLASS_K8     Ta Xr pmc.k8 3
-.It Li PMC_CLASS_P4     Ta Xr pmc.p4 3
-.It Li PMC_CLASS_P5     Ta Xr pmc.p5 3
-.It Li PMC_CLASS_P6     Ta Xr pmc.p6 3
-.It Li PMC_CLASS_TSC    Ta Xr pmc.tsc 3
 .El
 .Sh COMPATIBILITY
 The interface between the

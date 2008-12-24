@@ -13,12 +13,15 @@ TESTS= \
 	test_acl_pax.c				\
 	test_archive_api_feature.c		\
 	test_bad_fd.c				\
+	test_compat_bzip2.c			\
 	test_compat_gtar.c			\
+	test_compat_gzip.c			\
 	test_compat_tar_hardlink.c		\
 	test_compat_zip.c			\
 	test_empty_write.c			\
 	test_entry.c				\
 	test_entry_strmode.c			\
+	test_fuzz.c				\
 	test_link_resolver.c			\
 	test_pax_filename_encoding.c		\
 	test_read_compress_program.c		\

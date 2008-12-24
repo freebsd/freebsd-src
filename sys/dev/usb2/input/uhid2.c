@@ -199,7 +199,6 @@ uhid_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UHID_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -212,7 +211,6 @@ uhid_fill_set_report(struct usb2_device_request *req, uint8_t iface_no,
 	req->wIndex[0] = iface_no;
 	req->wIndex[1] = 0;
 	USETW(req->wLength, size);
-	return;
 }
 
 static void
@@ -225,7 +223,6 @@ uhid_fill_get_report(struct usb2_device_request *req, uint8_t iface_no,
 	req->wIndex[0] = iface_no;
 	req->wIndex[1] = 0;
 	USETW(req->wLength, size);
-	return;
 }
 
 static void
@@ -376,7 +373,6 @@ uhid_start_read(struct usb2_fifo *fifo)
 	} else {
 		usb2_transfer_start(sc->sc_xfer[0]);
 	}
-	return;
 }
 
 static void
@@ -386,7 +382,6 @@ uhid_stop_read(struct usb2_fifo *fifo)
 
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -395,7 +390,6 @@ uhid_start_write(struct usb2_fifo *fifo)
 	struct uhid_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[2]);
-	return;
 }
 
 static void
@@ -404,7 +398,6 @@ uhid_stop_write(struct usb2_fifo *fifo)
 	struct uhid_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
-	return;
 }
 
 static int
@@ -509,7 +502,6 @@ uhid_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 static int

@@ -160,6 +160,7 @@ usb_endpoint_descriptor_t *usbd_find_edesc(usb_config_descriptor_t *,
 
 void usbd_dopoll(usbd_interface_handle);
 void usbd_set_polling(usbd_device_handle, int);
+usbd_status usbd_reset_device(usbd_device_handle);
 
 const char *usbd_errstr(usbd_status);
 
@@ -255,7 +256,8 @@ struct usb_attach_arg {
 #define USBD_SHOW_DEVICE_CLASS		0x1
 #define USBD_SHOW_INTERFACE_CLASS	0x2
 
-int usbd_driver_load(module_t mod, int what, void *arg);
+struct module;
+int usbd_driver_load(struct module *mod, int what, void *arg);
 
 static inline int
 usb_get_port(device_t dev)

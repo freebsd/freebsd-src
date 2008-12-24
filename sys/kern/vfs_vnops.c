@@ -881,7 +881,8 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 		error = VOP_LOCK1(vp, flags, file, line);
 		flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
 		KASSERT((flags & LK_RETRY) == 0 || error == 0,
-		    ("LK_RETRY set with incompatible flags %d\n", flags));
+		    ("LK_RETRY set with incompatible flags (0x%x) or an error occured (%d)",
+		    flags, error));
 		/*
 		 * Callers specify LK_RETRY if they wish to get dead vnodes.
 		 * If RETRY is not set, we return ENOENT instead.
@@ -977,17 +978,12 @@ vn_start_write(vp, mpp, flags)
 		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 			if (flags & V_NOWAIT) {
 				error = EWOULDBLOCK;
-				if (vp != NULL)
-					*mpp = NULL;
 				goto unlock;
 			}
 			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
 			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
-			if (error) {
-				if (vp != NULL)
-					*mpp = NULL;
+			if (error)
 				goto unlock;
-			}
 		}
 	}
 	if (flags & V_XSLEEP)
@@ -1051,8 +1047,6 @@ vn_start_secondary_write(vp, mpp, flags)
 	if (flags & V_NOWAIT) {
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
-		if (vp != NULL)
-			*mpp = NULL;
 		return (EWOULDBLOCK);
 	}
 	/*
@@ -1063,8 +1057,6 @@ vn_start_secondary_write(vp, mpp, flags)
 	vfs_rel(mp);
 	if (error == 0)
 		goto retry;
-	if (vp != NULL)
-		*mpp = NULL;
 	return (error);
 }
 

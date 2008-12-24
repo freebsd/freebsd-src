@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/Makefile.am#2 $
+# $P4: //depot/projects/trustedbsd/openbsm/Makefile.am#3 $
 #
 
 SUBDIRS =		\
@@ -7,7 +7,8 @@ SUBDIRS =		\
 	libbsm		\
 	bin		\
 	man		\
-	modules
+	modules		\
+	sys
 
 EXTRA_DIST =		\
 	CHANGELOG	\

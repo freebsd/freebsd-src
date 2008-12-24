@@ -98,9 +98,13 @@ DEFINE_TEST(test_read_pax_truncated)
 		 * does not return an error if it can't consume
 		 * it.) */
 		if (i < 1536 + 512*((filedata_size + 511)/512) + 512) {
-			assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+			failure("i=%d minsize=%d", i,
+			    1536 + 512*((filedata_size + 511)/512) + 512);
+			assertEqualIntA(a, ARCHIVE_FATAL,
+			    archive_read_next_header(a, &ae));
 		} else {
-			assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_EOF,
+			    archive_read_next_header(a, &ae));
 		}
 	wrap_up:
 		assert(0 == archive_read_close(a));
@@ -141,9 +145,11 @@ DEFINE_TEST(test_read_pax_truncated)
 		 * does not return an error if it can't consume
 		 * it.) */
 		if (i < 1536 + 512*((filedata_size + 511)/512) + 512) {
-			assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_FATAL,
+			    archive_read_next_header(a, &ae));
 		} else {
-			assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_EOF,
+			    archive_read_next_header(a, &ae));
 		}
 	wrap_up2:
 		assert(0 == archive_read_close(a));

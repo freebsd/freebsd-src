@@ -161,7 +161,6 @@ usb2_process(void *arg)
 	mtx_unlock(up->up_mtx);
 
 	USB_THREAD_EXIT(0);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -224,7 +223,6 @@ usb2_proc_unsetup(struct usb2_process *up)
 
 	/* make sure that we do not enter here again */
 	up->up_mtx = NULL;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -359,7 +357,6 @@ usb2_proc_mwait(struct usb2_process *up, void *_pm0, void *_pm1)
 			up->up_dsleep = 1;
 			usb2_cv_wait(&up->up_drain, up->up_mtx);
 		}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -414,7 +411,6 @@ usb2_proc_drain(struct usb2_process *up)
 		    "for USB process drain!\n");
 	}
 	mtx_unlock(up->up_mtx);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -476,5 +472,4 @@ usb2_proc_csignal(struct usb2_process *up)
 		up->up_csleep = 0;
 		usb2_cv_signal(&up->up_cv);
 	}
-	return;
 }

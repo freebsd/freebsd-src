@@ -45,7 +45,8 @@ static char rcsid[] =
 #include "tt.h"
 
 /*ARGSUSED*/
-wwend(exit)
+int
+wwend(int exit)
 {
 	if (tt.tt_checkpoint) {
 		(void) alarm(0);

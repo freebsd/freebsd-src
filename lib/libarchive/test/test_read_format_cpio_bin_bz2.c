@@ -37,10 +37,12 @@ DEFINE_TEST(test_read_format_cpio_bin_bz2)
 	struct archive_entry *ae;
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
-	assert(0 == archive_read_support_compression_all(a));
-	assert(0 == archive_read_support_format_all(a));
-	assert(0 == archive_read_open_memory(a, archive, sizeof(archive)));
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
 	assert(archive_format(a) == ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assert(0 == archive_read_close(a));

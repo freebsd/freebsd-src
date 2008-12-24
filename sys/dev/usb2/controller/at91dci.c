@@ -99,10 +99,10 @@ static at91dci_cmd_t at91dci_setup_rx;
 static at91dci_cmd_t at91dci_data_rx;
 static at91dci_cmd_t at91dci_data_tx;
 static at91dci_cmd_t at91dci_data_tx_sync;
-static void at91dci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
-static void at91dci_do_poll(struct usb2_bus *bus);
-static void at91dci_root_ctrl_poll(struct at91dci_softc *sc);
-static void at91dci_standard_done(struct usb2_xfer *xfer);
+static void	at91dci_device_done(struct usb2_xfer *, usb2_error_t);
+static void	at91dci_do_poll(struct usb2_bus *);
+static void	at91dci_root_ctrl_poll(struct at91dci_softc *);
+static void	at91dci_standard_done(struct usb2_xfer *);
 
 static usb2_sw_transfer_func_t at91dci_root_intr_done;
 static usb2_sw_transfer_func_t at91dci_root_ctrl_done;
@@ -200,7 +200,6 @@ at91dci_get_hw_ep_profile(struct usb2_device *udev,
 	} else {
 		*ppf = NULL;
 	}
-	return;
 }
 
 static void
@@ -219,7 +218,6 @@ at91dci_clocks_on(struct at91dci_softc *sc)
 		/* enable Transceiver */
 		AT91_UDP_WRITE_4(sc, AT91_UDP_TXVC, 0);
 	}
-	return;
 }
 
 static void
@@ -237,7 +235,6 @@ at91dci_clocks_off(struct at91dci_softc *sc)
 		}
 		sc->sc_flags.clocks_off = 1;
 	}
-	return;
 }
 
 static void
@@ -250,7 +247,6 @@ at91dci_pull_up(struct at91dci_softc *sc)
 		sc->sc_flags.d_pulled_up = 1;
 		(sc->sc_pull_up) (sc->sc_pull_arg);
 	}
-	return;
 }
 
 static void
@@ -262,7 +258,6 @@ at91dci_pull_down(struct at91dci_softc *sc)
 		sc->sc_flags.d_pulled_up = 0;
 		(sc->sc_pull_down) (sc->sc_pull_arg);
 	}
-	return;
 }
 
 static void
@@ -279,8 +274,6 @@ at91dci_wakeup_peer(struct at91dci_softc *sc)
 		return;
 	}
 	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, temp);
-
-	return;
 }
 
 static void
@@ -304,8 +297,6 @@ at91dci_rem_wakeup_set(struct usb2_device *udev, uint8_t is_on)
 	}
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, temp);
-
-	return;
 }
 
 static void
@@ -315,8 +306,6 @@ at91dci_set_address(struct at91dci_softc *sc, uint8_t addr)
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_FADDR, addr |
 	    AT91_UDP_FADDR_EN);
-
-	return;
 }
 
 static uint8_t
@@ -756,7 +745,6 @@ repeat:
 			goto repeat;
 		}
 	}
-	return;
 }
 
 static void
@@ -792,8 +780,6 @@ at91dci_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
 	}
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 void
@@ -880,8 +866,6 @@ at91dci_interrupt(struct at91dci_softc *sc)
 		at91dci_interrupt_poll(sc);
 	}
 	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 static void
@@ -906,7 +890,6 @@ at91dci_setup_standard_chain_sub(struct at91dci_std_temp *temp)
 	td->did_stall = 0;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
-	return;
 }
 
 static void
@@ -1054,25 +1037,19 @@ at91dci_setup_standard_chain(struct usb2_xfer *xfer)
 		td = xfer->td_transfer_first;
 		td->fifo_bank = 1;
 	}
-	return;
 }
 
 static void
 at91dci_timeout(void *arg)
 {
 	struct usb2_xfer *xfer = arg;
-	struct at91dci_softc *sc = xfer->usb2_sc;
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
 
 	/* transfer is transferred */
 	at91dci_device_done(xfer, USB_ERR_TIMEOUT);
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 static void
@@ -1104,7 +1081,6 @@ at91dci_start_standard_chain(struct usb2_xfer *xfer)
 			    &at91dci_timeout, xfer->timeout);
 		}
 	}
-	return;
 }
 
 static void
@@ -1240,7 +1216,6 @@ at91dci_standard_done(struct usb2_xfer *xfer)
 	}
 done:
 	at91dci_device_done(xfer, err);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1270,7 +1245,6 @@ at91dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	}
 	/* dequeue transfer and start next transfer */
 	usb2_transfer_done(xfer, error);
-	return;
 }
 
 static void
@@ -1296,7 +1270,6 @@ at91dci_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
 	csr_val = AT91_UDP_READ_4(sc, csr_reg);
 	AT91_CSR_ACK(csr_val, AT91_UDP_CSR_FORCESTALL);
 	AT91_UDP_WRITE_4(sc, csr_reg, csr_val);
-	return;
 }
 
 static void
@@ -1393,8 +1366,6 @@ at91dci_clear_stall_sub(struct at91dci_softc *sc, uint8_t ep_no,
 
 	/* enable endpoint */
 	AT91_UDP_WRITE_4(sc, AT91_UDP_CSR(ep_no), csr_val);
-
-	return;
 }
 
 static void
@@ -1423,7 +1394,6 @@ at91dci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	    (ed->bEndpointAddress & UE_ADDR),
 	    (ed->bmAttributes & UE_XFERTYPE),
 	    (ed->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT)));
-	return;
 }
 
 usb2_error_t
@@ -1511,8 +1481,6 @@ at91dci_uninit(struct at91dci_softc *sc)
 	at91dci_pull_down(sc);
 	at91dci_clocks_off(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	return;
 }
 
 void
@@ -1536,7 +1504,6 @@ at91dci_do_poll(struct usb2_bus *bus)
 	at91dci_interrupt_poll(sc);
 	at91dci_root_ctrl_poll(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1552,7 +1519,6 @@ static void
 at91dci_device_bulk_close(struct usb2_xfer *xfer)
 {
 	at91dci_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -1567,7 +1533,6 @@ at91dci_device_bulk_start(struct usb2_xfer *xfer)
 	/* setup TDs */
 	at91dci_setup_standard_chain(xfer);
 	at91dci_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods at91dci_device_bulk_methods =
@@ -1593,7 +1558,6 @@ static void
 at91dci_device_ctrl_close(struct usb2_xfer *xfer)
 {
 	at91dci_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -1608,7 +1572,6 @@ at91dci_device_ctrl_start(struct usb2_xfer *xfer)
 	/* setup TDs */
 	at91dci_setup_standard_chain(xfer);
 	at91dci_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods at91dci_device_ctrl_methods =
@@ -1634,7 +1597,6 @@ static void
 at91dci_device_intr_close(struct usb2_xfer *xfer)
 {
 	at91dci_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -1649,7 +1611,6 @@ at91dci_device_intr_start(struct usb2_xfer *xfer)
 	/* setup TDs */
 	at91dci_setup_standard_chain(xfer);
 	at91dci_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods at91dci_device_intr_methods =
@@ -1675,7 +1636,6 @@ static void
 at91dci_device_isoc_fs_close(struct usb2_xfer *xfer)
 {
 	at91dci_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -1728,7 +1688,6 @@ at91dci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 
 	/* setup TDs */
 	at91dci_setup_standard_chain(xfer);
-	return;
 }
 
 static void
@@ -1736,7 +1695,6 @@ at91dci_device_isoc_fs_start(struct usb2_xfer *xfer)
 {
 	/* start TD chain */
 	at91dci_start_standard_chain(xfer);
-	return;
 }
 
 struct usb2_pipe_methods at91dci_device_isoc_fs_methods =
@@ -1771,7 +1729,6 @@ at91dci_root_ctrl_close(struct usb2_xfer *xfer)
 		sc->sc_root_ctrl.xfer = NULL;
 	}
 	at91dci_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 /*
@@ -1876,8 +1833,6 @@ at91dci_root_ctrl_start(struct usb2_xfer *xfer)
 
 	usb2_config_td_queue_command(
 	    &sc->sc_config_td, NULL, &at91dci_root_ctrl_task, 0, 0);
-
-	return;
 }
 
 static void
@@ -1885,7 +1840,6 @@ at91dci_root_ctrl_task(struct at91dci_softc *sc,
     struct at91dci_config_copy *cc, uint16_t refcount)
 {
 	at91dci_root_ctrl_poll(sc);
-	return;
 }
 
 static void
@@ -2294,7 +2248,6 @@ at91dci_root_ctrl_poll(struct at91dci_softc *sc)
 {
 	usb2_sw_transfer(&sc->sc_root_ctrl,
 	    &at91dci_root_ctrl_done);
-	return;
 }
 
 struct usb2_pipe_methods at91dci_root_ctrl_methods =
@@ -2325,7 +2278,6 @@ at91dci_root_intr_close(struct usb2_xfer *xfer)
 		sc->sc_root_intr.xfer = NULL;
 	}
 	at91dci_device_done(xfer, USB_ERR_CANCELLED);
-	return;
 }
 
 static void
@@ -2340,7 +2292,6 @@ at91dci_root_intr_start(struct usb2_xfer *xfer)
 	struct at91dci_softc *sc = xfer->usb2_sc;
 
 	sc->sc_root_intr.xfer = xfer;
-	return;
 }
 
 struct usb2_pipe_methods at91dci_root_intr_methods =
@@ -2465,7 +2416,6 @@ at91dci_xfer_setup(struct usb2_setup_params *parm)
 	}
 
 	xfer->td_start[0] = last_obj;
-	return;
 }
 
 static void
@@ -2530,7 +2480,6 @@ at91dci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *ede
 			break;
 		}
 	}
-	return;
 }
 
 struct usb2_bus_methods at91dci_bus_methods =

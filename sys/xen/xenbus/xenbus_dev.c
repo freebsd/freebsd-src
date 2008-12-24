@@ -44,15 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 
-
 #include <machine/xen/xen-os.h>
 #include <machine/xen/hypervisor.h>
-#include <machine/xen/xenbus.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/xenbus/xenbusvar.h>
 #include <xen/xenbus/xenbus_comms.h>
-
-
-
 
 #define kmalloc(size, unused) malloc(size, M_DEVBUF, M_WAITOK)
 #define BUG_ON        PANIC_IF

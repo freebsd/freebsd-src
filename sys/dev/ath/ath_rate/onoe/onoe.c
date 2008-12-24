@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_athvar.h>
 #include <dev/ath/ath_rate/onoe/onoe.h>
-#include <contrib/dev/ath/ah_desc.h>
+#include <dev/ath/ath_hal/ah_desc.h>
 
 /*
  * Default parameters for the rate control algorithm.  These are

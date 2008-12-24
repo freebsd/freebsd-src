@@ -5,6 +5,7 @@ ARMFPE			opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_USE_SMALL_ALLOC	opt_global.h
 AT91C_MASTER_CLOCK	opt_global.h
+AT91C_MAIN_CLOCK	opt_at91.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_SA1100		opt_global.h
 CPU_SA1110		opt_global.h
@@ -14,6 +15,7 @@ CPU_XSCALE_80219	opt_global.h
 CPU_XSCALE_80321	opt_global.h
 CPU_XSCALE_81342	opt_global.h
 CPU_XSCALE_IXP425	opt_global.h
+CPU_XSCALE_IXP435	opt_global.h
 CPU_XSCALE_PXA2X0	opt_global.h
 FLASHADDR		opt_global.h
 KERNPHYSADDR		opt_global.h

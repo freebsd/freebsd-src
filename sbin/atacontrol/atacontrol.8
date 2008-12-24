@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2008
+.Dd December 14, 2008
 .Dt ATACONTROL 8
 .Os
 .Sh NAME
@@ -63,6 +63,7 @@
 .Nm
 .Ic mode
 .Ar device
+.Op Ar mode
 .Nm
 .Ic info
 .Ar channel
@@ -94,7 +95,7 @@ The
 .Ar channel
 argument is the ATA channel device (e.g., ata0) on which to operate.
 The following commands are supported:
-.Bl -tag -width "rebuild"
+.Bl -tag -width ".Ic addspare"
 .It Ic attach
 Attach an ATA
 .Ar channel .
@@ -162,9 +163,13 @@ Rebuild a RAID1 array on a RAID capable ATA controller.
 .It Ic status
 Get the status of an ATA RAID.
 .It Ic mode
-Without the mode argument, the current transfer modes of the
+Without the
+.Ar mode
+argument, the current transfer mode of the
 device are printed.
-If the mode argument is given, the ATA driver
+If the
+.Ar mode
+argument is given, the ATA driver
 is asked to change the transfer mode to the one given.
 The ATA driver
 will reject modes that are not supported by the hardware.
@@ -190,13 +195,12 @@ and
 .Cm UDMA6
 (alias
 .Cm UDMA133 ) .
-The device name and manufacture/version strings are shown.
 .It Ic cap
 Show detailed info about the device on
 .Ar device .
 .It Ic spindown
 Set or report timeout after which the
-.Ar device 
+.Ar device
 will be spun down.
 To arm the timeout the device needs at least one more request after
 setting the timeout.
@@ -205,6 +209,7 @@ No further actions are needed in this case.
 .It Ic info
 Show info about the attached devices on the
 .Ar channel .
+The device name and manufacture/version strings are shown.
 .It Ic list
 Show info about all attached devices on all active controllers.
 .El
@@ -312,7 +317,7 @@ If the system has a pure software array and is not using a "real" ATA
 RAID controller, then shut the system down, make sure that the disk
 that was still working is moved to the bootable position (channel 0
 or whatever the BIOS allows the system to boot from) and the blank disk
-is placed in the secondary position, then boot the system into 
+is placed in the secondary position, then boot the system into
 single-user mode and issue the command:
 .Pp
 .Dl "atacontrol addspare ar0 ad6"

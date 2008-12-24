@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
+ *  Author: Thomas E. Dickey                 1997-on                        *
  ****************************************************************************/
 /*
  *	trace_buf.c - Tracing/Debugging buffers (attributes)
@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_buf.c,v 1.13 2007/04/21 22:50:08 tom Exp $")
+MODULE_ID("$Id: trace_buf.c,v 1.14 2008/08/03 15:13:56 tom Exp $")
 
 #define MyList _nc_globals.tracebuf_ptr
 #define MySize _nc_globals.tracebuf_used
@@ -48,29 +48,35 @@ _nc_trace_alloc(int bufnum, size_t want)
     if (bufnum >= 0) {
 	if ((size_t) (bufnum + 1) > MySize) {
 	    size_t need = (bufnum + 1) * 2;
-	    if ((MyList = typeRealloc(TRACEBUF, need, MyList)) == 0)
-		return (0);
-	    while (need > MySize)
-		MyList[MySize++].text = 0;
+	    if ((MyList = typeRealloc(TRACEBUF, need, MyList)) != 0) {
+		while (need > MySize)
+		    MyList[MySize++].text = 0;
+	    }
 	}
 
-	if (MyList[bufnum].text == 0
-	    || want > MyList[bufnum].size) {
-	    MyList[bufnum].text = typeRealloc(char, want, MyList[bufnum].text);
-	    if (MyList[bufnum].text != 0)
-		MyList[bufnum].size = want;
+	if (MyList != 0) {
+	    if (MyList[bufnum].text == 0
+		|| want > MyList[bufnum].size) {
+		MyList[bufnum].text = typeRealloc(char, want, MyList[bufnum].text);
+		if (MyList[bufnum].text != 0)
+		    MyList[bufnum].size = want;
+	    }
+	    result = MyList[bufnum].text;
 	}
-
-	result = MyList[bufnum].text;
     }
 #if NO_LEAKS
     else {
 	if (MySize) {
-	    while (MySize--) {
-		if (MyList[MySize].text != 0)
-		    free(MyList[MySize].text);
+	    if (MyList) {
+		while (MySize--) {
+		    if (MyList[MySize].text != 0) {
+			free(MyList[MySize].text);
+		    }
+		}
+		free(MyList);
+		MyList = 0;
 	    }
-	    free(MyList);
+	    MySize = 0;
 	}
     }
 #endif
@@ -96,10 +102,13 @@ NCURSES_EXPORT(char *)
 _nc_trace_bufcat(int bufnum, const char *value)
 {
     char *buffer = _nc_trace_alloc(bufnum, 0);
-    size_t have = strlen(buffer);
+    if (buffer != 0) {
+	size_t have = strlen(buffer);
 
-    buffer = _nc_trace_alloc(bufnum, 1 + have + strlen(value));
-    (void) strcpy(buffer + have, value);
+	buffer = _nc_trace_alloc(bufnum, 1 + have + strlen(value));
+	if (buffer != 0)
+	    (void) strcpy(buffer + have, value);
 
+    }
     return buffer;
 }

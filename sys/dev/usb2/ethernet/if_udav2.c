@@ -97,19 +97,22 @@ static usb2_config_td_command_t udav_cfg_stop;
 static usb2_config_td_command_t udav_cfg_ifmedia_change;
 static usb2_config_td_command_t udav_cfg_tick;
 
-static void udav_cfg_do_request(struct udav_softc *sc, struct usb2_device_request *req, void *data);
-static void udav_cfg_csr_read(struct udav_softc *sc, uint16_t offset, void *buf, uint16_t len);
-static void udav_cfg_csr_write(struct udav_softc *sc, uint16_t offset, void *buf, uint16_t len);
-static uint8_t udav_cfg_csr_read1(struct udav_softc *sc, uint16_t offset);
-static void udav_cfg_csr_write1(struct udav_softc *sc, uint16_t offset, uint8_t ch);
-static void udav_init_cb(void *arg);
-static void udav_cfg_reset(struct udav_softc *sc);
-static void udav_start_cb(struct ifnet *ifp);
-static void udav_start_transfers(struct udav_softc *sc);
-static int udav_ioctl_cb(struct ifnet *ifp, u_long cmd, caddr_t data);
-static void udav_watchdog(void *arg);
-static int udav_ifmedia_change_cb(struct ifnet *ifp);
-static void udav_ifmedia_status_cb(struct ifnet *ifp, struct ifmediareq *ifmr);
+static void	udav_cfg_do_request(struct udav_softc *,
+		    struct usb2_device_request *, void *);
+static void	udav_cfg_csr_read(struct udav_softc *, uint16_t, void *,
+		    uint16_t);
+static void	udav_cfg_csr_write(struct udav_softc *, uint16_t, void *,
+		    uint16_t);
+static uint8_t	udav_cfg_csr_read1(struct udav_softc *, uint16_t);
+static void	udav_cfg_csr_write1(struct udav_softc *, uint16_t, uint8_t);
+static void	udav_init_cb(void *);
+static void	udav_cfg_reset(struct udav_softc *);
+static void	udav_start_cb(struct ifnet *);
+static void	udav_start_transfers(struct udav_softc *);
+static int	udav_ioctl_cb(struct ifnet *, u_long, caddr_t);
+static void	udav_watchdog(void *);
+static int	udav_ifmedia_change_cb(struct ifnet *);
+static void	udav_ifmedia_status_cb(struct ifnet *, struct ifmediareq *);
 
 static miibus_readreg_t udav_cfg_miibus_readreg;
 static miibus_writereg_t udav_cfg_miibus_writereg;
@@ -279,8 +282,7 @@ udav_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "udav lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	iface_index = UDAV_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
@@ -306,10 +308,8 @@ udav_attach(device_t dev)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, NULL, &udav_cfg_first_time_setup, 0, 0);
 
-	/* start watchdog (will exit mutex) */
-
 	udav_watchdog(sc);
-
+	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -457,7 +457,6 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }
 
 #if 0
@@ -476,7 +475,6 @@ udav_cfg_mem_read(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wLength, len);
 
 	udav_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static void
@@ -494,7 +492,6 @@ udav_cfg_mem_write(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wLength, len);
 
 	udav_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static void
@@ -510,7 +507,6 @@ udav_cfg_mem_write1(struct udav_softc *sc, uint16_t offset,
 	USETW(req.wLength, 0x0000);
 
 	udav_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 #endif
@@ -530,7 +526,6 @@ udav_cfg_csr_read(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wLength, len);
 
 	udav_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static void
@@ -549,7 +544,6 @@ udav_cfg_csr_write(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wLength, len);
 
 	udav_cfg_do_request(sc, &req, buf);
-	return;
 }
 
 static uint8_t
@@ -576,7 +570,6 @@ udav_cfg_csr_write1(struct udav_softc *sc, uint16_t offset,
 	USETW(req.wLength, 0x0000);
 
 	udav_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -589,8 +582,6 @@ udav_init_cb(void *arg)
 	    (&sc->sc_config_td, &udav_cfg_pre_init,
 	    &udav_cfg_init, 0, 0);
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -606,8 +597,6 @@ udav_cfg_pre_init(struct udav_softc *sc,
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	sc->sc_flags |= UDAV_FLAG_HL_READY;
-
-	return;
 }
 
 static void
@@ -652,8 +641,6 @@ udav_cfg_init(struct udav_softc *sc,
 	    UDAV_FLAG_LL_READY);
 
 	udav_start_transfers(sc);
-
-	return;
 }
 
 static void
@@ -699,8 +686,6 @@ udav_cfg_reset(struct udav_softc *sc)
 	}
 
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
-
-	return;
 }
 
 #define	UDAV_BITS	6
@@ -713,7 +698,6 @@ udav_mchash(struct usb2_config_td_cc *cc, const uint8_t *ptr)
 	h = ether_crc32_le(ptr, ETHER_ADDR_LEN) &
 	    ((1 << UDAV_BITS) - 1);
 	cc->if_hash[h >> 3] |= 1 << (h & 0x7);
-	return;
 }
 
 static void
@@ -722,7 +706,6 @@ udav_config_copy(struct udav_softc *sc,
 {
 	bzero(cc, sizeof(*cc));
 	usb2_ether_cc(sc->sc_ifp, &udav_mchash, cc);
-	return;
 }
 
 static void
@@ -748,8 +731,6 @@ udav_cfg_promisc_upd(struct udav_softc *sc,
 
 	/* write new mode bits */
 	udav_cfg_csr_write1(sc, UDAV_RCR, rxmode);
-
-	return;
 }
 
 static void
@@ -762,8 +743,6 @@ udav_start_cb(struct ifnet *ifp)
 	udav_start_transfers(sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -779,7 +758,6 @@ udav_start_transfers(struct udav_softc *sc)
 		usb2_transfer_start(sc->sc_xfer[1]);
 		usb2_transfer_start(sc->sc_xfer[0]);
 	}
-	return;
 }
 
 static void
@@ -793,7 +771,6 @@ udav_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UDAV_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -898,7 +875,6 @@ udav_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UDAV_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1003,7 +979,6 @@ udav_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UDAV_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1102,9 +1077,6 @@ udav_watchdog(void *arg)
 
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &udav_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
-	return;
 }
 
 /*
@@ -1140,7 +1112,6 @@ udav_cfg_pre_stop(struct udav_softc *sc,
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[4]);
 	usb2_transfer_stop(sc->sc_xfer[5]);
-	return;
 }
 
 /*
@@ -1151,7 +1122,6 @@ udav_cfg_stop(struct udav_softc *sc,
     struct usb2_config_td_cc *cc, uint16_t refcount)
 {
 	udav_cfg_reset(sc);
-	return;
 }
 
 static int
@@ -1190,8 +1160,6 @@ udav_cfg_ifmedia_change(struct udav_softc *sc,
 		}
 	}
 	mii_mediachg(mii);
-
-	return;
 }
 
 static void
@@ -1210,8 +1178,6 @@ udav_ifmedia_status_cb(struct ifnet *ifp, struct ifmediareq *ifmr)
 	}
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1241,8 +1207,6 @@ udav_cfg_tick(struct udav_softc *sc,
 	/* start stopped transfers, if any */
 
 	udav_start_transfers(sc);
-
-	return;
 }
 
 static int
@@ -1337,7 +1301,6 @@ static void
 udav_cfg_miibus_statchg(device_t dev)
 {
 	/* nothing to do */
-	return;
 }
 
 /*

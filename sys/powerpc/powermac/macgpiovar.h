@@ -9,8 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -30,13 +28,15 @@
 #ifndef _MACIO_MACGPIOVAR_H_
 #define _MACIO_MACGPIOVAR_H_
 
-struct macgpio_devinfo {
-	struct ofw_bus_devinfo mdi_obdinfo;
-	struct resource_list mdi_resources;
+/* relative offsets into gpio space */
+#define GPIO_EXTINT_BASE	0x08
+#define GPIO_BASE		0x1a
 
-	int        gpio_num;
-};
-
+/* gpio bit definitions */
+#define GPIO_DATA		0x01 /* GPIO data */
+#define GPIO_LEVEL_RO		0x02 /* read-only level on pin */
+#define GPIO_DDR_INPUT		0x00 /* use for input */
+#define GPIO_DDR_OUTPUT		0x04 /* use for output */
 
 uint8_t	macgpio_read(device_t dev);
 void	macgpio_write(device_t dev,uint8_t);

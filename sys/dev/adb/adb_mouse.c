@@ -181,7 +181,7 @@ adb_mouse_attach(device_t dev)
 		sc->mode.resolution = 200;
 		break;
 	case 4:
-		adb_read_register(dev,1,&r1_len,r1);
+		r1_len = adb_read_register(dev,1,r1);
 		if (r1_len < 8)
 			break;
 

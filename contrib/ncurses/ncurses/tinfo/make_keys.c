@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
+ *  Author: Thomas E. Dickey                    1997-on                     *
  ****************************************************************************/
 
 /*
@@ -39,7 +39,7 @@
 #define USE_TERMLIB 1
 #include <curses.priv.h>
 
-MODULE_ID("$Id: make_keys.c,v 1.13 2007/01/07 00:00:14 tom Exp $")
+MODULE_ID("$Id: make_keys.c,v 1.14 2008/08/03 21:57:22 tom Exp $")
 
 #include <names.c>
 
@@ -71,14 +71,20 @@ static void
 make_keys(FILE *ifp, FILE *ofp)
 {
     char buffer[BUFSIZ];
-    char from[BUFSIZ];
-    char to[BUFSIZ];
+    char from[256];
+    char to[256];
     int maxlen = 16;
+    int scanned;
 
     while (fgets(buffer, sizeof(buffer), ifp) != 0) {
 	if (*buffer == '#')
 	    continue;
-	if (sscanf(buffer, "%s %s", to, from) == 2) {
+
+	to[sizeof(to) - 1] = '\0';
+	from[sizeof(from) - 1] = '\0';
+
+	scanned = sscanf(buffer, "%255s %255s", to, from);
+	if (scanned == 2) {
 	    int code = lookup(from);
 	    if (code == UNKNOWN)
 		continue;

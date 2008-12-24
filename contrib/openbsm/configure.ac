@@ -2,12 +2,25 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.0], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#36 $])
+AC_INIT([OpenBSM], [1.1alpha2], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#42 $])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config/config.h])
 AM_MAINTAINER_MODE
+
+# --with-native-includes forces the use of the system bsm headers.
+AC_ARG_WITH([native-includes],
+[AS_HELP_STRING([--with-native-includes],
+[Use the system native include files instead of those included with openbsm.])],
+[
+AC_DEFINE(USE_NATIVE_INCLUDES,, Define to use native include files)
+use_native_includes=true
+],
+[use_native_includes=false])
+AM_CONDITIONAL(USE_NATIVE_INCLUDES, $use_native_includes)
+
+AC_PATH_PROGS(MIG, mig)
 
 # Checks for programs.
 AC_PROG_CC
@@ -38,8 +51,22 @@ AC_CHECK_MEMBER([struct ipc_perm.__key],
 #include <sys/ipc.h>
 ])
 
+AC_CHECK_MEMBER([struct ipc_perm._key],
+[AC_DEFINE(HAVE_IPC_PERM__KEY,, Define if ipc_perm._key instead of key)],
+[],[
+#include <sys/types.h>
+#include <sys/ipc.h>
+])
+
 AC_CHECK_MEMBER([struct ipc_perm.__seq],
 [AC_DEFINE(HAVE_IPC_PERM___SEQ,, Define if ipc_perm.__seq instead of seq)],
+[],[
+#include <sys/types.h>
+#include <sys/ipc.h>
+])
+
+AC_CHECK_MEMBER([struct ipc_perm._seq],
+[AC_DEFINE(HAVE_IPC_PERM__SEQ,, Define if ipc_perm._seq instead of seq)],
 [],[
 #include <sys/types.h>
 #include <sys/ipc.h>
@@ -56,7 +83,7 @@ AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
 AC_FUNC_STAT
 AC_FUNC_STRFTIME
-AC_CHECK_FUNCS([bzero clock_gettime ftruncate gettimeofday inet_ntoa memset strchr strerror strlcat strrchr strstr strtol strtoul])
+AC_CHECK_FUNCS([bzero clock_gettime ftruncate gettimeofday inet_ntoa memset strchr strerror strlcat strlcpy strrchr strstr strtol strtoul])
 
 # sys/queue.h exists on most systems, but its capabilities vary a great deal.
 # test for LIST_FIRST and TAILQ_FOREACH_SAFE, which appears to not exist in
@@ -94,6 +121,16 @@ have_audit_syscalls=false
 ])
 AM_CONDITIONAL(HAVE_AUDIT_SYSCALLS, $have_audit_syscalls)
 
+# Check to see if Mach IPC is used for trigger messages.  If so, use Mach IPC
+# instead of the default for sending trigger messages to the audit components.
+AC_CHECK_FILE([/usr/include/mach/audit_triggers.defs], [
+AC_DEFINE(USE_MACH_IPC,, Define if uses Mach IPC for Triggers messages)
+use_mach_ipc=true
+], [
+use_mach_ipc=false
+])
+AM_CONDITIONAL(USE_MACH_IPC, $use_mach_ipc)
+
 AC_CONFIG_FILES([Makefile
                  bin/Makefile
                  bin/audit/Makefile
@@ -106,6 +143,8 @@ AC_CONFIG_FILES([Makefile
                  modules/Makefile
                  modules/auditfilter_noop/Makefile
                  man/Makefile
+                 sys/Makefile
+                 sys/bsm/Makefile
                  test/Makefile
                  test/bsm/Makefile
                  tools/Makefile])

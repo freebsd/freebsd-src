@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_attributes.3x,v 1.9 2006/11/04 17:12:00 tom Exp $
+.\" $Id: menu_attributes.3x,v 1.10 2008/08/23 18:24:23 tom Exp $
 .TH menu_attributes 3X ""
 .SH NAME
 \fBmenu_attributes\fR - color and attribute control for menus
@@ -54,7 +54,7 @@ int menu_pad(const MENU *menu);
 The function \fBset_menu_fore\fR sets the foreground attribute of
 \fImenu\fR. This is the highlight used for selected menu items.
 \fBmenu_fore\fR returns the foreground attribute.  The default
-is \fBA_STANDOUT\fR.
+is \fBA_REVERSE\fR.
 .PP
 The function \fBset_menu_back\fR sets the background attribute of
 \fImenu\fR. This is the highlight used for selectable (but not currently

@@ -1,4 +1,4 @@
-OpenBSM 1.0
+OpenBSM 1.1 alpha 1
 
   Introduction
 
@@ -16,12 +16,13 @@ may be found in the FreeBSD and Mac OS X kernels.
 OpenBSM consists of several directories:
 
     bin/           Audit-related command line tools
-    bsm/           System include files for BSM
+    bsm/           Library include files for BSM
     compat/        Compatibility code to build on various OS's
     etc/           Sample /etc/security configuration files
     libbsm/        Implementation of BSM library interfaces and man pages
     man/           System call and configuration file man pages
     modules/       Directory for auditfilterd module source
+    sys/           System include files for BSM
     test/          Test token sets and geneneration program
     tools/         Tool directory, including audump to dump databases
 
@@ -34,66 +35,9 @@ The following programs are included with OpenBSM:
     audump         Debugging tool to parse and print audit databases
     praudit        Tool to print audit trails
 
-  Building
+  Build and Installation
 
-OpenBSM is currently built using autoconf and automake, which should allow
-for building on a range of operating systems, including FreeBSD, Mac OS X,
-and Linux.  Depending on the availability of audit facilities in the
-underlying operating system, some components that depend on kernel audit
-support are built conditionally.  Typically, build will be performed using:
-
-    ./configure
-    make
-
-To install, use:
-
-    make install
-
-You may wish to specify that the OpenBSM components not be installed in the
-base system, rather in a specific directory.  This may be done using the
---prefix argument to configure.  If installing to a specific directory,
-remember to update your library path so that running tools from that
-directory the correct libbsm is used:
-
-    ./configure --prefix=/home/rwatson/openbsm
-    make
-    make install
-    LD_LIBRARY_PATH=/home/rwatson/openbsm/libbsm ; export LD_LIBRARY_PATH
-
-You will need to manually propagate openbsm/etc/* into /etc on your system;
-this is not done automatically so as to avoid disrupting the current
-configuration.  Currently, the locations of these files is not configurable.
-
-  Credits
-
-The following organizations and individuals have contributed substantially to
-the development of OpenBSM:
-
-    Apple Computer, Inc.
-    McAfee Research, McAfee, Inc.
-    SPARTA, Inc.
-    Robert Watson
-    Wayne Salamon
-    Suresh Krishnaswamy
-    Kevin Van Vechten
-    Tom Rhodes
-    Wojciech Koszek
-    Chunyang Yuan
-    Poul-Henning Kamp
-    Christian Brueffer
-    Olivier Houchard
-    Christian Peron
-    Martin Fong
-    Pawel Worach
-    Martin Englund
-    Ruslan Ermilov
-    Martin Voros
-    Diego Giagio
-    Alex Samorukov
-
-In addition, Coverity, Inc.'s Prevent(tm) static analysis tool and Gimpel
-Software's FlexeLint tool were used to identify a number of bugs in the
-OpenBSM implementation.
+Please see the file INSTALL for build and installation instructions.
 
   Contributions
 
@@ -111,4 +55,4 @@ Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
 
-$P4: //depot/projects/trustedbsd/openbsm/README#24 $
+$P4: //depot/projects/trustedbsd/openbsm/README#32 $

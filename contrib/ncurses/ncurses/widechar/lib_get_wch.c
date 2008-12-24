@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_get_wch.c,v 1.14 2007/05/12 19:03:16 tom Exp $")
+MODULE_ID("$Id: lib_get_wch.c,v 1.17 2008/08/16 19:22:55 tom Exp $")
 
 #if HAVE_MBTOWC && HAVE_MBLEN
 #define reset_mbytes(state) mblen(NULL, 0), mbtowc(NULL, NULL, 0)
@@ -60,6 +60,7 @@ make an error
 NCURSES_EXPORT(int)
 wget_wch(WINDOW *win, wint_t *result)
 {
+    SCREEN *sp;
     int code;
     char buffer[(MB_LEN_MAX * 9) + 1];	/* allow some redundant shifts */
     int status;
@@ -76,44 +77,52 @@ wget_wch(WINDOW *win, wint_t *result)
      * We can get a stream of single-byte characters and KEY_xxx codes from
      * _nc_wgetch(), while we want to return a wide character or KEY_xxx code.
      */
-    for (;;) {
-	T(("reading %d of %d", (int) count + 1, (int) sizeof(buffer)));
-	code = _nc_wgetch(win, &value, TRUE EVENTLIST_2nd((_nc_eventlist *) 0));
-	if (code == ERR) {
-	    break;
-	} else if (code == KEY_CODE_YES) {
-	    /*
-	     * If we were processing an incomplete multibyte character, return
-	     * an error since we have a KEY_xxx code which interrupts it.  For
-	     * some cases, we could improve this by writing a new version of
-	     * lib_getch.c(!), but it is not clear whether the improvement
-	     * would be worth the effort.
-	     */
-	    if (count != 0) {
-		ungetch((int) value);
-		code = ERR;
-	    }
-	    break;
-	} else if (count + 1 >= sizeof(buffer)) {
-	    ungetch((int) value);
-	    code = ERR;
-	    break;
-	} else {
-	    buffer[count++] = UChar(value);
-	    reset_mbytes(state);
-	    status = count_mbytes(buffer, count, state);
-	    if (status >= 0) {
-		reset_mbytes(state);
-		if (check_mbytes(wch, buffer, count, state) != status) {
-		    code = ERR;	/* the two calls should match */
-		    ungetch((int) value);
-		}
-		value = wch;
+    _nc_lock_global(curses);
+    sp = _nc_screen_of(win);
+    if (sp != 0) {
+	for (;;) {
+	    T(("reading %d of %d", (int) count + 1, (int) sizeof(buffer)));
+	    code = _nc_wgetch(win, &value, TRUE EVENTLIST_2nd((_nc_eventlist
+							       *) 0));
+	    if (code == ERR) {
 		break;
+	    } else if (code == KEY_CODE_YES) {
+		/*
+		 * If we were processing an incomplete multibyte character,
+		 * return an error since we have a KEY_xxx code which
+		 * interrupts it.  For some cases, we could improve this by
+		 * writing a new version of lib_getch.c(!), but it is not clear
+		 * whether the improvement would be worth the effort.
+		 */
+		if (count != 0) {
+		    _nc_ungetch(sp, (int) value);
+		    code = ERR;
+		}
+		break;
+	    } else if (count + 1 >= sizeof(buffer)) {
+		_nc_ungetch(sp, (int) value);
+		code = ERR;
+		break;
+	    } else {
+		buffer[count++] = (char) UChar(value);
+		reset_mbytes(state);
+		status = count_mbytes(buffer, count, state);
+		if (status >= 0) {
+		    reset_mbytes(state);
+		    if (check_mbytes(wch, buffer, count, state) != status) {
+			code = ERR;	/* the two calls should match */
+			_nc_ungetch(sp, (int) value);
+		    }
+		    value = wch;
+		    break;
+		}
 	    }
 	}
+    } else {
+	code = ERR;
     }
     *result = value;
+    _nc_unlock_global(curses);
     T(("result %#lo", value));
     returnCode(code);
 }

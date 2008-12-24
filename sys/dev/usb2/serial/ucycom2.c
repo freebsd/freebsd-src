@@ -103,14 +103,14 @@ static usb2_callback_t ucycom_ctrl_write_callback;
 static usb2_callback_t ucycom_intr_read_clear_stall_callback;
 static usb2_callback_t ucycom_intr_read_callback;
 
-static void ucycom_cfg_open(struct usb2_com_softc *ucom);
-static void ucycom_start_read(struct usb2_com_softc *ucom);
-static void ucycom_stop_read(struct usb2_com_softc *ucom);
-static void ucycom_start_write(struct usb2_com_softc *ucom);
-static void ucycom_stop_write(struct usb2_com_softc *ucom);
-static void ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg);
-static int ucycom_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
+static void	ucycom_cfg_open(struct usb2_com_softc *);
+static void	ucycom_start_read(struct usb2_com_softc *);
+static void	ucycom_stop_read(struct usb2_com_softc *);
+static void	ucycom_start_write(struct usb2_com_softc *);
+static void	ucycom_stop_write(struct usb2_com_softc *);
+static void	ucycom_cfg_write(struct ucycom_softc *, uint32_t, uint8_t);
+static int	ucycom_pre_param(struct usb2_com_softc *, struct termios *);
+static void	ucycom_cfg_param(struct usb2_com_softc *, struct termios *);
 
 static const struct usb2_config ucycom_config[UCYCOM_ENDPT_MAX] = {
 
@@ -307,7 +307,6 @@ ucycom_cfg_open(struct usb2_com_softc *ucom)
 
 	/* set default configuration */
 	ucycom_cfg_write(sc, UCYCOM_DEFAULT_RATE, UCYCOM_DEFAULT_CFG);
-	return;
 }
 
 static void
@@ -316,7 +315,6 @@ ucycom_start_read(struct usb2_com_softc *ucom)
 	struct ucycom_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -326,7 +324,6 @@ ucycom_stop_read(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -335,7 +332,6 @@ ucycom_start_write(struct usb2_com_softc *ucom)
 	struct ucycom_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -344,7 +340,6 @@ ucycom_stop_write(struct usb2_com_softc *ucom)
 	struct ucycom_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -451,7 +446,6 @@ ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 		DPRINTFN(0, "device request failed, err=%s "
 		    "(ignored)\n", usb2_errstr(err));
 	}
-	return;
 }
 
 static int
@@ -515,7 +509,6 @@ ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	}
 
 	ucycom_cfg_write(sc, t->c_ospeed, cfg);
-	return;
 }
 
 static void
@@ -529,7 +522,6 @@ ucycom_intr_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UCYCOM_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void

@@ -143,24 +143,38 @@ struct usb2_dma_tag {
 
 /* function prototypes */
 
-int	usb2_uiomove(struct usb2_page_cache *pc, struct uio *uio, uint32_t pc_offset, uint32_t len);
-struct usb2_dma_tag *usb2_dma_tag_find(struct usb2_dma_parent_tag *udpt, uint32_t size, uint32_t align);
-uint8_t	usb2_pc_alloc_mem(struct usb2_page_cache *pc, struct usb2_page *pg, uint32_t size, uint32_t align);
+int	usb2_uiomove(struct usb2_page_cache *pc, struct uio *uio,
+	    uint32_t pc_offset, uint32_t len);
+struct usb2_dma_tag *usb2_dma_tag_find(struct usb2_dma_parent_tag *udpt,
+	    uint32_t size, uint32_t align);
+uint8_t	usb2_pc_alloc_mem(struct usb2_page_cache *pc, struct usb2_page *pg,
+	    uint32_t size, uint32_t align);
 uint8_t	usb2_pc_dmamap_create(struct usb2_page_cache *pc, uint32_t size);
-uint8_t	usb2_pc_load_mem(struct usb2_page_cache *pc, uint32_t size, uint8_t sync);
+uint8_t	usb2_pc_load_mem(struct usb2_page_cache *pc, uint32_t size,
+	    uint8_t sync);
 void	usb2_bdma_done_event(struct usb2_dma_parent_tag *udpt);
 void	usb2_bdma_post_sync(struct usb2_xfer *xfer);
 void	usb2_bdma_pre_sync(struct usb2_xfer *xfer);
 void	usb2_bdma_work_loop(struct usb2_xfer_queue *pq);
-void	usb2_bzero(struct usb2_page_cache *cache, uint32_t offset, uint32_t len);
-void	usb2_copy_in(struct usb2_page_cache *cache, uint32_t offset, const void *ptr, uint32_t len);
-int	usb2_copy_in_user(struct usb2_page_cache *cache, uint32_t offset, const void *ptr, uint32_t len);
-void	usb2_copy_out(struct usb2_page_cache *cache, uint32_t offset, void *ptr, uint32_t len);
-int	usb2_copy_out_user(struct usb2_page_cache *cache, uint32_t offset, void *ptr, uint32_t len);
-void	usb2_dma_tag_setup(struct usb2_dma_parent_tag *udpt, struct usb2_dma_tag *udt, bus_dma_tag_t dmat, struct mtx *mtx, usb2_dma_callback_t *func, struct usb2_xfer_root *info, uint8_t ndmabits, uint8_t nudt);
+void	usb2_bzero(struct usb2_page_cache *cache, uint32_t offset,
+	    uint32_t len);
+void	usb2_copy_in(struct usb2_page_cache *cache, uint32_t offset,
+	    const void *ptr, uint32_t len);
+int	usb2_copy_in_user(struct usb2_page_cache *cache, uint32_t offset,
+	    const void *ptr, uint32_t len);
+void	usb2_copy_out(struct usb2_page_cache *cache, uint32_t offset,
+	    void *ptr, uint32_t len);
+int	usb2_copy_out_user(struct usb2_page_cache *cache, uint32_t offset,
+	    void *ptr, uint32_t len);
+void	usb2_dma_tag_setup(struct usb2_dma_parent_tag *udpt,
+	    struct usb2_dma_tag *udt, bus_dma_tag_t dmat, struct mtx *mtx,
+	    usb2_dma_callback_t *func, struct usb2_xfer_root *info,
+	    uint8_t ndmabits, uint8_t nudt);
 void	usb2_dma_tag_unsetup(struct usb2_dma_parent_tag *udpt);
-void	usb2_get_page(struct usb2_page_cache *pc, uint32_t offset, struct usb2_page_search *res);
-void	usb2_m_copy_in(struct usb2_page_cache *cache, uint32_t dst_offset, struct mbuf *m, uint32_t src_offset, uint32_t src_len);
+void	usb2_get_page(struct usb2_page_cache *pc, uint32_t offset,
+	    struct usb2_page_search *res);
+void	usb2_m_copy_in(struct usb2_page_cache *cache, uint32_t dst_offset,
+	    struct mbuf *m, uint32_t src_offset, uint32_t src_len);
 void	usb2_pc_cpu_flush(struct usb2_page_cache *pc);
 void	usb2_pc_cpu_invalidate(struct usb2_page_cache *pc);
 void	usb2_pc_dmamap_destroy(struct usb2_page_cache *pc);

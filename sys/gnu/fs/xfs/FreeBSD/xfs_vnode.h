@@ -292,8 +292,8 @@ typedef struct xfs_vnodeops {
 	rv = _VOP_(vop_getattr, vp)((vp)->v_fbhv, vap, f, cr)
 #define	XVOP_SETATTR(vp, vap, f, cr, rv)				\
 	rv = _VOP_(vop_setattr, vp)((vp)->v_fbhv, vap, f, cr)
-#define	XVOP_ACCESS(vp, mode, cr, rv)					\
-	rv = _VOP_(vop_access, vp)((vp)->v_fbhv, mode, cr)
+#define	XVOP_ACCESS(vp, accmode, cr, rv)					\
+	rv = _VOP_(vop_access, vp)((vp)->v_fbhv, accmode, cr)
 #define	XVOP_LOOKUP(vp,d,vpp,f,rdir,cr,rv)				\
 	rv = _VOP_(vop_lookup, vp)((vp)->v_fbhv,d,vpp,f,rdir,cr)
 #define XVOP_CREATE(dvp,d,vap,vpp,cr,rv)					\

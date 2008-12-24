@@ -605,7 +605,8 @@ shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
 	 * XXXRW: This validation is probably insufficient, and subject to
 	 * sign errors.  It should be fixed.
 	 */
-	if (foff >= shmfd->shm_size || foff + objsize > shmfd->shm_size)
+	if (foff >= shmfd->shm_size ||
+	    foff + objsize > round_page(shmfd->shm_size))
 		return (EINVAL);
 
 	mtx_lock(&shm_timestamp_lock);

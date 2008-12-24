@@ -40,6 +40,9 @@ typedef longlong_t	hrtime_t;
 
 #define	LBOLT	((gethrtime() * hz) / NANOSEC)
 
+#define	TIMESPEC_OVERFLOW(ts)						\
+	((ts)->tv_sec < INT32_MIN || (ts)->tv_sec > INT32_MAX)
+
 #ifdef _KERNEL
 #define	lbolt64	(int64_t)(LBOLT)
 

@@ -32,7 +32,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.186 2008/04/05 15:30:28 tom Exp $ */
+/* $Id: curses.h.in,v 1.187 2008/08/30 20:11:29 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -423,7 +423,8 @@ struct _win_st
  */
 #if @NCURSES_EXT_FUNCS@
 #ifdef NCURSES_WGETCH_EVENTS
-#if !defined(__BEOS__)		/* Fix _nc_timed_wait() on BEOS... */
+#if !defined(__BEOS__) || defined(__HAIKU__)
+   /* Fix _nc_timed_wait() on BEOS... */
 #  define NCURSES_EVENT_VERSION	1
 #endif	/* !defined(__BEOS__) */
 

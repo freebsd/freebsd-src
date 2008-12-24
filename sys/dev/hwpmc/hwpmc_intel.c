@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -79,7 +80,7 @@ pmc_intel_initialize(void)
 	enum pmc_cputype cputype;
 	int error, model, nclasses, ncpus;
 
-	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
+	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[intel,%d] Initializing non-intel processor", __LINE__));
 
 	PMCDBG(MDP,INI,0, "intel-initialize cpuid=0x%x", cpu_id);
@@ -87,20 +88,24 @@ pmc_intel_initialize(void)
 	cputype = -1;
 	nclasses = 2;
 
+	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
+
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
 	case 0x500:		/* Pentium family processors */
 		cputype = PMC_CPU_INTEL_P5;
 		break;
+#endif
 	case 0x600:		/* Pentium Pro, Celeron, Pentium II & III */
-		switch ((cpu_id & 0xF0) >> 4) { /* model number field */
+		switch (model) {
+#if	defined(__i386__)
 		case 0x1:
 			cputype = PMC_CPU_INTEL_P6;
 			break;
 		case 0x3: case 0x5:
 			cputype = PMC_CPU_INTEL_PII;
 			break;
-		case 0x6:
+		case 0x6: case 0x16:
 			cputype = PMC_CPU_INTEL_CL;
 			break;
 		case 0x7: case 0x8: case 0xA: case 0xB:
@@ -109,12 +114,26 @@ pmc_intel_initialize(void)
 		case 0x9: case 0xD:
 			cputype = PMC_CPU_INTEL_PM;
 			break;
+#endif
+		case 0xE:
+			cputype = PMC_CPU_INTEL_CORE;
+			break;
+		case 0xF:
+			cputype = PMC_CPU_INTEL_CORE2;
+			nclasses = 3;
+			break;
+		case 0x17:
+			cputype = PMC_CPU_INTEL_CORE2EXTREME;
+			nclasses = 3;
+			break;
+		case 0x1C:	/* Per Intel document 320047-002. */
+			cputype = PMC_CPU_INTEL_ATOM;
+			nclasses = 3;
+			break;
 		}
 		break;
-#endif
 #if	defined(__i386__) || defined(__amd64__)
 	case 0xF00:		/* P4 */
-		model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 		if (model >= 0 && model <= 6) /* known models */
 			cputype = PMC_CPU_INTEL_PIV;
 		break;
@@ -143,6 +162,15 @@ pmc_intel_initialize(void)
 
 	switch (cputype) {
 #if	defined(__i386__) || defined(__amd64__)
+		/*
+		 * Intel Core, Core 2 and Atom processors.
+		 */
+	case PMC_CPU_INTEL_ATOM:
+	case PMC_CPU_INTEL_CORE:
+	case PMC_CPU_INTEL_CORE2:
+	case PMC_CPU_INTEL_CORE2EXTREME:
+		error = pmc_core_initialize(pmc_mdep, ncpus);
+		break;
 
 		/*
 		 * Intel Pentium 4 Processors, and P4/EMT64 processors.
@@ -151,8 +179,9 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PIV:
 		error = pmc_p4_initialize(pmc_mdep, ncpus);
 
-		KASSERT(md->pmd_npmc == TSC_NPMCS + P4_NPMCS, ("[intel,%d] "
-		    "incorrect npmc count %d", __LINE__, md->pmd_npmc));
+		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P4_NPMCS,
+		    ("[intel,%d] incorrect npmc count %d", __LINE__,
+		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -168,8 +197,9 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PM:
 		error = pmc_p6_initialize(pmc_mdep, ncpus);
 
-		KASSERT(md->pmd_npmc == TSC_NPMCS + P6_NPMCS, ("[intel,%d] "
-		    "incorrect npmc count %d", __LINE__, md->pmd_npmc));
+		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P6_NPMCS,
+		    ("[intel,%d] incorrect npmc count %d", __LINE__,
+		    pmc_mdep->pmd_npmc));
 		break;
 
 		/*
@@ -179,8 +209,9 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_P5:
 		error = pmc_p5_initialize(pmc_mdep, ncpus);
 
-		KASSERT(md->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS, ("[intel,%d] "
-		    "incorrect npmc count %d", __LINE__, md->pmd_npmc));
+		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS,
+		    ("[intel,%d] incorrect npmc count %d", __LINE__,
+		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -205,6 +236,13 @@ pmc_intel_finalize(struct pmc_mdep *md)
 
 	switch (md->pmd_cputype) {
 #if	defined(__i386__) || defined(__amd64__)
+	case PMC_CPU_INTEL_ATOM:
+	case PMC_CPU_INTEL_CORE:
+	case PMC_CPU_INTEL_CORE2:
+	case PMC_CPU_INTEL_CORE2EXTREME:
+		pmc_core_finalize(md);
+		break;
+
 	case PMC_CPU_INTEL_PIV:
 		pmc_p4_finalize(md);
 		break;

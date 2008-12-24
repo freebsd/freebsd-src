@@ -85,11 +85,11 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 	mac->ops.start_hw = &ixgbe_start_hw_generic;
 	mac->ops.clear_hw_cntrs = &ixgbe_clear_hw_cntrs_generic;
 	mac->ops.get_media_type = NULL;
+	mac->ops.get_supported_physical_layer = NULL;
 	mac->ops.get_mac_addr = &ixgbe_get_mac_addr_generic;
 	mac->ops.stop_adapter = &ixgbe_stop_adapter_generic;
 	mac->ops.get_bus_info = &ixgbe_get_bus_info_generic;
-	mac->ops.read_analog_reg8 = &ixgbe_read_analog_reg8_generic;
-	mac->ops.write_analog_reg8 = &ixgbe_write_analog_reg8_generic;
+	mac->ops.set_lan_id = &ixgbe_set_lan_id_multi_port_pcie;
 
 	/* LEDs */
 	mac->ops.led_on = &ixgbe_led_on_generic;
@@ -111,8 +111,6 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 	mac->ops.set_vfta = NULL;
 	mac->ops.init_uta_tables = NULL;
 
-	/* Flow Control */
-	mac->ops.setup_fc = NULL;
 
 	/* Link */
 	mac->ops.get_link_capabilities = NULL;
@@ -215,17 +213,16 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 	IXGBE_READ_REG(hw, IXGBE_MRFC);
 	IXGBE_READ_REG(hw, IXGBE_RLEC);
 	IXGBE_READ_REG(hw, IXGBE_LXONTXC);
-	IXGBE_READ_REG(hw, IXGBE_LXONRXC);
 	IXGBE_READ_REG(hw, IXGBE_LXOFFTXC);
+	IXGBE_READ_REG(hw, IXGBE_LXONRXC);
 	IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
 
 	for (i = 0; i < 8; i++) {
 		IXGBE_READ_REG(hw, IXGBE_PXONTXC(i));
-		IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
 		IXGBE_READ_REG(hw, IXGBE_PXOFFTXC(i));
+		IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
 		IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
 	}
-
 	IXGBE_READ_REG(hw, IXGBE_PRC64);
 	IXGBE_READ_REG(hw, IXGBE_PRC127);
 	IXGBE_READ_REG(hw, IXGBE_PRC255);
@@ -272,7 +269,7 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_read_pba_num - Reads part number from EEPROM
+ *  ixgbe_read_pba_num_generic - Reads part number from EEPROM
  *  @hw: pointer to hardware structure
  *  @pba_num: stores the part number from the EEPROM
  *
@@ -337,6 +334,7 @@ s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr)
  **/
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 {
+	struct ixgbe_mac_info *mac = &hw->mac;
 	u16 link_status;
 
 	hw->bus.type = ixgbe_bus_type_pci_express;
@@ -374,7 +372,30 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 		break;
 	}
 
+	mac->ops.set_lan_id(hw);
+
 	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_set_lan_id_multi_port_pcie - Set LAN id for PCIe multiple port devices
+ *  @hw: pointer to the HW structure
+ *
+ *  Determines the LAN function id by reading memory-mapped registers
+ *  and swaps the port value if requested.
+ **/
+void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
+{
+	struct ixgbe_bus_info *bus = &hw->bus;
+	u32 reg;
+
+	reg = IXGBE_READ_REG(hw, IXGBE_STATUS);
+	bus->func = (reg & IXGBE_STATUS_LAN_ID) >> IXGBE_STATUS_LAN_ID_SHIFT;
+
+	/* check for a port swap */
+	reg = IXGBE_READ_REG(hw, IXGBE_FACTPS);
+	if (reg & IXGBE_FACTPS_LFS)
+		bus->func ^= 0x1;
 }
 
 /**
@@ -425,9 +446,8 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests
 	 */
-	if (ixgbe_disable_pcie_master(hw) != IXGBE_SUCCESS) {
+	if (ixgbe_disable_pcie_master(hw) != IXGBE_SUCCESS)
 		DEBUGOUT("PCI-E Master disable polling has failed.\n");
-	}
 
 	return IXGBE_SUCCESS;
 }
@@ -500,9 +520,9 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 			 * change if a future EEPROM is not SPI.
 			 */
 			eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
-					    IXGBE_EEC_SIZE_SHIFT);
+			                    IXGBE_EEC_SIZE_SHIFT);
 			eeprom->word_size = 1 << (eeprom_size +
-						  IXGBE_EEPROM_WORD_SIZE_SHIFT);
+			                         IXGBE_EEPROM_WORD_SIZE_SHIFT);
 		}
 
 		if (eec & IXGBE_EEC_ADDR_SIZE)
@@ -510,8 +530,8 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 		else
 			eeprom->address_bits = 8;
 		DEBUGOUT3("Eeprom params: type = %d, size = %d, address bits: "
-			  "%d\n", eeprom->type, eeprom->word_size,
-			  eeprom->address_bits);
+		          "%d\n", eeprom->type, eeprom->word_size,
+		          eeprom->address_bits);
 	}
 
 	return IXGBE_SUCCESS;
@@ -1156,7 +1176,7 @@ s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
 	if (status == IXGBE_SUCCESS) {
 		checksum = ixgbe_calc_eeprom_checksum(hw);
 		status = hw->eeprom.ops.write(hw, IXGBE_EEPROM_CHECKSUM,
-		                            checksum);
+		                              checksum);
 	} else {
 		DEBUGOUT("EEPROM read failed\n");
 	}
@@ -1453,7 +1473,7 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
 	if (hw->addr_ctrl.overflow_promisc) {
 		/* enable promisc if not already in overflow or set by user */
 		if (!old_promisc_setting && !hw->addr_ctrl.user_set_promisc) {
-			DEBUGOUT( " Entering address overflow promisc mode\n");
+			DEBUGOUT(" Entering address overflow promisc mode\n");
 			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 			fctrl |= IXGBE_FCTRL_UPE;
 			IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
@@ -1684,6 +1704,148 @@ s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw)
 	return IXGBE_SUCCESS;
 }
 
+
+/**
+ *  ixgbe_fc_autoneg - Configure flow control
+ *  @hw: pointer to hardware structure
+ *
+ *  Negotiates flow control capabilities with link partner using autoneg and
+ *  applies the results.
+ **/
+s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
+{
+	s32 ret_val = IXGBE_SUCCESS;
+	u32 i, reg, pcs_anadv_reg, pcs_lpab_reg;
+
+	DEBUGFUNC("ixgbe_fc_autoneg");
+
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+
+	/*
+	 * The possible values of fc.current_mode are:
+	 * 0:  Flow control is completely disabled
+	 * 1:  Rx flow control is enabled (we can receive pause frames,
+	 *     but not send pause frames).
+	 * 2:  Tx flow control is enabled (we can send pause frames but
+	 *     we do not support receiving pause frames).
+	 * 3:  Both Rx and Tx flow control (symmetric) are enabled.
+	 * other: Invalid.
+	 */
+	switch (hw->fc.current_mode) {
+	case ixgbe_fc_none:
+		/* Flow control completely disabled by software override. */
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_rx_pause:
+		/*
+		 * Rx Flow control is enabled and Tx Flow control is
+		 * disabled by software override. Since there really
+		 * isn't a way to advertise that we are capable of RX
+		 * Pause ONLY, we will advertise that we support both
+		 * symmetric and asymmetric Rx PAUSE.  Later, we will
+		 * disable the adapter's ability to send PAUSE frames.
+		 */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_tx_pause:
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
+		 * disabled by software override.
+		 */
+		reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
+		break;
+	case ixgbe_fc_full:
+		/* Flow control (both Rx and Tx) is enabled by SW override. */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	default:
+		DEBUGOUT("Flow control param set incorrectly\n");
+		ret_val = -IXGBE_ERR_CONFIG;
+		goto out;
+		break;
+	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GANA, reg);
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLCTL);
+
+	/* Set PCS register for autoneg */
+	/* Enable and restart autoneg */
+	reg |= IXGBE_PCS1GLCTL_AN_ENABLE | IXGBE_PCS1GLCTL_AN_RESTART;
+
+	/* Disable AN timeout */
+	if (hw->fc.strict_ieee)
+		reg &= ~IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN;
+
+	DEBUGOUT1("Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GLCTL, reg);
+
+	/* See if autonegotiation has succeeded */
+	hw->mac.autoneg_succeeded = 0;
+	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
+		msec_delay(10);
+		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
+		if ((reg & (IXGBE_PCS1GLSTA_LINK_OK |
+		     IXGBE_PCS1GLSTA_AN_COMPLETE)) ==
+		    (IXGBE_PCS1GLSTA_LINK_OK |
+		     IXGBE_PCS1GLSTA_AN_COMPLETE)) {
+			if (!(reg & IXGBE_PCS1GLSTA_AN_TIMED_OUT))
+				hw->mac.autoneg_succeeded = 1;
+			break;
+		}
+	}
+
+	if (!hw->mac.autoneg_succeeded) {
+		/* Autoneg failed to achieve a link, so we turn fc off */
+		hw->fc.current_mode = ixgbe_fc_none;
+		DEBUGOUT("Flow Control = NONE.\n");
+		goto out;
+	}
+
+	/*
+	 * Read the AN advertisement and LP ability registers and resolve
+	 * local flow control settings accordingly
+	 */
+	pcs_anadv_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+	pcs_lpab_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANLP);
+	if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE)) {
+		/*
+		 * Now we need to check if the user selected Rx ONLY
+		 * of pause frames.  In this case, we had to advertise
+		 * FULL flow control because we could not advertise RX
+		 * ONLY. Hence, we must now check to see if we need to
+		 * turn OFF the TRANSMISSION of PAUSE frames.
+		 */
+		if (hw->fc.requested_mode == ixgbe_fc_full) {
+			hw->fc.current_mode = ixgbe_fc_full;
+			DEBUGOUT("Flow Control = FULL.\n");
+		} else {
+			hw->fc.current_mode = ixgbe_fc_rx_pause;
+			DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
+		}
+	} else if (!(pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.current_mode = ixgbe_fc_tx_pause;
+		DEBUGOUT("Flow Control = TX PAUSE frames only.\n");
+	} else if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		   !(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.current_mode = ixgbe_fc_rx_pause;
+		DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
+	} else {
+		hw->fc.current_mode = ixgbe_fc_none;
+		DEBUGOUT("Flow Control = NONE.\n");
+	}
+
+out:
+	return ret_val;
+}
+
+
 /**
  *  ixgbe_disable_pcie_master - Disable PCI-express master access
  *  @hw: pointer to hardware structure
@@ -1790,46 +1952,5 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 	IXGBE_WRITE_REG(hw, IXGBE_GSSR, gssr);
 
 	ixgbe_release_eeprom_semaphore(hw);
-}
-
-/**
- *  ixgbe_read_analog_reg8_generic - Reads 8 bit Atlas analog register
- *  @hw: pointer to hardware structure
- *  @reg: analog register to read
- *  @val: read value
- *
- *  Performs read operation to Atlas analog register specified.
- **/
-s32 ixgbe_read_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 *val)
-{
-	u32  atlas_ctl;
-
-	IXGBE_WRITE_REG(hw, IXGBE_ATLASCTL, IXGBE_ATLASCTL_WRITE_CMD | (reg << 8));
-	IXGBE_WRITE_FLUSH(hw);
-	usec_delay(10);
-	atlas_ctl = IXGBE_READ_REG(hw, IXGBE_ATLASCTL);
-	*val = (u8)atlas_ctl;
-
-	return IXGBE_SUCCESS;
-}
-
-/**
- *  ixgbe_write_analog_reg8_generic - Writes 8 bit Atlas analog register
- *  @hw: pointer to hardware structure
- *  @reg: atlas register to write
- *  @val: value to write
- *
- *  Performs write operation to Atlas analog register specified.
- **/
-s32 ixgbe_write_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 val)
-{
-	u32  atlas_ctl;
-
-	atlas_ctl = (reg << 8) | val;
-	IXGBE_WRITE_REG(hw, IXGBE_ATLASCTL, atlas_ctl);
-	IXGBE_WRITE_FLUSH(hw);
-	usec_delay(10);
-
-	return IXGBE_SUCCESS;
 }
 

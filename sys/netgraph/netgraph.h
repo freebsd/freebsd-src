@@ -1130,7 +1130,6 @@ item_p	ng_package_msg(struct ng_mesg *msg, int flags);
 item_p	ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg);
 void	ng_replace_retaddr(node_p here, item_p item, ng_ID_t retaddr);
 int	ng_rmhook_self(hook_p hook);	/* if a node wants to kill a hook */
-int	ng_rmnode_flags(node_p here, int flags);
 int	ng_rmnode_self(node_p here);	/* if a node wants to suicide */
 int	ng_rmtype(struct ng_type *tp);
 int	ng_snd_item(item_p item, int queue);
@@ -1186,6 +1185,7 @@ typedef void *meta_p;
 
 /* Hash related definitions */
 #define	NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
+#define	NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
 
 /* Virtualization macros */
 #define	INIT_VNET_NETGRAPH(vnet) \
@@ -1193,6 +1193,22 @@ typedef void *meta_p;
 	    struct vnet_netgraph, vnet_netgraph)
 
 #define	VNET_NETGRAPH(sym)	VSYM(vnet_netgraph, sym)
+
+struct vnet_netgraph {
+	LIST_HEAD(, ng_node)	 _ng_ID_hash[NG_ID_HASH_SIZE];
+	LIST_HEAD(, ng_node)	 _ng_name_hash[NG_NAME_HASH_SIZE];
+	LIST_HEAD(, ng_node)	 _ng_nodelist;
+	ng_ID_t			 _nextID;
+	struct unrhdr		*_ng_iface_unit;
+	struct unrhdr		*_ng_eiface_unit;
+	struct unrhdr		*_ng_wormhole_unit;
+};
+
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_netgraph vnet_netgraph_0;
+#endif
+#endif
 
 /* Symbol translation macros */
 #define	V_nextID		VNET_NETGRAPH(nextID)

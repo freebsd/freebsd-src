@@ -1342,7 +1342,6 @@ static int
 lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
     void **cookiep)
 {
-	struct lockf_entry *block;
 	static char lockstr[] = "lockf";
 	int priority, error;
 
@@ -1362,7 +1361,7 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 	/*
 	 * Scan lock list for this file looking for locks that would block us.
 	 */
-	while ((block = lf_getblock(state, lock))) {
+	while (lf_getblock(state, lock)) {
 		/*
 		 * Free the structure and return if nonblocking.
 		 */

@@ -43,6 +43,10 @@
 
 #include <curses.priv.h>
 
+#if defined __HAIKU__ && defined __BEOS__
+#undef __BEOS__
+#endif
+
 #ifdef __BEOS__
 #undef false
 #undef true
@@ -62,7 +66,9 @@
 # endif
 #endif
 
-MODULE_ID("$Id: lib_twait.c,v 1.57 2008/05/03 21:35:57 tom Exp $")
+#undef CUR
+
+MODULE_ID("$Id: lib_twait.c,v 1.59 2008/08/30 20:08:19 tom Exp $")
 
 static long
 _nc_gettime(TimeType * t0, bool first)

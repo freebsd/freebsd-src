@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2008
+.Dd November 23, 2008
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -91,8 +91,7 @@ describes the mount options associated with the file system.
 It is formatted as a comma separated list of options.
 It contains at least the type of mount (see
 .Fa fs_type
-below) plus any additional options
-appropriate to the file system type.
+below) plus any additional options appropriate to the file system type.
 See the options flag
 .Pq Fl o
 in the
@@ -100,6 +99,32 @@ in the
 page and the file system specific page, such as
 .Xr mount_nfs 8 ,
 for additional options that may be specified.
+All options that can be given to the file system specific mount commands
+can be used in
+.Nm
+as well.
+They just need to be formatted a bit differently.
+The arguments of the
+.Fl o
+option can be used without the preceding
+.Fl o
+flag.
+Other options need both the file system specific flag and its argument,
+separated by an equal sign.
+For example, mounting an
+.Xr msdosfs 5
+filesystem, the options
+.Bd -literal -offset indent
+-o sync -o noatime -m 644 -M 755 -u foo -g bar
+.Ed
+.Pp
+should be written as
+.Bd -literal -offset indent
+sync,noatime,-m=644,-M=755,-u=foo,-g=bar
+.Ed
+.Pp
+in the option field of
+.Nm .
 .Pp
 If the options ``userquota'' and/or ``groupquota'' are specified,
 the file system is automatically processed by the

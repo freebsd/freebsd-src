@@ -9,7 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY SASCHA SCHUMANN ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
@@ -105,7 +105,7 @@ static struct cdevsw pcfclock_cdevsw = {
 	NR(buf,  2) <= 59)
 
 #define PCFCLOCK_BATTERY_STATUS_LOW(buf) (buf[8] & 4)
-	 
+
 #define PCFCLOCK_CMD_TIME 0		/* send current time */
 #define PCFCLOCK_CMD_COPY 7 	/* copy received signal to PC */
 
@@ -133,7 +133,7 @@ pcfclock_attach(device_t dev)
 {
 	struct pcfclock_data *sc = device_get_softc(dev);
 	int unit;
-	
+
 	unit = device_get_unit(dev);
 
 	sc->dev = dev;
@@ -148,14 +148,14 @@ pcfclock_attach(device_t dev)
 	return (0);
 }
 
-static int 
+static int
 pcfclock_open(struct cdev *dev, int flag, int fms, struct thread *td)
 {
 	struct pcfclock_data *sc = dev->si_drv1;
 	device_t pcfclockdev = sc->dev;
 	device_t ppbus = device_get_parent(pcfclockdev);
 	int res;
-	
+
 	if (!sc)
 		return (ENXIO);
 
@@ -164,7 +164,7 @@ pcfclock_open(struct cdev *dev, int flag, int fms, struct thread *td)
 		return (res);
 
 	sc->count++;
-	
+
 	return (0);
 }
 
@@ -187,10 +187,10 @@ pcfclock_write_cmd(struct cdev *dev, unsigned char command)
 {
 	struct pcfclock_data *sc = dev->si_drv1;
 	device_t pcfclockdev = sc->dev;
-        device_t ppbus = device_get_parent(pcfclockdev);
+	device_t ppbus = device_get_parent(pcfclockdev);
 	unsigned char ctr = 14;
 	char i;
-	
+
 	for (i = 0; i <= 7; i++) {
 		ppb_wdtr(ppbus, i);
 		AUTOFEED_CLOCK(i & 1 ? AFC_HI : AFC_LO);
@@ -203,7 +203,7 @@ pcfclock_write_cmd(struct cdev *dev, unsigned char command)
 }
 
 static void
-pcfclock_display_data(struct cdev *dev, char buf[18]) 
+pcfclock_display_data(struct cdev *dev, char buf[18])
 {
 	struct pcfclock_data *sc = dev->si_drv1;
 #ifdef PCFCLOCK_VERBOSE
@@ -224,19 +224,19 @@ pcfclock_display_data(struct cdev *dev, char buf[18])
 #endif
 }
 
-static int 
+static int
 pcfclock_read_data(struct cdev *dev, char *buf, ssize_t bits)
 {
 	struct pcfclock_data *sc = dev->si_drv1;
 	device_t pcfclockdev = sc->dev;
-        device_t ppbus = device_get_parent(pcfclockdev);
+	device_t ppbus = device_get_parent(pcfclockdev);
 	int i;
 	char waitfor;
 	int offset;
 
 	/* one byte per four bits */
 	bzero(buf, ((bits + 3) >> 2) + 1);
-	
+
 	waitfor = 100;
 	for (i = 0; i <= bits; i++) {
 		/* wait for clock, maximum (waitfor*100) usec */
@@ -244,11 +244,11 @@ pcfclock_read_data(struct cdev *dev, char *buf, ssize_t bits)
 			DELAY(100);
 
 		/* timed out? */
-		if (!waitfor) 
+		if (!waitfor)
 			return (EIO);
-		
+
 		waitfor = 100; /* reload */
-		
+
 		/* give it some time */
 		DELAY(500);
 
@@ -263,12 +263,12 @@ pcfclock_read_data(struct cdev *dev, char *buf, ssize_t bits)
 	return (0);
 }
 
-static int 
-pcfclock_read_dev(struct cdev *dev, char *buf, int maxretries) 
+static int
+pcfclock_read_dev(struct cdev *dev, char *buf, int maxretries)
 {
 	struct pcfclock_data *sc = dev->si_drv1;
 	device_t pcfclockdev = sc->dev;
-        device_t ppbus = device_get_parent(pcfclockdev);
+	device_t ppbus = device_get_parent(pcfclockdev);
 	int error = 0;
 
 	ppb_set_mode(ppbus, PPB_COMPATIBLE);
@@ -277,7 +277,7 @@ pcfclock_read_dev(struct cdev *dev, char *buf, int maxretries)
 		pcfclock_write_cmd(dev, PCFCLOCK_CMD_TIME);
 		if (pcfclock_read_data(dev, buf, 68))
 			continue;
-			
+
 		if (!PCFCLOCK_CORRECT_SYNC(buf))
 			continue;
 
@@ -289,7 +289,7 @@ pcfclock_read_dev(struct cdev *dev, char *buf, int maxretries)
 
 	if (!maxretries)
 		error = EIO;
-	
+
 	return (error);
 }
 
@@ -304,15 +304,15 @@ pcfclock_read(struct cdev *dev, struct uio *uio, int ioflag)
 		return (ERANGE);
 
 	error = pcfclock_read_dev(dev, buf, PCFCLOCK_MAX_RETRIES);
-	
+
 	if (error) {
 		device_printf(sc->dev, "no PCF found\n");
 	} else {
 		pcfclock_display_data(dev, buf);
-		
+
 		uiomove(buf, 18, uio);
 	}
-	
+
 	return (error);
 }
 

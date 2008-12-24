@@ -120,18 +120,20 @@ static usb2_callback_t umct_write_clear_stall_callback;
 static usb2_callback_t umct_read_callback;
 static usb2_callback_t umct_read_clear_stall_callback;
 
-static void umct_cfg_do_request(struct umct_softc *sc, uint8_t request, uint16_t len, uint32_t value);
-static void umct_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static void umct_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static void umct_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void umct_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static uint8_t umct_calc_baud(uint32_t baud);
-static int umct_pre_param(struct usb2_com_softc *ucom, struct termios *ti);
-static void umct_cfg_param(struct usb2_com_softc *ucom, struct termios *ti);
-static void umct_start_read(struct usb2_com_softc *ucom);
-static void umct_stop_read(struct usb2_com_softc *ucom);
-static void umct_start_write(struct usb2_com_softc *ucom);
-static void umct_stop_write(struct usb2_com_softc *ucom);
+static void	umct_cfg_do_request(struct umct_softc *, uint8_t, uint16_t,
+		    uint32_t);
+static void	umct_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static void	umct_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	umct_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	umct_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static uint8_t	umct_calc_baud(uint32_t);
+static int	umct_pre_param(struct usb2_com_softc *, struct termios *);
+static void	umct_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	umct_start_read(struct usb2_com_softc *);
+static void	umct_stop_read(struct usb2_com_softc *);
+static void	umct_start_write(struct usb2_com_softc *);
+static void	umct_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config umct_config[UMCT_ENDPT_MAX] = {
 
@@ -379,7 +381,6 @@ umct_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UMCT_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -429,7 +430,6 @@ umct_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-	return;
 }
 
 static void
@@ -443,7 +443,6 @@ umct_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 		sc->sc_lcr &= ~0x40;
 
 	umct_cfg_do_request(sc, UMCT_SET_LCR, UMCT_SET_LCR_SIZE, sc->sc_lcr);
-	return;
 }
 
 static void
@@ -457,7 +456,6 @@ umct_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 		sc->sc_mcr &= ~0x01;
 
 	umct_cfg_do_request(sc, UMCT_SET_MCR, UMCT_SET_MCR_SIZE, sc->sc_mcr);
-	return;
 }
 
 static void
@@ -471,7 +469,6 @@ umct_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 		sc->sc_mcr &= ~0x02;
 
 	umct_cfg_do_request(sc, UMCT_SET_MCR, UMCT_SET_MCR_SIZE, sc->sc_mcr);
-	return;
 }
 
 static uint8_t
@@ -549,7 +546,6 @@ umct_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 
 	sc->sc_lcr = value;
 	umct_cfg_do_request(sc, UMCT_SET_LCR, UMCT_SET_LCR_SIZE, value);
-	return;
 }
 
 static void
@@ -562,7 +558,6 @@ umct_start_read(struct usb2_com_softc *ucom)
 
 	/* start read endpoint */
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -577,7 +572,6 @@ umct_stop_read(struct usb2_com_softc *ucom)
 	/* stop read endpoint */
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -586,7 +580,6 @@ umct_start_write(struct usb2_com_softc *ucom)
 	struct umct_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -596,7 +589,6 @@ umct_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -641,7 +633,6 @@ umct_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UMCT_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -684,5 +675,4 @@ umct_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UMCT_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }

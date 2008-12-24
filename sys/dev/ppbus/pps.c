@@ -9,7 +9,7 @@
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
- * The input pin is pin#10 
+ * The input pin is pin#10
  * The echo output pin is pin#14
  *
  */
@@ -256,7 +256,7 @@ ppshcpoll(void *arg)
 	mtx_lock_spin(&sc->mtx);
 	sc->timeout = timeout(ppshcpoll, sc, 1);
 	i = ppb_rdtr(sc->ppbus);
-	if (i == sc->lastdata) 
+	if (i == sc->lastdata)
 		return;
 	l = sc->lastdata ^ i;
 	k = 1;
@@ -280,12 +280,12 @@ ppsintr(void *arg)
 	pps_capture(&sc->pps[0]);
 	if (!(ppb_rstr(sc->ppbus) & nACK))
 		return (FILTER_STRAY);
-	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
+	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT)
 		ppb_wctr(sc->ppbus, IRQENABLE | AUTOFEED);
 	mtx_lock_spin(&sc->mtx);
 	pps_event(&sc->pps[0], PPS_CAPTUREASSERT);
 	mtx_unlock_spin(&sc->mtx);
-	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
+	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT)
 		ppb_wctr(sc->ppbus, IRQENABLE);
 	return (FILTER_HANDLED);
 }

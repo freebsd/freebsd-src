@@ -163,6 +163,8 @@ struct g_journal_softc {
 
 	struct callout	 sc_callout;
 	struct proc	*sc_worker;
+
+	struct root_hold_token *sc_rootmount;
 };
 #define	sc_dprovider	sc_dconsumer->provider
 #define	sc_jprovider	sc_jconsumer->provider

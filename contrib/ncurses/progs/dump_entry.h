@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 
 /*
- * $Id: dump_entry.h,v 1.29 2006/08/19 21:11:14 tom Exp $
+ * $Id: dump_entry.h,v 1.30 2008/07/12 20:23:03 tom Exp $
  *
  * Dump control definitions and variables
  */
@@ -63,7 +63,7 @@
 #define CMP_USE		3	/* comparison on use capabilities */
 
 typedef unsigned PredType;
-typedef int PredIdx;
+typedef unsigned PredIdx;
 typedef int (*PredFunc)(PredType, PredIdx);
 
 extern NCURSES_CONST char *nametrans(const char *);

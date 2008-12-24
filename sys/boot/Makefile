@@ -12,7 +12,7 @@ SUBDIR+=		ficl
 .endif
 
 # Build EFI library.
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386" || ${MACHINE_ARCH} == "ia64"
 SUBDIR+=		efi
 .endif
 
@@ -24,6 +24,10 @@ SUBDIR+=		ofw
 # Build U-Boot library.
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
 SUBDIR+=		uboot
+.endif
+
+.if defined(LOADER_ZFS_SUPPORT)
+SUBDIR+=		zfs
 .endif
 
 # Pick the machine-dependent subdir based on the target architecture.

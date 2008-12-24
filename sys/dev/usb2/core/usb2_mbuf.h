@@ -95,6 +95,7 @@ struct usb2_ifqueue {
   } while (0)
 
 /* prototypes */
-void   *usb2_alloc_mbufs(struct malloc_type *type, struct usb2_ifqueue *ifq, uint32_t block_size, uint16_t nblocks);
+void   *usb2_alloc_mbufs(struct malloc_type *type, struct usb2_ifqueue *ifq,
+	    uint32_t block_size, uint16_t nblocks);
 
 #endif					/* _USB2_MBUF_H_ */

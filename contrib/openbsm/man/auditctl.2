@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2005-2006 Robert N. M. Watson
+.\" Copyright (c) 2008 Apple Inc. 
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditctl.2#7 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditctl.2#9 $
 .\"
 .Dd April 19, 2005
 .Dt AUDITCTL 2
@@ -40,20 +41,25 @@ The
 .Fn auditctl
 system call directs the kernel to open a new audit trail log file.
 It requires an appropriate privilege.
-In the
-.Fx
-implementation,
+The
 .Fn auditctl
+system call
 opens new files, but
 .Xr auditon 2
 is used to disable the audit log.
-In the Mac OS X implementation, passing
-.Dv NULL
-to
-.Fn auditctl
-will disable the audit log.
 .Sh RETURN VALUES
 .Rv -std
+.Sh ERRORS
+The
+.Fn auditctl
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The path is invalid.
+.It Bq Er EPERM
+The process does not have sufficient permission to complete the
+operation.
+.El
 .Sh SEE ALSO
 .Xr auditon 2 ,
 .Xr libbsm 3 ,

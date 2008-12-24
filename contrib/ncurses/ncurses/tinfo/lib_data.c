@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.43 2008/03/29 21:16:49 tom Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.52 2008/08/23 22:16:15 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
@@ -168,8 +168,6 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     NULL,			/* tracedmp_buf */
     0,				/* tracedmp_used */
 
-    CHARS_0s,			/* tracemse_buf */
-
     NULL,			/* tracetry_buf */
     0,				/* tracetry_used */
 
@@ -179,13 +177,11 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
 
 #endif /* TRACE */
 #ifdef USE_PTHREADS
-    PTHREAD_MUTEX_INITIALIZER,	/* mutex_set_SP */
-    PTHREAD_MUTEX_INITIALIZER,	/* mutex_use_screen */
-    PTHREAD_MUTEX_INITIALIZER,	/* mutex_use_window */
-    PTHREAD_MUTEX_INITIALIZER,	/* mutex_windowlist */
+    PTHREAD_MUTEX_INITIALIZER,	/* mutex_curses */
     PTHREAD_MUTEX_INITIALIZER,	/* mutex_tst_tracef */
     PTHREAD_MUTEX_INITIALIZER,	/* mutex_tracef */
     0,				/* nested_tracef */
+    0,				/* use_pthreads */
 #endif
 };
 
@@ -222,10 +218,14 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
 	NUM_VARS_0s,		/* static_vars */
     },
     NULL,			/* saved_tty */
+#if NCURSES_NO_PADDING
+    FALSE,			/* flag to set if padding disabled  */
+#endif
 #if BROKEN_LINKER || USE_REENTRANT
     NULL,			/* real_acs_map */
     0,				/* LINES */
     0,				/* COLS */
+    0,				/* cur_term */
 #ifdef TRACE
     0L,				/* _outchars */
     NULL,			/* _tputs_trace */
@@ -243,13 +243,31 @@ init_global_mutexes(void)
 
     if (!initialized) {
 	initialized = TRUE;
-	_nc_mutex_init(&_nc_globals.mutex_set_SP);
-	_nc_mutex_init(&_nc_globals.mutex_use_screen);
-	_nc_mutex_init(&_nc_globals.mutex_use_window);
-	_nc_mutex_init(&_nc_globals.mutex_windowlist);
+	_nc_mutex_init(&_nc_globals.mutex_curses);
 	_nc_mutex_init(&_nc_globals.mutex_tst_tracef);
 	_nc_mutex_init(&_nc_globals.mutex_tracef);
     }
+}
+
+NCURSES_EXPORT(void)
+_nc_init_pthreads(void)
+{
+    if (_nc_use_pthreads)
+	return;
+# if USE_WEAK_SYMBOLS
+    if ((pthread_mutex_init) == 0)
+	return;
+    if ((pthread_mutex_lock) == 0)
+	return;
+    if ((pthread_mutex_unlock) == 0)
+	return;
+    if ((pthread_mutex_trylock) == 0)
+	return;
+    if ((pthread_mutexattr_settype) == 0)
+	return;
+# endif
+    _nc_use_pthreads = 1;
+    init_global_mutexes();
 }
 
 /*
@@ -266,29 +284,49 @@ _nc_mutex_init(pthread_mutex_t * obj)
 {
     pthread_mutexattr_t recattr;
 
-    memset(&recattr, 0, sizeof(recattr));
-    pthread_mutexattr_settype(&recattr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(obj, &recattr);
+    if (_nc_use_pthreads) {
+	pthread_mutexattr_init(&recattr);
+	pthread_mutexattr_settype(&recattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(obj, &recattr);
+    }
 }
 
 NCURSES_EXPORT(int)
 _nc_mutex_lock(pthread_mutex_t * obj)
 {
-    init_global_mutexes();
+    if (_nc_use_pthreads == 0)
+	return 0;
     return pthread_mutex_lock(obj);
 }
 
 NCURSES_EXPORT(int)
 _nc_mutex_trylock(pthread_mutex_t * obj)
 {
-    init_global_mutexes();
+    if (_nc_use_pthreads == 0)
+	return 0;
     return pthread_mutex_trylock(obj);
 }
 
 NCURSES_EXPORT(int)
 _nc_mutex_unlock(pthread_mutex_t * obj)
 {
-    init_global_mutexes();
+    if (_nc_use_pthreads == 0)
+	return 0;
     return pthread_mutex_unlock(obj);
 }
+
+#if USE_WEAK_SYMBOLS
+/*
+ * NB: sigprocmask(2) is global but pthread_sigmask(3p)
+ * only for the calling thread.
+ */
+NCURSES_EXPORT(int)
+_nc_sigprocmask(int how, const sigset_t * newmask, sigset_t * oldmask)
+{
+    if ((pthread_sigmask))
+	return pthread_sigmask(how, newmask, oldmask);
+    else
+	return sigprocmask(how, newmask, oldmask);
+}
+#endif
 #endif /* USE_PTHREADS */

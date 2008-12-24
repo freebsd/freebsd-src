@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  * All rights reserved.
  *
@@ -25,6 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * dollar OpenBSD: strlcat.c,v 1.2 1999/06/17 16:28:58 millert Exp dollar
+ * $P4: //depot/projects/trustedbsd/openbsm/compat/strlcat.h#3 $
  */
 
 /*

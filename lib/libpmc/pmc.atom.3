@@ -108,9 +108,6 @@ qualifier.
 .It Li os
 Configure the PMC to count events happening at processor privilege
 level 0.
-.It Li umask= Ns Ar value
-This qualifier is used to further qualify the event selected (see
-below).
 .It Li usr
 Configure the PMC to count events occurring at privilege levels 1, 2
 or 3.
@@ -560,10 +557,9 @@ The number of snoop responses to bus transactions.
 .It Li FP_ASSIST
 .Pq Event 11H , Umask 01H
 The number of floating point operations executed that needed
-a microcode assist.
+a microcode assist, including speculatively executed instructions.
 .It Li FP_ASSIST.AR
 .Pq Event 11H , Umask 81H
-.\" XXX to be confirmed that this is an at-retirement event
 The number of floating point operations retired that needed
 a microcode assist.
 .It Li FP_COMP_OPS_EXE
@@ -930,7 +926,7 @@ The number of cycles micro-ops were dispatched for execution on port
 The number of cycles micro-ops were dispatched for execution on port
 4.
 .It Li RS_UOPS_DISPATCHED.PORT5
-.Pq Event A1H , Umask 20
+.Pq Event A1H , Umask 20H
 The number of cycles micro-ops were dispatched for execution on port
 5.
 .It Li SB_DRAIN_CYCLES
@@ -1116,7 +1112,7 @@ globally observed.
 The number of cycles while a store was blocked due to a conflict with
 an internal or external snoop.
 .It Li STORE_FORWARDS.GOOD
-.Pq Event 02, Umask 81H
+.Pq Event 02H , Umask 81H
 The number of times stored data was forwarded directly to a load.
 .It Li THERMAL_TRIP
 .Pq Event 3BH , Umask C0H

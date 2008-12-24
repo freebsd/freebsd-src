@@ -87,6 +87,11 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
+#include <netinet/vinet.h>
+
+#ifdef INET6
+#include <netinet6/vinet6.h>
+#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -99,7 +104,21 @@ __FBSDID("$FreeBSD$");
 
 static const int tcprexmtthresh = 3;
 
+#ifdef VIMAGE_GLOBALS
 struct	tcpstat tcpstat;
+int	blackhole;
+int	tcp_delack_enabled;
+int	drop_synfin;
+int	tcp_do_rfc3042;
+int	tcp_do_rfc3390;
+int	tcp_do_ecn;
+int	tcp_ecn_maxretries;
+int	tcp_insecure_rst;
+int	tcp_do_autorcvbuf;
+int	tcp_autorcvbuf_inc;
+int	tcp_autorcvbuf_max;
+#endif
+
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
     CTLFLAG_RW, tcpstat , tcpstat,
     "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
@@ -108,24 +127,19 @@ int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0, "Log all incoming TCP segments to closed ports");
 
-static int blackhole = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
     blackhole, 0, "Do not send RST on segments to closed ports");
 
-int tcp_delack_enabled = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, delayed_ack,
     CTLFLAG_RW, tcp_delack_enabled, 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
-static int drop_synfin = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, drop_synfin,
     CTLFLAG_RW, drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 
-static int tcp_do_rfc3042 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
     tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
 
-static int tcp_do_rfc3390 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
@@ -147,33 +161,56 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, enable,
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, maxretries,
     CTLFLAG_RW, tcp_ecn_maxretries, 0, "Max retries before giving up on ECN");
 
-static int tcp_insecure_rst = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, insecure_rst,
     CTLFLAG_RW, tcp_insecure_rst, 0,
     "Follow the old (insecure) criteria for accepting RST packets");
 
-int	tcp_do_autorcvbuf = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_auto,
     CTLFLAG_RW, tcp_do_autorcvbuf, 0,
     "Enable automatic receive buffer sizing");
 
-int	tcp_autorcvbuf_inc = 16*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_inc,
     CTLFLAG_RW, tcp_autorcvbuf_inc, 0,
     "Incrementor step size of automatic receive buffer");
 
-int	tcp_autorcvbuf_max = 256*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_max,
     CTLFLAG_RW, tcp_autorcvbuf_max, 0,
     "Max size of automatic receive buffer");
 
+int	tcp_read_locking = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, read_locking, CTLFLAG_RW,
+    &tcp_read_locking, 0, "Enable read locking strategy");
+
+int	tcp_rlock_atfirst;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rlock_atfirst, CTLFLAG_RD,
+    &tcp_rlock_atfirst, 0, "");
+
+int	tcp_wlock_atfirst;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_wlock_atfirst, CTLFLAG_RD,
+    &tcp_wlock_atfirst, 0, "");
+
+int	tcp_wlock_upgraded;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_upgraded, CTLFLAG_RD,
+    &tcp_wlock_upgraded, 0, "");
+
+int	tcp_wlock_relocked;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_relocked, CTLFLAG_RD,
+    &tcp_wlock_relocked, 0, "");
+
+int	tcp_wlock_looped;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_looped, CTLFLAG_RD,
+    &tcp_wlock_looped, 0, "");
+
+#ifdef VIMAGE_GLOBALS
 struct inpcbhead tcb;
-#define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
+#endif
+#define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
-		     struct socket *, struct tcpcb *, int, int, uint8_t);
+		     struct socket *, struct tcpcb *, int, int, uint8_t,
+		     int);
 static void	 tcp_dropwithreset(struct mbuf *, struct tcphdr *,
 		     struct tcpcb *, int, int);
 static void	 tcp_pulloutofband(struct socket *,
@@ -297,6 +334,10 @@ tcp_input(struct mbuf *m, int off0)
 #endif
 	struct tcpopt to;		/* options in this segment */
 	char *s = NULL;			/* address and port logging */
+	int ti_locked;
+#define	TI_UNLOCKED	1
+#define	TI_RLOCKED	2
+#define	TI_WLOCKED	3
 
 #ifdef TCPDEBUG
 	/*
@@ -449,11 +490,34 @@ tcp_input(struct mbuf *m, int off0)
 	drop_hdrlen = off0 + off;
 
 	/*
-	 * Locate pcb for segment.
+	 * Locate pcb for segment, which requires a lock on tcbinfo.
+	 * Optimisticaly acquire a global read lock rather than a write lock
+	 * unless header flags necessarily imply a state change.  There are
+	 * two cases where we might discover later we need a write lock
+	 * despite the flags: ACKs moving a connection out of the syncache,
+	 * and ACKs for a connection in TIMEWAIT.
 	 */
-	INP_INFO_WLOCK(&V_tcbinfo);
+	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
+	    tcp_read_locking == 0) {
+		INP_INFO_WLOCK(&V_tcbinfo);
+		ti_locked = TI_WLOCKED;
+		tcp_wlock_atfirst++;
+	} else {
+		INP_INFO_RLOCK(&V_tcbinfo);
+		ti_locked = TI_RLOCKED;
+		tcp_rlock_atfirst++;
+	}
+
 findpcb:
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+#ifdef INVARIANTS
+	if (ti_locked == TI_RLOCKED)
+		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	else if (ti_locked == TI_WLOCKED)
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	else
+		panic("%s: findpcb ti_locked %d\n", __func__, ti_locked);
+#endif
+
 #ifdef IPFIREWALL_FORWARD
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
@@ -560,12 +624,44 @@ findpcb:
 	}
 
 	/*
-	 * A previous connection in TIMEWAIT state is supposed to catch
-	 * stray or duplicate segments arriving late.  If this segment
-	 * was a legitimate new connection attempt the old INPCB gets
-	 * removed and we can try again to find a listening socket.
+	 * A previous connection in TIMEWAIT state is supposed to catch stray
+	 * or duplicate segments arriving late.  If this segment was a
+	 * legitimate new connection attempt the old INPCB gets removed and
+	 * we can try again to find a listening socket.
+	 *
+	 * At this point, due to earlier optimism, we may hold a read lock on
+	 * the inpcbinfo, rather than a write lock.  If so, we need to
+	 * upgrade, or if that fails, acquire a reference on the inpcb, drop
+	 * all locks, acquire a global write lock, and then re-acquire the
+	 * inpcb lock.  We may at that point discover that another thread has
+	 * tried to free the inpcb, in which case we need to loop back and
+	 * try to find a new inpcb to deliver to.
 	 */
 	if (inp->inp_vflag & INP_TIMEWAIT) {
+		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
+		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
+
+		if (ti_locked == TI_RLOCKED) {
+			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+				in_pcbref(inp);
+				INP_WUNLOCK(inp);
+				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_WLOCK(&V_tcbinfo);
+				ti_locked = TI_WLOCKED;
+				INP_WLOCK(inp);
+				if (in_pcbrele(inp)) {
+					tcp_wlock_looped++;
+					inp = NULL;
+					goto findpcb;
+				}
+				tcp_wlock_relocked++;
+			} else {
+				ti_locked = TI_WLOCKED;
+				tcp_wlock_upgraded++;
+			}
+		}
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
 		/*
@@ -585,6 +681,40 @@ findpcb:
 	if (tp == NULL || tp->t_state == TCPS_CLOSED) {
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
+	}
+
+	/*
+	 * We've identified a valid inpcb, but it could be that we need an
+	 * inpcbinfo write lock and have only a read lock.  In this case,
+	 * attempt to upgrade/relock using the same strategy as the TIMEWAIT
+	 * case above.
+	 */
+	if (tp->t_state != TCPS_ESTABLISHED ||
+	    (thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
+	    tcp_read_locking == 0) {
+		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
+		    ("%s: upgrade check ti_locked %d", __func__, ti_locked));
+
+		if (ti_locked == TI_RLOCKED) {
+			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+				in_pcbref(inp);
+				INP_WUNLOCK(inp);
+				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_WLOCK(&V_tcbinfo);
+				ti_locked = TI_WLOCKED;
+				INP_WLOCK(inp);
+				if (in_pcbrele(inp)) {
+					tcp_wlock_looped++;
+					inp = NULL;
+					goto findpcb;
+				}
+				tcp_wlock_relocked++;
+			} else {
+				ti_locked = TI_WLOCKED;
+				tcp_wlock_upgraded++;
+			}
+		}
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	}
 
 #ifdef MAC
@@ -618,9 +748,9 @@ findpcb:
 		    "tp not listening", __func__));
 
 		bzero(&inc, sizeof(inc));
-		inc.inc_isipv6 = isipv6;
 #ifdef INET6
 		if (isipv6) {
+			inc.inc_flags |= INC_ISIPV6;
 			inc.inc6_faddr = ip6->ip6_src;
 			inc.inc6_laddr = ip6->ip6_dst;
 		} else
@@ -699,7 +829,7 @@ findpcb:
 			 * the mbuf chain and unlocks the inpcb.
 			 */
 			tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen,
-			    iptos);
+			    iptos, ti_locked);
 			INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 			return;
 		}
@@ -899,13 +1029,18 @@ findpcb:
 	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks
 	 * the inpcb, and unlocks pcbinfo.
 	 */
-	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen, iptos);
+	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen, iptos, ti_locked);
 	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	return;
 
 dropwithreset:
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	if (ti_locked == TI_RLOCKED)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+	else if (ti_locked == TI_WLOCKED)
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+	else
+		panic("%s: dropwithreset ti_locked %d", __func__, ti_locked);
+	ti_locked = TI_UNLOCKED;
 
 	if (inp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
@@ -916,10 +1051,16 @@ dropwithreset:
 	goto drop;
 
 dropunlock:
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	if (ti_locked == TI_RLOCKED)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+	else if (ti_locked == TI_WLOCKED)
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+	else
+		panic("%s: dropunlock ti_locked %d", __func__, ti_locked);
+	ti_locked = TI_UNLOCKED;
+
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 
 drop:
 	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
@@ -931,11 +1072,11 @@ drop:
 
 static void
 tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos)
+    struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos,
+    int ti_locked)
 {
 	INIT_VNET_INET(tp->t_vnet);
 	int thflags, acked, ourfinisacked, needoutput = 0;
-	int headlocked = 1;
 	int rstreason, todrop, win;
 	u_long tiwin;
 	struct tcpopt to;
@@ -951,7 +1092,35 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #endif
 	thflags = th->th_flags;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	/*
+	 * If this is either a state-changing packet or current state isn't
+	 * established, we require a write lock on tcbinfo.  Otherwise, we
+	 * allow either a read lock or a write lock, as we may have acquired
+	 * a write lock due to a race.
+	 *
+	 * Require a global write lock for SYN/FIN/RST segments or
+	 * non-established connections; otherwise accept either a read or
+	 * write lock, as we may have conservatively acquired a write lock in
+	 * certain cases in tcp_input() (is this still true?).  Currently we
+	 * will never enter with no lock, so we try to drop it quickly in the
+	 * common pure ack/pure data cases.
+	 */
+	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
+	    tp->t_state != TCPS_ESTABLISHED) {
+		KASSERT(ti_locked == TI_WLOCKED, ("%s ti_locked %d for "
+		    "SYN/FIN/RST/!EST", __func__, ti_locked));
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	} else {
+#ifdef INVARIANTS
+		if (ti_locked == TI_RLOCKED)
+			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+		else if (ti_locked == TI_WLOCKED)
+			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+		else
+			panic("%s: ti_locked %d for EST", __func__,
+			    ti_locked);
+#endif
+	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN",
 	    __func__));
@@ -1105,14 +1274,20 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			      !IN_FASTRECOVERY(tp) &&
 			      (to.to_flags & TOF_SACK) == 0 &&
 			      TAILQ_EMPTY(&tp->snd_holes)))) {
-				KASSERT(headlocked,
-				    ("%s: headlocked", __func__));
-				INP_INFO_WUNLOCK(&V_tcbinfo);
-				headlocked = 0;
 				/*
 				 * This is a pure ack for outstanding data.
 				 */
+				if (ti_locked == TI_RLOCKED)
+					INP_INFO_RUNLOCK(&V_tcbinfo);
+				else if (ti_locked == TI_WLOCKED)
+					INP_INFO_WUNLOCK(&V_tcbinfo);
+				else
+					panic("%s: ti_locked %d on pure ACK",
+					    __func__, ti_locked);
+				ti_locked = TI_UNLOCKED;
+
 				++V_tcpstat.tcps_predack;
+
 				/*
 				 * "bad retransmit" recovery.
 				 */
@@ -1199,14 +1374,20 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    tlen <= sbspace(&so->so_rcv)) {
 			int newsize = 0;	/* automatic sockbuf scaling */
 
-			KASSERT(headlocked, ("%s: headlocked", __func__));
-			INP_INFO_WUNLOCK(&V_tcbinfo);
-			headlocked = 0;
 			/*
-			 * This is a pure, in-sequence data packet
-			 * with nothing on the reassembly queue and
-			 * we have enough buffer space to take it.
+			 * This is a pure, in-sequence data packet with
+			 * nothing on the reassembly queue and we have enough
+			 * buffer space to take it.
 			 */
+			if (ti_locked == TI_RLOCKED)
+				INP_INFO_RUNLOCK(&V_tcbinfo);
+			else if (ti_locked == TI_WLOCKED)
+				INP_INFO_WUNLOCK(&V_tcbinfo);
+			else
+				panic("%s: ti_locked %d on pure data "
+				    "segment", __func__, ti_locked);
+			ti_locked = TI_UNLOCKED;
+
 			/* Clean receiver SACK report if present */
 			if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks)
 				tcp_clean_sackreport(tp);
@@ -1433,8 +1614,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_state = TCPS_SYN_RECEIVED;
 		}
 
-		KASSERT(headlocked, ("%s: trimthenstep6: head not locked",
-		    __func__));
+		KASSERT(ti_locked == TI_WLOCKED, ("%s: trimthenstep6: "
+		    "ti_locked %d", __func__, ti_locked));
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		/*
@@ -1562,17 +1744,23 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			case TCPS_CLOSE_WAIT:
 				so->so_error = ECONNRESET;
 			close:
+				KASSERT(ti_locked == TI_WLOCKED,
+				    ("tcp_do_segment: TH_RST 1 ti_locked %d",
+				    ti_locked));
+				INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+
 				tp->t_state = TCPS_CLOSED;
 				V_tcpstat.tcps_drops++;
-				KASSERT(headlocked, ("%s: trimthenstep6: "
-				    "tcp_close: head not locked", __func__));
 				tp = tcp_close(tp);
 				break;
 
 			case TCPS_CLOSING:
 			case TCPS_LAST_ACK:
-				KASSERT(headlocked, ("%s: trimthenstep6: "
-				    "tcp_close.2: head not locked", __func__));
+				KASSERT(ti_locked == TI_WLOCKED,
+				    ("tcp_do_segment: TH_RST 2 ti_locked %d",
+				    ti_locked));
+				INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+
 				tp = tcp_close(tp);
 				break;
 			}
@@ -1677,8 +1865,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
 		char *s;
 
-		KASSERT(headlocked, ("%s: trimthenstep6: tcp_close.3: head "
-		    "not locked", __func__));
+		KASSERT(ti_locked == TI_WLOCKED, ("%s: SS_NOFDEREF && "
+		    "CLOSE_WAIT && tlen ti_locked %d", __func__, ti_locked));
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+
 		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
 			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data after socket "
 			    "was closed, sending RST and removing tcpcb\n",
@@ -1750,8 +1940,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * error and we send an RST and drop the connection.
 	 */
 	if (thflags & TH_SYN) {
-		KASSERT(headlocked, ("%s: tcp_drop: trimthenstep6: "
-		    "head not locked", __func__));
+		KASSERT(ti_locked == TI_WLOCKED,
+		    ("tcp_do_segment: TH_SYN ti_locked %d", ti_locked));
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+
 		tp = tcp_drop(tp, ECONNRESET);
 		rstreason = BANDLIM_UNLIMITED;
 		goto drop;
@@ -2038,8 +2230,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 
 process_ACK:
-		KASSERT(headlocked, ("%s: process_ACK: head not locked",
-		    __func__));
+		INP_INFO_LOCK_ASSERT(&V_tcbinfo);
+		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
+		    ("tcp_input: process_ACK ti_locked %d", ti_locked));
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		acked = th->th_ack - tp->snd_una;
@@ -2237,11 +2430,9 @@ process_ACK:
 		 */
 		case TCPS_CLOSING:
 			if (ourfinisacked) {
-				KASSERT(headlocked, ("%s: process_ACK: "
-				    "head not locked", __func__));
+				INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 				tcp_twstart(tp);
 				INP_INFO_WUNLOCK(&V_tcbinfo);
-				headlocked = 0;
 				m_freem(m);
 				return;
 			}
@@ -2255,8 +2446,7 @@ process_ACK:
 		 */
 		case TCPS_LAST_ACK:
 			if (ourfinisacked) {
-				KASSERT(headlocked, ("%s: process_ACK: "
-				    "tcp_close: head not locked", __func__));
+				INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 				tp = tcp_close(tp);
 				goto drop;
 			}
@@ -2265,7 +2455,9 @@ process_ACK:
 	}
 
 step6:
-	KASSERT(headlocked, ("%s: step6: head not locked", __func__));
+	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
+	KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
+	    ("tcp_do_segment: step6 ti_locked %d", ti_locked));
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
@@ -2351,7 +2543,9 @@ step6:
 			tp->rcv_up = tp->rcv_nxt;
 	}
 dodata:							/* XXX */
-	KASSERT(headlocked, ("%s: dodata: head not locked", __func__));
+	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
+	KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
+	    ("tcp_do_segment: dodata ti_locked %d", ti_locked));
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
@@ -2470,15 +2664,25 @@ dodata:							/* XXX */
 		 * standard timers.
 		 */
 		case TCPS_FIN_WAIT_2:
-			KASSERT(headlocked == 1, ("%s: dodata: "
-			    "TCP_FIN_WAIT_2: head not locked", __func__));
+			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+			KASSERT(ti_locked == TI_WLOCKED, ("%s: dodata "
+			    "TCP_FIN_WAIT_2 ti_locked: %d", __func__,
+			    ti_locked));
+
 			tcp_twstart(tp);
 			INP_INFO_WUNLOCK(&V_tcbinfo);
 			return;
 		}
 	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
-	headlocked = 0;
+	if (ti_locked == TI_RLOCKED)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+	else if (ti_locked == TI_WLOCKED)
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+	else
+		panic("%s: dodata epilogue ti_locked %d", __func__,
+		    ti_locked);
+	ti_locked = TI_UNLOCKED;
+
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, (void *)tcp_saveipgen,
@@ -2492,10 +2696,11 @@ dodata:							/* XXX */
 		(void) tcp_output(tp);
 
 check_delack:
-	KASSERT(headlocked == 0, ("%s: check_delack: head locked",
-	    __func__));
+	KASSERT(ti_locked == TI_UNLOCKED, ("%s: check_delack ti_locked %d",
+	    __func__, ti_locked));
 	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
+
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
 		tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
@@ -2504,7 +2709,9 @@ check_delack:
 	return;
 
 dropafterack:
-	KASSERT(headlocked, ("%s: dropafterack: head not locked", __func__));
+	KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
+	    ("tcp_do_segment: dropafterack ti_locked %d", ti_locked));
+
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies
 	 * sequence space, where the ACK reflects our state.
@@ -2531,8 +2738,15 @@ dropafterack:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
-	KASSERT(headlocked, ("%s: headlocked should be 1", __func__));
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	if (ti_locked == TI_RLOCKED)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+	else if (ti_locked == TI_WLOCKED)
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+	else
+		panic("%s: dropafterack epilogue ti_locked %d", __func__,
+		    ti_locked);
+	ti_locked = TI_UNLOCKED;
+
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	INP_WUNLOCK(tp->t_inpcb);
@@ -2540,8 +2754,13 @@ dropafterack:
 	return;
 
 dropwithreset:
-	KASSERT(headlocked, ("%s: dropwithreset: head not locked", __func__));
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	if (ti_locked == TI_RLOCKED)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+	else if (ti_locked == TI_WLOCKED)
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+	else
+		panic("%s: dropwithreset ti_locked %d", __func__, ti_locked);
+	ti_locked = TI_UNLOCKED;
 
 	if (tp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
@@ -2551,6 +2770,16 @@ dropwithreset:
 	return;
 
 drop:
+	if (ti_locked == TI_RLOCKED)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+	else if (ti_locked == TI_WLOCKED)
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+#ifdef INVARIANTS
+	else
+		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+#endif
+	ti_locked = TI_UNLOCKED;
+
 	/*
 	 * Drop space held by incoming segment and return.
 	 */
@@ -2561,8 +2790,6 @@ drop:
 #endif
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
-	if (headlocked)
-		INP_INFO_WUNLOCK(&V_tcbinfo);
 	m_freem(m);
 }
 
@@ -3031,6 +3258,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	int isipv6;
 #endif
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
+	INIT_VNET_INET(tp->t_vnet);
 	
 	tcp_mss_update(tp, offer, &metrics, &mtuflags);
 
@@ -3162,14 +3390,11 @@ tcp_mssopt(struct in_conninfo *inc)
 	u_long maxmtu = 0;
 	u_long thcmtu = 0;
 	size_t min_protoh;
-#ifdef INET6
-	int isipv6 = inc->inc_isipv6 ? 1 : 0;
-#endif
 
 	KASSERT(inc != NULL, ("tcp_mssopt with NULL in_conninfo pointer"));
 
 #ifdef INET6
-	if (isipv6) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		mss = V_tcp_v6mssdflt;
 		maxmtu = tcp_maxmtu6(inc, NULL);
 		thcmtu = tcp_hc_getmtu(inc); /* IPv4 and IPv6 */

@@ -59,11 +59,11 @@
 #define E1000_WUFC_ARP  0x00000020 /* ARP Request Packet Wakeup Enable */
 #define E1000_WUFC_IPV4 0x00000040 /* Directed IPv4 Packet Wakeup Enable */
 #define E1000_WUFC_IPV6 0x00000080 /* Directed IPv6 Packet Wakeup Enable */
-#define E1000_WUFC_IGNORE_TCO_BM 0x00000800 /* Ignore WakeOn TCO packets */
-#define E1000_WUFC_FLX0_BM      0x00001000 /* Flexible Filter 0 Enable */
-#define E1000_WUFC_FLX1_BM      0x00002000 /* Flexible Filter 1 Enable */
-#define E1000_WUFC_FLX2_BM      0x00004000 /* Flexible Filter 2 Enable */
-#define E1000_WUFC_FLX3_BM      0x00008000 /* Flexible Filter 3 Enable */
+#define E1000_WUFC_IGNORE_TCO_PHY 0x00000800 /* Ignore WakeOn TCO packets */
+#define E1000_WUFC_FLX0_PHY      0x00001000 /* Flexible Filter 0 Enable */
+#define E1000_WUFC_FLX1_PHY      0x00002000 /* Flexible Filter 1 Enable */
+#define E1000_WUFC_FLX2_PHY      0x00004000 /* Flexible Filter 2 Enable */
+#define E1000_WUFC_FLX3_PHY      0x00008000 /* Flexible Filter 3 Enable */
 #define E1000_WUFC_IGNORE_TCO   0x00008000 /* Ignore WakeOn TCO packets */
 #define E1000_WUFC_FLX0 0x00010000 /* Flexible Filter 0 Enable */
 #define E1000_WUFC_FLX1 0x00020000 /* Flexible Filter 1 Enable */
@@ -71,12 +71,12 @@
 #define E1000_WUFC_FLX3 0x00080000 /* Flexible Filter 3 Enable */
 #define E1000_WUFC_FLX4 0x00100000 /* Flexible Filter 4 Enable */
 #define E1000_WUFC_FLX5 0x00200000 /* Flexible Filter 5 Enable */
-#define E1000_WUFC_ALL_FILTERS_BM 0x0000F0FF /* Mask for all wakeup filters */
-#define E1000_WUFC_FLX_OFFSET_BM 12 /* Offset to the Flexible Filters bits */
-#define E1000_WUFC_FLX_FILTERS_BM 0x0000F000 /* Mask for the 4 flexible filters */
+#define E1000_WUFC_ALL_FILTERS_PHY_4 0x0000F0FF /*Mask for all wakeup filters*/
+#define E1000_WUFC_FLX_OFFSET_PHY 12 /* Offset to the Flexible Filters bits */
+#define E1000_WUFC_FLX_FILTERS_PHY_4 0x0000F000 /*Mask for 4 flexible filters*/
 #define E1000_WUFC_ALL_FILTERS  0x000F00FF /* Mask for all wakeup filters */
 #define E1000_WUFC_FLX_OFFSET   16 /* Offset to the Flexible Filters bits */
-#define E1000_WUFC_FLX_FILTERS  0x000F0000 /* Mask for the 4 flexible filters */
+#define E1000_WUFC_FLX_FILTERS  0x000F0000 /*Mask for the 4 flexible filters */
 /*
  * For 82576 to utilize Extended filter masks in addition to
  * existing (filter) masks
@@ -92,11 +92,11 @@
 #define E1000_WUS_ARP          E1000_WUFC_ARP
 #define E1000_WUS_IPV4         E1000_WUFC_IPV4
 #define E1000_WUS_IPV6         E1000_WUFC_IPV6
-#define E1000_WUS_FLX0_BM      E1000_WUFC_FLX0_BM
-#define E1000_WUS_FLX1_BM      E1000_WUFC_FLX1_BM
-#define E1000_WUS_FLX2_BM      E1000_WUFC_FLX2_BM
-#define E1000_WUS_FLX3_BM      E1000_WUFC_FLX3_BM
-#define E1000_WUS_FLX_FILTERS_BM        E1000_WUFC_FLX_FILTERS_BM
+#define E1000_WUS_FLX0_PHY      E1000_WUFC_FLX0_PHY
+#define E1000_WUS_FLX1_PHY      E1000_WUFC_FLX1_PHY
+#define E1000_WUS_FLX2_PHY      E1000_WUFC_FLX2_PHY
+#define E1000_WUS_FLX3_PHY      E1000_WUFC_FLX3_PHY
+#define E1000_WUS_FLX_FILTERS_PHY_4        E1000_WUFC_FLX_FILTERS_PHY_4
 #define E1000_WUS_FLX0         E1000_WUFC_FLX0
 #define E1000_WUS_FLX1         E1000_WUFC_FLX1
 #define E1000_WUS_FLX2         E1000_WUFC_FLX2
@@ -158,13 +158,16 @@
 #define E1000_CTRL_EXT_WR_WMARK_320   0x01000000
 #define E1000_CTRL_EXT_WR_WMARK_384   0x02000000
 #define E1000_CTRL_EXT_WR_WMARK_448   0x03000000
-#define E1000_CTRL_EXT_CANC           0x04000000 /* Interrupt delay cancellation */
+#define E1000_CTRL_EXT_CANC           0x04000000 /* Int delay cancellation */
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000 /* Driver loaded bit for FW */
 /* IAME enable bit (27) was removed in >= 82575 */
-#define E1000_CTRL_EXT_IAME           0x08000000 /* Interrupt acknowledge Auto-mask */
-#define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000 /* Clear Interrupt timers after IMS clear */
-#define E1000_CRTL_EXT_PB_PAREN       0x01000000 /* packet buffer parity error detection enabled */
-#define E1000_CTRL_EXT_DF_PAREN       0x02000000 /* descriptor FIFO parity error detection enable */
+#define E1000_CTRL_EXT_IAME           0x08000000 /* Int acknowledge Auto-mask */
+#define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000 /* Clear Interrupt timers
+                                                  * after IMS clear */
+#define E1000_CRTL_EXT_PB_PAREN       0x01000000 /* packet buffer parity error
+                                                  * detection enabled */
+#define E1000_CTRL_EXT_DF_PAREN       0x02000000 /* descriptor FIFO parity
+                                                  * error detection enable */
 #define E1000_CTRL_EXT_GHOST_PAREN    0x40000000
 #define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
 #define E1000_CTRL_EXT_LSECCK         0x00001000
@@ -390,9 +393,12 @@
 #define E1000_CTRL_FRCSPD   0x00000800  /* Force Speed */
 #define E1000_CTRL_FRCDPX   0x00001000  /* Force Duplex */
 #define E1000_CTRL_D_UD_EN  0x00002000  /* Dock/Undock enable */
-#define E1000_CTRL_D_UD_POLARITY 0x00004000 /* Defined polarity of Dock/Undock indication in SDP[0] */
-#define E1000_CTRL_FORCE_PHY_RESET 0x00008000 /* Reset both PHY ports, through PHYRST_N pin */
-#define E1000_CTRL_EXT_LINK_EN 0x00010000 /* enable link status from external LINK_0 and LINK_1 pins */
+#define E1000_CTRL_D_UD_POLARITY 0x00004000 /* Defined polarity of Dock/Undock
+                                             * indication in SDP[0] */
+#define E1000_CTRL_FORCE_PHY_RESET 0x00008000 /* Reset both PHY ports, through
+                                               * PHYRST_N pin */
+#define E1000_CTRL_EXT_LINK_EN 0x00010000 /* enable link status from external
+                                           * LINK_0 and LINK_1 pins */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
 #define E1000_CTRL_SWDPIN2  0x00100000  /* SWDPIN 2 value */
@@ -407,10 +413,11 @@
 #define E1000_CTRL_RTE      0x20000000  /* Routing tag enable */
 #define E1000_CTRL_VME      0x40000000  /* IEEE VLAN mode enable */
 #define E1000_CTRL_PHY_RST  0x80000000  /* PHY Reset */
-#define E1000_CTRL_SW2FW_INT 0x02000000  /* Initiate an interrupt to manageability engine */
+#define E1000_CTRL_SW2FW_INT 0x02000000 /* Initiate an interrupt to ME */
 #define E1000_CTRL_I2C_ENA  0x02000000  /* I2C enable */
 
-/* Bit definitions for the Management Data IO (MDIO) and Management Data
+/*
+ * Bit definitions for the Management Data IO (MDIO) and Management Data
  * Clock (MDC) pins in the Device Control Register.
  */
 #define E1000_CTRL_PHY_RESET_DIR  E1000_CTRL_SWDPIO0
@@ -470,8 +477,9 @@
 #define E1000_STATUS_SPEED_1000 0x00000080      /* Speed 1000Mb/s */
 #define E1000_STATUS_LAN_INIT_DONE 0x00000200   /* Lan Init Completion by NVM */
 #define E1000_STATUS_ASDV       0x00000300      /* Auto speed detect value */
-#define E1000_STATUS_DOCK_CI    0x00000800      /* Change in Dock/Undock state. Clear on write '0'. */
-#define E1000_STATUS_GIO_MASTER_ENABLE 0x00080000 /* Status of Master requests. */
+#define E1000_STATUS_DOCK_CI    0x00000800      /* Change in Dock/Undock state.
+                                                 * Clear on write '0'. */
+#define E1000_STATUS_GIO_MASTER_ENABLE 0x00080000 /* Master request status */
 #define E1000_STATUS_MTXCKOK    0x00000400      /* MTX clock running OK */
 #define E1000_STATUS_PCI66      0x00000800      /* In 66Mhz slot */
 #define E1000_STATUS_BUS64      0x00001000      /* In 64 bit slot */
@@ -481,7 +489,8 @@
 #define E1000_STATUS_BMC_SKU_1  0x00200000 /* BMC SRAM disabled */
 #define E1000_STATUS_BMC_SKU_2  0x00400000 /* BMC SDRAM disabled */
 #define E1000_STATUS_BMC_CRYPTO 0x00800000 /* BMC crypto disabled */
-#define E1000_STATUS_BMC_LITE   0x01000000 /* BMC external code execution disabled */
+#define E1000_STATUS_BMC_LITE   0x01000000 /* BMC external code execution
+                                            * disabled */
 #define E1000_STATUS_RGMII_ENABLE 0x02000000 /* RGMII disabled */
 #define E1000_STATUS_FUSE_8       0x04000000
 #define E1000_STATUS_FUSE_9       0x08000000
@@ -509,10 +518,10 @@
 #define ADVERTISE_1000_FULL               0x0020
 
 /* 1000/H is not supported, nor spec-compliant. */
-#define E1000_ALL_SPEED_DUPLEX ( ADVERTISE_10_HALF |   ADVERTISE_10_FULL | \
+#define E1000_ALL_SPEED_DUPLEX  (ADVERTISE_10_HALF |   ADVERTISE_10_FULL | \
                                 ADVERTISE_100_HALF |  ADVERTISE_100_FULL | \
                                                      ADVERTISE_1000_FULL)
-#define E1000_ALL_NOT_GIG      ( ADVERTISE_10_HALF |   ADVERTISE_10_FULL | \
+#define E1000_ALL_NOT_GIG       (ADVERTISE_10_HALF |   ADVERTISE_10_FULL | \
                                 ADVERTISE_100_HALF |  ADVERTISE_100_FULL)
 #define E1000_ALL_100_SPEED    (ADVERTISE_100_HALF |  ADVERTISE_100_FULL)
 #define E1000_ALL_10_SPEED      (ADVERTISE_10_HALF |   ADVERTISE_10_FULL)
@@ -731,16 +740,20 @@
 #define E1000_ICR_ACK           0x00020000 /* Receive Ack frame */
 #define E1000_ICR_MNG           0x00040000 /* Manageability event */
 #define E1000_ICR_DOCK          0x00080000 /* Dock/Undock */
-#define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
-#define E1000_ICR_RXD_FIFO_PAR0 0x00100000 /* queue 0 Rx descriptor FIFO parity error */
-#define E1000_ICR_TXD_FIFO_PAR0 0x00200000 /* queue 0 Tx descriptor FIFO parity error */
-#define E1000_ICR_HOST_ARB_PAR  0x00400000 /* host arb read buffer parity error */
+#define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver
+                                            * should claim the interrupt */
+#define E1000_ICR_RXD_FIFO_PAR0 0x00100000 /* Q0 Rx desc FIFO parity error */
+#define E1000_ICR_TXD_FIFO_PAR0 0x00200000 /* Q0 Tx desc FIFO parity error */
+#define E1000_ICR_HOST_ARB_PAR  0x00400000 /* host arb read buffer parity err */
 #define E1000_ICR_PB_PAR        0x00800000 /* packet buffer parity error */
-#define E1000_ICR_RXD_FIFO_PAR1 0x01000000 /* queue 1 Rx descriptor FIFO parity error */
-#define E1000_ICR_TXD_FIFO_PAR1 0x02000000 /* queue 1 Tx descriptor FIFO parity error */
+#define E1000_ICR_RXD_FIFO_PAR1 0x01000000 /* Q1 Rx desc FIFO parity error */
+#define E1000_ICR_TXD_FIFO_PAR1 0x02000000 /* Q1 Tx desc FIFO parity error */
 #define E1000_ICR_ALL_PARITY    0x03F00000 /* all parity error bits */
-#define E1000_ICR_DSW           0x00000020 /* FW changed the status of DISSW bit in the FWSM */
-#define E1000_ICR_PHYINT        0x00001000 /* LAN connected device generates an interrupt */
+#define E1000_ICR_DSW           0x00000020 /* FW changed the status of DISSW
+                                            * bit in the FWSM */
+#define E1000_ICR_PHYINT        0x00001000 /* LAN connected device generates
+                                            * an interrupt */
+#define E1000_ICR_DOUTSYNC      0x10000000 /* NIC DMA out of sync */
 #define E1000_ICR_EPRST         0x00100000 /* ME hardware reset occurs */
 #define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
 #define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
@@ -811,14 +824,21 @@
 #define E1000_IMS_ACK       E1000_ICR_ACK       /* Receive Ack frame */
 #define E1000_IMS_MNG       E1000_ICR_MNG       /* Manageability event */
 #define E1000_IMS_DOCK      E1000_ICR_DOCK      /* Dock/Undock */
-#define E1000_IMS_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* queue 0 Rx descriptor FIFO parity error */
-#define E1000_IMS_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* queue 0 Tx descriptor FIFO parity error */
-#define E1000_IMS_HOST_ARB_PAR  E1000_ICR_HOST_ARB_PAR  /* host arb read buffer parity error */
-#define E1000_IMS_PB_PAR        E1000_ICR_PB_PAR        /* packet buffer parity error */
-#define E1000_IMS_RXD_FIFO_PAR1 E1000_ICR_RXD_FIFO_PAR1 /* queue 1 Rx descriptor FIFO parity error */
-#define E1000_IMS_TXD_FIFO_PAR1 E1000_ICR_TXD_FIFO_PAR1 /* queue 1 Tx descriptor FIFO parity error */
+#define E1000_IMS_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* Q0 Rx desc FIFO
+                                                         * parity error */
+#define E1000_IMS_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* Q0 Tx desc FIFO
+                                                         * parity error */
+#define E1000_IMS_HOST_ARB_PAR  E1000_ICR_HOST_ARB_PAR  /* host arb read buffer
+                                                         * parity error */
+#define E1000_IMS_PB_PAR        E1000_ICR_PB_PAR        /* packet buffer parity
+                                                         * error */
+#define E1000_IMS_RXD_FIFO_PAR1 E1000_ICR_RXD_FIFO_PAR1 /* Q1 Rx desc FIFO
+                                                         * parity error */
+#define E1000_IMS_TXD_FIFO_PAR1 E1000_ICR_TXD_FIFO_PAR1 /* Q1 Tx desc FIFO
+                                                         * parity error */
 #define E1000_IMS_DSW       E1000_ICR_DSW
 #define E1000_IMS_PHYINT    E1000_ICR_PHYINT
+#define E1000_IMS_DOUTSYNC  E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
 #define E1000_IMS_EPRST     E1000_ICR_EPRST
 #define E1000_IMS_RXQ0          E1000_ICR_RXQ0 /* Rx Queue 0 Interrupt */
 #define E1000_IMS_RXQ1          E1000_ICR_RXQ1 /* Rx Queue 1 Interrupt */
@@ -857,13 +877,20 @@
 #define E1000_ICS_ACK       E1000_ICR_ACK       /* Receive Ack frame */
 #define E1000_ICS_MNG       E1000_ICR_MNG       /* Manageability event */
 #define E1000_ICS_DOCK      E1000_ICR_DOCK      /* Dock/Undock */
-#define E1000_ICS_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* queue 0 Rx descriptor FIFO parity error */
-#define E1000_ICS_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* queue 0 Tx descriptor FIFO parity error */
-#define E1000_ICS_HOST_ARB_PAR  E1000_ICR_HOST_ARB_PAR  /* host arb read buffer parity error */
-#define E1000_ICS_PB_PAR        E1000_ICR_PB_PAR        /* packet buffer parity error */
-#define E1000_ICS_RXD_FIFO_PAR1 E1000_ICR_RXD_FIFO_PAR1 /* queue 1 Rx descriptor FIFO parity error */
-#define E1000_ICS_TXD_FIFO_PAR1 E1000_ICR_TXD_FIFO_PAR1 /* queue 1 Tx descriptor FIFO parity error */
+#define E1000_ICS_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* Q0 Rx desc FIFO
+                                                         * parity error */
+#define E1000_ICS_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* Q0 Tx desc FIFO
+                                                         * parity error */
+#define E1000_ICS_HOST_ARB_PAR  E1000_ICR_HOST_ARB_PAR  /* host arb read buffer
+                                                         * parity error */
+#define E1000_ICS_PB_PAR        E1000_ICR_PB_PAR        /* packet buffer parity
+                                                         * error */
+#define E1000_ICS_RXD_FIFO_PAR1 E1000_ICR_RXD_FIFO_PAR1 /* Q1 Rx desc FIFO
+                                                         * parity error */
+#define E1000_ICS_TXD_FIFO_PAR1 E1000_ICR_TXD_FIFO_PAR1 /* Q1 Tx desc FIFO
+                                                         * parity error */
 #define E1000_ICS_DSW       E1000_ICR_DSW
+#define E1000_ICS_DOUTSYNC  E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
 #define E1000_ICS_PHYINT    E1000_ICR_PHYINT
 #define E1000_ICS_EPRST     E1000_ICR_EPRST
 
@@ -1121,7 +1148,7 @@
 
 #define E1000_NVM_SWDPIN0   0x0001   /* SWDPIN 0 NVM Value */
 #define E1000_NVM_LED_LOGIC 0x0020   /* Led Logic Word */
-#define E1000_NVM_RW_REG_DATA   16   /* Offset to data in NVM read/write registers */
+#define E1000_NVM_RW_REG_DATA   16   /* Offset to data in NVM read/write regs */
 #define E1000_NVM_RW_REG_DONE   2    /* Offset to READ/WRITE done bit */
 #define E1000_NVM_RW_REG_START  1    /* Start operation */
 #define E1000_NVM_RW_ADDR_SHIFT 2    /* Shift to the address bits */
@@ -1133,7 +1160,7 @@
 #define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004
 #define NVM_VERSION                0x0005
-#define NVM_SERDES_AMPLITUDE       0x0006 /* For SERDES output amplitude adjustment. */
+#define NVM_SERDES_AMPLITUDE       0x0006 /* SERDES output amplitude */
 #define NVM_PHY_CLASS_WORD         0x0007
 #define NVM_INIT_CONTROL1_REG      0x000A
 #define NVM_INIT_CONTROL2_REG      0x000F
@@ -1489,4 +1516,4 @@
 #define E1000_LSECRXCTRL_RP             0x00000080
 #define E1000_LSECRXCTRL_RSV_MASK       0xFFFFFF33
 
-#endif
+#endif /* _E1000_DEFINES_H_ */

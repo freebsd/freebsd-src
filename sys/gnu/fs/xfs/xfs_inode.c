@@ -3610,7 +3610,7 @@ xfs_iflush_all(
 int
 xfs_iaccess(
 	xfs_inode_t	*ip,
-	mode_t		mode,
+	accmode_t	accmode,
 	cred_t		*cr)
 {
 	xfs_vnode_t	*vp;
@@ -3624,10 +3624,10 @@ xfs_iaccess(
 	/*
 	 * Verify that the MAC policy allows the requested access.
 	 */
-	if ((error = _MAC_XFS_IACCESS(ip, mode, cr)))
+	if ((error = _MAC_XFS_IACCESS(ip, accmode, cr)))
 		return XFS_ERROR(error);
 
-	if (mode & S_IWUSR) {
+	if (accmode & VWRITE) {
 		xfs_mount_t	*mp = ip->i_mount;
 
 		if ((XVFSTOMNT(XFS_MTOVFS(mp))->mnt_flag & MNT_RDONLY) &&
@@ -3644,13 +3644,13 @@ xfs_iaccess(
 	 * If there's an Access Control List it's used instead of
 	 * the mode bits.
 	 */
-	if ((error = _ACL_XFS_IACCESS(ip, mode, cr)) != -1)
+	if ((error = _ACL_XFS_IACCESS(ip, accmode, cr)) != -1)
 		return error ? XFS_ERROR(error) : 0;
 
 
 	/* FreeBSD local change here */
 	error = vaccess(vp->v_vnode->v_type, imode, ip->i_d.di_uid, ip->i_d.di_gid,
-	    mode, cr, NULL);
+	    accmode, cr, NULL);
 
 	return (error);
 }

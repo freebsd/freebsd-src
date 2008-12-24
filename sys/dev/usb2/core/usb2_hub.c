@@ -72,6 +72,7 @@ struct uhub_softc {
 	struct usb2_device *sc_udev;	/* USB device */
 	struct usb2_xfer *sc_xfer[2];	/* interrupt xfer */
 	uint8_t	sc_flags;
+#define	UHUB_FLAG_DID_EXPLORE 0x01
 #define	UHUB_FLAG_INTR_STALL 0x02
 	char	sc_name[32];
 };
@@ -158,7 +159,6 @@ uhub_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UHUB_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -511,6 +511,14 @@ uhub_explore(struct usb2_device *udev)
 			/* most likely the HUB is gone */
 			break;
 		}
+		if (!(sc->sc_flags & UHUB_FLAG_DID_EXPLORE)) {
+			/*
+			 * Fake a connect status change so that the
+			 * status gets checked initially!
+			 */
+			sc->sc_st.port_change |=
+			    UPS_C_CONNECT_STATUS;
+		}
 		if (sc->sc_st.port_change & UPS_C_PORT_ENABLED) {
 			err = usb2_req_clear_port_feature(
 			    udev, &Giant, portno, UHF_C_PORT_ENABLE);
@@ -533,7 +541,8 @@ uhub_explore(struct usb2_device *udev)
 					DPRINTFN(0, "port error, giving up "
 					    "port %d\n", portno);
 				} else {
-					sc->sc_st.port_change |= UPS_C_CONNECT_STATUS;
+					sc->sc_st.port_change |=
+					    UPS_C_CONNECT_STATUS;
 					up->restartcnt++;
 				}
 			}
@@ -560,6 +569,11 @@ uhub_explore(struct usb2_device *udev)
 		/* explore succeeded - reset restart counter */
 		up->restartcnt = 0;
 	}
+
+	/* initial status checked */
+	sc->sc_flags |= UHUB_FLAG_DID_EXPLORE;
+
+	/* return success */
 	return (USB_ERR_NORMAL_COMPLETION);
 }
 
@@ -817,7 +831,6 @@ static void
 uhub_driver_added(device_t dev, driver_t *driver)
 {
 	usb2_needs_explore_all();
-	return;
 }
 
 struct hub_result {
@@ -857,7 +870,6 @@ uhub_find_iface_index(struct usb2_hub *hub, device_t child,
 	res->iface_index = 0;
 	res->udev = NULL;
 	res->portno = 0;
-	return;
 }
 
 static int
@@ -1045,7 +1057,6 @@ usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
 	    USB_FS_BYTES_PER_HS_UFRAME);
 	fss->frame_bytes = (USB_FS_BYTES_PER_HS_UFRAME);
 	fss->frame_slot = 0;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1063,7 +1074,6 @@ usb2_fs_isoc_schedule_init_all(struct usb2_fs_isoc_schedule *fss)
 		usb2_fs_isoc_schedule_init_sub(fss);
 		fss++;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1261,8 +1271,6 @@ usb2_bus_port_set_device(struct usb2_bus *bus, struct usb2_port *up,
 	 * Debug print
 	 */
 	DPRINTFN(2, "bus %p devices[%u] = %p\n", bus, device_index, udev);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1288,7 +1296,6 @@ usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe)
 		/* ignore */
 	}
 	USB_BUS_UNLOCK(bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1326,5 +1333,4 @@ usb2_needs_explore_all(void)
 		}
 		max--;
 	}
-	return;
 }

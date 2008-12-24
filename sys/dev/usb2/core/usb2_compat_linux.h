@@ -439,16 +439,23 @@ struct urb {
 int	usb_submit_urb(struct urb *urb, uint16_t mem_flags);
 int	usb_unlink_urb(struct urb *urb);
 int	usb_clear_halt(struct usb_device *dev, struct usb_host_endpoint *uhe);
-int	usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *pipe, uint8_t request, uint8_t requesttype, uint16_t value, uint16_t index, void *data, uint16_t size, uint32_t timeout);
-int	usb_set_interface(struct usb_device *dev, uint8_t ifnum, uint8_t alternate);
-int	usb_setup_endpoint(struct usb_device *dev, struct usb_host_endpoint *uhe, uint32_t bufsize);
+int	usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *pipe,
+	    uint8_t request, uint8_t requesttype, uint16_t value,
+	    uint16_t index, void *data, uint16_t size, uint32_t timeout);
+int	usb_set_interface(struct usb_device *dev, uint8_t ifnum,
+	    uint8_t alternate);
+int	usb_setup_endpoint(struct usb_device *dev,
+	    struct usb_host_endpoint *uhe, uint32_t bufsize);
 
-struct usb_host_endpoint *usb_find_host_endpoint(struct usb_device *dev, uint8_t type, uint8_t ep);
+struct usb_host_endpoint *usb_find_host_endpoint(struct usb_device *dev,
+	    uint8_t type, uint8_t ep);
 struct urb *usb_alloc_urb(uint16_t iso_packets, uint16_t mem_flags);
-struct usb_host_interface *usb_altnum_to_altsetting(const struct usb_interface *intf, uint8_t alt_index);
+struct usb_host_interface *usb_altnum_to_altsetting(
+	    const struct usb_interface *intf, uint8_t alt_index);
 struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no);
 
-void   *usb_buffer_alloc(struct usb_device *dev, uint32_t size, uint16_t mem_flags, uint8_t *dma_addr);
+void   *usb_buffer_alloc(struct usb_device *dev, uint32_t size,
+	    uint16_t mem_flags, uint8_t *dma_addr);
 void   *usb_get_intfdata(struct usb_interface *intf);
 
 void	usb_buffer_free(struct usb_device *dev, uint32_t size, void *addr, uint8_t dma_addr);

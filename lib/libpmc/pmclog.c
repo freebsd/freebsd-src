@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/pmc_mdep.h>
 
+#include "libpmcinternal.h"
+
 #define	PMCLOG_BUFFER_SIZE			4096
 
 /*
@@ -363,7 +365,8 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_event);
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_flags);
 		if ((ev->pl_u.pl_a.pl_evname =
-		    pmc_name_of_event(ev->pl_u.pl_a.pl_event)) == NULL)
+		    _pmc_name_of_event(ev->pl_u.pl_a.pl_event, ps->ps_arch))
+		    == NULL)
 			goto error;
 		break;
 	case PMCLOG_TYPE_PMCATTACH:

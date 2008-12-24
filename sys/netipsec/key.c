@@ -75,9 +75,11 @@
 
 #ifdef INET
 #include <netinet/in_pcb.h>
+#include <netinet/vinet.h>
 #endif
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
+#include <netinet6/vinet6.h>
 #endif /* INET6 */
 
 #include <net/pfkeyv2.h>
@@ -113,20 +115,31 @@
  *   field hits 0 (= no external reference other than from SA header.
  */
 
-u_int32_t key_debug_level = 0;
-static u_int key_spi_trycnt = 1000;
-static u_int32_t key_spi_minval = 0x100;
-static u_int32_t key_spi_maxval = 0x0fffffff;	/* XXX */
-static u_int32_t policy_id = 0;
-static u_int key_int_random = 60;	/*interval to initialize randseed,1(m)*/
-static u_int key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
-static int key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
-static int key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
-static int key_preferred_oldsa = 1;	/* preferred old sa rather than new sa.*/
+#ifdef VIMAGE_GLOBALS
+u_int32_t key_debug_level;
+static u_int key_spi_trycnt;
+static u_int32_t key_spi_minval;
+static u_int32_t key_spi_maxval;
+static u_int32_t policy_id;
+static u_int key_int_random;
+static u_int key_larval_lifetime;
+static int key_blockacq_count;
+static int key_blockacq_lifetime;
+static int key_preferred_oldsa;
 
-static u_int32_t acq_seq = 0;
+static u_int32_t acq_seq;
+
+static int ipsec_esp_keymin;
+static int ipsec_esp_auth;
+static int ipsec_ah_keymin;
 
 static LIST_HEAD(_sptree, secpolicy) sptree[IPSEC_DIR_MAX];	/* SPD */
+static LIST_HEAD(_sahtree, secashead) sahtree;			/* SAD */
+static LIST_HEAD(_regtree, secreg) regtree[SADB_SATYPE_MAX + 1];
+static LIST_HEAD(_acqtree, secacq) acqtree;		/* acquiring list */
+static LIST_HEAD(_spacqtree, secspacq) spacqtree;	/* SP acquiring list */
+#endif /* VIMAGE_GLOBALS */
+
 static struct mtx sptree_lock;
 #define	SPTREE_LOCK_INIT() \
 	mtx_init(&sptree_lock, "sptree", \
@@ -136,7 +149,6 @@ static struct mtx sptree_lock;
 #define	SPTREE_UNLOCK()	mtx_unlock(&sptree_lock)
 #define	SPTREE_LOCK_ASSERT()	mtx_assert(&sptree_lock, MA_OWNED)
 
-static LIST_HEAD(_sahtree, secashead) sahtree;			/* SAD */
 static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_INIT() \
 	mtx_init(&sahtree_lock, "sahtree", \
@@ -147,7 +159,6 @@ static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_ASSERT()	mtx_assert(&sahtree_lock, MA_OWNED)
 
 							/* registed list */
-static LIST_HEAD(_regtree, secreg) regtree[SADB_SATYPE_MAX + 1];
 static struct mtx regtree_lock;
 #define	REGTREE_LOCK_INIT() \
 	mtx_init(&regtree_lock, "regtree", "fast ipsec regtree", MTX_DEF)
@@ -156,7 +167,6 @@ static struct mtx regtree_lock;
 #define	REGTREE_UNLOCK()	mtx_unlock(&regtree_lock)
 #define	REGTREE_LOCK_ASSERT()	mtx_assert(&regtree_lock, MA_OWNED)
 
-static LIST_HEAD(_acqtree, secacq) acqtree;		/* acquiring list */
 static struct mtx acq_lock;
 #define	ACQ_LOCK_INIT() \
 	mtx_init(&acq_lock, "acqtree", "fast ipsec acquire list", MTX_DEF)
@@ -165,7 +175,6 @@ static struct mtx acq_lock;
 #define	ACQ_UNLOCK()		mtx_unlock(&acq_lock)
 #define	ACQ_LOCK_ASSERT()	mtx_assert(&acq_lock, MA_OWNED)
 
-static LIST_HEAD(_spacqtree, secspacq) spacqtree;	/* SP acquiring list */
 static struct mtx spacq_lock;
 #define	SPACQ_LOCK_INIT() \
 	mtx_init(&spacq_lock, "spacqtree", \
@@ -182,11 +191,11 @@ static const u_int saorder_state_valid_prefer_old[] = {
 static const u_int saorder_state_valid_prefer_new[] = {
 	SADB_SASTATE_MATURE, SADB_SASTATE_DYING,
 };
-static u_int saorder_state_alive[] = {
+static const u_int saorder_state_alive[] = {
 	/* except DEAD */
 	SADB_SASTATE_MATURE, SADB_SASTATE_DYING, SADB_SASTATE_LARVAL
 };
-static u_int saorder_state_any[] = {
+static const u_int saorder_state_any[] = {
 	SADB_SASTATE_MATURE, SADB_SASTATE_DYING,
 	SADB_SASTATE_LARVAL, SADB_SASTATE_DEAD
 };
@@ -235,10 +244,6 @@ static const int maxsize[] = {
 	0,				/* SADB_X_EXT_POLICY */
 	sizeof(struct sadb_x_sa2),	/* SADB_X_SA2 */
 };
-
-static int ipsec_esp_keymin = 256;
-static int ipsec_esp_auth = 0;
-static int ipsec_ah_keymin = 128;
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_key);
@@ -1155,8 +1160,13 @@ key_freeso(struct socket *so)
 	IPSEC_ASSERT(so != NULL, ("null so"));
 
 	switch (so->so_proto->pr_domain->dom_family) {
+#if defined(INET) || defined(INET6)
 #ifdef INET
 	case PF_INET:
+#endif
+#ifdef INET6
+	case PF_INET6:
+#endif
 	    {
 		struct inpcb *pcb = sotoinpcb(so);
 
@@ -1167,30 +1177,7 @@ key_freeso(struct socket *so)
 		key_freesp_so(&pcb->inp_sp->sp_out);
 	    }
 		break;
-#endif
-#ifdef INET6
-	case PF_INET6:
-	    {
-#ifdef HAVE_NRL_INPCB
-		struct inpcb *pcb  = sotoinpcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->inp_sp->sp_in);
-		key_freesp_so(&pcb->inp_sp->sp_out);
-#else
-		struct in6pcb *pcb  = sotoin6pcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->in6p_sp->sp_in);
-		key_freesp_so(&pcb->in6p_sp->sp_out);
-#endif
-	    }
-		break;
-#endif /* INET6 */
+#endif /* INET || INET6 */
 	default:
 		ipseclog((LOG_DEBUG, "%s: unknown address family=%d.\n",
 		    __func__, so->so_proto->pr_domain->dom_family));
@@ -2696,9 +2683,9 @@ key_delsah(sah)
 
 	/* searching all SA registerd in the secindex. */
 	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(V_saorder_state_any);
+	     stateidx < _ARRAYLEN(saorder_state_any);
 	     stateidx++) {
-		u_int state = V_saorder_state_any[stateidx];
+		u_int state = saorder_state_any[stateidx];
 		LIST_FOREACH_SAFE(sav, &sah->savtree[state], chain, nextsav) {
 			if (sav->refcnt == 0) {
 				/* sanity check */
@@ -2982,10 +2969,10 @@ key_getsavbyspi(sah, spi)
 	SAHTREE_LOCK_ASSERT();
 	/* search all status */
 	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(V_saorder_state_alive);
+	     stateidx < _ARRAYLEN(saorder_state_alive);
 	     stateidx++) {
 
-		state = V_saorder_state_alive[stateidx];
+		state = saorder_state_alive[stateidx];
 		LIST_FOREACH(sav, &sah->savtree[state], chain) {
 
 			/* sanity check */
@@ -4333,6 +4320,7 @@ key_timehandler(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 	time_t now = time_second;
 
+	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		key_flush_spd(now);
@@ -4341,6 +4329,7 @@ key_timehandler(void)
 		key_flush_spacq(now);
 		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 
 #ifndef IPSEC_DEBUG2
 	/* do exchange to tick time !! */
@@ -5310,9 +5299,9 @@ key_delete_all(so, m, mhp, proto)
 
 		/* Delete all non-LARVAL SAs. */
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(V_saorder_state_alive);
+		     stateidx < _ARRAYLEN(saorder_state_alive);
 		     stateidx++) {
-			state = V_saorder_state_alive[stateidx];
+			state = saorder_state_alive[stateidx];
 			if (state == SADB_SASTATE_LARVAL)
 				continue;
 			for (sav = LIST_FIRST(&sah->savtree[state]);
@@ -6515,9 +6504,9 @@ key_flush(so, m, mhp)
 			continue;
 
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(V_saorder_state_alive);
+		     stateidx < _ARRAYLEN(saorder_state_alive);
 		     stateidx++) {
-			state = V_saorder_state_any[stateidx];
+			state = saorder_state_any[stateidx];
 			for (sav = LIST_FIRST(&sah->savtree[state]);
 			     sav != NULL;
 			     sav = nextsav) {
@@ -6600,9 +6589,9 @@ key_dump(so, m, mhp)
 			continue;
 
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(V_saorder_state_any);
+		     stateidx < _ARRAYLEN(saorder_state_any);
 		     stateidx++) {
-			state = V_saorder_state_any[stateidx];
+			state = saorder_state_any[stateidx];
 			LIST_FOREACH(sav, &sah->savtree[state], chain) {
 				cnt++;
 			}
@@ -6630,9 +6619,9 @@ key_dump(so, m, mhp)
 		}
 
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(V_saorder_state_any);
+		     stateidx < _ARRAYLEN(saorder_state_any);
 		     stateidx++) {
-			state = V_saorder_state_any[stateidx];
+			state = saorder_state_any[stateidx];
 			LIST_FOREACH(sav, &sah->savtree[state], chain) {
 				n = key_setdumpsa(sav, SADB_DUMP, satype,
 				    --cnt, mhp->msg->sadb_msg_pid);
@@ -7183,6 +7172,23 @@ key_init(void)
 {
 	INIT_VNET_IPSEC(curvnet);
 	int i;
+
+	V_key_debug_level = 0;
+	V_key_spi_trycnt = 1000;
+	V_key_spi_minval = 0x100;
+	V_key_spi_maxval = 0x0fffffff;	/* XXX */
+	V_policy_id = 0;
+	V_key_int_random = 60;		/*interval to initialize randseed,1(m)*/
+	V_key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
+	V_key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
+	V_key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
+	V_key_preferred_oldsa = 1;	/* preferred old sa rather than new sa*/
+
+	V_acq_seq = 0;
+
+	V_ipsec_esp_keymin = 256;
+	V_ipsec_esp_auth = 0;
+	V_ipsec_ah_keymin = 128;
 
 	SPTREE_LOCK_INIT();
 	REGTREE_LOCK_INIT();

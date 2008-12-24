@@ -150,7 +150,15 @@
 #define	AMDID2_SVM	0x00000004
 #define	AMDID2_EXT_APIC	0x00000008
 #define	AMDID2_CR8	0x00000010
+#define	AMDID2_ABM	0x00000020
+#define	AMDID2_SSE4A	0x00000040
+#define	AMDID2_MAS	0x00000080
 #define	AMDID2_PREFETCH	0x00000100
+#define	AMDID2_OSVW	0x00000200
+#define	AMDID2_IBS	0x00000400
+#define	AMDID2_SSE5	0x00000800
+#define	AMDID2_SKINIT	0x00001000
+#define	AMDID2_WDT	0x00002000
 
 /*
  * CPUID instruction 1 eax info
@@ -196,8 +204,8 @@
 /*
  * CPUID manufacturers identifiers
  */
-#define	INTEL_VENDOR_ID	"GenuineIntel"
-#define	AMD_VENDOR_ID	"AuthenticAMD"
+#define	AMD_VENDOR_ID		"AuthenticAMD"
+#define	INTEL_VENDOR_ID		"GenuineIntel"
 
 /*
  * Model-specific registers for the i386 family

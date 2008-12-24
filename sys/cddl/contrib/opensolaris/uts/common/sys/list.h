@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -46,15 +45,20 @@ void list_insert_before(list_t *, void *, void *);
 void list_insert_head(list_t *, void *);
 void list_insert_tail(list_t *, void *);
 void list_remove(list_t *, void *);
+void *list_remove_head(list_t *);
+void *list_remove_tail(list_t *);
 void list_move_tail(list_t *, list_t *);
 
 void *list_head(list_t *);
 void *list_tail(list_t *);
 void *list_next(list_t *, void *);
 void *list_prev(list_t *, void *);
+int list_is_empty(list_t *);
+
+void list_link_init(list_node_t *);
+void list_link_replace(list_node_t *, list_node_t *);
 
 int list_link_active(list_node_t *);
-int list_is_empty(list_t *);
 
 #ifdef	__cplusplus
 }

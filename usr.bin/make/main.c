@@ -130,6 +130,7 @@ Boolean		compatMake;	/* -B argument */
 int		debug;		/* -d flag */
 Boolean		ignoreErrors;	/* -i flag */
 int		jobLimit;	/* -j argument */
+int		makeErrors;	/* Number of targets not remade due to errors */
 Boolean		jobsRunning;	/* TRUE if the jobs might be running */
 Boolean		keepgoing;	/* -k flag */
 Boolean		noExecute;	/* -n flag */
@@ -1311,9 +1312,11 @@ main(int argc, char **argv)
 	if (DEBUG(GRAPH2))
 		Targ_PrintGraph(2);
 
-	if (queryFlag && outOfDate)
-		return (1);
-	else
-		return (0);
-}
+	if (queryFlag)
+		return (outOfDate);
 
+	if (makeErrors != 0)
+		Finish(makeErrors);
+
+	return (0);
+}

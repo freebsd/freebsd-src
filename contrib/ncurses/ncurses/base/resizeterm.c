@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: resizeterm.c,v 1.32 2008/05/03 14:28:55 tom Exp $")
+MODULE_ID("$Id: resizeterm.c,v 1.34 2008/06/07 13:58:40 tom Exp $")
 
 #define stolen_lines (screen_lines - SP->_lines_avail)
 
@@ -66,7 +66,7 @@ show_window_sizes(const char *name)
 {
     WINDOWLIST *wp;
 
-    _nc_lock_global(windowlist);
+    _nc_lock_global(curses);
     _tracef("%s resizing: %2d x %2d (%2d x %2d)", name, LINES, COLS,
 	    screen_lines, screen_columns);
     for (each_window(wp)) {
@@ -77,7 +77,7 @@ show_window_sizes(const char *name)
 		(long) wp->win._begy,
 		(long) wp->win._begx);
     }
-    _nc_unlock_global(windowlist);
+    _nc_unlock_global(curses);
 }
 #endif
 
@@ -320,7 +320,7 @@ resize_term(int ToLines, int ToCols)
 	returnCode(ERR);
     }
 
-    _nc_lock_global(windowlist);
+    _nc_lock_global(curses);
 
     was_stolen = (screen_lines - SP->_lines_avail);
     if (is_term_resized(ToLines, ToCols)) {
@@ -378,7 +378,7 @@ resize_term(int ToLines, int ToCols)
     SET_LINES(ToLines - was_stolen);
     SET_COLS(ToCols);
 
-    _nc_unlock_global(windowlist);
+    _nc_unlock_global(curses);
 
     returnCode(result);
 }
@@ -418,7 +418,7 @@ resizeterm(int ToLines, int ToCols)
 	    result = resize_term(ToLines, ToCols);
 
 #if USE_SIGWINCH
-	    ungetch(KEY_RESIZE);	/* so application can know this */
+	    _nc_ungetch(SP, KEY_RESIZE);	/* so application can know this */
 	    clearok(curscr, TRUE);	/* screen contents are unknown */
 
 	    /* ripped-off lines are a special case: if we did not lengthen

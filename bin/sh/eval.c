@@ -791,6 +791,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
 		funcnest++;
+		exitstatus = oexitstatus;
 		if (flags & EV_TESTED)
 			evaltree(cmdentry.u.func, EV_TESTED);
 		else

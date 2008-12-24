@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: INSTALL,v 1.124 2008/03/29 18:07:32 tom Exp $
+-- $Id: INSTALL,v 1.135 2008/11/02 21:13:51 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -393,6 +393,18 @@ SUMMARY OF CONFIGURE OPTIONS:
 	Compile without scroll-hints code.  This option is ignored when
 	hashmap scrolling is configured, which is the default.
 
+    --disable-tic-depends
+	When building shared libraries, normally the tic library is linked to
+	depend upon the ncurses library (and in turn, on the term-library if
+	the --with-termlib option was given).  The tic- and term-libraries
+	ABI does not depend on the --enable-widec option. Some packagers have
+	used this to reduce the number of library files which are packaged
+	by using only one copy of those libraries.  To make this work properly,
+	the tic library must be built without an explicit dependency on the
+	ncurses (or ncursesw) library.  Use this configure option to do that.
+	For example
+		configure --with-ticlib --with-shared --disable-tic-depends
+
     --disable-tparm-varargs
 	Portable programs should call tparm() using the fixed-length parameter
 	list documented in X/Open.  ncurses provides varargs support for this
@@ -572,6 +584,13 @@ SUMMARY OF CONFIGURE OPTIONS:
     --enable-warnings
 	Turn on GCC compiler warnings.  There should be only a few.
 
+    --enable-weak-symbols
+	If the --with-pthread option is set, check if the compiler supports
+	weak-symbols.  If it does, then name the thread-capable library without
+	the "t" (libncurses rather than libncursest), and provide for
+	dynamically loading the pthreads entrypoints at runtime.  This allows
+	one to reduce the number of library files for ncurses.
+
     --enable-wgetch-events
 	Compile with experimental wgetch-events code.  See ncurses/README.IZ
 
@@ -597,6 +616,9 @@ SUMMARY OF CONFIGURE OPTIONS:
 	Override the ABI version, which is used in shared library filenames.
 	Normally this is the same as the release version; some ports have
 	special requirements for compatibility.
+
+	This option does not affect linking with libtool, which uses the
+	release major/minor numbers.
 
     --with-ada-compiler=CMD
 	Specify the Ada95 compiler command (default "gnatmake")
@@ -625,19 +647,31 @@ SUMMARY OF CONFIGURE OPTIONS:
 	to do this if the target compiler has unusual flags which confuse the
 	host compiler.
 
+	You can also set the environment variable $BUILD_CFLAGS rather than
+	use this option.
+
     --with-build-cppflags=XXX
 	If cross-compiling, specify the host C preprocessor-flags.  You might
 	need to do this if the target compiler has unusual flags which confuse
 	the host compiler.
+
+	You can also set the environment variable $BUILD_CPPFLAGS rather than
+	use this option.
 
     --with-build-ldflags=XXX
 	If cross-compiling, specify the host linker-flags.  You might need to
 	do this if the target linker has unusual flags which confuse the host
 	compiler.
 
+	You can also set the environment variable $BUILD_LDFLAGS rather than
+	use this option.
+
     --with-build-libs=XXX
 	If cross-compiling, the host libraries.  You might need to do this if
 	the target environment requires unusual libraries.
+
+	You can also set the environment variable $BUILD_LIBS rather than
+	use this option.
 
     --with-caps=XXX
 	Specify an alternate terminfo capabilities file, which makes the
@@ -795,6 +829,14 @@ SUMMARY OF CONFIGURE OPTIONS:
 	may be unsigned.  Use this option if you need to preserve compatibility
 	with 64-bit executables.
 
+    --with-normal
+	Generate normal (i.e., static) libraries (default).
+
+	Note:  on Linux, the configure script will attempt to use the GPM
+	library via the dlsym() function call.  Use --without-dlsym to disable
+	this feature, or --without-gpm, depending on whether you wish to use
+	GPM.
+
     --with-ospeed=TYPE
 	Override type of ospeed variable, which is part of the termcap
 	compatibility interface.  In termcap, this is a 'short', which works
@@ -807,14 +849,6 @@ SUMMARY OF CONFIGURE OPTIONS:
 	applications that required knowledge of the ospeed variable, i.e.,
 	those using termcap, do not use the higher speeds.  Your application
 	(or system, in general) may or may not.
-
-    --with-normal
-	Generate normal (i.e., static) libraries (default).
-
-	Note:  on Linux, the configure script will attempt to use the GPM
-	library via the dlsym() function call.  Use --without-dlsym to disable
-	this feature, or --without-gpm, depending on whether you wish to use
-	GPM.
 
     --with-profile
 	Generate profile-libraries These are named by adding "_p" to the root,
@@ -898,6 +932,12 @@ SUMMARY OF CONFIGURE OPTIONS:
 	library.  As in termlib, there is no ABI difference between the
 	"wide" libticw.so and libtic.so
 
+	NOTE: Overriding the name of the tic library may be useful if you are
+	also using the --with-termlib option to rename libtinfo.  If you are
+	not doing that, renaming the tic library can result in conflicting
+	library dependencies for tic and other programs built with the tic
+	library.
+
     --with-trace
 	Configure the trace() function as part of the all models of the ncurses
 	library.  Normally it is part of the debug (libncurses_g) library only.
@@ -960,6 +1000,94 @@ COMPATIBILITY WITH OLDER VERSIONS OF NCURSES:
     Here are some of the major interface changes, and related problems which
     you may encounter when building a system with different versions of
     ncurses:
+
+    5.7 (November 2, 2008)
+	Interface changes:
+
+	+ generate linkable stubs for some macros:
+		getattrs
+
+	+ Add new library configuration for tic-library (the non-curses portion
+	  of the ncurses library used for the tic program as well as some
+	  others such as tack.  There is no API change, but makefiles would be
+	  changed to use the tic-library built separately.
+	  
+	  tack, distributed separately from ncurses, uses some of the internal
+	  _nc_XXX functions, which are declared in the tic.h header file.
+
+	  The reason for providing this separate library is that none of the
+	  functions in it are suitable for threaded applications.
+
+	+ Add new library configuration (ncursest, ncurseswt) which provides
+	  rudimentary support for POSIX threads.  This introduces opaque
+	  access functions to the WINDOW structure and adds a parameter to
+	  several internal functions.
+
+	+ move most internal variables (except tic-library) into data blocks
+	  _nc_globals and _nc_prescreen to simplify analysis.  Those were
+	  globally accessible, but since they were not part of the documented
+	  API, there is no ABI change.
+
+	+ changed static tables of strings to be indices into long strings, to
+	  improve startup performance.  This changes parameter lists for some
+	  of the internal functions.
+
+	Added extensions:
+
+	+ add NCURSES_OPAQUE definition in curses.h to control whether internal
+	  details of the WINDOW structure are visible to an application.  This
+	  is always defined when the threaded library is built, and is optional
+	  otherwise.  New functions for this:  is_cleared, is_idcok, is_idlok,
+	  is_immedok, is_keypad, is_leaveok, is_nodelay, is_notimeout,
+	  is_scrollok, is_syncok, wgetparent and wgetscrreg.
+
+	+ the threaded library (ncursest) also disallows direct updating of
+	  global curses-level variables, providing functions (via macros) for
+	  obtaining their value.  A few of those variables can be modified by
+	  the application, using new functions:  set_escdelay, set_tabsize
+
+	+ added functions use_window() and use_screen() which wrap a mutex
+	  (if threading is configured) around a call to a user-supplied
+	  function.
+
+	Added internal functions:
+		_nc_get_alias_table
+		_nc_get_screensize
+		_nc_keyname
+		_nc_screen_of
+		_nc_set_no_padding
+		_nc_tracechar
+		_nc_tracemouse
+		_nc_unctrl
+		_nc_ungetch
+
+		These are used for leak-testing, and are stubs for
+		ABI compatibility when ncurses is not configured for that
+		using the --disable-leaks configure script option:
+
+		_nc_free_and_exit
+		_nc_leaks_tinfo
+
+	Removed internal functions:
+		none
+
+	Modified internal functions:
+		_nc_fifo_dump
+		_nc_find_entry
+		_nc_handle_sigwinch
+		_nc_init_keytry
+		_nc_keypad
+		_nc_locale_breaks_acs
+		_nc_timed_wait
+		_nc_update_screensize
+
+		Use new typedef TRIES to replace "struct tries":
+
+		_nc_add_to_try
+		_nc_expand_try
+		_nc_remove_key
+		_nc_remove_string
+		_nc_trace_tries
 
     5.6 (December 17, 2006)
 	Interface changes:

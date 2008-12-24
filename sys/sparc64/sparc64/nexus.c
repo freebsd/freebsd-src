@@ -96,7 +96,7 @@ static ofw_bus_get_devinfo_t nexus_get_devinfo;
 #ifdef SMP
 static int nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
-static int nexus_inlist(const char *, const char **);
+static int nexus_inlist(const char *, const char *const *);
 static struct nexus_devinfo * nexus_setup_dinfo(device_t, phandle_t);
 static void nexus_destroy_dinfo(struct nexus_devinfo *);
 static int nexus_print_res(struct nexus_devinfo *);
@@ -125,6 +125,7 @@ static device_method_t nexus_methods[] = {
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 #endif
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, nexus_get_resource_list),
 	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
@@ -145,7 +146,7 @@ static devclass_t nexus_devclass;
 DEFINE_CLASS_0(nexus, nexus_driver, nexus_methods, sizeof(struct nexus_softc));
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
-static const char *nexus_excl_name[] = {
+static const char *const nexus_excl_name[] = {
 	"aliases",
 	"associations",
 	"chosen",
@@ -159,7 +160,7 @@ static const char *nexus_excl_name[] = {
 	NULL
 };
 
-static const char *nexus_excl_type[] = {
+static const char *const nexus_excl_type[] = {
 	"cpu",
 	NULL
 };
@@ -168,7 +169,7 @@ extern struct bus_space_tag nexus_bustag;
 extern struct bus_dma_tag nexus_dmatag;
 
 static int
-nexus_inlist(const char *name, const char **list)
+nexus_inlist(const char *name, const char *const *list)
 {
 	int i;
 

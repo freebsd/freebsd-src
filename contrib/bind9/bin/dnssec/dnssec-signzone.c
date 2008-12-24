@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.177.18.24 2007/08/28 07:20:00 tbox Exp $ */
+/* $Id: dnssec-signzone.c,v 1.177.18.26 2008/06/02 23:46:01 tbox Exp $ */
 
 /*! \file */
 
@@ -128,7 +128,6 @@ static dns_name_t *gorigin;		/* The database origin */
 static isc_task_t *master = NULL;
 static unsigned int ntasks = 0;
 static isc_boolean_t shuttingdown = ISC_FALSE, finished = ISC_FALSE;
-static unsigned int assigned = 0, completed = 0;
 static isc_boolean_t nokeys = ISC_FALSE;
 static isc_boolean_t removefile = ISC_FALSE;
 static isc_boolean_t generateds = ISC_FALSE;
@@ -969,7 +968,7 @@ active_node(dns_dbnode_t *node) {
 			fatal("rdataset iteration failed: %s",
 			      isc_result_totext(result));
 	} else {
-		/* 
+		/*
 		 * Delete RRSIGs for types that no longer exist.
 		 */
 		result = dns_db_allrdatasets(gdb, node, gversion, 0, &rdsiter2);
@@ -1194,7 +1193,7 @@ signapex(void) {
 	dns_fixedname_t fixed;
 	dns_name_t *name;
 	isc_result_t result;
-	
+
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
 	result = dns_dbiterator_current(gdbiter, &node, name);
@@ -1224,16 +1223,19 @@ assignwork(isc_task_t *task, isc_task_t *worker) {
 	dns_rdataset_t nsec;
 	isc_boolean_t found;
 	isc_result_t result;
+	static unsigned int ended = 0;		/* Protected by namelock. */
 
 	if (shuttingdown)
 		return;
 
+	LOCK(&namelock);
 	if (finished) {
-		if (assigned == completed) {
+		ended++;
+		if (ended == ntasks) {
 			isc_task_detach(&task);
 			isc_app_shutdown();
 		}
-		return;
+		goto unlock;
 	}
 
 	fname = isc_mem_get(mctx, sizeof(dns_fixedname_t));
@@ -1243,7 +1245,6 @@ assignwork(isc_task_t *task, isc_task_t *worker) {
 	name = dns_fixedname_name(fname);
 	node = NULL;
 	found = ISC_FALSE;
-	LOCK(&namelock);
 	while (!found) {
 		result = dns_dbiterator_current(gdbiter, &node, name);
 		if (result != ISC_R_SUCCESS)
@@ -1270,14 +1271,14 @@ assignwork(isc_task_t *task, isc_task_t *worker) {
 			fatal("failure iterating database: %s",
 			      isc_result_totext(result));
 	}
-	UNLOCK(&namelock);
 	if (!found) {
-		if (assigned == completed) {
+		ended++;
+		if (ended == ntasks) {
 			isc_task_detach(&task);
 			isc_app_shutdown();
 		}
 		isc_mem_put(mctx, fname, sizeof(dns_fixedname_t));
-		return;
+		goto unlock;
 	}
 	sevent = (sevent_t *)
 		 isc_event_allocate(mctx, task, SIGNER_EVENT_WORK,
@@ -1288,7 +1289,8 @@ assignwork(isc_task_t *task, isc_task_t *worker) {
 	sevent->node = node;
 	sevent->fname = fname;
 	isc_task_send(worker, ISC_EVENT_PTR(&sevent));
-	assigned++;
+ unlock:
+	UNLOCK(&namelock);
 }
 
 /*%
@@ -1311,7 +1313,6 @@ writenode(isc_task_t *task, isc_event_t *event) {
 	isc_task_t *worker;
 	sevent_t *sevent = (sevent_t *)event;
 
-	completed++;
 	worker = (isc_task_t *)event->ev_sender;
 	dumpnode(dns_fixedname_name(sevent->fname), sevent->node);
 	cleannode(gdb, gversion, sevent->node);
@@ -1605,7 +1606,7 @@ writeset(const char *prefix, dns_rdatatype_t type) {
 	unsigned char dsbuf[DNS_DS_BUFFERSIZE];
 	unsigned char keybuf[DST_KEY_MAXSIZE];
 	unsigned int filenamelen;
-	const dns_master_style_t *style = 
+	const dns_master_style_t *style =
 		(type == dns_rdatatype_dnskey) ? masterstyle : dsstyle;
 
 	isc_buffer_init(&namebuf, namestr, sizeof(namestr));
@@ -1818,13 +1819,13 @@ print_stats(isc_time_t *timer_start, isc_time_t *timer_finish) {
 	printf("Signatures successfully verified:   %10d\n", nverified);
 	printf("Signatures unsuccessfully verified: %10d\n", nverifyfailed);
 	runtime_ms = runtime_us / 1000;
-	printf("Runtime in seconds:                %7u.%03u\n", 
-	       (unsigned int) (runtime_ms / 1000), 
+	printf("Runtime in seconds:                %7u.%03u\n",
+	       (unsigned int) (runtime_ms / 1000),
 	       (unsigned int) (runtime_ms % 1000));
 	if (runtime_us > 0) {
 		sig_ms = ((isc_uint64_t)nsigned * 1000000000) / runtime_us;
 		printf("Signatures per second:             %7u.%03u\n",
-		       (unsigned int) sig_ms / 1000, 
+		       (unsigned int) sig_ms / 1000,
 		       (unsigned int) sig_ms % 1000);
 	}
 }
@@ -1914,7 +1915,7 @@ main(int argc, char *argv[]) {
 				fatal("jitter must be numeric and positive");
 			break;
 
-		case 'l': 
+		case 'l':
 			dns_fixedname_init(&dlv_fixed);
 			len = strlen(isc_commandline_argument);
 			isc_buffer_init(&b, isc_commandline_argument, len);
@@ -2080,7 +2081,7 @@ main(int argc, char *argv[]) {
 	result = dns_master_stylecreate(&dsstyle,  DNS_STYLEFLAG_NO_TTL,
 					0, 24, 0, 0, 0, 8, mctx);
 	check_result(result, "dns_master_stylecreate");
-					
+
 
 	gdb = NULL;
 	TIME_NOW(&timer_start);
@@ -2102,8 +2103,8 @@ main(int argc, char *argv[]) {
 						       DST_TYPE_PRIVATE,
 						       mctx, &newkey);
 			if (result != ISC_R_SUCCESS)
-				fatal("cannot load dnskey %s: %s", argv[i], 
-				      isc_result_totext(result)); 
+				fatal("cannot load dnskey %s: %s", argv[i],
+				      isc_result_totext(result));
 
 			key = ISC_LIST_HEAD(keylist);
 			while (key != NULL) {
@@ -2111,7 +2112,7 @@ main(int argc, char *argv[]) {
 				if (dst_key_id(dkey) == dst_key_id(newkey) &&
 				    dst_key_alg(dkey) == dst_key_alg(newkey) &&
 				    dns_name_equal(dst_key_name(dkey),
-					    	   dst_key_name(newkey)))
+						   dst_key_name(newkey)))
 				{
 					if (!dst_key_isprivate(dkey))
 						fatal("cannot sign zone with "
@@ -2140,7 +2141,7 @@ main(int argc, char *argv[]) {
 					       mctx, &newkey);
 		if (result != ISC_R_SUCCESS)
 			fatal("cannot load dnskey %s: %s", dskeyfile[i],
-			      isc_result_totext(result)); 
+			      isc_result_totext(result));
 
 		key = ISC_LIST_HEAD(keylist);
 		while (key != NULL) {
@@ -2148,7 +2149,7 @@ main(int argc, char *argv[]) {
 			if (dst_key_id(dkey) == dst_key_id(newkey) &&
 			    dst_key_alg(dkey) == dst_key_alg(newkey) &&
 			    dns_name_equal(dst_key_name(dkey),
-				    	   dst_key_name(newkey)))
+					   dst_key_name(newkey)))
 			{
 				/* Override key flags. */
 				key->issigningkey = ISC_TRUE;

@@ -234,6 +234,7 @@ ehci_pci_attach(device_t self)
 	}
 	/* get all DMA memory */
 
+	sc->sc_bus.parent = self;
 	if (usb2_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		return ENOMEM;
@@ -468,7 +469,6 @@ ehci_pci_takecontroller(device_t self)
 			usb2_pause_mtx(NULL, 10);	/* wait 10ms */
 		}
 	}
-	return;
 }
 
 static driver_t ehci_driver =

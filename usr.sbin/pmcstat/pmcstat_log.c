@@ -1969,9 +1969,10 @@ static int
 pmcstat_analyze_log(struct pmcstat_args *a)
 {
 	uint32_t cpu, cpuflags;
-	uintfptr_t pc;
+	uintfptr_t pc, newpc;
 	pid_t pid;
 	struct pmcstat_image *image;
+	struct pmcstat_symbol *sym;
 	struct pmcstat_process *pp, *ppnew;
 	struct pmcstat_pcmap *ppm, *ppmtmp;
 	struct pmclog_ev ev;
@@ -2085,19 +2086,39 @@ pmcstat_analyze_log(struct pmcstat_args *a)
 			pp = pmcstat_process_lookup(ev.pl_u.pl_cc.pl_pid,
 			    PMCSTAT_ALLOCATE);
 
-			pmcstat_record_callchain(pp,
-			    ev.pl_u.pl_cc.pl_pmcid, ev.pl_u.pl_cc.pl_npc,
-			    ev.pl_u.pl_cc.pl_pc,
-			    PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(cpuflags), a);
+			if ((a->pa_flags & FLAG_WANTS_MAPPINGS) == 0)
+				pmcstat_record_callchain(pp,
+				    ev.pl_u.pl_cc.pl_pmcid,
+				    ev.pl_u.pl_cc.pl_npc, ev.pl_u.pl_cc.pl_pc,
+			PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(cpuflags), a);
 
-			if ((a->pa_flags & FLAG_DO_GPROF) == 0)
+			if ((a->pa_flags &
+			    (FLAG_DO_GPROF | FLAG_WANTS_MAPPINGS)) == 0)
 				break;
 
 			pc = ev.pl_u.pl_cc.pl_pc[0];
-			if ((ppm = pmcstat_process_find_map(pp, pc)) == NULL &&
-			    (ppm = pmcstat_process_find_map(pmcstat_kernproc,
-				pc)) == NULL) { /* unknown offset */
+			if (PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(cpuflags) == 0)
+				pp = pmcstat_kernproc;
+			ppm = pmcstat_process_find_map(pp, pc);
+			if (ppm == NULL) {
+
+				/* Unknown offset. */
 				pmcstat_stats.ps_samples_unknown_offset++;
+				break;
+			}
+			if (a->pa_flags & FLAG_WANTS_MAPPINGS) {
+				image = ppm->ppm_image;
+				newpc = pc - (ppm->ppm_lowpc +
+				    (image->pi_vaddr - image->pi_start));
+				sym = pmcstat_symbol_search(image, newpc);
+				if (sym == NULL)
+					break;
+				fprintf(a->pa_graphfile, "%p %s 0x%jx 0x%jx\n",
+				    (void *)pc,
+				    pmcstat_string_unintern(sym->ps_name),
+				    (uintmax_t)(sym->ps_start +
+				    image->pi_vaddr), (uintmax_t)(sym->ps_end +
+				    image->pi_vaddr));
 				break;
 			}
 

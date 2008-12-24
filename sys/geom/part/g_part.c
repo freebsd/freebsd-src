@@ -535,8 +535,8 @@ g_part_ctl_bootcode(struct gctl_req *req, struct g_part_parms *gpp)
 		error = ENODEV;
 		goto fail;
 	}
-	if (gpp->gpp_codesize != sz) {
-		error = EINVAL;
+	if (gpp->gpp_codesize > sz) {
+		error = EFBIG;
 		goto fail;
 	}
 

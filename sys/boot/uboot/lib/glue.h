@@ -81,5 +81,6 @@ struct device_info *ub_dev_get(int);
 void ub_dump_di(int);
 void ub_dump_si(struct sys_info *);
 char *ub_mem_type(int);
+char *ub_stor_type(int);
 
 #endif /* _API_GLUE_H_ */

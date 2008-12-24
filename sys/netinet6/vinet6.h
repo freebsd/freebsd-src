@@ -33,18 +33,19 @@
 #ifndef _NETINET6_VINET6_H_
 #define _NETINET6_VINET6_H_
 
-#ifdef VIMAGE
-#include <sys/socket.h>
-#include <netinet/ip6.h>
-#include <net/if.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/raw_ip6.h>
+#include <sys/callout.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+
+#include <net/if_var.h>
+
 #include <netinet/icmp6.h>
-#include <netinet6/scope6_var.h>
-#include <netinet6/in6_ifattach.h>
-#include <netinet6/in6_var.h>
+#include <netinet/in.h>
+
+#include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/in_pcb.h>
+#include <netinet6/raw_ip6.h>
+#include <netinet6/scope6_var.h>
 
 struct vnet_inet6 {
 	struct in6_ifaddr *		_in6_ifaddr;
@@ -76,7 +77,7 @@ struct vnet_inet6 {
 
 	int				_nd6_inuse;
 	int				_nd6_allocated;
-	struct llinfo_nd6		_llinfo_nd6;
+	int				_nd6_onlink_ns_rfc4861;
 	struct nd_drhead		_nd_defrouter;
 	struct nd_prhead 		_nd_prefix;
 	struct ifnet *			_nd6_defifp;
@@ -88,7 +89,7 @@ struct vnet_inet6 {
 	int				_dad_init;
 
 	int				_icmp6errpps_count;
-	int				_icmp6errppslim_last;
+	struct timeval			_icmp6errppslim_last;
 
 	int 				_ip6_forwarding;
 	int				_ip6_sendredirects;
@@ -153,14 +154,17 @@ struct vnet_inet6 {
 
 	struct ip6_pktopts		_ip6_opts;
 };
-#endif
 
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_inet6 vnet_inet6_0;
+#endif
+#endif
 
 #define	INIT_VNET_INET6(vnet) \
 	INIT_FROM_VNET(vnet, VNET_MOD_INET6, struct vnet_inet6, vnet_inet6)
 
 #define	VNET_INET6(sym)		VSYM(vnet_inet6, sym)
-
 
 /*
  * Symbol translation macros
@@ -232,6 +236,7 @@ struct vnet_inet6 {
 #define	V_nd6_maxnudhint		VNET_INET6(nd6_maxnudhint)
 #define	V_nd6_maxqueuelen		VNET_INET6(nd6_maxqueuelen)
 #define	V_nd6_mmaxtries			VNET_INET6(nd6_mmaxtries)
+#define	V_nd6_onlink_ns_rfc4861		VNET_INET6(nd6_onlink_ns_rfc4861)
 #define	V_nd6_prune			VNET_INET6(nd6_prune)
 #define	V_nd6_recalc_reachtm_interval	VNET_INET6(nd6_recalc_reachtm_interval)
 #define	V_nd6_slowtimo_ch		VNET_INET6(nd6_slowtimo_ch)

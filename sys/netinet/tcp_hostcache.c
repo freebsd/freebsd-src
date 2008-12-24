@@ -92,41 +92,13 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_hostcache.h>
+#include <netinet/vinet.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
 
 #include <vm/uma.h>
-
-
-TAILQ_HEAD(hc_qhead, hc_metrics);
-
-struct hc_head {
-	struct hc_qhead	hch_bucket;
-	u_int		hch_length;
-	struct mtx	hch_mtx;
-};
-
-struct hc_metrics {
-	/* housekeeping */
-	TAILQ_ENTRY(hc_metrics) rmx_q;
-	struct	hc_head *rmx_head; /* head of bucket tail queue */
-	struct	in_addr ip4;	/* IP address */
-	struct	in6_addr ip6;	/* IP6 address */
-	/* endpoint specific values for TCP */
-	u_long	rmx_mtu;	/* MTU for this path */
-	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
-	u_long	rmx_rtt;	/* estimated round trip time */
-	u_long	rmx_rttvar;	/* estimated rtt variance */
-	u_long	rmx_bandwidth;	/* estimated bandwidth */
-	u_long	rmx_cwnd;	/* congestion window */
-	u_long	rmx_sendpipe;	/* outbound delay-bandwidth product */
-	u_long	rmx_recvpipe;	/* inbound delay-bandwidth product */
-	/* TCP hostcache internal data */
-	int	rmx_expire;	/* lifetime for object */
-	u_long	rmx_hits;	/* number of hits */
-	u_long	rmx_updates;	/* number of updates */
-};
 
 /* Arbitrary values */
 #define TCP_HOSTCACHE_HASHSIZE		512
@@ -134,21 +106,10 @@ struct hc_metrics {
 #define TCP_HOSTCACHE_EXPIRE		60*60	/* one hour */
 #define TCP_HOSTCACHE_PRUNE		5*60	/* every 5 minutes */
 
-struct tcp_hostcache {
-	struct	hc_head *hashbase;
-	uma_zone_t zone;
-	u_int	hashsize;
-	u_int	hashmask;
-	u_int	bucket_limit;
-	u_int	cache_count;
-	u_int	cache_limit;
-	int	expire;
-	int	prune;
-	int	purgeall;
-};
+#ifdef VIMAGE_GLOBALS
 static struct tcp_hostcache tcp_hostcache;
-
 static struct callout tcp_hc_callout;
+#endif
 
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
@@ -288,7 +249,7 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	/*
 	 * Hash the foreign ip address.
 	 */
-	if (inc->inc_isipv6)
+	if (inc->inc_flags & INC_ISIPV6)
 		hash = HOSTCACHE_HASH6(&inc->inc6_faddr);
 	else
 		hash = HOSTCACHE_HASH(&inc->inc_faddr);
@@ -306,7 +267,7 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	 * Iterate through entries in bucket row looking for a match.
 	 */
 	TAILQ_FOREACH(hc_entry, &hc_head->hch_bucket, rmx_q) {
-		if (inc->inc_isipv6) {
+		if (inc->inc_flags & INC_ISIPV6) {
 			if (memcmp(&inc->inc6_faddr, &hc_entry->ip6,
 			    sizeof(inc->inc6_faddr)) == 0)
 				return hc_entry;
@@ -344,7 +305,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	/*
 	 * Hash the foreign ip address.
 	 */
-	if (inc->inc_isipv6)
+	if (inc->inc_flags & INC_ISIPV6)
 		hash = HOSTCACHE_HASH6(&inc->inc6_faddr);
 	else
 		hash = HOSTCACHE_HASH(&inc->inc_faddr);
@@ -399,7 +360,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	 * Initialize basic information of hostcache entry.
 	 */
 	bzero(hc_entry, sizeof(*hc_entry));
-	if (inc->inc_isipv6)
+	if (inc->inc_flags & INC_ISIPV6)
 		bcopy(&inc->inc6_faddr, &hc_entry->ip6, sizeof(hc_entry->ip6));
 	else
 		hc_entry->ip4 = inc->inc_faddr;

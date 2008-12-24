@@ -53,6 +53,7 @@ static void decode_win_eth_setup(uint32_t base);
 static void decode_win_pcie_setup(uint32_t base);
 
 static uint32_t dev, rev;
+static uint32_t used_cpu_wins;
 
 uint32_t
 read_cpu_ctrl(uint32_t reg)
@@ -198,8 +199,20 @@ soc_decode_win(void)
 	decode_win_eth_setup(MV_ETH0_BASE);
 	if (dev == MV_DEV_MV78100)
 		decode_win_eth_setup(MV_ETH1_BASE);
+
 	decode_win_idma_setup();
-	decode_win_pcie_setup(MV_PCIE_BASE);
+
+	if (dev == MV_DEV_MV78100) {
+		decode_win_pcie_setup(MV_PCIE00_BASE);
+		decode_win_pcie_setup(MV_PCIE01_BASE);
+		decode_win_pcie_setup(MV_PCIE02_BASE);
+		decode_win_pcie_setup(MV_PCIE03_BASE);
+		decode_win_pcie_setup(MV_PCIE10_BASE);
+		decode_win_pcie_setup(MV_PCIE11_BASE);
+		decode_win_pcie_setup(MV_PCIE12_BASE);
+		decode_win_pcie_setup(MV_PCIE13_BASE);
+	} else
+		decode_win_pcie_setup(MV_PCIE_BASE);
 
 	/* TODO set up decode wins for SATA */
 
@@ -405,11 +418,48 @@ decode_win_cpu_valid(void)
 	return (rv);
 }
 
+int
+decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
+    int remap)
+{
+	uint32_t br, cr;
+	int win;
+
+	if (used_cpu_wins >= MV_WIN_CPU_MAX)
+		return (-1);
+
+	win = used_cpu_wins++;
+
+	br = base & 0xffff0000;
+	win_cpu_br_write(win, br);
+
+	if (win_cpu_can_remap(win)) {
+		if (remap >= 0) {
+			win_cpu_remap_l_write(win, remap & 0xffff0000);
+			win_cpu_remap_h_write(win, 0);
+		} else {
+			/*
+			 * Remap function is not used for a given window
+			 * (capable of remapping) - set remap field with the
+			 * same value as base.
+			 */
+			win_cpu_remap_l_write(win, base & 0xffff0000);
+			win_cpu_remap_h_write(win, 0);
+		}
+	}
+
+	cr = ((size - 1) & 0xffff0000) | (attr << 8) | (target << 4) | 1;
+	win_cpu_cr_write(win, cr);
+
+	return (0);
+}
+
 static void
 decode_win_cpu_setup(void)
 {
-	uint32_t br, cr;
 	int i;
+
+	used_cpu_wins = 0;
 
 	/* Disable all CPU windows */
 	for (i = 0; i < MV_WIN_CPU_MAX; i++) {
@@ -422,35 +472,11 @@ decode_win_cpu_setup(void)
 	}
 
 	for (i = 0; i < cpu_wins_no; i++)
-		if (cpu_wins[i].target > 0) {
+		if (cpu_wins[i].target > 0)
+			decode_win_cpu_set(cpu_wins[i].target,
+			    cpu_wins[i].attr, cpu_wins[i].base,
+			    cpu_wins[i].size, cpu_wins[i].remap);
 
-			br = cpu_wins[i].base & 0xffff0000;
-			win_cpu_br_write(i, br);
-
-			if (win_cpu_can_remap(i)) {
-				if (cpu_wins[i].remap >= 0) {
-					win_cpu_remap_l_write(i,
-					    cpu_wins[i].remap & 0xffff0000);
-					win_cpu_remap_h_write(i, 0);
-				} else {
-					/*
-					 * Remap function is not used for
-					 * a given window (capable of
-					 * remapping) - set remap field with the
-					 * same value as base.
-					 */
-					win_cpu_remap_l_write(i,
-					     cpu_wins[i].base & 0xffff0000);
-					win_cpu_remap_h_write(i, 0);
-				}
-			}
-
-			cr = ((cpu_wins[i].size - 1) & 0xffff0000) |
-			    (cpu_wins[i].attr << 8) |
-			    (cpu_wins[i].target << 4) | 1;
-
-			win_cpu_cr_write(i, cr);
-		}
 }
 
 /*
@@ -554,7 +580,7 @@ decode_win_usb_setup(uint32_t ctrl)
 			 * field in the ctrl reg
 			 */
 			cr = (((ddr_size(i) - 1) & 0xffff0000) |
-			    (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1); 
+			    (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1);
 
 			/* Set the first free USB window */
 			for (j = 0; j < MV_WIN_USB_MAX; j++) {
@@ -637,7 +663,7 @@ decode_win_eth_setup(uint32_t base)
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
 		if (ddr_is_active(i)) {
 
-			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i); 
+			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i);
 			sz = ((ddr_size(i) - 1) & 0xffff0000);
 
 			/* Set the first free ETH window */
@@ -782,7 +808,7 @@ win_idma_can_remap(int i)
 	/* IDMA decode windows 0-3 have remap capability */
 	if (i < 4)
 		return (1);
-	
+
 	return (0);
 }
 
@@ -811,7 +837,7 @@ decode_win_idma_setup(void)
 	 */
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
 		if (ddr_is_active(i)) {
-			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i); 
+			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i);
 			sz = ((ddr_size(i) - 1) & 0xffff0000);
 
 			/* Place DDR entries in non-remapped windows */
@@ -838,7 +864,7 @@ decode_win_idma_setup(void)
 	for (i = 0; i < idma_wins_no; i++)
 		if (idma_wins[i].target > 0) {
 			br = (idma_wins[i].base & 0xffff0000) |
-			    (idma_wins[i].attr << 8) | idma_wins[i].target; 
+			    (idma_wins[i].attr << 8) | idma_wins[i].target;
 			sz = ((idma_wins[i].size - 1) & 0xffff0000);
 
 			/* Set the first free IDMA window */
@@ -849,7 +875,8 @@ decode_win_idma_setup(void)
 				/* Configure window */
 				win_idma_br_write(j, br);
 				win_idma_sz_write(j, sz);
-				if (win_idma_can_remap(j) && idma_wins[j].remap >= 0)
+				if (win_idma_can_remap(j) &&
+				    idma_wins[j].remap >= 0)
 					win_idma_har_write(j, idma_wins[j].remap);
 
 				/* Set protection RW on all channels */
@@ -888,8 +915,8 @@ decode_win_idma_valid(void)
 	for (i = 0; i < idma_wins_no; i++, wintab++) {
 
 		if (wintab->target == 0) {
-			printf("IDMA window#%d: DDR target window is not supposed "
-			    "to be reprogrammed!\n", i);
+			printf("IDMA window#%d: DDR target window is not "
+			    "supposed to be reprogrammed!\n", i);
 			rv = 0;
 		}
 
@@ -903,7 +930,7 @@ decode_win_idma_valid(void)
 		b = wintab->base;
 		e = b + s - 1;
 		if (s > (0xFFFFFFFF - b + 1)) {
-			/* XXX this boundary check should accont for 64bit and
+			/* XXX this boundary check should account for 64bit and
 			 * remapping.. */
 			printf("IDMA window#%d: no space for size 0x%08x at "
 			    "0x%08x\n", i, s, b);
@@ -913,8 +940,8 @@ decode_win_idma_valid(void)
 
 		j = decode_win_overlap(i, idma_wins_no, &idma_wins[0]);
 		if (j >= 0) {
-			printf("IDMA window#%d: (0x%08x - 0x%08x) overlaps with "
-			    "#%d (0x%08x - 0x%08x)\n", i, b, e, j,
+			printf("IDMA window#%d: (0x%08x - 0x%08x) overlaps "
+			    "with " "#%d (0x%08x - 0x%08x)\n", i, b, e, j,
 			    idma_wins[j].base,
 			    idma_wins[j].base + idma_wins[j].size - 1);
 			rv = 0;

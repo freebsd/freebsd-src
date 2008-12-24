@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #include "iscsi.h"
 #include "iscontrol.h"
-#include "pdu.h"
 
 typedef enum {
      T1 = 1,
@@ -66,38 +65,40 @@ typedef enum {
      T10, T11, T12, T13, T14, T15, T16, T18
 } trans_t;
 
+/*
+ | now supports IPV6
+ | thanks to:
+ |	Hajimu UMEMOTO @ Internet Mutual Aid Society Yokohama, Japan
+ |	ume@mahoroba.org  ume@{,jp.}FreeBSD.org
+ |	http://www.imasy.org/~ume/
+ */
 static trans_t
 tcpConnect(isess_t *sess)
 {
      isc_opt_t *op = sess->op;
-     int	val, sv_errno;
-     struct     addrinfo *res, hints;
-     struct	sockaddr_in sn;
-     struct	in_addr ipn;
-     time_t	sec;
+     int	val, sv_errno, soc;
+     struct     addrinfo *res, *res0, hints;
+     char	pbuf[10];
 
      debug_called(3);
      if(sess->flags & (SESS_RECONNECT|SESS_REDIRECT)) {
 	  syslog(LOG_INFO, "%s", (sess->flags & SESS_RECONNECT)
 		 ? "Reconnect": "Redirected");
 	  
-	  debug(3, "%s", (sess->flags & SESS_RECONNECT) ? "Reconnect": "Redirected");
+	  debug(1, "%s", (sess->flags & SESS_RECONNECT) ? "Reconnect": "Redirected");
 	  shutdown(sess->soc, SHUT_RDWR);
 	  //close(sess->soc);
-	  sleep(5); // XXX: actually should be ?
 	  sess->soc = -1;
 
 	  sess->flags &= ~SESS_CONNECTED;
 	  if(sess->flags & SESS_REDIRECT) {
-	       if(sess->redirect_cnt++ > MAXREDIRECTS) {
-		    syslog(LOG_WARNING, "too many redirects > %d", MAXREDIRECTS);
-		    return 0;
-	       }
+	       sess->redirect_cnt++;
 	       sess->flags |= SESS_RECONNECT;
-	  }
-	  if((sess->flags & SESS_RECONNECT) == 0)
-	       return 0;
-
+	  } else
+	       sleep(2); // XXX: actually should be ?
+#ifdef notyet
+	  {
+	       time_t	sec;
 	  // make sure we are not in a loop
 	  // XXX: this code has to be tested
 	  sec = time(0) - sess->reconnect_time;
@@ -117,41 +118,46 @@ tcpConnect(isess_t *sess)
 		    return 0;
 	       }
 	  }
+     }
+#endif
 	  sess->reconnect_cnt++;
-	  // sess->flags &= ~(SESS_RECONNECT|SESS_REDIRECT);
      }
 
-     if((sess->soc = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-	  fprintf(stderr, "tcpConnect: socket: %m");
-	  return 0;
-     }
-
+     snprintf(pbuf, sizeof(pbuf), "%d", op->port);
      memset(&hints, 0, sizeof(hints));
-     hints.ai_family	= PF_INET;
+     hints.ai_family	= PF_UNSPEC;
      hints.ai_socktype	= SOCK_STREAM;
-
-     debug(3, "targetAddress=%s port=%d", op->targetAddress, op->port);
-     if(inet_aton(op->targetAddress, &ipn))
-	  hints.ai_flags |= AI_NUMERICHOST;
-     if((val = getaddrinfo(op->targetAddress, NULL, &hints, &res)) != 0) {
+     debug(1, "targetAddress=%s port=%d", op->targetAddress, op->port);
+     if((val = getaddrinfo(op->targetAddress, pbuf, &hints, &res0)) != 0) {
           fprintf(stderr, "getaddrinfo(%s): %s\n", op->targetAddress, gai_strerror(val));
           return 0;
      }
-     memcpy(&sn, res->ai_addr, sizeof(struct sockaddr_in));
-     sn.sin_port = htons(op->port);
-     freeaddrinfo(res);
+     sess->flags &= ~SESS_CONNECTED;
+     sv_errno = 0;
+     soc = -1;
+     for(res = res0; res; res = res->ai_next) {
+	  soc = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	  if (soc == -1)
+	       continue;
 
      // from Patrick.Guelat@imp.ch:
      // iscontrol can be called without waiting for the socket entry to time out
      val = 1;
-     if(setsockopt(sess->soc, SOL_SOCKET, SO_REUSEADDR, &val, (socklen_t)sizeof(val)) < 0) {
+	  if(setsockopt(soc, SOL_SOCKET, SO_REUSEADDR, &val, (socklen_t)sizeof(val)) < 0) {
 	  fprintf(stderr, "Cannot set socket SO_REUSEADDR %d: %s\n\n",
 		  errno, strerror(errno));
      }
 
-     sess->flags &= ~SESS_CONNECTED;
+	  if(connect(soc, res->ai_addr, res->ai_addrlen) == 0)
+	       break;
+	  sv_errno = errno;
+	  close(soc);
+	  soc = -1;
+     }
+     freeaddrinfo(res0);
+     if(soc != -1) {
+	  sess->soc = soc;
 
-     if(connect(sess->soc, (struct sockaddr *)&sn, sizeof(struct sockaddr_in)) != -1) {
 #if 0
 	  struct	timeval timeout;
 
@@ -190,21 +196,29 @@ tcpConnect(isess_t *sess)
 	  }
 	  sess->flags |= SESS_CONNECTED;
 	  return T1;
-
      } 
-     sv_errno = errno;
+
      fprintf(stderr, "errno=%d\n", sv_errno);
      perror("connect");
      switch(sv_errno) {
      case ECONNREFUSED:
      case ENETUNREACH:
      case ETIMEDOUT:
+	  if((sess->flags & SESS_REDIRECT) == 0) {
+	       if(strcmp(op->targetAddress, sess->target.address) != 0) {
+		    syslog(LOG_INFO, "reconnecting to original target address");
+		    free(op->targetAddress);
+		    op->targetAddress           = sess->target.address;
+		    op->port                    = sess->target.port;
+		    op->targetPortalGroupTag    = sess->target.pgt;
+		    return T1;
+	       }
+	  }
 	  sleep(5); // for now ...
 	  return T1;
      default:
 	  return 0; // terminal error
      }
-
 }
 
 int
@@ -416,7 +430,6 @@ supervise(isess_t *sess)
 
      }
      else {
-	  
 	  if(ioctl(sess->fd, ISCSIRESTART)) {
 	       perror("ISCSIRESTART");
 	       return -1;
@@ -554,7 +567,10 @@ doLogin(isess_t *sess)
 	  return T7;
 
      case 2: // initiator terminal error
+	  return 0;
      case 3: // target terminal error -- could retry ...
+	  sleep(5);
+	  return T7; // lets try
      default:
 	  return 0;
      }
@@ -654,6 +670,9 @@ fsm(isc_opt_t *op)
      sess->op = op;
      sess->fd = -1;
      sess->soc = -1;
+     sess->target.address = strdup(op->targetAddress);
+     sess->target.port = op->port;
+     sess->target.pgt = op->targetPortalGroupTag;
 
      sess->flags = SESS_INITIALLOGIN | SESS_INITIALLOGIN1;
 

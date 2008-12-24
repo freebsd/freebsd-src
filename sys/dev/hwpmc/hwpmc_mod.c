@@ -128,7 +128,7 @@ static eventhandler_tag	pmc_exit_tag, pmc_fork_tag;
 struct pmc_op_getdriverstats pmc_stats;
 
 /* Machine/processor dependent operations */
-struct pmc_mdep  *md;
+static struct pmc_mdep  *md;
 
 /*
  * Hash tables mapping owner processes and target threads to PMCs.
@@ -1863,8 +1863,11 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		/*
 		 * Record a call chain.
 		 */
+		KASSERT(td == curthread, ("[pmc,%d] td != curthread",
+		    __LINE__));
 		pmc_capture_user_callchain(PCPU_GET(cpuid),
 		    (struct trapframe *) arg);
+		td->td_pflags &= ~TDP_CALLCHAIN;
 		break;
 
 	default:
@@ -2718,7 +2721,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 * de-configure it.
 		 */
 		if (cl.pm_logfd >= 0)
-			error = pmclog_configure_log(po, cl.pm_logfd);
+			error = pmclog_configure_log(md, po, cl.pm_logfd);
 		else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
 			pmclog_process_closelog(po);
 			error = pmclog_flush(po);
@@ -3794,30 +3797,28 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
  */
 
 static void
-pmc_post_callchain_ast(void)
+pmc_post_callchain_callback(void)
 {
 	struct thread *td;
 
 	td = curthread;
 
+	KASSERT((td->td_pflags & TDP_CALLCHAIN) == 0,
+	    ("[pmc,%d] thread %p already marked for callchain capture",
+		__LINE__, (void *) td));
+
 	/*
-	 * Mark this thread as needing processing in ast().
-	 * td->td_pflags will be safe to touch as the process was in
-	 * user space when it was interrupted.
+	 * Mark this thread as needing callchain capture.
+	 * `td->td_pflags' will be safe to touch because this thread
+	 * was in user space when it was interrupted.
 	 */
 	td->td_pflags |= TDP_CALLCHAIN;
 
 	/*
-	 * Again, since we've entered this function directly from
-	 * userland, `td' is guaranteed to be not locked by this CPU,
-	 * so its safe to try acquire the thread lock even though we
-	 * are executing in an NMI context.  We need to acquire this
-	 * lock before touching `td_flags' because other CPUs may be
-	 * in the process of touching this field.
+	 * Don't let this thread migrate between CPUs until callchain
+	 * capture completes.
 	 */
-	thread_lock(td);
-	td->td_flags |= TDF_ASTPENDING;
-	thread_unlock(td);
+	sched_pin();
 
 	return;
 }
@@ -3869,6 +3870,10 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 	    (int) (psb->ps_write - psb->ps_samples),
 	    (int) (psb->ps_read - psb->ps_samples));
 
+	KASSERT(pm->pm_runcount >= 0,
+	    ("[pmc,%d] pm=%p runcount %d", __LINE__, (void *) pm,
+		pm->pm_runcount));
+
 	atomic_add_rel_32(&pm->pm_runcount, 1);	/* hold onto PMC */
 	ps->ps_pmc = pm;
 	if ((td = curthread) && td->td_proc)
@@ -3876,6 +3881,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 	else
 		ps->ps_pid = -1;
 	ps->ps_cpu = cpu;
+	ps->ps_td = td;
 	ps->ps_flags = inuserspace ? PMC_CC_F_USERSPACE : 0;
 
 	callchaindepth = (pm->pm_flags & PMC_F_CALLCHAIN) ?
@@ -3893,7 +3899,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 			    pmc_save_kernel_callchain(ps->ps_pc,
 				callchaindepth, tf);
 		else {
-			pmc_post_callchain_ast();
+			pmc_post_callchain_callback();
 			callchaindepth = PMC_SAMPLE_INUSE;
 		}
 	}
@@ -3925,20 +3931,41 @@ pmc_capture_user_callchain(int cpu, struct trapframe *tf)
 {
 	int i;
 	struct pmc *pm;
+	struct thread *td;
 	struct pmc_sample *ps;
 	struct pmc_samplebuffer *psb;
+#ifdef	INVARIANTS
+	int ncallchains;
+#endif
+
+	sched_unpin();	/* Can migrate safely now. */
 
 	psb = pmc_pcpu[cpu]->pc_sb;
+	td = curthread;
+
+	KASSERT(td->td_pflags & TDP_CALLCHAIN,
+	    ("[pmc,%d] Retrieving callchain for thread that doesn't want it",
+		__LINE__));
+
+#ifdef	INVARIANTS
+	ncallchains = 0;
+#endif
 
 	/*
 	 * Iterate through all deferred callchain requests.
 	 */
 
-	for (i = 0; i < pmc_nsamples; i++) {
+	ps = psb->ps_samples;
+	for (i = 0; i < pmc_nsamples; i++, ps++) {
 
-		ps = &psb->ps_samples[i];
 		if (ps->ps_nsamples != PMC_SAMPLE_INUSE)
 			continue;
+		if (ps->ps_td != td)
+			continue;
+
+		KASSERT(ps->ps_cpu == cpu,
+		    ("[pmc,%d] cpu mismatch ps_cpu=%d pcpu=%d", __LINE__,
+			ps->ps_cpu, PCPU_GET(cpuid)));
 
 		pm = ps->ps_pmc;
 
@@ -3946,13 +3973,25 @@ pmc_capture_user_callchain(int cpu, struct trapframe *tf)
 		    ("[pmc,%d] Retrieving callchain for PMC that doesn't "
 			"want it", __LINE__));
 
+		KASSERT(pm->pm_runcount > 0,
+		    ("[pmc,%d] runcount %d", __LINE__, pm->pm_runcount));
+
 		/*
 		 * Retrieve the callchain and mark the sample buffer
 		 * as 'processable' by the timer tick sweep code.
 		 */
 		ps->ps_nsamples = pmc_save_user_callchain(ps->ps_pc,
 		    pmc_callchaindepth, tf);
+
+#ifdef	INVARIANTS
+		ncallchains++;
+#endif
+
 	}
+
+	KASSERT(ncallchains > 0,
+	    ("[pmc,%d] cpu %d didn't find a sample to collect", __LINE__,
+		cpu));
 
 	return;
 }
@@ -3966,7 +4005,7 @@ static void
 pmc_process_samples(int cpu)
 {
 	struct pmc *pm;
-	int adjri, n, ri;
+	int adjri, n;
 	struct thread *td;
 	struct pmc_owner *po;
 	struct pmc_sample *ps;
@@ -3991,6 +4030,11 @@ pmc_process_samples(int cpu)
 		}
 
 		pm = ps->ps_pmc;
+
+		KASSERT(pm->pm_runcount > 0,
+		    ("[pmc,%d] pm=%p runcount %d", __LINE__, (void *) pm,
+			pm->pm_runcount));
+
 		po = pm->pm_owner;
 
 		KASSERT(PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)),
@@ -4066,7 +4110,6 @@ pmc_process_samples(int cpu)
 			continue;
 
 		pm->pm_stalled = 0;
-		ri = PMC_TO_ROWINDEX(pm);
 		(*pcd->pcd_start_pmc)(cpu, adjri);
 	}
 }
@@ -4458,7 +4501,7 @@ pmc_initialize(void)
 		    md->pmd_npmc * sizeof(struct pmc_hw *), M_PMC,
 		    M_WAITOK|M_ZERO);
 		if (md->pmd_pcpu_init)
-			error = md->pmd_pcpu_init(cpu);
+			error = md->pmd_pcpu_init(md, cpu);
 		for (n = 0; error == 0 && n < md->pmd_nclass; n++)
 			error = md->pmd_classdep[n].pcd_pcpu_init(md, cpu);
 	}
@@ -4539,9 +4582,10 @@ pmc_initialize(void)
 		printf(PMC_MODULE_NAME ":");
 		for (n = 0; n < (int) md->pmd_nclass; n++) {
 			pcd = &md->pmd_classdep[n];
-			printf(" %s/%d/0x%b",
+			printf(" %s/%d/%d/0x%b",
 			    pmc_name_of_pmcclass[pcd->pcd_class],
 			    pcd->pcd_num,
+			    pcd->pcd_width,
 			    pcd->pcd_caps,
 			    "\20"
 			    "\1INT\2USR\3SYS\4EDG\5THR"
@@ -4654,8 +4698,11 @@ pmc_cleanup(void)
 			for (c = 0; c < md->pmd_nclass; c++)
 				md->pmd_classdep[c].pcd_pcpu_fini(md, cpu);
 			if (md->pmd_pcpu_fini)
-				md->pmd_pcpu_fini(cpu);
+				md->pmd_pcpu_fini(md, cpu);
 		}
+
+		pmc_md_finalize(md);
+
 		free(md, M_PMC);
 		md = NULL;
 		pmc_restore_cpu_binding(&pb);

@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 static	int	sio_pci_attach(device_t dev);
-static	void	sio_pci_kludge_unit(device_t dev);
 static	int	sio_pci_probe(device_t dev);
 
 static device_method_t sio_pci_methods[] = {
@@ -101,37 +100,7 @@ sio_pci_attach(dev)
 		id++;
 	if (id->desc == NULL)
 		return (ENXIO);
-	sio_pci_kludge_unit(dev);
 	return (sioattach(dev, id->rid, 0UL));
-}
-
-/*
- * Don't cut and paste this to other drivers.  It is a horrible kludge
- * which will fail to work and also be unnecessary in future versions.
- */
-static void
-sio_pci_kludge_unit(dev)
-	device_t dev;
-{
-	devclass_t	dc;
-	int		err;
-	int		start;
-	int		unit;
-
-	unit = 0;
-	start = 0;
-	while (resource_int_value("sio", unit, "port", &start) == 0 && 
-	    start > 0)
-		unit++;
-	if (device_get_unit(dev) < unit) {
-		dc = device_get_devclass(dev);
-		while (devclass_get_device(dc, unit))
-			unit++;
-		device_printf(dev, "moving to sio%d\n", unit);
-		err = device_set_unit(dev, unit);	/* EVIL DO NOT COPY */
-		if (err)
-			device_printf(dev, "error moving device %d\n", err);
-	}
 }
 
 static int

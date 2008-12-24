@@ -59,7 +59,6 @@ static int	net_get(struct iodesc *, void *, size_t, time_t);
 static int	net_put(struct iodesc *, void *, size_t);
 static void	net_end(struct netif *);
 
-extern int devs_no;
 extern struct netif_stats net_stats[];
 
 struct netif_dif net_ifs[] = {

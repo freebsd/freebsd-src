@@ -260,7 +260,7 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 	if (!mac_mmap_revocation)
 		return;
 
-	vm_map_lock_read(map);
+	vm_map_lock(map);
 	for (vme = map->header.next; vme != &map->header; vme = vme->next) {
 		if (vme->eflags & MAP_ENTRY_IS_SUB_MAP) {
 			mac_proc_vm_revoke_recurse(td, cred,
@@ -315,7 +315,6 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 		    prot2str(revokeperms), (u_long)vme->start,
 		    (long)(vme->end - vme->start),
 		    prot2str(vme->max_protection), prot2str(vme->protection));
-		vm_map_lock_upgrade(map);
 		/*
 		 * This is the really simple case: if a map has more
 		 * max_protection than is allowed, but it's not being
@@ -369,10 +368,9 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 			    vme->protection & ~revokeperms);
 			vm_map_simplify_entry(map, vme);
 		}
-		vm_map_lock_downgrade(map);
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
-	vm_map_unlock_read(map);
+	vm_map_unlock(map);
 }
 
 int

@@ -276,9 +276,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	tick_stop();
 
 	/*
-	 * Initialize Open Firmware (needed for console).
+	 * Set up Open Firmware entry points 
 	 */
-	OF_init(vec);
+	ofw_tba = rdpr(tba);
+	ofw_vec = (u_long)vec;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
@@ -299,6 +300,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 	init_param1();
+
+	/*
+	 * Initialize Open Firmware (needed for console).
+	 */
+	OF_install(OFW_STD_DIRECT, 0);
+	OF_init(ofw_entry);
 
 	/*
 	 * Prime our per-CPU data page for use.  Note, we are using it for
@@ -387,6 +394,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
 		case CPU_IMPL_ULTRASPARCIIe:
+		case CPU_IMPL_ULTRASPARCIII:	/* NB: we've disabled P$. */
+		case CPU_IMPL_ULTRASPARCIIIp:
+		case CPU_IMPL_ULTRASPARCIIIi:
+		case CPU_IMPL_ULTRASPARCIV:
+		case CPU_IMPL_ULTRASPARCIVp:
+		case CPU_IMPL_ULTRASPARCIIIip:
 			cpu_block_copy = spitfire_block_copy;
 			cpu_block_zero = spitfire_block_zero;
 			break;
@@ -472,14 +485,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-}
-
-void
-set_openfirm_callback(ofw_vec_t *vec)
-{
-
-	ofw_tba = rdpr(tba);
-	ofw_vec = (u_long)vec;
 }
 
 void
@@ -719,7 +724,7 @@ cpu_shutdown(void *args)
 #ifdef SMP
 	cpu_mp_shutdown();
 #endif
-	openfirmware_exit(args);
+	ofw_exit(args);
 }
 
 /* Get current clock frequency for the given CPU ID. */
@@ -772,7 +777,7 @@ sparc64_shutdown_final(void *dummy, int howto)
 	/* Turn the power off? */
 	if ((howto & RB_POWEROFF) != 0)
 		cpu_shutdown(&args);
-	/* In case of halt, return to the firmware */
+	/* In case of halt, return to the firmware. */
 	if ((howto & RB_HALT) != 0)
 		cpu_halt();
 }

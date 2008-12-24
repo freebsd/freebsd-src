@@ -28,12 +28,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2007
+.Dd December 2, 2008
 .Dt BCE 4
 .Os
 .Sh NAME
 .Nm bce
-.Nd "Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet adapter driver"
+.Nd "Broadcom NetXtreme II (BCM5706/5708/5709/5716) PCI/PCIe Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -53,12 +53,13 @@ if_bce_load="YES"
 The
 .Nm
 driver supports Broadcom's NetXtreme II product family, including the
-BCM5706 and BCM5708 Ethernet controllers.
+BCM5706, BCM5708, BCM5709 and BCM5716 Ethernet controllers.
 .Pp
 The NetXtreme II product family is composed of various Converged NIC (or CNIC)
 Ethernet controllers which support a TCP Offload Engine (TOE), Remote DMA (RDMA),
 and iSCSI acceleration, in addition to standard L2 Ethernet traffic, all on the
 same controller.
+.Pp
 The following features are supported in the
 .Nm
 driver under
@@ -136,9 +137,25 @@ following:
 .Pp
 .Bl -bullet -compact
 .It
+Broadcom NetXtreme II BCM5706 1000Base-SX
+.It
+Broadcom NetXtreme II BCM5706 1000Base-T
+.It
+Broadcom NetXtreme II BCM5708 1000Base-SX
+.It
+Broadcom NetXtreme II BCM5708 1000Base-T
+.It
+Broadcom NetXtreme II BCM5709 1000Base-SX
+.It
+Broadcom NetXtreme II BCM5709 1000Base-T
+.It
+Broadcom NetXtreme II BCM5716 1000Base-T
+.It
 Dell PowerEdge 1950 integrated BCM5708 NIC
 .It
 Dell PowerEdge 2950 integrated BCM5708 NIC
+.It
+HP NC370F Multifunction Gigabit Server Adapter
 .It
 HP NC370T Multifunction Gigabit Server Adapter
 .It

@@ -22,9 +22,9 @@ expect 0 create ${n1} 0644
 expect 0 chown ${n1} 65534 65534
 for flag in SF_IMMUTABLE SF_APPEND SF_NOUNLINK; do
 	expect 0 chflags ${n1} ${flag}
-	expect EPERM -u 65533 -g 65533 chflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65533 -g 65533 chflags ${n1} UF_NODUMP
 	expect ${flag} stat ${n1} flags
-	expect EPERM -u 65534 -g 65534 chflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65534 -g 65534 chflags ${n1} UF_NODUMP
 	expect ${flag} stat ${n1} flags
 done
 expect 0 chflags ${n1} none
@@ -34,9 +34,9 @@ expect 0 mkdir ${n1} 0755
 expect 0 chown ${n1} 65534 65534
 for flag in SF_IMMUTABLE SF_APPEND SF_NOUNLINK; do
 	expect 0 chflags ${n1} ${flag}
-	expect EPERM -u 65533 -g 65533 chflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65533 -g 65533 chflags ${n1} UF_NODUMP
 	expect ${flag} stat ${n1} flags
-	expect EPERM -u 65534 -g 65534 chflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65534 -g 65534 chflags ${n1} UF_NODUMP
 	expect ${flag} stat ${n1} flags
 done
 expect 0 chflags ${n1} none
@@ -46,9 +46,9 @@ expect 0 mkfifo ${n1} 0644
 expect 0 chown ${n1} 65534 65534
 for flag in SF_IMMUTABLE SF_APPEND SF_NOUNLINK; do
 	expect 0 chflags ${n1} ${flag}
-	expect EPERM -u 65533 -g 65533 chflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65533 -g 65533 chflags ${n1} UF_NODUMP
 	expect ${flag} stat ${n1} flags
-	expect EPERM -u 65534 -g 65534 chflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65534 -g 65534 chflags ${n1} UF_NODUMP
 	expect ${flag} stat ${n1} flags
 done
 expect 0 chflags ${n1} none
@@ -58,9 +58,9 @@ expect 0 symlink ${n2} ${n1}
 expect 0 lchown ${n1} 65534 65534
 for flag in SF_IMMUTABLE SF_APPEND SF_NOUNLINK; do
 	expect 0 lchflags ${n1} ${flag}
-	expect EPERM -u 65533 -g 65533 lchflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65533 -g 65533 lchflags ${n1} UF_NODUMP
 	expect ${flag} lstat ${n1} flags
-	expect EPERM -u 65534 -g 65534 lchflags ${n1} UF_IMMUTABLE
+	expect EPERM -u 65534 -g 65534 lchflags ${n1} UF_NODUMP
 	expect ${flag} lstat ${n1} flags
 done
 expect 0 lchflags ${n1} none

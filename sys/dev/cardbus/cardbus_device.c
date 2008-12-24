@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, M. Warner Losh
+ * Copyright (c) 2005-2008, M. Warner Losh
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,26 +63,6 @@ static struct cdevsw cardbus_cdevsw = {
 	.d_name =	"cardbus"
 };
 
-int
-cardbus_device_create(struct cardbus_softc *sc)
-{
-	uint32_t minor;
-
-	minor = device_get_unit(sc->sc_dev) << 16;
-	sc->sc_cisdev = make_dev(&cardbus_cdevsw, minor, 0, 0, 0666,
-	    "cardbus%u.cis", device_get_unit(sc->sc_dev));
-	sc->sc_cisdev->si_drv1 = sc;
-	return (0);
-}
-
-int
-cardbus_device_destroy(struct cardbus_softc *sc)
-{
-	if (sc->sc_cisdev)
-		destroy_dev(sc->sc_cisdev);
-	return (0);
-}
-
 static int
 cardbus_build_cis(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
@@ -96,13 +76,17 @@ cardbus_build_cis(device_t cbdev, device_t child, int id,
 	 * CISTPL_END is a special case, it has no length field.
 	 */
 	if (id == CISTPL_END) {
-		if (cis->len + 1 > sizeof(cis->buffer))
+		if (cis->len + 1 > sizeof(cis->buffer)) {
+			cis->len = 0;
 			return (ENOSPC);
+		}
 		cis->buffer[cis->len++] = id;
 		return (0);
 	}
-	if (cis->len + 2 + len > sizeof(cis->buffer))
+	if (cis->len + 2 + len > sizeof(cis->buffer)) {
+		cis->len = 0;
 		return (ENOSPC);
+	}
 	cis->buffer[cis->len++] = id;
 	cis->buffer[cis->len++] = len;
 	for (i = 0; i < len; i++)
@@ -110,52 +94,56 @@ cardbus_build_cis(device_t cbdev, device_t child, int id,
 	return (0);
 }
 
-static	int
-cardbus_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+static int
+cardbus_device_buffer_cis(device_t parent, device_t child,
+    struct cis_buffer *cbp)
 {
-	device_t parent, child;
-	device_t *kids;
-	int cnt, err;
 	struct cardbus_softc *sc;
 	struct tuple_callbacks cb[] = {
 		{CISTPL_GENERIC, "GENERIC", cardbus_build_cis}
 	};
 
-	sc = dev->si_drv1;
-	if (sc->sc_cis_open)
-		return (EBUSY);
-	parent = sc->sc_dev;
-	err = device_get_children(parent, &kids, &cnt);
-	if (err)
-		return err;
-	if (cnt == 0) {
-		free(kids, M_TEMP);
-		sc->sc_cis_open++;
-		sc->sc_cis = NULL;
-		return (0);
-	}
-	child = kids[0];
-	free(kids, M_TEMP);
-	sc->sc_cis = malloc(sizeof(*sc->sc_cis), M_TEMP, M_ZERO | M_WAITOK);
-	err = cardbus_parse_cis(parent, child, cb, sc->sc_cis);
-	if (err) {
-		free(sc->sc_cis, M_TEMP);
-		sc->sc_cis = NULL;
-		return (err);
-	}
-	sc->sc_cis_open++;
+	sc = device_get_softc(parent);
+	return (cardbus_parse_cis(parent, child, cb, cbp));
+}
+
+int
+cardbus_device_create(struct cardbus_softc *sc, struct cardbus_devinfo *devi,
+    device_t parent, device_t child)
+{
+	uint32_t minor;
+	int unit;
+
+	cardbus_device_buffer_cis(parent, child, &devi->sc_cis);
+	minor = (device_get_unit(sc->sc_dev) << 8) + devi->pci.cfg.func;
+	unit = device_get_unit(sc->sc_dev);
+	devi->sc_cisdev = make_dev(&cardbus_cdevsw, minor, 0, 0, 0666,
+	    "cardbus%d.%d.cis", unit, devi->pci.cfg.func);
+	if (devi->pci.cfg.func == 0)
+		make_dev_alias(devi->sc_cisdev, "cardbus%d.cis", unit);
+	devi->sc_cisdev->si_drv1 = devi;
+	return (0);
+}
+
+int
+cardbus_device_destroy(struct cardbus_devinfo *devi)
+{
+	if (devi->sc_cisdev)
+		destroy_dev(devi->sc_cisdev);
+	return (0);
+}
+
+static	int
+cardbus_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+
 	return (0);
 }
 
 static	int
 cardbus_close(struct cdev *dev, int fflags, int devtype, struct thread *td)
 {
-	struct cardbus_softc *sc;
 
-	sc = dev->si_drv1;
-	free(sc->sc_cis, M_TEMP);
-	sc->sc_cis = NULL;
-	sc->sc_cis_open = 0;
 	return (0);
 }
 
@@ -169,12 +157,12 @@ cardbus_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 static	int
 cardbus_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct cardbus_softc *sc;
+	struct cardbus_devinfo *devi;
 
-	sc = dev->si_drv1;
+	devi = dev->si_drv1;
 	/* EOF */
-	if (sc->sc_cis == NULL || uio->uio_offset > sc->sc_cis->len)
+	if (uio->uio_offset >= devi->sc_cis.len)
 		return (0);
-	return (uiomove(sc->sc_cis->buffer + uio->uio_offset,
-	  MIN(uio->uio_resid, sc->sc_cis->len - uio->uio_offset), uio));
+	return (uiomove(devi->sc_cis.buffer + uio->uio_offset,
+	  MIN(uio->uio_resid, devi->sc_cis.len - uio->uio_offset), uio));
 }

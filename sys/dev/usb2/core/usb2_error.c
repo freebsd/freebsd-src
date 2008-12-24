@@ -39,6 +39,5 @@ USB_MAKE_DEBUG_TABLE(USB_ERR);
 const char *
 usb2_errstr(usb2_error_t err)
 {
-	return ((err < USB_ERR_MAX) ?
-	    USB_ERR[err] : "USB_ERR_UNKNOWN");
+	return ((err < USB_ERR_MAX) ? USB_ERR[err] : "USB_ERR_UNKNOWN");
 }

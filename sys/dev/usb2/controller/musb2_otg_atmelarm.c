@@ -59,7 +59,6 @@ musbotg_vbus_interrupt(struct musbotg_super_softc *sc)
 
 	(sc->sc_otg.sc_bus.methods->vbus_interrupt)
 	    (&sc->sc_otg.sc_bus, vbus_val);
-	return;
 }
 
 static void
@@ -69,8 +68,6 @@ musbotg_clocks_on(void *arg)
 	struct musbotg_super_softc *sc = arg;
 
 #endif
-
-	return;
 }
 
 static void
@@ -80,8 +77,6 @@ musbotg_clocks_off(void *arg)
 	struct musbotg_super_softc *sc = arg;
 
 #endif
-
-	return;
 }
 
 static int
@@ -109,6 +104,7 @@ musbotg_attach(device_t dev)
 
 	/* get all DMA memory */
 
+	sc->sc_otg.sc_bus.parent = dev;
 	if (usb2_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);

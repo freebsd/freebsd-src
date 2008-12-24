@@ -84,6 +84,7 @@
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/if_gif.h>
+#include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>

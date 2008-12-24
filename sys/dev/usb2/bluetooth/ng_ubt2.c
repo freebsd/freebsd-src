@@ -193,10 +193,10 @@ static usb2_callback_t ubt_bulk_write_clear_stall_callback;
 static usb2_callback_t ubt_isoc_read_callback;
 static usb2_callback_t ubt_isoc_write_callback;
 
-static int ubt_modevent(module_t mod, int event, void *data);
-static void ubt_intr_read_complete(node_p node, hook_p hook, void *arg1, int arg2);
-static void ubt_bulk_read_complete(node_p node, hook_p hook, void *arg1, int arg2);
-static void ubt_isoc_read_complete(node_p node, hook_p hook, void *arg1, int arg2);
+static int	ubt_modevent(module_t, int, void *);
+static void	ubt_intr_read_complete(node_p, hook_p, void *, int);
+static void	ubt_bulk_read_complete(node_p, hook_p, void *, int);
+static void	ubt_isoc_read_complete(node_p, hook_p, void *, int);
 
 /* USB config */
 static const struct usb2_config ubt_config_if_0[UBT_IF_0_N_TRANSFER] = {
@@ -365,6 +365,7 @@ static const struct usb2_config
 DRIVER_MODULE(ng_ubt, ushub, ubt_driver, ubt_devclass, ubt_modevent, 0);
 MODULE_VERSION(ng_ubt, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
+MODULE_DEPEND(ng_ubt, ng_hci, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt, usb2_bluetooth, 1, 1, 1);
 MODULE_DEPEND(ng_ubt, usb2_core, 1, 1, 1);
 
@@ -817,7 +818,6 @@ ubt_intr_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UBT_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -882,8 +882,6 @@ done:
 	usb2_transfer_start(sc->sc_xfer_if_0[2]);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -971,7 +969,6 @@ ubt_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UBT_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1039,8 +1036,6 @@ done:
 	usb2_transfer_start(sc->sc_xfer_if_0[1]);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1120,7 +1115,6 @@ ubt_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UBT_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -1264,8 +1258,6 @@ done:
 	}
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void

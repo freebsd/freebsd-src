@@ -575,12 +575,6 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	}
 
 
-	thousands_sep = '\0';
-	grouping = NULL;
-#ifndef NO_FLOATING_POINT
-	decimal_point = localeconv()->decimal_point;
-#endif
-	convbuf = NULL;
 	/* sorry, fwprintf(read_only_file, L"") returns WEOF, not 0 */
 	if (prepwrite(fp) != 0)
 		return (EOF);
@@ -590,11 +584,17 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	    fp->_file >= 0)
 		return (__sbprintf(fp, fmt0, ap));
 
+	thousands_sep = '\0';
+	grouping = NULL;
+	convbuf = NULL;
 	fmt = (wchar_t *)fmt0;
 	argtable = NULL;
 	nextarg = 1;
 	va_copy(orgap, ap);
 	ret = 0;
+#ifndef NO_FLOATING_POINT
+	decimal_point = localeconv()->decimal_point;
+#endif
 
 	/*
 	 * Scan the format for conversions (`%' character).

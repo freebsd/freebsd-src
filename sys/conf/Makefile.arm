@@ -19,9 +19,6 @@
 # Which version of config(8) is required.
 %VERSREQ=	600004
 
-# Temporary stuff while we're still embryonic
-NO_MODULES=
-
 STD8X16FONT?=	iso
 
 .if !defined(S)
@@ -121,6 +118,8 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
 	inflate-tramp.o tmphack.S
+
+MKMODULESENV+=	MACHINE=${MACHINE}
 
 %BEFORE_DEPEND
 

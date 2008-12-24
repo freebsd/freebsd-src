@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/sysproto.h>
+#include <sys/uio.h>
+#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -1413,16 +1415,21 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.lock = REQ_LOCKED;
 
 	SYSCTL_LOCK();
+	CURVNET_SET(TD_TO_VNET(curthread));
 
-	do {
+	for (;;) {
 		req.oldidx = 0;
 		req.newidx = 0;
 		error = sysctl_root(0, name, namelen, &req);
-	} while (error == EAGAIN);
+		if (error != EAGAIN)
+			break;
+		uio_yield();
+	}
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
 		vsunlock(req.oldptr, req.validlen);
 
+	CURVNET_RESTORE();
 	SYSCTL_UNLOCK();
 
 	if (error && error != ENOMEM)

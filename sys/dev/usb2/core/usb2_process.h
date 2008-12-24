@@ -79,7 +79,8 @@ struct usb2_process {
 
 uint8_t	usb2_proc_cwait(struct usb2_process *up, int timeout);
 uint8_t	usb2_proc_is_gone(struct usb2_process *up);
-uint8_t	usb2_proc_setup(struct usb2_process *up, struct mtx *p_mtx, uint8_t prio);
+uint8_t	usb2_proc_setup(struct usb2_process *up, struct mtx *p_mtx,
+	    uint8_t prio);
 void	usb2_proc_csignal(struct usb2_process *up);
 void	usb2_proc_drain(struct usb2_process *up);
 void	usb2_proc_mwait(struct usb2_process *up, void *pm0, void *pm1);

@@ -44,7 +44,7 @@
 #include <hashed_db.h>
 #endif
 
-MODULE_ID("$Id: toe.c,v 1.48 2008/01/05 20:41:26 tom Exp $")
+MODULE_ID("$Id: toe.c,v 1.51 2008/08/16 21:53:25 tom Exp $")
 
 #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
 
@@ -163,6 +163,7 @@ typelist(int eargc, char *eargv[],
     for (i = 0; i < eargc; i++) {
 #if USE_DATABASE
 	if (_nc_is_dir_path(eargv[i])) {
+	    char *cwd_buf = 0;
 	    DIR *termdir;
 	    DIRENT *subdir;
 
@@ -177,20 +178,30 @@ typelist(int eargc, char *eargv[],
 
 	    while ((subdir = readdir(termdir)) != 0) {
 		size_t len = NAMLEN(subdir);
-		char buf[PATH_MAX];
+		size_t cwd_len = len + strlen(eargv[i]) + 3;
 		char name_1[PATH_MAX];
 		DIR *entrydir;
 		DIRENT *entry;
+
+		cwd_buf = typeRealloc(char, cwd_len, cwd_buf);
+		if (cwd_buf == 0) {
+		    perror("realloc cwd_buf");
+		    continue;
+		}
 
 		strncpy(name_1, subdir->d_name, len)[len] = '\0';
 		if (isDotname(name_1))
 		    continue;
 
-		(void) sprintf(buf, "%s/%s/", eargv[i], name_1);
-		if (chdir(buf) != 0)
+		(void) sprintf(cwd_buf, "%s/%.*s/", eargv[i], (int) len, name_1);
+		if (chdir(cwd_buf) != 0)
 		    continue;
 
 		entrydir = opendir(".");
+		if (entrydir == 0) {
+		    perror(cwd_buf);
+		    continue;
+		}
 		while ((entry = readdir(entrydir)) != 0) {
 		    char name_2[PATH_MAX];
 		    TERMTYPE lterm;
@@ -222,6 +233,8 @@ typelist(int eargc, char *eargv[],
 		closedir(entrydir);
 	    }
 	    closedir(termdir);
+	    if (cwd_buf != 0)
+		free(cwd_buf);
 	}
 #if USE_HASHED_DB
 	else {
@@ -317,7 +330,7 @@ main(int argc, char *argv[])
     bool invert_dependencies = FALSE;
     bool header = FALSE;
     char *report_file = 0;
-    int i;
+    unsigned i;
     int code;
     int this_opt, last_opt = '?';
     int v_opt = 0;
@@ -386,7 +399,7 @@ main(int argc, char *argv[])
 
 	for_entry_list(qp) {
 	    if (qp->nuses) {
-		int j;
+		unsigned j;
 
 		(void) printf("%s:", _nc_first_name(qp->tterm.term_names));
 		for (j = 0; j < qp->nuses; j++)

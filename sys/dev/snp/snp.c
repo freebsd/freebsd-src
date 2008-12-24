@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
 #include <sys/snoop.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
@@ -246,7 +247,7 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			sx_xunlock(&snp_register_lock);
 			return (EBUSY);
 		}
-		error = ttyhook_register(&ss->snp_tty, td, *(int *)data,
+		error = ttyhook_register(&ss->snp_tty, td->td_proc, *(int *)data,
 		    &snp_hook, ss);
 		sx_xunlock(&snp_register_lock);
 		if (error != 0)

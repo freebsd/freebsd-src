@@ -94,12 +94,15 @@ struct udpstat {
 SYSCTL_DECL(_net_inet_udp);
 
 extern struct pr_usrreqs	udp_usrreqs;
+
+#ifdef VIMAGE_GLOBALS
 extern struct inpcbhead		udb;
 extern struct inpcbinfo		udbinfo;
-extern u_long			udp_sendspace;
-extern u_long			udp_recvspace;
 extern struct udpstat		udpstat;
 extern int			udp_blackhole;
+#endif
+extern u_long			udp_sendspace;
+extern u_long			udp_recvspace;
 extern int			udp_log_in_vain;
 
 void		 udp_ctlinput(int, struct sockaddr *, void *);

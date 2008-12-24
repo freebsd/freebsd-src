@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bin/audit/Makefile.in#4 $
+# $P4: //depot/projects/trustedbsd/openbsm/bin/audit/Makefile.in#9 $
 #
 
 VPATH = @srcdir@
@@ -49,7 +49,10 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man8dir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
-am_audit_OBJECTS = audit.$(OBJEXT)
+am__audit_SOURCES_DIST = audit.c auditd_control_user.c
+@USE_MACH_IPC_FALSE@am_audit_OBJECTS = audit.$(OBJEXT)
+@USE_MACH_IPC_TRUE@am_audit_OBJECTS = auditd_control_user.$(OBJEXT) \
+@USE_MACH_IPC_TRUE@	audit.$(OBJEXT)
 audit_OBJECTS = $(am_audit_OBJECTS)
 audit_DEPENDENCIES = $(top_builddir)/libbsm/libbsm.la
 DEFAULT_INCLUDES = -I. -I$(top_builddir)/config@am__isrc@
@@ -65,7 +68,7 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(audit_SOURCES)
-DIST_SOURCES = $(audit_SOURCES)
+DIST_SOURCES = $(am__audit_SOURCES_DIST)
 man8dir = $(mandir)/man8
 NROFF = nroff
 MANS = $(man8_MANS)
@@ -113,6 +116,7 @@ LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
+MIG = @MIG@
 MKDIR_P = @MKDIR_P@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -179,10 +183,13 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-INCLUDES = -I$(top_srcdir)
-audit_SOURCES = audit.c
+@USE_NATIVE_INCLUDES_FALSE@INCLUDES = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/sys
+@USE_NATIVE_INCLUDES_TRUE@INCLUDES = -I$(top_builddir) -I$(top_srcdir)
 audit_LDADD = $(top_builddir)/libbsm/libbsm.la
 man8_MANS = audit.8
+@USE_MACH_IPC_FALSE@audit_SOURCES = audit.c
+@USE_MACH_IPC_TRUE@audit_SOURCES = auditd_control_user.c audit.c
+@USE_MACH_IPC_TRUE@CLEANFILES = auditd_control_user.c auditd_control_user.h
 all: all-am
 
 .SUFFIXES:
@@ -255,6 +262,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/audit.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd_control_user.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -426,6 +434,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
@@ -511,6 +520,9 @@ uninstall-man: uninstall-man8
 	tags uninstall uninstall-am uninstall-man uninstall-man8 \
 	uninstall-sbinPROGRAMS
 
+
+@USE_MACH_IPC_TRUE@auditd_control_user.c: $(top_srcdir)/bin/auditd/auditd_control.defs 
+@USE_MACH_IPC_TRUE@	$(MIG)	-user auditd_control_user.c -header auditd_control_user.h -server /dev/null -sheader /dev/null $(top_srcdir)/bin/auditd/auditd_control.defs
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

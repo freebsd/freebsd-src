@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -92,6 +92,8 @@ typedef enum zap_chunk_type {
 	ZAP_CHUNK_TYPE_MAX = 250
 } zap_chunk_type_t;
 
+#define	ZLF_ENTRIES_CDSORTED (1<<0)
+
 /*
  * TAKE NOTE:
  * If zap_leaf_phys_t is modified, zap_leaf_byteswap() must be modified.
@@ -109,7 +111,8 @@ typedef struct zap_leaf_phys {
 /* above is accessable to zap, below is zap_leaf private */
 
 		uint16_t lh_freelist;		/* chunk head of free list */
-		uint8_t lh_pad2[12];
+		uint8_t lh_flags;		/* ZLF_* flags */
+		uint8_t lh_pad2[11];
 	} l_hdr; /* 2 24-byte chunks */
 
 	/*
@@ -148,7 +151,7 @@ typedef union zap_leaf_chunk {
 } zap_leaf_chunk_t;
 
 typedef struct zap_leaf {
-	krwlock_t l_rwlock; 		/* only used on head of chain */
+	krwlock_t l_rwlock;
 	uint64_t l_blkid;		/* 1<<ZAP_BLOCK_SHIFT byte block off */
 	int l_bs;			/* block size shift */
 	dmu_buf_t *l_dbuf;
@@ -174,7 +177,7 @@ typedef struct zap_entry_handle {
  * value must equal zap_hash(name).
  */
 extern int zap_leaf_lookup(zap_leaf_t *l,
-	const char *name, uint64_t h, zap_entry_handle_t *zeh);
+    zap_name_t *zn, zap_entry_handle_t *zeh);
 
 /*
  * Return a handle to the entry with this hash+cd, or the entry with the
@@ -219,12 +222,19 @@ extern int zap_entry_create(zap_leaf_t *l,
 	zap_entry_handle_t *zeh);
 
 /*
+ * Return true if there are additional entries with the same normalized
+ * form.
+ */
+extern boolean_t zap_entry_normalization_conflict(zap_entry_handle_t *zeh,
+    zap_name_t *zn, const char *name, zap_t *zap);
+
+/*
  * Other stuff.
  */
 
-extern void zap_leaf_init(zap_leaf_t *l);
+extern void zap_leaf_init(zap_leaf_t *l, boolean_t sort);
 extern void zap_leaf_byteswap(zap_leaf_phys_t *buf, int len);
-extern void zap_leaf_split(zap_leaf_t *l, zap_leaf_t *nl);
+extern void zap_leaf_split(zap_leaf_t *l, zap_leaf_t *nl, boolean_t sort);
 extern void zap_leaf_stats(zap_t *zap, zap_leaf_t *l, zap_stats_t *zs);
 
 #ifdef	__cplusplus

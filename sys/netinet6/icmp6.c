@@ -85,8 +85,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -94,6 +96,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #include <netinet/tcp_var.h>
+#include <netinet/vinet.h>
+
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6protosw.h>
@@ -101,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -109,14 +114,16 @@ __FBSDID("$FreeBSD$");
 
 extern struct domain inet6domain;
 
-struct icmp6stat icmp6stat;
-
+#ifdef VIMAGE_GLOBALS
 extern struct inpcbinfo ripcbinfo;
 extern struct inpcbhead ripcb;
 extern int icmp6errppslim;
-static int icmp6errpps_count = 0;
-static struct timeval icmp6errppslim_last;
 extern int icmp6_nodeinfo;
+
+struct icmp6stat icmp6stat;
+static int icmp6errpps_count;
+static struct timeval icmp6errppslim_last;
+#endif
 
 static void icmp6_errcount(struct icmp6errstat *, int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
@@ -137,6 +144,8 @@ void
 icmp6_init(void)
 {
 	INIT_VNET_INET6(curvnet);
+
+	V_icmp6errpps_count = 0;
 
 	mld6_init();
 }
@@ -1139,7 +1148,7 @@ icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 		mtu = IPV6_MMTU - 8;
 
 	bzero(&inc, sizeof(inc));
-	inc.inc_flags = 1; /* IPv6 */
+	inc.inc_flags |= INC_ISIPV6;
 	inc.inc6_faddr = *dst;
 	if (in6_setscope(&inc.inc6_faddr, m->m_pkthdr.rcvif, NULL))
 		return;
@@ -1890,8 +1899,8 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	struct in6pcb *in6p;
-	struct in6pcb *last = NULL;
+	struct inpcb *in6p;
+	struct inpcb *last = NULL;
 	struct sockaddr_in6 fromsa;
 	struct icmp6_hdr *icmp6;
 	struct mbuf *opts = NULL;
@@ -1924,7 +1933,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
-		if (in6p->in6p_ip6_nxt != IPPROTO_ICMPV6)
+		if (in6p->inp_ip_p != IPPROTO_ICMPV6)
 			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
 		   !IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr, &ip6->ip6_dst))
@@ -1938,7 +1947,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			INP_RUNLOCK(in6p);
 			continue;
 		}
-		if (last) {
+		if (last != NULL) {
 			struct	mbuf *n = NULL;
 
 			/*
@@ -1974,13 +1983,13 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			}
 			if (n != NULL ||
 			    (n = m_copy(m, 0, (int)M_COPYALL)) != NULL) {
-				if (last->in6p_flags & IN6P_CONTROLOPTS)
+				if (last->inp_flags & INP_CONTROLOPTS)
 					ip6_savecontrol(last, n, &opts);
 				/* strip intermediate headers */
 				m_adj(n, off);
-				SOCKBUF_LOCK(&last->in6p_socket->so_rcv);
+				SOCKBUF_LOCK(&last->inp_socket->so_rcv);
 				if (sbappendaddr_locked(
-				    &last->in6p_socket->so_rcv,
+				    &last->inp_socket->so_rcv,
 				    (struct sockaddr *)&fromsa, n, opts)
 				    == 0) {
 					/* should notify about lost packet */
@@ -1989,9 +1998,9 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 						m_freem(opts);
 					}
 					SOCKBUF_UNLOCK(
-					    &last->in6p_socket->so_rcv);
+					    &last->inp_socket->so_rcv);
 				} else
-					sorwakeup_locked(last->in6p_socket);
+					sorwakeup_locked(last->inp_socket);
 				opts = NULL;
 			}
 			INP_RUNLOCK(last);
@@ -1999,8 +2008,8 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		last = in6p;
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
-	if (last) {
-		if (last->in6p_flags & IN6P_CONTROLOPTS)
+	if (last != NULL) {
+		if (last->inp_flags & INP_CONTROLOPTS)
 			ip6_savecontrol(last, m, &opts);
 		/* strip intermediate headers */
 		m_adj(m, off);
@@ -2024,15 +2033,15 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 				}
 			}
 		}
-		SOCKBUF_LOCK(&last->in6p_socket->so_rcv);
-		if (sbappendaddr_locked(&last->in6p_socket->so_rcv,
+		SOCKBUF_LOCK(&last->inp_socket->so_rcv);
+		if (sbappendaddr_locked(&last->inp_socket->so_rcv,
 		    (struct sockaddr *)&fromsa, m, opts) == 0) {
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
-			SOCKBUF_UNLOCK(&last->in6p_socket->so_rcv);
+			SOCKBUF_UNLOCK(&last->inp_socket->so_rcv);
 		} else
-			sorwakeup_locked(last->in6p_socket);
+			sorwakeup_locked(last->inp_socket);
 		INP_RUNLOCK(last);
 	} else {
 		m_freem(m);
@@ -2444,6 +2453,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	struct mbuf *m = NULL;	/* newly allocated one */
 	struct ip6_hdr *ip6;	/* m as struct ip6_hdr */
 	struct nd_redirect *nd_rd;
+	struct llentry *ln = NULL;
 	size_t maxlen;
 	u_char *p;
 	struct ifnet *outif = NULL;
@@ -2565,35 +2575,35 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 
 	{
 		/* target lladdr option */
-		struct rtentry *rt_router = NULL;
 		int len;
-		struct sockaddr_dl *sdl;
 		struct nd_opt_hdr *nd_opt;
 		char *lladdr;
 
-		rt_router = nd6_lookup(router_ll6, 0, ifp);
-		if (!rt_router)
+		IF_AFDATA_LOCK(ifp);
+		ln = nd6_lookup(router_ll6, 0, ifp);
+		IF_AFDATA_UNLOCK(ifp);
+		if (ln == NULL)
 			goto nolladdropt;
+
 		len = sizeof(*nd_opt) + ifp->if_addrlen;
 		len = (len + 7) & ~7;	/* round by 8 */
 		/* safety check */
-		if (len + (p - (u_char *)ip6) > maxlen)
+		if (len + (p - (u_char *)ip6) > maxlen) 			
 			goto nolladdropt;
-		if (!(rt_router->rt_flags & RTF_GATEWAY) &&
-		    (rt_router->rt_flags & RTF_LLINFO) &&
-		    (rt_router->rt_gateway->sa_family == AF_LINK) &&
-		    (sdl = (struct sockaddr_dl *)rt_router->rt_gateway) &&
-		    sdl->sdl_alen) {
+
+		if (ln->la_flags & LLE_VALID) {
 			nd_opt = (struct nd_opt_hdr *)p;
 			nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 			nd_opt->nd_opt_len = len >> 3;
 			lladdr = (char *)(nd_opt + 1);
-			bcopy(LLADDR(sdl), lladdr, ifp->if_addrlen);
+			bcopy(&ln->ll_addr, lladdr, ifp->if_addrlen);
 			p += len;
 		}
 	}
-nolladdropt:;
-
+nolladdropt:
+	if (ln != NULL)
+		LLE_RUNLOCK(ln);
+		
 	m->m_pkthdr.len = m->m_len = p - (u_char *)ip6;
 
 	/* just to be safe */

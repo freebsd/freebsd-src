@@ -38,9 +38,9 @@
  */
 
 /*
- * Is process in the global zone?
+ * Is thread in the global zone?
  */
-#define	INGLOBALZONE(p)	(!jailed((p)->p_ucred))
+#define	INGLOBALZONE(thread)	(!jailed((thread)->td_ucred))
 
 /*
  * Attach the given dataset to the given jail.
@@ -60,8 +60,6 @@ extern int zone_dataset_visible(const char *, int *);
 #else	/* !_KERNEL */
 
 #define	GLOBAL_ZONEID	0
-
-extern int getzoneid(void);
 
 #endif	/* _KERNEL */
 

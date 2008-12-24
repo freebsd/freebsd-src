@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ppbus/ppb_1284.h>
 
 #include "ppbus_if.h"
-  
+
 #define DEVTOSOFTC(dev) ((struct ppb_data *)device_get_softc(dev))
-  
+
 static MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
 
 
@@ -90,12 +90,12 @@ ppbus_add_child(device_t dev, int order, const char *name, int unit)
 {
 	struct ppb_device *ppbdev;
 	device_t child;
-        
+
 	/* allocate ivars for the new ppbus child */
 	ppbdev = malloc(sizeof(struct ppb_device), M_PPBUSDEV,
 		M_NOWAIT | M_ZERO);
 	if (!ppbdev)
-		return NULL;
+		return (NULL);
 
 	/* initialize the ivars */
 	ppbdev->name = name;
@@ -105,13 +105,13 @@ ppbus_add_child(device_t dev, int order, const char *name, int unit)
 	child = device_add_child_ordered(dev, order, name, unit);
 	device_set_ivars(child, ppbdev);
 
-	return child;
+	return (child);
 }
 
 static int
 ppbus_read_ivar(device_t bus, device_t dev, int index, uintptr_t* val)
 {
-  
+
 	switch (index) {
 	case PPBUS_IVAR_MODE:
 		/* XXX yet device mode = ppbus mode = chipset mode */
@@ -120,12 +120,12 @@ ppbus_read_ivar(device_t bus, device_t dev, int index, uintptr_t* val)
 	default:
 		return (ENOENT);
 	}
-  
+
 	return (0);
 }
-  
+
 static int
-ppbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
+ppbus_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
 {
 
 	switch (index) {
@@ -208,7 +208,7 @@ ppb_pnp_detect(device_t bus)
 	char str[PPB_PnP_STRING_SIZE+1];
 
 	device_printf(bus, "Probing for PnP devices:\n");
-	
+
 	if ((error = ppb_1284_read_id(bus, PPB_NIBBLE, str,
 					PPB_PnP_STRING_SIZE, &len)))
 		goto end_detect;
@@ -287,7 +287,7 @@ ppb_scan_bus(device_t bus)
 	int error = 0;
 
 	/* try all IEEE1284 modes, for one device only
-	 * 
+	 *
 	 * XXX We should implement the IEEE1284.3 standard to detect
 	 * daisy chained devices
 	 */
@@ -384,7 +384,7 @@ ppbus_attach(device_t dev)
 	ppb_scan_bus(dev);
 #endif /* !DONTPROBE_1284 */
 
-	/* launch attachement of the added children */
+	/* launch attachment of the added children */
 	bus_generic_attach(dev);
 
 	return (0);
@@ -393,8 +393,8 @@ ppbus_attach(device_t dev)
 static int
 ppbus_detach(device_t dev)
 {
-        device_t *children;
-        int error, nchildren, i;
+	device_t *children;
+	int error, nchildren, i;
 
 	error = bus_generic_detach(dev);
 	if (error)
@@ -406,7 +406,7 @@ ppbus_detach(device_t dev)
 			if (children[i])
 				device_delete_child(dev, children[i]);
 		free(children, M_TEMP);
-        }
+	}
 
 	return (0);
 }
@@ -441,7 +441,7 @@ ppbus_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 {
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(child);
-	
+
 	/* a device driver must own the bus to unregister an interrupt */
 	if ((ppb->ppb_owner != child) || (ppbdev->intr_cookie != ih) ||
 			(ppbdev->intr_resource != r))
@@ -469,7 +469,7 @@ ppb_request_bus(device_t bus, device_t dev, int how)
 	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
 
 	while (!error) {
-		s = splhigh();	
+		s = splhigh();
 		if (ppb->ppb_owner) {
 			splx(s);
 
@@ -493,7 +493,7 @@ ppb_request_bus(device_t bus, device_t dev, int how)
 			/* restore the context of the device
 			 * The first time, ctx.valid is certainly false
 			 * then do not change anything. This is usefull for
-			 * drivers that do not set there operating mode 
+			 * drivers that do not set there operating mode
 			 * during attachement
 			 */
 			if (ppbdev->ctx.valid)
@@ -549,27 +549,27 @@ ppb_release_bus(device_t bus, device_t dev)
 static devclass_t ppbus_devclass;
 
 static device_method_t ppbus_methods[] = {
-        /* device interface */
-	DEVMETHOD(device_probe,         ppbus_probe),
-	DEVMETHOD(device_attach,        ppbus_attach),
-	DEVMETHOD(device_detach,        ppbus_detach),
-  
-        /* bus interface */
+	/* device interface */
+	DEVMETHOD(device_probe,		ppbus_probe),
+	DEVMETHOD(device_attach,	ppbus_attach),
+	DEVMETHOD(device_detach,	ppbus_detach),
+
+	/* bus interface */
 	DEVMETHOD(bus_add_child,	ppbus_add_child),
 	DEVMETHOD(bus_print_child,	ppbus_print_child),
-	DEVMETHOD(bus_read_ivar,        ppbus_read_ivar),
-	DEVMETHOD(bus_write_ivar,       ppbus_write_ivar),
+	DEVMETHOD(bus_read_ivar,	ppbus_read_ivar),
+	DEVMETHOD(bus_write_ivar,	ppbus_write_ivar),
 	DEVMETHOD(bus_setup_intr,	ppbus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ppbus_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 
-        { 0, 0 }
+	{ 0, 0 }
 };
 
 static driver_t ppbus_driver = {
-        "ppbus",
-        ppbus_methods,
-        sizeof(struct ppb_data),
+	"ppbus",
+	ppbus_methods,
+	sizeof(struct ppb_data),
 };
 DRIVER_MODULE(ppbus, ppc, ppbus_driver, ppbus_devclass, 0, 0);

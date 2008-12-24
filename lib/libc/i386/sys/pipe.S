@@ -44,4 +44,4 @@ SYSCALL(pipe)
 	movl	%edx,4(%ecx)
 	movl	$0,%eax
 	ret
-END(pipe)
+END(__sys_pipe)

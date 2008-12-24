@@ -301,8 +301,10 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 
 	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
 
-	if (mask & SDHCI_RESET_ALL)
+	if (mask & SDHCI_RESET_ALL) {
 		slot->clock = 0;
+		slot->power = 0;
+	}
 
 	/* Wait max 100 ms */
 	timeout = 100;
@@ -802,6 +804,31 @@ sdhci_detach(device_t dev)
 }
 
 static int
+sdhci_suspend(device_t dev)
+{
+	struct sdhci_softc *sc = device_get_softc(dev);
+	int i, err;
+
+	err = bus_generic_suspend(dev);
+	if (err)
+		return (err);
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_reset(&sc->slots[i], SDHCI_RESET_ALL);
+	return (0);
+}
+
+static int
+sdhci_resume(device_t dev)
+{
+	struct sdhci_softc *sc = device_get_softc(dev);
+	int i;
+
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_init(&sc->slots[i]);
+	return (bus_generic_resume(dev));
+}
+
+static int
 sdhci_update_ios(device_t brdev, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
@@ -879,8 +906,11 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 
 	/* Read controller present state. */
 	state = RD4(slot, SDHCI_PRESENT_STATE);
-	/* Do not issue command if there is no card. */
-	if ((state & SDHCI_CARD_PRESENT) == 0) {
+	/* Do not issue command if there is no card, clock or power.
+	 * Controller will not detect timeout without clock active. */
+	if ((state & SDHCI_CARD_PRESENT) == 0 ||
+	    slot->power == 0 ||
+	    slot->clock == 0) {
 		cmd->error = MMC_ERR_FAILED;
 		slot->req = NULL;
 		slot->curcmd = NULL;
@@ -1177,7 +1207,7 @@ sdhci_acquire_host(device_t brdev, device_t reqdev)
 
 	SDHCI_LOCK(slot);
 	while (slot->bus_busy)
-		msleep(slot, &slot->mtx, PZERO, "sdhciah", hz / 5);
+		msleep(slot, &slot->mtx, 0, "sdhciah", 0);
 	slot->bus_busy++;
 	/* Activate led. */
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl |= SDHCI_CTRL_LED);
@@ -1194,8 +1224,8 @@ sdhci_release_host(device_t brdev, device_t reqdev)
 	/* Deactivate led. */
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl &= ~SDHCI_CTRL_LED);
 	slot->bus_busy--;
-	wakeup(slot);
 	SDHCI_UNLOCK(slot);
+	wakeup(slot);
 	return (0);
 }
 
@@ -1508,6 +1538,8 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(device_probe, sdhci_probe),
 	DEVMETHOD(device_attach, sdhci_attach),
 	DEVMETHOD(device_detach, sdhci_detach),
+	DEVMETHOD(device_suspend, sdhci_suspend),
+	DEVMETHOD(device_resume, sdhci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_read_ivar),

@@ -297,7 +297,11 @@ padlock_process(device_t dev, struct cryptop *crp, int hint __unused)
 
 	enccrd = maccrd = NULL;
 
-	if (crp == NULL || crp->crp_callback == NULL || crp->crp_desc == NULL) {
+	/* Sanity check. */
+	if (crp == NULL)
+		return (EINVAL);
+
+	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
 		error = EINVAL;
 		goto out;
 	}

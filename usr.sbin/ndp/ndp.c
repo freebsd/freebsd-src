@@ -114,6 +114,11 @@
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
+#define NEXTADDR(w, s) \
+	if (rtm->rtm_addrs & (w)) { \
+		bcopy((char *)&s, cp, sizeof(s)); cp += sizeof(s);}
+
+
 static pid_t pid;
 static int nflag;
 static int tflag;
@@ -428,7 +433,6 @@ set(argc, argv)
 	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin6_len) + (char *)sin);
 	if (IN6_ARE_ADDR_EQUAL(&sin->sin6_addr, &sin_m.sin6_addr)) {
 		if (sdl->sdl_family == AF_LINK &&
-		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
 			switch (sdl->sdl_type) {
 			case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
@@ -499,6 +503,7 @@ delete(host)
 {
 	struct sockaddr_in6 *sin = &sin_m;
 	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
+	register char *cp = m_rtmsg.m_space;
 	struct sockaddr_dl *sdl;
 	struct addrinfo hints, *res;
 	int gai_error;
@@ -529,7 +534,6 @@ delete(host)
 	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin6_len) + (char *)sin);
 	if (IN6_ARE_ADDR_EQUAL(&sin->sin6_addr, &sin_m.sin6_addr)) {
 		if (sdl->sdl_family == AF_LINK &&
-		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
 			goto delete;
 		}
@@ -545,6 +549,11 @@ delete:
 		printf("cannot locate %s\n", host);
 		return (1);
 	}
+        /* 
+         * need to reinit the field because it has rt_key
+         * but we want the actual address
+         */
+	NEXTADDR(RTA_DST, sin_m);
 	if (rtmsg(RTM_DELETE) == 0) {
 		struct sockaddr_in6 s6 = *sin; /* XXX: for safety */
 
@@ -603,7 +612,11 @@ again:;
 	mib[2] = 0;
 	mib[3] = AF_INET6;
 	mib[4] = NET_RT_FLAGS;
+#ifdef RTF_LLINFO
 	mib[5] = RTF_LLINFO;
+#else
+	mib[5] = 0;
+#endif
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		err(1, "sysctl(PF_ROUTE estimate)");
 	if (needed > 0) {
@@ -893,9 +906,6 @@ rtmsg(cmd)
 	case RTM_GET:
 		rtm->rtm_addrs |= RTA_DST;
 	}
-#define NEXTADDR(w, s) \
-	if (rtm->rtm_addrs & (w)) { \
-		bcopy((char *)&s, cp, sizeof(s)); cp += SA_SIZE(&s);}
 
 	NEXTADDR(RTA_DST, sin_m);
 	NEXTADDR(RTA_GATEWAY, sdl_m);
@@ -1616,3 +1626,5 @@ ts_print(tvp)
 	(void)printf("%02d:%02d:%02d.%06u ",
 	    s / 3600, (s % 3600) / 60, s % 60, (u_int32_t)tvp->tv_usec);
 }
+
+#undef NEXTADDR

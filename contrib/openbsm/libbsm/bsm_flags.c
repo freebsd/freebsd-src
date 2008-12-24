@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -27,14 +27,20 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_flags.c#13 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_flags.c#16 $
  */
+
+#include <config/config.h>
 
 #include <bsm/libbsm.h>
 
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+#ifndef HAVE_STRLCPY
+#include <compat/strlcpy.h>
+#endif
 
 static const char	*flagdelim = ",";
 
@@ -157,10 +163,10 @@ getauditflagschar(char *auditstr, au_mask_t *masks, int verbose)
 
 		if (sel != 0) {
 			if (verbose) {
-				strcpy(strptr, c.ac_desc);
+				strlcpy(strptr, c.ac_desc, AU_CLASS_DESC_MAX);
 				strptr += strlen(c.ac_desc);
 			} else {
-				strcpy(strptr, c.ac_name);
+				strlcpy(strptr, c.ac_name, AU_CLASS_NAME_MAX);
 				strptr += strlen(c.ac_name);
 			}
 			*strptr = ','; /* delimiter */

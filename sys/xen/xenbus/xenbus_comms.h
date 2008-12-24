@@ -125,19 +125,14 @@ struct xen_bus_type
 };
 
 
-extern void xenbus_backend_probe_and_watch(void);
-int xenbus_probe_node(struct xen_bus_type *bus, const char *type,
-		      const char *nodename);
-int xenbus_probe_devices(struct xen_bus_type *bus);
-
-int xenbus_register_driver_common(struct xenbus_driver *drv,
-				  struct xen_bus_type *bus);
+#if 0
 
 void dev_changed(const char *node, struct xen_bus_type *bus);
 
 int 
 read_otherend_details(struct xenbus_device *xendev, char *id_node, 
 		      char *path_node);
+#endif
 
 char *kasprintf(const char *fmt, ...);
 

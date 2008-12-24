@@ -305,7 +305,6 @@ ubtbcmfw_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UBTBCMFW_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -351,7 +350,6 @@ ubtbcmfw_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UBTBCMFW_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -360,7 +358,6 @@ ubtbcmfw_start_read(struct usb2_fifo *fifo)
 	struct ubtbcmfw_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -370,7 +367,6 @@ ubtbcmfw_stop_read(struct usb2_fifo *fifo)
 
 	usb2_transfer_stop(sc->sc_xfer[3]);
 	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
 }
 
 static void
@@ -379,7 +375,6 @@ ubtbcmfw_start_write(struct usb2_fifo *fifo)
 	struct ubtbcmfw_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
 }
 
 static void
@@ -389,7 +384,6 @@ ubtbcmfw_stop_write(struct usb2_fifo *fifo)
 
 	usb2_transfer_stop(sc->sc_xfer[2]);
 	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
 }
 
 static int
@@ -424,7 +418,6 @@ ubtbcmfw_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 static int

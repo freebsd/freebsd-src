@@ -56,6 +56,7 @@
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <netinet/vinet.h>
 #endif
 
 #ifdef INET6

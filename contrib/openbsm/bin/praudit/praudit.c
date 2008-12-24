@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004-2008 Apple Inc.
  * Copyright (c) 2006 Martin Voros
  * All rights reserved.
  *
@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#12 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#14 $
  */
 
 /*
@@ -80,7 +80,7 @@ print_tokens(FILE *fp)
 		/* Record must begin with a header token. */
 		do {
 			type = fgetc(fp);
-		} while(type != AU_HEADER_32_TOKEN);
+		} while(type != AUT_HEADER32);
 		ungetc(type, fp);
 	}
 

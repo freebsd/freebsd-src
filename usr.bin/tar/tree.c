@@ -227,20 +227,28 @@ tree_open(const char *path)
 /*
  * We've finished a directory; ascend back to the parent.
  */
-static void
+static int
 tree_ascend(struct tree *t)
 {
 	struct tree_entry *te;
+	int r = 0;
 
 	te = t->stack;
 	t->depth--;
 	if (te->flags & isDirLink) {
-		fchdir(te->fd);
+		if (fchdir(te->fd) != 0) {
+			t->tree_errno = errno;
+			r = TREE_ERROR_FATAL;
+		}
 		close(te->fd);
 		t->openCount--;
 	} else {
-		chdir("..");
+		if (chdir("..") != 0) {
+			t->tree_errno = errno;
+			r = TREE_ERROR_FATAL;
+		}
 	}
+	return (r);
 }
 
 /*
@@ -272,6 +280,17 @@ int
 tree_next(struct tree *t)
 {
 	struct dirent *de = NULL;
+	int r;
+
+	/* If we're called again after a fatal error, that's an API
+	 * violation.  Just crash now. */
+	if (t->visit_type == TREE_ERROR_FATAL) {
+		const char *msg = "Unable to continue traversing"
+		    " directory heirarchy after a fatal error.";
+		write(2, msg, strlen(msg));
+		*(int *)0 = 1; /* Deliberate SEGV; NULL pointer dereference. */
+		exit(1); /* In case the SEGV didn't work. */
+	}
 
 	/* Handle the startup case by returning the initial entry. */
 	if (t->flags & needsReturn) {
@@ -327,10 +346,11 @@ tree_next(struct tree *t)
 			t->depth++;
 			t->d = opendir(".");
 			if (t->d == NULL) {
-				tree_ascend(t); /* Undo "chdir" */
+				r = tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
 				t->tree_errno = errno;
-				return (t->visit_type = TREE_ERROR_DIR);
+				t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
+				return (t->visit_type);
 			}
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
@@ -340,11 +360,12 @@ tree_next(struct tree *t)
 
 		/* We've done everything necessary for the top stack entry. */
 		if (t->stack->flags & needsPostVisit) {
-			tree_ascend(t);
+			r = tree_ascend(t);
 			tree_pop(t);
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
-			return (t->visit_type = TREE_POSTASCENT);
+			t->visit_type = r != 0 ? r : TREE_POSTASCENT;
+			return (t->visit_type);
 		}
 	}
 	return (t->visit_type = 0);

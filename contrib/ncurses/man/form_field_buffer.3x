@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_buffer.3x,v 1.14 2006/11/04 17:12:00 tom Exp $
+.\" $Id: form_field_buffer.3x,v 1.15 2008/10/18 18:35:17 tom Exp $
 .TH form_field_buffer 3X ""
 .SH NAME
 \fBform_field_buffer\fR - field buffer control
@@ -46,17 +46,47 @@ int set_max_field(FIELD *field, int max);
 .br
 .SH DESCRIPTION
 The function \fBset_field_buffer\fR sets the numbered buffer of the given field
-to contain a given string.  Buffer 0 is the displayed value of the field; other
-numbered buffers may be allocated by applications through the \fBnbuf\fR
-argument of (see \fBform_field_new\fR(3X)) but are not manipulated by the forms
-library.  The function \fBfield_buffer\fR returns the address of the buffer.
-Please note that this buffer has always the length of the buffer, that means
-that it may typically contain trailing spaces. If you entered leading spaces
-the buffer may also contain them. If you want the raw data, you must write your
+to contain a given string:
+.RS 3
+.TP 3
+-
+Buffer 0 is the displayed value of the field.
+.TP 3
+-
+Other numbered buffers may be allocated by applications through the \fBnbuf\fR
+argument of (see \fBform_field_new\fR(3X))
+but are not manipulated by the forms library.
+.RE
+.PP
+The function \fBfield_buffer\fR returns a pointer to
+the contents of the given numbered buffer:
+.RS 3
+.TP 3
+-
+The buffer contents always have the same length,
+and are padded with trailing spaces
+as needed to ensure this length is the same.
+.TP 3
+-
+The buffer may contain leading spaces, depending on how it was set.
+.TP 3
+-
+The buffer contents are set with \fBset_field_buffer\fP,
+or as a side effect of any editing operations on the corresponding field.
+.TP 3
+-
+Editing operations are based on the \fIwindow\fP which displays the field,
+rather than a \fIstring\fP.
+The window contains only printable characters, and is filled with blanks.
+If you want the raw data, you must write your
 own routine that copies the value out of the buffer and removes the leading
-and trailing spaces. Please note also, that subsequent operations on the form
-will probably change the content of the buffer. So do not use it for long term
-storage of the entered form data.
+and trailing spaces.
+.TP 3
+-
+Because editing operations change the content of the buffer to
+correspond to the window, you should not rely on using buffers
+for long-term storage of form data.
+.RE
 .PP
 The function \fBset_field_status\fR sets the associated status flag of
 \fIfield\fR; \fBfield_status\fR gets the current value.  The status flag

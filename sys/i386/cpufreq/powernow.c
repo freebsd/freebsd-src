@@ -865,7 +865,6 @@ pn_decode_acpi(device_t dev, device_t perf_dev)
 static void
 pn_identify(driver_t *driver, device_t parent)
 {
-	device_t child;
 
 	if ((amd_pminfo & AMDPM_FID) == 0 || (amd_pminfo & AMDPM_VID) == 0)
 		return;
@@ -878,7 +877,7 @@ pn_identify(driver_t *driver, device_t parent)
 	}
 	if (device_find_child(parent, "powernow", -1) != NULL)
 		return;
-	if ((child = BUS_ADD_CHILD(parent, 10, "powernow", -1)) == NULL)
+	if (BUS_ADD_CHILD(parent, 10, "powernow", -1) == NULL)
 		device_printf(parent, "powernow: add child failed\n");
 }
 

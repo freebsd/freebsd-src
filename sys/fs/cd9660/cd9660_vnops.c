@@ -295,7 +295,6 @@ cd9660_read(ap)
 		return (0);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
-	ip->i_flag |= IN_ACCESS;
 	imp = ip->i_mnt;
 	do {
 		lbn = lblkno(imp, uio->uio_offset);
@@ -397,7 +396,7 @@ iso_shipdir(idp)
 
 	cl = idp->current.d_namlen;
 	cname = idp->current.d_name;
-assoc = (cl > 1) && (*cname == ASSOCCHAR);
+	assoc = (cl > 1) && (*cname == ASSOCCHAR);
 	if (assoc) {
 		cl--;
 		cname++;
@@ -744,12 +743,6 @@ cd9660_strategy(ap)
 	if (bp->b_blkno == bp->b_lblkno) {
 		bp->b_blkno = (ip->iso_start + bp->b_lblkno) <<
 		    (ip->i_mnt->im_bshift - DEV_BSHIFT);
-		if ((long)bp->b_blkno == -1)	/* XXX: cut&paste junk ? */
-			clrbuf(bp);
-	}
-	if ((long)bp->b_blkno == -1) {	/* XXX: cut&paste junk ? */
-		bufdone(bp);
-		return (0);
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = ip->i_mnt->im_bo;

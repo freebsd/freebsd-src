@@ -441,7 +441,7 @@ __LA_DECL int	archive_entry_xattr_next(struct archive_entry *,
  * Note that archive_entry_size() is reset to zero if the file
  * body should not be written to the archive.  Pay attention!
  */
-__LA_DECL struct archive_entry_linkresolver;
+struct archive_entry_linkresolver;
 
 /*
  * There are three different strategies for marking hardlinks.

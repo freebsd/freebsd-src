@@ -199,7 +199,7 @@ struct libusb20_quirk {
 /* USB transfer operations */
 
 int	libusb20_tr_close(struct libusb20_transfer *xfer);
-int	libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t pMaxBufSize, uint32_t MaxFrameCount, uint8_t ep_no);
+int	libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t max_buf_size, uint32_t max_frame_count, uint8_t ep_no);
 struct libusb20_transfer *libusb20_tr_get_pointer(struct libusb20_device *pdev, uint16_t tr_index);
 uint16_t libusb20_tr_get_time_complete(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_actual_frames(struct libusb20_transfer *xfer);
@@ -297,6 +297,7 @@ struct libusb20_backend *libusb20_be_alloc(const struct libusb20_backend_methods
 struct libusb20_backend *libusb20_be_alloc_default(void);
 struct libusb20_backend *libusb20_be_alloc_freebsd(void);
 struct libusb20_backend *libusb20_be_alloc_linux(void);
+struct libusb20_backend *libusb20_be_alloc_ugen20(void);
 struct libusb20_device *libusb20_be_device_foreach(struct libusb20_backend *pbe, struct libusb20_device *pdev);
 void	libusb20_be_dequeue_device(struct libusb20_backend *pbe, struct libusb20_device *pdev);
 void	libusb20_be_enqueue_device(struct libusb20_backend *pbe, struct libusb20_device *pdev);

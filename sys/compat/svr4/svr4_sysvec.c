@@ -190,7 +190,8 @@ struct sysentvec svr4_sysvec = {
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz     = NULL
+	.sv_maxssiz     = NULL,
+	.sv_flags	= SV_ABI_UNDEF | SV_IA32 | SV_ILP32
 };
 
 const char      svr4_emul_path[] = "/compat/svr4";
@@ -217,8 +218,6 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);  
     
-	if (args->trace)
-		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);

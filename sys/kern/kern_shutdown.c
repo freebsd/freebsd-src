@@ -238,7 +238,7 @@ doadump(void)
 	 * Give them a clue as to why they can't dump.
 	 */
 	if (dumper.dumper == NULL) {
-		printf("Cannot dump. No dump device defined.\n");
+		printf("Cannot dump. Device not defined or unavailable.\n");
 		return;
 	}
 

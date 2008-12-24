@@ -32,6 +32,7 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+
 #ifndef _IXGBE_H_
 #define _IXGBE_H_
 
@@ -63,7 +64,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
-#include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
@@ -84,6 +84,7 @@
 #include <sys/pcpu.h>
 
 #include "ixgbe_api.h"
+#include "tcp_lro.h"
 
 /* Tunables */
 
@@ -121,7 +122,7 @@
  * This parameter controls the maximum no of times the driver will loop in
  * the isr. Minimum Value = 1
  */
-#define MAX_INTR	10
+#define MAX_LOOP	10
 
 /*
  * This parameter controls the duration of transmit watchdog timer.
@@ -159,10 +160,11 @@
 
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define IXGBE_MAX_SCATTER		100
-#define IXGBE_MSIX_BAR			3
+#define MSIX_82598_BAR			3
+#define MSIX_82599_BAR			4
 #define IXGBE_TSO_SIZE			65535
 #define IXGBE_TX_BUFFER_SIZE		((u32) 1514)
-#define IXGBE_RX_HDR_SIZE		((u32) 256)
+#define IXGBE_RX_HDR			128
 #define CSUM_OFFLOAD			7	/* Bits in csum flags */
 
 /* The number of MSIX messages the 82598 supports */
@@ -179,24 +181,28 @@
 
 /*
  * Interrupt Moderation parameters 
- * 	for now we hardcode, later
- *	it would be nice to do dynamic
  */
-#define MAX_IRQ_SEC	8000
-#define DEFAULT_ITR	1000000000/(MAX_IRQ_SEC * 256)
-#define LINK_ITR	1000000000/(1950 * 256)
+#define IXGBE_LOW_LATENCY	128
+#define IXGBE_AVE_LATENCY	400
+#define IXGBE_BULK_LATENCY	1200
+#define IXGBE_LINK_ITR		2000
+
+/* Header split args for get_bug */
+#define IXGBE_CLEAN_HDR		1
+#define IXGBE_CLEAN_PKT		2
+#define IXGBE_CLEAN_ALL		3
 
 /* Used for auto RX queue configuration */
 extern int mp_ncpus;
 
 /*
- * ******************************************************************************
+ *****************************************************************************
  * vendor_info_array
  * 
  * This array contains the list of Subvendor/Subdevice IDs on which the driver
  * should load.
  * 
-*****************************************************************************
+ *****************************************************************************
  */
 typedef struct _ixgbe_vendor_info_t {
 	unsigned int    vendor_id;
@@ -204,7 +210,7 @@ typedef struct _ixgbe_vendor_info_t {
 	unsigned int    subvendor_id;
 	unsigned int    subdevice_id;
 	unsigned int    index;
-}               ixgbe_vendor_info_t;
+} ixgbe_vendor_info_t;
 
 
 struct ixgbe_tx_buf {
@@ -214,9 +220,8 @@ struct ixgbe_tx_buf {
 
 struct ixgbe_rx_buf {
 	struct mbuf	*m_head;
-	boolean_t	bigbuf;
-	/* one small and one large map */
-	bus_dmamap_t	map[2];
+	struct mbuf	*m_pack;
+	bus_dmamap_t	map;
 };
 
 /*
@@ -253,11 +258,12 @@ struct tx_ring {
 	volatile u16		tx_avail;
 	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
+	char			mtx_name[16];
 	/* Soft Stats */
 	u32			no_tx_desc_avail;
 	u32			no_tx_desc_late;
 	u64			tx_irq;
-	u64			tx_packets;
+	u64			total_packets;
 };
 
 
@@ -279,14 +285,20 @@ struct rx_ring {
         unsigned int		last_cleaned;
         unsigned int		next_to_check;
 	struct ixgbe_rx_buf	*rx_buffers;
-	bus_dma_tag_t		rxtag[2];
-	bus_dmamap_t		spare_map[2];
+	bus_dma_tag_t		rxtag;
+	bus_dmamap_t		spare_map;
 	struct mbuf		*fmp;
 	struct mbuf		*lmp;
+	char			mtx_name[16];
+
+	u32			bytes; /* Used for AIM calc */
+	u32			eitr_setting;
+
 	/* Soft stats */
 	u64			rx_irq;
-	u64			packet_count;
-	u64 			byte_count;
+	u64			rx_split_packets;
+	u64			rx_packets;
+	u64 			rx_bytes;
 };
 
 /* Our adapter structure */
@@ -294,7 +306,6 @@ struct adapter {
 	struct ifnet	*ifp;
 	struct ixgbe_hw	hw;
 
-	/* FreeBSD operating-system-specific structures */
 	struct ixgbe_osdep	osdep;
 	struct device	*dev;
 
@@ -309,7 +320,6 @@ struct adapter {
 	void		*tag[IXGBE_MSGS];
 	struct resource *res[IXGBE_MSGS];
 	int		rid[IXGBE_MSGS];
-	u32		eims_mask;
 
 	struct ifmedia	media;
 	struct callout	timer;
@@ -318,21 +328,23 @@ struct adapter {
 
 	struct mtx	core_mtx;
 
-	/* Legacy Fast Intr handling */
-	struct task     link_task;
-	
 	/* Info about the board itself */
 	u32		part_num;
+	u32		optics;
 	bool		link_active;
 	u16		max_frame_size;
 	u32		link_speed;
+	u32 		linkvec;
 	u32		tx_int_delay;
 	u32		tx_abs_int_delay;
 	u32		rx_int_delay;
 	u32		rx_abs_int_delay;
 
-	/* Indicates the cluster size to use */
-	bool		bigbufs;
+	/* Mbuf cluster size */
+	u32		rx_mbuf_sz;
+
+	/* Check for missing optics */
+	bool		sfp_probe;
 
 	/*
 	 * Transmit rings:
@@ -349,20 +361,18 @@ struct adapter {
 	struct rx_ring	*rx_rings;
 	int		num_rx_desc;
 	int		num_rx_queues;
+	u32		rx_mask;
 	u32		rx_process_limit;
-
-	eventhandler_tag	vlan_attach;
-	eventhandler_tag	vlan_detach;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
-	unsigned long   mbuf_alloc_failed;
-	unsigned long   mbuf_cluster_failed;
+	unsigned long   mbuf_defrag_failed;
+	unsigned long   mbuf_header_failed;
+	unsigned long   mbuf_packet_failed;
 	unsigned long   no_tx_map_avail;
 	unsigned long   no_tx_dma_setup;
 	unsigned long   watchdog_events;
 	unsigned long   tso_tx;
-	unsigned long	linkvec;
 	unsigned long	link_irq;
 
 	struct ixgbe_hw_stats stats;

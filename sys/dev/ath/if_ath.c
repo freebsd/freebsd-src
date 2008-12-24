@@ -77,8 +77,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <dev/ath/if_athvar.h>
-#include <contrib/dev/ath/ah_desc.h>
-#include <contrib/dev/ath/ah_devid.h>		/* XXX for softled */
+#include <dev/ath/ath_hal/ah_devid.h>		/* XXX for softled */
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
@@ -115,6 +114,7 @@ CTASSERT(ATH_BCBUF <= 8);
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
 #define	CTRY_XR9	5001		/* Ubiquiti XR9 */
+#define	CTRY_GZ901	5002		/* ZComax GZ-901 */
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
 		    const char name[IFNAMSIZ], int unit, int opmode,
@@ -131,7 +131,6 @@ static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(struct ifnet *);
 static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ath_fatal_proc(void *, int);
-static void	ath_rxorn_proc(void *, int);
 static void	ath_bmiss_vap(struct ieee80211vap *);
 static void	ath_bmiss_proc(void *, int);
 static int	ath_keyset(struct ath_softc *, const struct ieee80211_key *,
@@ -220,9 +219,15 @@ static void	ath_announce(struct ath_softc *);
 SYSCTL_DECL(_hw_ath);
 
 /* XXX validate sysctl values */
-static	int ath_calinterval = 30;		/* calibrate every 30 secs */
-SYSCTL_INT(_hw_ath, OID_AUTO, calibrate, CTLFLAG_RW, &ath_calinterval,
-	    0, "chip calibration interval (secs)");
+static	int ath_longcalinterval = 30;		/* long cals every 30 secs */
+SYSCTL_INT(_hw_ath, OID_AUTO, longcal, CTLFLAG_RW, &ath_longcalinterval,
+	    0, "long chip calibration interval (secs)");
+static	int ath_shortcalinterval = 100;		/* short cals every 100 ms */
+SYSCTL_INT(_hw_ath, OID_AUTO, shortcal, CTLFLAG_RW, &ath_shortcalinterval,
+	    0, "short chip calibration interval (msecs)");
+static	int ath_resetcalinterval = 20*60;	/* reset cal state 20 mins */
+SYSCTL_INT(_hw_ath, OID_AUTO, resetcal, CTLFLAG_RW, &ath_resetcalinterval,
+	    0, "reset chip calibration results (secs)");
 
 static	int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RW, &ath_rxbuf,
@@ -275,8 +280,10 @@ TUNABLE_INT("hw.ath.debug", &ath_debug);
 	if (sc->sc_debug & ATH_DEBUG_KEYCACHE)			\
 		ath_keyprint(sc, __func__, ix, hk, mac);	\
 } while (0)
-static	void ath_printrxbuf(const struct ath_buf *bf, u_int ix, int);
-static	void ath_printtxbuf(const struct ath_buf *bf, u_int qnum, u_int ix, int done);
+static	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
+	u_int ix, int);
+static	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
+	u_int qnum, u_int ix, int done);
 #else
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
@@ -409,7 +416,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		"%s taskq", ifp->if_xname);
 
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
-	TASK_INIT(&sc->sc_rxorntask, 0, ath_rxorn_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 
@@ -1184,10 +1190,6 @@ ath_intr(void *arg)
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
 		ath_fatal_proc(sc, 0);
-	} else if (status & HAL_INT_RXORN) {
-		sc->sc_stats.ast_rxorn++;
-		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_rxorntask);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
@@ -1234,6 +1236,10 @@ ath_intr(void *arg)
 			ath_hal_mibevent(ah, &sc->sc_halstats);
 			ath_hal_intrset(ah, sc->sc_imask);
 		}
+		if (status & HAL_INT_RXORN) {
+			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
+			sc->sc_stats.ast_rxorn++;
+		}
 	}
 }
 
@@ -1263,19 +1269,10 @@ ath_fatal_proc(void *arg, int pending)
 }
 
 static void
-ath_rxorn_proc(void *arg, int pending)
-{
-	struct ath_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
-
-	if_printf(ifp, "rx FIFO overrun; resetting\n");
-	ath_reset(ifp);
-}
-
-static void
 ath_bmiss_vap(struct ieee80211vap *vap)
 {
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ifnet *ifp = vap->iv_ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
 	u_int64_t lastrx = sc->sc_lastrx;
 	u_int64_t tsf = ath_hal_gettsf64(sc->sc_ah);
 	u_int bmisstimeout =
@@ -1299,14 +1296,33 @@ ath_bmiss_vap(struct ieee80211vap *vap)
 		sc->sc_stats.ast_bmiss_phantom++;
 }
 
+static int
+ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask, uint32_t *hangs)
+{
+	uint32_t rsize;
+	void *sp;
+
+	if (!ath_hal_getdiagstate(ah, 32, &mask, sizeof(&mask), &sp, &rsize))
+		return 0;
+	KASSERT(rsize == sizeof(uint32_t), ("resultsize %u", rsize));
+	*hangs = *(uint32_t *)sp;
+	return 1;
+}
+
 static void
 ath_bmiss_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	uint32_t hangs;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: pending %u\n", __func__, pending);
-	ieee80211_beacon_miss(ifp->if_l2com);
+
+	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
+		if_printf(ifp, "bb hang detected (0x%x), reseting\n", hangs); 
+		ath_reset(ifp);
+	} else
+		ieee80211_beacon_miss(ifp->if_l2com);
 }
 
 /*
@@ -1349,9 +1365,11 @@ ath_mapchan(const struct ieee80211com *ic,
 
 	if (IEEE80211_IS_CHAN_GSM(chan)) {
 		if (ic->ic_regdomain.country == CTRY_XR9)
-			hc->channel = 2427 + (chan->ic_freq - 907);
+			hc->channel = 1520 + chan->ic_freq;
+		else if (ic->ic_regdomain.country == CTRY_GZ901)
+			hc->channel = 1544 + chan->ic_freq;
 		else
-			hc->channel = 2422 + (922 - chan->ic_freq);
+			hc->channel = 3344 - chan->ic_freq;
 	} else
 		hc->channel = chan->ic_freq;
 #undef N
@@ -1421,8 +1439,9 @@ ath_init(void *arg)
 	 * state cached in the driver.
 	 */
 	sc->sc_diversity = ath_hal_getdiversity(ah);
-	sc->sc_calinterval = 1;
-	sc->sc_caltries = 0;
+	sc->sc_lastlongcal = 0;
+	sc->sc_resetcal = 1;
+	sc->sc_lastcalreset = 0;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -1554,8 +1573,6 @@ ath_reset(struct ifnet *ifp)
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
-	sc->sc_calinterval = 1;
-	sc->sc_caltries = 0;
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	/*
@@ -4028,7 +4045,7 @@ ath_rx_proc(void *arg, int npending)
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link), rs);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
-			ath_printrxbuf(bf, 0, status == HAL_OK);
+			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS)
 			break;
@@ -5027,7 +5044,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		status = ath_hal_txprocdesc(ah, ds, ts);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-			ath_printtxbuf(bf, txq->axq_qnum, 0, status == HAL_OK);
+			ath_printtxbuf(sc, bf, txq->axq_qnum, 0,
+			    status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
 			ATH_TXQ_UNLOCK(txq);
@@ -5246,7 +5264,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
-			ath_printtxbuf(bf, txq->axq_qnum, ix,
+			ath_printtxbuf(sc, bf, txq->axq_qnum, ix,
 				ath_hal_txprocdesc(ah, bf->bf_desc,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ic, mtod(bf->bf_m, caddr_t),
@@ -5314,7 +5332,7 @@ ath_draintxq(struct ath_softc *sc)
 	if (sc->sc_debug & ATH_DEBUG_RESET) {
 		struct ath_buf *bf = STAILQ_FIRST(&sc->sc_bbuf);
 		if (bf != NULL && bf->bf_m != NULL) {
-			ath_printtxbuf(bf, sc->sc_bhalq, 0,
+			ath_printtxbuf(sc, bf, sc->sc_bhalq, 0,
 				ath_hal_txprocdesc(ah, bf->bf_desc,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ifp->if_l2com, mtod(bf->bf_m, caddr_t),
@@ -5355,7 +5373,7 @@ ath_stoprecv(struct ath_softc *sc)
 			HAL_STATUS status = ath_hal_rxprocdesc(ah, ds,
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link), rs);
 			if (status == HAL_OK || (sc->sc_debug & ATH_DEBUG_FATAL))
-				ath_printrxbuf(bf, ix, status == HAL_OK);
+				ath_printrxbuf(sc, bf, ix, status == HAL_OK);
 			ix++;
 		}
 	}
@@ -5480,8 +5498,6 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		}
 		sc->sc_curchan = hchan;
 		sc->sc_diversity = ath_hal_getdiversity(ah);
-		sc->sc_calinterval = 1;
-		sc->sc_caltries = 0;
 
 		/*
 		 * Re-enable rx framework.
@@ -5515,54 +5531,76 @@ ath_calibrate(void *arg)
 {
 	struct ath_softc *sc = arg;
 	struct ath_hal *ah = sc->sc_ah;
-	HAL_BOOL iqCalDone;
+	struct ifnet *ifp = sc->sc_ifp;
+	HAL_BOOL longCal, isCalDone;
+	int nextcal;
 
-	sc->sc_stats.ast_per_cal++;
-
-	if (ath_hal_getrfgain(ah) == HAL_RFGAIN_NEED_CHANGE) {
+	longCal = (ticks - sc->sc_lastlongcal >= ath_longcalinterval*hz);
+	if (longCal) {
+		sc->sc_stats.ast_per_cal++;
+		if (ath_hal_getrfgain(ah) == HAL_RFGAIN_NEED_CHANGE) {
+			/*
+			 * Rfgain is out of bounds, reset the chip
+			 * to load new gain values.
+			 */
+			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
+				"%s: rfgain change\n", __func__);
+			sc->sc_stats.ast_per_rfgain++;
+			ath_reset(ifp);
+		}
 		/*
-		 * Rfgain is out of bounds, reset the chip
-		 * to load new gain values.
+		 * If this long cal is after an idle period, then
+		 * reset the data collection state so we start fresh.
 		 */
-		DPRINTF(sc, ATH_DEBUG_CALIBRATE,
-			"%s: rfgain change\n", __func__);
-		sc->sc_stats.ast_per_rfgain++;
-		ath_reset(sc->sc_ifp);
+		if (sc->sc_resetcal) {
+			(void) ath_hal_calreset(ah, &sc->sc_curchan);
+			sc->sc_lastcalreset = ticks;
+			sc->sc_resetcal = 0;
+		}
 	}
-	if (!ath_hal_calibrate(ah, &sc->sc_curchan, &iqCalDone)) {
+	if (ath_hal_calibrateN(ah, &sc->sc_curchan, longCal, &isCalDone)) {
+		if (longCal) {
+			/*
+			 * Calibrate noise floor data again in case of change.
+			 */
+			ath_hal_process_noisefloor(ah);
+		}
+	} else {
 		DPRINTF(sc, ATH_DEBUG_ANY,
 			"%s: calibration of channel %u failed\n",
 			__func__, sc->sc_curchan.channel);
 		sc->sc_stats.ast_per_calfail++;
 	}
-	/*
-	 * Calibrate noise floor data again in case of change.
-	 */
-	ath_hal_process_noisefloor(ah);
-	/*
-	 * Poll more frequently when the IQ calibration is in
-	 * progress to speedup loading the final settings.
-	 * We temper this aggressive polling with an exponential
-	 * back off after 4 tries up to ath_calinterval.
-	 */
-	if (iqCalDone || sc->sc_calinterval >= ath_calinterval) {
-		sc->sc_caltries = 0;
-		sc->sc_calinterval = ath_calinterval;
-	} else if (sc->sc_caltries > 4) {
-		sc->sc_caltries = 0;
-		sc->sc_calinterval <<= 1;
-		if (sc->sc_calinterval > ath_calinterval)
-			sc->sc_calinterval = ath_calinterval;
+	if (!isCalDone) {
+		/*
+		 * Use a shorter interval to potentially collect multiple
+		 * data samples required to complete calibration.  Once
+		 * we're told the work is done we drop back to a longer
+		 * interval between requests.  We're more aggressive doing
+		 * work when operating as an AP to improve operation right
+		 * after startup.
+		 */
+		nextcal = (1000*ath_shortcalinterval)/hz;
+		if (sc->sc_opmode != HAL_M_HOSTAP)
+			nextcal *= 10;
+	} else {
+		nextcal = ath_longcalinterval*hz;
+		sc->sc_lastlongcal = ticks;
+		if (sc->sc_lastcalreset == 0)
+			sc->sc_lastcalreset = sc->sc_lastlongcal;
+		else if (ticks - sc->sc_lastcalreset >= ath_resetcalinterval*hz)
+			sc->sc_resetcal = 1;	/* setup reset next trip */
 	}
-	KASSERT(0 < sc->sc_calinterval && sc->sc_calinterval <= ath_calinterval,
-		("bad calibration interval %u", sc->sc_calinterval));
 
-	DPRINTF(sc, ATH_DEBUG_CALIBRATE,
-		"%s: next +%u (%siqCalDone tries %u)\n", __func__,
-		sc->sc_calinterval, iqCalDone ? "" : "!", sc->sc_caltries);
-	sc->sc_caltries++;
-	callout_reset(&sc->sc_cal_ch, sc->sc_calinterval * hz,
-		ath_calibrate, sc);
+	if (nextcal != 0) {
+		DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: next +%u (%sisCalDone)\n",
+		    __func__, nextcal, isCalDone ? "" : "!");
+		callout_reset(&sc->sc_cal_ch, nextcal, ath_calibrate, sc);
+	} else {
+		DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: calibration disabled\n",
+		    __func__);
+		/* NB: don't rearm timer */
+	}
 }
 
 static void
@@ -5790,10 +5828,12 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * Finally, start any timers and the task q thread
 		 * (in case we didn't go through SCAN state).
 		 */
-		if (sc->sc_calinterval != 0) {
+		if (ath_longcalinterval != 0) {
 			/* start periodic recalibration timer */
-			callout_reset(&sc->sc_cal_ch, sc->sc_calinterval * hz,
-				ath_calibrate, sc);
+			callout_reset(&sc->sc_cal_ch, 1, ath_calibrate, sc);
+		} else {
+			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
+			    "%s: calibration disabled\n", __func__);
 		}
 		taskqueue_unblock(sc->sc_tq);
 	} else if (nstate == IEEE80211_S_INIT) {
@@ -5936,9 +5976,11 @@ getchannels(struct ath_softc *sc, int *nchans, struct ieee80211_channel chans[],
 			 * We define special country codes to deal with this. 
 			 */
 			if (cc == CTRY_XR9)
-				ichan->ic_freq = 907 + (ichan->ic_freq - 2427);
+				ichan->ic_freq = ichan->ic_freq - 1520;
+			else if (cc == CTRY_GZ901)
+				ichan->ic_freq = ichan->ic_freq - 1544;
 			else
-				ichan->ic_freq = 922 + (2422 - ichan->ic_freq);
+				ichan->ic_freq = 3344 - ichan->ic_freq;
 			ichan->ic_flags |= IEEE80211_CHAN_GSM;
 			ichan->ic_ieee = ieee80211_mhz2ieee(ichan->ic_freq,
 						    ichan->ic_flags);
@@ -6265,9 +6307,11 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 
 #ifdef ATH_DEBUG
 static void
-ath_printrxbuf(const struct ath_buf *bf, u_int ix, int done)
+ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
+	u_int ix, int done)
 {
 	const struct ath_rx_status *rs = &bf->bf_status.ds_rxstat;
+	struct ath_hal *ah = sc->sc_ah;
 	const struct ath_desc *ds;
 	int i;
 
@@ -6279,13 +6323,21 @@ ath_printrxbuf(const struct ath_buf *bf, u_int ix, int done)
 		    !done ? "" : (rs->rs_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
 		    ds->ds_hw[0], ds->ds_hw[1]);
+		if (ah->ah_magic == 0x20065416) {
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
+			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
+			    ds->ds_hw[8]);
+		}
 	}
 }
 
 static void
-ath_printtxbuf(const struct ath_buf *bf, u_int qnum, u_int ix, int done)
+ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *bf,
+	u_int qnum, u_int ix, int done)
 {
 	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	struct ath_hal *ah = sc->sc_ah;
 	const struct ath_desc *ds;
 	int i;
 
@@ -6298,6 +6350,16 @@ ath_printtxbuf(const struct ath_buf *bf, u_int qnum, u_int ix, int done)
 		    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
 		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
+		if (ah->ah_magic == 0x20065416) {
+			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],
+			    ds->ds_hw[7], ds->ds_hw[8], ds->ds_hw[9],
+			    ds->ds_hw[10],ds->ds_hw[11]);
+			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[12],ds->ds_hw[13],ds->ds_hw[14],
+			    ds->ds_hw[15],ds->ds_hw[16],ds->ds_hw[17],
+			    ds->ds_hw[18], ds->ds_hw[19]);
+		}
 	}
 }
 #endif /* ATH_DEBUG */
@@ -6308,7 +6370,14 @@ ath_watchdog(struct ifnet *ifp)
 	struct ath_softc *sc = ifp->if_softc;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && !sc->sc_invalid) {
-		if_printf(ifp, "device timeout\n");
+		uint32_t hangs;
+
+		if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) &&
+		    hangs != 0) {
+			if_printf(ifp, "%s hang detected (0x%x)\n",
+			    hangs & 0xff ? "bb" : "mac", hangs); 
+		} else
+			if_printf(ifp, "device timeout\n");
 		ath_reset(ifp);
 		ifp->if_oerrors++;
 		sc->sc_stats.ast_watchdog++;
@@ -6843,7 +6912,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	int error, ismcast, ismrr;
-	int hdrlen, pktlen, try0, txantenna;
+	int keyix, hdrlen, pktlen, try0, txantenna;
 	u_int8_t rix, cix, txrate, ctsrate, rate1, rate2, rate3;
 	struct ieee80211_frame *wh;
 	u_int flags, ctsduration;
@@ -6861,6 +6930,54 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
+
+	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
+		const struct ieee80211_cipher *cip;
+		struct ieee80211_key *k;
+
+		/*
+		 * Construct the 802.11 header+trailer for an encrypted
+		 * frame. The only reason this can fail is because of an
+		 * unknown or unsupported cipher/key type.
+		 */
+		k = ieee80211_crypto_encap(ni, m0);
+		if (k == NULL) {
+			/*
+			 * This can happen when the key is yanked after the
+			 * frame was queued.  Just discard the frame; the
+			 * 802.11 layer counts failures and provides
+			 * debugging/diagnostics.
+			 */
+			ath_freetx(m0);
+			return EIO;
+		}
+		/*
+		 * Adjust the packet + header lengths for the crypto
+		 * additions and calculate the h/w key index.  When
+		 * a s/w mic is done the frame will have had any mic
+		 * added to it prior to entry so m0->m_pkthdr.len will
+		 * account for it. Otherwise we need to add it to the
+		 * packet length.
+		 */
+		cip = k->wk_cipher;
+		hdrlen += cip->ic_header;
+		pktlen += cip->ic_header + cip->ic_trailer;
+		/* NB: frags always have any TKIP MIC done in s/w */
+		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0)
+			pktlen += cip->ic_miclen;
+		keyix = k->wk_keyix;
+
+		/* packet header may have moved, reset our local pointer */
+		wh = mtod(m0, struct ieee80211_frame *);
+	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
+		/*
+		 * Use station key cache slot, if assigned.
+		 */
+		keyix = ni->ni_ucastkey.wk_keyix;
+		if (keyix == IEEE80211_KEYIX_NONE)
+			keyix = HAL_TXKEYIX_INVALID;
+	} else
+		keyix = HAL_TXKEYIX_INVALID;
 
 	error = ath_tx_dmasetup(sc, bf, m0);
 	if (error != 0)
@@ -6950,7 +7067,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		, atype			/* Atheros packet type */
 		, params->ibp_power	/* txpower */
 		, txrate, try0		/* series 0 rate/tries */
-		, HAL_TXKEYIX_INVALID	/* key cache index */
+		, keyix			/* key cache index */
 		, txantenna		/* antenna mode */
 		, flags			/* flags */
 		, ctsrate		/* rts/cts rate */

@@ -31,8 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/time.h>
 #include <sys/errno.h>
 #include <sys/param.h>
@@ -41,14 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kernel.h>
 
-
-
 #include <machine/xen/xen-os.h>
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/evtchn.h>
-#include <machine/xen/xenbus.h>
 #include <machine/xen/xen_intr.h>
 #include <xen/xenbus/xenbus_comms.h>
+#include <xen/interface/io/xs_wire.h>
 
 static int xenbus_irq;
 

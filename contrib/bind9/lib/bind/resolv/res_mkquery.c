@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_mkquery.c,v 1.5.18.1 2005/04/27 05:01:11 sra Exp $";
+static const char rcsid[] = "$Id: res_mkquery.c,v 1.5.18.2 2008/04/03 23:15:15 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -203,9 +203,6 @@ res_nmkquery(res_state statp,
 
 #ifdef RES_USE_EDNS0
 /* attach OPT pseudo-RR, as documented in RFC2671 (EDNS0). */
-#ifndef T_OPT
-#define T_OPT	41
-#endif
 
 int
 res_nopt(res_state statp,
@@ -230,13 +227,14 @@ res_nopt(res_state statp,
 	if ((ep - cp) < 1 + RRFIXEDSZ)
 		return (-1);
 
-	*cp++ = 0;	/*%< "." */
-	ns_put16(T_OPT, cp);	/*%< TYPE */
+	*cp++ = 0;				/*%< "." */
+	ns_put16(ns_t_opt, cp);			/*%< TYPE */
 	cp += INT16SZ;
-	ns_put16(anslen & 0xffff, cp);	/*%< CLASS = UDP payload size */
+	ns_put16(anslen & 0xffff, cp);		/*%< CLASS = UDP payload size */
 	cp += INT16SZ;
-	*cp++ = NOERROR;	/*%< extended RCODE */
-	*cp++ = 0;		/*%< EDNS version */
+	*cp++ = NOERROR;			/*%< extended RCODE */
+	*cp++ = 0;				/*%< EDNS version */
+
 	if (statp->options & RES_USE_DNSSEC) {
 #ifdef DEBUG
 		if (statp->options & RES_DEBUG)
@@ -246,9 +244,57 @@ res_nopt(res_state statp,
 	}
 	ns_put16(flags, cp);
 	cp += INT16SZ;
-	ns_put16(0, cp);	/*%< RDLEN */
+
+	ns_put16(0U, cp);			/*%< RDLEN */
 	cp += INT16SZ;
+
 	hp->arcount = htons(ntohs(hp->arcount) + 1);
+
+	return (cp - buf);
+}
+
+/*
+ * Construct variable data (RDATA) block for OPT psuedo-RR, append it
+ * to the buffer, then update the RDLEN field (previously set to zero by
+ * res_nopt()) with the new RDATA length.
+ */
+int
+res_nopt_rdata(res_state statp,
+	  int n0,	 	/*%< current offset in buffer */
+	  u_char *buf,	 	/*%< buffer to put query */
+	  int buflen,		/*%< size of buffer */
+	  u_char *rdata,	/*%< ptr to start of opt rdata */
+	  u_short code,		/*%< OPTION-CODE */
+	  u_short len,		/*%< OPTION-LENGTH */
+	  u_char *data)		/*%< OPTION_DATA */
+{
+	register u_char *cp, *ep;
+
+#ifdef DEBUG
+	if ((statp->options & RES_DEBUG) != 0U)
+		printf(";; res_nopt_rdata()\n");
+#endif
+
+	cp = buf + n0;
+	ep = buf + buflen;
+
+	if ((ep - cp) < (4 + len))
+		return (-1);
+
+	if (rdata < (buf + 2) || rdata >= ep)
+		return (-1);
+
+	ns_put16(code, cp);
+	cp += INT16SZ;
+
+	ns_put16(len, cp);
+	cp += INT16SZ;
+
+	memcpy(cp, data, len);
+	cp += len;
+
+	len = cp - rdata;
+	ns_put16(len, rdata - 2);	/* Update RDLEN field */
 
 	return (cp - buf);
 }

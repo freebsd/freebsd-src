@@ -348,18 +348,60 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nfs_realign(&mreq);
 
 	/*
-	 * Note: we want rq_addr, not svc_getrpccaller -
+	 * Note: we want rq_addr, not svc_getrpccaller for nd_nam2 -
 	 * NFS_SRVMAXDATA uses a NULL value for nd_nam2 to detect TCP
 	 * mounts.
 	 */
 	memset(&nd, 0, sizeof(nd));
 	nd.nd_md = nd.nd_mrep = mreq;
 	nd.nd_dpos = mtod(mreq, caddr_t);
-	nd.nd_nam = (struct sockaddr *) &xprt->xp_ltaddr;
+	nd.nd_nam = svc_getrpccaller(rqst);
 	nd.nd_nam2 = rqst->rq_addr;
 	nd.nd_procnum = procnum;
 	nd.nd_cr = NULL;
 	nd.nd_flag = flag;
+
+	if (nfs_privport) {
+		/* Check if source port is privileged */
+		u_short port;
+		struct sockaddr *nam = nd.nd_nam;
+		struct sockaddr_in *sin;
+
+		sin = (struct sockaddr_in *)nam;
+		/*
+		 * INET/INET6 - same code:
+		 *    sin_port and sin6_port are at same offset
+		 */
+		port = ntohs(sin->sin_port);
+		if (port >= IPPORT_RESERVED &&
+		    nd.nd_procnum != NFSPROC_NULL) {
+#ifdef INET6
+			char b6[INET6_ADDRSTRLEN];
+#if defined(KLD_MODULE)
+			/* Do not use ip6_sprintf: the nfs module should work without INET6. */
+#define ip6_sprintf(buf, a)						\
+			(sprintf((buf), "%x:%x:%x:%x:%x:%x:%x:%x",	\
+			    (a)->s6_addr16[0], (a)->s6_addr16[1],	\
+			    (a)->s6_addr16[2], (a)->s6_addr16[3],	\
+			    (a)->s6_addr16[4], (a)->s6_addr16[5],	\
+			    (a)->s6_addr16[6], (a)->s6_addr16[7]),	\
+			    (buf))
+#endif
+#endif
+			printf("NFS request from unprivileged port (%s:%d)\n",
+#ifdef INET6
+			    sin->sin_family == AF_INET6 ?
+			    ip6_sprintf(b6, &satosin6(sin)->sin6_addr) :
+#if defined(KLD_MODULE)
+#undef ip6_sprintf
+#endif
+#endif
+			    inet_ntoa(sin->sin_addr), port);
+			svcerr_weakauth(rqst);
+			svc_freereq(rqst);
+			return;
+		}
+	}
 
 	if (proc != nfsrv_null) {
 		if (!svc_getcred(rqst, &nd.nd_cr, &nd.nd_credflavor)) {

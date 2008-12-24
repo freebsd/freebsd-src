@@ -431,7 +431,6 @@ ustorage_fs_transfer_start(struct ustorage_fs_softc *sc, uint8_t xfer_index)
 		sc->sc_last_xfer_index = xfer_index;
 		usb2_transfer_start(sc->sc_xfer[xfer_index]);
 	}
-	return;
 }
 
 static void
@@ -441,7 +440,6 @@ ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc)
 	mtx_unlock(&sc->sc_mtx);
 	usb2_transfer_drain(sc->sc_xfer[sc->sc_last_xfer_index]);
 	mtx_lock(&sc->sc_mtx);
-	return;
 }
 
 static int
@@ -608,7 +606,6 @@ tr_setup:
 		}
 		ustorage_fs_transfer_start(sc, USTORAGE_FS_T_BBB_STATUS);
 	}
-	return;
 }
 
 static void
@@ -661,7 +658,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 static void
@@ -715,7 +711,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 static void
@@ -778,7 +773,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 static void
@@ -821,7 +815,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 /* SCSI commands that we recognize */

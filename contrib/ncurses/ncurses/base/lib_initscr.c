@@ -45,7 +45,7 @@
 #include <sys/termio.h>		/* needed for ISC */
 #endif
 
-MODULE_ID("$Id: lib_initscr.c,v 1.36 2008/04/12 18:11:36 tom Exp $")
+MODULE_ID("$Id: lib_initscr.c,v 1.38 2008/08/16 21:20:48 Werner.Fink Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 initscr(void)
@@ -57,7 +57,9 @@ initscr(void)
     START_TRACE();
     T((T_CALLED("initscr()")));
 
-    _nc_lock_global(set_SP);
+    _nc_init_pthreads();
+    _nc_lock_global(curses);
+
     /* Portable applications must not call initscr() more than once */
     if (!_nc_globals.init_screen) {
 	_nc_globals.init_screen = TRUE;
@@ -91,7 +93,7 @@ initscr(void)
 	def_prog_mode();
     }
     result = stdscr;
-    _nc_unlock_global(set_SP);
+    _nc_unlock_global(curses);
 
     returnWin(result);
 }

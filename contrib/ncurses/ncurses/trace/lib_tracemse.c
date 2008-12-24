@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,14 +38,14 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracemse.c,v 1.13 2007/04/21 21:23:00 tom Exp $")
+MODULE_ID("$Id: lib_tracemse.c,v 1.15 2008/08/03 15:39:29 tom Exp $")
 
 #ifdef TRACE
 
-#define my_buffer _nc_globals.tracemse_buf
+#define my_buffer sp->tracemse_buf
 
 NCURSES_EXPORT(char *)
-_tracemouse(MEVENT const *ep)
+_nc_tracemouse(SCREEN *sp, MEVENT const *ep)
 {
     (void) sprintf(my_buffer, TRACEMSE_FMT,
 		   ep->id,
@@ -114,6 +114,12 @@ _tracemouse(MEVENT const *ep)
     return (my_buffer);
 }
 
+NCURSES_EXPORT(char *)
+_tracemouse(MEVENT const *ep)
+{
+    return _nc_tracemouse(SP, ep);
+}
+
 #else /* !TRACE */
-empty_module(_nc_lib_tracemouse)
+EMPTY_MODULE(_nc_lib_tracemouse)
 #endif

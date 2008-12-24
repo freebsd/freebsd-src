@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/vinet.h>
 
 /* Defs */
 #define	TRUE	1

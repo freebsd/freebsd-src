@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/Makefile.in#5 $
+# $P4: //depot/projects/trustedbsd/openbsm/Makefile.in#8 $
 #
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
@@ -38,7 +38,7 @@ host_triplet = @host@
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/config/config.h.in \
-	$(top_srcdir)/configure TODO config/config.guess \
+	$(top_srcdir)/configure INSTALL NEWS TODO config/config.guess \
 	config/config.sub config/depcomp config/install-sh \
 	config/ltmain.sh config/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -116,6 +116,7 @@ LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
+MIG = @MIG@
 MKDIR_P = @MKDIR_P@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -187,7 +188,8 @@ SUBDIRS = \
 	libbsm		\
 	bin		\
 	man		\
-	modules
+	modules		\
+	sys
 
 EXTRA_DIST = \
 	CHANGELOG	\

@@ -125,19 +125,19 @@ __FBSDID("$FreeBSD$");
 #define	LPMAXERRS	100
 #endif
 
-#define CLPIPHDRLEN	14	/* We send dummy ethernet addresses (two) + packet type in front of packet */
+#define	CLPIPHDRLEN	14	/* We send dummy ethernet addresses (two) + packet type in front of packet */
 #define	CLPIP_SHAKE	0x80	/* This bit toggles between nibble reception */
-#define MLPIPHDRLEN	CLPIPHDRLEN
+#define	MLPIPHDRLEN	CLPIPHDRLEN
 
-#define LPIPHDRLEN	2	/* We send 0x08, 0x00 in front of packet */
+#define	LPIPHDRLEN	2	/* We send 0x08, 0x00 in front of packet */
 #define	LPIP_SHAKE	0x40	/* This bit toggles between nibble reception */
 #if !defined(MLPIPHDRLEN) || LPIPHDRLEN > MLPIPHDRLEN
-#define MLPIPHDRLEN	LPIPHDRLEN
+#define	MLPIPHDRLEN	LPIPHDRLEN
 #endif
 
 #define	LPIPTBLSIZE	256	/* Size of octet translation table */
 
-#define lprintf		if (lptflag) printf
+#define	lprintf		if (lptflag) printf
 
 #ifdef PLIP_DEBUG
 static int volatile lptflag = 1;
@@ -156,14 +156,14 @@ struct lp_data {
 
 /* Tables for the lp# interface */
 static u_char *txmith;
-#define txmitl (txmith + (1 * LPIPTBLSIZE))
-#define trecvh (txmith + (2 * LPIPTBLSIZE))
-#define trecvl (txmith + (3 * LPIPTBLSIZE))
+#define	txmitl (txmith + (1 * LPIPTBLSIZE))
+#define	trecvh (txmith + (2 * LPIPTBLSIZE))
+#define	trecvl (txmith + (3 * LPIPTBLSIZE))
 
 static u_char *ctxmith;
-#define ctxmitl (ctxmith + (1 * LPIPTBLSIZE))
-#define ctrecvh (ctxmith + (2 * LPIPTBLSIZE))
-#define ctrecvl (ctxmith + (3 * LPIPTBLSIZE))
+#define	ctxmitl (ctxmith + (1 * LPIPTBLSIZE))
+#define	ctrecvh (ctxmith + (2 * LPIPTBLSIZE))
+#define	ctrecvl (ctxmith + (3 * LPIPTBLSIZE))
 
 /* Functions for the lp# interface */
 static int lpinittables(void);
@@ -172,7 +172,7 @@ static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
 static void lp_intr(void *);
 
-#define DEVTOSOFTC(dev) \
+#define	DEVTOSOFTC(dev) \
 	((struct lp_data *)device_get_softc(dev))
 
 static devclass_t lp_devclass;
@@ -254,7 +254,7 @@ lpinittables(void)
 		return (1);
 
 	if (ctxmith == NULL)
-	ctxmith = malloc(4*LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
+		ctxmith = malloc(4 * LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
 
 	if (ctxmith == NULL)
 		return (1);
@@ -446,7 +446,7 @@ static void
 lp_intr(void *arg)
 {
 	device_t dev = (device_t)arg;
-        device_t ppbus = device_get_parent(dev);
+	device_t ppbus = device_get_parent(dev);
 	struct lp_data *sc = DEVTOSOFTC(dev);
 	int len, s, j;
 	u_char *bp;
@@ -559,7 +559,7 @@ lp_intr(void *arg)
 	}
 	goto done;
 
-    err:
+err:
 	ppb_wdtr(ppbus, 0);
 	lprintf("R");
 	sc->sc_ifp->if_ierrors++;
@@ -576,12 +576,12 @@ lp_intr(void *arg)
 		sc->sc_iferrs = 0;
 	}
 
-    done:
+done:
 	splx(s);
 }
 
 static __inline int
-lpoutbyte (u_char byte, int spin, device_t ppbus)
+lpoutbyte(u_char byte, int spin, device_t ppbus)
 {
 
 	ppb_wdtr(ppbus, txmith[byte]);

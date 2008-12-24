@@ -88,7 +88,7 @@ extern size_t ereport_dumplen;
 
 extern void fm_init(void);
 extern void fm_nvprint(nvlist_t *);
-extern void fm_panic(const char *, ...);
+#define	fm_panic	panic
 extern void fm_banner(void);
 
 extern void fm_ereport_dump(void);

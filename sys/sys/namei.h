@@ -66,7 +66,7 @@ struct nameidata {
 	/*
 	 * Arguments to lookup.
 	 */
-	struct	vnode *ni_startdir;	/* starting directory */
+	struct  vnode *ni_startdir;	/* starting directory */
 	struct	vnode *ni_rootdir;	/* logical root directory */
 	struct	vnode *ni_topdir;	/* logical top directory */
 	int	ni_dirfd;		/* starting directory for *at functions */
@@ -149,15 +149,20 @@ struct nameidata {
 /*
  * Initialization of a nameidata structure.
  */
-#define	NDINIT(ndp, op, flags, segflg, namep, td)	\
-	NDINIT_AT(ndp, op, flags, segflg, namep, AT_FDCWD, td)
+#define	NDINIT(ndp, op, flags, segflg, namep, td)			\
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, td)
+#define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd, td)		\
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, td)
+#define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, td)
 
 static __inline void
-NDINIT_AT(struct nameidata *ndp,
+NDINIT_ALL(struct nameidata *ndp,
 	u_long op, u_long flags,
 	enum uio_seg segflg,
 	const char *namep,
 	int dirfd,
+	struct vnode *startdir,
 	struct thread *td)
 {
 	ndp->ni_cnd.cn_nameiop = op;
@@ -165,6 +170,7 @@ NDINIT_AT(struct nameidata *ndp,
 	ndp->ni_segflg = segflg;
 	ndp->ni_dirp = namep;
 	ndp->ni_dirfd = dirfd;
+	ndp->ni_startdir = startdir;
 	ndp->ni_cnd.cn_thread = td;
 }
 

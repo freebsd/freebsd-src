@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/bplist.h>
 #include <sys/zfs_context.h>
@@ -47,7 +45,7 @@ bplist_create(objset_t *mos, int blocksize, dmu_tx_t *tx)
 {
 	int size;
 
-	size = spa_version(dmu_objset_spa(mos)) < ZFS_VERSION_BPLIST_ACCOUNT ?
+	size = spa_version(dmu_objset_spa(mos)) < SPA_VERSION_BPLIST_ACCOUNT ?
 	    BPLIST_SIZE_V0 : sizeof (bplist_phys_t);
 
 	return (dmu_object_alloc(mos, DMU_OT_BPLIST, blocksize,
@@ -181,7 +179,7 @@ bplist_iterate(bplist_t *bpl, uint64_t *itorp, blkptr_t *bp)
 }
 
 int
-bplist_enqueue(bplist_t *bpl, blkptr_t *bp, dmu_tx_t *tx)
+bplist_enqueue(bplist_t *bpl, const blkptr_t *bp, dmu_tx_t *tx)
 {
 	uint64_t blk, off;
 	blkptr_t *bparray;
@@ -229,7 +227,7 @@ bplist_enqueue(bplist_t *bpl, blkptr_t *bp, dmu_tx_t *tx)
  * Deferred entry; will be written later by bplist_sync().
  */
 void
-bplist_enqueue_deferred(bplist_t *bpl, blkptr_t *bp)
+bplist_enqueue_deferred(bplist_t *bpl, const blkptr_t *bp)
 {
 	bplist_q_t *bpq = kmem_alloc(sizeof (*bpq), KM_SLEEP);
 
@@ -278,9 +276,7 @@ bplist_vacate(bplist_t *bpl, dmu_tx_t *tx)
 int
 bplist_space(bplist_t *bpl, uint64_t *usedp, uint64_t *compp, uint64_t *uncompp)
 {
-	uint64_t itor = 0, comp = 0, uncomp = 0;
 	int err;
-	blkptr_t bp;
 
 	mutex_enter(&bpl->bpl_lock);
 
@@ -298,6 +294,9 @@ bplist_space(bplist_t *bpl, uint64_t *usedp, uint64_t *compp, uint64_t *uncompp)
 	mutex_exit(&bpl->bpl_lock);
 
 	if (!bpl->bpl_havecomp) {
+		uint64_t itor = 0, comp = 0, uncomp = 0;
+		blkptr_t bp;
+
 		while ((err = bplist_iterate(bpl, &itor, &bp)) == 0) {
 			comp += BP_GET_PSIZE(&bp);
 			uncomp += BP_GET_UCSIZE(&bp);
@@ -308,5 +307,43 @@ bplist_space(bplist_t *bpl, uint64_t *usedp, uint64_t *compp, uint64_t *uncompp)
 		*uncompp = uncomp;
 	}
 
+	return (err);
+}
+
+/*
+ * Return (in *dasizep) the amount of space on the deadlist which is:
+ * mintxg < blk_birth <= maxtxg
+ */
+int
+bplist_space_birthrange(bplist_t *bpl, uint64_t mintxg, uint64_t maxtxg,
+    uint64_t *dasizep)
+{
+	uint64_t size = 0;
+	uint64_t itor = 0;
+	blkptr_t bp;
+	int err;
+
+	/*
+	 * As an optimization, if they want the whole txg range, just
+	 * get bpl_bytes rather than iterating over the bps.
+	 */
+	if (mintxg < TXG_INITIAL && maxtxg == UINT64_MAX) {
+		mutex_enter(&bpl->bpl_lock);
+		err = bplist_hold(bpl);
+		if (err == 0)
+			*dasizep = bpl->bpl_phys->bpl_bytes;
+		mutex_exit(&bpl->bpl_lock);
+		return (err);
+	}
+
+	while ((err = bplist_iterate(bpl, &itor, &bp)) == 0) {
+		if (bp.blk_birth > mintxg && bp.blk_birth <= maxtxg) {
+			size +=
+			    bp_get_dasize(dmu_objset_spa(bpl->bpl_mos), &bp);
+		}
+	}
+	if (err == ENOENT)
+		err = 0;
+	*dasizep = size;
 	return (err);
 }

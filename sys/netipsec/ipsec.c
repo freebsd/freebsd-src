@@ -97,23 +97,25 @@
 
 #include <opencrypto/cryptodev.h>
 
-#ifdef IPSEC_DEBUG
-int ipsec_debug = 1;
-#else
-int ipsec_debug = 0;
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+struct vnet_ipsec vnet_ipsec_0;
+#endif
 #endif
 
+#ifdef VIMAGE_GLOBALS
 /* NB: name changed so netstat doesn't use it */
 struct ipsecstat ipsec4stat;
-int ip4_ah_offsetmask = 0;	/* maybe IP_DF? */
-int ip4_ipsec_dfbit = 0;	/* DF bit on encap. 0: clear 1: set 2: copy */
-int ip4_esp_trans_deflev = IPSEC_LEVEL_USE;
-int ip4_esp_net_deflev = IPSEC_LEVEL_USE;
-int ip4_ah_trans_deflev = IPSEC_LEVEL_USE;
-int ip4_ah_net_deflev = IPSEC_LEVEL_USE;
 struct secpolicy ip4_def_policy;
-int ip4_ipsec_ecn = 0;		/* ECN ignore(-1)/forbidden(0)/allowed(1) */
-int ip4_esp_randpad = -1;
+int ipsec_debug;
+int ip4_ah_offsetmask;
+int ip4_ipsec_dfbit;
+int ip4_esp_trans_deflev;
+int ip4_esp_net_deflev;
+int ip4_ah_trans_deflev;
+int ip4_ah_net_deflev;
+int ip4_ipsec_ecn;
+int ip4_esp_randpad;
 /*
  * Crypto support requirements:
  *
@@ -121,7 +123,8 @@ int ip4_esp_randpad = -1;
  * -1	require software support
  *  0	take anything
  */
-int	crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+int	crypto_support;
+#endif /* VIMAGE_GLOBALS */
 
 SYSCTL_DECL(_net_inet_ipsec);
 
@@ -164,29 +167,33 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
 	"IPsec IPv4 statistics.");
 
 #ifdef REGRESSION
+#ifdef VIMAGE_GLOBALS
+int ipsec_replay;
+int ipsec_integrity;
+#endif
 /*
  * When set to 1, IPsec will send packets with the same sequence number.
  * This allows to verify if the other side has proper replay attacks detection.
  */
-int ipsec_replay = 0;
 SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_ipsec, OID_AUTO, test_replay,
 	CTLFLAG_RW, ipsec_replay, 0, "Emulate replay attack");
 /*
  * When set 1, IPsec will send packets with corrupted HMAC.
  * This allows to verify if the other side properly detects modified packets.
  */
-int ipsec_integrity = 0;
 SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_ipsec, OID_AUTO, test_integrity,
 	CTLFLAG_RW, ipsec_integrity, 0, "Emulate man-in-the-middle attack");
 #endif
 
 #ifdef INET6 
+#ifdef VIMAGE_GLOBALS
 struct ipsecstat ipsec6stat;
-int ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
-int ip6_esp_net_deflev = IPSEC_LEVEL_USE;
-int ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
-int ip6_ah_net_deflev = IPSEC_LEVEL_USE;
-int ip6_ipsec_ecn = 0;		/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+int ip6_esp_trans_deflev;
+int ip6_esp_net_deflev;
+int ip6_ah_trans_deflev;
+int ip6_ah_net_deflev;
+int ip6_ipsec_ecn;
+#endif
 
 SYSCTL_DECL(_net_inet6_ipsec6);
 
@@ -223,7 +230,7 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_STATS,
 
 static int ipsec4_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
 #ifdef INET6
-static int ipsec6_setspidx_in6pcb __P((struct mbuf *, struct in6pcb *pcb));
+static int ipsec6_setspidx_in6pcb __P((struct mbuf *, struct inpcb *pcb));
 #endif
 static int ipsec_setspidx __P((struct mbuf *, struct secpolicyindex *, int));
 static void ipsec4_get_ulp __P((struct mbuf *m, struct secpolicyindex *, int));
@@ -241,6 +248,42 @@ static void vshiftl __P((unsigned char *, int, int));
 static size_t ipsec_hdrsiz __P((struct secpolicy *));
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
+
+void
+ipsec_init(void)
+{
+	INIT_VNET_IPSEC(curvnet);
+
+#ifdef IPSEC_DEBUG
+	V_ipsec_debug = 1;
+#else
+	V_ipsec_debug = 0;
+#endif
+
+	V_ip4_ah_offsetmask = 0;	/* maybe IP_DF? */
+	V_ip4_ipsec_dfbit = 0;	/* DF bit on encap. 0: clear 1: set 2: copy */
+	V_ip4_esp_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip4_esp_net_deflev = IPSEC_LEVEL_USE;
+	V_ip4_ah_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip4_ah_net_deflev = IPSEC_LEVEL_USE;
+	V_ip4_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+	V_ip4_esp_randpad = -1;
+
+	V_crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+
+#ifdef REGRESSION
+	V_ipsec_replay = 0;
+	V_ipsec_integrity = 0;
+#endif
+
+#ifdef INET6 
+	V_ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip6_esp_net_deflev = IPSEC_LEVEL_USE;
+	V_ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip6_ah_net_deflev = IPSEC_LEVEL_USE;
+	V_ip6_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+#endif
+}
 
 /*
  * Return a held reference to the default SP.
@@ -333,7 +376,7 @@ ipsec_getpolicybysock(m, dir, inp, error)
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 #ifdef INET6
 		*error = ipsec6_setspidx_in6pcb(m, inp);
-		pcbsp = inp->in6p_sp;
+		pcbsp = inp->inp_sp;
 #else
 		*error = EINVAL;		/* should not happen */
 #endif
@@ -535,27 +578,27 @@ ipsec4_setspidx_inpcb(m, pcb)
 static int
 ipsec6_setspidx_in6pcb(m, pcb)
 	struct mbuf *m;
-	struct in6pcb *pcb;
+	struct inpcb *pcb;
 {
 	//INIT_VNET_IPSEC(curvnet);
 	struct secpolicyindex *spidx;
 	int error;
 
 	IPSEC_ASSERT(pcb != NULL, ("null pcb"));
-	IPSEC_ASSERT(pcb->in6p_sp != NULL, ("null inp_sp"));
-	IPSEC_ASSERT(pcb->in6p_sp->sp_out != NULL && pcb->in6p_sp->sp_in != NULL,
+	IPSEC_ASSERT(pcb->inp_sp != NULL, ("null inp_sp"));
+	IPSEC_ASSERT(pcb->inp_sp->sp_out != NULL && pcb->inp_sp->sp_in != NULL,
 		("null sp_in || sp_out"));
 
-	bzero(&pcb->in6p_sp->sp_in->spidx, sizeof(*spidx));
-	bzero(&pcb->in6p_sp->sp_out->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_in->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_out->spidx, sizeof(*spidx));
 
-	spidx = &pcb->in6p_sp->sp_in->spidx;
+	spidx = &pcb->inp_sp->sp_in->spidx;
 	error = ipsec_setspidx(m, spidx, 1);
 	if (error)
 		goto bad;
 	spidx->dir = IPSEC_DIR_INBOUND;
 
-	spidx = &pcb->in6p_sp->sp_out->spidx;
+	spidx = &pcb->inp_sp->sp_out->spidx;
 	error = ipsec_setspidx(m, spidx, 1);
 	if (error)
 		goto bad;
@@ -564,8 +607,8 @@ ipsec6_setspidx_in6pcb(m, pcb)
 	return 0;
 
 bad:
-	bzero(&pcb->in6p_sp->sp_in->spidx, sizeof(*spidx));
-	bzero(&pcb->in6p_sp->sp_out->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_in->spidx, sizeof(*spidx));
+	bzero(&pcb->inp_sp->sp_out->spidx, sizeof(*spidx));
 	return error;
 }
 #endif
@@ -1179,7 +1222,7 @@ ipsec4_get_policy(inp, request, len, mp)
 
 /* delete policy in PCB */
 int
-ipsec4_delete_pcbpolicy(inp)
+ipsec_delete_pcbpolicy(inp)
 	struct inpcb *inp;
 {
 	IPSEC_ASSERT(inp != NULL, ("null inp"));
@@ -1202,7 +1245,7 @@ ipsec4_delete_pcbpolicy(inp)
 #ifdef INET6
 int
 ipsec6_set_policy(in6p, optname, request, len, cred)
-	struct in6pcb *in6p;
+	struct inpcb *in6p;
 	int optname;
 	caddr_t request;
 	size_t len;
@@ -1222,10 +1265,10 @@ ipsec6_set_policy(in6p, optname, request, len, cred)
 	/* select direction */
 	switch (xpl->sadb_x_policy_dir) {
 	case IPSEC_DIR_INBOUND:
-		pcb_sp = &in6p->in6p_sp->sp_in;
+		pcb_sp = &in6p->inp_sp->sp_in;
 		break;
 	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = &in6p->in6p_sp->sp_out;
+		pcb_sp = &in6p->inp_sp->sp_out;
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
@@ -1238,7 +1281,7 @@ ipsec6_set_policy(in6p, optname, request, len, cred)
 
 int
 ipsec6_get_policy(in6p, request, len, mp)
-	struct in6pcb *in6p;
+	struct inpcb *in6p;
 	caddr_t request;
 	size_t len;
 	struct mbuf **mp;
@@ -1250,7 +1293,7 @@ ipsec6_get_policy(in6p, request, len, mp)
 	/* sanity check. */
 	if (in6p == NULL || request == NULL || mp == NULL)
 		return EINVAL;
-	IPSEC_ASSERT(in6p->in6p_sp != NULL, ("null in6p_sp"));
+	IPSEC_ASSERT(in6p->inp_sp != NULL, ("null inp_sp"));
 	if (len < sizeof(*xpl))
 		return EINVAL;
 	xpl = (struct sadb_x_policy *)request;
@@ -1258,10 +1301,10 @@ ipsec6_get_policy(in6p, request, len, mp)
 	/* select direction */
 	switch (xpl->sadb_x_policy_dir) {
 	case IPSEC_DIR_INBOUND:
-		pcb_sp = in6p->in6p_sp->sp_in;
+		pcb_sp = in6p->inp_sp->sp_in;
 		break;
 	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = in6p->in6p_sp->sp_out;
+		pcb_sp = in6p->inp_sp->sp_out;
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
@@ -1270,27 +1313,6 @@ ipsec6_get_policy(in6p, request, len, mp)
 	}
 
 	return ipsec_get_policy(pcb_sp, mp);
-}
-
-int
-ipsec6_delete_pcbpolicy(in6p)
-	struct in6pcb *in6p;
-{
-	IPSEC_ASSERT(in6p != NULL, ("null in6p"));
-
-	if (in6p->in6p_sp == NULL)
-		return 0;
-
-	if (in6p->in6p_sp->sp_in != NULL)
-		KEY_FREESP(&in6p->in6p_sp->sp_in);
-
-	if (in6p->in6p_sp->sp_out != NULL)
-		KEY_FREESP(&in6p->in6p_sp->sp_out);
-
-	ipsec_delpcbpolicy(in6p->in6p_sp);
-	in6p->in6p_sp = NULL;
-
-	return 0;
 }
 #endif
 
@@ -1662,7 +1684,7 @@ size_t
 ipsec6_hdrsiz(m, dir, in6p)
 	struct mbuf *m;
 	u_int dir;
-	struct in6pcb *in6p;
+	struct inpcb *in6p;
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
@@ -1670,7 +1692,7 @@ ipsec6_hdrsiz(m, dir, in6p)
 	size_t size;
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(in6p == NULL || in6p->in6p_socket != NULL,
+	IPSEC_ASSERT(in6p == NULL || in6p->inp_socket != NULL,
 		("socket w/o inpcb"));
 
 	/* get SP for this packet */
@@ -1972,7 +1994,7 @@ static void
 ipsec_attach(void)
 {
 	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
-	ip4_def_policy.refcnt = 1;			/* NB: disallow free */
+	V_ip4_def_policy.refcnt = 1;			/* NB: disallow free */
 }
 SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL);
 

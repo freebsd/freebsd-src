@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_SYS_DSL_DIR_H
 #define	_SYS_DSL_DIR_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/dmu.h>
 #include <sys/dsl_pool.h>
@@ -40,11 +38,22 @@ extern "C" {
 
 struct dsl_dataset;
 
+typedef enum dd_used {
+	DD_USED_HEAD,
+	DD_USED_SNAP,
+	DD_USED_CHILD,
+	DD_USED_CHILD_RSRV,
+	DD_USED_REFRSRV,
+	DD_USED_NUM
+} dd_used_t;
+
+#define	DD_FLAG_USED_BREAKDOWN (1<<0)
+
 typedef struct dsl_dir_phys {
 	uint64_t dd_creation_time; /* not actually used */
 	uint64_t dd_head_dataset_obj;
 	uint64_t dd_parent_obj;
-	uint64_t dd_clone_parent_obj;
+	uint64_t dd_origin_obj;
 	uint64_t dd_child_dir_zapobj;
 	/*
 	 * how much space our children are accounting for; for leaf
@@ -58,7 +67,10 @@ typedef struct dsl_dir_phys {
 	/* Administrative reservation setting */
 	uint64_t dd_reserved;
 	uint64_t dd_props_zapobj;
-	uint64_t dd_pad[21]; /* pad out to 256 bytes for good measure */
+	uint64_t dd_deleg_zapobj; /* dataset delegation permissions */
+	uint64_t dd_flags;
+	uint64_t dd_used_breakdown[DD_USED_NUM];
+	uint64_t dd_pad[14]; /* pad out to 256 bytes for good measure */
 } dsl_dir_phys_t;
 
 struct dsl_dir {
@@ -78,9 +90,6 @@ struct dsl_dir {
 	kmutex_t dd_lock;
 	list_t dd_prop_cbs; /* list of dsl_prop_cb_record_t's */
 
-	/* Accounting */
-	/* reflects any changes to dd_phys->dd_used_bytes made this syncing */
-	int64_t dd_used_bytes;
 	/* gross estimate of space used by in-flight tx's */
 	uint64_t dd_tempreserved[TXG_SIZE];
 	/* amount of space we expect to write; == amount of dirty data */
@@ -99,8 +108,8 @@ int dsl_dir_open_obj(dsl_pool_t *dp, uint64_t ddobj,
 void dsl_dir_name(dsl_dir_t *dd, char *buf);
 int dsl_dir_namelen(dsl_dir_t *dd);
 int dsl_dir_is_private(dsl_dir_t *dd);
-uint64_t dsl_dir_create_sync(dsl_dir_t *pds, const char *name, dmu_tx_t *tx);
-void dsl_dir_create_root(objset_t *mos, uint64_t *ddobjp, dmu_tx_t *tx);
+uint64_t dsl_dir_create_sync(dsl_pool_t *dp, dsl_dir_t *pds,
+    const char *name, dmu_tx_t *tx);
 dsl_checkfunc_t dsl_dir_destroy_check;
 dsl_syncfunc_t dsl_dir_destroy_sync;
 void dsl_dir_stats(dsl_dir_t *dd, nvlist_t *nv);
@@ -109,18 +118,26 @@ uint64_t dsl_dir_space_available(dsl_dir_t *dd,
 void dsl_dir_dirty(dsl_dir_t *dd, dmu_tx_t *tx);
 void dsl_dir_sync(dsl_dir_t *dd, dmu_tx_t *tx);
 int dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t mem,
-    uint64_t asize, uint64_t fsize, void **tr_cookiep, dmu_tx_t *tx);
+    uint64_t asize, uint64_t fsize, uint64_t usize, void **tr_cookiep,
+    dmu_tx_t *tx);
 void dsl_dir_tempreserve_clear(void *tr_cookie, dmu_tx_t *tx);
 void dsl_dir_willuse_space(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx);
-void dsl_dir_diduse_space(dsl_dir_t *dd,
+void dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
     int64_t used, int64_t compressed, int64_t uncompressed, dmu_tx_t *tx);
+void dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
+    dd_used_t oldtype, dd_used_t newtype, dmu_tx_t *tx);
 int dsl_dir_set_quota(const char *ddname, uint64_t quota);
 int dsl_dir_set_reservation(const char *ddname, uint64_t reservation);
 int dsl_dir_rename(dsl_dir_t *dd, const char *newname);
 int dsl_dir_transfer_possible(dsl_dir_t *sdd, dsl_dir_t *tdd, uint64_t space);
+int dsl_dir_set_reservation_check(void *arg1, void *arg2, dmu_tx_t *tx);
+boolean_t dsl_dir_is_clone(dsl_dir_t *dd);
+void dsl_dir_new_refreservation(dsl_dir_t *dd, struct dsl_dataset *ds,
+    uint64_t reservation, cred_t *cr, dmu_tx_t *tx);
 
 /* internal reserved dir name */
 #define	MOS_DIR_NAME "$MOS"
+#define	ORIGIN_DIR_NAME "$ORIGIN"
 
 #ifdef ZFS_DEBUG
 #define	dprintf_dd(dd, fmt, ...) do { \

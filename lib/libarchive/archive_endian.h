@@ -35,14 +35,14 @@
 #define ARCHIVE_ENDIAN_H_INCLUDED
 
 
-/* Watcom C++ doesn't support 'inline' in C code.  (For any version?) */
-#if defined( __WATCOMC__ )
-	#define	inline
-#endif
-
-/* Visual C++ 6.0 doesn't support 'inline' in C code.  (Does VC7? VC8?) */
-#if defined(_MSC_VER)
-	#define	inline
+/*
+ * Disabling inline keyword for compilers known to choke on it:
+ * - Watcom C++ in C code.  (For any version?)
+ * - SGI MIPSpro
+ * - Microsoft Visual C++ 6.0 (supposedly newer versions too)
+ */
+#if defined(__WATCOMC__) || defined(__sgi) || defined(_MSC_VER)
+#define	inline
 #endif
 
 /* Alignment-agnostic encode/decode bytestream to/from little/big endian. */

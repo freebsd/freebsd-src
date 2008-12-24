@@ -29,7 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey 1996 on                                        *
+ *     and: Thomas E. Dickey                        1996 on                 *
  ****************************************************************************/
 
 #define __INTERNAL_CAPS_VISIBLE
@@ -39,11 +39,13 @@
 #include "termsort.c"		/* this C file is generated */
 #include <parametrized.h>	/* so is this */
 
-MODULE_ID("$Id: dump_entry.c,v 1.82 2008/04/19 22:27:04 tom Exp $")
+MODULE_ID("$Id: dump_entry.c,v 1.88 2008/08/04 12:36:12 tom Exp $")
 
 #define INDENT			8
 #define DISCARD(string) string = ABSENT_STRING
 #define PRINTF (void) printf
+
+#define OkIndex(index,array) ((int)(index) >= 0 && (int)(index) < (int) SIZEOF(array))
 
 typedef struct {
     char *text;
@@ -140,6 +142,11 @@ _nc_leaks_dump_entry(void)
 }
 #endif
 
+#define NameTrans(check,result) \
+	    if (OkIndex(np->nte_index, check) \
+		&& check[np->nte_index]) \
+		return (result[np->nte_index])
+
 NCURSES_CONST char *
 nametrans(const char *name)
 /* translate a capability name from termcap to terminfo */
@@ -149,18 +156,15 @@ nametrans(const char *name)
     if ((np = _nc_find_entry(name, _nc_get_hash_table(0))) != 0)
 	switch (np->nte_type) {
 	case BOOLEAN:
-	    if (bool_from_termcap[np->nte_index])
-		return (boolcodes[np->nte_index]);
+	    NameTrans(bool_from_termcap, boolcodes);
 	    break;
 
 	case NUMBER:
-	    if (num_from_termcap[np->nte_index])
-		return (numcodes[np->nte_index]);
+	    NameTrans(num_from_termcap, numcodes);
 	    break;
 
 	case STRING:
-	    if (str_from_termcap[np->nte_index])
-		return (strcodes[np->nte_index]);
+	    NameTrans(str_from_termcap, strcodes);
 	    break;
 	}
 
@@ -293,9 +297,9 @@ static void set_obsolete_termcaps(TERMTYPE *tp);
  * If we configure with a different Caps file, the offsets into the arrays
  * will change.  So we use an address expression.
  */
-#define BOOL_IDX(name) (&(name) - &(CUR Booleans[0]))
-#define NUM_IDX(name)  (&(name) - &(CUR Numbers[0]))
-#define STR_IDX(name)  (&(name) - &(CUR Strings[0]))
+#define BOOL_IDX(name) (PredType) (&(name) - &(CUR Booleans[0]))
+#define NUM_IDX(name)  (PredType) (&(name) - &(CUR Numbers[0]))
+#define STR_IDX(name)  (PredType) (&(name) - &(CUR Strings[0]))
 
 static bool
 version_filter(PredType type, PredIdx idx)
@@ -352,7 +356,7 @@ version_filter(PredType type, PredIdx idx)
 	}
 	break;
 
-#define is_termcap(type) (idx < (int) sizeof(type##_from_termcap) && \
+#define is_termcap(type) (OkIndex(idx, type##_from_termcap) && \
 			  type##_from_termcap[idx])
 
     case V_BSD:		/* BSD */
@@ -389,22 +393,22 @@ force_wrap(void)
 static void
 wrap_concat(const char *src)
 {
-    int need = strlen(src);
-    int want = strlen(separator) + need;
+    unsigned need = strlen(src);
+    unsigned want = strlen(separator) + need;
 
     if (column > INDENT
-	&& column + want > width) {
+	&& column + (int) want > width) {
 	force_wrap();
     }
     strcpy_DYN(&outbuf, src);
     strcpy_DYN(&outbuf, separator);
-    column += need;
+    column += (int) need;
 }
 
 #define IGNORE_SEP_TRAIL(first,last,sep_trail) \
 	if ((size_t)(last - first) > sizeof(sep_trail)-1 \
 	 && !strncmp(first, sep_trail, sizeof(sep_trail)-1)) \
-	 	first += sizeof(sep_trail)-2
+		first += sizeof(sep_trail)-2
 
 /* Returns the nominal length of the buffer assuming it is termcap format,
  * i.e., the continuation sequence is treated as a single character ":".
@@ -448,7 +452,7 @@ static bool
 has_params(const char *src)
 {
     bool result = FALSE;
-    int len = strlen(src);
+    int len = (int) strlen(src);
     int n;
     bool ifthen = FALSE;
     bool params = FALSE;
@@ -553,6 +557,7 @@ fmt_complex(char *src, int level)
 }
 
 #define SAME_CAP(n,cap) (&tterm->Strings[n] == &cap)
+#define EXTRA_CAP 20
 
 int
 fmt_entry(TERMTYPE *tterm,
@@ -563,7 +568,7 @@ fmt_entry(TERMTYPE *tterm,
 	  int numbers)
 {
     PredIdx i, j;
-    char buffer[MAX_TERMINFO_LENGTH];
+    char buffer[MAX_TERMINFO_LENGTH + EXTRA_CAP];
     char *capability;
     NCURSES_CONST char *name;
     int predval, len;
@@ -589,13 +594,14 @@ fmt_entry(TERMTYPE *tterm,
     } else {
 	strcpy_DYN(&outbuf, tterm->term_names);
 	strcpy_DYN(&outbuf, separator);
-	column = outbuf.used;
+	column = (int) outbuf.used;
 	force_wrap();
     }
 
     for_each_boolean(j, tterm) {
 	i = BoolIndirect(j);
 	name = ExtBoolname(tterm, i, bool_names);
+	assert(strlen(name) < sizeof(buffer) - EXTRA_CAP);
 
 	if (!version_filter(BOOLEAN, i))
 	    continue;
@@ -619,6 +625,7 @@ fmt_entry(TERMTYPE *tterm,
     for_each_number(j, tterm) {
 	i = NumIndirect(j);
 	name = ExtNumname(tterm, i, num_names);
+	assert(strlen(name) < sizeof(buffer) - EXTRA_CAP);
 
 	if (!version_filter(NUMBER, i))
 	    continue;
@@ -641,9 +648,9 @@ fmt_entry(TERMTYPE *tterm,
     if (column != INDENT)
 	force_wrap();
 
-    len += num_bools
-	+ num_values * 2
-	+ strlen(tterm->term_names) + 1;
+    len += (int) (num_bools
+		  + num_values * 2
+		  + strlen(tterm->term_names) + 1);
     if (len & 1)
 	len++;
 
@@ -664,6 +671,8 @@ fmt_entry(TERMTYPE *tterm,
     for_each_string(j, tterm) {
 	i = StrIndirect(j);
 	name = ExtStrname(tterm, i, str_names);
+	assert(strlen(name) < sizeof(buffer) - EXTRA_CAP);
+
 	capability = tterm->Strings[i];
 
 	if (!version_filter(STRING, i))
@@ -762,7 +771,7 @@ fmt_entry(TERMTYPE *tterm,
 		} else {
 		    sprintf(buffer, "%s=%s", name, cv);
 		}
-		len += strlen(capability) + 1;
+		len += (int) strlen(capability) + 1;
 		WRAP_CONCAT;
 	    } else {
 		char *src = _nc_tic_expand(capability,
@@ -778,7 +787,7 @@ fmt_entry(TERMTYPE *tterm,
 		} else {
 		    strcpy_DYN(&tmpbuf, src);
 		}
-		len += strlen(capability) + 1;
+		len += (int) strlen(capability) + 1;
 		wrap_concat(tmpbuf.text);
 		outcount = TRUE;
 	    }
@@ -787,7 +796,7 @@ fmt_entry(TERMTYPE *tterm,
 	if (capability != tterm->Strings[i])
 	    free(capability);
     }
-    len += num_strings * 2;
+    len += (int) (num_strings * 2);
 
     /*
      * This piece of code should be an effective inverse of the functions
@@ -877,7 +886,7 @@ fmt_entry(TERMTYPE *tterm,
 static bool
 kill_string(TERMTYPE *tterm, char *cap)
 {
-    int n;
+    unsigned n;
     for (n = 0; n < NUM_STRINGS(tterm); ++n) {
 	if (cap == tterm->Strings[n]) {
 	    tterm->Strings[n] = ABSENT_STRING;
@@ -920,7 +929,7 @@ kill_labels(TERMTYPE *tterm, int target)
 	sprintf(name, "lf%d", n);
 	if ((cap = find_string(tterm, name)) != ABSENT_STRING
 	    && kill_string(tterm, cap)) {
-	    target -= (strlen(cap) + 5);
+	    target -= (int) (strlen(cap) + 5);
 	    ++result;
 	    if (target < 0)
 		break;
@@ -945,7 +954,7 @@ kill_fkeys(TERMTYPE *tterm, int target)
 	sprintf(name, "kf%d", n);
 	if ((cap = find_string(tterm, name)) != ABSENT_STRING
 	    && kill_string(tterm, cap)) {
-	    target -= (strlen(cap) + 5);
+	    target -= (int) (strlen(cap) + 5);
 	    ++result;
 	    if (target < 0)
 		break;
@@ -1053,7 +1062,7 @@ dump_entry(TERMTYPE *tterm,
 	     * Extended names are most likely function-key definitions.  Drop
 	     * those first.
 	     */
-	    int n;
+	    unsigned n;
 	    for (n = STRCOUNT; n < NUM_STRINGS(tterm); n++) {
 		const char *name = ExtStrname(tterm, n, strnames);
 
@@ -1145,7 +1154,7 @@ show_entry(void)
     trim_trailing();
     (void) fputs(outbuf.text, stdout);
     putchar('\n');
-    return outbuf.used;
+    return (int) outbuf.used;
 }
 
 void
@@ -1244,15 +1253,15 @@ repair_acsc(TERMTYPE *tp)
 	    for (n = 0; acs_chars[n] != 0; n++) {
 		source = UChar(acs_chars[n]);
 		if ((target = (unsigned char) acs_chars[n + 1]) != 0) {
-		    mapped[source] = target;
+		    mapped[source] = (char) target;
 		    n++;
 		} else {
-		    extra = source;
+		    extra = (char) source;
 		}
 	    }
 	    for (n = m = 0; n < sizeof(mapped); n++) {
 		if (mapped[n]) {
-		    acs_chars[m++] = n;
+		    acs_chars[m++] = (char) n;
 		    acs_chars[m++] = mapped[n];
 		}
 	    }

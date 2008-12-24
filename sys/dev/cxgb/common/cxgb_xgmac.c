@@ -633,20 +633,15 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 	adapter_t *adap = mac->adapter;
 	struct mac_stats *s = &mac->stats;
 	unsigned int tx_mcnt = (unsigned int)s->tx_frames;
-	unsigned int rx_mcnt = (unsigned int)s->rx_frames;
-	unsigned int rx_xcnt;
 
 	if (mac->multiport) {
 	  tx_mcnt = t3_read_reg(adap, A_XGM_STAT_TX_FRAME_LOW);
-	  rx_mcnt = t3_read_reg(adap, A_XGM_STAT_RX_FRAMES_LOW);
 	} else {
 	  tx_mcnt = (unsigned int)s->tx_frames;
-	  rx_mcnt = (unsigned int)s->rx_frames;
 	}
 	status = 0;
 	tx_xcnt = 1; /* By default tx_xcnt is making progress*/
 	tx_tcnt = mac->tx_tcnt; /* If tx_mcnt is progressing ignore tx_tcnt*/
-	rx_xcnt = 1; /* By default rx_xcnt is making progress*/
 	if (tx_mcnt == mac->tx_mcnt && mac->rx_pause == s->rx_pause) {
 		tx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
 						A_XGM_TX_SPI4_SOP_EOP_CNT +
@@ -657,11 +652,11 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 			tx_tcnt = (G_TXDROPCNTCH0RCVD(t3_read_reg(adap,
 			      	A_TP_PIO_DATA)));
 		} else {
-			goto rxcheck;
+			goto out;
 		}
 	} else {
 		mac->toggle_cnt = 0;
-		goto rxcheck;
+		goto out;
 	}
 
 	if ((tx_tcnt != mac->tx_tcnt) && (mac->tx_xcnt == 0)) {
@@ -674,22 +669,6 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 		}
 	} else {
 		mac->toggle_cnt = 0;
-		goto rxcheck;
-	}
-
-rxcheck:
-	if (rx_mcnt != mac->rx_mcnt) {
-		rx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
-						A_XGM_RX_SPI4_SOP_EOP_CNT +
-						mac->offset))) +
-						(s->rx_fifo_ovfl - mac->rx_ocnt);
-		mac->rx_ocnt = s->rx_fifo_ovfl;
-	} else
-		goto out;
-
-	if (mac->rx_mcnt != s->rx_frames && rx_xcnt == 0 && mac->rx_xcnt == 0) {
-		if (!mac->multiport)
-		  status = 2;
 		goto out;
 	}
 
@@ -697,8 +676,6 @@ out:
 	mac->tx_tcnt = tx_tcnt;
 	mac->tx_xcnt = tx_xcnt;
 	mac->tx_mcnt = s->tx_frames;
-	mac->rx_xcnt = rx_xcnt;
-	mac->rx_mcnt = s->rx_frames;
 	mac->rx_pause = s->rx_pause;
 	if (status == 1) {
 		t3_write_reg(adap, A_XGM_TX_CTRL + mac->offset, 0);

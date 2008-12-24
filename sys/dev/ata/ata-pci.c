@@ -92,7 +92,8 @@ ata_pci_attach(device_t dev)
     int unit;
 
     /* do chipset specific setups only needed once */
-    if (ata_legacy(dev) || pci_read_config(dev, PCIR_BAR(2), 4) & IOMASK)
+    ctlr->legacy = ata_legacy(dev);
+    if (ctlr->legacy || pci_read_config(dev, PCIR_BAR(2), 4) & IOMASK)
 	ctlr->channels = 2;
     else
 	ctlr->channels = 1;
@@ -120,7 +121,7 @@ ata_pci_attach(device_t dev)
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++) {
-	if ((unit == 0 || unit == 1) && ata_legacy(dev)) {
+	if ((unit == 0 || unit == 1) && ctlr->legacy) {
 	    device_add_child(dev, "ata", unit);
 	    continue;
 	}
@@ -192,7 +193,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     if (type == SYS_RES_IOPORT) {
 	switch (*rid) {
 	case ATA_IOADDR_RID:
-	    if (ata_legacy(dev)) {
+	    if (controller->legacy) {
 		start = (unit ? ATA_SECONDARY : ATA_PRIMARY);
 		count = ATA_IOSIZE;
 		end = start + count - 1;
@@ -204,7 +205,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    break;
 
 	case ATA_CTLADDR_RID:
-	    if (ata_legacy(dev)) {
+	    if (controller->legacy) {
 		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_CTLOFFSET;
 		count = ATA_CTLIOSIZE;
 		end = start + count - 1;
@@ -217,7 +218,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
     }
     if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
-	if (ata_legacy(dev)) {
+	if (controller->legacy) {
 	    int irq = (unit == 0 ? 14 : 15);
 	    
 	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -233,6 +234,7 @@ int
 ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 			 struct resource *r)
 {
+    struct ata_pci_controller *controller = device_get_softc(dev);
     int unit = ((struct ata_channel *)device_get_softc(child))->unit;
 
     if (type == SYS_RES_IOPORT) {
@@ -256,7 +258,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	if (rid != ATA_IRQ_RID)
 	    return ENOENT;
 
-	if (ata_legacy(dev)) {
+	if (controller->legacy) {
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 					SYS_RES_IRQ, rid, r);
 	}
@@ -271,7 +273,9 @@ ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 		   int flags, driver_filter_t *filter, driver_intr_t *function, 
 		   void *argument, void **cookiep)
 {
-    if (ata_legacy(dev)) {
+    struct ata_pci_controller *controller = device_get_softc(dev);
+
+    if (controller->legacy) {
 	return BUS_SETUP_INTR(device_get_parent(dev), child, irq,
 			      flags, filter, function, argument, cookiep);
     }
@@ -294,7 +298,9 @@ int
 ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		      void *cookie)
 {
-    if (ata_legacy(dev)) {
+    struct ata_pci_controller *controller = device_get_softc(dev);
+
+    if (controller->legacy) {
 	return BUS_TEARDOWN_INTR(device_get_parent(dev), child, irq, cookie);
     }
     else {
@@ -352,7 +358,7 @@ ata_pci_allocate(device_t dev)
 	ch->r_io[i].offset = i;
     }
     ch->r_io[ATA_CONTROL].res = ctlio;
-    ch->r_io[ATA_CONTROL].offset = ata_legacy(device_get_parent(dev)) ? 0 : 2;
+    ch->r_io[ATA_CONTROL].offset = ctlr->legacy ? 0 : 2;
     ch->r_io[ATA_IDX_ADDR].res = io;
     ata_default_registers(dev);
     if (ctlr->r_res1) {
@@ -369,9 +375,11 @@ ata_pci_allocate(device_t dev)
 int
 ata_pci_status(device_t dev)
 {
+    struct ata_pci_controller *controller =
+	device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    if ((dumping || !ata_legacy(device_get_parent(dev))) &&
+    if ((dumping || !controller->legacy) &&
 	((ch->flags & ATA_ALWAYS_DMASTAT) ||
 	 (ch->dma.flags & ATA_DMA_ACTIVE))) {
 	int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
@@ -652,7 +660,7 @@ ata_setup_interrupt(device_t dev, void *intr_func)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int rid = ATA_IRQ_RID;
 
-    if (!ata_legacy(dev)) {
+    if (!ctlr->legacy) {
 	if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 						   RF_SHAREABLE | RF_ACTIVE))) {
 	    device_printf(dev, "unable to map interrupt\n");

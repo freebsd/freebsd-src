@@ -60,7 +60,7 @@ struct xb_softc {
  */
 struct blkfront_info
 {
-	struct xenbus_device *xbdev;
+	device_t xbdev;
 	dev_t dev;
  	struct gendisk *gd;
 	int vdevice;
@@ -89,7 +89,7 @@ struct blkfront_info
 /* Note that xlvbd_add doesn't call add_disk for you: you're expected
    to call add_disk on info->gd once the disk is properly connected
    up. */
-int xlvbd_add(blkif_sector_t capacity, int device,
+int xlvbd_add(device_t, blkif_sector_t capacity, int device,
 	      uint16_t vdisk_info, uint16_t sector_size, struct blkfront_info *info);
 void xlvbd_del(struct blkfront_info *info);
 

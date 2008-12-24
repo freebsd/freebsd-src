@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2008
+.Dd November 29, 2008
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -32,15 +32,20 @@ The argument is a pointer to a structure describing the prison:
 .Bd -literal -offset indent
 struct jail {
 	u_int32_t	version;
-        char 		*path;
-        char 		*hostname;
-        u_int32_t	ip_number;
+	char		*path;
+	char		*hostname;
+	char		*jailname;
+	unsigned int	ip4s;
+	unsigned int	ip6s;
+	struct in_addr	*ip4;
+	struct in6_addr	*ip6;
 };
 .Ed
 .Pp
 .Dq Li version
 defines the version of the API in use.
-It should be set to zero at this time.
+.Dv JAIL_API_VERSION
+is defined for the current version.
 .Pp
 The
 .Dq Li path
@@ -54,8 +59,24 @@ This can be changed
 from the inside of the prison.
 .Pp
 The
-.Dq Li ip_number
-can be set to the IP number assigned to the prison.
+.Dq Li jailname
+pointer is an optional name that can be assigned to the jail
+for example for managment purposes.
+.Pp
+The
+.Dq Li ip4s
+and
+.Dq Li ip6s
+give the numbers of IPv4 and IPv6 addresses that will be passed
+via their respective pointers.
+.Pp
+The
+.Dq Li ip4
+and
+.Dq Li ip6
+pointers can be set to an arrays of IPv4 and IPv6 addresses to be assigned to
+the prison, or NULL if none.
+IPv4 addresses must be in network byte order.
 .Pp
 The
 .Fn jail_attach

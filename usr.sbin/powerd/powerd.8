@@ -47,7 +47,8 @@ utility monitors the system state and sets various power control options
 accordingly.
 It offers three modes (maximum, minimum, and adaptive) that can be
 individually selected while on AC power or batteries.
-The modes maximum, minimum, and adaptive may be abbreviated max, min, adp.
+The modes maximum, minimum, adaptive and hiadaptive may be abbreviated
+max, min, adp, hadp.
 .Pp
 Maximum mode chooses the highest performance values.
 Minimum mode selects the lowest performance values to get the most power
@@ -56,8 +57,10 @@ Adaptive mode attempts to strike a balance by degrading performance when
 the system appears idle and increasing it when the system is busy.
 It offers a good balance between a small performance loss for greatly
 increased power savings.
-The default mode is
-adaptive.
+Hiadaptive mode is alike adaptive mode, but tuned for systems where
+performance and interactivity are more important then power consumption.
+It rises frequency faster, drops slower and keeps twice lower CPU load.
+The default mode is adaptive for battery power and hiadaptive for the rest.
 .Pp
 The
 .Nm
@@ -72,10 +75,9 @@ Selects the
 .Ar mode
 to use while on battery power.
 .It Fl i Ar percent
-Specifies the CPU idle percent level when
-adaptive
+Specifies the CPU load percent level when adaptive
 mode should begin to degrade performance to save power.
-The default is 90% or higher.
+The default is 50% or lower.
 .It Fl n Ar mode
 Selects the
 .Ar mode
@@ -83,16 +85,15 @@ to use normally when the AC line state is unknown.
 .It Fl p Ar ival
 Specifies a different polling interval (in milliseconds) for AC line state
 and system idle levels.
-The default is 500 ms.
+The default is 250 ms.
 .It Fl P Ar pidfile
 Specifies an alternative file in which the process ID should be stored.
 The default is
 .Pa /var/run/powerd.pid .
 .It Fl r Ar percent
-Specifies the CPU idle percent level where
-adaptive
+Specifies the CPU load percent level where adaptive
 mode should consider the CPU running and increase performance.
-The default is 65% or lower.
+The default is 75% or higther.
 .It Fl v
 Verbose mode.
 Messages about power changes will be printed to stdout and

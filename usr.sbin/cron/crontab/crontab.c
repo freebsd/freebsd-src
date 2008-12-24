@@ -502,7 +502,7 @@ replace_cmd() {
 	}
 
 	(void) snprintf(n, sizeof(n), "tmp.%d", Pid);
-	(void) snprintf(tn, sizeof(n), CRON_TAB(n));
+	(void) snprintf(tn, sizeof(tn), CRON_TAB(n));
 
 	if (!(tmp = fopen(tn, "w+"))) {
 		warn("%s", tn);

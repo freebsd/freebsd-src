@@ -204,6 +204,7 @@ struct icmp {
 #ifdef _KERNEL
 void	icmp_error(struct mbuf *, int, int, n_long, int);
 void	icmp_input(struct mbuf *, int);
+void	icmp_init(void);
 int	ip_next_mtu(int, int);
 #endif
 
