@@ -206,7 +206,6 @@ checkfilesys(char *filesys)
 	struct iovec *iov;
 	char errmsg[255];
 	int iovlen;
-	int fflags;
 	int cylno;
 	ino_t files;
 	size_t size;
@@ -343,7 +342,6 @@ checkfilesys(char *filesys)
 		if (bkgrdflag) {
 			snprintf(snapname, sizeof snapname,
 			    "%s/.snap/fsck_snapshot", mntp->f_mntonname);
-			fflags = mntp->f_flags;
 			build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
 			build_iovec(&iov, &iovlen, "from", snapname,
 			    (size_t)-1);
@@ -354,7 +352,7 @@ checkfilesys(char *filesys)
 			build_iovec(&iov, &iovlen, "update", NULL, 0);
 			build_iovec(&iov, &iovlen, "snapshot", NULL, 0);
 
-			while (nmount(iov, iovlen, fflags) < 0) {
+			while (nmount(iov, iovlen, mntp->f_flags) < 0) {
 				if (errno == EEXIST && unlink(snapname) == 0)
 					continue;
 				bkgrdflag = 0;
@@ -522,7 +520,6 @@ chkdoreload(struct statfs *mntp)
 {
 	struct iovec *iov;
 	int iovlen;
-	int fflags;
 	char errmsg[255];
 
 	if (mntp == NULL)
@@ -531,7 +528,6 @@ chkdoreload(struct statfs *mntp)
 	iov = NULL;
 	iovlen = 0;
 	errmsg[0] = '\0';
-	fflags = mntp->f_flags;
 	/*
 	 * We modified a mounted file system.  Do a mount update on
 	 * it unless it is read-write, so we can continue using it
@@ -552,7 +548,7 @@ chkdoreload(struct statfs *mntp)
 		 * nmount parsing of root mounts and NFS root mounts.
 		 */ 
 		build_iovec(&iov, &iovlen, "ro", NULL, 0);
-		if (nmount(iov, iovlen, fflags) == 0) {
+		if (nmount(iov, iovlen, mntp->f_flags) == 0) {
 			return (0);
 		}
 		pwarn("mount reload of '%s' failed: %s %s\n\n",
