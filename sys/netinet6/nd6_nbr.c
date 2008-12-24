@@ -603,6 +603,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	int is_override;
 	char *lladdr = NULL;
 	int lladdrlen = 0;
+	int checklink = 0;
 	struct ifaddr *ifa;
 	struct llentry *ln = NULL;
 	union nd_opts ndopts;
@@ -739,7 +740,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * non-reachable to probably reachable, and might
 			 * affect the status of associated prefixes..
 			 */
-			pfxlist_onlink_check();
+			checklink = 1;
 		}
 	} else {
 		int llchange;
@@ -886,6 +887,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		if (chain)
 			nd6_output_flush(ifp, ifp, chain, &sin6, NULL);
 	}
+	if (checklink)
+		pfxlist_onlink_check();
+
 	m_freem(m);
 	return;
 
