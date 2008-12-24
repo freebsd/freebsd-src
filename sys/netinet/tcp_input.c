@@ -2154,11 +2154,11 @@ process_ACK:
 			/*
 			 * In slow-start with ABC enabled and no RTO in sight?
 			 * (Must not use abc_l_var > 1 if slow starting after an
-			 * RTO. On RTO, snd_nxt = snd_una, so the snd_nxt !=
+			 * RTO. On RTO, snd_nxt = snd_una, so the snd_nxt ==
 			 * snd_max check is sufficient to handle this).
 			 */
 			} else if (V_tcp_do_rfc3465 &&
-			    tp->snd_nxt != tp->snd_max)
+			    tp->snd_nxt == tp->snd_max)
 				incr = min(acked,
 				    V_tcp_abc_l_var * tp->t_maxseg);
 			/* ABC is on by default, so (incr == 0) frequently. */
