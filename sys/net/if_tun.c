@@ -79,7 +79,6 @@ struct tun_softc {
 #define	TUN_RWAIT	0x0040
 #define	TUN_ASYNC	0x0080
 #define	TUN_IFHEAD	0x0100
-#define	TUN_CLOSED	0x0200
 
 #define TUN_READY       (TUN_OPEN | TUN_INITED)
 
@@ -257,11 +256,11 @@ tun_destroy(struct tun_softc *tp)
 
 	/* Unlocked read. */
 	mtx_lock(&tp->tun_mtx);
-	if ((tp->tun_flags & (TUN_OPEN|TUN_CLOSED)) != TUN_CLOSED)
+	if ((tp->tun_flags & TUN_OPEN) != 0)
 		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
 	else
 		mtx_unlock(&tp->tun_mtx);
-	    
+
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
 	dev = tp->tun_dev;
 	bpfdetach(TUN2IFP(tp));
@@ -500,7 +499,6 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	KNOTE_UNLOCKED(&tp->tun_rsel.si_note, 0);
 	TUNDEBUG (ifp, "closed\n");
 
-	tp->tun_flags |= TUN_CLOSED;
 	cv_broadcast(&tp->tun_cv);
 	mtx_unlock(&tp->tun_mtx);
 	return (0);
