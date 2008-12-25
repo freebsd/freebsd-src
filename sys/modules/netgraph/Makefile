@@ -49,6 +49,7 @@ SUBDIR=	async \
 	tag \
 	tcpmss \
 	tee \
+	tty \
 	UI \
 	vjc \
 	vlan
