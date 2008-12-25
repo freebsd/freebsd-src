@@ -28,7 +28,7 @@
 .\"     @(#)arp.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2008
+.Dd December 25, 2008
 .Dt ARP 8
 .Os
 .Sh NAME
@@ -53,14 +53,12 @@
 .Nm
 .Fl s Ar hostname ether_addr
 .Op Cm temp
-.Op Cm reject
-.Op Cm blackhole
+.Op Cm blackhole No \&| Cm reject
 .Op Cm pub Op Cm only
 .Nm
 .Fl S Ar hostname ether_addr
 .Op Cm temp
-.Op Cm reject
-.Op Cm blackhole
+.Op Cm blackhole No \&| Cm reject
 .Op Cm pub Op Cm only
 .Nm
 .Fl f Ar filename
@@ -182,7 +180,8 @@ in the file should be of the form
 .Bd -ragged -offset indent -compact
 .Ar hostname ether_addr
 .Op Cm temp
-.Op Cm pub
+.Op Cm blackhole No \&| Cm reject
+.Op Cm pub Op Cm only
 .Ed
 .Pp
 with argument meanings as given above.

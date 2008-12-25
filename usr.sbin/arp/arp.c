@@ -330,8 +330,14 @@ set(int argc, char **argv)
 				argc--; argv++;
 			}
 		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
+			if (flags & RTF_REJECT) {
+				printf("Choose one of blackhole or reject, not both.\n");
+			}
 			flags |= RTF_BLACKHOLE;
 		} else if (strncmp(argv[0], "reject", 6) == 0) {
+			if (flags & RTF_BLACKHOLE) {
+				printf("Choose one of blackhole or reject, not both.\n");
+			}
 			flags |= RTF_REJECT;
 		} else if (strncmp(argv[0], "trail", 5) == 0) {
 			/* XXX deprecated and undocumented feature */
@@ -648,8 +654,8 @@ usage(void)
 		"       arp [-n] [-i interface] -a",
 		"       arp -d hostname [pub]",
 		"       arp -d [-i interface] -a",
-		"       arp -s hostname ether_addr [temp] [reject] [blackhole] [pub [only]]",
-		"       arp -S hostname ether_addr [temp] [reject] [blackhole] [pub [only]]",
+		"       arp -s hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
+		"       arp -S hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
 		"       arp -f filename");
 	exit(1);
 }
