@@ -17,6 +17,7 @@ SUBDIR=	async \
 	eiface \
 	etf \
 	ether \
+	ether_echo \
 	fec \
 	frame_relay \
 	gif \
