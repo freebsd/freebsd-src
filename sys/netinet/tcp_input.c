@@ -117,6 +117,8 @@ int	tcp_insecure_rst;
 int	tcp_do_autorcvbuf;
 int	tcp_autorcvbuf_inc;
 int	tcp_autorcvbuf_max;
+int	tcp_do_rfc3465;
+int	tcp_abc_l_var;
 #endif
 
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
@@ -144,8 +146,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
-static int tcp_do_rfc3465 = 1;
-static int tcp_abc_l_var = 2;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
     tcp_do_rfc3465, 0,
     "Enable RFC 3465 (Appropriate Byte Counting)");
@@ -153,8 +153,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
     tcp_abc_l_var, 2,
     "Cap the max cwnd increment during slow-start to this number of segments");
 
-int	tcp_do_ecn = 0;
-int	tcp_ecn_maxretries = 1;
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, enable,
     CTLFLAG_RW, tcp_do_ecn, 0, "TCP ECN support");

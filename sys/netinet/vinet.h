@@ -128,7 +128,7 @@ struct vnet_inet {
 	int	_tcp_do_rfc3042;
 	int	_tcp_do_rfc3390;
 	int	_tcp_do_rfc3465;
-	int	_tcp_abc_l_var
+	int	_tcp_abc_l_var;
 	int	_tcp_do_ecn;
 	int	_tcp_ecn_maxretries;
 	int	_tcp_insecure_rst;
