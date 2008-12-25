@@ -459,6 +459,7 @@ NETGRAPH_DEVICE		opt_netgraph.h
 NETGRAPH_ECHO		opt_netgraph.h
 NETGRAPH_EIFACE		opt_netgraph.h
 NETGRAPH_ETHER		opt_netgraph.h
+NETGRAPH_ETHER_ECHO	opt_netgraph.h
 NETGRAPH_FEC		opt_netgraph.h
 NETGRAPH_FRAME_RELAY	opt_netgraph.h
 NETGRAPH_GIF		opt_netgraph.h
