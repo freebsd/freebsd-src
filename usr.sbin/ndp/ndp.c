@@ -554,6 +554,7 @@ delete:
          * but we want the actual address
          */
 	NEXTADDR(RTA_DST, sin_m);
+	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE) == 0) {
 		struct sockaddr_in6 s6 = *sin; /* XXX: for safety */
 
@@ -895,7 +896,7 @@ rtmsg(cmd)
 			rtm->rtm_rmx.rmx_expire = expire_time;
 			rtm->rtm_inits = RTV_EXPIRE;
 		}
-		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC);
+		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
 #if 0 /* we don't support ipv6addr/128 type proxying */
 		if (rtm->rtm_flags & RTF_ANNOUNCE) {
 			rtm->rtm_flags &= ~RTF_HOST;
