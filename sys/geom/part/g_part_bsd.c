@@ -337,9 +337,10 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		goto invalid_label;
 	if (heads != basetable->gpt_heads && !basetable->gpt_fixgeom)
 		basetable->gpt_heads = heads;
-	if (sectors != basetable->gpt_sectors ||
-	    heads != basetable->gpt_heads)
-		printf("GEOM: %s: geometry does not match label.\n", pp->name);
+	if (sectors != basetable->gpt_sectors || heads != basetable->gpt_heads)
+		printf("GEOM: %s: geometry does not match label"
+		    " (%uh,%us != %uh,%us).\n", pp->name, heads, sectors,
+		    basetable->gpt_heads, basetable->gpt_sectors);
 
 	chs = le32dec(buf + 60);
 	if (chs < 1)
