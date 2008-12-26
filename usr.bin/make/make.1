@@ -1130,24 +1130,35 @@ has been defined.
 .Pp
 An
 .Ar expression
-may also be an arithmetic or string comparison, with the left-hand side
-being a variable expansion.
-Variable expansion is
-performed on both sides of the comparison, after which the integral
+may also be a numeric or string comparison:
+in this case, the left-hand side
+.Ar must be
+a variable expansion, whereas the right-hand side can be a
+constant or a variable expansion.
+Variable expansion is performed on both sides, after which the resulting
 values are compared.
 A value is interpreted as hexadecimal if it is
 preceded by 0x, otherwise it is decimal; octal numbers are not supported.
-The standard C relational operators are all supported.
-If after
-variable expansion, either the left or right hand side of a
+.Pp
+String comparison can only use the
 .Sq Ic ==
 or
 .Sq Ic !=
-operator is not an integral value, then
-string comparison is performed between the expanded
-variables.
-If no relational operator is given, it is assumed that the expanded
-variable is being compared against 0.
+operators, whereas numeric values (both integer and floating point)
+can also be compared using the
+.Sq Ic >
+,
+.Sq Ic >=
+,
+.Sq Ic <
+and
+.Sq Ic <=
+operators.
+.Pp
+If no relational operator (and right-hand value) are given, an implicit
+.Sq Ic != 0
+is used. However be very careful in using this feature especially
+when the left-hand side variable expansion returns a string.
 .Pp
 When
 .Nm
