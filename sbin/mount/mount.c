@@ -503,9 +503,10 @@ int
 mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	const char *options, const char *mntopts)
 {
+	static int argc;
 	char *argv[MAX_ARGS];
 	struct statfs sf;
-	int argc, i, ret;
+	int i, ret;
 	char *optbuf, execname[PATH_MAX], mntpath[PATH_MAX];
 
 	/* resolve the mountpoint with realpath(3) */
