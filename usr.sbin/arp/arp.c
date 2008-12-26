@@ -477,6 +477,7 @@ delete(char *host, int do_proxy)
 		}
 		dst->sin_other = SIN_PROXY;
 	}
+	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE, dst, NULL) != NULL) {
 		printf("%s (%s) deleted\n", host, inet_ntoa(addr->sin_addr));
 		return (0);
@@ -706,7 +707,7 @@ rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
 		rtm->rtm_addrs |= RTA_GATEWAY;
 		rtm->rtm_rmx.rmx_expire = expire_time;
 		rtm->rtm_inits = RTV_EXPIRE;
-		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC);
+		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
 		dst->sin_other = 0;
 		if (doing_proxy) {
 			if (proxy_only)
