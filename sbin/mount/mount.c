@@ -145,7 +145,7 @@ use_mountprog(const char *vfstype)
 		if (strcmp(vfstype, fs[i]) == 0)
 			return (1);
 	}
-	
+
 	return (0);
 }
 
@@ -210,7 +210,7 @@ static void
 restart_mountd(void)
 {
 	struct pidfh *pfh;
-	pid_t mountdpid; 
+	pid_t mountdpid;
 
 	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &mountdpid);
 	if (pfh != NULL) {
@@ -302,7 +302,7 @@ main(int argc, char *argv[])
 
 	if ((init_flags & MNT_UPDATE) && (ro == 0))
 		options = catopt(options, "noro");
- 
+
 	rval = 0;
 	switch (argc) {
 	case 0:
@@ -567,7 +567,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	if (use_mountprog(vfstype)) {
 		ret = exec_mountprog(name, execname, argv);
 	} else {
-		ret = mount_fs(vfstype, argc, argv); 
+		ret = mount_fs(vfstype, argc, argv);
 	}
 
 	free(optbuf);
