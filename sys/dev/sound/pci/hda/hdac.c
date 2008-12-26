@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081223_0121"
+#define HDA_DRV_TEST_REV	"20081226_0122"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -4548,6 +4548,32 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		 */
 		break;
 	case HDA_CODEC_AD1986A:
+		/*
+		 * This codec has overcomplicated input mixing.
+		 * Make some cleaning there.
+		 */
+		/* Disable input mono mixer. Not needed and not supported. */
+		w = hdac_widget_get(devinfo, 43);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable any with any input mixing mesh. Use separately. */
+		w = hdac_widget_get(devinfo, 39);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdac_widget_get(devinfo, 40);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdac_widget_get(devinfo, 41);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdac_widget_get(devinfo, 42);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable duplicate mixer node connector. */
+		w = hdac_widget_get(devinfo, 15);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+
 		if (subvendor == ASUS_A8X_SUBVENDOR) {
 			/*
 			 * This is just plain ridiculous.. There
