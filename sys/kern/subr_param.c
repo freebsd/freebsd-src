@@ -126,6 +126,14 @@ SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
  */
 struct	buf *swbuf;
 
+static const char *const vm_guest_sysctl_names[] = {
+	"none",
+	"generic",
+	"xen",
+	NULL
+};
+
+#ifndef XEN
 static const char *const vm_bnames[] = {
 	"QEMU",				/* QEMU */
 	"Plex86",			/* Plex86 */
@@ -138,13 +146,6 @@ static const char *const vm_pnames[] = {
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
 	"Parallels Virtual Platform",	/* Parallels VM */
-	NULL
-};
-
-static const char *const vm_guest_sysctl_names[] = {
-	"none",
-	"generic",
-	"xen",
 	NULL
 };
 
@@ -178,6 +179,7 @@ detect_virtual(void)
 	}
 	return (VM_GUEST_NO);
 }
+#endif
 
 /*
  * Boot time overrides that are not scaled against main memory
