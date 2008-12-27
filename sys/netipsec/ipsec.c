@@ -1240,8 +1240,8 @@ ipsec_delete_pcbpolicy(inp)
 
 #ifdef INET6
 int
-ipsec6_set_policy(in6p, optname, request, len, cred)
-	struct inpcb *in6p;
+ipsec6_set_policy(inp, optname, request, len, cred)
+	struct inpcb *inp;
 	int optname;
 	caddr_t request;
 	size_t len;
@@ -1252,7 +1252,7 @@ ipsec6_set_policy(in6p, optname, request, len, cred)
 	struct secpolicy **pcb_sp;
 
 	/* sanity check. */
-	if (in6p == NULL || request == NULL)
+	if (inp == NULL || request == NULL)
 		return EINVAL;
 	if (len < sizeof(*xpl))
 		return EINVAL;
@@ -1261,10 +1261,10 @@ ipsec6_set_policy(in6p, optname, request, len, cred)
 	/* select direction */
 	switch (xpl->sadb_x_policy_dir) {
 	case IPSEC_DIR_INBOUND:
-		pcb_sp = &in6p->inp_sp->sp_in;
+		pcb_sp = &inp->inp_sp->sp_in;
 		break;
 	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = &in6p->inp_sp->sp_out;
+		pcb_sp = &inp->inp_sp->sp_out;
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
@@ -1276,8 +1276,8 @@ ipsec6_set_policy(in6p, optname, request, len, cred)
 }
 
 int
-ipsec6_get_policy(in6p, request, len, mp)
-	struct inpcb *in6p;
+ipsec6_get_policy(inp, request, len, mp)
+	struct inpcb *inp;
 	caddr_t request;
 	size_t len;
 	struct mbuf **mp;
@@ -1287,9 +1287,9 @@ ipsec6_get_policy(in6p, request, len, mp)
 	struct secpolicy *pcb_sp;
 
 	/* sanity check. */
-	if (in6p == NULL || request == NULL || mp == NULL)
+	if (inp == NULL || request == NULL || mp == NULL)
 		return EINVAL;
-	IPSEC_ASSERT(in6p->inp_sp != NULL, ("null inp_sp"));
+	IPSEC_ASSERT(inp->inp_sp != NULL, ("null inp_sp"));
 	if (len < sizeof(*xpl))
 		return EINVAL;
 	xpl = (struct sadb_x_policy *)request;
@@ -1297,10 +1297,10 @@ ipsec6_get_policy(in6p, request, len, mp)
 	/* select direction */
 	switch (xpl->sadb_x_policy_dir) {
 	case IPSEC_DIR_INBOUND:
-		pcb_sp = in6p->inp_sp->sp_in;
+		pcb_sp = inp->inp_sp->sp_in;
 		break;
 	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = in6p->inp_sp->sp_out;
+		pcb_sp = inp->inp_sp->sp_out;
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
@@ -1677,10 +1677,10 @@ ipsec4_hdrsiz(m, dir, inp)
  * and maybe from ip6_forward.()
  */
 size_t
-ipsec6_hdrsiz(m, dir, in6p)
+ipsec6_hdrsiz(m, dir, inp)
 	struct mbuf *m;
 	u_int dir;
-	struct inpcb *in6p;
+	struct inpcb *inp;
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
@@ -1688,15 +1688,15 @@ ipsec6_hdrsiz(m, dir, in6p)
 	size_t size;
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(in6p == NULL || in6p->inp_socket != NULL,
+	IPSEC_ASSERT(inp == NULL || inp->inp_socket != NULL,
 		("socket w/o inpcb"));
 
 	/* get SP for this packet */
 	/* XXX Is it right to call with IP_FORWARDING. */
-	if (in6p == NULL)
+	if (inp == NULL)
 		sp = ipsec_getpolicybyaddr(m, dir, IP_FORWARDING, &error);
 	else
-		sp = ipsec_getpolicybysock(m, dir, in6p, &error);
+		sp = ipsec_getpolicybysock(m, dir, inp, &error);
 
 	if (sp == NULL)
 		return 0;
