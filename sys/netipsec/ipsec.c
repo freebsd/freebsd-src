@@ -576,8 +576,6 @@ ipsec6_setspidx_inpcb(m, pcb)
 	struct mbuf *m;
 	struct inpcb *pcb;
 {
-	//INIT_VNET_IPSEC(curvnet);
-	struct secpolicyindex *spidx;
 	int error;
 
 	IPSEC_ASSERT(pcb != NULL, ("null pcb"));
@@ -585,26 +583,18 @@ ipsec6_setspidx_inpcb(m, pcb)
 	IPSEC_ASSERT(pcb->inp_sp->sp_out != NULL && pcb->inp_sp->sp_in != NULL,
 		("null sp_in || sp_out"));
 
-	bzero(&pcb->inp_sp->sp_in->spidx, sizeof(*spidx));
-	bzero(&pcb->inp_sp->sp_out->spidx, sizeof(*spidx));
+	error = ipsec_setspidx(m, &pcb->inp_sp->sp_in->spidx, 1);
+	if (error == 0) {
+		pcb->inp_sp->sp_in->spidx.dir = IPSEC_DIR_INBOUND;
+		pcb->inp_sp->sp_out->spidx = pcb->inp_sp->sp_in->spidx;
+		pcb->inp_sp->sp_out->spidx.dir = IPSEC_DIR_OUTBOUND;
+	} else {
+		bzero(&pcb->inp_sp->sp_in->spidx,
+		    sizeof(pcb->inp_sp->sp_in->spidx));
+		bzero(&pcb->inp_sp->sp_out->spidx,
+		    sizeof(pcb->inp_sp->sp_in->spidx));
+	}
 
-	spidx = &pcb->inp_sp->sp_in->spidx;
-	error = ipsec_setspidx(m, spidx, 1);
-	if (error)
-		goto bad;
-	spidx->dir = IPSEC_DIR_INBOUND;
-
-	spidx = &pcb->inp_sp->sp_out->spidx;
-	error = ipsec_setspidx(m, spidx, 1);
-	if (error)
-		goto bad;
-	spidx->dir = IPSEC_DIR_OUTBOUND;
-
-	return 0;
-
-bad:
-	bzero(&pcb->inp_sp->sp_in->spidx, sizeof(*spidx));
-	bzero(&pcb->inp_sp->sp_out->spidx, sizeof(*spidx));
 	return error;
 }
 #endif
