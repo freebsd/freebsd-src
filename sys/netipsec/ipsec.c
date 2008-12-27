@@ -354,12 +354,8 @@ ipsec_getpolicy(struct tdb_ident *tdbi, u_int dir)
  *
  * NOTE: IPv6 mapped adddress concern is implemented here.
  */
-struct secpolicy *
-ipsec_getpolicybysock(m, dir, inp, error)
-	struct mbuf *m;
-	u_int dir;
-	struct inpcb *inp;
-	int *error;
+static struct secpolicy *
+ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct inpcbpolicy *pcbsp = NULL;
