@@ -462,11 +462,7 @@ ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
  *		others	: error occured.
  */
 struct secpolicy *
-ipsec_getpolicybyaddr(m, dir, flag, error)
-	struct mbuf *m;
-	u_int dir;
-	int flag;
-	int *error;
+ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicyindex spidx;
@@ -498,11 +494,8 @@ ipsec_getpolicybyaddr(m, dir, flag, error)
 }
 
 struct secpolicy *
-ipsec4_checkpolicy(m, dir, flag, error, inp)
-	struct mbuf *m;
-	u_int dir, flag;
-	int *error;
-	struct inpcb *inp;
+ipsec4_checkpolicy(struct mbuf *m, u_int dir, u_int flag, int *error,
+    struct inpcb *inp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
@@ -545,9 +538,7 @@ ipsec4_checkpolicy(m, dir, flag, error, inp)
 }
 
 static int
-ipsec4_setspidx_inpcb(m, pcb)
-	struct mbuf *m;
-	struct inpcb *pcb;
+ipsec4_setspidx_inpcb(struct mbuf *m, struct inpcb *pcb)
 {
 	int error;
 
@@ -572,9 +563,7 @@ ipsec4_setspidx_inpcb(m, pcb)
 
 #ifdef INET6
 static int
-ipsec6_setspidx_inpcb(m, pcb)
-	struct mbuf *m;
-	struct inpcb *pcb;
+ipsec6_setspidx_inpcb(struct mbuf *m, struct inpcb *pcb)
 {
 	int error;
 
@@ -605,10 +594,7 @@ ipsec6_setspidx_inpcb(m, pcb)
  * the caller is responsible for error recovery (like clearing up spidx).
  */
 static int
-ipsec_setspidx(m, spidx, needport)
-	struct mbuf *m;
-	struct secpolicyindex *spidx;
-	int needport;
+ipsec_setspidx(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct ip *ip = NULL;
@@ -799,10 +785,7 @@ ipsec4_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 
 #ifdef INET6
 static void
-ipsec6_get_ulp(m, spidx, needport)
-	struct mbuf *m;
-	struct secpolicyindex *spidx;
-	int needport;
+ipsec6_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 {
 	INIT_VNET_IPSEC(curvnet);
 	int off, nxt;
@@ -867,9 +850,7 @@ ipsec6_get_ulp(m, spidx, needport)
 
 /* assumes that m is sane */
 static int
-ipsec6_setspidx_ipaddr(m, spidx)
-	struct mbuf *m;
-	struct secpolicyindex *spidx;
+ipsec6_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 {
 	struct ip6_hdr *ip6 = NULL;
 	struct ip6_hdr ip6buf;
@@ -909,17 +890,14 @@ ipsec6_setspidx_ipaddr(m, spidx)
 #endif
 
 static void
-ipsec_delpcbpolicy(p)
-	struct inpcbpolicy *p;
+ipsec_delpcbpolicy(struct inpcbpolicy *p)
 {
 	free(p, M_IPSEC_INPCB);
 }
 
 /* initialize policy in PCB */
 int
-ipsec_init_policy(so, pcb_sp)
-	struct socket *so;
-	struct inpcbpolicy **pcb_sp;
+ipsec_init_policy(struct socket *so, struct inpcbpolicy **pcb_sp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct inpcbpolicy *new;
@@ -959,8 +937,7 @@ ipsec_init_policy(so, pcb_sp)
 
 /* copy old ipsec policy into new */
 int
-ipsec_copy_policy(old, new)
-	struct inpcbpolicy *old, *new;
+ipsec_copy_policy(struct inpcbpolicy *old, struct inpcbpolicy *new)
 {
 	struct secpolicy *sp;
 
@@ -1003,8 +980,7 @@ ipsec_delisr(struct ipsecrequest *p)
 
 /* deep-copy a policy in PCB */
 static struct secpolicy *
-ipsec_deepcopy_policy(src)
-	struct secpolicy *src;
+ipsec_deepcopy_policy(struct secpolicy *src)
 {
 	struct ipsecrequest *newchain = NULL;
 	struct ipsecrequest *p;
@@ -1058,12 +1034,8 @@ fail:
 
 /* set policy and ipsec request if present. */
 static int
-ipsec_set_policy(pcb_sp, optname, request, len, cred)
-	struct secpolicy **pcb_sp;
-	int optname;
-	caddr_t request;
-	size_t len;
-	struct ucred *cred;
+ipsec_set_policy(struct secpolicy **pcb_sp, int optname, caddr_t request,
+    size_t len, struct ucred *cred)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
@@ -1111,9 +1083,7 @@ ipsec_set_policy(pcb_sp, optname, request, len, cred)
 }
 
 static int
-ipsec_get_policy(pcb_sp, mp)
-	struct secpolicy *pcb_sp;
-	struct mbuf **mp;
+ipsec_get_policy(struct secpolicy *pcb_sp, struct mbuf **mp)
 {
 	INIT_VNET_IPSEC(curvnet);
 
@@ -1135,12 +1105,8 @@ ipsec_get_policy(pcb_sp, mp)
 }
 
 int
-ipsec4_set_policy(inp, optname, request, len, cred)
-	struct inpcb *inp;
-	int optname;
-	caddr_t request;
-	size_t len;
-	struct ucred *cred;
+ipsec4_set_policy(struct inpcb *inp, int optname, caddr_t request,
+    size_t len, struct ucred *cred)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
@@ -1171,11 +1137,8 @@ ipsec4_set_policy(inp, optname, request, len, cred)
 }
 
 int
-ipsec4_get_policy(inp, request, len, mp)
-	struct inpcb *inp;
-	caddr_t request;
-	size_t len;
-	struct mbuf **mp;
+ipsec4_get_policy(struct inpcb *inp, caddr_t request, size_t len,
+    struct mbuf **mp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
@@ -1208,8 +1171,7 @@ ipsec4_get_policy(inp, request, len, mp)
 
 /* delete policy in PCB */
 int
-ipsec_delete_pcbpolicy(inp)
-	struct inpcb *inp;
+ipsec_delete_pcbpolicy(struct inpcb *inp)
 {
 	IPSEC_ASSERT(inp != NULL, ("null inp"));
 
@@ -1230,12 +1192,8 @@ ipsec_delete_pcbpolicy(inp)
 
 #ifdef INET6
 int
-ipsec6_set_policy(inp, optname, request, len, cred)
-	struct inpcb *inp;
-	int optname;
-	caddr_t request;
-	size_t len;
-	struct ucred *cred;
+ipsec6_set_policy(struct inpcb *inp, int optname, caddr_t request,
+    size_t len, struct ucred *cred)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
@@ -1266,11 +1224,8 @@ ipsec6_set_policy(inp, optname, request, len, cred)
 }
 
 int
-ipsec6_get_policy(inp, request, len, mp)
-	struct inpcb *inp;
-	caddr_t request;
-	size_t len;
-	struct mbuf **mp;
+ipsec6_get_policy(struct inpcb *inp, caddr_t request, size_t len,
+    struct mbuf **mp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
@@ -1307,8 +1262,7 @@ ipsec6_get_policy(inp, request, len, mp)
  * Either IPSEC_LEVEL_USE or IPSEC_LEVEL_REQUIRE are always returned.
  */
 u_int
-ipsec_get_reqlevel(isr)
-	struct ipsecrequest *isr;
+ipsec_get_reqlevel(struct ipsecrequest *isr)
 {
 	INIT_VNET_IPSEC(curvnet);
 	u_int level = 0;
@@ -1487,9 +1441,7 @@ ipsec_in_reject(struct secpolicy *sp, struct mbuf *m)
  * and {ah,esp}4_input for tunnel mode
  */
 int
-ipsec4_in_reject(m, inp)
-	struct mbuf *m;
-	struct inpcb *inp;
+ipsec4_in_reject(struct mbuf *m, struct inpcb *inp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
@@ -1526,9 +1478,7 @@ ipsec4_in_reject(m, inp)
  * and {ah,esp}6_input for tunnel mode
  */
 int
-ipsec6_in_reject(m, inp)
-	struct mbuf *m;
-	struct inpcb *inp;
+ipsec6_in_reject(struct mbuf *m, struct inpcb *inp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp = NULL;
@@ -1626,10 +1576,7 @@ ipsec_hdrsiz(struct secpolicy *sp)
 
 /* This function is called from ip_forward() and ipsec4_hdrsize_tcp(). */
 size_t
-ipsec4_hdrsiz(m, dir, inp)
-	struct mbuf *m;
-	u_int dir;
-	struct inpcb *inp;
+ipsec4_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
@@ -1667,10 +1614,7 @@ ipsec4_hdrsiz(m, dir, inp)
  * and maybe from ip6_forward.()
  */
 size_t
-ipsec6_hdrsiz(m, dir, inp)
-	struct mbuf *m;
-	u_int dir;
-	struct inpcb *inp;
+ipsec6_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
@@ -1710,9 +1654,7 @@ ipsec6_hdrsiz(m, dir, inp)
  * based on RFC 2401.
  */
 int
-ipsec_chkreplay(seq, sav)
-	u_int32_t seq;
-	struct secasvar *sav;
+ipsec_chkreplay(u_int32_t seq, struct secasvar *sav)
 {
 	const struct secreplay *replay;
 	u_int32_t diff;
@@ -1768,9 +1710,7 @@ ipsec_chkreplay(seq, sav)
  *	1:	NG
  */
 int
-ipsec_updatereplay(seq, sav)
-	u_int32_t seq;
-	struct secasvar *sav;
+ipsec_updatereplay(u_int32_t seq, struct secasvar *sav)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct secreplay *replay;
@@ -1867,9 +1807,7 @@ ok:
  *	wsize:	buffer size (bytes).
  */
 static void
-vshiftl(bitmap, nbit, wsize)
-	unsigned char *bitmap;
-	int nbit, wsize;
+vshiftl(unsigned char *bitmap, int nbit, int wsize)
 {
 	int s, j, i;
 	unsigned char over;
@@ -1926,8 +1864,7 @@ ipsec_address(union sockaddr_union* sa)
 }
 
 const char *
-ipsec_logsastr(sav)
-	struct secasvar *sav;
+ipsec_logsastr(struct secasvar *sav)
 {
 	static char buf[256];
 	char *p;
@@ -1952,8 +1889,7 @@ ipsec_logsastr(sav)
 }
 
 void
-ipsec_dumpmbuf(m)
-	struct mbuf *m;
+ipsec_dumpmbuf(struct mbuf *m)
 {
 	int totlen;
 	int i;
