@@ -228,9 +228,9 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_STATS,
 	"IPsec IPv6 statistics.");
 #endif /* INET6 */
 
-static int ipsec4_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
+static int ipsec4_setspidx_inpcb __P((struct mbuf *, struct inpcb *));
 #ifdef INET6
-static int ipsec6_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
+static int ipsec6_setspidx_inpcb __P((struct mbuf *, struct inpcb *));
 #endif
 static int ipsec_setspidx __P((struct mbuf *, struct secpolicyindex *, int));
 static void ipsec4_get_ulp __P((struct mbuf *m, struct secpolicyindex *, int));
@@ -538,50 +538,50 @@ ipsec4_checkpolicy(struct mbuf *m, u_int dir, u_int flag, int *error,
 }
 
 static int
-ipsec4_setspidx_inpcb(struct mbuf *m, struct inpcb *pcb)
+ipsec4_setspidx_inpcb(struct mbuf *m, struct inpcb *inp)
 {
 	int error;
 
-	IPSEC_ASSERT(pcb != NULL, ("null pcb"));
-	IPSEC_ASSERT(pcb->inp_sp != NULL, ("null inp_sp"));
-	IPSEC_ASSERT(pcb->inp_sp->sp_out != NULL && pcb->inp_sp->sp_in != NULL,
+	IPSEC_ASSERT(inp != NULL, ("null inp"));
+	IPSEC_ASSERT(inp->inp_sp != NULL, ("null inp_sp"));
+	IPSEC_ASSERT(inp->inp_sp->sp_out != NULL && inp->inp_sp->sp_in != NULL,
 		("null sp_in || sp_out"));
 
-	error = ipsec_setspidx(m, &pcb->inp_sp->sp_in->spidx, 1);
+	error = ipsec_setspidx(m, &inp->inp_sp->sp_in->spidx, 1);
 	if (error == 0) {
-		pcb->inp_sp->sp_in->spidx.dir = IPSEC_DIR_INBOUND;
-		pcb->inp_sp->sp_out->spidx = pcb->inp_sp->sp_in->spidx;
-		pcb->inp_sp->sp_out->spidx.dir = IPSEC_DIR_OUTBOUND;
+		inp->inp_sp->sp_in->spidx.dir = IPSEC_DIR_INBOUND;
+		inp->inp_sp->sp_out->spidx = inp->inp_sp->sp_in->spidx;
+		inp->inp_sp->sp_out->spidx.dir = IPSEC_DIR_OUTBOUND;
 	} else {
-		bzero(&pcb->inp_sp->sp_in->spidx,
-			sizeof (pcb->inp_sp->sp_in->spidx));
-		bzero(&pcb->inp_sp->sp_out->spidx,
-			sizeof (pcb->inp_sp->sp_in->spidx));
+		bzero(&inp->inp_sp->sp_in->spidx,
+			sizeof (inp->inp_sp->sp_in->spidx));
+		bzero(&inp->inp_sp->sp_out->spidx,
+			sizeof (inp->inp_sp->sp_in->spidx));
 	}
 	return (error);
 }
 
 #ifdef INET6
 static int
-ipsec6_setspidx_inpcb(struct mbuf *m, struct inpcb *pcb)
+ipsec6_setspidx_inpcb(struct mbuf *m, struct inpcb *inp)
 {
 	int error;
 
-	IPSEC_ASSERT(pcb != NULL, ("null pcb"));
-	IPSEC_ASSERT(pcb->inp_sp != NULL, ("null inp_sp"));
-	IPSEC_ASSERT(pcb->inp_sp->sp_out != NULL && pcb->inp_sp->sp_in != NULL,
+	IPSEC_ASSERT(inp != NULL, ("null inp"));
+	IPSEC_ASSERT(inp->inp_sp != NULL, ("null inp_sp"));
+	IPSEC_ASSERT(inp->inp_sp->sp_out != NULL && inp->inp_sp->sp_in != NULL,
 		("null sp_in || sp_out"));
 
-	error = ipsec_setspidx(m, &pcb->inp_sp->sp_in->spidx, 1);
+	error = ipsec_setspidx(m, &inp->inp_sp->sp_in->spidx, 1);
 	if (error == 0) {
-		pcb->inp_sp->sp_in->spidx.dir = IPSEC_DIR_INBOUND;
-		pcb->inp_sp->sp_out->spidx = pcb->inp_sp->sp_in->spidx;
-		pcb->inp_sp->sp_out->spidx.dir = IPSEC_DIR_OUTBOUND;
+		inp->inp_sp->sp_in->spidx.dir = IPSEC_DIR_INBOUND;
+		inp->inp_sp->sp_out->spidx = inp->inp_sp->sp_in->spidx;
+		inp->inp_sp->sp_out->spidx.dir = IPSEC_DIR_OUTBOUND;
 	} else {
-		bzero(&pcb->inp_sp->sp_in->spidx,
-		    sizeof(pcb->inp_sp->sp_in->spidx));
-		bzero(&pcb->inp_sp->sp_out->spidx,
-		    sizeof(pcb->inp_sp->sp_in->spidx));
+		bzero(&inp->inp_sp->sp_in->spidx,
+		    sizeof(inp->inp_sp->sp_in->spidx));
+		bzero(&inp->inp_sp->sp_out->spidx,
+		    sizeof(inp->inp_sp->sp_in->spidx));
 	}
 
 	return (error);
@@ -1523,7 +1523,7 @@ ipsec_hdrsiz(struct secpolicy *sp)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct ipsecrequest *isr;
-	size_t siz;
+	size_t size;
 
 	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
 		printf("%s: using SP\n", __func__); kdebug_secpolicy(sp));
@@ -1538,7 +1538,7 @@ ipsec_hdrsiz(struct secpolicy *sp)
 	IPSEC_ASSERT(sp->policy == IPSEC_POLICY_IPSEC,
 		("invalid policy %u", sp->policy));
 
-	siz = 0;
+	size = 0;
 	for (isr = sp->req; isr != NULL; isr = isr->next) {
 		size_t clen = 0;
 
@@ -1571,10 +1571,10 @@ ipsec_hdrsiz(struct secpolicy *sp)
 				break;
 			}
 		}
-		siz += clen;
+		size += clen;
 	}
 
-	return (siz);
+	return (size);
 }
 
 /* This function is called from ip_forward() and ipsec4_hdrsize_tcp(). */
