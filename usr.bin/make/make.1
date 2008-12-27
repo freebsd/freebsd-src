@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2008
+.Dd December 26, 2008
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1146,10 +1146,8 @@ or
 .Sq Ic !=
 operators, whereas numeric values (both integer and floating point)
 can also be compared using the
-.Sq Ic >
-,
-.Sq Ic >=
-,
+.Sq Ic > ,
+.Sq Ic >= ,
 .Sq Ic <
 and
 .Sq Ic <=
@@ -1157,7 +1155,8 @@ operators.
 .Pp
 If no relational operator (and right-hand value) are given, an implicit
 .Sq Ic != 0
-is used. However be very careful in using this feature especially
+is used.
+However be very careful in using this feature especially
 when the left-hand side variable expansion returns a string.
 .Pp
 When
