@@ -663,11 +663,21 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
 static int
 gv_plex_access(struct g_provider *pp, int dr, int dw, int de)
 {
+	struct gv_plex *p;
 	struct g_geom *gp;
 	struct g_consumer *cp, *cp2;
 	int error;
 
 	gp = pp->geom;
+	p = gp->softc;
+	KASSERT(p != NULL, ("NULL p"));
+
+	if (p->org == GV_PLEX_RAID5) {
+		if (dw > 0 && dr == 0)
+			dr = 1;
+		else if (dw < 0 && dr == 0)
+			dr = -1;
+	}
 
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		error = g_access(cp, dr, dw, de);
