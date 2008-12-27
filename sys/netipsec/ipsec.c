@@ -230,7 +230,7 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_STATS,
 
 static int ipsec4_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
 #ifdef INET6
-static int ipsec6_setspidx_in6pcb __P((struct mbuf *, struct inpcb *pcb));
+static int ipsec6_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
 #endif
 static int ipsec_setspidx __P((struct mbuf *, struct secpolicyindex *, int));
 static void ipsec4_get_ulp __P((struct mbuf *m, struct secpolicyindex *, int));
@@ -371,7 +371,7 @@ ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
 	/* set spidx in pcb */
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 #ifdef INET6
-		*error = ipsec6_setspidx_in6pcb(m, inp);
+		*error = ipsec6_setspidx_inpcb(m, inp);
 		pcbsp = inp->inp_sp;
 #else
 		*error = EINVAL;		/* should not happen */
@@ -572,7 +572,7 @@ ipsec4_setspidx_inpcb(m, pcb)
 
 #ifdef INET6
 static int
-ipsec6_setspidx_in6pcb(m, pcb)
+ipsec6_setspidx_inpcb(m, pcb)
 	struct mbuf *m;
 	struct inpcb *pcb;
 {
