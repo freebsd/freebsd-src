@@ -31,7 +31,6 @@ makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
-makeoptions	MODULES_OVERRIDE=""
 #options 	HZ=1000
 options 	HZ=100
 options 	DEVICE_POLLING
