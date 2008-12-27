@@ -364,8 +364,6 @@ extern struct secpolicy *ipsec_getpolicy __P((struct tdb_ident*, u_int));
 struct inpcb;
 extern struct secpolicy *ipsec4_checkpolicy __P((struct mbuf *, u_int, u_int,
 	int *, struct inpcb *));
-extern struct secpolicy *ipsec_getpolicybysock(struct mbuf *, u_int,
-	struct inpcb *, int *);
 extern struct secpolicy * ipsec_getpolicybyaddr(struct mbuf *, u_int,
 	int, int *);
 
