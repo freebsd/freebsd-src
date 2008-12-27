@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		CAMBRIA
 
 include		"../xscale/ixp425/std.ixp435"
