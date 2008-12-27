@@ -1205,11 +1205,13 @@ ndis_pnpevent_nic(arg, type)
 	void			*arg;
 	int			type;
 {
+	device_t		dev;
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
 	ndis_pnpevent_handler	pnpeventfunc;
 
-	sc = arg;
+	dev = arg;
+	sc = device_get_softc(arg);
 	NDIS_LOCK(sc);
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 	pnpeventfunc = sc->ndis_chars->nmc_pnpevent_handler;
