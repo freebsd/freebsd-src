@@ -544,9 +544,8 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 int
 delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
 {
-    char *cp1, *cp2, *realdir;
+    char *cp1, *cp2, realdir[FILENAME_MAX];
 
-    realdir = malloc(FILENAME_MAX);
     if (realdir == NULL) {
 	warnx("Couldn't allocate enough memory\n");
 	return (ign_err ? SUCCESS : FAIL);
@@ -555,7 +554,7 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
     if (issymlink(dir) && readlink(dir, realdir, FILENAME_MAX-1) == -1)
 	return (ign_err ? SUCCESS : FAIL);
 
-    strlcpy(realdir, dir, FILENAME_MAX);
+    strlcpy(realdir, dir, FILENAME_MAX-1);
 
     cp1 = cp2 = strdup(realdir);
     if (cp1 == NULL) {
@@ -568,34 +567,29 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
 	    warnx("%s '%s' doesn't exist",
 		isdir(realdir) ? "directory" : "file", realdir);
 	free(cp1);
-	free(realdir);
 	return (ign_err ? SUCCESS : FAIL);
     }
     else if (nukedirs) {
 	if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), realdir)) {
 	    free(cp1);
-	    free(realdir);
 	    return (ign_err ? SUCCESS : FAIL);
 	}
     }
     else if (isdir(realdir)) {
 	if (RMDIR(realdir)) {
 	    free(cp1);
-	    free(realdir);
 	    return (ign_err ? SUCCESS : FAIL);
 	}
     }
     else {
 	if (REMOVE(realdir, ign_err)) {
 	    free(cp1);
-	    free(realdir);
 	    return (ign_err ? SUCCESS : FAIL);
 	}
     }
 
     if (!nukedirs) {
 	free(cp1);
-	free(realdir);
 	return (SUCCESS);
     }
     while (cp2) {
@@ -603,18 +597,15 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
 	    *cp2 = '\0';
 	if (!isemptydir(realdir)) {
 	    free(cp1);
-	    free(realdir);
 	    return (SUCCESS);
 	}
 	if (RMDIR(realdir) && !ign_err) {
 	    if (!fexists(realdir)) {
 		warnx("directory '%s' doesn't exist", realdir);
 		free(cp1);
-		free(realdir);
 		return (SUCCESS);
 	    } else {
 		free(cp1);
-		free(realdir);
 		return (FAIL);
 	    }
 	}
@@ -629,7 +620,6 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
 	}
     }
     free(cp1);
-    free(realdir);
     return (SUCCESS);
 }
 
