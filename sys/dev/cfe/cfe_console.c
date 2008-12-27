@@ -62,7 +62,6 @@ static struct ttydevsw cfe_ttydevsw = {
 };
 
 static int			conhandle = -1;
-static struct tty		*cfe_tp = NULL;
 /* XXX does cfe have to poll? */
 static int			polltime;
 static struct callout_handle	cfe_timeouthandle
