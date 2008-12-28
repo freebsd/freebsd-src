@@ -26,29 +26,28 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#39 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#40 $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 
 #include <config/config.h>
 
 #include <sys/dirent.h>
-#include <sys/mman.h>
-#include <sys/socket.h>
 #ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
 #else /* !HAVE_FULL_QUEUE_H */
 #include <compat/queue.h>
 #endif /* !HAVE_FULL_QUEUE_H */
+#include <sys/mman.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <bsm/audit.h>
 #include <bsm/audit_uevents.h>
+#include <bsm/auditd_lib.h>
 #include <bsm/libbsm.h>
-
-#include <netinet/in.h>
 
 #include <err.h>
 #include <errno.h>
@@ -60,54 +59,54 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
-#include <syslog.h>
-#include <netdb.h>
 
 #include "auditd.h"
-#ifdef USE_MACH_IPC
-#include <notify.h>
-#include <mach/port.h>
-#include <mach/mach_error.h>
-#include <mach/mach_traps.h>
-#include <mach/mach.h>
-#include <mach/host_special_ports.h>
-
-#include "auditd_control_server.h"
-#include "audit_triggers_server.h"
-#endif /* USE_MACH_IPC */
 
 #ifndef HAVE_STRLCPY
 #include <compat/strlcpy.h>
 #endif
 
-#define	NA_EVENT_STR_SIZE	25
-#define	POL_STR_SIZE		128
-static int	 ret, minval;
-static char	*lastfile = NULL;
-static int	 allhardcount = 0;
-static int	 sigchlds, sigchlds_handled;
-static int	 sighups, sighups_handled;
-#ifndef USE_MACH_IPC
-static int	 sigterms, sigterms_handled;
-static int	 triggerfd = 0;
-
-#else /* USE_MACH_IPC */
-
-static mach_port_t      control_port = MACH_PORT_NULL;
-static mach_port_t      signal_port = MACH_PORT_NULL;
-static mach_port_t      port_set = MACH_PORT_NULL;
-
-#ifndef __BSM_INTERNAL_NOTIFY_KEY
-#define	__BSM_INTERNAL_NOTIFY_KEY "com.apple.audit.change"
-#endif /* __BSM_INTERNAL_NOTIFY_KEY */
-#endif /* USE_MACH_IPC */
-
-static TAILQ_HEAD(, dir_ent)	dir_q;
-
-static int	config_audit_controls(void);
+/*
+ * XXX the following is temporary until this can be added to the kernel
+ * audit.h header.
+ */
+#ifndef	AUDIT_TRIGGER_INITIALIZE
+#define	AUDIT_TRIGGER_INITIALIZE	7
+#endif
 
 /*
- * Error starting auditd
+ * LaunchD flag (Mac OS X and, maybe, FreeBSD only.)  See launchd(8) and 
+ * http://wiki.freebsd.org/launchd for more information.
+ *
+ *      In order for auditd to work "on demand" with launchd(8) it can't:
+ *              call daemon(3)
+ *              call fork and having the parent process exit
+ *              change uids or gids.
+ *              set up the current working directory or chroot.
+ *              set the session id
+ *              change stdio to /dev/null.
+ *              call setrusage(2)
+ *              call setpriority(2)
+ *              Ignore SIGTERM.
+ *      auditd (in 'launchd mode') is launched on demand so it must catch
+ *      SIGTERM to exit cleanly.
+ */
+static int	launchd_flag = 0;
+
+/*
+ * The GID of the audit review group (if used).  The audit trail files and
+ * system logs (Mac OS X only) can only be reviewed by members of this group
+ * or the audit administrator (aka. "root").
+ */
+static gid_t	audit_review_gid = -1;
+
+/*
+ * The path and file name of the last audit trail file.
+ */
+static char	*lastfile = NULL;
+
+/*
+ * Error starting auditd. Run warn script and exit.
  */
 static void
 fail_exit(void)
@@ -118,57 +117,30 @@ fail_exit(void)
 }
 
 /*
- * Free our local list of directory names.
- */
-static void
-free_dir_q(void)
-{
-	struct dir_ent *dirent;
-
-	while ((dirent = TAILQ_FIRST(&dir_q))) {
-		TAILQ_REMOVE(&dir_q, dirent, dirs);
-		free(dirent->dirname);
-		free(dirent);
-	}
-}
-
-/*
- * Generate the timestamp string.
- */
-static int
-getTSstr(char *buf, int len)
-{
-	struct timeval ts;
-	struct timezone tzp;
-	time_t tt;
-
-	if (gettimeofday(&ts, &tzp) != 0)
-		return (-1);
-	tt = (time_t)ts.tv_sec;
-	if (!strftime(buf, len, "%Y%m%d%H%M%S", gmtime(&tt)))
-		return (-1);
-	return (0);
-}
-
-/*
- * Concat the directory name to the given file name.
- * XXX We should affix the hostname also
+ * Follow the 'current' symlink to get the active trail file name.
  */
 static char *
-affixdir(char *name, struct dir_ent *dirent)
+get_curfile(void)
 {
-	char *fn = NULL;
+	char *cf;
+	int len;
 
-	syslog(LOG_DEBUG, "dir = %s", dirent->dirname);
-	/* 
-	 * Sanity check on file name.
-	 */
-	if (strlen(name) != (FILENAME_LEN - 1)) {
-		syslog(LOG_ERR, "Invalid file name: %s", name);
+	cf = malloc(MAXPATHLEN);
+	if (cf == NULL) {
+		auditd_log_err("malloc failed: %m");
+		return (NULL);
+	}	
+
+	len = readlink(AUDIT_CURRENT_LINK, cf, MAXPATHLEN - 1);
+	if (len < 0) {
+		free(cf);
 		return (NULL);
 	}
-	asprintf(&fn, "%s/%s", dirent->dirname, name);
-	return (fn);
+
+	/* readlink() doesn't terminate string. */
+	cf[len] = '\0';	
+
+	return (cf);
 }
 
 /*
@@ -181,6 +153,10 @@ close_lastfile(char *TS)
 	char *oldname;
 	size_t len;
 
+	/* If lastfile is NULL try to get it from the 'current' link.  */
+	if (lastfile == NULL)
+		lastfile = get_curfile();
+	
 	if (lastfile != NULL) {
 		len = strlen(lastfile) + 1;
 		oldname = (char *)malloc(len);
@@ -192,16 +168,21 @@ close_lastfile(char *TS)
 		if ((ptr = strstr(lastfile, NOT_TERMINATED)) != NULL) {
 			strlcpy(ptr, TS, TIMESTAMP_LEN);
 			if (rename(oldname, lastfile) != 0)
-				syslog(LOG_ERR,
+				auditd_log_err(
 				    "Could not rename %s to %s: %m", oldname,
 				    lastfile);
 			else {
-				syslog(LOG_INFO, "renamed %s to %s",
+				/* 
+				 * Remove the 'current' symlink since the link
+				 * is now invalid. 
+				 */
+				(void) unlink(AUDIT_CURRENT_LINK);
+				auditd_log_notice( "renamed %s to %s",
 				    oldname, lastfile);
 				audit_warn_closefile(lastfile);
 			}
 		} else 
-			syslog(LOG_ERR, "Could not rename %s to %s", oldname,
+			auditd_log_err( "Could not rename %s to %s", oldname,
 			    lastfile);
 		free(lastfile);
 		free(oldname);
@@ -211,168 +192,81 @@ close_lastfile(char *TS)
 }
 
 /*
- * Create the new audit file with appropriate permissions and ownership.  Try
- * to clean up if something goes wrong.
- */
-static int
-#ifdef AUDIT_REVIEW_GROUP
-open_trail(const char *fname, uid_t uid, gid_t gid)
-#else
-open_trail(const char *fname)
-#endif
-{
-	int error, fd;
-
-	fd = open(fname, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP);
-	if (fd < 0)
-		return (-1);
-#ifdef AUDIT_REVIEW_GROUP
-	if (fchown(fd, uid, gid) < 0) {
-		error = errno;
-		close(fd);
-		(void)unlink(fname);
-		errno = error;
-		return (-1);
-	}
-#endif
-	return (fd);
-}
-
-/*
  * Create the new file name, swap with existing audit file.
  */
 static int
 swap_audit_file(void)
 {
-	char timestr[FILENAME_LEN];
-	char *fn;
+	int err;
+	char *newfile;
 	char TS[TIMESTAMP_LEN];
-	struct dir_ent *dirent;
-#ifdef AUDIT_REVIEW_GROUP
-	struct group *grp;
-	gid_t gid;
-	uid_t uid;
-#endif
-	int error, fd;
+	time_t tt;
 
-	if (getTSstr(TS, TIMESTAMP_LEN) != 0)
+	if (getTSstr(tt, TS, TIMESTAMP_LEN) != 0)
 		return (-1);
-
-	snprintf(timestr, FILENAME_LEN, "%s.%s", TS, NOT_TERMINATED);
-
-#ifdef AUDIT_REVIEW_GROUP
-	/*
-	 * XXXRW: Currently, this code falls back to the daemon gid, which is
-	 * likely the wheel group.  Is there a better way to deal with this?
-	 */
-	grp = getgrnam(AUDIT_REVIEW_GROUP);
-	if (grp == NULL) {
-		syslog(LOG_INFO,
-		    "Audit review group '%s' not available, using daemon gid",
-		    AUDIT_REVIEW_GROUP);
-		gid = -1;
-	} else
-		gid = grp->gr_gid;
-	uid = getuid();
-#endif
-
-	/* Try until we succeed. */
-	while ((dirent = TAILQ_FIRST(&dir_q))) {
-		if ((fn = affixdir(timestr, dirent)) == NULL) {
-			syslog(LOG_INFO, "Failed to swap log at time %s",
-				timestr);
+	err = auditd_swap_trail(TS, &newfile, audit_review_gid,
+	    audit_warn_getacdir);
+	if (err != ADE_NOERR) {
+		auditd_log_err( "%s: %m", auditd_strerror(err));
+		if (err != ADE_ACTL)
 			return (-1);
-		}
-
-		/*
-		 * Create and open the file; then close and pass to the
-		 * kernel if all went well.
-		 */
-		syslog(LOG_INFO, "New audit file is %s", fn);
-#ifdef AUDIT_REVIEW_GROUP
-		fd = open_trail(fn, uid, gid);
-#else
-		fd = open_trail(fn);
-#endif
-		if (fd < 0)
-			warn("open(%s)", fn);
-		if (fd >= 0) {
-			error = auditctl(fn);
-			if (error) {
-				syslog(LOG_ERR,
-				    "auditctl failed setting log file! : %s",
-				    strerror(errno));
-				close(fd);
-			} else {
-				/* Success. */
-#ifdef USE_MACH_IPC
-				/* 
-			 	 * auditctl() potentially changes the audit
-				 * state so post that the audit config (may
-				 * have) changed. 
-			 	 */
-				notify_post(__BSM_INTERNAL_NOTIFY_KEY);
-#endif
-				close_lastfile(TS);
-				lastfile = fn;
-				close(fd);
-				return (0);
-			}
-		}
-
-		/*
-		 * Tell the administrator about lack of permissions for dir.
-		 */
-		audit_warn_getacdir(dirent->dirname);
-
-		/* Try again with a different directory. */
-		TAILQ_REMOVE(&dir_q, dirent, dirs);
-		free(dirent->dirname);
-		free(dirent);
 	}
-	syslog(LOG_ERR, "Log directories exhausted");
-	return (-1);
+
+	/*
+	 * Only close the last file if were in an auditing state before
+	 * calling swap_audit_file().  We may need to recover from a crash.
+	 */
+	if (auditd_get_state() == AUD_STATE_ENABLED)
+		close_lastfile(TS);
+
+
+	/*
+	 * auditd_swap_trail() potentially enables auditing (if not already
+	 * enabled) so updated the cached state as well.
+	 */
+	auditd_set_state(AUD_STATE_ENABLED);
+	
+	/*
+	 *  Create 'current' symlink.  Recover from crash, if needed.
+	 */
+	if (auditd_new_curlink(newfile) != 0)
+               	auditd_log_err("auditd_new_curlink(\"%s\") failed: %s: %m",
+		     newfile, auditd_strerror(err)); 
+
+	lastfile = newfile;
+	auditd_log_notice("New audit file is %s", newfile);
+
+	return (0);
 }
 
 /*
- * Read the audit_control file contents.
+ * Create a new audit log trail file and swap with the current one, if any.
  */
 static int
-read_control_file(void)
+do_trail_file(void)
 {
-	char cur_dir[MAXNAMLEN];
-	struct dir_ent *dirent;
-	au_qctrl_t qctrl;
+	int err;
 
 	/*
-	 * Clear old values.  Force a re-read of the file the next time.
+	 * First, refresh the list of audit log directories.
 	 */
-	free_dir_q();
-	endac();
-
-	/*
-	 * Read the list of directories into a local linked list.
-	 *
-	 * XXX We should use the reentrant interfaces once they are
-	 * available.
-	 */
-	while (getacdir(cur_dir, MAXNAMLEN) >= 0) {
-		dirent = (struct dir_ent *) malloc(sizeof(struct dir_ent));
-		if (dirent == NULL)
+	err = auditd_read_dirs(audit_warn_soft, audit_warn_hard);
+	if (err) {
+		auditd_log_err("auditd_read_dirs() %s: %m",
+		    auditd_strerror(err));
+		if (err == ADE_HARDLIM)
+			audit_warn_allhard();
+		if (err != ADE_SOFTLIM)
 			return (-1);
-		dirent->softlim = 0;
-		dirent->dirname = (char *) malloc(MAXNAMLEN);
-		if (dirent->dirname == NULL) {
-			free(dirent);
-			return (-1);
-		}
-		strlcpy(dirent->dirname, cur_dir, MAXNAMLEN);
-		TAILQ_INSERT_TAIL(&dir_q, dirent, dirs);
+		else
+			audit_warn_allsoft();
+			/* continue on with soft limit error */
 	}
 
-	allhardcount = 0;
+	/*
+	 * Create a new file and swap with the one being used in kernel.
+	 */
 	if (swap_audit_file() == -1) {
-		syslog(LOG_ERR, "Could not swap audit file");
 		/*
 		 * XXX Faulty directory listing? - user should be given
 		 * XXX an opportunity to change the audit_control file
@@ -381,26 +275,54 @@ read_control_file(void)
 		return (-1);
 	}
 
-	/*
-	 * XXX There are synchronization problems here
- 	 * XXX what should we do if a trigger for the earlier limit
-	 * XXX is generated here?
-	 */
-	if (0 == (ret = getacmin(&minval))) {
-		syslog(LOG_DEBUG, "min free = %d", minval);
-		if (auditon(A_GETQCTRL, &qctrl, sizeof(qctrl)) != 0) {
-			syslog(LOG_ERR,
-			    "could not get audit queue settings");
-				return (-1);
-		}
-		qctrl.aq_minfree = minval;
-		if (auditon(A_SETQCTRL, &qctrl, sizeof(qctrl)) != 0) {
-			syslog(LOG_ERR,
-			    "could not set audit queue settings");
-			return (-1);
-		}
+	return (0);
+}
+
+/*
+ * Start up auditing.
+ */
+static void
+audit_setup(void)
+{
+	int err;
+
+	if (do_trail_file() == -1) {
+		auditd_log_err("Error creating audit trail file");
+		fail_exit();
 	}
 
+	/* Generate an audit record. */
+	err = auditd_gen_record(AUE_audit_startup, NULL);
+	if (err)
+		auditd_log_err("auditd_gen_record(AUE_audit_startup) %s: %m", 
+		    auditd_strerror(err));
+	
+	if (auditd_config_controls() == 0)
+		auditd_log_info("Audit controls init successful");
+	else
+		auditd_log_err("Audit controls init failed");
+	
+}
+
+
+/*
+ * Close auditd pid file and trigger mechanism. 
+ */
+static int
+close_misc(void)
+{
+
+	auditd_close_dirs();
+	if (unlink(AUDITD_PIDFILE) == -1 && errno != ENOENT) {
+		auditd_log_err("Couldn't remove %s: %m", AUDITD_PIDFILE);
+		return (1);
+	}
+	endac();
+
+	if (auditd_close_trigger() != 0) {
+		auditd_log_err("Error closing trigger messaging mechanism");
+		return (1);
+	}
 	return (0);
 }
 
@@ -410,107 +332,48 @@ read_control_file(void)
 static int
 close_all(void)
 {
-	struct auditinfo ai;
 	int err_ret = 0;
 	char TS[TIMESTAMP_LEN];
-	int aufd;
-	token_t *tok;
+	int err;
 	long cond;
+	time_t tt;
 
-	/* Generate an audit record. */
-	if ((aufd = au_open()) == -1)
-		syslog(LOG_ERR, "Could not create audit shutdown event.");
-	else {
-		if ((tok = au_to_text("auditd::Audit shutdown")) != NULL)
-			au_write(aufd, tok);
-		/*
-		 * XXX we need to implement extended subject tokens so we can
-		 * effectively represent terminal lines with this token type.
-		 */
-		bzero(&ai, sizeof(ai));
-		if ((tok = au_to_subject32(getuid(), geteuid(), getegid(),
-		    getuid(), getgid(), getpid(), getpid(), &ai.ai_termid))
-		    != NULL)
-			au_write(aufd, tok);
-		if ((tok = au_to_return32(0, 0)) != NULL)
-			au_write(aufd, tok);
-		if (au_close(aufd, 1, AUE_audit_shutdown) == -1)
-			syslog(LOG_ERR,
-			    "Could not close audit shutdown event.");
-	}
+	err = auditd_gen_record(AUE_audit_shutdown, NULL);
+	if (err)
+		auditd_log_err("auditd_gen_record(AUE_audit_shutdown) %s: %m", 
+		    auditd_strerror(err));
 
 	/* Flush contents. */
 	cond = AUC_DISABLED;
 	err_ret = auditon(A_SETCOND, &cond, sizeof(cond));
 	if (err_ret != 0) {
-		syslog(LOG_ERR, "Disabling audit failed! : %s",
-		    strerror(errno));
+		auditd_log_err("Disabling audit failed! : %s", strerror(errno));
 		err_ret = 1;
 	}
-#ifdef USE_MACH_IPC
-	/* 
-	 * Post a notification that the audit config changed. 
+
+	/*
+	 * Updated the cached state that auditing has been disabled.
 	 */
-	notify_post(__BSM_INTERNAL_NOTIFY_KEY);
-#endif
-	if (getTSstr(TS, TIMESTAMP_LEN) == 0)
+	auditd_set_state(AUD_STATE_DISABLED);
+
+	if (getTSstr(tt, TS, TIMESTAMP_LEN) == 0)
 		close_lastfile(TS);
 	if (lastfile != NULL)
 		free(lastfile);
 
-	free_dir_q();
-	if ((remove(AUDITD_PIDFILE) == -1) || err_ret) {
-		syslog(LOG_ERR, "Could not unregister");
+	err_ret += close_misc();
+
+	if (err_ret) {
+		auditd_log_err("Could not unregister");
 		audit_warn_postsigterm();
-		return (1);
 	}
-	endac();
 
-#ifndef USE_MACH_IPC
-	if (close(triggerfd) != 0)
-		syslog(LOG_ERR, "Error closing control file");
-#endif
-	syslog(LOG_INFO, "Finished");
-	return (0);
+	auditd_log_info("Finished");
+	return (err_ret);
 }
 
 /*
- * When we get a signal, we are often not at a clean point.  So, little can
- * be done in the signal handler itself.  Instead,  we send a message to the
- * main servicing loop to do proper handling from a non-signal-handler
- * context.
- */
-#ifdef USE_MACH_IPC
-static void
-relay_signal(int signal)
-{
-	mach_msg_empty_send_t msg;
-
-	msg.header.msgh_id = signal;
-	msg.header.msgh_remote_port = signal_port;
-	msg.header.msgh_local_port = MACH_PORT_NULL;
-	msg.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
-	mach_msg(&(msg.header), MACH_SEND_MSG|MACH_SEND_TIMEOUT, sizeof(msg),
-	    0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
-}
-
-#else /* ! USE_MACH_IPC */
-
-static void
-relay_signal(int signal)
-{
-
-	if (signal == SIGHUP)
-		sighups++;
-	if (signal == SIGTERM)
-		sigterms++;
-	if (signal == SIGCHLD)
-		sigchlds++;
-}
-#endif /* ! USE_MACH_IPC */
-
-/*
- * Registering the daemon.
+ * Register the daemon with the signal handler and the auditd pid file.
  */
 static int
 register_daemon(void)
@@ -520,24 +383,29 @@ register_daemon(void)
 	pid_t pid;
 
 	/* Set up the signal hander. */
-	if (signal(SIGTERM, relay_signal) == SIG_ERR) {
-		syslog(LOG_ERR,
+	if (signal(SIGTERM, auditd_relay_signal) == SIG_ERR) {
+		auditd_log_err(
 		    "Could not set signal handler for SIGTERM");
 		fail_exit();
 	}
-	if (signal(SIGCHLD, relay_signal) == SIG_ERR) {
-		syslog(LOG_ERR,
+	if (signal(SIGCHLD, auditd_relay_signal) == SIG_ERR) {
+		auditd_log_err(
 		    "Could not set signal handler for SIGCHLD");
 		fail_exit();
 	}
-	if (signal(SIGHUP, relay_signal) == SIG_ERR) {
-		syslog(LOG_ERR,
+	if (signal(SIGHUP, auditd_relay_signal) == SIG_ERR) {
+		auditd_log_err(
 		    "Could not set signal handler for SIGHUP");
+		fail_exit();
+	}
+	if (signal(SIGALRM, auditd_relay_signal) == SIG_ERR) {
+		auditd_log_err(
+		    "Could not set signal handler for SIGALRM");
 		fail_exit();
 	}
 
 	if ((pidfile = fopen(AUDITD_PIDFILE, "a")) == NULL) {
-		syslog(LOG_ERR, "Could not open PID file");
+		auditd_log_err("Could not open PID file");
 		audit_warn_tmpfile();
 		return (-1);
 	}
@@ -545,7 +413,7 @@ register_daemon(void)
 	/* Attempt to lock the pid file; if a lock is present, exit. */
 	fd = fileno(pidfile);
 	if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
-		syslog(LOG_ERR,
+		auditd_log_err(
 		    "PID file is locked (is another auditd running?).");
 		audit_warn_ebusy();
 		return (-1);
@@ -562,48 +430,6 @@ register_daemon(void)
 	return (0);
 }
 
-#ifdef USE_MACH_IPC
-/*
- * Implementation of the auditd_control() MIG simpleroutine.
- *
- * React to input from the audit(1) tool.
- */
-
-/* ARGSUSED */
-kern_return_t
-auditd_control(mach_port_t __unused auditd_port, int trigger)
-{
-	int err_ret = 0;
-
-	switch (trigger) {
-
-	case AUDIT_TRIGGER_ROTATE_USER:
-		/*
-		 * Create a new file and swap with the one
-		 * being used in kernel.
-		 */
-		if (swap_audit_file() == -1)
-			syslog(LOG_ERR, "Error swapping audit file");
-		break;
-
-	case AUDIT_TRIGGER_READ_FILE:
-		if (read_control_file() == -1)
-			syslog(LOG_ERR, "Error in audit control file");
-		 break;
-
-	case AUDIT_TRIGGER_CLOSE_AND_DIE:
-		err_ret = close_all();
-		exit (err_ret);
-		break;
-
-	default:
-		break;
-	}
-
-	return (KERN_SUCCESS);
-}
-#endif /* USE_MACH_IPC */
-
 /*
  * Handle the audit trigger event.
  *
@@ -615,25 +441,16 @@ auditd_control(mach_port_t __unused auditd_port, int trigger)
  * not be retransmitted, and the log file will grow in an unbounded fashion.
  */
 #define	DUPLICATE_INTERVAL	30
-#ifdef USE_MACH_IPC
-#define	AT_SUCCESS	KERN_SUCCESS
-
-/* ARGSUSED */
-kern_return_t
-audit_triggers(mach_port_t __unused audit_port, int trigger)
-#else
-#define	AT_SUCCESS	0
-
-static int
-handle_audit_trigger(int trigger)
-#endif
+void
+auditd_handle_trigger(int trigger)
 {
 	static int last_trigger, last_warning;
 	static time_t last_time;
-	struct dir_ent *dirent;
 	struct timeval ts;
 	struct timezone tzp;
 	time_t tt;
+	int au_state;
+	int err = 0;
 
 	/*
 	 * Suppress duplicate messages from the kernel within the specified
@@ -652,10 +469,10 @@ handle_audit_trigger(int trigger)
 			if ((trigger == last_trigger) &&
 			    (tt < (last_time + DUPLICATE_INTERVAL))) {
 				if (tt >= (last_warning + DUPLICATE_INTERVAL))
-					syslog(LOG_INFO,
+					auditd_log_info(
 					    "Suppressing duplicate trigger %d",
 					    trigger);
-				return (AT_SUCCESS);
+				return;
 			}
 			last_warning = tt;
 			break;
@@ -663,6 +480,8 @@ handle_audit_trigger(int trigger)
 		case AUDIT_TRIGGER_ROTATE_KERNEL:
 		case AUDIT_TRIGGER_ROTATE_USER:
 		case AUDIT_TRIGGER_READ_FILE:
+		case AUDIT_TRIGGER_CLOSE_AND_DIE:
+		case AUDIT_TRIGGER_INITIALIZE:
 			/*
 			 * Triggers that we cannot suppress.
 			 */
@@ -678,166 +497,70 @@ handle_audit_trigger(int trigger)
 		last_time = tt;
 	}
 
+	au_state = auditd_get_state();
+
 	/*
 	 * Message processing is done here.
  	 */
-	dirent = TAILQ_FIRST(&dir_q);
 	switch(trigger) {
 	case AUDIT_TRIGGER_LOW_SPACE:
-		syslog(LOG_INFO, "Got low space trigger");
-		if (dirent && (dirent->softlim != 1)) {
-			TAILQ_REMOVE(&dir_q, dirent, dirs);
-				/* Add this node to the end of the list. */
-				TAILQ_INSERT_TAIL(&dir_q, dirent, dirs);
-				audit_warn_soft(dirent->dirname);
-				dirent->softlim = 1;
-
-			if (TAILQ_NEXT(TAILQ_FIRST(&dir_q), dirs) != NULL &&
-			    swap_audit_file() == -1)
-				syslog(LOG_ERR, "Error swapping audit file");
-
-			/*
-			 * Check if the next dir has already reached its soft
-			 * limit.
-			 */
-			dirent = TAILQ_FIRST(&dir_q);
-			if (dirent->softlim == 1)  {
-				/* All dirs have reached their soft limit. */
-				audit_warn_allsoft();
-			}
-		} else {
-			/*
-			 * Continue auditing to the current file.  Also
-			 * generate an allsoft warning.
-			 *
-			 * XXX do we want to do this ?
-			 */
-			audit_warn_allsoft();
-		}
+		auditd_log_notice("Got low space trigger");
+		if (do_trail_file() == -1)
+			auditd_log_err("Error swapping audit file");
 		break;
 
 	case AUDIT_TRIGGER_NO_SPACE:
-		syslog(LOG_INFO, "Got no space trigger");
-
-		/* Delete current dir, go on to next. */
-		TAILQ_REMOVE(&dir_q, dirent, dirs);
-		audit_warn_hard(dirent->dirname);
-		free(dirent->dirname);
-		free(dirent);
-
-		if (swap_audit_file() == -1)
-			syslog(LOG_ERR, "Error swapping audit file");
-
-		/* We are out of log directories. */
-		audit_warn_allhard(++allhardcount);
+		auditd_log_notice("Got no space trigger");
+		if (do_trail_file() == -1)
+			auditd_log_err("Error swapping audit file");
 		break;
 
 	case AUDIT_TRIGGER_ROTATE_KERNEL:
 	case AUDIT_TRIGGER_ROTATE_USER:
-		/*
-		 * Create a new file and swap with the one being used in
-		 * kernel
-		 */
-		syslog(LOG_INFO, "Got open new trigger from %s", trigger ==
+		auditd_log_info("Got open new trigger from %s", trigger ==
 		    AUDIT_TRIGGER_ROTATE_KERNEL ? "kernel" : "user");
-		if (swap_audit_file() == -1)
-			syslog(LOG_ERR, "Error swapping audit file");
+		if (au_state == AUD_STATE_ENABLED && do_trail_file() == -1)
+			auditd_log_err("Error swapping audit file");
 		break;
 
 	case AUDIT_TRIGGER_READ_FILE:
-		syslog(LOG_INFO, "Got read file trigger");
-		if (read_control_file() == -1)
-			syslog(LOG_ERR, "Error in audit control file");
-		if (config_audit_controls() == -1)
-			syslog(LOG_ERR, "Error setting audit controls");
+		auditd_log_info("Got read file trigger");
+		if (au_state == AUD_STATE_ENABLED && 
+		    auditd_config_controls() == -1)
+			auditd_log_err("Error setting audit controls");
 		break;
 
-	default:
-		syslog(LOG_ERR, "Got unknown trigger %d", trigger);
-		break;
-	}
-
-	return (AT_SUCCESS);
-}
-
-#undef	AT_SUCCESS
-
-static void
-handle_sighup(void)
-{
-
-	sighups_handled = sighups;
-	config_audit_controls();
-}
-
-static int
-config_audit_host(void)
-{
-	char hoststr[MAXHOSTNAMELEN];
-	struct sockaddr_in6 *sin6;
-	struct sockaddr_in *sin;
-	struct addrinfo *res;
-	struct auditinfo_addr aia;
-	int error;
-
-	if (getachost(hoststr, MAXHOSTNAMELEN) != 0) {
-		syslog(LOG_WARNING,
-		    "warning: failed to read 'host' param in control file");
+	case AUDIT_TRIGGER_CLOSE_AND_DIE:
+		auditd_log_info("Got close and die trigger");
+		if (au_state == AUD_STATE_ENABLED)
+			err = close_all();
 		/*
-		 * To maintain reverse compatability with older audit_control
-		 * files, simply drop a warning if the host parameter has not
-		 * been set.  However, we will explicitly disable the
-		 * generation of extended audit header by passing in a zeroed
-		 * termid structure.
+		 * Running under launchd don't exit.  Wait for launchd to
+		 * send SIGTERM.
 		 */
-		bzero(&aia, sizeof(aia));
-		aia.ai_termid.at_type = AU_IPv4;
-		error = auditon(A_SETKAUDIT, &aia, sizeof(aia));
-		if (error < 0 && errno == ENOSYS)
-			return (0);
-		else if (error < 0) {
-			syslog(LOG_ERR,
-			    "Failed to set audit host info");
-			return (-1);
+		if (!launchd_flag) {
+			auditd_log_info("auditd exiting.");	
+			exit (err);
 		}
-		return (0);
-	}
-	error = getaddrinfo(hoststr, NULL, NULL, &res);
-	if (error) {
-		syslog(LOG_ERR, "Failed to lookup hostname: %s",  hoststr);
-		return (-1);
-	}
-	switch (res->ai_family) {
-	case PF_INET6:
-		sin6 = (struct sockaddr_in6 *) res->ai_addr;
-		bcopy(&sin6->sin6_addr.s6_addr,
-		    &aia.ai_termid.at_addr[0], sizeof(struct in6_addr));
-		aia.ai_termid.at_type = AU_IPv6;
 		break;
-	case PF_INET:
-		sin = (struct sockaddr_in *) res->ai_addr;
-		bcopy(&sin->sin_addr.s_addr,
-		    &aia.ai_termid.at_addr[0], sizeof(struct in_addr));
-		aia.ai_termid.at_type = AU_IPv4;
+
+	case AUDIT_TRIGGER_INITIALIZE:
+		auditd_log_info("Got audit initialize trigger");
+		if (au_state == AUD_STATE_DISABLED)
+			audit_setup();
 		break;
+
 	default:
-		syslog(LOG_ERR,
-		    "Un-supported address family in host parameter");
-		return (-1);
+		auditd_log_err("Got unknown trigger %d", trigger);
+		break;
 	}
-	if (auditon(A_SETKAUDIT, &aia, sizeof(aia)) < 0) {
-		syslog(LOG_ERR,
-		    "auditon: failed to set audit host information");
-		return (-1);
-	}
-	return (0);
 }
 
 /*
  * Reap our children.
  */
-static void
-reap_children(void)
+void
+auditd_reap_children(void)
 {
 	pid_t child;
 	int wstatus;
@@ -845,7 +568,7 @@ reap_children(void)
 	while ((child = waitpid(-1, &wstatus, WNOHANG)) > 0) {
 		if (!wstatus)
 			continue;
-		syslog(LOG_INFO, "warn process [pid=%d] %s %d.", child,
+		auditd_log_info("warn process [pid=%d] %s %d.", child,
 		    ((WIFEXITED(wstatus)) ? "exited with non-zero status" :
 		    "exited as a result of signal"),
 		    ((WIFEXITED(wstatus)) ? WEXITSTATUS(wstatus) :
@@ -853,287 +576,121 @@ reap_children(void)
 	}
 }
 
-static void
-handle_sigchld(void)
-{
-
-	sigchlds_handled = sigchlds;
-	reap_children();
-}
-
 /*
- * Read the control file for triggers/signals and handle appropriately.
+ * Reap any children and terminate.  If under launchd don't shutdown auditing
+ * but just the other stuff.
  */
-#ifdef USE_MACH_IPC
-#define	MAX_MSG_SIZE	4096
-
-static boolean_t
-auditd_combined_server(mach_msg_header_t *InHeadP,
-    mach_msg_header_t *OutHeadP)
+void
+auditd_terminate(void)
 {
-	mach_port_t local_port = InHeadP->msgh_local_port;
+	int ret;
 
-	if (local_port == signal_port) {
-		int signo = InHeadP->msgh_id;
-		int ret;
+	auditd_reap_children();
+	
+	if (launchd_flag)
+		ret = close_misc();
+	else
+		ret = close_all();
 
-		switch(signo) {
-		case SIGTERM:
-			ret = close_all();
-			exit(ret);
-
-		case SIGCHLD:
-			handle_sigchld();
-			return (TRUE);
-
-		case SIGHUP:
-			handle_sighup();
-			return (TRUE);
-
-		default:
-			syslog(LOG_INFO, "Received signal %d", signo);
-			return (TRUE);
-		}
-	} else if (local_port == control_port) {
-		boolean_t result;
-
-		result = audit_triggers_server(InHeadP, OutHeadP);
-		if (!result)
-			result = auditd_control_server(InHeadP, OutHeadP);
-			return (result);
-	}
-	syslog(LOG_INFO, "Recevied msg on bad port 0x%x.", local_port);
-	return (FALSE);
+	exit(ret);
 }
-
-static int
-wait_for_events(void)
-{
-	kern_return_t   result;
-
-	result = mach_msg_server(auditd_combined_server, MAX_MSG_SIZE,
-	    port_set, MACH_MSG_OPTION_NONE);
-	syslog(LOG_ERR, "abnormal exit\n");
-	return (close_all());
-}
-
-#else /* ! USE_MACH_IPC */
-
-static int
-wait_for_events(void)
-{
-	int num;
-	unsigned int trigger;
-
-	for (;;) {
-		num = read(triggerfd, &trigger, sizeof(trigger));
-		if ((num == -1) && (errno != EINTR)) {
-			syslog(LOG_ERR, "%s: error %d", __FUNCTION__, errno);
-			return (-1);
-		}
-		if (sigterms != sigterms_handled) {
-			syslog(LOG_DEBUG, "%s: SIGTERM", __FUNCTION__);
-			break;
-		}
-		if (sigchlds != sigchlds_handled)
-			handle_sigchld();
-		if (sighups != sighups_handled) {
-			syslog(LOG_DEBUG, "%s: SIGHUP", __FUNCTION__);
-			handle_sighup();
-		}
-		if ((num == -1) && (errno == EINTR))
-			continue;
-		if (num == 0) {
-			syslog(LOG_ERR, "%s: read EOF", __FUNCTION__);
-			return (-1);
-		}
-		if (trigger == AUDIT_TRIGGER_CLOSE_AND_DIE)
-			break;
-		else
-			(void)handle_audit_trigger(trigger);
-	}
-	return (close_all());
-}
-#endif /* ! USE_MACH_IPC */
 
 /*
  * Configure the audit controls in the kernel: the event to class mapping,
  * kernel preselection mask, etc.
  */
-static int
-config_audit_controls(void)
+int
+auditd_config_controls(void)
 {
-	au_event_ent_t ev, *evp;
-	au_evclass_map_t evc_map;
-	au_mask_t aumask;
-	int ctr = 0;
-	char naeventstr[NA_EVENT_STR_SIZE];
-	char polstr[POL_STR_SIZE];
-	long policy;
-	au_fstat_t au_fstat;
-	size_t filesz;
+	int cnt, err;
+	int ret = 0;
 
 	/*
-	 * Process the audit event file, obtaining a class mapping for each
-	 * event, and send that mapping into the kernel.
-	 *
-	 * XXX There's a risk here that the BSM library will return NULL
-	 * for an event when it can't properly map it to a class. In that
-	 * case, we will not process any events beyond the one that failed,
-	 * but should. We need a way to get a count of the events.
-	*/
-	ev.ae_name = (char *)malloc(AU_EVENT_NAME_MAX);
-	ev.ae_desc = (char *)malloc(AU_EVENT_DESC_MAX);
-	if ((ev.ae_name == NULL) || (ev.ae_desc == NULL)) {
-		if (ev.ae_name != NULL)
-			free(ev.ae_name);
-		syslog(LOG_ERR,
-		    "Memory allocation error when configuring audit controls.");
-		return (-1);
-	}
-
-	/*
-	 * XXXRW: Currently we have no way to remove mappings from the kernel
-	 * when they are removed from the file-based mappings.
-	 */
-	evp = &ev;
-	setauevent();
-	while ((evp = getauevent_r(evp)) != NULL) {
-		evc_map.ec_number = evp->ae_number;
-		evc_map.ec_class = evp->ae_class;
-		if (auditon(A_SETCLASS, &evc_map, sizeof(au_evclass_map_t))
-		    != 0)
-			syslog(LOG_ERR,
-				"Failed to register class mapping for event %s",
-				 evp->ae_name);
-		else
-			ctr++;
-	}
-	endauevent();
-	free(ev.ae_name);
-	free(ev.ae_desc);
-	if (ctr == 0)
-		syslog(LOG_ERR, "No events to class mappings registered.");
-	else
-		syslog(LOG_DEBUG, "Registered %d event to class mappings.",
-		    ctr);
-
-	/*
-	 * Get the non-attributable event string and set the kernel mask from
-	 * that.
-	 */
-	if ((getacna(naeventstr, NA_EVENT_STR_SIZE) == 0) &&
-	    (getauditflagsbin(naeventstr, &aumask) == 0)) {
-		if (auditon(A_SETKMASK, &aumask, sizeof(au_mask_t)))
-			syslog(LOG_ERR,
-			    "Failed to register non-attributable event mask.");
-		else
-			syslog(LOG_DEBUG,
-			    "Registered non-attributable event mask.");
+	 * Configure event to class mappings in kernel.
+	 */	
+	cnt = auditd_set_evcmap();
+	if (cnt < 0) {
+		auditd_log_err("auditd_set_evcmap() failed: %m");
+		ret = -1;
+	} else if (cnt == 0) {
+		auditd_log_err("No events to class mappings registered.");
+		ret = -1;
 	} else
-		syslog(LOG_ERR,
-		    "Failed to obtain non-attributable event mask.");
+		auditd_log_debug("Registered %d event to class mappings.", cnt);
 
 	/*
-	 * If a policy is configured in audit_control(5), implement the
-	 * policy.  However, if one isn't defined, set AUDIT_CNT to avoid
-	 * leaving the system in a fragile state.
+	 * Configure non-attributable event mask in kernel.
 	 */
-	if ((getacpol(polstr, POL_STR_SIZE) == 0) &&
-	    (au_strtopol(polstr, &policy) == 0)) {
-		if (auditon(A_SETPOLICY, &policy, sizeof(policy)))
-			syslog(LOG_ERR, "Failed to set audit policy: %m");
-	} else {
-		syslog(LOG_ERR, "Failed to obtain policy flags: %m");
-		policy = AUDIT_CNT;
-		if (auditon(A_SETPOLICY, &policy, sizeof(policy)))
-			syslog(LOG_ERR,
-			    "Failed to set default audit policy: %m");
-	}
-
-	/*
-	 * Set trail rotation size.
-	 */
-	if (getacfilesz(&filesz) == 0) {
-		bzero(&au_fstat, sizeof(au_fstat));
-		au_fstat.af_filesz = filesz;
-		if (auditon(A_SETFSIZE, &au_fstat, sizeof(au_fstat)) < 0)
-			syslog(LOG_ERR, "Failed to set filesz: %m");
+	err = auditd_set_namask();
+	if (err) {
+		auditd_log_err("auditd_set_namask() %s: %m", 
+		    auditd_strerror(err));
+		ret = -1;
 	} else
-		syslog(LOG_ERR, "Failed to obtain filesz: %m");
+		auditd_log_debug("Registered non-attributable event mask.");
 
-	return (config_audit_host());
+	/*
+	 * Configure audit policy in kernel.
+	 */
+	err = auditd_set_policy();
+	if (err) {
+		auditd_log_err("auditd_set_policy() %s: %m", 
+		    auditd_strerror(err));
+		ret = -1;
+	} else
+		auditd_log_debug("Set audit policy in kernel.");
+	
+	/*
+	 * Configure audit trail log size in kernel.
+	 */
+	err = auditd_set_fsize();
+	if (err) {
+		auditd_log_err("audit_set_fsize() %s: %m",
+		    auditd_strerror(err));
+		ret = -1;
+	} else
+		auditd_log_debug("Set audit trail size in kernel.");
+	
+	/*
+	 * Configure audit trail volume minimum free percentage of blocks in 
+	 * kernel.
+	 */
+	err = auditd_set_minfree();
+	if (err) {
+		auditd_log_err("auditd_set_minfree() %s: %m",
+		    auditd_strerror(err));
+		ret = -1;
+	} else
+		auditd_log_debug( 
+		    "Set audit trail min free percent in kernel.");
+
+	/*
+	 * Configure host address in the audit kernel information. 
+	 */
+	err = auditd_set_host();
+	if (err) {
+		auditd_log_err("auditd_set_host() %s: %m",
+		    auditd_strerror(err));
+		ret = -1;
+	} else
+		auditd_log_debug(
+		    "Set audit host address information in kernel.");
+	
+	return (ret);
 }
 
-#ifdef USE_MACH_IPC
-static void
-mach_setup(void)
-{
-	mach_msg_type_name_t poly;
-
-	/*
-	 * Allocate a port set
-	 */
-	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_PORT_SET,
-	    &port_set) != KERN_SUCCESS)  {
-		syslog(LOG_ERR, "Allocation of port set failed");
-		fail_exit();
-	}
-
-	/*
-	 * Allocate a signal reflection port
-	 */
-	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE,
-	    &signal_port) != KERN_SUCCESS ||
-	    mach_port_move_member(mach_task_self(), signal_port, port_set) !=
-	    KERN_SUCCESS)  {
-		syslog(LOG_ERR, "Allocation of signal port failed");
-		fail_exit();
-	}
-
-	/*
-	 * Allocate a trigger port
-	 */
-	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE,
-	    &control_port) != KERN_SUCCESS ||
-	    mach_port_move_member(mach_task_self(), control_port, port_set)
-	    != KERN_SUCCESS)
-		syslog(LOG_ERR, "Allocation of trigger port failed");
-
-        /*
-	 * Create a send right on our trigger port.
-	 */
-	mach_port_extract_right(mach_task_self(), control_port,
-	    MACH_MSG_TYPE_MAKE_SEND, &control_port, &poly);
-
-        /*
-	 * Register the trigger port with the kernel.
-	 */
-	if (host_set_audit_control_port(mach_host_self(), control_port) != 
-	    KERN_SUCCESS) {
-		syslog(LOG_ERR, "Cannot set Mach control port");
-		fail_exit();
-	} else
-		syslog(LOG_DEBUG, "Mach control port registered");
-}
-#endif /* USE_MACH_IPC */
-
+/*
+ * Setup and initialize auditd.
+ */
 static void
 setup(void)
 {
-	struct auditinfo ai;
-	auditinfo_t auinfo;
-	int aufd;
-	token_t *tok;
+	int err;
 
-#ifdef USE_MACH_IPC
-	mach_setup();
-#else
-	if ((triggerfd = open(AUDIT_TRIGGER_FILE, O_RDONLY, 0)) < 0) {
-		syslog(LOG_ERR, "Error opening trigger file");
+	if (auditd_open_trigger(launchd_flag) < 0) {
+		auditd_log_err("Error opening trigger messaging mechanism");
 		fail_exit();
 	}
-#endif
 
 	/*
 	 * To prevent event feedback cycles and avoid auditd becoming
@@ -1142,49 +699,25 @@ setup(void)
 	 * mask fields to be implicitly set to zero, but do set the pid.  We
 	 * run this after opening the trigger device to avoid configuring
 	 * audit state without audit present in the system.
-	 *
-	 * XXXRW: Is there more to it than this?
 	 */
-	bzero(&auinfo, sizeof(auinfo));
-	auinfo.ai_asid = getpid();
-	if (setaudit(&auinfo) == -1) {
-		syslog(LOG_ERR, "Error setting audit stat");
+	err = auditd_prevent_audit();
+	if (err) {
+		auditd_log_err("auditd_prevent_audit() %s: %m", 
+		    auditd_strerror(err));
 		fail_exit();
 	}
 
-	TAILQ_INIT(&dir_q);
-	if (read_control_file() == -1) {
-		syslog(LOG_ERR, "Error reading control file");
-		fail_exit();
-	}
+	/*
+	 * Make sure auditd auditing state is correct.
+	 */
+	auditd_set_state(AUD_STATE_INIT);
 
-	/* Generate an audit record. */
-	if ((aufd = au_open()) == -1)
-		syslog(LOG_ERR, "Could not create audit startup event.");
-	else {
-		/*
-		 * XXXCSJP Perhaps we want more robust audit records for
-		 * audit start up and shutdown. This might include capturing
-		 * failures to initialize the audit subsystem?
-		 */
-		bzero(&ai, sizeof(ai));
-		if ((tok = au_to_subject32(getuid(), geteuid(), getegid(),
-		    getuid(), getgid(), getpid(), getpid(), &ai.ai_termid))
-		    != NULL)
-			au_write(aufd, tok);
-		if ((tok = au_to_text("auditd::Audit startup")) != NULL)
-			au_write(aufd, tok);
-		if ((tok = au_to_return32(0, 0)) != NULL)
-			au_write(aufd, tok);
-		if (au_close(aufd, 1, AUE_audit_startup) == -1)
-			syslog(LOG_ERR,
-			    "Could not close audit startup event.");
-	}
-
-	if (config_audit_controls() == 0)
-		syslog(LOG_INFO, "Audit controls init successful");
-	else
-		syslog(LOG_ERR, "Audit controls init failed");
+	/*
+	 * If under launchd, don't start auditing.  Wait for a trigger to
+	 * do so.
+	 */
+	if (!launchd_flag)
+		audit_setup();
 }
 
 int
@@ -1192,48 +725,73 @@ main(int argc, char **argv)
 {
 	int ch;
 	int debug = 0;
-	int rc, logopts;
+#ifdef AUDIT_REVIEW_GROUP
+	struct group *grp;
+#endif
 
-	while ((ch = getopt(argc, argv, "d")) != -1) {
+	while ((ch = getopt(argc, argv, "dl")) != -1) {
 		switch(ch) {
 		case 'd':
 			/* Debug option. */
 			debug = 1;
 			break;
 
+		case 'l':
+			/* Be launchd friendly. */
+			launchd_flag = 1;
+			break;
+
 		case '?':
 		default:
 			(void)fprintf(stderr,
-			    "usage: auditd [-d] \n");
+			    "usage: auditd [-d] [-l]\n");
 			exit(1);
 		}
 	}
 
-	logopts = LOG_CONS | LOG_PID;
-	if (debug != 0)
-		logopts |= LOG_PERROR;
+	audit_review_gid = getgid();
 
-#ifdef LOG_SECURITY
-	openlog("auditd", logopts, LOG_SECURITY);
-#else
-	openlog("auditd", logopts, LOG_AUTH);
+#ifdef AUDIT_REVIEW_GROUP
+	/*
+	 * XXXRW: Currently, this code falls back to the daemon gid, which is
+	 * likely the wheel group.  Is there a better way to deal with this?
+	 */
+	grp = getgrnam(AUDIT_REVIEW_GROUP);
+	if (grp != NULL) 
+		audit_review_gid = grp->gr_gid;
 #endif
-	syslog(LOG_INFO, "starting...");
 
-	if (debug == 0 && daemon(0, 0) == -1) {
-		syslog(LOG_ERR, "Failed to daemonize");
+	auditd_openlog(debug, audit_review_gid);
+
+	if (launchd_flag)
+		auditd_log_info("started by launchd...");
+	else
+		auditd_log_info("starting...");
+
+#ifdef AUDIT_REVIEW_GROUP
+	if (grp == NULL)
+		auditd_log_info(
+		    "Audit review group '%s' not available, using daemon gid (%d)",
+		    AUDIT_REVIEW_GROUP, audit_review_gid);
+#endif
+	if (debug == 0 && launchd_flag == 0 && daemon(0, 0) == -1) {
+		auditd_log_err("Failed to daemonize");
 		exit(1);
 	}
 
 	if (register_daemon() == -1) {
-		syslog(LOG_ERR, "Could not register as daemon");
+		auditd_log_err("Could not register as daemon");
 		exit(1);
 	}
 
 	setup();
 
-	rc = wait_for_events();
-	syslog(LOG_INFO, "auditd exiting.");
+	/*
+	 * auditd_wait_for_events() shouldn't return unless something is wrong. 
+	 */
+	auditd_wait_for_events();
 
-	exit(rc);
+	auditd_log_err("abnormal exit.");
+	close_all();
+	exit(-1);
 }
