@@ -1153,7 +1153,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		lle = (void *)-1;
 		
 	}
-	if (lle != NULL && lle != (void *)-1) {
+	if (LLE_IS_VALID(lle)) {
 		if (flags & LLE_EXCLUSIVE)
 			LLE_WLOCK(lle);
 		else
