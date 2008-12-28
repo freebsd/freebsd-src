@@ -883,12 +883,9 @@ static void
 x86_oldldt(dummy)
 	void			*dummy;
 {
-	struct thread		*t;
 	struct x86desc		*gdt;
 	struct gdt		gtable;
 	uint16_t		ltable;
-
-	t = curthread;
 
 	mtx_lock_spin(&dt_lock);
 
