@@ -81,6 +81,9 @@ nodevice	atpic
 nodevice	isa
 options		MCLSHIFT=12
 device		genclock
+nooption	KSE
+options		CPU_DISABLE_SSE
+
 
 # To make an SMP kernel, the next two lines are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
