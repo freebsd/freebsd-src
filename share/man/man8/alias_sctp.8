@@ -1,0 +1,241 @@
+.\" * Copyright (c) 2008, Centre for Advanced Internet Architectures
+.\" * Swinburne University of Technology, Melbourne, Australia
+.\" * (CRICOS number 00111D).
+.\" * 
+.\" * Alias_sctp forms part of the libalias kernel module to handle 
+.\" * Network Address Translation (NAT) for the SCTP protocol.
+.\" *
+.\" *  This software was developed by David A. Hayes and Jason But
+.\" *
+.\" * The design is outlined in CAIA technical report number  080618A
+.\" * (D. Hayes and J. But, "Alias_sctp Version 0.1: SCTP NAT implementation in IPFW")
+.\" *
+.\" * Development is part of the CAIA SONATA project,
+.\" * proposed by Jason But and Grenville Armitage:
+.\" * http://caia.swin.edu.au/urp/sonata/
+.\" *
+.\" * 
+.\" * This project has been made possible in part by a grant from
+.\" * the Cisco University Research Program Fund at Community
+.\" * Foundation Silicon Valley.
+.\" *
+.\" *
+.\" *
+.\" *  All rights reserved.
+.\" * 
+.\" *  Redistribution and use in source and binary forms, with or without
+.\" *  modification, are permitted provided that the following conditions
+.\" *  are met:
+.\" *  1. Redistributions of source code must retain the above copyright
+.\" *     notice, this list of conditions and the following disclaimer.
+.\" *  2. Redistributions in binary form must reproduce the above copyright
+.\" *     notice, this list of conditions and the following disclaimer in the
+.\" *     documentation and/or other materials provided with the distribution.
+.\" *  3. The names of the authors, the "Centre for Advanced Internet Architectures"
+.\" *     and "Swinburne University of Technology" may not be used to endorse
+.\" *     or promote products derived from this software without specific
+.\" *     prior written permission.
+.\" * 
+.\" *  THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS "AS IS" AND
+.\" *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" *  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" *  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" *  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" *  SUCH DAMAGE.
+.TH ALIAS_SCTP 8 "30 September 08" "version 0.2"
+.SH NAME
+alias_sctp - SCTP NAT functionality for libalias in FreeBSD
+.SH SYNOPSIS
+.B alias_sctp \- libalias enhancements to support SCTP NAT
+.PP
+.B ipfw \- Extensions to user-land tool to configure SCTP NAT
+.PP
+.B sysctl net.inet.ip.alias.sctp.* \- sysctl interface to alias_sctp
+./"========================================================================="
+.SH DESCRIPTION
+.B alias_sctp
+is a kernel space addition to libalias that implements NAT for SCTP within the 
+.B ipfw2
+framework for FreeBSD. The
+.B alias_sctp
+implementation is based on the details provided in Internet Draft xxxxx and our
+own ideas discovered during implementation.
+.B alias_sctp
+is a dynamically configurable NAT module that supports the following functionality: 
+.IP o
+Optional support for tracking of Global IP Addresses (see Internet Draft xxxx)
+.IP o
+Dynamically configurable timeouts for various states within the NAT
+.IP o
+Dynamically configurable packet parsing limits (to protect against DoS attacks)
+.IP o
+Per port/IP-address forwarding of incoming associations
+.IP o
+Dynamically configurable hash table size and logging details
+.IP o
+NAT configured via user-land
+.B ipfw
+tool
+.IP o
+NAT statistics available via 
+.B ipfw
+user-land command
+./"========================================================================="
+.SH USING alias_sctp
+.SS Configuring alias_sctp via ipfw
+.B Alias_sctp
+can be configured in a simillar manner to TCP through the ipfw command line tool
+(see ipfw(8)). The main difference in configuring SCTP NAT rules, is that 
+.B alias_sctp
+does not do port translation. Since the local and global side ports will be the
+same, there is no need to specify both. Ports are redirected as follows:
+.IP
+.B ipfw nat 
+inst#
+.B config if
+nic
+.B redirect_port sctp
+ip-addr [,addr-list] {port | port-port] [,ports]}
+./"========================================================================="
+.SH "sysctl" INTERFACE
+Most
+.B alias_sctp
+configuration can be done in real-time through the
+.B sysctl(8)
+interface. All may be changed dynamically, though the hash_table size will only
+change for new NAT instances. Default values are also listed below.
+
+.SS net.inet.ip.alias.sctp.hashtable_size (Default = 2003)
+Size of hash tables used for NAT lookups (100 < prime_number > 1000001)
+This value sets the hash table size for any _future_ created NAT
+instance and therefore must be set prior to creating a NAT instance (ie
+ipfw nat 100 config ...).
+.PP
+The table sizes my be changed to suit specific needs. If there will be few
+concurrent associations, and memory is scarce, you may make these smaller.  If
+there will be many thousands (or millions) of concurrent associations, you
+should make these larger. A prime number is best for the table size. The sysctl
+update function will adjust your input value to the next highest prime number.
+
+.SS net.inet.ip.alias.sctp.error_on_ootb (Default = 1)
+Defines when the NAT responds to any Out-of-the-Blue (OOTB) packets with ErrorM
+packets. An OOTB packet is a packet that arrives with no existing association
+registered in the NAT AND is not an INIT or ASCONF-AddIP packet:
+.PP
+.IP "0  \-" 
+ErrorM is never sent in response to OOTB packets
+.IP "1  \-"
+ErrorM is only sent to OOTB packets received on the local side
+.IP "2  \-"
+ErrorM is sent to the local side and on the global side ONLY if there is a
+partial match (ports and vtags match but the source global IP does not). This
+value is only useful if the NAT is tracking global IP addresses
+.IP "3  \-"
+ErrorM is sent in response to all OOTB packets on both the local and global side
+(DoS risk)
+.PP
+At the moment the default is 0, since the ErrorM packet is not yet
+supported by most SCTP stacks. When it is supported, and if not tracking
+global addresses we recommend setting this value to 1 to allow
+multi-homed local hosts to function with the NAT. If tracking global addresses
+we recommend setting this value to 2 to allow global hosts to be informed when
+they need to (re)send an ASCONF-AddIP. Value 3 should never be chosen (except
+for debugging) as the NAT will respond to all OOTB global packets (a DoS risk).
+
+.SS net.inet.ip.alias.sctp.accept_global_ootb_addip (Default = 0)
+Defines how the NAT responds to receipt of global OOTB ASCONF-AddIP:
+.PP
+.IP "0  \-"
+No response (unless a partially matching association exists -
+ports and vtags match but global address does not)
+.IP "1  \-"
+NAT will accept and process all OOTB global AddIP messages.
+.PP
+Option 1 should never be selected as this forms a security risk. An attacker can
+establish multiple fake associations by sending AddIP messages.
+
+.SS net.inet.ip.alias.sctp.initialising_chunk_proc_limit (Default = 2)
+Defines the maximum number of chunks in an SCTP packet that will be parsed when
+no existing association exists that matches that packet. Ideally this packet
+will only be an INIT or ASCONF-AddIP packet. A higher value may become a DoS
+risk as malformed packets can consume processing resources.
+
+.SS net.inet.ip.alias.sctp.chunk_proc_limit (Default = 5)
+Defines the maximum number of chunks in an SCTP packet that will be parsed for a
+packet that matches an existing association. This value is enforced to be >=
+(initialising_chunk_proc_limit). As for the previous parameter, a high value is
+a DoS risk yet setting too low a value may result in important control chunks in
+the packet not being located and parsed.
+
+.SS net.inet.ip.alias.sctp.param_proc_limit (Default = 25)
+Defines the maximum number of parameters within a chunk that will be parsed in a
+packet. As for other similar sysctl variables, larger values pose a DoS risk.
+
+.SS net.inet.ip.alias.sctp.track_global_addresses (Default = 0)
+Enables/disables global IP address tracking within the NAT and places an
+upper limit on the number of addresses tracked for each association:
+.PP
+.IP "0  \-"
+Global tracking is disabled
+.IP ">1  \-"
+Enables tracking, the maximum number of addresses tracked for each
+association is limited to this value
+.PP
+This variable is fully dynamic, the new value will be adopted for all newly
+arriving associations, existing association are treated as they were previously.
+Global tracking will decrease the number of collisions within the NAT at a cost
+of increased processing load, memory usage, complexity, and possible NAT state
+problems in complex networks with multiple NATs. We recommend not tracking
+global IP addresses, this will still result in a fully functional NAT.
+
+.SS net.inet.ip.alias.sctp.init_timer (Default = 15)
+Timeout value (s) while waiting for (INIT-ACK|AddIP-ACK).
+This value cannot be 0.
+
+.SS net.inet.ip.alias.sctp.up_timer (Default = 300)
+Timeout value (s) to keep an association up with no traffic.
+This value cannot be 0.
+
+.SS net.inet.ip.alias.sctp.shutdown_time (Default = 15)
+Timeout value (s) while waiting for SHUTDOWN-COMPLETE.
+This value cannot be 0.
+
+.SS net.inet.ip.alias.sctp.holddown_time (Default = 0)
+Hold association in table for this many seconds after receiving a
+SHUTDOWN-COMPLETE.  This allows endpoints to correct shutdown gracefully if a
+shutdown_complete is lost and retransmissions are required. This
+net.inet.ip.alias.sctp.log_level (Default = 0) Level of detail in the system log
+messages (0 \- minimal, 1 \- event, 2 \- info, 3 \- detail, 4 \- debug, 5 \- max
+debug)
+.PP
+May be a good option in high loss environments.
+
+.SH "SEE ALSO"
+.BR ipfw (8),
+.BR libalias (8),
+.BR sysctl (8)
+.SH AUTHOR
+.B alias_sctp
+has been developed and released by:
+
+The Centre for Advanced Internet Architectures (CAIA), Swinburne University, 
+Melbourne, Australia.
+.IP 
+.I http://www.caia.swin.edu.au
+.LP 
+The primary developers and maintainers of
+.B alias_sctp
+are David Hayes and Jason But.
+
+.B alias_sctp
+can be downloaded from its website:
+.IP 
+.I http://www.caia.swin.edu.au/urp/SONATA
+.LP
+This site contains the latest updates and further information on how to use and
+.B alias_sctp

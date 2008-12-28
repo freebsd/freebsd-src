@@ -141,6 +141,13 @@ __FBSDID("$FreeBSD$");
 
     See HISTORY file for additional revisions.
 */
+/**
+ * Modifications to add sctp functionality by David A. Hayes
+ *	$Id: alias_db.c 177 2008-07-14 04:33:47Z dhayes $ 
+ * All are inclosed in #ifdef _ALIAS_SCTP
+ * 
+ */
+
 
 #ifdef _KERNEL
 #include <machine/stdarg.h>
@@ -166,6 +173,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
 #include <netinet/libalias/alias_mod.h>
+#ifdef _ALIAS_SCTP
+#include <netinet/libalias/alias_sctp.h>
+#endif
 #include <net/if.h>
 #else
 #include "alias.h"
@@ -373,6 +383,7 @@ static moduledata_t alias_mod = {
 };
 
 DECLARE_MODULE(alias, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+
 #endif
 
 /* Internal utility routines (used only in alias_db.c)
@@ -410,6 +421,10 @@ static void	ClearFWHole(struct alias_link *);
 static void	ShowAliasStats(struct libalias *);
 static int	InitPacketAliasLog(struct libalias *);
 static void	UninitPacketAliasLog(struct libalias *);
+#ifdef _ALIAS_SCTP
+struct in_addr FindSctpRedirectAddress(struct libalias *la,  struct sctp_nat_msg *sm);
+void SctpShowAliasStats(struct libalias *la);
+#endif
 
 static		u_int
 StartPointIn(struct in_addr alias_addr,
@@ -489,15 +504,25 @@ ShowAliasStats(struct libalias *la)
 /* Used for debugging */
 	if (la->logDesc) {
 		int tot  = la->icmpLinkCount + la->udpLinkCount + 
+#ifdef _ALIAS_SCTP
+		  (la->sctpLinkCount>>1) + /* sctp counts half associations */
+#endif
 			la->tcpLinkCount + la->pptpLinkCount +
 			la->protoLinkCount + la->fragmentIdLinkCount +
 			la->fragmentPtrLinkCount;
 		
 		AliasLog(la->logDesc,
+#ifdef _ALIAS_SCTP
+			 "icmp=%u, udp=%u, tcp=%u, sctp=%u, pptp=%u, proto=%u, frag_id=%u frag_ptr=%u / tot=%u",
+#else
 			 "icmp=%u, udp=%u, tcp=%u, pptp=%u, proto=%u, frag_id=%u frag_ptr=%u / tot=%u",
+#endif
 			 la->icmpLinkCount,
 			 la->udpLinkCount,
 			 la->tcpLinkCount,
+#ifdef _ALIAS_SCTP
+			 la->sctpLinkCount>>1, /* sctp counts half associations */
+#endif
 			 la->pptpLinkCount,
 			 la->protoLinkCount,
 			 la->fragmentIdLinkCount,
@@ -507,6 +532,13 @@ ShowAliasStats(struct libalias *la)
 #endif
 	}
 }
+
+#ifdef _ALIAS_SCTP
+void SctpShowAliasStats(struct libalias *la)
+{
+  ShowAliasStats(la);
+}
+#endif
 
 /* Internal routines for finding, deleting and adding links
 
@@ -971,6 +1003,10 @@ AddLink(struct libalias *la, struct in_addr src_addr,
 		case LINK_TCP:
 			lnk->expire_time = TCP_EXPIRE_INITIAL;
 			break;
+#ifdef _ALIAS_SCTP
+		case LINK_SCTP: /* treat like LINK_ADDR */
+		  break;
+#endif
 		case LINK_PPTP:
 			lnk->flags |= LINK_PERMANENT;	/* no timeout. */
 			break;
@@ -1031,6 +1067,10 @@ AddLink(struct libalias *la, struct in_addr src_addr,
 				return (NULL);
 			}
 			break;
+#ifdef _ALIAS_SCTP
+		case LINK_SCTP: /* treat like LINK_ADDR */
+		  break;
+#endif
 		case LINK_PPTP:
 			la->pptpLinkCount++;
 			break;
@@ -1277,11 +1317,17 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 			src_addr = lnk->src_addr;
 			src_port = lnk->src_port;
 		}
-
-		lnk = ReLink(lnk,
-		    src_addr, dst_addr, alias_addr,
-		    src_port, dst_port, alias_port,
-		    link_type);
+#ifdef _ALIAS_SCTP
+		if(link_type == LINK_SCTP) {
+		  lnk->src_addr = src_addr;
+		  lnk->src_port = src_port;
+		  return(lnk);
+		}
+#endif
+		  lnk = ReLink(lnk,
+			       src_addr, dst_addr, alias_addr,
+			       src_port, dst_port, alias_port,
+			       link_type);
 	}
 	return (lnk);
 }
@@ -2277,10 +2323,15 @@ LibAliasRedirectPort(struct libalias *la, struct in_addr src_addr, u_short src_p
 	case IPPROTO_TCP:
 		link_type = LINK_TCP;
 		break;
+#ifdef _ALIAS_SCTP
+	case IPPROTO_SCTP:
+		link_type = LINK_SCTP;
+		break;
+#endif
 	default:
 #ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAliasRedirectPort(): ");
-		fprintf(stderr, "only TCP and UDP protocols allowed\n");
+		fprintf(stderr, "only SCTP, TCP and UDP protocols allowed\n");
 #endif
 		lnk = NULL;
 		goto getout;
@@ -2496,6 +2547,9 @@ LibAliasInit(struct libalias *la)
 			LIST_INIT(&la->linkTableOut[i]);
 		for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
 			LIST_INIT(&la->linkTableIn[i]);
+#ifdef _ALIAS_SCTP
+		AliasSctpInit(la);//***
+#endif
 		LIBALIAS_LOCK_INIT(la);
 		LIBALIAS_LOCK(la);
 	} else {
@@ -2503,6 +2557,10 @@ LibAliasInit(struct libalias *la)
 		la->deleteAllLinks = 1;
 		CleanupAliasData(la);
 		la->deleteAllLinks = 0;
+#ifdef _ALIAS_SCTP
+		AliasSctpTerm(la);
+		AliasSctpInit(la);
+#endif
 	}
 
 	la->aliasAddress.s_addr = INADDR_ANY;
@@ -2511,6 +2569,9 @@ LibAliasInit(struct libalias *la)
 	la->icmpLinkCount = 0;
 	la->udpLinkCount = 0;
 	la->tcpLinkCount = 0;
+#ifdef _ALIAS_SCTP
+	la->sctpLinkCount = 0;
+#endif
 	la->pptpLinkCount = 0;
 	la->protoLinkCount = 0;
 	la->fragmentIdLinkCount = 0;
@@ -2539,6 +2600,9 @@ LibAliasUninit(struct libalias *la)
 {
 
 	LIBALIAS_LOCK(la);
+#ifdef _ALIAS_SCTP
+	AliasSctpTerm(la);
+#endif
 	la->deleteAllLinks = 1;
 	CleanupAliasData(la);
 	la->deleteAllLinks = 0;
@@ -2879,3 +2943,39 @@ LibAliasSetSkinnyPort(struct libalias *la, unsigned int port)
 	la->skinnyPort = port;
 	LIBALIAS_UNLOCK(la);
 }
+#ifdef _ALIAS_SCTP
+/**
+ * @brief Find the address to redirect incoming packets
+ *
+ * The function is located in alias_db.c due to calls to static functions
+ *
+ * 
+ * @param la pointer to the libalias instance
+ * @param sm pointer to the incoming message
+ * 
+ * @return address to redirect an incoming INIT to
+ */
+struct in_addr
+FindSctpRedirectAddress(struct libalias *la,  struct sctp_nat_msg *sm)
+{
+  struct alias_link *lnk;
+  struct in_addr redir;
+
+  LIBALIAS_LOCK_ASSERT(la);
+  lnk = FindLinkIn(la, sm->ip_hdr->ip_src, sm->ip_hdr->ip_dst,
+		    sm->sctp_hdr->dest_port,sm->sctp_hdr->dest_port, LINK_SCTP, 1);
+  if (lnk != NULL) {
+    return(lnk->src_addr); /* port redirect */
+  } else {
+    redir = FindOriginalAddress(la,sm->ip_hdr->ip_dst);
+    if (redir.s_addr == la->aliasAddress.s_addr ||
+	redir.s_addr == la->targetAddress.s_addr) { /* No address found */
+      lnk = FindLinkIn(la, sm->ip_hdr->ip_src, sm->ip_hdr->ip_dst,
+		     NO_DEST_PORT, 0, LINK_SCTP, 1);
+      if (lnk != NULL)
+	return(lnk->src_addr); /* redirect proto */
+    }
+    return(redir); /* address redirect */
+  }
+}
+#endif
