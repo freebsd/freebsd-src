@@ -48,6 +48,7 @@
 #include <fcntl.h>
 
 #define IPFW_INTERNAL	/* Access to protected structures in ip_fw.h. */
+#define _ALIAS_SCTP /*Using alias_sctp*/
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -3504,7 +3505,13 @@ StrToProto (const char* str)
 	if (!strcmp (str, "udp"))
 		return IPPROTO_UDP;
 
+#ifdef _ALIAS_SCTP /*Using alias_sctp*/
+	if (!strcmp (str, "sctp"))
+		return IPPROTO_SCTP;
+	errx (EX_DATAERR, "unknown protocol %s. Expected sctp, tcp or udp", str);
+#else
 	errx (EX_DATAERR, "unknown protocol %s. Expected tcp or udp", str);
+#endif
 }
 
 static int 
@@ -3680,13 +3687,29 @@ setup_redir_port(char *spool_buf, int len,
 		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
 		lsnat = 1;
 	} else {
-		if (StrToAddrAndPortRange (*av, &r->laddr, protoName, 
+#ifdef _ALIAS_SCTP /*Using alias_sctp*/
+	  /*
+	   * The sctp nat does not allow the port numbers to be mapped to new port numbers
+	   * Therefore, no ports are to be specified in the target port field
+	   */
+	  if (r->proto == IPPROTO_SCTP) {
+	    if (strchr (*av, ':'))
+	      errx(EX_DATAERR, "redirect_port:"
+		   "port numbers do not change in sctp, so do not specify them as part of the target");
+	    else
+	      StrToAddr(*av, &r->laddr);
+	} else {
+#endif  /*Using alias_sctp*/
+	         if (StrToAddrAndPortRange (*av, &r->laddr, protoName, 
 		    &portRange) != 0)
 			errx(EX_DATAERR, "redirect_port:"
 			    "invalid local port range");
 
 		r->lport = GETLOPORT(portRange);
 		numLocalPorts = GETNUMPORTS(portRange);
+#ifdef _ALIAS_SCTP /*Using alias_sctp*/
+	  }
+#endif  /*Using alias_sctp*/
 	}
 	INC_ARGCV();	
 
@@ -3710,6 +3733,12 @@ setup_redir_port(char *spool_buf, int len,
 	}
 
 	r->pport = GETLOPORT(portRange);
+#ifdef _ALIAS_SCTP /*Using alias_sctp*/
+	if (r->proto == IPPROTO_SCTP) { /* so the logic below still works */
+	  numLocalPorts = GETNUMPORTS(portRange);
+	  r->lport = r->pport;
+	}
+#endif  /*Using alias_sctp*/
 	r->pport_cnt = GETNUMPORTS(portRange);
 	INC_ARGCV();
 
@@ -3765,6 +3794,22 @@ setup_redir_port(char *spool_buf, int len,
 				goto nospace;
 			len -= SOF_SPOOL;
 			space += SOF_SPOOL;
+
+#ifdef _ALIAS_SCTP /*Using alias_sctp*/
+		      /*
+		       * The sctp nat does not allow the port numbers to be mapped to new port numbers
+		       * Therefore, no ports are to be specified in the target port field
+		       */
+		      if (r->proto == IPPROTO_SCTP) {
+			if (strchr (sep, ':')) {
+			  errx(EX_DATAERR, "redirect_port:"
+			       "port numbers do not change in sctp, so do not specify them as part of the target");
+		       } else {
+			  StrToAddr(sep, &tmp->addr);
+			  tmp->port = r->pport;
+			}
+		      } else {
+#endif  /*Using alias_sctp*/
 			if (StrToAddrAndPortRange(sep, &tmp->addr, protoName, 
 			    &portRange) != 0)
 				errx(EX_DATAERR, "redirect_port:"
@@ -3773,6 +3818,9 @@ setup_redir_port(char *spool_buf, int len,
 				errx(EX_DATAERR, "redirect_port: local port"
 				    "must be single in this context");
 			tmp->port = GETLOPORT(portRange);
+#ifdef _ALIAS_SCTP /*Using alias_sctp*/
+		      }
+#endif  /*Using alias_sctp*/
 			r->spool_cnt++;	
 			/* Point to the next possible cfg_spool. */
 			spool_buf = &spool_buf[SOF_SPOOL];

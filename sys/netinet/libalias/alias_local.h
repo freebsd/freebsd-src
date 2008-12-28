@@ -42,12 +42,28 @@
  *
  * <updated several times by original author and Eivind Eklund>
  */
+/**
+ * Modifications to add sctp functionality by David A. Hayes
+ *	$Id: alias_local.h 122 2008-06-25 06:50:47Z dhayes $ 
+ * All are inclosed in #ifdef _ALIAS_SCTP
+ * 
+ */
 
 #ifndef _ALIAS_LOCAL_H_
 #define	_ALIAS_LOCAL_H_
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+
+#ifdef _KERNEL
+/* if alias_sctp is not required, #define _ALIAS_SCTP should be commented out */
+#ifndef _ALIAS_SCTP
+#define _ALIAS_SCTP
+#endif
+#ifdef _ALIAS_SCTP
+#include <netinet/libalias/alias_sctp.h>
+#endif
+#endif
 
 #ifdef _KERNEL
 #include <sys/malloc.h>
@@ -147,6 +163,32 @@ struct libalias {
 
 	struct in_addr	true_addr;	/* in network byte order. */
 	u_short		true_port;	/* in host byte order. */
+ /*
+  *
+  *alias_sctp code
+  */
+#ifdef _ALIAS_SCTP
+  /*counts associations that have progressed to UP and not yet removed */
+  int		sctpLinkCount;
+  /*Timing queue for keeping track of association timeouts */
+  struct sctp_nat_timer sctpNatTimer;
+  
+  /* Size of hash table used in this instance*/
+  u_int sctpNatTableSize;
+/**
+ * @brief Local look up table
+ *
+ * lookup table of sctp_nat_assoc sorted by l_vtag/l_port 
+ */
+  LIST_HEAD(sctpNatTableL, sctp_nat_assoc) *sctpTableLocal;
+/**
+ * @brief Global look up table
+ *
+ * lookup table of sctp_nat_assoc sorted by g_vtag/g_port 
+ */
+  LIST_HEAD(sctpNatTableG, sctp_nat_assoc) *sctpTableGlobal;
+#endif
+
 #ifdef  _KERNEL
 	/* 
 	 * avoid races in libalias: every public function has to use it.
@@ -197,6 +239,22 @@ struct libalias {
 
 
 /* Prototypes */
+
+ /*
+  *
+  *alias_sctp code
+  */
+#ifdef _ALIAS_SCTP
+/*
+ * SctpFunction prototypes
+ * 
+ */
+void AliasSctpInit(struct libalias *la);
+void AliasSctpTerm(struct libalias *la);
+
+int SctpAlias(struct libalias *la, struct ip *ip, int direction);
+//int SctpAliasOut(struct libalias *la, struct ip *ip);
+#endif
 
 /*
  * We do not calculate TCP checksums when libalias is a kernel

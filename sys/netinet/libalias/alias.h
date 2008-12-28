@@ -36,6 +36,13 @@
  * distribution.
  */
 
+/**
+ * Modifications to add sctp functionality by David A. Hayes
+ *	$Id: alias.h 122 2008-06-25 06:50:47Z dhayes $ 
+ * All are inclosed in #ifdef _ALIAS_SCTP
+ * 
+ */
+
 #ifndef _ALIAS_H_
 #define	_ALIAS_H_
 
@@ -45,6 +52,11 @@
 
 #define LIBALIAS_BUF_SIZE 128
 #ifdef	_KERNEL
+
+#ifndef _ALIAS_SCTP
+#define _ALIAS_SCTP //if ALIAS_SCTP code is to be included
+#endif
+
 /*
  * The kernel version of libalias does not support these features.
  */
