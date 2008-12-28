@@ -15,8 +15,8 @@
 #include <sys/bus.h>
 #include <machine/stdarg.h>
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xen_intr.h>
+#include <xen/hypervisor.h>
+#include <xen/xen_intr.h>
 #include <sys/cons.h>
 #include <sys/proc.h>
 #include <sys/priv.h>
@@ -77,17 +77,17 @@ static unsigned int wc, wp; /* write_cons, write_prod */
 #define	XCUNIT(x)	(minor(x))
 #define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
 #define CN_LOCK_INIT(x, _name) \
-        mtx_init(&x, _name, NULL, MTX_SPIN|MTX_RECURSE)
+        mtx_init(&x, _name, NULL, MTX_DEF|MTX_RECURSE)
 
 #define CN_LOCK(l)        								\
 		do {											\
 				if (panicstr == NULL)					\
-                        mtx_lock_spin(&(l));			\
+                        mtx_lock(&(l));			\
 		} while (0)
 #define CN_UNLOCK(l)        							\
 		do {											\
 				if (panicstr == NULL)					\
-                        mtx_unlock_spin(&(l));			\
+                        mtx_unlock(&(l));			\
 		} while (0)
 #define CN_LOCK_ASSERT(x)    mtx_assert(&x, MA_OWNED)
 #define CN_LOCK_DESTROY(x)   mtx_destroy(&x)
@@ -234,6 +234,7 @@ xc_probe(device_t dev)
 static int
 xc_attach(device_t dev) 
 {
+	int error;
 	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
 
 
@@ -260,13 +261,14 @@ xc_attach(device_t dev)
 	callout_reset(&xc_callout, XC_POLLTIME, xc_timeout, xccons);
     
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
-		PANIC_IF(bind_virq_to_irqhandler(
+			error = bind_virq_to_irqhandler(
 				 VIRQ_CONSOLE,
 				 0,
 				 "console",
 				 xencons_priv_interrupt,
-					 NULL, INTR_TYPE_TTY) < 0);
+					 NULL, INTR_TYPE_TTY, NULL);
 		
+				KASSERT(error >= 0, ("can't register console interrupt"));
 	}
 
 
