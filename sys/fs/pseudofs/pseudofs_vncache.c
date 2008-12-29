@@ -149,6 +149,7 @@ retry:
 
 	/* nope, get a new one */
 	pvd = malloc(sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
+	pvd->pvd_next = pvd->pvd_prev = NULL;
 	error = getnewvnode("pseudofs", mp, &pfs_vnodeops, vpp);
 	if (error) {
 		free(pvd, M_PFSVNCACHE);
@@ -245,7 +246,7 @@ pfs_vncache_free(struct vnode *vp)
 		pvd->pvd_next->pvd_prev = pvd->pvd_prev;
 	if (pvd->pvd_prev)
 		pvd->pvd_prev->pvd_next = pvd->pvd_next;
-	else
+	else if (pfs_vncache == pvd)
 		pfs_vncache = pvd->pvd_next;
 	--pfs_vncache_entries;
 	mtx_unlock(&pfs_vncache_mutex);
