@@ -476,7 +476,7 @@ pfs_read(struct vop_read_args *va)
 	struct uio *uio = va->a_uio;
 	struct proc *proc;
 	struct sbuf *sb = NULL;
-	int error;
+	int error, locked;
 	unsigned int buflen, offset, resid;
 
 	PFS_TRACE(("%s", pn->pn_name));
@@ -502,13 +502,15 @@ pfs_read(struct vop_read_args *va)
 		PROC_UNLOCK(proc);
 	}
 
+	vhold(vn);
+	locked = VOP_ISLOCKED(vn);
+	VOP_UNLOCK(vn, 0);
+
 	if (pn->pn_flags & PFS_RAWRD) {
 		PFS_TRACE(("%lu resid", (unsigned long)uio->uio_resid));
 		error = pn_fill(curthread, proc, pn, NULL, uio);
 		PFS_TRACE(("%lu resid", (unsigned long)uio->uio_resid));
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (error);
+		goto ret;
 	}
 
 	/* beaucoup sanity checks so we don't ask for bogus allocation */
@@ -518,34 +520,35 @@ pfs_read(struct vop_read_args *va)
 	    (buflen = offset + resid + 1) < offset || buflen > INT_MAX) {
 		if (proc != NULL)
 			PRELE(proc);
-		PFS_RETURN (EINVAL);
+		error = EINVAL;
+		goto ret;
 	}
 	if (buflen > MAXPHYS + 1) {
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (EIO);
+		error = EIO;
+		goto ret;
 	}
 
 	sb = sbuf_new(sb, NULL, buflen, 0);
 	if (sb == NULL) {
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (EIO);
+		error = EIO;
+		goto ret;
 	}
 
 	error = pn_fill(curthread, proc, pn, sb, uio);
 
-	if (proc != NULL)
-		PRELE(proc);
-
 	if (error) {
 		sbuf_delete(sb);
-		PFS_RETURN (error);
+		goto ret;
 	}
 
 	sbuf_finish(sb);
 	error = uiomove_frombuf(sbuf_data(sb), sbuf_len(sb), uio);
 	sbuf_delete(sb);
+ret:
+	vn_lock(vn, locked | LK_RETRY);
+	vdrop(vn);
+	if (proc != NULL)
+		PRELE(proc);
 	PFS_RETURN (error);
 }
 
