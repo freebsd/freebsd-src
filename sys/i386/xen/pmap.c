@@ -154,7 +154,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <xen/interface/xen.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/hypercall.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>

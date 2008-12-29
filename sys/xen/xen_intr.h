@@ -34,28 +34,31 @@ extern void unbind_from_irq(int irq);
 
 extern int bind_caller_port_to_irqhandler(unsigned int caller_port,
 	const char *devname, driver_intr_t handler, void *arg,
-	unsigned long irqflags, void **cookiep);
+	unsigned long irqflags, unsigned int *irqp);
 extern int bind_listening_port_to_irqhandler(unsigned int remote_domain,
 	const char *devname, driver_intr_t handler, void *arg, unsigned long irqflags,
-	void **cookiep);
-extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu, const char *devname,
-									 driver_filter_t filter, driver_intr_t handler, unsigned long irqflags);
+	unsigned int *irqp);
+extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
+	const char *devname, driver_filter_t filter, driver_intr_t handler,
+	void *arg, unsigned long irqflags,	unsigned int *irqp);
 extern int bind_ipi_to_irqhandler(unsigned int ipi,
 	unsigned int cpu,
 	const char *devname,
 	driver_filter_t handler,
-	unsigned long irqflags);
+	unsigned long irqflags,
+	unsigned int *irqp);
 
 extern int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 	                                             unsigned int remote_port,
 	                                             const char *devname,
 	                                             driver_filter_t filter,
 	                                             driver_intr_t handler,
-	                                             unsigned long irqflags);
+	                                             unsigned long irqflags,
+	                                             unsigned int *irqp);
 
 
 
-extern void unbind_from_irqhandler(unsigned int evtchn, void *dev_id);
+extern void unbind_from_irqhandler(unsigned int evtchn);
 static __inline__ int irq_cannonicalize(int irq)
 {
     return (irq == 2) ? 9 : irq;
