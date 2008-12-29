@@ -30,6 +30,7 @@
 #ifndef _XENBUS_COMMS_H
 #define _XENBUS_COMMS_H
 
+struct sx;
 extern int xen_store_evtchn;
 extern char *xen_store;
 
@@ -37,8 +38,8 @@ int xs_init(void);
 int xb_init_comms(void);
 
 /* Low level routines. */
-int xb_write(const void *data, unsigned len);
-int xb_read(void *data, unsigned len);
+int xb_write(const void *data, unsigned len, struct lock_object *);
+int xb_read(void *data, unsigned len, struct lock_object *);
 extern int xenbus_running;
 
 char *kasprintf(const char *fmt, ...);
