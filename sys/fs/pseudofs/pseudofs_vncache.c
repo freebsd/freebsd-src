@@ -111,7 +111,7 @@ int
 pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 		  struct pfs_node *pn, pid_t pid)
 {
-	struct pfs_vdata *pvd;
+	struct pfs_vdata *pvd, *pvd2;
 	struct vnode *vp;
 	int error;
 
@@ -146,19 +146,11 @@ retry:
 		}
 	}
 	mtx_unlock(&pfs_vncache_mutex);
-	++pfs_vncache_misses;
 
 	/* nope, get a new one */
 	pvd = malloc(sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
-	mtx_lock(&pfs_vncache_mutex);
-	if (++pfs_vncache_entries > pfs_vncache_maxentries)
-		pfs_vncache_maxentries = pfs_vncache_entries;
-	mtx_unlock(&pfs_vncache_mutex);
 	error = getnewvnode("pseudofs", mp, &pfs_vnodeops, vpp);
 	if (error) {
-		mtx_lock(&pfs_vncache_mutex);
-		--pfs_vncache_entries;
-		mtx_unlock(&pfs_vncache_mutex);
 		free(pvd, M_PFSVNCACHE);
 		return (error);
 	}
@@ -200,14 +192,35 @@ retry:
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
-		mtx_lock(&pfs_vncache_mutex);
-		--pfs_vncache_entries;
-		mtx_unlock(&pfs_vncache_mutex);
-		free(pvd, M_PFSVNCACHE);
 		*vpp = NULLVP;
 		return (error);
 	}
+retry2:
 	mtx_lock(&pfs_vncache_mutex);
+	/*
+	 * Other thread may race with us, creating the entry we are
+	 * going to insert into the cache. Recheck after
+	 * pfs_vncache_mutex is reacquired.
+	 */
+	for (pvd2 = pfs_vncache; pvd2; pvd2 = pvd2->pvd_next) {
+		if (pvd2->pvd_pn == pn && pvd2->pvd_pid == pid &&
+		    pvd2->pvd_vnode->v_mount == mp) {
+			vp = pvd2->pvd_vnode;
+			VI_LOCK(vp);
+			mtx_unlock(&pfs_vncache_mutex);
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread) == 0) {
+				++pfs_vncache_hits;
+				vgone(*vpp);
+				*vpp = vp;
+				cache_purge(vp);
+				return (0);
+			}
+			goto retry2;
+		}
+	}
+	++pfs_vncache_misses;
+	if (++pfs_vncache_entries > pfs_vncache_maxentries)
+		pfs_vncache_maxentries = pfs_vncache_entries;
 	pvd->pvd_prev = NULL;
 	pvd->pvd_next = pfs_vncache;
 	if (pvd->pvd_next)
