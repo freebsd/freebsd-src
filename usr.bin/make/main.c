@@ -1029,6 +1029,16 @@ main(int argc, char **argv)
 #ifdef MAKE_VERSION
 	Var_SetGlobal("MAKE_VERSION", MAKE_VERSION);
 #endif
+	Var_SetGlobal(".newline", "\n");	/* handy for :@ loops */
+	{
+		char tmp[64];
+
+		snprintf(tmp, sizeof(tmp), "%u", getpid());
+		Var_SetGlobal(".MAKE.PID", tmp);
+		snprintf(tmp, sizeof(tmp), "%u", getppid());
+		Var_SetGlobal(".MAKE.PPID", tmp);
+	}
+	Job_SetPrefix();
 
 	/*
 	 * First snag things out of the MAKEFLAGS environment

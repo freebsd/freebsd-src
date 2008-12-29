@@ -1533,6 +1533,8 @@ Parse_DoVar(char *line, GNode *ctxt)
 		 */
 		Var_Set(line, cp, ctxt);
 	}
+	if (strcmp(line, MAKE_JOB_PREFIX) == 0)
+		Job_SetPrefix();
 }
 
 /*-
