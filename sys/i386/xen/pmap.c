@@ -144,7 +144,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef XEN
 #include <xen/interface/xen.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/hypercall.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
@@ -158,6 +158,16 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+
+#ifdef XBOX
+#include <machine/xbox.h>
+#endif
+
+#include <xen/interface/xen.h>
+#include <xen/hypervisor.h>
+#include <machine/xen/hypercall.h>
+#include <machine/xen/xenvar.h>
+#include <machine/xen/xenfunc.h>
 
 #if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE

@@ -15,8 +15,8 @@
 #include <machine/resource.h>
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xen_intr.h>
+#include <xen/hypervisor.h>
+#include <xen/xen_intr.h>
 
 static MALLOC_DEFINE(M_XENDEV, "xenintrdrv", "xen system device");
 

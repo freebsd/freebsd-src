@@ -41,10 +41,9 @@
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
 
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <xen/interface/grant_table.h>
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
 #include <machine/xen/features.h>
 struct gnttab_free_callback {
 	struct gnttab_free_callback *next;
@@ -56,7 +55,7 @@ struct gnttab_free_callback {
 int gnttab_init(void);
 
 int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
-				int flags);
+    int flags, grant_ref_t *result);
 
 /*
  * End access through the given grant reference, iff the grant entry is no
