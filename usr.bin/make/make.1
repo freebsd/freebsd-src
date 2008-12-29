@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2008
+.Dd December 29, 2008
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -763,6 +763,31 @@ contains all the options from the
 environment variable plus any options specified on
 .Nm Ns 's
 command line.
+.It Va .MAKE.PID
+The process-id of
+.Nm .
+.It Va .MAKE.PPID
+The parent process-id of
+.Nm .
+.It Va .MAKE.JOB.PREFIX
+If
+.Nm
+is run with
+.Fl j Fl v
+then output for each target is prefixed with a token
+.Ql --- target ---
+the first part of which can be controlled via
+.Va .MAKE.JOB.PREFIX .
+.br
+For example:
+.Li .MAKE.JOB.PREFIX=${.newline}---${MAKE:T}[${.MAKE.PID}]
+would produce tokens like
+.Ql ---make[1234] target ---
+or
+.Li .MAKE.JOB.PREFIX=---pid[${.MAKE.PID}],ppid[${.MAKE.PPID}]
+would produce tokens like
+.Ql ---pid[56789],ppid[1234] target ---
+making it easier to track the degree of parallelism being achieved.
 .It Va .TARGETS
 List of targets
 .Nm
