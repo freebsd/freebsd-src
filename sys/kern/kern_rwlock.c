@@ -60,13 +60,19 @@ CTASSERT((RW_RECURSE & LO_CLASSFLAGS) == RW_RECURSE);
 static void	db_show_rwlock(struct lock_object *lock);
 #endif
 
+static void	lock_rw(struct lock_object *lock, int how);
+static int	unlock_rw(struct lock_object *lock);
+
 struct lock_class lock_class_rw = {
 	.lc_name = "rw",
 	.lc_flags = LC_SLEEPLOCK | LC_RECURSABLE | LC_UPGRADABLE,
 #ifdef DDB
 	.lc_ddb_show = db_show_rwlock,
 #endif
+	.lc_lock = lock_rw,
+	.lc_unlock = unlock_rw
 };
+      
 
 /*
  * Return a pointer to the owning thread if the lock is write-locked or
@@ -97,6 +103,34 @@ struct lock_class lock_class_rw = {
 #ifndef INVARIANTS
 #define	_rw_assert(rw, what, file, line)
 #endif
+
+void
+lock_rw(struct lock_object *lock, int how)
+{
+	struct rwlock *rw;
+
+	rw = (struct rwlock *)lock;
+	if (how)
+		rw_wlock(rw);
+	else
+		rw_rlock(rw);
+}
+
+int
+unlock_rw(struct lock_object *lock)
+{
+	struct rwlock *rw;
+
+	rw = (struct rwlock *)lock;
+	rw_assert(rw, RA_LOCKED | LA_NOTRECURSED);
+	if (rw->rw_lock & RW_LOCK_READ) {
+		rw_runlock(rw);
+		return (0);
+	} else {
+		rw_wunlock(rw);
+		return (1);
+	}
+}
 
 void
 rw_init_flags(struct rwlock *rw, const char *name, int opts)

@@ -124,8 +124,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR,
-	    0);
+	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_wait(cvp);
 
 #ifdef KTRACE
@@ -232,8 +231,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR,
-	    0);
+	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait(cvp);
 
