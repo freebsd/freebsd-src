@@ -224,7 +224,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			error = 0;
 			break;
 		}
-		if (last_timestamp + 1 != map->timestamp) {
+		if (last_timestamp != map->timestamp) {
 			/*
 			 * Look again for the entry because the map was
 			 * modified while it was unlocked.  Specifically,
