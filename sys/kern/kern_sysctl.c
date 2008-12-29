@@ -71,6 +71,7 @@ static struct sx sysctllock;
 
 #define	SYSCTL_LOCK()		sx_xlock(&sysctllock)
 #define	SYSCTL_UNLOCK()		sx_xunlock(&sysctllock)
+#define	SYSCTL_LOCK_ASSERT()	sx_assert(&sysctllock, SX_XLOCKED)
 #define	SYSCTL_INIT()		sx_init(&sysctllock, "sysctl lock")
 
 static int sysctl_root(SYSCTL_HANDLER_ARGS);
@@ -686,6 +687,8 @@ name2oid (char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	char *p;
 
+	SYSCTL_LOCK_ASSERT();
+
 	if (!*name)
 		return (ENOENT);
 
@@ -741,6 +744,8 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	char *p;
 	int error, oid[CTL_MAXNAME], len;
 	struct sysctl_oid *op = 0;
+
+	SYSCTL_LOCK_ASSERT();
 
 	if (!req->newlen) 
 		return (ENOENT);
@@ -1086,13 +1091,11 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.lock = REQ_LOCKED;
 
 	SYSCTL_LOCK();
-
 	error = sysctl_root(0, name, namelen, &req);
+	SYSCTL_UNLOCK();
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
 		vsunlock(req.oldptr, req.validlen);
-
-	SYSCTL_UNLOCK();
 
 	if (error && error != ENOMEM)
 		return (error);
@@ -1117,6 +1120,11 @@ kernel_sysctlbyname(struct thread *td, char *name, void *old, size_t *oldlenp,
 	oid[0] = 0;		/* sysctl internal magic */
 	oid[1] = 3;		/* name2oid */
 	oidlen = sizeof(oid);
+
+	/*
+	 * XXX: Prone to a possible race condition between lookup and
+	 * execution? Maybe put locking around it?
+	 */
 
 	error = kernel_sysctl(td, oid, 2, oid, &oidlen,
 	    (void *)name, strlen(name), &plen, flags);
@@ -1270,6 +1278,8 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid *oid;
 	int error, indx, lvl;
 
+	SYSCTL_LOCK_ASSERT();
+
 	error = sysctl_find_oid(arg1, arg2, &oid, &indx, req);
 	if (error)
 		return (error);
@@ -1324,7 +1334,11 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 #endif
+
+	/* XXX: Handlers are not guaranteed to be Giant safe! */
+	mtx_lock(&Giant);
 	error = oid->oid_handler(oid, arg1, arg2, req);
+	mtx_unlock(&Giant);
 
 	return (error);
 }
@@ -1352,20 +1366,13 @@ __sysctl(struct thread *td, struct sysctl_args *uap)
  	if (error)
 		return (error);
 
-	mtx_lock(&Giant);
-
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, uap->oldlenp, 0,
 		uap->new, uap->newlen, &j, 0);
 	if (error && error != ENOMEM)
-		goto done2;
-	if (uap->oldlenp) {
-		int i = copyout(&j, uap->oldlenp, sizeof(j));
-		if (i)
-			error = i;
-	}
-done2:
-	mtx_unlock(&Giant);
+		return (error);
+	if (uap->oldlenp)
+		error = copyout(&j, uap->oldlenp, sizeof(j));
 	return (error);
 }
 
@@ -1426,11 +1433,11 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		uio_yield();
 	}
 
-	if (req.lock == REQ_WIRED && req.validlen > 0)
-		vsunlock(req.oldptr, req.validlen);
-
 	CURVNET_RESTORE();
 	SYSCTL_UNLOCK();
+
+	if (req.lock == REQ_WIRED && req.validlen > 0)
+		vsunlock(req.oldptr, req.validlen);
 
 	if (error && error != ENOMEM)
 		return (error);
@@ -1518,8 +1525,6 @@ ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 	int error, name[6];
 	size_t size;
 	u_int needed = 0;
-
-	mtx_lock(&Giant);
 
 	switch (uap->op & 0xff00) {
 
@@ -1653,7 +1658,6 @@ ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 			error = copyout(&size, uap->size, sizeof(size));
 		}
 	}
-	mtx_unlock(&Giant);
 	return (error);
 }
 #endif /* COMPAT_43 */
