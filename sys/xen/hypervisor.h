@@ -4,6 +4,8 @@
  * Linux-specific hypervisor handling.
  * 
  * Copyright (c) 2002, K A Fraser
+ *
+ * $FreeBSD$
  */
 
 #ifndef __HYPERVISOR_H__

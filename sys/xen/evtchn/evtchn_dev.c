@@ -26,13 +26,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/xen/xen-os.h>
-#include <machine/xen/xen_intr.h>
+#include <xen/xen_intr.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
 #include <machine/xen/synch_bitops.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/evtchn.h>
+#include <xen/hypervisor.h>
+#include <xen/evtchn.h>
 
 
 typedef struct evtchn_sotfc {

@@ -144,11 +144,11 @@ uint32_t arch_i386_xbox_memsize = 0;
 #ifdef XEN
 /* XEN includes */
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
-#include <machine/xen/xen_intr.h>
+#include <xen/xen_intr.h>
 
 void Xhypervisor_callback(void);
 void failsafe_callback(void);
