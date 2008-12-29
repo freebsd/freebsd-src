@@ -1076,7 +1076,7 @@ ParseDoDependency(char *line)
 			break;
 		  case Posix:
 			is_posix = TRUE;
-			Var_Set("%POSIX", "1003.2", VAR_GLOBAL);
+			Var_SetGlobal("%POSIX", "1003.2");
 			break;
 		  default:
 			break;
