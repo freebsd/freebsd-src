@@ -46,6 +46,9 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#ifdef COMPAT_IA32
+#include <sys/sysent.h>
+#endif
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
@@ -58,15 +61,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-
-#ifdef COMPAT_IA32
-#include <sys/procfs.h>
-#include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
-
-extern struct sysentvec ia32_freebsd_sysvec;
-#endif
-
 
 #define MEBUFFERSIZE 256
 
@@ -104,8 +98,8 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		return (EOPNOTSUPP);
 
 #ifdef COMPAT_IA32
-        if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
-                if (p->p_sysent != &ia32_freebsd_sysvec)
+        if (curproc->p_sysent->sv_flags & SV_ILP32) {
+                if (!(p->p_sysent->sv_flags & SV_ILP32))
                         return (EOPNOTSUPP);
                 wrap32 = 1;
         }
