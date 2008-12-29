@@ -62,16 +62,12 @@ ogethostname(td, uap)
 	struct gethostname_args *uap;
 {
 	int name[2];
-	int error;
 	size_t len = uap->len;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	mtx_lock(&Giant);
-	error = userland_sysctl(td, name, 2, uap->hostname, &len,
-	    1, 0, 0, 0, 0);
-	mtx_unlock(&Giant);
-	return(error);
+	return (userland_sysctl(td, name, 2, uap->hostname, &len,
+	    1, 0, 0, 0, 0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -91,11 +87,8 @@ osethostname(td, uap)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	mtx_lock(&Giant);
-	error = userland_sysctl(td, name, 2, 0, 0, 0, uap->hostname,
-	    uap->len, 0, 0);
-	mtx_unlock(&Giant);
-	return (error);
+	return (userland_sysctl(td, name, 2, 0, 0, 0, uap->hostname,
+	    uap->len, 0, 0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -173,11 +166,10 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	name[0] = CTL_KERN;
 	name[1] = KERN_OSTYPE;
 	len = sizeof (uap->name->sysname);
-	mtx_lock(&Giant);
 	error = userland_sysctl(td, name, 2, uap->name->sysname, &len, 
 		1, 0, 0, 0, 0);
 	if (error)
-		goto done2;
+		return (error);
 	subyte( uap->name->sysname + sizeof(uap->name->sysname) - 1, 0);
 
 	name[1] = KERN_HOSTNAME;
@@ -185,7 +177,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	error = userland_sysctl(td, name, 2, uap->name->nodename, &len, 
 		1, 0, 0, 0, 0);
 	if (error)
-		goto done2;
+		return (error);
 	subyte( uap->name->nodename + sizeof(uap->name->nodename) - 1, 0);
 
 	name[1] = KERN_OSRELEASE;
@@ -193,7 +185,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	error = userland_sysctl(td, name, 2, uap->name->release, &len, 
 		1, 0, 0, 0, 0);
 	if (error)
-		goto done2;
+		return (error);
 	subyte( uap->name->release + sizeof(uap->name->release) - 1, 0);
 
 /*
@@ -202,7 +194,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	error = userland_sysctl(td, name, 2, uap->name->version, &len, 
 		1, 0, 0, 0, 0);
 	if (error)
-		goto done2;
+		return (error);
 	subyte( uap->name->version + sizeof(uap->name->version) - 1, 0);
 */
 
@@ -214,11 +206,11 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	for(us = uap->name->version; *s && *s != ':'; s++) {
 		error = subyte( us++, *s);
 		if (error)
-			goto done2;
+			return (error);
 	}
 	error = subyte( us++, 0);
 	if (error)
-		goto done2;
+		return (error);
 
 	name[0] = CTL_HW;
 	name[1] = HW_MACHINE;
@@ -226,11 +218,9 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	error = userland_sysctl(td, name, 2, uap->name->machine, &len, 
 		1, 0, 0, 0, 0);
 	if (error)
-		goto done2;
+		return (error);
 	subyte( uap->name->machine + sizeof(uap->name->machine) - 1, 0);
-done2:
-	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -245,16 +235,12 @@ freebsd4_getdomainname(struct thread *td,
     struct freebsd4_getdomainname_args *uap)
 {
 	int name[2];
-	int error;
 	size_t len = uap->len;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_NISDOMAINNAME;
-	mtx_lock(&Giant);
-	error = userland_sysctl(td, name, 2, uap->domainname, &len,
-	    1, 0, 0, 0, 0);
-	mtx_unlock(&Giant);
-	return(error);
+	return (userland_sysctl(td, name, 2, uap->domainname, &len,
+	    1, 0, 0, 0, 0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -269,14 +255,10 @@ freebsd4_setdomainname(struct thread *td,
     struct freebsd4_setdomainname_args *uap)
 {
 	int name[2];
-	int error;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_NISDOMAINNAME;
-	mtx_lock(&Giant);
-	error = userland_sysctl(td, name, 2, 0, 0, 0, uap->domainname,
-	    uap->len, 0, 0);
-	mtx_unlock(&Giant);
-	return (error);
+	return (userland_sysctl(td, name, 2, 0, 0, 0, uap->domainname,
+	    uap->len, 0, 0));
 }
 #endif /* COMPAT_FREEBSD4 */
