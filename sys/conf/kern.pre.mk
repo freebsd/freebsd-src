@@ -70,7 +70,7 @@ INCLUDES+= -I$S/dev/twa
 # .. and the same for em
 INCLUDES+= -I$S/dev/em
 
-INCLUDES+= -I$S/xen/interface -I$S/xen/interface/io
+INCLUDES+= -I$S/xen/interface -I$S/xen/interface/io -I$S/xen/interface/hvm
 
 
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}

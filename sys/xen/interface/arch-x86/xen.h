@@ -32,7 +32,8 @@
 #define ___DEFINE_XEN_GUEST_HANDLE(name, type) \
     typedef struct { type *p; } __guest_handle_ ## name
 #else
-#define ___DEFINE_XEN_GUEST_HANDLE(name, type) \
+#error "using old handle"
+#define ___DEFINE_XEN_GUEST_HANDLE(name, type)  \
     typedef type * __guest_handle_ ## name
 #endif
 

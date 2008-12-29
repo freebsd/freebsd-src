@@ -154,4 +154,5 @@ options KTR_CPUMASK=0xff
 options KTR_ENTRIES=131072
 options KTR_MASK=(KTR_PMAP)
 
-options	KVA_PAGES=1600
+#options	KVA_PAGES=1600
+

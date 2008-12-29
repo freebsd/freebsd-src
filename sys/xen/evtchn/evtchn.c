@@ -25,10 +25,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
-#include <machine/xen/xen_intr.h>
+#include <xen/xen_intr.h>
 #include <machine/xen/synch_bitops.h>
-#include <machine/xen/evtchn.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/evtchn.h>
+#include <xen/hypervisor.h>
 #include <sys/smp.h>
 
 
@@ -78,6 +78,7 @@ static struct mtx irq_mapping_update_lock;
 static struct xenpic *xp;
 struct xenpic_intsrc {
 	struct intsrc     xp_intsrc;
+	void		  *xp_cookie;
 	uint8_t           xp_vector;
 	boolean_t	  xp_masked;
 };
@@ -297,6 +298,7 @@ bind_caller_port_to_irq(unsigned int caller_port)
         }
 
         irq_bindcount[irq]++;
+	unmask_evtchn(caller_port);
 
  out:
         mtx_unlock_spin(&irq_mapping_update_lock);
@@ -322,6 +324,7 @@ bind_local_port_to_irq(unsigned int local_port)
         evtchn_to_irq[local_port] = irq;
         irq_info[irq] = mk_irq_info(IRQT_LOCAL_PORT, 0, local_port);
         irq_bindcount[irq]++;
+	unmask_evtchn(local_port);
 
  out:
         mtx_unlock_spin(&irq_mapping_update_lock);
@@ -467,20 +470,25 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
 			  driver_intr_t handler,
 			  void *arg,
 			  unsigned long irqflags,
-                          void **cookiep)
+                          unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_caller_port_to_irq(caller_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, arg, irqflags, cookiep);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq,  handler, arg, irqflags,
+	    &xp->xp_pins[irq].xp_cookie);
+
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+
+	return (0);
 }
 
 int 
@@ -490,42 +498,49 @@ bind_listening_port_to_irqhandler(
 			  driver_intr_t handler,
 			  void *arg,
 			  unsigned long irqflags,
-                          void **cookiep)
+                          unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_listening_port_to_irq(remote_domain);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, arg, irqflags, cookiep);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler, arg, irqflags,
+	    &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
-
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	
+	return (0);
 }
 
 int 
 bind_interdomain_evtchn_to_irqhandler(
-	                unsigned int remote_domain,
-	                unsigned int remote_port,
-			const char *devname,
-			driver_intr_t handler,
-			unsigned long irqflags)
+	                    unsigned int remote_domain,
+			    unsigned int remote_port,
+			    const char *devname,
+			    driver_intr_t handler,
+			    unsigned long irqflags,
+			    unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler, NULL,
+	    irqflags, &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 int 
@@ -533,20 +548,24 @@ bind_virq_to_irqhandler(unsigned int virq,
 			unsigned int cpu,
 			const char *devname,
 			driver_intr_t handler,
-			unsigned long irqflags)
+                        unsigned long irqflags,
+                        unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_virq_to_irq(virq, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler,
+	    NULL, irqflags, &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 int 
@@ -554,26 +573,30 @@ bind_ipi_to_irqhandler(unsigned int ipi,
 		       unsigned int cpu,
 		       const char *devname,
 		       driver_intr_t handler,
-		       unsigned long irqflags)
+                       unsigned long irqflags,
+                       unsigned int *irqp)
 {
-	int irq, retval;
+	unsigned int irq;
+	int error;
 	
 	irq = bind_ipi_to_irq(ipi, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler,
+	    NULL, irqflags, &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 void
-unbind_from_irqhandler(unsigned int irq, void *dev_id)
+unbind_from_irqhandler(unsigned int irq)
 {
-	if (dev_id)
-		intr_remove_handler(dev_id); /* XXX */
+	intr_remove_handler(xp->xp_pins[irq].xp_cookie);
 	unbind_from_irq(irq);
 }
 
