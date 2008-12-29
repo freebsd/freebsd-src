@@ -366,7 +366,7 @@ static int
 bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;
-	int evtchn, irq;
+	int evtchn = 0, irq;
 
 	mtx_lock_spin(&irq_mapping_update_lock);
 
@@ -390,6 +390,7 @@ bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 	}
 
 	irq_bindcount[irq]++;
+	unmask_evtchn(evtchn);
 out:
 	mtx_unlock_spin(&irq_mapping_update_lock);
 
@@ -403,8 +404,9 @@ int
 bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 {
 	struct evtchn_bind_ipi bind_ipi;
-	int evtchn, irq;
-	
+	int irq;
+	int evtchn = 0;
+
 	mtx_lock_spin(&irq_mapping_update_lock);
 	
 	if ((irq = per_cpu(ipi_to_irq, cpu)[ipi]) == -1) {
@@ -423,6 +425,7 @@ bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 	irq_bindcount[irq]++;
+	unmask_evtchn(evtchn);
 out:
 	
 	mtx_unlock_spin(&irq_mapping_update_lock);
