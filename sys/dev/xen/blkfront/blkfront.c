@@ -40,10 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/vmparam.h>
 
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/xen/evtchn.h>
+#include <xen/xen_intr.h>
+#include <xen/evtchn.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/protocols.h>
 #include <xen/xenbus/xenbusvar.h>
@@ -214,7 +214,7 @@ xlvbd_add(device_t dev, blkif_sector_t capacity,
 	struct xb_softc	*sc;
 	int	unit, error = 0;
 	const char *name;
-	
+
 	blkfront_vdevice_to_unit(vdevice, &unit, &name);
 
 	sc = (struct xb_softc *)malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
@@ -227,12 +227,12 @@ xlvbd_add(device_t dev, blkif_sector_t capacity,
 
 	memset(&sc->xb_disk, 0, sizeof(sc->xb_disk)); 
 	sc->xb_disk = disk_alloc();
-	sc->xb_disk->d_unit = unit;
+	sc->xb_disk->d_unit = sc->xb_unit;
 	sc->xb_disk->d_open = blkif_open;
 	sc->xb_disk->d_close = blkif_close;
 	sc->xb_disk->d_ioctl = blkif_ioctl;
 	sc->xb_disk->d_strategy = xb_strategy;
-	sc->xb_disk->d_name = "xbd";
+	sc->xb_disk->d_name = name;
 	sc->xb_disk->d_drv1 = sc;
 	sc->xb_disk->d_sectorsize = sector_size;
 
@@ -329,8 +329,8 @@ blkfront_attach(device_t dev)
 
 	/* FIXME: Use dynamic device id if this is not set. */
 	err = xenbus_scanf(XBT_NIL, xenbus_get_node(dev),
-			   "virtual-device", "%i", &vdevice);
-	if (err != 1) {
+	    "virtual-device", NULL, "%i", &vdevice);
+	if (err) {
 		xenbus_dev_fatal(dev, err, "reading virtual-device");
 		printf("couldn't find virtual device");
 		return (err);
@@ -363,9 +363,8 @@ blkfront_attach(device_t dev)
 	info->handle = strtoul(strrchr(xenbus_get_node(dev),'/')+1, NULL, 0);
 
 	err = talk_to_backend(dev, info);
-	if (err) {
-		return err;
-	}
+	if (err)
+		return (err);
 
 	return (0);
 }
@@ -381,7 +380,8 @@ blkfront_resume(device_t dev)
 	blkif_free(info, 1);
 
 	err = talk_to_backend(dev, info);
-	if (!err)
+
+	if (info->connected == BLKIF_STATE_SUSPENDED && !err)
 		blkif_recover(info);
 
 	return err;
@@ -427,7 +427,7 @@ talk_to_backend(device_t dev, struct blkfront_info *info)
 	}
 	err = xenbus_transaction_end(xbt, 0);
 	if (err) {
-		if (err == -EAGAIN)
+		if (err == EAGAIN)
 			goto again;
 		xenbus_dev_fatal(dev, err, "completing transaction");
 		goto destroy_blkring;
@@ -450,7 +450,7 @@ static int
 setup_blkring(device_t dev, struct blkfront_info *info)
 {
 	blkif_sring_t *sring;
-	int err;
+	int error;
 
 	info->ring_ref = GRANT_INVALID_REF;
 
@@ -462,28 +462,27 @@ setup_blkring(device_t dev, struct blkfront_info *info)
 	SHARED_RING_INIT(sring);
 	FRONT_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	err = xenbus_grant_ring(dev, (vtomach(info->ring.sring) >> PAGE_SHIFT));
-	if (err < 0) {
+	error = xenbus_grant_ring(dev, (vtomach(info->ring.sring) >> PAGE_SHIFT),
+		&info->ring_ref);
+	if (error) {
 		free(sring, M_DEVBUF);
 		info->ring.sring = NULL;
 		goto fail;
 	}
-	info->ring_ref = err;
 	
-	err = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
+	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
 		"xbd", (driver_intr_t *)blkif_int, info,
-					INTR_TYPE_BIO | INTR_MPSAFE, NULL);
-	if (err <= 0) {
-		xenbus_dev_fatal(dev, err,
+					INTR_TYPE_BIO | INTR_MPSAFE, &info->irq);
+	if (error) {
+		xenbus_dev_fatal(dev, error,
 				 "bind_evtchn_to_irqhandler failed");
 		goto fail;
 	}
-	info->irq = err;
 
-	return 0;
+	return (0);
  fail:
 	blkif_free(info, 0);
-	return err;
+	return (error);
 }
 
 
@@ -999,7 +998,7 @@ blkif_free(struct blkfront_info *info, int suspend)
 		info->ring.sring = NULL;
 	}
 	if (info->irq)
-		unbind_from_irqhandler(info->irq, info); 
+		unbind_from_irqhandler(info->irq);
 	info->irq = 0;
 
 }
