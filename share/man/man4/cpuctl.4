@@ -47,28 +47,31 @@ cpuctl_load="YES"
 .Sh DESCRIPTION
 The special file
 .Pa /dev/cpuctl
-presents interace to the system CPU. It provides functionality to retrieve
+presents interface to the system CPU.
+It provides functionality to retrieve
 CPUID information, read/write machine specific registers (MSR) and perform
-cpu firmware updates.
+CPU firmware updates.
 .Pp
-For each cpu present in the system, special file
+For each CPU present in the system, the special file
 .Pa /dev/cpuctl%d
-with the appropriate index will be created. For multicore cpus the
+with the appropriate index will be created.
+For multicore CPUs the
 special file will be created for each core.
 .Pp
 Currently, only i386 and amd64 processors are
 supported.
 .Sh IOCTL INTERFACE
 All of the supported operations are invoked using the
-.Fr ioctl 2
-system call. Refer to that manpage for further information about
-this interface. Currently, the following ioctls are defined:
+.Xr ioctl 2
+system call.
+Currently, the following ioctls are defined:
 .Bl -tag -width CPUCTL_UPDATE
 .It Dv CPUCTL_RDMSR Fa cpuctl_msr_args_t *args
 .It Dv CPUCTL_WRMSR Fa cpuctl_msr_args_t *args
-Read/write cpu machine specific register. The
+Read/write CPU machine specific register.
+The
 .Vt cpuctl_msr_args_t
-structure defined in
+structure is defined in
 .In sys/cpuctl.h
 as:
 .Pp
@@ -79,7 +82,8 @@ typedef struct {
 } cpuctl_msr_args_t;
 .Ed
 .It Dv CPUCTL_CPUID Fa cpuctl_cpuid_args_t *args
-Retrieve CPUID information. Arguments are supplied in
+Retrieve CPUID information.
+Arguments are supplied in
 the following struct:
 .Pp
 .Bd -literal
@@ -93,9 +97,10 @@ The
 .Va level
 field indicates the CPUID level to retrieve information for, while the
 .Va data
-used to store CPUID data received.
+field is used to store the received CPUID data.
 .It Dv CPUCTL_UPDATE cpuctl_update_args_t *args
-Update cpu firmware (microcode). The structure defined in
+Update CPU firmware (microcode).
+The structure is defined in
 .In sys/cpuctl.h
 as:
 .Pp
@@ -117,14 +122,14 @@ For additional information refer to
 .Sh RETURN VALUES
 .Bl -tag -width Er
 .It Bq Er ENXIO
-The operation requested is not supported by device (e.g. unsupported
-architecture or cpu was disabled)
+The operation requested is not supported by the device (e.g. unsupported
+architecture or the CPU was disabled).
 .It Bq Er EINVAL
 Incorrect request was supplied, or microcode image is not correct.
 .It Bq Er ENOMEM
 No physical memory was available to complete the request.
 .It Bq Er EFAULT
-The firmware image address points outside process address space.
+The firmware image address points outside the process address space.
 .El
 .Sh FILES
 .Bl -tag -width /dev/cpuctl -compact
@@ -132,15 +137,16 @@ The firmware image address points outside process address space.
 .El
 .Sh SEE ALSO
 .Xr hwpmc 4
+.Xr cpucontrol 8
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
-.Fx 8.0
+.Fx 8.0 .
 .Sh BUGS
 Yes, probably, report if any.
 .Sh AUTHORS
 The
 .Nm
-module and this manual page was written by
+module and this manual page were written by
 .An Stanislav Sedov Aq stas@FreeBSD.org .
