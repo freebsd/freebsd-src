@@ -3122,17 +3122,14 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 RetryLookup:;
 
 	vm_map_lock_read(map);
-#define	RETURN(why) \
-		{ \
-		vm_map_unlock_read(map); \
-		return (why); \
-		}
 
 	/*
 	 * Lookup the faulting address.
 	 */
-	if (!vm_map_lookup_entry(map, vaddr, out_entry))
-		RETURN(KERN_INVALID_ADDRESS);
+	if (!vm_map_lookup_entry(map, vaddr, out_entry)) {
+		vm_map_unlock_read(map);
+		return (KERN_INVALID_ADDRESS);
+	}
 
 	entry = *out_entry;
 
@@ -3159,13 +3156,15 @@ RetryLookup:;
 		prot = entry->protection;
 	fault_type &= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE);
 	if ((fault_type & prot) != fault_type) {
-			RETURN(KERN_PROTECTION_FAILURE);
+		vm_map_unlock_read(map);
+		return (KERN_PROTECTION_FAILURE);
 	}
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
 	    (fault_type & VM_PROT_WRITE) &&
 	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
-		RETURN(KERN_PROTECTION_FAILURE);
+		vm_map_unlock_read(map);
+		return (KERN_PROTECTION_FAILURE);
 	}
 
 	/*
@@ -3235,8 +3234,6 @@ RetryLookup:;
 
 	*out_prot = prot;
 	return (KERN_SUCCESS);
-
-#undef	RETURN
 }
 
 /*
