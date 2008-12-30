@@ -901,12 +901,24 @@ vm_map_lookup_entry(
 {
 	vm_map_entry_t cur;
 
-	cur = vm_map_entry_splay(address, map->root);
+	/*
+	 * If the map is empty, then the map entry immediately preceding
+	 * "address" is the map's header.
+	 */
+	cur = map->root;
 	if (cur == NULL)
 		*entry = &map->header;
-	else {
-		map->root = cur;
+	else if (address >= cur->start && cur->end > address) {
+		*entry = cur;
+		return (TRUE);
+	} else {
+		map->root = cur = vm_map_entry_splay(address, cur);
 
+		/*
+		 * If "address" is contained within a map entry, the new root
+		 * is that map entry.  Otherwise, the new root is a map entry
+		 * immediately before or after "address".
+		 */
 		if (address >= cur->start) {
 			*entry = cur;
 			if (cur->end > address)
@@ -3108,9 +3120,6 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t fault_type = fault_typea;
 
 RetryLookup:;
-	/*
-	 * Lookup the faulting address.
-	 */
 
 	vm_map_lock_read(map);
 #define	RETURN(why) \
@@ -3120,22 +3129,12 @@ RetryLookup:;
 		}
 
 	/*
-	 * If the map has an interesting hint, try it before calling full
-	 * blown lookup routine.
+	 * Lookup the faulting address.
 	 */
-	entry = map->root;
-	*out_entry = entry;
-	if (entry == NULL ||
-	    (vaddr < entry->start) || (vaddr >= entry->end)) {
-		/*
-		 * Entry was either not a valid hint, or the vaddr was not
-		 * contained in the entry, so do a full lookup.
-		 */
-		if (!vm_map_lookup_entry(map, vaddr, out_entry))
-			RETURN(KERN_INVALID_ADDRESS);
+	if (!vm_map_lookup_entry(map, vaddr, out_entry))
+		RETURN(KERN_INVALID_ADDRESS);
 
-		entry = *out_entry;
-	}
+	entry = *out_entry;
 
 	/*
 	 * Handle submaps.
@@ -3262,22 +3261,12 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t fault_type = fault_typea;
 
 	/*
-	 * If the map has an interesting hint, try it before calling full
-	 * blown lookup routine.
+	 * Lookup the faulting address.
 	 */
-	entry = map->root;
-	*out_entry = entry;
-	if (entry == NULL ||
-	    (vaddr < entry->start) || (vaddr >= entry->end)) {
-		/*
-		 * Entry was either not a valid hint, or the vaddr was not
-		 * contained in the entry, so do a full lookup.
-		 */
-		if (!vm_map_lookup_entry(map, vaddr, out_entry))
-			return (KERN_INVALID_ADDRESS);
+	if (!vm_map_lookup_entry(map, vaddr, out_entry))
+		return (KERN_INVALID_ADDRESS);
 
-		entry = *out_entry;
-	}
+	entry = *out_entry;
 
 	/*
 	 * Fail if the entry refers to a submap.
