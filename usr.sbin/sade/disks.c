@@ -116,7 +116,7 @@ check_geometry(Disk *d)
 	dialog_clear_norefresh();
 	sg = msgYesNo("WARNING:  It is safe to use a geometry of %lu/%lu/%lu for %s on\n"
 		      "computers with modern BIOS versions.  If this disk is to be used\n"
-		      "on an old machines it is recommended that it does not have more\n"
+		      "on an old machine it is recommended that it does not have more\n"
 		      "than 65535 cylinders, more than 255 heads, or more than\n"
 #ifdef PC98
 		      "255"
