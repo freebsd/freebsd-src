@@ -310,6 +310,84 @@ pfs_getextattr(struct vop_getextattr_args *va)
 }
 
 /*
+ * Convert a vnode to its component name
+ */
+static int
+pfs_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode **dvp = ap->a_vpp;
+	struct pfs_vdata *pvd = vp->v_data;
+	struct pfs_node *pd = pvd->pvd_pn;
+	struct pfs_node *pn;
+	struct mount *mp;
+	char *buf = ap->a_buf;
+	int *buflen = ap->a_buflen;
+	char pidbuf[PFS_NAMELEN];
+	pid_t pid = pvd->pvd_pid;
+	int len, i, error, locked;
+
+	i = *buflen;
+	error = 0;
+
+	pfs_lock(pd);
+
+	if (vp->v_type == VDIR && pd->pn_type == pfstype_root) {
+		*dvp = vp;
+		vhold(*dvp);
+		pfs_unlock(pd);
+		PFS_RETURN (0);
+	} else if (vp->v_type == VDIR && pd->pn_type == pfstype_procdir) {
+		len = snprintf(pidbuf, sizeof(pidbuf), "%d", pid);
+		i -= len;
+		if (i < 0) {
+			error = ENOMEM;
+			goto failed;
+		}
+		bcopy(pidbuf, buf + i, len);
+	} else {
+		i -= strlen(pd->pn_name);
+		if (i < 0) {
+			error = ENOMEM;
+			goto failed;
+		}
+		bcopy(pd->pn_name, buf + i, strlen(pd->pn_name));
+	}
+
+	pn = pd->pn_parent;
+	pfs_unlock(pd);
+
+	mp = vp->v_mount;
+	error = vfs_busy(mp, 0);
+	if (error)
+		return (error);
+
+	/*
+	 * vp is held by caller.
+	 */
+	locked = VOP_ISLOCKED(vp);
+	VOP_UNLOCK(vp, 0);
+
+	error = pfs_vncache_alloc(mp, dvp, pn, pid);
+	if (error) {
+		vn_lock(vp, locked | LK_RETRY);
+		vfs_unbusy(mp);
+		PFS_RETURN(error);
+	}
+
+	*buflen = i;
+	vhold(*dvp);
+	vput(*dvp);
+	vn_lock(vp, locked | LK_RETRY);
+	vfs_unbusy(mp);
+
+	PFS_RETURN (0);
+failed:
+	pfs_unlock(pd);
+	PFS_RETURN(error);
+}
+
+/*
  * Look up a file or directory
  */
 static int
@@ -890,6 +968,7 @@ struct vop_vector pfs_vnodeops = {
 	.vop_rmdir =		VOP_EOPNOTSUPP,
 	.vop_setattr =		pfs_setattr,
 	.vop_symlink =		VOP_EOPNOTSUPP,
+	.vop_vptocnp =		pfs_vptocnp,
 	.vop_write =		pfs_write,
 	/* XXX I've probably forgotten a few that need VOP_EOPNOTSUPP */
 };
