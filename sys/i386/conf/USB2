@@ -97,8 +97,8 @@ device		usb2_serial_visor
 device		usb2_serial_vscom
 
 # USB bluetooth support
-device		usb2_bluetooth
-device		usb2_bluetooth_ng
+#device		usb2_bluetooth
+#device		usb2_bluetooth_ng
 
 # USB input device support
 device		usb2_input
@@ -107,4 +107,4 @@ device		usb2_input_kbd
 device		usb2_input_ms
 
 # USB sound and MIDI device support
-device		usb2_sound
+#device		usb2_sound
