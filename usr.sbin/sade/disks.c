@@ -116,9 +116,8 @@ check_geometry(Disk *d)
 	dialog_clear_norefresh();
 	sg = msgYesNo("WARNING:  It is safe to use a geometry of %lu/%lu/%lu for %s on\n"
 		      "computers with modern BIOS versions.  If this disk is to be used\n"
-		      "on rather old machines, however, it is recommended to ensure that\n"
-		      "it does not have more than 65535 cylinders, or more than 255 heads\n"
-		      "or more than "
+		      "on an old machines it is recommended that it does not have more\n"
+		      "than 65535 cylinders, more than 255 heads, or more than\n"
 #ifdef PC98
 		      "255"
 #else
@@ -126,7 +125,7 @@ check_geometry(Disk *d)
 #endif
 		      " sectors per track.\n"
 		      "\n"
-		      "Would you like that to keep using the current geometry?\n",
+		      "Would you like to keep using the current geometry?\n",
 		      d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	if (sg == 1) {
 	    Sanitize_Bios_Geom(d);
