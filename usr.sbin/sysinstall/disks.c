@@ -106,6 +106,47 @@ record_chunks(Disk *d)
 static daddr_t Total;
 
 static void
+check_geometry(Disk *d)
+{
+    int sg;
+
+#ifdef PC98
+    if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256)
+#else
+    if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64)
+#endif
+    {
+	dialog_clear_norefresh();
+	sg = msgYesNo("WARNING:  It is safe to use a geometry of %lu/%lu/%lu for %s on\n"
+		      "computers with modern BIOS versions.  If this disk is to be used\n"
+		      "on rather old machines, however, it is recommended to ensure that\n"
+		      "it does not have more than 65535 cylinders, or more than 255 heads\n"
+		      "or more than "
+#ifdef PC98
+		      "255"
+#else
+		      "63"
+#endif
+		      " sectors per track.\n"
+		      "\n"
+		      "Would you like that to keep using the current geometry?\n",
+		      d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
+	if (sg == 1) {
+	    Sanitize_Bios_Geom(d);
+	    msgConfirm("A geometry of %lu/%lu/%lu was calculated for %s.\n"
+		       "\n"
+		       "If you are not sure about this, please consult the Hardware Guide\n"
+		       "in the Documentation submenu or use the (G)eometry command to\n"
+		       "change it.  Remember: you need to enter whatever your BIOS thinks\n"
+		       "the geometry is!  For IDE, it's what you were told in the BIOS\n"
+		       "setup.  For SCSI, it's the translation mode your controller is\n"
+		       "using.  Do NOT use a ``physical geometry''.\n",
+		       d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
+	}
+    }
+}
+
+static void
 print_chunks(Disk *d, int u)
 {
     int row;
@@ -119,24 +160,6 @@ print_chunks(Disk *d, int u)
     Total = 0;
     for (i = 0; chunk_info[i]; i++)
 	Total += chunk_info[i]->size;
-#ifdef PC98
-    if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256) {
-#else
-    if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
-#endif
-	dialog_clear_norefresh();
-	msgConfirm("WARNING:  A geometry of %lu/%lu/%lu for %s is incorrect.  Using\n"
-		   "a more likely geometry.  If this geometry is incorrect or you\n"
-		   "are unsure as to whether or not it's correct, please consult\n"
-		   "the Hardware Guide in the Documentation submenu or use the\n"
-		   "(G)eometry command to change it now.\n\n"
-		   "Remember: you need to enter whatever your BIOS thinks the\n"
-		   "geometry is!  For IDE, it's what you were told in the BIOS\n"
-		   "setup. For SCSI, it's the translation mode your controller is\n"
-		   "using.  Do NOT use a ``physical geometry''.",
-	  d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
-	Sanitize_Bios_Geom(d);
-    }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     clrtobot();
@@ -340,6 +363,9 @@ diskPartition(Device *dev)
 
     /* Set up the chunk array */
     record_chunks(d);
+
+    /* Give the user a chance to sanitize the disk geometry, if necessary */
+    check_geometry(d);
 
     while (chunking) {
 	char *val, geometry[80];
@@ -916,21 +942,24 @@ diskPartitionNonInteractive(Device *dev)
     record_chunks(d);
     cp = variable_get(VAR_GEOMETRY);
     if (cp) {
-	msgDebug("Setting geometry from script to: %s\n", cp);
-	d->bios_cyl = strtol(cp, &cp, 0);
-	d->bios_hd = strtol(cp + 1, &cp, 0);
-	d->bios_sect = strtol(cp + 1, 0, 0);
-    } else {
+	if (!strcasecmp(cp, "sane")) {
 #ifdef PC98
-	if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256) {
+	    if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256)
 #else
-	if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
+	    if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64)
 #endif
-	    msgDebug("Warning:  A geometry of %lu/%lu/%lu for %s is incorrect.\n",
-		d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
-	    Sanitize_Bios_Geom(d);
-	    msgDebug("Sanitized geometry for %s is %lu/%lu/%lu.\n",
-		d->name, d->bios_cyl, d->bios_hd, d->bios_sect);
+	    {
+		msgDebug("Warning:  A geometry of %lu/%lu/%lu for %s is incorrect.\n",
+		    d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
+		Sanitize_Bios_Geom(d);
+		msgDebug("Sanitized geometry for %s is %lu/%lu/%lu.\n",
+		    d->name, d->bios_cyl, d->bios_hd, d->bios_sect);
+	    }
+	} else {
+	    msgDebug("Setting geometry from script to: %s\n", cp);
+	    d->bios_cyl = strtol(cp, &cp, 0);
+	    d->bios_hd = strtol(cp + 1, &cp, 0);
+	    d->bios_sect = strtol(cp + 1, 0, 0);
 	}
     }
 
