@@ -737,9 +737,9 @@ vm_map_entry_splay(vm_offset_t addr, vm_map_entry_t root)
 				rlist = root;
 				root = y;
 			}
-		} else {
+		} else if (addr >= root->end) {
 			y = root->right;
-			if (addr < root->end || y == NULL)
+			if (y == NULL)
 				break;
 			if (addr >= y->end && y->right != NULL) {
 				/* Rotate left and put y on llist. */
@@ -755,7 +755,8 @@ vm_map_entry_splay(vm_offset_t addr, vm_map_entry_t root)
 				llist = root;
 				root = y;
 			}
-		}
+		} else
+			break;
 	}
 
 	/*
