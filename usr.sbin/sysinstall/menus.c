@@ -1074,21 +1074,24 @@ DMenu MenuIPLType = {
 DMenu MenuMBRType = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "overwrite me",		/* will be disk specific label */
-    "FreeBSD comes with a boot selector that allows you to easily\n"
+    "FreeBSD comes with a boot manager that allows you to easily\n"
     "select between FreeBSD and any other operating systems on your machine\n"
     "at boot time.  If you have more than one drive and want to boot\n"
-    "from the second one, the boot selector will also make it possible\n"
+    "from the second one, the boot manager will also make it possible\n"
     "to do so (limitations in the PC BIOS usually prevent this otherwise).\n"
-    "If you do not want a boot selector, or wish to replace an existing\n"
-    "one, select \"standard\".  If you would prefer your Master Boot\n"
-    "Record to remain untouched then select \"None\".\n\n"
+    "If you will only have FreeBSD on the machine the boot manager is\n"
+    "not needed and it slows down the boot while offering you the choice\n"
+    "of which operating system to boot.  If you do not want a boot\n"
+    "manager, or wish to replace an existing one, select \"standard\".\n"
+    "If you would prefer your Master Boot Record remain untouched then\n"
+    "select \"None\".\n\n"
     "  NOTE:  PC-DOS users will almost certainly require \"None\"!",
     "Press F1 to read about drive setup",
     "drives",
-    { { "BootMgr",	"Install the FreeBSD Boot Manager",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
-      { "Standard",	"Install a standard MBR (no boot manager)",
+    { { "Standard",	"Install a standard MBR (no boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
+      { "BootMgr",	"Install the FreeBSD Boot Manager",
+	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 0 },
       { "None",		"Leave the Master Boot Record untouched",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
       { NULL } },
