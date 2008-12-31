@@ -1462,7 +1462,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	}
 
 	kau_write(rec, subj_tok);
-	tok = au_to_return32((char)ar->ar_errno, ar->ar_retval);
+	tok = au_to_return32(au_errno_to_bsm(ar->ar_errno), ar->ar_retval);
 	kau_write(rec, tok);  /* Every record gets a return token */
 
 	kau_close(rec, &ar->ar_endtime, ar->ar_event);
