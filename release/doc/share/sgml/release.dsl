@@ -56,46 +56,18 @@
 
 ; Deal with conditional inclusion of text via entities.
 (default
-  (let* ((arch (attribute-string (normalize "arch")))
-	 (role (attribute-string (normalize "role")))
+  (let* ((role (attribute-string (normalize "role")))
 	 (for-arch (entity-text "arch")))
     (cond
 
-     ; If role=historic, and we're not printing historic things, then
-     ; don't output this element.
+     ;; If role=historic, and we're not printing historic things, then
+     ;; don't output this element.
      ((and (equal? role "historic")
-	   (not %include-historic%))
+          (not %include-historic%))
       (empty-sosofo))
-      
 
-     ; If arch= not specified, then print unconditionally.  This clause
-     ; handles the majority of cases.
-     ((or (equal? arch #f) (equal? arch ""))
-      (next-match))
-
-     ; arch= specified, see if it's equal to "all".  If so, then
-     ; print unconditionally.  Note that this clause could be
-     ; combined with the check to see if arch= wasn't specified
-     ; or was empty; they have the same outcome.
-     ((equal? arch "all")
-      (next-match))
-
-     ; arch= specified.  If we're building for all architectures,
-     ; then print it prepended with the set of architectures to which
-     ; this element applies.
-     ;
-     ; XXX This doesn't work.
-;     ((equal? for-arch "all")
-;      (sosofo-append (literal "[") (literal arch) (literal "] ")
-;		     (process-children)))
-
-     ; arch= specified, so we need to check to see if the specified
-     ; parameter includes the architecture we're building for.
-     ((string-list-match? for-arch (split-string-to-list arch))
-      (next-match))
-
-     ; None of the above
-     (else (empty-sosofo)))))
+     ;; None of the above
+     (else (next-match)))))
 
 (mode qandatoc
   (default
@@ -150,6 +122,88 @@
 ; Put URLs in footnotes, and put footnotes at the bottom of each page.
       (define bop-footnotes #t)
       (define %footnote-ulinks% #t)
+
+      (define ($paragraph$)
+	(let  ((arch (attribute-string (normalize "arch")))
+	       (role (attribute-string (normalize "role")))
+	       (arch-string (entity-text "arch"))
+	       (merged-string (entity-text "merged")))
+	  (if (or (equal? (print-backend) 'tex)
+		  (equal? (print-backend) #f))
+	      ;; avoid using country: characteristic because of a JadeTeX bug...
+	      (make paragraph
+		first-line-start-indent: (if (is-first-para)
+					     %para-indent-firstpara%
+					     %para-indent%)
+		space-before: %para-sep%
+		space-after: (if (INLIST?)
+				 0pt
+				 %para-sep%)
+		quadding: %default-quadding%
+		hyphenate?: %hyphenation%
+		language: (dsssl-language-code)
+		(make sequence
+		  (cond
+		   ;; If arch= not specified, then print unconditionally.  This clause
+		   ;; handles the majority of cases.
+		   ((or (equal? arch #f)
+			(equal? arch "")
+			(equal? arch "all"))
+		    (process-children-trim))
+		   (else
+		    (make sequence
+		      (literal "[")
+		      (let loop ((prev (car (split-string-to-list arch)))
+				 (rest (cdr (split-string-to-list arch))))
+			(make sequence
+			  (literal prev)
+			  (if (not (null? rest))
+			      (make sequence
+				(literal ", ")
+				(loop (car rest) (cdr rest)))
+			      (empty-sosofo))))
+		      (literal "] ")
+		      (process-children-trim))))
+		  (if (and (not (null? role)) (equal? role "merged"))
+		      (literal " [" merged-string "]")
+		      (empty-sosofo))))
+	      (make paragraph
+		first-line-start-indent: (if (is-first-para)
+					     %para-indent-firstpara%
+					     %para-indent%)
+		space-before: %para-sep%
+		space-after: (if (INLIST?)
+				 0pt
+				 %para-sep%)
+		quadding: %default-quadding%
+		hyphenate?: %hyphenation%
+		language: (dsssl-language-code)
+		country: (dsssl-country-code)
+		(make sequence
+		  (cond
+		   ;; If arch= not specified, then print unconditionally.  This clause
+		   ;; handles the majority of cases.
+		   ((or (equal? arch #f)
+			(equal? arch "")
+			(equal? arch "all"))
+		    (process-children-trim))
+		   (else
+		    (make sequence
+		      (literal "[")
+		      (let loop ((prev (car (split-string-to-list arch)))
+				 (rest (cdr (split-string-to-list arch))))
+			(make sequence
+			  (literal prev)
+			  (if (not (null? rest))
+			      (make sequence
+				(literal ", ")
+				(loop (car rest) (cdr rest)))
+			      (empty-sosofo))))
+		      (literal "] ")
+		      (process-children-trim))))
+		  (if (and (not (null? role)) (equal? role "merged"))
+		      (literal " [" merged-string "]")
+		      (empty-sosofo)))))))
     ]]>
 
     <![ %output.html; [
@@ -172,11 +226,59 @@
                  (u (string-append "&release.man.url;?query="
                          (data r) "&" "sektion=" (data m))))
             (case v
-              (("xfree86") (string-append u "&" "manpath=XFree86+&release.manpath.xfree86;" ))
               (("xorg")    (string-append u "&" "manpath=Xorg+&release.manpath.xorg;" ))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+&release.manpath.netbsd;"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd-ports;"))
               (else        (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd;")))))
+
+      ;; $paragraph$ function with arch attribute support.
+      (define ($paragraph$ #!optional (para-wrapper "P"))
+	(let ((footnotes (select-elements (descendants (current-node))
+					  (normalize "footnote")))
+	      (tgroup (have-ancestor? (normalize "tgroup")))
+	      (arch (attribute-string (normalize "arch")))
+	      (role (attribute-string (normalize "role")))
+	      (arch-string (entity-text "arch"))
+	      (merged-string (entity-text "merged")))
+	  (make sequence
+	    (make element gi: para-wrapper
+		  attributes: (append
+			       (if %default-quadding%
+				   (list (list "ALIGN" %default-quadding%))
+				   '()))
+		  (make sequence
+		    (cond
+		     ;; If arch= not specified, then print unconditionally.  This clause
+		     ;; handles the majority of cases.
+		     ((or (equal? arch #f)
+			  (equal? arch "")
+			  (equal? arch "all"))
+		      (process-children))
+		     (else
+		      (sosofo-append
+		       (make sequence
+			 (literal "[")
+			 (let loop ((prev (car (split-string-to-list arch)))
+				    (rest (cdr (split-string-to-list arch))))
+			   (make sequence
+			     (literal prev)
+			     (if (not (null? rest))
+				 (make sequence
+				   (literal ", ")
+				   (loop (car rest) (cdr rest)))
+				 (empty-sosofo))))
+			 (literal "] ")
+			 (process-children)))))
+		    (if (and (not (null? role)) (equal? role "merged"))
+			(literal " [" merged-string "]")
+			(empty-sosofo))
+		    (if (or %footnotes-at-end% tgroup (node-list-empty? footnotes))
+			(empty-sosofo)
+			(make element gi: "BLOCKQUOTE"
+			      attributes: (list
+					   (list "CLASS" "FOOTNOTES"))
+			      (with-mode footnote-mode
+				(process-node-list footnotes)))))))))
     ]]>
 
       (define (toc-depth nd)
