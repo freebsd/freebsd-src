@@ -32,10 +32,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+
+#include <security/audit/audit.h>
 
 #include <bsm/audit_errno.h>
-#include <bsm/libbsm.h>
+#include <bsm/audit_record.h>
 
 #include <sys/errno.h>
 
