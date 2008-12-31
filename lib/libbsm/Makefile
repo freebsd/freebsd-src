@@ -15,6 +15,7 @@ SHLIB_MAJOR=	2
 SRCS=	bsm_audit.c							\
 	bsm_class.c							\
 	bsm_control.c							\
+	bsm_errno.c							\
 	bsm_event.c							\
 	bsm_flags.c							\
 	bsm_io.c							\
@@ -35,6 +36,7 @@ INCSDIR=	${INCLUDEDIR}/bsm
 MAN=	libbsm.3							\
 	au_class.3							\
 	au_control.3							\
+	au_errno.3							\
 	au_event.3							\
 	au_free_token.3							\
 	au_io.3								\
@@ -79,6 +81,9 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_control.3 getacpol.3						\
 	au_control.3 au_poltostr.3					\
 	au_control.3 au_strtopol.3					\
+	au_errno.3 au_bsm_to_errno.3					\
+	au_errno.3 au_errno_to_bsm.3					\
+	au_errno.3 au_strerror.3					\
 	au_event.3 setauevent.3						\
 	au_event.3 endauevent.3						\
 	au_event.3 getauevent.3						\

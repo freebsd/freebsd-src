@@ -33,9 +33,14 @@
 #ifndef _BSM_AUDIT_H
 #define	_BSM_AUDIT_H
 
+#ifdef	__APPLE__
+/* Temporary until rdar://problem/6133383 is resolved. */
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/cdefs.h>
 #include <sys/queue.h>
+#endif /* __APPLE__ */
 
 #define	AUDIT_RECORD_MAGIC	0x828a0f1b
 #define	MAX_AUDIT_RECORDS	20
@@ -60,8 +65,9 @@
 #define	AUDIT_TRIGGER_READ_FILE		3	/* Re-read config file. */
 #define	AUDIT_TRIGGER_CLOSE_AND_DIE	4	/* Terminate audit. */
 #define	AUDIT_TRIGGER_NO_SPACE		5	/* Below min free space. */
-#define	AUDIT_TRIGGER_ROTATE_USER	6	/* User requests roate. */
-#define	AUDIT_TRIGGER_MAX		6
+#define	AUDIT_TRIGGER_ROTATE_USER	6	/* User requests rotate. */
+#define	AUDIT_TRIGGER_INITIALIZE	7	/* Initialize audit. */
+#define	AUDIT_TRIGGER_MAX		7
 
 /*
  * The special device filename (FreeBSD).
@@ -72,7 +78,9 @@
 /*
  * Pre-defined audit IDs
  */
-#define	AU_DEFAUDITID	-1
+#define	AU_DEFAUDITID	(uid_t)(-1)
+#define	AU_DEFAUDITSID	 0
+#define	AU_ASSIGN_ASID	-1
 
 /*
  * IPC types.
@@ -116,6 +124,7 @@
 #define	A_GETKAUDIT	29
 #define	A_SETKAUDIT	30
 #define	A_SENDTRIGGER	31
+#define	A_GETSINFO_ADDR	32
 
 /*
  * Audit policy controls.
@@ -196,6 +205,7 @@ struct auditinfo_addr {
 	au_mask_t	ai_mask;	/* Audit masks. */
 	au_tid_addr_t	ai_termid;	/* Terminal ID. */
 	au_asid_t	ai_asid;	/* Audit session ID. */
+	u_int64_t	ai_flags;	/* Audit session flags. */
 };
 typedef	struct auditinfo_addr	auditinfo_addr_t;
 
@@ -205,6 +215,7 @@ struct auditpinfo {
 	au_mask_t	ap_mask;	/* Audit masks. */
 	au_tid_t	ap_termid;	/* Terminal ID. */
 	au_asid_t	ap_asid;	/* Audit session ID. */
+	u_int64_t	ap_flags;	/* Audit session flags. */
 };
 typedef	struct auditpinfo	auditpinfo_t;
 
@@ -216,6 +227,16 @@ struct auditpinfo_addr {
 	au_asid_t	ap_asid;	/* Audit session ID. */
 };
 typedef	struct auditpinfo_addr	auditpinfo_addr_t;
+
+struct au_session {
+	auditinfo_addr_t	*as_aia_p;	/* Ptr to full audit info. */
+#define	as_asid			as_aia_p->ai_asid
+#define	as_auid			as_aia_p->ai_auid
+#define	as_termid		as_aia_p->ai_termid
+
+	au_mask_t		 as_mask;	/* Process Audit Masks. */
+};
+typedef struct au_session       au_session_t;
 
 /*
  * Contents of token_t are opaque outside of libbsm.

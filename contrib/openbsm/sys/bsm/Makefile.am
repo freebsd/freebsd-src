@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/Makefile.am#1 $
+# $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/Makefile.am#2 $
 #
 
 
@@ -8,6 +8,7 @@ openbsmdir = $(includedir)/bsm
 
 openbsm_HEADERS =		\
 	audit.h			\
+	audit_errno.h		\
 	audit_internal.h	\
 	audit_kevents.h		\
 	audit_record.h
