@@ -293,12 +293,12 @@
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
-	<para arch="i386,amd64">The BTX kernel used by the boot
+	<para arch="amd64,i386">The BTX kernel used by the boot
 	  loader has been changed to invoke BIOS routines from real
 	  mode.  This change makes it possible to boot &os; from USB
 	  devices.</para>
 
-	<para arch="i386,amd64">A new gptboot boot loader has
+	<para arch="amd64,i386">A new gptboot boot loader has
           been added to support booting from a GPT labeled disk.  A
           new <command>boot</command> command has been added to
           &man.gpt.8;, which makes a GPT disk bootable by writing the
@@ -837,7 +837,7 @@
   <sect1 id="upgrade">
     <title>Upgrading from previous releases of &os;</title>
 
-    <para arch="i386,amd64"> Beginning with &os; 6.2-RELEASE,
+    <para arch="amd64,i386"> Beginning with &os; 6.2-RELEASE,
       binary upgrades between RELEASE versions (and snapshots of the
       various security branches) are supported using the
       &man.freebsd-update.8; utility.  The binary upgrade procedure will
