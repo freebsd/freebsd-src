@@ -1334,6 +1334,10 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 
 	if (ieee80211_ies_init(&ni->ni_ies, sp->ies, sp->ies_len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
+		if (ni->ni_ies.wme_ie != NULL)
+			ni->ni_flags |= IEEE80211_NODE_QOS;
+		else
+			ni->ni_flags &= ~IEEE80211_NODE_QOS;
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
 	}
