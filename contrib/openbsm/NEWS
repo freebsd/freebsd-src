@@ -1,5 +1,50 @@
 OpenBSM Version History
 
+OpenBSM 1.1 alpha 4
+
+- With the addition of BSM error number mapping, we also need to map the
+  local error number passed to audit_submit(3) to a BSM error number, rather
+  than have the caller perform that conversion.
+- Reallocate user audit events to avoid collisions with Solaris; adopt a more
+  formal allocation scheme, and add some events allocated in Solaris that
+  will be of immediate use on other platforms.
+- Add an event for Calife.
+- Add au_strerror(3), which allows generating strings for BSM errors
+  directly, rather than requiring applications to map to the local error
+  space, which might not be able to entirely represent the BSM error number
+  space.
+- Major auditd rewrite for launchd(8) support.  Add libauditd library that is
+  shared between launchd and auditd. 
+- Add AUDIT_TRIGGER_INITIALIZE trigger (sent via 'audit -i') for (re)starting
+  auditing under launchd(8) on Mac OS X.
+- Add 'current' symlink to active audit trail.
+- Add crash recovery of previous audit trail file when detected on audit
+  startup that it has not been properly terminated.
+- Add the event AUE_audit_recovery to indicated when an audit trail file has
+  been recovered from not being properly terminated.  This event is stored
+  in the new audit trail file and includes the path of recovered audit trail
+  file.
+- Mac OS X and FreeBSD dependent code in auditd.c is separated into
+  auditd_darwin.c and auditd_fbsd.c files.
+- Add an event for the posix_spawn(2) and fsgetpath(2) Mac OS X system calls.
+- For Mac OS X, we use ASL(3) instead of syslog(3) for logging.
+- Add support for NOTICE level logging. 
+
+OpenBSM 1.1 alpha 3
+
+- Add two new functions, au_bsm_to_errno() and au_errno_to_bsm(), to map
+  between BSM error numbers (largely the Solaris definitions) and local
+  errno(2) values for 32-bit and 64-bit return tokens.  This is required as
+  operating systems don't agree on some of the values of more recent error
+  numbers.
+- Fix a bug how au_to_exec_args(3) and au_to_exec_env(3) calculates the total
+  size for the token.  This bug resulted in "unknown" tokens being printed
+  after the exec args/env tokens.
+- Support for AUT_SOCKET_EX extended socket tokens, which describe a socket
+  using a pair of IPv4/IPv6 and port tuples.
+- OpenBSM BSM file header version bumped for 1.1 release.
+- Deprecated Darwin constants, such as TRAILER_PAD_MAGIC, removed.
+
 OpenBSM 1.1 alpha 2
 
 - Include files in OpenBSM are now broken out into two parts: library builds
@@ -348,4 +393,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/NEWS#9 $
+$P4: //depot/projects/trustedbsd/openbsm/NEWS#21 $
