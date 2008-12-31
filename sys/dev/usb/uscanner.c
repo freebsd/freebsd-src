@@ -90,6 +90,15 @@ struct uscan_info {
 
 /* Table of scanners that may work with this driver. */
 static const struct uscan_info uscanner_devs[] = {
+
+ /*
+  * These first two entries are duplicates of known-working units,
+  * so one can patch them to test support for newer devices
+  * without rebuilding the module.
+  */
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_6000 }, 0 },	/* duplicate */
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_6000 }, 0 },	/* duplicate */
+
   /* Acer Peripherals */
  {{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_320U }, 0 },
  {{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_4300U }, 0 },
@@ -217,6 +226,12 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_CX5400 }, 0 },
  {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_DX7400 }, 0 },
  {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_DX8400 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_CX5400 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_DX3800 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_DX4000 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_NX300 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_SX200 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_SX400 }, 0 },
 
   /* UMAX */
  {{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA1220U }, 0 },
