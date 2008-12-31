@@ -169,7 +169,8 @@ struct audit_pipe {
 	/*
 	 * Current pending record list.  Protected by a combination of ap_mtx
 	 * and ap_sx.  Note particularly that *both* locks are required to
-	 * remove a record from the head of the queue, as an in-progress read		 * may sleep while copying and therefore cannot hold ap_mtx.
+	 * remove a record from the head of the queue, as an in-progress read
+	 * may sleep while copying and therefore cannot hold ap_mtx.
 	 */
 	TAILQ_HEAD(, audit_pipe_entry)	 ap_queue;
 
