@@ -100,7 +100,8 @@ __FBSDID("$FreeBSD$");
  *	Synchronization is required prior to most operations.
  *
  *	Maps consist of an ordered doubly-linked list of simple
- *	entries; a single hint is used to speed up lookups.
+ *	entries; a self-adjusting binary search tree of these
+ *	entries is used to speed up lookups.
  *
  *	Since portions of maps are specified by start/end addresses,
  *	which may not align with existing map entries, all
@@ -1629,7 +1630,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 
 		/*
 		 * Update physical map if necessary. Worry about copy-on-write
-		 * here -- CHECK THIS XXX
+		 * here.
 		 */
 		if (current->protection != old_prot) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
@@ -1806,7 +1807,7 @@ vm_map_madvise(
  *	Sets the inheritance of the specified address
  *	range in the target map.  Inheritance
  *	affects how the map will be shared with
- *	child maps at the time of vm_map_fork.
+ *	child maps at the time of vmspace_fork.
  */
 int
 vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,

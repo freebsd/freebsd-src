@@ -109,7 +109,6 @@ struct vm_map_entry {
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
 	vm_eflags_t eflags;		/* map entry flags */
-	/* Only in task maps: */
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
@@ -168,13 +167,6 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
  *	Tarjan's top-down splay algorithm is employed to control
  *	height imbalance in the binary search tree.
  *
- *	Note: the lock structure cannot be the first element of vm_map
- *	because this can result in a running lockup between two or more
- *	system processes trying to kmem_alloc_wait() due to kmem_alloc_wait()
- *	and free tsleep/waking up 'map' and the underlying lockmgr also
- *	sleeping and waking up on 'map'.  The lockup occurs when the map fills
- *	up.  The 'exec' map, for example.
- *
  * List of locks
  *	(c)	const until freed
  */
@@ -186,7 +178,7 @@ struct vm_map {
 	vm_size_t size;			/* virtual size */
 	u_int timestamp;		/* Version number */
 	u_char needs_wakeup;
-	u_char system_map;		/* Am I a system map? */
+	u_char system_map;		/* (c) Am I a system map? */
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
