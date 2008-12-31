@@ -8,6 +8,9 @@
 /* Define if audit system calls present */
 #define HAVE_AUDIT_SYSCALLS 
 
+/* Define if be32enc is present */
+#define HAVE_BE32ENC 
+
 /* Define to 1 if you have the `bzero' function. */
 #define HAVE_BZERO 1
 
@@ -68,6 +71,9 @@
 
 /* Define to 1 if you have the `memset' function. */
 #define HAVE_MEMSET 1
+
+/* Define to 1 if you have the `pthread_mutex_lock' function. */
+#define HAVE_PTHREAD_MUTEX_LOCK 1
 
 /* Define to 1 if `stat' has the bug that it succeeds when given the
    zero-length file name argument. */
@@ -159,13 +165,13 @@
 #define PACKAGE_NAME "OpenBSM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "OpenBSM 1.1alpha2"
+#define PACKAGE_STRING "OpenBSM 1.1alpha4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "openbsm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.1alpha2"
+#define PACKAGE_VERSION "1.1alpha4"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -186,7 +192,7 @@
 #define USE_NATIVE_INCLUDES 
 
 /* Version number of package */
-#define VERSION "1.1alpha2"
+#define VERSION "1.1alpha4"
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
