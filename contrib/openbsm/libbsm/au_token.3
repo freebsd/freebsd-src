@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#15 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#16 $
 .\"
 .Dd April 19, 2005
 .Dt AU_TOKEN 3
@@ -209,6 +209,15 @@
 These interfaces support the allocation of BSM audit tokens, represented by
 .Vt token_t ,
 for various data types.
+.Pp
+.Xr au_errno_to_bsm 3
+must be used to convert local
+.Xr errno 2
+errors to BSM error numbers before they are passed to
+.Fn au_to_return ,
+.Fn au_to_return32 ,
+and
+.Fn au_to_return64 .
 .Sh RETURN VALUES
 On success, a pointer to a
 .Vt token_t
@@ -221,6 +230,7 @@ On failure,
 will be returned, and an error condition returned via
 .Va errno .
 .Sh SEE ALSO
+.Xr au_errno_to_bsm 3 ,
 .Xr libbsm 3
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
