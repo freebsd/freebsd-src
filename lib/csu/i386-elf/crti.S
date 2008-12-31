@@ -38,4 +38,4 @@ _fini:
 	sub	$12,%esp	/* re-align stack pointer */
 
 	.section .rodata
-.ascii "$FreeBSD$\0"
+.ascii "$FreeBSD: src/lib/csu/i386-elf/crti.S,v 1.7.18.1 2008/11/25 02:59:29 kensmith Exp $\0"

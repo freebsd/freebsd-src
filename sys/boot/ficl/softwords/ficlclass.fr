@@ -7,7 +7,7 @@
 \ ** C - W O R D
 \ Models a FICL_WORD
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/ficlclass.fr,v 1.1.32.1 2008/11/25 02:59:29 kensmith Exp $
 
 object subclass c-word
     c-word     ref: .link

@@ -1,4 +1,4 @@
-	# $FreeBSD$
+	# $FreeBSD: src/secure/lib/libcrypto/i386/crypt586.s,v 1.2.26.1 2008/11/25 02:59:29 kensmith Exp $
 
 
 

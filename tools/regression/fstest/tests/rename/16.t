@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/16.t,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 desc="rename returns EROFS if the requested link requires writing in a directory on a read-only file system"
 

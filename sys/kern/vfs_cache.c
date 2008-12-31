@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_cache.c,v 1.114.2.2.2.2 2008/12/09 17:33:56 kib Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

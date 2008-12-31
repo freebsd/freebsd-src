@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/sparc64/sbus/lsi64854reg.h,v 1.3.18.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 /*
  * LSI 64854 DMA engine. Contains three independent channels

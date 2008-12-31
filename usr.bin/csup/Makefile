@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/csup/Makefile,v 1.3.8.1 2008/11/25 02:59:29 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../contrib/csup
 

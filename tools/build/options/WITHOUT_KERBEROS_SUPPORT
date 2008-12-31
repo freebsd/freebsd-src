@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_KERBEROS_SUPPORT,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
 Set to build some programs without Kerberos support, like
 .Xr cvs 1 ,
 .Xr ssh 1 ,

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/xargs/regress.sh,v 1.6.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 echo 1..5
 

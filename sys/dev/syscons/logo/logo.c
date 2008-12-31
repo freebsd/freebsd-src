@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/syscons/logo/logo.c,v 1.3.32.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #define logo_width 88
 #define logo_height 88

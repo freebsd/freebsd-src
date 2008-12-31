@@ -11,7 +11,7 @@
    GNU General Public License for more details.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/update.h,v 1.3.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 int do_update PROTO((int argc, char *argv[], char *xoptions, char *xtag,

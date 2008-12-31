@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/atm/atmconfig/atmconfig.h,v 1.2.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 #ifndef _ATMCONFIG_H
 #define	_ATMCONFIG_H

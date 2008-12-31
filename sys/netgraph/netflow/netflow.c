@@ -28,7 +28,7 @@
  */
 
 static const char rcs_id[] =
-    "@(#) $FreeBSD$";
+    "@(#) $FreeBSD: src/sys/netgraph/netflow/netflow.c,v 1.25.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $";
 
 #include <sys/param.h>
 #include <sys/kernel.h>

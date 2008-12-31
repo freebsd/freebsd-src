@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)5.t	8.1 (Berkeley) 8/14/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/21.ipc/5.t,v 1.5.52.1 2008/11/25 02:59:29 kensmith Exp $
 .\"
 .\".ds RH "Advanced Topics
 .bp

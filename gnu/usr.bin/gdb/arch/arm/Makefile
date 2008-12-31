@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/Makefile,v 1.1.4.1.4.1 2008/11/25 02:59:29 kensmith Exp $
 
 GENSRCS+= xm.h
 LIBSRCS+= armfbsd-nat.c

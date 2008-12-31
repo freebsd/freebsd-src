@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/wizard.c,v 1.26.8.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include "sade.h"

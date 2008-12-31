@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/if_ralrate.h,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $	*/
 /* $NetBSD: ieee80211_rssadapt.h,v 1.4 2005/02/26 22:45:09 perry Exp $ */
 /*-
  * Copyright (c) 2003, 2004 David Young.  All rights reserved.

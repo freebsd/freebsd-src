@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/dc/Makefile,v 1.12.26.1 2008/11/25 02:59:29 kensmith Exp $
 
 BCDIR=	${.CURDIR}/../../../contrib/bc
 

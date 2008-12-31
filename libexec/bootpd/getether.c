@@ -7,7 +7,7 @@
  * If you figure out how to do this on another system,
  * please let me know.  <gwr@mc.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/getether.c,v 1.14.30.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/types.h>

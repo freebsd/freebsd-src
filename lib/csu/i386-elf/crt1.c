@@ -110,4 +110,4 @@ __asm__("eprol:");
 	exit( main(argc, argv, env) );
 }
 
-__asm__(".ident\t\"$FreeBSD$\"");
+__asm__(".ident\t\"$FreeBSD: src/lib/csu/i386-elf/crt1.c,v 1.15.6.1 2008/11/25 02:59:29 kensmith Exp $\"");

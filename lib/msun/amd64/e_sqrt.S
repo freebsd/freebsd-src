@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/lib/msun/amd64/e_sqrt.S,v 1.2.20.1 2008/11/25 02:59:29 kensmith Exp $")
 	
 ENTRY(sqrt)
 	sqrtsd	%xmm0, %xmm0

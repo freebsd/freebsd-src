@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/test/sigwait_d.exp,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
 Sigwait caught signal 16
 Sigwait caught signal 16
 Sigwait caught signal 30

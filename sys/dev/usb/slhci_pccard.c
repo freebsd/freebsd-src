@@ -51,7 +51,7 @@
 #include <dev/usb/sl811hsvar.h>
 #include "pccarddevs.h"
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/slhci_pccard.c,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 static void	slhci_pccard_intr(void *arg);
 

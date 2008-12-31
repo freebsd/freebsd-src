@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: irmc.c,v 1.6 2004/01/13 19:31:54 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/irmc.c,v 1.1.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/queue.h>

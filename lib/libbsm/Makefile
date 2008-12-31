@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsm/Makefile,v 1.7.2.1.4.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 OPENBSMDIR=		${.CURDIR}/../../contrib/openbsm

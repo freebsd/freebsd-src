@@ -49,7 +49,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/setcpsr.S,v 1.3.18.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /* Sets and clears bits in the CPSR register
  *

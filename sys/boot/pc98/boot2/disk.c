@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/boot2/disk.c,v 1.13.18.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "boot.h"
 #include <sys/disklabel.h>

@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mailwrapper/mailwrapper.c,v 1.11.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include <err.h>
 #include <stdio.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/freebsd32/freebsd32_ioctl.h,v 1.2.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _COMPAT_FREEBSD32_IOCTL_H_

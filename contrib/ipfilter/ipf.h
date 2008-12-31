@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipf.h,v 1.5.6.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.

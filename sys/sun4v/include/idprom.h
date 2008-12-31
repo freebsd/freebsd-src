@@ -30,7 +30,7 @@
  *
  *	from: NetBSD: idprom.h,v 1.2 1998/09/05 23:57:26 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/idprom.h,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_IDPROM_H_

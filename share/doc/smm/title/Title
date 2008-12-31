@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)Title	8.2 (Berkeley) 4/19/94
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/smm/title/Title,v 1.5.32.1 2008/11/25 02:59:29 kensmith Exp $
 .\"
 .ps 18
 .vs 22

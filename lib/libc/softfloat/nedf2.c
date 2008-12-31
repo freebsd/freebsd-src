@@ -9,7 +9,7 @@
 #include "softfloat.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/softfloat/nedf2.c,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $");
 
 flag __nedf2(float64, float64);
 

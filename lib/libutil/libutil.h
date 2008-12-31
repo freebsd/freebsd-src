@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/libutil.h,v 1.45.2.1.2.2 2008/12/06 20:36:46 peter Exp $
  */
 
 #ifndef _LIBUTIL_H_

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ip_msnrpc_pxy.c,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2000-2003 by Darren Reed

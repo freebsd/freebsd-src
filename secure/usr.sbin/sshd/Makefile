@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.sbin/sshd/Makefile,v 1.50.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 .include <bsd.own.mk>

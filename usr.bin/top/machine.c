@@ -20,7 +20,7 @@
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *          Thomas Moestl <tmoestl@gmx.net>
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/top/machine.c,v 1.82.2.3.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/param.h>

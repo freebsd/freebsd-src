@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/blowfish/bf_locl.h,v 1.5.32.1 2008/11/25 02:59:29 kensmith Exp $	*/
 /*	$KAME: bf_locl.h,v 1.6 2001/09/10 04:03:56 itojun Exp $	*/
 
 /* crypto/bf/bf_local.h */

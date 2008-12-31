@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_bridge/Makefile,v 1.2.8.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 MOD=	bridge

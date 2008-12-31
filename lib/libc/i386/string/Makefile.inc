@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/i386/string/Makefile.inc,v 1.13.30.1 2008/11/25 02:59:29 kensmith Exp $
 
 MDSRCS+=bcmp.S bcopy.S bzero.S ffs.S index.S memchr.S memcmp.S memcpy.S \
 	memmove.S memset.S rindex.S strcat.S strchr.S strcmp.S strcpy.S \

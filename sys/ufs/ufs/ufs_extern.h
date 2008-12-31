@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_extern.h,v 1.55.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_

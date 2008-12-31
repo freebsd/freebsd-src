@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/hpux.c,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /*
  * (C)opyright 1997-1998 Darren Reed. (from tcplog)

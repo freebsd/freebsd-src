@@ -1,5 +1,5 @@
 # Original Revision: 82872
-# $FreeBSD$
+# $FreeBSD: src/release/doc/zh_CN.GB2312/errata/Makefile,v 1.1.16.2.2.1 2008/11/25 02:59:29 kensmith Exp $
 
 RELN_ROOT?= ${.CURDIR}/../..
 .ifdef NO_LANGCODE_IN_DESTDIR

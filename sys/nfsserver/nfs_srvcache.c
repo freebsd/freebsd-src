@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsserver/nfs_srvcache.c,v 1.44.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * Reference: Chet Juszczak, "Improving the Performance and Correctness

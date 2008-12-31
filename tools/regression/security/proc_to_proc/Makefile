@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/security/proc_to_proc/Makefile,v 1.4.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	testuid
 NO_MAN=

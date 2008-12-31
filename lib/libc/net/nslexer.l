@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 static char *rcsid = 
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/net/nslexer.l,v 1.5.30.1 2008/11/25 02:59:29 kensmith Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "namespace.h"

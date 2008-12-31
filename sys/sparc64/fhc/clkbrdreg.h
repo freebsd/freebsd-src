@@ -26,7 +26,7 @@
  *
  *	from: OpenBSD: clkbrdreg.h,v 1.2 2004/10/01 15:36:30 jason Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/fhc/clkbrdreg.h,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _SPARC64_FHC_CLKBRDREG_H_

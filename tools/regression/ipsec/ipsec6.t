@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/ipsec/ipsec6.t,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $
 #
 # IPv6 IPsec test based on ipsec.t, in this same directory, which tests
 # IPsec by setting up a set of tunnels and then sending ICMPv6 packets,   

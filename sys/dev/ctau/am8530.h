@@ -12,7 +12,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: am8530.h,v 1.1.2.2 2003/11/12 17:31:21 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ctau/am8530.h,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

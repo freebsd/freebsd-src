@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/kldstat/Makefile,v 1.9.30.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 PROG=	kldstat

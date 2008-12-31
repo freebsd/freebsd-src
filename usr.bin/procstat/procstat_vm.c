@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/procstat/procstat_vm.c,v 1.2.2.2.2.3 2008/12/19 20:23:38 marcus Exp $
  */
 
 #include <sys/types.h>

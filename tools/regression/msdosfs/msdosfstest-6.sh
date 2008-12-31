@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/msdosfs/msdosfstest-6.sh,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
 # A really simple script to create a swap-backed msdosfs filesystem, then
 # test to make sure the nmount conversion(mount_msdosfs.c rev 1.37)
 # doesn't break multi-byte characters.

@@ -4,7 +4,7 @@
  * from the file `csigma.dat'
  *
  * Cronyx Id: csigmafw.h,v 1.1 2002/06/03 10:19:39 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cx/csigmafw.h,v 1.1.30.1 2008/11/25 02:59:29 kensmith Exp $
  */
 long csigma_fw_len = 131234;
 

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/prof_machdep.c,v 1.2.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #ifdef GUPROF
 

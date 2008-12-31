@@ -24,7 +24,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/fpu/fpu_reg.S,v 1.2.32.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * Define arrays of leaf functions to load/store fp registers to memory. See

@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_syscalls.c,v 1.259.2.6.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "opt_sctp.h"
 #include "opt_compat.h"

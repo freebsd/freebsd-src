@@ -31,7 +31,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/ixgb_ids.h,v 1.1.28.1 2008/11/25 02:59:29 kensmith Exp $*/
 
 #ifndef _IXGB_IDS_H_
 #define _IXGB_IDS_H_

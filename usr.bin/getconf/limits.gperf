@@ -2,7 +2,7 @@
 /*
  * Copyright is disclaimed as to the contents of this file.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/getconf/limits.gperf,v 1.2.28.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/types.h>

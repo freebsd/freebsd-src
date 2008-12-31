@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_param.c,v 1.73.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "opt_param.h"
 #include "opt_maxusers.h"

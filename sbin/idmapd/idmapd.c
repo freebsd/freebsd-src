@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sbin/idmapd/idmapd.c,v 1.6.18.1 2008/11/25 02:59:29 kensmith Exp $ */
 /* $Id: idmapd.c,v 1.5 2003/11/05 14:58:58 rees Exp $ */
 
 /*

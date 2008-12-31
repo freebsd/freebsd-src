@@ -36,7 +36,7 @@
 .\"
 .\"	@(#)table1	8.1 (Berkeley) 8/14/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/usd/21.troff/table1,v 1.2.32.1 2008/11/25 02:59:29 kensmith Exp $
 .pn 30
 .rm mx
 .br

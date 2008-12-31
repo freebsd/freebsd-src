@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/Makefile,v 1.16.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 #.WAIT
 SUBDIR=		libipf

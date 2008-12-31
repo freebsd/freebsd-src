@@ -5,7 +5,7 @@
  *	author		: Taichi Sugiyama
  *	create Data     : 28/Sep/99
  * =======================================================================
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/ds1.h,v 1.1.34.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 

@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)strmode.c	8.3 (Berkeley) 8/15/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/strmode.c,v 1.5.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ifconfig/ifieee80211.c,v 1.47.2.4.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*-

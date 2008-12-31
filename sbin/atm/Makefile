@@ -21,7 +21,7 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/atm/Makefile,v 1.6.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
 
 SUBDIR=	atmconfig
 

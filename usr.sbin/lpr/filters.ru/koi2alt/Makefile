@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/filters.ru/koi2alt/Makefile,v 1.7.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	koi2alt
 NO_MAN=

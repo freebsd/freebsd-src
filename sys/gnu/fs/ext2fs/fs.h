@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/fs.h,v 1.18.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

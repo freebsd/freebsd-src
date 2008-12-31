@@ -31,7 +31,7 @@
  *
  * $Id: ib_pack.h 1349 2004-12-16 21:09:43Z roland $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_pack.h,v 1.1.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef IB_PACK_H

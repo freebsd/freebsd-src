@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/symlink/12.t,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 desc="symlink returns EFAULT if one of the pathnames specified is outside the process's allocated address space"
 

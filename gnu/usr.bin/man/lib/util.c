@@ -14,7 +14,7 @@
  * Austin, Texas  78712
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/man/lib/util.c,v 1.8.44.1.2.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #include <stdio.h>
 #include <string.h>

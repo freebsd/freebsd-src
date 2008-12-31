@@ -42,7 +42,7 @@
  *
  * Created      : 30/09/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/frame.h,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $
  *
  */
 

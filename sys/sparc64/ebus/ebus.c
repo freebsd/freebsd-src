@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/ebus/ebus.c,v 1.26.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * UltraSPARC 5 and beyond EBus support

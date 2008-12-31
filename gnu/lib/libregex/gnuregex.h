@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libregex/gnuregex.h,v 1.3.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifdef __GNUC__

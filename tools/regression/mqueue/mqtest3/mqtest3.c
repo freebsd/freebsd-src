@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/mqueue/mqtest3/mqtest3.c,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $ */
 #include <stdio.h>
 #include <mqueue.h>
 #include <fcntl.h>

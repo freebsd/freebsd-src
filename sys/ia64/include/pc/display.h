@@ -1,7 +1,7 @@
 /*
  * IBM PC display definitions
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/pc/display.h,v 1.1.32.1 2008/11/25 02:59:29 kensmith Exp $
  *	from: i386/include/pc display.h,v 1.4
  */
 

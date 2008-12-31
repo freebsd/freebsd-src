@@ -26,7 +26,7 @@
  *
  * Copyright (c) 2000 Andrew Miklic
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fb/gfb.h,v 1.5.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _FB_GFB_H_

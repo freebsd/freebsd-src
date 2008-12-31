@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/nmi.c,v 1.79.26.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "opt_mca.h"
 

@@ -31,7 +31,7 @@
 static const char rcsid[] = "$OpenBSD: readpassphrase.c,v 1.12 2001/12/15 05:41:00 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/readpassphrase.c,v 1.6.36.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "namespace.h"
 #include <ctype.h>

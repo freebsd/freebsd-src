@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/kernels-install.sh,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 if [ "`id -u`" != "0" ]; then

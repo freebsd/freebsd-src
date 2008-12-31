@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/rtc.c,v 1.7.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * The `rtc' device is a MC146818 compatible clock found on the ISA

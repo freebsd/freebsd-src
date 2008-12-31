@@ -22,7 +22,7 @@
 #define RCSID	"$Id: eui64.c,v 1.3 1999/08/25 04:15:51 paulus Exp $"
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pppd/eui64.c,v 1.2.8.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "pppd.h"
 

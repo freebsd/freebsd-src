@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/cron/cron/Makefile,v 1.17.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	cron
 MAN=	cron.8

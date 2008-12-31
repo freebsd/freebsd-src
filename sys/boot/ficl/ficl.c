@@ -55,7 +55,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/ficl.c,v 1.18.32.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/manpath/Makefile,v 1.26.32.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	manpath
 

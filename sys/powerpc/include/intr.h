@@ -34,7 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: intr.h,v 1.6 2000/02/11 13:15:44 tsubai Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/intr.h,v 1.4.24.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _MACPPC_INTR_H_

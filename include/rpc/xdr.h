@@ -30,7 +30,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/include/rpc/xdr.h,v 1.23.30.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

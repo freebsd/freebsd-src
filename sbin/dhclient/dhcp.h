@@ -1,5 +1,5 @@
 /*	$OpenBSD: dhcp.h,v 1.5 2004/05/04 15:49:49 deraadt Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/dhclient/dhcp.h,v 1.3.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /* Protocol structures... */
 

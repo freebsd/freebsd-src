@@ -8,7 +8,7 @@
  *
  * This is a V.21 modem for ISDN4BSD.
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/isdn/v21/v21modem.c,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <string.h>

@@ -37,7 +37,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_lmi.h,v 1.4.18.1 2008/11/25 02:59:29 kensmith Exp $
  * $Whistle: ng_lmi.h,v 1.9 1999/01/20 00:22:13 archie Exp $
  */
 

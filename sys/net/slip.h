@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slip.h	8.1 (Berkeley) 2/12/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/slip.h,v 1.10.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _NET_SLIP_H_

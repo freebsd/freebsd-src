@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/408.status-gstripe,v 1.1.8.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 # If there is a global system configuration file, suck it in.

@@ -33,7 +33,7 @@
  *
  *	@(#)nlist.h	8.2 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/nlist_aout.h,v 1.11.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _SYS_NLIST_AOUT_H_

@@ -1,7 +1,7 @@
 /*
  * Standard LOCALE_CTYPE for the US-ASCII Locale
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/la_LN.US-ASCII.src,v 1.2.34.1 2008/11/25 02:59:29 kensmith Exp $
  */
 ENCODING        "NONE"
 VARIABLE        Strict 7bit US-ASCII locale

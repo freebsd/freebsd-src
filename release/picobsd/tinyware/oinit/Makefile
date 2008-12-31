@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/tinyware/oinit/Makefile,v 1.5.18.1 2008/11/25 02:59:29 kensmith Exp $
 #
 PROG=		oinit
 

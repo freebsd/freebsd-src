@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/sys/pipe.S,v 1.4.30.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "SYS.h"
 

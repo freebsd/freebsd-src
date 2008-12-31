@@ -18,7 +18,7 @@
  * arising in any way out of the use of this driver software, even if advised
  * of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/sys_info.h,v 1.9.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef		__SYS_INFO_H

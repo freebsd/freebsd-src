@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)make.h	8.3 (Berkeley) 6/13/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/make.h,v 1.35.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef make_h_a91074b9

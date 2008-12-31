@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/cd9660/cd9660_rrip.c,v 1.30.6.2 2008/11/29 05:08:49 kientzle Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

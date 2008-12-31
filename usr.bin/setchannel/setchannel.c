@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $FreeBSD$
+ *  $FreeBSD: src/usr.bin/setchannel/setchannel.c,v 1.5.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /* Set the channel of the tuner card. */

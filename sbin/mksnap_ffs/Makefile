@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/mksnap_ffs/Makefile,v 1.1.30.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	mksnap_ffs
 MAN=	mksnap_ffs.8

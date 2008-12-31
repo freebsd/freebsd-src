@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/symlink/05.t,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 desc="symlink returns EACCES when a component of the name2 path prefix denies search permission"
 

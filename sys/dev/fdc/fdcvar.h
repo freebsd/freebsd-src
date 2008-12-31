@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fdc/fdcvar.h,v 1.9.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /* XXX should audit this file to see if additional copyrights needed */

@@ -1,5 +1,5 @@
 /*	$NetBSD: i82365reg.h,v 1.3 1998/12/20 17:53:28 nathanw Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/exca/excareg.h,v 1.6.6.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 /*-
  * Copyright (c) 2002 M Warner Losh.  All rights reserved.

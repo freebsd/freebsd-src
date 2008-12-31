@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/nscd/protocol.c,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include <assert.h>
 #include <stdlib.h>

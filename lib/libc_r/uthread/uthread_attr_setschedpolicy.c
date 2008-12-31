@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_setschedpolicy.c,v 1.6.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 #include <errno.h>
 #include <pthread.h>

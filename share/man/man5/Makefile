@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$FreeBSD$
+#	$FreeBSD: src/share/man/man5/Makefile,v 1.79.6.2 2008/12/04 12:23:52 danger Exp $
 
 .include <bsd.own.mk>
 

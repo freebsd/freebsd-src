@@ -12,7 +12,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/boot0/boot0ext.S,v 1.7.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /* A 1024-byte boot manager. */

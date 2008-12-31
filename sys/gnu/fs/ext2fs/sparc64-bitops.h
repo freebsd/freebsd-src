@@ -19,7 +19,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/fs/ext2fs/sparc64-bitops.h,v 1.3.18.1 2008/11/25 02:59:29 kensmith Exp $ */
 #ifndef _SPARC64_BITOPS_H
 #define _SPARC64_BITOPS_H
 

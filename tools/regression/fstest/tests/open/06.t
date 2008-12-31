@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/06.t,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 desc="open returns EACCES when the required permissions (for reading and/or writing) are denied for the given flags"
 

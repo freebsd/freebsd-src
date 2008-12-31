@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/sa11x0/sa11x0_reg.h,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $
  *
  */
 

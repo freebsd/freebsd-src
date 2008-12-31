@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/setkey/Makefile,v 1.14.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

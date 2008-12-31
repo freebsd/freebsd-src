@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/KSE/ksetest/Makefile,v 1.4.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=		ksetest
 NO_MAN=

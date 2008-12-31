@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/BSD_daemon/poster.sh,v 1.2.32.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 echo '%!'

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/user.c,v 1.20.6.1 2008/11/25 02:59:29 kensmith Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.

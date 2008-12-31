@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# $FreeBSD$
+# $FreeBSD: src/sys/pci/locate.pl,v 1.4.32.1 2008/11/25 02:59:29 kensmith Exp $
 
 use strict;
 

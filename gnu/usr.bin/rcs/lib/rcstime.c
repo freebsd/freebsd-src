@@ -30,7 +30,7 @@ Report problems and direct all questions to:
 #include "partime.h"
 #include "maketime.h"
 
-libId(rcstimeId, "$FreeBSD$")
+libId(rcstimeId, "$FreeBSD: src/gnu/usr.bin/rcs/lib/rcstime.c,v 1.5.52.1 2008/11/25 02:59:29 kensmith Exp $")
 
 static long zone_offset; /* seconds east of UTC, or TM_LOCAL_ZONE */
 static int use_zone_offset; /* if zero, use UTC without zone indication */

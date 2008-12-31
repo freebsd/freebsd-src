@@ -25,7 +25,7 @@
  *
  * Written by: yen_cw@myson.com.tw  available at: http://www.myson.com.tw/
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/my/if_myreg.h,v 1.6.6.1 2008/11/25 02:59:29 kensmith Exp $
  *
  * Myson MTD80x register definitions.
  *

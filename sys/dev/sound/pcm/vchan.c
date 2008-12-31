@@ -31,7 +31,7 @@
 #include <dev/sound/pcm/vchan.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/vchan.c,v 1.36.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 MALLOC_DEFINE(M_VCHANFEEDER, "vchanfeed", "pcm vchan feeder");
 

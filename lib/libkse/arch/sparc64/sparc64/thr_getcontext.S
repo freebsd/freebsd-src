@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/sparc64/sparc64/thr_getcontext.S,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "assym.s"
 

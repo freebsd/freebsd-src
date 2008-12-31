@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_eli/delkey.t,v 1.1.8.1 2008/11/25 02:59:29 kensmith Exp $
 
 base=`basename $0`
 no=45

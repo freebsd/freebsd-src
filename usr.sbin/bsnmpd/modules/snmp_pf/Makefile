@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_pf/Makefile,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
 # 
 # Author: Philip Paeps <philip@freebsd.org>
 

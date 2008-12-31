@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/ieee8023ad_lacp.h,v 1.8.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

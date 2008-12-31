@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/kinfo_getvmmap.c,v 1.2.4.2 2008/12/19 20:22:55 marcus Exp $");
 
 #include <sys/types.h>
 #include <sys/user.h>

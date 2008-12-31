@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/sun4v/db_interface.c,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/param.h> 

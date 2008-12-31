@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/sys/aac_ioctl.h,v 1.11.12.2.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

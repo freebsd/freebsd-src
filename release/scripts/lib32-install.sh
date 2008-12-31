@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/lib32-install.sh,v 1.1.8.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 if [ "`id -u`" != "0" ]; then

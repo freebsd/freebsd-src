@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_equal.c,v 1.9.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 #include <pthread.h>
 #include "thr_private.h"

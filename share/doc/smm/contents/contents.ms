@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)00.contents	8.1 (Berkeley) 7/5/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/smm/contents/contents.ms,v 1.5.32.1 2008/11/25 02:59:29 kensmith Exp $
 .\"
 .OH '''SMM Contents'
 .EH 'SMM Contents'''

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/skel/dot.profile,v 1.22.6.1 2008/11/25 02:59:29 kensmith Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #

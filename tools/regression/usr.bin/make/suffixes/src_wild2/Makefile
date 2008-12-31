@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/suffixes/src_wild2/Makefile,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $
 #
 # Source expansion with the source in a macro
 #

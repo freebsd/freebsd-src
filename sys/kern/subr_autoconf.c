@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_autoconf.c,v 1.23.2.3.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "opt_ddb.h"
 

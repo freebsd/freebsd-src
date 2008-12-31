@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/RunTest.t,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 MD=34
 TMP=/tmp/$$

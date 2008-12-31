@@ -2,7 +2,7 @@
 #
 # Common code used run regression tests for usr.bin/make.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/common.sh,v 1.3.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 #
 # Output a message and exit with an error.

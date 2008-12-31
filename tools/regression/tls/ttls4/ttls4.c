@@ -4,7 +4,7 @@
  *
  * David Xu <davidxu@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/tls/ttls4/ttls4.c,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <stdio.h>

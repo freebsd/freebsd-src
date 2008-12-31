@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/alias/Makefile,v 1.4.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 SCRIPTS=generic.sh
 SCRIPTSNAME=alias

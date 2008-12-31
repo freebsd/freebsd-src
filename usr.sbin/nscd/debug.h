@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/nscd/debug.h,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef __NSCD_DEBUG_H__

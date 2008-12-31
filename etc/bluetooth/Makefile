@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.2 2003/10/21 22:22:27 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/bluetooth/Makefile,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 FILESDIR=		/etc/bluetooth
 FILES=			hcsecd.conf hosts protocols

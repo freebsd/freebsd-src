@@ -28,7 +28,7 @@
 /* Don't compile this if we don't have zlib. */
 #if HAVE_ZLIB_H
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_gzip.c,v 1.14.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>

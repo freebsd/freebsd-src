@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/atm/RunTest.sh,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 . ./Funcs.sh
 

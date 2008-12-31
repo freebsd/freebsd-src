@@ -1,5 +1,5 @@
 $NetBSD: README.txt,v 1.1 2000/06/06 08:15:02 bjh21 Exp $
-$FreeBSD$
+$FreeBSD: src/lib/libc/softfloat/README.txt,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 Package Overview for SoftFloat Release 2a
 

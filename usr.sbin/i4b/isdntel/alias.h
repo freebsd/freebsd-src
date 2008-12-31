@@ -29,7 +29,7 @@
  *
  *      $Id: alias.h,v 1.5 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntel/alias.h,v 1.7.32.1 2008/11/25 02:59:29 kensmith Exp $
  *
  *      last edit-date: [Mon Dec 13 21:53:44 1999]
  *

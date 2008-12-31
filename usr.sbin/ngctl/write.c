@@ -30,7 +30,7 @@
  * THIS SOFTWARE, EVEN IF ARCHIE L. COBBS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ngctl/write.c,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/types.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)enc-proto.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/contrib/telnet/libtelnet/enc-proto.h,v 1.7.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

@@ -1,9 +1,9 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/mlfk_ipl.c,v 1.19.2.1.4.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2000 by Darren Reed.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/mlfk_ipl.c,v 1.19.2.1.4.1 2008/11/25 02:59:29 kensmith Exp $
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 

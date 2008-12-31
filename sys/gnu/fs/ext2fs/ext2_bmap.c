@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_bmap.c,v 1.64.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/param.h>

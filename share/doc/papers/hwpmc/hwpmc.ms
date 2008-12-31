@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/hwpmc/hwpmc.ms,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $
 .\"
 .OH '''Using Hardware Performance Monitoring Counters'
 .EH 'HWPMC'''

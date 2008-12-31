@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/27/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/newfs/Makefile,v 1.22.30.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	newfs
 DPADD=	${LIBUFS}

@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/grantpt.c,v 1.7.2.6.2.1 2008/11/25 02:59:29 kensmith Exp $");
 #endif /* not lint */
 
 #include "namespace.h"

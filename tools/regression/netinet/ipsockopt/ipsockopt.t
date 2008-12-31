@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/netinet/ipsockopt/ipsockopt.t,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 cd `dirname $0`
 

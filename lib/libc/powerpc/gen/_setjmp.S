@@ -26,7 +26,7 @@
 /*      $NetBSD: _setjmp.S,v 1.1 1997/03/29 20:55:53 thorpej Exp $      */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/powerpc/gen/_setjmp.S,v 1.1.24.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * C library -- _setjmp, _longjmp

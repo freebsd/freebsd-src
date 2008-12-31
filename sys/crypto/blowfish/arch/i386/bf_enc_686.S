@@ -1,5 +1,5 @@
 /*	$NetBSD: bf_enc_686.S,v 1.1 2001/09/09 11:01:02 tls Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/blowfish/arch/i386/bf_enc_686.S,v 1.1.34.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.

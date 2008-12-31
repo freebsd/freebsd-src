@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/chkey/Makefile,v 1.11.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

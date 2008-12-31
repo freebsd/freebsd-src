@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
+    $FreeBSD: src/tools/regression/geom/Data/disk.empty.flp.xml,v 1.1.32.1 2008/11/25 02:59:29 kensmith Exp $
     An empty floppy disk
   </comment>
   <sectorsize>512</sectorsize>

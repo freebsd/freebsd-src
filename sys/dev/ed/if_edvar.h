@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ed/if_edvar.h,v 1.42.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef SYS_DEV_ED_IF_EDVAR_H

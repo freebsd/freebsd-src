@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/procstat/Makefile,v 1.1.2.1.2.2 2008/12/06 20:36:46 peter Exp $
 
 PROG=	procstat
 MAN=	procstat.1

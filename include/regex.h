@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)regex.h	8.2 (Berkeley) 1/3/94
- * $FreeBSD$
+ * $FreeBSD: src/include/regex.h,v 1.11.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _REGEX_H_

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: search.c,v 1.2 2003/09/04 22:12:13 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libsdp/search.c,v 1.7.10.1.4.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/uio.h>

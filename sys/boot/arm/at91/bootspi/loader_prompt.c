@@ -19,7 +19,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/bootspi/loader_prompt.c,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $
  *****************************************************************************/
 
 #include "at91rm9200_lowlevel.h"

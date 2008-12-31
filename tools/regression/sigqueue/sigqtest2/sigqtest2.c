@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/sigqueue/sigqtest2/sigqtest2.c,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $ */
 #include <signal.h>
 #include <stdio.h>
 #include <err.h>

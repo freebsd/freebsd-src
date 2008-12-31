@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/urio.c,v 1.48.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 
 /*

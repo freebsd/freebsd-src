@@ -48,7 +48,7 @@ License Agreement applies to this software.
 		Gutted for autoconf. Split up for autoconf.
 	Written at NRL for OPIE 2.0.
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/opie_cfg.h,v 1.5.32.1 2008/11/25 02:59:29 kensmith Exp $
 */
 
 #ifndef _OPIE_CFG_H

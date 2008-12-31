@@ -34,7 +34,7 @@
 	.asciz "@(#)brk.s	5.2 (Berkeley) 12/17/90"
 #endif /* SYSLIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/sys/brk.S,v 1.14.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "SYS.h"
 

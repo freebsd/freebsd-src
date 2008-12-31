@@ -38,7 +38,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/sb8.c,v 1.86.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #define SB_DEFAULT_BUFSZ	4096
 

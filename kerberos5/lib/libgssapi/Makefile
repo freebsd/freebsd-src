@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libgssapi/Makefile,v 1.12.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 LIB=	gssapi_krb5
 LDFLAGS= -Wl,-Bsymbolic

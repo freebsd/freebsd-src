@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
- * $FreeBSD$
+ * $FreeBSD: src/contrib/telnet/telnetd/ext.h,v 1.11.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

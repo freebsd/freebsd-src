@@ -36,7 +36,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/tmpfs/h_tools.c,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

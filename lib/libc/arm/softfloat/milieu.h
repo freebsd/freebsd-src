@@ -1,5 +1,5 @@
 /* $NetBSD: milieu.h,v 1.1 2000/12/29 20:13:54 bjh21 Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/arm/softfloat/milieu.h,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 /*
 ===============================================================================

@@ -37,7 +37,7 @@
  *
  * phk got permission from Fore to put firmware images into our tree.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fatm/firmware.h,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 static uint32_t firmware[] = {

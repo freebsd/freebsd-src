@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/amd64/Makefile,v 1.11.32.2 2008/12/04 13:32:25 kensmith Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/11/93
 
 # Makefile for amd64 links, tags file

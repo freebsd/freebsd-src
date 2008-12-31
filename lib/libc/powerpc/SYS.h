@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	$NetBSD: SYS.h,v 1.8 2002/01/14 00:55:56 thorpej Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/powerpc/SYS.h,v 1.6.22.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/syscall.h>

@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/librpcsvc/xcrypt.c,v 1.5.10.1.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -2,7 +2,7 @@
  * This source file is in the public domain.
  * Garrett A. Wollman, 2002-05-28.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/dlfunc.c,v 1.3.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <dlfcn.h>

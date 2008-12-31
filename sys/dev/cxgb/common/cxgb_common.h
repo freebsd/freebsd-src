@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/cxgb/common/cxgb_common.h,v 1.7.2.3.2.2 2008/12/19 05:05:35 kmacy Exp $
 
 ***************************************************************************/
 #ifndef __CHELSIO_COMMON_H

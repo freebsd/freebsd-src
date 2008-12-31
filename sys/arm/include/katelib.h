@@ -49,7 +49,7 @@
  *
  * Based on kate/katelib/prototypes.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/katelib.h,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_ceil.S,v 1.7.52.1 2008/11/25 02:59:29 kensmith Exp $")
 
 ENTRY(ceil)
 	pushl	%ebp

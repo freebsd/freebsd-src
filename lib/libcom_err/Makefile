@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libcom_err/Makefile,v 1.12.32.1 2008/11/25 02:59:29 kensmith Exp $
 
 LIB=	com_err
 SRCS=	com_err.c error.c

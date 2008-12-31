@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/file/flock/flock.c,v 1.2.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/time.h>

@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/sys/taskq.h,v 1.2.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.

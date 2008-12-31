@@ -1,6 +1,6 @@
 .file "__divsi3.s"
 
-// $FreeBSD$
+// $FreeBSD: src/sys/libkern/ia64/__divsi3.S,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 //-
 // Copyright (c) 2000, Intel Corporation

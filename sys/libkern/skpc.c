@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/skpc.c,v 1.8.26.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include <sys/libkern.h>
 

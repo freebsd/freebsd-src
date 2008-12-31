@@ -34,7 +34,7 @@
 	.asciz "@(#)setjmp.s	5.1 (Berkeley) 4/23/90"
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/gen/setjmp.S,v 1.23.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * C library -- _setjmp, _longjmp

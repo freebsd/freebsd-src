@@ -25,7 +25,7 @@
  *
  * From: FreeBSD: src/sys/miscfs/kernfs/kernfs_vfsops.c 1.36
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/devfs/devfs_devs.c,v 1.50.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include "opt_mac.h"

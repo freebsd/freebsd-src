@@ -34,7 +34,7 @@
  *
  * $Id: ib_user_verbs.h 4019 2005-11-11 00:33:09Z sean.hefty $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_user_verbs.h,v 1.1.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef IB_USER_VERBS_H

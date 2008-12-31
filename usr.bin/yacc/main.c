@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/yacc/main.c,v 1.22.26.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include <paths.h>
 #include <signal.h>

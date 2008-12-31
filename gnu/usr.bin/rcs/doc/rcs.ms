@@ -18,7 +18,7 @@
 .de Id
 .ND \\$4
 ..
-.Id $FreeBSD$
+.Id $FreeBSD: src/gnu/usr.bin/rcs/doc/rcs.ms,v 1.5.52.1 2008/11/25 02:59:29 kensmith Exp $
 .RP
 .TL
 RCS\*-A System for Version Control

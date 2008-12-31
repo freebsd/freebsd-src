@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_tar_empty.c,v 1.3.8.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * Check that an "empty" tar archive is correctly created.

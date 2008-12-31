@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/send-pr/Makefile,v 1.18.28.1 2008/11/25 02:59:29 kensmith Exp $
 #
 # Makefile for building a standalone send-pr.
 #

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/pci/agpreg.h,v 1.19.6.2 2008/11/29 17:36:14 rnoland Exp $
  */
 
 #ifndef _PCI_AGPREG_H_

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/16.t,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 desc="open returns EMLINK/ELOOP when O_NOFOLLOW was specified and the target is a symbolic link"
 

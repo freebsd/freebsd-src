@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/asm.S,v 1.3.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 

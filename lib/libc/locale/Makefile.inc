@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/locale/Makefile.inc,v 1.61.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 # locale sources
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/locale ${.CURDIR}/locale

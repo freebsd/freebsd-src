@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/tcpoptnames.c,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2000-2002 by Darren Reed.

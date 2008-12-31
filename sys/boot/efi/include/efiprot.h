@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efiprot.h,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $ */
 #ifndef _EFI_PROT_H
 #define _EFI_PROT_H
 

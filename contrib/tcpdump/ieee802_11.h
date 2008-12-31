@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcpdump/ieee802_11.h,v 1.2.2.1.4.1 2008/11/25 02:59:29 kensmith Exp $ */
 /* @(#) $Header: /tcpdump/master/tcpdump/ieee802_11.h,v 1.9.4.3 2007/07/22 20:01:16 guy Exp $ (LBL) */
 /*
  * Copyright (c) 2001

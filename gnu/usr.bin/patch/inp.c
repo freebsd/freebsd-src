@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/inp.c,v 1.12.32.1 2008/11/25 02:59:29 kensmith Exp $
  *
  * $Log: inp.c,v $
  * Revision 2.0.1.1  88/06/03  15:06:13  lwall

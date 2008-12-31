@@ -1,6 +1,6 @@
 # Ukrainian part of ISO8859-5 with russian letters (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/uk_UA.ISO8859-5.src,v 1.2.34.1 2008/11/25 02:59:29 kensmith Exp $
 #
 charmap map.ISO8859-5
 order \

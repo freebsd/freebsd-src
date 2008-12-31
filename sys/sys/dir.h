@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/dir.h,v 1.10.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _SYS_DIR_H_

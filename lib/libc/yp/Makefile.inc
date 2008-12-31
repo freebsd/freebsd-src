@@ -1,5 +1,5 @@
 #	from: @(#)Makefile.inc	5.3 (Berkeley) 2/20/91
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/yp/Makefile.inc,v 1.10.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 # yp sources
 .PATH: ${.CURDIR}/yp

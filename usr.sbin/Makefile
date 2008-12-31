@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/Makefile,v 1.375.2.5.2.1 2008/11/25 02:59:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

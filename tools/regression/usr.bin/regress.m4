@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/regress.m4,v 1.5.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 dnl A library of routines for doing regression tests for userland utilities.
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/dc/if_dcreg.h,v 1.54.2.2.2.2 2008/12/15 21:37:40 marius Exp $
  */
 
 /*

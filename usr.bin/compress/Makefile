@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/17/94
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/compress/Makefile,v 1.8.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	compress
 SRCS=	compress.c zopen.c

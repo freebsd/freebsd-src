@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/games-make.sh,v 1.5.32.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 # Move all the games out to their own dist

@@ -33,7 +33,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/arm/_setjmp.S,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #define SOFTFLOAT /* XXX */
 /*

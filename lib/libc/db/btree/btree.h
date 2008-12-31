@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)btree.h	8.11 (Berkeley) 8/17/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/btree/btree.h,v 1.4.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /* Macros to set/clear/test flags. */

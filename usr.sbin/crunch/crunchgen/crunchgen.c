@@ -23,7 +23,7 @@
  *			   Computer Science Department
  *			   University of Maryland at College Park
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/crunch/crunchgen/crunchgen.c,v 1.39.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 /*
  * ========================================================================

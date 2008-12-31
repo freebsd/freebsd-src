@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/isa/orm.c,v 1.5.26.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * Driver to take care of holes in ISA I/O memory occupied

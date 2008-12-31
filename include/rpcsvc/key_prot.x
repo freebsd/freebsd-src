@@ -46,7 +46,7 @@
 %/* From: #pragma ident	"@(#)key_prot.x	1.7	94/04/29 SMI" */
 %/* Copyright (c)  1990, 1991 Sun Microsystems, Inc. */
 %#include <sys/cdefs.h>
-%__FBSDID("$FreeBSD$");
+%__FBSDID("$FreeBSD: src/include/rpcsvc/key_prot.x,v 1.4.30.1 2008/11/25 02:59:29 kensmith Exp $");
 %
 %/* 
 % * Compiled from key_prot.x using rpcgen.

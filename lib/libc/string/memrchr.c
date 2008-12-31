@@ -15,7 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/string/memrchr.c,v 1.1.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <string.h>

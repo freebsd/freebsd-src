@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libasn1/Makefile,v 1.23.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 LIB=	asn1
 INCS=	asn1_err.h krb5_asn1.h

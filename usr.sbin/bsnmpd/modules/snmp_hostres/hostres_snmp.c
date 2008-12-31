@@ -37,7 +37,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_hostres/hostres_snmp.c,v 1.2.8.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

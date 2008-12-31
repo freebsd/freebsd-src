@@ -3,7 +3,7 @@
 #				       <jmelo@FreeBSD.org>
 #		     Patrick Tracanelli <eksffa@freebsdbrasil.com.br>
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/tinybsd,v 1.7.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $
 #set -xv
 CURRENTDIR=/usr/src/tools/tools/tinybsd
 if [ ! -d $CURRENTDIR ]

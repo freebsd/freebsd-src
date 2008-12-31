@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/ppb_1284.c,v 1.14.28.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * General purpose routines for the IEEE1284-1994 Standard

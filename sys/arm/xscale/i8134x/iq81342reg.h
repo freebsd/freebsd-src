@@ -24,7 +24,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/xscale/i8134x/iq81342reg.h,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #ifndef _IQ81342REG_H_
 #define _IQ81342REG_H_

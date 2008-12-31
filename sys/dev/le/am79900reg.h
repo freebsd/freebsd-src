@@ -70,7 +70,7 @@
  *	@(#)if_lereg.h	8.1 (Berkeley) 6/10/93
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/le/am79900reg.h,v 1.1.8.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #ifndef _DEV_LE_AM79900REG_H_
 #define	_DEV_LE_AM79900REG_H_

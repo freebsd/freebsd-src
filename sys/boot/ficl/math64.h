@@ -40,7 +40,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/math64.h,v 1.4.32.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #if !defined (__MATH64_H__)
 #define __MATH64_H__

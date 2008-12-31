@@ -39,7 +39,7 @@
  * Digital Equipment Corporation
  * Western Research Laboratory
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/parsenfsfh.c,v 1.9.10.1.4.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef lint

@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_radius/Makefile,v 1.13.26.1 2008/11/25 02:59:29 kensmith Exp $
 
 LIB=	pam_radius
 SRCS=	pam_radius.c

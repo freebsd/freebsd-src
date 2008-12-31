@@ -43,7 +43,7 @@
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctp_cc_functions.h>
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_cc_functions.c,v 1.3.2.3.2.1 2008/11/25 02:59:29 kensmith Exp $");
 void
 sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {

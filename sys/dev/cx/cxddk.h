@@ -15,7 +15,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: cxddk.h,v 1.1.2.1 2003/11/12 17:13:41 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cx/cxddk.h,v 1.2.10.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef port_t

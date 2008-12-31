@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/crypto/heimdal/FREEBSD-Xlist,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
 TODO*
 *.info*
 *.cat[0-9]

@@ -34,7 +34,7 @@
 
 #if defined(__FreeBSD__)
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/fwcontrol/fwcontrol.c,v 1.23.2.1.2.2 2008/12/22 00:39:33 sbruno Exp $");
 #endif
 
 #include <sys/param.h>

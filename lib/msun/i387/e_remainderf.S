@@ -5,7 +5,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/i387/e_remainderf.S,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $");
 /* RCSID("$NetBSD: e_remainderf.S,v 1.2 1995/05/08 23:49:47 jtc Exp $") */
 
 ENTRY(remainderf)

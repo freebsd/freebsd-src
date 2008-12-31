@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkdir/00.t,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 desc="mkdir creates directories"
 

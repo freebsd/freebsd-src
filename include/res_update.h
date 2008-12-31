@@ -17,7 +17,7 @@
 
 /*
  *	$Id: res_update.h,v 1.2.18.1 2005/04/27 05:00:49 sra Exp $
- * $FreeBSD$
+ * $FreeBSD: src/include/res_update.h,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef __RES_UPDATE_H

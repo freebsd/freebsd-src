@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsd/ipsdr.c,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /*
  * (C)opyright 1995-1998 Darren Reed.

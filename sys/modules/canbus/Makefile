@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/canbus/Makefile,v 1.1.32.1 2008/11/25 02:59:29 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../pc98/pc98
 KMOD	= canbus

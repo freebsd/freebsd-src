@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/mailwrapper/pathnames.h,v 1.3.52.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 /*
  * Copyright (c) 1998

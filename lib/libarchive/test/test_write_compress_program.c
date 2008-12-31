@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_compress_program.c,v 1.2.8.1 2008/11/25 02:59:29 kensmith Exp $");
 
 char buff[1000000];
 char buff2[64];

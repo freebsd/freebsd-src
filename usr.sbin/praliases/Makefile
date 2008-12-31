@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 9/21/96
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/praliases/Makefile,v 1.11.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 SENDMAIL_DIR=	${.CURDIR}/../../contrib/sendmail
 .PATH: ${SENDMAIL_DIR}/praliases

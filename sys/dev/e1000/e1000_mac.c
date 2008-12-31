@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/e1000/e1000_mac.c,v 1.1.2.1.2.2 2008/11/30 04:41:25 jfv Exp $*/
 
 #include "e1000_api.h"
 

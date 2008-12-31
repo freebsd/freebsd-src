@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/tools/asn1_compile/Makefile,v 1.7.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	asn1_compile
 NO_MAN=

@@ -4,7 +4,7 @@
 # normally don't have a ksh, we make this test conditional. This means
 # one has to recreate the test results once ksh is installed.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/shell/select/Makefile,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
 #
 
 .ifmake sh_test

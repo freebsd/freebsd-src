@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)conclusions.ms	6.2 (Berkeley) 4/16/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/diskperf/conclusions.ms,v 1.6.52.1 2008/11/25 02:59:29 kensmith Exp $
 .\"
 .ds RH Conclusions
 .NH

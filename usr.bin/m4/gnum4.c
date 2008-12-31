@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/m4/gnum4.c,v 1.10.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * functions needed to support gnu-m4 extensions, including a fake freezing

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_condattr_init.c,v 1.11.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 #include <string.h>
 #include <stdlib.h>

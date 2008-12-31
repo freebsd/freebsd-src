@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/fwcontrol/fwmpegts.c,v 1.1.8.2 2008/12/22 00:39:33 sbruno Exp $
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>

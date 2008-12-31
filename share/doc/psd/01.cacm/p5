@@ -4,7 +4,7 @@
 .\"
 .\"	@(#)p5	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/01.cacm/p5,v 1.1.32.1 2008/11/25 02:59:29 kensmith Exp $
 .SH
 VII. TRAPS
 .PP

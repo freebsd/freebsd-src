@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/sscdisk.c,v 1.33.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  *
  */
 

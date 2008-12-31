@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/linker_set.h,v 1.17.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _SYS_LINKER_SET_H_

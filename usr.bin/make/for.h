@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/for.h,v 1.3.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef for_h_9d770f33

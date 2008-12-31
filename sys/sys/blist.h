@@ -49,7 +49,7 @@
  *		that.  Managing something like 512MB worth of 4K blocks 
  *		eats around 32 KBytes of memory. 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/blist.h,v 1.9.10.1.2.1 2008/11/25 02:59:29 kensmith Exp $
 
  */
 

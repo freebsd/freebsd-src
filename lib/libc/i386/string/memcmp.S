@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/memcmp.S,v 1.8.24.1.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * memcmp (void *b1, void *b2, size_t len)

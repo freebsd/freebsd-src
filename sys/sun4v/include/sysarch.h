@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/i386/include/sysarch.h,v 1.14 2000/09/21
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/sysarch.h,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

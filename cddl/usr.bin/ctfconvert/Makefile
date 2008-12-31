@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/cddl/usr.bin/ctfconvert/Makefile,v 1.1.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

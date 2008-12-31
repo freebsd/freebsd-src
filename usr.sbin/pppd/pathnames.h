@@ -1,7 +1,7 @@
 /*
  * define path names
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pppd/pathnames.h,v 1.11.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifdef HAVE_PATHS_H

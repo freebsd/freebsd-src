@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/include/bus_dma.h,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #ifndef _POWERPC_BUS_DMA_H_
 #define _POWERPC_BUS_DMA_H_

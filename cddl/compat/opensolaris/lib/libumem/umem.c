@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/cddl/compat/opensolaris/lib/libumem/umem.c,v 1.2.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 /*
  * Copyright 2006 Ricardo Correia.  All rights reserved.

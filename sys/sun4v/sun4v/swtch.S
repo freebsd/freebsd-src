@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/swtch.S,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>

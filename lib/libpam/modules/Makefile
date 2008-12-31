@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/Makefile,v 1.19.30.1 2008/11/25 02:59:29 kensmith Exp $
 
 .include "modules.inc"
 

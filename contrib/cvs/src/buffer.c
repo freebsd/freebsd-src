@@ -14,7 +14,7 @@
 
 /* Code for the buffer data structure.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cvs/src/buffer.c,v 1.5.18.1.2.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #include <assert.h>
 #include "cvs.h"

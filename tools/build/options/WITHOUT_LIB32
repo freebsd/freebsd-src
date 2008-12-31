@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_LIB32,v 1.1.6.1 2008/11/25 02:59:29 kensmith Exp $
 On amd64, set to not build 32-bit library set and a
 .Nm ld-elf32.so.1
 runtime linker.

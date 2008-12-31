@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ofw/openpromio.h,v 1.1.28.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef	_DEV_OFW_OPENPROMIO_H_

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/acpica/OsdEnvironment.c,v 1.14.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /*
  * 6.1 : Environmental support

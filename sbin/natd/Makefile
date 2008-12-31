@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/natd/Makefile,v 1.9.26.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG		= natd
 SRCS		= natd.c icmp.c

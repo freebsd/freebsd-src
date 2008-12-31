@@ -28,7 +28,7 @@
  *
  * Host Resources MIB for SNMPd.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_hostres/hostres_snmp.h,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef HOSTRES_SNMP_H_1132245017

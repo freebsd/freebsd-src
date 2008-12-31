@@ -1,6 +1,6 @@
 # Makefile for syscall tables
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/amd64/linux32/Makefile,v 1.1.26.1 2008/11/25 02:59:29 kensmith Exp $
 
 all:
 	@echo "make sysent only"

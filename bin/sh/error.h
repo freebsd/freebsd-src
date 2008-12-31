@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/error.h,v 1.17.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

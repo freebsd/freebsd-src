@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/xlint/arch/ia64/targparam.h,v 1.2.28.1 2008/11/25 02:59:29 kensmith Exp $ */
 /*	$NetBSD: targparam.h,v 1.1 2002/01/18 20:39:18 thorpej Exp $	*/
 
 /*

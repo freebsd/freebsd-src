@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/if_ether.c,v 1.162.2.6.2.2 2008/12/20 19:45:22 csjp Exp $");
 
 #include "opt_inet.h"
 #include "opt_mac.h"

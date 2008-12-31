@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/hostapd/eapol_sm.c,v 1.5.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include "includes.h"

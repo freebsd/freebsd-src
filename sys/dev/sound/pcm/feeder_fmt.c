@@ -41,7 +41,7 @@
 #include <dev/sound/pcm/sound.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_fmt.c,v 1.23.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 static int feeder_fmt_stereodownmix = 0;
 TUNABLE_INT("hw.snd.feeder_fmt_stereodownmix", &feeder_fmt_stereodownmix);

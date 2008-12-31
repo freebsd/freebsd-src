@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/libexec/kpasswdd/Makefile,v 1.18.26.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=	kpasswdd
 MAN=	kpasswdd.8

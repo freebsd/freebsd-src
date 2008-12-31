@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/inet_addr.c,v 1.3.6.1 2008/11/25 02:59:29 kensmith Exp $	*/
 
 /*
  * ++Copyright++ 1983, 1990, 1993

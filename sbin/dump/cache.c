@@ -3,7 +3,7 @@
  *
  *	Block cache for dump
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/dump/cache.c,v 1.2.30.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/param.h>

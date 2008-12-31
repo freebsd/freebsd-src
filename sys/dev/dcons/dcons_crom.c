@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  * 
  * $Id: dcons_crom.c,v 1.8 2003/10/23 15:47:21 simokawa Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/dcons/dcons_crom.c,v 1.9.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/param.h>

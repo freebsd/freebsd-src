@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/pfctl/missing/altq/altq_red.h,v 1.1.26.1 2008/11/25 02:59:29 kensmith Exp $	*/
 /*	$KAME: altq_red.h,v 1.8 2003/07/10 12:07:49 kjc Exp $	*/
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/pcb.h,v 1.63.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _AMD64_PCB_H_

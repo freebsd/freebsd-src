@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/atomic.h,v 1.11.2.1.2.2 2008/12/01 20:16:56 marcel Exp $
  */
 
 #ifndef _MACHINE_ATOMIC_H_

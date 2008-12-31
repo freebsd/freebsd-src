@@ -1,5 +1,5 @@
 /* @(#)printmsg.c	2.1 88/08/11 4.0 RPCSRC */
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/sunrpc/msg/printmsg.c,v 1.3.32.1 2008/11/25 02:59:29 kensmith Exp $ */
 /*
  * printmsg.c: print a message on the console
  */

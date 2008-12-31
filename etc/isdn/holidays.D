@@ -15,7 +15,7 @@
 #	support for this tariff, see output of "man isdnd.rc" and
 #	search for keyword "valid".
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/holidays.D,v 1.3.32.1 2008/11/25 02:59:29 kensmith Exp $
 #
 #---------------------------------------------------------------------------
 #

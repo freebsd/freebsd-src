@@ -20,7 +20,7 @@
  *
  * Portions Copyright (c) 2008 Stacey Son <stacey@son.org> 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/lockstat/lockstat.c,v 1.1.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  *
  */
 

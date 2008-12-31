@@ -1,5 +1,5 @@
 /* $NetBSD: des_enc.S,v 1.1 2001/09/09 11:01:02 tls Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/crypto/des/arch/i386/des_enc.S,v 1.2.30.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 /* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.

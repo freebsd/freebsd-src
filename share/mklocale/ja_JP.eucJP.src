@@ -3,7 +3,7 @@
 /*
  * Japanese LOCALE_CTYPE definitions using EUC of JIS character sets
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/ja_JP.eucJP.src,v 1.5.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 ENCODING	"EUC"

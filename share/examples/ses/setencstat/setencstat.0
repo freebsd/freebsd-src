@@ -29,7 +29,7 @@
 .\" Feral Software
 .\" mjacob@feral.com
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/examples/ses/setencstat/setencstat.0,v 1.4.18.1 2008/11/25 02:59:29 kensmith Exp $
 .\"
 .Dd February 21, 2000
 .Dt SETENCSTAT 8

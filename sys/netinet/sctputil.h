@@ -32,7 +32,7 @@
 /* $KAME: sctputil.h,v 1.15 2005/03/06 16:04:19 itojun Exp $	 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctputil.h,v 1.29.2.4.2.1 2008/11/25 02:59:29 kensmith Exp $");
 #ifndef __sctputil_h__
 #define __sctputil_h__
 

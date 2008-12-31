@@ -17,7 +17,7 @@
 
 /* Written June, 1988 by Mike Haertel */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/dfa.h,v 1.9.18.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 /* FIXME:
    2.  We should not export so much of the DFA internals.

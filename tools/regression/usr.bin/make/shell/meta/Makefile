@@ -5,7 +5,7 @@
 # will really execute ls, while the line with meta characters will execute
 # our special shell.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/shell/meta/Makefile,v 1.2.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 .SHELL: path="${.OBJDIR}/sh"
 

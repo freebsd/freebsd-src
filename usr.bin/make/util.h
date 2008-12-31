@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/util.h,v 1.10.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef util_h_b7020fdb

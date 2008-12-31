@@ -59,7 +59,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/atkbdc/psm.c,v 1.93.2.3.2.1 2008/11/25 02:59:29 kensmith Exp $");
 
 #include "opt_isa.h"
 #include "opt_psm.h"

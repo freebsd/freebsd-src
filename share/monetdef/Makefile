@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/monetdef/Makefile,v 1.64.6.1 2008/11/25 02:59:29 kensmith Exp $
 
 LOCALES=	af_ZA.ISO8859-1 \
 		am_ET.UTF-8 \

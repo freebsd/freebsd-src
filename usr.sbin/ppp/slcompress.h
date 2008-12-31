@@ -31,7 +31,7 @@
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/slcompress.h,v 1.17.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #define MIN_VJ_STATES 3

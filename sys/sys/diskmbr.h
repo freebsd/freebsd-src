@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/diskmbr.h,v 1.100.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _SYS_DISKMBR_H_

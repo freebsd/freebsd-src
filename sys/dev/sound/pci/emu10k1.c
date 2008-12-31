@@ -37,7 +37,7 @@
 #include <dev/sound/midi/mpu401.h>
 #include "mpufoi_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/emu10k1.c,v 1.69.6.1 2008/11/25 02:59:29 kensmith Exp $");
 
 /* -------------------------------------------------------------------- */
 

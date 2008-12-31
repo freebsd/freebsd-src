@@ -1,6 +1,6 @@
 # ex:ts=8
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/amd/Makefile.inc,v 1.14.6.1 2008/11/25 02:59:29 kensmith Exp $
 #
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998.

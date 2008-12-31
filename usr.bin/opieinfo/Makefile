@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/opieinfo/Makefile,v 1.11.18.1 2008/11/25 02:59:29 kensmith Exp $
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 

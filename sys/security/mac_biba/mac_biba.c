@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_biba/mac_biba.c,v 1.107.2.4.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

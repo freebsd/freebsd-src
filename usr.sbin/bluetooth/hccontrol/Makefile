@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.7 2003/08/14 20:06:17 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bluetooth/hccontrol/Makefile,v 1.3.28.1 2008/11/25 02:59:29 kensmith Exp $
 
 PROG=		hccontrol
 MAN=		hccontrol.8

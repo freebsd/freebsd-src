@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)encrypt.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/contrib/telnet/libtelnet/encrypt.h,v 1.6.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

@@ -2,7 +2,7 @@
  * big5   first byte:   A1-FE
  *        second byte:   40-7E, A1-FE
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/zh_TW.Big5.src,v 1.5.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 ENCODING        "BIG5"

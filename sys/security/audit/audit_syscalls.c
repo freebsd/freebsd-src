@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/security/audit/audit_syscalls.c,v 1.21.2.6.2.2 2008/11/30 21:06:23 csjp Exp $");
 
 #include "opt_mac.h"
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/tmpfs/tmpfs_vnops.h,v 1.2.2.1.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _FS_TMPFS_TMPFS_VNOPS_H_

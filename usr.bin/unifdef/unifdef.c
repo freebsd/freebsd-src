@@ -46,7 +46,7 @@ __IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.171 2005/03/08 12:38:48 fanf2 Ex
 #endif
 #endif /* not lint */
 #ifdef __FBSDID
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/unifdef/unifdef.c,v 1.20.18.1 2008/11/25 02:59:29 kensmith Exp $");
 #endif
 
 /*

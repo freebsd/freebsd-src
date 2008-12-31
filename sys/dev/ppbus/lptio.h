@@ -11,7 +11,7 @@
  *
  *	Geoff Rehmet, Rhodes University, South Africa <csgr@cs.ru.ac.za>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/lptio.h,v 1.9.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef	_DEV_PPBUS_LPT_H_

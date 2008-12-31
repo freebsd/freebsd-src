@@ -19,7 +19,7 @@
  * only.
  * END_BLOCK
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/emac.c,v 1.8.6.1 2008/11/25 02:59:29 kensmith Exp $
  ******************************************************************************/
 
 #include "at91rm9200.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/archives/fmt_oldbsd/Makefile,v 1.1.18.1 2008/11/25 02:59:29 kensmith Exp $
 # This test checks the code reading archive files. The archive file
 # is an old BSD file with __.SYMTAB and no long file names. Filenames
 # are truncated to 16 characters.

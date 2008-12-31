@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ctm/ctm_dequeue/ctm_dequeue.c,v 1.11.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

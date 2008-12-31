@@ -1,7 +1,7 @@
 /*
  * LOCALE_CTYPE for Bulgarian Cyrillic character set (CP1251)
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/bg_BG.CP1251.src,v 1.4.32.1 2008/11/25 02:59:29 kensmith Exp $
  */
 ENCODING	"NONE"
 VARIABLE        Bulgarian Cyrillic character set (CP1251) by <roam@ringlet.net>

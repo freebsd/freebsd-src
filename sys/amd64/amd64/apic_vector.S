@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	from: vector.s, 386BSD 0.1 unknown origin
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/apic_vector.S,v 1.110.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

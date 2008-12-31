@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/top/machine.h,v 1.9.2.2.2.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 /*

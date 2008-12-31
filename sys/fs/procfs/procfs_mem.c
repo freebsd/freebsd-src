@@ -33,7 +33,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_mem.c,v 1.60.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/param.h>

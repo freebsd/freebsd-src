@@ -40,7 +40,7 @@
  *
  *	@(#)ar.h	8.2 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/ar.h,v 1.2.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef _AR_H_

@@ -1,6 +1,6 @@
 .file "__moddi3.s"
 
-// $FreeBSD$
+// $FreeBSD: src/sys/libkern/ia64/__moddi3.S,v 1.4.18.1 2008/11/25 02:59:29 kensmith Exp $
 
 //-
 // Copyright (c) 2000, Intel Corporation

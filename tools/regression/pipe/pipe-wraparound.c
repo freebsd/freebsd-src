@@ -28,7 +28,7 @@ SUCH DAMAGE.
 #include <sys/stat.h>
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/pipe/pipe-wraparound.c,v 1.1.26.1 2008/11/25 02:59:29 kensmith Exp $
  * This program tests to make sure that wraparound writes and reads
  * are working, assuming that 16K socket buffers are used.  In order
  * to really stress the pipe code with this test, kernel modifications

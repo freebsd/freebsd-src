@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_readwrite.c,v 1.31.18.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)

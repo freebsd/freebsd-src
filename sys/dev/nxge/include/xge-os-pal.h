@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nxge/include/xge-os-pal.h,v 1.1.2.1.4.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef XGE_OS_PAL_H

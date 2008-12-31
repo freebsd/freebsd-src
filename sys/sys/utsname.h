@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utsname.h	8.1 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/utsname.h,v 1.11.26.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #ifndef	_SYS_UTSNAME_H

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/unaligned.c,v 1.13.6.1 2008/11/25 02:59:29 kensmith Exp $
  */
 
 #include <sys/param.h>

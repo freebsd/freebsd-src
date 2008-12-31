@@ -27,7 +27,7 @@
  */
 
 /* @(#) $Header: /home/daffy/u0/vern/flex/RCS/flexdef.h,v 2.53 95/04/20 11:17:36 vern Exp $ (LBL) */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/flexdef.h,v 1.6.30.1 2008/11/25 02:59:29 kensmith Exp $ */
 
 #include <stdio.h>
 #include <ctype.h>
