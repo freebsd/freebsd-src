@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "7.0-RELEASE">
+<!ENTITY release.bugfix "7.1-RELEASE">
 ]>
 
 <article>
@@ -125,11 +125,9 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-<![ %release.type.release [
     <para>No advisories.</para>
-]]>
 
-<![ %release.type.snapshot [
+<!--
     <para>The following security advisories pertain to &os; &release.bugfix;.
       For more information, consult the individual advisories available from
       <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
@@ -163,77 +161,19 @@
 	</tbody>
       </tgroup>
     </informaltable>
-]]>
-
+-->
   </sect1>
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.release [
     <para>No open issues.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>[20080229] &man.tcpdump.1; does not correctly print the
-      TX/RX rates for 802.11 frames.  This issue has been fixed on the
-      HEAD and RELENG_7 branches.</para>
-
-    <para>[20080229] A bug in Linux emulation may cause segmentation
-      faults for some Linux programs using &man.mmap.2;.  This issue
-      has been fixed on the HEAD and RELENG_7 branches.</para>
-
-    <para>[20080229] Instances of packet corruption and instability
-      have been observed with the &man.re.4; network driver.  Some
-      users have reported that using a newer version of this driver
-      (on HEAD) has solved their problems, or at least mitigated
-      them.</para>
-
-    <para>[20080229, updated 20080817] A change in the way that &os; sends TCP options
-      has been reported to cause connectivity issues.
-      This problem has been corrected on
-      HEAD and the RELENG_7 and RELENG_7_0 branches..  Further
-      details are contained in errta notice
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-08:02.tcp.asc">FreeBSD-EN-08:02.tcp</ulink>.</para>
-
-    <para>[20080307] The &os; implementation of SCTP currently depends
-      on having <literal>INET6</literal> support compiled into the
-      kernel.  This requirement is planned to be removed in future
-      releases.</para>
-
-    <para>[20080307] Source upgrades from &os;
-      6.<replaceable>X</replaceable> to &os; &release.bugfix; will
-      generate warnings from &man.kldxref.8; during
-      the <literal>installkernel</literal> step.  These warnings are
-      harmless and can be ignored.</para>
-
-    <para>[20080307] The &man.crypto.4; driver, which is required for
-      IPsec functionality, has severe problems on &os;/&arch.powerpc;
-      (a kernel with <literal>device crypto</literal> included in its
-      configuration will be non-functional).</para>
-
-]]>
-
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-<![ %release.type.release [
     <para>No news.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>[20080229] The &os; &release.bugfix; release documentation
-      (release notes, hardware notes, and so forth) all contained a
-      note that users of &os; 7-STABLE should be subscribed to
-      the <literal>freebsd-current</literal> mailing list.  This note
-      should not have appeared.</para>
-
-    <para>[20080229] The release notes gave an incorrect version
-      number for KDE.  The correct version number is 3.5.8.</para>
-
-]]>
   </sect1>
 
 </article>

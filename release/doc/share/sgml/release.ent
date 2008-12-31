@@ -18,6 +18,8 @@
      edge. -->
 <!ENTITY release.prev.stable "7.0-RELEASE">
 
+<!ENTITY release.next "7.2-RELEASE">
+
 <!-- The name of this branch. -->
 <!ENTITY release.branch "7.1-STABLE">
 
