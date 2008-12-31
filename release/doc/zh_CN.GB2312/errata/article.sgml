@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 181796
+	Original Revision: 186637
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -19,7 +19,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "7.0-RELEASE">
+<!ENTITY release.bugfix "7.1-RELEASE">
 ]>
 
 <article>
@@ -127,6 +127,8 @@
 ]]>
 
 <![ %release.type.snapshot [
+    <para>暂无安全公告。</para>
+<!--
     <para>下列安全公告适用于 &os; &release.bugfix;。
       如欲了解进一步的信息， 请参阅
       <ulink url="http://security.FreeBSD.org/"></ulink> 提供的具体安全公告。</para>
@@ -160,6 +162,7 @@
 	</tbody>
       </tgroup>
     </informaltable>
+-->
 ]]>
 
   </sect1>
@@ -172,38 +175,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>[20080229] &man.tcpdump.1; 不能正确地显示 802.11 帧的
-      TX/RX 速率。 此问题已经在
-      HEAD 和 RELENG_7 分支中修复。</para>
-
-    <para>[20080229] 在 Linux 模拟系统中发现了一个可能导致某些使用
-      &man.mmap.2; 的 Linux 程序发生访问越界 (segmentation fault)
-      的 bug。 此问题已经在
-      HEAD 和 RELENG_7 分支中修复。</para>
-
-    <para>[20080229] 使用 &man.re.4; 网卡驱动时，
-      有用户观察到了包数据损坏和不稳定等现象。 一些用户报告使用这一驱动的较新版本
-      (在 HEAD 上) 能够解决他们的问题， 或至少有所改善。</para>
-
-    <para>[20080229， 20080817 更新] 有用户反映， &os; 对发出 TCP 选项方式所进行的变动，
-      会导致连接出现问题。 这一问题的修正目前已汇入
-      HEAD 和 RELENG_7 以及 RELENG_7_0 分支。 更多详情请参阅勘误通知
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-08:02.tcp.asc">FreeBSD-EN-08:02.tcp</ulink>。</para>
-
-    <para>[20080307] &os; 中的 SCTP 实现目前依赖于将 <literal>INET6</literal>
-      支持联编进内核中。 我们计划在未来的版本中将这一需求去掉。</para>
-
-    <para>[20080307] 从 &os;
-      6.<replaceable>X</replaceable> 到 &os; &release.bugfix; 的升级，
-      会在 <literal>installkernel</literal> 这一步时，
-      产生一些来自 &man.kldxref.8; 的警告信息。 这些警告是无害的，
-      可以安全地忽略它们。<literal>installkernel</literal> step.  These warnings are
-      harmless and can be ignored.</para>
-
-    <para>[20080307] IPsec 功能所需要的 &man.crypto.4; 驱动程序在
-      &os;/&arch.powerpc; 平台上存在严重问题
-      (编译配置中使用 <literal>device crypto</literal> 会导致内核不可用)。</para>
-
+    <para>暂无未解决的问题。</para>
 ]]>
 
   </sect1>
@@ -216,14 +188,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>[20080229] &os; &release.bugfix; 发行说明文档
-      (发行版本说明、 硬件兼容说明等) 中提到使用 &os; 7-STABLE
-      的用户应订阅 <literal>freebsd-current</literal> 邮件列表，
-      这些文字不应出现。</para>
-
-    <para>[20080229] 在发行版说明中的 KDE 版本号是不正确的，
-      正确的版本号是 3.5.8。</para>
-
+    <para>无新闻。</para>
 ]]>
   </sect1>
 

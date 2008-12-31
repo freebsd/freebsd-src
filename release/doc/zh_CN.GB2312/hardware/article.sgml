@@ -88,19 +88,36 @@
     </listitem>
 
     <listitem>
-      <para>&intel; 64-位 &xeon; (<quote>Nocona</quote>)。
-	这类处理器采用 90nm 制程工艺制造， 配合 &intel; E7520/E7525/E7320 芯片组，
-	能够运行于 2.80 到 3.60 GHz (FSB 800MHz)。</para>
+      <para>除了 Sossaman 之外的所有多核 &intel; &xeon; 处理器均包含 EM64T 支持。</para>
     </listitem>
 
     <listitem>
-      <para>支持 &intel; EM64T 的 &intel; &pentium; 4 处理器 (<quote>Prescott</quote>)。
-	这类处理器采用 90nm 制程工艺制造， 采用 FC-LGA775 封装， 配合 &intel;
-	925X Express 芯片组， 能够运行于 3.20F/3.40F/3.60F GHz。
-	对应的 S-Spec 编号包括 SL7L9、 SL7L8、 SL7LA、 SL7NZ、 SL7PZ，
-	以及 SL7PX。 需要注意的是， 编号为 5xx 的处理器并不支持
-	EM64T。</para>
+      <para>单核 &intel; &xeon;
+        处理器 <quote>Nocona</quote>、 <quote>Irwindale</quote>、
+        <quote>Potomac</quote> 和 <quote>Cranford</quote> 包含了
+        EM64T 支持。</para>
     </listitem>
+
+    <listitem>
+      <para>所有 &intel; Core 2 (不是 Core Duo) 和更新的处理器</para>
+    </listitem>
+
+    <listitem>
+      <para>所有 &intel; &pentium; D 处理器</para>
+    </listitem>
+
+    <listitem>
+      <para>采用 <quote>Cedar Mill</quote> 核心的 &intel; &pentium; 4
+	和 Celeron D 包含了 EM64T 支持。</para>
+    </listitem>
+
+    <listitem>
+      <para>部分采用 <quote>Prescott</quote> 核心的 &intel; &pentium; 4
+	和 Celeron D 包含了 EM64T 支持。 请参阅 <ulink url="http://processorfinder.intel.com">Intel
+        Processor Spec Finder</ulink> 以获得关于 Intel 处理器对于
+        EM64T 支持的确切官方资料。</para>
+    </listitem>
+
   </itemizedlist>
 
   <para>&intel; EM64T 是 IA-32 (x86) 的一种扩展版本，
@@ -108,7 +125,7 @@
     一些来自 &intel; 的早期文档将 &intel; EM64T 称作
     <quote>64-位 扩展技术</quote> 或 <quote>IA-32e</quote>。</para>
 
-  <para>目前为止测试过的最大内存配置为 8GB。 此硬件平台上的 SMP
+  <para>目前为止测试过的最大内存配置为 32GB。 此硬件平台上的 SMP
     支持已经完备， 并且相当稳定了。</para>
 
   <para>在许多方面， 特别是在驱动程序支持上， &os;/&arch.amd64; 与 &os;/&arch.i386;
@@ -392,7 +409,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 185258
+	Original Revision: 186206
 -->
 
 <!--
