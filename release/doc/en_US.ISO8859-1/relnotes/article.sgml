@@ -4,96 +4,85 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-
-<!-- Text constants which probably don't need to be changed.-->
-
-<!ENTITY % include.historic "IGNORE">
-<!ENTITY % no.include.historic "IGNORE">
 ]>
 
 <article>
-<articleinfo>
-  <title>&os; &release.current; Release Notes</title>
+  <articleinfo>
+    <title>&os; &release.current; Release Notes</title>
 
-  <corpauthor>The &os; Project</corpauthor>
+    <corpauthor>The &os; Project</corpauthor>
 
-  <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD$</pubdate>
 
-  <copyright>
-    <year>2000</year>
-    <year>2001</year>
-    <year>2002</year>
-    <year>2003</year>
-    <year>2004</year>
-    <year>2005</year>
-    <year>2006</year>
-    <year>2007</year>
-    <year>2008</year>
-    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
-  </copyright>
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
+      <year>2008</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
 
-  <legalnotice id="trademarks" role="trademarks">
-    &tm-attrib.freebsd;
-    &tm-attrib.ibm;
-    &tm-attrib.ieee;
-    &tm-attrib.intel;
-    &tm-attrib.sparc;
-    &tm-attrib.general;
-  </legalnotice>
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.ibm;
+      &tm-attrib.ieee;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
 
-  <abstract>
-    <para>The release notes for &os; &release.current; contain a summary
-      of the changes made to the &os; base system on the
-      &release.branch; development line.
-      This document lists applicable security advisories that were issued since
-      the last release, as well as significant changes to the &os;
-      kernel and userland.
-      Some brief remarks on upgrading are also presented.</para>
-  </abstract>
-</articleinfo>
+    <abstract>
+      <para>The release notes for &os; &release.current; contain a summary
+	of the changes made to the &os; base system on the
+	&release.branch; development line.
+	This document lists applicable security advisories that were issued since
+	the last release, as well as significant changes to the &os;
+	kernel and userland.
+	Some brief remarks on upgrading are also presented.</para>
+    </abstract>
+  </articleinfo>
 
-<sect1 id="intro">
-  <title>Introduction</title>
+  <sect1 id="intro">
+    <title>Introduction</title>
 
-  <para>This document contains the release notes for &os;
-    &release.current;.  It
-    describes recently added, changed, or deleted features of &os;.
-    It also provides some notes on upgrading
-    from previous versions of &os;.</para>
+    <para>This document contains the release notes for &os;
+      &release.current;.  It
+      describes recently added, changed, or deleted features of &os;.
+      It also provides some notes on upgrading
+      from previous versions of &os;.</para>
 
 <![ %release.type.current [
-
-  <para>The &release.type; distribution to which these release notes
-    apply represents the latest point along the &release.branch; development
-    branch since &release.branch; was created.  Information regarding pre-built, binary
-    &release.type; distributions along this branch
-    can be found at <ulink url="&release.url;"></ulink>.</para>
-
+    <para>The &release.type; distribution to which these release notes
+      apply represents the latest point along the &release.branch; development
+      branch since &release.branch; was created.  Information regarding pre-built, binary
+      &release.type; distributions along this branch
+      can be found at <ulink url="&release.url;"></ulink>.</para>
 ]]>
 
 <![ %release.type.snapshot [
-
-  <para>The &release.type; distribution to which these release notes
-    apply represents a point along the &release.branch; development
-    branch between &release.prev; and the future &release.next;.
-    Information regarding
-    pre-built, binary &release.type; distributions along this branch
-    can be found at <ulink url="&release.url;"></ulink>.</para>
-
+    <para>The &release.type; distribution to which these release notes
+      apply represents a point along the &release.branch; development
+      branch between &release.prev; and the future &release.next;.
+      Information regarding
+      pre-built, binary &release.type; distributions along this branch
+      can be found at <ulink url="&release.url;"></ulink>.</para>
 ]]>
 
 <![ %release.type.release [
-
-  <para>This distribution of &os; &release.current; is a
-    &release.type; distribution.  It can be found at <ulink
-    url="&release.url;"></ulink> or any of its mirrors.  More
-    information on obtaining this (or other) &release.type;
-    distributions of &os; can be found in the <ulink
-    url="&url.books.handbook;/mirrors.html"><quote>Obtaining
-    &os;</quote> appendix</ulink> to the <ulink
-    url="&url.books.handbook;/">&os;
-    Handbook</ulink>.</para>
-
+    <para>This distribution of &os; &release.current; is a
+      &release.type; distribution.  It can be found at
+      <ulink url="&release.url;"></ulink> or any of its mirrors.  More
+      information on obtaining this (or other) &release.type;
+      distributions of &os; can be found in the
+      <ulink url="&url.books.handbook;/mirrors.html"
+	     ><quote>Obtaining &os;</quote> appendix</ulink>
+      to the <ulink url="&url.books.handbook;/">&os;
+	Handbook</ulink>.</para>
 ]]>
 
   <para>All users are encouraged to consult the release errata before
@@ -103,251 +92,776 @@
     information on known bugs, security advisories, and corrections to
     documentation.  An up-to-date copy of the errata for &os;
     &release.current; can be found on the &os; Web site.</para>
-
-</sect1>
-
-<sect1 id="new">
-  <title>What's New</title>
-
-  <para>This section describes
-    the most user-visible new or changed features in &os;
-    since &release.prev;.
-  </para>
-
-  <para>Typical release note items
-    document recent security advisories issued after
-    &release.prev;,
-    new drivers or hardware support, new commands or options,
-    major bug fixes, or contributed software upgrades.  They may also
-    list changes to major ports/packages or release engineering
-    practices.  Clearly the release notes cannot list every single
-    change made to &os; between releases; this document focuses
-    primarily on security advisories, user-visible changes, and major
-    architectural improvements.</para>
-
-  <sect2 id="security">
-    <title>Security Advisories</title>
-
-    <para></para>
-  </sect2>
-
-  <sect2 id="kernel">
-    <title>Kernel Changes</title>
-
-    <para>The &man.ddb.4; kernel debugger now has an output capture
-      facility.  Input and output from &man.ddb.4; can now be captured
-      to a memory buffer for later inspection using &man.sysctl.8; or
-      a textdump.  The new <command>capture</command> command controls
-      this feature.</para>
-
-    <para>The &man.ddb.4; debugger now supports a simple scripting
-      facility, which supports a set of named scripts consisting of a
-      set of &man.ddb.4; commands.  These commands can be managed from
-      within &man.ddb.4; or with the use of the new &man.ddb.8;
-      utility.  More details can be found in the &man.ddb.4; manual
-      page.</para>
-
-    <para>The kernel now supports a new textdump format of kernel
-      dumps.  A textdump provides higher-level information via
-      mechanically generated/extracted debugging output, rather than a
-      simple memory dump.  This facility can be used to generate brief
-      kernel bug reports that are rich in debugging information, but
-      are not dependent on kernel symbol tables or precisely
-      synchronized source code.  More information can be found in the
-      &man.textdump.4; manual page.</para>
-
-    <para>[&arch.amd64;, &arch.i386;] The ULE
-      scheduler is now the default process scheduler
-      in <filename>GENERIC</filename> kernels.</para>
-
-    <sect3 id="boot">
-      <title>Boot Loader Changes</title>
-
-      <para></para>
-
-      <para>[&arch.amd64;, &arch.i386;] The BTX kernel used by the boot
-	loader has been changed to invoke BIOS routines from real
-	mode.  This change makes it possible to boot &os; from USB
-	devices.</para>
-
-      <para>[&arch.amd64;, &arch.i386;] A new gptboot boot loader has
-        been added to support booting from a GPT labeled disk.  A
-        new <command>boot</command> command has been added to
-        &man.gpt.8;, which makes a GPT disk bootable by writing the
-        required bits of the boot loader, creating a new boot
-        partition if required.</para>
-
-    </sect3>
-
-    <sect3 id="proc">
-      <title>Hardware Support</title>
-
-      <para>The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
-        PCMCIA smartcard readers, has been added.</para>
-
-      <para>The &man.uslcom.4; driver, a driver for Silicon
-        Laboratories CP2101/CP2102-based USB serial adapters, has been
-        imported from OpenBSD.</para>
-
-      <sect4 id="mm">
-	<title>Multimedia Support</title>
-
-	<para></para>
-      </sect4>
-
-      <sect4 id="net-if">
-	<title>Network Interface Support</title>
-
-	<para>The &man.ale.4; driver has been added to provide support
-	  for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.
-	  This driver is not enabled in <filename>GENERIC</filename>
-	  kernels for this release.</para>
-
-	<para>The &man.em.4; driver has been split into two drivers
-	  with some common parts.  The &man.em.4; driver will continue
-	  to support adapters up to the 82575, as well as new
-	  client/desktop adapters.  A new &man.igb.4; driver
-	  will support new server adapters.</para>
-
-	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
-	  been updated to include a number of stability fixes.</para>
-
-      </sect4>
-    </sect3>
-
-    <sect3 id="net-proto">
-      <title>Network Protocols</title>
-
-      <para></para>
-
-    </sect3>
-
-    <sect3 id="disks">
-      <title>Disks and Storage</title>
-
-      <para>The &man.aac.4; driver now supports volumes larger than
-        2TB in size.</para>
-
-      <para>The &man.hptrr.4; driver has been updated to version 1.2
-        from Highpoint.</para>
-
-    </sect3>
-
-    <sect3 id="fs">
-      <title>File Systems</title>
-
-      <para></para>
-    </sect3>
-  </sect2>
-
-  <sect2 id="userland">
-    <title>Userland Changes</title>
-
-    <para>The &man.adduser.8; utility now supports
-      a <option>-M</option> option to set the mode of a new user's
-      home directory.</para>
-
-    <para>&man.chflags.1; now supports a <option>-v</option> flag for
-      verbose output and a <option>-f</option> flag to ignore errors
-      with the same semantics as (for example)
-      &man.chmod.1;.</para>
-
-    <para>The &man.realpath.1; utility now supports
-      a <option>-q</option> flag to suppress warnings; it now also
-      accepts multiple paths on its command line.</para>
-
-    <para>&man.cron.8; now supports a <option>-m</option> option,
-      which can help managing cron mails in massive hosting
-      environment.</para>
-
-    <para>&man.ypserv.8; now supports a <option>-P</option> option to
-      specify the port number on which it should listen.</para>
-
-    <sect3 id="rc-scripts">
-      <title><filename>/etc/rc.d</filename> Scripts</title>
-
-      <para></para>
-    </sect3>
-  </sect2>
-
-  <sect2 id="contrib">
-    <title>Contributed Software</title>
-
-    <para><application>AMD</application> has been updated from 6.0.10
-      to 6.1.5.</para>
-
-    <para><application>awk</application> has been updated from 1 May
-      2007 release to the 23 October 2007 release.</para>
-
-    <para><application>bzip2</application> has been updated from 1.0.4
-      to 1.0.5.</para>
-
-    <para><application>OpenPAM</application> has been updated from the
-      Figwort release to the Hydrangea release.</para>
-
-    <para><application>OpenSSH</application> has been updated from
-      4.5p1 to 5.1p1.</para>
-
-    <para><application>sendmail</application> has been updated from
-      8.14.2 to 8.14.3.</para>
-
-    <para>The timezone database has been updated from
-      the <application>tzdata2007h</application> release to
-      the <application>tzdata2008b</application> release.</para>
-
-  </sect2>
-
-  <sect2 id="ports">
-    <title>Ports/Packages Collection Infrastructure</title>
-
-    <para></para>
-
-  </sect2>
-
-  <sect2 id="releng">
-    <title>Release Engineering and Integration</title>
-
-    <para>The supported version of
-      the <application>GNOME</application> desktop environment
-      (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.20.1 to 2.22.</para>
-
-  </sect2>
-
-  <sect2 id="doc">
-    <title>Documentation</title>
-
-    <para></para>
-  </sect2>
-</sect1>
-
-<sect1 id="upgrade">
-  <title>Upgrading from previous releases of &os;</title>
-
-  <para>[&arch.i386;, &arch.amd64;] Beginning with &os; 6.2-RELEASE,
-    binary upgrades between RELEASE versions (and snapshots of the
-    various security branches) are supported using the
-    &man.freebsd-update.8; utility.  The binary upgrade procedure will
-    update unmodified userland utilities, as well as unmodified GENERIC or
-    SMP kernels distributed as a part of an official &os; release.
-    The &man.freebsd-update.8; utility requires that the host being
-    upgraded have Internet connectivity.</para>
-
-  <para>An older form of binary upgrade is supported through the
-    <command>Upgrade</command> option from the main &man.sysinstall.8;
-    menu on CDROM distribution media.  This type of binary upgrade
-    may be useful on non-&arch.i386;, non-&arch.amd64; machines
-    or on systems with no Internet connectivity.</para>
-
-  <para>Source-based upgrades (those based on recompiling the &os;
-    base system from source code) from previous versions are
-    supported, according to the instructions in
-    <filename>/usr/src/UPDATING</filename>.</para>
-
-  <important>
-    <para>Upgrading &os; should, of course, only be attempted after
-      backing up <emphasis>all</emphasis> data and configuration
-      files.</para>
-  </important>
-</sect1>
+  </sect1>
+
+  <sect1 id="new">
+    <title>What's New</title>
+
+    <para>This section describes
+      the most user-visible new or changed features in &os;
+      since &release.prev;.</para>
+
+    <para>Typical release note items
+      document recent security advisories issued after
+      &release.prev;,
+      new drivers or hardware support, new commands or options,
+      major bug fixes, or contributed software upgrades.  They may also
+      list changes to major ports/packages or release engineering
+      practices.  Clearly the release notes cannot list every single
+      change made to &os; between releases; this document focuses
+      primarily on security advisories, user-visible changes, and major
+      architectural improvements.</para>
+
+    <sect2 id="security">
+      <title>Security Advisories</title>
+
+      <para>Problems described in the following security advisories has
+	been fixed.  For more information, consult the individual
+	advisories available from
+	<ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="3">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="3*">
+	    <thead>
+	      <row>
+		<entry>Advisory</entry>
+		<entry>Date</entry>
+		<entry>Topic</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
+			      >SA-08:05.openssh</ulink></entry>
+		<entry>17&nbsp;April&nbsp;2008</entry>
+		<entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
+			      >SA-08:06.bind</ulink></entry>
+		<entry>13&nbsp;July&nbsp;2008</entry>
+		<entry><para>DNS cache poisoning</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:07.amd64.asc"
+			      >SA-08:07.amd64</ulink></entry>
+		<entry>3&nbsp;September&nbsp;2008</entry>
+		<entry><para>amd64 swapgs local privilege escalation</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:08.nmount.asc"
+			      >SA-08:08.nmount</ulink></entry>
+		<entry>3&nbsp;September&nbsp;2008</entry>
+		<entry><para>&man.nmount.2; local arbitrary code execution</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:09.icmp6.asc"
+			      >SA-08:09.icmp6</ulink></entry>
+		<entry>3&nbsp;September&nbsp;2008</entry>
+		<entry><para>Remote kernel panics on IPv6 connections</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:10.nd6.asc"
+			      >SA-08:10.nd6</ulink></entry>
+		<entry>1&nbsp;October&nbsp;2008</entry>
+		<entry><para>IPv6 Neighbor Discovery Protocol routing vulnerability</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:11.arc4random.asc"
+			      >SA-08:11.arc4random</ulink></entry>
+		<entry>24&nbsp;November&nbsp;2008</entry>
+		<entry><para>&man.arc4random.9; predictable sequence vulnerability</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:12.ftpd.asc"
+			      >SA-08:12.ftpd</ulink></entry>
+		<entry>23&nbsp;December&nbsp;2008</entry>
+		<entry><para>Cross-site request forgery in &man.ftpd.8;</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:13.protosw.asc"
+			      >SA-08:13.protosw</ulink></entry>
+		<entry>23&nbsp;December&nbsp;2008</entry>
+		<entry><para>netgraph / bluetooth privilege escalation</para></entry>
+	      </row>
+	    </tbody>
+	</tgroup>
+      </informaltable>
+    </sect2>
+
+    <sect2 id="kernel">
+      <title>Kernel Changes</title>
+
+      <para>The &man.clock.gettime.2; and the related system calls now
+	support a clock ID <literal>CLOCK_THREAD_CPUTIME_ID</literal>,
+	defined in POSIX.</para>
+
+      <para>The &man.cpuset.2; system call has been added.  This is an
+	API for thread to CPU binding and CPU resource grouping and
+	assignment.</para>
+
+      <para>The DTrace, a comprehensive dynamic tracing framework and
+	&man.dtrace.1; userland utility have been imported from
+	OpenSolaris.  DTrace provides a powerful infrastructure to
+	permit administrators, developers, and service personnel to
+	concisely answer arbitrary questions about the behavior of the
+	operating system and user programs.</para>
+
+      <para>The &man.ddb.4; kernel debugger now has an output capture
+	facility.  Input and output from &man.ddb.4; can now be captured
+	to a memory buffer for later inspection using &man.sysctl.8; or
+	a textdump.  The new <command>capture</command> command controls
+	this feature.</para>
+
+      <para>The &man.ddb.4; debugger now supports a simple scripting
+	facility, which supports a set of named scripts consisting of a
+	set of &man.ddb.4; commands.  These commands can be managed from
+	within &man.ddb.4; or with the use of the new &man.ddb.8;
+	utility.  More details can be found in the &man.ddb.4; manual
+	page.</para>
+
+      <para>The &man.ddb.4; <command>ex</command> command now supports
+	an <option>/S</option> mode which interprets and prints the
+	value at the requested address as a symbol.  For example,
+	<userinput>ex /S <replaceable>aio_swake</replaceable></userinput>
+	prints the name of the function currently registered in
+	via <replaceable>aio_swake</replaceable> hook.</para>
+
+      <para>The &man.ddb.4; <command>show conifhk</command> command has
+	been added.  This lists hooks currently waiting for completion
+	in <function>run_interrupt_driven_config_hooks()</function>.</para>
+
+      <para>The &man.fcntl.2; system call now supports
+	<literal>F_DUP2FD</literal> command.  This is equivalent to
+	&man.dup.2;, and compatible with Sun Solaris and IBM AIX.</para>
+
+      <para>The &os;'s &man.linux.4; ABI support now implements
+	<function>sched_setaffinity()</function> and
+	<function>get_setaffinity()</function> using real CPU affinity
+	setting primitives.</para>
+
+      <para>The client side functionality of &man.rpc.lockd.8; has been
+	implemented in &os; kernel.  This implementation provides the
+	correct semantics for &man.flock.2; style locks which are used
+	by the &man.lockf.1; command line tool and the &man.pidfile.3;
+	library.  It also implements recovery from server restarts and
+	ensures that dirty cache blocks are written to the server before
+	obtaining locks (allowing multiple clients to use file locking
+	to safely share data).  Also, a new kernel option
+	<literal>options NFSLOCKD</literal> has been added and enabled
+	by default.  If the kernel support is enabled, &man.rpc.lockd.8;
+	automatically detects and uses the functionality.</para>
+
+      <para>The &os; kernel now supports a new textdump format of kernel
+	dumps.  A textdump provides higher-level information via
+	mechanically generated/extracted debugging output, rather than a
+	simple memory dump.  This facility can be used to generate brief
+	kernel bug reports that are rich in debugging information, but
+	are not dependent on kernel symbol tables or precisely
+	synchronized source code.  More information can be found in the
+	&man.textdump.4; manual page.</para>
+
+      <para>The &man.wait4.2; system call now supports
+	<option>WNOWAIT</option> flag to keep the process whose status
+	is returned in a waitable state and <option>WSTOPPED</option>
+	which is equivalent to <option>WUNTRACED</option>.</para>
+
+      <para arch="amd64,i386,sparc64">The &os; kernel now supports
+	initial support of binding interrupts to CPUs.</para>
+
+      <para arch="amd64,i386"> The &man.sched.ule.4; scheduler is now the default
+	process scheduler in <filename>GENERIC</filename>
+	kernels.</para>
+
+      <para>The sysctl
+	variables <varname>kern.features.compat_freebsd[456]</varname>
+	have been added.  These are corresponding to the kernel options
+	<literal>COMPAT_FREEBSD[456]</literal>.</para>
+
+      <sect3 id="boot">
+	<title>Boot Loader Changes</title>
+
+	<para arch="i386,amd64">The BTX kernel used by the boot
+	  loader has been changed to invoke BIOS routines from real
+	  mode.  This change makes it possible to boot &os; from USB
+	  devices.</para>
+
+	<para arch="i386,amd64">A new gptboot boot loader has
+          been added to support booting from a GPT labeled disk.  A
+          new <command>boot</command> command has been added to
+          &man.gpt.8;, which makes a GPT disk bootable by writing the
+          required bits of the boot loader, creating a new boot
+          partition if required.</para>
+      </sect3>
+
+      <sect3 id="proc">
+	<title>Hardware Support</title>
+
+	<para>The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
+          PCMCIA smartcard readers, has been added.</para>
+
+	<para arch="sparc64">The &man.kbdmux.4; driver has been added.
+	  The &man.sunkbd.4; now supports &man.atkbd.4; emulation like
+	  &man.ukbd.4;.</para>
+
+	<para>The <filename>nvram(4)</filename> driver is now
+	  MPSAFE.</para>
+
+	<para>An option of the &man.puc.4;
+	  driver <literal>PUC_FASTINTR</literal> has been no longer
+	  supported.</para>
+
+	<para>The &man.psm.4; driver now attempts detection of Synaptics
+	  touchpad before IntelliMouse.  Some touchpads will pretend to
+	  be IntelliMouse causing the IntelliMouse probe to work and the
+	  Synaptics detection never to be done.</para>
+
+	<para>The &man.uslcom.4; driver, a driver for Silicon
+          Laboratories CP2101/CP2102-based USB serial adapters, has been
+          imported from OpenBSD.</para>
+
+	<sect4 id="mm">
+	  <title>Multimedia Support</title>
+
+	  <para>The &man.agp.4; driver now supports Intel G33 and
+	    G45.</para>
+
+	  <para arch="i386">The <filename>dpms(4)</filename> driver has
+	    been added to use the VESA BIOS for DPMS during suspend and
+	    resume.</para>
+
+	  <para>The <application>DRM</application> kernel driver now
+	    supports i915 GME devices.</para>
+	</sect4>
+
+	<sect4 id="net-if">
+	  <title>Network Interface Support</title>
+
+	  <para>The &man.ale.4; driver has been added to provide support
+	    for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.
+	    This driver is not enabled in <filename>GENERIC</filename>
+	    kernels for this release.</para>
+
+	  <para>The &man.em.4; driver has been split into two drivers
+	    with some common parts.  The &man.em.4; driver will continue
+	    to support adapters up to the 82575, as well as new
+	    client/desktop adapters.  A new &man.igb.4; driver
+	    will support new server adapters.</para>
+
+	  <para>The &man.hme.4; driver has been improved.</para>
+
+	  <para>The &man.ixgbe.4; driver has been updated to version
+	    1.6.2 from Intel.</para>
+
+	  <para>A bug in some of the &man.miibus.4; supported drivers that
+	    IEEE 802.3 auto-negotiation was performed in a wrong order,
+	    has been fixed.  Now it chooses the correct technologies
+	    supported by IEEE 802.3 in the order described in Annex
+	    28B.3.</para>
+
+	  <para>A workaround has been added for a bug in TCP/UDP
+	    hardware checksum offload of the &man.msk.4; driver for
+	    short frames.  Note that for frames that requires hardware
+	    VLAN tag insertion, the checksum offload workaround does not
+	    work due to changes of checksum offset in mbuf after the
+	    VLAN tag.  So disabling hardware checksum offload for the
+	    VLAN interface is needed in such cases.</para>
+
+	  <para>The &man.ndis.4; NDIS miniport driver wrapper has been
+	    improved.</para>
+
+	  <para>The &man.sf.4; driver has been improved and now supports
+	    checksum offloading.</para>
+
+	  <para>The &man.stge.4; driver now supports WOL (Wake on
+	    LAN).</para>
+
+	  <para>The &man.vr.4; driver has been improved.</para>
+
+	  <para arch="amd64,i386"> The &man.wpi.4; driver has
+	    been updated to include a number of stability fixes.</para>
+	</sect4>
+      </sect3>
+
+      <sect3 id="net-proto">
+	<title>Network Protocols</title>
+
+	<para>The &man.arp.8; utility now
+	  supports <literal>reject</literal>
+	  and <literal>blackhole</literal> keywords.  In the entry
+	  marked as <literal>reject</literal>, traffic to the host will
+	  be discarded and the sender will be notified the host is
+	  unreachable.  In the entry marked as <literal>blackhole</literal>,
+	  traffic is discarded but the sender is not notified.</para>
+
+	<para>The &man.bpf.4; now supports an
+	  ioctl <literal>BIOCSETFNR</literal>.  This is just like
+	  <literal>BIOCSETF</literal> but it does not drop all the
+	  packets buffered on the descriptor and reset the
+	  statistics.</para>
+
+	<para>The &man.if.bridge.4; now allow to limit the number of
+	  source MACs that can be behind a bridge interface
+	  via <literal>ifmaxaddr</literal> parameter of
+	  &man.ifconfig.8;.</para>
+
+	<para>A bug in the &man.carp.4; interface configuration which
+	  leads to a system panic has been fixed.</para>
+
+	<para>The &man.dummynet.4; subsystem now supports
+	  <literal>fast</literal> mode operation which allows certain
+	  packets to bypass the dummynet scheduler.  This can achieve
+	  lower latency and lower overhead when the packet flow is under
+	  the pipe bandwidth, and eliminate recursion in the subsystem.
+	  The new sysctl variable
+	  <varname>net.inet.ip.dummynet.io_fast</varname> has been
+	  added to enable this feature.</para>
+
+	<para>The &man.enc.4; now supports sysctl variables to
+	  control whether the firewalls or &man.bpf.4; will see inner
+	  and outer headers or just inner or outer headers for incoming
+	  and outgoing IPsec packets.</para>
+
+	<para>The &man.gre.4; now supports
+	  ioctls <literal>GRESKEY</literal>
+	  and <literal>GREGKEY</literal> which allows set or get GRE
+	  key used for outgoing packets.</para>
+
+	<para>A bug in the &man.ipsec.4; subsystem that PMTU was broken
+	  in those cases when there was a route with a lower MTU than
+	  the MTU of the outgoing interface, has been fixed.</para>
+
+	<para>The netatm subsystem has been removed due to
+	  lacking of multiprocessor support.</para>
+
+	<para>The &man.ng.nat.4; now supports redirect functionality
+	  in <filename>libalias</filename>.  For more details, see the
+	  manual page.</para>
+
+	<para>The &man.ng.pptpgre.4; now supports multiple hooks like
+	  &man.ng.l2tp.4;, to use one pair of pptpgre and ksocket nodes for all
+	  calls between two peers.</para>
+
+	<para>The &man.resolver.3; now allows underscore in domain
+	  names.  Although this is a violation of RFC 1034 [STD 13], it is
+	  accepted by certain name servers as well as other popular operating
+	  systems' resolver library.</para>
+
+	<para>A socket option <literal>TCP_CONGESTION</literal> for TCP
+	  socket has been added.  This is for setting and retrieving the
+	  congestion control algorithm.  The name used is to allow
+	  compatibility with Linux.</para>
+
+	<para>The &man.rwlock.9; has been used throughout
+	  the <varname>inpcbinfo</varname> and <varname>inpcb</varname>
+	  infrastructure, and protocols that depend on that
+	  infrastructure, including UDP, TCP, and IP raw sockets to
+	  reduce the lock contentions.</para>
+      </sect3>
+
+      <sect3 id="disks">
+	<title>Disks and Storage</title>
+
+	<para>The &man.aac.4; driver now supports 64-bit array support
+	  for RAIDs larger than 2TB and simultaneous opens of the device
+	  for issuing commands to the controller.</para>
+
+	<para>The &man.ata.4; driver now supports a loader variable
+	  <varname>hw.ata.ata_dma_check_80pin</varname>.  This can be
+	  used to disable the 80pin cable check on broken systems such
+	  as certain laptops and Soekris boards.  The default value is
+	  <literal>1</literal>.</para>
+
+	<para>A data corruption problem of the &man.ata.4; driver on
+	  ServerWorks HT1000 chipsets has been fixed.</para>
+
+	<para>The &man.ciss.4; driver now supports a loader tunable
+	  <varname>hw.ciss.nop_message_heartbeat</varname> for
+	  NOP-message polling in <function>ciss_periodic()</function>.
+	  This can be used as a workaround for
+	  <literal>ADAPTER HEARTBEAT FAILED</literal> issue.
+	  The default value is <literal>0</literal> (disabled).</para>
+
+	<para>The <filename>geom_part</filename> GEOM class can be built
+	  as a kernel module.</para>
+
+	<para>The <filename>geom_linux_lvm</filename> GEOM class can be
+	  built as a kernel module.</para>
+
+	<para>The &man.hptrr.4; driver has been updated to version 1.2
+          from Highpoint.</para>
+
+	<para>A buffer overflow in the &man.iir.4; driver has been
+	  fixed.  This likely fixes a great number of weird problems
+	  that have been reported with this driver.</para>
+
+	<para>The &man.mpt.4; driver now supports <literal>mpt_user</literal>
+	  personality.</para>
+
+	<para>The &man.rr232x.4; driver has been superseded by
+	  &man.hptrr.4; driver.</para>
+
+	<para>The &man.twa.4; driver has been improved with regard to
+	  stability on machines with a plenty of memory and high CPU
+	  load.</para>
+      </sect3>
+
+      <sect3 id="fs">
+	<title>File Systems</title>
+
+	<para>The &man.fdescfs.5; is now MPSAFE.</para>
+
+	<para>The &man.gpart.8; now supports BSD disklabels (option
+	  <literal>GEOM_PART_BSD</literal>) and
+	  VTOC8 disklabels (option
+	  <literal>GEOM_PART_VTOC8</literal>).</para>
+
+	<para>The &man.gvinum.8; now accepts <replaceable>volume</replaceable>
+	  parameter when creating a plex.</para>
+
+	<para>A pathname lookup bug of a UNIX domain socket in the
+	  <filename>unionfs(7)</filename> has been fixed.</para>
+      </sect3>
+    </sect2>
+
+    <sect2 id="userland">
+      <title>Userland Changes</title>
+
+      <para>The &man.adduser.8; utility now supports
+	a <option>-M</option> option to set the mode of a new user's
+	home directory.</para>
+
+      <para>The &man.atacontrol.8; utility now supports
+	a <command>spindown</command> command to set or report timeout
+	after which the device will be spun down.</para>
+
+      <para>The &man.chflags.1; now supports a <option>-v</option> flag for
+	verbose output, a <option>-f</option> flag to ignore errors,
+	and <option>-h</option> to allow setting flags on symbolic links
+	with the same semantics as (for example) &man.chmod.1;.</para>
+
+      <para>The &man.cp.1; now supports a <option>-a</option> flag, which is
+	equivalent to <option>-RpP</option> flags.</para>
+
+      <para>A bug in the &man.cp.1; utility which prevents POSIX.1e ACL (see
+	also &man.acl.3;) from copying properly has been fixed.</para>
+
+      <para>The &man.cron.8; utility now supports <option>-m</option> flag which
+	overrides the default mail recipient for cron mails unless explicitly
+	provided by <literal>MAILTO=</literal> line in <filename>crontab</filename>
+	file.</para>
+
+      <para>The &man.dhclient.8; now supports more options described in
+	&man.dhcp-options.5;.</para>
+
+      <para>The &man.dhclient.8; now
+	supports <function>is_default_interface()</function> function
+	which determines if this interface is one with the default
+	route.</para>
+
+      <para>A bug in the &man.dhclient.8; that prevents removal of the
+	default route from working has been fixed.</para>
+
+      <para>The &man.environ.7;, environment array of strings now
+	supports unsetting a variable by setting the first character to
+	NULL.  This is required by third-party software such as
+	<application>Dovecot</application>
+	and <application>Postfix</application>.</para>
+
+      <para>The &man.fdisk.8; now supports a <option>-q</option> flag to
+	not display any warnings.</para>
+
+      <para>The &man.fetch.1; program and <filename>libfetch</filename>
+	library now supports a <varname>NO_PROXY</varname> environment
+	variable.  This specifies comma- or whitespace-separated list of
+	host names for which proxies should not be used.  If a single
+	asterisk is specified, the use of proxies is disabled.</para>
+
+      <para>The &man.ffsll.3; and &man.flsll.3; functions have been added.
+	These functions are the same as &man.ffs.3; and &man.fls.3; except that
+	they accept long long as the arguments.</para>
+
+      <para>The &man.fortune.6; program now supports
+	<varname>FORTUNE_PATH</varname> environment variable to specify
+	search path of the fortune files.</para>
+
+      <para>A bug in the &man.fortune.6; program that prevents
+	<option>-e</option> option with multiple files from working has
+	been fixed.</para>
+
+      <para>The &man.freebsd-update.conf.5; now supports
+	<literal>IDSIgnorePaths</literal> statement.</para>
+
+      <para>The &man.fwcontrol.8; utility now supports <option>-f
+	  <replaceable>node</replaceable></option> option which specifies
+	<replaceable>node</replaceable> as the root node on the next bus
+	reset.</para>
+
+      <para arch="sparc64"> The &man.gcc.1; now
+	accepts <option>-mcpu</option> option properly; it was hardcoded
+	as <option>-mcpu=ultrasparc</option>.</para>
+
+      <para>The &man.gpt.8; now supports ZFS.</para>
+
+      <para>The &man.ifconfig.8; now supports display of WPS IE
+	(Wireless Provisioning Services Information Element).</para>
+
+      <para>The &man.kgdb.1; now supports
+	an <command>add-kld <replaceable>kld</replaceable></command>
+	command to locate a &man.kld.4; and load its symbols.</para>
+
+      <para>The &man.kgdb.1; now has a shared library backend for kernel
+	files that treats &man.kld.4; as shared libraries and
+	auto-loading symbols for &man.kld.4; on startup.</para>
+
+      <para>The &man.kgdb.1; now supports a <command>tid</command> command
+	and other kernel module related commands even for a remote
+	target.</para>
+
+      <para>The &man.kvm.getcptime.3; function to obtain the global CPU
+	time statistics from the kernel has been added.</para>
+
+      <para>The <filename>libalias</filename> library now supports
+	<literal>PORT</literal> and
+	<literal>EPRT</literal>
+	FTP commands in lowercase.</para>
+
+      <para>The &man.man.1; now includes a limited support of
+	&man.bzip2.1;-compressed manual pages.</para>
+
+      <para>The &man.mdconfig.8; now supports a <option>-v</option>
+	(verbose) flag to <option>-l</option> command.  It shows size
+	and backing store of all &man.md.4; devices at one time.</para>
+
+      <para>The &man.memrchr.3; function has been added.  This behaves
+	like &man.memchr.3; except that it locates the last occurrence
+	of the specified character in the string.</para>
+
+      <para>The incorrect output grammar of &man.morse.6; program has
+	been fixed.</para>
+
+      <para>The &man.mountd.8; utility now supports <option>-h
+	  <replaceable>bindip</replaceable></option> option which
+	specifies IP addresses to bind to for TCP and UDP requests.
+	This option may be specified multiple times.  If no
+	<option>-h</option> option is specified,
+	<literal>INADDR_ANY</literal> will be used.  Note that when
+	specifying IP addresses with this option, it will
+	automatically add <literal>127.0.0.1</literal> and if IPv6 is
+	enabled, <literal>::1</literal> to the list.</para>
+
+      <para>The &man.moused.8; utility now supports <option>-L</option>
+	flag which changes the speed of scrolling and changes
+	<option>-U</option> option behavior to only affect the scroll
+	threshold.</para>
+
+      <para>The &man.mv.1; now support POSIX specification when moving a
+	directory to an existing directory across devices.</para>
+
+      <para>The &man.periodic.8; now supports
+	<varname>daily_status_mail_rejects_shorten</varname>
+	configuration variable in &man.periodic.conf.5;.  This allows
+	the rejected mail reports to tally the rejects per blacklist
+	without providing details about individual sender hosts.  The
+	default configuration keeps the reports in their original
+	form.</para>
+
+      <para>The &man.ping6.8; now uses exit status of
+	<literal>0</literal> and <literal>2</literal> in the same manner
+	as &man.ping.8;.</para>
+
+      <para>The &man.ping6.8; now supports an <option>-o</option> flag,
+	which makes &man.ping6.8; exit successfully after receiving one
+	reply packet.</para>
+
+      <para>The &man.ping6.8; now supports <option>-r</option>
+	and <option>-R</option> flags, which are equivalent to
+	&man.ping.8;'s <option>-a</option> and <option>-A</option>
+	flags, respectively.</para>
+
+      <para>The minimum allowed interval of &man.ping6.8; has been
+	decreased to 0.000001 from 0.01.</para>
+
+      <para>The &man.realpath.1; utility now supports
+	a <option>-q</option> flag to suppress warnings; it now also
+	accepts multiple paths on its command line.</para>
+
+      <para>The &man.rfcomm.pppd.8; now supports a <option>-D</option>
+	flag to register DUN (Dial-Up Networking) service in addition to
+	the LAN (LAN Access Using PPP) service.</para>
+
+      <para>The &man.sdpd.8; now supports a <literal>NAP</literal>,
+	<literal>GN</literal>, and <literal>PANU</literal>
+	profiles.</para>
+
+      <para>The &man.setkey.8; utility now accepts
+	<literal>esp</literal> as a protocol name
+	for the <command>spdadd</command> command.</para>
+
+      <para>A bug in &man.telnetd.8; that it attempts authentication
+	even when <option>-a off</option> option is specified has been
+	fixed.</para>
+
+      <para>The &man.top.1; and &man.vmstat.8; now support
+	<option>-P</option> flag which displays per-CPU statistics.</para>
+
+      <para>The &man.traceroute.8; now supports an
+	<option>-a</option> flag to display AS number corresponding to
+	the lookup IP address on each hop.  It will query the number to
+	WHOIS server specified in <option>-A</option> option.  If
+	no <option>-A</option> is
+	specified, <hostid>whois.radb.net</hostid> will be used as the
+	default value.</para>
+
+      <para>The &man.uuid.enc.le.3;, &man.uuid.dec.le.3;,
+	&man.uuid.enc.be.3;, and &man.uuid.dec.be.3; functions have been
+	added.  These functions encode/decode a binary representation of
+	a UUID.</para>
+
+      <para>The &man.watch.8; utility now supports more than 10
+	&man.snp.4; devices at a time.</para>
+
+      <para>The &man.ypserv.8; now supports a <option>-P</option> option to
+	specify the port number on which it should listen.</para>
+
+      <sect3 id="rc-scripts">
+	<title><filename>/etc/rc.d</filename> Scripts</title>
+
+	<para>The &man.rc.conf.5; now supports
+	  <varname>dummynet_enable</varname> variable which allow
+	  &man.dummynet.4; kernel module to be loaded when
+	  <varname>firewall_enable</varname> is <literal>YES</literal>.</para>
+
+	<para>The <filename>ntpd</filename> &man.rc.8; script
+	  can work with no configuration file
+	  <filename>/etc/ntp.conf</filename> now.</para>
+
+	<para>The <filename>ppp</filename> &man.rc.8; script now
+	  supports multiple instances.  For more details, see description of
+	  <varname>ppp_profile</varname> variable in &man.rc.conf.5;.</para>
+
+	<para>The <filename>sysctl</filename> &man.rc.8; script now
+	  supports loading <filename>/etc/sysctl.conf.local</filename> in
+	  addition to <filename>/etc/sysctl.conf</filename>.</para>
+
+	<para>The &man.rc.conf.5; now supports configuration of
+	  interfaces and attached networks for firewall rule set by
+	  <filename>rc.firewall</filename> when
+	  <varname>firewall_type</varname> is <literal>simple</literal> or
+	  <literal>client</literal>.  See
+	  <varname>firewall_client_net</varname>,
+	  <varname>firewall_simple_iif</varname>,
+	  <varname>firewall_simple_inet</varname>,
+	  <varname>firewall_simple_oif</varname>, and
+	  <varname>firewall_simple_onet</varname>.</para>
+      </sect3>
+    </sect2>
+
+    <sect2 id="contrib">
+      <title>Contributed Software</title>
+
+      <para><application>am-utils</application> has been updated from
+	version 6.0.10p1 to version 6.1.5.</para>
+
+      <para><application>ISC BIND</application> has been updated to
+	version 9.4.2-P2.</para>
+
+      <para><application>awk</application> has been updated from 1 May
+	2007 release to the 23 October 2007 release.</para>
+
+      <para><application>bzip2</application> has been updated from
+	version 1.0.4 to version 1.0.5.</para>
+
+      <para><application>CVS</application> has been updated to
+	version 1.11.22.1.</para>
+
+      <para><application>hostapd</application> has been updated to
+	version 0.5.10 + radius ACL support.</para>
+
+      <para><filename>libarchive</filename> has been updated to
+	version 2.5.5.</para>
+
+      <para><application>ncurses</application> library has been updated
+	to version 5.6-20080503.</para>
+
+      <para><application>NTP</application> has been updated to version
+	4.2.4p5.</para>
+
+      <para><application>OpenPAM</application> has been updated from the
+	Figwort release to the Hydrangea release.</para>
+
+      <para><application>OpenSSH</application> has been updated from
+	version 4.5p1 to version 5.1p1.</para>
+
+      <para>The &man.resolver.3; library has been updated to
+	one of <application>ISC BIND</application> 9.4.3.</para>
+
+      <para><application>sendmail</application> has been updated from
+	version 8.14.2 to version 8.14.3.</para>
+
+      <para>The timezone database has been updated from
+	the <application>tzdata2007h</application> release to
+	the <application>tzdata2008h</application> release.</para>
+
+      <para><application>wpa_supplicant</application> has been updated to
+	version 0.5.10 + syslog support.</para>
+    </sect2>
+
+    <sect2 id="releng">
+      <title>Release Engineering and Integration</title>
+
+      <para>The supported version of
+	the <application>GNOME</application> desktop environment
+	(<filename role="package">x11/gnome2</filename>) has been
+	updated from 2.20.1 to 2.22.</para>
+
+      <para>The supported version of
+	the <application>KDE</application> desktop environment
+	(<filename role="package">x11/kde3</filename>) has been
+	updated from 3.5.8 to 3.5.10.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 id="upgrade">
+    <title>Upgrading from previous releases of &os;</title>
+
+    <para arch="i386,amd64"> Beginning with &os; 6.2-RELEASE,
+      binary upgrades between RELEASE versions (and snapshots of the
+      various security branches) are supported using the
+      &man.freebsd-update.8; utility.  The binary upgrade procedure will
+      update unmodified userland utilities, as well as unmodified GENERIC or
+      SMP kernels distributed as a part of an official &os; release.
+      The &man.freebsd-update.8; utility requires that the host being
+      upgraded have Internet connectivity.</para>
+
+    <para>An older form of binary upgrade is supported through the
+      <command>Upgrade</command> option from the main &man.sysinstall.8;
+      menu on CDROM distribution media.  This type of binary upgrade
+      may be useful on non-&arch.i386;, non-&arch.amd64; machines
+      or on systems with no Internet connectivity.</para>
+
+    <para>Source-based upgrades (those based on recompiling the &os;
+      base system from source code) from previous versions are
+      supported, according to the instructions in
+      <filename>/usr/src/UPDATING</filename>.</para>
+
+    <important>
+      <para>Upgrading &os; should, of course, only be attempted after
+	backing up <emphasis>all</emphasis> data and configuration
+	files.</para>
+    </important>
+  </sect1>
 </article>
+
