@@ -80,7 +80,7 @@ int	__elfN(coredump)(struct thread *, struct vnode *, off_t);
 /* Machine specific function to dump per-thread information. */
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);
 
-int	__elfN(fallback_brand);
+extern int __elfN(fallback_brand);
 
 #endif /* _KERNEL */
 
