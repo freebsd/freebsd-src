@@ -5,7 +5,7 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2004 Douglas Barton
+# Copyright 1998-2009 Douglas Barton
 # DougB@FreeBSD.org
 
 # $FreeBSD$
@@ -244,10 +244,6 @@ press_to_continue () {
 #
 TEMPROOT='/var/tmp/temproot'
 
-# Assign the location of the mtree database
-#
-MTREEDB='/var/db/mergemaster.mtree'
-
 # Read /etc/mergemaster.rc first so the one in $HOME can override
 #
 if [ -r /etc/mergemaster.rc ]; then
@@ -260,12 +256,17 @@ if [ -r "$HOME/.mergemasterrc" ]; then
   . "$HOME/.mergemasterrc"
 fi
 
+# Assign the location of the mtree database
+#
+MTREEDB=${MTREEDB:-/var/db}
+MTREEFILE="${MTREEDB}/mergemaster.mtree"
+
 # Check the command line options
 #
 while getopts ":ascrvhipCPm:t:du:w:D:A:U" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
   A)
-    ARCHSTRING='MACHINE_ARCH='${OPTARG}
+    ARCHSTRING='TARGET_ARCH='${OPTARG}
     ;;
   U)
     AUTO_UPGRADE=yes
@@ -338,10 +339,28 @@ if [ -n "${PRESERVE_FILES}" -a -z "${PRESERVE_FILES_DIR}" ]; then
   PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
 fi
 
-# Check the for the mtree database in DESTDIR.
-if [ ! -f ${DESTDIR}${MTREEDB} ]; then
-  echo "*** Unable to find mtree database. Skipping auto-upgrade."
-  unset AUTO_UPGRADE
+# Check for the mtree database in DESTDIR
+case "${AUTO_UPGRADE}" in
+'') ;;	# If the option is not set no need to run the test or warn the user
+*)
+  if [ ! -f "${DESTDIR}${MTREEFILE}" ]; then
+    echo ''
+    echo "*** Unable to find mtree database. Skipping auto-upgrade."
+    echo ''
+    press_to_continue
+    unset AUTO_UPGRADE
+  fi
+  ;;
+esac
+
+if grep -q nodev ${DESTDIR}/etc/fstab; then
+  echo ''
+  echo "*** You have the deprecated 'nodev' option in ${DESTDIR}/etc/fstab."
+  echo "    This can prevent your system from mounting the filesystem on reboot."
+  echo "    Please update your fstab before continuing."
+  echo "    See fstab(5) for more information."
+  echo ''
+  exit 1
 fi
 
 echo ''
@@ -412,14 +431,25 @@ DIFF_FLAG=${DIFF_FLAG:--u}
 
 # Assign the source directory
 #
-SOURCEDIR=${SOURCEDIR:-/usr/src/etc}
+SOURCEDIR=${SOURCEDIR:-/usr/src}
+if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
+   -f ${SOURCEDIR}/../Makefile.inc1 ]; then
+  echo " *** The source directory you specified (${SOURCEDIR})"
+  echo "     will be reset to ${SOURCEDIR}/.."
+  echo ''
+  sleep 3
+  SOURCEDIR=${SOURCEDIR}/..
+fi
+
+# Setup make to use system files from SOURCEDIR
+MM_MAKE="make -m ${SOURCEDIR}/share/mk"
 
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
 #
 CHANGED=
-if [ -n "${AUTO_UPGRADE}" -a -f "${DESTDIR}${MTREEDB}" ]; then
-	for file in `mtree -eq -f ${DESTDIR}${MTREEDB} -p ${DESTDIR}/ \
+if [ -n "${AUTO_UPGRADE}" -a -f "${DESTDIR}${MTREEFILE}" ]; then
+	for file in `mtree -eq -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
 		2>/dev/null | awk '($2 == "changed") {print $1}'`; do
 		if [ -f "${DESTDIR}/$file" ]; then
 			CHANGED="${CHANGED} ${DESTDIR}/$file"
@@ -552,13 +582,13 @@ case "${RERUN}" in
       case "${DESTDIR}" in
       '') ;;
       *)
-      make DESTDIR=${DESTDIR} ${ARCHSTRING} distrib-dirs
+      ${MM_MAKE} DESTDIR=${DESTDIR} ${ARCHSTRING} distrib-dirs
         ;;
       esac
-      make DESTDIR=${TEMPROOT} ${ARCHSTRING} distrib-dirs &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} obj &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} all &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} \
+      ${MM_MAKE} DESTDIR=${TEMPROOT} ${ARCHSTRING} distrib-dirs &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} ${ARCHSTRING} obj SUBDIR_OVERRIDE=etc &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} ${ARCHSTRING} all SUBDIR_OVERRIDE=etc &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} ${ARCHSTRING} \
 	  DESTDIR=${TEMPROOT} distribution;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
@@ -569,8 +599,8 @@ case "${RERUN}" in
   *)
     # Only set up files that are crucial to {build|install}world
     { mkdir -p ${TEMPROOT}/etc &&
-      cp -p ${SOURCEDIR}/master.passwd ${TEMPROOT}/etc &&
-      cp -p ${SOURCEDIR}/group ${TEMPROOT}/etc;} ||
+      cp -p ${SOURCEDIR}/etc/master.passwd ${TEMPROOT}/etc &&
+      cp -p ${SOURCEDIR}/etc/group ${TEMPROOT}/etc;} ||
     { echo '';
       echo '  *** FATAL ERROR: Cannot copy files to the temproot environment';
       echo '';
@@ -599,17 +629,23 @@ case "${RERUN}" in
   esac
 
   # Avoid comparing the motd if the user specifies it in .mergemasterrc
+  # Compatibility shim to be removed in FreeBSD 9.x
   case "${IGNORE_MOTD}" in
   '') ;;
-  *) rm -f ${TEMPROOT}/etc/motd
+  *) IGNORE_FILES="${IGNORE_FILES} /etc/motd"
+     echo ''
+     echo "*** You have the IGNORE_MOTD option set in your mergemaster rc file."
+     echo "    This option is deprecated in favor of the IGNORE_FILES option."
+     echo "    Please update your rc file accordingly."
+     echo ''
+     press_to_continue
      ;;
   esac
 
-  # Avoid trying to update MAKEDEV if /dev is on a devfs
-  if /sbin/sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
-    rm -f ${TEMPROOT}/dev/MAKEDEV ${TEMPROOT}/dev/MAKEDEV.local
-  fi
-
+  # Avoid comparing the following user specified files
+  for file in ${IGNORE_FILES}; do
+    test -e ${file} && unlink ${file}
+  done
   ;; # End of the "RERUN" test
 esac
 
@@ -626,9 +662,9 @@ find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
 find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
 
 # Build the mtree database in a temporary location.
-# TODO: Possibly use mktemp instead for security reasons?
+MTREENEW=`mktemp -t mergemaster.mtree`
 case "${PRE_WORLD}" in
-'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${DESTDIR}${MTREEDB}.new 2>/dev/null
+'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${DESTDIR}${MTREENEW} 2>/dev/null
     ;;
 *) # We don't want to mess with the mtree database on a pre-world run.
    ;;
@@ -647,7 +683,7 @@ if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
     echo ''
     echo " *** Your umask is currently set to ${USER_UMASK}.  By default, this script"
     echo "     installs all files with the same user, group and modes that"
-    echo "     they are created with by ${SOURCEDIR}/Makefile, compared to"
+    echo "     they are created with by ${SOURCEDIR}/etc/Makefile, compared to"
     echo "     a umask of 022.  This umask allows world read permission when"
     echo "     the file's default permissions have it."
     echo ''
@@ -714,6 +750,12 @@ esac
 # Use the umask/mode information to install the files
 # Create directories as needed
 #
+install_error () {
+  echo "*** FATAL ERROR: Unable to install ${1} to ${2}"
+  echo ''
+  exit 1
+}
+
 do_install_and_rm () {
   case "${PRESERVE_FILES}" in
   [Yy][Ee][Ss])
@@ -724,8 +766,15 @@ do_install_and_rm () {
     ;;
   esac
 
-  install -m "${1}" "${2}" "${3}" &&
-  rm -f "${2}"
+  if [ ! -d "${3}/${2##*/}" ]; then
+    if install -m ${1} ${2} ${3}; then
+      unlink ${2}
+    else
+      install_error ${2} ${3}
+    fi
+  else
+    install_error ${2} ${3}
+  fi
 }
 
 # 4095 = "obase=10;ibase=8;07777" | bc
@@ -828,11 +877,6 @@ mm_install () {
       ;;
     esac
   else	# File matched -x
-    case "${1#.}" in
-    /dev/MAKEDEV)
-      NEED_MAKEDEV=yes
-      ;;
-    esac
     do_install_and_rm "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
   fi
   return $?
@@ -904,7 +948,7 @@ if [ -r "${MM_PRE_COMPARE_SCRIPT}" ]; then
 fi
 
 # Using -size +0 avoids uselessly checking the empty log files created
-# by ${SOURCEDIR}/Makefile and the device entries in ./dev, but does
+# by ${SOURCEDIR}/etc/Makefile and the device entries in ./dev, but does
 # check the scripts in ./dev, as we'd like (assuming no devfs of course).
 #
 for COMPFILE in `find . -type f -size +0`; do
@@ -986,9 +1030,10 @@ done # This is for the do way up there at the beginning of the comparison
 echo ''
 echo "*** Comparison complete"
 
-if [ -f "${DESTDIR}${MTREEDB}.new" ]; then
+if [ -f "${DESTDIR}${MTREENEW}" ]; then
   echo "*** Saving mtree database for future upgrades"
-  mv -f ${DESTDIR}${MTREEDB}.new ${DESTDIR}${MTREEDB} 2>/dev/null
+  test -e "${MTREEFILE}" && unlink ${MTREEFILE}
+  mv ${DESTDIR}${MTREENEW} ${DESTDIR}${MTREEFILE}
 fi
 
 echo ''
@@ -1096,16 +1141,6 @@ run_it_now () {
   esac
 }
 
-case "${NEED_MAKEDEV}" in
-'') ;;
-*)
-  echo ''
-  echo "*** You installed a new ${DESTDIR}/dev/MAKEDEV script, so make sure that you run"
-  echo "    'cd ${DESTDIR}/dev && /bin/sh MAKEDEV all' to rebuild your devices"
-  run_it_now "cd ${DESTDIR}/dev && /bin/sh MAKEDEV all"
-  ;;
-esac
-
 case "${NEED_NEWALIASES}" in
 '') ;;
 *)
@@ -1187,7 +1222,7 @@ esac
 case "${PRE_WORLD}" in
 '') ;;
 *)
-  MAKE_CONF="${SOURCEDIR%etc}share/examples/etc/make.conf"
+  MAKE_CONF="${SOURCEDIR}/share/examples/etc/make.conf"
 
   (echo ''
   echo '*** Comparing make variables'
