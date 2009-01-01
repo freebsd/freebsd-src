@@ -470,7 +470,7 @@ _vm_map_lock_read(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_lock_flags(&map->system_mtx, 0, file, line);
 	else
-		(void)_sx_xlock(&map->lock, 0, file, line);
+		(void)_sx_slock(&map->lock, 0, file, line);
 }
 
 void
@@ -480,7 +480,7 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
 	else
-		_sx_xunlock(&map->lock, file, line);
+		_sx_sunlock(&map->lock, file, line);
 }
 
 int
@@ -503,20 +503,44 @@ _vm_map_trylock_read(vm_map_t map, const char *file, int line)
 
 	error = map->system_map ?
 	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    !_sx_try_xlock(&map->lock, file, line);
+	    !_sx_try_slock(&map->lock, file, line);
 	return (error == 0);
 }
 
+/*
+ *	_vm_map_lock_upgrade:	[ internal use only ]
+ *
+ *	Tries to upgrade a read (shared) lock on the specified map to a write
+ *	(exclusive) lock.  Returns the value "0" if the upgrade succeeds and a
+ *	non-zero value if the upgrade fails.  If the upgrade fails, the map is
+ *	returned without a read or write lock held.
+ *
+ *	Requires that the map be read locked.
+ */
 int
 _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 {
+	unsigned int last_timestamp;
 
-#ifdef INVARIANTS
 	if (map->system_map) {
+#ifdef INVARIANTS
 		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-	} else
-		_sx_assert(&map->lock, SX_XLOCKED, file, line);
 #endif
+	} else {
+		if (!_sx_try_upgrade(&map->lock, file, line)) {
+			last_timestamp = map->timestamp;
+			_sx_sunlock(&map->lock, file, line);
+			/*
+			 * If the map's timestamp does not change while the
+			 * map is unlocked, then the upgrade succeeds.
+			 */
+			(void)_sx_xlock(&map->lock, 0, file, line);
+			if (last_timestamp != map->timestamp) {
+				_sx_xunlock(&map->lock, file, line);
+				return (1);
+			}
+		}
+	}
 	map->timestamp++;
 	return (0);
 }
@@ -525,12 +549,28 @@ void
 _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
-#ifdef INVARIANTS
 	if (map->system_map) {
+#ifdef INVARIANTS
 		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-	} else
-		_sx_assert(&map->lock, SX_XLOCKED, file, line);
 #endif
+	} else
+		_sx_downgrade(&map->lock, file, line);
+}
+
+/*
+ *	vm_map_locked:
+ *
+ *	Returns a non-zero value if the caller holds a write (exclusive) lock
+ *	on the specified map and the value "0" otherwise.
+ */
+int
+vm_map_locked(vm_map_t map)
+{
+
+	if (map->system_map)
+		return (mtx_owned(&map->system_mtx));
+	else
+		return (sx_xlocked(&map->lock));
 }
 
 /*
@@ -902,6 +942,7 @@ vm_map_lookup_entry(
 	vm_map_entry_t *entry)	/* OUT */
 {
 	vm_map_entry_t cur;
+	boolean_t locked;
 
 	/*
 	 * If the map is empty, then the map entry immediately preceding
@@ -913,8 +954,17 @@ vm_map_lookup_entry(
 	else if (address >= cur->start && cur->end > address) {
 		*entry = cur;
 		return (TRUE);
-	} else {
+	} else if ((locked = vm_map_locked(map)) ||
+	    sx_try_upgrade(&map->lock)) {
+		/*
+		 * Splay requires a write lock on the map.  However, it only
+		 * restructures the binary search tree; it does not otherwise
+		 * change the map.  Thus, the map's timestamp need not change
+		 * on a temporary upgrade.
+		 */
 		map->root = cur = vm_map_entry_splay(address, cur);
+		if (!locked)
+			sx_downgrade(&map->lock);
 
 		/*
 		 * If "address" is contained within a map entry, the new root
@@ -927,7 +977,29 @@ vm_map_lookup_entry(
 				return (TRUE);
 		} else
 			*entry = cur->prev;
-	}
+	} else
+		/*
+		 * Since the map is only locked for read access, perform a
+		 * standard binary search tree lookup for "address".
+		 */
+		for (;;) {
+			if (address < cur->start) {
+				if (cur->left == NULL) {
+					*entry = cur->prev;
+					break;
+				}
+				cur = cur->left;
+			} else if (cur->end > address) {
+				*entry = cur;
+				return (TRUE);
+			} else {
+				if (cur->right == NULL) {
+					*entry = cur;
+					break;
+				}
+				cur = cur->right;
+			}
+		}
 	return (FALSE);
 }
 
