@@ -1371,8 +1371,11 @@ __sysctl(struct thread *td, struct sysctl_args *uap)
 		uap->new, uap->newlen, &j, 0);
 	if (error && error != ENOMEM)
 		return (error);
-	if (uap->oldlenp)
-		error = copyout(&j, uap->oldlenp, sizeof(j));
+	if (uap->oldlenp) {
+		int i = copyout(&j, uap->oldlenp, sizeof(j));
+		if (i)
+			return (i);
+	}
 	return (error);
 }
 
