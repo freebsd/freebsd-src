@@ -119,7 +119,7 @@ struct file {
 	struct ucred	*f_cred;	/* associated credentials. */
 	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
 	short		f_type;		/* descriptor type */
-	short     	f_vnread_flags; /* (f) Sleep lock for f_offset */
+	short		f_vnread_flags; /* (f) Sleep lock for f_offset */
 	volatile u_int	f_flag;		/* see fcntl.h */
 	volatile u_int 	f_count;	/* reference count */
 	/*
