@@ -39,8 +39,9 @@ dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_ocp.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 dev/syscons/scgfbrndr.c		optional	sc
-dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
+dev/syscons/teken/teken.c	optional sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_ocp.c		optional	tsec mpc85xx
 dev/uart/uart_bus_ocp.c		optional	uart mpc85xx

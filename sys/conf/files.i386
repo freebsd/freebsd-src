@@ -220,10 +220,11 @@ dev/sio/sio_puc.c		optional sio puc
 dev/speaker/spkr.c		optional speaker
 dev/sr/if_sr_isa.c		optional sr isa
 dev/syscons/apm/apm_saver.c	optional apm_saver apm
-dev/syscons/scterm-sc.c		optional sc
+dev/syscons/scterm-teken.c	optional sc
 dev/syscons/scvesactl.c		optional sc vga vesa
 dev/syscons/scvgarndr.c		optional sc vga
 dev/syscons/scvtb.c		optional sc
+dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_i386.c	optional uart
 dev/acpica/acpi_if.m		standard
 dev/wpi/if_wpi.c		optional wpi
