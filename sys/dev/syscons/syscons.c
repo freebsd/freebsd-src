@@ -2741,6 +2741,16 @@ scinit(int unit, int flags)
 	    init_scp(sc, sc->first_vty, scp);
 	    sc_vtb_init(&scp->vtb, VTB_MEMORY, scp->xsize, scp->ysize,
 			(void *)sc_buffer, FALSE);
+
+	    /* move cursors to the initial positions */
+	    if (col >= scp->xsize)
+		col = 0;
+	    if (row >= scp->ysize)
+		row = scp->ysize - 1;
+	    scp->xpos = col;
+	    scp->ypos = row;
+	    scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
+
 	    if (sc_init_emulator(scp, SC_DFLT_TERM))
 		sc_init_emulator(scp, "*");
 	    (*scp->tsw->te_default_attr)(scp,
@@ -2763,15 +2773,6 @@ scinit(int unit, int flags)
 	if (ISTEXTSC(scp))
 	    sc_vtb_copy(&scp->scr, 0, &scp->vtb, 0, scp->xsize*scp->ysize);
 #endif
-
-	/* move cursors to the initial positions */
-	if (col >= scp->xsize)
-	    col = 0;
-	if (row >= scp->ysize)
-	    row = scp->ysize - 1;
-	scp->xpos = col;
-	scp->ypos = row;
-	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
 
 	if (bios_value.cursor_end < scp->font_size)
 	    sc->dflt_curs_attr.base = scp->font_size - 
@@ -3569,7 +3570,7 @@ sc_show_font(scr_stat *scp, int page)
 #endif /* !SC_NO_FONT_LOADING */
 
 void
-sc_paste(scr_stat *scp, u_char *p, int count) 
+sc_paste(scr_stat *scp, const u_char *p, int count) 
 {
     struct tty *tp;
     u_char *rmap;
@@ -3581,6 +3582,22 @@ sc_paste(scr_stat *scp, u_char *p, int count)
     for (; count > 0; --count)
 	ttydisc_rint(tp, rmap[*p++], 0);
     ttydisc_rint_done(tp);
+}
+
+void
+sc_respond(scr_stat *scp, const u_char *p, int count) 
+{
+    struct tty *tp;
+
+    tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
+    if (!tty_opened(tp))
+	return;
+    for (; count > 0; --count)
+	ttydisc_rint(tp, *p++, 0);
+#if 0
+    /* XXX: we can't call ttydisc_rint_done() here! */
+    ttydisc_rint_done(tp);
+#endif
 }
 
 void
