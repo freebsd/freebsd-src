@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2003 Douglas Barton
+.\" Copyright (c) 1998-2009 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2006
+.Dd January 1, 2009
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -32,14 +32,14 @@
 .Nd merge configuration files, et al during an upgrade
 .Sh SYNOPSIS
 .Nm
-.Op Fl scrvahipCPU
+.Op Fl achiprsvCPU
+.Op Fl A Ar Target architecture
+.Op Fl D Ar /destdir/path
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
 .Op Fl u Ar N
 .Op Fl w Ar N
-.Op Fl A Ar architecture
-.Op Fl D Ar /path
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,7 +54,7 @@ recommended that you back up your
 directory before beginning this process.
 .Pp
 The script uses
-.Pa /usr/src/etc/Makefile
+.Pa /usr/src/Makefile
 to build a temporary root environment from
 .Pa /
 down, populating that environment with the various
@@ -236,7 +236,7 @@ Supply an alternate screen width to the
 .Xr sdiff 1
 command in numbers of columns.
 The default is 80.
-.It Fl A Ar architecture
+.It Fl A Ar Target architecture
 Specify an alternative
 .Ev TARGET_ARCH
 architecture name.
@@ -294,17 +294,23 @@ with all values commented out:
 # These are options for mergemaster, with their default values listed
 # The following options have command line overrides
 #
+# The target architecture (unset by default)
+#ARCHSTRING='TARGET_ARCH=<foo>'
+#
+# Sourcedir is the directory to do the 'make' in (where the new files are)
+#SOURCEDIR='/usr/src'
+#
 # Directory to install the temporary root environment into
 #TEMPROOT='/var/tmp/temproot'
+#
+# Specify the destination directory for the installed files
+#DESTDIR=
 #
 # Strict comparison bypasses the CVS $Id tests and compares every file
 #STRICT=no
 #
 # Type of diff, such as unified, context, etc.
 #DIFF_FLAG='-u'
-#
-# Additional options for diff.  This will get unset when using -s.
-#DIFF_OPTIONS='-I$\&FreeBSD:.*[$]'	# Ignores CVS Id tags
 #
 # Verbose mode includes more details and additional checks
 #VERBOSE=
@@ -322,24 +328,25 @@ with all values commented out:
 #PRESERVE_FILES=yes
 #PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
 #
-# Sourcedir is the directory to do the 'make' in (where the new files are)
-#SOURCEDIR='/usr/src/etc'
-#
 # The umask for mergemaster to compare the default file's modes to
 #NEW_UMASK=022
 #
-# Specify the destination directory for the installed files
-#DESTDIR=
-#
 # The following options have no command line overrides
+#
+# Files to always avoid comparing
+#IGNORE_FILES='/etc/motd /etc/printcap foo bar'
+#
+# Additional options for diff.  This will get unset when using -s.
+#DIFF_OPTIONS='-I$\&FreeBSD:.*[$]'	# Ignores CVS Id tags
+#
+# Location to store the list of mtree values for AUTO_UPGRADE purposes
+#MTREEDB='/var/db'
+#
 # For those who just cannot stand including the full path to PAGER
 #DONT_CHECK_PAGER=
 #
 # If you set 'yes' above, make sure to include the PATH to your pager
 #PATH=/bin:/usr/bin:/usr/sbin
-#
-# Don't compare the old and new motd files
-#IGNORE_MOTD=yes
 #
 # Specify the path to scripts to run before the comparison starts,
 # and/or after the script has finished its work
@@ -357,6 +364,11 @@ Invalid command line option
 Failure to create the temporary root environment
 .Pp
 Failure to populate the temporary root
+.Pp
+Presence of the 'nodev' option in
+.Pa <DESTDIR>/etc/fstab
+.Pp
+Failure to install a file
 .Sh EXAMPLES
 Typically all you will need to do is type
 .Nm
