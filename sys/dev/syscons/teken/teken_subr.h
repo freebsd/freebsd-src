@@ -256,7 +256,6 @@ static void
 teken_subr_cursor_down(teken_t *t, unsigned int nrows)
 {
 
-	teken_assert(t->t_cursor.tp_row < t->t_scrollreg.ts_end);
 	if (t->t_cursor.tp_row + nrows >= t->t_scrollreg.ts_end)
 		t->t_cursor.tp_row = t->t_scrollreg.ts_end - 1;
 	else
