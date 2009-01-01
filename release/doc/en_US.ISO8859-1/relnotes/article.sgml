@@ -249,7 +249,7 @@
 
       <para>The &os;'s &man.linux.4; ABI support now implements
 	<function>sched_setaffinity()</function> and
-	<function>get_setaffinity()</function> using real CPU affinity
+	<function>sched_getaffinity()</function> using real CPU affinity
 	setting primitives.</para>
 
       <para>The client side functionality of &man.rpc.lockd.8; has been

@@ -220,7 +220,7 @@
 
       <para>&os; 的 &man.linux.4; ABI 支持使用真正的 CPU 绑定配置原语实现了
 	<function>sched_setaffinity()</function> 和
-	<function>get_setaffinity()</function>。</para>
+	<function>sched_getaffinity()</function>。</para>
 
       <para>&man.rpc.lockd.8; 客户端的功能在 &os; 内核中重新进行了实现。
 	这个实现提供了正确的 &man.flock.2; 风格的锁语义，
