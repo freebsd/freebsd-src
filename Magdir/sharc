@@ -6,14 +6,14 @@
 # FutureGroove Music (dsp@futuregroove.de)
 
 #------------------------------------------------------------------------
-0	string			Draw		RiscOS Drawfile
-0	string			PACK		RiscOS PackdDir archive
+#0	string			Draw		RiscOS Drawfile
+#0	string			PACK		RiscOS PackdDir archive
 
 #------------------------------------------------------------------------
 # SHARC DSP stuff (based on the FGM SHARC DSP SDK)
 
-0	string			=!		Assembler source
-0	string			Analog		ADi asm listing file
+#0	string			=!		Assembler source
+#0	string			Analog		ADi asm listing file
 0	string			.SYSTEM		SHARC architecture file
 0	string			.system		SHARC architecture file
 

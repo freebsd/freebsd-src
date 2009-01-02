@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Christos Zoulas 2003.
+ * Copyright (c) Christos Zoulas 2008.
  * All Rights Reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -24,36 +24,46 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#include <stdio.h>
-#include "magic.h"
+	if (nbytes <= sizeof(elfhdr))
+		return 0;
 
-int
-main(int argc, char **argv)
-{
-    struct magic_set *ms;
-    const char *m;
-    int i;
+	u.l = 1;
+	(void)memcpy(&elfhdr, buf, sizeof elfhdr);
+	swap = (u.c[sizeof(int32_t) - 1] + 1) != elfhdr.e_ident[EI_DATA];
 
-    if(argc < 2)
+	type = elf_getu16(swap, elfhdr.e_type);
+	switch (type) {
+#ifdef ELFCORE
+	case ET_CORE:
+		if (dophn_core(ms, clazz, swap, fd,
+		    (off_t)elf_getu(swap, elfhdr.e_phoff),
+		    elf_getu16(swap, elfhdr.e_phnum), 
+		    (size_t)elf_getu16(swap, elfhdr.e_phentsize),
+		    fsize, &flags) == -1)
+			return -1;
+		break;
+#endif
+	case ET_EXEC:
+	case ET_DYN:
+		if (dophn_exec(ms, clazz, swap, fd,
+		    (off_t)elf_getu(swap, elfhdr.e_phoff),
+		    elf_getu16(swap, elfhdr.e_phnum), 
+		    (size_t)elf_getu16(swap, elfhdr.e_phentsize),
+		    fsize, &flags, elf_getu16(swap, elfhdr.e_shnum))
+		    == -1)
+			return -1;
+		/*FALLTHROUGH*/
+	case ET_REL:
+		if (doshn(ms, clazz, swap, fd,
+		    (off_t)elf_getu(swap, elfhdr.e_shoff),
+		    elf_getu16(swap, elfhdr.e_shnum),
+		    (size_t)elf_getu16(swap, elfhdr.e_shentsize),
+		    &flags,
+		    elf_getu16(swap, elfhdr.e_machine)) == -1)
+			return -1;
+		break;
+
+	default:
+		break;
+	}
 	return 1;
-
-    ms = magic_open(MAGIC_NONE);
-    if (ms == NULL) {
-	(void) printf("ERROR: out of memory\n");
-	return 1;
-    }
-    if (magic_load(ms, NULL) == -1) {
-	(void) printf("ERROR: %s\n", magic_error(ms));
-	return 1;
-    }
-
-    for (i = 1; i < argc; i++) {
-	if ((m = magic_file(ms, argv[i])) == NULL)
-	    (void) printf("ERROR: %s\n", magic_error(ms));
-	else
-	    (void) printf("%s: %s\n", argv[i], m);
-    }
-
-    magic_close(ms);
-    return 0;
-}
