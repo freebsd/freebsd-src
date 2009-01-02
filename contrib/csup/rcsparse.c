@@ -82,7 +82,7 @@ duptext(yyscan_t *sp, int *arglen)
  * Start up parser, and use the rcsfile hook to add objects.
  */
 int
-rcsparse_run(struct rcsfile *rf, FILE *infp)
+rcsparse_run(struct rcsfile *rf, FILE *infp, int ro)
 {
 	yyscan_t scanner;
 	char *desc;
@@ -99,9 +99,12 @@ rcsparse_run(struct rcsfile *rf, FILE *infp)
 	rcsfile_setval(rf, RCSFILE_DESC, desc);
 	free(desc);
 	tok = rcslex(scanner);
-	error = parse_deltatexts(rf, &scanner, tok);
-	if (error)
-		return (error);
+	/* Parse deltatexts if we need to edit. */
+	if (!ro) {
+		error = parse_deltatexts(rf, &scanner, tok);
+		if (error)
+			return (error);
+	}
 	rcslex_destroy(scanner);
 	return (0);
 }

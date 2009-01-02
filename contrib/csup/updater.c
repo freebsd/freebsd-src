@@ -1575,7 +1575,7 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 			lprintf(1, " -> Attic");			\
 		lprintf(1, "\n");					\
 		(rf) = rcsfile_frompath((path), (name), (cvsroot),	\
-		    (tag));						\
+		    (tag), 0);						\
 		if ((rf) == NULL) {					\
 			xasprintf(&(up)->errmsg,			\
 			    "Error reading rcsfile %s\n", (name));	\

@@ -37,5 +37,5 @@
 #define COLON		6
 
 struct rcsfile;
-int	rcsparse_run(struct rcsfile *, FILE *);
+int	rcsparse_run(struct rcsfile *, FILE *, int);
 #endif /* !_RCSPARSE_H_ */
