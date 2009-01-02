@@ -371,7 +371,8 @@ echo ''
 #
 case "${DONT_CHECK_PAGER}" in
 '')
-  while ! type "${PAGER%% *}" >/dev/null && [ -n "${PAGER}" ]; do
+check_pager () {
+  while ! type "${PAGER%% *}" >/dev/null; do
     echo " *** Your PAGER environment variable specifies '${PAGER}', but"
     echo "     due to the limited PATH that I use for security reasons,"
     echo "     I cannot execute it.  So, what would you like to do?"
@@ -413,6 +414,10 @@ case "${DONT_CHECK_PAGER}" in
     esac
     echo ''
   done
+}
+  if [ -n "${PAGER}" ]; then
+    check_pager
+  fi
   ;;
 esac
 
@@ -444,7 +449,7 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
 fi
 
 # Setup make to use system files from SOURCEDIR
-MM_MAKE="make -m ${SOURCEDIR}/share/mk"
+MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
 
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
@@ -584,14 +589,13 @@ case "${RERUN}" in
       case "${DESTDIR}" in
       '') ;;
       *)
-      ${MM_MAKE} DESTDIR=${DESTDIR} ${ARCHSTRING} distrib-dirs
+        ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs
         ;;
       esac
-      ${MM_MAKE} DESTDIR=${TEMPROOT} ${ARCHSTRING} distrib-dirs &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} ${ARCHSTRING} obj SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} ${ARCHSTRING} all SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} ${ARCHSTRING} \
-	  DESTDIR=${TEMPROOT} distribution;} ||
+      ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} obj SUBDIR_OVERRIDE=etc &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} all SUBDIR_OVERRIDE=etc &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
