@@ -353,14 +353,16 @@ case "${AUTO_UPGRADE}" in
   ;;
 esac
 
-if grep -q nodev ${DESTDIR}/etc/fstab; then
-  echo ''
-  echo "*** You have the deprecated 'nodev' option in ${DESTDIR}/etc/fstab."
-  echo "    This can prevent your system from mounting the filesystem on reboot."
-  echo "    Please update your fstab before continuing."
-  echo "    See fstab(5) for more information."
-  echo ''
-  exit 1
+if [ -e "${DESTDIR}/etc/fstab" ]; then
+  if grep -q nodev ${DESTDIR}/etc/fstab; then
+    echo ''
+    echo "*** You have the deprecated 'nodev' option in ${DESTDIR}/etc/fstab."
+    echo "    This can prevent the filesystem from being mounted on reboot."
+    echo "    Please update your fstab before continuing."
+    echo "    See fstab(5) for more information."
+    echo ''
+    exit 1
+  fi
 fi
 
 echo ''
