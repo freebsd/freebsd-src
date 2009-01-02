@@ -308,6 +308,13 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct tty *tp = dev->si_drv1;
 
+	/*
+	 * Don't actually close the device if it is being used as the
+	 * console.
+	 */
+	if (strcmp(dev_console_filename, tty_devname(tp)) == 0)
+		return (0);
+
 	tty_lock(tp);
 
 	/*
