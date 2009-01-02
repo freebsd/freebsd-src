@@ -588,9 +588,11 @@ set_test_type(struct magic *mstart, struct magic *m)
 		break;
 	case FILE_REGEX:
 	case FILE_SEARCH:
+#ifndef COMPILE_ONLY
 		/* binary test if pattern is not text */
 		if (file_looks_utf8(m->value.us, m->vallen, NULL, NULL) <= 0)
 			mstart->flag |= BINTEST;
+#endif
 		break;
 	case FILE_DEFAULT:
 		/* can't deduce anything; we shouldn't see this at the
