@@ -133,6 +133,7 @@ config_init(const char *file, struct coll *override, int overridemask)
 			coll->co_options &= ~CO_CHECKRCS;
 		/* In recent versions, we always try to set the file modes. */
 		coll->co_options |= CO_SETMODE;
+		coll->co_options |= CO_NORSYNC;
 		error = config_parse_refusefiles(coll);
 		if (error)
 			goto bad;
