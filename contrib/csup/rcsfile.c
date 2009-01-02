@@ -119,6 +119,7 @@ struct rcsfile {
 	int strictlock;
 	char *comment;
 	int expand;
+	int ro;
 	struct branch *trunk; /* The tip delta. */
 
 	LIST_HEAD(, delta) deltatable;
@@ -153,6 +154,7 @@ const char *state_space = "\t";
 const char *next_space = "\t";
 const char *branches_space = "\t";
 const char *comment_space ="\t";
+const char *expand_space = "\t";
 
 void print_stream(struct stream *);
 
@@ -174,7 +176,7 @@ print_stream(struct stream *s)
  * Parse rcsfile from path and return a pointer to it.
  */
 struct rcsfile *
-rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag)
+rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag, int ro)
 {
 	struct rcsfile *rf;
 	FILE *infp;
@@ -206,6 +208,7 @@ rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag)
 	rf->comment = NULL;
 	rf->expand = EXPAND_DEFAULT;
 	rf->desc = NULL;
+	rf->ro = ro;
 
 	infp = fopen(path, "r");
 	if (infp == NULL) {
@@ -213,7 +216,7 @@ rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag)
 		rcsfile_free(rf);
 		return (NULL);
 	}
-	error = rcsparse_run(rf, infp);
+	error = rcsparse_run(rf, infp, ro);
 	fclose(infp);
 	if (error) {
 		lprintf(-1, "Error parsing \"%s\"\n", name);
@@ -343,6 +346,9 @@ rcsfile_write(struct rcsfile *rf, struct stream *dest)
 	/* Write out the comment. */
 	if (rf->comment != NULL)
 		stream_printf(dest, "comment%s%s;\n", comment_space, rf->comment);
+	if (rf->expand != EXPAND_DEFAULT)
+		stream_printf(dest, "expand%s@%s@;\n", expand_space,
+		    keyword_encode_expand(rf->expand));
 
 	stream_printf(dest, "\n\n");
 
@@ -694,7 +700,7 @@ rcsfile_print(struct rcsfile *rf)
 		lprintf(1, "Strict!\n");
 	if (rf->comment != NULL)
 		lprintf(1, "comment: '%s'\n", rf->comment);
-	if (rf->expand >= 0)
+	if (rf->expand != EXPAND_DEFAULT);
 		lprintf(1, "expand: '%s'\n", keyword_encode_expand(rf->expand));
 	
 	/* Print all deltas. */
@@ -769,7 +775,8 @@ rcsfile_free(struct rcsfile *rf)
 	/* Free all deltas in global list */
 	while (!LIST_EMPTY(&rf->deltatable)) {
 		d = LIST_FIRST(&rf->deltatable);
-		LIST_REMOVE(d, delta_next);
+		if (!rf->ro)
+			LIST_REMOVE(d, delta_next);
 		LIST_REMOVE(d, table_next);
 		rcsfile_freedelta(d);
 	}
@@ -871,7 +878,8 @@ rcsfile_deleterev(struct rcsfile *rf, char *revname)
 	struct delta *d;
 
 	d = rcsfile_getdelta(rf, revname);
-	LIST_REMOVE(d, delta_next);
+	if (!rf->ro)
+		LIST_REMOVE(d, delta_next);
 	LIST_REMOVE(d, table_next);
 	rcsfile_freedelta(d);
 }
@@ -1065,6 +1073,17 @@ rcsfile_importdelta(struct rcsfile *rf, char *revnum, char *revdate, char *autho
 		d_next->diffbase = d;
 	}
 
+	/* If we're opening read-only, do minimal work. */
+	if (rf->ro) {
+		if (!d->placeholder)
+			rcsfile_insertsorteddelta(rf, d);
+		else
+			d->placeholder = 0;
+		if (d_next != NULL)
+			rcsfile_insertsorteddelta(rf, d_next);
+		return;
+	}
+
 	/* If it's trunk, insert it in the head branch list. */
 	b = rcsrev_istrunk(d->revnum) ? rf->trunk : rcsfile_getbranch(rf,
 	    d->revnum);
@@ -1152,10 +1171,7 @@ rcsfile_getbranch(struct rcsfile *rf, char *revnum)
 	return (NULL);
 }
 
-/*
- * Insert a delta into the correct place in the table of the rcsfile. Sorted by
- * date.
- */
+/* Insert a delta into the correct place in the table of the rcsfile. */
 static void
 rcsfile_insertsorteddelta(struct rcsfile *rf, struct delta *d)
 {

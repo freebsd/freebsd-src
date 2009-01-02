@@ -432,7 +432,7 @@ detailer_dofile_rcs(struct detailer *d, struct coll *coll, char *name,
 		return (0);
 	}
 
-	rf = rcsfile_frompath(path, name, coll->co_cvsroot, coll->co_tag);
+	rf = rcsfile_frompath(path, name, coll->co_cvsroot, coll->co_tag, 1);
 	free(path);
 	if (rf == NULL) {
 		error = proto_printf(wr, "A %s\n", name);
