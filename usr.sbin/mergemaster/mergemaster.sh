@@ -644,7 +644,7 @@ case "${RERUN}" in
 
   # Avoid comparing the following user specified files
   for file in ${IGNORE_FILES}; do
-    test -e ${file} && unlink ${file}
+    test -e ${TEMPROOT}/${file} && unlink ${TEMPROOT}/${file}
   done
   ;; # End of the "RERUN" test
 esac
