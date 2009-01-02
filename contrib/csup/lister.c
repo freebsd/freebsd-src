@@ -434,7 +434,7 @@ lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr)
 		free(path);
 	} else 
 		fa = sr->sr_clientattr;
-	if (fattr_equal(fa, sr->sr_clientattr)) {
+	if (fa != NULL && fattr_equal(fa, sr->sr_clientattr)) {
 		/*
 		 * If the file is an RCS file, we use "loose" equality, so sizes
 		 * may disagress because of differences in whitespace.
