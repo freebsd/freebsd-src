@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # c-lang:  file(1) magic for C programs (or REXX)
 #
@@ -6,11 +5,15 @@
 # XPM icons (Greg Roelofs, newt@uchicago.edu)
 # if you uncomment "/*" for C/REXX below, also uncomment this entry
 #0	string		/*\ XPM\ */	X pixmap image data
+#!:mime	image/x-xpmi
+
+# 3DS (3d Studio files) Conflicts with diff output 0x3d '='
+#16	beshort		0x3d3d		image/x-3ds
 
 # this first will upset you if you're a PL/1 shop...
 # in which case rm it; ascmagic will catch real C programs
-#0	string		/*		C or REXX program text
-#0	string		//		C++ program text
+#0	search/1	/*		C or REXX program text
+#0	search/1	//		C++ program text
 
 # From: Mikhail Teterin <mi@aldan.algebra.com> 
 0	string		cscope		cscope reference data
@@ -20,5 +23,5 @@
 # The inverted index functionality was added some time betwen
 # versions 11 and 15, so look for -q if version is above 14:
 >7	string		>14
->>10	regex		.+\ -q\ 	with inverted index
->10	regex		.+\ -c\ 	text (non-compressed)
+>>10	search/100	\ -q\ 		with inverted index
+>10	search/100	\ -c\ 		text (non-compressed)

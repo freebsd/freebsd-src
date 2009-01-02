@@ -1,5 +1,10 @@
 ** README for file(1) Command **
-@(#) $File: README,v 1.34 2006/05/03 18:48:33 christos Exp $
+@(#) $File: README,v 1.40 2008/04/23 03:45:20 christos Exp $
+
+E-mail: christos@astron.com
+Mailing List: file@mx.gw.com
+
+Phone: Do not even think of telephoning me about this program. Send cash first!
 
 This is Release 4.x of Ian Darwin's (copyright but distributable)
 file(1) command. This version is the standard "file" command for Linux,
@@ -41,7 +46,7 @@ magic numbers assigned to all sorts of data files that
 are in reasonable circulation. Send your magic numbers,
 in magic(5) format please, to the maintainer, Christos Zoulas.
 
-LEGAL.NOTICE - read this first.
+COPYING - read this first.
 README - read this second (you are currently reading this file).
 PORTING - read this only if the program won't compile.
 Makefile - read this next, adapt it as needed (particularly
@@ -71,6 +76,31 @@ readelf.[ch] - Stand-alone elf parsing code.
 compress.c - on-the-fly decompression.
 print.c - print results, errors, warnings.
 
+------------------------------------------------------------------------------
+
+If you submit a new magic entry please make sure you read the following
+guidelines:
+
+- Initial match is preferably at least 32 bits long, and is a _unique_ match
+- If this is not feasible, use additional check
+- Match of <= 16 bits are not accepted
+- Delay printing string as much as possible, don't print output too early
+- Avoid printf arbitrary byte as string, which can be a source of
+  crash and buffer overflow
+
+- Provide complete information with entry:
+  * One line short summary
+  * Optional long description
+  * File extension, if applicable
+  * Full name and contact method (for discussion when entry has problem)
+  * Further reference, such as documentation of format
+
+------------------------------------------------------------------------------
+
+You can download the latest version of file from:
+
+	ftp://ftp.astron.com/pub/file/
+
 If your gzip sometimes fails to decompress things complaining about a short
 file, apply this patch [which is going to be in the next version of gzip]:
 *** -   Tue Oct 29 02:06:35 1996
@@ -84,10 +114,6 @@ file, apply this patch [which is going to be in the next version of gzip]:
         read_error();
       }
       bytes_in += (ulg)insize;
-
-E-mail: christos@astron.com
-
-Phone: Do not even think of telephoning me about this program. Send cash first!
 
 Parts of this software were developed at SoftQuad Inc., developers
 of SGML/HTML/XML publishing software, in Toronto, Canada.
