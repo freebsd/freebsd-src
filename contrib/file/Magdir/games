@@ -1,12 +1,6 @@
 #------------------------------------------------------------------------------
 # games:  file(1) for games
 
-# Thomas M. Ott (ThMO)
-1	string	=WAD		DOOM data,
->0	string	=I		main wad
->0	string	=P		patch wad
->0	byte	x		unknown junk
-
 # Fabio Bonelli <fabiobonelli@libero.it>
 # Quake II - III data files
 0       string  IDP2        	Quake II 3D Model file,
@@ -28,11 +22,6 @@
 #---------------------------------------------------------------------------
 # Doom and Quake
 # submitted by Nicolas Patrois
-
-# DOOM
-
-0       string  IWAD    DOOM or DOOM ][ world
-0       string  PWAD    DOOM or DOOM ][ extension world
 
 0       string  \xcb\x1dBoom\xe6\xff\x03\x01    Boom or linuxdoom demo
 # some doom lmp files don't match, I've got one beginning with \x6d\x02\x01\x01
@@ -155,3 +144,102 @@
 
 0	string	MComprHD	MAME CHD compressed hard disk image,
 >12	belong	x		version %lu
+
+# doom - submitted by Jon Dowland
+
+0	string	=IWAD		doom main IWAD data
+>4	lelong	x		containing %d lumps
+0	string	=PWAD		doom patch PWAD data
+>4	lelong	x		containing %d lumps
+
+
+# Summary: Warcraft 3 save
+# Extension: .w3g
+# Created by: "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string		Warcraft\ III\ recorded\ game	%s
+
+
+# Summary: Warcraft 3 map
+# Extension: .w3m
+# Created by: "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string		HM3W		Warcraft III map file
+
+
+# Summary: SGF Smart Game Format
+# Extension: .sgf
+# Reference: http://www.red-bean.com/sgf/
+# Created by: Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
+# Modified by (1): Abel Cheung (regex, more game format)
+# FIXME: Some games don't have GM (game type)
+0	regex		\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
+>2	search/0x200	GM[
+>>&0	string		1]	(Go)
+>>&0	string		2]	(Othello)
+>>&0	string		3]	(chess)
+>>&0	string		4]	(Gomoku+Renju)
+>>&0	string		5]	(Nine Men's Morris)
+>>&0	string		6]	(Backgammon)
+>>&0	string		7]	(Chinese chess)
+>>&0	string		8]	(Shogi)
+>>&0	string		9]	(Lines of Action)
+>>&0	string		10]	(Ataxx)
+>>&0	string		11]	(Hex)
+>>&0	string		12]	(Jungle)
+>>&0	string		13]	(Neutron)
+>>&0	string		14]	(Philosopher's Football)
+>>&0	string		15]	(Quadrature)
+>>&0	string		16]	(Trax)
+>>&0	string		17]	(Tantrix)
+>>&0	string		18]	(Amazons)
+>>&0	string		19]	(Octi)
+>>&0	string		20]	(Gess)
+>>&0	string		21]	(Twixt)
+>>&0	string		22]	(Zertz)
+>>&0	string		23]	(Plateau)
+>>&0	string		24]	(Yinsh)
+>>&0	string		25]	(Punct)
+>>&0	string		26]	(Gobblet)
+>>&0	string		27]	(hive)
+>>&0	string		28]	(Exxit)
+>>&0	string		29]	(Hnefatal)
+>>&0	string		30]	(Kuba)
+>>&0	string		31]	(Tripples)
+>>&0	string		32]	(Chase)
+>>&0	string		33]	(Tumbling Down)
+>>&0	string		34]	(Sahara)
+>>&0	string		35]	(Byte)
+>>&0	string		36]	(Focus)
+>>&0	string		37]	(Dvonn)
+>>&0	string		38]	(Tamsk)
+>>&0	string		39]	(Gipf)
+>>&0	string		40]	(Kropki)
+
+
+# Summary: Civilization 4 video
+# Extension: .bik
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0	string	BIKi	Civilization 4 Video
+
+
+##############################################
+# NetImmerse/Gamebryo game engine entries
+
+# Summary: Gamebryo game engine file
+# Extension: .nif, .kf
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		Gamebryo\ File\ Format,\ Version\ 	Gamebryo game engine file
+>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Summary: Gamebryo game engine file
+# Extension: .kfm
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		;Gamebryo\ KFM\ File\ Version\ 		Gamebryo game engine animation File
+>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Summary: NetImmerse game engine file
+# Extension .nif
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		NetImmerse\ File\ Format,\ Versio		
+>&0		string		n\ 					NetImmerse game engine file
+>>&0		regex		[0-9a-z.]+				\b, version %s
+
