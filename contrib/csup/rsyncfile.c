@@ -34,10 +34,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "misc.h"
-#include "fattr.h"
 #include "rsyncfile.h"
 
 #define MINBLOCKSIZE 1024
@@ -56,7 +56,6 @@ struct rsyncfile {
 	char *end;
 	size_t blocksize;
 	size_t fsize;
-	struct fattr *fa;
 	int fd;
 
 	char *blockptr;
@@ -84,7 +83,6 @@ rsync_open(char *path, size_t blocksize, int rdonly)
 		return (NULL);
 	}
 	rf->fsize = st.st_size;
-	rf->fa = fattr_fromstat(&st);
 
 	rf->fd = open(path, rdonly ? O_RDONLY : O_RDWR);
 	if (rf->fd < 0) {
