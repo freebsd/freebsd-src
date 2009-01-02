@@ -1,0 +1,10 @@
+
+#------------------------------------------------------------------------------
+# llvm:  file(1) magic for LLVM byte-codes
+# URL:  http://llvm.cs.uiuc.edu/docs/BytecodeFormat.html#signature
+# From: Al Stone <ahs3@fc.hp.com>
+
+0	string	llvm	LLVM byte-codes, uncompressed
+0	string	llvc0	LLVM byte-codes, null compression
+0	string	llvc1	LLVM byte-codes, gzip compression
+0	string	llvc2	LLVM byte-codes, bzip2 compression
