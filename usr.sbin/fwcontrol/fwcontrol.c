@@ -1065,6 +1065,7 @@ main(int argc, char **argv)
 		if (recvfn == NULL) { /* guess... */
 			recvfn = detect_recv_fn(fd, TAG | CHANNEL);
 			close(fd);
+			fd = -1;
 		}
 		snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
 		if (open_dev(&fd, devbase) < 0)
