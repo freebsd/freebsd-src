@@ -490,7 +490,7 @@ rcsfile_write_deltatext(struct rcsfile *rf, struct stream *dest)
 			}
 
 			d_tmp2 = LIST_FIRST(&branchlist_datesorted);
-			if (rcsnum_cmp(d_tmp->revdate, d_tmp2->revdate) < 0) {
+			if (rcsnum_cmp(d_tmp->revdate, d_tmp2->revdate) <= 0) {
 				LIST_INSERT_BEFORE(d_tmp2, d_tmp,
 				    branch_next_date);
 				continue;
@@ -498,7 +498,7 @@ rcsfile_write_deltatext(struct rcsfile *rf, struct stream *dest)
 			while ((d_tmp3 = LIST_NEXT(d_tmp2, branch_next_date))
 			    != NULL) {
 				if (rcsnum_cmp(d_tmp->revdate, d_tmp3->revdate)
-				    < 0)
+				    <= 0)
 					break;
 				d_tmp2 = d_tmp3;
 			}
