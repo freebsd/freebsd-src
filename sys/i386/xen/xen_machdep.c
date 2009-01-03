@@ -831,6 +831,8 @@ initvalues(start_info_t *startinfo)
 #endif
 	unsigned long i;
 	int ncpus = MAXCPU;
+	uint32_t kidx_start = ((KERNBASE&0x3fffffff) >> PDRSHIFT);
+	uint32_t hvidx_start = ((VM_MAX_KERNEL_ADDRESS&0x3fffffff)>>PDRSHIFT);
 
 	nkpt = min(
 		min(
@@ -855,30 +857,36 @@ initvalues(start_info_t *startinfo)
 	l2_pages = 0;
 	IdlePDPT = (pd_entry_t *)startinfo->pt_base;
 	IdlePDPTma = xpmap_ptom(VTOP(startinfo->pt_base));
-	for (i = (KERNBASE >> 30);
-	     (i < 4) && (IdlePDPT[i] != 0); i++)
+	if (KERNBASE >= 0xC0000000) {
+		l2_pages = 1;
+		
+		for (i = kidx_start; i < hvidx_start; i++)
+			if (IdlePTD[i] != 0)
+				l1_pages++;
+
+	} else {
+		/*
+		 * XXX this will currently only work if l2 pages == 1
+		 *
+		 */
+		for (i = (KERNBASE >> 30);
+		     (i < 3) && (IdlePDPT[i] != 0); i++)
 			l2_pages++;
+		for (i = 0; i < 512; i++)
+			if (IdlePTD[i] != 0)
+				l1_pages++;
+	}
+	
 	/*
 	 * Note that only one page directory has been allocated at this point.
 	 * Thus, if KERNBASE
 	 */
-#if 0
-	for (i = 0; i < l2_pages; i++)
-		IdlePTDma[i] = xpmap_ptom(VTOP(IdlePTD + i*PAGE_SIZE));
-#endif
-	
 	l2_pages = (l2_pages == 0) ? 1 : l2_pages;
 #else	
 	l3_pages = 0;
 	l2_pages = 1;
 #endif
-	for (i = (((KERNBASE>>18) & PAGE_MASK)>>PAGE_SHIFT);
-	     (i<l2_pages*NPDEPG) && (i<(VM_MAX_KERNEL_ADDRESS>>PDRSHIFT)); i++) {
-		
-		if (IdlePTD[i] == 0)
-			break;
-		l1_pages++;
-	}
+
 	
 	/* number of pages allocated after the pts + 1*/;
 	cur_space = xen_start_info->pt_base +
