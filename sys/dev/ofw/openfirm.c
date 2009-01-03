@@ -220,6 +220,23 @@ OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)
 }
 
 /*
+ * Resursively search the node and its parent for the given property, working
+ * downward from the node to the device tree root.  Returns the value of the
+ * first match.
+ */
+ssize_t
+OF_searchprop(phandle_t node, char *propname, void *buf, size_t len)
+{
+	ssize_t rv;
+
+	for (; node != 0; node = OF_parent(node)) {
+		if ((rv = OF_getprop(node, propname, buf, len)) != -1)
+			return (rv);
+	}
+	return (-1);
+}
+
+/*
  * Store the value of a property of a package into newly allocated memory
  * (using the M_OFWPROP malloc pool and M_WAITOK). elsz is the size of a
  * single element, the number of elements is return in number.
