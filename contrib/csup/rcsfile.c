@@ -89,7 +89,7 @@ struct delta {
 	STAILQ_ENTRY(delta) delta_prev;
 	LIST_ENTRY(delta) table_next;
 	STAILQ_ENTRY(delta) stack_next;
-	STAILQ_HEAD(, branch) branchlist;
+	LIST_HEAD(, branch) branchlist;
 	LIST_ENTRY(delta) branch_next_date;
 };
 
@@ -100,7 +100,7 @@ struct delta {
 struct branch {
 	char *revnum;
 	LIST_HEAD(, delta) deltalist; /* Next delta in our branch. */
-	STAILQ_ENTRY(branch) branch_next;
+	LIST_ENTRY(branch) branch_next;
 };
 
 /*
@@ -142,6 +142,7 @@ static void		 rcsfile_insertsorteddelta(struct rcsfile *,
 static struct stream 	*rcsfile_getdeltatext(struct rcsfile *, struct delta *,
 			     struct buf **);
 static void		 rcsdelta_writestring(char *, size_t, struct stream *);
+static void		 rcsdelta_insertbranch(struct delta *, struct branch *);
 
 
 /* Space formatting of RCS file. */
@@ -378,7 +379,7 @@ rcsfile_write(struct rcsfile *rf, struct stream *dest)
 		 * later when we write out the text.
 		 */
 		STAILQ_INIT(&deltalist_inverted);
-		STAILQ_FOREACH(b, &d->branchlist, branch_next) {
+		LIST_FOREACH(b, &d->branchlist, branch_next) {
 			d_tmp = LIST_FIRST(&b->deltalist);
 			STAILQ_INSERT_HEAD(&deltalist_inverted, d_tmp, delta_prev);
 			STAILQ_INSERT_HEAD(&deltastack, d_tmp, stack_next);
@@ -481,7 +482,7 @@ rcsfile_write_deltatext(struct rcsfile *rf, struct stream *dest)
 		 * First, we need to sort our branches based on their date to
 		 * take into account some self-hacked RCS files.
 		 */
-		STAILQ_FOREACH(b, &d->branchlist, branch_next) {
+		LIST_FOREACH(b, &d->branchlist, branch_next) {
 			d_tmp = LIST_FIRST(&b->deltalist);
 			if (LIST_EMPTY(&branchlist_datesorted)) {
 				LIST_INSERT_HEAD(&branchlist_datesorted, d_tmp,
@@ -818,9 +819,9 @@ rcsfile_freedelta(struct delta *d)
 	 * reason for the branch to exists, but we might still have deltas in
 	 * these branches.
 	 */
-	while (!STAILQ_EMPTY(&d->branchlist)) {
-		b = STAILQ_FIRST(&d->branchlist);
-		STAILQ_REMOVE_HEAD(&d->branchlist, branch_next);
+	while (!LIST_EMPTY(&d->branchlist)) {
+		b = LIST_FIRST(&d->branchlist);
+		LIST_REMOVE(b, branch_next);
 		free(b->revnum);
 		free(b);
 	}
@@ -975,7 +976,7 @@ rcsfile_createdelta(char *revnum)
 	d->text = buf_new(BUF_SIZE_DEFAULT);
 	d->diffbase = NULL;
 
-	STAILQ_INIT(&d->branchlist);
+	LIST_INIT(&d->branchlist);
 	return (d);
 }
 
@@ -1025,7 +1026,7 @@ rcsfile_addelta(struct rcsfile *rf, char *revnum, char *revdate, char *author,
 		b = xmalloc(sizeof(struct branch));
 		b->revnum = brev;
 		LIST_INIT(&b->deltalist);
-		STAILQ_INSERT_TAIL(&d_bp->branchlist, b, branch_next);
+		rcsdelta_insertbranch(d_bp, b);
 	}
 
 	/* Insert both into the tree, and into the lookup list. */
@@ -1112,7 +1113,7 @@ rcsfile_importdelta(struct rcsfile *rf, char *revnum, char *revdate, char *autho
 		b = xmalloc(sizeof(struct branch));
 		b->revnum = brev;
 		LIST_INIT(&b->deltalist);
-		STAILQ_INSERT_HEAD(&d_bp->branchlist, b, branch_next);
+		rcsdelta_insertbranch(d_bp, b);
 	}
 
 	/* Insert if not a placeholder. */ 
@@ -1165,7 +1166,7 @@ rcsfile_getbranch(struct rcsfile *rf, char *revnum)
 	bprev = rcsrev_prefix(branchrev);
 	d = rcsfile_getdelta(rf, bprev);
 	free(bprev);
-	STAILQ_FOREACH(b, &d->branchlist, branch_next) {
+	LIST_FOREACH(b, &d->branchlist, branch_next) {
 		if(rcsnum_cmp(b->revnum, branchrev) == 0) {
 			free(branchrev);
 			return (b);
@@ -1173,6 +1174,31 @@ rcsfile_getbranch(struct rcsfile *rf, char *revnum)
 	}
 	free(branchrev);
 	return (NULL);
+}
+
+/* Insert a branch into a delta, sorted by branch revision date. */
+static void
+rcsdelta_insertbranch(struct delta *d, struct branch *b)
+{
+	struct branch *b_iter;
+
+	/* If it's empty, insert into head. */
+	if (LIST_EMPTY(&d->branchlist)) {
+		LIST_INSERT_HEAD(&d->branchlist, b, branch_next);
+		return;
+	}
+
+	/* Just put it in before the revdate that is lower. */
+	LIST_FOREACH(b_iter, &d->branchlist, branch_next) {
+		if (rcsnum_cmp(b->revnum, b_iter->revnum) > 0) {
+			LIST_INSERT_BEFORE(b_iter, b, branch_next);
+			return;
+		}
+		if (LIST_NEXT(b_iter, branch_next) == NULL)
+			break;
+	}
+	/* Insert after last element. */
+	LIST_INSERT_AFTER(b_iter, b, branch_next);
 }
 
 /* Insert a delta into the correct place in the table of the rcsfile. */
