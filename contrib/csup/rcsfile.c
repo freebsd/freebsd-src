@@ -921,6 +921,7 @@ rcsfile_getdelta(struct rcsfile *rf, char *revnum)
 void
 rcsfile_setval(struct rcsfile *rf, int field, char *val)
 {
+	size_t len;
 
 	switch (field) {
 		case RCSFILE_HEAD:
@@ -943,6 +944,9 @@ rcsfile_setval(struct rcsfile *rf, int field, char *val)
 			rf->comment = xstrdup(val);
 		break;
 		case RCSFILE_EXPAND:
+			len = strlen(val) - 1;
+			val++;
+			val[len - 1] = '\0';
 			rf->expand = keyword_decode_expand(val);
 		break;
 		case RCSFILE_DESC:
