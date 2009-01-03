@@ -258,6 +258,9 @@ When combined with
 only the builtin rules of
 .Nm
 are displayed.
+.It Fl Q
+Be extra quiet.
+For multi-job makes, this will cause file banners not to be generated.
 .It Fl q
 Do not execute any commands, but exit 0 if the specified targets are
 up-to-date and 1, otherwise.
@@ -289,7 +292,7 @@ the variables will be printed one per line,
 with a blank line for each null or undefined variable.
 .It Fl v
 Be extra verbose.
-For multi-job makes, this will cause file banners to be generated.
+Print any extra information.
 .It Fl X
 When using the
 .Fl V

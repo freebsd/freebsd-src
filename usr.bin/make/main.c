@@ -126,6 +126,7 @@ Boolean		is_posix;	/* .POSIX target seen */
 Boolean		mfAutoDeps;	/* .MAKEFILEDEPS target seen */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
+Boolean		beQuiet = TRUE;	/* -Q flag */
 Boolean		compatMake;	/* -B argument */
 int		debug;		/* -d flag */
 Boolean		ignoreErrors;	/* -i flag */
@@ -370,7 +371,7 @@ MainParseArgs(int argc, char **argv)
 rearg:
 	optind = 1;	/* since we're called more than once */
 	optreset = 1;
-#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:npqrstvx:"
+#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nQpqrstvx:"
 	for (;;) {
 		if ((optind < argc) && strcmp(argv[optind], "--") == 0) {
 			found_dd = TRUE;
@@ -516,6 +517,10 @@ rearg:
 			printGraphOnly = TRUE;
 			debug |= DEBUG_GRAPH1;
 			break;
+		case 'Q':
+			beQuiet = TRUE;
+			MFLAGS_append("-Q", NULL);
+			break;
 		case 'q':
 			queryFlag = TRUE;
 			/* Kind of nonsensical, wot? */
@@ -535,6 +540,7 @@ rearg:
 			break;
 		case 'v':
 			beVerbose = TRUE;
+			beQuiet = FALSE;
 			MFLAGS_append("-v", NULL);
 			break;
 		case 'x':
