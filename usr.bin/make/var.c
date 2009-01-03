@@ -946,12 +946,14 @@ VarFindAny(const char name[], GNode *ctxt)
  *	The name and val arguments are duplicated so they may
  *	safely be freed.
  */
-static void
+static Var *
 VarAdd(const char *name, const char *val, GNode *ctxt)
 {
+	Var *v;
 
-	Lst_AtFront(&ctxt->context, VarCreate(name, val, 0));
+	Lst_AtFront(&ctxt->context, v = VarCreate(name, val, 0));
 	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, val));
+	return (v);
 }
 
 /**
@@ -1004,28 +1006,20 @@ Var_Set(const char *name, const char *val, GNode *ctxt)
 	n = VarPossiblyExpand(name, ctxt);
 	v = VarFindOnly(n, ctxt);
 	if (v == NULL) {
-		VarAdd(n, val, ctxt);
-		if (ctxt == VAR_CMD) {
-			/*
-			 * Any variables given on the command line
-			 * are automatically exported to the
-			 * environment (as per POSIX standard)
-			 */
-			setenv(n, val, 1);
-		}
+		v = VarAdd(n, val, ctxt);
 	} else {
 		Buf_Clear(v->val);
 		Buf_Append(v->val, val);
-
-		if (ctxt == VAR_CMD || (v->flags & VAR_TO_ENV)) {
-			/*
-			 * Any variables given on the command line
-			 * are automatically exported to the
-			 * environment (as per POSIX standard)
-			 */
-			setenv(n, val, 1);
-		}
 		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));
+	}
+
+	if (ctxt == VAR_CMD || (v->flags & VAR_TO_ENV)) {
+		/*
+		 * Any variables given on the command line
+		 * are automatically exported to the
+		 * environment (as per POSIX standard)
+		 */
+		setenv(n, val, 1);
 	}
 
 	free(n);
@@ -2325,7 +2319,8 @@ match_var(const char str[], const char var[])
  *	None. The old string must be freed by the caller
  */
 Buffer *
-Var_Subst(const char *str, GNode *ctxt, Boolean err)
+//Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
+Var_Subst(                   const char *str, GNode *ctxt, Boolean err)
 {
 	Boolean	errorReported;
 	Buffer *buf;		/* Buffer for forming things */
