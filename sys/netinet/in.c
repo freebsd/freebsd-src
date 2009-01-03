@@ -1106,9 +1106,10 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	hashkey = sin->sin_addr.s_addr;
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 	LIST_FOREACH(lle, lleh, lle_next) {
+		struct sockaddr_in *sa2 = (struct sockaddr_in *)L3_ADDR(lle);
 		if (lle->la_flags & LLE_DELETED)
 			continue;
-		if (bcmp(L3_ADDR(lle), l3addr, sizeof(struct sockaddr_in)) == 0)
+		if (sa2->sin_addr.s_addr == sin->sin_addr.s_addr)
 			break;
 	}
 	if (lle == NULL) {
