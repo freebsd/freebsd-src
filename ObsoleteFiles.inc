@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20081223: bind 9.4.3 import, nsupdate.8 moved to nsupdate.1
+OLD_FILES+=usr/share/man/man8/nsupdate.8.gz
 # 20081223: ipprotosw.h removed
 OLD_FILES+=usr/include/netinet/ipprotosw.h
 # 20081123: vfs_mountedon.9 removed
