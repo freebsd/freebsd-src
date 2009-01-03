@@ -185,7 +185,6 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 {
 	int	*intr;
 	int	i, nintr;
-	phandle_t iparent;
 	int 	icells;
 
 	if (dinfo->mdi_ninterrupts >= 6) {
@@ -193,10 +192,9 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		return;
 	}
 
-	icells = 1;
-	
-	if (OF_getprop(devnode, "interrupt-parent", &iparent, sizeof(iparent)) == sizeof(iparent))
-		OF_getprop(iparent, "#interrupt-cells", &icells, sizeof(icells));
+	if (OF_searchprop(devnode, "#interrupt-cells", &icells, sizeof(icells))
+	    <= 0)
+		icells = 1;
 
 	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
 		(void **)&intr);
