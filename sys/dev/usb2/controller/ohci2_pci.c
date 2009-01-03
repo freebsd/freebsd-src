@@ -211,6 +211,13 @@ ohci_pci_attach(device_t self)
 
 	pci_enable_busmaster(self);
 
+	/*
+	 * Some Sun PCIO-2 USB controllers have their intpin register
+	 * bogusly set to 0, although it should be 4.  Correct that.
+	 */
+	if (pci_get_devid(self) == 0x1103108e && pci_get_intpin(self) == 0)
+		pci_set_intpin(self, 4);
+
 	rid = PCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
