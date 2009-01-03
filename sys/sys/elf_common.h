@@ -267,6 +267,7 @@ typedef struct {
 #define	SHT_SUNW_dof		0x6ffffff4
 #define	SHT_SUNW_cap		0x6ffffff5
 #define	SHT_SUNW_SIGNATURE	0x6ffffff6
+#define	SHT_GNU_HASH		0x6ffffff6
 #define	SHT_SUNW_ANNOTATE	0x6ffffff7
 #define	SHT_SUNW_DEBUGSTR	0x6ffffff8
 #define	SHT_SUNW_DEBUG		0x6ffffff9
