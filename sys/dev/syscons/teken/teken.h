@@ -43,6 +43,8 @@
  */
 #define	TEKEN_UTF8
 #endif
+/* Emulate cons25-like behaviour. */
+#define	TEKEN_CONS25
 
 #ifdef TEKEN_UTF8
 typedef uint32_t teken_char_t;

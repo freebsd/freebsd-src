@@ -68,7 +68,11 @@ teken_wcwidth(teken_char_t c)
 #define	TS_INSERT	0x02	/* Insert mode. */
 #define	TS_AUTOWRAP	0x04	/* Autowrap. */
 #define	TS_ORIGIN	0x08	/* Origin mode. */
+#ifdef TEKEN_CONS25
+#define	TS_WRAPPED	0x00	/* Simple line wrapping. */
+#else /* !TEKEN_CONS25 */
 #define	TS_WRAPPED	0x10	/* Next character should be printed on col 0. */
+#endif /* TEKEN_CONS25 */
 
 /* Character that blanks a cell. */
 #define	BLANK	' '
