@@ -261,42 +261,28 @@ at91dci_pull_down(struct at91dci_softc *sc)
 }
 
 static void
-at91dci_wakeup_peer(struct at91dci_softc *sc)
+at91dci_wakeup_peer(struct usb2_xfer *xfer)
 {
-	uint32_t temp;
+	struct at91dci_softc *sc = xfer->usb2_sc;
+	uint8_t use_polling;
 
 	if (!(sc->sc_flags.status_suspend)) {
 		return;
 	}
-	temp = AT91_UDP_READ_4(sc, AT91_UDP_GSTATE);
+	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
 
-	if (!(temp & AT91_UDP_GSTATE_ESR)) {
-		return;
-	}
-	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, temp);
-}
+	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, AT91_UDP_GSTATE_ESR);
 
-static void
-at91dci_rem_wakeup_set(struct usb2_device *udev, uint8_t is_on)
-{
-	struct at91dci_softc *sc;
-	uint32_t temp;
-
-	DPRINTFN(5, "is_on=%u\n", is_on);
-
-	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
-
-	sc = AT9100_DCI_BUS2SC(udev->bus);
-
-	temp = AT91_UDP_READ_4(sc, AT91_UDP_GSTATE);
-
-	if (is_on) {
-		temp |= AT91_UDP_GSTATE_ESR;
+	/* wait 8 milliseconds */
+	if (use_polling) {
+		/* polling */
+		DELAY(8000);
 	} else {
-		temp &= ~AT91_UDP_GSTATE_ESR;
+		/* Wait for reset to complete. */
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 8);
 	}
 
-	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, temp);
+	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, 0);
 }
 
 static void
@@ -2120,7 +2106,7 @@ tr_handle_clear_port_feature:
 
 	switch (value) {
 	case UHF_PORT_SUSPEND:
-		at91dci_wakeup_peer(sc);
+		at91dci_wakeup_peer(xfer);
 		break;
 
 	case UHF_PORT_ENABLE:
@@ -2492,5 +2478,4 @@ struct usb2_bus_methods at91dci_bus_methods =
 	.set_stall = &at91dci_set_stall,
 	.clear_stall = &at91dci_clear_stall,
 	.vbus_interrupt = &at91dci_vbus_interrupt,
-	.rem_wakeup_set = &at91dci_rem_wakeup_set,
 };

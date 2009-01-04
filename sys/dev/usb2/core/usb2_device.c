@@ -1186,7 +1186,7 @@ usb2_suspend_resume_sub(struct usb2_device *udev, device_t dev, uint8_t do_suspe
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_suspend_resume_device
+ *	usb2_suspend_resume
  *
  * The following function will suspend or resume the USB device.
  *
@@ -1339,7 +1339,13 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->bus = bus;
 	udev->address = USB_START_ADDR;	/* default value */
 	udev->plugtime = (uint32_t)ticks;
+	/*
+	 * We need to force the power mode to "on" because there are plenty
+	 * of USB devices out there that do not work very well with
+	 * automatic suspend and resume!
+	 */
 	udev->power_mode = USB_POWER_MODE_ON;
+	udev->pwr_save.last_xfer_time = ticks;
 
 	/* we are not ready yet */
 	udev->refcount = 1;
@@ -1450,7 +1456,11 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
 		    "at addr %d failed!\n", udev->address);
-		goto done;
+		/* XXX try to re-enumerate the device */
+		err = usb2_req_re_enumerate(udev, &Giant);
+		if (err) {
+			goto done;
+		}
 	}
 	DPRINTF("adding unit addr=%d, rev=%02x, class=%d, "
 	    "subclass=%d, protocol=%d, maxpacket=%d, len=%d, speed=%d\n",
@@ -1546,6 +1556,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	if (udev->flags.usb2_mode == USB_MODE_HOST) {
 		uint8_t config_index;
 		uint8_t config_quirk;
+		uint8_t set_config_failed = 0;
 
 		/*
 		 * Most USB devices should attach to config index 0 by
@@ -1580,11 +1591,27 @@ repeat_set_config:
 		err = usb2_set_config_index(udev, config_index);
 		sx_unlock(udev->default_sx + 1);
 		if (err) {
-			DPRINTFN(0, "Failure selecting "
-			    "configuration index %u: %s, port %u, addr %u\n",
-			    config_index, usb2_errstr(err), udev->port_no,
-			    udev->address);
-
+			if (udev->ddesc.bNumConfigurations != 0) {
+				if (!set_config_failed) {
+					set_config_failed = 1;
+					/* XXX try to re-enumerate the device */
+					err = usb2_req_re_enumerate(
+					    udev, &Giant);
+					if (err == 0)
+					    goto repeat_set_config;
+				}
+				DPRINTFN(0, "Failure selecting "
+				    "configuration index %u: %s, port %u, "
+				    "addr %u (ignored)\n",
+				    config_index, usb2_errstr(err), udev->port_no,
+				    udev->address);
+			}
+			/*
+			 * Some USB devices do not have any
+			 * configurations. Ignore any set config
+			 * failures!
+			 */
+			err = 0;
 		} else if (config_quirk) {
 			/* user quirk selects configuration index */
 		} else if ((config_index + 1) < udev->ddesc.bNumConfigurations) {
@@ -1608,7 +1635,7 @@ repeat_set_config:
 					goto repeat_set_config;
 				}
 			}
-		} else if (usb2_test_huawei(udev, &uaa) == 0) {
+		} else if (usb2_test_huawei_autoinst_p(udev, &uaa) == 0) {
 			DPRINTFN(0, "Found Huawei auto-install disk!\n");
 			err = USB_ERR_STALLED;	/* fake an error */
 		}
@@ -1669,6 +1696,11 @@ usb2_free_device(struct usb2_device *udev)
 	usb2_notify_addq("-", udev);
 
 	bus = udev->bus;
+
+	printf("ugen%u.%u: <%s> at %s (disconnected)\n",
+	    device_get_unit(bus->bdev),
+	    udev->device_index, udev->manufacturer,
+	    device_get_nameunit(bus->bdev));
 
 	/*
 	 * Destroy UGEN symlink, if any
@@ -1937,6 +1969,19 @@ usb2_get_speed(struct usb2_device *udev)
 	return (udev->speed);
 }
 
+uint32_t
+usb2_get_isoc_fps(struct usb2_device *udev)
+{
+	;				/* indent fix */
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		return (1000);
+	default:
+		return (8000);
+	}
+}
+
 struct usb2_device_descriptor *
 usb2_get_device_descriptor(struct usb2_device *udev)
 {
@@ -2122,4 +2167,23 @@ usb2_fifo_free_wrap(struct usb2_device *udev,
 		/* free this FIFO */
 		usb2_fifo_free(f);
 	}
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_peer_can_wakeup
+ *
+ * Return values:
+ * 0: Peer cannot do resume signalling.
+ * Else: Peer can do resume signalling.
+ *------------------------------------------------------------------------*/
+uint8_t
+usb2_peer_can_wakeup(struct usb2_device *udev)
+{
+	const struct usb2_config_descriptor *cdp;
+
+	cdp = udev->cdesc;
+	if ((cdp != NULL) && (udev->flags.usb2_mode == USB_MODE_HOST)) {
+		return (cdp->bmAttributes & UC_REMOTE_WAKEUP);
+	}
+	return (0);			/* not supported */
 }

@@ -25,66 +25,14 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR =
-SUBDIR += bluetooth
-SUBDIR += bluetooth_ng
-SUBDIR += bluetooth_fw
-SUBDIR += controller
-SUBDIR += controller_at91dci
-SUBDIR += controller_ehci
-SUBDIR += controller_musb
-SUBDIR += controller_ohci
-SUBDIR += controller_uhci
-SUBDIR += controller_uss820dci
-SUBDIR += core
-SUBDIR += ethernet
-SUBDIR += ethernet_aue
-SUBDIR += ethernet_axe
-SUBDIR += ethernet_cdce
-SUBDIR += ethernet_cue
-SUBDIR += ethernet_dav
-SUBDIR += ethernet_kue
-SUBDIR += ethernet_rue
-SUBDIR += image
-SUBDIR += input
-SUBDIR += input_hid
-SUBDIR += input_kbd
-SUBDIR += input_ms
-SUBDIR += misc
-SUBDIR += misc_dbp
-SUBDIR += misc_fm
-#SUBDIR += ndis
-SUBDIR += quirk
-SUBDIR += scanner
-SUBDIR += serial
-SUBDIR += serial_3g
-SUBDIR += serial_ark
-SUBDIR += serial_bsa
-SUBDIR += serial_bser
-SUBDIR += serial_chcom
-SUBDIR += serial_cycom
-SUBDIR += serial_foma
-SUBDIR += serial_ftdi
-SUBDIR += serial_gensa
-SUBDIR += serial_ipaq
-SUBDIR += serial_lpt
-SUBDIR += serial_mct
-SUBDIR += serial_modem
-SUBDIR += serial_moscom
-SUBDIR += serial_plcom
-SUBDIR += serial_visor
-SUBDIR += serial_vscom
-SUBDIR += sound
-SUBDIR += storage
-SUBDIR += storage_ata
-SUBDIR += storage_fs
-SUBDIR += storage_mass
-SUBDIR += storage_rio
-SUBDIR += template
-SUBDIR += wlan
-SUBDIR += wlan_ral
-SUBDIR += wlan_rum
-SUBDIR += wlan_zyd
+S=${.CURDIR}/../../..
 
-.include <bsd.subdir.mk>
+.PATH: $S/dev/usb2/serial
 
+KMOD=usb2_serial_3g
+SRCS= 
+SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h
+SRCS+= opt_usb.h opt_bus.h opt_compat.h
+SRCS+= u3g2.c
+
+.include <bsd.kmod.mk>

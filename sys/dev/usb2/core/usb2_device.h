@@ -83,6 +83,18 @@ struct usb2_device_flags {
 };
 
 /*
+ * The following structure is used for power-save purposes. The data
+ * in this structure is protected by the USB BUS lock.
+ */
+struct usb2_power_save {
+	int	last_xfer_time;		/* copy of "ticks" */
+	uint32_t type_refs[4];		/* transfer reference count */
+	uint32_t read_refs;		/* data read references */
+	uint32_t write_refs;		/* data write references */
+	uint8_t	suspended;		/* set if USB device is suspended */
+};
+
+/*
  * The following structure defines an USB device. There exists one of
  * these structures for every USB device.
  */
@@ -96,6 +108,7 @@ struct usb2_device {
 	struct usb2_interface ifaces[USB_IFACE_MAX];
 	struct usb2_pipe default_pipe;	/* Control Endpoint 0 */
 	struct usb2_pipe pipes[USB_EP_MAX];
+	struct usb2_power_save pwr_save;/* power save data */
 
 	struct usb2_bus *bus;		/* our USB BUS */
 	device_t parent_dev;		/* parent device */
@@ -169,5 +182,6 @@ void	*usb2_find_descriptor(struct usb2_device *udev, void *id,
 	    uint8_t iface_index, uint8_t type, uint8_t type_mask,
 	    uint8_t subtype, uint8_t subtype_mask);
 void	usb_linux_free_device(struct usb_device *dev);
+uint8_t	usb2_peer_can_wakeup(struct usb2_device *udev);
 
 #endif					/* _USB2_DEVICE_H_ */

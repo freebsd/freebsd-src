@@ -189,7 +189,6 @@ static const struct usb2_device_id ural_devs[] = {
 	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2570, 0)},
 	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2570_2, 0)},
 	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2570_3, 0)},
-	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2573, 0)},
 	{USB_VPI(USB_VENDOR_SIEMENS2, USB_PRODUCT_SIEMENS2_WL54G, 0)},
 	{USB_VPI(USB_VENDOR_SMC, USB_PRODUCT_SMC_2862WG, 0)},
 	{USB_VPI(USB_VENDOR_SPHAIRON, USB_PRODUCT_SPHAIRON_UB801R, 0)},
@@ -787,8 +786,9 @@ ural_cfg_first_time_setup(struct ural_softc *sc,
 	/* retrieve MAC address and various other things from EEPROM */
 	ural_cfg_read_eeprom(sc);
 
-	printf("%s: MAC/BBP RT2570 (rev 0x%02x), RF %s\n",
-	    sc->sc_name, sc->sc_asic_rev, ural_get_rf(sc->sc_rf_rev));
+	printf("%s: MAC/BBP RT2570 (rev 0x%02x), RF %s (0x%02x)\n",
+	    sc->sc_name, sc->sc_asic_rev, ural_get_rf(sc->sc_rf_rev),
+	    sc->sc_rf_rev);
 
 	mtx_unlock(&sc->sc_mtx);
 
@@ -958,8 +958,11 @@ ural_config_copy(struct ural_softc *sc,
 static const char *
 ural_get_rf(int rev)
 {
+	;				/* style fix */
+
 	switch (rev) {
-		case RAL_RF_2522:return "RT2522";
+	case RAL_RF_2522:
+		return "RT2522";
 	case RAL_RF_2523:
 		return "RT2523";
 	case RAL_RF_2524:

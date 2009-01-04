@@ -171,8 +171,6 @@ static void	uplcom_start_write(struct usb2_com_softc *);
 static void	uplcom_stop_write(struct usb2_com_softc *);
 static void	uplcom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
 		    uint8_t *);
-static int	uplcom_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
-		    struct thread *);
 static void	uplcom_cfg_do_request(struct uplcom_softc *,
 		    struct usb2_device_request *, void *);
 
@@ -260,7 +258,6 @@ struct usb2_com_callback uplcom_callback = {
 	.usb2_com_cfg_set_break = &uplcom_cfg_set_break,
 	.usb2_com_cfg_param = &uplcom_cfg_param,
 	.usb2_com_pre_param = &uplcom_pre_param,
-	.usb2_com_ioctl = &uplcom_ioctl,
 	.usb2_com_start_read = &uplcom_start_read,
 	.usb2_com_stop_read = &uplcom_stop_read,
 	.usb2_com_start_write = &uplcom_start_write,
@@ -766,13 +763,6 @@ uplcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-}
-
-static int
-uplcom_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data, int flag,
-    struct thread *td)
-{
-	return (ENOTTY);
 }
 
 static void

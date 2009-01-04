@@ -249,6 +249,7 @@ static struct usb2_device_id uftdi_devs[] = {
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_EMCU2D, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_PCMSFU, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_EMCU2H, UFTDI_TYPE_8U232AM)},
+	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_MAXSTREAM, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_SIIG2, USB_PRODUCT_SIIG2_US2308, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_INTREPIDCS, USB_PRODUCT_INTREPIDCS_VALUECAN, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_INTREPIDCS, USB_PRODUCT_INTREPIDCS_NEOVI, UFTDI_TYPE_8U232AM)},
@@ -470,6 +471,7 @@ uftdi_read_callback(struct usb2_xfer *xfer)
 {
 	struct uftdi_softc *sc = xfer->priv_sc;
 	uint8_t buf[2];
+	uint8_t ftdi_msr;
 	uint8_t msr;
 	uint8_t lsr;
 
@@ -481,8 +483,18 @@ uftdi_read_callback(struct usb2_xfer *xfer)
 		}
 		usb2_copy_out(xfer->frbuffers, 0, buf, 2);
 
-		msr = FTDI_GET_MSR(buf);
+		ftdi_msr = FTDI_GET_MSR(buf);
 		lsr = FTDI_GET_LSR(buf);
+
+		msr = 0;
+		if (ftdi_msr & FTDI_SIO_CTS_MASK)
+			msr |= SER_CTS;
+		if (ftdi_msr & FTDI_SIO_DSR_MASK)
+			msr |= SER_DSR;
+		if (ftdi_msr & FTDI_SIO_RI_MASK)
+			msr |= SER_RI;
+		if (ftdi_msr & FTDI_SIO_RLSD_MASK)
+			msr |= SER_DCD;
 
 		if ((sc->sc_msr != msr) ||
 		    ((sc->sc_lsr & FTDI_LSR_MASK) != (lsr & FTDI_LSR_MASK))) {
