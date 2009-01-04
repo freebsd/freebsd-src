@@ -916,16 +916,18 @@ _uhci_append_td(uhci_td_t *std, uhci_td_t *last)
 	return (std);
 }
 
-#define	UHCI_APPEND_QH(sqh,td,last) (last) = _uhci_append_qh(sqh,td,last)
+#define	UHCI_APPEND_QH(sqh,last) (last) = _uhci_append_qh(sqh,last)
 static uhci_qh_t *
-_uhci_append_qh(uhci_qh_t *sqh, uhci_td_t *td, uhci_qh_t *last)
+_uhci_append_qh(uhci_qh_t *sqh, uhci_qh_t *last)
 {
 	DPRINTFN(11, "%p to %p\n", sqh, last);
 
+	if (sqh->h_prev != NULL) {
+		/* should not happen */
+		DPRINTFN(0, "QH already linked!\n");
+		return (last);
+	}
 	/* (sc->sc_bus.mtx) must be locked */
-
-	sqh->e_next = td;
-	sqh->qh_e_next = td->td_self;
 
 	sqh->h_next = last->h_next;
 	sqh->qh_h_next = last->qh_h_next;
@@ -990,13 +992,6 @@ _uhci_remove_qh(uhci_qh_t *sqh, uhci_qh_t *last)
 			sqh->h_next->h_prev = sqh->h_prev;
 			usb2_pc_cpu_flush(sqh->h_next->page_cache);
 		}
-		/*
-		 * set the Terminate-bit in the e_next of the QH, in case
-		 * the transferred packet was short so that the QH still
-		 * points at the last used TD
-		 */
-		sqh->qh_e_next = htole32(UHCI_PTR_T);
-
 		last = ((last == sqh) ? sqh->h_prev : last);
 
 		sqh->h_prev = 0;
@@ -1459,10 +1454,12 @@ uhci_interrupt(uhci_softc_t *sc)
 		}
 		if (status & UHCI_STS_HCH) {
 			/* no acknowledge needed */
-			printf("%s: host controller halted\n",
+			DPRINTF("%s: host controller halted\n",
 			    __FUNCTION__);
 #if USB_DEBUG
-			uhci_dump_all(sc);
+			if (uhcidebug > 0) {
+				uhci_dump_all(sc);
+			}
 #endif
 		}
 	}
@@ -1834,11 +1831,6 @@ uhci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 	if (qh) {
 		usb2_pc_cpu_invalidate(qh->page_cache);
-
-		qh->e_next = 0;
-		qh->qh_e_next = htole32(UHCI_PTR_T);
-
-		usb2_pc_cpu_flush(qh->page_cache);
 	}
 	if (xfer->flags_int.bandwidth_reclaimed) {
 		xfer->flags_int.bandwidth_reclaimed = 0;
@@ -1907,9 +1899,16 @@ uhci_device_bulk_start(struct usb2_xfer *xfer)
 	/* setup QH */
 	qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 
-	UHCI_APPEND_QH(qh, td, sc->sc_bulk_p_last);
-	uhci_add_loop(sc);
-	xfer->flags_int.bandwidth_reclaimed = 1;
+	qh->e_next = td;
+	qh->qh_e_next = td->td_self;
+
+	if (xfer->udev->pwr_save.suspended == 0) {
+		UHCI_APPEND_QH(qh, sc->sc_bulk_p_last);
+		uhci_add_loop(sc);
+		xfer->flags_int.bandwidth_reclaimed = 1;
+	} else {
+		usb2_pc_cpu_flush(qh->page_cache);
+	}
 
 	/* put transfer on interrupt queue */
 	uhci_transfer_intr_enqueue(xfer);
@@ -1959,14 +1958,21 @@ uhci_device_ctrl_start(struct usb2_xfer *xfer)
 	/* setup QH */
 	qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 
+	qh->e_next = td;
+	qh->qh_e_next = td->td_self;
+
 	/*
 	 * NOTE: some devices choke on bandwidth- reclamation for control
 	 * transfers
 	 */
-	if (xfer->udev->speed == USB_SPEED_LOW) {
-		UHCI_APPEND_QH(qh, td, sc->sc_ls_ctl_p_last);
+	if (xfer->udev->pwr_save.suspended == 0) {
+		if (xfer->udev->speed == USB_SPEED_LOW) {
+			UHCI_APPEND_QH(qh, sc->sc_ls_ctl_p_last);
+		} else {
+			UHCI_APPEND_QH(qh, sc->sc_fs_ctl_p_last);
+		}
 	} else {
-		UHCI_APPEND_QH(qh, td, sc->sc_fs_ctl_p_last);
+		usb2_pc_cpu_flush(qh->page_cache);
 	}
 	/* put transfer on interrupt queue */
 	uhci_transfer_intr_enqueue(xfer);
@@ -2047,8 +2053,17 @@ uhci_device_intr_start(struct usb2_xfer *xfer)
 	/* setup QH */
 	qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 
-	/* enter QHs into the controller data structures */
-	UHCI_APPEND_QH(qh, td, sc->sc_intr_p_last[xfer->qh_pos]);
+	qh->e_next = td;
+	qh->qh_e_next = td->td_self;
+
+	if (xfer->udev->pwr_save.suspended == 0) {
+
+		/* enter QHs into the controller data structures */
+		UHCI_APPEND_QH(qh, sc->sc_intr_p_last[xfer->qh_pos]);
+
+	} else {
+		usb2_pc_cpu_flush(qh->page_cache);
+	}
 
 	/* put transfer on interrupt queue */
 	uhci_transfer_intr_enqueue(xfer);
@@ -2659,7 +2674,7 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			break;
 		case UHF_PORT_SUSPEND:
 			x = URWMASK(UREAD2(sc, port));
-			UWRITE2(sc, port, x & ~UHCI_PORTSC_SUSP);
+			UWRITE2(sc, port, x & ~(UHCI_PORTSC_SUSP));
 			break;
 		case UHF_PORT_RESET:
 			x = URWMASK(UREAD2(sc, port));
@@ -2681,11 +2696,13 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			sc->sc_isreset = 0;
 			std->err = USB_ERR_NORMAL_COMPLETION;
 			goto done;
+		case UHF_C_PORT_SUSPEND:
+			sc->sc_isresumed &= ~(1 << index);
+			break;
 		case UHF_PORT_CONNECTION:
 		case UHF_PORT_OVER_CURRENT:
 		case UHF_PORT_POWER:
 		case UHF_PORT_LOW_SPEED:
-		case UHF_C_PORT_SUSPEND:
 		default:
 			std->err = USB_ERR_IOERROR;
 			goto done;
@@ -2740,11 +2757,35 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			status |= UPS_OVERCURRENT_INDICATOR;
 		if (x & UHCI_PORTSC_OCIC)
 			change |= UPS_C_OVERCURRENT_INDICATOR;
-		if (x & UHCI_PORTSC_SUSP)
-			status |= UPS_SUSPEND;
 		if (x & UHCI_PORTSC_LSDA)
 			status |= UPS_LOW_SPEED;
+		if ((x & UHCI_PORTSC_PE) && (x & UHCI_PORTSC_RD)) {
+			/* need to do a write back */
+			UWRITE2(sc, port, URWMASK(x));
+
+			/* wait 20ms for resume sequence to complete */
+			if (use_polling) {
+				/* polling */
+				DELAY(20 * 1000);
+			} else {
+				usb2_pause_mtx(&sc->sc_bus.bus_mtx, 20);
+			}
+
+			/* clear suspend and resume detect */
+			UWRITE2(sc, port, URWMASK(x) & ~(UHCI_PORTSC_RD |
+			    UHCI_PORTSC_SUSP));
+
+			/* wait a little bit */
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 2);
+
+			sc->sc_isresumed |= (1 << index);
+
+		} else if (x & UHCI_PORTSC_SUSP) {
+			status |= UPS_SUSPEND;
+		}
 		status |= UPS_PORT_POWER;
+		if (sc->sc_isresumed & (1 << index))
+			change |= UPS_C_SUSPEND;
 		if (sc->sc_isreset)
 			change |= UPS_C_PORT_RESET;
 		USETW(sc->sc_hub_desc.ps.wPortStatus, status);
@@ -2894,13 +2935,15 @@ uhci_root_intr_check(void *arg)
 
 	sc->sc_hub_idata[0] = 0;
 
-	if (UREAD2(sc, UHCI_PORTSC1) & (UHCI_PORTSC_CSC | UHCI_PORTSC_OCIC)) {
+	if (UREAD2(sc, UHCI_PORTSC1) & (UHCI_PORTSC_CSC |
+	    UHCI_PORTSC_OCIC | UHCI_PORTSC_RD)) {
 		sc->sc_hub_idata[0] |= 1 << 1;
 	}
-	if (UREAD2(sc, UHCI_PORTSC2) & (UHCI_PORTSC_CSC | UHCI_PORTSC_OCIC)) {
+	if (UREAD2(sc, UHCI_PORTSC2) & (UHCI_PORTSC_CSC |
+	    UHCI_PORTSC_OCIC | UHCI_PORTSC_RD)) {
 		sc->sc_hub_idata[0] |= 1 << 2;
 	}
-	if ((sc->sc_hub_idata[0] == 0) || !(UREAD2(sc, UHCI_CMD) & UHCI_CMD_RS)) {
+	if (sc->sc_hub_idata[0] == 0) {
 		/*
 		 * no change or controller not running, try again in a while
 		 */
@@ -3190,6 +3233,124 @@ uhci_get_dma_delay(struct usb2_bus *bus, uint32_t *pus)
 	*pus = (1125);			/* microseconds */
 }
 
+static void
+uhci_device_resume(struct usb2_device *udev)
+{
+	struct uhci_softc *sc = UHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+	uhci_qh_t *qh;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->udev == udev) {
+
+			methods = xfer->pipe->methods;
+			qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+			if (methods == &uhci_device_bulk_methods) {
+				UHCI_APPEND_QH(qh, sc->sc_bulk_p_last);
+				uhci_add_loop(sc);
+				xfer->flags_int.bandwidth_reclaimed = 1;
+			}
+			if (methods == &uhci_device_ctrl_methods) {
+				if (xfer->udev->speed == USB_SPEED_LOW) {
+					UHCI_APPEND_QH(qh, sc->sc_ls_ctl_p_last);
+				} else {
+					UHCI_APPEND_QH(qh, sc->sc_fs_ctl_p_last);
+				}
+			}
+			if (methods == &uhci_device_intr_methods) {
+				UHCI_APPEND_QH(qh, sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+uhci_device_suspend(struct usb2_device *udev)
+{
+	struct uhci_softc *sc = UHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+	uhci_qh_t *qh;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->udev == udev) {
+
+			methods = xfer->pipe->methods;
+			qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+			if (xfer->flags_int.bandwidth_reclaimed) {
+				xfer->flags_int.bandwidth_reclaimed = 0;
+				uhci_rem_loop(sc);
+			}
+			if (methods == &uhci_device_bulk_methods) {
+				UHCI_REMOVE_QH(qh, sc->sc_bulk_p_last);
+			}
+			if (methods == &uhci_device_ctrl_methods) {
+				if (xfer->udev->speed == USB_SPEED_LOW) {
+					UHCI_REMOVE_QH(qh, sc->sc_ls_ctl_p_last);
+				} else {
+					UHCI_REMOVE_QH(qh, sc->sc_fs_ctl_p_last);
+				}
+			}
+			if (methods == &uhci_device_intr_methods) {
+				UHCI_REMOVE_QH(qh, sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+uhci_set_hw_power(struct usb2_bus *bus)
+{
+	struct uhci_softc *sc = UHCI_BUS2SC(bus);
+	uint32_t flags;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(bus);
+
+	flags = bus->hw_power_state;
+
+	if (flags & (USB_HW_POWER_CONTROL |
+	    USB_HW_POWER_BULK |
+	    USB_HW_POWER_INTERRUPT |
+	    USB_HW_POWER_ISOC)) {
+		DPRINTF("Some USB transfer is "
+		    "active on %u.\n",
+		    device_get_unit(sc->sc_bus.bdev));
+		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
+	} else {
+		DPRINTF("Power save on %u.\n",
+		    device_get_unit(sc->sc_bus.bdev));
+		UHCICMD(sc, UHCI_CMD_MAXP);
+	}
+
+	USB_BUS_UNLOCK(bus);
+
+	return;
+}
+
+
 struct usb2_bus_methods uhci_bus_methods =
 {
 	.pipe_init = uhci_pipe_init,
@@ -3197,4 +3358,7 @@ struct usb2_bus_methods uhci_bus_methods =
 	.xfer_unsetup = uhci_xfer_unsetup,
 	.do_poll = uhci_do_poll,
 	.get_dma_delay = uhci_get_dma_delay,
+	.device_resume = uhci_device_resume,
+	.device_suspend = uhci_device_suspend,
+	.set_hw_power = uhci_set_hw_power,
 };

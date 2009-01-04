@@ -61,13 +61,35 @@ struct usb2_bus_methods {
 	void    (*xfer_setup) (struct usb2_setup_params *parm);
 	void    (*xfer_unsetup) (struct usb2_xfer *xfer);
 	void    (*get_dma_delay) (struct usb2_bus *, uint32_t *pdelay);
+	void    (*device_suspend) (struct usb2_device *udev);
+	void    (*device_resume) (struct usb2_device *udev);
+	void    (*set_hw_power) (struct usb2_bus *bus);
+	/*
+	 * The following flag is set if one or more control transfers are
+	 * active:
+	 */
+#define	USB_HW_POWER_CONTROL	0x01
+	/*
+	 * The following flag is set if one or more bulk transfers are
+	 * active:
+	 */
+#define	USB_HW_POWER_BULK	0x02
+	/*
+	 * The following flag is set if one or more interrupt transfers are
+	 * active:
+	 */
+#define	USB_HW_POWER_INTERRUPT	0x04
+	/*
+	 * The following flag is set if one or more isochronous transfers
+	 * are active:
+	 */
+#define	USB_HW_POWER_ISOC	0x08
 
 	/* USB Device mode only - Mandatory */
 
 	void    (*get_hw_ep_profile) (struct usb2_device *udev, const struct usb2_hw_ep_profile **ppf, uint8_t ep_addr);
 	void    (*set_stall) (struct usb2_device *udev, struct usb2_xfer *xfer, struct usb2_pipe *pipe);
 	void    (*clear_stall) (struct usb2_device *udev, struct usb2_pipe *pipe);
-	void    (*rem_wakeup_set) (struct usb2_device *udev, uint8_t is_on);
 
 	/* USB Device mode only - Optional */
 
@@ -90,7 +112,6 @@ struct usb2_pipe_methods {
 
 	/* Optional */
 
-	uint8_t (*isdone) (struct usb2_xfer *xfer);
 	void   *info;
 
 	/* Flags */

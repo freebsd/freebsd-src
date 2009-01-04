@@ -440,6 +440,7 @@ uint8_t	usb2_get_interface_altindex(struct usb2_interface *iface);
 usb2_error_t usb2_set_alt_interface_index(struct usb2_device *udev,
 	    uint8_t iface_index, uint8_t alt_index);
 uint8_t	usb2_get_speed(struct usb2_device *udev);
+uint32_t usb2_get_isoc_fps(struct usb2_device *udev);
 usb2_error_t usb2_transfer_setup(struct usb2_device *udev,
 	    const uint8_t *ifaces, struct usb2_xfer **pxfer,
 	    const struct usb2_config *setup_start, uint16_t n_setup,
@@ -464,5 +465,6 @@ void	usb2_set_iface_perm(struct usb2_device *udev, uint8_t iface_index,
 	    uint32_t uid, uint32_t gid, uint16_t mode);
 uint8_t	usb2_get_bus_index(struct usb2_device *udev);
 uint8_t	usb2_get_device_index(struct usb2_device *udev);
+void	usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode);
 
 #endif					/* _USB2_CORE_H_ */

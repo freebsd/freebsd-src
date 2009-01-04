@@ -186,6 +186,7 @@ static void	axe_cfg_cmd(struct axe_softc *, uint16_t, uint16_t, uint16_t,
 		    void *);
 static void	axe_cfg_ax88178_init(struct axe_softc *);
 static void	axe_cfg_ax88772_init(struct axe_softc *);
+static int	axe_get_phyno(struct axe_softc *, int);
 
 static const struct usb2_config axe_config[AXE_ENDPT_MAX] = {
 
@@ -335,34 +336,26 @@ axe_cfg_miibus_readreg(device_t dev, int phy, int reg)
 		do_unlock = 1;
 	}
 
-#if 0
-	/*
-	 * The chip tells us the MII address of any supported
-	 * PHYs attached to the chip, so only read from those.
-	 */
+	if (sc->sc_phyno != phy) {
+		val = 0;
+		goto done;
+	}
 
-	if ((sc->sc_phyaddrs[0] != AXE_NOPHY) && (phy != sc->sc_phyaddrs[0])) {
-		val = 0;
-		goto done;
-	}
-	if ((sc->sc_phyaddrs[1] != AXE_NOPHY) && (phy != sc->sc_phyaddrs[1])) {
-		val = 0;
-		goto done;
-	}
-#endif
-	if ((sc->sc_phyaddrs[0] != 0xFF) && (sc->sc_phyaddrs[0] != phy)) {
-		val = 0;
-		goto done;
-	}
 	axe_cfg_cmd(sc, AXE_CMD_MII_OPMODE_SW, 0, 0, NULL);
 	axe_cfg_cmd(sc, AXE_CMD_MII_READ_REG, reg, phy, &val);
 	axe_cfg_cmd(sc, AXE_CMD_MII_OPMODE_HW, 0, 0, NULL);
 
 	val = le16toh(val);
-
-	if (val && (val != 0xffff)) {
-		sc->sc_phyaddrs[0] = phy;
+	if ((sc->sc_flags & AXE_FLAG_772) != 0 && reg == MII_BMSR) {
+		/*
+		 * BMSR of AX88772 indicates that it supports extended
+		 * capability but the extended status register is
+		 * revered for embedded ethernet PHY. So clear the
+		 * extended capability bit of BMSR.
+		 */
+		val &= ~BMSR_EXTCAP;
 	}
+
 done:
 	if (do_unlock) {
 		mtx_unlock(&sc->sc_mtx);
@@ -386,10 +379,14 @@ axe_cfg_miibus_writereg(device_t dev, int phy, int reg, int val)
 		do_unlock = 1;
 	}
 
+	if (sc->sc_phyno != phy)
+		goto done;
+
 	axe_cfg_cmd(sc, AXE_CMD_MII_OPMODE_SW, 0, 0, NULL);
 	axe_cfg_cmd(sc, AXE_CMD_MII_WRITE_REG, reg, phy, &val);
 	axe_cfg_cmd(sc, AXE_CMD_MII_OPMODE_HW, 0, 0, NULL);
 
+done:
 	if (do_unlock) {
 		mtx_unlock(&sc->sc_mtx);
 	}
@@ -401,6 +398,7 @@ axe_cfg_miibus_statchg(device_t dev)
 {
 	struct axe_softc *sc = device_get_softc(dev);
 	struct mii_data *mii = GET_MII(sc);
+	struct ifnet *ifp;
 	uint16_t val;
 	uint8_t do_unlock;
 
@@ -412,15 +410,40 @@ axe_cfg_miibus_statchg(device_t dev)
 		do_unlock = 1;
 	}
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
-		val = AXE_MEDIA_FULL_DUPLEX;
-	else
-		val = 0;
+	ifp = sc->sc_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto done;
 
-	if (sc->sc_flags & (AXE_FLAG_772 | AXE_FLAG_178)) {
+	sc->sc_flags &= ~AXE_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->sc_flags |= AXE_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+			if ((sc->sc_flags & AXE_FLAG_178) == 0)
+				break;
+			sc->sc_flags |= AXE_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
 
-		val |= (AXE_178_MEDIA_RX_EN | AXE_178_MEDIA_MAGIC);
+	/* Lost link, do nothing. */
+	if ((sc->sc_flags & AXE_FLAG_LINK) == 0)
+		goto done;
 
+	val = 0;
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
+		val |= AXE_MEDIA_FULL_DUPLEX;
+	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772)) {
+		val |= AXE_178_MEDIA_RX_EN | AXE_178_MEDIA_MAGIC;
+		if ((sc->sc_flags & AXE_FLAG_178) != 0)
+			val |= AXE_178_MEDIA_ENCK;
 		switch (IFM_SUBTYPE(mii->mii_media_active)) {
 		case IFM_1000_T:
 			val |= AXE_178_MEDIA_GMII | AXE_178_MEDIA_ENCK;
@@ -434,6 +457,7 @@ axe_cfg_miibus_statchg(device_t dev)
 		}
 	}
 	axe_cfg_cmd(sc, AXE_CMD_WRITE_MEDIA, 0, val, NULL);
+done:
 	if (do_unlock) {
 		mtx_unlock(&sc->sc_mtx);
 	}
@@ -467,7 +491,6 @@ axe_cfg_ifmedia_upd(struct axe_softc *sc,
 		/* not ready */
 		return;
 	}
-	sc->sc_flags |= AXE_FLAG_WAIT_LINK;
 
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
@@ -550,6 +573,30 @@ axe_cfg_reset(struct axe_softc *sc)
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
 }
 
+static int
+axe_get_phyno(struct axe_softc *sc, int sel)
+{
+	int		phyno;
+
+	switch (AXE_PHY_TYPE(sc->sc_phyaddrs[sel])) {
+	case PHY_TYPE_100_HOME:
+	case PHY_TYPE_GIG:
+		phyno  = AXE_PHY_NO(sc->sc_phyaddrs[sel]);
+		break;
+	case PHY_TYPE_SPECIAL:
+		/* FALLTHROUGH */
+	case PHY_TYPE_RSVD:
+		/* FALLTHROUGH */
+	case PHY_TYPE_NON_SUP:
+		/* FALLTHROUGH */
+	default:
+		phyno = -1;
+		break;
+	}
+
+	return (phyno);
+}
+
 /*
  * Probe for a AX88172 chip.
  */
@@ -616,8 +663,6 @@ axe_attach(device_t dev)
 		goto detach;
 	}
 	mtx_lock(&sc->sc_mtx);
-
-	sc->sc_flags |= AXE_FLAG_WAIT_LINK;
 
 	/* start setup */
 
@@ -687,6 +732,9 @@ axe_cfg_ax88178_init(struct axe_softc *sc)
 	axe_cfg_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
 	    AXE_SW_RESET_PRL | AXE_178_RESET_MAGIC, NULL);
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 4);
+	/* Enable MII/GMII/RGMII interface to work with external PHY. */
+	axe_cfg_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, 0, NULL);
+	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 4);
 
 	axe_cfg_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
 }
@@ -701,7 +749,7 @@ axe_cfg_ax88772_init(struct axe_softc *sc)
 	axe_cfg_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x00b0, NULL);
 	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 16);
 
-	if (sc->sc_phyaddrs[1] == AXE_INTPHY) {
+	if (sc->sc_phyno == AXE_772_PHY_NO_EPHY) {
 		/* ask for the embedded PHY */
 		axe_cfg_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, 0x01, NULL);
 		err = usb2_config_td_sleep(&sc->sc_config_td, hz / 64);
@@ -752,6 +800,19 @@ axe_cfg_first_time_setup(struct axe_softc *sc,
 	 * Load PHY indexes first. Needed by axe_xxx_init().
 	 */
 	axe_cfg_cmd(sc, AXE_CMD_READ_PHYID, 0, 0, sc->sc_phyaddrs);
+#if 1
+	device_printf(sc->sc_dev, "PHYADDR 0x%02x:0x%02x\n",
+	    sc->sc_phyaddrs[0], sc->sc_phyaddrs[1]);
+#endif
+	sc->sc_phyno = axe_get_phyno(sc, AXE_PHY_SEL_PRI);
+	if (sc->sc_phyno == -1)
+		sc->sc_phyno = axe_get_phyno(sc, AXE_PHY_SEL_SEC);
+	if (sc->sc_phyno == -1) {
+		device_printf(sc->sc_dev,
+		    "no valid PHY address found, "
+		    "assuming PHY address 0\n");
+		sc->sc_phyno = 0;
+	}
 
 	if (sc->sc_flags & AXE_FLAG_178) {
 		axe_cfg_ax88178_init(sc);
@@ -770,12 +831,6 @@ axe_cfg_first_time_setup(struct axe_softc *sc,
 	 * Fetch IPG values.
 	 */
 	axe_cfg_cmd(sc, AXE_CMD_READ_IPG012, 0, 0, sc->sc_ipgs);
-
-	/*
-	 * Work around broken adapters that appear to lie about
-	 * their PHY addresses.
-	 */
-	sc->sc_phyaddrs[0] = sc->sc_phyaddrs[1] = 0xFF;
 
 	mtx_unlock(&sc->sc_mtx);
 
@@ -1108,7 +1163,7 @@ axe_bulk_write_callback(struct usb2_xfer *xfer)
 			usb2_transfer_start(sc->sc_xfer[2]);
 			goto done;
 		}
-		if (sc->sc_flags & AXE_FLAG_WAIT_LINK) {
+		if ((sc->sc_flags & AXE_FLAG_LINK) == 0) {
 			/*
 			 * don't send anything if there is no link !
 			 */
@@ -1204,19 +1259,17 @@ axe_cfg_tick(struct axe_softc *sc,
 		return;
 	}
 	mii_tick(mii);
-
-	mii_pollstat(mii);
-
-	if ((sc->sc_flags & AXE_FLAG_WAIT_LINK) &&
-	    (mii->mii_media_status & IFM_ACTIVE) &&
-	    (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)) {
-		sc->sc_flags &= ~AXE_FLAG_WAIT_LINK;
-	}
 	sc->sc_media_active = mii->mii_media_active;
 	sc->sc_media_status = mii->mii_media_status;
-
+	if ((sc->sc_flags & AXE_FLAG_LINK) == 0) {
+		axe_cfg_miibus_statchg(sc->sc_dev);
+		/* XXX */
+		if ((sc->sc_flags & AXE_FLAG_LINK) == 0) {
+			sc->sc_media_active = IFM_ETHER | IFM_NONE;
+			sc->sc_media_status = IFM_AVALID;
+		}
+	}
 	/* start stopped transfers, if any */
-
 	axe_start_transfers(sc);
 }
 
@@ -1444,7 +1497,7 @@ axe_cfg_pre_stop(struct axe_softc *sc,
 	sc->sc_flags &= ~(AXE_FLAG_HL_READY |
 	    AXE_FLAG_LL_READY);
 
-	sc->sc_flags |= AXE_FLAG_WAIT_LINK;
+	sc->sc_flags &= ~AXE_FLAG_LINK;
 
 	/*
 	 * stop all the transfers, if not already stopped:

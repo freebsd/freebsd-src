@@ -236,12 +236,6 @@ musbotg_wakeup_peer(struct usb2_xfer *xfer)
 }
 
 static void
-musbotg_rem_wakeup_set(struct usb2_device *udev, uint8_t is_on)
-{
-	DPRINTFN(4, "is_on=%u\n", is_on);
-}
-
-static void
 musbotg_set_address(struct musbotg_softc *sc, uint8_t addr)
 {
 	DPRINTFN(4, "addr=%d\n", addr);
@@ -2891,5 +2885,4 @@ struct usb2_bus_methods musbotg_bus_methods =
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
 	.vbus_interrupt = &musbotg_vbus_interrupt,
-	.rem_wakeup_set = &musbotg_rem_wakeup_set,
 };
