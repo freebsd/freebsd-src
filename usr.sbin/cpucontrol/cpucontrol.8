@@ -77,7 +77,7 @@ Apply CPU firmware updates.
 The
 .Nm
 utility will walk through the configured data directories
-and will apply all firmware patches available for this CPU.
+and apply all firmware updates available for this CPU.
 .It Fl v
 Increase the verbosity level.
 .It Fl h
@@ -111,6 +111,11 @@ use the following command:
 .Dq Li "cpucontrol -d /usr/local/share/cpuctl/ -u /dev/cpuctl0"
 .Sh SEE ALSO
 .Xr cpuctl 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .
 .Sh BUGS
 Yes, probably, report if any.
 .Sh AUTHORS
