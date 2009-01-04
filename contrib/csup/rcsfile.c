@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2008, Ulf Lilleengen <lulf@FreeBSD.org>
+ * Copyright (c) 2007-2009, Ulf Lilleengen <lulf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
