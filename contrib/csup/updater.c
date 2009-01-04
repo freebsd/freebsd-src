@@ -613,7 +613,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 				return (error);
 			break;
 		case 'I':
-			/* 
+			/*
 			 * Create directory and add DirDown entry in status
 			 * file.
 			 */
@@ -661,7 +661,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			}
 			break;
 		case 'J':
-			/* 
+			/*
 			 * Set attributes of directory and update DirUp entry in
 			 * status file.
 			 */
@@ -802,7 +802,8 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			name = proto_get_ascii(&line);
 			attr = proto_get_ascii(&line);
 			pos  = proto_get_ascii(&line);
-			if (name == NULL || attr == NULL || pos == NULL || line != NULL)
+			if (name == NULL || attr == NULL || pos == NULL ||
+			    line != NULL)
 				return (UPDATER_ERR_PROTO);
 			error = fup_prepare(fup, name, 0);
 			fup->temppath = tempname(fup->destpath);
@@ -1050,7 +1051,7 @@ updater_setdirattrs(struct updater *up, struct coll *coll,
 		    fup->temppath, fup->destpath, strerror(errno));
 		return (UPDATER_ERR_MSG);
 	}
-	/* 
+	/*
 	 * Now, make sure they were set and record what was set in the status
 	 * file.
 	 */
