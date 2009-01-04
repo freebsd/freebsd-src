@@ -74,5 +74,7 @@ struct usb2_device *usb2_bus_port_get_device(struct usb2_bus *bus,
 	    struct usb2_port *up);
 void	usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe);
 void	usb2_needs_explore_all(void);
+void	usb2_bus_power_update(struct usb2_bus *bus);
+void	usb2_bus_powerd(struct usb2_bus *bus);
 
 #endif					/* _USB2_HUB_H_ */

@@ -611,7 +611,8 @@ usb2_req_get_desc(struct usb2_device *udev, struct mtx *mtx, void *desc,
 		}
 		USETW(req.wLength, min_len);
 
-		err = usb2_do_request(udev, mtx, &req, desc);
+		err = usb2_do_request_flags(udev, mtx, &req,
+		    desc, 0, NULL, 1000);
 
 		if (err) {
 			if (!retries) {
@@ -1326,6 +1327,7 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 	struct usb2_device *parent_hub;
 	usb2_error_t err;
 	uint8_t old_addr;
+	uint8_t do_retry = 1;
 
 	if (udev->flags.usb2_mode != USB_MODE_HOST) {
 		return (USB_ERR_INVAL);
@@ -1335,6 +1337,7 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 	if (parent_hub == NULL) {
 		return (USB_ERR_INVAL);
 	}
+retry:
 	err = usb2_req_reset_port(parent_hub, mtx, udev->port_no);
 	if (err) {
 		DPRINTFN(0, "addr=%d, port reset failed\n", old_addr);
@@ -1355,9 +1358,8 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 	err = usb2_req_set_address(udev, mtx, old_addr);
 	if (err) {
 		/* XXX ignore any errors! */
-		DPRINTFN(0, "addr=%d, set address failed\n",
+		DPRINTFN(0, "addr=%d, set address failed! (ignored)\n",
 		    old_addr);
-		err = 0;
 	}
 	/* restore device address */
 	udev->address = old_addr;
@@ -1381,7 +1383,57 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 		goto done;
 	}
 done:
+	if (err && do_retry) {
+		/* give the USB firmware some time to load */
+		usb2_pause_mtx(mtx, 500);
+		/* no more retries after this retry */
+		do_retry = 0;
+		/* try again */
+		goto retry;
+	}
 	/* restore address */
 	udev->address = old_addr;
 	return (err);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_req_clear_device_feature
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb2_error_t
+usb2_req_clear_device_feature(struct usb2_device *udev, struct mtx *mtx,
+    uint16_t sel)
+{
+	struct usb2_device_request req;
+
+	req.bmRequestType = UT_WRITE_DEVICE;
+	req.bRequest = UR_CLEAR_FEATURE;
+	USETW(req.wValue, sel);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	return (usb2_do_request(udev, mtx, &req, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_req_set_device_feature
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb2_error_t
+usb2_req_set_device_feature(struct usb2_device *udev, struct mtx *mtx,
+    uint16_t sel)
+{
+	struct usb2_device_request req;
+
+	req.bmRequestType = UT_WRITE_DEVICE;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, sel);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	return (usb2_do_request(udev, mtx, &req, 0));
 }

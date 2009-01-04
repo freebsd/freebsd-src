@@ -135,8 +135,23 @@
 #define	AXE_178_RXCMD_MFB_8192			0x0200
 #define	AXE_178_RXCMD_MFB_16384			0x0300
 
-#define	AXE_NOPHY				0xE0
-#define	AXE_INTPHY				0x10
+#define	AXE_PHY_SEL_PRI		1
+#define	AXE_PHY_SEL_SEC		0
+#define	AXE_PHY_TYPE_MASK	0xE0
+#define	AXE_PHY_TYPE_SHIFT	5
+#define	AXE_PHY_TYPE(x)		\
+	(((x) & AXE_PHY_TYPE_MASK) >> AXE_PHY_TYPE_SHIFT)
+
+#define	PHY_TYPE_100_HOME	0	/* 10/100 or 1M HOME PHY */
+#define	PHY_TYPE_GIG		1	/* Gigabit PHY */
+#define	PHY_TYPE_SPECIAL	4	/* Special case */
+#define	PHY_TYPE_RSVD		5	/* Reserved */
+#define	PHY_TYPE_NON_SUP	7	/* Non-supported PHY */
+
+#define	AXE_PHY_NO_MASK		0x1F
+#define	AXE_PHY_NO(x)		((x) & AXE_PHY_NO_MASK)
+
+#define	AXE_772_PHY_NO_EPHY	0x10	/* Embedded 10/100 PHY of AX88772 */
 
 #define	AXE_BULK_BUF_SIZE	16384	/* bytes */
 
@@ -170,12 +185,14 @@ struct axe_softc {
 	device_t sc_miibus;
 	device_t sc_dev;
 
+	int sc_phyno;
+
 	uint32_t sc_unit;
 	uint32_t sc_media_active;
 	uint32_t sc_media_status;
 
 	uint16_t sc_flags;
-#define	AXE_FLAG_WAIT_LINK	0x0001
+#define	AXE_FLAG_LINK		0x0001
 #define	AXE_FLAG_INTR_STALL	0x0002
 #define	AXE_FLAG_READ_STALL	0x0004
 #define	AXE_FLAG_WRITE_STALL	0x0008

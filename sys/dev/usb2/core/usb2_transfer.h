@@ -124,5 +124,7 @@ usb2_callback_t usb2_handle_request_callback;
 usb2_callback_t usb2_do_clear_stall_callback;
 void	usb2_transfer_timeout_ms(struct usb2_xfer *xfer,
 	    void (*cb) (void *arg), uint32_t ms);
+uint32_t usb2_get_dma_delay(struct usb2_bus *bus);
+void	usb2_transfer_power_ref(struct usb2_xfer *xfer, int val);
 
 #endif					/* _USB2_TRANSFER_H_ */

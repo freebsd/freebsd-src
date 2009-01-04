@@ -1301,6 +1301,7 @@ ustorage_fs_mode_select(struct ustorage_fs_softc *sc)
 static uint8_t
 ustorage_fs_synchronize_cache(struct ustorage_fs_softc *sc)
 {
+#if 0
 	struct ustorage_fs_lun *currlun = sc->sc_transfer.currlun;
 	uint8_t rc;
 
@@ -1311,6 +1312,7 @@ ustorage_fs_synchronize_cache(struct ustorage_fs_softc *sc)
 	if (rc) {
 		currlun->sense_data = SS_WRITE_ERROR;
 	}
+#endif
 	return (0);
 }
 

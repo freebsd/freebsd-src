@@ -681,18 +681,22 @@ ohci_transfer_intr_enqueue(struct usb2_xfer *xfer)
 	}
 }
 
-#define	OHCI_APPEND_QH(sed,td_self,last) (last) = _ohci_append_qh(sed,td_self,last)
+#define	OHCI_APPEND_QH(sed,last) (last) = _ohci_append_qh(sed,last)
 static ohci_ed_t *
-_ohci_append_qh(ohci_ed_t *sed, uint32_t td_self, ohci_ed_t *last)
+_ohci_append_qh(ohci_ed_t *sed, ohci_ed_t *last)
 {
 	DPRINTFN(11, "%p to %p\n", sed, last);
 
+	if (sed->prev != NULL) {
+		/* should not happen */
+		DPRINTFN(0, "ED already linked!\n");
+		return (last);
+	}
 	/* (sc->sc_bus.bus_mtx) must be locked */
 
 	sed->next = last->next;
 	sed->ed_next = last->ed_next;
 	sed->ed_tailp = 0;
-	sed->ed_headp = td_self;
 
 	sed->prev = last;
 
@@ -730,13 +734,6 @@ _ohci_remove_qh(ohci_ed_t *sed, ohci_ed_t *last)
 			sed->next->prev = sed->prev;
 			usb2_pc_cpu_flush(sed->next->page_cache);
 		}
-		/*
-		 * terminate transfer in case the transferred packet was
-		 * short so that the ED still points at the last used TD
-		 */
-		sed->ed_flags |= htole32(OHCI_ED_SKIP);
-		sed->ed_headp = sed->ed_tailp;
-
 		last = ((last == sed) ? sed->prev : last);
 
 		sed->prev = 0;
@@ -1565,17 +1562,23 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 
 	td = xfer->td_transfer_first;
 
-	OHCI_APPEND_QH(ed, td->td_self, *ed_last);
+	ed->ed_headp = td->td_self;
 
-	if (methods == &ohci_device_bulk_methods) {
-		ohci_softc_t *sc = xfer->usb2_sc;
+	if (xfer->udev->pwr_save.suspended == 0) {
+		OHCI_APPEND_QH(ed, *ed_last);
 
-		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
-	}
-	if (methods == &ohci_device_ctrl_methods) {
-		ohci_softc_t *sc = xfer->usb2_sc;
+		if (methods == &ohci_device_bulk_methods) {
+			ohci_softc_t *sc = xfer->usb2_sc;
 
-		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
+			OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
+		}
+		if (methods == &ohci_device_ctrl_methods) {
+			ohci_softc_t *sc = xfer->usb2_sc;
+
+			OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
+		}
+	} else {
+		usb2_pc_cpu_flush(ed->page_cache);
 	}
 }
 
@@ -2010,7 +2013,11 @@ ohci_device_isoc_enter(struct usb2_xfer *xfer)
 
 	td = xfer->td_transfer_first;
 
-	OHCI_APPEND_QH(ed, td->itd_self, sc->sc_isoc_p_last);
+	ed->ed_headp = td->itd_self;
+
+	/* isochronous transfers are not affected by suspend / resume */
+
+	OHCI_APPEND_QH(ed, sc->sc_isoc_p_last);
 }
 
 static void
@@ -2740,6 +2747,115 @@ ohci_get_dma_delay(struct usb2_bus *bus, uint32_t *pus)
 	*pus = (1125);			/* microseconds */
 }
 
+static void
+ohci_device_resume(struct usb2_device *udev)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+	ohci_ed_t *ed;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->udev == udev) {
+
+			methods = xfer->pipe->methods;
+			ed = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+			if (methods == &ohci_device_bulk_methods) {
+				OHCI_APPEND_QH(ed, sc->sc_bulk_p_last);
+				OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
+			}
+			if (methods == &ohci_device_ctrl_methods) {
+				OHCI_APPEND_QH(ed, sc->sc_ctrl_p_last);
+				OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
+			}
+			if (methods == &ohci_device_intr_methods) {
+				OHCI_APPEND_QH(ed, sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+ohci_device_suspend(struct usb2_device *udev)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+	ohci_ed_t *ed;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->udev == udev) {
+
+			methods = xfer->pipe->methods;
+			ed = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+			if (methods == &ohci_device_bulk_methods) {
+				OHCI_REMOVE_QH(ed, sc->sc_bulk_p_last);
+			}
+			if (methods == &ohci_device_ctrl_methods) {
+				OHCI_REMOVE_QH(ed, sc->sc_ctrl_p_last);
+			}
+			if (methods == &ohci_device_intr_methods) {
+				OHCI_REMOVE_QH(ed, sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+ohci_set_hw_power(struct usb2_bus *bus)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(bus);
+	uint32_t temp;
+	uint32_t flags;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(bus);
+
+	flags = bus->hw_power_state;
+
+	temp = OREAD4(sc, OHCI_CONTROL);
+	temp &= ~(OHCI_PLE | OHCI_IE | OHCI_CLE | OHCI_BLE);
+
+	if (flags & USB_HW_POWER_CONTROL)
+		temp |= OHCI_CLE;
+
+	if (flags & USB_HW_POWER_BULK)
+		temp |= OHCI_BLE;
+
+	if (flags & USB_HW_POWER_INTERRUPT)
+		temp |= OHCI_PLE;
+
+	if (flags & USB_HW_POWER_ISOC)
+		temp |= OHCI_IE | OHCI_PLE;
+
+	OWRITE4(sc, OHCI_CONTROL, temp);
+
+	USB_BUS_UNLOCK(bus);
+
+	return;
+}
+
 struct usb2_bus_methods ohci_bus_methods =
 {
 	.pipe_init = ohci_pipe_init,
@@ -2747,4 +2863,7 @@ struct usb2_bus_methods ohci_bus_methods =
 	.xfer_unsetup = ohci_xfer_unsetup,
 	.do_poll = ohci_do_poll,
 	.get_dma_delay = ohci_get_dma_delay,
+	.device_resume = ohci_device_resume,
+	.device_suspend = ohci_device_suspend,
+	.set_hw_power = ohci_set_hw_power,
 };

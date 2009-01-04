@@ -390,9 +390,11 @@ usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on)
 		udev->flags.remote_wakeup = 0;
 	}
 
-	(bus->methods->rem_wakeup_set) (xfer->udev, is_on);
-
 	USB_BUS_UNLOCK(bus);
+
+	/* In case we are out of sync, update the power state. */
+
+	usb2_bus_power_update(udev->bus);
 
 	return (0);			/* success */
 }

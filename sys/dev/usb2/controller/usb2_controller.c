@@ -148,6 +148,9 @@ usb2_detach(device_t dev)
 		/* was never setup properly */
 		return (0);
 	}
+	/* Stop power watchdog */
+	usb2_callout_drain(&bus->power_wdog);
+
 	/* Let the USB explore process detach all devices. */
 
 	USB_BUS_LOCK(bus);
@@ -198,6 +201,11 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
 		mtx_lock(&Giant);
 
 		/*
+		 * First update the USB power state!
+		 */
+		usb2_bus_powerd(bus);
+
+		/*
 		 * Explore the Root USB HUB. This call can sleep,
 		 * exiting Giant, which is actually Giant.
 		 */
@@ -246,24 +254,41 @@ usb2_bus_detach(struct usb2_proc_msg *pm)
 	bus->bdev = NULL;
 }
 
+static void
+usb2_power_wdog(void *arg)
+{
+	struct usb2_bus *bus = arg;
+
+	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
+
+	usb2_callout_reset(&bus->power_wdog,
+	    4 * hz, usb2_power_wdog, arg);
+
+	USB_BUS_UNLOCK(bus);
+
+	usb2_bus_power_update(bus);
+
+	return;
+}
+
 /*------------------------------------------------------------------------*
- *	usb2_attach_sub
+ *	usb2_bus_attach
  *
- * This function is the real USB bus attach code. It is factored out,
- * hence it can be called at two different places in time. During
- * bootup this function is called from "usb2_post_init". During
- * hot-plug it is called directly from the "usb2_attach()" method.
+ * This function attaches USB in context of the explore thread.
  *------------------------------------------------------------------------*/
 static void
-usb2_attach_sub(device_t dev, struct usb2_bus *bus)
+usb2_bus_attach(struct usb2_proc_msg *pm)
 {
+	struct usb2_bus *bus;
 	struct usb2_device *child;
+	device_t dev;
 	usb2_error_t err;
 	uint8_t speed;
 
-	DPRINTF("\n");
+	bus = ((struct usb2_bus_msg *)pm)->bus;
+	dev = bus->bdev;
 
-	mtx_assert(&Giant, MA_OWNED);
+	DPRINTF("\n");
 
 	switch (bus->usbrev) {
 	case USB_REV_1_0:
@@ -291,6 +316,9 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 		return;
 	}
 
+	USB_BUS_UNLOCK(bus);
+	mtx_lock(&Giant);		/* XXX not required by USB */
+
 	/* Allocate the Root USB device */
 
 	child = usb2_alloc_device(bus->bdev, bus, NULL, 0, 0, 1,
@@ -307,10 +335,36 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 		err = USB_ERR_NOMEM;
 	}
 
+	mtx_unlock(&Giant);
+	USB_BUS_LOCK(bus);
+
 	if (err) {
 		device_printf(bus->bdev, "Root HUB problem, error=%s\n",
 		    usb2_errstr(err));
 	}
+
+	/* set softc - we are ready */
+	device_set_softc(dev, bus);
+
+	/* start watchdog - this function will unlock the BUS lock ! */
+	usb2_power_wdog(bus);
+
+	/* need to return locked */
+	USB_BUS_LOCK(bus);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_attach_sub
+ *
+ * This function creates a thread which runs the USB attach code. It
+ * is factored out, hence it can be called at two different places in
+ * time. During bootup this function is called from
+ * "usb2_post_init". During hot-plug it is called directly from the
+ * "usb2_attach()" method.
+ *------------------------------------------------------------------------*/
+static void
+usb2_attach_sub(device_t dev, struct usb2_bus *bus)
+{
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb2_bus_explore;
 	bus->explore_msg[0].bus = bus;
@@ -322,13 +376,24 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 	bus->detach_msg[1].hdr.pm_callback = &usb2_bus_detach;
 	bus->detach_msg[1].bus = bus;
 
+	bus->attach_msg[0].hdr.pm_callback = &usb2_bus_attach;
+	bus->attach_msg[0].bus = bus;
+	bus->attach_msg[1].hdr.pm_callback = &usb2_bus_attach;
+	bus->attach_msg[1].bus = bus;
+
 	/* Create a new USB process */
 	if (usb2_proc_setup(&bus->explore_proc,
 	    &bus->bus_mtx, USB_PRI_MED)) {
 		printf("WARNING: Creation of USB explore process failed.\n");
+	} else {
+		/* Get final attach going */
+		USB_BUS_LOCK(bus);
+		if (usb2_proc_msignal(&bus->explore_proc,
+		    &bus->attach_msg[0], &bus->attach_msg[1])) {
+			/* ignore */
+		}
+		USB_BUS_UNLOCK(bus);
 	}
-	/* set softc - we are ready */
-	device_set_softc(dev, bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -432,6 +497,9 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 
 	mtx_init(&bus->bus_mtx, device_get_nameunit(bus->parent),
 	    NULL, MTX_DEF | MTX_RECURSE);
+
+	usb2_callout_init_mtx(&bus->power_wdog,
+	    &bus->bus_mtx, CALLOUT_RETURNUNLOCKED);
 
 	TAILQ_INIT(&bus->intr_q.head);
 

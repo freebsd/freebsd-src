@@ -84,7 +84,7 @@ SYSCTL_INT(_hw_usb2_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
     &ehcinohighspeed, 0, "Disable High Speed USB");
 
 static void ehci_dump_regs(ehci_softc_t *sc);
-static void ehci_dump_sqh(ehci_qh_t *sqh);
+static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
 
 #endif
 
@@ -101,7 +101,7 @@ extern struct usb2_pipe_methods ehci_root_intr_methods;
 
 static usb2_config_td_command_t ehci_root_ctrl_task;
 static void ehci_do_poll(struct usb2_bus *bus);
-static void ehci_root_ctrl_poll(struct ehci_softc *sc);
+static void ehci_root_ctrl_poll(ehci_softc_t *sc);
 static void ehci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
 static uint8_t ehci_check_transfer(struct usb2_xfer *xfer);
 static void ehci_timeout(void *arg);
@@ -110,6 +110,7 @@ static usb2_sw_transfer_func_t ehci_root_intr_done;
 static usb2_sw_transfer_func_t ehci_root_ctrl_done;
 
 struct ehci_std_temp {
+	ehci_softc_t *sc;
 	struct usb2_page_cache *pc;
 	ehci_qtd_t *td;
 	ehci_qtd_t *td_next;
@@ -123,10 +124,27 @@ struct ehci_std_temp {
 	uint8_t	short_frames_ok;
 };
 
+/*
+ * Byte-order conversion functions.
+ */
+static uint32_t
+htoehci32(ehci_softc_t *sc, const uint32_t v)
+{
+	return ((sc->sc_flags & EHCI_SCFLG_BIGEDESC) ?
+	    htobe32(v) : htole32(v));
+}
+
+static uint32_t
+ehci32toh(ehci_softc_t *sc, const uint32_t v)
+{
+	return ((sc->sc_flags & EHCI_SCFLG_BIGEDESC) ?
+	    be32toh(v) : le32toh(v));
+}
+
 void
 ehci_iterate_hw_softc(struct usb2_bus *bus, usb2_bus_mem_sub_cb_t *cb)
 {
-	struct ehci_softc *sc = EHCI_BUS2SC(bus);
+	ehci_softc_t *sc = EHCI_BUS2SC(bus);
 	uint32_t i;
 
 	cb(bus, &sc->sc_hw.pframes_pc, &sc->sc_hw.pframes_pg,
@@ -280,21 +298,21 @@ ehci_init(ehci_softc_t *sc)
 		sc->sc_intr_p_last[i] = qh;
 
 		qh->qh_self =
-		    htole32(buf_res.physaddr) |
-		    htole32(EHCI_LINK_QH);
+		    htoehci32(sc, buf_res.physaddr) |
+		    htoehci32(sc, EHCI_LINK_QH);
 
 		qh->qh_endp =
-		    htole32(EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH));
+		    htoehci32(sc, EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH));
 		qh->qh_endphub =
-		    htole32(EHCI_QH_SET_MULT(1));
+		    htoehci32(sc, EHCI_QH_SET_MULT(1));
 		qh->qh_curqtd = 0;
 
 		qh->qh_qtd.qtd_next =
-		    htole32(EHCI_LINK_TERMINATE);
+		    htoehci32(sc, EHCI_LINK_TERMINATE);
 		qh->qh_qtd.qtd_altnext =
-		    htole32(EHCI_LINK_TERMINATE);
+		    htoehci32(sc, EHCI_LINK_TERMINATE);
 		qh->qh_qtd.qtd_status =
-		    htole32(EHCI_QTD_HALTED);
+		    htoehci32(sc, EHCI_QTD_HALTED);
 	}
 
 	/*
@@ -329,7 +347,7 @@ ehci_init(ehci_softc_t *sc)
 		qh = sc->sc_intr_p_last[0];
 
 		/* the last (1ms) QH terminates */
-		qh->qh_link = htole32(EHCI_LINK_TERMINATE);
+		qh->qh_link = htoehci32(sc, EHCI_LINK_TERMINATE);
 	}
 	for (i = 0; i < EHCI_VIRTUAL_FRAMELIST_COUNT; i++) {
 		ehci_sitd_t *sitd;
@@ -350,11 +368,11 @@ ehci_init(ehci_softc_t *sc)
 		/* initialize full speed isochronous */
 
 		sitd->sitd_self =
-		    htole32(buf_res.physaddr) |
-		    htole32(EHCI_LINK_SITD);
+		    htoehci32(sc, buf_res.physaddr) |
+		    htoehci32(sc, EHCI_LINK_SITD);
 
 		sitd->sitd_back =
-		    htole32(EHCI_LINK_TERMINATE);
+		    htoehci32(sc, EHCI_LINK_TERMINATE);
 
 		sitd->sitd_next =
 		    sc->sc_intr_p_last[i | (EHCI_VIRTUAL_FRAMELIST_COUNT / 2)]->qh_self;
@@ -375,8 +393,8 @@ ehci_init(ehci_softc_t *sc)
 		/* initialize high speed isochronous */
 
 		itd->itd_self =
-		    htole32(buf_res.physaddr) |
-		    htole32(EHCI_LINK_ITD);
+		    htoehci32(sc, buf_res.physaddr) |
+		    htoehci32(sc, EHCI_LINK_ITD);
 
 		itd->itd_next =
 		    sitd->sitd_self;
@@ -421,20 +439,20 @@ ehci_init(ehci_softc_t *sc)
 		/* init dummy QH that starts the async list */
 
 		qh->qh_self =
-		    htole32(buf_res.physaddr) |
-		    htole32(EHCI_LINK_QH);
+		    htoehci32(sc, buf_res.physaddr) |
+		    htoehci32(sc, EHCI_LINK_QH);
 
 		/* fill the QH */
 		qh->qh_endp =
-		    htole32(EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH) | EHCI_QH_HRECL);
-		qh->qh_endphub = htole32(EHCI_QH_SET_MULT(1));
+		    htoehci32(sc, EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH) | EHCI_QH_HRECL);
+		qh->qh_endphub = htoehci32(sc, EHCI_QH_SET_MULT(1));
 		qh->qh_link = qh->qh_self;
 		qh->qh_curqtd = 0;
 
 		/* fill the overlay qTD */
-		qh->qh_qtd.qtd_next = htole32(EHCI_LINK_TERMINATE);
-		qh->qh_qtd.qtd_altnext = htole32(EHCI_LINK_TERMINATE);
-		qh->qh_qtd.qtd_status = htole32(EHCI_QTD_HALTED);
+		qh->qh_qtd.qtd_next = htoehci32(sc, EHCI_LINK_TERMINATE);
+		qh->qh_qtd.qtd_altnext = htoehci32(sc, EHCI_LINK_TERMINATE);
+		qh->qh_qtd.qtd_status = htoehci32(sc, EHCI_QTD_HALTED);
 	}
 	/* flush all cache into memory */
 
@@ -442,7 +460,7 @@ ehci_init(ehci_softc_t *sc)
 
 #if USB_DEBUG
 	if (ehcidebug) {
-		ehci_dump_sqh(sc->sc_async_p_last);
+		ehci_dump_sqh(sc, sc->sc_async_p_last);
 	}
 #endif
 
@@ -490,7 +508,7 @@ done:
  * shut down the controller when the system is going down
  */
 void
-ehci_detach(struct ehci_softc *sc)
+ehci_detach(ehci_softc_t *sc)
 {
 	USB_BUS_LOCK(&sc->sc_bus);
 
@@ -510,7 +528,7 @@ ehci_detach(struct ehci_softc *sc)
 }
 
 void
-ehci_suspend(struct ehci_softc *sc)
+ehci_suspend(ehci_softc_t *sc)
 {
 	uint32_t cmd;
 	uint32_t hcr;
@@ -564,7 +582,7 @@ ehci_suspend(struct ehci_softc *sc)
 }
 
 void
-ehci_resume(struct ehci_softc *sc)
+ehci_resume(ehci_softc_t *sc)
 {
 	struct usb2_page_search buf_res;
 	uint32_t cmd;
@@ -723,9 +741,9 @@ ehci_dump_regs(ehci_softc_t *sc)
 }
 
 static void
-ehci_dump_link(uint32_t link, int type)
+ehci_dump_link(ehci_softc_t *sc, uint32_t link, int type)
 {
-	link = le32toh(link);
+	link = ehci32toh(sc, link);
 	printf("0x%08x", link);
 	if (link & EHCI_LINK_TERMINATE)
 		printf("<T>");
@@ -752,16 +770,16 @@ ehci_dump_link(uint32_t link, int type)
 }
 
 static void
-ehci_dump_qtd(ehci_qtd_t *qtd)
+ehci_dump_qtd(ehci_softc_t *sc, ehci_qtd_t *qtd)
 {
 	uint32_t s;
 
 	printf("  next=");
-	ehci_dump_link(qtd->qtd_next, 0);
+	ehci_dump_link(sc, qtd->qtd_next, 0);
 	printf(" altnext=");
-	ehci_dump_link(qtd->qtd_altnext, 0);
+	ehci_dump_link(sc, qtd->qtd_altnext, 0);
 	printf("\n");
-	s = le32toh(qtd->qtd_status);
+	s = ehci32toh(sc, qtd->qtd_status);
 	printf("  status=0x%08x: toggle=%d bytes=0x%x ioc=%d c_page=0x%x\n",
 	    s, EHCI_QTD_GET_TOGGLE(s), EHCI_QTD_GET_BYTES(s),
 	    EHCI_QTD_GET_IOC(s), EHCI_QTD_GET_C_PAGE(s));
@@ -778,35 +796,35 @@ ehci_dump_qtd(ehci_qtd_t *qtd)
 
 	for (s = 0; s < 5; s++) {
 		printf("  buffer[%d]=0x%08x\n", s,
-		    le32toh(qtd->qtd_buffer[s]));
+		    ehci32toh(sc, qtd->qtd_buffer[s]));
 	}
 	for (s = 0; s < 5; s++) {
 		printf("  buffer_hi[%d]=0x%08x\n", s,
-		    le32toh(qtd->qtd_buffer_hi[s]));
+		    ehci32toh(sc, qtd->qtd_buffer_hi[s]));
 	}
 }
 
 static uint8_t
-ehci_dump_sqtd(ehci_qtd_t *sqtd)
+ehci_dump_sqtd(ehci_softc_t *sc, ehci_qtd_t *sqtd)
 {
 	uint8_t temp;
 
 	usb2_pc_cpu_invalidate(sqtd->page_cache);
-	printf("QTD(%p) at 0x%08x:\n", sqtd, le32toh(sqtd->qtd_self));
-	ehci_dump_qtd(sqtd);
-	temp = (sqtd->qtd_next & htole32(EHCI_LINK_TERMINATE)) ? 1 : 0;
+	printf("QTD(%p) at 0x%08x:\n", sqtd, ehci32toh(sc, sqtd->qtd_self));
+	ehci_dump_qtd(sc, sqtd);
+	temp = (sqtd->qtd_next & htoehci32(sc, EHCI_LINK_TERMINATE)) ? 1 : 0;
 	return (temp);
 }
 
 static void
-ehci_dump_sqtds(ehci_qtd_t *sqtd)
+ehci_dump_sqtds(ehci_softc_t *sc, ehci_qtd_t *sqtd)
 {
 	uint16_t i;
 	uint8_t stop;
 
 	stop = 0;
 	for (i = 0; sqtd && (i < 20) && !stop; sqtd = sqtd->obj_next, i++) {
-		stop = ehci_dump_sqtd(sqtd);
+		stop = ehci_dump_sqtd(sc, sqtd);
 	}
 	if (sqtd) {
 		printf("dump aborted, too many TDs\n");
@@ -814,16 +832,17 @@ ehci_dump_sqtds(ehci_qtd_t *sqtd)
 }
 
 static void
-ehci_dump_sqh(ehci_qh_t *qh)
+ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *qh)
 {
-	uint32_t endp, endphub;
+	uint32_t endp;
+	uint32_t endphub;
 
 	usb2_pc_cpu_invalidate(qh->page_cache);
-	printf("QH(%p) at 0x%08x:\n", qh, le32toh(qh->qh_self) & ~0x1F);
+	printf("QH(%p) at 0x%08x:\n", qh, ehci32toh(sc, qh->qh_self) & ~0x1F);
 	printf("  link=");
-	ehci_dump_link(qh->qh_link, 1);
+	ehci_dump_link(sc, qh->qh_link, 1);
 	printf("\n");
-	endp = le32toh(qh->qh_endp);
+	endp = ehci32toh(sc, qh->qh_endp);
 	printf("  endp=0x%08x\n", endp);
 	printf("    addr=0x%02x inact=%d endpt=%d eps=%d dtc=%d hrecl=%d\n",
 	    EHCI_QH_GET_ADDR(endp), EHCI_QH_GET_INACT(endp),
@@ -832,90 +851,90 @@ ehci_dump_sqh(ehci_qh_t *qh)
 	printf("    mpl=0x%x ctl=%d nrl=%d\n",
 	    EHCI_QH_GET_MPL(endp), EHCI_QH_GET_CTL(endp),
 	    EHCI_QH_GET_NRL(endp));
-	endphub = le32toh(qh->qh_endphub);
+	endphub = ehci32toh(sc, qh->qh_endphub);
 	printf("  endphub=0x%08x\n", endphub);
 	printf("    smask=0x%02x cmask=0x%02x huba=0x%02x port=%d mult=%d\n",
 	    EHCI_QH_GET_SMASK(endphub), EHCI_QH_GET_CMASK(endphub),
 	    EHCI_QH_GET_HUBA(endphub), EHCI_QH_GET_PORT(endphub),
 	    EHCI_QH_GET_MULT(endphub));
 	printf("  curqtd=");
-	ehci_dump_link(qh->qh_curqtd, 0);
+	ehci_dump_link(sc, qh->qh_curqtd, 0);
 	printf("\n");
 	printf("Overlay qTD:\n");
-	ehci_dump_qtd((void *)&qh->qh_qtd);
+	ehci_dump_qtd(sc, (void *)&qh->qh_qtd);
 }
 
 static void
-ehci_dump_sitd(ehci_sitd_t *sitd)
+ehci_dump_sitd(ehci_softc_t *sc, ehci_sitd_t *sitd)
 {
 	usb2_pc_cpu_invalidate(sitd->page_cache);
-	printf("SITD(%p) at 0x%08x\n", sitd, le32toh(sitd->sitd_self) & ~0x1F);
-	printf(" next=0x%08x\n", le32toh(sitd->sitd_next));
+	printf("SITD(%p) at 0x%08x\n", sitd, ehci32toh(sc, sitd->sitd_self) & ~0x1F);
+	printf(" next=0x%08x\n", ehci32toh(sc, sitd->sitd_next));
 	printf(" portaddr=0x%08x dir=%s addr=%d endpt=0x%x port=0x%x huba=0x%x\n",
-	    le32toh(sitd->sitd_portaddr),
-	    (sitd->sitd_portaddr & htole32(EHCI_SITD_SET_DIR_IN))
+	    ehci32toh(sc, sitd->sitd_portaddr),
+	    (sitd->sitd_portaddr & htoehci32(sc, EHCI_SITD_SET_DIR_IN))
 	    ? "in" : "out",
-	    EHCI_SITD_GET_ADDR(le32toh(sitd->sitd_portaddr)),
-	    EHCI_SITD_GET_ENDPT(le32toh(sitd->sitd_portaddr)),
-	    EHCI_SITD_GET_PORT(le32toh(sitd->sitd_portaddr)),
-	    EHCI_SITD_GET_HUBA(le32toh(sitd->sitd_portaddr)));
-	printf(" mask=0x%08x\n", le32toh(sitd->sitd_mask));
-	printf(" status=0x%08x <%s> len=0x%x\n", le32toh(sitd->sitd_status),
-	    (sitd->sitd_status & htole32(EHCI_SITD_ACTIVE)) ? "ACTIVE" : "",
-	    EHCI_SITD_GET_LEN(le32toh(sitd->sitd_status)));
+	    EHCI_SITD_GET_ADDR(ehci32toh(sc, sitd->sitd_portaddr)),
+	    EHCI_SITD_GET_ENDPT(ehci32toh(sc, sitd->sitd_portaddr)),
+	    EHCI_SITD_GET_PORT(ehci32toh(sc, sitd->sitd_portaddr)),
+	    EHCI_SITD_GET_HUBA(ehci32toh(sc, sitd->sitd_portaddr)));
+	printf(" mask=0x%08x\n", ehci32toh(sc, sitd->sitd_mask));
+	printf(" status=0x%08x <%s> len=0x%x\n", ehci32toh(sc, sitd->sitd_status),
+	    (sitd->sitd_status & htoehci32(sc, EHCI_SITD_ACTIVE)) ? "ACTIVE" : "",
+	    EHCI_SITD_GET_LEN(ehci32toh(sc, sitd->sitd_status)));
 	printf(" back=0x%08x, bp=0x%08x,0x%08x,0x%08x,0x%08x\n",
-	    le32toh(sitd->sitd_back),
-	    le32toh(sitd->sitd_bp[0]),
-	    le32toh(sitd->sitd_bp[1]),
-	    le32toh(sitd->sitd_bp_hi[0]),
-	    le32toh(sitd->sitd_bp_hi[1]));
+	    ehci32toh(sc, sitd->sitd_back),
+	    ehci32toh(sc, sitd->sitd_bp[0]),
+	    ehci32toh(sc, sitd->sitd_bp[1]),
+	    ehci32toh(sc, sitd->sitd_bp_hi[0]),
+	    ehci32toh(sc, sitd->sitd_bp_hi[1]));
 }
 
 static void
-ehci_dump_itd(ehci_itd_t *itd)
+ehci_dump_itd(ehci_softc_t *sc, ehci_itd_t *itd)
 {
 	usb2_pc_cpu_invalidate(itd->page_cache);
-	printf("ITD(%p) at 0x%08x\n", itd, le32toh(itd->itd_self) & ~0x1F);
-	printf(" next=0x%08x\n", le32toh(itd->itd_next));
-	printf(" status[0]=0x%08x; <%s>\n", le32toh(itd->itd_status[0]),
-	    (itd->itd_status[0] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" status[1]=0x%08x; <%s>\n", le32toh(itd->itd_status[1]),
-	    (itd->itd_status[1] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" status[2]=0x%08x; <%s>\n", le32toh(itd->itd_status[2]),
-	    (itd->itd_status[2] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" status[3]=0x%08x; <%s>\n", le32toh(itd->itd_status[3]),
-	    (itd->itd_status[3] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" status[4]=0x%08x; <%s>\n", le32toh(itd->itd_status[4]),
-	    (itd->itd_status[4] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" status[5]=0x%08x; <%s>\n", le32toh(itd->itd_status[5]),
-	    (itd->itd_status[5] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" status[6]=0x%08x; <%s>\n", le32toh(itd->itd_status[6]),
-	    (itd->itd_status[6] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" status[7]=0x%08x; <%s>\n", le32toh(itd->itd_status[7]),
-	    (itd->itd_status[7] & htole32(EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
-	printf(" bp[0]=0x%08x\n", le32toh(itd->itd_bp[0]));
+	printf("ITD(%p) at 0x%08x\n", itd, ehci32toh(sc, itd->itd_self) & ~0x1F);
+	printf(" next=0x%08x\n", ehci32toh(sc, itd->itd_next));
+	printf(" status[0]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[0]),
+	    (itd->itd_status[0] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" status[1]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[1]),
+	    (itd->itd_status[1] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" status[2]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[2]),
+	    (itd->itd_status[2] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" status[3]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[3]),
+	    (itd->itd_status[3] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" status[4]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[4]),
+	    (itd->itd_status[4] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" status[5]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[5]),
+	    (itd->itd_status[5] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" status[6]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[6]),
+	    (itd->itd_status[6] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" status[7]=0x%08x; <%s>\n", ehci32toh(sc, itd->itd_status[7]),
+	    (itd->itd_status[7] & htoehci32(sc, EHCI_ITD_ACTIVE)) ? "ACTIVE" : "");
+	printf(" bp[0]=0x%08x\n", ehci32toh(sc, itd->itd_bp[0]));
 	printf("  addr=0x%02x; endpt=0x%01x\n",
-	    EHCI_ITD_GET_ADDR(le32toh(itd->itd_bp[0])),
-	    EHCI_ITD_GET_ENDPT(le32toh(itd->itd_bp[0])));
-	printf(" bp[1]=0x%08x\n", le32toh(itd->itd_bp[1]));
+	    EHCI_ITD_GET_ADDR(ehci32toh(sc, itd->itd_bp[0])),
+	    EHCI_ITD_GET_ENDPT(ehci32toh(sc, itd->itd_bp[0])));
+	printf(" bp[1]=0x%08x\n", ehci32toh(sc, itd->itd_bp[1]));
 	printf(" dir=%s; mpl=0x%02x\n",
-	    (le32toh(itd->itd_bp[1]) & EHCI_ITD_SET_DIR_IN) ? "in" : "out",
-	    EHCI_ITD_GET_MPL(le32toh(itd->itd_bp[1])));
+	    (ehci32toh(sc, itd->itd_bp[1]) & EHCI_ITD_SET_DIR_IN) ? "in" : "out",
+	    EHCI_ITD_GET_MPL(ehci32toh(sc, itd->itd_bp[1])));
 	printf(" bp[2..6]=0x%08x,0x%08x,0x%08x,0x%08x,0x%08x\n",
-	    le32toh(itd->itd_bp[2]),
-	    le32toh(itd->itd_bp[3]),
-	    le32toh(itd->itd_bp[4]),
-	    le32toh(itd->itd_bp[5]),
-	    le32toh(itd->itd_bp[6]));
+	    ehci32toh(sc, itd->itd_bp[2]),
+	    ehci32toh(sc, itd->itd_bp[3]),
+	    ehci32toh(sc, itd->itd_bp[4]),
+	    ehci32toh(sc, itd->itd_bp[5]),
+	    ehci32toh(sc, itd->itd_bp[6]));
 	printf(" bp_hi=0x%08x,0x%08x,0x%08x,0x%08x,\n"
 	    "       0x%08x,0x%08x,0x%08x\n",
-	    le32toh(itd->itd_bp_hi[0]),
-	    le32toh(itd->itd_bp_hi[1]),
-	    le32toh(itd->itd_bp_hi[2]),
-	    le32toh(itd->itd_bp_hi[3]),
-	    le32toh(itd->itd_bp_hi[4]),
-	    le32toh(itd->itd_bp_hi[5]),
-	    le32toh(itd->itd_bp_hi[6]));
+	    ehci32toh(sc, itd->itd_bp_hi[0]),
+	    ehci32toh(sc, itd->itd_bp_hi[1]),
+	    ehci32toh(sc, itd->itd_bp_hi[2]),
+	    ehci32toh(sc, itd->itd_bp_hi[3]),
+	    ehci32toh(sc, itd->itd_bp_hi[4]),
+	    ehci32toh(sc, itd->itd_bp_hi[5]),
+	    ehci32toh(sc, itd->itd_bp_hi[6]));
 }
 
 static void
@@ -936,12 +955,12 @@ ehci_dump_isoc(ehci_softc_t *sc)
 	sitd = sc->sc_isoc_fs_p_last[pos];
 
 	while (itd && max && max--) {
-		ehci_dump_itd(itd);
+		ehci_dump_itd(sc, itd);
 		itd = itd->prev;
 	}
 
 	while (sitd && max && max--) {
-		ehci_dump_sitd(sitd);
+		ehci_dump_sitd(sc, sitd);
 		sitd = sitd->prev;
 	}
 }
@@ -1022,6 +1041,11 @@ _ehci_append_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 {
 	DPRINTFN(11, "%p to %p\n", sqh, last);
 
+	if (sqh->prev != NULL) {
+		/* should not happen */
+		DPRINTFN(0, "QH already linked!\n");
+		return (last);
+	}
 	/* (sc->sc_bus.mtx) must be locked */
 
 	sqh->next = last->next;
@@ -1040,12 +1064,6 @@ _ehci_append_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 
 	usb2_pc_cpu_flush(last->page_cache);
 
-#if USB_DEBUG
-	if (ehcidebug > 5) {
-		printf("%s:\n", __FUNCTION__);
-		ehci_dump_sqh(sqh);
-	}
-#endif
 	return (sqh);
 }
 
@@ -1109,14 +1127,6 @@ _ehci_remove_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 			sqh->next->prev = sqh->prev;
 			usb2_pc_cpu_flush(sqh->next->page_cache);
 		}
-		/*
-		 * set the Terminate-bit in the e_next of the QH, in case
-		 * the transferred packet was short so that the QH still
-		 * points at the last used TD
-		 */
-
-		sqh->qh_qtd.qtd_next = htole32(EHCI_LINK_TERMINATE);
-
 		last = ((last == sqh) ? sqh->prev : last);
 
 		sqh->prev = 0;
@@ -1129,6 +1139,7 @@ _ehci_remove_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 static usb2_error_t
 ehci_non_isoc_done_sub(struct usb2_xfer *xfer)
 {
+	ehci_softc_t *sc = xfer->usb2_sc;
 	ehci_qtd_t *td;
 	ehci_qtd_t *td_alt_next;
 	uint32_t status;
@@ -1140,7 +1151,7 @@ ehci_non_isoc_done_sub(struct usb2_xfer *xfer)
 	while (1) {
 
 		usb2_pc_cpu_invalidate(td->page_cache);
-		status = le32toh(td->qtd_status);
+		status = ehci32toh(sc, td->qtd_status);
 
 		len = EHCI_QTD_GET_BYTES(status);
 
@@ -1232,7 +1243,9 @@ ehci_non_isoc_done(struct usb2_xfer *xfer)
 
 #if USB_DEBUG
 	if (ehcidebug > 10) {
-		ehci_dump_sqtds(xfer->td_transfer_first);
+		ehci_softc_t *sc = xfer->usb2_sc;
+
+		ehci_dump_sqtds(sc, xfer->td_transfer_first);
 	}
 #endif
 
@@ -1282,6 +1295,7 @@ static uint8_t
 ehci_check_transfer(struct usb2_xfer *xfer)
 {
 	struct usb2_pipe_methods *methods = xfer->pipe->methods;
+	ehci_softc_t *sc = xfer->usb2_sc;
 
 	uint32_t status;
 
@@ -1294,13 +1308,13 @@ ehci_check_transfer(struct usb2_xfer *xfer)
 
 		td = xfer->td_transfer_last;
 		usb2_pc_cpu_invalidate(td->page_cache);
-		status = le32toh(td->sitd_status);
+		status = ehci32toh(sc, td->sitd_status);
 
 		/* also check if first is complete */
 
 		td = xfer->td_transfer_first;
 		usb2_pc_cpu_invalidate(td->page_cache);
-		status |= le32toh(td->sitd_status);
+		status |= ehci32toh(sc, td->sitd_status);
 
 		if (!(status & EHCI_SITD_ACTIVE)) {
 			ehci_device_done(xfer, USB_ERR_NORMAL_COMPLETION);
@@ -1329,7 +1343,7 @@ ehci_check_transfer(struct usb2_xfer *xfer)
 		    td->itd_status[6] | td->itd_status[7];
 
 		/* if no transactions are active we continue */
-		if (!(status & htole32(EHCI_ITD_ACTIVE))) {
+		if (!(status & htoehci32(sc, EHCI_ITD_ACTIVE))) {
 			ehci_device_done(xfer, USB_ERR_NORMAL_COMPLETION);
 			goto transferred;
 		}
@@ -1346,7 +1360,7 @@ ehci_check_transfer(struct usb2_xfer *xfer)
 
 		while (1) {
 			usb2_pc_cpu_invalidate(td->page_cache);
-			status = le32toh(td->qtd_status);
+			status = ehci32toh(sc, td->qtd_status);
 
 			/*
 			 * if there is an active TD the transfer isn't done
@@ -1520,7 +1534,7 @@ ehci_timeout(void *arg)
 static void
 ehci_do_poll(struct usb2_bus *bus)
 {
-	struct ehci_softc *sc = EHCI_BUS2SC(bus);
+	ehci_softc_t *sc = EHCI_BUS2SC(bus);
 
 	USB_BUS_LOCK(&sc->sc_bus);
 	ehci_interrupt_poll(sc);
@@ -1542,7 +1556,7 @@ ehci_setup_standard_chain_sub(struct ehci_std_temp *temp)
 	uint8_t shortpkt_old;
 	uint8_t precompute;
 
-	qtd_altnext = htole32(EHCI_LINK_TERMINATE);
+	qtd_altnext = htoehci32(temp->sc, EHCI_LINK_TERMINATE);
 	td_alt_next = NULL;
 	buf_offset = 0;
 	shortpkt_old = temp->shortpkt;
@@ -1599,7 +1613,8 @@ restart:
 		/* fill out current TD */
 
 		td->qtd_status =
-		    temp->qtd_status | htole32(EHCI_QTD_SET_BYTES(average));
+		    temp->qtd_status |
+		    htoehci32(temp->sc, EHCI_QTD_SET_BYTES(average));
 
 		if (average == 0) {
 
@@ -1607,7 +1622,8 @@ restart:
 
 				/* update data toggle, ZLP case */
 
-				temp->qtd_status ^= htole32(EHCI_QTD_TOGGLE_MASK);
+				temp->qtd_status ^=
+				    htoehci32(temp->sc, EHCI_QTD_TOGGLE_MASK);
 			}
 			td->len = 0;
 
@@ -1627,7 +1643,8 @@ restart:
 
 				if (((average + temp->max_frame_size - 1) /
 				    temp->max_frame_size) & 1) {
-					temp->qtd_status ^= htole32(EHCI_QTD_TOGGLE_MASK);
+					temp->qtd_status ^=
+					    htoehci32(temp->sc, EHCI_QTD_TOGGLE_MASK);
 				}
 			}
 			td->len = average;
@@ -1639,7 +1656,8 @@ restart:
 			/* fill out buffer pointers */
 
 			usb2_get_page(temp->pc, buf_offset, &buf_res);
-			td->qtd_buffer[0] = htole32(buf_res.physaddr);
+			td->qtd_buffer[0] =
+			    htoehci32(temp->sc, buf_res.physaddr);
 			td->qtd_buffer_hi[0] = 0;
 
 			x = 1;
@@ -1648,7 +1666,9 @@ restart:
 				average -= EHCI_PAGE_SIZE;
 				buf_offset += EHCI_PAGE_SIZE;
 				usb2_get_page(temp->pc, buf_offset, &buf_res);
-				td->qtd_buffer[x] = htole32(buf_res.physaddr & (~0xFFF));
+				td->qtd_buffer[x] =
+				    htoehci32(temp->sc,
+				    buf_res.physaddr & (~0xFFF));
 				td->qtd_buffer_hi[x] = 0;
 				x++;
 			}
@@ -1663,7 +1683,9 @@ restart:
 			 */
 			buf_offset += average;
 			usb2_get_page(temp->pc, buf_offset - 1, &buf_res);
-			td->qtd_buffer[x] = htole32(buf_res.physaddr & (~0xFFF));
+			td->qtd_buffer[x] =
+			    htoehci32(temp->sc,
+			    buf_res.physaddr & (~0xFFF));
 			td->qtd_buffer_hi[x] = 0;
 		}
 
@@ -1717,6 +1739,7 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 
 	temp.average = xfer->max_usb2_frame_size;
 	temp.max_frame_size = xfer->max_frame_size;
+	temp.sc = xfer->usb2_sc;
 
 	/* toggle the DMA set we are using */
 	xfer->flags_int.curr_dma_set ^= 1;
@@ -1736,7 +1759,8 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->pipe->toggle_next) {
 			/* DATA1 is next */
-			temp.qtd_status |= htole32(EHCI_QTD_SET_TOGGLE(1));
+			temp.qtd_status |=
+			    htoehci32(temp.sc, EHCI_QTD_SET_TOGGLE(1));
 		}
 		temp.auto_data_toggle = 0;
 	} else {
@@ -1745,14 +1769,16 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 
 	if (usb2_get_speed(xfer->udev) != USB_SPEED_HIGH) {
 		/* max 3 retries */
-		temp.qtd_status |= htole32(EHCI_QTD_SET_CERR(3));
+		temp.qtd_status |=
+		    htoehci32(temp.sc, EHCI_QTD_SET_CERR(3));
 	}
 	/* check if we should prepend a setup message */
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->flags_int.control_hdr) {
 
-			temp.qtd_status &= htole32(EHCI_QTD_SET_CERR(3));
+			temp.qtd_status &=
+			    htoehci32(temp.sc, EHCI_QTD_SET_CERR(3));
 			temp.qtd_status |= htole32
 			    (EHCI_QTD_ACTIVE |
 			    EHCI_QTD_SET_PID(EHCI_QTD_PID_SETUP) |
@@ -1783,7 +1809,8 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 		}
 		/* keep previous data toggle and error count */
 
-		temp.qtd_status &= htole32(EHCI_QTD_SET_CERR(3) |
+		temp.qtd_status &=
+		    htoehci32(temp.sc, EHCI_QTD_SET_CERR(3) |
 		    EHCI_QTD_SET_TOGGLE(1));
 
 		if (temp.len == 0) {
@@ -1803,9 +1830,9 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 
 		temp.qtd_status |=
 		    (UE_GET_DIR(xfer->endpoint) == UE_DIR_IN) ?
-		    htole32(EHCI_QTD_ACTIVE |
+		    htoehci32(temp.sc, EHCI_QTD_ACTIVE |
 		    EHCI_QTD_SET_PID(EHCI_QTD_PID_IN)) :
-		    htole32(EHCI_QTD_ACTIVE |
+		    htoehci32(temp.sc, EHCI_QTD_ACTIVE |
 		    EHCI_QTD_SET_PID(EHCI_QTD_PID_OUT));
 
 		ehci_setup_standard_chain_sub(&temp);
@@ -1821,14 +1848,14 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 		 * direction.
 		 */
 
-		temp.qtd_status &= htole32(EHCI_QTD_SET_CERR(3) |
+		temp.qtd_status &= htoehci32(temp.sc, EHCI_QTD_SET_CERR(3) |
 		    EHCI_QTD_SET_TOGGLE(1));
 		temp.qtd_status |=
 		    (UE_GET_DIR(xfer->endpoint) == UE_DIR_OUT) ?
-		    htole32(EHCI_QTD_ACTIVE |
+		    htoehci32(temp.sc, EHCI_QTD_ACTIVE |
 		    EHCI_QTD_SET_PID(EHCI_QTD_PID_IN) |
 		    EHCI_QTD_SET_TOGGLE(1)) :
-		    htole32(EHCI_QTD_ACTIVE |
+		    htoehci32(temp.sc, EHCI_QTD_ACTIVE |
 		    EHCI_QTD_SET_PID(EHCI_QTD_PID_OUT) |
 		    EHCI_QTD_SET_TOGGLE(1));
 
@@ -1841,9 +1868,9 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 	td = temp.td;
 
 	/* the last TD terminates the transfer: */
-	td->qtd_next = htole32(EHCI_LINK_TERMINATE);
-	td->qtd_altnext = htole32(EHCI_LINK_TERMINATE);
-	td->qtd_status |= htole32(EHCI_QTD_IOC);
+	td->qtd_next = htoehci32(temp.sc, EHCI_LINK_TERMINATE);
+	td->qtd_altnext = htoehci32(temp.sc, EHCI_LINK_TERMINATE);
+	td->qtd_status |= htoehci32(temp.sc, EHCI_QTD_IOC);
 
 	usb2_pc_cpu_flush(td->page_cache);
 
@@ -1855,7 +1882,8 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 	if (ehcidebug > 8) {
 		DPRINTF("nexttog=%d; data before transfer:\n",
 		    xfer->pipe->toggle_next);
-		ehci_dump_sqtds(xfer->td_transfer_first);
+		ehci_dump_sqtds(temp.sc,
+		    xfer->td_transfer_first);
 	}
 #endif
 
@@ -1892,7 +1920,7 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 		}
 	}
 
-	qh->qh_endp = htole32(qh_endp);
+	qh->qh_endp = htoehci32(temp.sc, qh_endp);
 
 	qh_endphub =
 	    (EHCI_QH_SET_MULT(xfer->max_packet_count & 3) |
@@ -1901,38 +1929,42 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 	    EHCI_QH_SET_HUBA(xfer->udev->hs_hub_addr) |
 	    EHCI_QH_SET_PORT(xfer->udev->hs_port_no));
 
-	qh->qh_endphub = htole32(qh_endphub);
-	qh->qh_curqtd = htole32(0);
+	qh->qh_endphub = htoehci32(temp.sc, qh_endphub);
+	qh->qh_curqtd = htoehci32(temp.sc, 0);
 
 	/* fill the overlay qTD */
-	qh->qh_qtd.qtd_status = htole32(0);
+	qh->qh_qtd.qtd_status = htoehci32(temp.sc, 0);
 
 	if (temp.auto_data_toggle) {
 
 		/* let the hardware compute the data toggle */
 
-		qh->qh_endp &= ~htole32(EHCI_QH_DTC);
+		qh->qh_endp &= htoehci32(temp.sc, ~EHCI_QH_DTC);
 
 		if (xfer->pipe->toggle_next) {
 			/* DATA1 is next */
-			qh->qh_qtd.qtd_status |= htole32(EHCI_QTD_SET_TOGGLE(1));
+			qh->qh_qtd.qtd_status |=
+			    htoehci32(temp.sc, EHCI_QTD_SET_TOGGLE(1));
 		}
 	}
 	td = xfer->td_transfer_first;
 
 	qh->qh_qtd.qtd_next = td->qtd_self;
-	qh->qh_qtd.qtd_altnext = htole32(EHCI_LINK_TERMINATE);
+	qh->qh_qtd.qtd_altnext =
+	    htoehci32(temp.sc, EHCI_LINK_TERMINATE);
 
 	usb2_pc_cpu_flush(qh->page_cache);
 
-	EHCI_APPEND_QH(qh, *qh_last);
+	if (xfer->udev->pwr_save.suspended == 0) {
+		EHCI_APPEND_QH(qh, *qh_last);
+	}
 }
 
 static void
 ehci_root_intr_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	struct ehci_softc *sc = xfer->usb2_sc;
+	ehci_softc_t *sc = xfer->usb2_sc;
 	uint16_t i;
 	uint16_t m;
 
@@ -1992,11 +2024,11 @@ ehci_isoc_fs_done(ehci_softc_t *sc, struct usb2_xfer *xfer)
 #if USB_DEBUG
 		if (ehcidebug > 15) {
 			DPRINTF("isoc FS-TD\n");
-			ehci_dump_sitd(td);
+			ehci_dump_sitd(sc, td);
 		}
 #endif
 		usb2_pc_cpu_invalidate(td->page_cache);
-		status = le32toh(td->sitd_status);
+		status = ehci32toh(sc, td->sitd_status);
 
 		len = EHCI_SITD_GET_LEN(status);
 
@@ -2044,12 +2076,12 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb2_xfer *xfer)
 #if USB_DEBUG
 		if (ehcidebug > 15) {
 			DPRINTF("isoc HS-TD\n");
-			ehci_dump_itd(td);
+			ehci_dump_itd(sc, td);
 		}
 #endif
 
 		usb2_pc_cpu_invalidate(td->page_cache);
-		status = le32toh(td->itd_status[td_no]);
+		status = ehci32toh(sc, td->itd_status[td_no]);
 
 		len = EHCI_ITD_GET_LEN(status);
 
@@ -2102,7 +2134,8 @@ ehci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 		if (ehcidebug > 8) {
 			DPRINTF("nexttog=%d; data after transfer:\n",
 			    xfer->pipe->toggle_next);
-			ehci_dump_sqtds(xfer->td_transfer_first);
+			ehci_dump_sqtds(xfer->usb2_sc,
+			    xfer->td_transfer_first);
 		}
 #endif
 
@@ -2322,6 +2355,7 @@ struct usb2_pipe_methods ehci_device_intr_methods =
 static void
 ehci_device_isoc_fs_open(struct usb2_xfer *xfer)
 {
+	ehci_softc_t *sc = xfer->usb2_sc;
 	ehci_sitd_t *td;
 	uint32_t sitd_portaddr;
 	uint8_t ds;
@@ -2335,7 +2369,7 @@ ehci_device_isoc_fs_open(struct usb2_xfer *xfer)
 	if (UE_GET_DIR(xfer->endpoint) == UE_DIR_IN) {
 		sitd_portaddr |= EHCI_SITD_SET_DIR_IN;
 	}
-	sitd_portaddr = htole32(sitd_portaddr);
+	sitd_portaddr = htoehci32(sc, sitd_portaddr);
 
 	/* initialize all TD's */
 
@@ -2352,7 +2386,7 @@ ehci_device_isoc_fs_open(struct usb2_xfer *xfer)
 			 *
 			 * micro-frame usage (8 microframes per 1ms)
 			 */
-			td->sitd_back = htole32(EHCI_LINK_TERMINATE);
+			td->sitd_back = htoehci32(sc, EHCI_LINK_TERMINATE);
 
 			usb2_pc_cpu_flush(td->page_cache);
 		}
@@ -2499,7 +2533,7 @@ ehci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 			 * non-zero length
 			 */
 			usb2_get_page(xfer->frbuffers, buf_offset, &buf_res);
-			td->sitd_bp[0] = htole32(buf_res.physaddr);
+			td->sitd_bp[0] = htoehci32(sc, buf_res.physaddr);
 			buf_offset += *plen;
 			/*
 			 * NOTE: We need to subtract one from the offset so
@@ -2544,9 +2578,9 @@ ehci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 		sitd_mask = (EHCI_SITD_SET_SMASK(sa) |
 		    EHCI_SITD_SET_CMASK(sb));
 
-		td->sitd_bp[1] = htole32(temp);
+		td->sitd_bp[1] = htoehci32(sc, temp);
 
-		td->sitd_mask = htole32(sitd_mask);
+		td->sitd_mask = htoehci32(sc, sitd_mask);
 
 		if (nframes == 0) {
 			td->sitd_status = htole32
@@ -2563,7 +2597,7 @@ ehci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 #if USB_DEBUG
 		if (ehcidebug > 15) {
 			DPRINTF("FS-TD %d\n", nframes);
-			ehci_dump_sitd(td);
+			ehci_dump_sitd(sc, td);
 		}
 #endif
 		/* insert TD into schedule */
@@ -2606,6 +2640,7 @@ struct usb2_pipe_methods ehci_device_isoc_fs_methods =
 static void
 ehci_device_isoc_hs_open(struct usb2_xfer *xfer)
 {
+	ehci_softc_t *sc = xfer->usb2_sc;
 	ehci_itd_t *td;
 	uint32_t temp;
 	uint8_t ds;
@@ -2639,10 +2674,10 @@ ehci_device_isoc_hs_open(struct usb2_xfer *xfer)
 				temp |= EHCI_ITD_SET_DIR_IN;
 			}
 			/* set maximum packet size */
-			td->itd_bp[1] = htole32(temp);
+			td->itd_bp[1] = htoehci32(sc, temp);
 
 			/* set transfer multiplier */
-			td->itd_bp[2] = htole32(xfer->max_packet_count & 3);
+			td->itd_bp[2] = htoehci32(sc, xfer->max_packet_count & 3);
 
 			usb2_pc_cpu_flush(td->page_cache);
 		}
@@ -2764,7 +2799,7 @@ ehci_device_isoc_hs_enter(struct usb2_xfer *xfer)
 		status = (EHCI_ITD_SET_LEN(*plen) |
 		    EHCI_ITD_ACTIVE |
 		    EHCI_ITD_SET_PG(0));
-		td->itd_status[td_no] = htole32(status);
+		td->itd_status[td_no] = htoehci32(sc, status);
 		itd_offset[td_no] = buf_offset;
 		buf_offset += *plen;
 		plen++;
@@ -2787,14 +2822,14 @@ ehci_device_isoc_hs_enter(struct usb2_xfer *xfer)
 				/* get page address */
 				page_addr = buf_res.physaddr & ~0xFFF;
 				/* update page address */
-				td->itd_bp[0] &= htole32(0xFFF);
-				td->itd_bp[0] |= htole32(page_addr);
+				td->itd_bp[0] &= htoehci32(sc, 0xFFF);
+				td->itd_bp[0] |= htoehci32(sc, page_addr);
 
 				for (x = 0; x != td_no; x++) {
 					/* set page number and page offset */
 					status = (EHCI_ITD_SET_PG(page_no) |
 					    (buf_res.physaddr & 0xFFF));
-					td->itd_status[x] |= htole32(status);
+					td->itd_status[x] |= htoehci32(sc, status);
 
 					/* get next page offset */
 					if (itd_offset[x + 1] == buf_offset) {
@@ -2817,20 +2852,20 @@ ehci_device_isoc_hs_enter(struct usb2_xfer *xfer)
 						}
 						page_no++;
 						/* update page address */
-						td->itd_bp[page_no] &= htole32(0xFFF);
-						td->itd_bp[page_no] |= htole32(page_addr);
+						td->itd_bp[page_no] &= htoehci32(sc, 0xFFF);
+						td->itd_bp[page_no] |= htoehci32(sc, page_addr);
 					}
 				}
 			}
 			/* set IOC bit if we are complete */
 			if (nframes == 0) {
-				td->itd_status[7] |= htole32(EHCI_ITD_IOC);
+				td->itd_status[7] |= htoehci32(sc, EHCI_ITD_IOC);
 			}
 			usb2_pc_cpu_flush(td->page_cache);
 #if USB_DEBUG
 			if (ehcidebug > 15) {
 				DPRINTF("HS-TD %d\n", nframes);
-				ehci_dump_itd(td);
+				ehci_dump_itd(sc, td);
 			}
 #endif
 			/* insert TD into schedule */
@@ -3001,7 +3036,7 @@ ehci_root_ctrl_start(struct usb2_xfer *xfer)
 }
 
 static void
-ehci_root_ctrl_task(struct ehci_softc *sc,
+ehci_root_ctrl_task(ehci_softc_t *sc,
     struct usb2_config_td_cc *cc, uint16_t refcount)
 {
 	ehci_root_ctrl_poll(sc);
@@ -3011,7 +3046,7 @@ static void
 ehci_root_ctrl_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	struct ehci_softc *sc = xfer->usb2_sc;
+	ehci_softc_t *sc = xfer->usb2_sc;
 	char *ptr;
 	uint32_t port;
 	uint32_t v;
@@ -3176,7 +3211,32 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 			EOWRITE4(sc, port, v & ~EHCI_PS_PE);
 			break;
 		case UHF_PORT_SUSPEND:
-			EOWRITE4(sc, port, v & ~EHCI_PS_SUSP);
+			if ((v & EHCI_PS_SUSP) && (!(v & EHCI_PS_FPR))) {
+
+				/*
+				 * waking up a High Speed device is rather
+				 * complicated if
+				 */
+				EOWRITE4(sc, port, v | EHCI_PS_FPR);
+			}
+			/* wait 20ms for resume sequence to complete */
+			if (use_polling) {
+				/* polling */
+				DELAY(20 * 1000);
+			} else {
+				usb2_pause_mtx(&sc->sc_bus.bus_mtx, 20);
+			}
+
+			EOWRITE4(sc, port, v & ~(EHCI_PS_SUSP |
+			    EHCI_PS_FPR | (3 << 10) /* High Speed */ ));
+
+			/* settle time */
+			if (use_polling) {
+				/* polling */
+				DELAY(4 * 1000);
+			} else {
+				usb2_pause_mtx(&sc->sc_bus.bus_mtx, 4);
+			}
 			break;
 		case UHF_PORT_POWER:
 			EOWRITE4(sc, port, v & ~EHCI_PS_PP);
@@ -3223,7 +3283,8 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 		    (EHCI_HCS_PPC(v) ? UHD_PWR_INDIVIDUAL : UHD_PWR_NO_SWITCH) |
 		    (EHCI_HCS_P_INDICATOR(EREAD4(sc, EHCI_HCSPARAMS)) ?
 		    UHD_PORT_IND : 0));
-		sc->sc_hub_desc.hubd.bPwrOn2PwrGood = 200;	/* XXX can't find out? */
+		/* XXX can't find out? */
+		sc->sc_hub_desc.hubd.bPwrOn2PwrGood = 200;
 		for (l = 0; l < sc->sc_noport; l++) {
 			/* XXX can't find out? */
 			sc->sc_hub_desc.hubd.DeviceRemovable[l / 8] &= ~(1 << (l % 8));
@@ -3260,7 +3321,7 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 			i |= UPS_CURRENT_CONNECT_STATUS;
 		if (v & EHCI_PS_PE)
 			i |= UPS_PORT_ENABLED;
-		if (v & EHCI_PS_SUSP)
+		if ((v & EHCI_PS_SUSP) && !(v & EHCI_PS_FPR))
 			i |= UPS_SUSPEND;
 		if (v & EHCI_PS_OCA)
 			i |= UPS_OVERCURRENT_INDICATOR;
@@ -3276,6 +3337,8 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 			i |= UPS_C_PORT_ENABLED;
 		if (v & EHCI_PS_OCC)
 			i |= UPS_C_OVERCURRENT_INDICATOR;
+		if (v & EHCI_PS_FPR)
+			i |= UPS_C_SUSPEND;
 		if (sc->sc_isreset)
 			i |= UPS_C_PORT_RESET;
 		USETW(sc->sc_hub_desc.ps.wPortChange, i);
@@ -3398,7 +3461,7 @@ done:
 }
 
 static void
-ehci_root_ctrl_poll(struct ehci_softc *sc)
+ehci_root_ctrl_poll(ehci_softc_t *sc)
 {
 	usb2_sw_transfer(&sc->sc_root_ctrl,
 	    &ehci_root_ctrl_done);
@@ -3621,7 +3684,7 @@ alloc_dma_set:
 			td = page_info.buffer;
 
 			/* init TD */
-			td->itd_self = htole32(page_info.physaddr | EHCI_LINK_ITD);
+			td->itd_self = htoehci32(sc, page_info.physaddr | EHCI_LINK_ITD);
 			td->obj_next = last_obj;
 			td->page_cache = pc + n;
 
@@ -3645,7 +3708,7 @@ alloc_dma_set:
 			td = page_info.buffer;
 
 			/* init TD */
-			td->sitd_self = htole32(page_info.physaddr | EHCI_LINK_SITD);
+			td->sitd_self = htoehci32(sc, page_info.physaddr | EHCI_LINK_SITD);
 			td->obj_next = last_obj;
 			td->page_cache = pc + n;
 
@@ -3669,7 +3732,7 @@ alloc_dma_set:
 			qtd = page_info.buffer;
 
 			/* init TD */
-			qtd->qtd_self = htole32(page_info.physaddr);
+			qtd->qtd_self = htoehci32(sc, page_info.physaddr);
 			qtd->obj_next = last_obj;
 			qtd->page_cache = pc + n;
 
@@ -3697,7 +3760,7 @@ alloc_dma_set:
 			qh = page_info.buffer;
 
 			/* init QH */
-			qh->qh_self = htole32(page_info.physaddr | EHCI_LINK_QH);
+			qh->qh_self = htoehci32(sc, page_info.physaddr | EHCI_LINK_QH);
 			qh->obj_next = last_obj;
 			qh->page_cache = pc + n;
 
@@ -3794,6 +3857,108 @@ ehci_get_dma_delay(struct usb2_bus *bus, uint32_t *pus)
 	*pus = (188);			/* microseconds */
 }
 
+static void
+ehci_device_resume(struct usb2_device *udev)
+{
+	ehci_softc_t *sc = EHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->udev == udev) {
+
+			methods = xfer->pipe->methods;
+
+			if ((methods == &ehci_device_bulk_methods) ||
+			    (methods == &ehci_device_ctrl_methods)) {
+				EHCI_APPEND_QH(xfer->qh_start[xfer->flags_int.curr_dma_set],
+				    sc->sc_async_p_last);
+			}
+			if (methods == &ehci_device_intr_methods) {
+				EHCI_APPEND_QH(xfer->qh_start[xfer->flags_int.curr_dma_set],
+				    sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+ehci_device_suspend(struct usb2_device *udev)
+{
+	ehci_softc_t *sc = EHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->udev == udev) {
+
+			methods = xfer->pipe->methods;
+
+			if ((methods == &ehci_device_bulk_methods) ||
+			    (methods == &ehci_device_ctrl_methods)) {
+				EHCI_REMOVE_QH(xfer->qh_start[xfer->flags_int.curr_dma_set],
+				    sc->sc_async_p_last);
+			}
+			if (methods == &ehci_device_intr_methods) {
+				EHCI_REMOVE_QH(xfer->qh_start[xfer->flags_int.curr_dma_set],
+				    sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+ehci_set_hw_power(struct usb2_bus *bus)
+{
+	ehci_softc_t *sc = EHCI_BUS2SC(bus);
+	uint32_t temp;
+	uint32_t flags;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(bus);
+
+	flags = bus->hw_power_state;
+
+	temp = EOREAD4(sc, EHCI_USBCMD);
+
+	temp &= ~(EHCI_CMD_ASE | EHCI_CMD_PSE);
+
+	if (flags & (USB_HW_POWER_CONTROL |
+	    USB_HW_POWER_BULK)) {
+		DPRINTF("Async is active\n");
+		temp |= EHCI_CMD_ASE;
+	}
+	if (flags & (USB_HW_POWER_INTERRUPT |
+	    USB_HW_POWER_ISOC)) {
+		DPRINTF("Periodic is active\n");
+		temp |= EHCI_CMD_PSE;
+	}
+	EOWRITE4(sc, EHCI_USBCMD, temp);
+
+	USB_BUS_UNLOCK(bus);
+
+	return;
+}
+
 struct usb2_bus_methods ehci_bus_methods =
 {
 	.pipe_init = ehci_pipe_init,
@@ -3801,4 +3966,7 @@ struct usb2_bus_methods ehci_bus_methods =
 	.xfer_unsetup = ehci_xfer_unsetup,
 	.do_poll = ehci_do_poll,
 	.get_dma_delay = ehci_get_dma_delay,
+	.device_resume = ehci_device_resume,
+	.device_suspend = ehci_device_suspend,
+	.set_hw_power = ehci_set_hw_power,
 };
