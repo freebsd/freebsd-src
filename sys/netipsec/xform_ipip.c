@@ -664,7 +664,6 @@ static struct protosw ipe4_protosw =
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   ip4_input,
 		0, 		0,		rip_ctloutput,
-  0,
   0,		0,		0,		0,
   &rip_usrreqs
 };
