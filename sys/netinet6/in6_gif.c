@@ -78,7 +78,6 @@ extern  struct domain inet6domain;
 struct ip6protosw in6_gif_protosw =
 { SOCK_RAW,	&inet6domain,	0/* IPPROTO_IPV[46] */,	PR_ATOMIC|PR_ADDR,
   in6_gif_input, rip6_output,	0,		rip6_ctloutput,
-  0,
   0,		0,		0,		0,
   &rip6_usrreqs
 };
