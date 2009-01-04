@@ -53,10 +53,14 @@ static FILE *df;
 #include "teken_wcwidth.h"
 #else /* !TEKEN_UTF8 */
 static inline int
-teken_wcwidth(teken_char_t c)
+teken_wcwidth(teken_char_t c __unused)
 {
 
+#ifdef TEKEN_CONS25
+	return (1);
+#else /* !TEKEN_CONS25 */
 	return (c <= 0x1B) ? -1 : 1;
+#endif /* TEKEN_CONS25 */
 }
 #endif /* TEKEN_UTF8 */
 
