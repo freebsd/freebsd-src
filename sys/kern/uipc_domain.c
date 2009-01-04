@@ -72,7 +72,7 @@ static void	pfslowtimo(void *);
 
 struct domain *domains;		/* registered protocol domains */
 int domain_init_status = 0;
-struct mtx dom_mtx;		/* domain list lock */
+static struct mtx dom_mtx;		/* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
 /*
@@ -338,13 +338,13 @@ found:
 	 * Protect us against races when two protocol registrations for
 	 * the same protocol happen at the same time.
 	 */
-	mtx_lock(&Giant);
+	mtx_lock(&dom_mtx);
 
 	/* The new protocol must not yet exist. */
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		if ((pr->pr_type == npr->pr_type) &&
 		    (pr->pr_protocol == npr->pr_protocol)) {
-			mtx_unlock(&Giant);
+			mtx_unlock(&dom_mtx);
 			return (EEXIST);	/* XXX: Check only protocol? */
 		}
 		/* While here, remember the first free spacer. */
@@ -354,7 +354,7 @@ found:
 
 	/* If no free spacer is found we can't add the new protocol. */
 	if (fpr == NULL) {
-		mtx_unlock(&Giant);
+		mtx_unlock(&dom_mtx);
 		return (ENOMEM);
 	}
 
@@ -362,7 +362,7 @@ found:
 	bcopy(npr, fpr, sizeof(*fpr));
 
 	/* Job is done, no more protection required. */
-	mtx_unlock(&Giant);
+	mtx_unlock(&dom_mtx);
 
 	/* Initialize and activate the protocol. */
 	protosw_init(fpr);
@@ -398,13 +398,13 @@ found:
 	dpr = NULL;
 
 	/* Lock out everyone else while we are manipulating the protosw. */
-	mtx_lock(&Giant);
+	mtx_lock(&dom_mtx);
 
 	/* The protocol must exist and only once. */
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		if ((pr->pr_type == type) && (pr->pr_protocol == protocol)) {
 			if (dpr != NULL) {
-				mtx_unlock(&Giant);
+				mtx_unlock(&dom_mtx);
 				return (EMLINK);   /* Should not happen! */
 			} else
 				dpr = pr;
@@ -413,7 +413,7 @@ found:
 
 	/* Protocol does not exist. */
 	if (dpr == NULL) {
-		mtx_unlock(&Giant);
+		mtx_unlock(&dom_mtx);
 		return (EPROTONOSUPPORT);
 	}
 
@@ -433,7 +433,7 @@ found:
 	dpr->pr_usrreqs = &nousrreqs;
 
 	/* Job is done, not more protection required. */
-	mtx_unlock(&Giant);
+	mtx_unlock(&dom_mtx);
 
 	return (0);
 }
