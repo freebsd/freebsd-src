@@ -198,11 +198,22 @@ static void
 teken_subr_backspace(teken_t *t)
 {
 
+#ifdef TEKEN_CONS25
+	if (t->t_cursor.tp_col == 0) {
+		if (t->t_cursor.tp_row == t->t_originreg.ts_begin)
+			return;
+		t->t_cursor.tp_row--;
+		t->t_cursor.tp_col = t->t_winsize.tp_col - 1;
+	} else {
+		t->t_cursor.tp_col--;
+	}
+#else /* !TEKEN_CONS25 */
 	if (t->t_cursor.tp_col == 0)
 		return;
 
 	t->t_cursor.tp_col--;
 	t->t_stateflags &= ~TS_WRAPPED;
+#endif /* TEKEN_CONS25 */
 
 	teken_funcs_cursor(t);
 }
@@ -862,6 +873,7 @@ teken_subr_reset_to_initial_state(teken_t *t)
 
 	teken_subr_do_reset(t);
 	teken_subr_erase_display(t, 2);
+	teken_funcs_param(t, TP_SHOWCURSOR, 1);
 	teken_funcs_cursor(t);
 }
 
