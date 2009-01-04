@@ -39,6 +39,7 @@ static usb2_temp_get_desc_t usb2_temp_get_desc_w;
 static usb2_temp_setup_by_index_t usb2_temp_setup_by_index_w;
 static usb2_temp_unsetup_t usb2_temp_unsetup_w;
 static usb2_test_quirk_t usb2_test_quirk_w;
+static usb2_test_huawei_autoinst_t usb2_test_huawei_autoinst_w;
 static usb2_quirk_ioctl_t usb2_quirk_ioctl_w;
 
 /* global variables */
@@ -46,6 +47,7 @@ usb2_temp_get_desc_t *usb2_temp_get_desc_p = &usb2_temp_get_desc_w;
 usb2_temp_setup_by_index_t *usb2_temp_setup_by_index_p = &usb2_temp_setup_by_index_w;
 usb2_temp_unsetup_t *usb2_temp_unsetup_p = &usb2_temp_unsetup_w;
 usb2_test_quirk_t *usb2_test_quirk_p = &usb2_test_quirk_w;
+usb2_test_huawei_autoinst_t *usb2_test_huawei_autoinst_p = &usb2_test_huawei_autoinst_w;
 usb2_quirk_ioctl_t *usb2_quirk_ioctl_p = &usb2_quirk_ioctl_w;
 devclass_t usb2_devclass_ptr = NULL;
 
@@ -84,6 +86,13 @@ usb2_temp_unsetup_w(struct usb2_device *udev)
 
 		udev->usb2_template_ptr = NULL;
 	}
+}
+
+static uint8_t
+usb2_test_huawei_autoinst_w(struct usb2_device *udev,
+    struct usb2_attach_arg *uaa)
+{
+	return (USB_ERR_INVAL);
 }
 
 void
@@ -129,4 +138,18 @@ usb2_bus_unload(void *arg)
 	/* XXX this is a tradeoff */
 
 	pause("WAIT", hz);
+}
+
+void
+usb2_test_huawei_unload(void *arg)
+{
+	/* reset function pointers */
+
+	usb2_test_huawei_autoinst_p = &usb2_test_huawei_autoinst_w;
+
+	/* wait for CPU to exit the loaded functions, if any */
+
+	/* XXX this is a tradeoff */
+
+	pause("WAIT", 16*hz);
 }

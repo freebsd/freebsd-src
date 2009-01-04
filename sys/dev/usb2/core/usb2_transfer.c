@@ -120,7 +120,6 @@ static const struct usb2_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 /* function prototypes */
 
 static void	usb2_update_max_frame_size(struct usb2_xfer *);
-static uint32_t	usb2_get_dma_delay(struct usb2_bus *);
 static void	usb2_transfer_unsetup_sub(struct usb2_xfer_root *, uint8_t);
 static void	usb2_control_transfer_init(struct usb2_xfer *);
 static uint8_t	usb2_start_hardware_sub(struct usb2_xfer *);
@@ -161,7 +160,7 @@ usb2_update_max_frame_size(struct usb2_xfer *xfer)
  *    0: no DMA delay required
  * Else: milliseconds of DMA delay
  *------------------------------------------------------------------------*/
-static uint32_t
+uint32_t
 usb2_get_dma_delay(struct usb2_bus *bus)
 {
 	uint32_t temp = 0;
@@ -1374,6 +1373,9 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	/* set "transferring" flag */
 	xfer->flags_int.transferring = 1;
 
+	/* increment power reference */
+	usb2_transfer_power_ref(xfer, 1);
+
 	/*
 	 * Check if the transfer is waiting on a queue, most
 	 * frequently the "done_q":
@@ -1886,6 +1888,9 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 			USB_BUS_LOCK(xfer->udev->bus);
 			goto done;
 		}
+		/* decrement power reference */
+		usb2_transfer_power_ref(xfer, -1);
+
 		xfer->flags_int.transferring = 0;
 
 		if (xfer->error) {

@@ -196,8 +196,6 @@ static const struct usb2_device_id uchcom_devs[] = {
 
 /* protypes */
 
-static int	uchcom_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
-		    struct thread *);
 static int	uchcom_pre_param(struct usb2_com_softc *, struct termios *);
 static void	uchcom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
 		    uint8_t *);
@@ -297,7 +295,6 @@ struct usb2_com_callback uchcom_callback = {
 	.usb2_com_cfg_set_break = &uchcom_cfg_set_break,
 	.usb2_com_cfg_param = &uchcom_cfg_param,
 	.usb2_com_pre_param = &uchcom_pre_param,
-	.usb2_com_ioctl = &uchcom_ioctl,
 	.usb2_com_start_read = &uchcom_start_read,
 	.usb2_com_stop_read = &uchcom_stop_read,
 	.usb2_com_start_write = &uchcom_start_write,
@@ -736,13 +733,6 @@ uchcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-}
-
-static int
-uchcom_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data, int flag,
-    struct thread *td)
-{
-	return (ENOTTY);
 }
 
 static void

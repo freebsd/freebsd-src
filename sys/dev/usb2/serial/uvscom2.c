@@ -172,8 +172,6 @@ static void	uvscom_start_write(struct usb2_com_softc *);
 static void	uvscom_stop_write(struct usb2_com_softc *);
 static void	uvscom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
 		    uint8_t *);
-static int	uvscom_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
-		    struct thread *);
 static void	uvscom_cfg_write(struct uvscom_softc *, uint8_t, uint16_t);
 static uint16_t	uvscom_cfg_read_status(struct uvscom_softc *);
 
@@ -247,7 +245,6 @@ static const struct usb2_com_callback uvscom_callback = {
 	.usb2_com_cfg_close = &uvscom_cfg_close,
 	.usb2_com_pre_open = &uvscom_pre_open,
 	.usb2_com_pre_param = &uvscom_pre_param,
-	.usb2_com_ioctl = &uvscom_ioctl,
 	.usb2_com_start_read = &uvscom_start_read,
 	.usb2_com_stop_read = &uvscom_stop_read,
 	.usb2_com_start_write = &uvscom_start_write,
@@ -751,13 +748,6 @@ uvscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-}
-
-static int
-uvscom_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data, int fflag,
-    struct thread *td)
-{
-	return (ENOTTY);
 }
 
 static void
