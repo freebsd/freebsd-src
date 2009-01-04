@@ -333,7 +333,7 @@ g_part_pc98_probe(struct g_part_table *table, struct g_consumer *cp)
 	struct g_provider *pp;
 	u_char *buf, *p;
 	int error, index, res, sum;
-	uint16_t magic;
+	uint16_t magic, ecyl, scyl;
 
 	pp = cp->provider;
 
@@ -365,11 +365,15 @@ g_part_pc98_probe(struct g_part_table *table, struct g_consumer *cp)
 
 	for (index = 0; index < NDOSPART; index++) {
 		p = buf + SECSIZE + index * DOSPARTSIZE;
-		if (p[2] != 0 || p[3] != 0)
-			goto out;
-		if (p[1] == 0)
+		if (p[0] == 0 || p[1] == 0)	/* !dp_mid || !dp_sid */
 			continue;
-		if (le16dec(p + 10) == 0)
+		scyl = le16dec(p + 10);
+		ecyl = le16dec(p + 14);
+		if (scyl == 0 || ecyl == 0)
+			goto out;
+		if (p[8] == p[12] &&		/* dp_ssect == dp_esect */
+		    p[9] == p[13] &&		/* dp_shd == dp_ehd */
+		    scyl == ecyl)
 			goto out;
 	}
 
