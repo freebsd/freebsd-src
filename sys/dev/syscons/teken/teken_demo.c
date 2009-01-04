@@ -280,7 +280,9 @@ main(int argc __unused, char *argv[] __unused)
 		exit(1);
 	case 0:
 		setenv("TERM", "cons25", 1);
+#ifdef TEKEN_UTF8
 		setenv("LC_CTYPE", "UTF-8", 0);
+#endif /* TEKEN_UTF8 */
 		execlp("zsh", "-zsh", NULL);
 		execlp("bash", "-bash", NULL);
 		execlp("sh", "-sh", NULL);
