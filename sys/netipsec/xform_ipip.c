@@ -673,7 +673,6 @@ static struct ip6protosw ipe6_protosw =
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   ip4_input6,
 		0,	 	0,		rip_ctloutput,
-  0,
   0,		0,		0,		0,
   &rip_usrreqs
 };
