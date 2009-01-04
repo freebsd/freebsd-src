@@ -123,7 +123,6 @@ struct rcsfile {
 	struct branch *trunk; /* The tip delta. */
 
 	LIST_HEAD(, delta) deltatable;
-	LIST_HEAD(, delta) deltatable_dates;
 
 	char *desc;
 };
@@ -143,7 +142,6 @@ static struct stream 	*rcsfile_getdeltatext(struct rcsfile *, struct delta *,
 			     struct buf **);
 static void		 rcsdelta_writestring(char *, size_t, struct stream *);
 static void		 rcsdelta_insertbranch(struct delta *, struct branch *);
-
 
 /* Space formatting of RCS file. */
 const char *head_space = "\t";
@@ -407,12 +405,6 @@ rcsfile_write(struct rcsfile *rf, struct stream *dest)
 	/* Write out desc. */
 	stream_printf(dest, "desc\n@@");
 	d = LIST_FIRST(&rf->trunk->deltalist);
-
-	/* 
-	 * XXX: We do not take as much care as cvsup to cope with hand-hacked
-	 * RCS-files, and therefore we'll just let them be updated. If having
-	 * them correct is important, it will be catched by the checksum anyway.
-	 */
 
 	/* Write out deltatexts. */
 	error = rcsfile_write_deltatext(rf, dest);
@@ -815,10 +807,6 @@ rcsfile_freedelta(struct delta *d)
 		buf_free(d->text);
 
 	/* Free all subbranches of a delta. */
-	/* XXX: Is this ok? Since the branchpoint is removed, there is no good
-	 * reason for the branch to exists, but we might still have deltas in
-	 * these branches.
-	 */
 	while (!LIST_EMPTY(&d->branchlist)) {
 		b = LIST_FIRST(&d->branchlist);
 		LIST_REMOVE(b, branch_next);
@@ -903,7 +891,7 @@ rcsfile_deletetag(struct rcsfile *rf, char *tag, char *revnum)
 	}
 }
 
-/* 
+/*
  * Searches the global deltalist for a delta.
  */
 struct delta *
@@ -925,38 +913,38 @@ rcsfile_setval(struct rcsfile *rf, int field, char *val)
 	size_t len;
 
 	switch (field) {
-		case RCSFILE_HEAD:
-			if (rf->head != NULL)
-				free(rf->head);
-			rf->head = xstrdup(val);
+	case RCSFILE_HEAD:
+		if (rf->head != NULL)
+			free(rf->head);
+		rf->head = xstrdup(val);
 		break;
-		case RCSFILE_BRANCH:
-			if (rf->branch != NULL)
-				free(rf->branch);
-			rf->branch = (val == NULL) ? NULL : xstrdup(val);
+	case RCSFILE_BRANCH:
+		if (rf->branch != NULL)
+			free(rf->branch);
+		rf->branch = (val == NULL) ? NULL : xstrdup(val);
 		break;
-		case RCSFILE_STRICT:
-			if (val != NULL)
-				rf->strictlock = 1;
+	case RCSFILE_STRICT:
+		if (val != NULL)
+			rf->strictlock = 1;
 		break;
-		case RCSFILE_COMMENT:
-			if (rf->comment != NULL)
-				free(rf->comment);
-			rf->comment = xstrdup(val);
+	case RCSFILE_COMMENT:
+		if (rf->comment != NULL)
+			free(rf->comment);
+		rf->comment = xstrdup(val);
 		break;
-		case RCSFILE_EXPAND:
-			len = strlen(val) - 1;
-			val++;
-			val[len - 1] = '\0';
-			rf->expand = keyword_decode_expand(val);
+	case RCSFILE_EXPAND:
+		len = strlen(val) - 1;
+		val++;
+		val[len - 1] = '\0';
+		rf->expand = keyword_decode_expand(val);
 		break;
-		case RCSFILE_DESC:
-			if (rf->desc != NULL)
-				free(rf->desc);
-			rf->desc = xstrdup(val);
+	case RCSFILE_DESC:
+		if (rf->desc != NULL)
+			free(rf->desc);
+		rf->desc = xstrdup(val);
 		break;
-		default:
-			lprintf(-1, "Setting invalid RCSfile value.\n");
+	default:
+		lprintf(-1, "Setting invalid RCSfile value.\n");
 		break;
 	}
 }
@@ -1123,10 +1111,9 @@ rcsfile_importdelta(struct rcsfile *rf, char *revnum, char *revdate, char *autho
 			rcsfile_insertdelta(b, d, 1);
 		else {
 			rcsfile_insertdelta(b, d, 0);
-			/* 
+			/*
 			 * On import we need to set the diffbase to our
 			 * branchpoint for writing out later.
-			 * XXX: this could perhaps be done at a better time.
 			 */
 			if (LIST_FIRST(&b->deltalist) == d) {
 				brev = rcsrev_prefix(d->revnum);
