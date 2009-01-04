@@ -532,7 +532,7 @@ detailer_checkrcsattr(struct detailer *d, struct coll *coll, char *name,
 	char *attr, *path;
 	int error;
 
-	/* 
+	/*
 	 * I don't think we can use the status file, since it only records file
 	 * attributes in cvsmode.
 	 */
@@ -572,7 +572,7 @@ detailer_send_details(struct detailer *d, struct coll *coll, char *name,
 	int error;
 	size_t len;
 
-       /* 
+       /*
         * Try to check if the file exists either live or dead to see if we can
         * edit it and put it live or dead, rather than receiving the entire
         * file.
