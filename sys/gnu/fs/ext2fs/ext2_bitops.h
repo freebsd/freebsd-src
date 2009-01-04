@@ -84,7 +84,7 @@ find_next_zero_bit(void *data, size_t sz, size_t ofs)
 		mask = ~0U << (ofs & 31);
 		bit = *p | ~mask;
 		if (bit != ~0U)
-			return (ffs(~bit) + ofs - 1);
+			return (ffs(~bit) + (ofs & ~31U) - 1);
 		p++;
 		ofs = (ofs + 31U) & ~31U;
 	}
