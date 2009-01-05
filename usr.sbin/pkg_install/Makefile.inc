@@ -4,6 +4,9 @@
 
 LIBINSTALL=	${.OBJDIR}/../lib/libinstall.a
 
+DPADD+=		${LIBUTIL}
+LDADD+=		-lutil
+
 .if ${MK_OPENSSL} != "no" && \
     defined(LDADD) && ${LDADD:M-lfetch} != ""
 DPADD+=		${LIBSSL} ${LIBCRYPTO}
