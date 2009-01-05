@@ -1,125 +1,79 @@
+/*-
+ * Copyright (c) 2008 Citrix Systems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/limits.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/interrupt.h>
-#include <sys/pcpu.h>
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/xenvar.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
-#include <xen/evtchn.h>
-#include <sys/smp.h>
 
 #include <dev/xen/xenpci/xenpcivar.h>
-
-struct ap_suspend_info {
-	int      do_spin;
-	atomic_t nr_spinning;
-};
-
-#ifdef CONFIG_SMP
-
-/*
- * Spinning prevents, for example, APs touching grant table entries while
- * the shared grant table is not mapped into the address space imemdiately
- * after resume.
- */
-static void ap_suspend(void *_info)
-{
-	struct ap_suspend_info *info = _info;
-
-	BUG_ON(!irqs_disabled());
-
-	atomic_inc(&info->nr_spinning);
-	mb();
-
-	while (info->do_spin)
-		cpu_relax();
-
-	mb();
-	atomic_dec(&info->nr_spinning);
-}
-
-#define initiate_ap_suspend(i)	smp_call_function(ap_suspend, i, 0, 0)
-
-#else /* !defined(CONFIG_SMP) */
-
-#define initiate_ap_suspend(i)	0
-
-#endif
-
-static int bp_suspend(void)
-{
-	int suspend_cancelled;
-
-	suspend_cancelled = HYPERVISOR_suspend(0);
-	if (!suspend_cancelled)
-		xenpci_resume();
-
-	return suspend_cancelled;
-}
 
 void
 xen_suspend()
 {
 	int suspend_cancelled;
-	//struct ap_suspend_info info;
 
 	if (DEVICE_SUSPEND(root_bus)) {
 		printf("xen_suspend: device_suspend failed\n");
 		return;
 	}
 
+	/*
+	 * Make sure we don't change cpus or switch to some other
+	 * thread. for the duration.
+	 */
 	critical_enter();
 
-	/* Prevent any races with evtchn_interrupt() handler. */
+	/*
+	 * Prevent any races with evtchn_interrupt() handler.
+	 */
 	irq_suspend();
-
-#if 0
-	info.do_spin = 1;
-	atomic_set(&info.nr_spinning, 0);
-	smp_mb();
-
-	nr_cpus = num_online_cpus() - 1;
-
-	err = initiate_ap_suspend(&info);
-	if (err < 0) {
-		critical_exit();
-		//xenbus_suspend_cancel();
-		return err;
-	}
-
-	while (atomic_read(&info.nr_spinning) != nr_cpus)
-		cpu_relax();
-#endif
-
 	disable_intr();
-	suspend_cancelled = bp_suspend();
-	//resume_notifier(suspend_cancelled);
+
+	suspend_cancelled = HYPERVISOR_suspend(0);
+	if (!suspend_cancelled)
+		xenpci_resume();
+
+	/*
+	 * Re-enable interrupts and put the scheduler back to normal.
+	 */
 	enable_intr();
-
-#if 0
-	smp_mb();
-	info.do_spin = 0;
-	while (atomic_read(&info.nr_spinning) != 0)
-		cpu_relax();
-#endif
-
 	critical_exit();
 
+	/*
+	 * FreeBSD really needs to add DEVICE_SUSPEND_CANCEL or
+	 * similar.
+	 */
 	if (!suspend_cancelled)
 		DEVICE_RESUME(root_bus);
-#if 0
-	else
-		xenbus_suspend_cancel();
-#endif
 }
