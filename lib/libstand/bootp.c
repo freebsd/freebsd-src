@@ -496,7 +496,7 @@ static struct dhcp_opt vndr_opt[] = { /* Vendor Specific Options */
 	{94,	__BYTES,	"network-interface"},
 	{97,	__BYTES,	"machine-identifier"},
 #else					/* default (empty) table */
-	{0,	0,	""},		/* prefix */
+	{0,	0,	"dhcp.vendor."},		/* prefix */
 #endif
 	{0,	__TXT,	"%soption-%d"}
 };
