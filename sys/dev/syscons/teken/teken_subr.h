@@ -662,6 +662,24 @@ teken_subr_newline(teken_t *t)
 }
 
 static void
+teken_subr_newpage(teken_t *t)
+{
+#ifdef TEKEN_CONS25
+	teken_rect_t tr;
+
+	tr.tr_begin.tp_row = tr.tr_begin.tp_col = 0;
+	tr.tr_end = t->t_winsize;
+	teken_funcs_fill(t, &tr, BLANK, &t->t_curattr);
+
+	t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
+	teken_funcs_cursor(t);
+#else /* !TEKEN_CONS25 */
+
+	teken_subr_newline(t);
+#endif /* TEKEN_CONS25 */
+}
+
+static void
 teken_subr_next_line(teken_t *t)
 {
 
