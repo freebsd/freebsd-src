@@ -195,6 +195,10 @@ em0@pci0:0:25:0: class=0x020000 card=0x02381028 chip=0x10c08086 rev=0x02 hdr=0x0
       check the fourth column.  If that says
       <literal>chip=0x10a78086</literal> (or one of the other two IDs
       given above) you will have the adapter's name change.</para>
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Late-Breaking News and Corrections</title>
 
     <para>[20090105] The Release Notes for 7.1-RELEASE should have mentioned
       changes that the &man.ae.4; driver has been added to provide support
@@ -213,12 +217,129 @@ em0@pci0:0:25:0: class=0x020000 card=0x02381028 chip=0x10c08086 rev=0x02 hdr=0x0
       </listitem>
     </itemizedlist>
 
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned changes that the &man.jme.4; driver has been added to
+      provide support for PCIe adapters based on JMicron JMC250
+      gigabit Ethernet and JMC260 fast Ethernet controllers.</para>
+
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned changes that the &man.age.4; driver has been added to
+      provide support for Attansic/Atheros L1 gigabit Ethernet
+      controller.</para>
+
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned changes that the &man.malo.4; driver has been added to
+      provide support for Marvell Libertas 88W8335 based PCI network
+      adapters.</para>
+
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned changes that the bm(4) driver has been added to
+      provide support for Apple Big Mac (BMAC) Ethernet controller,
+      found on various Apple G3 models.</para>
+
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned changes that the et(4) driver has been added to
+      provide support for Agere ET1310 10/100/Gigabit Ethernet
+      controller.</para>
+
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned changes that the &man.glxsb.4; driver has been added
+      to provide support for the Security Block in AMD Geode LX
+      processors.</para>
+
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned that &os; now supports multiple routing tables.  To
+      enable this, the following steps are needed:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Add the following kernel configuration option and
+	  rebuild the kernel.  The <literal>2</literal> is the
+	  number of FIB (the maximum value is 16).</para>
+
+	<programlisting>options	ROUTETABLES=2</programlisting>
+
+	<para>The procedure for rebuilding the &os; kernel is
+	  described in the <ulink
+	  url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html#AEN30408">&os;
+	  Handbook</ulink>.</para>
+
+	<para>This number can be modified on boot time.  To do so, add
+	  the following to <filename>/boot/loader.conf</filename> and
+	  reboot the system:</para>
+
+	<programlisting>net.fibs=6</programlisting>
+      </listitem>
+
+      <listitem>
+	<para>Set a loader tunable <varname>net.my_fibnum</varname> if
+	  needed.  This means the default number of routing tables.
+	  If not specified, <literal>0</literal> will be used.</para>
+      </listitem>
+
+      <listitem>
+	<para>Set a loader tunable
+	  <varname>net.add_addr_allfibs</varname> if needed.  This
+	  enables to add routes to all FIBs for new interfaces by
+	  default.  When this is set to <literal>0</literal>, it will
+	  only allocate routes on interface changes for the FIB of the
+	  caller when adding a new set of addresses to an interface.
+	  Note that this tunable is set to <literal>1</literal> by
+	  default.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>To select one of the FIBs, the new &man.setfib.1; utility
+      can be used.  This set an associated FIB with the process.  For
+      example:</para>
+
+    <screen>&prompt.root; setfib -3 ping target.example.com</screen>
+
+    <para>The FIB #3 will be used for the &man.ping.8; command.</para>
+
+    <para>The FIB which the packet will be associated with will be
+      determined in the following rules:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>All packets which have a FIB associated with them will
+	  use the FIB.  If not, FIB #0 will be used.</para>
+      </listitem>
+
+      <listitem>
+	<para>A packet received on an interface for forwarding uses
+	  FIB #0.</para>
+      </listitem>
+
+      <listitem>
+	<para>A TCP listen socket associated with an FIB will generate
+	  accept sockets which are associated with the same FIB.</para>
+      </listitem>
+
+      <listitem>
+	<para>A packet generated in response to other packet uses the
+	  FIB associated with the packet being responded to.</para>
+      </listitem>
+
+      <listitem>
+	<para>A packet generated on tunnel interfaces such as
+	  &man.gif.4; and &man.tun.4; will be encapsulated using the
+	  FIB of the process which set up the tunnel.</para>
+      </listitem>
+
+      <listitem>
+	<para>Routing messages will be associated with the process's
+	  FIB.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Also, the &man.ipfw.8; now supports an action rule
+      <literal>setfib</literal>.  The following action:</para>
+
+    <programlisting>setfib <replaceable>fibnum</replaceable></programlisting>
+
+    <para>will make the matched packet use the FIB specified in
+      <replaceable>fibnum</replaceable>.  The rule processing
+      continues at the next rule.</para>
   </sect1>
-
-  <sect1 id="late-news">
-    <title>Late-Breaking News and Corrections</title>
-
-    <para>No news.</para>
-  </sect1>
-
 </article>
