@@ -179,39 +179,38 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	struct mem_map_index_st *map;
 	struct pccard_mem_handle *mem;
 	uint32_t offset;
-	int mem8 = 1 /* mem->kind == PCCARD_A_MEM_ATTR */;
+	uint32_t mem16;
+	uint32_t attrmem;
 	
 	map = &mem_map_index[win];
 	mem = &sc->mem[win];
+	mem16 = (mem->kind & PCCARD_MEM_16BIT) ? 
+	    EXCA_SYSMEM_ADDRX_START_MSB_DATASIZE_16BIT : 0;
+	attrmem = (mem->kind & PCCARD_MEM_ATTR) ?
+	    EXCA_CARDMEM_ADDRX_MSB_REGACTIVE_ATTR : 0;
 	offset = ((mem->cardaddr >> EXCA_CARDMEM_ADDRX_SHIFT) -
 	  (mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT)) & 0x3fff;
 	exca_putb(sc, map->sysmem_start_lsb,
-	    (mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT) & 0xff);
+	    mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT);
 	exca_putb(sc, map->sysmem_start_msb,
 	    ((mem->addr >> (EXCA_SYSMEM_ADDRX_SHIFT + 8)) &
-	    EXCA_SYSMEM_ADDRX_START_MSB_ADDR_MASK) |
-	    (mem8 ? 0 : EXCA_SYSMEM_ADDRX_START_MSB_DATASIZE_16BIT));
+	    EXCA_SYSMEM_ADDRX_START_MSB_ADDR_MASK) | mem16);
 
 	exca_putb(sc, map->sysmem_stop_lsb,
-	    ((mem->addr + mem->realsize - 1) >>
-	    EXCA_SYSMEM_ADDRX_SHIFT) & 0xff);
+	    (mem->addr + mem->realsize - 1) >> EXCA_SYSMEM_ADDRX_SHIFT);
 	exca_putb(sc, map->sysmem_stop_msb,
 	    (((mem->addr + mem->realsize - 1) >>
 	    (EXCA_SYSMEM_ADDRX_SHIFT + 8)) &
 	    EXCA_SYSMEM_ADDRX_STOP_MSB_ADDR_MASK) |
 	    EXCA_SYSMEM_ADDRX_STOP_MSB_WAIT2);
-
-	exca_putb(sc, map->sysmem_win,
-	    (mem->addr >> EXCA_MEMREG_WIN_SHIFT) & 0xff);
+	exca_putb(sc, map->sysmem_win, mem->addr >> EXCA_MEMREG_WIN_SHIFT);
 
 	exca_putb(sc, map->cardmem_lsb, offset & 0xff);
-	exca_putb(sc, map->cardmem_msb, (((offset >> 8) & 0xff) &
-	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) |
-	    ((mem->kind == PCCARD_A_MEM_ATTR) ?
-	    EXCA_CARDMEM_ADDRX_MSB_REGACTIVE_ATTR : 0));
+	exca_putb(sc, map->cardmem_msb, ((offset >> 8) &
+	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) | attrmem);
 
 #ifdef EXCA_DEBUG
-	if (mem->kind == PCCARD_A_MEM_ATTR)
+	if (mem->kind & PCCARD_MEM_ATTR)
 		printf("attribtue memory\n");
 	else
 		printf("common memory\n");
@@ -342,7 +341,21 @@ exca_mem_set_flags(struct exca_softc *sc, struct resource *res, uint32_t flags)
 		return (ENOENT);
 	}
 
-	sc->mem[win].kind = flags;
+	switch (flags)
+	{
+	case PCCARD_A_MEM_ATTR:
+		sc->mem[win].kind |= PCCARD_MEM_ATTR;
+		break;
+	case PCCARD_A_MEM_COM:
+		sc->mem[win].kind &= ~PCCARD_MEM_ATTR;
+		break;
+	case PCCARD_A_MEM_16BIT:
+		sc->mem[win].kind |= PCCARD_MEM_16BIT;
+		break;
+	case PCCARD_A_MEM_8BIT:
+		sc->mem[win].kind &= ~PCCARD_MEM_16BIT;
+		break;
+	}
 	exca_do_mem_map(sc, win);
 	return (0);
 }
@@ -801,7 +814,7 @@ exca_activate_resource(struct exca_softc *exca, device_t child, int type,
 		err = exca_io_map(exca, PCCARD_WIDTH_AUTO, res);
 		break;
 	case SYS_RES_MEMORY:
-		err = exca_mem_map(exca, PCCARD_A_MEM_COM, res);
+		err = exca_mem_map(exca, 0, res);
 		break;
 	}
 	if (err)
