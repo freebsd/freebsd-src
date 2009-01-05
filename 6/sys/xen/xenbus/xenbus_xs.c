@@ -137,45 +137,22 @@ xs_read_reply(enum xsd_sockmsg_type *type, unsigned int *len, void **result)
 {
 	struct xs_stored_msg *msg;
 	char *body;
-	int i, error;
-
-	if (xenbus_running == 0) {
-		/*
-		 * Give other domain time to run :-/
-		 */
-		for (i = 0; i < 1000000 && (xenbus_running == 0); i++) {
-			error = xs_process_msg(type);
-						
-			if (error == 0 && *type != XS_WATCH_EVENT)
-				break;
-							 
-			HYPERVISOR_yield();
-		}
-				
-		if (TAILQ_EMPTY(&xs_state.reply_list)) {
-			printf("giving up and returning an error type=%d\n",
-			    *type);
-			kdb_backtrace();
-			return (EIO);
-		}
-				
-	}
+	int error;
 
 	mtx_lock(&xs_state.reply_lock);
-	if (xenbus_running) {
+
+	while (TAILQ_EMPTY(&xs_state.reply_list)) {
 		while (TAILQ_EMPTY(&xs_state.reply_list)) {
-			mtx_unlock(&xs_state.reply_lock);
-			while (TAILQ_EMPTY(&xs_state.reply_list)) {
-				error = tsleep(&xs_state.reply_waitq,
-				    PCATCH, "xswait", hz/10);
-				if (error && error != EWOULDBLOCK)
-					return (error);
+			error = mtx_sleep(&xs_state.reply_waitq,
+			    &xs_state.reply_lock,
+			    PCATCH, "xswait", hz/10);
+			if (error && error != EWOULDBLOCK) {
+				mtx_unlock(&xs_state.reply_lock);
+				return (error);
 			}
-				
-			mtx_lock(&xs_state.reply_lock);
 		}
 	}
-		
+
 	msg = TAILQ_FIRST(&xs_state.reply_list);
 	TAILQ_REMOVE(&xs_state.reply_list, msg, list);
 
@@ -221,7 +198,8 @@ xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void **result)
 
 	sx_xlock(&xs_state.request_mutex);
 
-	error = xb_write(msg, sizeof(*msg) + msg->len);
+	error = xb_write(msg, sizeof(*msg) + msg->len,
+	    &xs_state.request_mutex.lock_object);
 	if (error) {
 		msg->type = XS_ERROR;
 	} else {
@@ -237,8 +215,6 @@ xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void **result)
 
 	return (error);
 }
-
-static int xenwatch_inline;
 
 /*
  * Send message to xs. The reply is returned in *result and should be
@@ -264,7 +240,8 @@ xs_talkv(struct xenbus_transaction t, enum xsd_sockmsg_type type,
 
 	sx_xlock(&xs_state.request_mutex);
 
-	error = xb_write(&msg, sizeof(msg));
+	error = xb_write(&msg, sizeof(msg),
+	    &xs_state.request_mutex.lock_object);
 	if (error) {
 		sx_xunlock(&xs_state.request_mutex);
 		printf("xs_talkv failed %d\n", error);
@@ -272,7 +249,8 @@ xs_talkv(struct xenbus_transaction t, enum xsd_sockmsg_type type,
 	}
 
 	for (i = 0; i < num_vecs; i++) {
-		error = xb_write(iovec[i].iov_base, iovec[i].iov_len);;
+		error = xb_write(iovec[i].iov_base, iovec[i].iov_len,
+		    &xs_state.request_mutex.lock_object);
 		if (error) {		
 			sx_xunlock(&xs_state.request_mutex);
 			printf("xs_talkv failed %d\n", error);
@@ -773,18 +751,15 @@ xenwatch_thread(void *unused)
 {
 	struct xs_stored_msg *msg;
 
-	DELAY(100000);
-	while (xenwatch_inline) {
-		printf("xenwatch inline still running\n");
-		DELAY(100000);
-	}
-		
 	for (;;) {
 
+		mtx_lock(&watch_events_lock);
 		while (TAILQ_EMPTY(&watch_events))
-			tsleep(&watch_events_waitq,
+			mtx_sleep(&watch_events_waitq,
+			    &watch_events_lock,
 			    PWAIT | PCATCH, "waitev", hz/10);
-				
+
+		mtx_unlock(&watch_events_lock);
 		sx_xlock(&xenwatch_mutex);
 
 		mtx_lock(&watch_events_lock);
@@ -814,16 +789,20 @@ xs_process_msg(enum xsd_sockmsg_type *type)
 	int error;
 		
 	msg = malloc(sizeof(*msg), M_DEVBUF, M_WAITOK);
-		
-	error = xb_read(&msg->hdr, sizeof(msg->hdr));
+	mtx_lock(&xs_state.reply_lock);
+	error = xb_read(&msg->hdr, sizeof(msg->hdr),
+	    &xs_state.reply_lock.mtx_object);
+	mtx_unlock(&xs_state.reply_lock);
 	if (error) {
 		free(msg, M_DEVBUF);
 		return (error);
 	}
 
 	body = malloc(msg->hdr.len + 1, M_DEVBUF, M_WAITOK);
-		
-	error = xb_read(body, msg->hdr.len);
+	mtx_lock(&xs_state.reply_lock);
+	error = xb_read(body, msg->hdr.len,
+	    &xs_state.reply_lock.mtx_object); 
+	mtx_unlock(&xs_state.reply_lock);
 	if (error) {
 		free(body, M_DEVBUF);
 		free(msg, M_DEVBUF);
@@ -866,9 +845,7 @@ xenbus_thread(void *unused)
 	int error;
 	enum xsd_sockmsg_type type;
 
-	DELAY(10000);
 	xenbus_running = 1;
-	tsleep(&lbolt, 0, "xenbus", hz/10);
 
 	for (;;) {
 		error = xs_process_msg(&type);

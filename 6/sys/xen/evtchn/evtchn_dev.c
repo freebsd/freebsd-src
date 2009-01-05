@@ -24,6 +24,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 
 #include <machine/xen/xen-os.h>
+#include <xen/xen_intr.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
+#include <machine/xen/synch_bitops.h>
 #include <xen/hypervisor.h>
 #include <xen/evtchn.h>
 

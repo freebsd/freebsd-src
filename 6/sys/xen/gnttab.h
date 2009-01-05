@@ -38,6 +38,11 @@
 
 #include <xen/interface/grant_table.h>
 
+#include <xen/hypervisor.h>
+#include <xen/interface/grant_table.h>
+#include <machine/xen/xen-os.h>
+#include <xen/features.h>
+
 struct gnttab_free_callback {
 	struct gnttab_free_callback *next;
 	void (*fn)(void *);

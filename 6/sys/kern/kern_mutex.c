@@ -92,24 +92,65 @@ __FBSDID("$FreeBSD$");
 #ifdef DDB
 static void	db_show_mtx(struct lock_object *lock);
 #endif
+static void	lock_mtx(struct lock_object *lock, int how);
+static void	lock_spin(struct lock_object *lock, int how);
+static int	unlock_mtx(struct lock_object *lock);
+static int	unlock_spin(struct lock_object *lock);
+
 
 /*
  * Lock classes for sleep and spin mutexes.
  */
 struct lock_class lock_class_mtx_sleep = {
-	"sleep mutex",
-	LC_SLEEPLOCK | LC_RECURSABLE,
+	.lc_name = "sleep mutex",
+	.lc_flags = LC_SLEEPLOCK | LC_RECURSABLE,
 #ifdef DDB
-	db_show_mtx
+	.lc_ddb_show = db_show_mtx,
 #endif
+	.lc_lock = lock_mtx,
+	.lc_unlock = unlock_mtx,
 };
 struct lock_class lock_class_mtx_spin = {
-	"spin mutex",
-	LC_SPINLOCK | LC_RECURSABLE,
+	.lc_name = "spin mutex",
+	.lc_flags = LC_SPINLOCK | LC_RECURSABLE,
 #ifdef DDB
-	db_show_mtx
+	.lc_ddb_show = db_show_mtx,
 #endif
+	.lc_lock = lock_spin,
+	.lc_unlock = unlock_spin,
 };
+
+void
+lock_mtx(struct lock_object *lock, int how)
+{
+
+	mtx_lock((struct mtx *)lock);
+}
+
+void
+lock_spin(struct lock_object *lock, int how)
+{
+
+	panic("spin locks can only use msleep_spin");
+}
+
+int
+unlock_mtx(struct lock_object *lock)
+{
+	struct mtx *m;
+
+	m = (struct mtx *)lock;
+	mtx_assert(m, MA_OWNED | MA_NOTRECURSED);
+	mtx_unlock(m);
+	return (0);
+}
+
+int
+unlock_spin(struct lock_object *lock)
+{
+
+	panic("spin locks can only use msleep_spin");
+}
 
 /*
  * System-wide mutexes

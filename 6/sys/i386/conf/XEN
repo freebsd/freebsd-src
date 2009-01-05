@@ -67,8 +67,8 @@ options 	GDB			# Support remote GDB.
 #options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 # To make an SMP kernel, the next two lines are needed
-options 	SMP			# Symmetric MultiProcessor Kernel
-device		apic			# I/O APIC
+#options 	SMP			# Symmetric MultiProcessor Kernel
+#device		apic			# I/O APIC
 options		PAE
 
 
@@ -153,3 +153,4 @@ options KTR_COMPILE=(KTR_PMAP)
 options KTR_CPUMASK=0xff
 options KTR_ENTRIES=65536
 options KTR_MASK=(KTR_PMAP)
+options	KVA_PAGES=1600

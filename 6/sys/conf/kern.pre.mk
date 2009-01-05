@@ -20,12 +20,12 @@ SIZE?=		size
 COPTFLAGS?=	-O
 .else
 . if defined(DEBUG)
-_MINUS_O=	-O
+_MINUS_O=	-O -fno-optimize-sibling-calls
 . else
 _MINUS_O=	-O2
 . endif
 . if ${MACHINE_ARCH} == "amd64"
-COPTFLAGS?=-O2 -frename-registers -pipe
+COPTFLAGS?=${_MINUS_O} -frename-registers -pipe
 . else
 COPTFLAGS?=${_MINUS_O} -pipe
 . endif
@@ -70,7 +70,7 @@ INCLUDES+= -I$S/dev/twa
 # .. and the same for em
 INCLUDES+= -I$S/dev/em
 
-INCLUDES+= -I$S/xen/interface -I$S/xen/interface/io
+INCLUDES+= -I$S/xen/interface -I$S/xen/interface/io -I$S/xen/interface/hvm
 
 
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}

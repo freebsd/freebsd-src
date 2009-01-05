@@ -75,6 +75,7 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup, NULL)
 
 int	hogticks;
 int	lbolt;
+static int pause_wchan;
 
 static struct callout loadav_callout;
 static struct callout lbolt_callout;
@@ -104,6 +105,143 @@ sleepinit(void)
 
 	hogticks = (hz / 10) * 2;	/* Default only. */
 	init_sleepqueues();
+}
+
+
+/*
+ * General sleep call.  Suspends the current thread until a wakeup is
+ * performed on the specified identifier.  The thread will then be made
+ * runnable with the specified priority.  Sleeps at most timo/hz seconds
+ * (0 means no timeout).  If pri includes PCATCH flag, signals are checked
+ * before and after sleeping, else signals are not checked.  Returns 0 if
+ * awakened, EWOULDBLOCK if the timeout expires.  If PCATCH is set and a
+ * signal needs to be delivered, ERESTART is returned if the current system
+ * call should be restarted if possible, and EINTR is returned if the system
+ * call should be interrupted by the signal (return EINTR).
+ *
+ * The lock argument is unlocked before the caller is suspended, and
+ * re-locked before _sleep() returns.  If priority includes the PDROP
+ * flag the lock is not re-locked before returning.
+ */
+int
+_sleep(void *ident, struct lock_object *lock, int priority,
+    const char *wmesg, int timo)
+{
+	struct thread *td;
+	struct proc *p;
+	struct lock_class *class;
+	int catch, flags, lock_state, pri, rval;
+	WITNESS_SAVE_DECL(lock_witness);
+
+	td = curthread;
+	p = td->td_proc;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
+#endif
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
+	    "Sleeping on \"%s\"", wmesg);
+	KASSERT(timo != 0 || mtx_owned(&Giant) || lock != NULL ||
+	    ident == &lbolt, ("sleeping without a lock"));
+	KASSERT(p != NULL, ("msleep1"));
+	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+	if (lock != NULL)
+		class = LOCK_CLASS(lock);
+	else
+		class = NULL;
+
+	if (cold) {
+		/*
+		 * During autoconfiguration, just return;
+		 * don't run any other threads or panic below,
+		 * in case this is the idle thread and already asleep.
+		 * XXX: this used to do "s = splhigh(); splx(safepri);
+		 * splx(s);" to give interrupts a chance, but there is
+		 * no way to give interrupts a chance now.
+		 */
+		if (lock != NULL && priority & PDROP)
+			class->lc_unlock(lock);
+		return (0);
+	}
+	catch = priority & PCATCH;
+	rval = 0;
+
+	/*
+	 * If we are already on a sleep queue, then remove us from that
+	 * sleep queue first.  We have to do this to handle recursive
+	 * sleeps.
+	 */
+	if (TD_ON_SLEEPQ(td))
+		sleepq_remove(td, td->td_wchan);
+
+	if (ident == &pause_wchan)
+		flags = SLEEPQ_PAUSE;
+	else
+		flags = SLEEPQ_SLEEP;
+	if (catch)
+		flags |= SLEEPQ_INTERRUPTIBLE;
+
+	sleepq_lock(ident);
+	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
+	    td->td_tid, p->p_pid, p->p_comm, wmesg, ident);
+
+	DROP_GIANT();
+	if (lock != NULL && !(class->lc_flags & LC_SLEEPABLE)) {
+		WITNESS_SAVE(lock, lock_witness);
+		lock_state = class->lc_unlock(lock);
+	} else
+		/* GCC needs to follow the Yellow Brick Road */
+		lock_state = -1;
+
+	/*
+	 * We put ourselves on the sleep queue and start our timeout
+	 * before calling thread_suspend_check, as we could stop there,
+	 * and a wakeup or a SIGCONT (or both) could occur while we were
+	 * stopped without resuming us.  Thus, we must be ready for sleep
+	 * when cursig() is called.  If the wakeup happens while we're
+	 * stopped, then td will no longer be on a sleep queue upon
+	 * return from cursig().
+	 */
+	sleepq_add(ident, ident == &lbolt ? NULL : lock, wmesg, flags, 0);
+	if (timo)
+		sleepq_set_timeout(ident, timo);
+	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
+		sleepq_release(ident);
+		WITNESS_SAVE(lock, lock_witness);
+		lock_state = class->lc_unlock(lock);
+		sleepq_lock(ident);
+	}
+
+	/*
+	 * Adjust this thread's priority, if necessary.
+	 */
+	pri = priority & PRIMASK;
+	if (pri != 0 && pri != td->td_priority) {
+		mtx_lock_spin(&sched_lock);
+		sched_prio(td, pri);
+		mtx_unlock_spin(&sched_lock);
+	}
+
+	if (timo && catch)
+		rval = sleepq_timedwait_sig(ident);
+	else if (timo)
+		rval = sleepq_timedwait(ident);
+	else if (catch)
+		rval = sleepq_wait_sig(ident);
+	else {
+		sleepq_wait(ident);
+		rval = 0;
+	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
+#endif
+	PICKUP_GIANT();
+	if (lock != NULL && !(priority & PDROP)) {
+		class->lc_lock(lock, lock_state);
+		WITNESS_RESTORE(lock, lock_witness);
+	}
+	return (rval);
 }
 
 /*
@@ -170,7 +308,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (TD_ON_SLEEPQ(td))
 		sleepq_remove(td, td->td_wchan);
 
-	flags = SLEEPQ_MSLEEP;
+	flags = SLEEPQ_SLEEP;
 	if (catch)
 		flags |= SLEEPQ_INTERRUPTIBLE;
 
@@ -271,7 +409,7 @@ msleep_spin(ident, mtx, wmesg, timo)
 	/*
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
-	sleepq_add(ident, &mtx->mtx_object, wmesg, SLEEPQ_MSLEEP, 0);
+	sleepq_add(ident, &mtx->mtx_object, wmesg, SLEEPQ_SLEEP, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 
@@ -320,7 +458,7 @@ wakeup(ident)
 {
 
 	sleepq_lock(ident);
-	sleepq_broadcast(ident, SLEEPQ_MSLEEP, -1, 0);
+	sleepq_broadcast(ident, SLEEPQ_SLEEP, -1, 0);
 }
 
 /*
@@ -334,7 +472,7 @@ wakeup_one(ident)
 {
 
 	sleepq_lock(ident);
-	sleepq_signal(ident, SLEEPQ_MSLEEP, -1, 0);
+	sleepq_signal(ident, SLEEPQ_SLEEP, -1, 0);
 }
 
 /*

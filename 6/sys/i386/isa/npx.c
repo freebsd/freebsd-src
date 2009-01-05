@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/ucontext.h>
 
 #include <machine/intr_machdep.h>
-#ifdef XEN
 #include <machine/xen/xen-os.h>
+#ifdef XEN
 #include <xen/hypervisor.h>
 #endif
 #ifdef DEV_ISA

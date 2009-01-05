@@ -257,6 +257,9 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 		sx_sunlock(sx);						\
 } while (0)
 
+#define	sx_sleep(chan, sx, pri, wmesg, timo)				\
+	_sleep((chan), &(sx)->lock_object, (pri), (wmesg), (timo))
+
 /*
  * Options passed to sx_init_flags().
  */

@@ -41,9 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <machine/xen/xen-os.h>
-#include <xen/hypervisor.h>
 #include <machine/xen/xenfunc.h>
-
+#include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
 #include <xen/gnttab.h>
@@ -1010,7 +1009,7 @@ blkif_free(struct blkfront_info *info, int suspend)
 		info->ring.sring = NULL;
 	}
 	if (info->irq)
-		unbind_from_irqhandler(info->irq); 
+		unbind_from_irqhandler(info->irq);
 	info->irq = 0;
 
 }

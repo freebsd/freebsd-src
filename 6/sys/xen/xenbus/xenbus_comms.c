@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
@@ -94,7 +95,7 @@ xb_get_input_chunk(XENSTORE_RING_IDX cons, XENSTORE_RING_IDX prod,
 }
 
 int
-xb_write(const void *tdata, unsigned len)
+xb_write(const void *tdata, unsigned len, struct lock_object *lock)
 {
 	struct xenstore_domain_interface *intf = xenstore_domain_interface();
 	XENSTORE_RING_IDX cons, prod;
@@ -107,7 +108,9 @@ xb_write(const void *tdata, unsigned len)
 
 		while ((intf->req_prod - intf->req_cons)
 		    == XENSTORE_RING_SIZE) {
-			error = tsleep(intf, PCATCH, "xbwrite", hz/10);
+			error = _sleep(intf,
+			    lock,
+			    PCATCH, "xbwrite", hz/10);
 			if (error && error != EWOULDBLOCK)
 				return (error);
 		}
@@ -144,7 +147,7 @@ xb_write(const void *tdata, unsigned len)
 }
 
 int
-xb_read(void *tdata, unsigned len)
+xb_read(void *tdata, unsigned len, struct lock_object *lock)
 {
 	struct xenstore_domain_interface *intf = xenstore_domain_interface();
 	XENSTORE_RING_IDX cons, prod;
@@ -156,7 +159,8 @@ xb_read(void *tdata, unsigned len)
 		const char *src;
 
 		while (intf->rsp_cons == intf->rsp_prod) {
-			error = tsleep(intf, PCATCH, "xbread", hz/10);
+			error = _sleep(intf, lock,
+			    PCATCH, "xbread", hz/10);
 			if (error && error != EWOULDBLOCK)
 				return (error);
 		}
@@ -212,7 +216,7 @@ xb_init_comms(void)
 
 	error = bind_caller_port_to_irqhandler(
 		xen_store_evtchn, "xenbus",
-		xb_intr, NULL, INTR_TYPE_NET, &xenstore_irq);
+		    xb_intr, NULL, INTR_TYPE_NET, &xenstore_irq);
 	if (error) {
 		log(LOG_WARNING, "XENBUS request irq failed %i\n", error);
 		return (error);

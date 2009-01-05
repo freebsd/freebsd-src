@@ -5,12 +5,16 @@
  * Also definitions for the device that demuxes notifications to userspace.
  * 
  * Copyright (c) 2004, K A Fraser
+ *
+ * $FreeBSD$
  */
 
 #ifndef __ASM_EVTCHN_H__
 #define __ASM_EVTCHN_H__
-
+#include <machine/pcpu.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/synch_bitops.h>
+#include <machine/frame.h>
 
 /*
  * LOW-LEVEL DEFINITIONS
@@ -24,7 +28,6 @@ void notify_remote_via_irq(int irq);
 
 
 /* Entry point for notifications into Linux subsystems. */
-struct intrframe;
 void evtchn_do_upcall(struct intrframe *frame);
 
 /* Entry point for notifications into the userland character device. */

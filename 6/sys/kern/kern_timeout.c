@@ -557,7 +557,7 @@ again:
 				mtx_unlock_spin(&callout_lock);
 				sleepq_add(&callout_wait,
 				    &callout_lock.mtx_object, "codrain",
-				    SLEEPQ_MSLEEP, 0);
+				    SLEEPQ_SLEEP, 0);
 				sleepq_wait(&callout_wait);
 				sq_locked = 0;
 
