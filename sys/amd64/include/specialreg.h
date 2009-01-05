@@ -205,6 +205,7 @@
  * CPUID manufacturers identifiers
  */
 #define	AMD_VENDOR_ID		"AuthenticAMD"
+#define	CENTAUR_VENDOR_ID	"CentaurHauls"
 #define	INTEL_VENDOR_ID		"GenuineIntel"
 
 /*
