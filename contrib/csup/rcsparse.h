@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2006, Maxime Henrion <mux@FreeBSD.org>
+ * Copyright (c) 2008-2009, Ulf Lilleengen <lulf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,17 @@
  *
  * $FreeBSD$
  */
-#ifndef _KEYWORD_H_
-#define _KEYWORD_H_
 
-/* CVS expansion modes. */
-#define	EXPAND_DEFAULT		0
-#define	EXPAND_KEYVALUE		1
-#define	EXPAND_KEYVALUELOCKER	2
-#define	EXPAND_KEY		3
-#define	EXPAND_OLD		4
-#define	EXPAND_BINARY		5
-#define	EXPAND_VALUE		6
+#ifndef _RCSPARSE_H_
+#define _RCSPARSE_H_
+#define ID		0
+#define NUM		1
+#define KEYWORD		2
+#define KEYWORD_TWO	3
+#define STRING		4
+#define SEMIC		5
+#define COLON		6
 
-struct diffinfo;
-struct keyword;
-
-struct keyword	*keyword_new(void);
-int		 keyword_decode_expand(const char *);
-const char	*keyword_encode_expand(int);
-int		 keyword_alias(struct keyword *, const char *, const char *);
-int		 keyword_enable(struct keyword *, const char *);
-int		 keyword_disable(struct keyword *, const char *);
-void		 keyword_prepare(struct keyword *);
-int		 keyword_expand(struct keyword *, struct diffinfo *, char *,
-		     size_t, char **, size_t *);
-void		 keyword_free(struct keyword *);
-
-#endif /* !_KEYWORD_H_ */
+struct rcsfile;
+int	rcsparse_run(struct rcsfile *, FILE *, int);
+#endif /* !_RCSPARSE_H_ */
