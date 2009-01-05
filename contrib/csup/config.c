@@ -133,7 +133,6 @@ config_init(const char *file, struct coll *override, int overridemask)
 			coll->co_options &= ~CO_CHECKRCS;
 		/* In recent versions, we always try to set the file modes. */
 		coll->co_options |= CO_SETMODE;
-		/* XXX We don't support the rsync updating algorithm yet. */
 		coll->co_options |= CO_NORSYNC;
 		error = config_parse_refusefiles(coll);
 		if (error)
@@ -442,10 +441,6 @@ coll_add(char *name)
 	if (cur_coll->co_host == NULL) {
 		lprintf(-1, "Host not specified for collection "
 		    "\"%s\"\n", cur_coll->co_name);
-		exit(1);
-	}
-	if (!(cur_coll->co_options & CO_CHECKOUTMODE)) {
-		lprintf(-1, "Client only supports checkout mode\n");
 		exit(1);
 	}
 	if (!STAILQ_EMPTY(&colls)) {
