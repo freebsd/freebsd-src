@@ -1031,6 +1031,9 @@ blkif_recover(struct blkfront_info *info)
 	blkif_request_t *req;
 	struct blk_shadow *copy;
 
+	if (!info->sc)
+		return;
+
 	/* Stage 1: Make a safe copy of the shadow state. */
 	copy = (struct blk_shadow *)malloc(sizeof(info->shadow), M_DEVBUF, M_NOWAIT|M_ZERO);
 	memcpy(copy, info->shadow, sizeof(info->shadow));
