@@ -170,7 +170,8 @@ struct protosw {
 #define PRU_SEND_EOF		22	/* send and close */
 #define	PRU_SOSETLABEL		23	/* MAC label change */
 #define	PRU_CLOSE		24	/* socket close */
-#define PRU_NREQ		24
+#define PRU_FLUSH       25 /* flush the socket */
+#define PRU_NREQ		25
 
 #ifdef PRUREQUESTS
 const char *prurequests[] = {
@@ -180,7 +181,7 @@ const char *prurequests[] = {
 	"SENSE",	"RCVOOB",	"SENDOOB",	"SOCKADDR",
 	"PEERADDR",	"CONNECT2",	"FASTTIMO",	"SLOWTIMO",
 	"PROTORCV",	"PROTOSEND",	"SEND_EOF",	"SOSETLABEL",
-	"CLOSE",
+	"CLOSE", 	"FLUSH",
 };
 #endif
 
