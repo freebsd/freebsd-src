@@ -27,6 +27,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 
 #include <machine/xen/xen-os.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/synch_bitops.h>
 
 #include <xen/hypervisor.h>
@@ -135,6 +136,7 @@ gnttab_grant_foreign_access(domid_t domid, unsigned long frame, int readonly,
 	int error, ref;
 
 	error = get_free_entries(1, &ref);
+	
 	if (unlikely(error))
 		return (error);
 
@@ -143,7 +145,9 @@ gnttab_grant_foreign_access(domid_t domid, unsigned long frame, int readonly,
 	wmb();
 	shared[ref].flags = GTF_permit_access | (readonly ? GTF_readonly : 0);
 
-	*result = ref;
+	if (result)
+		*result = ref;
+
 	return (0);
 }
 
@@ -206,7 +210,7 @@ gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn,
     grant_ref_t *result)
 {
 	int error, ref;
-	
+
 	error = get_free_entries(1, &ref);
 	if (unlikely(error))
 		return (error);
@@ -298,13 +302,13 @@ gnttab_free_grant_references(grant_ref_t head)
 int
 gnttab_alloc_grant_references(uint16_t count, grant_ref_t *head)
 {
-	int error, h;
+	int ref, error;
 
-	error = get_free_entries(count, &h);
-	if (error)
+	error = get_free_entries(count, &ref);
+	if (unlikely(error))
 		return (error);
 
-	*head = h;
+	*head = ref;
 	return (0);
 }
 
@@ -322,7 +326,6 @@ gnttab_claim_grant_reference(grant_ref_t *private_head)
 
 	if (unlikely(g == GNTTAB_LIST_END))
 		return (ENOSPC);
-
 	*private_head = gnttab_entry(g);
 	return (g);
 }

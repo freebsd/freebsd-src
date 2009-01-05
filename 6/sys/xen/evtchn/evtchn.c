@@ -27,8 +27,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
+#include <xen/xen_intr.h>
 #include <machine/xen/synch_bitops.h>
+#include <xen/evtchn.h>
 #include <xen/hypervisor.h>
+#include <sys/smp.h>
 
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
@@ -334,7 +337,7 @@ static int
 bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;
-	int evtchn, irq;
+	int evtchn = 0, irq;
 
 	mtx_lock_spin(&irq_mapping_update_lock);
 
@@ -357,6 +360,7 @@ bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 	}
 
 	irq_bindcount[irq]++;
+	unmask_evtchn(evtchn);
 out:
 	mtx_unlock_spin(&irq_mapping_update_lock);
 
@@ -370,8 +374,9 @@ int
 bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 {
 	struct evtchn_bind_ipi bind_ipi;
-	int evtchn, irq;
-	
+	int irq;
+	int evtchn = 0;
+
 	mtx_lock_spin(&irq_mapping_update_lock);
 	
 	if ((irq = pcpu_find(cpu)->pc_ipi_to_irq[ipi]) == -1) {
@@ -390,6 +395,7 @@ bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 	irq_bindcount[irq]++;
+	unmask_evtchn(evtchn);
 out:
 	
 	mtx_unlock_spin(&irq_mapping_update_lock);
@@ -446,6 +452,7 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
 	error = intr_add_handler(devname, irq, handler, arg, irqflags,
 	    &xp->xp_pins[irq].xp_cookie);
+
 	if (error) {
 		unbind_from_irq(irq);
 		return (error);
@@ -453,6 +460,7 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
 
 	if (irqp)
 		*irqp = irq;
+
 	return (0);
 }
 
@@ -472,9 +480,9 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 		unbind_from_irq(irq);
 		return (error);
 	}
-
 	if (irqp)
 		*irqp = irq;
+	
 	return (0);
 }
 
@@ -488,8 +496,8 @@ bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 
 	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler, NULL, irqflags,
-	    &xp->xp_pins[irq].xp_cookie);
+	error = intr_add_handler(devname, irq, handler, NULL,
+	    irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
 		return (error);
@@ -510,8 +518,8 @@ bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 
 	irq = bind_virq_to_irq(virq, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler, NULL, irqflags,
-	    &xp->xp_pins[irq].xp_cookie);
+	error = intr_add_handler(devname, irq, handler,
+	    NULL, irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
 		return (error);
@@ -528,12 +536,12 @@ bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
     unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
-	int  error;
+	int error;
 	
 	irq = bind_ipi_to_irq(ipi, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler, NULL, irqflags,
-	    &xp->xp_pins[irq].xp_cookie);
+	error = intr_add_handler(devname, irq, handler,
+	    NULL, irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
 		return (error);

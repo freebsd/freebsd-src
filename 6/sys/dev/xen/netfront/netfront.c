@@ -63,10 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 
 #include <machine/xen/xen-os.h>
+#include <machine/xen/xenfunc.h>
 #include <xen/hypervisor.h>
-#include <machine/xen/xenvar.h>
-#include <xen/features.h>
-
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
 #include <xen/gnttab.h>
@@ -357,7 +355,7 @@ makembuf (struct mbuf *buf)
 	m_copydata(buf, 0, buf->m_pkthdr.len, mtod(m,caddr_t) );
 
 	m->m_ext.ext_args = (caddr_t *)(uintptr_t)(vtophys(mtod(m,caddr_t)) >> PAGE_SHIFT);
-	
+
        	return m;
 }
 
@@ -575,14 +573,14 @@ setup_device(device_t dev, struct netfront_info *info)
 		goto fail;
 
 	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-		"xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
+	    "xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
 
 	if (error) {
 		xenbus_dev_fatal(dev, error,
 				 "bind_evtchn_to_irqhandler failed");
 		goto fail;
 	}
-	
+
 	show_device(info);
 	
 	return (0);
@@ -1450,9 +1448,9 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) 
 				xn_ifinit_locked(sc);
 			arp_ifinit(ifp, ifa);
-			XN_UNLOCK(sc);
+			XN_UNLOCK(sc);	
 		} else {
-			XN_UNLOCK(sc);
+			XN_UNLOCK(sc);	
 			error = ether_ioctl(ifp, cmd, data);
 		}
 		break;
@@ -1779,8 +1777,6 @@ static void netif_free(struct netfront_info *info)
 #endif
 }
 
-
-
 static void netif_disconnect_backend(struct netfront_info *info)
 {
 	XN_RX_LOCK(info);
@@ -1798,6 +1794,7 @@ static void netif_disconnect_backend(struct netfront_info *info)
 
 	if (info->irq)
 		unbind_from_irqhandler(info->irq);
+
 	info->irq = 0;
 }
 

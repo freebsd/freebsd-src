@@ -10,6 +10,9 @@
 *     to be modified to translate physical IRQ numbers into our IRQ space.
 *  3. A dynamic mapping of inter-domain and Xen-sourced virtual IRQs. These
 *     are bound using the provided bind/unbind functions.
+*
+*
+* $FreeBSD$
 */
 
 #define PIRQ_BASE   0
@@ -26,7 +29,7 @@
 #define dynirq_to_irq(_x) ((_x) + DYNIRQ_BASE)
 #define irq_to_dynirq(_x) ((_x) - DYNIRQ_BASE)
 
-/*
+/* 
  * Dynamic binding of event channels and VIRQ sources to guest IRQ space.
  */
 
@@ -55,7 +58,7 @@ extern int bind_listening_port_to_irqhandler(unsigned int remote_domain,
  */
 extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 	const char *devname, driver_intr_t handler,
-	unsigned long irqflags, unsigned int *irqp);
+	unsigned long irqflags,	unsigned int *irqp);
 
 /*
  * Bind an IPI to an interrupt handler. If successful, the guest

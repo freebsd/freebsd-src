@@ -295,11 +295,12 @@ static struct timecounter xen_timecounter = {
 };
 
 static void 
-clkintr(struct clockframe *frame)
+clkintr(void *arg)
 {
 	int64_t delta_cpu, delta;
 	struct shadow_time_info *shadow = PCPU_PTR(shadow_time);
-
+	struct clockframe *frame = (struct clockframe *)arg;
+	
 	do {
 		__get_time_values_from_xen();
 		
@@ -839,7 +840,8 @@ static struct vcpu_set_periodic_timer xen_set_periodic_tick;
 void
 cpu_initclocks(void)
 {
-
+	int error;
+	
 	xen_set_periodic_tick.period_ns = NS_PER_TICK;
 
 	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, 0,
@@ -849,11 +851,11 @@ cpu_initclocks(void)
 		unbind_from_irqhandler(time_irq);
 	time_irq = 0;
 
-        if (bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
-		(driver_intr_t *)clkintr, INTR_TYPE_CLK | INTR_FAST,
-		&time_irq)) {
+        error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
+		                                clkintr,
+	    INTR_TYPE_CLK | INTR_FAST, &time_irq);
+	if (error)
 		panic("failed to register clock interrupt\n");
-	}
 
 	/* should fast clock be enabled ? */
 }
@@ -861,22 +863,22 @@ cpu_initclocks(void)
 int
 ap_cpu_initclocks(int cpu)
 {
-	int time_irq;
+	unsigned int time_irq;
+	int error;
 
 	xen_set_periodic_tick.period_ns = NS_PER_TICK;
 
 	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, cpu,
 			   &xen_set_periodic_tick);
-
-        if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, "clk", 
-		    (driver_intr_t *)clkintr, 
-		    INTR_TYPE_CLK | INTR_FAST, NULL)) < 0) {
+        error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
+		                                clkintr, 
+	    INTR_TYPE_CLK | INTR_FAST, &time_irq);
+	if (error)
 		panic("failed to register clock interrupt\n");
-	}
+
 
 	return (0);
 }
-
 
 void
 cpu_startprofclock(void)

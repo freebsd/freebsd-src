@@ -413,10 +413,11 @@ void
 _xen_queue_pt_update(vm_paddr_t ptr, vm_paddr_t val, char *file, int line)
 {
 	SET_VCPU();
-
+#if 0
 	if (__predict_true(gdtset))	
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-
+#endif
+	
 	KASSERT((ptr & 7) == 0, ("misaligned update"));
 	
 	if (__predict_true(gdtset))
@@ -925,6 +926,39 @@ initvalues(start_info_t *startinfo)
 	xen_start_info = startinfo;
 	xen_phys_machine = (xen_pfn_t *)startinfo->mfn_list;
 
+	IdlePTD = (pd_entry_t *)((uint8_t *)startinfo->pt_base + PAGE_SIZE);
+	l1_pages = 0;
+	
+#ifdef PAE
+	l3_pages = 1;
+	l2_pages = 0;
+	IdlePDPT = (pd_entry_t *)startinfo->pt_base;
+	IdlePDPTma = xpmap_ptom(VTOP(startinfo->pt_base));
+	for (i = (KERNBASE >> 30);
+	     (i < 4) && (IdlePDPT[i] != 0); i++)
+			l2_pages++;
+	/*
+	 * Note that only one page directory has been allocated at this point.
+	 * Thus, if KERNBASE
+	 */
+#if 0
+	for (i = 0; i < l2_pages; i++)
+		IdlePTDma[i] = xpmap_ptom(VTOP(IdlePTD + i*PAGE_SIZE));
+#endif
+	
+	l2_pages = (l2_pages == 0) ? 1 : l2_pages;
+#else	
+	l3_pages = 0;
+	l2_pages = 1;
+#endif
+	for (i = (((KERNBASE>>18) & PAGE_MASK)>>PAGE_SHIFT);
+	     (i<l2_pages*NPDEPG) && (i<(VM_MAX_KERNEL_ADDRESS>>PDRSHIFT)); i++) {
+		
+		if (IdlePTD[i] == 0)
+			break;
+		l1_pages++;
+	}
+	
 	/* number of pages allocated after the pts + 1*/;
 	cur_space = xen_start_info->pt_base +
 	    ((xen_start_info->nr_pt_frames) + 3 )*PAGE_SIZE;

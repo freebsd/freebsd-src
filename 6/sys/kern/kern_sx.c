@@ -108,17 +108,50 @@ CTASSERT(((SX_ADAPTIVESPIN | SX_RECURSE) & LO_CLASSFLAGS) ==
 static void	db_show_sx(struct lock_object *lock);
 #endif
 
+static void	lock_sx(struct lock_object *lock, int how);
+static int	unlock_sx(struct lock_object *lock);
+
 struct lock_class lock_class_sx = {
 	.lc_name = "sx",
 	.lc_flags = LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
 #ifdef DDB
 	.lc_ddb_show = db_show_sx,
 #endif
+	.lc_lock = lock_sx,
+	.lc_unlock = unlock_sx,
 };
 
 #ifndef INVARIANTS
 #define	_sx_assert(sx, what, file, line)
 #endif
+
+void
+lock_sx(struct lock_object *lock, int how)
+{
+	struct sx *sx;
+
+	sx = (struct sx *)lock;
+	if (how)
+		sx_xlock(sx);
+	else
+		sx_slock(sx);
+}
+
+int
+unlock_sx(struct lock_object *lock)
+{
+	struct sx *sx;
+
+	sx = (struct sx *)lock;
+	sx_assert(sx, SA_LOCKED | SA_NOTRECURSED);
+	if (sx_xlocked(sx)) {
+		sx_xunlock(sx);
+		return (1);
+	} else {
+		sx_sunlock(sx);
+		return (0);
+	}
+}
 
 void
 sx_sysinit(void *arg)
@@ -845,6 +878,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 	}
 }
 
+#if 0
 /*
  * Atomically drop an sx lock while going to sleep.  This is just a hack
  * for 6.x.  In 7.0 and later this is done more cleanly.
@@ -961,6 +995,7 @@ sx_sleep(void *ident, struct sx *sx, int priority, const char *wmesg, int timo)
 	}
 	return (rval);
 }
+#endif
 
 #ifdef INVARIANT_SUPPORT
 #ifndef INVARIANTS

@@ -62,6 +62,43 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
+
+#ifdef DDB
+#include <ddb/ddb.h>
+static void	db_show_lockmgr(struct lock_object *lock);
+#endif
+static void	lock_lockmgr(struct lock_object *lock, int how);
+static int	unlock_lockmgr(struct lock_object *lock);
+
+struct lock_class lock_class_lockmgr = {
+	.lc_name = "lockmgr",
+	.lc_flags = LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
+#ifdef DDB
+	.lc_ddb_show = db_show_lockmgr,
+#endif
+	.lc_lock = lock_lockmgr,
+	.lc_unlock = unlock_lockmgr,
+};
+
+/*
+ * Locking primitives implementation.
+ * Locks provide shared/exclusive sychronization.
+ */
+
+void
+lock_lockmgr(struct lock_object *lock, int how)
+{
+
+	panic("lockmgr locks do not support sleep interlocking");
+}
+
+int
+unlock_lockmgr(struct lock_object *lock)
+{
+
+	panic("lockmgr locks do not support sleep interlocking");
+}
+
 /*
  * Locking primitives implementation.
  * Locks provide shared/exclusive sychronization.
@@ -639,14 +676,13 @@ ok:
 	return (1);
 }
 
-DB_SHOW_COMMAND(lockmgr, db_show_lockmgr)
+void
+db_show_lockmgr(struct lock_object *lock)
 {
 	struct thread *td;
 	struct lock *lkp;
 
-	if (!have_addr)
-		return;
-	lkp = (struct lock *)addr;
+	lkp = (struct lock *)lock;
 
 	db_printf("lock type: %s\n", lkp->lk_wmesg);
 	db_printf("state: ");

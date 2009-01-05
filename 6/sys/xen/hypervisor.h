@@ -25,6 +25,9 @@
 #endif
 #endif
 
+#include <sys/cdefs.h>
+#include <sys/systm.h>
+#include <xen/interface/xen.h>
 #include <xen/interface/platform.h>
 #include <xen/interface/event_channel.h>
 #include <xen/interface/physdev.h>
@@ -47,9 +50,7 @@
 #define is_initial_xendomain() 0
 #endif
 
-#ifndef XENHVM
 extern start_info_t *xen_start_info;
-#endif
 
 extern uint64_t get_system_time(int ticks);
 
