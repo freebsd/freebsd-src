@@ -1,5 +1,5 @@
 /*
- * Copyright (c) [year] [your name]
+ * Copyright (c) 2008 Citrix Systems, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@ struct xenpci_softc {
 	int rid_ioport;
 	int rid_memory;
 	int rid_irq;
-	struct resource* res_ioport;	/* Resource for port range. */
 	struct resource* res_memory;	/* Resource for mem range. */
 	struct resource* res_irq;	/* Resource for irq range. */
 	void	*intr_cookie;
