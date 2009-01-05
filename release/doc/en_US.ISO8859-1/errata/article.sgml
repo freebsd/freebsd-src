@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "7.0-RELEASE">
+<!ENTITY release.bugfix "7.1-RELEASE">
 ]>
 
 <article>
@@ -41,6 +41,7 @@
 
     <copyright>
       <year>2008</year>
+      <year>2009</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -125,11 +126,9 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-<![ %release.type.release [
     <para>No advisories.</para>
-]]>
 
-<![ %release.type.snapshot [
+<!--
     <para>The following security advisories pertain to &os; &release.bugfix;.
       For more information, consult the individual advisories available from
       <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
@@ -154,128 +153,72 @@
 	    <entry>17&nbsp;April&nbsp;2008</entry>
 	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
 	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
-		>SA-08:06.bind</ulink></entry>
-	    <entry>13&nbsp;July&nbsp;2008</entry>
-	    <entry><para>DNS cache poisoning</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:07.amd64.asc"
-		>SA-08:07.amd64</ulink></entry>
-	    <entry>3&nbsp;September&nbsp;2008</entry>
-	    <entry><para>amd64 swapgs local privilege escalation</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:08.nmount.asc"
-		>SA-08:08.nmount</ulink></entry>
-	    <entry>3&nbsp;September&nbsp;2008</entry>
-	    <entry><para>&man.nmount.2; local arbitrary code execution</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:09.icmp6.asc"
-		>SA-08:09.icmp6</ulink></entry>
-	    <entry>3&nbsp;September&nbsp;2008</entry>
-	    <entry><para>Remote kernel panics on IPv6 connections</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:10.nd6.asc"
-		>SA-08:10.nd6</ulink></entry>
-	    <entry>1&nbsp;October&nbsp;2008</entry>
-	    <entry><para>IPv6 Neighbor Discovery Protocol routing vulnerability</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:11.arc4random.asc"
-		>SA-08:11.arc4random</ulink></entry>
-	    <entry>24&nbsp;November&nbsp;2008</entry>
-	    <entry><para>&man.arc4random.9; predictable sequence vulnerability</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:12.ftpd.asc"
-		>SA-08:12.ftpd</ulink></entry>
-	    <entry>23&nbsp;December&nbsp;2008</entry>
-	    <entry><para>Cross-site request forgery in &man.ftpd.8;</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:13.protosw.asc"
-		>SA-08:13.protosw</ulink></entry>
-	    <entry>23&nbsp;December&nbsp;2008</entry>
-	    <entry><para>netgraph / bluetooth privilege escalation</para></entry>
-	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
-]]>
+-->
 
   </sect1>
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.release [
-    <para>No open issues.</para>
-]]>
+    <para>[20090105] As in the Announcement of 7.1-RELEASE, certain Intel NICs
+      will come up as &man.igb.4; instead of &man.em.4; in this
+      release.  There are only 3 PCI ID's that should have
+      their name changed from &man.em.4; to &man.igb.4;:</para>
 
-<![ %release.type.snapshot [
-    <para>[20080229] &man.tcpdump.1; does not correctly print the
-      TX/RX rates for 802.11 frames.  This issue has been fixed on the
-      HEAD and RELENG_7 branches.</para>
+    <itemizedlist>
+      <listitem>
+	<para>0x10A78086</para>
+      </listitem>
 
-    <para>[20080229] A bug in Linux emulation may cause segmentation
-      faults for some Linux programs using &man.mmap.2;.  This issue
-      has been fixed on the HEAD and RELENG_7 branches.</para>
+      <listitem>
+	<para>0x10A98086</para>
+      </listitem>
 
-    <para>[20080229] Instances of packet corruption and instability
-      have been observed with the &man.re.4; network driver.  Some
-      users have reported that using a newer version of this driver
-      (on HEAD) has solved their problems, or at least mitigated
-      them.</para>
+      <listitem>
+	<para>0x10D68086</para>
+      </listitem>
+    </itemizedlist>
 
-    <para>[20080229, updated 20080817] A change in the way that &os; sends TCP options
-      has been reported to cause connectivity issues.
-      This problem has been corrected on
-      HEAD and the RELENG_7 and RELENG_7_0 branches..  Further
-      details are contained in errta notice
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-08:02.tcp.asc">FreeBSD-EN-08:02.tcp</ulink>.</para>
+    <para>You should be able to determine if your card will
+      change names by running the following command:</para>
 
-    <para>[20080307] The &os; implementation of SCTP currently depends
-      on having <literal>INET6</literal> support compiled into the
-      kernel.  This requirement is planned to be removed in future
-      releases.</para>
+    <screen>&prompt.user; pciconf -l
+. . .
+em0@pci0:0:25:0: class=0x020000 card=0x02381028 chip=0x10c08086 rev=0x02 hdr=0x00</screen>
 
-    <para>[20080307] Source upgrades from &os;
-      6.<replaceable>X</replaceable> to &os; &release.bugfix; will
-      generate warnings from &man.kldxref.8; during
-      the <literal>installkernel</literal> step.  These warnings are
-      harmless and can be ignored.</para>
+    <para>and for the line representing your NIC (should be named
+      <emphasis>em</emphasis> on older systems,
+      e.g. <emphasis>em0</emphasis> or <emphasis>em1</emphasis>, etc)
+      check the fourth column.  If that says
+      <literal>chip=0x10a78086</literal> (or one of the other two IDs
+      given above) you will have the adapter's name change.</para>
 
-    <para>[20080307] The &man.crypto.4; driver, which is required for
-      IPsec functionality, has severe problems on &os;/&arch.powerpc;
-      (a kernel with <literal>device crypto</literal> included in its
-      configuration will be non-functional).</para>
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have mentioned
+      changes that the &man.ae.4; driver has been added to provide support
+      for the Attansic/Atheros L2 FastEthernet controllers.
+      This driver is not enabled in <filename>GENERIC</filename>
+      kernels for this release.</para>
 
-]]>
+    <para>[20090105] The Release Notes for 7.1-RELEASE included the
+      following misdescriptions:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>In the entry of &man.linux.4; ABI support,
+	  <function>get_setaffinity()</function> should have been
+	  <function>sched_setaffinity()</function>.</para>
+      </listitem>
+    </itemizedlist>
 
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-<![ %release.type.release [
     <para>No news.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>[20080229] The &os; &release.bugfix; release documentation
-      (release notes, hardware notes, and so forth) all contained a
-      note that users of &os; 7-STABLE should be subscribed to
-      the <literal>freebsd-current</literal> mailing list.  This note
-      should not have appeared.</para>
-
-    <para>[20080229] The release notes gave an incorrect version
-      number for KDE.  The correct version number is 3.5.8.</para>
-
-]]>
   </sect1>
 
 </article>
