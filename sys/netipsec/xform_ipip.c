@@ -660,20 +660,24 @@ static struct xformsw ipe4_xformsw = {
 };
 
 extern struct domain inetdomain;
-static struct protosw ipe4_protosw =
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  ip4_input,
-		0, 		0,		rip_ctloutput,
-  0,		0,		0,		0,
-  &rip_usrreqs
+static struct protosw ipe4_protosw = {
+	.pr_type =	SOCK_RAW,
+	.pr_domain =	&inetdomain,
+	.pr_protocol =	IPPROTO_IPV4,
+	.pr_flags =	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =	ip4_input,
+	.pr_ctloutput =	rip_ctloutput,
+	.pr_usrreqs =	&rip_usrreqs
 };
 #ifdef INET6
-static struct ip6protosw ipe6_protosw =
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  ip4_input6,
-		0,	 	0,		rip_ctloutput,
-  0,		0,		0,		0,
-  &rip_usrreqs
+static struct ip6protosw ipe6_protosw = {
+	.pr_type =	SOCK_RAW,
+	.pr_domain =	&inetdomain,
+	.pr_protocol =	IPPROTO_IPV6,
+	.pr_flags =	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =	ip4_input6,
+	.pr_ctloutput =	rip_ctloutput,
+	.pr_usrreqs =	&rip_usrreqs
 };
 #endif
 
