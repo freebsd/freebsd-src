@@ -45,18 +45,18 @@ at boot time, place the following in
 cpuctl_load="YES"
 .Ed
 .Sh DESCRIPTION
-The special file
+The special device
 .Pa /dev/cpuctl
 presents interface to the system CPU.
 It provides functionality to retrieve
 CPUID information, read/write machine specific registers (MSR) and perform
 CPU firmware updates.
 .Pp
-For each CPU present in the system, the special file
+For each CPU present in the system, the special device
 .Pa /dev/cpuctl%d
 with the appropriate index will be created.
-For multicore CPUs such
-special file will be created for each core.
+For multicore CPUs such a
+special device will be created for each core.
 .Pp
 Currently, only i386 and amd64 processors are
 supported.
