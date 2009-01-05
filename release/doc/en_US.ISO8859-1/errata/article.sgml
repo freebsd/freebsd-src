@@ -200,6 +200,13 @@ em0@pci0:0:25:0: class=0x020000 card=0x02381028 chip=0x10c08086 rev=0x02 hdr=0x0
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
+    <para>[20090105] The Release Notes for 7.1-RELEASE should have
+      mentioned that the &man.procstat.1; utility has been added.
+      This is a process inspection utility which provides both some of
+      the missing functionality from &man.procfs.5; and new
+      functionality for monitoring and debugging specific
+      processes.</para>
+
     <para>[20090105] The Release Notes for 7.1-RELEASE should have mentioned
       changes that the &man.ae.4; driver has been added to provide support
       for the Attansic/Atheros L2 FastEthernet controllers.
