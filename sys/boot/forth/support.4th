@@ -26,7 +26,6 @@
 
 \ Loader.rc support functions:
 \
-\ initialize_support ( -- )	initialize global variables
 \ initialize ( addr len -- )	as above, plus load_conf_files
 \ load_conf ( addr len -- )	load conf file given
 \ include_conf_files ( -- )	load all conf files in load_conf_files
@@ -61,24 +60,23 @@
 \ value any_conf_read?		indicates if a conf file was succesfully read
 \
 \ Other exported words:
-\
+\    note, strlen is internal
 \ strdup ( addr len -- addr' len)			similar to strdup(3)
 \ strcat ( addr len addr' len' -- addr len+len' )	similar to strcat(3)
-\ strlen ( addr -- len )				similar to strlen(3)
 \ s' ( | string' -- addr len | )			similar to s"
 \ rudimentary structure support
 
 \ Exception values
 
-1 constant syntax_error
-2 constant out_of_memory
-3 constant free_error
-4 constant set_error
-5 constant read_error
-6 constant open_error
-7 constant exec_error
-8 constant before_load_error
-9 constant after_load_error
+1 constant ESYNTAX
+2 constant ENOMEM
+3 constant EFREE
+4 constant ESETERROR	\ error setting environment variable
+5 constant EREAD	\ error reading
+6 constant EOPEN
+7 constant EEXEC	\ XXX never catched
+8 constant EBEFORELOAD
+9 constant EAFTERLOAD
 
 \ I/O constants
 
@@ -132,7 +130,8 @@ structure: module
 	ptr module.next
 ;structure
 
-\ Internal loader structures
+\ Internal loader structures (preloaded_file, kernel_module, file_metadata)
+\ must be in sync with the C struct in sys/boot/common/bootstrap.h
 structure: preloaded_file
 	ptr pf.name
 	ptr pf.type
@@ -159,51 +158,7 @@ structure: file_metadata
 	0 member:	md.data	\ variable size
 ;structure
 
-structure: config_resource
-	ptr cf.name
-	int cf.type
-0 constant RES_INT
-1 constant RES_STRING
-2 constant RES_LONG
-	2 cells member: u
-;structure
-
-structure: config_device
-	ptr cd.name
-	int cd.unit
-	int cd.resource_count
-	ptr cd.resources	\ config_resource
-;structure
-
-structure: STAILQ_HEAD
-	ptr stqh_first	\ type*
-	ptr stqh_last	\ type**
-;structure
-
-structure: STAILQ_ENTRY
-	ptr stqe_next	\ type*
-;structure
-
-structure: pnphandler
-	ptr pnph.name
-	ptr pnph.enumerate
-;structure
-
-structure: pnpident
-	ptr pnpid.ident					\ char*
-	sizeof STAILQ_ENTRY cells member: pnpid.link	\ pnpident
-;structure
-
-structure: pnpinfo
-	ptr pnpi.desc
-	int pnpi.revision
-	ptr pnpi.module				\ (char*) module args
-	int pnpi.argc
-	ptr pnpi.argv
-	ptr pnpi.handler			\ pnphandler
-	sizeof STAILQ_HEAD member: pnpi.ident	\ pnpident
-	sizeof STAILQ_ENTRY member: pnpi.link	\ pnpinfo
-;structure
+\ end of structures
 
 \ Global variables
 
@@ -216,11 +171,9 @@ create last_module_option sizeof module.next allot 0 last_module_option !
 0 value nextboot?
 
 \ Support string functions
-
-: strdup  ( addr len -- addr' len )
-  >r r@ allocate if out_of_memory throw then
-  tuck r@ move
-  r>
+: strdup { addr len -- addr' len' }
+  len allocate if ENOMEM throw then
+  addr over len move len
 ;
 
 : strcat  { addr len addr' len' -- addr len+len' }
@@ -228,29 +181,27 @@ create last_module_option sizeof module.next allot 0 last_module_option !
   addr len len' +
 ;
 
-: strlen ( addr -- len )
-  0 >r
+: strchr { addr len c -- addr' len' }
   begin
-    dup c@ while
-    1+ r> 1+ >r repeat
-  drop r>
+    len
+  while
+    addr c@ c = if addr len exit then
+    addr 1 + to addr
+    len 1 - to len
+  repeat
+  0 0
 ;
 
-: s' 
+: s' \ same as s", allows " in the string
   [char] ' parse
-  state @ if
-    postpone sliteral
-  then
+  state @ if postpone sliteral then
 ; immediate
 
 : 2>r postpone >r postpone >r ; immediate
 : 2r> postpone r> postpone r> ; immediate
 : 2r@ postpone 2r> postpone 2dup postpone 2>r ; immediate
 
-: getenv?
-  getenv
-  -1 = if false else drop true then
-;
+: getenv?  getenv -1 = if false else drop true then ;
 
 \ Private definitions
 
@@ -271,33 +222,45 @@ only forth also support-functions definitions
 
 \ Standard suffixes
 
-: load_module_suffix s" _load" ;
-: module_loadname_suffix s" _name" ;
-: module_type_suffix s" _type" ;
-: module_args_suffix s" _flags" ;
-: module_beforeload_suffix s" _before" ;
-: module_afterload_suffix s" _after" ;
-: module_loaderror_suffix s" _error" ;
+: load_module_suffix		s" _load" ;
+: module_loadname_suffix	s" _name" ;
+: module_type_suffix		s" _type" ;
+: module_args_suffix		s" _flags" ;
+: module_beforeload_suffix	s" _before" ;
+: module_afterload_suffix	s" _after" ;
+: module_loaderror_suffix	s" _error" ;
 
 \ Support operators
 
 : >= < 0= ;
 : <= > 0= ;
 
-\ Assorted support funcitons
+\ Assorted support functions
 
-: free-memory free if free_error throw then ;
+: free-memory free if EFREE throw then ;
 
 : strget { var -- addr len } var .addr @ var .len @ ;
 
 \ assign addr len to variable.
-: strset  { addr len var -- } addr var .addr ! len var .len ! ;
+: strset  { addr len var -- } addr var .addr !  len var .len !  ;
 
 \ free memory and reset fields
 : strfree { var -- } var .addr @ ?dup if free-memory 0 0 var strset then ;
 
 \ free old content, make a copy of the string and assign to variable
 : string= { addr len var -- } var strfree addr len strdup var strset ;
+
+: strtype ( str -- ) strget type ;
+
+\ assign a reference to what is on the stack
+: strref { addr len var -- addr len }
+  addr var .addr ! len var .len ! addr len
+;
+
+\ unquote a string
+: unquote ( addr len -- addr len )
+  over c@ [char] " = if 2 chars - swap char+ swap then
+;
 
 \ Assignment data temporary storage
 
@@ -366,16 +329,16 @@ line-reading definitions
   line_buffer .len @ if
     line_buffer .addr @
     line_buffer .len @ r@ +
-    resize if out_of_memory throw then
+    resize if ENOMEM throw then
   else
-    r@ allocate if out_of_memory throw then
+    r@ allocate if ENOMEM throw then
   then
   line_buffer .addr !
   r>
 ;
     
 : append_to_line_buffer  ( addr len -- )
-  line_buffer .addr @ line_buffer .len @
+  line_buffer strget
   2swap strcat
   line_buffer .len !
   drop
@@ -395,21 +358,13 @@ line-reading definitions
 : refill_buffer
   0 to read_buffer_ptr
   read_buffer .addr @ 0= if
-    read_buffer_size allocate if out_of_memory throw then
+    read_buffer_size allocate if ENOMEM throw then
     read_buffer .addr !
   then
   fd @ read_buffer .addr @ read_buffer_size fread
-  dup -1 = if read_error throw then
+  dup -1 = if EREAD throw then
   dup 0= if true to end_of_file? then
   read_buffer .len !
-;
-
-: reset_line_buffer
-  line_buffer .addr @ ?dup if
-    free-memory
-  then
-  0 line_buffer .addr !
-  0 line_buffer .len !
 ;
 
 support-functions definitions
@@ -419,7 +374,7 @@ support-functions definitions
 ;
 
 : read_line
-  reset_line_buffer
+  line_buffer strfree
   skip_newlines
   begin
     read_from_buffer
@@ -459,9 +414,9 @@ also parser definitions also
 0 value parsing_function
 0 value end_of_line
 
-: end_of_line?
-  line_pointer end_of_line =
-;
+: end_of_line?  line_pointer end_of_line = ;
+
+\ classifiers for various character classes in the input line
 
 : letter?
   line_pointer c@ >r
@@ -480,70 +435,46 @@ also parser definitions also
   or
 ;
 
-: quote?
-  line_pointer c@ [char] " =
-;
+: quote?  line_pointer c@ [char] " = ;
 
-: assignment_sign?
-  line_pointer c@ [char] = =
-;
+: assignment_sign?  line_pointer c@ [char] = = ;
 
-: comment?
-  line_pointer c@ [char] # =
-;
+: comment?  line_pointer c@ [char] # = ;
 
-: space?
-  line_pointer c@ bl =
-  line_pointer c@ tab = or
-;
+: space?  line_pointer c@ bl = line_pointer c@ tab = or ;
 
-: backslash?
-  line_pointer c@ [char] \ =
-;
+: backslash?  line_pointer c@ [char] \ = ;
 
-: underscore?
-  line_pointer c@ [char] _ =
-;
+: underscore?  line_pointer c@ [char] _ = ;
 
-: dot?
-  line_pointer c@ [char] . =
-;
+: dot?  line_pointer c@ [char] . = ;
 
-: skip_character
-  line_pointer char+ to line_pointer
-;
+\ manipulation of input line
+: skip_character line_pointer char+ to line_pointer ;
 
-: skip_to_end_of_line
-  end_of_line to line_pointer
-;
+: skip_to_end_of_line end_of_line to line_pointer ;
 
 : eat_space
   begin
-    space?
+    end_of_line? if 0 else space? then
   while
     skip_character
-    end_of_line? if exit then
   repeat
 ;
 
 : parse_name  ( -- addr len )
   line_pointer
   begin
-    letter? digit? underscore? dot? or or or
+    end_of_line? if 0 else letter? digit? underscore? dot? or or or then
   while
     skip_character
-    end_of_line? if 
-      line_pointer over -
-      strdup
-      exit
-    then
   repeat
   line_pointer over -
   strdup
 ;
 
 : remove_backslashes  { addr len | addr' len' -- addr' len' }
-  len allocate if out_of_memory throw then
+  len allocate if ENOMEM throw then
   to addr'
   addr >r
   begin
@@ -561,16 +492,16 @@ also parser definitions also
 : parse_quote  ( -- addr len )
   line_pointer
   skip_character
-  end_of_line? if syntax_error throw then
+  end_of_line? if ESYNTAX throw then
   begin
     quote? 0=
   while
     backslash? if
       skip_character
-      end_of_line? if syntax_error throw then
+      end_of_line? if ESYNTAX throw then
     then
     skip_character
-    end_of_line? if syntax_error throw then 
+    end_of_line? if ESYNTAX throw then 
   repeat
   skip_character
   line_pointer over -
@@ -579,8 +510,7 @@ also parser definitions also
 
 : read_name
   parse_name		( -- addr len )
-  name_buffer .len !
-  name_buffer .addr !
+  name_buffer strset
 ;
 
 : read_value
@@ -589,8 +519,7 @@ also parser definitions also
   else
     parse_name		( -- addr len )
   then
-  value_buffer .len !
-  value_buffer .addr !
+  value_buffer strset
 ;
 
 : comment
@@ -600,7 +529,7 @@ also parser definitions also
 : white_space_4
   eat_space
   comment? if ['] comment to parsing_function exit then
-  end_of_line? 0= if syntax_error throw then
+  end_of_line? 0= if ESYNTAX throw then
 ;
 
 : variable_value
@@ -613,7 +542,7 @@ also parser definitions also
   letter? digit? quote? or or if
     ['] variable_value to parsing_function exit
   then
-  syntax_error throw
+  ESYNTAX throw
 ;
 
 : assignment_sign
@@ -624,7 +553,7 @@ also parser definitions also
 : white_space_2
   eat_space
   assignment_sign? if ['] assignment_sign to parsing_function exit then
-  syntax_error throw
+  ESYNTAX throw
 ;
 
 : variable_name
@@ -636,13 +565,13 @@ also parser definitions also
   eat_space
   letter?  if ['] variable_name to parsing_function exit then
   comment? if ['] comment to parsing_function exit then
-  end_of_line? 0= if syntax_error throw then
+  end_of_line? 0= if ESYNTAX throw then
 ;
 
 file-processing definitions
 
 : get_assignment
-  line_buffer .addr @ line_buffer .len @ + to end_of_line
+  line_buffer strget + to end_of_line
   line_buffer .addr @ to line_pointer
   ['] white_space_1 to parsing_function
   begin
@@ -653,7 +582,7 @@ file-processing definitions
   parsing_function ['] comment =
   parsing_function ['] white_space_1 =
   parsing_function ['] white_space_4 =
-  or or 0= if syntax_error throw then
+  or or 0= if ESYNTAX throw then
 ;
 
 only forth also support-functions also file-processing definitions also
@@ -661,7 +590,7 @@ only forth also support-functions also file-processing definitions also
 \ Process line
 
 : assignment_type?  ( addr len -- flag )
-  name_buffer .addr @ name_buffer .len @
+  name_buffer strget
   compare 0=
 ;
 
@@ -671,69 +600,56 @@ only forth also support-functions also file-processing definitions also
   over compare 0=
 ;
 
-: loader_conf_files?
-  s" loader_conf_files" assignment_type?
-;
+: loader_conf_files?  s" loader_conf_files" assignment_type?  ;
 
-: nextboot_flag?
-  s" nextboot_enable" assignment_type?
-;
+: nextboot_flag?  s" nextboot_enable" assignment_type?  ;
 
-: nextboot_conf?
-  s" nextboot_conf" assignment_type?
-;
+: nextboot_conf? s" nextboot_conf" assignment_type?  ;
 
-: verbose_flag?
-  s" verbose_loading" assignment_type?
-;
+: verbose_flag? s" verbose_loading" assignment_type?  ;
 
-: execute?
-  s" exec" assignment_type?
-;
+: execute? s" exec" assignment_type?  ;
 
-: password?
-  s" password" assignment_type?
-;
+: password? s" password" assignment_type?  ;
 
-: module_load?
-  load_module_suffix suffix_type?
-;
+: module_load? load_module_suffix suffix_type? ;
 
-: module_loadname?
-  module_loadname_suffix suffix_type?
-;
+: module_loadname?  module_loadname_suffix suffix_type?  ;
 
-: module_type?
-  module_type_suffix suffix_type?
-;
+: module_type?  module_type_suffix suffix_type?  ;
 
-: module_args?
-  module_args_suffix suffix_type?
-;
+: module_args?  module_args_suffix suffix_type?  ;
 
-: module_beforeload?
-  module_beforeload_suffix suffix_type?
-;
+: module_beforeload?  module_beforeload_suffix suffix_type?  ;
 
-: module_afterload?
-  module_afterload_suffix suffix_type?
-;
+: module_afterload?  module_afterload_suffix suffix_type?  ;
 
-: module_loaderror?
-  module_loaderror_suffix suffix_type?
-;
+: module_loaderror?  module_loaderror_suffix suffix_type?  ;
 
-: set_nextboot_conf
-  nextboot_conf_file .addr @ ?dup if
+\ build a 'set' statement and execute it
+: set_environment_variable
+  name_buffer .len @ value_buffer .len @ + 5 chars + \ size of result string
+  allocate if ENOMEM throw then
+  dup 0  \ start with an empty string and append the pieces
+  s" set " strcat
+  name_buffer strget strcat
+  s" =" strcat
+  value_buffer strget strcat
+  ['] evaluate catch if
+    2drop free drop
+    ESETERROR throw
+  else
     free-memory
   then
-  value_buffer .addr @ c@ [char] " = if
-    value_buffer .addr @ char+ value_buffer .len @ 2 chars -
-  else
-    value_buffer .addr @ value_buffer .len @
-  then
-  strdup
-  nextboot_conf_file .len ! nextboot_conf_file .addr !
+;
+
+: set_conf_files
+  set_environment_variable
+  s" loader_conf_files" getenv conf_files string=
+;
+
+: set_nextboot_conf \ XXX maybe do as set_conf_files ?
+  value_buffer strget unquote nextboot_conf_file string=
 ;
 
 : append_to_module_options_list  ( addr -- )
@@ -746,35 +662,32 @@ only forth also support-functions also file-processing definitions also
   then
 ;
 
-: set_module_name  ( addr -- )
-  name_buffer .addr @ name_buffer .len @
-  strdup
-  >r over module.name .addr !
-  r> swap module.name .len !
+: set_module_name  { addr -- }	\ check leaks
+  name_buffer strget addr module.name string=
 ;
 
 : yes_value?
-  value_buffer .addr @ value_buffer .len @
+  value_buffer strget	\ XXX could use unquote
   2dup s' "YES"' compare >r
   2dup s' "yes"' compare >r
   2dup s" YES" compare >r
   s" yes" compare r> r> r> and and and 0=
 ;
 
-: find_module_option  ( -- addr | 0 )
+: find_module_option  ( -- addr | 0 ) \ return ptr to entry matching name_buffer
   module_options @
   begin
     dup
   while
-    dup module.name dup .addr @ swap .len @
-    name_buffer .addr @ name_buffer .len @
+    dup module.name strget
+    name_buffer strget
     compare 0= if exit then
     module.next @
   repeat
 ;
 
 : new_module_option  ( -- addr )
-  sizeof module allocate if out_of_memory throw then
+  sizeof module allocate if ENOMEM throw then
   dup sizeof module erase
   dup append_to_module_options_list
   dup set_module_name
@@ -792,103 +705,38 @@ only forth also support-functions also file-processing definitions also
 
 : set_module_args
   name_buffer .len @ module_args_suffix nip - name_buffer .len !
-  get_module_option module.args
-  dup .addr @ ?dup if free-memory then
-  value_buffer .addr @ value_buffer .len @
-  over c@ [char] " = if
-    2 chars - swap char+ swap
-  then
-  strdup
-  >r over .addr !
-  r> swap .len !
+  value_buffer strget unquote
+  get_module_option module.args string=
 ;
 
 : set_module_loadname
   name_buffer .len @ module_loadname_suffix nip - name_buffer .len !
-  get_module_option module.loadname
-  dup .addr @ ?dup if free-memory then
-  value_buffer .addr @ value_buffer .len @
-  over c@ [char] " = if
-    2 chars - swap char+ swap
-  then
-  strdup
-  >r over .addr !
-  r> swap .len !
+  value_buffer strget unquote
+  get_module_option module.loadname string=
 ;
 
 : set_module_type
   name_buffer .len @ module_type_suffix nip - name_buffer .len !
-  get_module_option module.type
-  dup .addr @ ?dup if free-memory then
-  value_buffer .addr @ value_buffer .len @
-  over c@ [char] " = if
-    2 chars - swap char+ swap
-  then
-  strdup
-  >r over .addr !
-  r> swap .len !
+  value_buffer strget unquote
+  get_module_option module.type string=
 ;
 
 : set_module_beforeload
   name_buffer .len @ module_beforeload_suffix nip - name_buffer .len !
-  get_module_option module.beforeload
-  dup .addr @ ?dup if free-memory then
-  value_buffer .addr @ value_buffer .len @
-  over c@ [char] " = if
-    2 chars - swap char+ swap
-  then
-  strdup
-  >r over .addr !
-  r> swap .len !
+  value_buffer strget unquote
+  get_module_option module.beforeload string=
 ;
 
 : set_module_afterload
   name_buffer .len @ module_afterload_suffix nip - name_buffer .len !
-  get_module_option module.afterload
-  dup .addr @ ?dup if free-memory then
-  value_buffer .addr @ value_buffer .len @
-  over c@ [char] " = if
-    2 chars - swap char+ swap
-  then
-  strdup
-  >r over .addr !
-  r> swap .len !
+  value_buffer strget unquote
+  get_module_option module.afterload string=
 ;
 
 : set_module_loaderror
   name_buffer .len @ module_loaderror_suffix nip - name_buffer .len !
-  get_module_option module.loaderror
-  dup .addr @ ?dup if free-memory then
-  value_buffer .addr @ value_buffer .len @
-  over c@ [char] " = if
-    2 chars - swap char+ swap
-  then
-  strdup
-  >r over .addr !
-  r> swap .len !
-;
-
-: set_environment_variable
-  name_buffer .len @
-  value_buffer .len @ +
-  5 chars +
-  allocate if out_of_memory throw then
-  dup 0  ( addr -- addr addr len )
-  s" set " strcat
-  name_buffer .addr @ name_buffer .len @ strcat
-  s" =" strcat
-  value_buffer .addr @ value_buffer .len @ strcat
-  ['] evaluate catch if
-    2drop free drop
-    set_error throw
-  else
-    free-memory
-  then
-;
-
-: set_conf_files
-  set_environment_variable
-  s" loader_conf_files" getenv conf_files string=
+  value_buffer strget unquote
+  get_module_option module.loaderror string=
 ;
 
 : set_nextboot_flag
@@ -900,23 +748,12 @@ only forth also support-functions also file-processing definitions also
 ;
 
 : execute_command
-  value_buffer .addr @ value_buffer .len @
-  over c@ [char] " = if
-    2 - swap char+ swap
-  then
-  ['] evaluate catch if exec_error throw then
+  value_buffer strget unquote
+  ['] evaluate catch if EEXEC throw then
 ;
 
 : set_password
-  password .addr @ ?dup if free if free_error throw then then
-  value_buffer .addr @ c@ [char] " = if
-    value_buffer .addr @ char+ value_buffer .len @ 2 - strdup
-    value_buffer .addr @ free if free_error throw then
-  else
-    value_buffer .addr @ value_buffer .len @
-  then
-  password .len ! password .addr !
-  0 value_buffer .addr !
+  value_buffer strget unquote password string=
 ;
 
 : process_assignment
@@ -944,16 +781,8 @@ only forth also support-functions also file-processing definitions also
 \ not allocated, it's value (0) is used as flag.
 
 : free_buffers
-  name_buffer .addr @ dup if free then
-  value_buffer .addr @ dup if free then
-  or if free_error throw then
-;
-
-: reset_assignment_buffers
-  0 name_buffer .addr !
-  0 name_buffer .len !
-  0 value_buffer .addr !
-  0 value_buffer .len !
+  name_buffer strfree
+  value_buffer strfree
 ;
 
 \ Higher level file processing
@@ -964,7 +793,7 @@ support-functions definitions
   begin
     end_of_file? 0=
   while
-    reset_assignment_buffers
+    free_buffers
     read_line
     get_assignment
     ['] process_assignment catch
@@ -977,8 +806,8 @@ support-functions definitions
   0 to end_of_file?
   reset_line_reading
   O_RDONLY fopen fd !
-  fd @ -1 = if open_error throw then
-  reset_assignment_buffers
+  fd @ -1 = if EOPEN throw then
+  free_buffers
   read_line
   get_assignment
   ['] process_assignment catch
@@ -991,31 +820,30 @@ only forth also support-functions definitions
 \ Interface to loading conf files
 
 : load_conf  ( addr len -- )
+  ." ----- Trying conf " 2dup type cr
   0 to end_of_file?
   reset_line_reading
   O_RDONLY fopen fd !
-  fd @ -1 = if open_error throw then
+  fd @ -1 = if EOPEN throw then
   ['] process_conf catch
   fd @ fclose
   throw
 ;
 
-: print_line
-  line_buffer .addr @ line_buffer .len @ type cr
-;
+: print_line line_buffer strtype cr ;
 
 : print_syntax_error
-  line_buffer .addr @ line_buffer .len @ type cr
+  line_buffer strtype cr
   line_buffer .addr @
   begin
     line_pointer over <>
   while
-    bl emit
-    char+
+    bl emit char+
   repeat
   drop
   ." ^" cr
 ;
+
 
 \ Debugging support functions
 
@@ -1023,7 +851,42 @@ only forth definitions also support-functions
 
 : test-file 
   ['] load_conf catch dup .
-  syntax_error = if cr print_syntax_error then
+  ESYNTAX = if cr print_syntax_error then
+;
+
+\ find a module name, leave addr on the stack (0 if not found)
+: find-module ( <module> -- ptr | 0 )
+  bl parse ( addr len )
+  module_options @ >r ( store current pointer )
+  begin
+    r@
+  while
+    2dup ( addr len addr len )
+    r@ module.name strget
+    compare 0= if drop drop r> exit then ( found it )
+    r> module.next @ >r
+  repeat
+  type ."  was not found" cr r>
+;
+
+: show-nonempty ( addr len mod -- )
+  strget dup verbose? or if
+    2swap type type cr
+  else
+    drop drop drop drop
+  then ;
+
+: show-one-module { addr -- addr }
+  ." Name:        " addr module.name strtype cr
+  s" Path:        " addr module.loadname show-nonempty
+  s" Type:        " addr module.type show-nonempty
+  s" Flags:       " addr module.args show-nonempty
+  s" Before load: " addr module.beforeload show-nonempty
+  s" After load:  " addr module.afterload show-nonempty
+  s" Error:       " addr module.loaderror show-nonempty
+  ." Status:      " addr module.flag @ if ." Load" else ." Don't load" then cr
+  cr
+  addr
 ;
 
 : show-module-options
@@ -1031,14 +894,7 @@ only forth definitions also support-functions
   begin
     ?dup
   while
-    ." Name: " dup module.name dup .addr @ swap .len @ type cr
-    ." Path: " dup module.loadname dup .addr @ swap .len @ type cr
-    ." Type: " dup module.type dup .addr @ swap .len @ type cr
-    ." Flags: " dup module.args dup .addr @ swap .len @ type cr
-    ." Before load: " dup module.beforeload dup .addr @ swap .len @ type cr
-    ." After load: " dup module.afterload dup .addr @ swap .len @ type cr
-    ." Error: " dup module.loaderror dup .addr @ swap .len @ type cr
-    ." Status: " dup module.flag @ if ." Load" else ." Don't load" then cr
+    show-one-module
     module.next @
   repeat
 ;
@@ -1047,7 +903,7 @@ only forth also support-functions definitions
 
 \ Variables used for processing multiple conf files
 
-string current_file_name
+string current_file_name_ref	\ used to print the file name
 
 \ Indicates if any conf file was succesfully read
 
@@ -1056,19 +912,20 @@ string current_file_name
 \ loader_conf_files processing support functions
 
 : get_conf_files ( -- addr len )  \ put addr/len on stack, reset var
+  ." -- starting on <" conf_files strtype ." >" cr
   conf_files strget 0 0 conf_files strset
 ;
 
 : skip_leading_spaces  { addr len pos -- addr len pos' }
   begin
-    pos len = if addr len pos exit then
-    addr pos + c@ bl =
+    pos len = if 0 else addr pos + c@ bl = then
   while
     pos char+ to pos
   repeat
   addr len pos
 ;
 
+\ return the file name at pos, or free the string if nothing left
 : get_file_name  { addr len pos -- addr len pos' addr' len' || 0 }
   pos len = if 
     addr free abort" Fatal error freeing memory"
@@ -1076,14 +933,14 @@ string current_file_name
   then
   pos >r
   begin
-    addr pos + c@ bl <>
+    \ stay in the loop until have chars and they are not blank
+    pos len = if 0 else addr pos + c@ bl <> then
   while
     pos char+ to pos
-    pos len = if
-      addr len pos addr r@ + pos r> - exit
-    then
   repeat
   addr len pos addr r@ + pos r> -
+  2dup
+  ." get_file_name has " type cr
 ;
 
 : get_next_file  ( addr len ptr -- addr len ptr' addr' len' | 0 )
@@ -1091,35 +948,30 @@ string current_file_name
   get_file_name
 ;
 
-: set_current_file_name
-  over current_file_name .addr !
-  dup current_file_name .len !
-;
-
 : print_current_file
-  current_file_name .addr @ current_file_name .len @ type
+  current_file_name_ref strtype
 ;
 
 : process_conf_errors
   dup 0= if true to any_conf_read? drop exit then
   >r 2drop r>
-  dup syntax_error = if
+  dup ESYNTAX = if
     ." Warning: syntax error on file " print_current_file cr
     print_syntax_error drop exit
   then
-  dup set_error = if
+  dup ESETERROR = if
     ." Warning: bad definition on file " print_current_file cr
     print_line drop exit
   then
-  dup read_error = if
+  dup EREAD = if
     ." Warning: error reading file " print_current_file cr drop exit
   then
-  dup open_error = if
+  dup EOPEN = if
     verbose? if ." Warning: unable to open file " print_current_file cr then
     drop exit
   then
-  dup free_error = abort" Fatal error freeing memory"
-  dup out_of_memory = abort" Out of memory"
+  dup EFREE = abort" Fatal error freeing memory"
+  dup ENOMEM = abort" Out of memory"
   throw  \ Unknown error -- pass ahead
 ;
 
@@ -1127,11 +979,11 @@ string current_file_name
 \ Interface to loader_conf_files processing
 
 : include_conf_files
-  get_conf_files 0
+  get_conf_files 0	( addr len offset )
   begin
-    get_next_file ?dup
+    get_next_file ?dup ( addr len 1 | 0 )
   while
-    set_current_file_name
+    current_file_name_ref strref
     ['] load_conf catch
     process_conf_errors
     conf_files .addr @ if recurse then
@@ -1139,13 +991,13 @@ string current_file_name
 ;
 
 : get_nextboot_conf_file ( -- addr len )
-  nextboot_conf_file .addr @ nextboot_conf_file .len @ strdup
+  nextboot_conf_file strget strdup	\ XXX is the strdup a leak ?
 ;
 
 : rewrite_nextboot_file ( -- )
   get_nextboot_conf_file
   O_WRONLY fopen fd !
-  fd @ -1 = if open_error throw then
+  fd @ -1 = if EOPEN throw then
   fd @ s' nextboot_enable="NO" ' fwrite
   fd @ fclose
 ;
@@ -1163,52 +1015,47 @@ string current_file_name
 
 \ Module loading functions
 
-: load_module?
-  module.flag @
-;
-
-: load_parameters  ( addr -- addr addrN lenN ... addr1 len1 N )
-  dup >r
-  r@ module.args .addr @ r@ module.args .len @
-  r@ module.loadname .len @ if
-    r@ module.loadname .addr @ r@ module.loadname .len @
+: load_parameters  { addr -- addr addrN lenN ... addr1 len1 N }
+  addr
+  addr module.args strget
+  addr module.loadname .len @ if
+    addr module.loadname strget
   else
-    r@ module.name .addr @ r@ module.name .len @
+    addr module.name strget
   then
-  r@ module.type .len @ if
-    r@ module.type .addr @ r@ module.type .len @
+  addr module.type .len @ if
+    addr module.type strget
     s" -t "
     4 ( -t type name flags )
   else
     2 ( name flags )
   then
-  r> drop
 ;
 
 : before_load  ( addr -- addr )
   dup module.beforeload .len @ if
-    dup module.beforeload .addr @ over module.beforeload .len @
-    ['] evaluate catch if before_load_error throw then
+    dup module.beforeload strget
+    ['] evaluate catch if EBEFORELOAD throw then
   then
 ;
 
 : after_load  ( addr -- addr )
   dup module.afterload .len @ if
-    dup module.afterload .addr @ over module.afterload .len @
-    ['] evaluate catch if after_load_error throw then
+    dup module.afterload strget
+    ['] evaluate catch if EAFTERLOAD throw then
   then
 ;
 
 : load_error  ( addr -- addr )
   dup module.loaderror .len @ if
-    dup module.loaderror .addr @ over module.loaderror .len @
+    dup module.loaderror strget
     evaluate  \ This we do not intercept so it can throw errors
   then
 ;
 
 : pre_load_message  ( addr -- addr )
   verbose? if
-    dup module.name .addr @ over module.name .len @ type
+    dup module.name strtype
     ." ..."
   then
 ;
@@ -1239,29 +1086,29 @@ string current_file_name
 ;
 
 : process_module_errors  ( addr ior -- )
-  dup before_load_error = if
+  dup EBEFORELOAD = if
     drop
     ." Module "
-    dup module.name .addr @ over module.name .len @ type
+    dup module.name strtype
     dup module.loadname .len @ if
-      ." (" dup module.loadname .addr @ over module.loadname .len @ type ." )"
+      ." (" dup module.loadname strtype ." )"
     then
     cr
     ." Error executing "
-    dup module.beforeload .addr @ over module.afterload .len @ type cr
+    dup module.beforeload strtype cr	\ XXX there was a typo here
     abort
   then
 
-  dup after_load_error = if
+  dup EAFTERLOAD = if
     drop
     ." Module "
     dup module.name .addr @ over module.name .len @ type
     dup module.loadname .len @ if
-      ." (" dup module.loadname .addr @ over module.loadname .len @ type ." )"
+      ." (" dup module.loadname strtype ." )"
     then
     cr
     ." Error executing "
-    dup module.afterload .addr @ over module.afterload .len @ type cr
+    dup module.afterload strtype cr
     abort
   then
 
@@ -1270,12 +1117,13 @@ string current_file_name
 
 \ Module loading interface
 
+\ scan the list of modules, load enabled ones.
 : load_modules  ( -- ) ( throws: abort & user-defined )
-  module_options @
+  module_options @	( list_head )
   begin
     ?dup
   while
-    dup load_module? if
+    dup module.flag @ if
       ['] process_module catch
       process_module_errors
     then
@@ -1320,14 +1168,25 @@ string current_file_name
 
 also builtins
 
-\ Parse filename from a comma-separated list
+\ Parse filename from a semicolon-separated list
+
+\ replacement, not working yet
+: newparse-; { addr len | a1 -- a' len-x addr x }
+  addr len [char] ; strchr dup if	( a1 len1 )
+    swap to a1	( store address )
+    1 - a1 @ 1 + swap ( remove match )
+    addr a1 addr -
+  else
+    0 0 addr len
+  then
+;
 
 : parse-; ( addr len -- addr' len-x addr x )
-  over 0 2swap
+  over 0 2swap			( addr 0 addr len )
   begin
-    dup 0 <>
+    dup 0 <>			( addr 0 addr len )
   while
-    over c@ [char] ; <>
+    over c@ [char] ; <>		( addr 0 addr len flag )
   while
     1- swap 1+ swap
     2swap 1+ 2swap
@@ -1421,8 +1280,8 @@ also builtins
   2local path
   args 1 = if 0 0 then
   2local flags
-  0 0 2local oldmodulepath
-  0 0 2local newmodulepath
+  0 0 2local oldmodulepath \ like a string
+  0 0 2local newmodulepath \ like a string
   end-locals
 
   \ Set the environment variable module_path, and try loading
@@ -1430,16 +1289,13 @@ also builtins
   modulepath getenv saveenv to oldmodulepath
 
   \ Try prepending /boot/ first
-  bootpath nip path nip + 
+  bootpath nip path nip + 	\ total length
   oldmodulepath nip dup -1 = if
     drop
   else
-    1+ +
+    1+ +			\ add oldpath -- XXX why the 1+ ?
   then
-  allocate
-  if ( out of memory )
-    1 exit
-  then
+  allocate if ( out of memory ) 1 exit then \ XXX throw ?
 
   0
   bootpath strcat
@@ -1522,7 +1378,7 @@ also builtins
 ;
 
 : initialize  ( addr len -- )
-  strdup conf_files .len ! conf_files .addr !
+  strdup conf_files strset
 ;
 
 : kernel_options ( -- addr len 1 | 0 )
@@ -1559,8 +1415,9 @@ also builtins
   then
 ;
 
+\ pick the i-th argument, i starts at 0
 : argv[]  ( aN uN ... a1 u1 N i -- aN uN ... a1 u1 N ai+1 ui+1 )
-  2dup = if 0 0 exit then
+  2dup = if 0 0 exit then	\ out of range
   dup >r
   1+ 2* ( skip N and ui )
   pick
@@ -1589,7 +1446,8 @@ also builtins
   1- -rot
 ;
 
-: strlen(argv)
+\ compute the length of the buffer including the spaces between words
+: strlen(argv) ( aN uN .. a1 u1 N -- aN uN .. a1 u1 N len )
   dup 0= if 0 exit then
   0 >r	\ Size
   0 >r	\ Index
@@ -1606,17 +1464,17 @@ also builtins
 ;
 
 : concat_argv  ( aN uN ... a1 u1 N -- a u )
-  strlen(argv) allocate if out_of_memory throw then
-  0 2>r
+  strlen(argv) allocate if ENOMEM throw then
+  0 2>r ( save addr 0 on return stack )
 
   begin
-    argc
+    dup
   while
-    unqueue_argv
-    2r> 2swap
+    unqueue_argv ( ... N a1 u1 )
+    2r> 2swap	 ( old a1 u1 )
     strcat
-    s"  " strcat
-    2>r
+    s"  " strcat ( append one space ) \ XXX this gives a trailing space
+    2>r		( store string on the result stack )
   repeat
   drop_args
   2r>
@@ -1639,7 +1497,7 @@ also builtins
   ?dup if
     concat_argv
     2dup s" temp_options" setenv
-    drop free if free_error throw then
+    drop free if EFREE throw then
   else
     set_defaultoptions
   then
@@ -1675,8 +1533,9 @@ also builtins
   ?dup 0= if ['] load_modules catch then
 ;
 
+\ read and store only as many bytes as we need, drop the extra
 : read-password { size | buf len -- }
-  size allocate if out_of_memory throw then
+  size allocate if ENOMEM throw then
   to buf
   0 to len
   begin
@@ -1692,11 +1551,7 @@ also builtins
     else
       dup <cr> = if cr drop buf len exit then
       [char] * emit
-      len size < if
-        buf len chars + c!
-      else
-        drop
-      then
+      len size < if buf len chars + c!  else drop then
       len 1+ to len
     then
   again
