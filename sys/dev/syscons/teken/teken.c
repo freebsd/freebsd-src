@@ -226,6 +226,9 @@ teken_input_char(teken_t *t, teken_char_t c)
 	case '\x0B':
 		teken_subr_newline(t);
 		break;
+	case '\x0C':
+		teken_subr_newpage(t);
+		break;
 	case '\r':
 		teken_subr_carriage_return(t);
 		break;
