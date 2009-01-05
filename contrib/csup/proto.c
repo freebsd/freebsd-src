@@ -365,6 +365,8 @@ proto_xchgcoll(struct config *config)
 	s = config->server;
 	lprintf(2, "Exchanging collection information\n");
 	STAILQ_FOREACH(coll, &config->colls, co_next) {
+		if (coll->co_options & CO_SKIP)
+			continue;
 		proto_printf(s, "COLL %s %s %o %d\n", coll->co_name,
 		    coll->co_release, coll->co_umask, coll->co_options);
 		for (i = 0; i < pattlist_size(coll->co_accepts); i++) {
@@ -768,6 +770,8 @@ proto_printf(struct stream *wr, const char *format, ...)
 	va_list ap;
 	char *cp, *s, *attr;
 	ssize_t n;
+	size_t size;
+	off_t off;
 	int rv, val, ignore;
 	char c;
 
@@ -801,6 +805,10 @@ proto_printf(struct stream *wr, const char *format, ...)
 			val = va_arg(ap, int);
 			rv = stream_printf(wr, "%o", val);
 			break;
+		case 'O':
+			off = va_arg(ap, off_t);
+			rv = stream_printf(wr, "%llu", off);
+			break;
 		case 'S':
 			s = va_arg(ap, char *);
 			assert(s != NULL);
@@ -829,6 +837,11 @@ proto_printf(struct stream *wr, const char *format, ...)
 			rv = proto_escape(wr, attr);
 			free(attr);
 			break;
+		case 'z':
+			size = va_arg(ap, size_t);
+			rv = stream_printf(wr, "%zu", size);
+			break;
+
 		case '%':
 			n = stream_write(wr, "%", 1);
 			if (n == -1)
@@ -936,6 +949,26 @@ proto_get_int(char **s, int *val, int base)
 		return (-1);
 	error = asciitoint(cp, val, base);
 	return (error);
+}
+
+/*
+ * Get a size_t token.
+ */
+int
+proto_get_sizet(char **s, size_t *val, int base)
+{
+	unsigned long long tmp;
+	char *cp, *end;
+
+	cp = proto_get_ascii(s);
+	if (cp == NULL)
+		return (-1);
+	errno = 0;
+	tmp = strtoll(cp, &end, base);
+	if (errno || *end != '\0')
+		return (-1);
+	*val = (size_t)tmp;
+	return (0);
 }
 
 /*
