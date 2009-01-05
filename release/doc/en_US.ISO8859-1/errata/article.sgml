@@ -254,8 +254,9 @@ em0@pci0:0:25:0: class=0x020000 card=0x02381028 chip=0x10c08086 rev=0x02 hdr=0x0
     <itemizedlist>
       <listitem>
 	<para>Add the following kernel configuration option and
-	  rebuild the kernel.  The <literal>2</literal> is the
-	  number of FIB (the maximum value is 16).</para>
+	  rebuild the kernel.  The <literal>2</literal> is the number
+	  of FIB (Forward Information Base, synonym for a routing
+	  table here).  The maximum value is 16.</para>
 
 	<programlisting>options	ROUTETABLES=2</programlisting>
 
