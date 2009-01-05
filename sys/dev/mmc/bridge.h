@@ -104,6 +104,10 @@ enum mmc_bus_width {
 	bus_width_1 = 0, bus_width_4 = 2, bus_width_8 = 3
 };
 
+enum mmc_bus_timing {
+	bus_timing_normal = 0, bus_timing_hs
+};
+
 struct mmc_ios {
 	uint32_t	clock;	/* Speed of the clock in Hz to move data */
 	enum mmc_vdd	vdd;	/* Voltage to apply to the power pins/ */
@@ -111,6 +115,7 @@ struct mmc_ios {
 	enum mmc_chip_select chip_select;
 	enum mmc_bus_width bus_width;
 	enum mmc_power_mode power_mode;
+	enum mmc_bus_timing timing;
 };
 
 enum mmc_card_mode {
@@ -125,6 +130,7 @@ struct mmc_host {
 	uint32_t caps;
 #define MMC_CAP_4_BIT_DATA	(1 << 0) /* Can do 4-bit data transfers */
 #define MMC_CAP_8_BIT_DATA	(1 << 1) /* Can do 8-bit data transfers */
+#define MMC_CAP_HSPEED		(1 << 2) /* Can do High Speed transfers */
 	enum mmc_card_mode mode;
 	struct mmc_ios ios;	/* Current state of the host */
 };
