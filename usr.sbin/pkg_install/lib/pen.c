@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
+#include <libutil.h>
 #include <libgen.h>
 #include <sys/signal.h>
 #include <sys/param.h>
@@ -44,6 +45,7 @@ find_play_pen(char *pen, off_t sz)
 {
     char *cp;
     struct stat sb;
+    char humbuf[6];
 
     if (pen[0] && isdir(dirname(pen)) == TRUE && (min_free(dirname(pen)) >= sz))
 	return pen;
@@ -59,10 +61,12 @@ find_play_pen(char *pen, off_t sz)
 	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
     else {
 	cleanup(0);
+	humanize_number(humbuf, sizeof humbuf, sz, "", HN_AUTOSCALE,
+	    HN_NOSPACE);
 	errx(2,
 "%s: can't find enough temporary space to extract the files, please set your\n"
-"PKG_TMPDIR environment variable to a location with at least %ld bytes\n"
-"free", __func__, (long)sz);
+"PKG_TMPDIR environment variable to a location with at least %s bytes\n"
+"free", __func__, humbuf);
 	return NULL;
     }
     return pen;
@@ -98,6 +102,8 @@ popPen(char *pen)
 char *
 make_playpen(char *pen, off_t sz)
 {
+    char humbuf1[6], humbuf2[6];
+
     if (!find_play_pen(pen, sz))
 	return NULL;
 
@@ -111,8 +117,13 @@ make_playpen(char *pen, off_t sz)
     }
 
     if (Verbose) {
-	if (sz)
-	    fprintf(stderr, "Requested space: %d bytes, free space: %lld bytes in %s\n", (int)sz, (long long)min_free(pen), pen);
+	if (sz) {
+	    humanize_number(humbuf1, sizeof humbuf1, sz, "", HN_AUTOSCALE,
+	        HN_NOSPACE);
+	    humanize_number(humbuf2, sizeof humbuf2, min_free(pen),
+	        "", HN_AUTOSCALE, HN_NOSPACE);
+	    fprintf(stderr, "Requested space: %s bytes, free space: %s bytes in %s\n", humbuf1, humbuf2, pen);
+	}
     }
 
     if (min_free(pen) < sz) {

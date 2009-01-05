@@ -208,6 +208,10 @@ main(int argc, char **argv)
 	    Recursive = TRUE;
 	    break;
 
+	case 'n':
+	    Regenerate = FALSE;
+	    break;
+
 	case 0:
 	    if (Help)
 		usage();
