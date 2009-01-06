@@ -68,5 +68,6 @@ int		 status_eof(struct status *);
 char		*status_errmsg(struct status *);
 int		 status_delete(struct status *, char *, int);
 void		 status_close(struct status *, char **);
+int		 status_numentries(struct status *);
 
 #endif /* !_STATUS_H_ */

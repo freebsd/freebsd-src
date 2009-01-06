@@ -86,6 +86,7 @@ struct status {
 	int linenum;
 	int depth;
 	int dirty;
+	int numentries;
 };
 
 static void
@@ -521,11 +522,12 @@ struct status *
 status_open(struct coll *coll, time_t scantime, char **errmsg)
 {
 	struct status *st;
-	struct stream *file;
+	struct stream *file, *tmp;
 	struct fattr *fa;
 	char *destpath, *path;
-	int error, rv;
+	int error, isnew, rv;
 
+	isnew = access(path, F_OK);
 	path = coll_statuspath(coll);
 	file = stream_open_file(path, O_RDONLY);
 	if (file == NULL) {
@@ -536,6 +538,7 @@ status_open(struct coll *coll, time_t scantime, char **errmsg)
 			return (NULL);
 		}
 		st = status_fromnull(path);
+		isnew = 1;
 	} else {
 		st = status_fromrd(path, file);
 		if (st == NULL) {
@@ -590,6 +593,17 @@ status_open(struct coll *coll, time_t scantime, char **errmsg)
 			status_free(st);
 			return (NULL);
 		}
+	}
+
+	/* Count the number of entries in the file. */
+	if (isnew) {
+		st->numentries = 0;
+		tmp = stream_open_file(path, O_RDONLY);
+		if (tmp == NULL)
+			return (st);
+		while (stream_getln(tmp, NULL) != NULL)
+			st->numentries++;
+		stream_close(tmp);
 	}
 	return (st);
 }
@@ -871,4 +885,10 @@ status_close(struct status *st, char **errmsg)
 	return;
 bad:
 	status_free(st);
+}
+
+int
+status_numentries(struct status *st)
+{
+	return (st->numentries);
 }

@@ -93,6 +93,7 @@ struct coll {
 	int co_options;
 	mode_t co_umask;
 	struct keyword *co_keyword;
+	int co_numdone;
 	STAILQ_ENTRY(coll) co_next;
 };
 

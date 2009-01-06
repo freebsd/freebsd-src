@@ -212,6 +212,7 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 			}
 			break;
 		}
+		coll->co_numdone++;
 	}
 	if (ret == -1) {
 		l->errmsg = status_errmsg(st);
