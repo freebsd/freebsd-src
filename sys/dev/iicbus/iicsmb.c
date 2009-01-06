@@ -149,7 +149,7 @@ static int
 iicsmb_probe(device_t dev)
 {
 	device_set_desc(dev, "SMBus over I2C bridge");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

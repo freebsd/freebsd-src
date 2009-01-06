@@ -53,7 +53,9 @@ iicbus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Philips I2C bus");
-	return (0);
+
+	/* Allow other subclasses to override this driver. */
+	return (-1000);
 }
 
 #if SCAN_IICBUS
