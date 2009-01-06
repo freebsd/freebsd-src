@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2007
+.Dd July 1, 2008
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -237,6 +237,11 @@ flag shall be ignored unless
 .Fa ai_family
 equals
 .Dv AF_INET6 .
+Note: this flag is currently
+.Em not
+supported, see the
+.Sx BUGS
+section.
 .El
 .El
 .Pp
@@ -485,6 +490,18 @@ freeaddrinfo(res0);
 .%B "Proceedings of the freenix track: 2000 USENIX annual technical conference"
 .%D June 2000
 .Re
+.Sh BUGS
+The
+.Nm
+function as implemented in
+.Fx
+currently does not support
+.Dv AI_ALL
+and
+.Dv AI_V4MAPPED
+flags and returns
+.Dv EAI_BADFLAGS
+if one of them is specified.
 .Sh STANDARDS
 The
 .Fn getaddrinfo
