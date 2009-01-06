@@ -371,7 +371,7 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 	msize = pp->mediasize / pp->sectorsize;
 
 	sectors = be16dec(&table->vtoc.nsecs);
-	if (sectors < 1 || sectors > 63)
+	if (sectors < 1)
 		goto invalid_label;
 	if (sectors != basetable->gpt_sectors && !basetable->gpt_fixgeom) {
 		g_part_geometry_heads(msize, sectors, &chs, &heads);
@@ -382,13 +382,21 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 	}
 
 	heads = be16dec(&table->vtoc.nheads);
-	if (heads < 1 || heads > 255)
+	if (heads < 1)
 		goto invalid_label;
 	if (heads != basetable->gpt_heads && !basetable->gpt_fixgeom)
 		basetable->gpt_heads = heads;
-	if (sectors != basetable->gpt_sectors ||
-	    heads != basetable->gpt_heads)
-		printf("GEOM: %s: geometry does not match label.\n", pp->name);
+	/*
+	 * Except for ATA disks > 32GB, Solaris uses the native geometry
+	 * as reported by the target for the labels while da(4) typically
+	 * uses a synthetic one so we don't complain too loudly if these
+	 * geometries don't match.
+	 */
+	if (bootverbose && (sectors != basetable->gpt_sectors ||
+	    heads != basetable->gpt_heads))
+		printf("GEOM: %s: geometry does not match VTOC8 label "
+		    "(label: %uh,%us GEOM: %uh,%us).\n", pp->name, heads,
+		    sectors, basetable->gpt_heads, basetable->gpt_sectors);
 
 	table->secpercyl = heads * sectors;
 	cyls = be16dec(&table->vtoc.ncyls);
@@ -402,7 +410,7 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	withtags = (be32dec(&table->vtoc.sanity) == VTOC_SANITY) ? 1 : 0;
 	if (!withtags) {
-		printf("GEOM: %s: adding VTOC information.\n", pp->name);
+		printf("GEOM: %s: adding VTOC8 information.\n", pp->name);
 		be32enc(&table->vtoc.version, VTOC_VERSION);
 		bzero(&table->vtoc.volume, VTOC_VOLUME_LEN);
 		be16enc(&table->vtoc.nparts, VTOC8_NPARTS);
@@ -444,7 +452,7 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 	return (0);
 
  invalid_label:
-	printf("GEOM: %s: invalid disklabel.\n", pp->name);
+	printf("GEOM: %s: invalid VTOC8 label.\n", pp->name);
 	return (EINVAL);
 }
 
