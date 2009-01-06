@@ -436,6 +436,10 @@ audit_pipe_preselect(au_id_t auid, au_event_t event, au_class_t class,
 {
 	struct audit_pipe *ap;
 
+	/* Lockless read to avoid acquiring the global lock if not needed. */
+	if (TAILQ_EMPTY(&audit_pipe_list))
+		return (0);
+
 	AUDIT_PIPE_LIST_RLOCK();
 	TAILQ_FOREACH(ap, &audit_pipe_list, ap_list) {
 		AUDIT_PIPE_LOCK(ap);
