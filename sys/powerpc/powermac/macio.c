@@ -152,6 +152,7 @@ static struct macio_pci_dev {
  */
 #define	MACIO_QUIRK_IGNORE		0x00000001
 #define	MACIO_QUIRK_CHILD_HAS_INTR	0x00000002
+#define	MACIO_QUIRK_USE_CHILD_REG	0x00000004
 
 struct macio_quirk_entry {
 	const char	*mq_name;
@@ -162,7 +163,9 @@ static struct macio_quirk_entry macio_quirks[] = {
 	{ "escc-legacy",		MACIO_QUIRK_IGNORE },
 	{ "timer",			MACIO_QUIRK_IGNORE },
 	{ "escc",			MACIO_QUIRK_CHILD_HAS_INTR },
-        { NULL,				0 }
+        { "i2s", 			MACIO_QUIRK_CHILD_HAS_INTR | 
+					MACIO_QUIRK_USE_CHILD_REG },
+	{ NULL,				0 }
 };
 
 static int
@@ -318,7 +321,10 @@ macio_attach(device_t dev)
 		resource_list_init(&dinfo->mdi_resources);
 		dinfo->mdi_ninterrupts = 0;
 		macio_add_intr(child, dinfo);
-		macio_add_reg(child, dinfo);
+		if ((quirks & MACIO_QUIRK_USE_CHILD_REG) != 0)
+			macio_add_reg(OF_child(child), dinfo);
+		else
+			macio_add_reg(child, dinfo);
 		if ((quirks & MACIO_QUIRK_CHILD_HAS_INTR) != 0)
 			for (subchild = OF_child(child); subchild != 0;
 			    subchild = OF_peer(subchild))
