@@ -182,10 +182,8 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 	u_int heads, sectors;
 	int idx;
 
-	if (g_getattr("GEOM::fwsectors", cp, &sectors) != 0 ||
-	    sectors < 1 || sectors > 63 ||
-	    g_getattr("GEOM::fwheads", cp, &heads) != 0 ||
-	    heads < 1 || heads > 255) {
+	if (g_getattr("GEOM::fwsectors", cp, &sectors) != 0 || sectors == 0 ||
+	    g_getattr("GEOM::fwheads", cp, &heads) != 0 || heads == 0) {
 		table->gpt_fixgeom = 0;
 		table->gpt_heads = 0;
 		table->gpt_sectors = 0;
