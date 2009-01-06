@@ -389,6 +389,12 @@ uhci_pci_attach(device_t self)
 		break;
 	}
 
+	/*
+	 * Quirk for Parallels Desktop 4.0.
+	 */
+	if (pci_get_devid(self) == PCI_UHCI_DEVICEID_ICH6_A)
+		sc->sc_bus.usbrev = USBREV_2_0;
+
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
 	    NULL, (driver_intr_t *) uhci_intr, sc, &sc->ih);
 	if (err) {

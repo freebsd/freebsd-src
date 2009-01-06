@@ -315,6 +315,14 @@ ehci_pci_attach(device_t self)
 			device_printf(self, "Quirk for CS5536 USB 2.0 enabled\n");
 			break;
 		}
+
+		/*
+		 * Quirk for Parallels Desktop 4.0.
+		 */
+		if (pci_get_devid(self) == PCI_EHCI_DEVICEID_ICH6) {
+			sc->sc_bus.usbrev = USBREV_2_0;
+			break;
+		}
 		sc->sc_bus.usbrev = USBREV_UNKNOWN;
 		return ENXIO;
 	case PCI_USBREV_2_0:
