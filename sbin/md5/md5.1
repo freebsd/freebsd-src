@@ -49,15 +49,23 @@ key under a public-key cryptosystem such as
 .Tn RSA .
 .Pp
 .Tn MD5
-has not yet (2007-03-05) been broken, but sufficient attacks have been
-made that its security is in some doubt.
-The attacks on
+has been completely broken as far as finding collisions is
+concerned, and should not be relied upon to produce unique outputs.
+This also means that
 .Tn MD5
-are in the nature of finding
-.Dq collisions
-\(em that is, multiple
-inputs which hash to the same value; it is still unlikely for an attacker
-to be able to determine the exact original input given a hash value.
+should not be used as part of a cryptographic signature scheme.
+At the current time (2009-01-06) there is no publicly known method to
+"reverse" MD5, i.e., to find an input given a hash value.
+.Pp
+.Tn SHA-1
+currently (2009-01-06) has no known collisions, but an attack has been
+found which is faster than a brute-force search, placing the security of
+.Tn SHA-1
+in doubt.
+.Pp
+It is recommended that all new applications use
+.Tn SHA-256
+instead of one of the other hash functions.
 .Pp
 The following options may be used in any combination and must
 precede any files named on the command line.
