@@ -501,13 +501,8 @@ udp_input(struct mbuf *m, int off)
 					 * Engage the tunneling protocol we
 					 * will have to leave the info_lock
 					 * up, since we are hunting through
-					 * multiple UDP inp's hope we don't
-					 * break.
+					 * multiple UDP's.
 					 * 
-					 * XXXML: Maybe add a flag to the
-					 * prototype so that the tunneling
-					 * can defer work that can't be done
-					 * under the info lock?
 					 */
 					udp_tun_func_t tunnel_func;
 
@@ -546,9 +541,7 @@ udp_input(struct mbuf *m, int off)
 			INP_INFO_RUNLOCK(&V_udbinfo);
 		} else {
 			/*
-			 * Engage the tunneling protocol we must make sure
-			 * all locks are released when we call the tunneling
-			 * protocol.
+			 * Engage the tunneling protocol.
 			 */
 			udp_tun_func_t tunnel_func;
 
@@ -602,8 +595,7 @@ udp_input(struct mbuf *m, int off)
 	}
 	if (inp->inp_ppcb != NULL) {
 		/*
-		 * Engage the tunneling protocol we must make sure all locks
-		 * are released when we call the tunneling protocol.
+		 * Engage the tunneling protocol.
 		 */
 		udp_tun_func_t tunnel_func;
 
@@ -1205,6 +1197,8 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 	struct inpcb *inp;
 
 	inp = (struct inpcb *)so->so_pcb;
+	KASSERT(so->so_type == SOCK_DGRAM, ("udp_set_kernel_tunneling: !dgram"));
+	KASSERT(so->so_pcb != NULL, ("udp_set_kernel_tunneling: NULL inp"));
 	if (so->so_type != SOCK_DGRAM) {
 		/* Not UDP socket... sorry! */
 		return (ENOTSUP);
@@ -1214,6 +1208,10 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 		return (EINVAL);
 	}
 	INP_WLOCK(inp);
+	if (inp->inp_ppcb != NULL) {
+		INP_WUNLOCK(inp);
+		return (EBUSY);
+	}
 	inp->inp_ppcb = f;
 	INP_WUNLOCK(inp);
 	return (0);
