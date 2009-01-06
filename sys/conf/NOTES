@@ -2004,7 +2004,7 @@ device		sound
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
-# snd_ich:		Intel ICH PCI and some more audio controllers
+# snd_ich:		Intel ICH AC'97 and some more audio controllers
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
 # snd_maestro:		ESS Technology Maestro-1/2x PCI.
