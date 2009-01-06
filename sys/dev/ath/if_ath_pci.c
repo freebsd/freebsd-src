@@ -254,4 +254,3 @@ DRIVER_MODULE(if_ath, pci, ath_pci_driver, ath_devclass, 0, 0);
 DRIVER_MODULE(if_ath, cardbus, ath_pci_driver, ath_devclass, 0, 0);
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(if_ath, ath_rate, 1, 1, 1);	/* rate control algorithm */
