@@ -488,10 +488,33 @@ udp_input(struct mbuf *m, int off)
 				struct mbuf *n;
 
 				n = m_copy(m, 0, M_COPYALL);
-				if (n != NULL)
-					udp_append(last, ip, n, iphlen +
-					    sizeof(struct udphdr), &udp_in);
-				INP_RUNLOCK(last);
+				if (last->inp_ppcb == NULL) {
+					if (n != NULL)
+						udp_append(last, 
+						    ip, n, 
+						    iphlen +
+						    sizeof(struct udphdr),
+						    &udp_in);
+					INP_RUNLOCK(last);
+				} else {
+					/*
+					 * Engage the tunneling protocol we
+					 * will have to leave the info_lock
+					 * up, since we are hunting through
+					 * multiple UDP inp's hope we don't
+					 * break.
+					 * 
+					 * XXXML: Maybe add a flag to the
+					 * prototype so that the tunneling
+					 * can defer work that can't be done
+					 * under the info lock?
+					 */
+					udp_tun_func_t tunnel_func;
+
+					tunnel_func = (udp_tun_func_t)last->inp_ppcb;
+					tunnel_func(n, iphlen, last);
+					INP_RUNLOCK(last);
+				}
 			}
 			last = inp;
 			/*
@@ -516,10 +539,24 @@ udp_input(struct mbuf *m, int off)
 			V_udpstat.udps_noportbcast++;
 			goto badheadlocked;
 		}
-		udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
-		    &udp_in);
-		INP_RUNLOCK(last);
-		INP_INFO_RUNLOCK(&V_udbinfo);
+		if (last->inp_ppcb == NULL) {
+			udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
+			    &udp_in);
+			INP_RUNLOCK(last);
+			INP_INFO_RUNLOCK(&V_udbinfo);
+		} else {
+			/*
+			 * Engage the tunneling protocol we must make sure
+			 * all locks are released when we call the tunneling
+			 * protocol.
+			 */
+			udp_tun_func_t tunnel_func;
+
+			tunnel_func = (udp_tun_func_t)last->inp_ppcb;
+			tunnel_func(m, iphlen, last);
+			INP_RUNLOCK(last);
+			INP_INFO_RUNLOCK(&V_udbinfo);
+		}
 		return;
 	}
 
@@ -562,6 +599,18 @@ udp_input(struct mbuf *m, int off)
 	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl) {
 		INP_RUNLOCK(inp);
 		goto badunlocked;
+	}
+	if (inp->inp_ppcb != NULL) {
+		/*
+		 * Engage the tunneling protocol we must make sure all locks
+		 * are released when we call the tunneling protocol.
+		 */
+		udp_tun_func_t tunnel_func;
+
+		tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
+		tunnel_func(m, iphlen, inp);
+		INP_RUNLOCK(inp);
+		return;
 	}
 	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
 	INP_RUNLOCK(inp);
@@ -1138,6 +1187,34 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	INP_INFO_WUNLOCK(&V_udbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = V_ip_defttl;
+	/*
+	 * UDP does not have a per-protocol pcb (inp->inp_ppcb). 
+	 * We use this pointer for kernel tunneling pointer.
+	 * If we ever need to have a protocol block we will 
+	 * need to move this function pointer there. Null
+	 * in this pointer means "do the normal thing".
+	 */
+	inp->inp_ppcb = NULL;
+	INP_WUNLOCK(inp);
+	return (0);
+}
+
+int
+udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
+{
+	struct inpcb *inp;
+
+	inp = (struct inpcb *)so->so_pcb;
+	if (so->so_type != SOCK_DGRAM) {
+		/* Not UDP socket... sorry! */
+		return (ENOTSUP);
+	}
+	if (inp == NULL) {
+		/* NULL INP? */
+		return (EINVAL);
+	}
+	INP_WLOCK(inp);
+	inp->inp_ppcb = f;
 	INP_WUNLOCK(inp);
 	return (0);
 }
