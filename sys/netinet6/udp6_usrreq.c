@@ -287,8 +287,25 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					INP_RLOCK(last);
-					udp6_append(last, n, off, &fromsa);
-					INP_RUNLOCK(last);
+					if (last->inp_ppcb != NULL) {
+						/*
+						 * Engage the tunneling
+						 * protocol we will have to
+						 * leave the info_lock up,
+						 * since we are hunting
+						 * through multiple UDP
+						 * inp's hope we don't break.
+						 * 
+						 */
+						udp_tun_func_t tunnel_func;
+
+						tunnel_func = (udp_tun_func_t)last->inp_ppcb;
+						tunnel_func(n, off, last);
+						INP_RUNLOCK(last);
+					} else {
+						udp6_append(last, n, off, &fromsa);
+						INP_RUNLOCK(last);
+					}
 				}
 			}
 			last = inp;
@@ -317,6 +334,19 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(&V_udbinfo);
+		if (last->inp_ppcb != NULL) {
+			/*
+			 * Engage the tunneling protocol we must make sure
+			 * all locks are released when we call the tunneling
+			 * protocol.
+			 */
+			udp_tun_func_t tunnel_func;
+
+			tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
+			tunnel_func(m, off, last);
+			INP_RUNLOCK(last);
+			return (IPPROTO_DONE);
+		}
 		udp6_append(last, m, off, &fromsa);
 		INP_RUNLOCK(last);
 		return (IPPROTO_DONE);
@@ -354,6 +384,18 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	}
 	INP_RLOCK(inp);
 	INP_INFO_RUNLOCK(&V_udbinfo);
+	if (inp->inp_ppcb != NULL) {
+		/*
+		 * Engage the tunneling protocol we must make sure all locks
+		 * are released when we call the tunneling protocol.
+		 */
+		udp_tun_func_t tunnel_func;
+
+		tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
+		tunnel_func(m, off, inp);
+		INP_RUNLOCK(inp);
+		return (IPPROTO_DONE);
+	}
 	udp6_append(inp, m, off, &fromsa);
 	INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
