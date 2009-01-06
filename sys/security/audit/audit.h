@@ -198,11 +198,11 @@ void	 audit_thread_free(struct thread *td);
 
 /*
  * Wrap the audit_syscall_exit() function so that it is called only when
- * auditing is enabled, or we have a audit record on the thread.  It is
- * possible that an audit record was begun before auditing was turned off.
+ * we have a audit record on the thread.  Audit records can persist after
+ * auditing is disabled, so we don't just check audit_enabled here.
  */
 #define	AUDIT_SYSCALL_EXIT(error, td)	do {				\
-	if (audit_enabled || (td->td_ar != NULL))			\
+	if (td->td_ar != NULL)						\
 		audit_syscall_exit(error, td);				\
 } while (0)
 
