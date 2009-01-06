@@ -293,8 +293,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 						 * protocol we will have to
 						 * leave the info_lock up,
 						 * since we are hunting
-						 * through multiple UDP
-						 * inp's hope we don't break.
+						 * through multiple UDP's.
 						 * 
 						 */
 						udp_tun_func_t tunnel_func;
@@ -336,9 +335,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		INP_INFO_RUNLOCK(&V_udbinfo);
 		if (last->inp_ppcb != NULL) {
 			/*
-			 * Engage the tunneling protocol we must make sure
-			 * all locks are released when we call the tunneling
-			 * protocol.
+			 * Engage the tunneling protocol.
 			 */
 			udp_tun_func_t tunnel_func;
 
@@ -386,8 +383,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INP_INFO_RUNLOCK(&V_udbinfo);
 	if (inp->inp_ppcb != NULL) {
 		/*
-		 * Engage the tunneling protocol we must make sure all locks
-		 * are released when we call the tunneling protocol.
+		 * Engage the tunneling protocol.
 		 */
 		udp_tun_func_t tunnel_func;
 
