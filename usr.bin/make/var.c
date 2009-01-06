@@ -2319,8 +2319,7 @@ match_var(const char str[], const char var[])
  *	None. The old string must be freed by the caller
  */
 Buffer *
-//Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
-Var_Subst(                   const char *str, GNode *ctxt, Boolean err)
+Var_Subst(const char *str, GNode *ctxt, Boolean err)
 {
 	Boolean	errorReported;
 	Buffer *buf;		/* Buffer for forming things */
