@@ -455,7 +455,8 @@ On headphones connection rear connectors will be muted.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following audio chipsets:
+driver supports many Intel HDA compatible audio chipsets including the
+following:
 .Pp
 .Bl -bullet -compact
 .It
@@ -465,13 +466,17 @@ ATI SB600
 .It
 Intel 631x/632xESB
 .It
-Intel 82801F
+Intel 82801F (ICH6)
 .It
-Intel 82801G
+Intel 82801G (ICH7)
 .It
-Intel 82801H
+Intel 82801H (ICH8)
 .It
-Intel 82801I
+Intel 82801I (ICH9)
+.It
+Intel 82801J (ICH10)
+.It
+Intel US15W (SCH)
 .It
 nVidia MCP51
 .It
@@ -481,6 +486,8 @@ nVidia MCP61A
 .It
 nVidia MCP61B
 .It
+nVidia MCP63
+.It
 nVidia MCP65A
 .It
 nVidia MCP65B
@@ -489,14 +496,16 @@ nVidia MCP67A
 .It
 nVidia MCP67B
 .It
+nVidia MCP68
+.It
+nVidia MCP69
+.It
 SiS 966
 .It
 VIA VT8251/8237A
 .El
 .Pp
-Generic audio chipsets compatible with the Intel HDA specification should work,
-but have not been verified yet.
-The following codecs have been verified to work:
+The following and many other codecs have been verified to work:
 .Pp
 .Bl -bullet -compact
 .It
@@ -514,9 +523,11 @@ Analog Devices AD1988B
 .It
 CMedia CMI9880
 .It
-Conexant Venice
+Conexant CX20549 (Venice)
 .It
-Conexant Waikiki
+Conexant CX20551 (Waikiki)
+.It
+Conexant CX20561 (Hermosa)
 .It
 Realtek ALC260
 .It
@@ -574,6 +585,8 @@ Sigmatel STAC9872AK
 .It
 VIA VT1708
 .It
+VIA VT1708B
+.It
 VIA VT1709
 .El
 .Sh SEE ALSO
@@ -607,7 +620,11 @@ rendering the
 .Nm
 driver useless, which usually results in a state where the
 .Nm
-driver seems to attach and work, but without any sound.
+driver seems to attach and work, but without any sound. Some of
+that cases can be solved by tuning loader.conf variables. But before
+trying to fix problem that way, make sure that problem is really exists
+and the PCM audio device you are using really corresponds to expected
+audio connector.
 .Pp
 Due to OSS limitation multichannel (not multidevice) playback is not
 supported.
