@@ -83,6 +83,7 @@ init_variables()
 	[ -z "${_flags}" ] && _flags="-l -U root"
 	eval _consolelog=\"\${jail_${_j}_consolelog:-${jail_consolelog}}\"
 	[ -z "${_consolelog}" ] && _consolelog="/var/log/jail_${_j}_console.log"
+	eval _fib=\"\${jail_${_j}_fib:-${jail_fib}}\"
 
 	# Debugging aid
 	#
@@ -93,6 +94,7 @@ init_variables()
 	debug "$_j hostname: $_hostname"
 	debug "$_j ip: $_ip"
 	debug "$_j interface: $_interface"
+	debug "$_j fib: $_fib"
 	debug "$_j root: $_rootdir"
 	debug "$_j devdir: $_devdir"
 	debug "$_j fdescdir: $_fdescdir"
@@ -297,6 +299,11 @@ jail_start()
 		if [ -n "${_interface}" ]; then
 			ifconfig ${_interface} alias ${_ip} netmask 255.255.255.255
 		fi
+		if [ -n "${_fib}" ]; then
+			_setfib="setfib -F '${_fib}'"
+		else
+			_setfib=""
+		fi
 		if checkyesno _mount; then
 			info "Mounting fstab for jail ${_jail} (${_fstab})"
 			if [ ! -f "${_fstab}" ]; then
@@ -350,7 +357,7 @@ jail_start()
 			fi
 		fi
 		_tmp_jail=${_tmp_dir}/jail.$$
-		eval jail ${_flags} -i ${_rootdir} ${_hostname} \
+		eval ${_setfib} jail ${_flags} -i ${_rootdir} ${_hostname} \
 			${_ip} ${_exec_start} > ${_tmp_jail} 2>&1
 
 		if [ "$?" -eq 0 ] ; then
