@@ -732,7 +732,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	ni->ni_erp = se->se_erp;
 	IEEE80211_RSSI_LPF(ni->ni_avgrssi, se->se_rssi);
 	ni->ni_noise = se->se_noise;
-	ni->ni_flags |= IEEE80211_NODE_ASSOCID;
+	if (vap->iv_opmode == IEEE80211_M_STA) {
+		/* NB: only infrastructure mode requires an associd */
+		ni->ni_flags |= IEEE80211_NODE_ASSOCID;
+	}
 
 	if (ieee80211_ies_init(&ni->ni_ies, se->se_ies.data, se->se_ies.len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
