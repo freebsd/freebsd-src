@@ -1639,7 +1639,10 @@ typedef struct oss_sysinfo
 	int	openedmidi[8];	/* Bit mask telling which midi devices
 				   are busy */
 	int	numcards;	/* Number of sound cards in the system */
-	int	filler[241];	/* For future expansion (set to -1) */
+	int	numaudioengines;	/* Number of audio engines in the system */
+	char	license[16];	/* For example "GPL" or "CDDL" */
+	char	revision_info[256];	/* For internal use */
+	int	filler[172];	/* For future expansion (set to -1) */
 } oss_sysinfo;
 
 typedef struct oss_mixext
