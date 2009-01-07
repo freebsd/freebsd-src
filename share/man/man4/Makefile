@@ -316,6 +316,7 @@ MAN=	aac.4 \
 	screen.4 \
 	scsi.4 \
 	sctp.4 \
+	sdhci.4 \
 	sem.4 \
 	ses.4 \
 	sf.4 \
