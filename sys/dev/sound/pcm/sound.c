@@ -1405,6 +1405,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 {
 	static char si_product[] = "FreeBSD native OSS ABI";
 	static char si_version[] = __XSTRING(__FreeBSD_version);
+	static char si_license[] = "BSD";
 	static int intnbits = sizeof(int) * 8;	/* Better suited as macro?
 						   Must pester a C guru. */
 
@@ -1417,6 +1418,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 	strlcpy(si->product, si_product, sizeof(si->product));
 	strlcpy(si->version, si_version, sizeof(si->version));
 	si->versionnum = SOUND_VERSION;
+	strlcpy(si->license, si_license, sizeof(si->license));
 
 	/*
 	 * Iterate over PCM devices and their channels, gathering up data
@@ -1454,6 +1456,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 		pcm_unlock(d);
 	}
+	si->numaudioengines = si->numaudios;
 
 	si->numsynths = 0;	/* OSSv4 docs:  this field is obsolete */
 	/**
