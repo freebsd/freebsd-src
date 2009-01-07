@@ -29,5 +29,6 @@
 #define _UPDATER_H
 
 void	*updater(void *);
+void	 updater_printinfo(void);
 
 #endif /* !_UPDATER_H_ */

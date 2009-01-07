@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +69,9 @@ static int	lister_dorcsfile(struct lister *, struct coll *,
 		    struct statusrec *);
 static int	lister_dorcsdead(struct lister *, struct coll *,
 		    struct statusrec *);
+void		 lister_infohandler(int);
+
+int printinfo = 0;
 
 void *
 lister(void *arg)
@@ -81,6 +85,7 @@ lister(void *arg)
 	l->config = args->config;
 	l->wr = args->wr;
 	l->errmsg = NULL;
+	signal(SIGINFO, lister_infohandler);
 	error = lister_batch(l);
 	switch (error) {
 	case LISTER_ERR_WRITE:
@@ -150,10 +155,11 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 	struct statusrec *sr;
 	struct fattr *fa;
 	size_t i;
-	int depth, error, ret, prunedepth;
+	int depth, error, numdone, ret, prunedepth;
 
 	wr = l->wr;
 	depth = 0;
+	numdone = 0;
 	prunedepth = INT_MAX;
 	as = attrstack_new();
 	while ((ret = status_get(st, NULL, 0, 0, &sr)) == 1) {
@@ -212,7 +218,16 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 			}
 			break;
 		}
-		coll->co_numdone++;
+		numdone++;
+		if (printinfo) {
+			printf("Updating %s", coll->co_name);
+			if (status_numentries(st) > 0)
+				printf(" (%d%% done)", (int)
+				    (((double)numdone * 100.0) /
+				    (double)status_numentries(st)));
+			printf("\n");
+			printinfo = 0;
+		}
 	}
 	if (ret == -1) {
 		l->errmsg = status_errmsg(st);
@@ -567,4 +582,10 @@ lister_dorcsdead(struct lister *l, struct coll *coll, struct statusrec *sr)
 	if (error)
 		return (LISTER_ERR_WRITE);
 	return (0);
+}
+
+void
+lister_infohandler(int sig __unused)
+{
+	printinfo = 1;
 }

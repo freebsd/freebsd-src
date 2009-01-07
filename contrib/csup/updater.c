@@ -33,7 +33,6 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,9 +85,6 @@ struct updater {
 	int deletecount;
 };
 
-static struct file_update *curfup = NULL;
-static pthread_mutex_t fuplock;
-
 static struct file_update	*fup_new(struct coll *, struct status *);
 static int	 fup_prepare(struct file_update *, char *, int);
 static void	 fup_cleanup(struct file_update *);
@@ -121,7 +117,6 @@ int		 updater_append_file(struct updater *, struct file_update *,
 		     off_t);
 static int	 updater_rsync(struct updater *, struct file_update *, size_t);
 static int	 updater_read_checkout(struct stream *, struct stream *);
-void		 updater_infohandler(int);
 
 static struct file_update *
 fup_new(struct coll *coll, struct status *st)
@@ -132,7 +127,6 @@ fup_new(struct coll *coll, struct status *st)
 	memset(fup, 0, sizeof(*fup));
 	fup->coll = coll;
 	fup->st = st;
-	fup->coname = NULL;
 	return (fup);
 }
 
@@ -239,8 +233,6 @@ updater(void *arg)
 	up->rd = args->rd;
 	up->errmsg = NULL;
 	up->deletecount = 0;
-	pthread_mutex_init(&fuplock, NULL);
-	signal(SIGINFO, updater_infohandler);
 
 	error = updater_batch(up, 0);
 
@@ -324,14 +316,8 @@ updater_batch(struct updater *up, int isfixups)
 			return (UPDATER_ERR_MSG);
 		}
 		fup = fup_new(coll, st);
-		pthread_mutex_lock(&fuplock);
-		curfup = fup;
-		pthread_mutex_unlock(&fuplock);
 		error = updater_docoll(up, fup, isfixups);
 		status_close(st, &errmsg);
-		pthread_mutex_lock(&fuplock);
-		curfup = NULL;
-		pthread_mutex_unlock(&fuplock);
 		fup_free(fup);
 		if (errmsg != NULL) {
 			/* Discard previous error. */
@@ -2026,19 +2012,4 @@ updater_rsync(struct updater *up, struct file_update *fup, size_t blocksize)
 bad:
 	free(buf);
 	return (error);
-}
-
-void
-updater_infohandler(int sig __unused)
-{
-	pthread_mutex_lock(&fuplock);
-	if (curfup != NULL) {
-		printf("Updating %s", curfup->coll->co_name);
-		if (status_numentries(curfup->st) > 0)
-			printf(" (%d%% done)", (int)
-			    (((double)curfup->coll->co_numdone * 100.0) /
-			     (double)status_numentries(curfup->st)));
-		printf("\n");
-	}
-	pthread_mutex_unlock(&fuplock);
 }

@@ -311,7 +311,6 @@ coll_new(struct coll *def)
 	new->co_accepts = pattlist_new();
 	new->co_refusals = pattlist_new();
 	new->co_attrignore = FA_DEV | FA_INODE;
-	new->co_numdone = 0;
 	return (new);
 }
 
