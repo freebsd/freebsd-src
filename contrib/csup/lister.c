@@ -71,7 +71,7 @@ static int	lister_dorcsdead(struct lister *, struct coll *,
 		    struct statusrec *);
 void		 lister_infohandler(int);
 
-int printinfo = 0;
+static volatile sig_atomic_t printinfo = 0;
 
 void *
 lister(void *arg)
