@@ -8,6 +8,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090107:
+	snd_hda(4) driver was updated to version 20081226_0122.
+
+	Due to added HDMI audio and logical audio devices support, updated
+	driver often provides several PCM devices. In some cases it can make
+	system default audio device no longer correspond to the users's
+	habbitual audio connectors. In such cases wanted device can be
+	specified in audio application setup or defined globally via
+	hw.snd.default_unit sysctl according to sound(4) and snd_hda(4)
+	man pages.
+
 20080903:
 	ntpd has been upgraded to 4.2.4p5.
 
