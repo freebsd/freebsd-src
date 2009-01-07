@@ -336,6 +336,8 @@ dcons_drv_init(int stage)
 		 */ 
 		dg.buf = (struct dcons_buf *) contigmalloc(dg.size,
 			M_DEVBUF, 0, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
+		if (dg.buf == NULL)
+			return (-1);
 		dcons_init(dg.buf, dg.size, sc);
 	}
 
@@ -400,8 +402,8 @@ dcons_modevent(module_t mode, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		ret = dcons_drv_init(1);
-		dcons_attach();
 		if (ret == 0) {
+			dcons_attach();
 			dcons_cnprobe(&dcons_consdev);
 			dcons_cninit(&dcons_consdev);
 			cnadd(&dcons_consdev);
@@ -409,13 +411,15 @@ dcons_modevent(module_t mode, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		printf("dcons: unload\n");
-		callout_stop(&dcons_callout);
-		cnremove(&dcons_consdev);
-		dcons_detach(DCONS_CON);
-		dcons_detach(DCONS_GDB);
-		dg.buf->magic = 0;
+		if (drv_init == 1) {
+			callout_stop(&dcons_callout);
+			cnremove(&dcons_consdev);
+			dcons_detach(DCONS_CON);
+			dcons_detach(DCONS_GDB);
+			dg.buf->magic = 0;
 
-		contigfree(dg.buf, DCONS_BUF_SIZE, M_DEVBUF);
+			contigfree(dg.buf, DCONS_BUF_SIZE, M_DEVBUF);
+		}
 
 		break;
 	case MOD_SHUTDOWN:
