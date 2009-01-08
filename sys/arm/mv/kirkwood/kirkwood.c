@@ -150,3 +150,21 @@ const struct decode_win cpu_win_tbl[] = {
 };
 const struct decode_win *cpu_wins = cpu_win_tbl;
 int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
+
+uint32_t
+get_tclk(void)
+{
+	uint32_t dev, rev;
+
+	/*
+	 * On Kirkwood TCLK is not configurable and depends on silicon
+	 * revision:
+	 * - A0 has TCLK hardcoded to 200 MHz.
+	 * - Z0 and others have TCLK hardcoded to 166 MHz.
+	 */
+	soc_id(&dev, &rev);
+	if (dev == MV_DEV_88F6281 && rev == 2)
+		return (TCLK_200MHZ);
+
+	return (TCLK_166MHZ);
+}
