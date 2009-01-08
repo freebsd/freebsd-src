@@ -2,6 +2,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#define UFOMA_HANDSFREE
 
 /*-
  * Copyright (c) 2005, Takanori Watanabe
@@ -101,6 +102,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_busdma.h>
 
 #include <dev/usb2/serial/usb2_serial.h>
+#include <sys/sysctl.h>
+#include <sys/sbuf.h>
 
 typedef struct ufoma_mobile_acm_descriptor {
 	uint8_t	bFunctionLength;
@@ -216,6 +219,12 @@ static void	ufoma_start_read(struct usb2_com_softc *);
 static void	ufoma_stop_read(struct usb2_com_softc *);
 static void	ufoma_start_write(struct usb2_com_softc *);
 static void	ufoma_stop_write(struct usb2_com_softc *);
+
+/*sysctl stuff*/
+static int ufoma_sysctl_support(SYSCTL_HANDLER_ARGS);
+static int ufoma_sysctl_current(SYSCTL_HANDLER_ARGS);
+static int ufoma_sysctl_open(SYSCTL_HANDLER_ARGS);
+
 
 static const struct usb2_config
 	ufoma_ctrl_config[UFOMA_CTRL_ENDPT_MAX] = {
@@ -380,6 +389,9 @@ ufoma_attach(device_t dev)
 	struct ufoma_softc *sc = device_get_softc(dev);
 	struct usb2_config_descriptor *cd;
 	struct usb2_interface_descriptor *id;
+	struct sysctl_ctx_list *sctx;
+	struct sysctl_oid *soid;
+
 	usb2_mcpc_acm_descriptor *mad;
 	uint8_t elements;
 	int32_t error;
@@ -459,6 +471,23 @@ ufoma_attach(device_t dev)
 		DPRINTF("usb2_com_attach failed\n");
 		goto detach;
 	}
+	/*Sysctls*/
+	sctx = device_get_sysctl_ctx(dev);
+	soid = device_get_sysctl_tree(dev);
+
+	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "supportmode",
+			CTLFLAG_RD|CTLTYPE_STRING, sc, 0, ufoma_sysctl_support,
+			"A", "Supporting port role");
+
+	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "currentmode",
+			CTLFLAG_RD|CTLTYPE_STRING, sc, 0, ufoma_sysctl_current,
+			"A", "Current port role");
+
+	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "openmode",
+			CTLFLAG_RW|CTLTYPE_STRING, sc, 0, ufoma_sysctl_open,
+			"A", "Mode to transit when port is opened");
+
+
 	return (0);			/* success */
 
 detach:
@@ -910,7 +939,8 @@ ufoma_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	struct usb2_device_request req;
 	uint16_t wValue;
 
-	if (sc->sc_is_pseudo) {
+	if (sc->sc_is_pseudo ||
+	    (sc->sc_currentmode == UMCPC_ACM_MODE_OBEX)) {
 		return;
 	}
 	if (!(sc->sc_acm_cap & USB_CDC_ACM_HAS_BREAK)) {
@@ -1180,4 +1210,114 @@ ufoma_stop_write(struct usb2_com_softc *ucom)
 		usb2_transfer_stop(sc->sc_bulk_xfer[2]);
 		usb2_transfer_stop(sc->sc_bulk_xfer[0]);
 	}
+}
+
+struct umcpc_modetostr_tab{
+	int mode;
+	char *str;
+}umcpc_modetostr_tab[]={
+	{UMCPC_ACM_MODE_DEACTIVATED, "deactivated"},
+	{UMCPC_ACM_MODE_MODEM, "modem"},
+	{UMCPC_ACM_MODE_ATCOMMAND, "handsfree"},
+	{UMCPC_ACM_MODE_OBEX, "obex"},
+	{UMCPC_ACM_MODE_VENDOR1, "vendor1"},
+	{UMCPC_ACM_MODE_VENDOR2, "vendor2"},
+	{UMCPC_ACM_MODE_UNLINKED, "unlinked"},
+	{0, NULL}
+};
+
+static char *ufoma_mode_to_str(int mode)
+{
+	int i;
+	for(i = 0 ;umcpc_modetostr_tab[i].str != NULL; i++){
+		if(umcpc_modetostr_tab[i].mode == mode){
+			return umcpc_modetostr_tab[i].str;
+		}
+	}
+	return NULL;
+}
+
+static int ufoma_str_to_mode(char *str)
+{
+	int i;
+	for(i = 0 ;umcpc_modetostr_tab[i].str != NULL; i++){
+		if(strcmp(str, umcpc_modetostr_tab[i].str)==0){
+			return umcpc_modetostr_tab[i].mode;
+		}
+	}
+	return -1;
+}
+
+static int ufoma_sysctl_support(SYSCTL_HANDLER_ARGS)
+{
+	struct ufoma_softc *sc = (struct ufoma_softc *)oidp->oid_arg1;
+	struct sbuf sb;
+	int i;
+	char *mode;
+
+	sbuf_new(&sb, NULL, 1, SBUF_AUTOEXTEND);
+	for(i = 1; i < sc->sc_modetable[0]; i++){
+		mode = ufoma_mode_to_str(sc->sc_modetable[i]);
+		if(mode !=NULL){
+			sbuf_cat(&sb, mode);
+		}else{
+			sbuf_printf(&sb, "(%02x)", sc->sc_modetable[i]);
+		}
+		if(i < (sc->sc_modetable[0]-1))
+			sbuf_cat(&sb, ",");
+	}
+	sbuf_trim(&sb);
+	sbuf_finish(&sb);
+	sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	sbuf_delete(&sb);
+	
+	return 0;
+}
+static int ufoma_sysctl_current(SYSCTL_HANDLER_ARGS)
+{
+	struct ufoma_softc *sc = (struct ufoma_softc *)oidp->oid_arg1;
+	char *mode;
+	char subbuf[]="(XXX)";
+	mode = ufoma_mode_to_str(sc->sc_currentmode);
+	if(!mode){
+		mode = subbuf;
+		snprintf(subbuf, sizeof(subbuf), "(%02x)", sc->sc_currentmode);
+	}
+	sysctl_handle_string(oidp, mode, strlen(mode), req);
+	
+	return 0;
+	
+}
+static int ufoma_sysctl_open(SYSCTL_HANDLER_ARGS)
+{
+	struct ufoma_softc *sc = (struct ufoma_softc *)oidp->oid_arg1;
+	char *mode;
+	char subbuf[40];
+	int newmode;
+	int error;
+	int i;
+
+	mode = ufoma_mode_to_str(sc->sc_modetoactivate);
+	if(mode){
+		strncpy(subbuf, mode, sizeof(subbuf));
+	}else{
+		snprintf(subbuf, sizeof(subbuf), "(%02x)", sc->sc_modetoactivate);
+	}
+	error = sysctl_handle_string(oidp, subbuf, sizeof(subbuf), req);
+	if(error != 0 || req->newptr == NULL){
+		return error;
+	}
+	
+	if((newmode = ufoma_str_to_mode(subbuf)) == -1){
+		return EINVAL;
+	}
+	
+	for(i = 1 ; i < sc->sc_modetable[0] ; i++){
+		if(sc->sc_modetable[i] == newmode){
+			sc->sc_modetoactivate = newmode;
+			return 0;
+		}
+	}
+	
+	return EINVAL;
 }
