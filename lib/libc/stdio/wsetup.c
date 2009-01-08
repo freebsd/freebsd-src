@@ -60,6 +60,7 @@ __swsetup(fp)
 	if ((fp->_flags & __SWR) == 0) {
 		if ((fp->_flags & __SRW) == 0) {
 			errno = EBADF;
+			fp->_flags |= __SERR;
 			return (EOF);
 		}
 		if (fp->_flags & __SRD) {
