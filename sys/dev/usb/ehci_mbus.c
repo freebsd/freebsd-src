@@ -73,6 +73,19 @@ static device_shutdown_t ehci_mbus_shutdown;
 static device_suspend_t ehci_mbus_suspend;
 static device_resume_t ehci_mbus_resume;
 
+static int err_intr(void *arg);
+
+struct resource *irq_err;
+void *ih_err;
+
+#define USB_BRIDGE_INTR_CAUSE  0x210
+#define USB_BRIDGE_INTR_MASK   0x214
+
+#define MV_USB_ADDR_DECODE_ERR (1 << 0)
+#define MV_USB_HOST_UNDERFLOW  (1 << 1)
+#define MV_USB_HOST_OVERFLOW   (1 << 2)
+#define MV_USB_DEVICE_UNDERFLOW (1 << 3)
+
 static int
 ehci_mbus_suspend(device_t self)
 {
@@ -157,6 +170,15 @@ ehci_mbus_attach(device_t self)
 		    device_get_name(self));
 	sc->sc_size = MV_USB_SIZE - MV_USB_HOST_OFST;
 
+	rid = 0;
+	irq_err = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
+	if (irq_err == NULL) {
+		device_printf(self, "Could not allocate error irq\n");
+		ehci_mbus_detach(self);
+		return (ENXIO);
+	}
+
 	/*
 	 * Notice: Marvell EHCI controller has TWO interrupt lines, so make sure to
 	 * use the correct rid for the main one (controller interrupt) --
@@ -180,6 +202,19 @@ ehci_mbus_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Marvell");
 	sc->sc_id_vendor = EHCI_VENDORID_MRVL;
+
+	err = bus_setup_intr(self, irq_err, INTR_FAST | INTR_TYPE_BIO,
+	    err_intr, NULL, sc, &ih_err);
+	if (err) {
+		device_printf(self, "Could not setup error irq, %d\n", err);
+		ih_err = NULL;
+		ehci_mbus_detach(self);
+		return (ENXIO);
+	}
+
+	EWRITE4(sc, USB_BRIDGE_INTR_MASK, MV_USB_ADDR_DECODE_ERR |
+	    MV_USB_HOST_UNDERFLOW | MV_USB_HOST_OVERFLOW |
+	    MV_USB_DEVICE_UNDERFLOW);
 
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
 	    NULL, (driver_intr_t*)ehci_intr, sc, &sc->ih);
@@ -277,6 +312,17 @@ ehci_mbus_detach(device_t self)
 			    err);
 		sc->ih = NULL;
 	}
+	EWRITE4(sc, USB_BRIDGE_INTR_MASK, 0);
+
+	if (irq_err && ih_err) {
+		err = bus_teardown_intr(self, irq_err, ih_err);
+
+		if (err)
+			device_printf(self, "Could not tear down irq, %d\n",
+			    err);
+		ih_err = NULL;
+	}
+
 	if (sc->sc_bus.bdev) {
 		device_delete_child(self, sc->sc_bus.bdev);
 		sc->sc_bus.bdev = NULL;
@@ -285,6 +331,10 @@ ehci_mbus_detach(device_t self)
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
 		sc->irq_res = NULL;
 	}
+	if (irq_err) {
+		bus_release_resource(self, SYS_RES_IRQ, 1, irq_err);
+		irq_err = NULL;
+	}
 	if (sc->io_res) {
 		bus_release_resource(self, SYS_RES_MEMORY, 0, sc->io_res);
 		sc->io_res = NULL;
@@ -292,6 +342,32 @@ ehci_mbus_detach(device_t self)
 		sc->ioh = 0;
 	}
 	return (0);
+}
+
+static int
+err_intr(void *arg)
+{
+	ehci_softc_t *sc = arg;
+	unsigned int cause;
+
+	cause = EREAD4(sc, USB_BRIDGE_INTR_CAUSE);
+	if (cause) {
+		printf("IRQ ERR: cause: 0x%08x\n", cause);
+		if (cause & MV_USB_ADDR_DECODE_ERR)
+			printf("IRQ ERR: Address decoding error\n");
+		if (cause & MV_USB_HOST_UNDERFLOW)
+			printf("IRQ ERR: USB Host Underflow\n");
+		if (cause & MV_USB_HOST_OVERFLOW)
+			printf("IRQ ERR: USB Host Overflow\n");
+		if (cause & MV_USB_DEVICE_UNDERFLOW)
+			printf("IRQ ERR: USB Device Underflow\n");
+		if (cause & ~(MV_USB_ADDR_DECODE_ERR | MV_USB_HOST_UNDERFLOW |
+		    MV_USB_HOST_OVERFLOW | MV_USB_DEVICE_UNDERFLOW))
+			printf("IRQ ERR: Unknown error\n");
+
+		EWRITE4(sc, USB_BRIDGE_INTR_CAUSE, 0);
+	}
+	return (FILTER_HANDLED);
 }
 
 static device_method_t ehci_methods[] = {
