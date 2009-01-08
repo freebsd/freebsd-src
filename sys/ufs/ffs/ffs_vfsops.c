@@ -1030,6 +1030,9 @@ ffs_unmount(mp, mntflags, td)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
 	int error, flags, susp;
+#ifdef UFS_EXTATTR
+	int e_restart;
+#endif
 
 	flags = 0;
 	fs = ump->um_fs;
@@ -1043,8 +1046,10 @@ ffs_unmount(mp, mntflags, td)
 		if (error != EOPNOTSUPP)
 			printf("ffs_unmount: ufs_extattr_stop returned %d\n",
 			    error);
+		e_restart = 0;
 	} else {
 		ufs_extattr_uepm_destroy(&ump->um_extattr);
+		e_restart = 1;
 	}
 #endif
 	if (susp) {
@@ -1121,6 +1126,15 @@ fail:
 		vfs_write_resume(mp);
 		vn_start_write(NULL, &mp, V_WAIT);
 	}
+#ifdef UFS_EXTATTR
+	if (e_restart) {
+		ufs_extattr_uepm_init(&ump->um_extattr);
+#ifdef UFS_EXTATTR_AUTOSTART
+		(void) ufs_extattr_autostart(mp, td);
+#endif
+	}
+#endif
+
 	return (error);
 }
 
