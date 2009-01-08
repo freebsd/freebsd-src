@@ -5611,7 +5611,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	case PROBE_DV_EXIT:
 	{
 		scsi_test_unit_ready(csio,
-				     /*retries*/4,
+				     /*retries*/10,
 				     probedone,
 				     MSG_SIMPLE_Q_TAG,
 				     SSD_FULL_SIZE,
@@ -6218,6 +6218,13 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	}
 	case PROBE_TUR_FOR_NEGOTIATION:
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			DELAY(500000);
+			if (cam_periph_error(done_ccb, 0, SF_RETRY_UA,
+			    NULL) == ERESTART)
+				return;
+		}
+	/* FALLTHROUGH */
 	case PROBE_DV_EXIT:
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
