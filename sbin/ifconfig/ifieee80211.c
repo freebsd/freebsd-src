@@ -1711,6 +1711,30 @@ set80211rifs(const char *val, int d, int s, const struct afswtch *rafp)
 	set80211(s, IEEE80211_IOC_RIFS, d, 0, NULL);
 }
 
+static
+DECL_CMD_FUNC(set80211tdmaslot, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmaslotcnt, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOTCNT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmaslotlen, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOTLEN, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmabintval, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_BINTERVAL, atoi(val), 0, NULL);
+}
+
 static int
 regdomain_sort(const void *a, const void *b)
 {
@@ -2558,6 +2582,22 @@ printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 #undef N
 }
 
+static void
+printtdmaie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	if (verbose && ielen >= sizeof(struct ieee80211_tdma_param)) {
+		const struct ieee80211_tdma_param *tdma =
+		   (const struct ieee80211_tdma_param *) ie;
+
+		/* XXX tstamp */
+		printf("<v%u slot:%u slotcnt:%u slotlen:%u bintval:%u inuse:0x%x>",
+		    tdma->tdma_version, tdma->tdma_slot, tdma->tdma_slotcnt,
+		    LE_READ_2(&tdma->tdma_slotlen), tdma->tdma_bintval,
+		    tdma->tdma_inuse[0]);
+	}
+}
+
 /*
  * Copy the ssid string contents into buf, truncating to fit.  If the
  * ssid is entirely printable then just copy intact.  Otherwise convert
@@ -2681,6 +2721,12 @@ isatherosoui(const u_int8_t *frm)
 }
 
 static __inline int
+istdmaoui(const uint8_t *frm)
+{
+	return frm[1] > 3 && LE_READ_4(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
+}
+
+static __inline int
 iswpsoui(const uint8_t *frm)
 {
 	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPS_OUI_TYPE<<24)|WPA_OUI);
@@ -2749,6 +2795,8 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 				printathie(" ATH", vp, 2+vp[1], maxcols);
 			else if (iswpsoui(vp))
 				printwpsie(" WPS", vp, 2+vp[1], maxcols);
+			else if (istdmaoui(vp))
+				printtdmaie(" TDMA", vp, 2+vp[1], maxcols);
 			else if (verbose)
 				printie(" VEN", vp, 2+vp[1], maxcols);
 			break;
@@ -3192,7 +3240,7 @@ list_keys(int s)
 	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
 	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
 	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
-	"\37TXFRAG"
+	"\37TXFRAG\40TDMA"
 
 #define	IEEE80211_CRYPTO_BITS \
 	"\20\1WEP\2TKIP\3AES\4AES_CCM\5TKIPMIC\6CKIP\12PMGT"
@@ -4263,7 +4311,16 @@ end:
 		}
 	}
 
-	if (get80211val(s, IEEE80211_IOC_BEACON_INTERVAL, &val) != -1) {
+	if (opmode == IEEE80211_M_AHDEMO) {
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOT, &val) != -1)
+			LINE_CHECK("tdmaslot %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOTCNT, &val) != -1)
+			LINE_CHECK("tdmaslotcnt %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOTLEN, &val) != -1)
+			LINE_CHECK("tdmaslotlen %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_BINTERVAL, &val) != -1)
+			LINE_CHECK("tdmabintval %u", val);
+	} else if (get80211val(s, IEEE80211_IOC_BEACON_INTERVAL, &val) != -1) {
 		/* XXX default define not visible */
 		if (val != 100 || verbose)
 			LINE_CHECK("bintval %u", val);
@@ -4486,7 +4543,10 @@ DECL_CMD_FUNC(set80211clone_wlanmode, arg, d)
 		params.icp_opmode = IEEE80211_M_WDS;
 	else if (iseq(arg, "monitor"))
 		params.icp_opmode = IEEE80211_M_MONITOR;
-	else
+	else if (iseq(arg, "tdma")) {
+		params.icp_opmode = IEEE80211_M_AHDEMO;
+		params.icp_flags |= IEEE80211_CLONE_TDMA;
+	} else
 		errx(1, "Don't know to create %s for %s", arg, name);
 	clone_setcallback(wlan_create);
 #undef iseq
@@ -4661,6 +4721,11 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-smps",	IEEE80211_HTCAP_SMPS_OFF,	set80211smps),
 	/* XXX for testing */
 	DEF_CMD_ARG("chanswitch",	set80211chanswitch),
+
+	DEF_CMD_ARG("tdmaslot",		set80211tdmaslot),
+	DEF_CMD_ARG("tdmaslotcnt",	set80211tdmaslotcnt),
+	DEF_CMD_ARG("tdmaslotlen",	set80211tdmaslotlen),
+	DEF_CMD_ARG("tdmabintval",	set80211tdmabintval),
 
 	/* vap cloning support */
 	DEF_CLONE_CMD_ARG("wlanaddr",	set80211clone_wlanaddr),

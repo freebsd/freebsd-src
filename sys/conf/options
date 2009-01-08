@@ -741,6 +741,7 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+ATH_SUPPORT_TDMA	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -784,6 +785,15 @@ INTR_FILTER
 IEEE80211_DEBUG		opt_wlan.h
 IEEE80211_DEBUG_REFCNT	opt_wlan.h
 IEEE80211_AMPDU_AGE	opt_wlan.h
+IEEE80211_SUPPORT_TDMA	opt_wlan.h
+
+# 802.11 TDMA support
+TDMA_SLOTLEN_DEFAULT	opt_tdma.h
+TDMA_SLOTCNT_DEFAULT	opt_tdma.h
+TDMA_BINTVAL_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11B_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11G_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11A_DEFAULT	opt_tdma.h
 
 # Virtualize the network stack
 VIMAGE			opt_global.h

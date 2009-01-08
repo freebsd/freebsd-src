@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -291,6 +291,7 @@ struct ieee80211_beacon_offsets {
 	uint8_t		*bo_cfp;	/* start of CFParms element */
 	uint8_t		*bo_tim;	/* start of atim/dtim */
 	uint8_t		*bo_wme;	/* start of WME parameters */
+	uint8_t		*bo_tdma;	/* start of TDMA parameters */
 	uint8_t		*bo_tim_trailer;/* start of fixed-size trailer */
 	uint16_t	bo_tim_len;	/* atim/dtim length in bytes */
 	uint16_t	bo_tim_trailer_len;/* tim trailer length in bytes */
@@ -325,6 +326,7 @@ enum {
 	IEEE80211_BEACON_APPIE	= 5,	/* Application IE's */
 	IEEE80211_BEACON_CFP	= 6,	/* CFParms */
 	IEEE80211_BEACON_CSA	= 7,	/* Channel Switch Announcement */
+	IEEE80211_BEACON_TDMA	= 9,	/* TDMA Info */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);

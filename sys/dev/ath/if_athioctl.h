@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,13 @@ struct ath_stats {
 	u_int32_t	ast_ff_flush;	/* fast frames flushed from staging q */
 	u_int32_t	ast_tx_qfull;	/* tx dropped 'cuz of queue limit */
 	int8_t		ast_rx_noise;	/* rx noise floor */
-	u_int32_t	ast_pad[22];
+	u_int32_t	ast_tx_nobuf;	/* tx dropped 'cuz no ath buffer */
+	u_int32_t	ast_tdma_update;/* TDMA slot timing updates */
+	u_int32_t	ast_tdma_timers;/* TDMA slot update set beacon timers */
+	u_int32_t	ast_tdma_tsf;	/* TDMA slot update set TSF */
+	u_int16_t	ast_tdma_tsfadjp;/* TDMA slot adjust+ (usec, smoothed)*/
+	u_int16_t	ast_tdma_tsfadjm;/* TDMA slot adjust- (usec, smoothed)*/
+	u_int32_t	ast_pad[17];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
