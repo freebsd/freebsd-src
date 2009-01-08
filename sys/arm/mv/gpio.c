@@ -113,8 +113,8 @@ mv_gpio_probe(device_t dev)
 static int
 mv_gpio_attach(device_t dev)
 {
-	int	error, i;
-	struct	mv_gpio_softc *sc;
+	int error, i;
+	struct mv_gpio_softc *sc;
 	uint32_t dev_id, rev_id;
 
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
@@ -219,7 +219,7 @@ mv_gpio_intr(void *arg)
  * GPIO interrupt handling
  */
 
-static struct intr_event	*gpio_events[MV_GPIO_MAX_NPINS];
+static struct intr_event *gpio_events[MV_GPIO_MAX_NPINS];
 
 int
 mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
@@ -243,8 +243,8 @@ mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
 		gpio_events[pin] = event;
 	}
 
-	intr_event_add_handler(event, name, filt, hand, arg, intr_priority(flags),
-	    flags, cookiep);
+	intr_event_add_handler(event, name, filt, hand, arg,
+	    intr_priority(flags), flags, cookiep);
 	return (0);
 }
 
@@ -277,7 +277,7 @@ mv_gpio_intr_unmask(int pin)
 static void
 mv_gpio_intr_handler(int pin)
 {
-	struct	intr_event *event;
+	struct intr_event *event;
 
 	event = gpio_events[pin];
 	if (event == NULL || TAILQ_EMPTY(&event->ie_handlers))
