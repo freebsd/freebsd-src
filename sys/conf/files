@@ -2232,6 +2232,7 @@ net80211/ieee80211_rssadapt.c	optional wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
 net80211/ieee80211_scan_sta.c	optional wlan
 net80211/ieee80211_sta.c	optional wlan
+net80211/ieee80211_tdma.c	optional wlan
 net80211/ieee80211_wds.c	optional wlan
 net80211/ieee80211_xauth.c	optional wlan_xauth
 netatalk/aarp.c			optional netatalk

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,6 +104,8 @@ struct ieee80211_appie {
 	uint16_t		ie_len;		/* size of ie_data */
 	uint8_t			ie_data[];	/* user-specified IE's */
 };
+
+struct ieee80211_tdma_param;
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
@@ -226,6 +228,9 @@ struct ieee80211com {
 	void			(*ic_update_promisc)(struct ifnet *);
 	/* new station association callback/notification */
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
+	/* TDMA update notification */
+	void			(*ic_tdma_update)(struct ieee80211_node *,
+				    const struct ieee80211_tdma_param *);
 	/* node state management */
 	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211vap *,
 				    const uint8_t [IEEE80211_ADDR_LEN]);
@@ -279,6 +284,7 @@ struct ieee80211com {
 };
 
 struct ieee80211_aclator;
+struct ieee80211_tdma_state;
 
 struct ieee80211vap {
 	struct ifmedia		iv_media;	/* interface media config */
@@ -388,6 +394,8 @@ struct ieee80211vap {
 
 	const struct ieee80211_aclator *iv_acl;	/* acl glue */
 	void			*iv_as;		/* private aclator state */
+
+	struct ieee80211_tdma_state *iv_tdma;	/* tdma state */
 
 	/* operate-mode detach hook */
 	void			(*iv_opdetach)(struct ieee80211vap *);
@@ -522,11 +530,13 @@ MALLOC_DECLARE(M_80211_VAP);
 /* 0x10000000 reserved */
 #define	IEEE80211_C_BGSCAN	0x20000000	/* CAPABILITY: bg scanning */
 #define	IEEE80211_C_TXFRAG	0x40000000	/* CAPABILITY: tx fragments */
+#define	IEEE80211_C_TDMA	0x80000000	/* CAPABILITY: TDMA avail */
 /* XXX protection/barker? */
 
 #define	IEEE80211_C_OPMODE \
 	(IEEE80211_C_STA | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP | \
-	 IEEE80211_C_AHDEMO | IEEE80211_C_MONITOR | IEEE80211_C_WDS)
+	 IEEE80211_C_AHDEMO | IEEE80211_C_MONITOR | IEEE80211_C_WDS | \
+	 IEEE80211_C_TDMA)
 
 /*
  * ic_htcaps/iv_htcaps: HT-specific device/driver capabilities
@@ -680,6 +690,7 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 #define	IEEE80211_MSG_ACTION	0x00000010	/* action frame handling */
 #define	IEEE80211_MSG_WDS	0x00000008	/* WDS handling */
 #define	IEEE80211_MSG_IOCTL	0x00000004	/* ioctl handling */
+#define	IEEE80211_MSG_TDMA	0x00000002	/* TDMA handling */
 
 #define	IEEE80211_MSG_ANY	0xffffffff	/* anything */
 

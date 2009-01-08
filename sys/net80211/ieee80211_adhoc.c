@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_adhoc.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_TDMA
+#include <net80211/ieee80211_tdma.h>
+#endif
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -96,6 +99,15 @@ adhoc_vattach(struct ieee80211vap *vap)
 	else
 		vap->iv_recv_mgmt = ahdemo_recv_mgmt;
 	vap->iv_opdetach = adhoc_vdetach;
+#ifdef IEEE80211_SUPPORT_TDMA
+	/*
+	 * Throw control to tdma support.  Note we do this
+	 * after setting up our callbacks so it can piggyback
+	 * on top of us.
+	 */
+	if (vap->iv_caps & IEEE80211_C_TDMA)
+		ieee80211_tdma_vattach(vap);
+#endif
 }
 
 /*
@@ -354,6 +366,19 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		if (type == IEEE80211_FC0_TYPE_DATA &&
 		    ni == vap->iv_bss &&
 		    !IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
+			/*
+			 * Beware of frames that come in too early; we
+			 * can receive broadcast frames and creating sta
+			 * entries will blow up because there is no bss
+			 * channel yet.
+			 */
+			if (vap->iv_state != IEEE80211_S_RUN) {
+				IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+				    wh, "data", "not in RUN state (%s)",
+				    ieee80211_state_name[vap->iv_state]);
+				vap->iv_stats.is_rx_badstate++;
+				goto err;
+			}
 			/*
 			 * Fake up a node for this newly
 			 * discovered member of the IBSS.
