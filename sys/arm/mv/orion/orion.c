@@ -167,3 +167,24 @@ const struct decode_win idma_win_tbl[] = {
 };
 const struct decode_win *idma_wins = idma_win_tbl;
 int idma_wins_no = sizeof(idma_win_tbl) / sizeof(struct decode_win);
+
+uint32_t
+get_tclk(void)
+{
+	uint32_t sar;
+
+	/*
+	 * On Orion TCLK is can be configured to 150 MHz or 166 MHz.
+	 * Current setting is read from Sample At Reset register.
+	 */
+	sar = bus_space_read_4(obio_tag, MV_MPP_BASE, SAMPLE_AT_RESET);
+	sar = (sar & TCLK_MASK) >> TCLK_SHIFT;
+	switch (sar) {
+	case 1:
+		return (TCLK_150MHZ);
+	case 2:
+		return (TCLK_166MHZ);
+	default:
+		panic("Unknown TCLK settings!");
+	}
+}
