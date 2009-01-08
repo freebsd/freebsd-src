@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_TDMA
+#include <net80211/ieee80211_tdma.h>
+#endif
 #include <net80211/ieee80211_wds.h>
 
 #include <net/bpf.h>
@@ -337,6 +340,9 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		if (vap->iv_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_des_bssid);
 		else
+#ifdef IEEE80211_SUPPORT_TDMA
+		if ((vap->iv_caps & IEEE80211_C_TDMA) == 0)
+#endif
 			memset(ni->ni_bssid, 0, IEEE80211_ADDR_LEN);
 	}
 	/* 
@@ -745,6 +751,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
 		if (ni->ni_ies.htinfo_ie != NULL)
 			ieee80211_parse_htinfo(ni, ni->ni_ies.htinfo_ie);
+#ifdef IEEE80211_SUPPORT_TDMA
+		if (ni->ni_ies.tdma_ie != NULL)
+			ieee80211_parse_tdma(ni, ni->ni_ies.tdma_ie);
+#endif
 	}
 
 	vap->iv_dtim_period = se->se_dtimperiod;
@@ -858,6 +868,10 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 				ies->wme_ie = ie;
 			else if (isatherosoui(ie))
 				ies->ath_ie = ie;
+#ifdef IEEE80211_SUPPORT_TDMA
+			else if (istdmaoui(ie))
+				ies->tdma_ie = ie;
+#endif
 			break;
 		case IEEE80211_ELEMID_RSN:
 			ies->rsn_ie = ie;

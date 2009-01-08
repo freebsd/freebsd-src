@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2003-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,6 +122,16 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if ((ic->ic_caps & ieee80211_opcap[cp.icp_opmode]) == 0) {
 		if_printf(ifp, "%s mode not supported\n",
 		    ieee80211_opmode_name[cp.icp_opmode]);
+		return EOPNOTSUPP;
+	}
+	if ((cp.icp_flags & IEEE80211_CLONE_TDMA) &&
+#ifdef IEEE80211_SUPPORT_TDMA
+	    (ic->ic_caps & IEEE80211_C_TDMA) == 0
+#else
+	    (1)
+#endif
+	) {
+		if_printf(ifp, "TDMA not supported\n");
 		return EOPNOTSUPP;
 	}
 	vap = ic->ic_vap_create(ic, ifc->ifc_name, unit,
