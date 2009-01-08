@@ -72,6 +72,9 @@ struct adb_kbd_softc {
 	int have_led_control;
 
 	uint8_t buffer[8];
+#ifdef AKBD_EMULATE_ATKBD
+	uint8_t at_buffered_char[2];
+#endif
 	volatile int buffers;
 
 	struct callout sc_repeater;
@@ -105,6 +108,17 @@ static devclass_t adb_kbd_devclass;
 
 DRIVER_MODULE(akbd, adb, adb_kbd_driver, adb_kbd_devclass, 0, 0);
 
+#ifdef AKBD_EMULATE_ATKBD
+
+#define	SCAN_PRESS		0x000
+#define	SCAN_RELEASE		0x080
+#define	SCAN_PREFIX_E0		0x100
+#define	SCAN_PREFIX_E1		0x200
+#define	SCAN_PREFIX_CTL		0x400
+#define	SCAN_PREFIX_SHIFT	0x800
+#define	SCAN_PREFIX		(SCAN_PREFIX_E0 | SCAN_PREFIX_E1 |	\
+				SCAN_PREFIX_CTL | SCAN_PREFIX_SHIFT)
+
 static const uint8_t adb_to_at_scancode_map[128] = { 30, 31, 32, 33, 35, 34, 
 	44, 45, 46, 47, 0, 48, 16, 17, 18, 19, 21, 20, 2, 3, 4, 5, 7, 6, 13, 
 	10, 8, 12, 9, 11, 27, 24, 22, 26, 23, 25, 28, 38, 36, 40, 37, 39, 43, 
@@ -113,6 +127,47 @@ static const uint8_t adb_to_at_scancode_map[128] = { 30, 31, 32, 33, 35, 34,
 	0, 82, 79, 80, 81, 75, 76, 77, 71, 0, 72, 73, 0, 0, 0, 63, 64, 65, 61, 
 	66, 67, 0, 87, 0, 105, 0, 70, 0, 68, 0, 88, 0, 107, 102, 94, 96, 103, 
 	62, 99, 60, 101, 59, 54, 93, 90, 0, 0 };
+
+static int
+keycode2scancode(int keycode, int shift, int up)
+{
+	static const int scan[] = {
+		/* KP enter, right ctrl, KP divide */
+		0x1c , 0x1d , 0x35 ,
+		/* print screen */
+		0x37 | SCAN_PREFIX_SHIFT,
+		/* right alt, home, up, page up, left, right, end */
+		0x38, 0x47, 0x48, 0x49, 0x4b, 0x4d, 0x4f,
+		/* down, page down, insert, delete */
+		0x50, 0x51, 0x52, 0x53,
+		/* pause/break (see also below) */
+		0x46,
+		/*
+		 * MS: left window, right window, menu
+		 * also Sun: left meta, right meta, compose
+		 */
+		0x5b, 0x5c, 0x5d,
+		/* Sun type 6 USB */
+		/* help, stop, again, props, undo, front, copy */
+		0x68, 0x5e, 0x5f, 0x60,	0x61, 0x62, 0x63,
+		/* open, paste, find, cut, audiomute, audiolower, audioraise */
+		0x64, 0x65, 0x66, 0x67, 0x25, 0x1f, 0x1e,
+		/* power */
+		0x20
+	};
+	int scancode;
+
+	scancode = keycode;
+	if ((keycode >= 89) && (keycode < 89 + sizeof(scan) / sizeof(scan[0])))
+	scancode = scan[keycode - 89] | SCAN_PREFIX_E0;
+	/* pause/break */
+	if ((keycode == 104) && !(shift & CTLS))
+		scancode = 0x45 | SCAN_PREFIX_E1 | SCAN_PREFIX_CTL;
+	if (shift & SHIFTS)
+		scancode &= ~SCAN_PREFIX_SHIFT;
+	return (scancode | (up ? SCAN_RELEASE : SCAN_PRESS));
+}
+#endif
 
 /* keyboard driver declaration */
 static int              akbd_configure(int flags);
@@ -468,6 +523,13 @@ akbd_check(keyboard_t *kbd)
 	sc = (struct adb_kbd_softc *)(kbd);
 
 	mtx_lock(&sc->sc_mutex);
+#ifdef AKBD_EMULATE_ATKBD
+		if (sc->at_buffered_char[0]) {
+			mtx_unlock(&sc->sc_mutex);
+			return (TRUE);
+		}
+#endif
+
 		if (sc->buffers > 0) {
 			mtx_unlock(&sc->sc_mutex);
 			return (TRUE); 
@@ -481,36 +543,89 @@ static u_int
 akbd_read_char(keyboard_t *kbd, int wait) 
 {
 	struct adb_kbd_softc *sc;
-	uint8_t adb_code, final_scancode;
+	uint16_t key;
+	uint8_t adb_code;
 	int i;
 
 	sc = (struct adb_kbd_softc *)(kbd);
 
 	mtx_lock(&sc->sc_mutex);
-		if (!sc->buffers && wait)
-			cv_wait(&sc->sc_cv,&sc->sc_mutex);
 
-		if (!sc->buffers) {
-			mtx_unlock(&sc->sc_mutex);
-			return (0);
+#if defined(AKBD_EMULATE_ATKBD)
+	if (sc->sc_mode == K_RAW && sc->at_buffered_char[0]) {
+		key = sc->at_buffered_char[0];
+		if (key & SCAN_PREFIX) {
+			sc->at_buffered_char[0] = key & ~SCAN_PREFIX;
+			key = (key & SCAN_PREFIX_E0) ? 0xe0 : 0xe1;
+		} else {
+			sc->at_buffered_char[0] = sc->at_buffered_char[1];
+			sc->at_buffered_char[1] = 0;
 		}
 
-		adb_code = sc->buffer[0];
+		mtx_unlock(&sc->sc_mutex);
 
-		for (i = 1; i < sc->buffers; i++)
-			sc->buffer[i-1] = sc->buffer[i];
+		return (key);
+	}
+#endif
 
-		sc->buffers--;
-	mtx_unlock(&sc->sc_mutex);
+	if (!sc->buffers && wait)
+		cv_wait(&sc->sc_cv,&sc->sc_mutex);
+
+	if (!sc->buffers) {
+		mtx_unlock(&sc->sc_mutex);
+		return (0);
+	}
+
+	adb_code = sc->buffer[0];
+
+	for (i = 1; i < sc->buffers; i++)
+		sc->buffer[i-1] = sc->buffer[i];
+
+	sc->buffers--;
 
 	#ifdef AKBD_EMULATE_ATKBD
-		final_scancode = adb_to_at_scancode_map[adb_code & 0x7f];
-		final_scancode |= adb_code & 0x80;
+		key = adb_to_at_scancode_map[adb_code & 0x7f];
+		if (sc->sc_mode == K_CODE) {
+			/* Add the key-release bit */
+			key |= adb_code & 0x80;
+		} else if (sc->sc_mode == K_RAW) {
+			/*
+			 * In the raw case, we have to emulate the gross
+			 * variable-length AT keyboard thing. Since this code
+			 * is copied from sunkbd, which is the same code
+			 * as ukbd, it might be nice to have this centralized.
+			 */
+
+			key = keycode2scancode(key, 
+			    0, adb_code & 0x80);
+
+			if (key & SCAN_PREFIX) {
+				if (key & SCAN_PREFIX_CTL) {
+					sc->at_buffered_char[0] =
+					    0x1d | (key & SCAN_RELEASE);
+					sc->at_buffered_char[1] =
+					    key & ~SCAN_PREFIX;
+				} else if (key & SCAN_PREFIX_SHIFT) {
+					sc->at_buffered_char[0] =
+					    0x2a | (key & SCAN_RELEASE);
+					sc->at_buffered_char[1] =
+					    key & ~SCAN_PREFIX_SHIFT;
+				} else {
+					sc->at_buffered_char[0] =
+					    key & ~SCAN_PREFIX;
+					sc->at_buffered_char[1] = 0;
+				}
+	
+				key = (key & SCAN_PREFIX_E0) ? 0xe0 : 0xe1;
+			}
+		}
 	#else
-		final_scancode = adb_code;
+		key = adb_code;
 	#endif
 
-	return (final_scancode);
+	mtx_unlock(&sc->sc_mutex);
+
+	return (key);
 }
 
 static int 
@@ -648,6 +763,20 @@ static int akbd_lock(keyboard_t *kbd, int lock)
 
 static void akbd_clear_state(keyboard_t *kbd)
 {
+	struct adb_kbd_softc *sc;
+
+	sc = (struct adb_kbd_softc *)(kbd);
+
+	mtx_lock(&sc->sc_mutex);
+
+	sc->buffers = 0;
+	callout_stop(&sc->sc_repeater);
+
+#if defined(AKBD_EMULATE_ATKBD)	
+	sc->at_buffered_char[0] = 0;
+	sc->at_buffered_char[1] = 0;
+#endif
+	mtx_unlock(&sc->sc_mutex);
 }
 
 static int akbd_get_state(keyboard_t *kbd, void *buf, size_t len)
