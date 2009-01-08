@@ -46,13 +46,19 @@ static int decode_win_cpu_valid(void);
 static int decode_win_usb_valid(void);
 static int decode_win_eth_valid(void);
 static int decode_win_pcie_valid(void);
+static int decode_win_sata_valid(void);
+static int decode_win_cesa_valid(void);
 
 static void decode_win_cpu_setup(void);
-static void decode_win_usb_setup(uint32_t ctrl);
+static void decode_win_usb_setup(void);
 static void decode_win_eth_setup(uint32_t base);
 static void decode_win_pcie_setup(uint32_t base);
+static void decode_win_sata_setup(void);
+static void decode_win_cesa_setup(void);
 
-static uint32_t dev, rev;
+static void decode_win_cesa_dump(void);
+static void decode_win_usb_dump(void);
+
 static uint32_t used_cpu_wins;
 
 uint32_t
@@ -81,6 +87,7 @@ cpu_reset(void)
 uint32_t
 cpu_extra_feat(void)
 {
+	uint32_t dev, rev;
 	uint32_t ef = 0;
 
 	soc_id(&dev, &rev);
@@ -178,22 +185,27 @@ soc_identify(void)
 int
 soc_decode_win(void)
 {
+	uint32_t dev, rev;
 
 	/* Retrieve our ID: some windows facilities vary between SoC models */
 	soc_id(&dev, &rev);
 
 	if (decode_win_cpu_valid() != 1 || decode_win_usb_valid() != 1 ||
 	    decode_win_eth_valid() != 1 || decode_win_idma_valid() != 1 ||
-	    decode_win_pcie_valid() != 1)
+	    decode_win_pcie_valid() != 1 || decode_win_sata_valid() != 1 ||
+	    decode_win_cesa_valid() != 1)
 		return(-1);
 
 	decode_win_cpu_setup();
-	decode_win_usb_setup(MV_USB0_BASE);
+	decode_win_usb_setup();
 	decode_win_eth_setup(MV_ETH0_BASE);
 	if (dev == MV_DEV_MV78100)
 		decode_win_eth_setup(MV_ETH1_BASE);
+	if (dev == MV_DEV_88F6281 || dev == MV_DEV_MV78100)
+		decode_win_cesa_setup();
 
 	decode_win_idma_setup();
+	decode_win_xor_setup();
 
 	if (dev == MV_DEV_MV78100) {
 		decode_win_pcie_setup(MV_PCIE00_BASE);
@@ -207,7 +219,8 @@ soc_decode_win(void)
 	} else
 		decode_win_pcie_setup(MV_PCIE_BASE);
 
-	/* TODO set up decode wins for SATA */
+	if (dev != MV_DEV_88F5281)
+		decode_win_sata_setup();
 
 	return (0);
 }
@@ -227,10 +240,15 @@ WIN_REG_IDX_WR(win_cpu, remap_h, MV_WIN_CPU_REMAP_HI, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_RD(ddr, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
 WIN_REG_IDX_RD(ddr, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
 
-WIN_REG_IDX_RD(win_usb, cr, MV_WIN_USB_CTRL, MV_USB_AWR_BASE)
-WIN_REG_IDX_RD(win_usb, br, MV_WIN_USB_BASE, MV_USB_AWR_BASE)
-WIN_REG_IDX_WR(win_usb, cr, MV_WIN_USB_CTRL, MV_USB_AWR_BASE)
-WIN_REG_IDX_WR(win_usb, br, MV_WIN_USB_BASE, MV_USB_AWR_BASE)
+WIN_REG_IDX_RD2(win_usb, cr, MV_WIN_USB_CTRL, MV_USB_AWR_BASE)
+WIN_REG_IDX_RD2(win_usb, br, MV_WIN_USB_BASE, MV_USB_AWR_BASE)
+WIN_REG_IDX_WR2(win_usb, cr, MV_WIN_USB_CTRL, MV_USB_AWR_BASE)
+WIN_REG_IDX_WR2(win_usb, br, MV_WIN_USB_BASE, MV_USB_AWR_BASE)
+
+WIN_REG_IDX_RD(win_cesa, cr, MV_WIN_CESA_CTRL, MV_CESA_BASE)
+WIN_REG_IDX_RD(win_cesa, br, MV_WIN_CESA_BASE, MV_CESA_BASE)
+WIN_REG_IDX_WR(win_cesa, cr, MV_WIN_CESA_CTRL, MV_CESA_BASE)
+WIN_REG_IDX_WR(win_cesa, br, MV_WIN_CESA_BASE, MV_CESA_BASE)
 
 WIN_REG_BASE_IDX_RD(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_RD(win_eth, sz, MV_WIN_ETH_SIZE)
@@ -238,6 +256,16 @@ WIN_REG_BASE_IDX_RD(win_eth, har, MV_WIN_ETH_REMAP)
 WIN_REG_BASE_IDX_WR(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_WR(win_eth, sz, MV_WIN_ETH_SIZE)
 WIN_REG_BASE_IDX_WR(win_eth, har, MV_WIN_ETH_REMAP)
+
+WIN_REG_IDX_RD2(win_xor, br, MV_WIN_XOR_BASE, MV_XOR_BASE)
+WIN_REG_IDX_RD2(win_xor, sz, MV_WIN_XOR_SIZE, MV_XOR_BASE)
+WIN_REG_IDX_RD2(win_xor, har, MV_WIN_XOR_REMAP, MV_XOR_BASE)
+WIN_REG_IDX_RD2(win_xor, ctrl, MV_WIN_XOR_CTRL, MV_XOR_BASE)
+WIN_REG_IDX_WR2(win_xor, br, MV_WIN_XOR_BASE, MV_XOR_BASE)
+WIN_REG_IDX_WR2(win_xor, sz, MV_WIN_XOR_SIZE, MV_XOR_BASE)
+WIN_REG_IDX_WR2(win_xor, har, MV_WIN_XOR_REMAP, MV_XOR_BASE)
+WIN_REG_IDX_WR2(win_xor, ctrl, MV_WIN_XOR_CTRL, MV_XOR_BASE)
+
 WIN_REG_BASE_RD(win_eth, bare, 0x290)
 WIN_REG_BASE_RD(win_eth, epap, 0x294)
 WIN_REG_BASE_WR(win_eth, bare, 0x290)
@@ -262,12 +290,18 @@ WIN_REG_IDX_WR(win_idma, cap, MV_WIN_IDMA_CAP, MV_IDMA_BASE)
 WIN_REG_RD(win_idma, bare, 0xa80, MV_IDMA_BASE)
 WIN_REG_WR(win_idma, bare, 0xa80, MV_IDMA_BASE)
 
+WIN_REG_IDX_RD(win_sata, cr, MV_WIN_SATA_CTRL, MV_SATAHC_BASE);
+WIN_REG_IDX_RD(win_sata, br, MV_WIN_SATA_BASE, MV_SATAHC_BASE);
+WIN_REG_IDX_WR(win_sata, cr, MV_WIN_SATA_CTRL, MV_SATAHC_BASE);
+WIN_REG_IDX_WR(win_sata, br, MV_WIN_SATA_BASE, MV_SATAHC_BASE);
+
 /**************************************************************************
  * Decode windows helper routines
  **************************************************************************/
 void
 soc_dump_decode_win(void)
 {
+	uint32_t dev, rev;
 	int i;
 
 	soc_id(&dev, &rev);
@@ -290,10 +324,6 @@ soc_dump_decode_win(void)
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
 		printf("DDR CS#%d: b 0x%08x, s 0x%08x\n", i,
 		    ddr_br_read(i), ddr_sz_read(i));
-	
-	for (i = 0; i < MV_WIN_USB_MAX; i++)
-		printf("USB window#%d: c 0x%08x, b 0x%08x\n", i,
-		    win_usb_cr_read(i), win_usb_br_read(i));
 
 	for (i = 0; i < MV_WIN_ETH_MAX; i++) {
 		printf("ETH window#%d: b 0x%08x, s 0x%08x", i,
@@ -311,6 +341,8 @@ soc_dump_decode_win(void)
 	    win_eth_epap_read(MV_ETH0_BASE));
 
 	decode_win_idma_dump();
+	decode_win_cesa_dump();
+	decode_win_usb_dump();
 	printf("\n");
 }
 
@@ -320,6 +352,9 @@ soc_dump_decode_win(void)
 int
 win_cpu_can_remap(int i)
 {
+	uint32_t dev, rev;
+
+	soc_id(&dev, &rev);
 
 	/* Depending on the SoC certain windows have remap capability */
 	if ((dev == MV_DEV_88F5182 && i < 2) ||
@@ -549,42 +584,69 @@ decode_win_usb_valid(void)
 	return (decode_win_can_cover_ddr(MV_WIN_USB_MAX));
 }
 
+static __inline int
+usb_max_ports(void)
+{
+	uint32_t dev, rev;
+
+	soc_id(&dev, &rev);
+	return (dev == MV_DEV_MV78100 ? 3 : 1);
+}
+
+static void
+decode_win_usb_dump(void)
+{
+	int i, p, m;
+
+	m = usb_max_ports();
+	for (p = 0; p < m; p++)
+		for (i = 0; i < MV_WIN_USB_MAX; i++)
+			printf("USB window#%d: c 0x%08x, b 0x%08x\n", i,
+			    win_usb_cr_read(i, p), win_usb_br_read(i, p));
+}
+
 /*
  * Set USB decode windows.
  */
 static void
-decode_win_usb_setup(uint32_t ctrl)
+decode_win_usb_setup(void)
 {
 	uint32_t br, cr;
-	int i, j;
+	int i, j, p, m;
 
-	/* Disable and clear all USB windows */
-	for (i = 0; i < MV_WIN_USB_MAX; i++) {
-		win_usb_cr_write(i, 0);
-		win_usb_br_write(i, 0);
-	}
+	/* Disable and clear all USB windows for all ports */
+	m = usb_max_ports();
+	for (p = 0; p < m; p++) {
 
-	/* Only access to active DRAM banks is required */
-	for (i = 0; i < MV_WIN_DDR_MAX; i++)
-		if (ddr_is_active(i)) {
-			br = ddr_base(i);
-			/*
-			 * XXX for 6281 we should handle Mbus write burst limit
-			 * field in the ctrl reg
-			 */
-			cr = (((ddr_size(i) - 1) & 0xffff0000) |
-			    (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1);
+		for (i = 0; i < MV_WIN_USB_MAX; i++) {
+			win_usb_cr_write(i, p, 0);
+			win_usb_br_write(i, p, 0);
+		}
 
-			/* Set the first free USB window */
-			for (j = 0; j < MV_WIN_USB_MAX; j++) {
-				if (win_usb_cr_read(j) & 0x1)
-					continue;
+		/* Only access to active DRAM banks is required */
+		for (i = 0; i < MV_WIN_DDR_MAX; i++) {
+			if (ddr_is_active(i)) {
+				br = ddr_base(i);
+				/*
+				 * XXX for 6281 we should handle Mbus write
+				 * burst limit field in the ctrl reg
+				 */
+				cr = (((ddr_size(i) - 1) & 0xffff0000) |
+				    (ddr_attr(i) << 8) |
+				    (ddr_target(i) << 4) | 1);
 
-				win_usb_br_write(j, br);
-				win_usb_cr_write(j, cr);
-				break;
+				/* Set the first free USB window */
+				for (j = 0; j < MV_WIN_USB_MAX; j++) {
+					if (win_usb_cr_read(j, p) & 0x1)
+						continue;
+
+					win_usb_br_write(j, p, br);
+					win_usb_cr_write(j, p, cr);
+					break;
+				}
 			}
 		}
+	}
 }
 
 /**************************************************************************
@@ -934,7 +996,7 @@ decode_win_idma_valid(void)
 		j = decode_win_overlap(i, idma_wins_no, &idma_wins[0]);
 		if (j >= 0) {
 			printf("IDMA window#%d: (0x%08x - 0x%08x) overlaps "
-			    "with " "#%d (0x%08x - 0x%08x)\n", i, b, e, j,
+			    "with #%d (0x%08x - 0x%08x)\n", i, b, e, j,
 			    idma_wins[j].base,
 			    idma_wins[j].base + idma_wins[j].size - 1);
 			rv = 0;
@@ -983,3 +1045,413 @@ decode_win_idma_dump(void)
 {
 }
 #endif
+
+/**************************************************************************
+ * XOR windows routines
+ **************************************************************************/
+#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+static int
+xor_ctrl_read(int i, int c, int e)
+{
+	uint32_t v;
+	v = win_xor_ctrl_read(c, e);
+	v &= (1 << i);
+
+	return (v >> i);
+}
+
+static void
+xor_ctrl_write(int i, int c, int e, int val)
+{
+	uint32_t v;
+
+	v = win_xor_ctrl_read(c, e);
+	v &= ~(1 << i);
+	v |= (val << i);
+	win_xor_ctrl_write(c, e, v);
+}
+
+/*
+ * Set channel protection 'val' for window 'w' on channel 'c'
+ */
+
+static void
+xor_chan_write(int c, int e, int w, int val)
+{
+	uint32_t v;
+
+	v = win_xor_ctrl_read(c, e);
+	v &= ~(0x3 << (w * 2 + 16));
+	v |= (val << (w * 2 + 16));
+	win_xor_ctrl_write(c, e, v);
+}
+
+/*
+ * Set protection 'val' on all channels for window 'w' on engine 'e'
+ */
+static void
+xor_set_prot(int w, int e, int val)
+{
+	int c;
+
+	for (c = 0; c < MV_XOR_CHAN_MAX; c++)
+		xor_chan_write(c, e, w, val);
+}
+
+static int
+win_xor_can_remap(int i)
+{
+
+	/* XOR decode windows 0-3 have remap capability */
+	if (i < 4)
+		return (1);
+
+	return (0);
+}
+
+static __inline int
+xor_max_eng(void)
+{
+	uint32_t dev, rev;
+
+	soc_id(&dev, &rev);
+	return ((dev == MV_DEV_88F6281) ? 2 :
+	    (dev == MV_DEV_MV78100) ? 1 : 0);
+}
+
+static void
+xor_active_dram(int c, int e, int *window)
+{
+	uint32_t br, sz;
+	int i, m, w;
+
+	/*
+	 * Set up access to all active DRAM banks
+	 */
+	m = xor_max_eng();
+	for (i = 0; i < m; i++)
+		if (ddr_is_active(i)) {
+			br = ddr_base(i) | (ddr_attr(i) << 8) |
+			    ddr_target(i);
+			sz = ((ddr_size(i) - 1) & 0xffff0000);
+
+			/* Place DDR entries in non-remapped windows */
+			for (w = 0; w < MV_WIN_XOR_MAX; w++)
+				if (win_xor_can_remap(w) != 1 &&
+				    (xor_ctrl_read(w, c, e) == 0) &&
+				    w > *window) {
+					/* Configure window */
+					win_xor_br_write(w, e, br);
+					win_xor_sz_write(w, e, sz);
+
+					/* Set protection RW on all channels */
+					xor_set_prot(w, e, 0x3);
+
+					/* Enable window */
+					xor_ctrl_write(w, c, e, 1);
+					(*window)++;
+					break;
+				}
+		}
+}
+
+void
+decode_win_xor_setup(void)
+{
+	uint32_t br, sz;
+	int i, j, z, e = 1, m, window;
+
+	/*
+	 * Disable and clear all XOR windows, revoke protection for all
+	 * channels
+	 */
+	m = xor_max_eng();
+	for (j = 0; j < m; j++, e--) {
+
+		/* Number of non-remaped windows */
+		window = MV_XOR_NON_REMAP - 1;
+
+		for (i = 0; i < MV_WIN_XOR_MAX; i++) {
+			win_xor_br_write(i, e, 0);
+			win_xor_sz_write(i, e, 0);
+		}
+
+		if (win_xor_can_remap(i) == 1)
+			win_xor_har_write(i, e, 0);
+
+		for (i = 0; i < MV_XOR_CHAN_MAX; i++) {
+			win_xor_ctrl_write(i, e, 0);
+			xor_active_dram(i, e, &window);
+		}
+
+		/*
+		 * Remaining targets -- from a statically defined table
+		 */
+		for (i = 0; i < xor_wins_no; i++)
+			if (xor_wins[i].target > 0) {
+				br = (xor_wins[i].base & 0xffff0000) |
+				    (xor_wins[i].attr << 8) |
+				    xor_wins[i].target;
+				sz = ((xor_wins[i].size - 1) & 0xffff0000);
+
+				/* Set the first free XOR window */
+				for (z = 0; z < MV_WIN_XOR_MAX; z++) {
+					if (xor_ctrl_read(z, 0, e) &&
+					    xor_ctrl_read(z, 1, e))
+						continue;
+
+					/* Configure window */
+					win_xor_br_write(z, e, br);
+					win_xor_sz_write(z, e, sz);
+					if (win_xor_can_remap(z) &&
+					    xor_wins[z].remap >= 0)
+						win_xor_har_write(z, e,
+						    xor_wins[z].remap);
+
+					/* Set protection RW on all channels */
+					xor_set_prot(z, e, 0x3);
+
+					/* Enable window */
+					xor_ctrl_write(z, 0, e, 1);
+					xor_ctrl_write(z, 1, e, 1);
+					break;
+				}
+			}
+	}
+}
+
+int
+decode_win_xor_valid(void)
+{
+	const struct decode_win *wintab;
+	int c, i, j, rv;
+	uint32_t b, e, s;
+
+	if (xor_wins_no > MV_WIN_XOR_MAX) {
+		printf("XOR windows: too many entries: %d\n", xor_wins_no);
+		return (-1);
+	}
+	for (i = 0, c = 0; i < MV_WIN_DDR_MAX; i++)
+		if (ddr_is_active(i))
+			c++;
+
+	if (xor_wins_no > (MV_WIN_XOR_MAX - c)) {
+		printf("XOR windows: too many entries: %d, available: %d\n",
+		    xor_wins_no, MV_WIN_IDMA_MAX - c);
+		return (-1);
+	}
+
+	wintab = xor_wins;
+	rv = 1;
+	for (i = 0; i < xor_wins_no; i++, wintab++) {
+
+		if (wintab->target == 0) {
+			printf("XOR window#%d: DDR target window is not "
+			    "supposed to be reprogrammed!\n", i);
+			rv = 0;
+		}
+
+		if (wintab->remap >= 0 && win_cpu_can_remap(i) != 1) {
+			printf("XOR window#%d: not capable of remapping, but "
+			    "val 0x%08x defined\n", i, wintab->remap);
+			rv = 0;
+		}
+
+		s = wintab->size;
+		b = wintab->base;
+		e = b + s - 1;
+		if (s > (0xFFFFFFFF - b + 1)) {
+			/*
+			 * XXX this boundary check should account for 64bit
+			 * and remapping..
+			 */
+			printf("XOR window#%d: no space for size 0x%08x at "
+			    "0x%08x\n", i, s, b);
+			rv = 0;
+			continue;
+		}
+
+		j = decode_win_overlap(i, xor_wins_no, &xor_wins[0]);
+		if (j >= 0) {
+			printf("XOR window#%d: (0x%08x - 0x%08x) overlaps "
+			    "with #%d (0x%08x - 0x%08x)\n", i, b, e, j,
+			    xor_wins[j].base,
+			    xor_wins[j].base + xor_wins[j].size - 1);
+			rv = 0;
+		}
+	}
+
+	return (rv);
+}
+
+void
+decode_win_xor_dump(void)
+{
+	int i, j;
+	int e = 1;
+
+	for (j = 0; j < xor_max_eng(); j++, e--) {
+		for (i = 0; i < MV_WIN_XOR_MAX; i++) {
+			printf("XOR window#%d: b 0x%08x, s 0x%08x", i,
+			    win_xor_br_read(i, e), win_xor_sz_read(i, e));
+
+			if (win_xor_can_remap(i))
+				printf(", ha 0x%08x", win_xor_har_read(i, e));
+
+			printf("\n");
+		}
+		for (i = 0; i < MV_XOR_CHAN_MAX; i++)
+			printf("XOR control#%d: 0x%08x\n", i,
+			    win_xor_ctrl_read(i, e));
+	}
+}
+
+#else
+/* Provide dummy functions to satisfy the build for SoCs not equipped with XOR */
+int
+decode_win_xor_valid(void)
+{
+
+	return (1);
+}
+
+void
+decode_win_xor_setup(void)
+{
+}
+
+void
+decode_win_xor_dump(void)
+{
+}
+#endif
+
+/**************************************************************************
+ * CESA TDMA windows routines
+ **************************************************************************/
+#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+/*
+ * Dump CESA TDMA decode windows.
+ */
+static void
+decode_win_cesa_dump(void)
+{
+	int i;
+
+	for (i = 0; i < MV_WIN_CESA_MAX; i++)
+		printf("CESA window#%d: c 0x%08x, b 0x%08x\n", i,
+		    win_cesa_cr_read(i), win_cesa_br_read(i));
+}
+
+
+/*
+ * Set CESA TDMA decode windows.
+ */
+static void
+decode_win_cesa_setup(void)
+{
+	uint32_t br, cr;
+	int i, j;
+
+	/* Disable and clear all CESA windows */
+	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
+		win_cesa_cr_write(i, 0);
+		win_cesa_br_write(i, 0);
+	}
+
+	/* Only access to active DRAM banks is required. */
+	for (i = 0; i < MV_WIN_DDR_MAX; i++)
+		if (ddr_is_active(i)) {
+			br = ddr_base(i);
+			cr = (((ddr_size(i) - 1) & 0xffff0000) |
+			   (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1);
+
+			/* Set the first available CESA window */
+			for (j = 0; j < MV_WIN_CESA_MAX; j++) {
+				if (win_cesa_cr_read(j) & 0x1)
+					continue;
+
+				win_cesa_br_write(j, br);
+				win_cesa_cr_write(j, cr);
+				break;
+			}
+		}
+}
+
+/*
+ * Check CESA TDMA decode windows.
+ */
+static int
+decode_win_cesa_valid(void)
+{
+
+	return (decode_win_can_cover_ddr(MV_WIN_CESA_MAX));
+}
+#else
+
+/*
+ * Provide dummy functions to satisfy the build for SoCs not equipped with
+ * CESA
+ */
+
+int
+decode_win_cesa_valid(void)
+{
+
+	return (1);
+}
+
+void
+decode_win_cesa_setup(void)
+{
+}
+
+void
+decode_win_cesa_dump(void)
+{
+}
+#endif
+
+/**************************************************************************
+ * SATA windows routines
+ **************************************************************************/
+static void
+decode_win_sata_setup(void)
+{
+	uint32_t cr, br;
+	int i, j;
+
+	for (i = 0; i < MV_WIN_SATA_MAX; i++) {
+		win_sata_cr_write(i, 0);
+		win_sata_br_write(i, 0);
+	}
+
+	for (i = 0; i < MV_WIN_DDR_MAX; i++)
+		if (ddr_is_active(i)) {
+			cr = ((ddr_size(i) - 1) & 0xffff0000) |
+			    (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1;
+			br = ddr_base(i);
+
+			/* Use the first available SATA window */
+			for (j = 0; j < MV_WIN_SATA_MAX; j++) {
+				if ((win_sata_cr_read(j) & 1) != 0)
+					continue;
+
+				win_sata_br_write(j, br);
+				win_sata_cr_write(j, cr);
+				break;
+			}
+		}
+}
+
+static int
+decode_win_sata_valid(void)
+{
+	uint32_t dev, rev;
+
+	soc_id(&dev, &rev);
+	if (dev == MV_DEV_88F5281)
+		return (1);
+
+	return (decode_win_can_cover_ddr(MV_WIN_SATA_MAX));
+}

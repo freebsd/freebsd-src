@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/bus.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
@@ -146,11 +147,43 @@ int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin)
 	 * away once we set up GPIO in a generic way in a proper place (TBD).
 	 */
 	if (irq >= 0)
-		mv_gpio_configure(IRQ2GPIO(irq), MV_GPIO_POLARITY |
+		mv_gpio_configure(IRQ2GPIO(irq), MV_GPIO_POLAR_LOW |
 		    MV_GPIO_LEVEL, ~0u);
 
 	return (irq);
 }
+
+/*
+ * mv_gpio_config row structure:
+ *	<GPIO number>, <GPIO flags>, <GPIO mode>
+ *
+ * - GPIO pin number (less than zero marks end of table)
+ * - GPIO flags:
+ *	MV_GPIO_BLINK
+ *	MV_GPIO_POLAR_LOW
+ *	MV_GPIO_EDGE
+ *	MV_GPIO_LEVEL
+ * - GPIO mode:
+ *	1	- Output, set to HIGH.
+ *	0	- Output, set to LOW.
+ *	-1	- Input.
+ */
+
+/* GPIO Configuration for DB-88F5281 */
+const struct gpio_config mv_gpio_config[] = {
+	{ 12, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ 13, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ -1, -1, -1 }
+};
+
+#if 0
+/* GPIO Configuration for DB-88F5182 */
+const struct gpio_config mv_gpio_config[] = {
+	{ 0, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ 1, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ -1, -1, -1 }
+};
+#endif
 
 int
 platform_pmap_init(void)
@@ -160,6 +193,63 @@ platform_pmap_init(void)
 	pmap_devmap_bootstrap_table = &pmap_devmap[0];
 
 	return (0);
+}
+
+void
+platform_mpp_init(void)
+{
+
+	/*
+	 * MPP configuration for DB-88F5281
+	 *
+	 * MPP[2]:  PCI_REQn[3]
+	 * MPP[3]:  PCI_GNTn[3]
+	 * MPP[4]:  PCI_REQn[4]
+	 * MPP[5]:  PCI_GNTn[4]
+	 * MPP[6]:  <UNKNOWN>
+	 * MPP[7]:  <UNKNOWN>
+	 * MPP[8]:  <UNKNOWN>
+	 * MPP[9]:  <UNKNOWN>
+	 * MPP[14]: NAND Flash REn[2]
+	 * MPP[15]: NAND Flash WEn[2]
+	 * MPP[16]: UA1_RXD
+	 * MPP[17]: UA1_TXD
+	 * MPP[18]: UA1_CTS
+	 * MPP[19]: UA1_RTS
+	 *
+	 * Others:  GPIO
+	 *
+	 * <UNKNOWN> entries are not documented, not on the schematics etc.
+	 */
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL0, 0x33222203);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL1, 0x44000033);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL2, 0x00000000);
+
+#if 0
+	/*
+	 * MPP configuration for DB-88F5182
+	 *
+	 * MPP[2]:  PCI_REQn[3]
+	 * MPP[3]:  PCI_GNTn[3]
+	 * MPP[4]:  PCI_REQn[4]
+	 * MPP[5]:  PCI_GNTn[4]
+	 * MPP[6]:  SATA0_ACT
+	 * MPP[7]:  SATA1_ACT
+	 * MPP[12]: SATA0_PRESENT
+	 * MPP[13]: SATA1_PRESENT
+	 * MPP[14]: NAND_FLASH_REn[2]
+	 * MPP[15]: NAND_FLASH_WEn[2]
+	 * MPP[16]: UA1_RXD
+	 * MPP[17]: UA1_TXD
+	 * MPP[18]: UA1_CTS
+	 * MPP[19]: UA1_RTS
+	 *
+	 * Others:  GPIO
+	 */
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL0, 0x55222203);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL1, 0x44550000);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL2, 0x00000000);
+#endif
 }
 
 static void
@@ -174,7 +264,3 @@ platform_identify(void *dummy)
 	 */
 }
 SYSINIT(platform_identify, SI_SUB_CPU, SI_ORDER_SECOND, platform_identify, NULL);
-
-/*
- * TODO routine setting GPIO/MPP pins 
- */

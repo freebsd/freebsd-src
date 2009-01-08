@@ -86,6 +86,12 @@ struct obio_pci {
 	int		op_irq;		/* used if callback is NULL */
 };
 
+struct gpio_config {
+	int		gc_gpio;	/* GPIO number */
+	uint32_t	gc_flags;	/* GPIO flags */
+	int		gc_output;	/* GPIO output value */
+};
+
 struct decode_win {
 	int		target;		/* Mbus unit ID */
 	int		attr;		/* Attributes of the target interface */
@@ -95,12 +101,15 @@ struct decode_win {
 };
 
 extern const struct obio_pci mv_pci_info[];
+extern const struct gpio_config mv_gpio_config[];
 extern bus_space_tag_t obio_tag;
 extern struct obio_device obio_devices[];
 extern const struct decode_win *cpu_wins;
 extern const struct decode_win *idma_wins;
+extern const struct decode_win *xor_wins;
 extern int cpu_wins_no;
 extern int idma_wins_no;
+extern int xor_wins_no;
 
 /* Function prototypes */
 int mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
@@ -112,6 +121,7 @@ void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
 uint8_t mv_gpio_in(uint32_t pin);
 
 int platform_pmap_init(void);
+void platform_mpp_init(void);
 int soc_decode_win(void);
 void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_identify(void);
@@ -126,6 +136,10 @@ int win_cpu_can_remap(int);
 void decode_win_idma_dump(void);
 void decode_win_idma_setup(void);
 int decode_win_idma_valid(void);
+
+void decode_win_xor_dump(void);
+void decode_win_xor_setup(void);
+int decode_win_xor_valid(void);
 
 int ddr_is_active(int i);
 uint32_t ddr_base(int i);
