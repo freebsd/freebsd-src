@@ -103,6 +103,16 @@ struct obio_device obio_devices[] = {
 		{ -1 },
 		CPU_PM_CTRL_USB0 | CPU_PM_CTRL_USB1 | CPU_PM_CTRL_USB2
 	},
+	{ "ehci", MV_USB1_BASE, MV_USB_SIZE,
+		{ MV_INT_USB_ERR, MV_INT_USB1, -1 },
+		{ -1 },
+		CPU_PM_CTRL_USB0 | CPU_PM_CTRL_USB1 | CPU_PM_CTRL_USB2
+	},
+	{ "ehci", MV_USB2_BASE, MV_USB_SIZE,
+		{ MV_INT_USB_ERR, MV_INT_USB2, -1 },
+		{ -1 },
+		CPU_PM_CTRL_USB0 | CPU_PM_CTRL_USB1 | CPU_PM_CTRL_USB2
+	},
 	{ "mge", MV_ETH0_BASE, MV_ETH_SIZE,
 		{ MV_INT_GBERX, MV_INT_GBETX, MV_INT_GBEMISC,
 		  MV_INT_GBESUM, MV_INT_GBE_ERR, -1 },
@@ -177,7 +187,7 @@ const struct obio_pci mv_pci_info[] = {
 	{ 0, 0, 0 }
 };
 
-struct resource_spec mv_gpio_spec[] = {
+struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -186,7 +196,7 @@ struct resource_spec mv_gpio_spec[] = {
 	{ -1, 0 }
 };
 
-struct resource_spec mv_xor_spec[] = {
+struct resource_spec mv_xor_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -206,6 +216,9 @@ const struct decode_win cpu_win_tbl[] = {
 
 	/* Device bus CS2 */
 	{ 1, 0x3b, MV_DEV_CS2_PHYS_BASE, MV_DEV_CS2_SIZE, -1 },
+
+	/* CESA */
+	{ 9, 0x01, MV_CESA_SRAM_PHYS_BASE, MV_CESA_SRAM_SIZE, -1 },
 };
 const struct decode_win *cpu_wins = cpu_win_tbl;
 int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
@@ -226,6 +239,14 @@ const struct decode_win idma_win_tbl[] = {
 };
 const struct decode_win *idma_wins = idma_win_tbl;
 int idma_wins_no = sizeof(idma_win_tbl) / sizeof(struct decode_win);
+
+const struct decode_win xor_win_tbl[] = {
+	/* PCIE MEM */
+	{ 4, 0xE8, _MV_PCIE_MEM_PHYS(0), _MV_PCIE_MEM_SIZE, -1},
+	{ 4, 0xD8, _MV_PCIE_MEM_PHYS(1), _MV_PCIE_MEM_SIZE, -1},
+};
+const struct decode_win *xor_wins = xor_win_tbl;
+int xor_wins_no = sizeof(xor_win_tbl) / sizeof(struct decode_win);
 
 uint32_t
 get_tclk(void)

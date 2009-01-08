@@ -74,8 +74,12 @@
 #define MV_DEV_CS2_PHYS_BASE	(MV_DEV_CS1_PHYS_BASE + MV_DEV_CS1_SIZE)
 #define MV_DEV_CS2_SIZE	1024	/* XXX u-boot has 1MB */
 
+#define MV_CESA_SRAM_PHYS_BASE	0xFD000000
+#define MV_CESA_SRAM_BASE	MV_CESA_SRAM_PHYS_BASE /* VA == PA mapping */
+#define MV_CESA_SRAM_SIZE	(1024 * 1024)
+
 /* XXX this is probably not robust against wraparounds... */
-#if ((MV_DEV_CS2_PHYS_BASE + MV_DEV_CS2_SIZE) > 0xFFFEFFFF)
+#if ((MV_CESA_SRAM_PHYS_BASE + MV_CESA_SRAM_SIZE) > 0xFFFEFFFF)
 #error Devices memory layout overlaps reset vectors range!
 #endif
 
@@ -103,6 +107,12 @@
 #define MV_TIMERS_SIZE		0x30
 #define MV_PCI_BASE		(MV_BASE + 0x30000)
 #define MV_PCI_SIZE		0x2000
+#if defined (SOC_MV_KIRKWOOD)
+#define MV_CESA_BASE		(MV_BASE + 0x30000) /* CESA,PCI don't coexist */
+#elif defined (SOC_MV_ORION) || defined(SOC_MV_DISCOVERY)
+#define MV_CESA_BASE		(MV_BASE + 0x90000)
+#endif
+#define MV_CESA_SIZE		0x10000
 #define MV_PCIE_BASE		(MV_BASE + 0x40000)
 #define MV_PCIE_SIZE		0x2000
 
@@ -128,6 +138,13 @@
 #define MV_ETH0_BASE		(MV_BASE + 0x72000)
 #define MV_ETH1_BASE		(MV_BASE + 0x76000)
 #define MV_ETH_SIZE		0x2000
+#if defined(SOC_MV_ORION) || defined(SOC_MV_KIRKWOOD)
+#define MV_SATAHC_BASE		(MV_BASE + 0x80000)
+#define MV_SATAHC_SIZE		0x6000
+#elif defined(SOC_MV_DISCOVERY)
+#define MV_SATAHC_BASE		(MV_BASE + 0xA0000)
+#define MV_SATAHC_SIZE		0x6000
+#endif
 
 #define MV_DEV_CS0_BASE	MV_DEV_CS0_PHYS_BASE
 
@@ -178,6 +195,7 @@
 #define MV_INT_GBE1MISC		18	/* GbE1 misc. interrupt */
 #define MV_INT_USB_CI		19	/* USB Controller interrupt */
 #define MV_INT_SATA		21	/* Serial-ATA Interrupt */
+#define MV_INT_CESA		22	/* Security engine completion int. */
 #define MV_INT_IDMA_ERR		23	/* DMA error interrupt */
 #define MV_INT_UART0		33	/* UART0 Interrupt */
 #define MV_INT_UART1		34
@@ -216,7 +234,7 @@
 #define MV_INT_USB0		16	/* USB0 interrupt */
 #define MV_INT_USB1		17	/* USB1 interrupt */
 #define MV_INT_USB2		18	/* USB2 interrupt */
-#define MV_INT_CRYPTO		19	/* Crypto engine completion interrupt */
+#define MV_INT_CESA		19	/* Crypto engine completion interrupt */
 #define MV_INT_XOR0		22	/* XOR engine 0 completion interrupt */
 #define MV_INT_XOR1		23	/* XOR engine 1 completion interrupt */
 #define MV_INT_SATA		26	/* SATA interrupt */
@@ -394,7 +412,7 @@
 #define MV_GPIO_MAX_NPINS	64
 
 #define MV_GPIO_BLINK		0x1
-#define MV_GPIO_POLARITY	0x2
+#define MV_GPIO_POLAR_LOW	0x2
 #define MV_GPIO_EDGE		0x4
 #define MV_GPIO_LEVEL		0x8
 
@@ -476,8 +494,12 @@
 #define MV_WIN_DDR_SIZE(n)		(0x8 * (n) + 0x4)
 #define MV_WIN_DDR_MAX			4
 
-#define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x0)
-#define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x4)
+#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xa04)
+#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xa00)
+#define MV_WIN_CESA_MAX			4
+
+#define MV_WIN_USB_CTRL(n, m)		(0x10 * (n) + (m) * 0x1000 + 0x0)
+#define MV_WIN_USB_BASE(n, m)		(0x10 * (n) + (m) * 0x1000 + 0x4)
 #define MV_WIN_USB_MAX			4
 
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
@@ -492,6 +514,15 @@
 #define MV_WIN_IDMA_MAX			8
 #define MV_IDMA_CHAN_MAX		4
 
+#define MV_WIN_XOR_BASE(n, m)		(0x4 * (n) + 0xa50 + (m) * 0x100)
+#define MV_WIN_XOR_SIZE(n, m)		(0x4 * (n) + 0xa70 + (m) * 0x100)
+#define MV_WIN_XOR_REMAP(n, m)		(0x4 * (n) + 0xa90 + (m) * 0x100)
+#define MV_WIN_XOR_CTRL(n, m)		(0x4 * (n) + 0xa40 + (m) * 0x100)
+#define MV_WIN_XOR_OVERR(n, m)		(0x4 * (n) + 0xaa0 + (m) * 0x100)
+#define MV_WIN_XOR_MAX			8
+#define MV_XOR_CHAN_MAX			2
+#define MV_XOR_NON_REMAP		4
+
 #define MV_WIN_PCIE_CTRL(n)		(0x10 * (((n) < 5) ? (n) : \
 					    (n) + 1) + 0x1820)
 #define MV_WIN_PCIE_BASE(n)		(0x10 * (((n) < 5) ? (n) : \
@@ -503,12 +534,23 @@
 #define MV_PCIE_BAR(n)			(0x04 * (n) + 0x1804)
 #define MV_PCIE_BAR_MAX			3
 
+#define	MV_WIN_SATA_CTRL(n)		(0x10 * (n) + 0x30)
+#define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x34)
+#define	MV_WIN_SATA_MAX			4
+
 #define WIN_REG_IDX_RD(pre,reg,off,base)					\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(int i)						\
 	{									\
 		return (bus_space_read_4(obio_tag, base, off(i)));		\
 	}
+
+#define WIN_REG_IDX_RD2(pre,reg,off,base)					\
+	static  __inline uint32_t						\
+	pre ## _ ## reg ## _read(int i, int j)					\
+	{									\
+		return (bus_space_read_4(obio_tag, base, off(i, j)));		\
+	}									\
 
 #define WIN_REG_BASE_IDX_RD(pre,reg,off)					\
 	static __inline uint32_t						\
@@ -522,6 +564,13 @@
 	pre ## _ ## reg ## _write(int i, uint32_t val)				\
 	{									\
 		bus_space_write_4(obio_tag, base, off(i), val);			\
+	}
+
+#define WIN_REG_IDX_WR2(pre,reg,off,base)					\
+	static __inline void							\
+	pre ## _ ## reg ## _write(int i, int j, uint32_t val)			\
+	{									\
+		bus_space_write_4(obio_tag, base, off(i, j), val);		\
 	}
 
 #define WIN_REG_BASE_IDX_WR(pre,reg,off)					\
