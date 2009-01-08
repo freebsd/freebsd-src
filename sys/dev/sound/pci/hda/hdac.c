@@ -2443,9 +2443,10 @@ hdac_widget_pin_parse(struct hdac_widget *w)
 {
 	struct hdac_softc *sc = w->devinfo->codec->sc;
 	uint32_t config, pincap;
-	const char *devstr, *connstr;
+	const char *devstr;
 	nid_t cad = w->devinfo->codec->cad;
 	nid_t nid = w->nid;
+	int conn, color;
 
 	config = hdac_widget_pin_getconfig(w);
 	w->wclass.pin.config = config;
@@ -2467,13 +2468,19 @@ hdac_widget_pin_parse(struct hdac_widget *w)
 	devstr = HDA_DEVS[(config & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) >>
 	    HDA_CONFIG_DEFAULTCONF_DEVICE_SHIFT];
 
-	connstr = HDA_CONNS[(config & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) >>
-	    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT];
+	conn = (config & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) >>
+	    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT;
+	color = (config & HDA_CONFIG_DEFAULTCONF_COLOR_MASK) >>
+	    HDA_CONFIG_DEFAULTCONF_COLOR_SHIFT;
 
 	strlcat(w->name, ": ", sizeof(w->name));
 	strlcat(w->name, devstr, sizeof(w->name));
 	strlcat(w->name, " (", sizeof(w->name));
-	strlcat(w->name, connstr, sizeof(w->name));
+	if (conn == 0 && color != 0 && color != 15) {
+		strlcat(w->name, HDA_COLORS[color], sizeof(w->name));
+		strlcat(w->name, " ", sizeof(w->name));
+	}
+	strlcat(w->name, HDA_CONNS[conn], sizeof(w->name));
 	strlcat(w->name, ")", sizeof(w->name));
 }
 
