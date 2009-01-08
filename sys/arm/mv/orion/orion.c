@@ -112,7 +112,7 @@ const struct obio_pci mv_pci_info[] = {
 	{ 0, 0, 0 }
 };
 
-struct resource_spec mv_gpio_spec[] = {
+struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
