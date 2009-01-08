@@ -588,7 +588,8 @@ static void
 usb2_com_close(struct tty *tp)
 {
 	struct usb2_com_softc *sc = tty_softc(tp);
-
+	struct usb2_com_super_softc *ssc = sc->sc_super;
+	
 	mtx_assert(sc->sc_parent_mtx, MA_OWNED);
 
 	DPRINTF("tp=%p\n", tp);
@@ -600,6 +601,7 @@ usb2_com_close(struct tty *tp)
 	usb2_com_shutdown(sc);
 
 	usb2_com_queue_command(sc, &usb2_com_cfg_close, 0);
+	usb2_config_td_sync(&ssc->sc_config_td);
 
 	sc->sc_flag &= ~(UCOM_FLAG_HL_READY |
 	    UCOM_FLAG_WR_START |
