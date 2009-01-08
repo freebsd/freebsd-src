@@ -405,15 +405,29 @@
 /*
  * MPP
  */
+#if defined(SOC_MV_ORION)
 #define MPP_CONTROL0		0x00
 #define MPP_CONTROL1		0x04
 #define MPP_CONTROL2		0x50
-#define DEVICE_MULTIPLEX	0x08
+#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+#define MPP_CONTROL0		0x00
+#define MPP_CONTROL1		0x04
+#define MPP_CONTROL2		0x08
+#define MPP_CONTROL3		0x0C
+#define MPP_CONTROL4		0x10
+#define MPP_CONTROL5		0x14
+#define MPP_CONTROL6		0x18
+#else
+#error SOC_MV_XX not defined
+#endif
 
 #if defined(SOC_MV_ORION)
 #define SAMPLE_AT_RESET		0x10
-#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+#elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
+#elif defined(SOC_MV_DISCOVERY)
+#define SAMPLE_AT_RESET_LO	0x30
+#define SAMPLE_AT_RESET_HI	0x34
 #else
 #error SOC_MV_XX not defined
 #endif
@@ -421,14 +435,12 @@
 /*
  * Clocks
  */
-#ifdef SOC_MV_ORION
-#define TCLK_MASK		0x300
-#define TCLK_SHIFT		0x8
-#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-#define TCLK_MASK		0x30000
-#define TCLK_SHIFT		0x10
-#else
-#error SOC_MV_XX not defined
+#if defined(SOC_MV_ORION)
+#define TCLK_MASK		0x00000300
+#define TCLK_SHIFT		0x08
+#elif defined(SOC_MV_DISCOVERY)
+#define TCLK_MASK		0x00000180
+#define TCLK_SHIFT		0x07
 #endif
 
 #define TCLK_100MHZ		100000000
