@@ -254,6 +254,10 @@ atapi_cam_detach(device_t dev)
     struct atapi_xpt_softc *scp = device_get_softc(dev);
 
     mtx_lock(&scp->state_lock);
+    if (xpt_sim_opened(scp->sim)) {
+	    mtx_unlock(&scp->state_lock);
+	    return (EBUSY);
+    }
     xpt_freeze_simq(scp->sim, 1 /*count*/);
     scp->flags |= DETACHING;
     mtx_unlock(&scp->state_lock);
