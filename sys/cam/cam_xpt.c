@@ -2642,6 +2642,39 @@ xptbustraverse(struct cam_eb *start_bus, xpt_busfunc_t *tr_func, void *arg)
 	return(retval);
 }
 
+int
+xpt_sim_opened(struct cam_sim *sim)
+{
+	struct cam_eb *bus;
+	struct cam_et *target;
+	struct cam_ed *device;
+	struct cam_periph *periph;
+
+	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
+	mtx_assert(sim->mtx, MA_OWNED);
+
+	mtx_lock(&xsoftc.xpt_topo_lock);
+	TAILQ_FOREACH(bus, &xsoftc.xpt_busses, links) {
+		if (bus->sim != sim)
+			continue;
+
+		TAILQ_FOREACH(target, &bus->et_entries, links) {
+			TAILQ_FOREACH(device, &target->ed_entries, links) {
+				SLIST_FOREACH(periph, &device->periphs,
+				    periph_links) {
+					if (periph->refcount > 0) {
+						mtx_unlock(&xsoftc.xpt_topo_lock);
+						return (1);
+					}
+				}
+			}
+		}
+	}
+
+	mtx_unlock(&xsoftc.xpt_topo_lock);
+	return (0);
+}
+
 static int
 xpttargettraverse(struct cam_eb *bus, struct cam_et *start_target,
 		  xpt_targetfunc_t *tr_func, void *arg)
@@ -4277,7 +4310,7 @@ xpt_release_ccb(union ccb *free_ccb)
  * for this new bus and places it in the array of busses and assigns
  * it a path_id.  The path_id may be influenced by "hard wiring"
  * information specified by the user.  Once interrupt services are
- * availible, the bus will be probed.
+ * available, the bus will be probed.
  */
 int32_t
 xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
