@@ -104,17 +104,6 @@ soc_power_ctrl_get(uint32_t mask)
 	return (mask);
 }
 
-uint32_t
-get_tclk(void)
-{
-
-#if defined(SOC_MV_DISCOVERY)
-	return (TCLK_200MHZ);
-#else
-	return (TCLK_166MHZ);
-#endif
-}
-
 void
 soc_id(uint32_t *dev, uint32_t *rev)
 {
@@ -165,6 +154,10 @@ soc_identify(void)
 		break;
 	case MV_DEV_88F6281:
 		dev = "Marvell 88F6281";
+		if (r == 0)
+			rev = "Z0";
+		else if (r == 2)
+			rev = "A0";
 		break;
 	case MV_DEV_MV78100:
 		dev = "Marvell MV78100";
