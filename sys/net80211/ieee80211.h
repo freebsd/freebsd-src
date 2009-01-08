@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1063,5 +1063,27 @@ struct ieee80211_duration {
 #define	ATH_FF_SNAP_ORGCODE_0	0x00
 #define	ATH_FF_SNAP_ORGCODE_1	0x03
 #define	ATH_FF_SNAP_ORGCODE_2	0x7f
+
+struct ieee80211_tdma_param {
+	u_int8_t	tdma_id;	/* IEEE80211_ELEMID_VENDOR */
+	u_int8_t	tdma_len;
+	u_int8_t	tdma_oui[3];	/* 0x00, 0x03, 0x7f */
+	u_int8_t	tdma_type;	/* OUI type */
+	u_int8_t	tdma_subtype;	/* OUI subtype */
+	u_int8_t	tdma_version;	/* spec revision */
+	u_int8_t	tdma_slot;	/* station slot # */
+	u_int8_t	tdma_slotcnt;	/* bss slot count */
+	u_int16_t	tdma_slotlen;	/* bss slot len (100us) */
+	u_int8_t	tdma_bintval;	/* beacon interval (superframes) */
+	u_int8_t	tdma_inuse[1];	/* slot occupancy map */
+	u_int8_t	tdma_pad[2];
+	u_int8_t	tdma_tstamp[8];	/* timestamp from last beacon */
+} __packed;
+
+/* NB: Atheros allocated the OUI for this purpose ~3 years ago but beware ... */
+#define	TDMA_OUI		ATH_OUI
+#define	TDMA_OUI_TYPE		0x02
+#define	TDMA_SUBTYPE_PARAM	0x01
+#define	TDMA_VERSION		2
 
 #endif /* _NET80211_IEEE80211_H_ */
