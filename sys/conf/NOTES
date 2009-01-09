@@ -633,6 +633,14 @@ options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
 options 	ALTQ_DEBUG
 
+# IP optional behaviour.
+# IP_NONLOCALBIND disables the check that bind() usually makes that the
+# Address is one that is assigned to an interface on this machine.
+# It allows transparent proxies to pretend to be other machines.
+# How the packet GET to that machine is a problem solved elsewhere,
+# smart routers, ipfw fwd, etc.
+options        IP_NONLOCALBIND		#Allow impersonation for proxies.
+
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
 # listed below; however, this is not strictly necessary as netgraph
