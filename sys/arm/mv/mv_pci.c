@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #define PCIE_REG_STATUS		0x1A04
 #define PCIE_REG_IRQ_MASK	0x1910
 
+#define STATUS_LINK_DOWN	1
 #define STATUS_BUS_OFFS		8
 #define STATUS_BUS_MASK		(0xFF << STATUS_BUS_OFFS)
 #define STATUS_DEV_OFFS		16
@@ -436,6 +437,8 @@ pcib_mbus_probe(device_t self)
 		    P2P_CONF_DEV_OFFS;
 	} else {
 		val = bus_space_read_4(sc->sc_bst, sc->sc_bsh, PCIE_REG_STATUS);
+		if (val & STATUS_LINK_DOWN)
+			goto out;
 		bus = sc->sc_busnr = (val & STATUS_BUS_MASK) >> STATUS_BUS_OFFS;
 		dev = sc->sc_devnr = (val & STATUS_DEV_MASK) >> STATUS_DEV_OFFS;
 	}
