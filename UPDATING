@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090110:
+	powerd(8) was updated to get better SMP support.
+	Meanings of the -i and -r command line options were changed.
+
 20090107:
 	snd_hda(4) driver was updated to version 20081226_0122.
 
