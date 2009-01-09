@@ -3697,6 +3697,8 @@ getdirentries(td, uap)
 	int error, eofflag;
 
 	AUDIT_ARG(fd, uap->fd);
+	if (uap->count > INT_MAX)
+		return (EINVAL);
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
