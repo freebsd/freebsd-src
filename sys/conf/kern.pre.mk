@@ -26,6 +26,7 @@ COPTFLAGS?=	-O
 .else
 . if defined(DEBUG)
 _MINUS_O=	-O
+CTFFLAGS+=	-g
 . else
 _MINUS_O=	-O2
 . endif
