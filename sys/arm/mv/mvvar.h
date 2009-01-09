@@ -63,7 +63,11 @@ struct obio_device {
 	struct resource_list od_resources;
 };
 
-typedef int (*obio_get_irq_t)(u_int bus, u_int slot, u_int func, u_int pin);
+struct obio_pci_irq_map {
+	int		opim_slot;
+	int		opim_pin;
+	int		opim_irq;
+};
 
 struct obio_pci {
 	int		op_type;
@@ -82,8 +86,8 @@ struct obio_pci {
 	int		op_mem_win_target;
 	int		op_mem_win_attr;
 
-	obio_get_irq_t	op_get_irq;	/* IRQ Mapping callback */
-	int		op_irq;		/* used if callback is NULL */
+	const struct obio_pci_irq_map	*op_pci_irq_map;
+	int		op_irq;		/* used if IRQ map table is NULL */
 };
 
 struct gpio_config {
