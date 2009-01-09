@@ -1,0 +1,18 @@
+$Id: TODO,v 1.1 2002/11/24 19:46:56 max Exp $
+$FreeBSD$
+
+1) SMP/Locking
+
+	The code makes use of ng_send_fn() whenever possible. Just
+	need to verify and make sure i did it right
+
+2) Firmware upgrade
+
+	According to Bluetooth spec device may present third interface
+	to perform firmware upgrade. 3Com USB Bluetooth dongle has
+	such interface. Need to implement set of Netgraph messages.
+
+3) Isochronous USB transfers (SCO data)
+
+	Tried to fix isochrounous transfers, which are still disabled
+	by default.

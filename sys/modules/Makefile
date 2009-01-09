@@ -301,6 +301,7 @@ SUBDIR=	${_3dfx} \
 	ural \
 	urio \
 	usb \
+	usb2 \
 	uscanner \
 	uslcom \
 	utopia \

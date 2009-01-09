@@ -589,7 +589,7 @@ mixer_delete(struct snd_mixer *m)
 	KASSERT(m->type == MIXER_TYPE_SECONDARY,
 	    ("%s(): illegal mixer type=%d", __func__, m->type));
 
-	snd_mtxlock(m->lock);
+	/* mixer uninit can sleep --hps */
 
 	MIXER_UNINIT(m);
 
@@ -704,13 +704,23 @@ mixer_uninit(device_t dev)
 		return EBUSY;
 	}
 
+	/* destroy dev can sleep --hps */
+
+	snd_mtxunlock(m->lock);
+
 	pdev->si_drv1 = NULL;
 	destroy_dev(pdev);
+
+	snd_mtxlock(m->lock);
 
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		mixer_set(m, i, 0);
 
 	mixer_setrecsrc(m, SOUND_MASK_MIC);
+
+	snd_mtxunlock(m->lock);
+
+	/* mixer uninit can sleep --hps */
 
 	MIXER_UNINIT(m);
 
@@ -1279,4 +1289,17 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 	}
 
 	return (EINVAL);
+}
+
+/*
+ * Allow the sound driver to use the mixer lock to protect its mixer
+ * data:
+ */
+struct mtx *
+mixer_get_lock(struct snd_mixer *m)
+{
+	if (m->lock == NULL) {
+		return (&Giant);
+	}
+	return (m->lock);
 }

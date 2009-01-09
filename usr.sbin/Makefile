@@ -182,6 +182,7 @@ SUBDIR=	ac \
 	tzsetup \
 	ugidfw \
 	${_usbdevs} \
+	${_usbconfig} \
 	vidcontrol \
 	vipw \
 	watch \
@@ -291,6 +292,7 @@ _sendmail=	sendmail
 
 .if ${MK_USB} != "no"
 _usbdevs=	usbdevs
+_usbconfig=	usbconfig
 .endif
 
 .if ${MACHINE_ARCH} == "arm"
