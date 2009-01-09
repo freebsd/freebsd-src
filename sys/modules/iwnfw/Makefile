@@ -4,7 +4,6 @@
 
 KMOD=	iwnfw
 FIRMWS=	iwlwifi-4965-4.44.17.fw:iwnfw:44417
-FIRMWARE_LICENSE= intel_iwn
 
 CLEANFILES=	iwlwifi-4965-4.44.17.fw
 
