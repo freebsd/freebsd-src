@@ -106,6 +106,14 @@ static const struct ng_parse_type ng_netflow_settimeouts_type = {
 	&ng_netflow_settimeouts_type_fields
 };
 
+/* Parse type for ng_netflow_setconfig */
+static const struct ng_parse_struct_field ng_netflow_setconfig_type_fields[]
+	= NG_NETFLOW_SETCONFIG_TYPE;
+static const struct ng_parse_type ng_netflow_setconfig_type = {
+	&ng_parse_struct_type,
+	&ng_netflow_setconfig_type_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_netflow_cmds[] = {
        {
@@ -143,6 +151,13 @@ static const struct ng_cmdlist ng_netflow_cmds[] = {
 	&ng_netflow_settimeouts_type,
 	NULL
        },
+       {
+	NGM_NETFLOW_COOKIE,
+	NGM_NETFLOW_SETCONFIG,
+	"setconfig",
+	&ng_netflow_setconfig_type,
+	NULL
+       },
        { 0 }
 };
 
@@ -167,7 +182,7 @@ static int
 ng_netflow_constructor(node_p node)
 {
 	priv_p priv;
-	int error = 0;
+	int error = 0, i;
 
 	/* Initialize private data */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT);
@@ -182,6 +197,10 @@ ng_netflow_constructor(node_p node)
 	/* Initialize timeouts to default values */
 	priv->info.nfinfo_inact_t = INACTIVE_TIMEOUT;
 	priv->info.nfinfo_act_t = ACTIVE_TIMEOUT;
+
+	/* Set default config */
+	for (i = 0; i < NG_NETFLOW_MAXIFACES; i++)
+		priv->ifaces[i].info.conf = NG_NETFLOW_CONF_INGRESS;
 
 	/* Initialize callout handle */
 	callout_init(&priv->exp_callout, CALLOUT_MPSAFE);
@@ -399,6 +418,22 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 
 			break;
 		}
+		case NGM_NETFLOW_SETCONFIG:
+		{
+			struct ng_netflow_setconfig *set;
+
+			if (msg->header.arglen != sizeof(struct ng_netflow_settimeouts))
+				ERROUT(EINVAL);
+
+			set = (struct ng_netflow_setconfig *)msg->data;
+
+			if (set->iface >= NG_NETFLOW_MAXIFACES)
+				ERROUT(EINVAL);
+			
+			priv->ifaces[set->iface].info.conf = set->conf;
+	
+			break;
+		}
 		case NGM_NETFLOW_SHOW:
 		{
 			uint32_t *last;
@@ -445,10 +480,13 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	const iface_p iface = NG_HOOK_PRIVATE(hook);
+	hook_p out;
 	struct mbuf *m = NULL;
 	struct ip *ip;
+	struct m_tag *mtag;
 	int pullup_len = 0;
-	int error = 0;
+	int error = 0, bypass = 0;
+	unsigned int src_if_index;
 
 	if (hook == priv->export) {
 		/*
@@ -459,15 +497,47 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		ERROUT(EINVAL);
 	};
 
-	if (hook == iface->out) {
-		/*
-		 * Data arrived on out hook. Bypass it.
-		 */
-		if (iface->hook == NULL)
+	if (hook == iface->hook) {
+		if ((iface->info.conf & NG_NETFLOW_CONF_INGRESS) == 0)
+			bypass = 1;
+		out = iface->out;
+	} else if (hook == iface->out) {
+		if ((iface->info.conf & NG_NETFLOW_CONF_EGRESS) == 0)
+			bypass = 1;
+		out = iface->hook;
+	} else 
+		ERROUT(EINVAL);
+	
+	if ((!bypass) &&
+	    (iface->info.conf & (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE))) {
+		mtag = m_tag_locate(NGI_M(item), MTAG_NETFLOW,
+		    MTAG_NETFLOW_CALLED, NULL);
+		while (mtag != NULL) {
+			if ((iface->info.conf & NG_NETFLOW_CONF_ONCE) ||
+			    ((ng_ID_t *)(mtag + 1))[0] == NG_NODE_ID(node)) {
+				bypass = 1;
+				break;
+			}
+			mtag = m_tag_locate(NGI_M(item), MTAG_NETFLOW,
+			    MTAG_NETFLOW_CALLED, mtag);
+		}
+	}
+	
+	if (bypass) {
+		if (out == NULL)
 			ERROUT(ENOTCONN);
 
-		NG_FWD_ITEM_HOOK(error, item, iface->hook);
+		NG_FWD_ITEM_HOOK(error, item, out);
 		return (error);
+	}
+	
+	if (iface->info.conf & (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE)) {
+		mtag = m_tag_alloc(MTAG_NETFLOW, MTAG_NETFLOW_CALLED,
+		    sizeof(ng_ID_t), M_NOWAIT);
+		if (mtag) {
+			((ng_ID_t *)(mtag + 1))[0] = NG_NODE_ID(node);
+			m_tag_prepend(NGI_M(item), mtag);
+		}
 	}
 
 	NGI_GET_M(item, m);
@@ -592,12 +662,20 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 
 #undef	M_CHECK
 
-	error = ng_netflow_flow_add(priv, ip, iface, m->m_pkthdr.rcvif);
+	/* Determine packet input interface. Prefer configured. */
+	src_if_index = 0;
+	if (hook == iface->out || iface->info.ifinfo_index == 0) {
+		if (m->m_pkthdr.rcvif != NULL)
+			src_if_index = m->m_pkthdr.rcvif->if_index;
+	} else
+		src_if_index = iface->info.ifinfo_index;
+
+	error = ng_netflow_flow_add(priv, ip, src_if_index);
 
 bypass:
-	if (iface->out != NULL) {
+	if (out != NULL) {
 		/* XXX: error gets overwritten here */
-		NG_FWD_NEW_DATA(error, item, iface->out, m);
+		NG_FWD_NEW_DATA(error, item, out, m);
 		return (error);
 	}
 done:
