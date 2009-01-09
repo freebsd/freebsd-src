@@ -1344,7 +1344,7 @@ done:
 	return (error);
 }
 
-int
+static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
 	INIT_VNET_NET(curvnet);
@@ -1365,8 +1365,8 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
-			if (jailed(curproc->p_ucred) &&
-			    !prison_if(curproc->p_ucred, ifma->ifma_addr))
+			if (jailed(curthread->td_ucred) &&
+			    !prison_if(curthread->td_ucred, ifma->ifma_addr))
 				continue;
 			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
 			info.rti_info[RTAX_GATEWAY] =
