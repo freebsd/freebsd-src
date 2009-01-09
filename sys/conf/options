@@ -392,6 +392,7 @@ IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
+IP_NONLOCALBIND		opt_inet.h
 IPSEC_FILTERTUNNEL	opt_ipsec.h
 IPSTEALTH
 IPX
