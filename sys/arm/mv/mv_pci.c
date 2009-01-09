@@ -95,10 +95,12 @@ __FBSDID("$FreeBSD$");
 struct pcib_mbus_softc {
 	device_t	sc_dev;
 
+	struct rman	sc_iomem_rman;
 	bus_addr_t	sc_iomem_base;
 	bus_addr_t	sc_iomem_size;
 	bus_addr_t	sc_iomem_alloc;		/* Next allocation. */
 
+	struct rman	sc_ioport_rman;
 	bus_addr_t	sc_ioport_base;
 	bus_addr_t	sc_ioport_size;
 	bus_addr_t	sc_ioport_alloc;	/* Next allocation. */
@@ -521,12 +523,39 @@ pcib_mbus_attach(device_t self)
 	sc->sc_ioport_size = sc->sc_info->op_io_size;
 	sc->sc_ioport_alloc = sc->sc_info->op_io_base;
 
+	sc->sc_iomem_rman.rm_type = RMAN_ARRAY;
+	err = rman_init(&sc->sc_iomem_rman);
+	if (err)
+		return (err);
+
+	sc->sc_ioport_rman.rm_type = RMAN_ARRAY;
+	err = rman_init(&sc->sc_ioport_rman);
+	if (err) {
+		rman_fini(&sc->sc_iomem_rman);
+		return (err);
+	}
+
+	err = rman_manage_region(&sc->sc_iomem_rman, sc->sc_iomem_base,
+	    sc->sc_iomem_base + sc->sc_iomem_size - 1);
+	if (err)
+		goto error;
+
+	err = rman_manage_region(&sc->sc_ioport_rman, sc->sc_ioport_base,
+	    sc->sc_ioport_base + sc->sc_ioport_size - 1);
+	if (err)
+		goto error;
+
 	err = pcib_mbus_init(sc, sc->sc_busnr, pcib_mbus_maxslots(sc->sc_dev));
 	if (err)
-		return(err);
+		goto error;
 
 	device_add_child(self, "pci", -1);
 	return (bus_generic_attach(self));
+
+error:
+	rman_fini(&sc->sc_iomem_rman);
+	rman_fini(&sc->sc_ioport_rman);
+	return (err);
 }
 
 static int
@@ -570,7 +599,7 @@ pcib_mbus_init_bar(struct pcib_mbus_softc *sc, int bus, int slot, int func,
 		return (width);
 
 	addr = (*allocp + mask) & ~mask;
-	if ((*allocp = addr + size) >= limit)
+	if ((*allocp = addr + size) > limit)
 		return (-1);
 
 	if (bootverbose)
@@ -634,8 +663,10 @@ static int
 pcib_mbus_init_resources(struct pcib_mbus_softc *sc, int bus, int slot,
     int func, int hdrtype)
 {
+	const struct obio_pci_irq_map *map = sc->sc_info->op_pci_irq_map;
 	int maxbar = (hdrtype & PCIM_HDRTYPE) ? 0 : 6;
-	int bar = 0, irq, pin, i;
+	int bar = 0, irq = -1;
+	int pin, i;
 
 	/* Program the base address registers */
 	while (bar < maxbar) {
@@ -652,8 +683,14 @@ pcib_mbus_init_resources(struct pcib_mbus_softc *sc, int bus, int slot,
 	pin = pcib_mbus_read_config(sc->sc_dev, bus, slot, func,
 	    PCIR_INTPIN, 1);
 
-	if (sc->sc_info->op_get_irq != NULL)
-		irq = sc->sc_info->op_get_irq(bus, slot, func, pin);
+	if (map != NULL)
+		while (map->opim_irq >= 0) {
+			if ((map->opim_slot == slot || map->opim_slot < 0) &&
+			    (map->opim_pin == pin || map->opim_pin < 0))
+				irq = map->opim_irq;
+
+			map++;
+		}
 	else
 		irq = sc->sc_info->op_irq;
 
@@ -728,9 +765,37 @@ static struct resource *
 pcib_mbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+	struct pcib_mbus_softc *sc = device_get_softc(dev);
+	struct rman *rm = NULL;
+	struct resource *res;
 
-	return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-	    type, rid, start, end, count, flags));
+	switch (type) {
+	case SYS_RES_IOPORT:
+		rm = &sc->sc_ioport_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &sc->sc_iomem_rman;
+		break;
+	default:
+		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+		    type, rid, start, end, count, flags));
+	};
+
+	res = rman_reserve_resource(rm, start, end, count, flags, child);
+	if (res == NULL)
+		return (NULL);
+
+	rman_set_rid(res, *rid);
+	rman_set_bustag(res, obio_tag);
+	rman_set_bushandle(res, start);
+
+	if (flags & RF_ACTIVE)
+		if (bus_activate_resource(child, type, *rid, res)) {
+			rman_release_resource(res);
+			return (NULL);
+		}
+
+	return (res);
 }
 
 static int
@@ -738,8 +803,11 @@ pcib_mbus_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
 
-	return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-	    type, rid, res));
+	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY)
+		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+		    type, rid, res));
+
+	return (rman_release_resource(res));
 }
 
 static int

@@ -123,35 +123,32 @@ static const struct pmap_devmap pmap_devmap[] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
-int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin)
-{
-	int irq;
+/*
+ * The pci_irq_map table consists of 3 columns:
+ * - PCI slot number (less than zero means ANY).
+ * - PCI IRQ pin (less than zero means ANY).
+ * - PCI IRQ (less than zero marks end of table).
+ *
+ * IRQ number from the first matching entry is used to configure PCI device
+ */
 
-	switch (slot) {
-	case 7:
-		irq = GPIO2IRQ(12);	/* GPIO 0 for DB-88F5182  */
-		break;			/* GPIO 12 for DB-88F5281 */
-	case 8:
-	case 9:
-		irq = GPIO2IRQ(13);	/* GPIO 1 for DB-88F5182  */
-		break;			/* GPIO 13 for DB-88F5281 */
-	default:
-		irq = -1;
-		break;
-	};
+/* PCI IRQ Map for DB-88F5281 */
+const struct obio_pci_irq_map pci_irq_map[] = {
+	{ 7, -1, GPIO2IRQ(12) },
+	{ 8, -1, GPIO2IRQ(13) },
+	{ 9, -1, GPIO2IRQ(13) },
+	{ -1, -1, -1 }
+};
 
-	/*
-	 * XXX This isn't the right place to setup GPIO, but it makes sure
-	 * that PCI works on 5XXX targets where U-Boot doesn't set up the GPIO
-	 * correctly to handle PCI IRQs (e.g., on 5182). This code will go
-	 * away once we set up GPIO in a generic way in a proper place (TBD).
-	 */
-	if (irq >= 0)
-		mv_gpio_configure(IRQ2GPIO(irq), MV_GPIO_POLAR_LOW |
-		    MV_GPIO_LEVEL, ~0u);
-
-	return (irq);
-}
+#if 0
+/* PCI IRQ Map for DB-88F5182 */
+const struct obio_pci_irq_map pci_irq_map[] = {
+	{ 7, -1, GPIO2IRQ(0) },
+	{ 8, -1, GPIO2IRQ(1) },
+	{ 9, -1, GPIO2IRQ(1) },
+	{ -1, -1, -1 }
+};
+#endif
 
 /*
  * mv_gpio_config row structure:
