@@ -82,6 +82,9 @@ void	callout_init(struct callout *, int);
 void	callout_init_mtx(struct callout *, struct mtx *, int);
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
 int	callout_reset(struct callout *, int, void (*)(void *), void *);
+int	callout_schedule(struct callout *, int);
+#define	callout_schedule_curcpu(c, on_tick)				\
+    callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
 

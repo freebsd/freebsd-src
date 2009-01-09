@@ -18,7 +18,7 @@
  */
 
 #define RAL_RX_LIST_COUNT	1
-#define RAL_TX_LIST_COUNT	1
+#define RAL_TX_LIST_COUNT	8
 
 #define URAL_SCAN_START         1
 #define URAL_SCAN_END           2
@@ -74,14 +74,30 @@ struct ural_rx_data {
 	struct mbuf		*m;
 };
 
+struct ural_node {
+	struct ieee80211_node		ni;
+	struct ieee80211_amrr_node	amn;
+};
+#define	URAL_NODE(ni)	((struct ural_node *)(ni))
+
+struct ural_vap {
+	struct ieee80211vap		vap;
+	struct ieee80211_beacon_offsets	bo;
+	struct ieee80211_amrr		amrr;
+	struct callout			amrr_ch;
+
+	int				(*newstate)(struct ieee80211vap *,
+					    enum ieee80211_state, int);
+};
+#define	URAL_VAP(vap)	((struct ural_vap *)(vap))
+
 struct ural_softc {
 	struct ifnet			*sc_ifp;
-	struct ieee80211com		sc_ic;
-	int				(*sc_newstate)(struct ieee80211com *,
-					    enum ieee80211_state, int);
 	device_t			sc_dev;
 	usbd_device_handle		sc_udev;
 	usbd_interface_handle		sc_iface;
+
+	const struct ieee80211_rate_table *sc_rates;
 
 	int				sc_rx_no;
 	int				sc_tx_no;
@@ -100,19 +116,14 @@ struct ural_softc {
 	struct usb_task			sc_task;
 	struct usb_task			sc_scantask;
 
-	struct ieee80211_amrr		amrr;
-	struct ieee80211_amrr_node	amn;
-
 	struct ural_rx_data		rx_data[RAL_RX_LIST_COUNT];
 	struct ural_tx_data		tx_data[RAL_TX_LIST_COUNT];
 	int				tx_queued;
-
-	struct ieee80211_beacon_offsets	sc_bo;
+	int				tx_cur;
 
 	struct mtx			sc_mtx;
 
 	struct callout			watchdog_ch;
-	struct callout			amrr_ch;
 	int				sc_tx_timer;
 
 	uint16_t			sta[11];
@@ -130,20 +141,10 @@ struct ural_softc {
 	int				tx_ant;
 	int				nb_ant;
 
-	struct bpf_if			*sc_drvbpf;
-
-	union {
-		struct ural_rx_radiotap_header th;
-		uint8_t	pad[64];
-	}				sc_rxtapu;
-#define sc_rxtap	sc_rxtapu.th
+	struct ural_rx_radiotap_header	sc_rxtap;
 	int				sc_rxtap_len;
 
-	union {
-		struct ural_tx_radiotap_header th;
-		uint8_t	pad[64];
-	}				sc_txtapu;
-#define sc_txtap	sc_txtapu.th
+	struct ural_tx_radiotap_header	sc_txtap;
 	int				sc_txtap_len;
 };
 

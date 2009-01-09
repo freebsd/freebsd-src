@@ -726,6 +726,27 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+ATH_SUPPORT_TDMA	opt_ath.h
+
+# options for the Atheros hal
+AH_SUPPORT_AR5416	opt_ah.h
+
+AH_DEBUG		opt_ah.h
+AH_ASSERT		opt_ah.h
+AH_DEBUG_ALQ		opt_ah.h
+AH_REGOPS_FUNC		opt_ah.h
+AH_WRITE_REGDOMAIN	opt_ah.h
+AH_DEBUG_COUNTRY	opt_ah.h
+AH_WRITE_EEPROM		opt_ah.h
+AH_PRIVATE_DIAG		opt_ah.h
+AH_NEED_DESC_SWAP	opt_ah.h
+AH_USE_INIPDGAIN	opt_ah.h
+AH_SUPPORT_11D		opt_ah.h
+
+# options for the Marvell 8335 wireless driver
+MALO_DEBUG		opt_malo.h
+MALO_TXBUF		opt_malo.h
+MALO_RXBUF		opt_malo.h
 
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
@@ -754,4 +775,17 @@ XBOX			opt_xbox.h
 XFS
 
 # Interrupt filtering
-INTR_FILTER             opt_global.h
+INTR_FILTER
+
+# 802.11 support layer
+IEEE80211_DEBUG		opt_wlan.h
+IEEE80211_DEBUG_REFCNT	opt_wlan.h
+IEEE80211_AMPDU_AGE	opt_wlan.h
+IEEE80211_SUPPORT_TDMA	opt_wlan.h
+
+# 802.11 TDMA support
+TDMA_SLOTLEN_DEFAULT	opt_tdma.h
+TDMA_SLOTCNT_DEFAULT	opt_tdma.h
+TDMA_BINTVAL_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11B_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11G_DEFAULT	opt_tdma.h

@@ -200,20 +200,20 @@ device		snc
 device		xe		# Xircom pccard Ethernet
 
 # Wireless NIC cards
-#device		wlan		# 802.11 support
-#device		wlan_wep	# 802.11 WEP support
-#device		wlan_ccmp	# 802.11 CCMP support
-#device		wlan_tkip	# 802.11 TKIP support
-#device		wlan_amrr	# AMRR transmit rate control algorithm
-#device		wlan_scan_ap	# 802.11 AP mode scanning
-#device		wlan_scan_sta	# 802.11 STA mode scanning
-#device		an		# Aironet 4500/4800 802.11 wireless NICs.
-#device		ath		# Atheros pci/cardbus NIC's
-#device		ath_hal		# Atheros HAL (Hardware Access Layer)
-#device		ath_rate_sample	# SampleRate tx rate control for ath
-#device		awi		# BayStack 660 and others
-#device		ral		# Ralink Technology RT2500 wireless NICs.
-#device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
+device		wlan		# 802.11 support
+options		IEEE80211_DEBUG	# enable debug msgs
+options		IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
+device		wlan_wep	# 802.11 WEP support
+device		wlan_ccmp	# 802.11 CCMP support
+device		wlan_tkip	# 802.11 TKIP support
+device		wlan_amrr	# AMRR transmit rate control algorithm
+device		an		# Aironet 4500/4800 802.11 wireless NICs.
+device		ath		# Atheros pci/cardbus NIC's
+device		ath_hal		# pci/cardbus chip support
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+device		ath_rate_sample	# SampleRate tx rate control for ath
+device		ral		# Ralink Technology RT2500 wireless NICs.
+device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices.

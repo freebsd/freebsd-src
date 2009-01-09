@@ -713,7 +713,7 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  according to IEEE 802.1Q.  It requires `device miibus'.
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
-#  ath, and awi drivers and will eventually be required by all 802.11 drivers.
+#  and ath drivers and will eventually be required by all 802.11 drivers.
 #  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
 #  support for WEP, TKIP, and AES-CCMP crypto protocols optionally
 #  used with 802.11 devices that depend on the `wlan' module.
@@ -774,8 +774,6 @@ device		wlan_tkip		#802.11 TKIP support
 device		wlan_xauth		#802.11 external authenticator support
 device		wlan_acl		#802.11 MAC ACL support
 device		wlan_amrr		#AMRR transmit rate control algorithm
-device		wlan_scan_ap		#802.11 AP mode scanning
-device		wlan_scan_sta		#802.11 STA mode scanning
 device		token			#Generic TokenRing
 device		fddi			#Generic FDDI
 device		arcnet			#Generic Arcnet
@@ -1720,8 +1718,6 @@ device		miibus
 #       L2 PCI-Express FastEthernet controllers.
 # an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
 #       PCI and ISA varieties.
-# awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
-#       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L1 PCI express gigabit ethernet controllers.
 # ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
@@ -1861,7 +1857,6 @@ hint.sn.0.at="isa"
 hint.sn.0.port="0x300"
 hint.sn.0.irq="10"
 device		an
-device		awi
 device		cnw
 device		wi
 device		xe

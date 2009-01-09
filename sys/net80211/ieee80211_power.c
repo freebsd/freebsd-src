@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 /*
  * IEEE 802.11 power save support.
  */
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/kernel.h>
@@ -43,61 +45,166 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-static void ieee80211_set_tim(struct ieee80211_node *ni, int set);
+static void ieee80211_update_ps(struct ieee80211vap *, int);
+static int ieee80211_set_tim(struct ieee80211_node *, int);
+
+MALLOC_DEFINE(M_80211_POWER, "80211power", "802.11 power save state");
 
 void
 ieee80211_power_attach(struct ieee80211com *ic)
 {
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
-	    ic->ic_opmode == IEEE80211_M_IBSS) {
-		/* NB: driver should override */
-		ic->ic_set_tim = ieee80211_set_tim;
-	}
-}
-
-void
-ieee80211_power_lateattach(struct ieee80211com *ic)
-{
-	/*
-	 * Allocate these only if needed.  Beware that we
-	 * know adhoc mode doesn't support ATIM yet...
-	 */
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
-		ic->ic_tim_len = howmany(ic->ic_max_aid,8) * sizeof(uint8_t);
-		MALLOC(ic->ic_tim_bitmap, uint8_t *, ic->ic_tim_len,
-			M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (ic->ic_tim_bitmap == NULL) {
-			printf("%s: no memory for TIM bitmap!\n", __func__);
-			/* XXX good enough to keep from crashing? */
-			ic->ic_tim_len = 0;
-		}
-	}
 }
 
 void
 ieee80211_power_detach(struct ieee80211com *ic)
 {
-	if (ic->ic_tim_bitmap != NULL) {
-		FREE(ic->ic_tim_bitmap, M_DEVBUF);
-		ic->ic_tim_bitmap = NULL;
+}
+
+void
+ieee80211_power_vattach(struct ieee80211vap *vap)
+{
+	if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	    vap->iv_opmode == IEEE80211_M_IBSS) {
+		/* NB: driver should override */
+		vap->iv_update_ps = ieee80211_update_ps;
+		vap->iv_set_tim = ieee80211_set_tim;
 	}
 }
 
+void
+ieee80211_power_latevattach(struct ieee80211vap *vap)
+{
+	/*
+	 * Allocate these only if needed.  Beware that we
+	 * know adhoc mode doesn't support ATIM yet...
+	 */
+	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
+		vap->iv_tim_len = howmany(vap->iv_max_aid,8) * sizeof(uint8_t);
+		vap->iv_tim_bitmap = (uint8_t *) malloc(vap->iv_tim_len,
+			M_80211_POWER, M_NOWAIT | M_ZERO);
+		if (vap->iv_tim_bitmap == NULL) {
+			printf("%s: no memory for TIM bitmap!\n", __func__);
+			/* XXX good enough to keep from crashing? */
+			vap->iv_tim_len = 0;
+		}
+	}
+}
+
+void
+ieee80211_power_vdetach(struct ieee80211vap *vap)
+{
+	if (vap->iv_tim_bitmap != NULL) {
+		free(vap->iv_tim_bitmap, M_80211_POWER);
+		vap->iv_tim_bitmap = NULL;
+	}
+}
+
+void
+ieee80211_psq_init(struct ieee80211_psq *psq, const char *name)
+{
+	memset(psq, 0, sizeof(psq));
+	psq->psq_maxlen = IEEE80211_PS_MAX_QUEUE;
+	IEEE80211_PSQ_INIT(psq, name);		/* OS-dependent setup */
+}
+
+void
+ieee80211_psq_cleanup(struct ieee80211_psq *psq)
+{
+#if 0
+	psq_drain(psq);				/* XXX should not be needed? */
+#else
+	KASSERT(psq->psq_len == 0, ("%d frames on ps q", psq->psq_len));
+#endif
+	IEEE80211_PSQ_DESTROY(psq);		/* OS-dependent cleanup */
+}
+
 /*
- * Clear any frames queued on a node's power save queue.
+ * Return the highest priority frame in the ps queue.
+ */
+struct mbuf *
+ieee80211_node_psq_dequeue(struct ieee80211_node *ni, int *qlen)
+{
+	struct ieee80211_psq *psq = &ni->ni_psq;
+	struct ieee80211_psq_head *qhead;
+	struct mbuf *m;
+
+	IEEE80211_PSQ_LOCK(psq);
+	qhead = &psq->psq_head[0];
+again:
+	if ((m = qhead->head) != NULL) {
+		if ((qhead->head = m->m_nextpkt) == NULL)
+			qhead->tail = NULL;
+		KASSERT(qhead->len > 0, ("qhead len %d", qhead->len));
+		qhead->len--;
+		KASSERT(psq->psq_len > 0, ("psq len %d", psq->psq_len));
+		psq->psq_len--;
+		m->m_nextpkt = NULL;
+	}
+	if (m == NULL && qhead == &psq->psq_head[0]) {
+		/* Algol-68 style for loop */
+		qhead = &psq->psq_head[1];
+		goto again;
+	}
+	if (qlen != NULL)
+		*qlen = psq->psq_len;
+	IEEE80211_PSQ_UNLOCK(psq);
+	return m;
+}
+
+/*
+ * Reclaim an mbuf from the ps q.  If marked with M_ENCAP
+ * we assume there is a node reference that must be relcaimed.
+ */
+static void
+psq_mfree(struct mbuf *m)
+{
+	if (m->m_flags & M_ENCAP) {
+		struct ieee80211_node *ni = (void *) m->m_pkthdr.rcvif;
+		ieee80211_free_node(ni);
+	}
+	m->m_nextpkt = NULL;
+	m_freem(m);
+}
+
+/*
+ * Clear any frames queued in the power save queue.
+ * The number of frames that were present is returned.
+ */
+static int
+psq_drain(struct ieee80211_psq *psq)
+{
+	struct ieee80211_psq_head *qhead;
+	struct mbuf *m;
+	int qlen;
+
+	IEEE80211_PSQ_LOCK(psq);
+	qlen = psq->psq_len;
+	qhead = &psq->psq_head[0];
+again:
+	while ((m = qhead->head) != NULL) {
+		qhead->head = m->m_nextpkt;
+		psq_mfree(m);
+	}
+	qhead->tail = NULL;
+	qhead->len = 0;
+	if (qhead == &psq->psq_head[0]) {	/* Algol-68 style for loop */
+		qhead = &psq->psq_head[1];
+		goto again;
+	}
+	psq->psq_len = 0;
+	IEEE80211_PSQ_UNLOCK(psq);
+
+	return qlen;
+}
+
+/*
+ * Clear any frames queued in the power save queue.
  * The number of frames that were present is returned.
  */
 int
-ieee80211_node_saveq_drain(struct ieee80211_node *ni)
+ieee80211_node_psq_drain(struct ieee80211_node *ni)
 {
-	int qlen;
-
-	IEEE80211_NODE_SAVEQ_LOCK(ni);
-	qlen = IEEE80211_NODE_SAVEQ_QLEN(ni);
-	_IF_DRAIN(&ni->ni_savedq);
-	IEEE80211_NODE_SAVEQ_UNLOCK(ni);
-
-	return qlen;
+	return psq_drain(&ni->ni_psq);
 }
 
 /*
@@ -111,26 +218,43 @@ ieee80211_node_saveq_drain(struct ieee80211_node *ni)
  * can check if it needs to adjust the tim.
  */
 int
-ieee80211_node_saveq_age(struct ieee80211_node *ni)
+ieee80211_node_psq_age(struct ieee80211_node *ni)
 {
+	struct ieee80211_psq *psq = &ni->ni_psq;
 	int discard = 0;
 
-	if (IEEE80211_NODE_SAVEQ_QLEN(ni) != 0) {
+	if (psq->psq_len != 0) {
+#ifdef IEEE80211_DEBUG
+		struct ieee80211vap *vap = ni->ni_vap;
+#endif
+		struct ieee80211_psq_head *qhead;
 		struct mbuf *m;
 
-		IEEE80211_NODE_SAVEQ_LOCK(ni);
-		while (IF_POLL(&ni->ni_savedq, m) != NULL &&
-		     M_AGE_GET(m) < IEEE80211_INACT_WAIT) {
-IEEE80211_DPRINTF(ni->ni_ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether_sprintf(ni->ni_macaddr), M_AGE_GET(m));/*XXX*/
-			_IEEE80211_NODE_SAVEQ_DEQUEUE_HEAD(ni, m);
-			m_freem(m);
+		IEEE80211_PSQ_LOCK(psq);
+		qhead = &psq->psq_head[0];
+	again:
+		while ((m = qhead->head) != NULL &&
+		    M_AGE_GET(m) < IEEE80211_INACT_WAIT) {
+			IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
+			     "discard frame, age %u", M_AGE_GET(m));
+			if ((qhead->head = m->m_nextpkt) == NULL)
+				qhead->tail = NULL;
+			KASSERT(qhead->len > 0, ("qhead len %d", qhead->len));
+			qhead->len--;
+			KASSERT(psq->psq_len > 0, ("psq len %d", psq->psq_len));
+			psq->psq_len--;
+			psq_mfree(m);
 			discard++;
+		}
+		if (qhead == &psq->psq_head[0]) { /* Algol-68 style for loop */
+			qhead = &psq->psq_head[1];
+			goto again;
 		}
 		if (m != NULL)
 			M_AGE_SUB(m, IEEE80211_INACT_WAIT);
-		IEEE80211_NODE_SAVEQ_UNLOCK(ni);
+		IEEE80211_PSQ_UNLOCK(psq);
 
-		IEEE80211_NOTE(ni->ni_ic, IEEE80211_MSG_POWER, ni,
+		IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
 		    "discard %u frames for age", discard);
 		IEEE80211_NODE_STAT_ADD(ni, ps_discard, discard);
 	}
@@ -138,35 +262,52 @@ IEEE80211_DPRINTF(ni->ni_ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n"
 }
 
 /*
- * Indicate whether there are frames queued for a station in power-save mode.
+ * Handle a change in the PS station occupancy.
  */
 static void
+ieee80211_update_ps(struct ieee80211vap *vap, int nsta)
+{
+
+	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP ||
+		vap->iv_opmode == IEEE80211_M_IBSS,
+		("operating mode %u", vap->iv_opmode));
+}
+
+/*
+ * Indicate whether there are frames queued for a station in power-save mode.
+ */
+static int
 ieee80211_set_tim(struct ieee80211_node *ni, int set)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	uint16_t aid;
+	int changed;
 
-	KASSERT(ic->ic_opmode == IEEE80211_M_HOSTAP ||
-		ic->ic_opmode == IEEE80211_M_IBSS,
-		("operating mode %u", ic->ic_opmode));
+	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP ||
+		vap->iv_opmode == IEEE80211_M_IBSS,
+		("operating mode %u", vap->iv_opmode));
 
 	aid = IEEE80211_AID(ni->ni_associd);
-	KASSERT(aid < ic->ic_max_aid,
-		("bogus aid %u, max %u", aid, ic->ic_max_aid));
+	KASSERT(aid < vap->iv_max_aid,
+		("bogus aid %u, max %u", aid, vap->iv_max_aid));
 
-	IEEE80211_BEACON_LOCK(ic);
-	if (set != (isset(ic->ic_tim_bitmap, aid) != 0)) {
+	IEEE80211_LOCK(ic);
+	changed = (set != (isset(vap->iv_tim_bitmap, aid) != 0));
+	if (changed) {
 		if (set) {
-			setbit(ic->ic_tim_bitmap, aid);
-			ic->ic_ps_pending++;
+			setbit(vap->iv_tim_bitmap, aid);
+			vap->iv_ps_pending++;
 		} else {
-			clrbit(ic->ic_tim_bitmap, aid);
-			ic->ic_ps_pending--;
+			clrbit(vap->iv_tim_bitmap, aid);
+			vap->iv_ps_pending--;
 		}
-		/* NB: we know ic is in RUN state so no need to check */
-		ic->ic_update_beacon(ic, IEEE80211_BEACON_TIM);
+		/* NB: we know vap is in RUN state so no need to check */
+		vap->iv_update_beacon(vap, IEEE80211_BEACON_TIM);
 	}
-	IEEE80211_BEACON_UNLOCK(ic);
+	IEEE80211_UNLOCK(ic);
+
+	return changed;
 }
 
 /*
@@ -174,45 +315,143 @@ ieee80211_set_tim(struct ieee80211_node *ni, int set)
  * The new packet is placed on the node's saved queue, and the TIM
  * is changed, if necessary.
  */
-void
+int
 ieee80211_pwrsave(struct ieee80211_node *ni, struct mbuf *m)
 {
+	struct ieee80211_psq *psq = &ni->ni_psq;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_psq_head *qhead;
 	int qlen, age;
 
-	IEEE80211_NODE_SAVEQ_LOCK(ni);
-	if (_IF_QFULL(&ni->ni_savedq)) {
-		_IF_DROP(&ni->ni_savedq);
-		IEEE80211_NODE_SAVEQ_UNLOCK(ni);
-		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ANY,
-			"[%s] pwr save q overflow, drops %d (size %d)\n",
-			ether_sprintf(ni->ni_macaddr), 
-			ni->ni_savedq.ifq_drops, IEEE80211_PS_MAX_QUEUE);
+	IEEE80211_PSQ_LOCK(psq);
+	if (psq->psq_len >= psq->psq_maxlen) {
+		psq->psq_drops++;
+		IEEE80211_PSQ_UNLOCK(psq);
+		IEEE80211_NOTE(vap, IEEE80211_MSG_ANY, ni,
+		    "pwr save q overflow, drops %d (size %d)",
+		    psq->psq_drops, psq->psq_len);
 #ifdef IEEE80211_DEBUG
-		if (ieee80211_msg_dumppkts(ic))
-			ieee80211_dump_pkt(ic, mtod(m, caddr_t), m->m_len, -1, -1);
+		if (ieee80211_msg_dumppkts(vap))
+			ieee80211_dump_pkt(ni->ni_ic, mtod(m, caddr_t),
+			    m->m_len, -1, -1);
 #endif
-		m_freem(m);
-		return;
+		psq_mfree(m);
+		return ENOSPC;
 	}
 	/*
-	 * Tag the frame with it's expiry time and insert
-	 * it in the queue.  The aging interval is 4 times
-	 * the listen interval specified by the station. 
-	 * Frames that sit around too long are reclaimed
-	 * using this information.
+	 * Tag the frame with it's expiry time and insert it in
+	 * the appropriate queue.  The aging interval is 4 times
+	 * the listen interval specified by the station. Frames
+	 * that sit around too long are reclaimed using this
+	 * information.
 	 */
 	/* TU -> secs.  XXX handle overflow? */
 	age = IEEE80211_TU_TO_MS((ni->ni_intval * ic->ic_bintval) << 2) / 1000;
-	_IEEE80211_NODE_SAVEQ_ENQUEUE(ni, m, qlen, age);
-	IEEE80211_NODE_SAVEQ_UNLOCK(ni);
+	/*
+	 * Encapsulated frames go on the high priority queue,
+	 * other stuff goes on the low priority queue.  We use
+	 * this to order frames returned out of the driver
+	 * ahead of frames we collect in ieee80211_start.
+	 */
+	if (m->m_flags & M_ENCAP)
+		qhead = &psq->psq_head[0];
+	else
+		qhead = &psq->psq_head[1];
+	if (qhead->tail == NULL) {
+		struct mbuf *mh;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
-		"[%s] save frame with age %d, %u now queued\n",
-		ether_sprintf(ni->ni_macaddr), age, qlen);
+		qhead->head = m;
+		/*
+		 * Take care to adjust age when inserting the first
+		 * frame of a queue and the other queue already has
+		 * frames.  We need to preserve the age difference
+		 * relationship so ieee80211_node_psq_age works.
+		 */
+		if (qhead == &psq->psq_head[1]) {
+			mh = psq->psq_head[0].head;
+			if (mh != NULL)
+				age-= M_AGE_GET(mh);
+		} else {
+			mh = psq->psq_head[1].head;
+			if (mh != NULL) {
+				int nage = M_AGE_GET(mh) - age;
+				/* XXX is clamping to zero good 'nuf? */
+				M_AGE_SET(mh, nage < 0 ? 0 : nage);
+			}
+		}
+	} else {
+		qhead->tail->m_nextpkt = m;
+		age -= M_AGE_GET(qhead->head);
+	}
+	KASSERT(age >= 0, ("age %d", age));
+	M_AGE_SET(m, age);
+	m->m_nextpkt = NULL;
+	qhead->tail = m;
+	qhead->len++;
+	qlen = ++(psq->psq_len);
+	IEEE80211_PSQ_UNLOCK(psq);
 
-	if (qlen == 1 && ic->ic_set_tim != NULL)
-		ic->ic_set_tim(ni, 1);
+	IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
+	    "save frame with age %d, %u now queued", age, qlen);
+
+	if (qlen == 1 && vap->iv_set_tim != NULL)
+		vap->iv_set_tim(ni, 1);
+
+	return 0;
+}
+
+/*
+ * Move frames from the ps q to the vap's send queue
+ * and/or the driver's send queue; and kick the start
+ * method for each, as appropriate.  Note we're careful
+ * to preserve packet ordering here.
+ */
+static void
+pwrsave_flushq(struct ieee80211_node *ni)
+{
+	struct ieee80211_psq *psq = &ni->ni_psq;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_psq_head *qhead;
+	struct ifnet *parent, *ifp;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
+	    "flush ps queue, %u packets queued", psq->psq_len);
+
+	IEEE80211_PSQ_LOCK(psq);
+	qhead = &psq->psq_head[0];	/* 802.11 frames */
+	if (qhead->head != NULL) {
+		/* XXX could dispatch through vap and check M_ENCAP */
+		parent = vap->iv_ic->ic_ifp;
+		/* XXX need different driver interface */
+		/* XXX bypasses q max and OACTIVE */
+		IF_PREPEND_LIST(&parent->if_snd, qhead->head, qhead->tail,
+		    qhead->len);
+		qhead->head = qhead->tail = NULL;
+		qhead->len = 0;
+	} else
+		parent = NULL;
+
+	qhead = &psq->psq_head[1];	/* 802.3 frames */
+	if (qhead->head != NULL) {
+		ifp = vap->iv_ifp;
+		/* XXX need different driver interface */
+		/* XXX bypasses q max and OACTIVE */
+		IF_PREPEND_LIST(&ifp->if_snd, qhead->head, qhead->tail,
+		    qhead->len);
+		qhead->head = qhead->tail = NULL;
+		qhead->len = 0;
+	} else
+		ifp = NULL;
+	psq->psq_len = 0;
+	IEEE80211_PSQ_UNLOCK(psq);
+
+	/* NB: do this outside the psq lock */
+	/* XXX packets might get reordered if parent is OACTIVE */
+	if (parent != NULL)
+		if_start(parent);
+	if (ifp != NULL)
+		if_start(ifp);
 }
 
 /*
@@ -221,80 +460,54 @@ ieee80211_pwrsave(struct ieee80211_node *ni, struct mbuf *m)
 void
 ieee80211_node_pwrsave(struct ieee80211_node *ni, int enable)
 {
-	struct ieee80211com *ic = ni->ni_ic;
-	struct mbuf *m, *mhead, *mtail;
-	int mcount;
+	struct ieee80211vap *vap = ni->ni_vap;
+	int update;
 
+	update = 0;
 	if (enable) {
-		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) == 0)
-			ic->ic_ps_sta++;
+		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) == 0) {
+			vap->iv_ps_sta++;
+			update = 1;
+		}
 		ni->ni_flags |= IEEE80211_NODE_PWR_MGT;
-		IEEE80211_NOTE(ic, IEEE80211_MSG_POWER, ni,
-		    "power save mode on, %u sta's in ps mode", ic->ic_ps_sta);
-		return;
-	}
+		IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
+		    "power save mode on, %u sta's in ps mode", vap->iv_ps_sta);
 
-	if (ni->ni_flags & IEEE80211_NODE_PWR_MGT)
-		ic->ic_ps_sta--;
-	ni->ni_flags &= ~IEEE80211_NODE_PWR_MGT;
-	IEEE80211_NOTE(ic, IEEE80211_MSG_POWER, ni,
-	    "power save mode off, %u sta's in ps mode", ic->ic_ps_sta);
-	/* XXX if no stations in ps mode, flush mc frames */
+		if (update)
+			vap->iv_update_ps(vap, vap->iv_ps_sta);
+	} else {
+		if (ni->ni_flags & IEEE80211_NODE_PWR_MGT) {
+			vap->iv_ps_sta--;
+			update = 1;
+		}
+		ni->ni_flags &= ~IEEE80211_NODE_PWR_MGT;
+		IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
+		    "power save mode off, %u sta's in ps mode", vap->iv_ps_sta);
 
-	/*
-	 * Flush queued unicast frames.
-	 */
-	if (IEEE80211_NODE_SAVEQ_QLEN(ni) == 0) {
-		if (ic->ic_set_tim != NULL)
-			ic->ic_set_tim(ni, 0);		/* just in case */
-		return;
+		/* NB: order here is intentional so TIM is clear before flush */
+		if (vap->iv_set_tim != NULL)
+			vap->iv_set_tim(ni, 0);
+		if (update) {
+			/* NB if no sta's in ps, driver should flush mc q */
+			vap->iv_update_ps(vap, vap->iv_ps_sta);
+		}
+		if (ni->ni_psq.psq_len != 0)
+			pwrsave_flushq(ni);
 	}
-	IEEE80211_NOTE(ic, IEEE80211_MSG_POWER, ni,
-	    "flush ps queue, %u packets queue", IEEE80211_NODE_SAVEQ_QLEN(ni));
-	/*
-	 * Unload the frames from the ps q but don't send them
-	 * to the driver yet.  We do this in two stages to minimize
-	 * locking but also because there's no easy way to preserve
-	 * ordering given the existing ifnet access mechanisms.
-	 * XXX could be optimized
-	 */
-	IEEE80211_NODE_SAVEQ_LOCK(ni);
-	mcount = IEEE80211_NODE_SAVEQ_QLEN(ni);
-	mhead = mtail = NULL;
-	for (;;) {
-		_IEEE80211_NODE_SAVEQ_DEQUEUE_HEAD(ni, m);
-		if (m == NULL)
-			break;
-		if (mhead == NULL) {
-			mhead = m;
-			m->m_nextpkt = NULL;
-		} else
-			mtail->m_nextpkt = m;
-		mtail = m;
-	}
-	IEEE80211_NODE_SAVEQ_UNLOCK(ni);
-	if (mhead != NULL) {
-		/* XXX need different driver interface */
-		/* XXX bypasses q max */
-		IF_PREPEND_LIST(&ic->ic_ifp->if_snd, mhead, mtail, mcount);
-	}
-	if (ic->ic_set_tim != NULL)
-		ic->ic_set_tim(ni, 0);
 }
 
 /*
  * Handle power-save state change in station mode.
  */
 void
-ieee80211_sta_pwrsave(struct ieee80211com *ic, int enable)
+ieee80211_sta_pwrsave(struct ieee80211vap *vap, int enable)
 {
-	struct ieee80211_node *ni = ic->ic_bss;
-	int qlen;
+	struct ieee80211_node *ni = vap->iv_bss;
 
 	if (!((enable != 0) ^ ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) != 0)))
 		return;
 
-	IEEE80211_NOTE(ic, IEEE80211_MSG_POWER, ni,
+	IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
 	    "sta power save mode %s", enable ? "on" : "off");
 	if (!enable) {
 		ni->ni_flags &= ~IEEE80211_NODE_PWR_MGT;
@@ -305,23 +518,8 @@ ieee80211_sta_pwrsave(struct ieee80211com *ic, int enable)
 		 * data frame we send the ap.
 		 * XXX can we use a data frame to take us out of ps?
 		 */
-		qlen = IEEE80211_NODE_SAVEQ_QLEN(ni);
-		if (qlen != 0) {
-			IEEE80211_NOTE(ic, IEEE80211_MSG_POWER, ni,
-			    "flush ps queue, %u packets queued", qlen);
-			for (;;) {
-				struct mbuf *m;
-
-				IEEE80211_NODE_SAVEQ_LOCK(ni);
-				_IEEE80211_NODE_SAVEQ_DEQUEUE_HEAD(ni, m);
-				IEEE80211_NODE_SAVEQ_UNLOCK(ni);
-				if (m == NULL)
-					break;
-				/* XXX need different driver interface */
-				/* XXX bypasses q max */
-				IF_ENQUEUE(&ic->ic_ifp->if_snd, m);
-			}
-		}
+		if (ni->ni_psq.psq_len != 0)
+			pwrsave_flushq(ni);
 	} else {
 		ni->ni_flags |= IEEE80211_NODE_PWR_MGT;
 		ieee80211_send_nulldata(ieee80211_ref_node(ni));

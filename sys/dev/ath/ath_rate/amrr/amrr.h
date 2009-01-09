@@ -43,11 +43,13 @@
 /* per-device state */
 struct amrr_softc {
 	struct ath_ratectrl arc;	/* base state */
-	struct callout timer;		/* periodic timer */
 };
 
 /* per-node state */
 struct amrr_node {
+	int		amn_rix;	/* current rate index */
+	int		amn_ticks;	/* time of last update */
+	int		amn_interval;	/* update interval (ticks) */
   	/* AMRR statistics for this node */
   	u_int           amn_tx_try0_cnt;
   	u_int           amn_tx_try1_cnt;

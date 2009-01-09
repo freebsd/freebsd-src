@@ -50,16 +50,18 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_amrr.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/ral/if_ralrate.h>
 #include <dev/ral/rt2560var.h>
 #include <dev/ral/rt2661var.h>
 
 MODULE_DEPEND(ral, pci, 1, 1, 1);
+MODULE_DEPEND(ral, firmware, 1, 1, 1);
 MODULE_DEPEND(ral, wlan, 1, 1, 1);
+MODULE_DEPEND(ral, wlan_amrr, 1, 1, 1);
 
 struct ral_pci_ident {
 	uint16_t	vendor;

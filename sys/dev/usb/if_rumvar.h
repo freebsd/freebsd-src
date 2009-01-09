@@ -18,7 +18,7 @@
  */
 
 #define RUM_RX_LIST_COUNT	1
-#define RUM_TX_LIST_COUNT	1
+#define RUM_TX_LIST_COUNT	8
 
 struct rum_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -69,11 +69,26 @@ struct rum_rx_data {
 	struct mbuf		*m;
 };
 
+struct rum_node {
+	struct ieee80211_node	ni;
+	struct ieee80211_amrr_node amn;
+};
+#define	RUM_NODE(ni)	((struct rum_node *)(ni))
+
+struct rum_vap {
+	struct ieee80211vap		vap;
+	struct ieee80211_beacon_offsets	bo;
+	struct ieee80211_amrr		amrr;
+	struct callout			amrr_ch;
+
+	int				(*newstate)(struct ieee80211vap *,
+					    enum ieee80211_state, int);
+};
+#define	RUM_VAP(vap)	((struct rum_vap *)(vap))
+
 struct rum_softc {
 	struct ifnet			*sc_ifp;
-	struct ieee80211com		sc_ic;
-	int				(*sc_newstate)(struct ieee80211com *,
-					    enum ieee80211_state, int);
+	const struct ieee80211_rate_table *sc_rates;
 
 	device_t			sc_dev;
 	usbd_device_handle		sc_udev;
@@ -94,9 +109,6 @@ struct rum_softc {
 	int				sc_arg;
 	struct usb_task			sc_task;
 
-	struct ieee80211_amrr		amrr;
-	struct ieee80211_amrr_node	amn;
-
 	struct usb_task			sc_scantask;
 	int				sc_scan_action;
 #define RUM_SCAN_START	0
@@ -106,13 +118,11 @@ struct rum_softc {
 	struct rum_rx_data		rx_data[RUM_RX_LIST_COUNT];
 	struct rum_tx_data		tx_data[RUM_TX_LIST_COUNT];
 	int				tx_queued;
-
-	struct ieee80211_beacon_offsets	sc_bo;
+	int				tx_cur;
 
 	struct mtx			sc_mtx;
 
 	struct callout			watchdog_ch;
-	struct callout			amrr_ch;
 
 	int				sc_tx_timer;
 
@@ -133,23 +143,12 @@ struct rum_softc {
 	int				ext_5ghz_lna;
 	int				rssi_2ghz_corr;
 	int				rssi_5ghz_corr;
-	int				sifs;
 	uint8_t				bbp17;
 
-	struct bpf_if			*sc_drvbpf;
-
-	union {
-		struct rum_rx_radiotap_header th;
-		uint8_t	pad[64];
-	}				sc_rxtapu;
-#define sc_rxtap	sc_rxtapu.th
+	struct rum_rx_radiotap_header	sc_rxtap;
 	int				sc_rxtap_len;
 
-	union {
-		struct rum_tx_radiotap_header th;
-		uint8_t	pad[64];
-	}				sc_txtapu;
-#define sc_txtap	sc_txtapu.th
+	struct rum_tx_radiotap_header	sc_txtap;
 	int				sc_txtap_len;
 };
 

@@ -102,8 +102,15 @@ struct ndis_evt {
 	char			*ne_buf;
 };
 
+struct ndis_vap {
+	struct ieee80211vap	vap;
+
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+};
+#define	NDIS_VAP(vap)	((struct ndis_vap *)(vap))
+
 struct ndis_softc {
-	struct ieee80211com	ic;		/* interface info */
 	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;	/* media info */
 	u_long			ndis_hwassist;
@@ -202,11 +209,6 @@ struct ndis_softc {
 #define IFF_DRV_OACTIVE IFF_OACTIVE
 #define IFF_DRV_RUNNING IFF_RUNNING
 #define if_drv_flags if_flags
-#endif
-
-#ifndef ic_def_txkey
-#define ic_def_txkey ic_wep_txkey
-#define wk_keylen wk_len
 #endif
 
 #ifndef SIOCGDRVSPEC

@@ -246,10 +246,8 @@ static int
 wi_pci_suspend(device_t dev)
 {
 	struct wi_softc	*sc = device_get_softc(dev);
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = ic->ic_ifp;
 
-	wi_stop(ifp, 1);
+	wi_stop(sc, 1);
 	
 	return (0);
 }
@@ -258,8 +256,7 @@ static int
 wi_pci_resume(device_t dev)
 {
 	struct wi_softc	*sc = device_get_softc(dev);
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE)
 		return (0);

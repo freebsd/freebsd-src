@@ -1122,6 +1122,7 @@ struct zyd_node {
 	struct ieee80211_node		ni;	/* must be the first */
 	struct ieee80211_amrr_node	amn;
 };
+#define	ZYD_NODE(ni)	((struct zyd_node *)(ni))
 
 struct zyd_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -1173,12 +1174,18 @@ struct rq {
 	STAILQ_ENTRY(rq) rq;
 };
 
+struct zyd_vap {
+	struct ieee80211vap	vap;
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+	struct callout		amrr_ch;
+	struct ieee80211_amrr	amrr;
+};
+#define	ZYD_VAP(vap)	((struct zyd_vap *)(vap))
+
 struct zyd_softc {
 	device_t			sc_dev;
 	struct ifnet			*sc_ifp;
-	struct ieee80211com		sc_ic;
-	int				(*sc_newstate)(struct ieee80211com *,
-					    enum ieee80211_state, int);
 	struct zyd_rf			sc_rf;
 
 	struct usb_task			sc_task;
@@ -1187,21 +1194,19 @@ struct zyd_softc {
 #define ZYD_SCAN_START	0
 #define ZYD_SCAN_END	1
 #define ZYD_SET_CHANNEL	2
+	struct usb_task			sc_mcasttask;
 	usbd_device_handle		sc_udev;
 	usbd_interface_handle		sc_iface;
 	int				sc_flags;
 	int				sc_if_flags;
 #define ZD1211_FWLOADED (1 << 0)
-
+	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 
 	enum ieee80211_state		sc_state;
 	int				sc_arg;
 
 	struct mtx			sc_mtx;
-	struct callout			sc_amrr_ch;
 	struct callout			sc_watchdog_ch;
-
-	struct ieee80211_amrr		amrr;
 
 	STAILQ_HEAD(rqh, rq) sc_rqh;
 
@@ -1232,8 +1237,6 @@ struct zyd_softc {
 	int				tx_queued;
 
 	int				tx_timer;
-
-	struct bpf_if			*sc_drvbpf;
 
 	struct zyd_rx_radiotap_header	sc_rxtap;
 	int				sc_rxtap_len;

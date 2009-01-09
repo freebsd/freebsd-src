@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 
 #include <dev/ath/if_athvar.h>
-#include <contrib/dev/ath/ah.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -88,36 +87,6 @@ ath_pci_probe(device_t dev)
 	return ENXIO;
 }
 
-static u_int32_t
-ath_pci_setup(device_t dev)
-{
-	u_int32_t cmd;
-
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((cmd & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "failed to enable memory mapping\n");
-		return 0;
-	}
-	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
-		device_printf(dev, "failed to enable bus mastering\n");
-		return 0;
-	}
-
-	/*
-	 * Disable retry timeout to keep PCI Tx retries from
-	 * interfering with C3 CPU state.
-	 */
-	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
-
-	return 1;
-}
-
 static int
 ath_pci_attach(device_t dev)
 {
@@ -128,8 +97,16 @@ ath_pci_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-	if (!ath_pci_setup(dev))
-		goto bad;
+	/*
+	 * Enable bus mastering.
+	 */
+	pci_enable_busmaster(dev);
+
+	/*
+	 * Disable retry timeout to keep PCI Tx retries from
+	 * interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -251,9 +228,6 @@ ath_pci_resume(device_t dev)
 {
 	struct ath_pci_softc *psc = device_get_softc(dev);
 
-	if (!ath_pci_setup(dev))
-		return ENXIO;
-
 	ath_resume(&psc->sc_sc);
 
 	return (0);
@@ -279,6 +253,4 @@ static	devclass_t ath_devclass;
 DRIVER_MODULE(if_ath, pci, ath_pci_driver, ath_devclass, 0, 0);
 DRIVER_MODULE(if_ath, cardbus, ath_pci_driver, ath_devclass, 0, 0);
 MODULE_VERSION(if_ath, 1);
-MODULE_DEPEND(if_ath, ath_hal, 1, 1, 1);	/* Atheros HAL */
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(if_ath, ath_rate, 1, 1, 1);	/* rate control algorithm */

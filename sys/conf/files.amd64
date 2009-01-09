@@ -47,16 +47,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-hal.o				optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/public/x86_64-elf.hal.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/ath/public/x86_64-elf.hal.o.uu" \
-	no-implicit-rule
-opt_ah.h			optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/public/x86_64-elf.opt_ah.h"	\
-	compile-with	"rm -f opt_ah.h; cp $S/contrib/dev/ath/public/x86_64-elf.opt_ah.h opt_ah.h" \
-	no-obj no-implicit-rule before-depend				\
-	clean		"opt_ah.h"
-#
 nvenetlib.o			optional	nve pci			\
 	dependency	"$S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu"	\
 	compile-with	"uudecode $S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \

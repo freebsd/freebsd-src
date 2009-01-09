@@ -477,6 +477,15 @@ callout_reset(c, to_ticks, ftn, arg)
 	return (cancelled);
 }
 
+/*
+ * Common idioms that can be optimized in the future.
+ */
+int
+callout_schedule(struct callout *c, int to_ticks)
+{
+	return callout_reset(c, to_ticks, c->c_func, c->c_arg);
+}
+
 int
 _callout_stop_safe(c, safe)
 	struct	callout *c;

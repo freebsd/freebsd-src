@@ -28,14 +28,9 @@ SUBDIR=	${_3dfx} \
 	${_arl} \
 	${_asr} \
 	ata \
-	${_ath} \
-	${_ath_hal} \
-	${_ath_rate_amrr} \
-	${_ath_rate_onoe} \
-	${_ath_rate_sample} \
+	ath \
 	aue \
 	${_auxio} \
-	${_awi} \
 	axe \
 	bce \
 	bfe \
@@ -320,11 +315,10 @@ SUBDIR=	${_3dfx} \
 	wb \
 	${_wi} \
 	wlan \
-	wlan_scan_ap \
-	wlan_scan_sta \
 	wlan_acl \
 	wlan_amrr \
 	wlan_ccmp \
+	wlan_rssadapt \
 	wlan_tkip \
 	wlan_wep \
 	wlan_xauth \
@@ -378,12 +372,6 @@ _aout=		aout
 _apm=		apm
 _ar=		ar
 _arcnet=	arcnet
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
-_awi=		awi
 _bktr=		bktr
 _cardbus=	cardbus
 _cbb=		cbb
@@ -515,11 +503,6 @@ _acpi=		acpi
 _agp=		agp
 _an=		an
 _arcmsr=	arcmsr
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
 _cardbus=	cardbus
 _cbb=		cbb
 _cmx=		cmx
@@ -624,22 +607,12 @@ _xe=		xe
 
 .if ${MACHINE_ARCH} == "powerpc"
 _an=		an
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
 _bm=		bm
 _nvram=		powermac_nvram
 _smbfs=		smbfs
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
 _auxio=		auxio
 _em=		em
 _i2c=		i2c
