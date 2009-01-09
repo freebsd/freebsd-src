@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/socket.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/vimage.h>
 
@@ -261,13 +263,19 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		LIST_FOREACH(iap, INADDR_HASH(dst.s_addr), ia_hash)
 			if (iap->ia_ifp == ifp &&
 			    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
-				ia = iap;
+				if (td == NULL || prison_check_ip4(
+				    td->td_ucred, &dst))
+					ia = iap;
 				break;
 			}
 		if (ia == NULL)
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				iap = ifatoia(ifa);
 				if (iap->ia_addr.sin_family == AF_INET) {
+					if (td != NULL &&
+					    !prison_check_ip4(td->td_ucred,
+					    &iap->ia_addr.sin_addr))
+						continue;
 					ia = iap;
 					break;
 				}
