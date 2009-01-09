@@ -347,6 +347,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
 			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
+			/*
+			 * Is the address a local IP address? 
+			 * If INP_NONLOCALOK is set, then the socket may be bound
+			 * to any local endpoint address.
+			 */
 			if (
 #if defined(IP_NONLOCALBIND)
 			    ((inp->inp_flags & INP_NONLOCALOK) == 0) &&
