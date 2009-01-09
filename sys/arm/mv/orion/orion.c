@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-extern int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin);
+extern const struct obio_pci_irq_map pci_irq_map[];
 
 struct obio_device obio_devices[] = {
 	{ "ic", MV_IC_BASE, MV_IC_SIZE,
@@ -106,7 +106,7 @@ const struct obio_pci mv_pci_info[] = {
 		MV_PCI_BASE, MV_PCI_SIZE,
 		MV_PCI_IO_BASE, MV_PCI_IO_SIZE,		3, 0x51,
 		MV_PCI_MEM_BASE, MV_PCI_MEM_SIZE,	3, 0x59,
-		platform_pci_get_irq, -1
+		pci_irq_map, -1
 	},
 
 	{ 0, 0, 0 }
