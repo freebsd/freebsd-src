@@ -59,32 +59,33 @@ extern char sigcode[];
 static int ibcs2_fixup(register_t **, struct image_params *);
 
 struct sysentvec ibcs2_svr3_sysvec = {
-        sizeof (ibcs2_sysent) / sizeof (ibcs2_sysent[0]),
-        ibcs2_sysent,
-        0xFF,
-        IBCS2_SIGTBLSZ,
-        bsd_to_ibcs2_sig,
-        ELAST + 1,
-        bsd_to_ibcs2_errno,
-	NULL,		/* trap-to-signal translation function */
-	ibcs2_fixup,	/* fixup */
-	sendsig,
-	sigcode,	/* use generic trampoline */
-	&szsigcode,	/* use generic trampoline size */
-	NULL,		/* prepsyscall */
-	"IBCS2 COFF",
-	NULL,		/* we don't have a COFF coredump function */
-	NULL,
-	IBCS2_MINSIGSTKSZ,
-	PAGE_SIZE,
-	VM_MIN_ADDRESS,
-	VM_MAXUSER_ADDRESS,
-	USRSTACK,
-	PS_STRINGS,
-	VM_PROT_ALL,
-	exec_copyout_strings,
-	exec_setregs,
-	NULL
+        .sv_size	= sizeof (ibcs2_sysent) / sizeof (ibcs2_sysent[0]),
+        .sv_table	= ibcs2_sysent,
+        .sv_mask	= 0xff,
+        .sv_sigsize	= IBCS2_SIGTBLSZ,
+        .sv_sigtbl	= bsd_to_ibcs2_sig,
+        .sv_errsize	= ELAST + 1,
+        .sv_errtbl	= bsd_to_ibcs2_errno,
+	.sv_transtrap	= NULL,
+	.sv_fixup	= ibcs2_fixup,
+	.sv_sendsig	= sendsig,
+	.sv_sigcode	= sigcode,	/* use generic trampoline */
+	.sv_szsigcode	= &szsigcode,
+	.sv_prepsyscall	= NULL,
+	.sv_name	= "IBCS2 COFF",
+	.sv_coredump	= NULL,	/* we don't have a COFF coredump function */
+	.sv_imgact_try	= NULL,
+	.sv_minsigstksz	= IBCS2_MINSIGSTKSZ,
+	.sv_pagesize	= PAGE_SIZE,
+	.sv_minuser	= VM_MIN_ADDRESS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS,
+	.sv_usrstack	= USRSTACK,
+	.sv_psstrings	= PS_STRINGS,
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_strings = exec_copyout_strings,
+	.sv_setregs	= exec_setregs,
+	.sv_fixlimit	= NULL,
+	.sv_maxssiz	= NULL
 };
 
 static int
