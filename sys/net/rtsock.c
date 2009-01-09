@@ -1326,8 +1326,8 @@ sysctl_iflist(int af, struct walkarg *w)
 		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != NULL) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
-			if (jailed(curthread->td_ucred) &&
-			    !prison_if(curthread->td_ucred, ifa->ifa_addr))
+			if (jailed(w->w_req->td->td_ucred) &&
+			    !prison_if(w->w_req->td->td_ucred, ifa->ifa_addr))
 				continue;
 			info.rti_info[RTAX_IFA] = ifa->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
@@ -1375,8 +1375,8 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
-			if (jailed(curthread->td_ucred) &&
-			    !prison_if(curthread->td_ucred, ifma->ifma_addr))
+			if (jailed(w->w_req->td->td_ucred) &&
+			    !prison_if(w->w_req->td->td_ucred, ifma->ifma_addr))
 				continue;
 			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
 			info.rti_info[RTAX_GATEWAY] =
@@ -1457,7 +1457,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		 * take care of routing entries
 		 */
 		for (error = 0; error == 0 && i <= lim; i++)
-			if ((rnh = V_rt_tables[curthread->td_proc->p_fibnum][i]) != NULL) {
+			if ((rnh = V_rt_tables[req->td->td_proc->p_fibnum][i]) != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);
