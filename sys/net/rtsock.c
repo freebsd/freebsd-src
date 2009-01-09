@@ -611,6 +611,12 @@ route_output(struct mbuf *m, struct socket *so)
 		case RTM_GET:
 		report:
 			RT_LOCK_ASSERT(rt);
+			if (jailed(curthread->td_ucred) &&
+			    ((rt->rt_flags & RTF_HOST) == 0 ||
+			    !prison_if(curthread->td_ucred, rt_key(rt)))) {
+				RT_UNLOCK(rt);
+				senderr(ESRCH);
+			}
 			info.rti_info[RTAX_DST] = rt_key(rt);
 			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
@@ -620,10 +626,10 @@ route_output(struct mbuf *m, struct socket *so)
 				if (ifp) {
 					info.rti_info[RTAX_IFP] =
 					    ifp->if_addr->ifa_addr;
-					if (jailed(so->so_cred)) {
+					if (jailed(curthread->td_ucred)) {
 						error = rtm_get_jailed(
 						    &info, ifp, rt, &saun,
-						    so->so_cred);
+						    curthread->td_ucred);
 						if (error != 0) {
 							RT_UNLOCK(rt);
 							senderr(ESRCH);
@@ -1256,6 +1262,10 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
+	if (jailed(w->w_req->td->td_ucred) &&
+	    ((rt->rt_flags & RTF_HOST) == 0 ||
+	    !prison_if(w->w_req->td->td_ucred, rt_key(rt))))
+		return (0);
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;

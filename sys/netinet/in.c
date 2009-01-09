@@ -1201,6 +1201,10 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			/* skip deleted entries */
 			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
 				continue;
+			/* Skip if jailed and not a valid IP of the prison. */
+			if (jailed(wr->td->td_ucred) &&
+			    !prison_if(wr->td->td_ucred, L3_ADDR(lle)))
+				continue;
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
