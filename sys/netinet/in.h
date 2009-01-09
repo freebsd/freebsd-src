@@ -441,7 +441,8 @@ __END_DECLS
 #define	IP_FAITH		22   /* bool; accept FAITH'ed connections */
 
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
-#define	IP_NONLOCALOK		24   /* allow bind to spoof other machines */
+#define	IP_NONLOCALOK		24   /* bool: allow bind to spoof non-local addresses;
+					requires kernel compile option IP_NONLOCALBIND */
 
 #define	IP_FW_TABLE_ADD		40   /* add entry */
 #define	IP_FW_TABLE_DEL		41   /* delete entry */
