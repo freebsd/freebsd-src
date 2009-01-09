@@ -733,7 +733,7 @@ ng_l2tp_reset_session(hook_p hook, void *arg)
 	if (hpriv != NULL) {
 		hpriv->conf.control_dseq = 0;
 		hpriv->conf.enable_dseq = 0;
-		bzero(&hpriv->conf, sizeof(struct ng_l2tp_session_stats));
+		bzero(&hpriv->stats, sizeof(struct ng_l2tp_session_stats));
 		hpriv->nr = 0;
 		hpriv->ns = 0;
 	}
