@@ -259,9 +259,8 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	if (msg->header.typecookie == NGM_GENERIC_COOKIE &&
 	    msg->header.cmd == NGM_MKPEER) {
 		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *) msg->data;
-		struct ng_type *type;
 
-		if ((type = ng_findtype(mkp->type)) == NULL) {
+		if (ng_findtype(mkp->type) == NULL) {
 			char filename[NG_TYPESIZ + 3];
 			int fileid;
 
@@ -275,7 +274,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			}
 
 			/* See if type has been loaded successfully. */
-			if ((type = ng_findtype(mkp->type)) == NULL) {
+			if (ng_findtype(mkp->type) == NULL) {
 				free(msg, M_NETGRAPH_MSG);
 				(void)kern_kldunload(curthread, fileid,
 				    LINKER_UNLOAD_NORMAL);
