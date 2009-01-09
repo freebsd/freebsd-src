@@ -876,9 +876,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 #if defined(IP_NONLOCALBIND)
 		case IP_NONLOCALOK:
 			if (! ip_nonlocalok) {
-			error = ENOPROTOOPT;
-			break;
-		}
+				error = ENOPROTOOPT;
+				break;
+			}
+			/* FALLTHROUGH */
 #endif
 		case IP_TOS:
 		case IP_TTL:
