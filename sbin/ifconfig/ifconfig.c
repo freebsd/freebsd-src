@@ -392,14 +392,21 @@ cmd_register(struct cmd *p)
 }
 
 static const struct cmd *
-cmd_lookup(const char *name)
+cmd_lookup(const char *name, int iscreate)
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	const struct cmd *p;
 
 	for (p = cmds; p != NULL; p = p->c_next)
-		if (strcmp(name, p->c_name) == 0)
-			return p;
+		if (strcmp(name, p->c_name) == 0) {
+			if (iscreate) {
+				if (p->c_iscloneop)
+					return p;
+			} else {
+				if (!p->c_iscloneop)
+					return p;
+			}
+		}
 	return NULL;
 #undef N
 }
@@ -437,6 +444,7 @@ static int
 ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *afp)
 {
 	const struct afswtch *nafp;
+	const struct cmd *p;
 	struct callback *cb;
 	int s;
 
@@ -452,9 +460,38 @@ top:
 		err(1, "socket(family %u,SOCK_DGRAM", ifr.ifr_addr.sa_family);
 
 	while (argc > 0) {
-		const struct cmd *p;
-
-		p = cmd_lookup(*argv);
+		p = cmd_lookup(*argv, iscreate);
+		if (iscreate && p == NULL) {
+			/*
+			 * Push the clone create callback so the new
+			 * device is created and can be used for any
+			 * remaining arguments.
+			 */
+			cb = callbacks;
+			if (cb == NULL)
+				errx(1, "internal error, no callback");
+			callbacks = cb->cb_next;
+			cb->cb_func(s, cb->cb_arg);
+			iscreate = 0;
+			/*
+			 * Handle any address family spec that
+			 * immediately follows and potentially
+			 * recreate the socket.
+			 */
+			nafp = af_getbyname(*argv);
+			if (nafp != NULL) {
+				argc--, argv++;
+				if (nafp != afp) {
+					close(s);
+					afp = nafp;
+					goto top;
+				}
+			}
+			/*
+			 * Look for a normal parameter.
+			 */
+			continue;
+		}
 		if (p == NULL) {
 			/*
 			 * Not a recognized command, choose between setting
@@ -463,33 +500,6 @@ top:
 			p = (setaddr ? &setifdstaddr_cmd : &setifaddr_cmd);
 		}
 		if (p->c_u.c_func || p->c_u.c_func2) {
-			if (iscreate && !p->c_iscloneop) { 
-				/*
-				 * Push the clone create callback so the new
-				 * device is created and can be used for any
-				 * remaining arguments.
-				 */
-				cb = callbacks;
-				if (cb == NULL)
-					errx(1, "internal error, no callback");
-				callbacks = cb->cb_next;
-				cb->cb_func(s, cb->cb_arg);
-				iscreate = 0;
-				/*
-				 * Handle any address family spec that
-				 * immediately follows and potentially
-				 * recreate the socket.
-				 */
-				nafp = af_getbyname(*argv);
-				if (nafp != NULL) {
-					argc--, argv++;
-					if (nafp != afp) {
-						close(s);
-						afp = nafp;
-						goto top;
-					}
-				}
-			}
 			if (p->c_parameter == NEXTARG) {
 				if (argv[1] == NULL)
 					errx(1, "'%s' requires argument",

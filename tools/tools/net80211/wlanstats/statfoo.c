@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,13 +12,6 @@
  *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
  *
  * NO WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -47,9 +40,9 @@ statfoo_setfmt(struct statfoo *sf, const char *fmt0)
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	char fmt[4096];
 	char *fp, *tok;
-	int i, j;
+	int i, j, field;
 
-	j = 0;
+	j = field = 0;
 	strlcpy(fmt, fmt0, sizeof(fmt));
 	for (fp = fmt; (tok = strsep(&fp, ", ")) != NULL;) {
 		for (i = 0; i < sf->nstats; i++)
@@ -65,9 +58,15 @@ statfoo_setfmt(struct statfoo *sf, const char *fmt0)
 				"stopped at %s\n", sf->name, tok);
 			break;
 		}
+		if (field > 127) {
+			fprintf(stderr, "%s: too many fields; "
+				"stopped at %s\n", sf->name, tok);
+			break;
+		}
 		if (j != 0)
 			sf->fmts[j++] = ' ';
-		sf->fmts[j++] = 0x80 | i;
+		sf->fmts[j++] = 0x80 | field;
+		sf->fields[field++] = i;
 	}
 	sf->fmts[j] = '\0';
 #undef N
@@ -99,7 +98,8 @@ statfoo_print_header(struct statfoo *sf, FILE *fd)
 
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
-			const struct fmt *f = &sf->stats[*cp &~ 0x80];
+			int six = sf->fields[*cp &~ 0x80];
+			const struct fmt *f = &sf->stats[six];
 			fprintf(fd, "%*s", f->width, f->label);
 		} else
 			putc(*cp, fd);
@@ -115,8 +115,9 @@ statfoo_print_current(struct statfoo *sf, FILE *fd)
 
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
-			const struct fmt *f = &sf->stats[*cp &~ 0x80];
-			if (sf->get_curstat(sf, *cp &~ 0x80, buf, sizeof(buf)))
+			int six = sf->fields[*cp &~ 0x80];
+			const struct fmt *f = &sf->stats[six];
+			if (sf->get_curstat(sf, six, buf, sizeof(buf)))
 				fprintf(fd, "%*s", f->width, buf);
 		} else
 			putc(*cp, fd);
@@ -132,8 +133,9 @@ statfoo_print_total(struct statfoo *sf, FILE *fd)
 
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
-			const struct fmt *f = &sf->stats[*cp &~ 0x80];
-			if (sf->get_totstat(sf, *cp &~ 0x80, buf, sizeof(buf)))
+			int six = sf->fields[*cp &~ 0x80];
+			const struct fmt *f = &sf->stats[six];
+			if (sf->get_totstat(sf, six, buf, sizeof(buf)))
 				fprintf(fd, "%*s", f->width, buf);
 		} else
 			putc(*cp, fd);

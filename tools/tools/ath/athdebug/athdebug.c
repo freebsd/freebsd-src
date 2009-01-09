@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,13 +12,6 @@
  *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
  *
  * NO WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -48,6 +41,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <stdlib.h>
 
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 
@@ -74,6 +68,9 @@ enum {
 	ATH_DEBUG_LED		= 0x00100000,	/* led management */
 	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
 	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
+	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
+	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
+	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
@@ -102,6 +99,9 @@ static struct {
 	{ "led",	ATH_DEBUG_LED },
 	{ "ff",		ATH_DEBUG_FF },
 	{ "dfs",	ATH_DEBUG_DFS },
+	{ "tdma",	ATH_DEBUG_TDMA },
+	{ "tdma_timer",	ATH_DEBUG_TDMA_TIMER },
+	{ "regdomain",	ATH_DEBUG_REGDOMAIN },
 	{ "fatal",	ATH_DEBUG_FATAL },
 };
 
@@ -142,7 +142,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	const char *ifname = "ath0";
+	const char *ifname;
 	const char *cp, *tp;
 	const char *sep;
 	int c, op, i;
@@ -150,6 +150,9 @@ main(int argc, char *argv[])
 	size_t debuglen;
 	char oid[256];
 
+	ifname = getenv("ATH");
+	if (ifname == NULL)
+		ifname = "ath0";
 	progname = argv[0];
 	if (argc > 1) {
 		if (strcmp(argv[1], "-i") == 0) {

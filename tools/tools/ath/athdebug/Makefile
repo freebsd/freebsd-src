@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	athdebug
-BINDIR=	/usr/local/bin
-NO_MAN=
+
+.include <../Makefile.inc>
 
 .include <bsd.prog.mk>

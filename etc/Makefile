@@ -17,7 +17,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 	portsnap.conf pf.os phones profile protocols \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
 	rc.sendmail rc.shutdown \
-	rc.subr remote rpc services shells \
+	rc.subr regdomain.xml remote rpc services shells \
 	snmpd.config sysctl.conf syslog.conf \
 	etc.${MACHINE_ARCH}/ttys \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
@@ -47,6 +47,10 @@ SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 .endif
 .if ${MK_OPENSSL} != "no"
 SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
+.endif
+
+.if ${MK_WIRELESS} != "no"
+BIN1+= regdomain.xml
 .endif
 
 # -rwxr-xr-x root:wheel, for the new cron root:wheel

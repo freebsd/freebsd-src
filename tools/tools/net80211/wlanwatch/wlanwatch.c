@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,13 +12,6 @@
  *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
  *
  * NO WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -74,6 +67,14 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 
+/* XXX */
+enum ieee80211_notify_cac_event {
+	IEEE80211_NOTIFY_CAC_START  = 0, /* CAC timer started */
+	IEEE80211_NOTIFY_CAC_STOP   = 1, /* CAC intentionally stopped */
+	IEEE80211_NOTIFY_CAC_RADAR  = 2, /* CAC stopped due to radar detectio */
+	IEEE80211_NOTIFY_CAC_EXPIRE = 3, /* CAC expired w/o radar */
+};
+
 static	void print_rtmsg(struct rt_msghdr *rtm, int msglen);
 
 int	nflag = 0;
@@ -95,10 +96,7 @@ main(int argc, char *argv[])
 }
 
 static void
-bprintf(fp, b, s)
-	FILE *fp;
-	int b;
-	u_char *s;
+bprintf(FILE *fp, int b, char *s)
 {
 	int i;
 	int gotsome = 0;
@@ -138,9 +136,8 @@ char ifnetflags[] =
 char addrnames[] =
 "\1DST\2GATEWAY\3NETMASK\4GENMASK\5IFP\6IFA\7AUTHOR\010BRD";
 
-const char *
-routename(sa)
-	struct sockaddr *sa;
+static const char *
+routename(struct sockaddr *sa)
 {
 	char *cp;
 	static char line[MAXHOSTNAMELEN + 1];
@@ -275,7 +272,6 @@ pmsg_addrs(char *cp, int addrs)
 			cp += SA_SIZE(sa);
 		}
 	putchar('\n');
-	fflush(stdout);
 }
 
 static const char *
@@ -293,7 +289,6 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 {
 	struct if_msghdr *ifm;
 	struct if_announcemsghdr *ifan;
-	char *state;
 	time_t now = time(NULL);
 	char *cnow = ctime(&now);
 
@@ -309,18 +304,19 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			cnow, ifm->ifm_index);
 		switch (ifm->ifm_data.ifi_link_state) {
 		case LINK_STATE_DOWN:
-			state = "down";
+			printf("link: down, flags:");
 			break;
 		case LINK_STATE_UP:
-			state = "up";
+			printf("link: up, flags:");
 			break;
 		default:
-			state = "unknown";
+			printf("link: unknown<%d>, flags:",
+			    ifm->ifm_data.ifi_link_state);
 			break;
 		}
-		printf("link: %s, flags:", state);
 		bprintf(stdout, ifm->ifm_flags, ifnetflags);
 		pmsg_addrs((char *)(ifm + 1), ifm->ifm_addrs);
+		fflush(stdout);
 		break;
 	case RTM_IFANNOUNCE:
 		ifan = (struct if_announcemsghdr *)rtm;
@@ -338,11 +334,12 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 	case RTM_IEEE80211:
 #define	V(type)	((struct type *)(&ifan[1]))
 		ifan = (struct if_announcemsghdr *)rtm;
-		printf("%.19s RTM_IEEE80211: ", cnow);
+		printf("%.19s RTM_IEEE80211: if# %d, ", cnow, ifan->ifan_index);
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
 			printf("associate with %s",
@@ -391,12 +388,69 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			    , V(ieee80211_michael_event)->iev_keyix
 			);
 			break;
+		case RTM_IEEE80211_WDS:
+			printf("%s wds discovery",
+			    ether_sprintf(V(ieee80211_wds_event)->iev_addr));
+			break;
+		case RTM_IEEE80211_CSA:
+			printf("channel switch announcement: channel %u (%u MHz flags 0x%x) mode %d count %d"
+			    , V(ieee80211_csa_event)->iev_ieee
+			    , V(ieee80211_csa_event)->iev_freq
+			    , V(ieee80211_csa_event)->iev_flags
+			    , V(ieee80211_csa_event)->iev_mode
+			    , V(ieee80211_csa_event)->iev_count
+			);
+			break;
+		case RTM_IEEE80211_CAC:
+			printf("channel availability check "
+			    "(channel %u, %u MHz flags 0x%x) "
+			    , V(ieee80211_cac_event)->iev_ieee
+			    , V(ieee80211_cac_event)->iev_freq
+			    , V(ieee80211_cac_event)->iev_flags
+			);
+			switch (V(ieee80211_cac_event)->iev_type) {
+			case IEEE80211_NOTIFY_CAC_START:
+				printf("start timer");
+				break;
+			case IEEE80211_NOTIFY_CAC_STOP:
+				printf("stop timer");
+				break;
+			case IEEE80211_NOTIFY_CAC_EXPIRE:
+				printf("timer expired");
+				break;
+			case IEEE80211_NOTIFY_CAC_RADAR:
+				printf("radar detected");
+				break;
+			default:
+				printf("unknown type %d",
+				   V(ieee80211_cac_event)->iev_type);
+				break;
+			}
+			break;
+		case RTM_IEEE80211_DEAUTH:
+			printf("%s wds deauth",
+			    ether_sprintf(V(ieee80211_deauth_event)->iev_addr));
+			break;
+		case RTM_IEEE80211_AUTH:
+			printf("%s node authenticate",
+			    ether_sprintf(V(ieee80211_auth_event)->iev_addr));
+			break;
+		case RTM_IEEE80211_COUNTRY:
+			printf("%s adopt country code '%c%c'",
+			    ether_sprintf(V(ieee80211_country_event)->iev_addr),
+			    V(ieee80211_country_event)->iev_cc[0],
+			    V(ieee80211_country_event)->iev_cc[1]);
+			break;
+		case RTM_IEEE80211_RADIO:
+			printf("radio %s",
+			    V(ieee80211_radio_event)->iev_state ? "ON" : "OFF");
+			break;
 		default:
-			printf("if# %d, what: #%d",
-				ifan->ifan_index, ifan->ifan_what);
+			printf("what: #%d", ifan->ifan_what);
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 #undef V
 	}

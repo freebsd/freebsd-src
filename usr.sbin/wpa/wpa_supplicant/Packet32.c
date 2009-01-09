@@ -286,7 +286,7 @@ PacketGetAdapterNames(namelist, len)
 		ifm = (struct if_msghdr *)next;
 		if (ifm->ifm_type == RTM_IFINFO) {
 			sdl = (struct sockaddr_dl *)(ifm + 1);
-			if (strnstr(sdl->sdl_data, "ndis", sdl->sdl_nlen)) {
+			if (strnstr(sdl->sdl_data, "wlan", sdl->sdl_nlen)) {
 				if ((spc + sdl->sdl_nlen) > *len) {
 					free(buf);
 					return(FALSE);
@@ -319,7 +319,7 @@ PacketGetAdapterNames(namelist, len)
 		ifm = (struct if_msghdr *)next;
 		if (ifm->ifm_type == RTM_IFINFO) {
 			sdl = (struct sockaddr_dl *)(ifm + 1);
-			if (strnstr(sdl->sdl_data, "ndis", sdl->sdl_nlen)) {
+			if (strnstr(sdl->sdl_data, "wlan", sdl->sdl_nlen)) {
 				if ((spc + sdl->sdl_nlen) > *len) {
 					free(buf);
 					return(FALSE);

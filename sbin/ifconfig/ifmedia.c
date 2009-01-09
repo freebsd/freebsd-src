@@ -102,6 +102,11 @@ static struct ifmedia_type_to_subtype *get_toptype_ttos(int);
 static struct ifmedia_description *get_subtype_desc(int,
     struct ifmedia_type_to_subtype *ttos);
 
+#define	IFM_OPMODE(x) \
+	((x) & (IFM_IEEE80211_ADHOC | IFM_IEEE80211_HOSTAP | \
+	 IFM_IEEE80211_IBSS | IFM_IEEE80211_WDS | IFM_IEEE80211_MONITOR))
+#define	IFM_IEEE80211_STA	0
+
 static void
 media_status(int s)
 {
@@ -162,10 +167,13 @@ media_status(int s)
 			break;
 
 		case IFM_IEEE80211:
-			/* XXX: Different value for adhoc? */
-			if (ifmr.ifm_status & IFM_ACTIVE)
-				printf("associated");
-			else
+			if (ifmr.ifm_status & IFM_ACTIVE) {
+				/* NB: only sta mode associates */
+				if (IFM_OPMODE(ifmr.ifm_active) == IFM_IEEE80211_STA)
+					printf("associated");
+				else
+					printf("running");
+			} else
 				printf("no carrier");
 			break;
 		}

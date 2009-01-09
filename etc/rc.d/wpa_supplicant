@@ -20,12 +20,25 @@ if [ -z "$ifn" ]; then
 	return 1
 fi
 
-case ${ifn} in
-ndis*)
+is_ndis_interface()
+{
+	case `sysctl -n net.wlan.${1#wlan}.%parent 2>/dev/null` in
+		ndis*) true ;;
+		*) false ;;
+	esac
+}
+
+if is_wired_interface ${ifn} ; then
+	driver="wired"
+elif is_ndis_interface ${ifn} ; then
 	driver="ndis"
 	;;
 *)
-	driver="bsd"
+	if is_wired_interface ${ifn} ; then
+		driver="wired"
+	else
+		driver="bsd"
+	fi
 	;;
 esac
 
@@ -34,5 +47,6 @@ load_rc_config $name
 pidfile="/var/run/${name}/${ifn}.pid"
 command_args="-B -q -i $ifn -c $conf_file -D $driver -P $pidfile"
 required_files=$conf_file
+required_modules="wlan_wep wlan_tkip wlan_ccmp"
 
 run_rc_command "$1"

@@ -1,19 +1,22 @@
 # $FreeBSD$
 
 PROG=	athstats
-BINDIR=	/usr/local/bin
-NO_MAN=
 
 SRCS=	main.c statfoo.c athstats.c
 
 .include <bsd.prog.mk>
 
-CFLAGS+= -I.
+SRCDIR=	${.CURDIR}/../../../..
+
 CLEANFILES+= opt_ah.h ah_osdep.h
 
-CFLAGS+=-I../../../../sys/contrib/dev/ath
-CFLAGS+=-I../../../../sys/net80211
-CFLAGS+=-I../../../../sys/dev/ath
+CFLAGS+=-DATH_SUPPORT_ANI
+CFLAGS+=-DATH_SUPPORT_TDMA
+
+CFLAGS+=-I${.CURDIR}
+CFLAGS+=-I${SRCDIR}/sys/net80211
+
+.include <../Makefile.inc>
 
 athstats.o: opt_ah.h ah_osdep.h
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,13 +12,6 @@
  *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
  *
  * NO WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -38,7 +31,7 @@
 
 /*
  * wlanstats [-i interface]
- * (default interface is ath0).
+ * (default interface is wlan0).
  */
 
 #include <sys/types.h>
@@ -46,15 +39,17 @@
 #include <net/ethernet.h>
 #include <net80211/_ieee80211.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
 #include <err.h>
+#include <strings.h>
 
 #include "wlanstats.h"
 
 #define	S_DEFAULT \
-	"input,output,rx_ucast,rx_mcast,tx_ucast,tx_mcast,rssi,rate"
+	"input,rx_mgmt,output,rx_badkeyid,scan_active,scan_bg,bmiss,rssi,noise,rate"
 #define	S_AMPDU \
 	"input,output,ampdu_reorder,ampdu_oor,rx_dup,ampdu_flush,ampdu_move,ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,rssi,rate"
 
@@ -146,7 +141,7 @@ main(int argc, char *argv[])
 	int allnodes = 0;
 	int c, mode;
 
-	wf = wlanstats_new("ath0", S_DEFAULT);
+	wf = wlanstats_new("wlan0", S_DEFAULT);
 	while ((c = getopt(argc, argv, "ai:lm:o:")) != -1) {
 		switch (c) {
 		case 'a':

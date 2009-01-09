@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,13 +12,6 @@
  *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
  *
  * NO WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -49,14 +42,40 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 #include <err.h>
 
 #include "athstats.h"
 
-#define	S_DEFAULT \
-	"input,output,altrate,short,long,xretry,crcerr,crypt,phyerr,rssi,rate"
+static struct {
+	const char *tag;
+	const char *fmt;
+} tags[] = {
+  { "default",
+    "input,output,altrate,short,long,xretry,crcerr,crypt,phyerr,rssi,rate"
+  },
+  { "ani",
+    "avgbrssi,avgrssi,avgtxrssi,NI,SI,step,owsd,cwst,NI+,NI-,SI+,SI-,OFDM,CCK,LISTEN"
+  },
+  { "tdma",
+    "input,output,bexmit,tdmau,tdmadj,crcerr,phyerr,phytor,rssi,noise,rate"
+  },
+};
+
+static const char *
+getfmt(const char *tag)
+{
+#define	N(a)	(sizeof(a)/sizeof(a[0]))
+	int i;
+	for (i = 0; i < N(tags); i++)
+		if (strcasecmp(tags[i].tag, tag) == 0)
+			return tags[i].fmt;
+	errx(-1, "unknown tag \%s\"", tag);
+	/*NOTREACHED*/
+#undef N
+}
 
 static int signalled;
 
@@ -70,9 +89,13 @@ int
 main(int argc, char *argv[])
 {
 	struct athstatfoo *wf;
+	const char *ifname;
 	int c;
 
-	wf = athstats_new("ath0", S_DEFAULT);
+	ifname = getenv("ATH");
+	if (ifname == NULL)
+		ifname = "ath0";
+	wf = athstats_new(ifname, getfmt("default"));
 	while ((c = getopt(argc, argv, "i:lo:")) != -1) {
 		switch (c) {
 		case 'i':
@@ -82,7 +105,7 @@ main(int argc, char *argv[])
 			wf->print_fields(wf, stdout);
 			return 0;
 		case 'o':
-			wf->setfmt(wf, optarg);
+			wf->setfmt(wf, getfmt(optarg));
 			break;
 		default:
 			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);
