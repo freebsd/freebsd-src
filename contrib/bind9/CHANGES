@@ -1,3 +1,11 @@
+	--- 9.4.3-P1 released ---
+
+2522.	[security]	Handle -1 from DSA_do_verify().
+
+2498.	[bug]		Removed a bogus function argument used with
+			ISC_SOCKET_USE_POLLWATCH: it could cause compiler
+			warning or crash named with the debug 1 level
+			of logging. [RT #18917]
 
 	--- 9.4.3 released ---
 
