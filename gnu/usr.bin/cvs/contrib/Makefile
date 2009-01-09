@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.POSIX:
-
 .include "../Makefile.inc"
 
 .PATH:	${CVSDIR}/contrib
@@ -20,6 +18,10 @@ PERLPATH=	/usr/bin/perl
 CLEANFILES+=	$(SCRIPTS)
 
 .SUFFIXES: .sh .pl .in
+
+# Prevent Makefile.in from overwriting Makefile through the suffix rules.
+Makefile:
+	@:
 
 .sh:
 	cp ${.IMPSRC} ${.TARGET}
