@@ -1201,6 +1201,10 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			 */
 			bzero(&arpc, sizeof(arpc));
 			arpc.rtm.rtm_msglen = sizeof(arpc);
+			arpc.rtm.rtm_version = RTM_VERSION;
+			arpc.rtm.rtm_type = RTM_GET;
+			arpc.rtm.rtm_flags = RTF_UP;
+			arpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
 			arpc.sin.sin_family = AF_INET;
 			arpc.sin.sin_len = sizeof(arpc.sin);
 			arpc.sin.sin_addr.s_addr = SIN(lle)->sin_addr.s_addr;
