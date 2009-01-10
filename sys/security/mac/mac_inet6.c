@@ -80,7 +80,7 @@ int
 mac_ip6q_init(struct ip6q *q6, int flag)
 {
 
-	if (mac_labeled & MPC_OBJECT_IPQ) {
+	if (mac_labeled & MPC_OBJECT_IP6Q) {
 		q6->ip6q_label = mac_ip6q_label_alloc(flag);
 		if (q6->ip6q_label == NULL)
 			return (ENOMEM);
