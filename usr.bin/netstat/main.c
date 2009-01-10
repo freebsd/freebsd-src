@@ -507,7 +507,7 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 	if (mflag) {
-		if (memf != NULL) {
+		if (!live) {
 			if (kread(0, NULL, 0) == 0)
 				mbpr(kvmd, nl[N_MBSTAT].n_value);
 		} else
