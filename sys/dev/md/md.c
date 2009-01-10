@@ -1133,13 +1133,15 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		mdinit(sc);
 		return (0);
 	case MDIOCDETACH:
-		if (mdio->md_mediasize != 0 || mdio->md_options != 0)
+		if (mdio->md_mediasize != 0 ||
+		    (mdio->md_options & ~MD_FORCE) != 0)
 			return (EINVAL);
 
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
 			return (ENOENT);
-		if (sc->opencount != 0 && !(sc->flags & MD_FORCE))
+		if (sc->opencount != 0 && !(sc->flags & MD_FORCE) &&
+		    !(mdio->md_options & MD_FORCE))
 			return (EBUSY);
 		return (mddestroy(sc, td));
 	case MDIOCQUERY:
