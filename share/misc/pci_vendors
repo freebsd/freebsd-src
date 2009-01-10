@@ -4606,7 +4606,7 @@
 	6041	MV88SX6041 Marvell Technology Group Ltd. MV88SX6041 4-port SATA II PCI-X Controller (rev 03)
 	6042	MV88SX6042 4-port SATA II PCI-X Controller
 	6081	MV88SX6081 8-port SATA II PCI-X Controller
-	6101	6101 SATA2 Controller
+	6101	MV88SX6101 1-port UltraATA/133 Controller
 	6111	6111 SATA2 Controller
 	6120	6120 SATA2 Controller
 	6121	6121 SATA2 Controller
