@@ -51,22 +51,39 @@ a dash
 .Nm
 reads from standard input.
 .Pp
+Files are created with a prefix of
+.Dq xx
+and two decimal digits.
+The size of each file is written to standard output
+as it is created.
+If an error occurs whilst files are being created,
+or a
+.Dv HUP ,
+.Dv INT ,
+or
+.Dv TERM
+signal is received,
+all files previously written are removed.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl f Ar prefix
-Give created files names beginning with
-.Ar prefix .
-The default is
+Create file names beginning with
+.Ar prefix ,
+instead of
 .Dq Pa xx .
 .It Fl k
-Do not remove output files.
+Do not remove previously created files if an error occurs or a
+.Dv HUP ,
+.Dv INT ,
+or
+.Dv TERM
+signal is received.
 .It Fl n Ar number
-Use
+Create file names beginning with
 .Ar number
-of decimal digits after the
-.Ar prefix
-to form the file name.
-The default is 2.
+of decimal digits after the prefix,
+instead of 2.
 .It Fl s
 Do not write the size of each output file to standard output as it is
 created.
