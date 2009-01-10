@@ -316,4 +316,4 @@ static struct mac_policy_ops partition_ops =
 };
 
 MAC_POLICY_SET(&partition_ops, mac_partition, "TrustedBSD MAC/Partition",
-    MPC_LOADTIME_FLAG_UNLOADOK, &partition_slot, MPC_OBJECT_CRED);
+    MPC_LOADTIME_FLAG_UNLOADOK, &partition_slot);
