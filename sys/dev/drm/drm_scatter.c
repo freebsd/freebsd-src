@@ -1,5 +1,3 @@
-/* drm_scatter.h -- IOCTLs to manage scatter/gather memory -*- linux-c -*-
- * Created: Mon Dec 18 23:20:54 2000 by gareth@valinux.com */
 /*-
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
@@ -32,50 +30,50 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_scatter.c
+ * Allocation of memory for scatter-gather mappings by the graphics chip.
+ *
+ * The memory allocated here is then made into an aperture in the card
+ * by drm_ati_pcigart_init().
+ */
+
 #include "dev/drm/drmP.h"
 
 #define DEBUG_SCATTER 0
 
 void drm_sg_cleanup(drm_sg_mem_t *entry)
 {
-	free((void *)entry->handle, M_DRM);
-	free(entry->busaddr, M_DRM);
-	free(entry, M_DRM);
+	free((void *)entry->handle, DRM_MEM_PAGES);
+	free(entry->busaddr, DRM_MEM_PAGES);
+	free(entry, DRM_MEM_SGLISTS);
 }
 
-int drm_sg_alloc(DRM_IOCTL_ARGS)
+int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
 {
-	DRM_DEVICE;
-	drm_scatter_gather_t request;
 	drm_sg_mem_t *entry;
 	unsigned long pages;
 	int i;
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
-
-	if ( dev->sg )
+	if (dev->sg)
 		return EINVAL;
 
-	DRM_COPY_FROM_USER_IOCTL(request, (drm_scatter_gather_t *)data,
-			     sizeof(request) );
-
-	entry = malloc(sizeof(*entry), M_DRM, M_WAITOK | M_ZERO);
-	if ( !entry )
+	entry = malloc(sizeof(*entry), DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
+	if (!entry)
 		return ENOMEM;
 
-	pages = round_page(request.size) / PAGE_SIZE;
-	DRM_DEBUG( "sg size=%ld pages=%ld\n", request.size, pages );
+	pages = round_page(request->size) / PAGE_SIZE;
+	DRM_DEBUG("sg size=%ld pages=%ld\n", request->size, pages);
 
 	entry->pages = pages;
 
-	entry->busaddr = malloc(pages * sizeof(*entry->busaddr), M_DRM,
+	entry->busaddr = malloc(pages * sizeof(*entry->busaddr), DRM_MEM_PAGES,
 	    M_WAITOK | M_ZERO);
-	if ( !entry->busaddr ) {
+	if (!entry->busaddr) {
 		drm_sg_cleanup(entry);
 		return ENOMEM;
 	}
 
-	entry->handle = (long)malloc(pages << PAGE_SHIFT, M_DRM,
+	entry->handle = (long)malloc(pages << PAGE_SHIFT, DRM_MEM_PAGES,
 	    M_WAITOK | M_ZERO);
 	if (entry->handle == 0) {
 		drm_sg_cleanup(entry);
@@ -86,14 +84,10 @@ int drm_sg_alloc(DRM_IOCTL_ARGS)
 		entry->busaddr[i] = vtophys(entry->handle + i * PAGE_SIZE);
 	}
 
-	DRM_DEBUG( "sg alloc handle  = %08lx\n", entry->handle );
+	DRM_DEBUG("sg alloc handle  = %08lx\n", entry->handle);
 
 	entry->virtual = (void *)entry->handle;
-	request.handle = entry->handle;
-
-	DRM_COPY_TO_USER_IOCTL( (drm_scatter_gather_t *)data,
-			   request,
-			   sizeof(request) );
+	request->handle = entry->handle;
 
 	DRM_LOCK();
 	if (dev->sg) {
@@ -107,24 +101,32 @@ int drm_sg_alloc(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int drm_sg_free(DRM_IOCTL_ARGS)
+int drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_scatter_gather_t request;
-	drm_sg_mem_t *entry;
+	struct drm_scatter_gather *request = data;
+	int ret;
 
-	DRM_COPY_FROM_USER_IOCTL( request, (drm_scatter_gather_t *)data,
-			     sizeof(request) );
+	DRM_DEBUG("%s\n", __FUNCTION__);
+
+	ret = drm_sg_alloc(dev, request);
+	return ret;
+}
+
+int drm_sg_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	struct drm_scatter_gather *request = data;
+	drm_sg_mem_t *entry;
 
 	DRM_LOCK();
 	entry = dev->sg;
 	dev->sg = NULL;
 	DRM_UNLOCK();
 
-	if ( !entry || entry->handle != request.handle )
+	if (!entry || entry->handle != request->handle)
 		return EINVAL;
 
-	DRM_DEBUG( "sg free virtual  = 0x%lx\n", entry->handle );
+	DRM_DEBUG("sg free virtual = 0x%lx\n", entry->handle);
 
 	drm_sg_cleanup(entry);
 

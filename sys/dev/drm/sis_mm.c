@@ -84,59 +84,52 @@ static int del_alloc_set(int context, int type, unsigned int val)
 /* fb management via fb device */
 #if defined(__linux__) && defined(CONFIG_FB_SIS)
 
-static int sis_fb_init(DRM_IOCTL_ARGS)
+static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	return 0;
 }
 
-static int sis_fb_alloc(DRM_IOCTL_ARGS)
+static int sis_fb_alloc(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	drm_sis_mem_t fb;
+	drm_sis_mem_t *fb = data;
 	struct sis_memreq req;
-	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *)data;
 	int retval = 0;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, argp, sizeof(fb));
-
-	req.size = fb.size;
+	req.size = fb->size;
 	sis_malloc(&req);
 	if (req.offset) {
 		/* TODO */
-		fb.offset = req.offset;
-		fb.free = req.offset;
-		if (!add_alloc_set(fb.context, VIDEO_TYPE, fb.free)) {
+		fb->offset = req.offset;
+		fb->free = req.offset;
+		if (!add_alloc_set(fb->context, VIDEO_TYPE, fb->free)) {
 			DRM_DEBUG("adding to allocation set fails\n");
 			sis_free(req.offset);
-			retval = DRM_ERR(EINVAL);
+			retval = -EINVAL;
 		}
 	} else {
-		fb.offset = 0;
-		fb.size = 0;
-		fb.free = 0;
+		fb->offset = 0;
+		fb->size = 0;
+		fb->free = 0;
 	}
 
-	DRM_COPY_TO_USER_IOCTL(argp, fb, sizeof(fb));
-
-	DRM_DEBUG("alloc fb, size = %d, offset = %ld\n", fb.size, req.offset);
+	DRM_DEBUG("alloc fb, size = %d, offset = %ld\n", fb->size, req.offset);
 
 	return retval;
 }
 
-static int sis_fb_free(DRM_IOCTL_ARGS)
+static int sis_fb_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_sis_mem_t fb;
 	int retval = 0;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_mem_t __user *) data, sizeof(fb));
+	if (!fb->free)
+		return -EINVAL;
 
-	if (!fb.free)
-		return DRM_ERR(EINVAL);
+	if (!del_alloc_set(fb->context, VIDEO_TYPE, fb->free))
+		retval = -EINVAL;
+	sis_free(fb->free);
 
-	if (!del_alloc_set(fb.context, VIDEO_TYPE, fb.free))
-		retval = DRM_ERR(EINVAL);
-	sis_free(fb.free);
-
-	DRM_DEBUG("free fb, offset = 0x%lx\n", fb.free);
+	DRM_DEBUG("free fb, offset = 0x%lx\n", fb->free);
 
 	return retval;
 }
@@ -153,13 +146,10 @@ static int sis_fb_free(DRM_IOCTL_ARGS)
  *    X driver/sisfb                                  HW-   Command-
  *  framebuffer memory           DRI heap           Cursor   queue
  */
-static int sis_fb_init(DRM_IOCTL_ARGS)
+static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_fb_t fb;
-
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_fb_t __user *) data, sizeof(fb));
+	drm_sis_fb_t *fb = data;
 
 	if (dev_priv == NULL) {
 		dev->dev_private = drm_calloc(1, sizeof(drm_sis_private_t),
@@ -170,71 +160,62 @@ static int sis_fb_init(DRM_IOCTL_ARGS)
 	}
 
 	if (dev_priv->FBHeap != NULL)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
-	dev_priv->FBHeap = mmInit(fb.offset, fb.size);
+	dev_priv->FBHeap = mmInit(fb->offset, fb->size);
 
-	DRM_DEBUG("offset = %u, size = %u", fb.offset, fb.size);
+	DRM_DEBUG("offset = %u, size = %u", fb->offset, fb->size);
 
 	return 0;
 }
 
-static int sis_fb_alloc(DRM_IOCTL_ARGS)
+static int sis_fb_alloc(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *)data;
-	drm_sis_mem_t fb;
+	drm_sis_mem_t *fb = data;
 	PMemBlock block;
 	int retval = 0;
 
 	if (dev_priv == NULL || dev_priv->FBHeap == NULL)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, argp, sizeof(fb));
-
-	block = mmAllocMem(dev_priv->FBHeap, fb.size, 0, 0);
+	block = mmAllocMem(dev_priv->FBHeap, fb->size, 0, 0);
 	if (block) {
 		/* TODO */
-		fb.offset = block->ofs;
-		fb.free = (unsigned long)block;
-		if (!add_alloc_set(fb.context, VIDEO_TYPE, fb.free)) {
+		fb->offset = block->ofs;
+		fb->free = (unsigned long)block;
+		if (!add_alloc_set(fb->context, VIDEO_TYPE, fb->free)) {
 			DRM_DEBUG("adding to allocation set fails\n");
-			mmFreeMem((PMemBlock) fb.free);
-			retval = DRM_ERR(EINVAL);
+			mmFreeMem((PMemBlock) fb->free);
+			retval = -EINVAL;
 		}
 	} else {
-		fb.offset = 0;
-		fb.size = 0;
-		fb.free = 0;
+		fb->offset = 0;
+		fb->size = 0;
+		fb->free = 0;
 	}
 
-	DRM_COPY_TO_USER_IOCTL(argp, fb, sizeof(fb));
-
-	DRM_DEBUG("alloc fb, size = %d, offset = %d\n", fb.size, fb.offset);
+	DRM_DEBUG("alloc fb, size = %d, offset = %d\n", fb->size, fb->offset);
 
 	return retval;
 }
 
-static int sis_fb_free(DRM_IOCTL_ARGS)
+static int sis_fb_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t fb;
+	drm_sis_mem_t *fb = data;
 
 	if (dev_priv == NULL || dev_priv->FBHeap == NULL)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_mem_t __user *) data, sizeof(fb));
+	if (!mmBlockInHeap(dev_priv->FBHeap, (PMemBlock) fb->free))
+		return -EINVAL;
 
-	if (!mmBlockInHeap(dev_priv->FBHeap, (PMemBlock) fb.free))
-		return DRM_ERR(EINVAL);
+	if (!del_alloc_set(fb->context, VIDEO_TYPE, fb->free))
+		return -EINVAL;
+	mmFreeMem((PMemBlock) fb->free);
 
-	if (!del_alloc_set(fb.context, VIDEO_TYPE, fb.free))
-		return DRM_ERR(EINVAL);
-	mmFreeMem((PMemBlock) fb.free);
-
-	DRM_DEBUG("free fb, free = 0x%lx\n", fb.free);
+	DRM_DEBUG("free fb, free = 0x%lx\n", fb->free);
 
 	return 0;
 }
@@ -243,11 +224,10 @@ static int sis_fb_free(DRM_IOCTL_ARGS)
 
 /* agp memory management */
 
-static int sis_ioctl_agp_init(DRM_IOCTL_ARGS)
+static int sis_ioctl_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_agp_t agp;
+	drm_sis_agp_t *agp = data;
 
 	if (dev_priv == NULL) {
 		dev->dev_private = drm_calloc(1, sizeof(drm_sis_private_t),
@@ -258,75 +238,63 @@ static int sis_ioctl_agp_init(DRM_IOCTL_ARGS)
 	}
 
 	if (dev_priv->AGPHeap != NULL)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
-	DRM_COPY_FROM_USER_IOCTL(agp, (drm_sis_agp_t __user *) data,
-				 sizeof(agp));
+	dev_priv->AGPHeap = mmInit(agp->offset, agp->size);
 
-	dev_priv->AGPHeap = mmInit(agp.offset, agp.size);
-
-	DRM_DEBUG("offset = %u, size = %u", agp.offset, agp.size);
+	DRM_DEBUG("offset = %u, size = %u", agp->offset, agp->size);
 
 	return 0;
 }
 
-static int sis_ioctl_agp_alloc(DRM_IOCTL_ARGS)
+static int sis_ioctl_agp_alloc(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *)data;
-	drm_sis_mem_t agp;
+	drm_sis_mem_t *agp = data;
 	PMemBlock block;
 	int retval = 0;
 
 	if (dev_priv == NULL || dev_priv->AGPHeap == NULL)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
-	DRM_COPY_FROM_USER_IOCTL(agp, argp, sizeof(agp));
-
-	block = mmAllocMem(dev_priv->AGPHeap, agp.size, 0, 0);
+	block = mmAllocMem(dev_priv->AGPHeap, agp->size, 0, 0);
 	if (block) {
 		/* TODO */
-		agp.offset = block->ofs;
-		agp.free = (unsigned long)block;
-		if (!add_alloc_set(agp.context, AGP_TYPE, agp.free)) {
+		agp->offset = block->ofs;
+		agp->free = (unsigned long)block;
+		if (!add_alloc_set(agp->context, AGP_TYPE, agp->free)) {
 			DRM_DEBUG("adding to allocation set fails\n");
-			mmFreeMem((PMemBlock) agp.free);
+			mmFreeMem((PMemBlock) agp->free);
 			retval = -1;
 		}
 	} else {
-		agp.offset = 0;
-		agp.size = 0;
-		agp.free = 0;
+		agp->offset = 0;
+		agp->size = 0;
+		agp->free = 0;
 	}
 
-	DRM_COPY_TO_USER_IOCTL(argp, agp, sizeof(agp));
-
-	DRM_DEBUG("alloc agp, size = %d, offset = %d\n", agp.size, agp.offset);
+	DRM_DEBUG("alloc agp, size = %d, offset = %d\n", agp->size,
+	    agp->offset);
 
 	return retval;
 }
 
-static int sis_ioctl_agp_free(DRM_IOCTL_ARGS)
+static int sis_ioctl_agp_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t agp;
+	drm_sis_mem_t *agp = data;
 
 	if (dev_priv == NULL || dev_priv->AGPHeap == NULL)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
-	DRM_COPY_FROM_USER_IOCTL(agp, (drm_sis_mem_t __user *) data,
-				 sizeof(agp));
+	if (!mmBlockInHeap(dev_priv->AGPHeap, (PMemBlock) agp->free))
+		return -EINVAL;
 
-	if (!mmBlockInHeap(dev_priv->AGPHeap, (PMemBlock) agp.free))
-		return DRM_ERR(EINVAL);
+	mmFreeMem((PMemBlock) agp->free);
+	if (!del_alloc_set(agp->context, AGP_TYPE, agp->free))
+		return -EINVAL;
 
-	mmFreeMem((PMemBlock) agp.free);
-	if (!del_alloc_set(agp.context, AGP_TYPE, agp.free))
-		return DRM_ERR(EINVAL);
-
-	DRM_DEBUG("free agp, free = 0x%lx\n", agp.free);
+	DRM_DEBUG("free agp, free = 0x%lx\n", agp->free);
 
 	return 0;
 }
@@ -410,12 +378,12 @@ int sis_final_context(struct drm_device *dev, int context)
 }
 
 drm_ioctl_desc_t sis_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_SIS_FB_ALLOC)] = {sis_fb_alloc, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_FB_FREE)] = {sis_fb_free, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_INIT)] = {sis_ioctl_agp_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_ALLOC)] = {sis_ioctl_agp_alloc, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_FREE)] = {sis_ioctl_agp_free, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_FB_INIT)] = {sis_fb_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY}
+	DRM_IOCTL_DEF(DRM_SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_FB_FREE, sis_fb_free, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_SIS_AGP_ALLOC, sis_ioctl_agp_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_AGP_FREE, sis_ioctl_agp_free, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_FB_INIT, sis_fb_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY)
 };
 
 int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);

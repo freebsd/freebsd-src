@@ -133,7 +133,7 @@ typedef struct drm_mach64_sarea {
 
 	/* The current cliprects, or a subset thereof.
 	 */
-	drm_clip_rect_t boxes[MACH64_NR_SAREA_CLIPRECTS];
+	struct drm_clip_rect boxes[MACH64_NR_SAREA_CLIPRECTS];
 	unsigned int nbox;
 
 	/* Counters for client-side throttling of rendering clients.
@@ -142,7 +142,7 @@ typedef struct drm_mach64_sarea {
 
 	/* Texture memory LRU.
 	 */
-	drm_tex_region_t tex_list[MACH64_NR_TEX_HEAPS][MACH64_NR_TEX_REGIONS +
+	struct drm_tex_region tex_list[MACH64_NR_TEX_HEAPS][MACH64_NR_TEX_REGIONS +
 						       1];
 	unsigned int tex_age[MACH64_NR_TEX_HEAPS];
 	int ctx_owner;
@@ -240,7 +240,7 @@ typedef struct drm_mach64_vertex {
 } drm_mach64_vertex_t;
 
 typedef struct drm_mach64_blit {
-	int idx;
+	void *buf;
 	int pitch;
 	int offset;
 	int format;
