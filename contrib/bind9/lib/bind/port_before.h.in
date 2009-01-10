@@ -2,6 +2,10 @@
 #define port_before_h
 #include <config.h>
 
+#ifdef NEED_SUN4PROTOS
+#define _PARAMS(x) x
+#endif
+
 struct group;           /* silence warning */
 struct passwd;          /* silence warning */
 struct timeval;         /* silence warning */
@@ -81,14 +85,21 @@ struct timespec {
 @NGR_R_BAD@
 @NGR_R_COPY@
 @NGR_R_COPY_ARGS@
+@NGR_R_CONST@
 @NGR_R_END_RESULT@
 @NGR_R_END_RETURN@
-@NGR_R_ENT_ARGS@
+@NGR_R_END_ARGS@
 @NGR_R_OK@
 @NGR_R_RETURN@
+@NGR_R_SET_CONST@
 @NGR_R_SET_RESULT@
 @NGR_R_SET_RETURN@
+@NGR_R_SET_ARGS@
 @NGR_R_PRIVATE@
+
+#if !defined(NGR_R_SET_ARGS) && defined(NGR_R_END_ARGS)
+#define NGR_R_SET_ARGS NGR_R_END_ARGS
+#endif
 
 @PROTO_R_ARGS@
 @PROTO_R_BAD@

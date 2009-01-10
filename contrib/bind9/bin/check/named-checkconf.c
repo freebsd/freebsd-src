@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkconf.c,v 1.28.18.14 2006/02/28 03:10:47 marka Exp $ */
+/* $Id: named-checkconf.c,v 1.28.18.16 2007/11/26 23:46:18 tbox Exp $ */
 
 /*! \file */
 
@@ -224,7 +224,8 @@ configure_zone(const char *vclass, const char *view,
 			zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
 		else
 			zone_options &= ~DNS_ZONEOPT_CHECKINTEGRITY;
-	}
+	} else
+		zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
 
 	obj = NULL;
 	if (get_maps(maps, "check-mx-cname", &obj)) {

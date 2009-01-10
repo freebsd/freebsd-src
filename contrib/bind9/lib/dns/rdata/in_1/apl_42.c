@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: apl_42.c,v 1.8.18.2 2005/04/29 00:16:42 marka Exp $ */
+/* $Id: apl_42.c,v 1.8.18.4 2008/01/22 23:27:06 tbox Exp $ */
 
 /* RFC3123 */
 
@@ -49,7 +49,7 @@ fromtext_in_apl(ARGS_FROMTEXT) {
 					      isc_tokentype_string, ISC_TRUE));
 		if (token.type != isc_tokentype_string)
 			break;
-	
+
 		cp = DNS_AS_STR(token);
 		neg = ISC_TF(*cp == '!');
 		if (neg)
@@ -259,7 +259,7 @@ fromstruct_in_apl(ARGS_FROMSTRUCT) {
 	REQUIRE(apl->common.rdtype == type);
 	REQUIRE(apl->common.rdclass == rdclass);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
-	
+
 	isc_buffer_init(&b, apl->apl, apl->apl_len);
 	isc_buffer_add(&b, apl->apl_len);
 	isc_buffer_setactive(&b, apl->apl_len);
@@ -306,36 +306,87 @@ freestruct_in_apl(ARGS_FREESTRUCT) {
 
 isc_result_t
 dns_rdata_apl_first(dns_rdata_in_apl_t *apl) {
+	isc_uint32_t length;
+
+	REQUIRE(apl != NULL);
 	REQUIRE(apl->common.rdtype == 42);
 	REQUIRE(apl->common.rdclass == 1);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
 
+	/*
+	 * If no APL return ISC_R_NOMORE.
+	 */
+	if (apl->apl == NULL)
+		return (ISC_R_NOMORE);
+
+	/*
+	 * Sanity check data.
+	 */
+	INSIST(apl->apl_len > 3U);
+	length = apl->apl[apl->offset + 3] & 0x7f;
+	INSIST(length <= apl->apl_len);
+
 	apl->offset = 0;
-	return ((apl->apl_len != 0) ? ISC_R_SUCCESS : ISC_R_NOMORE);
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
 dns_rdata_apl_next(dns_rdata_in_apl_t *apl) {
+	isc_uint32_t length;
+
+	REQUIRE(apl != NULL);
 	REQUIRE(apl->common.rdtype == 42);
 	REQUIRE(apl->common.rdclass == 1);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
 
-	if (apl->offset + 3 < apl->apl_len)
+	/*
+	 * No APL or have already reached the end return ISC_R_NOMORE.
+	 */
+	if (apl->apl == NULL || apl->offset == apl->apl_len)
 		return (ISC_R_NOMORE);
+
+	/*
+	 * Sanity check data.
+	 */
+	INSIST(apl->offset < apl->apl_len);
+	INSIST(apl->apl_len > 3U);
+	INSIST(apl->offset <= apl->apl_len - 4U);
+	length = apl->apl[apl->offset + 3] & 0x7f;
+	/*
+	 * 16 to 32 bits promotion as 'length' is 32 bits so there is
+	 * no overflow problems.
+	 */
+	INSIST(length + apl->offset <= apl->apl_len);
+
 	apl->offset += apl->apl[apl->offset + 3] & 0x7f;
 	return ((apl->offset >= apl->apl_len) ? ISC_R_SUCCESS : ISC_R_NOMORE);
 }
 
 isc_result_t
 dns_rdata_apl_current(dns_rdata_in_apl_t *apl, dns_rdata_apl_ent_t *ent) {
+	isc_uint32_t length;
 
+	REQUIRE(apl != NULL);
 	REQUIRE(apl->common.rdtype == 42);
 	REQUIRE(apl->common.rdclass == 1);
 	REQUIRE(ent != NULL);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
+	REQUIRE(apl->offset <= apl->apl_len);
 
-	if (apl->offset >= apl->apl_len)
+	if (apl->offset == apl->apl_len)
 		return (ISC_R_NOMORE);
+
+	/*
+	 * Sanity check data.
+	 */
+	INSIST(apl->apl_len > 3U);
+	INSIST(apl->offset <= apl->apl_len - 4U);
+	length = apl->apl[apl->offset + 3] & 0x7f;
+	/*
+	 * 16 to 32 bits promotion as 'length' is 32 bits so there is
+	 * no overflow problems.
+	 */
+	INSIST(length + apl->offset <= apl->apl_len);
 
 	ent->family = (apl->apl[apl->offset] << 8) + apl->apl[apl->offset + 1];
 	ent->prefix = apl->apl[apl->offset + 2];
