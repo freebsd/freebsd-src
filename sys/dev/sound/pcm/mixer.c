@@ -1040,7 +1040,7 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		case SNDCTL_MIXERINFO:
 			return (mixer_oss_mixerinfo(i_dev, (oss_mixerinfo *)arg));
 		}
-		return (ENXIO);
+		return (EINVAL);
 	}
 
 	m = i_dev->si_drv1;
@@ -1090,7 +1090,6 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	ret = 0;
 
 	switch (cmd) {
- 	/** @todo Double check return values, error codes. */
 	case SNDCTL_DSP_GET_RECSRC_NAMES:
 		bcopy((void *)&m->enuminfo, arg, sizeof(oss_mixer_enuminfo));
 		break;
@@ -1104,7 +1103,7 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		*arg_i = SOUND_VERSION;
 		break;
 	default:
-		ret = ENXIO;
+		ret = EINVAL;
 		break;
 	}
 
