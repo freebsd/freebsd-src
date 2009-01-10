@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.c,v 1.64.12.17.4.3 2008/07/29 18:34:29 jinmei Exp $ */
+/* $Id: timer.c,v 1.64.12.20 2008/08/22 05:59:24 marka Exp $ */
 
 #include <config.h>
 

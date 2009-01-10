@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.13.4.53 2008/01/17 23:45:27 tbox Exp $ */
+/* $Id: query.c,v 1.198.2.13.4.56 2008/10/15 22:30:47 marka Exp $ */
 
 #include <config.h>
 
@@ -1900,6 +1900,13 @@ query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 						   &olabels);
 			(void)dns_name_fullcompare(name, &nsec.next, &order,
 						   &nlabels);
+			/*
+			 * Check for a pathological condition created when
+			 * serving some malformed signed zones and bail out.
+			 */
+			if (dns_name_countlabels(name) == nlabels)
+				goto cleanup;
+
 			if (olabels > nlabels)
 				dns_name_split(name, olabels, NULL, wname);
 			else
@@ -2067,12 +2074,13 @@ query_resume(isc_task_t *task, isc_event_t *event) {
 
 static isc_result_t
 query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
-	      dns_rdataset_t *nameservers)
+	      dns_rdataset_t *nameservers, isc_boolean_t resuming)
 {
 	isc_result_t result;
 	dns_rdataset_t *rdataset, *sigrdataset;
 
-	inc_stats(client, dns_statscounter_recursion);
+	if (!resuming)
+		inc_stats(client, dns_statscounter_recursion);
 
 	/*
 	 * We are about to recurse, which means that this client will
@@ -2367,6 +2375,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	unsigned int options;
 	isc_boolean_t empty_wild;
 	dns_rdataset_t *noqname;
+	isc_boolean_t resuming;
 
 	CTRACE("query_find");
 
@@ -2392,6 +2401,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	need_wildcardproof = ISC_FALSE;
 	empty_wild = ISC_FALSE;
 	options = 0;
+	resuming = ISC_FALSE;
+	is_zone = ISC_FALSE;
 
 	if (event != NULL) {
 		/*
@@ -2401,7 +2412,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 
 		want_restart = ISC_FALSE;
 		authoritative = ISC_FALSE;
-		is_zone = ISC_FALSE;
 
 		qtype = event->qtype;
 		if (qtype == dns_rdatatype_rrsig || qtype == dns_rdatatype_sig)
@@ -2434,6 +2444,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		}
 
 		result = event->result;
+		resuming = ISC_TRUE;
 
 		goto resume;
 	}
@@ -2624,7 +2635,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			 */
 			if (RECURSIONOK(client)) {
 				result = query_recurse(client, qtype,
-						       NULL, NULL);
+						       NULL, NULL, resuming);
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
@@ -2791,10 +2802,12 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				 */
 				if (dns_rdatatype_atparent(type))
 					result = query_recurse(client, qtype,
-							       NULL, NULL);
+							       NULL, NULL,
+							       resuming);
 				else
 					result = query_recurse(client, qtype,
-							       fname, rdataset);
+							       fname, rdataset,
+							       resuming);
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
@@ -3223,7 +3236,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 						result = query_recurse(client,
 								       qtype,
 								       NULL,
-								       NULL);
+								       NULL,
+								       resuming);
 						if (result == ISC_R_SUCCESS)
 						    client->query.attributes |=
 							NS_QUERYATTR_RECURSING;

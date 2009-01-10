@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch07.html,v 1.50.2.9.2.42 2008/01/19 01:52:15 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch07.html,v 1.50.2.9.2.49 2008/09/28 01:20:39 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -46,11 +46,11 @@
 <p><b>Table of Contents</b></p>
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#Access_Control_Lists">Access Control Lists</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2586576"><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span> (for
+<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2586976"><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span> (for
 UNIX servers)</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2586720">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2586777">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2587051">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2587109">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#dynamic_update_security">Dynamic Update Security</a></span></dt>
 </dl>
@@ -102,7 +102,7 @@ see the <span class="emphasis"><em>AUSCERT</em></span> advisory at
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2586576"></a><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span> (for
+<a name="id2586976"></a><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span> (for
 UNIX servers)</h2></div></div></div>
 <p>On UNIX servers, it is possible to run <acronym class="acronym">BIND</acronym> in a <span class="emphasis"><em>chrooted</em></span> environment
 (using the <span><strong class="command">chroot()</strong></span> function) by specifying the "<code class="option">-t</code>"
@@ -117,7 +117,7 @@ user 202:</p>
 <p><strong class="userinput"><code>/usr/local/bin/named -u 202 -t /var/named</code></strong></p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2586720"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
+<a name="id2587051"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
 <p>In order for a <span><strong class="command">chroot</strong></span> environment to
 work properly in a particular directory
 (for example, <code class="filename">/var/named</code>),
@@ -142,7 +142,7 @@ to set up things like
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2586777"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
+<a name="id2587109"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
 <p>Prior to running the <span><strong class="command">named</strong></span> daemon, use
 the <span><strong class="command">touch</strong></span> utility (to change file access and
 modification times) or the <span><strong class="command">chown</strong></span> utility (to

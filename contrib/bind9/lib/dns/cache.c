@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.45.2.4.8.15 2006/08/01 01:07:05 marka Exp $ */
+/* $Id: cache.c,v 1.45.2.4.8.17 2008/04/28 23:45:37 tbox Exp $ */
 
 #include <config.h>
 
@@ -466,7 +466,7 @@ dns_cache_setcleaninginterval(dns_cache_t *cache, unsigned int t) {
 					 isc_timertype_ticker,
 					 NULL, &interval, ISC_FALSE);
 	}
-	if (result != ISC_R_SUCCESS)	
+	if (result != ISC_R_SUCCESS)
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
 			      DNS_LOGMODULE_CACHE, ISC_LOG_WARNING,
 			      "could not set cache cleaning interval: %s",
@@ -558,7 +558,7 @@ cache_cleaner_init(dns_cache_t *cache, isc_taskmgr_t *taskmgr,
 			result = ISC_R_NOMEMORY;
 			goto cleanup;
 		}
-		
+
 		cleaner->overmem_event =
 			isc_event_allocate(cache->mctx, cleaner,
 					   DNS_EVENT_CACHEOVERMEM,
@@ -596,7 +596,7 @@ begin_cleaning(cache_cleaner_t *cleaner) {
 
 	/*
 	 * Create an iterator, if it does not already exist, and
-         * position it at the beginning of the cache.
+	 * position it at the beginning of the cache.
 	 */
 	if (cleaner->iterator == NULL)
 		result = dns_db_createiterator(cleaner->cache->db, ISC_FALSE,
@@ -635,7 +635,7 @@ begin_cleaning(cache_cleaner_t *cleaner) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
 			      DNS_LOGMODULE_CACHE, ISC_LOG_DEBUG(1),
 			      "begin cache cleaning, mem inuse %lu",
-		            (unsigned long)isc_mem_inuse(cleaner->cache->mctx));
+			    (unsigned long)isc_mem_inuse(cleaner->cache->mctx));
 		cleaner->state = cleaner_s_busy;
 		isc_task_send(cleaner->task, &cleaner->resched_event);
 	}
@@ -695,7 +695,7 @@ static void
 overmem_cleaning_action(isc_task_t *task, isc_event_t *event) {
 	cache_cleaner_t *cleaner = event->ev_arg;
 	isc_boolean_t want_cleaning = ISC_FALSE;
-	
+
 	UNUSED(task);
 
 	INSIST(task == cleaner->task);
@@ -908,9 +908,12 @@ water(void *arg, int mark) {
 	REQUIRE(VALID_CACHE(cache));
 
 	LOCK(&cache->cleaner.lock);
-	
-	dns_db_overmem(cache->db, overmem);
-	cache->cleaner.overmem = overmem;
+
+	if (overmem != cache->cleaner.overmem) {
+		dns_db_overmem(cache->db, overmem);
+		cache->cleaner.overmem = overmem;
+		isc_mem_waterack(cache->mctx, mark);
+	}
 
 	if (cache->cleaner.overmem_event != NULL)
 		isc_task_send(cache->cleaner.task,
@@ -1034,7 +1037,7 @@ dns_cache_flushname(dns_cache_t *cache, dns_name_t *name) {
 	dns_rdatasetiter_t *iter = NULL;
 	dns_dbnode_t *node = NULL;
 	dns_db_t *db = NULL;
-	
+
 	LOCK(&cache->lock);
 	if (cache->db != NULL)
 		dns_db_attach(cache->db, &db);

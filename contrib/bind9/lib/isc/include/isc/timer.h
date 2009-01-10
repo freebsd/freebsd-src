@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.h,v 1.28.12.9.4.2 2008/07/24 23:47:44 tbox Exp $ */
+/* $Id: timer.h,v 1.28.12.11 2008/06/25 23:45:37 tbox Exp $ */
 
 #ifndef ISC_TIMER_H
 #define ISC_TIMER_H 1

@@ -1,0 +1,308 @@
+/* config.h.in.  Generated from configure.in by autoheader.  */
+/*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/* $Id: config.h.in,v 1.47.2.3.2.36 2008/10/21 02:48:34 marka Exp $ */
+
+/***
+ *** This file is not to be included by any public header files, because
+ *** it does not get installed.
+ ***/
+
+/* define to `int' if <sys/types.h> doesn't define.  */
+#undef ssize_t
+
+/* define on DEC OSF to enable 4.4BSD style sa_len support */
+#undef _SOCKADDR_LEN
+
+/* define if your system needs pthread_init() before using pthreads */
+#undef NEED_PTHREAD_INIT
+
+/* define if your system has sigwait() */
+#undef HAVE_SIGWAIT
+
+/* define if sigwait() is the UnixWare flavor */
+#undef HAVE_UNIXWARE_SIGWAIT
+
+/* define on Solaris to get sigwait() to work using pthreads semantics */
+#undef _POSIX_PTHREAD_SEMANTICS
+
+/* define if LinuxThreads is in use */
+#undef HAVE_LINUXTHREADS
+
+/* define if sysconf() is available */
+#undef HAVE_SYSCONF
+
+/* define if sysctlbyname() is available */
+#undef HAVE_SYSCTLBYNAME
+
+/* define if catgets() is available */
+#undef HAVE_CATGETS
+
+/* define if getifaddrs() exists */
+#undef HAVE_GETIFADDRS
+
+/* define if you have the NET_RT_IFLIST sysctl variable and sys/sysctl.h */
+#undef HAVE_IFLIST_SYSCTL
+
+/* define if chroot() is available */
+#undef HAVE_CHROOT
+
+/* define if tzset() is available */
+#undef HAVE_TZSET
+
+/* define if struct addrinfo exists */
+#undef HAVE_ADDRINFO
+
+/* define if getaddrinfo() exists */
+#undef HAVE_GETADDRINFO
+
+/* define if gai_strerror() exists */
+#undef HAVE_GAISTRERROR
+
+/* define if arc4random() exists */
+#undef HAVE_ARC4RANDOM
+
+/* define if pthread_setconcurrency() should be called to tell the
+ * OS how many threads we might want to run.
+ */
+#undef CALL_PTHREAD_SETCONCURRENCY
+
+/* define if IPv6 is not disabled */
+#undef WANT_IPV6
+
+/* define if flockfile() is available */
+#undef HAVE_FLOCKFILE
+
+/* define if getc_unlocked() is available */
+#undef HAVE_GETCUNLOCKED
+
+/* Shut up warnings about sputaux in stdio.h on BSD/OS pre-4.1 */
+#undef SHUTUP_SPUTAUX
+#ifdef SHUTUP_SPUTAUX
+struct __sFILE;
+extern __inline int __sputaux(int _c, struct __sFILE *_p);
+#endif
+
+/* Shut up warnings about missing sigwait prototype on BSD/OS 4.0* */
+#undef SHUTUP_SIGWAIT
+#ifdef SHUTUP_SIGWAIT
+int sigwait(const unsigned int *set, int *sig);
+#endif
+
+/* Shut up warnings from gcc -Wcast-qual on BSD/OS 4.1. */
+#undef SHUTUP_STDARG_CAST
+#if defined(SHUTUP_STDARG_CAST) && defined(__GNUC__)
+#include <stdarg.h>		/* Grr.  Must be included *every time*. */
+/*
+ * The silly continuation line is to keep configure from
+ * commenting out the #undef.
+ */
+#undef \
+	va_start
+#define	va_start(ap, last) \
+	do { \
+		union { const void *konst; long *var; } _u; \
+		_u.konst = &(last); \
+		ap = (va_list)(_u.var + __va_words(__typeof(last))); \
+	} while (0)
+#endif /* SHUTUP_STDARG_CAST && __GNUC__ */
+
+/* define if the system has a random number generating device */
+#undef PATH_RANDOMDEV
+
+/* define if pthread_attr_getstacksize() is available */
+#undef HAVE_PTHREAD_ATTR_GETSTACKSIZE
+
+/* define if pthread_attr_setstacksize() is available */
+#undef HAVE_PTHREAD_ATTR_SETSTACKSIZE
+
+/* define if you have strerror in the C library. */
+#undef HAVE_STRERROR
+
+/* Define if you are running under Compaq TruCluster. */
+#undef HAVE_TRUCLUSTER
+
+/* Define if OpenSSL includes DSA support */
+#undef HAVE_OPENSSL_DSA
+
+/* Define to the length type used by the socket API (socklen_t, size_t, int). */
+#undef ISC_SOCKADDR_LEN_T
+
+/* Define if threads need PTHREAD_SCOPE_SYSTEM */
+#undef NEED_PTHREAD_SCOPE_SYSTEM
+
+/* Define if recvmsg() does not meet all of the BSD socket API specifications.
+   */
+#undef BROKEN_RECVMSG
+
+/* Define if you cannot bind() before connect() for TCP sockets. */
+#undef BROKEN_TCP_BIND_BEFORE_CONNECT
+
+/* Solaris hack to get select_large_fdset. */
+#undef FD_SETSIZE
+
+/* Define to 1 if you have the `capset' function. */
+#undef HAVE_CAPSET
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `c' library (-lc). */
+#undef HAVE_LIBC
+
+/* Define to 1 if you have the `c_r' library (-lc_r). */
+#undef HAVE_LIBC_R
+
+/* Define to 1 if you have the `nsl' library (-lnsl). */
+#undef HAVE_LIBNSL
+
+/* Define to 1 if you have the `pthread' library (-lpthread). */
+#undef HAVE_LIBPTHREAD
+
+/* Define to 1 if you have the `scf' library (-lscf). */
+#undef HAVE_LIBSCF
+
+/* Define to 1 if you have the `socket' library (-lsocket). */
+#undef HAVE_LIBSOCKET
+
+/* Define to 1 if you have the `thr' library (-lthr). */
+#undef HAVE_LIBTHR
+
+/* Define to 1 if you have the <linux/capability.h> header file. */
+#undef HAVE_LINUX_CAPABILITY_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <net/if6.h> header file. */
+#undef HAVE_NET_IF6_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the <sys/capability.h> header file. */
+#undef HAVE_SYS_CAPABILITY_H
+
+/* Define to 1 if you have the <sys/devpoll.h> header file. */
+#undef HAVE_SYS_DEVPOLL_H
+
+/* Define to 1 if you have the <sys/dyntune.h> header file. */
+#undef HAVE_SYS_DYNTUNE_H
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
+
+/* Define to 1 if you have the <sys/prctl.h> header file. */
+#undef HAVE_SYS_PRCTL_H
+
+/* Define to 1 if you have the <sys/select.h> header file. */
+#undef HAVE_SYS_SELECT_H
+
+/* Define to 1 if you have the <sys/sockio.h> header file. */
+#undef HAVE_SYS_SOCKIO_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+#undef HAVE_SYS_SYSCTL_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define if running under Compaq TruCluster */
+#undef HAVE_TRUCLUSTER
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Defined if extern char *optarg is not declared. */
+#undef NEED_OPTARG
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Sets which flag to pass to open/fcntl to make non-blocking
+   (O_NDELAY/O_NONBLOCK). */
+#undef PORT_NONBLOCK
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Defined if you need to use ioctl(FIONBIO) instead a fcntl call to make
+   non-blocking. */
+#undef USE_FIONBIO_IOCTL
+
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
+#undef inline
+#endif
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define to `int' if <sys/types.h> does not define. */
+#undef ssize_t
+
+/* Define to `unsigned long' if <sys/types.h> does not define. */
+#undef uintptr_t
+
+/* Define to empty if the keyword `volatile' does not work. Warning: valid
+   code using `volatile' can become incorrect without. Disable with care. */
+#undef volatile

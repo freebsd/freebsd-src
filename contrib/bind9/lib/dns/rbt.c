@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.c,v 1.115.2.2.2.17 2008/04/03 00:17:07 each Exp $ */
+/* $Id: rbt.c,v 1.115.2.2.2.18 2008/04/18 19:03:00 each Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -2048,10 +2048,6 @@ dns_rbt_deletetreeflat(dns_rbt_t *rbt, unsigned int quantum,
 		node = LEFT(node);
 		goto traverse;
 	}
-	if (RIGHT(node) != NULL) {
-		node = RIGHT(node);
-		goto traverse;
-	}
 	if (DOWN(node) != NULL) {
 		node = DOWN(node);
 		goto traverse;
@@ -2068,14 +2064,15 @@ dns_rbt_deletetreeflat(dns_rbt_t *rbt, unsigned int quantum,
 	node->magic = 0;
 #endif
 	parent = PARENT(node);
+	if (RIGHT(node) != NULL)
+		PARENT(RIGHT(node)) = parent;
 	if (parent != NULL) {
 		if (LEFT(parent) == node)
-			LEFT(parent) = NULL;
+			LEFT(parent) = RIGHT(node);
 		else if (DOWN(parent) == node)
-			DOWN(parent) = NULL;
-		else if (RIGHT(parent) == node)
-			RIGHT(parent) = NULL;
-	}
+			DOWN(parent) = RIGHT(node);
+	} else
+		parent = RIGHT(node);
 	isc_mem_put(rbt->mctx, node, NODE_SIZE(node));
 	rbt->nodecount--;
 	node = parent;

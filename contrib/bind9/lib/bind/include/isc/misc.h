@@ -16,13 +16,14 @@
  */
 
 /*
- * $Id: misc.h,v 1.2.2.1.4.1 2004/03/09 08:33:31 marka Exp $
+ * $Id: misc.h,v 1.2.2.1.4.2 2008/04/28 04:25:42 marka Exp $
  */
 
 #ifndef _ISC_MISC_H
 #define _ISC_MISC_H
 
 #include <stdio.h>
+#include <sys/types.h>
 
 #define	bitncmp		__bitncmp
 /*#define isc_movefile	__isc_movefile */

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc-confgen.c,v 1.9.2.6.2.5 2004/09/28 07:14:57 marka Exp $ */
+/* $Id: rndc-confgen.c,v 1.9.2.6.2.7 2008/10/15 23:45:34 tbox Exp $ */
 
 #include <config.h>
 
@@ -51,7 +51,7 @@
 #define DEFAULT_PORT		953
 
 static char program[256];
-char *progname;
+const char *progname;
 
 isc_boolean_t verbose = ISC_FALSE;
 
@@ -137,7 +137,7 @@ main(int argc, char **argv) {
 	isc_boolean_t keyonly = ISC_FALSE;
 	int len;
 
- 	keydef = keyfile = RNDC_KEYFILE;
+	keydef = keyfile = RNDC_KEYFILE;
 
 	result = isc_file_progname(*argv, program, sizeof(program));
 	if (result != ISC_R_SUCCESS)
@@ -275,7 +275,7 @@ main(int argc, char **argv) {
 				fatal("isc_mem_get(%d) failed\n", len);
 			snprintf(buf, len, "%s%s%s", chrootdir,
 				 (*keyfile != '/') ? "/" : "", keyfile);
-			
+
 			write_key_file(buf, user, keyname, &key_txtbuffer);
 			isc_mem_put(mctx, buf, len);
 		}

@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.15.12.13 2007/08/28 07:19:08 tbox Exp $
+# $Id: Makefile.in,v 1.15.12.15 2008/08/29 23:45:33 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -55,7 +55,7 @@ UOBJS =
 
 SRCS =		nsupdate.c
 
-MANPAGES =	nsupdate.8
+MANPAGES =	nsupdate.1
 
 HTMLPAGES =	nsupdate.html
 
@@ -76,8 +76,8 @@ clean distclean::
 
 installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${bindir}
-	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man8
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man1
 
 install:: nsupdate@EXEEXT@ installdirs
 	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} nsupdate@EXEEXT@ ${DESTDIR}${bindir}
-	${INSTALL_DATA} ${srcdir}/nsupdate.8 ${DESTDIR}${mandir}/man8
+	${INSTALL_DATA} ${srcdir}/nsupdate.1 ${DESTDIR}${mandir}/man1

@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.83.2.5.2.38.2.1 $)
+AC_REVISION($Revision: 1.83.2.5.2.42 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -169,7 +169,7 @@ AC_PROG_CC
 AC_HEADER_STDC
 
 
-AC_CHECK_HEADERS(fcntl.h db.h paths.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/timers.h stropts.h)
+AC_CHECK_HEADERS(fcntl.h db.h paths.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/timers.h stropts.h memory.h)
 
 AC_C_CONST
 AC_C_INLINE
@@ -461,6 +461,7 @@ AC_SUBST(WANT_THREADS_OBJS)
 AC_CHECK_FUNC(strlcat, AC_DEFINE(HAVE_STRLCAT))
 AC_CHECK_FUNC(memmove, AC_DEFINE(HAVE_MEMMOVE))
 AC_CHECK_FUNC(memchr, AC_DEFINE(HAVE_MEMCHR))
+AC_CHECK_FUNC(strtoul, , AC_DEFINE(NEED_STRTOUL))
 
 AC_CHECK_FUNC(if_nametoindex,
 	[USE_IFNAMELINKID="#define USE_IFNAMELINKID 1"],
@@ -489,6 +490,16 @@ AC_SUBST(NEED_STRSEP)
 AC_CHECK_FUNC(strerror, [NEED_STRERROR="#undef NEED_STRERROR"],
 [NEED_STRERROR="#define NEED_STRERROR 1"])
 AC_SUBST(NEED_STRERROR)
+
+if test -n "$NEED_STRERROR"
+then
+	AC_MSG_CHECKING([for extern char * sys_errlist[]])
+	AC_TRY_LINK([ extern int sys_nerr; extern char *sys_errlist[]; ],
+		    [ const char *p = sys_errlist[0]; ],
+		    AC_MSG_RESULT(yes)
+		    AC_DEFINE(USE_SYSERROR_LIST),
+		    AC_MSG_RESULT(no))
+fi
 
 #
 # flockfile is usually provided by pthreads, but we may want to use it
@@ -666,6 +677,14 @@ AC_SUBST(PURIFY)
 #
 # GNU libtool support
 #
+case $host in
+sunos*)
+    # Just set the maximum command line length for sunos as it otherwise
+    # takes a exceptionally long time to work it out. Required for libtool.
+    lt_cv_sys_max_cmd_len=4096;
+    ;;
+esac
+
 AC_ARG_WITH(libtool,
 	    [  --with-libtool	use GNU libtool (following indented options supported)],
 	    use_libtool="$withval", use_libtool="no")
@@ -1050,6 +1069,7 @@ case "$host" in
 	*-qnx*)		PORT_DIR="port/qnx";;
 	*-rhapsody*)	PORT_DIR="port/rhapsody";;
 	*-sunos4*)
+			AC_DEFINE(NEED_SUN4PROTOS)
 			PORT_NONBLOCK="#define PORT_NONBLOCK O_NDELAY"
 			PORT_DIR="port/sunos";;
 	*-solaris2.[[01234]])
@@ -1246,6 +1266,38 @@ found_rt_iflist
 AC_CHECK_FUNC(strsep,
 	[ISC_PLATFORM_NEEDSTRSEP="#undef ISC_PLATFORM_NEEDSTRSEP"],
 	[ISC_PLATFORM_NEEDSTRSEP="#define ISC_PLATFORM_NEEDSTRSEP 1"])
+
+
+AC_MSG_CHECKING(for char *sprintf)
+AC_TRY_COMPILE([
+#include <stdio.h>
+],
+[ char buf[2]; return(*sprintf(buf,"x"));],
+AC_DEFINE(SPRINTF_CHAR)
+AC_MSG_RESULT(yes)
+,
+AC_MSG_RESULT(no)
+)
+
+AC_MSG_CHECKING(for char *vsprintf)
+case $host in
+*sunos4*) # not decared in any header file.
+AC_DEFINE(VSPRINTF_CHAR)
+AC_MSG_RESULT(yes)
+;;
+*)
+AC_TRY_COMPILE([
+#include <stdio.h>
+],
+[ char buf[2]; return(*vsprintf(buf,"x"));],
+AC_DEFINE(VSPRINTF_CHAR)
+AC_MSG_RESULT(yes)
+,
+AC_MSG_RESULT(no)
+)
+;;
+esac
+
 AC_CHECK_FUNC(vsnprintf,
 	[ISC_PLATFORM_NEEDVSNPRINTF="#undef ISC_PLATFORM_NEEDVSNPRINTF"],
 	[ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS print.$O"
@@ -1256,12 +1308,7 @@ AC_SUBST(ISC_PLATFORM_NEEDVSNPRINTF)
 
 AC_SUBST(ISC_EXTRA_OBJS)
 AC_SUBST(ISC_EXTRA_SRCS)
-AC_CHECK_FUNC(strerror,
-	[USE_SYSERROR_LIST="#undef USE_SYSERROR_LIST"],
-	[USE_SYSERROR_LIST="#define USE_SYSERROR_LIST 1"])
-AC_SUBST(USE_SYSERROR_LIST)
 
-#
 # Determine the printf format characters to use when printing
 # values of type isc_int64_t.  We make the assumption that platforms
 # where a "long long" is the same size as a "long" (e.g., Alpha/OSF1)
@@ -2590,7 +2637,7 @@ case "$host" in
 	*-solaris2.9)
 		hack_shutup_in6addr_init_macros=yes
 		;;
-	*-solaris2.1[0-9])
+	*-solaris2.1[[0-9]])
 		hack_shutup_in6addr_init_macros=yes
 		;;
 esac

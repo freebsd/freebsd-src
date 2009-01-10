@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgs.h,v 1.5.2.2.8.3 2004/03/06 08:14:44 marka Exp $ */
+/* $Id: msgs.h,v 1.5.2.2.8.5 2008/08/08 06:27:25 tbox Exp $ */
 
 #ifndef ISC_MSGS_H
 #define ISC_MSGS_H 1
@@ -146,7 +146,9 @@
 #define ISC_MSG_ACCEPTRETURNED 1418 /* accept() returned %d/%s */
 #define ISC_MSG_TOOMANYFDS     1419 /* %s: too many open file descriptors */
 #define ISC_MSG_ZEROPORT       1420 /* dropping source port zero packet */
-#define ISC_MSG_FILTER	       1420 /* setsockopt(SO_ACCEPTFILTER): %s */
+#define ISC_MSG_FILTER	       1421 /* setsockopt(SO_ACCEPTFILTER): %s */
+
+#define ISC_MSG_TOOMANYHANDLES 1422 /*%< %s: too many open WSA event handles: %s */
 
 #define ISC_MSG_AWAKE	       1502 /* "awake" */
 #define ISC_MSG_WORKING	       1503 /* "working" */

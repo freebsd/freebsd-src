@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.37.6.39 2007/12/14 01:28:26 marka Exp $ */
+/* $Id: check.c,v 1.37.6.41 2008/04/28 23:45:35 tbox Exp $ */
 
 #include <config.h>
 
@@ -213,13 +213,24 @@ check_dual_stack(const cfg_obj_t *options, isc_log_t *logctx) {
 }
 
 static isc_result_t
-check_forward(const cfg_obj_t *options, isc_log_t *logctx) {
+check_forward(const cfg_obj_t *options,  const cfg_obj_t *global,
+	      isc_log_t *logctx)
+{
 	const cfg_obj_t *forward = NULL;
 	const cfg_obj_t *forwarders = NULL;
 
 	(void)cfg_map_get(options, "forward", &forward);
 	(void)cfg_map_get(options, "forwarders", &forwarders);
 
+	if (forwarders != NULL && global != NULL) {
+		const char *file = cfg_obj_file(global);
+		unsigned int line = cfg_obj_line(global);
+		cfg_obj_log(forwarders, logctx, ISC_LOG_ERROR,
+			    "forwarders declared in root zone and "
+			    "in general configuration: %s:%u",
+			    file, line);
+		return (ISC_R_FAILURE);
+	}
 	if (forward != NULL && forwarders == NULL) {
 		cfg_obj_log(forward, logctx, ISC_LOG_ERROR,
 			    "no matching 'forwarders' statement");
@@ -400,8 +411,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 	(void)cfg_map_get(options, "preferred-glue", &obj);
 	if (obj != NULL) {
 		const char *str;
-                str = cfg_obj_asstring(obj);
-                if (strcasecmp(str, "a") != 0 &&
+		str = cfg_obj_asstring(obj);
+		if (strcasecmp(str, "a") != 0 &&
 		    strcasecmp(str, "aaaa") != 0 &&
 		    strcasecmp(str, "none") != 0)
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
@@ -430,7 +441,7 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 				isc_buffer_add(&b, strlen(str));
 				tresult = dns_name_fromtext(name, &b,
 							   dns_rootname,
-                                                           ISC_FALSE, NULL);
+							   ISC_FALSE, NULL);
 				if (tresult != ISC_R_SUCCESS) {
 					cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 						    "bad domain name '%s'",
@@ -440,7 +451,7 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 			}
 		}
 	}
-       
+
 	/*
 	 * Set supported DNSSEC algorithms.
 	 */
@@ -586,7 +597,7 @@ get_masters_def(const cfg_obj_t *cctx, const char *name, const cfg_obj_t **ret) 
 
 static isc_result_t
 validate_masters(const cfg_obj_t *obj, const cfg_obj_t *config,
-	         isc_uint32_t *countp, isc_log_t *logctx, isc_mem_t *mctx)
+		 isc_uint32_t *countp, isc_log_t *logctx, isc_mem_t *mctx)
 {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
@@ -608,7 +619,7 @@ validate_masters(const cfg_obj_t *obj, const cfg_obj_t *config,
  newlist:
 	list = cfg_tuple_get(obj, "addresses");
 	element = cfg_list_first(list);
- resume:	
+ resume:
 	for ( ;
 	     element != NULL;
 	     element = cfg_list_next(element))
@@ -693,9 +704,9 @@ typedef struct {
 } optionstable;
 
 static isc_result_t
-check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
-	       isc_symtab_t *symtab, dns_rdataclass_t defclass,
-	       isc_log_t *logctx, isc_mem_t *mctx)
+check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
+	       const cfg_obj_t *config, isc_symtab_t *symtab,
+	       dns_rdataclass_t defclass, isc_log_t *logctx, isc_mem_t *mctx)
 {
 	const char *zname;
 	const char *typestr;
@@ -708,6 +719,7 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
 	dns_rdataclass_t zclass;
 	dns_fixedname_t fixedname;
 	isc_buffer_t b;
+	isc_boolean_t root = ISC_FALSE;
 
 	static optionstable options[] = {
 	{ "allow-query", MASTERZONE | SLAVEZONE | STUBZONE },
@@ -817,7 +829,7 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
 	isc_buffer_init(&b, zname, strlen(zname));
 	isc_buffer_add(&b, strlen(zname));
 	tresult = dns_name_fromtext(dns_fixedname_name(&fixedname), &b,
-				   dns_rootname, ISC_TRUE, NULL);
+				    dns_rootname, ISC_TRUE, NULL);
 	if (tresult != ISC_R_SUCCESS) {
 		cfg_obj_log(zconfig, logctx, ISC_LOG_ERROR,
 			    "zone '%s': is not a valid name", zname);
@@ -832,6 +844,9 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
 				    "previous definition: %s:%u", logctx, mctx);
 		if (tresult != ISC_R_SUCCESS)
 			result = tresult;
+		if (dns_name_equal(dns_fixedname_name(&fixedname),
+				   dns_rootname))
+			root = ISC_TRUE;
 	}
 
 	/*
@@ -938,7 +953,18 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
 	/*
 	 * Check that forwarding is reasonable.
 	 */
-	if (check_forward(zoptions, logctx) != ISC_R_SUCCESS)
+	obj = NULL;
+	if (root) {
+		if (voptions != NULL)
+			(void)cfg_map_get(voptions, "forwarders", &obj);
+		if (obj == NULL) {
+			const cfg_obj_t *options = NULL;
+			(void)cfg_map_get(config, "options", &options);
+			if (options != NULL)
+				(void)cfg_map_get(options, "forwarders", &obj);
+		}
+	}
+	if (check_forward(zoptions, obj, logctx) != ISC_R_SUCCESS)
 		result = ISC_R_FAILURE;
 
 	/*
@@ -968,7 +994,7 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
 			result = tresult;
 		}
 	}
-	
+
 	return (result);
 }
 
@@ -977,7 +1003,7 @@ bind9_check_key(const cfg_obj_t *key, isc_log_t *logctx) {
 	const cfg_obj_t *algobj = NULL;
 	const cfg_obj_t *secretobj = NULL;
 	const char *keyname = cfg_obj_asstring(cfg_map_getname(key));
-	
+
 	(void)cfg_map_get(key, "algorithm", &algobj);
 	(void)cfg_map_get(key, "secret", &secretobj);
 	if (secretobj == NULL || algobj == NULL) {
@@ -1094,9 +1120,9 @@ check_servers(const cfg_obj_t *servers, isc_log_t *logctx) {
 	}
 	return (result);
 }
-		
+
 static isc_result_t
-check_viewconf(const cfg_obj_t *config, const cfg_obj_t *vconfig,
+check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	       dns_rdataclass_t vclass, isc_log_t *logctx, isc_mem_t *mctx)
 {
 	const cfg_obj_t *servers = NULL;
@@ -1116,8 +1142,8 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	if (tresult != ISC_R_SUCCESS)
 		return (ISC_R_NOMEMORY);
 
-	if (vconfig != NULL)
-		(void)cfg_map_get(vconfig, "zone", &zones);
+	if (voptions != NULL)
+		(void)cfg_map_get(voptions, "zone", &zones);
 	else
 		(void)cfg_map_get(config, "zone", &zones);
 
@@ -1128,7 +1154,7 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		isc_result_t tresult;
 		const cfg_obj_t *zone = cfg_listelt_value(element);
 
-		tresult = check_zoneconf(zone, config, symtab, vclass,
+		tresult = check_zoneconf(zone, voptions, config, symtab, vclass,
 					 logctx, mctx);
 		if (tresult != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
@@ -1152,10 +1178,10 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		isc_symtab_destroy(&symtab);
 		return (tresult);
 	}
-	
-	if (vconfig != NULL) {
+
+	if (voptions != NULL) {
 		keys = NULL;
-		(void)cfg_map_get(vconfig, "key", &keys);
+		(void)cfg_map_get(voptions, "key", &keys);
 		tresult = check_keylist(keys, symtab, logctx);
 		if (tresult == ISC_R_EXISTS)
 			result = ISC_R_FAILURE;
@@ -1170,47 +1196,48 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	/*
 	 * Check that forwarding is reasonable.
 	 */
-	if (vconfig == NULL) {
+	if (voptions == NULL) {
 		const cfg_obj_t *options = NULL;
 		(void)cfg_map_get(config, "options", &options);
 		if (options != NULL)
-			if (check_forward(options, logctx) != ISC_R_SUCCESS)
+			if (check_forward(options, NULL,
+					  logctx) != ISC_R_SUCCESS)
 				result = ISC_R_FAILURE;
 	} else {
-		if (check_forward(vconfig, logctx) != ISC_R_SUCCESS)
+		if (check_forward(voptions, NULL, logctx) != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
 	}
 	/*
 	 * Check that dual-stack-servers is reasonable.
 	 */
-	if (vconfig == NULL) {
+	if (voptions == NULL) {
 		const cfg_obj_t *options = NULL;
 		(void)cfg_map_get(config, "options", &options);
 		if (options != NULL)
 			if (check_dual_stack(options, logctx) != ISC_R_SUCCESS)
 				result = ISC_R_FAILURE;
 	} else {
-		if (check_dual_stack(vconfig, logctx) != ISC_R_SUCCESS)
+		if (check_dual_stack(voptions, logctx) != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
 	}
 
 	/*
 	 * Check that rrset-order is reasonable.
 	 */
-	if (vconfig != NULL) {
-		if (check_order(vconfig, logctx) != ISC_R_SUCCESS)
+	if (voptions != NULL) {
+		if (check_order(voptions, logctx) != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
 	}
 
-	if (vconfig != NULL) {
-		(void)cfg_map_get(vconfig, "server", &servers);
+	if (voptions != NULL) {
+		(void)cfg_map_get(voptions, "server", &servers);
 		if (servers != NULL &&
 		    check_servers(servers, logctx) != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
 	}
 
-	if (vconfig != NULL)
-		tresult = check_options(vconfig, logctx, mctx);
+	if (voptions != NULL)
+		tresult = check_options(voptions, logctx, mctx);
 	else
 		tresult = check_options(config, logctx, mctx);
 	if (tresult != ISC_R_SUCCESS)
@@ -1249,7 +1276,7 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 	    check_servers(servers, logctx) != ISC_R_SUCCESS)
 		result = ISC_R_FAILURE;
 
-	if (options != NULL && 
+	if (options != NULL &&
 	    check_order(options, logctx) != ISC_R_SUCCESS)
 		result = ISC_R_FAILURE;
 
@@ -1311,7 +1338,7 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 				const char *file;
 				unsigned int line;
 				RUNTIME_CHECK(isc_symtab_lookup(symtab, key,
-				           vclass, &symvalue) == ISC_R_SUCCESS);
+					   vclass, &symvalue) == ISC_R_SUCCESS);
 				file = cfg_obj_file(symvalue.as_cpointer);
 				line = cfg_obj_line(symvalue.as_cpointer);
 				cfg_obj_log(view, logctx, ISC_LOG_ERROR,
@@ -1351,8 +1378,8 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 		}
 	}
 
-        tresult = cfg_map_get(config, "acl", &acls);
-        if (tresult == ISC_R_SUCCESS) {
+	tresult = cfg_map_get(config, "acl", &acls);
+	if (tresult == ISC_R_SUCCESS) {
 		const cfg_listelt_t *elt;
 		const cfg_listelt_t *elt2;
 		const char *aclname;
@@ -1371,7 +1398,7 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 					cfg_obj_log(acl, logctx, ISC_LOG_ERROR,
 						    "attempt to redefine "
 						    "builtin acl '%s'",
-				    		    aclname);
+						    aclname);
 					result = ISC_R_FAILURE;
 					break;
 				}
@@ -1401,8 +1428,8 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 		}
 	}
 
-        tresult = cfg_map_get(config, "kal", &kals);
-        if (tresult == ISC_R_SUCCESS) {
+	tresult = cfg_map_get(config, "kal", &kals);
+	if (tresult == ISC_R_SUCCESS) {
 		const cfg_listelt_t *elt;
 		const cfg_listelt_t *elt2;
 		const char *aclname;

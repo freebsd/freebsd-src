@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.119.2.3.2.25 2006/11/10 18:51:06 marka Exp $ */
+/* $Id: main.c,v 1.119.2.3.2.29 2008/10/24 01:28:55 marka Exp $ */
 
 #include <config.h>
 
@@ -31,6 +31,7 @@
 #include <isc/hash.h>
 #include <isc/os.h>
 #include <isc/platform.h>
+#include <isc/print.h>
 #include <isc/resource.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
@@ -76,6 +77,7 @@ static char		program_name[ISC_DIR_NAMEMAX] = "named";
 static char		absolute_conffile[ISC_DIR_PATHMAX];
 static char		saved_command_line[512];
 static char		version[512];
+static unsigned int	maxsocks = 0;
 
 void
 ns_main_earlywarning(const char *format, ...) {
@@ -345,7 +347,8 @@ parse_command_line(int argc, char *argv[]) {
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
-			           "46c:C:d:fgi:lm:n:N:p:P:st:u:vx:")) != -1) {
+					   "46c:C:d:fgi:lm:n:N:p:P:"
+					   "sS:t:u:vx:")) != -1) {
 		switch (ch) {
 		case '4':
 			if (disable4)
@@ -424,6 +427,10 @@ parse_command_line(int argc, char *argv[]) {
 			/* XXXRTH temporary syntax */
 			want_stats = ISC_TRUE;
 			break;
+		case 'S':
+			maxsocks = parse_int(isc_commandline_argument,
+					     "max number of sockets");
+			break;
 		case 't':
 			/* XXXJAB should we make a copy? */
 			ns_g_chrootdir = isc_commandline_argument;
@@ -455,17 +462,14 @@ parse_command_line(int argc, char *argv[]) {
 static isc_result_t
 create_managers(void) {
 	isc_result_t result;
-#ifdef ISC_PLATFORM_USETHREADS
-	unsigned int cpus_detected;
-#endif
+	unsigned int socks;
 
 #ifdef ISC_PLATFORM_USETHREADS
-	cpus_detected = isc_os_ncpus();
 	if (ns_g_cpus == 0)
-		ns_g_cpus = cpus_detected;
+		ns_g_cpus = ns_g_cpus_detected;
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
 		      ISC_LOG_INFO, "found %u CPU%s, using %u worker thread%s",
-		      cpus_detected, cpus_detected == 1 ? "" : "s",
+		      ns_g_cpus_detected, ns_g_cpus_detected == 1 ? "" : "s",
 		      ns_g_cpus, ns_g_cpus == 1 ? "" : "s");
 #else
 	ns_g_cpus = 1;
@@ -486,12 +490,18 @@ create_managers(void) {
 		return (ISC_R_UNEXPECTED);
 	}
 
-	result = isc_socketmgr_create(ns_g_mctx, &ns_g_socketmgr);
+	result = isc_socketmgr_create2(ns_g_mctx, &ns_g_socketmgr, maxsocks);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_socketmgr_create() failed: %s",
 				 isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
+	}
+	result = isc_socketmgr_getmaxsockets(ns_g_socketmgr, &socks);
+	if (result == ISC_R_SUCCESS) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER,
+			      ISC_LOG_INFO, "using up to %u sockets", socks);
 	}
 
 	result = isc_entropy_create(ns_g_mctx, &ns_g_entropy);
@@ -539,6 +549,7 @@ destroy_managers(void) {
 static void
 setup(void) {
 	isc_result_t result;
+	isc_resourcevalue_t old_openfiles;
 #ifdef HAVE_LIBSCF
 	char *instance = NULL;
 #endif
@@ -590,6 +601,13 @@ setup(void) {
 			isc_entropy_detach(&ns_g_fallbackentropy);
 		}
 	}
+#endif
+
+#ifdef ISC_PLATFORM_USETHREADS
+	/*
+	 * Check for the number of cpu's before ns_os_chroot().
+	 */
+	ns_g_cpus_detected = isc_os_ncpus();
 #endif
 
 	ns_os_chroot(ns_g_chrootdir);
@@ -645,6 +663,23 @@ setup(void) {
 				    &ns_g_initopenfiles);
 
 	/*
+	 * System resources cannot effectively be tuned on some systems.
+	 * Raise the limit in such cases for safety.
+	 */
+	old_openfiles = ns_g_initopenfiles;
+	ns_os_adjustnofile();
+	(void)isc_resource_getlimit(isc_resource_openfiles,
+				    &ns_g_initopenfiles);
+	if (old_openfiles != ns_g_initopenfiles) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_MAIN, ISC_LOG_NOTICE,
+			      "adjusted limit on open files from "
+			      "%" ISC_PRINT_QUADFORMAT "u to "
+			      "%" ISC_PRINT_QUADFORMAT "u",
+			      old_openfiles, ns_g_initopenfiles);
+	}
+
+	/*
 	 * If the named configuration filename is relative, prepend the current
 	 * directory's name before possibly changing to another directory.
 	 */
@@ -654,7 +689,7 @@ setup(void) {
 					       sizeof(absolute_conffile));
 		if (result != ISC_R_SUCCESS)
 			ns_main_earlyfatal("could not construct absolute path of "
-					   "configuration file: %s", 
+					   "configuration file: %s",
 					   isc_result_totext(result));
 		ns_g_conffile = absolute_conffile;
 	}
@@ -727,7 +762,7 @@ ns_smf_get_instance(char **ins_name, int debug, isc_mem_t *mctx) {
 		if (debug)
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "scf_handle_create() failed: %s",
-			 		 scf_strerror(scf_error()));
+					 scf_strerror(scf_error()));
 		return (ISC_R_FAILURE);
 	}
 
