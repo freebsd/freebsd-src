@@ -26,17 +26,17 @@
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
-	ncurses libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
-	${_libypclnt} libalias libarchive ${_libatm} \
-	libbegemot ${_libbluetooth} libbsnmp libbz2 \
+	ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
+	libtacplus libutil ${_libypclnt} libalias libarchive ${_libatm} \
+	libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libdwarf libedit libexpat libfetch libftpio libgeom ${_libgpib} \
 	${_libgssapi} libipsec \
 	${_libipx} libkiconv libmagic libmemstat ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpcap \
-	libpmc libproc ${_libkse} librt ${_libsdp} ${_libsm} ${_libsmb} \
+	${_libpmc} libproc ${_libkse} librt ${_libsdp} ${_libsm} ${_libsmb} \
 	${_libsmdb} \
-	${_libsmutil} libstand libtelnet ${_libthr} libthread_db libufs \
+	${_libsmutil} libstand ${_libtelnet} ${_libthr} libthread_db libufs \
 	libugidfw ${_libusbhid} ${_libusb20} ${_libvgl} libwrap liby libz \
 	${_bind}
 
@@ -47,6 +47,8 @@ _csu=csu/${MACHINE_ARCH}
 .else
 _csu=csu
 .endif
+
+# NB: keep these sorted by MK_* knobs
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
@@ -61,12 +63,36 @@ _libbluetooth=	libbluetooth
 _libsdp=	libsdp
 .endif
 
+.if ${MK_BSNMP} != "no"
+_libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_GPIB} != "no"
+_libgpib=	libgpib
+.endif
+
 .if ${MK_GSSAPI} != "no"
 _libgssapi=	libgssapi
 .endif
 
 .if ${MK_IPX} != "no"
 _libipx=	libipx
+.endif
+
+.if ${MK_LIBKSE} != "no"
+_libkse=	libkse
+.endif
+
+.if ${MK_LIBTHR} != "no"
+_libthr=	libthr
+.endif
+
+.if ${MK_NETGRAPH} != "no"
+_libnetgraph=	libnetgraph
+.endif
+
+.if ${MK_NIS} != "no"
+_libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
@@ -81,17 +107,6 @@ _libvgl=	libvgl
 _libsmb=	libsmb
 .endif
 
-.if ${MK_SENDMAIL} != "no"
-_libmilter=	libmilter
-_libsm=		libsm
-_libsmdb=	libsmdb
-_libsmutil=	libsmutil
-.endif
-
-.if ${MK_OPENSSL} != "no"
-_libmp=		libmp
-.endif
-
 .if ${MACHINE_ARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
@@ -103,25 +118,28 @@ _libsmb=	libsmb
 _libsmb=	libsmb
 .endif
 
-.if ${MK_LIBKSE} != "no"
-_libkse=	libkse
+.if ${MK_OPENSSL} != "no"
+_libmp=		libmp
 .endif
 
-.if ${MK_LIBTHR} != "no"
-_libthr=	libthr
+.if ${MK_PMC} != "no"
+_libpmc=	libpmc
+_libusb20=	libusb20
+.endif
+
+.if ${MK_SENDMAIL} != "no"
+_libmilter=	libmilter
+_libsm=		libsm
+_libsmdb=	libsmdb
+_libsmutil=	libsmutil
+.endif
+
+.if ${MK_TELNET} != "no"
+_libtelnet=	libtelnet
 .endif
 
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
-_libusb20=	libusb20
-.endif
-
-.if ${MK_NIS} != "no"
-_libypclnt=	libypclnt
-.endif
-
-.if ${MK_GPIB} != "no"
-_libgpib=	libgpib
 .endif
 
 .include <bsd.subdir.mk>
