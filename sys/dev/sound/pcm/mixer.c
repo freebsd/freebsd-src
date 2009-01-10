@@ -1022,6 +1022,27 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	int ret, *arg_i = (int *)arg;
 	int v = -1, j = cmd & 0xff;
 
+	/*
+	 * Certain ioctls may be made on any type of device (audio, mixer,
+	 * and MIDI).  Handle those special cases here.
+	 */
+	if (IOCGROUP(cmd) == 'X') {
+		switch (cmd) {
+		case SNDCTL_SYSINFO:
+			sound_oss_sysinfo((oss_sysinfo *)arg);
+			return (0);
+		case SNDCTL_CARDINFO:
+			return (sound_oss_card_info((oss_card_info *)arg));
+	    	case SNDCTL_AUDIOINFO:
+	    	case SNDCTL_AUDIOINFO_EX:
+	    	case SNDCTL_ENGINEINFO:
+			return (dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg));
+		case SNDCTL_MIXERINFO:
+			return (mixer_oss_mixerinfo(i_dev, (oss_mixerinfo *)arg));
+		}
+		return (ENXIO);
+	}
+
 	m = i_dev->si_drv1;
 
 	if (m == NULL)
@@ -1031,11 +1052,6 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	if (from == MIXER_CMD_CDEV && !m->busy) {
 		snd_mtxunlock(m->lock);
 		return (EBADF);
-	}
-
-	if (cmd == SNDCTL_MIXERINFO) {
-		snd_mtxunlock(m->lock);
-		return (mixer_oss_mixerinfo(i_dev, (oss_mixerinfo *)arg));
 	}
 
 	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
@@ -1075,15 +1091,6 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 	switch (cmd) {
  	/** @todo Double check return values, error codes. */
-	case SNDCTL_SYSINFO:
-		snd_mtxunlock(m->lock);
-		sound_oss_sysinfo((oss_sysinfo *)arg);
-		return (ret);
-		break;
-	case SNDCTL_AUDIOINFO:
-		snd_mtxunlock(m->lock);
-		return (dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg));
-		break;
 	case SNDCTL_DSP_GET_RECSRC_NAMES:
 		bcopy((void *)&m->enuminfo, arg, sizeof(oss_mixer_enuminfo));
 		break;
