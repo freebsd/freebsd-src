@@ -3147,6 +3147,7 @@ static struct mac_policy_ops test_ops =
 			 MPC_OBJECT_DEVFS |				\
 			 MPC_OBJECT_MBUF |				\
 			 MPC_OBJECT_IPQ |				\
+			 MPC_OBJECT_IP6Q |				\
 			 MPC_OBJECT_IFNET |				\
 			 MPC_OBJECT_BPFDESC |				\
 			 MPC_OBJECT_PIPE |				\
