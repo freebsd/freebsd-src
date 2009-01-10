@@ -2367,7 +2367,6 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			ai->next_play_engine = 0;
 			ai->next_rec_engine = 0;
 
-printf("flags: %08x %d\n", ch->flags, ai->busy);
 			CHN_UNLOCK(ch);
 		}
 
