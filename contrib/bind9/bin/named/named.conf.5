@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.conf.5,v 1.1.2.26 2007/08/19 23:26:13 marka Exp $
+.\" $Id: named.conf.5,v 1.1.2.27 2008/09/05 01:32:08 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -174,6 +174,7 @@ options {
 	port \fIinteger\fR;
 	querylog \fIboolean\fR;
 	recursing\-file \fIquoted_string\fR;
+	reserved\-sockets \fIinteger\fR;
 	random\-device \fIquoted_string\fR;
 	recursive\-clients \fIinteger\fR;
 	serial\-query\-rate \fIinteger\fR;
@@ -516,5 +517,5 @@ zone \fIstring\fR \fIoptional_class\fR {
 \fBrndc\fR(8),
 BIND 9 Administrator Reference Manual.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2008 Internet Systems Consortium, Inc. ("ISC")
 .br
