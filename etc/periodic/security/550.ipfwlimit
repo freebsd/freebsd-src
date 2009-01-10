@@ -42,19 +42,16 @@ rc=0
 
 case "$daily_status_security_ipfwlimit_enable" in
     [Yy][Ee][Ss])
-	IPFW_LOG_LIMIT=`sysctl -n net.inet.ip.fw.verbose_limit 2> /dev/null`
-	if [ $? -ne 0 ]; then
+	IPFW_VERBOSE=`sysctl -n net.inet.ip.fw.verbose 2> /dev/null`
+	if [ $? -ne 0 ] || [ "$IPFW_VERBOSE" -eq 0 ]; then
 		exit 0
 	fi
 	TMP=`mktemp -t security`
 	ipfw -a list | grep " log " | \
 	grep '^[[:digit:]]\+[[:space:]]\+[[:digit:]]\+' | \
-	awk -v limit="$IPFW_LOG_LIMIT" \
+	awk \
 		'{if ($6 == "logamount") {
 			if ($2 > $7)
-				{print $0}
-		} else {
-			if ($2 > limit)
 				{print $0}}
 		}' > ${TMP}
 
