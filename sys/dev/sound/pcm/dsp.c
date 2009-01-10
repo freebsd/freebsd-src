@@ -2339,7 +2339,8 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 * @c real_device - OSSv4 docs:  "Obsolete."
 			 */
 			ai->real_device = -1;
-			strlcpy(ai->devnode, devname, sizeof(ai->devnode));
+			strlcpy(ai->devnode, "/dev/", sizeof(ai->devnode));
+			strlcat(ai->devnode, devname, sizeof(ai->devnode));
 			ai->enabled = device_is_attached(d->dev) ? 1 : 0;
 			/**
 			 * @note
