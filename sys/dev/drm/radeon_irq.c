@@ -38,12 +38,130 @@ __FBSDID("$FreeBSD$");
 #include "dev/drm/radeon_drm.h"
 #include "dev/drm/radeon_drv.h"
 
-static __inline__ u32 radeon_acknowledge_irqs(drm_radeon_private_t * dev_priv,
-					      u32 mask)
+void radeon_irq_set_state(struct drm_device *dev, u32 mask, int state)
 {
-	u32 irqs = RADEON_READ(RADEON_GEN_INT_STATUS) & mask;
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	if (state)
+		dev_priv->irq_enable_reg |= mask;
+	else
+		dev_priv->irq_enable_reg &= ~mask;
+
+	RADEON_WRITE(RADEON_GEN_INT_CNTL, dev_priv->irq_enable_reg);
+}
+
+static void r500_vbl_irq_set_state(struct drm_device *dev, u32 mask, int state)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	if (state)
+		dev_priv->r500_disp_irq_reg |= mask;
+	else
+		dev_priv->r500_disp_irq_reg &= ~mask;
+
+	RADEON_WRITE(R500_DxMODE_INT_MASK, dev_priv->r500_disp_irq_reg);
+}
+
+int radeon_enable_vblank(struct drm_device *dev, int crtc)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {	
+		switch (crtc) {
+		case 0:
+			r500_vbl_irq_set_state(dev, R500_D1MODE_INT_MASK, 1);
+			break;
+		case 1:
+			r500_vbl_irq_set_state(dev, R500_D2MODE_INT_MASK, 1);
+			break;
+		default:
+			DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
+				  crtc);
+			return EINVAL;
+		}
+	} else {
+		switch (crtc) {
+		case 0:
+			radeon_irq_set_state(dev, RADEON_CRTC_VBLANK_MASK, 1);
+			break;
+		case 1:
+			radeon_irq_set_state(dev, RADEON_CRTC2_VBLANK_MASK, 1);
+			break;
+		default:
+			DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
+				  crtc);
+			return EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+void radeon_disable_vblank(struct drm_device *dev, int crtc)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {	
+		switch (crtc) {
+		case 0:
+			r500_vbl_irq_set_state(dev, R500_D1MODE_INT_MASK, 0);
+			break;
+		case 1:
+			r500_vbl_irq_set_state(dev, R500_D2MODE_INT_MASK, 0);
+			break;
+		default:
+			DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
+				  crtc);
+			break;
+		}
+	} else {
+		switch (crtc) {
+		case 0:
+			radeon_irq_set_state(dev, RADEON_CRTC_VBLANK_MASK, 0);
+			break;
+		case 1:
+			radeon_irq_set_state(dev, RADEON_CRTC2_VBLANK_MASK, 0);
+			break;
+		default:
+			DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
+				  crtc);
+			break;
+		}
+	}
+}
+
+static __inline__ u32 radeon_acknowledge_irqs(drm_radeon_private_t * dev_priv, u32 *r500_disp_int)
+{
+	u32 irqs = RADEON_READ(RADEON_GEN_INT_STATUS);
+	u32 irq_mask = RADEON_SW_INT_TEST;
+
+	*r500_disp_int = 0;
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {
+		/* vbl interrupts in a different place */
+
+		if (irqs & R500_DISPLAY_INT_STATUS) {
+			/* if a display interrupt */
+			u32 disp_irq;
+
+			disp_irq = RADEON_READ(R500_DISP_INTERRUPT_STATUS);
+
+			*r500_disp_int = disp_irq;
+			if (disp_irq & R500_D1_VBLANK_INTERRUPT) {
+				RADEON_WRITE(R500_D1MODE_VBLANK_STATUS, R500_VBLANK_ACK);
+			}
+			if (disp_irq & R500_D2_VBLANK_INTERRUPT) {
+				RADEON_WRITE(R500_D2MODE_VBLANK_STATUS, R500_VBLANK_ACK);
+			}
+		}
+		irq_mask |= R500_DISPLAY_INT_STATUS;
+	} else
+		irq_mask |= RADEON_CRTC_VBLANK_STAT | RADEON_CRTC2_VBLANK_STAT;
+
+	irqs &=	irq_mask;
+
 	if (irqs)
 		RADEON_WRITE(RADEON_GEN_INT_STATUS, irqs);
+	
 	return irqs;
 }
 
@@ -67,35 +185,41 @@ static __inline__ u32 radeon_acknowledge_irqs(drm_radeon_private_t * dev_priv,
 
 irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 {
-	drm_device_t *dev = (drm_device_t *) arg;
+	struct drm_device *dev = (struct drm_device *) arg;
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
 	u32 stat;
+	u32 r500_disp_int;
 
 	/* Only consider the bits we're interested in - others could be used
 	 * outside the DRM
 	 */
-	stat = radeon_acknowledge_irqs(dev_priv, (RADEON_SW_INT_TEST_ACK |
-						  RADEON_CRTC_VBLANK_STAT));
+	stat = radeon_acknowledge_irqs(dev_priv, &r500_disp_int);
 	if (!stat)
 		return IRQ_NONE;
 
+	stat &= dev_priv->irq_enable_reg;
+
 	/* SW interrupt */
-	if (stat & RADEON_SW_INT_TEST) {
+	if (stat & RADEON_SW_INT_TEST)
 		DRM_WAKEUP(&dev_priv->swi_queue);
-	}
 
 	/* VBLANK interrupt */
-	if (stat & RADEON_CRTC_VBLANK_STAT) {
-		atomic_inc(&dev->vbl_received);
-		DRM_WAKEUP(&dev->vbl_queue);
-		drm_vbl_send_signals(dev);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {
+		if (r500_disp_int & R500_D1_VBLANK_INTERRUPT)
+			drm_handle_vblank(dev, 0);
+		if (r500_disp_int & R500_D2_VBLANK_INTERRUPT)
+			drm_handle_vblank(dev, 1);
+	} else {
+		if (stat & RADEON_CRTC_VBLANK_STAT)
+			drm_handle_vblank(dev, 0);
+		if (stat & RADEON_CRTC2_VBLANK_STAT)
+			drm_handle_vblank(dev, 1);
 	}
-
 	return IRQ_HANDLED;
 }
 
-static int radeon_emit_irq(drm_device_t * dev)
+static int radeon_emit_irq(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	unsigned int ret;
@@ -113,7 +237,7 @@ static int radeon_emit_irq(drm_device_t * dev)
 	return ret;
 }
 
-static int radeon_wait_irq(drm_device_t * dev, int swi_nr)
+static int radeon_wait_irq(struct drm_device * dev, int swi_nr)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
@@ -130,59 +254,53 @@ static int radeon_wait_irq(drm_device_t * dev, int swi_nr)
 	return ret;
 }
 
-int radeon_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
+u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc)
 {
-	drm_radeon_private_t *dev_priv =
-	    (drm_radeon_private_t *) dev->dev_private;
-	unsigned int cur_vblank;
-	int ret = 0;
+	drm_radeon_private_t *dev_priv = dev->dev_private;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
 	}
 
-	radeon_acknowledge_irqs(dev_priv, RADEON_CRTC_VBLANK_STAT);
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
 
-	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
-
-	/* Assume that the user has missed the current sequence number
-	 * by about a day rather than she wants to wait for years
-	 * using vertical blanks...
-	 */
-	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
-		    (((cur_vblank = atomic_read(&dev->vbl_received))
-		      - *sequence) <= (1 << 23)));
-
-	*sequence = cur_vblank;
-
-	return ret;
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {
+		if (crtc == 0)
+			return RADEON_READ(R500_D1CRTC_FRAME_COUNT);
+		else
+			return RADEON_READ(R500_D2CRTC_FRAME_COUNT);
+	} else {
+		if (crtc == 0)
+			return RADEON_READ(RADEON_CRTC_CRNT_FRAME);
+		else
+			return RADEON_READ(RADEON_CRTC2_CRNT_FRAME);
+	}
 }
 
 /* Needs the lock as it touches the ring.
  */
-int radeon_irq_emit(DRM_IOCTL_ARGS)
+int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_emit_t emit;
+	drm_radeon_irq_emit_t *emit = data;
 	int result;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
 	}
-
-	DRM_COPY_FROM_USER_IOCTL(emit, (drm_radeon_irq_emit_t __user *) data,
-				 sizeof(emit));
 
 	result = radeon_emit_irq(dev);
 
-	if (DRM_COPY_TO_USER(emit.irq_seq, &result, sizeof(int))) {
+	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return 0;
@@ -190,58 +308,86 @@ int radeon_irq_emit(DRM_IOCTL_ARGS)
 
 /* Doesn't need the hardware lock.
  */
-int radeon_irq_wait(DRM_IOCTL_ARGS)
+int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_wait_t irqwait;
+	drm_radeon_irq_wait_t *irqwait = data;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(irqwait, (drm_radeon_irq_wait_t __user *) data,
-				 sizeof(irqwait));
-
-	return radeon_wait_irq(dev, irqwait.irq_seq);
+	return radeon_wait_irq(dev, irqwait->irq_seq);
 }
 
 /* drm_dma.h hooks
 */
-void radeon_driver_irq_preinstall(drm_device_t * dev)
+void radeon_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
+	u32 dummy;
 
 	/* Disable *all* interrupts */
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690)
+		RADEON_WRITE(R500_DxMODE_INT_MASK, 0);
 	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
 
 	/* Clear bits if they're already high */
-	radeon_acknowledge_irqs(dev_priv, (RADEON_SW_INT_TEST_ACK |
-					   RADEON_CRTC_VBLANK_STAT));
+	radeon_acknowledge_irqs(dev_priv, &dummy);
 }
 
-void radeon_driver_irq_postinstall(drm_device_t * dev)
+int radeon_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
+	int ret;
 
 	atomic_set(&dev_priv->swi_emitted, 0);
 	DRM_INIT_WAITQUEUE(&dev_priv->swi_queue);
 
-	/* Turn on SW and VBL ints */
-	RADEON_WRITE(RADEON_GEN_INT_CNTL,
-		     RADEON_CRTC_VBLANK_MASK | RADEON_SW_INT_ENABLE);
+	ret = drm_vblank_init(dev, 2);
+	if (ret)
+		return ret;
+
+	dev->max_vblank_count = 0x001fffff;
+
+	radeon_irq_set_state(dev, RADEON_SW_INT_ENABLE, 1);
+
+	return 0;
 }
 
-void radeon_driver_irq_uninstall(drm_device_t * dev)
+void radeon_driver_irq_uninstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
 	if (!dev_priv)
 		return;
 
+	dev_priv->irq_enabled = 0;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690)
+		RADEON_WRITE(R500_DxMODE_INT_MASK, 0);
 	/* Disable *all* interrupts */
 	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
+}
+
+
+int radeon_vblank_crtc_get(struct drm_device *dev)
+{
+	drm_radeon_private_t *dev_priv = (drm_radeon_private_t *) dev->dev_private;
+
+	return dev_priv->vblank_crtc;
+}
+
+int radeon_vblank_crtc_set(struct drm_device *dev, int64_t value)
+{
+	drm_radeon_private_t *dev_priv = (drm_radeon_private_t *) dev->dev_private;
+	if (value & ~(DRM_RADEON_VBLANK_CRTC1 | DRM_RADEON_VBLANK_CRTC2)) {
+		DRM_ERROR("called with invalid crtc 0x%x\n", (unsigned int)value);
+		return -EINVAL;
+	}
+	dev_priv->vblank_crtc = (unsigned int)value;
+	return 0;
 }

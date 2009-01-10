@@ -69,6 +69,6 @@ list_del(struct list_head *entry) {
 
 #define list_for_each_safe(entry, temp, head)			\
     for (entry = (head)->next, temp = (entry)->next;		\
-	temp != head; 						\
-	entry = temp, temp = temp->next)
+	entry != head; 						\
+	entry = temp, temp = entry->next)
 
