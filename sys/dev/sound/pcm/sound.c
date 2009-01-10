@@ -1493,6 +1493,38 @@ sound_oss_sysinfo(oss_sysinfo *si)
 		si->filler[i] = -1;
 }
 
+int
+sound_oss_card_info(oss_card_info *si)
+{
+	struct snddev_info *d;
+	int i, ncards;
+	
+	ncards = 0;
+
+	for (i = 0; pcm_devclass != NULL &&
+	    i < devclass_get_maxunit(pcm_devclass); i++) {
+		d = devclass_get_softc(pcm_devclass, i);
+		if (!PCM_REGISTERED(d))
+			continue;
+
+		if (ncards++ != si->card)
+			continue;
+
+		mtx_assert(d->lock, MA_NOTOWNED);
+		pcm_lock(d);
+		
+		strlcpy(si->shortname, device_get_nameunit(d->dev),
+		    sizeof(si->shortname));
+		strlcpy(si->longname, device_get_desc(d->dev),
+		    sizeof(si->longname));
+		strlcpy(si->hw_info, d->status, sizeof(si->hw_info));
+		si->intr_count = si->ack_count = 0;
+		pcm_unlock(d);
+		return (0);
+	}
+	return (ENXIO);
+}
+
 /************************************************************************/
 
 static int

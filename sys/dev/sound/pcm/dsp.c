@@ -814,7 +814,12 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		case SNDCTL_SYSINFO:
 			sound_oss_sysinfo((oss_sysinfo *)arg);
 			break;
+		case SNDCTL_CARDINFO:
+			ret = sound_oss_card_info((oss_card_info *)arg);
+			break;
 		case SNDCTL_AUDIOINFO:
+		case SNDCTL_AUDIOINFO_EX:
+		case SNDCTL_ENGINEINFO:
 			ret = dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg);
 			break;
 		case SNDCTL_MIXERINFO:
@@ -1370,9 +1375,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 
     	case SNDCTL_DSP_GETCAPS:
 		pcm_lock(d);
-		*arg_i = DSP_CAP_REALTIME | DSP_CAP_MMAP | DSP_CAP_TRIGGER;
+		*arg_i = PCM_CAP_REALTIME | PCM_CAP_MMAP | PCM_CAP_TRIGGER;
 		if (rdch && wrch && !(dsp_get_flags(i_dev) & SD_F_SIMPLEX))
-			*arg_i |= DSP_CAP_DUPLEX;
+			*arg_i |= PCM_CAP_DUPLEX;
 		pcm_unlock(d);
 		break;
 
@@ -1769,18 +1774,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		ret = dsp_oss_setname(wrch, rdch, (oss_longname_t *)arg);
 		break;
 #if 0
-	/**
-	 * @note The SNDCTL_CARDINFO ioctl was omitted per 4Front developer
-	 * documentation.  "The usability of this call is very limited. It's
-	 * provided only for completeness of the API. OSS API doesn't have
-	 * any concept of card. Any information returned by this ioctl calld
-	 * is reserved exclusively for the utility programs included in the
-	 * OSS package. Applications should not try to use for this
-	 * information in any ways."
-	 */
-	case SNDCTL_CARDINFO:
-		ret = EINVAL;
-		break;
 	/**
 	 * @note The S/PDIF interface ioctls, @c SNDCTL_DSP_READCTL and
 	 * @c SNDCTL_DSP_WRITECTL have been omitted at the suggestion of
@@ -2282,13 +2275,14 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			/*
 			 * These flags stolen from SNDCTL_DSP_GETCAPS handler.
 			 * Note, however, that a single channel operates in
-			 * only one direction, so DSP_CAP_DUPLEX is out.
+			 * only one direction, so PCM_CAP_DUPLEX is out.
 			 */
 			/**
 			 * @todo @c SNDCTL_AUDIOINFO::caps - Make drivers keep
 			 *       these in pcmchan::caps?
 			 */
-			ai->caps = DSP_CAP_REALTIME | DSP_CAP_MMAP | DSP_CAP_TRIGGER;
+			ai->caps = PCM_CAP_REALTIME | PCM_CAP_MMAP | PCM_CAP_TRIGGER |
+			    ((ch->direction == PCMDIR_PLAY) ? PCM_CAP_OUTPUT : PCM_CAP_INPUT);
 
 			/*
 			 * Collect formats supported @b natively by the
@@ -2369,7 +2363,11 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 
 			for (i = 0; i < ai->nrates; i++)
 				ai->rates[i] = rates[i];
+			
+			ai->next_play_engine = 0;
+			ai->next_rec_engine = 0;
 
+printf("flags: %08x %d\n", ch->flags, ai->busy);
 			CHN_UNLOCK(ch);
 		}
 

@@ -801,18 +801,91 @@ typedef struct audio_buf_info {
 #define SNDCTL_DSP_NONBLOCK	_IO  ('P',14)
 
 #define SNDCTL_DSP_GETCAPS	_IOR ('P',15, int)
-#define DSP_CAP_REVISION	0x000000ff /* revision level (0 to 255) */
-#define DSP_CAP_DUPLEX		0x00000100 /* Full duplex record/playback */
-#define DSP_CAP_REALTIME	0x00000200 /* Real time capability */
-#define DSP_CAP_BATCH		0x00000400
-    /*
-     * Device has some kind of internal buffers which may
-     * cause some delays and decrease precision of timing
-     */
-#define DSP_CAP_COPROC		0x00000800
-    /* Has a coprocessor, sometimes it's a DSP but usually not */
-#define DSP_CAP_TRIGGER		0x00001000 /* Supports SETTRIGGER */
-#define DSP_CAP_MMAP 0x00002000 /* Supports mmap() */
+#	define PCM_CAP_REVISION		0x000000ff	/* Bits for revision level (0 to 255) */
+#	define PCM_CAP_DUPLEX		0x00000100	/* Full duplex record/playback */
+#	define PCM_CAP_REALTIME		0x00000200	/* Not in use */
+#	define PCM_CAP_BATCH		0x00000400	/* Device has some kind of */
+							/* internal buffers which may */
+							/* cause some delays and */
+							/* decrease precision of timing */
+#	define PCM_CAP_COPROC		0x00000800	/* Has a coprocessor */
+							/* Sometimes it's a DSP */
+							/* but usually not */
+#	define PCM_CAP_TRIGGER		0x00001000	/* Supports SETTRIGGER */
+#	define PCM_CAP_MMAP		0x00002000	/* Supports mmap() */
+#	define PCM_CAP_MULTI		0x00004000	/* Supports multiple open */
+#	define PCM_CAP_BIND		0x00008000	/* Supports binding to front/rear/center/lfe */
+#   	define PCM_CAP_INPUT		0x00010000	/* Supports recording */
+#   	define PCM_CAP_OUTPUT		0x00020000	/* Supports playback */
+#	define PCM_CAP_VIRTUAL		0x00040000	/* Virtual device */
+/* 0x00040000 and 0x00080000 reserved for future use */
+
+/* Analog/digital control capabilities */
+#	define PCM_CAP_ANALOGOUT	0x00100000
+#	define PCM_CAP_ANALOGIN		0x00200000
+#	define PCM_CAP_DIGITALOUT	0x00400000
+#	define PCM_CAP_DIGITALIN	0x00800000
+#	define PCM_CAP_ADMASK		0x00f00000
+/*
+ * NOTE! (capabilities & PCM_CAP_ADMASK)==0 means just that the
+ * digital/analog interface control features are not supported by the 
+ * device/driver. However the device still supports analog, digital or
+ * both inputs/outputs (depending on the device). See the OSS Programmer's
+ * Guide for full details.
+ */
+#	define PCM_CAP_SPECIAL		0x01000000	/* Not for ordinary "multimedia" use */
+#	define PCM_CAP_SHADOW		0x00000000	/* OBSOLETE */
+
+/*
+ * Preferred channel usage. These bits can be used to
+ * give recommendations to the application. Used by few drivers.
+ * For example if ((caps & DSP_CH_MASK) == DSP_CH_MONO) means that
+ * the device works best in mono mode. However it doesn't necessarily mean
+ * that the device cannot be used in stereo. These bits should only be used
+ * by special applications such as multi track hard disk recorders to find
+ * out the initial setup. However the user should be able to override this
+ * selection.
+ *
+ * To find out which modes are actually supported the application should 
+ * try to select them using SNDCTL_DSP_CHANNELS.
+ */
+#	define DSP_CH_MASK		0x06000000	/* Mask */
+#	define DSP_CH_ANY		0x00000000	/* No preferred mode */
+#	define DSP_CH_MONO		0x02000000
+#	define DSP_CH_STEREO		0x04000000
+#	define DSP_CH_MULTI		0x06000000	/* More than two channels */
+
+#	define PCM_CAP_HIDDEN		0x08000000	/* Hidden device */
+#	define PCM_CAP_FREERATE		0x10000000
+#	define PCM_CAP_MODEM		0x20000000	/* Modem device */
+#	define PCM_CAP_DEFAULT		0x40000000	/* "Default" device */
+
+/*
+ * The PCM_CAP_* capability names were known as DSP_CAP_* prior OSS 4.0
+ * so it's necessary to define the older names too.
+ */
+#define DSP_CAP_ADMASK		PCM_CAP_ADMASK
+#define DSP_CAP_ANALOGIN	PCM_CAP_ANALOGIN
+#define DSP_CAP_ANALOGOUT	PCM_CAP_ANALOGOUT
+#define DSP_CAP_BATCH		PCM_CAP_BATCH
+#define DSP_CAP_BIND		PCM_CAP_BIND
+#define DSP_CAP_COPROC		PCM_CAP_COPROC
+#define DSP_CAP_DEFAULT		PCM_CAP_DEFAULT
+#define DSP_CAP_DIGITALIN	PCM_CAP_DIGITALIN
+#define DSP_CAP_DIGITALOUT	PCM_CAP_DIGITALOUT
+#define DSP_CAP_DUPLEX		PCM_CAP_DUPLEX
+#define DSP_CAP_FREERATE	PCM_CAP_FREERATE
+#define DSP_CAP_HIDDEN		PCM_CAP_HIDDEN
+#define DSP_CAP_INPUT		PCM_CAP_INPUT
+#define DSP_CAP_MMAP		PCM_CAP_MMAP
+#define DSP_CAP_MODEM		PCM_CAP_MODEM
+#define DSP_CAP_MULTI		PCM_CAP_MULTI
+#define DSP_CAP_OUTPUT		PCM_CAP_OUTPUT
+#define DSP_CAP_REALTIME	PCM_CAP_REALTIME
+#define DSP_CAP_REVISION	PCM_CAP_REVISION
+#define DSP_CAP_SHADOW		PCM_CAP_SHADOW
+#define DSP_CAP_TRIGGER		PCM_CAP_TRIGGER
+#define DSP_CAP_VIRTUAL		PCM_CAP_VIRTUAL
 
 /*
  * What do these function do ?
@@ -1785,7 +1858,9 @@ typedef struct oss_audioinfo
 	int		latency;	/* In usecs, -1=unknown */
 	oss_devnode_t	devnode;	/* Device special file name (inside
 					   /dev) */
-	int filler[186];
+	int next_play_engine;
+	int next_rec_engine;
+	int filler[184];
 } oss_audioinfo;
 
 typedef struct oss_mixerinfo
@@ -1851,7 +1926,9 @@ typedef struct oss_card_info
   char shortname[16];
   char longname[128];
   int flags;
-  int filler[256];
+  char hw_info[400];
+  int intr_count, ack_count;
+  int filler[154];
 } oss_card_info;
 
 #define SNDCTL_SYSINFO          _IOR ('X', 1, oss_sysinfo)
@@ -1868,6 +1945,8 @@ typedef struct oss_card_info
 #define SNDCTL_MIDIINFO		_IOWR('X', 9, oss_midi_info)
 #define SNDCTL_MIXERINFO	_IOWR('X',10, oss_mixerinfo)
 #define SNDCTL_CARDINFO		_IOWR('X',11, oss_card_info)
+#define SNDCTL_ENGINEINFO	_IOWR('X',12, oss_audioinfo)
+#define SNDCTL_AUDIOINFO_EX	_IOWR('X',13, oss_audioinfo)
 
 /*
  * Few more "globally" available ioctl calls.
