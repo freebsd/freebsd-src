@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.77.2.5.2.19 2006/08/04 03:03:08 marka Exp $ */
+/* $Id: rndc.c,v 1.77.2.5.2.21 2008/10/15 23:45:34 tbox Exp $ */
 
 /*
  * Principal Author: DCL
@@ -56,7 +56,7 @@
 
 #define SERVERADDRS 10
 
-char *progname;
+const char *progname;
 isc_boolean_t verbose;
 
 static const char *admin_conffile;
@@ -86,7 +86,7 @@ static void
 usage(int status) {
 	fprintf(stderr, "\
 Usage: %s [-c config] [-s server] [-p port]\n\
-        [-k key-file ] [-y key] [-V] command\n\
+	[-k key-file ] [-y key] [-V] command\n\
 \n\
 command is one of the following:\n\
 \n\
@@ -98,9 +98,9 @@ command is one of the following:\n\
   retransfer zone [class [view]]\n\
 		Retransfer a single zone without checking serial number.\n\
   freeze zone [class [view]]\n\
-  		Suspend updates to a dynamic zone.\n\
+		Suspend updates to a dynamic zone.\n\
   thaw zone [class [view]]\n\
-  		Enable updates to a frozen dynamic zone and reload it.\n\
+		Enable updates to a frozen dynamic zone and reload it.\n\
   reconfig	Reload configuration file and new zones only.\n\
   stats		Write server statistics to the statistics file.\n\
   querylog	Toggle query logging.\n\
@@ -443,7 +443,7 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 		(void)cfg_map_get(config, "server", &servers);
 		if (servers != NULL) {
 			for (elt = cfg_list_first(servers);
-			     elt != NULL; 
+			     elt != NULL;
 			     elt = cfg_list_next(elt))
 			{
 				const char *name;
@@ -479,7 +479,7 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 	else {
 		DO("get config key list", cfg_map_get(config, "key", &keys));
 		for (elt = cfg_list_first(keys);
-		     elt != NULL; 
+		     elt != NULL;
 		     elt = cfg_list_next(elt))
 		{
 			key = cfg_listelt_value(elt);
@@ -624,7 +624,7 @@ main(int argc, char **argv) {
 	logdest.file.maximum_size = 0;
 	DO("creating log channel",
 	   isc_log_createchannel(logconfig, "stderr",
-		   		 ISC_LOG_TOFILEDESC, ISC_LOG_INFO, &logdest,
+				 ISC_LOG_TOFILEDESC, ISC_LOG_INFO, &logdest,
 				 ISC_LOG_PRINTTAG|ISC_LOG_PRINTLEVEL));
 	DO("enabling log channel", isc_log_usechannel(logconfig, "stderr",
 						      NULL, NULL));

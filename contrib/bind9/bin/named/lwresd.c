@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresd.c,v 1.37.2.2.2.8.14.3 2008/07/23 23:16:26 marka Exp $ */
+/* $Id: lwresd.c,v 1.37.2.2.2.11 2008/07/23 23:36:22 marka Exp $ */
 
 /*
  * Main program for the Lightweight Resolver Daemon.

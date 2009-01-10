@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.59.2.5.8.21.4.3 2008/07/23 23:16:25 marka Exp $ */
+/* $Id: interfacemgr.c,v 1.59.2.5.8.24 2008/07/23 23:36:22 marka Exp $ */
 
 #include <config.h>
 

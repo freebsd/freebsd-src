@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dig.html,v 1.6.2.4.2.23 2007/05/16 06:10:54 marka Exp $ -->
+<!-- $Id: dig.html,v 1.6.2.4.2.25 2008/10/14 01:20:30 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -29,12 +29,12 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">dig</code>  [@server] [<code class="option">-b <em class="replaceable"><code>address</code></em></code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-f <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-k <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port#</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-x <em class="replaceable"><code>addr</code></em></code>] [<code class="option">-y <em class="replaceable"><code>name:key</code></em></code>] [<code class="option">-4</code>] [<code class="option">-6</code>] [name] [type] [class] [queryopt...]</p></div>
+<div class="cmdsynopsis"><p><code class="command">dig</code>  [@server] [<code class="option">-b <em class="replaceable"><code>address</code></em></code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-f <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-k <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-m</code>] [<code class="option">-p <em class="replaceable"><code>port#</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-x <em class="replaceable"><code>addr</code></em></code>] [<code class="option">-y <em class="replaceable"><code>name:key</code></em></code>] [<code class="option">-4</code>] [<code class="option">-6</code>] [name] [type] [class] [queryopt...]</p></div>
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [<code class="option">-h</code>]</p></div>
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543485"></a><h2>DESCRIPTION</h2>
+<a name="id2543493"></a><h2>DESCRIPTION</h2>
 <p>
 <span><strong class="command">dig</strong></span> (domain information groper) is a flexible tool
 for interrogating DNS name servers.  It performs DNS lookups and
@@ -59,9 +59,9 @@ Unless it is told to query a specific name server,
 <code class="filename">/etc/resolv.conf</code>.
 </p>
 <p>
-When no command line arguments or options are given, will perform an
-NS query for "." (the root).
-</p>
+       When no command line arguments or options are given,
+       <span><strong class="command">dig</strong></span> will perform an NS query for "." (the root).
+     </p>
 <p>
 It is possible to set per-user defaults for <span><strong class="command">dig</strong></span> via
 <code class="filename">${HOME}/.digrc</code>.  This file is read and any options in it
@@ -70,12 +70,12 @@ are applied before the command line arguments.
 <p>
        The IN and CH class names overlap with the IN and CH top level
        domains names.  Either use the <code class="option">-t</code> and
-       <code class="option">-c</code> options to specify the type and class or
+       <code class="option">-c</code> options to specify the type and class, or
        use "IN." and "CH." when looking up these top level domains.
      </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543554"></a><h2>SIMPLE USAGE</h2>
+<a name="id2543565"></a><h2>SIMPLE USAGE</h2>
 <p>
 A typical invocation of <span><strong class="command">dig</strong></span> looks like:
 </p>
@@ -113,7 +113,7 @@ ANY, A, MX, SIG, etc.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543633"></a><h2>OPTIONS</h2>
+<a name="id2543644"></a><h2>OPTIONS</h2>
 <p>
 The <code class="option">-b</code> option sets the source IP address of the query
 to <em class="parameter"><code>address</code></em>.  This must be a valid address on
@@ -133,6 +133,10 @@ queries, one per line.  Each entry in the file should be organized in
 the same way they would be presented as queries to
 <span><strong class="command">dig</strong></span> using the command-line interface.
 </p>
+<p>
+	The <code class="option">-m</code> option enables memory usage debugging.
+	
+      </p>
 <p>
 If a non-standard port number is to be queried, the
 <code class="option">-p</code> option is used.  <em class="parameter"><code>port#</code></em> is
@@ -194,7 +198,7 @@ being used.  In BIND, this is done by providing appropriate
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543816"></a><h2>QUERY OPTIONS</h2>
+<a name="id2543837"></a><h2>QUERY OPTIONS</h2>
 <p>
 <span><strong class="command">dig</strong></span> provides a number of query options which affect
 the way in which lookups are made and the results displayed.  Some of
@@ -452,7 +456,7 @@ Requires dig be compiled with -DDIG_SIGCHASE.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544553"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2544574"></a><h2>MULTIPLE QUERIES</h2>
 <p>
 The BIND 9 implementation of <span><strong class="command">dig </strong></span> supports
 specifying multiple queries on the command line (in addition to
@@ -493,7 +497,7 @@ will not print the initial query when it looks up the NS records for
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544612"></a><h2>FILES</h2>
+<a name="id2544633"></a><h2>FILES</h2>
 <p>
 <code class="filename">/etc/resolv.conf</code>
 </p>
@@ -502,7 +506,7 @@ will not print the initial query when it looks up the NS records for
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544631"></a><h2>SEE ALSO</h2>
+<a name="id2544721"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
 <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
@@ -511,7 +515,7 @@ will not print the initial query when it looks up the NS records for
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544738"></a><h2>BUGS </h2>
+<a name="id2544759"></a><h2>BUGS </h2>
 <p>
 There are probably too many query options. 
 </p>

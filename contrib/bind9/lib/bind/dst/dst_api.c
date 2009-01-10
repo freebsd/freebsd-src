@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/dst_api.c,v 1.4.2.6.8.6 2007/09/24 17:26:10 each Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/Attic/dst_api.c,v 1.4.2.6.8.6 2007/09/24 17:26:10 each Exp $";
 #endif
 
 /*

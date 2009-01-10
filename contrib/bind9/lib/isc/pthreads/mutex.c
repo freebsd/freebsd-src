@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.c,v 1.6.26.8 2007/08/28 07:19:17 tbox Exp $ */
+/* $Id: mutex.c,v 1.6.26.10 2008/04/04 23:45:32 tbox Exp $ */
 
 #include <config.h>
 
@@ -31,23 +31,23 @@
 /* Operations on timevals; adapted from FreeBSD's sys/time.h */
 #define timevalclear(tvp)      ((tvp)->tv_sec = (tvp)->tv_usec = 0)
 #define timevaladd(vvp, uvp)                                            \
-        do {                                                            \
-                (vvp)->tv_sec += (uvp)->tv_sec;                         \
-                (vvp)->tv_usec += (uvp)->tv_usec;                       \
-                if ((vvp)->tv_usec >= 1000000) {                        \
-                        (vvp)->tv_sec++;                                \
-                        (vvp)->tv_usec -= 1000000;                      \
-                }                                                       \
-        } while (0)
+	do {                                                            \
+		(vvp)->tv_sec += (uvp)->tv_sec;                         \
+		(vvp)->tv_usec += (uvp)->tv_usec;                       \
+		if ((vvp)->tv_usec >= 1000000) {                        \
+			(vvp)->tv_sec++;                                \
+			(vvp)->tv_usec -= 1000000;                      \
+		}                                                       \
+	} while (0)
 #define timevalsub(vvp, uvp)                                            \
-        do {                                                            \
-                (vvp)->tv_sec -= (uvp)->tv_sec;                         \
-                (vvp)->tv_usec -= (uvp)->tv_usec;                       \
-                if ((vvp)->tv_usec < 0) {                               \
-                        (vvp)->tv_sec--;                                \
-                        (vvp)->tv_usec += 1000000;                      \
-                }                                                       \
-        } while (0)
+	do {                                                            \
+		(vvp)->tv_sec -= (uvp)->tv_sec;                         \
+		(vvp)->tv_usec -= (uvp)->tv_usec;                       \
+		if ((vvp)->tv_usec < 0) {                               \
+			(vvp)->tv_sec--;                                \
+			(vvp)->tv_usec += 1000000;                      \
+		}                                                       \
+	} while (0)
 
 #define ISC_MUTEX_MAX_LOCKERS 32
 
@@ -70,8 +70,11 @@ struct isc_mutexstats {
 	isc_mutexlocker_t	lockers[ISC_MUTEX_MAX_LOCKERS];
 };
 
-#define TABLESIZE (8 * 1024)
-static isc_mutexstats_t stats[TABLESIZE];
+#ifndef ISC_MUTEX_PROFTABLESIZE
+#define ISC_MUTEX_PROFTABLESIZE (16 * 1024)
+#endif
+static isc_mutexstats_t stats[ISC_MUTEX_PROFTABLESIZE];
+static int stats_next = 0;
 static isc_boolean_t stats_init = ISC_FALSE;
 static pthread_mutex_t statslock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -85,21 +88,19 @@ isc_mutex_init_profile(isc_mutex_t *mp, const char *file, int line) {
 
 	RUNTIME_CHECK(pthread_mutex_lock(&statslock) == 0);
 
-	if (stats_init == ISC_FALSE) {
-		for (i = 0; i < TABLESIZE; i++) {
-			stats[i].file = NULL;
-		}
+	if (stats_init == ISC_FALSE)
 		stats_init = ISC_TRUE;
-	}
 
-	mp->stats = NULL;
-	for (i = 0; i < TABLESIZE; i++) {
-		if (stats[i].file == NULL) {
-			mp->stats = &stats[i];
-			break;
-		}
-	}
-	RUNTIME_CHECK(mp->stats != NULL);
+	/*
+	 * If all statistics entries have been used, give up and trigger an
+	 * assertion failure.  There would be no other way to deal with this
+	 * because we'd like to keep record of all locks for the purpose of
+	 * debugging and the number of necessary locks is unpredictable.
+	 * If this failure is triggered while debugging, named should be
+	 * rebuilt with an increased ISC_MUTEX_PROFTABLESIZE.
+	 */
+	RUNTIME_CHECK(stats_next < ISC_MUTEX_PROFTABLESIZE);
+	mp->stats = &stats[stats_next++];
 
 	RUNTIME_CHECK(pthread_mutex_unlock(&statslock) == 0);
 
@@ -186,10 +187,9 @@ void
 isc_mutex_statsprofile(FILE *fp) {
 	isc_mutexlocker_t *locker;
 	int i, j;
+
 	fprintf(fp, "Mutex stats (in us)\n");
-	for (i = 0; i < TABLESIZE; i++) {
-		if (stats[i].file == NULL)
-			continue;
+	for (i = 0; i < stats_next; i++) {
 		fprintf(fp, "%-12s %4d: %10u  %lu.%06lu %lu.%06lu\n",
 			stats[i].file, stats[i].line, stats[i].count,
 			stats[i].locked_total.tv_sec,
@@ -225,7 +225,7 @@ isc_mutex_init_errcheck(isc_mutex_t *mp)
 
 	if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK) != 0)
 		return ISC_R_UNEXPECTED;
-  
+
 	if (pthread_mutex_init(mp, &attr) != 0)
 		return ISC_R_UNEXPECTED;
 
