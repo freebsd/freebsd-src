@@ -601,6 +601,7 @@ struct snddev_info {
 };
 
 void	sound_oss_sysinfo(oss_sysinfo *);
+int	sound_oss_card_info(oss_card_info *);
 
 #ifdef	PCM_DEBUG_MTX
 #define	pcm_lock(d) mtx_lock(((struct snddev_info *)(d))->lock)
