@@ -1800,26 +1800,5 @@ static struct mac_policy_ops stub_ops =
 	.mpo_vnode_setlabel_extattr = stub_vnode_setlabel_extattr,
 };
 
-#define	STUB_OBJECTS	(MPC_OBJECT_CRED |				\
-			 /* XXX: MPC_OBJECT_PROC | */			\
-			 MPC_OBJECT_VNODE |				\
-			 MPC_OBJECT_INPCB |				\
-			 MPC_OBJECT_SOCKET |				\
-			 MPC_OBJECT_DEVFS |				\
-			 MPC_OBJECT_MBUF |				\
-			 MPC_OBJECT_IPQ |				\
-			 MPC_OBJECT_IP6Q |				\
-			 MPC_OBJECT_IFNET |				\
-			 MPC_OBJECT_BPFDESC |				\
-			 MPC_OBJECT_PIPE |				\
-			 MPC_OBJECT_MOUNT |				\
-			 MPC_OBJECT_POSIXSEM |				\
-			 MPC_OBJECT_POSIXSHM |				\
-			 MPC_OBJECT_SYSVMSG |				\
-			 MPC_OBJECT_SYSVMSQ |				\
-			 MPC_OBJECT_SYSVSEM |				\
-			 MPC_OBJECT_SYSVSHM |				\
-			 MPC_OBJECT_SYNCACHE)
-
 MAC_POLICY_SET(&stub_ops, mac_stub, "TrustedBSD MAC/Stub",
-    MPC_LOADTIME_FLAG_UNLOADOK, NULL, STUB_OBJECTS);
+    MPC_LOADTIME_FLAG_UNLOADOK, NULL);
