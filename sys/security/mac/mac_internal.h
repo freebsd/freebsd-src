@@ -4,6 +4,7 @@
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 nCircle Network Security, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2009 Apple, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -82,6 +83,34 @@ struct label {
 	int		l_flags;
 	intptr_t	l_perpolicy[MAC_MAX_SLOTS];
 };
+
+
+/*
+ * Flags for mac_labeled, a bitmask of object types need across the union of
+ * all policies currently registered with the MAC Framework, used to key
+ * whether or not labels are allocated and constructors for the type are
+ * invoked.
+ */
+#define	MPC_OBJECT_CRED			0x0000000000000001
+#define	MPC_OBJECT_PROC			0x0000000000000002
+#define	MPC_OBJECT_VNODE		0x0000000000000004
+#define	MPC_OBJECT_INPCB		0x0000000000000008
+#define	MPC_OBJECT_SOCKET		0x0000000000000010
+#define	MPC_OBJECT_DEVFS		0x0000000000000020
+#define	MPC_OBJECT_MBUF			0x0000000000000040
+#define	MPC_OBJECT_IPQ			0x0000000000000080
+#define	MPC_OBJECT_IFNET		0x0000000000000100
+#define	MPC_OBJECT_BPFDESC		0x0000000000000200
+#define	MPC_OBJECT_PIPE			0x0000000000000400
+#define	MPC_OBJECT_MOUNT		0x0000000000000800
+#define	MPC_OBJECT_POSIXSEM		0x0000000000001000
+#define	MPC_OBJECT_POSIXSHM		0x0000000000002000
+#define	MPC_OBJECT_SYSVMSG		0x0000000000004000
+#define	MPC_OBJECT_SYSVMSQ		0x0000000000008000
+#define	MPC_OBJECT_SYSVSEM		0x0000000000010000
+#define	MPC_OBJECT_SYSVSHM		0x0000000000020000
+#define	MPC_OBJECT_SYNCACHE		0x0000000000040000
+#define	MPC_OBJECT_IP6Q			0x0000000000080000
 
 /*
  * MAC Framework global variables.

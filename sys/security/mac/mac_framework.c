@@ -3,7 +3,7 @@
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
- * Copyright (c) 2008 Apple Inc.
+ * Copyright (c) 2008-2009 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -329,10 +329,48 @@ mac_late_init(void)
 }
 
 /*
- * After the policy list has changed, walk the list to update any global
- * flags.  Currently, we support only one flag, and it's conditionally
- * defined; as a result, the entire function is conditional.  Eventually, the
- * #else case might also iterate across the policies.
+ * Given a policy, derive from its set of non-NULL label init methods what
+ * object types the policy is interested in.
+ */
+static uint64_t
+mac_policy_getlabeled(struct mac_policy_conf *mpc)
+{
+	uint64_t labeled;
+
+#define	MPC_FLAG(method, flag)					\
+	if (mpc->mpc_ops->mpo_ ## method != NULL)			\
+		labeled |= (flag);					\
+
+	labeled = 0;
+	MPC_FLAG(cred_init_label, MPC_OBJECT_CRED);
+	MPC_FLAG(proc_init_label, MPC_OBJECT_PROC);
+	MPC_FLAG(vnode_init_label, MPC_OBJECT_VNODE);
+	MPC_FLAG(inpcb_init_label, MPC_OBJECT_INPCB);
+	MPC_FLAG(socket_init_label, MPC_OBJECT_SOCKET);
+	MPC_FLAG(devfs_init_label, MPC_OBJECT_DEVFS);
+	MPC_FLAG(mbuf_init_label, MPC_OBJECT_MBUF);
+	MPC_FLAG(ipq_init_label, MPC_OBJECT_IPQ);
+	MPC_FLAG(ifnet_init_label, MPC_OBJECT_IFNET);
+	MPC_FLAG(bpfdesc_init_label, MPC_OBJECT_BPFDESC);
+	MPC_FLAG(pipe_init_label, MPC_OBJECT_PIPE);
+	MPC_FLAG(mount_init_label, MPC_OBJECT_MOUNT);
+	MPC_FLAG(posixsem_init_label, MPC_OBJECT_POSIXSEM);
+	MPC_FLAG(posixshm_init_label, MPC_OBJECT_POSIXSHM);
+	MPC_FLAG(sysvmsg_init_label, MPC_OBJECT_SYSVMSG);
+	MPC_FLAG(sysvmsq_init_label, MPC_OBJECT_SYSVMSQ);
+	MPC_FLAG(sysvsem_init_label, MPC_OBJECT_SYSVSEM);
+	MPC_FLAG(sysvshm_init_label, MPC_OBJECT_SYSVSHM);
+	MPC_FLAG(syncache_init_label, MPC_OBJECT_SYNCACHE);
+	MPC_FLAG(ip6q_init_label, MPC_OBJECT_IP6Q);
+
+#undef MPC_FLAG
+	return (labeled);
+}
+
+/*
+ * When policies are loaded or unloaded, walk the list of registered policies
+ * and built mac_labeled, a bitmask representing the union of all objects
+ * requiring labels across all policies.
  */
 static void
 mac_policy_updateflags(void)
@@ -343,9 +381,9 @@ mac_policy_updateflags(void)
 
 	mac_labeled = 0;
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list)
-		mac_labeled |= mpc->mpc_labeled;
+		mac_labeled |= mac_policy_getlabeled(mpc);
 	LIST_FOREACH(mpc, &mac_policy_list, mpc_list)
-		mac_labeled |= mpc->mpc_labeled;
+		mac_labeled |= mac_policy_getlabeled(mpc);
 }
 
 static int
