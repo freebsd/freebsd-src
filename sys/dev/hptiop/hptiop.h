@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 #define DBG 0
 
 #ifdef DBG
-int hpt_dbg_level = 0;
-#define KdPrint(x)  do { if (hpt_dbg_level) printf x; } while (0)
+int hpt_iop_dbg_level = 0;
+#define KdPrint(x)  do { if (hpt_iop_dbg_level) printf x; } while (0)
 #define HPT_ASSERT(x) assert(x)
 #else
 #define KdPrint(x)
