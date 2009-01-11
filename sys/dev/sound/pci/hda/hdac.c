@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081226_0122"
+#define HDA_DRV_TEST_REV	"20090110_0123"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -5554,7 +5554,7 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 	struct hdac_audio_ctl *ctl;
 	int i, j;
 
-	/* Disable crossassociatement connections. */
+	/* Disable crossassociatement and unwanted crosschannel connections. */
 	/* ... using selectors */
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		w = hdac_widget_get(devinfo, i);
@@ -5572,7 +5572,10 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 			cw = hdac_widget_get(devinfo, w->conns[j]);
 			if (cw == NULL || w->enable == 0)
 				continue;
-			if (w->bindas == cw->bindas || cw->bindas == -2)
+			if (cw->bindas == -2)
+				continue;
+			if (w->bindas == cw->bindas &&
+			    (w->bindseqmask & cw->bindseqmask) != 0)
 				continue;
 			w->connsenable[j] = 0;
 			HDA_BOOTHVERBOSE(
@@ -5591,7 +5594,8 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 		if (ctl->widget->bindas == -2 ||
 		    ctl->childwidget->bindas == -2)
 			continue;
-		if (ctl->widget->bindas != ctl->childwidget->bindas) {
+		if (ctl->widget->bindas != ctl->childwidget->bindas ||
+		    (ctl->widget->bindseqmask & ctl->childwidget->bindseqmask) == 0) {
 			ctl->forcemute = 1;
 			ctl->muted = HDA_AMP_MUTE_ALL;
 			ctl->left = 0;
