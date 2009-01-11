@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#40 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#41 $
  */
 
 #include <sys/types.h>
@@ -252,7 +252,7 @@ do_trail_file(void)
 	 */
 	err = auditd_read_dirs(audit_warn_soft, audit_warn_hard);
 	if (err) {
-		auditd_log_err("auditd_read_dirs() %s: %m",
+		auditd_log_err("auditd_read_dirs(): %s",
 		    auditd_strerror(err));
 		if (err == ADE_HARDLIM)
 			audit_warn_allhard();
