@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2008
+.Dd January 11, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -480,6 +480,29 @@ pkill -j 3
 or:
 .Pp
 .Dl "killall -j 3"
+.Ss "Jails and File Systems"
+It is not possible to
+.Xr mount 8
+or
+.Xr unmount 8
+any file system inside a jail unless the file system is marked
+jail-friendly.
+See
+.Va security.jail.mount_allowed
+in the
+.Va "Sysctl MIB Entries"
+section.
+.Pp
+Multiple jails sharing the same file system can influence each other.
+For example a user in one jail can fill the file system also
+leaving no space for processes in the other jail.
+Trying to use
+.Xr quota 1
+to prevent this will not work either as the file system quotas
+are not aware of jails but only look at the user and group IDs.
+This means the same user ID in two jails share the same file
+system quota.
+One would need to use one file system per jail to make this working.
 .Ss "Sysctl MIB Entries"
 Certain aspects of the jail containments environment may be modified from
 the host environment using
@@ -614,6 +637,7 @@ and
 .Xr pgrep 1 ,
 .Xr pkill 1 ,
 .Xr ps 1 ,
+.Xr quota 1 ,
 .Xr chroot 2 ,
 .Xr jail 2 ,
 .Xr jail_attach 2 ,
@@ -626,6 +650,7 @@ and
 .Xr jexec 8 ,
 .Xr jls 8 ,
 .Xr mount 8 ,
+.Xr unmount 8 ,
 .Xr named 8 ,
 .Xr reboot 8 ,
 .Xr rpcbind 8 ,
