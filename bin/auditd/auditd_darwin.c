@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd_darwin.c#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd_darwin.c#3 $
  */
 
 #include <sys/types.h>
@@ -83,7 +83,7 @@ static int		max_idletime = 0;
 #endif /* __BSM_INTERNAL_NOTIFY_KEY */
 
 #ifndef	__AUDIT_LAUNCHD_LABEL
-#define	__AUDIT_LAUNCHD_LABEL		"org.trustedbsd.auditd"
+#define	__AUDIT_LAUNCHD_LABEL		"com.apple.auditd"
 #endif /* __AUDIT_LAUNCHD_LABEL */
 
 #define	MAX_MSG_SIZE	4096
@@ -100,7 +100,7 @@ auditd_openlog(int debug, gid_t gid)
 	if (debug)
 		opt = ASL_OPT_STDERR;
 
-	au_aslclient = asl_open("auditd", "org.trustedbsd.auditd", opt);
+	au_aslclient = asl_open("auditd", "com.apple.auditd", opt);
 	au_aslmsg = asl_new(ASL_TYPE_MSG); 
 
 #ifdef ASL_KEY_READ_UID

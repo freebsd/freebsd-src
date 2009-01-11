@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/auditd_lib.h#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/auditd_lib.h#3 $
  */
 
 #ifndef _BSM_AUDITD_LIB_H_
@@ -57,7 +57,7 @@
  * Path of auditd plist file for launchd.
  */ 
 #define	AUDITD_PLIST_FILE 	\
-	    "/System/Library/LaunchDaemons/org.trustedbsd.auditd.plist"
+	    "/System/Library/LaunchDaemons/com.apple.auditd.plist"
 
 /*
  * Error return codes for auditd_lib functions.
