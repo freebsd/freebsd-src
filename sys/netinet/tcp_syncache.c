@@ -1070,8 +1070,6 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * have an initialized label we can use.
 		 */
 		mac_syncache_destroy(&maclabel);
-		KASSERT(sc->sc_label != NULL,
-		    ("%s: label not initialized", __func__));
 #endif
 		/* Retransmit SYN|ACK and reset retransmit count. */
 		if ((s = tcp_log_addrs(&sc->sc_inc, th, NULL, NULL))) {
