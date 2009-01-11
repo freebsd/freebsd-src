@@ -393,23 +393,8 @@ _sysinstall=	sysinstall
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
-_ar=		ar
-_c89=		c89
-_c99=		c99
-_compile_et=	compile_et
-_ctags=		ctags
-_file2c=	file2c
-_gprof=		gprof
-_indent=	indent
-_lex=		lex
-_mkstr=		mkstr
-_rpcgen=	rpcgen
-_unifdef=	unifdef
-_xlint=		xlint
-_xstr=		xstr
-# XXX maybe under textproc?
-_vgrind=	vgrind
-_yacc=		yacc
+_config=	config
+_crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
