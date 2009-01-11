@@ -5983,6 +5983,9 @@ show_nat(int ac, char **av) {
 	lrule = IPFW_DEFAULT_RULE; /* max ipfw rule number */
 	ac--; av++;
 
+	if (test_only)
+		return;
+
 	/* Parse parameters. */
 	for (cmd = IP_FW_NAT_GET_LOG, do_cfg = 0; ac != 0; ac--, av++) {
 		if (!strncmp(av[0], "config", strlen(av[0]))) {
