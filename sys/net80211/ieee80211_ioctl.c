@@ -2696,6 +2696,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 			break;
 		case 3:
 			if ((vap->iv_caps & IEEE80211_C_WPA) != IEEE80211_C_WPA)
+				return EOPNOTSUPP;
 			flags |= IEEE80211_F_WPA1 | IEEE80211_F_WPA2;
 			break;
 		default:	/*  Can't set any -> error */
