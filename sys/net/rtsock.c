@@ -31,6 +31,7 @@
  */
 #include "opt_sctp.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -1446,7 +1447,12 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		 * take care of llinfo entries, the caller must
 		 * specify an AF
 		 */
-		if (w.w_op == NET_RT_FLAGS && w.w_arg == 0) {
+		if (w.w_op == NET_RT_FLAGS &&
+#if defined(COMPAT_ROUTE_FLAGS)
+		    (w.w_arg & RTF_LLINFO)) {
+#else
+		    w.w_arg == 0) {
+#endif
 			if (af != 0)
 				error = lltable_sysctl_dumparp(af, w.w_req);
 			else
