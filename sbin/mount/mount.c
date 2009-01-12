@@ -31,15 +31,13 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 #if 0
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -70,10 +68,8 @@ static const char rcsid[] =
 
 int debug, fstab_style, verbose;
 
-#define	MAX_ARGS 100
 struct cpa {
-	char	*a[MAX_ARGS];
-	ssize_t	m;
+	char	**a;
 	int	c;
 };
 
@@ -507,9 +503,14 @@ hasopt(const char *mntopts, const char *option)
 static void
 append_arg(struct cpa *sa, char *arg)
 {
-	if (sa->c >= sa->m)
-		errx(1, "Cannot process more than %zd mount arguments", sa->m);
+	static int a_sz;
 
+	if (sa->c + 1 == a_sz) {
+		a_sz = a_sz == 0 ? 8 : a_sz * 2;
+		sa->a = realloc(sa->a, sizeof(sa->a) * a_sz);
+		if (sa->a == NULL)
+			errx(1, "realloc failed");
+	}
 	sa->a[++sa->c] = arg;
 }
 
@@ -521,6 +522,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	struct statfs sf;
 	int i, ret;
 	char *optbuf, execname[PATH_MAX], mntpath[PATH_MAX];
+	static int mnt_argv_inited;
 
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
@@ -555,7 +557,10 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	/* Construct the name of the appropriate mount command */
 	(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
 
-	mnt_argv.m = MAX_ARGS;
+	if (!mnt_argv_inited) {
+		mnt_argv_inited++;
+		mnt_argv.a = NULL;
+	}
 	mnt_argv.c = -1;
 	append_arg(&mnt_argv, execname);
 	mangle(optbuf, &mnt_argv);
