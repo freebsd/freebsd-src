@@ -7,22 +7,19 @@
 SUBDIR=	sendmail
 .endif
 
-BIN1=	amd.map apmd.conf auth.conf \
-	crontab csh.cshrc csh.login csh.logout devd.conf devfs.conf \
-	ddb.conf dhclient.conf disktab fbtab freebsd-update.conf \
+BIN1=	auth.conf \
+	crontab devd.conf devfs.conf \
+	ddb.conf dhclient.conf disktab fbtab \
 	ftpusers gettytab group \
-	hosts hosts.allow hosts.equiv hosts.lpd \
+	hosts hosts.allow hosts.equiv \
 	inetd.conf libalias.conf login.access login.conf mac.conf motd \
 	netconfig network.subr networks newsyslog.conf nsswitch.conf \
-	portsnap.conf pf.os phones profile protocols \
+	phones profile protocols \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
-	snmpd.config sysctl.conf syslog.conf \
-	etc.${MACHINE_ARCH}/ttys \
-	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
-	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
-	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+	sysctl.conf syslog.conf \
+	etc.${MACHINE_ARCH}/ttys
 
 OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
 BSM_ETC_OPEN_FILES=		${OPENBSMDIR}/etc/audit_class \
@@ -32,12 +29,38 @@ BSM_ETC_RESTRICTED_FILES=	${OPENBSMDIR}/etc/audit_control \
 BSM_ETC_EXEC_FILES=		${OPENBSMDIR}/etc/audit_warn
 BSM_ETC_DIR=			${DESTDIR}/etc/security
 
-.if ${MK_LPR} != "no"
-BIN1+=	printcap
+# NB: keep these sorted by MK_* knobs
+
+.if ${MK_AMD} != "no"
+BIN1+= amd.map
 .endif
 
-.if ${MK_NS_CACHING} != "no"
-BIN1+= nscd.conf
+.if ${MK_APM} != "no"
+BIN1+= apmd.conf
+.endif
+
+.if ${MK_BSNMP} != "no"
+BIN1+= snmpd.config
+.endif
+
+.if ${MK_FREEBSD_UPDATE} != "no"
+BIN1+= freebsd-update.conf
+.endif
+
+.if ${MK_LOCATE} != "no"
+BIN1+=	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+.endif
+
+.if ${MK_LPR} != "no"
+BIN1+=	hosts.lpd printcap
+.endif
+
+.if ${MK_MAIL} != "no"
+BIN1+=	${.CURDIR}/../usr.bin/mail/misc/mail.rc
+.endif
+
+.if ${MK_MAN} != "no"
+BIN1+=	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config
 .endif
 
 .if ${MK_OPENSSH} != "no"
@@ -47,6 +70,22 @@ SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 .endif
 .if ${MK_OPENSSL} != "no"
 SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
+.endif
+
+.if ${MK_NS_CACHING} != "no"
+BIN1+= nscd.conf
+.endif
+
+.if ${MK_PORTSNAP} != "no"
+BIN1+= portsnap.conf
+.endif
+
+.if ${MK_PF} != "no"
+BIN1+= pf.os
+.endif
+
+.if ${MK_TCSH} != "no"
+BIN1+= csh.cshrc csh.login csh.logout
 .endif
 
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
@@ -109,10 +148,15 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
-	    pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
-		${DESTDIR}/etc/master.passwd
+		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+.if ${MK_TCSH} == "no"
+	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
+.endif
+	pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
+	    ${DESTDIR}/etc/master.passwd
+.if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
@@ -157,18 +201,25 @@ distribution:
 .endif
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.profile ${DESTDIR}/root/.profile; \
+	    rm -f ${DESTDIR}/.profile; \
+	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
+.if ${MK_TCSH} != "no"
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.login ${DESTDIR}/root/.login; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.profile ${DESTDIR}/root/.profile; \
-	    rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
-	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
-	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
+	    rm -f ${DESTDIR}/.cshrc; \
+	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
+.endif
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
+.if ${MK_PPP} != "no"
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
+.endif
+.if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
 	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
@@ -176,6 +227,7 @@ distribution:
 		set -x; \
 		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
+.endif
 	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
