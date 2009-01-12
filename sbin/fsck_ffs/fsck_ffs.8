@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2001
+.Dd April 10, 2008
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BFpfny
+.Op Fl BCFpfny
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -175,6 +175,26 @@ Use the block specified immediately after the flag as
 the super block for the file system.
 An alternate super block is usually located at block 32 for UFS1,
 and block 160 for UFS2.
+.It Fl C
+Run
+.Nm
+in 'catastrophic recovery' mode, which will enable certain aggressive
+operations that can make
+.Nm
+to survive with file systems that has very serious data damage, which
+is an useful last resort when on disk data damage is very serious
+and causes
+.Nm
+to crash otherwise.  Be
+.Em very careful
+using this flag, is dangerous if there are data transmission hazards
+because a false positive cylinder group magic number mismatch could
+cause
+.Em irrevertible data loss!
+.Pp
+This option implies the
+.Fl f
+flag.
 .It Fl c
 Convert the file system to the specified level.
 Note that the level of a file system can only be raised.
