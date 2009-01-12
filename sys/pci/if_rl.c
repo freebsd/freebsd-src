@@ -1348,7 +1348,6 @@ rl_txeof(struct rl_softc *sc)
 				CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
 			oldthresh = sc->rl_txthresh;
 			/* error recovery */
-			rl_reset(sc);
 			rl_init_locked(sc);
 			/* restore original threshold */
 			sc->rl_txthresh = oldthresh;
@@ -1360,8 +1359,6 @@ rl_txeof(struct rl_softc *sc)
 
 	if (RL_LAST_TXMBUF(sc) == NULL)
 		sc->rl_watchdog_timer = 0;
-	else if (sc->rl_watchdog_timer == 0)
-		sc->rl_watchdog_timer = 5;
 }
 
 static void
@@ -1417,10 +1414,8 @@ rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		/* XXX We should check behaviour on receiver stalls. */
 
-		if (status & RL_ISR_SYSTEM_ERR) {
-			rl_reset(sc);
+		if (status & RL_ISR_SYSTEM_ERR)
 			rl_init_locked(sc);
-		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -1457,10 +1452,8 @@ rl_intr(void *arg)
 			rl_rxeof(sc);
 		if ((status & RL_ISR_TX_OK) || (status & RL_ISR_TX_ERR))
 			rl_txeof(sc);
-		if (status & RL_ISR_SYSTEM_ERR) {
-			rl_reset(sc);
+		if (status & RL_ISR_SYSTEM_ERR)
 			rl_init_locked(sc);
-		}
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1622,6 +1615,8 @@ rl_init_locked(struct rl_softc *sc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	rl_stop(sc);
+
+	rl_reset(sc);
 
 	/*
 	 * Init our MAC address.  Even though the chipset
@@ -1845,6 +1840,14 @@ rl_stop(struct rl_softc *sc)
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
+	for (i = 0; i < RL_TIMEOUT; i++) {
+		DELAY(10);
+		if ((CSR_READ_1(sc, RL_COMMAND) &
+		    (RL_CMD_RX_ENB | RL_CMD_TX_ENB)) == 0)
+			break;
+	}
+	if (i == RL_TIMEOUT)
+		device_printf(sc->rl_dev, "Unable to stop Tx/Rx MAC\n");
 
 	/*
 	 * Free the TX list buffers.
