@@ -686,6 +686,7 @@ initializecpu(void)
 				/* fall through. */
 			case 0x6a0:
 			case 0x6d0:
+			case 0x6f0:
 				init_via();
 				break;
 			default:
