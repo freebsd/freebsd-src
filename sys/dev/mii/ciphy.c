@@ -262,15 +262,18 @@ setit:
 		if (reg & BMSR_LINK)
 			break;
 
+		/* Announce link loss right after it happens. */
+		if (++sc->mii_ticks == 0)
+			break;
 		/*
-		 * Only retry autonegotiation every 5 seconds.
+		 * Only retry autonegotiation every mii_anegticks seconds.
 		 */
-		if (++sc->mii_ticks <= MII_ANEGTICKS)
+		if (sc->mii_ticks <= sc->mii_anegticks)
 			break;
 
 		sc->mii_ticks = 0;
 		mii_phy_auto(sc);
-		return (0);
+		break;
 	}
 
 	/* Update the media status. */
@@ -335,6 +338,8 @@ ciphy_status(struct mii_softc *sc)
 
 	if (bmsr & CIPHY_AUXCSR_FDX)
 		mii->mii_media_active |= IFM_FDX;
+	else
+		mii->mii_media_active |= IFM_HDX;
 }
 
 static void
