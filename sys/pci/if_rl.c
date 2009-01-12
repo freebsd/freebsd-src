@@ -636,6 +636,34 @@ rl_miibus_writereg(device_t dev, int phy, int reg, int data)
 static void
 rl_miibus_statchg(device_t dev)
 {
+	struct rl_softc		*sc;
+	struct ifnet		*ifp;
+	struct mii_data		*mii;
+
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->rl_miibus);
+	ifp = sc->rl_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	sc->rl_flags &= ~RL_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->rl_flags |= RL_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
+	/*
+	 * RealTek controllers do not provide any interface to
+	 * Tx/Rx MACs for resolved speed, duplex and flow-control
+	 * parameters.
+	 */
 }
 
 /*
@@ -1268,18 +1296,13 @@ rl_rxeof(struct rl_softc *sc)
 		if (total_len > wrap) {
 			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
 			    NULL);
-			if (m == NULL) {
-				ifp->if_ierrors++;
-			} else {
+			if (m != NULL)
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
-			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
 			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
 			    NULL);
-			if (m == NULL)
-				ifp->if_ierrors++;
 			cur_rx += total_len + 4 + ETHER_CRC_LEN;
 		}
 
@@ -1287,8 +1310,10 @@ rl_rxeof(struct rl_softc *sc)
 		cur_rx = (cur_rx + 3) & ~3;
 		CSR_WRITE_2(sc, RL_CURRXADDR, cur_rx - 16);
 
-		if (m == NULL)
+		if (m == NULL) {
+			ifp->if_iqdrops++;
 			continue;
+		}
 
 		ifp->if_ipackets++;
 		RL_UNLOCK(sc);
@@ -1551,6 +1576,10 @@ rl_start_locked(struct ifnet *ifp)
 
 	RL_LOCK_ASSERT(sc);
 
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0)
+		return;
+
 	while (RL_CUR_TXMBUF(sc) == NULL) {
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -1692,6 +1721,7 @@ rl_init_locked(struct rl_softc *sc)
 	/* Enable receiver and transmitter. */
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 
+	sc->rl_flags &= ~RL_FLAG_LINK;
 	mii_mediachg(mii);
 
 	CSR_WRITE_1(sc, RL_CFG1, RL_CFG1_DRVLOAD|RL_CFG1_FULLDUPLEX);
@@ -1837,6 +1867,7 @@ rl_stop(struct rl_softc *sc)
 	sc->rl_watchdog_timer = 0;
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	sc->rl_flags &= ~RL_FLAG_LINK;
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
