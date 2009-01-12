@@ -636,6 +636,7 @@ gv_sync_complete(struct gv_plex *to, struct bio *bp)
 				gv_set_sd_state(s, GV_SD_UP, 0);
 			to->flags &= ~GV_PLEX_SYNCING;
 			to->synced = 0;
+			gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 		} else {
 			offset = bp->bio_offset + bp->bio_length;
 			err = gv_sync_request(from, to, offset,
@@ -711,12 +712,16 @@ gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
 void
 gv_grow_complete(struct gv_plex *p, struct bio *bp)
 {
+	struct gv_softc *sc;
 	struct gv_sd *s;
 	struct gv_volume *v;
 	off_t origsize, offset;
 	int sdcount, err;
 
 	v = p->vol_sc;
+	KASSERT(v != NULL, ("gv_grow_complete: NULL v"));
+	sc = v->vinumconf;
+	KASSERT(sc != NULL, ("gv_grow_complete: NULL sc"));
 	err = 0;
 
 	/* If it was a read, write it. */
@@ -748,6 +753,7 @@ gv_grow_complete(struct gv_plex *p, struct bio *bp)
 			gv_access(v->provider, -1, -1, 0);
 			g_topology_unlock();
 			p->synced = 0;
+			gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 			/* Issue delayed requests. */
 			gv_plex_flush(p);
 		} else {
@@ -819,6 +825,7 @@ gv_init_request(struct gv_sd *s, off_t start, caddr_t data, off_t length)
 void
 gv_init_complete(struct gv_plex *p, struct bio *bp)
 {
+	struct gv_softc *sc;
 	struct gv_drive *d;
 	struct g_consumer *cp;
 	struct gv_sd *s;
@@ -837,6 +844,8 @@ gv_init_complete(struct gv_plex *p, struct bio *bp)
 	KASSERT(d != NULL, ("gv_init_complete: NULL d"));
 	cp = d->consumer;
 	KASSERT(cp != NULL, ("gv_init_complete: NULL cp"));
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_init_complete: NULL sc"));
 
 	g_destroy_bio(bp);
 
@@ -859,6 +868,7 @@ gv_init_complete(struct gv_plex *p, struct bio *bp)
 		} else {
 			gv_set_sd_state(s, GV_SD_UP, GV_SETSTATE_CONFIG);
 			s->initialized = 0;
+			gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 			G_VINUM_DEBUG(1, "subdisk '%s' init: finished "
 			    "successfully", s->name);
 		}
@@ -920,11 +930,15 @@ gv_parity_request(struct gv_plex *p, int flags, off_t offset)
 void
 gv_parity_complete(struct gv_plex *p, struct bio *bp)
 {
+	struct gv_softc *sc;
 	int error, flags;
 
 	error = bp->bio_error;
 	flags = bp->bio_cflags;
 	flags &= ~GV_BIO_MALLOC;
+
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_parity_complete: NULL sc"));
 
 	/* Clean up what we allocated. */
 	if (bp->bio_cflags & GV_BIO_MALLOC)
@@ -960,6 +974,7 @@ gv_parity_complete(struct gv_plex *p, struct bio *bp)
 		/* We're finished. */
 		G_VINUM_DEBUG(1, "parity operation on %s finished", p->name);
 		p->synced = 0;
+		gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 		return;
 	}
 
@@ -973,6 +988,7 @@ gv_parity_complete(struct gv_plex *p, struct bio *bp)
 void
 gv_rebuild_complete(struct gv_plex *p, struct bio *bp)
 {
+	struct gv_softc *sc;
 	struct gv_sd *s;
 	int error, flags;
 	off_t offset;
@@ -981,6 +997,8 @@ gv_rebuild_complete(struct gv_plex *p, struct bio *bp)
 	flags = bp->bio_cflags;
 	offset = bp->bio_offset;
 	flags &= ~GV_BIO_MALLOC;
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_rebuild_complete: NULL sc"));
 
 	/* Clean up what we allocated. */
 	if (bp->bio_cflags & GV_BIO_MALLOC)
@@ -1016,6 +1034,7 @@ gv_rebuild_complete(struct gv_plex *p, struct bio *bp)
 		/* Try to up all subdisks. */
 		LIST_FOREACH(s, &p->subdisks, in_plex)
 			gv_update_sd_state(s);
+		gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 		gv_plex_flush(p); /* Flush out remaining rebuild BIOs. */
 		return;
 	}
