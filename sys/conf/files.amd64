@@ -128,6 +128,9 @@ amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/via/padlock.c		optional	padlock
+crypto/via/padlock_cipher.c	optional	padlock
+crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
 dev/agp/agp_amd64.c			optional	agp
 dev/agp/agp_i810.c			optional	agp
