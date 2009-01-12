@@ -30,7 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#if __FreeBSD_version >= 800044
 #include <sys/vimage.h>
+#endif
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>

@@ -177,7 +177,11 @@ gv_init(struct g_class *mp)
 	TAILQ_INIT(&sc->equeue);
 	mtx_init(&sc->config_mtx, "gv_config", NULL, MTX_DEF);
 	mtx_init(&sc->queue_mtx, "gv_queue", NULL, MTX_DEF);
+#if __FreeBSD_version >= 800002
 	kproc_create(gv_worker, sc, NULL, 0, 0, "gv_worker");
+#else
+	kthread_create(gv_worker, sc, NULL, 0, 0, "gv_worker");
+#endif
 }
 
 static int
@@ -961,7 +965,11 @@ gv_worker(void *arg)
 				mtx_destroy(&sc->queue_mtx);
 				g_free(sc->bqueue);
 				g_free(sc);
+#if __FreeBSD_version >= 800002
 				kproc_exit(ENXIO);
+#else
+				kthread_exit(ENXIO);
+#endif
 				break;			/* not reached */
 
 			default:

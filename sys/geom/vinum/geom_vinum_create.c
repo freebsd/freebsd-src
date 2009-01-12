@@ -32,6 +32,9 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#if __FreeBSD_version >= 800044
+#include <sys/vimage.h>
+#endif
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
@@ -152,7 +155,13 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 		hdr = g_malloc(sizeof(*hdr), M_WAITOK | M_ZERO);
 		hdr->magic = GV_MAGIC;
 		hdr->config_length = GV_CFG_LEN;
+#if __FreeBSD_version >= 800044
+		mtx_lock(&hostname_mtx);
+		bcopy(G_hostname, hdr->label.sysname, GV_HOSTNAME_LEN);
+		mtx_unlock(&hostname_mtx);
+#else
 		bcopy(hostname, hdr->label.sysname, GV_HOSTNAME_LEN);
+#endif
 		strlcpy(hdr->label.name, d->name, sizeof(hdr->label.name));
 		microtime(&hdr->label.date_of_birth);
 		d->hdr = hdr;
