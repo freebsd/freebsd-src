@@ -1568,3 +1568,52 @@ NON_GPROF_ENTRY(__bb_init_func)
 	movl	%edx,16(%eax)
 	movl	%eax,bbhead
 	NON_GPROF_RET
+
+/*
+ * Support for reading MSRs in the safe manner.
+ */
+ENTRY(rdmsr_safe)
+/* int rdmsr_safe(u_int msr, uint64_t *data) */
+	movl	PCPU(CURPCB),%ecx
+	movl	$msr_onfault,PCB_ONFAULT(%ecx)
+
+	movl	4(%esp),%ecx
+	rdmsr
+	movl	8(%esp),%ecx
+	movl	%eax,(%ecx)
+	movl	%edx,4(%ecx)
+	xorl	%eax,%eax
+
+	movl	PCPU(CURPCB),%ecx
+	movl	%eax,PCB_ONFAULT(%ecx)
+
+	ret
+
+/*
+ * Support for writing MSRs in the safe manner.
+ */
+ENTRY(wrmsr_safe)
+/* int wrmsr_safe(u_int msr, uint64_t data) */
+	movl	PCPU(CURPCB),%ecx
+	movl	$msr_onfault,PCB_ONFAULT(%ecx)
+
+	movl	4(%esp),%ecx
+	movl	8(%esp),%eax
+	movl	12(%esp),%edx
+	wrmsr
+	xorl	%eax,%eax
+
+	movl	PCPU(CURPCB),%ecx
+	movl	%eax,PCB_ONFAULT(%ecx)
+
+	ret
+
+/*
+ * MSR operations fault handler
+ */
+	ALIGN_TEXT
+msr_onfault:
+	movl	PCPU(CURPCB),%ecx
+	movl	$0,PCB_ONFAULT(%ecx)
+	movl	$EFAULT,%eax
+	ret
