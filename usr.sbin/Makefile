@@ -157,7 +157,7 @@ SUBDIR=	${_ac} \
 	${_rtsold} \
 	${_rwhod} \
 	${_sa} \
-	sade \
+	${_sade} \
 	${_sendmail} \
 	setfib \
 	setfmac \
