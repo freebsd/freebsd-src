@@ -27,5 +27,5 @@
 # $FreeBSD$
 
 
-fetch -o /tmp/usb.if /tmp/usb.if http://www.usb.org/developers/tools/comp_dump/
+fetch -o /tmp/usb.if http://www.usb.org/developers/tools/comp_dump/
 awk -F '|' '{ printf "%#06x\t%s\n", $1, $2 }' < /tmp/usb.if | sort
