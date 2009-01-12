@@ -411,6 +411,7 @@ PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
+COMPAT_ROUTE_FLAGS	opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading

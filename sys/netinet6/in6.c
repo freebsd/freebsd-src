@@ -2252,6 +2252,10 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			 */
 			bzero(&ndpc, sizeof(ndpc));
 			ndpc.rtm.rtm_msglen = sizeof(ndpc);
+			ndpc.rtm.rtm_version = RTM_VERSION;
+			ndpc.rtm.rtm_type = RTM_GET;
+			ndpc.rtm.rtm_flags = RTF_UP;
+			ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
 			ndpc.sin6.sin6_family = AF_INET6;
 			ndpc.sin6.sin6_len = sizeof(ndpc.sin6);
 			bcopy(L3_ADDR(lle), &ndpc.sin6, L3_ADDR_LEN(lle));
