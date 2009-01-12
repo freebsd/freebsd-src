@@ -156,6 +156,7 @@ PATH	[./][-/.%^A-Za-z_0-9]+
 ";"		{	return SEMICOLON;		}
 ","		{	return COMMA;			}
 "="		{	BEGIN TOEOL; return EQUALS;	}
+"+="		{	BEGIN TOEOL; return PLUSEQUALS;	}
 <<EOF>>		{
 			int tok;
 
