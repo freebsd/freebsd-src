@@ -101,6 +101,17 @@ int ndisusb_halt = 1;
 SYSCTL_INT(_hw_ndisusb, OID_AUTO, halt, CTLFLAG_RW, &ndisusb_halt, 0,
     "Halt NDIS USB driver when it's attached");
 
+/* 0 - 30 dBm to mW conversion table */
+const uint16_t dBm2mW[] = {
+	1, 1, 1, 1, 2, 2, 2, 2, 3, 3,
+	3, 4, 4, 4, 5, 6, 6, 7, 8, 9,
+	10, 11, 13, 14, 16, 18, 20, 22, 25, 28,
+	32, 35, 40, 45, 50, 56, 63, 71, 79, 89,
+	100, 112, 126, 141, 158, 178, 200, 224, 251, 282,
+	316, 355, 398, 447, 501, 562, 631, 708, 794, 891,
+	1000
+};
+
 MODULE_DEPEND(ndis, ether, 1, 1, 1);
 MODULE_DEPEND(ndis, wlan, 1, 1, 1);
 MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
@@ -739,7 +750,7 @@ ndis_attach(dev)
 		ic->ic_ifp = ifp;
 		ic->ic_opmode = IEEE80211_M_STA;
 	        ic->ic_phytype = IEEE80211_T_DS;
-		ic->ic_caps = IEEE80211_C_STA | IEEE80211_C_IBSS;
+		ic->ic_caps = IEEE80211_C_STA | IEEE80211_C_IBSS | IEEE80211_C_TXPMGT;
 		setbit(ic->ic_modecaps, IEEE80211_MODE_AUTO);
 		len = 0;
 		r = ndis_get_info(sc, OID_802_11_NETWORK_TYPES_SUPPORTED,
@@ -2312,6 +2323,13 @@ ndis_setstate_80211(sc)
 		arg = NDIS_80211_POWERMODE_CAM;
 	ndis_set_info(sc, OID_802_11_POWER_MODE, &arg, &len);
 
+	/* Set TX power */
+	if (ic->ic_txpowlimit < sizeof(dBm2mW)) {
+		len = sizeof(arg);
+		arg = dBm2mW[ic->ic_txpowlimit];
+		ndis_set_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &len);
+	}
+
 	/*
 	 * Default encryption mode to off, authentication
 	 * to open and privacy to 'accept everything.'
@@ -2776,6 +2794,17 @@ ndis_getstate_80211(sc)
 			ic->ic_flags &= ~IEEE80211_F_PMGTON;
 		else
 			ic->ic_flags |= IEEE80211_F_PMGTON;
+	}
+
+	/* Get TX power */
+	len = sizeof(arg);
+	rval = ndis_get_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &len);
+
+	if (!rval) {
+		for (i = 0; i < sizeof(dBm2mW); i++)
+			if (dBm2mW[i] >= arg)
+				break;
+		ic->ic_txpowlimit = i;
 	}
 
 	/*
