@@ -154,6 +154,18 @@ struct jme_ring_data {
     (sizeof(struct jme_desc) * JME_RX_RING_CNT)
 #define	JME_SSB_SIZE		sizeof(struct jme_ssb)
 
+/* Statistics counters. */
+struct jme_hw_stats {
+	uint32_t		rx_good_frames;
+	uint32_t		rx_crc_errs;
+	uint32_t		rx_mii_errs;
+	uint32_t		rx_fifo_oflows;
+	uint32_t		rx_desc_empty;
+	uint32_t		rx_bad_frames;
+	uint32_t		tx_good_frames;
+	uint32_t		tx_bad_frames;
+};
+
 /*
  * Software state per device.
  */
@@ -183,9 +195,12 @@ struct jme_softc {
 #define	JME_FLAG_NOJUMBO	0x0080
 #define	JME_FLAG_TXCLK		0x0100
 #define	JME_FLAG_DMA32BIT	0x0200
+#define	JME_FLAG_HWMIB		0x0400
 #define	JME_FLAG_DETACH		0x4000
 #define	JME_FLAG_LINK		0x8000
 
+	struct jme_hw_stats	jme_ostats;
+	struct jme_hw_stats	jme_stats;
 	struct callout		jme_tick_ch;
 	struct jme_chain_data	jme_cdata;
 	struct jme_ring_data	jme_rdata;
