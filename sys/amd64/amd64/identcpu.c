@@ -72,6 +72,7 @@ void panicifcpuunsupported(void);
 static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
+static void print_via_padlock_info(void);
 
 int	cpu_class;
 char machine[] = "amd64";
@@ -132,24 +133,33 @@ printcpuinfo(void)
 		}
 	}
 
-	if (cpu_vendor_id == CPU_VENDOR_INTEL) {
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_INTEL:
 		/* Please make up your mind folks! */
 		strcat(cpu_model, "EM64T");
-	} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
+		break;
+	case CPU_VENDOR_AMD:
 		/*
 		 * Values taken from AMD Processor Recognition
 		 * http://www.amd.com/K6/k6docs/pdf/20734g.pdf
 		 * (also describes ``Features'' encodings.
 		 */
 		strcpy(cpu_model, "AMD ");
-		switch (cpu_id & 0xF00) {
-		case 0xf00:
+		if ((cpu_id & 0xf00) == 0xf00)
 			strcat(cpu_model, "AMD64 Processor");
-			break;
-		default:
+		else
 			strcat(cpu_model, "Unknown");
-			break;
-		}
+		break;
+	case CPU_VENDOR_CENTAUR:
+		strcpy(cpu_model, "VIA ");
+		if ((cpu_id & 0xff0) == 0x6f0)
+			strcat(cpu_model, "Nano Processor");
+		else
+			strcat(cpu_model, "Unknown");
+		break;
+	default:
+		strcat(cpu_model, "Unknown");
+		break;
 	}
 
 	/*
@@ -181,7 +191,8 @@ printcpuinfo(void)
 		printf("  Id = 0x%x", cpu_id);
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
-	    cpu_vendor_id == CPU_VENDOR_AMD) {
+	    cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
 		printf("  Stepping = %u", cpu_id & 0xf);
 		if (cpu_high > 0) {
 			u_int cmp = 1, htt = 1;
@@ -353,6 +364,9 @@ printcpuinfo(void)
 				);
 			}
 
+			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+				print_via_padlock_info();
+
 			if ((cpu_feature & CPUID_HTT) &&
 			    cpu_vendor_id == CPU_VENDOR_AMD)
 				cpu_feature &= ~CPUID_HTT;
@@ -374,6 +388,11 @@ printcpuinfo(void)
 				    AMD64_CPU_MODEL(cpu_id) >= 0xe) ||
 				    (AMD64_CPU_FAMILY(cpu_id) == 0xf &&
 				    AMD64_CPU_MODEL(cpu_id) >= 0x3))
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_CENTAUR:
+				if (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0xf)
 					tsc_is_invariant = 1;
 				break;
 			}
@@ -457,7 +476,7 @@ EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
     EVENTHANDLER_PRI_ANY);
 
 /*
- * Final stage of CPU identification. -- Should I check TI?
+ * Final stage of CPU identification.
  */
 void
 identify_cpu(void)
@@ -479,7 +498,8 @@ identify_cpu(void)
 	cpu_feature2 = regs[2];
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
-	    cpu_vendor_id == CPU_VENDOR_AMD) {
+	    cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
 		do_cpuid(0x80000000, regs);
 		cpu_exthigh = regs[0];
 	}
@@ -599,4 +619,38 @@ print_AMD_info(void)
 		printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
 		print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);	
 	}
+}
+
+static void
+print_via_padlock_info(void)
+{
+	u_int regs[4];
+
+	/* Check for supported models. */
+	switch (cpu_id & 0xff0) {
+	case 0x690:
+		if ((cpu_id & 0xf) < 3)
+			return;
+	case 0x6a0:
+	case 0x6d0:
+	case 0x6f0:
+		break;
+	default:
+		return;
+	}
+	
+	do_cpuid(0xc0000000, regs);
+	if (regs[0] >= 0xc0000001)
+		do_cpuid(0xc0000001, regs);
+	else
+		return;
+
+	printf("\n  VIA Padlock Features=0x%b", regs[3],
+	"\020"
+	"\003RNG"		/* RNG */
+	"\007AES"		/* ACE */
+	"\011AES-CTR"		/* ACE2 */
+	"\013SHA1,SHA256"	/* PHE */
+	"\015RSA"		/* PMM */
+	);
 }
