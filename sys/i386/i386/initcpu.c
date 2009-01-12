@@ -650,7 +650,7 @@ initializecpu(void)
 		init_6x86MX();
 		break;
 	case CPU_686:
-		if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
+		if (cpu_vendor_id == CPU_VENDOR_INTEL) {
 			switch (cpu_id & 0xff0) {
 			case 0x610:
 				init_ppro();
@@ -659,7 +659,7 @@ initializecpu(void)
 				init_mendocino();
 				break;
 			}
-		} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+		} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
 #if defined(I686_CPU) && defined(CPU_ATHLON_SSE_HACK)
 			/*
 			 * Sometimes the BIOS doesn't enable SSE instructions.
@@ -678,7 +678,7 @@ initializecpu(void)
 				cpu_feature = regs[3];
 			}
 #endif
-		} else if (strcmp(cpu_vendor, "CentaurHauls") == 0) {
+		} else if (cpu_vendor_id == CPU_VENDOR_CENTAUR) {
 			switch (cpu_id & 0xff0) {
 			case 0x690:
 				if ((cpu_id & 0xf) < 3)
@@ -718,7 +718,7 @@ initializecpu(void)
 	 * CPU_UPGRADE_HW_CACHE option in your kernel configuration file.
 	 * This option eliminates unneeded cache flush instruction(s).
 	 */
-	if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
 		switch (cpu) {
 #ifdef I486_CPU
 		case CPU_486DLC:
@@ -737,7 +737,7 @@ initializecpu(void)
 		default:
 			break;
 		}
-	} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
 		switch (cpu_id & 0xFF0) {
 		case 0x470:		/* Enhanced Am486DX2 WB */
 		case 0x490:		/* Enhanced Am486DX4 WB */
@@ -745,7 +745,7 @@ initializecpu(void)
 			need_pre_dma_flush = 1;
 			break;
 		}
-	} else if (strcmp(cpu_vendor, "IBM") == 0) {
+	} else if (cpu_vendor_id == CPU_VENDOR_IBM) {
 		need_post_dma_flush = 1;
 	} else {
 #ifdef CPU_I486_ON_386
@@ -941,7 +941,7 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 	u_char	ccr0 = 0, ccr4 = 0, ccr5 = 0, pcr0 = 0;
 
 	cr0 = rcr0();
-	if (strcmp(cpu_vendor,"CyrixInstead") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
 		eflags = read_eflags();
 		disable_intr();
 
