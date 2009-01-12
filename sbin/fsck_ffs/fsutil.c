@@ -418,6 +418,35 @@ blwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 }
 
 /*
+ * Check cg's magic number.  If catastrophic mode is enabled and the cg's
+ * magic number is bad, offer an option to clear the whole cg.
+ */
+void
+check_cgmagic(int cg, struct cg *cgp)
+{
+
+	if (!cg_chkmagic(cgp)) {
+	    pwarn("CG %d: BAD MAGIC NUMBER\n", cg);
+	    if (catastrophicflag) {
+		if (reply("CLEAR CG")) {
+			memset(cgp, 0, (size_t)sblock.fs_cgsize);
+			cgp->cg_initediblk = sblock.fs_ipg;
+			cgp->cg_old_niblk = sblock.fs_ipg;
+			cgp->cg_old_ncyl = sblock.fs_old_cpg;
+			cgp->cg_cgx = cg;
+			cgp->cg_niblk = sblock.fs_ipg;
+			cgp->cg_ndblk = sblock.fs_size - cgbase(&sblock, cg);
+			cgp->cg_magic = CG_MAGIC;
+			cgdirty();
+			printf("PLEASE RERUN FSCK.\n");
+			rerun = 1;
+		}
+	    } else
+		printf("YOU MAY NEED TO RERUN FSCK WITH -C IF IT CRASHED.\n");
+	}
+}
+
+/*
  * allocate a data block with the specified number of fragments
  */
 ufs2_daddr_t
@@ -441,8 +470,7 @@ allocblk(long frags)
 			}
 			cg = dtog(&sblock, i + j);
 			getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
-			if (!cg_chkmagic(cgp))
-				pfatal("CG %d: BAD MAGIC NUMBER\n", cg);
+			check_cgmagic(cg, cgp);
 			baseblk = dtogd(&sblock, i + j);
 			for (k = 0; k < frags; k++) {
 				setbmap(i + j + k);
