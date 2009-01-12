@@ -3,9 +3,9 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	atrun \
+SUBDIR=	${_atrun} \
 	bootpd \
-	comsat \
+	${_comsat} \
 	fingerd \
 	ftpd \
 	getty \
@@ -13,7 +13,7 @@ SUBDIR=	atrun \
 	${_mail.local} \
 	makekey \
 	${_mknetid} \
-	pppoed \
+	${_pppoed} \
 	pt_chown \
 	rbootd \
 	revnetgroup \
@@ -29,14 +29,26 @@ SUBDIR=	atrun \
 	${_smrsh} \
 	talkd \
 	tcpd \
-	telnetd \
+	${_telnetd} \
 	tftpd \
 	${_tftp-proxy} \
 	${_ypxfr}
 
+.if ${MK_AT} != "no"
+_atrun=		atrun
+.endif
+
+.if ${MK_MAIL} != "no"
+_comsat=	comsat
+.endif
+
 .if ${MK_NIS} != "no"
 _mknetid=	mknetid
 _ypxfr=		ypxfr
+.endif
+
+.if ${MK_NETGRAPH} != "no"
+_pppoed=	pppoed
 .endif
 
 .if ${MK_PF} != "no"
@@ -54,7 +66,11 @@ _rshd=		rshd
 
 .if ${MK_SENDMAIL} != "no"
 _mail.local=	mail.local
-_smrsh=	smrsh
+_smrsh=		smrsh
+.endif
+
+.if ${MK_TELNET} != "no"
+_telnetd=	telnetd
 .endif
 
 .include <bsd.subdir.mk>

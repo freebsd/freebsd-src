@@ -124,7 +124,6 @@ _libmp=		libmp
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
-_libusb20=	libusb20
 .endif
 
 .if ${MK_SENDMAIL} != "no"
@@ -140,6 +139,7 @@ _libtelnet=	libtelnet
 
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
+_libusb20=	libusb20
 .endif
 
 .include <bsd.subdir.mk>

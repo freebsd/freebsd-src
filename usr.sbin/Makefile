@@ -425,7 +425,6 @@ _btxld=		btxld
 .if ${MK_I4B} != "no"
 _i4b=		i4b
 .endif
-_cpucontrol=	cpucontrol
 _kgmon=		kgmon
 _kgzip=		kgzip
 _lptcontrol=	lptcontrol
@@ -467,7 +466,6 @@ _boot0cfg=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
 _btxld=		btxld
 .endif
-_cpucontrol=	cpucontrol
 _kgmon=		kgmon
 _lptcontrol=	lptcontrol
 .if ${MK_NCP} != "no"
