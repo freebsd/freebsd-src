@@ -134,6 +134,10 @@ gv_access(struct g_provider *pp, int dr, int dw, int de)
 	error = ENXIO;
 	gp = pp->geom;
 	sc = gp->softc;
+	if (dw > 0 && dr == 0)
+		dr = 1;
+	else if (dw < 0 && dr == 0)
+		dr = -1;
 	LIST_FOREACH(d, &sc->drives, drive) {
 		if (d->consumer == NULL)
 			continue;
