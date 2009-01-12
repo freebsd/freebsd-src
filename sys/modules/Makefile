@@ -553,6 +553,11 @@ _nxge=		nxge
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+.if exists(${.CURDIR}/../crypto/via)
+_padlock=	padlock
+.endif
+.endif
 _pccard=	pccard
 _rdma=		rdma	
 _safe=		safe
