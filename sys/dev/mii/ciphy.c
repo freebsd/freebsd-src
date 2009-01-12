@@ -91,6 +91,7 @@ static const struct mii_phydesc ciphys[] = {
 	MII_PHY_DESC(CICADA, CS8201),
 	MII_PHY_DESC(CICADA, CS8201A),
 	MII_PHY_DESC(CICADA, CS8201B),
+	MII_PHY_DESC(CICADA, VSC8211),
 	MII_PHY_DESC(VITESSE, VSC8601),
 	MII_PHY_END
 };
@@ -419,6 +420,7 @@ ciphy_fixup(struct mii_softc *sc)
 		}
 
 		break;
+	case MII_MODEL_CICADA_VSC8211:
 	case MII_MODEL_VITESSE_VSC8601:
 		break;
 	default:
