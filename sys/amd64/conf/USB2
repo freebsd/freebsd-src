@@ -108,3 +108,7 @@ device		usb2_input_ms
 
 # USB sound and MIDI device support
 #device		usb2_sound
+
+# USB scanner support
+device		usb2_image
+device		usb2_scanner
