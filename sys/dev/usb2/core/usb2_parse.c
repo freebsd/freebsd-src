@@ -43,25 +43,44 @@
  *   Else: Next descriptor after "desc"
  *------------------------------------------------------------------------*/
 struct usb2_descriptor *
-usb2_desc_foreach(struct usb2_config_descriptor *cd, struct usb2_descriptor *desc)
+usb2_desc_foreach(struct usb2_config_descriptor *cd, 
+    struct usb2_descriptor *_desc)
 {
-	void *end;
+	uint8_t *desc_next;
+	uint8_t *start;
+	uint8_t *end;
+	uint8_t *desc;
 
-	if (cd == NULL) {
+	/* be NULL safe */
+	if (cd == NULL)
 		return (NULL);
-	}
-	end = USB_ADD_BYTES(cd, UGETW(cd->wTotalLength));
 
-	if (desc == NULL) {
-		desc = USB_ADD_BYTES(cd, 0);
-	} else {
-		desc = USB_ADD_BYTES(desc, desc->bLength);
-	}
-	return (((((void *)desc) >= ((void *)cd)) &&
-	    (((void *)desc) < end) &&
-	    (USB_ADD_BYTES(desc, desc->bLength) >= ((void *)cd)) &&
-	    (USB_ADD_BYTES(desc, desc->bLength) <= end) &&
-	    (desc->bLength >= sizeof(*desc))) ? desc : NULL);
+	/* We assume that the "wTotalLength" has been checked. */
+	start = (uint8_t *)cd;
+	end = start + UGETW(cd->wTotalLength);
+	desc = (uint8_t *)_desc;
+
+	/* Get start of next USB descriptor. */
+	if (desc == NULL)
+		desc = start;
+	else
+		desc = desc + desc[0];
+
+	/* Check that the next USB descriptor is within the range. */
+	if ((desc < start) || (desc >= end))
+		return (NULL);		/* out of range, or EOD */
+
+	/* Check that the second next USB descriptor is within range. */
+	desc_next = desc + desc[0];
+	if ((desc_next < start) || (desc_next > end))
+		return (NULL);		/* out of range */
+
+	/* Check minimum descriptor length. */
+	if (desc[0] < 3)
+		return (NULL);		/* too short descriptor */
+
+	/* Return start of next descriptor. */
+	return ((struct usb2_descriptor *)desc);
 }
 
 /*------------------------------------------------------------------------*
@@ -140,7 +159,6 @@ usb2_find_edesc(struct usb2_config_descriptor *cd,
 	desc = ((void *)d);
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
-
 		if (desc->bDescriptorType == UDESC_INTERFACE) {
 			break;
 		}
@@ -195,7 +213,6 @@ usb2_get_no_alts(struct usb2_config_descriptor *cd, uint8_t ifaceno)
 	uint16_t n = 0;
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
-
 		if ((desc->bDescriptorType == UDESC_INTERFACE) &&
 		    (desc->bLength >= sizeof(*id))) {
 			id = (void *)desc;
