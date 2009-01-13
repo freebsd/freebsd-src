@@ -74,7 +74,6 @@ static char *disk;
 static int cyls, sectors, heads, cylsecs, disksecs;
 
 struct mboot {
-	unsigned char padding[2]; /* force the longs to be long aligned */
 	unsigned char *bootinst;  /* boot code */
 	off_t bootinst_size;
 	struct	dos_partition parts[NDOSPART];
@@ -308,7 +307,7 @@ main(int argc, char *argv[])
 	} else {
 		disk = g_device_path(argv[0]);
 		if (disk == NULL)
-			err(1, "unable to get correct path for %s\n", argv[0]);
+			err(1, "unable to get correct path for %s", argv[0]);
 	}
 	if (open_disk(u_flag) < 0)
 		err(1, "cannot open disk %s", disk);
@@ -329,7 +328,7 @@ main(int argc, char *argv[])
 		printf("g c%d h%d s%d\n", dos_cyls, dos_heads, dos_sectors);
 
 		for (i = 0; i < NDOSPART; i++) {
-			partp = ((struct dos_partition *)&mboot.parts) + i;
+			partp = &mboot.parts[i];
 
 			if (partp->dp_start == 0 && partp->dp_size == 0)
 				continue;
@@ -350,7 +349,7 @@ main(int argc, char *argv[])
 		    dos_sectors);
 		printf("Part  %11s %11s Type Flags\n", "Start", "Size");
 		for (i = 0; i < NDOSPART; i++) {
-			partp = ((struct dos_partition *) &mboot.parts) + i;
+			partp = &mboot.parts[i];
 			if (partp->dp_start == 0 && partp->dp_size == 0)
 				continue;
 			printf("%4d: %11lu %11lu 0x%02x 0x%02x\n", i + 1,
@@ -366,7 +365,7 @@ main(int argc, char *argv[])
 	if (I_flag) {
 		read_s0();
 		reset_boot();
-		partp = (struct dos_partition *) (&mboot.parts[0]);
+		partp = &mboot.parts[0];
 		partp->dp_typ = DOSPTYP_386BSD;
 		partp->dp_flag = ACTIVE;
 		partp->dp_start = dos_sectors;
@@ -461,7 +460,7 @@ print_part(int i)
 	struct	  dos_partition *partp;
 	u_int64_t part_mb;
 
-	partp = ((struct dos_partition *) &mboot.parts) + i - 1;
+	partp = &mboot.parts[i - 1];
 
 	if (!bcmp(partp, &mtpart, sizeof (struct dos_partition))) {
 		printf("<UNUSED>\n");
@@ -529,7 +528,7 @@ init_boot(void)
 static void
 init_sector0(unsigned long start)
 {
-	struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[0]);
+	struct dos_partition *partp = &mboot.parts[0];
 
 	init_boot();
 
@@ -547,7 +546,7 @@ init_sector0(unsigned long start)
 static void
 change_part(int i)
 {
-	struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
+    struct dos_partition *partp = &mboot.parts[i - 1];
 
     printf("The data for partition %d is:\n", i);
     print_part(i);
@@ -556,7 +555,7 @@ change_part(int i)
 	int tmp;
 
 	if (i_flag) {
-		bzero((char *)partp, sizeof (struct dos_partition));
+		bzero(partp, sizeof (*partp));
 		if (i == 1) {
 			init_sector0(1);
 			printf("\nThe static data for the slice 1 has been reinitialized to:\n");
@@ -1112,21 +1111,21 @@ process_partition(CMD *command)
 		    current_line_number, partition);
 	    break;
 	}
-	partp = ((struct dos_partition *) &mboot.parts) + partition - 1;
-	bzero((char *)partp, sizeof (struct dos_partition));
+	partp = &mboot.parts[partition - 1];
+	bzero(partp, sizeof (*partp));
 	partp->dp_typ = command->args[1].arg_val;
 	partp->dp_start = command->args[2].arg_val;
 	partp->dp_size = command->args[3].arg_val;
 	max_end = partp->dp_start + partp->dp_size;
 
-		if (partp->dp_typ == 0) {
+	if (partp->dp_typ == 0) {
 	    /*
 	     * Get out, the partition is marked as unused.
 	     */
 	    /*
 	     * Insure that it's unused.
 	     */
-	    bzero((char *)partp, sizeof (struct dos_partition));
+	    bzero(partp, sizeof(*partp));
 	    status = 1;
 	    break;
 	}
@@ -1213,7 +1212,7 @@ process_active(CMD *command)
 	/*
 	 * Reset active partition
 	 */
-	partp = ((struct dos_partition *) &mboot.parts);
+	partp = mboot.parts;
 	for (i = 0; i < NDOSPART; i++)
 	    partp[i].dp_flag = 0;
 	partp[partition-1].dp_flag = ACTIVE;
@@ -1308,9 +1307,9 @@ reset_boot(void)
     struct dos_partition	*partp;
 
     init_boot();
-	for (i = 0; i < 4; ++i) {
-	partp = ((struct dos_partition *) &mboot.parts) + i;
-	bzero((char *)partp, sizeof (struct dos_partition));
+    for (i = 0; i < 4; ++i) {
+	partp = &mboot.parts[i];
+	bzero(partp, sizeof(*partp));
     }
 }
 
