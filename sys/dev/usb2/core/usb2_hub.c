@@ -1520,12 +1520,8 @@ usb2_bus_powerd(struct usb2_bus *bus)
 	 * The root HUB device is never suspended
 	 * and we simply skip it.
 	 */
-	for (x = USB_ROOT_HUB_ADDR + 1;; x++) {
-#if ((USB_ROOT_HUB_ADDR + 1) > USB_MIN_DEVICES)
-#error "Incorrect device limit."
-#endif
-		if (x == bus->devices_max)
-			break;
+	for (x = USB_ROOT_HUB_ADDR + 1;
+	    x != bus->devices_max; x++) {
 
 		udev = bus->devices[x];
 		if (udev == NULL)
@@ -1568,12 +1564,8 @@ usb2_bus_powerd(struct usb2_bus *bus)
 
 	/* Re-loop all the devices to get the actual state */
 
-	for (x = USB_ROOT_HUB_ADDR + 1;; x++) {
-#if ((USB_ROOT_HUB_ADDR + 1) > USB_MIN_DEVICES)
-#error "Incorrect device limit."
-#endif
-		if (x == bus->devices_max)
-			break;
+	for (x = USB_ROOT_HUB_ADDR + 1;
+	    x != bus->devices_max; x++) {
 
 		udev = bus->devices[x];
 		if (udev == NULL)
