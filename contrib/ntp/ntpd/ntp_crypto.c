@@ -1536,7 +1536,7 @@ crypto_verify(
 		EVP_VerifyUpdate(&ctx, (u_char *)&ep->tstamp, vallen +
 		    12);
 		if (EVP_VerifyFinal(&ctx, (u_char *)&ep->pkt[i], siglen,
-		    pkey)) {
+		    pkey) == 1) {
 			if (peer->crypto & CRYPTO_FLAG_VRFY)
 				peer->crypto |= CRYPTO_FLAG_PROV;
 		} else {

@@ -133,7 +133,7 @@ openssldsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 
 	status = DSA_do_verify(digest, ISC_SHA1_DIGESTLENGTH, dsasig, dsa);
 	DSA_SIG_free(dsasig);
-	if (status == 0)
+	if (status != 1)
 		return (dst__openssl_toresult(DST_R_VERIFYFAILURE));
 
 	return (ISC_R_SUCCESS);
