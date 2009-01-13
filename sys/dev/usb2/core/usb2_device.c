@@ -1742,7 +1742,17 @@ usb2_free_device(struct usb2_device *udev)
 	/* unsetup any leftover default USB transfers */
 	usb2_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
 
+	/* template unsetup, if any */
 	(usb2_temp_unsetup_p) (udev);
+
+	/* 
+	 * Make sure that our clear-stall messages are not queued
+	 * anywhere:
+	 */
+	USB_BUS_LOCK(udev->bus);
+	usb2_proc_mwait(&udev->bus->non_giant_callback_proc,
+	    &udev->cs_msg[0], &udev->cs_msg[1]);
+	USB_BUS_UNLOCK(udev->bus);
 
 	sx_destroy(udev->default_sx);
 	sx_destroy(udev->default_sx + 1);
