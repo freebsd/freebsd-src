@@ -130,7 +130,8 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 		case GV_TYPE_DRIVE:
 			d = gv_find_drive(sc, argv);
 			/* We don't allow to remove open drives. */
-			if (gv_consumer_is_open(d->consumer)) {
+			if (gv_consumer_is_open(d->consumer) &&
+			    !(*flags & GV_FLAG_F)) {
 				gctl_error(req, "drive '%s' is open", d->name);
 				return;
 			}

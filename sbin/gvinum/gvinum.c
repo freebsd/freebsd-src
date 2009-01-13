@@ -709,7 +709,7 @@ gvinum_help(void)
 	    "        Rebuild the parity blocks of a RAID-5 plex.\n"
 	    "resetconfig\n"
 	    "        Reset the complete gvinum configuration\n"
-	    "rm [-r] volume | plex | subdisk | drive\n"
+	    "rm [-r] [-f] volume | plex | subdisk | drive\n"
 	    "        Remove an object.\n"
 	    "saveconfig\n"
 	    "        Save vinum configuration to disk after configuration"
@@ -1052,8 +1052,11 @@ gvinum_rm(int argc, char **argv)
 	flags = 0;
 	optreset = 1;
 	optind = 1;
-	while ((j = getopt(argc, argv, "r")) != -1) {
+	while ((j = getopt(argc, argv, "rf")) != -1) {
 		switch (j) {
+		case 'f':
+			flags |= GV_FLAG_F;
+			break;
 		case 'r':
 			flags |= GV_FLAG_R;
 			break;
