@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090113_0124"
+#define HDA_DRV_TEST_REV	"20090113_0125"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -4648,6 +4648,33 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		/*
 		 * nid: 26 = Line-in, leave it alone.
 		 */
+		break;
+	case HDA_CODEC_AD1983:
+		/*
+		 * This codec has several posisble usages, but none
+		 * fit parser best. Help parser to choose better.
+		 */
+		/* Disable direct unmixed playback to get pcm volume. */
+		w = hdac_widget_get(devinfo, 5);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdac_widget_get(devinfo, 6);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdac_widget_get(devinfo, 11);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		/* Disable mic and line selectors. */
+		w = hdac_widget_get(devinfo, 12);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdac_widget_get(devinfo, 13);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		/* Disable recording from mono playback mix. */
+		w = hdac_widget_get(devinfo, 20);
+		if (w != NULL)
+			w->connsenable[3] = 0;
 		break;
 	case HDA_CODEC_AD1986A:
 		/*
