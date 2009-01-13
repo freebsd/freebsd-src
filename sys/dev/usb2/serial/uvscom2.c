@@ -339,9 +339,9 @@ uvscom_attach(device_t dev)
 		goto detach;
 	}
 	/* start interrupt pipe */
-	USB_XFER_LOCK(sc->sc_xfer[4]);
+	mtx_lock(&Giant);
 	usb2_transfer_start(sc->sc_xfer[4]);
-	USB_XFER_UNLOCK(sc->sc_xfer[4]);
+	mtx_unlock(&Giant);
 
 	return (0);
 

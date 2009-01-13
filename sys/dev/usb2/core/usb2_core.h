@@ -160,9 +160,9 @@
 #define	USB_BUS_LOCK(_b)		mtx_lock(&(_b)->bus_mtx)
 #define	USB_BUS_UNLOCK(_b)		mtx_unlock(&(_b)->bus_mtx)
 #define	USB_BUS_LOCK_ASSERT(_b, _t)	mtx_assert(&(_b)->bus_mtx, _t)
-#define	USB_XFER_LOCK(_x)		mtx_lock((_x)->xfer_mtx)
-#define	USB_XFER_UNLOCK(_x)		mtx_unlock((_x)->xfer_mtx)
-#define	USB_XFER_LOCK_ASSERT(_x, _t)	mtx_assert((_x)->xfer_mtx, _t)
+#define	USB_XFER_LOCK(_x)		mtx_lock((_x)->xroot->xfer_mtx)
+#define	USB_XFER_UNLOCK(_x)		mtx_unlock((_x)->xroot->xfer_mtx)
+#define	USB_XFER_LOCK_ASSERT(_x, _t)	mtx_assert((_x)->xroot->xfer_mtx, _t)
 /* structure prototypes */
 
 struct file;
@@ -307,10 +307,7 @@ struct usb2_xfer {
 						 * are waiting on */
 	struct usb2_page *dma_page_ptr;
 	struct usb2_pipe *pipe;		/* our USB pipe */
-	struct usb2_device *udev;
-	struct mtx *xfer_mtx;		/* cannot be changed during operation */
-	struct usb2_xfer_root *usb2_root;	/* used by HC driver */
-	void   *usb2_sc;		/* used by HC driver */
+	struct usb2_xfer_root *xroot;	/* used by HC driver */
 	void   *qh_start[2];		/* used by HC driver */
 	void   *td_start[2];		/* used by HC driver */
 	void   *td_transfer_first;	/* used by HC driver */
