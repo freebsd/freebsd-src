@@ -1688,15 +1688,23 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 {
 	struct usb2_device *udev = f->udev;
 	int err;
+	uint8_t old_mode;
 
 	if ((udev == NULL) ||
 	    (udev->parent_hub == NULL)) {
 		return (EINVAL);
 	}
 	err = priv_check(curthread, PRIV_ROOT);
-	if (err) {
+	if (err)
 		return (err);
-	}
+
+	/* get old power mode */
+	old_mode = udev->power_mode;
+
+	/* if no change, then just return */
+	if (old_mode == mode)
+		return (0);
+
 	switch (mode) {
 	case USB_POWER_MODE_OFF:
 		/* get the device unconfigured */
@@ -1733,6 +1741,13 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 
 	if (err)
 		return (ENXIO);		/* I/O failure */
+
+	/* if we are powered off we need to re-enumerate first */
+	if (old_mode == USB_POWER_MODE_OFF) {
+		err = ugen_re_enumerate(f);
+		if (err)
+			return (err);
+	}
 
 	/* set new power mode */
 	usb2_set_power_mode(udev, mode);
