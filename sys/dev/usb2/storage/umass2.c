@@ -2414,6 +2414,9 @@ umass_t_cbi_data_read_callback(struct usb2_xfer *xfer)
 		}
 		xfer->timeout = sc->sc_transfer.data_timeout;
 
+		if (xfer->flags.ext_buffer) {
+			usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+		}
 		xfer->frlengths[0] = max_bulk;
 		usb2_start_hardware(xfer);
 		return;
