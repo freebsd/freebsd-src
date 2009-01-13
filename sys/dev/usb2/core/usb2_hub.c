@@ -1823,7 +1823,8 @@ void
 usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode)
 {
 	/* filter input argument */
-	if (power_mode != USB_POWER_MODE_ON) {
+	if ((power_mode != USB_POWER_MODE_ON) &&
+	    (power_mode != USB_POWER_MODE_OFF)) {
 		power_mode = USB_POWER_MODE_SAVE;
 	}
 	udev->power_mode = power_mode;	/* update copy of power mode */
