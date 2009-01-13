@@ -365,7 +365,6 @@ struct musbotg_softc {
 	union musbotg_hub_temp sc_hub_temp;
 	struct usb2_sw_transfer sc_root_ctrl;
 	struct usb2_sw_transfer sc_root_intr;
-	struct usb2_config_td sc_config_td;
 	struct usb2_hw_ep_profile sc_hw_ep_profile[16];
 
 	struct usb2_device *sc_devices[MUSB2_MAX_DEVICES];

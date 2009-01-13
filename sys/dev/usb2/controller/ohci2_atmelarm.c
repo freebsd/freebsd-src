@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_util.h>
 
@@ -114,12 +113,6 @@ ohci_atmelarm_attach(device_t dev)
 
 	strlcpy(sc->sc_ohci.sc_vendor, "Atmel", sizeof(sc->sc_ohci.sc_vendor));
 
-	err = usb2_config_td_setup(&sc->sc_ohci.sc_config_td, sc,
-	    &sc->sc_ohci.sc_bus.bus_mtx, NULL, 0, 4);
-	if (err) {
-		device_printf(dev, "could not setup config thread!\n");
-		goto error;
-	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (void *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
@@ -203,8 +196,6 @@ ohci_atmelarm_detach(device_t dev)
 		    sc->sc_ohci.sc_io_res);
 		sc->sc_ohci.sc_io_res = NULL;
 	}
-	usb2_config_td_unsetup(&sc->sc_ohci.sc_config_td);
-
 	usb2_bus_mem_free_all(&sc->sc_ohci.sc_bus, &ohci_iterate_hw_softc);
 
 	return (0);

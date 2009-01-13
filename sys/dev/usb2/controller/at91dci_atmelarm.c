@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_util.h>
 
@@ -208,12 +207,6 @@ at91_udp_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_dci.sc_bus.bdev, &sc->sc_dci.sc_bus);
 
-	err = usb2_config_td_setup(&sc->sc_dci.sc_config_td, sc,
-	    &sc->sc_dci.sc_bus.bus_mtx, NULL, 0, 4);
-	if (err) {
-		device_printf(dev, "could not setup config thread!\n");
-		goto error;
-	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (void *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
@@ -308,8 +301,6 @@ at91_udp_detach(device_t dev)
 		    sc->sc_dci.sc_io_res);
 		sc->sc_dci.sc_io_res = NULL;
 	}
-	usb2_config_td_unsetup(&sc->sc_dci.sc_config_td);
-
 	usb2_bus_mem_free_all(&sc->sc_dci.sc_bus, NULL);
 
 	/* disable clocks */
