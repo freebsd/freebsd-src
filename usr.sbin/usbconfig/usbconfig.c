@@ -562,7 +562,7 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 	}
 
 	if (matches == 0) {
-		printf("No device match\n");
+		printf("No device match or lack of permissions.\n");
 	}
 done:
 	reset_options(opt);
