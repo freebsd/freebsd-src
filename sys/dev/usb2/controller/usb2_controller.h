@@ -91,10 +91,6 @@ struct usb2_bus_methods {
 	void    (*set_stall) (struct usb2_device *udev, struct usb2_xfer *xfer, struct usb2_pipe *pipe);
 	void    (*clear_stall) (struct usb2_device *udev, struct usb2_pipe *pipe);
 
-	/* USB Device mode only - Optional */
-
-	void    (*vbus_interrupt) (struct usb2_bus *, uint8_t is_on);
-
 	/* USB Device and Host mode - Optional */
 
 	void	(*roothub_exec) (struct usb2_bus *);
