@@ -94,6 +94,10 @@ struct usb2_bus_methods {
 	/* USB Device mode only - Optional */
 
 	void    (*vbus_interrupt) (struct usb2_bus *, uint8_t is_on);
+
+	/* USB Device and Host mode - Optional */
+
+	void	(*roothub_exec) (struct usb2_bus *);
 };
 
 /*
@@ -186,6 +190,7 @@ struct usb2_temp_setup {
 void	usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb);
 uint8_t	usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat, usb2_bus_mem_cb_t *cb);
 void	usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb);
+void	usb2_bus_roothub_exec(struct usb2_bus *bus);
 uint16_t usb2_isoc_time_expand(struct usb2_bus *bus, uint16_t isoc_time_curr);
 uint16_t usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev, struct usb2_fs_isoc_schedule **pp_start, struct usb2_fs_isoc_schedule **pp_end, uint16_t isoc_time);
 uint8_t	usb2_fs_isoc_schedule_alloc(struct usb2_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);
