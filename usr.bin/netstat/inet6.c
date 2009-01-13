@@ -866,7 +866,8 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 #define	p(f, m) if (icmp6stat.f || sflag <= 1) \
     printf(m, (uintmax_t)icmp6stat.f, plural(icmp6stat.f))
-#define	p_5(f, m) printf(m, (uintmax_t)icmp6stat.f)
+#define	p_5(f, m) if (icmp6stat.f || sflag <= 1) \
+    printf(m, (uintmax_t)icmp6stat.f)
 
 	p(icp6s_error, "\t%ju call%s to icmp6_error\n");
 	p(icp6s_canterror,
