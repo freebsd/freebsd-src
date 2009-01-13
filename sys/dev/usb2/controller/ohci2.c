@@ -1558,13 +1558,12 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 	}
 	ed->ed_flags = htole32(ed_flags);
 
-	usb2_pc_cpu_flush(ed->page_cache);
-
 	td = xfer->td_transfer_first;
 
 	ed->ed_headp = td->td_self;
 
 	if (xfer->udev->pwr_save.suspended == 0) {
+		/* the append function will flush the endpoint descriptor */
 		OHCI_APPEND_QH(ed, *ed_last);
 
 		if (methods == &ohci_device_bulk_methods) {
@@ -2009,13 +2008,12 @@ ohci_device_isoc_enter(struct usb2_xfer *xfer)
 	}
 	ed->ed_flags = htole32(ed_flags);
 
-	usb2_pc_cpu_flush(ed->page_cache);
-
 	td = xfer->td_transfer_first;
 
 	ed->ed_headp = td->itd_self;
 
 	/* isochronous transfers are not affected by suspend / resume */
+	/* the append function will flush the endpoint descriptor */
 
 	OHCI_APPEND_QH(ed, sc->sc_isoc_p_last);
 }
