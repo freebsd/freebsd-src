@@ -1,6 +1,6 @@
 /*-
+ * Copyright (C) 2006-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
- * Copyright (C) 2006 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -462,15 +462,12 @@ INTERRUPT(int_data_tlb_error)
 	mfdear	%r31
 
 	/*
-	 * Save MAS0-MAS2 registers. There might be another tlb miss during pte
-	 * lookup overwriting current contents (which was hw filled).
+	 * Save MAS0-MAS2 registers. There might be another tlb miss during
+	 * pte lookup overwriting current contents (which was hw filled).
 	 */
 	mfspr	%r29, SPR_MAS0
 	mfspr	%r28, SPR_MAS1
 	mfspr	%r27, SPR_MAS2
-
-	/* return tlb0 entry address in r30 */
-	bl	get_tlb0table_entry
 
 	/* Check faulting address. */
 	lis	%r21, VM_MAXUSER_ADDRESS@h
@@ -521,11 +518,6 @@ search_failed:
 	 */
 	lis	%r23, 0xffff0000@h	/* revoke all permissions */
 
-	/* Save MAS registers to tlb0[] table. */
-	stw	%r28, TLB0TABLE_MAS1(%r30)	/* write tlb0[idx].mas1 */
-	stw	%r27, TLB0TABLE_MAS2(%r30)	/* write tlb0[idx].mas2 */
-	stw	%r23, TLB0TABLE_MAS3(%r30)	/* write tlb0[idx].mas3 */
-
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29
 	isync
@@ -541,61 +533,18 @@ search_failed:
 	isync
 	b	tlb_miss_return
 
-/******************************************************/
-/*
- * Calculate address of tlb0[tlb0table_idx], save it in r30
+/*****************************************************************************
  *
- * tlb0table_idx = (way * entries_per_way) + entry_number
- *		entries_per_way = 128
- *		entry_number is defined by EPN[45:51]
- *
- * input: r31 - faulting address
- * input: r29 - MAS0
- * output: r30 - address of corresponding tlb0[] entry
- *
- * scratch regs used: r21-r23
- */
-/******************************************************/
-get_tlb0table_entry:
-	lis	%r21, 0				/* keeps tlb0table_idx */
-
-	/* Add entry number, use DEAR from r31 (faulting va) */
-	rlwinm	%r22, %r31, 20, 25, 31		/* get EPN[45:51] */
-	add	%r21, %r21, %r22
-
-	/* Select way */
-	rlwinm	%r22, %r29, 16, 30, 31		/* get way# = ESEL[0:1] */
-
-	/* Get number of entries per tlb0 way. */
-	lis	%r23, tlb0_nentries_per_way@h
-	ori	%r23, %r23, tlb0_nentries_per_way@l
-	lwz	%r23, 0(%r23)
-
-	mullw	%r22, %r22, %r23		/* multiply by #entries per way */
-	add	%r21, %r21, %r22
-
-	mulli	%r21, %r21, TLB0_ENTRY_SIZE	/* multipy by tlb0 entry size */
-
-	/* Get tlb0[tlb0tble_idx] address, save it in r30 */
-	lis	%r30, tlb0@h
-	ori	%r30, %r30, tlb0@l
-	lwz	%r30, 0(%r30)
-	add	%r30, %r30, %r21
-	blr
-
-
-/******************************************************/
-/*
- * Return pte address that corresponds to given pmap/va.
- * If there is no valid entry return 0.
+ * Return pte address that corresponds to given pmap/va.  If there is no valid
+ * entry return 0.
  *
  * input: r26 - pmap
  * input: r31 - dear
  * output: r25 - pte address
  *
  * scratch regs used: r21
- */
-/******************************************************/
+ *
+ ****************************************************************************/
 pte_lookup:
 	cmpwi	%r26, 0
 	beq	1f			/* fail quickly if pmap is invalid */
@@ -626,32 +575,38 @@ pte_lookup:
 2:
 	blr
 
-/******************************************************/
-/*
- * Save MAS1-MAS3 registers to tlb0[] table, write TLB entry
+/*****************************************************************************
+ *
+ * Load MAS1-MAS3 registers with data, write TLB entry
  *
  * input:
  * r29 - mas0
  * r28 - mas1
  * r27 - mas2
  * r25 - pte
- * r30 - tlb0 entry address
  *
  * output: none
  *
  * scratch regs: r21-r23
- */
-/******************************************************/
+ *
+ ****************************************************************************/
 tlb_fill_entry:
-	/* Handle pte flags. */
-	lwz	%r21, PTE_FLAGS(%r25)		/* get pte->flags */
+	/*
+	 * Update PTE flags: we have to do it atomically, as pmap_protect()
+	 * running on other CPUs could attempt to update the flags at the same
+	 * time.
+	 */
+	li	%r23, PTE_FLAGS
+1:
+	lwarx	%r21, %r23, %r25		/* get pte->flags */
 	oris	%r21, %r21, PTE_REFERENCED@h	/* set referenced bit */
 
 	andi.	%r22, %r21, (PTE_UW | PTE_UW)@l	/* check if writable */
-	beq	1f
+	beq	2f
 	oris	%r21, %r21, PTE_MODIFIED@h	/* set modified bit */
-1:
-	stw	%r21, PTE_FLAGS(%r25)		/* write it back */
+2:
+	stwcx.	%r21, %r23, %r25		/* write it back */
+	bne-	1b
 
 	/* Update MAS2. */
 	rlwimi	%r27, %r21, 0, 27, 30		/* insert WIMG bits from pte */
@@ -660,11 +615,6 @@ tlb_fill_entry:
 	lwz	%r23, PTE_RPN(%r25)		/* get pte->rpn */
 
 	rlwimi	%r23, %r21, 24, 26, 31		/* insert protection bits from pte */
-
-	/* Save MAS registers to tlb0[] table. */
-	stw	%r28, TLB0TABLE_MAS1(%r30)	/* write tlb0[idx].mas1 */
-	stw	%r27, TLB0TABLE_MAS2(%r30)	/* write tlb0[idx].mas2 */
-	stw	%r23, TLB0TABLE_MAS3(%r30)	/* write tlb0[idx].mas3 */
 
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29
@@ -700,9 +650,6 @@ INTERRUPT(int_inst_tlb_error)
 	mfspr	%r28, SPR_MAS1
 	mfspr	%r27, SPR_MAS2
 
-	/* return tlb0 entry address in r30 */
-	bl	get_tlb0table_entry
-	
 	mfsrr1	%r21
 	mtcr	%r21
 

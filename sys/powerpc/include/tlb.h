@@ -46,7 +46,8 @@
 #define MAS1_IPROT		0x40000000
 #define MAS1_TID_MASK		0x00FF0000
 #define MAS1_TID_SHIFT		16
-#define MAS1_TS			0x00001000
+#define MAS1_TS_MASK		0x00001000
+#define MAS1_TS_SHIFT		12
 #define MAS1_TSIZE_MASK		0x00000F00
 #define MAS1_TSIZE_SHIFT	8
 
@@ -62,7 +63,7 @@
 #define	TLB_SIZE_1G		10
 #define	TLB_SIZE_4G		11
 
-#define	MAS2_EPN		0xFFFFF000
+#define	MAS2_EPN_MASK		0xFFFFF000
 #define	MAS2_EPN_SHIFT		12
 #define	MAS2_X0			0x00000040
 #define	MAS2_X1			0x00000020
@@ -109,30 +110,36 @@
 #define MAS2_TLB0_ENTRY_IDX_SHIFT	12
 
 /*
- * Maximum number of TLB1 entries used for a permanat
- * mapping of kernel region (kernel image plus statically
- * allocated data.
+ * Maximum number of TLB1 entries used for a permanent mapping of kernel
+ * region (kernel image plus statically allocated data).
  */
 #define KERNEL_REGION_MAX_TLB_ENTRIES   4
 
 #define _TLB_ENTRY_IO	(MAS2_I | MAS2_G)
+#ifdef SMP
+#define _TLB_ENTRY_MEM	(MAS2_M)
+#else
 #define _TLB_ENTRY_MEM	(0)
+#endif
 
-#define KERNEL_TID	0	/* TLB TID to use for kernel translations */
+#define TID_KERNEL	0	/* TLB TID to use for kernel (shared) translations */
 #define TID_KRESERVED	1	/* Number of TIDs reserved for kernel */
-#define TID_URESERVED	0	/* Number of TIDs reserve for user */
+#define TID_URESERVED	0	/* Number of TIDs reserved for user */
 #define TID_MIN		(TID_KRESERVED + TID_URESERVED)
 #define TID_MAX		255
+#define TID_NONE	-1
 
 #if !defined(LOCORE)
 typedef struct tlb_entry {
-	u_int32_t mas1;
-	u_int32_t mas2;
-	u_int32_t mas3;
+	uint32_t mas1;
+	uint32_t mas2;
+	uint32_t mas3;
 } tlb_entry_t;
 
-typedef u_int8_t tlbtid_t;
+typedef int tlbtid_t;
 struct pmap;
+
+void tlb0_print_tlbentries(void);
 
 void tlb1_inval_entry(unsigned int);
 void tlb1_init(vm_offset_t);
