@@ -739,24 +739,36 @@ class Wokeup(PointEvent):
 
 configtypes.append(Wokeup)
 
+(DEFAULT, LOAD, COUNT, THREAD) = range(4)
+
 class EventSource:
-	def __init__(self, name):
+	def __init__(self, name, group=DEFAULT, order=0):
 		self.name = name
 		self.events = []
 		self.cpu = 0
 		self.cpux = 0
+		self.group = group
+		self.order = order
 
+	def __cmp__(self, other):
+		if (self.group == other.group):
+			return cmp(self.order, other.order)
+		return cmp(self.group, other.group)
+
+	# It is much faster to append items to a list then to insert them
+	# at the beginning.  As a result, we add events in reverse order
+	# and then swap the list during fixup.
 	def fixup(self):
-		pass
+		self.events.reverse()
 
 	def event(self, event):
-		self.events.insert(0, event)
+		self.events.append(event)
 
 	def remove(self, event):
 		self.events.remove(event)
 
 	def lastevent(self, event):
-		self.events.append(event)
+		self.events.insert(0, event)
 
 	def draw(self, canvas, ypos):
 		xpos = 10
@@ -819,7 +831,7 @@ class EventSource:
 class Thread(EventSource):
 	names = {}
 	def __init__(self, td, pcomm):
-		EventSource.__init__(self, pcomm)
+		EventSource.__init__(self, pcomm, THREAD)
 		self.str = td
 		try:
 			cnt = Thread.names[pcomm]
@@ -829,6 +841,7 @@ class Thread(EventSource):
 		Thread.names[pcomm] = cnt + 1
 
 	def fixup(self):
+		EventSource.fixup(self)
 		cnt = Thread.names[self.name]
 		if (cnt == 0):
 			return
@@ -842,7 +855,7 @@ class Thread(EventSource):
 class Counter(EventSource):
 	max = 0
 	def __init__(self, name):
-		EventSource.__init__(self, name)
+		EventSource.__init__(self, name, COUNT)
 
 	def event(self, event):
 		EventSource.event(self, event)
@@ -863,6 +876,11 @@ class Counter(EventSource):
 	def yscale(self):
 		return (self.ysize() / Counter.max)
 
+class CPULoad(Counter):
+	def __init__(self, cpu):
+		Counter.__init__(self, "cpu" + str(cpu) + " load")
+		self.group = LOAD
+		self.order = cpu
 
 class KTRFile:
 	def __init__(self, file):
@@ -1100,9 +1118,9 @@ class KTRFile:
 		try:
 			load = self.load[cpu]
 		except:
-			load = Counter("cpu" + str(cpu) + " load")
+			load = CPULoad(cpu)
 			self.load[cpu] = load
-			self.sources.insert(0, load)
+			self.sources.append(load)
 		Count(load, cpu, timestamp, count)
 
 	def cpuload2(self, cpu, timestamp, ncpu, count):
@@ -1113,9 +1131,9 @@ class KTRFile:
 		try:
 			load = self.load[cpu]
 		except:
-			load = Counter("cpu" + str(cpu) + " load")
+			load = CPULoad(cpu)
 			self.load[cpu] = load
-			self.sources.insert(0, load)
+			self.sources.append(load)
 		Count(load, cpu, timestamp, count)
 
 	def loadglobal(self, cpu, timestamp, count):
@@ -1128,7 +1146,7 @@ class KTRFile:
 		except:
 			load = Counter("CPU load")
 			self.load[cpu] = load
-			self.sources.insert(0, load)
+			self.sources.append(load)
 		Count(load, cpu, timestamp, count)
 
 	def critsec(self, cpu, timestamp, td, pcomm, to):
@@ -1141,7 +1159,7 @@ class KTRFile:
 		except:
 			crit = Counter("Critical Section")
 			self.crit[cpu] = crit
-			self.sources.insert(0, crit)
+			self.sources.append(crit)
 		Count(crit, cpu, timestamp, to)
 
 	def findtd(self, td, pcomm):
@@ -1158,12 +1176,14 @@ class KTRFile:
 			Padevent(source, -1, self.timestamp_l)
 			Padevent(source, -1, self.timestamp_f, last=1)
 			source.fixup()
+		self.sources.sort()
 
 class SchedDisplay(Canvas):
 	def __init__(self, master):
-		self.ratio = 10
+		self.ratio = 1
 		self.ktrfile = None
 		self.sources = None
+		self.parent = master
 		self.bdheight = 10 
 		self.events = {}
 
@@ -1173,6 +1193,11 @@ class SchedDisplay(Canvas):
 	def setfile(self, ktrfile):
 		self.ktrfile = ktrfile
 		self.sources = ktrfile.sources
+
+		# Compute a ratio to ensure that the file's timespan fits into
+		# 2^31.  Although python may handle larger values for X
+		# values, the Tk internals do not.
+		self.ratio = (ktrfile.timespan() - 1) / 2**31 + 1
 
 	def draw(self):
 		ypos = 0
@@ -1195,6 +1220,8 @@ class SchedDisplay(Canvas):
 		self.tag_bind("event", "<Enter>", self.mouseenter)
 		self.tag_bind("event", "<Leave>", self.mouseexit)
 		self.tag_bind("event", "<Button-1>", self.mousepress)
+		self.bind("<Button-4>", self.wheelup)
+		self.bind("<Button-5>", self.wheeldown)
 
 	def mouseenter(self, event):
 		item, = self.find_withtag(CURRENT)
@@ -1210,6 +1237,12 @@ class SchedDisplay(Canvas):
 		item, = self.find_withtag(CURRENT)
 		event = self.events[item]
 		event.mousepress(self, item)
+
+	def wheeldown(self, event):
+		self.parent.display_yview("scroll", 1, "units")
+
+	def wheelup(self, event):
+		self.parent.display_yview("scroll", -1, "units")
 
 	def drawnames(self, canvas):
 		status.startup("Drawing names")
