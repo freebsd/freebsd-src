@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_util.h>
 
 #include <dev/usb2/ethernet/usb2_ethernet.h>
-#include <dev/usb2/ethernet/if_cue2_reg.h>
+#include <dev/usb2/ethernet/if_cuereg.h>
 
 /*
  * Various supported device vendors/products.
