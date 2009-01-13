@@ -4651,8 +4651,8 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		break;
 	case HDA_CODEC_AD1983:
 		/*
-		 * This codec has several posisble usages, but none
-		 * fit parser best. Help parser to choose better.
+		 * This codec has several possible usages, but none
+		 * fit the parser best. Help parser to choose better.
 		 */
 		/* Disable direct unmixed playback to get pcm volume. */
 		w = hdac_widget_get(devinfo, 5);
