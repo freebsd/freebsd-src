@@ -126,7 +126,7 @@ Boolean		is_posix;	/* .POSIX target seen */
 Boolean		mfAutoDeps;	/* .MAKEFILEDEPS target seen */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
-Boolean		beQuiet = TRUE;	/* -Q flag */
+Boolean		beQuiet;	/* -Q flag */
 Boolean		compatMake;	/* -B argument */
 int		debug;		/* -d flag */
 Boolean		ignoreErrors;	/* -i flag */
@@ -519,6 +519,7 @@ rearg:
 			break;
 		case 'Q':
 			beQuiet = TRUE;
+			beVerbose = FALSE;
 			MFLAGS_append("-Q", NULL);
 			break;
 		case 'q':
