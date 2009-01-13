@@ -53,6 +53,13 @@ struct usb2_bus {
 	struct usb2_bus_stat stats_ok;
 	struct usb2_process explore_proc;
 	struct usb2_process roothub_proc;
+	/*
+	 * There are two callback processes. One for Giant locked
+	 * callbacks. One for non-Giant locked callbacks. This should
+	 * avoid congestion and reduce response time in most cases.
+	 */
+	struct usb2_process giant_callback_proc;
+	struct usb2_process non_giant_callback_proc;
 	struct usb2_bus_msg explore_msg[2];
 	struct usb2_bus_msg detach_msg[2];
 	struct usb2_bus_msg attach_msg[2];

@@ -166,6 +166,11 @@ usb2_detach(device_t dev)
 
 	USB_BUS_UNLOCK(bus);
 
+	/* Get rid of USB callback processes */
+
+	usb2_proc_unsetup(&bus->giant_callback_proc);
+	usb2_proc_unsetup(&bus->non_giant_callback_proc);
+
 	/* Get rid of USB roothub process */
 
 	usb2_proc_unsetup(&bus->roothub_proc);
@@ -391,8 +396,17 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 	bus->roothub_msg[1].hdr.pm_callback = &usb2_bus_roothub;
 	bus->roothub_msg[1].bus = bus;
 
-	/* Create USB explore and roothub processes */
-	if (usb2_proc_setup(&bus->roothub_proc,
+	/* Create USB explore, roothub and callback processes */
+
+	if (usb2_proc_setup(&bus->giant_callback_proc,
+	    &bus->bus_mtx, USB_PRI_MED)) {
+		printf("WARNING: Creation of USB Giant "
+		    "callback process failed.\n");
+	} else if (usb2_proc_setup(&bus->non_giant_callback_proc,
+	    &bus->bus_mtx, USB_PRI_HIGH)) {
+		printf("WARNING: Creation of USB non-Giant "
+		    "callback process failed.\n");
+	} else if (usb2_proc_setup(&bus->roothub_proc,
 	    &bus->bus_mtx, USB_PRI_HIGH)) {
 		printf("WARNING: Creation of USB roothub "
 		    "process failed.\n");
