@@ -1,8 +1,8 @@
 #
 # GENERIC -- Generic kernel configuration file for FreeBSD/i386
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -28,9 +28,9 @@ ident		GENERIC
 
 # Use the following to compile in values accessible to the kernel
 # through getenv() (or kenv(1) in userland). The format of the file
-# is 'variable=value' , same as for hints files.
+# is 'variable=value', see kenv(1)
 #
-# env		"my_kenv_variables"
+# env		"GENERIC.env"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
