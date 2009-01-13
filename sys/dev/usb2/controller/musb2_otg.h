@@ -32,6 +32,8 @@
 #ifndef _MUSB2_OTG_H_
 #define	_MUSB2_OTG_H_
 
+#define	MUSB2_MAX_DEVICES (USB_MIN_DEVICES + 1)
+
 /* Common registers */
 
 #define	MUSB2_REG_FADDR 0x0000		/* function address register */
@@ -365,6 +367,8 @@ struct musbotg_softc {
 	struct usb2_sw_transfer sc_root_intr;
 	struct usb2_config_td sc_config_td;
 	struct usb2_hw_ep_profile sc_hw_ep_profile[16];
+
+	struct usb2_device *sc_devices[MUSB2_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;

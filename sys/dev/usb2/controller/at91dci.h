@@ -34,6 +34,8 @@
 #ifndef _AT9100_DCI_H_
 #define	_AT9100_DCI_H_
 
+#define	AT91_MAX_DEVICES (USB_MIN_DEVICES + 1)
+
 #define	AT91_UDP_FRM 	0x00		/* Frame number register */
 #define	AT91_UDP_FRM_MASK     (0x7FF <<  0)	/* Frame Number as Defined in
 						 * the Packet Field Formats */
@@ -206,6 +208,7 @@ struct at91dci_softc {
 	struct usb2_sw_transfer sc_root_intr;
 	struct usb2_config_td sc_config_td;
 
+	struct usb2_device *sc_devices[AT91_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
