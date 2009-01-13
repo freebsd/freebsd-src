@@ -1699,11 +1699,12 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 	}
 	switch (mode) {
 	case USB_POWER_MODE_OFF:
-		/* clear suspend */
-		err = usb2_req_clear_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_SUSPEND);
-		if (err)
-			break;
+		/* get the device unconfigured */
+		err = ugen_set_config(f, USB_UNCONFIG_INDEX);
+		if (err) {
+			DPRINTFN(0, "Could not unconfigure "
+			    "device (ignored)\n");
+		}
 
 		/* clear port enable */
 		err = usb2_req_clear_port_feature(udev->parent_hub,
