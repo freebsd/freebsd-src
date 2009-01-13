@@ -43,6 +43,7 @@ gv_volume_start(struct gv_softc *sc, struct bio *bp)
 	struct g_geom *gp;
 	struct gv_volume *v;
 	struct gv_plex *p, *lp;
+	int numwrites;
 
 	gp = sc->geom;
 	v = bp->bio_to->private;
@@ -69,8 +70,10 @@ gv_volume_start(struct gv_softc *sc, struct bio *bp)
 			lp = LIST_FIRST(&v->plexes);
 		p = LIST_NEXT(lp, in_volume);
 		do {
-			if (p == NULL)
-				p = LIST_FIRST(&v->plexes);
+			if (p == NULL) {
+				p = lp;
+				break;
+			}
 			if ((p->state > GV_PLEX_DEGRADED) ||
 			    (p->state >= GV_PLEX_DEGRADED &&
 			    p->org == GV_PLEX_RAID5))
@@ -100,12 +103,16 @@ gv_volume_start(struct gv_softc *sc, struct bio *bp)
 			}
 		}
 
+		numwrites = 0;
 		/* Give the BIO to each plex of this volume. */
 		LIST_FOREACH(p, &v->plexes, in_volume) {
 			if (p->state < GV_PLEX_DEGRADED)
 				continue;
 			gv_plex_start(p, bp);
+			numwrites++;
 		}
+		if (numwrites == 0)
+			g_io_deliver(bp, ENXIO);
 		break;
 	}
 }
