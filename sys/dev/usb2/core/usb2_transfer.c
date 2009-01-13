@@ -1915,8 +1915,7 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 
 	/*
 	 * Check if we got started after that we got cancelled, but
-	 * before we managed to do the callback. Check if we are
-	 * draining.
+	 * before we managed to do the callback.
 	 */
 	if ((!xfer->flags_int.open) &&
 	    (xfer->flags_int.started) &&
@@ -1924,13 +1923,19 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 		/* try to loop, but not recursivly */
 		usb2_command_wrapper(&info->done_q, xfer);
 		return;
-	} else if (xfer->flags_int.draining &&
+	}
+
+done:
+	/*
+	 * Check if we are draining.
+	 */
+	if (xfer->flags_int.draining &&
 	    (!xfer->flags_int.transferring)) {
 		/* "usb2_transfer_drain()" is waiting for end of transfer */
 		xfer->flags_int.draining = 0;
 		usb2_cv_broadcast(&xfer->usb2_root->cv_drain);
 	}
-done:
+
 	/* do the next callback, if any */
 	usb2_command_wrapper(&info->done_q,
 	    info->done_q.curr);
