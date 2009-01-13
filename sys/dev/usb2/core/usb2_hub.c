@@ -372,18 +372,38 @@ repeat:
 	/*
 	 * Figure out the device speed
 	 */
-	speed =
-	    (sc->sc_st.port_status & UPS_HIGH_SPEED) ? USB_SPEED_HIGH :
-	    (sc->sc_st.port_status & UPS_LOW_SPEED) ? USB_SPEED_LOW : USB_SPEED_FULL;
-
+	switch (udev->speed) {
+	case USB_SPEED_HIGH:
+		if (sc->sc_st.port_status & UPS_HIGH_SPEED)
+			speed = USB_SPEED_HIGH;
+		else if (sc->sc_st.port_status & UPS_LOW_SPEED)
+			speed = USB_SPEED_LOW;
+		else
+			speed = USB_SPEED_FULL;
+		break;
+	case USB_SPEED_FULL:
+		if (sc->sc_st.port_status & UPS_LOW_SPEED)
+			speed = USB_SPEED_LOW;
+		else
+			speed = USB_SPEED_FULL;
+		break;
+	case USB_SPEED_LOW:
+		speed = USB_SPEED_LOW;
+		break;
+	default:
+		/* same speed like parent */
+		speed = udev->speed;
+		break;
+	}
 	/*
 	 * Figure out the device mode
 	 *
 	 * NOTE: This part is currently FreeBSD specific.
 	 */
-	usb2_mode =
-	    (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE) ?
-	    USB_MODE_DEVICE : USB_MODE_HOST;
+	if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
+		usb2_mode = USB_MODE_DEVICE;
+	else
+		usb2_mode = USB_MODE_HOST;
 
 	/* need to create a new child */
 
@@ -1049,17 +1069,16 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
 {
 	struct usb2_bus *bus = udev->bus;
 	struct usb2_hub *hub;
+	uint8_t speed;
 
 	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
 
-	if (usb2_get_speed(udev) == USB_SPEED_HIGH) {
-		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
-			slot = usb2_intr_find_best_slot(bus->uframe_usage, 0,
-			    USB_HS_MICRO_FRAMES_MAX);
-		}
-		bus->uframe_usage[slot] += len;
-	} else {
-		if (usb2_get_speed(udev) == USB_SPEED_LOW) {
+	speed = usb2_get_speed(udev);
+
+	switch (speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		if (speed == USB_SPEED_LOW) {
 			len *= 8;
 		}
 		/*
@@ -1076,6 +1095,14 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
 		}
 		hub->uframe_usage[slot] += len;
 		bus->uframe_usage[slot] += len;
+		break;
+	default:
+		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
+			slot = usb2_intr_find_best_slot(bus->uframe_usage, 0,
+			    USB_HS_MICRO_FRAMES_MAX);
+		}
+		bus->uframe_usage[slot] += len;
+		break;
 	}
 	return (slot);
 }
