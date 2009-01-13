@@ -70,6 +70,7 @@ int debug, fstab_style, verbose;
 
 struct cpa {
 	char	**a;
+	ssize_t	sz;
 	int	c;
 };
 
@@ -503,11 +504,9 @@ hasopt(const char *mntopts, const char *option)
 static void
 append_arg(struct cpa *sa, char *arg)
 {
-	static int a_sz;
-
-	if (sa->c + 1 == a_sz) {
-		a_sz = a_sz == 0 ? 8 : a_sz * 2;
-		sa->a = realloc(sa->a, sizeof(sa->a) * a_sz);
+	if (sa->c + 1 == sa->sz) {
+		sa->sz = sa->sz == 0 ? 8 : sa->sz * 2;
+		sa->a = realloc(sa->a, sizeof(sa->a) * sa->sz);
 		if (sa->a == NULL)
 			errx(1, "realloc failed");
 	}
@@ -518,11 +517,10 @@ int
 mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	const char *options, const char *mntopts)
 {
-	struct cpa mnt_argv;
 	struct statfs sf;
 	int i, ret;
 	char *optbuf, execname[PATH_MAX], mntpath[PATH_MAX];
-	static int mnt_argv_inited;
+	static struct cpa mnt_argv;
 
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
@@ -557,10 +555,6 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	/* Construct the name of the appropriate mount command */
 	(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
 
-	if (!mnt_argv_inited) {
-		mnt_argv_inited++;
-		mnt_argv.a = NULL;
-	}
 	mnt_argv.c = -1;
 	append_arg(&mnt_argv, execname);
 	mangle(optbuf, &mnt_argv);
