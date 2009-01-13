@@ -90,8 +90,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_util.h>
 
 #include <dev/usb2/ethernet/usb2_ethernet.h>
-#include <dev/usb2/ethernet/if_kue2_reg.h>
-#include <dev/usb2/ethernet/if_kue2_fw.h>
+#include <dev/usb2/ethernet/if_kuereg.h>
+#include <dev/usb2/ethernet/if_kuefw.h>
 
 /*
  * Various supported device vendors/products.

@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_util.h>
 
 #include <dev/usb2/wlan/usb2_wlan.h>
-#include <dev/usb2/wlan/if_zyd2_reg.h>
-#include <dev/usb2/wlan/if_zyd2_fw.h>
+#include <dev/usb2/wlan/if_zydreg.h>
+#include <dev/usb2/wlan/if_zydfw.h>
 
 #if USB_DEBUG
 static int zyd_debug = 0;

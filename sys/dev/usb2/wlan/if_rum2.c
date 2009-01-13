@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_util.h>
 
 #include <dev/usb2/wlan/usb2_wlan.h>
-#include <dev/usb2/wlan/if_rum2_reg.h>
-#include <dev/usb2/wlan/if_rum2_var.h>
-#include <dev/usb2/wlan/if_rum2_fw.h>
+#include <dev/usb2/wlan/if_rumreg.h>
+#include <dev/usb2/wlan/if_rumvar.h>
+#include <dev/usb2/wlan/if_rumfw.h>
 
 #if USB_DEBUG
 static int rum_debug = 0;
