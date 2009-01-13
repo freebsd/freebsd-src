@@ -157,12 +157,16 @@ ugen_open(struct usb2_fifo *f, int fflags, struct thread *td)
 	DPRINTFN(6, "flag=0x%x\n", fflags);
 
 	mtx_lock(f->priv_mtx);
-	if (usb2_get_speed(f->udev) == USB_SPEED_HIGH) {
-		f->nframes = UGEN_HW_FRAMES * 8;
-		f->bufsize = UGEN_BULK_HS_BUFFER_SIZE;
-	} else {
+	switch (usb2_get_speed(f->udev)) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
 		f->nframes = UGEN_HW_FRAMES;
 		f->bufsize = UGEN_BULK_FS_BUFFER_SIZE;
+		break;
+	default:
+		f->nframes = UGEN_HW_FRAMES * 8;
+		f->bufsize = UGEN_BULK_HS_BUFFER_SIZE;
+		break;
 	}
 
 	type = ed->bmAttributes & UE_XFERTYPE;

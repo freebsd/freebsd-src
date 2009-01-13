@@ -63,6 +63,7 @@ static const struct usb2_std_packet_size
 		[USB_SPEED_FULL] = {.range = {0, 64}},
 		[USB_SPEED_HIGH] = {.range = {0, 1024}},
 		[USB_SPEED_VARIABLE] = {.range = {0, 1024}},
+		[USB_SPEED_SUPER] = {.range = {0, 1024}},
 	},
 
 	[UE_CONTROL] = {
@@ -70,6 +71,7 @@ static const struct usb2_std_packet_size
 		[USB_SPEED_FULL] = {.fixed = {8, 16, 32, 64}},
 		[USB_SPEED_HIGH] = {.fixed = {64, 64, 64, 64}},
 		[USB_SPEED_VARIABLE] = {.fixed = {512, 512, 512, 512}},
+		[USB_SPEED_SUPER] = {.fixed = {512, 512, 512, 512}},
 	},
 
 	[UE_BULK] = {
@@ -77,6 +79,7 @@ static const struct usb2_std_packet_size
 		[USB_SPEED_FULL] = {.fixed = {8, 16, 32, 64}},
 		[USB_SPEED_HIGH] = {.fixed = {512, 512, 512, 512}},
 		[USB_SPEED_VARIABLE] = {.fixed = {512, 512, 1024, 1536}},
+		[USB_SPEED_SUPER] = {.fixed = {1024, 1024, 1024, 1024}},
 	},
 
 	[UE_ISOCHRONOUS] = {
@@ -84,6 +87,7 @@ static const struct usb2_std_packet_size
 		[USB_SPEED_FULL] = {.range = {0, 1023}},
 		[USB_SPEED_HIGH] = {.range = {0, 1024}},
 		[USB_SPEED_VARIABLE] = {.range = {0, 3584}},
+		[USB_SPEED_SUPER] = {.range = {0, 1024}},
 	},
 };
 
@@ -413,10 +417,14 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 			 */
 			xfer->timeout = 1000 / 4;
 		}
-		if (parm->speed == USB_SPEED_HIGH) {
-			frame_limit = USB_MAX_HS_ISOC_FRAMES_PER_XFER;
-		} else {
+		switch (parm->speed) {
+		case USB_SPEED_LOW:
+		case USB_SPEED_FULL:
 			frame_limit = USB_MAX_FS_ISOC_FRAMES_PER_XFER;
+			break;
+		default:
+			frame_limit = USB_MAX_HS_ISOC_FRAMES_PER_XFER;
+			break;
 		}
 
 		if (xfer->nframes > frame_limit) {
@@ -446,13 +454,29 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 
 				xfer->interval = edesc->bInterval;
 
-				if (parm->speed == USB_SPEED_HIGH) {
-					xfer->interval /= 8;	/* 125us -> 1ms */
+				switch (parm->speed) {
+				case USB_SPEED_SUPER:
+				case USB_SPEED_VARIABLE:
+					/* 125us -> 1ms */
+					if (xfer->interval < 4)
+						xfer->interval = 1;
+					else if (xfer->interval > 16)
+						xfer->interval = (1<<(16-4));
+					else
+						xfer->interval = 
+						    (1 << (xfer->interval-4));
+					break;
+				case USB_SPEED_HIGH:
+					/* 125us -> 1ms */
+					xfer->interval /= 8;
+					break;
+				default:
+					break;
 				}
 				if (xfer->interval == 0) {
 					/*
-					 * one millisecond is the smallest
-					 * interval
+					 * One millisecond is the smallest
+					 * interval we support:
 					 */
 					xfer->interval = 1;
 				}
