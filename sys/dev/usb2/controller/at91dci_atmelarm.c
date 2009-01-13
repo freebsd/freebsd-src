@@ -72,7 +72,7 @@ struct at91_udp_softc {
 };
 
 static void
-at91_vbus_interrupt(struct at91_udp_softc *sc)
+at91_vbus_poll(struct at91_udp_softc *sc)
 {
 	uint32_t temp;
 	uint8_t vbus_val;
@@ -84,8 +84,7 @@ at91_vbus_interrupt(struct at91_udp_softc *sc)
 	/* just forward it */
 
 	vbus_val = at91_pio_gpio_get(VBUS_BASE, VBUS_MASK);
-	(sc->sc_dci.sc_bus.methods->vbus_interrupt)
-	    (&sc->sc_dci.sc_bus, vbus_val);
+	at91dci_vbus_interrupt(&sc->sc_dci, vbus_val);
 }
 
 static void
@@ -220,10 +219,10 @@ at91_udp_attach(device_t dev)
 	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)at91_vbus_interrupt, sc, &sc->sc_vbus_intr_hdl);
+	    NULL, (void *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)at91_vbus_interrupt, sc, &sc->sc_vbus_intr_hdl);
+	    (void *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_vbus_intr_hdl = NULL;
@@ -237,7 +236,7 @@ at91_udp_attach(device_t dev)
 		goto error;
 	} else {
 		/* poll VBUS one time */
-		at91_vbus_interrupt(sc);
+		at91_vbus_poll(sc);
 	}
 	return (0);
 

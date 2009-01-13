@@ -954,11 +954,9 @@ repeat:
 	}
 }
 
-static void
-musbotg_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
+void
+musbotg_vbus_interrupt(struct musbotg_softc *sc, uint8_t is_on)
 {
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(bus);
-
 	DPRINTFN(4, "vbus = %u\n", is_on);
 
 	USB_BUS_LOCK(&sc->sc_bus);
@@ -2873,6 +2871,5 @@ struct usb2_bus_methods musbotg_bus_methods =
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
-	.vbus_interrupt = &musbotg_vbus_interrupt,
 	.roothub_exec = &musbotg_root_ctrl_task,
 };

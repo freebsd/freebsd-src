@@ -50,14 +50,12 @@ struct musbotg_super_softc {
 };
 
 static void
-musbotg_vbus_interrupt(struct musbotg_super_softc *sc)
+musbotg_vbus_poll(struct musbotg_super_softc *sc)
 {
 	uint8_t vbus_val = 1;		/* fake VBUS on - TODO */
 
 	/* just forward it */
-
-	(sc->sc_otg.sc_bus.methods->vbus_interrupt)
-	    (&sc->sc_otg.sc_bus, vbus_val);
+	musbotg_vbus_interrupt(&sc->sc_otg, vbus_val);
 }
 
 static void
@@ -154,7 +152,7 @@ musbotg_attach(device_t dev)
 		goto error;
 	} else {
 		/* poll VBUS one time */
-		musbotg_vbus_interrupt(sc);
+		musbotg_vbus_poll(sc);
 	}
 	return (0);
 
