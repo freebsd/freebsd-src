@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_util.h>
 #include <dev/usb2/core/usb2_debug.h>
@@ -325,12 +324,6 @@ uhci_pci_attach(device_t self)
 		break;
 	}
 
-	err = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_bus.bus_mtx,
-	    NULL, 0, 4);
-	if (err) {
-		device_printf(self, "could not setup config thread!\n");
-		goto error;
-	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (void *)(void *)uhci_interrupt, sc, &sc->sc_intr_hdl);
@@ -379,8 +372,6 @@ uhci_pci_detach(device_t self)
 	uhci_softc_t *sc = device_get_softc(self);
 	device_t bdev;
 
-	usb2_config_td_drain(&sc->sc_config_td);
-
 	if (sc->sc_bus.bdev) {
 		bdev = sc->sc_bus.bdev;
 		device_detach(bdev);
@@ -422,8 +413,6 @@ uhci_pci_detach(device_t self)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_config_td_unsetup(&sc->sc_config_td);
-
 	usb2_bus_mem_free_all(&sc->sc_bus, &uhci_iterate_hw_softc);
 
 	return (0);

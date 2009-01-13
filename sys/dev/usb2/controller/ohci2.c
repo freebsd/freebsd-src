@@ -41,14 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/include/usb2_defs.h>
 
 #define	USB_DEBUG_VAR ohcidebug
-#define	usb2_config_td_cc ohci_config_copy
-#define	usb2_config_td_softc ohci_softc
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_device.h>
@@ -99,7 +96,6 @@ extern struct usb2_pipe_methods ohci_device_isoc_methods;
 extern struct usb2_pipe_methods ohci_root_ctrl_methods;
 extern struct usb2_pipe_methods ohci_root_intr_methods;
 
-static usb2_config_td_command_t ohci_root_ctrl_task;
 static void ohci_root_ctrl_poll(struct ohci_softc *sc);
 static void ohci_do_poll(struct usb2_bus *bus);
 static void ohci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
@@ -2135,15 +2131,13 @@ ohci_root_ctrl_start(struct usb2_xfer *xfer)
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL, &ohci_root_ctrl_task, 0, 0);
+	usb2_bus_roothub_exec(xfer->udev->bus);
 }
 
 static void
-ohci_root_ctrl_task(struct ohci_softc *sc,
-    struct ohci_config_copy *cc, uint16_t refcount)
+ohci_root_ctrl_task(struct usb2_bus *bus)
 {
-	ohci_root_ctrl_poll(sc);
+	ohci_root_ctrl_poll(OHCI_BUS2SC(bus));
 }
 
 static void
@@ -2864,4 +2858,5 @@ struct usb2_bus_methods ohci_bus_methods =
 	.device_resume = ohci_device_resume,
 	.device_suspend = ohci_device_suspend,
 	.set_hw_power = ohci_set_hw_power,
+	.roothub_exec = ohci_root_ctrl_task,
 };

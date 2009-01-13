@@ -50,14 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/include/usb2_defs.h>
 
 #define	USB_DEBUG_VAR at91dcidebug
-#define	usb2_config_td_cc at91dci_config_copy
-#define	usb2_config_td_softc at91dci_softc
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_device.h>
@@ -106,7 +103,6 @@ static void	at91dci_standard_done(struct usb2_xfer *);
 
 static usb2_sw_transfer_func_t at91dci_root_intr_done;
 static usb2_sw_transfer_func_t at91dci_root_ctrl_done;
-static usb2_config_td_command_t at91dci_root_ctrl_task;
 
 /*
  * NOTE: Some of the bits in the CSR register have inverse meaning so
@@ -1817,15 +1813,13 @@ at91dci_root_ctrl_start(struct usb2_xfer *xfer)
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_config_td_queue_command(
-	    &sc->sc_config_td, NULL, &at91dci_root_ctrl_task, 0, 0);
+	usb2_bus_roothub_exec(xfer->udev->bus);
 }
 
 static void
-at91dci_root_ctrl_task(struct at91dci_softc *sc,
-    struct at91dci_config_copy *cc, uint16_t refcount)
+at91dci_root_ctrl_task(struct usb2_bus *bus)
 {
-	at91dci_root_ctrl_poll(sc);
+	at91dci_root_ctrl_poll(AT9100_DCI_BUS2SC(bus));
 }
 
 static void
@@ -2478,4 +2472,5 @@ struct usb2_bus_methods at91dci_bus_methods =
 	.set_stall = &at91dci_set_stall,
 	.clear_stall = &at91dci_clear_stall,
 	.vbus_interrupt = &at91dci_vbus_interrupt,
+	.roothub_exec = &at91dci_root_ctrl_task,
 };

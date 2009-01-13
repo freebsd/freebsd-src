@@ -39,14 +39,11 @@
 #include <dev/usb2/include/usb2_defs.h>
 
 #define	USB_DEBUG_VAR uss820dcidebug
-#define	usb2_config_td_cc uss820dci_config_copy
-#define	usb2_config_td_softc uss820dci_softc
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_device.h>
@@ -98,7 +95,6 @@ static void	uss820dci_update_shared_1(struct uss820dci_softc *, uint8_t,
 
 static usb2_sw_transfer_func_t uss820dci_root_intr_done;
 static usb2_sw_transfer_func_t uss820dci_root_ctrl_done;
-static usb2_config_td_command_t uss820dci_root_ctrl_task;
 
 /*
  * Here is a list of what the USS820D chip can support. The main
@@ -1832,15 +1828,13 @@ uss820dci_root_ctrl_start(struct usb2_xfer *xfer)
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_config_td_queue_command(
-	    &sc->sc_config_td, NULL, &uss820dci_root_ctrl_task, 0, 0);
+	usb2_bus_roothub_exec(xfer->udev->bus);
 }
 
 static void
-uss820dci_root_ctrl_task(struct uss820dci_softc *sc,
-    struct uss820dci_config_copy *cc, uint16_t refcount)
+uss820dci_root_ctrl_task(struct usb2_bus *bus)
 {
-	uss820dci_root_ctrl_poll(sc);
+	uss820dci_root_ctrl_poll(USS820_DCI_BUS2SC(bus));
 }
 
 static void
@@ -2496,4 +2490,5 @@ struct usb2_bus_methods uss820dci_bus_methods =
 	.get_hw_ep_profile = &uss820dci_get_hw_ep_profile,
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,
+	.roothub_exec = &uss820dci_root_ctrl_task,
 };
