@@ -2908,7 +2908,6 @@ bce_dma_alloc(device_t dev)
 {
 	struct bce_softc *sc;
 	int i, error, rc = 0;
-	bus_addr_t busaddr;
 	bus_size_t max_size, max_seg_size;
 	int max_segments;
 
@@ -2977,7 +2976,7 @@ bce_dma_alloc(device_t dev)
 	    	sc->status_block,
 	    	BCE_STATUS_BLK_SZ,
 	    	bce_dma_map_addr,
-	    	&busaddr,
+	    	&sc->status_block_paddr,
 	    	BUS_DMA_NOWAIT);
 
 	if (error) {
@@ -2987,7 +2986,6 @@ bce_dma_alloc(device_t dev)
 		goto bce_dma_alloc_exit;
 	}
 
-	sc->status_block_paddr = busaddr;
 	DBPRINT(sc, BCE_INFO, "%s(): status_block_paddr = 0x%jX\n",
 		__FUNCTION__, (uintmax_t) sc->status_block_paddr);
 
@@ -3031,7 +3029,7 @@ bce_dma_alloc(device_t dev)
 	    	sc->stats_block,
 	    	BCE_STATS_BLK_SZ,
 	    	bce_dma_map_addr,
-	    	&busaddr,
+	    	&sc->stats_block_paddr,
 	    	BUS_DMA_NOWAIT);
 
 	if(error) {
@@ -3041,7 +3039,6 @@ bce_dma_alloc(device_t dev)
 		goto bce_dma_alloc_exit;
 	}
 
-	sc->stats_block_paddr = busaddr;
 	DBPRINT(sc, BCE_INFO, "%s(): stats_block_paddr = 0x%jX\n",
 		__FUNCTION__, (uintmax_t) sc->stats_block_paddr);
 
@@ -3099,7 +3096,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->ctx_block[i],
 		    	BCM_PAGE_SIZE,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->ctx_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 			if (error) {
@@ -3109,7 +3106,6 @@ bce_dma_alloc(device_t dev)
 				goto bce_dma_alloc_exit;
 			}
 
-			sc->ctx_paddr[i] = busaddr;
 			DBPRINT(sc, BCE_INFO, "%s(): ctx_paddr[%d] = 0x%jX\n",
 				__FUNCTION__, i, (uintmax_t) sc->ctx_paddr[i]);
 		}
@@ -3155,7 +3151,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->tx_bd_chain[i],
 		    	BCE_TX_CHAIN_PAGE_SZ,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->tx_bd_chain_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 		if (error) {
@@ -3165,7 +3161,6 @@ bce_dma_alloc(device_t dev)
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->tx_bd_chain_paddr[i] = busaddr;
 		DBPRINT(sc, BCE_INFO, "%s(): tx_bd_chain_paddr[%d] = 0x%jX\n",
 			__FUNCTION__, i, (uintmax_t) sc->tx_bd_chain_paddr[i]);
 	}
@@ -3253,7 +3248,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->rx_bd_chain[i],
 		    	BCE_RX_CHAIN_PAGE_SZ,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->rx_bd_chain_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 		if (error) {
@@ -3263,7 +3258,6 @@ bce_dma_alloc(device_t dev)
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->rx_bd_chain_paddr[i] = busaddr;
 		DBPRINT(sc, BCE_INFO, "%s(): rx_bd_chain_paddr[%d] = 0x%jX\n",
 			__FUNCTION__, i, (uintmax_t) sc->rx_bd_chain_paddr[i]);
 	}
@@ -3350,7 +3344,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->pg_bd_chain[i],
 		    	BCE_PG_CHAIN_PAGE_SZ,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->pg_bd_chain_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 		if (error) {
@@ -3360,7 +3354,6 @@ bce_dma_alloc(device_t dev)
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->pg_bd_chain_paddr[i] = busaddr;
 		DBPRINT(sc, BCE_INFO, "%s(): pg_bd_chain_paddr[%d] = 0x%jX\n",
 			__FUNCTION__, i, (uintmax_t) sc->pg_bd_chain_paddr[i]);
 	}
