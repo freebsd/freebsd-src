@@ -75,18 +75,6 @@ static usb2_error_t usb2_fill_iface_data(struct usb2_device *, uint8_t,
 static void	usb2_notify_addq(const char *type, struct usb2_device *);
 static void	usb2_fifo_free_wrap(struct usb2_device *, uint8_t, uint8_t);
 
-/* static structures */
-
-static const uint8_t usb2_hub_speed_combs[USB_SPEED_MAX][USB_SPEED_MAX] = {
-	/* HUB *//* subdevice */
-	[USB_SPEED_HIGH][USB_SPEED_HIGH] = 1,
-	[USB_SPEED_HIGH][USB_SPEED_FULL] = 1,
-	[USB_SPEED_HIGH][USB_SPEED_LOW] = 1,
-	[USB_SPEED_FULL][USB_SPEED_FULL] = 1,
-	[USB_SPEED_FULL][USB_SPEED_LOW] = 1,
-	[USB_SPEED_LOW][USB_SPEED_LOW] = 1,
-};
-
 /* This variable is global to allow easy access to it: */
 
 int	usb2_template = 0;
@@ -1364,21 +1352,10 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->speed = speed;
 	udev->flags.usb2_mode = usb2_mode;
 
-	/* check speed combination */
+	/* speed combination should be checked by the parent HUB */
 
 	hub = udev->parent_hub;
-	if (hub) {
-		if (usb2_hub_speed_combs[hub->speed][speed] == 0) {
-#if USB_DEBUG
-			printf("%s: the selected subdevice and HUB speed "
-			    "combination is not supported %d/%d.\n",
-			    __FUNCTION__, speed, hub->speed);
-#endif
-			/* reject this combination */
-			err = USB_ERR_INVAL;
-			goto done;
-		}
-	}
+
 	/* search for our High Speed USB HUB, if any */
 
 	adev = udev;
