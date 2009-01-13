@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090110_0123"
+#define HDA_DRV_TEST_REV	"20090113_0124"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -6111,6 +6111,29 @@ hdac_audio_prepare_pin_ctrl(struct hdac_devinfo *devinfo)
 }
 
 static void
+hdac_audio_ctl_commit(struct hdac_devinfo *devinfo)
+{
+	struct hdac_audio_ctl *ctl;
+	int i, z;
+
+	i = 0;
+	while ((ctl = hdac_audio_ctl_each(devinfo, &i)) != NULL) {
+		if (ctl->enable == 0 || ctl->ossmask != 0) {
+			/* Mute disabled and mixer controllable controls.
+			 * Last will be initialized by mixer_init().
+			 * This expected to reduce click on startup. */
+			hdac_audio_ctl_amp_set(ctl, HDA_AMP_MUTE_ALL, 0, 0);
+			continue;
+		}
+		/* Init fixed controls to 0dB amplification. */
+		z = ctl->offset;
+		if (z > ctl->step)
+			z = ctl->step;
+		hdac_audio_ctl_amp_set(ctl, HDA_AMP_MUTE_NONE, z, z);
+	}
+}
+
+static void
 hdac_audio_commit(struct hdac_devinfo *devinfo)
 {
 	struct hdac_softc *sc = devinfo->codec->sc;
@@ -6126,11 +6149,41 @@ hdac_audio_commit(struct hdac_devinfo *devinfo)
 		hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
 		    0x7e7, 0), cad);
 
+	/* Commit controls. */
+	hdac_audio_ctl_commit(devinfo);
+	
+	/* Commit selectors, pins and EAPD. */
+	for (i = 0; i < devinfo->nodecnt; i++) {
+		w = &devinfo->widget[i];
+		if (w == NULL)
+			continue;
+		if (w->selconn == -1)
+			w->selconn = 0;
+		if (w->nconns > 0)
+			hdac_widget_connection_select(w, w->selconn);
+		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
+			hdac_command(sc,
+			    HDA_CMD_SET_PIN_WIDGET_CTRL(cad, w->nid,
+			    w->wclass.pin.ctrl), cad);
+		}
+		if (w->param.eapdbtl != HDAC_INVALID) {
+		    	uint32_t val;
+
+			val = w->param.eapdbtl;
+			if (devinfo->function.audio.quirks &
+			    HDA_QUIRK_EAPDINV)
+				val ^= HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
+			hdac_command(sc,
+			    HDA_CMD_SET_EAPD_BTL_ENABLE(cad, w->nid,
+			    val), cad);
+		}
+	}
+
+	/* Commit GPIOs. */
 	gdata = 0;
 	gmask = 0;
 	gdir = 0;
 	commitgpio = 0;
-
 	numgpio = HDA_PARAM_GPIO_COUNT_NUM_GPIO(
 	    devinfo->function.audio.gpio);
 
@@ -6184,54 +6237,6 @@ hdac_audio_commit(struct hdac_devinfo *devinfo)
 		hdac_command(sc,
 		    HDA_CMD_SET_GPIO_DATA(cad, devinfo->nid,
 		    gdata), cad);
-	}
-
-	for (i = 0; i < devinfo->nodecnt; i++) {
-		w = &devinfo->widget[i];
-		if (w == NULL)
-			continue;
-		if (w->selconn == -1)
-			w->selconn = 0;
-		if (w->nconns > 0)
-			hdac_widget_connection_select(w, w->selconn);
-		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
-			hdac_command(sc,
-			    HDA_CMD_SET_PIN_WIDGET_CTRL(cad, w->nid,
-			    w->wclass.pin.ctrl), cad);
-		}
-		if (w->param.eapdbtl != HDAC_INVALID) {
-		    	uint32_t val;
-
-			val = w->param.eapdbtl;
-			if (devinfo->function.audio.quirks &
-			    HDA_QUIRK_EAPDINV)
-				val ^= HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
-			hdac_command(sc,
-			    HDA_CMD_SET_EAPD_BTL_ENABLE(cad, w->nid,
-			    val), cad);
-
-		}
-	}
-}
-
-static void
-hdac_audio_ctl_commit(struct hdac_devinfo *devinfo)
-{
-	struct hdac_audio_ctl *ctl;
-	int i, z;
-
-	i = 0;
-	while ((ctl = hdac_audio_ctl_each(devinfo, &i)) != NULL) {
-		if (ctl->enable == 0) {
-			/* Mute disabled controls. */
-			hdac_audio_ctl_amp_set(ctl, HDA_AMP_MUTE_ALL, 0, 0);
-			continue;
-		}
-		/* Init controls to 0dB amplification. */
-		z = ctl->offset;
-		if (z > ctl->step)
-			z = ctl->step;
-		hdac_audio_ctl_amp_set(ctl, HDA_AMP_MUTE_NONE, z, z);
 	}
 }
 
@@ -7477,10 +7482,6 @@ hdac_attach2(void *arg)
 		    	);
 			hdac_audio_commit(devinfo);
 		    	HDA_BOOTHVERBOSE(
-				device_printf(sc->dev, "Ctls commit...\n");
-			);
-			hdac_audio_ctl_commit(devinfo);
-		    	HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "HP switch init...\n");
 			);
 			hdac_hp_switch_init(devinfo);
@@ -7729,10 +7730,6 @@ hdac_resume(device_t dev)
 				device_printf(dev, "AFG commit...\n");
 		    	);
 			hdac_audio_commit(devinfo);
-		    	HDA_BOOTHVERBOSE(
-				device_printf(dev, "Ctls commit...\n");
-			);
-			hdac_audio_ctl_commit(devinfo);
 		    	HDA_BOOTHVERBOSE(
 				device_printf(dev, "HP switch init...\n");
 			);
