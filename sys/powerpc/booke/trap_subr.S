@@ -127,7 +127,7 @@
 	bf	17, 1f;							\
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
 	lwz	%r1, PC_CURPCB(%r1); 	/* Per-thread kernel stack */	\
-1:	
+1:
 
 #define	STANDARD_CRIT_PROLOG(sprg_sp, savearea, isrr0, isrr1)		\
 	mtspr	sprg_sp, %r1;		/* Save SP */			\
@@ -213,7 +213,6 @@
 	stw	%r30, FRAME_SRR0+8(1);					\
 	stw	%r31, FRAME_SRR1+8(1)
 
-
 /*
  *
  * isrr0-1 - save restore registers to restore CPU state to (may be
@@ -250,7 +249,7 @@
  *
  * Notes:
  *  - potential TLB miss: NO. It is crucial that we do not generate a TLB
- *    miss withing the TLB prolog itself!
+ *    miss within the TLB prolog itself!
  *  - TLBSAVE is always translated
  */
 #define TLB_PROLOG							\
@@ -334,9 +333,9 @@
 	.align 5
 interrupt_vector_base:
 
-/****************************************
+/*****************************************************************************
  * Critical input interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_critical_input)
 	STANDARD_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_CRIT)
@@ -346,9 +345,9 @@ INTERRUPT(int_critical_input)
 	rfci
 
 
-/****************************************
+/*****************************************************************************
  * Machine check interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_machine_check)
 	STANDARD_PROLOG(SPR_SPRG3, PC_BOOKE_MCHKSAVE, SPR_MCSRR0, SPR_MCSRR1)
 	FRAME_SETUP(SPR_SPRG3, PC_BOOKE_MCHKSAVE, EXC_MCHK)
@@ -358,27 +357,27 @@ INTERRUPT(int_machine_check)
 	rfmci
 
 
-/****************************************
+/*****************************************************************************
  * Data storage interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_data_storage)
 	STANDARD_PROLOG(SPR_SPRG1, PC_DISISAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_DISISAVE, EXC_DSI)
 	b	trap_common
 
 
-/****************************************
+/*****************************************************************************
  * Instruction storage interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_instr_storage)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_ISI)
 	b	trap_common
 
 
-/****************************************
+/*****************************************************************************
  * External input interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_external_input)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_EXI)
@@ -398,18 +397,18 @@ INTERRUPT(int_program)
 	b	trap_common
 
 
-/****************************************
+/*****************************************************************************
  * System call
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_syscall)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_SC)
 	b	trap_common
 
 
-/****************************************
+/*****************************************************************************
  * Decrementer interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_decrementer)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_DECR)
@@ -418,36 +417,34 @@ INTERRUPT(int_decrementer)
 	b	trapexit
 
 
-/****************************************
+/*****************************************************************************
  * Fixed interval timer
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_fixed_interval_timer)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_FIT)
 	b	trap_common
 
 
-/****************************************
+/*****************************************************************************
  * Watchdog interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_watchdog)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_WDOG)
 	b	trap_common
 
 
-/****************************************
+/*****************************************************************************
  * Data TLB miss interrupt
  *
- * There can be nested TLB misses - while
- * handling a TLB miss we dereference data
- * structures that may be not covered by
- * translations. We support up to
+ * There can be nested TLB misses - while handling a TLB miss we reference
+ * data structures that may be not covered by translations. We support up to
  * TLB_NESTED_MAX-1 nested misses.
  * 
  * Registers use:
  *	r31 - dear
- *	r30 - tlb0 entry address
+ *	r30 - unused
  *	r29 - saved mas0
  *	r28 - saved mas1
  *	r27 - saved mas2
@@ -455,7 +452,7 @@ INTERRUPT(int_watchdog)
  *	r25 - pte address
  *
  *	r20:r23 - scratch registers
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_data_tlb_error)
 	TLB_PROLOG
 
@@ -554,8 +551,11 @@ pte_lookup:
 
 	addi	%r25, %r26, PM_PDIR	/* pmap pm_dir[] address */
 	add	%r25, %r25, %r21	/* offset within pm_pdir[] table */
-	lwz	%r25, 0(%r25)		/* get ptbl address, i.e. pmap->pm_pdir[pdir_idx] */
-	
+	/*
+	 * Get ptbl address, i.e. pmap->pm_pdir[pdir_idx]
+	 * This load may cause a Data TLB miss for non-kernel pmap!
+	 */
+	lwz	%r25, 0(%r25)
 	cmpwi	%r25, 0
 	beq	2f
 
@@ -567,7 +567,11 @@ pte_lookup:
 	srwi	%r21, %r21, (PTBL_SHIFT - PTBL_ENTRY_SHIFT)
 
 	add	%r25, %r25, %r21		/* address of pte entry */
-	lwz	%r21, PTE_FLAGS(%r25)		/* get pte->flags */
+	/*
+	 * Get pte->flags
+	 * This load may cause a Data TLB miss for non-kernel pmap!
+	 */
+	lwz	%r21, PTE_FLAGS(%r25)
 	andis.	%r21, %r21, PTE_VALID@h
 	bne	2f
 1:
@@ -631,12 +635,11 @@ tlb_fill_entry:
 	msync
 	blr
 
-/****************************************
+/*****************************************************************************
  * Instruction TLB miss interrupt
  *
  * Same notes as for the Data TLB miss
- *
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_inst_tlb_error)
 	TLB_PROLOG
 
@@ -661,9 +664,9 @@ INTERRUPT(int_inst_tlb_error)
 	.globl	interrupt_vector_top
 interrupt_vector_top:
 
-/****************************************
+/*****************************************************************************
  * Debug interrupt
- ****************************************/
+ ****************************************************************************/
 INTERRUPT(int_debug)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
@@ -678,7 +681,7 @@ INTERRUPT(int_debug)
 	bge	1f
 	/* Disable single-stepping for the interrupt handlers. */
 	lwz	%r3, FRAME_SRR1+8(%r1);
-	rlwinm	%r3,%r3,0,23,21
+	rlwinm	%r3, %r3, 0, 23, 21
 	stw	%r3, FRAME_SRR1+8(%r1);
 	/* Restore srr0 and srr1 as they could have been clobbered. */
 	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0+8)(%r2);
@@ -699,9 +702,9 @@ INTERRUPT(int_debug)
 	rfci
 
 
-/********************************
+/*****************************************************************************
  * Common trap code
- ********************************/
+ ****************************************************************************/
 trap_common:
 	/* Call C trap dispatcher */
 	addi	%r3, %r1, 8
@@ -720,8 +723,8 @@ CNAME(trapexit):
 	GET_CPUINFO(%r3)
 	lwz	%r4, PC_CURTHREAD(%r3)
 	lwz	%r4, TD_FLAGS(%r4)
-	lis	%r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@h
-	ori	%r5, %r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@l
+	lis	%r5, (TDF_ASTPENDING | TDF_NEEDRESCHED)@h
+	ori	%r5, %r5, (TDF_ASTPENDING | TDF_NEEDRESCHED)@l
 	and.	%r4, %r4, %r5
 	beq	1f
 
@@ -747,12 +750,12 @@ CNAME(breakpoint):
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
-	andi.	%r3,%r3,~(PSL_EE|PSL_ME)@l
+	andi.	%r3, %r3, ~(PSL_EE | PSL_ME)@l
 	mtmsr	%r3			/* disable interrupts */
 	isync
 	GET_CPUINFO(%r3)
-	stw	%r30,(PC_DBSAVE+CPUSAVE_R30)(%r3)
-	stw	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r3)
+	stw	%r30, (PC_DBSAVE+CPUSAVE_R30)(%r3)
+	stw	%r31, (PC_DBSAVE+CPUSAVE_R31)(%r3)
 
 	mflr	%r31
 	mtsrr0	%r31
@@ -776,9 +779,9 @@ CNAME(breakpoint):
 dbtrap:
 	FRAME_SETUP(SPR_SPRG1, PC_DBSAVE, EXC_DEBUG)
 /* Call C trap code: */
-	addi	%r3,%r1,8
+	addi	%r3, %r1, 8
 	bl	CNAME(db_trap_glue)
-	or.	%r3,%r3,%r3
+	or.	%r3, %r3, %r3
 	bne	dbleave
 /* This wasn't for KDB, so switch to real trap: */
 	b	trap_common
