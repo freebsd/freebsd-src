@@ -240,5 +240,6 @@ void	at91dci_uninit(struct at91dci_softc *sc);
 void	at91dci_suspend(struct at91dci_softc *sc);
 void	at91dci_resume(struct at91dci_softc *sc);
 void	at91dci_interrupt(struct at91dci_softc *sc);
+void	at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on);
 
 #endif					/* _AT9100_DCI_H_ */

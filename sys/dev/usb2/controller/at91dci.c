@@ -729,11 +729,9 @@ repeat:
 	}
 }
 
-static void
-at91dci_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
+void
+at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 {
-	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(bus);
-
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
 	USB_BUS_LOCK(&sc->sc_bus);
@@ -760,7 +758,6 @@ at91dci_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
 			    &at91dci_root_intr_done);
 		}
 	}
-
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -2466,6 +2463,5 @@ struct usb2_bus_methods at91dci_bus_methods =
 	.get_hw_ep_profile = &at91dci_get_hw_ep_profile,
 	.set_stall = &at91dci_set_stall,
 	.clear_stall = &at91dci_clear_stall,
-	.vbus_interrupt = &at91dci_vbus_interrupt,
 	.roothub_exec = &at91dci_root_ctrl_task,
 };
