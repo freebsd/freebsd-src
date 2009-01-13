@@ -86,7 +86,7 @@ usb2_handle_request_callback(struct usb2_xfer *xfer)
 
 			if (err == USB_ERR_BAD_CONTEXT) {
 				/* we need to re-setup the control transfer */
-				usb2_needs_explore(xfer->udev->bus, 0);
+				usb2_needs_explore(xfer->xroot->bus, 0);
 				break;
 			}
 			/*
@@ -126,6 +126,7 @@ tr_restart:
 static usb2_error_t
 usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no)
 {
+	struct usb2_device *udev = xfer->xroot->udev;
 	usb2_error_t err = 0;
 
 	/*
@@ -134,7 +135,7 @@ usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no)
 	 */
 	USB_XFER_UNLOCK(xfer);
 	mtx_lock(&Giant);		/* XXX */
-	sx_xlock(xfer->udev->default_sx + 1);
+	sx_xlock(udev->default_sx + 1);
 
 	if (conf_no == USB_UNCONFIG_NO) {
 		conf_no = USB_UNCONFIG_INDEX;
@@ -146,19 +147,19 @@ usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no)
 		conf_no--;
 	}
 
-	if (usb2_set_config_index(xfer->udev, conf_no)) {
+	if (usb2_set_config_index(udev, conf_no)) {
 		DPRINTF("set config %d failed\n", conf_no);
 		err = USB_ERR_STALLED;
 		goto done;
 	}
-	if (usb2_probe_and_attach(xfer->udev, USB_IFACE_INDEX_ANY)) {
+	if (usb2_probe_and_attach(udev, USB_IFACE_INDEX_ANY)) {
 		DPRINTF("probe and attach failed\n");
 		err = USB_ERR_STALLED;
 		goto done;
 	}
 done:
 	mtx_unlock(&Giant);		/* XXX */
-	sx_unlock(xfer->udev->default_sx + 1);
+	sx_unlock(udev->default_sx + 1);
 	USB_XFER_LOCK(xfer);
 	return (err);
 }
@@ -177,7 +178,7 @@ usb2_handle_iface_request(struct usb2_xfer *xfer,
 {
 	struct usb2_interface *iface;
 	struct usb2_interface *iface_parent;	/* parent interface */
-	struct usb2_device *udev = xfer->udev;
+	struct usb2_device *udev = xfer->xroot->udev;
 	int error;
 	uint8_t iface_index;
 
@@ -332,11 +333,12 @@ tr_stalled:
 static usb2_error_t
 usb2_handle_set_stall(struct usb2_xfer *xfer, uint8_t ep, uint8_t do_stall)
 {
+	struct usb2_device *udev = xfer->xroot->udev;
 	usb2_error_t err;
 
 	USB_XFER_UNLOCK(xfer);
-	err = usb2_set_endpoint_stall(xfer->udev,
-	    usb2_get_pipe_by_addr(xfer->udev, ep), do_stall);
+	err = usb2_set_endpoint_stall(udev,
+	    usb2_get_pipe_by_addr(udev, ep), do_stall);
 	USB_XFER_LOCK(xfer);
 	return (err);
 }
@@ -379,7 +381,7 @@ usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on)
 	struct usb2_device *udev;
 	struct usb2_bus *bus;
 
-	udev = xfer->udev;
+	udev = xfer->xroot->udev;
 	bus = udev->bus;
 
 	USB_BUS_LOCK(bus);
@@ -479,7 +481,7 @@ usb2_handle_request(struct usb2_xfer *xfer)
 	max_len = 0;
 	src_zcopy = NULL;
 	src_mcopy = NULL;
-	udev = xfer->udev;
+	udev = xfer->xroot->udev;
 
 	/* get some request fields decoded */
 

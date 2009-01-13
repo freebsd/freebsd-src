@@ -72,7 +72,7 @@ usb2_sw_transfer(struct usb2_sw_transfer *std,
 		DPRINTF("xfer gone\n");
 		return;
 	}
-	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	std->xfer = NULL;
 

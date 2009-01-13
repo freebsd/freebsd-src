@@ -157,12 +157,16 @@ ugen_open(struct usb2_fifo *f, int fflags, struct thread *td)
 	DPRINTFN(6, "flag=0x%x\n", fflags);
 
 	mtx_lock(f->priv_mtx);
-	if (usb2_get_speed(f->udev) == USB_SPEED_HIGH) {
-		f->nframes = UGEN_HW_FRAMES * 8;
-		f->bufsize = UGEN_BULK_HS_BUFFER_SIZE;
-	} else {
+	switch (usb2_get_speed(f->udev)) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
 		f->nframes = UGEN_HW_FRAMES;
 		f->bufsize = UGEN_BULK_FS_BUFFER_SIZE;
+		break;
+	default:
+		f->nframes = UGEN_HW_FRAMES * 8;
+		f->bufsize = UGEN_BULK_HS_BUFFER_SIZE;
+		break;
 	}
 
 	type = ed->bmAttributes & UE_XFERTYPE;
@@ -1688,22 +1692,31 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 {
 	struct usb2_device *udev = f->udev;
 	int err;
+	uint8_t old_mode;
 
 	if ((udev == NULL) ||
 	    (udev->parent_hub == NULL)) {
 		return (EINVAL);
 	}
 	err = priv_check(curthread, PRIV_ROOT);
-	if (err) {
+	if (err)
 		return (err);
-	}
+
+	/* get old power mode */
+	old_mode = udev->power_mode;
+
+	/* if no change, then just return */
+	if (old_mode == mode)
+		return (0);
+
 	switch (mode) {
 	case USB_POWER_MODE_OFF:
-		/* clear suspend */
-		err = usb2_req_clear_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_SUSPEND);
-		if (err)
-			break;
+		/* get the device unconfigured */
+		err = ugen_set_config(f, USB_UNCONFIG_INDEX);
+		if (err) {
+			DPRINTFN(0, "Could not unconfigure "
+			    "device (ignored)\n");
+		}
 
 		/* clear port enable */
 		err = usb2_req_clear_port_feature(udev->parent_hub,
@@ -1732,6 +1745,13 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 
 	if (err)
 		return (ENXIO);		/* I/O failure */
+
+	/* if we are powered off we need to re-enumerate first */
+	if (old_mode == USB_POWER_MODE_OFF) {
+		err = ugen_re_enumerate(f);
+		if (err)
+			return (err);
+	}
 
 	/* set new power mode */
 	usb2_set_power_mode(udev, mode);

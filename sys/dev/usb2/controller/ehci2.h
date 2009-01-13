@@ -38,6 +38,8 @@
 #ifndef _EHCI_H_
 #define	_EHCI_H_
 
+#define	EHCI_MAX_DEVICES USB_MAX_DEVICES
+
 /* PCI config registers */
 #define	PCI_CBMEM		0x10	/* configuration base MEM */
 #define	PCI_INTERFACE_EHCI	0x20
@@ -453,12 +455,12 @@ union ehci_hub_desc {
 typedef struct ehci_softc {
 	struct ehci_hw_softc sc_hw;
 	struct usb2_bus sc_bus;		/* base device */
-	struct usb2_config_td sc_config_td;
 	struct usb2_callout sc_tmo_pcd;
 	union ehci_hub_desc sc_hub_desc;
 	struct usb2_sw_transfer sc_root_ctrl;
 	struct usb2_sw_transfer sc_root_intr;
 
+	struct usb2_device *sc_devices[EHCI_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	struct ehci_qh *sc_async_p_last;

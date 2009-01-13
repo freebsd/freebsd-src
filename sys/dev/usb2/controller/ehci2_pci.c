@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_util.h>
 
@@ -232,12 +231,15 @@ ehci_pci_attach(device_t self)
 		device_printf(self, "Could not allocate sc\n");
 		return (ENXIO);
 	}
-	/* get all DMA memory */
-
+	/* initialise some bus fields */
 	sc->sc_bus.parent = self;
+	sc->sc_bus.devices = sc->sc_devices;
+	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
-		return ENOMEM;
+		return (ENOMEM);
 	}
 	sc->sc_dev = self;
 
@@ -259,8 +261,10 @@ ehci_pci_attach(device_t self)
 		sc->sc_bus.usbrev = USB_REV_2_0;
 		break;
 	default:
-		sc->sc_bus.usbrev = USB_REV_UNKNOWN;
-		break;
+		/* Quirk for Parallels Desktop 4.0 */
+		device_printf(self, "USB revision is unknown. Assuming v2.0.\n");
+		sc->sc_bus.usbrev = USB_REV_2_0;
+                break;
 	}
 
 	rid = PCI_CBMEM;
@@ -338,12 +342,6 @@ ehci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "(0x%04x)", pci_get_vendor(self));
 	}
 
-	err = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_bus.bus_mtx,
-	    NULL, 0, 4);
-	if (err) {
-		device_printf(self, "could not setup config thread!\n");
-		goto error;
-	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (void *)(void *)ehci_interrupt, sc, &sc->sc_intr_hdl);
@@ -377,8 +375,6 @@ ehci_pci_detach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	device_t bdev;
-
-	usb2_config_td_drain(&sc->sc_config_td);
 
 	if (sc->sc_bus.bdev) {
 		bdev = sc->sc_bus.bdev;
@@ -419,8 +415,6 @@ ehci_pci_detach(device_t self)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_config_td_unsetup(&sc->sc_config_td);
-
 	usb2_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
 	return (0);

@@ -490,6 +490,7 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 
+	pcpu->pc_tid_next = TID_MIN;
 }
 
 /* Set set up registers on exec. */

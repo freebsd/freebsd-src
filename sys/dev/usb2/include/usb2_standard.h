@@ -602,12 +602,12 @@ struct usb2_port_status {
 #define	UPS_SUSPEND			0x0004
 #define	UPS_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_RESET			0x0010
-#define	UPS_PORT_MODE_DEVICE		0x0020	/* currently FreeBSD specific */
 #define	UPS_PORT_POWER			0x0100
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
 #define	UPS_PORT_TEST			0x0800
 #define	UPS_PORT_INDICATOR		0x1000
+#define	UPS_PORT_MODE_DEVICE		0x8000	/* currently FreeBSD specific */
 	uWord	wPortChange;
 #define	UPS_C_CONNECT_STATUS		0x0001
 #define	UPS_C_PORT_ENABLED		0x0002

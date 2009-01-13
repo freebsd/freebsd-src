@@ -80,7 +80,7 @@ usb2_do_request_callback(struct usb2_xfer *xfer)
 		usb2_start_hardware(xfer);
 		break;
 	default:
-		usb2_cv_signal(xfer->udev->default_cv);
+		usb2_cv_signal(xfer->xroot->udev->default_cv);
 		break;
 	}
 }
@@ -94,18 +94,21 @@ void
 usb2_do_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct usb2_device_request req;
+	struct usb2_device *udev;
 	struct usb2_pipe *pipe;
 	struct usb2_pipe *pipe_end;
 	struct usb2_pipe *pipe_first;
 	uint8_t to = USB_EP_MAX;
 
-	USB_BUS_LOCK(xfer->udev->bus);
+	udev = xfer->xroot->udev;
+
+	USB_BUS_LOCK(udev->bus);
 
 	/* round robin pipe clear stall */
 
-	pipe = xfer->udev->pipe_curr;
-	pipe_end = xfer->udev->pipes + USB_EP_MAX;
-	pipe_first = xfer->udev->pipes;
+	pipe = udev->pipe_curr;
+	pipe_end = udev->pipes + USB_EP_MAX;
+	pipe_first = udev->pipes;
 	if (pipe == NULL) {
 		pipe = pipe_first;
 	}
@@ -145,11 +148,11 @@ tr_setup:
 			/* set length */
 			xfer->frlengths[0] = sizeof(req);
 			xfer->nframes = 1;
-			USB_BUS_UNLOCK(xfer->udev->bus);
+			USB_BUS_UNLOCK(udev->bus);
 
 			usb2_start_hardware(xfer);
 
-			USB_BUS_LOCK(xfer->udev->bus);
+			USB_BUS_LOCK(udev->bus);
 			break;
 		}
 		pipe++;
@@ -165,8 +168,8 @@ tr_setup:
 	}
 
 	/* store current pipe */
-	xfer->udev->pipe_curr = pipe;
-	USB_BUS_UNLOCK(xfer->udev->bus);
+	udev->pipe_curr = pipe;
+	USB_BUS_UNLOCK(udev->bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -367,7 +370,8 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 					}
 					if (temp > 0) {
 						usb2_pause_mtx(
-						    xfer->xfer_mtx, temp);
+						    xfer->xroot->xfer_mtx,
+						    temp);
 					}
 #endif
 					xfer->flags.manual_status = 0;
@@ -384,8 +388,8 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 			if ((flags & USB_USE_POLLING) || cold) {
 				usb2_do_poll(udev->default_xfer, USB_DEFAULT_XFER_MAX);
 			} else {
-				usb2_cv_wait(xfer->udev->default_cv,
-				    xfer->xfer_mtx);
+				usb2_cv_wait(udev->default_cv,
+				    xfer->xroot->xfer_mtx);
 			}
 		}
 

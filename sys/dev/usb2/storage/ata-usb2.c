@@ -773,11 +773,12 @@ atausb2_t_bbb_status_callback(struct usb2_xfer *xfer)
 
 		sc->ata_request = NULL;
 
-		USB_XFER_UNLOCK(xfer);
+		/* drop the USB transfer lock while doing the ATA interrupt */
+		mtx_unlock(&sc->locked_mtx);
 
 		ata_interrupt(device_get_softc(request->parent));
 
-		USB_XFER_LOCK(xfer);
+		mtx_lock(&sc->locked_mtx);
 		return;
 
 	case USB_ST_SETUP:

@@ -31,6 +31,8 @@
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
 #include <dev/usb2/core/usb2_device.h>
+#include <dev/usb2/core/usb2_busdma.h>
+#include <dev/usb2/core/usb2_transfer.h>
 
 /*
  * Define this unconditionally in case a kernel module is loaded that
@@ -128,6 +130,7 @@ usb2_dump_pipe(struct usb2_pipe *pipe)
 void
 usb2_dump_xfer(struct usb2_xfer *xfer)
 {
+	struct usb2_device *udev;
 	printf("usb2_dump_xfer: xfer=%p\n", xfer);
 	if (xfer == NULL) {
 		return;
@@ -137,12 +140,13 @@ usb2_dump_xfer(struct usb2_xfer *xfer)
 		    xfer);
 		return;
 	}
+	udev = xfer->xroot->udev;
 	printf("xfer %p: udev=%p vid=0x%04x pid=0x%04x addr=%d "
 	    "pipe=%p ep=0x%02x attr=0x%02x\n",
-	    xfer, xfer->udev,
-	    UGETW(xfer->udev->ddesc.idVendor),
-	    UGETW(xfer->udev->ddesc.idProduct),
-	    xfer->udev->address, xfer->pipe,
+	    xfer, udev,
+	    UGETW(udev->ddesc.idVendor),
+	    UGETW(udev->ddesc.idProduct),
+	    udev->address, xfer->pipe,
 	    xfer->pipe->edesc->bEndpointAddress,
 	    xfer->pipe->edesc->bmAttributes);
 }

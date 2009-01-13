@@ -672,6 +672,86 @@ class Sched_exit(StateEvent):
 
 configtypes.append(Sched_exit)
 
+# Events for running callout routines
+
+class CalloutIdle(StateEvent):
+	name = "callwheel idle"
+	color = "grey"
+	enabled = 0
+	def __init__(self, wheel, cpu, timestamp):
+		StateEvent.__init__(self, wheel, cpu, timestamp)
+
+configtypes.append(CalloutIdle)
+
+class CalloutRunning(StateEvent):
+	name = "callout running"
+	color = "green"
+	enabled = 1
+	def __init__(self, wheel, cpu, timestamp, func, arg):
+		StateEvent.__init__(self, wheel, cpu, timestamp)
+		self.textadd(("function:", func, 0))
+		self.textadd(("argument:", arg, 0))
+		self.arg = arg
+		self.func = func
+
+	def stattxt(self):
+		statstr = StateEvent.stattxt(self)
+		statstr += " executing %s(%s)" % (self.func, self.arg)
+		return (statstr)
+
+configtypes.append(CalloutRunning)
+
+# Events on locks
+#
+# XXX: No support for upgrade/downgrade currently or differentiating
+# between read/write in general.
+#
+# XXX: Point events for recursion perhaps?
+
+class LockAcquire(StateEvent):
+	name = "lock acquire"
+	color = "blue"
+	enabled = 1
+	def __init__(self, lock, cpu, timestamp, file, line):
+		StateEvent.__init__(self, lock, cpu, timestamp)
+		self.textadd(("file:", file, 0))
+		self.textadd(("line:", line, 0))
+
+configtypes.append(LockAcquire)
+
+class LockContest(StateEvent):
+	name = "lock contest"
+	color = "purple"
+	enabled = 1
+	def __init__(self, lock, cpu, timestamp, file, line):
+		StateEvent.__init__(self, lock, cpu, timestamp)
+		self.textadd(("file:", file, 0))
+		self.textadd(("line:", line, 0))
+
+configtypes.append(LockContest)
+
+class LockFailedTry(PointEvent):
+	name = "failed lock try"
+	color = "red"
+	enabled = 1
+	def __init__(self, lock, cpu, timestamp, file, line):
+		PointEvent.__init__(self, lock, cpu, timestamp)
+		self.textadd(("file:", file, 0))
+		self.textadd(("line:", line, 0))
+
+configtypes.append(LockFailedTry)
+
+class LockRelease(StateEvent):
+	name = "lock release"
+	color = "grey"
+	enabled = 0
+	def __init__(self, lock, cpu, timestamp, file, line):
+		StateEvent.__init__(self, lock, cpu, timestamp)
+		self.textadd(("file:", file, 0))
+		self.textadd(("line:", line, 0))
+
+configtypes.append(LockRelease)
+
 class Padevent(StateEvent):
 	def __init__(self, thread, cpu, timestamp, last=0):
 		StateEvent.__init__(self, thread, cpu, timestamp, last)
@@ -739,24 +819,36 @@ class Wokeup(PointEvent):
 
 configtypes.append(Wokeup)
 
+(DEFAULT, LOAD, COUNT, CALLWHEEL, LOCK, THREAD) = range(6)
+
 class EventSource:
-	def __init__(self, name):
+	def __init__(self, name, group=DEFAULT, order=0):
 		self.name = name
 		self.events = []
 		self.cpu = 0
 		self.cpux = 0
+		self.group = group
+		self.order = order
 
+	def __cmp__(self, other):
+		if (self.group == other.group):
+			return cmp(self.order, other.order)
+		return cmp(self.group, other.group)
+
+	# It is much faster to append items to a list then to insert them
+	# at the beginning.  As a result, we add events in reverse order
+	# and then swap the list during fixup.
 	def fixup(self):
-		pass
+		self.events.reverse()
 
 	def event(self, event):
-		self.events.insert(0, event)
+		self.events.append(event)
 
 	def remove(self, event):
 		self.events.remove(event)
 
 	def lastevent(self, event):
-		self.events.append(event)
+		self.events.insert(0, event)
 
 	def draw(self, canvas, ypos):
 		xpos = 10
@@ -819,7 +911,7 @@ class EventSource:
 class Thread(EventSource):
 	names = {}
 	def __init__(self, td, pcomm):
-		EventSource.__init__(self, pcomm)
+		EventSource.__init__(self, pcomm, THREAD)
 		self.str = td
 		try:
 			cnt = Thread.names[pcomm]
@@ -829,6 +921,7 @@ class Thread(EventSource):
 		Thread.names[pcomm] = cnt + 1
 
 	def fixup(self):
+		EventSource.fixup(self)
 		cnt = Thread.names[self.name]
 		if (cnt == 0):
 			return
@@ -839,10 +932,33 @@ class Thread(EventSource):
 	def ysize(self):
 		return (10)
 
+class Callwheel(EventSource):
+	count = 0
+	def __init__(self, cpu):
+		EventSource.__init__(self, "Callwheel", CALLWHEEL, cpu)
+		self.wheel = cpu
+		Callwheel.count += 1
+
+	def fixup(self):
+		EventSource.fixup(self)
+		if (Callwheel.count == 1):
+			return
+		self.name += " (CPU %d)" % (self.wheel)
+
+	def ysize(self):
+		return (10)
+
+class Lock(EventSource):
+	def __init__(self, lock):
+		EventSource.__init__(self, lock, LOCK)
+
+	def ysize(self):
+		return (10)
+
 class Counter(EventSource):
 	max = 0
 	def __init__(self, name):
-		EventSource.__init__(self, name)
+		EventSource.__init__(self, name, COUNT)
 
 	def event(self, event):
 		EventSource.event(self, event)
@@ -863,6 +979,11 @@ class Counter(EventSource):
 	def yscale(self):
 		return (self.ysize() / Counter.max)
 
+class CPULoad(Counter):
+	def __init__(self, cpu):
+		Counter.__init__(self, "cpu" + str(cpu) + " load")
+		self.group = LOAD
+		self.order = cpu
 
 class KTRFile:
 	def __init__(self, file):
@@ -870,6 +991,8 @@ class KTRFile:
 		self.timestamp_l = None
 		self.threads = []
 		self.sources = []
+		self.locks = {}
+		self.callwheels = {}
 		self.ticks = {}
 		self.load = {}
 		self.crit = {}
@@ -941,6 +1064,46 @@ class KTRFile:
 		ktrstr = "critical_\S+ by thread " + crittdname + " to (\d+)"
 		critsec_re = re.compile(ktrhdr + ktrstr)
 
+		ktrstr = "callout 0x[a-f\d]+ "
+		ktrstr += "func (0x[a-f\d]+) arg (0x[a-f\d]+)"
+		callout_start_re = re.compile(ktrhdr + ktrstr)
+
+		ktrstr = "callout mpsafe 0x[a-f\d]+ "
+		ktrstr += "func (0x[a-f\d]+) arg (0x[a-f\d]+)"
+		callout_mpsafe_re = re.compile(ktrhdr + ktrstr)
+
+		ktrstr = "callout mtx 0x[a-f\d]+ "
+		ktrstr += "func (0x[a-f\d]+) arg (0x[a-f\d]+)"
+		callout_mtx_re = re.compile(ktrhdr + ktrstr)
+		
+		ktrstr = "callout 0x[a-f\d]+ finished"
+		callout_stop_re = re.compile(ktrhdr + ktrstr)
+
+		ktrstr = "TRY_([RSWX]?LOCK) \(.*\) (.*) r = ([0-9]+)"
+		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
+		lock_try_re = re.compile(ktrhdr + ktrstr)
+
+		ktrstr = "([RSWX]?UNLOCK) \(.*\) (.*) r = ([0-9]+)"
+		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
+		lock_release_re = re.compile(ktrhdr + ktrstr)
+
+		ktrstr = "([RSWX]?LOCK) \(.*\) (.*) r = ([0-9]+)"
+		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
+		lock_acquire_re = re.compile(ktrhdr + ktrstr)
+
+		ktrstr = "_mtx_lock_sleep: (.*) contested \(lock=0x?[0-9a-f]*\)"
+		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
+		mtx_contested_re = re.compile(ktrhdr + ktrstr)
+
+		# XXX: Spin lock traces don't have lock name or file/line
+
+		ktrstr = "_rw_wlock_hard: (.*) contested \(lock=0x?[0-9a-f]*\)"
+		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
+		rw_contested_re = re.compile(ktrhdr + ktrstr)
+
+		# XXX: Read lock traces for rwlocks contesting don't have
+		# lock name or file/line		
+		
 		parsers = [[cpuload_re, self.cpuload],
 			   [cpuload2_re, self.cpuload2],
 			   [loadglobal_re, self.loadglobal],
@@ -955,6 +1118,15 @@ class KTRFile:
 			   [sched_exit_re, self.sched_exit],
 			   [sched_clock_re, self.sched_clock],
 			   [critsec_re, self.critsec],
+			   [callout_start_re, self.callout_start],
+			   [callout_mpsafe_re, self.callout_start],
+			   [callout_mtx_re, self.callout_start],
+			   [callout_stop_re, self.callout_stop],
+			   [lock_try_re, self.lock_try],
+			   [lock_release_re, self.lock_release],
+			   [lock_acquire_re, self.lock_acquire],
+			   [mtx_contested_re, self.lock_contest],
+			   [rw_contested_re, self.lock_contest],
 			   [idled_re, self.idled]]
 
 		global lineno
@@ -1100,9 +1272,9 @@ class KTRFile:
 		try:
 			load = self.load[cpu]
 		except:
-			load = Counter("cpu" + str(cpu) + " load")
+			load = CPULoad(cpu)
 			self.load[cpu] = load
-			self.sources.insert(0, load)
+			self.sources.append(load)
 		Count(load, cpu, timestamp, count)
 
 	def cpuload2(self, cpu, timestamp, ncpu, count):
@@ -1113,9 +1285,9 @@ class KTRFile:
 		try:
 			load = self.load[cpu]
 		except:
-			load = Counter("cpu" + str(cpu) + " load")
+			load = CPULoad(cpu)
 			self.load[cpu] = load
-			self.sources.insert(0, load)
+			self.sources.append(load)
 		Count(load, cpu, timestamp, count)
 
 	def loadglobal(self, cpu, timestamp, count):
@@ -1128,7 +1300,7 @@ class KTRFile:
 		except:
 			load = Counter("CPU load")
 			self.load[cpu] = load
-			self.sources.insert(0, load)
+			self.sources.append(load)
 		Count(load, cpu, timestamp, count)
 
 	def critsec(self, cpu, timestamp, td, pcomm, to):
@@ -1141,8 +1313,76 @@ class KTRFile:
 		except:
 			crit = Counter("Critical Section")
 			self.crit[cpu] = crit
-			self.sources.insert(0, crit)
+			self.sources.append(crit)
 		Count(crit, cpu, timestamp, to)
+
+	def callout_start(self, cpu, timestamp, func, arg):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		wheel = self.findwheel(cpu)
+		CalloutRunning(wheel, cpu, timestamp, func, arg)
+
+	def callout_stop(self, cpu, timestamp):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		wheel = self.findwheel(cpu)
+		CalloutIdle(wheel, cpu, timestamp)
+
+	def lock_try(self, cpu, timestamp, op, name, result, file, line):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		lock = self.findlock(name)
+		if (int(result) == 0):
+			LockFailedTry(lock, cpu, timestamp, file, line)
+		else:
+			LockAcquire(lock, cpu, timestamp, file, line)
+
+	def lock_acquire(self, cpu, timestamp, op, name, recurse, file, line):
+		if (int(recurse) != 0):
+			return
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		lock = self.findlock(name)
+		LockAcquire(lock, cpu, timestamp, file, line)
+		
+	def lock_release(self, cpu, timestamp, op, name, recurse, file, line):
+		if (int(recurse) != 0):
+			return
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		lock = self.findlock(name)
+		LockRelease(lock, cpu, timestamp, file, line)
+
+	def lock_contest(self, cpu, timestamp, name, file, line):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		lock = self.findlock(name)
+		LockContest(lock, cpu, timestamp, file, line)
+
+	def findlock(self, name):
+		try:
+			lock = self.locks[name]
+		except:
+			lock = Lock(name)
+			self.locks[name] = lock
+			self.sources.append(lock)
+		return (lock)
+
+	def findwheel(self, cpu):
+		cpu = int(cpu)
+		try:
+			wheel = self.callwheels[cpu]
+		except:
+			wheel = Callwheel(cpu)
+			self.callwheels[cpu] = wheel
+			self.sources.append(wheel)
+		return (wheel)
 
 	def findtd(self, td, pcomm):
 		for thread in self.threads:
@@ -1158,12 +1398,14 @@ class KTRFile:
 			Padevent(source, -1, self.timestamp_l)
 			Padevent(source, -1, self.timestamp_f, last=1)
 			source.fixup()
+		self.sources.sort()
 
 class SchedDisplay(Canvas):
 	def __init__(self, master):
-		self.ratio = 10
+		self.ratio = 1
 		self.ktrfile = None
 		self.sources = None
+		self.parent = master
 		self.bdheight = 10 
 		self.events = {}
 
@@ -1173,6 +1415,11 @@ class SchedDisplay(Canvas):
 	def setfile(self, ktrfile):
 		self.ktrfile = ktrfile
 		self.sources = ktrfile.sources
+
+		# Compute a ratio to ensure that the file's timespan fits into
+		# 2^31.  Although python may handle larger values for X
+		# values, the Tk internals do not.
+		self.ratio = (ktrfile.timespan() - 1) / 2**31 + 1
 
 	def draw(self):
 		ypos = 0
@@ -1195,6 +1442,8 @@ class SchedDisplay(Canvas):
 		self.tag_bind("event", "<Enter>", self.mouseenter)
 		self.tag_bind("event", "<Leave>", self.mouseexit)
 		self.tag_bind("event", "<Button-1>", self.mousepress)
+		self.bind("<Button-4>", self.wheelup)
+		self.bind("<Button-5>", self.wheeldown)
 
 	def mouseenter(self, event):
 		item, = self.find_withtag(CURRENT)
@@ -1210,6 +1459,12 @@ class SchedDisplay(Canvas):
 		item, = self.find_withtag(CURRENT)
 		event = self.events[item]
 		event.mousepress(self, item)
+
+	def wheeldown(self, event):
+		self.parent.display_yview("scroll", 1, "units")
+
+	def wheelup(self, event):
+		self.parent.display_yview("scroll", -1, "units")
 
 	def drawnames(self, canvas):
 		status.startup("Drawing names")
@@ -1292,7 +1547,7 @@ class SchedGraph(Frame):
 		self.menu = GraphMenu(self)
 		self.display = SchedDisplay(self)
 		self.names = Canvas(self,
-		    width=100, height=self.display["height"],
+		    width=120, height=self.display["height"],
 		    bg='grey', scrollregion=(0, 0, 50, 100))
 		self.scale = Scaler(self, self.display)
 		status = self.status = Status(self)

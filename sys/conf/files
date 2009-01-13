@@ -1609,6 +1609,7 @@ dev/usb2/wlan/usb2_wlan.c	optional usb2_core usb2_wlan
 #
 # USB2 serial and parallel port drivers
 #
+dev/usb2/serial/u3g2.c		optional usb2_core usb2_serial usb2_serial_3g
 dev/usb2/serial/uark2.c		optional usb2_core usb2_serial usb2_serial_ark
 dev/usb2/serial/ubsa2.c		optional usb2_core usb2_serial usb2_serial_bsa
 dev/usb2/serial/ubser2.c	optional usb2_core usb2_serial usb2_serial_bser

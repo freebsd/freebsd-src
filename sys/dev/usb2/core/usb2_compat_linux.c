@@ -393,8 +393,14 @@ usb_linux_shutdown(device_t dev)
 static uint16_t
 usb_max_isoc_frames(struct usb_device *dev)
 {
-	return ((usb2_get_speed(dev->bsd_udev) == USB_SPEED_HIGH) ?
-	    USB_MAX_HIGH_SPEED_ISOC_FRAMES : USB_MAX_FULL_SPEED_ISOC_FRAMES);
+	;				/* indent fix */
+	switch (usb2_get_speed(dev->bsd_udev)) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		return (USB_MAX_FULL_SPEED_ISOC_FRAMES);
+	default:
+		return (USB_MAX_HIGH_SPEED_ISOC_FRAMES);
+	}
 }
 
 /*------------------------------------------------------------------------*
