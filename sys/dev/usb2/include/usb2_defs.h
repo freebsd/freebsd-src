@@ -35,6 +35,8 @@
 #define	USB_EP_MAX (2*16)		/* hardcoded */
 #define	USB_FIFO_MAX (4 * USB_EP_MAX)
 
+#define	USB_ROOT_HUB_ADDR 1		/* index */
+
 #define	USB_MIN_DEVICES 2		/* unused + root HUB */
 
 #define	USB_MAX_DEVICES USB_DEV_MAX	/* including virtual root HUB and
@@ -58,15 +60,18 @@
 /* sanity checks */
 
 #if (USB_FIFO_MAX < USB_EP_MAX)
-#error "Misconfigured limits #1"
+#error "There cannot be less FIFOs than USB endpoints."
 #endif
 #if (USB_FIFO_MAX & 1)
-#error "Misconfigured limits #2"
+#error "Number of FIFOs must be odd."
 #endif
 #if (USB_EP_MAX < (2*16))
-#error "Misconfigured limits #3"
+#error "Number of hardware USB endpoints cannot be less than 32."
 #endif
 #if (USB_MAX_DEVICES < USB_MIN_DEVICES)
-#error "Misconfigured limits #4"
+#error "Minimum number of devices is greater than maximum number of devices."
+#endif
+#if (USB_ROOT_HUB_ADDR >= USB_MIN_DEVICES)
+#error "The root hub address must be less than USB_MIN_DEVICES."
 #endif
 #endif					/* _USB2_DEFS_H_ */
