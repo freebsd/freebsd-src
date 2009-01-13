@@ -1776,7 +1776,7 @@ static const struct usb2_hub_descriptor_min at91dci_hubd = {
 	.wHubCharacteristics[0] =
 	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
 	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 16,
+	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 8,
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */
