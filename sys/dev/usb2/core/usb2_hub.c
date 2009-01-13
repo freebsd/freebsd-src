@@ -1429,7 +1429,7 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 	uint8_t needs_hw_power;
 	uint8_t xfer_type;
 
-	udev = xfer->udev;
+	udev = xfer->xroot->udev;
 
 	if (udev->device_index == USB_ROOT_HUB_ADDR) {
 		/* no power save for root HUB */

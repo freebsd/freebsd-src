@@ -204,14 +204,14 @@ musbotg_pull_down(struct musbotg_softc *sc)
 static void
 musbotg_wakeup_peer(struct usb2_xfer *xfer)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint8_t temp;
 	uint8_t use_polling;
 
 	if (!(sc->sc_flags.status_suspend)) {
 		return;
 	}
-	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
 	temp |= MUSB2_MASK_RESUME;
@@ -931,7 +931,7 @@ musbotg_xfer_do_fifo(struct usb2_xfer *xfer)
 	return (1);			/* not complete */
 
 done:
-	sc = xfer->usb2_sc;
+	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 
 	/* compute all actual lengths */
 
@@ -1130,7 +1130,7 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 
 	DPRINTFN(8, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpoint),
-	    xfer->sumlen, usb2_get_speed(xfer->udev));
+	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
 
@@ -1145,7 +1145,7 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 	temp.offset = 0;
 
-	sc = xfer->usb2_sc;
+	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
 
 	/* check if we should prepend a setup message */
@@ -1245,7 +1245,7 @@ musbotg_timeout(void *arg)
 
 	DPRINTFN(1, "xfer=%p\n", xfer);
 
-	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	/* transfer is transferred */
 	musbotg_device_done(xfer, USB_ERR_TIMEOUT);
@@ -1254,7 +1254,7 @@ musbotg_timeout(void *arg)
 static void
 musbotg_ep_int_set(struct usb2_xfer *xfer, uint8_t on)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint16_t temp;
 	uint8_t ep_no = xfer->endpoint & UE_ADDR;
 
@@ -1304,7 +1304,7 @@ musbotg_start_standard_chain(struct usb2_xfer *xfer)
 		DPRINTFN(14, "enabled interrupts on endpoint\n");
 
 		/* put transfer on interrupt queue */
-		usb2_transfer_enqueue(&xfer->udev->bus->intr_q, xfer);
+		usb2_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
 		/* start timeout, if any */
 		if (xfer->timeout != 0) {
@@ -1318,7 +1318,7 @@ static void
 musbotg_root_intr_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 
 	DPRINTFN(8, "\n");
 
@@ -1458,7 +1458,7 @@ done:
 static void
 musbotg_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 {
-	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
@@ -2021,7 +2021,7 @@ musbotg_device_isoc_close(struct usb2_xfer *xfer)
 static void
 musbotg_device_isoc_enter(struct usb2_xfer *xfer)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint32_t temp;
 	uint32_t nframes;
 	uint32_t fs_frames;
@@ -2039,7 +2039,7 @@ musbotg_device_isoc_enter(struct usb2_xfer *xfer)
 	 */
 	temp = (nframes - xfer->pipe->isoc_next) & MUSB2_MASK_FRAME;
 
-	if (usb2_get_speed(xfer->udev) == USB_SPEED_HIGH) {
+	if (usb2_get_speed(xfer->xroot->udev) == USB_SPEED_HIGH) {
 		fs_frames = (xfer->nframes + 7) / 8;
 	} else {
 		fs_frames = xfer->nframes;
@@ -2109,7 +2109,7 @@ musbotg_root_ctrl_open(struct usb2_xfer *xfer)
 static void
 musbotg_root_ctrl_close(struct usb2_xfer *xfer)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 
 	if (sc->sc_root_ctrl.xfer == xfer) {
 		sc->sc_root_ctrl.xfer = NULL;
@@ -2214,11 +2214,11 @@ musbotg_root_ctrl_enter(struct usb2_xfer *xfer)
 static void
 musbotg_root_ctrl_start(struct usb2_xfer *xfer)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_bus_roothub_exec(xfer->udev->bus);
+	usb2_bus_roothub_exec(xfer->xroot->bus);
 }
 
 static void
@@ -2231,7 +2231,7 @@ static void
 musbotg_root_ctrl_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint16_t value;
 	uint16_t index;
 	uint8_t use_polling;
@@ -2252,7 +2252,7 @@ musbotg_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
@@ -2660,7 +2660,7 @@ musbotg_root_intr_open(struct usb2_xfer *xfer)
 static void
 musbotg_root_intr_close(struct usb2_xfer *xfer)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 
 	if (sc->sc_root_intr.xfer == xfer) {
 		sc->sc_root_intr.xfer = NULL;
@@ -2677,7 +2677,7 @@ musbotg_root_intr_enter(struct usb2_xfer *xfer)
 static void
 musbotg_root_intr_start(struct usb2_xfer *xfer)
 {
-	struct musbotg_softc *sc = xfer->usb2_sc;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 
 	sc->sc_root_intr.xfer = xfer;
 }
@@ -2705,11 +2705,6 @@ musbotg_xfer_setup(struct usb2_setup_params *parm)
 
 	sc = MUSBOTG_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
-
-	/*
-	 * setup xfer
-	 */
-	xfer->usb2_sc = sc;
 
 	/*
 	 * NOTE: This driver does not use any of the parameters that
