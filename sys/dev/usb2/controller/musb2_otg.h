@@ -402,5 +402,6 @@ void	musbotg_uninit(struct musbotg_softc *sc);
 void	musbotg_suspend(struct musbotg_softc *sc);
 void	musbotg_resume(struct musbotg_softc *sc);
 void	musbotg_interrupt(struct musbotg_softc *sc);
+void	musbotg_vbus_interrupt(struct musbotg_softc *sc, uint8_t is_on);
 
 #endif					/* _MUSB2_OTG_H_ */
