@@ -308,7 +308,8 @@ gv_lpi(struct gv_plex *p, struct sbuf *sb, int flags)
 			sbuf_printf(sb, "\t\tSynced: ");
 			sbuf_printf(sb, "%16jd bytes (%d%%)\n",
 			    (intmax_t)p->synced,
-			    (int)((p->synced * 100) / p->size));
+			    (p->size > 0) ? (int)((p->synced * 100) / p->size) :
+			    0);
 		}
 		sbuf_printf(sb, "\t\tOrganization: %s", gv_plexorg(p->org));
 		if (gv_is_striped(p)) {
