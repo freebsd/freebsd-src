@@ -259,13 +259,13 @@ at91dci_pull_down(struct at91dci_softc *sc)
 static void
 at91dci_wakeup_peer(struct usb2_xfer *xfer)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	uint8_t use_polling;
 
 	if (!(sc->sc_flags.status_suspend)) {
 		return;
 	}
-	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, AT91_UDP_GSTATE_ESR);
 
@@ -698,7 +698,7 @@ at91dci_xfer_do_fifo(struct usb2_xfer *xfer)
 	return (1);			/* not complete */
 
 done:
-	sc = xfer->usb2_sc;
+	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	temp = (xfer->endpoint & UE_ADDR);
 
 	/* update FIFO bank flag and multi buffer */
@@ -886,7 +886,7 @@ at91dci_setup_standard_chain(struct usb2_xfer *xfer)
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpoint),
-	    xfer->sumlen, usb2_get_speed(xfer->udev));
+	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
 
@@ -901,7 +901,7 @@ at91dci_setup_standard_chain(struct usb2_xfer *xfer)
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 	temp.offset = 0;
 
-	sc = xfer->usb2_sc;
+	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
 
 	/* check if we should prepend a setup message */
@@ -1042,7 +1042,7 @@ at91dci_start_standard_chain(struct usb2_xfer *xfer)
 	/* poll one time */
 	if (at91dci_xfer_do_fifo(xfer)) {
 
-		struct at91dci_softc *sc = xfer->usb2_sc;
+		struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 		uint8_t ep_no = xfer->endpoint & UE_ADDR;
 
 		/*
@@ -1055,7 +1055,7 @@ at91dci_start_standard_chain(struct usb2_xfer *xfer)
 		DPRINTFN(15, "enable interrupts on endpoint %d\n", ep_no);
 
 		/* put transfer on interrupt queue */
-		usb2_transfer_enqueue(&xfer->udev->bus->intr_q, xfer);
+		usb2_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
 		/* start timeout, if any */
 		if (xfer->timeout != 0) {
@@ -1069,7 +1069,7 @@ static void
 at91dci_root_intr_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 
 	DPRINTFN(9, "\n");
 
@@ -1209,7 +1209,7 @@ done:
 static void
 at91dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	uint8_t ep_no;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -1623,7 +1623,7 @@ at91dci_device_isoc_fs_close(struct usb2_xfer *xfer)
 static void
 at91dci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	uint32_t temp;
 	uint32_t nframes;
 
@@ -1705,7 +1705,7 @@ at91dci_root_ctrl_open(struct usb2_xfer *xfer)
 static void
 at91dci_root_ctrl_close(struct usb2_xfer *xfer)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 
 	if (sc->sc_root_ctrl.xfer == xfer) {
 		sc->sc_root_ctrl.xfer = NULL;
@@ -1809,11 +1809,11 @@ at91dci_root_ctrl_enter(struct usb2_xfer *xfer)
 static void
 at91dci_root_ctrl_start(struct usb2_xfer *xfer)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_bus_roothub_exec(xfer->udev->bus);
+	usb2_bus_roothub_exec(xfer->xroot->bus);
 }
 
 static void
@@ -1826,7 +1826,7 @@ static void
 at91dci_root_ctrl_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	uint16_t value;
 	uint16_t index;
 	uint8_t use_polling;
@@ -1847,7 +1847,7 @@ at91dci_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
@@ -2252,7 +2252,7 @@ at91dci_root_intr_open(struct usb2_xfer *xfer)
 static void
 at91dci_root_intr_close(struct usb2_xfer *xfer)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 
 	if (sc->sc_root_intr.xfer == xfer) {
 		sc->sc_root_intr.xfer = NULL;
@@ -2269,7 +2269,7 @@ at91dci_root_intr_enter(struct usb2_xfer *xfer)
 static void
 at91dci_root_intr_start(struct usb2_xfer *xfer)
 {
-	struct at91dci_softc *sc = xfer->usb2_sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 
 	sc->sc_root_intr.xfer = xfer;
 }
@@ -2297,11 +2297,6 @@ at91dci_xfer_setup(struct usb2_setup_params *parm)
 
 	sc = AT9100_DCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
-
-	/*
-	 * setup xfer
-	 */
-	xfer->usb2_sc = sc;
 
 	/*
 	 * NOTE: This driver does not use any of the parameters that
