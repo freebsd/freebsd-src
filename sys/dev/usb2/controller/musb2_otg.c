@@ -42,14 +42,11 @@
 #include <dev/usb2/include/usb2_defs.h>
 
 #define	USB_DEBUG_VAR musbotgdebug
-#define	usb2_config_td_cc musbotg_config_copy
-#define	usb2_config_td_softc musbotg_softc
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_device.h>
@@ -101,7 +98,6 @@ static void	musbotg_interrupt_poll(struct musbotg_softc *);
 
 static usb2_sw_transfer_func_t musbotg_root_intr_done;
 static usb2_sw_transfer_func_t musbotg_root_ctrl_done;
-static usb2_config_td_command_t musbotg_root_ctrl_task;
 
 /*
  * Here is a configuration that the chip supports.
@@ -2222,15 +2218,13 @@ musbotg_root_ctrl_start(struct usb2_xfer *xfer)
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_config_td_queue_command(
-	    &sc->sc_config_td, NULL, &musbotg_root_ctrl_task, 0, 0);
+	usb2_bus_roothub_exec(xfer->udev->bus);
 }
 
 static void
-musbotg_root_ctrl_task(struct musbotg_softc *sc,
-    struct musbotg_config_copy *cc, uint16_t refcount)
+musbotg_root_ctrl_task(struct usb2_bus *bus)
 {
-	musbotg_root_ctrl_poll(sc);
+	musbotg_root_ctrl_poll(MUSBOTG_BUS2SC(bus));
 }
 
 static void
@@ -2885,4 +2879,5 @@ struct usb2_bus_methods musbotg_bus_methods =
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
 	.vbus_interrupt = &musbotg_vbus_interrupt,
+	.roothub_exec = &musbotg_root_ctrl_task,
 };

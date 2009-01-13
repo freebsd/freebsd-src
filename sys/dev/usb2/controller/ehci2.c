@@ -52,14 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/include/usb2_defs.h>
 
 #define	USB_DEBUG_VAR ehcidebug
-#define	usb2_config_td_cc ehci_config_copy
-#define	usb2_config_td_softc ehci_softc
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_device.h>
@@ -99,7 +96,6 @@ extern struct usb2_pipe_methods ehci_device_isoc_hs_methods;
 extern struct usb2_pipe_methods ehci_root_ctrl_methods;
 extern struct usb2_pipe_methods ehci_root_intr_methods;
 
-static usb2_config_td_command_t ehci_root_ctrl_task;
 static void ehci_do_poll(struct usb2_bus *bus);
 static void ehci_root_ctrl_poll(ehci_softc_t *sc);
 static void ehci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
@@ -3031,15 +3027,13 @@ ehci_root_ctrl_start(struct usb2_xfer *xfer)
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL, &ehci_root_ctrl_task, 0, 0);
+	usb2_bus_roothub_exec(xfer->udev->bus);
 }
 
 static void
-ehci_root_ctrl_task(ehci_softc_t *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
+ehci_root_ctrl_task(struct usb2_bus *bus)
 {
-	ehci_root_ctrl_poll(sc);
+	ehci_root_ctrl_poll(EHCI_BUS2SC(bus));
 }
 
 static void
@@ -3969,4 +3963,5 @@ struct usb2_bus_methods ehci_bus_methods =
 	.device_resume = ehci_device_resume,
 	.device_suspend = ehci_device_suspend,
 	.set_hw_power = ehci_set_hw_power,
+	.roothub_exec = ehci_root_ctrl_task,
 };
