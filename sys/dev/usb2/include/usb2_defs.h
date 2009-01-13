@@ -35,6 +35,8 @@
 #define	USB_EP_MAX (2*16)		/* hardcoded */
 #define	USB_FIFO_MAX (4 * USB_EP_MAX)
 
+#define	USB_MIN_DEVICES 2		/* unused + root HUB */
+
 #define	USB_MAX_DEVICES USB_DEV_MAX	/* including virtual root HUB and
 					 * address zero */
 #define	USB_MAX_ENDPOINTS USB_EP_MAX	/* 2 directions on 16 endpoints */
@@ -64,5 +66,7 @@
 #if (USB_EP_MAX < (2*16))
 #error "Misconfigured limits #3"
 #endif
-
+#if (USB_MAX_DEVICES < USB_MIN_DEVICES)
+#error "Misconfigured limits #4"
+#endif
 #endif					/* _USB2_DEFS_H_ */

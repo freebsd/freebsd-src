@@ -70,7 +70,7 @@ struct usb2_bus {
 	struct usb2_dma_tag dma_tags[USB_BUS_DMA_TAG_MAX];
 
 	struct usb2_bus_methods *methods;	/* filled by HC driver */
-	struct usb2_device *devices[USB_MAX_DEVICES];
+	struct usb2_device **devices;
 
 	uint32_t hw_power_state;	/* see USB_HW_POWER_XXX */
 	uint32_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];

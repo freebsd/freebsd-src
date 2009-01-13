@@ -138,9 +138,13 @@ uss820_atmelarm_attach(device_t dev)
 	if (sc == NULL) {
 		return (ENXIO);
 	}
-	/* get all DMA memory */
 
+	/* initialise some bus fields */
 	sc->sc_bus.parent = dev;
+	sc->sc_bus.devices = sc->sc_devices;
+	sc->sc_bus.devices_max = USS820_MAX_DEVICES;
+
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);

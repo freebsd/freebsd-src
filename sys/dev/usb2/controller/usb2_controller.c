@@ -493,8 +493,6 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 {
 	bus->alloc_failed = 0;
 
-	bus->devices_max = USB_MAX_DEVICES;
-
 	mtx_init(&bus->bus_mtx, device_get_nameunit(bus->parent),
 	    NULL, MTX_DEF | MTX_RECURSE);
 
@@ -506,6 +504,13 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 	usb2_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,
 	    dmat, &bus->bus_mtx, NULL, NULL, 32, USB_BUS_DMA_TAG_MAX);
 
+	if ((bus->devices_max > USB_MAX_DEVICES) ||
+	    (bus->devices_max < USB_MIN_DEVICES) ||
+	    (bus->devices == NULL)) {
+		DPRINTFN(0, "Devices field has not been "
+		    "initialised properly!\n");
+		bus->alloc_failed = 1;		/* failure */
+	}
 	if (cb) {
 		cb(bus, &usb2_bus_mem_alloc_all_cb);
 	}
