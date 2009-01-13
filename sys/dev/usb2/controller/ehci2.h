@@ -38,6 +38,8 @@
 #ifndef _EHCI_H_
 #define	_EHCI_H_
 
+#define	EHCI_MAX_DEVICES USB_MAX_DEVICES
+
 /* PCI config registers */
 #define	PCI_CBMEM		0x10	/* configuration base MEM */
 #define	PCI_INTERFACE_EHCI	0x20
@@ -459,6 +461,7 @@ typedef struct ehci_softc {
 	struct usb2_sw_transfer sc_root_ctrl;
 	struct usb2_sw_transfer sc_root_intr;
 
+	struct usb2_device *sc_devices[EHCI_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	struct ehci_qh *sc_async_p_last;

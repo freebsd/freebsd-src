@@ -73,12 +73,15 @@ ohci_atmelarm_attach(device_t dev)
 	if (sc == NULL) {
 		return (ENXIO);
 	}
-	/* get all DMA memory */
-
+	/* initialise some bus fields */
 	sc->sc_ohci.sc_bus.parent = dev;
+	sc->sc_ohci.sc_bus.devices = sc->sc_ohci.sc_devices;
+	sc->sc_ohci.sc_bus.devices_max = OHCI_MAX_DEVICES;
+
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
 	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
-		return ENOMEM;
+		return (ENOMEM);
 	}
 	sc->iclk = at91_pmc_clock_ref("ohci_clk");
 	sc->fclk = at91_pmc_clock_ref("uhpck");
