@@ -634,6 +634,7 @@ gv_sync_complete(struct gv_plex *to, struct bio *bp)
 			/* Update our state. */
 			LIST_FOREACH(s, &to->subdisks, in_plex)
 				gv_set_sd_state(s, GV_SD_UP, 0);
+			gv_update_plex_state(to);
 			to->flags &= ~GV_PLEX_SYNCING;
 			to->synced = 0;
 			gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
