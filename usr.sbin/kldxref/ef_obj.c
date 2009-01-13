@@ -133,7 +133,7 @@ static struct elf_file_ops ef_obj_file_ops = {
 };
 
 static int
-ef_obj_get_type(elf_file_t ef)
+ef_obj_get_type(elf_file_t __unused ef)
 {
 
 	return (EFT_KLD);
@@ -180,7 +180,7 @@ ef_obj_symaddr(elf_file_t ef, Elf_Size symidx)
 {
 	const Elf_Sym *sym;
 
-	if (symidx >= ef->ddbsymcnt)
+	if (symidx >= (size_t) ef->ddbsymcnt)
 		return (0);
 	sym = ef->ddbsymtab + symidx;
 
