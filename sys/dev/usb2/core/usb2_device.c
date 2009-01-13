@@ -1293,18 +1293,15 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	 * Device index zero is not used and device index 1 should
 	 * always be the root hub.
 	 */
-	for (device_index = USB_ROOT_HUB_ADDR;; device_index++) {
-#if (USB_ROOT_HUB_ADDR > USB_MIN_DEVICES)
-#error "Incorrect device limit."
-#endif
-		if (device_index == bus->devices_max) {
-			device_printf(bus->bdev,
-			    "No free USB device "
-			    "index for new device!\n");
-			return (NULL);
-		}
-		if (bus->devices[device_index] == NULL)
-			break;
+	for (device_index = USB_ROOT_HUB_ADDR;
+	    (device_index != bus->devices_max) &&
+	    (bus->devices[device_index] != NULL);
+	    device_index++) /* nop */;
+
+	if (device_index == bus->devices_max) {
+		device_printf(bus->bdev,
+		    "No free USB device index for new device!\n");
+		return (NULL);
 	}
 
 	if (depth > 0x10) {

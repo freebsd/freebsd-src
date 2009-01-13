@@ -101,8 +101,6 @@
 
 #define	USB_HOST_ALIGN    8		/* bytes, must be power of two */
 
-#define	USB_ROOT_HUB_ADDR 1		/* value */
-
 #define	USB_ISOC_TIME_MAX 128		/* ms */
 #define	USB_FS_ISOC_UFRAME_MAX 4	/* exclusive unit */
 
