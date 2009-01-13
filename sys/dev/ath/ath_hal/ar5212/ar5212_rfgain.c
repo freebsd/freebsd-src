@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_rfgain.c,v 1.2 2008/11/19 21:23:01 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -280,7 +280,8 @@ ar5212GetRfgain(struct ath_hal *ah)
 	GAIN_VALUES *gv = &ahp->ah_gainValues;
 	uint32_t rddata, probeType;
 
-	if (!gv->active)
+	/* NB: beware of touching the BB when PHY is powered down */
+	if (!gv->active || !ahp->ah_phyPowerOn)
 		return HAL_RFGAIN_INACTIVE;
 
 	if (ahp->ah_rfgainState == HAL_RFGAIN_READ_REQUESTED) {
