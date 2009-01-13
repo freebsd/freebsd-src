@@ -53,6 +53,7 @@
 #include <dev/usb2/controller/usb2_bus.h>
 
 #define	UHUB_INTR_INTERVAL 250		/* ms */
+#define	UHUB_N_TRANSFER 1
 
 #if USB_DEBUG
 static int uhub_debug = 0;
@@ -76,10 +77,9 @@ struct uhub_softc {
 	struct uhub_current_state sc_st;/* current state */
 	device_t sc_dev;		/* base device */
 	struct usb2_device *sc_udev;	/* USB device */
-	struct usb2_xfer *sc_xfer[2];	/* interrupt xfer */
+	struct usb2_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
-#define	UHUB_FLAG_INTR_STALL 0x02
 	char	sc_name[32];
 };
 
@@ -100,12 +100,11 @@ static bus_child_location_str_t uhub_child_location_string;
 static bus_child_pnpinfo_str_t uhub_child_pnpinfo_string;
 
 static usb2_callback_t uhub_intr_callback;
-static usb2_callback_t uhub_intr_clear_stall_callback;
 
 static void usb2_dev_resume_peer(struct usb2_device *udev);
 static void usb2_dev_suspend_peer(struct usb2_device *udev);
 
-static const struct usb2_config uhub_config[2] = {
+static const struct usb2_config uhub_config[UHUB_N_TRANSFER] = {
 
 	[0] = {
 		.type = UE_INTERRUPT,
@@ -116,17 +115,6 @@ static const struct usb2_config uhub_config[2] = {
 		.mh.bufsize = 0,	/* use wMaxPacketSize */
 		.mh.callback = &uhub_intr_callback,
 		.mh.interval = UHUB_INTR_INTERVAL,
-	},
-
-	[1] = {
-		.type = UE_CONTROL,
-		.endpoint = 0,
-		.direction = UE_DIR_ANY,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-		.mh.flags = {},
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &uhub_intr_clear_stall_callback,
 	},
 };
 
@@ -160,19 +148,6 @@ DRIVER_MODULE(ushub, usbus, uhub_driver, uhub_devclass, 0, 0);
 DRIVER_MODULE(ushub, ushub, uhub_driver, uhub_devclass, NULL, 0);
 
 static void
-uhub_intr_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uhub_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UHUB_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-}
-
-static void
 uhub_intr_callback(struct usb2_xfer *xfer)
 {
 	struct uhub_softc *sc = xfer->priv_sc;
@@ -189,21 +164,22 @@ uhub_intr_callback(struct usb2_xfer *xfer)
 		usb2_needs_explore(sc->sc_udev->bus, 0);
 
 	case USB_ST_SETUP:
-		if (sc->sc_flags & UHUB_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[1]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
-		return;
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
+		break;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			/* start clear stall */
-			sc->sc_flags |= UHUB_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[1]);
+			/*
+			 * Do a clear-stall. The "stall_pipe" flag
+			 * will get cleared before next callback by
+			 * the USB stack.
+			 */
+			xfer->flags.stall_pipe = 1;
+			xfer->frlengths[0] = xfer->max_data_length;
+			usb2_start_hardware(xfer);
 		}
-		return;
+		break;
 	}
 }
 
@@ -396,18 +372,38 @@ repeat:
 	/*
 	 * Figure out the device speed
 	 */
-	speed =
-	    (sc->sc_st.port_status & UPS_HIGH_SPEED) ? USB_SPEED_HIGH :
-	    (sc->sc_st.port_status & UPS_LOW_SPEED) ? USB_SPEED_LOW : USB_SPEED_FULL;
-
+	switch (udev->speed) {
+	case USB_SPEED_HIGH:
+		if (sc->sc_st.port_status & UPS_HIGH_SPEED)
+			speed = USB_SPEED_HIGH;
+		else if (sc->sc_st.port_status & UPS_LOW_SPEED)
+			speed = USB_SPEED_LOW;
+		else
+			speed = USB_SPEED_FULL;
+		break;
+	case USB_SPEED_FULL:
+		if (sc->sc_st.port_status & UPS_LOW_SPEED)
+			speed = USB_SPEED_LOW;
+		else
+			speed = USB_SPEED_FULL;
+		break;
+	case USB_SPEED_LOW:
+		speed = USB_SPEED_LOW;
+		break;
+	default:
+		/* same speed like parent */
+		speed = udev->speed;
+		break;
+	}
 	/*
 	 * Figure out the device mode
 	 *
 	 * NOTE: This part is currently FreeBSD specific.
 	 */
-	usb2_mode =
-	    (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE) ?
-	    USB_MODE_DEVICE : USB_MODE_HOST;
+	if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
+		usb2_mode = USB_MODE_DEVICE;
+	else
+		usb2_mode = USB_MODE_HOST;
 
 	/* need to create a new child */
 
@@ -736,7 +732,7 @@ uhub_attach(device_t dev)
 	/* set up interrupt pipe */
 	iface_index = 0;
 	err = usb2_transfer_setup(udev, &iface_index, sc->sc_xfer,
-	    uhub_config, 2, sc, &Giant);
+	    uhub_config, UHUB_N_TRANSFER, sc, &Giant);
 	if (err) {
 		DPRINTFN(0, "cannot setup interrupt transfer, "
 		    "errstr=%s!\n", usb2_errstr(err));
@@ -821,7 +817,7 @@ uhub_attach(device_t dev)
 	return (0);
 
 error:
-	usb2_transfer_unsetup(sc->sc_xfer, 2);
+	usb2_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
 
 	if (udev->hub) {
 		free(udev->hub, M_USBDEV);
@@ -864,7 +860,7 @@ uhub_detach(device_t dev)
 		child = NULL;
 	}
 
-	usb2_transfer_unsetup(sc->sc_xfer, 2);
+	usb2_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
 
 	free(hub, M_USBDEV);
 	sc->sc_udev->hub = NULL;
@@ -1073,17 +1069,16 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
 {
 	struct usb2_bus *bus = udev->bus;
 	struct usb2_hub *hub;
+	uint8_t speed;
 
 	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
 
-	if (usb2_get_speed(udev) == USB_SPEED_HIGH) {
-		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
-			slot = usb2_intr_find_best_slot(bus->uframe_usage, 0,
-			    USB_HS_MICRO_FRAMES_MAX);
-		}
-		bus->uframe_usage[slot] += len;
-	} else {
-		if (usb2_get_speed(udev) == USB_SPEED_LOW) {
+	speed = usb2_get_speed(udev);
+
+	switch (speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		if (speed == USB_SPEED_LOW) {
 			len *= 8;
 		}
 		/*
@@ -1100,6 +1095,14 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
 		}
 		hub->uframe_usage[slot] += len;
 		bus->uframe_usage[slot] += len;
+		break;
+	default:
+		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
+			slot = usb2_intr_find_best_slot(bus->uframe_usage, 0,
+			    USB_HS_MICRO_FRAMES_MAX);
+		}
+		bus->uframe_usage[slot] += len;
+		break;
 	}
 	return (slot);
 }
@@ -1429,7 +1432,7 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 	uint8_t needs_hw_power;
 	uint8_t xfer_type;
 
-	udev = xfer->udev;
+	udev = xfer->xroot->udev;
 
 	if (udev->device_index == USB_ROOT_HUB_ADDR) {
 		/* no power save for root HUB */
@@ -1521,7 +1524,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 	 * and we simply skip it.
 	 */
 	for (x = USB_ROOT_HUB_ADDR + 1;
-	    x != USB_MAX_DEVICES; x++) {
+	    x != bus->devices_max; x++) {
 
 		udev = bus->devices[x];
 		if (udev == NULL)
@@ -1565,7 +1568,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 	/* Re-loop all the devices to get the actual state */
 
 	for (x = USB_ROOT_HUB_ADDR + 1;
-	    x != USB_MAX_DEVICES; x++) {
+	    x != bus->devices_max; x++) {
 
 		udev = bus->devices[x];
 		if (udev == NULL)
@@ -1823,7 +1826,8 @@ void
 usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode)
 {
 	/* filter input argument */
-	if (power_mode != USB_POWER_MODE_ON) {
+	if ((power_mode != USB_POWER_MODE_ON) &&
+	    (power_mode != USB_POWER_MODE_OFF)) {
 		power_mode = USB_POWER_MODE_SAVE;
 	}
 	udev->power_mode = power_mode;	/* update copy of power mode */

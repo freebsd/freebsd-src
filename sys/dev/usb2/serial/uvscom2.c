@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -339,9 +338,9 @@ uvscom_attach(device_t dev)
 		goto detach;
 	}
 	/* start interrupt pipe */
-	USB_XFER_LOCK(sc->sc_xfer[4]);
+	mtx_lock(&Giant);
 	usb2_transfer_start(sc->sc_xfer[4]);
-	USB_XFER_UNLOCK(sc->sc_xfer[4]);
+	mtx_unlock(&Giant);
 
 	return (0);
 

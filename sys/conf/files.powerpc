@@ -84,7 +84,6 @@ powerpc/booke/interrupt.c	optional	e500
 powerpc/booke/locore.S		optional	e500 no-obj
 powerpc/booke/machdep.c		optional	e500
 powerpc/booke/pmap.c		optional	e500
-powerpc/booke/support.S		optional	e500
 powerpc/booke/swtch.S		optional	e500
 powerpc/booke/trap.c		optional	e500
 powerpc/booke/uio_machdep.c	optional	e500

@@ -54,7 +54,6 @@
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -178,9 +177,6 @@ static const struct usb2_device_id ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CDMA_MODEM1, 0)},
 	{USB_VPI(USB_VENDOR_KYOCERA2, USB_PRODUCT_KYOCERA2_CDMA_MSM_K, 0)},
 	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_49GPLUS, 0)},
-/*	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E270, 0)}, */
-	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE, 0)},
-	{USB_VPI(USB_VENDOR_MERLIN, USB_PRODUCT_MERLIN_V620, 0)},
 	{USB_VPI(USB_VENDOR_NOVATEL2, USB_PRODUCT_NOVATEL2_FLEXPACKGPS, 0)},
 };
 

@@ -1226,15 +1226,15 @@ usb2_bdma_work_loop(struct usb2_xfer_queue *pq)
 	uint32_t nframes;
 
 	xfer = pq->curr;
-	info = xfer->usb2_root;
+	info = xfer->xroot;
 
-	mtx_assert(info->priv_mtx, MA_OWNED);
+	mtx_assert(info->xfer_mtx, MA_OWNED);
 
 	if (xfer->error) {
 		/* some error happened */
-		USB_BUS_LOCK(xfer->udev->bus);
+		USB_BUS_LOCK(info->bus);
 		usb2_transfer_done(xfer, 0);
-		USB_BUS_UNLOCK(xfer->udev->bus);
+		USB_BUS_UNLOCK(info->bus);
 		return;
 	}
 	if (!xfer->flags_int.bdma_setup) {
@@ -1306,9 +1306,9 @@ usb2_bdma_work_loop(struct usb2_xfer_queue *pq)
 
 	}
 	if (info->dma_error) {
-		USB_BUS_LOCK(xfer->udev->bus);
+		USB_BUS_LOCK(info->bus);
 		usb2_transfer_done(xfer, USB_ERR_DMA_LOAD_FAILED);
-		USB_BUS_UNLOCK(xfer->udev->bus);
+		USB_BUS_UNLOCK(info->bus);
 		return;
 	}
 	if (info->dma_currframe != info->dma_nframes) {
@@ -1352,7 +1352,7 @@ usb2_bdma_done_event(struct usb2_dma_parent_tag *udpt)
 
 	info = udpt->info;
 
-	mtx_assert(info->priv_mtx, MA_OWNED);
+	mtx_assert(info->xfer_mtx, MA_OWNED);
 
 	/* copy error */
 	info->dma_error = udpt->dma_error;

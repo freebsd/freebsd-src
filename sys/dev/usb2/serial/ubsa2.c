@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -92,7 +91,7 @@ SYSCTL_INT(_hw_usb2_ubsa, OID_AUTO, debug, CTLFLAG_RW,
 #define	UBSA_N_TRANSFER           6	/* units */
 #define	UBSA_BSIZE             1024	/* bytes */
 
-#define	UBSA_CONFIG_INDEX	1
+#define	UBSA_CONFIG_INDEX	0
 #define	UBSA_IFACE_INDEX	0
 
 #define	UBSA_REG_BAUDRATE	0x00
