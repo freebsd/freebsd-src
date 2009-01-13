@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_device.h>
 
 #include <dev/usb2/ethernet/usb2_ethernet.h>
-#include <dev/usb2/ethernet/if_cdce2_reg.h>
+#include <dev/usb2/ethernet/if_cdcereg.h>
 
 static device_probe_t cdce_probe;
 static device_attach_t cdce_attach;

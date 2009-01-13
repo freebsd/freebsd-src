@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_util.h>
 
 #include <dev/usb2/ethernet/usb2_ethernet.h>
-#include <dev/usb2/ethernet/if_axe2_reg.h>
+#include <dev/usb2/ethernet/if_axereg.h>
 
 MODULE_DEPEND(axe, usb2_ethernet, 1, 1, 1);
 MODULE_DEPEND(axe, usb2_core, 1, 1, 1);
