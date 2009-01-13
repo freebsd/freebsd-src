@@ -67,8 +67,28 @@ If the
 .Fl q
 option is set, warnings normally printed as a result of being unable to
 perform the requested operation will be suppressed.
+.Pp
+Variables can be added to the kernel environment using the
+.Xr /boot/oader.conf
+file, or also statically compiled into the kernel using the statement
+.Pp
+.Dl Ic env Ar filename
+.Pp
+in the kernel config file.
+The file can contain lines of the form
+.Pp
+.Dl name = "value"  # this is a coment
+.Pp
+where whitespace around name and '=', and
+everything after a '#' character, are ignored.  Almost any printable
+character except '=' is acceptable as part of a name.  Quotes
+are optional and necessary only if the value contains
+whitespace.
+.Pp
 .Sh SEE ALSO
 .Xr kenv 2 ,
+.Xr config 5 ,
+.Xr loader.conf 5 ,
 .Xr loader 8
 .Sh HISTORY
 The
