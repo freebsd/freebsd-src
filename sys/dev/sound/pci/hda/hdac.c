@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081226_0122"
+#define HDA_DRV_TEST_REV	"20090110_0123"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -149,6 +149,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_INTEL_82801H	HDA_MODEL_CONSTRUCT(INTEL, 0x284b)
 #define HDA_INTEL_82801I	HDA_MODEL_CONSTRUCT(INTEL, 0x293e)
 #define HDA_INTEL_82801J	HDA_MODEL_CONSTRUCT(INTEL, 0x3a3e)
+#define HDA_INTEL_PCH		HDA_MODEL_CONSTRUCT(INTEL, 0x3b56)
 #define HDA_INTEL_SCH		HDA_MODEL_CONSTRUCT(INTEL, 0x811b)
 #define HDA_INTEL_ALL		HDA_MODEL_CONSTRUCT(INTEL, 0xffff)
 
@@ -178,6 +179,19 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ATI_VENDORID		0x1002
 #define HDA_ATI_SB450		HDA_MODEL_CONSTRUCT(ATI, 0x437b)
 #define HDA_ATI_SB600		HDA_MODEL_CONSTRUCT(ATI, 0x4383)
+#define HDA_ATI_RS600		HDA_MODEL_CONSTRUCT(ATI, 0x793b)
+#define HDA_ATI_RS690		HDA_MODEL_CONSTRUCT(ATI, 0x7919)
+#define HDA_ATI_RS780		HDA_MODEL_CONSTRUCT(ATI, 0x960f)
+#define HDA_ATI_R600		HDA_MODEL_CONSTRUCT(ATI, 0xaa00)
+#define HDA_ATI_RV630		HDA_MODEL_CONSTRUCT(ATI, 0xaa08)
+#define HDA_ATI_RV610		HDA_MODEL_CONSTRUCT(ATI, 0xaa10)
+#define HDA_ATI_RV670		HDA_MODEL_CONSTRUCT(ATI, 0xaa18)
+#define HDA_ATI_RV635		HDA_MODEL_CONSTRUCT(ATI, 0xaa20)
+#define HDA_ATI_RV620		HDA_MODEL_CONSTRUCT(ATI, 0xaa28)
+#define HDA_ATI_RV770		HDA_MODEL_CONSTRUCT(ATI, 0xaa30)
+#define HDA_ATI_RV730		HDA_MODEL_CONSTRUCT(ATI, 0xaa38)
+#define HDA_ATI_RV710		HDA_MODEL_CONSTRUCT(ATI, 0xaa40)
+#define HDA_ATI_RV740		HDA_MODEL_CONSTRUCT(ATI, 0xaa48)
 #define HDA_ATI_ALL		HDA_MODEL_CONSTRUCT(ATI, 0xffff)
 
 /* VIA */
@@ -469,6 +483,7 @@ static const struct {
 	{ HDA_INTEL_82801H,  "Intel 82801H" },
 	{ HDA_INTEL_82801I,  "Intel 82801I" },
 	{ HDA_INTEL_82801J,  "Intel 82801J" },
+	{ HDA_INTEL_PCH,     "Intel PCH" },
 	{ HDA_INTEL_SCH,     "Intel SCH" },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
 	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
@@ -488,8 +503,20 @@ static const struct {
 	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79" },
 	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79" },
 	{ HDA_NVIDIA_MCP79_4, "NVidia MCP79" },
-	{ HDA_ATI_SB450,     "ATI SB450"    },
-	{ HDA_ATI_SB600,     "ATI SB600"    },
+	{ HDA_ATI_SB450,     "ATI SB450"     },
+	{ HDA_ATI_SB600,     "ATI SB600"     },
+	{ HDA_ATI_RS600,     "ATI RS600"     },
+	{ HDA_ATI_RS690,     "ATI RS690"     },
+	{ HDA_ATI_RS780,     "ATI RS780"     },
+	{ HDA_ATI_R600,      "ATI R600"      },
+	{ HDA_ATI_RV610,     "ATI RV610"     },
+	{ HDA_ATI_RV620,     "ATI RV620"     },
+	{ HDA_ATI_RV630,     "ATI RV630"     },
+	{ HDA_ATI_RV635,     "ATI RV635"     },
+	{ HDA_ATI_RV710,     "ATI RV710"     },
+	{ HDA_ATI_RV730,     "ATI RV730"     },
+	{ HDA_ATI_RV740,     "ATI RV740"     },
+	{ HDA_ATI_RV770,     "ATI RV770"     },
 	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A" },
 	{ HDA_SIS_966,       "SiS 966" },
 	{ HDA_ULI_M5461,     "ULI M5461" },
@@ -671,6 +698,7 @@ static const struct {
 
 /* Silicon Image */
 #define SII_VENDORID	0x1095
+#define HDA_CODEC_SII1390	HDA_CODEC_CONSTRUCT(SII, 0x1390)
 #define HDA_CODEC_SII1392	HDA_CODEC_CONSTRUCT(SII, 0x1392)
 #define HDA_CODEC_SIIXXXX	HDA_CODEC_CONSTRUCT(SII, 0xffff)
 
@@ -706,6 +734,22 @@ static const struct {
 #define HDA_CODEC_VT1708B_5	HDA_CODEC_CONSTRUCT(VIA, 0xe725)
 #define HDA_CODEC_VT1708B_6	HDA_CODEC_CONSTRUCT(VIA, 0xe726)
 #define HDA_CODEC_VT1708B_7	HDA_CODEC_CONSTRUCT(VIA, 0xe727)
+#define HDA_CODEC_VT1708S_0	HDA_CODEC_CONSTRUCT(VIA, 0x0397)
+#define HDA_CODEC_VT1708S_1	HDA_CODEC_CONSTRUCT(VIA, 0x1397)
+#define HDA_CODEC_VT1708S_2	HDA_CODEC_CONSTRUCT(VIA, 0x2397)
+#define HDA_CODEC_VT1708S_3	HDA_CODEC_CONSTRUCT(VIA, 0x3397)
+#define HDA_CODEC_VT1708S_4	HDA_CODEC_CONSTRUCT(VIA, 0x4397)
+#define HDA_CODEC_VT1708S_5	HDA_CODEC_CONSTRUCT(VIA, 0x5397)
+#define HDA_CODEC_VT1708S_6	HDA_CODEC_CONSTRUCT(VIA, 0x6397)
+#define HDA_CODEC_VT1708S_7	HDA_CODEC_CONSTRUCT(VIA, 0x7397)
+#define HDA_CODEC_VT1702_0	HDA_CODEC_CONSTRUCT(VIA, 0x0398)
+#define HDA_CODEC_VT1702_1	HDA_CODEC_CONSTRUCT(VIA, 0x1398)
+#define HDA_CODEC_VT1702_2	HDA_CODEC_CONSTRUCT(VIA, 0x2398)
+#define HDA_CODEC_VT1702_3	HDA_CODEC_CONSTRUCT(VIA, 0x3398)
+#define HDA_CODEC_VT1702_4	HDA_CODEC_CONSTRUCT(VIA, 0x4398)
+#define HDA_CODEC_VT1702_5	HDA_CODEC_CONSTRUCT(VIA, 0x5398)
+#define HDA_CODEC_VT1702_6	HDA_CODEC_CONSTRUCT(VIA, 0x6398)
+#define HDA_CODEC_VT1702_7	HDA_CODEC_CONSTRUCT(VIA, 0x7398)
 #define HDA_CODEC_VTXXXX	HDA_CODEC_CONSTRUCT(VIA, 0xffff)
 
 /* ATI */
@@ -716,9 +760,16 @@ static const struct {
 #define HDA_CODEC_ATIXXXX	HDA_CODEC_CONSTRUCT(ATI, 0xffff)
 
 /* NVIDIA */
+#define HDA_CODEC_NVIDIAMCP78	HDA_CODEC_CONSTRUCT(NVIDIA, 0x0002)
+#define HDA_CODEC_NVIDIAMCP7A	HDA_CODEC_CONSTRUCT(NVIDIA, 0x0007)
+#define HDA_CODEC_NVIDIAMCP67	HDA_CODEC_CONSTRUCT(NVIDIA, 0x0067)
 #define HDA_CODEC_NVIDIAXXXX	HDA_CODEC_CONSTRUCT(NVIDIA, 0xffff)
 
 /* INTEL */
+#define HDA_CODEC_INTELG45_1	HDA_CODEC_CONSTRUCT(INTEL, 0x2801)
+#define HDA_CODEC_INTELG45_2	HDA_CODEC_CONSTRUCT(INTEL, 0x2802)
+#define HDA_CODEC_INTELG45_3	HDA_CODEC_CONSTRUCT(INTEL, 0x2803)
+#define HDA_CODEC_INTELG45_4	HDA_CODEC_CONSTRUCT(INTEL, 0x29fb)
 #define HDA_CODEC_INTELXXXX	HDA_CODEC_CONSTRUCT(INTEL, 0xffff)
 
 /* Codecs */
@@ -833,10 +884,34 @@ static const struct {
 	{ HDA_CODEC_VT1708B_5, "VIA VT1708B_5" },
 	{ HDA_CODEC_VT1708B_6, "VIA VT1708B_6" },
 	{ HDA_CODEC_VT1708B_7, "VIA VT1708B_7" },
+	{ HDA_CODEC_VT1708S_0, "VIA VT1708S_0" },
+	{ HDA_CODEC_VT1708S_1, "VIA VT1708S_1" },
+	{ HDA_CODEC_VT1708S_2, "VIA VT1708S_2" },
+	{ HDA_CODEC_VT1708S_3, "VIA VT1708S_3" },
+	{ HDA_CODEC_VT1708S_4, "VIA VT1708S_4" },
+	{ HDA_CODEC_VT1708S_5, "VIA VT1708S_5" },
+	{ HDA_CODEC_VT1708S_6, "VIA VT1708S_6" },
+	{ HDA_CODEC_VT1708S_7, "VIA VT1708S_7" },
+	{ HDA_CODEC_VT1702_0, "VIA VT1702_0" },
+	{ HDA_CODEC_VT1702_1, "VIA VT1702_1" },
+	{ HDA_CODEC_VT1702_2, "VIA VT1702_2" },
+	{ HDA_CODEC_VT1702_3, "VIA VT1702_3" },
+	{ HDA_CODEC_VT1702_4, "VIA VT1702_4" },
+	{ HDA_CODEC_VT1702_5, "VIA VT1702_5" },
+	{ HDA_CODEC_VT1702_6, "VIA VT1702_6" },
+	{ HDA_CODEC_VT1702_7, "VIA VT1702_7" },
 	{ HDA_CODEC_ATIRS600_1,"ATI RS600 HDMI" },
 	{ HDA_CODEC_ATIRS600_2,"ATI RS600 HDMI" },
 	{ HDA_CODEC_ATIRS690,  "ATI RS690/780 HDMI" },
 	{ HDA_CODEC_ATIR6XX,   "ATI R6xx HDMI" },
+	{ HDA_CODEC_NVIDIAMCP67, "NVidia MCP67 HDMI" },
+	{ HDA_CODEC_NVIDIAMCP78, "NVidia MCP78 HDMI" },
+	{ HDA_CODEC_NVIDIAMCP7A, "NVidia MCP7A HDMI" },
+	{ HDA_CODEC_INTELG45_1, "Intel G45 HDMI" },
+	{ HDA_CODEC_INTELG45_2, "Intel G45 HDMI" },
+	{ HDA_CODEC_INTELG45_3, "Intel G45 HDMI" },
+	{ HDA_CODEC_INTELG45_4, "Intel G45 HDMI" },
+	{ HDA_CODEC_SII1390,   "Silicon Image SiI1390 HDMI" },
 	{ HDA_CODEC_SII1392,   "Silicon Image SiI1392 HDMI" },
 	/* Unknown codec */
 	{ HDA_CODEC_ALCXXXX,   "Realtek (Unknown)" },
@@ -2443,9 +2518,10 @@ hdac_widget_pin_parse(struct hdac_widget *w)
 {
 	struct hdac_softc *sc = w->devinfo->codec->sc;
 	uint32_t config, pincap;
-	const char *devstr, *connstr;
+	const char *devstr;
 	nid_t cad = w->devinfo->codec->cad;
 	nid_t nid = w->nid;
+	int conn, color;
 
 	config = hdac_widget_pin_getconfig(w);
 	w->wclass.pin.config = config;
@@ -2467,13 +2543,19 @@ hdac_widget_pin_parse(struct hdac_widget *w)
 	devstr = HDA_DEVS[(config & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) >>
 	    HDA_CONFIG_DEFAULTCONF_DEVICE_SHIFT];
 
-	connstr = HDA_CONNS[(config & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) >>
-	    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT];
+	conn = (config & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) >>
+	    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT;
+	color = (config & HDA_CONFIG_DEFAULTCONF_COLOR_MASK) >>
+	    HDA_CONFIG_DEFAULTCONF_COLOR_SHIFT;
 
 	strlcat(w->name, ": ", sizeof(w->name));
 	strlcat(w->name, devstr, sizeof(w->name));
 	strlcat(w->name, " (", sizeof(w->name));
-	strlcat(w->name, connstr, sizeof(w->name));
+	if (conn == 0 && color != 0 && color != 15) {
+		strlcat(w->name, HDA_COLORS[color], sizeof(w->name));
+		strlcat(w->name, " ", sizeof(w->name));
+	}
+	strlcat(w->name, HDA_CONNS[conn], sizeof(w->name));
 	strlcat(w->name, ")", sizeof(w->name));
 }
 
@@ -5472,7 +5554,7 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 	struct hdac_audio_ctl *ctl;
 	int i, j;
 
-	/* Disable crossassociatement connections. */
+	/* Disable crossassociatement and unwanted crosschannel connections. */
 	/* ... using selectors */
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		w = hdac_widget_get(devinfo, i);
@@ -5490,7 +5572,10 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 			cw = hdac_widget_get(devinfo, w->conns[j]);
 			if (cw == NULL || w->enable == 0)
 				continue;
-			if (w->bindas == cw->bindas || cw->bindas == -2)
+			if (cw->bindas == -2)
+				continue;
+			if (w->bindas == cw->bindas &&
+			    (w->bindseqmask & cw->bindseqmask) != 0)
 				continue;
 			w->connsenable[j] = 0;
 			HDA_BOOTHVERBOSE(
@@ -5509,7 +5594,8 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 		if (ctl->widget->bindas == -2 ||
 		    ctl->childwidget->bindas == -2)
 			continue;
-		if (ctl->widget->bindas != ctl->childwidget->bindas) {
+		if (ctl->widget->bindas != ctl->childwidget->bindas ||
+		    (ctl->widget->bindseqmask & ctl->childwidget->bindseqmask) == 0) {
 			ctl->forcemute = 1;
 			ctl->muted = HDA_AMP_MUTE_ALL;
 			ctl->left = 0;
