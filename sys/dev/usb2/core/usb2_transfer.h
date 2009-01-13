@@ -47,8 +47,8 @@ struct usb2_xfer_root {
 	struct usb2_done_msg done_m[2];
 	struct cv cv_drain;
 	struct usb2_dma_parent_tag dma_parent_tag;
-	struct usb2_process done_p;
 
+	struct usb2_process *done_p;	/* pointer to callback process */
 	void   *memory_base;
 	struct mtx *xfer_mtx;	/* cannot be changed during operation */
 	struct usb2_page_cache *dma_page_cache_start;

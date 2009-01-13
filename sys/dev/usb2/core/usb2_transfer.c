@@ -819,13 +819,12 @@ usb2_transfer_setup(struct usb2_device *udev,
 			info->done_m[1].hdr.pm_callback = &usb2_callback_proc;
 			info->done_m[1].xroot = info;
 
-			/* create a callback thread */
-
-			if (usb2_proc_setup(&info->done_p,
-			    &udev->bus->bus_mtx, USB_PRI_HIGH)) {
-				parm.err = USB_ERR_NO_INTR_THREAD;
-				goto done;
-			}
+			if (xfer_mtx == &Giant)
+				info->done_p = 
+				    &udev->bus->giant_callback_proc;
+			else
+				info->done_p = 
+				    &udev->bus->non_giant_callback_proc;
 		}
 		/* reset sizes */
 
@@ -1045,10 +1044,11 @@ usb2_transfer_unsetup_sub(struct usb2_xfer_root *info, uint8_t needs_delay)
 		temp = usb2_get_dma_delay(info->bus);
 		usb2_pause_mtx(&info->bus->bus_mtx, temp);
 	}
-	USB_BUS_UNLOCK(info->bus);
 
-	/* wait for interrupt thread to exit */
-	usb2_proc_unsetup(&info->done_p);
+	/* make sure that our done messages are not queued anywhere */
+	usb2_proc_mwait(info->done_p, &info->done_m[0], &info->done_m[1]);
+
+	USB_BUS_UNLOCK(info->bus);
 
 	/* free DMA'able memory, if any */
 	pc = info->dma_page_cache_start;
@@ -1811,7 +1811,7 @@ usb2_callback_ss_done_defer(struct usb2_xfer *xfer)
 	         * will have a Lock Order Reversal, LOR, if we try to
 	         * proceed !
 	         */
-		if (usb2_proc_msignal(&info->done_p,
+		if (usb2_proc_msignal(info->done_p,
 		    &info->done_m[0], &info->done_m[1])) {
 			/* ignore */
 		}
@@ -1851,7 +1851,7 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 	         * will have a Lock Order Reversal, LOR, if we try to
 	         * proceed !
 	         */
-		if (usb2_proc_msignal(&info->done_p,
+		if (usb2_proc_msignal(info->done_p,
 		    &info->done_m[0], &info->done_m[1])) {
 			/* ignore */
 		}
@@ -2195,7 +2195,8 @@ usb2_pipe_start(struct usb2_xfer_queue *pq)
 				    udev, NULL, pipe);
 			} else if (udev->default_xfer[1]) {
 				info = udev->default_xfer[1]->xroot;
-				if (usb2_proc_msignal(&info->done_p,
+				if (usb2_proc_msignal(
+				    &info->bus->non_giant_callback_proc,
 				    &udev->cs_msg[0], &udev->cs_msg[1])) {
 					/* ignore */
 				}
