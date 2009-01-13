@@ -102,9 +102,12 @@ musbotg_attach(device_t dev)
 	sc->sc_otg.sc_clocks_off = &musbotg_clocks_off;
 	sc->sc_otg.sc_clocks_arg = sc;
 
-	/* get all DMA memory */
-
+	/* initialise some bus fields */
 	sc->sc_otg.sc_bus.parent = dev;
+	sc->sc_otg.sc_bus.devices = sc->sc_otg.sc_devices;
+	sc->sc_otg.sc_bus.devices_max = MUSB2_MAX_DEVICES;
+
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);

@@ -145,9 +145,12 @@ at91_udp_attach(device_t dev)
 	sc->sc_dci.sc_pull_down = &at91_udp_pull_down;
 	sc->sc_dci.sc_pull_arg = sc;
 
-	/* get all DMA memory */
-
+	/* initialise some bus fields */
 	sc->sc_dci.sc_bus.parent = dev;
+	sc->sc_dci.sc_bus.devices = sc->sc_dci.sc_devices;
+	sc->sc_dci.sc_bus.devices_max = AT91_MAX_DEVICES;
+
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_dci.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);

@@ -39,6 +39,8 @@
 #ifndef _OHCI_H_
 #define	_OHCI_H_
 
+#define	OHCI_MAX_DEVICES USB_MAX_DEVICES
+
 /* PCI config registers */
 #define	PCI_CBMEM		0x10	/* configuration base memory */
 #define	PCI_INTERFACE_OHCI	0x10
@@ -324,6 +326,7 @@ typedef struct ohci_softc {
 	struct usb2_sw_transfer sc_root_ctrl;
 	struct usb2_sw_transfer sc_root_intr;
 
+	struct usb2_device *sc_devices[OHCI_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	struct ohci_hcca *sc_hcca_p;

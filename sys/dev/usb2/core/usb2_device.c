@@ -1290,19 +1290,23 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	 * Find an unused device index. In USB Host mode this is the
 	 * same as the device address.
 	 *
-	 * NOTE: Index 1 is reserved for the Root HUB.
+	 * Device index zero is not used and device index 1 should
+	 * always be the root hub.
 	 */
-	for (device_index = USB_ROOT_HUB_ADDR; device_index !=
-	    USB_MAX_DEVICES; device_index++) {
+	for (device_index = USB_ROOT_HUB_ADDR;; device_index++) {
+#if (USB_ROOT_HUB_ADDR > USB_MIN_DEVICES)
+#error "Incorrect device limit."
+#endif
+		if (device_index == bus->devices_max) {
+			device_printf(bus->bdev,
+			    "No free USB device "
+			    "index for new device!\n");
+			return (NULL);
+		}
 		if (bus->devices[device_index] == NULL)
 			break;
 	}
 
-	if (device_index == USB_MAX_DEVICES) {
-		device_printf(bus->bdev,
-		    "No free USB device index for new device!\n");
-		return (NULL);
-	}
 	if (depth > 0x10) {
 		device_printf(bus->bdev,
 		    "Invalid device depth!\n");
