@@ -217,7 +217,7 @@ static struct part_type
 };
 
 static void print_s0(void);
-static void print_part(int i);
+static void print_part(const struct dos_partition *);
 static void init_sector0(unsigned long start);
 static void init_boot(void);
 static void change_part(int i);
@@ -445,19 +445,18 @@ print_s0(void)
 
 	print_params();
 	printf("Information from DOS bootblock is:\n");
-	for (i = 1; i <= NDOSPART; i++)
-		printf("%d: ", i), print_part(i);
+	for (i = 1; i <= NDOSPART; i++) {
+		printf("%d: ", i);
+		print_part(&mboot.parts[i - 1]);
+	}
 }
 
 static struct dos_partition mtpart;
 
 static void
-print_part(int i)
+print_part(const struct dos_partition *partp)
 {
-	struct	  dos_partition *partp;
 	u_int64_t part_mb;
-
-	partp = &mboot.parts[i - 1];
 
 	if (!bcmp(partp, &mtpart, sizeof (struct dos_partition))) {
 		printf("<UNUSED>\n");
@@ -546,18 +545,18 @@ change_part(int i)
     struct dos_partition *partp = &mboot.parts[i - 1];
 
     printf("The data for partition %d is:\n", i);
-    print_part(i);
+    print_part(partp);
 
     if (u_flag && ok("Do you want to change it?")) {
 	int tmp;
 
 	if (i_flag) {
-		bzero(partp, sizeof (*partp));
-		if (i == 1) {
-			init_sector0(1);
-			printf("\nThe static data for the slice 1 has been reinitialized to:\n");
-			print_part(i);
-		}
+	    bzero(partp, sizeof (*partp));
+	    if (i == 1) {
+		init_sector0(1);
+		printf("\nThe static data for the slice 1 has been reinitialized to:\n");
+		print_part(partp);
+	    }
 	}
 
 	do {
@@ -594,7 +593,7 @@ change_part(int i)
 		} else
 			dos(partp);
 
-		print_part(i);
+		print_part(partp);
 	} while (!ok("Are we happy with this entry?"));
     }
 }
