@@ -216,7 +216,7 @@ static struct part_type
 	,{0xFF, "Xenix bad blocks table"}
 };
 
-static void print_s0(int which);
+static void print_s0(void);
 static void print_part(int i);
 static void init_sector0(unsigned long start);
 static void init_boot(void);
@@ -373,7 +373,7 @@ main(int argc, char *argv[])
 		    dos_sectors;
 		dos(partp);
 		if (v_flag)
-			print_s0(-1);
+			print_s0();
 		if (!t_flag)
 			write_s0();
 		exit(0);
@@ -384,7 +384,7 @@ main(int argc, char *argv[])
 	    if (!read_config(f_flag))
 		exit(1);
 	    if (v_flag)
-		print_s0(-1);
+		print_s0();
 	    if (!t_flag)
 		write_s0();
 	} else {
@@ -416,7 +416,7 @@ main(int argc, char *argv[])
 		    printf("\nWe haven't changed the partition table yet.  ");
 		    printf("This is your last chance.\n");
 		}
-		print_s0(-1);
+		print_s0();
 		if (!t_flag) {
 		    if (ok("Should we write new partition table?"))
 			write_s0();
@@ -439,17 +439,14 @@ usage()
 }
 
 static void
-print_s0(int which)
+print_s0(void)
 {
 	int	i;
 
 	print_params();
 	printf("Information from DOS bootblock is:\n");
-	if (which == -1)
-		for (i = 1; i <= NDOSPART; i++)
-			printf("%d: ", i), print_part(i);
-	else
-		print_part(which);
+	for (i = 1; i <= NDOSPART; i++)
+		printf("%d: ", i), print_part(i);
 }
 
 static struct dos_partition mtpart;
@@ -872,7 +869,7 @@ write_s0()
 	int	sector, i;
 
 	if (iotest) {
-		print_s0(-1);
+		print_s0();
 		return 0;
 	}
 	for(i = 0; i < NDOSPART; i++)
