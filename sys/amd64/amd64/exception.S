@@ -494,6 +494,7 @@ outofnmi:
 	movq	%rsp,%rdx			/* frame */
 	sti
 	call	*%rax
+	cli
 nocallchain:
 #endif
 	testl	%ebx,%ebx
