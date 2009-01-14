@@ -506,14 +506,18 @@ Others may use completely wild values.
 .Sh EXIT STATUS
 The
 .Nm
-utility returns an exit status of zero if at least one response was
-heard from the specified
-.Ar host ;
-a status of two if the transmission was successful but no responses
-were received; or another value
-(from
-.In sysexits.h )
-if an error occurred.
+utility exits with one of the following values:
+.Bl -tag -width indent
+.It 0
+At least one response was heard from the specified
+.Ar host .
+.It 2
+The transmission was successful but no responses were received.
+.It any other value
+An error occurred.
+These values are defined in
+.In sysexits.h .
+.El
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr ifconfig 8 ,
