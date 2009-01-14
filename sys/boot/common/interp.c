@@ -46,7 +46,7 @@ extern FICL_VM *bf_vm;
 #define	RETURN(x)	return(x)
 #endif
 
-#define	MAXARGS	20			/* maximum number of arguments allowed */
+#define	MAXARGS	20		/* maximum number of arguments allowed */
 
 static void	prompt(void);
 
