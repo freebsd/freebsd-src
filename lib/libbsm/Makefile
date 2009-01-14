@@ -15,12 +15,14 @@ SHLIB_MAJOR=	2
 SRCS=	bsm_audit.c							\
 	bsm_class.c							\
 	bsm_control.c							\
+	bsm_domain.c							\
 	bsm_errno.c							\
 	bsm_event.c							\
 	bsm_flags.c							\
 	bsm_io.c							\
 	bsm_mask.c							\
 	bsm_notify.c							\
+	bsm_socket_type.c						\
 	bsm_token.c							\
 	bsm_user.c							\
 	bsm_wrappers.c
@@ -36,12 +38,14 @@ INCSDIR=	${INCLUDEDIR}/bsm
 MAN=	libbsm.3							\
 	au_class.3							\
 	au_control.3							\
+	au_domain.3							\
 	au_errno.3							\
 	au_event.3							\
 	au_free_token.3							\
 	au_io.3								\
 	au_mask.3							\
 	au_open.3							\
+	au_socket_type.3						\
 	au_token.3							\
 	au_user.3							\
 	audit_submit.3
@@ -81,6 +85,8 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_control.3 getacpol.3						\
 	au_control.3 au_poltostr.3					\
 	au_control.3 au_strtopol.3					\
+	au_domain.3 au_bsm_to_domain.3					\
+	au_domain.3 au_domain_to_bsm.3					\
 	au_errno.3 au_bsm_to_errno.3					\
 	au_errno.3 au_errno_to_bsm.3					\
 	au_errno.3 au_strerror.3					\
@@ -104,6 +110,8 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_open.3 au_close_buffer.3					\
 	au_open.3 au_close_token.3					\
 	au_open.3 au_write.3						\
+	au_socket_type.3 au_bsm_to_socket_type.3			\
+	au_socket_type.3 au_socket_type_to_bsm.3			\
 	au_token.3 au_to_arg32.3					\
 	au_token.3 au_to_arg64.3					\
 	au_token.3 au_to_arg.3						\
