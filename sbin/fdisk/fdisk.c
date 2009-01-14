@@ -122,99 +122,108 @@ static char *f_flag = NULL;	/* Read config info from file */
 static int v_flag  = 0;		/* Be verbose */
 static int print_config_flag = 0;
 
-static struct part_type
-{
-	unsigned char type;
-	const char *name;
-} part_types[] = {
-	 {0x00, "unused"}
-	,{0x01, "Primary DOS with 12 bit FAT"}
-	,{0x02, "XENIX / file system"}
-	,{0x03, "XENIX /usr file system"}
-	,{0x04, "Primary DOS with 16 bit FAT (< 32MB)"}
-	,{0x05, "Extended DOS"}
-	,{0x06, "Primary 'big' DOS (>= 32MB)"}
-	,{0x07, "OS/2 HPFS, NTFS, QNX-2 (16 bit) or Advanced UNIX"}
-	,{0x08, "AIX file system or SplitDrive"}
-	,{0x09, "AIX boot partition or Coherent"}
-	,{0x0A, "OS/2 Boot Manager, OPUS or Coherent swap"}
-	,{0x0B, "DOS or Windows 95 with 32 bit FAT"}
-	,{0x0C, "DOS or Windows 95 with 32 bit FAT (LBA)"}
-	,{0x0E, "Primary 'big' DOS (>= 32MB, LBA)"}
-	,{0x0F, "Extended DOS (LBA)"}
-	,{0x10, "OPUS"}
-	,{0x11, "OS/2 BM: hidden DOS with 12-bit FAT"}
-	,{0x12, "Compaq diagnostics"}
-	,{0x14, "OS/2 BM: hidden DOS with 16-bit FAT (< 32MB)"}
-	,{0x16, "OS/2 BM: hidden DOS with 16-bit FAT (>= 32MB)"}
-	,{0x17, "OS/2 BM: hidden IFS (e.g. HPFS)"}
-	,{0x18, "AST Windows swapfile"}
-	,{0x24, "NEC DOS"}
-	,{0x3C, "PartitionMagic recovery"}
-	,{0x39, "plan9"}
-	,{0x40, "VENIX 286"}
-	,{0x41, "Linux/MINIX (sharing disk with DRDOS)"}
-	,{0x42, "SFS or Linux swap (sharing disk with DRDOS)"}
-	,{0x43, "Linux native (sharing disk with DRDOS)"}
-	,{0x4D, "QNX 4.2 Primary"}
-	,{0x4E, "QNX 4.2 Secondary"}
-	,{0x4F, "QNX 4.2 Tertiary"}
-	,{0x50, "DM (disk manager)"}
-	,{0x51, "DM6 Aux1 (or Novell)"}
-	,{0x52, "CP/M or Microport SysV/AT"}
-	,{0x53, "DM6 Aux3"}
-	,{0x54, "DM6"}
-	,{0x55, "EZ-Drive (disk manager)"}
-	,{0x56, "Golden Bow (disk manager)"}
-	,{0x5c, "Priam Edisk (disk manager)"} /* according to S. Widlake */
-	,{0x61, "SpeedStor"}
-	,{0x63, "System V/386 (such as ISC UNIX), GNU HURD or Mach"}
-	,{0x64, "Novell Netware/286 2.xx"}
-	,{0x65, "Novell Netware/386 3.xx"}
-	,{0x70, "DiskSecure Multi-Boot"}
-	,{0x75, "PCIX"}
-	,{0x77, "QNX4.x"}
-	,{0x78, "QNX4.x 2nd part"}
-	,{0x79, "QNX4.x 3rd part"}
-	,{0x80, "Minix until 1.4a"}
-	,{0x81, "Minix since 1.4b, early Linux partition or Mitac disk manager"}
-	,{0x82, "Linux swap or Solaris x86"}
-	,{0x83, "Linux native"}
-	,{0x84, "OS/2 hidden C: drive"}
-	,{0x85, "Linux extended"}
-	,{0x86, "NTFS volume set??"}
-	,{0x87, "NTFS volume set??"}
-	,{0x93, "Amoeba file system"}
-	,{0x94, "Amoeba bad block table"}
-	,{0x9F, "BSD/OS"}
-	,{0xA0, "Suspend to Disk"}
-	,{0xA5, "FreeBSD/NetBSD/386BSD"}
-	,{0xA6, "OpenBSD"}
-	,{0xA7, "NeXTSTEP"}
-	,{0xA9, "NetBSD"}
-	,{0xAC, "IBM JFS"}
-	,{0xAF, "HFS+"}
-	,{0xB7, "BSDI BSD/386 file system"}
-	,{0xB8, "BSDI BSD/386 swap"}
-	,{0xBE, "Solaris x86 boot"}
-	,{0xBF, "Solaris x86 (new)"}
-	,{0xC1, "DRDOS/sec with 12-bit FAT"}
-	,{0xC4, "DRDOS/sec with 16-bit FAT (< 32MB)"}
-	,{0xC6, "DRDOS/sec with 16-bit FAT (>= 32MB)"}
-	,{0xC7, "Syrinx"}
-	,{0xDB, "CP/M, Concurrent CP/M, Concurrent DOS or CTOS"}
-	,{0xE1, "DOS access or SpeedStor with 12-bit FAT extended partition"}
-	,{0xE3, "DOS R/O or SpeedStor"}
-	,{0xE4, "SpeedStor with 16-bit FAT extended partition < 1024 cyl."}
-	,{0xEB, "BeOS file system"}
-	,{0xEE, "EFI GPT"}
-	,{0xEF, "EFI System Partition"}
-	,{0xF1, "SpeedStor"}
-	,{0xF2, "DOS 3.3+ Secondary"}
-	,{0xF4, "SpeedStor large partition"}
-	,{0xFE, "SpeedStor >1024 cyl. or LANstep"}
-	,{0xFF, "Xenix bad blocks table"}
+/*
+ * A list of partition types, probably outdated.
+ */
+static const char *const part_types[256] = {
+	[0x00] = "unused",
+	[0x01] = "Primary DOS with 12 bit FAT",
+	[0x02] = "XENIX / file system",
+	[0x03] = "XENIX /usr file system",
+	[0x04] = "Primary DOS with 16 bit FAT (< 32MB)",
+	[0x05] = "Extended DOS",
+	[0x06] = "Primary 'big' DOS (>= 32MB)",
+	[0x07] = "OS/2 HPFS, NTFS, QNX-2 (16 bit) or Advanced UNIX",
+	[0x08] = "AIX file system or SplitDrive",
+	[0x09] = "AIX boot partition or Coherent",
+	[0x0A] = "OS/2 Boot Manager, OPUS or Coherent swap",
+	[0x0B] = "DOS or Windows 95 with 32 bit FAT",
+	[0x0C] = "DOS or Windows 95 with 32 bit FAT (LBA)",
+	[0x0E] = "Primary 'big' DOS (>= 32MB, LBA)",
+	[0x0F] = "Extended DOS (LBA)",
+	[0x10] = "OPUS",
+	[0x11] = "OS/2 BM: hidden DOS with 12-bit FAT",
+	[0x12] = "Compaq diagnostics",
+	[0x14] = "OS/2 BM: hidden DOS with 16-bit FAT (< 32MB)",
+	[0x16] = "OS/2 BM: hidden DOS with 16-bit FAT (>= 32MB)",
+	[0x17] = "OS/2 BM: hidden IFS (e.g. HPFS)",
+	[0x18] = "AST Windows swapfile",
+	[0x24] = "NEC DOS",
+	[0x3C] = "PartitionMagic recovery",
+	[0x39] = "plan9",
+	[0x40] = "VENIX 286",
+	[0x41] = "Linux/MINIX (sharing disk with DRDOS)",
+	[0x42] = "SFS or Linux swap (sharing disk with DRDOS)",
+	[0x43] = "Linux native (sharing disk with DRDOS)",
+	[0x4D] = "QNX 4.2 Primary",
+	[0x4E] = "QNX 4.2 Secondary",
+	[0x4F] = "QNX 4.2 Tertiary",
+	[0x50] = "DM (disk manager)",
+	[0x51] = "DM6 Aux1 (or Novell)",
+	[0x52] = "CP/M or Microport SysV/AT",
+	[0x53] = "DM6 Aux3",
+	[0x54] = "DM6",
+	[0x55] = "EZ-Drive (disk manager)",
+	[0x56] = "Golden Bow (disk manager)",
+	[0x5c] = "Priam Edisk (disk manager)", /* according to S. Widlake */
+	[0x61] = "SpeedStor",
+	[0x63] = "System V/386 (such as ISC UNIX), GNU HURD or Mach",
+	[0x64] = "Novell Netware/286 2.xx",
+	[0x65] = "Novell Netware/386 3.xx",
+	[0x70] = "DiskSecure Multi-Boot",
+	[0x75] = "PCIX",
+	[0x77] = "QNX4.x",
+	[0x78] = "QNX4.x 2nd part",
+	[0x79] = "QNX4.x 3rd part",
+	[0x80] = "Minix until 1.4a",
+	[0x81] = "Minix since 1.4b, early Linux partition or Mitac disk manager",
+	[0x82] = "Linux swap or Solaris x86",
+	[0x83] = "Linux native",
+	[0x84] = "OS/2 hidden C: drive",
+	[0x85] = "Linux extended",
+	[0x86] = "NTFS volume set??",
+	[0x87] = "NTFS volume set??",
+	[0x93] = "Amoeba file system",
+	[0x94] = "Amoeba bad block table",
+	[0x9F] = "BSD/OS",
+	[0xA0] = "Suspend to Disk",
+	[0xA5] = "FreeBSD/NetBSD/386BSD",
+	[0xA6] = "OpenBSD",
+	[0xA7] = "NeXTSTEP",
+	[0xA9] = "NetBSD",
+	[0xAC] = "IBM JFS",
+	[0xAF] = "HFS+",
+	[0xB7] = "BSDI BSD/386 file system",
+	[0xB8] = "BSDI BSD/386 swap",
+	[0xBE] = "Solaris x86 boot",
+	[0xBF] = "Solaris x86 (new)",
+	[0xC1] = "DRDOS/sec with 12-bit FAT",
+	[0xC4] = "DRDOS/sec with 16-bit FAT (< 32MB)",
+	[0xC6] = "DRDOS/sec with 16-bit FAT (>= 32MB)",
+	[0xC7] = "Syrinx",
+	[0xDB] = "CP/M, Concurrent CP/M, Concurrent DOS or CTOS",
+	[0xE1] = "DOS access or SpeedStor with 12-bit FAT extended partition",
+	[0xE3] = "DOS R/O or SpeedStor",
+	[0xE4] = "SpeedStor with 16-bit FAT extended partition < 1024 cyl.",
+	[0xEB] = "BeOS file system",
+	[0xEE] = "EFI GPT",
+	[0xEF] = "EFI System Partition",
+	[0xF1] = "SpeedStor",
+	[0xF2] = "DOS 3.3+ Secondary",
+	[0xF4] = "SpeedStor large partition",
+	[0xFE] = "SpeedStor >1024 cyl. or LANstep",
+	[0xFF] = "Xenix bad blocks table",
 };
+
+static const char *
+get_type(int t)
+{
+	const char *ret;
+
+	ret = (t >= 0 && t <= 255) ? part_types[t] : NULL;
+	return ret ? ret : "unknown";
+}
+
 
 static void print_s0(void);
 static void print_part(const struct dos_partition *);
@@ -235,7 +244,6 @@ static int read_s0(void);
 static int write_s0(void);
 static int ok(const char *str);
 static int decimal(const char *str, int *num, int deflt);
-static const char *get_type(int type);
 static int read_config(char *config_file);
 static void reset_boot(void);
 static int sanitize_partition(struct dos_partition *);
@@ -938,23 +946,6 @@ decimal(const char *str, int *num, int deflt)
 				lbuf);
 	}
 
-}
-
-static const char *
-get_type(int type)
-{
-	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
-	int	counter = 0;
-	struct	part_type *ptr = part_types;
-
-
-	while(counter < numentries) {
-		if(ptr->type == type)
-			return(ptr->name);
-		ptr++;
-		counter++;
-	}
-	return("unknown");
 }
 
 
