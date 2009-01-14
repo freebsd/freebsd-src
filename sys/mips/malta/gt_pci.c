@@ -457,21 +457,7 @@ gt_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
 		*	Should we set the mode explicitly during chip
 		*	Initialization?
 		*/ 
-		switch(reg % 4)
-		{
-		case 3:
-			shift = 24;
-			break;
-		case 2:
-			shift = 16;
-			break;
-		case 1:
-			shift = 8;
-			break;
-		default:
-			shift = 0;
-			break;
-		}	
+		shift = 8 * (reg & 3);
 
 		switch(bytes)
 		{
