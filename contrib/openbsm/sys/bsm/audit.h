@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#4 $
  */
 
 #ifndef _BSM_AUDIT_H
@@ -279,8 +279,8 @@ typedef	struct audit_stat	au_stat_t;
  * Structure for the audit file statistics.
  */
 struct audit_fstat {
-	u_quad_t	af_filesz;
-	u_quad_t	af_currsz;
+	u_int64_t	af_filesz;
+	u_int64_t	af_currsz;
 };
 typedef	struct audit_fstat	au_fstat_t;
 

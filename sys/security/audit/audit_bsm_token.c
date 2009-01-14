@@ -851,6 +851,9 @@ au_to_seq(long audit_count)
  * local address           4 bytes/16 bytes (IPv4/IPv6 address)
  * remote port             2 bytes
  * remote address          4 bytes/16 bytes (IPv4/IPv6 address)
+ *
+ * Domain and type arguments to this routine are assumed to already have been
+ * converted to the BSM constant space, so we don't do that here.
  */
 token_t *
 au_to_socket_ex(u_short so_domain, u_short so_type,

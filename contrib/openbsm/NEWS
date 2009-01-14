@@ -1,5 +1,24 @@
 OpenBSM Version History
 
+OpenBSM 1.1 alpha 5
+
+- Stub libauditd(3) man page added.
+- All BSM error number constants with BSM_ERRNO_.
+- Interfaces to convert between local and BSM socket types and protocol
+  families have been added: au_bsm_to_domain(3), au_bsm_to_socket_type(3),
+  au_domain_to_bsm(3), and au_socket_type_to_bsm(3), along with definitions
+  of constants in audit_domain.h and audit_socket_type.h.  This improves
+  interoperability by converting local constant spaces, which vary by OS, to
+  and from Solaris constants (where available) or OpenBSM constants for
+  protocol domains not present in Solaris (a fair number).  These routines
+  should be used when generating and interpreting extended socket tokens.
+- Fix build warnings with full gcc warnings enabled on most supported
+  platforms.
+- Don't compile error strings into bsm_errno.c when building it in the kernel
+  environment.
+- When started by launchd, use the label com.apple.auditd rather than
+  org.trustedbsd.auditd.
+
 OpenBSM 1.1 alpha 4
 
 - With the addition of BSM error number mapping, we also need to map the
@@ -393,4 +412,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/NEWS#21 $
+$P4: //depot/projects/trustedbsd/openbsm/NEWS#27 $
