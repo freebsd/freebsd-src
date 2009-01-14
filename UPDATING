@@ -23,6 +23,9 @@ portupgrade.
 	hw.snd.default_unit sysctl according to sound(4) and snd_hda(4)
 	man pages.
 
+20090106:
+	FreeBSD 7.1-RELEASE
+
 20080903:
 	ntpd has been upgraded to 4.2.4p5.
 
