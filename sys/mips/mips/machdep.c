@@ -198,8 +198,8 @@ cpu_startup(void *dummy)
 void
 cpu_reset(void)
 {
-	for (;;)
-		;
+
+	platform_reset();
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -207,7 +207,7 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
 
-    return (ENXIO);
+	return (ENXIO);
 }
 
 /*
