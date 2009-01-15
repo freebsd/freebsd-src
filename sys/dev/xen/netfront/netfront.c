@@ -1237,7 +1237,9 @@ next:
 				m->m_len = rx->status;
 				m->m_data += rx->offset;
 				m0->m_pkthdr.len += rx->status;
-		}
+		} else
+			break;
+		
 		
 		if (!(rx->flags & NETRXF_more_data))
 			break;
