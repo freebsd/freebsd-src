@@ -418,16 +418,16 @@ cpu_idle(int busy)
 		panic("ints disabled in idleproc!");
 }
 
-int
-cpu_idle_wakeup(int cpu)
-{
-
-	return (0);
-}
-
 void
 dumpsys(struct dumperinfo *di __unused)
 {
 
 	printf("Kernel dumps not implemented on this architecture\n");
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
