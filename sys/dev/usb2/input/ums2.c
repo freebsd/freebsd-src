@@ -84,9 +84,14 @@ SYSCTL_INT(_hw_usb2_ums, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	UMS_BUF_SIZE      8		/* bytes */
 #define	UMS_IFQ_MAXLEN   50		/* units */
-#define	UMS_N_TRANSFER    2		/* units */
 #define	UMS_BUTTON_MAX   31		/* exclusive, must be less than 32 */
 #define	UMS_BUT(i) ((i) < 3 ? (((i) + 2) % 3) : (i))
+
+enum {
+	UMS_INTR_DT,
+	UMS_INTR_CS,
+	UMS_N_TRANSFER = 2,
+};
 
 struct ums_softc {
 	struct usb2_fifo_sc sc_fifo;
@@ -159,7 +164,7 @@ static void
 ums_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ums_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UMS_INTR_DT];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -307,7 +312,7 @@ ums_intr_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->sc_flags & UMS_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[1]);
+			usb2_transfer_start(sc->sc_xfer[UMS_INTR_CS]);
 		} else {
 			/* check if we can put more data into the FIFO */
 			if (usb2_fifo_put_bytes_max(
@@ -322,7 +327,7 @@ tr_setup:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* start clear stall */
 			sc->sc_flags |= UMS_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[1]);
+			usb2_transfer_start(sc->sc_xfer[UMS_INTR_CS]);
 		}
 		return;
 	}
@@ -330,7 +335,7 @@ tr_setup:
 
 static const struct usb2_config ums_config[UMS_N_TRANSFER] = {
 
-	[0] = {
+	[UMS_INTR_DT] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -339,7 +344,7 @@ static const struct usb2_config ums_config[UMS_N_TRANSFER] = {
 		.mh.callback = &ums_intr_callback,
 	},
 
-	[1] = {
+	[UMS_INTR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -555,10 +560,10 @@ ums_attach(device_t dev)
 		/* Some wheels need the Z axis reversed. */
 		sc->sc_flags |= UMS_FLAG_REVZ;
 	}
-	if (isize > sc->sc_xfer[0]->max_frame_size) {
+	if (isize > sc->sc_xfer[UMS_INTR_DT]->max_frame_size) {
 		DPRINTF("WARNING: report size, %d bytes, is larger "
 		    "than interrupt size, %d bytes!\n",
-		    isize, sc->sc_xfer[0]->max_frame_size);
+		    isize, sc->sc_xfer[UMS_INTR_DT]->max_frame_size);
 	}
 	/* announce information about the mouse */
 
@@ -657,7 +662,7 @@ ums_start_read(struct usb2_fifo *fifo)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[UMS_INTR_DT]);
 }
 
 static void
@@ -665,8 +670,8 @@ ums_stop_read(struct usb2_fifo *fifo)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[1]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
+	usb2_transfer_stop(sc->sc_xfer[UMS_INTR_CS]);
+	usb2_transfer_stop(sc->sc_xfer[UMS_INTR_DT]);
 	usb2_callout_stop(&sc->sc_callout);
 }
 

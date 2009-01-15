@@ -75,7 +75,6 @@ SYSCTL_INT(_hw_usb2_ulpt, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	ULPT_BSIZE		(1<<15)	/* bytes */
 #define	ULPT_IFQ_MAXLEN         2	/* units */
-#define	ULPT_N_TRANSFER         5	/* units */
 
 #define	UR_GET_DEVICE_ID        0x00
 #define	UR_GET_PORT_STATUS      0x01
@@ -86,6 +85,15 @@ SYSCTL_INT(_hw_usb2_ulpt, OID_AUTO, debug, CTLFLAG_RW,
 #define	LPS_NOPAPER		0x20	/* printer out of paper */
 #define	LPS_INVERT      (LPS_SELECT|LPS_NERR)
 #define	LPS_MASK        (LPS_SELECT|LPS_NERR|LPS_NOPAPER)
+
+enum {
+	ULPT_BULK_DT_WR,
+	ULPT_BULK_DT_RD,
+	ULPT_INTR_DT_RD,
+	ULPT_BULK_CS_WR,
+	ULPT_BULK_CS_RD,
+	ULPT_N_TRANSFER = 5,
+};
 
 struct ulpt_softc {
 	struct usb2_fifo_sc sc_fifo;
@@ -207,7 +215,7 @@ ulpt_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 		if (sc->sc_flags & ULPT_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[ULPT_BULK_CS_WR]);
 			break;
 		}
 		if (usb2_fifo_get_data(f, xfer->frbuffers,
@@ -222,7 +230,7 @@ ulpt_write_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= ULPT_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[ULPT_BULK_CS_WR]);
 		}
 		break;
 	}
@@ -232,7 +240,7 @@ static void
 ulpt_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ulpt_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[ULPT_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -277,7 +285,7 @@ ulpt_read_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & ULPT_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[4]);
+			usb2_transfer_start(sc->sc_xfer[ULPT_BULK_CS_RD]);
 			break;
 		}
 		if (usb2_fifo_put_bytes_max(f) != 0) {
@@ -294,7 +302,7 @@ ulpt_read_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= ULPT_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[4]);
+			usb2_transfer_start(sc->sc_xfer[ULPT_BULK_CS_RD]);
 		}
 		break;
 	}
@@ -304,7 +312,7 @@ static void
 ulpt_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ulpt_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[ULPT_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -367,7 +375,7 @@ ulpt_status_callback(struct usb2_xfer *xfer)
 }
 
 static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
-	[0] = {
+	[ULPT_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -376,7 +384,7 @@ static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
 		.mh.callback = &ulpt_write_callback,
 	},
 
-	[1] = {
+	[ULPT_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -385,7 +393,7 @@ static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
 		.mh.callback = &ulpt_read_callback,
 	},
 
-	[2] = {
+	[ULPT_INTR_DT_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -394,7 +402,7 @@ static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
 		.mh.timeout = 1000,	/* 1 second */
 	},
 
-	[3] = {
+	[ULPT_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -404,7 +412,7 @@ static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[4] = {
+	[ULPT_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -420,7 +428,7 @@ ulpt_start_read(struct usb2_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[1]);
+	usb2_transfer_start(sc->sc_xfer[ULPT_BULK_DT_RD]);
 }
 
 static void
@@ -428,8 +436,8 @@ ulpt_stop_read(struct usb2_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[4]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
+	usb2_transfer_stop(sc->sc_xfer[ULPT_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[ULPT_BULK_DT_RD]);
 }
 
 static void
@@ -437,7 +445,7 @@ ulpt_start_write(struct usb2_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[ULPT_BULK_DT_WR]);
 }
 
 static void
@@ -445,8 +453,8 @@ ulpt_stop_write(struct usb2_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
+	usb2_transfer_stop(sc->sc_xfer[ULPT_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[ULPT_BULK_DT_WR]);
 }
 
 static int
@@ -476,7 +484,7 @@ unlpt_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 		sc->sc_flags |= ULPT_FLAG_READ_STALL;
 		mtx_unlock(&sc->sc_mtx);
 		if (usb2_fifo_alloc_buffer(fifo,
-		    sc->sc_xfer[1]->max_data_length,
+		    sc->sc_xfer[ULPT_BULK_DT_RD]->max_data_length,
 		    ULPT_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}
@@ -489,7 +497,7 @@ unlpt_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 		sc->sc_flags |= ULPT_FLAG_WRITE_STALL;
 		mtx_unlock(&sc->sc_mtx);
 		if (usb2_fifo_alloc_buffer(fifo,
-		    sc->sc_xfer[0]->max_data_length,
+		    sc->sc_xfer[ULPT_BULK_DT_WR]->max_data_length,
 		    ULPT_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}
@@ -755,7 +763,7 @@ ulpt_watchdog(void *arg)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	usb2_transfer_start(sc->sc_xfer[2]);
+	usb2_transfer_start(sc->sc_xfer[ULPT_INTR_DT_RD]);
 
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &ulpt_watchdog, sc);

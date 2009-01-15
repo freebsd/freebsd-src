@@ -17,8 +17,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define	URAL_N_TRANSFER 4
-
 struct ural_node {
 	struct ieee80211_node ni;
 	struct ieee80211_amrr_node amn;
@@ -111,6 +109,14 @@ struct ural_ifq {
 	struct mbuf *ifq_head;
 	struct mbuf *ifq_tail;
 	uint16_t ifq_len;
+};
+
+enum {
+	URAL_BULK_DT_WR,
+	URAL_BULK_DT_RD,
+	URAL_BULK_CS_WR,
+	URAL_BULK_CS_RD,
+	URAL_N_TRANSFER = 4,
 };
 
 struct ural_softc {
