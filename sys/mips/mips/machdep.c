@@ -82,9 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pltfm.h>
 #include <net/netisr.h>
 #include <machine/md_var.h>
-#if 0
-#include <machine/defs.h>
-#endif
 #include <machine/clock.h>
 #include <machine/asm.h>
 #include <machine/bootinfo.h>
@@ -103,10 +100,6 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class")
 
 static char cpu_model[30];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
-
-#if 0 /* see comment below */
-static void getmemsize(void);
-#endif
 
 int cold = 1;
 int Maxmem;
@@ -293,116 +286,6 @@ mips_proc0_init(void)
 }
 
 struct msgbuf *msgbufp=0;
-
-#if 0
-/*
- * This code has been moved to the platform_init code.  The only
- * thing that's beign done here that hasn't been moved is the wired tlb
- * pool stuff.  I'm still trying to understand that feature..., since
- * it maps from the end the kernel to 0x08000000 somehow.  But the stuff
- * was stripped out, so it is hard to say what's going on....
- */
-u_int32_t	 freemem_start;
-
-static void
-getmemsize()
-{
-	vm_offset_t kern_start, kern_end;
-	vm_offset_t AllowMem, memsize;
-	const char *cp;
-	size_t sz;
-	int phys_avail_cnt;
-
-	/* Determine memory layout */
-	phys_avail_cnt = 0;
-	kern_start = mips_trunc_page(MIPS_CACHED_TO_PHYS(btext));
-	if (kern_start < freemem_start)
-panic("kernel load address too low, overlapping with memory reserved for FPC IPC\n");
-
-	if (kern_start > freemem_start) {
-		phys_avail[phys_avail_cnt++] = freemem_start;
-		/*
-		 * Since the stack is setup just before kern_start,
-		 * leave some space for stack to grow
-		 */
-		phys_avail[phys_avail_cnt++] = kern_start - PAGE_SIZE * 3;
-		MIPS_DEBUG_PRINT("phys_avail : %p - %p",	\
-		    phys_avail[phys_avail_cnt-2], phys_avail[phys_avail_cnt-1]);
-	}
-
-	kern_end = (vm_offset_t) end;
-	kern_end = (vm_offset_t) mips_round_page(kern_end);
-	MIPS_DEBUG_PRINT("kern_start : 0x%x, kern_end : 0x%x", btext, kern_end);
-	phys_avail[phys_avail_cnt++] = MIPS_CACHED_TO_PHYS(kern_end);
-
-	if (need_wired_tlb_page_pool) {
-		mips_wired_tlb_physmem_start = MIPS_CACHED_TO_PHYS(kern_end);
-		mips_wired_tlb_physmem_end = 0x08000000;
-		MIPS_DEBUG_PRINT("%s: unmapped page start [0x%x]  end[0x%x]\n",\
-		   __FUNCTION__, mips_wired_tlb_physmem_start, \
-		   mips_wired_tlb_physmem_end);
-		if (mips_wired_tlb_physmem_start > mips_wired_tlb_physmem_end)
-		panic("Error in Page table page physical address assignment\n");
-	}
-
-	if (bootinfo.bi_memsizes_valid)
-		memsize = bootinfo.bi_basemem * 1024;
-	else {
-		memsize = SDRAM_MEM_SIZE;
-	}
-
-	/*
-	 * hw.physmem is a size in bytes; we also allow k, m, and g suffixes
-	 * for the appropriate modifiers.
-	 */
-	if ((cp = getenv("hw.physmem")) != NULL) {
-		vm_offset_t sanity;
-		char *ep;
-
-		sanity = AllowMem = strtouq(cp, &ep, 0);
-		if ((ep != cp) && (*ep != 0)) {
-			switch(*ep) {
-			case 'g':
-			case 'G':
-				AllowMem <<= 10;
-			case 'm':
-			case 'M':
-				AllowMem <<= 10;
-			case 'k':
-			case 'K':
-				AllowMem <<= 10;
-				break;
-			default:
-				AllowMem = sanity = 0;
-			}
-			if (AllowMem < sanity)
-				AllowMem = 0;
-		}
-		if (!AllowMem || (AllowMem < (kern_end - KERNBASE)))
-			printf("Ignoring invalid hw.physmem size of '%s'\n", cp);
-	} else
-		AllowMem = 0;
-
-	if (AllowMem)
-		memsize = (memsize > AllowMem) ? AllowMem : memsize;
-
-	phys_avail[phys_avail_cnt++] = SDRAM_ADDR_START + memsize;
-	MIPS_DEBUG_PRINT("phys_avail : 0x%x - 0x%x",	\
-	    phys_avail[phys_avail_cnt-2], phys_avail[phys_avail_cnt-1]);
-	phys_avail[phys_avail_cnt] = 0;
-
-	physmem = btoc(memsize);
-	Maxmem = physmem;
-
-	/*
-	 * Initialize error message buffer (at high end of memory).
-	 */
-	sz = round_page(MSGBUF_SIZE);
-	msgbufp = (struct msgbuf *) pmap_steal_memory(sz);
-	msgbufinit(msgbufp, sz);
-	printf("%s: msgbufp[size=%d] = 0x%p\n", __FUNCTION__, sz, msgbufp);
-}
-#endif
 
 /*
  * Initialize the hardware exception vectors, and the jump table used to
