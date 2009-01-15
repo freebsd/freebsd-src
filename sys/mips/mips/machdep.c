@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/asm.h>
 #include <machine/bootinfo.h>
+#include <machine/hwfunc.h>
 #ifdef DDB
 #include <sys/kdb.h>
 #include <ddb/ddb.h>
@@ -102,7 +103,6 @@ static char cpu_model[30];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
 
 int cold = 1;
-int Maxmem;
 long realmem = 0;
 int cpu_clock = MIPS_DEFAULT_HZ;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
@@ -157,13 +157,8 @@ cpu_startup(void *dummy)
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
+	printf("real memory  = %lu (%luK bytes)\n", ptoa(realmem), ptoa(realmem) / 1024);
 
-	/*
-	 * Good {morning,afternoon,evening,night}.
-	 */
-	printf("real memory  = %lu (%luK bytes)\n", ptoa(Maxmem),
-	    ptoa(Maxmem) / 1024);
-	realmem = Maxmem;
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
