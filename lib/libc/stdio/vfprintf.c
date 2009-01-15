@@ -72,6 +72,9 @@ static char	*__ultoa(u_long, char *, int, int, const char *, int, char,
 		    const char *);
 static char	*__wcsconv(wchar_t *, int);
 
+#define	CHAR	char
+#include "printfcommon.h"
+
 /*
  * Flush out all the vectors defined by the given uio,
  * then reset it so that it can be reused.
@@ -388,7 +391,6 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int ch;			/* character from fmt */
 	int n, n2;		/* handy integer (short term usage) */
 	char *cp;		/* handy char pointer (short term usage) */
-	struct __siov *iovp;	/* for PRINT macro */
 	int flags;		/* flags as above */
 	int ret;		/* return value accumulator */
 	int width;		/* width from format (%8d), or 0 */
@@ -396,6 +398,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	char thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */
+
 #ifndef NO_FLOATING_POINT
 	/*
 	 * We can decompose the printed representation of floating
@@ -436,9 +439,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int size;		/* size of converted field or string */
 	int prsize;             /* max size of printed field */
 	const char *xdigs;     	/* digits for %[xX] conversion */
-#define NIOV 8
-	struct __suio uio;	/* output information: summary */
-	struct __siov iov[NIOV];/* ... and individual io vectors */
+	struct io_state io;	/* I/O buffering state */
 	char buf[BUF];		/* buffer with space for digits of uintmax_t */
 	char ox[2];		/* space for 0x; ox[1] is either x, X, or \0 */
 	union arg *argtable;    /* args, built due to positional arg */
@@ -447,56 +448,25 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	va_list orgap;          /* original argument pointer */
 	char *convbuf;		/* wide to multibyte conversion result */
 
-	/*
-	 * Choose PADSIZE to trade efficiency vs. size.  If larger printf
-	 * fields occur frequently, increase PADSIZE and make the initialisers
-	 * below longer.
-	 */
-#define	PADSIZE	16		/* pad chunk size */
-	static char blanks[PADSIZE] =
-	 {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
-	static char zeroes[PADSIZE] =
-	 {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
-
 	static const char xdigs_lower[16] = "0123456789abcdef";
 	static const char xdigs_upper[16] = "0123456789ABCDEF";
 
-	/*
-	 * BEWARE, these `goto error' on error, and PAD uses `n'.
-	 */
+	/* BEWARE, these `goto error' on error. */
 #define	PRINT(ptr, len) { \
-	iovp->iov_base = (ptr); \
-	iovp->iov_len = (len); \
-	uio.uio_resid += (len); \
-	iovp++; \
-	if (++uio.uio_iovcnt >= NIOV) { \
-		if (__sprint(fp, &uio)) \
-			goto error; \
-		iovp = iov; \
-	} \
+	if (io_print(&io, (ptr), (len)))	\
+		goto error; \
 }
 #define	PAD(howmany, with) { \
-	if ((n = (howmany)) > 0) { \
-		while (n > PADSIZE) { \
-			PRINT(with, PADSIZE); \
-			n -= PADSIZE; \
-		} \
-		PRINT(with, n); \
-	} \
-}
-#define	PRINTANDPAD(p, ep, len, with) do {	\
-	n2 = (ep) - (p);       			\
-	if (n2 > (len))				\
-		n2 = (len);			\
-	if (n2 > 0)				\
-		PRINT((p), n2);			\
-	PAD((len) - (n2 > 0 ? n2 : 0), (with));	\
-} while(0)
-#define	FLUSH() { \
-	if (uio.uio_resid && __sprint(fp, &uio)) \
+	if (io_pad(&io, (howmany), (with))) \
 		goto error; \
-	uio.uio_iovcnt = 0; \
-	iovp = iov; \
+}
+#define	PRINTANDPAD(p, ep, len, with) {	\
+	if (io_printandpad(&io, (p), (ep), (len), (with))) \
+		goto error; \
+}
+#define	FLUSH() { \
+	if (io_flush(&io)) \
+		goto error; \
 }
 
 	/*
@@ -583,9 +553,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	argtable = NULL;
 	nextarg = 1;
 	va_copy(orgap, ap);
-	uio.uio_iov = iovp = iov;
-	uio.uio_resid = 0;
-	uio.uio_iovcnt = 0;
+	io_init(&io, fp);
 	ret = 0;
 #ifndef NO_FLOATING_POINT
 	dtoaresult = NULL;
