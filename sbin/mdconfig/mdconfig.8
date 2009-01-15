@@ -226,8 +226,7 @@ mount /dev/md0c /mnt
 .Pp
 To mount an ISO 9660 CD image file:
 .Bd -literal -offset indent
-mdconfig -a -t vnode -u 10 -f cdimage.iso
-mount_cd9660 /dev/md10 /mnt
+mount -t cd9660 /dev/`mdconfig -a -t vnode -f cdimage.iso` /mnt
 .Ed
 .Sh SEE ALSO
 .Xr md 4 ,
