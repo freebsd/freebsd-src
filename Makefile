@@ -149,7 +149,10 @@ endif
 
 ifdef CONFIG_DRIVER_NDIS
 CFLAGS += -DCONFIG_DRIVER_NDIS
-OBJS_d += driver_ndis.o driver_ndis_.o
+OBJS_d += driver_ndis.o
+ifdef CONFIG_NDIS_EVENTS_INTEGRATED
+OBJS_d += driver_ndis_.o
+endif
 ifndef CONFIG_L2_PACKET
 CONFIG_L2_PACKET=pcap
 endif
@@ -743,10 +746,6 @@ endif
 
 ifdef CONFIG_DEBUG_FILE
 CFLAGS += -DCONFIG_DEBUG_FILE
-endif
-
-ifdef CONFIG_DEBUG_SYSLOG
-CFLAGS += -DCONFIG_DEBUG_SYSLOG
 endif
 
 OBJS += wpa_supplicant.o events.o

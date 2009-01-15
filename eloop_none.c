@@ -197,6 +197,26 @@ int eloop_cancel_timeout(void (*handler)(void *eloop_ctx, void *sock_ctx),
 }
 
 
+int eloop_is_timeout_registered(void (*handler)(void *eloop_ctx,
+						void *timeout_ctx),
+				void *eloop_data, void *user_data)
+{
+	struct eloop_timeout *tmp;
+
+	tmp = eloop.timeout;
+	while (tmp != NULL) {
+		if (tmp->handler == handler &&
+		    tmp->eloop_data == eloop_data &&
+		    tmp->user_data == user_data)
+			return 1;
+
+		tmp = tmp->next;
+	}
+
+	return 0;
+}
+
+
 /* TODO: replace with suitable signal handler */
 #if 0
 static void eloop_handle_signal(int sig)

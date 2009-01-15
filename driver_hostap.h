@@ -84,9 +84,9 @@ enum {
 
 #define PRISM2_HOSTAPD_MAX_BUF_SIZE 1024
 #define PRISM2_HOSTAPD_RID_HDR_LEN \
-((int) (&((struct prism2_hostapd_param *) 0)->u.rid.data))
+((size_t) (&((struct prism2_hostapd_param *) 0)->u.rid.data))
 #define PRISM2_HOSTAPD_GENERIC_ELEMENT_HDR_LEN \
-((int) (&((struct prism2_hostapd_param *) 0)->u.generic_elem.data))
+((size_t) (&((struct prism2_hostapd_param *) 0)->u.generic_elem.data))
 
 /* Maximum length for algorithm names (-1 for nul termination) used in ioctl()
  */
