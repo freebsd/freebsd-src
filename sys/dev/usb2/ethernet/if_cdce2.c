@@ -103,7 +103,7 @@ SYSCTL_INT(_hw_usb2_cdce, OID_AUTO, force_512x4, CTLFLAG_RW,
 
 static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 
-	[0] = {
+	[CDCE_BULK_A] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -122,7 +122,7 @@ static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 		.md.timeout = 0,	/* no timeout */
 	},
 
-	[1] = {
+	[CDCE_BULK_B] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -141,7 +141,7 @@ static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 		.md.timeout = 10000,	/* 10 seconds */
 	},
 
-	[2] = {
+	[CDCE_INTR] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -474,7 +474,7 @@ alloc_transfers:
 
 	/* start the interrupt transfer, if any */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_start(sc->sc_xfer[2]);
+	usb2_transfer_start(sc->sc_xfer[CDCE_INTR]);
 	mtx_unlock(&sc->sc_mtx);
 
 	return (0);			/* success */
@@ -535,8 +535,8 @@ cdce_start_transfers(struct cdce_softc *sc)
 		/*
 		 * start the USB transfers, if not already started:
 		 */
-		usb2_transfer_start(sc->sc_xfer[1]);
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[CDCE_BULK_B]);
+		usb2_transfer_start(sc->sc_xfer[CDCE_BULK_A]);
 	}
 }
 
@@ -853,8 +853,8 @@ cdce_stop(struct cdce_softc *sc)
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
+	usb2_transfer_stop(sc->sc_xfer[CDCE_BULK_A]);
+	usb2_transfer_stop(sc->sc_xfer[CDCE_BULK_B]);
 }
 
 static int
@@ -939,8 +939,8 @@ cdce_init_cb(void *arg)
 	    CDCE_FLAG_LL_READY |
 	    CDCE_FLAG_HL_READY);
 
-	usb2_transfer_set_stall(sc->sc_xfer[0]);
-	usb2_transfer_set_stall(sc->sc_xfer[1]);
+	usb2_transfer_set_stall(sc->sc_xfer[CDCE_BULK_A]);
+	usb2_transfer_set_stall(sc->sc_xfer[CDCE_BULK_B]);
 
 	cdce_start_transfers(sc);
 

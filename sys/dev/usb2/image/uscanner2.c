@@ -75,7 +75,6 @@ SYSCTL_INT(_hw_usb2_uscanner, OID_AUTO, debug, CTLFLAG_RW, &uscanner_debug,
  */
 #define	USCANNER_BSIZE			(1 << 15)
 #define	USCANNER_IFQ_MAXLEN		2
-#define	USCANNER_N_TRANSFER		4
 
 /*
  * Transfers stallings handling flags definition.
@@ -87,6 +86,14 @@ SYSCTL_INT(_hw_usb2_uscanner, OID_AUTO, debug, CTLFLAG_RW, &uscanner_debug,
  * uscanner_info flags definition.
  */
 #define	USCANNER_FLAG_KEEP_OPEN		0x04
+
+enum {
+	USCANNER_BULK_DT_WR,
+	USCANNER_BULK_DT_RD,
+	USCANNER_BULK_CS_WR,
+	USCANNER_BULK_CS_RD,
+	USCANNER_N_TRANSFER = 4,
+};
 
 struct uscanner_softc {
 	struct usb2_fifo_sc sc_fifo;
@@ -137,7 +144,7 @@ static struct usb2_fifo_methods uscanner_fifo_methods = {
  * transfers.
  */
 static const struct usb2_config uscanner_config[USCANNER_N_TRANSFER] = {
-	[0] = {
+	[USCANNER_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -146,7 +153,7 @@ static const struct usb2_config uscanner_config[USCANNER_N_TRANSFER] = {
 		.mh.callback = &uscanner_write_callback,
 	},
 
-	[1] = {
+	[USCANNER_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -155,7 +162,7 @@ static const struct usb2_config uscanner_config[USCANNER_N_TRANSFER] = {
 		.mh.callback = &uscanner_read_callback,
 	},
 
-	[2] = {
+	[USCANNER_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -166,7 +173,7 @@ static const struct usb2_config uscanner_config[USCANNER_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[3] = {
+	[USCANNER_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,
 		.direction = UE_DIR_ANY,
@@ -450,7 +457,7 @@ uscanner_read_callback(struct usb2_xfer *xfer)
 		 * solve the situation.
 		 */
 		if (sc->sc_flags & USCANNER_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[USCANNER_BULK_CS_RD]);
 			break;
 		}
 		if (usb2_fifo_put_bytes_max(f) != 0) {
@@ -462,7 +469,7 @@ uscanner_read_callback(struct usb2_xfer *xfer)
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flags |= USCANNER_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[USCANNER_BULK_CS_RD]);
 		}
 		break;
 	}
@@ -475,7 +482,7 @@ static void
 uscanner_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct uscanner_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[USCANNER_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -505,7 +512,7 @@ uscanner_write_callback(struct usb2_xfer *xfer)
 		 * solve the situation.
 		 */
 		if (sc->sc_flags & USCANNER_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[USCANNER_BULK_CS_WR]);
 			break;
 		}
 		/*
@@ -521,7 +528,7 @@ uscanner_write_callback(struct usb2_xfer *xfer)
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flags |= USCANNER_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[USCANNER_BULK_CS_WR]);
 		}
 		break;
 	}
@@ -534,7 +541,7 @@ static void
 uscanner_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct uscanner_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[USCANNER_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -563,14 +570,14 @@ uscanner_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	}
 	if (fflags & FREAD) {
 		if (usb2_fifo_alloc_buffer(fifo,
-		    sc->sc_xfer[1]->max_data_length,
+		    sc->sc_xfer[USCANNER_BULK_DT_RD]->max_data_length,
 		    USCANNER_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}
 	}
 	if (fflags & FWRITE) {
 		if (usb2_fifo_alloc_buffer(fifo,
-		    sc->sc_xfer[0]->max_data_length,
+		    sc->sc_xfer[USCANNER_BULK_DT_WR]->max_data_length,
 		    USCANNER_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}
@@ -595,7 +602,7 @@ uscanner_start_read(struct usb2_fifo *fifo)
 	struct uscanner_softc *sc;
 
 	sc = fifo->priv_sc0;
-	usb2_transfer_start(sc->sc_xfer[1]);
+	usb2_transfer_start(sc->sc_xfer[USCANNER_BULK_DT_RD]);
 }
 
 /*
@@ -607,7 +614,7 @@ uscanner_start_write(struct usb2_fifo *fifo)
 	struct uscanner_softc *sc;
 
 	sc = fifo->priv_sc0;
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[USCANNER_BULK_DT_WR]);
 }
 
 /*
@@ -619,8 +626,8 @@ uscanner_stop_read(struct usb2_fifo *fifo)
 	struct uscanner_softc *sc;
 
 	sc = fifo->priv_sc0;
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
+	usb2_transfer_stop(sc->sc_xfer[USCANNER_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[USCANNER_BULK_DT_RD]);
 }
 
 /*
@@ -632,6 +639,6 @@ uscanner_stop_write(struct usb2_fifo *fifo)
 	struct uscanner_softc *sc;
 
 	sc = fifo->priv_sc0;
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
+	usb2_transfer_stop(sc->sc_xfer[USCANNER_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[USCANNER_BULK_DT_WR]);
 }

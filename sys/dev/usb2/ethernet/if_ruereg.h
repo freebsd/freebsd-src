@@ -29,8 +29,6 @@
 #define	RUE_CONFIG_IDX		0	/* config number 1 */
 #define	RUE_IFACE_IDX		0
 
-#define	RUE_ENDPT_MAX		6
-
 #define	RUE_INTR_PKTLEN		0x8
 
 #define	RUE_TIMEOUT		50
@@ -165,6 +163,16 @@ struct rue_type {
 	uint16_t rue_did;
 };
 
+enum {
+	RUE_BULK_DT_WR,
+	RUE_BULK_DT_RD,
+	RUE_BULK_CS_WR,
+	RUE_BULK_CS_RD,
+	RUE_INTR_DT_RD,
+	RUE_INTR_CS_RD,
+	RUE_N_TRANSFER = 6,
+};
+
 struct rue_softc {
 	void   *sc_evilhack;		/* XXX this pointer must be first */
 
@@ -174,7 +182,7 @@ struct rue_softc {
 
 	struct ifnet *sc_ifp;
 	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[RUE_ENDPT_MAX];
+	struct usb2_xfer *sc_xfer[RUE_N_TRANSFER];
 	device_t sc_miibus;
 	device_t sc_dev;
 

@@ -113,7 +113,13 @@
 #define	CUE_IFACE_IDX		0
 
 /* The interrupt endpoint is currently unused by the KLSI part. */
-#define	CUE_ENDPT_MAX		4
+enum {
+	CUE_BULK_DT_WR,
+	CUE_BULK_DT_RD,
+	CUE_BULK_CS_WR,
+	CUE_BULK_CS_RD,
+	CUE_N_TRANSFER = 4,
+};
 
 struct cue_softc {
 	void   *sc_evilhack;		/* XXX this pointer must be first */
@@ -125,7 +131,7 @@ struct cue_softc {
 	struct ifnet *sc_ifp;
 	device_t sc_dev;
 	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[CUE_ENDPT_MAX];
+	struct usb2_xfer *sc_xfer[CUE_N_TRANSFER];
 
 	uint32_t sc_unit;
 

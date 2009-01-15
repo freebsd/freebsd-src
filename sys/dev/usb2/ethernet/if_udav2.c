@@ -118,9 +118,9 @@ static miibus_readreg_t udav_cfg_miibus_readreg;
 static miibus_writereg_t udav_cfg_miibus_writereg;
 static miibus_statchg_t udav_cfg_miibus_statchg;
 
-static const struct usb2_config udav_config[UDAV_ENDPT_MAX] = {
+static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
 
-	[0] = {
+	[UDAV_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -130,7 +130,7 @@ static const struct usb2_config udav_config[UDAV_ENDPT_MAX] = {
 		.mh.timeout = 10000,	/* 10 seconds */
 	},
 
-	[1] = {
+	[UDAV_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -140,7 +140,7 @@ static const struct usb2_config udav_config[UDAV_ENDPT_MAX] = {
 		.mh.timeout = 0,	/* no timeout */
 	},
 
-	[2] = {
+	[UDAV_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -151,7 +151,7 @@ static const struct usb2_config udav_config[UDAV_ENDPT_MAX] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[3] = {
+	[UDAV_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -162,7 +162,7 @@ static const struct usb2_config udav_config[UDAV_ENDPT_MAX] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[4] = {
+	[UDAV_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -171,7 +171,7 @@ static const struct usb2_config udav_config[UDAV_ENDPT_MAX] = {
 		.mh.callback = &udav_intr_callback,
 	},
 
-	[5] = {
+	[UDAV_INTR_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -286,7 +286,7 @@ udav_attach(device_t dev)
 
 	iface_index = UDAV_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
-	    sc->sc_xfer, udav_config, UDAV_ENDPT_MAX, sc, &sc->sc_mtx);
+	    sc->sc_xfer, udav_config, UDAV_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB "
 		    "transfers failed!\n");
@@ -414,7 +414,7 @@ udav_detach(device_t dev)
 	mtx_unlock(&sc->sc_mtx);
 
 	/* stop all USB transfers first */
-	usb2_transfer_unsetup(sc->sc_xfer, UDAV_ENDPT_MAX);
+	usb2_transfer_unsetup(sc->sc_xfer, UDAV_N_TRANSFER);
 
 	/* get rid of any late children */
 	bus_generic_detach(dev);
@@ -754,9 +754,9 @@ udav_start_transfers(struct udav_softc *sc)
 		/*
 		 * start the USB transfers, if not already started:
 		 */
-		usb2_transfer_start(sc->sc_xfer[4]);
-		usb2_transfer_start(sc->sc_xfer[1]);
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[UDAV_INTR_DT_RD]);
+		usb2_transfer_start(sc->sc_xfer[UDAV_BULK_DT_RD]);
+		usb2_transfer_start(sc->sc_xfer[UDAV_BULK_DT_WR]);
 	}
 }
 
@@ -764,7 +764,7 @@ static void
 udav_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct udav_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UDAV_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -792,7 +792,7 @@ udav_bulk_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 
 		if (sc->sc_flags & UDAV_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_WR]);
 			goto done;
 		}
 		if (sc->sc_flags & UDAV_FLAG_WAIT_LINK) {
@@ -856,7 +856,7 @@ done:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UDAV_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_WR]);
 		}
 		ifp->if_oerrors++;
 		return;
@@ -868,7 +868,7 @@ static void
 udav_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct udav_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UDAV_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -937,7 +937,7 @@ udav_bulk_read_callback(struct usb2_xfer *xfer)
 tr_setup:
 
 		if (sc->sc_flags & UDAV_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -959,7 +959,7 @@ tr_setup:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UDAV_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_RD]);
 		}
 		DPRINTF("bulk read error, %s\n",
 		    usb2_errstr(xfer->error));
@@ -972,7 +972,7 @@ static void
 udav_intr_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct udav_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[4];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UDAV_INTR_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -991,7 +991,7 @@ udav_intr_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & UDAV_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[5]);
+			usb2_transfer_start(sc->sc_xfer[UDAV_INTR_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -1002,7 +1002,7 @@ udav_intr_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* start clear stall */
 			sc->sc_flags |= UDAV_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[5]);
+			usb2_transfer_start(sc->sc_xfer[UDAV_INTR_CS_RD]);
 		}
 		return;
 	}
@@ -1106,12 +1106,12 @@ udav_cfg_pre_stop(struct udav_softc *sc,
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[4]);
-	usb2_transfer_stop(sc->sc_xfer[5]);
+	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_DT_WR]);
+	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_DT_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UDAV_INTR_DT_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UDAV_INTR_CS_RD]);
 }
 
 /*

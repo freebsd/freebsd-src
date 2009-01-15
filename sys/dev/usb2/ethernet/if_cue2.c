@@ -135,9 +135,9 @@ SYSCTL_INT(_hw_usb2_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb2_config cue_config[CUE_ENDPT_MAX] = {
+static const struct usb2_config cue_config[CUE_N_TRANSFER] = {
 
-	[0] = {
+	[CUE_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -147,7 +147,7 @@ static const struct usb2_config cue_config[CUE_ENDPT_MAX] = {
 		.mh.timeout = 10000,	/* 10 seconds */
 	},
 
-	[1] = {
+	[CUE_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -156,7 +156,7 @@ static const struct usb2_config cue_config[CUE_ENDPT_MAX] = {
 		.mh.callback = &cue_bulk_read_callback,
 	},
 
-	[2] = {
+	[CUE_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -167,7 +167,7 @@ static const struct usb2_config cue_config[CUE_ENDPT_MAX] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[3] = {
+	[CUE_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -412,7 +412,7 @@ cue_attach(device_t dev)
 
 	iface_index = CUE_IFACE_IDX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
-	    sc->sc_xfer, cue_config, CUE_ENDPT_MAX, sc, &sc->sc_mtx);
+	    sc->sc_xfer, cue_config, CUE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB "
 		    "transfers failed!\n");
@@ -514,7 +514,7 @@ cue_detach(device_t dev)
 	mtx_unlock(&sc->sc_mtx);
 
 	/* stop all USB transfers first */
-	usb2_transfer_unsetup(sc->sc_xfer, CUE_ENDPT_MAX);
+	usb2_transfer_unsetup(sc->sc_xfer, CUE_N_TRANSFER);
 
 	/* get rid of any late children */
 	bus_generic_detach(dev);
@@ -536,7 +536,7 @@ static void
 cue_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct cue_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[CUE_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -586,7 +586,7 @@ cue_bulk_read_callback(struct usb2_xfer *xfer)
 tr_setup:
 
 		if (sc->sc_flags & CUE_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[CUE_BULK_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -608,7 +608,7 @@ tr_setup:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= CUE_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[CUE_BULK_CS_RD]);
 		}
 		DPRINTF("bulk read error, %s\n",
 		    usb2_errstr(xfer->error));
@@ -660,8 +660,8 @@ cue_start_transfers(struct cue_softc *sc)
 		/*
 		 * start the USB transfers, if not already started:
 		 */
-		usb2_transfer_start(sc->sc_xfer[1]);
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[CUE_BULK_DT_RD]);
+		usb2_transfer_start(sc->sc_xfer[CUE_BULK_DT_WR]);
 	}
 }
 
@@ -669,7 +669,7 @@ static void
 cue_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct cue_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[CUE_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -695,7 +695,7 @@ cue_bulk_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 
 		if (sc->sc_flags & CUE_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[CUE_BULK_CS_WR]);
 			goto done;
 		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
@@ -738,7 +738,7 @@ done:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= CUE_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[CUE_BULK_CS_WR]);
 		}
 		ifp->if_oerrors++;
 		return;
@@ -904,10 +904,10 @@ cue_cfg_pre_stop(struct cue_softc *sc,
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	usb2_transfer_stop(sc->sc_xfer[3]);
+	usb2_transfer_stop(sc->sc_xfer[CUE_BULK_DT_WR]);
+	usb2_transfer_stop(sc->sc_xfer[CUE_BULK_DT_RD]);
+	usb2_transfer_stop(sc->sc_xfer[CUE_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[CUE_BULK_CS_RD]);
 }
 
 static void
