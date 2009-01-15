@@ -36,7 +36,7 @@
  *
  *	from: @(#)machdep.c	8.3 (Berkeley) 1/12/94
  *	Id: machdep.c,v 1.33 1998/09/15 10:58:54 pefo Exp
- *	JNPR: machdep.c,v 1.11.2.3 2007/08/29 12:24:49 girish
+ *	JNPR: machdep.c,v 1.11.2.3 2007/08/29 12:24:49
  */
 
 #include <sys/cdefs.h>
@@ -157,7 +157,10 @@ cpu_startup(void *dummy)
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
-	printf("real memory  = %lu (%luK bytes)\n", ptoa(realmem), ptoa(realmem) / 1024);
+
+	bootverbose++;
+	printf("real memory  = %lu (%luK bytes)\n", ptoa(realmem),
+	    ptoa(realmem) / 1024);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
