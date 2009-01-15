@@ -127,6 +127,8 @@ struct vnet_inet {
 	int	_drop_synfin;
 	int	_tcp_do_rfc3042;
 	int	_tcp_do_rfc3390;
+	int	_tcp_do_rfc3465;
+	int	_tcp_abc_l_var;
 	int	_tcp_do_ecn;
 	int	_tcp_ecn_maxretries;
 	int	_tcp_insecure_rst;
@@ -291,6 +293,7 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_subnetsarelocal	VNET_INET(subnetsarelocal)
 #define	V_tcb			VNET_INET(tcb)
 #define	V_tcbinfo		VNET_INET(tcbinfo)
+#define	V_tcp_abc_l_var		VNET_INET(tcp_abc_l_var)
 #define	V_tcp_autorcvbuf_inc	VNET_INET(tcp_autorcvbuf_inc)
 #define	V_tcp_autorcvbuf_max	VNET_INET(tcp_autorcvbuf_max)
 #define	V_tcp_autosndbuf_inc	VNET_INET(tcp_autosndbuf_inc)
@@ -303,6 +306,7 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_tcp_do_rfc1323	VNET_INET(tcp_do_rfc1323)
 #define	V_tcp_do_rfc3042	VNET_INET(tcp_do_rfc3042)
 #define	V_tcp_do_rfc3390	VNET_INET(tcp_do_rfc3390)
+#define	V_tcp_do_rfc3465	VNET_INET(tcp_do_rfc3465)
 #define	V_tcp_do_sack		VNET_INET(tcp_do_sack)
 #define	V_tcp_do_tso		VNET_INET(tcp_do_tso)
 #define	V_tcp_ecn_maxretries	VNET_INET(tcp_ecn_maxretries)

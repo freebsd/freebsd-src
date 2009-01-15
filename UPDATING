@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090115:
+	TCP Appropriate Byte Counting (RFC 3465) support added to kernel.
+	New field in struct tcpcb breaks ABI, so bump __FreeBSD_version to
+	800061. User space tools that rely on the size of struct tcpcb in
+	tcp_var.h (e.g. sockstat) need to be recompiled.
+
 20081225:
 	ng_tty(4) module updated to match the new TTY subsystem.
 	Due to API change, user-level applications must be updated.

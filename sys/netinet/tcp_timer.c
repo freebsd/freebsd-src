@@ -587,6 +587,7 @@ tcp_timer_rexmt(void * xtp)
 		tp->t_dupacks = 0;
 	}
 	EXIT_FASTRECOVERY(tp);
+	tp->t_bytes_acked = 0;
 	(void) tcp_output(tp);
 
 out:
