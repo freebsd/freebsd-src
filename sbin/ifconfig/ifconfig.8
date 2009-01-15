@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2007
+.Dd October 19, 2008
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -104,7 +104,7 @@ slash notation) to include the netmask.
 That is, one can specify an address like
 .Li 192.168.0.1/16 .
 .Pp
-For
+For the
 .Dq inet6
 family, it is also possible to specify the prefix length using the slash
 notation, like
@@ -714,8 +714,9 @@ This information may be updated automatically by the adaptor
 and/or with a
 .Cm scan
 request.
+The
 .Cm list ap
-is another way of requesting this information.
+command is another way of requesting this information.
 .It Cm list sta
 When operating as an access point display the stations that are
 currently associated.
