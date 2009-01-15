@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -47,10 +47,8 @@
 #define	_MACHINE_PMAP_H_
 
 #include <machine/vmparam.h>
+#include <machine/pte.h>
 
-/*
- * Pte related macros
- */
 #define	VADDR(pdi, pti)	((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
 #define	NKPT		120	/* actual number of kernel page tables */
@@ -65,10 +63,8 @@
 #ifndef LOCORE
 
 #include <sys/queue.h>
-#include <machine/pte.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-
 
 /*
  * Pmap stuff
@@ -104,10 +100,7 @@ struct pmap {
 
 typedef struct pmap *pmap_t;
 
-#ifdef _KERNEL
-#include <sys/lock.h>
-#include <sys/proc.h>
-#include <vm/vm_map.h>
+#ifdef	_KERNEL
 
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
 pd_entry_t pmap_segmap(pmap_t pmap, vm_offset_t va);
@@ -132,8 +125,6 @@ extern pmap_t kernel_pmap;
 #define PMAP_LGMEM_UNLOCK(sysmap) mtx_unlock(&(sysmap)->lock)
 #define PMAP_LGMEM_DESTROY(sysmap) mtx_destroy(&(sysmap)->lock)
 
-#endif				/* _KERNEL */
-
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
@@ -147,8 +138,6 @@ typedef struct pv_entry {
 	boolean_t pv_wired;	/* whether this entry is wired */
 }       *pv_entry_t;
 
-
-#ifdef	_KERNEL
 
 #if defined(DIAGNOSTIC)
 #define	PMAP_DIAGNOSTIC
@@ -182,7 +171,6 @@ vm_offset_t pmap_steal_memory(vm_size_t size);
 void pmap_set_modified(vm_offset_t pa);
 int page_is_managed(vm_offset_t pa);
 void pmap_page_is_free(vm_page_t m);
-void pmap_kushmem_reattach(struct proc *);
  /* PMAP_INLINE */ void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
  /* PMAP_INLINE */ void pmap_kremove(vm_offset_t va);
 void *pmap_kenter_temporary(vm_paddr_t pa, int i);
