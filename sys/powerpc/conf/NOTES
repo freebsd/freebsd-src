@@ -25,6 +25,7 @@ options		SC_OFWFB		# OFW frame buffer
 device		pci
 
 device		bm		# Apple BMAC (Big Mac Ethernet)
+device		kiic		# Apple Keywest I2C Controller
 device		ofwd		# Open Firmware disks
 device		adb		# Apple Desktop Bus
 device		cuda		# VIA-CUDA ADB interface

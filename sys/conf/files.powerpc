@@ -113,6 +113,7 @@ powerpc/powermac/ata_dbdma.c	optional	powermac ata
 powerpc/powermac/dbdma.c	optional	powermac pci
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
+powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
