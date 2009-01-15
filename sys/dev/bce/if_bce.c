@@ -107,7 +107,9 @@ static struct bce_type bce_devs[] = {
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x3106,
 		"HP NC370i Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x3070,
-		"HP NC380T PCI Express Dual Port Multifunction Gigabit Server Adapter" },
+		"HP NC380T PCIe DP Multifunc Gig Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x1709,
+		"HP NC371i Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5706 1000Base-T" },
 
@@ -119,37 +121,37 @@ static struct bce_type bce_devs[] = {
 
 	/* BCM5708C controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7037,
-		"HP NC373T PCI Express Multifunction Gigabit Server Adapter" },
+		"HP NC373T PCIe Multifunction Gig Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7038,
-		"HP NC373i Integrated Multifunction Gigabit Server Adapter" },
+		"HP NC373i Multifunction Gigabit Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7045,
+		"HP NC374m PCIe Multifunction Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5708 1000Base-T" },
 
 	/* BCM5708S controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x1706,
-                "HP NC373m Multifunction Gigabit Server Adapter" },
-	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x7038,
-                "HP NC373i PCI Express Multifunction Gigabit Server Adapter" },
+		"HP NC373m Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x703b,
-                "HP NC373i Integrated Multifunction Gigabit Server Adapter" },
+		"HP NC373i Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x703d,
-                "HP NC373F PCI Express Multifunction Gigabit Server Adapter" },
+		"HP NC373F PCIe Multifunc Giga Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5708 1000Base-SX" },
 
 	/* BCM5709C controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  HP_VENDORID, 0x7055,
-		"HP NC382i Integrated Quad Port PCI Express Gigabit Server Adapter" },
+		"HP NC382i DP Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  HP_VENDORID, 0x7059,
-		"HP NC382T PCI Express Dual Port Multifunction Gigabit Server Adapter" },
+		"HP NC382T PCIe DP Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5709 1000Base-T" },
 
 	/* BCM5709S controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  HP_VENDORID, 0x171d,
-		"HP NC382m Dual Port 1GbE Multifunction BL-c Adapter" },
+		"HP NC382m DP 1GbE Multifunction BL-c Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  HP_VENDORID, 0x7056,
-		"HP NC382i Integrated Quad Port PCI Express Gigabit Server Adapter" },
+		"HP NC382i DP Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5709 1000Base-SX" },
 
