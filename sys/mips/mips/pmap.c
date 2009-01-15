@@ -490,25 +490,6 @@ pmap_nw_modified(pt_entry_t pte)
 
 #endif
 
-
-/*
- * this routine defines the region(s) of memory that should
- * not be tested for the modified bit.
- */
-static PMAP_INLINE int
-pmap_track_modified(vm_offset_t va)
-{
-	/*
-	 * Kernel submap initialization has been moved for MD to MI code. ie
-	 * from cpu_startup() to vm_ksubmap_init(). clean_sva and clean_eva
-	 * are part of the kmi structure.
-	 */
-	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva))
-		return (1);
-	else
-		return (0);
-}
-
 static void
 pmap_invalidate_all(pmap_t pmap)
 {
@@ -1444,8 +1425,7 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 				    va, oldpte);
 			}
 #endif
-			if (pmap_track_modified(va))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 		}
 		if (m->md.pv_flags & PV_TABLE_REF)
 			vm_page_flag_set(m, PG_REFERENCED);
