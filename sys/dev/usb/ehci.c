@@ -2769,7 +2769,7 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 
 	/* We will change them to point here */
 	snext = exfer->sqtdend->nextqtd;
-	next = htohc32(sc, snext->physaddr);
+	next = (snext != NULL) ? htohc32(sc, snext->physaddr) : EHCI_NULL(sc);
 
 	/*
 	 * Now loop through any qTDs before us and keep track of the pointer
