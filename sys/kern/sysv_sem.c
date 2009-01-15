@@ -914,6 +914,9 @@ semget(struct thread *td, struct semget_args *uap)
 			goto done2;
 		}
 		DPRINTF(("semid %d is available\n", semid));
+		mtx_lock(&sema_mtx[semid]);
+		KASSERT((sema[semid].u.sem_perm.mode & SEM_ALLOC) == 0,
+		    ("Lost semaphore %d", semid));
 		sema[semid].u.sem_perm.key = key;
 		sema[semid].u.sem_perm.cuid = cred->cr_uid;
 		sema[semid].u.sem_perm.uid = cred->cr_uid;
@@ -932,6 +935,7 @@ semget(struct thread *td, struct semget_args *uap)
 #ifdef MAC
 		mac_sysvsem_create(cred, &sema[semid]);
 #endif
+		mtx_unlock(&sema_mtx[semid]);
 		DPRINTF(("sembase = %p, next = %p\n",
 		    sema[semid].u.sem_base, &sem[semtot]));
 	} else {
