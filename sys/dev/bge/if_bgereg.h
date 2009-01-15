@@ -1896,8 +1896,7 @@ struct bge_rcb {
 };
 
 #define	RCB_WRITE_4(sc, rcb, offset, val) \
-	bus_space_write_4(sc->bge_btag, sc->bge_bhandle, \
-			  rcb + offsetof(struct bge_rcb, offset), val)
+	bus_write_4(sc->bge_res, rcb + offsetof(struct bge_rcb, offset), val)
 #define	BGE_RCB_MAXLEN_FLAGS(maxlen, flags)	((maxlen) << 16 | (flags))
 
 #define	BGE_RCB_FLAG_USE_EXT_RX_BD	0x0001
@@ -2394,10 +2393,10 @@ struct bge_gib {
  */
 
 #define	CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->bge_btag, sc->bge_bhandle, reg, val)
+	bus_write_4(sc->bge_res, reg, val)
 
 #define	CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->bge_btag, sc->bge_bhandle, reg)
+	bus_read_4(sc->bge_res, reg)
 
 #define	BGE_SETBIT(sc, reg, x)	\
 	CSR_WRITE_4(sc, reg, (CSR_READ_4(sc, reg) | (x)))
@@ -2522,8 +2521,6 @@ struct bge_softc {
 	device_t		bge_dev;
 	struct mtx		bge_mtx;
 	device_t		bge_miibus;
-	bus_space_handle_t	bge_bhandle;
-	bus_space_tag_t		bge_btag;
 	void			*bge_intrhand;
 	struct resource		*bge_irq;
 	struct resource		*bge_res;
