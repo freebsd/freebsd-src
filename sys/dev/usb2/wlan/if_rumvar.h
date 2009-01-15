@@ -17,8 +17,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define	RUM_N_TRANSFER 4
-
 struct rum_node {
 	struct ieee80211_node ni;
 	struct ieee80211_amrr_node amn;
@@ -111,6 +109,14 @@ struct rum_ifq {
 	struct mbuf *ifq_head;
 	struct mbuf *ifq_tail;
 	uint16_t ifq_len;
+};
+
+enum {
+	RUM_BULK_DT_WR,
+	RUM_BULK_DT_RD,
+	RUM_BULK_CS_WR,
+	RUM_BULK_CS_RD,
+	RUM_N_TRANSFER = 4,
 };
 
 struct rum_softc {

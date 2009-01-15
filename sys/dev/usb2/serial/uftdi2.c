@@ -77,19 +77,26 @@ SYSCTL_INT(_hw_usb2_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	UFTDI_CONFIG_INDEX	0
 #define	UFTDI_IFACE_INDEX	0
-#define	UFTDI_ENDPT_MAX		4
 
 #define	UFTDI_IBUFSIZE 64		/* bytes, maximum number of bytes per
 					 * frame */
 #define	UFTDI_OBUFSIZE 64		/* bytes, cannot be increased due to
 					 * do size encoding */
 
+enum {
+	UFTDI_BULK_DT_WR,
+	UFTDI_BULK_DT_RD,
+	UFTDI_BULK_CS_WR,
+	UFTDI_BULK_CS_RD,
+	UFTDI_N_TRANSFER = 4,
+};
+
 struct uftdi_softc {
 	struct usb2_com_super_softc sc_super_ucom;
 	struct usb2_com_softc sc_ucom;
 
 	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UFTDI_ENDPT_MAX];
+	struct usb2_xfer *sc_xfer[UFTDI_N_TRANSFER];
 	device_t sc_dev;
 
 	uint32_t sc_unit;
@@ -147,9 +154,9 @@ static void	uftdi_start_write(struct usb2_com_softc *);
 static void	uftdi_stop_write(struct usb2_com_softc *);
 static uint8_t	uftdi_8u232am_getrate(uint32_t, uint16_t *);
 
-static const struct usb2_config uftdi_config[UFTDI_ENDPT_MAX] = {
+static const struct usb2_config uftdi_config[UFTDI_N_TRANSFER] = {
 
-	[0] = {
+	[UFTDI_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -158,7 +165,7 @@ static const struct usb2_config uftdi_config[UFTDI_ENDPT_MAX] = {
 		.mh.callback = &uftdi_write_callback,
 	},
 
-	[1] = {
+	[UFTDI_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -167,7 +174,7 @@ static const struct usb2_config uftdi_config[UFTDI_ENDPT_MAX] = {
 		.mh.callback = &uftdi_read_callback,
 	},
 
-	[2] = {
+	[UFTDI_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -178,7 +185,7 @@ static const struct usb2_config uftdi_config[UFTDI_ENDPT_MAX] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[3] = {
+	[UFTDI_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -308,7 +315,7 @@ uftdi_attach(device_t dev)
 
 	error = usb2_transfer_setup(uaa->device,
 	    &sc->sc_iface_index, sc->sc_xfer, uftdi_config,
-	    UFTDI_ENDPT_MAX, sc, &Giant);
+	    UFTDI_N_TRANSFER, sc, &Giant);
 
 	if (error) {
 		device_printf(dev, "allocating USB "
@@ -348,7 +355,7 @@ uftdi_detach(device_t dev)
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UFTDI_ENDPT_MAX);
+	usb2_transfer_unsetup(sc->sc_xfer, UFTDI_N_TRANSFER);
 
 	return (0);
 }
@@ -425,7 +432,7 @@ uftdi_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 		if (sc->sc_flag & UFTDI_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_CS_WR]);
 			return;
 		}
 		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers,
@@ -445,7 +452,7 @@ uftdi_write_callback(struct usb2_xfer *xfer)
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flag |= UFTDI_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_CS_WR]);
 		}
 		return;
 
@@ -456,7 +463,7 @@ static void
 uftdi_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct uftdi_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UFTDI_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -515,7 +522,7 @@ uftdi_read_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->sc_flag & UFTDI_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -525,7 +532,7 @@ tr_setup:
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flag |= UFTDI_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_CS_RD]);
 		}
 		return;
 
@@ -536,7 +543,7 @@ static void
 uftdi_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct uftdi_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UFTDI_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -768,7 +775,7 @@ uftdi_start_read(struct usb2_com_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[1]);
+	usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_DT_RD]);
 }
 
 static void
@@ -776,8 +783,8 @@ uftdi_stop_read(struct usb2_com_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
+	usb2_transfer_stop(sc->sc_xfer[UFTDI_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UFTDI_BULK_DT_RD]);
 }
 
 static void
@@ -785,7 +792,7 @@ uftdi_start_write(struct usb2_com_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_DT_WR]);
 }
 
 static void
@@ -793,8 +800,8 @@ uftdi_stop_write(struct usb2_com_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
+	usb2_transfer_stop(sc->sc_xfer[UFTDI_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[UFTDI_BULK_DT_WR]);
 }
 
 /*------------------------------------------------------------------------*

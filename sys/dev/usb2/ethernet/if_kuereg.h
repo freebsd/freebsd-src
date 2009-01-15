@@ -116,6 +116,13 @@ struct kue_ether_desc {
 
 /* The interrupt endpoint is currently unused by the KLSI part. */
 #define	KUE_ENDPT_MAX		4
+enum {
+	KUE_BULK_DT_WR,
+	KUE_BULK_DT_RD,
+	KUE_BULK_CS_WR,
+	KUE_BULK_CS_RD,
+	KUE_N_TRANSFER = 4,
+};
 
 struct kue_softc {
 	void   *sc_evilhack;		/* XXX this pointer must be first */
@@ -128,7 +135,7 @@ struct kue_softc {
 	struct ifnet *sc_ifp;
 	device_t sc_dev;
 	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[KUE_ENDPT_MAX];
+	struct usb2_xfer *sc_xfer[KUE_N_TRANSFER];
 
 	uint32_t sc_unit;
 
