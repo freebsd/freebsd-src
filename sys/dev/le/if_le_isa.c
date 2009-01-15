@@ -109,15 +109,10 @@ struct le_isa_softc {
 	bus_size_t		sc_rap;		/* offsets to LANCE... */
 	bus_size_t		sc_rdp;		/* ...registers */
 
-	int			sc_rrid;
 	struct resource		*sc_rres;
-	bus_space_tag_t		sc_regt;
-	bus_space_handle_t	sc_regh;
 
-	int			sc_drid;
 	struct resource		*sc_dres;
 
-	int			sc_irid;
 	struct resource		*sc_ires;
 	void			*sc_ih;
 
@@ -184,10 +179,9 @@ le_isa_wrcsr(struct lance_softc *sc, uint16_t port, uint16_t val)
 {
 	struct le_isa_softc *lesc = (struct le_isa_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, lesc->sc_rap, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, lesc->sc_rap, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, lesc->sc_rdp, val);
+	bus_write_2(lesc->sc_rres, lesc->sc_rap, port);
+	bus_barrier(lesc->sc_rres, lesc->sc_rap, 2, BUS_SPACE_BARRIER_WRITE);
+	bus_write_2(lesc->sc_rres, lesc->sc_rdp, val);
 }
 
 static uint16_t
@@ -195,10 +189,9 @@ le_isa_rdcsr(struct lance_softc *sc, uint16_t port)
 {
 	struct le_isa_softc *lesc = (struct le_isa_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, lesc->sc_rap, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, lesc->sc_rap, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	return (bus_space_read_2(lesc->sc_regt, lesc->sc_regh, lesc->sc_rdp));
+	bus_write_2(lesc->sc_rres, lesc->sc_rap, port);
+	bus_barrier(lesc->sc_rres, lesc->sc_rap, 2, BUS_SPACE_BARRIER_WRITE);
+	return (bus_read_2(lesc->sc_rres, lesc->sc_rdp));
 }
 
 static void
@@ -217,18 +210,16 @@ le_isa_probe_legacy(device_t dev, const struct le_isa_param *leip)
 {
 	struct le_isa_softc *lesc;
 	struct lance_softc *sc;
-	int error;
+	int error, i;
 
 	lesc = device_get_softc(dev);
 	sc = &lesc->sc_am7990.lsc;
 
-	lesc->sc_rrid = 0;
-	lesc->sc_rres = bus_alloc_resource(dev, SYS_RES_IOPORT, &lesc->sc_rrid,
-	    0, ~0, leip->iosize, RF_ACTIVE);
+	i = 0;
+	lesc->sc_rres = bus_alloc_resource(dev, SYS_RES_IOPORT, &i, 0, ~0,
+	    leip->iosize, RF_ACTIVE);
 	if (lesc->sc_rres == NULL)
 		return (ENXIO);
-	lesc->sc_regt = rman_get_bustag(lesc->sc_rres);
-	lesc->sc_regh = rman_get_bushandle(lesc->sc_rres);
 	lesc->sc_rap = leip->rap;
 	lesc->sc_rdp = leip->rdp;
 
@@ -243,7 +234,8 @@ le_isa_probe_legacy(device_t dev, const struct le_isa_param *leip)
 	error = 0;
 
  fail:
-	bus_release_resource(dev, SYS_RES_IOPORT, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_IOPORT,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
 	return (error);
 }
 
@@ -276,18 +268,18 @@ le_isa_attach(device_t dev)
 	struct le_isa_softc *lesc;
 	struct lance_softc *sc;
 	bus_size_t macstart, rap, rdp;
-	int error, i, macstride;
+	int error, i, j, macstride;
 
 	lesc = device_get_softc(dev);
 	sc = &lesc->sc_am7990.lsc;
 
 	LE_LOCK_INIT(sc, device_get_nameunit(dev));
 
-	lesc->sc_rrid = 0;
+	j = 0;
 	switch (ISA_PNP_PROBE(device_get_parent(dev), dev, le_isa_ids)) {
 	case 0:
 		lesc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-		    &lesc->sc_rrid, RF_ACTIVE);
+		    &j, RF_ACTIVE);
 		rap = PCNET_RAP;
 		rdp = PCNET_RDP;
 		macstart = 0;
@@ -298,7 +290,7 @@ le_isa_attach(device_t dev)
 		    sizeof(le_isa_params[0]); i++) {
 			if (le_isa_probe_legacy(dev, &le_isa_params[i]) == 0) {
 				lesc->sc_rres = bus_alloc_resource(dev,
-				    SYS_RES_IOPORT, &lesc->sc_rrid, 0, ~0,
+				    SYS_RES_IOPORT, &j, 0, ~0,
 				    le_isa_params[i].iosize, RF_ACTIVE);
 				rap = le_isa_params[i].rap;
 				rdp = le_isa_params[i].rdp;
@@ -321,22 +313,20 @@ le_isa_attach(device_t dev)
 		error = ENXIO;
 		goto fail_mtx;
 	}
-	lesc->sc_regt = rman_get_bustag(lesc->sc_rres);
-	lesc->sc_regh = rman_get_bushandle(lesc->sc_rres);
 	lesc->sc_rap = rap;
 	lesc->sc_rdp = rdp;
 
-	lesc->sc_drid = 0;
+	i = 0;
 	if ((lesc->sc_dres = bus_alloc_resource_any(dev, SYS_RES_DRQ,
-	    &lesc->sc_drid, RF_ACTIVE)) == NULL) {
+	    &i, RF_ACTIVE)) == NULL) {
 		device_printf(dev, "cannot allocate DMA channel\n");
 		error = ENXIO;
 		goto fail_rres;
 	}
 
-	lesc->sc_irid = 0;
+	i = 0;
 	if ((lesc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &lesc->sc_irid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	    &i, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		error = ENXIO;
 		goto fail_dres;
@@ -392,7 +382,7 @@ le_isa_attach(device_t dev)
 	error = bus_dmamap_load(lesc->sc_dmat, lesc->sc_dmam, sc->sc_mem,
 	    sc->sc_memsize, le_isa_dma_callback, sc, 0);
 	if (error != 0 || sc->sc_addr == 0) {
-                device_printf(dev, "cannot load DMA buffer map\n");
+		device_printf(dev, "cannot load DMA buffer map\n");
 		goto fail_dmem;
 	}
 
@@ -405,8 +395,8 @@ le_isa_attach(device_t dev)
 	 * Extract the physical MAC address from the ROM.
 	 */
 	for (i = 0; i < sizeof(sc->sc_enaddr); i++)
-		sc->sc_enaddr[i] =  bus_space_read_1(lesc->sc_regt,
-		    lesc->sc_regh, macstart + i * macstride);
+		sc->sc_enaddr[i] = bus_read_1(lesc->sc_rres,
+		    macstart + i * macstride);
 
 	sc->sc_copytodesc = lance_copytobuf_contig;
 	sc->sc_copyfromdesc = lance_copyfrombuf_contig;
@@ -451,11 +441,14 @@ le_isa_attach(device_t dev)
  fail_pdtag:
 	bus_dma_tag_destroy(lesc->sc_pdmat);
  fail_ires:
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(lesc->sc_ires), lesc->sc_ires);
  fail_dres:
-	bus_release_resource(dev, SYS_RES_DRQ, lesc->sc_drid, lesc->sc_dres);
+	bus_release_resource(dev, SYS_RES_DRQ,
+	    rman_get_rid(lesc->sc_dres), lesc->sc_dres);
  fail_rres:
-	bus_release_resource(dev, SYS_RES_IOPORT, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_IOPORT,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
  fail_mtx:
 	LE_LOCK_DESTROY(sc);
 	return (error);
@@ -476,9 +469,12 @@ le_isa_detach(device_t dev)
 	bus_dmamem_free(lesc->sc_dmat, sc->sc_mem, lesc->sc_dmam);
 	bus_dma_tag_destroy(lesc->sc_dmat);
 	bus_dma_tag_destroy(lesc->sc_pdmat);
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
-	bus_release_resource(dev, SYS_RES_DRQ, lesc->sc_drid, lesc->sc_dres);
-	bus_release_resource(dev, SYS_RES_IOPORT, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(lesc->sc_ires), lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_DRQ,
+	    rman_get_rid(lesc->sc_dres), lesc->sc_dres);
+	bus_release_resource(dev, SYS_RES_IOPORT,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
 	LE_LOCK_DESTROY(sc);
 
 	return (0);
