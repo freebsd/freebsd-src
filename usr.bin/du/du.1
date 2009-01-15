@@ -32,7 +32,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2006
+.Dd February 25, 2008
 .Dt DU 1
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Op Fl H | L | P
 .Op Fl a | s | d Ar depth
 .Op Fl c
+.Op Fl l
 .Op Fl h | k | m
 .Op Fl n
 .Op Fl x
@@ -94,6 +95,15 @@ directories deep.
 Display a grand total.
 .It Fl k
 Display block counts in 1024-byte (1-Kbyte) blocks.
+.It Fl l
+If a file has multiple hard links, count its size many times.
+The default behavior of
+.Nm
+is to count files with multiple hard links only once.
+When the
+.Fl l
+option is specified, the hard link checks are disabled, and these files
+are counted (and displayed) as many times as they are found.
 .It Fl m
 Display block counts in 1048576-byte (1-Mbyte) blocks.
 .It Fl n
@@ -116,11 +126,6 @@ or
 .Fl L
 options are specified, storage used by any symbolic links which are
 followed is not counted or displayed.
-.Pp
-Files having multiple hard links are counted (and displayed) a single
-time per
-.Nm
-execution.
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
