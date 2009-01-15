@@ -103,6 +103,8 @@ __FBSDID("$FreeBSD$");
 #define	PMAP_DIAGNOSTIC
 #endif
 
+#undef PMAP_DEBUG
+
 #ifndef PMAP_SHPGPERPROC
 #define	PMAP_SHPGPERPROC 200
 #endif
@@ -489,6 +491,24 @@ pmap_nw_modified(pt_entry_t pte)
 #endif
 
 
+/*
+ * this routine defines the region(s) of memory that should
+ * not be tested for the modified bit.
+ */
+static PMAP_INLINE int
+pmap_track_modified(vm_offset_t va)
+{
+	/*
+	 * Kernel submap initialization has been moved for MD to MI code. ie
+	 * from cpu_startup() to vm_ksubmap_init(). clean_sva and clean_eva
+	 * are part of the kmi structure.
+	 */
+	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva))
+		return (1);
+	else
+		return (0);
+}
+
 static void
 pmap_invalidate_all(pmap_t pmap)
 {
@@ -672,6 +692,9 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	register pt_entry_t *pte;
 	pt_entry_t npte, opte;
 
+#ifdef PMAP_DEBUG
+	printf("pmap_kenter:  va: 0x%08x -> pa: 0x%08x\n", va, pa);
+#endif
 	npte = mips_paddr_to_tlbpfn(pa) | PTE_RW | PTE_V | PTE_G | PTE_W;
 
 	if (is_cacheable_mem(pa))
@@ -1421,7 +1444,8 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 				    va, oldpte);
 			}
 #endif
-			vm_page_dirty(m);
+			if (pmap_track_modified(va))
+				vm_page_dirty(m);
 		}
 		if (m->md.pv_flags & PV_TABLE_REF)
 			vm_page_flag_set(m, PG_REFERENCED);
@@ -1778,6 +1802,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t fault_type, vm_page_t m, vm_pr
 validate:
 	rw = init_pte_prot(va, m, prot);
 
+#ifdef PMAP_DEBUG
+	printf("pmap_enter:  va: 0x%08x -> pa: 0x%08x\n", va, pa);
+#endif
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
@@ -2147,9 +2174,10 @@ pmap_zero_page(vm_page_t m)
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
 
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_UNCACHED(phys);
 
 		bzero((caddr_t)va, PAGE_SIZE);
+		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
@@ -2202,8 +2230,9 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_UNCACHED(phys);
 		bzero((char *)(caddr_t)va + off, size);
+		mips_dcache_wbinv_range(va + off, size);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
@@ -2240,8 +2269,9 @@ pmap_zero_page_idle(vm_page_t m)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_UNCACHED(phys);
 		bzero((caddr_t)va, PAGE_SIZE);
+		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
