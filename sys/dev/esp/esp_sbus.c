@@ -158,19 +158,19 @@ MODULE_DEPEND(esp, sbus, 1, 1, 1);
 MODULE_DEPEND(esp, cam, 1, 1, 1);
 
 /*
- * Functions and the switch for the MI code.
+ * Functions and the switch for the MI code
  */
-static u_char	esp_read_reg(struct ncr53c9x_softc *, int);
-static void	esp_write_reg(struct ncr53c9x_softc *, int, u_char);
-static int	esp_dma_isintr(struct ncr53c9x_softc *);
-static void	esp_dma_reset(struct ncr53c9x_softc *);
-static int	esp_dma_intr(struct ncr53c9x_softc *);
-static int	esp_dma_setup(struct ncr53c9x_softc *, caddr_t *, size_t *,
-			      int, size_t *);
-static void	esp_dma_go(struct ncr53c9x_softc *);
-static void	esp_dma_stop(struct ncr53c9x_softc *);
-static int	esp_dma_isactive(struct ncr53c9x_softc *);
-static int	espattach(struct esp_softc *, struct ncr53c9x_glue *);
+static u_char	esp_read_reg(struct ncr53c9x_softc *sc, int reg);
+static void	esp_write_reg(struct ncr53c9x_softc *sc, int reg, u_char v);
+static int	esp_dma_isintr(struct ncr53c9x_softc *sc);
+static void	esp_dma_reset(struct ncr53c9x_softc *sc);
+static int	esp_dma_intr(struct ncr53c9x_softc *sc);
+static int	esp_dma_setup(struct ncr53c9x_softc *sc, caddr_t *addr,
+		    size_t *len, int datain, size_t *dmasize);
+static void	esp_dma_go(struct ncr53c9x_softc *sc);
+static void	esp_dma_stop(struct ncr53c9x_softc *sc);
+static int	esp_dma_isactive(struct ncr53c9x_softc *sc);
+static int	espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep);
 
 static struct ncr53c9x_glue esp_sbus_glue = {
 	esp_read_reg,
@@ -311,7 +311,7 @@ esp_sbus_attach(device_t dev)
 		esc->sc_regh = rman_get_bushandle(esc->sc_res);
 	} else {
 		/*
-		 * Search accompanying DMA engine. It should have been
+		 * Search accompanying DMA engine.  It should have been
 		 * already attached otherwise there isn't much we can do.
 		 */
 		if (device_get_children(device_get_parent(dev), &children,
@@ -498,9 +498,6 @@ esp_resume(device_t dev)
 	return (ENXIO);
 }
 
-/*
- * Attach this instance, and then all the sub-devices
- */
 static int
 espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 {
@@ -530,7 +527,7 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 	 */
 
 	/*
-	 * Read the part-unique ID code of the SCSI chip. The contained
+	 * Read the part-unique ID code of the SCSI chip.  The contained
 	 * value is only valid if all of the following conditions are met:
 	 * - After power-up or chip reset.
 	 * - Before any value is written to this register.
@@ -570,7 +567,7 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 		    (NCRCFG3_CDB | NCRCFG3_FCLK)) {
 			sc->sc_rev = NCR_VARIANT_ESP100A;
 		} else {
-			/* NCRCFG2_FE enables > 64K transfers */
+			/* NCRCFG2_FE enables > 64K transfers. */
 			sc->sc_cfg2 |= NCRCFG2_FE;
 			sc->sc_cfg3 = 0;
 			NCR_WRITE_REG(sc, NCR_CFG3, sc->sc_cfg3);
@@ -581,15 +578,18 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 				case 0x00:
 					sc->sc_rev = NCR_VARIANT_FAS100A;
 					break;
+
 				case 0x02:
 					if ((uid & 0x07) == 0x02)
 						sc->sc_rev = NCR_VARIANT_FAS216;
 					else
 						sc->sc_rev = NCR_VARIANT_FAS236;
 					break;
+
 				case 0x0a:
 					sc->sc_rev = NCR_VARIANT_FAS366;
 					break;
+
 				default:
 					/*
 					 * We could just treat unknown chips
@@ -660,10 +660,10 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 		/*
 		 * The onboard SCSI chips in Sun Ultra 1 are actually
 		 * documented to be NCR53C9X which use NCRCFG3_FCLK and
-		 * NCRCFG3_FSCSI. BSD/OS however probes these chips as
+		 * NCRCFG3_FSCSI.  BSD/OS however probes these chips as
 		 * FAS100A and uses NCRF9XCFG3_FCLK and NCRF9XCFG3_FSCSI
 		 * instead which seems to be correct as otherwise sync
-		 * negotiation just doesn't work. Using NCRF9XCFG3_FCLK
+		 * negotiation just doesn't work.  Using NCRF9XCFG3_FCLK
 		 * and NCRF9XCFG3_FSCSI with these chips in fact also
 		 * yields Fast-SCSI speed.
 		 */
@@ -683,7 +683,7 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 	/* Limit minsync due to unsolved performance issues. */
 	sc->sc_maxsync = sc->sc_minsync;
 
-	/* Establish interrupt channel */
+	/* Establish interrupt channel. */
 	esc->sc_irqrid = 0;
 	if ((esc->sc_irqres = bus_alloc_resource_any(esc->sc_dev, SYS_RES_IRQ,
 	    &esc->sc_irqrid, RF_SHAREABLE|RF_ACTIVE)) == NULL) {
@@ -697,7 +697,7 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 		goto fail_ires;
 	}
 
-	/* Turn on target selection using the `DMA' method */
+	/* Turn on target selection using the `DMA' method. */
 	if (sc->sc_rev != NCR_VARIANT_FAS366)
 		sc->sc_features |= NCR_F_DMASELECT;
 
@@ -720,7 +720,7 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 }
 
 /*
- * Glue functions.
+ * Glue functions
  */
 
 #ifdef ESP_SBUS_DEBUG
@@ -844,11 +844,8 @@ static void
 esp_dma_stop(struct ncr53c9x_softc *sc)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
-	uint32_t csr;
 
-	csr = L64854_GCSR(esc->sc_dma);
-	csr &= ~D_EN_DMA;
-	L64854_SCSR(esc->sc_dma, csr);
+	L64854_SCSR(esc->sc_dma, L64854_GCSR(esc->sc_dma) & ~D_EN_DMA);
 }
 
 static int
