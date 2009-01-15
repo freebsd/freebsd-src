@@ -90,20 +90,22 @@ main(int argc, char *argv[])
 	int		ftsoptions;
 	int		listall;
 	int		depth;
-	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, hflag, ch, notused, rval;
+	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag;
+	int		hflag, lflag, ch, notused, rval;
 	char 		**save;
 	static char	dot[] = ".";
 
 	setlocale(LC_ALL, "");
 
-	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag = 0;
+	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag =
+	    lflag = 0;
 
 	save = argv;
 	ftsoptions = 0;
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
 
-	while ((ch = getopt(argc, argv, "HI:LPasd:chkmnrx")) != -1)
+	while ((ch = getopt(argc, argv, "HI:LPasd:chklmnrx")) != -1)
 		switch (ch) {
 			case 'H':
 				Hflag = 1;
@@ -146,6 +148,9 @@ main(int argc, char *argv[])
 			case 'k':
 				hflag = 0;
 				putenv("BLOCKSIZE=1024");
+				break;
+			case 'l':
+				lflag = 1;
 				break;
 			case 'm':
 				hflag = 0;
@@ -257,7 +262,8 @@ main(int argc, char *argv[])
 				if (ignorep(p))
 					break;
 
-				if (p->fts_statp->st_nlink > 1 && linkchk(p))
+				if (lflag == 0 &&
+				    p->fts_statp->st_nlink > 1 && linkchk(p))
 					break;
 
 				if (listall || p->fts_level == 0) {
@@ -443,7 +449,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-h | -k | -m] [-n] [-x] [-I mask] [file ...]\n");
+		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] "
+		"[-l] [-h | -k | -m] [-n] [-x] [-I mask] [file ...]\n");
 	exit(EX_USAGE);
 }
 
