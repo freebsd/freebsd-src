@@ -66,10 +66,6 @@ __FBSDID("$FreeBSD$");
 
 static int	__sprint(FILE *, struct __suio *);
 static int	__sbprintf(FILE *, const char *, va_list) __printflike(2, 0);
-static char	*__ujtoa(uintmax_t, char *, int, int, const char *, int, char,
-		    const char *);
-static char	*__ultoa(u_long, char *, int, int, const char *, int, char,
-		    const char *);
 static char	*__wcsconv(wchar_t *, int);
 
 #define	CHAR	char
@@ -126,160 +122,6 @@ __sbprintf(FILE *fp, const char *fmt, va_list ap)
 	if (fake._flags & __SERR)
 		fp->_flags |= __SERR;
 	return (ret);
-}
-
-/*
- * Convert an unsigned long to ASCII for printf purposes, returning
- * a pointer to the first character of the string representation.
- * Octal numbers can be forced to have a leading zero; hex numbers
- * use the given digits.
- */
-static char *
-__ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
-	int needgrp, char thousep, const char *grp)
-{
-	char *cp = endp;
-	long sval;
-	int ndig;
-
-	/*
-	 * Handle the three cases separately, in the hope of getting
-	 * better/faster code.
-	 */
-	switch (base) {
-	case 10:
-		if (val < 10) {	/* many numbers are 1 digit */
-			*--cp = to_char(val);
-			return (cp);
-		}
-		ndig = 0;
-		/*
-		 * On many machines, unsigned arithmetic is harder than
-		 * signed arithmetic, so we do at most one unsigned mod and
-		 * divide; this is sufficient to reduce the range of
-		 * the incoming value to where signed arithmetic works.
-		 */
-		if (val > LONG_MAX) {
-			*--cp = to_char(val % 10);
-			ndig++;
-			sval = val / 10;
-		} else
-			sval = val;
-		do {
-			*--cp = to_char(sval % 10);
-			ndig++;
-			/*
-			 * If (*grp == CHAR_MAX) then no more grouping
-			 * should be performed.
-			 */
-			if (needgrp && ndig == *grp && *grp != CHAR_MAX
-					&& sval > 9) {
-				*--cp = thousep;
-				ndig = 0;
-				/*
-				 * If (*(grp+1) == '\0') then we have to
-				 * use *grp character (last grouping rule)
-				 * for all next cases
-				 */
-				if (*(grp+1) != '\0')
-					grp++;
-			}
-			sval /= 10;
-		} while (sval != 0);
-		break;
-
-	case 8:
-		do {
-			*--cp = to_char(val & 7);
-			val >>= 3;
-		} while (val);
-		if (octzero && *cp != '0')
-			*--cp = '0';
-		break;
-
-	case 16:
-		do {
-			*--cp = xdigs[val & 15];
-			val >>= 4;
-		} while (val);
-		break;
-
-	default:			/* oops */
-		abort();
-	}
-	return (cp);
-}
-
-/* Identical to __ultoa, but for intmax_t. */
-static char *
-__ujtoa(uintmax_t val, char *endp, int base, int octzero, const char *xdigs, 
-	int needgrp, char thousep, const char *grp)
-{
-	char *cp = endp;
-	intmax_t sval;
-	int ndig;
-
-	/* quick test for small values; __ultoa is typically much faster */
-	/* (perhaps instead we should run until small, then call __ultoa?) */
-	if (val <= ULONG_MAX)
-		return (__ultoa((u_long)val, endp, base, octzero, xdigs,
-		    needgrp, thousep, grp));
-	switch (base) {
-	case 10:
-		if (val < 10) {
-			*--cp = to_char(val % 10);
-			return (cp);
-		}
-		ndig = 0;
-		if (val > INTMAX_MAX) {
-			*--cp = to_char(val % 10);
-			ndig++;
-			sval = val / 10;
-		} else
-			sval = val;
-		do {
-			*--cp = to_char(sval % 10);
-			ndig++;
-			/*
-			 * If (*grp == CHAR_MAX) then no more grouping
-			 * should be performed.
-			 */
-			if (needgrp && *grp != CHAR_MAX && ndig == *grp
-					&& sval > 9) {
-				*--cp = thousep;
-				ndig = 0;
-				/*
-				 * If (*(grp+1) == '\0') then we have to
-				 * use *grp character (last grouping rule)
-				 * for all next cases
-				 */
-				if (*(grp+1) != '\0')
-					grp++;
-			}
-			sval /= 10;
-		} while (sval != 0);
-		break;
-
-	case 8:
-		do {
-			*--cp = to_char(val & 7);
-			val >>= 3;
-		} while (val);
-		if (octzero && *cp != '0')
-			*--cp = '0';
-		break;
-
-	case 16:
-		do {
-			*--cp = xdigs[val & 15];
-			val >>= 4;
-		} while (val);
-		break;
-
-	default:
-		abort();
-	}
-	return (cp);
 }
 
 /*
@@ -355,22 +197,6 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 	FUNLOCKFILE(fp);
 	return (ret);
 }
-
-#ifndef NO_FLOATING_POINT
-
-#define	dtoa		__dtoa
-#define	freedtoa	__freedtoa
-
-#include <float.h>
-#include <math.h>
-#include "floatio.h"
-#include "gdtoa.h"
-
-#define	DEFPREC		6
-
-static int exponent(char *, int, int);
-
-#endif /* !NO_FLOATING_POINT */
 
 /*
  * The size of the buffer we use as scratch space for integer
@@ -1159,42 +985,3 @@ error:
 	/* NOTREACHED */
 }
 
-
-#ifndef NO_FLOATING_POINT
-
-static int
-exponent(char *p0, int exp, int fmtch)
-{
-	char *p, *t;
-	char expbuf[MAXEXPDIG];
-
-	p = p0;
-	*p++ = fmtch;
-	if (exp < 0) {
-		exp = -exp;
-		*p++ = '-';
-	}
-	else
-		*p++ = '+';
-	t = expbuf + MAXEXPDIG;
-	if (exp > 9) {
-		do {
-			*--t = to_char(exp % 10);
-		} while ((exp /= 10) > 9);
-		*--t = to_char(exp);
-		for (; t < expbuf + MAXEXPDIG; *p++ = *t++);
-	}
-	else {
-		/*
-		 * Exponents for decimal floating point conversions
-		 * (%[eEgG]) must be at least two characters long,
-		 * whereas exponents for hexadecimal conversions can
-		 * be only one character long.
-		 */
-		if (fmtch == 'e' || fmtch == 'E')
-			*p++ = '0';
-		*p++ = to_char(exp);
-	}
-	return (p - p0);
-}
-#endif /* !NO_FLOATING_POINT */
