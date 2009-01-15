@@ -189,6 +189,7 @@ struct tcpcb {
 	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / vimage / 1 general use */
 	struct toe_usrreqs *t_tu;       /* offload operations vector */
 	void	*t_toe;			/* TOE pcb pointer */
+	int	t_bytes_acked;		/* # bytes acked during current RTT */
 };
 
 /*
