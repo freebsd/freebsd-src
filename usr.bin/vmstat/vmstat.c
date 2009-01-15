@@ -133,7 +133,10 @@ static devstat_select_mode select_mode;
 
 static struct	vmmeter sum, osum;
 
-static int	winlines = 20;
+#define	VMSTAT_DEFAULT_LINES	20	/* Default number of `winlines'. */
+volatile sig_atomic_t wresized;		/* Tty resized, when non-zero. */
+static int winlines = VMSTAT_DEFAULT_LINES; /* Current number of tty rows. */
+
 static int	aflag;
 static int	nflag;
 static int	Pflag;
@@ -162,6 +165,8 @@ static void	kread(int, void *, size_t);
 static void	kreado(int, void *, size_t, size_t);
 static char    *kgetstr(const char *);
 static void	needhdr(int);
+static void	needresize(int);
+static void	doresize(void);
 static void	printhdr(int, u_long);
 static void	usage(void);
 
@@ -277,8 +282,6 @@ main(int argc, char *argv[])
 		errx(1, "Cannot use -P with crash dumps");
 
 	if (todo & VMSTAT) {
-		struct winsize winsize;
-
 		/*
 		 * Make sure that the userland devstat version matches the
 		 * kernel devstat version.  If not, exit and print a
@@ -289,11 +292,6 @@ main(int argc, char *argv[])
 
 
 		argv = getdrivedata(argv);
-		winsize.ws_row = 0;
-		(void) ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&winsize);
-		if (winsize.ws_row > 0)
-			winlines = winsize.ws_row;
-
 	}
 
 #define	BACKWARD_COMPATIBILITY
@@ -578,7 +576,26 @@ dovmstat(unsigned int interval, int reps)
 
 	uptime = getuptime();
 	halfuptime = uptime / 2;
+
+	/*
+	 * If the user stops the program (control-Z) and then resumes it,
+	 * print out the header again.
+	 */
 	(void)signal(SIGCONT, needhdr);
+
+	/*
+	 * If our standard output is a tty, then install a SIGWINCH handler
+	 * and set wresized so that our first iteration through the main
+	 * iostat loop will peek at the terminal's current rows to find out
+	 * how many lines can fit in a screenful of output.
+	 */
+	if (isatty(fileno(stdout)) != 0) {
+		wresized = 1;
+		(void)signal(SIGWINCH, needresize);
+	} else {
+		wresized = 0;
+		winlines = VMSTAT_DEFAULT_LINES;
+	}
 
 	if (kd != NULL) {
 		if (namelist[X_STATHZ].n_type != 0 &&
@@ -758,7 +775,9 @@ printhdr(int ncpus, u_long cpumask)
 		printf("\n");
 	} else
 		printf(" us sy id\n");
-	hdrcnt = winlines - 2;
+	if (wresized != 0)
+		doresize();
+	hdrcnt = winlines;
 }
 
 /*
@@ -769,6 +788,47 @@ needhdr(int dummy __unused)
 {
 
 	hdrcnt = 1;
+}
+
+/*
+ * When the terminal is resized, force an update of the maximum number of rows
+ * printed between each header repetition.  Then force a new header to be
+ * prepended to the next output.
+ */
+void
+needresize(int signo)
+{
+
+	wresized = 1;
+	hdrcnt = 1;
+}
+
+/*
+ * Update the global `winlines' count of terminal rows.
+ */
+void
+doresize(void)
+{
+	int status;
+	struct winsize w;
+
+	for (;;) {
+		status = ioctl(fileno(stdout), TIOCGWINSZ, &w);
+		if (status == -1 && errno == EINTR)
+			continue;
+		else if (status == -1)
+			err(1, "ioctl");
+		if (w.ws_row > 3)
+			winlines = w.ws_row - 3;
+		else
+			winlines = VMSTAT_DEFAULT_LINES;
+		break;
+	}
+
+	/*
+	 * Inhibit doresize() calls until we are rescheduled by SIGWINCH.
+	 */
+	wresized = 0;
 }
 
 #ifdef notyet
