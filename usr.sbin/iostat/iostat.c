@@ -113,6 +113,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 #include <limits.h>
 #include <devstat.h>
@@ -131,17 +132,23 @@ struct nlist namelist[] = {
 	{ NULL },
 };
 
+#define	IOSTAT_DEFAULT_ROWS	20	/* Traditional default `wrows' */
+
 struct statinfo cur, last;
 int num_devices;
 struct device_selection *dev_select;
 int maxshowdevs;
 volatile sig_atomic_t headercount;
+volatile sig_atomic_t wresized;		/* Tty resized, when non-zero. */
+unsigned short wrows;			/* Current number of tty rows. */
 int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
 int xflag = 0, zflag = 0;
 
 /* local function declarations */
 static void usage(void);
 static void needhdr(int signo);
+static void needresize(int signo);
+static void doresize(void);
 static void phdr(void);
 static void devstats(int perf_select, long double etime, int havelast);
 static void cpustats(void);
@@ -426,6 +433,20 @@ main(int argc, char **argv)
 	 */
 	(void)signal(SIGCONT, needhdr);
 
+	/*
+	 * If our standard output is a tty, then install a SIGWINCH handler
+	 * and set wresized so that our first iteration through the main
+	 * iostat loop will peek at the terminal's current rows to find out
+	 * how many lines can fit in a screenful of output.
+	 */
+	if (isatty(fileno(stdout)) != 0) {
+		wresized = 1;
+		(void)signal(SIGWINCH, needresize);
+	} else {
+		wresized = 0;
+		wrows = IOSTAT_DEFAULT_ROWS;
+	}
+
 	for (headercount = 1;;) {
 		struct devinfo *tmp_dinfo;
 		long tmp;
@@ -451,7 +472,9 @@ main(int argc, char **argv)
 
 		if (!--headercount) {
 			phdr();
-			headercount = 20;
+			if (wresized != 0)
+				doresize();
+			headercount = wrows;
 		}
 
 		tmp_dinfo = last.dinfo;
@@ -493,7 +516,9 @@ main(int argc, char **argv)
 				break;
 			case 1:
 				phdr();
-				headercount = 20;
+				if (wresized != 0)
+					doresize();
+				headercount = wrows;
 				break;
 			default:
 				break;
@@ -528,7 +553,9 @@ main(int argc, char **argv)
 				break;
 			case 1:
 				phdr();
-				headercount = 20;
+				if (wresized != 0)
+					doresize();
+				headercount = wrows;
 				break;
 			default:
 				break;
@@ -587,6 +614,47 @@ needhdr(int signo)
 {
 
 	headercount = 1;
+}
+
+/*
+ * When the terminal is resized, force an update of the maximum number of rows
+ * printed between each header repetition.  Then force a new header to be
+ * prepended to the next output.
+ */
+void
+needresize(int signo)
+{
+
+	wresized = 1;
+	headercount = 1;
+}
+
+/*
+ * Update the global `wrows' count of terminal rows.
+ */
+void
+doresize(void)
+{
+	int status;
+	struct winsize w;
+
+	for (;;) {
+		status = ioctl(fileno(stdout), TIOCGWINSZ, &w);
+		if (status == -1 && errno == EINTR)
+			continue;
+		else if (status == -1)
+			err(1, "ioctl");
+		if (w.ws_row > 3)
+			wrows = w.ws_row - 3;
+		else
+			wrows = IOSTAT_DEFAULT_ROWS;
+		break;
+	}
+
+	/*
+	 * Inhibit doresize() calls until we are rescheduled by SIGWINCH.
+	 */
+	wresized = 0;
 }
 
 static void
