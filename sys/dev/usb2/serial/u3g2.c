@@ -62,7 +62,6 @@ SYSCTL_INT(_hw_usb2_u3g, OID_AUTO, debug, CTLFLAG_RW,
     &u3g_debug, 0, "u3g debug level");
 #endif
 
-#define	U3G_N_TRANSFER		2
 #define	U3G_MAXPORTS		4
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
@@ -84,6 +83,12 @@ SYSCTL_INT(_hw_usb2_u3g, OID_AUTO, debug, CTLFLAG_RW,
 struct u3g_speeds_s {
 	uint32_t ispeed;
 	uint32_t ospeed;
+};
+
+enum {
+	U3G_BULK_WR,
+	U3G_BULK_RD,
+	U3G_N_TRANSFER = 2,
 };
 
 struct u3g_softc {
@@ -117,7 +122,7 @@ static int u3g_driver_loaded(struct module *mod, int what, void *arg);
 
 static const struct usb2_config u3g_config[U3G_N_TRANSFER] = {
 
-	[0] = {
+	[U3G_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -126,7 +131,7 @@ static const struct usb2_config u3g_config[U3G_N_TRANSFER] = {
 		.mh.callback = &u3g_write_callback,
 	},
 
-	[1] = {
+	[U3G_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -401,8 +406,8 @@ u3g_attach(device_t dev)
 		goto detach;
 	}
 	/* set stall by default */
-	usb2_transfer_set_stall(sc->sc_xfer[0]);
-	usb2_transfer_set_stall(sc->sc_xfer[1]);
+	usb2_transfer_set_stall(sc->sc_xfer[U3G_BULK_WR]);
+	usb2_transfer_set_stall(sc->sc_xfer[U3G_BULK_RD]);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &u3g_callback, &Giant);
@@ -437,7 +442,7 @@ u3g_start_read(struct usb2_com_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[1]);
+	usb2_transfer_start(sc->sc_xfer[U3G_BULK_RD]);
 	return;
 }
 
@@ -447,7 +452,7 @@ u3g_stop_read(struct usb2_com_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[1]);
+	usb2_transfer_stop(sc->sc_xfer[U3G_BULK_RD]);
 	return;
 }
 
@@ -456,7 +461,7 @@ u3g_start_write(struct usb2_com_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[U3G_BULK_WR]);
 	return;
 }
 
@@ -465,7 +470,7 @@ u3g_stop_write(struct usb2_com_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[0]);
+	usb2_transfer_stop(sc->sc_xfer[U3G_BULK_WR]);
 	return;
 }
 

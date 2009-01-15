@@ -110,17 +110,19 @@ SYSCTL_INT(_hw_usb2_ubser, OID_AUTO, debug, CTLFLAG_RW,
     &ubser_debug, 0, "ubser debug level");
 #endif
 
-#define	UBSER_TR_DT_WRITE 0
-#define	UBSER_TR_DT_READ  1
-#define	UBSER_TR_CS_WRITE 2
-#define	UBSER_TR_CS_READ  3
-#define	UBSER_TR_MAX      4
+enum {
+	UBSER_BULK_DT_WR,
+	UBSER_BULK_DT_RD,
+	UBSER_BULK_CS_WR,
+	UBSER_BULK_CS_RD,
+	UBSER_N_TRANSFER = 4,
+};
 
 struct ubser_softc {
 	struct usb2_com_super_softc sc_super_ucom;
 	struct usb2_com_softc sc_ucom[UBSER_UNIT_MAX];
 
-	struct usb2_xfer *sc_xfer[UBSER_TR_MAX];
+	struct usb2_xfer *sc_xfer[UBSER_N_TRANSFER];
 	struct usb2_device *sc_udev;
 
 	uint16_t sc_tx_size;
@@ -156,9 +158,9 @@ static void	ubser_stop_read(struct usb2_com_softc *);
 static void	ubser_start_write(struct usb2_com_softc *);
 static void	ubser_stop_write(struct usb2_com_softc *);
 
-static const struct usb2_config ubser_config[UBSER_TR_MAX] = {
+static const struct usb2_config ubser_config[UBSER_N_TRANSFER] = {
 
-	[UBSER_TR_DT_WRITE] = {
+	[UBSER_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -167,7 +169,7 @@ static const struct usb2_config ubser_config[UBSER_TR_MAX] = {
 		.mh.callback = &ubser_write_callback,
 	},
 
-	[UBSER_TR_DT_READ] = {
+	[UBSER_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -176,7 +178,7 @@ static const struct usb2_config ubser_config[UBSER_TR_MAX] = {
 		.mh.callback = &ubser_read_callback,
 	},
 
-	[UBSER_TR_CS_WRITE] = {
+	[UBSER_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -187,7 +189,7 @@ static const struct usb2_config ubser_config[UBSER_TR_MAX] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[UBSER_TR_CS_READ] = {
+	[UBSER_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -289,11 +291,11 @@ ubser_attach(device_t dev)
 	device_printf(dev, "found %i serials\n", sc->sc_numser);
 
 	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
-	    sc->sc_xfer, ubser_config, UBSER_TR_MAX, sc, &Giant);
+	    sc->sc_xfer, ubser_config, UBSER_N_TRANSFER, sc, &Giant);
 	if (error) {
 		goto detach;
 	}
-	sc->sc_tx_size = sc->sc_xfer[UBSER_TR_DT_WRITE]->max_data_length;
+	sc->sc_tx_size = sc->sc_xfer[UBSER_BULK_DT_WR]->max_data_length;
 
 	if (sc->sc_tx_size == 0) {
 		DPRINTFN(0, "invalid tx_size!\n");
@@ -315,7 +317,7 @@ ubser_attach(device_t dev)
 	sc->sc_flags |= (UBSER_FLAG_READ_STALL |
 	    UBSER_FLAG_WRITE_STALL);
 
-	usb2_transfer_start(sc->sc_xfer[UBSER_TR_DT_READ]);
+	usb2_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
 
 	mtx_unlock(&Giant);
 
@@ -341,12 +343,12 @@ ubser_detach(device_t dev)
 	 * completes, it might start other transfers !
 	 */
 	mtx_lock(&Giant);
-	for (n = 0; n < UBSER_TR_MAX; n++) {
+	for (n = 0; n < UBSER_N_TRANSFER; n++) {
 		usb2_transfer_stop(sc->sc_xfer[n]);
 	}
 	mtx_unlock(&Giant);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UBSER_TR_MAX);
+	usb2_transfer_unsetup(sc->sc_xfer, UBSER_N_TRANSFER);
 
 	return (0);
 }
@@ -413,7 +415,7 @@ static void
 ubser_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ubser_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UBSER_TR_DT_WRITE];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UBSER_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -434,7 +436,7 @@ ubser_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 		if (sc->sc_flags & UBSER_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UBSER_TR_CS_WRITE]);
+			usb2_transfer_start(sc->sc_xfer[UBSER_BULK_CS_WR]);
 			return;
 		}
 		do {
@@ -462,7 +464,7 @@ ubser_write_callback(struct usb2_xfer *xfer)
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flags |= UBSER_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[UBSER_TR_CS_WRITE]);
+			usb2_transfer_start(sc->sc_xfer[UBSER_BULK_CS_WR]);
 		}
 		return;
 
@@ -473,7 +475,7 @@ static void
 ubser_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ubser_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UBSER_TR_DT_READ];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UBSER_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -506,7 +508,7 @@ ubser_read_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->sc_flags & UBSER_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UBSER_TR_CS_READ]);
+			usb2_transfer_start(sc->sc_xfer[UBSER_BULK_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -516,7 +518,7 @@ tr_setup:
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flags |= UBSER_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[UBSER_TR_CS_READ]);
+			usb2_transfer_start(sc->sc_xfer[UBSER_BULK_CS_RD]);
 		}
 		return;
 
@@ -564,7 +566,7 @@ ubser_start_read(struct usb2_com_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UBSER_TR_DT_READ]);
+	usb2_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
 }
 
 static void
@@ -572,8 +574,8 @@ ubser_stop_read(struct usb2_com_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_CS_READ]);
-	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_DT_READ]);
+	usb2_transfer_stop(sc->sc_xfer[UBSER_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UBSER_BULK_DT_RD]);
 }
 
 static void
@@ -581,7 +583,7 @@ ubser_start_write(struct usb2_com_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UBSER_TR_DT_WRITE]);
+	usb2_transfer_start(sc->sc_xfer[UBSER_BULK_DT_WR]);
 }
 
 static void
@@ -589,6 +591,6 @@ ubser_stop_write(struct usb2_com_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_CS_WRITE]);
-	usb2_transfer_stop(sc->sc_xfer[UBSER_TR_DT_WRITE]);
+	usb2_transfer_stop(sc->sc_xfer[UBSER_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[UBSER_BULK_DT_WR]);
 }
