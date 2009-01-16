@@ -1448,11 +1448,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		 * specify an AF
 		 */
 		if (w.w_op == NET_RT_FLAGS &&
-#if defined(COMPAT_ROUTE_FLAGS)
-		    (w.w_arg & RTF_LLINFO)) {
-#else
-		    w.w_arg == 0) {
-#endif
+		    (w.w_arg == 0 || w.w_arg & RTF_LLINFO)) {
 			if (af != 0)
 				error = lltable_sysctl_dumparp(af, w.w_req);
 			else
