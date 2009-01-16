@@ -2291,9 +2291,27 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	struct resource *res;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
+
+	/*
+	 * Disable decoding via the command register before
+	 * determining the BARs length since we will be placing them
+	 * in a weird state.
+	 */
+	cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
+	PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND,
+	    cmd & ~(PCI_BAR_MEM(map) ? PCIM_CMD_MEMEN : PCIM_CMD_PORTEN), 2);
+
+	/*
+	 * Determine the BAR's length by writing all 1's.  The bottom
+	 * log_2(size) bits of the BAR will stick as 0 when we read
+	 * the value back.
+	 */
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, 0xffffffff, 4);
 	testval = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
+
+	/* Restore the BAR and command register. */
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, map, 4);
+	PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
 
 	if (PCI_BAR_MEM(map))
 		type = SYS_RES_MEMORY;
