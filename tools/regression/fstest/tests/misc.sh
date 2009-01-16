@@ -87,7 +87,7 @@ test_check()
 
 todo()
 {
-	echo "${os}" | grep -iq "${1}"
+	echo "${os}" | $GREP -iq "${1}"
 	if [ $? -eq 0 ]; then
 		todomsg="${2}"
 	fi
