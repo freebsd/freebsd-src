@@ -15,7 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_regdomain.c,v 1.24 2008/11/27 22:29:27 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -1231,9 +1231,18 @@ static REG_DOMAIN regDomains[] = {
 	{.regDmnEnum		= DEBUG_REG_DMN,
 	 .conformanceTestLimit	= FCC,
 	 .dfsMask		= DFS_FCC3,
-	 .chan11a		= BM3(F1_5120_5240, F1_5260_5700, F1_5745_5825),
-	 .chan11a_half		= BM3(F2_5120_5240, F2_5260_5700, F7_5745_5825),
-	 .chan11a_quarter	= BM3(F3_5120_5240, F3_5260_5700, F8_5745_5825),
+	 .chan11a		= BM4(F1_4950_4980,
+				      F1_5120_5240,
+				      F1_5260_5700,
+				      F1_5745_5825),
+	 .chan11a_half		= BM4(F1_4945_4985,
+				      F2_5120_5240,
+				      F2_5260_5700,
+				      F7_5745_5825),
+	 .chan11a_quarter	= BM4(F1_4942_4987,
+				      F3_5120_5240,
+				      F3_5260_5700,
+				      F8_5745_5825),
 	 .chan11a_turbo		= BM8(T1_5130_5210,
 				      T1_5250_5330,
 				      T1_5370_5490,
