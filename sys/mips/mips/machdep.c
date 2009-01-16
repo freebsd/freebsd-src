@@ -218,8 +218,10 @@ cpu_halt(void)
 		;
 }
 
-#ifdef PORT_TO_JMIPS
+SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, CTLFLAG_RD, &bootinfo,
+    bootinfo, "Bootinfo struct: kernel filename, BIOS harddisk geometry, etc");
 
+#ifdef PORT_TO_JMIPS
 static int
 sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 {
@@ -228,19 +230,8 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT | CTLFLAG_RW,
     &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
     "Local offset from GMT in seconds");
-#endif	/* PORT_TO_JMIPS */
-
-#ifdef PORT_TO_JMIPS
-/* art */
 SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set, CTLFLAG_RW,
     &disable_rtc_set, 0, "Disable setting the real time clock to system time");
-#endif	/* PORT_TO_JMIPS */
-
-SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, CTLFLAG_RD, &bootinfo,
-    bootinfo, "Bootinfo struct: kernel filename, BIOS harddisk geometry, etc");
-
-#ifdef PORT_TO_JMIPS
-/* dchu */
 SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
     &wall_cmos_clock, 0, "Wall CMOS clock assumed");
 #endif	/* PORT_TO_JMIPS */
@@ -248,7 +239,6 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
 /*
  * Initialize mips and configure to run kernel
  */
-
 void
 mips_proc0_init(void)
 {
@@ -273,6 +263,7 @@ mips_proc0_init(void)
 	thread0.td_pcb = (struct pcb *)(thread0.td_md.md_realstack +
 	    (thread0.td_kstack_pages - 1) * PAGE_SIZE) - 1;
 	thread0.td_frame = &thread0.td_pcb->pcb_regs;
+
 	/*
 	 * There is no need to initialize md_upte array for thread0 as it's
 	 * located in .bss section and should be explicitly zeroed during 
@@ -370,7 +361,6 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 	return (ENOSYS);
 }
 
-int spinco;
 void
 spinlock_enter(void)
 {
