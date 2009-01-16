@@ -143,12 +143,6 @@ typedef struct pv_entry {
 #define	PMAP_DIAGNOSTIC
 #endif
 
-#if !defined(PMAP_DIAGNOSTIC)
-#define	PMAP_INLINE __inline
-#else
-#define	PMAP_INLINE
-#endif
-
 extern vm_offset_t avail_end;
 extern vm_offset_t avail_start;
 extern vm_offset_t phys_avail[];
@@ -171,8 +165,8 @@ vm_offset_t pmap_steal_memory(vm_size_t size);
 void pmap_set_modified(vm_offset_t pa);
 int page_is_managed(vm_offset_t pa);
 void pmap_page_is_free(vm_page_t m);
- /* PMAP_INLINE */ void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
- /* PMAP_INLINE */ void pmap_kremove(vm_offset_t va);
+void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
+void pmap_kremove(vm_offset_t va);
 void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 int pmap_compute_pages_to_dump(void);
