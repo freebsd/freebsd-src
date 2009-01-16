@@ -291,6 +291,11 @@ static void msk_setmulti(struct msk_if_softc *);
 static void msk_setvlan(struct msk_if_softc *, struct ifnet *);
 static void msk_setpromisc(struct msk_if_softc *);
 
+static void msk_stats_clear(struct msk_if_softc *);
+static void msk_stats_update(struct msk_if_softc *);
+static int msk_sysctl_stat32(SYSCTL_HANDLER_ARGS);
+static int msk_sysctl_stat64(SYSCTL_HANDLER_ARGS);
+static void msk_sysctl_node(struct msk_if_softc *);
 static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int sysctl_hw_msk_proc_limit(SYSCTL_HANDLER_ARGS);
 
@@ -1435,6 +1440,7 @@ msk_attach(device_t dev)
 
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
 	TASK_INIT(&sc_if->msk_link_task, 0, msk_link_task, sc_if);
+	msk_sysctl_node(sc_if);
 
 	/* Disable jumbo frame for Yukon FE. */
 	if (sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_FE)
@@ -3544,15 +3550,8 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Dummy read the Interrupt Source Register. */
 	CSR_READ_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_SRC));
 
-	/* Set MIB Clear Counter Mode. */
-	gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_PHY_ADDR);
-	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac | GM_PAR_MIB_CLR);
-	/* Read all MIB Counters with Clear Mode set. */
-	for (i = 0; i < GM_MIB_CNT_SIZE; i++)
-		GMAC_READ_2(sc, sc_if->msk_port, GM_MIB_CNT_BASE + 8 * i);
-	/* Clear MIB Clear Counter Mode. */
-	gmac &= ~GM_PAR_MIB_CLR;
-	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac);
+	/* Clear MIB stats. */
+	msk_stats_clear(sc_if);
 
 	/* Disable FCS. */
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_RX_CTRL, GM_RXCR_CRC_DIS);
@@ -3838,6 +3837,8 @@ msk_stop(struct msk_if_softc *sc_if)
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, val);
 	/* Read again to ensure writing. */
 	GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
+	/* Update stats and clear counters. */
+	msk_stats_update(sc_if);
 
 	/* Stop Tx BMU. */
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_STOP);
@@ -3952,6 +3953,295 @@ msk_stop(struct msk_if_softc *sc_if)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc_if->msk_link = 0;
 }
+
+/*
+ * When GM_PAR_MIB_CLR bit of GM_PHY_ADDR is set, reading lower
+ * counter clears high 16 bits of the counter such that accessing
+ * lower 16 bits should be the last operation.
+ */
+#define	MSK_READ_MIB32(x, y)					\
+	(((uint32_t)GMAC_READ_2(sc, x, (y) + 4)) << 16) +	\
+	(uint32_t)GMAC_READ_2(sc, x, y)
+#define	MSK_READ_MIB64(x, y)					\
+	(((uint64_t)MSK_READ_MIB32(x, (y) + 8)) << 32) +	\
+	(uint64_t)MSK_READ_MIB32(x, y)
+
+static void
+msk_stats_clear(struct msk_if_softc *sc_if)
+{
+	struct msk_softc *sc;
+	uint32_t reg;
+	uint16_t gmac;
+	int i;
+
+	MSK_IF_LOCK_ASSERT(sc_if);
+
+	sc = sc_if->msk_softc;
+	/* Set MIB Clear Counter Mode. */
+	gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_PHY_ADDR);
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac | GM_PAR_MIB_CLR);
+	/* Read all MIB Counters with Clear Mode set. */
+	for (i = GM_RXF_UC_OK; i <= GM_TXE_FIFO_UR; i++)
+		reg = MSK_READ_MIB32(sc_if->msk_port, i);
+	/* Clear MIB Clear Counter Mode. */
+	gmac &= ~GM_PAR_MIB_CLR;
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac);
+}
+
+static void
+msk_stats_update(struct msk_if_softc *sc_if)
+{
+	struct msk_softc *sc;
+	struct ifnet *ifp;
+	struct msk_hw_stats *stats;
+	uint16_t gmac;
+	uint32_t reg;
+
+	MSK_IF_LOCK_ASSERT(sc_if);
+
+	ifp = sc_if->msk_ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+	sc = sc_if->msk_softc;
+	stats = &sc_if->msk_stats;
+	/* Set MIB Clear Counter Mode. */
+	gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_PHY_ADDR);
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac | GM_PAR_MIB_CLR);
+
+	/* Rx stats. */
+	stats->rx_ucast_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_UC_OK);
+	stats->rx_bcast_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_BC_OK);
+	stats->rx_pause_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_MPAUSE);
+	stats->rx_mcast_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_MC_OK);
+	stats->rx_crc_errs +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_FCS_ERR);
+	reg = MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE1);
+	stats->rx_good_octets +=
+	    MSK_READ_MIB64(sc_if->msk_port, GM_RXO_OK_LO);
+	stats->rx_bad_octets +=
+	    MSK_READ_MIB64(sc_if->msk_port, GM_RXO_ERR_LO);
+	stats->rx_runts +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SHT);
+	stats->rx_runt_errs +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXE_FRAG);
+	stats->rx_pkts_64 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_64B);
+	stats->rx_pkts_65_127 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_127B);
+	stats->rx_pkts_128_255 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_255B);
+	stats->rx_pkts_256_511 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_511B);
+	stats->rx_pkts_512_1023 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_1023B);
+	stats->rx_pkts_1024_1518 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_1518B);
+	stats->rx_pkts_1519_max +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_MAX_SZ);
+	stats->rx_pkts_too_long +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_LNG_ERR);
+	stats->rx_pkts_jabbers +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_JAB_PKT);
+	reg = MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE2);
+	stats->rx_fifo_oflows +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_RXE_FIFO_OV);
+	reg = MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE3);
+
+	/* Tx stats. */
+	stats->tx_ucast_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_UC_OK);
+	stats->tx_bcast_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_BC_OK);
+	stats->tx_pause_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_MPAUSE);
+	stats->tx_mcast_frames +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_MC_OK);
+	stats->tx_octets +=
+	    MSK_READ_MIB64(sc_if->msk_port, GM_TXO_OK_LO);
+	stats->tx_pkts_64 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_64B);
+	stats->tx_pkts_65_127 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_127B);
+	stats->tx_pkts_128_255 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_255B);
+	stats->tx_pkts_256_511 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_511B);
+	stats->tx_pkts_512_1023 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_1023B);
+	stats->tx_pkts_1024_1518 +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_1518B);
+	stats->tx_pkts_1519_max +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_MAX_SZ);
+	reg = MSK_READ_MIB32(sc_if->msk_port, GM_TXF_SPARE1);
+	stats->tx_colls +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_COL);
+	stats->tx_late_colls +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_LAT_COL);
+	stats->tx_excess_colls +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_ABO_COL);
+	stats->tx_multi_colls +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_MUL_COL);
+	stats->tx_single_colls +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_SNG_COL);
+	stats->tx_underflows +=
+	    MSK_READ_MIB32(sc_if->msk_port, GM_TXE_FIFO_UR);
+	/* Clear MIB Clear Counter Mode. */
+	gmac &= ~GM_PAR_MIB_CLR;
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac);
+}
+
+static int
+msk_sysctl_stat32(SYSCTL_HANDLER_ARGS)
+{
+	struct msk_softc *sc;
+	struct msk_if_softc *sc_if;
+	uint32_t result, *stat;
+	int off;
+
+	sc_if = (struct msk_if_softc *)arg1;
+	sc = sc_if->msk_softc;
+	off = arg2;
+	stat = (uint32_t *)((uint8_t *)&sc_if->msk_stats + off);
+
+	MSK_IF_LOCK(sc_if);
+	result = MSK_READ_MIB32(sc_if->msk_port, GM_MIB_CNT_BASE + off * 2);
+	result += *stat;
+	MSK_IF_UNLOCK(sc_if);
+
+	return (sysctl_handle_int(oidp, &result, 0, req));
+}
+
+static int
+msk_sysctl_stat64(SYSCTL_HANDLER_ARGS)
+{
+	struct msk_softc *sc;
+	struct msk_if_softc *sc_if;
+	uint64_t result, *stat;
+	int off;
+
+	sc_if = (struct msk_if_softc *)arg1;
+	sc = sc_if->msk_softc;
+	off = arg2;
+	stat = (uint64_t *)((uint8_t *)&sc_if->msk_stats + off);
+
+	MSK_IF_LOCK(sc_if);
+	result = MSK_READ_MIB64(sc_if->msk_port, GM_MIB_CNT_BASE + off * 2);
+	result += *stat;
+	MSK_IF_UNLOCK(sc_if);
+
+	return (sysctl_handle_quad(oidp, &result, 0, req));
+}
+
+#undef MSK_READ_MIB32
+#undef MSK_READ_MIB64
+
+#define MSK_SYSCTL_STAT32(sc, c, o, p, n, d) 				\
+	SYSCTL_ADD_PROC(c, p, OID_AUTO, o, CTLTYPE_UINT | CTLFLAG_RD, 	\
+	    sc, offsetof(struct msk_hw_stats, n), msk_sysctl_stat32,	\
+	    "IU", d)
+#define MSK_SYSCTL_STAT64(sc, c, o, p, n, d) 				\
+	SYSCTL_ADD_PROC(c, p, OID_AUTO, o, CTLTYPE_UINT | CTLFLAG_RD, 	\
+	    sc, offsetof(struct msk_hw_stats, n), msk_sysctl_stat64,	\
+	    "Q", d)
+
+static void
+msk_sysctl_node(struct msk_if_softc *sc_if)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child, *schild;
+	struct sysctl_oid *tree;
+
+	ctx = device_get_sysctl_ctx(sc_if->msk_if_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc_if->msk_if_dev));
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "MSK Statistics");
+	schild = child = SYSCTL_CHILDREN(tree);
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "MSK RX Statistics");
+	child = SYSCTL_CHILDREN(tree);
+	MSK_SYSCTL_STAT32(sc_if, ctx, "ucast_frames",
+	    child, rx_ucast_frames, "Good unicast frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "bcast_frames",
+	    child, rx_bcast_frames, "Good broadcast frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "pause_frames",
+	    child, rx_pause_frames, "Pause frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "mcast_frames",
+	    child, rx_mcast_frames, "Multicast frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "crc_errs",
+	    child, rx_crc_errs, "CRC errors");
+	MSK_SYSCTL_STAT64(sc_if, ctx, "good_octets",
+	    child, rx_good_octets, "Good octets");
+	MSK_SYSCTL_STAT64(sc_if, ctx, "bad_octets",
+	    child, rx_bad_octets, "Bad octets");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_64",
+	    child, rx_pkts_64, "64 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_65_127",
+	    child, rx_pkts_65_127, "65 to 127 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_128_255",
+	    child, rx_pkts_128_255, "128 to 255 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_256_511",
+	    child, rx_pkts_256_511, "256 to 511 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_512_1023",
+	    child, rx_pkts_512_1023, "512 to 1023 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_1024_1518",
+	    child, rx_pkts_1024_1518, "1024 to 1518 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_1519_max",
+	    child, rx_pkts_1519_max, "1519 to max frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_too_long",
+	    child, rx_pkts_too_long, "frames too long");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "jabbers",
+	    child, rx_pkts_jabbers, "Jabber errors");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "jabbers",
+	    child, rx_fifo_oflows, "FIFO overflows");
+
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "MSK TX Statistics");
+	child = SYSCTL_CHILDREN(tree);
+	MSK_SYSCTL_STAT32(sc_if, ctx, "ucast_frames",
+	    child, tx_ucast_frames, "Unicast frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "bcast_frames",
+	    child, tx_bcast_frames, "Broadcast frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "pause_frames",
+	    child, tx_pause_frames, "Pause frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "mcast_frames",
+	    child, tx_mcast_frames, "Multicast frames");
+	MSK_SYSCTL_STAT64(sc_if, ctx, "octets",
+	    child, tx_octets, "Octets");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_64",
+	    child, tx_pkts_64, "64 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_65_127",
+	    child, tx_pkts_65_127, "65 to 127 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_128_255",
+	    child, tx_pkts_128_255, "128 to 255 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_256_511",
+	    child, tx_pkts_256_511, "256 to 511 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_512_1023",
+	    child, tx_pkts_512_1023, "512 to 1023 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_1024_1518",
+	    child, tx_pkts_1024_1518, "1024 to 1518 bytes frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "frames_1519_max",
+	    child, tx_pkts_1519_max, "1519 to max frames");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "colls",
+	    child, tx_colls, "Collisions");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "late_colls",
+	    child, tx_late_colls, "Late collisions");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "excess_colls",
+	    child, tx_excess_colls, "Excessive collisions");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "multi_colls",
+	    child, tx_multi_colls, "Multiple collisions");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "single_colls",
+	    child, tx_single_colls, "Single collisions");
+	MSK_SYSCTL_STAT32(sc_if, ctx, "underflows",
+	    child, tx_underflows, "FIFO underflows");
+}
+
+#undef MSK_SYSCTL_STAT32
+#undef MSK_SYSCTL_STAT64
 
 static int
 sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high)
