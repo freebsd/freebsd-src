@@ -332,7 +332,7 @@ acpi_smbus_read_multi_1(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
 
 		ptr[len] = val;
 		if (batt_sleep_ms)
-		    AcpiOsSleep(1);
+		    AcpiOsSleep(batt_sleep_ms);
 	}
 
 out:
