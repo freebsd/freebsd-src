@@ -54,6 +54,9 @@ struct rm_queue {
 	struct rm_queue* volatile rmq_prev;
 };
 
+#define	PCPU_NAME_LEN (sizeof("CPU ") + sizeof(__STRING(MAXCPU) + 1))
+
+
 /*
  * This structure maps out the global data that needs to be kept on a
  * per-cpu basis.  The members are accessed via the PCPU_GET/SET/PTR
@@ -76,6 +79,9 @@ struct pcpu {
 #ifdef KTR_PERCPU
 	int		pc_ktr_idx;		/* Index into trace table */
 	char		*pc_ktr_buf;
+#endif
+#ifdef KTR
+	char		pc_name[PCPU_NAME_LEN];	/* String name for KTR. */
 #endif
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
