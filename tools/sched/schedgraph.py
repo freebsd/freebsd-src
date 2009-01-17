@@ -59,8 +59,6 @@ from Tkinter import *
 #
 # To do:
 # Add a per-source summary display
-# Click to move.
-# Hide rows
 # "Vertical rule" to help relate data in different rows
 # Mouse-over popup of full thread/event/row label (currently truncated)
 # More visible anchors for popup event windows
@@ -293,6 +291,118 @@ class ColorConfigure(Toplevel):
 	def rpress(self):
 		for item in self.types:
 			item.revert()
+
+class SourceConf(Frame):
+	def __init__(self, master, source):
+		Frame.__init__(self, master)
+		if (source.hidden == 1):
+			enabled = 0
+		else:
+			enabled = 1
+		self.source = source
+		self.name = source.name
+		self.enabled = IntVar()
+		self.enabled_default = enabled
+		self.enabled_current = enabled
+		self.enabled.set(enabled)
+		self.draw()
+
+	def draw(self):
+		self.label = Label(self, text=self.name, anchor=W)
+		self.checkbox = Checkbutton(self, text="enabled",
+		    variable=self.enabled)
+		self.label.grid(row=0, column=0, sticky=E+W)
+		self.checkbox.grid(row=0, column=1)
+		self.columnconfigure(0, weight=1)
+
+	def apply(self):
+		echange = 0
+		if (self.enabled_current != self.enabled.get()):
+			echange = 1
+		self.enabled_current = self.enabled.get()
+		if (echange != 0):
+			if (self.enabled_current):
+				graph.sourceshow(self.source)
+			else:
+				graph.sourcehide(self.source)
+			return
+
+	def revert(self):
+		self.enabled.set(self.enabled_default)
+
+	def check(self):
+		self.enabled.set(1)
+
+	def uncheck(self):
+		self.enabled.set(0)
+
+class SourceConfigure(Toplevel):
+	def __init__(self):
+		Toplevel.__init__(self)
+		self.resizable(0, 0)
+		self.title("Source Configuration")
+		self.items = []
+		self.iframe = Frame(self)
+		self.iframe.grid(row=0, column=0, sticky=E+W)
+		f = LabelFrame(self.iframe, bd=4, text="Sources")
+		self.items.append(f)
+		self.buttons = Frame(self)
+		self.items[0].grid(row=0, column=0, sticky=E+W)
+		self.columnconfigure(0, weight=1)
+		self.sconfig = []
+		self.irow = 0
+		self.icol = 0
+		for source in sources:
+			self.addsource(source)
+		self.drawbuttons()
+		self.buttons.grid(row=1, column=0, sticky=W)
+
+	def addsource(self, source):
+		if (self.irow > 30):
+			self.icol += 1
+			self.irow = 0
+			c = self.icol
+			f = LabelFrame(self.iframe, bd=4, text="Sources")
+			f.grid(row=0, column=c, sticky=N+E+W)
+			self.items.append(f)
+		item = SourceConf(self.items[self.icol], source)
+		self.sconfig.append(item)
+		item.grid(row=self.irow, column=0, sticky=E+W)
+		self.irow += 1
+
+	def drawbuttons(self):
+		self.apply = Button(self.buttons, text="Apply",
+		    command=self.apress)
+		self.default = Button(self.buttons, text="Revert",
+		    command=self.rpress)
+		self.checkall = Button(self.buttons, text="Check All",
+		    command=self.cpress)
+		self.uncheckall = Button(self.buttons, text="Uncheck All",
+		    command=self.upress)
+		self.checkall.grid(row=0, column=0, sticky=W)
+		self.uncheckall.grid(row=0, column=1, sticky=W)
+		self.apply.grid(row=0, column=2, sticky=W)
+		self.default.grid(row=0, column=3, sticky=W)
+		self.buttons.columnconfigure(0, weight=1)
+		self.buttons.columnconfigure(1, weight=1)
+		self.buttons.columnconfigure(2, weight=1)
+		self.buttons.columnconfigure(3, weight=1)
+
+	def apress(self):
+		for item in self.sconfig:
+			item.apply()
+
+	def rpress(self):
+		for item in self.sconfig:
+			item.revert()
+
+	def cpress(self):
+		for item in self.sconfig:
+			item.check()
+
+	def upress(self):
+		for item in self.sconfig:
+			item.uncheck()
 
 class EventView(Toplevel):
 	def __init__(self, event, canvas):
@@ -561,6 +671,7 @@ class EventSource:
 		self.group = group
 		self.y = 0
 		self.item = None
+		self.hidden = 0
 
 	def __cmp__(self, other):
 		if (other == None):
@@ -900,6 +1011,10 @@ class SchedNames(Canvas):
 		self.bind("<ButtonRelease-1>", self.master.mouserelease);
 		self.bind("<B1-Motion>", self.master.mousemotion);
 
+	def updatescroll(self):
+		self.configure(scrollregion=(0, 0,
+		    self["width"], self.display.ysize()))
+
 
 class SchedDisplay(Canvas):
 	def __init__(self, master):
@@ -990,7 +1105,9 @@ class SchedDisplay(Canvas):
 	def ysize(self):
 		ysize = 0
 		for source in sources:
-			ysize += source.ysize() + (self.bdheight * 2)
+			if (source.hidden == 1):
+				continue
+			ysize += self.parent.sourcesize(source)
 		return ysize
 
 	def scaleset(self, ratio):
@@ -1001,12 +1118,15 @@ class SchedDisplay(Canvas):
 		midpoint = xstart + ((xend - xstart) / 2)
 
 		self.ratio = ratio
-		self.configure(scrollregion=(0, 0, self.xsize(), self.ysize()))
+		self.updatescroll()
 		self.scale("all", 0, 0, float(oldratio) / ratio, 1)
 
 		xstart, xend = self.xview()
 		xsize = (xend - xstart) / 2
 		self.xview_moveto(midpoint - xsize)
+
+	def updatescroll(self):
+		self.configure(scrollregion=(0, 0, self.xsize(), self.ysize()))
 
 	def scaleget(self):
 		return self.ratio
@@ -1032,6 +1152,8 @@ class GraphMenu(Frame):
 		    command=self.econf)
 		self.viewmenu.add_command(label="CPU Colors",
 		    command=self.cconf)
+		self.viewmenu.add_command(label="Source Configure",
+		    command=self.sconf)
 		self.view["menu"] = self.viewmenu
 		self.view.pack(side=LEFT)
 
@@ -1040,6 +1162,9 @@ class GraphMenu(Frame):
 
 	def cconf(self):
 		ColorConfigure(cpucolors, "CPU Background Colors")
+
+	def sconf(self):
+		SourceConfigure()
 
 
 class SchedGraph(Frame):
@@ -1162,11 +1287,55 @@ class SchedGraph(Frame):
 		source1.movename(self.names, 0, y1targ - y1)
 		source2.movename(self.names, 0, y2targ - y2)
 
+	def sourceshow(self, source):
+		if (source.hidden == 0):
+			return;
+		prev = None
+		for s in sources:
+			if (s == source):
+				break
+			if (s.hidden == 0):
+				prev = s
+		if (prev == None):
+			newy = 0
+		else:
+			newy = self.sourcestart(prev) + self.sourcesize(prev)
+		self.sourceshiftall(newy-1, self.sourcesize(source))
+		off = newy - self.sourcestart(source)
+		self.sourceshift(source, off)
+		source.hidden = 0
+
+	def sourcehide(self, source):
+		# Move it out of the visible area
+		off = len(sources) * 100
+		start = self.sourcestart(source)
+		self.sourceshift(source, off)
+		self.sourceshiftall(start, -self.sourcesize(source))
+		source.hidden = 1
+
+	def sourceshift(self, source, off):
+		start = self.sourcestart(source)
+		source.move(self.display, 0, off)
+		source.movename(self.names, 0, off)
+		self.names.moveline(start, off);
+		self.display.moveline(start, off)
+
+	def sourceshiftall(self, start, off):
+		for source in sources:
+			nstart = self.sourcestart(source)
+			if (nstart < start):
+				continue;
+			self.sourceshift(source, off)
+		self.names.updatescroll()
+		self.display.updatescroll()
+
 	def sourceat(self, ypos):
 		(start, end) = self.names.yview()
 		starty = start * float(self.names.ysize)
 		ypos += starty
 		for source in sources:
+			if (source.hidden == 1):
+				continue;
 			yend = self.sourceend(source)
 			ystart = self.sourcestart(source)
 			if (ypos >= ystart and ypos <= yend):
