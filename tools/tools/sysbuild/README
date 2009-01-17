@@ -72,7 +72,7 @@ Next, install ports and sources:
 And we should be ready to try a shot:
 
 	cd /root
-	cp /usr/src/tools/tools/sysbuild/sysbuild.sh
+	cp /usr/src/tools/tools/sysbuild/sysbuild.sh .
 	sh sysbuild.sh |& tee _.sb
 
 If it succeeds, you should be able to:
