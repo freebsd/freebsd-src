@@ -64,14 +64,13 @@ struct io_state {
 	FILE *fp;
 	struct __suio uio;	/* output information: summary */
 	struct __siov iov[NIOV];/* ... and individual io vectors */
-	struct __siov *iovp;	/* pointer to next free slot in iov */
 };
 
 static inline void
 io_init(struct io_state *iop, FILE *fp)
 {
 
-	iop->uio.uio_iov = iop->iovp = iop->iov;
+	iop->uio.uio_iov = iop->iov;
 	iop->uio.uio_resid = 0;
 	iop->uio.uio_iovcnt = 0;
 	iop->fp = fp;
@@ -85,15 +84,13 @@ static inline int
 io_print(struct io_state *iop, const CHAR * __restrict ptr, int len)
 {
 
-	iop->iovp->iov_base = (char *)ptr;
-	iop->iovp->iov_len = len;
+	iop->iov[iop->uio.uio_iovcnt].iov_base = (char *)ptr;
+	iop->iov[iop->uio.uio_iovcnt].iov_len = len;
 	iop->uio.uio_resid += len;
-	iop->iovp++;
-	if (++iop->uio.uio_iovcnt >= NIOV) {
-		iop->iovp = iop->iov;
+	if (++iop->uio.uio_iovcnt >= NIOV)
 		return (__sprint(iop->fp, &iop->uio));
-	}
-	return (0);
+	else
+		return (0);
 }
 
 /*
@@ -114,14 +111,14 @@ static const CHAR zeroes[PADSIZE] =
 static inline int
 io_pad(struct io_state *iop, int howmany, const CHAR * __restrict with)
 {
+	int n;
 
-	while (howmany > PADSIZE) {
-		if (io_print(iop, with, PADSIZE))
+	while (howmany > 0) {
+		n = (howmany >= PADSIZE) ? PADSIZE : howmany;
+		if (io_print(iop, with, n))
 			return (-1);
-		howmany -= PADSIZE;
+		howmany -= n;
 	}
-	if (howmany > 0 && io_print(iop, with, howmany))
-		return (-1);
 	return (0);
 }
 
@@ -138,16 +135,19 @@ io_printandpad(struct io_state *iop, const CHAR *p, const CHAR *ep,
 	p_len = ep - p;
 	if (p_len > len)
 		p_len = len;
-	if (p_len > 0 && io_print(iop, p, p_len))
-		return (-1);
-	return (io_pad(iop, len - (p_len > 0 ? p_len : 0), with));
+	if (p_len > 0) {
+		if (io_print(iop, p, p_len))
+			return (-1);
+	} else {
+		p_len = 0;
+	}
+	return (io_pad(iop, len - p_len, with));
 }
 
 static inline int
 io_flush(struct io_state *iop)
 {
 
-	iop->iovp = iop->iov;
 	return (__sprint(iop->fp, &iop->uio));
 }
 
