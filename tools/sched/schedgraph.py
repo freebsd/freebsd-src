@@ -28,6 +28,7 @@
 
 import sys
 import re
+import random
 from Tkinter import *
 
 # To use:
@@ -53,29 +54,95 @@ from Tkinter import *
 #   while the workload is still running is to avoid wasting log entries on
 #   "idle" time at the end.
 # - Dump the trace to a file: 'ktrdump -ct > ktr.out'
-# - Run the python script: 'python schedgraph.py ktr.out'
+# - Run the python script: 'python schedgraph.py ktr.out' optionally provide
+#   your cpu frequency in ghz: 'python schedgraph.py ktr.out 2.4'
 #
 # To do:
-# 1)  Add a per-thread summary display
-# 2)  Add bounding box style zoom.
-# 3)  Click to center.
-# 4)  Implement some sorting mechanism.
-# 5)  Widget to display variable-range data (e.g. q length)
-# 6)  Reorder rows, hide rows, etc.
-# 7)  "Vertical rule" to help relate data in different rows
-# 8)  Mouse-over popup of full thread/event/row lable (currently truncated)
-# 9)  More visible anchors for popup event windows
+# Add a per-source summary display
+# Click to move.
+# Hide rows
+# "Vertical rule" to help relate data in different rows
+# Mouse-over popup of full thread/event/row label (currently truncated)
+# More visible anchors for popup event windows
 #
 # BUGS: 1) Only 8 CPUs are supported, more CPUs require more choices of
 #          colours to represent them ;-)
-#       2) Extremely short traces may cause a crash because the code
-#          assumes there is always at least one stathz entry logged, and
-#          the number of such events is used as a denominator
+
+eventcolors = [
+	("count",	"red"),
+	("running",	"green"),
+	("idle",	"grey"),
+	("yielding",	"yellow"),
+	("swapped",	"violet"),
+	("suspended",	"purple"),
+	("iwait",	"grey"),
+	("sleep",	"blue"),
+	("blocked",	"dark red"),
+	("runq add",	"yellow"),
+	("runq rem",	"yellow"),
+	("thread exit",	"grey"),
+	("proc exit",	"grey"),
+	("callwheel idle", "grey"),
+	("callout running", "green"),
+	("lock acquire", "blue"),
+	("lock contest", "purple"),
+	("failed lock try", "red"),
+	("lock release", "grey"),
+	("tick",	"black"),
+	("prio",	"black"),
+	("lend prio",	"black"),
+	("wokeup",	"black")
+]
+
+cpucolors = [
+	("CPU 0",	"light grey"),
+	("CPU 1",	"dark grey"),
+	("CPU 2",	"light blue"),
+	("CPU 3",	"light pink"),
+	("CPU 4",	"blanched almond"),
+	("CPU 5",	"slate grey"),
+	("CPU 6",	"tan"),
+	("CPU 7",	"thistle"),
+	("CPU 8",	"white")
+]
+
+colors = [
+	"white", "thistle", "blanched almond", "tan", "chartreuse",
+	"dark red", "red", "pale violet red", "pink", "light pink",
+	"dark orange", "orange", "coral", "light coral",
+	"goldenrod", "gold", "yellow", "light yellow",
+	"dark green", "green", "light green", "light sea green",
+	"dark blue", "blue", "light blue", "steel blue", "light slate blue",
+	"dark violet", "violet", "purple", "blue violet",
+	"dark grey", "slate grey", "light grey",
+	"black",
+]
+colors.sort()
 
 ticksps = None
 status = None
-configtypes = []
+colormap = None
+ktrfile = None
+clockfreq = None
+sources = []
 lineno = -1
+
+class Colormap:
+	def __init__(self, table):
+		self.table = table
+		self.map = {}
+		for entry in table:
+			self.map[entry[0]] = entry[1]
+
+	def lookup(self, name):
+		try:
+			color = self.map[name]
+		except:
+			color = colors[random.randrange(0, len(colors))]
+			print "Picking random color", color, "for", name
+			self.map[name] = color
+			self.table.append((name, color))
+		return (color)
 
 def ticks2sec(ticks):
 	us = ticksps / 1000000
@@ -124,9 +191,13 @@ class Status(Frame):
 		self.set(str)
 		root.update()
 
-class EventConf(Frame):
-	def __init__(self, master, name, color, enabled):
+class ColorConf(Frame):
+	def __init__(self, master, name, color):
 		Frame.__init__(self, master)
+		if (graph.getstate(name) == "hidden"):
+			enabled = 0
+		else:
+			enabled = 1
 		self.name = name
 		self.color = StringVar()
 		self.color_default = color
@@ -144,16 +215,8 @@ class EventConf(Frame):
 		    bg='grey')
 		self.rect = self.sample.create_rectangle(0, 0, 24, 24,
 		    fill=self.color.get())
-		self.list = OptionMenu(self, self.color,
-		    "dark red", "red", "pink",
-		    "dark orange", "orange",
-		    "yellow", "light yellow",
-		    "dark green", "green", "light green",
-		    "dark blue", "blue", "light blue",
-		    "dark violet", "violet", "purple",
-		    "dark grey", "light grey",
-		    "white", "black",
-		    command=self.setcolor)
+		self.list = OptionMenu(self, self.color, command=self.setcolor,
+		    *colors)
 		self.checkbox = Checkbutton(self, text="enabled",
 		    variable=self.enabled)
 		self.label.grid(row=0, column=0, sticky=E+W)
@@ -161,7 +224,7 @@ class EventConf(Frame):
 		self.list.grid(row=0, column=2, sticky=E+W)
 		self.checkbox.grid(row=0, column=3)
 		self.columnconfigure(0, weight=1)
-		self.columnconfigure(2, minsize=110)
+		self.columnconfigure(2, minsize=150)
 
 	def setcolor(self, color):
 		self.color.set(color)
@@ -186,19 +249,15 @@ class EventConf(Frame):
 			graph.setcolor(self.name, self.color_current)
 
 	def revert(self):
-		self.setcolor(self.color_current)
-		self.enabled.set(self.enabled_current)
-
-	def default(self):
 		self.setcolor(self.color_default)
 		self.enabled.set(self.enabled_default)
 
-class EventConfigure(Toplevel):
-	def __init__(self):
+class ColorConfigure(Toplevel):
+	def __init__(self, table, name):
 		Toplevel.__init__(self)
 		self.resizable(0, 0)
-		self.title("Event Configuration")
-		self.items = LabelFrame(self, text="Event Type")
+		self.title(name)
+		self.items = LabelFrame(self, text="Item Type")
 		self.buttons = Frame(self)
 		self.drawbuttons()
 		self.items.grid(row=0, column=0, sticky=E+W)
@@ -206,11 +265,13 @@ class EventConfigure(Toplevel):
 		self.buttons.grid(row=1, column=0, sticky=E+W)
 		self.types = []
 		self.irow = 0
-		for type in configtypes:
-			self.additem(type.name, type.color, type.enabled)
+		for type in table:
+			color = graph.getcolor(type[0])
+			if (color != ""):
+				self.additem(type[0], color)
 
-	def additem(self, name, color, enabled=1):
-		item = EventConf(self.items, name, color, enabled)
+	def additem(self, name, color):
+		item = ColorConf(self.items, name, color)
 		self.types.append(item)
 		item.grid(row=self.irow, column=0, sticky=E+W)
 		self.irow += 1
@@ -218,16 +279,12 @@ class EventConfigure(Toplevel):
 	def drawbuttons(self):
 		self.apply = Button(self.buttons, text="Apply",
 		    command=self.apress)
-		self.revert = Button(self.buttons, text="Revert",
+		self.default = Button(self.buttons, text="Revert",
 		    command=self.rpress)
-		self.default = Button(self.buttons, text="Default",
-		    command=self.dpress)
 		self.apply.grid(row=0, column=0, sticky=E+W)
-		self.revert.grid(row=0, column=1, sticky=E+W)
-		self.default.grid(row=0, column=2, sticky=E+W)
+		self.default.grid(row=0, column=1, sticky=E+W)
 		self.buttons.columnconfigure(0, weight=1)
 		self.buttons.columnconfigure(1, weight=1)
-		self.buttons.columnconfigure(2, weight=1)
 
 	def apress(self):
 		for item in self.types:
@@ -237,20 +294,16 @@ class EventConfigure(Toplevel):
 		for item in self.types:
 			item.revert()
 
-	def dpress(self):
-		for item in self.types:
-			item.default()
-
 class EventView(Toplevel):
 	def __init__(self, event, canvas):
 		Toplevel.__init__(self)
 		self.resizable(0, 0)
 		self.title("Event")
 		self.event = event
-		self.frame = Frame(self)
-		self.frame.grid(row=0, column=0, sticky=N+S+E+W)
 		self.buttons = Frame(self)
-		self.buttons.grid(row=1, column=0, sticky=E+W)
+		self.buttons.grid(row=0, column=0, sticky=E+W)
+		self.frame = Frame(self)
+		self.frame.grid(row=1, column=0, sticky=N+S+E+W)
 		self.canvas = canvas
 		self.drawlabels()
 		self.drawbuttons()
@@ -272,9 +325,12 @@ class EventView(Toplevel):
 		ypos = 0
 		labels = self.event.labels()
 		while (len(labels) < 7):
-			labels.append(("", "", 0))
+			labels.append(("", ""))
 		for label in labels:
-			name, value, linked = label
+			name, value = label
+			linked = 0
+			if (name == "linkedto"):
+				linked = 1
 			l = Label(self.frame, text=name, bd=1, width=15,
 			    relief=SUNKEN, anchor=W)
 			if (linked):
@@ -313,7 +369,7 @@ class EventView(Toplevel):
 		prev = self.event.prev()
 		if (prev == None):
 			return
-		while (prev.real == 0):
+		while (prev.type == "pad"):
 			prev = prev.prev()
 			if (prev == None):
 				return
@@ -323,7 +379,7 @@ class EventView(Toplevel):
 		next = self.event.next()
 		if (next == None):
 			return
-		while (next.real == 0):
+		while (next.type == "pad"):
 			next = next.next()
 			if (next == None):
 				return
@@ -335,59 +391,66 @@ class EventView(Toplevel):
 			self.newevent(event)
 
 class Event:
-	name = "none"
-	color = "grey"
-	def __init__(self, source, cpu, timestamp, last=0):
+	def __init__(self, source, name, cpu, timestamp, attrs):
 		self.source = source
+		self.name = name
 		self.cpu = cpu
 		self.timestamp = int(timestamp)
-		self.entries = []
-		self.real = 1
+		self.attrs = attrs
 		self.idx = None
-		self.state = 0
 		self.item = None
 		self.dispcnt = 0
-		self.linked = None
 		self.recno = lineno
-		if (last):
-			source.lastevent(self)
-		else:
-			source.event(self)
 
 	def status(self):
 		statstr = self.name + " " + self.source.name
 		statstr += " on: cpu" + str(self.cpu)
 		statstr += " at: " + str(self.timestamp)
-		statstr += self.stattxt()
+		statstr += " attributes: "
+		for i in range(0, len(self.attrs)):
+			attr = self.attrs[i]
+			statstr += attr[0] + ": " + str(attr[1])
+			if (i != len(self.attrs) - 1):
+				statstr += ", "
 		status.set(statstr)
 
-	def stattxt(self):
-		return ""
-
-	def textadd(self, tuple):
-		pass
-		self.entries.append(tuple)
-
 	def labels(self):
-		return [("Source:", self.source.name, 0),
-			("Event:", self.name, 0),
-			("CPU:", self.cpu, 0),
-			("Timestamp:", self.timestamp, 0),
-			("Record: ", self.recno, 0)
-		] + self.entries
-	def mouseenter(self, canvas, item):
+		return [("Source", self.source.name),
+			("Event", self.name),
+			("CPU", self.cpu),
+			("Timestamp", self.timestamp),
+			("KTR Line ", self.recno)
+		] + self.attrs
+
+	def mouseenter(self, canvas):
 		self.displayref(canvas)
 		self.status()
 
-	def mouseexit(self, canvas, item):
+	def mouseexit(self, canvas):
 		self.displayunref(canvas)
 		status.clear()
 
-	def mousepress(self, canvas, item):
+	def mousepress(self, canvas):
 		EventView(self, canvas)
+
+	def draw(self, canvas, xpos, ypos, item):
+		self.item = item
+		if (item != None):
+			canvas.items[item] = self
+
+	def move(self, canvas, x, y):
+		if (self.item == None):
+			return;
+		canvas.move(self.item, x, y);
 
 	def next(self):
 		return self.source.eventat(self.idx + 1)
+
+	def nexttype(self, type):
+		next = self.next()
+		while (next != None and next.type != type):
+			next = next.next()
+		return (next)
 
 	def prev(self):
 		return self.source.eventat(self.idx - 1)
@@ -404,435 +467,106 @@ class Event:
 			canvas.tag_raise("point", "state")
 
 	def getlinked(self):
-		return self.linked.findevent(self.timestamp)
+		for attr in self.attrs:
+			if (attr[0] != "linkedto"):
+				continue
+			source = ktrfile.findid(attr[1])
+			return source.findevent(self.timestamp)
+		return None
 
 class PointEvent(Event):
-	def __init__(self, thread, cpu, timestamp, last=0):
-		Event.__init__(self, thread, cpu, timestamp, last)
+	type = "point"
+	def __init__(self, source, name, cpu, timestamp, attrs):
+		Event.__init__(self, source, name, cpu, timestamp, attrs)
 
 	def draw(self, canvas, xpos, ypos):
+		color = colormap.lookup(self.name)
 		l = canvas.create_oval(xpos - 6, ypos + 1, xpos + 6, ypos - 11,
-		    fill=self.color, tags=("all", "point", "event")
-		    + (self.name,), width=0)
-		canvas.events[l] = self
-		self.item = l
-		if (self.enabled == 0):
-			canvas.itemconfigure(l, state="hidden")
+		    fill=color, tags=("all", "point", "event", self.name),
+		    width=0)
+		Event.draw(self, canvas, xpos, ypos, l)
 
-		return (xpos)
+		return xpos
 
 class StateEvent(Event):
-	def __init__(self, thread, cpu, timestamp, last=0):
-		Event.__init__(self, thread, cpu, timestamp, last)
-		self.duration = 0
-		self.skipnext = 0
-		self.skipself = 0
-		self.state = 1
+	type = "state"
+	def __init__(self, source, name, cpu, timestamp, attrs):
+		Event.__init__(self, source, name, cpu, timestamp, attrs)
 
 	def draw(self, canvas, xpos, ypos):
-		next = self.nextstate()
-		if (self.skipself == 1 or next == None):
+		next = self.nexttype("state")
+		if (next == None):
 			return (xpos)
-		while (self.skipnext):
-			skipped = next
-			next.skipself = 1
-			next.real = 0
-			next = next.nextstate()
-			if (next == None):
-				next = skipped
-			self.skipnext -= 1
-		self.duration = next.timestamp - self.timestamp
-		if (self.duration < 0):
-			self.duration = 0
+		duration = next.timestamp - self.timestamp
+		self.attrs.insert(0, ("duration", ticks2sec(duration)))
+		color = colormap.lookup(self.name)
+		if (duration < 0):
+			duration = 0
 			print "Unsynchronized timestamp"
 			print self.cpu, self.timestamp
 			print next.cpu, next.timestamp
-		delta = self.duration / canvas.ratio
+		delta = duration / canvas.ratio
 		l = canvas.create_rectangle(xpos, ypos,
-		    xpos + delta, ypos - 10, fill=self.color, width=0,
-		    tags=("all", "state", "event") + (self.name,))
-		canvas.events[l] = self
-		self.item = l
-		if (self.enabled == 0):
-			canvas.itemconfigure(l, state="hidden")
+		    xpos + delta, ypos - 10, fill=color, width=0,
+		    tags=("all", "state", "event", self.name))
+		Event.draw(self, canvas, xpos, ypos, l)
 
 		return (xpos + delta)
 
-	def stattxt(self):
-		return " duration: " + ticks2sec(self.duration)
-
-	def nextstate(self):
-		next = self.next()
-		while (next != None and next.state == 0):
-			next = next.next()
-		return (next)
-
-	def labels(self):
-		return [("Source:", self.source.name, 0),
-			("Event:", self.name, 0),
-			("Timestamp:", self.timestamp, 0),
-			("CPU:", self.cpu, 0),
-			("Record:", self.recno, 0),
-			("Duration:", ticks2sec(self.duration), 0)
-		] + self.entries
-
-class Count(Event):
-	name = "Count"
-	color = "red"
-	enabled = 1
-	def __init__(self, source, cpu, timestamp, count):
-		self.count = int(count)
-		Event.__init__(self, source, cpu, timestamp)
-		self.duration = 0
-		self.textadd(("count:", self.count, 0))
+class CountEvent(Event):
+	type = "count"
+	def __init__(self, source, count, cpu, timestamp, attrs):
+		count = int(count)
+		self.count = count
+		Event.__init__(self, source, "count", cpu, timestamp, attrs)
 
 	def draw(self, canvas, xpos, ypos):
-		next = self.next()
-		self.duration = next.timestamp - self.timestamp
-		delta = self.duration / canvas.ratio
+		next = self.nexttype("count")
+		if (next == None):
+			return (xpos)
+		color = colormap.lookup("count")
+		duration = next.timestamp - self.timestamp
+		self.attrs.insert(0, ("count", self.count))
+		self.attrs.insert(1, ("duration", ticks2sec(duration)))
+		delta = duration / canvas.ratio
 		yhight = self.source.yscale() * self.count
 		l = canvas.create_rectangle(xpos, ypos - yhight,
-		    xpos + delta, ypos, fill=self.color, width=0,
-		    tags=("all", "count", "event") + (self.name,))
-		canvas.events[l] = self
-		self.item = l
-		if (self.enabled == 0):
-			canvas.itemconfigure(l, state="hidden")
+		    xpos + delta, ypos, fill=color, width=0,
+		    tags=("all", "count", "event", self.name))
+		Event.draw(self, canvas, xpos, ypos, l)
 		return (xpos + delta)
 
-	def stattxt(self):
-		return " count: " + str(self.count)
-
-configtypes.append(Count)
-
-class Running(StateEvent):
-	name = "running"
-	color = "green"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Running)
-
-class Idle(StateEvent):
-	name = "idle"
-	color = "grey"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Idle)
-
-class Yielding(StateEvent):
-	name = "yielding"
-	color = "yellow"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.skipnext = 0
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Yielding)
-
-class Swapped(StateEvent):
-	name = "swapped"
-	color = "violet"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Swapped)
-
-class Suspended(StateEvent):
-	name = "suspended"
-	color = "purple"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Suspended)
-
-class Iwait(StateEvent):
-	name = "iwait"
-	color = "grey"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Iwait)
-
-class Preempted(StateEvent):
-	name = "preempted"
-	color = "red"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio, bythread):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.skipnext = 1
-		self.prio = prio
-		self.linked = bythread
-		self.textadd(("prio:", self.prio, 0))
-		self.textadd(("by thread:", self.linked.name, 1))
-
-configtypes.append(Preempted)
-
-class Sleep(StateEvent):
-	name = "sleep"
-	color = "blue"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio, wmesg):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.wmesg = wmesg
-		self.textadd(("prio:", self.prio, 0))
-		self.textadd(("wmesg:", self.wmesg, 0))
-
-	def stattxt(self):
-		statstr = StateEvent.stattxt(self)
-		statstr += " sleeping on: " + self.wmesg
-		return (statstr)
-
-configtypes.append(Sleep)
-
-class Blocked(StateEvent):
-	name = "blocked"
-	color = "dark red"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio, lock):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.lock = lock
-		self.textadd(("prio:", self.prio, 0))
-		self.textadd(("lock:", self.lock, 0))
-
-	def stattxt(self):
-		statstr = StateEvent.stattxt(self)
-		statstr += " blocked on: " + self.lock
-		return (statstr)
-
-configtypes.append(Blocked)
-
-class KsegrpRunq(StateEvent):
-	name = "KsegrpRunq"
-	color = "orange"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio, bythread):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.linked = bythread
-		self.textadd(("prio:", self.prio, 0))
-		self.textadd(("by thread:", self.linked.name, 1))
-
-configtypes.append(KsegrpRunq)
-
-class Runq(StateEvent):
-	name = "Runq"
-	color = "yellow"
-	enabled = 1
-	def __init__(self, thread, cpu, timestamp, prio, bythread):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.linked = bythread
-		self.textadd(("prio:", self.prio, 0))
-		self.textadd(("by thread:", self.linked.name, 1))
-
-configtypes.append(Runq)
-
-class Sched_exit_thread(StateEvent):
-	name = "exit_thread"
-	color = "grey"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.name = "sched_exit_thread"
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Sched_exit_thread)
-
-class Sched_exit(StateEvent):
-	name = "exit"
-	color = "grey"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, prio):
-		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.name = "sched_exit"
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Sched_exit)
-
-# Events for running callout routines
-
-class CalloutIdle(StateEvent):
-	name = "callwheel idle"
-	color = "grey"
-	enabled = 0
-	def __init__(self, wheel, cpu, timestamp):
-		StateEvent.__init__(self, wheel, cpu, timestamp)
-
-configtypes.append(CalloutIdle)
-
-class CalloutRunning(StateEvent):
-	name = "callout running"
-	color = "green"
-	enabled = 1
-	def __init__(self, wheel, cpu, timestamp, func, arg):
-		StateEvent.__init__(self, wheel, cpu, timestamp)
-		self.textadd(("function:", func, 0))
-		self.textadd(("argument:", arg, 0))
-		self.arg = arg
-		self.func = func
-
-	def stattxt(self):
-		statstr = StateEvent.stattxt(self)
-		statstr += " executing %s(%s)" % (self.func, self.arg)
-		return (statstr)
-
-configtypes.append(CalloutRunning)
-
-# Events on locks
-#
-# XXX: No support for upgrade/downgrade currently or differentiating
-# between read/write in general.
-#
-# XXX: Point events for recursion perhaps?
-
-class LockAcquire(StateEvent):
-	name = "lock acquire"
-	color = "blue"
-	enabled = 1
-	def __init__(self, lock, cpu, timestamp, file, line):
-		StateEvent.__init__(self, lock, cpu, timestamp)
-		self.textadd(("file:", file, 0))
-		self.textadd(("line:", line, 0))
-
-configtypes.append(LockAcquire)
-
-class LockContest(StateEvent):
-	name = "lock contest"
-	color = "purple"
-	enabled = 1
-	def __init__(self, lock, cpu, timestamp, file, line):
-		StateEvent.__init__(self, lock, cpu, timestamp)
-		self.textadd(("file:", file, 0))
-		self.textadd(("line:", line, 0))
-
-configtypes.append(LockContest)
-
-class LockFailedTry(PointEvent):
-	name = "failed lock try"
-	color = "red"
-	enabled = 1
-	def __init__(self, lock, cpu, timestamp, file, line):
-		PointEvent.__init__(self, lock, cpu, timestamp)
-		self.textadd(("file:", file, 0))
-		self.textadd(("line:", line, 0))
-
-configtypes.append(LockFailedTry)
-
-class LockRelease(StateEvent):
-	name = "lock release"
-	color = "grey"
-	enabled = 0
-	def __init__(self, lock, cpu, timestamp, file, line):
-		StateEvent.__init__(self, lock, cpu, timestamp)
-		self.textadd(("file:", file, 0))
-		self.textadd(("line:", line, 0))
-
-configtypes.append(LockRelease)
-
-class Padevent(StateEvent):
-	def __init__(self, thread, cpu, timestamp, last=0):
-		StateEvent.__init__(self, thread, cpu, timestamp, last)
-		self.name = "pad"
-		self.real = 0
-
+class PadEvent(StateEvent):
+	type = "pad"
+	def __init__(self, source, cpu, timestamp, last=0):
+		if (last):
+			cpu = source.events[len(source.events) -1].cpu
+		else:
+			cpu = source.events[0].cpu
+		StateEvent.__init__(self, source, "pad", cpu, timestamp, [])
 	def draw(self, canvas, xpos, ypos):
 		next = self.next()
 		if (next == None):
 			return (xpos)
-		self.duration = next.timestamp - self.timestamp
-		delta = self.duration / canvas.ratio
+		duration = next.timestamp - self.timestamp
+		delta = duration / canvas.ratio
+		Event.draw(self, canvas, xpos, ypos, None)
 		return (xpos + delta)
 
-class Tick(PointEvent):
-	name = "tick"
-	color = "black"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, prio, stathz):
-		PointEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.textadd(("prio:", self.prio, 0))
-
-configtypes.append(Tick)
-
-class Prio(PointEvent):
-	name = "prio"
-	color = "black"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, prio, newprio, bythread):
-		PointEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.newprio = newprio
-		self.linked = bythread
-		self.textadd(("new prio:", self.newprio, 0))
-		self.textadd(("prio:", self.prio, 0))
-		if (self.linked != self.source):
-			self.textadd(("by thread:", self.linked.name, 1))
-		else:
-			self.textadd(("by thread:", self.linked.name, 0))
-
-configtypes.append(Prio)
-
-class Lend(PointEvent):
-	name = "lend"
-	color = "black"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, prio, tothread):
-		PointEvent.__init__(self, thread, cpu, timestamp)
-		self.prio = prio
-		self.linked = tothread
-		self.textadd(("prio:", self.prio, 0))
-		self.textadd(("to thread:", self.linked.name, 1))
-
-configtypes.append(Lend)
-
-class Wokeup(PointEvent):
-	name = "wokeup"
-	color = "black"
-	enabled = 0
-	def __init__(self, thread, cpu, timestamp, ranthread):
-		PointEvent.__init__(self, thread, cpu, timestamp)
-		self.linked = ranthread
-		self.textadd(("ran thread:", self.linked.name, 1))
-
-configtypes.append(Wokeup)
-
-(DEFAULT, LOAD, COUNT, CALLWHEEL, LOCK, THREAD) = range(6)
-
 class EventSource:
-	def __init__(self, name, group=DEFAULT, order=0):
-		self.name = name
+	def __init__(self, group, id):
+		self.name = id
 		self.events = []
-		self.cpu = 0
-		self.cpux = 0
+		self.cpuitems = []
 		self.group = group
-		self.order = order
+		self.y = 0
+		self.item = None
 
 	def __cmp__(self, other):
+		if (other == None):
+			return -1
 		if (self.group == other.group):
-			return cmp(self.order, other.order)
+			return cmp(self.name, other.name)
 		return cmp(self.group, other.group)
 
 	# It is much faster to append items to a list then to insert them
@@ -841,60 +575,54 @@ class EventSource:
 	def fixup(self):
 		self.events.reverse()
 
-	def event(self, event):
+	def addevent(self, event):
 		self.events.append(event)
 
-	def remove(self, event):
-		self.events.remove(event)
-
-	def lastevent(self, event):
+	def addlastevent(self, event):
 		self.events.insert(0, event)
 
 	def draw(self, canvas, ypos):
 		xpos = 10
-		self.cpux = 10
-		self.cpu = self.events[1].cpu
+		cpux = 10
+		cpu = self.events[1].cpu
 		for i in range(0, len(self.events)):
 			self.events[i].idx = i
 		for event in self.events:
-			if (event.cpu != self.cpu and event.cpu != -1):
-				self.drawcpu(canvas, xpos, ypos)
-				self.cpux = xpos
-				self.cpu = event.cpu
+			if (event.cpu != cpu and event.cpu != -1):
+				self.drawcpu(canvas, cpu, cpux, xpos, ypos)
+				cpux = xpos
+				cpu = event.cpu
 			xpos = event.draw(canvas, xpos, ypos)
-		self.drawcpu(canvas, xpos, ypos)
+		self.drawcpu(canvas, cpu, cpux, xpos, ypos)
 
 	def drawname(self, canvas, ypos):
+		self.y = ypos
 		ypos = ypos - (self.ysize() / 2)
-		canvas.create_text(10, ypos, anchor="w", text=self.name)
+		self.item = canvas.create_text(10, ypos, anchor="w", text=self.name)
+		return (self.item)
 
-	def drawcpu(self, canvas, xpos, ypos):
-		cpu = int(self.cpu)
-		if (cpu == 0):
-			color = 'light grey'
-		elif (cpu == 1):
-			color = 'dark grey'
-		elif (cpu == 2):
-			color = 'light blue'
-		elif (cpu == 3):
-			color = 'light green'
-		elif (cpu == 4):
-			color = 'blanched almond'
-		elif (cpu == 5):
-			color = 'slate grey'
-		elif (cpu == 6):
-			color = 'light slate blue'
-		elif (cpu == 7):
-			color = 'thistle'
-		else:
-			color = "white"
-		l = canvas.create_rectangle(self.cpux,
+	def drawcpu(self, canvas, cpu, fromx, tox, ypos):
+		cpu = "CPU " + str(cpu)
+		color = cpucolormap.lookup(cpu)
+		# Create the cpu background colors default to hidden
+		l = canvas.create_rectangle(fromx,
 		    ypos - self.ysize() - canvas.bdheight,
-		    xpos, ypos + canvas.bdheight, fill=color, width=0,
-		    tags=("all", "cpuinfo"))
+		    tox, ypos + canvas.bdheight, fill=color, width=0,
+		    tags=("all", "cpuinfo", cpu), state="hidden")
+		self.cpuitems.append(l)
+
+	def move(self, canvas, xpos, ypos):
+		for event in self.events:
+			event.move(canvas, xpos, ypos)
+		for item in self.cpuitems:
+			canvas.move(item, xpos, ypos)
+
+	def movename(self, canvas, xpos, ypos):
+		self.y += ypos
+		canvas.move(self.item, xpos, ypos)
 
 	def ysize(self):
-		return (None)
+		return (10)
 
 	def eventat(self, i):
 		if (i >= len(self.events)):
@@ -904,93 +632,45 @@ class EventSource:
 
 	def findevent(self, timestamp):
 		for event in self.events:
-			if (event.timestamp >= timestamp and event.real):
+			if (event.timestamp >= timestamp and event.type != "pad"):
 				return (event)
 		return (None)
 
-class Thread(EventSource):
-	names = {}
-	def __init__(self, td, pcomm):
-		EventSource.__init__(self, pcomm, THREAD)
-		self.str = td
-		try:
-			cnt = Thread.names[pcomm]
-		except:
-			Thread.names[pcomm] = 0
-			return
-		Thread.names[pcomm] = cnt + 1
-
-	def fixup(self):
-		EventSource.fixup(self)
-		cnt = Thread.names[self.name]
-		if (cnt == 0):
-			return
-		cnt -= 1
-		Thread.names[self.name] = cnt
-		self.name += " td" + str(cnt)
-
-	def ysize(self):
-		return (10)
-
-class Callwheel(EventSource):
-	count = 0
-	def __init__(self, cpu):
-		EventSource.__init__(self, "Callwheel", CALLWHEEL, cpu)
-		self.wheel = cpu
-		Callwheel.count += 1
-
-	def fixup(self):
-		EventSource.fixup(self)
-		if (Callwheel.count == 1):
-			return
-		self.name += " (CPU %d)" % (self.wheel)
-
-	def ysize(self):
-		return (10)
-
-class Lock(EventSource):
-	def __init__(self, lock):
-		EventSource.__init__(self, lock, LOCK)
-
-	def ysize(self):
-		return (10)
-
 class Counter(EventSource):
-	max = 0
-	def __init__(self, name):
-		EventSource.__init__(self, name, COUNT)
-
-	def event(self, event):
-		EventSource.event(self, event)
+	#
+	# Store a hash of counter groups that keeps the max value
+	# for a counter in this group for scaling purposes.
+	#
+	groups = {}
+	def __init__(self, group, id):
 		try:
-			count = event.count
+			Counter.cnt = Counter.groups[group]
 		except:
-			return
-		count = int(count)
-		if (count > Counter.max):
-			Counter.max = count
+			Counter.groups[group] = 0
+		EventSource.__init__(self, group, id)
+
+	def fixup(self):
+		for event in self.events:
+			if (event.type != "count"):
+				continue;
+			count = int(event.count)
+			if (count > Counter.groups[self.group]):
+				Counter.groups[self.group] = count
+		EventSource.fixup(self)
 
 	def ymax(self):
-		return (Counter.max)
+		return (Counter.groups[self.group])
 
 	def ysize(self):
 		return (80)
 
 	def yscale(self):
-		return (self.ysize() / Counter.max)
-
-class CPULoad(Counter):
-	def __init__(self, cpu):
-		Counter.__init__(self, "cpu" + str(cpu) + " load")
-		self.group = LOAD
-		self.order = cpu
+		return (self.ysize() / self.ymax())
 
 class KTRFile:
 	def __init__(self, file):
 		self.timestamp_f = None
 		self.timestamp_l = None
-		self.threads = []
-		self.sources = []
 		self.locks = {}
 		self.callwheels = {}
 		self.ticks = {}
@@ -1001,11 +681,12 @@ class KTRFile:
 		self.parse(file)
 		self.fixup()
 		global ticksps
-		print "first", self.timestamp_f, "last", self.timestamp_l
-		print "time span", self.timespan()
-		print "stathz", self.stathz
 		ticksps = self.ticksps()
+		timespan = self.timespan()
+		print "first tick", self.timestamp_f,
+		print "last tick", self.timestamp_l
 		print "Ticks per second", ticksps
+		print "time span", timespan, "ticks", ticks2sec(timespan)
 
 	def parse(self, file):
 		try:
@@ -1014,420 +695,238 @@ class KTRFile:
 			print "Can't open", file
 			sys.exit(1)
 
-		ktrhdr = "\s*\d+\s+(\d+)\s+(\d+)\s+"
-		tdname = "(\S+)\(([^)]*)\)"
-		crittdname = "(\S+)\s+\(\d+,\s+([^)]*)\)"
+		# quoteexp matches a quoted string, no escaping
+		quoteexp = "\"([^\"]*)\""
 
-# XXX doesn't handle:
-#   371   0      61628682318 mi_switch: 0xc075c070(swapper) prio 180 inhibit 2 wmesg ATA request done lock (null)
-		ktrstr = "mi_switch: " + tdname
-		ktrstr += " prio (\d+) inhibit (\d+) wmesg (\S+) lock (\S+)"
-		switchout_re = re.compile(ktrhdr + ktrstr)
+		#
+		# commaexp matches a quoted string OR the string up
+		# to the first ','
+		#
+		commaexp = "(?:" + quoteexp + "|([^,]+))"
 
-		ktrstr = "mi_switch: " + tdname + " prio (\d+) idle"
-		idled_re = re.compile(ktrhdr + ktrstr)
+		#
+		# colonstr matches a quoted string OR the string up
+		# to the first ':'
+		#
+		colonexp = "(?:" + quoteexp + "|([^:]+))"
 
-		ktrstr = "mi_switch: " + tdname + " prio (\d+) preempted by "
-		ktrstr += tdname
-		preempted_re = re.compile(ktrhdr + ktrstr)
+		#
+		# Match various manditory parts of the KTR string this is
+		# fairly inflexible until you get to attributes to make
+		# parsing faster.
+		#
+		hdrexp = "\s*(\d+)\s+(\d+)\s+(\d+)\s+"
+		groupexp = "KTRGRAPH group:" + quoteexp + ", "
+		idexp = "id:" + quoteexp + ", "
+		typeexp = "([^:]+):" + commaexp + ", "
+		attribexp = "attributes: (.*)"
 
-		ktrstr = "mi_switch: running " + tdname + " prio (\d+)"
-		switchin_re = re.compile(ktrhdr + ktrstr)
+		#
+		# Matches optional attributes in the KTR string.  This
+		# tolerates more variance as the users supply these values.
+		#
+		attrexp = colonexp + "\s*:\s*(?:" + commaexp + ", (.*)|"
+		attrexp += quoteexp +"|(.*))"
 
-		ktrstr = "sched_add: " + tdname + " prio (\d+) by " + tdname
-		sched_add_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "setrunqueue: " + tdname + " prio (\d+) by " + tdname
-		setrunqueue_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "sched_rem: " + tdname + " prio (\d+) by " + tdname
-		sched_rem_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "sched_exit_thread: " + tdname + " prio (\d+)"
-		sched_exit_thread_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "sched_exit: " + tdname + " prio (\d+)"
-		sched_exit_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "statclock: " + tdname + " prio (\d+)"
-		ktrstr += " stathz (\d+)"
-		sched_clock_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "sched_prio: " + tdname + " prio (\d+)"
-		ktrstr += " newprio (\d+) by " + tdname
-		sched_prio_re = re.compile(ktrhdr + ktrstr)
-
-		cpuload_re = re.compile(ktrhdr + "load: (\d+)")
-		cpuload2_re = re.compile(ktrhdr + "cpu (\d+) load: (\d+)")
-		loadglobal_re = re.compile(ktrhdr + "global load: (\d+)")
-
-		ktrstr = "critical_\S+ by thread " + crittdname + " to (\d+)"
-		critsec_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "callout 0x[a-f\d]+ "
-		ktrstr += "func (0x[a-f\d]+) arg (0x[a-f\d]+)"
-		callout_start_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "callout mpsafe 0x[a-f\d]+ "
-		ktrstr += "func (0x[a-f\d]+) arg (0x[a-f\d]+)"
-		callout_mpsafe_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "callout mtx 0x[a-f\d]+ "
-		ktrstr += "func (0x[a-f\d]+) arg (0x[a-f\d]+)"
-		callout_mtx_re = re.compile(ktrhdr + ktrstr)
-		
-		ktrstr = "callout 0x[a-f\d]+ finished"
-		callout_stop_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "TRY_([RSWX]?LOCK) \(.*\) (.*) r = ([0-9]+)"
-		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
-		lock_try_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "([RSWX]?UNLOCK) \(.*\) (.*) r = ([0-9]+)"
-		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
-		lock_release_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "([RSWX]?LOCK) \(.*\) (.*) r = ([0-9]+)"
-		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
-		lock_acquire_re = re.compile(ktrhdr + ktrstr)
-
-		ktrstr = "_mtx_lock_sleep: (.*) contested \(lock=0x?[0-9a-f]*\)"
-		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
-		mtx_contested_re = re.compile(ktrhdr + ktrstr)
-
-		# XXX: Spin lock traces don't have lock name or file/line
-
-		ktrstr = "_rw_wlock_hard: (.*) contested \(lock=0x?[0-9a-f]*\)"
-		ktrstr += " at (?:\.\./)*(.*):([0-9]+)"
-		rw_contested_re = re.compile(ktrhdr + ktrstr)
-
-		# XXX: Read lock traces for rwlocks contesting don't have
-		# lock name or file/line		
-		
-		parsers = [[cpuload_re, self.cpuload],
-			   [cpuload2_re, self.cpuload2],
-			   [loadglobal_re, self.loadglobal],
-			   [switchin_re, self.switchin],
-			   [switchout_re, self.switchout],
-			   [sched_add_re, self.sched_add],
-			   [setrunqueue_re, self.sched_rem],
-			   [sched_prio_re, self.sched_prio],
-			   [preempted_re, self.preempted],
-			   [sched_rem_re, self.sched_rem],
-			   [sched_exit_thread_re, self.sched_exit_thread],
-			   [sched_exit_re, self.sched_exit],
-			   [sched_clock_re, self.sched_clock],
-			   [critsec_re, self.critsec],
-			   [callout_start_re, self.callout_start],
-			   [callout_mpsafe_re, self.callout_start],
-			   [callout_mtx_re, self.callout_start],
-			   [callout_stop_re, self.callout_stop],
-			   [lock_try_re, self.lock_try],
-			   [lock_release_re, self.lock_release],
-			   [lock_acquire_re, self.lock_acquire],
-			   [mtx_contested_re, self.lock_contest],
-			   [rw_contested_re, self.lock_contest],
-			   [idled_re, self.idled]]
+		# Precompile regexp
+		ktrre = re.compile(hdrexp + groupexp + idexp + typeexp + attribexp)
+		attrre = re.compile(attrexp)
 
 		global lineno
 		lineno = 0
 		for line in ifp.readlines():
 			lineno += 1
-			if ((lineno % 1024) == 0):
+			if ((lineno % 2048) == 0):
 				status.startup("Parsing line " + str(lineno))
-			for p in parsers:
-				m = p[0].match(line)
-				if (m != None):
-					p[1](*m.groups())
-					break
+			m = ktrre.match(line);
 			if (m == None):
-				print line,
+				print "Can't parse", lineno, line,
+				continue;
+			(index, cpu, timestamp, group, id, type, dat, dat1, attrstring) = m.groups();
+			if (dat == None):
+				dat = dat1
+			if (self.checkstamp(timestamp) == 0):
+				print "Bad timestamp at", lineno, ":", line, 
+				continue
+			#
+			# Build the table of optional attributes
+			#
+			attrs = []
+			while (attrstring != None):
+				m = attrre.match(attrstring.strip())
+				if (m == None):
+					break;
+				#
+				# Name may or may not be quoted.
+				#
+				# For val we have four cases:
+				# 1) quotes followed by comma and more
+				#    attributes.
+				# 2) no quotes followed by comma and more
+				#    attributes.
+				# 3) no more attributes or comma with quotes.
+				# 4) no more attributes or comma without quotes.
+				#
+				(name, name1, val, val1, attrstring, end, end1) = m.groups();
+				if (name == None):
+					name = name1
+				if (end == None):
+					end = end1
+				if (val == None):
+					val = val1
+				if (val == None):
+					val = end
+				if (name == "stathz"):
+					self.setstathz(val, cpu)
+				attrs.append((name, val))
+			args = (dat, cpu, timestamp, attrs)
+			e = self.makeevent(group, id, type, args)
+			if (e == None):
+				print "Unknown type", type, lineno, line,
 
-	def checkstamp(self, cpu, timestamp):
-		timestamp = int(timestamp)
-		if (self.timestamp_f == None):
-			self.timestamp_f = timestamp;
-		if (self.timestamp_l != None and timestamp > self.timestamp_l):
-			return (0)
-		self.timestamp_l = timestamp;
-		return (timestamp)
+	def makeevent(self, group, id, type, args):
+		e = None
+		source = self.makeid(group, id, type)
+		if (type == "state"):
+			e = StateEvent(source, *args)
+		elif (type == "counter"):
+			e = CountEvent(source, *args)
+		elif (type == "point"):
+			e = PointEvent(source, *args)
+		if (e != None):
+			source.addevent(e);
+		return e
 
-	def timespan(self):
-		return (self.timestamp_f - self.timestamp_l);
-
-	def ticksps(self):
-		return (self.timespan() / self.ticks[0]) * int(self.stathz)
-
-	def switchout(self, cpu, timestamp, td, pcomm, prio, inhibit, wmesg, lock):
-		TDI_SUSPENDED = 0x0001
-		TDI_SLEEPING = 0x0002
-		TDI_SWAPPED = 0x0004
-		TDI_LOCK = 0x0008
-		TDI_IWAIT = 0x0010 
-
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		inhibit = int(inhibit)
-		thread = self.findtd(td, pcomm)
-		if (inhibit & TDI_SWAPPED):
-			Swapped(thread, cpu, timestamp, prio)
-		elif (inhibit & TDI_SLEEPING):
-			Sleep(thread, cpu, timestamp, prio, wmesg)
-		elif (inhibit & TDI_LOCK):
-			Blocked(thread, cpu, timestamp, prio, lock)
-		elif (inhibit & TDI_IWAIT):
-			Iwait(thread, cpu, timestamp, prio)
-		elif (inhibit & TDI_SUSPENDED):
-			Suspended(thread, cpu, timestamp, prio)
-		elif (inhibit == 0):
-			Yielding(thread, cpu, timestamp, prio)
-		else:
-			print "Unknown event", inhibit
-			sys.exit(1)
-		
-	def idled(self, cpu, timestamp, td, pcomm, prio):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		Idle(thread, cpu, timestamp, prio)
-
-	def preempted(self, cpu, timestamp, td, pcomm, prio, bytd, bypcomm):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		Preempted(thread, cpu, timestamp, prio,
-		    self.findtd(bytd, bypcomm))
-
-	def switchin(self, cpu, timestamp, td, pcomm, prio):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		Running(thread, cpu, timestamp, prio)
-
-	def sched_add(self, cpu, timestamp, td, pcomm, prio, bytd, bypcomm):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		bythread = self.findtd(bytd, bypcomm)
-		Runq(thread, cpu, timestamp, prio, bythread)
-		Wokeup(bythread, cpu, timestamp, thread)
-
-	def sched_rem(self, cpu, timestamp, td, pcomm, prio, bytd, bypcomm):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		KsegrpRunq(thread, cpu, timestamp, prio,
-		    self.findtd(bytd, bypcomm))
-
-	def sched_exit_thread(self, cpu, timestamp, td, pcomm, prio):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		Sched_exit_thread(thread, cpu, timestamp, prio)
-
-	def sched_exit(self, cpu, timestamp, td, pcomm, prio):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		Sched_exit(thread, cpu, timestamp, prio)
-
-	def sched_clock(self, cpu, timestamp, td, pcomm, prio, stathz):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		self.stathz = stathz
+	def setstathz(self, val, cpu):
+		self.stathz = int(val)
 		cpu = int(cpu)
 		try:
 			ticks = self.ticks[cpu]
 		except:
 			self.ticks[cpu] = 0
 		self.ticks[cpu] += 1
-		thread = self.findtd(td, pcomm)
-		Tick(thread, cpu, timestamp, prio, stathz)
 
-	def sched_prio(self, cpu, timestamp, td, pcomm, prio, newprio, bytd, bypcomm):
-		if (prio == newprio):
-			return
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		thread = self.findtd(td, pcomm)
-		bythread = self.findtd(bytd, bypcomm)
-		Prio(thread, cpu, timestamp, prio, newprio, bythread)
-		Lend(bythread, cpu, timestamp, newprio, thread)
+	def checkstamp(self, timestamp):
+		timestamp = int(timestamp)
+		if (self.timestamp_f == None):
+			self.timestamp_f = timestamp;
+		if (self.timestamp_l != None and timestamp > self.timestamp_l):
+			return (0)
+		self.timestamp_l = timestamp;
+		return (1)
 
-	def cpuload(self, cpu, timestamp, count):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		cpu = int(cpu)
-		try:
-			load = self.load[cpu]
-		except:
-			load = CPULoad(cpu)
-			self.load[cpu] = load
-			self.sources.append(load)
-		Count(load, cpu, timestamp, count)
-
-	def cpuload2(self, cpu, timestamp, ncpu, count):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		cpu = int(ncpu)
-		try:
-			load = self.load[cpu]
-		except:
-			load = CPULoad(cpu)
-			self.load[cpu] = load
-			self.sources.append(load)
-		Count(load, cpu, timestamp, count)
-
-	def loadglobal(self, cpu, timestamp, count):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		cpu = 0
-		try:
-			load = self.load[cpu]
-		except:
-			load = Counter("CPU load")
-			self.load[cpu] = load
-			self.sources.append(load)
-		Count(load, cpu, timestamp, count)
-
-	def critsec(self, cpu, timestamp, td, pcomm, to):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		cpu = int(cpu)
-		try:
-			crit = self.crit[cpu]
-		except:
-			crit = Counter("Critical Section")
-			self.crit[cpu] = crit
-			self.sources.append(crit)
-		Count(crit, cpu, timestamp, to)
-
-	def callout_start(self, cpu, timestamp, func, arg):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		wheel = self.findwheel(cpu)
-		CalloutRunning(wheel, cpu, timestamp, func, arg)
-
-	def callout_stop(self, cpu, timestamp):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		wheel = self.findwheel(cpu)
-		CalloutIdle(wheel, cpu, timestamp)
-
-	def lock_try(self, cpu, timestamp, op, name, result, file, line):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		lock = self.findlock(name)
-		if (int(result) == 0):
-			LockFailedTry(lock, cpu, timestamp, file, line)
+	def makeid(self, group, id, type):
+		for source in sources:
+			if (source.name == id and source.group == group):
+				return source
+		if (type == "counter"):
+			source = Counter(group, id)
 		else:
-			LockAcquire(lock, cpu, timestamp, file, line)
+			source = EventSource(group, id)
+		sources.append(source)
+		return (source)
 
-	def lock_acquire(self, cpu, timestamp, op, name, recurse, file, line):
-		if (int(recurse) != 0):
-			return
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		lock = self.findlock(name)
-		LockAcquire(lock, cpu, timestamp, file, line)
-		
-	def lock_release(self, cpu, timestamp, op, name, recurse, file, line):
-		if (int(recurse) != 0):
-			return
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		lock = self.findlock(name)
-		LockRelease(lock, cpu, timestamp, file, line)
+	def findid(self, id):
+		for source in sources:
+			if (source.name == id):
+				return source
+		return (None)
 
-	def lock_contest(self, cpu, timestamp, name, file, line):
-		timestamp = self.checkstamp(cpu, timestamp)
-		if (timestamp == 0):
-			return
-		lock = self.findlock(name)
-		LockContest(lock, cpu, timestamp, file, line)
+	def timespan(self):
+		return (self.timestamp_f - self.timestamp_l);
 
-	def findlock(self, name):
-		try:
-			lock = self.locks[name]
-		except:
-			lock = Lock(name)
-			self.locks[name] = lock
-			self.sources.append(lock)
-		return (lock)
+	def ticksps(self):
+		oneghz = 1000000000
+		# Use user supplied clock first
+		if (clockfreq != None):
+			return int(clockfreq * oneghz)
 
-	def findwheel(self, cpu):
-		cpu = int(cpu)
-		try:
-			wheel = self.callwheels[cpu]
-		except:
-			wheel = Callwheel(cpu)
-			self.callwheels[cpu] = wheel
-			self.sources.append(wheel)
-		return (wheel)
-
-	def findtd(self, td, pcomm):
-		for thread in self.threads:
-			if (thread.str == td and thread.name == pcomm):
-				return thread
-		thread = Thread(td, pcomm)
-		self.threads.append(thread)
-		self.sources.append(thread)
-		return (thread)
+		# Check for a discovered clock
+		if (self.stathz != None):
+			return (self.timespan() / self.ticks[0]) * int(self.stathz)
+		# Pretend we have a 1ns clock
+		print "WARNING: No clock discovered and no frequency ",
+		print "specified via the command line."
+		print "Using fake 1ghz clock"
+		return (oneghz);
 
 	def fixup(self):
-		for source in self.sources:
-			Padevent(source, -1, self.timestamp_l)
-			Padevent(source, -1, self.timestamp_f, last=1)
+		for source in sources:
+			e = PadEvent(source, -1, self.timestamp_l)
+			source.addevent(e)
+			e = PadEvent(source, -1, self.timestamp_f, last=1)
+			source.addlastevent(e)
 			source.fixup()
-		self.sources.sort()
+		sources.sort()
+
+class SchedNames(Canvas):
+	def __init__(self, master, display):
+		self.display = display
+		self.parent = master
+		self.bdheight = master.bdheight
+		self.items = {}
+		self.ysize = 0
+		self.lines = []
+		Canvas.__init__(self, master, width=120,
+		    height=display["height"], bg='grey',
+		    scrollregion=(0, 0, 50, 100))
+
+	def moveline(self, cur_y, y):
+		for line in self.lines:
+			(x0, y0, x1, y1) = self.coords(line)
+			if (cur_y != y0):
+				continue
+			self.move(line, 0, y)
+			return
+
+	def draw(self):
+		status.startup("Drawing names")
+		ypos = 0
+		self.configure(scrollregion=(0, 0,
+		    self["width"], self.display.ysize()))
+		for source in sources:
+			l = self.create_line(0, ypos, self["width"], ypos,
+			    width=1, fill="black", tags=("all","sources"))
+			self.lines.append(l)
+			ypos += self.bdheight
+			ypos += source.ysize()
+			t = source.drawname(self, ypos)
+			self.items[t] = source
+			ypos += self.bdheight
+		self.ysize = ypos
+		self.create_line(0, ypos, self["width"], ypos,
+		    width=1, fill="black", tags=("all",))
+		self.bind("<Button-1>", self.master.mousepress);
+		self.bind("<ButtonRelease-1>", self.master.mouserelease);
+		self.bind("<B1-Motion>", self.master.mousemotion);
+
 
 class SchedDisplay(Canvas):
 	def __init__(self, master):
 		self.ratio = 1
-		self.ktrfile = None
-		self.sources = None
 		self.parent = master
-		self.bdheight = 10 
-		self.events = {}
-
+		self.bdheight = master.bdheight
+		self.items = {}
+		self.lines = []
 		Canvas.__init__(self, master, width=800, height=500, bg='grey',
 		     scrollregion=(0, 0, 800, 500))
 
-	def setfile(self, ktrfile):
-		self.ktrfile = ktrfile
-		self.sources = ktrfile.sources
-
+	def prepare(self):
+		#
 		# Compute a ratio to ensure that the file's timespan fits into
 		# 2^31.  Although python may handle larger values for X
 		# values, the Tk internals do not.
+		#
 		self.ratio = (ktrfile.timespan() - 1) / 2**31 + 1
 
 	def draw(self):
 		ypos = 0
 		xsize = self.xsize()
-		for source in self.sources:
+		for source in sources:
 			status.startup("Drawing " + source.name)
-			self.create_line(0, ypos, xsize, ypos,
+			l = self.create_line(0, ypos, xsize, ypos,
 			    width=1, fill="black", tags=("all",))
+			self.lines.append(l)
 			ypos += self.bdheight
 			ypos += source.ysize()
 			source.draw(self, ypos)
@@ -1441,24 +940,43 @@ class SchedDisplay(Canvas):
 		    width=1, fill="black", tags=("all",))
 		self.tag_bind("event", "<Enter>", self.mouseenter)
 		self.tag_bind("event", "<Leave>", self.mouseexit)
-		self.tag_bind("event", "<Button-1>", self.mousepress)
+		self.bind("<Button-1>", self.mousepress)
 		self.bind("<Button-4>", self.wheelup)
 		self.bind("<Button-5>", self.wheeldown)
+		self.bind("<ButtonRelease-1>", self.master.mouserelease);
+		self.bind("<B1-Motion>", self.master.mousemotion);
+
+	def moveline(self, cur_y, y):
+		for line in self.lines:
+			(x0, y0, x1, y1) = self.coords(line)
+			if (cur_y != y0):
+				continue
+			self.move(line, 0, y)
+			return
 
 	def mouseenter(self, event):
 		item, = self.find_withtag(CURRENT)
-		event = self.events[item]
-		event.mouseenter(self, item)
+		self.items[item].mouseenter(self)
 
 	def mouseexit(self, event):
 		item, = self.find_withtag(CURRENT)
-		event = self.events[item]
-		event.mouseexit(self, item)
+		self.items[item].mouseexit(self)
 
 	def mousepress(self, event):
-		item, = self.find_withtag(CURRENT)
-		event = self.events[item]
-		event.mousepress(self, item)
+		# Find out what's beneath us
+		items = self.find_withtag(CURRENT)
+		if (len(items) == 0):
+			self.master.mousepress(event)
+			return
+		# Only grab mouse presses for things with event tags.
+		item = items[0]
+		tags = self.gettags(item)
+		for tag in tags:
+			if (tag == "event"):
+				self.items[item].mousepress(self)
+				return
+		# Leave the rest to the master window
+		self.master.mousepress(event)
 
 	def wheeldown(self, event):
 		self.parent.display_yview("scroll", 1, "units")
@@ -1466,48 +984,38 @@ class SchedDisplay(Canvas):
 	def wheelup(self, event):
 		self.parent.display_yview("scroll", -1, "units")
 
-	def drawnames(self, canvas):
-		status.startup("Drawing names")
-		ypos = 0
-		canvas.configure(scrollregion=(0, 0,
-		    canvas["width"], self.ysize()))
-		for source in self.sources:
-			canvas.create_line(0, ypos, canvas["width"], ypos,
-			    width=1, fill="black", tags=("all",))
-			ypos += self.bdheight
-			ypos += source.ysize()
-			source.drawname(canvas, ypos)
-			ypos += self.bdheight
-		canvas.create_line(0, ypos, canvas["width"], ypos,
-		    width=1, fill="black", tags=("all",))
-
 	def xsize(self):
-		return ((self.ktrfile.timespan() / self.ratio) + 20)
+		return ((ktrfile.timespan() / self.ratio) + 20)
 
 	def ysize(self):
 		ysize = 0
-		for source in self.sources:
+		for source in sources:
 			ysize += source.ysize() + (self.bdheight * 2)
-		return (ysize)
+		return ysize
 
 	def scaleset(self, ratio):
-		if (self.ktrfile == None):
+		if (ktrfile == None):
 			return
 		oldratio = self.ratio
-		xstart, ystart = self.xview()
-		length = (float(self["width"]) / self.xsize())
-		middle = xstart + (length / 2)
+		xstart, xend = self.xview()
+		midpoint = xstart + ((xend - xstart) / 2)
 
 		self.ratio = ratio
 		self.configure(scrollregion=(0, 0, self.xsize(), self.ysize()))
 		self.scale("all", 0, 0, float(oldratio) / ratio, 1)
 
-		length = (float(self["width"]) / self.xsize())
-		xstart = middle - (length / 2)
-		self.xview_moveto(xstart)
+		xstart, xend = self.xview()
+		xsize = (xend - xstart) / 2
+		self.xview_moveto(midpoint - xsize)
 
 	def scaleget(self):
 		return self.ratio
+
+	def getcolor(self, tag):
+		return self.itemcget(tag, "fill")
+
+	def getstate(self, tag):
+		return self.itemcget(tag, "state")
 
 	def setcolor(self, tag, color):
 		self.itemconfigure(tag, state="normal", fill=color)
@@ -1520,13 +1028,18 @@ class GraphMenu(Frame):
 		Frame.__init__(self, master, bd=2, relief=RAISED)
 		self.view = Menubutton(self, text="Configure")
 		self.viewmenu = Menu(self.view, tearoff=0)
-		self.viewmenu.add_command(label="Events",
+		self.viewmenu.add_command(label="Event Colors",
 		    command=self.econf)
+		self.viewmenu.add_command(label="CPU Colors",
+		    command=self.cconf)
 		self.view["menu"] = self.viewmenu
 		self.view.pack(side=LEFT)
 
 	def econf(self):
-		EventConfigure()
+		ColorConfigure(eventcolors, "Event Display Configuration")
+
+	def cconf(self):
+		ColorConfigure(cpucolors, "CPU Background Colors")
 
 
 class SchedGraph(Frame):
@@ -1537,18 +1050,18 @@ class SchedGraph(Frame):
 		self.display = None
 		self.scale = None
 		self.status = None
+		self.bdheight = 10 
+		self.clicksource = None
+		self.lastsource = None
 		self.pack(expand=1, fill="both")
 		self.buildwidgets()
 		self.layout()
-		self.draw(sys.argv[1])
 
 	def buildwidgets(self):
 		global status
 		self.menu = GraphMenu(self)
 		self.display = SchedDisplay(self)
-		self.names = Canvas(self,
-		    width=120, height=self.display["height"],
-		    bg='grey', scrollregion=(0, 0, 50, 100))
+		self.names = SchedNames(self, self.display)
 		self.scale = Scaler(self, self.display)
 		status = self.status = Status(self)
 		self.scrollY = Scrollbar(self, orient="vertical",
@@ -1571,14 +1084,94 @@ class SchedGraph(Frame):
 		self.scale.grid(row=3, column=0, columnspan=3, sticky=E+W)
 		self.status.grid(row=4, column=0, columnspan=3, sticky=E+W)
 
-	def draw(self, file):
+	def draw(self):
 		self.master.update()
-		ktrfile = KTRFile(file)
-		self.display.setfile(ktrfile)
-		self.display.drawnames(self.names)
+		self.display.prepare()
+		self.names.draw()
 		self.display.draw()
+		self.status.startup("")
 		self.scale.set(250000)
 		self.display.xview_moveto(0)
+
+	def mousepress(self, event):
+		self.clicksource = self.sourceat(event.y)
+
+	def mouserelease(self, event):
+		if (self.clicksource == None):
+			return
+		newsource = self.sourceat(event.y)
+		if (self.clicksource != newsource):
+			self.sourceswap(self.clicksource, newsource)
+		self.clicksource = None
+		self.lastsource = None
+
+	def mousemotion(self, event):
+		if (self.clicksource == None):
+			return
+		newsource = self.sourceat(event.y)
+		#
+		# If we get a None source they moved off the page.
+		# swapsource() can't handle moving multiple items so just
+		# pretend we never clicked on anything to begin with so the
+		# user can't mouseover a non-contiguous area.
+		#
+		if (newsource == None):
+			self.clicksource = None
+			self.lastsource = None
+			return
+		if (newsource == self.lastsource):
+			return;
+		self.lastsource = newsource
+		if (newsource != self.clicksource):
+			self.sourceswap(self.clicksource, newsource)
+
+	# These are here because this object controls layout
+	def sourcestart(self, source):
+		return source.y - self.bdheight - source.ysize()
+
+	def sourceend(self, source):
+		return source.y + self.bdheight
+
+	def sourcesize(self, source):
+		return (self.bdheight * 2) + source.ysize()
+
+	def sourceswap(self, source1, source2):
+		# Sort so we always know which one is on top.
+		if (source2.y < source1.y):
+			swap = source1
+			source1 = source2
+			source2 = swap
+		# Only swap adjacent sources
+		if (self.sourceend(source1) != self.sourcestart(source2)):
+			return
+		# Compute start coordinates and target coordinates
+		y1 = self.sourcestart(source1)
+		y2 = self.sourcestart(source2)
+		y1targ = y1 + self.sourcesize(source2)
+		y2targ = y1
+		#
+		# If the sizes are not equal, adjust the start of the lower
+		# source to account for the lost/gained space.
+		#
+		if (source1.ysize() != source2.ysize()):
+			diff = source2.ysize() - source1.ysize()
+			self.names.moveline(y2, diff);
+			self.display.moveline(y2, diff)
+		source1.move(self.display, 0, y1targ - y1)
+		source2.move(self.display, 0, y2targ - y2)
+		source1.movename(self.names, 0, y1targ - y1)
+		source2.movename(self.names, 0, y2targ - y2)
+
+	def sourceat(self, ypos):
+		(start, end) = self.names.yview()
+		starty = start * float(self.names.ysize)
+		ypos += starty
+		for source in sources:
+			yend = self.sourceend(source)
+			ystart = self.sourcestart(source)
+			if (ypos >= ystart and ypos <= yend):
+				return source
+		return None
 
 	def display_yview(self, *args):
 		self.names.yview(*args)
@@ -1590,11 +1183,24 @@ class SchedGraph(Frame):
 	def hide(self, tag):
 		self.display.hide(tag)
 
-if (len(sys.argv) != 2):
-	print "usage:", sys.argv[0], "<ktr file>"
+	def getcolor(self, tag):
+		return self.display.getcolor(tag)
+
+	def getstate(self, tag):
+		return self.display.getstate(tag)
+
+if (len(sys.argv) != 2 and len(sys.argv) != 3):
+	print "usage:", sys.argv[0], "<ktr file> [clock freq in ghz]"
 	sys.exit(1)
+
+if (len(sys.argv) > 2):
+	clockfreq = float(sys.argv[2])
 
 root = Tk()
 root.title("Scheduler Graph")
+colormap = Colormap(eventcolors)
+cpucolormap = Colormap(cpucolors)
 graph = SchedGraph(root)
+ktrfile = KTRFile(sys.argv[1])
+graph.draw()
 root.mainloop()
