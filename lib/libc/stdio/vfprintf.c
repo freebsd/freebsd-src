@@ -65,7 +65,8 @@ __FBSDID("$FreeBSD$");
 #include "printflocal.h"
 
 static int	__sprint(FILE *, struct __suio *);
-static int	__sbprintf(FILE *, const char *, va_list) __printflike(2, 0);
+static int	__sbprintf(FILE *, const char *, va_list) __printflike(2, 0)
+	__noinline;
 static char	*__wcsconv(wchar_t *, int);
 
 #define	CHAR	char
@@ -101,6 +102,10 @@ __sbprintf(FILE *fp, const char *fmt, va_list ap)
 	int ret;
 	FILE fake;
 	unsigned char buf[BUFSIZ];
+
+	/* XXX This is probably not needed. */
+	if (prepwrite(fp) != 0)
+		return (EOF);
 
 	/* copy the important variables */
 	fake._flags = fp->_flags & ~__SNBF;
@@ -193,7 +198,12 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 	int ret;
 
 	FLOCKFILE(fp);
-	ret = __vfprintf(fp, fmt0, ap);
+	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
+	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
+	    fp->_file >= 0)
+		ret = __sbprintf(fp, fmt0, ap);
+	else
+		ret = __vfprintf(fp, fmt0, ap);
 	FUNLOCKFILE(fp);
 	return (ret);
 }
@@ -366,11 +376,6 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
 	if (prepwrite(fp) != 0)
 		return (EOF);
-
-	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
-	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
-	    fp->_file >= 0)
-		return (__sbprintf(fp, fmt0, ap));
 
 	thousands_sep = '\0';
 	grouping = NULL;
