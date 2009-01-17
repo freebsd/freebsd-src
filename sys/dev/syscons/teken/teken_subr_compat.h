@@ -34,6 +34,29 @@ teken_subr_cons25_set_cursor_type(teken_t *t, unsigned int type)
 }
 
 static void
+teken_subr_cons25_set_adapter_background(teken_t *t, unsigned int c)
+{
+
+	t->t_defattr.ta_bgcolor = c % 8;
+	t->t_curattr.ta_bgcolor = c % 8;
+}
+
+static void
+teken_subr_cons25_set_adapter_foreground(teken_t *t, unsigned int c)
+{
+
+	t->t_defattr.ta_fgcolor = c % 8;
+	t->t_curattr.ta_fgcolor = c % 8;
+	if (c >= 8) {
+		t->t_defattr.ta_format |= TF_BOLD;
+		t->t_curattr.ta_format |= TF_BOLD;
+	} else {
+		t->t_defattr.ta_format &= ~TF_BOLD;
+		t->t_curattr.ta_format &= ~TF_BOLD;
+	}
+}
+
+static void
 teken_subr_cons25_switch_virtual_terminal(teken_t *t, unsigned int vt)
 {
 
