@@ -86,6 +86,10 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 
 #define	KTR_ULE	0
 
+#define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__STRING(UINT_MAX)))
+#define	TDQ_NAME_LEN	(sizeof("sched lock ") + sizeof(__STRING(MAXCPU)))
+#define	TDQ_LOADNAME_LEN	(PCPU_NAME_LEN + sizeof(" load"))
+
 /*
  * Thread scheduler specific section.  All fields are protected
  * by the thread lock.
@@ -101,6 +105,9 @@ struct td_sched {
 	int		ts_ltick;	/* Last tick that we were running on */
 	int		ts_ftick;	/* First tick that we were running on */
 	int		ts_ticks;	/* Tick count */
+#ifdef KTR
+	char		ts_name[TS_NAME_LEN];
+#endif
 };
 /* flags kept in ts_flags */
 #define	TSF_BOUND	0x0001		/* Thread can not migrate. */
@@ -216,7 +223,10 @@ struct tdq {
 	struct runq	tdq_realtime;		/* real-time run queue. */
 	struct runq	tdq_timeshare;		/* timeshare run queue. */
 	struct runq	tdq_idle;		/* Queue of IDLE threads. */
-	char		tdq_name[sizeof("sched lock") + 6];
+	char		tdq_name[TDQ_NAME_LEN];
+#ifdef KTR
+	char		tdq_loadname[TDQ_LOADNAME_LEN];
+#endif
 } __aligned(64);
 
 /* Idle thread states and config. */
@@ -489,7 +499,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	tdq->tdq_load++;
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		tdq->tdq_sysload++;
-	CTR2(KTR_SCHED, "cpu %d load: %d", TDQ_ID(tdq), tdq->tdq_load);
+	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
 
 /*
@@ -508,7 +518,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	tdq->tdq_load--;
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		tdq->tdq_sysload--;
-	CTR1(KTR_SCHED, "load: %d", tdq->tdq_load);
+	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
 
 /*
@@ -1237,6 +1247,10 @@ tdq_setup(struct tdq *tdq)
 	    "sched lock %d", (int)TDQ_ID(tdq));
 	mtx_init(&tdq->tdq_lock, tdq->tdq_name, "sched lock",
 	    MTX_SPIN | MTX_RECURSE);
+#ifdef KTR
+	snprintf(tdq->tdq_loadname, sizeof(tdq->tdq_loadname),
+	    "CPU %d load", (int)TDQ_ID(tdq));
+#endif
 }
 
 #ifdef SMP
@@ -1559,9 +1573,14 @@ sched_thread_priority(struct thread *td, u_char prio)
 	struct tdq *tdq;
 	int oldpri;
 
-	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
-	    td, td->td_name, td->td_priority, prio, curthread,
-	    curthread->td_name);
+	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "prio",
+	    "prio:%d", td->td_priority, "new prio:%d", prio,
+	    KTR_ATTR_LINKED, sched_tdname(curthread));
+	if (td != curthread && prio > td->td_priority) {
+		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
+		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
+		    prio, KTR_ATTR_LINKED, sched_tdname(td));
+	} 
 	ts = td->td_sched;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
@@ -1990,6 +2009,9 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	ts2->ts_slptime = ts->ts_slptime;
 	ts2->ts_runtime = ts->ts_runtime;
 	ts2->ts_slice = 1;	/* Attempt to quickly learn interactivity. */
+#ifdef KTR
+	bzero(ts2->ts_name, sizeof(ts2->ts_name));
+#endif
 }
 
 /*
@@ -2012,10 +2034,9 @@ void
 sched_exit(struct proc *p, struct thread *child)
 {
 	struct thread *td;
-	
-	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
-	    child, child->td_name, child->td_priority);
 
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "proc exit",
+	    "prio:td", child->td_priority);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	td = FIRST_THREAD_IN_PROC(p);
 	sched_exit_thread(td, child);
@@ -2031,9 +2052,8 @@ void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
 
-	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
-	    child, child->td_name, child->td_priority);
-
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "thread exit",
+	    "prio:td", child->td_priority);
 	/*
 	 * Give the child's runtime to the parent without returning the
 	 * sleep time as a penalty to the parent.  This causes shells that
@@ -2291,9 +2311,12 @@ sched_add(struct thread *td, int flags)
 #ifdef SMP
 	int cpu;
 #endif
-	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
-	    td, td->td_name, td->td_priority, curthread,
-	    curthread->td_name);
+
+	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add",
+	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
+	    sched_tdname(curthread));
+	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
+	    KTR_ATTR_LINKED, sched_tdname(td));
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	/*
 	 * Recalculate the priority before we select the target cpu or
@@ -2337,9 +2360,8 @@ sched_rem(struct thread *td)
 {
 	struct tdq *tdq;
 
-	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
-	    td, td->td_name, td->td_priority, curthread,
-	    curthread->td_name);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "runq rem",
+	    "prio:%d", td->td_priority);
 	tdq = TDQ_CPU(td->td_sched->ts_cpu);
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
@@ -2603,6 +2625,25 @@ sched_fork_exit(struct thread *td)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
 	lock_profile_obtain_lock_success(
 	    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
+}
+
+/*
+ * Create on first use to catch odd startup conditons.
+ */
+char *
+sched_tdname(struct thread *td)
+{
+#ifdef KTR
+	struct td_sched *ts;
+
+	ts = td->td_sched;
+	if (ts->ts_name[0] == '\0')
+		snprintf(ts->ts_name, sizeof(ts->ts_name),
+		    "%s tid %d", td->td_name, td->td_tid);
+	return (ts->ts_name);
+#else
+	return (td->td_name);
+#endif
 }
 
 #ifdef SMP
