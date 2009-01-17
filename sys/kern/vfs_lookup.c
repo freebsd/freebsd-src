@@ -779,6 +779,10 @@ success:
 	if ((cnp->cn_flags & (ISLASTCN | LOCKSHARED | LOCKLEAF)) ==
 	    (ISLASTCN | LOCKLEAF) && VOP_ISLOCKED(dp, td) != LK_EXCLUSIVE) {
 		vn_lock(dp, LK_UPGRADE | LK_RETRY, td);
+		if (dp->v_iflag & VI_DOOMED) {
+			error = ENOENT;
+			goto bad2;
+		}
 	}
 	if (vfslocked && dvfslocked)
 		VFS_UNLOCK_GIANT(dvfslocked);	/* Only need one */
