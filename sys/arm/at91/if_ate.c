@@ -193,19 +193,21 @@ ate_attach(device_t dev)
 
 	if ((err = ate_get_mac(sc, eaddr)) != 0) {
 		/*
-		 * No MAC address configured. Generate the fake one.
+		 * No MAC address configured. Generate the random one.
 		 */
 		if  (bootverbose)
 			device_printf(dev,
-			    "Generating fake ethernet address.\n");
+			    "Generating random ethernet address.\n");
 		rnd = arc4random();
 
 		/*
-		 * Set OUI to Atmel.
+		 * Set OUI to convenient locally assigned address.  'b'
+		 * is 0x62, which has the locally assigned bit set, and
+		 * the broadcast/multicast bit clear.
 		 */
-		eaddr[0] = 0x00;
-		eaddr[1] = 0x04;
-		eaddr[2] = 0x25;
+		eaddr[0] = 'b';
+		eaddr[1] = 's';
+		eaddr[2] = 'd';
 		eaddr[3] = (rnd >> 16) & 0xff;
 		eaddr[4] = (rnd >> 8) & 0xff;
 		eaddr[5] = rnd & 0xff;
