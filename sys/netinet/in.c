@@ -1003,9 +1003,6 @@ in_purgemaddrs(struct ifnet *ifp)
 	struct in_multi *inm;
 	struct in_multi *oinm;
 
-#ifdef DIAGNOSTIC
-	printf("%s: purging ifp %p\n", __func__, ifp);
-#endif
 	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
 	LIST_FOREACH_SAFE(inm, &V_in_multihead, inm_link, oinm) {
