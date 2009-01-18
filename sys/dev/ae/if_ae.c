@@ -1103,11 +1103,8 @@ ae_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 ae_alloc_rings(ae_softc_t *sc)
 {
-	bus_dma_tag_t bustag;
 	bus_addr_t busaddr;
 	int error;
-
-	bustag = bus_get_dma_tag(sc->dev);
 
 	/*
 	 * Create parent DMA tag.
@@ -1865,8 +1862,8 @@ ae_rxeof(ae_softc_t *sc, ae_rxd_t *rxd)
 	if_printf(ifp, "Rx interrupt occuried.\n");
 #endif
 	size = le16toh(rxd->len) - ETHER_CRC_LEN;
-	if (size < 0) {
-		if_printf(ifp, "Negative length packet received.");
+	if (size < (ETHER_MIN_LEN - ETHER_CRC_LEN - ETHER_VLAN_ENCAP_LEN)) {
+		if_printf(ifp, "Runt frame received.");
 		return (EIO);
 	}
 
