@@ -56,13 +56,21 @@
 #define	UBTBCMFW_IFACE_IDX	0	/* Control interface */
 #define	UBTBCMFW_T_MAX		4	/* units */
 
+enum {
+	UBTBCMFW_BULK_DT_WR,
+	UBTBCMFW_BULK_DT_RD,
+	UBTBCMFW_BULK_CS_WR,
+	UBTBCMFW_BULK_CS_RD,
+	UBTBCMFW_N_TRANSFER = 4,
+};
+
 struct ubtbcmfw_softc {
 	struct usb2_fifo_sc sc_fifo;
 	struct mtx sc_mtx;
 
 	device_t sc_dev;
 	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UBTBCMFW_T_MAX];
+	struct usb2_xfer *sc_xfer[UBTBCMFW_N_TRANSFER];
 
 	uint8_t	sc_flags;
 #define	UBTBCMFW_FLAG_WRITE_STALL 0x01
@@ -109,7 +117,7 @@ static struct usb2_fifo_methods ubtbcmfw_fifo_methods = {
 
 static const struct usb2_config ubtbcmfw_config[UBTBCMFW_T_MAX] = {
 
-	[0] = {
+	[UBTBCMFW_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = 0x02,	/* fixed */
 		.direction = UE_DIR_OUT,
@@ -118,7 +126,7 @@ static const struct usb2_config ubtbcmfw_config[UBTBCMFW_T_MAX] = {
 		.mh.callback = &ubtbcmfw_write_callback,
 	},
 
-	[1] = {
+	[UBTBCMFW_BULK_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = 0x01,	/* fixed */
 		.direction = UE_DIR_IN,
@@ -127,7 +135,7 @@ static const struct usb2_config ubtbcmfw_config[UBTBCMFW_T_MAX] = {
 		.mh.callback = &ubtbcmfw_read_callback,
 	},
 
-	[2] = {
+	[UBTBCMFW_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -138,7 +146,7 @@ static const struct usb2_config ubtbcmfw_config[UBTBCMFW_T_MAX] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[3] = {
+	[UBTBCMFW_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -273,7 +281,7 @@ ubtbcmfw_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 		if (sc->sc_flags & UBTBCMFW_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_CS_WR]);
 			return;
 		}
 		if (usb2_fifo_get_data(f, xfer->frbuffers, 0,
@@ -288,7 +296,7 @@ ubtbcmfw_write_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UBTBCMFW_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_CS_WR]);
 		}
 		return;
 	}
@@ -298,7 +306,7 @@ static void
 ubtbcmfw_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ubtbcmfw_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UBTBCMFW_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -320,7 +328,7 @@ ubtbcmfw_read_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & UBTBCMFW_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_CS_RD]);
 			return;
 		}
 		if (usb2_fifo_put_bytes_max(f) != 0) {
@@ -333,7 +341,7 @@ ubtbcmfw_read_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UBTBCMFW_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_CS_RD]);
 		}
 		return;
 	}
@@ -343,7 +351,7 @@ static void
 ubtbcmfw_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ubtbcmfw_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UBTBCMFW_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -357,7 +365,7 @@ ubtbcmfw_start_read(struct usb2_fifo *fifo)
 {
 	struct ubtbcmfw_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[1]);
+	usb2_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_DT_RD]);
 }
 
 static void
@@ -365,8 +373,8 @@ ubtbcmfw_stop_read(struct usb2_fifo *fifo)
 {
 	struct ubtbcmfw_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
+	usb2_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_DT_RD]);
 }
 
 static void
@@ -374,7 +382,7 @@ ubtbcmfw_start_write(struct usb2_fifo *fifo)
 {
 	struct ubtbcmfw_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
 }
 
 static void
@@ -382,8 +390,8 @@ ubtbcmfw_stop_write(struct usb2_fifo *fifo)
 {
 	struct ubtbcmfw_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
+	usb2_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
 }
 
 static int
@@ -393,7 +401,7 @@ ubtbcmfw_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 
 	if (fflags & FREAD) {
 		if (usb2_fifo_alloc_buffer(fifo,
-		    sc->sc_xfer[1]->max_data_length,
+		    sc->sc_xfer[UBTBCMFW_BULK_DT_RD]->max_data_length,
 		    UBTBCMFW_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}
@@ -404,7 +412,7 @@ ubtbcmfw_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 		sc->sc_flags |= UBTBCMFW_FLAG_WRITE_STALL;
 		mtx_unlock(&sc->sc_mtx);
 		if (usb2_fifo_alloc_buffer(fifo,
-		    sc->sc_xfer[0]->max_data_length,
+		    sc->sc_xfer[UBTBCMFW_BULK_DT_WR]->max_data_length,
 		    UBTBCMFW_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}

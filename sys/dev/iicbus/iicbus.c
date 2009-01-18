@@ -268,3 +268,5 @@ driver_t iicbus_driver = {
 devclass_t iicbus_devclass;
 
 MODULE_VERSION(iicbus, IICBUS_MODVER);
+DRIVER_MODULE(iicbus, iichb, iicbus_driver, iicbus_devclass, 0, 0);
+

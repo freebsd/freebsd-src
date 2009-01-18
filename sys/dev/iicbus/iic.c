@@ -110,14 +110,18 @@ iic_identify(driver_t *driver, device_t parent)
 {
 
 	if (device_find_child(parent, "iic", -1) == NULL)
-		BUS_ADD_CHILD(parent, 0, "iic", 0);
+		BUS_ADD_CHILD(parent, 0, "iic", -1);
 }
 
 static int
 iic_probe(device_t dev)
 {
+	if (iicbus_get_addr(dev) > 0)
+		return (ENXIO);
+
 	device_set_desc(dev, "I2C generic I/O");
-	return (BUS_PROBE_NOWILDCARD);
+
+	return (0);
 }
 	
 static int

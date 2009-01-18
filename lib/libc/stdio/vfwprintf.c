@@ -66,13 +66,41 @@ __FBSDID("$FreeBSD$");
 #include "fvwrite.h"
 #include "printflocal.h"
 
-static int	__sbprintf(FILE *, const wchar_t *, va_list);
+static int	__sprint(FILE *, struct __suio *);
+static int	__sbprintf(FILE *, const wchar_t *, va_list) __noinline;
 static wint_t	__xfputwc(wchar_t, FILE *);
-static wchar_t	*__ujtoa(uintmax_t, wchar_t *, int, int, const char *, int,
-		    char, const char *);
-static wchar_t	*__ultoa(u_long, wchar_t *, int, int, const char *, int,
-		    char, const char *);
 static wchar_t	*__mbsconv(char *, int);
+
+#define	CHAR	wchar_t
+#include "printfcommon.h"
+
+/*
+ * Flush out all the vectors defined by the given uio,
+ * then reset it so that it can be reused.
+ *
+ * XXX The fact that we do this a character at a time and convert to a
+ * multibyte character sequence even if the destination is a wide
+ * string eclipses the benefits of buffering.
+ */
+static int
+__sprint(FILE *fp, struct __suio *uio)
+{
+	struct __siov *iov;
+	wchar_t *p;
+	int i, len;
+
+	iov = uio->uio_iov;
+	for (; uio->uio_resid != 0; uio->uio_resid -= len, iov++) {
+		p = (wchar_t *)iov->iov_base;
+		len = iov->iov_len;
+		for (i = 0; i < len; i++) {
+			if (__xfputwc(p[i], fp) == WEOF)
+				return (-1);
+		}
+	}
+	uio->uio_iovcnt = 0;
+	return (0);
+}
 
 /*
  * Helper function for `fprintf to unbuffered unix file': creates a
@@ -85,6 +113,10 @@ __sbprintf(FILE *fp, const wchar_t *fmt, va_list ap)
 	int ret;
 	FILE fake;
 	unsigned char buf[BUFSIZ];
+
+	/* XXX This is probably not needed. */
+	if (prepwrite(fp) != 0)
+		return (EOF);
 
 	/* copy the important variables */
 	fake._flags = fp->_flags & ~__SNBF;
@@ -136,160 +168,6 @@ __xfputwc(wchar_t wc, FILE *fp)
 	iov.iov_base = buf;
 	iov.iov_len = len;
 	return (__sfvwrite(fp, &uio) != EOF ? (wint_t)wc : WEOF);
-}
-
-/*
- * Convert an unsigned long to ASCII for printf purposes, returning
- * a pointer to the first character of the string representation.
- * Octal numbers can be forced to have a leading zero; hex numbers
- * use the given digits.
- */
-static wchar_t *
-__ultoa(u_long val, wchar_t *endp, int base, int octzero, const char *xdigs,
-	int needgrp, char thousep, const char *grp)
-{
-	wchar_t *cp = endp;
-	long sval;
-	int ndig;
-
-	/*
-	 * Handle the three cases separately, in the hope of getting
-	 * better/faster code.
-	 */
-	switch (base) {
-	case 10:
-		if (val < 10) {	/* many numbers are 1 digit */
-			*--cp = to_char(val);
-			return (cp);
-		}
-		ndig = 0;
-		/*
-		 * On many machines, unsigned arithmetic is harder than
-		 * signed arithmetic, so we do at most one unsigned mod and
-		 * divide; this is sufficient to reduce the range of
-		 * the incoming value to where signed arithmetic works.
-		 */
-		if (val > LONG_MAX) {
-			*--cp = to_char(val % 10);
-			ndig++;
-			sval = val / 10;
-		} else
-			sval = val;
-		do {
-			*--cp = to_char(sval % 10);
-			ndig++;
-			/*
-			 * If (*grp == CHAR_MAX) then no more grouping
-			 * should be performed.
-			 */
-			if (needgrp && ndig == *grp && *grp != CHAR_MAX
-					&& sval > 9) {
-				*--cp = thousep;
-				ndig = 0;
-				/*
-				 * If (*(grp+1) == '\0') then we have to
-				 * use *grp character (last grouping rule)
-				 * for all next cases
-				 */
-				if (*(grp+1) != '\0')
-					grp++;
-			}
-			sval /= 10;
-		} while (sval != 0);
-		break;
-
-	case 8:
-		do {
-			*--cp = to_char(val & 7);
-			val >>= 3;
-		} while (val);
-		if (octzero && *cp != '0')
-			*--cp = '0';
-		break;
-
-	case 16:
-		do {
-			*--cp = xdigs[val & 15];
-			val >>= 4;
-		} while (val);
-		break;
-
-	default:			/* oops */
-		abort();
-	}
-	return (cp);
-}
-
-/* Identical to __ultoa, but for intmax_t. */
-static wchar_t *
-__ujtoa(uintmax_t val, wchar_t *endp, int base, int octzero,
-	const char *xdigs, int needgrp, char thousep, const char *grp)
-{
-	wchar_t *cp = endp;
-	intmax_t sval;
-	int ndig;
-
-	/* quick test for small values; __ultoa is typically much faster */
-	/* (perhaps instead we should run until small, then call __ultoa?) */
-	if (val <= ULONG_MAX)
-		return (__ultoa((u_long)val, endp, base, octzero, xdigs,
-		    needgrp, thousep, grp));
-	switch (base) {
-	case 10:
-		if (val < 10) {
-			*--cp = to_char(val % 10);
-			return (cp);
-		}
-		ndig = 0;
-		if (val > INTMAX_MAX) {
-			*--cp = to_char(val % 10);
-			ndig++;
-			sval = val / 10;
-		} else
-			sval = val;
-		do {
-			*--cp = to_char(sval % 10);
-			ndig++;
-			/*
-			 * If (*grp == CHAR_MAX) then no more grouping
-			 * should be performed.
-			 */
-			if (needgrp && *grp != CHAR_MAX && ndig == *grp
-					&& sval > 9) {
-				*--cp = thousep;
-				ndig = 0;
-				/*
-				 * If (*(grp+1) == '\0') then we have to
-				 * use *grp character (last grouping rule)
-				 * for all next cases
-				 */
-				if (*(grp+1) != '\0')
-					grp++;
-			}
-			sval /= 10;
-		} while (sval != 0);
-		break;
-
-	case 8:
-		do {
-			*--cp = to_char(val & 7);
-			val >>= 3;
-		} while (val);
-		if (octzero && *cp != '0')
-			*--cp = '0';
-		break;
-
-	case 16:
-		do {
-			*--cp = xdigs[val & 15];
-			val >>= 4;
-		} while (val);
-		break;
-
-	default:
-		abort();
-	}
-	return (cp);
 }
 
 /*
@@ -376,26 +254,15 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
 	int ret;
 
 	FLOCKFILE(fp);
-	ret = __vfwprintf(fp, fmt0, ap);
+	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
+	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
+	    fp->_file >= 0)
+		ret = __sbprintf(fp, fmt0, ap);
+	else
+		ret = __vfwprintf(fp, fmt0, ap);
 	FUNLOCKFILE(fp);
 	return (ret);
 }
-
-#ifndef NO_FLOATING_POINT
-
-#define	dtoa		__dtoa
-#define	freedtoa	__freedtoa
-
-#include <float.h>
-#include <math.h>
-#include "floatio.h"
-#include "gdtoa.h"
-
-#define	DEFPREC		6
-
-static int exponent(wchar_t *, int, wchar_t);
-
-#endif /* !NO_FLOATING_POINT */
 
 /*
  * The size of the buffer we use as scratch space for integer
@@ -414,14 +281,14 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 {
 	wchar_t *fmt;		/* format string */
 	wchar_t ch;		/* character from fmt */
-	int n, n2, n3;		/* handy integer (short term usage) */
+	int n, n2;		/* handy integer (short term usage) */
 	wchar_t *cp;		/* handy char pointer (short term usage) */
 	int flags;		/* flags as above */
 	int ret;		/* return value accumulator */
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format; <0 for N/A */
 	wchar_t sign;		/* sign prefix (' ', '+', '-', or \0) */
-	char thousands_sep;	/* locale specific thousands separator */
+	wchar_t thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */
 #ifndef NO_FLOATING_POINT
 	/*
@@ -463,6 +330,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	int size;		/* size of converted field or string */
 	int prsize;             /* max size of printed field */
 	const char *xdigs;	/* digits for [xX] conversion */
+	struct io_state io;	/* I/O buffering state */
 	wchar_t buf[BUF];	/* buffer with space for digits of uintmax_t */
 	wchar_t ox[2];		/* space for 0x hex-prefix */
 	union arg *argtable;	/* args, built due to positional arg */
@@ -471,45 +339,26 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	va_list orgap;		/* original argument pointer */
 	wchar_t *convbuf;	/* multibyte to wide conversion result */
 
-	/*
-	 * Choose PADSIZE to trade efficiency vs. size.  If larger printf
-	 * fields occur frequently, increase PADSIZE and make the initialisers
-	 * below longer.
-	 */
-#define	PADSIZE	16		/* pad chunk size */
-	static wchar_t blanks[PADSIZE] =
-	 {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
-	static wchar_t zeroes[PADSIZE] =
-	 {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
-
 	static const char xdigs_lower[16] = "0123456789abcdef";
 	static const char xdigs_upper[16] = "0123456789ABCDEF";
 
-	/*
-	 * BEWARE, these `goto error' on error, PRINT uses `n2' and
-	 * PAD uses `n'.
-	 */
+	/* BEWARE, these `goto error' on error. */
 #define	PRINT(ptr, len)	do {			\
-	for (n3 = 0; n3 < (len); n3++)		\
-		__xfputwc((ptr)[n3], fp);	\
+	if (io_print(&io, (ptr), (len)))	\
+		goto error; \
 } while (0)
-#define	PAD(howmany, with)	do {		\
-	if ((n = (howmany)) > 0) {		\
-		while (n > PADSIZE) {		\
-			PRINT(with, PADSIZE);	\
-			n -= PADSIZE;		\
-		}				\
-		PRINT(with, n);			\
-	}					\
-} while (0)
-#define	PRINTANDPAD(p, ep, len, with) do {	\
-	n2 = (ep) - (p);       			\
-	if (n2 > (len))				\
-		n2 = (len);			\
-	if (n2 > 0)				\
-		PRINT((p), n2);			\
-	PAD((len) - (n2 > 0 ? n2 : 0), (with));	\
-} while(0)
+#define	PAD(howmany, with) { \
+	if (io_pad(&io, (howmany), (with))) \
+		goto error; \
+}
+#define	PRINTANDPAD(p, ep, len, with) {	\
+	if (io_printandpad(&io, (p), (ep), (len), (with))) \
+		goto error; \
+}
+#define	FLUSH() { \
+	if (io_flush(&io)) \
+		goto error; \
+}
 
 	/*
 	 * Get the argument indexed by nextarg.   If the argument table is
@@ -579,11 +428,6 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	if (prepwrite(fp) != 0)
 		return (EOF);
 
-	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
-	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
-	    fp->_file >= 0)
-		return (__sbprintf(fp, fmt0, ap));
-
 	thousands_sep = '\0';
 	grouping = NULL;
 	convbuf = NULL;
@@ -591,6 +435,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	argtable = NULL;
 	nextarg = 1;
 	va_copy(orgap, ap);
+	io_init(&io, fp);
 	ret = 0;
 #ifndef NO_FLOATING_POINT
 	decimal_point = localeconv()->decimal_point;
@@ -1120,8 +965,10 @@ number:			if ((dprec = prec) >= 0)
 			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
 				if (expt <= 0) {
 					PRINT(zeroes, 1);
-					if (prec || flags & ALT)
-						PRINT(decimal_point, 1);
+					if (prec || flags & ALT) {
+						buf[0] = *decimal_point;
+						PRINT(buf, 1);
+					}
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
@@ -1173,8 +1020,11 @@ number:			if ((dprec = prec) >= 0)
 
 		/* finally, adjust ret */
 		ret += prsize;
+
+		FLUSH();	/* copy out the I/O vectors */
 	}
 done:
+	FLUSH();
 error:
 	va_end(orgap);
 	if (convbuf != NULL)
@@ -1186,43 +1036,3 @@ error:
 	return (ret);
 	/* NOTREACHED */
 }
-
-
-#ifndef NO_FLOATING_POINT
-
-static int
-exponent(wchar_t *p0, int exp, wchar_t fmtch)
-{
-	wchar_t *p, *t;
-	wchar_t expbuf[MAXEXPDIG];
-
-	p = p0;
-	*p++ = fmtch;
-	if (exp < 0) {
-		exp = -exp;
-		*p++ = '-';
-	}
-	else
-		*p++ = '+';
-	t = expbuf + MAXEXPDIG;
-	if (exp > 9) {
-		do {
-			*--t = to_char(exp % 10);
-		} while ((exp /= 10) > 9);
-		*--t = to_char(exp);
-		for (; t < expbuf + MAXEXPDIG; *p++ = *t++);
-	}
-	else {
-		/*
-		 * Exponents for decimal floating point conversions
-		 * (%[eEgG]) must be at least two characters long,
-		 * whereas exponents for hexadecimal conversions can
-		 * be only one character long.
-		 */
-		if (fmtch == 'e' || fmtch == 'E')
-			*p++ = '0';
-		*p++ = to_char(exp);
-	}
-	return (p - p0);
-}
-#endif /* !NO_FLOATING_POINT */

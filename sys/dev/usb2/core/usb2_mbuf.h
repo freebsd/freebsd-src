@@ -38,8 +38,9 @@ struct usb2_mbuf {
 	struct usb2_mbuf *usb2_next;
 
 	uint32_t cur_data_len;
-	uint32_t max_data_len:31;
-	uint32_t last_packet:1;
+	uint32_t max_data_len;
+	uint8_t last_packet:1;
+	uint8_t unused:7;
 };
 
 /*

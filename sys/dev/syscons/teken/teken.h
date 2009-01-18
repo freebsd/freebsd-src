@@ -33,18 +33,16 @@
  * libteken: terminal emulation library.
  *
  * This library converts an UTF-8 stream of bytes to terminal drawing
- * commands. It implements commands similar to xterm-color.
+ * commands.
+ *
+ * Configuration switches:
+ * - TEKEN_UTF8: Enable/disable UTF-8 handling.
+ * - TEKEN_XTERM: Enable xterm-style emulation, instead of cons25.
  */
 
-#if 0
-/*
- * XXX: Disable UTF-8 support for now. It requires UTF-8 keyboard input
- * and rendering, which we do not yet support.
- */
-#define	TEKEN_UTF8
-#endif
-/* Emulate cons25-like behaviour. */
-#define	TEKEN_CONS25
+#if defined(__FreeBSD__) && defined(_KERNEL)
+#include "opt_teken.h"
+#endif /* __FreeBSD__ && _KERNEL */
 
 #ifdef TEKEN_UTF8
 typedef uint32_t teken_char_t;

@@ -59,6 +59,7 @@ static void	usb2_bus_mem_alloc_all_cb(struct usb2_bus *,
 static void	usb2_bus_mem_free_all_cb(struct usb2_bus *,
 		    struct usb2_page_cache *, struct usb2_page *, uint32_t,
 		    uint32_t);
+static void	usb2_bus_roothub(struct usb2_proc_msg *pm);
 
 /* static variables */
 
@@ -164,6 +165,15 @@ usb2_detach(device_t dev)
 	    &bus->detach_msg[0], &bus->detach_msg[1]);
 
 	USB_BUS_UNLOCK(bus);
+
+	/* Get rid of USB callback processes */
+
+	usb2_proc_unsetup(&bus->giant_callback_proc);
+	usb2_proc_unsetup(&bus->non_giant_callback_proc);
+
+	/* Get rid of USB roothub process */
+
+	usb2_proc_unsetup(&bus->roothub_proc);
 
 	/* Get rid of USB explore process */
 
@@ -381,10 +391,29 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 	bus->attach_msg[1].hdr.pm_callback = &usb2_bus_attach;
 	bus->attach_msg[1].bus = bus;
 
-	/* Create a new USB process */
-	if (usb2_proc_setup(&bus->explore_proc,
+	bus->roothub_msg[0].hdr.pm_callback = &usb2_bus_roothub;
+	bus->roothub_msg[0].bus = bus;
+	bus->roothub_msg[1].hdr.pm_callback = &usb2_bus_roothub;
+	bus->roothub_msg[1].bus = bus;
+
+	/* Create USB explore, roothub and callback processes */
+
+	if (usb2_proc_setup(&bus->giant_callback_proc,
 	    &bus->bus_mtx, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB explore process failed.\n");
+		printf("WARNING: Creation of USB Giant "
+		    "callback process failed.\n");
+	} else if (usb2_proc_setup(&bus->non_giant_callback_proc,
+	    &bus->bus_mtx, USB_PRI_HIGH)) {
+		printf("WARNING: Creation of USB non-Giant "
+		    "callback process failed.\n");
+	} else if (usb2_proc_setup(&bus->roothub_proc,
+	    &bus->bus_mtx, USB_PRI_HIGH)) {
+		printf("WARNING: Creation of USB roothub "
+		    "process failed.\n");
+	} else if (usb2_proc_setup(&bus->explore_proc,
+	    &bus->bus_mtx, USB_PRI_MED)) {
+		printf("WARNING: Creation of USB explore "
+		    "process failed.\n");
 	} else {
 		/* Get final attach going */
 		USB_BUS_LOCK(bus);
@@ -493,8 +522,6 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 {
 	bus->alloc_failed = 0;
 
-	bus->devices_max = USB_MAX_DEVICES;
-
 	mtx_init(&bus->bus_mtx, device_get_nameunit(bus->parent),
 	    NULL, MTX_DEF | MTX_RECURSE);
 
@@ -506,6 +533,13 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 	usb2_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,
 	    dmat, &bus->bus_mtx, NULL, NULL, 32, USB_BUS_DMA_TAG_MAX);
 
+	if ((bus->devices_max > USB_MAX_DEVICES) ||
+	    (bus->devices_max < USB_MIN_DEVICES) ||
+	    (bus->devices == NULL)) {
+		DPRINTFN(0, "Devices field has not been "
+		    "initialised properly!\n");
+		bus->alloc_failed = 1;		/* failure */
+	}
 	if (cb) {
 		cb(bus, &usb2_bus_mem_alloc_all_cb);
 	}
@@ -537,4 +571,39 @@ usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 	usb2_dma_tag_unsetup(bus->dma_parent_tag);
 
 	mtx_destroy(&bus->bus_mtx);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_bus_roothub
+ *
+ * This function is used to execute roothub control requests on the
+ * roothub and is called from the roothub process.
+ *------------------------------------------------------------------------*/
+static void
+usb2_bus_roothub(struct usb2_proc_msg *pm)
+{
+	struct usb2_bus *bus;
+
+	bus = ((struct usb2_bus_msg *)pm)->bus;
+
+	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
+
+	(bus->methods->roothub_exec) (bus);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_bus_roothub_exec
+ *
+ * This function is used to schedule the "roothub_done" bus callback
+ * method. The bus lock must be locked when calling this function.
+ *------------------------------------------------------------------------*/
+void
+usb2_bus_roothub_exec(struct usb2_bus *bus)
+{
+	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
+
+	if (usb2_proc_msignal(&bus->roothub_proc,
+	    &bus->roothub_msg[0], &bus->roothub_msg[1])) {
+		/* ignore */
+	}
 }

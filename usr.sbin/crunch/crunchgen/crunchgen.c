@@ -709,12 +709,13 @@ void fillin_program_objs(prog_t *p, char *path)
 	if (outhdrname[0] != '\0')
 		fprintf(f, ".include \"%s\"\n", outhdrname);
 	fprintf(f, ".include \"%s\"\n", path);
+	fprintf(f, ".NOTPARALLEL:\n.NO_PARALLEL:\n.POSIX:\n");
 	if (buildopts) {
 		fprintf(f, "BUILDOPTS+=");
 		output_strlst(f, buildopts);
 	}
-	fprintf(f, ".if defined(PROG) && !defined(%s)\n", objvar);
-	fprintf(f, "%s=${PROG}.o\n", objvar);
+	fprintf(f, ".if defined(PROG)\n");
+	fprintf(f, "%s?=${PROG}.o\n", objvar);
 	fprintf(f, ".endif\n");
 	fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
 
@@ -727,7 +728,7 @@ void fillin_program_objs(prog_t *p, char *path)
 
 	fclose(f);
 
-	snprintf(line, MAXLINELEN, "cd %s && make -f %s crunchgen_objs",
+	snprintf(line, MAXLINELEN, "cd %s && make -f %s -Q crunchgen_objs",
 	    p->srcdir, tempfname);
 	if ((f = popen(line, "r")) == NULL) {
 		warn("submake pipe");

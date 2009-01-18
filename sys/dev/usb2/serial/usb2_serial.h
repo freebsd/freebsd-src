@@ -119,11 +119,35 @@ struct usb2_com_callback {
 #define	ULSR_RXRDY	0x01		/* Byte ready in Receive Buffer */
 #define	ULSR_RCV_MASK	0x1f		/* Mask for incoming data or error */
 
+/*
+ * List of serial adapter commands or deferred function calls:
+ */
+enum {
+	USB_COM_CFG_START_TRANSFERS,
+	USB_COM_CFG_OPEN,
+	USB_COM_CFG_CLOSE,
+	USB_COM_CFG_BREAK_ON,
+	USB_COM_CFG_BREAK_OFF,
+	USB_COM_CFG_DTR_ON,
+	USB_COM_CFG_DTR_OFF,
+	USB_COM_CFG_RTS_ON,
+	USB_COM_CFG_RTS_OFF,
+	USB_COM_CFG_STATUS_CHANGE,
+	USB_COM_CFG_PARAM,
+	USB_COM_CFG_MAX,
+};
+
+struct usb2_com_command_msg {
+	struct usb2_proc_msg hdr;	/* must be first */
+	struct usb2_com_softc *cc_softc;
+};
+
 struct usb2_com_super_softc {
-	struct usb2_config_td sc_config_td;
+	struct usb2_process sc_config_td;
 };
 
 struct usb2_com_softc {
+	struct usb2_com_command_msg sc_cmds[2*USB_COM_CFG_MAX];
 	struct termios sc_termios_copy;
 	struct cv sc_cv;
 	const struct usb2_com_callback *sc_callback;
@@ -146,6 +170,7 @@ struct usb2_com_softc {
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;
 	uint8_t	sc_ttyfreed;		/* set when TTY has been freed */
+	uint8_t sc_last_cmd_flag[USB_COM_CFG_MAX];
 };
 
 int	usb2_com_attach(struct usb2_com_super_softc *ssc,

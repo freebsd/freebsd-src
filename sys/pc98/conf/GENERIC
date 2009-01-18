@@ -1,8 +1,8 @@
 #
 # GENERIC -- Generic kernel configuration file for FreeBSD/pc98
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -25,6 +25,12 @@ ident		GENERIC
 
 # To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
+
+# Use the following to compile in values accessible to the kernel
+# through getenv() (or kenv(1) in userland). The format of the file
+# is 'variable=value', see kenv(1)
+#
+# env		"GENERIC.env"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 

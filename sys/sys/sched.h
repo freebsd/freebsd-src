@@ -134,6 +134,12 @@ void	sched_affinity(struct thread *td);
 int	sched_sizeof_proc(void);
 int	sched_sizeof_thread(void);
 
+/*
+ * This routine provides a consistent thread name for use with KTR graphing
+ * functions.
+ */
+char	*sched_tdname(struct thread *td);
+
 static __inline void
 sched_pin(void)
 {

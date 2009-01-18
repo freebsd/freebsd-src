@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2008 Apple Inc.
+ * Copyright (c) 2004-2009 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#72
+ * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#86
  */
 
 #include <sys/cdefs.h>
@@ -851,6 +851,9 @@ au_to_seq(long audit_count)
  * local address           4 bytes/16 bytes (IPv4/IPv6 address)
  * remote port             2 bytes
  * remote address          4 bytes/16 bytes (IPv4/IPv6 address)
+ *
+ * Domain and type arguments to this routine are assumed to already have been
+ * converted to the BSM constant space, so we don't do that here.
  */
 token_t *
 au_to_socket_ex(u_short so_domain, u_short so_type,

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd_fbsd.c#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd_fbsd.c#2 $
  */
 
 #include <sys/types.h>
@@ -35,9 +35,11 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <signal.h>
-#include <syslog.h>
 #include <stdarg.h>
+#include <signal.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 
 #include <bsm/audit.h>
 #include <bsm/audit_uevents.h>

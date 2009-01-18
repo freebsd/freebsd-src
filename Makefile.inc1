@@ -5,6 +5,7 @@
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
 #	-DNO_SHARE do not go into share subdir
+#	-DKERNFAST define NO_KERNELCONFIG, NO_KERNELCLEAN and NO_KERNELCONFIG
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
@@ -697,6 +698,11 @@ distrib-dirs distribution:
 # be set to cross-build, we have to make sure TARGET is set
 # properly.
 
+.if defined(KERNFAST)
+NO_KERNELCLEAN=	t
+NO_KERNELCONFIG=	t
+NO_KERNELDEPEND=	t
+.endif
 .if !defined(KERNCONF) && defined(KERNEL)
 KERNCONF=	${KERNEL}
 KERNWARN=
