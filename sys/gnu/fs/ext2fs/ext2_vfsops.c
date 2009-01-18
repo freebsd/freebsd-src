@@ -424,7 +424,11 @@ static int compute_sb_data(devvp, es, fs)
     V(s_frags_per_group)
     fs->s_inodes_per_group = es->s_inodes_per_group;
     V(s_inodes_per_group)
-    fs->s_inodes_per_block = fs->s_blocksize / EXT2_INODE_SIZE;
+    fs->s_inode_size = es->s_inode_size;
+    V(s_inode_size)
+    fs->s_first_inode = es->s_first_ino;
+    V(s_first_inode);
+    fs->s_inodes_per_block = fs->s_blocksize / EXT2_INODE_SIZE(fs);
     V(s_inodes_per_block)
     fs->s_itb_per_group = fs->s_inodes_per_group /fs->s_inodes_per_block;
     V(s_itb_per_group)
@@ -578,7 +582,7 @@ loop:
 			return (error);
 		}
 		ext2_ei2i((struct ext2_inode *) ((char *)bp->b_data +
-		    EXT2_INODE_SIZE * ino_to_fsbo(fs, ip->i_number)), ip);
+		    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)), ip);
 		brelse(bp);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
@@ -1012,7 +1016,7 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 		return (error);
 	}
 	/* convert ext2 inode to dinode */
-	ext2_ei2i((struct ext2_inode *) ((char *)bp->b_data + EXT2_INODE_SIZE *
+	ext2_ei2i((struct ext2_inode *) ((char *)bp->b_data + EXT2_INODE_SIZE(fs) *
 			ino_to_fsbo(fs, ino)), ip);
 	ip->i_block_group = ino_to_cg(fs, ino);
 	ip->i_next_alloc_block = 0;

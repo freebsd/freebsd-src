@@ -225,7 +225,7 @@ void ext2_free_inode (struct inode * inode)
 
 	sb = inode->i_e2fs;
 	lock_super (DEVVP(inode));
-	if (inode->i_number < EXT2_FIRST_INO ||
+	if (inode->i_number < EXT2_FIRST_INO(sb) ||
 	    inode->i_number > sb->s_es->s_inodes_count) {
 		printf ("free_inode reserved inode or nonexistent inode");
 		unlock_super (DEVVP(inode));
@@ -435,7 +435,7 @@ repeat:
 		goto repeat;
 	}
 	j += i * EXT2_INODES_PER_GROUP(sb) + 1;
-	if (j < EXT2_FIRST_INO || j > es->s_inodes_count) {
+	if (j < EXT2_FIRST_INO(sb) || j > es->s_inodes_count) {
 		printf ( "ext2_new_inode:"
 			    "reserved inode or inode > inodes count - "
 			    "block_group = %d,inode=%d", i, j);
