@@ -315,17 +315,13 @@ class SourceConf(Frame):
 		self.checkbox.grid(row=0, column=1)
 		self.columnconfigure(0, weight=1)
 
-	def apply(self):
-		echange = 0
+	def changed(self):
 		if (self.enabled_current != self.enabled.get()):
-			echange = 1
+			return 1
+		return 0
+
+	def apply(self):
 		self.enabled_current = self.enabled.get()
-		if (echange != 0):
-			if (self.enabled_current):
-				graph.sourceshow(self.source)
-			else:
-				graph.sourcehide(self.source)
-			return
 
 	def revert(self):
 		self.enabled.set(self.enabled_default)
@@ -389,6 +385,21 @@ class SourceConfigure(Toplevel):
 		self.buttons.columnconfigure(3, weight=1)
 
 	def apress(self):
+		disable_sources = []
+		enable_sources = []
+		for item in self.sconfig:
+			if (item.changed() == 0):
+				continue
+			if (item.enabled.get() == 1):
+				enable_sources.append(item.source)
+			else:
+				disable_sources.append(item.source)
+
+		if (len(disable_sources)):
+			graph.sourcehidelist(disable_sources)
+		if (len(enable_sources)):
+			graph.sourceshowlist(enable_sources)
+
 		for item in self.sconfig:
 			item.apply()
 
@@ -403,6 +414,77 @@ class SourceConfigure(Toplevel):
 	def upress(self):
 		for item in self.sconfig:
 			item.uncheck()
+
+# Reverse compare of second member of the tuple
+def cmp_counts(x, y):
+	return y[1] - x[1]
+
+class SourceStats(Toplevel):
+	def __init__(self, source):
+		self.source = source
+		Toplevel.__init__(self)
+		self.resizable(0, 0)
+		self.title(source.name + " statistics")
+		self.evframe = LabelFrame(self,
+		    text="Event Frequency and Duration")
+		self.evframe.grid(row=0, column=0, sticky=E+W)
+		eventtypes={}
+		for event in self.source.events:
+			if (event.type == "pad"):
+				continue
+			duration = event.duration
+			if (eventtypes.has_key(event.name)):
+				(c, d) = eventtypes[event.name]
+				c += 1
+				d += duration
+				eventtypes[event.name] = (c, d)
+			else:
+				eventtypes[event.name] = (1, duration)
+		events = []
+		for k, v in eventtypes.iteritems():
+			(c, d) = v
+			events.append((k, c, d))
+		events.sort(cmp=cmp_counts)
+
+		ypos = 0
+		for event in events:
+			(name, c, d) = event
+			l = Label(self.evframe, text=name, bd=1, 
+			    relief=SUNKEN, anchor=W, width=30)
+			m = Label(self.evframe, text=str(c), bd=1,
+			    relief=SUNKEN, anchor=W, width=10)
+			r = Label(self.evframe, text=ticks2sec(d),
+			    bd=1, relief=SUNKEN, width=10)
+			l.grid(row=ypos, column=0, sticky=E+W)
+			m.grid(row=ypos, column=1, sticky=E+W)
+			r.grid(row=ypos, column=2, sticky=E+W)
+			ypos += 1
+
+
+class SourceContext(Menu):
+	def __init__(self, event, source):
+		self.source = source
+		Menu.__init__(self, tearoff=0, takefocus=0)
+		self.add_command(label="hide", command=self.hide)
+		self.add_command(label="hide group", command=self.hidegroup)
+		self.add_command(label="stats", command=self.stats)
+		self.tk_popup(event.x_root-3, event.y_root+3)
+
+	def hide(self):
+		graph.sourcehide(self.source)
+
+	def hidegroup(self):
+		grouplist = []
+		for source in sources:
+			if (source.group == self.source.group):
+				grouplist.append(source)
+		graph.sourcehidelist(grouplist)
+
+	def show(self):
+		graph.sourceshow(self.source)
+
+	def stats(self):
+		SourceStats(self.source)
 
 class EventView(Toplevel):
 	def __init__(self, event, canvas):
@@ -510,6 +592,7 @@ class Event:
 		self.idx = None
 		self.item = None
 		self.dispcnt = 0
+		self.duration = 0
 		self.recno = lineno
 
 	def status(self):
@@ -592,8 +675,8 @@ class PointEvent(Event):
 	def draw(self, canvas, xpos, ypos):
 		color = colormap.lookup(self.name)
 		l = canvas.create_oval(xpos - 6, ypos + 1, xpos + 6, ypos - 11,
-		    fill=color, tags=("all", "point", "event", self.name),
-		    width=0)
+		    fill=color, width=0,
+		    tags=("all", "point", "event", self.name, self.source.tag))
 		Event.draw(self, canvas, xpos, ypos, l)
 
 		return xpos
@@ -607,7 +690,7 @@ class StateEvent(Event):
 		next = self.nexttype("state")
 		if (next == None):
 			return (xpos)
-		duration = next.timestamp - self.timestamp
+		self.duration = duration = next.timestamp - self.timestamp
 		self.attrs.insert(0, ("duration", ticks2sec(duration)))
 		color = colormap.lookup(self.name)
 		if (duration < 0):
@@ -618,7 +701,7 @@ class StateEvent(Event):
 		delta = duration / canvas.ratio
 		l = canvas.create_rectangle(xpos, ypos,
 		    xpos + delta, ypos - 10, fill=color, width=0,
-		    tags=("all", "state", "event", self.name))
+		    tags=("all", "state", "event", self.name, self.source.tag))
 		Event.draw(self, canvas, xpos, ypos, l)
 
 		return (xpos + delta)
@@ -635,14 +718,14 @@ class CountEvent(Event):
 		if (next == None):
 			return (xpos)
 		color = colormap.lookup("count")
-		duration = next.timestamp - self.timestamp
+		self.duration = duration = next.timestamp - self.timestamp
 		self.attrs.insert(0, ("count", self.count))
 		self.attrs.insert(1, ("duration", ticks2sec(duration)))
 		delta = duration / canvas.ratio
 		yhight = self.source.yscale() * self.count
 		l = canvas.create_rectangle(xpos, ypos - yhight,
 		    xpos + delta, ypos, fill=color, width=0,
-		    tags=("all", "count", "event", self.name))
+		    tags=("all", "count", "event", self.name, self.source.tag))
 		Event.draw(self, canvas, xpos, ypos, l)
 		return (xpos + delta)
 
@@ -663,6 +746,10 @@ class PadEvent(StateEvent):
 		Event.draw(self, canvas, xpos, ypos, None)
 		return (xpos + delta)
 
+# Sort function for start y address
+def source_cmp_start(x, y):
+	return x.y - y.y
+
 class EventSource:
 	def __init__(self, group, id):
 		self.name = id
@@ -672,6 +759,7 @@ class EventSource:
 		self.y = 0
 		self.item = None
 		self.hidden = 0
+		self.tag = group + id
 
 	def __cmp__(self, other):
 		if (other == None):
@@ -719,14 +807,11 @@ class EventSource:
 		l = canvas.create_rectangle(fromx,
 		    ypos - self.ysize() - canvas.bdheight,
 		    tox, ypos + canvas.bdheight, fill=color, width=0,
-		    tags=("all", "cpuinfo", cpu), state="hidden")
+		    tags=("all", "cpuinfo", cpu, self.tag), state="hidden")
 		self.cpuitems.append(l)
 
 	def move(self, canvas, xpos, ypos):
-		for event in self.events:
-			event.move(canvas, xpos, ypos)
-		for item in self.cpuitems:
-			canvas.move(item, xpos, ypos)
+		canvas.move(self.tag, xpos, ypos)
 
 	def movename(self, canvas, xpos, ypos):
 		self.y += ypos
@@ -1008,6 +1093,7 @@ class SchedNames(Canvas):
 		self.create_line(0, ypos, self["width"], ypos,
 		    width=1, fill="black", tags=("all",))
 		self.bind("<Button-1>", self.master.mousepress);
+		self.bind("<Button-3>", self.master.mousepressright);
 		self.bind("<ButtonRelease-1>", self.master.mouserelease);
 		self.bind("<B1-Motion>", self.master.mousemotion);
 
@@ -1056,6 +1142,7 @@ class SchedDisplay(Canvas):
 		self.tag_bind("event", "<Enter>", self.mouseenter)
 		self.tag_bind("event", "<Leave>", self.mouseexit)
 		self.bind("<Button-1>", self.mousepress)
+		self.bind("<Button-3>", self.master.mousepressright);
 		self.bind("<Button-4>", self.wheelup)
 		self.bind("<Button-5>", self.wheeldown)
 		self.bind("<ButtonRelease-1>", self.master.mouserelease);
@@ -1146,16 +1233,16 @@ class SchedDisplay(Canvas):
 class GraphMenu(Frame):
 	def __init__(self, master):
 		Frame.__init__(self, master, bd=2, relief=RAISED)
-		self.view = Menubutton(self, text="Configure")
-		self.viewmenu = Menu(self.view, tearoff=0)
-		self.viewmenu.add_command(label="Event Colors",
+		self.conf = Menubutton(self, text="Configure")
+		self.confmenu = Menu(self.conf, tearoff=0)
+		self.confmenu.add_command(label="Event Colors",
 		    command=self.econf)
-		self.viewmenu.add_command(label="CPU Colors",
+		self.confmenu.add_command(label="CPU Colors",
 		    command=self.cconf)
-		self.viewmenu.add_command(label="Source Configure",
+		self.confmenu.add_command(label="Source Configure",
 		    command=self.sconf)
-		self.view["menu"] = self.viewmenu
-		self.view.pack(side=LEFT)
+		self.conf["menu"] = self.confmenu
+		self.conf.pack(side=LEFT)
 
 	def econf(self):
 		ColorConfigure(eventcolors, "Event Display Configuration")
@@ -1165,7 +1252,6 @@ class GraphMenu(Frame):
 
 	def sconf(self):
 		SourceConfigure()
-
 
 class SchedGraph(Frame):
 	def __init__(self, master):
@@ -1220,6 +1306,12 @@ class SchedGraph(Frame):
 
 	def mousepress(self, event):
 		self.clicksource = self.sourceat(event.y)
+
+	def mousepressright(self, event):
+		source = self.sourceat(event.y)
+		if (source == None):
+			return
+		SourceContext(event, source)
 
 	def mouserelease(self, event):
 		if (self.clicksource == None):
@@ -1287,9 +1379,11 @@ class SchedGraph(Frame):
 		source1.movename(self.names, 0, y1targ - y1)
 		source2.movename(self.names, 0, y2targ - y2)
 
-	def sourceshow(self, source):
+	def sourcepicky(self, source):
 		if (source.hidden == 0):
-			return;
+			return self.sourcestart(source)
+		# Revert to group based sort
+		sources.sort()
 		prev = None
 		for s in sources:
 			if (s == source):
@@ -1300,12 +1394,103 @@ class SchedGraph(Frame):
 			newy = 0
 		else:
 			newy = self.sourcestart(prev) + self.sourcesize(prev)
-		self.sourceshiftall(newy-1, self.sourcesize(source))
+		return newy
+
+	def sourceshow(self, source):
+		if (source.hidden == 0):
+			return;
+		newy = self.sourcepicky(source)
 		off = newy - self.sourcestart(source)
+		self.sourceshiftall(newy-1, self.sourcesize(source))
 		self.sourceshift(source, off)
 		source.hidden = 0
 
+	#
+	# Optimized source show of multiple entries that only moves each
+	# existing entry once.  Doing sourceshow() iteratively is too
+	# expensive due to python's canvas.move().
+	#
+	def sourceshowlist(self, srclist):
+		srclist.sort(cmp=source_cmp_start)
+		startsize = []
+		for source in srclist:
+			if (source.hidden == 0):
+				srclist.remove(source)
+			startsize.append((self.sourcepicky(source),
+			    self.sourcesize(source)))
+
+		sources.sort(cmp=source_cmp_start, reverse=True)
+		self.status.startup("Updating display...");
+		for source in sources:
+			if (source.hidden == 1):
+				continue
+			nstart = self.sourcestart(source)
+			size = 0
+			for hidden in startsize:
+				(start, sz) = hidden
+				if (start <= nstart or start+sz <= nstart):
+					size += sz
+			self.sourceshift(source, size)
+		idx = 0
+		size = 0
+		for source in srclist:
+			(newy, sz) = startsize[idx]
+			off = (newy + size) - self.sourcestart(source)
+			self.sourceshift(source, off)
+			source.hidden = 0
+			size += sz
+			idx += 1
+		self.names.updatescroll()
+		self.display.updatescroll()
+		self.status.set("")
+
+	#
+	# Optimized source hide of multiple entries that only moves each
+	# remaining entry once.  Doing sourcehide() iteratively is too
+	# expensive due to python's canvas.move().
+	#
+	def sourcehidelist(self, srclist):
+		srclist.sort(cmp=source_cmp_start)
+		sources.sort(cmp=source_cmp_start)
+		startsize = []
+		off = len(sources) * 100
+		self.status.startup("Updating display...");
+		for source in srclist:
+			if (source.hidden == 1):
+				srclist.remove(source)
+			#
+			# Remember our old position so we can sort things
+			# below us when we're done.
+			#
+			startsize.append((self.sourcestart(source),
+			    self.sourcesize(source)))
+			self.sourceshift(source, off)
+			source.hidden = 1
+
+		idx = 0
+		size = 0
+		for hidden in startsize:
+			(start, sz) = hidden
+			size += sz
+			if (idx + 1 < len(startsize)):
+				(stop, sz) = startsize[idx+1]
+			else:
+				stop = self.display.ysize()
+			idx += 1
+			for source in sources:
+				nstart = self.sourcestart(source)
+				if (nstart < start or source.hidden == 1):
+					continue
+				if (nstart >= stop):
+					break;
+				self.sourceshift(source, -size)
+		self.names.updatescroll()
+		self.display.updatescroll()
+		self.status.set("")
+
 	def sourcehide(self, source):
+		if (source.hidden == 1):
+			return;
 		# Move it out of the visible area
 		off = len(sources) * 100
 		start = self.sourcestart(source)
@@ -1319,8 +1504,15 @@ class SchedGraph(Frame):
 		source.movename(self.names, 0, off)
 		self.names.moveline(start, off);
 		self.display.moveline(start, off)
+		#
+		# We update the idle tasks to shrink the dirtied area so
+		# it does not always include the entire screen.
+		#
+		self.names.update_idletasks()
+		self.display.update_idletasks()
 
 	def sourceshiftall(self, start, off):
+		self.status.startup("Updating display...");
 		for source in sources:
 			nstart = self.sourcestart(source)
 			if (nstart < start):
@@ -1328,6 +1520,7 @@ class SchedGraph(Frame):
 			self.sourceshift(source, off)
 		self.names.updatescroll()
 		self.display.updatescroll()
+		self.status.set("")
 
 	def sourceat(self, ypos):
 		(start, end) = self.names.yview()
