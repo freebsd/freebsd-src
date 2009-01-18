@@ -470,6 +470,11 @@ ng_mppc_compress(node_p node, struct mbuf **datap)
 	u_int16_t header;
 	struct mbuf *m = *datap;
 
+	/* We must own the mbuf chain exclusively to modify it. */
+	m = m_unshare(m, M_DONTWAIT);
+	if (m == NULL)
+		return (ENOMEM);
+
 	/* Initialize */
 	header = d->cc;
 
@@ -529,8 +534,12 @@ err1:
 				header |= MPPC_FLAG_RESTART;  
 				
 			/* Replace m by the compresed one. */
-			m_freem(m);
-			m = m_devget((caddr_t)outbuf, outlen, 0, NULL, NULL);
+			m_copyback(m, 0, outlen, (caddr_t)outbuf);
+			if (m->m_pkthdr.len < outlen) {
+				m_freem(m);
+				m = NULL;
+			} else if (outlen < m->m_pkthdr.len)
+				m_adj(m, outlen - m->m_pkthdr.len);
 		}
 		d->flushed = (rtn & MPPC_EXPANDED) != 0
 		    || (flags & MPPC_SAVE_HISTORY) == 0;
@@ -538,7 +547,7 @@ err1:
 		free(inbuf, M_NETGRAPH_MPPC);
 		free(outbuf, M_NETGRAPH_MPPC);
 
-		/* Check m_devget() result. */
+		/* Check mbuf chain reload result. */
 		if (m == NULL) {
 			if (!d->flushed) {
 				MPPC_InitCompressionHistory(d->history);
@@ -556,18 +565,6 @@ err1:
 
 		/* Set header bits */
 		header |= MPPC_FLAG_ENCRYPTED;
-
-		/* We must own the mbuf chain exclusively to modify it. */
-		m = m_unshare(m, M_DONTWAIT);
-		if (m == NULL) {
-			if (!d->flushed) {
-#ifdef NETGRAPH_MPPC_COMPRESSION
-				MPPC_InitCompressionHistory(d->history);
-#endif
-				d->flushed = 1;
-			}
-			return (ENOMEM);
-		}
 
 		/* Update key if it's time */
 		if ((d->cfg.bits & MPPE_STATELESS) != 0
@@ -614,6 +611,11 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 	u_int16_t header, cc;
 	u_int numLost;
 	struct mbuf *m = *datap;
+
+	/* We must own the mbuf chain exclusively to modify it. */
+	m = m_unshare(m, M_DONTWAIT);
+	if (m == NULL)
+		return (ENOMEM);
 
 	/* Pull off header */
 	if (m->m_pkthdr.len < MPPC_HDRLEN) {
@@ -693,11 +695,6 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 			ng_mppc_updatekey(d->cfg.bits,
 			    d->cfg.startkey, d->key, &d->rc4);
 		}
-
-		/* We must own the mbuf chain exclusively to modify it. */
-		m = m_unshare(m, M_DONTWAIT);
-		if (m == NULL)
-			return (ENOMEM);
 
 		/* Decrypt packet */
 		m1 = m;
@@ -786,8 +783,12 @@ failed:
 		free(buf, M_NETGRAPH_MPPC);
 		len = decomplen - destCnt;
 	
-		m_freem(m);
-		m = m_devget((caddr_t)decompbuf, len, 0, NULL, NULL);
+		m_copyback(m, 0, len, (caddr_t)decompbuf);
+		if (m->m_pkthdr.len < len) {
+			m_freem(m);
+			m = NULL;
+		} else if (len < m->m_pkthdr.len)
+			m_adj(m, len - m->m_pkthdr.len);
 		free(decompbuf, M_NETGRAPH_MPPC);
 	}
 #endif
