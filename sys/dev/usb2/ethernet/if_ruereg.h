@@ -174,13 +174,12 @@ enum {
 };
 
 struct rue_softc {
-	void   *sc_evilhack;		/* XXX this pointer must be first */
+	struct ifnet *sc_ifp;
 
 	struct usb2_config_td sc_config_td;
 	struct usb2_callout sc_watchdog;
 	struct mtx sc_mtx;
 
-	struct ifnet *sc_ifp;
 	struct usb2_device *sc_udev;
 	struct usb2_xfer *sc_xfer[RUE_N_TRANSFER];
 	device_t sc_miibus;

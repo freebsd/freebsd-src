@@ -800,7 +800,6 @@ ural_cfg_first_time_setup(struct ural_softc *sc,
 		DPRINTFN(0, "could not if_alloc()!\n");
 		goto done;
 	}
-	sc->sc_evilhack = ifp;
 	sc->sc_ifp = ifp;
 	ic = ifp->if_l2com;
 

@@ -120,7 +120,7 @@ enum {
 };
 
 struct rum_softc {
-	void   *sc_evilhack;		/* XXX this pointer must be first */
+	struct ifnet *sc_ifp;
 
 	struct rum_ifq sc_tx_queue;
 	struct usb2_config_td sc_config_td;
@@ -133,7 +133,6 @@ struct rum_softc {
 	struct rum_tx_radiotap_header sc_txtap;
 
 	struct usb2_xfer *sc_xfer[RUM_N_TRANSFER];
-	struct ifnet *sc_ifp;
 	struct usb2_device *sc_udev;
 	const struct ieee80211_rate_table *sc_rates;
 
