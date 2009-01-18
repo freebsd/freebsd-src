@@ -468,7 +468,6 @@ cue_cfg_first_time_setup(struct cue_softc *sc,
 		    sc->sc_unit);
 		goto done;
 	}
-	sc->sc_evilhack = ifp;
 
 	ifp->if_softc = sc;
 	if_initname(ifp, "cue", sc->sc_unit);

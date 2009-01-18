@@ -1285,7 +1285,7 @@ enum {
 };
 
 struct zyd_softc {
-	void   *sc_evilhack;		/* XXX this pointer must be first */
+	struct ifnet *sc_ifp;
 
 	struct zyd_rf sc_rf;
 	struct usb2_callout sc_watchdog;
@@ -1299,7 +1299,6 @@ struct zyd_softc {
 	struct zyd_ifq sc_tx_queue;
 	struct cv sc_intr_cv;
 
-	struct ifnet *sc_ifp;
 	struct usb2_device *sc_udev;
 	struct usb2_xfer *sc_xfer[ZYD_N_TRANSFER];
 	const struct ieee80211_rate_table *sc_rates;

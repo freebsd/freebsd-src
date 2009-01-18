@@ -713,7 +713,6 @@ rue_cfg_first_time_setup(struct rue_softc *sc,
 		    sc->sc_name);
 		goto done;
 	}
-	sc->sc_evilhack = ifp;
 
 	ifp->if_softc = sc;
 	if_initname(ifp, "rue", sc->sc_unit);
