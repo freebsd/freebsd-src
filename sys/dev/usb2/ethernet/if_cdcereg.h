@@ -61,7 +61,7 @@ enum {
 };
 
 struct cdce_softc {
-	void   *sc_evilhack;		/* XXX this pointer must be first */
+	struct ifnet *sc_ifp;
 
 	union cdce_eth_tx sc_tx;
 	union cdce_eth_rx sc_rx;
@@ -70,7 +70,6 @@ struct cdce_softc {
 	struct cdce_mq sc_rx_mq;
 	struct cdce_mq sc_tx_mq;
 
-	struct ifnet *sc_ifp;
 	struct usb2_xfer *sc_xfer[CDCE_N_TRANSFER];
 	struct usb2_device *sc_udev;
 	device_t sc_dev;

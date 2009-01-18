@@ -444,7 +444,6 @@ alloc_transfers:
 		device_printf(dev, "cannot if_alloc()\n");
 		goto detach;
 	}
-	sc->sc_evilhack = ifp;
 
 	ifp->if_softc = sc;
 	if_initname(ifp, "cdce", sc->sc_unit);
