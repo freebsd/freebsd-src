@@ -5,7 +5,7 @@
  *  University of Utah, Department of Computer Science
  */
 /*-
- * Copyright (c) 1989, 1991, 1993, 1994	
+ * Copyright (c) 1989, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,7 @@ static int	compute_sb_data(struct vnode * devvp,
 static const char *ext2_opts[] = { "from", "export", "acls", "noexec",
     "noatime", "union", "suiddir", "multilabel", "nosymfollow",
     "noclusterr", "noclusterw", "force", NULL };
- 
+
 /*
  * VFS Operations.
  *
@@ -318,7 +318,7 @@ static int ext2_check_descriptors (struct ext2_sb_info * sb)
         {
 		/* examine next descriptor block */
                 if ((i % EXT2_DESC_PER_BLOCK(sb)) == 0)
-                        gdp = (struct ext2_group_desc *) 
+                        gdp = (struct ext2_group_desc *)
 				sb->s_group_desc[desc_block++]->b_data;
                 if (gdp->bg_block_bitmap < block ||
                     gdp->bg_block_bitmap >= block + EXT2_BLOCKS_PER_GROUP(sb))
@@ -398,19 +398,19 @@ static int compute_sb_data(devvp, es, fs)
     int logic_sb_block = 1;	/* XXX for now */
 
 #if 1
-#define V(v)  
+#define V(v)
 #else
 #define V(v)  printf(#v"= %d\n", fs->v);
 #endif
 
-    fs->s_blocksize = EXT2_MIN_BLOCK_SIZE << es->s_log_block_size; 
+    fs->s_blocksize = EXT2_MIN_BLOCK_SIZE << es->s_log_block_size;
     V(s_blocksize)
     fs->s_bshift = EXT2_MIN_BLOCK_LOG_SIZE + es->s_log_block_size;
     V(s_bshift)
     fs->s_fsbtodb = es->s_log_block_size + 1;
     V(s_fsbtodb)
     fs->s_qbmask = fs->s_blocksize - 1;
-    V(s_bmask)
+    V(s_qbmask)
     fs->s_blocksize_bits = EXT2_BLOCK_SIZE_BITS(es);
     V(s_blocksize_bits)
     fs->s_frag_size = EXT2_MIN_FRAG_SIZE << es->s_log_frag_size;
@@ -449,14 +449,14 @@ static int compute_sb_data(devvp, es, fs)
 		M_EXT2MNT, M_WAITOK);
 
     /* adjust logic_sb_block */
-    if(fs->s_blocksize > SBSIZE) 
+    if(fs->s_blocksize > SBSIZE)
 	/* Godmar thinks: if the blocksize is greater than 1024, then
-	   the superblock is logically part of block zero. 
+	   the superblock is logically part of block zero.
 	 */
         logic_sb_block = 0;
-    
+
     for (i = 0; i < db_count; i++) {
-	error = bread(devvp , fsbtodb(fs, logic_sb_block + i + 1), 
+	error = bread(devvp , fsbtodb(fs, logic_sb_block + i + 1),
 		fs->s_blocksize, NOCRED, &fs->s_group_desc[i]);
 	if(error) {
 	    for (j = 0; j < i; j++)
@@ -667,9 +667,9 @@ ext2_mountfs(devvp, mp)
 	   we dynamically allocate both an ext2_sb_info and an ext2_super_block
 	   while Linux keeps the super block in a locked buffer
 	 */
-	ump->um_e2fs = bsd_malloc(sizeof(struct ext2_sb_info), 
+	ump->um_e2fs = bsd_malloc(sizeof(struct ext2_sb_info),
 		M_EXT2MNT, M_WAITOK);
-	ump->um_e2fs->s_es = bsd_malloc(sizeof(struct ext2_super_block), 
+	ump->um_e2fs->s_es = bsd_malloc(sizeof(struct ext2_super_block),
 		M_EXT2MNT, M_WAITOK);
 	bcopy(es, ump->um_e2fs->s_es, (u_int)sizeof(struct ext2_super_block));
 	if ((error = compute_sb_data(devvp, ump->um_e2fs->s_es, ump->um_e2fs)))
@@ -682,7 +682,7 @@ ext2_mountfs(devvp, mp)
 	bp = NULL;
 	fs = ump->um_e2fs;
 	fs->s_rd_only = ronly;	/* ronly is set according to mnt_flags */
-	/* if the fs is not mounted read-only, make sure the super block is 
+	/* if the fs is not mounted read-only, make sure the super block is
 	   always written back on a sync()
 	 */
 	fs->s_wasvalid = fs->s_es->s_state & EXT2_VALID_FS ? 1 : 0;
@@ -708,7 +708,7 @@ ext2_mountfs(devvp, mp)
 	ump->um_nindir = EXT2_ADDR_PER_BLOCK(fs);
 	ump->um_bptrtodb = fs->s_es->s_log_block_size + 1;
 	ump->um_seqinc = EXT2_FRAGS_PER_BLOCK(fs);
-	if (ronly == 0) 
+	if (ronly == 0)
 		ext2_sbupdate(ump, MNT_WAIT);
 	return (0);
 out:
@@ -761,7 +761,7 @@ ext2_unmount(mp, mntflags, td)
 	}
 
 	/* release buffers containing group descriptors */
-	for(i = 0; i < fs->s_db_per_group; i++) 
+	for(i = 0; i < fs->s_db_per_group; i++)
 		ULCK_BUF(fs->s_group_desc[i])
 	bsd_free(fs->s_group_desc, M_EXT2MNT);
 
@@ -838,19 +838,19 @@ ext2_statfs(mp, sbp, td)
 				nsb++;
 	} else
 		nsb = fs->s_groups_count;
-	overhead = es->s_first_data_block + 
+	overhead = es->s_first_data_block +
 	    /* Superblocks and block group descriptors: */
 	    nsb * (1 + fs->s_db_per_group) +
 	    /* Inode bitmap, block bitmap, and inode table: */
 	    fs->s_groups_count * (1 + 1 + fs->s_itb_per_group);
 
-	sbp->f_bsize = EXT2_FRAG_SIZE(fs);	
+	sbp->f_bsize = EXT2_FRAG_SIZE(fs);
 	sbp->f_iosize = EXT2_BLOCK_SIZE(fs);
 	sbp->f_blocks = es->s_blocks_count - overhead;
-	sbp->f_bfree = es->s_free_blocks_count; 
-	sbp->f_bavail = sbp->f_bfree - es->s_r_blocks_count; 
-	sbp->f_files = es->s_inodes_count; 
-	sbp->f_ffree = es->s_free_inodes_count; 
+	sbp->f_bfree = es->s_free_blocks_count;
+	sbp->f_bavail = sbp->f_bfree - es->s_r_blocks_count;
+	sbp->f_files = es->s_inodes_count;
+	sbp->f_ffree = es->s_free_inodes_count;
 	return (0);
 }
 
@@ -1000,7 +1000,7 @@ ext2_vget(mp, ino, flags, vpp)
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 #if 0
-printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
+printf("ext2_vget(%d) dbn= %lu ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 #endif
 	if ((error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
 	    (int)fs->s_blocksize, NOCRED, &bp)) != 0) {
@@ -1024,7 +1024,7 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 	ip->i_prealloc_count = 0;
 	ip->i_prealloc_block = 0;
         /* now we want to make sure that block pointers for unused
-           blocks are zeroed out - ext2_balloc depends on this 
+           blocks are zeroed out - ext2_balloc depends on this
 	   although for regular files and directories only
 	*/
 	if(S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode)) {
