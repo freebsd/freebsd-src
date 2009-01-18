@@ -95,3 +95,7 @@ dev/cfe/cfe_api.c		optional	cfe
 dev/cfe/cfe_console.c		optional	cfe_console
 #dev/cfe/cfe_resource.c		optional	cfe	# not yet needed
 
+dev/siba/siba.c			optional	siba
+dev/siba/siba_pcib.c		optional	siba pci
+dev/siba/siba_cc.c		optional	siba
+#mips/sentry5/siba_mips.c			optional siba # not yet
