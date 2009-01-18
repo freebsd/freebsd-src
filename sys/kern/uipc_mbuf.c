@@ -1271,6 +1271,10 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 		m = m->m_next;
 	}
 	while (len > 0) {
+		if (m->m_next == NULL && (len > m->m_len - off)) {
+			m->m_len += min(len - (m->m_len - off),
+			    M_TRAILINGSPACE(m));
+		}
 		mlen = min (m->m_len - off, len);
 		bcopy(cp, off + mtod(m, caddr_t), (u_int)mlen);
 		cp += mlen;
