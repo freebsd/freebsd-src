@@ -400,7 +400,7 @@ static int compute_sb_data(devvp, es, fs)
 #if 1
 #define V(v)
 #else
-#define V(v)  printf(#v"= %d\n", fs->v);
+#define V(v)  printf(#v"= %lu\n", (unsigned long)fs->v);
 #endif
 
     fs->s_blocksize = EXT2_MIN_BLOCK_SIZE << es->s_log_block_size;
