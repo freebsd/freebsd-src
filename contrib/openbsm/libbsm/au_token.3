@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#16 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#17 $
 .\"
 .Dd April 19, 2005
 .Dt AU_TOKEN 3
@@ -60,6 +60,7 @@
 .Nm au_to_sock_inet32 ,
 .Nm au_to_sock_inet128 ,
 .Nm au_to_sock_inet ,
+.Nm au_to_socket_ex ,
 .Nm au_to_subject32 ,
 .Nm au_to_subject64 ,
 .Nm au_to_subject ,
@@ -155,6 +156,8 @@
 .Fn au_to_sock_inet128 "struct sockaddr_in6 *so"
 .Ft "token_t *"
 .Fn au_to_sock_int "struct sockaddr_in *so"
+.Ft "token_t *"
+.Fn au_to_socket_ex "u_short so_domain" "u_short so_type" "struct sockaddr *sa_local" "struct sockaddr *sa_remote"
 .Ft "token_t *"
 .Fo au_to_subject32
 .Fa "au_id_t auid" "uid_t euid" "gid_t egid" "uid_t ruid"

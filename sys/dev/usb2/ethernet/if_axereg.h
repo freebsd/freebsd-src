@@ -161,9 +161,6 @@
 #define	AXE_CONFIG_IDX		0	/* config number 1 */
 #define	AXE_IFACE_IDX		0
 
-/* The interrupt endpoint is currently unused by the ASIX part. */
-#define	AXE_ENDPT_MAX		6
-
 struct axe_sframe_hdr {
 	uint16_t len;
 	uint16_t ilen;
@@ -171,6 +168,17 @@ struct axe_sframe_hdr {
 
 #define	GET_MII(sc)	((sc)->sc_miibus ?				\
 			    device_get_softc((sc)->sc_miibus) : NULL)
+
+/* The interrupt endpoint is currently unused by the ASIX part. */
+enum {
+	AXE_BULK_DT_WR,
+	AXE_BULK_DT_RD,
+	AXE_BULK_CS_WR,
+	AXE_BULK_CS_RD,
+	AXE_INTR_DT_RD,
+	AXE_INTR_CS_RD,
+	AXE_N_TRANSFER = 6,
+};
 
 struct axe_softc {
 	void   *sc_evilhack;		/* XXX this pointer must be first */
@@ -181,7 +189,7 @@ struct axe_softc {
 
 	struct ifnet *sc_ifp;
 	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[AXE_ENDPT_MAX];
+	struct usb2_xfer *sc_xfer[AXE_N_TRANSFER];
 	device_t sc_miibus;
 	device_t sc_dev;
 

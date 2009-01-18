@@ -316,6 +316,8 @@ tcp_init(void)
 	V_tcp_do_autorcvbuf = 1;
 	V_tcp_autorcvbuf_inc = 16*1024;
 	V_tcp_autorcvbuf_max = 256*1024;
+	V_tcp_do_rfc3465 = 1;
+	V_tcp_abc_l_var = 2;
 
 	V_tcp_mssdflt = TCP_MSS;
 #ifdef INET6

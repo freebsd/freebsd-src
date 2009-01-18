@@ -190,6 +190,55 @@
   </netband>
 </rd>
 
+<!-- FCC4 is 2.4GHz FCC w/ Public Safety Band (PSB) -->
+
+<rd id="fcc4">
+  <name>FCC4</name>
+  <sku>0x12</sku>
+  <netband mode="11b">
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_B</flags>
+    </band>
+  </netband>
+  <netband mode="11g">
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+  </netband>
+  <netband mode="11a">
+    <band>
+      <freqband ref="F1_4950_4980"/>
+      <maxpower>23</maxpower>
+    </band>
+    <band>
+      <freqband ref="F1_4945_4985_10"/>
+      <maxpower>27</maxpower>
+    </band>
+    <band>
+      <freqband ref="F1_4942_4987_5"/>
+      <maxpower>30</maxpower>
+    </band>
+  </netband>
+  <netband mode="11ng">
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+      <flags>IEEE80211_CHAN_HT20</flags>
+    </band>
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+      <flags>IEEE80211_CHAN_HT40</flags>
+    </band>
+  </netband>
+</rd>
+
 <rd id="japan">
   <name>JAPAN</name>
   <sku>0x40</sku>
@@ -1515,6 +1564,23 @@
   NB: keep sorted by starting frequency, legacy before HT 
 -->
 <shared-frequency-bands>
+<freqband id="F1_4942_4987_5">
+  <freqstart>4942</freqstart> <freqend>4987</freqend>
+  <chanwidth>5</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+  <flags>IEEE80211_CHAN_QUARTER</flags>
+</freqband>
+<freqband id="F1_4945_4985_10">
+  <freqstart>4945</freqstart> <freqend>4985</freqend>
+  <chanwidth>10</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+  <flags>IEEE80211_CHAN_HALF</flags>
+</freqband>
+<freqband id="F1_4950_4980">
+  <freqstart>4950</freqstart> <freqend>4980</freqend>
+  <chanwidth>20</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+</freqband>
 <freqband id="F1_5120_5240">
   <freqstart>5120</freqstart> <freqend>5240</freqend>
   <chanwidth>20</chanwidth> <chansep>20</chansep>

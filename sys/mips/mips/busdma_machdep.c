@@ -25,8 +25,6 @@
  *
  */
 
-#define NO_DMA
-
 /*-
  * Copyright (c) 1997, 1998, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
