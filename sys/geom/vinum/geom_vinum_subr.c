@@ -431,9 +431,6 @@ gv_plex_size(struct gv_plex *p)
 
 	KASSERT(p != NULL, ("gv_plex_size: NULL p"));
 
-	if (p->sdcount == 0)
-		return (0);
-
 	/* Adjust the size of our plex. */
 	size = 0;
 	sdcount = gv_sdcount(p, 1);

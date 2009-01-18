@@ -113,9 +113,9 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 
 	d = cursd->drive_sc;
 
-	/* XXX: Can't do a move without unmounting. Perhaps okay. */
-	if (gv_consumer_is_open(d->consumer) ||
-	    gv_consumer_is_open(destination->consumer)) {
+	if ((gv_consumer_is_open(d->consumer) ||
+	    gv_consumer_is_open(destination->consumer)) &&
+	    !(flags && GV_FLAG_F)) {
 		G_VINUM_DEBUG(0, "consumers on current and destination drive "
 		    " still open");
 		return (GV_ERR_ISBUSY);
@@ -180,6 +180,9 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 	}
 	gv_sd_to_plex(newsd, p);
 	LIST_INSERT_HEAD(&sc->subdisks, newsd, sd);
-
+	/* Update volume size of plex. */
+	if (p->vol_sc != NULL)
+		gv_update_vol_size(p->vol_sc, gv_vol_size(p->vol_sc));
+	gv_save_config(p->vinumconf);
 	return (0);
 }
