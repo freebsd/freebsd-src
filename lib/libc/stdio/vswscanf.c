@@ -66,6 +66,7 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 	char *mbstr;
 	size_t mlen;
 	int r;
+	const wchar_t *strp;
 
 	/*
 	 * XXX Convert the wide character string to multibyte, which
@@ -74,7 +75,8 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 	if ((mbstr = malloc(wcslen(str) * MB_CUR_MAX + 1)) == NULL)
 		return (EOF);
 	mbs = initial;
-	if ((mlen = wcsrtombs(mbstr, &str, SIZE_T_MAX, &mbs)) == (size_t)-1) {
+	strp = str;
+	if ((mlen = wcsrtombs(mbstr, &strp, SIZE_T_MAX, &mbs)) == (size_t)-1) {
 		free(mbstr);
 		return (EOF);
 	}

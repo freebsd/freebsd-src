@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.in#12 $
+# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.in#13 $
 #
 
 VPATH = @srcdir@
@@ -60,13 +60,15 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libbsm_la_LIBADD =
 am__libbsm_la_SOURCES_DIST = bsm_audit.c bsm_class.c bsm_control.c \
-	bsm_errno.c bsm_event.c bsm_flags.c bsm_io.c bsm_mask.c \
-	bsm_token.c bsm_user.c bsm_notify.c bsm_wrappers.c
+	bsm_domain.c bsm_errno.c bsm_event.c bsm_flags.c bsm_io.c \
+	bsm_mask.c bsm_socket_type.c bsm_token.c bsm_user.c \
+	bsm_notify.c bsm_wrappers.c
 @HAVE_AUDIT_SYSCALLS_TRUE@am__objects_1 = bsm_notify.lo \
 @HAVE_AUDIT_SYSCALLS_TRUE@	bsm_wrappers.lo
 am_libbsm_la_OBJECTS = bsm_audit.lo bsm_class.lo bsm_control.lo \
-	bsm_errno.lo bsm_event.lo bsm_flags.lo bsm_io.lo bsm_mask.lo \
-	bsm_token.lo bsm_user.lo $(am__objects_1)
+	bsm_domain.lo bsm_errno.lo bsm_event.lo bsm_flags.lo bsm_io.lo \
+	bsm_mask.lo bsm_socket_type.lo bsm_token.lo bsm_user.lo \
+	$(am__objects_1)
 libbsm_la_OBJECTS = $(am_libbsm_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(top_builddir)/config@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
@@ -199,18 +201,20 @@ top_srcdir = @top_srcdir@
 @USE_NATIVE_INCLUDES_FALSE@INCLUDES = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/sys
 @USE_NATIVE_INCLUDES_TRUE@INCLUDES = -I$(top_builddir) -I$(top_srcdir)
 lib_LTLIBRARIES = libbsm.la
-libbsm_la_SOURCES = bsm_audit.c bsm_class.c bsm_control.c bsm_errno.c \
-	bsm_event.c bsm_flags.c bsm_io.c bsm_mask.c bsm_token.c \
-	bsm_user.c $(am__append_1)
+libbsm_la_SOURCES = bsm_audit.c bsm_class.c bsm_control.c bsm_domain.c \
+	bsm_errno.c bsm_event.c bsm_flags.c bsm_io.c bsm_mask.c \
+	bsm_socket_type.c bsm_token.c bsm_user.c $(am__append_1)
 man3_MANS = \
 	au_class.3	\
 	au_control.3	\
+	au_domain.3	\
 	au_errno.3	\
 	au_event.3	\
 	au_free_token.3	\
 	au_io.3		\
 	au_mask.3	\
 	au_open.3	\
+	au_socket_type.3	\
 	au_token.3	\
 	au_user.3	\
 	libbsm.3
@@ -287,12 +291,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_audit.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_class.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_control.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_domain.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_errno.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_event.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_flags.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_io.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_mask.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_notify.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_socket_type.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_token.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_user.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsm_wrappers.Plo@am__quote@

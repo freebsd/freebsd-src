@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_util.h>
 
@@ -73,7 +72,7 @@ struct at91_udp_softc {
 };
 
 static void
-at91_vbus_interrupt(struct at91_udp_softc *sc)
+at91_vbus_poll(struct at91_udp_softc *sc)
 {
 	uint32_t temp;
 	uint8_t vbus_val;
@@ -85,8 +84,7 @@ at91_vbus_interrupt(struct at91_udp_softc *sc)
 	/* just forward it */
 
 	vbus_val = at91_pio_gpio_get(VBUS_BASE, VBUS_MASK);
-	(sc->sc_dci.sc_bus.methods->vbus_interrupt)
-	    (&sc->sc_dci.sc_bus, vbus_val);
+	at91dci_vbus_interrupt(&sc->sc_dci, vbus_val);
 }
 
 static void
@@ -145,9 +143,12 @@ at91_udp_attach(device_t dev)
 	sc->sc_dci.sc_pull_down = &at91_udp_pull_down;
 	sc->sc_dci.sc_pull_arg = sc;
 
-	/* get all DMA memory */
-
+	/* initialise some bus fields */
 	sc->sc_dci.sc_bus.parent = dev;
+	sc->sc_dci.sc_bus.devices = sc->sc_dci.sc_devices;
+	sc->sc_dci.sc_bus.devices_max = AT91_MAX_DEVICES;
+
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_dci.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
@@ -205,12 +206,6 @@ at91_udp_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_dci.sc_bus.bdev, &sc->sc_dci.sc_bus);
 
-	err = usb2_config_td_setup(&sc->sc_dci.sc_config_td, sc,
-	    &sc->sc_dci.sc_bus.bus_mtx, NULL, 0, 4);
-	if (err) {
-		device_printf(dev, "could not setup config thread!\n");
-		goto error;
-	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (void *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
@@ -224,10 +219,10 @@ at91_udp_attach(device_t dev)
 	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)at91_vbus_interrupt, sc, &sc->sc_vbus_intr_hdl);
+	    NULL, (void *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)at91_vbus_interrupt, sc, &sc->sc_vbus_intr_hdl);
+	    (void *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_vbus_intr_hdl = NULL;
@@ -241,7 +236,7 @@ at91_udp_attach(device_t dev)
 		goto error;
 	} else {
 		/* poll VBUS one time */
-		at91_vbus_interrupt(sc);
+		at91_vbus_poll(sc);
 	}
 	return (0);
 
@@ -305,8 +300,6 @@ at91_udp_detach(device_t dev)
 		    sc->sc_dci.sc_io_res);
 		sc->sc_dci.sc_io_res = NULL;
 	}
-	usb2_config_td_unsetup(&sc->sc_dci.sc_config_td);
-
 	usb2_bus_mem_free_all(&sc->sc_dci.sc_bus, NULL);
 
 	/* disable clocks */

@@ -486,6 +486,8 @@ libusb20_dev_close(struct libusb20_device *pdev)
 
 	pdev->is_opened = 0;
 
+	pdev->claimed_interfaces = 0;
+
 	return (error);
 }
 

@@ -327,7 +327,7 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 	    opt->got_power_save +
 	    opt->got_power_on +
 	    opt->got_power_off) > 1) {
-		err(1, "cannot only specify one of 'set_config', "
+		err(1, "can only specify one of 'set_config', "
 		    "'set_alt', 'reset', 'suspend', 'resume', "
 		    "'power_save', 'power_on' and 'power_off' "
 		    "at the same time!");
@@ -562,7 +562,7 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 	}
 
 	if (matches == 0) {
-		printf("No device match\n");
+		printf("No device match or lack of permissions.\n");
 	}
 done:
 	reset_options(opt);

@@ -60,7 +60,15 @@
  * don't match those in the ADMtek Pegasus manual: we consider the RX data
  * endpoint to be index 0 and work up from there.
  */
-#define	AUE_ENDPT_MAX		6
+enum {
+	AUE_BULK_DT_WR,
+	AUE_BULK_DT_RD,
+	AUE_BULK_CS_WR,
+	AUE_BULK_CS_RD,
+	AUE_INTR_DT_RD,
+	AUE_INTR_CS_RD,
+	AUE_N_TRANSFER = 6,
+};
 
 #define	AUE_INTR_PKTLEN		0x8
 
@@ -196,7 +204,6 @@ struct aue_rxpkt {
 	uint8_t	aue_rxstat;
 } __packed;
 
-
 struct aue_softc {
 	void   *sc_evilhack;		/* XXX this pointer must be first */
 
@@ -207,7 +214,7 @@ struct aue_softc {
 
 	struct ifnet *sc_ifp;
 	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[AUE_ENDPT_MAX];
+	struct usb2_xfer *sc_xfer[AUE_N_TRANSFER];
 	device_t sc_miibus;
 	device_t sc_dev;
 

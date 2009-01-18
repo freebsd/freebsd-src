@@ -22,8 +22,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -132,6 +134,8 @@ mips_cpu_init(void)
 
 	mips_icache_sync_all();
 	mips_dcache_wbinv_all();
+	/* Print some info about CPU */
+	cpu_identify();
 }
 
 void

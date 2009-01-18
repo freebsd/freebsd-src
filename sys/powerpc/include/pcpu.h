@@ -59,7 +59,8 @@ struct pmap;
 	register_t	pc_booke_critsave[BOOKE_CRITSAVE_LEN];		\
 	register_t	pc_booke_mchksave[CPUSAVE_LEN];			\
 	register_t	pc_booke_tlbsave[BOOKE_TLBSAVE_LEN];		\
-	register_t	pc_booke_tlb_level;
+	register_t	pc_booke_tlb_level;				\
+	int		pc_tid_next;
 
 /* Definitions for register offsets within the exception tmp save areas */
 #define	CPUSAVE_R28	0		/* where r28 gets saved */

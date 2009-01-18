@@ -34,6 +34,7 @@ dev/ofw/ofw_if.m		optional	aim
 dev/ofw/ofw_bus_subr.c		optional	aim
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
+dev/ofw/ofw_iicbus.c		optional	iicbus aim
 dev/ofw/ofw_standard.c		optional	aim
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_ocp.c	optional	quicc mpc85xx
@@ -84,7 +85,6 @@ powerpc/booke/interrupt.c	optional	e500
 powerpc/booke/locore.S		optional	e500 no-obj
 powerpc/booke/machdep.c		optional	e500
 powerpc/booke/pmap.c		optional	e500
-powerpc/booke/support.S		optional	e500
 powerpc/booke/swtch.S		optional	e500
 powerpc/booke/trap.c		optional	e500
 powerpc/booke/uio_machdep.c	optional	e500
@@ -113,6 +113,7 @@ powerpc/powermac/ata_dbdma.c	optional	powermac ata
 powerpc/powermac/dbdma.c	optional	powermac pci
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
+powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch

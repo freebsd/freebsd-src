@@ -56,11 +56,11 @@ static inline int
 teken_wcwidth(teken_char_t c __unused)
 {
 
-#ifdef TEKEN_CONS25
-	return (1);
-#else /* !TEKEN_CONS25 */
+#ifdef TEKEN_XTERM
 	return (c <= 0x1B) ? -1 : 1;
-#endif /* TEKEN_CONS25 */
+#else /* !TEKEN_XTERM */
+	return (1);
+#endif /* TEKEN_XTERM */
 }
 #endif /* TEKEN_UTF8 */
 
@@ -72,11 +72,11 @@ teken_wcwidth(teken_char_t c __unused)
 #define	TS_INSERT	0x02	/* Insert mode. */
 #define	TS_AUTOWRAP	0x04	/* Autowrap. */
 #define	TS_ORIGIN	0x08	/* Origin mode. */
-#ifdef TEKEN_CONS25
-#define	TS_WRAPPED	0x00	/* Simple line wrapping. */
-#else /* !TEKEN_CONS25 */
+#ifdef TEKEN_XTERM
 #define	TS_WRAPPED	0x10	/* Next character should be printed on col 0. */
-#endif /* TEKEN_CONS25 */
+#else /* !TEKEN_XTERM */
+#define	TS_WRAPPED	0x00	/* Simple line wrapping. */
+#endif /* TEKEN_XTERM */
 
 /* Character that blanks a cell. */
 #define	BLANK	' '

@@ -31,7 +31,6 @@
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_util.h>
 
@@ -51,14 +50,12 @@ struct musbotg_super_softc {
 };
 
 static void
-musbotg_vbus_interrupt(struct musbotg_super_softc *sc)
+musbotg_vbus_poll(struct musbotg_super_softc *sc)
 {
 	uint8_t vbus_val = 1;		/* fake VBUS on - TODO */
 
 	/* just forward it */
-
-	(sc->sc_otg.sc_bus.methods->vbus_interrupt)
-	    (&sc->sc_otg.sc_bus, vbus_val);
+	musbotg_vbus_interrupt(&sc->sc_otg, vbus_val);
 }
 
 static void
@@ -102,9 +99,12 @@ musbotg_attach(device_t dev)
 	sc->sc_otg.sc_clocks_off = &musbotg_clocks_off;
 	sc->sc_otg.sc_clocks_arg = sc;
 
-	/* get all DMA memory */
-
+	/* initialise some bus fields */
 	sc->sc_otg.sc_bus.parent = dev;
+	sc->sc_otg.sc_bus.devices = sc->sc_otg.sc_devices;
+	sc->sc_otg.sc_bus.devices_max = MUSB2_MAX_DEVICES;
+
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
@@ -133,12 +133,6 @@ musbotg_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_otg.sc_bus.bdev, &sc->sc_otg.sc_bus);
 
-	err = usb2_config_td_setup(&sc->sc_otg.sc_config_td, sc,
-	    &sc->sc_otg.sc_bus.bus_mtx, NULL, 0, 4);
-	if (err) {
-		device_printf(dev, "could not setup config thread!\n");
-		goto error;
-	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (void *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
@@ -158,7 +152,7 @@ musbotg_attach(device_t dev)
 		goto error;
 	} else {
 		/* poll VBUS one time */
-		musbotg_vbus_interrupt(sc);
+		musbotg_vbus_poll(sc);
 	}
 	return (0);
 
@@ -204,8 +198,6 @@ musbotg_detach(device_t dev)
 		    sc->sc_otg.sc_io_res);
 		sc->sc_otg.sc_io_res = NULL;
 	}
-	usb2_config_td_unsetup(&sc->sc_otg.sc_config_td);
-
 	usb2_bus_mem_free_all(&sc->sc_otg.sc_bus, NULL);
 
 	return (0);
