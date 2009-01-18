@@ -170,7 +170,8 @@ ate_attach(device_t dev)
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
 	int err;
-	u_char eaddr[6];
+	u_char eaddr[ETHER_ADDR_LEN];
+	uint32_t rnd;
 
 	sc->dev = dev;
 	err = ate_activate(dev);
@@ -191,8 +192,23 @@ ate_attach(device_t dev)
 	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 
 	if ((err = ate_get_mac(sc, eaddr)) != 0) {
-		device_printf(dev, "No MAC address set\n");
-		goto out;
+		/*
+		 * No MAC address configured. Generate the fake one.
+		 */
+		if  (bootverbose)
+			device_printf(dev,
+			    "Generating fake ethernet address.\n");
+		rnd = arc4random();
+
+		/*
+		 * Set OUI to Atmel.
+		 */
+		eaddr[0] = 0x00;
+		eaddr[1] = 0x04;
+		eaddr[2] = 0x25;
+		eaddr[3] = (rnd >> 16) & 0xff;
+		eaddr[4] = (rnd >> 8) & 0xff;
+		eaddr[5] = rnd & 0xff;
 	}
 	ate_set_mac(sc, eaddr);
 
@@ -586,24 +602,29 @@ ate_set_mac(struct ate_softc *sc, u_char *eaddr)
 static int
 ate_get_mac(struct ate_softc *sc, u_char *eaddr)
 {
+	bus_size_t sa_low_reg[] = { ETH_SA1L, ETH_SA2L, ETH_SA3L, ETH_SA4L };
+	bus_size_t sa_high_reg[] = { ETH_SA1H, ETH_SA2H, ETH_SA3H, ETH_SA4H };
 	uint32_t low, high;
+	int i;
 
 	/*
 	 * The boot loader setup the MAC with an address, if one is set in
-	 * the loader.  The TSC loader will also set the MAC address in a
-	 * similar way.  Grab the MAC address from the SA1[HL] registers.
+	 * the loader. Grab one MAC address from the SA[1-4][HL] registers.
 	 */
-	low = RD4(sc, ETH_SA1L);
-	high =  RD4(sc, ETH_SA1H);
-	if ((low | (high & 0xffff)) == 0)
-		return (ENXIO);
-	eaddr[0] = low & 0xff;
-	eaddr[1] = (low >> 8) & 0xff;
-	eaddr[2] = (low >> 16) & 0xff;
-	eaddr[3] = (low >> 24) & 0xff;
-	eaddr[4] = high & 0xff;
-	eaddr[5] = (high >> 8) & 0xff;
-	return (0);
+	for (i = 0; i < 4; i++) {
+		low = RD4(sc, sa_low_reg[i]);
+		high = RD4(sc, sa_high_reg[i]);
+		if ((low | (high & 0xffff)) != 0) {
+			eaddr[0] = low & 0xff;
+			eaddr[1] = (low >> 8) & 0xff;
+			eaddr[2] = (low >> 16) & 0xff;
+			eaddr[3] = (low >> 24) & 0xff;
+			eaddr[4] = high & 0xff;
+			eaddr[5] = (high >> 8) & 0xff;
+			return (0);
+		}
+	}
+	return (ENXIO);
 }
 
 static void
