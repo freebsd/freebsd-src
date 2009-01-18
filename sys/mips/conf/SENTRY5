@@ -73,8 +73,8 @@ options		INVARIANT_SUPPORT
 device		siba			# Sonics SiliconBackplane
 device		pci			# siba_pcib
 
-device		bfe			# XXX will build both pci and siba
-device		miibus			# attachments
+# device		bfe			# XXX will build both pci and siba
+# device		miibus			# attachments
 
 # pci devices
 # notyet:
