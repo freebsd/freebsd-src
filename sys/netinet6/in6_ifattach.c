@@ -904,10 +904,6 @@ in6_purgemaddrs(struct ifnet *ifp)
 	struct in6_multi *in6m;
 	struct in6_multi *oin6m;
 
-#ifdef DIAGNOSTIC
-	printf("%s: purging ifp %p\n", __func__, ifp);
-#endif
-
 	IFF_LOCKGIANT(ifp);
 	LIST_FOREACH_SAFE(in6m, &in6_multihead, in6m_entry, oin6m) {
 		if (in6m->in6m_ifp == ifp)
