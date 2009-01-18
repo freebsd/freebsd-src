@@ -202,7 +202,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Walk page table pages, set bits in vm_page_dump */
 	ptesize = 0;
 	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
+	for (va = VM_MIN_KERNEL_ADDRESS; va < kernel_vm_end; va += NBPDR) {
 		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
 		/*
 		 * We always write a page, even if it is zero. Each
@@ -274,7 +274,7 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.msgbufsize = msgbufp->msg_size;
 	mdhdr.bitmapsize = vm_page_dump_size;
 	mdhdr.ptesize = ptesize;
-	mdhdr.kernbase = KERNBASE;
+	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 
@@ -308,7 +308,7 @@ minidumpsys(struct dumperinfo *di)
 
 	/* Dump kernel page table pages */
 	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
+	for (va = VM_MIN_KERNEL_ADDRESS; va < kernel_vm_end; va += NBPDR) {
 		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
 		/* We always write a page, even if it is zero */
 		if ((pdp[i] & PG_V) == 0) {
