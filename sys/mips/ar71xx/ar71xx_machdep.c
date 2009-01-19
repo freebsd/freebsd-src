@@ -72,10 +72,10 @@ platform_identify(void)
 void
 platform_reset(void)
 {
-        volatile unsigned int * p = 
+	volatile unsigned int * p = 
 	    (void *)MIPS_PHYS_TO_KSEG1(AR71XX_RST_RESET);
 
-        *p = RST_RESET_CPU_COLD_RESET;
+	*p = RST_RESET_CPU_COLD_RESET;
 }
 
 void
@@ -103,36 +103,36 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	/* TODO: Get available memory from RedBoot. Is it possible? */
 	realmem = btoc(64*1024*1024);
-        /* phys_avail regions are in bytes */
-        phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
-        phys_avail[1] = ctob(realmem);
+	/* phys_avail regions are in bytes */
+	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+	phys_avail[1] = ctob(realmem);
 
-        physmem = realmem;
+	physmem = realmem;
 
 	/*
-         * ns8250 uart code uses DELAY so ticker should be inititalized 
-         * before cninit. And tick_init_params refers to hz, so * init_param1 
-         * should be called first.
-         */
-        init_param1();
+	 * ns8250 uart code uses DELAY so ticker should be inititalized 
+	 * before cninit. And tick_init_params refers to hz, so * init_param1 
+	 * should be called first.
+	 */
+	init_param1();
 	/* TODO: Get CPU freq from RedBoot. Is it possible? */
-        platform_counter_freq = 680000000UL;
-        mips_timer_init_params(platform_counter_freq, 0);
-        cninit();
+	platform_counter_freq = 680000000UL;
+	mips_timer_init_params(platform_counter_freq, 0);
+	cninit();
 
-        printf("arguments: \n");
+	printf("arguments: \n");
 	printf("  a0 = %08x\n", a0);
 	printf("  a1 = %08x\n", a1);
 	printf("  a2 = %08x\n", a2);
 	printf("  a3 = %08x\n", a3);
 
-        init_param2(physmem);
-        mips_cpu_init();
-        pmap_bootstrap();
-        mips_proc0_init();
-        mutex_init();
+	init_param2(physmem);
+	mips_cpu_init();
+	pmap_bootstrap();
+	mips_proc0_init();
+	mutex_init();
 
 #ifdef DDB
-        kdb_init();
+	kdb_init();
 #endif
 }
