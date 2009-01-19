@@ -45,8 +45,8 @@ YAMON		opt_global.h
 CFE		opt_global.h
 CFE_CONSOLE	opt_global.h
 
-KERNPHYSADDR	opt_global.h
-KERNVIRTADDR	opt_global.h
+KERNLOADADDR	opt_global.h
+TRAMPLOADADDR	opt_global.h
 PHYSADDR	opt_global.h
 SOFTFLOAT       opt_global.h
 
