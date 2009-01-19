@@ -418,14 +418,14 @@ re_gmii_readreg(device_t dev, int phy, int reg)
 
 	CSR_WRITE_4(sc, RL_PHYAR, reg << 16);
 
-	for (i = 0; i < RL_TIMEOUT; i++) {
+	for (i = 0; i < RL_PHY_TIMEOUT; i++) {
 		rval = CSR_READ_4(sc, RL_PHYAR);
 		if (rval & RL_PHYAR_BUSY)
 			break;
 		DELAY(100);
 	}
 
-	if (i == RL_TIMEOUT) {
+	if (i == RL_PHY_TIMEOUT) {
 		device_printf(sc->rl_dev, "PHY read failed\n");
 		return (0);
 	}
@@ -445,14 +445,14 @@ re_gmii_writereg(device_t dev, int phy, int reg, int data)
 	CSR_WRITE_4(sc, RL_PHYAR, (reg << 16) |
 	    (data & RL_PHYAR_PHYDATA) | RL_PHYAR_BUSY);
 
-	for (i = 0; i < RL_TIMEOUT; i++) {
+	for (i = 0; i < RL_PHY_TIMEOUT; i++) {
 		rval = CSR_READ_4(sc, RL_PHYAR);
 		if (!(rval & RL_PHYAR_BUSY))
 			break;
 		DELAY(100);
 	}
 
-	if (i == RL_TIMEOUT) {
+	if (i == RL_PHY_TIMEOUT) {
 		device_printf(sc->rl_dev, "PHY write failed\n");
 		return (0);
 	}
