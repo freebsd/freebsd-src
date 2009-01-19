@@ -942,7 +942,11 @@ options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
 options		NFSLOCKD		#Network Lock Manager
-options 	NTFS			#NT File System
+
+# NT File System. Read-mostly and it's not actively maintained.
+# For a better NTFS support consider sysutils/fusefs-ntfs port/package.
+options 	NTFS
+
 options 	NULLFS			#NULL filesystem
 # Broken (depends on NCP):
 #options 	NWFS			#NetWare filesystem
