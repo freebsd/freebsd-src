@@ -237,8 +237,8 @@ usbd_open_pipe_intr(usbd_interface_handle iface, u_int8_t address,
 	    USBD_NO_TIMEOUT, cb);
 	ipipe->intrxfer = xfer;
 	ipipe->repeat = 1;
-	err = usbd_transfer(xfer);
 	*pipe = ipipe;
+	err = usbd_transfer(xfer);
 	if (err != USBD_IN_PROGRESS && err)
 		goto bad2;
 	return (USBD_NORMAL_COMPLETION);
