@@ -618,7 +618,7 @@ kmeminit(void *dummy)
 		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
 
 	/*
-	 * Tune settings based on the kernel map's size at this time.
+	 * Tune settings based on the kmem map's size at this time.
 	 */
 	init_param3(vm_kmem_size / PAGE_SIZE);
 
