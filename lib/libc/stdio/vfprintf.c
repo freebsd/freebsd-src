@@ -251,6 +251,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	 * F:	at least two digits for decimal, at least one digit for hex
 	 */
 	char *decimal_point;	/* locale specific decimal point */
+	int decpt_len;		/* length of decimal_point */
 	int signflag;		/* true if float is negative */
 	union {			/* floating point arguments %[aAeEfFgG] */
 		double dbl;
@@ -389,6 +390,8 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 #ifndef NO_FLOATING_POINT
 	dtoaresult = NULL;
 	decimal_point = localeconv()->decimal_point;
+	/* The overwhelmingly common case is decpt_len == 1. */
+	decpt_len = (decimal_point[1] == '\0' ? 1 : strlen(decimal_point));
 #endif
 
 	/*
@@ -672,7 +675,7 @@ fp_common:
 				expsize = exponent(expstr, expt - 1, expchar);
 				size = expsize + prec;
 				if (prec > 1 || flags & ALT)
-					++size;
+					size += decpt_len;
 			} else {
 				/* space for digits before decimal point */
 				if (expt > 0)
@@ -681,7 +684,7 @@ fp_common:
 					size = 1;
 				/* space for decimal pt and following digits */
 				if (prec || flags & ALT)
-					size += prec + 1;
+					size += prec + decpt_len;
 				if (grouping && expt > 0) {
 					/* space for thousands' grouping */
 					nseps = nrepeats = 0;
@@ -920,7 +923,7 @@ number:			if ((dprec = prec) >= 0)
 				if (expt <= 0) {
 					PRINT(zeroes, 1);
 					if (prec || flags & ALT)
-						PRINT(decimal_point, 1);
+						PRINT(decimal_point,decpt_len);
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
@@ -945,14 +948,13 @@ number:			if ((dprec = prec) >= 0)
 							cp = dtoaend;
 					}
 					if (prec || flags & ALT)
-						PRINT(decimal_point,1);
+						PRINT(decimal_point,decpt_len);
 				}
 				PRINTANDPAD(cp, dtoaend, prec, zeroes);
 			} else {	/* %[eE] or sufficiently long %[gG] */
 				if (prec > 1 || flags & ALT) {
-					buf[0] = *cp++;
-					buf[1] = *decimal_point;
-					PRINT(buf, 2);
+					PRINT(cp++, 1);
+					PRINT(decimal_point, decpt_len);
 					PRINT(cp, ndig-1);
 					PAD(prec - ndig, zeroes);
 				} else	/* XeYYY */

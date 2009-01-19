@@ -74,6 +74,22 @@ static wchar_t	*__mbsconv(char *, int);
 #define	CHAR	wchar_t
 #include "printfcommon.h"
 
+static const mbstate_t initial_mbs;
+
+static inline wchar_t
+get_decpt(void)
+{
+	mbstate_t mbs;
+	wchar_t decpt;
+	int nconv;
+
+	mbs = initial_mbs;
+	nconv = mbrtowc(&decpt, localeconv()->decimal_point, MB_CUR_MAX, &mbs);
+	if (nconv == (size_t)-1 || nconv == (size_t)-2)
+		decpt = '.';    /* failsafe */
+	return (decpt);
+}
+
 /*
  * Flush out all the vectors defined by the given uio,
  * then reset it so that it can be reused.
@@ -147,7 +163,6 @@ __sbprintf(FILE *fp, const wchar_t *fmt, va_list ap)
 static wint_t
 __xfputwc(wchar_t wc, FILE *fp)
 {
-	static const mbstate_t initial;
 	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	struct __suio uio;
@@ -157,7 +172,7 @@ __xfputwc(wchar_t wc, FILE *fp)
 	if ((fp->_flags & __SSTR) == 0)
 		return (__fputwc(wc, fp));
 
-	mbs = initial;
+	mbs = initial_mbs;
 	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
@@ -179,7 +194,6 @@ __xfputwc(wchar_t wc, FILE *fp)
 static wchar_t *
 __mbsconv(char *mbsarg, int prec)
 {
-	static const mbstate_t initial;
 	mbstate_t mbs;
 	wchar_t *convbuf, *wcp;
 	const char *p;
@@ -199,7 +213,7 @@ __mbsconv(char *mbsarg, int prec)
 		 */
 		p = mbsarg;
 		insize = nchars = 0;
-		mbs = initial;
+		mbs = initial_mbs;
 		while (nchars != (size_t)prec) {
 			nconv = mbrlen(p, MB_CUR_MAX, &mbs);
 			if (nconv == 0 || nconv == (size_t)-1 ||
@@ -226,7 +240,7 @@ __mbsconv(char *mbsarg, int prec)
 		return (NULL);
 	wcp = convbuf;
 	p = mbsarg;
-	mbs = initial;
+	mbs = initial_mbs;
 	while (insize != 0) {
 		nconv = mbrtowc(wcp, p, insize, &mbs);
 		if (nconv == 0 || nconv == (size_t)-1 || nconv == (size_t)-2)
@@ -305,7 +319,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	 * D:	expchar holds this character; '\0' if no exponent, e.g. %f
 	 * F:	at least two digits for decimal, at least one digit for hex
 	 */
-	char *decimal_point;	/* locale specific decimal point */
+	wchar_t decimal_point;	/* locale specific decimal point */
 	int signflag;		/* true if float is negative */
 	union {			/* floating point arguments %[aAeEfFgG] */
 		double dbl;
@@ -438,7 +452,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	io_init(&io, fp);
 	ret = 0;
 #ifndef NO_FLOATING_POINT
-	decimal_point = localeconv()->decimal_point;
+	decimal_point = get_decpt();
 #endif
 
 	/*
@@ -965,10 +979,8 @@ number:			if ((dprec = prec) >= 0)
 			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
 				if (expt <= 0) {
 					PRINT(zeroes, 1);
-					if (prec || flags & ALT) {
-						buf[0] = *decimal_point;
-						PRINT(buf, 1);
-					}
+					if (prec || flags & ALT)
+						PRINT(&decimal_point, 1);
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
@@ -993,16 +1005,14 @@ number:			if ((dprec = prec) >= 0)
 						if (cp > convbuf + ndig)
 							cp = convbuf + ndig;
 					}
-					if (prec || flags & ALT) {
-						buf[0] = *decimal_point;
-						PRINT(buf, 1);
-					}
+					if (prec || flags & ALT)
+						PRINT(&decimal_point, 1);
 				}
 				PRINTANDPAD(cp, convbuf + ndig, prec, zeroes);
 			} else {	/* %[eE] or sufficiently long %[gG] */
 				if (prec > 1 || flags & ALT) {
 					buf[0] = *cp++;
-					buf[1] = *decimal_point;
+					buf[1] = decimal_point;
 					PRINT(buf, 2);
 					PRINT(cp, ndig-1);
 					PAD(prec - ndig, zeroes);
