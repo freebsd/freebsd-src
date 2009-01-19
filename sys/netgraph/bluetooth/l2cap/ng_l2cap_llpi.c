@@ -116,10 +116,14 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, 0);
 	if (error != 0) {
-		if ((error = ng_l2cap_lp_untimeout(con)) != 0)
-			return (error);
+		if (ng_l2cap_lp_untimeout(con) == 0)
+			ng_l2cap_free_con(con);
 
-		ng_l2cap_free_con(con);
+		/*
+		 * Do not free connection if ng_l2cap_lp_untimeout() failed
+		 * let timeout handler deal with it. Always return error to
+		 * the caller.
+		 */
 	}
 	
 	return (error);
@@ -213,8 +217,8 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 		NG_L2CAP_ALERT(
 "%s: %s - invalid LP_ConnectInd message size\n",
 			__func__, NG_NODE_NAME(l2cap->node));
-		error = EMSGSIZE;
-		goto out;
+
+		return (EMSGSIZE);
 	}
 
  	ep = (ng_hci_lp_con_ind_ep *) (msg->data);
@@ -227,8 +231,8 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 "Connection already exists, state=%d, con_handle=%d\n",
 			__func__, NG_NODE_NAME(l2cap->node), con->state, 
 			con->con_handle);
-		error = EEXIST;
-		goto out;
+
+		return (EEXIST);
 	}
 
 	/* Check if lower layer protocol is still connected */
@@ -236,24 +240,22 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 		NG_L2CAP_ERR(
 "%s: %s - hook \"%s\" is not connected or valid",
 			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
-		error = ENOTCONN;
-		goto out;
+
+		return (ENOTCONN);
 	}
 
 	/* Create and intialize new connection descriptor */
 	con = ng_l2cap_new_con(l2cap, &ep->bdaddr);
-	if (con == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	if (con == NULL)
+		return (ENOMEM);
 
 	/* Create and send LP_ConnectRsp event */
 	NG_MKMESSAGE(rsp, NGM_HCI_COOKIE, NGM_HCI_LP_CON_RSP,
 		sizeof(*rp), M_NOWAIT);
 	if (rsp == NULL) {
 		ng_l2cap_free_con(con);
-		error = ENOMEM;
-		goto out;
+
+		return (ENOMEM);
 	}
 
 	rp = (ng_hci_lp_con_rsp_ep *)(rsp->data);
@@ -266,14 +268,18 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, rsp, l2cap->hci, 0);
 	if (error != 0) {
-		if ((error = ng_l2cap_lp_untimeout(con)) != 0)
-			goto out;
+		if (ng_l2cap_lp_untimeout(con) == 0)
+			ng_l2cap_free_con(con);
 
-		ng_l2cap_free_con(con);
+		/*
+		 * Do not free connection if ng_l2cap_lp_untimeout() failed
+		 * let timeout handler deal with it. Always return error to
+		 * the caller.
+		 */
 	}
-out:
+
 	return (error);
-} /* ng_hci_lp_con_ind */
+} /* ng_l2cap_lp_con_ind */
 
 /*
  * Process LP_DisconnectInd event from the lower layer protocol. We have been
