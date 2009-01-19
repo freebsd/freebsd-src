@@ -43,7 +43,7 @@ PROVIDE (_DYNAMIC = 0);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0x80100000 + SIZEOF_HEADERS;
+  . = KERNLOADADDR + SIZEOF_HEADERS;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}

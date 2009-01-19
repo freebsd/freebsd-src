@@ -27,7 +27,6 @@ makeoptions	ARCH_FLAGS=-march=mips32
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 
-options		KERNVIRTADDR=0x80100000
 include		"../adm5120/std.adm5120"
 
 #hints		"GENERIC.hints"		#Default places to look for devices.
