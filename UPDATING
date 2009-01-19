@@ -8,6 +8,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090119:
+	NTFS has been removed from GENERIC kernel on amd64 to match
+	GENERIC on i386. Should not cause any issues since mount_ntfs(8)
+	will load ntfs.ko module automatically when NTFS support is
+	actually needed, unless ntfs.ko is not installed or security
+	level prohibits loading kernel modules. If either is the case,
+	"options NTFS" has to be added into kernel config.
+
 20090110:
 	powerd(8) was updated to get better SMP support.
 	Meanings of the -i and -r command line options were changed.
