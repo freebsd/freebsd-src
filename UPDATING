@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090119:
+	NTFS has been removed from GENERIC kernel on amd64 to match
+	GENERIC on i386. Should not cause any issues since mount_ntfs(8)
+	will load ntfs.ko module automatically when NTFS support is
+	actually needed, unless ntfs.ko is not installed or security
+	level prohibits loading kernel modules. If either is the case,
+	"options NTFS" has to be added into kernel config.
+
 20090115:
 	TCP Appropriate Byte Counting (RFC 3465) support added to kernel.
 	New field in struct tcpcb breaks ABI, so bump __FreeBSD_version to
