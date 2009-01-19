@@ -937,6 +937,7 @@ struct rl_softc {
 	CSR_WRITE_4(sc, offset, CSR_READ_4(sc, offset) & ~(val))
 
 #define RL_TIMEOUT		1000
+#define RL_PHY_TIMEOUT		2000
 
 /*
  * General constants that are fun to know.
