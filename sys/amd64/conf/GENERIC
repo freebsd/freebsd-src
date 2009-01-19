@@ -138,6 +138,7 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 # RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID
 device		arcmsr		# Areca SATA II RAID
+device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
 device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		hptmv		# Highpoint RocketRAID 182x
@@ -230,6 +231,7 @@ device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
 device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vge		# VIA VT612x gigabit Ethernet
