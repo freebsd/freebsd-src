@@ -49,20 +49,26 @@ static FILE *df;
 #endif /* __FreeBSD__ && _KERNEL */
 
 #include "teken.h"
+
 #ifdef TEKEN_UTF8
 #include "teken_wcwidth.h"
 #else /* !TEKEN_UTF8 */
-static inline int
-teken_wcwidth(teken_char_t c __unused)
-{
-
 #ifdef TEKEN_XTERM
-	return (c <= 0x1B) ? -1 : 1;
+#define	teken_wcwidth(c)	((c <= 0x1B) ? -1 : 1)
 #else /* !TEKEN_XTERM */
-	return (1);
+#define	teken_wcwidth(c)	(1)
 #endif /* TEKEN_XTERM */
-}
 #endif /* TEKEN_UTF8 */
+
+#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+#include "teken_scs.h"
+#else /* !(TEKEN_XTERM && TEKEN_UTF8) */
+#define	teken_scs_process(t, c)	(c)
+#define	teken_scs_restore(t)
+#define	teken_scs_save(t)
+#define	teken_scs_set(t, g, ts)
+#define	teken_scs_switch(t, g)
+#endif /* TEKEN_XTERM && TEKEN_UTF8 */
 
 /* Private flags for teken_format_t. */
 #define	TF_REVERSE	0x08
@@ -229,6 +235,14 @@ teken_input_char(teken_t *t, teken_char_t c)
 	case '\x0C':
 		teken_subr_newpage(t);
 		break;
+#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+	case '\x0E':
+		teken_scs_switch(t, 1);
+		break;
+	case '\x0F':
+		teken_scs_switch(t, 0);
+		break;
+#endif /* TEKEN_XTERM && TEKEN_UTF8 */
 	case '\r':
 		teken_subr_carriage_return(t);
 		break;
