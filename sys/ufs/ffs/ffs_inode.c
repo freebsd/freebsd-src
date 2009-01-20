@@ -305,8 +305,10 @@ ffs_truncate(vp, length, flags, cred, td)
 		vnode_pager_setsize(vp, length);
 		flags |= BA_CLRBUF;
 		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
-		if (error)
+		if (error) {
+			vnode_pager_setsize(vp, osize);
 			return (error);
+		}
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 		if (bp->b_bufsize == fs->fs_bsize)
