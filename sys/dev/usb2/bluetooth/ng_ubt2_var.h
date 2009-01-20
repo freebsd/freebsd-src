@@ -3,7 +3,7 @@
  */
 
 /*-
- * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ * Copyright (c) 2001-2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,95 +32,111 @@
  */
 
 #ifndef _NG_UBT_VAR_H_
-#define	_NG_UBT_VAR_H_
-
-/* pullup wrapper */
-#define	NG_UBT_M_PULLUP(m, s) \
-	do { \
-		if ((m)->m_len < (s)) \
-			(m) = m_pullup((m), (s)); \
-		if ((m) == NULL) { \
-			NG_UBT_ALERT("%s: %s - m_pullup(%d) failed\n", \
-				__func__, sc->sc_name, (s)); \
-		} \
-	} while (0)
+#define	_NG_UBT_VAR_H_	1
 
 /* Debug printf's */
-#define	NG_UBT_DEBUG(level, sc, fmt, ...) do { \
-    if ((sc)->sc_debug >= (level)) { \
-        printf("%s:%s:%d: " fmt, (sc)->sc_name, \
-	       __FUNCTION__, __LINE__,## __VA_ARGS__); \
-    } \
+#define	UBT_DEBUG(level, sc, fmt, ...)				\
+do {								\
+	if ((sc)->sc_debug >= (level))				\
+		printf("%s:%s:%d: " fmt, (sc)->sc_name,		\
+			__FUNCTION__, __LINE__,## __VA_ARGS__);	\
 } while (0)
 
-#define	NG_UBT_ALERT(...) NG_UBT_DEBUG(NG_UBT_ALERT_LEVEL, __VA_ARGS__)
-#define	NG_UBT_ERR(...)   NG_UBT_DEBUG(NG_UBT_ERR_LEVEL, __VA_ARGS__)
-#define	NG_UBT_WARN(...)  NG_UBT_DEBUG(NG_UBT_WARN_LEVEL, __VA_ARGS__)
-#define	NG_UBT_INFO(...)  NG_UBT_DEBUG(NG_UBT_INFO_LEVEL, __VA_ARGS__)
+#define	UBT_ALERT(...)		UBT_DEBUG(NG_UBT_ALERT_LEVEL, __VA_ARGS__)
+#define	UBT_ERR(...)		UBT_DEBUG(NG_UBT_ERR_LEVEL, __VA_ARGS__)
+#define	UBT_WARN(...)		UBT_DEBUG(NG_UBT_WARN_LEVEL, __VA_ARGS__)
+#define	UBT_INFO(...)		UBT_DEBUG(NG_UBT_INFO_LEVEL, __VA_ARGS__)
+
+#define UBT_MBUFQ_LOCK(sc)	mtx_lock(&(sc)->sc_mbufq_mtx)
+#define UBT_MBUFQ_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mbufq_mtx)
 
 /* Bluetooth USB control request type */
 #define	UBT_HCI_REQUEST		0x20
-#define	UBT_DEFAULT_QLEN	12
+#define	UBT_DEFAULT_QLEN	64
+#define	UBT_ISOC_NFRAMES	32	/* should be factor of 8 */
 
 /* Bluetooth USB defines */
-#define	UBT_IF_0_N_TRANSFER  7		/* units */
-#define	UBT_IF_1_N_TRANSFER  4		/* units */
-#define	UBT_ISOC_NFRAMES    25		/* units */
+enum {
+	/* Interface #0 transfers */
+	UBT_IF_0_BULK_DT_WR = 0,
+	UBT_IF_0_BULK_DT_RD,
+	UBT_IF_0_INTR_DT_RD,
+	UBT_IF_0_CTRL_DT_WR,
+	UBT_IF_0_BULK_CS_WR,
+	UBT_IF_0_BULK_CS_RD,
+	UBT_IF_0_INTR_CS_RD,
+	UBT_IF_0_N_TRANSFER,	/* number of interface 0's transfers */
+	
+	/* Interface #1 transfers */
+	UBT_IF_1_ISOC_DT_RD1 = UBT_IF_0_N_TRANSFER,
+	UBT_IF_1_ISOC_DT_RD2,
+	UBT_IF_1_ISOC_DT_WR1,
+	UBT_IF_1_ISOC_DT_WR2,
+
+	UBT_N_TRANSFER,		/* total number of transfers */
+
+	UBT_IF_1_N_TRANSFER = UBT_N_TRANSFER - UBT_IF_1_ISOC_DT_RD1,
+};
 
 /* USB device softc structure */
 struct ubt_softc {
+	uint8_t			sc_name[16];
+
 	/* State */
-	ng_ubt_node_debug_ep sc_debug;	/* debug level */
-	uint32_t sc_flags;		/* device flags */
-#define	UBT_NEED_FRAME_TYPE	(1 << 0)/* device required frame type */
-#define	UBT_HAVE_FRAME_TYPE UBT_NEED_FRAME_TYPE
-#define	UBT_FLAG_READ_STALL     (1 << 1)/* read transfer has stalled */
-#define	UBT_FLAG_WRITE_STALL    (1 << 2)/* write transfer has stalled */
-#define	UBT_FLAG_INTR_STALL     (1 << 3)/* interrupt transfer has stalled */
+	ng_ubt_node_debug_ep	sc_debug;	/* debug level */
 
-	ng_ubt_node_stat_ep sc_stat;	/* statistic */
-#define	NG_UBT_STAT_PCKTS_SENT(s)	(s).pckts_sent ++
-#define	NG_UBT_STAT_BYTES_SENT(s, n)	(s).bytes_sent += (n)
-#define	NG_UBT_STAT_PCKTS_RECV(s)	(s).pckts_recv ++
-#define	NG_UBT_STAT_BYTES_RECV(s, n)	(s).bytes_recv += (n)
-#define	NG_UBT_STAT_OERROR(s)		(s).oerrors ++
-#define	NG_UBT_STAT_IERROR(s)		(s).ierrors ++
-#define	NG_UBT_STAT_RESET(s)		bzero(&(s), sizeof((s)))
+	int			sc_flags;	/* device flags */
+#define	UBT_FLAG_READ_STALL	(1 << 0)	/* read transfer has stalled */
+#define	UBT_FLAG_WRITE_STALL	(1 << 1)	/* write transfer has stalled */
+#define	UBT_FLAG_INTR_STALL	(1 << 2)	/* inter transfer has stalled */
 
-	uint8_t	sc_name[16];
-
-	struct mtx sc_mtx;
+	ng_ubt_node_stat_ep	sc_stat;	/* statistic */
+#define	UBT_STAT_PCKTS_SENT(sc)		(sc)->sc_stat.pckts_sent ++
+#define	UBT_STAT_BYTES_SENT(sc, n)	(sc)->sc_stat.bytes_sent += (n)
+#define	UBT_STAT_PCKTS_RECV(sc)		(sc)->sc_stat.pckts_recv ++
+#define	UBT_STAT_BYTES_RECV(sc, n)	(sc)->sc_stat.bytes_recv += (n)
+#define	UBT_STAT_OERROR(sc)		(sc)->sc_stat.oerrors ++
+#define	UBT_STAT_IERROR(sc)		(sc)->sc_stat.ierrors ++
+#define	UBT_STAT_RESET(sc)	bzero(&(sc)->sc_stat, sizeof((sc)->sc_stat))
 
 	/* USB device specific */
-	struct usb2_xfer *sc_xfer_if_0[UBT_IF_0_N_TRANSFER];
-	struct usb2_xfer *sc_xfer_if_1[UBT_IF_1_N_TRANSFER];
+	struct mtx		sc_if_mtx[2];	/* interface locks */
+	struct usb2_xfer	*sc_xfer[UBT_N_TRANSFER];
 
-	/* Interrupt pipe (HCI events) */
-	struct mbuf *sc_intr_buffer;	/* interrupt buffer */
+	struct mtx		sc_mbufq_mtx;	/* lock for all queues */
 
-	/* Control pipe (HCI commands) */
-	struct ng_bt_mbufq sc_cmdq;	/* HCI command queue */
-#define	UBT_CTRL_BUFFER_SIZE (sizeof(ng_hci_cmd_pkt_t) + NG_HCI_CMD_PKT_SIZE)
+	/* HCI commands */
+	struct ng_bt_mbufq	sc_cmdq;	/* HCI command queue */
+#define	UBT_CTRL_BUFFER_SIZE	(sizeof(struct usb2_device_request) +	\
+				 sizeof(ng_hci_cmd_pkt_t) + NG_HCI_CMD_PKT_SIZE)
+#define	UBT_INTR_BUFFER_SIZE	(MCLBYTES-1)	/* reserve 1 byte for ID-tag */
 
-	/* Bulk in pipe (ACL data) */
-	struct mbuf *sc_bulk_in_buffer;	/* bulk-in buffer */
-
-	/* Bulk out pipe (ACL data) */
-	struct ng_bt_mbufq sc_aclq;	/* ACL data queue */
-#define	UBT_BULK_READ_BUFFER_SIZE (MCLBYTES-1)	/* reserve one byte for ID-tag */
+	/* ACL data */
+	struct ng_bt_mbufq	sc_aclq;	/* ACL data queue */
+#define	UBT_BULK_READ_BUFFER_SIZE (MCLBYTES-1)	/* reserve 1 byte for ID-tag */
 #define	UBT_BULK_WRITE_BUFFER_SIZE (MCLBYTES)
 
-	/* Isoc. out pipe (ACL data) */
-	struct ng_bt_mbufq sc_scoq;	/* SCO data queue */
-
-	/* Isoc. in pipe (ACL data) */
-	struct ng_bt_mbufq sc_sciq;	/* SCO data queue */
+	/* SCO data */
+	struct ng_bt_mbufq	sc_scoq;	/* SCO data queue */
+	struct mbuf		*sc_isoc_in_buffer; /* SCO reassembly buffer */
 
 	/* Netgraph specific */
-	node_p	sc_node;		/* pointer back to node */
-	hook_p	sc_hook;		/* upstream hook */
-};
-typedef struct ubt_softc ubt_softc_t;
-typedef struct ubt_softc *ubt_softc_p;
+	node_p			sc_node;	/* pointer back to node */
+	hook_p			sc_hook;	/* upstream hook */
 
-#endif					/* ndef _NG_UBT_VAR_H_ */
+	/* Glue */
+	int			sc_task_flags;	/* task flags */
+#define UBT_FLAG_T_PENDING	(1 << 0)	/* task pending */
+#define UBT_FLAG_T_STOP_ALL	(1 << 1)	/* stop all xfers */
+#define UBT_FLAG_T_START_ALL	(1 << 2)	/* start all read and isoc
+						   write xfers */
+#define UBT_FLAG_T_START_CTRL	(1 << 3)	/* start control xfer (write) */
+#define UBT_FLAG_T_START_BULK	(1 << 4)	/* start bulk xfer (write) */
+
+	struct task		sc_task;
+};
+typedef struct ubt_softc	ubt_softc_t;
+typedef struct ubt_softc *	ubt_softc_p;
+
+#endif /* ndef _NG_UBT_VAR_H_ */
+
