@@ -104,8 +104,7 @@
 
 /* Initial number of kernel page tables. */
 #ifndef NKPT
-/* 240 page tables needed to map 16G (120B "struct vm_page", 2M page tables). */
-#define	NKPT		240
+#define	NKPT		32
 #endif
 
 #define NKPML4E		1		/* number of kernel PML4 slots */

@@ -173,7 +173,7 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
 static int ndmpdp;
 static vm_paddr_t dmaplimit;
-vm_offset_t kernel_vm_end;
+vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
@@ -1517,25 +1517,34 @@ pmap_growkernel(vm_offset_t addr)
 	vm_paddr_t paddr;
 	vm_page_t nkpg;
 	pd_entry_t *pde, newpdir;
-	pdp_entry_t newpdp;
+	pdp_entry_t *pdpe;
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
-	if (kernel_vm_end == 0) {
-		kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
-		while ((*pmap_pde(kernel_pmap, kernel_vm_end) & PG_V) != 0) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
-			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
-				kernel_vm_end = kernel_map->max_offset;
-				break;                       
-			}
-		}
-	}
-	addr = roundup2(addr, PAGE_SIZE * NPTEPG);
+
+	/*
+	 * Return if "addr" is within the range of kernel page table pages
+	 * that were preallocated during pmap bootstrap.  Moreover, leave
+	 * "kernel_vm_end" and the kernel page table as they were.
+	 *
+	 * The correctness of this action is based on the following
+	 * argument: vm_map_findspace() allocates contiguous ranges of the
+	 * kernel virtual address space.  It calls this function if a range
+	 * ends after "kernel_vm_end".  If the kernel is mapped between
+	 * "kernel_vm_end" and "addr", then the range cannot begin at
+	 * "kernel_vm_end".  In fact, its beginning address cannot be less
+	 * than the kernel.  Thus, there is no immediate need to allocate
+	 * any new kernel page table pages between "kernel_vm_end" and
+	 * "KERNBASE".
+	 */
+	if (KERNBASE < addr && addr <= KERNBASE + NKPT * NBPDR)
+		return;
+
+	addr = roundup2(addr, NBPDR);
 	if (addr - 1 >= kernel_map->max_offset)
 		addr = kernel_map->max_offset;
 	while (kernel_vm_end < addr) {
-		pde = pmap_pde(kernel_pmap, kernel_vm_end);
-		if (pde == NULL) {
+		pdpe = pmap_pdpe(kernel_pmap, kernel_vm_end);
+		if ((*pdpe & PG_V) == 0) {
 			/* We need a new PDP entry */
 			nkpg = vm_page_alloc(NULL, kernel_vm_end >> PDPSHIFT,
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
@@ -1545,13 +1554,13 @@ pmap_growkernel(vm_offset_t addr)
 			if ((nkpg->flags & PG_ZERO) == 0)
 				pmap_zero_page(nkpg);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
-			newpdp = (pdp_entry_t)
+			*pdpe = (pdp_entry_t)
 				(paddr | PG_V | PG_RW | PG_A | PG_M);
-			*pmap_pdpe(kernel_pmap, kernel_vm_end) = newpdp;
 			continue; /* try again */
 		}
+		pde = pmap_pdpe_to_pde(pdpe, kernel_vm_end);
 		if ((*pde & PG_V) != 0) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+			kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 				kernel_vm_end = kernel_map->max_offset;
 				break;                       
@@ -1568,9 +1577,9 @@ pmap_growkernel(vm_offset_t addr)
 			pmap_zero_page(nkpg);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (paddr | PG_V | PG_RW | PG_A | PG_M);
-		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
+		pde_store(pde, newpdir);
 
-		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+		kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 			kernel_vm_end = kernel_map->max_offset;
 			break;                       
