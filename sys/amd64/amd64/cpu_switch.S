@@ -199,6 +199,7 @@ done_load_seg:
 	cmpq	PCB_FSBASE(%r8),%r9
 	jz	1f
 	/* Restore userland %fs */
+restore_fsbase:
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
@@ -281,7 +282,7 @@ load_seg:
 	movl	PCB_DS(%r8),%ds
 	movl	PCB_ES(%r8),%es
 	movl	PCB_FS(%r8),%fs
-	jmp	done_load_seg
+	jmp	restore_fsbase
 	/* Restore userland %gs while preserving kernel gsbase */
 2:	movq	PCPU(GS32P),%rax
 	movq	PCB_GS32SD(%r8),%rcx
