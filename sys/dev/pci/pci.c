@@ -2644,7 +2644,7 @@ pci_probe(device_t dev)
 	device_set_desc(dev, "PCI bus");
 
 	/* Allow other subclasses to override this driver. */
-	return (-1000);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
