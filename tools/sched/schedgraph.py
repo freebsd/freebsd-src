@@ -162,21 +162,32 @@ def ticks2sec(ticks):
 class Scaler(Frame):
 	def __init__(self, master, target):
 		Frame.__init__(self, master)
-		self.scale = Scale(self, command=self.scaleset,
-		    from_=1000, to_=10000000, orient=HORIZONTAL,
-		    resolution=1000)
+		self.scale = None
+		self.target = target
 		self.label = Label(self, text="Ticks per pixel")
 		self.label.pack(side=LEFT)
-		self.scale.pack(fill="both", expand=1)
-		self.target = target
-		self.scale.set(target.scaleget())
-		self.initialized = 1
+		self.resolution = 100
+		self.setmax(10000)
 
 	def scaleset(self, value):
 		self.target.scaleset(int(value))
 
 	def set(self, value):
 		self.scale.set(value)
+
+	def setmax(self, value):
+		#
+		# We can't reconfigure the to_ value so we delete the old
+		# window and make a new one when we resize.
+		#
+		if (self.scale != None):
+			self.scale.pack_forget()
+			self.scale.destroy()
+		self.scale = Scale(self, command=self.scaleset,
+		    from_=100, to_=value, orient=HORIZONTAL,
+		    resolution=self.resolution)
+		self.scale.pack(fill="both", expand=1)
+		self.scale.set(self.target.scaleget())
 
 class Status(Frame):
 	def __init__(self, master):
@@ -726,6 +737,11 @@ class CountEvent(Event):
 			return (xpos)
 		color = colormap.lookup("count")
 		self.duration = duration = next.timestamp - self.timestamp
+		if (duration < 0):
+			duration = 0
+			print "Unsynchronized timestamp"
+			print self.cpu, self.timestamp
+			print next.cpu, next.timestamp
 		self.attrs.insert(0, ("count", self.count))
 		self.attrs.insert(1, ("duration", ticks2sec(duration)))
 		delta = duration / canvas.ratio
@@ -882,6 +898,7 @@ class KTRFile:
 		self.crit = {}
 		self.stathz = 0
 		self.eventcnt = 0
+		self.taghash = {}
 
 		self.parse(file)
 		self.fixup()
@@ -956,7 +973,8 @@ class KTRFile:
 			if (dat == None):
 				dat = dat1
 			if (self.checkstamp(timestamp) == 0):
-				print "Bad timestamp at", lineno, ":", line, 
+				print "Bad timestamp at", lineno, ":",
+				print cpu, timestamp 
 				continue
 			#
 			# Build the table of optional attributes
@@ -1021,20 +1039,22 @@ class KTRFile:
 		timestamp = int(timestamp)
 		if (self.timestamp_f == None):
 			self.timestamp_f = timestamp;
-		if (self.timestamp_l != None and timestamp > self.timestamp_l):
+		if (self.timestamp_l != None and
+		    timestamp -2048> self.timestamp_l):
 			return (0)
 		self.timestamp_l = timestamp;
 		return (1)
 
 	def makeid(self, group, id, type):
-		for source in sources:
-			if (source.name == id and source.group == group):
-				return source
+		tag = group + id
+		if (self.taghash.has_key(tag)):
+			return self.taghash[tag]
 		if (type == "counter"):
 			source = Counter(group, id)
 		else:
 			source = EventSource(group, id)
 		sources.append(source)
+		self.taghash[tag] = source
 		return (source)
 
 	def findid(self, id):
@@ -1053,7 +1073,7 @@ class KTRFile:
 			return int(clockfreq * oneghz)
 
 		# Check for a discovered clock
-		if (self.stathz != None):
+		if (self.stathz != 0):
 			return (self.timespan() / self.ticks[0]) * int(self.stathz)
 		# Pretend we have a 1ns clock
 		print "WARNING: No clock discovered and no frequency ",
@@ -1313,8 +1333,16 @@ class SchedGraph(Frame):
 		self.names.draw()
 		self.display.draw()
 		self.status.startup("")
-		self.scale.set(250000)
+		#
+		# Configure scale related values
+		#
+		scalemax = ktrfile.timespan() / int(self.display["width"])
+		width = int(root.geometry().split('x')[0])
+		self.constwidth = width - int(self.display["width"])
+		self.scale.setmax(scalemax)
+		self.scale.set(scalemax)
 		self.display.xview_moveto(0)
+		self.bind("<Configure>", self.resize)
 
 	def mousepress(self, event):
 		self.clicksource = self.sourceat(event.y)
@@ -1452,8 +1480,7 @@ class SchedGraph(Frame):
 			source.hidden = 0
 			size += sz
 			idx += 1
-		self.names.updatescroll()
-		self.display.updatescroll()
+		self.updatescroll()
 		self.status.set("")
 
 	#
@@ -1496,8 +1523,7 @@ class SchedGraph(Frame):
 				if (nstart >= stop):
 					break;
 				self.sourceshift(source, -size)
-		self.names.updatescroll()
-		self.display.updatescroll()
+		self.updatescroll()
 		self.status.set("")
 
 	def sourcehide(self, source):
@@ -1530,8 +1556,7 @@ class SchedGraph(Frame):
 			if (nstart < start):
 				continue;
 			self.sourceshift(source, off)
-		self.names.updatescroll()
-		self.display.updatescroll()
+		self.updatescroll()
 		self.status.set("")
 
 	def sourceat(self, ypos):
@@ -1550,6 +1575,15 @@ class SchedGraph(Frame):
 	def display_yview(self, *args):
 		self.names.yview(*args)
 		self.display.yview(*args)
+
+	def resize(self, *args):
+		width = int(root.geometry().split('x')[0])
+		scalemax = ktrfile.timespan() / (width - self.constwidth)
+		self.scale.setmax(scalemax)
+
+	def updatescroll(self):
+		self.names.updatescroll()
+		self.display.updatescroll()
 
 	def setcolor(self, tag, color):
 		self.display.setcolor(tag, color)
