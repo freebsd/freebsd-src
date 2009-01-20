@@ -199,9 +199,10 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8169, RL_8169, "8169"},
 	{ RL_HWREV_8169S, RL_8169, "8169S"},
 	{ RL_HWREV_8110S, RL_8169, "8110S"},
-	{ RL_HWREV_8169_8110SB, RL_8169, "8169SB"},
-	{ RL_HWREV_8169_8110SC, RL_8169, "8169SC"},
-	{ RL_HWREV_8169_8110SBL, RL_8169, "8169SBL"},
+	{ RL_HWREV_8169_8110SB, RL_8169, "8169SB/8110SB"},
+	{ RL_HWREV_8169_8110SC, RL_8169, "8169SC/8110SC"},
+	{ RL_HWREV_8169_8110SBL, RL_8169, "8169SBL/8110SBL"},
+	{ RL_HWREV_8169_8110SCE, RL_8169, "8169SC/8110SC"},
 	{ RL_HWREV_8100, RL_8139, "8100"},
 	{ RL_HWREV_8101, RL_8139, "8101"},
 	{ RL_HWREV_8100E, RL_8169, "8100E"},
@@ -688,12 +689,10 @@ re_reset(struct rl_softc *sc)
 	if (i == RL_TIMEOUT)
 		device_printf(sc->rl_dev, "reset never completed!\n");
 
-	if ((sc->rl_flags & RL_FLAG_PHY8169) != 0)
+	if ((sc->rl_flags & RL_FLAG_MACRESET) != 0)
 		CSR_WRITE_1(sc, 0x82, 1);
-	if ((sc->rl_flags & RL_FLAG_PHY8110S) != 0) {
-		CSR_WRITE_1(sc, 0x82, 1);
-		re_gmii_writereg(sc->rl_dev, 1, 0x0B, 0);
-	}
+	if (sc->rl_hwrev == RL_HWREV_8169S)
+		re_gmii_writereg(sc->rl_dev, 1, 0x0b, 0);
 }
 
 #ifdef RE_DIAG
@@ -1209,12 +1208,22 @@ re_attach(device_t dev)
 
 	hw_rev = re_hwrevs;
 	hwrev = CSR_READ_4(sc, RL_TXCFG);
-	device_printf(dev, "Chip rev. 0x%08x\n", hwrev & 0x7c800000);
+	switch (hwrev & 0x70000000) {
+	case 0x00000000:
+	case 0x10000000:
+		device_printf(dev, "Chip rev. 0x%08x\n", hwrev & 0xfc800000);
+		hwrev &= (RL_TXCFG_HWREV | 0x80000000);
+		break;
+	default:
+		device_printf(dev, "Chip rev. 0x%08x\n", hwrev & 0x7c800000);
+		hwrev &= RL_TXCFG_HWREV;
+		break;
+	}
 	device_printf(dev, "MAC rev. 0x%08x\n", hwrev & 0x00700000);
-	hwrev &= RL_TXCFG_HWREV;
 	while (hw_rev->rl_desc != NULL) {
 		if (hw_rev->rl_rev == hwrev) {
 			sc->rl_type = hw_rev->rl_type;
+			sc->rl_hwrev = hw_rev->rl_rev;
 			break;
 		}
 		hw_rev++;
@@ -1228,9 +1237,6 @@ re_attach(device_t dev)
 	switch (hw_rev->rl_rev) {
 	case RL_HWREV_8139CPLUS:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER;
-		break;
-	case RL_HWREV_8110S:
-		sc->rl_flags |= RL_FLAG_PHY8110S;
 		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
@@ -1273,14 +1279,16 @@ re_attach(device_t dev)
 		 */
 		sc->rl_flags |= RL_FLAG_NOJUMBO;
 		break;
+	case RL_HWREV_8169_8110SB:
+	case RL_HWREV_8169_8110SBL:
+	case RL_HWREV_8169_8110SC:
+	case RL_HWREV_8169_8110SCE:
+		sc->rl_flags |= RL_FLAG_PHYWAKE;
+		/* FALLTHROUGH */
 	case RL_HWREV_8169:
 	case RL_HWREV_8169S:
-		sc->rl_flags |= RL_FLAG_PHY8169;
-		break;
-	case RL_HWREV_8169_8110SB:
-	case RL_HWREV_8169_8110SC:
-	case RL_HWREV_8169_8110SBL:
-		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHY8169;
+	case RL_HWREV_8110S:
+		sc->rl_flags |= RL_FLAG_MACRESET;
 		break;
 	default:
 		break;
@@ -2484,6 +2492,7 @@ re_init_locked(struct rl_softc *sc)
 {
 	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
+	uint32_t		reg;
 	uint16_t		cfg;
 	union {
 		uint32_t align_dummy;
@@ -2519,6 +2528,17 @@ re_init_locked(struct rl_softc *sc)
 	} else
 		cfg |= RL_CPLUSCMD_RXENB | RL_CPLUSCMD_TXENB;
 	CSR_WRITE_2(sc, RL_CPLUS_CMD, cfg);
+	if (sc->rl_hwrev == RL_HWREV_8169_8110SC ||
+	    sc->rl_hwrev == RL_HWREV_8169_8110SCE) {
+		reg = 0x000fff00;
+		if ((CSR_READ_1(sc, RL_CFG2) & RL_CFG2_PCI66MHZ) != 0)
+			reg |= 0x000000ff;
+		if (sc->rl_hwrev == RL_HWREV_8169_8110SCE)
+			reg |= 0x00f00000;
+		CSR_WRITE_4(sc, 0x7c, reg);
+		/* Disable interrupt mitigation. */
+		CSR_WRITE_2(sc, 0xe2, 0);
+	}
 	/*
 	 * Disable TSO if interface MTU size is greater than MSS
 	 * allowed in controller.
