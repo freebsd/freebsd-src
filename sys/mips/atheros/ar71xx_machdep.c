@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/ar71xx/ar71xxreg.h>
+#include <mips/atheros/ar71xxreg.h>
 
 extern int *edata;
 extern int *end;

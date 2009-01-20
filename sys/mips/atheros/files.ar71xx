@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+mips/atheros/ar71xx_machdep.c	standard
+mips/atheros/uart_cpu_ar71xx.c	optional uart

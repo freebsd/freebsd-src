@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-mips/ar71xx/ar71xx_machdep.c	standard
-mips/ar71xx/uart_cpu_ar71xx.c	optional uart

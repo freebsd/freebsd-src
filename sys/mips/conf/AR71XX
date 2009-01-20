@@ -9,7 +9,7 @@ options 	ISA_MIPS32
 makeoptions	TARGET_BIG_ENDIAN
 options		KERNLOADADDR=0x80100000
 
-files		"../ar71xx/files.ar71xx"
+files		"../atheros/files.ar71xx"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	MODULES_OVERRIDE=""
