@@ -64,7 +64,7 @@
  *    Netgraph point of view). Any variable that is only modified from the
  *    Netgraph context does not require any additonal locking. It is generally
  *    *NOT* allowed to grab *ANY* additional lock. Whatever you do, *DO NOT*
- *    not grab any long-sleep lock in the Netgraph context. In fact, the only
+ *    grab any long-sleep lock in the Netgraph context. In fact, the only
  *    lock that is allowed in the Netgraph context is the sc_mbufq_mtx lock.
  *
  * 3) Taskqueue context. This is where ubt_task runs. Since we are NOT allowed
