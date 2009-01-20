@@ -230,7 +230,7 @@ static void
 kiic_writereg(struct kiic_softc *sc, u_int reg, u_int val)
 {
 	bus_write_1(sc->sc_reg, sc->sc_regstep * reg, val);
-	DELAY(10); /* XXX why? */
+	DELAY(10); /* register access delay */
 }
 
 static u_int
@@ -289,18 +289,22 @@ kiic_intr(void *xsc)
 	}
 
 	if (isr & I2C_INT_DATA) {
-		if (sc->sc_resid > 0) {
-			if (sc->sc_flags & I2C_READING) {
+		if (sc->sc_flags & I2C_READING) {
+			if (sc->sc_resid > 0) {
 				*sc->sc_data++ = kiic_readreg(sc, DATA);
 				sc->sc_resid--;
+			}
+
+		} else {
+			if (sc->sc_resid == 0) {
+				x = kiic_readreg(sc, CONTROL);
+				x |= I2C_CT_STOP;
+				kiic_writereg(sc, CONTROL, x);
 			} else {
 				kiic_writereg(sc, DATA, *sc->sc_data++);
 				sc->sc_resid--;
 			}
 		}
-
-		if (sc->sc_resid == 0)
-			wakeup(sc->sc_dev);
 	}
 
 	if (isr & I2C_INT_STOP) {
@@ -317,7 +321,7 @@ static int
 kiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
 	struct kiic_softc *sc;
-	int i, x, timo;
+	int i, x, timo, err;
 	uint8_t addr;
 
 	sc = device_get_softc(dev);
@@ -341,6 +345,7 @@ kiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		sc->sc_flags = I2C_BUSY;
 		addr = msgs[i].slave;
 		timo = 1000 + sc->sc_resid * 200;
+		timo += 100000;
 
 		if (msgs[i].flags & IIC_M_RD) {
 			sc->sc_flags |= I2C_READING;
@@ -353,19 +358,13 @@ kiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		x = kiic_readreg(sc, CONTROL) | I2C_CT_ADDR;
 		kiic_writereg(sc, CONTROL, x);
 
-		mtx_sleep(dev, &sc->sc_mutex, 0, "kiic", timo);
-
-		if (!(sc->sc_flags & I2C_READING)) {
-			x = kiic_readreg(sc, CONTROL) | I2C_CT_STOP;
-			kiic_writereg(sc, CONTROL, x);
-		}
-
-		mtx_sleep(dev, &sc->sc_mutex, 0, "kiic", timo);
-
+		err = mtx_sleep(dev, &sc->sc_mutex, 0, "kiic", timo);
+		
 		msgs[i].len -= sc->sc_resid;
 
-		if (sc->sc_flags & I2C_ERROR) {
-			device_printf(sc->sc_dev, "I2C_ERROR\n");
+		if ((sc->sc_flags & I2C_ERROR) || err == EWOULDBLOCK) {
+			device_printf(sc->sc_dev, "I2C error\n");
+			sc->sc_flags = 0;
 			mtx_unlock(&sc->sc_mutex);
 			return (-1);
 		}
