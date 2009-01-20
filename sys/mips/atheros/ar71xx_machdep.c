@@ -72,10 +72,14 @@ platform_identify(void)
 void
 platform_reset(void)
 {
-	volatile unsigned int * p = 
-	    (void *)MIPS_PHYS_TO_KSEG1(AR71XX_RST_RESET);
+	volatile uint32_t * p = 
+	    (void *)MIPS_PHYS_TO_KSEG1(ATH_RST_RESET);
+	uint32_t reg = *p;
 
-	*p = RST_RESET_CPU_COLD_RESET;
+	*p = reg | RST_RESET_FULL_CHIP_RESET;
+	/* Wait for reset */
+	while(1)
+		;
 }
 
 void
