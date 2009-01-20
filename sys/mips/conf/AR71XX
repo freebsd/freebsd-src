@@ -7,7 +7,7 @@ cpu		CPU_MIPS4KC
 options		CPU_NOFPU
 options 	ISA_MIPS32
 makeoptions	TARGET_BIG_ENDIAN
-options		KERNLOADADDR=0x80100000
+makeoptions	KERNLOADADDR=0x80050000
 
 files		"../atheros/files.ar71xx"
 
