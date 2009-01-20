@@ -489,6 +489,12 @@ cache_enter(dvp, vp, cnp)
 	if (!doingcache)
 		return;
 
+	/*
+	 * Avoid blowout in namecache entries.
+	 */
+	if (numcache >= desiredvnodes * 2)
+		return;
+
 	if (cnp->cn_nameptr[0] == '.') {
 		if (cnp->cn_namelen == 1) {
 			return;
