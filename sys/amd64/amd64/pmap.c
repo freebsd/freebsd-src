@@ -171,7 +171,6 @@ struct pmap kernel_pmap_store;
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
-static int nkpt;
 static int ndmpdp;
 static vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end;
@@ -516,7 +515,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_pml4 = (pdp_entry_t *) (KERNBASE + KPML4phys);
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
-	nkpt = NKPT;
 
 	/*
 	 * Reserve some special page table entries/VA space for temporary
@@ -1524,10 +1522,8 @@ pmap_growkernel(vm_offset_t addr)
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
 		kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
-		nkpt = 0;
 		while ((*pmap_pde(kernel_pmap, kernel_vm_end) & PG_V) != 0) {
 			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
-			nkpt++;
 			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 				kernel_vm_end = kernel_map->max_offset;
 				break;                       
@@ -1541,7 +1537,7 @@ pmap_growkernel(vm_offset_t addr)
 		pde = pmap_pde(kernel_pmap, kernel_vm_end);
 		if (pde == NULL) {
 			/* We need a new PDP entry */
-			nkpg = vm_page_alloc(NULL, nkpt,
+			nkpg = vm_page_alloc(NULL, kernel_vm_end >> PDPSHIFT,
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
@@ -1568,9 +1564,6 @@ pmap_growkernel(vm_offset_t addr)
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
-
-		nkpt++;
-
 		if ((nkpg->flags & PG_ZERO) == 0)
 			pmap_zero_page(nkpg);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
