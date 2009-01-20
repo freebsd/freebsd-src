@@ -70,7 +70,11 @@ struct pixel {
 };
 
 #define NCOLS	80
+#ifdef TEKEN_XTERM
+#define NROWS	24
+#else /* !TEKEN_XTERM */
 #define NROWS	25
+#endif /* TEKEN_XTERM */
 struct pixel buffer[NCOLS][NROWS];
 
 static int ptfd;
@@ -104,7 +108,7 @@ printchar(const teken_pos_t *p)
 	if (px->a.ta_format & TF_BLINK)
 		attr |= A_BLINK;
 
-	bkgdset(attr | COLOR_PAIR(px->a.ta_fgcolor + 8 * px->a.ta_bgcolor + 1));
+	bkgdset(attr | COLOR_PAIR(px->a.ta_fgcolor + 8 * px->a.ta_bgcolor));
 	mvaddch(p->tp_row, p->tp_col, px->c);
 
 	move(y, x);
@@ -301,7 +305,7 @@ main(int argc __unused, char *argv[] __unused)
 	start_color();
 	for (i = 0; i < 8; i++)
 		for (j = 0; j < 8; j++)
-			init_pair(i + 8 * j + 1, ccolors[i], ccolors[j]);
+			init_pair(i + 8 * j, ccolors[i], ccolors[j]);
 
 	redraw_border();
 

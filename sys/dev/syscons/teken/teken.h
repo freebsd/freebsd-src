@@ -117,6 +117,10 @@ typedef struct {
 	tf_respond_t	*tf_respond;
 } teken_funcs_t;
 
+#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+typedef teken_char_t teken_scs_t(teken_char_t);
+#endif /* TEKEN_XTERM && TEKEN_UTF8 */
+
 /*
  * Terminal state.
  */
@@ -146,12 +150,18 @@ struct __teken {
 	teken_span_t	 t_originreg;
 
 #define	T_NUMCOL	160
-	unsigned int	t_tabstops[T_NUMCOL / (sizeof(unsigned int) * 8)];
+	unsigned int	 t_tabstops[T_NUMCOL / (sizeof(unsigned int) * 8)];
 
 #ifdef TEKEN_UTF8
-	unsigned int	t_utf8_left;
-	teken_char_t	t_utf8_partial;
+	unsigned int	 t_utf8_left;
+	teken_char_t	 t_utf8_partial;
 #endif /* TEKEN_UTF8 */
+
+#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+	unsigned int	 t_curscs;
+	teken_scs_t	*t_saved_curscs;
+	teken_scs_t	*t_scs[2];
+#endif /* TEKEN_XTERM && TEKEN_UTF8 */
 };
 
 /* Initialize teken structure. */
