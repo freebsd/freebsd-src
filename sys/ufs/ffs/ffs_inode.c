@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -151,6 +152,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	struct fs *fs;
 	struct buf *bp;
 	struct ufsmount *ump;
+	vm_object_t object;
 	int needextclean, softdepslowdown, extblocks;
 	int offset, size, level, nblocks;
 	int i, error, allerror;
@@ -205,6 +207,13 @@ ffs_truncate(vp, length, flags, cred, td)
 			(void) chkdq(ip, -extblocks, NOCRED, 0);
 #endif
 			vinvalbuf(vp, V_ALT, 0, 0);
+			if ((object = vp->v_object) != NULL) {
+				VM_OBJECT_LOCK(object);
+				vm_object_page_remove(object,
+				    OFF_TO_IDX(lblktosize(fs, -extblocks)), 0,
+				    FALSE);
+				VM_OBJECT_UNLOCK(object);
+			}
 			ip->i_din2->di_extsize = 0;
 			for (i = 0; i < NXADDR; i++) {
 				oldblks[i] = ip->i_din2->di_extb[i];
