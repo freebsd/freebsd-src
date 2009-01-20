@@ -879,7 +879,6 @@ struct rl_softc {
 	int			rl_txstart;
 	uint32_t		rl_flags;
 #define	RL_FLAG_MSI		0x0001
-#define	RL_FLAG_INVMAR		0x0004
 #define	RL_FLAG_PHYWAKE		0x0008
 #define	RL_FLAG_NOJUMBO		0x0010
 #define	RL_FLAG_PAR		0x0020
