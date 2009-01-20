@@ -71,6 +71,16 @@ DSR	Device Status Report			^[ [ ? n	r
 ECH	Erase character				^[ [ X		n
 ED	Erase display				^[ [ J		r
 EL	Erase line				^[ [ K		r
+G0SCS0	G0 SCS Special Graphics			^[ ( 0
+G0SCS1	G0 SCS US ASCII				^[ ( 1
+G0SCS2	G0 SCS Special Graphics			^[ ( 2
+G0SCSA	G0 SCS UK National			^[ ( A
+G0SCSB	G0 SCS US ASCII				^[ ( B
+G1SCS0	G1 SCS Special Graphics			^[ ) 0
+G1SCS1	G1 SCS US ASCII				^[ ) 1
+G1SCS2	G1 SCS Special Graphics			^[ ) 2
+G1SCSA	G1 SCS UK National			^[ ) A
+G1SCSB	G1 SCS US ASCII				^[ ) B
 HPA	Horizontal Position Absolute		^[ [ G		n
 HPA	Horizontal Position Absolute		^[ [ `		n
 HTS	Horizontal Tab Set			^[ H
@@ -81,16 +91,6 @@ NEL	Next line				^[ E
 RI	Reverse index				^[ M
 RIS	Reset to Initial State			^[ c
 RM	Reset Mode				^[ [ l		r
-SCS	SCS					^[ ( 0
-SCS	SCS					^[ ( 1
-SCS	SCS					^[ ( 2
-SCS	SCS					^[ ( A
-SCS	SCS					^[ ( B
-SCS	SCS					^[ ) 0
-SCS	SCS					^[ ) 1
-SCS	SCS					^[ ) 2
-SCS	SCS					^[ ) A
-SCS	SCS					^[ ) B
 SD	Pan Up					^[ [ T		n
 SGR	Set Graphic Rendition			^[ [ m		v
 SM	Set Mode				^[ [ h		r
