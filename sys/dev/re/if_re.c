@@ -657,7 +657,7 @@ re_set_rxmode(struct rl_softc *sc)
 		 * write the hash pattern in reverse order for those
 		 * devices.
 		 */
-		if ((sc->rl_flags & RL_FLAG_INVMAR) != 0) {
+		if ((sc->rl_flags & RL_FLAG_PCIE) != 0) {
 			h = bswap32(hashes[0]);
 			hashes[0] = bswap32(hashes[1]);
 			hashes[1] = h;
@@ -1234,22 +1234,21 @@ re_attach(device_t dev)
 		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
-		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
-		    RL_FLAG_PHYWAKE | RL_FLAG_FASTETHER;
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
+		    RL_FLAG_FASTETHER;
 		break;
 	case RL_HWREV_8102E:
 	case RL_HWREV_8102EL:
-		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
-		    RL_FLAG_PHYWAKE | RL_FLAG_PAR | RL_FLAG_DESCV2 |
-		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP;
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
 		sc->rl_flags |= RL_FLAG_WOLRXENB;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168_SPIN3:
-		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
-		    RL_FLAG_MACSTAT;
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_MACSTAT;
 		break;
 	case RL_HWREV_8168C_SPIN2:
 		sc->rl_flags |= RL_FLAG_MACSLEEP;
@@ -1260,9 +1259,8 @@ re_attach(device_t dev)
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
-		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
-		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
-		    RL_FLAG_CMDSTOP;
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP;
 		/*
 		 * These controllers support jumbo frame but it seems
 		 * that enabling it requires touching additional magic
