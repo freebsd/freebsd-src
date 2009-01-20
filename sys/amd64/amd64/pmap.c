@@ -601,7 +601,6 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
-	m->md.pv_list_count = 0;
 }
 
 /*
@@ -1694,7 +1693,6 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 			if (TAILQ_EMPTY(&m->md.pv_list))
 				vm_page_flag_clear(m, PG_WRITEABLE);
-			m->md.pv_list_count--;
 			free_pv_entry(pmap, pv);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
@@ -1842,7 +1840,6 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 	}
 	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found"));
 	TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-	m->md.pv_list_count--;
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		vm_page_flag_clear(m, PG_WRITEABLE);
 	free_pv_entry(pmap, pv);
@@ -1862,7 +1859,6 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv = get_pv_entry(pmap, FALSE);
 	pv->pv_va = va;
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-	m->md.pv_list_count++;
 }
 
 /*
@@ -1879,7 +1875,6 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count++;
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -2119,7 +2114,6 @@ pmap_remove_all(vm_page_t m)
 		pmap_invalidate_page(pmap, pv->pv_va);
 		pmap_free_zero_pages(free);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count--;
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -3029,7 +3023,6 @@ pmap_remove_pages(pmap_t pmap)
 				PV_STAT(pv_entry_spare++);
 				pv_entry_count--;
 				pc->pc_map[field] |= bitmask;
-				m->md.pv_list_count--;
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_flag_clear(m, PG_WRITEABLE);
