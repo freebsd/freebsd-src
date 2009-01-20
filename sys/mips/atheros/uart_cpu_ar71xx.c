@@ -65,7 +65,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	/* Bad MIPS, no IO for MIPS */
 	uart_bus_space_io = 0;
-	uart_bus_space_mem = MIPS_PHYS_TO_KSEG1(AR71XX_UART_ADDR) + 3;
-	di->bas.bsh = MIPS_PHYS_TO_KSEG1(AR71XX_UART_ADDR) + 3;
+	uart_bus_space_mem = MIPS_PHYS_TO_KSEG1(ATH_UART_ADDR) + 3;
+	di->bas.bsh = MIPS_PHYS_TO_KSEG1(ATH_UART_ADDR) + 3;
 	return (0);
 }
