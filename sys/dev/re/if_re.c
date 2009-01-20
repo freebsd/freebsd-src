@@ -266,7 +266,7 @@ static int re_miibus_readreg	(device_t, int, int);
 static int re_miibus_writereg	(device_t, int, int, int);
 static void re_miibus_statchg	(device_t);
 
-static void re_setmulti		(struct rl_softc *);
+static void re_set_rxmode		(struct rl_softc *);
 static void re_reset		(struct rl_softc *);
 static void re_setwol		(struct rl_softc *);
 static void re_clrwol		(struct rl_softc *);
@@ -607,26 +607,23 @@ re_miibus_statchg(device_t dev)
 }
 
 /*
- * Program the 64-bit multicast hash filter.
+ * Set the RX configuration and 64-bit multicast hash filter.
  */
 static void
-re_setmulti(struct rl_softc *sc)
+re_set_rxmode(struct rl_softc *sc)
 {
 	struct ifnet		*ifp;
-	int			h = 0;
-	u_int32_t		hashes[2] = { 0, 0 };
 	struct ifmultiaddr	*ifma;
-	u_int32_t		rxfilt;
-	int			mcnt = 0;
+	uint32_t		hashes[2] = { 0, 0 };
+	uint32_t		h, rxfilt;
 
 	RL_LOCK_ASSERT(sc);
 
 	ifp = sc->rl_ifp;
 
+	rxfilt = RL_RXCFG_CONFIG | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_BROAD;
 
-	rxfilt = CSR_READ_4(sc, RL_RXCFG);
-	rxfilt &= ~(RL_RXCFG_RX_ALLPHYS | RL_RXCFG_RX_MULTI);
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		if (ifp->if_flags & IFF_PROMISC)
 			rxfilt |= RL_RXCFG_RX_ALLPHYS;
 		/*
@@ -635,17 +632,10 @@ re_setmulti(struct rl_softc *sc)
 		 * promiscuous mode.
 		 */
 		rxfilt |= RL_RXCFG_RX_MULTI;
-		CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
-		CSR_WRITE_4(sc, RL_MAR0, 0xFFFFFFFF);
-		CSR_WRITE_4(sc, RL_MAR4, 0xFFFFFFFF);
-		return;
+		hashes[0] = hashes[1] = 0xffffffff;
+		goto done;
 	}
 
-	/* first, zot all the existing hash bits */
-	CSR_WRITE_4(sc, RL_MAR0, 0);
-	CSR_WRITE_4(sc, RL_MAR4, 0);
-
-	/* now program new ones */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -656,31 +646,29 @@ re_setmulti(struct rl_softc *sc)
 			hashes[0] |= (1 << h);
 		else
 			hashes[1] |= (1 << (h - 32));
-		mcnt++;
 	}
 	IF_ADDR_UNLOCK(ifp);
 
-	if (mcnt)
+	if (hashes[0] != 0 || hashes[1] != 0) {
+		/*
+		 * For some unfathomable reason, RealTek decided to
+		 * reverse the order of the multicast hash registers
+		 * in the PCI Express parts.  This means we have to
+		 * write the hash pattern in reverse order for those
+		 * devices.
+		 */
+		if ((sc->rl_flags & RL_FLAG_INVMAR) != 0) {
+			h = bswap32(hashes[0]);
+			hashes[0] = bswap32(hashes[1]);
+			hashes[1] = h;
+		}
 		rxfilt |= RL_RXCFG_RX_MULTI;
-	else
-		rxfilt &= ~RL_RXCFG_RX_MULTI;
-
-	CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
-
-	/*
-	 * For some unfathomable reason, RealTek decided to reverse
-	 * the order of the multicast hash registers in the PCI Express
-	 * parts. This means we have to write the hash pattern in reverse
-	 * order for those devices.
-	 */
-
-	if ((sc->rl_flags & RL_FLAG_INVMAR) != 0) {
-		CSR_WRITE_4(sc, RL_MAR0, bswap32(hashes[1]));
-		CSR_WRITE_4(sc, RL_MAR4, bswap32(hashes[0]));
-	} else {
-		CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
-		CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
 	}
+
+done:
+	CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
+	CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
+	CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
 }
 
 static void
@@ -2498,7 +2486,6 @@ re_init_locked(struct rl_softc *sc)
 {
 	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
-	u_int32_t		rxcfg = 0;
 	uint16_t		cfg;
 	union {
 		uint32_t align_dummy;
@@ -2583,7 +2570,7 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 
 	/*
-	 * Set the initial TX and RX configuration.
+	 * Set the initial TX configuration.
 	 */
 	if (sc->rl_testmode) {
 		if (sc->rl_type == RL_8169)
@@ -2597,32 +2584,10 @@ re_init_locked(struct rl_softc *sc)
 
 	CSR_WRITE_1(sc, RL_EARLY_TX_THRESH, 16);
 
-	CSR_WRITE_4(sc, RL_RXCFG, RL_RXCFG_CONFIG);
-
-	/* Set the individual bit to receive frames for this host only. */
-	rxcfg = CSR_READ_4(sc, RL_RXCFG);
-	rxcfg |= RL_RXCFG_RX_INDIV;
-
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
-		rxcfg |= RL_RXCFG_RX_ALLPHYS;
-	else
-		rxcfg &= ~RL_RXCFG_RX_ALLPHYS;
-	CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-
 	/*
-	 * Set capture broadcast bit to capture broadcast frames.
+	 * Set the initial RX configuration.
 	 */
-	if (ifp->if_flags & IFF_BROADCAST)
-		rxcfg |= RL_RXCFG_RX_BROAD;
-	else
-		rxcfg &= ~RL_RXCFG_RX_BROAD;
-	CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-
-	/*
-	 * Program the multicast filter, if necessary.
-	 */
-	re_setmulti(sc);
+	re_set_rxmode(sc);
 
 #ifdef DEVICE_POLLING
 	/*
@@ -2761,7 +2726,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 				if (((ifp->if_flags ^ sc->rl_if_flags)
 				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
-					re_setmulti(sc);
+					re_set_rxmode(sc);
 			} else
 				re_init_locked(sc);
 		} else {
@@ -2774,7 +2739,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		RL_LOCK(sc);
-		re_setmulti(sc);
+		re_set_rxmode(sc);
 		RL_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
