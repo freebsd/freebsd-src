@@ -140,15 +140,16 @@
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
  * 0xffff804020101000 - 0xfffffeffffffffff   unused
  * 0xffffff0000000000 - 0xffffff7fffffffff   512GB direct map mappings
- * 0xffffff8000000000 - 0xffffffff7fffffff   unused (510GB)
- * 0xffffffff80000000 - 0xffffffffffffffff   2GB kernel map
+ * 0xffffff8000000000 - 0xfffffffe7fffffff   unused (506GB)
+ * 0xfffffffe80000000 - 0xffffffffffffffff   6GB kernel map
  *
  * Within the kernel map:
+ *
  * 0xffffffff80000000                        KERNBASE
  */
 
 #define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-1, NPDEPG-1, NPTEPG-1)
-#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, KPDPI, 0, 0)
+#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-6, 0, 0)
 
 #define	DMAP_MIN_ADDRESS	KVADDR(DMPML4I, 0, 0, 0)
 #define	DMAP_MAX_ADDRESS	KVADDR(DMPML4I+1, 0, 0, 0)
@@ -187,7 +188,8 @@
  * Ceiling on amount of kmem_map kva space.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(400 * 1024 * 1024)
+#define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 3 / 5)
 #endif
 
 /* initial pagein size of beginning of executable file */
