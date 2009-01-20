@@ -127,7 +127,7 @@ ata_attach(device_t dev)
 
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
-	pause("attach", 1);
+	pause("atatch", 1);
     ATA_RESET(dev);
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
