@@ -26,11 +26,32 @@
 #ifndef _AR71XX_REG_H_
 #define _AR71XX_REG_H_
 
-#define	AR71XX_UART_ADDR	0x18020000
+#define ATH_READ_REG(reg) \
+    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
 
-#define AR71XX_RST_RESET	0x18060024
+#define ATH_WRITE_REG(reg, val) \
+    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
+
+#define	ATH_UART_ADDR	0x18020000
+
+/* APB registers */
+/* 
+ * APB interrupt status and mask register and interrupt bit numbers for 
+ */
+#define ATH_MISC_INTR_STATUS	0x18060010
+#define ATH_MISC_INTR_MASK	0x18060014
+#define		ATH_INT_MISC_TIMER	0
+#define		ATH_INT_MISC_ERROR	1
+#define		ATH_INT_MISC_GPIO	2
+#define		ATH_INT_MISC_UART	3
+#define		ATH_INT_MISC_WATCHDOG	4
+#define		ATH_INT_MISC_PERF	5
+#define		ATH_INT_MISC_OHCI	6
+#define		ATH_INT_MISC_DMA	7
+
+
+#define ATH_RST_RESET	0x18060024
 #define		RST_RESET_CPU_COLD_RESET	(1 << 20) /* Cold reset */
 #define		RST_RESET_FULL_CHIP_RESET	(1 << 24) /* Same as pulling
 							     the reset pin */
-
 #endif /* _AR71XX_REG_H_ */
