@@ -574,6 +574,10 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  NO_INQUIRY
 	},
+	{ USB_VENDOR_NETAC, USB_PRODUCT_NETAC_ONLYDISK, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  IGNORE_RESIDUE
+	},
 	{ USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_CLIK_40, RID_WILDCARD,
 	  UMASS_PROTO_ATAPI,
 	  NO_INQUIRY
@@ -605,6 +609,10 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	{ USB_VENDOR_ONSPEC, USB_PRODUCT_ONSPEC_CFSM_READER2, RID_WILDCARD,
 	  UMASS_PROTO_SCSI,
 	  NO_QUIRKS
+	},
+	{ USB_VENDOR_ONSPEC, USB_PRODUCT_ONSPEC_SDS_HOTFIND_D, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  NO_GETMAXLUN | NO_SYNCHRONIZE_CACHE
 	},
 	{ USB_VENDOR_ONSPEC, USB_PRODUCT_ONSPEC_MDCFE_B_CF_READER, RID_WILDCARD,
 	  UMASS_PROTO_SCSI,
@@ -1264,7 +1272,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		return(UMATCH_NONE);
 	}
 
-	return(UMATCH_DEVCLASS_DEVSUBCLASS_DEVPROTO);
+	return(UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
 }
 
 static int
@@ -1276,6 +1284,7 @@ umass_match(device_t self)
 	sc->sc_dev = self;
 	if (uaa->iface == NULL)
 		return(UMATCH_NONE);
+	
 	return(umass_match_proto(sc, uaa->iface, uaa->device));
 }
 
@@ -3276,17 +3285,6 @@ umass_cam_quirk_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	xpt_done(ccb);
 }
 
-static int
-umass_driver_load(module_t mod, int what, void *arg)
-{
-	switch (what) {
-	case MOD_UNLOAD:
-	case MOD_LOAD:
-	default:
-		return(usbd_driver_load(mod, what, arg));
-	}
-}
-
 /*
  * SCSI specific functions
  */
@@ -3526,7 +3524,7 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 
 /* (even the comment is missing) */
 
-DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, umass_driver_load, 0);
+DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, usbd_driver_load, 0);
 
 
 
