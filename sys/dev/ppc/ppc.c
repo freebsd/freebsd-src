@@ -34,9 +34,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/interrupt.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 
 #include <machine/bus.h>
@@ -119,6 +121,7 @@ ppc_ecp_sync(device_t dev)
 	int i, r;
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
+	PPC_ASSERT_LOCKED(ppc);
 	if (!(ppc->ppc_avm & PPB_ECP) && !(ppc->ppc_dtm & PPB_ECP))
 		return;
 
@@ -474,7 +477,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 
 	    /* First try to change the port address to that requested... */
 
-	    switch(ppc->ppc_base) {
+	    switch (ppc->ppc_base) {
 		case 0x378:
 		val &= 0xfc;
 		break;
@@ -1320,6 +1323,7 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 
 #define INCR_PC (mi ++)		/* increment program counter */
 
+	PPC_ASSERT_LOCKED(ppc);
 	mi = *p_msq;
 	for (;;) {
 		switch (mi->opcode) {
@@ -1388,8 +1392,11 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			break;
 
 		case MS_OP_ADELAY:
-			if (mi->arg[0].i)
+			if (mi->arg[0].i) {
+				PPC_UNLOCK(ppc);
 				pause("ppbdelay", mi->arg[0].i * (hz/1000));
+				PPC_LOCK(ppc);
+			}
 			INCR_PC;
 			break;
 
@@ -1521,8 +1528,10 @@ ppcintr(void *arg)
 	 * XXX: If DMA is in progress should we just complete that w/o
 	 * doing this?
 	 */
-	if (ppc->ppc_child_handlers > 0) {
-		intr_event_execute_handlers(curproc, ppc->ppc_intr_event);
+	PPC_LOCK(ppc);
+	if (ppc->ppc_intr_hook != NULL &&
+	    ppc->ppc_intr_hook(ppc->ppc_intr_arg) == 0) {
+		PPC_UNLOCK(ppc);
 		return;
 	}
 
@@ -1536,6 +1545,7 @@ ppcintr(void *arg)
 
 	/* don't use ecp mode with IRQENABLE set */
 	if (ctr & IRQENABLE) {
+		PPC_UNLOCK(ppc);
 		return;
 	}
 
@@ -1550,6 +1560,7 @@ ppcintr(void *arg)
 			ppc->ppc_irqstat &= ~PPC_IRQ_nFAULT;
 		} else {
 			/* shall be handled by underlying layers XXX */
+			PPC_UNLOCK(ppc);
 			return;
 		}
 	}
@@ -1585,6 +1596,7 @@ ppcintr(void *arg)
 		/* classic interrupt I/O */
 		ppc->ppc_irqstat &= ~PPC_IRQ_FIFO;
 	}
+	PPC_UNLOCK(ppc);
 
 	return;
 }
@@ -1606,6 +1618,7 @@ ppc_reset_epp(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
+	PPC_ASSERT_LOCKED(ppc);
 	ppc_reset_epp_timeout(ppc);
 
 	return;
@@ -1616,6 +1629,7 @@ ppc_setmode(device_t dev, int mode)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
+	PPC_ASSERT_LOCKED(ppc);
 	switch (ppc->ppc_type) {
 	case PPC_TYPE_SMCLIKE:
 		return (ppc_smclike_setmode(ppc, mode));
@@ -1796,8 +1810,9 @@ int
 ppc_attach(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
-	device_t ppbus;
 	int error;
+
+	mtx_init(&ppc->ppc_lock, device_get_nameunit(dev), "ppc", MTX_DEF);
 
 	device_printf(dev, "%s chipset (%s) in %s mode%s\n",
 		      ppc_models[ppc->ppc_model], ppc_avms[ppc->ppc_avm],
@@ -1809,36 +1824,25 @@ ppc_attach(device_t dev)
 			      ppc->ppc_fifo, ppc->ppc_wthr, ppc->ppc_rthr);
 
 	if (ppc->res_irq) {
-		/*
-		 * Create an interrupt event to manage the handlers of
-		 * child devices.
-		 */
-		error = intr_event_create(&ppc->ppc_intr_event, ppc, 0, -1,
-		    NULL, NULL, NULL, NULL, "%s:", device_get_nameunit(dev));
-		if (error) {
-			device_printf(dev,
-			    "failed to create interrupt event: %d\n", error);
-			return (error);
-		}
-
 		/* default to the tty mask for registration */	/* XXX */
-		error = bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY,
-		    NULL, ppcintr, ppc, &ppc->intr_cookie);
+		error = bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY |
+		    INTR_MPSAFE, NULL, ppcintr, ppc, &ppc->intr_cookie);
 		if (error) {
 			device_printf(dev,
 			    "failed to register interrupt handler: %d\n",
 			    error);
+			mtx_destroy(&ppc->ppc_lock);
 			return (error);
 		}
 	}
 
 	/* add ppbus as a child of this isa to parallel bridge */
-	ppbus = device_add_child(dev, "ppbus", -1);
+	ppc->ppbus = device_add_child(dev, "ppbus", -1);
 
 	/*
 	 * Probe the ppbus and attach devices found.
 	 */
-	device_probe_and_attach(ppbus);
+	device_probe_and_attach(ppc->ppbus);
 
 	return (0);
 }
@@ -1876,6 +1880,8 @@ ppc_detach(device_t dev)
 				     ppc->res_drq);
 	}
 
+	mtx_destroy(&ppc->ppc_lock);
+
 	return (0);
 }
 
@@ -1884,6 +1890,7 @@ ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(ppcdev);
 
+	PPC_ASSERT_LOCKED(ppc);
 	switch (iop) {
 	case PPB_OUTSB_EPP:
 	    bus_write_multi_1(ppc->res_ioport, PPC_EPP_DATA, addr, cnt);
@@ -1953,7 +1960,37 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 
 	switch (index) {
 	case PPC_IVAR_EPP_PROTO:
+		PPC_ASSERT_LOCKED(ppc);
 		*val = (u_long)ppc->ppc_epp;
+		break;
+	case PPC_IVAR_LOCK:
+		*val = (uintptr_t)&ppc->ppc_lock;
+		break;
+	default:
+		return (ENOENT);
+	}
+
+	return (0);
+}
+
+int
+ppc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
+{
+	struct ppc_data *ppc = (struct ppc_data *)device_get_softc(bus);
+
+	switch (index) {
+	case PPC_IVAR_INTR_HANDLER:
+		PPC_ASSERT_LOCKED(ppc);
+		if (dev != ppc->ppbus)
+			return (EINVAL);
+		if (val == 0) {
+			ppc->ppc_intr_hook = NULL;
+			break;
+		}
+		if (ppc->ppc_intr_hook != NULL)
+			return (EBUSY);
+		ppc->ppc_intr_hook = (void *)val;
+		ppc->ppc_intr_arg = device_get_softc(dev);
 		break;
 	default:
 		return (ENOENT);
@@ -1999,49 +2036,6 @@ ppc_release_resource(device_t bus, device_t child, int type, int rid,
 		break;
 	}
 	return (EINVAL);
-}
-
-/*
- * If a child wants to add a handler for our IRQ, add it to our interrupt
- * event.  Otherwise, fail the request.
- */
-int
-ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-    driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
-{
-	struct ppc_data *ppc = DEVTOSOFTC(bus);
-	int error;
-
-	if (r != ppc->res_irq)
-		return (EINVAL);
-
-	/* We don't allow filters. */
-	if (filt != NULL)
-		return (EINVAL);
-
-	error = intr_event_add_handler(ppc->ppc_intr_event,
-	    device_get_nameunit(child), NULL, ihand, arg, intr_priority(flags),
-	    flags, cookiep);
-	if (error == 0)
-		ppc->ppc_child_handlers++;
-	return (error);
-}
-
-int
-ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *cookie)
-{
-	struct ppc_data *ppc = DEVTOSOFTC(bus);
-	int error;
-
-	if (r != ppc->res_irq)
-		return (EINVAL);
-
-	KASSERT(intr_handler_source(cookie) == ppc,
-	    ("ppc_teardown_intr: source mismatch"));
-	error = intr_event_remove_handler(cookie);
-	if (error == 0)
-		ppc->ppc_child_handlers--;
-	return (error);
 }
 
 MODULE_DEPEND(ppc, ppbus, 1, 1, 1);

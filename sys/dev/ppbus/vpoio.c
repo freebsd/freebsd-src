@@ -609,6 +609,7 @@ vpoio_attach(struct vpoio_data *vpo)
 	/*
 	 * Initialize mode dependent in/out microsequences
 	 */
+	ppb_lock(ppbus);
 	if ((error = ppb_request_bus(ppbus, vpo->vpo_dev, PPB_WAIT)))
 		goto error;
 
@@ -636,6 +637,7 @@ vpoio_attach(struct vpoio_data *vpo)
 	ppb_release_bus(ppbus, vpo->vpo_dev);
 
 error:
+	ppb_unlock(ppbus);
 	return (error);
 }
 
