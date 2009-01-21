@@ -1,0 +1,12 @@
+# $FreeBSD$
+hint.apb.0.at="nexus0"
+hint.apb.0.maddr=0x18000000
+hint.apb.0.msize=0x01000000
+hint.apb.0.irq=4
+
+# uart0
+hint.uart.0.at="apb0"
+# see atheros/uart_cpu_ar71xx.c why +3
+hint.uart.0.maddr=0x18020003
+hint.uart.0.msize=0x18
+hint.uart.0.irq=3
