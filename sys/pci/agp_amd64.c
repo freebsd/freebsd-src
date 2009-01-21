@@ -167,14 +167,16 @@ agp_amd64_attach(device_t dev)
 {
 	struct agp_amd64_softc *sc = device_get_softc(dev);
 	struct agp_gatt *gatt;
+	uint32_t devid;
 	int i, n, error;
 
-	for (i = 0, n = 0; i < PCI_SLOTMAX && n < AMD64_MAX_MCTRL; i++)
-		if (pci_cfgregread(0, i, 3, 0, 4) == 0x11031022) {
+	for (i = 0, n = 0; i < PCI_SLOTMAX && n < AMD64_MAX_MCTRL; i++) {
+		devid = pci_cfgregread(0, i, 3, 0, 4);
+		if (devid == 0x11031022 || devid == 0x12031022) {
 			sc->mctrl[n] = i;
 			n++;
 		}
-
+	}
 	if (n == 0)
 		return (ENXIO);
 
