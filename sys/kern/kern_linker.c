@@ -587,7 +587,30 @@ linker_file_unload(linker_file_t file, int flags)
 	    " informing modules\n"));
 
 	/*
-	 * Inform any modules associated with this file.
+	 * Quiesce all the modules to give them a chance to veto the unload.
+	 */
+	MOD_SLOCK;
+	for (mod = TAILQ_FIRST(&file->modules); mod;
+	     mod = module_getfnext(mod)) {
+
+		error = module_quiesce(mod);
+		if (error != 0 && flags != LINKER_UNLOAD_FORCE) {
+			KLD_DPF(FILE, ("linker_file_unload: module %s"
+			    " vetoed unload\n", module_getname(mod)));
+			/*
+			 * XXX: Do we need to tell all the quiesced modules
+			 * that they can resume work now via a new module
+			 * event?
+			 */
+			MOD_SUNLOCK;
+			return (error);
+		}
+	}
+	MOD_SUNLOCK;
+
+	/*
+	 * Inform any modules associated with this file that they are
+	 * being be unloaded.
 	 */
 	MOD_XLOCK;
 	for (mod = TAILQ_FIRST(&file->modules); mod; mod = next) {
@@ -597,9 +620,9 @@ linker_file_unload(linker_file_t file, int flags)
 		/*
 		 * Give the module a chance to veto the unload.
 		 */
-		if ((error = module_unload(mod, flags)) != 0) {
-			KLD_DPF(FILE, ("linker_file_unload: module %p"
-			    " vetoes unload\n", mod));
+		if ((error = module_unload(mod)) != 0) {
+			KLD_DPF(FILE, ("linker_file_unload: module %s"
+			    " failed unload\n", mod));
 			return (error);
 		}
 		MOD_XLOCK;
