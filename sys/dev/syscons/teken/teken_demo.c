@@ -31,6 +31,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -83,7 +84,8 @@ static void
 printchar(const teken_pos_t *p)
 {
 	int y, x, attr = 0;
-	struct pixel *px, pt;
+	struct pixel *px;
+	char str[5] = { 0 };
 
 	assert(p->tp_row < NROWS);
 	assert(p->tp_col < NCOLS);
@@ -92,14 +94,26 @@ printchar(const teken_pos_t *p)
 
  	px = &buffer[p->tp_col][p->tp_row];
 
-	if (px->c >= 0x80) {
-		/* Mark UTF-8 chars (we don't support it). */
-		px = &pt;
-		px->c = '?';
-		px->a.ta_format = TF_BOLD;
-		px->a.ta_fgcolor = TC_BROWN;
-		px->a.ta_bgcolor = TC_RED;
+	/* Convert Unicode to UTF-8. */
+#ifdef TEKEN_UTF8
+	if (px->c < 0x80) {
+		str[0] = px->c;
+	} else if (px->c < 0x800) {
+		str[0] = 0xc0 | (px->c >> 6);
+		str[1] = 0x80 | (px->c & 0x3f);
+	} else if (px->c < 0x10000) {
+		str[0] = 0xe0 | (px->c >> 12);
+		str[1] = 0x80 | ((px->c >> 6) & 0x3f);
+		str[2] = 0x80 | (px->c & 0x3f);
+	} else {
+		str[0] = 0xf0 | (px->c >> 18);
+		str[1] = 0x80 | ((px->c >> 12) & 0x3f);
+		str[2] = 0x80 | ((px->c >> 6) & 0x3f);
+		str[3] = 0x80 | (px->c & 0x3f);
 	}
+#else /* !TEKEN_UTF8 */
+	str[0] = px->c;
+#endif /* TEKEN_UTF8 */
 
 	if (px->a.ta_format & TF_BOLD)
 		attr |= A_BOLD;
@@ -109,7 +123,7 @@ printchar(const teken_pos_t *p)
 		attr |= A_BLINK;
 
 	bkgdset(attr | COLOR_PAIR(px->a.ta_fgcolor + 8 * px->a.ta_bgcolor));
-	mvaddch(p->tp_row, p->tp_col, px->c);
+	mvaddstr(p->tp_row, p->tp_col, str);
 
 	move(y, x);
 }
@@ -272,8 +286,15 @@ main(int argc __unused, char *argv[] __unused)
 	fd_set rfds;
 	char b[256];
 	ssize_t bl;
-	const int ccolors[8] = { COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW, COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE };
+	const int ccolors[8] = {
+	    COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
+	    COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE
+	};
 	int i, j;
+
+#ifdef TEKEN_UTF8
+	setlocale(LC_CTYPE, "UTF-8");
+#endif /* TEKEN_UTF8 */
 
 	tp.tp_row = ws.ws_row = NROWS;
 	tp.tp_col = ws.ws_col = NCOLS;
