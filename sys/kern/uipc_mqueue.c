@@ -1133,7 +1133,6 @@ mqfs_getattr(struct vop_getattr_args *ap)
 	struct vattr *vap = ap->a_vap;
 	int error = 0;
 
-	VATTR_NULL(vap);
 	vap->va_type = vp->v_type;
 	vap->va_mode = pn->mn_mode;
 	vap->va_nlink = 1;
@@ -1150,10 +1149,9 @@ mqfs_getattr(struct vop_getattr_args *ap)
 	vap->va_birthtime = pn->mn_birth;
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_rdev = 0;
+	vap->va_rdev = NODEV;
 	vap->va_bytes = 0;
 	vap->va_filerev = 0;
-	vap->va_vaflags = 0;
 	return (error);
 }
 

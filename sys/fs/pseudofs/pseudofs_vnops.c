@@ -191,12 +191,12 @@ pfs_getattr(struct vop_getattr_args *va)
 	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (ENOENT);
 
-	VATTR_NULL(vap);
 	vap->va_type = vn->v_type;
 	vap->va_fileid = pn_fileno(pn, pvd->pvd_pid);
 	vap->va_flags = 0;
 	vap->va_blocksize = PAGE_SIZE;
 	vap->va_bytes = vap->va_size = 0;
+	vap->va_filerev = 0;
 	vap->va_fsid = vn->v_mount->mnt_stat.f_fsid.val[0];
 	vap->va_nlink = 1;
 	nanotime(&vap->va_ctime);
