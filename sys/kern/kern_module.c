@@ -130,6 +130,21 @@ module_register_init(const void *arg)
 		printf("module_register_init: MOD_LOAD (%s, %p, %p) error"
 		    " %d\n", data->name, (void *)data->evhand, data->priv,
 		    error); 
+	} else {
+		MOD_XLOCK;
+		if (mod->file) {
+			/*
+			 * Once a module is succesfully loaded, move
+			 * it to the head of the module list for this
+			 * linker file.  This resorts the list so that
+			 * when the kernel linker iterates over the
+			 * modules to unload them, it will unload them
+			 * in the reverse order they were loaded.
+			 */
+			TAILQ_REMOVE(&mod->file->modules, mod, flink);
+			TAILQ_INSERT_HEAD(&mod->file->modules, mod, flink);
+		}
+		MOD_XUNLOCK;
 	}
 	mtx_unlock(&Giant);
 }
