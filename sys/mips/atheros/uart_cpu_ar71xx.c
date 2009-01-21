@@ -54,7 +54,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;
-	di->bas.bst = 0;
+	di->bas.bst = MIPS_BUS_SPACE_MEM;
 	di->bas.regshft = 2;
 	/* TODO: calculate proper AHB freq using PLL registers */
 	di->bas.rclk = 85000000;
@@ -63,9 +63,16 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 
-	/* Bad MIPS, no IO for MIPS */
-	uart_bus_space_io = 0;
-	uart_bus_space_mem = MIPS_PHYS_TO_KSEG1(ATH_UART_ADDR) + 3;
-	di->bas.bsh = MIPS_PHYS_TO_KSEG1(ATH_UART_ADDR) + 3;
+	/* TODO: check if uart_bus_space_io mandatory to set */
+	uart_bus_space_io = MIPS_BUS_SPACE_IO;
+	uart_bus_space_mem = MIPS_BUS_SPACE_MEM;
+	/* 
+	 * FIXME:
+	 * 3 is to compensate big endian, uart operates 
+	 * with bus_space_read_1/bus_space_write_1 and hence gets 
+	 * highest byte instead of lowest one. Actual fix will involve
+	 * MIPS bus_space fixing.
+	 */
+	di->bas.bsh = MIPS_PHYS_TO_KSEG1(AR71XX_UART_ADDR) + 3;
 	return (0);
 }
