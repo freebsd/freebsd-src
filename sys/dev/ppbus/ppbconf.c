@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
@@ -49,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
 
+
+static int	ppbus_intr(void *arg);
 
 /*
  * Device methods
@@ -375,13 +379,36 @@ end_scan:
 static int
 ppbus_attach(device_t dev)
 {
+	struct ppb_data *ppb = device_get_softc(dev);
+	int error, rid;
+
+	error = BUS_READ_IVAR(device_get_parent(dev), dev, PPC_IVAR_LOCK,
+	    (uintptr_t *)&ppb->ppc_lock);
+	if (error) {
+		device_printf(dev, "Unable to fetch parent's lock\n");
+		return (error);
+	}
+
+	rid = 0;
+	ppb->ppc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE);
+	if (ppb->ppc_irq_res != NULL) {
+		error = BUS_WRITE_IVAR(device_get_parent(dev), dev,
+		    PPC_IVAR_INTR_HANDLER, (uintptr_t)&ppbus_intr);
+		if (error) {
+			device_printf(dev, "Unable to set interrupt handler\n");
+			return (error);
+		}
+	}
 
 	/* Locate our children */
 	bus_generic_probe(dev);
 
 #ifndef DONTPROBE_1284
 	/* detect IEEE1284 compliant devices */
+	mtx_lock(ppb->ppc_lock);
 	ppb_scan_bus(dev);
+	mtx_unlock(ppb->ppc_lock);
 #endif /* !DONTPROBE_1284 */
 
 	/* launch attachment of the added children */
@@ -412,26 +439,43 @@ ppbus_detach(device_t dev)
 }
 
 static int
+ppbus_intr(void *arg)
+{
+	struct ppb_device *ppbdev;
+	struct ppb_data *ppb = arg;
+
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	if (ppb->ppb_owner == NULL)
+		return (ENOENT);
+
+	ppbdev = device_get_ivars(ppb->ppb_owner);
+	if (ppbdev->intr_hook == NULL)
+		return (ENOENT);
+
+	ppbdev->intr_hook(ppbdev->intr_arg);
+	return (0);
+}
+
+static int
 ppbus_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
     driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
 {
-	int error;
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	struct ppb_device *ppbdev = device_get_ivars(child);
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
-	/* a device driver must own the bus to register an interrupt */
-	if (ppb->ppb_owner != child)
+	/* We do not support filters. */
+	if (filt != NULL || ihand == NULL)
 		return (EINVAL);
 
-	if ((error = BUS_SETUP_INTR(device_get_parent(bus), child, r, flags,
-					filt, ihand, arg, cookiep)))
-		return (error);
+	/* Can only attach handlers to the parent device's resource. */
+	if (ppb->ppc_irq_res != r)
+		return (EINVAL);
 
-	/* store the resource and the cookie for eventually forcing
-	 * handler unregistration
-	 */
-	ppbdev->intr_cookie = *cookiep;
-	ppbdev->intr_resource = r;
+	mtx_lock(ppb->ppc_lock);
+	ppbdev->intr_hook = ihand;
+	ppbdev->intr_arg = arg;
+	*cookiep = ppbdev;
+	mtx_unlock(ppb->ppc_lock);
 
 	return (0);
 }
@@ -439,19 +483,19 @@ ppbus_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 static int
 ppbus_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 {
+	struct ppb_device *ppbdev = device_get_ivars(child);
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
-	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(child);
 
-	/* a device driver must own the bus to unregister an interrupt */
-	if ((ppb->ppb_owner != child) || (ppbdev->intr_cookie != ih) ||
-			(ppbdev->intr_resource != r))
+	mtx_lock(ppb->ppc_lock);
+	if (ppbdev != ih || ppb->ppc_irq_res != r) {
+		mtx_unlock(ppb->ppc_lock);
 		return (EINVAL);
+	}
 
-	ppbdev->intr_cookie = 0;
-	ppbdev->intr_resource = 0;
+	ppbdev->intr_hook = NULL;
+	mtx_unlock(ppb->ppc_lock);
 
-	/* pass unregistration to the upper layer */
-	return (BUS_TEARDOWN_INTR(device_get_parent(bus), child, r, ih));
+	return (0);
 }
 
 /*
@@ -464,27 +508,26 @@ ppbus_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 int
 ppb_request_bus(device_t bus, device_t dev, int how)
 {
-	int s, error = 0;
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
+	int error = 0;
 
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	while (!error) {
-		s = splhigh();
 		if (ppb->ppb_owner) {
-			splx(s);
-
 			switch (how) {
-			case (PPB_WAIT | PPB_INTR):
-				error = tsleep(ppb, PPBPRI|PCATCH, "ppbreq", 0);
+			case PPB_WAIT | PPB_INTR:
+				error = mtx_sleep(ppb, ppb->ppc_lock,
+				    PPBPRI | PCATCH, "ppbreq", 0);
 				break;
 
-			case (PPB_WAIT | PPB_NOINTR):
-				error = tsleep(ppb, PPBPRI, "ppbreq", 0);
+			case PPB_WAIT | PPB_NOINTR:
+				error = mtx_sleep(ppb, ppb->ppc_lock, PPBPRI,
+				    "ppbreq", 0);
 				break;
 
 			default:
 				return (EWOULDBLOCK);
-				break;
 			}
 
 		} else {
@@ -499,7 +542,6 @@ ppb_request_bus(device_t bus, device_t dev, int how)
 			if (ppbdev->ctx.valid)
 				ppb_set_mode(bus, ppbdev->ctx.mode);
 
-			splx(s);
 			return (0);
 		}
 	}
@@ -515,30 +557,20 @@ ppb_request_bus(device_t bus, device_t dev, int how)
 int
 ppb_release_bus(device_t bus, device_t dev)
 {
-	int s, error;
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
 
-	if (ppbdev->intr_resource != 0)
-		/* force interrupt handler unregistration when the ppbus is released */
-		if ((error = BUS_TEARDOWN_INTR(bus, dev, ppbdev->intr_resource,
-					       ppbdev->intr_cookie)))
-			return (error);
-
-	s = splhigh();
-	if (ppb->ppb_owner != dev) {
-		splx(s);
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	if (ppb->ppb_owner != dev)
 		return (EACCES);
-	}
-
-	ppb->ppb_owner = 0;
-	splx(s);
 
 	/* save the context of the device */
 	ppbdev->ctx.mode = ppb_get_mode(bus);
 
 	/* ok, now the context of the device is valid */
 	ppbdev->ctx.valid = 1;
+
+	ppb->ppb_owner = 0;
 
 	/* wakeup waiting processes */
 	wakeup(ppb);

@@ -199,8 +199,8 @@ struct ppb_device {
 	struct ppb_xfer
 		put_xfer[PPB_MAX_XFER];
 
- 	struct resource *intr_resource;
- 	void *intr_cookie;
+	driver_intr_t *intr_hook;
+	void *intr_arg;
 };
 
 /* EPP standards */
@@ -209,6 +209,8 @@ struct ppb_device {
 
 /* Parallel Port Chipset IVARS */		/* elsewhere XXX */
 #define PPC_IVAR_EPP_PROTO	0
+#define PPC_IVAR_LOCK		1
+#define PPC_IVAR_INTR_HANDLER	2
 
 /*
  * Maximum size of the PnP info string
@@ -239,8 +241,15 @@ struct ppb_data {
 	int mode;		/* IEEE 1284-1994 mode
 				 * NIBBLE, PS2, EPP or ECP */
 
-	void *ppb_owner;	/* device which owns the bus */
+	device_t ppb_owner;	/* device which owns the bus */
+
+	struct mtx *ppc_lock;	/* lock of parent device */
+	struct resource *ppc_irq_res;
 };
+
+struct callout;
+
+typedef int (*ppc_intr_handler)(void *);
 
 #ifdef _KERNEL
 extern int ppb_attach_device(device_t);
@@ -248,6 +257,11 @@ extern int ppb_request_bus(device_t, device_t, int);
 extern int ppb_release_bus(device_t, device_t);
 
 /* bus related functions */
+extern void ppb_lock(device_t);
+extern void ppb_unlock(device_t);
+extern void _ppb_assert_locked(device_t, const char *, int);
+extern void ppb_init_callout(device_t, struct callout *, int);
+extern int ppb_sleep(device_t, void *, int, const char *, int);
 extern int ppb_get_status(device_t, struct ppb_status *);
 extern int ppb_poll_bus(device_t, int, char, char, int);
 extern int ppb_reset_epp_timeout(device_t);
@@ -256,12 +270,12 @@ extern int ppb_get_epp_protocol(device_t);
 extern int ppb_set_mode(device_t, int);		/* returns old mode */
 extern int ppb_get_mode(device_t);		/* returns current mode */
 extern int ppb_write(device_t, char *, int, int);
+
+#ifdef INVARIANTS
+#define ppb_assert_locked(dev)	_ppb_assert_locked(dev, __FILE__, __LINE__)
+#else
+#define ppb_assert_locked(dev)
+#endif
 #endif /* _KERNEL */
 
-/*
- * These are defined as macros for speedup.
-#define ppb_get_base_addr(dev) ((dev)->ppb->ppb_link->base)
-#define ppb_get_epp_protocol(dev) ((dev)->ppb->ppb_link->epp_protocol)
- */
-
-#endif
+#endif /* !__PPBCONF_H */
