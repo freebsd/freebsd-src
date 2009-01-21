@@ -8,7 +8,7 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
-20090113:	p9	FreeBSD-SA-09:03.ntpd, FreeBSD-SA-09:04.bind
+20090113:	p3	FreeBSD-SA-09:03.ntpd, FreeBSD-SA-09:04.bind
 	Correct ntpd cryptographic signature bypass. [09:03]
 
 	Correct BIND DNSSEC incorrect checks for malformed
