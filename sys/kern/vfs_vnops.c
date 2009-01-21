@@ -1286,3 +1286,35 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 
 	return (error);
 }
+
+int
+vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
+{
+	struct mount *mp;
+	int ltype, error;
+
+	mp = vp->v_mount;
+	ltype = VOP_ISLOCKED(vp);
+	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
+	    ("vn_vget_ino: vp not locked"));
+	for (;;) {
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error == 0)
+			break;
+		VOP_UNLOCK(vp, 0);
+		pause("vn_vget", 1);
+		vn_lock(vp, ltype | LK_RETRY);
+		if (vp->v_iflag & VI_DOOMED)
+			return (ENOENT);
+	}
+	VOP_UNLOCK(vp, 0);
+	error = VFS_VGET(mp, ino, lkflags, rvp);
+	vfs_unbusy(mp);
+	vn_lock(vp, ltype | LK_RETRY);
+	if (vp->v_iflag & VI_DOOMED) {
+		if (error == 0)
+			vput(*rvp);
+		error = ENOENT;
+	}
+	return (error);
+}
