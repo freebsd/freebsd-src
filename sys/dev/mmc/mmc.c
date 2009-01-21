@@ -340,7 +340,9 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 	memset(cmd->resp, 0, sizeof(cmd->resp));
 	cmd->retries = retries;
 	mreq.cmd = cmd;
-/*	printf("CMD: %x ARG %x\n", cmd->opcode, cmd->arg); */
+	if (bootverbose)
+		device_printf(sc->dev, "CMD: %#x ARG %#x\n", cmd->opcode,
+		    cmd->arg);
 	mmc_wait_for_req(sc, &mreq);
 	return (cmd->error);
 }
@@ -629,6 +631,7 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 {
 	int err;
 	uint8_t	value;
+	u_char switch_res[64];
 
 	switch (timing) {
 	case bus_timing_normal:
@@ -640,14 +643,11 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 	default:
 		return (MMC_ERR_INVALID);
 	}
-	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		u_char switch_res[64];
-
+	if (mmcbr_get_mode(sc->dev) == mode_sd)
 		err = mmc_sd_switch(sc, 1, 0, value, switch_res);
-	} else {
+	else
 		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL,
 		    EXT_CSD_HS_TIMING, value);
-	}
 	return (err);
 }
 
@@ -1255,8 +1255,12 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmcbr_set_mode(dev, mode_sd);
 		mmc_power_up(sc);
 		mmcbr_set_bus_mode(dev, pushpull);
+		if (bootverbose)
+			device_printf(sc->dev, "Idle cards for SD probe\n");
 		mmc_idle_cards(sc);
 		err = mmc_send_if_cond(sc, 1);
+		if (bootverbose)
+			device_printf(sc->dev, "SD: SEND_IF_CONF %d\n", err);
 		if (mmc_send_app_op_cond(sc, err ? 0 : MMC_OCR_CCS, &ocr) !=
 		    MMC_ERR_NONE) {
 			/*
