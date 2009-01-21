@@ -586,11 +586,11 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, ui
 static int
 mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 {
+	struct mmc_command cmd;
 	int err;
+	uint8_t	value;
 
 	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		struct mmc_command cmd;
-
 		memset(&cmd, 0, sizeof(struct mmc_command));
 		cmd.opcode = ACMD_SET_BUS_WIDTH;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -606,8 +606,6 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 		}
 		err = mmc_wait_for_app_cmd(sc, rca, &cmd, CMD_RETRIES);
 	} else {
-		uint8_t	value;
-
 		switch (width) {
 		case bus_width_1:
 			value = EXT_CSD_BUS_WIDTH_1;
@@ -621,7 +619,8 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 		default:
 			return (MMC_ERR_INVALID);
 		}
-		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH, value);
+		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH,
+		    value);
 	}
 	return (err);
 }
