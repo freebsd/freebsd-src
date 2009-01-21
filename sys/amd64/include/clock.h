@@ -22,6 +22,7 @@ extern u_int	timer_freq;
 extern int	timer0_max_count;
 extern uint64_t	tsc_freq;
 extern int	tsc_is_broken;
+extern int	tsc_is_invariant;
 
 void	i8254_init(void);
 
