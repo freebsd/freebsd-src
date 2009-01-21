@@ -98,6 +98,7 @@ static vop_create_t	ufs_create;
 static vop_getattr_t	ufs_getattr;
 static vop_link_t	ufs_link;
 static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
+static vop_markatime_t	ufs_markatime;
 static vop_mkdir_t	ufs_mkdir;
 static vop_mknod_t	ufs_mknod;
 static vop_open_t	ufs_open;
@@ -491,17 +492,6 @@ ufs_setattr(ap)
 	    ((int)vap->va_bytes != VNOVAL) || (vap->va_gen != VNOVAL)) {
 		return (EINVAL);
 	}
-	/*
-	 * Mark for update the file's access time for vfs_mark_atime().
-	 * We are doing this here to avoid some of the checks done
-	 * below -- this operation is done by request of the kernel and
-	 * should bypass some security checks.  Things like read-only
-	 * checks get handled by other levels (e.g., ffs_update()).
-	 */
-	if (vap->va_vaflags & VA_MARK_ATIME) {
-		ip->i_flag |= IN_ACCESS;
-		return (0);
-	}
 	if (vap->va_flags != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
@@ -660,6 +650,25 @@ ufs_setattr(ap)
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, td);
 	}
 	return (error);
+}
+
+/*
+ * Mark this file's access time for update for vfs_mark_atime().  This
+ * is called from execve() and mmap().
+ */
+static int
+ufs_markatime(ap)
+	struct vop_markatime_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
+
+	VI_LOCK(vp);
+	ip->i_flag |= IN_ACCESS;
+	VI_UNLOCK(vp);
+	return (0);
 }
 
 /*
@@ -2481,6 +2490,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_rename =		ufs_rename,
 	.vop_rmdir =		ufs_rmdir,
 	.vop_setattr =		ufs_setattr,
+	.vop_markatime =	ufs_markatime,
 #ifdef MAC
 	.vop_setlabel =		vop_stdsetlabel_ea,
 #endif
@@ -2511,6 +2521,7 @@ struct vop_vector ufs_fifoops = {
 	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		ufs_reclaim,
 	.vop_setattr =		ufs_setattr,
+	.vop_markatime =	ufs_markatime,
 #ifdef MAC
 	.vop_setlabel =		vop_stdsetlabel_ea,
 #endif
