@@ -1118,6 +1118,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			mmc_app_send_scr(sc, ivar->rca, ivar->raw_scr);
 			mmc_app_decode_scr(ivar->raw_scr, &ivar->scr);
 			/* Get card switch capabilities. */
+			ivar->timing = bus_timing_normal;
 			if ((ivar->scr.sda_vsn >= 1) &&
 			    (ivar->csd.ccc & (1<<10))) {
 				mmc_sd_switch(sc, 0, 0, 0xF, switch_res);
