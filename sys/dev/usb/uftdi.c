@@ -186,6 +186,9 @@ uftdi_match(device_t self)
 	if (uaa->vendor == USB_VENDOR_MELCO &&
 	    (uaa->product == USB_PRODUCT_MELCO_PCOPRS1))
 		return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->vendor == USB_VENDOR_DRESDENELEKTRONIK &&
+	    (uaa->product == USB_PRODUCT_DRESDENELEKTRONIK_SENSORTERMINALBOARD))
+		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
 }
@@ -307,6 +310,18 @@ uftdi_attach(device_t self)
 	case USB_VENDOR_MELCO:
 		switch( uaa->product ){
 		case USB_PRODUCT_MELCO_PCOPRS1:
+			sc->sc_type = UFTDI_TYPE_8U232AM;
+			sc->sc_hdrlen = 0;
+			break;
+
+		default:		/* Can't happen */
+			goto bad;
+		}
+		break;
+
+	case USB_VENDOR_DRESDENELEKTRONIK:
+		switch( uaa->product ){
+		case USB_PRODUCT_DRESDENELEKTRONIK_SENSORTERMINALBOARD:
 			sc->sc_type = UFTDI_TYPE_8U232AM;
 			sc->sc_hdrlen = 0;
 			break;
