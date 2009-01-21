@@ -707,9 +707,9 @@ nfs_setattr(struct vop_setattr_args *ap)
 #endif
 
 	/*
-	 * Setting of flags and marking of atimes are not supported.
+	 * Setting of flags is not supported.
 	 */
-	if (vap->va_flags != VNOVAL || (vap->va_vaflags & VA_MARK_ATIME))
+	if (vap->va_flags != VNOVAL)
 		return (EOPNOTSUPP);
 
 	/*
