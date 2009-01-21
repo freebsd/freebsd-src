@@ -32,6 +32,7 @@ int ppc_probe(device_t dev, int rid);
 int ppc_attach(device_t dev);
 int ppc_detach(device_t dev);
 int ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val);
+int ppc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val);
 
 int ppc_read(device_t, char *, int, int);
 int ppc_write(device_t, char *, int, int);
@@ -39,9 +40,6 @@ int ppc_write(device_t, char *, int, int);
 u_char ppc_io(device_t, int, u_char *, int, u_char);
 int ppc_exec_microseq(device_t, struct ppb_microseq **);
 
-int ppc_setup_intr(device_t, device_t, struct resource *, int,
-		driver_filter_t *filt, void (*)(void *), void *, void **);
-int ppc_teardown_intr(device_t, device_t, struct resource *, void *);
 struct resource *ppc_alloc_resource(device_t bus, device_t child, int type,
     int *rid, u_long start, u_long end, u_long count, u_int flags);
 int ppc_release_resource(device_t bus, device_t child, int type, int rid,
