@@ -249,6 +249,8 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	long	maddr;
 	int	msize;
 	int	result;
+	int	irq;
+	int	mem_hints_count;
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
 
@@ -256,17 +258,34 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	 * Set hard-wired resources for hinted child using
 	 * specific RIDs.
 	 */
-	resource_long_value(dname, dunit, "maddr", &maddr);
-	resource_int_value(dname, dunit, "msize", &msize);
+	mem_hints_count = 0;
+	if (resource_long_value(dname, dunit, "maddr", &maddr) == 0)
+		mem_hints_count++;
+	if (resource_int_value(dname, dunit, "msize", &msize) == 0)
+		mem_hints_count++;
 
-	dprintf("%s: discovered hinted child %s at maddr %p(%d)\n",
-	    __func__, device_get_nameunit(child),
-	    (void *)(intptr_t)maddr, msize);
+	/* check if all info for mem resource has been provided */
+	if ((mem_hints_count > 0) && (mem_hints_count < 2)) {
+		printf("Either maddr or msize hint is missing for %s%d\n",
+		    dname, dunit);
+	} else if (mem_hints_count) {
+		dprintf("%s: discovered hinted child %s at maddr %p(%d)\n",
+		    __func__, device_get_nameunit(child),
+		    (void *)(intptr_t)maddr, msize);
 
-	result = bus_set_resource(child, SYS_RES_MEMORY, MIPS_MEM_RID,
-	    maddr, msize);
-	if (result != 0) {
-		device_printf(bus, "warning: bus_set_resource() failed\n");
+		result = bus_set_resource(child, SYS_RES_MEMORY, MIPS_MEM_RID,
+		    maddr, msize);
+		if (result != 0) {
+			device_printf(bus, 
+			    "warning: bus_set_resource() failed\n");
+		}
+	}
+
+	if (resource_int_value(dname, dunit, "irq", &irq) == 0) {
+		result = bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
+		if (result != 0)
+			device_printf(bus,
+			    "warning: bus_set_resource() failed\n");
 	}
 }
 
