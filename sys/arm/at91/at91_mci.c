@@ -199,9 +199,12 @@ at91_mci_attach(device_t dev)
 		goto out;
 	}
 	sc->host.f_min = 375000;
-	sc->host.f_max = 30000000;
+	sc->host.f_max = at91_master_clock / 2;	/* Typically 30MHz */
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	sc->host.caps = MMC_CAP_4_BIT_DATA;
+	if (sc->wire4)
+		sc->host.caps = MMC_CAP_4_BIT_DATA;
+	else
+		sc->host.caps = 0;
 	child = device_add_child(dev, "mmc", 0);
 	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
@@ -294,7 +297,7 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 		else
 			clkdiv = (at91_master_clock / ios->clock) / 2;
 	}
-	if (ios->bus_width == bus_width_4 && sc->wire4)
+	if (ios->bus_width == bus_width_4)
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) | MCI_SDCR_SDCBUS);
 	else
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) & ~MCI_SDCR_SDCBUS);
