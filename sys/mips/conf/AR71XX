@@ -10,6 +10,7 @@ makeoptions	TARGET_BIG_ENDIAN
 makeoptions	KERNLOADADDR=0x80050000
 
 files		"../atheros/files.ar71xx"
+hints		"AR71XX.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	MODULES_OVERRIDE=""
