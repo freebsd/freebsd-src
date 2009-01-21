@@ -82,6 +82,7 @@ u_int	cpu_feature = 0;	/* Feature flags */
 u_int	cpu_feature2 = 0;	/* Feature flags */
 u_int	amd_feature = 0;	/* AMD feature flags */
 u_int	amd_feature2 = 0;	/* AMD feature flags */
+u_int	amd_pminfo = 0;		/* AMD advanced power management info */
 u_int	via_feature_rng = 0;	/* VIA RNG features */
 u_int	via_feature_xcrypt = 0;	/* VIA ACE features */
 u_int	cpu_high = 0;		/* Highest arg to CPUID */
