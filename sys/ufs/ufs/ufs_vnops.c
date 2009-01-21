@@ -2477,6 +2477,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_inactive =		ufs_inactive,
 	.vop_link =		ufs_link,
 	.vop_lookup =		vfs_cache_lookup,
+	.vop_markatime =	ufs_markatime,
 	.vop_mkdir =		ufs_mkdir,
 	.vop_mknod =		ufs_mknod,
 	.vop_open =		ufs_open,
@@ -2490,7 +2491,6 @@ struct vop_vector ufs_vnodeops = {
 	.vop_rename =		ufs_rename,
 	.vop_rmdir =		ufs_rmdir,
 	.vop_setattr =		ufs_setattr,
-	.vop_markatime =	ufs_markatime,
 #ifdef MAC
 	.vop_setlabel =		vop_stdsetlabel_ea,
 #endif
@@ -2517,11 +2517,11 @@ struct vop_vector ufs_fifoops = {
 	.vop_getattr =		ufs_getattr,
 	.vop_inactive =		ufs_inactive,
 	.vop_kqfilter =		ufsfifo_kqfilter,
+	.vop_markatime =	ufs_markatime,
 	.vop_print =		ufs_print,
 	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		ufs_reclaim,
 	.vop_setattr =		ufs_setattr,
-	.vop_markatime =	ufs_markatime,
 #ifdef MAC
 	.vop_setlabel =		vop_stdsetlabel_ea,
 #endif

@@ -4214,7 +4214,6 @@ void
 vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 {
 
-	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0) {
+	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		(void)VOP_MARKATIME(vp);
-	}
 }
