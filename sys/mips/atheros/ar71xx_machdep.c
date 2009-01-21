@@ -72,11 +72,9 @@ platform_identify(void)
 void
 platform_reset(void)
 {
-	volatile uint32_t * p = 
-	    (void *)MIPS_PHYS_TO_KSEG1(ATH_RST_RESET);
-	uint32_t reg = *p;
+	uint32_t reg = ATH_READ_REG(APB_RST_RESET);
 
-	*p = reg | RST_RESET_FULL_CHIP_RESET;
+	ATH_WRITE_REG(APB_RST_RESET, reg | RST_RESET_FULL_CHIP_RESET);
 	/* Wait for reset */
 	while(1)
 		;
