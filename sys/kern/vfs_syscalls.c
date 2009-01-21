@@ -3712,7 +3712,7 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	int error, eofflag;
 
 	AUDIT_ARG(fd, fd);
-	if (uap->count > INT_MAX)
+	if (count > INT_MAX)
 		return (EINVAL);
 	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
 		return (error);
