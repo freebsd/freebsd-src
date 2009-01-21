@@ -1326,7 +1326,7 @@ mmc_calculate_clock(struct mmc_softc *sc)
 			max_timing = ivar->timing;
 		if (ivar->tran_speed < max_dtr)
 			max_dtr = ivar->tran_speed;
-		if (ivar->hs_tran_speed < max_dtr)
+		if (ivar->hs_tran_speed < max_hs_dtr)
 			max_hs_dtr = ivar->hs_tran_speed;
 	}
 	for (i = 0; i < nkid; i++) {
