@@ -28,14 +28,16 @@
  * $FreeBSD$
  */
 
+#ifndef _COMPAT_FREEBSD32_FREEBSD32_UTIL_H_
+#define _COMPAT_FREEBSD32_FREEBSD32_UTIL_H_
+
+#include <sys/cdefs.h>
+#include <sys/exec.h>
+#include <sys/sysent.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-
-
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/cdefs.h>
 
 struct freebsd32_ps_strings {
 	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
@@ -50,3 +52,35 @@ struct freebsd32_ps_strings {
 
 #define FREEBSD32_PS_STRINGS	\
 	(FREEBSD32_USRSTACK - sizeof(struct freebsd32_ps_strings))
+
+extern struct sysent freebsd32_sysent[];
+
+#define SYSCALL32_MODULE(name, offset, new_sysent, evh, arg)   \
+static struct syscall_module_data name##_syscall32_mod = {     \
+       evh, arg, offset, new_sysent, { 0, NULL }               \
+};                                                             \
+                                                               \
+static moduledata_t name##32_mod = {                           \
+       #name,                                                  \
+       syscall32_module_handler,                               \
+       &name##_syscall32_mod                                   \
+};                                                             \
+DECLARE_MODULE(name##32, name##32_mod, SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
+
+#define SYSCALL32_MODULE_HELPER(syscallname)            \
+static int syscallname##_syscall32 = FREEBSD32_SYS_##syscallname; \
+static struct sysent syscallname##_sysent32 = {         \
+    (sizeof(struct syscallname ## _args )               \
+     / sizeof(register_t)),                             \
+    (sy_call_t *)& syscallname                          \
+};                                                      \
+SYSCALL32_MODULE(syscallname,                           \
+    & syscallname##_syscall32, & syscallname##_sysent32,\
+    NULL, NULL);
+
+int    syscall32_register(int *offset, struct sysent *new_sysent,
+	    struct sysent *old_sysent);
+int    syscall32_deregister(int *offset, struct sysent *old_sysent);
+int    syscall32_module_handler(struct module *mod, int what, void *arg);
+
+#endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */
