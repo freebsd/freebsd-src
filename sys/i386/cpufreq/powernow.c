@@ -758,22 +758,6 @@ pn_decode_pst(device_t dev)
 	return (ENODEV);
 }
 
-/*
- * TODO: this should be done in sys/ARCH/ARCH/identcpu.c
- */
-static int
-cpu_is_powernow_capable(void)
-{
-	u_int regs[4];
-
-	if (strcmp(cpu_vendor, "AuthenticAMD") != 0 ||
-	    cpu_exthigh < 0x80000007)
-		return (FALSE);
-
-	do_cpuid(0x80000007, regs);
-	return (regs[3] & 0x6);
-}
-
 static int
 pn_decode_acpi(device_t dev, device_t perf_dev)
 {
@@ -883,7 +867,7 @@ pn_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
 
-	if (cpu_is_powernow_capable() == 0)
+	if ((amd_pminfo & (AMDPM_FID | AMDPM_VID)) == 0)
 		return;
 	switch (cpu_id & 0xf00) {
 	case 0x600:
