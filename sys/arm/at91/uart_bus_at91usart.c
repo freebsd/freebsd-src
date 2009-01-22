@@ -38,13 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <dev/pci/pcivar.h>
-
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
 #include <arm/at91/at91rm92reg.h>
+#include <arm/at91/at91var.h>
 
 #include "uart_if.h"
 
@@ -103,6 +102,8 @@ usart_at91rm92_probe(device_t dev)
 		break;
 	}
 	sc->sc_class = &at91_usart_class;
+	if (sc->sc_class->uc_rclk == 0)
+		sc->sc_class->uc_rclk = at91_master_clock;
 	return (uart_bus_probe(dev, 0, 0, 0, device_get_unit(dev)));
 }
 
