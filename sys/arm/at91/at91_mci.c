@@ -313,7 +313,6 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	int i;
 	struct mmc_data *data;
 	struct mmc_request *req;
-	size_t block_size = 1 << 9;	// Fixed, per mmc/sd spec for 2GB cards
 	void *vaddr;
 	bus_addr_t paddr;
 
@@ -355,7 +354,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	// Set block size and turn on PDC mode for dma xfer and disable
 	// PDC until we're ready.
 	mr = RD4(sc, MCI_MR) & ~MCI_MR_BLKLEN;
-	WR4(sc, MCI_MR, mr | (block_size << 16) | MCI_MR_PDCMODE);
+	WR4(sc, MCI_MR, mr | (data->len << 16) | MCI_MR_PDCMODE);
 	WR4(sc, PDC_PTCR, PDC_PTCR_RXTDIS | PDC_PTCR_TXTDIS);
 	if (cmdr & MCI_CMDR_TRCMD_START) {
 		if (cmdr & MCI_CMDR_TRDIR)
