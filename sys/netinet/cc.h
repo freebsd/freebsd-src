@@ -35,7 +35,12 @@
 #define _NETINET_CC_H_
 
 #include <sys/queue.h>
-#include <netinet/tcp_var.h>
+#include <sys/sysctl.h>
+
+#include <netinet/tcp.h>
+
+/* Forward declaration of required structs. */
+struct tcpcb;
 
 /*
  * Global CC vars

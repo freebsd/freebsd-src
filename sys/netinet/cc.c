@@ -39,20 +39,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/mutex.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sbuf.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
 
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
-#include <netinet/tcp_fsm.h>
+#include <net/if.h>
+#include <net/if_var.h>
+
 #include <netinet/cc.h>
-
+#include <netinet/tcp_seq.h>
+#include <netinet/vinet.h>
 
 /* list of available cc algorithms on the current system */
 struct cc_head cc_list = STAILQ_HEAD_INITIALIZER(cc_list); 
@@ -199,8 +197,8 @@ cc_deregister_algorithm(struct cc_algo *remove_cc)
 		 * algorithm back to newreno. If the algorithm that was in use requires
 		 * deinit code to be run, call it
 		 */
-		INP_INFO_RLOCK(&tcbinfo);
-		LIST_FOREACH(inp, &tcb, inp_list) {
+		INP_INFO_RLOCK(&V_tcbinfo);
+		LIST_FOREACH(inp, &V_tcb, inp_list) {
 			/* skip tcptw structs */
 			if (inp->inp_vflag & INP_TIMEWAIT)
 				continue;
@@ -223,7 +221,7 @@ cc_deregister_algorithm(struct cc_algo *remove_cc)
 			}
 			INP_WUNLOCK(inp);
 		}
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 	}
 
 	return success;
@@ -305,7 +303,7 @@ newreno_cwnd_init(struct tcpcb *tp)
 				 min(tp->snd_wnd, so->so_snd.sb_hiwat)));
 	else
 #endif
-	if (tcp_do_rfc3390)
+	if (V_tcp_do_rfc3390)
 		tp->snd_cwnd = min(4 * tp->t_maxseg, max(2 * tp->t_maxseg, 4380));
 #ifdef INET6
 	else if ((isipv6 && in6_localaddr(&inp->in6p_faddr)) ||
@@ -313,9 +311,9 @@ newreno_cwnd_init(struct tcpcb *tp)
 #else
 	else if (in_localaddr(inp->inp_faddr))
 #endif
-		tp->snd_cwnd = tp->t_maxseg * ss_fltsz_local;
+		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
 	else
-		tp->snd_cwnd = tp->t_maxseg * ss_fltsz;
+		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz;
 }
 
 /*
@@ -392,17 +390,17 @@ newreno_after_idle(struct tcpcb *tp)
 	* Set the slow-start flight size depending on whether
 	* this is a local network or not.
 	*/
-	int ss = ss_fltsz;
+	int ss = V_ss_fltsz;
 
 #ifdef INET6
 	if (isipv6) {
 		if (in6_localaddr(&tp->t_inpcb->in6p_faddr))
-			ss = ss_fltsz_local;
+			ss = V_ss_fltsz_local;
 	} else
 #endif /* INET6 */
 
 	if (in_localaddr(tp->t_inpcb->inp_faddr))
-		ss = ss_fltsz_local;
+		ss = V_ss_fltsz_local;
 
 	tp->snd_cwnd = tp->t_maxseg * ss;
 }
