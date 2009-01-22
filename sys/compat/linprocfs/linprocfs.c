@@ -276,11 +276,17 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 
 	sbuf_cat(sb, "flags\t\t:");
 
-	if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
-		flags[16] = "fcmov";
-	} else if (!strcmp(cpu_vendor, "CyrixInstead")) {
+#ifdef __i386__
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_AMD:
+		if (class < 6)
+			flags[16] = "fcmov";
+		break;
+	case CPU_VENDOR_CYRIX:
 		flags[24] = "cxmmx";
+		break;
 	}
+#endif
 
 	for (i = 0; i < 32; i++)
 		if (cpu_feature & (1 << i))
