@@ -1,6 +1,6 @@
 .\" $Id: mount_smbfs.8,v 1.10 2002/04/16 02:47:41 bp Exp $
 .\" $FreeBSD$
-.Dd March 10, 2000
+.Dd January 21, 2008
 .Dt MOUNT_SMBFS 8
 .Os
 .Sh NAME
@@ -16,6 +16,7 @@
 .Op Fl O Ar cowner : Ns Ar cgroup Ns / Ns Ar sowner : Ns Ar sgroup
 .Op Fl R Ar retrycount
 .Op Fl T Ar timeout
+.Op Fl U Ar username
 .Op Fl W Ar workgroup
 .Op Fl c Ar case
 .Op Fl d Ar mode
@@ -77,6 +78,8 @@ Default is 4.
 .It Fl T Ar timeout
 Timeout in seconds for each request.
 Default is 15.
+.It Fl U Ar username
+Username to authenticate with.
 .It Fl W Ar workgroup
 This option specifies the workgroup to be used in the authentication request.
 .It Fl c Ar case
