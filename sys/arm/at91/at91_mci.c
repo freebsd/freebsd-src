@@ -277,7 +277,6 @@ at91_mci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 at91_mci_update_ios(device_t brdev, device_t reqdev)
 {
-	uint32_t at91_master_clock = AT91C_MASTER_CLOCK;
 	struct at91_mci_softc *sc;
 	struct mmc_host *host;
 	struct mmc_ios *ios;
