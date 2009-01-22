@@ -608,6 +608,7 @@ vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
 vendor JABLOTRON	0x16d6	Jablotron
 vendor CMOTECH		0x16d8	CMOTECH Co., Ltd.
+vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
 vendor METAGEEK		0x1781	MetaGeek
@@ -829,6 +830,7 @@ product ANCHOR EZLINK		0x2720	EZLINK
 
 /* AnyData products */
 product ANYDATA ADU_E100X	0x6501	CDMA 2000 1xRTT/EV-DO USB Modem
+product ANYDATA ADU_500A	0x6502	CDMA 2000 EV-DO USB Modem
 
 /* AOX, Inc. products */
 product AOX USB101		0x0008	Ethernet
@@ -905,6 +907,9 @@ product ATMEL AT76C505A		0x7614	AT76c505a Wireless Adapter
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
+
+/* Axesstel products */
+product AXESSTEL DATAMODEM	0x1000  Data Modem
 
 /* Baltech products */
 product BALTECH CARDREADER	0x9999	Card reader
@@ -1009,9 +1014,11 @@ product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
 
 /* CMOTECH products */
-product CMOTECH CNU510		0x5141	CMOTECH CDMA Technologies USB modem
+product CMOTECH XSSTICKDISK	0xf000	XSStick (disk mode)
+product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
-product CMOTECH CDMA_MODEM1	0x6280	CMOTECH CDMA Technologies USB modem
+product CMOTECH XSSTICKW12	0x6006	4G Systems XSStick W12
+product CMOTECH CDMA_MODEM1	0x6280	CDMA Technologies USB modem
 
 /* Compaq products */
 product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
@@ -1086,6 +1093,7 @@ product DALLAS J6502		0x4201	J-6502 speakers
 product DELL PORT		0x0058	Port Replicator
 product DELL BC02		0x8000	BC02 Bluetooth USB Adapter
 product DELL TM350		0x8103	TrueMobile 350 Bluetooth USB Adapter
+product DELL U740		0x8135	Dell U740 CDMA
 
 /* Delorme Paublishing products */
 product DELORME EARTHMATE	0x0100	Earthmate GPS
@@ -1403,6 +1411,7 @@ product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
+product HUAWEI E220		0x1003	Huawei HSDPA modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -1758,6 +1767,7 @@ product NEODIO ND5010		0x5010	Multi-format Flash Controller
 
 /* Netac products */
 product NETAC CF_CARD		0x1060	USB-CF-Card
+product NETAC ONLYDISK		0x0003	OnlyDisk
 
 /* NetChip Technology Products */
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
@@ -1788,13 +1798,21 @@ product NOVATECH NV902		0x9020	NovaTech NV-902W
 product NOVATECH RT2573		0x9021	RT2573
 
 /* Novatel Wireless products */
+product NOVATEL V640		0x1100	Merlin V620
 product NOVATEL CDMA_MODEM	0x1110	Novatel Wireless Merlin CDMA
 product NOVATEL V620		0x1110	Merlin V620
-product NOVATEL V720		0x1130	Merlin V720
 product NOVATEL V740		0x1120	Merlin V740
+product NOVATEL V720		0x1130	Merlin V720
 product NOVATEL U740		0x1400	Merlin U740
+product NOVATEL U740_2		0x1410	Merlin U740
+product NOVATEL U870		0x1420	Merlin U870
+product NOVATEL XU870		0x1430	Merlin XU870
+product NOVATEL X950D		0x1450	Merlin X950D
+product NOVATEL ES620		0x2100	ES620 CDMA
 product NOVATEL U720		0x2110	Merlin U720
 product NOVATEL U727		0x4100	Merlin U727 CDMA
+product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
+product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
@@ -1809,6 +1827,7 @@ product OMNIVISION OV511	0x0511	OV511 Camera
 product OMNIVISION OV511PLUS	0xa511	OV511+ Camera
 
 /* OnSpec Electronic, Inc. */
+product ONSPEC SDS_HOTFIND_D	0x0400	SDS-infrared.com Hotfind-D Infrared Camera
 product ONSPEC MDCFE_B_CF_READER	0xa000	MDCFE-B USB CF Reader
 product ONSPEC CFMS_RW		0xa001	SIIG/Datafab Memory Stick+CF Reader/Writer
 product ONSPEC READER		0xa003	Datafab-based Reader
@@ -1819,11 +1838,15 @@ product ONSPEC CFSM_COMBO	0xa109	USB to CF + SM Combo (LC1)
 product ONSPEC UCF100		0xa400	FlashLink UCF-100 CompactFlash Reader
 product ONSPEC2 IMAGEMATE_SDDR55	0xa103	ImageMate SDDR55
 
+
 /* Option products */
 product OPTION VODAFONEMC3G	0x5000	Vodafone Mobile Connect 3G datacard
 product OPTION GT3G		0x6000	GlobeTrotter 3G datacard
 product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
+product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
+
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface
@@ -1946,6 +1969,7 @@ product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
 product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
+product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2056,9 +2080,32 @@ product SIEMENS3 X75		0x0004	X75
 
 /* Sierra Wireless products */
 product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
+product SIERRA AIRCARD595	0x0019	Sierra Wireless AirCard 595
+product SIERRA AC595U		0x0120	Sierra Wireless AirCard 595U
+product SIERRA AC597E		0x0021	Sierra Wireless AirCard 597E
+product SIERRA C597		0x0023	Sierra Wireless Compass 597
+product SIERRA AC880		0x6850	Sierra Wireless AirCard 880
+product SIERRA AC881		0x6851	Sierra Wireless AirCard 881
+product SIERRA AC880E		0x6852	Sierra Wireless AirCard 880E
+product SIERRA AC881E		0x6853	Sierra Wireless AirCard 881E
+product SIERRA AC880U		0x6855	Sierra Wireless AirCard 880U
+product SIERRA AC881U		0x6856	Sierra Wireless AirCard 881U
+product SIERRA EM5625		0x0017	EM5625
 product SIERRA MC5720		0x0218	MC5720 Wireless Modem
+product SIERRA MC5720_2		0x0018	MC5720
+product SIERRA MC5725		0x0020	MC5725
+product SIERRA MINI5725		0x0220	Sierra Wireless miniPCI 5275
+product SIERRA MC8755_2		0x6802	MC8755
+product SIERRA MC8765		0x6803	MC8765
+product SIERRA MC8755		0x6804	MC8755
 product SIERRA AC875U		0x6812	AC875U HSDPA USB Modem
 product SIERRA MC8755_3		0x6813	MC8755 HSDPA
+product SIERRA MC8775_2		0x6815	MC8775
+product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
+product SIERRA MC8780		0x6832	MC8780
+product SIERRA MC8781		0x6833	MC8781
+product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
+
 
 /* Sigmatel products */
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
