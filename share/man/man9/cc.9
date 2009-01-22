@@ -1,0 +1,122 @@
+.\"
+.\" Copyright (c) 2008 Lawrence Stewart <lstewart@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Nov 17, 2008
+.Dt CC 9
+.Os
+.Sh NAME
+.Nm cc ,
+.Nm cc_register_algorithm ,
+.Nm cc_deregister_algorithm
+.Nd Modular Congestion Control
+.Sh SYNOPSIS
+.In netinet/cc.h
+.Ft int
+.Fn cc_register_algorithm "struct cc_algo *add_cc"
+.Ft int
+.Fn cc_deregister_algorithm "struct cc_algo *remove_cc"
+.Sh DESCRIPTION
+The
+.Nm
+framework provides an interface to dynamically add/remove transport protocol
+related congestion control algorithms to/from the running kernel.
+.Pp
+Congestion control algorithms are identified by an ASCII name and set of
+hook function implementations encapsulated in a
+.Vt "struct cc_algo" ,
+which has the following members:
+.Bd -literal -offset indent
+struct cc_algo {
+	char	name[TCP_CA_NAME_MAX];
+	int	(*init) (struct tcpcb *tp);
+	void	(*deinit) (struct tcpcb *tp);
+	void	(*cwnd_init) (struct tcpcb *tp);
+	void	(*ack_received) (struct tcpcb *tp, struct tcphdr *th);
+	void	(*pre_fr) (struct tcpcb *tp, struct tcphdr *th);
+	void	(*post_fr) (struct tcpcb *tp, struct tcphdr *th);
+	void	(*after_idle) (struct tcpcb *tp);
+	void	(*after_timeout) (struct tcpcb *tp);
+};
+.Ed
+.Pp
+The
+.Va name
+field identifies the unique name of the algorithm.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+variables are available for tuning:
+.Bl -tag -width ".Va net.inet.tcp.cc.available" -offset indent
+.It Va net.inet.tcp.cc.available
+Identifies the list of currently available congestion control algorithms by
+name.
+.El
+.Bl -tag -width ".Va net.inet.tcp.cc.algorithm" -offset indent
+.It Va net.inet.tcp.cc.algorithm
+Specifies which congestion control algorithm will be used by default for new TCP
+connections. Setting this variable to one of the names in the
+.Va net.inet.tcp.cc.available
+list will change the system default for all new connections.
+.Sh FUNCTIONS
+The
+.Fn cc_register_algorithm
+function registers the algorithm pointed to by
+.Fa add_cc
+with the framework.
+.Sh IMPLEMENTATION NOTES
+.Sh RETURN VALUES
+The
+.Fn cc_register_algorithm
+function returns non-zero on failure.
+.Sh SEE ALSO
+.Xr cc_htcp 4 ,
+.Xr cc_cubic 4 ,
+.Xr tcp 4 ,
+.Xr sctp 4
+.Sh HISTORY
+The modular Congestion Control (CC) framework first appeared in
+.Fx 8.0 .
+.Sh FUTURE WORK
+Integrate with
+.Xr sctp 4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was written by
+.An James Healy Aq jimmy@deefa.com
+and
+.An Lawrence Stewart Aq lstewart@FreeBSD.org
+while working at the Centre for Advanced Internet Architectures,
+Swinburne University (http://caia.swin.edu.au/).
+.Pp
+This manual page was written by
+.An Lawrence Stewart Aq lstewart@FreeBSD.org .
+.Sh ACKNOWLEDGMENTS
+Development of this software was made possible in part by a grant from the
+Cisco University Research Program Fund at Community Foundation Silicon Valley.
+
