@@ -20,30 +20,24 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-#include <sys/mbuf.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
 #include <sys/wait.h>
-#include <sys/queue.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
-#include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <timeconv.h>	/* XXX do we need this ? */
-#include <unistd.h>
 #include <sysexits.h>
+#include <timeconv.h>	/* _long_to_time */
 #include <unistd.h>
 #include <fcntl.h>
 
