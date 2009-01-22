@@ -295,7 +295,7 @@ usage(void)
 	"usage: mount_smbfs [-E cs1:cs2] [-I host] [-L locale] [-M crights:srights]",
 	"                   [-N] [-O cowner:cgroup/sowner:sgroup] [-R retrycount]",
 	"                   [-T timeout] [-W workgroup] [-c case] [-d mode] [-f mode]",
-	"                   [-g gid] [-n opt] [-u uid] //user@server/share node");
+	"                   [-g gid] [-n opt] [-u uid] [-U username] //user@server/share node");
 
 	exit (1);
 }
