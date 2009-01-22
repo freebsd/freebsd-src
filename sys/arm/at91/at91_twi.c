@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_twireg.h>
+#include <arm/at91/at91var.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -128,7 +129,7 @@ at91_twi_attach(device_t dev)
 		AT91_TWI_LOCK_DESTROY(sc);
 		goto out;
 	}
-	sc->cwgr = TWI_CWGR_CKDIV(8 * AT91C_MASTER_CLOCK / TWI_FASTEST_CLOCK) |
+	sc->cwgr = TWI_CWGR_CKDIV(8 * at91_master_clock / TWI_FASTEST_CLOCK) |
 	    TWI_CWGR_CHDIV(TWI_CWGR_DIV(TWI_DEF_CLK)) |
 	    TWI_CWGR_CLDIV(TWI_CWGR_DIV(TWI_DEF_CLK));
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
