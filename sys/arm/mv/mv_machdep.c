@@ -551,6 +551,11 @@ initarm(void *mdp, void *unused __unused)
 	print_kenv();
 
 	/*
+	 * Re-initialise MPP
+	 */
+	platform_mpp_init();
+
+	/*
 	 * Re-initialise decode windows
 	 */
 	if (soc_decode_win() != 0)
@@ -579,7 +584,7 @@ initarm(void *mdp, void *unused __unused)
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
-	 * After booting there are no gross reloations of the kernel thus
+	 * After booting there are no gross relocations of the kernel thus
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();

@@ -61,8 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/queue.h>
 #include <sys/lockmgr.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/endian.h>
+
+#include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcivar.h>
@@ -311,6 +313,14 @@ ehci_pci_attach(device_t self)
 		if (pci_get_devid(self) == PCI_EHCI_DEVICEID_CS5536) {
 			sc->sc_bus.usbrev = USBREV_2_0;
 			device_printf(self, "Quirk for CS5536 USB 2.0 enabled\n");
+			break;
+		}
+
+		/*
+		 * Quirk for Parallels Desktop 4.0.
+		 */
+		if (pci_get_devid(self) == PCI_EHCI_DEVICEID_ICH6) {
+			sc->sc_bus.usbrev = USBREV_2_0;
 			break;
 		}
 		sc->sc_bus.usbrev = USBREV_UNKNOWN;

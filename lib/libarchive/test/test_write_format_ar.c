@@ -73,8 +73,8 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_copy_pathname(ae, "ggghhhjjjrrrttt.o");
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, 7);
-	assertA(0 == archive_write_header(a, ae));
-	assertA(7 == archive_write_data(a, "7777777", 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 7, archive_write_data(a, "7777777", 7));
 	archive_entry_free(ae);
 
 	/* test full pathname */
@@ -82,8 +82,8 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_copy_pathname(ae, "/usr/home/xx/iiijjjdddsssppp.o");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
-	assertA(0 == archive_write_header(a, ae));
-	assertA(8 == archive_write_data(a, "88877766", 8));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 8, archive_write_data(a, "88877766", 8));
 	archive_entry_free(ae);
 
 	/* trailing "/" should be rejected */
@@ -105,46 +105,46 @@ DEFINE_TEST(test_write_format_ar)
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
 #else
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(0, archive_write_finish(a));
 #endif
 
 	/*
 	 * Now, read the data back.
 	 */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
-	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(0, archive_entry_mtime(ae));
 	assertEqualString("//", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 
-	assertA(0 == archive_read_next_header(a, &ae));
-	assert(1 == archive_entry_mtime(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
 	assertEqualString("abcdefghijklmn.o", archive_entry_pathname(ae));
-	assert(8 == archive_entry_size(ae));
-	assertA(8 == archive_read_data(a, buff2, 10));
-	assert(0 == memcmp(buff2, "87654321", 8));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "87654321", 8);
 
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ggghhhjjjrrrttt.o", archive_entry_pathname(ae));
-	assert(7 == archive_entry_size(ae));
-	assertA(7 == archive_read_data(a, buff2, 11));
-	assert(0 == memcmp(buff2, "7777777", 7));
+	assertEqualInt(7, archive_entry_size(ae));
+	assertEqualIntA(a, 7, archive_read_data(a, buff2, 11));
+	assertEqualMem(buff2, "7777777", 7);
 
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualString("iiijjjdddsssppp.o", archive_entry_pathname(ae));
-	assert(8 == archive_entry_size(ae));
-	assertA(8 == archive_read_data(a, buff2, 17));
-	assert(0 == memcmp(buff2, "88877766", 8));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 17));
+	assertEqualMem(buff2, "88877766", 8);
 
-	assert(0 == archive_read_close(a));
+	assertEqualIntA(a, 0, archive_read_close(a));
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(0, archive_read_finish(a));
 #endif
 
 	/*
@@ -152,18 +152,18 @@ DEFINE_TEST(test_write_format_ar)
 	 */
 	memset(buff, 0, sizeof(buff));
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_ar_bsd(a));
-	assertA(0 == archive_write_set_compression_bzip2(a));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ar_bsd(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_bzip2(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* write a entry need long name extension */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "ttttyyyyuuuuiiii.o");
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, 5);
-	assertA(0 == archive_write_header(a, ae));
-	assertA(5 == archive_entry_size(ae));
-	assertA(5 == archive_write_data(a, "12345", 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualIntA(a, 5, archive_write_data(a, "12345", 7));
 	archive_entry_free(ae);
 
 	/* write a entry with a short name */
@@ -171,41 +171,41 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_copy_pathname(ae, "ttyy.o");
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, 6);
-	assertA(0 == archive_write_header(a, ae));
-	assertA(6 == archive_write_data(a, "555555", 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 6, archive_write_data(a, "555555", 7));
 	archive_entry_free(ae);
 	archive_write_close(a);
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
 #else
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(0, archive_write_finish(a));
 #endif
 
 	/* Now, Read the data back */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualString("ttttyyyyuuuuiiii.o", archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
-	assertA(5 == archive_read_data(a, buff2, 10));
-	assert(0 == memcmp(buff2, "12345", 5));
+	assertEqualIntA(a, 5, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345", 5);
 
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualString("ttyy.o", archive_entry_pathname(ae));
-	assert(6 == archive_entry_size(ae));
-	assertA(6 == archive_read_data(a, buff2, 10));
-	assert(0 == memcmp(buff2, "555555", 6));
+	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualIntA(a, 6, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "555555", 6);
 
 	/* Test EOF */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assert(0 == archive_read_close(a));
+	assertEqualIntA(a, 0, archive_read_close(a));
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(0, archive_read_finish(a));
 #endif
 #endif
 }

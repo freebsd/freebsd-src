@@ -717,6 +717,22 @@ struct l_sockaddr {
 	char		sa_data[14];
 } __packed;
 
+struct l_msghdr {
+	l_uintptr_t	msg_name;
+	l_int		msg_namelen;
+	l_uintptr_t	msg_iov;
+	l_size_t	msg_iovlen;
+	l_uintptr_t	msg_control;
+	l_size_t	msg_controllen;
+	l_uint		msg_flags;
+};
+
+struct l_cmsghdr {
+	l_size_t	cmsg_len;
+	l_int		cmsg_level;
+	l_int		cmsg_type;
+};
+
 struct l_ifmap {
 	l_ulong		mem_start;
 	l_ulong		mem_end;
@@ -885,6 +901,16 @@ struct l_user_desc {
 	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
 	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
 
+struct iovec;
+
+struct l_iovec32 {
+	uint32_t	iov_base;
+	l_size_t	iov_len;
+};
+
+int linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt,
+			    struct iovec **iovp, int error);
+
 /* robust futexes */
 struct linux_robust_list {
 	l_uintptr_t			next;
@@ -892,7 +918,7 @@ struct linux_robust_list {
 
 struct linux_robust_list_head {
 	struct linux_robust_list	list;
-	l_ulong				futex_offset;
+	l_long				futex_offset;
 	l_uintptr_t			pending_list;
 };
 

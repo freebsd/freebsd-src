@@ -13,6 +13,7 @@
 %token	NODEVICE
 %token	ENV
 %token	EQUALS
+%token	PLUSEQUALS
 %token	HINTS
 %token	IDENT
 %token	MAXUSERS
@@ -99,7 +100,7 @@ int yywrap(void);
 static void newdev(char *name);
 static void newfile(char *name);
 static void rmdev_schedule(struct device_head *dh, char *name);
-static void newopt(struct opt_head *list, char *name, char *value);
+static void newopt(struct opt_head *list, char *name, char *value, int append);
 static void rmopt_schedule(struct opt_head *list, char *name);
 
 static char *
@@ -211,7 +212,7 @@ System_spec:
 	  ;
 
 System_id:
-	Save_id { newopt(&mkopt, ns("KERNEL"), $1); };
+	Save_id { newopt(&mkopt, ns("KERNEL"), $1, 0); };
 
 System_parameter_list:
 	  System_parameter_list ID
@@ -226,13 +227,13 @@ Opt_list:
 
 Option:
 	Save_id {
-		newopt(&opt, $1, NULL);
+		newopt(&opt, $1, NULL, 0);
 		if (strchr($1, '=') != NULL)
 			errx(1, "%s:%d: The `=' in options should not be "
 			    "quoted", yyfile, yyline);
 	      } |
 	Save_id EQUALS Opt_value {
-		newopt(&opt, $1, $3);
+		newopt(&opt, $1, $3, 0);
 	      } ;
 
 Opt_value:
@@ -255,8 +256,9 @@ Mkopt_list:
 		;
 
 Mkoption:
-	Save_id { newopt(&mkopt, $1, ns("")); } |
-	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3); } ;
+	Save_id { newopt(&mkopt, $1, ns(""), 0); } |
+	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0); } |
+	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1); } ;
 
 Dev:
 	ID { $$ = $1; }
@@ -282,7 +284,7 @@ NoDev_list:
 
 Device:
 	Dev {
-		newopt(&opt, devopt($1), ns("1"));
+		newopt(&opt, devopt($1), ns("1"), 0);
 		/* and the device part */
 		newdev($1);
 		}
@@ -401,9 +403,9 @@ findopt(struct opt_head *list, char *name)
  * Add an option to the list of options.
  */
 static void
-newopt(struct opt_head *list, char *name, char *value)
+newopt(struct opt_head *list, char *name, char *value, int append)
 {
-	struct opt *op;
+	struct opt *op, *op2;
 
 	/*
 	 * Ignore inclusions listed explicitly for configuration files.
@@ -413,7 +415,8 @@ newopt(struct opt_head *list, char *name, char *value)
 		return;
 	}
 
-	if (findopt(list, name)) {
+	op2 = findopt(list, name);
+	if (op2 != NULL && !append) {
 		printf("WARNING: duplicate option `%s' encountered.\n", name);
 		return;
 	}
@@ -422,7 +425,12 @@ newopt(struct opt_head *list, char *name, char *value)
 	op->op_name = name;
 	op->op_ownfile = 0;
 	op->op_value = value;
-	SLIST_INSERT_HEAD(list, op, op_next);
+	if (op2 != NULL) {
+		while (SLIST_NEXT(op2, op_append) != NULL)
+			op2 = SLIST_NEXT(op2, op_append);
+		SLIST_NEXT(op2, op_append) = op;
+	} else
+		SLIST_INSERT_HEAD(list, op, op_next);
 }
 
 /*

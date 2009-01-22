@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -94,6 +95,10 @@ __FBSDID("$FreeBSD$");
  * UDP protocol implementation.
  * Per RFC 768, August, 1980.
  */
+
+#ifdef VIMAGE_GLOBALS
+int	udp_blackhole;
+#endif
 
 /*
  * BSD 4.2 defaulted the udp checksum to be off.  Turning off udp checksums
@@ -109,8 +114,8 @@ int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &udp_log_in_vain, 0, "Log all incoming UDP packets");
 
-int	udp_blackhole = 0;
-SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW, &udp_blackhole, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_udp, OID_AUTO, blackhole,
+    CTLFLAG_RW, udp_blackhole, 0,
     "Do not send port unreachables for refused connects");
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */
@@ -129,14 +134,16 @@ u_long	udp_recvspace = 40 * (1024 +
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
+#ifdef VIMAGE_GLOBALS
 struct inpcbhead	udb;		/* from udp_var.h */
 struct inpcbinfo	udbinfo;
+struct udpstat		udpstat;	/* from udp_var.h */
+#endif
 
 #ifndef UDBHASHSIZE
 #define	UDBHASHSIZE	128
 #endif
 
-struct udpstat	udpstat;	/* from udp_var.h */
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_udp, UDPCTL_STATS, stats,
     CTLFLAG_RW, udpstat, udpstat,
     "UDP statistics (struct udpstat, netinet/udp_var.h)");
@@ -166,6 +173,8 @@ void
 udp_init(void)
 {
 	INIT_VNET_INET(curvnet);
+
+	V_udp_blackhole = 0;
 
 	INP_INFO_LOCK_INIT(&V_udbinfo, "udp");
 	LIST_INIT(&V_udb);
@@ -479,10 +488,28 @@ udp_input(struct mbuf *m, int off)
 				struct mbuf *n;
 
 				n = m_copy(m, 0, M_COPYALL);
-				if (n != NULL)
-					udp_append(last, ip, n, iphlen +
-					    sizeof(struct udphdr), &udp_in);
-				INP_RUNLOCK(last);
+				if (last->inp_ppcb == NULL) {
+					if (n != NULL)
+						udp_append(last, 
+						    ip, n, 
+						    iphlen +
+						    sizeof(struct udphdr),
+						    &udp_in);
+					INP_RUNLOCK(last);
+				} else {
+					/*
+					 * Engage the tunneling protocol we
+					 * will have to leave the info_lock
+					 * up, since we are hunting through
+					 * multiple UDP's.
+					 * 
+					 */
+					udp_tun_func_t tunnel_func;
+
+					tunnel_func = (udp_tun_func_t)last->inp_ppcb;
+					tunnel_func(n, iphlen, last);
+					INP_RUNLOCK(last);
+				}
 			}
 			last = inp;
 			/*
@@ -507,10 +534,22 @@ udp_input(struct mbuf *m, int off)
 			V_udpstat.udps_noportbcast++;
 			goto badheadlocked;
 		}
-		udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
-		    &udp_in);
-		INP_RUNLOCK(last);
-		INP_INFO_RUNLOCK(&V_udbinfo);
+		if (last->inp_ppcb == NULL) {
+			udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
+			    &udp_in);
+			INP_RUNLOCK(last);
+			INP_INFO_RUNLOCK(&V_udbinfo);
+		} else {
+			/*
+			 * Engage the tunneling protocol.
+			 */
+			udp_tun_func_t tunnel_func;
+
+			tunnel_func = (udp_tun_func_t)last->inp_ppcb;
+			tunnel_func(m, iphlen, last);
+			INP_RUNLOCK(last);
+			INP_INFO_RUNLOCK(&V_udbinfo);
+		}
 		return;
 	}
 
@@ -553,6 +592,17 @@ udp_input(struct mbuf *m, int off)
 	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl) {
 		INP_RUNLOCK(inp);
 		goto badunlocked;
+	}
+	if (inp->inp_ppcb != NULL) {
+		/*
+		 * Engage the tunneling protocol.
+		 */
+		udp_tun_func_t tunnel_func;
+
+		tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
+		tunnel_func(m, iphlen, inp);
+		INP_RUNLOCK(inp);
+		return;
 	}
 	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
 	INP_RUNLOCK(inp);
@@ -932,9 +982,10 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * Jail may rewrite the destination address, so let it do
 		 * that before we use it.
 		 */
-		if (jailed(td->td_ucred))
-			prison_remote_ip(td->td_ucred, 0,
-			    &sin->sin_addr.s_addr);
+		if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
+			error = EINVAL;
+			goto release;
+		}
 
 		/*
 		 * If a local address or port hasn't yet been selected, or if
@@ -1128,6 +1179,40 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	INP_INFO_WUNLOCK(&V_udbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = V_ip_defttl;
+	/*
+	 * UDP does not have a per-protocol pcb (inp->inp_ppcb). 
+	 * We use this pointer for kernel tunneling pointer.
+	 * If we ever need to have a protocol block we will 
+	 * need to move this function pointer there. Null
+	 * in this pointer means "do the normal thing".
+	 */
+	inp->inp_ppcb = NULL;
+	INP_WUNLOCK(inp);
+	return (0);
+}
+
+int
+udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
+{
+	struct inpcb *inp;
+
+	inp = (struct inpcb *)so->so_pcb;
+	KASSERT(so->so_type == SOCK_DGRAM, ("udp_set_kernel_tunneling: !dgram"));
+	KASSERT(so->so_pcb != NULL, ("udp_set_kernel_tunneling: NULL inp"));
+	if (so->so_type != SOCK_DGRAM) {
+		/* Not UDP socket... sorry! */
+		return (ENOTSUP);
+	}
+	if (inp == NULL) {
+		/* NULL INP? */
+		return (EINVAL);
+	}
+	INP_WLOCK(inp);
+	if (inp->inp_ppcb != NULL) {
+		INP_WUNLOCK(inp);
+		return (EBUSY);
+	}
+	inp->inp_ppcb = f;
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -1186,8 +1271,11 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EISCONN);
 	}
 	sin = (struct sockaddr_in *)nam;
-	if (jailed(td->td_ucred))
-		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
+	if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&V_udbinfo);
+		return (EAFNOSUPPORT);
+	}
 	error = in_pcbconnect(inp, nam, td->td_ucred);
 	if (error == 0)
 		soisconnected(so);

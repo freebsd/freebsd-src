@@ -78,13 +78,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/include/usb2_cdc.h>
 
 #define	USB_DEBUG_VAR usb2_com_debug
-#define	usb2_config_td_cc usb2_com_config_copy
-#define	usb2_config_td_softc usb2_com_softc
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -99,34 +96,31 @@ SYSCTL_INT(_hw_usb2_ucom, OID_AUTO, debug, CTLFLAG_RW,
     &usb2_com_debug, 0, "ucom debug level");
 #endif
 
-struct usb2_com_config_copy {
-	struct usb2_com_softc *cc_softc;
-	uint8_t	cc_flag0;
-	uint8_t	cc_flag1;
-	uint8_t	cc_flag2;
-	uint8_t	cc_flag3;
-};
+static usb2_proc_callback_t usb2_com_cfg_start_transfers;
+static usb2_proc_callback_t usb2_com_cfg_open;
+static usb2_proc_callback_t usb2_com_cfg_close;
+static usb2_proc_callback_t usb2_com_cfg_break_on;
+static usb2_proc_callback_t usb2_com_cfg_break_off;
+static usb2_proc_callback_t usb2_com_cfg_dtr_on;
+static usb2_proc_callback_t usb2_com_cfg_dtr_off;
+static usb2_proc_callback_t usb2_com_cfg_rts_on;
+static usb2_proc_callback_t usb2_com_cfg_rts_off;
+static usb2_proc_callback_t usb2_com_cfg_status_change;
+static usb2_proc_callback_t usb2_com_cfg_param;
 
-static usb2_config_td_command_t usb2_com_config_copy;
-static usb2_config_td_command_t usb2_com_cfg_start_transfers;
-static usb2_config_td_command_t usb2_com_cfg_open;
-static usb2_config_td_command_t usb2_com_cfg_close;
-static usb2_config_td_command_t usb2_com_cfg_break;
-static usb2_config_td_command_t usb2_com_cfg_dtr;
-static usb2_config_td_command_t usb2_com_cfg_rts;
-static usb2_config_td_command_t usb2_com_cfg_status_change;
-static usb2_config_td_command_t usb2_com_cfg_param;
-
-static uint8_t usb2_com_units_alloc(uint32_t sub_units, uint32_t *p_root_unit);
-static void usb2_com_units_free(uint32_t root_unit, uint32_t sub_units);
-static int usb2_com_attach_sub(struct usb2_com_softc *sc);
-static void usb2_com_detach_sub(struct usb2_com_softc *sc);
-static void usb2_com_queue_command(struct usb2_com_softc *sc, usb2_config_td_command_t *cmd, int flag);
-static void usb2_com_shutdown(struct usb2_com_softc *sc);
-static void usb2_com_start_transfers(struct usb2_com_softc *sc);
-static void usb2_com_break(struct usb2_com_softc *sc, uint8_t onoff);
-static void usb2_com_dtr(struct usb2_com_softc *sc, uint8_t onoff);
-static void usb2_com_rts(struct usb2_com_softc *sc, uint8_t onoff);
+static uint8_t	usb2_com_units_alloc(uint32_t, uint32_t *);
+static void	usb2_com_units_free(uint32_t, uint32_t);
+static int	usb2_com_attach_sub(struct usb2_com_softc *);
+static void	usb2_com_detach_sub(struct usb2_com_softc *);
+static void	usb2_com_queue_command(struct usb2_com_softc *sc,
+		    uint8_t cmd);
+static void	usb2_com_wait_command(struct usb2_com_softc *sc,
+		    uint8_t cmd);
+static void	usb2_com_shutdown(struct usb2_com_softc *);
+static void	usb2_com_start_transfers(struct usb2_com_softc *);
+static void	usb2_com_break(struct usb2_com_softc *, uint8_t);
+static void	usb2_com_dtr(struct usb2_com_softc *, uint8_t);
+static void	usb2_com_rts(struct usb2_com_softc *, uint8_t);
 
 static tsw_open_t usb2_com_open;
 static tsw_close_t usb2_com_close;
@@ -219,8 +213,6 @@ usb2_com_units_free(uint32_t root_unit, uint32_t sub_units)
 	}
 
 	mtx_unlock(&Giant);
-
-	return;
 }
 
 /*
@@ -252,9 +244,7 @@ usb2_com_attach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
 	if (usb2_com_units_alloc(sub_units, &root_unit)) {
 		return (ENOMEM);
 	}
-	if (usb2_config_td_setup
-	    (&ssc->sc_config_td, sc, p_mtx, NULL,
-	    sizeof(struct usb2_com_config_copy), 24 * sub_units)) {
+	if (usb2_proc_setup(&ssc->sc_config_td, p_mtx, USB_PRI_MED)) {
 		usb2_com_units_free(root_unit, sub_units);
 		return (ENOMEM);
 	}
@@ -286,7 +276,7 @@ usb2_com_detach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
 {
 	uint32_t n;
 
-	usb2_config_td_drain(&ssc->sc_config_td);
+	usb2_proc_drain(&ssc->sc_config_td);
 
 	for (n = 0; n < sub_units; n++, sc++) {
 		if (sc->sc_flag & UCOM_FLAG_ATTACHED) {
@@ -299,10 +289,7 @@ usb2_com_detach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
 			sc->sc_flag &= ~UCOM_FLAG_ATTACHED;
 		}
 	}
-
-	usb2_config_td_unsetup(&ssc->sc_config_td);
-
-	return;
+	usb2_proc_unsetup(&ssc->sc_config_td);
 }
 
 static int
@@ -310,6 +297,7 @@ usb2_com_attach_sub(struct usb2_com_softc *sc)
 {
 	struct tty *tp;
 	int error = 0;
+	uint8_t n;
 	char buf[32];			/* temporary TTY device name buffer */
 
 	tp = tty_alloc(&usb2_com_class, sc, sc->sc_parent_mtx);
@@ -339,6 +327,39 @@ usb2_com_attach_sub(struct usb2_com_softc *sc)
 	DPRINTF("ttycreate: %s\n", buf);
 	usb2_cv_init(&sc->sc_cv, "usb2_com");
 
+	/* 
+	 * Set all function callback pointers for deferred COM
+	 * operations:
+	 */
+	for (n = 0; n != 2; n++) {
+		sc->sc_cmds[(2*USB_COM_CFG_START_TRANSFERS) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_start_transfers;
+		sc->sc_cmds[(2*USB_COM_CFG_OPEN) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_open;
+		sc->sc_cmds[(2*USB_COM_CFG_CLOSE) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_close;
+		sc->sc_cmds[(2*USB_COM_CFG_BREAK_ON) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_break_on;
+		sc->sc_cmds[(2*USB_COM_CFG_BREAK_OFF) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_break_off;
+		sc->sc_cmds[(2*USB_COM_CFG_DTR_ON) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_dtr_on;
+		sc->sc_cmds[(2*USB_COM_CFG_DTR_OFF) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_dtr_off;
+		sc->sc_cmds[(2*USB_COM_CFG_RTS_ON) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_rts_on;
+		sc->sc_cmds[(2*USB_COM_CFG_RTS_OFF) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_rts_off;
+		sc->sc_cmds[(2*USB_COM_CFG_STATUS_CHANGE) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_status_change;
+		sc->sc_cmds[(2*USB_COM_CFG_PARAM) + n].hdr.pm_callback = 
+		    &usb2_com_cfg_param;
+	}
+
+	/* initialise all callback pointer arguments */
+	for (n = 0; n != (2*USB_COM_CFG_MAX); n++) {
+		sc->sc_cmds[n].cc_softc = sc;
+	}
 done:
 	return (error);
 }
@@ -380,32 +401,43 @@ usb2_com_detach_sub(struct usb2_com_softc *sc)
 		mtx_unlock(sc->sc_parent_mtx);
 	}
 	usb2_cv_destroy(&sc->sc_cv);
-	return;
 }
 
+/*
+ * The following function queues a command for deferred execution.
+ * The following function must be called locked.
+ */
 static void
-usb2_com_config_copy(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
-{
-	cc->cc_softc = sc + (refcount % UCOM_SUB_UNIT_MAX);
-	cc->cc_flag0 = (refcount / (1 * UCOM_SUB_UNIT_MAX)) % 2;
-	cc->cc_flag1 = (refcount / (2 * UCOM_SUB_UNIT_MAX)) % 2;
-	cc->cc_flag2 = (refcount / (4 * UCOM_SUB_UNIT_MAX)) % 2;
-	cc->cc_flag3 = (refcount / (8 * UCOM_SUB_UNIT_MAX)) % 2;
-	return;
-}
-
-static void
-usb2_com_queue_command(struct usb2_com_softc *sc, usb2_config_td_command_t *cmd, int flag)
+usb2_com_queue_command(struct usb2_com_softc *sc, uint8_t cmd)
 {
 	struct usb2_com_super_softc *ssc = sc->sc_super;
 
-	usb2_config_td_queue_command
-	    (&ssc->sc_config_td, &usb2_com_config_copy,
-	    cmd, (cmd == &usb2_com_cfg_status_change) ? 1 : 0,
-	    ((sc->sc_local_unit % UCOM_SUB_UNIT_MAX) +
-	    (flag ? UCOM_SUB_UNIT_MAX : 0)));
-	return;
+	if (usb2_proc_is_gone(&ssc->sc_config_td)) {
+		DPRINTF("proc is gone\n");
+		return;		/* nothing to do */
+	}
+
+	if (usb2_proc_msignal(&ssc->sc_config_td, 
+	    &sc->sc_cmds[2*cmd], &sc->sc_cmds[(2*cmd)+1])) {
+		/* ignore */
+	}
+}
+
+/*
+ * The following function waits until a command has been executed.
+ * The following function must be called locked.
+ */
+static void
+usb2_com_wait_command(struct usb2_com_softc *sc, uint8_t cmd)
+{
+	struct usb2_com_super_softc *ssc = sc->sc_super;
+
+	if (usb2_proc_is_gone(&ssc->sc_config_td)) {
+		DPRINTF("proc is gone\n");
+		return;		/* nothing to do */
+	}
+	usb2_proc_mwait(&ssc->sc_config_td, 
+	    &sc->sc_cmds[2*cmd], &sc->sc_cmds[(2*cmd)+1]);
 }
 
 static void
@@ -423,10 +455,11 @@ usb2_com_shutdown(struct usb2_com_softc *sc)
 	if (tp->t_termios.c_cflag & HUPCL) {
 		usb2_com_modem(tp, 0, SER_DTR);
 	}
-	return;
 }
 
 /*
+ * This function will sleep "timeout" system ticks.
+ *
  * Return values:
  *    0: normal delay
  * else: config thread is gone
@@ -435,8 +468,26 @@ uint8_t
 usb2_com_cfg_sleep(struct usb2_com_softc *sc, uint32_t timeout)
 {
 	struct usb2_com_super_softc *ssc = sc->sc_super;
+	uint8_t is_gone;
 
-	return (usb2_config_td_sleep(&ssc->sc_config_td, timeout));
+	is_gone = usb2_proc_is_gone(&ssc->sc_config_td);
+	if (is_gone)
+		goto done;	/* we are detaching */
+	if (timeout == 0)
+		timeout = 1;	/* one tick is the least timeout */
+
+	mtx_unlock(sc->sc_parent_mtx);
+
+	if (pause("UCOMWAIT", timeout)) {
+		/* ignore */
+	}
+
+	mtx_lock(sc->sc_parent_mtx);
+
+	/* refresh gone status */
+	is_gone = usb2_proc_is_gone(&ssc->sc_config_td);
+done:
+	return (is_gone);
 }
 
 /*
@@ -449,13 +500,15 @@ usb2_com_cfg_is_gone(struct usb2_com_softc *sc)
 {
 	struct usb2_com_super_softc *ssc = sc->sc_super;
 
-	return (usb2_config_td_is_gone(&ssc->sc_config_td));
+	return (usb2_proc_is_gone(&ssc->sc_config_td));
 }
 
 static void
-usb2_com_cfg_start_transfers(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
+usb2_com_cfg_start_transfers(struct usb2_proc_msg *_cc)
 {
+	struct usb2_com_command_msg *cc = (void *)_cc;
+	struct usb2_com_softc *sc;
+
 	sc = cc->cc_softc;
 
 	if (!(sc->sc_flag & UCOM_FLAG_LL_READY)) {
@@ -473,7 +526,6 @@ usb2_com_cfg_start_transfers(struct usb2_com_softc *sc, struct usb2_com_config_c
 	if (sc->sc_callback->usb2_com_start_write) {
 		(sc->sc_callback->usb2_com_start_write) (sc);
 	}
-	return;
 }
 
 static void
@@ -493,15 +545,16 @@ usb2_com_start_transfers(struct usb2_com_softc *sc)
 		(sc->sc_callback->usb2_com_start_write) (sc);
 	}
 	if (!(sc->sc_flag & UCOM_FLAG_GP_DATA)) {
-		usb2_com_queue_command(sc, &usb2_com_cfg_start_transfers, 0);
+		usb2_com_queue_command(sc, USB_COM_CFG_START_TRANSFERS);
 	}
-	return;
 }
 
 static void
-usb2_com_cfg_open(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
+usb2_com_cfg_open(struct usb2_proc_msg *_cc)
 {
+	struct usb2_com_command_msg *cc = (void *)_cc;
+	struct usb2_com_softc *sc;
+
 	sc = cc->cc_softc;
 
 	DPRINTF("\n");
@@ -521,7 +574,6 @@ usb2_com_cfg_open(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 			usb2_com_cfg_sleep(sc, hz / 10);
 		}
 	}
-	return;
 }
 
 static int
@@ -560,7 +612,7 @@ usb2_com_open(struct tty *tp)
 	sc->sc_msr = 0;
 	sc->sc_mcr = 0;
 
-	usb2_com_queue_command(sc, &usb2_com_cfg_open, 0);
+	usb2_com_queue_command(sc, USB_COM_CFG_OPEN);
 
 	usb2_com_start_transfers(sc);
 
@@ -574,9 +626,11 @@ usb2_com_open(struct tty *tp)
 }
 
 static void
-usb2_com_cfg_close(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
+usb2_com_cfg_close(struct usb2_proc_msg *_cc)
 {
+	struct usb2_com_command_msg *cc = (void *)_cc;
+	struct usb2_com_softc *sc;
+
 	sc = cc->cc_softc;
 
 	DPRINTF("\n");
@@ -592,14 +646,13 @@ usb2_com_cfg_close(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 	} else {
 		/* already closed */
 	}
-	return;
 }
 
 static void
 usb2_com_close(struct tty *tp)
 {
 	struct usb2_com_softc *sc = tty_softc(tp);
-
+	
 	mtx_assert(sc->sc_parent_mtx, MA_OWNED);
 
 	DPRINTF("tp=%p\n", tp);
@@ -610,7 +663,9 @@ usb2_com_close(struct tty *tp)
 	}
 	usb2_com_shutdown(sc);
 
-	usb2_com_queue_command(sc, &usb2_com_cfg_close, 0);
+	/* Queue and wait for close command to complete */
+	usb2_com_queue_command(sc, USB_COM_CFG_CLOSE);
+	usb2_com_wait_command(sc, USB_COM_CFG_CLOSE);
 
 	sc->sc_flag &= ~(UCOM_FLAG_HL_READY |
 	    UCOM_FLAG_WR_START |
@@ -622,7 +677,6 @@ usb2_com_close(struct tty *tp)
 	if (sc->sc_callback->usb2_com_stop_write) {
 		(sc->sc_callback->usb2_com_stop_write) (sc);
 	}
-	return;
 }
 
 static int
@@ -714,20 +768,32 @@ usb2_com_modem(struct tty *tp, int sigon, int sigoff)
 }
 
 static void
-usb2_com_cfg_break(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
+usb2_com_cfg_break(struct usb2_com_command_msg *cc, uint8_t onoff)
 {
+	struct usb2_com_softc *sc;
+
 	sc = cc->cc_softc;
 
 	if (!(sc->sc_flag & UCOM_FLAG_LL_READY)) {
 		return;
 	}
-	DPRINTF("onoff=%d\n", cc->cc_flag0);
+	DPRINTF("onoff=%d\n", onoff);
 
 	if (sc->sc_callback->usb2_com_cfg_set_break) {
-		(sc->sc_callback->usb2_com_cfg_set_break) (sc, cc->cc_flag0);
+		(sc->sc_callback->usb2_com_cfg_set_break) (sc, onoff);
 	}
-	return;
+}
+
+static void
+usb2_com_cfg_break_on(struct usb2_proc_msg *_cc)
+{
+	usb2_com_cfg_break((void *)_cc, 1);
+}
+
+static void
+usb2_com_cfg_break_off(struct usb2_proc_msg *_cc)
+{
+	usb2_com_cfg_break((void *)_cc, 0);
 }
 
 static void
@@ -740,25 +806,37 @@ usb2_com_break(struct usb2_com_softc *sc, uint8_t onoff)
 	}
 	DPRINTF("onoff = %d\n", onoff);
 
-	usb2_com_queue_command(sc, &usb2_com_cfg_break, onoff);
-	return;
+	usb2_com_queue_command(sc, onoff ? 
+	    USB_COM_CFG_BREAK_ON : USB_COM_CFG_BREAK_OFF);
 }
 
 static void
-usb2_com_cfg_dtr(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
+usb2_com_cfg_dtr(struct usb2_com_command_msg *cc, uint8_t onoff)
 {
+	struct usb2_com_softc *sc;
+
 	sc = cc->cc_softc;
 
 	if (!(sc->sc_flag & UCOM_FLAG_LL_READY)) {
 		return;
 	}
-	DPRINTF("onoff=%d\n", cc->cc_flag0);
+	DPRINTF("onoff=%d\n", onoff);
 
 	if (sc->sc_callback->usb2_com_cfg_set_dtr) {
-		(sc->sc_callback->usb2_com_cfg_set_dtr) (sc, cc->cc_flag0);
+		(sc->sc_callback->usb2_com_cfg_set_dtr) (sc, onoff);
 	}
-	return;
+}
+
+static void
+usb2_com_cfg_dtr_on(struct usb2_proc_msg *_cc)
+{
+	usb2_com_cfg_dtr((void *)_cc, 1);
+}
+
+static void
+usb2_com_cfg_dtr_off(struct usb2_proc_msg *_cc)
+{
+	usb2_com_cfg_dtr((void *)_cc, 0);
 }
 
 static void
@@ -771,25 +849,37 @@ usb2_com_dtr(struct usb2_com_softc *sc, uint8_t onoff)
 	}
 	DPRINTF("onoff = %d\n", onoff);
 
-	usb2_com_queue_command(sc, &usb2_com_cfg_dtr, onoff);
-	return;
+	usb2_com_queue_command(sc, onoff ? 
+	    USB_COM_CFG_DTR_ON : USB_COM_CFG_DTR_OFF);
 }
 
 static void
-usb2_com_cfg_rts(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
+usb2_com_cfg_rts(struct usb2_com_command_msg *cc, uint8_t onoff)
 {
+	struct usb2_com_softc *sc;
+
 	sc = cc->cc_softc;
 
-	DPRINTF("onoff=%d\n", cc->cc_flag0);
+	DPRINTF("onoff=%d\n", onoff);
 
 	if (!(sc->sc_flag & UCOM_FLAG_LL_READY)) {
 		return;
 	}
 	if (sc->sc_callback->usb2_com_cfg_set_rts) {
-		(sc->sc_callback->usb2_com_cfg_set_rts) (sc, cc->cc_flag0);
+		(sc->sc_callback->usb2_com_cfg_set_rts) (sc, onoff);
 	}
-	return;
+}
+
+static void
+usb2_com_cfg_rts_on(struct usb2_proc_msg *_cc)
+{
+	usb2_com_cfg_rts((void *)_cc, 1);
+}
+
+static void
+usb2_com_cfg_rts_off(struct usb2_proc_msg *_cc)
+{
+	usb2_com_cfg_rts((void *)_cc, 0);
 }
 
 static void
@@ -802,15 +892,15 @@ usb2_com_rts(struct usb2_com_softc *sc, uint8_t onoff)
 	}
 	DPRINTF("onoff = %d\n", onoff);
 
-	usb2_com_queue_command(sc, &usb2_com_cfg_rts, onoff);
-
-	return;
+	usb2_com_queue_command(sc, onoff ? 
+	    USB_COM_CFG_RTS_ON : USB_COM_CFG_RTS_OFF);
 }
 
 static void
-usb2_com_cfg_status_change(struct usb2_com_softc *sc,
-    struct usb2_com_config_copy *cc, uint16_t refcount)
+usb2_com_cfg_status_change(struct usb2_proc_msg *_cc)
 {
+	struct usb2_com_command_msg *cc = (void *)_cc;
+	struct usb2_com_softc *sc;
 	struct tty *tp;
 
 	uint8_t new_msr;
@@ -852,7 +942,6 @@ usb2_com_cfg_status_change(struct usb2_com_softc *sc,
 
 		ttydisc_modem(tp, onoff);
 	}
-	return;
 }
 
 void
@@ -865,14 +954,14 @@ usb2_com_status_change(struct usb2_com_softc *sc)
 	}
 	DPRINTF("\n");
 
-	usb2_com_queue_command(sc, &usb2_com_cfg_status_change, 0);
-	return;
+	usb2_com_queue_command(sc, USB_COM_CFG_STATUS_CHANGE);
 }
 
 static void
-usb2_com_cfg_param(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
-    uint16_t refcount)
+usb2_com_cfg_param(struct usb2_proc_msg *_cc)
 {
+	struct usb2_com_command_msg *cc = (void *)_cc;
+	struct usb2_com_softc *sc;
 	struct termios t_copy;
 
 	sc = cc->cc_softc;
@@ -889,8 +978,6 @@ usb2_com_cfg_param(struct usb2_com_softc *sc, struct usb2_com_config_copy *cc,
 
 	/* wait a little */
 	usb2_com_cfg_sleep(sc, hz / 10);
-
-	return;
 }
 
 static int
@@ -945,7 +1032,7 @@ usb2_com_param(struct tty *tp, struct termios *t)
 	sc->sc_flag &= ~UCOM_FLAG_GP_DATA;
 
 	/* Queue baud rate programming command first */
-	usb2_com_queue_command(sc, &usb2_com_cfg_param, 0);
+	usb2_com_queue_command(sc, USB_COM_CFG_PARAM);
 
 	/* Queue transfer enable command last */
 	usb2_com_start_transfers(sc);
@@ -981,8 +1068,6 @@ usb2_com_start_write(struct tty *tp)
 	sc->sc_flag |= UCOM_FLAG_WR_START;
 
 	usb2_com_start_transfers(sc);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1096,7 +1181,6 @@ usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
 		}
 	}
 	ttydisc_rint_done(tp);
-	return;
 }
 
 static void

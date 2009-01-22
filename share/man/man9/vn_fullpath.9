@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2004
+.Dd November 23, 2008
 .Dt VN_FULLPATH 9
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@ The
 function makes a
 .Dq "best effort"
 attempt to generate a string pathname for
-the passed (locked) vnode; the resulting path, if any, will be relative to
+the passed vnode; the resulting path, if any, will be relative to
 the root directory of the process associated with the passed thread pointer.
 The
 .Fn vn_fullpath
@@ -73,7 +73,7 @@ The thread performing the call; this pointer will be dereferenced to find
 the process and its file descriptor structure, in order to identify the
 root vnode to use.
 .It Fa vp
-The vnode to search for; must be locked by the caller.
+The vnode to search for.  No need to be locked by the caller.
 .It Fa retbuf
 Pointer to a
 .Vt "char *"

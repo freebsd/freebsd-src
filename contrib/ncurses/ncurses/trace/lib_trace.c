@@ -46,7 +46,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_trace.c,v 1.66 2008/03/22 16:56:48 tom Exp $")
+MODULE_ID("$Id: lib_trace.c,v 1.71 2008/08/23 18:04:29 tom Exp $")
 
 NCURSES_EXPORT_VAR(unsigned) _nc_tracing = 0; /* always define this */
 
@@ -95,10 +95,13 @@ trace(const unsigned int tracelevel)
 	const char *mode = _nc_globals.init_trace ? "ab" : "wb";
 
 	if (TracePath[0] == '\0') {
-	    if (getcwd(TracePath, sizeof(TracePath) - 12) == 0) {
+	    int size = sizeof(TracePath) - 12;
+	    if (getcwd(TracePath, size) == 0) {
 		perror("curses: Can't get working directory");
 		exit(EXIT_FAILURE);
 	    }
+	    TracePath[size] = '\0';
+	    assert(strlen(TracePath) <= size);
 	    strcat(TracePath, "/trace");
 	    if (_nc_is_dir_path(TracePath)) {
 		strcat(TracePath, ".log");
@@ -177,7 +180,10 @@ _nc_va_tracef(const char *fmt, va_list ap)
 	 * Rather than add the complication of a per-thread stack, just
 	 * show the thread-id in each line of the trace.
 	 */
-	fprintf(TraceFP, "%#lx:", (long) pthread_self());
+# if USE_WEAK_SYMBOLS
+	if ((pthread_self))
+# endif
+	    fprintf(TraceFP, "%#lx:", (long) (void *) pthread_self());
 #endif
 	if (before || after) {
 	    int n;
@@ -292,9 +298,9 @@ _nc_use_tracef(unsigned mask)
 
     _nc_lock_global(tst_tracef);
     if (!_nc_globals.nested_tracef++) {
-	if ((result = (_nc_tracing & (mask))) != 0) {
+	if ((result = (_nc_tracing & (mask))) != 0
+	    && _nc_try_global(tracef) == 0) {
 	    /* we will call _nc_locked_tracef(), no nesting so far */
-	    _nc_lock_global(tracef);
 	} else {
 	    /* we will not call _nc_locked_tracef() */
 	    _nc_globals.nested_tracef = 0;

@@ -66,7 +66,6 @@
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -84,7 +83,6 @@ SYSCTL_INT(_hw_usb2_uvisor, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	UVISOR_CONFIG_INDEX	0
 #define	UVISOR_IFACE_INDEX	0
-#define	UVISOR_N_TRANSFER       4	/* units */
 #define	UVISOR_BUFSIZE       1024	/* bytes */
 
 /* From the Linux driver */
@@ -150,6 +148,14 @@ struct uvisor_palm_connection_info {
 	} __packed connections[UVISOR_MAX_CONN];
 } __packed;
 
+enum {
+	UVISOR_BULK_DT_WR,
+	UVISOR_BULK_DT_RD,
+	UVISOR_BULK_CS_WR,
+	UVISOR_BULK_CS_RD,
+	UVISOR_N_TRANSFER = 4,
+};
+
 struct uvisor_softc {
 	struct usb2_com_super_softc sc_super_ucom;
 	struct usb2_com_softc sc_ucom;
@@ -180,17 +186,18 @@ static usb2_callback_t uvisor_write_clear_stall_callback;
 static usb2_callback_t uvisor_read_callback;
 static usb2_callback_t uvisor_read_clear_stall_callback;
 
-static usb2_error_t uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_config *config);
-static void uvisor_cfg_open(struct usb2_com_softc *ucom);
-static void uvisor_cfg_close(struct usb2_com_softc *ucom);
-static void uvisor_start_read(struct usb2_com_softc *ucom);
-static void uvisor_stop_read(struct usb2_com_softc *ucom);
-static void uvisor_start_write(struct usb2_com_softc *ucom);
-static void uvisor_stop_write(struct usb2_com_softc *ucom);
+static usb2_error_t uvisor_init(struct uvisor_softc *, struct usb2_device *,
+		    struct usb2_config *);
+static void	uvisor_cfg_open(struct usb2_com_softc *);
+static void	uvisor_cfg_close(struct usb2_com_softc *);
+static void	uvisor_start_read(struct usb2_com_softc *);
+static void	uvisor_stop_read(struct usb2_com_softc *);
+static void	uvisor_start_write(struct usb2_com_softc *);
+static void	uvisor_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 
-	[0] = {
+	[UVISOR_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -199,7 +206,7 @@ static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.mh.callback = &uvisor_write_callback,
 	},
 
-	[1] = {
+	[UVISOR_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -208,7 +215,7 @@ static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.mh.callback = &uvisor_read_callback,
 	},
 
-	[2] = {
+	[UVISOR_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -218,7 +225,7 @@ static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[3] = {
+	[UVISOR_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -545,7 +552,6 @@ uvisor_cfg_close(struct usb2_com_softc *ucom)
 		DPRINTFN(0, "close notification failed, error=%s\n",
 		    usb2_errstr(err));
 	}
-	return;
 }
 
 static void
@@ -553,8 +559,7 @@ uvisor_start_read(struct usb2_com_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[1]);
-	return;
+	usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_DT_RD]);
 }
 
 static void
@@ -562,9 +567,8 @@ uvisor_stop_read(struct usb2_com_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
+	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_DT_RD]);
 }
 
 static void
@@ -572,8 +576,7 @@ uvisor_start_write(struct usb2_com_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[0]);
-	return;
+	usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_DT_WR]);
 }
 
 static void
@@ -581,9 +584,8 @@ uvisor_stop_write(struct usb2_com_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
+	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_DT_WR]);
 }
 
 static void
@@ -596,7 +598,7 @@ uvisor_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 		if (sc->sc_flag & UVISOR_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_WR]);
 			return;
 		}
 		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
@@ -610,7 +612,7 @@ uvisor_write_callback(struct usb2_xfer *xfer)
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flag |= UVISOR_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_WR]);
 		}
 		return;
 
@@ -621,14 +623,13 @@ static void
 uvisor_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct uvisor_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UVISOR_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flag &= ~UVISOR_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -642,7 +643,7 @@ uvisor_read_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flag & UVISOR_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -652,7 +653,7 @@ uvisor_read_callback(struct usb2_xfer *xfer)
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			sc->sc_flag |= UVISOR_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_RD]);
 		}
 		return;
 
@@ -663,12 +664,11 @@ static void
 uvisor_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct uvisor_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UVISOR_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flag &= ~UVISOR_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }

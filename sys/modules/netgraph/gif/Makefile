@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 KMOD=	ng_gif
-SRCS= 	ng_gif.c opt_inet.h opt_inet6.h
+SRCS= 	ng_gif.c opt_inet.h opt_inet6.h opt_route.h
 
 .if !defined(KERNBUILDDIR)
 opt_inet.h:

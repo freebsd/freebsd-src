@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -60,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/igmp_var.h>
+#include <netinet/vinet.h>
 
 #ifndef __SOCKUNION_DECLARED
 union sockunion {
@@ -86,7 +88,9 @@ static MALLOC_DEFINE(M_IPMSOURCE, "in_msource", "IPv4 multicast source filter");
  * ip_output() to send IGMP packets while holding the lock; this probably is
  * not quite desirable.
  */
+#ifdef VIMAGE_GLOBALS
 struct in_multihead in_multihead;	/* XXX BSS initialization */
+#endif
 struct mtx in_multi_mtx;
 MTX_SYSINIT(in_multi_mtx, &in_multi_mtx, "in_multi_mtx", MTX_DEF | MTX_RECURSE);
 
@@ -1032,7 +1036,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 			ro.ro_rt = NULL;
 			*(struct sockaddr_in *)&ro.ro_dst = gsa->sin;
-			in_rtalloc_ign(&ro, RTF_CLONING,
+			in_rtalloc_ign(&ro, 0,
 			   inp->inp_inc.inc_fibnum);
 			if (ro.ro_rt != NULL) {
 				ifp = ro.ro_rt->rt_ifp;

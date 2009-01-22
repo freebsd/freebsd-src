@@ -52,6 +52,7 @@
 .Op Fl i Ar bytes
 .Op Fl m Ar free-space
 .Op Fl o Ar optimization
+.Op Fl p Ar partition
 .Op Fl r Ar reserved
 .Op Fl s Ar size
 .Ar special
@@ -201,6 +202,17 @@ the default is to optimize for
 See
 .Xr tunefs 8
 for more details on how to set this option.
+.It Fl p Ar partition
+The partition name (a..h) you want to use in case the underlying image
+is a file, so you don't have access to individual partitions through the
+filesystem.
+Can also be used with a device, e.g.
+.Nm
+.Fl p Ar f
+.Ar /dev/da1s3
+is equivalent to
+.Nm
+.Ar /dev/da1s3f .
 .It Fl r Ar reserved
 The size, in sectors, of reserved space
 at the end of the partition specified in

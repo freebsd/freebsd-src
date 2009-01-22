@@ -531,34 +531,6 @@ configUsers(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
-#ifdef WITH_LINUX
-int
-configLinux(dialogMenuItem *self)
-{
-    WINDOW *w = savescr();
-    int i;
-
-    dialog_clear_norefresh();
-    variable_set2(VAR_LINUX_ENABLE, "YES", 1);
-    Mkdir("/compat/linux");
-    msgNotify("Installing Linux compatibility library...");
-    i = package_add("linux_base-fc");
-    restorescr(w);
-    return i;
-}
-#endif
-
-#ifdef __alpha__
-int
-configOSF1(dialogMenuItem *self)
-{
-
-    variable_set2(VAR_OSF1_ENABLE, "YES", 1);
-    Mkdir("/compat/osf1");
-    return DITEM_SUCCESS;
-}
-#endif
-
 int
 configSecurelevel(dialogMenuItem *self)
 {
@@ -845,7 +817,7 @@ configNFSServer(dialogMenuItem *self)
 		       "kinds of access to your local file systems.\n"
 		       "Press [ENTER] now to invoke an editor on /etc/exports\n");
 	    vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
-	    vsystem("echo '#/usr/src and /usr/ports read-only to machines named after trouble makers' >> /etc/exports");
+	    vsystem("echo '#/usr/src and /usr/obj read-only to machines named after trouble makers,' >> /etc/exports");
 	    vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
 	    vsystem("echo '#and, /a to a network of privileged machines allowed to write on it as root.' >> /etc/exports");
 	    vsystem("echo '#/usr                   huey louie dewie' >> /etc/exports");

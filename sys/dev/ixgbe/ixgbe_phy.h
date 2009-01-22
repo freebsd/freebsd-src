@@ -36,6 +36,52 @@
 #define _IXGBE_PHY_H_
 
 #include "ixgbe_type.h"
+#define IXGBE_I2C_EEPROM_DEV_ADDR    0xA0
+
+/* EEPROM byte offsets */
+#define IXGBE_SFF_IDENTIFIER         0x0
+#define IXGBE_SFF_IDENTIFIER_SFP     0x3
+#define IXGBE_SFF_VENDOR_OUI_BYTE0   0x25
+#define IXGBE_SFF_VENDOR_OUI_BYTE1   0x26
+#define IXGBE_SFF_VENDOR_OUI_BYTE2   0x27
+#define IXGBE_SFF_1GBE_COMP_CODES    0x6
+#define IXGBE_SFF_10GBE_COMP_CODES   0x3
+#define IXGBE_SFF_TRANSMISSION_MEDIA 0x9
+
+/* Bitmasks */
+#define IXGBE_SFF_TWIN_AX_CAPABLE            0x80
+#define IXGBE_SFF_1GBASESX_CAPABLE           0x1
+#define IXGBE_SFF_10GBASESR_CAPABLE          0x10
+#define IXGBE_SFF_10GBASELR_CAPABLE          0x20
+#define IXGBE_I2C_EEPROM_READ_MASK           0x100
+#define IXGBE_I2C_EEPROM_STATUS_MASK         0x3
+#define IXGBE_I2C_EEPROM_STATUS_NO_OPERATION 0x0
+#define IXGBE_I2C_EEPROM_STATUS_PASS         0x1
+#define IXGBE_I2C_EEPROM_STATUS_FAIL         0x2
+#define IXGBE_I2C_EEPROM_STATUS_IN_PROGRESS  0x3
+
+/* Bit-shift macros */
+#define IXGBE_SFF_VENDOR_OUI_BYTE0_SHIFT    12
+#define IXGBE_SFF_VENDOR_OUI_BYTE1_SHIFT    8
+#define IXGBE_SFF_VENDOR_OUI_BYTE2_SHIFT    4
+
+/* Vendor OUIs: format of OUI is 0x[byte0][byte1][byte2][00] */
+#define IXGBE_SFF_VENDOR_OUI_TYCO     0x00407600
+#define IXGBE_SFF_VENDOR_OUI_FTL      0x00906500
+#define IXGBE_SFF_VENDOR_OUI_AVAGO    0x00176A00
+
+/* I2C SDA and SCL timing parameters for standard mode */
+#define IXGBE_I2C_T_HD_STA  4
+#define IXGBE_I2C_T_LOW     5
+#define IXGBE_I2C_T_HIGH    4
+#define IXGBE_I2C_T_SU_STA  5
+#define IXGBE_I2C_T_HD_DATA 5
+#define IXGBE_I2C_T_SU_DATA 1
+#define IXGBE_I2C_T_RISE    1
+#define IXGBE_I2C_T_FALL    1
+#define IXGBE_I2C_T_SU_STO  4
+#define IXGBE_I2C_T_BUF     5
+
 
 s32 ixgbe_init_phy_ops_generic(struct ixgbe_hw *hw);
 bool ixgbe_validate_phy_addr(struct ixgbe_hw *hw, u32 phy_addr);
@@ -60,4 +106,9 @@ s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,
 s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
                                        u16 *firmware_version);
 
+s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw);
+s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw);
+s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
+                                        u16 *list_offset,
+                                        u16 *data_offset);
 #endif /* _IXGBE_PHY_H_ */

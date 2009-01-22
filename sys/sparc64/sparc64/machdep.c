@@ -115,6 +115,8 @@ typedef int ofw_vec_t(void *);
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
+int dtlb_slots;
+int itlb_slots;
 struct tlb_entry *kernel_tlbs;
 int kernel_tlb_slots;
 
@@ -276,9 +278,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	tick_stop();
 
 	/*
-	 * Initialize Open Firmware (needed for console).
+	 * Set up Open Firmware entry points.
 	 */
-	OF_init(vec);
+	ofw_tba = rdpr(tba);
+	ofw_vec = (u_long)vec;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
@@ -299,6 +302,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 	init_param1();
+
+	/*
+	 * Initialize Open Firmware (needed for console).
+	 */
+	OF_install(OFW_STD_DIRECT, 0);
+	OF_init(ofw_entry);
 
 	/*
 	 * Prime our per-CPU data page for use.  Note, we are using it for
@@ -373,6 +382,19 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		end = (vm_offset_t)_end;
 	}
 
+	/*
+	 * Determine the TLB slot maxima, which are expected to be
+	 * equal across all CPUs.
+	 * NB: for Cheetah-class CPUs, these properties only refer
+	 * to the t16s.
+	 */
+	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
+	    sizeof(dtlb_slots)) == -1)
+		panic("sparc64_init: cannot determine number of dTLB slots");
+	if (OF_getprop(pc->pc_node, "#itlb-entries", &itlb_slots,
+	    sizeof(itlb_slots)) == -1)
+		panic("sparc64_init: cannot determine number of iTLB slots");
+
 	cache_init(pc);
 	cache_enable();
 	uma_set_align(pc->pc_cache.dc_linesize - 1);
@@ -387,6 +409,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
 		case CPU_IMPL_ULTRASPARCIIe:
+		case CPU_IMPL_ULTRASPARCIII:	/* NB: we've disabled P$. */
+		case CPU_IMPL_ULTRASPARCIIIp:
+		case CPU_IMPL_ULTRASPARCIIIi:
+		case CPU_IMPL_ULTRASPARCIV:
+		case CPU_IMPL_ULTRASPARCIVp:
+		case CPU_IMPL_ULTRASPARCIIIip:
 			cpu_block_copy = spitfire_block_copy;
 			cpu_block_zero = spitfire_block_zero;
 			break;
@@ -472,14 +500,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-}
-
-void
-set_openfirm_callback(ofw_vec_t *vec)
-{
-
-	ofw_tba = rdpr(tba);
-	ofw_vec = (u_long)vec;
 }
 
 void
@@ -719,7 +739,7 @@ cpu_shutdown(void *args)
 #ifdef SMP
 	cpu_mp_shutdown();
 #endif
-	openfirmware_exit(args);
+	ofw_exit(args);
 }
 
 /* Get current clock frequency for the given CPU ID. */
@@ -772,7 +792,7 @@ sparc64_shutdown_final(void *dummy, int howto)
 	/* Turn the power off? */
 	if ((howto & RB_POWEROFF) != 0)
 		cpu_shutdown(&args);
-	/* In case of halt, return to the firmware */
+	/* In case of halt, return to the firmware. */
 	if ((howto & RB_HALT) != 0)
 		cpu_halt();
 }

@@ -69,8 +69,10 @@ void identify_cpu(void);
 void earlysetcpuclass(void);
 void panicifcpuunsupported(void);
 
+static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
+static void print_via_padlock_info(void);
 
 int	cpu_class;
 char machine[] = "amd64";
@@ -93,6 +95,15 @@ static struct {
 } amd64_cpus[] = {
 	{ "Clawhammer",		CPUCLASS_K8 },		/* CPU_CLAWHAMMER */
 	{ "Sledgehammer",	CPUCLASS_K8 },		/* CPU_SLEDGEHAMMER */
+};
+
+static struct {
+	char	*vendor;
+	u_int	vendor_id;
+} cpu_vendors[] = {
+	{ INTEL_VENDOR_ID,	CPU_VENDOR_INTEL },	/* GenuineIntel */
+	{ AMD_VENDOR_ID,	CPU_VENDOR_AMD },	/* AuthenticAMD */
+	{ CENTAUR_VENDOR_ID,	CPU_VENDOR_CENTAUR },	/* CentaurHauls */
 };
 
 int cpu_cores;
@@ -122,24 +133,33 @@ printcpuinfo(void)
 		}
 	}
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_INTEL:
 		/* Please make up your mind folks! */
 		strcat(cpu_model, "EM64T");
-	} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+		break;
+	case CPU_VENDOR_AMD:
 		/*
 		 * Values taken from AMD Processor Recognition
 		 * http://www.amd.com/K6/k6docs/pdf/20734g.pdf
 		 * (also describes ``Features'' encodings.
 		 */
 		strcpy(cpu_model, "AMD ");
-		switch (cpu_id & 0xF00) {
-		case 0xf00:
+		if ((cpu_id & 0xf00) == 0xf00)
 			strcat(cpu_model, "AMD64 Processor");
-			break;
-		default:
+		else
 			strcat(cpu_model, "Unknown");
-			break;
-		}
+		break;
+	case CPU_VENDOR_CENTAUR:
+		strcpy(cpu_model, "VIA ");
+		if ((cpu_id & 0xff0) == 0x6f0)
+			strcat(cpu_model, "Nano Processor");
+		else
+			strcat(cpu_model, "Unknown");
+		break;
+	default:
+		strcat(cpu_model, "Unknown");
+		break;
 	}
 
 	/*
@@ -165,13 +185,14 @@ printcpuinfo(void)
 		printf("Unknown");	/* will panic below... */
 	}
 	printf("-class CPU)\n");
-	if(*cpu_vendor)
-		printf("  Origin = \"%s\"",cpu_vendor);
-	if(cpu_id)
+	if (*cpu_vendor)
+		printf("  Origin = \"%s\"", cpu_vendor);
+	if (cpu_id)
 		printf("  Id = 0x%x", cpu_id);
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
+	    cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
 		printf("  Stepping = %u", cpu_id & 0xf);
 		if (cpu_high > 0) {
 			u_int cmp = 1, htt = 1;
@@ -313,15 +334,15 @@ printcpuinfo(void)
 				"\003SVM"	/* Secure Virtual Mode */
 				"\004ExtAPIC"	/* Extended APIC register */
 				"\005CR8"	/* CR8 in legacy mode */
-				"\006<b5>"
-				"\007<b6>"
-				"\010<b7>"
+				"\006ABM"	/* LZCNT instruction */
+				"\007SSE4A"	/* SSE4A */
+				"\010MAS"	/* Misaligned SSE mode */
 				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
-				"\012<b9>"
-				"\013<b10>"
-				"\014<b11>"
-				"\015<b12>"
-				"\016<b13>"
+				"\012OSVW"	/* OS visible workaround */
+				"\013IBS"	/* Instruction based sampling */
+				"\014SSE5"	/* SSE5 */
+				"\015SKINIT"	/* SKINIT/STGI */
+				"\016WDT"	/* Watchdog timer */
 				"\017<b14>"
 				"\020<b15>"
 				"\021<b16>"
@@ -343,22 +364,40 @@ printcpuinfo(void)
 				);
 			}
 
-			if (cpu_feature & CPUID_HTT && strcmp(cpu_vendor,
-			    "AuthenticAMD") == 0)
+			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+				print_via_padlock_info();
+
+			if ((cpu_feature & CPUID_HTT) &&
+			    cpu_vendor_id == CPU_VENDOR_AMD)
 				cpu_feature &= ~CPUID_HTT;
 
 			/*
 			 * If this CPU supports P-state invariant TSC then
 			 * mention the capability.
 			 */
-			if (!tsc_is_invariant &&
-			    (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
-			    ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
-			    AMD64_CPU_FAMILY(cpu_id) >= 0x10 ||
-			    cpu_id == 0x60fb2))) {
-				tsc_is_invariant = 1;
-				printf("\n  TSC: P-state invariant");
+			switch (cpu_vendor_id) {
+			case CPU_VENDOR_AMD:
+				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+				    AMD64_CPU_FAMILY(cpu_id) >= 0x10 ||
+				    cpu_id == 0x60fb2)
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_INTEL:
+				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+				    (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0xe) ||
+				    (AMD64_CPU_FAMILY(cpu_id) == 0xf &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0x3))
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_CENTAUR:
+				if (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0xf)
+					tsc_is_invariant = 1;
+				break;
 			}
+			if (tsc_is_invariant)
+				printf("\n  TSC: P-state invariant");
 
 			/*
 			 * If this CPU supports HTT or CMP then mention the
@@ -366,10 +405,10 @@ printcpuinfo(void)
 			 */
 			if (cpu_feature & CPUID_HTT)
 				htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-			if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
+			if (cpu_vendor_id == CPU_VENDOR_AMD &&
 			    (amd_feature2 & AMDID2_CMP))
 				cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
-			else if (strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+			else if (cpu_vendor_id == CPU_VENDOR_INTEL &&
 			    (cpu_high >= 4)) {
 				cpuid_count(4, 0, regs);
 				if ((regs[0] & 0x1f) != 0)
@@ -391,7 +430,7 @@ printcpuinfo(void)
 	if (!bootverbose)
 		return;
 
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		print_AMD_info();
 }
 
@@ -437,7 +476,7 @@ EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
     EVENTHANDLER_PRI_ANY);
 
 /*
- * Final stage of CPU identification. -- Should I check TI?
+ * Final stage of CPU identification.
  */
 void
 identify_cpu(void)
@@ -450,6 +489,7 @@ identify_cpu(void)
 	((u_int *)&cpu_vendor)[1] = regs[3];
 	((u_int *)&cpu_vendor)[2] = regs[2];
 	cpu_vendor[12] = '\0';
+	cpu_vendor_id = find_cpu_vendor_id();
 
 	do_cpuid(1, regs);
 	cpu_id = regs[0];
@@ -457,8 +497,9 @@ identify_cpu(void)
 	cpu_feature = regs[3];
 	cpu_feature2 = regs[2];
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
+	    cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
 		do_cpuid(0x80000000, regs);
 		cpu_exthigh = regs[0];
 	}
@@ -478,6 +519,17 @@ identify_cpu(void)
 
 	/* XXX */
 	cpu = CPU_CLAWHAMMER;
+}
+
+static u_int
+find_cpu_vendor_id(void)
+{
+	int	i;
+
+	for (i = 0; i < sizeof(cpu_vendors) / sizeof(cpu_vendors[0]); i++)
+		if (strcmp(cpu_vendor, cpu_vendors[i].vendor) == 0)
+			return (cpu_vendors[i].vendor_id);
+	return (0);
 }
 
 static void
@@ -567,4 +619,38 @@ print_AMD_info(void)
 		printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
 		print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);	
 	}
+}
+
+static void
+print_via_padlock_info(void)
+{
+	u_int regs[4];
+
+	/* Check for supported models. */
+	switch (cpu_id & 0xff0) {
+	case 0x690:
+		if ((cpu_id & 0xf) < 3)
+			return;
+	case 0x6a0:
+	case 0x6d0:
+	case 0x6f0:
+		break;
+	default:
+		return;
+	}
+	
+	do_cpuid(0xc0000000, regs);
+	if (regs[0] >= 0xc0000001)
+		do_cpuid(0xc0000001, regs);
+	else
+		return;
+
+	printf("\n  VIA Padlock Features=0x%b", regs[3],
+	"\020"
+	"\003RNG"		/* RNG */
+	"\007AES"		/* ACE */
+	"\011AES-CTR"		/* ACE2 */
+	"\013SHA1,SHA256"	/* PHE */
+	"\015RSA"		/* PMM */
+	);
 }

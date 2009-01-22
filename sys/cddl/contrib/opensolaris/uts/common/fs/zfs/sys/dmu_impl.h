@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_DMU_IMPL_H
 #define	_SYS_DMU_IMPL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/txg_impl.h>
 #include <sys/zio.h>
@@ -51,7 +49,7 @@ extern "C" {
  * XXX try to improve evicting path?
  *
  * dp_config_rwlock > os_obj_lock > dn_struct_rwlock >
- * 	dn_dbufs_mtx > hash_mutexes > db_mtx > leafs
+ * 	dn_dbufs_mtx > hash_mutexes > db_mtx > dd_lock > leafs
  *
  * dp_config_rwlock
  *    must be held before: everything
@@ -177,7 +175,10 @@ extern "C" {
  *   	dmu_tx_try_assign: dn_notxholds(cv)
  *   	dmu_tx_unassign: none
  *
- * dd_lock (leaf)
+ * dd_lock
+ *    must be held before:
+ *      ds_lock
+ *      ancestors' dd_lock
  *    protects:
  *    	dd_prop_cbs
  *    	dd_sync_*
@@ -207,13 +208,14 @@ extern "C" {
  *   	dnode_setdirty: none (dn_dirtyblksz, os_*_dnodes)
  *   	dnode_free: none (dn_dirtyblksz, os_*_dnodes)
  *
- * ds_lock (leaf)
+ * ds_lock
  *    protects:
  *    	ds_user_ptr
  *    	ds_user_evice_func
  *    	ds_open_refcount
  *    	ds_snapname
  *    	ds_phys accounting
+ *	ds_reserved
  *    held from:
  *    	dsl_dataset_*
  *

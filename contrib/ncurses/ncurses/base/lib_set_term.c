@@ -44,28 +44,30 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.108 2008/05/03 22:42:43 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.117 2008/08/04 18:11:12 tom Exp $")
 
 NCURSES_EXPORT(SCREEN *)
 set_term(SCREEN *screenp)
 {
     SCREEN *oldSP;
+    SCREEN *newSP;
 
     T((T_CALLED("set_term(%p)"), screenp));
 
-    _nc_lock_global(set_SP);
+    _nc_lock_global(curses);
 
     oldSP = SP;
     _nc_set_screen(screenp);
+    newSP = SP;
 
-    if (SP != 0) {
-	set_curterm(SP->_term);
+    if (newSP != 0) {
+	set_curterm(newSP->_term);
 #if !USE_REENTRANT
-	curscr = SP->_curscr;
-	newscr = SP->_newscr;
-	stdscr = SP->_stdscr;
-	COLORS = SP->_color_count;
-	COLOR_PAIRS = SP->_pair_count;
+	curscr = newSP->_curscr;
+	newscr = newSP->_newscr;
+	stdscr = newSP->_stdscr;
+	COLORS = newSP->_color_count;
+	COLOR_PAIRS = newSP->_pair_count;
 #endif
     } else {
 	set_curterm(0);
@@ -78,7 +80,7 @@ set_term(SCREEN *screenp)
 #endif
     }
 
-    _nc_unlock_global(set_SP);
+    _nc_unlock_global(curses);
 
     T((T_RETURN("%p"), oldSP));
     return (oldSP);
@@ -125,7 +127,7 @@ delscreen(SCREEN *sp)
 
     T((T_CALLED("delscreen(%p)"), sp));
 
-    _nc_lock_global(set_SP);
+    _nc_lock_global(curses);
     if (delink_screen(sp)) {
 
 	(void) _nc_freewin(sp->_curscr);
@@ -162,8 +164,6 @@ delscreen(SCREEN *sp)
 	FreeIfNeeded(sp->_acs_map);
 	FreeIfNeeded(sp->_screen_acs_map);
 
-	del_curterm(sp->_term);
-
 	/*
 	 * If the associated output stream has been closed, we can discard the
 	 * set-buffer.  Limit the error check to EBADF, since fflush may fail
@@ -176,6 +176,7 @@ delscreen(SCREEN *sp)
 	    free(sp->_setbuf);
 	}
 
+	del_curterm(sp->_term);
 	free(sp);
 
 	/*
@@ -194,7 +195,7 @@ delscreen(SCREEN *sp)
 	    _nc_set_screen(0);
 	}
     }
-    _nc_unlock_global(set_SP);
+    _nc_unlock_global(curses);
 
     returnVoid;
 }
@@ -212,7 +213,7 @@ no_mouse_inline(SCREEN *sp GCC_UNUSED)
 }
 
 static bool
-no_mouse_parse(int code GCC_UNUSED)
+no_mouse_parse(SCREEN *sp GCC_UNUSED, int code GCC_UNUSED)
 {
     return TRUE;
 }
@@ -321,11 +322,7 @@ _nc_setupscreen(int slines GCC_UNUSED,
     SP->_ofp = output;
     SP->_cursor = -1;		/* cannot know real cursor shape */
 
-#if NCURSES_NO_PADDING
-    SP->_no_padding = getenv("NCURSES_NO_PADDING") != 0;
-    TR(TRACE_CHARPUT | TRACE_MOVE, ("padding will%s be used",
-				    SP->_no_padding ? " not" : ""));
-#endif
+    SetNoPadding(SP);
 
 #if NCURSES_EXT_FUNCS
     SP->_default_color = FALSE;
@@ -362,11 +359,10 @@ _nc_setupscreen(int slines GCC_UNUSED,
      * Allow those assumed/default color assumptions to be overridden at
      * runtime:
      */
-    if (getenv("NCURSES_ASSUMED_COLORS") != 0) {
-	char *p = getenv("NCURSES_ASSUMED_COLORS");
+    if ((env = getenv("NCURSES_ASSUMED_COLORS")) != 0) {
 	int fg, bg;
 	char sep1, sep2;
-	int count = sscanf(p, "%d%c%d%c", &fg, &sep1, &bg, &sep2);
+	int count = sscanf(env, "%d%c%d%c", &fg, &sep1, &bg, &sep2);
 	if (count >= 1) {
 	    SP->_default_fg = (fg >= 0 && fg < max_colors) ? fg : C_MASK;
 	    if (count >= 3) {
@@ -421,11 +417,6 @@ _nc_setupscreen(int slines GCC_UNUSED,
     SP->_mouse_resume = no_mouse_resume;
     SP->_mouse_wrap = no_mouse_wrap;
     SP->_mouse_fd = -1;
-
-    /* initialize the panel hooks */
-    SP->_panelHook.top_panel = (struct panel *) 0;
-    SP->_panelHook.bottom_panel = (struct panel *) 0;
-    SP->_panelHook.stdscr_pseudo_panel = (struct panel *) 0;
 
     /*
      * If we've no magic cookie support, we suppress attributes that xmc would
@@ -515,7 +506,7 @@ _nc_setupscreen(int slines GCC_UNUSED,
 
     /* initialize normal acs before wide, since we use mapping in the latter */
 #if !USE_WIDEC_SUPPORT
-    if (_nc_unicode_locale() && _nc_locale_breaks_acs()) {
+    if (_nc_unicode_locale() && _nc_locale_breaks_acs(cur_term)) {
 	acs_chars = NULL;
 	ena_acs = NULL;
 	enter_alt_charset_mode = NULL;
@@ -527,7 +518,8 @@ _nc_setupscreen(int slines GCC_UNUSED,
 #if USE_WIDEC_SUPPORT
     _nc_init_wacs();
 
-    SP->_screen_acs_fix = (_nc_unicode_locale() && _nc_locale_breaks_acs());
+    SP->_screen_acs_fix = (_nc_unicode_locale()
+			   && _nc_locale_breaks_acs(cur_term));
 #endif
     env = _nc_get_locale();
     SP->_legacy_coding = ((env == 0)

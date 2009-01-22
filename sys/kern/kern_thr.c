@@ -57,14 +57,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef COMPAT_IA32
 
-extern struct sysentvec ia32_freebsd_sysvec;
-
 static inline int
 suword_lwpid(void *addr, lwpid_t lwpid)
 {
 	int error;
 
-	if (curproc->p_sysent != &ia32_freebsd_sysvec)
+	if (SV_CURPROC_FLAG(SV_LP64))
 		error = suword(addr, lwpid);
 	else
 		error = suword32(addr, lwpid);

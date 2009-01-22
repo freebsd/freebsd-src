@@ -26,6 +26,16 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * This file contains standard definitions for the following USB
+ * protocol versions:
+ *
+ * USB v1.0
+ * USB v1.1
+ * USB v2.0
+ * USB v3.0
+ */
+
 #ifndef _USB2_STANDARD_H_
 #define	_USB2_STANDARD_H_
 
@@ -38,12 +48,20 @@
 #define	USB_POWER_DOWN_TIME	200	/* ms */
 #define	USB_PORT_POWER_DOWN_TIME	100	/* ms */
 
+/* Definition of software USB power modes */
+#define	USB_POWER_MODE_OFF 0		/* turn off device */
+#define	USB_POWER_MODE_ON 1		/* always on */
+#define	USB_POWER_MODE_SAVE 2		/* automatic suspend and resume */
+#define	USB_POWER_MODE_SUSPEND 3	/* force suspend */
+#define	USB_POWER_MODE_RESUME 4		/* force resume */
+
 #if 0
 /* These are the values from the USB specification. */
 #define	USB_PORT_RESET_DELAY	10	/* ms */
 #define	USB_PORT_ROOT_RESET_DELAY 50	/* ms */
 #define	USB_PORT_RESET_RECOVERY	10	/* ms */
 #define	USB_PORT_POWERUP_DELAY	100	/* ms */
+#define	USB_PORT_RESUME_DELAY	20	/* ms */
 #define	USB_SET_ADDRESS_SETTLE	2	/* ms */
 #define	USB_RESUME_DELAY	(20*5)	/* ms */
 #define	USB_RESUME_WAIT		10	/* ms */
@@ -55,6 +73,7 @@
 #define	USB_PORT_ROOT_RESET_DELAY 250	/* ms */
 #define	USB_PORT_RESET_RECOVERY	250	/* ms */
 #define	USB_PORT_POWERUP_DELAY	300	/* ms */
+#define	USB_PORT_RESUME_DELAY	(20*2)	/* ms */
 #define	USB_SET_ADDRESS_SETTLE	10	/* ms */
 #define	USB_RESUME_DELAY	(50*5)	/* ms */
 #define	USB_RESUME_WAIT		50	/* ms */
@@ -133,26 +152,32 @@ struct usb2_device_request {
 #define	UDESC_DEVICE		0x01
 #define	UDESC_CONFIG		0x02
 #define	UDESC_STRING		0x03
-#define	USB_LANGUAGE_TABLE 0x00		/* Index of the language ID table
-					 * string */
-#define	UDESC_INTERFACE	0x04
+#define	USB_LANGUAGE_TABLE	0x00	/* language ID string index */
+#define	UDESC_INTERFACE		0x04
 #define	UDESC_ENDPOINT		0x05
 #define	UDESC_DEVICE_QUALIFIER	0x06
 #define	UDESC_OTHER_SPEED_CONFIGURATION 0x07
 #define	UDESC_INTERFACE_POWER	0x08
 #define	UDESC_OTG		0x09
-#define	UDESC_CS_DEVICE	0x21		/* class specific */
-#define	UDESC_CS_CONFIG	0x22
-#define	UDESC_CS_STRING	0x23
+#define	UDESC_DEBUG		0x0A
+#define	UDESC_IFACE_ASSOC	0x0B	/* interface association */
+#define	UDESC_BOS		0x0F	/* binary object store */
+#define	UDESC_DEVICE_CAPABILITY	0x10
+#define	UDESC_CS_DEVICE		0x21	/* class specific */
+#define	UDESC_CS_CONFIG		0x22
+#define	UDESC_CS_STRING		0x23
 #define	UDESC_CS_INTERFACE	0x24
 #define	UDESC_CS_ENDPOINT	0x25
 #define	UDESC_HUB		0x29
+#define	UDESC_ENDPOINT_SS_COMP	0x30	/* super speed */
 #define	UR_SET_DESCRIPTOR	0x07
 #define	UR_GET_CONFIG		0x08
 #define	UR_SET_CONFIG		0x09
 #define	UR_GET_INTERFACE	0x0a
 #define	UR_SET_INTERFACE	0x0b
 #define	UR_SYNCH_FRAME		0x0c
+#define	UR_SET_SEL		0x30
+#define	UR_ISOCH_DELAY		0x31
 
 /* HUB specific request */
 #define	UR_GET_BUS_STATE	0x02
@@ -160,11 +185,16 @@ struct usb2_device_request {
 #define	UR_RESET_TT		0x09
 #define	UR_GET_TT_STATE		0x0a
 #define	UR_STOP_TT		0x0b
+#define	UR_SET_HUB_DEPTH	0x0c
+#define	UR_GET_PORT_ERR_COUNT	0x0d
 
 /* Feature numbers */
 #define	UF_ENDPOINT_HALT	0
 #define	UF_DEVICE_REMOTE_WAKEUP	1
 #define	UF_TEST_MODE		2
+#define	UF_U1_ENABLE		0x30
+#define	UF_U2_ENABLE		0x31
+#define	UF_LTM_ENABLE		0x32
 
 /* HUB specific features */
 #define	UHF_C_HUB_LOCAL_POWER	0
@@ -174,6 +204,7 @@ struct usb2_device_request {
 #define	UHF_PORT_SUSPEND	2
 #define	UHF_PORT_OVER_CURRENT	3
 #define	UHF_PORT_RESET		4
+#define	UHF_PORT_LINK_STATE	5
 #define	UHF_PORT_POWER		8
 #define	UHF_PORT_LOW_SPEED	9
 #define	UHF_C_PORT_CONNECTION	16
@@ -183,6 +214,16 @@ struct usb2_device_request {
 #define	UHF_C_PORT_RESET	20
 #define	UHF_PORT_TEST		21
 #define	UHF_PORT_INDICATOR	22
+
+/* SuperSpeed HUB specific features */
+#define	UHF_PORT_U1_TIMEOUT	23
+#define	UHF_PORT_U2_TIMEOUT	24
+#define	UHF_C_PORT_LINK_STATE	25
+#define	UHF_C_PORT_CONFIG_ERROR	26
+#define	UHF_PORT_REMOTE_WAKE_MASK	27
+#define	UHF_BH_PORT_RESET	28
+#define	UHF_C_BH_PORT_RESET	29
+#define	UHF_FORCE_LINKPM_ACCEPT	30
 
 struct usb2_descriptor {
 	uByte	bLength;
@@ -195,7 +236,9 @@ struct usb2_device_descriptor {
 	uByte	bDescriptorType;
 	uWord	bcdUSB;
 #define	UD_USB_2_0		0x0200
-#define	UD_IS_USB2(d) (UGETW((d)->bcdUSB) >= UD_USB_2_0)
+#define	UD_USB_3_0		0x0300
+#define	UD_IS_USB2(d) ((d)->bcdUSB[1] == 0x02)
+#define	UD_IS_USB3(d) ((d)->bcdUSB[1] == 0x03)
 	uByte	bDeviceClass;
 	uByte	bDeviceSubClass;
 	uByte	bDeviceProtocol;
@@ -208,6 +251,54 @@ struct usb2_device_descriptor {
 	uByte	iProduct;
 	uByte	iSerialNumber;
 	uByte	bNumConfigurations;
+} __packed;
+
+/* Binary Device Object Store (BOS) */
+struct usb2_bos_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uWord	wTotalLength;
+	uByte	bNumDeviceCaps;
+} __packed;
+
+/* Binary Device Object Store Capability */
+struct usb2_bos_cap_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDevCapabilityType;
+#define	USB_DEVCAP_RESERVED	0x00
+#define	USB_DEVCAP_WUSB		0x01
+#define	USB_DEVCAP_USB2EXT	0x02
+#define	USB_DEVCAP_SUPER_SPEED	0x03
+#define	USB_DEVCAP_CONTAINER_ID	0x04
+	/* data ... */
+} __packed;
+
+struct usb2_devcap_usb2ext_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDevCapabilityType;
+	uByte	bmAttributes;
+#define	USB_V2EXT_LPM 0x02
+} __packed;
+
+struct usb2_devcap_ss_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDevCapabilityType;
+	uByte	bmAttributes;
+	uWord	wSpeedsSupported;
+	uByte	bFunctionaltySupport;
+	uByte	bU1DevExitLat;
+	uByte	bU2DevExitLat;
+} __packed;
+
+struct usb2_devcap_container_id_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDevCapabilityType;
+	uByte	bReserved;
+	uByte	ContainerID;
 } __packed;
 
 /* Device class codes */
@@ -250,6 +341,17 @@ struct usb2_interface_descriptor {
 	uByte	bInterfaceSubClass;
 	uByte	bInterfaceProtocol;
 	uByte	iInterface;
+} __packed;
+
+struct usb2_interface_assoc_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bFirstInterface;
+	uByte	bInterfaceCount;
+	uByte	bFunctionClass;
+	uByte	bFunctionSubClass;
+	uByte	bFunctionProtocol;
+	uByte	iFunction;
 } __packed;
 
 /* Interface class codes */
@@ -372,6 +474,14 @@ struct usb2_endpoint_descriptor {
 	uByte	bInterval;
 } __packed;
 
+struct usb2_endpoint_ss_comp_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uWord	bMaxBurst;
+	uByte	bmAttributes;
+	uWord	wBytesPerInterval;
+} __packed;
+
 struct usb2_string_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
@@ -417,7 +527,19 @@ struct usb2_hub_descriptor {
 	uByte	DeviceRemovable[32];	/* max 255 ports */
 #define	UHD_NOT_REMOV(desc, i) \
     (((desc)->DeviceRemovable[(i)/8] >> ((i) % 8)) & 1)
-	 /* deprecated */ uByte PortPowerCtrlMask[1];
+	uByte	PortPowerCtrlMask[1];	/* deprecated */
+} __packed;
+
+struct usb2_hub_ss_descriptor {
+	uByte	bDescLength;
+	uByte	bDescriptorType;
+	uByte	bNbrPorts;		/* max 15 */
+	uWord	wHubCharacteristics;
+	uByte	bPwrOn2PwrGood;		/* delay in 2 ms units */
+	uByte	bHubContrCurrent;
+	uByte	bHubHdrDecLat;
+	uWord	wHubDelay;
+	uByte	DeviceRemovable[2];	/* max 15 ports */
 } __packed;
 
 /* minimum HUB descriptor (8-ports maximum) */
@@ -480,12 +602,12 @@ struct usb2_port_status {
 #define	UPS_SUSPEND			0x0004
 #define	UPS_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_RESET			0x0010
-#define	UPS_PORT_MODE_DEVICE		0x0020	/* currently FreeBSD specific */
 #define	UPS_PORT_POWER			0x0100
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
 #define	UPS_PORT_TEST			0x0800
 #define	UPS_PORT_INDICATOR		0x1000
+#define	UPS_PORT_MODE_DEVICE		0x8000	/* currently FreeBSD specific */
 	uWord	wPortChange;
 #define	UPS_C_CONNECT_STATUS		0x0001
 #define	UPS_C_PORT_ENABLED		0x0002

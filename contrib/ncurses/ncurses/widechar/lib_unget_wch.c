@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2004,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_unget_wch.c,v 1.9 2007/11/25 00:57:00 tom Exp $")
+MODULE_ID("$Id: lib_unget_wch.c,v 1.10 2008/06/07 14:50:37 tom Exp $")
 
 /*
  * Wrapper for wcrtomb() which obtains the length needed for the given
@@ -86,7 +86,7 @@ unget_wch(const wchar_t wch)
 	    wcrtomb(string, wch, &state);
 
 	    for (n = (int) (length - 1); n >= 0; --n) {
-		if (ungetch(string[n]) != OK) {
+		if (_nc_ungetch(SP, string[n]) != OK) {
 		    result = ERR;
 		    break;
 		}

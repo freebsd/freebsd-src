@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iscsi/initiator/iscsi.h>
 #include <dev/iscsi/initiator/iscsivar.h>
-
-MALLOC_DEFINE(M_PDU, "iSCSI pdu", "iSCSI driver");
 
 static char *
 i_strdupin(char *s, size_t maxlen)

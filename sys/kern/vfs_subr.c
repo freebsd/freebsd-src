@@ -108,7 +108,6 @@ static void	v_decr_useonly(struct vnode *);
 static void	v_upgrade_usecount(struct vnode *);
 static void	vfree(struct vnode *);
 static void	vnlru_free(int);
-static void	vdestroy(struct vnode *);
 static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
@@ -346,7 +345,7 @@ vfs_busy(struct mount *mp, int flags)
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		if (flags & MBF_NOWAIT) {
+		if (flags & MBF_NOWAIT || mp->mnt_kern_flag & MNTK_REFEXPIRE) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);
@@ -408,6 +407,32 @@ vfs_getvfs(fsid_t *fsid)
 }
 
 /*
+ * Lookup a mount point by filesystem identifier, busying it before
+ * returning.
+ */
+struct mount *
+vfs_busyfs(fsid_t *fsid)
+{
+	struct mount *mp;
+	int error;
+
+	mtx_lock(&mountlist_mtx);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
+		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
+			error = vfs_busy(mp, MBF_MNTLSTLOCK);
+			if (error) {
+				mtx_unlock(&mountlist_mtx);
+				return (NULL);
+			}
+			return (mp);
+		}
+	}
+	mtx_unlock(&mountlist_mtx);
+	return ((struct mount *) 0);
+}
+
+/*
  * Check if a user can access privileged mount options.
  */
 int
@@ -419,7 +444,7 @@ vfs_suser(struct mount *mp, struct thread *td)
 	 * If the thread is jailed, but this is not a jail-friendly file
 	 * system, deny immediately.
 	 */
-	if (jailed(td->td_ucred) && !(mp->mnt_vfc->vfc_flags & VFCF_JAIL))
+	if (!(mp->mnt_vfc->vfc_flags & VFCF_JAIL) && jailed(td->td_ucred))
 		return (EPERM);
 
 	/*
@@ -438,7 +463,14 @@ vfs_suser(struct mount *mp, struct thread *td)
 		return (EPERM);
 	}
 
-	if ((mp->mnt_flag & MNT_USER) == 0 ||
+	/*
+	 * If file system supports delegated administration, we don't check
+	 * for the PRIV_VFS_MOUNT_OWNER privilege - it will be better verified
+	 * by the file system itself.
+	 * If this is not the user that did original mount, we check for
+	 * the PRIV_VFS_MOUNT_OWNER privilege.
+	 */
+	if (!(mp->mnt_vfc->vfc_flags & VFCF_DELEGADMIN) &&
 	    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 		if ((error = priv_check(td, PRIV_VFS_MOUNT_OWNER)) != 0)
 			return (error);
@@ -793,7 +825,7 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
  * Routines having to do with the management of the vnode table.
  */
 
-static void
+void
 vdestroy(struct vnode *vp)
 {
 	struct bufobj *bo;
@@ -1124,7 +1156,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL) {
+	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
@@ -4174,18 +4206,14 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 
 /*
  * Mark for update the access time of the file if the filesystem
- * supports VA_MARK_ATIME.  This functionality is used by execve
+ * supports VOP_MARKATIME.  This functionality is used by execve
  * and mmap, so we want to avoid the synchronous I/O implied by
  * directly setting va_atime for the sake of efficiency.
  */
 void
 vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 {
-	struct vattr atimeattr;
 
-	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0) {
-		VATTR_NULL(&atimeattr);
-		atimeattr.va_vaflags |= VA_MARK_ATIME;
-		(void)VOP_SETATTR(vp, &atimeattr, cred);
-	}
+	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
+		(void)VOP_MARKATIME(vp);
 }

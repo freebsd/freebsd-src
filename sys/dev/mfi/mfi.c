@@ -296,7 +296,8 @@ mfi_attach(struct mfi_softc *sc)
 	uint32_t status;
 	int error, commsz, framessz, sensesz;
 	int frames, unit, max_fw_sge;
-    device_printf(sc->mfi_dev, "Megaraid SAS driver Ver 2.00 \n");
+
+	device_printf(sc->mfi_dev, "Megaraid SAS driver Ver 3.00 \n");
 
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
 	sx_init(&sc->mfi_config_lock, "MFI config");
@@ -2069,6 +2070,11 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
 
+		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
+			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi = 0;
+		}
+
 		mtx_lock(&sc->mfi_io_lock);
 		error = mfi_check_command_pre(sc, cm);
 		if (error) {
@@ -2125,6 +2131,14 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			    ->mfi_frame.raw[ioc->mfi_sense_off],
 			    &sense_ptr.sense_ptr_data[0],
 			    sizeof(sense_ptr.sense_ptr_data));
+#ifdef __amd64__
+			if (cmd != MFI_CMD) {
+				/*
+				 * not 64bit native so zero out any address
+				 * over 32bit */
+				sense_ptr.addr.high = 0;
+			}
+#endif
 			error = copyout(cm->cm_sense, sense_ptr.user_space,
 			    ioc->mfi_sense_len);
 			if (error != 0) {
@@ -2305,6 +2319,11 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
 
+		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
+			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi = 0;
+		}
+
 		mtx_lock(&sc->mfi_io_lock);
 		error = mfi_check_command_pre(sc, cm);
 		if (error) {
@@ -2343,6 +2362,13 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
                             ->lioc_frame.raw[l_ioc.lioc_sense_off],
 			    &sense_ptr.sense_ptr_data[0],
 			    sizeof(sense_ptr.sense_ptr_data));
+#ifdef __amd64__
+			/*
+			 * only 32bit Linux support so zero out any
+			 * address over 32bit
+			 */
+			sense_ptr.addr.high = 0;
+#endif
 			error = copyout(cm->cm_sense, sense_ptr.user_space,
 			    l_ioc.lioc_sense_len);
 			if (error != 0) {

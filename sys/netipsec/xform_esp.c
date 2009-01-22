@@ -76,16 +76,17 @@
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
 
-int	esp_enable = 1;
+#ifdef VIMAGE_GLOBALS
 struct	espstat espstat;
+static	int esp_max_ivlen;		/* max iv length over all algorithms */
+int	esp_enable;
+#endif
 
 SYSCTL_DECL(_net_inet_esp);
 SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_esp, OID_AUTO,
 	esp_enable,	CTLFLAG_RW,	esp_enable,	0, "");
 SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_esp, IPSECCTL_STATS,
 	stats,		CTLFLAG_RD,	espstat,	espstat, "");
-
-static	int esp_max_ivlen;		/* max iv length over all algorithms */
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
@@ -993,7 +994,9 @@ esp_attach(void)
 	if (xform.blocksize > V_esp_max_ivlen)		\
 		V_esp_max_ivlen = xform.blocksize		\
 
+	V_esp_enable = 1;
 	V_esp_max_ivlen = 0;
+
 	MAXIV(enc_xform_des);		/* SADB_EALG_DESCBC */
 	MAXIV(enc_xform_3des);		/* SADB_EALG_3DESCBC */
 	MAXIV(enc_xform_rijndael128);	/* SADB_X_EALG_AES */

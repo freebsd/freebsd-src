@@ -36,7 +36,7 @@
 
 #include <term_entry.h>
 
-MODULE_ID("$Id: init_keytry.c,v 1.11 2008/05/03 23:09:15 tom Exp $")
+MODULE_ID("$Id: init_keytry.c,v 1.12 2008/05/24 21:44:51 tom Exp $")
 
 /*
 **      _nc_init_keytry()
@@ -44,6 +44,13 @@ MODULE_ID("$Id: init_keytry.c,v 1.11 2008/05/03 23:09:15 tom Exp $")
 **      Construct the try for the current terminal's keypad keys.
 **
 */
+
+/*
+ * Internal entrypoints use SCREEN* parameter to obtain capabilities rather
+ * than cur_term.
+ */
+#undef CUR
+#define CUR (sp->_term)->type.
 
 #if	BROKEN_LINKER
 #undef	_nc_tinfo_fkeys

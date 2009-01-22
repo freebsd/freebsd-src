@@ -700,6 +700,29 @@ ucomstartread(struct ucom_softc *sc)
 	return (USBD_NORMAL_COMPLETION);
 }
 
+void
+ucomrxchars(struct ucom_softc *sc, u_char *cp, u_int32_t cc)
+{
+	struct tty *tp = sc->sc_tty;
+
+	/* Give characters to tty layer. */
+	if (ttydisc_can_bypass(tp)) {
+		DPRINTFN(7, ("ucomreadcb: buf = %*D\n", cc, cp, ""));
+		cc -= ttydisc_rint_bypass(tp, cp, cc);
+	} else {
+		while (cc > 0) {
+			DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
+			if (ttydisc_rint(tp, *cp, 0) == -1)
+				break;
+			cc--;
+			cp++;
+		}
+	}
+	if (cc > 0)
+		device_printf(sc->sc_dev, "lost %d chars\n", cc);
+	ttydisc_rint_done(tp);
+}
+
 static void
 ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
@@ -709,6 +732,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	u_int32_t cc;
 	u_char *cp;
 
+	(void)tp;	/* Used for debugging */
 	DPRINTF(("ucomreadcb: status = %d\n", status));
 
 	if (status != USBD_NORMAL_COMPLETION) {
@@ -737,22 +761,8 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		       device_get_nameunit(sc->sc_dev), cc);
 		goto resubmit;
 	}
-	if (cc < 1)
-		goto resubmit;
-	
-	/* Give characters to tty layer. */
-	while (cc > 0) {
-		DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
-		if (ttydisc_rint(tp, *cp, 0) == -1) {
-			/* XXX what should we do? */
-			printf("%s: lost %d chars\n",
-			       device_get_nameunit(sc->sc_dev), cc);
-			break;
-		}
-		cc--;
-		cp++;
-	}
-	ttydisc_rint_done(tp);
+	if (cc > 0)
+		ucomrxchars(sc, cp, cc);
 
     resubmit:
 	err = ucomstartread(sc);

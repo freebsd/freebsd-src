@@ -131,6 +131,8 @@
 #define RL_TBI_ANAR		0x0068
 #define RL_TBI_LPAR		0x006A
 #define RL_GMEDIASTAT		0x006C	/* 8 bits */
+#define RL_MACDBG		0x006D	/* 8 bits, 8168C SPIN2 only */
+#define RL_GPIO			0x006E	/* 8 bits, 8168C SPIN2 only */
 #define RL_MAXRXPKTLEN		0x00DA	/* 16 bits, chip multiplies by 8 */
 #define RL_GTXSTART		0x0038	/* 8 bits */
 
@@ -152,11 +154,12 @@
 /* Known revision codes. */
 
 #define RL_HWREV_8169		0x00000000
-#define RL_HWREV_8110S		0x00800000
-#define RL_HWREV_8169S		0x04000000
+#define RL_HWREV_8169S		0x00800000
+#define RL_HWREV_8110S		0x04000000
 #define RL_HWREV_8169_8110SB	0x10000000
 #define RL_HWREV_8169_8110SC	0x18000000
 #define RL_HWREV_8102EL		0x24800000
+#define RL_HWREV_8168D		0x28000000
 #define RL_HWREV_8168_SPIN1	0x30000000
 #define RL_HWREV_8100E		0x30800000
 #define RL_HWREV_8101E		0x34000000
@@ -177,6 +180,7 @@
 #define RL_HWREV_8101		0x74c00000
 #define RL_HWREV_8100		0x78800000
 #define RL_HWREV_8169_8110SBL	0x7CC00000
+#define RL_HWREV_8169_8110SCE	0x98000000
 
 #define RL_TXDMA_16BYTES	0x00000000
 #define RL_TXDMA_32BYTES	0x00000100
@@ -307,6 +311,7 @@
 #define RL_CMD_TX_ENB		0x0004
 #define RL_CMD_RX_ENB		0x0008
 #define RL_CMD_RESET		0x0010
+#define RL_CMD_STOPREQ		0x0080
 
 /*
  * Twister register values.  These are completely undocumented and derived
@@ -875,12 +880,17 @@ struct rl_softc {
 	int			rl_txstart;
 	uint32_t		rl_flags;
 #define	RL_FLAG_MSI		0x0001
-#define	RL_FLAG_INVMAR		0x0004
 #define	RL_FLAG_PHYWAKE		0x0008
 #define	RL_FLAG_NOJUMBO		0x0010
 #define	RL_FLAG_PAR		0x0020
 #define	RL_FLAG_DESCV2		0x0040
 #define	RL_FLAG_MACSTAT		0x0080
+#define	RL_FLAG_FASTETHER	0x0100
+#define	RL_FLAG_CMDSTOP		0x0200
+#define	RL_FLAG_MACRESET	0x0400
+#define	RL_FLAG_WOLRXENB	0x1000
+#define	RL_FLAG_MACSLEEP	0x2000
+#define	RL_FLAG_PCIE		0x4000
 #define	RL_FLAG_LINK		0x8000
 };
 
@@ -926,6 +936,7 @@ struct rl_softc {
 	CSR_WRITE_4(sc, offset, CSR_READ_4(sc, offset) & ~(val))
 
 #define RL_TIMEOUT		1000
+#define RL_PHY_TIMEOUT		2000
 
 /*
  * General constants that are fun to know.

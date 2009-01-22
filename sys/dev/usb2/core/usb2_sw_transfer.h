@@ -56,6 +56,7 @@ struct usb2_sw_transfer {
 
 /* prototypes */
 
-void	usb2_sw_transfer(struct usb2_sw_transfer *std, usb2_sw_transfer_func_t *func);
+void	usb2_sw_transfer(struct usb2_sw_transfer *std,
+	    usb2_sw_transfer_func_t *func);
 
 #endif					/* _USB2_SW_TRANSFER_H_ */

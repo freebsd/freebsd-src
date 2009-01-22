@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************
 
   Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
@@ -34,19 +34,6 @@
 
 #ifndef _E1000_PHY_H_
 #define _E1000_PHY_H_
-
-enum e1000_ms_type {
-	e1000_ms_hw_default = 0,
-	e1000_ms_force_master,
-	e1000_ms_force_slave,
-	e1000_ms_auto
-};
-
-enum e1000_smart_speed {
-	e1000_smart_speed_default = 0,
-	e1000_smart_speed_on,
-	e1000_smart_speed_off
-};
 
 void e1000_init_phy_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_read_reg(struct e1000_hw *hw, u32 offset, u16 *data);
@@ -87,11 +74,9 @@ s32  e1000_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
                                 u32 usec_interval, bool *success);
 s32  e1000_phy_init_script_igp3(struct e1000_hw *hw);
 enum e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id);
-s32 e1000_determine_phy_address(struct e1000_hw* hw);
+s32 e1000_determine_phy_address(struct e1000_hw *hw);
 s32 e1000_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data);
 s32 e1000_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data);
-s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data,
-                                   bool read);
 s32 e1000_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data);
 s32 e1000_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data);
 void e1000_power_up_phy_copper(struct e1000_hw *hw);

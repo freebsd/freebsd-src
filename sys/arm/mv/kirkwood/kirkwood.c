@@ -98,24 +98,21 @@ struct obio_device obio_devices[] = {
 		{ -1 }, { -1 },
 		CPU_PM_CTRL_NONE
 	},
-	{ "pcib", MV_PCIE_BASE, MV_PCIE_SIZE,
-		{ MV_INT_PEX0_ERR, -1 },
-		{ -1 },
-		CPU_PM_CTRL_PEX0
-	},
 	{ NULL, 0, 0, { 0 }, { 0 }, 0 }
 };
 
-#if 0
-const struct mv_pci_info pci_info[] = {
-	{ 1,    MV_PCIE_IO_BASE, MV_PCIE_IO_SIZE,
-		MV_PCIE_MEM_BASE, MV_PCIE_MEM_SIZE,
+const struct obio_pci mv_pci_info[] = {
+	{ MV_TYPE_PCIE,
+		MV_PCIE_BASE, MV_PCIE_SIZE,
+		MV_PCIE_IO_BASE, MV_PCIE_IO_SIZE,	4, 0xE0,
+		MV_PCIE_MEM_BASE, MV_PCIE_MEM_SIZE,	4, 0xE8,
 		NULL, MV_INT_PEX0
-	}
-};
-#endif
+	},
 
-struct resource_spec mv_gpio_spec[] = {
+	{ 0, 0, 0 }
+};
+
+struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -127,7 +124,7 @@ struct resource_spec mv_gpio_spec[] = {
 	{ -1, 0 }
 };
 
-struct resource_spec mv_xor_spec[] = {
+struct resource_spec mv_xor_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -139,12 +136,6 @@ struct resource_spec mv_xor_spec[] = {
 };
 
 const struct decode_win cpu_win_tbl[] = {
-	/* PCIE IO */
-	{ 4, 0xE0, MV_PCIE_IO_PHYS_BASE, MV_PCIE_IO_SIZE, -1 },
-
-	/* PCIE MEM */
-	{ 4, 0xE8, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
-
 	/* Device bus BOOT */
 	{ 1, 0x0f, MV_DEV_BOOT_PHYS_BASE, MV_DEV_BOOT_SIZE, -1 },
 
@@ -156,6 +147,35 @@ const struct decode_win cpu_win_tbl[] = {
 
 	/* Device bus CS2 */
 	{ 1, 0x1b, MV_DEV_CS2_PHYS_BASE, MV_DEV_CS2_SIZE, -1 },
+
+	/* CESA */
+	{ 3, 0x00, MV_CESA_SRAM_PHYS_BASE, MV_CESA_SRAM_SIZE, -1 },
+
 };
 const struct decode_win *cpu_wins = cpu_win_tbl;
 int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
+
+const struct decode_win xor_win_tbl[] = {
+	/* PCIE MEM */
+	{ 4, 0xE8, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
+};
+const struct decode_win *xor_wins = xor_win_tbl;
+int xor_wins_no = sizeof(xor_win_tbl) / sizeof(struct decode_win);
+
+uint32_t
+get_tclk(void)
+{
+	uint32_t dev, rev;
+
+	/*
+	 * On Kirkwood TCLK is not configurable and depends on silicon
+	 * revision:
+	 * - A0 has TCLK hardcoded to 200 MHz.
+	 * - Z0 and others have TCLK hardcoded to 166 MHz.
+	 */
+	soc_id(&dev, &rev);
+	if (dev == MV_DEV_88F6281 && rev == 2)
+		return (TCLK_200MHZ);
+
+	return (TCLK_166MHZ);
+}

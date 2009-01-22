@@ -45,12 +45,12 @@
 TAILQ_HEAD(iommu_maplruq_head, bus_dmamap);
 
 /*
- * Per-IOMMU state. The parenthesized comments indicate the locking strategy:
+ * Per-IOMMU state; the parenthesized comments indicate the locking strategy:
  *	i - protected by is_mtx.
  *	r - read-only after initialization.
  *	* - comment refers to pointer target / target hardware registers
  *	    (for bus_addr_t).
- * is_maplruq is also locked by is_mtx. Elements of is_tsb may only be
+ * is_maplruq is also locked by is_mtx.  Elements of is_tsb may only be
  * accessed from functions operating on the map owning the corresponding
  * resource, so the locking the user is required to do to protect the
  * map is sufficient.
@@ -81,7 +81,7 @@ struct iommu_state {
 	 */
 	volatile char		is_flush[STRBUF_FLUSHSYNC_NBYTES * 3 - 1];
 
-	/* copies of our parents state, to allow us to be self contained */
+	/* copies of our parent's state, to allow us to be self contained */
 	bus_space_tag_t		is_bustag;	/* (r) Our bus tag */
 	bus_space_handle_t	is_bushandle;	/* (r) */
 	bus_addr_t		is_iommu;	/* (r, *i) IOMMU registers */
@@ -96,6 +96,9 @@ struct iommu_state {
 	bus_addr_t		is_dva;		/* (r, *r) */
 	/* Tag compare diagnostics access */
 	bus_addr_t		is_dtcmp;	/* (r, *r) */
+	/* behavior flags */
+	u_int			is_flags;	/* (r) */
+#define	IOMMU_RERUN_DISABLE	(1 << 0)
 };
 
 /* interfaces for PCI/SBus code */

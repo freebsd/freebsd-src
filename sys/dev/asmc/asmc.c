@@ -254,6 +254,9 @@ asmc_match(device_t dev)
 	char *model;
 
 	model = getenv("smbios.system.product");
+	if (model == NULL)
+		return (NULL);
+
 	for (i = 0; asmc_models[i].smc_model; i++) {
 		if (!strncmp(model, asmc_models[i].smc_model, strlen(model))) {
 			freeenv(model);

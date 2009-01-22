@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: TO-DO,v 1.49 2007/02/03 16:29:17 tom Exp $
+-- $Id: TO-DO,v 1.51 2008/10/11 19:22:27 tom Exp $
 -------------------------------------------------------------------------------
 
 SHORT-TERM TO-DO ITEMS:
@@ -60,6 +60,17 @@ Known Problems:
 
 + vid_attr() should support the set_a_attributes (sgr1) string, but does not. 
   There appear to be no terminals that require that functionality.
+
++ the configure --disable-ext-funcs option does not work for Ada95 tree.
+
++ the --with-pthread configuration builds for Cygwin, but does not work
+  properly (test/worm.c shows all of the worms in the same location).
+
++ the --enable-rpath configure option builds for the corresponding platforms;
+  however combining it with --with-ticlib and --with-termlib does not always
+  produce libraries that can be run without setting environment variables.
+  Building those with libtool does not work either.  (This is a problem with
+  the BSD platforms).
 
 Portability (or lack thereof):
 

@@ -167,6 +167,7 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 
     case DEVT_CD:
     case DEVT_NET:
+    case DEVT_ZFS:
 	unit = 0;
 
 	if (*np && (*np != ':')) {
@@ -238,6 +239,7 @@ i386_fmtdev(void *vdev)
 	break;
 
     case DEVT_NET:
+    case DEVT_ZFS:
 	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 	break;
     }

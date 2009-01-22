@@ -108,6 +108,8 @@ struct mmc_ivars {
 static int mmc_probe(device_t dev);
 static int mmc_attach(device_t dev);
 static int mmc_detach(device_t dev);
+static int mmc_suspend(device_t dev);
+static int mmc_resume(device_t dev);
 
 #define MMC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -130,6 +132,8 @@ static int mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 static int mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca, uint32_t *rawscr);
 static void mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr);
 static int mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd);
+static void mmc_scan(struct mmc_softc *sc);
+static int mmc_delete_cards(struct mmc_softc *sc);
 
 static void
 mmc_ms_delay(int ms)
@@ -166,26 +170,36 @@ static int
 mmc_detach(device_t dev)
 {
 	struct mmc_softc *sc = device_get_softc(dev);
-	device_t *kids;
-	int i, nkid;
+	int err;
 
-	/* kill children [ph33r].  -sorbo */
-	if (device_get_children(sc->dev, &kids, &nkid) != 0)
-		return (0);
-	for (i = 0; i < nkid; i++) {
-		device_t kid = kids[i];
-		void *ivar = device_get_ivars(kid);
-		
-		device_detach(kid);
-		device_delete_child(sc->dev, kid);
-		free(ivar, M_DEVBUF);
-	}
-	free(kids, M_TEMP);
+	if ((err = mmc_delete_cards(sc)) != 0)
+		return (err);
 	mmc_power_down(sc);
-
 	MMC_LOCK_DESTROY(sc);
 
 	return (0);
+}
+
+static int
+mmc_suspend(device_t dev)
+{
+	struct mmc_softc *sc = device_get_softc(dev);
+	int err;
+
+	err = bus_generic_suspend(dev);
+	if (err)
+	        return (err);
+	mmc_power_down(sc);
+	return (0);
+}
+
+static int
+mmc_resume(device_t dev)
+{
+	struct mmc_softc *sc = device_get_softc(dev);
+
+	mmc_scan(sc);
+	return (bus_generic_resume(dev));
 }
 
 static int
@@ -265,12 +279,6 @@ mmc_release_bus(device_t busdev, device_t dev)
 	return (0);
 }
 
-static void
-mmc_rescan_cards(struct mmc_softc *sc)
-{
-	/* XXX: Look at the children and see if they respond to status */
-}
-
 static uint32_t
 mmc_select_vdd(struct mmc_softc *sc, uint32_t ocr)
 {
@@ -294,31 +302,25 @@ mmc_wakeup(struct mmc_request *req)
 {
 	struct mmc_softc *sc;
 
-/*	printf("Wakeup for req %p done_data %p\n", req, req->done_data); */
 	sc = (struct mmc_softc *)req->done_data;
 	MMC_LOCK(sc);
 	req->flags |= MMC_REQ_DONE;
-	wakeup(req);
 	MMC_UNLOCK(sc);
+	wakeup(req);
 }
 
 static int
 mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 {
-	int err;
 
 	req->done = mmc_wakeup;
 	req->done_data = sc;
-/*	printf("Submitting request %p sc %p\n", req, sc); */
 	MMCBR_REQUEST(device_get_parent(sc->dev), sc->dev, req);
 	MMC_LOCK(sc);
-	do {
-		err = msleep(req, &sc->sc_mtx, PZERO | PCATCH, "mmcreq",
-		    hz / 10);
-	} while (!(req->flags & MMC_REQ_DONE) && err == EAGAIN);
-/*	printf("Request %p done with error %d\n", req, err); */
+	while ((req->flags & MMC_REQ_DONE) == 0)
+		msleep(req, &sc->sc_mtx, 0, "mmcreq", 0);
 	MMC_UNLOCK(sc);
-	return (err);
+	return (0);
 }
 
 static int
@@ -338,7 +340,9 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 	memset(cmd->resp, 0, sizeof(cmd->resp));
 	cmd->retries = retries;
 	mreq.cmd = cmd;
-/*	printf("CMD: %x ARG %x\n", cmd->opcode, cmd->arg); */
+	if (bootverbose)
+		device_printf(sc->dev, "CMD: %#x ARG %#x\n", cmd->opcode,
+		    cmd->arg);
 	mmc_wait_for_req(sc, &mreq);
 	return (cmd->error);
 }
@@ -582,11 +586,11 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, ui
 static int
 mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 {
+	struct mmc_command cmd;
 	int err;
+	uint8_t	value;
 
 	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		struct mmc_command cmd;
-
 		memset(&cmd, 0, sizeof(struct mmc_command));
 		cmd.opcode = ACMD_SET_BUS_WIDTH;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -602,8 +606,6 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 		}
 		err = mmc_wait_for_app_cmd(sc, rca, &cmd, CMD_RETRIES);
 	} else {
-		uint8_t	value;
-
 		switch (width) {
 		case bus_width_1:
 			value = EXT_CSD_BUS_WIDTH_1;
@@ -617,7 +619,8 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 		default:
 			return (MMC_ERR_INVALID);
 		}
-		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH, value);
+		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH,
+		    value);
 	}
 	return (err);
 }
@@ -627,6 +630,7 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 {
 	int err;
 	uint8_t	value;
+	u_char switch_res[64];
 
 	switch (timing) {
 	case bus_timing_normal:
@@ -638,14 +642,11 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 	default:
 		return (MMC_ERR_INVALID);
 	}
-	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		u_char switch_res[64];
-
+	if (mmcbr_get_mode(sc->dev) == mode_sd)
 		err = mmc_sd_switch(sc, 1, 0, value, switch_res);
-	} else {
+	else
 		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL,
 		    EXT_CSD_HS_TIMING, value);
-	}
 	return (err);
 }
 
@@ -1060,24 +1061,40 @@ mmc_send_relative_addr(struct mmc_softc *sc, uint32_t *resp)
 static void
 mmc_discover_cards(struct mmc_softc *sc)
 {
-	struct mmc_ivars *ivar;
-	int err;
+	struct mmc_ivars *ivar = NULL;
+	device_t *devlist;
+	int err, i, devcount, newcard;
+	uint32_t raw_cid[4];
 	uint32_t resp, sec_count;
 	device_t child;
 	uint16_t rca = 2;
 	u_char switch_res[64];
 
 	while (1) {
-		ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF,
-		    M_WAITOK | M_ZERO);
-		if (!ivar)
-			return;
-		err = mmc_all_send_cid(sc, ivar->raw_cid);
+		err = mmc_all_send_cid(sc, raw_cid);
 		if (err == MMC_ERR_TIMEOUT)
 			break;
 		if (err != MMC_ERR_NONE) {
 			device_printf(sc->dev, "Error reading CID %d\n", err);
 			break;
+		}
+		newcard = 1;
+		if ((err = device_get_children(sc->dev, &devlist, &devcount)) != 0)
+			return;
+		for (i = 0; i < devcount; i++) {
+			ivar = device_get_ivars(devlist[i]);
+			if (memcmp(ivar->raw_cid, raw_cid, sizeof(raw_cid)) == 0) {
+				newcard = 0;
+				break;
+			}
+		}
+		free(devlist, M_TEMP);
+		if (newcard) {
+			ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF,
+			    M_WAITOK | M_ZERO);
+			if (!ivar)
+				return;
+			memcpy(ivar->raw_cid, raw_cid, sizeof(raw_cid));
 		}
 		if (mmcbr_get_ro(sc->dev))
 			ivar->read_only = 1;
@@ -1101,6 +1118,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			mmc_app_send_scr(sc, ivar->rca, ivar->raw_scr);
 			mmc_app_decode_scr(ivar->raw_scr, &ivar->scr);
 			/* Get card switch capabilities. */
+			ivar->timing = bus_timing_normal;
 			if ((ivar->scr.sda_vsn >= 1) &&
 			    (ivar->csd.ccc & (1<<10))) {
 				mmc_sd_switch(sc, 0, 0, 0xF, switch_res);
@@ -1121,9 +1139,11 @@ mmc_discover_cards(struct mmc_softc *sc)
 			if ((mmcbr_get_caps(sc->dev) & MMC_CAP_4_BIT_DATA) &&
 			    (ivar->scr.bus_widths & SD_SCR_BUS_WIDTH_4))
 				ivar->bus_width = bus_width_4;
-			/* Add device. */
-			child = device_add_child(sc->dev, NULL, -1);
-			device_set_ivars(child, ivar);
+			if (newcard) {
+				/* Add device. */
+				child = device_add_child(sc->dev, NULL, -1);
+				device_set_ivars(child, ivar);
+			}
 			return;
 		}
 		mmc_decode_cid_mmc(ivar->raw_cid, &ivar->cid);
@@ -1174,11 +1194,50 @@ mmc_discover_cards(struct mmc_softc *sc)
 			ivar->bus_width = bus_width_1;
 			ivar->timing = bus_timing_normal;
 		}
-		/* Add device. */
-		child = device_add_child(sc->dev, NULL, -1);
-		device_set_ivars(child, ivar);
+		if (newcard) {
+			/* Add device. */
+			child = device_add_child(sc->dev, NULL, -1);
+			device_set_ivars(child, ivar);
+		}
 	}
-	free(ivar, M_DEVBUF);
+}
+
+static void
+mmc_rescan_cards(struct mmc_softc *sc)
+{
+	struct mmc_ivars *ivar = NULL;
+	device_t *devlist;
+	int err, i, devcount;
+
+	if ((err = device_get_children(sc->dev, &devlist, &devcount)) != 0)
+		return;
+	for (i = 0; i < devcount; i++) {
+		ivar = device_get_ivars(devlist[i]);
+		if (mmc_select_card(sc, ivar->rca)) {
+			device_delete_child(sc->dev, devlist[i]);
+			free(ivar, M_DEVBUF);
+		}
+	}
+	free(devlist, M_TEMP);
+	mmc_select_card(sc, 0);
+}
+
+static int
+mmc_delete_cards(struct mmc_softc *sc)
+{
+	struct mmc_ivars *ivar;
+	device_t *devlist;
+	int err, i, devcount;
+
+	if ((err = device_get_children(sc->dev, &devlist, &devcount)) != 0)
+		return (err);
+	for (i = 0; i < devcount; i++) {
+		ivar = device_get_ivars(devlist[i]);
+		device_delete_child(sc->dev, devlist[i]);
+		free(ivar, M_DEVBUF);
+	}
+	free(devlist, M_TEMP);
+	return (0);
 }
 
 static void
@@ -1196,8 +1255,12 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmcbr_set_mode(dev, mode_sd);
 		mmc_power_up(sc);
 		mmcbr_set_bus_mode(dev, pushpull);
+		if (bootverbose)
+			device_printf(sc->dev, "Idle cards for SD probe\n");
 		mmc_idle_cards(sc);
 		err = mmc_send_if_cond(sc, 1);
+		if (bootverbose)
+			device_printf(sc->dev, "SD: SEND_IF_CONF %d\n", err);
 		if (mmc_send_app_op_cond(sc, err ? 0 : MMC_OCR_CCS, &ocr) !=
 		    MMC_ERR_NONE) {
 			/*
@@ -1205,7 +1268,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 			 */
 			mmcbr_set_mode(dev, mode_mmc);
 			if (mmc_send_op_cond(sc, 0, &ocr) != MMC_ERR_NONE)
-				return;	/* Failed both, punt! XXX powerdown? */
+				ocr = 0; /* Failed both, powerdown. */
 		}
 		mmcbr_set_ocr(dev, mmc_select_vdd(sc, ocr));
 		if (mmcbr_get_ocr(dev) != 0)
@@ -1220,8 +1283,11 @@ mmc_go_discovery(struct mmc_softc *sc)
 	 * Make sure that we have a mutually agreeable voltage to at least
 	 * one card on the bus.
 	 */
-	if (mmcbr_get_ocr(dev) == 0)
+	if (mmcbr_get_ocr(dev) == 0) {
+		mmc_delete_cards(sc);
+		mmc_power_down(sc);
 		return;
+	}
 	/*
 	 * Reselect the cards after we've idled them above.
 	 */
@@ -1232,6 +1298,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 	} else
 		mmc_send_op_cond(sc, mmcbr_get_ocr(dev), NULL);
 	mmc_discover_cards(sc);
+	mmc_rescan_cards(sc);
 
 	mmcbr_set_bus_mode(dev, pushpull);
 	mmcbr_update_ios(dev);
@@ -1263,7 +1330,7 @@ mmc_calculate_clock(struct mmc_softc *sc)
 			max_timing = ivar->timing;
 		if (ivar->tran_speed < max_dtr)
 			max_dtr = ivar->tran_speed;
-		if (ivar->hs_tran_speed < max_dtr)
+		if (ivar->hs_tran_speed < max_hs_dtr)
 			max_hs_dtr = ivar->hs_tran_speed;
 	}
 	for (i = 0; i < nkid; i++) {
@@ -1292,17 +1359,11 @@ mmc_calculate_clock(struct mmc_softc *sc)
 static void
 mmc_scan(struct mmc_softc *sc)
 {
-	device_t dev;
+	device_t dev = sc->dev;
 
-	dev = sc->dev;
 	mmc_acquire_bus(dev, dev);
-
-	if (mmcbr_get_power_mode(dev) == power_on)
-		mmc_rescan_cards(sc);
 	mmc_go_discovery(sc);
-
 	mmc_release_bus(dev, dev);
-	/* XXX probe/attach/detach children? */
 }
 
 static int
@@ -1374,6 +1435,8 @@ static device_method_t mmc_methods[] = {
 	DEVMETHOD(device_probe, mmc_probe),
 	DEVMETHOD(device_attach, mmc_attach),
 	DEVMETHOD(device_detach, mmc_detach),
+	DEVMETHOD(device_suspend, mmc_suspend),
+	DEVMETHOD(device_resume, mmc_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar, mmc_read_ivar),

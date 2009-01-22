@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -155,7 +155,7 @@
 #include <term.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.110 2007/08/11 16:15:57 tom Exp $")
+MODULE_ID("$Id: lib_mvcur.c,v 1.113 2008/08/16 19:30:58 tom Exp $")
 
 #define WANT_CHAR(y, x)	SP->_newscr->_line[y].text[x]	/* desired state */
 #define BAUDRATE	cur_term->_baudrate	/* bits per second */
@@ -230,7 +230,7 @@ _nc_msec_cost(const char *const cap, int affcnt)
 		}
 
 #if NCURSES_NO_PADDING
-		if (!(SP->_no_padding))
+		if (!GetNoPadding(SP))
 #endif
 		    cum_cost += number * 10;
 	    } else
@@ -426,8 +426,11 @@ _nc_mvcur_wrap(void)
     mvcur(-1, -1, screen_lines - 1, 0);
 
     /* set cursor to normal mode */
-    if (SP->_cursor != -1)
+    if (SP->_cursor != -1) {
+	int cursor = SP->_cursor;
 	curs_set(1);
+	SP->_cursor = cursor;
+    }
 
     if (exit_ca_mode) {
 	TPUTS_TRACE("exit_ca_mode");
@@ -628,7 +631,8 @@ relative_move(string_desc * target, int from_y, int from_x, int to_y, int
 		    int i;
 
 		    for (i = 0; i < n; i++)
-			*check.s_tail++ = CharOf(WANT_CHAR(to_y, from_x + i));
+			*check.s_tail++ = (char) CharOf(WANT_CHAR(to_y,
+								  from_x + i));
 		    *check.s_tail = '\0';
 		    check.s_size -= n;
 		    lhcost += n * SP->_char_padding;

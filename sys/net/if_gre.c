@@ -79,6 +79,7 @@
 #include <netinet/ip_gre.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
+#include <netinet/vinet.h>
 #else
 #error "Huh? if_gre without inet?"
 #endif

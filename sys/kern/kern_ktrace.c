@@ -907,12 +907,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	 */
 	mtx_lock(&ktrace_mtx);
 	vp = td->td_proc->p_tracevp;
-	if (vp != NULL)
-		VREF(vp);
 	cred = td->td_proc->p_tracecred;
-	if (cred != NULL)
-		crhold(cred);
-	mtx_unlock(&ktrace_mtx);
 
 	/*
 	 * If vp is NULL, the vp has been cleared out from under this
@@ -921,9 +916,13 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	 */
 	if (vp == NULL) {
 		KASSERT(cred == NULL, ("ktr_writerequest: cred != NULL"));
+		mtx_unlock(&ktrace_mtx);
 		return;
 	}
+	VREF(vp);
 	KASSERT(cred != NULL, ("ktr_writerequest: cred == NULL"));
+	crhold(cred);
+	mtx_unlock(&ktrace_mtx);
 
 	kth = &req->ktr_header;
 	datalen = data_lengths[(u_short)kth->ktr_type & ~KTR_DROP];
@@ -963,18 +962,26 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
-	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
-	if (!error)
+	crfree(cred);
+	if (!error) {
+		vrele(vp);
+		VFS_UNLOCK_GIANT(vfslocked);
 		return;
+	}
+	VFS_UNLOCK_GIANT(vfslocked);
+
 	/*
 	 * If error encountered, give up tracing on this vnode.  We defer
 	 * all the vrele()'s on the vnode until after we are finished walking
 	 * the various lists to avoid needlessly holding locks.
+	 * NB: at this point we still hold the vnode reference that must
+	 * not go away as we need the valid vnode to compare with. Thus let
+	 * vrele_count start at 1 and the reference will be freed
+	 * by the loop at the end after our last use of vp.
 	 */
 	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
 	    error);
-	vrele_count = 0;
+	vrele_count = 1;
 	/*
 	 * First, clear this vnode from being used by any processes in the
 	 * system.

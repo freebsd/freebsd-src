@@ -96,9 +96,6 @@ static void
 dump_field(struct libusb20_device *pdev, const char *plevel,
     const char *field, uint32_t value)
 {
-	struct LIBUSB20_CONTROL_SETUP_DECODED req;
-	uint16_t lang_id;
-	uint8_t index;
 	uint8_t temp_string[256];
 
 	printf("%s%s = 0x%04x ", plevel, field, value);
@@ -108,64 +105,15 @@ dump_field(struct libusb20_device *pdev, const char *plevel,
 		return;
 	}
 	if (value == 0) {
-		printf(" <no string> \n");
+		printf(" <no string>\n");
 		return;
 	}
-	LIBUSB20_INIT(LIBUSB20_CONTROL_SETUP, &req);
-
-	lang_id = 0;
-	index = 0;
-
-	req.bmRequestType =
-	    LIBUSB20_REQUEST_TYPE_STANDARD |
-	    LIBUSB20_RECIPIENT_DEVICE |
-	    LIBUSB20_ENDPOINT_IN;
-	req.bRequest = LIBUSB20_REQUEST_GET_DESCRIPTOR;
-	req.wValue = (256 * LIBUSB20_DT_STRING) | index;
-	req.wIndex = lang_id;
-	req.wLength = 4;		/* bytes */
-
-	if (libusb20_dev_request_sync(pdev, &req,
-	    temp_string, NULL, 1000, 0)) {
-		goto done;
+	if (libusb20_dev_req_string_simple_sync(pdev, value,
+	    temp_string, sizeof(temp_string))) {
+		printf(" <retrieving string failed>\n");
+		return;
 	}
-	lang_id = temp_string[2] | (temp_string[3] << 8);
-
-	printf(" LangId:0x%04x <", lang_id);
-
-	index = value;
-
-	req.wValue = (256 * LIBUSB20_DT_STRING) | index;
-	req.wIndex = lang_id;
-	req.wLength = 4;		/* bytes */
-
-	if (libusb20_dev_request_sync(pdev, &req,
-	    temp_string, NULL, 1000, 0)) {
-		printf("ERROR>\n");
-		goto done;
-	}
-	req.wValue = (256 * LIBUSB20_DT_STRING) | index;
-	req.wIndex = lang_id;
-	req.wLength = temp_string[0];	/* bytes */
-
-	if (libusb20_dev_request_sync(pdev, &req,
-	    temp_string, NULL, 1000, 0)) {
-		printf("ERROR>\n");
-		goto done;
-	}
-	req.wLength /= 2;
-
-	for (index = 1; index != req.wLength; index++) {
-		if (isprint(temp_string[(2 * index) + 0])) {
-			printf("%c", temp_string[(2 * index) + 0]);
-		} else if (isprint(temp_string[(2 * index) + 1])) {
-			printf("%c", temp_string[(2 * index) + 1]);
-		} else {
-			printf("?");
-		}
-	}
-	printf(">\n");
-done:
+	printf(" <%s>\n", temp_string);
 	return;
 }
 
@@ -244,7 +192,7 @@ dump_be_quirk_names(struct libusb20_backend *pbe)
 {
 	struct libusb20_quirk q;
 	uint16_t x;
-	int err;
+	int error;
 
 	memset(&q, 0, sizeof(q));
 
@@ -252,8 +200,8 @@ dump_be_quirk_names(struct libusb20_backend *pbe)
 
 	for (x = 0; x != 0xFFFF; x++) {
 
-		err = libusb20_be_get_quirk_name(pbe, x, &q);
-		if (err) {
+		error = libusb20_be_get_quirk_name(pbe, x, &q);
+		if (error) {
 			if (x == 0) {
 				printf("No quirk names - maybe the USB quirk "
 				    "module has not been loaded.\n");
@@ -272,7 +220,7 @@ dump_be_dev_quirks(struct libusb20_backend *pbe)
 {
 	struct libusb20_quirk q;
 	uint16_t x;
-	int err;
+	int error;
 
 	memset(&q, 0, sizeof(q));
 
@@ -280,8 +228,8 @@ dump_be_dev_quirks(struct libusb20_backend *pbe)
 
 	for (x = 0; x != 0xFFFF; x++) {
 
-		err = libusb20_be_get_dev_quirk(pbe, x, &q);
-		if (err) {
+		error = libusb20_be_get_dev_quirk(pbe, x, &q);
+		if (error) {
 			if (x == 0) {
 				printf("No device quirks - maybe the USB quirk "
 				    "module has not been loaded.\n");

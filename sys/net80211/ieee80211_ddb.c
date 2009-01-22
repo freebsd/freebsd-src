@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
+#include <net/vnet.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -75,7 +76,7 @@ __FBSDID("$FreeBSD$");
 	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
 	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
 	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
-	"\37TXFRAG"
+	"\37TXFRAG\40TDMA"
 
 #define	IEEE80211_C_CRYPTO_BITS \
 	"\20\1WEP\2TKIP\3AES\4AES_CCM\5TKIPMIC\6CKIP\12PMGT"
@@ -91,7 +92,8 @@ __FBSDID("$FreeBSD$");
 
 #define	IEEE80211_NODE_BITS \
 	"\20\1AUTH\2QOS\3ERP\5PWR_MGT\6AREF\7HT\10HTCOMPAT\11WPS\12TSN" \
-	"\13AMPDU_RX\14AMPDU_TX\15MIMO_PS\16MIMO_RTS\17RIFS\20SGI20\21SGI40"
+	"\13AMPDU_RX\14AMPDU_TX\15MIMO_PS\16MIMO_RTS\17RIFS\20SGI20\21SGI40" \
+	"\22ASSOCID"
 
 #define	IEEE80211_ERP_BITS \
 	"\20\1NON_ERP_PRESENT\2USE_PROTECTION\3LONG_PREAMBLE"
@@ -540,7 +542,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	 */
 	db_printf("\tnchans %d", ic->ic_nchans);
 #if 0
-	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX+1];
+	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX];
 	uint8_t			ic_chan_avail[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];

@@ -487,6 +487,7 @@ MAN=	\
 	curs_inwstr.3 \
 	curs_kernel.3 \
 	curs_legacy.3 \
+	curs_memleaks.3 \
 	curs_mouse.3 \
 	curs_move.3 \
 	curs_opaque.3 \
@@ -741,6 +742,8 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_legacy.3 getmaxy.3 \
 	curs_legacy.3 getparx.3 \
 	curs_legacy.3 getpary.3 \
+	curs_memleaks.3 _nc_free_and_exit.3 \
+	curs_memleaks.3 _nc_freeall.3 \
 	curs_mouse.3 getmouse.3 \
 	curs_mouse.3 mouse_trafo.3 \
 	curs_mouse.3 mouseinterval.3 \

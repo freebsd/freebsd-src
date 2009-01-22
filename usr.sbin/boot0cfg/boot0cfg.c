@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2008 Luigi Rizzo
  * Copyright (c) 1999 Robert Nordier
  * All rights reserved.
  *
@@ -44,13 +45,34 @@ __FBSDID("$FreeBSD$");
 
 #define MBRSIZE         512     /* master boot record size */
 
-#define OFF_VERSION	0x1b0	/* offset: version number */
-#define OFF_OPT		0x1b9	/* offset: default boot option */
-#define OFF_DRIVE	0x1ba	/* offset: setdrv drive */
-#define OFF_FLAGS       0x1bb   /* offset: option flags */
-#define OFF_TICKS       0x1bc   /* offset: clock ticks */
+#define OFF_VERSION	0x1b0	/* offset: version number, only boot0version */
+#define OFF_SERIAL	0x1b8	/* offset: volume serial number */
 #define OFF_PTBL        0x1be   /* offset: partition table */
 #define OFF_MAGIC       0x1fe   /* offset: magic number */
+/*
+ * Offsets to the parameters of the 512-byte boot block.
+ * For historical reasons they are set as macros
+ */
+struct opt_offsets {
+	int opt;
+	int drive;
+	int flags;
+	int ticks;
+};
+
+struct opt_offsets b0_ofs[] = {
+	{ 0x0, 0x0, 0x0, 0x0 },		/* no boot block */
+	{ 0x1b9, 0x1ba, 0x1bb, 0x1bc },	/* original block */
+	{ 0x1b5, 0x1b6, 0x1b7, 0x1bc },	/* NT_SERIAL block */
+};
+
+int b0_ver;		/* boot block version set by boot0bs */
+
+#define OFF_OPT		(b0_ofs[b0_ver].opt)	/* default boot option */
+#define OFF_DRIVE	(b0_ofs[b0_ver].drive)	/* setdrv drive */
+#define OFF_FLAGS       (b0_ofs[b0_ver].flags)	/* option flags */
+#define OFF_TICKS       (b0_ofs[b0_ver].ticks)	/* clock ticks */
+
 
 #define cv2(p)  ((p)[0] | (p)[1] << 010)
 
@@ -81,8 +103,12 @@ static int boot0version(const u_int8_t *);
 static int boot0bs(const u_int8_t *);
 static void stropt(const char *, int *, int *);
 static int argtoi(const char *, int, int, int);
+static int set_bell(u_int8_t *, int, int);
 static void usage(void);
 
+unsigned vol_id[5];	/* 4 plus 1 for flag */
+
+int v_flag;
 /*
  * Boot manager installation/configuration utility.
  */
@@ -93,9 +119,9 @@ main(int argc, char *argv[])
     int boot0_size, mbr_size;
     const char *bpath, *fpath;
     char *disk;
-    int B_flag, v_flag, o_flag;
+    int B_flag, o_flag;
     int d_arg, m_arg, s_arg, t_arg;
-    int o_and, o_or;
+    int o_and, o_or, o_e = -1;
     int up, c;
 
     bpath = "/boot/boot0";
@@ -104,7 +130,7 @@ main(int argc, char *argv[])
     d_arg = m_arg = s_arg = t_arg = -1;
     o_and = 0xff;
     o_or = 0;
-    while ((c = getopt(argc, argv, "Bvb:d:f:m:o:s:t:")) != -1)
+    while ((c = getopt(argc, argv, "Bvb:d:e:f:i:m:o:s:t:")) != -1)
         switch (c) {
         case 'B':
             B_flag = 1;
@@ -118,8 +144,21 @@ main(int argc, char *argv[])
         case 'd':
             d_arg = argtoi(optarg, 0, 0xff, 'd');
             break;
+        case 'e':
+	    if (optarg[0] == '0' && optarg[1] == 'x')
+		sscanf(optarg, "0x%02x", &o_e);
+	    else
+		o_e = optarg[0];
+            break;
         case 'f':
             fpath = optarg;
+            break;
+        case 'i':
+            if (sscanf(optarg, "%02x%02x-%02x%02x",
+		vol_id, vol_id+1, vol_id+2, vol_id+3) == 4)
+			vol_id[4] = 1;
+	    else
+		errx(1, "bad argument %s", optarg);
             break;
         case 'm':
             m_arg = argtoi(optarg, 0, 0xf, 'm');
@@ -147,7 +186,10 @@ main(int argc, char *argv[])
     up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || s_arg != -1
 	|| t_arg != -1;
 
-    /* open the disk and read in the existing mbr */
+    /* open the disk and read in the existing mbr. Either here or
+     * when reading the block from disk, we do check for the version
+     * and abort if a suitable block is not found.
+     */
     mbr_size = read_mbr(disk, &mbr, !B_flag);
 
     /* save the existing MBR if we are asked to do so */
@@ -164,6 +206,8 @@ main(int argc, char *argv[])
 	boot0_size = read_mbr(bpath, &boot0, 1);
         memcpy(boot0 + OFF_PTBL, mbr + OFF_PTBL,
 	    sizeof(struct dos_partition) * NDOSPART);
+	if (b0_ver == 2)	/* volume serial number support */
+	    memcpy(boot0 + OFF_SERIAL, mbr + OFF_SERIAL, 4);
     } else {
 	boot0 = mbr;
 	boot0_size = mbr_size;
@@ -191,6 +235,19 @@ main(int argc, char *argv[])
     if (t_arg != -1)
         mk2(boot0 + OFF_TICKS, t_arg);
 
+    /* set the bell char */
+    if (o_e != -1 && set_bell(boot0, o_e, 0) != -1)
+	up = 1;
+
+    if (vol_id[4]) {
+	if (b0_ver != 2)
+	    errx(1, "incompatible boot block, cannot set volume ID");
+	boot0[OFF_SERIAL] = vol_id[0];
+	boot0[OFF_SERIAL+1] = vol_id[1];
+	boot0[OFF_SERIAL+2] = vol_id[2];
+	boot0[OFF_SERIAL+3] = vol_id[3];
+	up = 1;	/* force update */
+    }
     /* write the MBR back to disk */
     if (up)
 	write_mbr(disk, 0, boot0, boot0_size);
@@ -208,6 +265,36 @@ main(int argc, char *argv[])
     return 0;
 }
 
+/* get or set the 'bell' character to be used in case of errors.
+ * Lookup for a certain code sequence, return -1 if not found.
+ */
+static int
+set_bell(u_int8_t *mbr, int new_bell, int report)
+{
+    /* lookup sequence: 0x100 means skip, 0x200 means done */
+    static unsigned seq[] =
+		{ 0xb0, 0x100, 0xe8, 0x100, 0x100, 0x30, 0xe4, 0x200 };
+    int ofs, i, c;
+    for (ofs = 0x60; ofs < 0x180; ofs++) { /* search range */
+	if (mbr[ofs] != seq[0])	/* search initial pattern */
+	    continue;
+	for (i=0;; i++) {
+	    if (seq[i] == 0x200) {	/* found */
+		c = mbr[ofs+1];
+		if (!report)
+		    mbr[ofs+1] = c = new_bell;
+		else
+		    printf("  bell=%c (0x%x)",
+			(c >= ' ' && c < 0x7f) ? c : ' ', c);
+		return c;
+	    }
+	    if (seq[i] != 0x100 && seq[i] != mbr[ofs+i])
+		break;
+	}
+    }
+    warn("bell not found");
+    return -1;
+}
 /*
  * Read in the MBR of the disk.  If it is boot0, then use the version to
  * read in all of it if necessary.  Use pointers to return a malloc'd
@@ -218,6 +305,7 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
 {
     u_int8_t buf[MBRSIZE];
     int mbr_size, fd;
+    int ver;
     ssize_t n;
 
     if ((fd = open(disk, O_RDONLY)) == -1)
@@ -229,7 +317,7 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
     if (cv2(buf + OFF_MAGIC) != 0xaa55)
         errx(1, "%s: bad magic", disk);
 
-    if (!boot0bs(buf)) {
+    if (! (ver = boot0bs(buf))) {
 	if (check_version)
 	    errx(1, "%s: unknown or incompatible boot code", disk);
     } else if (boot0version(buf) == 0x101) {
@@ -338,9 +426,11 @@ display_mbr(u_int8_t *mbr)
                 part[i].dp_size);
     printf("\n");
     version = boot0version(mbr);
-    printf("version=%d.%d  drive=0x%x  mask=0x%x  ticks=%u\noptions=",
+    printf("version=%d.%d  drive=0x%x  mask=0x%x  ticks=%u",
 	version >> 8, version & 0xff, mbr[OFF_DRIVE],
 	mbr[OFF_FLAGS] & 0xf, cv2(mbr + OFF_TICKS));
+    set_bell(mbr, 0, 1);
+    printf("\noptions=");
     for (i = 0; i < nopt; i++) {
 	if (i)
 	    printf(",");
@@ -349,6 +439,10 @@ display_mbr(u_int8_t *mbr)
 	printf("%s", opttbl[i].tok);
     }
     printf("\n");
+    if (b0_ver == 2)
+	printf("volume serial ID %02x%02x-%02x%02x\n",
+		mbr[OFF_SERIAL], mbr[OFF_SERIAL+1],
+		mbr[OFF_SERIAL+2], mbr[OFF_SERIAL+3]);
     printf("default_selection=F%d (", mbr[OFF_OPT] + 1);
     if (mbr[OFF_OPT] < 4)
 	printf("Slice %d", mbr[OFF_OPT] + 1);
@@ -364,15 +458,26 @@ display_mbr(u_int8_t *mbr)
 static int
 boot0version(const u_int8_t *bs)
 {
-    static u_int8_t idold[] = {0xfe, 0x45, 0xf2, 0xe9, 0x00, 0x8a};
-
     /* Check for old version, and return 0x100 if found. */
-    if (memcmp(bs + 0x1c, idold, sizeof(idold)) == 0)
-        return 0x100;
+    int v = boot0bs(bs);
+    if (v != 0)
+        return v << 8;
 
     /* We have a newer boot0, so extract the version number and return it. */
     return *(const int *)(bs + OFF_VERSION) & 0xffff;
 }
+
+/* descriptor of a pattern to match.
+ * Start from the first entry trying to match the chunk of bytes,
+ * if you hit an entry with len=0 terminate the search and report
+ * off as the version. Otherwise skip to the next block after len=0
+ * An entry with len=0, off=0 is the end marker.
+  */
+struct byte_pattern {
+    unsigned off;
+    unsigned len;
+    u_int8_t *key;
+};
 
 /*
  * Decide if we have valid boot0 boot code by looking for
@@ -381,23 +486,32 @@ boot0version(const u_int8_t *bs)
 static int
 boot0bs(const u_int8_t *bs)
 {
+    /* the initial code sequence */
     static u_int8_t id0[] = {0xfc, 0x31, 0xc0, 0x8e, 0xc0, 0x8e, 0xd8,
 			     0x8e, 0xd0, 0xbc, 0x00, 0x7c };
+    /* the drive id */
     static u_int8_t id1[] = {'D', 'r', 'i', 'v', 'e', ' '};
-    static struct {
-	unsigned off;
-	unsigned len;
-	u_int8_t *key;
-    } ident[2] = {
+    static struct byte_pattern patterns[] = {
         {0x0,   sizeof(id0), id0},
-        {0x1b2, sizeof(id1), id1}
+        {0x1b2, sizeof(id1), id1},
+        {1, 0, NULL},
+        {0x0,   sizeof(id0), id0},	/* version with NT support */
+        {0x1ae, sizeof(id1), id1},
+        {2, 0, NULL},
+        {0, 0, NULL},
     };
-    unsigned int i;
+    struct byte_pattern *p = patterns;
 
-    for (i = 0; i < sizeof(ident) / sizeof(ident[0]); i++)
-        if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
-	    return 0;
-    return 1;
+    for (;  p->off || p->len; p++) {
+	if (p->len == 0)
+	    break;
+	if (!memcmp(bs + p->off, p->key, p->len))	/* match */
+	    continue;
+	while (p->len)	/* skip to next block */
+	    p++;
+    }
+    b0_ver = p->off;	/* XXX ugly side effect */
+    return p->off;
 }
 
 /*

@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_timer.h>
+#if __FreeBSD_version >= 800056
+#include <netinet/vinet.h>
+#endif
 #include <net/route.h>
 
 #include <t3cdev.h>
@@ -153,11 +156,6 @@ static unsigned int mbuf_wrs[TX_MAX_SEGS + 1] __read_mostly;
 #define TCP_TIMEWAIT	1
 #define TCP_CLOSE	2
 #define TCP_DROP	3
-
-extern int tcp_do_autorcvbuf;
-extern int tcp_do_autosndbuf;
-extern int tcp_autorcvbuf_max;
-extern int tcp_autosndbuf_max;
 
 static void t3_send_reset(struct toepcb *toep);
 static void send_abort_rpl(struct mbuf *m, struct toedev *tdev, int rst_status);
@@ -3271,8 +3269,6 @@ syncache_add_accept_req(struct cpl_pass_accept_req *req, struct socket *lso, str
 
 	toep->tp_iss = toep->tp_delack_seq = toep->tp_rcv_wup = toep->tp_copied_seq = rcv_isn + 1;
 
-	
-	inc.inc_isipv6 = 0;
 	inc.inc_len = 0;
 	inc.inc_faddr.s_addr = req->peer_ip;
 	inc.inc_laddr.s_addr = req->local_ip;
@@ -3612,7 +3608,6 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 	th.th_seq = req->rcv_isn;
 	th.th_flags = TH_ACK;
 	
-	inc.inc_isipv6 = 0;
 	inc.inc_len = 0;
 	inc.inc_faddr.s_addr = req->peer_ip;
 	inc.inc_laddr.s_addr = req->local_ip;

@@ -103,6 +103,10 @@
 .Ft void
 .Fn \*(lp*if_start\*(rp "struct ifnet *ifp"
 .Ft int
+.Fn \*(lp*if_transmit\*(rp "struct ifnet *ifp" "struct mbuf *m"
+.Ft void
+.Fn \*(lp*if_qflush\*(rp "struct ifnet *ifp"
+.Ft int
 .Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "int cmd" "caddr_t data"
 .Ft void
 .Fn \*(lp*if_watchdog\*(rp "struct ifnet *ifp"
@@ -350,6 +354,20 @@ framing, e.g., Ethernet.
 Output a packet on interface
 .Fa ifp ,
 or queue it on the output queue if the interface is already active.
+.It Fn if_transmit
+Transmit a packet on an interface or queue it if the interface is
+in use. This function will return
+.Dv ENOBUFS
+if the devices software and hardware queues are both full. This 
+function must be installed after 
+.It Fn if_qflush
+Free mbufs in internally managed queues when the interface is marked down.
+This function must be installed after 
+.Fn if_attach 
+to override the default implementation. This function is exposed in order
+to allow drivers to manage their own queues and to reduce the latency 
+caused by a frequently gratuitous enqueue / dequeue pair to ifq. The 
+suggested internal software queueing mechanism is buf_ring.
 .It Fn if_start
 Start queued output on an interface.
 This function is exposed in
@@ -363,7 +381,8 @@ flag is not set.
 (Thus,
 .Dv IFF_OACTIVE
 does not literally mean that output is active, but rather that the
-device's internal output queue is full.)
+device's internal output queue is full.) Please note that this function
+will soon be deprecated.
 .It Fn if_done
 Not used.
 We are not even sure what it was ever for.

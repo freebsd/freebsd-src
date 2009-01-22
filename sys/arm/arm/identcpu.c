@@ -300,6 +300,10 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_IXP425_266,	CPU_CLASS_XSCALE,	"IXP425 266MHz",
 	  ixp425_steppings },
 
+	/* XXX ixp435 steppings? */
+	{ CPU_ID_IXP435,	CPU_CLASS_XSCALE,	"IXP435",
+	  ixp425_steppings },
+
 	{ CPU_ID_ARM1136JS,	CPU_CLASS_ARM11J,	"ARM1136J-S",
 	  generic_steppings },
 	{ CPU_ID_ARM1136JSR1,	CPU_CLASS_ARM11J,	"ARM1136J-S R1",

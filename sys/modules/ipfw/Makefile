@@ -6,7 +6,7 @@
 
 KMOD=	ipfw
 SRCS=	ip_fw2.c ip_fw_pfil.c
-SRCS+=	opt_inet6.h opt_ipsec.h opt_mac.h
+SRCS+=	opt_inet6.h opt_ipsec.h opt_mac.h opt_route.h
 
 CFLAGS+= -DIPFIREWALL
 CFLAGS+= -I${.CURDIR}/../../contrib/pf

@@ -537,6 +537,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Storcase (Kingston) InfoStation IFS FC2/SATA-R 201A
+		 * PR: 129858
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "IFS", "FC2/SATA-R*",
+		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Samsung YP-U3 mp3-player
 		 * PR: 125398
 		 */
@@ -772,8 +780,8 @@ daclose(struct disk *dp)
 
 	softc->flags &= ~DA_FLAG_OPEN;
 	cam_periph_unhold(periph);
-	cam_periph_release(periph);
 	cam_periph_unlock(periph);
+	cam_periph_release(periph);
 	return (0);	
 }
 
@@ -1013,7 +1021,6 @@ daasync(void *callback_arg, u_int32_t code,
 	case AC_FOUND_DEVICE:
 	{
 		struct ccb_getdev *cgd;
-		struct cam_sim *sim;
 		cam_status status;
  
 		cgd = (struct ccb_getdev *)arg;
@@ -1030,7 +1037,6 @@ daasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		sim = xpt_path_sim(cgd->ccb_h.path);
 		status = cam_periph_alloc(daregister, daoninvalidate,
 					  dacleanup, dastart,
 					  "da", CAM_PERIPH_BIO,

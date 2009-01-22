@@ -48,7 +48,6 @@ static const char rcsid[] =
 
 
 static int		LogFD = ERR;
-void mkprint(register char*, register unsigned char*, register int);
 
 
 int
@@ -519,7 +518,7 @@ first_word(s, t)
 /* warning:
  *	heavily ascii-dependent.
  */
-void
+static void
 mkprint(register char *dst, register unsigned char *src, register int len)
 {
 	while (len-- > 0)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -174,7 +174,7 @@ _nop_out(isc_session_t *sp)
 	  /*
 	   | only send a nop if window is closed.
 	   */
-	  if((pq = pdu_alloc(sp->isc, 0)) == NULL)
+	  if((pq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL)
 	       // I guess we ran out of resources
 	       return;
 	  nop_out = &pq->pdu.ipdu.nop_out;
@@ -224,7 +224,6 @@ _nop_in(isc_session_t *sp, pduq_t *pq)
 	       nop_out = &pp->ipdu.nop_out;
 	       nop_out->sn.maxcmd = 0;
 	       memset(nop_out->mbz, 0, sizeof(nop_out->mbz));
-
 	       (void)isc_qout(sp, pq); //XXX: should check return?
 	       return;
 	  }
@@ -318,27 +317,24 @@ isc_qout(isc_session_t *sp, pduq_t *pq)
 	  i_nqueue_csnd(sp, pq);
 
      sdebug(5, "enqued: pq=%p", pq);
-#ifdef ISC_OWAITING
-     if(sp->flags & ISC_OWAITING) {
-	  mtx_lock(&sp->io_mtx);	// XXX
-	  wakeup(&sp->flags);
-	  mtx_unlock(&sp->io_mtx);	// XXX
-     }
-#else
+
+     mtx_lock(&sp->io_mtx);
+     sp->flags |= ISC_OQNOTEMPTY;
+     if(sp->flags & ISC_OWAITING)
      wakeup(&sp->flags);
-#endif
+     mtx_unlock(&sp->io_mtx);
+
      return error;
 }
 /*
  | called when a fullPhase is restarted
  */
-static int
+static void
 ism_restart(isc_session_t *sp)
 {
      int lastcmd;
 
      sdebug(2, "restart ...");
-     sp->flags |= ISC_SM_HOLD;
      lastcmd = iscsi_requeue(sp);
 #if 0
      if(lastcmd != sp->sn.cmd) {
@@ -346,8 +342,13 @@ ism_restart(isc_session_t *sp)
 	  sp->sn.cmd = lastcmd;
      }
 #endif
-     sp->flags &= ~ISC_SM_HOLD;
-     return 0;
+     mtx_lock(&sp->io_mtx);
+     if(sp->flags & ISC_OWAITING) {
+	  wakeup(&sp->flags);
+     }
+     mtx_unlock(&sp->io_mtx);
+
+     sdebug(2, "restarted lastcmd=0x%x", lastcmd);
 }
 
 int
@@ -367,7 +368,7 @@ ism_fullfeature(struct cdev *dev, int flag)
 	  error = ic_fullfeature(dev);
 	  break;
      case 2: // restart
-	  error = ism_restart(sp);
+	  ism_restart(sp);
 	  break;
      }
      return error;
@@ -454,32 +455,40 @@ ism_recv(isc_session_t *sp, pduq_t *pq)
      }
 }
 
+/*
+ | go through the out queues looking for work
+ | if either nothing to do, or window is closed
+ | return.
+ */
 static int
 proc_out(isc_session_t *sp)
 {
      sn_t	*sn = &sp->sn;
      pduq_t	*pq;
-     int	error, ndone = 0;
+     int	error, ndone;
      int	which;
 
      debug_called(8);
+     error = ndone = 0;
 
-     while(1) {
+     while(sp->flags & ISC_LINK_UP) {
 	  pdu_t *pp;
 	  bhs_t	*bhs;
-
 	  /*
 	   | check if there is outstanding work in:
-	   | 1- the Inmediate queue
+	   | 1- the Immediate queue
 	   | 2- the R2T queue
 	   | 3- the cmd queue, only if the command window allows it.
 	   */
 	  which = BIT(0) | BIT(1);
-	  if(SNA_GT(sn->cmd, sn->maxCmd) == 0)
+	  if(SNA_GT(sn->cmd, sn->maxCmd) == 0) // if(sn->maxCmd - sn->smc + 1) > 0
 	       which |= BIT(2);
+
+	  sdebug(4, "which=%d sn->maxCmd=%d sn->cmd=%d", which, sn->maxCmd, sn->cmd);
 
 	  if((pq = i_dqueue_snd(sp, which)) == NULL)
 	       break;
+	  sdebug(4, "pq=%p", pq);
 
 	  pp = &pq->pdu;
 	  bhs = &pp->ipdu.bhs;
@@ -510,38 +519,45 @@ proc_out(isc_session_t *sp)
 	       // XXX: and now?
 	  }
 
-	  sdebug(5, "opcode=0x%x sn(cmd=0x%x expCmd=0x%x maxCmd=0x%x expStat=0x%x itt=0x%x)",
+	  sdebug(4, "opcode=0x%x sn(cmd=0x%x expCmd=0x%x maxCmd=0x%x expStat=0x%x itt=0x%x)",
 		bhs->opcode,
 		sn->cmd, sn->expCmd, sn->maxCmd, sn->expStat, sn->itt);
 
 	  if(pq->ccb)
 	       i_nqueue_hld(sp, pq);
 
-	  if((error = isc_sendPDU(sp, pq)) == 0)
+	  if((error = isc_sendPDU(sp, pq)) == 0) {
 	       ndone++;
+	       if(pq->ccb == NULL)
+		    pdu_free(sp->isc, pq);
+	  }
 	  else {
 	       xdebug("error=%d ndone=%d opcode=0x%x ccb=%p itt=%x",
 		      error, ndone, bhs->opcode, pq->ccb, ntohl(bhs->itt));
-	       if(error == EPIPE) {
-		    // XXX: better do some error recovery ...
-		    break;
-	       }
-#if 0
-	       if(pq->ccb) {
+	       if(pq->ccb)
 		    i_remove_hld(sp, pq);
-		    pq->ccb->ccb_h.status |= CAM_UNREC_HBA_ERROR; // some better error?
-		    XPT_DONE(pq->ccb);
+	       switch(error) {
+	       case EPIPE:
+		    sp->flags &= ~ISC_LINK_UP;
+
+	       case EAGAIN:
+		    xdebug("requed");
+		    i_rqueue_pdu(sp, pq);
+		    break;
+
+	       default:
+	       if(pq->ccb) {
+			 xdebug("back to cam");
+			 pq->ccb->ccb_h.status |= CAM_REQUEUE_REQ; // some better error?
+			 XPT_DONE(sp->isc, pq->ccb);
+			 pdu_free(sp->isc, pq);
 	       }
-	       else {
-		    // XXX: now what?
-		    // how do we pass back an error?
+		    else
+			 xdebug("we lost it!");
 	       }
-#endif
 	  }
-	  if(pq->ccb == NULL || error)
-	       pdu_free(sp->isc, pq);
      }
-     return ndone;
+     return error;
 }
 
 /*
@@ -551,42 +567,46 @@ static void
 ism_proc(void *vp)
 {
      isc_session_t 	*sp = (isc_session_t *)vp;
-     int		odone;
+     int		error;
 
      debug_called(8);
-     sdebug(3, "started");
 
      sp->flags |= ISC_SM_RUNNING;
+     sdebug(3, "started sp->flags=%x", sp->flags);
      do {
-	  if(sp->flags & ISC_SM_HOLD)
-	       odone = 0;
-	  else
-	       odone = proc_out(sp);
-	  sdebug(7, "odone=%d", odone);
-	  if(odone == 0) {
-	       mtx_lock(&sp->io_mtx);
-#ifdef ISC_OWAITING
-	       sp->flags |= ISC_OWAITING;
-#endif
-	       if((msleep(&sp->flags, &sp->io_mtx, PRIBIO, "isc_proc", hz*30) == EWOULDBLOCK)
-		  && (sp->flags & ISC_CON_RUNNING))
-		    _nop_out(sp);
-#ifdef ISC_OWAITING
-	       sp->flags &= ~ISC_OWAITING;
-#endif
-	       mtx_unlock(&sp->io_mtx);
+	  if((sp->flags & ISC_HOLD) == 0) {
+	       error = proc_out(sp);
+	       if(error) {
+		    sdebug(3, "error=%d", error);
+	       }
 	  }
+	       mtx_lock(&sp->io_mtx);
+	  if((sp->flags & ISC_LINK_UP) == 0) {
+	       wakeup(&sp->soc);
+	  }
+
+	  if(!(sp->flags & ISC_OQNOTEMPTY)) {
+	       sp->flags |= ISC_OWAITING;
+	       if(msleep(&sp->flags, &sp->io_mtx, PRIBIO, "isc_proc", hz*30) == EWOULDBLOCK) {
+		    if(sp->flags & ISC_CON_RUNNING)
+		    _nop_out(sp);
+	       }
+	       sp->flags &= ~ISC_OWAITING;
+	  }
+	  sp->flags &= ~ISC_OQNOTEMPTY;
+	  mtx_unlock(&sp->io_mtx);
      } while(sp->flags & ISC_SM_RUN);
 
      sp->flags &= ~ISC_SM_RUNNING;
+     sdebug(3, "dropped ISC_SM_RUNNING");
 
 #if __FreeBSD_version >= 700000
      destroy_dev(sp->dev);
 #endif
-
-     sdebug(3, "terminated");
-
      wakeup(sp);
+
+     debug(3, "terminated sp=%p sp->sid=%d", sp, sp->sid);
+
      kproc_exit(0);
 }
 
@@ -695,6 +715,13 @@ isc_add_sysctls(isc_session_t *sp)
 		     CTLFLAG_RD,
 		     (void *)sp, 0,
 		     isc_dump_stats, "A", "statistics");
+
+     SYSCTL_ADD_INT(&sp->clist,
+		     SYSCTL_CHILDREN(sp->oid),
+		     OID_AUTO,
+		     "douio",
+		     CTLFLAG_RW,
+		     &sp->douio, 0, "enable uio on read");
 }
 
 void
@@ -782,5 +809,6 @@ ism_start(isc_session_t *sp)
 
      sp->flags |= ISC_SM_RUN;
 
+     debug(4, "starting ism_proc: sp->sid=%d", sp->sid);
      return kproc_create(ism_proc, sp, &sp->stp, 0, 0, "ism_%d", sp->sid);
 }

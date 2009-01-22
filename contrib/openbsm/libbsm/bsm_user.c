@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -27,15 +27,23 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#15 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#19 $
  */
+
+#include <config/config.h>
 
 #include <bsm/libbsm.h>
 
 #include <string.h>
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifndef HAVE_STRLCPY
+#include <compat/strlcpy.h>
+#endif
 
 /*
  * Parse the contents of the audit_user file into au_user_ent structures.
@@ -45,7 +53,9 @@ static FILE		*fp = NULL;
 static char		 linestr[AU_LINE_MAX];
 static const char	*user_delim = ":";
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * Parse one line from the audit_user file into the au_user_ent structure.
@@ -66,7 +76,7 @@ userfromstr(char *str, struct au_user_ent *u)
 	if (strlen(username) >= AU_USER_NAME_MAX)
 		return (NULL);
 
-	strcpy(u->au_name, username);
+	strlcpy(u->au_name, username, AU_USER_NAME_MAX);
 	if (getauditflagsbin(always, &(u->au_always)) == -1)
 		return (NULL);
 
@@ -91,9 +101,13 @@ void
 setauuser(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setauuser_locked();
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -103,12 +117,16 @@ void
 endauuser(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	if (fp != NULL) {
 		fclose(fp);
 		fp = NULL;
 	}
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -148,9 +166,13 @@ getauuserent_r(struct au_user_ent *u)
 {
 	struct au_user_ent *up;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	up = getauuserent_r_locked(u);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (up);
 }
 
@@ -178,17 +200,23 @@ getauusernam_r(struct au_user_ent *u, const char *name)
 	if (name == NULL)
 		return (NULL);
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 
 	setauuser_locked();
 	while ((up = getauuserent_r_locked(u)) != NULL) {
 		if (strcmp(name, u->au_name) == 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 			pthread_mutex_unlock(&mutex);
+#endif
 			return (u);
 		}
 	}
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (NULL);
 
 }

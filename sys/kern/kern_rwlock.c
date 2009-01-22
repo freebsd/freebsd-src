@@ -191,6 +191,14 @@ rw_sysinit(void *arg)
 	rw_init(args->ra_rw, args->ra_desc);
 }
 
+void
+rw_sysinit_flags(void *arg)
+{
+	struct rw_args_flags *args = arg;
+
+	rw_init_flags(args->ra_rw, args->ra_desc, args->ra_flags);
+}
+
 int
 rw_wowned(struct rwlock *rw)
 {

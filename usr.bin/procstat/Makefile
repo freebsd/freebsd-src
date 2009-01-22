@@ -12,4 +12,8 @@ SRCS=	procstat.c		\
 	procstat_threads.c	\
 	procstat_vm.c
 
+LDADD+=	-lutil
+DPADD+=	${LIBUTIL}
+WARNS?=	4
+
 .include <bsd.prog.mk>

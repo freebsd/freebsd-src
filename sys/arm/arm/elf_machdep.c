@@ -72,7 +72,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {

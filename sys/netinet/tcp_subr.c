@@ -97,7 +97,9 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#include <netinet/vinet.h>
 #include <netinet6/ip6protosw.h>
+#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -114,15 +116,26 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-int	tcp_mssdflt = TCP_MSS;
+#ifdef VIMAGE_GLOBALS
+int	tcp_mssdflt;
 #ifdef INET6
-int	tcp_v6mssdflt = TCP6_MSS;
+int	tcp_v6mssdflt;
+#endif
+int	tcp_minmss;
+int	tcp_do_rfc1323;
+static int	icmp_may_rst;
+static int	tcp_isn_reseed_interval;
+static int	tcp_inflight_enable;
+static int	tcp_inflight_rttthresh;
+static int	tcp_inflight_min;
+static int	tcp_inflight_max;
+static int	tcp_inflight_stab;
 #endif
 
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(TD_TO_VNET(curthread));
+	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	new = V_tcp_mssdflt;
@@ -136,15 +149,16 @@ sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLTYPE_INT|CTLFLAG_RW,
-	   &tcp_mssdflt, 0, &sysctl_net_inet_tcp_mss_check, "I",
-	   "Default TCP Maximum Segment Size");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_mssdflt, 0,
+    &sysctl_net_inet_tcp_mss_check, "I",
+    "Default TCP Maximum Segment Size");
 
 #ifdef INET6
 static int
 sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(TD_TO_VNET(curthread));
+	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	new = V_tcp_v6mssdflt;
@@ -158,9 +172,10 @@ sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt, CTLTYPE_INT|CTLFLAG_RW,
-	   &tcp_v6mssdflt, 0, &sysctl_net_inet_tcp_mss_v6_check, "I",
-	   "Default TCP Maximum Segment Size for IPv6");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_v6mssdflt, 0,
+    &sysctl_net_inet_tcp_mss_v6_check, "I",
+   "Default TCP Maximum Segment Size for IPv6");
 #endif
 
 /*
@@ -171,11 +186,9 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt, CTLTYPE_INT|CTLFLAG_RW,
  * with packet generation and sending. Set to zero to disable MINMSS
  * checking. This setting prevents us from sending too small packets.
  */
-int	tcp_minmss = TCP_MINMSS;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, minmss,
     CTLFLAG_RW, tcp_minmss , 0, "Minmum TCP Maximum Segment Size");
 
-int	tcp_do_rfc1323 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323,
     CTLFLAG_RW, tcp_do_rfc1323, 0,
     "Enable rfc1323 (high performance TCP) extensions");
@@ -195,12 +208,10 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, pcbcount,
     CTLFLAG_RD, tcbinfo.ipi_count, 0, "Number of active PCBs");
 
-static int	icmp_may_rst = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, icmp_may_rst,
     CTLFLAG_RW, icmp_may_rst, 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
-static int	tcp_isn_reseed_interval = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, isn_reseed_interval,
     CTLFLAG_RW, tcp_isn_reseed_interval, 0,
     "Seconds between reseeding of ISN secret");
@@ -213,7 +224,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, isn_reseed_interval,
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, inflight, CTLFLAG_RW, 0,
     "TCP inflight data limiting");
 
-static int	tcp_inflight_enable = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, enable,
     CTLFLAG_RW, tcp_inflight_enable, 0,
     "Enable automatic TCP inflight data limiting");
@@ -222,20 +232,16 @@ static int	tcp_inflight_debug = 0;
 SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
     &tcp_inflight_debug, 0, "Debug TCP inflight calculations");
 
-static int	tcp_inflight_rttthresh;
-SYSCTL_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_inflight_rttthresh, 0, sysctl_msec_to_ticks, "I",
-    "RTT threshold below which inflight will deactivate itself");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, rttthresh,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_inflight_rttthresh, 0, sysctl_msec_to_ticks,
+    "I", "RTT threshold below which inflight will deactivate itself");
 
-static int	tcp_inflight_min = 6144;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, min,
     CTLFLAG_RW, tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
 
-static int	tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, max,
     CTLFLAG_RW, tcp_inflight_max, 0, "Upper-bound for TCP inflight window");
 
-static int	tcp_inflight_stab = 20;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, stab,
     CTLFLAG_RW, tcp_inflight_stab, 0,
     "Inflight Algorithm Stabilization 20 = 2 packets");
@@ -300,8 +306,51 @@ void
 tcp_init(void)
 {
 	INIT_VNET_INET(curvnet);
+	int hashsize;
 
-	int hashsize = TCBHASHSIZE;
+	V_blackhole = 0;
+	V_tcp_delack_enabled = 1;
+	V_drop_synfin = 0;
+	V_tcp_do_rfc3042 = 1;
+	V_tcp_do_rfc3390 = 1;
+	V_tcp_do_ecn = 0;
+	V_tcp_ecn_maxretries = 1;
+	V_tcp_insecure_rst = 0;
+	V_tcp_do_autorcvbuf = 1;
+	V_tcp_autorcvbuf_inc = 16*1024;
+	V_tcp_autorcvbuf_max = 256*1024;
+	V_tcp_do_rfc3465 = 1;
+	V_tcp_abc_l_var = 2;
+
+	V_tcp_mssdflt = TCP_MSS;
+#ifdef INET6
+	V_tcp_v6mssdflt = TCP6_MSS;
+#endif
+	V_tcp_minmss = TCP_MINMSS;
+	V_tcp_do_rfc1323 = 1;
+	V_icmp_may_rst = 1;
+	V_tcp_isn_reseed_interval = 0;
+	V_tcp_inflight_enable = 1;
+	V_tcp_inflight_min = 6144;
+	V_tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
+	V_tcp_inflight_stab = 20;
+
+	V_path_mtu_discovery = 1;
+	V_ss_fltsz = 1;
+	V_ss_fltsz_local = 4;
+	V_tcp_do_newreno = 1;
+	V_tcp_do_tso = 1;
+	V_tcp_do_autosndbuf = 1;
+	V_tcp_autosndbuf_inc = 8*1024;
+	V_tcp_autosndbuf_max = 256*1024;
+
+	V_nolocaltimewait = 0;
+
+	V_tcp_do_sack = 1;
+	V_tcp_sack_maxholes = 128;
+	V_tcp_sack_globalmaxholes = 65536;
+	V_tcp_sack_globalholes = 0;
+
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
 	tcp_keepidle = TCPTV_KEEP_IDLE;
@@ -317,9 +366,12 @@ tcp_init(void)
 
 	cc_init();
 
+	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
+
 	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
 	LIST_INIT(&V_tcb);
 	V_tcbinfo.ipi_listhead = &V_tcb;
+	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
 		printf("WARNING: TCB hash size not a power of 2\n");
@@ -389,7 +441,7 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 
 		ip6 = (struct ip6_hdr *)ip_ptr;
 		ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
-			(inp->in6p_flowinfo & IPV6_FLOWINFO_MASK);
+			(inp->inp_flow & IPV6_FLOWINFO_MASK);
 		ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
 			(IPV6_VERSION & IPV6_VERSION_MASK);
 		ip6->ip6_nxt = IPPROTO_TCP;
@@ -928,6 +980,9 @@ static struct inpcb *
 tcp_notify(struct inpcb *inp, int error)
 {
 	struct tcpcb *tp;
+#ifdef INVARIANTS
+	INIT_VNET_INET(inp->inp_vnet); /* V_tcbinfo WLOCK ASSERT */
+#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -1278,7 +1333,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					     * value (if given) and then notify.
 					     */
 					    bzero(&inc, sizeof(inc));
-					    inc.inc_flags = 0;	/* IPv4 */
 					    inc.inc_faddr = faddr;
 					    inc.inc_fibnum =
 						inp->inp_inc.inc_fibnum;
@@ -1315,13 +1369,11 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 			if (inp != NULL)
 				INP_WUNLOCK(inp);
 		} else {
+			bzero(&inc, sizeof(inc));
 			inc.inc_fport = th->th_dport;
 			inc.inc_lport = th->th_sport;
 			inc.inc_faddr = faddr;
 			inc.inc_laddr = ip->ip_src;
-#ifdef INET6
-			inc.inc_isipv6 = 0;
-#endif
 			syncache_unreach(&inc, th);
 		}
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1391,11 +1443,12 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		    (struct sockaddr *)ip6cp->ip6c_src,
 		    th.th_sport, cmd, NULL, notify);
 
+		bzero(&inc, sizeof(inc));
 		inc.inc_fport = th.th_dport;
 		inc.inc_lport = th.th_sport;
 		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
 		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
-		inc.inc_isipv6 = 1;
+		inc.inc_flags |= INC_ISIPV6;
 		INP_INFO_WLOCK(&V_tcbinfo);
 		syncache_unreach(&inc, &th);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1454,15 +1507,17 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
 
+#ifdef VIMAGE_GLOBALS
 static u_char isn_secret[32];
 static int isn_last_reseed;
 static u_int32_t isn_offset, isn_offset_old;
-static MD5_CTX isn_ctx;
+#endif
 
 tcp_seq
 tcp_new_isn(struct tcpcb *tp)
 {
 	INIT_VNET_INET(tp->t_vnet);
+	MD5_CTX isn_ctx;
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 
@@ -1478,25 +1533,25 @@ tcp_new_isn(struct tcpcb *tp)
 	}
 
 	/* Compute the md5 hash and return the ISN. */
-	MD5Init(&V_isn_ctx);
-	MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_fport, sizeof(u_short));
-	MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_lport, sizeof(u_short));
+	MD5Init(&isn_ctx);
+	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_fport, sizeof(u_short));
+	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_lport, sizeof(u_short));
 #ifdef INET6
 	if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0) {
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->in6p_faddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_faddr,
 			  sizeof(struct in6_addr));
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->in6p_laddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_laddr,
 			  sizeof(struct in6_addr));
 	} else
 #endif
 	{
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_faddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_faddr,
 			  sizeof(struct in_addr));
-		MD5Update(&V_isn_ctx, (u_char *) &tp->t_inpcb->inp_laddr,
+		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_laddr,
 			  sizeof(struct in_addr));
 	}
-	MD5Update(&V_isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
-	MD5Final((u_char *) &md5_buffer, &V_isn_ctx);
+	MD5Update(&isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
+	MD5Final((u_char *) &md5_buffer, &isn_ctx);
 	new_isn = (tcp_seq) md5_buffer[0];
 	V_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
@@ -1629,7 +1684,7 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = inc->inc_faddr;
-		in_rtalloc_ign(&sro, RTF_CLONING, inc->inc_fibnum);
+		in_rtalloc_ign(&sro, 0, inc->inc_fibnum);
 	}
 	if (sro.ro_rt != NULL) {
 		ifp = sro.ro_rt->rt_ifp;
@@ -1664,7 +1719,7 @@ tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 		sro6.ro_dst.sin6_family = AF_INET6;
 		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
 		sro6.ro_dst.sin6_addr = inc->inc6_faddr;
-		rtalloc_ign((struct route *)&sro6, RTF_CLONING);
+		rtalloc_ign((struct route *)&sro6, 0);
 	}
 	if (sro6.ro_rt != NULL) {
 		ifp = sro6.ro_rt->rt_ifp;
@@ -1919,6 +1974,7 @@ int
 tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
     u_char *buf, u_int direction)
 {
+	INIT_VNET_IPSEC(curvnet);
 	union sockaddr_union dst;
 	struct ippseudo ippseudo;
 	MD5_CTX ctx;
@@ -2232,7 +2288,7 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	strcat(s, "TCP: [");
 	sp = s + strlen(s);
 
-	if (inc && inc->inc_isipv6 == 0) {
+	if (inc && ((inc->inc_flags & INC_ISIPV6) == 0)) {
 		inet_ntoa_r(inc->inc_faddr, sp);
 		sp = s + strlen(s);
 		sprintf(sp, "]:%i to [", ntohs(inc->inc_fport));

@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acache.c,v 1.3.2.16 2006/07/19 00:34:56 marka Exp $ */
+/* $Id: acache.c,v 1.3.2.18 2008/02/07 23:45:56 tbox Exp $ */
 
 #include <config.h>
 
@@ -137,7 +137,7 @@ struct acache_cleaner {
 						      in seconds. */
 
 	isc_stdtime_t		last_cleanup_time; /* The time when the last
-      						      cleanup task completed */
+						      cleanup task completed */
 
 	isc_timer_t 		*cleaning_timer;
 	isc_event_t		*resched_event;	/* Sent by cleaner task to
@@ -347,11 +347,11 @@ shutdown_buckets(dns_acache_t *acache) {
 			INSIST(ISC_LIST_EMPTY(dbent->originlist) &&
 			       ISC_LIST_EMPTY(dbent->referlist));
 			ISC_LIST_UNLINK(acache->dbbucket[i], dbent, link);
-						
+
 			dns_db_detach(&dbent->db);
 
 			isc_mem_put(acache->mctx, dbent, sizeof(*dbent));
-				    
+
 			acache->dbentries--;
 		}
 	}
@@ -513,7 +513,7 @@ clear_entry(dns_acache_t *acache, dns_acacheentry_t *entry) {
 		if (dns_name_dynamic(entry->foundname))
 			dns_name_free(entry->foundname, acache->mctx);
 		isc_mem_put(acache->mctx, entry->foundname,
-			    sizeof(*entry->foundname)); 
+			    sizeof(*entry->foundname));
 		entry->foundname = NULL;
 	}
 
@@ -558,7 +558,7 @@ acache_cleaner_init(dns_acache_t *acache, isc_timermgr_t *timermgr,
 
 	if (timermgr != NULL) {
 		cleaner->acache->live_cleaners++;
-		
+
 		result = isc_task_onshutdown(acache->task,
 					     acache_cleaner_shutdown_action,
 					     acache);
@@ -677,7 +677,7 @@ end_cleaning(acache_cleaner_t *cleaner, isc_event_t *event) {
 	 */
 	if (isc_refcount_current(&cleaner->current_entry->references) == 1) {
 		INSIST(cleaner->current_entry->callback == NULL);
-		
+
 		if (ISC_LINK_LINKED(cleaner->current_entry, link)) {
 			ISC_LIST_UNLINK(acache->entries,
 					cleaner->current_entry, link);
@@ -701,7 +701,7 @@ end_cleaning(acache_cleaner_t *cleaner, isc_event_t *event) {
 		      acache->stats.queries,
 		      acache->stats.adds, acache->stats.deleted,
 		      acache->stats.cleaned, acache->stats.cleaner_runs,
-		      acache->stats.overmem, acache->stats.overmem_nocreates, 
+		      acache->stats.overmem, acache->stats.overmem_nocreates,
 		      acache->stats.nomem);
 	reset_stats(acache);
 
@@ -913,7 +913,7 @@ static void
 acache_overmem_cleaning_action(isc_task_t *task, isc_event_t *event) {
 	acache_cleaner_t *cleaner = event->ev_arg;
 	isc_boolean_t want_cleaning = ISC_FALSE;
-	
+
 	UNUSED(task);
 
 	INSIST(event->ev_type == DNS_EVENT_ACACHEOVERMEM);
@@ -965,10 +965,14 @@ water(void *arg, int mark) {
 
 	LOCK(&acache->cleaner.lock);
 
-	acache->cleaner.overmem = overmem;
+	if (acache->cleaner.overmem != overmem) {
+		acache->cleaner.overmem = overmem;
 
-	if (acache->cleaner.overmem_event != NULL)
-		isc_task_send(acache->task, &acache->cleaner.overmem_event);
+		if (acache->cleaner.overmem_event != NULL)
+			isc_task_send(acache->task,
+				      &acache->cleaner.overmem_event);
+		isc_mem_waterack(acache->mctx, mark);
+	}
 
 	UNLOCK(&acache->cleaner.lock);
 }
@@ -1102,7 +1106,7 @@ dns_acache_create(dns_acache_t **acachep, isc_mem_t *mctx,
 	}
 
 	acache->live_cleaners = 0;
-	result = acache_cleaner_init(acache, timermgr, &acache->cleaner); 
+	result = acache_cleaner_init(acache, timermgr, &acache->cleaner);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
@@ -1177,7 +1181,7 @@ dns_acache_detach(dns_acache_t **acachep) {
 		isc_task_shutdown(acache->task);
 		should_free = ISC_FALSE;
 	}
-	
+
 	if (should_free)
 		destroy(acache);
 }
@@ -1366,14 +1370,14 @@ dns_acache_createentry(dns_acache_t *acache, dns_db_t *origdb,
 	REQUIRE(entryp != NULL && *entryp == NULL);
 	REQUIRE(origdb != NULL);
 
-	/* 
-	 * Should we exceed our memory limit for some reason (for 
-	 * example, if the cleaner does not run aggressively enough), 
+	/*
+	 * Should we exceed our memory limit for some reason (for
+	 * example, if the cleaner does not run aggressively enough),
 	 * then we will not create additional entries.
 	 *
 	 * XXXSK: It might be better to lock the acache->cleaner->lock,
-	 * but locking may be an expensive bottleneck. If we misread 
-	 * the value, we will occasionally refuse to create a few 
+	 * but locking may be an expensive bottleneck. If we misread
+	 * the value, we will occasionally refuse to create a few
 	 * cache entries, or create a few that we should not. I do not
 	 * expect this to happen often, and it will not have very bad
 	 * effects when it does. So no lock for now.
@@ -1391,7 +1395,7 @@ dns_acache_createentry(dns_acache_t *acache, dns_db_t *origdb,
 
 	isc_random_get(&r);
 	newentry->locknum = r % DEFAULT_ACACHE_ENTRY_LOCK_COUNT;
-	
+
 	result = isc_refcount_init(&newentry->references, 1);
 	if (result != ISC_R_SUCCESS) {
 		isc_mem_put(acache->mctx, newentry, sizeof(*newentry));
@@ -1738,7 +1742,7 @@ dns_acache_setcleaninginterval(dns_acache_t *acache, unsigned int t) {
 					 isc_timertype_ticker,
 					 NULL, &interval, ISC_FALSE);
 	}
-	if (result != ISC_R_SUCCESS)	
+	if (result != ISC_R_SUCCESS)
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
 			      DNS_LOGMODULE_ACACHE, ISC_LOG_WARNING,
 			      "could not set acache cleaning interval: %s",

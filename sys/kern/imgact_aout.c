@@ -82,7 +82,13 @@ struct sysentvec aout_sysvec = {
 	.sv_copyout_strings	= exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= SV_ABI_FREEBSD | SV_AOUT |
+#if defined(__i386__)
+	SV_IA32 | SV_ILP32
+#else
+#error Choose SV_XXX flags for the platform
+#endif
 };
 
 static int

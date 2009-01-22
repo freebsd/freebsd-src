@@ -69,14 +69,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-#define  MGE_VER2	1
-#endif
-
 #define	MV_PHY_ADDR_BASE	8
 
 #include <dev/mge/if_mgevar.h>
 #include <arm/mv/mvreg.h>
+#include <arm/mv/mvvar.h>
 
 #include "miibus_if.h"
 
@@ -102,6 +99,10 @@ static void mge_start(struct ifnet *ifp);
 static void mge_start_locked(struct ifnet *ifp);
 static void mge_watchdog(struct mge_softc *sc);
 static int mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
+
+static uint32_t mge_tfut_ipg(uint32_t val, int ver);
+static uint32_t mge_rx_ipg(uint32_t val, int ver);
+static void mge_ver_params(struct mge_softc *sc);
 
 static void mge_intrs_ctrl(struct mge_softc *sc, int enable);
 static void mge_intr_rx(void *arg);
@@ -204,6 +205,57 @@ mge_get_mac_address(struct mge_softc *sc, uint8_t *addr)
 	addr[3] = (mac_h & 0x000000ff);
 	addr[4] = (mac_l & 0x0000ff00) >> 8;
 	addr[5] = (mac_l & 0x000000ff);
+}
+
+static uint32_t
+mge_tfut_ipg(uint32_t val, int ver)
+{
+
+	switch (ver) {
+	case 1:
+		return ((val & 0x3fff) << 4);
+	case 2:
+	default:
+		return ((val & 0xffff) << 4);
+	}
+}
+
+static uint32_t
+mge_rx_ipg(uint32_t val, int ver)
+{
+
+	switch (ver) {
+	case 1:
+		return ((val & 0x3fff) << 8);
+	case 2:
+	default:
+		return (((val & 0x8000) << 10) | ((val & 0x7fff) << 7));
+	}
+}
+
+static void
+mge_ver_params(struct mge_softc *sc)
+{
+	uint32_t d, r;
+
+	soc_id(&d, &r);
+	if (d == MV_DEV_88F6281 || d == MV_DEV_MV78100) {
+		sc->mge_ver = 2;
+		sc->mge_mtu = 0x4e8;
+		sc->mge_tfut_ipg_max = 0xFFFF;
+		sc->mge_rx_ipg_max = 0xFFFF;
+		sc->mge_tx_arb_cfg = 0xFC0000FF;
+		sc->mge_tx_tok_cfg = 0xFFFF7FFF;
+		sc->mge_tx_tok_cnt = 0x3FFFFFFF;
+	} else {
+		sc->mge_ver = 1;
+		sc->mge_mtu = 0x458;
+		sc->mge_tfut_ipg_max = 0x3FFF;
+		sc->mge_rx_ipg_max = 0x3FFF;
+		sc->mge_tx_arb_cfg = 0x000000FF;
+		sc->mge_tx_tok_cfg = 0x3FFFFFFF;
+		sc->mge_tx_tok_cnt = 0x3FFFFFFF;
+	}
 }
 
 static void
@@ -564,6 +616,9 @@ mge_attach(device_t dev)
 	if (device_get_unit(dev) == 0)
 		sc_mge0 = sc;
 
+	/* Set chip version-dependent parameters */
+	mge_ver_params(sc);
+
 	/* Initialize mutexes */
 	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "mge TX lock", MTX_DEF);
 	mtx_init(&sc->receive_lock, device_get_nameunit(dev), "mge RX lock", MTX_DEF);
@@ -797,23 +852,25 @@ mge_init_locked(void *arg)
 	/* Setup multicast filters */
 	mge_setup_multicast(sc);
 
-#if defined(MGE_VER2)
-	MGE_WRITE(sc, MGE_PORT_SERIAL_CTRL1, MGE_RGMII_EN);
-	MGE_WRITE(sc, MGE_FIXED_PRIO_CONF, MGE_FIXED_PRIO_EN(0));
-#endif
-	/* Initialize TX queue configuration registers */
-	MGE_WRITE(sc, MGE_TX_TOKEN_COUNT(0), MGE_TX_TOKEN_Q0_DFLT);
-	MGE_WRITE(sc, MGE_TX_TOKEN_CONF(0), MGE_TX_TOKEN_Q0_DFLT);
-	MGE_WRITE(sc, MGE_TX_ARBITER_CONF(0), MGE_TX_ARB_Q0_DFLT);
+	if (sc->mge_ver == 2) {
+		MGE_WRITE(sc, MGE_PORT_SERIAL_CTRL1, MGE_RGMII_EN);
+		MGE_WRITE(sc, MGE_FIXED_PRIO_CONF, MGE_FIXED_PRIO_EN(0));
+	}
 
+	/* Initialize TX queue configuration registers */
+	MGE_WRITE(sc, MGE_TX_TOKEN_COUNT(0), sc->mge_tx_tok_cnt);
+	MGE_WRITE(sc, MGE_TX_TOKEN_CONF(0), sc->mge_tx_tok_cfg);
+	MGE_WRITE(sc, MGE_TX_ARBITER_CONF(0), sc->mge_tx_arb_cfg);
+
+	/* Clear TX queue configuration registers for unused queues */
 	for (i = 1; i < 7; i++) {
-		MGE_WRITE(sc, MGE_TX_TOKEN_COUNT(i), MGE_TX_TOKEN_Q1_7_DFLT);
-		MGE_WRITE(sc, MGE_TX_TOKEN_CONF(i), MGE_TX_TOKEN_Q1_7_DFLT);
-		MGE_WRITE(sc, MGE_TX_ARBITER_CONF(i), MGE_TX_ARB_Q1_7_DFLT);
+		MGE_WRITE(sc, MGE_TX_TOKEN_COUNT(i), 0);
+		MGE_WRITE(sc, MGE_TX_TOKEN_CONF(i), 0);
+		MGE_WRITE(sc, MGE_TX_ARBITER_CONF(i), 0);
 	}
 
 	/* Set default MTU */
-	MGE_WRITE(sc, MGE_MTU, MGE_MTU_DEFAULT);
+	MGE_WRITE(sc, sc->mge_mtu, 0);
 
 	/* Port configuration */
 	MGE_WRITE(sc, MGE_PORT_CONFIG,
@@ -1688,12 +1745,12 @@ mge_set_rxic(struct mge_softc *sc)
 {
 	uint32_t reg;
 
-	if (sc->rx_ic_time > MGE_SDMA_RX_IPG_MAX)
-		sc->rx_ic_time = MGE_SDMA_RX_IPG_MAX;
+	if (sc->rx_ic_time > sc->mge_rx_ipg_max)
+		sc->rx_ic_time = sc->mge_rx_ipg_max;
 
 	reg = MGE_READ(sc, MGE_SDMA_CONFIG);
-	reg &= ~MGE_SDMA_RX_IPG(MGE_SDMA_RX_IPG_MAX);
-	reg |= MGE_SDMA_RX_IPG(sc->rx_ic_time);
+	reg &= ~mge_rx_ipg(sc->mge_rx_ipg_max, sc->mge_ver);
+	reg |= mge_rx_ipg(sc->rx_ic_time, sc->mge_ver);
 	MGE_WRITE(sc, MGE_SDMA_CONFIG, reg);
 }
 
@@ -1702,12 +1759,12 @@ mge_set_txic(struct mge_softc *sc)
 {
 	uint32_t reg;
 
-	if (sc->tx_ic_time > MGE_TX_FIFO_URGENT_TRSH_IPG_MAX)
-		sc->tx_ic_time = MGE_TX_FIFO_URGENT_TRSH_IPG_MAX;
+	if (sc->tx_ic_time > sc->mge_tfut_ipg_max)
+		sc->tx_ic_time = sc->mge_tfut_ipg_max;
 
 	reg = MGE_READ(sc, MGE_TX_FIFO_URGENT_TRSH);
-	reg &= ~MGE_TX_FIFO_URGENT_TRSH_IPG(MGE_TX_FIFO_URGENT_TRSH_IPG_MAX);
-	reg |= MGE_TX_FIFO_URGENT_TRSH_IPG(sc->tx_ic_time);
+	reg &= ~mge_tfut_ipg(sc->mge_tfut_ipg_max, sc->mge_ver);
+	reg |= mge_tfut_ipg(sc->tx_ic_time, sc->mge_ver);
 	MGE_WRITE(sc, MGE_TX_FIFO_URGENT_TRSH, reg);
 }
 
@@ -1715,9 +1772,10 @@ static int
 mge_sysctl_ic(SYSCTL_HANDLER_ARGS)
 {
 	struct mge_softc *sc = (struct mge_softc *)arg1;
-	uint32_t time = (arg2 == MGE_IC_RX) ? sc->rx_ic_time : sc->tx_ic_time;
+	uint32_t time;
 	int error;
 
+	time = (arg2 == MGE_IC_RX) ? sc->rx_ic_time : sc->tx_ic_time; 
 	error = sysctl_handle_int(oidp, &time, 0, req);
 	if (error != 0)
 		return(error);

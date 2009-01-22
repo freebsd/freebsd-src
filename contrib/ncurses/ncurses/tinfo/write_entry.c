@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -54,7 +54,7 @@
 #define TRACE_OUT(p)		/*nothing */
 #endif
 
-MODULE_ID("$Id: write_entry.c,v 1.70 2007/11/17 23:38:28 tom Exp $")
+MODULE_ID("$Id: write_entry.c,v 1.72 2008/08/03 19:24:00 tom Exp $")
 
 static int total_written;
 
@@ -275,6 +275,9 @@ _nc_write_entry(TERMTYPE *const tp)
     char *first_name, *other_names;
     char *ptr;
 
+    assert(strlen(tp->term_names) != 0);
+    assert(strlen(tp->term_names) < sizeof(name_list));
+
     (void) strcpy(name_list, tp->term_names);
     DEBUG(7, ("Name list = '%s'", name_list));
 
@@ -354,7 +357,7 @@ _nc_write_entry(TERMTYPE *const tp)
 	start_time = 0;
     }
 
-    if (strlen(first_name) > sizeof(filename) - 3)
+    if (strlen(first_name) >= sizeof(filename) - 3)
 	_nc_warning("terminal name too long.");
 
     sprintf(filename, LEAF_FMT "/%s", first_name[0], first_name);
@@ -382,6 +385,7 @@ _nc_write_entry(TERMTYPE *const tp)
     }
     while (*other_names != '\0') {
 	ptr = other_names++;
+	assert(ptr < buffer + sizeof(buffer) - 1);
 	while (*other_names != '|' && *other_names != '\0')
 	    other_names++;
 
@@ -502,7 +506,7 @@ compute_offsets(char **Strings, unsigned strmax, short *offsets)
 	    offsets[i] = nextfree;
 	    nextfree += strlen(Strings[i]) + 1;
 	    TRACE_OUT(("put Strings[%d]=%s(%d)", (int) i,
-		       _nc_visbuf(Strings[i]), nextfree));
+		       _nc_visbuf(Strings[i]), (int) nextfree));
 	}
     }
     return nextfree;
@@ -691,9 +695,17 @@ write_object(TERMTYPE *tp, char *buffer, unsigned *offset, unsigned limit)
 	if (even_boundary(nextfree))
 	    return (ERR);
 
-	nextfree = compute_offsets(tp->Strings + STRCOUNT, tp->ext_Strings, offsets);
+	nextfree = compute_offsets(tp->Strings + STRCOUNT,
+				   tp->ext_Strings,
+				   offsets);
 	TRACE_OUT(("after extended string capabilities, nextfree=%d", nextfree));
-	nextfree += compute_offsets(tp->ext_Names, extcnt, offsets + tp->ext_Strings);
+
+	if (tp->ext_Strings >= SIZEOF(offsets))
+	    return (ERR);
+
+	nextfree += compute_offsets(tp->ext_Names,
+				    extcnt,
+				    offsets + tp->ext_Strings);
 	TRACE_OUT(("after extended capnames, nextfree=%d", nextfree));
 	strmax = tp->ext_Strings + extcnt;
 

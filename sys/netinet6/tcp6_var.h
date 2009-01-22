@@ -67,7 +67,9 @@
 SYSCTL_DECL(_net_inet6_tcp6);
 #endif
 
+#ifdef VIMAGE_GLOBALS
 extern	int tcp_v6mssdflt;	/* XXX */
+#endif
 
 struct	ip6_hdr;
 void	tcp6_ctlinput __P((int, struct sockaddr *, void *));

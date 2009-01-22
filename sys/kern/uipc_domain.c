@@ -72,7 +72,7 @@ static void	pfslowtimo(void *);
 
 struct domain *domains;		/* registered protocol domains */
 int domain_init_status = 0;
-struct mtx dom_mtx;		/* domain list lock */
+static struct mtx dom_mtx;		/* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
 /*
@@ -110,15 +110,42 @@ protosw_init(struct protosw *pr)
 	    pr->pr_domain->dom_name,
 	    (int)(pr - pr->pr_domain->dom_protosw)));
 
+	/*
+	 * Protocol switch methods fall into three categories: mandatory,
+	 * mandatory but protosw_init() provides a default, and optional.
+	 *
+	 * For true protocols (i.e., pru_attach != NULL), KASSERT truly
+	 * mandatory methods with no defaults, and initialize defaults for
+	 * other mandatory methods if the protocol hasn't defined an
+	 * implementation (NULL function pointer).
+	 */
+#if 0
+	if (pu->pru_attach != NULL) {
+		KASSERT(pu->pru_abort != NULL,
+		    ("protosw_init: %ssw[%d] pru_abort NULL",
+		    pr->pr_domain->dom_name,
+		    (int)(pr - pr->pr_domain->dom_protosw)));
+		KASSERT(pu->pru_send != NULL,
+		    ("protosw_init: %ssw[%d] pru_send NULL",
+		    pr->pr_domain->dom_name,
+		    (int)(pr - pr->pr_domain->dom_protosw)));
+	}
+#endif
+
 #define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
 	DEFAULT(pu->pru_accept, pru_accept_notsupp);
+	DEFAULT(pu->pru_bind, pru_bind_notsupp);
 	DEFAULT(pu->pru_connect, pru_connect_notsupp);
 	DEFAULT(pu->pru_connect2, pru_connect2_notsupp);
 	DEFAULT(pu->pru_control, pru_control_notsupp);
+	DEFAULT(pu->pru_disconnect, pru_disconnect_notsupp);
 	DEFAULT(pu->pru_listen, pru_listen_notsupp);
+	DEFAULT(pu->pru_peeraddr, pru_peeraddr_notsupp);
 	DEFAULT(pu->pru_rcvd, pru_rcvd_notsupp);
 	DEFAULT(pu->pru_rcvoob, pru_rcvoob_notsupp);
 	DEFAULT(pu->pru_sense, pru_sense_null);
+	DEFAULT(pu->pru_shutdown, pru_shutdown_notsupp);
+	DEFAULT(pu->pru_sockaddr, pru_sockaddr_notsupp);
 	DEFAULT(pu->pru_sosend, sosend_generic);
 	DEFAULT(pu->pru_soreceive, soreceive_generic);
 	DEFAULT(pu->pru_sopoll, sopoll_generic);
@@ -311,13 +338,13 @@ found:
 	 * Protect us against races when two protocol registrations for
 	 * the same protocol happen at the same time.
 	 */
-	mtx_lock(&Giant);
+	mtx_lock(&dom_mtx);
 
 	/* The new protocol must not yet exist. */
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		if ((pr->pr_type == npr->pr_type) &&
 		    (pr->pr_protocol == npr->pr_protocol)) {
-			mtx_unlock(&Giant);
+			mtx_unlock(&dom_mtx);
 			return (EEXIST);	/* XXX: Check only protocol? */
 		}
 		/* While here, remember the first free spacer. */
@@ -327,7 +354,7 @@ found:
 
 	/* If no free spacer is found we can't add the new protocol. */
 	if (fpr == NULL) {
-		mtx_unlock(&Giant);
+		mtx_unlock(&dom_mtx);
 		return (ENOMEM);
 	}
 
@@ -335,7 +362,7 @@ found:
 	bcopy(npr, fpr, sizeof(*fpr));
 
 	/* Job is done, no more protection required. */
-	mtx_unlock(&Giant);
+	mtx_unlock(&dom_mtx);
 
 	/* Initialize and activate the protocol. */
 	protosw_init(fpr);
@@ -371,13 +398,13 @@ found:
 	dpr = NULL;
 
 	/* Lock out everyone else while we are manipulating the protosw. */
-	mtx_lock(&Giant);
+	mtx_lock(&dom_mtx);
 
 	/* The protocol must exist and only once. */
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		if ((pr->pr_type == type) && (pr->pr_protocol == protocol)) {
 			if (dpr != NULL) {
-				mtx_unlock(&Giant);
+				mtx_unlock(&dom_mtx);
 				return (EMLINK);   /* Should not happen! */
 			} else
 				dpr = pr;
@@ -386,7 +413,7 @@ found:
 
 	/* Protocol does not exist. */
 	if (dpr == NULL) {
-		mtx_unlock(&Giant);
+		mtx_unlock(&dom_mtx);
 		return (EPROTONOSUPPORT);
 	}
 
@@ -399,7 +426,6 @@ found:
 	dpr->pr_output = NULL;
 	dpr->pr_ctlinput = NULL;
 	dpr->pr_ctloutput = NULL;
-	dpr->pr_ousrreq = NULL;
 	dpr->pr_init = NULL;
 	dpr->pr_fasttimo = NULL;
 	dpr->pr_slowtimo = NULL;
@@ -407,7 +433,7 @@ found:
 	dpr->pr_usrreqs = &nousrreqs;
 
 	/* Job is done, not more protection required. */
-	mtx_unlock(&Giant);
+	mtx_unlock(&dom_mtx);
 
 	return (0);
 }

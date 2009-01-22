@@ -64,6 +64,7 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/vnet.h>
 
 #define VLANNAME	"vlan"
 #define	VLAN_DEF_HWIDTH	4
@@ -868,7 +869,7 @@ vlan_start(struct ifnet *ifp)
 		 * Send it, precisely as ether_output() would have.
 		 * We are already running at splimp.
 		 */
-		IFQ_HANDOFF(p, m, error);
+		error = (p->if_transmit)(p, m);
 		if (!error)
 			ifp->if_opackets++;
 		else

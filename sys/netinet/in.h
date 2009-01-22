@@ -441,6 +441,8 @@ __END_DECLS
 #define	IP_FAITH		22   /* bool; accept FAITH'ed connections */
 
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
+#define	IP_NONLOCALOK		24   /* bool: allow bind to spoof non-local addresses;
+					requires kernel compile option IP_NONLOCALBIND */
 
 #define	IP_FW_TABLE_ADD		40   /* add entry */
 #define	IP_FW_TABLE_DEL		41   /* delete entry */
@@ -741,10 +743,6 @@ void	 in_ifdetach(struct ifnet *);
 #define	__KAME_NETINET_IN_H_INCLUDED_
 #include <netinet6/in6.h>
 #undef __KAME_NETINET_IN_H_INCLUDED_
-#endif
-
-#ifdef _KERNEL
-#include <netinet/vinet.h>
 #endif
 
 #endif /* !_NETINET_IN_H_*/

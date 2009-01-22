@@ -731,9 +731,9 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 		mxge_pio_copy(sc->sram + MXGE_FW_OFFSET + i,
 			      inflate_buffer + i,
 			      min(256U, (unsigned)(fw_len - i)));
-		mb();
+		wmb();
 		dummy = *sc->sram;
-		mb();
+		wmb();
 	}
 
 	*limit = fw_len;
@@ -766,7 +766,7 @@ mxge_dummy_rdma(mxge_softc_t *sc, int enable)
 	/* clear confirmation addr */
 	confirm = (volatile uint32_t *)sc->cmd;
 	*confirm = 0;
-	mb();
+	wmb();
 
 	/* send an rdma command to the PCIe engine, and wait for the
 	   response in the confirmation address.  The firmware should
@@ -788,9 +788,9 @@ mxge_dummy_rdma(mxge_softc_t *sc, int enable)
 	submit = (volatile char *)(sc->sram + MXGEFW_BOOT_DUMMY_RDMA);
 
 	mxge_pio_copy(submit, buf, 64);
-	mb();
+	wmb();
 	DELAY(1000);
-	mb();
+	wmb();
 	i = 0;
 	while (*confirm != 0xffffffff && i < 20) {
 		DELAY(1000);
@@ -828,7 +828,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	buf->response_addr.high = htobe32(dma_high);
 	mtx_lock(&sc->cmd_mtx);
 	response->result = 0xffffffff;
-	mb();
+	wmb();
 	mxge_pio_copy((volatile void *)cmd_addr, buf, sizeof (*buf));
 
 	/* wait up to 20ms */
@@ -836,7 +836,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	for (sleep_total = 0; sleep_total <  20; sleep_total++) {
 		bus_dmamap_sync(sc->cmd_dma.dmat, 
 				sc->cmd_dma.map, BUS_DMASYNC_POSTREAD);
-		mb();
+		wmb();
 		switch (be32toh(response->result)) {
 		case 0:
 			data->data0 = be32toh(response->data);
@@ -964,7 +964,7 @@ mxge_load_firmware(mxge_softc_t *sc, int adopt)
 	/* clear confirmation addr */
 	confirm = (volatile uint32_t *)sc->cmd;
 	*confirm = 0;
-	mb();
+	wmb();
 	/* send a reload command to the bootstrap MCP, and wait for the
 	   response in the confirmation address.  The firmware should
 	   write a -1 there to indicate it is alive and well
@@ -989,9 +989,9 @@ mxge_load_firmware(mxge_softc_t *sc, int adopt)
 
 	submit = (volatile char *)(sc->sram + MXGEFW_BOOT_HANDOFF);
 	mxge_pio_copy(submit, buf, 64);
-	mb();
+	wmb();
 	DELAY(1000);
-	mb();
+	wmb();
 	i = 0;
 	while (*confirm != 0xffffffff && i < 20) {
 		DELAY(1000*10);
@@ -1652,7 +1652,7 @@ mxge_submit_req_backwards(mxge_tx_ring_t *tx,
                 idx = (starting_slot + cnt) & tx->mask;
                 mxge_pio_copy(&tx->lanai[idx],
 			      &src[cnt], sizeof(*src));
-                mb();
+                wmb();
         }
 }
 
@@ -1678,14 +1678,14 @@ mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src,
 
 	last_flags = src->flags;
 	src->flags = 0;
-        mb();
+        wmb();
         dst = dstp = &tx->lanai[idx];
         srcp = src;
 
         if ((idx + cnt) < tx->mask) {
                 for (i = 0; i < (cnt - 1); i += 2) {
                         mxge_pio_copy(dstp, srcp, 2 * sizeof(*src));
-                        mb(); /* force write every 32 bytes */
+                        wmb(); /* force write every 32 bytes */
                         srcp += 2;
                         dstp += 2;
                 }
@@ -1698,7 +1698,7 @@ mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src,
         if (i < cnt) {
                 /* submit the first request */
                 mxge_pio_copy(dstp, srcp, sizeof(*src));
-                mb(); /* barrier before setting valid flag */
+                wmb(); /* barrier before setting valid flag */
         }
 
         /* re-write the last 32-bits with the valid flags */
@@ -1709,7 +1709,7 @@ mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src,
         dst_ints+=3;
         *dst_ints =  *src_ints;
         tx->req += cnt;
-        mb();
+        wmb();
 }
 
 #if IFCAP_TSO4
@@ -2128,12 +2128,12 @@ mxge_submit_8rx(volatile mcp_kreq_ether_recv_t *dst,
 	low = src->addr_low;
 	src->addr_low = 0xffffffff;
 	mxge_pio_copy(dst, src, 4 * sizeof (*src));
-	mb();
+	wmb();
 	mxge_pio_copy(dst + 4, src + 4, 4 * sizeof (*src));
-	mb();
+	wmb();
 	src->addr_low = low;
 	dst->addr_low = low;
-	mb();
+	wmb();
 }
 
 static int
@@ -2688,7 +2688,7 @@ mxge_intr(void *arg)
 			send_done_count = be32toh(stats->send_done_count);
 		}
 		if (sc->legacy_irq && mxge_deassert_wait)
-			mb();
+			wmb();
 	} while (*((volatile uint8_t *) &stats->valid));
 
 	if (__predict_false(stats->stats_updated)) {
@@ -3337,7 +3337,7 @@ mxge_close(mxge_softc_t *sc)
 	callout_stop(&sc->co_hdl);
 	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	old_down_cnt = sc->down_cnt;
-	mb();
+	wmb();
 	err = mxge_send_cmd(sc, MXGEFW_CMD_ETHERNET_DOWN, &cmd);
 	if (err) {
 		device_printf(sc->dev, "Couldn't bring down link\n");
@@ -3346,7 +3346,7 @@ mxge_close(mxge_softc_t *sc)
 		/* wait for down irq */
 		DELAY(10 * sc->intr_coal_delay);
 	}
-	mb();
+	wmb();
 	if (old_down_cnt == sc->down_cnt) {
 		device_printf(sc->dev, "never got down irq\n");
 	}

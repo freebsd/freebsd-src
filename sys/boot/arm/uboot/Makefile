@@ -4,14 +4,13 @@ PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
-NO_MAN=
 WARNS?=		1
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
 
-LOADER_DISK_SUPPORT?=	no
-LOADER_UFS_SUPPORT?=	no
+LOADER_DISK_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
 LOADER_NET_SUPPORT?=	yes
@@ -61,7 +60,7 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
 
-CLEANFILES+=	vers.c ${PROG}.help
+CLEANFILES+=	vers.c loader.help
 
 CFLAGS+=	-ffreestanding
 
@@ -86,11 +85,11 @@ LDADD=		${LIBFICL} ${LIBUBOOT} -lstand
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-${PROG}.help: help.common help.uboot
+loader.help: help.common help.uboot
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
-FILES=	${PROG}.help
+FILES=	loader.help
 
 .include <bsd.prog.mk>

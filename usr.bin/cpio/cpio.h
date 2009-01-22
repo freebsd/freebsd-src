@@ -42,8 +42,11 @@
  * functions.
  */
 struct cpio {
+	/* Option parsing */
+	const char	 *optarg;
+
 	/* Options */
-	char		 *filename;
+	const char	 *filename;
 	char		  mode; /* -i -o -p */
 	char		  compress; /* -j, -y, or -z */
 	const char	 *format; /* -H format */
@@ -65,6 +68,7 @@ struct cpio {
 	char		 *pass_destpath;
 	int		  uid_override;
 	int		  gid_override;
+	int		  day_first; /* true if locale prefers day/mon */
 
 	/* If >= 0, then close this when done. */
 	int		  fd;
@@ -76,6 +80,9 @@ struct cpio {
 	int		  return_value; /* Value returned by main() */
 	struct archive_entry_linkresolver *linkresolver;
 
+	struct name_cache *uname_cache;
+	struct name_cache *gname_cache;
+
 	/* Work data. */
 	struct matching  *matching;
 	char		 *buff;
@@ -85,7 +92,7 @@ struct cpio {
 /* Name of this program; used in error reporting, initialized in main(). */
 const char *cpio_progname;
 
-void	cpio_errc(int _eval, int _code, const char *fmt, ...) __dead2;
+void	cpio_errc(int _eval, int _code, const char *fmt, ...) __LA_DEAD;
 void	cpio_warnc(int _code, const char *fmt, ...);
 
 int	owner_parse(const char *, int *, int *);

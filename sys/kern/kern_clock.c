@@ -498,8 +498,8 @@ statclock(int usermode)
 	rss = pgtok(vmspace_resident_count(vm));
 	if (ru->ru_maxrss < rss)
 		ru->ru_maxrss = rss;
-	CTR4(KTR_SCHED, "statclock: %p(%s) prio %d stathz %d",
-	    td, td->td_name, td->td_priority, (stathz)?stathz:hz);
+	KTR_POINT2(KTR_SCHED, "thread", sched_tdname(td), "statclock",
+	    "prio:%d", td->td_priority, "stathz:%d", (stathz)?stathz:hz);
 	thread_lock_flags(td, MTX_QUIET);
 	sched_clock(td);
 	thread_unlock(td);

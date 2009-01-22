@@ -39,6 +39,10 @@
 #define	__ATOMIC_BARRIER					\
     __asm __volatile("sync" : : : "memory")
 
+#define mb()	__ATOMIC_BARRIER
+#define	wmb()	mb()
+#define	rmb()	mb()
+
 /*
  * atomic_add(p, v)
  * { *p += v; }
@@ -526,7 +530,5 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 #define	atomic_fetchadd_int	atomic_fetchadd_32
 #define	atomic_fetchadd_long(p, v)	\
     (u_long)atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
-
-#undef __ATOMIC_BARRIER
 
 #endif /* ! _MACHINE_ATOMIC_H_ */

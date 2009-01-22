@@ -61,6 +61,15 @@ atomic_add_64(volatile uint64_t *target, int64_t delta)
 	*target += delta;
 	mtx_unlock(&atomic_mtx);
 }
+
+void
+atomic_dec_64(volatile uint64_t *target)
+{
+
+	mtx_lock(&atomic_mtx);
+	*target -= 1;
+	mtx_unlock(&atomic_mtx);
+}
 #endif
 
 uint64_t

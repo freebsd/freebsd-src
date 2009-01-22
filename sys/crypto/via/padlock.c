@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
-#if defined(__i386__) && !defined(PC98)
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -85,7 +85,7 @@ padlock_probe(device_t dev)
 {
 	char capp[256];
 
-#if defined(__i386__) && !defined(PC98)
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
 	/* If there is no AES support, we has nothing to do here. */
 	if (!(via_feature_xcrypt & VIA_HAS_AES)) {
 		device_printf(dev, "No ACE support.\n");
@@ -297,7 +297,11 @@ padlock_process(device_t dev, struct cryptop *crp, int hint __unused)
 
 	enccrd = maccrd = NULL;
 
-	if (crp == NULL || crp->crp_callback == NULL || crp->crp_desc == NULL) {
+	/* Sanity check. */
+	if (crp == NULL)
+		return (EINVAL);
+
+	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
 		error = EINVAL;
 		goto out;
 	}

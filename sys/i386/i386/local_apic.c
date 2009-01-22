@@ -301,6 +301,7 @@ lapic_setup(int boot)
 	/* Program LINT[01] LVT entries. */
 	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
 	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
+
 #ifdef	HWPMC_HOOKS
 	/* Program the PMC LVT entry if present. */
 	if (maxlvt >= LVT_PMC)
@@ -325,7 +326,7 @@ lapic_setup(int boot)
 
 	/* XXX: Error and thermal LVTs */
 
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_AMD) {
 		/*
 		 * Detect the presence of C1E capability mostly on latest
 		 * dual-cores (or future) k8 family.  This feature renders
@@ -644,6 +645,18 @@ lapic_eoi(void)
 {
 
 	lapic->eoi = 0;
+}
+
+/*
+ * Read the contents of the error status register.  We have to write
+ * to the register first before reading from it.
+ */
+u_int
+lapic_error(void)
+{
+
+	lapic->esr = 0;
+	return (lapic->esr);
 }
 
 void
@@ -1073,7 +1086,7 @@ apic_init(void *dummy __unused)
 	 * CPUs during early startup.  We need to turn the local APIC back
 	 * on on such CPUs now.
 	 */
-	if (cpu == CPU_686 && strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+	if (cpu == CPU_686 && cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    (cpu_id & 0xff0) == 0x610) {
 		apic_base = rdmsr(MSR_APICBASE);
 		apic_base |= APICBASE_ENABLED;

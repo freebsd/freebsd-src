@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -677,9 +678,17 @@ i686_mem_drvinit(void *unused)
 		return;
 	if ((cpu_id & 0xf00) != 0x600 && (cpu_id & 0xf00) != 0xf00)
 		return;
-	if ((strcmp(cpu_vendor, "GenuineIntel") != 0) &&
-	    (strcmp(cpu_vendor, "AuthenticAMD") != 0))
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_INTEL:
+	case CPU_VENDOR_AMD:
+		break;
+	case CPU_VENDOR_CENTAUR:
+		if (cpu_exthigh >= 0x80000008)
+			break;
+		/* FALLTHROUGH */
+	default:
 		return;
+	}
 	mem_range_softc.mr_op = &i686_mrops;
 }
 SYSINIT(i686memdev, SI_SUB_DRIVERS, SI_ORDER_FIRST, i686_mem_drvinit, NULL);

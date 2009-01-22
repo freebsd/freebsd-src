@@ -136,7 +136,8 @@ mfi_disk_attach(device_t dev)
 
 	sc->ld_disk = disk_alloc();
 	sc->ld_disk->d_drv1 = sc;
-	sc->ld_disk->d_maxsize = sc->ld_controller->mfi_max_io * secsize;
+	sc->ld_disk->d_maxsize = min(sc->ld_controller->mfi_max_io * secsize,
+	    (sc->ld_controller->mfi_max_sge - 1) * PAGE_SIZE);
 	sc->ld_disk->d_name = "mfid";
 	sc->ld_disk->d_open = mfi_disk_open;
 	sc->ld_disk->d_close = mfi_disk_close;

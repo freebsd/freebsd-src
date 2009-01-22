@@ -56,6 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #endif
 
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
@@ -349,9 +352,11 @@ windrv_load(mod, img, len, bustype, devlist, regvals)
 	if (pe_patch_imports(img, "NDIS", ndis_functbl))
 		return(ENOEXEC);
 
-	/* Dynamically link the HAL.dll routines -- also required. */
-	if (pe_patch_imports(img, "HAL", hal_functbl))
-		return(ENOEXEC);
+	/* Dynamically link the HAL.dll routines -- optional. */
+	if (pe_get_import_descriptor(img, &imp_desc, "HAL") == 0) {
+		if (pe_patch_imports(img, "HAL", hal_functbl))
+			return(ENOEXEC);
+	}
 
 	/* Dynamically link ntoskrnl.exe -- optional. */
 	if (pe_get_import_descriptor(img, &imp_desc, "ntoskrnl") == 0) {
@@ -878,12 +883,9 @@ static void
 x86_oldldt(dummy)
 	void			*dummy;
 {
-	struct thread		*t;
 	struct x86desc		*gdt;
 	struct gdt		gtable;
 	uint16_t		ltable;
-
-	t = curthread;
 
 	mtx_lock_spin(&dt_lock);
 

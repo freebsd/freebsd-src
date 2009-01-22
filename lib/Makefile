@@ -8,6 +8,7 @@
 #
 # csu must be built before all shared libaries for ELF.
 # libc must be built before all other shared libraries.
+# libbsm must be built before ibauditd.
 # libcom_err must be built before libkrb5 and libpam.
 # libcrypt must be built before libkrb5 and libpam.
 # libkvm must be built before libdevstat.
@@ -26,7 +27,8 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
+SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
+	libmd \
 	ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
 	libtacplus libutil ${_libypclnt} libalias libarchive ${_libatm} \
 	libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
@@ -38,7 +40,8 @@ SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
 	${_libpmc} libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} libstand ${_libtelnet} ${_libthr} libthread_db libufs \
-	libugidfw ${_libusbhid} ${_libvgl} libwrap liby libz ${_bind}
+	libugidfw ${_libusbhid} ${_libusb20} ${_libvgl} libwrap liby libz \
+	${_bind}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -136,6 +139,7 @@ _libtelnet=	libtelnet
 
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
+_libusb20=	libusb20
 .endif
 
 .include <bsd.subdir.mk>

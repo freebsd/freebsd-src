@@ -208,7 +208,9 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
+#ifdef VIMAGE_GLOBALS
 static struct unrhdr	*ng_iface_unit;
+#endif
 
 /************************************************************************
 			HELPER STUFF
@@ -354,6 +356,7 @@ static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 		struct sockaddr *dst, struct rtentry *rt0)
 {
+	struct m_tag *mtag;
 	uint32_t af;
 	int error;
 
@@ -363,6 +366,23 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 		m_freem(m);
 		return (ENETDOWN);
 	}
+
+	/* Protect from deadly infinite recursion. */
+	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, NULL))) {
+		if (*(struct ifnet **)(mtag + 1) == ifp) {
+			log(LOG_NOTICE, "Loop detected on %s\n", ifp->if_xname);
+			m_freem(m);
+			return (EDEADLK);
+		}
+	}
+	mtag = m_tag_alloc(MTAG_NGIF, MTAG_NGIF_CALLED, sizeof(struct ifnet *),
+	    M_NOWAIT);
+	if (mtag == NULL) {
+		m_freem(m);
+		return (ENOMEM);
+	}
+	*(struct ifnet **)(mtag + 1) = ifp;
+	m_tag_prepend(m, mtag);
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC) {
@@ -383,7 +403,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 			return (ENOBUFS);
 		}
 		*(sa_family_t *)m->m_data = dst->sa_family;
-		IFQ_HANDOFF(ifp, m, error);
+		error = (ifp->if_transmit)(ifp, m);
 	} else
 		error = ng_iface_send(ifp, m, dst->sa_family);
 

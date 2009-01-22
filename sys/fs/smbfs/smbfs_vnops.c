@@ -864,7 +864,7 @@ smbfs_strategy (ap)
 
 	if ((bp->b_flags & B_ASYNC) == 0 )
 		error = smbfs_doio(ap->a_vp, bp, cr, td);
-	return error;
+	return (0);
 }
 
 int

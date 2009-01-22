@@ -237,8 +237,8 @@ usbd_open_pipe_intr(usbd_interface_handle iface, u_int8_t address,
 	    USBD_NO_TIMEOUT, cb);
 	ipipe->intrxfer = xfer;
 	ipipe->repeat = 1;
-	err = usbd_transfer(xfer);
 	*pipe = ipipe;
+	err = usbd_transfer(xfer);
 	if (err != USBD_IN_PROGRESS && err)
 		goto bad2;
 	return (USBD_NORMAL_COMPLETION);
@@ -1233,6 +1233,15 @@ usbd_set_polling(usbd_device_handle dev, int on)
 	/* When polling we need to make sure there is nothing pending to do. */
 	if (dev->bus->use_polling)
 		dev->bus->methods->soft_intr(dev->bus);
+}
+
+usbd_status
+usbd_reset_device(usbd_device_handle dev)
+{
+	usbd_device_handle parent = dev->myhub;
+	struct usbd_port *up = dev->powersrc;
+
+	return usbd_reset_port(parent, up->portno, &up->status);
 }
 
 

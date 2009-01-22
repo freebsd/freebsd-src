@@ -165,15 +165,6 @@ do {                                                                    \
 #define spin_unlock_irqrestore mtx_unlock_irqrestore
 
 
-#ifndef mb
-#define mb() __asm__ __volatile__("lock; addl $0, 0(%%esp)": : :"memory")
-#endif
-#ifndef rmb
-#define rmb() mb()
-#endif
-#ifndef wmb
-#define wmb() barrier()
-#endif
 #ifdef SMP
 #define smp_mb() mb() 
 #define smp_rmb() rmb()

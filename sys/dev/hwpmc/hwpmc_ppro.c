@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
 #include <machine/specialreg.h>
@@ -687,16 +688,18 @@ p6_intr(int cpu, struct trapframe *tf)
 
 	for (ri = 0; ri < P6_NPMCS; ri++) {
 
-		if (!P6_PMC_HAS_OVERFLOWED(ri))
-			continue;
-
 		if ((pm = pc->pc_p6pmcs[ri].phw_pmc) == NULL ||
-		    pm->pm_state != PMC_STATE_RUNNING ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 			continue;
 		}
 
+		if (!P6_PMC_HAS_OVERFLOWED(ri))
+			continue;
+
 		retval = 1;
+
+		if (pm->pm_state != PMC_STATE_RUNNING)
+			continue;
 
 		error = pmc_process_interrupt(cpu, pm, tf,
 		    TRAPF_USERMODE(tf));
@@ -779,7 +782,7 @@ pmc_p6_initialize(struct pmc_mdep *md, int ncpus)
 {
 	struct pmc_classdep *pcd;
 
-	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
+	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[p6,%d] Initializing non-intel processor", __LINE__));
 
 	PMCDBG(MDP,INI,1, "%s", "p6-initialize");

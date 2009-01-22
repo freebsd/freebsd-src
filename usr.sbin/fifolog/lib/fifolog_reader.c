@@ -98,7 +98,7 @@ fifolog_reader_findsync(const struct fifolog_file *ff, off_t *o)
 	assert(*o < ff->logsize);
 	e = fifolog_int_read(ff, *o);
 	if (e)
-		err(1, "Read error while looking for SYNC");
+		err(1, "Read error (%d) while looking for SYNC", e);
 	seq = be32dec(ff->recbuf);
 	if (*o == 0 && seq == 0)
 		return (0);
@@ -113,7 +113,7 @@ fifolog_reader_findsync(const struct fifolog_file *ff, off_t *o)
 			return (2);	/* wraparound */
 		e = fifolog_int_read(ff, *o);
 		if (e)
-			err(1, "Read error while looking for SYNC");
+			err(1, "Read error (%d) while looking for SYNC", e);
 		seqs = be32dec(ff->recbuf);
 		if (seqs != seq)
 			return (3);		/* End of log */
@@ -174,8 +174,10 @@ fifolog_reader_seek(const struct fifolog_reader *fr, time_t t0)
 			continue;
 		}
 		e = fifolog_int_read(fr->ff, o + st);
-		if (e)
-			err(1, "Read error, duing binary search");
+		if (e) {
+			s = st = s / 2;
+			continue;
+		}
 		/* If not in same part, sequence won't match */
 		seqs = be32dec(fr->ff->recbuf);
 		if (seqs != seq + st) {
@@ -254,7 +256,7 @@ fifolog_reader_process(struct fifolog_reader *fr, off_t from, fifolog_reader_ren
 	while (1) {
 		e = fifolog_int_read(fr->ff, o);
 		if (e)
-			err(1, "Read error");
+			err(1, "Read error (%d)", e);
 		if (++o >= fr->ff->logsize)
 			o = 0;
 		seq = be32dec(fr->ff->recbuf);

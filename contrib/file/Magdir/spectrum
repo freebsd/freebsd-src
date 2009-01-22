@@ -31,14 +31,19 @@
 # TZX tape images
 0      string          ZXTape!\x1a     Spectrum .TZX data
 >8     byte            x               version %d
->9     byte            x               .%d
+>9     byte            x               \b.%d
 
 # RZX input recording files
 0      string          RZX!            Spectrum .RZX data
 >4     byte            x               version %d
->5     byte            x               .%d
+>5     byte            x               \b.%d
 
-# And three sorts of disk image
+# Floppy disk images
 0      string          MV\ -\ CPCEMU\ Disk-Fil Amstrad/Spectrum .DSK data
 0      string          MV\ -\ CPC\ format\ Dis Amstrad/Spectrum DU54 .DSK data
 0      string          EXTENDED\ CPC\ DSK\ Fil Amstrad/Spectrum Extended .DSK data
+0      string          SINCLAIR        Spectrum .SCL Betadisk image
+
+# Hard disk images
+0      string          RS-IDE\x1a      Spectrum .HDF hard disk image
+>7     byte            x               \b, version 0x%02x

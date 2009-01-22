@@ -44,6 +44,10 @@
 
 #include <curses.priv.h>
 
+#if defined __HAIKU__ && defined __BEOS__
+#undef __BEOS__
+#endif
+
 #ifdef __BEOS__
 #undef false
 #undef true
@@ -74,7 +78,7 @@
 #include <ctype.h>
 #include <term.h>
 
-MODULE_ID("$Id: tty_update.c,v 1.245 2008/05/03 22:43:04 tom Exp $")
+MODULE_ID("$Id: tty_update.c,v 1.246 2008/08/30 20:08:19 tom Exp $")
 
 /*
  * This define controls the line-breakout optimization.  Every once in a

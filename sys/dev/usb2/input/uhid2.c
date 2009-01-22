@@ -82,9 +82,16 @@ SYSCTL_INT(_hw_usb2_uhid, OID_AUTO, debug, CTLFLAG_RW,
     &uhid_debug, 0, "Debug level");
 #endif
 
-#define	UHID_N_TRANSFER    4		/* units */
 #define	UHID_BSIZE	1024		/* bytes, buffer size */
 #define	UHID_FRAME_NUM 	  50		/* bytes, frame number */
+
+enum {
+	UHID_INTR_DT_RD,
+	UHID_INTR_CS_RD,
+	UHID_CTRL_DT_WR,
+	UHID_CTRL_DT_RD,
+	UHID_N_TRANSFER = 4,
+};
 
 struct uhid_softc {
 	struct usb2_fifo_sc sc_fifo;
@@ -168,7 +175,7 @@ uhid_intr_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & UHID_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[1]);
+			usb2_transfer_start(sc->sc_xfer[UHID_INTR_CS_RD]);
 		} else {
 			if (usb2_fifo_put_bytes_max(
 			    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
@@ -182,7 +189,7 @@ uhid_intr_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UHID_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[1]);
+			usb2_transfer_start(sc->sc_xfer[UHID_INTR_CS_RD]);
 		}
 		return;
 	}
@@ -192,14 +199,13 @@ static void
 uhid_intr_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct uhid_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UHID_INTR_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flags &= ~UHID_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -212,7 +218,6 @@ uhid_fill_set_report(struct usb2_device_request *req, uint8_t iface_no,
 	req->wIndex[0] = iface_no;
 	req->wIndex[1] = 0;
 	USETW(req->wLength, size);
-	return;
 }
 
 static void
@@ -225,7 +230,6 @@ uhid_fill_get_report(struct usb2_device_request *req, uint8_t iface_no,
 	req->wIndex[0] = iface_no;
 	req->wIndex[1] = 0;
 	USETW(req->wLength, size);
-	return;
 }
 
 static void
@@ -328,7 +332,7 @@ uhid_read_callback(struct usb2_xfer *xfer)
 
 static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 
-	[0] = {
+	[UHID_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -337,7 +341,7 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.mh.callback = &uhid_intr_callback,
 	},
 
-	[1] = {
+	[UHID_INTR_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -347,7 +351,7 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[2] = {
+	[UHID_CTRL_DT_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -356,7 +360,7 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.mh.timeout = 1000,	/* 1 second */
 	},
 
-	[3] = {
+	[UHID_CTRL_DT_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -372,11 +376,10 @@ uhid_start_read(struct usb2_fifo *fifo)
 	struct uhid_softc *sc = fifo->priv_sc0;
 
 	if (sc->sc_flags & UHID_FLAG_IMMED) {
-		usb2_transfer_start(sc->sc_xfer[3]);
+		usb2_transfer_start(sc->sc_xfer[UHID_CTRL_DT_RD]);
 	} else {
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[UHID_INTR_DT_RD]);
 	}
-	return;
 }
 
 static void
@@ -384,9 +387,8 @@ uhid_stop_read(struct usb2_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
+	usb2_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UHID_INTR_DT_RD]);
 }
 
 static void
@@ -394,8 +396,7 @@ uhid_start_write(struct usb2_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[2]);
-	return;
+	usb2_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
 }
 
 static void
@@ -403,8 +404,7 @@ uhid_stop_write(struct usb2_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	return;
+	usb2_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_WR]);
 }
 
 static int
@@ -509,7 +509,6 @@ uhid_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 static int

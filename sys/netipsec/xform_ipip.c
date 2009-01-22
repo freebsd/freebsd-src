@@ -56,6 +56,7 @@
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -64,15 +65,15 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
+#ifdef MROUTING
+#include <netinet/ip_mroute.h>
+#endif
+#include <netinet/vinet.h>
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 
 #include <netipsec/ipip_var.h>
-
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif
 
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -91,8 +92,10 @@
  * We can control the acceptance of IP4 packets by altering the sysctl
  * net.inet.ipip.allow value.  Zero means drop them, all else is acceptance.
  */
-int	ipip_allow = 0;
+#ifdef VIMAGE_GLOBALS
+int	ipip_allow;
 struct	ipipstat ipipstat;
+#endif
 
 SYSCTL_DECL(_net_inet_ipip);
 SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipip, OID_AUTO,
@@ -657,22 +660,24 @@ static struct xformsw ipe4_xformsw = {
 };
 
 extern struct domain inetdomain;
-static struct protosw ipe4_protosw =
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  ip4_input,
-		0, 		0,		rip_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &rip_usrreqs
+static struct protosw ipe4_protosw = {
+	.pr_type =	SOCK_RAW,
+	.pr_domain =	&inetdomain,
+	.pr_protocol =	IPPROTO_IPV4,
+	.pr_flags =	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =	ip4_input,
+	.pr_ctloutput =	rip_ctloutput,
+	.pr_usrreqs =	&rip_usrreqs
 };
 #ifdef INET6
-static struct ip6protosw ipe6_protosw =
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  ip4_input6,
-		0,	 	0,		rip_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &rip_usrreqs
+static struct ip6protosw ipe6_protosw = {
+	.pr_type =	SOCK_RAW,
+	.pr_domain =	&inetdomain,
+	.pr_protocol =	IPPROTO_IPV6,
+	.pr_flags =	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =	ip4_input6,
+	.pr_ctloutput =	rip_ctloutput,
+	.pr_usrreqs =	&rip_usrreqs
 };
 #endif
 
@@ -694,6 +699,9 @@ ipe4_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 static void
 ipe4_attach(void)
 {
+
+	V_ipip_allow = 0;
+
 	xform_register(&ipe4_xformsw);
 	/* attach to encapsulation framework */
 	/* XXX save return cookie for detach on module remove */

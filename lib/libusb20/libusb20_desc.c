@@ -84,8 +84,8 @@ libusb20_parse_config_desc(const void *config_desc)
 	/* get "wTotalLength" and setup "pcdesc" */
 	pcdesc.ptr = LIBUSB20_ADD_BYTES(config_desc, 0);
 	pcdesc.len =
-	    ((uint8_t *)config_desc)[2] |
-	    (((uint8_t *)config_desc)[3] << 8);
+	    ((const uint8_t *)config_desc)[2] |
+	    (((const uint8_t *)config_desc)[3] << 8);
 	pcdesc.type = LIBUSB20_ME_IS_RAW;
 
 	/* descriptor pre-scan */
@@ -238,23 +238,37 @@ const uint8_t *
 libusb20_desc_foreach(const struct libusb20_me_struct *pdesc,
     const uint8_t *psubdesc)
 {
-	void *end;
+	const uint8_t *start;
+	const uint8_t *end;
+	const uint8_t *desc_next;
 
-	if (pdesc == NULL) {
+	/* be NULL safe */
+	if (pdesc == NULL)
 		return (NULL);
-	}
-	end = LIBUSB20_ADD_BYTES(pdesc->ptr, pdesc->len);
 
-	if (psubdesc == NULL) {
-		psubdesc = LIBUSB20_ADD_BYTES(pdesc->ptr, 0);
-	} else {
-		psubdesc = LIBUSB20_ADD_BYTES(psubdesc, psubdesc[0]);
-	}
-	return (((((void *)psubdesc) >= ((void *)(pdesc->ptr))) &&
-	    (((void *)psubdesc) < end) &&
-	    (LIBUSB20_ADD_BYTES(psubdesc, psubdesc[0]) >= ((void *)(pdesc->ptr))) &&
-	    (LIBUSB20_ADD_BYTES(psubdesc, psubdesc[0]) <= end) &&
-	    (psubdesc[0] >= 3)) ? psubdesc : NULL);
+	start = (const uint8_t *)pdesc->ptr;
+	end = LIBUSB20_ADD_BYTES(start, pdesc->len);
+
+	/* get start of next descriptor */
+	if (psubdesc == NULL)
+		psubdesc = start;
+	else
+		psubdesc = psubdesc + psubdesc[0];
+
+	/* check that the next USB descriptor is within the range */
+	if ((psubdesc < start) || (psubdesc >= end))
+		return (NULL);		/* out of range, or EOD */
+
+	/* check start of the second next USB descriptor, if any */
+	desc_next = psubdesc + psubdesc[0];
+	if ((desc_next < start) || (desc_next > end))
+		return (NULL);		/* out of range */
+
+	/* check minimum descriptor length */
+	if (psubdesc[0] < 3)
+		return (NULL);		/* too short descriptor */
+
+	return (psubdesc);		/* return start of next descriptor */
 }
 
 /*------------------------------------------------------------------------*
@@ -306,7 +320,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 	len_old = len;
 	buf = ptr;
 	pd_offset = sizeof(void *);
-	pf = (*((struct libusb20_me_format **)pd))->format;
+	pf = (*((struct libusb20_me_format *const *)pd))->format;
 
 	/* scan */
 

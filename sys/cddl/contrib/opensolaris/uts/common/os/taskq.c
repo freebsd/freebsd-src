@@ -794,6 +794,27 @@ taskq_resume(taskq_t *tq)
 	rw_exit(&tq->tq_threadlock);
 }
 
+
+int
+taskq_member(taskq_t *tq, kthread_t *thread)
+{
+	if (tq->tq_nthreads == 1)
+		return (tq->tq_thread == thread);
+	else {
+		int i, found = 0;
+
+		mutex_enter(&tq->tq_lock);
+		for (i = 0; i < tq->tq_nthreads; i++) {
+			if (tq->tq_threadlist[i] == thread) {
+				found = 1;
+				break;
+			}
+		}
+		mutex_exit(&tq->tq_lock);
+		return (found);
+	}
+}
+
 /*
  * Worker thread for processing task queue.
  */

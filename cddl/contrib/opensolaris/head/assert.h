@@ -39,7 +39,7 @@ extern "C" {
 
 #if defined(__STDC__)
 #if __STDC_VERSION__ - 0 >= 199901L
-extern void __assert_c99(const char *, const char *, int, const char *);
+extern void __assert(const char *, const char *, int);
 #else
 extern void __assert(const char *, const char *, int);
 #endif /* __STDC_VERSION__ - 0 >= 199901L */
@@ -70,8 +70,7 @@ extern void _assert();
 
 #if defined(__STDC__)
 #if __STDC_VERSION__ - 0 >= 199901L
-#define	assert(EX) (void)((EX) || \
-	(__assert_c99(#EX, __FILE__, __LINE__, __func__), 0))
+#define	assert(EX) (void)((EX) || (__assert(#EX, __FILE__, __LINE__), 0))
 #else
 #define	assert(EX) (void)((EX) || (__assert(#EX, __FILE__, __LINE__), 0))
 #endif /* __STDC_VERSION__ - 0 >= 199901L */

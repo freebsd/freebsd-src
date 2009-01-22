@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/vinet.h>
 
 #include <contrib/rdma/rdma_cm.h>
 #include <contrib/rdma/ib_cache.h>

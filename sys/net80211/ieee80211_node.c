@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_TDMA
+#include <net80211/ieee80211_tdma.h>
+#endif
 #include <net80211/ieee80211_wds.h>
 
 #include <net/bpf.h>
@@ -153,7 +156,7 @@ ieee80211_node_latevattach(struct ieee80211vap *vap)
 			    "WARNING: max aid too small, changed to %d\n",
 			    vap->iv_max_aid);
 		}
-		MALLOC(vap->iv_aid_bitmap, uint32_t *,
+		vap->iv_aid_bitmap = (uint32_t *) malloc(
 			howmany(vap->iv_max_aid, 32) * sizeof(uint32_t),
 			M_80211_NODE, M_NOWAIT | M_ZERO);
 		if (vap->iv_aid_bitmap == NULL) {
@@ -180,7 +183,7 @@ ieee80211_node_vdetach(struct ieee80211vap *vap)
 		vap->iv_bss = NULL;
 	}
 	if (vap->iv_aid_bitmap != NULL) {
-		FREE(vap->iv_aid_bitmap, M_80211_NODE);
+		free(vap->iv_aid_bitmap, M_80211_NODE);
 		vap->iv_aid_bitmap = NULL;
 	}
 }
@@ -337,6 +340,9 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		if (vap->iv_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_des_bssid);
 		else
+#ifdef IEEE80211_SUPPORT_TDMA
+		if ((vap->iv_caps & IEEE80211_C_TDMA) == 0)
+#endif
 			memset(ni->ni_bssid, 0, IEEE80211_ADDR_LEN);
 	}
 	/* 
@@ -732,6 +738,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	ni->ni_erp = se->se_erp;
 	IEEE80211_RSSI_LPF(ni->ni_avgrssi, se->se_rssi);
 	ni->ni_noise = se->se_noise;
+	if (vap->iv_opmode == IEEE80211_M_STA) {
+		/* NB: only infrastructure mode requires an associd */
+		ni->ni_flags |= IEEE80211_NODE_ASSOCID;
+	}
 
 	if (ieee80211_ies_init(&ni->ni_ies, se->se_ies.data, se->se_ies.len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
@@ -741,6 +751,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
 		if (ni->ni_ies.htinfo_ie != NULL)
 			ieee80211_parse_htinfo(ni, ni->ni_ies.htinfo_ie);
+#ifdef IEEE80211_SUPPORT_TDMA
+		if (ni->ni_ies.tdma_ie != NULL)
+			ieee80211_parse_tdma(ni, ni->ni_ies.tdma_ie);
+#endif
 	}
 
 	vap->iv_dtim_period = se->se_dtimperiod;
@@ -788,7 +802,7 @@ node_alloc(struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211_node *ni;
 
-	MALLOC(ni, struct ieee80211_node *, sizeof(struct ieee80211_node),
+	ni = (struct ieee80211_node *) malloc(sizeof(struct ieee80211_node),
 		M_80211_NODE, M_NOWAIT | M_ZERO);
 	return ni;
 }
@@ -806,11 +820,11 @@ ieee80211_ies_init(struct ieee80211_ies *ies, const uint8_t *data, int len)
 	memset(ies, 0, offsetof(struct ieee80211_ies, data));
 	if (ies->data != NULL && ies->len != len) {
 		/* data size changed */
-		FREE(ies->data, M_80211_NODE_IE);
+		free(ies->data, M_80211_NODE_IE);
 		ies->data = NULL;
 	}
 	if (ies->data == NULL) {
-		MALLOC(ies->data, uint8_t *, len, M_80211_NODE_IE, M_NOWAIT);
+		ies->data = (uint8_t *) malloc(len, M_80211_NODE_IE, M_NOWAIT);
 		if (ies->data == NULL) {
 			ies->len = 0;
 			/* NB: pointers have already been zero'd above */
@@ -829,7 +843,7 @@ void
 ieee80211_ies_cleanup(struct ieee80211_ies *ies)
 {
 	if (ies->data != NULL)
-		FREE(ies->data, M_80211_NODE_IE);
+		free(ies->data, M_80211_NODE_IE);
 }
 
 /*
@@ -854,6 +868,10 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 				ies->wme_ie = ie;
 			else if (isatherosoui(ie))
 				ies->ath_ie = ie;
+#ifdef IEEE80211_SUPPORT_TDMA
+			else if (istdmaoui(ie))
+				ies->tdma_ie = ie;
+#endif
 			break;
 		case IEEE80211_ELEMID_RSN:
 			ies->rsn_ie = ie;
@@ -898,8 +916,10 @@ node_cleanup(struct ieee80211_node *ni)
 	 * has happened.  This is probably not needed as the node
 	 * should always be removed from the table so not found but
 	 * do it just in case.
+	 * Likewise clear the ASSOCID flag as these flags are intended
+	 * to be managed in tandem.
 	 */
-	ni->ni_flags &= ~IEEE80211_NODE_AREF;
+	ni->ni_flags &= ~(IEEE80211_NODE_AREF | IEEE80211_NODE_ASSOCID);
 
 	/*
 	 * Drain power save queue and, if needed, clear TIM.
@@ -909,7 +929,7 @@ node_cleanup(struct ieee80211_node *ni)
 
 	ni->ni_associd = 0;
 	if (ni->ni_challenge != NULL) {
-		FREE(ni->ni_challenge, M_80211_NODE);
+		free(ni->ni_challenge, M_80211_NODE);
 		ni->ni_challenge = NULL;
 	}
 	/*
@@ -945,7 +965,7 @@ node_free(struct ieee80211_node *ni)
 	ieee80211_ies_cleanup(&ni->ni_ies);
 	ieee80211_psq_cleanup(&ni->ni_psq);
 	IEEE80211_NODE_WDSQ_DESTROY(ni);
-	FREE(ni, M_80211_NODE);
+	free(ni, M_80211_NODE);
 }
 
 static void
@@ -1331,6 +1351,10 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 
 	if (ieee80211_ies_init(&ni->ni_ies, sp->ies, sp->ies_len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
+		if (ni->ni_ies.wme_ie != NULL)
+			ni->ni_flags |= IEEE80211_NODE_QOS;
+		else
+			ni->ni_flags &= ~IEEE80211_NODE_QOS;
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
 	}
@@ -1511,19 +1535,8 @@ ieee80211_find_txnode(struct ieee80211vap *vap,
 	    vap->iv_opmode == IEEE80211_M_WDS ||
 	    IEEE80211_IS_MULTICAST(macaddr))
 		ni = ieee80211_ref_node(vap->iv_bss);
-	else {
+	else
 		ni = ieee80211_find_node_locked(nt, macaddr);
-		if (vap->iv_opmode == IEEE80211_M_HOSTAP && 
-		    (ni != NULL && ni->ni_associd == 0)) {
-			/*
-			 * Station is not associated; don't permit the
-			 * data frame to be sent by returning NULL.  This
-			 * is kinda a kludge but the least intrusive way
-			 * to add this check into all drivers.
-			 */
-			ieee80211_unref_node(&ni);	/* NB: null's ni */
-		}
-	}
 	IEEE80211_NODE_UNLOCK(nt);
 
 	if (ni == NULL) {
@@ -1651,7 +1664,7 @@ ieee80211_node_delucastkey(struct ieee80211_node *ni)
 		IEEE80211_NODE_LOCK(nt);
 	nikey = NULL;
 	status = 1;		/* NB: success */
-	if (!IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
+	if (ni->ni_ucastkey.wk_keyix != IEEE80211_KEYIX_NONE) {
 		keyix = ni->ni_ucastkey.wk_rxkeyix;
 		status = ieee80211_crypto_delkey(ni->ni_vap, &ni->ni_ucastkey);
 		if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax) {
@@ -1799,7 +1812,7 @@ ieee80211_node_table_init(struct ieee80211com *ic,
 	nt->nt_inact_init = inact;
 	nt->nt_keyixmax = keyixmax;
 	if (nt->nt_keyixmax > 0) {
-		MALLOC(nt->nt_keyixmap, struct ieee80211_node **,
+		nt->nt_keyixmap = (struct ieee80211_node **) malloc(
 			keyixmax * sizeof(struct ieee80211_node *),
 			M_80211_NODE, M_NOWAIT | M_ZERO);
 		if (nt->nt_keyixmap == NULL)
@@ -1860,7 +1873,7 @@ ieee80211_node_table_cleanup(struct ieee80211_node_table *nt)
 				printf("%s: %s[%u] still active\n", __func__,
 					nt->nt_name, i);
 #endif
-		FREE(nt->nt_keyixmap, M_80211_NODE);
+		free(nt->nt_keyixmap, M_80211_NODE);
 		nt->nt_keyixmap = NULL;
 	}
 	IEEE80211_NODE_ITERATE_LOCK_DESTROY(nt);

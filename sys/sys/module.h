@@ -154,11 +154,13 @@ void	module_register_init(const void *);
 int	module_register(const struct moduledata *, struct linker_file *);
 module_t	module_lookupbyname(const char *);
 module_t	module_lookupbyid(int);
+int	module_quiesce(module_t);
 void	module_reference(module_t);
 void	module_release(module_t);
-int	module_unload(module_t, int flags);
+int	module_unload(module_t);
 int	module_getid(module_t);
 module_t	module_getfnext(module_t);
+const char *	module_getname(module_t);
 void	module_setspecific(module_t, modspecific_t *);
 struct linker_file *module_file(module_t);
 

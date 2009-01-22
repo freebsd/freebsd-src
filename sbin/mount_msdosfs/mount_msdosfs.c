@@ -218,8 +218,12 @@ main(int argc, char **argv)
 	build_iovec_argf(&iov, &iovlen, "mask", "%u", mask);
 	build_iovec_argf(&iov, &iovlen, "dirmask", "%u", dirmask);
 
-	if (nmount(iov, iovlen, mntflags) < 0)
-		err(1, "%s: %s", dev, errmsg);
+	if (nmount(iov, iovlen, mntflags) < 0) {
+		if (errmsg[0])
+			err(1, "%s: %s", dev, errmsg);
+		else
+			err(1, "%s", dev);
+	}
 
 	exit (0);
 }

@@ -65,6 +65,7 @@ void
 xdrmbuf_create(XDR *xdrs, struct mbuf *m, enum xdr_op op)
 {
 
+	KASSERT(m != NULL, ("xdrmbuf_create with NULL mbuf chain"));
 	xdrs->x_op = op;
 	xdrs->x_ops = &xdrmbuf_ops;
 	xdrs->x_base = (char *) m;

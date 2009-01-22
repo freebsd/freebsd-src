@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
 #define	_SYS_VDEV_IMPL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/avl.h>
 #include <sys/dmu.h>
@@ -61,7 +59,7 @@ typedef struct vdev_cache_entry vdev_cache_entry_t;
 typedef int	vdev_open_func_t(vdev_t *vd, uint64_t *size, uint64_t *ashift);
 typedef void	vdev_close_func_t(vdev_t *vd);
 typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize);
-typedef void	vdev_io_start_func_t(zio_t *zio);
+typedef int	vdev_io_start_func_t(zio_t *zio);
 typedef void	vdev_io_done_func_t(zio_t *zio);
 typedef void	vdev_state_change_func_t(vdev_t *vd, int, int);
 
@@ -140,9 +138,12 @@ struct vdev {
 	txg_list_t	vdev_ms_list;	/* per-txg dirty metaslab lists	*/
 	txg_list_t	vdev_dtl_list;	/* per-txg dirty DTL lists	*/
 	txg_node_t	vdev_txg_node;	/* per-txg dirty vdev linkage	*/
-	uint8_t		vdev_reopen_wanted; /* async reopen wanted?	*/
-	list_node_t	vdev_dirty_node; /* config dirty list		*/
+	boolean_t	vdev_remove_wanted; /* async remove wanted?	*/
+	boolean_t	vdev_probe_wanted; /* async probe wanted?	*/
+	list_node_t	vdev_config_dirty_node; /* config dirty list	*/
+	list_node_t	vdev_state_dirty_node; /* state dirty list	*/
 	uint64_t	vdev_deflate_ratio; /* deflation ratio (x512)	*/
+	uint64_t	vdev_islog;	/* is an intent log device	*/
 
 	/*
 	 * Leaf vdev state.
@@ -151,22 +152,30 @@ struct vdev {
 	space_map_obj_t	vdev_dtl;	/* dirty time log on-disk state	*/
 	txg_node_t	vdev_dtl_node;	/* per-txg dirty DTL linkage	*/
 	uint64_t	vdev_wholedisk;	/* true if this is a whole disk */
-	uint64_t	vdev_offline;	/* device taken offline?	*/
+	uint64_t	vdev_offline;	/* persistent offline state	*/
+	uint64_t	vdev_faulted;	/* persistent faulted state	*/
+	uint64_t	vdev_degraded;	/* persistent degraded state	*/
+	uint64_t	vdev_removed;	/* persistent removed state	*/
 	uint64_t	vdev_nparity;	/* number of parity devices for raidz */
 	char		*vdev_path;	/* vdev path (if any)		*/
 	char		*vdev_devid;	/* vdev devid (if any)		*/
-	uint64_t	vdev_fault_arg; /* fault injection paramater	*/
-	int		vdev_fault_mask; /* zio types to fault		*/
-	uint8_t		vdev_fault_mode; /* fault injection mode	*/
-	uint8_t		vdev_cache_active; /* vdev_cache and vdev_queue	*/
-	uint8_t		vdev_tmpoffline; /* device taken offline temporarily? */
-	uint8_t		vdev_detached;	/* device detached?		*/
-	uint64_t	vdev_isspare;	/* was a hot spare */
-	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
-	vdev_cache_t	vdev_cache;	/* physical block cache		*/
+	char		*vdev_physpath;	/* vdev device path (if any)	*/
 	uint64_t	vdev_not_present; /* not present during import	*/
+	uint64_t	vdev_unspare;	/* unspare when resilvering done */
 	hrtime_t	vdev_last_try;	/* last reopen time		*/
 	boolean_t	vdev_nowritecache; /* true if flushwritecache failed */
+	boolean_t	vdev_checkremove; /* temporary online test	*/
+	boolean_t	vdev_forcefault; /* force online fault		*/
+	uint8_t		vdev_tmpoffline; /* device taken offline temporarily? */
+	uint8_t		vdev_detached;	/* device detached?		*/
+	uint8_t		vdev_cant_read;	/* vdev is failing all reads	*/
+	uint8_t		vdev_cant_write; /* vdev is failing all writes	*/
+	uint64_t	vdev_isspare;	/* was a hot spare		*/
+	uint64_t	vdev_isl2cache;	/* was a l2cache device		*/
+	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
+	vdev_cache_t	vdev_cache;	/* physical block cache		*/
+	spa_aux_vdev_t	*vdev_aux;	/* for l2cache vdevs		*/
+	zio_t		*vdev_probe_zio; /* root of current probe	*/
 
 	/*
 	 * For DTrace to work in userland (libzpool) context, these fields must
@@ -177,6 +186,7 @@ struct vdev {
 	 */
 	kmutex_t	vdev_dtl_lock;	/* vdev_dtl_{map,resilver}	*/
 	kmutex_t	vdev_stat_lock;	/* vdev_stat			*/
+	kmutex_t	vdev_probe_lock; /* protects vdev_probe_zio	*/
 };
 
 #define	VDEV_SKIP_SIZE		(8 << 10)
@@ -239,6 +249,7 @@ typedef struct vdev_label {
 #define	VDEV_ALLOC_LOAD		0
 #define	VDEV_ALLOC_ADD		1
 #define	VDEV_ALLOC_SPARE	2
+#define	VDEV_ALLOC_L2CACHE	3
 
 /*
  * Allocate or free a vdev
@@ -275,8 +286,8 @@ extern vdev_ops_t vdev_raidz_ops;
 extern vdev_ops_t vdev_geom_ops;
 #else
 extern vdev_ops_t vdev_disk_ops;
-extern vdev_ops_t vdev_file_ops;
 #endif
+extern vdev_ops_t vdev_file_ops;
 extern vdev_ops_t vdev_missing_ops;
 extern vdev_ops_t vdev_spare_ops;
 

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

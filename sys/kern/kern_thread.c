@@ -141,6 +141,9 @@ thread_dtor(void *mem, int size, void *arg)
 #ifdef AUDIT
 	audit_thread_free(td);
 #endif
+	/* Free all OSD associated to this thread. */
+	osd_thread_exit(td);
+
 	EVENTHANDLER_INVOKE(thread_dtor, td);
 	free_unr(tid_unrhdr, td->td_tid);
 }

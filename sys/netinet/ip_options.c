@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>
+#include <netinet/vinet.h>
 
 #include <sys/socketvar.h>
 

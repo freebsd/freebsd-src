@@ -67,8 +67,10 @@
 #include <opencrypto/deflate.h>
 #include <opencrypto/xform.h>
 
-int	ipcomp_enable = 0;
+#ifdef VIMAGE_GLOBALS
+int	ipcomp_enable;
 struct	ipcompstat ipcompstat;
+#endif
 
 SYSCTL_DECL(_net_inet_ipcomp);
 SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipcomp, OID_AUTO,
@@ -597,6 +599,8 @@ static struct xformsw ipcomp_xformsw = {
 static void
 ipcomp_attach(void)
 {
+
+	V_ipcomp_enable = 0;
 	xform_register(&ipcomp_xformsw);
 }
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);

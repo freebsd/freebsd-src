@@ -18,15 +18,14 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_DKIO_H
 #define	_SYS_DKIO_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"	/* SunOS-4.0 5.19 */
 
 #include <sys/dklabel.h>	/* Needed for NDKMAP define */
 
@@ -85,6 +84,7 @@ struct dk_cinfo {
 #define	DKC_DIRECT	20	/* Intel direct attached device i.e. IDE */
 #define	DKC_PCMCIA_MEM	21	/* PCMCIA memory disk-like type */
 #define	DKC_PCMCIA_ATA	22	/* PCMCIA AT Attached type */
+#define	DKC_VBD		23	/* virtual block device */
 
 /*
  * Sun reserves up through 1023
@@ -165,6 +165,9 @@ struct dk_geom {
 #define	DKIOCGVTOC	(DKIOC|11)		/* Get VTOC */
 #define	DKIOCSVTOC	(DKIOC|12)		/* Set VTOC & Write to Disk */
 
+#define	DKIOCGEXTVTOC	(DKIOC|23)	/* Get extended VTOC */
+#define	DKIOCSEXTVTOC	(DKIOC|24)	/* Set extended VTOC, Write to Disk */
+
 /*
  * Disk Cache Controls.  These ioctls should be supported by
  * all disk drivers.
@@ -190,7 +193,13 @@ struct dk_geom {
 struct dk_callback {
 	void (*dkc_callback)(void *dkc_cookie, int error);
 	void *dkc_cookie;
+	int dkc_flag;
 };
+
+/* bit flag definitions for dkc_flag */
+#define	FLUSH_VOLATILE		0x1	/* Bit 0: if set, only flush */
+					/* volatile cache; otherwise, flush */
+					/* volatile and non-volatile cache */
 
 #define	DKIOCGETWCE		(DKIOC|36)	/* Get current write cache */
 						/* enablement status */
@@ -245,6 +254,9 @@ struct defect_header {
 };
 
 #define	DKIOCPARTINFO	(DKIOC|22)	/* Get partition or slice parameters */
+#define	DKIOCEXTPARTINFO (DKIOC|19)	/* Get extended partition or slice */
+					/* parameters */
+
 
 /*
  * Used by applications to get partition or slice information
@@ -259,6 +271,11 @@ struct part_info32 {
 struct part_info {
 	daddr_t		p_start;
 	int		p_length;
+};
+
+struct extpart_info {
+	diskaddr_t	p_start;
+	diskaddr_t	p_length;
 };
 
 /* The following ioctls are for Optical Memory Device */
@@ -350,6 +367,9 @@ struct dk_minfo {
 #define	DKIOCGETVOLCAP	(DKIOC | 25)	/* Get volume capabilities */
 #define	DKIOCSETVOLCAP	(DKIOC | 26)	/* Set volume capabilities */
 #define	DKIOCDMR	(DKIOC | 27)	/* Issue a directed read */
+
+#define	DKIOCDUMPINIT	(DKIOC | 28)	/* Dumpify a zvol */
+#define	DKIOCDUMPFINI	(DKIOC | 29)	/* Un-Dumpify a zvol */
 
 typedef uint_t volcapinfo_t;
 

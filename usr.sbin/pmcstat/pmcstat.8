@@ -48,6 +48,7 @@
 .Op Fl d
 .Op Fl g
 .Op Fl k Ar kerneldir
+.Op Fl m Ar pathname
 .Op Fl n Ar rate
 .Op Fl o Ar outputfile
 .Op Fl p Ar event-spec
@@ -232,6 +233,19 @@ This directory specifies where
 should look for the kernel and its modules.
 The default is
 .Pa /boot/kernel .
+.It Fl m Ar pathname
+Print the sampled PCs with the name, the start and ending addresses
+of the function within they live.
+The
+.Ar pathname
+argument is mandatory and indicates where informations will be stored.
+If argument
+.Ar pathname
+is a
+.Dq Li -
+this information is sent to the output file specified by the
+.Fl o
+option.
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
 PMCs specified on the command line.

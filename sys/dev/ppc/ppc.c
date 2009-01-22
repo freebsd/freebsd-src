@@ -34,11 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/interrupt.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
-  
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -114,11 +116,12 @@ static char *ppc_epp_protocol[] = { " (EPP 1.9)", " (EPP 1.7)", 0 };
  * ppc_ecp_sync()		XXX
  */
 void
-ppc_ecp_sync(device_t dev) {
-
+ppc_ecp_sync(device_t dev)
+{
 	int i, r;
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
+	PPC_ASSERT_LOCKED(ppc);
 	if (!(ppc->ppc_avm & PPB_ECP) && !(ppc->ppc_dtm & PPB_ECP))
 		return;
 
@@ -149,7 +152,7 @@ ppc_detect_fifo(struct ppc_data *ppc)
 	char ecr_sav;
 	char ctr_sav, ctr, cc;
 	short i;
-	
+
 	/* save registers */
 	ecr_sav = r_ecr(ppc);
 	ctr_sav = r_ctr(ppc);
@@ -236,7 +239,7 @@ ppc_detect_fifo(struct ppc_data *ppc)
 		LOG_PPC(__func__, ppc, "can't empty the FIFO");
 		goto error;
 	}
-	
+
 	w_ctr(ppc, ctr_sav);
 	w_ecr(ppc, ecr_sav);
 
@@ -407,9 +410,9 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
     static int	index = 0;
     int		idport, irq;
     int		ptr, pcr, val, i;
-    
+
     while ((idport = pc873xx_basetab[index++])) {
-	
+
 	/* XXX should check first to see if this location is already claimed */
 
 	/*
@@ -456,7 +459,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 		}
 		printf("\n");
 	}
-	
+
 	/*
 	 * We think we have one.  Is it enabled and where we want it to be?
 	 */
@@ -474,7 +477,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 
 	    /* First try to change the port address to that requested... */
 
-	    switch(ppc->ppc_base) {
+	    switch (ppc->ppc_base) {
 		case 0x378:
 		val &= 0xfc;
 		break;
@@ -513,7 +516,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	}
 
 	outb(idport, PC873_PTR);
-        ptr = inb(idport + 1);
+	ptr = inb(idport + 1);
 
 	/* get irq settings */
 	if (ppc->ppc_base == 0x378)
@@ -523,7 +526,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 
 	if (bootverbose)
 		printf("PC873xx irq %d at 0x%x\n", irq, ppc->ppc_base);
-	
+
 	/*
 	 * Check if irq settings are correct
 	 */
@@ -553,7 +556,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 
 	outb(idport, PC873_PCR);
 	pcr = inb(idport + 1);
-	
+
 	if ((ptr & PC873_CFGLOCK) || !chipset_mode) {
 	    if (bootverbose)
 		printf("PC873xx %s", (ptr & PC873_CFGLOCK)?"locked":"unlocked");
@@ -563,7 +566,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 		printf(", NIBBLE");
 
 	    if (pcr & PC873_EPPEN) {
-	        ppc->ppc_avm |= PPB_EPP;
+		ppc->ppc_avm |= PPB_EPP;
 
 		if (bootverbose)
 			printf(", EPP");
@@ -596,8 +599,8 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 		ptr = inb(idport + 1);
 		if (ptr & PC873_EXTENDED) {
 			ppc->ppc_avm |= PPB_SPP;
-                        if (bootverbose)
-                                printf(", SPP");
+			if (bootverbose)
+				printf(", SPP");
 		}
 	    }
 	} else {
@@ -652,7 +655,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 
 				if (bootverbose)
 					printf(", PS/2");
-			
+
 			} else {
 				/* default to NIBBLE mode */
 				ptr &= ~PC873_EXTENDED;
@@ -699,7 +702,7 @@ ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 	/*
 	 * Detection: enter configuration mode and read CRD register.
 	 */
-	 
+
 	s = splhigh();
 	outb(csr, SMC665_iCODE);
 	outb(csr, SMC665_iCODE);
@@ -914,7 +917,7 @@ ppc_smc37c935_detect(struct ppc_data *ppc, int chipset_mode)
 	ppc->ppc_model = type;
 
 	outb(SMC935_IND, SMC935_LOGDEV); /* select parallel port, */
-	outb(SMC935_DAT, 3);             /* which is logical device 3 */
+	outb(SMC935_DAT, 3);	     /* which is logical device 3 */
 
 	/* set io port base */
 	outb(SMC935_IND, SMC935_PORTHI);
@@ -983,7 +986,7 @@ ppc_smc37c935_detect(struct ppc_data *ppc, int chipset_mode)
 #define efdr ((efer == 0x250) ? 0x252 : 0x3f1)
 
 static int w83877f_efers[] = { 0x250, 0x3f0, 0x3f0, 0x250 };
-static int w83877f_keys[] = { 0x89, 0x86, 0x87, 0x88 };	
+static int w83877f_keys[] = { 0x89, 0x86, 0x87, 0x88 };
 static int w83877f_keyiter[] = { 1, 2, 2, 1 };
 static int w83877f_hefs[] = { WINB_HEFERE, WINB_HEFRAS, WINB_HEFERE | WINB_HEFRAS, 0 };
 
@@ -1320,16 +1323,17 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 
 #define INCR_PC (mi ++)		/* increment program counter */
 
+	PPC_ASSERT_LOCKED(ppc);
 	mi = *p_msq;
 	for (;;) {
-		switch (mi->opcode) {                                           
+		switch (mi->opcode) {
 		case MS_OP_RSET:
 			cc = r_reg(mi->arg[0].i, ppc);
 			cc &= (char)mi->arg[2].i;	/* clear mask */
 			cc |= (char)mi->arg[1].i;	/* assert mask */
-                        w_reg(mi->arg[0].i, ppc, cc);
+			w_reg(mi->arg[0].i, ppc, cc);
 			INCR_PC;
-                        break;
+			break;
 
 		case MS_OP_RASSERT_P:
 			reg = mi->arg[1].i;
@@ -1348,7 +1352,7 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			INCR_PC;
 			break;
 
-                case MS_OP_RFETCH_P:
+		case MS_OP_RFETCH_P:
 			reg = mi->arg[1].i;
 			mask = (char)mi->arg[2].i;
 			ptr = ppc->ppc_ptr;
@@ -1364,17 +1368,17 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			ppc->ppc_ptr = ptr;
 
 			INCR_PC;
-                        break;                                        
+			break;
 
-                case MS_OP_RFETCH:
+		case MS_OP_RFETCH:
 			*((char *) mi->arg[2].p) = r_reg(mi->arg[0].i, ppc) &
 							(char)mi->arg[1].i;
 			INCR_PC;
-                        break;                                        
+			break;
 
 		case MS_OP_RASSERT:
-                case MS_OP_DELAY:
-		
+		case MS_OP_DELAY:
+
 		/* let's suppose the next instr. is the same */
 		prefetch:
 			for (;mi->opcode == MS_OP_RASSERT; INCR_PC)
@@ -1388,8 +1392,11 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			break;
 
 		case MS_OP_ADELAY:
-			if (mi->arg[0].i)
+			if (mi->arg[0].i) {
+				PPC_UNLOCK(ppc);
 				pause("ppbdelay", mi->arg[0].i * (hz/1000));
+				PPC_LOCK(ppc);
+			}
 			INCR_PC;
 			break;
 
@@ -1406,30 +1413,30 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			INCR_PC;
 			break;
 
-                case MS_OP_SET:
-                        ppc->ppc_accum = mi->arg[0].i;
+		case MS_OP_SET:
+			ppc->ppc_accum = mi->arg[0].i;
 			INCR_PC;
-                        break;                                         
+			break;
 
-                case MS_OP_DBRA:
-                        if (--ppc->ppc_accum > 0)
-                                mi += mi->arg[0].i;
+		case MS_OP_DBRA:
+			if (--ppc->ppc_accum > 0)
+				mi += mi->arg[0].i;
 			INCR_PC;
-                        break;                                        
+			break;
 
-                case MS_OP_BRSET:
-                        cc = r_str(ppc);
-                        if ((cc & (char)mi->arg[0].i) == (char)mi->arg[0].i) 
-                                mi += mi->arg[1].i;                      
+		case MS_OP_BRSET:
+			cc = r_str(ppc);
+			if ((cc & (char)mi->arg[0].i) == (char)mi->arg[0].i)
+				mi += mi->arg[1].i;
 			INCR_PC;
-                        break;
+			break;
 
-                case MS_OP_BRCLEAR:
-                        cc = r_str(ppc);
-                        if ((cc & (char)mi->arg[0].i) == 0)    
-                                mi += mi->arg[1].i;                             
+		case MS_OP_BRCLEAR:
+			cc = r_str(ppc);
+			if ((cc & (char)mi->arg[0].i) == 0)
+				mi += mi->arg[1].i;
 			INCR_PC;
-                        break;                                
+			break;
 
 		case MS_OP_BRSTAT:
 			cc = r_str(ppc);
@@ -1484,9 +1491,9 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			INCR_PC;
 			break;
 
-                case MS_OP_PUT:
-                case MS_OP_GET:
-                case MS_OP_RET:
+		case MS_OP_PUT:
+		case MS_OP_GET:
+		case MS_OP_RET:
 			/* can't return to ppb level during the execution
 			 * of a submicrosequence */
 			if (stack)
@@ -1499,10 +1506,10 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			/* return to ppb level of execution */
 			return (0);
 
-                default:                         
-                        panic("%s: unknown microsequence opcode 0x%x",
-                                __func__, mi->opcode);        
-                }
+		default:
+			panic("%s: unknown microsequence opcode 0x%x",
+			    __func__, mi->opcode);
+		}
 	}
 
 	/* unreached */
@@ -1521,8 +1528,10 @@ ppcintr(void *arg)
 	 * XXX: If DMA is in progress should we just complete that w/o
 	 * doing this?
 	 */
-	if (ppc->ppc_child_handlers > 0) {
-		intr_event_execute_handlers(curproc, ppc->ppc_intr_event);
+	PPC_LOCK(ppc);
+	if (ppc->ppc_intr_hook != NULL &&
+	    ppc->ppc_intr_hook(ppc->ppc_intr_arg) == 0) {
+		PPC_UNLOCK(ppc);
 		return;
 	}
 
@@ -1536,6 +1545,7 @@ ppcintr(void *arg)
 
 	/* don't use ecp mode with IRQENABLE set */
 	if (ctr & IRQENABLE) {
+		PPC_UNLOCK(ppc);
 		return;
 	}
 
@@ -1550,6 +1560,7 @@ ppcintr(void *arg)
 			ppc->ppc_irqstat &= ~PPC_IRQ_nFAULT;
 		} else {
 			/* shall be handled by underlying layers XXX */
+			PPC_UNLOCK(ppc);
 			return;
 		}
 	}
@@ -1585,6 +1596,7 @@ ppcintr(void *arg)
 		/* classic interrupt I/O */
 		ppc->ppc_irqstat &= ~PPC_IRQ_FIFO;
 	}
+	PPC_UNLOCK(ppc);
 
 	return;
 }
@@ -1605,7 +1617,8 @@ void
 ppc_reset_epp(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
-	
+
+	PPC_ASSERT_LOCKED(ppc);
 	ppc_reset_epp_timeout(ppc);
 
 	return;
@@ -1616,6 +1629,7 @@ ppc_setmode(device_t dev, int mode)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
+	PPC_ASSERT_LOCKED(ppc);
 	switch (ppc->ppc_type) {
 	case PPC_TYPE_SMCLIKE:
 		return (ppc_smclike_setmode(ppc, mode));
@@ -1668,19 +1682,18 @@ ppc_probe(device_t dev, int rid)
 			next_bios_ppc += 1;
 			if (bootverbose)
 				device_printf(dev,
-				    "parallel port found at 0x%x\n",
-				    (int) port);
+				    "parallel port found at 0x%lx\n", port);
 		}
 #else
-		if((next_bios_ppc < BIOS_MAX_PPC) &&
-				(*(BIOS_PORTS+next_bios_ppc) != 0) ) {
-			port = *(BIOS_PORTS+next_bios_ppc++);
+		if ((next_bios_ppc < BIOS_MAX_PPC) &&
+		    (*(BIOS_PORTS + next_bios_ppc) != 0)) {
+			port = *(BIOS_PORTS + next_bios_ppc++);
 			if (bootverbose)
-			  device_printf(dev, "parallel port found at 0x%x\n",
-					(int) port);
+				device_printf(dev,
+				    "parallel port found at 0x%lx\n", port);
 		} else {
 			device_printf(dev, "parallel port not found.\n");
-			return ENXIO;
+			return (ENXIO);
 		}
 #endif	/* PC98 */
 		bus_set_resource(dev, SYS_RES_IOPORT, rid, port,
@@ -1797,49 +1810,39 @@ int
 ppc_attach(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
-	device_t ppbus;
 	int error;
+
+	mtx_init(&ppc->ppc_lock, device_get_nameunit(dev), "ppc", MTX_DEF);
 
 	device_printf(dev, "%s chipset (%s) in %s mode%s\n",
 		      ppc_models[ppc->ppc_model], ppc_avms[ppc->ppc_avm],
 		      ppc_modes[ppc->ppc_mode], (PPB_IS_EPP(ppc->ppc_mode)) ?
 		      ppc_epp_protocol[ppc->ppc_epp] : "");
-	
+
 	if (ppc->ppc_fifo)
 		device_printf(dev, "FIFO with %d/%d/%d bytes threshold\n",
 			      ppc->ppc_fifo, ppc->ppc_wthr, ppc->ppc_rthr);
 
 	if (ppc->res_irq) {
-		/*
-		 * Create an interrupt event to manage the handlers of
-		 * child devices.
-		 */
-		error = intr_event_create(&ppc->ppc_intr_event, ppc, 0, -1,
-		    NULL, NULL, NULL, NULL, "%s:", device_get_nameunit(dev));
-		if (error) {
-			device_printf(dev,
-			    "failed to create interrupt event: %d\n", error);
-			return (error);
-		}
-
 		/* default to the tty mask for registration */	/* XXX */
-		error = bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY,
-		    NULL, ppcintr, ppc, &ppc->intr_cookie);
+		error = bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY |
+		    INTR_MPSAFE, NULL, ppcintr, ppc, &ppc->intr_cookie);
 		if (error) {
 			device_printf(dev,
 			    "failed to register interrupt handler: %d\n",
 			    error);
+			mtx_destroy(&ppc->ppc_lock);
 			return (error);
 		}
 	}
 
 	/* add ppbus as a child of this isa to parallel bridge */
-	ppbus = device_add_child(dev, "ppbus", -1);
+	ppc->ppbus = device_add_child(dev, "ppbus", -1);
 
 	/*
 	 * Probe the ppbus and attach devices found.
 	 */
-	device_probe_and_attach(ppbus);
+	device_probe_and_attach(ppc->ppbus);
 
 	return (0);
 }
@@ -1877,6 +1880,8 @@ ppc_detach(device_t dev)
 				     ppc->res_drq);
 	}
 
+	mtx_destroy(&ppc->ppc_lock);
+
 	return (0);
 }
 
@@ -1884,6 +1889,8 @@ u_char
 ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(ppcdev);
+
+	PPC_ASSERT_LOCKED(ppc);
 	switch (iop) {
 	case PPB_OUTSB_EPP:
 	    bus_write_multi_1(ppc->res_ioport, PPC_EPP_DATA, addr, cnt);
@@ -1953,7 +1960,37 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 
 	switch (index) {
 	case PPC_IVAR_EPP_PROTO:
+		PPC_ASSERT_LOCKED(ppc);
 		*val = (u_long)ppc->ppc_epp;
+		break;
+	case PPC_IVAR_LOCK:
+		*val = (uintptr_t)&ppc->ppc_lock;
+		break;
+	default:
+		return (ENOENT);
+	}
+
+	return (0);
+}
+
+int
+ppc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
+{
+	struct ppc_data *ppc = (struct ppc_data *)device_get_softc(bus);
+
+	switch (index) {
+	case PPC_IVAR_INTR_HANDLER:
+		PPC_ASSERT_LOCKED(ppc);
+		if (dev != ppc->ppbus)
+			return (EINVAL);
+		if (val == 0) {
+			ppc->ppc_intr_hook = NULL;
+			break;
+		}
+		if (ppc->ppc_intr_hook != NULL)
+			return (EBUSY);
+		ppc->ppc_intr_hook = (void *)val;
+		ppc->ppc_intr_arg = device_get_softc(dev);
 		break;
 	default:
 		return (ENOENT);
@@ -1999,49 +2036,6 @@ ppc_release_resource(device_t bus, device_t child, int type, int rid,
 		break;
 	}
 	return (EINVAL);
-}
-
-/*
- * If a child wants to add a handler for our IRQ, add it to our interrupt
- * event.  Otherwise, fail the request.
- */
-int
-ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-    driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
-{
-	struct ppc_data *ppc = DEVTOSOFTC(bus);
-	int error;
-
-	if (r != ppc->res_irq)
-		return (EINVAL);
-
-	/* We don't allow filters. */
-	if (filt != NULL)
-		return (EINVAL);
-
-	error = intr_event_add_handler(ppc->ppc_intr_event,
-	    device_get_nameunit(child), NULL, ihand, arg, intr_priority(flags),
-	    flags, cookiep);
-	if (error == 0)
-		ppc->ppc_child_handlers++;
-	return (error);
-}
-
-int
-ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *cookie)
-{
-	struct ppc_data *ppc = DEVTOSOFTC(bus);
-	int error;
-
-	if (r != ppc->res_irq)
-		return (EINVAL);
-
-	KASSERT(intr_handler_source(cookie) == ppc,
-	    ("ppc_teardown_intr: source mismatch"));
-	error = intr_event_remove_handler(cookie);
-	if (error == 0)
-		ppc->ppc_child_handlers--;
-	return (error);
 }
 
 MODULE_DEPEND(ppc, ppbus, 1, 1, 1);

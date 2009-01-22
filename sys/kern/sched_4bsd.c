@@ -82,6 +82,8 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 
+#define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__STRING(UINT_MAX)))
+
 /*
  * The schedulable entity that runs a context.
  * This is  an extension to the thread structure and is tailored to
@@ -93,6 +95,9 @@ struct td_sched {
 	int		ts_slptime;	/* (j) Seconds !RUNNING. */
 	int		ts_flags;
 	struct runq	*ts_runq;	/* runq the thread is currently on */
+#ifdef KTR
+	char		ts_name[TS_NAME_LEN];
+#endif
 };
 
 /* flags kept in td_flags */
@@ -243,15 +248,17 @@ SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
 static __inline void
 sched_load_add(void)
 {
+
 	sched_tdcnt++;
-	CTR1(KTR_SCHED, "global load: %d", sched_tdcnt);
+	KTR_COUNTER0(KTR_SCHED, "load", "global load", sched_tdcnt);
 }
 
 static __inline void
 sched_load_rem(void)
 {
+
 	sched_tdcnt--;
-	CTR1(KTR_SCHED, "global load: %d", sched_tdcnt);
+	KTR_COUNTER0(KTR_SCHED, "load", "global load", sched_tdcnt);
 }
 /*
  * Arrange to reschedule if necessary, taking the priorities and
@@ -705,8 +712,9 @@ void
 sched_exit(struct proc *p, struct thread *td)
 {
 
-	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
-	    td, td->td_name, td->td_priority);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "proc exit",
+	    "prio:td", td->td_priority);
+
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
 }
@@ -715,8 +723,8 @@ void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
 
-	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
-	    child, child->td_name, child->td_priority);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit",
+	    "prio:td", child->td_priority);
 	thread_lock(td);
 	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
 	thread_unlock(td);
@@ -773,10 +781,16 @@ sched_class(struct thread *td, int class)
 static void
 sched_priority(struct thread *td, u_char prio)
 {
-	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
-	    td, td->td_name, td->td_priority, prio, curthread,
-	    curthread->td_name);
 
+
+	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "priority change",
+	    "prio:%d", td->td_priority, "new prio:%d", prio, KTR_ATTR_LINKED,
+	    sched_tdname(curthread));
+	if (td != curthread && prio > td->td_priority) {
+		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
+		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
+		    prio, KTR_ATTR_LINKED, sched_tdname(td));
+	}
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
@@ -1205,9 +1219,13 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: bad thread state"));
 	KASSERT(td->td_flags & TDF_INMEM,
 	    ("sched_add: thread swapped out"));
-	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
-	    td, td->td_name, td->td_priority, curthread,
-	    curthread->td_name);
+
+	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add",
+	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
+	    sched_tdname(curthread));
+	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
+	    KTR_ATTR_LINKED, sched_tdname(td));
+
 
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
@@ -1289,9 +1307,11 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: bad thread state"));
 	KASSERT(td->td_flags & TDF_INMEM,
 	    ("sched_add: thread swapped out"));
-	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
-	    td, td->td_name, td->td_priority, curthread,
-	    curthread->td_name);
+	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add",
+	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
+	    sched_tdname(curthread));
+	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
+	    KTR_ATTR_LINKED, sched_tdname(td));
 
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
@@ -1336,9 +1356,9 @@ sched_rem(struct thread *td)
 	KASSERT(TD_ON_RUNQ(td),
 	    ("sched_rem: thread not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
-	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
-	    td, td->td_name, td->td_priority, curthread,
-	    curthread->td_name);
+	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq rem",
+	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
+	    sched_tdname(curthread));
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
@@ -1568,6 +1588,22 @@ sched_fork_exit(struct thread *td)
 	lock_profile_obtain_lock_success(&sched_lock.lock_object,
 	    0, 0, __FILE__, __LINE__);
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
+}
+
+char *
+sched_tdname(struct thread *td)
+{
+#ifdef KTR
+	struct td_sched *ts;
+
+	ts = td->td_sched;
+	if (ts->ts_name[0] == '\0')
+		snprintf(ts->ts_name, sizeof(ts->ts_name),
+		    "%s tid %d", td->td_name, td->td_tid);
+	return (ts->ts_name);
+#else   
+	return (td->td_name);
+#endif
 }
 
 void

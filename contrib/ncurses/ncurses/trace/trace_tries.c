@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_tries.c,v 1.12 2007/04/21 21:55:41 tom Exp $")
+MODULE_ID("$Id: trace_tries.c,v 1.13 2008/08/03 15:43:30 tom Exp $")
 
 #ifdef TRACE
 #define my_buffer _nc_globals.tracetry_buf
@@ -74,5 +74,5 @@ _nc_trace_tries(TRIES * tree)
 }
 
 #else
-empty_module(_nc_trace_tries)
+EMPTY_MODULE(_nc_trace_tries)
 #endif

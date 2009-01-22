@@ -1,4 +1,4 @@
-# $Id: MKunctrl.awk,v 1.21 2008/02/03 20:24:30 tom Exp $
+# $Id: MKunctrl.awk,v 1.23 2008/10/04 21:40:24 tom Exp $
 ##############################################################################
 # Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
 #                                                                            #
@@ -46,7 +46,7 @@ BEGIN	{
 		print ""
 	}
 END	{
-		print "NCURSES_EXPORT(NCURSES_CONST char *) unctrl (register chtype ch)"
+		print "NCURSES_EXPORT(NCURSES_CONST char *) _nc_unctrl (SCREEN *sp, chtype ch)"
 		print "{"
 
 		blob=""
@@ -101,6 +101,7 @@ END	{
 		blob = blob "\"";
 
 		print ""
+		printf "#if NCURSES_EXT_FUNCS\n";
 		if (bigstrings) {
 			blob = blob "\n/* printable values in 128-255 range */"
 			printf "static const short unctrl_c1[] = {"
@@ -135,6 +136,7 @@ END	{
 			}
 		}
 		print "};"
+		print "#endif /* NCURSES_EXT_FUNCS */"
 		blob = blob "\"\n"
 
 		print ""
@@ -150,8 +152,8 @@ END	{
 		print  ""
 		print  "\tif (check >= 0 && check < (int)SIZEOF(unctrl_table)) {"
 		print  "#if NCURSES_EXT_FUNCS"
-		print  "\t\tif ((SP != 0)"
-		print  "\t\t && (SP->_legacy_coding > 1)"
+		print  "\t\tif ((sp != 0)"
+		print  "\t\t && (sp->_legacy_coding > 1)"
 		print  "\t\t && (check >= 128)"
 		print  "\t\t && (check < 160))"
 		printf "\t\t\tresult = %s_c1[check - 128];\n", stringname;
@@ -159,18 +161,18 @@ END	{
 		print  "#if USE_WIDEC_SUPPORT"
 		print  "\t\tif ((check >= 160)"
 		print  "\t\t && (check < 256)"
-		print  "\t\t && ((SP != 0)"
-		print  "\t\t  && ((SP->_legacy_coding > 0)"
-		print  "\t\t   || (SP->_legacy_coding == 0"
+		print  "\t\t && ((sp != 0)"
+		print  "\t\t  && ((sp->_legacy_coding > 0)"
+		print  "\t\t   || (sp->_legacy_coding == 0"
 		print  "\t\t       && (isprint(check) || iswprint(check))))))"
 		printf "\t\t\tresult = %s_c1[check - 128];\n", stringname;
 		print  "\t\telse"
 		print  "#else"
 		print  "\t\tif ((check >= 160)"
 		print  "\t\t && (check < 256)"
-		print  "\t\t && ((SP != 0)"
-		print  "\t\t  && ((SP->_legacy_coding > 0)"
-		print  "\t\t   || (SP->_legacy_coding == 0"
+		print  "\t\t && ((sp != 0)"
+		print  "\t\t  && ((sp->_legacy_coding > 0)"
+		print  "\t\t   || (sp->_legacy_coding == 0"
 		print  "\t\t       && isprint(check)))))"
 		printf "\t\t\tresult = %s_c1[check - 128];\n", stringname;
 		print  "\t\telse"
@@ -181,5 +183,10 @@ END	{
 		print  "\t\tresult = 0;"
 		print  "\t}"
 		print  "\treturn (NCURSES_CONST char *)result;"
+		print  "}"
+		print  ""
+		print  "NCURSES_EXPORT(NCURSES_CONST char *) unctrl (chtype ch)"
+		print  "{"
+		print  "\treturn _nc_unctrl(SP, ch);"
 		print  "}"
 	}

@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -101,20 +101,24 @@ void
 zmutex_init(kmutex_t *mp)
 {
 	mp->m_owner = NULL;
+	mp->initialized = B_TRUE;
 	(void) _mutex_init(&mp->m_lock, USYNC_THREAD, NULL);
 }
 
 void
 zmutex_destroy(kmutex_t *mp)
 {
+	ASSERT(mp->initialized == B_TRUE);
 	ASSERT(mp->m_owner == NULL);
 	(void) _mutex_destroy(&(mp)->m_lock);
 	mp->m_owner = (void *)-1UL;
+	mp->initialized = B_FALSE;
 }
 
 void
 mutex_enter(kmutex_t *mp)
 {
+	ASSERT(mp->initialized == B_TRUE);
 	ASSERT(mp->m_owner != (void *)-1UL);
 	ASSERT(mp->m_owner != curthread);
 	VERIFY(mutex_lock(&mp->m_lock) == 0);
@@ -125,6 +129,7 @@ mutex_enter(kmutex_t *mp)
 int
 mutex_tryenter(kmutex_t *mp)
 {
+	ASSERT(mp->initialized == B_TRUE);
 	ASSERT(mp->m_owner != (void *)-1UL);
 	if (mutex_trylock(&mp->m_lock) == 0) {
 		ASSERT(mp->m_owner == NULL);
@@ -138,6 +143,7 @@ mutex_tryenter(kmutex_t *mp)
 void
 mutex_exit(kmutex_t *mp)
 {
+	ASSERT(mp->initialized == B_TRUE);
 	ASSERT(mp->m_owner == curthread);
 	mp->m_owner = NULL;
 	VERIFY(mutex_unlock(&mp->m_lock) == 0);
@@ -146,6 +152,7 @@ mutex_exit(kmutex_t *mp)
 void *
 mutex_owner(kmutex_t *mp)
 {
+	ASSERT(mp->initialized == B_TRUE);
 	return (mp->m_owner);
 }
 
@@ -160,7 +167,7 @@ rw_init(krwlock_t *rwlp, char *name, int type, void *arg)
 {
 	rwlock_init(&rwlp->rw_lock, USYNC_THREAD, NULL);
 	rwlp->rw_owner = NULL;
-	rwlp->rw_count = 0;
+	rwlp->initialized = B_TRUE;
 }
 
 void
@@ -168,22 +175,23 @@ rw_destroy(krwlock_t *rwlp)
 {
 	rwlock_destroy(&rwlp->rw_lock);
 	rwlp->rw_owner = (void *)-1UL;
-	rwlp->rw_count = -2;
+	rwlp->initialized = B_FALSE;
 }
 
 void
 rw_enter(krwlock_t *rwlp, krw_t rw)
 {
 	//ASSERT(!RW_LOCK_HELD(rwlp));
+	ASSERT(rwlp->initialized == B_TRUE);
 	ASSERT(rwlp->rw_owner != (void *)-1UL);
 	ASSERT(rwlp->rw_owner != curthread);
 
 	if (rw == RW_READER) {
-		(void) rw_rdlock(&rwlp->rw_lock);
+		VERIFY(rw_rdlock(&rwlp->rw_lock) == 0);
 		ASSERT(rwlp->rw_count >= 0);
 		atomic_add_int(&rwlp->rw_count, 1);
 	} else {
-		(void) rw_wrlock(&rwlp->rw_lock);
+		VERIFY(rw_wrlock(&rwlp->rw_lock) == 0);
 		ASSERT(rwlp->rw_count == 0);
 		rwlp->rw_count = -1;
 		rwlp->rw_owner = curthread;
@@ -193,6 +201,7 @@ rw_enter(krwlock_t *rwlp, krw_t rw)
 void
 rw_exit(krwlock_t *rwlp)
 {
+	ASSERT(rwlp->initialized == B_TRUE);
 	ASSERT(rwlp->rw_owner != (void *)-1UL);
 
 	if (rwlp->rw_owner == curthread) {
@@ -205,7 +214,7 @@ rw_exit(krwlock_t *rwlp)
 		ASSERT(rwlp->rw_count > 0);
 		atomic_add_int(&rwlp->rw_count, -1);
 	}
-	(void) rw_unlock(&rwlp->rw_lock);
+	VERIFY(rw_unlock(&rwlp->rw_lock) == 0);
 }
 
 int
@@ -213,6 +222,7 @@ rw_tryenter(krwlock_t *rwlp, krw_t rw)
 {
 	int rv;
 
+	ASSERT(rwlp->initialized == B_TRUE);
 	ASSERT(rwlp->rw_owner != (void *)-1UL);
 	ASSERT(rwlp->rw_owner != curthread);
 
@@ -241,6 +251,7 @@ rw_tryenter(krwlock_t *rwlp, krw_t rw)
 int
 rw_tryupgrade(krwlock_t *rwlp)
 {
+	ASSERT(rwlp->initialized == B_TRUE);
 	ASSERT(rwlp->rw_owner != (void *)-1UL);
 
 	return (0);
@@ -422,9 +433,10 @@ vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 	return (0);
 }
 
+/*ARGSUSED*/
 int
 vn_openat(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2,
-    int x3, vnode_t *startvp)
+    int x3, vnode_t *startvp, int fd)
 {
 	char *realpath = umem_alloc(strlen(path) + 2, UMEM_NOFAIL);
 	int ret;
@@ -432,6 +444,7 @@ vn_openat(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2,
 	ASSERT(startvp == rootdir);
 	(void) sprintf(realpath, "/%s", path);
 
+	/* fd ignored for now, need if want to simulate nbmand support */
 	ret = vn_open(realpath, x1, flags, mode, vpp, x2, x3);
 
 	umem_free(realpath, strlen(path) + 2);
@@ -469,7 +482,7 @@ vn_rdwr(int uio, vnode_t *vp, void *addr, ssize_t len, offset_t offset,
 }
 
 void
-vn_close(vnode_t *vp)
+vn_close(vnode_t *vp, int openflag, cred_t *cr, kthread_t *td)
 {
 	close(vp->v_fd);
 	spa_strfree(vp->v_path);
@@ -657,7 +670,8 @@ kobj_open_file(char *name)
 	vnode_t *vp;
 
 	/* set vp as the _fd field of the file */
-	if (vn_openat(name, UIO_SYSSPACE, FREAD, 0, &vp, 0, 0, rootdir) != 0)
+	if (vn_openat(name, UIO_SYSSPACE, FREAD, 0, &vp, 0, 0, rootdir,
+	    -1) != 0)
 		return ((void *)-1UL);
 
 	file = umem_zalloc(sizeof (struct _buf), UMEM_NOFAIL);
@@ -679,7 +693,7 @@ kobj_read_file(struct _buf *file, char *buf, unsigned size, unsigned off)
 void
 kobj_close_file(struct _buf *file)
 {
-	vn_close((vnode_t *)file->_fd);
+	vn_close((vnode_t *)file->_fd, 0, NULL, NULL);
 	umem_free(file, sizeof (struct _buf));
 }
 
@@ -690,7 +704,7 @@ kobj_get_filesize(struct _buf *file, uint64_t *size)
 	vnode_t *vp = (vnode_t *)file->_fd;
 
 	if (fstat64(vp->v_fd, &st) == -1) {
-		vn_close(vp);
+		vn_close(vp, 0, NULL, NULL);
 		return (errno);
 	}
 	*size = st.st_size;
@@ -746,10 +760,11 @@ highbit(ulong_t i)
 }
 #endif
 
+static int random_fd = -1, urandom_fd = -1;
+
 static int
-random_get_bytes_common(uint8_t *ptr, size_t len, char *devname)
+random_get_bytes_common(uint8_t *ptr, size_t len, int fd)
 {
-	int fd = open(devname, O_RDONLY);
 	size_t resid = len;
 	ssize_t bytes;
 
@@ -757,12 +772,10 @@ random_get_bytes_common(uint8_t *ptr, size_t len, char *devname)
 
 	while (resid != 0) {
 		bytes = read(fd, ptr, resid);
-		ASSERT(bytes >= 0);
+		ASSERT3S(bytes, >=, 0);
 		ptr += bytes;
 		resid -= bytes;
 	}
-
-	close(fd);
 
 	return (0);
 }
@@ -770,13 +783,13 @@ random_get_bytes_common(uint8_t *ptr, size_t len, char *devname)
 int
 random_get_bytes(uint8_t *ptr, size_t len)
 {
-	return (random_get_bytes_common(ptr, len, "/dev/random"));
+	return (random_get_bytes_common(ptr, len, random_fd));
 }
 
 int
 random_get_pseudo_bytes(uint8_t *ptr, size_t len)
 {
-	return (random_get_bytes_common(ptr, len, "/dev/urandom"));
+	return (random_get_bytes_common(ptr, len, urandom_fd));
 }
 
 int
@@ -815,7 +828,11 @@ kernel_init(int mode)
 	dprintf("physmem = %llu pages (%.2f GB)\n", physmem,
 	    (double)physmem * sysconf(_SC_PAGE_SIZE) / (1ULL << 30));
 
-	snprintf(hw_serial, sizeof (hw_serial), "%ld", gethostid());
+	snprintf(hw_serial, sizeof (hw_serial), "%lu",
+	    (unsigned long)gethostid());
+
+	VERIFY((random_fd = open("/dev/random", O_RDONLY)) != -1);
+	VERIFY((urandom_fd = open("/dev/urandom", O_RDONLY)) != -1);
 
 	spa_init(mode);
 }
@@ -824,6 +841,12 @@ void
 kernel_fini(void)
 {
 	spa_fini();
+
+	close(random_fd);
+	close(urandom_fd);
+
+	random_fd = -1;
+	urandom_fd = -1;
 }
 
 int
@@ -849,4 +872,63 @@ z_compress_level(void *dst, size_t *dstlen, const void *src, size_t srclen,
 		*dstlen = (size_t)len;
 
 	return (ret);
+}
+
+uid_t
+crgetuid(cred_t *cr)
+{
+	return (0);
+}
+
+gid_t
+crgetgid(cred_t *cr)
+{
+	return (0);
+}
+
+int
+crgetngroups(cred_t *cr)
+{
+	return (0);
+}
+
+gid_t *
+crgetgroups(cred_t *cr)
+{
+	return (NULL);
+}
+
+int
+zfs_secpolicy_snapshot_perms(const char *name, cred_t *cr)
+{
+	return (0);
+}
+
+int
+zfs_secpolicy_rename_perms(const char *from, const char *to, cred_t *cr)
+{
+	return (0);
+}
+
+int
+zfs_secpolicy_destroy_perms(const char *name, cred_t *cr)
+{
+	return (0);
+}
+
+ksiddomain_t *
+ksid_lookupdomain(const char *dom)
+{
+	ksiddomain_t *kd;
+
+	kd = umem_zalloc(sizeof (ksiddomain_t), UMEM_NOFAIL);
+	kd->kd_name = spa_strdup(dom);
+	return (kd);
+}
+
+void
+ksiddomain_rele(ksiddomain_t *ksid)
+{
+	spa_strfree(ksid->kd_name);
+	umem_free(ksid, sizeof (ksiddomain_t));
 }

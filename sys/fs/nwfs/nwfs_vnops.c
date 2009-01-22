@@ -804,7 +804,7 @@ static int nwfs_strategy (ap)
 	 */
 	if ((bp->b_flags & B_ASYNC) == 0 )
 		error = nwfs_doio(ap->a_vp, bp, cr, td);
-	return (error);
+	return (0);
 }
 
 

@@ -46,6 +46,13 @@
 #define	_PATH_WTMP	"/var/log/wtmp"
 #define	_PATH_LASTLOG	"/var/log/lastlog"
 
+/*
+ * XXX: These values are too low, but cannot be changed without breaking
+ * the file format.  Right now pts(4) is limited to 1000 instances,
+ * because /dev/pts/1000 would require UT_LINESIZE to be bigger.
+ * UT_HOSTSIZE is also too small to hold most common hostnames or IPv6
+ * addresses.
+ */
 #define	UT_NAMESIZE	16	/* see MAXLOGNAME in <sys/param.h> */
 #define	UT_LINESIZE	8
 #define	UT_HOSTSIZE	16

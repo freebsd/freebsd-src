@@ -150,8 +150,8 @@
 #else /* !notyet */
 #define	EXT2_INODES_PER_BLOCK(s)	((s)->s_inodes_per_block)
 /* Should be sizeof(struct ext2_inode): */
-#define EXT2_INODE_SIZE			128
-#define EXT2_FIRST_INO			11
+#define EXT2_INODE_SIZE(s)		((s)->s_inode_size)
+#define EXT2_FIRST_INO(s)		((s)->s_first_inode)
 #endif /* notyet */
 
 /*

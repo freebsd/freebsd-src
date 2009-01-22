@@ -73,6 +73,12 @@ __FBSDID("$FreeBSD$");
 #define	MAXFILES (maxproc * 2)
 #endif
 
+/* Values of enum VM_GUEST members are used as indices in 
+ * vm_guest_sysctl_names */
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
+
+static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
+
 int	hz;
 int	tick;
 int	maxusers;			/* base tunable */
@@ -86,6 +92,7 @@ int	nswbuf;
 int	maxswzone;			/* max swmeta KVA storage */
 int	maxbcache;			/* max buffer cache KVA storage */
 int	maxpipekva;			/* Limit on pipe KVA */
+int 	vm_guest;			/* Running as virtual machine guest? */
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
 u_long	maxdsiz;			/* max data size */
@@ -110,6 +117,9 @@ SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RDTUN, &maxssiz, 0,
     "max stack size");
 SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
     "amount to grow stack");
+SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
+    NULL, 0, sysctl_kern_vm_guest, "A",
+    "Virtual machine detected? (none|generic|xen)");
 
 /*
  * These have to be allocated somewhere; allocating
@@ -117,6 +127,21 @@ SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
  * (if they've been externed everywhere else; hah!).
  */
 struct	buf *swbuf;
+
+static const char *const vm_guest_sysctl_names[] = {
+	"none",
+	"generic",
+	"xen",
+	NULL
+};
+
+#ifndef XEN
+static const char *const vm_bnames[] = {
+	"QEMU",				/* QEMU */
+	"Plex86",			/* Plex86 */
+	"Bochs",			/* Bochs */
+	NULL
+};
 
 static const char *const vm_pnames[] = {
 	"VMware Virtual Platform",	/* VMWare VM */
@@ -126,21 +151,37 @@ static const char *const vm_pnames[] = {
 	NULL
 };
 
-static int
+
+/*
+ * Detect known Virtual Machine hosts by inspecting the emulated BIOS.
+ */
+static enum VM_GUEST
 detect_virtual(void)
 {
 	char *sysenv;
 	int i;
 
+	sysenv = getenv("smbios.bios.vendor");
+	if (sysenv != NULL) {
+		for (i = 0; vm_bnames[i] != NULL; i++)
+			if (strcmp(sysenv, vm_bnames[i]) == 0) {
+				freeenv(sysenv);
+				return (VM_GUEST_VM);
+			}
+		freeenv(sysenv);
+	}
 	sysenv = getenv("smbios.system.product");
 	if (sysenv != NULL) {
-		for (i = 0; vm_pnames[i] != NULL; i++) {
-			if (strcmp(sysenv, vm_pnames[i]) == 0)
-				return 1;
-		}
+		for (i = 0; vm_pnames[i] != NULL; i++)
+			if (strcmp(sysenv, vm_pnames[i]) == 0) {
+				freeenv(sysenv);
+				return (VM_GUEST_VM);
+			}
+		freeenv(sysenv);
 	}
-	return 0;
+	return (VM_GUEST_NO);
 }
+#endif
 
 /*
  * Boot time overrides that are not scaled against main memory
@@ -148,16 +189,15 @@ detect_virtual(void)
 void
 init_param1(void)
 {
-
+#ifndef XEN
+	vm_guest = detect_virtual();
+#else
+	vm_guest = VM_GUEST_XEN;
+#endif
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
-	if (hz == -1) {
-		if (detect_virtual()) {
-			hz = HZ_VM;
-		} else {
-			hz = HZ;
-		}
-	}
+	if (hz == -1)
+		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
 	tick = 1000000 / hz;
 
 #ifdef VM_SWZONE_SIZE_MAX
@@ -243,4 +283,14 @@ init_param3(long kmempages)
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
 	TUNABLE_INT_FETCH("kern.ipc.maxpipekva", &maxpipekva);
+}
+
+/*
+ * Sysctl stringiying handler for kern.vm_guest.
+ */
+static int
+sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)
+{
+	return (SYSCTL_OUT(req, vm_guest_sysctl_names[vm_guest], 
+	    strlen(vm_guest_sysctl_names[vm_guest])));
 }

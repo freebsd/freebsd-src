@@ -467,7 +467,6 @@ atausb2_transfer_start(struct atausb2_softc *sc, uint8_t xfer_no)
 	} else {
 		atausb2_cancel_request(sc);
 	}
-	return;
 }
 
 static void
@@ -508,7 +507,6 @@ atausb2_t_bbb_reset2_callback(struct usb2_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_RESET3,
 	    ATAUSB_T_BBB_DATA_READ);
-	return;
 }
 
 static void
@@ -516,7 +514,6 @@ atausb2_t_bbb_reset3_callback(struct usb2_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_COMMAND,
 	    ATAUSB_T_BBB_DATA_WRITE);
-	return;
 }
 
 static void
@@ -650,7 +647,6 @@ atausb2_t_bbb_data_rd_cs_callback(struct usb2_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_STATUS,
 	    ATAUSB_T_BBB_DATA_READ);
-	return;
 }
 
 static void
@@ -704,7 +700,6 @@ atausb2_t_bbb_data_wr_cs_callback(struct usb2_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_STATUS,
 	    ATAUSB_T_BBB_DATA_WRITE);
-	return;
 }
 
 static void
@@ -778,11 +773,12 @@ atausb2_t_bbb_status_callback(struct usb2_xfer *xfer)
 
 		sc->ata_request = NULL;
 
-		USB_XFER_UNLOCK(xfer);
+		/* drop the USB transfer lock while doing the ATA interrupt */
+		mtx_unlock(&sc->locked_mtx);
 
 		ata_interrupt(device_get_softc(request->parent));
 
-		USB_XFER_LOCK(xfer);
+		mtx_lock(&sc->locked_mtx);
 		return;
 
 	case USB_ST_SETUP:
@@ -824,7 +820,6 @@ atausb2_cancel_request(struct atausb2_softc *sc)
 
 		mtx_lock(&sc->locked_mtx);
 	}
-	return;
 }
 
 static void
@@ -841,8 +836,6 @@ atausb2_tr_error(struct usb2_xfer *xfer)
 		}
 	}
 	atausb2_cancel_request(sc);
-
-	return;
 }
 
 /*
@@ -1048,7 +1041,6 @@ ata_usbchannel_setmode(device_t parent, device_t dev)
 		atadev->mode = ATA_USB2;
 	else
 		atadev->mode = ATA_USB1;
-	return;
 }
 
 static int

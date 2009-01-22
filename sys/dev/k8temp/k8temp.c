@@ -187,7 +187,11 @@ k8temp_attach(device_t dev)
 	 */
 	sc->sc_ich.ich_func = k8temp_intrhook;
 	sc->sc_ich.ich_arg = dev;
-	config_intrhook_establish(&sc->sc_ich);
+	if (config_intrhook_establish(&sc->sc_ich) != 0) {
+		device_printf(dev, "config_intrhook_establish "
+		    "failed!\n");
+		return (ENXIO);
+	}
 	
 	/*
 	 * dev.k8temp.N tree.

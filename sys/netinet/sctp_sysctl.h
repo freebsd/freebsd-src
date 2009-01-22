@@ -74,6 +74,8 @@ struct sctp_sysctl {
 	uint32_t sctp_nr_outgoing_streams_default;
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_cmt_use_dac;
+/* EY 5/5/08 - nr_sack flag variable */
+	uint32_t sctp_nr_sack_on_off;
 	uint32_t sctp_cmt_pf;
 	uint32_t sctp_use_cwnd_based_maxburst;
 	uint32_t sctp_early_fr;
@@ -95,6 +97,7 @@ struct sctp_sysctl {
 	uint32_t sctp_default_frag_interleave;
 	uint32_t sctp_mobility_base;
 	uint32_t sctp_mobility_fasthandoff;
+	uint32_t sctp_inits_include_nat_friendly;
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_log sctp_log;
 #endif
@@ -322,6 +325,12 @@ struct sctp_sysctl {
 #define SCTPCTL_CMT_ON_OFF_MAX		1
 #define SCTPCTL_CMT_ON_OFF_DEFAULT	0
 
+/* EY - nr_sack_on_off: NR_SACK on/off flag */
+#define SCTPCTL_NR_SACK_ON_OFF_DESC	"NR_SACK on/off flag"
+#define SCTPCTL_NR_SACK_ON_OFF_MIN	0
+#define SCTPCTL_NR_SACK_ON_OFF_MAX	1
+#define SCTPCTL_NR_SACK_ON_OFF_DEFAULT	0
+
 /* cmt_use_dac: CMT DAC on/off flag */
 #define SCTPCTL_CMT_USE_DAC_DESC	"CMT DAC on/off flag"
 #define SCTPCTL_CMT_USE_DAC_MIN		0
@@ -465,6 +474,13 @@ struct sctp_sysctl {
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN	0
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_MAX	1
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DEFAULT	SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN
+
+/* Enable sending of the SACK-IMMEDIATELY bit */
+#define SCTPCTL_NAT_FRIENDLY_INITS	"Enable sending of the nat-friendly SCTP option on INITs."
+#define SCTPCTL_NAT_FRIENDLY_INITS_MIN	0
+#define SCTPCTL_NAT_FRIENDLY_INITS_MAX	1
+#define SCTPCTL_NAT_FRIENDLY_INITS_DEFAULT	SCTPCTL_NAT_FRIENDLY_INITS_MIN
+
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */

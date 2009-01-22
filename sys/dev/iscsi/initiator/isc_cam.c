@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -193,6 +193,23 @@ _inq(struct cam_sim *sim, union ccb *ccb, int maxluns)
      cpi->ccb_h.status = CAM_REQ_CMP;
 }
 
+static __inline int
+_scsi_encap(struct cam_sim *sim, union ccb *ccb)
+{
+     int		ret;
+
+#if __FreeBSD_version < 700000
+     ret = scsi_encap(sim, ccb);
+#else
+     struct isc_softc	*isp = (struct isc_softc *)cam_sim_softc(sim);
+
+     mtx_unlock(&isp->cam_mtx);
+     ret = scsi_encap(sim, ccb);
+     mtx_lock(&isp->cam_mtx);
+#endif
+     return ret;
+}
+
 static void
 ic_action(struct cam_sim *sim, union ccb *ccb)
 {
@@ -281,17 +298,8 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	       ccb_h->status = CAM_LUN_INVALID;
 	       break;
 	  }
-#if __FreeBSD_version < 700000
-	  if(scsi_encap(sim, ccb) != 0)
+	  if(_scsi_encap(sim, ccb) != 0)
 	       return;
-#else
-	  mtx_unlock(&isp->cam_mtx);
-	  if(scsi_encap(sim, ccb) != 0) {
-	       mtx_lock(&isp->cam_mtx);
-	       return;
-	  }
-	  mtx_lock(&isp->cam_mtx);
-#endif
 	  break;
      }
  
@@ -396,7 +404,11 @@ ic_init(struct isc_softc *isp)
 	  return ENXIO;
      }
      CAM_LOCK(isp);
-     if(xpt_bus_register(sim, NULL, 0/*bus_number*/) != CAM_SUCCESS)
+     if(xpt_bus_register(sim,
+#if __FreeBSD_version >= 700000
+			 NULL,
+#endif
+			 0/*bus_number*/) != CAM_SUCCESS)
 	  goto bad;
 
      if(xpt_create_path(&path, xpt_periph, cam_sim_path(sim),

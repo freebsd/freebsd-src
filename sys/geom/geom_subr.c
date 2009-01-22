@@ -370,7 +370,7 @@ g_destroy_geom(struct g_geom *gp)
 }
 
 /*
- * This function is called (repeatedly) until the has withered away.
+ * This function is called (repeatedly) until the geom has withered away.
  */
 void
 g_wither_geom(struct g_geom *gp, int error)

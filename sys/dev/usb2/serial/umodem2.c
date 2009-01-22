@@ -92,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -168,21 +167,25 @@ static usb2_callback_t umodem_read_callback;
 static usb2_callback_t umodem_write_clear_stall_callback;
 static usb2_callback_t umodem_read_clear_stall_callback;
 
-static void umodem_start_read(struct usb2_com_softc *ucom);
-static void umodem_stop_read(struct usb2_com_softc *ucom);
-static void umodem_start_write(struct usb2_com_softc *ucom);
-static void umodem_stop_write(struct usb2_com_softc *ucom);
-static void umodem_get_caps(struct usb2_attach_arg *uaa, uint8_t *cm, uint8_t *acm);
-static void umodem_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr);
-static int umodem_pre_param(struct usb2_com_softc *ucom, struct termios *t);
-static void umodem_cfg_param(struct usb2_com_softc *ucom, struct termios *t);
-static int umodem_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data, int flag, struct thread *td);
-static void umodem_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff);
-static void umodem_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff);
-static void umodem_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff);
-static void *umodem_get_desc(struct usb2_attach_arg *uaa, uint8_t type, uint8_t subtype);
-static usb2_error_t umodem_set_comm_feature(struct usb2_device *udev, uint8_t iface_no, uint16_t feature, uint16_t state);
-static void umodem_cfg_do_request(struct umodem_softc *sc, struct usb2_device_request *req, void *data);
+static void	umodem_start_read(struct usb2_com_softc *);
+static void	umodem_stop_read(struct usb2_com_softc *);
+static void	umodem_start_write(struct usb2_com_softc *);
+static void	umodem_stop_write(struct usb2_com_softc *);
+static void	umodem_get_caps(struct usb2_attach_arg *, uint8_t *, uint8_t *);
+static void	umodem_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+		    uint8_t *);
+static int	umodem_pre_param(struct usb2_com_softc *, struct termios *);
+static void	umodem_cfg_param(struct usb2_com_softc *, struct termios *);
+static int	umodem_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
+		    struct thread *);
+static void	umodem_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
+static void	umodem_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	umodem_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	*umodem_get_desc(struct usb2_attach_arg *, uint8_t, uint8_t);
+static usb2_error_t umodem_set_comm_feature(struct usb2_device *, uint8_t,
+		    uint16_t, uint16_t);
+static void	umodem_cfg_do_request(struct umodem_softc *,
+		    struct usb2_device_request *, void *);
 
 static const struct usb2_config umodem_config_data[UMODEM_N_DATA_TRANSFER] = {
 
@@ -423,7 +426,6 @@ umodem_start_read(struct usb2_com_softc *ucom)
 	}
 	/* start read endpoint */
 	usb2_transfer_start(sc->sc_xfer_data[1]);
-	return;
 }
 
 static void
@@ -438,7 +440,6 @@ umodem_stop_read(struct usb2_com_softc *ucom)
 	/* stop read endpoint */
 	usb2_transfer_stop(sc->sc_xfer_data[3]);
 	usb2_transfer_stop(sc->sc_xfer_data[1]);
-	return;
 }
 
 static void
@@ -447,7 +448,6 @@ umodem_start_write(struct usb2_com_softc *ucom)
 	struct umodem_softc *sc = ucom->sc_parent;
 
 	usb2_transfer_start(sc->sc_xfer_data[0]);
-	return;
 }
 
 static void
@@ -457,7 +457,6 @@ umodem_stop_write(struct usb2_com_softc *ucom)
 
 	usb2_transfer_stop(sc->sc_xfer_data[2]);
 	usb2_transfer_stop(sc->sc_xfer_data[0]);
-	return;
 }
 
 static void
@@ -481,8 +480,6 @@ umodem_get_caps(struct usb2_attach_arg *uaa, uint8_t *cm, uint8_t *acm)
 		return;
 	}
 	*acm = cad->bmCapabilities;
-
-	return;
 }
 
 static void
@@ -494,7 +491,6 @@ umodem_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
-	return;
 }
 
 static int
@@ -550,7 +546,6 @@ umodem_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	USETW(req.wLength, sizeof(ls));
 
 	umodem_cfg_do_request(sc, &req, &ls);
-	return;
 }
 
 static int
@@ -603,7 +598,6 @@ umodem_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wLength, 0);
 
 	umodem_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -627,7 +621,6 @@ umodem_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 	USETW(req.wLength, 0);
 
 	umodem_cfg_do_request(sc, &req, NULL);
-	return;
 }
 
 static void
@@ -652,7 +645,6 @@ umodem_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 
 		umodem_cfg_do_request(sc, &req, NULL);
 	}
-	return;
 }
 
 static void
@@ -756,7 +748,6 @@ umodem_intr_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UMODEM_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -801,7 +792,6 @@ umodem_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UMODEM_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -847,7 +837,6 @@ umodem_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flag &= ~UMODEM_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void *
@@ -919,5 +908,4 @@ error:
 			bzero(data, length);
 		}
 	}
-	return;
 }

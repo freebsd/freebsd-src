@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 
 #include <term_entry.h>
 
-MODULE_ID("$Id: lib_termcap.c,v 1.61 2007/06/02 19:36:03 tom Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.63 2008/08/16 19:22:55 tom Exp $")
 
 NCURSES_EXPORT_VAR(char *) UP = 0;
 NCURSES_EXPORT_VAR(char *) BC = 0;
@@ -148,7 +148,7 @@ tgetent(char *bufp, const char *name)
     if (errcode == 1) {
 
 	if (cursor_left)
-	    if ((backspaces_with_bs = !strcmp(cursor_left, "\b")) == 0)
+	    if ((backspaces_with_bs = (char) !strcmp(cursor_left, "\b")) == 0)
 		backspace_if_not_bs = cursor_left;
 
 	/* we're required to export these */
@@ -170,6 +170,7 @@ tgetent(char *bufp, const char *name)
 	LAST_BUF = bufp;
 	LAST_USE = TRUE;
 
+	SetNoPadding(SP);
 	(void) baudrate();	/* sets ospeed as a side-effect */
 
 /* LINT_PREPRO

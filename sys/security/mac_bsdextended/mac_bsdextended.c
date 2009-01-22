@@ -57,6 +57,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
@@ -522,4 +523,4 @@ static struct mac_policy_ops ugidfw_ops =
 };
 
 MAC_POLICY_SET(&ugidfw_ops, mac_bsdextended, "TrustedBSD MAC/BSD Extended",
-    MPC_LOADTIME_FLAG_UNLOADOK, NULL, 0);
+    MPC_LOADTIME_FLAG_UNLOADOK, NULL);

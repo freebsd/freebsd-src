@@ -81,6 +81,7 @@ FBSD_1.1 {
 	ffsll;
 	flsll;
 	memrchr;
+	strndup;
 };
 
 FBSDprivate_1.0 {

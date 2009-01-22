@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,11 +42,12 @@
 #include <progs.priv.h>
 
 #if !PURE_TERMINFO
+#include <dump_entry.h>
 #include <termsort.c>
 #endif
 #include <transform.h>
 
-MODULE_ID("$Id: tput.c,v 1.41 2007/10/13 20:34:16 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.42 2008/07/13 11:05:12 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 #define PUTCHAR(c)	putchar(c)

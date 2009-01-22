@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2005 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#10 $
  */
 
 #include <sys/types.h>
@@ -71,20 +71,15 @@ auditwarnlog(char *args[])
 }
 
 /*
- * Indicates that the hard limit for all filesystems has been exceeded count
- * times.
+ * Indicates that the hard limit for all filesystems has been exceeded.
  */
 int
-audit_warn_allhard(int count)
+audit_warn_allhard(void)
 {
-	char intstr[12];
-	char *args[3];
-
-	snprintf(intstr, 12, "%d", count);
+	char *args[2];
 
 	args[0] = HARDLIM_ALL_WARN;
-	args[1] = intstr;
-	args[2] = NULL;
+	args[1] = NULL;
 
 	return (auditwarnlog(args));
 }

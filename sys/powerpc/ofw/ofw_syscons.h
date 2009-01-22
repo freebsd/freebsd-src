@@ -51,6 +51,7 @@ struct ofwfb_softc {
 
 	vi_blank_display_t *sc_blank;
 	vi_putc_t	*sc_putc;
+	vi_putm_t	*sc_putm;
 	vi_set_border_t	*sc_set_border;
 
 #define OFWSC_MAXADDR	8

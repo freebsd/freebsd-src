@@ -49,6 +49,7 @@
 #include <dev/usb2/core/usb2_device.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_util.h>
+#include <dev/usb2/core/usb2_lookup.h>
 
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -70,8 +71,7 @@ enum {
 	DIR_NONE,
 };
 
-#define	BULK_SIZE 64			/* dummy */
-
+#define	BULK_SIZE		64	/* dummy */
 
 /* Command Block Wrapper */
 struct bbb_cbw {
@@ -169,7 +169,7 @@ static const struct usb2_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.mh.bufsize = BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.mh.flags = {.proxy_buffer = 1,},
 		.mh.callback = &bbb_data_write_callback,
 		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -219,7 +219,6 @@ bbb_done(struct bbb_transfer *sc, uint8_t error)
 	sc->state = ST_COMMAND;
 	sc->status_try = 1;
 	usb2_cv_signal(&sc->cv);
-	return;
 }
 
 static void
@@ -227,7 +226,6 @@ bbb_transfer_start(struct bbb_transfer *sc, uint8_t xfer_index)
 {
 	sc->state = xfer_index;
 	usb2_transfer_start(sc->xfer[xfer_index]);
-	return;
 }
 
 static void
@@ -247,7 +245,6 @@ bbb_data_clear_stall_callback(struct usb2_xfer *xfer,
 			break;
 		}
 	}
-	return;
 }
 
 static void
@@ -272,6 +269,7 @@ bbb_command_callback(struct usb2_xfer *xfer)
 		USETDW(sc->cbw.dCBWDataTransferLength, sc->data_len);
 		sc->cbw.bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
 		sc->cbw.bCBWLUN = sc->lun;
+		sc->cbw.bCDBLength = sc->cmd_len;
 		if (sc->cbw.bCDBLength > sizeof(sc->cbw.CBWCDB)) {
 			sc->cbw.bCDBLength = sizeof(sc->cbw.CBWCDB);
 			DPRINTFN(0, "Truncating long command!\n");
@@ -286,7 +284,6 @@ bbb_command_callback(struct usb2_xfer *xfer)
 		bbb_done(sc, 1);
 		break;
 	}
-	return;
 }
 
 static void
@@ -331,7 +328,6 @@ bbb_data_read_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -339,7 +335,6 @@ bbb_data_rd_cs_callback(struct usb2_xfer *xfer)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_RD);
-	return;
 }
 
 static void
@@ -392,7 +387,6 @@ bbb_data_wr_cs_callback(struct usb2_xfer *xfer)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_WR);
-	return;
 }
 
 static void
@@ -434,7 +428,6 @@ bbb_status_callback(struct usb2_xfer *xfer)
 		}
 		break;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -474,7 +467,8 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
  * Else: Not an auto install disk.
  *------------------------------------------------------------------------*/
 usb2_error_t
-usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index)
+usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index,
+    uint8_t do_eject)
 {
 	struct usb2_interface *iface;
 	struct usb2_interface_descriptor *id;
@@ -534,22 +528,40 @@ usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index)
 repeat_inquiry:
 
 	sc->cbw.CBWCDB[0] = 0x12;	/* INQUIRY */
+	sc->cbw.CBWCDB[1] = 0;
+	sc->cbw.CBWCDB[2] = 0;
+	sc->cbw.CBWCDB[3] = 0;
+	sc->cbw.CBWCDB[4] = 0x24;	/* length */
+	sc->cbw.CBWCDB[5] = 0;
+	err = bbb_command_start(sc, DIR_IN, 0,
+	    sc->buffer, 0x24, 6, USB_MS_HZ);
 
-	err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 256, 6, USB_MS_HZ);
-	if (err) {
-		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 256, 12, USB_MS_HZ);
-		if (err) {
-			err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 256, 16, USB_MS_HZ);
-		}
-	}
 	if ((sc->actlen != 0) && (err == 0)) {
 		sid_type = sc->buffer[0] & 0x1F;
 		if (sid_type == 0x05) {
 			/* CD-ROM */
-			/* XXX could investigate more */
-			return (0);
+			if (do_eject) {
+				/* 0: opcode: SCSI START/STOP */
+				sc->cbw.CBWCDB[0] = 0x1b;
+				/* 1: byte2: Not immediate */
+				sc->cbw.CBWCDB[1] = 0x00;
+				/* 2..3: reserved */
+				sc->cbw.CBWCDB[2] = 0x00;
+				sc->cbw.CBWCDB[3] = 0x00;
+				/* 4: Load/Eject command */
+				sc->cbw.CBWCDB[4] = 0x02;
+				/* 5: control */
+				sc->cbw.CBWCDB[5] = 0x00;
+				err = bbb_command_start(sc, DIR_OUT, 0,
+				    NULL, 0, 6, USB_MS_HZ);
+
+				DPRINTFN(0, "Eject CD command "
+				    "status: %s\n", usb2_errstr(err));
+			}
+			err = 0;
+			goto done;
 		}
-	} else if (--timeout) {
+	} else if ((err != 2) && --timeout) {
 		usb2_pause_mtx(&sc->mtx, USB_MS_HZ);
 		goto repeat_inquiry;
 	}
@@ -563,50 +575,4 @@ done:
 	usb2_cv_destroy(&sc->cv);
 	free(sc, M_USB);
 	return (err);
-}
-
-/*
- * Huawei Exxx radio devices have a built in flash disk which is their
- * default power up configuration. This allows the device to carry its
- * own installation software.
- *
- * Instead of following the USB spec, and create multiple
- * configuration descriptors for this, the devices expects the driver
- * to send UF_DEVICE_REMOTE_WAKEUP to endpoint 2 to reset the device,
- * so it reprobes, now with the radio exposed.
- */
-
-usb2_error_t
-usb2_test_huawei(struct usb2_device *udev, uint8_t iface_index)
-{
-	struct usb2_device_request req;
-	struct usb2_interface *iface;
-	struct usb2_interface_descriptor *id;
-	usb2_error_t err;
-
-	if (udev == NULL) {
-		return (USB_ERR_INVAL);
-	}
-	iface = usb2_get_iface(udev, iface_index);
-	if (iface == NULL) {
-		return (USB_ERR_INVAL);
-	}
-	id = iface->idesc;
-	if (id == NULL) {
-		return (USB_ERR_INVAL);
-	}
-	if (id->bInterfaceClass != UICLASS_MASS) {
-		return (USB_ERR_INVAL);
-	}
-	/* Bend it like Beckham */
-	req.bmRequestType = UT_WRITE_DEVICE;
-	req.bRequest = UR_SET_FEATURE;
-	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
-	USETW(req.wIndex, 2);
-	USETW(req.wLength, 0);
-
-	/* We get error at return, but it works */
-	err = usb2_do_request_flags(udev, NULL, &req, NULL, 0, NULL, 1 * USB_MS_HZ);
-
-	return (0);			/* success */
 }

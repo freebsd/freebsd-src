@@ -71,6 +71,74 @@ struct reg_val {
 	unsigned short set_bits;
 };
 
+static int ael2005_i2c_rd(struct cphy *phy, int dev_addr, int word_addr);
+
+static int get_module_type (struct cphy *phy, int hint)
+{
+	int v;
+
+	v = hint ? hint : ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 0);
+	if (v < 0)
+		return v;
+
+	if (v == 0x3) {
+		/* SFP: see SFF-8472 for below */
+		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 3);
+		if (v < 0)
+			return v;
+
+		if (v == 0x1)
+			return phy_modtype_twinax;
+		if (v == 0x10)
+			return phy_modtype_sr;
+		if (v == 0x20)
+			return phy_modtype_lr;
+		if (v == 0x40)
+			return phy_modtype_lrm;
+
+		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 6);
+		if (v < 0)
+			return v;
+		if (v != 4)
+			return phy_modtype_unknown;
+
+		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 10);
+		if (v < 0)
+			return v;
+
+		if (v & 0x80) {
+			v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 0x12);
+			if (v < 0)
+				return v;
+			return v > 10 ? phy_modtype_twinax_long :
+			    phy_modtype_twinax;
+		}
+	} else if (v == 0x6) {
+		/* XFP: See INF-8077i for details. */
+
+		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 127);
+		if (v < 0)
+			return v;
+
+		if (v != 1) {
+			/* XXX: set page select to table 1 yourself */
+			return phy_modtype_unknown;
+		}
+
+		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 131);
+		if (v < 0)
+			return v;
+		if (v == 0x10)
+			return phy_modtype_lrm;
+		if (v == 0x40)
+			return phy_modtype_lr;
+		if (v == 0x80)
+			return phy_modtype_sr;
+	}
+
+	return phy_modtype_unknown;
+}
+
 static int set_phy_regs(struct cphy *phy, const struct reg_val *rv)
 {
 	int err;
@@ -107,6 +175,18 @@ static int ael1002_power_down(struct cphy *phy, int enable)
 	return err;
 }
 
+static int ael1002_get_module_type(struct cphy *phy, int delay_ms)
+{
+	int v;
+
+	if (delay_ms)
+		msleep(delay_ms);
+
+	v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 0);
+
+	return v == -ETIMEDOUT ? phy_modtype_none : get_module_type(phy, v);
+}
+
 static int ael1002_reset(struct cphy *phy, int wait)
 {
 	int err;
@@ -119,6 +199,11 @@ static int ael1002_reset(struct cphy *phy, int wait)
 	    (err = t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, AEL1002_LB_EN,
 				       0, 1 << 5)))
 		return err;
+
+	err = ael1002_get_module_type(phy, 300);
+	if (err >= 0)
+		phy->modtype = err;
+
 	return 0;
 }
 
@@ -182,16 +267,47 @@ static struct cphy_ops ael1002_ops = {
 int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			const struct mdio_ops *mdio_ops)
 {
+	int err;
+
 	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
 		  "10GBASE-R");
 	ael100x_txon(phy);
+
+	err = ael1002_get_module_type(phy, 0);
+	if (err >= 0)
+		phy->modtype = err;
+
 	return 0;
 }
 
 static int ael1006_reset(struct cphy *phy, int wait)
 {
-	return t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	u32 gpio_out;
+	t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	/* Hack to reset the phy correctly */
+	/* Read out the current value */
+	gpio_out = t3_read_reg(phy->adapter, A_T3DBG_GPIO_EN);
+	/* Reset the phy */
+	gpio_out &= ~F_GPIO6_OUT_VAL;
+	t3_write_reg(phy->adapter, A_T3DBG_GPIO_EN, gpio_out); 
+	msleep(125);
+	/* Take the phy out of reset */
+	gpio_out |= F_GPIO6_OUT_VAL;
+	t3_write_reg(phy->adapter, A_T3DBG_GPIO_EN, gpio_out);
+	msleep(125);
+	t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+
+       /* Phy loopback work around for ael1006 */
+       /* Soft reset phy by toggling loopback  */
+       msleep(125);
+       /* Put phy into local loopback */
+       t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 0, 1);
+       msleep(125);
+       /* Take phy out of local loopback */
+       t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 1, 0);
+
+	return 0;
 }
 
 static int ael1006_power_down(struct cphy *phy, int enable)
@@ -959,7 +1075,7 @@ static int ael2005_i2c_rd(struct cphy *phy, int dev_addr, int word_addr)
 	return -ETIMEDOUT;
 }
 
-static int get_module_type(struct cphy *phy, int delay_ms)
+static int ael2005_get_module_type(struct cphy *phy, int delay_ms)
 {
 	int v;
 	unsigned int stat;
@@ -974,36 +1090,8 @@ static int get_module_type(struct cphy *phy, int delay_ms)
 	if (delay_ms)
 		msleep(delay_ms);
 
-	/* see SFF-8472 for below */
-	v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 3);
-	if (v < 0)
-		return v;
+	return get_module_type(phy, 0);
 
-	if (v == 0x10)
-		return phy_modtype_sr;
-	if (v == 0x20)
-		return phy_modtype_lr;
-	if (v == 0x40)
-		return phy_modtype_lrm;
-
-	v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 6);
-	if (v < 0)
-		return v;
-	if (v != 4)
-		goto unknown;
-
-	v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 10);
-	if (v < 0)
-		return v;
-
-	if (v & 0x80) {
-		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 0x12);
-		if (v < 0)
-			return v;
-		return v > 10 ? phy_modtype_twinax_long : phy_modtype_twinax;
-	}
-unknown:
-	return phy_modtype_unknown;
 }
 
 static int ael2005_intr_enable(struct cphy *phy)
@@ -1060,7 +1148,7 @@ static int ael2005_reset(struct cphy *phy, int wait)
 
 	msleep(50);
 
-	err = get_module_type(phy, 0);
+	err = ael2005_get_module_type(phy, 0);
 	if (err < 0)
 		return err;
 	phy->modtype = (u8)err;
@@ -1098,7 +1186,7 @@ static int ael2005_intr_handler(struct cphy *phy)
 			return ret;
 
 		/* modules have max 300 ms init time after hot plug */
-		ret = get_module_type(phy, 300);
+		ret = ael2005_get_module_type(phy, 300);
 		if (ret < 0)
 			return ret;
 
@@ -1152,10 +1240,16 @@ static struct cphy_ops ael2005_ops = {
 int t3_ael2005_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			const struct mdio_ops *mdio_ops)
 {
+	int err;
 	cphy_init(phy, adapter, phy_addr, &ael2005_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE |
 		  SUPPORTED_IRQ, "10GBASE-R");
 	msleep(125);
+
+	err = ael2005_get_module_type(phy, 0);
+	if (err >= 0)
+		phy->modtype = err;
+
 	return t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, AEL_OPT_SETTINGS, 0,
 				   1 << 5);
 }

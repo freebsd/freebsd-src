@@ -1,12 +1,26 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#26 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#34 $
 # $FreeBSD$
 #
-# The mapping between event identifiers and values is also hard-codedd in
+# The mapping between event identifiers and values is also hard-coded in
 # audit_kevents.h and audit_uevents.h, so changes must occur in both places,
 # and programs, such as the kernel, may need to be recompiled to recognize
 # those changes.  It is advisable not to change the numbering or naming of
 # kernel audit events.
+#
+# Allocation of BSM event identifier ranges:
+#
+# 0                    Reserved and invalid
+# 1     - 2047         Reserved for Solaris kernel events
+# 2048  - 5999         Reserved and unallocated
+# 6000  - 9999         Reserved for Solaris user events
+# 10000 - 32767        Reserved and unallocated
+# 32768 - 65535        Available for third party applications
+#
+# Of the third party range, OpenBSM allocates from the following ranges:
+#
+# 43000 - 44999        Reserved for OpenBSM kernel events
+# 45000 - 46999        Reserved for OpenBSM application events
 #
 0:AUE_NULL:indir system call:no
 1:AUE_EXIT:exit(2):pc
@@ -186,6 +200,7 @@
 205:AUE_SETGID:setgid(2):pc
 206:AUE_READL:readl(2):no
 207:AUE_READVL:readvl(2):no
+208:AUE_FSTAT:fstat(2):fa
 209:AUE_DUP2:dup2(2):no
 210:AUE_MMAP:mmap(2):no
 211:AUE_AUDIT:audit(2):ot
@@ -277,9 +292,10 @@
 298:AUE_PF_POLICY_FLIP:Flip IPsec policy:ad
 299:AUE_PF_POLICY_FLUSH:Flush IPsec policy rules:ad
 300:AUE_PF_POLICY_ALGS:Update IPsec algorithms:ad
+301:AUE_PORTFS:portfs:fa
 #
-# What follows are deprecated Darwin event numbers that may soon conflict
-# with Solaris events.
+# What follows are deprecated Darwin event numbers that may soon^H^H^H^Hnow
+# conflict with Solaris events.
 #
 301:AUE_DARWIN_GETFSSTAT:getfsstat(2):fa
 302:AUE_DARWIN_PTRACE:ptrace(2):pc
@@ -497,33 +513,144 @@
 43150:AUE_MKNODAT:mknodat(2):fc
 43151:AUE_READLINKAT:readlinkat(2):fr
 43152:AUE_SYMLINKAT:symlinkat(2):fc
+43153:AUE_MAC_GETFSSTAT:mac_getfsstat(2):fa
+43154:AUE_MAC_GET_MOUNT:mac_get_mount(2):fa
+43155:AUE_MAC_GET_LCID:mac_get_lcid(2):pc
+43156:AUE_MAC_GET_LCTX:mac_get_lctx(2):pc
+43157:AUE_MAC_SET_LCTX:mac_set_lctx(2):pc
+43158:AUE_MAC_MOUNT:mac_mount(2):ad
+43159:AUE_GETLCID:getlcid(2):pc
+43160:AUE_SETLCID:setlcid(2):pc
+43161:AUE_TASKNAMEFORPID:taskname_for_pid():pc
+43162:AUE_ACCESS_EXTENDED:access_extended(2):fa
+43163:AUE_CHMOD_EXTENDED:chmod_extended(2):fm
+43164:AUE_FCHMOD_EXTENDED:fchmod_extended(2):fm
+43165:AUE_FSTAT_EXTENDED:fstat_extended(2):fa
+43166:AUE_LSTAT_EXTENDED:lstat_extended(2):fa
+43167:AUE_MKDIR_EXTENDED:mkdir_extended(2):fc
+43168:AUE_MKFIFO_EXTENDED:mkfifo_extended(2):fc
+43169:AUE_OPEN_EXTENDED:open_extended(2) - attr only:fa
+43170:AUE_OPEN_EXTENDED_R:open_extended(2) - read:fr
+43171:AUE_OPEN_EXTENDED_RC:open_extended(2) - read,creat:fc,fr,fa,fm
+43172:AUE_OPEN_EXTENDED_RT:open_extended(2) - read,trunc:fd,fr,fa,fm
+43173:AUE_OPEN_EXTENDED_RTC:open_extended(2) - read,creat,trunc:fc,fd,fr,fa,fm
+43174:AUE_OPEN_EXTENDED_W:open_extended(2) - write:fw
+43175:AUE_OPEN_EXTENDED_WC:open_extended(2) - write,creat:fc,fw,fa,fm
+43176:AUE_OPEN_EXTENDED_WT:open_extended(2) - write,trunc:fd,fw,fa,fm
+43177:AUE_OPEN_EXTENDED_WTC:open_extended(2) - write,creat,trunc:fc,fd,fw,fa,fm
+43178:AUE_OPEN_EXTENDED_RW:open_extended(2) - read,write:fr,fw
+43179:AUE_OPEN_EXTENDED_RWC:open_extended(2) - read,write,creat:fc,fw,fr,fa,fm
+43180:AUE_OPEN_EXTENDED_RWT:open_extended(2) - read,write,trunc:fd,fr,fw,fa,fm
+43181:AUE_OPEN_EXTENDED_RWTC:open_extended(2) - read,write,creat,trunc:fc,fd,fw,fr,fa,fm
+43182:AUE_STAT_EXTENDED:stat_extended(2):fa
+43183:AUE_UMASK_EXTENDED:umask_extended(2):pc
+43184:AUE_OPENAT:openat(2) - attr only:fa
+43185:AUE_POSIX_OPENPT:posix_openpt(2):ip
+43186:AUE_CAP_NEW:cap_new(2):fm
+43187:AUE_CAP_GETRIGHTS:cap_getrights(2):fm
+43188:AUE_CAP_ENTER:cap_enter(2):pc
+43189:AUE_CAP_GETMODE:cap_getmode(2):pc
+43190:AUE_POSIX_SPAWN:posix_spawn(2):pc
+43191:AUE_FSGETPATH:fsgetpath(2):ot
 #
-# User space system events.
+# Solaris userspace events.
 #
+6144:AUE_at_create:at-create atjob:ad
+6145:AUE_at_delete:at-delete atjob (at or atrm):ad
+6146:AUE_at_perm:at-permission:no
+6147:AUE_cron_invoke:cron-invoke:ad
+6148:AUE_crontab_create:crontab-crontab created:ad
+6149:AUE_crontab_delete:crontab-crontab deleted:ad
+6150:AUE_crontab_perm:crontab-permission:no
+6151:AUE_inetd_connect:inetd connection:na
 6152:AUE_login:login - local:lo
 6153:AUE_logout:logout - local:lo
+6154:AUE_telnet:login - telnet:lo
+6155:AUE_rlogin:login - rlogin:lo
+6156:AUE_mountd_mount:mount:na
+6157:AUE_mountd_umount:unmount:na
+6158:AUE_rshd:rsh access:lo
 6159:AUE_su:su(1):lo
 6160:AUE_halt:system halt:ad
+6161:AUE_reboot:system reboot:ad
+6162:AUE_rexecd:rexecd:lo
+6163:AUE_passwd:passwd:lo
+6164:AUE_rexd:rexd:lo
+6165:AUE_ftpd:ftp access:lo
+6166:AUE_init:init:lo
+6167:AUE_uadmin:uadmin:no
 6168:AUE_shutdown:system shutdown:ad
-6171:AUE_audit_startup:audit startup:ad
-6172:AUE_audit_shutdown:audit shutdown:ad
+6168:AUE_poweroff:system poweroff:ad
+6170:AUE_crontab_mod:crontab-modify:ad
+6171:AUE_ftpd_logout:ftp logout:lo
+6172:AUE_ssh:login - ssh:lo
+6173:AUE_role_login:role login:lo
+6180:AUE_prof_cmd: profile command:ad
+6181:AUE_filesystem_add:add filesystem:ad
+6182:AUE_filesystem_delete:delete filesystem:ad
+6183:AUE_filesystem_modify:modify filesystem:ad
+6200:AUE_allocate_succ:allocate-device success:ot
+6201:AUE_allocate_fail:allocate-device failure:ot
+6202:AUE_deallocate_succ:deallocate-device success:ot
+6203:AUE_deallocate_fail:deallocate-device failure:ot
+6204:AUE_listdevice_succ:allocate-list devices success:ot
+6205:AUE_listdevice_fail:allocate-list devices failure:ot
 6207:AUE_create_user:create user:ad
 6208:AUE_modify_user:modify user:ad
 6209:AUE_delete_user:delete user:ad
 6210:AUE_disable_user:disable user:ad
-6211:AUE_enable_user::ad
-6300:AUE_sudo:sudo(1):ad
-6501:AUE_modify_password:modify password:ad
-6511:AUE_create_group:create group:ad
-6512:AUE_delete_group:delete group:ad
-6513:AUE_modify_group:modify group:ad
-6514:AUE_add_to_group:add to group:ad
-6515:AUE_remove_from_group:remove from group:ad
-6521:AUE_revoke_obj:revoke object priv:fm
-6600:AUE_lw_login:loginwindow login:lo
-6601:AUE_lw_logout:loginwindow logout:lo
-7000:AUE_auth_user:user authentication:ad
-7001:AUE_ssconn:SecSrvr connection setup:ad
-7002:AUE_ssauthorize:SecSrvr AuthEngine:ad
-7003:AUE_ssauthint:SecSrvr authinternal mech:ad
+6211:AUE_enable_user:enable users:ad
+6212:AUE_newgrp_login:newgrp login:lo
+6213:AUE_admin_authenticate:admin login:lo
+6214:AUE_kadmind_auth:authenticated kadmind request:ua
+6215:AUE_kadmind_unauth:unauthenticated kadmind req:ua
+6216:AUE_krb5kdc_as_req:kdc authentication svc request:ap
+6217:AUE_krb5kdc_tgs_req:kdc tkt-grant svc request:ap
+6218:AUE_krb5kdc_tgs_req_2ndtktmm:kdc tgs 2ndtkt mismtch:ap
+6219:AUE_krb5kdc_tgs_req_alt_tgt:kdc tgs issue alt tgt:ap
+#
+# Historic Darwin use of low event numbering space, which collided with the
+# Solaris event space.  Now obsoleted and new, higher, event numbers assigned
+# to make it easier to interpret Solaris events using the OpenBSM tools.
+#
+6171:AUE_DARWIN_audit_startup:audit startup:ad
+6172:AUE_DARWIN_audit_shutdown:audit shutdown:ad
+6300:AUE_DARWIN_sudo:sudo(1):ad
+6501:AUE_DARWIN_modify_password:modify password:ad
+6511:AUE_DARWIN_create_group:create group:ad
+6512:AUE_DARWIN_delete_group:delete group:ad
+6513:AUE_DARWIN_modify_group:modify group:ad
+6514:AUE_DARWIN_add_to_group:add to group:ad
+6515:AUE_DARWIN_remove_from_group:remove from group:ad
+6521:AUE_DARWIN_revoke_obj:revoke object priv:fm
+6600:AUE_DARWIN_lw_login:loginwindow login:lo
+6601:AUE_DARWIN_lw_logout:loginwindow logout:lo
+7000:AUE_DARWIN_auth_user:user authentication:ad
+7001:AUE_DARWIN_ssconn:SecSrvr connection setup:ad
+7002:AUE_DARWIN_ssauthorize:SecSrvr AuthEngine:ad
+7003:AUE_DARWIN_ssauthint:SecSrvr authinternal mech:ad
+#
+# Historic/third-party application allocations of event identifiers.
+#
 32800:AUE_openssh:OpenSSH login:lo
+#
+# OpenBSM-managed application event space.
+#
+45000:AUE_audit_startup:audit startup:ad
+45001:AUE_audit_shutdown:audit shutdown:ad
+45014:AUE_modify_password:modify password:ad
+45015:AUE_create_group:create group:ad
+45016:AUE_delete_group:delete group:ad
+45017:AUE_modify_group:modify group:ad
+45018:AUE_add_to_group:add to group:ad
+45019:AUE_remove_from_group:remove from group:ad
+45020:AUE_revoke_obj:revoke object priv:fm
+45021:AUE_lw_login:loginwindow login:lo
+45022:AUE_lw_logout:loginwindow logout:lo
+45023:AUE_auth_user:user authentication:ad
+45024:AUE_ssconn:SecSrvr connection setup:ad
+45025:AUE_ssauthorize:SecSrvr AuthEngine:ad
+45026:AUE_ssauthint:SecSrvr authinternal mech:ad
+45027:AUE_calife:Calife:ad
+45028:AUE_sudo:sudo(1):ad
+45029:AUE_audit_recovery:audit crash recovery:ad

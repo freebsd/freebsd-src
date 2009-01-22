@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -98,14 +99,19 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static int tcp_syncookies = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
-    &tcp_syncookies, 0,
+#ifdef VIMAGE_GLOBALS
+static struct tcp_syncache tcp_syncache;
+static int tcp_syncookies;
+static int tcp_syncookiesonly;
+int tcp_sc_rst_sock_fail;
+#endif
+
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, syncookies,
+    CTLFLAG_RW, tcp_syncookies, 0,
     "Use TCP SYN cookies if the syncache overflows");
 
-static int tcp_syncookiesonly = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
-    &tcp_syncookiesonly, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, syncookies_only,
+    CTLFLAG_RW, tcp_syncookiesonly, 0,
     "Use only TCP SYN cookies");
 
 #ifdef TCP_OFFLOAD_DISABLE
@@ -142,8 +148,6 @@ static struct syncache
 #define TCP_SYNCACHE_HASHSIZE		512
 #define TCP_SYNCACHE_BUCKETLIMIT	30
 
-static struct tcp_syncache tcp_syncache;
-
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, syncache, CTLFLAG_RW, 0, "TCP SYN cache");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
@@ -166,7 +170,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
     rexmtlimit, CTLFLAG_RW,
     tcp_syncache.rexmt_limit, 0, "Limit on SYN/ACK retransmissions");
 
-int	tcp_sc_rst_sock_fail = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
      rst_on_sock_fail, CTLFLAG_RW,
      tcp_sc_rst_sock_fail, 0, "Send reset on socket allocation failure");
@@ -222,6 +225,10 @@ syncache_init(void)
 {
 	INIT_VNET_INET(curvnet);
 	int i;
+
+	V_tcp_syncookies = 1;
+	V_tcp_syncookiesonly = 0;
+	V_tcp_sc_rst_sock_fail = 1;
 
 	V_tcp_syncache.cache_count = 0;
 	V_tcp_syncache.hashsize = TCP_SYNCACHE_HASHSIZE;
@@ -353,10 +360,12 @@ static void
 syncache_timer(void *xsch)
 {
 	struct syncache_head *sch = (struct syncache_head *)xsch;
-	INIT_VNET_INET(sch->sch_vnet);
 	struct syncache *sc, *nsc;
 	int tick = ticks;
 	char *s;
+
+	CURVNET_SET(sch->sch_vnet);
+	INIT_VNET_INET(sch->sch_vnet);
 
 	/* NB: syncache_head has already been locked by the callout. */
 	SCH_LOCK_ASSERT(sch);
@@ -406,6 +415,7 @@ syncache_timer(void *xsch)
 	if (!TAILQ_EMPTY(&(sch)->sch_bucket))
 		callout_reset(&(sch)->sch_timer, (sch)->sch_nextc - tick,
 			syncache_timer, (void *)(sch));
+	CURVNET_RESTORE();
 }
 
 /*
@@ -420,7 +430,7 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 	struct syncache_head *sch;
 
 #ifdef INET6
-	if (inc->inc_isipv6) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		sch = &V_tcp_syncache.hashbase[
 		    SYNCACHE_HASH6(inc, V_tcp_syncache.hashmask)];
 		*schp = sch;
@@ -444,7 +454,7 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 		/* Circle through bucket row to find matching entry. */
 		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
 #ifdef INET6
-			if (sc->sc_inc.inc_isipv6)
+			if (sc->sc_inc.inc_flags & INC_ISIPV6)
 				continue;
 #endif
 			if (ENDPTS_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
@@ -633,9 +643,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	INP_WLOCK(inp);
 
 	/* Insert new socket into PCB hash list. */
-	inp->inp_inc.inc_isipv6 = sc->sc_inc.inc_isipv6;
+	inp->inp_inc.inc_flags = sc->sc_inc.inc_flags;
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		inp->in6p_laddr = sc->sc_inc.inc6_laddr;
 	} else {
 		inp->inp_vflag &= ~INP_IPV6;
@@ -652,7 +662,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		 * put the PCB on the hash lists.
 		 */
 #ifdef INET6
-		if (sc->sc_inc.inc_isipv6)
+		if (sc->sc_inc.inc_flags & INC_ISIPV6)
 			inp->in6p_laddr = in6addr_any;
 		else
 #endif
@@ -666,7 +676,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		printf("syncache_socket: could not copy policy\n");
 #endif
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		struct inpcb *oinp = sotoinpcb(lso);
 		struct in6_addr laddr6;
 		struct sockaddr_in6 sin6;
@@ -698,8 +708,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			goto abort;
 		}
 		/* Override flowlabel from in6_pcbconnect. */
-		inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
-		inp->in6p_flowinfo |= sc->sc_flowlabel;
+		inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
+		inp->inp_flow |= sc->sc_flowlabel;
 	} else
 #endif
 	{
@@ -830,7 +840,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 *  B. check that the syncookie is valid.  If it is, then
 		 *     cobble up a fake syncache entry, and return.
 		 */
-		if (!tcp_syncookies) {
+		if (!V_tcp_syncookies) {
 			SCH_UNLOCK(sch);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Spurious ACK, "
@@ -923,6 +933,7 @@ int
 tcp_offload_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct socket **lsop, struct mbuf *m)
 {
+	INIT_VNET_INET(curvnet);
 	int rc;
 	
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -982,8 +993,8 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	cred = crhold(so->so_cred);
 
 #ifdef INET6
-	if (inc->inc_isipv6 &&
-	    (inp->in6p_flags & IN6P_AUTOFLOWLABEL))
+	if ((inc->inc_flags & INC_ISIPV6) &&
+	    (inp->inp_flags & IN6P_AUTOFLOWLABEL))
 		autoflowlabel = 1;
 #endif
 	ip_ttl = inp->inp_ip_ttl;
@@ -1011,7 +1022,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Remember the IP options, if any.
 	 */
 #ifdef INET6
-	if (!inc->inc_isipv6)
+	if (!(inc->inc_flags & INC_ISIPV6))
 #endif
 		ipopts = (m) ? ip_srcroute(m) : NULL;
 
@@ -1059,8 +1070,6 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * have an initialized label we can use.
 		 */
 		mac_syncache_destroy(&maclabel);
-		KASSERT(sc->sc_label != NULL,
-		    ("%s: label not initialized", __func__));
 #endif
 		/* Retransmit SYN|ACK and reset retransmit count. */
 		if ((s = tcp_log_addrs(&sc->sc_inc, th, NULL, NULL))) {
@@ -1091,7 +1100,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			syncache_drop(sc, sch);
 		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
-			if (tcp_syncookies) {
+			if (V_tcp_syncookies) {
 				bzero(&scs, sizeof(scs));
 				sc = &scs;
 			} else {
@@ -1112,10 +1121,11 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sc->sc_cred = cred;
 	cred = NULL;
 	sc->sc_ipopts = ipopts;
+	/* XXX-BZ this fib assignment is just useless. */
 	sc->sc_inc.inc_fibnum = inp->inp_inc.inc_fibnum;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
-	if (!inc->inc_isipv6)
+	if (!(inc->inc_flags & INC_ISIPV6))
 #endif
 	{
 		sc->sc_ip_tos = ip_tos;
@@ -1200,7 +1210,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	if ((th->th_flags & (TH_ECE|TH_CWR)) && V_tcp_do_ecn)
 		sc->sc_flags |= SCF_ECN;
 
-	if (tcp_syncookies) {
+	if (V_tcp_syncookies) {
 		syncookie_generate(sch, sc, &flowtmp);
 #ifdef INET6
 		if (autoflowlabel)
@@ -1219,7 +1229,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Do a standard 3-way handshake.
 	 */
 	if (TOEPCB_ISSET(sc) || syncache_respond(sc) == 0) {
-		if (tcp_syncookies && tcp_syncookiesonly && sc != &scs)
+		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
 			syncache_insert(sc, sch);   /* locks and unlocks sch */
@@ -1261,7 +1271,7 @@ syncache_respond(struct syncache *sc)
 
 	hlen =
 #ifdef INET6
-	       (sc->sc_inc.inc_isipv6) ? sizeof(struct ip6_hdr) :
+	       (sc->sc_inc.inc_flags & INC_ISIPV6) ? sizeof(struct ip6_hdr) :
 #endif
 		sizeof(struct ip);
 	tlen = hlen + sizeof(struct tcphdr);
@@ -1288,7 +1298,7 @@ syncache_respond(struct syncache *sc)
 	m->m_pkthdr.rcvif = NULL;
 
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_nxt = IPPROTO_TCP;
@@ -1379,7 +1389,7 @@ syncache_respond(struct syncache *sc)
 			    to.to_signature, IPSEC_DIR_OUTBOUND);
 #endif
 #ifdef INET6
-		if (sc->sc_inc.inc_isipv6)
+		if (sc->sc_inc.inc_flags & INC_ISIPV6)
 			ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) + optlen);
 		else
 #endif
@@ -1388,7 +1398,7 @@ syncache_respond(struct syncache *sc)
 		optlen = 0;
 
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		th->th_sum = 0;
 		th->th_sum = in6_cksum(m, IPPROTO_TCP, hlen,
 				       tlen + optlen - hlen);
@@ -1642,8 +1652,8 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	sc->sc_iss = ack;
 
 #ifdef INET6
-	if (inc->inc_isipv6) {
-		if (sotoinpcb(so)->in6p_flags & IN6P_AUTOFLOWLABEL)
+	if (inc->inc_flags & INC_ISIPV6) {
+		if (sotoinpcb(so)->inp_flags & IN6P_AUTOFLOWLABEL)
 			sc->sc_flowlabel = md5_buffer[1] & IPV6_FLOWLABEL_MASK;
 	} else
 #endif
@@ -1732,7 +1742,7 @@ syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported)
 				continue;
 			bzero(&xt, sizeof(xt));
 			xt.xt_len = sizeof(xt);
-			if (sc->sc_inc.inc_isipv6)
+			if (sc->sc_inc.inc_flags & INC_ISIPV6)
 				xt.xt_inp.inp_vflag = INP_IPV6;
 			else
 				xt.xt_inp.inp_vflag = INP_IPV4;

@@ -59,6 +59,7 @@ struct isa_device {
 	int			id_pnpbios_handle; /* pnp handle, if any */
 	int			id_pnp_csn; /* pnp Card Number */
 	int			id_pnp_ldn; /* pnp Logical device on card */
+	int			id_order;
 };
 
 #define DEVTOISA(dev)	((struct isa_device *) device_get_ivars(dev))

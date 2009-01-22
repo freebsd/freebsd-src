@@ -181,6 +181,9 @@ int	isa_dmatc(int chan);
 		    (int)(chan), (uintmax_t)(size)); \
 	} while (0) 
 
+void	isa_hinted_child(device_t parent, const char *name, int unit);
+void	isa_hint_device_unit(device_t bus, device_t child, const char *name,
+	    int *unitp);
 int	isab_attach(device_t dev);
 
 #ifdef PC98

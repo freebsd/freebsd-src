@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_device.h>
 
 #include <dev/usb2/ethernet/usb2_ethernet.h>
-#include <dev/usb2/ethernet/if_cdce2_reg.h>
+#include <dev/usb2/ethernet/if_cdcereg.h>
 
 static device_probe_t cdce_probe;
 static device_attach_t cdce_attach;
@@ -81,14 +81,14 @@ static usb2_callback_t cdce_bulk_read_callback;
 static usb2_callback_t cdce_intr_read_callback;
 static usb2_callback_t cdce_intr_write_callback;
 
-static void cdce_start_cb(struct ifnet *ifp);
-static void cdce_start_transfers(struct cdce_softc *sc);
-static uint32_t cdce_m_crc32(struct mbuf *m, uint32_t src_offset, uint32_t src_len);
-static void cdce_stop(struct cdce_softc *sc);
-static int cdce_ioctl_cb(struct ifnet *ifp, u_long command, caddr_t data);
-static void cdce_init_cb(void *arg);
-static int cdce_ifmedia_upd_cb(struct ifnet *ifp);
-static void cdce_ifmedia_sts_cb(struct ifnet *const ifp, struct ifmediareq *req);
+static void	cdce_start_cb(struct ifnet *);
+static void	cdce_start_transfers(struct cdce_softc *);
+static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
+static void	cdce_stop(struct cdce_softc *);
+static int	cdce_ioctl_cb(struct ifnet *, u_long, caddr_t);
+static void	cdce_init_cb(void *);
+static int	cdce_ifmedia_upd_cb(struct ifnet *);
+static void	cdce_ifmedia_sts_cb(struct ifnet *, struct ifmediareq *);
 
 #if USB_DEBUG
 static int cdce_debug = 0;
@@ -103,7 +103,7 @@ SYSCTL_INT(_hw_usb2_cdce, OID_AUTO, force_512x4, CTLFLAG_RW,
 
 static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 
-	[0] = {
+	[CDCE_BULK_A] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -122,7 +122,7 @@ static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 		.md.timeout = 0,	/* no timeout */
 	},
 
-	[1] = {
+	[CDCE_BULK_B] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -141,7 +141,7 @@ static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 		.md.timeout = 10000,	/* 10 seconds */
 	},
 
-	[2] = {
+	[CDCE_INTR] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -444,7 +444,6 @@ alloc_transfers:
 		device_printf(dev, "cannot if_alloc()\n");
 		goto detach;
 	}
-	sc->sc_evilhack = ifp;
 
 	ifp->if_softc = sc;
 	if_initname(ifp, "cdce", sc->sc_unit);
@@ -474,7 +473,7 @@ alloc_transfers:
 
 	/* start the interrupt transfer, if any */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_start(sc->sc_xfer[2]);
+	usb2_transfer_start(sc->sc_xfer[CDCE_INTR]);
 	mtx_unlock(&sc->sc_mtx);
 
 	return (0);			/* success */
@@ -524,8 +523,6 @@ cdce_start_cb(struct ifnet *ifp)
 	cdce_start_transfers(sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -537,10 +534,9 @@ cdce_start_transfers(struct cdce_softc *sc)
 		/*
 		 * start the USB transfers, if not already started:
 		 */
-		usb2_transfer_start(sc->sc_xfer[1]);
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[CDCE_BULK_B]);
+		usb2_transfer_start(sc->sc_xfer[CDCE_BULK_A]);
 	}
-	return;
 }
 
 static uint32_t
@@ -576,7 +572,6 @@ cdce_fwd_mq(struct cdce_softc *sc, struct cdce_mq *mq)
 
 		mtx_lock(&sc->sc_mtx);
 	}
-	return;
 }
 
 static void
@@ -596,7 +591,6 @@ cdce_free_mq(struct cdce_mq *mq)
 			m_freem(m);
 		}
 	}
-	return;
 }
 
 static void
@@ -713,7 +707,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -802,7 +795,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -818,7 +810,6 @@ cdce_bulk_write_callback(struct usb2_xfer *xfer)
 		xfer->callback = &cdce_bulk_write_std_callback;
 	}
 	(xfer->callback) (xfer);
-	return;
 }
 
 static int32_t
@@ -861,9 +852,8 @@ cdce_stop(struct cdce_softc *sc)
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
-	return;
+	usb2_transfer_stop(sc->sc_xfer[CDCE_BULK_A]);
+	usb2_transfer_stop(sc->sc_xfer[CDCE_BULK_B]);
 }
 
 static int
@@ -948,14 +938,12 @@ cdce_init_cb(void *arg)
 	    CDCE_FLAG_LL_READY |
 	    CDCE_FLAG_HL_READY);
 
-	usb2_transfer_set_stall(sc->sc_xfer[0]);
-	usb2_transfer_set_stall(sc->sc_xfer[1]);
+	usb2_transfer_set_stall(sc->sc_xfer[CDCE_BULK_A]);
+	usb2_transfer_set_stall(sc->sc_xfer[CDCE_BULK_B]);
 
 	cdce_start_transfers(sc);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -1169,7 +1157,6 @@ tr_setup:
 	if (free_mq) {
 		cdce_free_mq(&sc->sc_rx_mq);
 	}
-	return;
 }
 
 static void
@@ -1256,7 +1243,6 @@ tr_setup:
 		(ifp->if_input) (ifp, m_rx);
 		mtx_lock(&sc->sc_mtx);
 	}
-	return;
 }
 
 static void
@@ -1271,7 +1257,6 @@ cdce_bulk_read_callback(struct usb2_xfer *xfer)
 		xfer->callback = &cdce_bulk_read_std_callback;
 	}
 	(xfer->callback) (xfer);
-	return;
 }
 
 static int
@@ -1315,7 +1300,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -1343,7 +1327,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 static int

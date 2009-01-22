@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_driver.c,v 1.86 2008/01/19 20:11:03 tom Exp $")
+MODULE_ID("$Id: frm_driver.c,v 1.88 2008/10/18 16:25:00 tom Exp $")
 
 /*----------------------------------------------------------------------------
   This is the core module of the form library. It contains the majority
@@ -4176,7 +4176,7 @@ form_driver(FORM *form, int c)
 	NULL			/* Choice Request is generic           */
       };
       size_t nMethods = (sizeof(Generic_Methods) / sizeof(Generic_Methods[0]));
-      size_t method = ((BI->keycode & ID_Mask) >> ID_Shft) & 0xffff;
+      size_t method = (BI->keycode >> ID_Shft) & 0xffff;	/* see ID_Mask */
 
       if ((method >= nMethods) || !(BI->cmd))
 	res = E_SYSTEM_ERROR;
@@ -4333,15 +4333,6 @@ set_field_buffer(FIELD *field, int buffer, const char *value)
 
   len = Buffer_Length(field);
 
-  if (buffer == 0)
-    {
-      for (i = 0; (value[i] != '\0') && (i < len); ++i)
-	{
-	  if (iscntrl(UChar(value[i])))
-	    RETURN(E_BAD_ARGUMENT);
-	}
-    }
-
   if (Growable(field))
     {
       /* for a growable field we must assume zero terminated strings, because
@@ -4356,14 +4347,6 @@ set_field_buffer(FIELD *field, int buffer, const char *value)
 						     * field->cols))))
 	    RETURN(E_SYSTEM_ERROR);
 
-	  /* in this case we also have to check, whether or not the remaining
-	     characters in value are also printable for buffer 0. */
-	  if (buffer == 0)
-	    {
-	      for (i = len; i < vlen; i++)
-		if (iscntrl(UChar(value[i])))
-		  RETURN(E_BAD_ARGUMENT);
-	    }
 	  len = vlen;
 	}
     }
@@ -4376,6 +4359,13 @@ set_field_buffer(FIELD *field, int buffer, const char *value)
    * There should be a better way, but this handles nonspacing characters
    * and other special cases that we really do not want to handle here.
    */
+#if NCURSES_EXT_FUNCS
+  if (wresize(field->working, field->drows, field->dcols) == ERR)
+#endif
+    {
+      delwin(field->working);
+      field->working = newpad(field->drows, field->dcols);
+    }
   wclear(field->working);
   mvwaddstr(field->working, 0, 0, value);
 
@@ -4385,7 +4375,12 @@ set_field_buffer(FIELD *field, int buffer, const char *value)
     }
   else
     {
-      mvwin_wchnstr(field->working, 0, 0, widevalue, (int)len);
+      for (i = 0; i < (unsigned)field->drows; ++i)
+	{
+	  mvwin_wchnstr(field->working, i, 0,
+			widevalue + (i * field->dcols),
+			field->dcols);
+	}
       for (i = 0; i < len; ++i)
 	{
 	  if (CharEq(myZEROS, widevalue[i]))

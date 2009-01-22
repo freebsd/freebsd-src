@@ -29,6 +29,7 @@
     <year>2006</year>
     <year>2007</year>
     <year>2008</year>
+    <year>2009</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -167,7 +168,7 @@
     <para>Kernel support for M:N threading has been removed.  While
       the KSE (Kernel Scheduled Entities) project was quite successful
       in bringing threading to FreeBSD, the M:N approach taken by the
-      kse library was never developed to its full potential.
+      KSE library was never developed to its full potential.
       Backwards compatibility for applications using KSE threading
       will be provided via &man.libmap.conf.5; for dynamically linked
       binaries.  The &os; Project greatly appreciates the work of
@@ -225,10 +226,13 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.ale.4; driver has been added to provide support
+	  for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.</para>
+
 	<para>The &man.em.4; driver has been split into two drivers
 	  with some common parts.  The &man.em.4; driver will continue
 	  to support adapters up to the 82575, as well as new
-	  client/desktop adapters.  A new igb driver
+	  client/desktop adapters.  A new &man.igb.4; driver
 	  will support new server adapters.</para>
 
 	<para>The &man.jme.4; driver has been added to provide support
@@ -343,6 +347,12 @@
       instead of just setting it to a null value.</para>
 
     <para>The &man.fdopendir.3; library function has been added.</para>
+
+    <para role="merged">The &man.fetch.3; library now support HTTP 1.1
+      If-Modified-Since behavior.  The &man.fetch.1; program now
+      supports <option>-i <replaceable>filename</replaceable></option>
+      which will only download the specified HTTP URL if the content
+      is newer than <replaceable>filename</replaceable>.</para>
 
     <para>&man.find.1; has been enhanced by the addition of a number
       of primaries that were present in GNU find but not &os;

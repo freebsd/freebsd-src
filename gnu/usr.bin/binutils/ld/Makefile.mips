@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+#xxxIMPxxx: size?
+#xxxIMPxxx: TARGET_BIG_ENDIAN is lame.  We should use the netbsd convention
+# of mipsel and mips.
+_sz?=32
+.if defined(TARGET_BIG_ENDIAN)
+NATIVE_EMULATION=elf${_sz}btsmip_fbsd
+.else
+NATIVE_EMULATION=elf${_sz}ltsmip_fbsd
+.endif
+
+SRCS+=	e${NATIVE_EMULATION}.c 
+CLEANFILES+=	e${NATIVE_EMULATION}.c
+
+# nb: elf32 handles both elf32 and elf64 targets
+e${NATIVE_EMULATION}.c:	${.CURDIR}/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} ""  no ${NATIVE_EMULATION} ${TARGET_TUPLE} \
+	    ${.CURDIR}/${NATIVE_EMULATION}.sh
+

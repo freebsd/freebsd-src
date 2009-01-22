@@ -103,6 +103,8 @@ __FBSDID("$FreeBSD$");
 #define	PMAP_DIAGNOSTIC
 #endif
 
+#undef PMAP_DEBUG
+
 #ifndef PMAP_SHPGPERPROC
 #define	PMAP_SHPGPERPROC 200
 #endif
@@ -488,7 +490,6 @@ pmap_nw_modified(pt_entry_t pte)
 
 #endif
 
-
 static void
 pmap_invalidate_all(pmap_t pmap)
 {
@@ -672,6 +673,9 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	register pt_entry_t *pte;
 	pt_entry_t npte, opte;
 
+#ifdef PMAP_DEBUG
+	printf("pmap_kenter:  va: 0x%08x -> pa: 0x%08x\n", va, pa);
+#endif
 	npte = mips_paddr_to_tlbpfn(pa) | PTE_RW | PTE_V | PTE_G | PTE_W;
 
 	if (is_cacheable_mem(pa))
@@ -1778,6 +1782,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t fault_type, vm_page_t m, vm_pr
 validate:
 	rw = init_pte_prot(va, m, prot);
 
+#ifdef PMAP_DEBUG
+	printf("pmap_enter:  va: 0x%08x -> pa: 0x%08x\n", va, pa);
+#endif
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
@@ -2147,9 +2154,10 @@ pmap_zero_page(vm_page_t m)
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
 
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_UNCACHED(phys);
 
 		bzero((caddr_t)va, PAGE_SIZE);
+		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
@@ -2202,8 +2210,9 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_UNCACHED(phys);
 		bzero((char *)(caddr_t)va + off, size);
+		mips_dcache_wbinv_range(va + off, size);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
@@ -2240,8 +2249,9 @@ pmap_zero_page_idle(vm_page_t m)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_UNCACHED(phys);
 		bzero((caddr_t)va, PAGE_SIZE);
+		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;

@@ -577,10 +577,7 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		ltype = VOP_ISLOCKED(pdp);
-		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
-		error = VFS_VGET(pdp->v_mount, ino, cnp->cn_lkflags, &tdp);
-		vn_lock(pdp, ltype | LK_RETRY);
+		error = vn_vget_ino(pdp, ino, cnp->cn_lkflags, &tdp);
 		if (error)
 			return (error);
 		*vpp = tdp;

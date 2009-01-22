@@ -37,6 +37,7 @@ enum {
 	MAX_FRAME_SIZE = 10240, /* max MAC frame size, includes header + FCS */
 	EEPROMSIZE     = 8192,  /* Serial EEPROM size */
 	SERNUM_LEN     = 16,    /* Serial # length */
+	ECNUM_LEN      = 16,    /* EC # length */
 	RSS_TABLE_SIZE = 64,    /* size of RSS lookup and mapping tables */
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
@@ -338,6 +339,7 @@ struct vpd_params {
 	unsigned int mdc;
 	unsigned int mem_timing;
 	u8 sn[SERNUM_LEN + 1];
+	u8 ec[ECNUM_LEN + 1];
 	u8 eth_base[6];
 	u8 port_type[MAX_NPORTS];
 	unsigned short xauicfg[2];

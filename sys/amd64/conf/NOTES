@@ -258,7 +258,6 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # Network interfaces:
 #
 
-# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices
 #       (requires miibus)
@@ -284,12 +283,12 @@ device		ral
 device		ural
 device		wpi
 
-device		ath
-device		ath_hal		# Atheros HAL (includes binary component)
-#device		ath_rate_amrr	# AMRR rate control for ath driver
-#device		ath_rate_onoe	# Onoe rate control for ath driver
-device		ath_rate_sample	# SampleRate rate control for the ath driver
-#device		wlan		# 802.11 layer
+device		ath			# Atheros pci/cardbus NIC's
+device		ath_hal			# pci/cardbus chip support
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+device		ath_rate_sample		# SampleRate tx rate control for ath
+#device		ath_rate_amrr		# AMRR rate control for ath driver
+#device		ath_rate_onoe		# Onoe rate control for ath driver
 
 #
 #XXX this stores pointers in a 32bit field that is defined by the hardware

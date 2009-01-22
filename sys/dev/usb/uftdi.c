@@ -100,7 +100,7 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
  * These are the maximum number of bytes transferred per frame.
  * The output buffer size cannot be increased due to the size encoding.
  */
-#define UFTDIIBUFSIZE 64
+#define UFTDIIBUFSIZE 256
 #define UFTDIOBUFSIZE 64
 
 struct uftdi_softc {
@@ -170,7 +170,8 @@ uftdi_match(device_t self)
 	     uaa->product == USB_PRODUCT_FTDI_UOPTBR ||
 	     uaa->product == USB_PRODUCT_FTDI_EMCU2D ||
 	     uaa->product == USB_PRODUCT_FTDI_PCMSFU ||
-	     uaa->product == USB_PRODUCT_FTDI_EMCU2H ))
+	     uaa->product == USB_PRODUCT_FTDI_EMCU2H ||
+	     uaa->product == USB_PRODUCT_FTDI_MAXSTREAM ))
 		return (UMATCH_VENDOR_PRODUCT);
 	if (uaa->vendor == USB_VENDOR_SIIG2 &&
 	    (uaa->product == USB_PRODUCT_SIIG2_US2308))
@@ -184,6 +185,9 @@ uftdi_match(device_t self)
 		return (UMATCH_VENDOR_PRODUCT);
 	if (uaa->vendor == USB_VENDOR_MELCO &&
 	    (uaa->product == USB_PRODUCT_MELCO_PCOPRS1))
+		return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->vendor == USB_VENDOR_DRESDENELEKTRONIK &&
+	    (uaa->product == USB_PRODUCT_DRESDENELEKTRONIK_SENSORTERMINALBOARD))
 		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
@@ -256,6 +260,7 @@ uftdi_attach(device_t self)
 		case USB_PRODUCT_FTDI_EMCU2D:
 		case USB_PRODUCT_FTDI_PCMSFU:
 		case USB_PRODUCT_FTDI_EMCU2H:
+		case USB_PRODUCT_FTDI_MAXSTREAM:
 			sc->sc_type = UFTDI_TYPE_8U232AM;
 			sc->sc_hdrlen = 0;
 			break;
@@ -305,6 +310,18 @@ uftdi_attach(device_t self)
 	case USB_VENDOR_MELCO:
 		switch( uaa->product ){
 		case USB_PRODUCT_MELCO_PCOPRS1:
+			sc->sc_type = UFTDI_TYPE_8U232AM;
+			sc->sc_hdrlen = 0;
+			break;
+
+		default:		/* Can't happen */
+			goto bad;
+		}
+		break;
+
+	case USB_VENDOR_DRESDENELEKTRONIK:
+		switch( uaa->product ){
+		case USB_PRODUCT_DRESDENELEKTRONIK_SENSORTERMINALBOARD:
 			sc->sc_type = UFTDI_TYPE_8U232AM;
 			sc->sc_hdrlen = 0;
 			break;
@@ -458,32 +475,33 @@ uftdi_read(void *vsc, int portno, u_char **ptr, u_int32_t *count)
 {
 	struct uftdi_softc *sc = vsc;
 	u_char msr, lsr;
+	unsigned l;
 
-	DPRINTFN(15,("uftdi_read: sc=%p, port=%d count=%d\n", sc, portno,
-		     *count));
+	DPRINTFN(15,("uftdi_read: sc=%p, port=%d count=%d\n",
+	    sc, portno, *count));
+	while (*count > 0) {
+		l = *count;
+		if (l > 64)
+			l = 64;
 
-	msr = FTDI_GET_MSR(*ptr);
-	lsr = FTDI_GET_LSR(*ptr);
+		msr = FTDI_GET_MSR(*ptr);
+		lsr = FTDI_GET_LSR(*ptr);
 
-#ifdef USB_DEBUG
-	if (*count != 2)
-		DPRINTFN(10,("uftdi_read: sc=%p, port=%d count=%d data[0]="
-			    "0x%02x\n", sc, portno, *count, (*ptr)[2]));
-#endif
+		if (sc->sc_msr != msr ||
+		    (sc->sc_lsr & FTDI_LSR_MASK) != (lsr & FTDI_LSR_MASK)) {
+			DPRINTF(("uftdi_read: status change msr=0x%02x(0x%02x) "
+				 "lsr=0x%02x(0x%02x)\n", msr, sc->sc_msr,
+				 lsr, sc->sc_lsr));
+			sc->sc_msr = msr;
+			sc->sc_lsr = lsr;
+			ucom_status_change(&sc->sc_ucom);
+		}
 
-	if (sc->sc_msr != msr ||
-	    (sc->sc_lsr & FTDI_LSR_MASK) != (lsr & FTDI_LSR_MASK)) {
-		DPRINTF(("uftdi_read: status change msr=0x%02x(0x%02x) "
-			 "lsr=0x%02x(0x%02x)\n", msr, sc->sc_msr,
-			 lsr, sc->sc_lsr));
-		sc->sc_msr = msr;
-		sc->sc_lsr = lsr;
-		ucom_status_change(&sc->sc_ucom);
+		if (l > 2)
+			ucomrxchars(&sc->sc_ucom, (*ptr) + 2, l - 2);
+		*ptr += l;
+		*count -= l;
 	}
-
-	/* Pick up status and adjust data part. */
-	*ptr += 2;
-	*count -= 2;
 }
 
 static size_t

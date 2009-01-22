@@ -32,7 +32,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2007
+.Dd May 16, 2008
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -460,12 +460,15 @@ For more information about these flags, please refer to
 .Pp
 The
 .Fl x
-flag causes netstat to output all the information recorded about data
-stored in the socket buffers.  The fields are:
+flag causes
+.Nm
+to output all the information recorded about data
+stored in the socket buffers.
+The fields are:
 .Bl -column ".Li R-MBUF"
 .It Li R-MBUF Ta Number of mbufs in the receive queue.
 .It Li S-MBUF Ta Number of mbufs in the send queue.
-.It Li R-CLUS Ta Number of clusters, of any type, in the recieve
+.It Li R-CLUS Ta Number of clusters, of any type, in the receive
 queue.
 .It Li S-CLUS Ta Number of clusters, of any type, in the send queue.
 .It Li R-HIWA Ta Receive buffer high water mark, in bytes.

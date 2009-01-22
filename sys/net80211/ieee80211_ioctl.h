@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -216,7 +216,8 @@ struct ieee80211_stats {
 	uint8_t		is_rx_disassoc_code;	/* last rx'd disassoc reason */
 	uint8_t		is_rx_authfail_code;	/* last rx'd auth fail reason */
 	uint32_t	is_beacon_miss;		/* beacon miss notification */
-	uint32_t	is_spare[13];
+	uint32_t	is_rx_badstate;		/* rx discard state != RUN */
+	uint32_t	is_spare[12];
 };
 
 /*
@@ -612,6 +613,11 @@ struct ieee80211req {
 #define	IEEE80211_IOC_SMPS		110	/* MIMO power save */
 #define	IEEE80211_IOC_RIFS		111	/* RIFS config (on, off) */
 
+#define	IEEE80211_IOC_TDMA_SLOT		201	/* TDMA: assigned slot */
+#define	IEEE80211_IOC_TDMA_SLOTCNT	202	/* TDMA: slots in bss */
+#define	IEEE80211_IOC_TDMA_SLOTLEN	203	/* TDMA: slot length (usecs) */
+#define	IEEE80211_IOC_TDMA_BINTERVAL	204	/* TDMA: beacon intvl (slots) */
+
 /*
  * Parameters for controlling a scan requested with
  * IEEE80211_IOC_SCAN_REQ.
@@ -738,6 +744,7 @@ struct ieee80211_clone_params {
 #define	IEEE80211_CLONE_NOBEACONS	0x0002	/* don't setup beacon timers */
 #define	IEEE80211_CLONE_WDSLEGACY	0x0004	/* legacy WDS processing */
 #define	IEEE80211_CLONE_MACADDR		0x0008	/* use specified mac addr */
+#define	IEEE80211_CLONE_TDMA		0x0010	/* operate in TDMA mode */
 #endif /* __FreeBSD__ */
 
 #endif /* _NET80211_IEEE80211_IOCTL_H_ */

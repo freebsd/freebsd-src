@@ -1262,18 +1262,20 @@ malloc_spin_lock(pthread_mutex_t *lock)
 
 	if (__isthreaded) {
 		if (_pthread_mutex_trylock(lock) != 0) {
-			unsigned i;
-			volatile unsigned j;
+			/* Exponentially back off if there are multiple CPUs. */
+			if (ncpus > 1) {
+				unsigned i;
+				volatile unsigned j;
 
-			/* Exponentially back off. */
-			for (i = 1; i <= SPIN_LIMIT_2POW; i++) {
-				for (j = 0; j < (1U << i); j++) {
-					ret++;
-					CPU_SPINWAIT;
+				for (i = 1; i <= SPIN_LIMIT_2POW; i++) {
+					for (j = 0; j < (1U << i); j++) {
+						ret++;
+						CPU_SPINWAIT;
+					}
+
+					if (_pthread_mutex_trylock(lock) == 0)
+						return (ret);
 				}
-
-				if (_pthread_mutex_trylock(lock) == 0)
-					return (ret);
 			}
 
 			/*
@@ -1282,7 +1284,7 @@ malloc_spin_lock(pthread_mutex_t *lock)
 			 * inversion.
 			 */
 			_pthread_mutex_lock(lock);
-			assert((ret << BLOCK_COST_2POW) != 0);
+			assert((ret << BLOCK_COST_2POW) != 0 || ncpus == 1);
 			return (ret << BLOCK_COST_2POW);
 		}
 	}
@@ -5513,16 +5515,41 @@ _malloc_thread_cleanup(void)
 void
 _malloc_prefork(void)
 {
-	unsigned i;
+	bool again;
+	unsigned i, j;
+	arena_t *larenas[narenas], *tarenas[narenas];
 
 	/* Acquire all mutexes in a safe order. */
 
-	malloc_spin_lock(&arenas_lock);
-	for (i = 0; i < narenas; i++) {
-		if (arenas[i] != NULL)
-			malloc_spin_lock(&arenas[i]->lock);
-	}
-	malloc_spin_unlock(&arenas_lock);
+	/*
+	 * arenas_lock must be acquired after all of the arena mutexes, in
+	 * order to avoid potential deadlock with arena_lock_balance[_hard]().
+	 * Since arenas_lock protects the arenas array, the following code has
+	 * to race with arenas_extend() callers until it succeeds in locking
+	 * all arenas before locking arenas_lock.
+	 */
+	memset(larenas, 0, sizeof(arena_t *) * narenas);
+	do {
+		again = false;
+
+		malloc_spin_lock(&arenas_lock);
+		for (i = 0; i < narenas; i++) {
+			if (arenas[i] != larenas[i]) {
+				memcpy(tarenas, arenas, sizeof(arena_t *) *
+				    narenas);
+				malloc_spin_unlock(&arenas_lock);
+				for (j = 0; j < narenas; j++) {
+					if (larenas[j] != tarenas[j]) {
+						larenas[j] = tarenas[j];
+						malloc_spin_lock(
+						    &larenas[j]->lock);
+					}
+				}
+				again = true;
+				break;
+			}
+		}
+	} while (again);
 
 	malloc_mutex_lock(&base_mtx);
 
@@ -5537,6 +5564,7 @@ void
 _malloc_postfork(void)
 {
 	unsigned i;
+	arena_t *larenas[narenas];
 
 	/* Release all mutexes, now that fork() has completed. */
 
@@ -5548,12 +5576,12 @@ _malloc_postfork(void)
 
 	malloc_mutex_unlock(&base_mtx);
 
-	malloc_spin_lock(&arenas_lock);
-	for (i = 0; i < narenas; i++) {
-		if (arenas[i] != NULL)
-			malloc_spin_unlock(&arenas[i]->lock);
-	}
+	memcpy(larenas, arenas, sizeof(arena_t *) * narenas);
 	malloc_spin_unlock(&arenas_lock);
+	for (i = 0; i < narenas; i++) {
+		if (larenas[i] != NULL)
+			malloc_spin_unlock(&larenas[i]->lock);
+	}
 }
 
 /*

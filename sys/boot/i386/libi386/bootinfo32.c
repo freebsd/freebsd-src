@@ -183,6 +183,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 	break;
 
     case DEVT_NET:
+    case DEVT_ZFS:
 	    break;
 	    
     default:

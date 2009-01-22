@@ -310,6 +310,7 @@ lagg_capabilities(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
 	int cap = ~0, ena = ~0;
+	u_long hwa = ~0UL;
 
 	LAGG_WLOCK_ASSERT(sc);
 
@@ -317,14 +318,18 @@ lagg_capabilities(struct lagg_softc *sc)
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 		cap &= lp->lp_ifp->if_capabilities;
 		ena &= lp->lp_ifp->if_capenable;
+		hwa &= lp->lp_ifp->if_hwassist;
 	}
 	cap = (cap == ~0 ? 0 : cap);
 	ena = (ena == ~0 ? 0 : ena);
+	hwa = (hwa == ~0 ? 0 : hwa);
 
 	if (sc->sc_ifp->if_capabilities != cap ||
-	    sc->sc_ifp->if_capenable != ena) {
+	    sc->sc_ifp->if_capenable != ena ||
+	    sc->sc_ifp->if_hwassist != hwa) {
 		sc->sc_ifp->if_capabilities = cap;
 		sc->sc_ifp->if_capenable = ena;
+		sc->sc_ifp->if_hwassist = hwa;
 		getmicrotime(&sc->sc_ifp->if_lastchange);
 
 		if (sc->sc_ifflags & IFF_DEBUG)
@@ -1206,6 +1211,7 @@ lagg_linkstate(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
 	int new_link = LINK_STATE_DOWN;
+	uint64_t speed;
 
 	/* Our link is considered up if at least one of our ports is active */
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
@@ -1215,6 +1221,25 @@ lagg_linkstate(struct lagg_softc *sc)
 		}
 	}
 	if_link_state_change(sc->sc_ifp, new_link);
+
+	/* Update if_baudrate to reflect the max possible speed */
+	switch (sc->sc_proto) {
+		case LAGG_PROTO_FAILOVER:
+			sc->sc_ifp->if_baudrate = sc->sc_primary != NULL ?
+			    sc->sc_primary->lp_ifp->if_baudrate : 0;
+			break;
+		case LAGG_PROTO_ROUNDROBIN:
+		case LAGG_PROTO_LOADBALANCE:
+		case LAGG_PROTO_ETHERCHANNEL:
+			speed = 0;
+			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+				speed += lp->lp_ifp->if_baudrate;
+			sc->sc_ifp->if_baudrate = speed;
+			break;
+		case LAGG_PROTO_LACP:
+			/* LACP updates if_baudrate itself */
+			break;
+	}
 }
 
 static void
@@ -1370,10 +1395,8 @@ out:
 int
 lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 {
-	int error = 0;
 
-	IFQ_HANDOFF(ifp, m, error);
-	return (error);
+	return (ifp->if_transmit)(ifp, m);
 }
 
 /*

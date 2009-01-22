@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2003-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 2003-2005,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,13 +32,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: charable.c,v 1.4 2005/04/16 18:08:56 tom Exp $")
+MODULE_ID("$Id: charable.c,v 1.5 2008/07/05 20:51:41 tom Exp $")
 
 NCURSES_EXPORT(bool) _nc_is_charable(wchar_t ch)
 {
     bool result;
 #if HAVE_WCTOB
-    result = (wctob((wint_t) ch) == ch);
+    result = (wctob((wint_t) ch) == (int) ch);
 #else
     result = (_nc_to_char(ch) >= 0);
 #endif

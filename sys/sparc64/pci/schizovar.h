@@ -39,9 +39,18 @@ struct schizo_softc {
 	phandle_t			sc_node;
 
 	u_int				sc_mode;
-#define	SCHIZO_MODE_SCZ		1
-#define	SCHIZO_MODE_TOM		2
-#define	SCHIZO_MODE_XMS		3
+#define	SCHIZO_MODE_SCZ			0
+#define	SCHIZO_MODE_TOM			1
+#define	SCHIZO_MODE_XMS			2
+
+	u_int				sc_flags;
+#define	SCHIZO_FLAGS_BSWAR		(1 << 0)
+#define	SCHIZO_FLAGS_CDMA		(1 << 1)
+
+	bus_addr_t			sc_cdma_clr;
+	uint32_t			sc_cdma_state;
+#define	SCHIZO_CDMA_STATE_DONE		(1 << 0)
+#define	SCHIZO_CDMA_STATE_PENDING	(1 << 1)
 
 	u_int				sc_half;
 	uint32_t			sc_ign;

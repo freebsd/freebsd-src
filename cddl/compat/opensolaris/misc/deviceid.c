@@ -94,11 +94,7 @@ int
 devid_get(int fd, ddi_devid_t *retdevid)
 {
 
-	if (ioctl(fd, DIOCGIDENT, retdevid->devid) == -1)
-		return (errno);
-	if (retdevid->devid[0] == '\0')
-		return (ENOENT);
-	return (0);
+	return (ENOENT);
 }
 
 int

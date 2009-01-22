@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.c#13 $
  */
 
 /*
@@ -54,6 +54,7 @@
 
 #include <bsm/libbsm.h>
 #include <bsm/audit_filter.h>
+#include <bsm/audit_internal.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -216,7 +217,7 @@ mainloop_file(const char *conffile, const char *trailfile, FILE *trail_fp)
  * from a file stream.
  */
 static void
-mainloop_pipe(const char *conffile, const char *pipefile, int pipe_fd)
+mainloop_pipe(const char *conffile, const char *pipefile __unused, int pipe_fd)
 {
 	u_char record[MAX_AUDIT_RECORD_SIZE];
 	struct timespec ts;

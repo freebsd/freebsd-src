@@ -137,3 +137,15 @@ dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *),
 	_rtld_error(sorry);
 	return 0;
 }
+
+#pragma weak _rtld_atfork_pre
+void
+_rtld_atfork_pre(int *locks)
+{
+}
+
+#pragma weak _rtld_atfork_post
+void
+_rtld_atfork_post(int *locks)
+{
+}

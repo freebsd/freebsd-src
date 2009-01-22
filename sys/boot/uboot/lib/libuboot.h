@@ -27,11 +27,6 @@
  * $FreeBSD$
  */
 
-/*
- * Fully-qualified device descriptor.
- * Note, this must match the 'struct devdesc' declaration
- * in bootstrap.h.
- */
 struct uboot_devdesc
 {
 	struct devsw	*d_dev;
@@ -40,28 +35,29 @@ struct uboot_devdesc
 	union {
 		struct {
 			void	*data;
-			int	slice;
 			int	partition;
 		} disk;
 	} d_kind;
 };
+
+#define d_disk d_kind.disk
 
 /*
  * Default network packet alignment in memory
  */
 #define	PKTALIGN	32
 
-int	 uboot_getdev(void **vdev, const char *devspec, const char **path);
-char	*uboot_fmtdev(void *vdev);
-int	 uboot_setcurrdev(struct env_var *ev, int flags, const void *value);
+int uboot_getdev(void **vdev, const char *devspec, const char **path);
+char *uboot_fmtdev(void *vdev);
+int uboot_setcurrdev(struct env_var *ev, int flags, const void *value);
 
+extern int devs_no;
 extern struct netif_driver uboot_net;
-extern struct devsw uboot_disk;
+extern struct devsw uboot_storage;
 
 ssize_t	uboot_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t	uboot_copyout(const vm_offset_t src, void *dest, const size_t len);
 ssize_t	uboot_readin(const int fd, vm_offset_t dest, const size_t len);
-
 extern int uboot_autoload(void);
 
 struct preloaded_file;
@@ -69,4 +65,4 @@ struct file_format;
 
 extern struct file_format uboot_elf;
 
-void	reboot(void);
+void reboot(void);

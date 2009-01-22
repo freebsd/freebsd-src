@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -69,6 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -76,8 +79,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef VIMAGE_GLOBALS
 struct	inpcbhead ripcb;
 struct	inpcbinfo ripcbinfo;
+#endif
 
 /* control hooks for ipfw and dummynet */
 ip_fw_ctl_t *ip_fw_ctl_ptr = NULL;
@@ -91,7 +96,9 @@ ip_dn_ctl_t *ip_dn_ctl_ptr = NULL;
 /*
  * The socket used to communicate with the multicast routing daemon.
  */
+#ifdef VIMAGE_GLOBALS
 struct socket  *ip_mrouter;
+#endif
 
 /*
  * The various mrouter and rsvp functions.
@@ -269,12 +276,11 @@ rip_input(struct mbuf *m, int off)
 			continue;
 		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
-		if (jailed(inp->inp_cred) &&
-		    (htonl(prison_getip(inp->inp_cred)) !=
-		    ip->ip_dst.s_addr)) {
-			continue;
+		if (jailed(inp->inp_cred)) {
+			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
+				continue;
 		}
-		if (last) {
+		if (last != NULL) {
 			struct mbuf *n;
 
 			n = m_copy(m, 0, (int)M_COPYALL);
@@ -300,12 +306,11 @@ rip_input(struct mbuf *m, int off)
 		if (inp->inp_faddr.s_addr &&
 		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
-		if (jailed(inp->inp_cred) &&
-		    (htonl(prison_getip(inp->inp_cred)) !=
-		    ip->ip_dst.s_addr)) {
-			continue;
+		if (jailed(inp->inp_cred)) {
+			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
+				continue;
 		}
-		if (last) {
+		if (last != NULL) {
 			struct mbuf *n;
 
 			n = m_copy(m, 0, (int)M_COPYALL);
@@ -365,11 +370,15 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			ip->ip_off = 0;
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
-		if (jailed(inp->inp_cred))
-			ip->ip_src.s_addr =
-			    htonl(prison_getip(inp->inp_cred));
-		else
+		if (jailed(inp->inp_cred)) {
+			if (prison_getip4(inp->inp_cred, &ip->ip_src)) {
+				INP_RUNLOCK(inp);
+				m_freem(m);
+				return (EPERM);
+			}
+		} else {
 			ip->ip_src = inp->inp_laddr;
+		}
 		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = inp->inp_ip_ttl;
 	} else {
@@ -379,13 +388,10 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		}
 		INP_RLOCK(inp);
 		ip = mtod(m, struct ip *);
-		if (jailed(inp->inp_cred)) {
-			if (ip->ip_src.s_addr !=
-			    htonl(prison_getip(inp->inp_cred))) {
-				INP_RUNLOCK(inp);
-				m_freem(m);
-				return (EPERM);
-			}
+		if (!prison_check_ip4(inp->inp_cred, &ip->ip_src)) {
+			INP_RUNLOCK(inp);
+			m_freem(m);
+			return (EPERM);
 		}
 
 		/*
@@ -446,8 +452,14 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
 
-	if (sopt->sopt_level != IPPROTO_IP)
+	if (sopt->sopt_level != IPPROTO_IP) {
+		if ((sopt->sopt_level == SOL_SOCKET) &&
+		    (sopt->sopt_name == SO_SETFIB)) {
+			inp->inp_inc.inc_fibnum = so->so_fibnum;
+			return (0);
+		}
 		return (EINVAL);
+	}
 
 	error = 0;
 	switch (sopt->sopt_dir) {
@@ -795,13 +807,8 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
 
-	if (jailed(td->td_ucred)) {
-		if (addr->sin_addr.s_addr == INADDR_ANY)
-			addr->sin_addr.s_addr =
-			    htonl(prison_getip(td->td_ucred));
-		if (htonl(prison_getip(td->td_ucred)) != addr->sin_addr.s_addr)
-			return (EADDRNOTAVAIL);
-	}
+	if (!prison_check_ip4(td->td_ucred, &addr->sin_addr))
+		return (EADDRNOTAVAIL);
 
 	if (TAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
@@ -957,6 +964,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
+
 			bzero(&xi, sizeof(xi));
 			xi.xi_len = sizeof xi;
 			/* XXX should avoid extra copy */

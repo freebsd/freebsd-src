@@ -31,18 +31,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_GETOPT_LONG
-#include <getopt.h>
-#else
-struct option {
-	const char *name;
-	int has_arg;
-	int *flag;
-	int val;
-};
-#define	no_argument 0
-#define	required_argument 1
-#endif
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
@@ -60,119 +48,215 @@ struct option {
 #include "cpio.h"
 
 /*
- *
- * Option parsing routines for bsdcpio.
- *
+ * Short options for cpio.  Please keep this sorted.
  */
-
-
-static const char *cpio_opts = "0AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
+static const char *short_options = "0AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
 
 /*
- * On systems that lack getopt_long, long options can be specified
- * using -W longopt and -W longopt=value, e.g. "-W version" is the
- * same as "--version" and "-W format=ustar" is the same as "--format
- * ustar".  This does not rely the GNU getopt() "W;" extension, so
- * should work correctly on any system with a POSIX-compliant
- * getopt().
+ * Long options for cpio.  Please keep this sorted.
  */
-
-/*
- * If you add anything, be very careful to keep this list properly
- * sorted, as the -W logic below relies on it.
- */
-static const struct option cpio_longopts[] = {
-	{ "create",		no_argument,	   NULL, 'o' },
-	{ "extract",		no_argument,       NULL, 'i' },
-	{ "file",		required_argument, NULL, 'F' },
-	{ "format",             required_argument, NULL, 'H' },
-	{ "help",		no_argument,	   NULL, 'h' },
-	{ "insecure",		no_argument,	   NULL, OPTION_INSECURE },
-	{ "link",		no_argument,	   NULL, 'l' },
-	{ "list",		no_argument,	   NULL, 't' },
-	{ "make-directories",	no_argument,	   NULL, 'd' },
-	{ "no-preserve-owner",	no_argument,  NULL, OPTION_NO_PRESERVE_OWNER },
-	{ "null",		no_argument,	   NULL, '0' },
-	{ "owner",		required_argument, NULL, 'R' },
-	{ "pass-through",	no_argument,	   NULL, 'p' },
-	{ "preserve-modification-time", no_argument, NULL, 'm' },
-	{ "quiet",		no_argument,	   NULL, OPTION_QUIET },
-	{ "unconditional",	no_argument,	   NULL, 'u' },
-	{ "verbose",            no_argument,       NULL, 'v' },
-	{ "version",            no_argument,       NULL, OPTION_VERSION },
-	{ NULL, 0, NULL, 0 }
+static const struct option {
+	const char *name;
+	int required;	/* 1 if this option requires an argument */
+	int equivalent;	/* Equivalent short option. */
+} cpio_longopts[] = {
+	{ "create",			0, 'o' },
+	{ "extract",			0, 'i' },
+	{ "file",			1, 'F' },
+	{ "format",             	1, 'H' },
+	{ "help",			0, 'h' },
+	{ "insecure",			0, OPTION_INSECURE },
+	{ "link",			0, 'l' },
+	{ "list",			0, 't' },
+	{ "make-directories",		0, 'd' },
+	{ "no-preserve-owner",		0, OPTION_NO_PRESERVE_OWNER },
+	{ "null",			0, '0' },
+	{ "owner",			1, 'R' },
+	{ "pass-through",		0, 'p' },
+	{ "preserve-modification-time", 0, 'm' },
+	{ "quiet",			0, OPTION_QUIET },
+	{ "unconditional",		0, 'u' },
+	{ "verbose",			0, 'v' },
+	{ "version",			0, OPTION_VERSION },
+	{ NULL, 0, 0 }
 };
 
 /*
- * Parse command-line options using system-provided getopt() or getopt_long().
- * If option is -W, then parse argument as a long option.
+ * I used to try to select platform-provided getopt() or
+ * getopt_long(), but that caused a lot of headaches.  In particular,
+ * I couldn't consistently use long options in the test harness
+ * because not all platforms have getopt_long().  That in turn led to
+ * overuse of the -W hack in the test harness, which made it rough to
+ * run the test harness against GNU cpio.  (I periodically run the
+ * test harness here against GNU cpio as a sanity-check.  Yes,
+ * I've found a couple of bugs in GNU cpio that way.)
  */
 int
 cpio_getopt(struct cpio *cpio)
 {
-	char *p, *q;
-	const struct option *option, *option2;
-	int opt;
-	int option_index;
-	size_t option_length;
+	enum { state_start = 0, state_next_word, state_short, state_long };
+	static int state = state_start;
+	static char *opt_word;
 
-	option_index = -1;
+	const struct option *popt, *match = NULL, *match2 = NULL;
+	const char *p, *long_prefix = "--";
+	size_t optlength;
+	int opt = '?';
+	int required = 0;
 
-#ifdef HAVE_GETOPT_LONG
-	opt = getopt_long(cpio->argc, cpio->argv, cpio_opts,
-	    cpio_longopts, &option_index);
-#else
-	opt = getopt(cpio->argc, cpio->argv, cpio_opts);
-#endif
+	cpio->optarg = NULL;
 
-	/* Support long options through -W longopt=value */
-	if (opt == 'W') {
-		p = optarg;
-		q = strchr(optarg, '=');
-		if (q != NULL) {
-			option_length = (size_t)(q - p);
-			optarg = q + 1;
+	/* First time through, initialize everything. */
+	if (state == state_start) {
+		/* Skip program name. */
+		++cpio->argv;
+		--cpio->argc;
+		state = state_next_word;
+	}
+
+	/*
+	 * We're ready to look at the next word in argv.
+	 */
+	if (state == state_next_word) {
+		/* No more arguments, so no more options. */
+		if (cpio->argv[0] == NULL)
+			return (-1);
+		/* Doesn't start with '-', so no more options. */
+		if (cpio->argv[0][0] != '-')
+			return (-1);
+		/* "--" marks end of options; consume it and return. */
+		if (strcmp(cpio->argv[0], "--") == 0) {
+			++cpio->argv;
+			--cpio->argc;
+			return (-1);
+		}
+		/* Get next word for parsing. */
+		opt_word = *cpio->argv++;
+		--cpio->argc;
+		if (opt_word[1] == '-') {
+			/* Set up long option parser. */
+			state = state_long;
+			opt_word += 2; /* Skip leading '--' */
 		} else {
-			option_length = strlen(p);
-			optarg = NULL;
+			/* Set up short option parser. */
+			state = state_short;
+			++opt_word;  /* Skip leading '-' */
 		}
-		option = cpio_longopts;
-		while (option->name != NULL &&
-		    (strlen(option->name) < option_length ||
-		    strncmp(p, option->name, option_length) != 0 )) {
-			option++;
+	}
+
+	/*
+	 * We're parsing a group of POSIX-style single-character options.
+	 */
+	if (state == state_short) {
+		/* Peel next option off of a group of short options. */
+		opt = *opt_word++;
+		if (opt == '\0') {
+			/* End of this group; recurse to get next option. */
+			state = state_next_word;
+			return cpio_getopt(cpio);
 		}
 
-		if (option->name != NULL) {
-			option2 = option;
-			opt = option->val;
+		/* Does this option take an argument? */
+		p = strchr(short_options, opt);
+		if (p == NULL)
+			return ('?');
+		if (p[1] == ':')
+			required = 1;
 
-			/* If the first match was exact, we're done. */
-			if (strncmp(p, option->name, strlen(option->name)) == 0) {
-				while (option->name != NULL)
-					option++;
+		/* If it takes an argument, parse that. */
+		if (required) {
+			/* If arg is run-in, opt_word already points to it. */
+			if (opt_word[0] == '\0') {
+				/* Otherwise, pick up the next word. */
+				opt_word = *cpio->argv;
+				if (opt_word == NULL) {
+					cpio_warnc(0,
+					    "Option -%c requires an argument",
+					    opt);
+					return ('?');
+				}
+				++cpio->argv;
+				--cpio->argc;
+			}
+			if (opt == 'W') {
+				state = state_long;
+				long_prefix = "-W "; /* For clearer errors. */
 			} else {
-				/* Check if there's another match. */
-				option++;
-				while (option->name != NULL &&
-				    (strlen(option->name) < option_length ||
-				    strncmp(p, option->name, option_length) != 0)) {
-					option++;
+				state = state_next_word;
+				cpio->optarg = opt_word;
+			}
+		}
+	}
+
+	/* We're reading a long option, including -W long=arg convention. */
+	if (state == state_long) {
+		/* After this long option, we'll be starting a new word. */
+		state = state_next_word;
+
+		/* Option name ends at '=' if there is one. */
+		p = strchr(opt_word, '=');
+		if (p != NULL) {
+			optlength = (size_t)(p - opt_word);
+			cpio->optarg = (char *)(uintptr_t)(p + 1);
+		} else {
+			optlength = strlen(opt_word);
+		}
+
+		/* Search the table for an unambiguous match. */
+		for (popt = cpio_longopts; popt->name != NULL; popt++) {
+			/* Short-circuit if first chars don't match. */
+			if (popt->name[0] != opt_word[0])
+				continue;
+			/* If option is a prefix of name in table, record it.*/
+			if (strncmp(opt_word, popt->name, optlength) == 0) {
+				match2 = match; /* Record up to two matches. */
+				match = popt;
+				/* If it's an exact match, we're done. */
+				if (strlen(popt->name) == optlength) {
+					match2 = NULL; /* Forget the others. */
+					break;
 				}
 			}
-			if (option->name != NULL)
-				cpio_errc(1, 0,
-				    "Ambiguous option %s "
-				    "(matches both %s and %s)",
-				    p, option2->name, option->name);
-
-			if (option2->has_arg == required_argument
-			    && optarg == NULL)
-				cpio_errc(1, 0,
-				    "Option \"%s\" requires argument", p);
-		} else {
-			opt = '?';
 		}
+
+		/* Fail if there wasn't a unique match. */
+		if (match == NULL) {
+			cpio_warnc(0,
+			    "Option %s%s is not supported",
+			    long_prefix, opt_word);
+			return ('?');
+		}
+		if (match2 != NULL) {
+			cpio_warnc(0,
+			    "Ambiguous option %s%s (matches --%s and --%s)",
+			    long_prefix, opt_word, match->name, match2->name);
+			return ('?');
+		}
+
+		/* We've found a unique match; does it need an argument? */
+		if (match->required) {
+			/* Argument required: get next word if necessary. */
+			if (cpio->optarg == NULL) {
+				cpio->optarg = *cpio->argv;
+				if (cpio->optarg == NULL) {
+					cpio_warnc(0,
+					    "Option %s%s requires an argument",
+					    long_prefix, match->name);
+					return ('?');
+				}
+				++cpio->argv;
+				--cpio->argc;
+			}
+		} else {
+			/* Argument forbidden: fail if there is one. */
+			if (cpio->optarg != NULL) {
+				cpio_warnc(0,
+				    "Option %s%s does not allow an argument",
+				    long_prefix, match->name);
+				return ('?');
+			}
+		}
+		return (match->equivalent);
 	}
 
 	return (opt);

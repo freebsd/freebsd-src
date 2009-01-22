@@ -728,9 +728,6 @@ typecmd_impl(int argc, char **argv, int cmd)
 	extern char *const parsekwd[];
 
 	for (i = 1; i < argc; i++) {
-		if (cmd != TYPECMD_SMALLV)
-			out1str(argv[i]);
-
 		/* First look at the keywords */
 		for (pp = (char **)parsekwd; *pp; pp++)
 			if (**pp == *argv[i] && equal(*pp, argv[i]))
@@ -740,7 +737,7 @@ typecmd_impl(int argc, char **argv, int cmd)
 			if (cmd == TYPECMD_SMALLV)
 				out1fmt("%s\n", argv[i]);
 			else
-				out1str(" is a shell keyword\n");
+				out1fmt("%s is a shell keyword\n", argv[i]);
 			continue;
 		}
 
@@ -749,7 +746,8 @@ typecmd_impl(int argc, char **argv, int cmd)
 			if (cmd == TYPECMD_SMALLV)
 				out1fmt("alias %s='%s'\n", argv[i], ap->val);
 			else
-				out1fmt(" is an alias for %s\n", ap->val);
+				out1fmt("%s is an alias for %s\n", argv[i],
+				    ap->val);
 			continue;
 		}
 
@@ -775,7 +773,7 @@ typecmd_impl(int argc, char **argv, int cmd)
 				if (cmd == TYPECMD_SMALLV)
 					out1fmt("%s\n", name);
 				else
-					out1fmt(" is%s %s\n",
+					out1fmt("%s is%s %s\n", argv[i],
 					    (cmdp && cmd == TYPECMD_TYPE) ?
 						" a tracked alias for" : "",
 					    name);
@@ -784,11 +782,12 @@ typecmd_impl(int argc, char **argv, int cmd)
 					if (cmd == TYPECMD_SMALLV)
 						out1fmt("%s\n", argv[i]);
 					else
-						out1fmt(" is %s\n", argv[i]);
+						out1fmt("%s is %s\n", argv[i],
+						    argv[i]);
 				} else {
 					if (cmd != TYPECMD_SMALLV)
-						out1fmt(": %s\n",
-						    strerror(errno));
+						outfmt(out2, "%s: %s\n",
+						    argv[i], strerror(errno));
 					error |= 127;
 				}
 			}
@@ -798,19 +797,19 @@ typecmd_impl(int argc, char **argv, int cmd)
 			if (cmd == TYPECMD_SMALLV)
 				out1fmt("%s\n", argv[i]);
 			else
-				out1str(" is a shell function\n");
+				out1fmt("%s is a shell function\n", argv[i]);
 			break;
 
 		case CMDBUILTIN:
 			if (cmd == TYPECMD_SMALLV)
 				out1fmt("%s\n", argv[i]);
 			else
-				out1str(" is a shell builtin\n");
+				out1fmt("%s is a shell builtin\n", argv[i]);
 			break;
 
 		default:
 			if (cmd != TYPECMD_SMALLV)
-				out1str(": not found\n");
+				outfmt(out2, "%s: not found\n", argv[i]);
 			error |= 127;
 			break;
 		}

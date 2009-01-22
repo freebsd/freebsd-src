@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -452,6 +453,11 @@ again:
 	    __rangeof(struct proc, p_startzero, p_endzero));
 
 	p2->p_ucred = crhold(td->td_ucred);
+
+	/* In case we are jailed tell the prison that we exist. */
+	if (jailed(p2->p_ucred))
+		prison_proc_hold(p2->p_ucred->cr_prison);
+
 	PROC_UNLOCK(p2);
 
 	/*
@@ -748,7 +754,7 @@ again:
 	 */
 	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
-		msleep(p1, &p2->p_mtx, PWAIT, "ppwait", 0);
+		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
 
 	/*

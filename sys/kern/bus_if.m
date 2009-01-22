@@ -544,7 +544,7 @@ METHOD int config_intr {
  */
 METHOD void hinted_child {
 	device_t	_dev;
-	const char *	_dname;
+	const char	*_dname;
 	int		_dunit;
 };
 
@@ -558,3 +558,19 @@ METHOD bus_dma_tag_t get_dma_tag {
 	device_t	_dev;
 	device_t	_child;
 } DEFAULT bus_generic_get_dma_tag;
+
+/**
+ * @brief Allow the bus to determine the unit number of a device.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device whose unit is to be wired
+ * @param _name		the name of the device's new devclass
+ * @param _unitp	a pointer to the device's new unit value
+ */
+METHOD void hint_device_unit {
+	device_t	_dev;
+	device_t	_child;
+	const char	*_name;
+	int		*_unitp;
+};
+

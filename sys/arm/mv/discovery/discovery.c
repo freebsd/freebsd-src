@@ -41,6 +41,24 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
+#define _MV_PCIE_MAX_PORT	8
+
+#define _MV_PCIE_IO_SIZE	(MV_PCIE_IO_SIZE / _MV_PCIE_MAX_PORT)
+#define _MV_PCIE_MEM_SIZE	(MV_PCIE_MEM_SIZE / _MV_PCIE_MAX_PORT)
+
+#define	_MV_PCIE_IO(n)	(MV_PCIE_IO_BASE + ((n) * _MV_PCIE_IO_SIZE))
+#define	_MV_PCIE_MEM(n)	(MV_PCIE_MEM_BASE + ((n) * _MV_PCIE_MEM_SIZE))
+
+#define	_MV_PCIE_IO_PHYS(n)	(MV_PCIE_IO_PHYS_BASE + ((n) * _MV_PCIE_IO_SIZE))
+#define	_MV_PCIE_MEM_PHYS(n)	(MV_PCIE_MEM_PHYS_BASE + ((n) * _MV_PCIE_MEM_SIZE))
+
+/*
+ * Note the 'pcib' devices are not declared in the obio_devices[]: due to the
+ * much more complex configuration schemes allowed, specifically of the
+ * PCI-Express (multiple lanes width per port configured dynamically etc.) it
+ * is better and flexible to instantiate the number of PCI bridge devices
+ * (known in run-time) in the pcib_mbus_identify() method.
+ */
 struct obio_device obio_devices[] = {
 	{ "ic", MV_IC_BASE, MV_IC_SIZE,
 		{ -1 },
@@ -85,6 +103,16 @@ struct obio_device obio_devices[] = {
 		{ -1 },
 		CPU_PM_CTRL_USB0 | CPU_PM_CTRL_USB1 | CPU_PM_CTRL_USB2
 	},
+	{ "ehci", MV_USB1_BASE, MV_USB_SIZE,
+		{ MV_INT_USB_ERR, MV_INT_USB1, -1 },
+		{ -1 },
+		CPU_PM_CTRL_USB0 | CPU_PM_CTRL_USB1 | CPU_PM_CTRL_USB2
+	},
+	{ "ehci", MV_USB2_BASE, MV_USB_SIZE,
+		{ MV_INT_USB_ERR, MV_INT_USB2, -1 },
+		{ -1 },
+		CPU_PM_CTRL_USB0 | CPU_PM_CTRL_USB1 | CPU_PM_CTRL_USB2
+	},
 	{ "mge", MV_ETH0_BASE, MV_ETH_SIZE,
 		{ MV_INT_GBERX, MV_INT_GBETX, MV_INT_GBEMISC,
 		  MV_INT_GBESUM, MV_INT_GBE_ERR, -1 },
@@ -104,7 +132,62 @@ struct obio_device obio_devices[] = {
 	{ NULL, 0, 0, { 0 }, { 0 }, 0 }
 };
 
-struct resource_spec mv_gpio_spec[] = {
+const struct obio_pci mv_pci_info[] = {
+	{ MV_TYPE_PCIE,
+		MV_PCIE00_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(0), _MV_PCIE_IO_SIZE, 4, 0xE0,
+		_MV_PCIE_MEM(0), _MV_PCIE_MEM_SIZE, 4, 0xE8,
+		NULL, MV_INT_PEX00 },
+
+	{ MV_TYPE_PCIE_AGGR_LANE,
+		MV_PCIE01_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(1), _MV_PCIE_IO_SIZE, 4, 0xD0,
+		_MV_PCIE_MEM(1), _MV_PCIE_MEM_SIZE, 4, 0xD8,
+		NULL, MV_INT_PEX01 },
+#if 0
+	/*
+	 * XXX Access to devices on this interface (PCIE 0.2) crashes the
+	 * system.  Could be a silicon defect as Marvell U-Boot has a 'Do not
+	 * touch' precaution comment...
+	 */
+	{ MV_TYPE_PCIE_AGGR_LANE,
+		MV_PCIE02_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(2), _MV_PCIE_IO_SIZE(2), 4, 0xB0,
+		_MV_PCIE_MEM(2), _MV_PCIE_MEM_SIZE(2), 4, 0xB8,
+		NULL, MV_INT_PEX02 },
+#endif
+	{ MV_TYPE_PCIE_AGGR_LANE,
+		MV_PCIE03_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(3), _MV_PCIE_IO_SIZE, 4, 0x70,
+		_MV_PCIE_MEM(3), _MV_PCIE_MEM_SIZE, 4, 0x78,
+		NULL, MV_INT_PEX03 },
+
+	{ MV_TYPE_PCIE,
+		MV_PCIE10_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(4), _MV_PCIE_IO_SIZE, 8, 0xE0,
+		_MV_PCIE_MEM(4), _MV_PCIE_MEM_SIZE, 8, 0xE8,
+		NULL, MV_INT_PEX10 },
+
+	{ MV_TYPE_PCIE_AGGR_LANE,
+		MV_PCIE11_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(5), _MV_PCIE_IO_SIZE, 8, 0xD0,
+		_MV_PCIE_MEM(5), _MV_PCIE_MEM_SIZE, 8, 0xD8,
+		NULL, MV_INT_PEX11 },
+	{ MV_TYPE_PCIE_AGGR_LANE,
+		MV_PCIE12_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(6), _MV_PCIE_IO_SIZE, 8, 0xB0,
+		_MV_PCIE_MEM(6), _MV_PCIE_MEM_SIZE, 8, 0xB8,
+		NULL, MV_INT_PEX12 },
+	{ MV_TYPE_PCIE_AGGR_LANE,
+		MV_PCIE13_BASE, MV_PCIE_SIZE,
+		_MV_PCIE_IO(7), _MV_PCIE_IO_SIZE, 8, 0x70,
+		_MV_PCIE_MEM(7), _MV_PCIE_MEM_SIZE, 8, 0x78,
+		NULL, MV_INT_PEX13 },
+
+	{ 0, 0, 0 }
+};
+
+struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -113,7 +196,7 @@ struct resource_spec mv_gpio_spec[] = {
 	{ -1, 0 }
 };
 
-struct resource_spec mv_xor_spec[] = {
+struct resource_spec mv_xor_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -122,12 +205,6 @@ struct resource_spec mv_xor_spec[] = {
 };
 
 const struct decode_win cpu_win_tbl[] = {
-	/* PCIE IO */
-	{ 4, 0x51, MV_PCIE_IO_PHYS_BASE, MV_PCIE_IO_SIZE, -1 },
-
-	/* PCIE MEM */
-	{ 4, 0x59, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
-
 	/* Device bus BOOT */
 	{ 1, 0x2f, MV_DEV_BOOT_PHYS_BASE, MV_DEV_BOOT_SIZE, -1 },
 
@@ -139,6 +216,9 @@ const struct decode_win cpu_win_tbl[] = {
 
 	/* Device bus CS2 */
 	{ 1, 0x3b, MV_DEV_CS2_PHYS_BASE, MV_DEV_CS2_SIZE, -1 },
+
+	/* CESA */
+	{ 9, 0x01, MV_CESA_SRAM_PHYS_BASE, MV_CESA_SRAM_SIZE, -1 },
 };
 const struct decode_win *cpu_wins = cpu_win_tbl;
 int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
@@ -154,7 +234,38 @@ int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
  */
 const struct decode_win idma_win_tbl[] = {
 	/* PCIE MEM */
-	{ 4, 0x59, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
+	{ 4, 0xE8, _MV_PCIE_MEM_PHYS(0), _MV_PCIE_MEM_SIZE, -1 },
+	{ 4, 0xD8, _MV_PCIE_MEM_PHYS(1), _MV_PCIE_MEM_SIZE, -1 },
 };
 const struct decode_win *idma_wins = idma_win_tbl;
 int idma_wins_no = sizeof(idma_win_tbl) / sizeof(struct decode_win);
+
+const struct decode_win xor_win_tbl[] = {
+	/* PCIE MEM */
+	{ 4, 0xE8, _MV_PCIE_MEM_PHYS(0), _MV_PCIE_MEM_SIZE, -1},
+	{ 4, 0xD8, _MV_PCIE_MEM_PHYS(1), _MV_PCIE_MEM_SIZE, -1},
+};
+const struct decode_win *xor_wins = xor_win_tbl;
+int xor_wins_no = sizeof(xor_win_tbl) / sizeof(struct decode_win);
+
+uint32_t
+get_tclk(void)
+{
+	uint32_t sar;
+
+	/*
+	 * On Discovery TCLK is can be configured to 166 MHz or 200 MHz.
+	 * Current setting is read from Sample At Reset register.
+	 */
+	sar = bus_space_read_4(obio_tag, MV_MPP_BASE, SAMPLE_AT_RESET_HI);
+	sar = (sar & TCLK_MASK) >> TCLK_SHIFT;
+
+	switch (sar) {
+	case 0:
+		return (TCLK_166MHZ);
+	case 1:
+		return (TCLK_200MHZ);
+	default:
+		panic("Unknown TCLK settings!");
+	}
+}

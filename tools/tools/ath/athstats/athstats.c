@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -215,7 +215,9 @@ static const struct fmt athstats[] = {
 	{ 5,	"tdmab",	"tdmab",	"TDMA slot update set beacon timers" },
 #define	S_TDMA_TSF	AFTER(S_TDMA_TIMERS)
 	{ 5,	"tdmat",	"tdmat",	"TDMA slot update set TSF" },
-#define	S_RATE_CALLS	AFTER(S_TDMA_TSF)
+#define	S_TDMA_TSFADJ	AFTER(S_TDMA_TSF)
+	{ 8,	"tdmadj",	"tdmadj",	"TDMA slot adjust (usecs, smoothed)" },
+#define	S_RATE_CALLS	AFTER(S_TDMA_TSFADJ)
 #else
 #define	S_RATE_CALLS	AFTER(S_PER_RFGAIN)
 #endif
@@ -603,6 +605,10 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TDMA_UPDATE:	STAT(tdma_update);
 	case S_TDMA_TIMERS:	STAT(tdma_timers);
 	case S_TDMA_TSF:	STAT(tdma_tsf);
+	case S_TDMA_TSFADJ:
+		snprintf(b, bs, "-%d/+%d",
+		    wf->cur.ath.ast_tdma_tsfadjm, wf->cur.ath.ast_tdma_tsfadjp);
+		return 1;
 #endif
 	case S_RATE_CALLS:	STAT(rate_calls);
 	case S_RATE_RAISE:	STAT(rate_raise);
@@ -813,6 +819,11 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TDMA_UPDATE:	STAT(tdma_update);
 	case S_TDMA_TIMERS:	STAT(tdma_timers);
 	case S_TDMA_TSF:	STAT(tdma_tsf);
+	case S_TDMA_TSFADJ:
+		snprintf(b, bs, "-%d/+%d",
+		    wf->total.ath.ast_tdma_tsfadjm,
+		    wf->total.ath.ast_tdma_tsfadjp);
+		return 1;
 #endif
 	case S_RATE_CALLS:	STAT(rate_calls);
 	case S_RATE_RAISE:	STAT(rate_raise);

@@ -106,6 +106,10 @@ static struct bce_type bce_devs[] = {
 		"HP NC370T Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x3106,
 		"HP NC370i Multifunction Gigabit Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x3070,
+		"HP NC380T PCIe DP Multifunc Gig Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x1709,
+		"HP NC371i Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5706 1000Base-T" },
 
@@ -116,18 +120,38 @@ static struct bce_type bce_devs[] = {
 		"Broadcom NetXtreme II BCM5706 1000Base-SX" },
 
 	/* BCM5708C controllers and OEM boards. */
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7037,
+		"HP NC373T PCIe Multifunction Gig Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7038,
+		"HP NC373i Multifunction Gigabit Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7045,
+		"HP NC374m PCIe Multifunction Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5708 1000Base-T" },
 
 	/* BCM5708S controllers and OEM boards. */
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x1706,
+		"HP NC373m Multifunction Gigabit Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x703b,
+		"HP NC373i Multifunction Gigabit Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x703d,
+		"HP NC373F PCIe Multifunc Giga Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5708 1000Base-SX" },
 
 	/* BCM5709C controllers and OEM boards. */
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  HP_VENDORID, 0x7055,
+		"HP NC382i DP Multifunction Gigabit Server Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  HP_VENDORID, 0x7059,
+		"HP NC382T PCIe DP Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5709 1000Base-T" },
 
 	/* BCM5709S controllers and OEM boards. */
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  HP_VENDORID, 0x171d,
+		"HP NC382m DP 1GbE Multifunction BL-c Adapter" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  HP_VENDORID, 0x7056,
+		"HP NC382i DP Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  PCI_ANY_ID,  PCI_ANY_ID,
 		"Broadcom NetXtreme II BCM5709 1000Base-SX" },
 
@@ -2555,7 +2579,7 @@ bce_get_media(struct bce_softc *sc)
 	} else if (BCE_CHIP_BOND_ID(sc) & BCE_CHIP_BOND_ID_SERDES_BIT)
 		sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 
-	if (sc->bce_phy_flags && BCE_PHY_SERDES_FLAG) {
+	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
 		sc->bce_flags |= BCE_NO_WOL_FLAG;
 		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
 			sc->bce_phy_addr = 2;
@@ -2886,7 +2910,6 @@ bce_dma_alloc(device_t dev)
 {
 	struct bce_softc *sc;
 	int i, error, rc = 0;
-	bus_addr_t busaddr;
 	bus_size_t max_size, max_seg_size;
 	int max_segments;
 
@@ -2955,7 +2978,7 @@ bce_dma_alloc(device_t dev)
 	    	sc->status_block,
 	    	BCE_STATUS_BLK_SZ,
 	    	bce_dma_map_addr,
-	    	&busaddr,
+	    	&sc->status_block_paddr,
 	    	BUS_DMA_NOWAIT);
 
 	if (error) {
@@ -2965,7 +2988,6 @@ bce_dma_alloc(device_t dev)
 		goto bce_dma_alloc_exit;
 	}
 
-	sc->status_block_paddr = busaddr;
 	DBPRINT(sc, BCE_INFO, "%s(): status_block_paddr = 0x%jX\n",
 		__FUNCTION__, (uintmax_t) sc->status_block_paddr);
 
@@ -3009,7 +3031,7 @@ bce_dma_alloc(device_t dev)
 	    	sc->stats_block,
 	    	BCE_STATS_BLK_SZ,
 	    	bce_dma_map_addr,
-	    	&busaddr,
+	    	&sc->stats_block_paddr,
 	    	BUS_DMA_NOWAIT);
 
 	if(error) {
@@ -3019,7 +3041,6 @@ bce_dma_alloc(device_t dev)
 		goto bce_dma_alloc_exit;
 	}
 
-	sc->stats_block_paddr = busaddr;
 	DBPRINT(sc, BCE_INFO, "%s(): stats_block_paddr = 0x%jX\n",
 		__FUNCTION__, (uintmax_t) sc->stats_block_paddr);
 
@@ -3077,7 +3098,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->ctx_block[i],
 		    	BCM_PAGE_SIZE,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->ctx_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 			if (error) {
@@ -3087,7 +3108,6 @@ bce_dma_alloc(device_t dev)
 				goto bce_dma_alloc_exit;
 			}
 
-			sc->ctx_paddr[i] = busaddr;
 			DBPRINT(sc, BCE_INFO, "%s(): ctx_paddr[%d] = 0x%jX\n",
 				__FUNCTION__, i, (uintmax_t) sc->ctx_paddr[i]);
 		}
@@ -3133,7 +3153,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->tx_bd_chain[i],
 		    	BCE_TX_CHAIN_PAGE_SZ,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->tx_bd_chain_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 		if (error) {
@@ -3143,7 +3163,6 @@ bce_dma_alloc(device_t dev)
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->tx_bd_chain_paddr[i] = busaddr;
 		DBPRINT(sc, BCE_INFO, "%s(): tx_bd_chain_paddr[%d] = 0x%jX\n",
 			__FUNCTION__, i, (uintmax_t) sc->tx_bd_chain_paddr[i]);
 	}
@@ -3231,7 +3250,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->rx_bd_chain[i],
 		    	BCE_RX_CHAIN_PAGE_SZ,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->rx_bd_chain_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 		if (error) {
@@ -3241,7 +3260,6 @@ bce_dma_alloc(device_t dev)
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->rx_bd_chain_paddr[i] = busaddr;
 		DBPRINT(sc, BCE_INFO, "%s(): rx_bd_chain_paddr[%d] = 0x%jX\n",
 			__FUNCTION__, i, (uintmax_t) sc->rx_bd_chain_paddr[i]);
 	}
@@ -3328,7 +3346,7 @@ bce_dma_alloc(device_t dev)
 	    		sc->pg_bd_chain[i],
 		    	BCE_PG_CHAIN_PAGE_SZ,
 		    	bce_dma_map_addr,
-	    		&busaddr,
+	    		&sc->pg_bd_chain_paddr[i],
 	    		BUS_DMA_NOWAIT);
 
 		if (error) {
@@ -3338,7 +3356,6 @@ bce_dma_alloc(device_t dev)
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->pg_bd_chain_paddr[i] = busaddr;
 		DBPRINT(sc, BCE_INFO, "%s(): pg_bd_chain_paddr[%d] = 0x%jX\n",
 			__FUNCTION__, i, (uintmax_t) sc->pg_bd_chain_paddr[i]);
 	}
@@ -5114,7 +5131,7 @@ bce_free_tx_chain(struct bce_softc *sc)
 	/* Unmap, unload, and free any mbufs still in the TX mbuf chain. */
 	for (i = 0; i < TOTAL_TX_BD; i++) {
 		if (sc->tx_mbuf_ptr[i] != NULL) {
-			if (sc->tx_mbuf_map != NULL)
+			if (sc->tx_mbuf_map[i] != NULL)
 				bus_dmamap_sync(sc->tx_mbuf_tag, sc->tx_mbuf_map[i],
 					BUS_DMASYNC_POSTWRITE);
 			m_freem(sc->tx_mbuf_ptr[i]);
@@ -7030,13 +7047,14 @@ bce_intr(void *xsc)
 
 		/* Was it a link change interrupt? */
 		if ((status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) !=
-			(sc->status_block->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE))
+			(sc->status_block->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE)) {
 			bce_phy_intr(sc);
 
-		/* Clear any transient status updates during link state change. */
-		REG_WR(sc, BCE_HC_COMMAND,
-			sc->hc_command | BCE_HC_COMMAND_COAL_NOW_WO_INT);
-		REG_RD(sc, BCE_HC_COMMAND);
+			/* Clear any transient status updates during link state change. */
+			REG_WR(sc, BCE_HC_COMMAND,
+				sc->hc_command | BCE_HC_COMMAND_COAL_NOW_WO_INT);
+			REG_RD(sc, BCE_HC_COMMAND);
+		}
 
 		/* If any other attention is asserted then the chip is toast. */
 		if (((status_attn_bits & ~STATUS_ATTN_BITS_LINK_STATE) !=
@@ -7407,7 +7425,6 @@ bce_stats_update(struct bce_softc *sc)
 		(u_long) sc->stat_IfInMBUFDiscards +
 		(u_long) sc->stat_Dot3StatsAlignmentErrors +
 		(u_long) sc->stat_Dot3StatsFCSErrors +
-		(u_long) sc->stat_IfInFramesL2FilterDiscards +
 		(u_long) sc->stat_IfInRuleCheckerDiscards +
 		(u_long) sc->stat_IfInFTQDiscards +
 		(u_long) sc->com_no_buffers;

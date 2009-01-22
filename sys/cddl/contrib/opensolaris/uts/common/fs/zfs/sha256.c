@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -31,20 +30,20 @@
 #include <sys/zio_checksum.h>
 
 /*
- * SHA-256 checksum, as specified in FIPS 180-2, available at:
- * http://csrc.nist.gov/cryptval
+ * SHA-256 checksum, as specified in FIPS 180-3, available at:
+ * http://csrc.nist.gov/publications/PubsFIPS.html
  *
  * This is a very compact implementation of SHA-256.
  * It is designed to be simple and portable, not to be fast.
  */
 
 /*
- * The literal definitions according to FIPS180-2 would be:
+ * The literal definitions of Ch() and Maj() according to FIPS 180-3 are:
  *
- * 	Ch(x, y, z)     (((x) & (y)) ^ ((~(x)) & (z)))
- * 	Maj(x, y, z)    (((x) & (y)) | ((x) & (z)) | ((y) & (z)))
+ * 	Ch(x, y, z)     (x & y) ^ (~x & z)
+ * 	Maj(x, y, z)    (x & y) ^ (x & z) ^ (y & z)
  *
- * We use logical equivalents which require one less op.
+ * We use equivalent logical reductions here that require one less op.
  */
 #define	Ch(x, y, z)	((z) ^ ((x) & ((y) ^ (z))))
 #define	Maj(x, y, z)	(((x) & (y)) ^ ((z) & ((x) ^ (y))))
@@ -105,20 +104,19 @@ zio_checksum_SHA256(const void *buf, uint64_t size, zio_cksum_t *zcp)
 	uint32_t H[8] = { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 	    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
 	uint8_t pad[128];
-	int padsize = size & 63;
-	int i;
+	int i, padsize;
 
-	for (i = 0; i < size - padsize; i += 64)
+	for (i = 0; i < (size & ~63ULL); i += 64)
 		SHA256Transform(H, (uint8_t *)buf + i);
 
-	for (i = 0; i < padsize; i++)
-		pad[i] = ((uint8_t *)buf)[i];
+	for (padsize = 0; i < size; i++)
+		pad[padsize++] = *((uint8_t *)buf + i);
 
 	for (pad[padsize++] = 0x80; (padsize & 63) != 56; padsize++)
 		pad[padsize] = 0;
 
-	for (i = 0; i < 8; i++)
-		pad[padsize++] = (size << 3) >> (56 - 8 * i);
+	for (i = 56; i >= 0; i -= 8)
+		pad[padsize++] = (size << 3) >> i;
 
 	for (i = 0; i < padsize; i += 64)
 		SHA256Transform(H, pad + i);

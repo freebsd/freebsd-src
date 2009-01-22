@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -316,6 +316,8 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	asoc->streamoutcnt = asoc->pre_open_streams;
 	/* init tsn's */
 	asoc->highest_tsn_inside_map = asoc->asconf_seq_in = ntohl(init->initial_tsn) - 1;
+	/* EY - nr_sack: initialize highest tsn in nr_mapping_array */
+	asoc->highest_tsn_inside_nr_map = asoc->highest_tsn_inside_map;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 		sctp_log_map(0, 5, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
 	}
@@ -323,6 +325,11 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	asoc->str_reset_seq_in = asoc->asconf_seq_in + 1;
 
 	asoc->mapping_array_base_tsn = ntohl(init->initial_tsn);
+	/*
+	 * EY 05/13/08 - nr_sack: initialize nr_mapping array's base tsn
+	 * like above
+	 */
+	asoc->nr_mapping_array_base_tsn = ntohl(init->initial_tsn);
 	asoc->tsn_last_delivered = asoc->cumulative_tsn = asoc->asconf_seq_in;
 	asoc->last_echo_tsn = asoc->asconf_seq_in;
 	asoc->advanced_peer_ack_point = asoc->last_acked_seq;
@@ -393,6 +400,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	struct mbuf *op_err;
 	int retval, abort_flag;
 	uint32_t initack_limit;
+	int nat_friendly = 0;
 
 	/* First verify that we have no illegal param's */
 	abort_flag = 0;
@@ -400,7 +408,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 
 	op_err = sctp_arethere_unrecognized_parameters(m,
 	    (offset + sizeof(struct sctp_init_chunk)),
-	    &abort_flag, (struct sctp_chunkhdr *)cp);
+	    &abort_flag, (struct sctp_chunkhdr *)cp, &nat_friendly);
 	if (abort_flag) {
 		/* Send an abort and notify peer */
 		sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_CAUSE_PROTOCOL_VIOLATION, op_err, SCTP_SO_NOT_LOCKED);
@@ -408,6 +416,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		return (-1);
 	}
 	asoc = &stcb->asoc;
+	asoc->peer_supports_nat = (uint8_t) nat_friendly;
 	/* process the peer's parameters in the INIT-ACK */
 	retval = sctp_process_init((struct sctp_init_chunk *)cp, stcb, net);
 	if (retval < 0) {
@@ -637,6 +646,69 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	}
 }
 
+static int
+sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
+{
+	/*
+	 * return 0 means we want you to proceed with the abort non-zero
+	 * means no abort processing
+	 */
+	struct sctpasochead *head;
+
+	if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT) {
+		/* generate a new vtag and send init */
+		LIST_REMOVE(stcb, sctp_asocs);
+		stcb->asoc.my_vtag = sctp_select_a_tag(stcb->sctp_ep, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
+		head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
+		/*
+		 * put it in the bucket in the vtag hash of assoc's for the
+		 * system
+		 */
+		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
+		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+		return (1);
+	}
+	if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED) {
+		/*
+		 * treat like a case where the cookie expired i.e.: - dump
+		 * current cookie. - generate a new vtag. - resend init.
+		 */
+		/* generate a new vtag and send init */
+		LIST_REMOVE(stcb, sctp_asocs);
+		stcb->asoc.state &= ~SCTP_STATE_COOKIE_ECHOED;
+		stcb->asoc.state |= SCTP_STATE_COOKIE_WAIT;
+		sctp_stop_all_cookie_timers(stcb);
+		sctp_toss_old_cookies(stcb, &stcb->asoc);
+		stcb->asoc.my_vtag = sctp_select_a_tag(stcb->sctp_ep, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
+		head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
+		/*
+		 * put it in the bucket in the vtag hash of assoc's for the
+		 * system
+		 */
+		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
+		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+		return (1);
+	}
+	return (0);
+}
+
+static int
+sctp_handle_nat_missing_state(struct sctp_tcb *stcb,
+    struct sctp_nets *net)
+{
+	/*
+	 * return 0 means we want you to proceed with the abort non-zero
+	 * means no abort processing
+	 */
+	if (stcb->asoc.peer_supports_auth == 0) {
+		SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_nat_missing_state: Peer does not support AUTH, cannot send an asconf\n");
+		return (0);
+	}
+	sctp_asconf_send_nat_state_update(stcb, net);
+	return (1);
+}
+
+
 static void
 sctp_handle_abort(struct sctp_abort_chunk *cp,
     struct sctp_tcb *stcb, struct sctp_nets *net)
@@ -645,11 +717,40 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 	struct socket *so;
 
 #endif
+	uint16_t len;
 
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_abort: handling ABORT\n");
 	if (stcb == NULL)
 		return;
 
+	len = ntohs(cp->ch.chunk_length);
+	if (len > sizeof(struct sctp_chunkhdr)) {
+		/*
+		 * Need to check the cause codes for our two magic nat
+		 * aborts which don't kill the assoc necessarily.
+		 */
+		struct sctp_abort_chunk *cpnext;
+		struct sctp_missing_nat_state *natc;
+		uint16_t cause;
+
+		cpnext = cp;
+		cpnext++;
+		natc = (struct sctp_missing_nat_state *)cpnext;
+		cause = ntohs(natc->cause);
+		if (cause == SCTP_CAUSE_NAT_COLLIDING_STATE) {
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
+			    cp->ch.chunk_flags);
+			if (sctp_handle_nat_colliding_state(stcb)) {
+				return;
+			}
+		} else if (cause == SCTP_CAUSE_NAT_MISSING_STATE) {
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags:%x\n",
+			    cp->ch.chunk_flags);
+			if (sctp_handle_nat_missing_state(stcb, net)) {
+				return;
+			}
+		}
+	}
 	/* stop any receive timers */
 	sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
 	/* notify user of the abort and clean up... */
@@ -926,6 +1027,9 @@ sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
 	case SCTP_SUPPORTED_CHUNK_EXT:
 		break;
 		/* draft-ietf-tsvwg-addip-sctp */
+	case SCTP_HAS_NAT_SUPPORT:
+		stcb->asoc.peer_supports_nat = 0;
+		break;
 	case SCTP_ECN_NONCE_SUPPORTED:
 		stcb->asoc.peer_supports_ecn_nonce = 0;
 		stcb->asoc.ecn_nonce_allowed = 0;
@@ -990,6 +1094,20 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			SCTPDBG(SCTP_DEBUG_INPUT1, "Software error we got a %d back? We have a bug :/ (or do they?)\n",
 			    error_type);
 			break;
+		case SCTP_CAUSE_NAT_COLLIDING_STATE:
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
+			    ch->chunk_flags);
+			if (sctp_handle_nat_colliding_state(stcb)) {
+				return (0);
+			}
+			break;
+		case SCTP_CAUSE_NAT_MISSING_STATE:
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags:%x\n",
+			    ch->chunk_flags);
+			if (sctp_handle_nat_missing_state(stcb, net)) {
+				return (0);
+			}
+			break;
 		case SCTP_CAUSE_STALE_COOKIE:
 			/*
 			 * We only act if we have echoed a cookie and are
@@ -1022,9 +1140,9 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 					return (-1);
 				}
 				/* blast back to INIT state */
+				sctp_toss_old_cookies(stcb, &stcb->asoc);
 				asoc->state &= ~SCTP_STATE_COOKIE_ECHOED;
 				asoc->state |= SCTP_STATE_COOKIE_WAIT;
-
 				sctp_stop_all_cookie_timers(stcb);
 				sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
 			}
@@ -1213,6 +1331,14 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 	return (0);
 }
 
+static struct sctp_tcb *
+sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
+    struct sctphdr *sh, struct sctp_state_cookie *cookie, int cookie_len,
+    struct sctp_inpcb *inp, struct sctp_nets **netp,
+    struct sockaddr *init_src, int *notification,
+    int auth_skipped, uint32_t auth_offset, uint32_t auth_len,
+    uint32_t vrf_id, uint16_t port);
+
 
 /*
  * handle a state cookie for an existing association m: input packet mbuf
@@ -1223,19 +1349,23 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 static struct sctp_tcb *
 sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
     struct sctphdr *sh, struct sctp_state_cookie *cookie, int cookie_len,
-    struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_nets *net,
+    struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_nets **netp,
     struct sockaddr *init_src, int *notification, sctp_assoc_t * sac_assoc_id,
-    uint32_t vrf_id)
+    uint32_t vrf_id, int auth_skipped, uint32_t auth_offset, uint32_t auth_len, uint16_t port)
 {
 	struct sctp_association *asoc;
 	struct sctp_init_chunk *init_cp, init_buf;
 	struct sctp_init_ack_chunk *initack_cp, initack_buf;
+	struct sctp_nets *net;
+	struct mbuf *op_err;
+	struct sctp_paramhdr *ph;
 	int chk_length;
 	int init_offset, initack_offset, i;
 	int retval;
 	int spec_flag = 0;
 	uint32_t how_indx;
 
+	net = *netp;
 	/* I know that the TCB is non-NULL from the caller */
 	asoc = &stcb->asoc;
 	for (how_indx = 0; how_indx < sizeof(asoc->cookie_how); how_indx++) {
@@ -1247,9 +1377,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 	}
 	if (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_ACK_SENT) {
 		/* SHUTDOWN came in after sending INIT-ACK */
-		struct mbuf *op_err;
-		struct sctp_paramhdr *ph;
-
 		sctp_send_shutdown_ack(stcb, stcb->asoc.primary_destination);
 		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 		    0, M_DONTWAIT, 1, MT_DATA);
@@ -1457,9 +1584,50 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			asoc->cookie_how[how_indx] = 6;
 		return (NULL);
 	}
-	if (ntohl(initack_cp->init.initiate_tag) == asoc->my_vtag &&
-	    (ntohl(init_cp->init.initiate_tag) != asoc->peer_vtag ||
-	    init_cp->init.initiate_tag == 0)) {
+	/*
+	 * If nat support, and the below and stcb is established, send back
+	 * a ABORT(colliding state) if we are established.
+	 */
+	if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) &&
+	    (asoc->peer_supports_nat) &&
+	    ((ntohl(initack_cp->init.initiate_tag) == asoc->my_vtag) &&
+	    ((ntohl(init_cp->init.initiate_tag) != asoc->peer_vtag) ||
+	    (asoc->peer_vtag == 0)))) {
+		/*
+		 * Special case - Peer's support nat. We may have two init's
+		 * that we gave out the same tag on since one was not
+		 * established.. i.e. we get INIT from host-1 behind the nat
+		 * and we respond tag-a, we get a INIT from host-2 behind
+		 * the nat and we get tag-a again. Then we bring up host-1
+		 * (or 2's) assoc, Then comes the cookie from hsot-2 (or 1).
+		 * Now we have colliding state. We must send an abort here
+		 * with colliding state indication.
+		 */
+		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
+		    0, M_DONTWAIT, 1, MT_DATA);
+		if (op_err == NULL) {
+			/* FOOBAR */
+			return (NULL);
+		}
+		/* pre-reserve some space */
+#ifdef INET6
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
+#else
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip));
+#endif
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+		/* Set the len */
+		SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
+		ph = mtod(op_err, struct sctp_paramhdr *);
+		ph->param_type = htons(SCTP_CAUSE_NAT_COLLIDING_STATE);
+		ph->param_length = htons(sizeof(struct sctp_paramhdr));
+		sctp_send_abort(m, iphlen, sh, 0, op_err, vrf_id, port);
+		return (NULL);
+	}
+	if ((ntohl(initack_cp->init.initiate_tag) == asoc->my_vtag) &&
+	    ((ntohl(init_cp->init.initiate_tag) != asoc->peer_vtag) ||
+	    (asoc->peer_vtag == 0))) {
 		/*
 		 * case B in Section 5.2.4 Table 2: MXAA or MOAA my info
 		 * should be ok, re-accept peer info
@@ -1612,6 +1780,17 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 	    cookie->tie_tag_peer_vtag != 0) {
 		struct sctpasochead *head;
 
+		if (asoc->peer_supports_nat) {
+			/*
+			 * This is a gross gross hack. just call the
+			 * cookie_new code since we are allowing a duplicate
+			 * association. I hope this works...
+			 */
+			return (sctp_process_cookie_new(m, iphlen, offset, sh, cookie, cookie_len,
+			    inp, netp, init_src, notification,
+			    auth_skipped, auth_offset, auth_len,
+			    vrf_id, port));
+		}
 		/*
 		 * case A in Section 5.2.4 Table 2: XXMM (peer restarted)
 		 */
@@ -1660,6 +1839,12 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			memset(asoc->mapping_array, 0,
 			    asoc->mapping_array_size);
 		}
+		/* EY 05/13/08 - nr_sack version of the above if statement */
+		if (asoc->nr_mapping_array && SCTP_BASE_SYSCTL(sctp_nr_sack_on_off)
+		    && asoc->peer_supports_nr_sack) {
+			memset(asoc->nr_mapping_array, 0,
+			    asoc->nr_mapping_array_size);
+		}
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_INFO_WLOCK();
 		SCTP_INP_WLOCK(stcb->sctp_ep);
@@ -1689,14 +1874,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		 */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
 
-		/* Is this the first restart? */
-		if (stcb->asoc.in_restart_hash == 0) {
-			/* Ok add it to assoc_id vtag hash */
-			head = &SCTP_BASE_INFO(sctp_restarthash)[SCTP_PCBHASH_ASOC(stcb->asoc.assoc_id,
-			    SCTP_BASE_INFO(hashrestartmark))];
-			LIST_INSERT_HEAD(head, stcb, sctp_tcbrestarhash);
-			stcb->asoc.in_restart_hash = 1;
-		}
 		/* process the INIT info (peer's info) */
 		SCTP_TCB_SEND_UNLOCK(stcb);
 		SCTP_INP_WUNLOCK(stcb->sctp_ep);
@@ -1746,7 +1923,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
  * cookie-echo chunk length: length of the cookie chunk to: where the init
  * was from returns a new TCB
  */
-static struct sctp_tcb *
+struct sctp_tcb *
 sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
     struct sctphdr *sh, struct sctp_state_cookie *cookie, int cookie_len,
     struct sctp_inpcb *inp, struct sctp_nets **netp,
@@ -1886,7 +2063,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	}
 	/* process the INIT-ACK info (my info) */
 	old_tag = asoc->my_vtag;
-	asoc->assoc_id = asoc->my_vtag = ntohl(initack_cp->init.initiate_tag);
+	asoc->my_vtag = ntohl(initack_cp->init.initiate_tag);
 	asoc->my_rwnd = ntohl(initack_cp->init.a_rwnd);
 	asoc->pre_open_streams = ntohs(initack_cp->init.num_outbound_streams);
 	asoc->init_seq_number = ntohl(initack_cp->init.initial_tsn);
@@ -2089,6 +2266,18 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	return (stcb);
 }
 
+/*
+ * CODE LIKE THIS NEEDS TO RUN IF the peer supports the NAT extension, i.e
+ * we NEED to make sure we are not already using the vtag. If so we
+ * need to send back an ABORT-TRY-AGAIN-WITH-NEW-TAG No middle box bit!
+	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(tag,
+							    SCTP_BASE_INFO(hashasocmark))];
+	LIST_FOREACH(stcb, head, sctp_asocs) {
+	        if ((stcb->asoc.my_vtag == tag) && (stcb->rport == rport) && (inp == stcb->sctp_ep))  {
+		       -- SEND ABORT - TRY AGAIN --
+		}
+	}
+*/
 
 /*
  * handles a COOKIE-ECHO message stcb: modified to either a new or left as
@@ -2422,8 +2611,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* this is abnormal... cookie-echo on existing TCB */
 		had_a_existing_tcb = 1;
 		*stcb = sctp_process_cookie_existing(m, iphlen, offset, sh,
-		    cookie, cookie_len, *inp_p, *stcb, *netp, to,
-		    &notification, &sac_restart_id, vrf_id);
+		    cookie, cookie_len, *inp_p, *stcb, netp, to,
+		    &notification, &sac_restart_id, vrf_id, auth_skipped, auth_offset, auth_len, port);
 	}
 
 	if (*stcb == NULL) {
@@ -2544,8 +2733,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				sctp_free_chunklist(inp->sctp_ep.local_auth_chunks);
 			inp->sctp_ep.local_auth_chunks =
 			    sctp_copy_chunklist((*inp_p)->sctp_ep.local_auth_chunks);
-			(void)sctp_copy_skeylist(&(*inp_p)->sctp_ep.shared_keys,
-			    &inp->sctp_ep.shared_keys);
 
 			/*
 			 * Now we must move it from one hash table to
@@ -3040,6 +3227,10 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 		/* resend the sack */
 		sctp_send_sack(stcb);
 		break;
+		/* EY for nr_sacks */
+	case SCTP_NR_SELECTIVE_ACK:
+		sctp_send_nr_sack(stcb);	/* EY resend the nr-sack */
+		break;
 	case SCTP_HEARTBEAT_REQUEST:
 		/* resend a demand HB */
 		if ((stcb->asoc.overall_error_count + 3) < stcb->asoc.max_send_times) {
@@ -3296,6 +3487,17 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					stcb->asoc.tsn_last_delivered = stcb->asoc.cumulative_tsn = stcb->asoc.highest_tsn_inside_map;
 					stcb->asoc.mapping_array_base_tsn = ntohl(resp->senders_next_tsn);
 					memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
+
+					/*
+					 * EY 05/13/08 - nr_sack: to keep
+					 * nr_mapping array be consistent
+					 * with mapping_array
+					 */
+					if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack) {
+						stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
+						stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.mapping_array_base_tsn;
+						memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
+					}
 					stcb->asoc.sending_seq = ntohl(resp->receivers_next_tsn);
 					stcb->asoc.last_acked_seq = stcb->asoc.cumulative_tsn;
 
@@ -3402,6 +3604,15 @@ sctp_handle_str_reset_request_tsn(struct sctp_tcb *stcb,
 		stcb->asoc.tsn_last_delivered = stcb->asoc.cumulative_tsn = stcb->asoc.highest_tsn_inside_map;
 		stcb->asoc.mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
 		memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
+		/*
+		 * EY 05/13/08 -nr_sack: to keep nr_mapping array consistent
+		 * with mapping array
+		 */
+		if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack) {
+			stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
+			stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
+			memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
+		}
 		atomic_add_int(&stcb->asoc.sending_seq, 1);
 		/* save off historical data for retrans */
 		stcb->asoc.last_sending_seq[1] = stcb->asoc.last_sending_seq[0];
@@ -3940,7 +4151,7 @@ __attribute__((noinline))
 				if (asconf_len < sizeof(struct sctp_asconf_paramhdr))
 					break;
 				stcb = sctp_findassociation_ep_asconf(m, iphlen,
-				    *offset, sh, &inp, netp);
+				    *offset, sh, &inp, netp, vrf_id);
 				if (stcb != NULL)
 					break;
 				asconf_offset += SCTP_SIZE32(asconf_len);
@@ -4043,6 +4254,8 @@ __attribute__((noinline))
 	 * process all control chunks...
 	 */
 	if (((ch->chunk_type == SCTP_SELECTIVE_ACK) ||
+	/* EY */
+	    (ch->chunk_type == SCTP_NR_SELECTIVE_ACK) ||
 	    (ch->chunk_type == SCTP_HEARTBEAT_REQUEST)) &&
 	    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED)) {
 		/* implied cookie-ack.. we must have lost the ack */
@@ -4328,6 +4541,11 @@ process_control_chunks:
 						sctp_handle_sack(m, *offset,
 						    sack, stcb, *netp, &abort_now, chk_length, a_rwnd);
 				}
+				if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
+				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
+				    (stcb->asoc.stream_queue_cnt == 0)) {
+					sctp_ulp_notify(SCTP_NOTIFY_SENDER_DRY, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
+				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
 					*offset = length;
@@ -4335,6 +4553,102 @@ process_control_chunks:
 				}
 			}
 			break;
+			/*
+			 * EY - nr_sack:  If the received chunk is an
+			 * nr_sack chunk
+			 */
+		case SCTP_NR_SELECTIVE_ACK:
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_NR_SACK\n");
+			SCTP_STAT_INCR(sctps_recvsacks);
+			{
+				struct sctp_nr_sack_chunk *nr_sack;
+				int abort_now = 0;
+				uint32_t a_rwnd, cum_ack;
+				uint16_t num_seg, num_nr_seg;
+				int nonce_sum_flag, all_bit;
+
+				if ((stcb == NULL) || (chk_length < sizeof(struct sctp_nr_sack_chunk))) {
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size on nr_sack chunk, too small\n");
+			ignore_nr_sack:
+					*offset = length;
+					if (locked_tcb) {
+						SCTP_TCB_UNLOCK(locked_tcb);
+					}
+					return (NULL);
+				}
+				/*
+				 * EY nr_sacks have not been negotiated but
+				 * the peer end sent an nr_sack, silently
+				 * discard the chunk
+				 */
+				if (!(SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack)) {
+					goto unknown_chunk;
+				}
+				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_ACK_SENT) {
+					/*-
+					 * If we have sent a shutdown-ack, we will pay no
+					 * attention to a sack sent in to us since
+					 * we don't care anymore.
+					 */
+					goto ignore_nr_sack;
+				}
+				nr_sack = (struct sctp_nr_sack_chunk *)ch;
+				nonce_sum_flag = ch->chunk_flags & SCTP_SACK_NONCE_SUM;
+				all_bit = ch->chunk_flags & SCTP_NR_SACK_ALL_BIT;
+
+				cum_ack = ntohl(nr_sack->nr_sack.cum_tsn_ack);
+				num_seg = ntohs(nr_sack->nr_sack.num_gap_ack_blks);
+				/*
+				 * EY -if All bit  is set, then there are as
+				 * many gaps as nr_gaps
+				 */
+				if (all_bit) {
+					num_seg = ntohs(nr_sack->nr_sack.num_nr_gap_ack_blks);
+				}
+				num_nr_seg = ntohs(nr_sack->nr_sack.num_nr_gap_ack_blks);
+				a_rwnd = (uint32_t) ntohl(nr_sack->nr_sack.a_rwnd);
+				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_NR_SACK process cum_ack:%x num_seg:%d a_rwnd:%d\n",
+				    cum_ack,
+				    num_seg,
+				    a_rwnd
+				    );
+				stcb->asoc.seen_a_sack_this_pkt = 1;
+				if ((stcb->asoc.pr_sctp_cnt == 0) &&
+				    (num_seg == 0) &&
+				    ((compare_with_wrap(cum_ack, stcb->asoc.last_acked_seq, MAX_TSN)) ||
+				    (cum_ack == stcb->asoc.last_acked_seq)) &&
+				    (stcb->asoc.saw_sack_with_frags == 0) &&
+				    (!TAILQ_EMPTY(&stcb->asoc.sent_queue))
+				    ) {
+					/*
+					 * We have a SIMPLE sack having no
+					 * prior segments and data on sent
+					 * queue to be acked.. Use the
+					 * faster path sack processing. We
+					 * also allow window update sacks
+					 * with no missing segments to go
+					 * this way too.
+					 */
+					sctp_express_handle_nr_sack(stcb, cum_ack, a_rwnd, nonce_sum_flag,
+					    &abort_now);
+				} else {
+					if (netp && *netp)
+						sctp_handle_nr_sack(m, *offset,
+						    nr_sack, stcb, *netp, &abort_now, chk_length, a_rwnd);
+				}
+				if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
+				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
+				    (stcb->asoc.stream_queue_cnt == 0)) {
+					sctp_ulp_notify(SCTP_NOTIFY_SENDER_DRY, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
+				}
+				if (abort_now) {
+					/* ABORT signal from sack processing */
+					*offset = length;
+					return (NULL);
+				}
+			}
+			break;
+
 		case SCTP_HEARTBEAT_REQUEST:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_HEARTBEAT\n");
 			if ((stcb) && netp && *netp) {
@@ -5242,6 +5556,18 @@ out_now:
 	return;
 }
 
+#if 0
+static void
+sctp_print_mbuf_chain(struct mbuf *m)
+{
+	for (; m; m = SCTP_BUF_NEXT(m)) {
+		printf("%p: m_len = %ld\n", m, SCTP_BUF_LEN(m));
+		if (SCTP_BUF_IS_EXTENDED(m))
+			printf("%p: extend_size = %d\n", m, SCTP_BUF_EXTEND_SIZE(m));
+	}
+}
+
+#endif
 
 void
 sctp_input_with_port(i_pak, off, port)

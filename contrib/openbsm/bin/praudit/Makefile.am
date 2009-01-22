@@ -1,8 +1,12 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/Makefile.am#1 $
+# $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/Makefile.am#3 $
 #
 
-INCLUDES = -I$(top_srcdir)
+if USE_NATIVE_INCLUDES
+INCLUDES = -I$(top_builddir) -I$(top_srcdir)
+else
+INCLUDES = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/sys
+endif
 
 sbin_PROGRAMS = praudit
 praudit_SOURCES = praudit.c

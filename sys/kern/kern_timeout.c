@@ -414,6 +414,7 @@ softclock(void *arg)
 					lastfunc = c_func;
 				}
 #endif
+				CTR1(KTR_CALLOUT, "callout %p finished", c);
 				if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
 					class->lc_unlock(c_lock);
 			skip:

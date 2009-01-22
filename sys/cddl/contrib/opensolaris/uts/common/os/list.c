@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -41,19 +41,24 @@
 
 #define	list_insert_after_node(list, node, object) {	\
 	list_node_t *lnew = list_d2l(list, object);	\
-	lnew->list_prev = node;				\
-	lnew->list_next = node->list_next;		\
-	node->list_next->list_prev = lnew;		\
-	node->list_next = lnew;				\
+	lnew->list_prev = (node);			\
+	lnew->list_next = (node)->list_next;		\
+	(node)->list_next->list_prev = lnew;		\
+	(node)->list_next = lnew;			\
 }
 
 #define	list_insert_before_node(list, node, object) {	\
 	list_node_t *lnew = list_d2l(list, object);	\
-	lnew->list_next = node;				\
-	lnew->list_prev = node->list_prev;		\
-	node->list_prev->list_next = lnew;		\
-	node->list_prev = lnew;				\
+	lnew->list_next = (node);			\
+	lnew->list_prev = (node)->list_prev;		\
+	(node)->list_prev->list_next = lnew;		\
+	(node)->list_prev = lnew;			\
 }
+
+#define	list_remove_node(node)					\
+	(node)->list_prev->list_next = (node)->list_next;	\
+	(node)->list_next->list_prev = (node)->list_prev;	\
+	(node)->list_next = (node)->list_prev = NULL
 
 void
 list_create(list_t *list, size_t size, size_t offset)
@@ -83,15 +88,23 @@ list_destroy(list_t *list)
 void
 list_insert_after(list_t *list, void *object, void *nobject)
 {
-	list_node_t *lold = list_d2l(list, object);
-	list_insert_after_node(list, lold, nobject);
+	if (object == NULL) {
+		list_insert_head(list, nobject);
+	} else {
+		list_node_t *lold = list_d2l(list, object);
+		list_insert_after_node(list, lold, nobject);
+	}
 }
 
 void
 list_insert_before(list_t *list, void *object, void *nobject)
 {
-	list_node_t *lold = list_d2l(list, object);
-	list_insert_before_node(list, lold, nobject)
+	if (object == NULL) {
+		list_insert_tail(list, nobject);
+	} else {
+		list_node_t *lold = list_d2l(list, object);
+		list_insert_before_node(list, lold, nobject);
+	}
 }
 
 void
@@ -113,9 +126,28 @@ list_remove(list_t *list, void *object)
 {
 	list_node_t *lold = list_d2l(list, object);
 	ASSERT(!list_empty(list));
-	lold->list_prev->list_next = lold->list_next;
-	lold->list_next->list_prev = lold->list_prev;
-	lold->list_next = lold->list_prev = NULL;
+	ASSERT(lold->list_next != NULL);
+	list_remove_node(lold);
+}
+
+void *
+list_remove_head(list_t *list)
+{
+	list_node_t *head = list->list_head.list_next;
+	if (head == &list->list_head)
+		return (NULL);
+	list_remove_node(head);
+	return (list_object(list, head));
+}
+
+void *
+list_remove_tail(list_t *list)
+{
+	list_node_t *tail = list->list_head.list_prev;
+	if (tail == &list->list_head)
+		return (NULL);
+	list_remove_node(tail);
+	return (list_object(list, tail));
 }
 
 void *
@@ -178,6 +210,26 @@ list_move_tail(list_t *dst, list_t *src)
 
 	/* empty src list */
 	srcnode->list_next = srcnode->list_prev = srcnode;
+}
+
+void
+list_link_replace(list_node_t *lold, list_node_t *lnew)
+{
+	ASSERT(list_link_active(lold));
+	ASSERT(!list_link_active(lnew));
+
+	lnew->list_next = lold->list_next;
+	lnew->list_prev = lold->list_prev;
+	lold->list_prev->list_next = lnew;
+	lold->list_next->list_prev = lnew;
+	lold->list_next = lold->list_prev = NULL;
+}
+
+void
+list_link_init(list_node_t *link)
+{
+	link->list_next = NULL;
+	link->list_prev = NULL;
 }
 
 int

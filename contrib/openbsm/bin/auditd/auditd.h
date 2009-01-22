@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2005 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#12 $
  */
 
 #ifndef _AUDITD_H_
@@ -46,15 +46,6 @@
  */
 #define	AUDIT_REVIEW_GROUP	"audit"
 
-#define	POSTFIX_LEN		16
-#define	NOT_TERMINATED	".not_terminated"
-
-struct dir_ent {
-	char			*dirname;
-	char			 softlim;
-	TAILQ_ENTRY(dir_ent)	 dirs;
-};
-
 #define	HARDLIM_ALL_WARN	"allhard"
 #define	SOFTLIM_ALL_WARN	"allsoft"
 #define	AUDITOFF_WARN		"auditoff"
@@ -70,7 +61,11 @@ struct dir_ent {
 #define	AUDITWARN_SCRIPT	"/etc/security/audit_warn"
 #define	AUDITD_PIDFILE		"/var/run/auditd.pid"
 
-int	audit_warn_allhard(int count);
+#define	AUD_STATE_INIT		-1
+#define	AUD_STATE_DISABLED	 0
+#define	AUD_STATE_ENABLED	 1
+
+int	audit_warn_allhard(void);
 int	audit_warn_allsoft(void);
 int	audit_warn_auditoff(void);
 int	audit_warn_closefile(char *filename);
@@ -81,5 +76,25 @@ int	audit_warn_nostart(void);
 int	audit_warn_postsigterm(void);
 int	audit_warn_soft(char *filename);
 int	audit_warn_tmpfile(void);
+
+void	auditd_openlog(int debug, gid_t gid);
+void	auditd_log_err(const char *fmt, ...);
+void	auditd_log_debug(const char *fmt, ...);
+void	auditd_log_info(const char *fmt, ...);
+void	auditd_log_notice(const char *fmt, ...);
+
+void	auditd_set_state(int state);
+int	auditd_get_state(void);
+
+int	auditd_open_trigger(int launchd_flag);
+int	auditd_close_trigger(void);
+void	auditd_handle_trigger(int trigger);
+
+void	auditd_wait_for_events(void);
+void	auditd_relay_signal(int signal);
+void	auditd_terminate(void);
+int	auditd_config_controls(void);
+void	auditd_reap_children(void);
+
 
 #endif /* !_AUDITD_H_ */

@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_inet.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_mac.h"
@@ -71,9 +72,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <netinet/vinet.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/vinet6.h>
 #endif /* INET6 */
 
 
@@ -84,32 +87,34 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef VIMAGE_GLOBALS
 /*
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
  */
-int	ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
-int	ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
-int	ipport_firstauto = IPPORT_EPHEMERALFIRST;	/* 10000 */
-int	ipport_lastauto  = IPPORT_EPHEMERALLAST;	/* 65535 */
-int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
-int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
+int	ipport_lowfirstauto;
+int	ipport_lowlastauto;
+int	ipport_firstauto;
+int	ipport_lastauto;
+int	ipport_hifirstauto;
+int	ipport_hilastauto;
 
 /*
  * Reserved ports accessible only to root. There are significant
  * security considerations that must be accounted for when changing these,
  * but the security benefits can be great. Please be careful.
  */
-int	ipport_reservedhigh = IPPORT_RESERVED - 1;	/* 1023 */
-int	ipport_reservedlow = 0;
+int	ipport_reservedhigh;
+int	ipport_reservedlow;
 
 /* Variables dealing with random ephemeral port allocation. */
-int	ipport_randomized = 1;	/* user controlled via sysctl */
-int	ipport_randomcps = 10;	/* user controlled via sysctl */
-int	ipport_randomtime = 45;	/* user controlled via sysctl */
-int	ipport_stoprandom = 0;	/* toggled by ipport_tick */
+int	ipport_randomized;
+int	ipport_randomcps;
+int	ipport_randomtime;
+int	ipport_stoprandom;
 int	ipport_tcpallocs;
 int	ipport_tcplastcount;
+#endif
 
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
@@ -118,6 +123,7 @@ int	ipport_tcplastcount;
 static int
 sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error;
 
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
@@ -207,7 +213,6 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	mac_inpcb_create(so, inp);
 	SOCK_UNLOCK(so);
 #endif
-
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
 	if (error != 0) {
@@ -233,7 +238,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #endif
 	INP_WLOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
-
+	inp->inp_refcount = 1;	/* Reference from the inpcbinfo */
 #if defined(IPSEC) || defined(MAC)
 out:
 	if (error != 0) {
@@ -291,7 +296,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	struct in_addr laddr;
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
-	int error, prison = 0;
+	int error;
 	int dorandom;
 
 	/*
@@ -320,9 +325,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (sin->sin_family != AF_INET)
 			return (EAFNOSUPPORT);
 #endif
-		if (sin->sin_addr.s_addr != INADDR_ANY)
-			if (prison_ip(cred, 0, &sin->sin_addr.s_addr))
-				return(EINVAL);
+		if (prison_local_ip4(cred, &sin->sin_addr))
+			return (EINVAL);
 		if (sin->sin_port != *lportp) {
 			/* Don't allow the port to change. */
 			if (*lportp != 0)
@@ -343,7 +347,16 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
 			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
-			if (ifa_ifwithaddr((struct sockaddr *)sin) == 0)
+			/*
+			 * Is the address a local IP address? 
+			 * If INP_NONLOCALOK is set, then the socket may be bound
+			 * to any endpoint address, local or not.
+			 */
+			if (
+#if defined(IP_NONLOCALBIND)
+			    ((inp->inp_flags & INP_NONLOCALOK) == 0) &&
+#endif
+			    (ifa_ifwithaddr((struct sockaddr *)sin) == 0))
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;
@@ -357,14 +370,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
 			    0))
 				return (EACCES);
-			if (jailed(cred))
-				prison = 1;
 			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
 			    priv_check_cred(inp->inp_cred,
 			    PRIV_NETINET_REUSEPORT, 0) != 0) {
 				t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-				    lport, prison ? 0 : INPLOOKUP_WILDCARD,
-				    cred);
+				    lport, INPLOOKUP_WILDCARD, cred);
 	/*
 	 * XXX
 	 * This entire block sorely needs a rewrite.
@@ -381,10 +391,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
 			}
-			if (prison && prison_ip(cred, 0, &sin->sin_addr.s_addr))
+			if (prison_local_ip4(cred, &sin->sin_addr))
 				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-			    lport, prison ? 0 : wild, cred);
+			    lport, wild, cred);
 			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
@@ -416,9 +426,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		u_short first, last, aux;
 		int count;
 
-		if (laddr.s_addr != INADDR_ANY)
-			if (prison_ip(cred, 0, &laddr.s_addr))
-				return (EINVAL);
+		if (prison_local_ip4(cred, &laddr))
+			return (EINVAL);
 
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = V_ipport_hifirstauto;	/* sysctl */
@@ -484,7 +493,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		} while (in_pcblookup_local(pcbinfo, laddr,
 		    lport, wild, cred));
 	}
-	if (prison_ip(cred, 0, &laddr.s_addr))
+	if (prison_local_ip4(cred, &laddr))
 		return (EINVAL);
 	*laddrp = laddr.s_addr;
 	*lportp = lport;
@@ -553,7 +562,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	struct route sro;
 	int error;
 
-	KASSERT(laddr != NULL, ("%s: null laddr", __func__));
+	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
 
 	error = 0;
 	ia = NULL;
@@ -571,7 +580,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * Find out route to destination.
 	 */
 	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-		in_rtalloc_ign(&sro, RTF_CLONING, inp->inp_inc.inc_fibnum);
+		in_rtalloc_ign(&sro, 0, inp->inp_inc.inc_fibnum);
 
 	/*
 	 * If we found a route, use the address corresponding to
@@ -605,7 +614,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			if (sa->sa_family != AF_INET)
 				continue;
 			sin = (struct sockaddr_in *)sa;
-			if (htonl(prison_getip(cred)) == sin->sin_addr.s_addr) {
+			if (prison_check_ip4(cred, &sin->sin_addr)) {
 				ia = (struct in_ifaddr *)ifa;
 				break;
 			}
@@ -616,7 +625,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		laddr->s_addr = htonl(prison_getip(cred));
+		if (prison_getip4(cred, laddr) != 0)
+			error = EADDRNOTAVAIL;
 		goto done;
 	}
 
@@ -641,7 +651,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		/* Jailed. */
 		/* 1. Check if the iface address belongs to the jail. */
 		sin = (struct sockaddr_in *)sro.ro_rt->rt_ifa->ifa_addr;
-		if (htonl(prison_getip(cred)) == sin->sin_addr.s_addr) {
+		if (prison_check_ip4(cred, &sin->sin_addr)) {
 			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
@@ -657,7 +667,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			if (sa->sa_family != AF_INET)
 				continue;
 			sin = (struct sockaddr_in *)sa;
-			if (htonl(prison_getip(cred)) == sin->sin_addr.s_addr) {
+			if (prison_check_ip4(cred, &sin->sin_addr)) {
 				ia = (struct in_ifaddr *)ifa;
 				break;
 			}
@@ -668,7 +678,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		laddr->s_addr = htonl(prison_getip(cred));
+		if (prison_getip4(cred, laddr) != 0)
+			error = EADDRNOTAVAIL;
 		goto done;
 	}
 
@@ -694,6 +705,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
 
 		if (cred == NULL || !jailed(cred)) {
+#if __FreeBSD_version < 800000
+			if (ia == NULL)
+				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+#endif
 			if (ia == NULL) {
 				error = ENETUNREACH;
 				goto done;
@@ -714,8 +729,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 				if (sa->sa_family != AF_INET)
 					continue;
 				sin = (struct sockaddr_in *)sa;
-				if (htonl(prison_getip(cred)) ==
-				    sin->sin_addr.s_addr) {
+				if (prison_check_ip4(cred, &sin->sin_addr)) {
 					ia = (struct in_ifaddr *)ifa;
 					break;
 				}
@@ -727,7 +741,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		laddr->s_addr = htonl(prison_getip(cred));
+		if (prison_getip4(cred, laddr) != 0)
+			error = EADDRNOTAVAIL;
 		goto done;
 	}
 
@@ -761,7 +776,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
 	struct inpcb *oinp;
-	struct in_addr laddr, faddr;
+	struct in_addr laddr, faddr, jailia;
 	u_short lport, fport;
 	int error;
 
@@ -793,9 +808,17 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * and the primary interface supports broadcast,
 		 * choose the broadcast address for that interface.
 		 */
-		if (faddr.s_addr == INADDR_ANY)
-			faddr = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
-		else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
+		if (faddr.s_addr == INADDR_ANY) {
+			if (cred != NULL && jailed(cred)) {
+				if (prison_getip4(cred, &jailia) != 0)
+					return (EADDRNOTAVAIL);
+				faddr.s_addr = jailia.s_addr;
+			} else {
+				faddr =
+				    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->
+				    sin_addr;
+			}
+		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
 		    (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 		    IFF_BROADCAST))
 			faddr = satosin(&TAILQ_FIRST(
@@ -862,44 +885,49 @@ in_pcbdisconnect(struct inpcb *inp)
 }
 
 /*
- * Historically, in_pcbdetach() included the functionality now found in
- * in_pcbfree() and in_pcbdrop().  They are now broken out to reflect the
- * more complex life cycle of TCP.
- *
- * in_pcbdetach() is responsibe for disconnecting the socket from an inpcb.
+ * in_pcbdetach() is responsibe for disassociating a socket from an inpcb.
  * For most protocols, this will be invoked immediately prior to calling
- * in_pcbfree().  However, for TCP the inpcb may significantly outlive the
- * socket, in which case in_pcbfree() may be deferred.
+ * in_pcbfree().  However, with TCP the inpcb may significantly outlive the
+ * socket, in which case in_pcbfree() is deferred.
  */
 void
 in_pcbdetach(struct inpcb *inp)
 {
 
-	KASSERT(inp->inp_socket != NULL, ("in_pcbdetach: inp_socket == NULL"));
+	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
 
 	inp->inp_socket->so_pcb = NULL;
 	inp->inp_socket = NULL;
 }
 
 /*
- * in_pcbfree() is responsible for freeing an already-detached inpcb, as well
- * as removing it from any global inpcb lists it might be on.
+ * in_pcbfree_internal() frees an inpcb that has been detached from its
+ * socket, and whose reference count has reached 0.  It will also remove the
+ * inpcb from any global lists it might remain on.
  */
-void
-in_pcbfree(struct inpcb *inp)
+static void
+in_pcbfree_internal(struct inpcb *inp)
 {
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
-	KASSERT(inp->inp_socket == NULL, ("in_pcbfree: inp_socket != NULL"));
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
+	KASSERT(inp->inp_refcount == 0, ("%s: refcount !0", __func__));
 
 	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_WLOCK_ASSERT(inp);
 
 #ifdef IPSEC
-	ipsec4_delete_pcbpolicy(inp);
-#endif /*IPSEC*/
+	if (inp->inp_sp != NULL)
+		ipsec_delete_pcbpolicy(inp);
+#endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6PROTO) {
+		ip6_freepcbopts(inp->in6p_outputopts);
+		ip6_freemoptions(inp->in6p_moptions);
+	}
+#endif
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
 	if (inp->inp_moptions != NULL)
@@ -912,6 +940,77 @@ in_pcbfree(struct inpcb *inp)
 #endif
 	INP_WUNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);
+}
+
+/*
+ * in_pcbref() bumps the reference count on an inpcb in order to maintain
+ * stability of an inpcb pointer despite the inpcb lock being released.  This
+ * is used in TCP when the inpcbinfo lock needs to be acquired or upgraded,
+ * but where the inpcb lock is already held.
+ *
+ * While the inpcb will not be freed, releasing the inpcb lock means that the
+ * connection's state may change, so the caller should be careful to
+ * revalidate any cached state on reacquiring the lock.  Drop the reference
+ * using in_pcbrele().
+ */
+void
+in_pcbref(struct inpcb *inp)
+{
+
+	INP_WLOCK_ASSERT(inp);
+
+	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
+
+	inp->inp_refcount++;
+}
+
+/*
+ * Drop a refcount on an inpcb elevated using in_pcbref(); because a call to
+ * in_pcbfree() may have been made between in_pcbref() and in_pcbrele(), we
+ * return a flag indicating whether or not the inpcb remains valid.  If it is
+ * valid, we return with the inpcb lock held.
+ */
+int
+in_pcbrele(struct inpcb *inp)
+{
+#ifdef INVARIANTS
+	struct inpcbinfo *ipi = inp->inp_pcbinfo;
+#endif
+
+	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
+
+	INP_INFO_WLOCK_ASSERT(ipi);
+	INP_WLOCK_ASSERT(inp);
+
+	inp->inp_refcount--;
+	if (inp->inp_refcount > 0)
+		return (0);
+	in_pcbfree_internal(inp);
+	return (1);
+}
+
+/*
+ * Unconditionally schedule an inpcb to be freed by decrementing its
+ * reference count, which should occur only after the inpcb has been detached
+ * from its socket.  If another thread holds a temporary reference (acquired
+ * using in_pcbref()) then the free is deferred until that reference is
+ * released using in_pcbrele(), but the inpcb is still unlocked.
+ */
+void
+in_pcbfree(struct inpcb *inp)
+{
+#ifdef INVARIANTS
+	struct inpcbinfo *ipi = inp->inp_pcbinfo;
+#endif
+
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL",
+	    __func__));
+
+	INP_INFO_WLOCK_ASSERT(ipi);
+	INP_WLOCK_ASSERT(inp);
+
+	if (!in_pcbrele(inp))
+		INP_WUNLOCK(inp);
 }
 
 /*
@@ -1105,6 +1204,7 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
+			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
@@ -1112,9 +1212,11 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			    inp->inp_laddr.s_addr == laddr.s_addr &&
 			    inp->inp_lport == lport) {
 				/*
-				 * Found.
+				 * Found?
 				 */
-				return (inp);
+				if (cred == NULL ||
+				    inp->inp_cred->cr_prison == cred->cr_prison)
+					return (inp);
 			}
 		}
 		/*
@@ -1144,7 +1246,11 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			 */
 			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
+				if (cred != NULL &&
+				    inp->inp_cred->cr_prison != cred->cr_prison)
+					continue;
 #ifdef INET6
+				/* XXX inp locking */
 				if ((inp->inp_vflag & INP_IPV4) == 0)
 					continue;
 				/*
@@ -1177,9 +1283,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				if (wildcard < matchwild) {
 					match = inp;
 					matchwild = wildcard;
-					if (matchwild == 0) {
+					if (matchwild == 0)
 						break;
-					}
 				}
 			}
 		}
@@ -1197,7 +1302,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
     struct ifnet *ifp)
 {
 	struct inpcbhead *head;
-	struct inpcb *inp;
+	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
 
 	INP_INFO_LOCK_ASSERT(pcbinfo);
@@ -1205,60 +1310,108 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	/*
 	 * First look for an exact match.
 	 */
+	tmpinp = NULL;
 	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(faddr.s_addr, lport, fport,
 	    pcbinfo->ipi_hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
+		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 #endif
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
 		    inp->inp_laddr.s_addr == laddr.s_addr &&
 		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport)
-			return (inp);
+		    inp->inp_lport == lport) {
+			/*
+			 * XXX We should be able to directly return
+			 * the inp here, without any checks.
+			 * Well unless both bound with SO_REUSEPORT?
+			 */
+			if (jailed(inp->inp_cred))
+				return (inp);
+			if (tmpinp == NULL)
+				tmpinp = inp;
+		}
 	}
+	if (tmpinp != NULL)
+		return (tmpinp);
 
 	/*
 	 * Then look for a wildcard match, if requested.
 	 */
-	if (wildcard) {
-		struct inpcb *local_wild = NULL;
+	if (wildcard == INPLOOKUP_WILDCARD) {
+		struct inpcb *local_wild = NULL, *local_exact = NULL;
 #ifdef INET6
 		struct inpcb *local_wild_mapped = NULL;
 #endif
+		struct inpcb *jail_wild = NULL;
+		int injail;
+
+		/*
+		 * Order of socket selection - we always prefer jails.
+		 *      1. jailed, non-wild.
+		 *      2. jailed, wild.
+		 *      3. non-jailed, non-wild.
+		 *      4. non-jailed, wild.
+		 */
 
 		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
 		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
+			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
-			if (inp->inp_faddr.s_addr == INADDR_ANY &&
-			    inp->inp_lport == lport) {
-				if (ifp && ifp->if_type == IFT_FAITH &&
-				    (inp->inp_flags & INP_FAITH) == 0)
+			if (inp->inp_faddr.s_addr != INADDR_ANY ||
+			    inp->inp_lport != lport)
+				continue;
+
+			/* XXX inp locking */
+			if (ifp && ifp->if_type == IFT_FAITH &&
+			    (inp->inp_flags & INP_FAITH) == 0)
+				continue;
+
+			injail = jailed(inp->inp_cred);
+			if (injail) {
+				if (!prison_check_ip4(inp->inp_cred, &laddr))
 					continue;
-				if (inp->inp_laddr.s_addr == laddr.s_addr)
-					return (inp);
-				else if (inp->inp_laddr.s_addr == INADDR_ANY) {
-#ifdef INET6
-					if (INP_CHECK_SOCKAF(inp->inp_socket,
-							     AF_INET6))
-						local_wild_mapped = inp;
-					else
-#endif
-						local_wild = inp;
-				}
+			} else {
+				if (local_exact != NULL)
+					continue;
 			}
-		}
+
+			if (inp->inp_laddr.s_addr == laddr.s_addr) {
+				if (injail)
+					return (inp);
+				else
+					local_exact = inp;
+			} else if (inp->inp_laddr.s_addr == INADDR_ANY) {
 #ifdef INET6
-		if (local_wild == NULL)
+				/* XXX inp locking, NULL check */
+				if (inp->inp_vflag & INP_IPV6PROTO)
+					local_wild_mapped = inp;
+				else
+#endif /* INET6 */
+					if (injail)
+						jail_wild = inp;
+					else
+						local_wild = inp;
+			}
+		} /* LIST_FOREACH */
+		if (jail_wild != NULL)
+			return (jail_wild);
+		if (local_exact != NULL)
+			return (local_exact);
+		if (local_wild != NULL)
+			return (local_wild);
+#ifdef INET6
+		if (local_wild_mapped != NULL)
 			return (local_wild_mapped);
-#endif
-		return (local_wild);
-	}
+#endif /* defined(INET6) */
+	} /* if (wildcard == INPLOOKUP_WILDCARD) */
+
 	return (NULL);
 }
 
@@ -1472,7 +1625,7 @@ inp_apply_all(void (*func)(struct inpcb *, void *), void *arg)
 	struct inpcb *inp;
 
 	INP_INFO_RLOCK(&V_tcbinfo);
-	LIST_FOREACH(inp, tcbinfo.ipi_listhead, inp_list) {
+	LIST_FOREACH(inp, V_tcbinfo.ipi_listhead, inp_list) {
 		INP_WLOCK(inp);
 		func(inp, arg);
 		INP_WUNLOCK(inp);
@@ -1557,7 +1710,7 @@ db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
 	indent += 2;
 
 #ifdef INET6
-	if (inc->inc_flags == 1) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		/* IPv6. */
 		ip6_sprintf(laddr_str, &inc->inc6_laddr);
 		ip6_sprintf(faddr_str, &inc->inc6_faddr);

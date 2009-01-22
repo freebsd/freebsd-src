@@ -45,32 +45,7 @@
 #include <ctype.h>
 #include <term.h>		/* num_labels, label_*, plab_norm */
 
-MODULE_ID("$Id: lib_slk.c,v 1.31 2008/01/12 20:21:00 tom Exp $")
-
-/*
- * We'd like to move these into the screen context structure, but cannot,
- * because slk_init() is called before initscr()/newterm().
- */
-NCURSES_EXPORT_VAR(int)
-_nc_slk_format = 0;		/* one more than format specified in slk_init() */
-
-/*
- * Paint the info line for the PC style SLK emulation.
- */
-static void
-slk_paint_info(WINDOW *win)
-{
-    if (win && SP->slk_format == 4) {
-	int i;
-
-	mvwhline(win, 0, 0, 0, getmaxx(win));
-	wmove(win, 0, 0);
-
-	for (i = 0; i < SP->_slk->maxlab; i++) {
-	    mvwprintw(win, 0, SP->_slk->ent[i].ent_x, "F%d", i + 1);
-	}
-    }
-}
+MODULE_ID("$Id: lib_slk.c,v 1.35 2008/09/27 14:07:33 juergen Exp $")
 
 /*
  * Free any memory related to soft labels, return an error.
@@ -145,7 +120,7 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 	memset(SP->_slk->ent[i].form_text, 0, used);
 
 	memset(SP->_slk->ent[i].form_text, ' ', max_length);
-	SP->_slk->ent[i].visible = (i < SP->_slk->maxlab);
+	SP->_slk->ent[i].visible = (char) (i < SP->_slk->maxlab);
     }
     if (_nc_globals.slk_format >= 3) {	/* PC style */
 	int gap = (cols - 3 * (3 + 4 * max_length)) / 2;
@@ -158,7 +133,6 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 	    x += max_length;
 	    x += (i == 3 || i == 7) ? gap : 1;
 	}
-	slk_paint_info(stwin);
     } else {
 	if (_nc_globals.slk_format == 2) {	/* 4-4 */
 	    int gap = cols - (SP->_slk->maxlab * max_length) - 6;
@@ -212,8 +186,6 @@ slk_restore(void)
 	return (ERR);
     SP->_slk->hidden = FALSE;
     SP->_slk->dirty = TRUE;
-    /* we have to repaint info line eventually */
-    slk_paint_info(SP->_slk->win);
 
     returnCode(slk_refresh());
 }

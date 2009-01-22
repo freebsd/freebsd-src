@@ -40,7 +40,6 @@ struct adb_softc {
 	device_t	parent;
 
 	struct intr_config_hook enum_hook;
-	struct mtx	sc_sync_mtx;
 	
 	volatile int 	sync_packet;
 	volatile int	packet_reply;

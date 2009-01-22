@@ -32,11 +32,15 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-/* e1000_82540
- * e1000_82545
- * e1000_82546
- * e1000_82545_rev_3
- * e1000_82546_rev_3
+/*
+ * 82540EM Gigabit Ethernet Controller
+ * 82540EP Gigabit Ethernet Controller
+ * 82545EM Gigabit Ethernet Controller (Copper)
+ * 82545EM Gigabit Ethernet Controller (Fiber)
+ * 82545GM Gigabit Ethernet Controller
+ * 82546EB Gigabit Ethernet Controller (Copper)
+ * 82546EB Gigabit Ethernet Controller (Fiber)
+ * 82546GB Gigabit Ethernet Controller
  */
 
 #include "e1000_api.h"
@@ -57,8 +61,6 @@ static void e1000_power_down_phy_copper_82540(struct e1000_hw *hw);
 /**
  * e1000_init_phy_params_82540 - Init PHY func ptrs.
  * @hw: pointer to the HW structure
- *
- * This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_phy_params_82540(struct e1000_hw *hw)
 {
@@ -110,8 +112,6 @@ out:
 /**
  * e1000_init_nvm_params_82540 - Init NVM func ptrs.
  * @hw: pointer to the HW structure
- *
- * This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_nvm_params_82540(struct e1000_hw *hw)
 {
@@ -153,8 +153,6 @@ static s32 e1000_init_nvm_params_82540(struct e1000_hw *hw)
 /**
  * e1000_init_mac_params_82540 - Init MAC func ptrs.
  * @hw: pointer to the HW structure
- *
- * This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_mac_params_82540(struct e1000_hw *hw)
 {
@@ -189,6 +187,8 @@ static s32 e1000_init_mac_params_82540(struct e1000_hw *hw)
 
 	/* bus type/speed/width */
 	mac->ops.get_bus_info = e1000_get_bus_info_pci_generic;
+	/* function id */
+	mac->ops.set_lan_id = e1000_set_lan_id_multi_port_pci;
 	/* reset */
 	mac->ops.reset_hw = e1000_reset_hw_82540;
 	/* hw initialization */
@@ -247,8 +247,7 @@ out:
  * e1000_init_function_pointers_82540 - Init func ptrs.
  * @hw: pointer to the HW structure
  *
- * The only function explicitly called by the api module to initialize
- * all function pointers and parameters.
+ * Called to initialize all function pointers and parameters.
  **/
 void e1000_init_function_pointers_82540(struct e1000_hw *hw)
 {
@@ -263,8 +262,7 @@ void e1000_init_function_pointers_82540(struct e1000_hw *hw)
  *  e1000_reset_hw_82540 - Reset hardware
  *  @hw: pointer to the HW structure
  *
- *  This resets the hardware into a known state.  This is a
- *  function pointer entry point called by the api module.
+ *  This resets the hardware into a known state.
  **/
 static s32 e1000_reset_hw_82540(struct e1000_hw *hw)
 {
@@ -322,8 +320,7 @@ static s32 e1000_reset_hw_82540(struct e1000_hw *hw)
  *  e1000_init_hw_82540 - Initialize hardware
  *  @hw: pointer to the HW structure
  *
- *  This inits the hardware readying it for operation.  This is a
- *  function pointer entry point called by the api module.
+ *  This inits the hardware readying it for operation.
  **/
 static s32 e1000_init_hw_82540(struct e1000_hw *hw)
 {
@@ -406,8 +403,7 @@ static s32 e1000_init_hw_82540(struct e1000_hw *hw)
  *  Calls the appropriate function to configure the link for auto-neg or forced
  *  speed and duplex.  Then we check for link, once link is established calls
  *  to configure collision distance and flow control are called.  If link is
- *  not established, we return -E1000_ERR_PHY (-2).  This is a function
- *  pointer entry point called by the api module.
+ *  not established, we return -E1000_ERR_PHY (-2).
  **/
 static s32 e1000_setup_copper_link_82540(struct e1000_hw *hw)
 {
@@ -454,8 +450,7 @@ out:
  *  Set the output amplitude to the value in the EEPROM and adjust the VCO
  *  speed to improve Bit Error Rate (BER) performance.  Configures collision
  *  distance and flow control for fiber and serdes links.  Upon successful
- *  setup, poll for link.  This is a function pointer entry point called by
- *  the api module.
+ *  setup, poll for link.
  **/
 static s32 e1000_setup_fiber_serdes_link_82540(struct e1000_hw *hw)
 {
@@ -650,34 +645,32 @@ static void e1000_power_down_phy_copper_82540(struct e1000_hw *hw)
  **/
 static void e1000_clear_hw_cntrs_82540(struct e1000_hw *hw)
 {
-	volatile u32 temp;
-
 	DEBUGFUNC("e1000_clear_hw_cntrs_82540");
 
 	e1000_clear_hw_cntrs_base_generic(hw);
 
-	temp = E1000_READ_REG(hw, E1000_PRC64);
-	temp = E1000_READ_REG(hw, E1000_PRC127);
-	temp = E1000_READ_REG(hw, E1000_PRC255);
-	temp = E1000_READ_REG(hw, E1000_PRC511);
-	temp = E1000_READ_REG(hw, E1000_PRC1023);
-	temp = E1000_READ_REG(hw, E1000_PRC1522);
-	temp = E1000_READ_REG(hw, E1000_PTC64);
-	temp = E1000_READ_REG(hw, E1000_PTC127);
-	temp = E1000_READ_REG(hw, E1000_PTC255);
-	temp = E1000_READ_REG(hw, E1000_PTC511);
-	temp = E1000_READ_REG(hw, E1000_PTC1023);
-	temp = E1000_READ_REG(hw, E1000_PTC1522);
+	E1000_READ_REG(hw, E1000_PRC64);
+	E1000_READ_REG(hw, E1000_PRC127);
+	E1000_READ_REG(hw, E1000_PRC255);
+	E1000_READ_REG(hw, E1000_PRC511);
+	E1000_READ_REG(hw, E1000_PRC1023);
+	E1000_READ_REG(hw, E1000_PRC1522);
+	E1000_READ_REG(hw, E1000_PTC64);
+	E1000_READ_REG(hw, E1000_PTC127);
+	E1000_READ_REG(hw, E1000_PTC255);
+	E1000_READ_REG(hw, E1000_PTC511);
+	E1000_READ_REG(hw, E1000_PTC1023);
+	E1000_READ_REG(hw, E1000_PTC1522);
 
-	temp = E1000_READ_REG(hw, E1000_ALGNERRC);
-	temp = E1000_READ_REG(hw, E1000_RXERRC);
-	temp = E1000_READ_REG(hw, E1000_TNCRS);
-	temp = E1000_READ_REG(hw, E1000_CEXTERR);
-	temp = E1000_READ_REG(hw, E1000_TSCTC);
-	temp = E1000_READ_REG(hw, E1000_TSCTFC);
+	E1000_READ_REG(hw, E1000_ALGNERRC);
+	E1000_READ_REG(hw, E1000_RXERRC);
+	E1000_READ_REG(hw, E1000_TNCRS);
+	E1000_READ_REG(hw, E1000_CEXTERR);
+	E1000_READ_REG(hw, E1000_TSCTC);
+	E1000_READ_REG(hw, E1000_TSCTFC);
 
-	temp = E1000_READ_REG(hw, E1000_MGTPRC);
-	temp = E1000_READ_REG(hw, E1000_MGTPDC);
-	temp = E1000_READ_REG(hw, E1000_MGTPTC);
+	E1000_READ_REG(hw, E1000_MGTPRC);
+	E1000_READ_REG(hw, E1000_MGTPDC);
+	E1000_READ_REG(hw, E1000_MGTPTC);
 }
 

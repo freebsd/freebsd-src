@@ -41,10 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-#if 0
-#include <arm/mv/mv_pci.h>
-extern int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin);
-#endif
+extern const struct obio_pci_irq_map pci_irq_map[];
 
 struct obio_device obio_devices[] = {
 	{ "ic", MV_IC_BASE, MV_IC_SIZE,
@@ -94,33 +91,28 @@ struct obio_device obio_devices[] = {
 		{ -1 }, { -1 },
 		CPU_PM_CTRL_NONE
 	},
-	{ "pcib", MV_PCIE_BASE, MV_PCIE_SIZE,
-		{ MV_INT_PEX0_ERR, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-        },
-	{ "pcib", MV_PCI_BASE, MV_PCI_SIZE,
-		{ MV_INT_PCI_ERR, -1 },
-		{-1 },
-		CPU_PM_CTRL_NONE
-        },
 	{ NULL, 0, 0, { 0 } }
 };
 
-#if 0
-const struct mv_pci_info pci_info[] = {
-	{ 1,	MV_PCIE_IO_BASE, MV_PCIE_IO_SIZE,
-		MV_PCIE_MEM_BASE, MV_PCIE_MEM_SIZE,
+const struct obio_pci mv_pci_info[] = {
+	{ MV_TYPE_PCIE,
+		MV_PCIE_BASE,	MV_PCIE_SIZE,
+		MV_PCIE_IO_BASE, MV_PCIE_IO_SIZE,	4, 0x51,
+		MV_PCIE_MEM_BASE, MV_PCIE_MEM_SIZE,	4, 0x59,
 		NULL, MV_INT_PEX0
 	},
-	{ 0,	MV_PCI_IO_BASE, MV_PCI_IO_SIZE,
-		MV_PCI_MEM_BASE, MV_PCI_MEM_SIZE,
-		platform_pci_get_irq, -1
-	},
-};
-#endif
 
-struct resource_spec mv_gpio_spec[] = {
+	{ MV_TYPE_PCI,
+		MV_PCI_BASE, MV_PCI_SIZE,
+		MV_PCI_IO_BASE, MV_PCI_IO_SIZE,		3, 0x51,
+		MV_PCI_MEM_BASE, MV_PCI_MEM_SIZE,	3, 0x59,
+		pci_irq_map, -1
+	},
+
+	{ 0, 0, 0 }
+};
+
+struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -130,18 +122,6 @@ struct resource_spec mv_gpio_spec[] = {
 };
 
 const struct decode_win cpu_win_tbl[] = {
-	/* PCIE IO */
-	{ 4, 0x51, MV_PCIE_IO_PHYS_BASE, MV_PCIE_IO_SIZE, -1 },
-
-	/* PCI IO */
-	{ 3, 0x51, MV_PCI_IO_PHYS_BASE, MV_PCI_IO_SIZE, -1 },
-
-	/* PCIE MEM */
-	{ 4, 0x59, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
-
-	/* PCI MEM */
-	{ 3, 0x59, MV_PCI_MEM_PHYS_BASE, MV_PCI_MEM_SIZE, -1 },
-
 	/* Device bus BOOT */
 	{ 1, 0x0f, MV_DEV_BOOT_PHYS_BASE, MV_DEV_BOOT_SIZE, -1 },
 
@@ -187,3 +167,24 @@ const struct decode_win idma_win_tbl[] = {
 };
 const struct decode_win *idma_wins = idma_win_tbl;
 int idma_wins_no = sizeof(idma_win_tbl) / sizeof(struct decode_win);
+
+uint32_t
+get_tclk(void)
+{
+	uint32_t sar;
+
+	/*
+	 * On Orion TCLK is can be configured to 150 MHz or 166 MHz.
+	 * Current setting is read from Sample At Reset register.
+	 */
+	sar = bus_space_read_4(obio_tag, MV_MPP_BASE, SAMPLE_AT_RESET);
+	sar = (sar & TCLK_MASK) >> TCLK_SHIFT;
+	switch (sar) {
+	case 1:
+		return (TCLK_150MHZ);
+	case 2:
+		return (TCLK_166MHZ);
+	default:
+		panic("Unknown TCLK settings!");
+	}
+}

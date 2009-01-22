@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/bus.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
@@ -57,7 +58,11 @@ __FBSDID("$FreeBSD$");
  * virtual_avail - 0xefff_ffff	: KVA (virtual_avail is typically < 0xc0a0_0000)
  * 0xf000_0000 - 0xf0ff_ffff	: no-cache allocation area (16MB)
  * 0xf100_0000 - 0xf10f_ffff	: SoC integrated devices registers range (1MB)
- * 0xf110_0000 - 0xfffe_ffff	: PCI, PCIE (MEM+IO) outbound windows (~238MB)
+ * 0xf110_0000 - 0xf11f_ffff	: PCI-Express I/O space (1MB)
+ * 0xf120_0000 - 0xf12f_ffff	: PCI I/O space (1MB)
+ * 0xf130_0000 - 0xf52f_ffff	: PCI-Express memory space (64MB)
+ * 0xf530_0000 - 0xf92f_ffff	: PCI memory space (64MB)
+ * 0xf930_0000 - 0xfffe_ffff	: unused (~108MB)
  * 0xffff_0000 - 0xffff_0fff	: 'high' vectors page (4KB)
  * 0xffff_1000 - 0xffff_1fff	: ARM_TP_ADDRESS/RAS page (4KB)
  * 0xffff_2000 - 0xffff_ffff	: unused (~55KB)
@@ -65,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
 vm_offset_t pmap_bootstrap_lastaddr;
+int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin);
 
 /* Static device mappings. */
 static const struct pmap_devmap pmap_devmap[] = {
@@ -117,36 +123,63 @@ static const struct pmap_devmap pmap_devmap[] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
+/*
+ * The pci_irq_map table consists of 3 columns:
+ * - PCI slot number (less than zero means ANY).
+ * - PCI IRQ pin (less than zero means ANY).
+ * - PCI IRQ (less than zero marks end of table).
+ *
+ * IRQ number from the first matching entry is used to configure PCI device
+ */
+
+/* PCI IRQ Map for DB-88F5281 */
+const struct obio_pci_irq_map pci_irq_map[] = {
+	{ 7, -1, GPIO2IRQ(12) },
+	{ 8, -1, GPIO2IRQ(13) },
+	{ 9, -1, GPIO2IRQ(13) },
+	{ -1, -1, -1 }
+};
+
 #if 0
-int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin)
-{
-	int irq;
+/* PCI IRQ Map for DB-88F5182 */
+const struct obio_pci_irq_map pci_irq_map[] = {
+	{ 7, -1, GPIO2IRQ(0) },
+	{ 8, -1, GPIO2IRQ(1) },
+	{ 9, -1, GPIO2IRQ(1) },
+	{ -1, -1, -1 }
+};
+#endif
 
-	switch (slot) {
-	case 7:
-		irq = GPIO2IRQ(12);	/* GPIO 0 for DB-88F5182  */
-		break;			/* GPIO 12 for DB-88F5281 */
-	case 8:
-	case 9:
-		irq = GPIO2IRQ(13);	/* GPIO 1 for DB-88F5182  */
-		break;			/* GPIO 13 for DB-88F5281 */
-	default:
-		irq = -1;
-		break;
-	};
+/*
+ * mv_gpio_config row structure:
+ *	<GPIO number>, <GPIO flags>, <GPIO mode>
+ *
+ * - GPIO pin number (less than zero marks end of table)
+ * - GPIO flags:
+ *	MV_GPIO_BLINK
+ *	MV_GPIO_POLAR_LOW
+ *	MV_GPIO_EDGE
+ *	MV_GPIO_LEVEL
+ * - GPIO mode:
+ *	1	- Output, set to HIGH.
+ *	0	- Output, set to LOW.
+ *	-1	- Input.
+ */
 
-	/*
-	 * XXX This isn't the right place to setup GPIO, but it makes sure
-	 * that PCI works on 5XXX targets where U-Boot doesn't set up the GPIO
-	 * correctly to handle PCI IRQs (e.g., on 5182). This code will go
-	 * away once we set up GPIO in a generic way in a proper place (TBD).
-	 */
-	if (irq >= 0)
-		mv_gpio_configure(IRQ2GPIO(irq), MV_GPIO_POLARITY |
-		    MV_GPIO_LEVEL, ~0u);
+/* GPIO Configuration for DB-88F5281 */
+const struct gpio_config mv_gpio_config[] = {
+	{ 12, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ 13, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ -1, -1, -1 }
+};
 
-	return(irq);
-}
+#if 0
+/* GPIO Configuration for DB-88F5182 */
+const struct gpio_config mv_gpio_config[] = {
+	{ 0, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ 1, MV_GPIO_POLAR_LOW | MV_GPIO_LEVEL, -1 },
+	{ -1, -1, -1 }
+};
 #endif
 
 int
@@ -157,6 +190,63 @@ platform_pmap_init(void)
 	pmap_devmap_bootstrap_table = &pmap_devmap[0];
 
 	return (0);
+}
+
+void
+platform_mpp_init(void)
+{
+
+	/*
+	 * MPP configuration for DB-88F5281
+	 *
+	 * MPP[2]:  PCI_REQn[3]
+	 * MPP[3]:  PCI_GNTn[3]
+	 * MPP[4]:  PCI_REQn[4]
+	 * MPP[5]:  PCI_GNTn[4]
+	 * MPP[6]:  <UNKNOWN>
+	 * MPP[7]:  <UNKNOWN>
+	 * MPP[8]:  <UNKNOWN>
+	 * MPP[9]:  <UNKNOWN>
+	 * MPP[14]: NAND Flash REn[2]
+	 * MPP[15]: NAND Flash WEn[2]
+	 * MPP[16]: UA1_RXD
+	 * MPP[17]: UA1_TXD
+	 * MPP[18]: UA1_CTS
+	 * MPP[19]: UA1_RTS
+	 *
+	 * Others:  GPIO
+	 *
+	 * <UNKNOWN> entries are not documented, not on the schematics etc.
+	 */
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL0, 0x33222203);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL1, 0x44000033);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL2, 0x00000000);
+
+#if 0
+	/*
+	 * MPP configuration for DB-88F5182
+	 *
+	 * MPP[2]:  PCI_REQn[3]
+	 * MPP[3]:  PCI_GNTn[3]
+	 * MPP[4]:  PCI_REQn[4]
+	 * MPP[5]:  PCI_GNTn[4]
+	 * MPP[6]:  SATA0_ACT
+	 * MPP[7]:  SATA1_ACT
+	 * MPP[12]: SATA0_PRESENT
+	 * MPP[13]: SATA1_PRESENT
+	 * MPP[14]: NAND_FLASH_REn[2]
+	 * MPP[15]: NAND_FLASH_WEn[2]
+	 * MPP[16]: UA1_RXD
+	 * MPP[17]: UA1_TXD
+	 * MPP[18]: UA1_CTS
+	 * MPP[19]: UA1_RTS
+	 *
+	 * Others:  GPIO
+	 */
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL0, 0x55222203);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL1, 0x44550000);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL2, 0x00000000);
+#endif
 }
 
 static void
@@ -171,7 +261,3 @@ platform_identify(void *dummy)
 	 */
 }
 SYSINIT(platform_identify, SI_SUB_CPU, SI_ORDER_SECOND, platform_identify, NULL);
-
-/*
- * TODO routine setting GPIO/MPP pins 
- */

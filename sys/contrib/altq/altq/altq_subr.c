@@ -51,6 +51,7 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -909,7 +910,7 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 	if (status != 0)
 		return;
 
-#if (__FreeBSD_version >= 800050) && (defined(__amd64__) || defined(__i386__))
+#if (__FreeBSD_version >= 701102) && (defined(__amd64__) || defined(__i386__))
 	/* If TSC is P-state invariant, don't do anything. */
 	if (tsc_is_invariant)
 		return;

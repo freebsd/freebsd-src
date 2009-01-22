@@ -58,6 +58,12 @@ struct ndis_pccard_type {
 	char			*ndis_name;
 };
 
+struct ndis_usb_type {
+	uint16_t		ndis_vid;
+	uint16_t		ndis_did;
+	char			*ndis_name;
+};
+
 struct ndis_shmem {
 	list_entry		ndis_list;
 	bus_dma_tag_t		ndis_stag;
@@ -106,6 +112,17 @@ struct ndis_vap {
 				    enum ieee80211_state, int);
 };
 #define	NDIS_VAP(vap)	((struct ndis_vap *)(vap))
+
+#define	NDISUSB_CONFIG_NO			1
+#define	NDISUSB_IFACE_INDEX			0
+#define	NDISUSB_INTR_TIMEOUT			1000
+#define	NDISUSB_TX_TIMEOUT			10000
+struct ndisusb_xfer {
+	usbd_xfer_handle	nx_xfer;
+	usbd_private_handle	nx_priv;
+	usbd_status		nx_status;
+	list_entry		nx_xferlist;
+};
 
 struct ndis_softc {
 	struct ifnet		*ifp;
@@ -183,7 +200,32 @@ struct ndis_softc {
 				    enum ieee80211_state, int);
 	int			ndis_tx_timer;
 	int			ndis_hang_timer;
+
+	io_workitem		*ndisusb_xferitem;
+	list_entry		ndisusb_xferlist;
+	kspin_lock		ndisusb_xferlock;
+#define	NDISUSB_ENDPT_BOUT	0
+#define	NDISUSB_ENDPT_BIN	1
+#define	NDISUSB_ENDPT_IIN	2
+#define	NDISUSB_ENDPT_IOUT	3
+#define	NDISUSB_ENDPT_MAX	4
+	usbd_pipe_handle	ndisusb_ep[NDISUSB_ENDPT_MAX];
+	char			*ndisusb_iin_buf;
+	int			ndisusb_status;
+#define NDISUSB_STATUS_DETACH	0x1
 };
 
-#define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
-#define NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
+#define	NDISMTX_LOCK(_sc)	mtx_lock(&(_sc)->ndis_mtx)
+#define	NDISMTX_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
+#define	NDISUSB_LOCK(_sc)	mtx_lock(&Giant)
+#define	NDISUSB_UNLOCK(_sc)	mtx_unlock(&Giant)
+#define	NDIS_LOCK(_sc) do {						\
+	if ((_sc)->ndis_iftype == PNPBus)				\
+		NDISUSB_LOCK(_sc);					\
+	NDISMTX_LOCK(_sc);						\
+} while (0)
+#define	NDIS_UNLOCK(_sc) do {						\
+	if ((_sc)->ndis_iftype == PNPBus)				\
+		NDISUSB_UNLOCK(_sc);					\
+	NDISMTX_UNLOCK(_sc);						\
+} while (0)

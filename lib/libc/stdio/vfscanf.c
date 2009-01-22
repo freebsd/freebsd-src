@@ -911,13 +911,13 @@ static int
 parsefloat(FILE *fp, char *buf, char *end)
 {
 	char *commit, *p;
-	int infnanpos = 0;
+	int infnanpos = 0, decptpos = 0;
 	enum {
-		S_START, S_GOTSIGN, S_INF, S_NAN, S_MAYBEHEX,
-		S_DIGITS, S_FRAC, S_EXP, S_EXPDIGITS
+		S_START, S_GOTSIGN, S_INF, S_NAN, S_DONE, S_MAYBEHEX,
+		S_DIGITS, S_DECPT, S_FRAC, S_EXP, S_EXPDIGITS
 	} state = S_START;
 	unsigned char c;
-	char decpt = *localeconv()->decimal_point;
+	const char *decpt = localeconv()->decimal_point;
 	_Bool gotmantdig = 0, ishex = 0;
 
 	/*
@@ -970,8 +970,6 @@ reswitch:
 			break;
 		case S_NAN:
 			switch (infnanpos) {
-			case -1:	/* XXX kludge to deal with nan(...) */
-				goto parsedone;
 			case 0:
 				if (c != 'A' && c != 'a')
 					goto parsedone;
@@ -989,13 +987,15 @@ reswitch:
 			default:
 				if (c == ')') {
 					commit = p;
-					infnanpos = -2;
+					state = S_DONE;
 				} else if (!isalnum(c) && c != '_')
 					goto parsedone;
 				break;
 			}
 			infnanpos++;
 			break;
+		case S_DONE:
+			goto parsedone;
 		case S_MAYBEHEX:
 			state = S_DIGITS;
 			if (c == 'X' || c == 'x') {
@@ -1006,16 +1006,34 @@ reswitch:
 				goto reswitch;
 			}
 		case S_DIGITS:
-			if ((ishex && isxdigit(c)) || isdigit(c))
+			if ((ishex && isxdigit(c)) || isdigit(c)) {
 				gotmantdig = 1;
-			else {
-				state = S_FRAC;
-				if (c != decpt)
-					goto reswitch;
-			}
-			if (gotmantdig)
 				commit = p;
-			break;
+				break;
+			} else {
+				state = S_DECPT;
+				goto reswitch;
+			}
+		case S_DECPT:
+			if (c == decpt[decptpos]) {
+				if (decpt[++decptpos] == '\0') {
+					/* We read the complete decpt seq. */
+					state = S_FRAC;
+					if (gotmantdig)
+						commit = p;
+				}
+				break;
+			} else if (!decptpos) {
+				/* We didn't read any decpt characters. */
+				state = S_FRAC;
+				goto reswitch;
+			} else {
+				/*
+				 * We read part of a multibyte decimal point,
+				 * but the rest is invalid, so bail.
+				 */
+				goto parsedone;
+			}
 		case S_FRAC:
 			if (((c == 'E' || c == 'e') && !ishex) ||
 			    ((c == 'P' || c == 'p') && ishex)) {

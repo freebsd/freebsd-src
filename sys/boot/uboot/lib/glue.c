@@ -454,7 +454,7 @@ ub_dev_send(int handle, void *buf, int len)
 	return (err);
 }
 
-static char *
+char *
 ub_stor_type(int type)
 {
 

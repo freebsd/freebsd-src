@@ -418,12 +418,20 @@ hint.snc.0.maddr="0xc0000"
 device		sr
 device		ural
 
-device		ath
-device		ath_hal		# Atheros HAL (includes binary component)
-#device		ath_rate_amrr	# AMRR rate control for ath driver
-#device		ath_rate_onoe	# Onoe rate control for ath driver
-device		ath_rate_sample	# SampleRate rate control for the ath driver
-#device		wlan		# 802.11 layer
+device		ath		# Atheros pci/cardbus NIC's
+device		ath_hal		# pci/cardbus chip support
+#device		ath_ar5210	# AR5210 chips
+#device		ath_ar5211	# AR5211 chips
+#device		ath_ar5212	# AR5212 chips
+#device		ath_rf2413
+#device		ath_rf2417
+#device		ath_rf2425
+#device		ath_rf5111
+#device		ath_rf5112
+#device		ath_rf5413
+#device		ath_ar5416	# AR5416 chips
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+device		ath_rate_sample	# SampleRate tx rate control for ath
 
 #
 # SCSI host adapters:

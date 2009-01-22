@@ -118,7 +118,7 @@ expect 0 unlink ${n1}
 
 # unsuccessful link(2) does not update ctime.
 expect 0 create ${n0} 0644
-expect 0 chown ${n0} 65534 -1
+expect 0 -- chown ${n0} 65534 -1
 ctime1=`${fstest} stat ${n0} ctime`
 dctime1=`${fstest} stat . ctime`
 dmtime1=`${fstest} stat . mtime`
@@ -133,7 +133,7 @@ test_check $dctime1 -eq $dmtime2
 expect 0 unlink ${n0}
 
 expect 0 mkfifo ${n0} 0644
-expect 0 chown ${n0} 65534 -1
+expect 0 -- chown ${n0} 65534 -1
 ctime1=`${fstest} stat ${n0} ctime`
 dctime1=`${fstest} stat . ctime`
 dmtime1=`${fstest} stat . mtime`

@@ -218,7 +218,7 @@ quicc_getc(struct uart_bas *bas, struct mtx *hwmtx)
 		uart_lock(hwmtx);
 	}
 
-	buf = (void *)quicc_read4(bas, rb + 4);
+	buf = (void *)(uintptr_t)quicc_read4(bas, rb + 4);
 	c = *buf;
 	quicc_write2(bas, rb, sc | 0x8000);
 
@@ -433,7 +433,7 @@ quicc_bus_receive(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	rb = quicc_read2(bas, QUICC_PRAM_SCC_RBASE(bas->chan - 1));
 	st = quicc_read2(bas, rb);
-	buf = (void *)quicc_read4(bas, rb + 4);
+	buf = (void *)(uintptr_t)quicc_read4(bas, rb + 4);
 	uart_rx_put(sc, *buf);
 	quicc_write2(bas, rb, st | 0x9000);
 	uart_unlock(sc->sc_hwmtx);
@@ -477,7 +477,7 @@ quicc_bus_transmit(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	tb = quicc_read2(bas, QUICC_PRAM_SCC_TBASE(bas->chan - 1));
 	st = quicc_read2(bas, tb);
-	buf = (void *)quicc_read4(bas, tb + 4);
+	buf = (void *)(uintptr_t)quicc_read4(bas, tb + 4);
 	*buf = sc->sc_txbuf[0];
 	quicc_write2(bas, tb + 2, 1);
 	quicc_write2(bas, tb, st | 0x9000);

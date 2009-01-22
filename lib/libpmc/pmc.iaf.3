@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2008
+.Dd November 14, 2008
 .Os
 .Dt PMC.IAF 3
 .Sh NAME
@@ -72,6 +72,9 @@ Fixed-function PMCs support the following capabilities:
 .It PMC_CAP_USER Ta Yes
 .It PMC_CAP_WRITE Ta Yes
 .El
+.Ss Class Name Prefix
+These pmcs are named using a class name prefix of
+.Dq Li iaf- .
 .Ss Event Qualifiers (Fixed Function PMCs)
 These PMCs support the following modifiers:
 .Bl -tag -width indent
@@ -80,6 +83,11 @@ Configure the PMC to count events occurring at ring level 0.
 .It Li usr
 Configure the PMC to count events occurring at ring levels 1, 2
 or 3.
+.It Li anythread
+.Pq Tn Atom CPUs
+Configure the PMC to count events on all logical processors sharing a
+processor core.
+The default is to count events on the current logical processor.
 .El
 .Pp
 If neither of the
@@ -101,6 +109,19 @@ The number of core cycles for which the core is not halted.
 .Pq Fixed Function Counter 2
 The number of reference cycles for which the core is not halted.
 .El
+.Sh EXAMPLES
+To measure the number of core cycles for which the core was not halted
+use the event specifier
+.Qq iaf-cpu-clk-unhalted.core .
+.Pp
+To measure the number of user instructions retired use the event specifier
+.Qq iaf-instr-retired.any,usr .
+.Pp
+To measure the number of user instructions retired on all logical processors
+in an
+.Tn Atom
+CPU, use the event specifier
+.Qq iaf-instr-retired.any,usr,anythread .
 .Sh SEE ALSO
 .Xr pmc 3 ,
 .Xr pmc.atom 3 ,

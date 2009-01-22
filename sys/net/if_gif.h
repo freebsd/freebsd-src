@@ -113,7 +113,7 @@ int gif_encapcheck(const struct mbuf *, int, int, void *);
 /*
  * Virtualization support
  */
-#ifdef VIMAGE
+
 struct vnet_gif {
 	LIST_HEAD(, gif_softc) _gif_softc_list;
 	int	_max_gif_nesting;
@@ -121,6 +121,11 @@ struct vnet_gif {
 	int	_ip_gif_ttl;
 	int	_ip6_gif_hlim;
 };
+
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_gif vnet_gif_0;
+#endif
 #endif
 
 #define	INIT_VNET_GIF(vnet) \

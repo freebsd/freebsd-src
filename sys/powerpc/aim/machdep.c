@@ -291,7 +291,17 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
+	/*
+	 * Init mutexes, which we use heavily in PMAP
+	 */
+
 	mutex_init();
+
+	/*
+	 * Install the OF client interface
+	 */
+
+	OF_bootstrap();
 
 	/*
 	 * Initialize the console before printing anything.
@@ -306,8 +316,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	}
 
 	kdb_init();
-
-	kobj_machdep_init();
 
 	/*
 	 * XXX: Initialize the interrupt tables.

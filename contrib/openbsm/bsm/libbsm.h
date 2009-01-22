@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004-2008 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#33 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#41 $
  */
 
 #ifndef _LIBBSM_H_
@@ -82,6 +82,7 @@
 #define	FLAGS_CONTROL_ENTRY	"flags"
 #define	NA_CONTROL_ENTRY	"naflags"
 #define	POLICY_CONTROL_ENTRY	"policy"
+#define	AUDIT_HOST_CONTROL_ENTRY	"host"
 
 #define	AU_CLASS_NAME_MAX	8
 #define	AU_CLASS_DESC_MAX	72
@@ -546,13 +547,13 @@ typedef struct {
  * remote Internet address 4 bytes/16 bytes (IPv4/IPv6 address)
  */
 typedef struct {
+	u_int16_t	domain;
 	u_int16_t	type;
+	u_int16_t	atype;
 	u_int16_t	l_port;
-	u_int32_t	l_ad_type;
-	u_int32_t	l_addr;
+	u_int32_t	l_addr[4];
 	u_int32_t	r_port;
-	u_int32_t	r_ad_type;
-	u_int32_t	r_addr;
+	u_int32_t	r_addr[4];
 } au_socket_ex32_t;
 
 /*
@@ -764,6 +765,7 @@ int			 getacfilesz(size_t *size_val);
 int			 getacflg(char *auditstr, int len);
 int			 getacna(char *auditstr, int len);
 int			 getacpol(char *auditstr, size_t len);
+int			 getachost(char *auditstr, size_t len);
 int			 getauditflagsbin(char *auditstr, au_mask_t *masks);
 int			 getauditflagschar(char *auditstr, au_mask_t *masks,
 			    int verbose);
@@ -819,6 +821,21 @@ void			 au_print_tok_xml(FILE *outfp, tokenstr_t *tok,
  */
 void			 au_print_xml_header(FILE *outfp);
 void			 au_print_xml_footer(FILE *outfp);
+
+/*
+ * BSM library routines for converting between local and BSM constant spaces.
+ * (Note: some of these are replicated in audit_record.h for the benefit of
+ * the FreeBSD and Mac OS X kernels)
+ */
+int	 au_bsm_to_domain(u_short bsm_domain, int *local_domainp);
+int	 au_bsm_to_errno(u_char bsm_error, int *errorp);
+int	 au_bsm_to_socket_type(u_short bsm_socket_type,
+	    int *local_socket_typep);
+u_short	 au_domain_to_bsm(int local_domain);
+u_char	 au_errno_to_bsm(int local_errno);
+u_short	 au_socket_type_to_bsm(int local_socket_type);
+
+const char	 *au_strerror(u_char bsm_error);
 __END_DECLS
 
 /*
@@ -928,6 +945,19 @@ void	au_free_token(token_t *tok);
  * XXXRW: In Apple's bsm-8, these are marked __APPLE_API_PRIVATE.
  */
 int	au_get_state(void);
+
+/*
+ * Initialize the audit notification.  If it has not already been initialized
+ * it will automatically on the first call of au_get_state().
+ */
+uint32_t	au_notify_initialize(void);
+
+/*
+ * Cancel audit notification and free the resources associated with it.
+ * Responsible code that no longer needs to use au_get_state() should call
+ * this.
+ */
+int		au_notify_terminate(void);
 __END_DECLS
 
 /* OpenSSH compatibility */

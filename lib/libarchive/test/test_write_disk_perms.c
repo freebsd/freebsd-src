@@ -272,7 +272,7 @@ DEFINE_TEST(test_write_disk_perms)
 		 * Current user must belong to at least two groups or
 		 * else we can't test setting the GID to another group.
 		 */
-		printf("Current user can't test gid restore: must belong to more than one group.\n");
+		skipping("Current user can't test gid restore: must belong to more than one group.");
 	} else {
 		/*
 		 * Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit

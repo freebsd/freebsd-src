@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_offload.h>
 #include <netinet/toedev.h>
+#include <netinet/vinet.h>
 
 uint32_t toedev_registration_count;
 

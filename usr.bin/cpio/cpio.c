@@ -41,6 +41,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_GRP_H
+#include <grp.h>
+#endif
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -58,11 +64,32 @@ __FBSDID("$FreeBSD$");
 #include "cpio.h"
 #include "matching.h"
 
+/* Fixed size of uname/gname caches. */
+#define	name_cache_size 101
+
+struct name_cache {
+	int	probes;
+	int	hits;
+	size_t	size;
+	struct {
+		id_t id;
+		char *name;
+	} cache[name_cache_size];
+};
+
 static int	copy_data(struct archive *, struct archive *);
 static const char *cpio_rename(const char *name);
 static int	entry_to_archive(struct cpio *, struct archive_entry *);
 static int	file_to_archive(struct cpio *, const char *);
+static void	free_cache(struct name_cache *cache);
+static void	list_item_verbose(struct cpio *, struct archive_entry *);
 static void	long_help(void);
+static const char *lookup_gname(struct cpio *, gid_t gid);
+static int	lookup_gname_helper(struct cpio *,
+		    const char **name, id_t gid);
+static const char *lookup_uname(struct cpio *, uid_t uid);
+static int	lookup_uname_helper(struct cpio *,
+		    const char **name, id_t uid);
 static void	mode_in(struct cpio *);
 static void	mode_list(struct cpio *);
 static void	mode_out(struct cpio *);
@@ -134,9 +161,9 @@ main(int argc, char *argv[])
 			cpio->bytes_per_block = 5120;
 			break;
 		case 'C': /* NetBSD/OpenBSD */
-			cpio->bytes_per_block = atoi(optarg);
+			cpio->bytes_per_block = atoi(cpio->optarg);
 			if (cpio->bytes_per_block <= 0)
-				cpio_errc(1, 0, "Invalid blocksize %s", optarg);
+				cpio_errc(1, 0, "Invalid blocksize %s", cpio->optarg);
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
@@ -145,22 +172,22 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_NO_AUTODIR;
 			break;
 		case 'E': /* NetBSD/OpenBSD */
-			include_from_file(cpio, optarg);
+			include_from_file(cpio, cpio->optarg);
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
-			cpio->filename = optarg;
+			cpio->filename = cpio->optarg;
 			break;
 		case 'f': /* POSIX 1997 */
-			exclude(cpio, optarg);
+			exclude(cpio, cpio->optarg);
 			break;
 		case 'H': /* GNU cpio (also --format) */
-			cpio->format = optarg;
+			cpio->format = cpio->optarg;
 			break;
 		case 'h':
 			long_help();
 			break;
 		case 'I': /* NetBSD/OpenBSD */
-			cpio->filename = optarg;
+			cpio->filename = cpio->optarg;
 			break;
 		case 'i': /* POSIX 1997 */
 			cpio->mode = opt;
@@ -182,7 +209,7 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case 'O': /* GNU cpio */
-			cpio->filename = optarg;
+			cpio->filename = cpio->optarg;
 			break;
 		case 'o': /* POSIX 1997 */
 			cpio->mode = opt;
@@ -195,7 +222,7 @@ main(int argc, char *argv[])
 			cpio->quiet = 1;
 			break;
 		case 'R': /* GNU cpio, also --owner */
-			if (owner_parse(optarg, &uid, &gid))
+			if (owner_parse(cpio->optarg, &uid, &gid))
 				usage();
 			if (uid != -1)
 				cpio->uid_override = uid;
@@ -242,9 +269,6 @@ main(int argc, char *argv[])
 
 	/* TODO: Sanity-check args, error out on nonsensical combinations. */
 
-	cpio->argc -= optind;
-	cpio->argv += optind;
-
 	switch (cpio->mode) {
 	case 'o':
 		mode_out(cpio);
@@ -271,6 +295,8 @@ main(int argc, char *argv[])
 		    "Must specify at least one of -i, -o, or -p");
 	}
 
+	free_cache(cpio->gname_cache);
+	free_cache(cpio->uname_cache);
 	return (0);
 }
 
@@ -285,11 +311,7 @@ usage(void)
 	fprintf(stderr, "  List:    %s -it < archive\n", p);
 	fprintf(stderr, "  Extract: %s -i < archive\n", p);
 	fprintf(stderr, "  Create:  %s -o < filenames > archive\n", p);
-#ifdef HAVE_GETOPT_LONG
 	fprintf(stderr, "  Help:    %s --help\n", p);
-#else
-	fprintf(stderr, "  Help:    %s -h\n", p);
-#endif
 	exit(1);
 }
 
@@ -805,18 +827,9 @@ mode_list(struct cpio *cpio)
 		}
 		if (excluded(cpio, archive_entry_pathname(entry)))
 			continue;
-		if (cpio->verbose) {
-			/* TODO: uname/gname lookups */
-			/* TODO: Clean this up. */
-			fprintf(stdout,
-			    "%s%3d %8s%8s " CPIO_FILESIZE_PRINTF " %s\n",
-			    archive_entry_strmode(entry),
-			    archive_entry_nlink(entry),
-			    archive_entry_uname(entry),
-			    archive_entry_gname(entry),
-			    (CPIO_FILESIZE_TYPE)archive_entry_size(entry),
-			    archive_entry_pathname(entry));
-		} else
+		if (cpio->verbose)
+			list_item_verbose(cpio, entry);
+		else
 			fprintf(stdout, "%s\n", archive_entry_pathname(entry));
 	}
 	r = archive_read_close(a);
@@ -830,6 +843,73 @@ mode_list(struct cpio *cpio)
 	}
 	archive_read_finish(a);
 	exit(0);
+}
+
+/*
+ * Display information about the current file.
+ *
+ * The format here roughly duplicates the output of 'ls -l'.
+ * This is based on SUSv2, where 'tar tv' is documented as
+ * listing additional information in an "unspecified format,"
+ * and 'pax -l' is documented as using the same format as 'ls -l'.
+ */
+static void
+list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
+{
+	char			 size[32];
+	char			 date[32];
+	const char 		*uname, *gname;
+	FILE			*out = stdout;
+	const struct stat	*st;
+	const char		*fmt;
+	time_t			 tim;
+	static time_t		 now;
+
+	st = archive_entry_stat(entry);
+
+	if (!now)
+		time(&now);
+
+	/* Use uname if it's present, else uid. */
+	uname = archive_entry_uname(entry);
+	if (uname == NULL)
+		uname = lookup_uname(cpio, archive_entry_uid(entry));
+
+	/* Use gname if it's present, else gid. */
+	gname = archive_entry_gname(entry);
+	if (gname == NULL)
+		gname = lookup_gname(cpio, archive_entry_gid(entry));
+
+	/* Print device number or file size. */
+	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
+		snprintf(size, sizeof(size), "%lu,%lu",
+		    (unsigned long)major(st->st_rdev),
+		    (unsigned long)minor(st->st_rdev)); /* ls(1) also casts here. */
+	} else {
+		snprintf(size, sizeof(size), CPIO_FILESIZE_PRINTF,
+		    (CPIO_FILESIZE_TYPE)st->st_size);
+	}
+
+	/* Format the time using 'ls -l' conventions. */
+	tim = (time_t)st->st_mtime;
+	if (abs(tim - now) > (365/2)*86400)
+		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
+	else
+		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
+	strftime(date, sizeof(date), fmt, localtime(&tim));
+
+	fprintf(out, "%s%3d %-8s %-8s %8s %12s %s",
+	    archive_entry_strmode(entry),
+	    archive_entry_nlink(entry),
+	    uname, gname, size, date,
+	    archive_entry_pathname(entry));
+
+	/* Extra information for links. */
+	if (archive_entry_hardlink(entry)) /* Hard link */
+		fprintf(out, " link to %s", archive_entry_hardlink(entry));
+	else if (archive_entry_symlink(entry)) /* Symbolic link */
+		fprintf(out, " -> %s", archive_entry_symlink(entry));
+	fprintf(out, "\n");
 }
 
 static void
@@ -1039,4 +1119,124 @@ process_lines_free(struct line_reader *lr)
 	free(lr->buff);
 	free(lr->pathname);
 	free(lr);
+}
+
+static void
+free_cache(struct name_cache *cache)
+{
+	size_t i;
+
+	if (cache != NULL) {
+		for (i = 0; i < cache->size; i++)
+			free(cache->cache[i].name);
+		free(cache);
+	}
+}
+
+/*
+ * Lookup uname/gname from uid/gid, return NULL if no match.
+ */
+static const char *
+lookup_name(struct cpio *cpio, struct name_cache **name_cache_variable,
+    int (*lookup_fn)(struct cpio *, const char **, id_t), id_t id)
+{
+	char asnum[16];
+	struct name_cache	*cache;
+	const char *name;
+	int slot;
+
+
+	if (*name_cache_variable == NULL) {
+		*name_cache_variable = malloc(sizeof(struct name_cache));
+		if (*name_cache_variable == NULL)
+			cpio_errc(1, ENOMEM, "No more memory");
+		memset(*name_cache_variable, 0, sizeof(struct name_cache));
+		(*name_cache_variable)->size = name_cache_size;
+	}
+
+	cache = *name_cache_variable;
+	cache->probes++;
+
+	slot = id % cache->size;
+	if (cache->cache[slot].name != NULL) {
+		if (cache->cache[slot].id == id) {
+			cache->hits++;
+			return (cache->cache[slot].name);
+		}
+		free(cache->cache[slot].name);
+		cache->cache[slot].name = NULL;
+	}
+
+	if (lookup_fn(cpio, &name, id) == 0) {
+		if (name == NULL || name[0] == '\0') {
+			/* If lookup failed, format it as a number. */
+			snprintf(asnum, sizeof(asnum), "%u", (unsigned)id);
+			name = asnum;
+		}
+		cache->cache[slot].name = strdup(name);
+		if (cache->cache[slot].name != NULL) {
+			cache->cache[slot].id = id;
+			return (cache->cache[slot].name);
+		}
+		/*
+		 * Conveniently, NULL marks an empty slot, so
+		 * if the strdup() fails, we've just failed to
+		 * cache it.  No recovery necessary.
+		 */
+	}
+	return (NULL);
+}
+
+static const char *
+lookup_uname(struct cpio *cpio, uid_t uid)
+{
+	return (lookup_name(cpio, &cpio->uname_cache,
+		    &lookup_uname_helper, (id_t)uid));
+}
+
+static int
+lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
+{
+	struct passwd	*pwent;
+
+	(void)cpio; /* UNUSED */
+
+	errno = 0;
+	pwent = getpwuid((uid_t)id);
+	if (pwent == NULL) {
+		*name = NULL;
+		if (errno != 0)
+			cpio_warnc(errno, "getpwuid(%d) failed", id);
+		return (errno);
+	}
+
+	*name = pwent->pw_name;
+	return (0);
+}
+
+static const char *
+lookup_gname(struct cpio *cpio, gid_t gid)
+{
+	return (lookup_name(cpio, &cpio->gname_cache,
+		    &lookup_gname_helper, (id_t)gid));
+}
+
+static int
+lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
+{
+	struct group	*grent;
+
+	(void)cpio; /* UNUSED */
+
+	errno = 0;
+	grent = getgrgid((gid_t)id);
+	if (grent == NULL) {
+		*name = NULL;
+		if (errno != 0)
+			cpio_warnc(errno, "getgrgid(%d) failed", id);
+		return (errno);
+	}
+
+	*name = grent->gr_name;
+	return (0);
 }

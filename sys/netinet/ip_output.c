@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ipfw.h"
+#include "opt_inet.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_mbuf_stress_test.h"
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -67,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>
@@ -83,12 +86,20 @@ __FBSDID("$FreeBSD$");
 				  (ntohl(a.s_addr)>>8)&0xFF,\
 				  (ntohl(a.s_addr))&0xFF, y);
 
+#ifdef VIMAGE_GLOBALS
 u_short ip_id;
+#endif
 
 #ifdef MBUF_STRESS_TEST
 int mbuf_frag_size = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
+#endif
+
+#if defined(IP_NONLOCALBIND)
+static int ip_nonlocalok = 0;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, nonlocalok,
+	CTLFLAG_RW|CTLFLAG_SECURE, &ip_nonlocalok, 0, "");
 #endif
 
 static void	ip_mloopback
@@ -132,8 +143,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		bzero(ro, sizeof (*ro));
 	}
 
-	if (inp != NULL)
+	if (inp != NULL) {
+		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		INP_LOCK_ASSERT(inp);
+	}
 
 	if (opt) {
 		len = 0;
@@ -561,7 +574,6 @@ passout:
 		 * to avoid confusing lower layers.
 		 */
 		m->m_flags &= ~(M_PROTOFLAGS);
-
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
 		goto done;
@@ -822,6 +834,11 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 	error = optval = 0;
 	if (sopt->sopt_level != IPPROTO_IP) {
+		if ((sopt->sopt_level == SOL_SOCKET) &&
+		    (sopt->sopt_name == SO_SETFIB)) {
+			inp->inp_inc.inc_fibnum = so->so_fibnum;
+			return (0);
+		}
 		return (EINVAL);
 	}
 
@@ -856,6 +873,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			return (error);
 		}
 
+#if defined(IP_NONLOCALBIND)
+		case IP_NONLOCALOK:
+			if (! ip_nonlocalok) {
+				error = ENOPROTOOPT;
+				break;
+			}
+			/* FALLTHROUGH */
+#endif
 		case IP_TOS:
 		case IP_TTL:
 		case IP_MINTTL:
@@ -882,7 +907,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 
 			case IP_MINTTL:
-				if (optval > 0 && optval <= MAXTTL)
+				if (optval >= 0 && optval <= MAXTTL)
 					inp->inp_ip_minttl = optval;
 				else
 					error = EINVAL;
@@ -927,6 +952,11 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_DONTFRAG:
 				OPTSET(INP_DONTFRAG);
 				break;
+#if defined(IP_NONLOCALBIND)
+			case IP_NONLOCALOK:
+				OPTSET(INP_NONLOCALOK);
+				break;
+#endif
 			}
 			break;
 #undef OPTSET

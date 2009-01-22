@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/vimage.h>
 
+#include <net/if.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#include <netinet/vinet.h>
 
 int	tcp_keepinit;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT|CTLFLAG_RW,
@@ -559,6 +561,7 @@ tcp_timer_rexmt(void * xtp)
 
 	tp->t_dupacks = 0;
 	EXIT_FASTRECOVERY(tp);
+	tp->t_bytes_acked = 0;
 	(void) tcp_output(tp);
 
 out:

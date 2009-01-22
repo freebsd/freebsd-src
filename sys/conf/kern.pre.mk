@@ -25,6 +25,7 @@ COPTFLAGS?=	-O
 .else
 . if defined(DEBUG)
 _MINUS_O=	-O
+CTFFLAGS+=	-g
 . else
 _MINUS_O=	-O2
 . endif
@@ -66,8 +67,8 @@ INCLUDES+= -I$S/contrib/ipfilter
 # ... and the same for pf
 INCLUDES+= -I$S/contrib/pf
 
-# ... and the same for Atheros HAL
-INCLUDES+= -I$S/dev/ath
+# ... and the same for ath
+INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
 
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm

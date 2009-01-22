@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -2018,7 +2019,6 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
  	error = copyin(uap->name, name, uap->namelen * sizeof(int));
  	if (error)
 		return (error);
-	mtx_lock(&Giant);
 	if (uap->oldlenp)
 		oldlen = fuword32(uap->oldlenp);
 	else
@@ -2027,12 +2027,70 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 		uap->old, &oldlen, 1,
 		uap->new, uap->newlen, &j, SCTL_MASK32);
 	if (error && error != ENOMEM)
-		goto done2;
+		return (error);
 	if (uap->oldlenp)
 		suword32(uap->oldlenp, j);
-done2:
-	mtx_unlock(&Giant);
-	return (error);
+	return (0);
+}
+
+int
+freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
+{
+	uint32_t version;
+	int error;
+	struct jail j;
+
+	error = copyin(uap->jail, &version, sizeof(uint32_t));
+	if (error)
+		return (error);
+	switch (version) {
+	case 0:	
+	{
+		/* FreeBSD single IPv4 jails. */
+		struct jail32_v0 j32_v0;
+
+		bzero(&j, sizeof(struct jail));
+		error = copyin(uap->jail, &j32_v0, sizeof(struct jail32_v0));
+		if (error)
+			return (error);
+		CP(j32_v0, j, version);
+		PTRIN_CP(j32_v0, j, path);
+		PTRIN_CP(j32_v0, j, hostname);
+		j.ip4s = j32_v0.ip_number;
+		break;
+	}
+
+	case 1:
+		/*
+		 * Version 1 was used by multi-IPv4 jail implementations
+		 * that never made it into the official kernel.
+		 */
+		return (EINVAL);
+
+	case 2:	/* JAIL_API_VERSION */
+	{
+		/* FreeBSD multi-IPv4/IPv6,noIP jails. */
+		struct jail32 j32;
+
+		error = copyin(uap->jail, &j32, sizeof(struct jail32));
+		if (error)
+			return (error);
+		CP(j32, j, version);
+		PTRIN_CP(j32, j, path);
+		PTRIN_CP(j32, j, hostname);
+		PTRIN_CP(j32, j, jailname);
+		CP(j32, j, ip4s);
+		CP(j32, j, ip6s);
+		PTRIN_CP(j32, j, ip4);
+		PTRIN_CP(j32, j, ip6);
+		break;
+	}
+
+	default:
+		/* Sci-Fi jails are not supported, sorry. */
+		return (EINVAL);
+	}
+	return (kern_jail(td, &j));
 }
 
 int
@@ -2713,7 +2771,7 @@ syscall32_module_handler(struct module *mod, int what, void *arg)
 			if (error)
 				return (error);
 		}
-		error = syscall_deregister(data->offset, &data->old_sysent);
+		error = syscall32_deregister(data->offset, &data->old_sysent);
 		return (error);
 	default:
 		error = EOPNOTSUPP;

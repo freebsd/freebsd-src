@@ -133,15 +133,15 @@ static usb2_callback_t udbp_bulk_read_clear_stall_callback;
 static usb2_callback_t udbp_bulk_write_callback;
 static usb2_callback_t udbp_bulk_write_clear_stall_callback;
 
-static void udbp_bulk_read_complete(node_p node, hook_p hook, void *arg1, int arg2);
+static void	udbp_bulk_read_complete(node_p, hook_p, void *, int);
 
-static ng_constructor_t ng_udbp_constructor;
-static ng_rcvmsg_t ng_udbp_rcvmsg;
-static ng_shutdown_t ng_udbp_rmnode;
-static ng_newhook_t ng_udbp_newhook;
-static ng_connect_t ng_udbp_connect;
-static ng_rcvdata_t ng_udbp_rcvdata;
-static ng_disconnect_t ng_udbp_disconnect;
+static ng_constructor_t	ng_udbp_constructor;
+static ng_rcvmsg_t	ng_udbp_rcvmsg;
+static ng_shutdown_t	ng_udbp_rmnode;
+static ng_newhook_t	ng_udbp_newhook;
+static ng_connect_t	ng_udbp_connect;
+static ng_rcvdata_t	ng_udbp_rcvdata;
+static ng_disconnect_t	ng_udbp_disconnect;
 
 /* Parse type for struct ngudbpstat */
 static const struct ng_parse_struct_field
@@ -467,7 +467,6 @@ udbp_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UDBP_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -508,8 +507,6 @@ done:
 	usb2_transfer_start(sc->sc_xfer[UDBP_T_RD]);
 
 	mtx_unlock(&sc->sc_mtx);
-
-	return;
 }
 
 static void
@@ -578,7 +575,6 @@ udbp_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~UDBP_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 /***********************************************************************

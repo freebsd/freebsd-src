@@ -52,6 +52,22 @@ sd_profile_create_service_class_id_list(
 }
 
 static int32_t
+sd_profile_create_bluetooth_profile_descriptor_list(
+		uint8_t *buf, uint8_t const * const eob,
+		uint8_t const *data, uint32_t datalen)
+{
+	static uint16_t profile_descriptor_list[] = {
+		SDP_SERVICE_CLASS_SERVICE_DISCOVERY_SERVER,
+		0x0100
+	};
+
+	return (common_profile_create_bluetooth_profile_descriptor_list(
+			buf, eob,
+			(uint8_t const *) profile_descriptor_list,
+			sizeof(profile_descriptor_list)));
+}
+
+static int32_t
 sd_profile_create_service_id(
 		uint8_t *buf, uint8_t const * const eob,
 		uint8_t const *data, uint32_t datalen)
@@ -89,25 +105,23 @@ sd_profile_create_protocol_descriptor_list(
 		uint8_t *buf, uint8_t const * const eob,
 		uint8_t const *data, uint32_t datalen)
 {
-	if (buf + 13 > eob)
+	if (buf + 12 > eob)
 		return (-1);
 
 	SDP_PUT8(SDP_DATA_SEQ8, buf);
-	SDP_PUT8(11, buf);
+	SDP_PUT8(10, buf);
 
 	SDP_PUT8(SDP_DATA_SEQ8, buf);
-	SDP_PUT8(9, buf);
-
+	SDP_PUT8(3, buf);
 	SDP_PUT8(SDP_DATA_UUID16, buf);
 	SDP_PUT16(SDP_UUID_PROTOCOL_L2CAP, buf);
 
-	SDP_PUT8(SDP_DATA_UINT16, buf);
-	SDP_PUT16(NG_L2CAP_PSM_SDP, buf);
+	SDP_PUT8(SDP_DATA_SEQ8, buf);
+	SDP_PUT8(3, buf);
+	SDP_PUT8(SDP_DATA_UUID16, buf);
+	SDP_PUT16(SDP_UUID_PROTOCOL_SDP, buf);
 
-	SDP_PUT8(SDP_DATA_UINT16, buf);
-	SDP_PUT16(1, buf); /* version */
-
-	return (13);
+	return (12);
 }
 
 static int32_t
@@ -182,6 +196,8 @@ static attr_t	sd_profile_attrs[] = {
 	  common_profile_create_service_record_handle },
 	{ SDP_ATTR_SERVICE_CLASS_ID_LIST,
 	  sd_profile_create_service_class_id_list },
+	{ SDP_ATTR_BLUETOOTH_PROFILE_DESCRIPTOR_LIST,
+	  sd_profile_create_bluetooth_profile_descriptor_list },
 	{ SDP_ATTR_SERVICE_ID,
 	  sd_profile_create_service_id },
 	{ SDP_ATTR_LANGUAGE_BASE_ATTRIBUTE_ID_LIST,

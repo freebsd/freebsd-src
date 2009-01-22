@@ -97,5 +97,4 @@ usb2_ether_cc(struct ifnet *ifp, usb2_ether_mchash_t *fhash,
 			fhash(cc, ifp->if_broadcastaddr);
 		}
 	}
-	return;
 }

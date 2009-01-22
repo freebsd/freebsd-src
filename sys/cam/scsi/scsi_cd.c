@@ -292,6 +292,9 @@ static struct periph_driver cddriver =
 
 PERIPHDRIVER_DECLARE(cd, cddriver);
 
+#ifndef	CD_DEFAULT_RETRY
+#define	CD_DEFAULT_RETRY	4
+#endif
 #ifndef CHANGER_MIN_BUSY_SECONDS
 #define CHANGER_MIN_BUSY_SECONDS	5
 #endif
@@ -299,11 +302,15 @@ PERIPHDRIVER_DECLARE(cd, cddriver);
 #define CHANGER_MAX_BUSY_SECONDS	15
 #endif
 
+static int cd_retry_count = CD_DEFAULT_RETRY;
 static int changer_min_busy_seconds = CHANGER_MIN_BUSY_SECONDS;
 static int changer_max_busy_seconds = CHANGER_MAX_BUSY_SECONDS;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, cd, CTLFLAG_RD, 0, "CAM CDROM driver");
 SYSCTL_NODE(_kern_cam_cd, OID_AUTO, changer, CTLFLAG_RD, 0, "CD Changer");
+SYSCTL_INT(_kern_cam_cd, OID_AUTO, retry_count, CTLFLAG_RW,
+           &cd_retry_count, 0, "Normal I/O retry count");
+TUNABLE_INT("kern.cam.cd.retry_count", &cd_retry_count);
 SYSCTL_INT(_kern_cam_cd_changer, OID_AUTO, min_busy_seconds, CTLFLAG_RW,
 	   &changer_min_busy_seconds, 0, "Minimum changer scheduling quantum");
 TUNABLE_INT("kern.cam.cd.changer.min_busy_seconds", &changer_min_busy_seconds);
@@ -996,12 +1003,6 @@ cdopen(struct disk *dp)
 		return (error);
 	}
 
-	/* Closes aren't symmetrical with opens, so fix up the refcounting. */
-	if (softc->flags & CD_FLAG_OPEN)
-		cam_periph_release(periph);
-	else
-		softc->flags |= CD_FLAG_OPEN;
-
 	/*
 	 * Check for media, and set the appropriate flags.  We don't bail
 	 * if we don't have media, but then we don't allow anything but the
@@ -1011,7 +1012,15 @@ cdopen(struct disk *dp)
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("leaving cdopen\n"));
 	cam_periph_unhold(periph);
-	cam_periph_unlock(periph);
+
+	/* Closes aren't symmetrical with opens, so fix up the refcounting. */
+	if ((softc->flags & CD_FLAG_OPEN) == 0) {
+		softc->flags |= CD_FLAG_OPEN;
+		cam_periph_unlock(periph);
+	} else {
+		cam_periph_unlock(periph);
+		cam_periph_release(periph);
+	}
 
 	return (0);
 }
@@ -1452,7 +1461,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 			devstat_start_transaction_bio(softc->disk->d_devstat, bp);
 
 			scsi_read_write(&start_ccb->csio,
-					/*retries*/4,
+					/*retries*/cd_retry_count,
 					/* cbfcnp */ cddone,
 					MSG_SIMPLE_Q_TAG,
 					/* read */bp->bio_cmd == BIO_READ,

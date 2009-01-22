@@ -116,7 +116,11 @@ iic_identify(driver_t *driver, device_t parent)
 static int
 iic_probe(device_t dev)
 {
+	if (iicbus_get_addr(dev) > 0)
+		return (ENXIO);
+
 	device_set_desc(dev, "I2C generic I/O");
+
 	return (0);
 }
 	

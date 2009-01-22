@@ -59,10 +59,15 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 	int i, type, err;
 
 	argc = gctl_get_paraml(req, "argc", sizeof(*argc));
-	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 
 	if (argc == NULL || *argc == 0) {
 		gctl_error(req, "no arguments given");
+		return;
+	}
+
+	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
+	if (flags == NULL) {
+		gctl_error(req, "no flags given");
 		return;
 	}
 

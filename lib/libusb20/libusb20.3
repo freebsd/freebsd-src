@@ -60,9 +60,9 @@ USB through the USB file system interface.
 .
 .Pp
 .
-.Fn libusb20_tr_close
+.Fn libusb20_tr_close pxfer
 This function will release all kernel resources associated with an USB
-.Fa xfer .
+.Fa pxfer .
 .
 This function returns zero upon success.
 .
@@ -70,13 +70,13 @@ Non-zero return values indicate a LIBUSB20_ERROR value.
 .
 .Pp
 .
-.Fn libusb20_tr_open
+.Fn libusb20_tr_open pxfer max_buf_size max_frame_count ep_no
 This function will allocate kernel resources like
-.Fa MaxBufSize
+.Fa max_buf_size
 and
-.Fa MaxFrameCount
+.Fa max_frame_count
 associated with an USB
-.Fa xfer
+.Fa pxfer
 and bind the transfer to the specified
 .Fa ep_no .
 .
@@ -86,7 +86,7 @@ Non-zero return values indicate a LIBUSB20_ERROR value.
 .
 .Pp
 .
-.Fn libusb20_tr_get_pointer
+.Fn libusb20_tr_get_pointer pdev tr_index
 This function will return a pointer to the allocated USB transfer according to the
 .Fa pdev
 and
@@ -97,32 +97,32 @@ This function returns NULL in case of failure.
 .
 .Pp
 .
-.Fn libusb20_tr_get_time_complete
+.Fn libusb20_tr_get_time_complete pxfer
 This function will return the completion time of an USB transfer in
 millisecond units. This function is most useful for isochronous USB
 transfers when doing echo cancelling.
 .
 .Pp
 .
-.Fn libusb20_tr_get_actual_frames
+.Fn libusb20_tr_get_actual_frames pxfer
 This function will return the actual number of USB frames after an USB
 transfer completed. A value of zero means that no data was transferred.
 .
 .Pp
 .
-.Fn libusb20_tr_get_actual_length
+.Fn libusb20_tr_get_actual_length pxfer
 This function will return the sum of the actual length for all
 transferred USB frames for the given USB transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_get_max_frames
+.Fn libusb20_tr_get_max_frames pxfer
 This function will return the maximum number of USB frames that were
 allocated when an USB transfer was setup for the given USB transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_get_max_packet_length
+.Fn libusb20_tr_get_max_packet_length pxfer
 This function will return the maximum packet length in bytes
 associated with the given USB transfer.
 .
@@ -132,20 +132,20 @@ packets are avoided for proxy buffers.
 .
 .Pp
 .
-.Fn libusb20_tr_get_max_total_length
+.Fn libusb20_tr_get_max_total_length pxfer
 This function will return the maximum value for the length sum of all
 USB frames associated with an USB transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_get_status
+.Fn libusb20_tr_get_status pxfer
 This function will return the status of an USB transfer.
 .
 Status values are defined by a set of LIBUSB20_TRANSFER_XXX enums.
 .
 .Pp
 .
-.Fn libusb20_tr_pending
+.Fn libusb20_tr_pending pxfer
 This function will return non-zero if the given USB transfer is
 pending for completion.
 .
@@ -153,12 +153,12 @@ Else this function returns zero.
 .
 .Pp
 .
-.Fn libusb20_tr_callback_wrapper
+.Fn libusb20_tr_callback_wrapper pxfer
 This is an internal function used to wrap asynchronous USB callbacks.
 .
 .Pp
 .
-.Fn libusb20_tr_clear_stall_sync
+.Fn libusb20_tr_clear_stall_sync pxfer
 This is an internal function used to synchronously clear the stall on
 the given USB transfer.
 .
@@ -171,13 +171,13 @@ been called.
 .
 .Pp
 .
-.Fn libusb20_tr_drain
+.Fn libusb20_tr_drain pxfer
 This function will stop the given USB transfer and will not return
 until the USB transfer has been stopped in hardware.
 .
 .Pp
 .
-.Fn libusb20_tr_set_buffer
+.Fn libusb20_tr_set_buffer pxfer pbuf fr_index
 This function is used to set the
 .Fa buffer
 pointer for the given USB transfer and
@@ -188,7 +188,7 @@ Typically the frame index is zero.
 .
 .Pp
 .
-.Fn libusb20_tr_set_callback
+.Fn libusb20_tr_set_callback pxfer pcallback
 This function is used to set the USB callback for asynchronous USB
 transfers.
 .
@@ -196,7 +196,7 @@ The callback type is defined by libusb20_tr_callback_t.
 .
 .Pp
 .
-.Fn libusb20_tr_set_flags
+.Fn libusb20_tr_set_flags pxfer flags
 This function is used to set various USB flags for the given USB transfer.
 .Bl -tag
 .It LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK
@@ -211,22 +211,22 @@ Will do a clear-stall before starting the transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_set_length
+.Fn libusb20_tr_set_length pxfer length fr_index
 This function sets the length of a given USB transfer and frame index.
 .
 .Pp
 .
-.Fn libusb20_tr_set_priv_sc0
+.Fn libusb20_tr_set_priv_sc0 pxfer psc0
 This function sets private driver pointer number zero.
 .
 .Pp
 .
-.Fn libusb20_tr_set_priv_sc1
+.Fn libusb20_tr_set_priv_sc1 pxfer psc1
 This function sets private driver pointer number one.
 .
 .Pp
 .
-.Fn libusb20_tr_set_timeout
+.Fn libusb20_tr_set_timeout pxfer timeout
 This function sets the timeout for the given USB transfer.
 .
 A timeout value of zero means no timeout.
@@ -235,35 +235,35 @@ The timeout is given in milliseconds.
 .
 .Pp
 .
-.Fn libusb20_tr_set_total_frames
+.Fn libusb20_tr_set_total_frames pxfer nframes
 This function sets the total number of frames that should be executed when the USB transfer is submitted.
 .
 The total number of USB frames must be less than the maximum number of USB frames associated with the given USB transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_setup_bulk
+.Fn libusb20_tr_setup_bulk pxfer pbuf length timeout
 This function is a helper function for setting up a single frame USB BULK transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_setup_control
+.Fn libusb20_tr_setup_control pxfer psetup pbuf timeout
 This function is a helper function for setting up a single or dual
 frame USB CONTROL transfer depending on the control transfer length.
 .
 .Pp
 .
-.Fn libusb20_tr_setup_intr
+.Fn libusb20_tr_setup_intr pxfer pbuf length timeout
 This function is a helper function for setting up a single frame USB INTERRUPT transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_setup_isoc
+.Fn libusb20_tr_setup_isoc pxfer pbuf length fr_index
 This function is a helper function for setting up a multi frame USB ISOCHRONOUS transfer.
 .
 .Pp
 .
-.Fn libusb20_tr_start
+.Fn libusb20_tr_start pxfer
 This function will get the USB transfer started, if not already
 started.
 .
@@ -273,7 +273,7 @@ This function is non-blocking.
 .
 .Pp
 .
-.Fn libusb20_tr_stop
+.Fn libusb20_tr_stop pxfer
 This function will get the USB transfer stopped, if not already stopped.
 .
 This function is non-blocking, which means that the actual stop can
@@ -281,20 +281,20 @@ happen after the return of this function.
 .
 .Pp
 .
-.Fn libusb20_tr_submit
+.Fn libusb20_tr_submit pxfer
 This function will get the USB transfer queued in hardware.
 .
 .
 .Pp
 .
-.Fn libusb20_tr_get_priv_sc0
+.Fn libusb20_tr_get_priv_sc0 pxfer
 This function returns private driver pointer number zero associated
 with an USB transfer.
 .
 .
 .Pp
 .
-.Fn libusb20_tr_get_priv_sc1
+.Fn libusb20_tr_get_priv_sc1 pxfer
 This function returns private driver pointer number one associated
 with an USB transfer.
 .
@@ -303,17 +303,17 @@ with an USB transfer.
 .
 .Pp
 .
-.Fn libusb20_dev_get_backend_name
+.Fn libusb20_dev_get_backend_name pdev
 This function returns a zero terminated string describing the backend used.
 .
 .Pp
 .
-.Fn libusb20_dev_get_desc
+.Fn libusb20_dev_get_desc pdev
 This function returns a zero terminated string describing the given USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_claim_interface
+.Fn libusb20_dev_claim_interface pdev iface_index
 This function will try to claim the given USB interface given by
 .Fa iface_index .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -321,7 +321,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_close
+.Fn libusb20_dev_close pdev
 This function will close the given USB device.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -329,7 +329,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_detach_kernel_driver
+.Fn libusb20_dev_detach_kernel_driver pdev iface_index
 This function will try to detach the kernel driver for the USB interface given by
 .Fa iface_index .
 .
@@ -338,7 +338,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_set_config_index
+.Fn libusb20_dev_set_config_index pdev config_index
 This function will try to set the configuration index on an USB
 device.
 .
@@ -350,12 +350,12 @@ This function returns zero on success else a LIBUSB20_ERROR value is returned.
 .
 .Pp
 .
-.Fn libusb20_dev_get_debug
+.Fn libusb20_dev_get_debug pdev
 This function returns the debug level of an USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_get_fd
+.Fn libusb20_dev_get_fd pdev
 This function returns the file descriptor of the given USB device.
 .
 A negative value is returned when no file descriptor is present.
@@ -364,7 +364,7 @@ The file descriptor can be used for polling purposes.
 .
 .Pp
 .
-.Fn libusb20_dev_kernel_driver_active
+.Fn libusb20_dev_kernel_driver_active pdev iface_index
 This function returns a non-zero value if a kernel driver is active on
 the given USB interface.
 .
@@ -372,7 +372,7 @@ Else zero is returned.
 .
 .Pp
 .
-.Fn libusb20_dev_open
+.Fn libusb20_dev_open pdev transfer_max
 This function opens an USB device so that setting up USB transfers
 becomes possible.
 .
@@ -387,7 +387,7 @@ opened.
 .
 .Pp
 .
-.Fn libusb20_dev_process
+.Fn libusb20_dev_process pdev
 This function is called to sync kernel USB transfers with userland USB
 transfers.
 .
@@ -397,7 +397,7 @@ detached.
 .
 .Pp
 .
-.Fn libusb20_dev_release_interface
+.Fn libusb20_dev_release_interface pdev iface_index
 This function will try to release a claimed USB interface for the specified USB device.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -405,7 +405,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_request_sync
+.Fn libusb20_dev_request_sync pdev psetup pdata pactlen timeout flags
 This function will perform a synchronous control request on the given
 USB device.
 .
@@ -428,7 +428,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_req_string_sync
+.Fn libusb20_dev_req_string_sync pdev index lang_id pbuf len
 This function will synchronously request an USB string by language ID
 and string index into the given buffer limited by a maximum length.
 .
@@ -437,7 +437,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_req_string_simple_sync
+.Fn libusb20_dev_req_string_simple_sync pdev index pbuf len
 This function will synchronously request an USB string using the
 default language ID and convert the string into ASCII before storing
 the string into the given buffer limited by a maximum length which
@@ -449,7 +449,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_reset
+.Fn libusb20_dev_reset pdev
 This function will try to BUS reset the given USB device and restore
 the last set USB configuration.
 .
@@ -458,7 +458,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_set_power_mode
+.Fn libusb20_dev_set_power_mode pdev power_mode
 This function sets the power mode of the USB device.
 .
 Valid power modes:
@@ -475,13 +475,13 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_get_power_mode
+.Fn libusb20_dev_get_power_mode pdev
 This function returns the currently selected power mode for the given
 USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_set_alt_index
+.Fn libusb20_dev_set_alt_index pdev iface_index alt_index
 This function will try to set the given alternate index for the given
 USB interface index.
 .
@@ -490,7 +490,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_set_owner
+.Fn libusb20_dev_set_owner pdev uid gid
 This function will set the ownership of the given USB device.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -498,7 +498,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_set_perm
+.Fn libusb20_dev_set_perm pdev mode
 This function will set the permissions of the given USB device.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -506,7 +506,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_set_iface_owner
+.Fn libusb20_dev_set_iface_owner pdev iface_index uid gid
 This function will set the ownership of the given USB interface.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -514,7 +514,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_set_iface_perm
+.Fn libusb20_dev_set_iface_perm pdev iface_index mode
 This function will set the permissions of the given USB interface.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -522,7 +522,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_get_owner
+.Fn libusb20_dev_get_owner pdev puid pgid
 This function will retrieve the current USB device ownership.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -530,7 +530,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_get_perm
+.Fn libusb20_dev_get_perm pdev pmode
 This function will retrieve the current USB device permissions.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -538,7 +538,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_get_iface_owner
+.Fn libusb20_dev_get_iface_owner pdev iface_index puid pgid
 This function will retrieve the current USB interface ownership for
 the given USB interface.
 .
@@ -547,7 +547,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_get_iface_perm
+.Fn libusb20_dev_get_iface_perm pdev iface_index pmode
 This function will retrieve the current USB interface permissions for
 the given USB interface.
 .
@@ -556,7 +556,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_get_device_desc
+.Fn libusb20_dev_get_device_desc pdev
 This function returns a pointer to the decoded and host endian version
 of the device descriptor.
 .
@@ -564,7 +564,7 @@ The USB device need not be opened when calling this function.
 .
 .Pp
 .
-.Fn libusb20_dev_alloc_config
+.Fn libusb20_dev_alloc_config pdev config_index
 This function will read out and decode the USB config descriptor for
 the given USB device and config index. This function returns a pointer
 to the decoded configuration which must eventually be passed to
@@ -572,24 +572,24 @@ free(). NULL is returned in case of failure.
 .
 .Pp
 .
-.Fn libusb20_dev_alloc(void)
+.Fn libusb20_dev_alloc void
 This is an internal function to allocate a new USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_get_address
+.Fn libusb20_dev_get_address pdev
 This function returns the internal and not necessarily the real
 hardware address of the given USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_get_bus_number
+.Fn libusb20_dev_get_bus_number pdev
 This function return the internal bus number which the given USB
 device belongs to.
 .
 .Pp
 .
-.Fn libusb20_dev_get_mode
+.Fn libusb20_dev_get_mode pdev
 This function returns the current operation mode of the USB entity.
 .
 Valid return values are:
@@ -600,7 +600,7 @@ Valid return values are:
 .
 .Pp
 .
-.Fn libusb20_dev_get_speed
+.Fn libusb20_dev_get_speed pdev
 This function returns the current speed of the given USB device.
 .
 .Bl -tag
@@ -614,24 +614,24 @@ This function returns the current speed of the given USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_get_config_index
+.Fn libusb20_dev_get_config_index pdev
 This function returns the currently select config index for the given
 USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_free
+.Fn libusb20_dev_free pdev
 This function will free the given USB device and all associated USB
 transfers.
 .
 .Pp
 .
-.Fn libusb20_dev_set_debug
+.Fn libusb20_dev_set_debug pdev debug_level
 This function will set the debug level for the given USB device.
 .
 .Pp
 .
-.Fn libusb20_dev_wait_process
+.Fn libusb20_dev_wait_process pdev timeout
 This function will wait until a pending USB transfer has completed on
 the given USB device.
 .
@@ -641,7 +641,7 @@ function.
 .
 .Sh USB BUS OPERATIONS
 .
-.Fn libusb20_bus_set_owner
+.Fn libusb20_bus_set_owner pbackend bus_index uid gid
 This function will set the ownership for the given USB bus.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -649,7 +649,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_bus_set_perm
+.Fn libusb20_bus_set_perm pbackend bus_index mode
 This function will set the permissions for the given USB bus.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -657,7 +657,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_bus_get_owner
+.Fn libusb20_bus_get_owner pbackend bus_index puid pgid
 This function will retrieve the ownership for the given USB bus.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -665,7 +665,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_bus_get_perm
+.Fn libusb20_bus_get_perm pbackend bus_index pmode
 This function will retrieve the permissions for the given USB bus.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -674,7 +674,7 @@ returned.
 .
 .Sh USB BACKEND OPERATIONS
 .
-.Fn libusb20_be_get_dev_quirk
+.Fn libusb20_be_get_dev_quirk pbackend index pquirk
 This function will return the device quirk according to
 .Fa index
 into the libusb20_quirk structure pointed to by
@@ -687,7 +687,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_get_quirk_name
+.Fn libusb20_be_get_quirk_name pbackend index pquirk
 This function will return the quirk name according to
 .Fa index
 into the libusb20_quirk structure pointed to by
@@ -700,7 +700,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_add_dev_quirk
+.Fn libusb20_be_add_dev_quirk pbackend pquirk
 This function will add the libusb20_quirk structure pointed to by the
 .Fa pq
 argument into the device quirk list.
@@ -713,7 +713,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_remove_dev_quirk
+.Fn libusb20_be_remove_dev_quirk pbackend pquirk
 This function will remove the quirk matching the libusb20_quirk structure pointed to by the
 .Fa pq
 argument from the device quirk list.
@@ -726,7 +726,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_set_owner
+.Fn libusb20_be_set_owner pbackend uid gid
 This function will set the ownership for the given backend.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -734,7 +734,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_set_perm
+.Fn libusb20_be_set_perm pbackend mode
 This function will set the permissions for the given backend.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -742,7 +742,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_get_owner
+.Fn libusb20_be_get_owner pbackend puid pgid
 This function will retrieve the ownership of the given backend.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -750,7 +750,7 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_get_perm
+.Fn libusb20_be_get_perm pbackend pmode
 This function will retrieve the permissions of the given backend.
 .
 .
@@ -759,20 +759,20 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_be_alloc
+.Fn libusb20_be_alloc pmethods
 This is an internal function to allocate a USB backend.
 .
 .Pp
-.Fn libusb20_be_alloc_default
-.Fn libusb20_be_alloc_freebsd
-.Fn libusb20_be_alloc_linux
+.Fn libusb20_be_alloc_default void
+.Fn libusb20_be_alloc_freebsd void
+.Fn libusb20_be_alloc_linux void
 These functions are used to allocate a specific USB backend or the
 operating system default USB backend. Allocating a backend is a way to
 scan for currently present USB devices.
 .
 .Pp
 .
-.Fn libusb20_be_device_foreach
+.Fn libusb20_be_device_foreach pbackend pdev
 This function is used to iterate USB devices present in a USB backend.
 .
 The starting value of
@@ -785,7 +785,7 @@ If NULL is returned the end of the USB device list has been reached.
 .
 .Pp
 .
-.Fn libusb20_be_dequeue_device
+.Fn libusb20_be_dequeue_device pbackend pdev
 This function will dequeue the given USB device pointer from the
 backend USB device list.
 .
@@ -793,20 +793,20 @@ Dequeued USB devices will not be freed when the backend is freed.
 .
 .Pp
 .
-.Fn libusb20_be_enqueue_device
+.Fn libusb20_be_enqueue_device pbackend pdev
 This function will enqueue the given USB device pointer in the backend USB device list.
 .
 Enqueued USB devices will get freed when the backend is freed.
 .
 .Pp
 .
-.Fn libusb20_be_free
+.Fn libusb20_be_free pbackend
 This function will free the given backend and all USB devices in its device list.
 .
 .
 .Sh USB DESCRIPTOR PARSING
 .
-.Fn libusb20_me_get_1
+.Fn libusb20_me_get_1 pie offset
 This function will return a byte at the given byte offset of a message
 entity.
 .
@@ -814,7 +814,7 @@ This function is safe against invalid offsets.
 .
 .Pp
 .
-.Fn libusb20_me_get_2
+.Fn libusb20_me_get_2 pie offset
 This function will return a little endian 16-bit value at the given byte offset of a message
 entity.
 .
@@ -822,7 +822,7 @@ This function is safe against invalid offsets.
 .
 .Pp
 .
-.Fn libusb20_me_encode
+.Fn libusb20_me_encode pbuf len pdecoded
 This function will encode a so-called *DECODED structure into binary
 format.
 .
@@ -834,7 +834,7 @@ location.
 .
 .Pp
 .
-.Fn libusb20_me_decode
+.Fn libusb20_me_decode pbuf len pdecoded
 This function will decode a binary structure into a so-called *DECODED
 structure.
 .

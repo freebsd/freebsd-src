@@ -101,6 +101,11 @@ int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 struct mbstat mbstat;
 
+/*
+ * tunable_mbinit() has to be run before init_maxsockets() thus
+ * the SYSINIT order below is SI_ORDER_MIDDLE while init_maxsockets()
+ * runs at SI_ORDER_ANY.
+ */
 static void
 tunable_mbinit(void *dummy)
 {
@@ -113,9 +118,8 @@ tunable_mbinit(void *dummy)
 	nmbjumbo9 = nmbjumbop / 2;
 	nmbjumbo16 = nmbjumbo9 / 2;
 }
-SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
+SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 
-/* XXX: These should be tuneables. Can't change UMA limits on the fly. */
 static int
 sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 {
@@ -416,6 +420,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.csum_data = 0;
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
+		m->m_pkthdr.flowid = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -640,6 +645,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.csum_data = 0;
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
+		m->m_pkthdr.flowid = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */

@@ -66,18 +66,13 @@ struct sockopt;
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef void	pr_input_t (struct mbuf *, int);
 typedef int	pr_input6_t (struct mbuf **, int*, int);  /* XXX FIX THIS */
-typedef void	pr_in_input_t (struct mbuf *, int, int); /* XXX FIX THIS */
 typedef int	pr_output_t (struct mbuf *, struct socket *);
-typedef int	pr_in_output_t (struct mbuf *, struct socket *, struct sockaddr *);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
 typedef	void	pr_init_t (void);
 typedef	void	pr_fasttimo_t (void);
 typedef	void	pr_slowtimo_t (void);
 typedef	void	pr_drain_t (void);
-
-typedef int	pr_usrreq_t(struct socket *, int, struct mbuf *,
-			     struct mbuf *, struct mbuf *, struct thread *);
 
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -89,15 +84,13 @@ struct protosw {
 	pr_output_t *pr_output;		/* output to protocol (from above) */
 	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
-/* user-protocol hook */
-	pr_usrreq_t	*pr_ousrreq;
 /* utility hooks */
 	pr_init_t *pr_init;
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
 	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
 
-	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
+	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
 };
 /*#endif*/
 
@@ -133,17 +126,6 @@ struct protosw {
  * We now provide individual function pointers which protocols can implement,
  * which offers a number of benefits (such as type checking for arguments).
  * These older constants are still present in order to support TCP debugging.
- *
- * The arguments to usrreq were:
- *	(*protosw[].pr_usrreq)(up, req, m, nam, opt);
- * where up is a (struct socket *), req is one of these requests,
- * m is an optional mbuf chain containing a message,
- * nam is an optional mbuf chain containing an address,
- * and opt is a pointer to a socketopt structure or nil.
- * The protocol is responsible for disposal of the mbuf chain m,
- * the caller is responsible for any space held by nam and opt.
- * A non-zero return from usrreq gives an
- * UNIX error number which should be passed to higher level software.
  */
 #define	PRU_ATTACH		0	/* attach protocol to up */
 #define	PRU_DETACH		1	/* detach protocol from up */
@@ -172,7 +154,8 @@ struct protosw {
 #define PRU_SEND_EOF		22	/* send and close */
 #define	PRU_SOSETLABEL		23	/* MAC label change */
 #define	PRU_CLOSE		24	/* socket close */
-#define PRU_NREQ		24
+#define	PRU_FLUSH		25	/* flush the socket */
+#define	PRU_NREQ		25
 
 #ifdef PRUREQUESTS
 const char *prurequests[] = {
@@ -182,7 +165,7 @@ const char *prurequests[] = {
 	"SENSE",	"RCVOOB",	"SENDOOB",	"SOCKADDR",
 	"PEERADDR",	"CONNECT2",	"FASTTIMO",	"SLOWTIMO",
 	"PROTORCV",	"PROTOSEND",	"SEND_EOF",	"SOSETLABEL",
-	"CLOSE",
+	"CLOSE",	"FLUSH",
 };
 #endif
 
@@ -328,7 +311,7 @@ char	*prcrequests[] = {
  * The protocol is responsible for disposal of the mbuf chain *optval
  * if supplied,
  * the caller is responsible for any space held by *optval, when returned.
- * A non-zero return from usrreq gives an
+ * A non-zero return from ctloutput gives an
  * UNIX error number which should be passed to higher level software.
  */
 #define	PRCO_GETOPT	0

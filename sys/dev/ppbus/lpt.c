@@ -87,9 +87,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ppbus/ppbio.h>
 
 #ifndef LPT_DEBUG
-#define lprintf(args)
+#define	lprintf(args)
 #else
-#define lprintf(args)						\
+#define	lprintf(args)						\
 		do {						\
 			if (lptflag)				\
 				printf args;			\
@@ -105,48 +105,47 @@ static int volatile lptflag = 1;
 #define	BUFSTATSIZE	32
 
 struct lpt_data {
-	device_t dev;
-	struct cdev *cdev;
-	struct cdev *cdev_bypass;
+	device_t sc_dev;
+	struct cdev *sc_cdev;
+	struct cdev *sc_cdev_bypass;
 	short	sc_state;
 	/* default case: negative prime, negative ack, handshake strobe,
 	   prime once */
 	u_char	sc_control;
 	char	sc_flags;
-#define LP_POS_INIT	0x04	/* if we are a postive init signal */
-#define LP_POS_ACK	0x08	/* if we are a positive going ack */
-#define LP_NO_PRIME	0x10	/* don't prime the printer at all */
-#define LP_PRIMEOPEN	0x20	/* prime on every open */
-#define LP_AUTOLF	0x40	/* tell printer to do an automatic lf */
-#define LP_BYPASS	0x80	/* bypass  printer ready checks */
+#define	LP_POS_INIT	0x04	/* if we are a postive init signal */
+#define	LP_POS_ACK	0x08	/* if we are a positive going ack */
+#define	LP_NO_PRIME	0x10	/* don't prime the printer at all */
+#define	LP_PRIMEOPEN	0x20	/* prime on every open */
+#define	LP_AUTOLF	0x40	/* tell printer to do an automatic lf */
+#define	LP_BYPASS	0x80	/* bypass  printer ready checks */
 	void	*sc_inbuf;
 	void	*sc_statbuf;
 	short	sc_xfercnt ;
 	char	sc_primed;
 	char	*sc_cp ;
 	u_short	sc_irq ;	/* IRQ status of port */
-#define LP_HAS_IRQ	0x01	/* we have an irq available */
-#define LP_USE_IRQ	0x02	/* we are using our irq */
-#define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
-#define LP_ENABLE_EXT	0x10	/* we shall use advanced mode when possible */
+#define	LP_HAS_IRQ	0x01	/* we have an irq available */
+#define	LP_USE_IRQ	0x02	/* we are using our irq */
+#define	LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
+#define	LP_ENABLE_EXT	0x10	/* we shall use advanced mode when possible */
 	u_char	sc_backoff ;	/* time to call lptout() again */
+	struct callout sc_timer;
 
-	struct resource *intr_resource;	/* interrupt resource */
-	void *intr_cookie;		/* interrupt registration cookie */
-
+	struct resource *sc_intr_resource;	/* interrupt resource */
+	void	*sc_intr_cookie;		/* interrupt cookie */
 };
 
-#define LPT_NAME	"lpt"		/* our official name */
+#define	LPT_NAME	"lpt"		/* our official name */
 
 static timeout_t lptout;
 static int	lpt_port_test(device_t dev, u_char data, u_char mask);
 static int	lpt_detect(device_t dev);
 
-#define DEVTOSOFTC(dev) \
+#define	DEVTOSOFTC(dev) \
 	((struct lpt_data *)device_get_softc(dev))
 
-static void lptintr(device_t dev);
-static void lpt_intr(void *arg);	/* without spls */
+static void lptintr(void *arg);
 
 static devclass_t lpt_devclass;
 
@@ -156,17 +155,15 @@ static devclass_t lpt_devclass;
 #define	ASLP		(1<<1)	/* awaiting draining of printer */
 #define	EERROR		(1<<2)	/* error was received from printer */
 #define	OBUSY		(1<<3)	/* printer is busy doing output */
-#define LPTOUT		(1<<4)	/* timeout while not selected */
-#define TOUT		(1<<5)	/* timeout while not selected */
-#define LPTINIT		(1<<6)	/* waiting to initialize for open */
-#define INTERRUPTED	(1<<7)	/* write call was interrupted */
-
-#define HAVEBUS		(1<<8)	/* the driver owns the bus */
-
+#define	LPTOUT		(1<<4)	/* timeout while not selected */
+#define	TOUT		(1<<5)	/* timeout while not selected */
+#define	LPTINIT		(1<<6)	/* waiting to initialize for open */
+#define	INTERRUPTED	(1<<7)	/* write call was interrupted */
+#define	HAVEBUS		(1<<8)	/* the driver owns the bus */
 
 /* status masks to interrogate printer status */
-#define RDY_MASK	(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)	/* ready ? */
-#define LP_READY	(LPS_SEL|LPS_NBSY|LPS_NERR)
+#define	RDY_MASK	(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)	/* ready ? */
+#define	LP_READY	(LPS_SEL|LPS_NBSY|LPS_NERR)
 
 /* Printer Ready condition  - from lpa.c */
 /* Only used in polling code */
@@ -186,7 +183,6 @@ static	d_ioctl_t	lptioctl;
 
 static struct cdevsw lpt_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	lptopen,
 	.d_close =	lptclose,
 	.d_read =	lptread,
@@ -202,13 +198,17 @@ lpt_request_ppbus(device_t dev, int how)
 	struct lpt_data *sc = DEVTOSOFTC(dev);
 	int error;
 
+	/*
+	 * We might already have the bus for a write(2) after an interrupted
+	 * write(2) call.
+	 */
+	ppb_assert_locked(ppbus);
 	if (sc->sc_state & HAVEBUS)
 		return (0);
 
-	/* we have the bus only if the request succeded */
-	if ((error = ppb_request_bus(ppbus, dev, how)) == 0)
+	error = ppb_request_bus(ppbus, dev, how);
+	if (error == 0)
 		sc->sc_state |= HAVEBUS;
-
 	return (error);
 }
 
@@ -219,9 +219,12 @@ lpt_release_ppbus(device_t dev)
 	struct lpt_data *sc = DEVTOSOFTC(dev);
 	int error = 0;
 
-	if ((error = ppb_release_bus(ppbus, dev)) == 0)
-		sc->sc_state &= ~HAVEBUS;
-
+	ppb_assert_locked(ppbus);
+	if (sc->sc_state & HAVEBUS) {
+		error = ppb_release_bus(ppbus, dev);
+		if (error == 0)
+			sc->sc_state &= ~HAVEBUS;
+	}
 	return (error);
 }
 
@@ -309,24 +312,25 @@ lpt_detect(device_t dev)
 
 	status = 1;				/* assume success */
 
+	ppb_lock(ppbus);
 	if ((error = lpt_request_ppbus(dev, PPB_DONTWAIT))) {
-		printf(LPT_NAME ": cannot alloc ppbus (%d)!\n", error);
-		status = 0;
-		goto end_probe;
+		ppb_unlock(ppbus);
+		device_printf(dev, "cannot alloc ppbus (%d)!\n", error);
+		return (0);
 	}
 
 	for (i = 0; i < 18 && status; i++)
 		if (!lpt_port_test(ppbus, testbyte[i], 0xff)) {
 			status = 0;
-			goto end_probe;
+			break;
 		}
 
-end_probe:
 	/* write 0's to control and data ports */
 	ppb_wdtr(ppbus, 0);
 	ppb_wctr(ppbus, 0);
 
 	lpt_release_ppbus(dev);
+	ppb_unlock(ppbus);
 
 	return (status);
 }
@@ -366,21 +370,33 @@ lpt_attach(device_t dev)
 	int error;
 
 	sc->sc_primed = 0;	/* not primed yet */
+	ppb_init_callout(ppbus, &sc->sc_timer, 0);
 
+	ppb_lock(ppbus);
 	if ((error = lpt_request_ppbus(dev, PPB_DONTWAIT))) {
-		printf(LPT_NAME ": cannot alloc ppbus (%d)!\n", error);
+		ppb_unlock(ppbus);
+		device_printf(dev, "cannot alloc ppbus (%d)!\n", error);
 		return (0);
 	}
 
 	ppb_wctr(ppbus, LPC_NINIT);
-
-	/* check if we can use interrupt, should be done by ppc stuff */
-	lprintf(("oldirq %x\n", sc->sc_irq));
+	ppb_unlock(ppbus);
+	lpt_release_ppbus(dev);
 
 	/* declare our interrupt handler */
-	sc->intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	sc->sc_intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE);
-	if (sc->intr_resource) {
+	if (sc->sc_intr_resource) {
+		error = bus_setup_intr(dev, sc->sc_intr_resource,
+		    INTR_TYPE_TTY | INTR_MPSAFE, NULL, lptintr, sc,
+		    &sc->sc_intr_cookie);
+		if (error) {
+			bus_release_resource(dev, SYS_RES_IRQ, rid,
+			    sc->sc_intr_resource);
+			device_printf(dev,
+			    "Unable to register interrupt handler\n");
+			return (error);
+		}
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		device_printf(dev, "Interrupt-driven port\n");
 	} else {
@@ -389,17 +405,17 @@ lpt_attach(device_t dev)
 	}
 	lprintf(("irq %x\n", sc->sc_irq));
 
-	lpt_release_ppbus(dev);
-
-	sc->dev = dev;
-	sc->cdev = make_dev(&lpt_cdevsw, unit,
+	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
+	sc->sc_statbuf = malloc(BUFSTATSIZE, M_DEVBUF, M_WAITOK);
+	sc->sc_dev = dev;
+	sc->sc_cdev = make_dev(&lpt_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d", unit);
-	sc->cdev->si_drv1 = sc;
-	sc->cdev->si_drv2 = 0;
-	sc->cdev_bypass = make_dev(&lpt_cdevsw, unit,
+	sc->sc_cdev->si_drv1 = sc;
+	sc->sc_cdev->si_drv2 = 0;
+	sc->sc_cdev_bypass = make_dev(&lpt_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", unit);
-	sc->cdev_bypass->si_drv1 = sc;
-	sc->cdev_bypass->si_drv2 = (void *)LP_BYPASS;
+	sc->sc_cdev_bypass->si_drv1 = sc;
+	sc->sc_cdev_bypass->si_drv2 = (void *)LP_BYPASS;
 	return (0);
 }
 
@@ -407,15 +423,21 @@ static int
 lpt_detach(device_t dev)
 {
 	struct lpt_data *sc = DEVTOSOFTC(dev);
+	device_t ppbus = device_get_parent(dev);
 
-	destroy_dev(sc->cdev);
-	destroy_dev(sc->cdev_bypass);
+	destroy_dev(sc->sc_cdev);
+	destroy_dev(sc->sc_cdev_bypass);
+	ppb_lock(ppbus);
 	lpt_release_ppbus(dev);
-	if (sc->intr_resource != 0) {
-		BUS_TEARDOWN_INTR(device_get_parent(dev), dev,
-		    sc->intr_resource, sc->intr_cookie);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->intr_resource);
+	ppb_unlock(ppbus);
+	callout_drain(&sc->sc_timer);
+	if (sc->sc_intr_resource != NULL) {
+		bus_teardown_intr(dev, sc->sc_intr_resource,
+		    sc->sc_intr_cookie);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_intr_resource);
 	}
+	free(sc->sc_inbuf, M_DEVBUF);
+	free(sc->sc_statbuf, M_DEVBUF);
 
 	return (0);
 }
@@ -423,18 +445,17 @@ lpt_detach(device_t dev)
 static void
 lptout(void *arg)
 {
-	device_t dev = (device_t)arg;
-	struct lpt_data *sc = DEVTOSOFTC(dev);
-#ifdef LPT_DEBUG
+	struct lpt_data *sc = arg;
+	device_t dev = sc->sc_dev;
 	device_t ppbus = device_get_parent(dev);
-#endif
 
+	ppb_assert_locked(ppbus);
 	lprintf(("T %x ", ppb_rstr(ppbus)));
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
 			sc->sc_backoff = sc->sc_backoff > hz/LPTOUTMAX;
-		timeout(lptout, (caddr_t)dev, sc->sc_backoff);
+		callout_reset(&sc->sc_timer, sc->sc_backoff, lptout, sc);
 	} else
 		sc->sc_state &= ~TOUT;
 
@@ -445,7 +466,7 @@ lptout(void *arg)
 	 * Avoid possible hangs due to missed interrupts
 	 */
 	if (sc->sc_xfercnt) {
-		lptintr(dev);
+		lptintr(sc);
 	} else {
 		sc->sc_state &= ~OBUSY;
 		wakeup(dev);
@@ -461,17 +482,19 @@ lptout(void *arg)
 static	int
 lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	int s;
 	int trys, err;
 	struct lpt_data *sc = dev->si_drv1;
-	device_t lptdev = sc->dev;
+	device_t lptdev = sc->sc_dev;
 	device_t ppbus = device_get_parent(lptdev);
 
 	if (!sc)
 		return (ENXIO);
 
+	ppb_lock(ppbus);
 	if (sc->sc_state) {
-		lprintf((LPT_NAME ": still open %x\n", sc->sc_state));
+		lprintf(("%s: still open %x\n", device_get_nameunit(lptdev),
+		    sc->sc_state));
+		ppb_unlock(ppbus);
 		return(EBUSY);
 	} else
 		sc->sc_state |= LPTINIT;
@@ -481,6 +504,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	/* Check for open with BYPASS flag set. */
 	if (sc->sc_flags & LP_BYPASS) {
 		sc->sc_state = OPEN;
+		ppb_unlock(ppbus);
 		return(0);
 	}
 
@@ -488,11 +512,12 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if ((err = lpt_request_ppbus(lptdev, PPB_WAIT|PPB_INTR)) != 0) {
 		/* give it a chance to try later */
 		sc->sc_state = 0;
+		ppb_unlock(ppbus);
 		return (err);
 	}
 
-	s = spltty();
-	lprintf((LPT_NAME " flags 0x%x\n", sc->sc_flags));
+	lprintf(("%s flags 0x%x\n", device_get_nameunit(lptdev),
+	    sc->sc_flags));
 
 	/* set IRQ status according to ENABLE_IRQ flag
 	 */
@@ -503,7 +528,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	/* init printer */
 	if ((sc->sc_flags & LP_NO_PRIME) == 0) {
-		if((sc->sc_flags & LP_PRIMEOPEN) || sc->sc_primed == 0) {
+		if ((sc->sc_flags & LP_PRIMEOPEN) || sc->sc_primed == 0) {
 			ppb_wctr(ppbus, 0);
 			sc->sc_primed++;
 			DELAY(500);
@@ -517,21 +542,21 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	do {
 		/* ran out of waiting for the printer */
 		if (trys++ >= LPINITRDY*4) {
-			splx(s);
 			sc->sc_state = 0;
 			lprintf(("status %x\n", ppb_rstr(ppbus)));
 
 			lpt_release_ppbus(lptdev);
+			ppb_unlock(ppbus);
 			return (EBUSY);
 		}
 
 		/* wait 1/4 second, give up if we get a signal */
-		if (tsleep(lptdev, LPPRI|PCATCH, "lptinit", hz/4) !=
-		    EWOULDBLOCK) {
+		if (ppb_sleep(ppbus, lptdev, LPPRI | PCATCH, "lptinit",
+		    hz / 4) != EWOULDBLOCK) {
 			sc->sc_state = 0;
-			splx(s);
 
 			lpt_release_ppbus(lptdev);
+			ppb_unlock(ppbus);
 			return (EBUSY);
 		}
 
@@ -551,21 +576,19 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	ppb_wctr(ppbus, sc->sc_control);
 
 	sc->sc_state = OPEN;
-	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
-	sc->sc_statbuf = malloc(BUFSTATSIZE, M_DEVBUF, M_WAITOK);
 	sc->sc_xfercnt = 0;
-	splx(s);
-
-	/* release the ppbus */
-	lpt_release_ppbus(lptdev);
 
 	/* only use timeout if using interrupt */
 	lprintf(("irq %x\n", sc->sc_irq));
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
-		timeout(lptout, (caddr_t)lptdev,
-			 (sc->sc_backoff = hz/LPTOUTINITIAL));
+		sc->sc_backoff = hz / LPTOUTINITIAL;
+		callout_reset(&sc->sc_timer, sc->sc_backoff, lptout, sc);
 	}
+
+	/* release the ppbus */
+	lpt_release_ppbus(lptdev);
+	ppb_unlock(ppbus);
 
 	lprintf(("opened.\n"));
 	return(0);
@@ -581,40 +604,45 @@ static	int
 lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct lpt_data *sc = dev->si_drv1;
-	device_t lptdev = sc->dev;
-        device_t ppbus = device_get_parent(lptdev);
+	device_t lptdev = sc->sc_dev;
+	device_t ppbus = device_get_parent(lptdev);
 	int err;
 
-	if (sc->sc_flags & LP_BYPASS)
+	ppb_lock(ppbus);
+	if (sc->sc_flags & LP_BYPASS) {
+		sc->sc_state = 0;
+		ppb_unlock(ppbus);
 		goto end_close;
+	}
 
-	if ((err = lpt_request_ppbus(lptdev, PPB_WAIT|PPB_INTR)) != 0)
+	if ((err = lpt_request_ppbus(lptdev, PPB_WAIT|PPB_INTR)) != 0) {
+		ppb_unlock(ppbus);
 		return (err);
-
-	sc->sc_state &= ~OPEN;
+	}
 
 	/* if the last write was interrupted, don't complete it */
-	if((!(sc->sc_state  & INTERRUPTED)) && (sc->sc_irq & LP_USE_IRQ))
+	if ((!(sc->sc_state  & INTERRUPTED)) && (sc->sc_irq & LP_USE_IRQ))
 		while ((ppb_rstr(ppbus) &
 			(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
 			/* wait 1/4 second, give up if we get a signal */
-			if (tsleep(lptdev, LPPRI|PCATCH,
-				"lpclose", hz) != EWOULDBLOCK)
+			if (ppb_sleep(ppbus, lptdev, LPPRI | PCATCH, "lpclose",
+			    hz) != EWOULDBLOCK)
 				break;
 
+	sc->sc_state &= ~OPEN;
+	callout_stop(&sc->sc_timer);
 	ppb_wctr(ppbus, LPC_NINIT);
-	free(sc->sc_inbuf, M_DEVBUF);
-	free(sc->sc_statbuf, M_DEVBUF);
+	sc->sc_state = 0;
+	sc->sc_xfercnt = 0;
 
-end_close:
-	/* release the bus anyway
+	/*
 	 * unregistration of interrupt forced by release
 	 */
 	lpt_release_ppbus(lptdev);
+	ppb_unlock(ppbus);
 
-	sc->sc_state = 0;
-	sc->sc_xfercnt = 0;
+end_close:
 	lprintf(("closed.\n"));
 	return(0);
 }
@@ -628,13 +656,14 @@ end_close:
  *	This code is only used when we are polling the port
  */
 static int
-lpt_pushbytes(device_t dev)
+lpt_pushbytes(struct lpt_data *sc)
 {
-	struct lpt_data *sc = DEVTOSOFTC(dev);
+	device_t dev = sc->sc_dev;
 	device_t ppbus = device_get_parent(dev);
 	int spin, err, tic;
 	char ch;
 
+	ppb_assert_locked(ppbus);
 	lprintf(("p"));
 	/* loop for every character .. */
 	while (sc->sc_xfercnt > 0) {
@@ -663,7 +692,7 @@ lpt_pushbytes(device_t dev)
 				 */
 				if (tic > MAX_SLEEP)
 					tic = MAX_SLEEP;
-				err = tsleep(dev, LPPRI,
+				err = ppb_sleep(ppbus, dev, LPPRI,
 					LPT_NAME "poll", tic);
 				if (err != EWOULDBLOCK) {
 					return (err);
@@ -689,8 +718,8 @@ static int
 lptread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct lpt_data *sc = dev->si_drv1;
-	device_t lptdev = sc->dev;
-        device_t ppbus = device_get_parent(lptdev);
+	device_t lptdev = sc->sc_dev;
+	device_t ppbus = device_get_parent(lptdev);
 	int error = 0, len;
 
 	if (sc->sc_flags & LP_BYPASS) {
@@ -698,8 +727,11 @@ lptread(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EPERM);
 	}
 
-	if ((error = ppb_1284_negociate(ppbus, PPB_NIBBLE, 0)))
+	ppb_lock(ppbus);
+	if ((error = ppb_1284_negociate(ppbus, PPB_NIBBLE, 0))) {
+		ppb_unlock(ppbus);
 		return (error);
+	}
 
 	/* read data in an other buffer, read/write may be simultaneous */
 	len = 0;
@@ -713,12 +745,16 @@ lptread(struct cdev *dev, struct uio *uio, int ioflag)
 		if (!len)
 			goto error;		/* no more data */
 
-		if ((error = uiomove(sc->sc_statbuf, len, uio)))
+		ppb_unlock(ppbus);
+		error = uiomove(sc->sc_statbuf, len, uio);
+		ppb_lock(ppbus);
+		if (error)
 			goto error;
 	}
 
 error:
 	ppb_1284_terminate(ppbus);
+	ppb_unlock(ppbus);
 	return (error);
 }
 
@@ -735,36 +771,30 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	register unsigned n;
 	int err;
 	struct lpt_data *sc = dev->si_drv1;
-	device_t lptdev = sc->dev;
-        device_t ppbus = device_get_parent(lptdev);
+	device_t lptdev = sc->sc_dev;
+	device_t ppbus = device_get_parent(lptdev);
 
-	if(sc->sc_flags & LP_BYPASS) {
+	if (sc->sc_flags & LP_BYPASS) {
 		/* we can't do writes in bypass mode */
-		return(EPERM);
+		return (EPERM);
 	}
 
 	/* request the ppbus only if we don't have it already */
-	/* XXX interrupt registration?! */
-	if ((err = lpt_request_ppbus(lptdev, PPB_WAIT|PPB_INTR)) != 0)
+	ppb_lock(ppbus);
+	if ((err = lpt_request_ppbus(lptdev, PPB_WAIT|PPB_INTR)) != 0) {
+		ppb_unlock(ppbus);
 		return (err);
-
-	/* if interrupts are working, register the handler */
-	if (sc->sc_irq & LP_USE_IRQ) {
-		/* register our interrupt handler */
-		err = bus_setup_intr(lptdev, sc->intr_resource,
-			       INTR_TYPE_TTY, NULL, lpt_intr, lptdev,
-			       &sc->intr_cookie);
-		if (err) {
-			device_printf(lptdev, "handler registration failed, polled mode.\n");
-			sc->sc_irq &= ~LP_USE_IRQ;
-		}
 	}
 
 	sc->sc_state &= ~INTERRUPTED;
 	while ((n = min(BUFSIZE, uio->uio_resid)) != 0) {
 		sc->sc_cp = sc->sc_inbuf;
-		uiomove(sc->sc_cp, n, uio);
-		sc->sc_xfercnt = n ;
+		ppb_unlock(ppbus);
+		err = uiomove(sc->sc_cp, n, uio);
+		ppb_lock(ppbus);
+		if (err)
+			break;
+		sc->sc_xfercnt = n;
 
 		if (sc->sc_irq & LP_ENABLE_EXT) {
 			/* try any extended mode */
@@ -777,16 +807,18 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 				sc->sc_xfercnt = 0;
 				break;
 			case EINTR:
-				sc->sc_state |= INTERRUPTED;	
-				return(err);
+				sc->sc_state |= INTERRUPTED;
+				ppb_unlock(ppbus);
+				return (err);
 			case EINVAL:
 				/* advanced mode not avail */
 				log(LOG_NOTICE,
 				    "%s: advanced mode not avail, polling\n",
-				    device_get_nameunit(sc->dev));
+				    device_get_nameunit(sc->sc_dev));
 				break;
 			default:
-				return(err);
+				ppb_unlock(ppbus);
+				return (err);
 			}
 		} else while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
 			lprintf(("i"));
@@ -794,53 +826,52 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 			/* give it one */
 			if ((sc->sc_state & OBUSY) == 0){
 				lprintf(("\nC %d. ", sc->sc_xfercnt));
-				lptintr(lptdev);
+				lptintr(sc);
 			}
 			lprintf(("W "));
 			if (sc->sc_state & OBUSY)
-				if ((err = tsleep(lptdev,
+				if ((err = ppb_sleep(ppbus, lptdev,
 					 LPPRI|PCATCH, LPT_NAME "write", 0))) {
 					sc->sc_state |= INTERRUPTED;
+					ppb_unlock(ppbus);
 					return(err);
 				}
 		}
 
 		/* check to see if we must do a polled write */
-		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
+		if (!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
 			lprintf(("p"));
 
-			err = lpt_pushbytes(lptdev);
+			err = lpt_pushbytes(sc);
 
-			if (err)
-				return(err);
+			if (err) {
+				ppb_unlock(ppbus);
+				return (err);
+			}
 		}
 	}
 
 	/* we have not been interrupted, release the ppbus */
 	lpt_release_ppbus(lptdev);
+	ppb_unlock(ppbus);
 
-	return(0);
+	return (err);
 }
 
 /*
- * lpt_intr -- handle printer interrupts which occur when the printer is
+ * lptintr -- handle printer interrupts which occur when the printer is
  * ready to accept another char.
  *
  * do checking for interrupted write call.
  */
-
 static void
-lpt_intr(void *arg)
+lptintr(void *arg)
 {
-	device_t lptdev = (device_t)arg;
-        device_t ppbus = device_get_parent(lptdev);
-	struct lpt_data *sc = DEVTOSOFTC(lptdev);
+	struct lpt_data *sc = arg;
+	device_t lptdev = sc->sc_dev;
+	device_t ppbus = device_get_parent(lptdev);
 	int sts = 0;
 	int i;
-	
-	/* we must own the bus to use it */
-	if ((sc->sc_state & HAVEBUS) == 0)
-		return;
 
 	/*
 	 * Is printer online and ready for output?
@@ -853,7 +884,7 @@ lpt_intr(void *arg)
 
 	if ((sts & RDY_MASK) == LP_READY) {
 		sc->sc_state = (sc->sc_state | OBUSY) & ~EERROR;
-		sc->sc_backoff = hz/LPTOUTINITIAL;
+		sc->sc_backoff = hz / LPTOUTINITIAL;
 
 		if (sc->sc_xfercnt) {
 			/* send char */
@@ -864,7 +895,8 @@ lpt_intr(void *arg)
 			ppb_wctr(ppbus, sc->sc_control);
 
 			/* any more data for printer */
-			if(--(sc->sc_xfercnt) > 0) return;
+			if (--(sc->sc_xfercnt) > 0)
+				return;
 		}
 
 		/*
@@ -873,12 +905,12 @@ lpt_intr(void *arg)
 		 */
 		sc->sc_state &= ~OBUSY;
 
-		if(!(sc->sc_state & INTERRUPTED))
+		if (!(sc->sc_state & INTERRUPTED))
 			wakeup(lptdev);
 		lprintf(("w "));
 		return;
 	} else	{	/* check for error */
-		if(((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
+		if (((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
 				(sc->sc_state & OPEN))
 			sc->sc_state |= EERROR;
 		/* lptout() will jump in and try to restart. */
@@ -886,28 +918,19 @@ lpt_intr(void *arg)
 	lprintf(("sts %x ", sts));
 }
 
-static void
-lptintr(device_t dev)
-{
-	/* call the interrupt at required spl level */
-	int s = spltty();
-
-	lpt_intr(dev);
-
-	splx(s);
-	return;
-}
-
 static	int
 lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int	error = 0;
 	struct lpt_data *sc = dev->si_drv1;
+	device_t ppbus;
 	u_char	old_sc_irq;	/* old printer IRQ status */
 
 	switch (cmd) {
 	case LPT_IRQ :
-		if(sc->sc_irq & LP_HAS_IRQ) {
+		ppbus = device_get_parent(sc->sc_dev);
+		ppb_lock(ppbus);
+		if (sc->sc_irq & LP_HAS_IRQ) {
 			/*
 			 * NOTE:
 			 * If the IRQ status is changed,
@@ -918,7 +941,7 @@ lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			 * this gets syslog'd.
 			 */
 			old_sc_irq = sc->sc_irq;
-			switch(*(int*)data) {
+			switch (*(int*)data) {
 			case 0:
 				sc->sc_irq &= (~LP_ENABLE_IRQ);
 				break;
@@ -939,16 +962,17 @@ lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			default:
 				break;
 			}
-				
+
 			if (old_sc_irq != sc->sc_irq )
 				log(LOG_NOTICE, "%s: switched to %s %s mode\n",
-					device_get_nameunit(sc->dev),
+					device_get_nameunit(sc->sc_dev),
 					(sc->sc_irq & LP_ENABLE_IRQ)?
 					"interrupt-driven":"polled",
 					(sc->sc_irq & LP_ENABLE_EXT)?
 					"extended":"standard");
 		} else /* polled port */
 			error = EOPNOTSUPP;
+		ppb_unlock(ppbus);
 		break;
 	default:
 		error = ENODEV;

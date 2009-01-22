@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#28 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#35 $
  */
 
 #include <sys/types.h>
@@ -45,8 +45,12 @@
 #include <bsm/audit_internal.h>
 #include <bsm/libbsm.h>
 
+#include <netinet/in.h>
+
 #include <errno.h>
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -63,7 +67,9 @@ static int	audit_rec_count = 0;
  */
 static LIST_HEAD(, au_record)	audit_free_q;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * This call frees a token_t and its internal data.
@@ -91,7 +97,9 @@ au_open(void)
 {
 	au_record_t *rec = NULL;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 
 	if (audit_rec_count == 0)
 		LIST_INIT(&audit_free_q);
@@ -106,7 +114,9 @@ au_open(void)
 		LIST_REMOVE(rec, au_rec_q);
 	}
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 
 	if (rec == NULL) {
 		/*
@@ -123,10 +133,14 @@ au_open(void)
 			return (-1);
 		}
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_lock(&mutex);
+#endif
 
 		if (audit_rec_count == MAX_AUDIT_RECORDS) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 			pthread_mutex_unlock(&mutex);
+#endif
 			free(rec->data);
 			free(rec);
 
@@ -138,7 +152,9 @@ au_open(void)
 		open_desc_table[audit_rec_count] = rec;
 		audit_rec_count++;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 
 	}
 
@@ -203,13 +219,61 @@ au_write(int d, token_t *tok)
 static int
 au_assemble(au_record_t *rec, short event)
 {
+#ifdef HAVE_AUDIT_SYSCALLS
+	struct in6_addr *aptr;
+	struct auditinfo_addr aia;
+	struct timeval tm;
+	size_t hdrsize;
+#endif /* HAVE_AUDIT_SYSCALLS */
 	token_t *header, *tok, *trailer;
 	size_t tot_rec_size;
 	u_char *dptr;
 	int error;
 
-	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
-	header = au_to_header32(tot_rec_size, event, 0);
+#ifdef HAVE_AUDIT_SYSCALLS
+	/*
+	 * Grab the size of the address family stored in the kernel's audit
+	 * state.
+	 */
+	aia.ai_termid.at_type = AU_IPv4;
+	aia.ai_termid.at_addr[0] = INADDR_ANY;
+	if (auditon(A_GETKAUDIT, &aia, sizeof(aia)) < 0) {
+		if (errno != ENOSYS && errno != EPERM)
+			return (-1);
+#endif /* HAVE_AUDIT_SYSCALLS */
+		tot_rec_size = rec->len + AUDIT_HEADER_SIZE +
+		    AUDIT_TRAILER_SIZE;
+		header = au_to_header(tot_rec_size, event, 0);
+#ifdef HAVE_AUDIT_SYSCALLS
+	} else {
+		if (gettimeofday(&tm, NULL) < 0)
+			return (-1);
+		switch (aia.ai_termid.at_type) {
+		case AU_IPv4:
+			hdrsize = (aia.ai_termid.at_addr[0] == INADDR_ANY) ?
+			    AUDIT_HEADER_SIZE : AUDIT_HEADER_EX_SIZE(&aia);
+			break;
+		case AU_IPv6:
+			aptr = (struct in6_addr *)&aia.ai_termid.at_addr[0];
+			hdrsize =
+			    (IN6_IS_ADDR_UNSPECIFIED(aptr)) ?
+			    AUDIT_HEADER_SIZE : AUDIT_HEADER_EX_SIZE(&aia);
+			break;
+		default:
+			return (-1);
+		}
+		tot_rec_size = rec->len + hdrsize + AUDIT_TRAILER_SIZE;
+		/*
+		 * A header size greater then AUDIT_HEADER_SIZE means
+		 * that we are using an extended header.
+		 */
+		if (hdrsize > AUDIT_HEADER_SIZE)
+			header = au_to_header32_ex_tm(tot_rec_size, event,
+			    0, tm, &aia);
+		else
+			header = au_to_header(tot_rec_size, event, 0);
+	}
+#endif /* HAVE_AUDIT_SYSCALLS */
 	if (header == NULL)
 		return (-1);
 
@@ -254,12 +318,16 @@ au_teardown(au_record_t *rec)
 	rec->used = 0;
 	rec->len = 0;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 
 	/* Add the record to the freelist tail */
 	LIST_INSERT_HEAD(&audit_free_q, rec, au_rec_q);
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 #ifdef HAVE_AUDIT_SYSCALLS
@@ -285,7 +353,7 @@ au_close(int d, int keep, short event)
 		goto cleanup;
 	}
 
-	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
+	tot_rec_size = rec->len + MAX_AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 
 	if (tot_rec_size > MAX_AUDIT_RECORD_SIZE) {
 		/*
@@ -335,7 +403,7 @@ au_close_buffer(int d, short event, u_char *buffer, size_t *buflen)
 	}
 
 	retval = 0;
-	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
+	tot_rec_size = rec->len + MAX_AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 	if ((tot_rec_size > MAX_AUDIT_RECORD_SIZE) ||
 	    (tot_rec_size > *buflen)) {
 		/*

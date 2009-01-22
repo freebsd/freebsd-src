@@ -9,5 +9,5 @@ machine		sun4v
 device		mem		# Memory and kernel memory devices
 
 # Default partitioning schemes
-options 	GEOM_BSD
-options 	GEOM_SUNLABEL
+options 	GEOM_PART_BSD
+options 	GEOM_PART_VTOC8

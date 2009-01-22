@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_SYS_ARC_H
 #define	_SYS_ARC_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 
@@ -35,11 +33,12 @@ extern "C" {
 #endif
 
 #include <sys/zio.h>
+#include <sys/dmu.h>
+#include <sys/spa.h>
 
 typedef struct arc_buf_hdr arc_buf_hdr_t;
 typedef struct arc_buf arc_buf_t;
 typedef void arc_done_func_t(zio_t *zio, arc_buf_t *buf, void *private);
-typedef void arc_byteswap_func_t(void *buf, size_t size);
 typedef int arc_evict_func_t(void *private);
 
 /* generic arc_done_func_t's which you can use */
@@ -49,15 +48,16 @@ arc_done_func_t arc_getbuf_func;
 struct arc_buf {
 	arc_buf_hdr_t		*b_hdr;
 	arc_buf_t		*b_next;
+	krwlock_t		b_lock;
 	void			*b_data;
 	arc_evict_func_t	*b_efunc;
 	void			*b_private;
 };
 
 typedef enum arc_buf_contents {
-	ARC_BUFC_UNDEF,				/* buffer contents undefined */
 	ARC_BUFC_DATA,				/* buffer contains data */
-	ARC_BUFC_METADATA			/* buffer contains metadata */
+	ARC_BUFC_METADATA,			/* buffer contains metadata */
+	ARC_BUFC_NUMTYPES
 } arc_buf_contents_t;
 /*
  * These are the flags we pass into calls to the arc
@@ -66,7 +66,12 @@ typedef enum arc_buf_contents {
 #define	ARC_NOWAIT	(1 << 2)	/* perform I/O asynchronously */
 #define	ARC_PREFETCH	(1 << 3)	/* I/O is a prefetch */
 #define	ARC_CACHED	(1 << 4)	/* I/O was already in cache */
+#define	ARC_L2CACHE	(1 << 5)	/* cache in L2ARC */
 
+void arc_space_consume(uint64_t space);
+void arc_space_return(uint64_t space);
+void *arc_data_buf_alloc(uint64_t space);
+void arc_data_buf_free(void *buf, uint64_t space);
 arc_buf_t *arc_buf_alloc(spa_t *spa, int size, void *tag,
     arc_buf_contents_t type);
 void arc_buf_add_ref(arc_buf_t *buf, void *tag);
@@ -81,13 +86,24 @@ void arc_buf_thaw(arc_buf_t *buf);
 int arc_referenced(arc_buf_t *buf);
 #endif
 
-int arc_read(zio_t *pio, spa_t *spa, blkptr_t *bp, arc_byteswap_func_t *swap,
+typedef struct writeprops {
+	dmu_object_type_t wp_type;
+	uint8_t wp_level;
+	uint8_t wp_copies;
+	uint8_t wp_dncompress, wp_oscompress;
+	uint8_t wp_dnchecksum, wp_oschecksum;
+} writeprops_t;
+
+int arc_read(zio_t *pio, spa_t *spa, blkptr_t *bp, arc_buf_t *pbuf,
+    arc_done_func_t *done, void *private, int priority, int zio_flags,
+    uint32_t *arc_flags, const zbookmark_t *zb);
+int arc_read_nolock(zio_t *pio, spa_t *spa, blkptr_t *bp,
     arc_done_func_t *done, void *private, int priority, int flags,
-    uint32_t *arc_flags, zbookmark_t *zb);
-zio_t *arc_write(zio_t *pio, spa_t *spa, int checksum, int compress,
-    int ncopies, uint64_t txg, blkptr_t *bp, arc_buf_t *buf,
+    uint32_t *arc_flags, const zbookmark_t *zb);
+zio_t *arc_write(zio_t *pio, spa_t *spa, const writeprops_t *wp,
+    boolean_t l2arc, uint64_t txg, blkptr_t *bp, arc_buf_t *buf,
     arc_done_func_t *ready, arc_done_func_t *done, void *private, int priority,
-    int flags, zbookmark_t *zb);
+    int zio_flags, const zbookmark_t *zb);
 int arc_free(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
     zio_done_func_t *done, void *private, uint32_t arc_flags);
 int arc_tryread(spa_t *spa, blkptr_t *bp, void *data);
@@ -95,12 +111,24 @@ int arc_tryread(spa_t *spa, blkptr_t *bp, void *data);
 void arc_set_callback(arc_buf_t *buf, arc_evict_func_t *func, void *private);
 int arc_buf_evict(arc_buf_t *buf);
 
-void arc_flush(void);
-void arc_tempreserve_clear(uint64_t tempreserve);
-int arc_tempreserve_space(uint64_t tempreserve);
+void arc_flush(spa_t *spa);
+void arc_tempreserve_clear(uint64_t reserve);
+int arc_tempreserve_space(uint64_t reserve, uint64_t txg);
 
 void arc_init(void);
 void arc_fini(void);
+
+/*
+ * Level 2 ARC
+ */
+
+void l2arc_add_vdev(spa_t *spa, vdev_t *vd, uint64_t start, uint64_t end);
+void l2arc_remove_vdev(vdev_t *vd);
+boolean_t l2arc_vdev_present(vdev_t *vd);
+void l2arc_init(void);
+void l2arc_fini(void);
+void l2arc_start(void);
+void l2arc_stop(void);
 
 #ifdef	__cplusplus
 }

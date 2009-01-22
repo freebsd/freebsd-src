@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/in_systm.h>	/* for ECN definitions */
 #include <netinet/ip.h>		/* for ECN definitions */
+#include <netinet6/vinet6.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -77,9 +78,11 @@ static struct mtx ip6qlock;
 /*
  * These fields all protected by ip6qlock.
  */
+#ifdef VIMAGE_GLOBALS
 static u_int frag6_nfragpackets;
 static u_int frag6_nfrags;
 static struct	ip6q ip6q;	/* ip6 reassemble queue */
+#endif
 
 #define	IP6Q_LOCK_INIT()	mtx_init(&ip6qlock, "ip6qlock", NULL, MTX_DEF);
 #define	IP6Q_LOCK()		mtx_lock(&ip6qlock)
