@@ -4198,9 +4198,9 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 
 /*
  * Mark for update the access time of the file if the filesystem
- * supports VOP_MARKATIME.  This functionality is used by execve
- * and mmap, so we want to avoid the synchronous I/O implied by
- * directly setting va_atime for the sake of efficiency.
+ * supports VOP_MARKATIME.  This functionality is used by execve and
+ * mmap, so we want to avoid the I/O implied by directly setting
+ * va_atime for the sake of efficiency.
  */
 void
 vfs_mark_atime(struct vnode *vp, struct ucred *cred)
