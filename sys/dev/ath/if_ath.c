@@ -5793,9 +5793,12 @@ ath_calibrate(void *arg)
 	struct ath_softc *sc = arg;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	HAL_BOOL longCal, isCalDone;
 	int nextcal;
 
+	if (ic->ic_flags & IEEE80211_F_SCAN)	/* defer, off channel */
+		goto restart;
 	longCal = (ticks - sc->sc_lastlongcal >= ath_longcalinterval*hz);
 	if (longCal) {
 		sc->sc_stats.ast_per_cal++;
@@ -5833,6 +5836,7 @@ ath_calibrate(void *arg)
 		sc->sc_stats.ast_per_calfail++;
 	}
 	if (!isCalDone) {
+restart:
 		/*
 		 * Use a shorter interval to potentially collect multiple
 		 * data samples required to complete calibration.  Once
