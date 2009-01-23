@@ -1830,6 +1830,7 @@ product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 product NETGEAR WG111V2_2	0x4240	PrismGT USB 2.0 WLAN
 product NETGEAR WG111U		0x4300	WG111U
 product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
+product NETGEAR WG111V2		0x6a00	WG111V2
 product NETGEAR2 MA101		0x4100	MA101
 product NETGEAR2 MA101B		0x4102	MA101 Rev B
 product NETGEAR3 WG111T		0x4250	WG111T
@@ -2044,6 +2045,7 @@ product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
+product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
 
 /* Ricoh products */
 product RICOH VGPVCC2		0x1830	VGP-VCC2 Camera
