@@ -163,8 +163,8 @@ static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits);
 static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
 static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
 
-SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
-	sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
+SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
+	&nchstats, sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
 
 
 
@@ -212,8 +212,9 @@ sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 	}
 	return (0);
 }
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_rawnchash, "S,int", "nchash chain lengths");
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD|
+	CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_rawnchash, "S,int",
+	"nchash chain lengths");
 
 static int
 sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
@@ -260,8 +261,9 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 		return (error);
 	return (0);
 }
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_nchash, "I", "nchash chain lengths");
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
+	CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_nchash, "I",
+	"nchash chain lengths");
 
 /*
  * cache_zap():
