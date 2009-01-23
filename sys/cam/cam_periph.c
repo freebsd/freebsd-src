@@ -171,6 +171,10 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 			break;
 	}
 	xpt_unlock_buses();
+	if (p_drv == NULL) {
+		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
+		return (CAM_REQ_INVALID);
+	}
 
 	sim = xpt_path_sim(path);
 	path_id = xpt_path_path_id(path);
