@@ -1334,11 +1334,11 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 #endif
-
-	/* XXX: Handlers are not guaranteed to be Giant safe! */
-	mtx_lock(&Giant);
+	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
+		mtx_lock(&Giant);
 	error = oid->oid_handler(oid, arg1, arg2, req);
-	mtx_unlock(&Giant);
+	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
+		mtx_unlock(&Giant);
 
 	return (error);
 }
