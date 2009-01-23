@@ -32,7 +32,7 @@
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2006
+.Dd January 23, 2009
 .Dt CHMOD 1
 .Os
 .Sh NAME
@@ -281,6 +281,10 @@ Operations upon the other permissions only (specified by the symbol
 ``o'' by itself), in combination with the
 .Ar perm
 symbols ``s'' or ``t'', are ignored.
+.Pp
+The ``w'' permission on directories will permit file creation, relocation,
+and copy into that directory.
+Files created within the directory itself will inherit its group ID.
 .Sh EXAMPLES
 .Bl -tag -width "u=rwx,go=u-w" -compact
 .It Li 644
@@ -343,4 +347,5 @@ command appeared in
 .Sh BUGS
 There is no
 .Ar perm
-option for the naughty bits.
+option for the naughty bits which are ``S'' and
+``T'' respectively.
