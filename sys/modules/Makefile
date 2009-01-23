@@ -571,6 +571,7 @@ _sppp=		sppp
 _tmpfs=		tmpfs
 _twa=		twa
 _upgt=		upgt
+_urtw=		urtw
 _wi=		wi
 _wpi=		wpi
 _wpifw=		wpifw
