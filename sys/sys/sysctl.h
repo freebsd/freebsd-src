@@ -84,6 +84,7 @@ struct ctlname {
 #define CTLFLAG_SKIP	0x01000000	/* Skip this sysctl when listing */
 #define CTLMASK_SECURE	0x00F00000	/* Secure level */
 #define CTLFLAG_TUN	0x00080000	/* Tunable variable */
+#define CTLFLAG_MPSAFE	0x00040000	/* Handler is MP safe */
 #define CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
 
 /*
