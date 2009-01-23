@@ -702,6 +702,10 @@ distrib-dirs distribution:
 NO_KERNELCLEAN=	t
 NO_KERNELCONFIG=	t
 NO_KERNELDEPEND=	t
+# Shortcut for KERNCONF=Blah -DKERNFAST is now KERNFAST=Blah
+.if !defined(KERNCONF) && ${KERNFAST} != "1"
+KERNCONF=${KERNFAST}
+.endif
 .endif
 .if !defined(KERNCONF) && defined(KERNEL)
 KERNCONF=	${KERNEL}
