@@ -418,6 +418,7 @@ MAN=	aac.4 \
 	uplcom.4 \
 	ural.4 \
 	urio.4 \
+	${_urtw.4} \
 	usb.4 \
 	uscanner.4 \
 	uslcom.4 \
@@ -568,6 +569,7 @@ MLINKS+=u3g.4 u3gstub.4
 MLINKS+=udav.4 if_udav.4
 MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
+MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
@@ -601,6 +603,7 @@ _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
+_if_urtw.4=	if_urtw.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
@@ -614,6 +617,7 @@ _nxge.4=	nxge.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
+_urtw.4=	urtw.4
 _wpi.4=		wpi.4
 .endif
 
