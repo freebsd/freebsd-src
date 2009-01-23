@@ -591,6 +591,24 @@ setup_device(device_t dev, struct netfront_info *info)
 }
 
 /**
+ * If this interface has an ipv4 address, send an arp for it. This
+ * helps to get the network going again after migrating hosts.
+ */
+static void
+netfront_send_fake_arp(device_t dev, struct netfront_info *info)
+{
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
+	
+	ifp = info->xn_ifp;
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			arp_ifinit(ifp, ifa);
+		}
+	}
+}
+
+/**
  * Callback received when the backend's state changes.
  */
 static void
@@ -615,9 +633,7 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
-#ifdef notyet		
-		(void)send_fake_arp(netdev);
-#endif		
+		netfront_send_fake_arp(dev, sc);
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
