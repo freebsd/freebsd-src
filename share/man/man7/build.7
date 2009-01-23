@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2009
+.Dd January 23, 2009
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -370,6 +370,27 @@ defaults to the current machine architecture, unless
 .Va TARGET
 is also set, in which case it defaults to the appropriate
 value for that platform.
+Typically, one only needs to set 
+.Va TARGET .
+.It Va KERNCONF
+Overrides which kernel to build and install for the various kernel
+make targets.
+It defaults to
+.Cm GENERIC .
+.It Va KERNFAST
+If set, the build target
+.Cm buildkernel
+defaults to setting 
+.Va NO_KERNELCLEAN ,
+.Va NO_KERNELCONFIG
+and
+.Va NO_KERNELDEPEND .
+When set to a value other than
+.Cm 1
+then 
+.Va KERNCONF 
+is set to the value of 
+.Va KERNFAST .
 .El
 .Pp
 Builds under directory
