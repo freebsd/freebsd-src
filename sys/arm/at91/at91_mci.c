@@ -67,6 +67,9 @@ __FBSDID("$FreeBSD$");
 struct at91_mci_softc {
 	void *intrhand;			/* Interrupt handle */
 	device_t dev;
+	int sc_cap;
+#define	CAP_HAS_4WIRE		1	/* Has 4 wire bus */
+#define	CAP_NEEDS_BOUNCE	2	/* broken hardware needing bounce */
 	int flags;
 #define CMD_STARTED	1
 #define STOP_STARTED	2
@@ -77,7 +80,6 @@ struct at91_mci_softc {
 	bus_dmamap_t map;
 	int mapped;
 	struct mmc_host host;
-	int wire4;
 	int bus_busy;
 	struct mmc_request *req;
 	struct mmc_command *curcmd;
@@ -167,6 +169,7 @@ at91_mci_attach(device_t dev)
 	device_t child;
 
 	sc->dev = dev;
+	sc->sc_cap = CAP_NEEDS_BOUNCE;
 	err = at91_mci_activate(dev);
 	if (err)
 		goto out;
@@ -201,7 +204,7 @@ at91_mci_attach(device_t dev)
 	sc->host.f_min = 375000;
 	sc->host.f_max = at91_master_clock / 2;	/* Typically 30MHz */
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	if (sc->wire4)
+	if (sc->sc_cap & CAP_HAS_4WIRE)
 		sc->host.caps = MMC_CAP_4_BIT_DATA;
 	else
 		sc->host.caps = 0;
@@ -301,6 +304,7 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 	else
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) & ~MCI_SDCR_SDCBUS);
 	WR4(sc, MCI_MR, (RD4(sc, MCI_MR) & ~MCI_MR_CLKDIV) | clkdiv);
+	/* Do we need a settle time here? */
 	/* XXX We need to turn the device on/off here with a GPIO pin */
 	return (0);
 }
@@ -360,13 +364,15 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 		if (cmdr & MCI_CMDR_TRDIR)
 			vaddr = cmd->data->data;
 		else {
-			if (data->len != BBSZ)
-				panic("Write multiblock write support");
-			vaddr = sc->bounce_buffer;
-			src = (uint32_t *)cmd->data->data;
-			dst = (uint32_t *)vaddr;
-			for (i = 0; i < data->len / 4; i++)
-				dst[i] = bswap32(src[i]);
+			if (sc->sc_cap & CAP_NEEDS_BOUNCE) {
+				vaddr = sc->bounce_buffer;
+				src = (uint32_t *)cmd->data->data;
+				dst = (uint32_t *)vaddr;
+				for (i = 0; i < data->len / 4; i++)
+					dst[i] = bswap32(src[i]);
+			}
+			else
+				vaddr = cmd->data->data;
 		}
 		data->xfer_len = 0;
 		if (bus_dmamap_load(sc->dmatag, sc->map, vaddr, data->len,
@@ -497,10 +503,12 @@ at91_mci_read_done(struct at91_mci_softc *sc)
 	bus_dmamap_sync(sc->dmatag, sc->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->dmatag, sc->map);
 	sc->mapped--;
-	walker = (uint32_t *)cmd->data->data;
-	len = cmd->data->len / 4;
-	for (i = 0; i < len; i++)
-		walker[i] = bswap32(walker[i]);
+	if (sc->sc_cap & CAP_NEEDS_BOUNCE) {
+		walker = (uint32_t *)cmd->data->data;
+		len = cmd->data->len / 4;
+		for (i = 0; i < len; i++)
+			walker[i] = bswap32(walker[i]);
+	}
 	// Finish up the sequence...
 	WR4(sc, MCI_IDR, MCI_SR_ENDRX);
 	WR4(sc, MCI_IER, MCI_SR_RXBUFF);
