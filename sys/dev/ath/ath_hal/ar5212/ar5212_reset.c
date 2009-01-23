@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_reset.c,v 1.20 2008/11/27 22:30:00 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -692,7 +692,7 @@ bad:
 	RESTORE_CCK(ah, chan, isBmode);
 
 	OS_MARK(ah, AH_MARK_RESET_DONE, ecode);
-	if (*status)
+	if (status != AH_NULL)
 		*status = ecode;
 	return AH_FALSE;
 #undef FAIL
