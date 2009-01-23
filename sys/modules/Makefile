@@ -299,6 +299,7 @@ SUBDIR=	${_3dfx} \
 	uplcom \
 	ural \
 	urio \
+	${_urtw} \
 	usb \
 	usb2 \
 	uscanner \
@@ -438,6 +439,7 @@ _stg=		stg
 _streams=	streams
 _tmpfs=		tmpfs
 _upgt=		upgt
+_urtw=		urtw
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
