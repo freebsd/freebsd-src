@@ -755,13 +755,11 @@ static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
-	int done;
+	int done, vfslocked;
 	struct proc *p = vnlruproc;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
 	    SHUTDOWN_PRI_FIRST);
-
-	mtx_lock(&Giant);
 
 	for (;;) {
 		kproc_suspend_check(p);
@@ -779,19 +777,13 @@ vnlru_proc(void)
 		done = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-			int vfsunlocked;
 			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
-			if (!VFS_NEEDSGIANT(mp)) {
-				mtx_unlock(&Giant);
-				vfsunlocked = 1;
-			} else
-				vfsunlocked = 0;
+			vfslocked = VFS_LOCK_GIANT(mp);
 			done += vlrureclaim(mp);
-			if (vfsunlocked)
-				mtx_lock(&Giant);
+			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp);
