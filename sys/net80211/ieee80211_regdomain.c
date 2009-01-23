@@ -373,6 +373,13 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 			c->ic_maxpower = 2*c->ic_maxregpower;
 	}
 	IEEE80211_LOCK(ic);
+	/* XXX bandaid; a running vap will likely crash */
+	if (!allvapsdown(ic)) {
+		IEEE80211_UNLOCK(ic);
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
+		    "%s: reject: vaps are running\n", __func__);
+		return EBUSY;
+	}
 	error = ic->ic_setregdomain(ic, &reg->rd,
 	    reg->chaninfo.ic_nchans, reg->chaninfo.ic_chans);
 	if (error != 0) {
@@ -380,13 +387,6 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
 		    "%s: driver rejected request, error %u\n", __func__, error);
 		return error;
-	}
-	/* XXX bandaid; a running vap will likely crash */
-	if (!allvapsdown(ic)) {
-		IEEE80211_UNLOCK(ic);
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
-		    "%s: reject: vaps are running\n", __func__);
-		return EBUSY;
 	}
 	/*
 	 * Commit: copy in new channel table and reset media state.
