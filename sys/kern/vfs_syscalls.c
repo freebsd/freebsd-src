@@ -758,7 +758,7 @@ fchdir(td, uap)
 	VREF(vp);
 	fdrop(fp, td);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
@@ -766,7 +766,7 @@ fchdir(td, uap)
 		if (vfs_busy(mp, 0))
 			continue;
 		tvfslocked = VFS_LOCK_GIANT(mp);
-		error = VFS_ROOT(mp, LK_EXCLUSIVE, &tdp, td);
+		error = VFS_ROOT(mp, LK_SHARED, &tdp, td);
 		vfs_unbusy(mp);
 		if (error) {
 			VFS_UNLOCK_GIANT(tvfslocked);
