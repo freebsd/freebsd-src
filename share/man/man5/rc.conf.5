@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2009
+.Dd January 24, 2009
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1089,9 +1089,9 @@ One can configure more than one IPv4 address with the
 variable.
 One or more IP addresses must be provided in Classless Inter-Domain
 Routing (CIDR) address notation, whose last byte can be a range like
-192.168.0.5-23/24.
-In this case the address 192.168.0.5 will be configured with the
-netmask /24 and the addresses 192.168.0.6 to 192.168.0.23 with
+192.0.2.5-23/24.
+In this case the address 192.0.2.5 will be configured with the
+netmask /24 and the addresses 192.0.2.6 to 192.0.2.23 with
 the non-conflicting netmask /32 as explained in the
 .Xr ifconfig 8
 alias section.
@@ -1099,7 +1099,7 @@ With the interface in question being
 .Li ed0 ,
 an example could look like:
 .Bd -literal
-ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"
+ipv4_addrs_ed0="192.0.2.129/27 192.0.2.1-5/28"
 .Ed
 .Pp
 It is also possible to add IP alias entries using
@@ -1233,7 +1233,7 @@ variable.
 It is also possible to rename interface by doing:
 .Bd -literal
 ifconfig_ed0_name="net0"
-ifconfig_net0="inet 10.0.0.1 netmask 0xffff0000"
+ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
 .Ed
 .It Va ipv6_network_interfaces
 .Pq Vt str
@@ -3309,7 +3309,7 @@ Assuming that the jail in question was named
 you would have the following dependent variables:
 .Bd -literal
 jail_vjail_hostname="jail.example.com"
-jail_vjail_ip="192.168.1.100"
+jail_vjail_ip="192.0.2.100"
 jail_vjail_rootdir="/var/jails/vjail/root"
 .Ed
 .Pp
