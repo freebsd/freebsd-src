@@ -37,6 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -49,9 +51,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
+
+SDT_PROVIDER_DEFINE(callout_execute);
+SDT_PROBE_DEFINE(callout_execute, kernel, , callout_start);
+SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_start, 0,
+    "struct callout *");
+SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end); 
+SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_end, 0,
+    "struct callout *");
 
 static int avg_depth;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_depth, CTLFLAG_RD, &avg_depth, 0,
@@ -395,7 +406,11 @@ softclock(void *arg)
 				binuptime(&bt1);
 #endif
 				THREAD_NO_SLEEPING();
+				SDT_PROBE(callout_execute, kernel, ,
+				    callout_start, c, 0, 0, 0, 0);
 				c_func(c_arg);
+				SDT_PROBE(callout_execute, kernel, ,
+				    callout_end, c, 0, 0, 0, 0);
 				THREAD_SLEEPING_OK();
 #ifdef DIAGNOSTIC
 				binuptime(&bt2);
