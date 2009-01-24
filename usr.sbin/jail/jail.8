@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2009
+.Dd January 24, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -63,9 +63,10 @@ to the list of
 for this prison.
 This may affect default address selection for outgoing IPv4 connections
 of prisons.
-The address first returned by the resolver for the IPv4 address family
-will be used as default.
-For IPv6 source address selection is done by a well defined algorithm.
+The address first returned by the resolver for each address family
+will be used as primary address. See
+.Va ip-addresses
+further down for details.
 .It Fl i
 Output the jail identifier of the newly created jail.
 .It Fl n Ar jailname
