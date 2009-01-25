@@ -86,8 +86,8 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 
 #define	KTR_ULE	0
 
-#define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__STRING(UINT_MAX)))
-#define	TDQ_NAME_LEN	(sizeof("sched lock ") + sizeof(__STRING(MAXCPU)))
+#define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
+#define	TDQ_NAME_LEN	(sizeof("sched lock ") + sizeof(__XSTRING(MAXCPU)))
 #define	TDQ_LOADNAME_LEN	(PCPU_NAME_LEN + sizeof(" load"))
 
 /*
