@@ -39,6 +39,11 @@ dev/ofw/ofw_standard.c		optional	aim
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_ocp.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
+dev/sound/macio/aoa.c		optional	snd_davbus | snd_ai2s powermac
+dev/sound/macio/davbus.c	optional	snd_davbus powermac
+dev/sound/macio/i2s.c		optional	snd_ai2s powermac
+dev/sound/macio/snapper.c	optional	snd_ai2s iicbus powermac
+dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc

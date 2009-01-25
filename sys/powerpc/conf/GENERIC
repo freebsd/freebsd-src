@@ -162,6 +162,10 @@ device		adb
 device		cuda
 device		pmu
 
+# Powermac I2C support
+device		iicbus		# I2C bus code
+device		kiic		# Keywest I2C
+
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
 #options 	KTR_MASK=KTR_SIG
