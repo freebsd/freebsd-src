@@ -822,7 +822,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			uprintf("ELF interpreter %s not found\n", interp);
 			return (error);
 		}
-	}
+	} else
+		addr = 0;
 
 	/*
 	 * Construct auxargs table (used by the fixup routine)
