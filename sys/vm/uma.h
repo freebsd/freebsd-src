@@ -205,6 +205,17 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 		    uma_init zinit, uma_fini zfini, uma_zone_t master);
 
 /*
+ * Add a second master to a secondary zone.  This provides multiple data
+ * backends for objects with the same size.  Both masters must have
+ * compatible allocation flags.  Presently, UMA_ZONE_MALLOC type zones are
+ * the only supported.
+ *
+ * Returns:
+ * 	Error on failure, 0 on success.
+ */
+int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
+
+/*
  * Definitions for uma_zcreate flags
  *
  * These flags share space with UMA_ZFLAGs in uma_int.h.  Be careful not to
@@ -230,6 +241,22 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 #define	UMA_ZONE_SECONDARY	0x0200	/* Zone is a Secondary Zone */
 #define	UMA_ZONE_REFCNT		0x0400	/* Allocate refcnts in slabs */
 #define	UMA_ZONE_MAXBUCKET	0x0800	/* Use largest buckets */
+#define	UMA_ZONE_CACHESPREAD	0x1000	/*
+					 * Spread memory start locations across
+					 * all possible cache lines.  May
+					 * require many virtually contiguous
+					 * backend pages and can fail early.
+					 */
+#define	UMA_ZONE_VTOSLAB	0x2000	/* Zone uses vtoslab for lookup. */
+
+/*
+ * These flags are shared between the keg and zone.  In zones wishing to add
+ * new kegs these flags must be compatible.  Some are determined based on
+ * physical parameters of the request and may not be provided by the consumer.
+ */
+#define	UMA_ZONE_INHERIT						\
+    (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_HASH |		\
+    UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
