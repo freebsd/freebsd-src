@@ -82,7 +82,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 
-#define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__STRING(UINT_MAX)))
+#define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
 
 /*
  * The schedulable entity that runs a context.
