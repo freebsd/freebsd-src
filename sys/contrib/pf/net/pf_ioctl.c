@@ -481,16 +481,12 @@ pf_thread_create(void *v)
 int
 pfopen(struct cdev *dev, int flags, int fmt, struct proc *p)
 {
-	if (dev2unit(dev) >= 1)
-		return (ENXIO);
 	return (0);
 }
 
 int
 pfclose(struct cdev *dev, int flags, int fmt, struct proc *p)
 {
-	if (dev2unit(dev) >= 1)
-		return (ENXIO);
 	return (0);
 }
 #endif /* __FreeBSD__ */
