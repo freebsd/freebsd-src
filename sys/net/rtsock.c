@@ -376,7 +376,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				 * 3. As a last resort return the 'default'
 				 * jail address.
 				 */
-				if (prison_getip4(cred, &ia) != 0)
+				if (prison_get_ip4(cred, &ia) != 0)
 					return (ESRCH);
 			}
 			bzero(&saun->sin, sizeof(struct sockaddr_in));
@@ -428,7 +428,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				 * 3. As a last resort return the 'default'
 				 * jail address.
 				 */
-				if (prison_getip6(cred, &ia6) != 0)
+				if (prison_get_ip6(cred, &ia6) != 0)
 					return (ESRCH);
 			}
 			bzero(&saun->sin6, sizeof(struct sockaddr_in6));
