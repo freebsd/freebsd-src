@@ -812,7 +812,7 @@ prison_proc_free(struct prison *pr)
  * Returns 0 on success, 1 on error.  Address returned in NBO.
  */
 int
-prison_getip4(struct ucred *cred, struct in_addr *ia)
+prison_get_ip4(struct ucred *cred, struct in_addr *ia)
 {
 
 	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
@@ -958,7 +958,7 @@ prison_check_ip4(struct ucred *cred, struct in_addr *ia)
  * Returns 0 on success, 1 on error.
  */
 int
-prison_getip6(struct ucred *cred, struct in6_addr *ia6)
+prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
 {
 
 	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));

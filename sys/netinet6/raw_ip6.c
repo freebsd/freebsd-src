@@ -412,7 +412,7 @@ rip6_output(m, va_alist)
 		goto bad;
 	}
 	if (jailed(in6p->inp_cred))
-		if (prison_getip6(in6p->inp_cred, in6a) != 0) {
+		if (prison_get_ip6(in6p->inp_cred, in6a) != 0) {
 			error = EPERM;
 			goto bad;
 		}

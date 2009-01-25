@@ -625,7 +625,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
+		if (prison_get_ip4(cred, laddr) != 0)
 			error = EADDRNOTAVAIL;
 		goto done;
 	}
@@ -678,7 +678,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
+		if (prison_get_ip4(cred, laddr) != 0)
 			error = EADDRNOTAVAIL;
 		goto done;
 	}
@@ -741,7 +741,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
+		if (prison_get_ip4(cred, laddr) != 0)
 			error = EADDRNOTAVAIL;
 		goto done;
 	}
@@ -810,7 +810,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
 			if (cred != NULL && jailed(cred)) {
-				if (prison_getip4(cred, &jailia) != 0)
+				if (prison_get_ip4(cred, &jailia) != 0)
 					return (EADDRNOTAVAIL);
 				faddr.s_addr = jailia.s_addr;
 			} else {
