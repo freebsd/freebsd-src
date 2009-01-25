@@ -873,17 +873,12 @@ dnode_read(spa_t *spa, const dnode_phys_t *dnode, off_t offset, void *buf, size_
 	int i, rc;
 
 	/*
-	 * We truncate the offset to 32bits, mainly so that I don't
-	 * have to find a copy of __divdi3 to put into the bootstrap.
-	 * I don't think the bootstrap needs to access anything bigger
-	 * than 2G anyway. Note that block addresses are still 64bit
-	 * so it doesn't affect the possible size of the media.
-	 * We still use 64bit block numbers so that the bitshifts
-	 * work correctly. Note: bsize may not be a power of two here.
+	 * Note: bsize may not be a power of two here so we need to do an
+	 * actual divide rather than a bitshift.
 	 */
 	while (buflen > 0) {
-		uint64_t bn = ((int) offset) / bsize;
-		int boff = ((int) offset) % bsize;
+		uint64_t bn = offset / bsize;
+		int boff = offset % bsize;
 		int ibn;
 		const blkptr_t *indbp;
 		blkptr_t bp;

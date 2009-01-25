@@ -615,7 +615,7 @@ again:
 	dst_sa.sin6_len = sizeof(dst_sa);
 	dst_sa.sin6_addr = ip6->ip6_dst;
 	if ((error = in6_selectroute(&dst_sa, opt, im6o, ro,
-	    &ifp, &rt, 0)) != 0) {
+	    &ifp, &rt)) != 0) {
 		switch (error) {
 		case EHOSTUNREACH:
 			V_ip6stat.ip6s_noroute++;
@@ -1320,7 +1320,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 		struct in_conninfo inc;
 
 		bzero(&inc, sizeof(inc));
-		inc.inc_flags = 1; /* IPv6 */
+		inc.inc_flags |= INC_ISIPV6;
 		inc.inc6_faddr = *dst;
 
 		if (ifp == NULL)
@@ -1464,7 +1464,7 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 					else {
 						/* -1 = kernel default */
 						in6p->in6p_hops = optval;
-						if ((in6p->in6p_vflag &
+						if ((in6p->inp_vflag &
 						     INP_IPV4) != 0)
 							in6p->inp_ip_ttl = optval;
 					}
@@ -1472,19 +1472,19 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 #define OPTSET(bit) \
 do { \
 	if (optval) \
-		in6p->in6p_flags |= (bit); \
+		in6p->inp_flags |= (bit); \
 	else \
-		in6p->in6p_flags &= ~(bit); \
+		in6p->inp_flags &= ~(bit); \
 } while (/*CONSTCOND*/ 0)
 #define OPTSET2292(bit) \
 do { \
-	in6p->in6p_flags |= IN6P_RFC2292; \
+	in6p->inp_flags |= IN6P_RFC2292; \
 	if (optval) \
-		in6p->in6p_flags |= (bit); \
+		in6p->inp_flags |= (bit); \
 	else \
-		in6p->in6p_flags &= ~(bit); \
+		in6p->inp_flags &= ~(bit); \
 } while (/*CONSTCOND*/ 0)
-#define OPTBIT(bit) (in6p->in6p_flags & (bit) ? 1 : 0)
+#define OPTBIT(bit) (in6p->inp_flags & (bit) ? 1 : 0)
 
 				case IPV6_RECVPKTINFO:
 					/* cannot mix with RFC2292 */
@@ -1558,7 +1558,7 @@ do { \
 					break;
 
 				case IPV6_FAITH:
-					OPTSET(IN6P_FAITH);
+					OPTSET(INP_FAITH);
 					break;
 
 				case IPV6_RECVPATHMTU:
@@ -1578,16 +1578,16 @@ do { \
 					 * available only prior to bind(2).
 					 * see ipng mailing list, Jun 22 2001.
 					 */
-					if (in6p->in6p_lport ||
+					if (in6p->inp_lport ||
 					    !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr)) {
 						error = EINVAL;
 						break;
 					}
 					OPTSET(IN6P_IPV6_V6ONLY);
 					if (optval)
-						in6p->in6p_vflag &= ~INP_IPV4;
+						in6p->inp_vflag &= ~INP_IPV4;
 					else
-						in6p->in6p_vflag |= INP_IPV4;
+						in6p->inp_vflag |= INP_IPV4;
 					break;
 				case IPV6_RECVTCLASS:
 					/* cannot mix with RFC2292 XXX */
@@ -1768,18 +1768,18 @@ do { \
 
 				switch (optval) {
 				case IPV6_PORTRANGE_DEFAULT:
-					in6p->in6p_flags &= ~(IN6P_LOWPORT);
-					in6p->in6p_flags &= ~(IN6P_HIGHPORT);
+					in6p->inp_flags &= ~(INP_LOWPORT);
+					in6p->inp_flags &= ~(INP_HIGHPORT);
 					break;
 
 				case IPV6_PORTRANGE_HIGH:
-					in6p->in6p_flags &= ~(IN6P_LOWPORT);
-					in6p->in6p_flags |= IN6P_HIGHPORT;
+					in6p->inp_flags &= ~(INP_LOWPORT);
+					in6p->inp_flags |= INP_HIGHPORT;
 					break;
 
 				case IPV6_PORTRANGE_LOW:
-					in6p->in6p_flags &= ~(IN6P_HIGHPORT);
-					in6p->in6p_flags |= IN6P_LOWPORT;
+					in6p->inp_flags &= ~(INP_HIGHPORT);
+					in6p->inp_flags |= INP_LOWPORT;
 					break;
 
 				default:
@@ -1881,7 +1881,7 @@ do { \
 					break;
 
 				case IPV6_FAITH:
-					optval = OPTBIT(IN6P_FAITH);
+					optval = OPTBIT(INP_FAITH);
 					break;
 
 				case IPV6_V6ONLY:
@@ -1891,10 +1891,10 @@ do { \
 				case IPV6_PORTRANGE:
 				    {
 					int flags;
-					flags = in6p->in6p_flags;
-					if (flags & IN6P_HIGHPORT)
+					flags = in6p->inp_flags;
+					if (flags & INP_HIGHPORT)
 						optval = IPV6_PORTRANGE_HIGH;
-					else if (flags & IN6P_LOWPORT)
+					else if (flags & INP_LOWPORT)
 						optval = IPV6_PORTRANGE_LOW;
 					else
 						optval = 0;
@@ -2050,7 +2050,7 @@ ip6_raw_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0, optval, optlen;
 	const int icmp6off = offsetof(struct icmp6_hdr, icmp6_cksum);
-	struct in6pcb *in6p = sotoin6pcb(so);
+	struct inpcb *in6p = sotoinpcb(so);
 	int level, op, optname;
 
 	level = sopt->sopt_level;
@@ -3326,7 +3326,7 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
  * Compute IPv6 extension header length.
  */
 int
-ip6_optlen(struct in6pcb *in6p)
+ip6_optlen(struct inpcb *in6p)
 {
 	int len;
 

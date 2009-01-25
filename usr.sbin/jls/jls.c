@@ -48,7 +48,7 @@
 
 #ifdef SUPPORT_OLD_XPRISON
 static
-char *print_xprison_v1(void *p, char *end)
+char *print_xprison_v1(void *p, char *end, unsigned flags)
 {
 	struct xprison_v1 *xp;
 	struct in_addr in;
@@ -57,15 +57,18 @@ char *print_xprison_v1(void *p, char *end)
 		errx(1, "Invalid length for jail");
 
 	xp = (struct xprison_v1 *)p;
-	printf("%6d  %-29.29s %.74s\n",
-		xp->pr_id, xp->pr_host, xp->pr_path);
-
-	/* We are not printing an empty line here for state and name. */
-	/* We are not printing an empty line here for cpusetid. */
-
-	/* IPv4 address. */
-	in.s_addr = htonl(xp->pr_ip);
-	printf("%6s  %-15.15s\n", "", inet_ntoa(in));
+	if (flags & FLAG_V) {
+		printf("%6d  %-29.29s %.74s\n",
+			xp->pr_id, xp->pr_host, xp->pr_path);
+		/* We are not printing an empty line here for state and name. */
+		/* We are not printing an empty line here for cpusetid. */
+		/* IPv4 address. */
+		in.s_addr = htonl(xp->pr_ip);
+		printf("%6s  %-15.15s\n", "", inet_ntoa(in));
+	} else {
+		printf("%6d  %-15.15s %-29.29s %.74s\n",
+		    xp->pr_id, inet_ntoa(in), xp->pr_host, xp->pr_path);
+	}
 
 	return ((char *)(xp + 1));
 }
@@ -104,8 +107,9 @@ char *print_xprison_v3(void *p, char *end, unsigned flags)
 		return (q);
 	}
 
-	printf("%6d  %-29.29s %.74s\n",
-		xp->pr_id, xp->pr_host, xp->pr_path);
+	if (flags & FLAG_V)
+		printf("%6d  %-29.29s %.74s\n",
+			xp->pr_id, xp->pr_host, xp->pr_path);
 
 	/* Jail state and name. */
 	if (flags & FLAG_V)
@@ -123,11 +127,12 @@ char *print_xprison_v3(void *p, char *end, unsigned flags)
 	q += (xp->pr_ip4s * sizeof(struct in_addr));
 	if (q > end)
 		errx(1, "Invalid length for jail");
+	in.s_addr = 0;
 	for (i = 0; i < xp->pr_ip4s; i++) {
-		if (i == 0 || flags & FLAG_V) {
+		if (i == 0 || flags & FLAG_V)
 			in.s_addr = iap[i].s_addr;
+		if (flags & FLAG_V)
 			printf("%6s  %-15.15s\n", "", inet_ntoa(in));
-		}
 	}
 	/* IPv6 addresses. */
 	ia6p = (struct in6_addr *)(void *)q;
@@ -140,6 +145,12 @@ char *print_xprison_v3(void *p, char *end, unsigned flags)
 			printf("%6s  %s\n", "", buf);
 		}
 	}
+
+	/* If requested print the old style single line version. */
+	if (!(flags & FLAG_V))
+		printf("%6d  %-15.15s %-29.29s %.74s\n",
+		    xp->pr_id, (in.s_addr) ? inet_ntoa(in) : "",
+		    xp->pr_host, xp->pr_path);
 
 	return (q);
 }
@@ -206,12 +217,15 @@ main(int argc, char *argv[])
 	if (version > XPRISON_VERSION)
 		errx(1, "Sci-Fi prison. Kernel/userland out of sync?");
 
-	printf("   JID  Hostname                      Path\n");
 	if (flags & FLAG_V) {
+		printf("   JID  Hostname                      Path\n");
 		printf("        Name                          State\n");
 		printf("        CPUSetID\n");
+		printf("        IP Address(es)\n");
+	} else {
+		printf("   JID  IP Address      Hostname"
+		    "                      Path\n");
 	}
-	printf("        IP Address(es)\n");
 	for (; q != NULL && (char *)q + sizeof(int) < (char *)p + len;) {
 		version = *(int *)q;
 		if (version > XPRISON_VERSION)
@@ -219,7 +233,7 @@ main(int argc, char *argv[])
 		switch (version) {
 #ifdef SUPPORT_OLD_XPRISON
 		case 1:
-			q = print_xprison_v1(q, (char *)p + len);
+			q = print_xprison_v1(q, (char *)p + len, flags);
 			break;
 		case 2:
 			errx(1, "Version 2 was used by multi-IPv4 jail "

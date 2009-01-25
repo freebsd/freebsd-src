@@ -60,6 +60,7 @@
 #include <sys/jail.h>
 #include <sys/vimage.h>
 #include <machine/stdarg.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -96,6 +97,8 @@ struct vnet_net vnet_net_0;
 #endif
 #endif
 
+static int slowtimo_started;
+
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -123,6 +126,7 @@ static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_init(void *);
+static void	if_check(void *);
 static void	if_qflush(struct ifnet *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
@@ -157,7 +161,7 @@ static struct	knlist ifklist;
 #endif
 
 int	ifqmaxlen = IFQ_MAXLEN;
-struct	mtx ifnet_lock;
+struct rwlock ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
@@ -184,20 +188,29 @@ VNET_MOD_DECLARE(NET, net, vnet_net_iattach, vnet_net_idetach,
  * System initialization
  */
 SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
-SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_slowtimo, NULL);
+SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL);
 
 MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
-struct ifnet *
-ifnet_byindex(u_short idx)
+static struct ifnet *
+ifnet_byindex_locked(u_short idx)
 {
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
 	ifp = V_ifindex_table[idx].ife_ifnet;
+	return (ifp);
+}
+
+struct ifnet *
+ifnet_byindex(u_short idx)
+{
+	struct ifnet *ifp;
+
+	IFNET_RLOCK();
+	ifp = ifnet_byindex_locked(idx);
 	IFNET_RUNLOCK();
 	return (ifp);
 }
@@ -218,7 +231,7 @@ ifaddr_byindex(u_short idx)
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	ifa = ifnet_byindex(idx)->if_addr;
+	ifa = ifnet_byindex_locked(idx)->if_addr;
 	IFNET_RUNLOCK();
 	return (ifa);
 }
@@ -415,6 +428,18 @@ if_grow(void)
 	V_ifindex_table = e;
 }
 
+static void
+if_check(void *dummy __unused)
+{
+
+	/*
+	 * If at least one interface added during boot uses
+	 * if_watchdog then start the timer.
+	 */
+	if (slowtimo_started)
+		if_slowtimo(0);
+}
+
 /*
  * Allocate a struct ifnet and an index for an interface.  A layer 2
  * common structure will also be allocated if an allocation routine is
@@ -498,7 +523,7 @@ if_free_type(struct ifnet *ifp, u_char type)
 	ifnet_setbyindex(ifp->if_index, NULL);
 
 	/* XXX: should be locked with if_findindex() */
-	while (V_if_index > 0 && ifnet_byindex(V_if_index) == NULL)
+	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
 		V_if_index--;
 	IFNET_WUNLOCK();
 
@@ -637,9 +662,17 @@ if_attach(struct ifnet *ifp)
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 
-	if (ifp->if_watchdog != NULL)
+	if (ifp->if_watchdog != NULL) {
 		if_printf(ifp,
 		    "WARNING: using obsoleted if_watchdog interface\n");
+	      
+		/*
+		 * Note that we need if_slowtimo().  If this happens after
+		 * boot, then call if_slowtimo() directly.
+		 */
+		if (atomic_cmpset_int(&slowtimo_started, 0, 1) && !cold)
+			if_slowtimo(0);
+	}
 	if (ifp->if_flags & IFF_NEEDSGIANT)
 		if_printf(ifp,
 		    "WARNING: using obsoleted IFF_NEEDSGIANT flag\n");
@@ -1110,7 +1143,7 @@ if_rtdel(struct radix_node *rn, void *arg)
 			return (0);
 
 		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt), rt->rt_flags,
+				rt_mask(rt), rt->rt_flags|RTF_RNH_LOCKED,
 				(struct rtentry **) NULL, rt->rt_fibnum);
 		if (err) {
 			log(LOG_WARNING, "if_rtdel: error %d\n", err);
@@ -1365,6 +1398,9 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 done:
 	return (ifa);
 }
+
+#include <net/route.h>
+#include <net/if_llatbl.h>
 
 /*
  * Default action when installing a route with a Link Level gateway.

@@ -156,7 +156,9 @@ struct	selinfo	ipfselwait[IPL_LOGSIZE];
 # include <sys/conf.h>
 # if defined(NETBSD_PF)
 #  include <net/pfil.h>
-#  include <netinet/ipprotosw.h>
+#  if (__FreeBSD_version < 501108)
+#   include <netinet/ipprotosw.h>
+#  endif
 /*
  * We provide the fr_checkp name just to minimize changes later.
  */

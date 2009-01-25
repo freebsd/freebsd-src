@@ -20,30 +20,24 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-#include <sys/mbuf.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
 #include <sys/wait.h>
-#include <sys/queue.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
-#include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <timeconv.h>	/* XXX do we need this ? */
-#include <unistd.h>
 #include <sysexits.h>
+#include <timeconv.h>	/* _long_to_time */
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -836,11 +830,12 @@ altq_set_enabled(int enabled)
 }
 
 static void
-altq_fetch()
+altq_fetch(void)
 {
 	struct pfioc_altq pfioc;
 	struct pf_altq *altq;
-	int pffd, mnr;
+	int pffd;
+	unsigned int mnr;
 
 	if (altq_fetched)
 		return;
@@ -1359,7 +1354,7 @@ static struct _s_x ext6hdrcodes[] = {
 };
 
 /* fills command for the extension header filtering */
-int
+static int
 fill_ext6hdr( ipfw_insn *cmd, char *av)
 {
        int tok;
@@ -1415,7 +1410,7 @@ fill_ext6hdr( ipfw_insn *cmd, char *av)
        return 1;
 }
 
-void
+static void
 print_ext6hdr( ipfw_insn *cmd )
 {
        char sep = ' ';
@@ -1476,7 +1471,7 @@ print_ext6hdr( ipfw_insn *cmd )
 
 #define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
 static void
-show_prerequisites(int *flags, int want, int cmd)
+show_prerequisites(int *flags, int want, int cmd __unused)
 {
 	if (comment_only)
 		return;
@@ -1484,14 +1479,14 @@ show_prerequisites(int *flags, int want, int cmd)
 		*flags |= HAVE_OPTIONS;
 
 	if ( !(*flags & HAVE_OPTIONS)) {
-		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
+		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO)) {
 			if ( (*flags & HAVE_PROTO4))
 				printf(" ip4");
 			else if ( (*flags & HAVE_PROTO6))
 				printf(" ip6");
 			else
 				printf(" ip");
-
+		}
 		if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
 			printf(" from any");
 		if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
@@ -1506,7 +1501,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	static int twidth = 0;
 	int l;
 	ipfw_insn *cmd, *tagptr = NULL;
-	char *comment = NULL;	/* ptr to comment if we have one */
+	const char *comment = NULL;	/* ptr to comment if we have one */
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
@@ -2887,7 +2882,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 	 */
 	char *t = NULL, *p = strpbrk(av, "/:,{");
 	int masklen;
-	char md, nd;
+	char md, nd = '\0';
 
 	if (p) {
 		md = *p;
@@ -3195,7 +3190,7 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av)
  * it's supported lists of flow-id, so in the o.arg1 we store how many
  * additional flow-id we want to filter, the basic is 1
  */
-void
+static void
 fill_flow6( ipfw_insn_u32 *cmd, char *av )
 {
 	u_int32_t type;	 /* Current flow number */
@@ -3228,9 +3223,8 @@ add_srcip6(ipfw_insn *cmd, char *av)
 {
 
 	fill_ip6((ipfw_insn_ip6 *)cmd, av);
-	if (F_LEN(cmd) == 0)				/* any */
-		;
-	if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
+	if (F_LEN(cmd) == 0) {				/* any */
+	} else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
 		cmd->opcode = O_IP6_SRC_ME;
 	} else if (F_LEN(cmd) ==
 	    (F_INSN_SIZE(struct in6_addr) + F_INSN_SIZE(ipfw_insn))) {
@@ -3247,9 +3241,8 @@ add_dstip6(ipfw_insn *cmd, char *av)
 {
 
 	fill_ip6((ipfw_insn_ip6 *)cmd, av);
-	if (F_LEN(cmd) == 0)				/* any */
-		;
-	if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
+	if (F_LEN(cmd) == 0) {				/* any */
+	} else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
 		cmd->opcode = O_IP6_DST_ME;
 	} else if (F_LEN(cmd) ==
 	    (F_INSN_SIZE(struct in6_addr) + F_INSN_SIZE(ipfw_insn))) {
@@ -3932,7 +3925,8 @@ static void
 show_nat(int ac, char **av);
 
 static void
-print_nat_config(char *buf) {
+print_nat_config(unsigned char *buf)
+{
 	struct cfg_nat *n;
 	int i, cnt, flag, off;
 	struct cfg_redir *t;
@@ -4140,10 +4134,12 @@ config_nat(int ac, char **av)
 	if (i)
 		err(1, "setsockopt(%s)", "IP_FW_NAT_CFG");
 
-	/* After every modification, we show the resultant rule. */
-	int _ac = 3;
-	char *_av[] = {"show", "config", id};
-	show_nat(_ac, _av);
+	if (!do_quiet) {
+		/* After every modification, we show the resultant rule. */
+		int _ac = 3;
+		char *_av[] = {"show", "config", id};
+		show_nat(_ac, _av);
+	}
 }
 
 static void
@@ -4298,7 +4294,7 @@ config_pipe(int ac, char **av)
 					    "flow_id mask must be 20 bit");
 				    *p20 = (uint32_t)a;
 			    } else if (pa6 != NULL) {
-				    if (a < 0 || a > 128)
+				    if (a > 128)
 					errx(EX_DATAERR,
 					    "in6addr invalid mask len");
 				    else

@@ -633,6 +633,14 @@ options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
 options 	ALTQ_DEBUG
 
+# IP optional behaviour.
+# IP_NONLOCALBIND disables the check that bind() usually makes that the
+# address is one that is assigned to an interface on this machine.
+# It allows transparent proxies to pretend to be other machines.
+# How the packet GET to that machine is a problem solved elsewhere,
+# smart routers, ipfw fwd, etc.
+options        IP_NONLOCALBIND		# Allow impersonation for proxies.
+
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
 # listed below; however, this is not strictly necessary as netgraph
@@ -934,7 +942,12 @@ options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
 options		NFSLOCKD		#Network Lock Manager
-options 	NTFS			#NT File System
+
+# NT File System. Read-mostly, see mount_ntfs(8) for details.
+# For a full read-write NTFS support consider sysutils/fusefs-ntfs
+# port/package.
+options 	NTFS
+
 options 	NULLFS			#NULL filesystem
 # Broken (depends on NCP):
 #options 	NWFS			#NetWare filesystem
@@ -1361,6 +1374,10 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 # `flags' for sc
 #	0x80	Put the video card in the VESA 800x600 dots, 16 color mode
 #	0x100	Probe for a keyboard device periodically if one is not present
+
+# Enable experimental features of the syscons terminal emulator (teken).
+options		TEKEN_UTF8		# UTF-8 output handling
+options		TEKEN_XTERM		# xterm-style terminal emulation
 
 #
 # Optional devices:
@@ -1958,7 +1975,7 @@ device		fatm			#Fore PCA200E
 device		hatm			#Fore/Marconi HE155/622
 device		patm			#IDT77252 cards (ProATM and IDT)
 device		utopia			#ATM PHY driver
-options 	NATM			#native ATM
+#options 	NATM			#native ATM
 
 options 	LIBMBPOOL		#needed by patm, iatm
 
@@ -1984,8 +2001,6 @@ device		sound
 # snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
-# snd_au88x0		Aureal Vortex 1/2/Advantage PCI. This driver
-#			lacks support for playback and recording.
 # snd_audiocs:		Crystal Semiconductor CS4231 SBus/EBus. Only
 #			for sparc64.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
@@ -2004,7 +2019,7 @@ device		sound
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
-# snd_ich:		Intel ICH PCI and some more audio controllers
+# snd_ich:		Intel ICH AC'97 and some more audio controllers
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
 # snd_maestro:		ESS Technology Maestro-1/2x PCI.
@@ -2029,7 +2044,6 @@ device		sound
 device		snd_ad1816
 device		snd_als4000
 device		snd_atiixp
-#device		snd_au88x0
 #device		snd_audiocs
 device		snd_cmi
 device		snd_cs4281

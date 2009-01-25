@@ -1087,6 +1087,7 @@ rn_walktree(h, f, w)
 	 * while applying the function f to it, so we need to calculate
 	 * the successor node in advance.
 	 */
+
 	/* First time through node, go left */
 	while (rn->rn_bit >= 0)
 		rn = rn->rn_left;

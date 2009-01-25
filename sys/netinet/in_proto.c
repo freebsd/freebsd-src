@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
@@ -364,7 +365,9 @@ struct domain inetdomain = {
 	.dom_rtattach =		in_inithead,
 #endif
 	.dom_rtoffset =		32,
-	.dom_maxrtkey =		sizeof(struct sockaddr_in)
+	.dom_maxrtkey =		sizeof(struct sockaddr_in),
+	.dom_ifattach =		in_domifattach,
+	.dom_ifdetach =		in_domifdetach
 };
 
 DOMAIN_SET(inet);

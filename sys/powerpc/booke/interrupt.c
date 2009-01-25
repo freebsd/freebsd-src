@@ -93,7 +93,6 @@ dump_frame(struct trapframe *frame)
 	printf("\n");
 }
 
-
 void powerpc_crit_interrupt(struct trapframe *framep)
 {
 

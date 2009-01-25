@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,7 +118,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	struct ieee80211_channel *c;
 	int i;
 
-	KASSERT(0 < ic->ic_nchans && ic->ic_nchans < IEEE80211_CHAN_MAX,
+	KASSERT(0 < ic->ic_nchans && ic->ic_nchans <= IEEE80211_CHAN_MAX,
 		("invalid number of channels specified: %u", ic->ic_nchans));
 	memset(ic->ic_chan_avail, 0, sizeof(ic->ic_chan_avail));
 	memset(ic->ic_modecaps, 0, sizeof(ic->ic_modecaps));
@@ -126,8 +126,6 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	for (i = 0; i < ic->ic_nchans; i++) {
 		c = &ic->ic_channels[i];
 		KASSERT(c->ic_flags != 0, ("channel with no flags"));
-		KASSERT(c->ic_ieee < IEEE80211_CHAN_MAX,
-			("channel with bogus ieee number %u", c->ic_ieee));
 		setbit(ic->ic_chan_avail, c->ic_ieee);
 		/*
 		 * Identify mode capabilities.
@@ -364,6 +362,21 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 		if (flags & IEEE80211_CLONE_WDSLEGACY)
 			vap->iv_flags_ext |= IEEE80211_FEXT_WDSLEGACY;
 		break;
+#ifdef IEEE80211_SUPPORT_TDMA
+	case IEEE80211_M_AHDEMO:
+		if (flags & IEEE80211_CLONE_TDMA) {
+			/* NB: checked before clone operation allowed */
+			KASSERT(ic->ic_caps & IEEE80211_C_TDMA,
+			    ("not TDMA capable, ic_caps 0x%x", ic->ic_caps));
+			/*
+			 * Propagate TDMA capability to mark vap; this
+			 * cannot be removed and is used to distinguish
+			 * regular ahdemo operation from ahdemo+tdma.
+			 */
+			vap->iv_caps |= IEEE80211_C_TDMA;
+		}
+		break;
+#endif
 	}
 	/* auto-enable s/w beacon miss support */
 	if (flags & IEEE80211_CLONE_NOBEACONS)

@@ -106,6 +106,12 @@ struct in_conninfo {
 	/* protocol dependent part */
 	struct	in_endpoints inc_ie;
 };
+
+/*
+ * Flags for inc_flags.
+ */
+#define	INC_ISIPV6	0x01
+
 #define inc_isipv6	inc_flags	/* temp compatability */
 #define	inc_fport	inc_ie.ie_fport
 #define	inc_lport	inc_ie.ie_lport
@@ -405,6 +411,8 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_FAITH		0x200	/* accept FAITH'ed connections */
 #define	INP_RECVTTL		0x400	/* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x800	/* don't fragment packet */
+#define	INP_NONLOCALOK		0x1000	/* Allow bind to spoof any address */
+					/* - requires options IP_NONLOCALBIND */
 
 #define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
 
@@ -435,7 +443,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	IN6P_RECVIF		INP_RECVIF
 #define	IN6P_MTUDISC		INP_MTUDISC
 #define	IN6P_FAITH		INP_FAITH
-#define	IN6P_CONTROLOPTS INP_CONTROLOPTS
+#define	IN6P_CONTROLOPTS	INP_CONTROLOPTS
 	/*
 	 * socket AF version is {newer than,or include}
 	 * actual datagram AF version

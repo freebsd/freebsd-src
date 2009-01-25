@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -248,7 +249,7 @@ sun4u_set_traptable(void *tba_addr)
 	};
 
 	args.tba_addr = (cell_t)tba_addr;
-	openfirmware(&args);
+	ofw_entry(&args);
 }
 
 void

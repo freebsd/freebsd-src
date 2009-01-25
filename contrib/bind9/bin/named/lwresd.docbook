@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwresd.docbook,v 1.7.18.8 2007/08/28 07:20:01 tbox Exp $ -->
+<!-- $Id: lwresd.docbook,v 1.7.18.10 2008/10/16 23:46:00 tbox Exp $ -->
 <refentry>
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -40,6 +40,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -145,7 +146,7 @@
             configuration file instead of the default,
             <filename>/etc/lwresd.conf</filename>.
 	    <!-- Should this be an absolute path name? -->
-	    <term>-c</term> can not be used with <term>-C</term>.
+	    <option>-c</option> can not be used with <option>-C</option>.
           </para>
         </listitem>
       </varlistentry>
@@ -157,7 +158,7 @@
             Use <replaceable class="parameter">config-file</replaceable> as the
             configuration file instead of the default,
             <filename>/etc/resolv.conf</filename>.
-	    <term>-C</term> can not be used with <term>-c</term>.
+	    <option>-C</option> can not be used with <option>-c</option>.
           </para>
         </listitem>
       </varlistentry>

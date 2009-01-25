@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bsm/Makefile.in#8 $
+# $P4: //depot/projects/trustedbsd/openbsm/bsm/Makefile.in#9 $
 #
 
 VPATH = @srcdir@
@@ -172,6 +172,7 @@ openbsmdir = $(includedir)/bsm
 openbsm_HEADERS = \
 	audit_filter.h		\
 	audit_uevents.h		\
+	auditd_lib.h		\
 	libbsm.h
 
 all: all-am

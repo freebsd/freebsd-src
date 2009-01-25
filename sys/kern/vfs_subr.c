@@ -345,7 +345,7 @@ vfs_busy(struct mount *mp, int flags)
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		if (flags & MBF_NOWAIT) {
+		if (flags & MBF_NOWAIT || mp->mnt_kern_flag & MNTK_REFEXPIRE) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);
@@ -755,13 +755,11 @@ static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
-	int done;
+	int done, vfslocked;
 	struct proc *p = vnlruproc;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
 	    SHUTDOWN_PRI_FIRST);
-
-	mtx_lock(&Giant);
 
 	for (;;) {
 		kproc_suspend_check(p);
@@ -779,19 +777,13 @@ vnlru_proc(void)
 		done = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-			int vfsunlocked;
 			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
-			if (!VFS_NEEDSGIANT(mp)) {
-				mtx_unlock(&Giant);
-				vfsunlocked = 1;
-			} else
-				vfsunlocked = 0;
+			vfslocked = VFS_LOCK_GIANT(mp);
 			done += vlrureclaim(mp);
-			if (vfsunlocked)
-				mtx_lock(&Giant);
+			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp);
@@ -1156,7 +1148,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL) {
+	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
@@ -4206,18 +4198,14 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 
 /*
  * Mark for update the access time of the file if the filesystem
- * supports VA_MARK_ATIME.  This functionality is used by execve
- * and mmap, so we want to avoid the synchronous I/O implied by
- * directly setting va_atime for the sake of efficiency.
+ * supports VOP_MARKATIME.  This functionality is used by execve and
+ * mmap, so we want to avoid the I/O implied by directly setting
+ * va_atime for the sake of efficiency.
  */
 void
 vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 {
-	struct vattr atimeattr;
 
-	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0) {
-		VATTR_NULL(&atimeattr);
-		atimeattr.va_vaflags |= VA_MARK_ATIME;
-		(void)VOP_SETATTR(vp, &atimeattr, cred);
-	}
+	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
+		(void)VOP_MARKATIME(vp);
 }

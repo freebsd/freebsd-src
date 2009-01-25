@@ -19,14 +19,18 @@
 
 ident		NSLU
 
-options 	PHYSADDR=0x10000000
-options 	KERNPHYSADDR=0x10200000	
-options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
-options 	FLASHADDR=0x50000000
-options 	LOADERRAMADDR=0x00000000
-options 	STARTUP_PAGETABLE_ADDR=0x10000000
+# XXX What is defined in std.avila does not exactly match the following:
+#options 	PHYSADDR=0x10000000
+#options 	KERNPHYSADDR=0x10200000	
+#options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
+#options 	FLASHADDR=0x50000000
+#options 	LOADERRAMADDR=0x00000000
+#options 	STARTUP_PAGETABLE_ADDR=0x10000000
 
+include		"../xscale/ixp425/std.ixp425"
+# NB: memory mapping is defined in std.avila (see also comment above)
 include		"../xscale/ixp425/std.avila"
+options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"NSLU.hints"		#Default places to look for devices.
 makeoptions	MODULES_OVERRIDE=""
@@ -99,7 +103,6 @@ device		bpf
 device		pty
 device		loop
 
-options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
 device		md
 device          random          # Entropy device
 

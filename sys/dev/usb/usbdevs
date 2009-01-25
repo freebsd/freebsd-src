@@ -151,6 +151,7 @@ vendor PLANTRONICS	0x047f	Plantronics
 vendor KYOCERA		0x0482	Kyocera Wireless Corp.
 vendor STMICRO		0x0483	STMicroelectronics
 vendor FOXCONN		0x0489	Foxconn
+vendor MEIZU		0x0492	Meizu Electronics
 vendor YAMAHA		0x0499	YAMAHA
 vendor COMPAQ		0x049f	Compaq
 vendor HITACHI		0x04a4	Hitachi
@@ -526,6 +527,7 @@ vendor HAWKING		0x0e66	Hawking
 vendor FOSSIL		0x0e67	Fossil, Inc
 vendor GMATE		0x0e7e	G.Mate, Inc
 vendor OTI		0x0ea0	Ours Technology
+vendor YISO		0x0eab	Yiso Wireless Co.
 vendor PILOTECH		0x0eaf	Pilotech
 vendor NOVATECH		0x0eb0	NovaTech
 vendor ITEGNO		0x0eba	iTegno
@@ -621,6 +623,7 @@ vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
 vendor ERICSSON		0x2282	Ericsson
@@ -807,6 +810,7 @@ product AKS USBHASP		0x0001	USB-HASP 0.06
 /* Alcor Micro, Inc. products */
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
+product ALCOR TRANSCEND		0x6387	Transcend JetFlash Drive
 product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
 product ALCOR AU9814		0x9215	AU9814 Hub
 product ALCOR UMCR_9361		0x9361	USB Multimedia Card Reader
@@ -1166,6 +1170,9 @@ product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
 
+/* dresden elektronik products */
+product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
+
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
 
@@ -1238,12 +1245,18 @@ product EPSON STYLUS_895	0x0602	Stylus Photo 895 Card Reader
 product EPSON CX5400		0x0808	CX5400 scanner
 product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
-product EPSON 4800		0x0819	CX4800 MP scanner
-product EPSON 4200		0x0820	CX4200 MP scanner
-product EPSON 5000		0x082b  DX-50x0 MFP scanner
-product EPSON 6000		0x082e  DX-60x0 MFP scanner
-product EPSON DX7400		0x0838	DX7400/CX7300 scanner
-product EPSON DX8400		0x0839	DX8400 scanner
+product EPSON DX3800		0x0818	CX3700/CX3800/DX38x0 MFP scanner
+product EPSON 4800		0x0819	CX4700/CX4800/DX48x0 MFP scanner
+product EPSON 4200		0x0820	CX4100/CX4200/DX4200 MFP scanner
+product EPSON 5000		0x082b  CX4900/CX5000/DX50x0 MFP scanner
+product EPSON 6000		0x082e  CX5900/CX6000/DX60x0 MFP scanner
+product EPSON DX4000		0x082f  DX4000 MFP scanner
+product EPSON DX7400		0x0838	CX7300/CX7400/DX7400 MFP scanner
+product EPSON DX8400		0x0839	CX8300/CX8400/DX8400 MFP scanner
+product EPSON SX100		0x0841	SX100/NX100 MFP scanner
+product EPSON NX300		0x0848	NX300 MFP scanner
+product EPSON SX200		0x0849	SX200/SX205 MFP scanner
+product EPSON SX400		0x084a	SX400/NX400/TX400 MFP scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial
@@ -1279,6 +1292,7 @@ product FTDI UOPTBR		0xe889	USB-RS232 OptoBridge
 product FTDI EMCU2D		0xe88a	Expert mouseCLOCK USB II
 product FTDI PCMSFU		0xe88b	Precision Clock MSF USB
 product FTDI EMCU2H		0xe88c	Expert mouseCLOCK USB II HBG
+product	FTDI MAXSTREAM		0xee18	Maxstream PKG-U
 product FTDI USBSERIAL		0xfa00	Matrix Orbital USB Serial
 product FTDI MX2_3		0xfa01	Matrix Orbital MX2 or MX3
 product FTDI MX4_5		0xfa02	Matrix Orbital MX4 or MX5
@@ -1416,6 +1430,7 @@ product HP 840C			0x0604	DeskJet 840c
 product HP 2200C		0x0605	ScanJet 2200C
 product HP 5300C		0x0701	Scanjet 5300C
 product HP 4400C		0x0705	Scanjet 4400C
+product	HP 4470C		0x0805	Scanjet 4470C
 product HP 82x0C		0x0b01	Scanjet 82x0C
 product HP 2300D 		0x0b17	Laserjet 2300d
 product HP 970CSE		0x1004	Deskjet 970Cse
@@ -1647,6 +1662,9 @@ product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
 product MCT USB232		0x0210	USB-232 Interface
 product MCT SITECOM_USB232	0x0230	Sitecom USB-232 Products
 
+/* Meizu Electronics */
+product MEIZU M6_SL		0x0140	MiniPlayer M6 (SL)
+
 /* Melco, Inc products */
 product MELCO LUATX1		0x0001	LUA-TX Ethernet
 product MELCO LUATX5		0x0005	LUA-TX Ethernet
@@ -1812,6 +1830,7 @@ product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 product NETGEAR WG111V2_2	0x4240	PrismGT USB 2.0 WLAN
 product NETGEAR WG111U		0x4300	WG111U
 product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
+product NETGEAR WG111V2		0x6a00	WG111V2
 product NETGEAR2 MA101		0x4100	MA101
 product NETGEAR2 MA101B		0x4102	MA101 Rev B
 product NETGEAR3 WG111T		0x4250	WG111T
@@ -2001,6 +2020,7 @@ product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
 product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
+product QUALCOMMINC AC8700	0xfffe	CDMA 1xEVDO USB modem
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2025,6 +2045,7 @@ product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
+product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
 
 /* Ricoh products */
 product RICOH VGPVCC2		0x1830	VGP-VCC2 Camera
@@ -2461,6 +2482,9 @@ product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
 product YANO FW800HD		0x05fc	METALWEAR-HDD
+
+/* Yiso Wireless Co. products */
+product	YISO C893		0xc893	CDMA 2000 1xEVDO PC Card
 
 /* Z-Com products */
 product ZCOM M4Y750		0x0001	M4Y-750

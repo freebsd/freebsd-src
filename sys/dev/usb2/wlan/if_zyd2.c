@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_util.h>
 
 #include <dev/usb2/wlan/usb2_wlan.h>
-#include <dev/usb2/wlan/if_zyd2_reg.h>
-#include <dev/usb2/wlan/if_zyd2_fw.h>
+#include <dev/usb2/wlan/if_zydreg.h>
+#include <dev/usb2/wlan/if_zydfw.h>
 
 #if USB_DEBUG
 static int zyd_debug = 0;
@@ -155,6 +155,7 @@ static int	zyd_newstate_cb(struct ieee80211vap *,
 static void	zyd_cfg_amrr_start(struct zyd_softc *);
 static void	zyd_update_mcast_cb(struct ifnet *);
 static void	zyd_update_promisc_cb(struct ifnet *);
+static void	zyd_cfg_get_macaddr(struct zyd_softc *sc);
 
 static const struct zyd_phy_pair zyd_def_phy[] = ZYD_DEF_PHY;
 static const struct zyd_phy_pair zyd_def_phyB[] = ZYD_DEF_PHYB;
@@ -215,7 +216,7 @@ static const struct usb2_device_id zyd_devs[] = {
 };
 
 static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
-	[ZYD_TR_BULK_DT_WR] = {
+	[ZYD_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -226,7 +227,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.mh.timeout = 10000,	/* 10 seconds */
 	},
 
-	[ZYD_TR_BULK_DT_RD] = {
+	[ZYD_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -236,7 +237,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.ep_index = 0,
 	},
 
-	[ZYD_TR_BULK_CS_WR] = {
+	[ZYD_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -247,7 +248,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[ZYD_TR_BULK_CS_RD] = {
+	[ZYD_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -258,7 +259,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[ZYD_TR_INTR_DT_WR] = {
+	[ZYD_INTR_DT_WR] = {
 		.type = UE_BULK_INTR,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -269,7 +270,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.ep_index = 1,
 	},
 
-	[ZYD_TR_INTR_DT_RD] = {
+	[ZYD_INTR_DT_RD] = {
 		.type = UE_BULK_INTR,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -279,7 +280,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.ep_index = 1,
 	},
 
-	[ZYD_TR_INTR_CS_WR] = {
+	[ZYD_INTR_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -290,7 +291,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[ZYD_TR_INTR_CS_RD] = {
+	[ZYD_INTR_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -372,7 +373,7 @@ static void
 zyd_intr_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_TR_INTR_DT_RD];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_INTR_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -419,7 +420,7 @@ zyd_intr_read_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->sc_flags & ZYD_FLAG_INTR_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_CS_RD]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_INTR_CS_RD]);
 			break;
 		}
 		xfer->frlengths[0] = xfer->max_data_length;
@@ -433,7 +434,7 @@ tr_setup:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= ZYD_FLAG_INTR_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_CS_RD]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_INTR_CS_RD]);
 		}
 		break;
 	}
@@ -528,7 +529,7 @@ repeat:
 
 		/* wait for data */
 
-		usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_DT_RD]);
+		usb2_transfer_start(sc->sc_xfer[ZYD_INTR_DT_RD]);
 
 		if (usb2_cv_timedwait(&sc->sc_intr_cv,
 		    &sc->sc_mtx, hz / 2)) {
@@ -570,7 +571,7 @@ skip0:
 	 * We have fetched the data from the shared buffer and it is
 	 * safe to restart the interrupt transfer!
 	 */
-	usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_DT_RD]);
+	usb2_transfer_start(sc->sc_xfer[ZYD_INTR_DT_RD]);
 done:
 	return;
 }
@@ -579,7 +580,7 @@ static void
 zyd_intr_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_TR_INTR_DT_WR];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_INTR_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -601,7 +602,7 @@ zyd_intr_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 
 		if (sc->sc_flags & ZYD_FLAG_INTR_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_CS_WR]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_INTR_CS_WR]);
 			goto wakeup;
 		}
 		if (sc->sc_intr_owakeup) {
@@ -620,7 +621,7 @@ zyd_intr_write_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= ZYD_FLAG_INTR_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_CS_WR]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_INTR_CS_WR]);
 		}
 		goto wakeup;
 	}
@@ -656,7 +657,7 @@ zyd_cfg_usb2_intr_write(struct zyd_softc *sc, const void *data,
 	sc->sc_intr_obuf.code = htole16(code);
 	bcopy(data, sc->sc_intr_obuf.data, size);
 
-	usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_DT_WR]);
+	usb2_transfer_start(sc->sc_xfer[ZYD_INTR_DT_WR]);
 
 	while (sc->sc_intr_owakeup) {
 		if (usb2_cv_timedwait(&sc->sc_intr_cv,
@@ -758,11 +759,22 @@ zyd_cfg_rfwrite(struct zyd_softc *sc, uint32_t value)
 	zyd_cfg_cmd(sc, ZYD_CMD_RFCFG, &req, 4 + (2 * rf->width), NULL, 0, 0);
 }
 
+/*------------------------------------------------------------------------*
+ *	zyd_cfg_rfwrite_cr
+ *------------------------------------------------------------------------*/
+static void
+zyd_cfg_rfwrite_cr(struct zyd_softc *sc, uint32_t val)
+{
+	zyd_cfg_write16(sc, ZYD_CR244, (val >> 16) & 0xff);
+	zyd_cfg_write16(sc, ZYD_CR243, (val >> 8) & 0xff);
+	zyd_cfg_write16(sc, ZYD_CR242, (val >> 0) & 0xff);
+}
+
 static void
 zyd_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_TR_BULK_DT_RD];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -911,7 +923,7 @@ tr_setup:
 		DPRINTF("setup\n");
 
 		if (sc->sc_flags & ZYD_FLAG_BULK_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_BULK_CS_RD]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_BULK_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -961,7 +973,7 @@ tr_setup:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= ZYD_FLAG_BULK_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_BULK_CS_RD]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_BULK_CS_RD]);
 		}
 		break;
 	}
@@ -1080,8 +1092,7 @@ zyd_attach(device_t dev)
 
 	usb2_cv_init(&sc->sc_intr_cv, "IWAIT");
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	/*
 	 * Endpoint 1 = Bulk out (512b @ high speed / 64b @ full speed)
@@ -1111,10 +1122,8 @@ zyd_attach(device_t dev)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, NULL, &zyd_cfg_first_time_setup, 0, 0);
 
-	/* start watchdog (will exit mutex) */
-
 	zyd_watchdog(sc);
-
+	mtx_unlock(&sc->sc_mtx);
 	return (0);
 
 detach:
@@ -1151,10 +1160,24 @@ zyd_cfg_unlock_phy(struct zyd_softc *sc)
 static void
 zyd_cfg_set_beacon_interval(struct zyd_softc *sc, uint32_t bintval)
 {
-	/* XXX this is probably broken.. */
-	zyd_cfg_write32(sc, ZYD_CR_ATIM_WND_PERIOD, bintval - 2);
-	zyd_cfg_write32(sc, ZYD_CR_PRE_TBTT, bintval - 1);
-	zyd_cfg_write32(sc, ZYD_CR_BCN_INTERVAL, bintval);
+	uint32_t val;
+
+	zyd_cfg_read32(sc, ZYD_CR_ATIM_WND_PERIOD, &val);
+	sc->sc_atim_wnd = val;
+	zyd_cfg_read32(sc, ZYD_CR_PRE_TBTT, &val);
+	sc->sc_pre_tbtt = val;
+	sc->sc_bcn_int = bintval;
+
+	if (sc->sc_bcn_int <= 5)
+		sc->sc_bcn_int = 5;
+	if (sc->sc_pre_tbtt < 4 || sc->sc_pre_tbtt >= sc->sc_bcn_int)
+		sc->sc_pre_tbtt = sc->sc_bcn_int - 1;
+	if (sc->sc_atim_wnd >= sc->sc_pre_tbtt)
+		sc->sc_atim_wnd = sc->sc_pre_tbtt - 1;
+
+	zyd_cfg_write32(sc, ZYD_CR_ATIM_WND_PERIOD, sc->sc_atim_wnd);
+	zyd_cfg_write32(sc, ZYD_CR_PRE_TBTT, sc->sc_pre_tbtt);
+	zyd_cfg_write32(sc, ZYD_CR_BCN_INTERVAL, sc->sc_bcn_int);
 }
 
 /*
@@ -1166,7 +1189,7 @@ zyd_rf_name(uint8_t type)
 	static const char *const zyd_rfs[] = {
 		"unknown", "unknown", "UW2451", "UCHIP", "AL2230",
 		"AL7230B", "THETA", "AL2210", "MAXIM_NEW", "GCT",
-		"PV2000", "RALINK", "INTERSIL", "RFMD", "MAXIM_NEW2",
+		"AL2230S", "RALINK", "INTERSIL", "RFMD", "MAXIM_NEW2",
 		"PHILIPS"
 	};
 
@@ -1238,36 +1261,106 @@ static void
 zyd_cfg_rf_al2230_init(struct zyd_softc *sc, struct zyd_rf *rf)
 {
 	static const struct zyd_phy_pair phyini[] = ZYD_AL2230_PHY;
-	static const uint32_t rfini[] = ZYD_AL2230_RF;
+	static const struct zyd_phy_pair phy2230s[] = ZYD_AL2230S_PHY_INIT;
+	static const struct zyd_phy_pair phypll[] = {
+		{ZYD_CR251, 0x2f}, {ZYD_CR251, 0x3f},
+		{ZYD_CR138, 0x28}, {ZYD_CR203, 0x06}
+	};
+	static const uint32_t rfini1[] = ZYD_AL2230_RF_PART1;
+	static const uint32_t rfini2[] = ZYD_AL2230_RF_PART2;
+	static const uint32_t rfini3[] = ZYD_AL2230_RF_PART3;
 	uint32_t i;
 
 	/* init RF-dependent PHY registers */
-	for (i = 0; i != INDEXES(phyini); i++) {
+	for (i = 0; i != INDEXES(phyini); i++)
 		zyd_cfg_write16(sc, phyini[i].reg, phyini[i].val);
-	}
 
-	/* init AL2230 radio */
-	for (i = 0; i != INDEXES(rfini); i++) {
-		zyd_cfg_rfwrite(sc, rfini[i]);
+	if ((sc->sc_rf_rev == ZYD_RF_AL2230S) || (sc->sc_al2230s != 0)) {
+		for (i = 0; i != INDEXES(phy2230s); i++)
+			zyd_cfg_write16(sc, phy2230s[i].reg, phy2230s[i].val);
 	}
+	/* init AL2230 radio */
+	for (i = 0; i != INDEXES(rfini1); i++)
+		zyd_cfg_rfwrite(sc, rfini1[i]);
+
+	if ((sc->sc_rf_rev == ZYD_RF_AL2230S) || (sc->sc_al2230s != 0))
+		zyd_cfg_rfwrite(sc, 0x000824);
+	else
+		zyd_cfg_rfwrite(sc, 0x0005a4);
+
+	for (i = 0; i != INDEXES(rfini2); i++)
+		zyd_cfg_rfwrite(sc, rfini2[i]);
+
+	for (i = 0; i != INDEXES(phypll); i++)
+		zyd_cfg_write16(sc, phypll[i].reg, phypll[i].val);
+
+	for (i = 0; i != INDEXES(rfini3); i++)
+		zyd_cfg_rfwrite(sc, rfini3[i]);
+}
+
+static void
+zyd_cfg_rf_al2230_fini(struct zyd_softc *sc, struct zyd_rf *rf)
+{
+	static const struct zyd_phy_pair phy[] = ZYD_AL2230_PHY_FINI_PART1;
+	uint32_t i;
+
+	for (i = 0; i != INDEXES(phy); i++)
+		zyd_cfg_write16(sc, phy[i].reg, phy[i].val);
+
+	if (sc->sc_newphy != 0)
+		zyd_cfg_write16(sc, ZYD_CR9, 0xe1);
+	zyd_cfg_write16(sc, ZYD_CR203, 0x6);
 }
 
 static void
 zyd_cfg_rf_al2230_init_b(struct zyd_softc *sc, struct zyd_rf *rf)
 {
 	static const struct zyd_phy_pair phyini[] = ZYD_AL2230_PHY_B;
-	static const uint32_t rfini[] = ZYD_AL2230_RF_B;
+	static const struct zyd_phy_pair phy1[] = ZYD_AL2230_PHY_PART1;
+	static const struct zyd_phy_pair phy2[] = ZYD_AL2230_PHY_PART2;
+	static const struct zyd_phy_pair phy3[] = ZYD_AL2230_PHY_PART3;
+	static const struct zyd_phy_pair phy2230s[] = ZYD_AL2230S_PHY_INIT;
+	static const uint32_t rfini_part1[] = ZYD_AL2230_RF_B_PART1;
+	static const uint32_t rfini_part2[] = ZYD_AL2230_RF_B_PART2;
+	static const uint32_t rfini_part3[] = ZYD_AL2230_RF_B_PART3;
+	static const uint32_t zyd_al2230_chtable[][3] = ZYD_AL2230_CHANTABLE;
 	uint32_t i;
 
-	/* init RF-dependent PHY registers */
-	for (i = 0; i != INDEXES(phyini); i++) {
-		zyd_cfg_write16(sc, phyini[i].reg, phyini[i].val);
-	}
+	for (i = 0; i != INDEXES(phy1); i++)
+		zyd_cfg_write16(sc, phy1[i].reg, phy1[i].val);
 
-	/* init AL2230 radio */
-	for (i = 0; i != INDEXES(rfini); i++) {
-		zyd_cfg_rfwrite(sc, rfini[i]);
-	}
+	/* init RF-dependent PHY registers */
+	for (i = 0; i != INDEXES(phyini); i++)
+		zyd_cfg_write16(sc, phyini[i].reg, phyini[i].val);
+
+	if ((sc->sc_rf_rev == ZYD_RF_AL2230S) || (sc->sc_al2230s != 0))
+		for (i = 0; i != INDEXES(phy2230s); i++)
+			zyd_cfg_write16(sc, phy2230s[i].reg, phy2230s[i].val);
+
+	for (i = 0; i != 3; i++)
+		zyd_cfg_rfwrite_cr(sc, zyd_al2230_chtable[0][i]);
+
+	for (i = 0; i != INDEXES(rfini_part1); i++)
+		zyd_cfg_rfwrite_cr(sc, rfini_part1[i]);
+
+	if ((sc->sc_rf_rev == ZYD_RF_AL2230S) || (sc->sc_al2230s != 0))
+		zyd_cfg_rfwrite(sc, 0x241000);
+	else
+		zyd_cfg_rfwrite(sc, 0x25a000);
+
+	for (i = 0; i != INDEXES(rfini_part2); i++)
+		zyd_cfg_rfwrite_cr(sc, rfini_part2[i]);
+
+	for (i = 0; i != INDEXES(phy2); i++)
+		zyd_cfg_write16(sc, phy2[i].reg, phy2[i].val);
+
+	for (i = 0; i != INDEXES(rfini_part3); i++)
+		zyd_cfg_rfwrite_cr(sc, rfini_part3[i]);
+
+	for (i = 0; i < INDEXES(phy3); i++)
+		zyd_cfg_write16(sc, phy3[i].reg, phy3[i].val);
+
+	zyd_cfg_rf_al2230_fini(sc, rf);
 }
 
 /*
@@ -1277,16 +1370,60 @@ static void
 zyd_cfg_rf_al2230_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
     uint8_t channel)
 {
+	static const struct zyd_phy_pair phy1[] = {
+		{ZYD_CR138, 0x28}, {ZYD_CR203, 0x06},
+	};
 	static const struct {
 		uint32_t r1, r2, r3;
 	}      rfprog[] = ZYD_AL2230_CHANTABLE;
+	uint32_t i;
 
 	zyd_cfg_rfwrite(sc, rfprog[channel - 1].r1);
 	zyd_cfg_rfwrite(sc, rfprog[channel - 1].r2);
 	zyd_cfg_rfwrite(sc, rfprog[channel - 1].r3);
 
-	zyd_cfg_write16(sc, ZYD_CR138, 0x28);
-	zyd_cfg_write16(sc, ZYD_CR203, 0x06);
+	for (i = 0; i != INDEXES(phy1); i++)
+		zyd_cfg_write16(sc, phy1[i].reg, phy1[i].val);
+}
+
+static void
+zyd_cfg_rf_al2230_set_channel_b(struct zyd_softc *sc,
+    struct zyd_rf *rf, uint8_t chan)
+{
+	static const struct zyd_phy_pair phy1[] = ZYD_AL2230_PHY_PART1;
+	static const struct {
+		uint32_t r1, r2, r3;
+	}      rfprog[] = ZYD_AL2230_CHANTABLE_B;
+	uint32_t i;
+
+	for (i = 0; i != INDEXES(phy1); i++)
+		zyd_cfg_write16(sc, phy1[i].reg, phy1[i].val);
+
+	zyd_cfg_rfwrite_cr(sc, rfprog[chan - 1].r1);
+	zyd_cfg_rfwrite_cr(sc, rfprog[chan - 1].r2);
+	zyd_cfg_rfwrite_cr(sc, rfprog[chan - 1].r3);
+
+	zyd_cfg_rf_al2230_fini(sc, rf);
+}
+
+#define	ZYD_AL2230_PHY_BANDEDGE6					\
+{									\
+	{ ZYD_CR128, 0x14 }, { ZYD_CR129, 0x12 }, { ZYD_CR130, 0x10 },  \
+	{ ZYD_CR47,  0x1e }						\
+}
+
+static void
+zyd_cfg_rf_al2230_bandedge6(struct zyd_softc *sc,
+    struct zyd_rf *rf, uint8_t chan)
+{
+	struct zyd_phy_pair r[] = ZYD_AL2230_PHY_BANDEDGE6;
+	uint32_t i;
+
+	if ((chan == 1) || (chan == 11))
+		r[0].val = 0x12;
+
+	for (i = 0; i < INDEXES(r); i++)
+		zyd_cfg_write16(sc, r[i].reg, r[i].val);
 }
 
 /*
@@ -1416,7 +1553,6 @@ zyd_cfg_rf_al2210_set_channel(struct zyd_softc *sc, struct zyd_rf *rf,
 	zyd_cfg_write32(sc, ZYD_CR_RADIO_PD, tmp & ~1);
 	zyd_cfg_write32(sc, ZYD_CR_RADIO_PD, tmp | 1);
 	zyd_cfg_write32(sc, ZYD_CR_RFCFG, 0x05);
-
 	zyd_cfg_write32(sc, ZYD_CR_RFCFG, 0x00);
 	zyd_cfg_write16(sc, ZYD_CR47, 0x1e);
 
@@ -1620,12 +1756,16 @@ zyd_cfg_rf_init_hw(struct zyd_softc *sc, struct zyd_rf *rf)
 		rf->width = 24;		/* 24-bit RF values */
 		break;
 	case ZYD_RF_AL2230:
-		if (sc->sc_mac_rev == ZYD_ZD1211B)
+	case ZYD_RF_AL2230S:
+		if (sc->sc_mac_rev == ZYD_ZD1211B) {
 			rf->cfg_init_hw = zyd_cfg_rf_al2230_init_b;
-		else
+			rf->cfg_set_channel = zyd_cfg_rf_al2230_set_channel_b;
+		} else {
 			rf->cfg_init_hw = zyd_cfg_rf_al2230_init;
+			rf->cfg_set_channel = zyd_cfg_rf_al2230_set_channel;
+		}
 		rf->cfg_switch_radio = zyd_cfg_rf_al2230_switch_radio;
-		rf->cfg_set_channel = zyd_cfg_rf_al2230_set_channel;
+		rf->cfg_bandedge6 = zyd_cfg_rf_al2230_bandedge6;
 		rf->width = 24;		/* 24-bit RF values */
 		break;
 	case ZYD_RF_AL7230B:
@@ -1692,6 +1832,9 @@ zyd_cfg_hw_init(struct zyd_softc *sc)
 	zyd_cfg_write32(sc, ZYD_CR_GPI_EN, 0);
 	zyd_cfg_write32(sc, ZYD_MAC_CONT_WIN_LIMIT, 0x7f043f);
 
+	/* set mandatory rates - XXX assumes 802.11b/g */
+	zyd_cfg_write32(sc, ZYD_MAC_MAN_RATE, 0x150f);
+
 	/* disable interrupts */
 	zyd_cfg_write32(sc, ZYD_CR_INTERRUPT, 0);
 
@@ -1701,7 +1844,7 @@ zyd_cfg_hw_init(struct zyd_softc *sc)
 	for (; phyp->reg != 0; phyp++) {
 		zyd_cfg_write16(sc, phyp->reg, phyp->val);
 	}
-	if (sc->sc_fix_cr157) {
+	if ((sc->sc_mac_rev == ZYD_ZD1211) && sc->sc_fix_cr157) {
 		zyd_cfg_read32(sc, ZYD_EEPROM_PHY_REG, &tmp);
 		zyd_cfg_write32(sc, ZYD_CR157, tmp >> 8);
 	}
@@ -1710,20 +1853,6 @@ zyd_cfg_hw_init(struct zyd_softc *sc)
 	/* HMAC init */
 	zyd_cfg_write32(sc, ZYD_MAC_ACK_EXT, 0x00000020);
 	zyd_cfg_write32(sc, ZYD_CR_ADDA_MBIAS_WT, 0x30000808);
-
-	if (sc->sc_mac_rev == ZYD_ZD1211) {
-		zyd_cfg_write32(sc, ZYD_MAC_RETRY, 0x00000002);
-	} else {
-		zyd_cfg_write32(sc, ZYD_MACB_MAX_RETRY, 0x02020202);
-		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL4, 0x007f003f);
-		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL3, 0x007f003f);
-		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL2, 0x003f001f);
-		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL1, 0x001f000f);
-		zyd_cfg_write32(sc, ZYD_MACB_AIFS_CTL1, 0x00280028);
-		zyd_cfg_write32(sc, ZYD_MACB_AIFS_CTL2, 0x008C003C);
-		zyd_cfg_write32(sc, ZYD_MACB_TXOP, 0x01800824);
-	}
-
 	zyd_cfg_write32(sc, ZYD_MAC_SNIFFER, 0x00000000);
 	zyd_cfg_write32(sc, ZYD_MAC_RXFILTER, 0x00000000);
 	zyd_cfg_write32(sc, ZYD_MAC_GHTBL, 0x00000000);
@@ -1735,12 +1864,28 @@ zyd_cfg_hw_init(struct zyd_softc *sc)
 	zyd_cfg_write32(sc, ZYD_MAC_ACK_EXT, 0x00000080);
 	zyd_cfg_write32(sc, ZYD_CR_ADDA_PWR_DWN, 0x00000000);
 	zyd_cfg_write32(sc, ZYD_MAC_SIFS_ACK_TIME, 0x00000100);
-	zyd_cfg_write32(sc, ZYD_MAC_DIFS_EIFS_SIFS, 0x0547c032);
 	zyd_cfg_write32(sc, ZYD_CR_RX_PE_DELAY, 0x00000070);
 	zyd_cfg_write32(sc, ZYD_CR_PS_CTRL, 0x10000000);
 	zyd_cfg_write32(sc, ZYD_MAC_RTSCTSRATE, 0x02030203);
-	zyd_cfg_write32(sc, ZYD_MAC_RX_THRESHOLD, 0x000c0640);
+	zyd_cfg_write32(sc, ZYD_MAC_AFTER_PNP, 1);
 	zyd_cfg_write32(sc, ZYD_MAC_BACKOFF_PROTECT, 0x00000114);
+	zyd_cfg_write32(sc, ZYD_MAC_DIFS_EIFS_SIFS, 0x0a47c032);
+	zyd_cfg_write32(sc, ZYD_MAC_CAM_MODE, 0x3);
+
+	if (sc->sc_mac_rev == ZYD_ZD1211) {
+		zyd_cfg_write32(sc, ZYD_MAC_RETRY, 0x00000002);
+		zyd_cfg_write32(sc, ZYD_MAC_RX_THRESHOLD, 0x000c0640);
+	} else {
+		zyd_cfg_write32(sc, ZYD_MACB_MAX_RETRY, 0x02020202);
+		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL4, 0x007f003f);
+		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL3, 0x007f003f);
+		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL2, 0x003f001f);
+		zyd_cfg_write32(sc, ZYD_MACB_TXPWR_CTL1, 0x001f000f);
+		zyd_cfg_write32(sc, ZYD_MACB_AIFS_CTL1, 0x00280028);
+		zyd_cfg_write32(sc, ZYD_MACB_AIFS_CTL2, 0x008C003C);
+		zyd_cfg_write32(sc, ZYD_MACB_TXOP, 0x01800824);
+		zyd_cfg_write32(sc, ZYD_MAC_RX_THRESHOLD, 0x000c0eff);
+	}
 
 	/* init beacon interval to 100ms */
 	zyd_cfg_set_beacon_interval(sc, 100);
@@ -1759,20 +1904,19 @@ zyd_cfg_read_eeprom(struct zyd_softc *sc)
 	uint16_t val;
 
 	/* read MAC address */
-	zyd_cfg_read32(sc, ZYD_EEPROM_MAC_ADDR_P1, &tmp);
-	sc->sc_myaddr[0] = tmp & 0xff;
-	sc->sc_myaddr[1] = tmp >> 8;
-	sc->sc_myaddr[2] = tmp >> 16;
-	sc->sc_myaddr[3] = tmp >> 24;
-	zyd_cfg_read32(sc, ZYD_EEPROM_MAC_ADDR_P2, &tmp);
-	sc->sc_myaddr[4] = tmp & 0xff;
-	sc->sc_myaddr[5] = tmp >> 8;
+	zyd_cfg_get_macaddr(sc);
 
+	/* read product data */
 	zyd_cfg_read32(sc, ZYD_EEPROM_POD, &tmp);
 	sc->sc_rf_rev = tmp & 0x0f;
-	sc->sc_fix_cr47 = (tmp >> 8) & 0x01;
+	sc->sc_ledtype = (tmp >> 4) & 0x01;
+	sc->sc_cckgain = (tmp >> 8) & 0x01;
 	sc->sc_fix_cr157 = (tmp >> 13) & 0x01;
 	sc->sc_pa_rev = (tmp >> 16) & 0x0f;
+	sc->sc_al2230s = (tmp >> 7) & 0x01;
+	sc->sc_bandedge6 = (tmp >> 21) & 0x01;
+	sc->sc_newphy = (tmp >> 31) & 0x01;
+	sc->sc_txled = ((tmp & (1 << 24)) && (tmp & (1 << 29))) ? 0 : 1;
 
 	/* read regulatory domain (currently unused) */
 	zyd_cfg_read32(sc, ZYD_EEPROM_SUBID, &tmp);
@@ -1801,6 +1945,21 @@ zyd_cfg_read_eeprom(struct zyd_softc *sc)
 		sc->sc_ofdm54_cal[(i * 2)] = val >> 8;
 		sc->sc_ofdm54_cal[(i * 2) + 1] = val & 0xff;
 	}
+}
+
+static void
+zyd_cfg_get_macaddr(struct zyd_softc *sc)
+{
+	struct usb2_device_request req;
+
+	req.bmRequestType = UT_READ_VENDOR_DEVICE;
+	req.bRequest = ZYD_READFWDATAREQ;
+	USETW(req.wValue, ZYD_EEPROM_MAC_ADDR_P1);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, IEEE80211_ADDR_LEN);
+
+	zyd_cfg_usbrequest(sc, &req, sc->sc_myaddr);
+	return;
 }
 
 static void
@@ -1919,7 +2078,6 @@ zyd_cfg_first_time_setup(struct zyd_softc *sc,
 		    sc->sc_name);
 		goto done;
 	}
-	sc->sc_evilhack = ifp;
 	sc->sc_ifp = ifp;
 	ic = ifp->if_l2com;
 
@@ -1986,7 +2144,7 @@ zyd_cfg_first_time_setup(struct zyd_softc *sc,
 	if (bootverbose) {
 		ieee80211_announce(ic);
 	}
-	usb2_transfer_start(sc->sc_xfer[ZYD_TR_INTR_DT_RD]);
+	usb2_transfer_start(sc->sc_xfer[ZYD_INTR_DT_RD]);
 done:
 	return;
 }
@@ -2273,16 +2431,17 @@ zyd_cfg_set_chan(struct zyd_softc *sc,
 		zyd_cfg_write16(sc, ZYD_CR67, sc->sc_ofdm36_cal[chan - 1]);
 		zyd_cfg_write16(sc, ZYD_CR66, sc->sc_ofdm48_cal[chan - 1]);
 		zyd_cfg_write16(sc, ZYD_CR65, sc->sc_ofdm54_cal[chan - 1]);
-
 		zyd_cfg_write16(sc, ZYD_CR68, sc->sc_pwr_cal[chan - 1]);
-
 		zyd_cfg_write16(sc, ZYD_CR69, 0x28);
 		zyd_cfg_write16(sc, ZYD_CR69, 0x2a);
 	}
-	if (sc->sc_fix_cr47) {
+	if (sc->sc_cckgain) {
 		/* set CCK baseband gain from EEPROM */
 		zyd_cfg_read32(sc, ZYD_EEPROM_PHY_REG, &tmp);
 		zyd_cfg_write16(sc, ZYD_CR47, tmp & 0xff);
+	}
+	if (sc->sc_bandedge6 && (sc->sc_rf.cfg_bandedge6 != NULL)) {
+		(sc->sc_rf.cfg_bandedge6) (sc, &sc->sc_rf, chan);
 	}
 	zyd_cfg_write32(sc, ZYD_CR_CONFIG_PHILIPS, 0);
 
@@ -2352,7 +2511,7 @@ zyd_cfg_init(struct zyd_softc *sc,
 	else if (cc->ic_curmode == IEEE80211_MODE_11A)
 		zyd_cfg_write32(sc, ZYD_MAC_BAS_RATE, 0x1500);
 	else				/* assumes 802.11b/g */
-		zyd_cfg_write32(sc, ZYD_MAC_BAS_RATE, 0x000f);
+		zyd_cfg_write32(sc, ZYD_MAC_BAS_RATE, 0xff0f);
 
 	/* set mandatory rates */
 	if (cc->ic_curmode == IEEE80211_MODE_11B)
@@ -2382,8 +2541,8 @@ zyd_cfg_init(struct zyd_softc *sc,
 		/*
 		 * start the USB transfers, if not already started:
 		 */
-		usb2_transfer_start(sc->sc_xfer[1]);
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[ZYD_BULK_DT_RD]);
+		usb2_transfer_start(sc->sc_xfer[ZYD_BULK_DT_WR]);
 
 		/*
 		 * start IEEE802.11 layer
@@ -2416,10 +2575,10 @@ zyd_cfg_pre_stop(struct zyd_softc *sc,
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[ZYD_TR_BULK_DT_WR]);
-	usb2_transfer_stop(sc->sc_xfer[ZYD_TR_BULK_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[ZYD_TR_BULK_CS_WR]);
-	usb2_transfer_stop(sc->sc_xfer[ZYD_TR_BULK_CS_RD]);
+	usb2_transfer_stop(sc->sc_xfer[ZYD_BULK_DT_WR]);
+	usb2_transfer_stop(sc->sc_xfer[ZYD_BULK_DT_RD]);
+	usb2_transfer_stop(sc->sc_xfer[ZYD_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[ZYD_BULK_CS_RD]);
 
 	/* clean up transmission */
 	zyd_tx_clean_queue(sc);
@@ -2509,7 +2668,7 @@ zyd_start_cb(struct ifnet *ifp)
 	struct zyd_softc *sc = ifp->if_softc;
 
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_start(sc->sc_xfer[ZYD_TR_BULK_DT_WR]);
+	usb2_transfer_start(sc->sc_xfer[ZYD_BULK_DT_WR]);
 	mtx_unlock(&sc->sc_mtx);
 }
 
@@ -2517,7 +2676,7 @@ static void
 zyd_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_TR_BULK_DT_WR];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[ZYD_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -2621,7 +2780,7 @@ zyd_setup_desc_and_tx(struct zyd_softc *sc, struct mbuf *m,
 	/* start write transfer, if not started */
 	_IF_ENQUEUE(&sc->sc_tx_queue, mm);
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[ZYD_BULK_DT_WR]);
 }
 
 static void
@@ -2642,7 +2801,7 @@ zyd_bulk_write_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & ZYD_FLAG_BULK_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_BULK_CS_WR]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_BULK_CS_WR]);
 			DPRINTFN(11, "write stalled\n");
 			break;
 		}
@@ -2688,7 +2847,7 @@ zyd_bulk_write_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= ZYD_FLAG_BULK_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[ZYD_TR_BULK_CS_WR]);
+			usb2_transfer_start(sc->sc_xfer[ZYD_BULK_CS_WR]);
 		}
 		ifp->if_oerrors++;
 		break;
@@ -2761,8 +2920,6 @@ zyd_watchdog(void *arg)
 	}
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &zyd_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 
 static void
@@ -2862,7 +3019,7 @@ zyd_end_of_commands(struct zyd_softc *sc)
 	sc->sc_flags &= ~ZYD_FLAG_WAIT_COMMAND;
 
 	/* start write transfer, if not started */
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[ZYD_BULK_DT_WR]);
 }
 
 static void

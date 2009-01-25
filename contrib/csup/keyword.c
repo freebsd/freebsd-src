@@ -152,6 +152,29 @@ keyword_decode_expand(const char *expand)
 		return (-1);
 }
 
+const char *
+keyword_encode_expand(int expand)
+{
+
+	switch (expand) {
+		case EXPAND_DEFAULT:
+			return (".");
+		case EXPAND_KEYVALUE:
+			return ("kv");
+		case EXPAND_KEYVALUELOCKER:
+			return ("kvl");
+		case EXPAND_KEY:
+			return ("k");
+		case EXPAND_OLD:
+			return ("o");
+		case EXPAND_BINARY:
+			return ("b");
+		case EXPAND_VALUE:
+			return ("v");
+	}
+	return (NULL);
+}
+
 void
 keyword_free(struct keyword *keyword)
 {

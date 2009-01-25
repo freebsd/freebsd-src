@@ -196,7 +196,7 @@ Messages include:
 #define	RTM_REDIRECT	0x6    /* Told to use different route */
 #define	RTM_MISS	0x7    /* Lookup failed on this address */
 #define	RTM_LOCK	0x8    /* fix specified metrics */
-#define	RTM_RESOLVE	0xb    /* request to resolve dst to LL addr */
+#define	RTM_RESOLVE	0xb    /* request to resolve dst to LL addr - unused */
 #define	RTM_NEWADDR	0xc    /* address being added to iface */
 #define	RTM_DELADDR	0xd    /* address being removed from iface */
 #define	RTM_IFINFO	0xe    /* iface going up/down etc. */
@@ -308,7 +308,7 @@ Specifiers for which addresses are present in the messages are:
 #define RTA_DST       0x1    /* destination sockaddr present */
 #define RTA_GATEWAY   0x2    /* gateway sockaddr present */
 #define RTA_NETMASK   0x4    /* netmask sockaddr present */
-#define RTA_GENMASK   0x8    /* cloning mask sockaddr present */
+#define RTA_GENMASK   0x8    /* cloning mask sockaddr present - unused */
 #define RTA_IFP       0x10   /* interface name sockaddr present */
 #define RTA_IFA       0x20   /* interface addr sockaddr present */
 #define RTA_AUTHOR    0x40   /* sockaddr for author of redirect */

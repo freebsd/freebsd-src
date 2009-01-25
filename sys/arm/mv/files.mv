@@ -15,7 +15,7 @@
 arm/arm/bus_space_generic.c	standard
 arm/arm/cpufunc_asm_arm10.S	standard
 arm/arm/cpufunc_asm_armv5_ec.S	standard
-arm/arm/cpufunc_asm_feroceon.S	standard
+arm/arm/cpufunc_asm_sheeva.S	standard
 arm/arm/irq_dispatch.S		standard
 
 arm/mv/bus_space.c		standard

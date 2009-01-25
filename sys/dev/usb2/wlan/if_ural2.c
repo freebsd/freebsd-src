@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_util.h>
 
 #include <dev/usb2/wlan/usb2_wlan.h>
-#include <dev/usb2/wlan/if_ural2_reg.h>
-#include <dev/usb2/wlan/if_ural2_var.h>
+#include <dev/usb2/wlan/if_uralreg.h>
+#include <dev/usb2/wlan/if_uralvar.h>
 
 #if USB_DEBUG
 static int ural_debug = 0;
@@ -189,7 +189,6 @@ static const struct usb2_device_id ural_devs[] = {
 	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2570, 0)},
 	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2570_2, 0)},
 	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2570_3, 0)},
-	{USB_VPI(USB_VENDOR_RALINK, USB_PRODUCT_RALINK_RT2573, 0)},
 	{USB_VPI(USB_VENDOR_SIEMENS2, USB_PRODUCT_SIEMENS2_WL54G, 0)},
 	{USB_VPI(USB_VENDOR_SMC, USB_PRODUCT_SMC_2862WG, 0)},
 	{USB_VPI(USB_VENDOR_SPHAIRON, USB_PRODUCT_SPHAIRON_UB801R, 0)},
@@ -368,7 +367,7 @@ static const struct ural_rf5222 ural_rf5222[] = {
 };
 
 static const struct usb2_config ural_config[URAL_N_TRANSFER] = {
-	[0] = {
+	[URAL_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -378,7 +377,7 @@ static const struct usb2_config ural_config[URAL_N_TRANSFER] = {
 		.mh.timeout = 5000,	/* ms */
 	},
 
-	[1] = {
+	[URAL_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -387,7 +386,7 @@ static const struct usb2_config ural_config[URAL_N_TRANSFER] = {
 		.mh.callback = &ural_bulk_read_callback,
 	},
 
-	[2] = {
+	[URAL_BULK_CS_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -397,7 +396,7 @@ static const struct usb2_config ural_config[URAL_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[3] = {
+	[URAL_BULK_CS_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -468,8 +467,7 @@ ural_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	sc->sc_unit = device_get_unit(dev);
 
-	usb2_callout_init_mtx(&sc->sc_watchdog,
-	    &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	iface_index = RAL_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device,
@@ -496,10 +494,8 @@ ural_attach(device_t dev)
 	usb2_config_td_queue_command
 	    (&sc->sc_config_td, NULL, &ural_cfg_first_time_setup, 0, 0);
 
-	/* start watchdog (will exit mutex) */
-
 	ural_watchdog(sc);
-
+	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -790,8 +786,9 @@ ural_cfg_first_time_setup(struct ural_softc *sc,
 	/* retrieve MAC address and various other things from EEPROM */
 	ural_cfg_read_eeprom(sc);
 
-	printf("%s: MAC/BBP RT2570 (rev 0x%02x), RF %s\n",
-	    sc->sc_name, sc->sc_asic_rev, ural_get_rf(sc->sc_rf_rev));
+	printf("%s: MAC/BBP RT2570 (rev 0x%02x), RF %s (0x%02x)\n",
+	    sc->sc_name, sc->sc_asic_rev, ural_get_rf(sc->sc_rf_rev),
+	    sc->sc_rf_rev);
 
 	mtx_unlock(&sc->sc_mtx);
 
@@ -803,7 +800,6 @@ ural_cfg_first_time_setup(struct ural_softc *sc,
 		DPRINTFN(0, "could not if_alloc()!\n");
 		goto done;
 	}
-	sc->sc_evilhack = ifp;
 	sc->sc_ifp = ifp;
 	ic = ifp->if_l2com;
 
@@ -884,7 +880,7 @@ ural_end_of_commands(struct ural_softc *sc)
 	sc->sc_flags &= ~URAL_FLAG_WAIT_COMMAND;
 
 	/* start write transfer, if not started */
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[URAL_BULK_DT_WR]);
 }
 
 static void
@@ -961,8 +957,11 @@ ural_config_copy(struct ural_softc *sc,
 static const char *
 ural_get_rf(int rev)
 {
+	;				/* style fix */
+
 	switch (rev) {
-		case RAL_RF_2522:return "RT2522";
+	case RAL_RF_2522:
+		return "RT2522";
 	case RAL_RF_2523:
 		return "RT2523";
 	case RAL_RF_2524:
@@ -1077,7 +1076,7 @@ ural_bulk_read_callback(struct usb2_xfer *xfer)
 tr_setup:
 
 		if (sc->sc_flags & URAL_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[URAL_BULK_CS_RD]);
 		} else {
 			xfer->frlengths[0] = xfer->max_data_length;
 			usb2_start_hardware(xfer);
@@ -1115,7 +1114,7 @@ tr_setup:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= URAL_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[3]);
+			usb2_transfer_start(sc->sc_xfer[URAL_BULK_CS_RD]);
 		}
 		return;
 
@@ -1126,7 +1125,7 @@ static void
 ural_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ural_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[1];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[URAL_BULK_DT_RD];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -1293,7 +1292,7 @@ ural_setup_desc_and_tx(struct ural_softc *sc, struct mbuf *m,
 	/* start write transfer, if not started */
 	_IF_ENQUEUE(&sc->sc_tx_queue, mm);
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[URAL_BULK_DT_WR]);
 }
 
 static void
@@ -1313,7 +1312,7 @@ ural_bulk_write_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & URAL_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[URAL_BULK_CS_WR]);
 			break;
 		}
 		if (sc->sc_flags & URAL_FLAG_WAIT_COMMAND) {
@@ -1371,7 +1370,7 @@ ural_bulk_write_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= URAL_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[2]);
+			usb2_transfer_start(sc->sc_xfer[URAL_BULK_CS_WR]);
 		}
 		ifp->if_oerrors++;
 		break;
@@ -1382,7 +1381,7 @@ static void
 ural_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ural_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[URAL_BULK_DT_WR];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
@@ -1405,8 +1404,6 @@ ural_watchdog(void *arg)
 	}
 	usb2_callout_reset(&sc->sc_watchdog,
 	    hz, &ural_watchdog, sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 
 /*========================================================================*
@@ -1470,7 +1467,7 @@ ural_start_cb(struct ifnet *ifp)
 
 	mtx_lock(&sc->sc_mtx);
 	/* start write transfer, if not started */
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[URAL_BULK_DT_WR]);
 	mtx_unlock(&sc->sc_mtx);
 }
 
@@ -2162,8 +2159,8 @@ ural_cfg_init(struct ural_softc *sc,
 		/*
 		 * start the USB transfers, if not already started:
 		 */
-		usb2_transfer_start(sc->sc_xfer[1]);
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[URAL_BULK_DT_RD]);
+		usb2_transfer_start(sc->sc_xfer[URAL_BULK_DT_WR]);
 
 		/*
 		 * start IEEE802.11 layer
@@ -2221,10 +2218,10 @@ ural_cfg_pre_stop(struct ural_softc *sc,
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	usb2_transfer_stop(sc->sc_xfer[1]);
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	usb2_transfer_stop(sc->sc_xfer[3]);
+	usb2_transfer_stop(sc->sc_xfer[URAL_BULK_DT_WR]);
+	usb2_transfer_stop(sc->sc_xfer[URAL_BULK_DT_RD]);
+	usb2_transfer_stop(sc->sc_xfer[URAL_BULK_CS_WR]);
+	usb2_transfer_stop(sc->sc_xfer[URAL_BULK_CS_RD]);
 
 	/* clean up transmission */
 	ural_tx_clean_queue(sc);

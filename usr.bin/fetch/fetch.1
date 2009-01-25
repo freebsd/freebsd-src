@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2003
+.Dd December 14, 2008
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nm
 .Op Fl 146AadFlMmnPpqRrsUv
 .Op Fl B Ar bytes
+.Op Fl i Ar file
 .Op Fl N Ar file
 .Op Fl o Ar file
 .Op Fl S Ar bytes
@@ -48,6 +49,7 @@
 .Nm
 .Op Fl 146AadFlMmnPpqRrsUv
 .Op Fl B Ar bytes
+.Op Fl i Ar file
 .Op Fl N Ar file
 .Op Fl o Ar file
 .Op Fl S Ar bytes
@@ -116,6 +118,12 @@ The file to retrieve is located on the host
 .Ar host .
 This option is deprecated and is provided for backward compatibility
 only.
+.It Fl i Ar file
+If-Modified-Since mode: the remote file will only be retrieved if it
+is newer than
+.Ar file
+on the local host.
+(HTTP only)
 .It Fl l
 If the target is a file-scheme URL, make a symbolic link to the target
 rather than trying to copy it.
@@ -249,6 +257,12 @@ If multiple URLs are listed on the command line,
 .Nm
 will attempt to retrieve each one of them in turn, and will return
 zero only if they were all successfully retrieved.
+.Pp
+If the
+.Fl i
+argument is used and the remote file is not newer than the
+specified file then the command will still return success,
+although no file is transferred.
 .Sh SEE ALSO
 .Xr fetch 3
 .Sh HISTORY

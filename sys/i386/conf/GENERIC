@@ -1,8 +1,8 @@
 #
 # GENERIC -- Generic kernel configuration file for FreeBSD/i386
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -25,6 +25,12 @@ ident		GENERIC
 
 # To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
+
+# Use the following to compile in values accessible to the kernel
+# through getenv() (or kenv(1) in userland). The format of the file
+# is 'variable=value', see kenv(1)
+#
+# env		"GENERIC.env"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
@@ -65,6 +71,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 options  	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
+#options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
@@ -268,7 +275,7 @@ device		ath_hal		# pci/cardbus chip support
 options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ral		# Ralink Technology RT2500 wireless NICs.
-#device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
+device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices.

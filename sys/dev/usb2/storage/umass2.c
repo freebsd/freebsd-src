@@ -400,6 +400,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_GETMAXLUN
 	},
+	{USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_TRANSCEND, RID_WILDCARD,
+		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+		NO_GETMAXLUN
+	},
 	{USB_VENDOR_ASAHIOPTICAL, USB_PRODUCT_ASAHIOPTICAL_OPTIO230, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_INQUIRY
@@ -636,10 +640,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_SCSI,
 		NO_GETMAXLUN
 	},
-       { USB_VENDOR_ONSPEC, USB_PRODUCT_ONSPEC_SDS_HOTFIND_D, RID_WILDCARD,
-         UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-         NO_GETMAXLUN | NO_SYNCHRONIZE_CACHE
-       },
+	{USB_VENDOR_ONSPEC, USB_PRODUCT_ONSPEC_SDS_HOTFIND_D, RID_WILDCARD,
+		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+		NO_GETMAXLUN | NO_SYNCHRONIZE_CACHE
+	},
 	{USB_VENDOR_ONSPEC, USB_PRODUCT_ONSPEC_CFMS_RW, RID_WILDCARD,
 		UMASS_PROTO_SCSI,
 		NO_QUIRKS
@@ -911,6 +915,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 	{USB_VENDOR_ZORAN, USB_PRODUCT_ZORAN_EX20DSC, RID_WILDCARD,
 		UMASS_PROTO_ATAPI | UMASS_PROTO_CBI,
 		NO_QUIRKS
+	},
+	{USB_VENDOR_MEIZU, USB_PRODUCT_MEIZU_M6_SL, RID_WILDCARD,
+		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+		NO_INQUIRY | NO_SYNCHRONIZE_CACHE
 	},
 	{VID_EOT, PID_EOT, RID_EOT, 0, 0}
 };
@@ -2406,6 +2414,9 @@ umass_t_cbi_data_read_callback(struct usb2_xfer *xfer)
 		}
 		xfer->timeout = sc->sc_transfer.data_timeout;
 
+		if (xfer->flags.ext_buffer) {
+			usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+		}
 		xfer->frlengths[0] = max_bulk;
 		usb2_start_hardware(xfer);
 		return;

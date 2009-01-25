@@ -120,7 +120,6 @@ tunable_mbinit(void *dummy)
 }
 SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 
-/* XXX: These should be tuneables. Can't change UMA limits on the fly. */
 static int
 sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 {
@@ -421,6 +420,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.csum_data = 0;
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
+		m->m_pkthdr.flowid = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -645,6 +645,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.csum_data = 0;
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
+		m->m_pkthdr.flowid = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */

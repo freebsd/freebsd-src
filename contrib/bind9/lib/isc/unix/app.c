@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.c,v 1.50.18.2.50.1 2008/07/29 04:47:31 each Exp $ */
+/* $Id: app.c,v 1.50.18.8 2008/10/15 03:41:17 marka Exp $ */
 
 /*! \file */
 
@@ -30,6 +30,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/time.h>
+#ifdef HAVE_EPOLL
+#include <sys/epoll.h>
+#endif
 
 #include <isc/app.h>
 #include <isc/boolean.h>
@@ -59,11 +62,11 @@ static isc_boolean_t		running = ISC_FALSE;
 /*!
  * We assume that 'want_shutdown' can be read and written atomically.
  */
-static isc_boolean_t		want_shutdown = ISC_FALSE;
+static volatile isc_boolean_t	want_shutdown = ISC_FALSE;
 /*
  * We assume that 'want_reload' can be read and written atomically.
  */
-static isc_boolean_t		want_reload = ISC_FALSE;
+static volatile isc_boolean_t	want_reload = ISC_FALSE;
 
 static isc_boolean_t		blocked  = ISC_FALSE;
 #ifdef ISC_PLATFORM_USETHREADS
@@ -87,13 +90,13 @@ static pthread_t		main_thread;
 #ifndef HAVE_SIGWAIT
 static void
 exit_action(int arg) {
-        UNUSED(arg);
+	UNUSED(arg);
 	want_shutdown = ISC_TRUE;
 }
 
 static void
 reload_action(int arg) {
-        UNUSED(arg);
+	UNUSED(arg);
 	want_reload = ISC_TRUE;
 }
 #endif
@@ -297,14 +300,13 @@ isc_app_onrun(isc_mem_t *mctx, isc_task_t *task, isc_taskaction_t action,
  * Event loop for nonthreaded programs.
  */
 static isc_result_t
-evloop() {
+evloop(void) {
 	isc_result_t result;
 	while (!want_shutdown) {
 		int n;
 		isc_time_t when, now;
 		struct timeval tv, *tvp;
-		fd_set *readfds, *writefds;
-		int maxfd;
+		isc_socketwait_t *swait;
 		isc_boolean_t readytasks;
 		isc_boolean_t call_timer_dispatch = ISC_FALSE;
 
@@ -331,15 +333,15 @@ evloop() {
 			}
 		}
 
-		isc__socketmgr_getfdsets(&readfds, &writefds, &maxfd);
-		n = select(maxfd, readfds, writefds, NULL, tvp);
+		swait = NULL;
+		n = isc__socketmgr_waitevents(tvp, &swait);
 
 		if (n == 0 || call_timer_dispatch) {
 			/*
 			 * We call isc__timermgr_dispatch() only when
 			 * necessary, in order to reduce overhead.  If the
 			 * select() call indicates a timeout, we need the
-			 * dispatch.  Even if not, if we set the 0-timeout 
+			 * dispatch.  Even if not, if we set the 0-timeout
 			 * for the select() call, we need to check the timer
 			 * events.  In the 'readytasks' case, there may be no
 			 * timeout event actually, but there is no other way
@@ -352,8 +354,7 @@ evloop() {
 			isc__timermgr_dispatch();
 		}
 		if (n > 0)
-			(void)isc__socketmgr_dispatch(readfds, writefds,
-						      maxfd);
+			(void)isc__socketmgr_dispatch(swait);
 		(void)isc__taskmgr_dispatch();
 
 		if (want_reload) {
@@ -423,7 +424,7 @@ isc__nothread_signal_hack(isc_condition_t *cp) {
 	signalled = ISC_TRUE;
 	return (ISC_R_SUCCESS);
 }
-	
+
 #endif /* ISC_PLATFORM_USETHREADS */
 
 isc_result_t
@@ -434,10 +435,10 @@ isc_app_run(void) {
 #ifdef ISC_PLATFORM_USETHREADS
 	sigset_t sset;
 	char strbuf[ISC_STRERRORSIZE];
-#endif /* ISC_PLATFORM_USETHREADS */
 #ifdef HAVE_SIGWAIT
 	int sig;
 #endif
+#endif /* ISC_PLATFORM_USETHREADS */
 
 #ifdef HAVE_LINUXTHREADS
 	REQUIRE(main_thread == pthread_self());
@@ -676,7 +677,7 @@ isc_app_unblock(void) {
 	REQUIRE(blockedthread == pthread_self());
 
 	RUNTIME_CHECK(sigemptyset(&sset) == 0 &&
-		      sigaddset(&sset, SIGINT) == 0 && 
+		      sigaddset(&sset, SIGINT) == 0 &&
 		      sigaddset(&sset, SIGTERM) == 0);
 	RUNTIME_CHECK(pthread_sigmask(SIG_BLOCK, &sset, NULL) == 0);
 #endif /* ISC_PLATFORM_USETHREADS */

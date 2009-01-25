@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <arm/xscale/i8134x/i81342reg.h>

@@ -31,6 +31,7 @@
  */
 #include "opt_sctp.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -53,6 +54,8 @@
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
@@ -373,7 +376,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				 * 3. As a last resort return the 'default'
 				 * jail address.
 				 */
-				if (prison_getip4(cred, &ia) != 0)
+				if (prison_get_ip4(cred, &ia) != 0)
 					return (ESRCH);
 			}
 			bzero(&saun->sin, sizeof(struct sockaddr_in));
@@ -425,7 +428,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				 * 3. As a last resort return the 'default'
 				 * jail address.
 				 */
-				if (prison_getip6(cred, &ia6) != 0)
+				if (prison_get_ip6(cred, &ia6) != 0)
 					return (ESRCH);
 			}
 			bzero(&saun->sin6, sizeof(struct sockaddr_in6));
@@ -496,19 +499,6 @@ route_output(struct mbuf *m, struct socket *so)
 	    (info.rti_info[RTAX_GATEWAY] != NULL &&
 	     info.rti_info[RTAX_GATEWAY]->sa_family >= AF_MAX))
 		senderr(EINVAL);
-	if (info.rti_info[RTAX_GENMASK]) {
-		struct radix_node *t;
-		t = rn_addmask((caddr_t) info.rti_info[RTAX_GENMASK], 0, 1);
-		if (t != NULL &&
-		    bcmp((char *)(void *)info.rti_info[RTAX_GENMASK] + 1,
-		    (char *)(void *)t->rn_key + 1,
-		    ((struct sockaddr *)t->rn_key)->sa_len - 1) == 0)
-			info.rti_info[RTAX_GENMASK] =
-			    (struct sockaddr *)t->rn_key;
-		else
-			senderr(ENOBUFS);
-	}
-
 	/*
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
@@ -526,6 +516,13 @@ route_output(struct mbuf *m, struct socket *so)
 		if (info.rti_info[RTAX_GATEWAY] == NULL)
 			senderr(EINVAL);
 		saved_nrt = NULL;
+
+		/* support for new ARP code */
+		if (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
+		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
+			error = lla_rt_output(rtm, &info);
+			break;
+		}
 		error = rtrequest1_fib(RTM_ADD, &info, &saved_nrt,
 		    so->so_fibnum);
 		if (error == 0 && saved_nrt) {
@@ -534,13 +531,19 @@ route_output(struct mbuf *m, struct socket *so)
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
 			rtm->rtm_index = saved_nrt->rt_ifp->if_index;
 			RT_REMREF(saved_nrt);
-			saved_nrt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			RT_UNLOCK(saved_nrt);
 		}
 		break;
 
 	case RTM_DELETE:
 		saved_nrt = NULL;
+		/* support for new ARP code */
+		if (info.rti_info[RTAX_GATEWAY] && 
+		    (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) &&
+		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
+			error = lla_rt_output(rtm, &info);
+			break;
+		}
 		error = rtrequest1_fib(RTM_DELETE, &info, &saved_nrt,
 		    so->so_fibnum);
 		if (error == 0) {
@@ -609,19 +612,25 @@ route_output(struct mbuf *m, struct socket *so)
 		case RTM_GET:
 		report:
 			RT_LOCK_ASSERT(rt);
+			if (jailed(curthread->td_ucred) &&
+			    ((rt->rt_flags & RTF_HOST) == 0 ||
+			    !prison_if(curthread->td_ucred, rt_key(rt)))) {
+				RT_UNLOCK(rt);
+				senderr(ESRCH);
+			}
 			info.rti_info[RTAX_DST] = rt_key(rt);
 			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-			info.rti_info[RTAX_GENMASK] = rt->rt_genmask;
+			info.rti_info[RTAX_GENMASK] = 0;
 			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
 				ifp = rt->rt_ifp;
 				if (ifp) {
 					info.rti_info[RTAX_IFP] =
 					    ifp->if_addr->ifa_addr;
-					if (jailed(so->so_cred)) {
+					if (jailed(curthread->td_ucred)) {
 						error = rtm_get_jailed(
 						    &info, ifp, rt, &saun,
-						    so->so_cred);
+						    curthread->td_ucred);
 						if (error != 0) {
 							RT_UNLOCK(rt);
 							senderr(ESRCH);
@@ -699,8 +708,7 @@ route_output(struct mbuf *m, struct socket *so)
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
-				if (!(rt->rt_flags & RTF_LLINFO))
-					rt->rt_flags |= RTF_GATEWAY;
+				rt->rt_flags |= RTF_GATEWAY;
 			}
 			if (info.rti_ifa != NULL &&
 			    info.rti_ifa != rt->rt_ifa) {
@@ -718,8 +726,6 @@ route_output(struct mbuf *m, struct socket *so)
 			rtm->rtm_index = rt->rt_ifp->if_index;
 			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest)
 			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
-			if (info.rti_info[RTAX_GENMASK])
-				rt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			/* FALLTHROUGH */
 		case RTM_LOCK:
 			/* We don't support locks anymore */
@@ -1257,11 +1263,15 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
+	if (jailed(w->w_req->td->td_ucred) &&
+	    ((rt->rt_flags & RTF_HOST) == 0 ||
+	    !prison_if(w->w_req->td->td_ucred, rt_key(rt))))
+		return (0);
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-	info.rti_info[RTAX_GENMASK] = rt->rt_genmask;
+	info.rti_info[RTAX_GENMASK] = 0;
 	if (rt->rt_ifp) {
 		info.rti_info[RTAX_IFP] = rt->rt_ifp->if_addr->ifa_addr;
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
@@ -1317,8 +1327,8 @@ sysctl_iflist(int af, struct walkarg *w)
 		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != NULL) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
-			if (jailed(curthread->td_ucred) &&
-			    !prison_if(curthread->td_ucred, ifa->ifa_addr))
+			if (jailed(w->w_req->td->td_ucred) &&
+			    !prison_if(w->w_req->td->td_ucred, ifa->ifa_addr))
 				continue;
 			info.rti_info[RTAX_IFA] = ifa->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
@@ -1345,7 +1355,7 @@ done:
 	return (error);
 }
 
-int
+static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
 	INIT_VNET_NET(curvnet);
@@ -1366,8 +1376,8 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
-			if (jailed(curproc->p_ucred) &&
-			    !prison_if(curproc->p_ucred, ifma->ifma_addr))
+			if (jailed(w->w_req->td->td_ucred) &&
+			    !prison_if(w->w_req->td->td_ucred, ifma->ifma_addr))
 				continue;
 			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
 			info.rti_info[RTAX_GATEWAY] =
@@ -1432,8 +1442,24 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 			lim = AF_MAX;
 		} else				/* dump only one table */
 			i = lim = af;
+
+		/*
+		 * take care of llinfo entries, the caller must
+		 * specify an AF
+		 */
+		if (w.w_op == NET_RT_FLAGS &&
+		    (w.w_arg == 0 || w.w_arg & RTF_LLINFO)) {
+			if (af != 0)
+				error = lltable_sysctl_dumparp(af, w.w_req);
+			else
+				error = EINVAL;
+			break;
+		}
+		/*
+		 * take care of routing entries
+		 */
 		for (error = 0; error == 0 && i <= lim; i++)
-			if ((rnh = V_rt_tables[curthread->td_proc->p_fibnum][i]) != NULL) {
+			if ((rnh = V_rt_tables[req->td->td_proc->p_fibnum][i]) != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);

@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <net/if_llatbl.h>
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
@@ -247,7 +248,7 @@ ip6_init(void)
 	if (pr == 0)
 		panic("ip6_init");
 
-	/* Initialize the entire ip_protox[] array to IPPROTO_RAW. */
+	/* Initialize the entire ip6_protox[] array to IPPROTO_RAW. */
 	for (i = 0; i < IPPROTO_MAX; i++)
 		ip6_protox[i] = pr - inet6sw;
 	/*
@@ -311,9 +312,11 @@ ip6_input(struct mbuf *m)
 	u_int32_t plen;
 	u_int32_t rtalert = ~0;
 	int nxt, ours = 0;
-	struct ifnet *deliverifp = NULL;
+	struct ifnet *deliverifp = NULL, *ifp = NULL;
 	struct in6_addr odst;
 	int srcrt = 0;
+	struct llentry *lle = NULL;
+	struct sockaddr_in6 dst6;
 
 #ifdef IPSEC
 	/*
@@ -548,6 +551,25 @@ passin:
 	/*
 	 *  Unicast check
 	 */
+
+	bzero(&dst6, sizeof(dst6));
+	dst6.sin6_family = AF_INET6;
+	dst6.sin6_len = sizeof(struct sockaddr_in6);
+	dst6.sin6_addr = ip6->ip6_dst;
+	ifp = m->m_pkthdr.rcvif;
+	IF_AFDATA_LOCK(ifp);
+	lle = lla_lookup(LLTABLE6(ifp), 0,
+	     (struct sockaddr *)&dst6);
+	IF_AFDATA_UNLOCK(ifp);
+	if ((lle != NULL) && (lle->la_flags & LLE_IFADDR)) {
+		ours = 1;
+		deliverifp = ifp;
+		LLE_RUNLOCK(lle);
+		goto hbhcheck;
+	}
+	if (lle != NULL)
+		LLE_RUNLOCK(lle);
+
 	if (V_ip6_forward_rt.ro_rt != NULL &&
 	    (V_ip6_forward_rt.ro_rt->rt_flags & RTF_UP) != 0 &&
 	    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
@@ -1204,7 +1226,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 	if (v4only)
 		return;
 
-	if ((in6p->in6p_flags & IN6P_TCLASS) != 0) {
+	if ((in6p->inp_flags & IN6P_TCLASS) != 0) {
 		u_int32_t flowinfo;
 		int tclass;
 
@@ -1225,7 +1247,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 	 * returned to normal user.
 	 * See also RFC 2292 section 6 (or RFC 3542 section 8).
 	 */
-	if ((in6p->in6p_flags & IN6P_HOPOPTS) != 0) {
+	if ((in6p->inp_flags & IN6P_HOPOPTS) != 0) {
 		/*
 		 * Check if a hop-by-hop options header is contatined in the
 		 * received packet, and if so, store the options as ancillary
@@ -1277,7 +1299,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 		}
 	}
 
-	if ((in6p->in6p_flags & (IN6P_RTHDR | IN6P_DSTOPTS)) != 0) {
+	if ((in6p->inp_flags & (IN6P_RTHDR | IN6P_DSTOPTS)) != 0) {
 		int nxt = ip6->ip6_nxt, off = sizeof(struct ip6_hdr);
 
 		/*
@@ -1338,7 +1360,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 
 			switch (nxt) {
 			case IPPROTO_DSTOPTS:
-				if (!(in6p->in6p_flags & IN6P_DSTOPTS))
+				if (!(in6p->inp_flags & IN6P_DSTOPTS))
 					break;
 
 				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
@@ -1349,7 +1371,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 					mp = &(*mp)->m_next;
 				break;
 			case IPPROTO_ROUTING:
-				if (!in6p->in6p_flags & IN6P_RTHDR)
+				if (!in6p->inp_flags & IN6P_RTHDR)
 					break;
 
 				*mp = sbcreatecontrol((caddr_t)ip6e, elen,

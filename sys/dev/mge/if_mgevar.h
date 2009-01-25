@@ -91,6 +91,14 @@ struct mge_softc {
 	uint32_t	tx_ic_time;
 	struct mge_desc_wrapper mge_tx_desc[MGE_TX_DESC_NUM];
 	struct mge_desc_wrapper mge_rx_desc[MGE_RX_DESC_NUM];
+
+	uint32_t	mge_tfut_ipg_max;		/* TX FIFO Urgent Threshold */
+	uint32_t	mge_rx_ipg_max;
+	uint32_t	mge_tx_arb_cfg;
+	uint32_t	mge_tx_tok_cfg;
+	uint32_t	mge_tx_tok_cnt;
+	uint16_t	mge_mtu;
+	int		mge_ver;
 };
 
 
@@ -183,15 +191,6 @@ struct mge_softc {
 #define MGE_SDMA_RX_BYTE_SWAP		(1 << 4)
 #define MGE_SDMA_TX_BYTE_SWAP		(1 << 5)
 #define MGE_SDMA_DESC_SWAP_MODE		(1 << 6)
-#if defined(MGE_VER2)
-#define MGE_SDMA_RX_IPG_MAX		0xFFFF
-#define MGE_SDMA_RX_IPG(val)		((((val) & 0x8000) << 10) | \
-					(((val) & 0x7fff) << 7))
-#else
-#define MGE_SDMA_RX_IPG_MAX		0x3FFF
-#define MGE_SDMA_RX_IPG(val)		(((val) & 0x3fff) << 8)
-#endif
-
 
 #define MGE_PORT_SERIAL_CTRL		0x43c
 #define PORT_SERIAL_ENABLE		(1 << 0) /* serial port enable */
@@ -248,13 +247,6 @@ struct mge_softc {
 #define MGE_COLLISION_LIMIT(val)	(((val) & 0x3f) << 16)
 #define MGE_DROP_ODD_PREAMBLE		(1 << 22)
 
-#if defined(MGE_VER2)
-#define MGE_MTU			0x4e8
-#else
-#define MGE_MTU			0x458
-#endif
-#define MGE_MTU_DEFAULT		0x0
-
 #define MGE_PORT_INT_CAUSE	0x460
 #define MGE_PORT_INT_MASK	0x468
 #define MGE_PORT_INT_RX		(1 << 0)
@@ -277,13 +269,6 @@ struct mge_softc {
 
 #define MGE_RX_FIFO_URGENT_TRSH		0x470
 #define MGE_TX_FIFO_URGENT_TRSH		0x474
-#if defined(MGE_VER2)
-#define	MGE_TX_FIFO_URGENT_TRSH_IPG_MAX	0xFFFF
-#define MGE_TX_FIFO_URGENT_TRSH_IPG(vl)	(((vl) & 0xFFFF) << 4)
-#else
-#define	MGE_TX_FIFO_URGENT_TRSH_IPG_MAX	0x3FFF
-#define MGE_TX_FIFO_URGENT_TRSH_IPG(vl)	(((vl) & 0x3FFF) << 4)
-#endif
 
 #define MGE_FIXED_PRIO_CONF		0x4dc
 #define MGE_FIXED_PRIO_EN(q)		(1 << (q))
@@ -300,12 +285,7 @@ struct mge_softc {
 
 #define MGE_TX_TOKEN_COUNT(q)		(0x700 + ((q)<<4))
 #define MGE_TX_TOKEN_CONF(q)		(0x704 + ((q)<<4))
-#define MGE_TX_TOKEN_Q0_DFLT		0x3fffffff
-#define MGE_TX_TOKEN_Q1_7_DFLT		0x0
-
 #define MGE_TX_ARBITER_CONF(q)		(0x704 + ((q)<<4))
-#define MGE_TX_ARB_Q0_DFLT		0xff
-#define MGE_TX_ARB_Q1_7_DFLT		0x0
 
 #define MGE_MCAST_REG_NUMBER		64
 #define MGE_DA_FILTER_SPEC_MCAST(i)	(0x1400 + ((i) << 2))

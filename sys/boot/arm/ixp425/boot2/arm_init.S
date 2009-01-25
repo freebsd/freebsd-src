@@ -24,8 +24,9 @@
  * $FreeBSD$
  */
 
-start:
+#include <machine/asm.h>
 
+ASENTRY_NP(start)
 /* Initialise bss and sp */
 	nop
 	adr	r1, .Lstart
@@ -47,4 +48,9 @@ infiniteLoop:
 	.word	_edata
 	.word	_end
 	.word	BOOT_STACK
+
+ENTRY(cpu_id)
+	mrc	p15, 0, r0, c0, c0, 0
+	RET
+
 /* End */

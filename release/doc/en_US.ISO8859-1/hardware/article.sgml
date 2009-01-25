@@ -90,22 +90,40 @@
 	</listitem>
 
 	<listitem>
-	  <para>&intel; 64-bit &xeon; (<quote>Nocona</quote>).  This
-	    processor is fabricated on 90nm process technology, and
-	    operates with 2.80 to 3.60 GHz (FSB 800MHz) and &intel;
-	    E7520/E7525/E7320 chipsets.</para>
+	  <para>All multi-core &intel; &xeon; processors except
+	    Sossaman have EM64T support.</para>
 	</listitem>
 
 	<listitem>
-	  <para>&intel; &pentium; 4 Processor supporting &intel; EM64T
-	    (<quote>Prescott</quote>).  This is fabricated on 90nm
-	    process technology, uses FC-LGA775 package, and operates
-	    with 3.20F/3.40F/3.60F GHz and &intel; 925X Express
-	    chipsets.  The corresponding S-Spec numbers are SL7L9,
-	    SL7L8, SL7LA, SL7NZ, SL7PZ, and SL7PX. Note that
-	    processors marked as 5xx numbers do not support
-	    EM64T.</para>
+          <para>The single-core &intel; &xeon;
+            processors <quote>Nocona</quote>, <quote>Irwindale</quote>,
+	    <quote>Potomac</quote>, and <quote>Cranford</quote> have
+	    EM64T support.</para>
 	</listitem>
+
+	<listitem>
+	  <para>All &intel; Core 2 (not Core Duo) and later
+	    processors</para>
+	</listitem>
+
+	<listitem>
+	  <para>All &intel; &pentium; D processors</para>
+	</listitem>
+
+	<listitem>
+	  <para>&intel; &pentium; 4s and Celeron Ds using
+	    the <quote>Cedar Mill</quote> core have EM64T
+	    support.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Some &intel; &pentium; 4s and Celeron Ds using
+	    the <quote>Prescott</quote> core have EM64T support.  See
+	    the <ulink url="http://processorfinder.intel.com">Intel
+	    Processor Spec Finder</ulink> for the definitive answer about
+	    EM64T support in Intel processors.</para>
+	</listitem>
+
       </itemizedlist>
 
       <para>&intel; EM64T is an extended version of IA-32 (x86) and
@@ -114,7 +132,7 @@
 	to &intel; EM64T as <quote>64-bit extension technology</quote>
 	or <quote>IA-32e</quote>.</para>
 
-      <para>The largest tested memory configuration to date is 8GB.
+      <para>The largest tested memory configuration to date is 64GB.
 	SMP support has been recently completed and is reasonably
 	robust.</para>
 
@@ -760,7 +778,7 @@
 
       &hwlist.tl;
 
-      <para>[&arch.amd64;, &arch.i386, &arch.pc98;] SMC 83c17x
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] SMC 83c17x
 	(EPIC)-based Ethernet NICs (&man.tx.4; driver)</para>
 
       &hwlist.txp;
@@ -784,7 +802,7 @@
     <sect2 id="fddi">
       <title>FDDI Interfaces</title>
 
-      <para>[&arch.i386, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4;
+      <para>[&arch.i386;, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4;
 	driver)</para>
 
       <para>[&arch.i386;] DEC DEFEA EISA (&man.fpa.4; driver)</para>
@@ -793,17 +811,17 @@
     <sect2 id="atm">
       <title>ATM Interfaces</title>
 
-      <para>[&arch.i386, &arch.pc98;] Midway-based ATM interfaces
+      <para>[&arch.i386;, &arch.pc98;] Midway-based ATM interfaces
 	(&man.en.4; driver)</para>
 
-      <para>[&arch.i386, &arch.pc98; &arch.sparc64;] FORE Systems,
+      <para>[&arch.i386;, &arch.pc98; &arch.sparc64;] FORE Systems,
 	Inc. PCA-200E ATM PCI Adapters (hfa and &man.fatm.4;
 	drivers)</para>
 
       <para>[&arch.i386;, &arch.pc98;] IDT NICStAR 77201/211-based ATM
 	Adapters (&man.idt.4; driver)</para>
 
-      <para>[&arch.i386, &arch.pc98; &arch.sparc64;] FORE Systems,
+      <para>[&arch.i386;, &arch.pc98; &arch.sparc64;] FORE Systems,
 	Inc. HE155 and HE622 ATM interfaces (&man.hatm.4;
 	driver)</para>
 
@@ -1008,7 +1026,7 @@
     <sect2 id="serial">
       <title>Serial Interfaces</title>
 
-      <para>[&arch.amd64; &arch.i386;] <quote>PC standard</quote>
+      <para>[&arch.amd64;, &arch.i386;] <quote>PC standard</quote>
 	8250, 16450, and 16550-based serial ports (&man.sio.4;
 	driver)</para>
 
@@ -1016,7 +1034,7 @@
 
       &hwlist.scc;
 
-      <para>[&arch.amd64; &arch.i386;] AST 4 port serial card using
+      <para>[&arch.amd64;, &arch.i386;] AST 4 port serial card using
 	shared IRQ</para>
 
       <para>[&arch.i386;] ARNET serial cards (&man.ar.4;
@@ -1068,25 +1086,25 @@
       <para>[&arch.i386;] DigiBoard intelligent serial cards (digi
 	driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386, &arch.ia64;] PCI-Based
+      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;] PCI-Based
 	multi-port serial boards (&man.puc.4; driver)</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Actiontech 56K PCI</para>
+	  <para>[&arch.amd64;, &arch.i386;] Actiontech 56K PCI</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Avlab Technology, PCI IO 2S
+	  <para>[&arch.amd64;, &arch.i386;] Avlab Technology, PCI IO 2S
 	    and PCI IO 4S</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Comtrol RocketPort 550</para>
+	  <para>[&arch.amd64;, &arch.i386;] Comtrol RocketPort 550</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Decision Computers PCCOM
+	  <para>[&arch.amd64;, &arch.i386;] Decision Computers PCCOM
 	    4-port serial and dual port RS232/422/485</para>
 	</listitem>
 
@@ -1095,92 +1113,92 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Dolphin Peripherals
+	  <para>[&arch.amd64;, &arch.i386;] Dolphin Peripherals
 	    4025/4035/4036</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] IC Book Labs Dreadnought
+	  <para>[&arch.amd64;, &arch.i386;] IC Book Labs Dreadnought
 	    16x Lite and Pro</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Lava Computers
+	  <para>[&arch.amd64;, &arch.i386;] Lava Computers
 	    2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Middle Digital, Weasle
+	  <para>[&arch.amd64;, &arch.i386;] Middle Digital, Weasle
 	    serial port</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Moxa Industio CP-114,
+	  <para>[&arch.amd64;, &arch.i386;] Moxa Industio CP-114,
 	    Smartio C104H-PCI and C168H/PCI</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] NEC PK-UG-X001 and
+	  <para>[&arch.amd64;, &arch.i386;] NEC PK-UG-X001 and
 	    PK-UG-X008</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Netmos NM9835
+	  <para>[&arch.amd64;, &arch.i386;] Netmos NM9835
 	    PCI-2S-550</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Oxford Semiconductor
+	  <para>[&arch.amd64;, &arch.i386;] Oxford Semiconductor
 	    OX16PCI954 PCI UART</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Syba Tech SD-LAB
+	  <para>[&arch.amd64;, &arch.i386;] Syba Tech SD-LAB
 	    PCI-4S2P-550-ECP</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber I/O PCI
+	  <para>[&arch.amd64;, &arch.i386;] SIIG Cyber I/O PCI
 	    16C550/16C650/16C850</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber 2P1S PCI
+	  <para>[&arch.amd64;, &arch.i386;] SIIG Cyber 2P1S PCI
 	    16C550/16C650/16C850</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber 2S1P PCI
+	  <para>[&arch.amd64;, &arch.i386;] SIIG Cyber 2S1P PCI
 	    16C550/16C650/16C850</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber 4S PCI
+	  <para>[&arch.amd64;, &arch.i386;] SIIG Cyber 4S PCI
 	  16C550/16C650/16C850</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber Serial (Single
+	  <para>[&arch.amd64;, &arch.i386;] SIIG Cyber Serial (Single
 	    and Dual) PCI 16C550/16C650/16C850</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Syba Tech
+	  <para>[&arch.amd64;, &arch.i386;] Syba Tech
 	    Ltd. PCI-4S2P-550-ECP</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Titan PCI-200H and
+	  <para>[&arch.amd64;, &arch.i386;] Titan PCI-200H and
 	    PCI-800H</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] US Robotics (3Com) 3CP5609
+	  <para>[&arch.amd64;, &arch.i386;] US Robotics (3Com) 3CP5609
 	    modem</para>
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] VScom PCI-400 and
+	  <para>[&arch.amd64;, &arch.i386;] VScom PCI-400 and
 	    PCI-800</para>
 	</listitem>
       </itemizedlist>
@@ -1406,7 +1424,7 @@
       <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
 	Keyboards (&man.ukbd.4; driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Miscellaneous</para>
 
       <itemizedlist>
@@ -1507,7 +1525,7 @@
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Floppy drives
 	(&man.fdc.4; driver)</para>
 
-      <para>[&arch.amd64; &arch.i386;] VGA-compatible video cards
+      <para>[&arch.amd64;, &arch.i386;] VGA-compatible video cards
 	(&man.vga.4; driver)</para>
 
       <note>

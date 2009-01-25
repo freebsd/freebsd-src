@@ -48,12 +48,20 @@
 #define	USB_POWER_DOWN_TIME	200	/* ms */
 #define	USB_PORT_POWER_DOWN_TIME	100	/* ms */
 
+/* Definition of software USB power modes */
+#define	USB_POWER_MODE_OFF 0		/* turn off device */
+#define	USB_POWER_MODE_ON 1		/* always on */
+#define	USB_POWER_MODE_SAVE 2		/* automatic suspend and resume */
+#define	USB_POWER_MODE_SUSPEND 3	/* force suspend */
+#define	USB_POWER_MODE_RESUME 4		/* force resume */
+
 #if 0
 /* These are the values from the USB specification. */
 #define	USB_PORT_RESET_DELAY	10	/* ms */
 #define	USB_PORT_ROOT_RESET_DELAY 50	/* ms */
 #define	USB_PORT_RESET_RECOVERY	10	/* ms */
 #define	USB_PORT_POWERUP_DELAY	100	/* ms */
+#define	USB_PORT_RESUME_DELAY	20	/* ms */
 #define	USB_SET_ADDRESS_SETTLE	2	/* ms */
 #define	USB_RESUME_DELAY	(20*5)	/* ms */
 #define	USB_RESUME_WAIT		10	/* ms */
@@ -65,6 +73,7 @@
 #define	USB_PORT_ROOT_RESET_DELAY 250	/* ms */
 #define	USB_PORT_RESET_RECOVERY	250	/* ms */
 #define	USB_PORT_POWERUP_DELAY	300	/* ms */
+#define	USB_PORT_RESUME_DELAY	(20*2)	/* ms */
 #define	USB_SET_ADDRESS_SETTLE	10	/* ms */
 #define	USB_RESUME_DELAY	(50*5)	/* ms */
 #define	USB_RESUME_WAIT		50	/* ms */
@@ -593,12 +602,12 @@ struct usb2_port_status {
 #define	UPS_SUSPEND			0x0004
 #define	UPS_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_RESET			0x0010
-#define	UPS_PORT_MODE_DEVICE		0x0020	/* currently FreeBSD specific */
 #define	UPS_PORT_POWER			0x0100
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
 #define	UPS_PORT_TEST			0x0800
 #define	UPS_PORT_INDICATOR		0x1000
+#define	UPS_PORT_MODE_DEVICE		0x8000	/* currently FreeBSD specific */
 	uWord	wPortChange;
 #define	UPS_C_CONNECT_STATUS		0x0001
 #define	UPS_C_PORT_ENABLED		0x0002

@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_class.c#14 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_class.c#15 $
  */
 
 #include <config/config.h>
@@ -35,7 +35,9 @@
 #include <bsm/libbsm.h>
 
 #include <string.h>
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -51,7 +53,9 @@ static FILE		*fp = NULL;
 static char		 linestr[AU_LINE_MAX];
 static const char	*classdelim = ":";
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * Parse a single line from the audit_class file passed in str to the struct
@@ -133,9 +137,13 @@ getauclassent_r(struct au_class_ent *c)
 {
 	struct au_class_ent *cp;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	cp = getauclassent_r_locked(c);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (cp);
 }
 
@@ -152,9 +160,13 @@ getauclassent(void)
 	c.ac_name = class_ent_name;
 	c.ac_desc = class_ent_desc;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	cp = getauclassent_r_locked(&c);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (cp);
 }
 
@@ -175,9 +187,13 @@ void
 setauclass(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setauclass_locked();
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -191,15 +207,21 @@ getauclassnam_r(struct au_class_ent *c, const char *name)
 	if (name == NULL)
 		return (NULL);
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setauclass_locked();
 	while ((cp = getauclassent_r_locked(c)) != NULL) {
 		if (strcmp(name, cp->ac_name) == 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 			pthread_mutex_unlock(&mutex);
+#endif
 			return (cp);
 		}
 	}
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (NULL);
 }
 
@@ -230,13 +252,17 @@ getauclassnum_r(struct au_class_ent *c, au_class_t class_number)
 {
 	struct au_class_ent *cp;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setauclass_locked();
 	while ((cp = getauclassent_r_locked(c)) != NULL) {
 		if (class_number == cp->ac_class)
 			return (cp);
 	}
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (NULL);
 }
 
@@ -263,10 +289,14 @@ void
 endauclass(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	if (fp != NULL) {
 		fclose(fp);
 		fp = NULL;
 	}
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }

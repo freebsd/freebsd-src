@@ -39,13 +39,6 @@
 #define	USB_DEVICE_NAME "usb"
 #define	USB_GENERIC_NAME "ugen"
 
-/* definition of USB power mode */
-#define	USB_POWER_MODE_OFF 0		/* turn off device */
-#define	USB_POWER_MODE_ON 1		/* always on */
-#define	USB_POWER_MODE_SAVE 2		/* automatic suspend and resume */
-#define	USB_POWER_MODE_SUSPEND 3	/* force suspend */
-#define	USB_POWER_MODE_RESUME 4		/* force resume */
-
 struct usb2_read_dir {
 	void   *urd_data;
 	uint32_t urd_startentry;

@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.45 2007/05/31 19:20:13 jmc Exp $
+.\"     $OpenBSD: nc.1,v 1.47 2008/05/06 16:21:03 jmc Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd $Mdocdate$
+.Dd $Mdocdate: May 6 2008 $
 .Dt NC 1
 .Os
 .Sh NAME
@@ -36,9 +36,12 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DdEhklnOorStUuvz
+.Op Fl 46DdEhklnorStUuvz
 .Op Fl e Ar IPsec_policy
+.Op Fl I Ar length
 .Op Fl i Ar interval
+.Op Fl -no-tcpopt
+.Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
 .Op Fl s Ar source_ip_address
@@ -118,6 +121,8 @@ each direction is needed.
 Prints out
 .Nm
 help.
+.It Fl I Ar length
+Specifies the size of the TCP receive buffer.
 .It Fl i Ar interval
 Specifies a delay time interval between lines of text sent and received.
 Also causes a delay time between connections to multiple ports.
@@ -146,10 +151,13 @@ option are ignored.
 .It Fl n
 Do not do any DNS or service lookups on any specified addresses,
 hostnames or ports.
-.It Fl O
+.It Fl -no-tcpopt
 Disables the use of TCP options on the socket, by setting the boolean
 TCP_NOOPT
 socket option.
+.It Fl O Ar length
+Specifies the size of the TCP send buffer.
+When
 .It Fl o
 .Dq Once-only mode .
 By default,

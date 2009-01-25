@@ -280,7 +280,7 @@ rip_input(struct mbuf *m, int off)
 			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
 				continue;
 		}
-		if (last) {
+		if (last != NULL) {
 			struct mbuf *n;
 
 			n = m_copy(m, 0, (int)M_COPYALL);
@@ -310,7 +310,7 @@ rip_input(struct mbuf *m, int off)
 			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
 				continue;
 		}
-		if (last) {
+		if (last != NULL) {
 			struct mbuf *n;
 
 			n = m_copy(m, 0, (int)M_COPYALL);
@@ -371,7 +371,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
 		if (jailed(inp->inp_cred)) {
-			if (prison_getip4(inp->inp_cred, &ip->ip_src)) {
+			if (prison_get_ip4(inp->inp_cred, &ip->ip_src) != 0) {
 				INP_RUNLOCK(inp);
 				m_freem(m);
 				return (EPERM);
@@ -964,6 +964,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
+
 			bzero(&xi, sizeof(xi));
 			xi.xi_len = sizeof xi;
 			/* XXX should avoid extra copy */

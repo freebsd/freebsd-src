@@ -17,6 +17,7 @@ SUBDIR=	async \
 	eiface \
 	etf \
 	ether \
+	ether_echo \
 	fec \
 	frame_relay \
 	gif \
@@ -48,6 +49,7 @@ SUBDIR=	async \
 	tag \
 	tcpmss \
 	tee \
+	tty \
 	UI \
 	vjc \
 	vlan

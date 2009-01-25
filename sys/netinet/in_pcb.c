@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_inet.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_mac.h"
@@ -346,7 +347,16 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
 			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
-			if (ifa_ifwithaddr((struct sockaddr *)sin) == 0)
+			/*
+			 * Is the address a local IP address? 
+			 * If INP_NONLOCALOK is set, then the socket may be bound
+			 * to any endpoint address, local or not.
+			 */
+			if (
+#if defined(IP_NONLOCALBIND)
+			    ((inp->inp_flags & INP_NONLOCALOK) == 0) &&
+#endif
+			    (ifa_ifwithaddr((struct sockaddr *)sin) == 0))
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;
@@ -570,7 +580,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * Find out route to destination.
 	 */
 	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-		in_rtalloc_ign(&sro, RTF_CLONING, inp->inp_inc.inc_fibnum);
+		in_rtalloc_ign(&sro, 0, inp->inp_inc.inc_fibnum);
 
 	/*
 	 * If we found a route, use the address corresponding to
@@ -615,7 +625,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
+		if (prison_get_ip4(cred, laddr) != 0)
 			error = EADDRNOTAVAIL;
 		goto done;
 	}
@@ -668,7 +678,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
+		if (prison_get_ip4(cred, laddr) != 0)
 			error = EADDRNOTAVAIL;
 		goto done;
 	}
@@ -695,6 +705,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
 
 		if (cred == NULL || !jailed(cred)) {
+#if __FreeBSD_version < 800000
+			if (ia == NULL)
+				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+#endif
 			if (ia == NULL) {
 				error = ENETUNREACH;
 				goto done;
@@ -727,7 +741,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
+		if (prison_get_ip4(cred, laddr) != 0)
 			error = EADDRNOTAVAIL;
 		goto done;
 	}
@@ -796,7 +810,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
 			if (cred != NULL && jailed(cred)) {
-				if (prison_getip4(cred, &jailia) != 0)
+				if (prison_get_ip4(cred, &jailia) != 0)
 					return (EADDRNOTAVAIL);
 				faddr.s_addr = jailia.s_addr;
 			} else {
@@ -1696,7 +1710,7 @@ db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
 	indent += 2;
 
 #ifdef INET6
-	if (inc->inc_flags == 1) {
+	if (inc->inc_flags & INC_ISIPV6) {
 		/* IPv6. */
 		ip6_sprintf(laddr_str, &inc->inc6_laddr);
 		ip6_sprintf(faddr_str, &inc->inc6_faddr);

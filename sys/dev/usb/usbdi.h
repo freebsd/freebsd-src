@@ -256,7 +256,8 @@ struct usb_attach_arg {
 #define USBD_SHOW_DEVICE_CLASS		0x1
 #define USBD_SHOW_INTERFACE_CLASS	0x2
 
-int usbd_driver_load(module_t mod, int what, void *arg);
+struct module;
+int usbd_driver_load(struct module *mod, int what, void *arg);
 
 static inline int
 usb_get_port(device_t dev)

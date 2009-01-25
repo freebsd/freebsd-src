@@ -85,9 +85,9 @@ __FBSDID("$FreeBSD$");
 
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/evtchn.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/evtchn.h>
+#include <xen/xen_intr.h>
+#include <xen/hypervisor.h>
 #include <xen/interface/vcpu.h>
 
 #define stop_cpus_with_nmi	0
@@ -464,7 +464,8 @@ static int
 xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
-
+	unsigned int irq;
+	
 	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) = -1;
 
 	sprintf(resched_name[cpu], "resched%u", cpu);
@@ -472,22 +473,22 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    resched_name[cpu],
 				    smp_reschedule_interrupt,
-				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
 
 	printf("cpu=%d irq=%d vector=%d\n",
 	    cpu, rc, RESCHEDULE_VECTOR);
 	
-	per_cpu(resched_irq, cpu) = rc;
+	per_cpu(resched_irq, cpu) = irq;
 
 	sprintf(callfunc_name[cpu], "callfunc%u", cpu);
 	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR,
 				    cpu,
 				    callfunc_name[cpu],
 				    smp_call_function_interrupt,
-				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfunc_irq, cpu) = rc;
+	per_cpu(callfunc_irq, cpu) = irq;
 
 	printf("cpu=%d irq=%d vector=%d\n",
 	    cpu, rc, CALL_FUNCTION_VECTOR);
@@ -500,9 +501,9 @@ xen_smp_intr_init(unsigned int cpu)
 
  fail:
 	if (per_cpu(resched_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
+		unbind_from_irqhandler(per_cpu(resched_irq, cpu));
 	if (per_cpu(callfunc_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu));
 	return rc;
 }
 

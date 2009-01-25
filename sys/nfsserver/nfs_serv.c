@@ -3615,9 +3615,12 @@ again:
 	 * Probe one of the directory entries to see if the filesystem
 	 * supports VGET.
 	 */
-	if (VFS_VGET(vp->v_mount, dp->d_fileno, LK_EXCLUSIVE, &nvp) ==
-	    EOPNOTSUPP) {
-		error = NFSERR_NOTSUPP;
+	error = VFS_VGET(vp->v_mount, dp->d_fileno, LK_EXCLUSIVE, &nvp);
+	if (error) {
+		if (error == EOPNOTSUPP)
+			error = NFSERR_NOTSUPP;
+		else
+			error = NFSERR_SERVERFAULT;
 		vrele(vp);
 		vp = NULL;
 		free((caddr_t)cookies, M_TEMP);

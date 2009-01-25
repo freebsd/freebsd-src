@@ -227,9 +227,10 @@ sescleanup(struct cam_periph *periph)
 
 	softc = (struct ses_softc *)periph->softc;
 
-	destroy_dev(softc->ses_dev);
-
 	xpt_print(periph->path, "removing device entry\n");
+	cam_periph_unlock(periph);
+	destroy_dev(softc->ses_dev);
+	cam_periph_lock(periph);
 	free(softc, M_SCSISES);
 }
 

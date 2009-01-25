@@ -12,7 +12,7 @@ SUBDIR+=		ficl
 .endif
 
 # Build EFI library.
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386" || ${MACHINE_ARCH} == "ia64"
 SUBDIR+=		efi
 .endif
 

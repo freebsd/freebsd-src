@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,6 +80,7 @@ struct ieee80211_ies {
 	uint8_t	*ath_ie;	/* captured Atheros ie */
 	uint8_t	*htcap_ie;	/* captured HTCAP ie */
 	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
+	uint8_t	*tdma_ie;	/* captured TDMA ie */
 	/* NB: these must be the last members of this structure */
 	uint8_t	*data;		/* frame data > 802.11 header */
 	int	len;		/* data size in bytes */
@@ -117,6 +118,7 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_RIFS	0x004000	/* RIFS enabled */
 #define	IEEE80211_NODE_SGI20	0x008000	/* Short GI in HT20 enabled */
 #define	IEEE80211_NODE_SGI40	0x010000	/* Short GI in HT40 enabled */
+#define	IEEE80211_NODE_ASSOCID	0x020000	/* xmit requires associd */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */

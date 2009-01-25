@@ -340,7 +340,9 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 	memset(cmd->resp, 0, sizeof(cmd->resp));
 	cmd->retries = retries;
 	mreq.cmd = cmd;
-/*	printf("CMD: %x ARG %x\n", cmd->opcode, cmd->arg); */
+	if (bootverbose)
+		device_printf(sc->dev, "CMD: %#x ARG %#x\n", cmd->opcode,
+		    cmd->arg);
 	mmc_wait_for_req(sc, &mreq);
 	return (cmd->error);
 }
@@ -584,11 +586,11 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, ui
 static int
 mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 {
+	struct mmc_command cmd;
 	int err;
+	uint8_t	value;
 
 	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		struct mmc_command cmd;
-
 		memset(&cmd, 0, sizeof(struct mmc_command));
 		cmd.opcode = ACMD_SET_BUS_WIDTH;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -604,8 +606,6 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 		}
 		err = mmc_wait_for_app_cmd(sc, rca, &cmd, CMD_RETRIES);
 	} else {
-		uint8_t	value;
-
 		switch (width) {
 		case bus_width_1:
 			value = EXT_CSD_BUS_WIDTH_1;
@@ -619,7 +619,8 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 		default:
 			return (MMC_ERR_INVALID);
 		}
-		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH, value);
+		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH,
+		    value);
 	}
 	return (err);
 }
@@ -629,6 +630,7 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 {
 	int err;
 	uint8_t	value;
+	u_char switch_res[64];
 
 	switch (timing) {
 	case bus_timing_normal:
@@ -640,14 +642,11 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 	default:
 		return (MMC_ERR_INVALID);
 	}
-	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		u_char switch_res[64];
-
+	if (mmcbr_get_mode(sc->dev) == mode_sd)
 		err = mmc_sd_switch(sc, 1, 0, value, switch_res);
-	} else {
+	else
 		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL,
 		    EXT_CSD_HS_TIMING, value);
-	}
 	return (err);
 }
 
@@ -1119,6 +1118,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			mmc_app_send_scr(sc, ivar->rca, ivar->raw_scr);
 			mmc_app_decode_scr(ivar->raw_scr, &ivar->scr);
 			/* Get card switch capabilities. */
+			ivar->timing = bus_timing_normal;
 			if ((ivar->scr.sda_vsn >= 1) &&
 			    (ivar->csd.ccc & (1<<10))) {
 				mmc_sd_switch(sc, 0, 0, 0xF, switch_res);
@@ -1255,8 +1255,12 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmcbr_set_mode(dev, mode_sd);
 		mmc_power_up(sc);
 		mmcbr_set_bus_mode(dev, pushpull);
+		if (bootverbose)
+			device_printf(sc->dev, "Idle cards for SD probe\n");
 		mmc_idle_cards(sc);
 		err = mmc_send_if_cond(sc, 1);
+		if (bootverbose)
+			device_printf(sc->dev, "SD: SEND_IF_CONF %d\n", err);
 		if (mmc_send_app_op_cond(sc, err ? 0 : MMC_OCR_CCS, &ocr) !=
 		    MMC_ERR_NONE) {
 			/*
@@ -1326,7 +1330,7 @@ mmc_calculate_clock(struct mmc_softc *sc)
 			max_timing = ivar->timing;
 		if (ivar->tran_speed < max_dtr)
 			max_dtr = ivar->tran_speed;
-		if (ivar->hs_tran_speed < max_dtr)
+		if (ivar->hs_tran_speed < max_hs_dtr)
 			max_hs_dtr = ivar->hs_tran_speed;
 	}
 	for (i = 0; i < nkid; i++) {

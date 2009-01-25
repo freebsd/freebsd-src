@@ -153,7 +153,7 @@ ic_alloc_buffers(struct ic_softc *sc, int mtu)
 static int
 icprobe(device_t dev)
 {
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /*

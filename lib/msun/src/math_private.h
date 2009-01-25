@@ -38,7 +38,17 @@
  * ints.
  */
 
-#if BYTE_ORDER == BIG_ENDIAN
+#ifdef __arm__
+#if defined(__VFP_FP__)
+#define	IEEE_WORD_ORDER	BYTE_ORDER
+#else
+#define	IEEE_WORD_ORDER	BIG_ENDIAN
+#endif
+#else /* __arm__ */
+#define	IEEE_WORD_ORDER	BYTE_ORDER
+#endif
+
+#if IEEE_WORD_ORDER == BIG_ENDIAN
 
 typedef union
 {
@@ -52,7 +62,7 @@ typedef union
 
 #endif
 
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if IEEE_WORD_ORDER == LITTLE_ENDIAN
 
 typedef union
 {

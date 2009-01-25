@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#23 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#24 $
  */
 
 #include <config/config.h>
@@ -36,7 +36,9 @@
 
 #include <errno.h>
 #include <string.h>
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -58,7 +60,9 @@ static char	*delim = ":";
 static char	inacdir = 0;
 static char	ptrmoved = 0;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * Returns the string value corresponding to the given label from the
@@ -318,9 +322,13 @@ void
 setac(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setac_locked();
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -330,13 +338,17 @@ void
 endac(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	ptrmoved = 1;
 	if (fp != NULL) {
 		fclose(fp);
 		fp = NULL;
 	}
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -352,7 +364,9 @@ getacdir(char *name, int len)
 	 * Check if another function was called between successive calls to
 	 * getacdir.
 	 */
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	if (inacdir && ptrmoved) {
 		ptrmoved = 0;
 		if (fp != NULL)
@@ -360,19 +374,27 @@ getacdir(char *name, int len)
 		ret = 2;
 	}
 	if (getstrfromtype_locked(DIR_CONTROL_ENTRY, &dir) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-2);
 	}
 	if (dir == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-1);
 	}
 	if (strlen(dir) >= (size_t)len) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-3);
 	}
 	strlcpy(name, dir, len);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (ret);
 }
 
@@ -384,18 +406,26 @@ getacmin(int *min_val)
 {
 	char *min;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setac_locked();
 	if (getstrfromtype_locked(MINFREE_CONTROL_ENTRY, &min) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-2);
 	}
 	if (min == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (1);
 	}
 	*min_val = atoi(min);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (0);
 }
 
@@ -408,20 +438,28 @@ getacfilesz(size_t *filesz_val)
 	char *filesz, *dummy;
 	long long ll;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setac_locked();
 	if (getstrfromtype_locked(FILESZ_CONTROL_ENTRY, &filesz) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-2);
 	}
 	if (filesz == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		errno = EINVAL;
 		return (1);
 	}
 	ll = strtoll(filesz, &dummy, 10);
 	if (*dummy != '\0') {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		errno = EINVAL;
 		return (-1);
 	}
@@ -430,12 +468,16 @@ getacfilesz(size_t *filesz_val)
 	 * indicates no rotation size.
 	 */
 	if (ll < 0 || (ll > 0 && ll < MIN_AUDIT_FILE_SIZE)) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		errno = EINVAL;
 		return (-1);
 	}
 	*filesz_val = ll;
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (0);
 }
 
@@ -447,22 +489,32 @@ getacflg(char *auditstr, int len)
 {
 	char *str;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setac_locked();
 	if (getstrfromtype_locked(FLAGS_CONTROL_ENTRY, &str) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-2);
 	}
 	if (str == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (1);
 	}
 	if (strlen(str) >= (size_t)len) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-3);
 	}
 	strlcpy(auditstr, str, len);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (0);
 }
 
@@ -474,22 +526,32 @@ getacna(char *auditstr, int len)
 {
 	char *str;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setac_locked();
 	if (getstrfromtype_locked(NA_CONTROL_ENTRY, &str) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-2);
 	}
 	if (str == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (1);
 	}
 	if (strlen(str) >= (size_t)len) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-3);
 	}
 	strlcpy(auditstr, str, len);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (0);
 }
 
@@ -501,22 +563,32 @@ getacpol(char *auditstr, size_t len)
 {
 	char *str;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setac_locked();
 	if (getstrfromtype_locked(POLICY_CONTROL_ENTRY, &str) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-2);
 	}
 	if (str == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-1);
 	}
 	if (strlen(str) >= len) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-3);
 	}
 	strlcpy(auditstr, str, len);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (0);
 }
 
@@ -525,21 +597,31 @@ getachost(char *auditstr, size_t len)
 {
 	char *str;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setac_locked();
 	if (getstrfromtype_locked(AUDIT_HOST_CONTROL_ENTRY, &str) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-2);
 	}
 	if (str == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (1);
 	}
 	if (strlen(str) >= len) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-3);
 	}
 	strcpy(auditstr, str);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (0);
 }

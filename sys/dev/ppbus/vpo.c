@@ -104,6 +104,7 @@ vpo_identify(driver_t *driver, device_t parent)
 static int
 vpo_probe(device_t dev)
 {
+	device_t ppbus = device_get_parent(dev);
 	struct vpo_data *vpo;
 	int error;
 
@@ -112,6 +113,7 @@ vpo_probe(device_t dev)
 
 	/* check ZIP before ZIP+ or imm_probe() will send controls to
 	 * the printer or whatelse connected to the port */
+	ppb_lock(ppbus);
 	if ((error = vpoio_probe(dev, &vpo->vpo_io)) == 0) {
 		vpo->vpo_isplus = 0;
 		device_set_desc(dev,
@@ -121,8 +123,10 @@ vpo_probe(device_t dev)
 		device_set_desc(dev,
 				"Iomega Matchmaker Parallel to SCSI interface");
 	} else {
+		ppb_unlock(ppbus);
 		return (error);
 	}
+	ppb_unlock(ppbus);
 
 	return (0);
 }
@@ -134,6 +138,8 @@ static int
 vpo_attach(device_t dev)
 {
 	struct vpo_data *vpo = DEVTOSOFTC(dev);
+	device_t ppbus = device_get_parent(dev);
+	struct ppb_data *ppb = device_get_softc(ppbus);	/* XXX: layering */
 	struct cam_devq *devq;
 	int error;
 
@@ -156,17 +162,20 @@ vpo_attach(device_t dev)
 		return (ENXIO);
 
 	vpo->sim = cam_sim_alloc(vpo_action, vpo_poll, "vpo", vpo,
-				 device_get_unit(dev), &Giant,
+				 device_get_unit(dev), ppb->ppc_lock,
 				 /*untagged*/1, /*tagged*/0, devq);
 	if (vpo->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENXIO);
 	}
 
+	ppb_lock(ppbus);
 	if (xpt_bus_register(vpo->sim, dev, /*bus*/0) != CAM_SUCCESS) {
 		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
+		ppb_unlock(ppbus);
 		return (ENXIO);
 	}
+	ppb_unlock(ppbus);
 
 	/* all went ok */
 
@@ -211,12 +220,9 @@ static void
 vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 {
 	int errno;	/* error in errno.h */
-	int s;
 #ifdef VP0_DEBUG
 	int i;
 #endif
-
-	s = splcam();
 
 	if (vpo->vpo_isplus) {
 		errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
@@ -246,7 +252,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 	if (errno) {
 		/* connection to ppbus interrupted */
 		csio->ccb_h.status = CAM_CMD_TIMEOUT;
-		goto error;
+		return;
 	}
 
 	/* if a timeout occured, no sense */
@@ -256,7 +262,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 				vpo->vpo_error);
 
 		csio->ccb_h.status = CAM_CMD_TIMEOUT;
-		goto error;
+		return;
 	}
 
 	/* check scsi status */
@@ -317,24 +323,22 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 	   }
 
-	   goto error;
+	   return;
 	}
 
 	csio->resid = csio->dxfer_len - vpo->vpo_count;
 	csio->ccb_h.status = CAM_REQ_CMP;
-
-error:
-	splx(s);
-
-	return;
 }
 
 static void
 vpo_action(struct cam_sim *sim, union ccb *ccb)
 {
-
 	struct vpo_data *vpo = (struct vpo_data *)sim->softc;
+#ifdef INVARIANTS
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 
+	ppb_assert_locked(ppbus);
+#endif
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 	{

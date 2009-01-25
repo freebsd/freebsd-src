@@ -425,7 +425,7 @@ setregdomain_cb(int s, void *arg)
 	struct ieee80211_devcaps_req dc;
 	struct regdata *rdp = getregdata();
 
-	if (rd->country != 0) {
+	if (rd->country != NO_COUNTRY) {
 		const struct country *cc;
 		/*
 		 * Check current country seting to make sure it's
@@ -456,7 +456,7 @@ setregdomain_cb(int s, void *arg)
 				errx(1, "country %s (%s) is not usable with "
 				    "regdomain %d", cc->isoname, cc->name,
 				    rd->regdomain);
-			else if (rp->cc != 0 && rp->cc != cc)
+			else if (rp->cc != NULL && rp->cc != cc)
 				errx(1, "country %s (%s) is not usable with "
 				   "regdomain %s", cc->isoname, cc->name,
 				   rp->name);
@@ -664,30 +664,38 @@ getchannelflags(const char *val, int freq)
 }
 
 static void
+getchannel(int s, struct ieee80211_channel *chan, const char *val)
+{
+	int v, flags;
+	char *eptr;
+
+	memset(chan, 0, sizeof(*chan));
+	if (isanyarg(val)) {
+		chan->ic_freq = IEEE80211_CHAN_ANY;
+		return;
+	}
+	getchaninfo(s);
+	errno = 0;
+	v = strtol(val, &eptr, 10);
+	if (val[0] == '\0' || val == eptr || errno == ERANGE ||
+	    /* channel may be suffixed with nothing, :flag, or /width */
+	    (eptr[0] != '\0' && eptr[0] != ':' && eptr[0] != '/'))
+		errx(1, "invalid channel specification%s",
+		    errno == ERANGE ? " (out of range)" : "");
+	flags = getchannelflags(val, v);
+	if (v > 255) {		/* treat as frequency */
+		mapfreq(chan, v, flags);
+	} else {
+		mapchan(chan, v, flags);
+	}
+}
+
+static void
 set80211channel(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211_channel chan;
 
-	memset(&chan, 0, sizeof(chan));
-	if (!isanyarg(val)) {
-		int v, flags;
-		char *ep;
-
-		getchaninfo(s);
-		v = strtol(val, &ep, 10);
-		if (val[0] == '\0' || val == ep || errno == ERANGE ||
-		    /* channel may be suffixed with nothing, :flag, or /width */
-		    (ep[0] != '\0' && ep[0] != ':' && ep[0] != '/'))
-			errx(1, "invalid channel specification");
-		flags = getchannelflags(val, v);
-		if (v > 255) {		/* treat as frequency */
-			mapfreq(&chan, v, flags);
-		} else {
-			mapchan(&chan, v, flags);
-		}
-	} else {
-		chan.ic_freq = IEEE80211_CHAN_ANY;
-	}
+	getchannel(s, &chan, val);
 	set80211(s, IEEE80211_IOC_CURCHAN, 0, sizeof(chan), &chan);
 }
 
@@ -695,17 +703,8 @@ static void
 set80211chanswitch(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211_chanswitch_req csr;
-	int v, flags;
 
-	memset(&csr, 0, sizeof(csr));
-	getchaninfo(s);
-	v = atoi(val);
-	flags = getchannelflags(val, v);
-	if (v > 255) {		/* treat as frequency */
-		mapfreq(&csr.csa_chan, v, flags);
-	} else {
-		mapchan(&csr.csa_chan, v, flags);
-	}
+	getchannel(s, &csr.csa_chan, val);
 	csr.csa_mode = 1;
 	csr.csa_count = 5;
 	set80211(s, IEEE80211_IOC_CHANSWITCH, 0, sizeof(csr), &csr);
@@ -1712,6 +1711,30 @@ set80211rifs(const char *val, int d, int s, const struct afswtch *rafp)
 	set80211(s, IEEE80211_IOC_RIFS, d, 0, NULL);
 }
 
+static
+DECL_CMD_FUNC(set80211tdmaslot, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmaslotcnt, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOTCNT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmaslotlen, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOTLEN, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmabintval, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_BINTERVAL, atoi(val), 0, NULL);
+}
+
 static int
 regdomain_sort(const void *a, const void *b)
 {
@@ -1770,14 +1793,21 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 					printf("%u: skip, flags 0x%x not available\n", freq, chanFlags);
 				continue;
 			}
+			/*
+			 * NB: don't enforce 1/2 and 1/4 rate channels being
+			 * specified in the device's calibration list for
+			 * 900MHz cards because most are not self-identifying.
+			 */
 			if ((flags & IEEE80211_CHAN_HALF) &&
-			    (chanFlags & IEEE80211_CHAN_HALF) == 0) {
+			    ((chanFlags & IEEE80211_CHAN_HALF) == 0 &&
+			     (flags & IEEE80211_CHAN_GSM) == 0)) {
 				if (verbose)
 					printf("%u: skip, device does not support half-rate channels\n", freq);
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_QUARTER) &&
-			    (chanFlags & IEEE80211_CHAN_QUARTER) == 0) {
+			    ((chanFlags & IEEE80211_CHAN_QUARTER) == 0 &&
+			     (flags & IEEE80211_CHAN_GSM) == 0)) {
 				if (verbose)
 					printf("%u: skip, device does not support quarter-rate channels\n", freq);
 				continue;
@@ -1870,12 +1900,26 @@ regdomain_makechannels(
 		if (!LIST_EMPTY(&rd->bands_11b))
 			regdomain_addchans(ci, &rd->bands_11b, reg,
 			    IEEE80211_CHAN_B, &dc->dc_chaninfo);
-		if (!LIST_EMPTY(&rd->bands_11g))
+		if (!LIST_EMPTY(&rd->bands_11g)) {
 			regdomain_addchans(ci, &rd->bands_11g, reg,
 			    IEEE80211_CHAN_G, &dc->dc_chaninfo);
-		if (!LIST_EMPTY(&rd->bands_11a))
+			regdomain_addchans(ci, &rd->bands_11g, reg,
+			    IEEE80211_CHAN_G | IEEE80211_CHAN_HALF,
+			    &dc->dc_chaninfo);
+			regdomain_addchans(ci, &rd->bands_11g, reg,
+			    IEEE80211_CHAN_G | IEEE80211_CHAN_QUARTER,
+			    &dc->dc_chaninfo);
+		}
+		if (!LIST_EMPTY(&rd->bands_11a)) {
 			regdomain_addchans(ci, &rd->bands_11a, reg,
 			    IEEE80211_CHAN_A, &dc->dc_chaninfo);
+			regdomain_addchans(ci, &rd->bands_11a, reg,
+			    IEEE80211_CHAN_A | IEEE80211_CHAN_HALF,
+			    &dc->dc_chaninfo);
+			regdomain_addchans(ci, &rd->bands_11a, reg,
+			    IEEE80211_CHAN_A | IEEE80211_CHAN_QUARTER,
+			    &dc->dc_chaninfo);
+		}
 		if (!LIST_EMPTY(&rd->bands_11na)) {
 			regdomain_addchans(ci, &rd->bands_11na, reg,
 			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20,
@@ -1951,8 +1995,12 @@ DECL_CMD_FUNC(set80211regdomain, val, d)
 
 	rd = lib80211_regdomain_findbyname(rdp, val);
 	if (rd == NULL) {
-		rd = lib80211_regdomain_findbysku(rdp, atoi(val));
-		if (rd == NULL)
+		char *eptr;
+		long sku = strtol(val, &eptr, 0);
+
+		if (eptr != val)
+			rd = lib80211_regdomain_findbysku(rdp, sku);
+		if (eptr == val || rd == NULL)
 			errx(1, "unknown regdomain %s", val);
 	}
 	getregdomain(s);
@@ -1975,8 +2023,12 @@ DECL_CMD_FUNC(set80211country, val, d)
 
 	cc = lib80211_country_findbyname(rdp, val);
 	if (cc == NULL) {
-		cc = lib80211_country_findbycc(rdp, atoi(val));
-		if (cc == NULL)
+		char *eptr;
+		long code = strtol(val, &eptr, 0);
+
+		if (eptr != val)
+			cc = lib80211_country_findbycc(rdp, code);
+		if (eptr == val || cc == NULL)
 			errx(1, "unknown ISO country code %s", val);
 	}
 	getregdomain(s);
@@ -2544,6 +2596,22 @@ printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 #undef N
 }
 
+static void
+printtdmaie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	if (verbose && ielen >= sizeof(struct ieee80211_tdma_param)) {
+		const struct ieee80211_tdma_param *tdma =
+		   (const struct ieee80211_tdma_param *) ie;
+
+		/* XXX tstamp */
+		printf("<v%u slot:%u slotcnt:%u slotlen:%u bintval:%u inuse:0x%x>",
+		    tdma->tdma_version, tdma->tdma_slot, tdma->tdma_slotcnt,
+		    LE_READ_2(&tdma->tdma_slotlen), tdma->tdma_bintval,
+		    tdma->tdma_inuse[0]);
+	}
+}
+
 /*
  * Copy the ssid string contents into buf, truncating to fit.  If the
  * ssid is entirely printable then just copy intact.  Otherwise convert
@@ -2667,6 +2735,12 @@ isatherosoui(const u_int8_t *frm)
 }
 
 static __inline int
+istdmaoui(const uint8_t *frm)
+{
+	return frm[1] > 3 && LE_READ_4(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
+}
+
+static __inline int
 iswpsoui(const uint8_t *frm)
 {
 	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPS_OUI_TYPE<<24)|WPA_OUI);
@@ -2735,6 +2809,8 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 				printathie(" ATH", vp, 2+vp[1], maxcols);
 			else if (iswpsoui(vp))
 				printwpsie(" WPS", vp, 2+vp[1], maxcols);
+			else if (istdmaoui(vp))
+				printtdmaie(" TDMA", vp, 2+vp[1], maxcols);
 			else if (verbose)
 				printie(" VEN", vp, 2+vp[1], maxcols);
 			break;
@@ -3178,7 +3254,7 @@ list_keys(int s)
 	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
 	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
 	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
-	"\37TXFRAG"
+	"\37TXFRAG\40TDMA"
 
 #define	IEEE80211_CRYPTO_BITS \
 	"\20\1WEP\2TKIP\3AES\4AES_CCM\5TKIPMIC\6CKIP\12PMGT"
@@ -3534,8 +3610,12 @@ get80211opmode(int s)
 	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
 
 	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0) {
-		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC)
-			return IEEE80211_M_IBSS;	/* XXX ahdemo */
+		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC) {
+			if (ifmr.ifm_current & IFM_FLAG0)
+				return IEEE80211_M_AHDEMO;
+			else
+				return IEEE80211_M_IBSS;
+		}
 		if (ifmr.ifm_current & IFM_IEEE80211_HOSTAP)
 			return IEEE80211_M_HOSTAP;
 		if (ifmr.ifm_current & IFM_IEEE80211_MONITOR)
@@ -4244,7 +4324,17 @@ end:
 			}
 		}
 	}
-	if (get80211val(s, IEEE80211_IOC_BEACON_INTERVAL, &val) != -1) {
+
+	if (opmode == IEEE80211_M_AHDEMO) {
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOT, &val) != -1)
+			LINE_CHECK("tdmaslot %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOTCNT, &val) != -1)
+			LINE_CHECK("tdmaslotcnt %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOTLEN, &val) != -1)
+			LINE_CHECK("tdmaslotlen %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_BINTERVAL, &val) != -1)
+			LINE_CHECK("tdmabintval %u", val);
+	} else if (get80211val(s, IEEE80211_IOC_BEACON_INTERVAL, &val) != -1) {
 		/* XXX default define not visible */
 		if (val != 100 || verbose)
 			LINE_CHECK("bintval %u", val);
@@ -4467,7 +4557,10 @@ DECL_CMD_FUNC(set80211clone_wlanmode, arg, d)
 		params.icp_opmode = IEEE80211_M_WDS;
 	else if (iseq(arg, "monitor"))
 		params.icp_opmode = IEEE80211_M_MONITOR;
-	else
+	else if (iseq(arg, "tdma")) {
+		params.icp_opmode = IEEE80211_M_AHDEMO;
+		params.icp_flags |= IEEE80211_CLONE_TDMA;
+	} else
 		errx(1, "Don't know to create %s for %s", arg, name);
 	clone_setcallback(wlan_create);
 #undef iseq
@@ -4642,6 +4735,11 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-smps",	IEEE80211_HTCAP_SMPS_OFF,	set80211smps),
 	/* XXX for testing */
 	DEF_CMD_ARG("chanswitch",	set80211chanswitch),
+
+	DEF_CMD_ARG("tdmaslot",		set80211tdmaslot),
+	DEF_CMD_ARG("tdmaslotcnt",	set80211tdmaslotcnt),
+	DEF_CMD_ARG("tdmaslotlen",	set80211tdmaslotlen),
+	DEF_CMD_ARG("tdmabintval",	set80211tdmabintval),
 
 	/* vap cloning support */
 	DEF_CLONE_CMD_ARG("wlanaddr",	set80211clone_wlanaddr),

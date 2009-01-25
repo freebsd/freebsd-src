@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # audio:  file(1) magic for sound formats (see also "iff")
 #
@@ -9,12 +8,19 @@
 # Sun/NeXT audio data
 0	string		.snd		Sun/NeXT audio data:
 >12	belong		1		8-bit ISDN mu-law,
+!:mime	audio/basic
 >12	belong		2		8-bit linear PCM [REF-PCM],
+!:mime	audio/basic
 >12	belong		3		16-bit linear PCM,
+!:mime	audio/basic
 >12	belong		4		24-bit linear PCM,
+!:mime	audio/basic
 >12	belong		5		32-bit linear PCM,
+!:mime	audio/basic
 >12	belong		6		32-bit IEEE floating point,
+!:mime	audio/basic
 >12	belong		7		64-bit IEEE floating point,
+!:mime	audio/basic
 >12	belong		8		Fragmented sample data,
 >12	belong		10		DSP program,
 >12	belong		11		8-bit fixed point,
@@ -26,6 +32,7 @@
 >12	belong		20		16-bit linear with emphasis and compression,
 >12	belong		21		Music kit DSP commands,
 >12	belong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice enc.),
+!:mime  audio/x-adpcm
 >12	belong		24		compressed (8-bit CCITT G.722 ADPCM)
 >12	belong		25		compressed (3-bit CCITT G.723.3 ADPCM),
 >12	belong		26		compressed (5-bit CCITT G.723.5 ADPCM),
@@ -39,12 +46,19 @@
 # that uses little-endian encoding and has a different magic number
 0	lelong		0x0064732E	DEC audio data:
 >12	lelong		1		8-bit ISDN mu-law,
+!:mime	audio/x-dec-basic
 >12	lelong		2		8-bit linear PCM [REF-PCM],
+!:mime	audio/x-dec-basic
 >12	lelong		3		16-bit linear PCM,
+!:mime	audio/x-dec-basic
 >12	lelong		4		24-bit linear PCM,
+!:mime	audio/x-dec-basic
 >12	lelong		5		32-bit linear PCM,
+!:mime	audio/x-dec-basic
 >12	lelong		6		32-bit IEEE floating point,
+!:mime	audio/x-dec-basic
 >12	lelong		7		64-bit IEEE floating point,
+!:mime	audio/x-dec-basic
 >12	belong		8		Fragmented sample data,
 >12	belong		10		DSP program,
 >12	belong		11		8-bit fixed point,
@@ -56,6 +70,7 @@
 >12	belong		20		16-bit linear with emphasis and compression,
 >12	belong		21		Music kit DSP commands,
 >12	lelong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice enc.),
+!:mime	audio/x-dec-basic
 >12	belong		24		compressed (8-bit CCITT G.722 ADPCM)
 >12	belong		25		compressed (3-bit CCITT G.723.3 ADPCM),
 >12	belong		26		compressed (5-bit CCITT G.723.5 ADPCM),
@@ -67,6 +82,7 @@
 
 # Creative Labs AUDIO stuff
 0	string	MThd			Standard MIDI data
+!:mime	audio/midi
 >8 	beshort	x			(format %d)
 >10	beshort	x			using %d track
 >10	beshort		>1		\bs
@@ -74,8 +90,11 @@
 >12	beshort&0x8000	>0		SMPTE
 
 0	string	CTMF			Creative Music (CMF) data
+!:mime	audio/x-unknown
 0	string	SBI			SoundBlaster instrument data
+!:mime	audio/x-unknown
 0	string	Creative\ Voice\ File	Creative Labs voice data
+!:mime	audio/x-unknown
 # is this next line right?  it came this way...
 >19	byte	0x1A
 >23	byte	>0			- version %d
@@ -96,7 +115,13 @@
 
 # Real Audio (Magic .ra\0375)
 0	belong		0x2e7261fd	RealAudio sound file
+!:mime	audio/x-pn-realaudio
 0	string		.RMF		RealMedia file
+!:mime	application/vnd.rn-realmedia
+#video/x-pn-realvideo
+#video/vnd.rn-realvideo
+#application/vnd.rn-realmedia
+#	sigh, there are many mimes for that but the above are the most common.
 
 # MTM/669/FAR/S3M/ULT/XM format checking [Aaron Eppert, aeppert@dialin.ind.net]
 # Oct 31, 1995
@@ -119,44 +144,84 @@
 0	string		GF1PATCH110\0ID#000002\0	GUS patch
 0	string		GF1PATCH100\0ID#000002\0	Old GUS	patch
 
+# mime types according to http://www.geocities.com/nevilo/mod.htm:
+#	audio/it	.it
+#	audio/x-zipped-it	.itz
+#	audio/xm	fasttracker modules
+#	audio/x-s3m	screamtracker modules
+#	audio/s3m	screamtracker modules
+#	audio/x-zipped-mod	mdz
+#	audio/mod	mod
+#	audio/x-mod	All modules (mod, s3m, 669, mtm, med, xm, it, mdz, stm, itz, xmz, s3z)
+
 #
 # Taken from loader code from mikmod version 2.14
 # by Steve McIntyre (stevem@chiark.greenend.org.uk)
 # <doj@cubic.org> added title printing on 2003-06-24
 0	string	MAS_UTrack_V00
 >14	string	>/0		ultratracker V1.%.1s module sound data
+!:mime	audio/x-mod
+#audio/x-tracker-module
 
 0	string	UN05		MikMod UNI format module sound data
 
 0	string	Extended\ Module: Fasttracker II module sound data
+!:mime	audio/x-mod
+#audio/x-tracker-module
 >17	string	>\0		Title: "%s"
 
 21	string/c	=!SCREAM!	Screamtracker 2 module sound data
+!:mime	audio/x-mod
+#audio/x-screamtracker-module
 21	string	BMOD2STM	Screamtracker 2 module sound data
+!:mime	audio/x-mod
+#audio/x-screamtracker-module
 1080	string	M.K.		4-channel Protracker module sound data
+!:mime	audio/x-mod
+#audio/x-protracker-module
 >0	string	>\0		Title: "%s"
 1080	string	M!K!		4-channel Protracker module sound data
+!:mime	audio/x-mod
+#audio/x-protracker-module
 >0	string	>\0		Title: "%s"
 1080	string	FLT4		4-channel Startracker module sound data
+!:mime	audio/x-mod
+#audio/x-startracker-module
 >0	string	>\0		Title: "%s"
 1080	string	FLT8		8-channel Startracker module sound data
+!:mime	audio/x-mod
+#audio/x-startracker-module
 >0	string	>\0		Title: "%s"
 1080	string	4CHN		4-channel Fasttracker module sound data
+!:mime	audio/x-mod
+#audio/x-fasttracker-module
 >0	string	>\0		Title: "%s"
 1080	string	6CHN		6-channel Fasttracker module sound data
+!:mime	audio/x-mod
+#audio/x-fasttracker-module
 >0	string	>\0		Title: "%s"
 1080	string	8CHN		8-channel Fasttracker module sound data
+!:mime	audio/x-mod
+#audio/x-fasttracker-module
 >0	string	>\0		Title: "%s"
 1080	string	CD81		8-channel Octalyser module sound data
+!:mime	audio/x-mod
+#audio/x-octalysertracker-module
 >0	string	>\0		Title: "%s"
-1080	string	OKTA		8-channel Oktalyzer module sound data
+1080	string	OKTA		8-channel Octalyzer module sound data
+!:mime	audio/x-mod
+#audio/x-octalysertracker-module
 >0	string	>\0		Title: "%s"
 # Not good enough.
 #1082	string	CH
 #>1080	string	>/0		%.2s-channel Fasttracker "oktalyzer" module sound data
 1080	string	16CN		16-channel Taketracker module sound data
+!:mime	audio/x-mod
+#audio/x-taketracker-module
 >0	string	>\0		Title: "%s"
 1080	string	32CN		32-channel Taketracker module sound data
+!:mime	audio/x-mod
+#audio/x-taketracker-module
 >0	string	>\0		Title: "%s"
 
 # TOC sound files -Trevor Johnson <trevor@jpj.net>
@@ -208,7 +273,7 @@
 >22	belong&0x00ffffff	x		%d Hz,
 >18	beshort		=0			no loop,
 >18	beshort		=-1			loop,
->21	ubyte		<=127			note %d,
+>21	ubyte		<128			note %d,
 >22	byte		=0			replay 5.485 KHz
 >22	byte		=1			replay 8.084 KHz
 >22	byte		=2			replay 10.971 Khz
@@ -221,9 +286,11 @@
 # SGI SoundTrack <mpruett@sgi.com>
 0	string		_SGI_SoundTrack		SGI SoundTrack project file
 # ID3 version 2 tags <waschk@informatik.uni-rostock.de>
-0	string		ID3	Audio file with ID3 version 2
->3	ubyte	<0xff	\b%d.
->4	ubyte	<0xff	\b%d tag
+0	string		ID3	Audio file with ID3 version 2.
+# ??? Normally such a file is an MP3 file, but this will give false positives
+!:mime	audio/mpeg
+>3	ubyte	<0xff	\b%d
+#>4	ubyte	<0xff	\b%d tag
 >2584	string	fLaC		\b, FLAC encoding
 >>2588	byte&0x7f		>0		\b, unknown version
 >>2588	byte&0x7f		0		\b
@@ -270,6 +337,7 @@
 
 # Impulse tracker module (audio/x-it)
 0	string		IMPM		Impulse Tracker module sound data -
+!:mime	audio/x-mod
 >4	string		>\0		"%s"
 >40	leshort		!0		compatible w/ITv%x
 >42	leshort		!0		created w/ITv%x
@@ -380,6 +448,7 @@
 # Free lossless audio codec <http://flac.sourceforge.net>
 # From: Przemyslaw Augustyniak <silvathraec@rpg.pl>
 0	string			fLaC		FLAC audio bitstream data
+!:mime	audio/x-flac
 >4	byte&0x7f		>0		\b, unknown version
 >4	byte&0x7f		0		\b
 # some common bits/sample values
@@ -502,9 +571,9 @@
 # .preset
 0	string	[Equalizer\ preset]	XMMS equalizer preset
 # .m3u
-0	string	#EXTM3U			M3U playlist
+0	search/1	#EXTM3U 	M3U playlist text
 # .pls
-0	string	[playlist]		PLS playlist
+0	search/1	[playlist]	PLS playlist text
 # licq.conf
 1	string	[licq]			LICQ configuration file
 
@@ -553,9 +622,6 @@
 # http://www.wx800.com/msg/download/irda/iMelody.pdf
 0	string	BEGIN:IMELODY	iMelody Ringtone Format
 
-# From: Matthew Flaschen <matthew.flaschen@gatech.edu>
-0	string	#EXTM3U 	M3U playlist text
-
 # From: "Mateus Caruccio" <mateus@caruccio.com>
 # guitar pro v3,4,5 from http://filext.com/file-extension/gp3
 0	string	\030FICHIER\ GUITAR\ PRO\ v3.	Guitar Pro Ver. 3 Tablature
@@ -563,3 +629,7 @@
 # From: "Leslie P. Polzer" <leslie.polzer@gmx.net>
 60	string	SONG		SoundFX Module sound file
 
+# Type: Adaptive Multi-Rate Codec
+# URL:  http://filext.com/detaillist.php?extdetail=AMR
+# From: Russell Coker <russell@coker.com.au>
+0	string	#!AMR		Adaptive Multi-Rate Codec (GSM telephony)

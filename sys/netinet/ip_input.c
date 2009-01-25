@@ -1286,7 +1286,7 @@ ip_rtaddr(struct in_addr dst, u_int fibnum)
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = dst;
-	in_rtalloc_ign(&sro, RTF_CLONING, fibnum);
+	in_rtalloc_ign(&sro, 0, fibnum);
 
 	if (sro.ro_rt == NULL)
 		return (NULL);
@@ -1412,7 +1412,7 @@ ip_forward(struct mbuf *m, int srcrt)
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = ip->ip_dst;
-		in_rtalloc_ign(&ro, RTF_CLONING, M_GETFIB(m));
+		in_rtalloc_ign(&ro, 0, M_GETFIB(m));
 
 		rt = ro.ro_rt;
 

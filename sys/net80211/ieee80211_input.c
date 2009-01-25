@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -499,7 +499,7 @@ int
 ieee80211_alloc_challenge(struct ieee80211_node *ni)
 {
 	if (ni->ni_challenge == NULL)
-		MALLOC(ni->ni_challenge, uint32_t*, IEEE80211_CHALLENGE_LEN,
+		ni->ni_challenge = (uint32_t *) malloc(IEEE80211_CHALLENGE_LEN,
 		    M_80211_NODE, M_NOWAIT);
 	if (ni->ni_challenge == NULL) {
 		IEEE80211_NOTE(ni->ni_vap,
@@ -635,6 +635,10 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 				scan->wme = frm;
 			else if (isatherosoui(frm))
 				scan->ath = frm;
+#ifdef IEEE80211_SUPPORT_TDMA
+			else if (istdmaoui(frm))
+				scan->tdma = frm;
+#endif
 			else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
 				/*
 				 * Accept pre-draft HT ie's if the
@@ -673,14 +677,6 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	IEEE80211_VERIFY_ELEMENT(scan->ssid, IEEE80211_NWID_LEN,
 	    scan->status |= IEEE80211_BPARSE_SSID_INVALID);
-#if IEEE80211_CHAN_MAX < 255
-	if (scan->chan > IEEE80211_CHAN_MAX) {
-		IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID,
-		    wh, NULL, "invalid channel %u", scan->chan);
-		vap->iv_stats.is_rx_badchan++;
-		scan->status |= IEEE80211_BPARSE_CHAN_INVALID;
-	}
-#endif
 	if (scan->chan != scan->bchan && ic->ic_phytype != IEEE80211_T_FH) {
 		/*
 		 * Frame was received on a channel different from the

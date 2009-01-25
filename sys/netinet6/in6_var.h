@@ -88,12 +88,16 @@ struct in6_addrlifetime {
 
 struct nd_ifinfo;
 struct scope6_id;
+struct lltable;
 struct in6_ifextra {
 	struct in6_ifstat *in6_ifstat;
 	struct icmp6_ifstat *icmp6_ifstat;
 	struct nd_ifinfo *nd_ifinfo;
 	struct scope6_id *scope6_id;
+	struct lltable *lltable;
 };
+
+#define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
 
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */

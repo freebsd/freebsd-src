@@ -75,8 +75,8 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
-	struct radix_node *ret;
 
+	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	/*
 	 * A little bit of help for both IP output and input:
 	 *   For host routes, we make sure that RTF_BROADCAST
@@ -106,31 +106,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (!rt->rt_rmx.rmx_mtu && rt->rt_ifp)
 		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
 
-	ret = rn_addroute(v_arg, n_arg, head, treenodes);
-	if (ret == NULL && rt->rt_flags & RTF_HOST) {
-		struct rtentry *rt2;
-		/*
-		 * We are trying to add a host route, but can't.
-		 * Find out if it is because of an
-		 * ARP entry and delete it if so.
-		 */
-		rt2 = in_rtalloc1((struct sockaddr *)sin, 0,
-		    RTF_CLONING|RTF_RNH_LOCKED, rt->rt_fibnum);
-		if (rt2) {
-			if (rt2->rt_flags & RTF_LLINFO &&
-			    rt2->rt_flags & RTF_HOST &&
-			    rt2->rt_gateway &&
-			    rt2->rt_gateway->sa_family == AF_LINK) {
-				rtexpunge(rt2);
-				RTFREE_LOCKED(rt2);
-				ret = rn_addroute(v_arg, n_arg, head,
-						  treenodes);
-			} else
-				RTFREE_LOCKED(rt2);
-		}
-	}
-
-	return ret;
+	return (rn_addroute(v_arg, n_arg, head, treenodes));
 }
 
 /*
@@ -187,13 +163,10 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	if (!(rt->rt_flags & RTF_UP))
 		return;			/* prophylactic measures */
 
-	if ((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
-		return;
-
 	if (rt->rt_flags & RTPRF_OURS)
 		return;
 
-	if (!(rt->rt_flags & (RTF_WASCLONED | RTF_DYNAMIC)))
+	if (!(rt->rt_flags & RTF_DYNAMIC))
 		return;
 
 	/*
@@ -434,7 +407,6 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 		 * the routes that rtrequest() would have in any case,
 		 * so that behavior is not needed there.
 		 */
-		rt->rt_flags &= ~RTF_CLONING;
 		rtexpunge(rt);
 	}
 	RT_UNLOCK(rt);

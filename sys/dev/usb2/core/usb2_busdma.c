@@ -29,12 +29,15 @@
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_defs.h>
 
+#define	USB_DEBUG_VAR usb2_debug
+
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_device.h>
 #include <dev/usb2/core/usb2_util.h>
+#include <dev/usb2/core/usb2_debug.h>
 
 #include <dev/usb2/controller/usb2_controller.h>
 #include <dev/usb2/controller/usb2_bus.h>
@@ -418,7 +421,16 @@ usb2_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	pc->page_offset_buf = rem;
 	pc->page_offset_end += rem;
 	nseg--;
-
+#if (USB_DEBUG != 0)
+	if (rem != (USB_P2U(pc->buffer) & (USB_PAGE_SIZE - 1))) {
+		/*
+		 * This check verifies that the physical address is correct:
+		 */
+		DPRINTFN(0, "Page offset was not preserved!\n");
+		error = 1;
+		goto done;
+	}
+#endif
 	while (nseg > 0) {
 		nseg--;
 		segs++;
@@ -788,7 +800,16 @@ usb2_pc_common_mem_cb(struct usb2_page_cache *pc, bus_dma_segment_t *segs,
 		ext_seg = 0;
 	}
 	nseg--;
-
+#if (USB_DEBUG != 0)
+	if (rem != (USB_P2U(pc->buffer) & (USB_PAGE_SIZE - 1))) {
+		/*
+		 * This check verifies that the physical address is correct:
+		 */
+		DPRINTFN(0, "Page offset was not preserved!\n");
+		error = 1;
+		goto done;
+	}
+#endif
 	while (nseg > 0) {
 		nseg--;
 		segs++;
@@ -1205,15 +1226,15 @@ usb2_bdma_work_loop(struct usb2_xfer_queue *pq)
 	uint32_t nframes;
 
 	xfer = pq->curr;
-	info = xfer->usb2_root;
+	info = xfer->xroot;
 
-	mtx_assert(info->priv_mtx, MA_OWNED);
+	mtx_assert(info->xfer_mtx, MA_OWNED);
 
 	if (xfer->error) {
 		/* some error happened */
-		USB_BUS_LOCK(xfer->udev->bus);
+		USB_BUS_LOCK(info->bus);
 		usb2_transfer_done(xfer, 0);
-		USB_BUS_UNLOCK(xfer->udev->bus);
+		USB_BUS_UNLOCK(info->bus);
 		return;
 	}
 	if (!xfer->flags_int.bdma_setup) {
@@ -1285,9 +1306,9 @@ usb2_bdma_work_loop(struct usb2_xfer_queue *pq)
 
 	}
 	if (info->dma_error) {
-		USB_BUS_LOCK(xfer->udev->bus);
+		USB_BUS_LOCK(info->bus);
 		usb2_transfer_done(xfer, USB_ERR_DMA_LOAD_FAILED);
-		USB_BUS_UNLOCK(xfer->udev->bus);
+		USB_BUS_UNLOCK(info->bus);
 		return;
 	}
 	if (info->dma_currframe != info->dma_nframes) {
@@ -1331,7 +1352,7 @@ usb2_bdma_done_event(struct usb2_dma_parent_tag *udpt)
 
 	info = udpt->info;
 
-	mtx_assert(info->priv_mtx, MA_OWNED);
+	mtx_assert(info->xfer_mtx, MA_OWNED);
 
 	/* copy error */
 	info->dma_error = udpt->dma_error;

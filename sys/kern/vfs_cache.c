@@ -163,8 +163,8 @@ static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits);
 static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
 static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
 
-SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
-	sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
+SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
+	&nchstats, sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
 
 
 
@@ -212,8 +212,9 @@ sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 	}
 	return (0);
 }
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_rawnchash, "S,int", "nchash chain lengths");
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD|
+	CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_rawnchash, "S,int",
+	"nchash chain lengths");
 
 static int
 sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
@@ -260,8 +261,9 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 		return (error);
 	return (0);
 }
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_nchash, "I", "nchash chain lengths");
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
+	CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_nchash, "I",
+	"nchash chain lengths");
 
 /*
  * cache_zap():
@@ -489,6 +491,12 @@ cache_enter(dvp, vp, cnp)
 	if (!doingcache)
 		return;
 
+	/*
+	 * Avoid blowout in namecache entries.
+	 */
+	if (numcache >= desiredvnodes * 2)
+		return;
+
 	if (cnp->cn_nameptr[0] == '.') {
 		if (cnp->cn_namelen == 1) {
 			return;
@@ -526,28 +534,18 @@ cache_enter(dvp, vp, cnp)
 	CACHE_LOCK();
 
 	/*
-	 * See if this vnode is already in the cache with this name.
-	 * This can happen with concurrent lookups of the same path
-	 * name.
+	 * See if this vnode or negative entry is already in the cache
+	 * with this name.  This can happen with concurrent lookups of
+	 * the same path name.
 	 */
-	if (vp) {
-		TAILQ_FOREACH(n2, &vp->v_cache_dst, nc_dst) {
-			if (n2->nc_dvp == dvp &&
-			    n2->nc_nlen == cnp->cn_namelen &&
-			    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
-				CACHE_UNLOCK();
-				cache_free(ncp);
-				return;
-			}
-		}
-	} else {
-		TAILQ_FOREACH(n2, &ncneg, nc_dst) {
-			if (n2->nc_nlen == cnp->cn_namelen &&
-			    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
-				CACHE_UNLOCK();
-				cache_free(ncp);
-				return;
-			}
+	ncpp = NCHHASH(hash);
+	LIST_FOREACH(n2, ncpp, nc_hash) {
+		if (n2->nc_dvp == dvp &&
+		    n2->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
+			CACHE_UNLOCK();
+			cache_free(ncp);
+			return;
 		}
 	}
 
@@ -565,7 +563,6 @@ cache_enter(dvp, vp, cnp)
 	 * Insert the new namecache entry into the appropriate chain
 	 * within the cache entries table.
 	 */
-	ncpp = NCHHASH(hash);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 	if (LIST_EMPTY(&dvp->v_cache_src)) {
 		hold = 1;
@@ -851,9 +848,9 @@ vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen)
 	CACHE_UNLOCK();
 	vfslocked = VFS_LOCK_GIANT((*vp)->v_mount);
 	vn_lock(*vp, LK_SHARED | LK_RETRY);
-	vdrop(*vp);
 	error = VOP_VPTOCNP(*vp, &dvp, buf, buflen);
 	VOP_UNLOCK(*vp, 0);
+	vdrop(*vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
 		numfullpathfail2++;
@@ -936,7 +933,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (ncp != NULL) {
-			MPASS(ncp->nc_dvp == vp->v_dd);
+			MPASS(vp->v_dd == NULL || ncp->nc_dvp == vp->v_dd);
 			buflen -= ncp->nc_nlen - 1;
 			for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
 				*--bp = ncp->nc_name[i];

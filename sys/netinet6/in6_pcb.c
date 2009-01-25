@@ -394,9 +394,9 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
-	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
-	if (inp->in6p_flags & IN6P_AUTOFLOWLABEL)
-		inp->in6p_flowinfo |=
+	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
+	if (inp->inp_flags & IN6P_AUTOFLOWLABEL)
+		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 
 	in_pcbrehash(inp);
@@ -414,7 +414,7 @@ in6_pcbdisconnect(struct inpcb *inp)
 	bzero((caddr_t)&inp->in6p_faddr, sizeof(inp->in6p_faddr));
 	inp->inp_fport = 0;
 	/* clear flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
-	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
+	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
 	in_pcbrehash(inp);
 }
 
@@ -617,7 +617,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		 */
 		if (lport == 0 && fport == 0 && flowinfo &&
 		    inp->inp_socket != NULL &&
-		    flowinfo == (inp->in6p_flowinfo & IPV6_FLOWLABEL_MASK) &&
+		    flowinfo == (inp->inp_flow & IPV6_FLOWLABEL_MASK) &&
 		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &sa6_src.sin6_addr))
 			goto do_notify;
 		else if (!IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr,
@@ -736,7 +736,7 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 void
 in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
-	struct in6pcb *in6p;
+	struct inpcb *in6p;
 	struct ip6_moptions *im6o;
 	struct in6_multi_mship *imm, *nimm;
 

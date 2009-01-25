@@ -72,24 +72,13 @@ static struct cdevsw g_dev_cdevsw = {
 
 static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
-static g_init_t		g_dev_init;
 
 static struct g_class g_dev_class	= {
 	.name = "DEV",
 	.version = G_VERSION,
 	.taste = g_dev_taste,
 	.orphan = g_dev_orphan,
-	.init = g_dev_init,
 };
-
-static struct unrhdr *unithdr;	/* Locked by topology */
-
-static void
-g_dev_init(struct g_class *mp)
-{
-
-	unithdr = new_unrhdr(0, INT_MAX, NULL);
-}
 
 void
 g_dev_print(void)
@@ -126,7 +115,6 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct g_consumer *cp;
 	int error;
 	struct cdev *dev;
-	u_int unit;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -138,8 +126,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
-	unit = alloc_unr(unithdr);
-	dev = make_dev(&g_dev_cdevsw, unit,
+	dev = make_dev(&g_dev_cdevsw, 0,
 	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
 	if (pp->flags & G_PF_CANDELETE)
 		dev->si_flags |= SI_CANDELETE;
@@ -432,7 +419,6 @@ g_dev_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct cdev *dev;
-	u_int unit;
 
 	g_topology_assert();
 	gp = cp->geom;
@@ -444,9 +430,7 @@ g_dev_orphan(struct g_consumer *cp)
 		set_dumper(NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
-	unit = dev2unit(dev);
 	destroy_dev(dev);
-	free_unr(unithdr, unit);
 
 	/* Wait for the cows to come home */
 	while (cp->nstart != cp->nend)
