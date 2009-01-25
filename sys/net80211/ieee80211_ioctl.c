@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
  
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -3233,6 +3234,8 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ieee80211_stop_locked(vap);
 		}
 		IEEE80211_UNLOCK(ic);
+		/* Wait for parent ioctl handler if it was queued */
+		taskqueue_drain(taskqueue_thread, &ic->ic_parent_task);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
