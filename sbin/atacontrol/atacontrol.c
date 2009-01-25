@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 static const char *
 mode2str(int mode)
@@ -517,12 +518,30 @@ main(int argc, char **argv)
 		if (ioctl(fd, IOCATARAIDREBUILD, &array) < 0)
 			warn("ioctl(IOCATARAIDREBUILD)");
 		else {
-			char buffer[128];
-			sprintf(buffer, "/usr/bin/nice -n 20 /bin/dd "
-				"if=/dev/ar%d of=/dev/null bs=1m &",
-				array);
-			if (system(buffer))
-				warn("background dd");
+			char device[64];
+			char *buffer;
+			ssize_t len;
+			int arfd;
+
+			if (daemon(0, 1) == -1)
+				err(1, "daemon");
+			nice(20);
+			snprintf(device, sizeof(device), "/dev/ar%d",
+			    array);
+			if ((arfd = open(device, O_RDONLY)) == -1)
+				err(1, "open %s", device);
+			if ((buffer = malloc(1024 * 1024)) == NULL)
+				err(1, "malloc");
+			while ((len = read(arfd, buffer, 1024 * 1024)) > 0)
+				;
+			if (len == -1)
+				err(1, "read");
+			else
+				fprintf(stderr,
+				    "atacontrol: ar%d rebuild completed\n",
+				    array);
+			free(buffer);
+			close(arfd);
 		}
 		exit(EX_OK);
 	}
