@@ -3013,6 +3013,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	}
 
 	error = 0;
+
 	/* Add tag if member or bridge interface has IFF_L2TAG set */
 	if (((bifp ? bifp->if_flags : 0) | (ifp ? ifp->if_flags : 0)) & IFF_L2TAG) {
 		mtag_ether_header = m_tag_locate(*mp, MTAG_ETHER, MTAG_ETHER_HEADER,
