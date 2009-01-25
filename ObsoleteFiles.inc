@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090122: tzdata2009a import
+OLD_FILES+=usr/share/zoneinfo/Asia/Katmandu
+# 20090102: file 4.26 import
+OLD_FILES+=usr/share/misc/magic.mime
+OLD_FILES+=usr/share/misc/magic.mime.mgc
 # 20081223: bind 9.4.3 import, nsupdate.8 moved to nsupdate.1
 OLD_FILES+=usr/share/man/man8/nsupdate.8.gz
 # 20081223: ipprotosw.h removed
