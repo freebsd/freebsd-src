@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 17, 2008
+.Dd November 17, 2008
 .Dt CC 9
 .Os
 .Sh NAME
@@ -78,9 +78,11 @@ name.
 .Bl -tag -width ".Va net.inet.tcp.cc.algorithm" -offset indent
 .It Va net.inet.tcp.cc.algorithm
 Specifies which congestion control algorithm will be used by default for new TCP
-connections. Setting this variable to one of the names in the
+connections.
+Setting this variable to one of the names in the
 .Va net.inet.tcp.cc.available
 list will change the system default for all new connections.
+.El
 .Sh FUNCTIONS
 The
 .Fn cc_register_algorithm
@@ -93,10 +95,10 @@ The
 .Fn cc_register_algorithm
 function returns non-zero on failure.
 .Sh SEE ALSO
-.Xr cc_htcp 4 ,
 .Xr cc_cubic 4 ,
-.Xr tcp 4 ,
+.Xr cc_htcp 4 ,
 .Xr sctp 4
+.Xr tcp 4 ,
 .Sh HISTORY
 The modular Congestion Control (CC) framework first appeared in
 .Fx 8.0 .
@@ -119,4 +121,3 @@ This manual page was written by
 .Sh ACKNOWLEDGMENTS
 Development of this software was made possible in part by a grant from the
 Cisco University Research Program Fund at Community Foundation Silicon Valley.
-
