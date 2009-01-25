@@ -965,8 +965,8 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 	struct selfd *sfp;
 	struct selfd *sfn;
 	struct file *fp;
-	int fd, ev, n;
-	int idx, bit;
+	fd_mask bit;
+	int fd, ev, n, idx;
 
 	fdp = td->td_proc->p_fd;
 	stp = td->td_sel;
@@ -984,7 +984,7 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 			return (EBADF);
 		}
 		idx = fd / NFDBITS;
-		bit = 1 << (fd % NFDBITS);
+		bit = (fd_mask)1 << (fd % NFDBITS);
 		ev = fo_poll(fp, selflags(ibits, idx, bit), td->td_ucred, td);
 		if (ev != 0)
 			n += selsetbits(ibits, obits, idx, bit, ev);
@@ -1007,13 +1007,14 @@ selscan(td, ibits, obits, nfd)
 {
 	struct filedesc *fdp;
 	struct file *fp;
+	fd_mask bit;
 	int ev, flags, end, fd;
-	int n, idx, bit;
+	int n, idx;
 
 	fdp = td->td_proc->p_fd;
 	n = 0;
 	FILEDESC_SLOCK(fdp);
-	for (idx = 0, fd = 0; idx < nfd; idx++) {
+	for (idx = 0, fd = 0; fd < nfd; idx++) {
 		end = imin(fd + NFDBITS, nfd);
 		for (bit = 1; fd < end; bit <<= 1, fd++) {
 			/* Compute the list of events we're interested in. */
