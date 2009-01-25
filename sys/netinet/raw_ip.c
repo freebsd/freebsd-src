@@ -371,7 +371,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
 		if (jailed(inp->inp_cred)) {
-			if (prison_getip4(inp->inp_cred, &ip->ip_src)) {
+			if (prison_get_ip4(inp->inp_cred, &ip->ip_src) != 0) {
 				INP_RUNLOCK(inp);
 				m_freem(m);
 				return (EPERM);
