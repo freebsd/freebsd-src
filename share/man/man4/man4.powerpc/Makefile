@@ -2,7 +2,9 @@
 
 MAN=	bm.4 \
 	pmu.4 \
-	powermac_nvram.4
+	powermac_nvram.4 \
+	snd_ai2s.4 \
+	snd_davbus
 
 MANSUBDIR=/powerpc
 
