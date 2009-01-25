@@ -477,6 +477,22 @@ pf_thread_create(void *v)
 	if (kproc_create(pf_purge_thread, NULL, NULL, "pfpurge"))
 		panic("pfpurge thread");
 }
+
+int
+pfopen(struct cdev *dev, int flags, int fmt, struct proc *p)
+{
+	if (dev2unit(dev) >= 1)
+		return (ENXIO);
+	return (0);
+}
+
+int
+pfclose(struct cdev *dev, int flags, int fmt, struct proc *p)
+{
+	if (dev2unit(dev) >= 1)
+		return (ENXIO);
+	return (0);
+}
 #endif /* __FreeBSD__ */
 
 struct pf_pool *
