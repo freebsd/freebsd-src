@@ -243,7 +243,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep)
 {
 	struct powerpc_intr *i;
-	int error;
+	int error, enable = 0;
 
 	i = intr_lookup(irq);
 	if (i == NULL)
@@ -258,13 +258,16 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 
 		i->cntp = &intrcnt[i->vector];
 
-		if (!cold)
-			PIC_ENABLE(pic, i->irq, i->vector);
+		enable = 1;
 	}
 
 	error = intr_event_add_handler(i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	intrcnt_setname(i->event->ie_fullname, i->vector);
+
+	if (!cold && enable)
+		PIC_ENABLE(pic, i->irq, i->vector);
+
 	return (error);
 }
 
