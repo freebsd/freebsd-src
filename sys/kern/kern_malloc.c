@@ -329,7 +329,6 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	int indx;
 	caddr_t va;
 	uma_zone_t zone;
-	uma_keg_t keg;
 #if defined(DIAGNOSTIC) || defined(DEBUG_REDZONE)
 	unsigned long osize = size;
 #endif
@@ -378,18 +377,16 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 		indx = kmemsize[size >> KMEM_ZSHIFT];
 		zone = kmemzones[indx].kz_zone;
-		keg = zone->uz_keg;
 #ifdef MALLOC_PROFILE
 		krequests[size >> KMEM_ZSHIFT]++;
 #endif
 		va = uma_zalloc(zone, flags);
 		if (va != NULL)
-			size = keg->uk_size;
+			size = zone->uz_size;
 		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
 	} else {
 		size = roundup(size, PAGE_SIZE);
 		zone = NULL;
-		keg = NULL;
 		va = uma_large_malloc(size, flags);
 		malloc_type_allocated(mtp, va == NULL ? 0 : size);
 	}
