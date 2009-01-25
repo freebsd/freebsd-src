@@ -886,6 +886,71 @@ done:
 
 	return (error);
 }
+/* 
+ * Convert a select bit set to poll flags.
+ #
+ * The backend always returns POLLHUP/POLLERR if appropriate and we
+ * return this as a set bit in any set.
+ */
+static int select_flags[3] = {
+    POLLRDNORM | POLLHUP | POLLERR,
+    POLLWRNORM | POLLHUP | POLLERR,
+    POLLRDBAND | POLLHUP | POLLERR
+};
+
+/*
+ * Compute the fo_poll flags required for a fd given by the index and
+ * bit position in the fd_mask array.
+ */
+static __inline int
+selflags(fd_mask **ibits, int idx, int bit)
+{
+	int flags;
+	int msk;
+
+	flags = 0;
+	for (msk = 0; msk < 3; msk++) {
+		if (ibits[msk] == NULL)
+			continue;
+		if ((ibits[msk][idx] & (fd_mask)bit) == 0)
+			continue;
+		flags |= select_flags[msk];
+	}
+	return (flags);
+}
+
+/*
+ * Set the appropriate output bits given a mask of fired events and the
+ * input bits originally requested.
+ */
+static __inline int
+selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
+{
+	int msk;
+	int n;
+
+	n = 0;
+	for (msk = 0; msk < 3; msk++) {
+		if ((events & select_flags[msk]) == 0)
+			continue;
+		if (ibits[msk] == NULL)
+			continue;
+		if ((ibits[msk][idx] & bit) == 0)
+			continue;
+		/*
+		 * XXX Check for a duplicate set.  This can occur because a
+		 * socket calls selrecord() twice for each poll() call
+		 * resulting in two selfds per real fd.  selrescan() will
+		 * call selsetbits twice as a result.
+		 */
+		if ((obits[msk][idx] & bit) != 0)
+			continue;
+		obits[msk][idx] |= bit;
+		n++;
+	}
+
+	return (n);
+}
 
 /*
  * Traverse the list of fds attached to this thread's seltd and check for
@@ -894,18 +959,18 @@ done:
 static int
 selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 {
+	struct filedesc *fdp;
+	struct selinfo *si;
 	struct seltd *stp;
 	struct selfd *sfp;
 	struct selfd *sfn;
-	struct selinfo *si;
 	struct file *fp;
-	int msk, fd;
-	int n = 0;
-	/* Note: backend also returns POLLHUP/POLLERR if appropriate. */
-	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND };
-	struct filedesc *fdp = td->td_proc->p_fd;
+	int fd, ev, n;
+	int idx, bit;
 
+	fdp = td->td_proc->p_fd;
 	stp = td->td_sel;
+	n = 0;
 	FILEDESC_SLOCK(fdp);
 	STAILQ_FOREACH_SAFE(sfp, &stp->st_selq, sf_link, sfn) {
 		fd = (int)(uintptr_t)sfp->sf_cookie;
@@ -918,18 +983,11 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 			FILEDESC_SUNLOCK(fdp);
 			return (EBADF);
 		}
-		for (msk = 0; msk < 3; msk++) {
-			if (ibits[msk] == NULL)
-				continue;
-			if ((ibits[msk][fd/NFDBITS] &
-			    ((fd_mask) 1 << (fd % NFDBITS))) == 0)
-				continue;
-			if (fo_poll(fp, flag[msk], td->td_ucred, td)) {
-				obits[msk][(fd)/NFDBITS] |=
-				    ((fd_mask)1 << ((fd) % NFDBITS));
-				n++;
-			}
-		}
+		idx = fd / NFDBITS;
+		bit = 1 << (fd % NFDBITS);
+		ev = fo_poll(fp, selflags(ibits, idx, bit), td->td_ucred, td);
+		if (ev != 0)
+			n += selsetbits(ibits, obits, idx, bit, ev);
 	}
 	FILEDESC_SUNLOCK(fdp);
 	stp->st_flags = 0;
@@ -947,38 +1005,32 @@ selscan(td, ibits, obits, nfd)
 	fd_mask **ibits, **obits;
 	int nfd;
 {
-	int msk, i, fd;
-	fd_mask bits;
+	struct filedesc *fdp;
 	struct file *fp;
-	int n = 0;
-	/* Note: backend also returns POLLHUP/POLLERR if appropriate. */
-	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND };
-	struct filedesc *fdp = td->td_proc->p_fd;
+	int ev, flags, end, fd;
+	int n, idx, bit;
 
+	fdp = td->td_proc->p_fd;
+	n = 0;
 	FILEDESC_SLOCK(fdp);
-	for (msk = 0; msk < 3; msk++) {
-		if (ibits[msk] == NULL)
-			continue;
-		for (i = 0; i < nfd; i += NFDBITS) {
-			bits = ibits[msk][i/NFDBITS];
-			/* ffs(int mask) not portable, fd_mask is long */
-			for (fd = i; bits && fd < nfd; fd++, bits >>= 1) {
-				if (!(bits & 1))
-					continue;
-				if ((fp = fget_locked(fdp, fd)) == NULL) {
-					FILEDESC_SUNLOCK(fdp);
-					return (EBADF);
-				}
-				selfdalloc(td, (void *)(uintptr_t)fd);
-				if (fo_poll(fp, flag[msk], td->td_ucred,
-				    td)) {
-					obits[msk][(fd)/NFDBITS] |=
-					    ((fd_mask)1 << ((fd) % NFDBITS));
-					n++;
-				}
+	for (idx = 0, fd = 0; idx < nfd; idx++) {
+		end = imin(fd + NFDBITS, nfd);
+		for (bit = 1; fd < end; bit <<= 1, fd++) {
+			/* Compute the list of events we're interested in. */
+			flags = selflags(ibits, idx, bit);
+			if (flags == 0)
+				continue;
+			if ((fp = fget_locked(fdp, fd)) == NULL) {
+				FILEDESC_SUNLOCK(fdp);
+				return (EBADF);
 			}
+			selfdalloc(td, (void *)(uintptr_t)fd);
+			ev = fo_poll(fp, flags, td->td_ucred, td);
+			if (ev != 0)
+				n += selsetbits(ibits, obits, idx, bit, ev);
 		}
 	}
+
 	FILEDESC_SUNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
