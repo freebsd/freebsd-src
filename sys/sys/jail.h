@@ -181,12 +181,12 @@ void prison_hold(struct prison *pr);
 void prison_hold_locked(struct prison *pr);
 void prison_proc_hold(struct prison *);
 void prison_proc_free(struct prison *);
-int prison_getip4(struct ucred *cred, struct in_addr *ia);
+int prison_get_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_local_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_remote_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_check_ip4(struct ucred *cred, struct in_addr *ia);
 #ifdef INET6
-int prison_getip6(struct ucred *, struct in6_addr *);
+int prison_get_ip6(struct ucred *, struct in6_addr *);
 int prison_local_ip6(struct ucred *, struct in6_addr *, int);
 int prison_remote_ip6(struct ucred *, struct in6_addr *);
 int prison_check_ip6(struct ucred *, struct in6_addr *);
