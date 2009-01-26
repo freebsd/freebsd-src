@@ -2431,12 +2431,16 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 	x = URWMASK(UREAD2(sc, port));
 	UWRITE2(sc, port, x & ~UHCI_PORTSC_PR);
 
-	if (use_polling) {
-		/* polling */
-		DELAY(1000);
-	} else {
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
-	}
+
+	mtx_unlock(&sc->sc_bus.bus_mtx);
+
+	/* 
+	 * This delay needs to be exactly 100us, else some USB devices
+	 * fail to attach!
+	 */
+	DELAY(100);
+
+	mtx_lock(&sc->sc_bus.bus_mtx);
 
 	DPRINTFN(4, "uhci port %d reset, status1 = 0x%04x\n",
 	    index, UREAD2(sc, port));
