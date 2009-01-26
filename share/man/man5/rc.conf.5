@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2009
+.Dd January 25, 2009
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3426,8 +3426,38 @@ Set to the fully qualified domain name (FQDN) assigned to jail
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _ip
 .Pq Vt str
 Unset by default.
-Set to the IP address assigned to jail
-.Va jname .
+Set to the (primary) IPv4 and/or IPv6 address(es) assigned to the jail.
+The argument can be a sole address or a comma separated list of addresses.
+Additionally each address can be prefixed by the name of an interface
+followed by a pipe to overwrite
+.Va jail_ Ns Ao Ar jname Ac Ns Va _interface
+or
+.Va jail_interface
+and/or suffixed by a netmask, prefixlen or prefix.
+In case no netmask, prefixlen or prefix is given,
+.Sq /32
+will be used for IPv4 and
+.Sq /128
+will be used for an IPv6 address.
+If no address is given for the jail then the jail will be started with
+no networking support.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _ip_multi Ns Aq Ar n
+.Pq Vt str
+Unset by default.
+Set additional IPv4 and/or IPv6 address(es) assigned to the jail.
+The sequence starts with
+.Dq Li _multi0
+and the numbers have to be strictly ascending.
+These entries follow the same syntax as their primary
+.Va jail_ Ns Ao Ar jname Ac Ns Va _ip
+entry.
+The order of the entries can be important as the first address for
+each address family found will be the primary address of the jail.
+See
+.Va ip-addresses
+option in
+.Xr jail 8
+for more details.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _flags
 .Pq Vt str
 Set to
@@ -3440,12 +3470,6 @@ These are flags to pass to
 Unset by default.
 When set, sets the interface to use when setting IP address alias.
 Note that the alias is created at jail startup and removed at jail shutdown.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _netmask
-.Pq Vt str
-Set to
-.Li 255.255.255.255
-by default.
-This is the IP netmask to use when setting IP address alias.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _fib
 .Pq Vt str
 Unset by default.
