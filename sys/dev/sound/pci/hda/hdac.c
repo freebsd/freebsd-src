@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090113_0125"
+#define HDA_DRV_TEST_REV	"20090126_0126"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -2585,8 +2585,15 @@ hdac_widget_getcaps(struct hdac_widget *w, int *waspin)
 	   Change beeper pin node type to beeper to help parser. */
 	*waspin = 0;
 	switch (id) {
+	case HDA_CODEC_AD1882:
+	case HDA_CODEC_AD1883:
+	case HDA_CODEC_AD1984:
+	case HDA_CODEC_AD1984A:
+	case HDA_CODEC_AD1984B:
+	case HDA_CODEC_AD1987:
 	case HDA_CODEC_AD1988:
 	case HDA_CODEC_AD1988B:
+	case HDA_CODEC_AD1989B:
 		beeper = 26;
 		break;
 	case HDA_CODEC_ALC260:
