@@ -511,6 +511,26 @@ align_uint64(uint64_t *pll) {
 	return ret;
 }
 
+static void *
+safe_calloc(size_t number, size_t size)
+{
+	void *ret = calloc(number, size);
+
+	if (ret == NULL)
+		err(EX_OSERR, "calloc");
+	return ret;
+}
+
+static void *
+safe_realloc(void *ptr, size_t size)
+{
+	void *ret = realloc(ptr, size);
+
+	if (ret == NULL)
+		err(EX_OSERR, "realloc");
+	return ret;
+}
+
 /*
  * conditionally runs the command.
  */
@@ -718,9 +738,7 @@ strtoport(char *s, char **end, int base, int proto)
 		if (*s1 == '\\' && s1[1] != '\0')
 			s1++;
 
-	buf = malloc(s1 - s + 1);
-	if (buf == NULL)
-		return 0;
+	buf = safe_calloc(s1 - s + 1, 1);
 
 	/*
 	 * copy into a buffer skipping backslashes
@@ -813,9 +831,7 @@ altq_fetch(void)
 		}
 		if (pfioc.altq.qid == 0)
 			continue;
-		altq = malloc(sizeof(*altq));
-		if (altq == NULL)
-			err(EX_OSERR, "malloc");
+		altq = safe_calloc(1, sizeof(*altq));
 		*altq = pfioc.altq;
 		TAILQ_INSERT_TAIL(&altq_entries, altq, entries);
 	}
@@ -2381,8 +2397,7 @@ sets_handler(int ac, char *av[])
 		char const *msg;
 
 		nbytes = sizeof(struct ip_fw);
-		if ((data = calloc(1, nbytes)) == NULL)
-			err(EX_OSERR, "calloc");
+		data = safe_calloc(1, nbytes);
 		if (do_cmd(IP_FW_GET, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
 		bcopy(&((struct ip_fw *)data)->next_rule,
@@ -2531,8 +2546,7 @@ list(int ac, char *av[], int show_counters)
 	while (nbytes >= nalloc) {
 		nalloc = nalloc * 2 + 200;
 		nbytes = nalloc;
-		if ((data = realloc(data, nbytes)) == NULL)
-			err(EX_OSERR, "realloc");
+		data = safe_realloc(data, nbytes);
 		if (do_cmd(ocmd, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_%s_GET)",
 				do_pipe ? "DUMMYNET" : "FW");
@@ -3331,8 +3345,7 @@ set_addr_dynamic(const char *ifn, struct cfg_nat *n)
  */
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) == -1)
 		err(1, "iflist-sysctl-estimate");
-	if ((buf = malloc(needed)) == NULL)
-		errx(1, "malloc failed");
+	buf = safe_calloc(1, needed);
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) == -1)
 		err(1, "iflist-sysctl-get");
 	lim = buf + needed;
@@ -5985,9 +5998,7 @@ table_list(ipfw_table_entry ent, int need_header)
 		return;
 
 	l = sizeof(*tbl) + a * sizeof(ipfw_table_entry);
-	tbl = malloc(l);
-	if (tbl == NULL)
-		err(EX_OSERR, "malloc");
+	tbl = safe_calloc(1, l);
 	tbl->tbl = ent.tbl;
 	if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
 		err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
@@ -6053,8 +6064,7 @@ show_nat(int ac, char **av)
 	while (nbytes >= nalloc) {
 		nalloc = nalloc * 2;
 		nbytes = nalloc;
-		if ((data = realloc(data, nbytes)) == NULL)
-			err(EX_OSERR, "realloc");
+		data = safe_realloc(data, nbytes);
 		if (do_cmd(cmd, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET_%s)",
 			    (cmd == IP_FW_NAT_GET_LOG) ? "LOG" : "CONFIG");
@@ -6147,7 +6157,7 @@ ipfw_main(int oldac, char **oldav)
 		 * Allocate the argument list, including one entry for
 		 * the program name because getopt expects it.
 		 */
-		av = calloc(ac + 1, sizeof(char *));
+		av = safe_calloc(ac + 1, sizeof(char *));
 
 		/*
 		 * Second, copy arguments from arg[] to av[]. For each one,
@@ -6157,7 +6167,7 @@ ipfw_main(int oldac, char **oldav)
 			if (index(WHITESP, arg[i]) != NULL || i == l-1) {
 				if (i == l-1)
 					i++;
-				av[ac] = calloc(i-j+1, 1);
+				av[ac] = safe_calloc(i-j+1, 1);
 				bcopy(arg+j, av[ac], i-j);
 				ac++;
 				j = i + 1;
@@ -6168,7 +6178,7 @@ ipfw_main(int oldac, char **oldav)
 		 */
 		int first, i, l;
 
-		av = calloc(oldac, sizeof(char *));
+		av = safe_calloc(oldac, sizeof(char *));
 		for (first = i = ac = 1, l = 0; i < oldac; i++) {
 			char *arg = oldav[i];
 			int k = strlen(arg);
@@ -6176,7 +6186,7 @@ ipfw_main(int oldac, char **oldav)
 			l += k;
 			if (arg[k-1] != ',' || i == oldac-1) {
 				/* Time to copy. */
-				av[ac] = calloc(l+1, 1);
+				av[ac] = safe_calloc(l+1, 1);
 				for (l=0; first <= i; first++) {
 					strcat(av[ac]+l, oldav[first]);
 					l += strlen(oldav[first]);
@@ -6377,7 +6387,7 @@ ipfw_readfile(int ac, char *av[])
 {
 #define MAX_ARGS	32
 	char	buf[BUFSIZ];
-	const char *progname = av[0];		/* original program name */
+	char *progname = av[0];		/* original program name */
 	const char *cmd = NULL;		/* preprocessor name, if any */
 	const char *filename = av[ac-1]; /* file to read */
 	int	c, lineno=0;
@@ -6493,7 +6503,7 @@ ipfw_readfile(int ac, char *av[])
 		lineno++;
 		sprintf(linename, "Line %d", lineno);
 		setprogname(linename); /* XXX */
-		args[0] = strdup(progname);
+		args[0] = progname;
 		args[1] = buf;
 		ipfw_main(2, args);
 	}
