@@ -45,8 +45,7 @@
 #define	_PATH_STDPATH \
 	"/usr/bin:/bin:/usr/sbin:/sbin:"
 /* Locate system binaries */
-#define _PATH_SYSPATH	\
-	"/sbin:/usr/sbin"
+#define _PATH_SYSPATH	"/sbin:/usr/sbin"
 
 #define	_PATH_AUTHCONF	"/etc/auth.conf"
 #define	_PATH_BSHELL	"/bin/sh"
