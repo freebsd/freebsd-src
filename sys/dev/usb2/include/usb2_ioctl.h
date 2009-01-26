@@ -223,7 +223,7 @@ struct usb2_gen_quirk {
 #define	USB_DEVICEENUMERATE	_IOW ('U', 6, int)
 
 /* Generic HID device */
-#define	USB_GET_REPORT_DESC	_IOR ('U', 21, struct usb2_gen_descriptor)
+#define	USB_GET_REPORT_DESC	_IOWR('U', 21, struct usb2_gen_descriptor)
 #define	USB_SET_IMMED		_IOW ('U', 22, int)
 #define	USB_GET_REPORT		_IOWR('U', 23, struct usb2_gen_descriptor)
 #define	USB_SET_REPORT		_IOW ('U', 24, struct usb2_gen_descriptor)
