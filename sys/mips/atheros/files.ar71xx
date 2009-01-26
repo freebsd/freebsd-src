@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-mips/atheros/ar71xx_machdep.c	standard
 mips/atheros/apb.c		standard
+mips/atheros/ar71xx_machdep.c	standard
+mips/atheros/ar71xx_pci.c	optional pci
 mips/atheros/uart_bus_ar71xx.c	optional uart
 mips/atheros/uart_cpu_ar71xx.c	optional uart
