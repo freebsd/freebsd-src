@@ -115,7 +115,7 @@ typedef struct mtx ieee80211_scan_lock_t;
 #define	_IEEE80211_NODE_SAVEQ_ENQUEUE(_ni, _m, _qlen, _age) do {\
 	(_m)->m_nextpkt = NULL;					\
 	if ((_ni)->ni_savedq.ifq_tail != NULL) { 		\
-		_age -= M_AGE_GET((_ni)->ni_savedq.ifq_tail);	\
+		_age -= M_AGE_GET((_ni)->ni_savedq.ifq_head);	\
 		(_ni)->ni_savedq.ifq_tail->m_nextpkt = (_m);	\
 	} else { 						\
 		(_ni)->ni_savedq.ifq_head = (_m); 		\
