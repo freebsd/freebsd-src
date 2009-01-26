@@ -29,6 +29,7 @@ options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options		INVARIANTS
 options		INVARIANT_SUPPORT
 
+device		pci
 device		uart
 
 device		loop
