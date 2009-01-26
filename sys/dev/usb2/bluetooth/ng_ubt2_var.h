@@ -38,7 +38,7 @@
 #define	UBT_DEBUG(level, sc, fmt, ...)				\
 do {								\
 	if ((sc)->sc_debug >= (level))				\
-		printf("%s:%s:%d: " fmt, (sc)->sc_name,		\
+		device_printf((sc)->sc_dev, "%s:%d: " fmt, 	\
 			__FUNCTION__, __LINE__,## __VA_ARGS__);	\
 } while (0)
 
@@ -47,8 +47,8 @@ do {								\
 #define	UBT_WARN(...)		UBT_DEBUG(NG_UBT_WARN_LEVEL, __VA_ARGS__)
 #define	UBT_INFO(...)		UBT_DEBUG(NG_UBT_INFO_LEVEL, __VA_ARGS__)
 
-#define UBT_MBUFQ_LOCK(sc)	mtx_lock(&(sc)->sc_mbufq_mtx)
-#define UBT_MBUFQ_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mbufq_mtx)
+#define UBT_NG_LOCK(sc)		mtx_lock(&(sc)->sc_ng_mtx)
+#define UBT_NG_UNLOCK(sc)	mtx_unlock(&(sc)->sc_ng_mtx)
 
 /* Bluetooth USB control request type */
 #define	UBT_HCI_REQUEST		0x20
@@ -62,33 +62,22 @@ enum {
 	UBT_IF_0_BULK_DT_RD,
 	UBT_IF_0_INTR_DT_RD,
 	UBT_IF_0_CTRL_DT_WR,
-	UBT_IF_0_BULK_CS_WR,
-	UBT_IF_0_BULK_CS_RD,
-	UBT_IF_0_INTR_CS_RD,
-	UBT_IF_0_N_TRANSFER,	/* number of interface 0's transfers */
 	
 	/* Interface #1 transfers */
-	UBT_IF_1_ISOC_DT_RD1 = UBT_IF_0_N_TRANSFER,
+	UBT_IF_1_ISOC_DT_RD1,
 	UBT_IF_1_ISOC_DT_RD2,
 	UBT_IF_1_ISOC_DT_WR1,
 	UBT_IF_1_ISOC_DT_WR2,
 
 	UBT_N_TRANSFER,		/* total number of transfers */
-
-	UBT_IF_1_N_TRANSFER = UBT_N_TRANSFER - UBT_IF_1_ISOC_DT_RD1,
 };
 
 /* USB device softc structure */
 struct ubt_softc {
-	uint8_t			sc_name[16];
+	device_t		sc_dev;		/* for debug printf */
 
 	/* State */
 	ng_ubt_node_debug_ep	sc_debug;	/* debug level */
-
-	int			sc_flags;	/* device flags */
-#define	UBT_FLAG_READ_STALL	(1 << 0)	/* read transfer has stalled */
-#define	UBT_FLAG_WRITE_STALL	(1 << 1)	/* write transfer has stalled */
-#define	UBT_FLAG_INTR_STALL	(1 << 2)	/* inter transfer has stalled */
 
 	ng_ubt_node_stat_ep	sc_stat;	/* statistic */
 #define	UBT_STAT_PCKTS_SENT(sc)		(sc)->sc_stat.pckts_sent ++
@@ -100,10 +89,10 @@ struct ubt_softc {
 #define	UBT_STAT_RESET(sc)	bzero(&(sc)->sc_stat, sizeof((sc)->sc_stat))
 
 	/* USB device specific */
-	struct mtx		sc_if_mtx[2];	/* interface locks */
+	struct mtx		sc_if_mtx;	/* interfaces lock */
 	struct usb2_xfer	*sc_xfer[UBT_N_TRANSFER];
 
-	struct mtx		sc_mbufq_mtx;	/* lock for all queues */
+	struct mtx		sc_ng_mtx;	/* lock for shared NG data */
 
 	/* HCI commands */
 	struct ng_bt_mbufq	sc_cmdq;	/* HCI command queue */
