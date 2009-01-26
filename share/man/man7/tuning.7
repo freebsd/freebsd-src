@@ -403,13 +403,16 @@ on the system.
 .Pp
 The
 .Va kern.ipc.maxpipekva
-loader tunable is used to set a hard limit on the amount of pageable
-address space available.
-This value is auto tuned by the system, but may require manual tuning
-in a few rare cases.
+loader tunable is used to set a hard limit on the
+amount of kernel address space allocated to mapping of pipe buffers.
+Use of the mapping allows the kernel to eliminate a copy of the
+data from writer address space into the kernel, directly copying
+the content of mapped buffer to the reader.
 Increasing this value to a higher setting, such as `25165824' might
-improve performance on systems where pageable address space is
-quickly exhausted.
+improve performance on systems where space for mapping pipe buffers
+is quickly exhausted.
+This exhaustion is not fatal; however, and it will only cause pipes to
+to fall back to use double-copy.
 .Pp
 The
 .Va kern.ipc.shm_use_phys
