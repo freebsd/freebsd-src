@@ -2396,6 +2396,24 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 	else
 		return (USB_ERR_IOERROR);
 
+	/*
+	 * Before we do anything, turn on SOF messages on the USB
+	 * BUS. Some USB devices do not cope without them!
+	 */
+  	if (!(UREAD2(sc, UHCI_CMD) & UHCI_CMD_RS)) {
+
+		DPRINTF("Activating SOFs!\n");
+
+		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
+
+		/* wait a little bit */
+		if (use_polling) {
+			DELAY(10000);
+		} else {
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 10);
+		}
+	}
+
 	x = URWMASK(UREAD2(sc, port));
 	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
 
@@ -3320,7 +3338,13 @@ uhci_set_hw_power(struct usb2_bus *bus)
 
 	flags = bus->hw_power_state;
 
+	/*
+	 * WARNING: Some FULL speed USB devices require periodic SOF
+	 * messages! If any USB devices are connected through the
+	 * UHCI, power save will be disabled!
+	 */
 	if (flags & (USB_HW_POWER_CONTROL |
+	    USB_HW_POWER_NON_ROOT_HUB |
 	    USB_HW_POWER_BULK |
 	    USB_HW_POWER_INTERRUPT |
 	    USB_HW_POWER_ISOC)) {
