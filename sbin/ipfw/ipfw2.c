@@ -6090,7 +6090,8 @@ show_nat(int ac, char **av)
 }
 
 /*
- * Called with the arguments (excluding program name).
+ * Called with the arguments, including program name because getopt
+ * wants it to be present.
  * Returns 0 if successful, 1 if empty command, errx() in case of errors.
  */
 static int
@@ -6102,16 +6103,16 @@ ipfw_main(int oldac, char **oldav)
 	int do_acct = 0;		/* Show packet/byte count */
 
 #define WHITESP		" \t\f\v\n\r"
-	if (oldac == 0)
-		return 1;
-	else if (oldac == 1) {
+	if (oldac < 2)
+		return 1;	/* need at least one argument */
+	if (oldac == 2) {
 		/*
 		 * If we are called with a single string, try to split it into
 		 * arguments for subsequent parsing.
 		 * But first, remove spaces after a ',', by copying the string
 		 * in-place.
 		 */
-		char *arg = oldav[0];	/* The string... */
+		char *arg = oldav[1];	/* The string is the first arg. */
 		int l = strlen(arg);
 		int copy = 0;		/* 1 if we need to copy, 0 otherwise */
 		int i, j;
@@ -6142,13 +6143,17 @@ ipfw_main(int oldac, char **oldav)
 			if (index(WHITESP, arg[i]) != NULL)
 				ac++;
 
-		av = calloc(ac, sizeof(char *));
+		/*
+		 * Allocate the argument list, including one entry for
+		 * the program name because getopt expects it.
+		 */
+		av = calloc(ac + 1, sizeof(char *));
 
 		/*
-		 * Second, copy arguments from cmd[] to av[]. For each one,
+		 * Second, copy arguments from arg[] to av[]. For each one,
 		 * j is the initial character, i is the one past the end.
 		 */
-		for (ac = 0, i = j = 0; i < l; i++)
+		for (ac = 1, i = j = 0; i < l; i++)
 			if (index(WHITESP, arg[i]) != NULL || i == l-1) {
 				if (i == l-1)
 					i++;
@@ -6164,7 +6169,7 @@ ipfw_main(int oldac, char **oldav)
 		int first, i, l;
 
 		av = calloc(oldac, sizeof(char *));
-		for (first = i = ac = 0, l = 0; i < oldac; i++) {
+		for (first = i = ac = 1, l = 0; i < oldac; i++) {
 			char *arg = oldav[i];
 			int k = strlen(arg);
 
@@ -6183,6 +6188,7 @@ ipfw_main(int oldac, char **oldav)
 		}
 	}
 
+	av[0] = strdup(oldav[0]);	/* copy progname from the caller */
 	/* Set the force flag for non-interactive processes */
 	if (!do_force)
 		do_force = !isatty(STDIN_FILENO);
@@ -6191,7 +6197,7 @@ ipfw_main(int oldac, char **oldav)
 	save_ac = ac;
 	save_av = av;
 
-	optind = optreset = 0;
+	optind = optreset = 1;	/* restart getopt() */
 	while ((ch = getopt(ac, av, "abcdefhinNqs:STtv")) != -1)
 		switch (ch) {
 		case 'a':
@@ -6371,12 +6377,12 @@ ipfw_readfile(int ac, char *av[])
 {
 #define MAX_ARGS	32
 	char	buf[BUFSIZ];
-	char	*cmd = NULL, *filename = av[ac-1];
+	const char *progname = av[0];		/* original program name */
+	const char *cmd = NULL;		/* preprocessor name, if any */
+	const char *filename = av[ac-1]; /* file to read */
 	int	c, lineno=0;
 	FILE	*f = NULL;
 	pid_t	preproc = 0;
-
-	filename = av[ac-1];
 
 	while ((c = getopt(ac, av, "cfNnp:qS")) != -1) {
 		switch(c) {
@@ -6397,18 +6403,28 @@ ipfw_readfile(int ac, char *av[])
 			break;
 
 		case 'p':
-			cmd = optarg;
 			/*
-			 * Skip previous args and delete last one, so we
-			 * pass all but the last argument to the preprocessor
-			 * via av[optind-1]
+			 * ipfw -p cmd [args] filename
+			 *
+			 * We are done with getopt(). All arguments
+			 * except the filename go to the preprocessor,
+			 * so we need to do the following:
+			 * - check that a filename is actually present;
+			 * - advance av by optind-1 to skip arguments
+			 *   already processed;
+			 * - decrease ac by optind, to remove the args
+			 *   already processed and the final filename;
+			 * - set the last entry in av[] to NULL so
+			 *   popen() can detect the end of the array;
+			 * - set optind=ac to let getopt() terminate.
 			 */
-			av += optind - 1;
-			ac -= optind - 1;
-			if (ac < 2)
+			if (optind == ac)
 				errx(EX_USAGE, "no filename argument");
+			cmd = optarg;
 			av[ac-1] = NULL;
-			fprintf(stderr, "command is %s\n", av[0]);
+			av += optind - 1;
+			ac -= optind;
+			optind = ac;
 			break;
 
 		case 'q':
@@ -6424,8 +6440,6 @@ ipfw_readfile(int ac, char *av[])
 			     " summary ``ipfw''");
 		}
 
-		if (cmd != NULL)
-			break;
 	}
 
 	if (cmd == NULL && ac != optind + 1) {
@@ -6474,13 +6488,14 @@ ipfw_readfile(int ac, char *av[])
 
 	while (fgets(buf, BUFSIZ, f)) {		/* read commands */
 		char linename[10];
-		char *args[1];
+		char *args[2];
 
 		lineno++;
 		sprintf(linename, "Line %d", lineno);
 		setprogname(linename); /* XXX */
-		args[0] = buf;
-		ipfw_main(1, args);
+		args[0] = strdup(progname);
+		args[1] = buf;
+		ipfw_main(2, args);
 	}
 	fclose(f);
 	if (cmd != NULL) {
@@ -6510,7 +6525,7 @@ main(int ac, char *av[])
 	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0)
 		ipfw_readfile(ac, av);
 	else {
-		if (ipfw_main(ac-1, av+1))
+		if (ipfw_main(ac, av))
 			show_usage();
 	}
 	return EX_OK;
