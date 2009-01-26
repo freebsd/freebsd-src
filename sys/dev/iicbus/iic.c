@@ -368,6 +368,11 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		}
 		free(usrbufs, M_TEMP);
 		break;
+
+	case I2CRPTSTART:
+		error = iicbus_repeated_start(parent, s->slave, 0);
+		break;
+
 	default:
 		error = ENOTTY;
 	}
