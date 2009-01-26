@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
  *
  *	((x - 0x01....01) & 0x80....80)
  *
- * This is more than 5.2 times as compared to the raw implementation
- * on Intel T7300 under EM64T mode for strings longer than word length.
+ * This is more than 5.2 times as fast as the raw implementation on
+ * Intel T7300 under long mode for strings longer than word length.
  */
 
 /* Magic numbers for the algorithm */
@@ -105,6 +105,6 @@ strlen(const char *str)
 	    }
 
 	/* NOTREACHED */
-	return 0;
+	return (0);
 }
 
