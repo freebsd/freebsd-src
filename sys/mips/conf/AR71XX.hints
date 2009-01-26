@@ -10,3 +10,7 @@ hint.uart.0.at="apb0"
 hint.uart.0.maddr=0x18020003
 hint.uart.0.msize=0x18
 hint.uart.0.irq=3
+
+# pci
+hint.pcib.0.at="nexus0"
+hint.pcib.0.irq=0
