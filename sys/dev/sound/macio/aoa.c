@@ -106,7 +106,7 @@ aoa_dma_set_program(struct aoa_dma *dma)
 static struct aoa_dma * 
 aoa_dma_create(device_t self)
 {
-	struct aoa_softc *sc = device_get_softc(self);
+	struct aoa_softc *sc = pcm_getdevinfo(self);
 	struct aoa_dma *dma;
 	bus_dma_tag_t 	tag;
 	int 		err;
@@ -215,7 +215,7 @@ aoa_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct pcm_channel *c, int dir)
 {
 	device_t 		 self = devinfo;
-	struct aoa_softc 	*sc = device_get_softc(self);
+	struct aoa_softc 	*sc = pcm_getdevinfo(self);
 	struct aoa_dma		*dma;
 	int 	 		 max_slots, err;
 
@@ -357,12 +357,12 @@ static kobj_method_t aoa_chan_methods[] = {
 CHANNEL_DECLARE(aoa_chan);
 
 int
-aoa_attach(device_t self)
+aoa_attach(device_t self, void *sc)
 {
 	char status[SND_STATUSLEN];
 	int err;
 
-	if (pcm_register(self, self, 1, 0))
+	if (pcm_register(self, sc, 1, 0))
 		return (ENXIO);
 
 	err = pcm_getbuffersize(self, AOA_BUFFER_SIZE, AOA_BUFFER_SIZE,
