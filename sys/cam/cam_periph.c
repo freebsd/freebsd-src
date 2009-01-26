@@ -326,7 +326,6 @@ cam_periph_release(struct cam_periph *periph)
 int
 cam_periph_hold(struct cam_periph *periph, int priority)
 {
-	struct mtx *mtx;
 	int error;
 
 	/*
@@ -339,14 +338,11 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);
 
-	mtx = periph->sim->mtx;
-	mtx_assert(mtx, MA_OWNED);
-	if (mtx == &Giant)
-		mtx = NULL;
-
+	mtx_assert(periph->sim->mtx, MA_OWNED);
 	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
 		periph->flags |= CAM_PERIPH_LOCK_WANTED;
-		if ((error = msleep(periph, mtx, priority, "caplck", 0)) != 0) {
+		if ((error = mtx_sleep(periph, periph->sim->mtx, priority,
+		    "caplck", 0)) != 0) {
 			cam_periph_release_locked(periph);
 			return (error);
 		}
@@ -767,7 +763,6 @@ union ccb *
 cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 {
 	struct ccb_hdr *ccb_h;
-	struct mtx *mtx;
 
 	mtx_assert(periph->sim->mtx, MA_OWNED);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdgetccb\n"));
@@ -780,11 +775,8 @@ cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 		 && (SLIST_FIRST(&periph->ccb_list)->pinfo.priority == priority))
 			break;
 		mtx_assert(periph->sim->mtx, MA_OWNED);
-		if (periph->sim->mtx == &Giant)
-			mtx = NULL;
-		else
-			mtx = periph->sim->mtx;
-		msleep(&periph->ccb_list, mtx, PRIBIO, "cgticb", 0);
+		mtx_sleep(&periph->ccb_list, periph->sim->mtx, PRIBIO, "cgticb",
+		    0);
 	}
 
 	ccb_h = SLIST_FIRST(&periph->ccb_list);
@@ -795,17 +787,12 @@ cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 void
 cam_periph_ccbwait(union ccb *ccb)
 {
-	struct mtx *mtx;
 	struct cam_sim *sim;
 
 	sim = xpt_path_sim(ccb->ccb_h.path);
-	if (sim->mtx == &Giant)
-		mtx = NULL;
-	else
-		mtx = sim->mtx;
 	if ((ccb->ccb_h.pinfo.index != CAM_UNQUEUED_INDEX)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG))
-		msleep(&ccb->ccb_h.cbfcnp, mtx, PRIBIO, "cbwait", 0);
+		mtx_sleep(&ccb->ccb_h.cbfcnp, sim->mtx, PRIBIO, "cbwait", 0);
 }
 
 int
