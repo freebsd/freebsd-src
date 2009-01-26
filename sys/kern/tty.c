@@ -1053,7 +1053,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_NOLOCK,
+SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
 	0, 0, sysctl_kern_ttys, "S,xtty", "List of TTYs");
 
 /*
