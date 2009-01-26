@@ -65,6 +65,7 @@ SUBDIR=	${_ac} \
 	getpmac \
 	gstat \
 	${_gssd} \
+	i2c \
 	ifmcstat \
 	inetd \
 	iostat \
