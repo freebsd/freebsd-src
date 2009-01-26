@@ -380,8 +380,8 @@ lpt_attach(device_t dev)
 	}
 
 	ppb_wctr(ppbus, LPC_NINIT);
-	ppb_unlock(ppbus);
 	lpt_release_ppbus(dev);
+	ppb_unlock(ppbus);
 
 	/* declare our interrupt handler */
 	sc->sc_intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
