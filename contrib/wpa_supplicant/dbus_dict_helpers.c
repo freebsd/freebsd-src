@@ -629,36 +629,56 @@ dbus_bool_t wpa_dbus_dict_open_read(DBusMessageIter *iter,
 }
 
 
+#define BYTE_ARRAY_CHUNK_SIZE 34
+#define BYTE_ARRAY_ITEM_SIZE (sizeof (char))
+
 static dbus_bool_t _wpa_dbus_dict_entry_get_byte_array(
-	DBusMessageIter *iter, int array_len, int array_type,
+	DBusMessageIter *iter, int array_type,
 	struct wpa_dbus_dict_entry *entry)
 {
-	dbus_uint32_t i = 0;
+	dbus_uint32_t count = 0;
 	dbus_bool_t success = FALSE;
-	char byte;
+	char *buffer;
 
-	/* Zero-length arrays are valid. */
-	if (array_len == 0) {
-		entry->bytearray_value = NULL;
-		entry->array_type = DBUS_TYPE_BYTE;
-		success = TRUE;
-		goto done;
-	}
+	entry->bytearray_value = NULL;
+	entry->array_type = DBUS_TYPE_BYTE;
 
-	entry->bytearray_value = wpa_zalloc(array_len * sizeof(char));
-	if (!entry->bytearray_value) {
+	buffer = wpa_zalloc(BYTE_ARRAY_ITEM_SIZE * BYTE_ARRAY_CHUNK_SIZE);
+	if (!buffer) {
 		perror("_wpa_dbus_dict_entry_get_byte_array[dbus]: out of "
 		       "memory");
 		goto done;
 	}
 
-	entry->array_type = DBUS_TYPE_BYTE;
-	entry->array_len = array_len;
+	entry->bytearray_value = buffer;
+	entry->array_len = 0;
 	while (dbus_message_iter_get_arg_type(iter) == DBUS_TYPE_BYTE) {
+		char byte;
+
+		if ((count % BYTE_ARRAY_CHUNK_SIZE) == 0 && count != 0) {
+			buffer = realloc(buffer, BYTE_ARRAY_ITEM_SIZE *
+					 (count + BYTE_ARRAY_CHUNK_SIZE));
+			if (buffer == NULL) {
+				perror("_wpa_dbus_dict_entry_get_byte_array["
+				       "dbus] out of memory trying to "
+				       "retrieve the string array");
+				goto done;
+			}
+		}
+		entry->bytearray_value = buffer;
+
 		dbus_message_iter_get_basic(iter, &byte);
-		entry->bytearray_value[i++] = byte;
+		entry->bytearray_value[count] = byte;
+		entry->array_len = ++count;
 		dbus_message_iter_next(iter);
 	}
+
+	/* Zero-length arrays are valid. */
+	if (entry->array_len == 0) {
+		free(entry->bytearray_value);
+		entry->bytearray_value = NULL;
+	}
+
 	success = TRUE;
 
 done:
@@ -666,8 +686,11 @@ done:
 }
 
 
+#define STR_ARRAY_CHUNK_SIZE 8
+#define STR_ARRAY_ITEM_SIZE (sizeof (char *))
+
 static dbus_bool_t _wpa_dbus_dict_entry_get_string_array(
-	DBusMessageIter *iter, int array_len, int array_type,
+	DBusMessageIter *iter, int array_type,
 	struct wpa_dbus_dict_entry *entry)
 {
 	dbus_uint32_t count = 0;
@@ -677,13 +700,7 @@ static dbus_bool_t _wpa_dbus_dict_entry_get_string_array(
 	entry->strarray_value = NULL;
 	entry->array_type = DBUS_TYPE_STRING;
 
-	/* Zero-length arrays are valid. */
-	if (array_len == 0) {
-		success = TRUE;
-		goto done;
-	}
-
-	buffer = wpa_zalloc(sizeof (char *) * 8);
+	buffer = wpa_zalloc(STR_ARRAY_ITEM_SIZE * STR_ARRAY_CHUNK_SIZE);
 	if (buffer == NULL) {
 		perror("_wpa_dbus_dict_entry_get_string_array[dbus] out of "
 		       "memory trying to retrieve a string array");
@@ -696,18 +713,15 @@ static dbus_bool_t _wpa_dbus_dict_entry_get_string_array(
 		const char *value;
 		char *str;
 
-		if ((count % 8) == 0 && count != 0) {
-			char **tmp;
-			tmp = realloc(buffer, sizeof(char *) * (count + 8));
-			if (tmp == NULL) {
+		if ((count % STR_ARRAY_CHUNK_SIZE) == 0 && count != 0) {
+			buffer = realloc(buffer, STR_ARRAY_ITEM_SIZE *
+					 (count + STR_ARRAY_CHUNK_SIZE));
+			if (buffer == NULL) {
 				perror("_wpa_dbus_dict_entry_get_string_array["
 				       "dbus] out of memory trying to "
 				       "retrieve the string array");
-				free(buffer);
-				buffer = NULL;
 				goto done;
 			}
-			buffer = tmp;
 		}
 		entry->strarray_value = buffer;
 
@@ -723,6 +737,13 @@ static dbus_bool_t _wpa_dbus_dict_entry_get_string_array(
 		entry->array_len = ++count;
 		dbus_message_iter_next(iter);
 	}
+
+	/* Zero-length arrays are valid. */
+	if (entry->array_len == 0) {
+		free(entry->strarray_value);
+		entry->strarray_value = NULL;
+	}
+
 	success = TRUE;
 
 done:
@@ -734,7 +755,6 @@ static dbus_bool_t _wpa_dbus_dict_entry_get_array(
 	DBusMessageIter *iter_dict_val, struct wpa_dbus_dict_entry *entry)
 {
 	int array_type = dbus_message_iter_get_element_type(iter_dict_val);
-	int array_len;
 	dbus_bool_t success = FALSE;
 	DBusMessageIter iter_array;
 
@@ -743,20 +763,14 @@ static dbus_bool_t _wpa_dbus_dict_entry_get_array(
 
 	dbus_message_iter_recurse(iter_dict_val, &iter_array);
 
- 	array_len = dbus_message_iter_get_array_len(&iter_array);
-	if (array_len < 0)
-		return FALSE;
-
  	switch (array_type) {
 	case DBUS_TYPE_BYTE:
 		success = _wpa_dbus_dict_entry_get_byte_array(&iter_array,
-							      array_len,
 							      array_type,
 							      entry);
 		break;
 	case DBUS_TYPE_STRING:
 		success = _wpa_dbus_dict_entry_get_string_array(&iter_array,
-								array_len,
 								array_type,
 								entry);
 		break;
@@ -946,9 +960,17 @@ void wpa_dbus_dict_entry_clear(struct wpa_dbus_dict_entry *entry)
 		break;
 	case DBUS_TYPE_ARRAY:
 		switch (entry->array_type) {
-		case DBUS_TYPE_BYTE:
-			free(entry->bytearray_value);
-			break;
+		case DBUS_TYPE_BYTE: {
+				free(entry->bytearray_value);
+				break;
+			}
+		case DBUS_TYPE_STRING: {
+				unsigned int i;
+				for (i = 0; i < entry->array_len; i++)
+					free(entry->strarray_value[i]);
+				free(entry->strarray_value);
+				break;
+			}
 		}
 		break;
 	}
