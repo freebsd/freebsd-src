@@ -326,10 +326,9 @@ ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[])
  * Delete pipe or queue i
  */
 int
-ipfw_delete_pipe(int pipe_or_queue, int n)
+ipfw_delete_pipe(int pipe_or_queue, int i)
 {
 	struct dn_pipe p;
-	int i;
 
 	memset(&p, 0, sizeof p);
 	if (pipe_or_queue == 1)
