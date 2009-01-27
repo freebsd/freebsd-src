@@ -79,6 +79,7 @@
 
 #include <net80211/ieee80211_ioctl.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -119,6 +120,8 @@
 #define	IEEE80211_NODE_RIFS	0x4000		/* RIFS enabled */
 #endif
 
+#define	MAXCHAN	1536		/* max 1.5K channels */
+
 #define	MAXCOL	78
 static	int col;
 static	char spacer;
@@ -145,7 +148,7 @@ static void print_channels(int, const struct ieee80211req_chaninfo *,
 static void regdomain_makechannels(struct ieee80211_regdomain_req *,
     const struct ieee80211_devcaps_req *);
 
-static struct ieee80211req_chaninfo chaninfo;
+static struct ieee80211req_chaninfo *chaninfo;
 static struct ieee80211_regdomain regdomain;
 static int gotregdomain = 0;
 static struct ieee80211_roamparams_req roamparams;
@@ -175,10 +178,14 @@ gethtconf(int s)
 static void
 getchaninfo(int s)
 {
-	if (chaninfo.ic_nchans != 0)
+	if (chaninfo != NULL)
 		return;
-	if (get80211(s, IEEE80211_IOC_CHANINFO, &chaninfo, sizeof(chaninfo)) < 0)
-		errx(1, "unable to get channel information");
+	chaninfo = malloc(IEEE80211_CHANINFO_SIZE(MAXCHAN));
+	if (chaninfo == NULL)
+		errx(1, "no space for channel list");
+	if (get80211(s, IEEE80211_IOC_CHANINFO, chaninfo,
+	    IEEE80211_CHANINFO_SIZE(MAXCHAN)) < 0)
+		err(1, "unable to get channel information");
 	ifmr = ifmedia_getstate(s);
 	gethtconf(s);
 }
@@ -205,19 +212,19 @@ getregdata(void)
 static int
 canpromote(int i, int from, int to)
 {
-	const struct ieee80211_channel *fc = &chaninfo.ic_chans[i];
+	const struct ieee80211_channel *fc = &chaninfo->ic_chans[i];
 	int j;
 
 	if ((fc->ic_flags & from) != from)
 		return i;
 	/* NB: quick check exploiting ordering of chans w/ same frequency */
-	if (i+1 < chaninfo.ic_nchans &&
-	    chaninfo.ic_chans[i+1].ic_freq == fc->ic_freq &&
-	    (chaninfo.ic_chans[i+1].ic_flags & to) == to)
+	if (i+1 < chaninfo->ic_nchans &&
+	    chaninfo->ic_chans[i+1].ic_freq == fc->ic_freq &&
+	    (chaninfo->ic_chans[i+1].ic_flags & to) == to)
 		return i+1;
 	/* brute force search in case channel list is not ordered */
-	for (j = 0; j < chaninfo.ic_nchans; j++) {
-		const struct ieee80211_channel *tc = &chaninfo.ic_chans[j];
+	for (j = 0; j < chaninfo->ic_nchans; j++) {
+		const struct ieee80211_channel *tc = &chaninfo->ic_chans[j];
 		if (j != i &&
 		    tc->ic_freq == fc->ic_freq && (tc->ic_flags & to) == to)
 		return j;
@@ -287,13 +294,13 @@ mapfreq(struct ieee80211_channel *chan, int freq, int flags)
 {
 	int i;
 
-	for (i = 0; i < chaninfo.ic_nchans; i++) {
-		const struct ieee80211_channel *c = &chaninfo.ic_chans[i];
+	for (i = 0; i < chaninfo->ic_nchans; i++) {
+		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
 
 		if (c->ic_freq == freq && (c->ic_flags & flags) == flags) {
 			if (flags == 0) {
 				/* when ambiguous promote to ``best'' */
-				c = &chaninfo.ic_chans[promote(i)];
+				c = &chaninfo->ic_chans[promote(i)];
 			}
 			*chan = *c;
 			return;
@@ -307,13 +314,13 @@ mapchan(struct ieee80211_channel *chan, int ieee, int flags)
 {
 	int i;
 
-	for (i = 0; i < chaninfo.ic_nchans; i++) {
-		const struct ieee80211_channel *c = &chaninfo.ic_chans[i];
+	for (i = 0; i < chaninfo->ic_nchans; i++) {
+		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
 
 		if (c->ic_ieee == ieee && (c->ic_flags & flags) == flags) {
 			if (flags == 0) {
 				/* when ambiguous promote to ``best'' */
-				c = &chaninfo.ic_chans[promote(i)];
+				c = &chaninfo->ic_chans[promote(i)];
 			}
 			*chan = *c;
 			return;
@@ -331,7 +338,7 @@ getcurchan(int s)
 		int val;
 		/* fall back to legacy ioctl */
 		if (get80211val(s, IEEE80211_IOC_CHANNEL, &val) < 0)
-			errx(-1, "cannot figure out current channel");
+			err(-1, "cannot figure out current channel");
 		getchaninfo(s);
 		mapchan(&curchan, val, 0);
 	}
@@ -370,7 +377,7 @@ getroam(int s)
 		return;
 	if (get80211(s, IEEE80211_IOC_ROAM,
 	    &roamparams, sizeof(roamparams)) < 0)
-		errx(1, "unable to get roaming parameters");
+		err(1, "unable to get roaming parameters");
 	gotroam = 1;
 }
 
@@ -388,7 +395,7 @@ gettxparams(int s)
 		return;
 	if (get80211(s, IEEE80211_IOC_TXPARAMS,
 	    &txparams, sizeof(txparams)) < 0)
-		errx(1, "unable to get transmit parameters");
+		err(1, "unable to get transmit parameters");
 	gottxparams = 1;
 }
 
@@ -406,23 +413,24 @@ getregdomain(int s)
 		return;
 	if (get80211(s, IEEE80211_IOC_REGDOMAIN,
 	    &regdomain, sizeof(regdomain)) < 0)
-		errx(1, "unable to get regulatory domain info");
+		err(1, "unable to get regulatory domain info");
 	gotregdomain = 1;
 }
 
 static void
 getdevcaps(int s, struct ieee80211_devcaps_req *dc)
 {
-	if (get80211(s, IEEE80211_IOC_DEVCAPS, dc, sizeof(*dc)) < 0)
-		errx(1, "unable to get device capabilities");
+	if (get80211(s, IEEE80211_IOC_DEVCAPS, dc,
+	    IEEE80211_DEVCAPS_SPACE(dc)) < 0)
+		err(1, "unable to get device capabilities");
 }
 
 static void
 setregdomain_cb(int s, void *arg)
 {
-	struct ieee80211_regdomain_req req;
+	struct ieee80211_regdomain_req *req;
 	struct ieee80211_regdomain *rd = arg;
-	struct ieee80211_devcaps_req dc;
+	struct ieee80211_devcaps_req *dc;
 	struct regdata *rdp = getregdata();
 
 	if (rd->country != NO_COUNTRY) {
@@ -462,34 +470,52 @@ setregdomain_cb(int s, void *arg)
 				   rp->name);
 		}
 	}
-	req.rd = *rd;
 	/*
 	 * Fetch the device capabilities and calculate the
 	 * full set of netbands for which we request a new
 	 * channel list be constructed.  Once that's done we
 	 * push the regdomain info + channel list to the kernel.
 	 */
-	getdevcaps(s, &dc);
+	dc = malloc(IEEE80211_DEVCAPS_SIZE(MAXCHAN));
+	if (dc == NULL)
+		errx(1, "no space for device capabilities");
+	dc->dc_chaninfo.ic_nchans = MAXCHAN;
+	getdevcaps(s, dc);
 #if 0
 	if (verbose) {
-		printf("drivercaps: 0x%x\n", dc.dc_drivercaps);
-		printf("cryptocaps: 0x%x\n", dc.dc_cryptocaps);
-		printf("htcaps    : 0x%x\n", dc.dc_htcaps);
-		memcpy(&chaninfo, &dc.dc_chaninfo, sizeof(chaninfo));
-		print_channels(s, &dc.dc_chaninfo, 1/*allchans*/, 1/*verbose*/);
+		printf("drivercaps: 0x%x\n", dc->dc_drivercaps);
+		printf("cryptocaps: 0x%x\n", dc->dc_cryptocaps);
+		printf("htcaps    : 0x%x\n", dc->dc_htcaps);
+		memcpy(chaninfo, &dc->dc_chaninfo,
+		    IEEE80211_CHANINFO_SPACE(&dc->dc_chaninfo));
+		print_channels(s, &dc->dc_chaninfo, 1/*allchans*/, 1/*verbose*/);
 	}
 #endif
-	regdomain_makechannels(&req, &dc);
+	req = malloc(IEEE80211_REGDOMAIN_SIZE(dc->dc_chaninfo.ic_nchans));
+	if (req == NULL)
+		errx(1, "no space for regdomain request");
+	req->rd = *rd;
+	regdomain_makechannels(req, dc);
 	if (verbose) {
 		LINE_INIT(':');
 		print_regdomain(rd, 1/*verbose*/);
 		LINE_BREAK();
-		memcpy(&chaninfo, &req.chaninfo, sizeof(chaninfo));
-		print_channels(s, &req.chaninfo, 1/*allchans*/, 1/*verbose*/);
+		/* blech, reallocate channel list for new data */
+		if (chaninfo != NULL)
+			free(chaninfo);
+		chaninfo = malloc(IEEE80211_CHANINFO_SPACE(&req->chaninfo));
+		if (chaninfo == NULL)
+			errx(1, "no space for channel list");
+		memcpy(chaninfo, &req->chaninfo,
+		    IEEE80211_CHANINFO_SPACE(&req->chaninfo));
+		print_channels(s, &req->chaninfo, 1/*allchans*/, 1/*verbose*/);
 	}
-	if (req.chaninfo.ic_nchans == 0)
+	if (req->chaninfo.ic_nchans == 0)
 		errx(1, "no channels calculated");
-	set80211(s, IEEE80211_IOC_REGDOMAIN, 0, sizeof(req), &req);
+	set80211(s, IEEE80211_IOC_REGDOMAIN, 0,
+	    IEEE80211_REGDOMAIN_SPACE(req), req);
+	free(req);
+	free(dc);
 }
 
 static int
@@ -980,7 +1006,6 @@ static void
 set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211req_chanlist chanlist;
-#define	MAXCHAN	(sizeof(chanlist.ic_channels)*NBBY)
 	char *temp, *cp, *tp;
 
 	temp = malloc(strlen(val) + 1);
@@ -997,18 +1022,18 @@ set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 			*tp++ = '\0';
 		switch (sscanf(cp, "%u-%u", &first, &last)) {
 		case 1:
-			if (first > MAXCHAN)
+			if (first > IEEE80211_CHAN_MAX)
 				errx(-1, "channel %u out of range, max %zu",
-					first, MAXCHAN);
+					first, IEEE80211_CHAN_MAX);
 			setbit(chanlist.ic_channels, first);
 			break;
 		case 2:
-			if (first > MAXCHAN)
+			if (first > IEEE80211_CHAN_MAX)
 				errx(-1, "channel %u out of range, max %zu",
-					first, MAXCHAN);
-			if (last > MAXCHAN)
+					first, IEEE80211_CHAN_MAX);
+			if (last > IEEE80211_CHAN_MAX)
 				errx(-1, "channel %u out of range, max %zu",
-					last, MAXCHAN);
+					last, IEEE80211_CHAN_MAX);
 			if (first > last)
 				errx(-1, "void channel range, %u > %u",
 					first, last);
@@ -1026,7 +1051,6 @@ set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 		cp = tp;
 	}
 	set80211(s, IEEE80211_IOC_CHANLIST, 0, sizeof(chanlist), &chanlist);
-#undef MAXCHAN
 }
 
 static void
@@ -1641,7 +1665,7 @@ set80211amsdu(const char *val, int d, int s, const struct afswtch *rafp)
 	int amsdu;
 
 	if (get80211val(s, IEEE80211_IOC_AMSDU, &amsdu) < 0)
-		errx(-1, "cannot get AMSDU setting");
+		err(-1, "cannot get AMSDU setting");
 	if (d < 0) {
 		d = -d;
 		amsdu &= ~d;
@@ -1848,6 +1872,7 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 				break;
 			}
 			c = &ci->ic_chans[ci->ic_nchans++];
+			memset(c, 0, sizeof(*c));
 			c->ic_freq = freq;
 			c->ic_flags = chanFlags |
 			    (flags &~ (REQ_FLAGS | IEEE80211_CHAN_HT40));
@@ -1896,7 +1921,14 @@ regdomain_makechannels(
 		errx(1, "internal error, regdomain %d not found",
 			    reg->regdomain);
 	if (rd->sku != SKU_DEBUG) {
-		memset(ci, 0, sizeof(*ci));
+		/*
+		 * regdomain_addchans incrememnts the channel count for
+		 * each channel it adds so initialize ic_nchans to zero.
+		 * Note that we know we have enough space to hold all possible
+		 * channels because the devcaps list size was used to
+		 * allocate our request.
+		 */
+		ci->ic_nchans = 0;
 		if (!LIST_EMPTY(&rd->bands_11b))
 			regdomain_addchans(ci, &rd->bands_11b, reg,
 			    IEEE80211_CHAN_B, &dc->dc_chaninfo);
@@ -1945,7 +1977,8 @@ regdomain_makechannels(
 		qsort(ci->ic_chans, ci->ic_nchans, sizeof(ci->ic_chans[0]),
 		    regdomain_sort);
 	} else
-		*ci = dc->dc_chaninfo;
+		memcpy(ci, &dc->dc_chaninfo,
+		    IEEE80211_CHANINFO_SPACE(&dc->dc_chaninfo));
 }
 
 static void
@@ -3113,19 +3146,21 @@ static void
 print_channels(int s, const struct ieee80211req_chaninfo *chans,
 	int allchans, int verb)
 {
-	struct ieee80211req_chaninfo achans;
+	struct ieee80211req_chaninfo *achans;
 	uint8_t reported[IEEE80211_CHAN_BYTES];
 	const struct ieee80211_channel *c;
 	int i, half;
 
-	memset(&achans, 0, sizeof(achans));
+	achans = malloc(IEEE80211_CHANINFO_SPACE(chans));
+	if (achans == NULL)
+		errx(1, "no space for active channel list");
+	achans->ic_nchans = 0;
 	memset(reported, 0, sizeof(reported));
 	if (!allchans) {
 		struct ieee80211req_chanlist active;
 
 		if (get80211(s, IEEE80211_IOC_CHANLIST, &active, sizeof(active)) < 0)
 			errx(1, "unable to get active channel list");
-		memset(&achans, 0, sizeof(achans));
 		for (i = 0; i < chans->ic_nchans; i++) {
 			c = &chans->ic_chans[i];
 			if (!isset(active.ic_channels, c->ic_ieee))
@@ -3138,9 +3173,9 @@ print_channels(int s, const struct ieee80211req_chaninfo *chans,
 			 */
 			if (isset(reported, c->ic_ieee) && !verb) {
 				/* XXX we assume duplicates are adjacent */
-				achans.ic_chans[achans.ic_nchans-1] = *c;
+				achans->ic_chans[achans->ic_nchans-1] = *c;
 			} else {
-				achans.ic_chans[achans.ic_nchans++] = *c;
+				achans->ic_chans[achans->ic_nchans++] = *c;
 				setbit(reported, c->ic_ieee);
 			}
 		}
@@ -3150,33 +3185,34 @@ print_channels(int s, const struct ieee80211req_chaninfo *chans,
 			/* suppress duplicates as above */
 			if (isset(reported, c->ic_ieee) && !verb) {
 				/* XXX we assume duplicates are adjacent */
-				achans.ic_chans[achans.ic_nchans-1] = *c;
+				achans->ic_chans[achans->ic_nchans-1] = *c;
 			} else {
-				achans.ic_chans[achans.ic_nchans++] = *c;
+				achans->ic_chans[achans->ic_nchans++] = *c;
 				setbit(reported, c->ic_ieee);
 			}
 		}
 	}
-	half = achans.ic_nchans / 2;
-	if (achans.ic_nchans % 2)
+	half = achans->ic_nchans / 2;
+	if (achans->ic_nchans % 2)
 		half++;
 
-	for (i = 0; i < achans.ic_nchans / 2; i++) {
-		print_chaninfo(&achans.ic_chans[i], verb);
-		print_chaninfo(&achans.ic_chans[half+i], verb);
+	for (i = 0; i < achans->ic_nchans / 2; i++) {
+		print_chaninfo(&achans->ic_chans[i], verb);
+		print_chaninfo(&achans->ic_chans[half+i], verb);
 		printf("\n");
 	}
-	if (achans.ic_nchans % 2) {
-		print_chaninfo(&achans.ic_chans[i], verb);
+	if (achans->ic_nchans % 2) {
+		print_chaninfo(&achans->ic_chans[i], verb);
 		printf("\n");
 	}
+	free(achans);
 }
 
 static void
 list_channels(int s, int allchans)
 {
 	getchaninfo(s);
-	print_channels(s, &chaninfo, allchans, verbose);
+	print_channels(s, chaninfo, allchans, verbose);
 }
 
 static void
@@ -3201,48 +3237,52 @@ print_txpow_verbose(const struct ieee80211_channel *c)
 static void
 list_txpow(int s)
 {
-	struct ieee80211req_chaninfo achans;
+	struct ieee80211req_chaninfo *achans;
 	uint8_t reported[IEEE80211_CHAN_BYTES];
 	struct ieee80211_channel *c, *prev;
 	int i, half;
 
 	getchaninfo(s);
-	memset(&achans, 0, sizeof(achans));
+	achans = malloc(IEEE80211_CHANINFO_SPACE(chaninfo));
+	if (achans == NULL)
+		errx(1, "no space for active channel list");
+	achans->ic_nchans = 0;
 	memset(reported, 0, sizeof(reported));
-	for (i = 0; i < chaninfo.ic_nchans; i++) {
-		c = &chaninfo.ic_chans[i];
+	for (i = 0; i < chaninfo->ic_nchans; i++) {
+		c = &chaninfo->ic_chans[i];
 		/* suppress duplicates as above */
 		if (isset(reported, c->ic_ieee) && !verbose) {
 			/* XXX we assume duplicates are adjacent */
-			prev = &achans.ic_chans[achans.ic_nchans-1];
+			prev = &achans->ic_chans[achans->ic_nchans-1];
 			/* display highest power on channel */
 			if (c->ic_maxpower > prev->ic_maxpower)
 				*prev = *c;
 		} else {
-			achans.ic_chans[achans.ic_nchans++] = *c;
+			achans->ic_chans[achans->ic_nchans++] = *c;
 			setbit(reported, c->ic_ieee);
 		}
 	}
 	if (!verbose) {
-		half = achans.ic_nchans / 2;
-		if (achans.ic_nchans % 2)
+		half = achans->ic_nchans / 2;
+		if (achans->ic_nchans % 2)
 			half++;
 
-		for (i = 0; i < achans.ic_nchans / 2; i++) {
-			print_txpow(&achans.ic_chans[i]);
-			print_txpow(&achans.ic_chans[half+i]);
+		for (i = 0; i < achans->ic_nchans / 2; i++) {
+			print_txpow(&achans->ic_chans[i]);
+			print_txpow(&achans->ic_chans[half+i]);
 			printf("\n");
 		}
-		if (achans.ic_nchans % 2) {
-			print_txpow(&achans.ic_chans[i]);
+		if (achans->ic_nchans % 2) {
+			print_txpow(&achans->ic_chans[i]);
 			printf("\n");
 		}
 	} else {
-		for (i = 0; i < achans.ic_nchans; i++) {
-			print_txpow_verbose(&achans.ic_chans[i]);
+		for (i = 0; i < achans->ic_nchans; i++) {
+			print_txpow_verbose(&achans->ic_chans[i]);
 			printf("\n");
 		}
 	}
+	free(achans);
 }
 
 static void
@@ -3259,19 +3299,24 @@ list_keys(int s)
 static void
 list_capabilities(int s)
 {
-	struct ieee80211_devcaps_req dc;
+	struct ieee80211_devcaps_req *dc;
 
-	getdevcaps(s, &dc);
-	printb("drivercaps", dc.dc_drivercaps, IEEE80211_C_BITS);
-	if (dc.dc_cryptocaps != 0 || verbose) {
+	dc = malloc(IEEE80211_DEVCAPS_SIZE(1));
+	if (dc == NULL)
+		errx(1, "no space for device capabilities");
+	dc->dc_chaninfo.ic_nchans = 1;
+	getdevcaps(s, dc);
+	printb("drivercaps", dc->dc_drivercaps, IEEE80211_C_BITS);
+	if (dc->dc_cryptocaps != 0 || verbose) {
 		putchar('\n');
-		printb("cryptocaps", dc.dc_cryptocaps, IEEE80211_CRYPTO_BITS);
+		printb("cryptocaps", dc->dc_cryptocaps, IEEE80211_CRYPTO_BITS);
 	}
-	if (dc.dc_htcaps != 0 || verbose) {
+	if (dc->dc_htcaps != 0 || verbose) {
 		putchar('\n');
-		printb("htcaps", dc.dc_htcaps, IEEE80211_HTCAP_BITS);
+		printb("htcaps", dc->dc_htcaps, IEEE80211_HTCAP_BITS);
 	}
 	putchar('\n');
+	free(dc);
 }
 
 static int
@@ -3550,7 +3595,7 @@ list_regdomain(int s, int channelsalso)
 		spacer = ':';
 		print_regdomain(&regdomain, 1);
 		LINE_BREAK();
-		print_channels(s, &chaninfo, 1/*allchans*/, 1/*verbose*/);
+		print_channels(s, chaninfo, 1/*allchans*/, 1/*verbose*/);
 	} else
 		print_regdomain(&regdomain, verbose);
 }
@@ -4362,6 +4407,7 @@ get80211len(int s, int type, void *data, int len, int *plen)
 	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
 	ireq.i_type = type;
 	ireq.i_len = len;
+	assert(ireq.i_len == len);	/* NB: check for 16-bit truncation */
 	ireq.i_data = data;
 	if (ioctl(s, SIOCG80211, &ireq) < 0)
 		return -1;
@@ -4393,6 +4439,7 @@ set80211(int s, int type, int val, int len, void *data)
 	ireq.i_type = type;
 	ireq.i_val = val;
 	ireq.i_len = len;
+	assert(ireq.i_len == len);	/* NB: check for 16-bit truncation */
 	ireq.i_data = data;
 	if (ioctl(s, SIOCS80211, &ireq) < 0)
 		err(1, "SIOCS80211");
