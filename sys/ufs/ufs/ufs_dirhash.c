@@ -126,6 +126,18 @@ static struct mtx	ufsdirhash_mtx;
  * free a dirhash structure that was recycled by ufsdirhash_recycle().
  *
  * The dirhash lock may be held across io operations.
+ *
+ * WITNESS reports a lock order reversal between the "bufwait" lock
+ * and the "dirhash" lock.  However, this specific reversal will not
+ * cause a deadlock.  To get a deadlock, one would have to lock a
+ * buffer followed by the dirhash while a second thread locked a
+ * buffer while holding the dirhash lock.  The second order can happen
+ * under a shared or exclusive vnode lock for the associated directory
+ * in lookup().  The first order, however, can only happen under an
+ * exclusive vnode lock (e.g. unlink(), rename(), etc.).  Thus, for
+ * a thread to be doing a "bufwait" -> "dirhash" order, it has to hold
+ * an exclusive vnode lock.  That exclusive vnode lock will prevent
+ * any other threads from doing a "dirhash" -> "bufwait" order.
  */
 
 static void
