@@ -696,21 +696,27 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 {
 	struct ieee80211_devcaps_req *dc;
 	struct ieee80211req_chaninfo *ci;
-	int error;
+	int maxchans, error;
 
-	if (ireq->i_len != sizeof(struct ieee80211_devcaps_req))
+	maxchans = 1 + ((ireq->i_len - sizeof(struct ieee80211_devcaps_req)) /
+	    sizeof(struct ieee80211_channel));
+	/* NB: require 1 so we know ic_nchans is accessible */
+	if (maxchans < 1)
 		return EINVAL;
-	dc = (struct ieee80211_devcaps_req *) malloc(
-	    sizeof(struct ieee80211_devcaps_req), M_TEMP, M_NOWAIT | M_ZERO);
+	/* constrain max request size, 2K channels is ~24Kbytes */
+	if (maxchans > 2048)
+		maxchans = 2048;
+	dc = (struct ieee80211_devcaps_req *)
+	    malloc(IEEE80211_DEVCAPS_SIZE(maxchans), M_TEMP, M_NOWAIT | M_ZERO);
 	if (dc == NULL)
 		return ENOMEM;
 	dc->dc_drivercaps = ic->ic_caps;
 	dc->dc_cryptocaps = ic->ic_cryptocaps;
 	dc->dc_htcaps = ic->ic_htcaps;
 	ci = &dc->dc_chaninfo;
-	ic->ic_getradiocaps(ic, IEEE80211_CHAN_MAX, &ci->ic_nchans, ci->ic_chans);
+	ic->ic_getradiocaps(ic, maxchans, &ci->ic_nchans, ci->ic_chans);
 	ieee80211_sort_channels(ci->ic_chans, ci->ic_nchans);
-	error = copyout(dc, ireq->i_data, sizeof(*dc));
+	error = copyout(dc, ireq->i_data, IEEE80211_DEVCAPS_SPACE(dc));
 	free(dc, M_TEMP);
 	return error;
 }
@@ -1566,17 +1572,21 @@ static __noinline int
 ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211req_chanlist list;
-	u_char chanlist[IEEE80211_CHAN_BYTES];
-	int i, nchan, error;
+	uint8_t *chanlist, *list;
+	int i, nchan, maxchan, error;
 
-	if (ireq->i_len != sizeof(list))
-		return EINVAL;
-	error = copyin(ireq->i_data, &list, sizeof(list));
+	if (ireq->i_len > sizeof(ic->ic_chan_active))
+		ireq->i_len = sizeof(ic->ic_chan_active);
+	list = malloc(ireq->i_len + IEEE80211_CHAN_BYTES, M_TEMP,
+	    M_NOWAIT | M_ZERO);
+	if (list == NULL)
+		return ENOMEM;
+	error = copyin(ireq->i_data, list, ireq->i_len);
 	if (error)
 		return error;
-	memset(chanlist, 0, sizeof(chanlist));
 	nchan = 0;
+	chanlist = list + ireq->i_len;		/* NB: zero'd already */
+	maxchan = ireq->i_len * NBBY;
 	for (i = 0; i < ic->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &ic->ic_channels[i];
 		/*
@@ -1584,7 +1594,7 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		 * available channels so users can do things like specify
 		 * 1-255 to get all available channels.
 		 */
-		if (isset(list.ic_channels, c->ic_ieee)) {
+		if (c->ic_ieee < maxchan && isset(list, c->ic_ieee)) {
 			setbit(chanlist, c->ic_ieee);
 			nchan++;
 		}
@@ -1594,8 +1604,9 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&	/* XXX */
 	    isclr(chanlist, ic->ic_bsschan->ic_ieee))
 		ic->ic_bsschan = IEEE80211_CHAN_ANYC;
-	memcpy(ic->ic_chan_active, chanlist, sizeof(ic->ic_chan_active));
+	memcpy(ic->ic_chan_active, chanlist, IEEE80211_CHAN_BYTES);
 	ieee80211_scan_flush(vap);
+	free(list, M_TEMP);
 	return ENETRESET;
 }
 
@@ -1993,17 +2004,34 @@ ieee80211_ioctl_setregdomain(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
 	struct ieee80211_regdomain_req *reg;
-	int error;
+	int nchans, error;
 
-	if (ireq->i_len != sizeof(struct ieee80211_regdomain_req))
+	nchans = 1 + ((ireq->i_len - sizeof(struct ieee80211_regdomain_req)) /
+	    sizeof(struct ieee80211_channel));
+	if (!(1 <= nchans && nchans <= IEEE80211_CHAN_MAX)) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
+		    "%s: bad # chans, i_len %d nchans %d\n", __func__,
+		    ireq->i_len, nchans);
 		return EINVAL;
-	reg = (struct ieee80211_regdomain_req *) malloc(
-	    sizeof(struct ieee80211_regdomain_req), M_TEMP, M_NOWAIT);
-	if (reg == NULL)
+	}
+	reg = (struct ieee80211_regdomain_req *)
+	    malloc(IEEE80211_REGDOMAIN_SIZE(nchans), M_TEMP, M_NOWAIT);
+	if (reg == NULL) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
+		    "%s: no memory, nchans %d\n", __func__, nchans);
 		return ENOMEM;
-	error = copyin(ireq->i_data, reg, sizeof(*reg));
-	if (error == 0)
-		error = ieee80211_setregdomain(vap, reg);
+	}
+	error = copyin(ireq->i_data, reg, IEEE80211_REGDOMAIN_SIZE(nchans));
+	if (error == 0) {
+		/* NB: validate inline channel count against storage size */
+		if (reg->chaninfo.ic_nchans != nchans) {
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
+			    "%s: chan cnt mismatch, %d != %d\n", __func__,
+				reg->chaninfo.ic_nchans, nchans);
+			error = EINVAL;
+		} else
+			error = ieee80211_setregdomain(vap, reg);
+	}
 	free(reg, M_TEMP);
 
 	return (error == 0 ? ENETRESET : error);
