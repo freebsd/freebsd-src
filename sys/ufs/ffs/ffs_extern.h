@@ -48,8 +48,8 @@ struct vnode;
 struct vop_fsync_args;
 struct vop_reallocblks_args;
 
-int	ffs_alloc(struct inode *,
-	    ufs2_daddr_t, ufs2_daddr_t, int, struct ucred *, ufs2_daddr_t *);
+int	ffs_alloc(struct inode *, ufs2_daddr_t, ufs2_daddr_t, int, int,
+	    struct ucred *, ufs2_daddr_t *);
 int	ffs_balloc_ufs1(struct vnode *a_vp, off_t a_startoffset, int a_size,
             struct ucred *a_cred, int a_flags, struct buf **a_bpp);
 int	ffs_balloc_ufs2(struct vnode *a_vp, off_t a_startoffset, int a_size,
@@ -72,7 +72,7 @@ void	ffs_load_inode(struct buf *, struct inode *, struct fs *, ino_t);
 int	ffs_mountroot(void);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
-	    ufs2_daddr_t, int, int, struct ucred *, struct buf **);
+	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);
 int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t);
