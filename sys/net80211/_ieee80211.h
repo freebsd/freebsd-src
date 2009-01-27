@@ -226,9 +226,9 @@ struct ieee80211_channel {
 #define	IEEE80211_IS_CHAN_PASSIVE(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_PASSIVE) != 0)
 #define	IEEE80211_IS_CHAN_OFDM(_c) \
-	(((_c)->ic_flags & IEEE80211_CHAN_OFDM) != 0)
+	(((_c)->ic_flags & (IEEE80211_CHAN_OFDM | IEEE80211_CHAN_DYN)) != 0)
 #define	IEEE80211_IS_CHAN_CCK(_c) \
-	(((_c)->ic_flags & IEEE80211_CHAN_CCK) != 0)
+	(((_c)->ic_flags & (IEEE80211_CHAN_CCK | IEEE80211_CHAN_DYN)) != 0)
 #define	IEEE80211_IS_CHAN_GFSK(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_GFSK) != 0)
 #define	IEEE80211_IS_CHAN_TURBO(_c) \
