@@ -427,7 +427,7 @@ check_cgmagic(int cg, struct cg *cgp)
 
 	if (!cg_chkmagic(cgp)) {
 	    pwarn("CG %d: BAD MAGIC NUMBER\n", cg);
-	    if (catastrophicflag) {
+	    if (damagedflag) {
 		if (reply("CLEAR CG")) {
 			memset(cgp, 0, (size_t)sblock.fs_cgsize);
 			cgp->cg_initediblk = sblock.fs_ipg;
@@ -442,7 +442,7 @@ check_cgmagic(int cg, struct cg *cgp)
 			rerun = 1;
 		}
 	    } else
-		printf("YOU MAY NEED TO RERUN FSCK WITH -C IF IT CRASHED.\n");
+		printf("YOU MAY NEED TO RERUN FSCK WITH -D IF IT CRASHED.\n");
 	}
 }
 
