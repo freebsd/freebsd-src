@@ -108,6 +108,9 @@ static const struct u3g_speeds_s u3g_speeds[] = {
 	{7200000, 384000},
 };
 
+#define U3GIBUFSIZE	1024
+#define U3GOBUFSIZE	1024
+
 /*
  * Various supported device vendors/products.
  */
@@ -296,10 +299,9 @@ u3g_attach(device_t self)
 				ucom->sc_iface = uaa->ifaces[i];
 				ucom->sc_bulkin_no = bulkin_no;
 				ucom->sc_bulkout_no = bulkout_no;
-				// Allocate a buffer enough for 10ms worth of data
-				ucom->sc_ibufsize = u3g_speeds[sc->sc_speed].ispeed/10/USB_FRAMES_PER_SECOND*10;
-				ucom->sc_ibufsizepad = ucom->sc_ibufsize;
-				ucom->sc_obufsize = u3g_speeds[sc->sc_speed].ospeed/10/USB_FRAMES_PER_SECOND*10;
+				ucom->sc_ibufsize = U3GIBUFSIZE;
+				ucom->sc_ibufsizepad = U3GIBUFSIZE;
+				ucom->sc_obufsize = U3GOBUFSIZE;
 				ucom->sc_opkthdrlen = 0;
 
 				ucom->sc_callback = &u3g_callback;
@@ -362,7 +364,6 @@ u3g_open(void *addr, int portno)
 	 * anyway.
 	 * Note: We abuse the fact that ucom sets the speed through
 	 * ispeed/ospeed, not through ispeedwat/ospeedwat.
-	 * XXX Are the speeds correct?
 	 */
 	if (portno == 0) {
 		struct u3g_softc *sc = addr;
