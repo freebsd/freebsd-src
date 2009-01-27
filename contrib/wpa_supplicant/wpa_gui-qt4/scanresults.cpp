@@ -14,6 +14,8 @@
 
 #include <QTimer>
 
+#include <cstdio>
+
 #include "scanresults.h"
 #include "wpagui.h"
 #include "networkconfig.h"

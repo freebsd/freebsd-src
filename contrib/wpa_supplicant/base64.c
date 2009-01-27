@@ -115,7 +115,7 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 			count++;
 	}
 
-	if (count % 4)
+	if (count == 0 || count % 4)
 		return NULL;
 
 	olen = count / 4 * 3;

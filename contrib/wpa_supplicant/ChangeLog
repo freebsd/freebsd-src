@@ -1,5 +1,31 @@
 ChangeLog for wpa_supplicant
 
+2008-11-28 - v0.5.11
+	* fixed race condition between disassociation event and group key
+	  handshake to avoid getting stuck in incorrect state [Bug 261]
+	* updated D-Bus usage to avoid deprecated functions
+	* silence SIOCSIWAUTH ioctl failure message (these can be ignored in
+	  most cases and are now only shown in debug output)
+	* increase timeout for IBSS connection
+	* driver_wext: do not overwrite BSS frequency if channel was already
+	  received
+	* driver_wext: set interface down for mode switches, if needed (e.g.,
+	  for mac80211)
+	* driver_wext: fixed re-initialization of a removed and re-inserted
+	  interface (e.g., USB dongle or on resume if driver was unloaded for
+	  suspend)
+	* improve per-SSID scanning for drivers that report background scan
+	  results frequently
+	* fixed scanning behavior after a failed initial association
+	* driver_wext: fixed processing of invalid event messages from kernel
+	  not to crash wpa_supplicant (this could happen when using 64-bit
+	  kernel with 32-bit userspace)
+	* fixed EAP-AKA to use RES Length field in AT_RES as length in bits,
+	  not bytes
+	* fixed canceling of PMKSA caching when using drivers that generate
+	  RSN IE and refuse to drop PMKIDs that wpa_supplicant does not know
+	  about
+
 2008-02-19 - v0.5.10
 	* added support for Makefile builds to include debug-log-to-a-file
 	  functionality (CONFIG_DEBUG_FILE=y and -f<path> on command line)

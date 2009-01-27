@@ -146,11 +146,6 @@ static inline wpa_states wpa_sm_get_state(struct wpa_sm *sm)
 	return sm->ctx->get_state(sm->ctx->ctx);
 }
 
-static inline void wpa_sm_req_scan(struct wpa_sm *sm, int sec, int usec)
-{
-	sm->ctx->req_scan(sm->ctx->ctx, sec, usec);
-}
-
 static inline void wpa_sm_deauthenticate(struct wpa_sm *sm, int reason_code)
 {
 	sm->ctx->deauthenticate(sm->ctx->ctx, reason_code);
