@@ -306,8 +306,18 @@ static struct _s_x rule_options[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
-static __inline uint64_t
-align_uint64(uint64_t *pll) {
+/*  
+ * The following is used to generate a printable argument for
+ * 64-bit numbers, irrespective of platform alignment and bit size.
+ * Because all the printf in this program use %llu as a format,
+ * we just return an unsigned long long, which is larger than
+ * we need in certain cases, but saves the hassle of using
+ * PRIu64 as a format specifier.
+ * We don't care about inlining, this is not performance critical code.
+ */
+unsigned long long
+align_uint64(const uint64_t *pll)
+{
 	uint64_t ret;
 
 	bcopy (pll, &ret, sizeof(ret));
