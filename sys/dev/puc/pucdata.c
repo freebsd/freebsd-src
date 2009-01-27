@@ -530,6 +530,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_8S, 0x18, 0, 8,
 	},
 
+	{   0x1393, 0x1682, 0xffff, 0,
+	    "Moxa Technologies, CP-168EL/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x18, 0, 8,
+	},
+
 	{   0x13a8, 0x0158, 0xffff, 0,
 	    "Cronyx Omega2-PCI",
 	    DEFAULT_RCLK * 8,
