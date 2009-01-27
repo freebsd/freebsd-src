@@ -207,6 +207,19 @@ int eloop_cancel_timeout(eloop_timeout_handler handler,
 			 void *eloop_data, void *user_data);
 
 /**
+ * eloop_is_timeout_registered - Check if a timeout is already registered
+ * @handler: Matching callback function
+ * @eloop_data: Matching eloop_data
+ * @user_data: Matching user_data
+ * Returns: 1 if the timeout is registered, 0 if the timeout is not registered
+ *
+ * Determine if a matching <handler,eloop_data,user_data> timeout is registered
+ * with eloop_register_timeout().
+ */
+int eloop_is_timeout_registered(eloop_timeout_handler handler,
+				void *eloop_data, void *user_data);
+
+/**
  * eloop_register_signal - Register handler for signals
  * @sig: Signal number (e.g., SIGHUP)
  * @handler: Callback function to be called when the signal is received
