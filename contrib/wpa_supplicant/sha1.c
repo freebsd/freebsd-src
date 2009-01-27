@@ -265,6 +265,10 @@ int tls_prf(const u8 *secret, size_t secret_len, const char *label,
 	L_S1 = L_S2 = (secret_len + 1) / 2;
 	S1 = secret;
 	S2 = secret + L_S1;
+	if (secret_len & 1) {
+		/* The last byte of S1 will be shared with S2 */
+		S2--;
+	}
 
 	hmac_md5_vector(S1, L_S1, 2, &MD5_addr[1], &MD5_len[1], A_MD5);
 	hmac_sha1_vector(S2, L_S2, 2, &SHA1_addr[1], &SHA1_len[1], A_SHA1);
