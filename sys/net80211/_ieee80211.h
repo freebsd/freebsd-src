@@ -276,12 +276,15 @@ struct ieee80211_channel {
 /* dynamic state */
 #define	IEEE80211_CHANSTATE_RADAR	0x01	/* radar detected */
 #define	IEEE80211_CHANSTATE_CACDONE	0x02	/* CAC completed */
+#define	IEEE80211_CHANSTATE_CWINT	0x04	/* interference detected */
 #define	IEEE80211_CHANSTATE_NORADAR	0x10	/* post notify on radar clear */
 
 #define	IEEE80211_IS_CHAN_RADAR(_c) \
 	(((_c)->ic_state & IEEE80211_CHANSTATE_RADAR) != 0)
 #define	IEEE80211_IS_CHAN_CACDONE(_c) \
 	(((_c)->ic_state & IEEE80211_CHANSTATE_CACDONE) != 0)
+#define	IEEE80211_IS_CHAN_CWINT(_c) \
+	(((_c)->ic_state & IEEE80211_CHANSTATE_CWINT) != 0)
 
 /* ni_chan encoding for FH phy */
 #define	IEEE80211_FH_CHANMOD	80
