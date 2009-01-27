@@ -157,12 +157,13 @@ list_queues(struct dn_flow_set *fs, struct dn_flow_queue *q)
 		ina.s_addr = htonl(q[l].id.dst_ip);
 		printf("%15s/%-5d ",
 		    inet_ntoa(ina), q[l].id.dst_port);
-		printf("%4qu %8qu %2u %4u %3u\n",
-		    q[l].tot_pkts, q[l].tot_bytes,
+		printf("%4llu %8llu %2u %4u %3u\n",
+		    align_uint64(&q[l].tot_pkts),
+		    align_uint64(&q[l].tot_bytes),
 		    q[l].len, q[l].len_bytes, q[l].drops);
 		if (co.verbose)
-			printf("   S %20qd  F %20qd\n",
-			    q[l].S, q[l].F);
+			printf("   S %20llu  F %20llu\n",
+			    align_uint64(&q[l].S), align_uint64(&q[l].F));
 	}
 
 	/* Print IPv6 flows */
@@ -202,11 +203,14 @@ list_queues(struct dn_flow_set *fs, struct dn_flow_queue *q)
 		printf(" %39s/%-5d ",
 		    inet_ntop(AF_INET6, &(q[l].id.dst_ip6), buff, sizeof(buff)),
 		    q[l].id.dst_port);
-		printf(" %4qu %8qu %2u %4u %3u\n",
-		    q[l].tot_pkts, q[l].tot_bytes,
+		printf(" %4llu %8llu %2u %4u %3u\n",
+		    align_uint64(&q[l].tot_pkts),
+		    align_uint64(&q[l].tot_bytes),
 		    q[l].len, q[l].len_bytes, q[l].drops);
 		if (co.verbose)
-			printf("   S %20qd  F %20qd\n", q[l].S, q[l].F);
+			printf("   S %20llu  F %20llu\n",
+			    align_uint64(&q[l].S),
+			    align_uint64(&q[l].F));
 	}
 }
 
@@ -295,7 +299,7 @@ ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[])
 		    p->pipe_nr, buf, p->delay);
 		print_flowset_parms(&(p->fs), prefix);
 		if (co.verbose)
-			printf("   V %20qd\n", p->V >> MY_M);
+			printf("   V %20llu\n", align_uint64(&p->V) >> MY_M);
 
 		q = (struct dn_flow_queue *)(p+1);
 		list_queues(&(p->fs), q);

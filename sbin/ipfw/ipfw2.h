@@ -190,6 +190,8 @@ enum tokens {
  */
 #define NEED1(msg)      {if (!ac) errx(EX_USAGE, msg);}
 
+unsigned long long align_uint64(const uint64_t *pll);
+
 /* memory allocation support */
 void *safe_calloc(size_t number, size_t size);
 void *safe_realloc(void *ptr, size_t size);
