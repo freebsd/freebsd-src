@@ -208,7 +208,7 @@ struct ieee80211com {
 	ieee80211vap_attach	ic_vattach[IEEE80211_OPMODE_MAX];
 	/* return hardware/radio capabilities */
 	void			(*ic_getradiocaps)(struct ieee80211com *,
-				    int *, struct ieee80211_channel []);
+				    int, int *, struct ieee80211_channel []);
 	/* check and/or prepare regdomain state change */
 	int			(*ic_setregdomain)(struct ieee80211com *,
 				    struct ieee80211_regdomain *,

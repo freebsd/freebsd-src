@@ -708,7 +708,7 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	dc->dc_cryptocaps = ic->ic_cryptocaps;
 	dc->dc_htcaps = ic->ic_htcaps;
 	ci = &dc->dc_chaninfo;
-	ic->ic_getradiocaps(ic, &ci->ic_nchans, ci->ic_chans);
+	ic->ic_getradiocaps(ic, IEEE80211_CHAN_MAX, &ci->ic_nchans, ci->ic_chans);
 	ieee80211_sort_channels(ci->ic_chans, ci->ic_nchans);
 	error = copyout(dc, ireq->i_data, sizeof(*dc));
 	free(dc, M_TEMP);
