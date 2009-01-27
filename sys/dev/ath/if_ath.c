@@ -205,7 +205,7 @@ static void	ath_newassoc(struct ieee80211_node *, int);
 static int	ath_setregdomain(struct ieee80211com *,
 		    struct ieee80211_regdomain *, int,
 		    struct ieee80211_channel []);
-static void	ath_getradiocaps(struct ieee80211com *, int *,
+static void	ath_getradiocaps(struct ieee80211com *, int, int *,
 		    struct ieee80211_channel []);
 static int	ath_getchannels(struct ath_softc *);
 static void	ath_led_event(struct ath_softc *, int);
@@ -6332,7 +6332,7 @@ ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 
 static void
 ath_getradiocaps(struct ieee80211com *ic,
-	int *nchans, struct ieee80211_channel chans[])
+	int maxchans, int *nchans, struct ieee80211_channel chans[])
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
