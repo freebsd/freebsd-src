@@ -126,6 +126,21 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	for (i = 0; i < ic->ic_nchans; i++) {
 		c = &ic->ic_channels[i];
 		KASSERT(c->ic_flags != 0, ("channel with no flags"));
+		/*
+		 * Help drivers that work only with frequencies by filling
+		 * in IEEE channel #'s if not already calculated.  Note this
+		 * mimics similar work done in ieee80211_setregdomain when
+		 * changing regulatory state.
+		 */
+		if (c->ic_ieee == 0)
+			c->ic_ieee = ieee80211_mhz2ieee(c->ic_freq,c->ic_flags);
+		if (IEEE80211_IS_CHAN_HT40(c) && c->ic_extieee == 0)
+			c->ic_extieee = ieee80211_mhz2ieee(c->ic_freq +
+			    (IEEE80211_IS_CHAN_HT40U(c) ? 20 : -20),
+			    c->ic_flags);
+		/* default max tx power to max regulatory */
+		if (c->ic_maxpower == 0)
+			c->ic_maxpower = 2*c->ic_maxregpower;
 		setbit(ic->ic_chan_avail, c->ic_ieee);
 		/*
 		 * Identify mode capabilities.
