@@ -245,8 +245,6 @@ static struct _s_x ether_types[] = {
 	{ NULL,		0 }
 };
 
-static void show_usage(void);
-
 enum tokens {
 	TOK_NULL=0,
 
@@ -2726,20 +2724,12 @@ done:
 }
 
 static void
-show_usage(void)
-{
-	fprintf(stderr, "usage: ipfw [options]\n"
-"do \"ipfw -h\" or see ipfw manpage for details\n"
-);
-	exit(EX_USAGE);
-}
-
-static void
 help(void)
 {
 	fprintf(stderr,
-"ipfw syntax summary (but please do read the ipfw(8) manpage):\n"
-"ipfw [-abcdefhnNqStTv] <command> where <command> is one of:\n"
+"ipfw syntax summary (but please do read the ipfw(8) manpage):\n\n"
+"\tipfw [-abcdefhnNqStTv] <command>\n\n"
+"where <command> is one of the following:\n\n"
 "add [num] [set N] [prob x] RULE-BODY\n"
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
@@ -6471,10 +6461,8 @@ ipfw_readfile(int ac, char *av[])
 
 	}
 
-	if (cmd == NULL && ac != optind + 1) {
-		fprintf(stderr, "ac %d, optind %d\n", ac, optind);
-		errx(EX_USAGE, "extraneous filename arguments");
-	}
+	if (cmd == NULL && ac != optind + 1)
+		errx(EX_USAGE, "extraneous filename arguments %s", av[ac-1]);
 
 	if ((f = fopen(filename, "r")) == NULL)
 		err(EX_UNAVAILABLE, "fopen: %s", filename);
@@ -6554,8 +6542,11 @@ main(int ac, char *av[])
 	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0)
 		ipfw_readfile(ac, av);
 	else {
-		if (ipfw_main(ac, av))
-			show_usage();
+		if (ipfw_main(ac, av)) {
+			errx(EX_USAGE,
+			    "usage: ipfw [options]\n"
+			    "do \"ipfw -h\" or \"man ipfw\" for details");
+		}
 	}
 	return EX_OK;
 }
