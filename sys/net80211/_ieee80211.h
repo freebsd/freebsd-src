@@ -135,6 +135,9 @@ struct ieee80211_channel {
 	int8_t		ic_minpower;	/* minimum tx power in .5 dBm */
 	uint8_t		ic_state;	/* dynamic state */
 	uint8_t		ic_extieee;	/* HT40 extension channel number */
+	int8_t		ic_maxantgain;	/* maximum antenna gain in .5 dBm */
+	uint8_t		ic_pad;
+	uint16_t	ic_devdata;	/* opaque device/driver data */
 };
 
 #define	IEEE80211_CHAN_MAX	256
