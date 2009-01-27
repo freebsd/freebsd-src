@@ -225,7 +225,7 @@ ffs_truncate(vp, length, flags, cred, td)
 				oldblks[i] = ip->i_din2->di_extb[i];
 				ip->i_din2->di_extb[i] = 0;
 			}
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
+			ip->i_flag |= IN_CHANGE;
 			if ((error = ffs_update(vp, 1)))
 				return (error);
 			for (i = 0; i < NXADDR; i++) {

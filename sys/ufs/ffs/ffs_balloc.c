@@ -133,7 +133,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			UFS_LOCK(ump);
 			error = ffs_realloccg(ip, nb, dp->di_db[nb],
 			   ffs_blkpref_ufs1(ip, lastlbn, (int)nb,
-			   &dp->di_db[0]), osize, (int)fs->fs_bsize, cred, &bp);
+			   &dp->di_db[0]), osize, (int)fs->fs_bsize, flags,
+			   cred, &bp);
 			if (error)
 				return (error);
 			if (DOINGSOFTDEP(vp))
@@ -184,7 +185,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				UFS_LOCK(ump);
 				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
 				    ffs_blkpref_ufs1(ip, lbn, (int)lbn,
-				    &dp->di_db[0]), osize, nsize, cred, &bp);
+				    &dp->di_db[0]), osize, nsize, flags,
+				    cred, &bp);
 				if (error)
 					return (error);
 				if (DOINGSOFTDEP(vp))
@@ -200,7 +202,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			UFS_LOCK(ump);
 			error = ffs_alloc(ip, lbn,
 			    ffs_blkpref_ufs1(ip, lbn, (int)lbn, &dp->di_db[0]),
-			    nsize, cred, &newb);
+			    nsize, flags, cred, &newb);
 			if (error)
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0, 0);
@@ -241,7 +243,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
-		    cred, &newb)) != 0) {
+		    flags, cred, &newb)) != 0) {
 			curthread->td_pflags &= saved_inbdflush;
 			return (error);
 		}
@@ -291,8 +293,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		UFS_LOCK(ump);
 		if (pref == 0)
 			pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
-		if ((error =
-		    ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize, cred, &newb)) != 0) {
+		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
+		    flags, cred, &newb)) != 0) {
 			brelse(bp);
 			goto fail;
 		}
@@ -346,7 +348,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs1(ip, lbn, indirs[i].in_off, &bap[0]);
 		error = ffs_alloc(ip,
-		    lbn, pref, (int)fs->fs_bsize, cred, &newb);
+		    lbn, pref, (int)fs->fs_bsize, flags, cred, &newb);
 		if (error) {
 			brelse(bp);
 			goto fail;
@@ -534,7 +536,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				    dp->di_extb[nb],
 				    ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
 				    &dp->di_extb[0]), osize,
-				    (int)fs->fs_bsize, cred, &bp);
+				    (int)fs->fs_bsize, flags, cred, &bp);
 				if (error)
 					return (error);
 				if (DOINGSOFTDEP(vp))
@@ -545,7 +547,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				dp->di_extsize = smalllblktosize(fs, nb + 1);
 				dp->di_extb[nb] = dbtofsb(fs, bp->b_blkno);
 				bp->b_xflags |= BX_ALTDATA;
-				ip->i_flag |= IN_CHANGE | IN_UPDATE;
+				ip->i_flag |= IN_CHANGE;
 				if (flags & IO_SYNC)
 					bwrite(bp);
 				else
@@ -588,7 +590,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				error = ffs_realloccg(ip, -1 - lbn,
 				    dp->di_extb[lbn],
 				    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
-				    &dp->di_extb[0]), osize, nsize, cred, &bp);
+				    &dp->di_extb[0]), osize, nsize, flags,
+				    cred, &bp);
 				if (error)
 					return (error);
 				bp->b_xflags |= BX_ALTDATA;
@@ -605,7 +608,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			UFS_LOCK(ump);
 			error = ffs_alloc(ip, lbn,
 			   ffs_blkpref_ufs2(ip, lbn, (int)lbn, &dp->di_extb[0]),
-			   nsize, cred, &newb);
+			   nsize, flags, cred, &newb);
 			if (error)
 				return (error);
 			bp = getblk(vp, -1 - lbn, nsize, 0, 0, 0);
@@ -618,7 +621,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				    nsize, 0, bp);
 		}
 		dp->di_extb[lbn] = dbtofsb(fs, bp->b_blkno);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		ip->i_flag |= IN_CHANGE;
 		*bpp = bp;
 		return (0);
 	}
@@ -636,7 +639,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			error = ffs_realloccg(ip, nb, dp->di_db[nb],
 				ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
 				    &dp->di_db[0]), osize, (int)fs->fs_bsize,
-				    cred, &bp);
+				    flags, cred, &bp);
 			if (error)
 				return (error);
 			if (DOINGSOFTDEP(vp))
@@ -688,7 +691,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				UFS_LOCK(ump);
 				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
 				    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
-				       &dp->di_db[0]), osize, nsize, cred, &bp);
+				       &dp->di_db[0]), osize, nsize, flags,
+				    cred, &bp);
 				if (error)
 					return (error);
 				if (DOINGSOFTDEP(vp))
@@ -704,7 +708,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			UFS_LOCK(ump);
 			error = ffs_alloc(ip, lbn,
 			    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
-				&dp->di_db[0]), nsize, cred, &newb);
+				&dp->di_db[0]), nsize, flags, cred, &newb);
 			if (error)
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0, 0);
@@ -745,7 +749,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
-		    cred, &newb)) != 0) {
+		    flags, cred, &newb)) != 0) {
 			curthread->td_pflags &= saved_inbdflush;
 			return (error);
 		}
@@ -795,8 +799,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		UFS_LOCK(ump);
 		if (pref == 0)
 			pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
-		if ((error =
-		    ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize, cred, &newb)) != 0) {
+		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
+		    flags, cred, &newb)) != 0) {
 			brelse(bp);
 			goto fail;
 		}
@@ -850,7 +854,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs2(ip, lbn, indirs[i].in_off, &bap[0]);
 		error = ffs_alloc(ip,
-		    lbn, pref, (int)fs->fs_bsize, cred, &newb);
+		    lbn, pref, (int)fs->fs_bsize, flags, cred, &newb);
 		if (error) {
 			brelse(bp);
 			goto fail;
