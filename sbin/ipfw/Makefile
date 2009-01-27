@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ipfw
-SRCS=	ipfw2.c dummynet.c main.c
+SRCS=	ipfw2.c dummynet.c ipv6.c main.c nat.c
 WARNS?=	0
 MAN=	ipfw.8
 
