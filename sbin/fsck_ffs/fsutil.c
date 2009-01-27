@@ -442,7 +442,7 @@ check_cgmagic(int cg, struct cg *cgp)
 			rerun = 1;
 		}
 	    } else
-		printf("YOU MAY NEED TO RERUN FSCK WITH -C IF IT CRASHED.\n");
+		printf("YOU MAY NEED TO RERUN FSCK WITH -D IF IT CRASHED.\n");
 	}
 }
 
