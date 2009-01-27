@@ -77,7 +77,6 @@ int
 		comment_only,		/* only print action and comment */
 		verbose;
 
-#define	IP_MASK_ALL	0xffffffff
 /*
  * the following macro returns an error message if we run out of
  * arguments.
@@ -113,14 +112,16 @@ int
 	}								\
 } while (0)
 
-#define PRINT_UINT_ARG(str, arg) do {					\
-	if (str != NULL)						\
-		printf("%s",str);					\
-	if (arg == IP_FW_TABLEARG)					\
-		printf("tablearg");					\
-	else								\
-		printf("%u", (uint32_t)arg);				\
-} while (0)
+static void
+PRINT_UINT_ARG(const char *str, uint32_t arg)
+{
+	if (str != NULL)
+		printf("%s",str);
+	if (arg == IP_FW_TABLEARG)
+		printf("tablearg");
+	else
+		printf("%u", arg);
+}
 
 /*
  * _s_x is a structure that stores a string <-> token pairs, used in
@@ -500,8 +501,6 @@ struct _s_x rule_options[] = {
 	{ ")",			TOK_ENDBRACE },		/* pseudo option */
 	{ NULL, 0 }	/* terminator */
 };
-
-#define	TABLEARG	"tablearg"
 
 static __inline uint64_t
 align_uint64(uint64_t *pll) {
@@ -2958,7 +2957,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		return;
 	}
 	/* A single IP can be stored in an optimized format */
-	if (d[1] == IP_MASK_ALL && av == NULL && len == 0) {
+	if (d[1] == ~0 && av == NULL && len == 0) {
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
 		return;
 	}
@@ -4916,7 +4915,7 @@ chkarg:
 			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TABLEARG)
 				errx(EX_DATAERR, "illegal argument for %s",
 				    *(av - 1));
-		} else if (_substrcmp(*av, TABLEARG) == 0) {
+		} else if (_substrcmp(*av, "tablearg") == 0) {
 			action->arg1 = IP_FW_TABLEARG;
 		} else if (i == TOK_DIVERT || i == TOK_TEE) {
 			struct servent *s;
