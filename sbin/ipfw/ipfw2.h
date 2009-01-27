@@ -194,15 +194,25 @@ enum tokens {
 void *safe_calloc(size_t number, size_t size);
 void *safe_realloc(void *ptr, size_t size);
 
-/* a string comparison function used for historical compatibility */
+/* string comparison functions used for historical compatibility */
 int _substrcmp(const char *str1, const char* str2);
 int _substrcmp2(const char *str1, const char* str2, const char* str3);
 
+/* utility functions */
 int match_token(struct _s_x *table, char *string);
+char const *match_value(struct _s_x *p, int value);
+
 int do_cmd(int optname, void *optval, uintptr_t optlen);
 
 struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
+int contigmask(uint8_t *p, int len);
+
+/* forward declarations to avoid header dependency */
+typedef struct _ipfw_insn ipfw_insn;
+typedef struct _ipfw_insn_u32 ipfw_insn_u32;
+typedef struct _ipfw_insn_ip6 ipfw_insn_ip6;
+typedef struct _ipfw_insn_icmp6 ipfw_insn_icmp6;
 
 
 /*
@@ -212,6 +222,7 @@ void n2mask(struct in6_addr *mask, int n);
  */
 extern int resvd_set_number;
 
+/* first-level command handlers */
 void ipfw_add(int ac, char *av[]);
 void ipfw_show_nat(int ac, char **av);
 void ipfw_config_pipe(int ac, char **av);
@@ -224,7 +235,21 @@ void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
 
-/* in dummynet.c */
+/* dummynet.c */
 void ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[]);
 int ipfw_delete_pipe(int pipe_or_queue, int n);
 
+/* ipv6.c */
+void print_unreach6_code(uint16_t code);
+void print_ip6(ipfw_insn_ip6 *cmd, char const *s);
+void print_flow6id( ipfw_insn_u32 *cmd);
+void print_icmp6types(ipfw_insn_u32 *cmd);
+void print_ext6hdr( ipfw_insn *cmd );
+
+ipfw_insn *add_srcip6(ipfw_insn *cmd, char *av);
+ipfw_insn *add_dstip6(ipfw_insn *cmd, char *av);
+
+void fill_flow6( ipfw_insn_u32 *cmd, char *av );
+void fill_unreach6_code(u_short *codep, char *str);
+void fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av);
+int fill_ext6hdr( ipfw_insn *cmd, char *av);
