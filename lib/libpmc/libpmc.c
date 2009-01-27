@@ -152,6 +152,11 @@ static const struct pmc_event_descr core2_event_table[] =
 	__PMC_EV_ALIAS_CORE2()
 };
 
+static const struct pmc_event_descr corei7_event_table[] =
+{
+	__PMC_EV_ALIAS_COREI7()
+};
+
 /*
  * PMC_MDEP_TABLE(NAME, PRIMARYCLASS, ADDITIONAL_CLASSES...)
  *
@@ -165,6 +170,7 @@ static const struct pmc_event_descr core2_event_table[] =
 PMC_MDEP_TABLE(atom, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(core, IAP, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(corei7, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k7, K7, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k8, K8, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p4, P4, PMC_CLASS_TSC);
@@ -194,6 +200,7 @@ PMC_CLASS_TABLE_DESC(iaf, IAF, iaf, iaf);
 PMC_CLASS_TABLE_DESC(atom, IAP, atom, iap);
 PMC_CLASS_TABLE_DESC(core, IAP, core, iap);
 PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
+PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
 #endif
 #if	defined(__i386__)
 PMC_CLASS_TABLE_DESC(k7, K7, k7, k7);
@@ -448,6 +455,7 @@ static struct pmc_event_alias core2_aliases[] = {
 	EV_ALIAS(NULL, NULL)
 };
 #define	atom_aliases	core2_aliases
+#define corei7_aliases	core2_aliases
 
 #define	IAF_KW_OS		"os"
 #define	IAF_KW_USR		"usr"
@@ -604,7 +612,8 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_ATOM ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2 ||
-		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2EXTREME) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2EXTREME ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_COREI7) {
 			if (KWMATCH(p, IAP_KW_SNOOPRESPONSE)) {
 				n = pmc_parse_mask(iap_snoopresponse_mask, p,
 				    &evmask);
@@ -2278,6 +2287,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = core2_event_table;
 			count = PMC_EVENT_TABLE_SIZE(core2);
 			break;
+		case PMC_CPU_INTEL_COREI7:
+			ev = corei7_event_table;
+			count = PMC_EVENT_TABLE_SIZE(corei7);
+			break;
 		}
 		break;
 	case PMC_CLASS_TSC:
@@ -2462,6 +2475,11 @@ pmc_init(void)
 		pmc_class_table[n++] = &iaf_class_table_descr;
 		pmc_class_table[n]   = &core2_class_table_descr;
 		break;
+	case PMC_CPU_INTEL_COREI7:
+		PMC_MDEP_INIT(corei7);
+		pmc_class_table[n++] = &iaf_class_table_descr;
+		pmc_class_table[n]   = &corei7_class_table_descr;
+		break;
 	case PMC_CPU_INTEL_PIV:
 		PMC_MDEP_INIT(p4);
 		pmc_class_table[n] = &p4_class_table_descr;
@@ -2559,6 +2577,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		case PMC_CPU_INTEL_CORE2EXTREME:
 			ev = core2_event_table;
 			evfence = core2_event_table + PMC_EVENT_TABLE_SIZE(core2);
+			break;
+		case PMC_CPU_INTEL_COREI7:
+			ev = corei7_event_table;
+			evfence = corei7_event_table + PMC_EVENT_TABLE_SIZE(corei7);
 			break;
 		default:	/* Unknown CPU type. */
 			break;
