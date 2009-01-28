@@ -1314,8 +1314,8 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		nfsm_v3attrbuild(vap, FALSE);
 		if (vap->va_type == VCHR || vap->va_type == VBLK) {
 			tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
-			*tl++ = txdr_unsigned(umajor(vap->va_rdev));
-			*tl = txdr_unsigned(uminor(vap->va_rdev));
+			*tl++ = txdr_unsigned(major(vap->va_rdev));
+			*tl = txdr_unsigned(minor(vap->va_rdev));
 		}
 	} else {
 		sp = nfsm_build(struct nfsv2_sattr *, NFSX_V2SATTR);
