@@ -51,6 +51,7 @@ MAN=	acct.5 \
 	pbm.5 \
 	periodic.conf.5 \
 	phones.5 \
+	portindex.5 \
 	portsnap.conf.5 \
 	procfs.5 \
 	protocols.5 \
