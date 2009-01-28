@@ -456,7 +456,7 @@ pblklist(void *vp, int max, off_t offset, int fflag)
 				while ((i+1)<max && isset(p, i+1))
 					i++;
 				if (i != j)
-					printf("-%lld", i + offset);
+					printf("-%jd", (intmax_t)(i + offset));
 			}
 			printf("\n");
 		}
