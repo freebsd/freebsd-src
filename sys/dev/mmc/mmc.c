@@ -321,7 +321,7 @@ mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 
 	req->done = mmc_wakeup;
 	req->done_data = sc;
-	if (mmc_debug) {
+	if (mmc_debug > 1) {
 		device_printf(sc->dev, "REQUEST: CMD%d arg %#x flags %#x",
 		    req->cmd->opcode, req->cmd->arg, req->cmd->flags);
 		if (req->cmd->data) {
@@ -334,7 +334,7 @@ mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 	while ((req->flags & MMC_REQ_DONE) == 0)
 		msleep(req, &sc->sc_mtx, 0, "mmcreq", 0);
 	MMC_UNLOCK(sc);
-	if (mmc_debug > 1 || (mmc_debug && req->cmd->error))
+	if (mmc_debug > 2 || (mmc_debug > 1 && req->cmd->error))
 		device_printf(sc->dev, "RESULT: %d\n", req->cmd->error);
 	return (0);
 }
