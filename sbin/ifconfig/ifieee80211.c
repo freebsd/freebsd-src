@@ -3119,23 +3119,16 @@ get_chaninfo(const struct ieee80211_channel *c, int precise,
 	buf[0] = '\0';
 	if (IEEE80211_IS_CHAN_FHSS(c))
 		strlcat(buf, " FHSS", bsize);
-	if (IEEE80211_IS_CHAN_A(c)) {
-		if (IEEE80211_IS_CHAN_HALF(c))
-			strlcat(buf, " 11a/10Mhz", bsize);
-		else if (IEEE80211_IS_CHAN_QUARTER(c))
-			strlcat(buf, " 11a/5Mhz", bsize);
-		else
-			strlcat(buf, " 11a", bsize);
-	}
-	if (IEEE80211_IS_CHAN_ANYG(c)) {
-		if (IEEE80211_IS_CHAN_HALF(c))
-			strlcat(buf, " 11g/10Mhz", bsize);
-		else if (IEEE80211_IS_CHAN_QUARTER(c))
-			strlcat(buf, " 11g/5Mhz", bsize);
-		else
-			strlcat(buf, " 11g", bsize);
-	} else if (IEEE80211_IS_CHAN_B(c))
+	if (IEEE80211_IS_CHAN_A(c))
+		strlcat(buf, " 11a", bsize);
+	else if (IEEE80211_IS_CHAN_ANYG(c))
+		strlcat(buf, " 11g", bsize);
+	else if (IEEE80211_IS_CHAN_B(c))
 		strlcat(buf, " 11b", bsize);
+	if (IEEE80211_IS_CHAN_HALF(c))
+		strlcat(buf, "/10Mhz", bsize);
+	if (IEEE80211_IS_CHAN_QUARTER(c))
+		strlcat(buf, "/5Mhz", bsize);
 	if (IEEE80211_IS_CHAN_TURBO(c))
 		strlcat(buf, " Turbo", bsize);
 	if (precise) {
