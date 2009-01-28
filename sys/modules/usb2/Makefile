@@ -32,7 +32,7 @@ SUBDIR += bluetooth_fw
 SUBDIR += controller
 .if ${MACHINE_ARCH} == "arm"
 SUBDIR += controller_at91dci
-#endif
+.endif
 SUBDIR += controller_ehci
 SUBDIR += controller_musb
 SUBDIR += controller_ohci
