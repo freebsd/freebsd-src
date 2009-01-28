@@ -77,6 +77,10 @@ The function
 tests the end-of-file indicator for the stream pointed to by
 .Fa stream ,
 returning non-zero if it is set.
+The end-of-file indicator may be cleared by explicitly calling
+.Fn clearerr ,
+or as a side-effect of other operations, e.g.\&
+.Fn fseek .
 .Pp
 The function
 .Fn ferror
