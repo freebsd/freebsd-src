@@ -210,12 +210,18 @@ struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
 int contigmask(uint8_t *p, int len);
 
-/* forward declarations to avoid header dependency */
-typedef struct _ipfw_insn ipfw_insn;
-typedef struct _ipfw_insn_u32 ipfw_insn_u32;
-typedef struct _ipfw_insn_ip6 ipfw_insn_ip6;
-typedef struct _ipfw_insn_icmp6 ipfw_insn_icmp6;
-
+/*
+ * Forward declarations to avoid include way too many headers.
+ * C does not allow duplicated typedefs, so we use the base struct
+ * that the typedef points to.
+ * Should the typedefs use a different type, the compiler will
+ * still detect the change when compiling the body of the
+ * functions involved, so we do not lose error checking.
+ */
+struct _ipfw_insn;
+struct _ipfw_insn_u32;
+struct _ipfw_insn_ip6;
+struct _ipfw_insn_icmp6;
 
 /*
  * The reserved set numer. This is a constant in ip_fw.h
@@ -243,15 +249,15 @@ int ipfw_delete_pipe(int pipe_or_queue, int n);
 
 /* ipv6.c */
 void print_unreach6_code(uint16_t code);
-void print_ip6(ipfw_insn_ip6 *cmd, char const *s);
-void print_flow6id( ipfw_insn_u32 *cmd);
-void print_icmp6types(ipfw_insn_u32 *cmd);
-void print_ext6hdr( ipfw_insn *cmd );
+void print_ip6(struct _ipfw_insn_ip6 *cmd, char const *s);
+void print_flow6id(struct _ipfw_insn_u32 *cmd);
+void print_icmp6types(struct _ipfw_insn_u32 *cmd);
+void print_ext6hdr(struct _ipfw_insn *cmd );
 
-ipfw_insn *add_srcip6(ipfw_insn *cmd, char *av);
-ipfw_insn *add_dstip6(ipfw_insn *cmd, char *av);
+struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av);
+struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av);
 
-void fill_flow6( ipfw_insn_u32 *cmd, char *av );
+void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av );
 void fill_unreach6_code(u_short *codep, char *str);
-void fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av);
-int fill_ext6hdr( ipfw_insn *cmd, char *av);
+void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av);
+int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
