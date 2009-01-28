@@ -87,19 +87,19 @@ SYSCTL_NODE(, OID_AUTO, regression, CTLFLAG_RW, 0,
      "Regression test MIB");
 #endif
 
-SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD,
+SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,
     kern_ident, 0, "Kernel identifier");
 
-SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD,
+SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD|CTLFLAG_MPSAFE,
     osrelease, 0, "Operating system release");
 
 SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD,
     0, BSD, "Operating system revision");
 
-SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD,
+SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
     version, 0, "Kernel version");
 
-SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD,
+SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE,
     ostype, 0, "Operating system type");
 
 /*
@@ -165,8 +165,9 @@ sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, buf, len));
 }
 
-SYSCTL_PROC(_kern, KERN_ARND, arandom, CTLTYPE_OPAQUE | CTLFLAG_RD,
-    NULL, 0, sysctl_kern_arnd, "", "arc4rand");
+SYSCTL_PROC(_kern, KERN_ARND, arandom,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kern_arnd, "", "arc4rand");
 
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
@@ -267,7 +268,7 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname,
-       CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON,
+       CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON|CTLFLAG_MPSAFE,
        0, 0, sysctl_hostname, "A", "Hostname");
 
 static int	regression_securelevel_nonmonotonic = 0;
