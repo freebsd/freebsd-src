@@ -1,4 +1,10 @@
 /*
+ * Copyright (c) 2009 Robert N. M. Watson
+ * All rights reserved.
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -74,8 +80,11 @@ struct uufsd disk;
 
 int	dumpfs(const char *);
 int	dumpcg(void);
+int	dumpfreespace(const char *, int);
+void	dumpfreespacecg(int);
 int	marshal(const char *);
 void	pbits(void *, int);
+void	pblklist(void *, int, off_t, int);
 void	ufserr(const char *);
 void	usage(void) __dead2;
 
@@ -83,12 +92,15 @@ int
 main(int argc, char *argv[])
 {
 	const char *name;
-	int ch, domarshal, eval;
+	int ch, dofreespace, domarshal, eval;
 
-	domarshal = eval = 0;
+	dofreespace = domarshal = eval = 0;
 
-	while ((ch = getopt(argc, argv, "m")) != -1) {
+	while ((ch = getopt(argc, argv, "fm")) != -1) {
 		switch (ch) {
+		case 'f':
+			dofreespace++;
+			break;
 		case 'm':
 			domarshal = 1;
 			break;
@@ -102,6 +114,10 @@ main(int argc, char *argv[])
 
 	if (argc < 1)
 		usage();
+	if (dofreespace && domarshal)
+		usage();
+	if (dofreespace > 2)
+		usage();
 
 	while ((name = *argv++) != NULL) {
 		if (ufs_disk_fillout(&disk, name) == -1) {
@@ -109,7 +125,9 @@ main(int argc, char *argv[])
 			eval |= 1;
 			continue;
 		}
-		if (domarshal)
+		if (dofreespace)
+			eval |= dumpfreespace(name, dofreespace);
+		else if (domarshal)
 			eval |= marshal(name);
 		else
 			eval |= dumpfs(name);
@@ -333,6 +351,30 @@ dumpcg(void)
 }
 
 int
+dumpfreespace(const char *name, int fflag)
+{
+	int i;
+
+	while ((i = cgread(&disk)) != 0) {
+		if (i == -1)
+			goto err;
+		dumpfreespacecg(fflag);
+	}
+	return (0);
+err:
+	ufserr(name);
+	return (1);
+}
+
+void
+dumpfreespacecg(int fflag)
+{
+
+	pblklist(cg_blksfree(&acg), afs.fs_fpg, disk.d_lcg * afs.fs_fpg,
+	    fflag);
+}
+
+int
 marshal(const char *name)
 {
 	struct fs *fs;
@@ -401,6 +443,27 @@ pbits(void *vp, int max)
 }
 
 void
+pblklist(void *vp, int max, off_t offset, int fflag)
+{
+	int i, j;
+	char *p;
+
+	for (i = 0, p = vp; i < max; i++) {
+		if (isset(p, i)) {
+			printf("%jd", (intmax_t)(i + offset));
+			if (fflag < 2) {
+				j = i;
+				while ((i+1)<max && isset(p, i+1))
+					i++;
+				if (i != j)
+					printf("-%lld", i + offset);
+			}
+			printf("\n");
+		}
+	}
+}
+
+void
 ufserr(const char *name)
 {
 	if (disk.d_error != NULL)
@@ -412,6 +475,6 @@ ufserr(const char *name)
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: dumpfs [-m] filesys | device\n");
+	(void)fprintf(stderr, "usage: dumpfs [-fm] filesys | device\n");
 	exit(1);
 }
