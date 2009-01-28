@@ -143,8 +143,11 @@ struct ieee80211_channel {
 #define	IEEE80211_CHAN_ANYC \
 	((struct ieee80211_channel *) IEEE80211_CHAN_ANY)
 
-/* bits 0-3 are for private use by drivers */
 /* channel attributes */
+#define	IEEE80211_CHAN_PRIV0	0x00000001 /* driver private bit 0 */
+#define	IEEE80211_CHAN_PRIV1	0x00000002 /* driver private bit 1 */
+#define	IEEE80211_CHAN_PRIV2	0x00000004 /* driver private bit 2 */
+#define	IEEE80211_CHAN_PRIV3	0x00000008 /* driver private bit 3 */
 #define	IEEE80211_CHAN_TURBO	0x00000010 /* Turbo channel */
 #define	IEEE80211_CHAN_CCK	0x00000020 /* CCK channel */
 #define	IEEE80211_CHAN_OFDM	0x00000040 /* OFDM channel */
