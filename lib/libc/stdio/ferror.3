@@ -32,7 +32,7 @@
 .\"     @(#)ferror.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2009
+.Dd January 28, 2009
 .Dt FERROR 3
 .Os
 .Sh NAME
@@ -83,9 +83,6 @@ The function
 tests the error indicator for the stream pointed to by
 .Fa stream ,
 returning non-zero if it is set.
-The error indicator can only be reset by the
-.Fn clearerr
-function.
 .Pp
 The function
 .Fn fileno
