@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212.h,v 1.16 2008/11/22 07:42:00 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AR5212_H_
 #define _ATH_AR5212_H_
@@ -133,16 +133,18 @@ typedef struct RfHalFuncs {
 
 	void	  (*rfDetach)(struct ath_hal *ah);
 	void	  (*writeRegs)(struct ath_hal *,
-			u_int modeIndex, u_int freqIndex, int regWrites);
+		      u_int modeIndex, u_int freqIndex, int regWrites);
 	uint32_t *(*getRfBank)(struct ath_hal *ah, int bank);
-	HAL_BOOL  (*setChannel)(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
+	HAL_BOOL  (*setChannel)(struct ath_hal *,
+		      const struct ieee80211_channel *);
 	HAL_BOOL  (*setRfRegs)(struct ath_hal *,
-		      HAL_CHANNEL_INTERNAL *, uint16_t modesIndex,
+		      const struct ieee80211_channel *, uint16_t modesIndex,
 		      uint16_t *rfXpdGain);
 	HAL_BOOL  (*setPowerTable)(struct ath_hal *ah,
 		      int16_t *minPower, int16_t *maxPower,
-		      HAL_CHANNEL_INTERNAL *, uint16_t *rfXpdGain);
-	HAL_BOOL  (*getChannelMaxMinPower)(struct ath_hal *ah, HAL_CHANNEL *,
+		      const struct ieee80211_channel *, uint16_t *rfXpdGain);
+	HAL_BOOL  (*getChannelMaxMinPower)(struct ath_hal *ah,
+		      const const struct ieee80211_channel *,
 		      int16_t *maxPow, int16_t *minPow);
 	int16_t	  (*getNfAdjust)(struct ath_hal *, const HAL_CHANNEL_INTERNAL*);
 } RF_HAL_FUNCS;
@@ -186,8 +188,6 @@ struct ar5212AniState {
 	uint32_t	listenTime;
 
 	/* NB: intentionally ordered so data exported to user space is first */
-	HAL_CHANNEL	c;
-	HAL_BOOL	isSetup;	/* has state to do a restore */
 	uint32_t	txFrameCount;	/* Last txFrameCount */
 	uint32_t	rxFrameCount;	/* Last rx Frame count */
 	uint32_t	cycleCount;	/* Last cycleCount
@@ -319,7 +319,7 @@ struct ath_hal_5212 {
 	struct ar5212AniParams ah_aniParams24;	/* 2.4GHz parameters */
 	struct ar5212AniParams ah_aniParams5;	/* 5GHz parameters */
 	struct ar5212AniState	*ah_curani;	/* cached last reference */
-	struct ar5212AniState	ah_ani[64];	/* per-channel state */
+	struct ar5212AniState	ah_ani[AH_MAXCHAN]; /* per-channel state */
 
 	/*
 	 * Transmit power state.  Note these are maintained
@@ -395,16 +395,16 @@ struct ath_hal_5212 {
  */
 #define SAVE_CCK(_ah, _chan, _flag) do {			\
 	if ((IS_2425(_ah) || IS_2417(_ah)) &&			\
-	    (((_chan)->channelFlags) & CHANNEL_CCK)) {		\
-		(_chan)->channelFlags &= ~CHANNEL_CCK;		\
-		(_chan)->channelFlags |= CHANNEL_OFDM;		\
+	    (((_chan)->ic_flags) & IEEE80211_CHAN_CCK)) {	\
+		(_chan)->ic_flags &= ~IEEE80211_CHAN_CCK;	\
+		(_chan)->ic_flags |= IEEE80211_CHAN_DYN;	\
 		(_flag) = AH_TRUE;				\
 	}							\
 } while (0)
 #define RESTORE_CCK(_ah, _chan, _flag) do {                     \
-	if ((IS_2425(_ah) || IS_2417(_ah)) && (_flag) == AH_TRUE) {\
-		(_chan)->channelFlags &= ~CHANNEL_OFDM;		\
-		(_chan)->channelFlags |= CHANNEL_CCK;		\
+	if ((IS_2425(_ah) || IS_2417(_ah)) && (_flag)) {	\
+		(_chan)->ic_flags &= ~IEEE80211_CHAN_DYN;	\
+		(_chan)->ic_flags |= IEEE80211_CHAN_CCK;	\
 	}							\
 } while (0)
 
@@ -525,26 +525,32 @@ extern	HAL_STATUS ar5212ProcRxDesc(struct ath_hal *ah, struct ath_desc *,
 		struct ath_rx_status *);
 
 extern	HAL_BOOL ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
-		HAL_CHANNEL *chan, HAL_BOOL bChannelChange, HAL_STATUS *status);
-extern	HAL_BOOL ar5212SetChannel(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
+		struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+		HAL_STATUS *status);
+extern	HAL_BOOL ar5212SetChannel(struct ath_hal *,
+		const struct ieee80211_channel *);
 extern	void ar5212SetOperatingMode(struct ath_hal *ah, int opmode);
 extern	HAL_BOOL ar5212PhyDisable(struct ath_hal *ah);
 extern	HAL_BOOL ar5212Disable(struct ath_hal *ah);
-extern	HAL_BOOL ar5212ChipReset(struct ath_hal *ah, HAL_CHANNEL *);
-extern	HAL_BOOL ar5212PerCalibration(struct ath_hal *ah, HAL_CHANNEL *chan,
-		HAL_BOOL *isIQdone);
-extern	HAL_BOOL ar5212PerCalibrationN(struct ath_hal *ah, HAL_CHANNEL *chan,
-		u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone);
-extern	HAL_BOOL ar5212ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan);
+extern	HAL_BOOL ar5212ChipReset(struct ath_hal *ah,
+		const struct ieee80211_channel *);
+extern	HAL_BOOL ar5212PerCalibration(struct ath_hal *ah,
+		struct ieee80211_channel *chan, HAL_BOOL *isIQdone);
+extern	HAL_BOOL ar5212PerCalibrationN(struct ath_hal *ah,
+		struct ieee80211_channel *chan, u_int chainMask,
+		HAL_BOOL longCal, HAL_BOOL *isCalDone);
+extern	HAL_BOOL ar5212ResetCalValid(struct ath_hal *ah,
+		const struct ieee80211_channel *);
 extern	int16_t ar5212GetNoiseFloor(struct ath_hal *ah);
 extern	void ar5212InitNfCalHistBuffer(struct ath_hal *);
 extern	int16_t ar5212GetNfHistMid(const int16_t calData[]);
-extern	void ar5212SetSpurMitigation(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
+extern	void ar5212SetSpurMitigation(struct ath_hal *,
+		 const struct ieee80211_channel *);
 extern	HAL_BOOL ar5212SetAntennaSwitchInternal(struct ath_hal *ah,
-		HAL_ANT_SETTING settings, const HAL_CHANNEL_INTERNAL *ichan);
+		HAL_ANT_SETTING settings, const struct ieee80211_channel *);
 extern	HAL_BOOL ar5212SetTxPowerLimit(struct ath_hal *ah, uint32_t limit);
 extern	HAL_BOOL ar5212GetChipPowerLimits(struct ath_hal *ah,
-					  HAL_CHANNEL *chans, uint32_t nchans);
+		struct ieee80211_channel *chan);
 extern	void ar5212InitializeGainValues(struct ath_hal *);
 extern	HAL_RFGAIN ar5212GetRfgain(struct ath_hal *ah);
 extern	void ar5212RequestRfgain(struct ath_hal *);
@@ -597,7 +603,7 @@ extern	void ar5212AniPhyErrReport(struct ath_hal *ah,
 		const struct ath_rx_status *rs);
 extern	void ar5212ProcessMibIntr(struct ath_hal *, const HAL_NODE_STATS *);
 extern	void ar5212AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
-			     HAL_CHANNEL *);
-extern	void ar5212AniReset(struct ath_hal *, HAL_CHANNEL_INTERNAL *,
+			     const struct ieee80211_channel *);
+extern	void ar5212AniReset(struct ath_hal *, const struct ieee80211_channel *,
 		HAL_OPMODE, int);
 #endif	/* _ATH_AR5212_H_ */

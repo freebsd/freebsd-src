@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2006 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -105,17 +105,23 @@ const static CHAN_INFO_2GHZ chan2GHzData[] = {
 #define NUM_RATES	8
 
 static HAL_BOOL ar5211SetResetReg(struct ath_hal *ah, uint32_t resetMask);
-static HAL_BOOL ar5211SetChannel(struct ath_hal *,  HAL_CHANNEL_INTERNAL *);
+static HAL_BOOL ar5211SetChannel(struct ath_hal *,
+		const struct ieee80211_channel *);
 static int16_t ar5211RunNoiseFloor(struct ath_hal *,
 		uint8_t runTime, int16_t startingNF);
-static HAL_BOOL ar5211IsNfGood(struct ath_hal *, HAL_CHANNEL_INTERNAL *chan);
-static HAL_BOOL ar5211SetRf6and7(struct ath_hal *, HAL_CHANNEL *chan);
-static HAL_BOOL ar5211SetBoardValues(struct ath_hal *, HAL_CHANNEL *chan);
+static HAL_BOOL ar5211IsNfGood(struct ath_hal *,
+		struct ieee80211_channel *chan);
+static HAL_BOOL ar5211SetRf6and7(struct ath_hal *,
+		const struct ieee80211_channel *chan);
+static HAL_BOOL ar5211SetBoardValues(struct ath_hal *,
+		const struct ieee80211_channel *chan);
 static void ar5211SetPowerTable(struct ath_hal *,
 		PCDACS_EEPROM *pSrcStruct, uint16_t channel);
+static HAL_BOOL ar5211SetTransmitPower(struct ath_hal *,
+		const struct ieee80211_channel *);
 static void ar5211SetRateTable(struct ath_hal *,
 		RD_EDGES_POWER *pRdEdgesPower, TRGT_POWER_INFO *pPowerInfo,
-		uint16_t numChannels, HAL_CHANNEL *chan);
+		uint16_t numChannels, const struct ieee80211_channel *chan);
 static uint16_t ar5211GetScaledPower(uint16_t channel, uint16_t pcdacValue,
 		const PCDACS_EEPROM *pSrcStruct);
 static HAL_BOOL ar5211FindValueInList(uint16_t channel, uint16_t pcdacValue,
@@ -147,7 +153,8 @@ static void ar5211SetOperatingMode(struct ath_hal *, int opmode);
  */
 HAL_BOOL
 ar5211Reset(struct ath_hal *ah, HAL_OPMODE opmode,
-	HAL_CHANNEL *chan, HAL_BOOL bChannelChange, HAL_STATUS *status)
+	struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+	HAL_STATUS *status)
 {
 uint32_t softLedCfg, softLedState;
 #define	N(a)	(sizeof (a) /sizeof (a[0]))
@@ -167,34 +174,16 @@ uint32_t softLedCfg, softLedState;
 
 	HALDEBUG(ah, HAL_DEBUG_RESET,
 	     "%s: opmode %u channel %u/0x%x %s channel\n",
-	     __func__, opmode, chan->channel, chan->channelFlags,
+	     __func__, opmode, chan->ic_freq, chan->ic_flags,
 	     bChannelChange ? "change" : "same");
 
 	OS_MARK(ah, AH_MARK_RESET, bChannelChange);
-#define	IS(_c,_f)	(((_c)->channelFlags & _f) || 0)
-	if ((IS(chan, CHANNEL_2GHZ) ^ IS(chan,CHANNEL_5GHZ)) == 0) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; not marked as 2GHz or 5GHz\n",
-		    __func__, chan->channel, chan->channelFlags);
-		FAIL(HAL_EINVAL);
-	}
-	if ((IS(chan, CHANNEL_OFDM) ^ IS(chan, CHANNEL_CCK)) == 0) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; not marked as OFDM or CCK\n",
-		    __func__, chan->channel, chan->channelFlags);
-		FAIL(HAL_EINVAL);
-	}
-#undef IS
 	/*
 	 * Map public channel to private.
 	 */
 	ichan = ath_hal_checkchannel(ah, chan);
-	if (ichan == AH_NULL) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; no mapping\n",
-		    __func__, chan->channel, chan->channelFlags);
+	if (ichan == AH_NULL)
 		FAIL(HAL_EINVAL);
-	}
 	switch (opmode) {
 	case HAL_M_STA:
 	case HAL_M_IBSS:
@@ -236,10 +225,8 @@ uint32_t softLedCfg, softLedState;
 			for (i = 0; i < AR_NUM_DCU; i++)
 				saveFrameSeqCount[i] = OS_REG_READ(ah, AR_DSEQNUM(i));
 		}
-		if (!(ichan->privFlags & CHANNEL_DFS)) 
-			ichan->privFlags &= ~CHANNEL_INTERFERENCE;
-		chan->channelFlags = ichan->channelFlags;
-		chan->privFlags = ichan->privFlags;
+		if (!IEEE80211_IS_CHAN_DFS(chan)) 
+			chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 	}
 
 	/*
@@ -259,33 +246,36 @@ uint32_t softLedCfg, softLedState;
 	softLedCfg = OS_REG_READ(ah, AR_GPIOCR);
 	softLedState = OS_REG_READ(ah, AR_GPIODO);
 
-	if (!ar5211ChipReset(ah, chan->channelFlags)) {
+	if (!ar5211ChipReset(ah, chan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		FAIL(HAL_EIO);
 	}
 
 	/* Setup the indices for the next set of register array writes */
-	switch (chan->channelFlags & CHANNEL_ALL) {
-	case CHANNEL_A:
-		modesIndex = 1;
-		freqIndex  = 1;
-		break;
-	case CHANNEL_T:
-		modesIndex = 2;
-		freqIndex  = 1;
-		break;
-	case CHANNEL_B:
-		modesIndex = 3;
-		freqIndex  = 2;
-		break;
-	case CHANNEL_PUREG:
-		modesIndex = 4;
-		freqIndex  = 2;
-		break;
-	default:
-		/* Ah, a new wireless mode */
-		HALASSERT(0);
-		break;
+	if (IEEE80211_IS_CHAN_5GHZ(chan)) {
+		freqIndex = 1;
+		if (IEEE80211_IS_CHAN_TURBO(chan))
+			modesIndex = 2;
+		else if (IEEE80211_IS_CHAN_A(chan))
+			modesIndex = 1;
+		else {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s: invalid channel %u/0x%x\n",
+			    __func__, chan->ic_freq, chan->ic_flags);
+			FAIL(HAL_EINVAL);
+		}
+	} else {
+		freqIndex = 2;
+		if (IEEE80211_IS_CHAN_B(chan))
+			modesIndex = 3;
+		else if (IEEE80211_IS_CHAN_PUREG(chan))
+			modesIndex = 4;
+		else {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s: invalid channel %u/0x%x\n",
+			    __func__, chan->ic_freq, chan->ic_flags);
+			FAIL(HAL_EINVAL);
+		}
 	}
 
 	/* Set correct Baseband to analog shift setting to access analog chips. */
@@ -297,12 +287,12 @@ uint32_t softLedCfg, softLedState;
 
 	/* Write parameters specific to AR5211 */
 	if (AH_PRIVATE(ah)->ah_macVersion >= AR_SREV_VERSION_OAHU) {
-		if (IS_CHAN_2GHZ(chan) &&
+		if (IEEE80211_IS_CHAN_2GHZ(chan) &&
 		    AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER3_1) {
 			HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 			uint32_t ob2GHz, db2GHz;
 
-			if (IS_CHAN_CCK(chan)) {
+			if (IEEE80211_IS_CHAN_CCK(chan)) {
 				ob2GHz = ee->ee_ob2GHz[0];
 				db2GHz = ee->ee_db2GHz[0];
 			} else {
@@ -437,14 +427,15 @@ uint32_t softLedCfg, softLedState;
 	/* Setup board specific options for EEPROM version 3 */
 	ar5211SetBoardValues(ah, chan);
 
-	if (!ar5211SetChannel(ah, ichan)) {
+	if (!ar5211SetChannel(ah, chan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: unable to set channel\n",
 		    __func__);
 		FAIL(HAL_EIO);
 	}
 
 	/* Activate the PHY */
-	if (AH_PRIVATE(ah)->ah_devid == AR5211_FPGA11B && IS_CHAN_2GHZ(chan))
+	if (AH_PRIVATE(ah)->ah_devid == AR5211_FPGA11B &&
+	    IEEE80211_IS_CHAN_2GHZ(chan))
 		OS_REG_WRITE(ah, 0xd808, 0x502); /* required for FPGA */
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 
@@ -454,7 +445,7 @@ uint32_t softLedCfg, softLedState;
 	 * Value is in 100ns increments.
 	 */
 	data = OS_REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_M;
-	if (IS_CHAN_CCK(chan)) {
+	if (IEEE80211_IS_CHAN_CCK(chan)) {
 		synthDelay = (4 * data) / 22;
 	} else {
 		synthDelay = data / 10;
@@ -473,9 +464,9 @@ uint32_t softLedCfg, softLedState;
 	(void) ath_hal_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 0);
 
 	/* Perform noise floor and set status */
-	if (!ar5211CalNoiseFloor(ah, ichan)) {
-		if (!IS_CHAN_CCK(chan))
-			chan->channelFlags |= CHANNEL_CW_INT;
+	if (!ar5211CalNoiseFloor(ah, chan)) {
+		if (!IEEE80211_IS_CHAN_CCK(chan))
+			chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: noise floor calibration failed\n", __func__);
 		FAIL(HAL_EIO);
@@ -599,49 +590,31 @@ ar5211Disable(struct ath_hal *ah)
  * us in the correct mode and we cannot check the hwchannel flags.
  */
 HAL_BOOL
-ar5211ChipReset(struct ath_hal *ah, uint16_t channelFlags)
+ar5211ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	if (!ar5211SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 		return AH_FALSE;
 
-	/* Set CCK and Turbo modes correctly */
-	switch (channelFlags & CHANNEL_ALL) {
-	case CHANNEL_2GHZ|CHANNEL_CCK:
-	case CHANNEL_2GHZ|CHANNEL_CCK|CHANNEL_TURBO:
-		OS_REG_WRITE(ah, AR_PHY_TURBO, 0);
-		OS_REG_WRITE(ah, AR5211_PHY_MODE,
-			AR5211_PHY_MODE_CCK | AR5211_PHY_MODE_RF2GHZ);
-		OS_REG_WRITE(ah, AR_PHY_PLL_CTL, AR_PHY_PLL_CTL_44);
-		/* Wait for the PLL to settle */
-		OS_DELAY(DELAY_PLL_SETTLE);
-		break;
-	case CHANNEL_2GHZ|CHANNEL_OFDM:
-	case CHANNEL_2GHZ|CHANNEL_OFDM|CHANNEL_TURBO:
-		OS_REG_WRITE(ah, AR_PHY_TURBO, 0);
-		if (AH_PRIVATE(ah)->ah_devid == AR5211_DEVID) {
+	/* NB: called from attach with chan null */
+	if (chan != AH_NULL) {
+		/* Set CCK and Turbo modes correctly */
+		OS_REG_WRITE(ah, AR_PHY_TURBO, IEEE80211_IS_CHAN_TURBO(chan) ?
+		    AR_PHY_FC_TURBO_MODE | AR_PHY_FC_TURBO_SHORT : 0);
+		if (IEEE80211_IS_CHAN_B(chan)) {
+			OS_REG_WRITE(ah, AR5211_PHY_MODE,
+			    AR5211_PHY_MODE_CCK | AR5211_PHY_MODE_RF2GHZ);
+			OS_REG_WRITE(ah, AR_PHY_PLL_CTL, AR_PHY_PLL_CTL_44);
+			/* Wait for the PLL to settle */
+			OS_DELAY(DELAY_PLL_SETTLE);
+		} else if (AH_PRIVATE(ah)->ah_devid == AR5211_DEVID) {
 			OS_REG_WRITE(ah, AR_PHY_PLL_CTL, AR_PHY_PLL_CTL_40);
 			OS_DELAY(DELAY_PLL_SETTLE);
 			OS_REG_WRITE(ah, AR5211_PHY_MODE,
-				AR5211_PHY_MODE_OFDM | AR5211_PHY_MODE_RF2GHZ);
+			    AR5211_PHY_MODE_OFDM | (IEEE80211_IS_CHAN_2GHZ(chan) ?
+				AR5211_PHY_MODE_RF2GHZ :
+				AR5211_PHY_MODE_RF5GHZ));
 		}
-		break;
-	case CHANNEL_A:
-	case CHANNEL_T:
-		if (channelFlags & CHANNEL_TURBO) {
-			OS_REG_WRITE(ah, AR_PHY_TURBO,
-				AR_PHY_FC_TURBO_MODE | AR_PHY_FC_TURBO_SHORT);
-		} else {				/* 5 GHZ OFDM Mode */
-			OS_REG_WRITE(ah, AR_PHY_TURBO, 0);
-		}
-		if (AH_PRIVATE(ah)->ah_devid == AR5211_DEVID) {
-			OS_REG_WRITE(ah, AR_PHY_PLL_CTL, AR_PHY_PLL_CTL_40);
-			OS_DELAY(DELAY_PLL_SETTLE);
-			OS_REG_WRITE(ah, AR5211_PHY_MODE,
-				AR5211_PHY_MODE_OFDM | AR5211_PHY_MODE_RF5GHZ);
-		}
-		break;
 	}
-	/* NB: else no flags set - must be attach calling - do nothing */
 
 	/*
 	 * Reset the HW - PCI must be reset after the rest of the
@@ -664,8 +637,8 @@ ar5211ChipReset(struct ath_hal *ah, uint16_t channelFlags)
  * changes.
  */
 HAL_BOOL
-ar5211PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int chainMask,
-	HAL_BOOL longCal, HAL_BOOL *isCalDone)
+ar5211PerCalibrationN(struct ath_hal *ah,  struct ieee80211_channel *chan,
+	u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone)
 {
 	struct ath_hal_5211 *ahp = AH5211(ah);
 	HAL_CHANNEL_INTERNAL *ichan;
@@ -679,7 +652,7 @@ ar5211PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int chainMask,
 	if (ichan == AH_NULL) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: invalid channel %u/0x%x; no mapping\n",
-		    __func__, chan->channel, chan->channelFlags);
+		    __func__, chan->ic_freq, chan->ic_flags);
 		return AH_FALSE;
 	}
 	/* IQ calibration in progress. Check to see if it has finished. */
@@ -733,22 +706,21 @@ ar5211PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int chainMask,
 
 	if (longCal) {
 		/* Perform noise floor and set status */
-		if (!ar5211IsNfGood(ah, ichan)) {
+		if (!ar5211IsNfGood(ah, chan)) {
 			/* report up and clear internal state */
-			chan->channelFlags |= CHANNEL_CW_INT;
-			ichan->channelFlags &= ~CHANNEL_CW_INT;
+			chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
 			return AH_FALSE;
 		}
-		if (!ar5211CalNoiseFloor(ah, ichan)) {
+		if (!ar5211CalNoiseFloor(ah, chan)) {
 			/*
 			 * Delay 5ms before retrying the noise floor
 			 * just to make sure, as we are in an error
 			 * condition here.
 			 */
 			OS_DELAY(5000);
-			if (!ar5211CalNoiseFloor(ah, ichan)) {
-				if (!IS_CHAN_CCK(chan))
-					chan->channelFlags |= CHANNEL_CW_INT;
+			if (!ar5211CalNoiseFloor(ah, chan)) {
+				if (!IEEE80211_IS_CHAN_CCK(chan))
+					chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
 				return AH_FALSE;
 			}
 		}
@@ -758,13 +730,14 @@ ar5211PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int chainMask,
 }
 
 HAL_BOOL
-ar5211PerCalibration(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
+ar5211PerCalibration(struct ath_hal *ah, struct ieee80211_channel *chan,
+	HAL_BOOL *isIQdone)
 {
 	return ar5211PerCalibrationN(ah,  chan, 0x1, AH_TRUE, isIQdone);
 }
 
 HAL_BOOL
-ar5211ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar5211ResetCalValid(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	/* XXX */
 	return AH_TRUE;
@@ -810,13 +783,13 @@ ar5211SetResetReg(struct ath_hal *ah, uint32_t resetMask)
  *   or by disabling the AGC.
  */
 static HAL_BOOL
-ar5211SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
+ar5211SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	uint32_t refClk, reg32, data2111;
 	int16_t chan5111, chanIEEE;
 
-	chanIEEE = ath_hal_mhz2ieee(ah, chan->channel, chan->channelFlags);
-	if (IS_CHAN_2GHZ(chan)) {
+	chanIEEE = chan->ic_ieee;
+	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
 		const CHAN_INFO_2GHZ* ci =
 			&chan2GHzData[chanIEEE + CI_2GHZ_INDEX_CORRECTION];
 
@@ -903,7 +876,7 @@ ar5211RunNoiseFloor(struct ath_hal *ah, uint8_t runTime, int16_t startingNF)
 	if (i >= 60) {
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF with runTime %d failed to end on channel %d\n",
-		    runTime, AH_PRIVATE(ah)->ah_curchan->channel);
+		    runTime, AH_PRIVATE(ah)->ah_curchan->ic_freq);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "  PHY NF Reg state:	 0x%x\n",
 		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
@@ -917,23 +890,24 @@ ar5211RunNoiseFloor(struct ath_hal *ah, uint8_t runTime, int16_t startingNF)
 }
 
 static HAL_BOOL
-getNoiseFloorThresh(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, int16_t *nft)
+getNoiseFloorThresh(struct ath_hal *ah, const struct ieee80211_channel *chan,
+	int16_t *nft)
 {
 	HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 
-	switch (chan->channelFlags & CHANNEL_ALL_NOTURBO) {
-	case CHANNEL_A:
+	switch (chan->ic_flags & IEEE80211_CHAN_ALLFULL) {
+	case IEEE80211_CHAN_A:
 		*nft = ee->ee_noiseFloorThresh[0];
 		break;
-	case CHANNEL_CCK|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_B:
 		*nft = ee->ee_noiseFloorThresh[1];
 		break;
-	case CHANNEL_OFDM|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_PUREG:
 		*nft = ee->ee_noiseFloorThresh[2];
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
+		    __func__, chan->ic_flags);
 		return AH_FALSE;
 	}
 	return AH_TRUE;
@@ -945,8 +919,9 @@ getNoiseFloorThresh(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, int16_t *nft
  * Returns: TRUE if the NF is good
  */
 static HAL_BOOL
-ar5211IsNfGood(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar5211IsNfGood(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
+	HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 	int16_t nf, nfThresh;
 
 	if (!getNoiseFloorThresh(ah, chan, &nfThresh))
@@ -964,9 +939,9 @@ ar5211IsNfGood(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 		 *     happens it indicates a problem regardless
 		 *     of the band.
 		 */
-		chan->channelFlags |= CHANNEL_CW_INT;
+		chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
 	}
-	chan->rawNoiseFloor = nf;
+	ichan->rawNoiseFloor = nf;
 	return (nf <= nfThresh);
 }
 
@@ -980,13 +955,14 @@ ar5211IsNfGood(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
  * Returns: TRUE for a successful noise floor calibration; else FALSE
  */
 HAL_BOOL
-ar5211CalNoiseFloor(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar5211CalNoiseFloor(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 #define	N(a)	(sizeof (a) / sizeof (a[0]))
 	/* Check for Carrier Wave interference in MKK regulatory zone */
 	if (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_OAHU &&
-	    ath_hal_getnfcheckrequired(ah, (HAL_CHANNEL *) chan)) {
+	    (chan->ic_flags & CHANNEL_NFCREQUIRED)) {
 		static const uint8_t runtime[3] = { 0, 2, 7 };
+		HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 		int16_t nf, nfThresh;
 		int i;
 
@@ -1003,9 +979,9 @@ ar5211CalNoiseFloor(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 				    "%s: run failed with %u > threshold %u "
 				    "(runtime %u)\n", __func__,
 				    nf, nfThresh, runtime[i]);
-				chan->rawNoiseFloor = 0;
+				ichan->rawNoiseFloor = 0;
 			} else
-				chan->rawNoiseFloor = nf;
+				ichan->rawNoiseFloor = nf;
 		}
 		return (i <= N(runtime));
 	} else {
@@ -1054,9 +1030,10 @@ ar5211GetNfAdjust(struct ath_hal *ah, const HAL_CHANNEL_INTERNAL *c)
  * REQUIRES: Access to the analog device
  */
 static HAL_BOOL
-ar5211SetRf6and7(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar5211SetRf6and7(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 #define	N(a)	(sizeof (a) / sizeof (a[0]))
+	uint16_t freq = ath_hal_gethwchannel(ah, chan);
 	HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 	struct ath_hal_5211 *ahp = AH5211(ah);
 	uint16_t rfXpdGain, rfPloSel, rfPwdXpd;
@@ -1064,25 +1041,25 @@ ar5211SetRf6and7(struct ath_hal *ah, HAL_CHANNEL *chan)
 	uint16_t freqIndex;
 	int i;
 
-	freqIndex = (chan->channelFlags & CHANNEL_2GHZ) ? 2 : 1;
+	freqIndex = IEEE80211_IS_CHAN_2GHZ(chan) ? 2 : 1;
 
 	/*
 	 * TODO: This array mode correspondes with the index used
 	 *	 during the read.
 	 * For readability, this should be changed to an enum or #define
 	 */
-	switch (chan->channelFlags & CHANNEL_ALL_NOTURBO) {
-	case CHANNEL_A:
-		if (chan->channel > 4000 && chan->channel < 5260) {
+	switch (chan->ic_flags & IEEE80211_CHAN_ALLFULL) {
+	case IEEE80211_CHAN_A:
+		if (freq > 4000 && freq < 5260) {
 			tempOB = ee->ee_ob1;
 			tempDB = ee->ee_db1;
-		} else if (chan->channel >= 5260 && chan->channel < 5500) {
+		} else if (freq >= 5260 && freq < 5500) {
 			tempOB = ee->ee_ob2;
 			tempDB = ee->ee_db2;
-		} else if (chan->channel >= 5500 && chan->channel < 5725) {
+		} else if (freq >= 5500 && freq < 5725) {
 			tempOB = ee->ee_ob3;
 			tempDB = ee->ee_db3;
-		} else if (chan->channel >= 5725) {
+		} else if (freq >= 5725) {
 			tempOB = ee->ee_ob4;
 			tempDB = ee->ee_db4;
 		} else {
@@ -1104,14 +1081,14 @@ ar5211SetRf6and7(struct ath_hal *ah, HAL_CHANNEL *chan)
 			(ar5211Rf6n7[21][freqIndex] & ~0x08) |
 				(ee->ee_cornerCal.gSel << 3);
 		break;
-	case CHANNEL_CCK|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_B:
 		tempOB = ee->ee_obFor24;
 		tempDB = ee->ee_dbFor24;
 		rfXpdGain = ee->ee_xgain[1];
 		rfPloSel  = ee->ee_xpd[1];
 		rfPwdXpd  = !ee->ee_xpd[1];
 		break;
-	case CHANNEL_OFDM|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_PUREG:
 		tempOB = ee->ee_obFor24g;
 		tempDB = ee->ee_dbFor24g;
 		rfXpdGain = ee->ee_xgain[2];
@@ -1120,7 +1097,7 @@ ar5211SetRf6and7(struct ath_hal *ah, HAL_CHANNEL *chan)
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
+		    __func__, chan->ic_flags);
 		return AH_FALSE;
 	}
 
@@ -1160,7 +1137,7 @@ ar5211SetRf6and7(struct ath_hal *ah, HAL_CHANNEL *chan)
 
 HAL_BOOL
 ar5211SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
-                       const HAL_CHANNEL *chan)
+	const struct ieee80211_channel *chan)
 {
 #define	ANT_SWITCH_TABLE1	0x9960
 #define	ANT_SWITCH_TABLE2	0x9964
@@ -1169,13 +1146,13 @@ ar5211SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
 	uint32_t antSwitchA, antSwitchB;
 	int ix;
 
-	switch (chan->channelFlags & CHANNEL_ALL_NOTURBO) {
-	case CHANNEL_A:		ix = 0; break;
-	case CHANNEL_B:		ix = 1; break;
-	case CHANNEL_PUREG:	ix = 2; break;
+	switch (chan->ic_flags & IEEE80211_CHAN_ALLFULL) {
+	case IEEE80211_CHAN_A:		ix = 0; break;
+	case IEEE80211_CHAN_B:		ix = 1; break;
+	case IEEE80211_CHAN_PUREG:	ix = 2; break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
+		    __func__, chan->ic_flags);
 		return AH_FALSE;
 	}
 
@@ -1223,27 +1200,27 @@ ar5211SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
  * given the channel value
  */
 static HAL_BOOL
-ar5211SetBoardValues(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar5211SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 	struct ath_hal_5211 *ahp = AH5211(ah);
 	int arrayMode, falseDectectBackoff;
 
-	switch (chan->channelFlags & CHANNEL_ALL_NOTURBO) {
-	case CHANNEL_A:
+	switch (chan->ic_flags & IEEE80211_CHAN_ALLFULL) {
+	case IEEE80211_CHAN_A:
 		arrayMode = 0;
 		OS_REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL,
 			AR_PHY_FRAME_CTL_TX_CLIP, ee->ee_cornerCal.clip);
 		break;
-	case CHANNEL_CCK|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_B:
 		arrayMode = 1;
 		break;
-	case CHANNEL_OFDM|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_PUREG:
 		arrayMode = 2;
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
+		    __func__, chan->ic_flags);
 		return AH_FALSE;
 	}
 
@@ -1295,10 +1272,11 @@ ar5211SetBoardValues(struct ath_hal *ah, HAL_CHANNEL *chan)
 	falseDectectBackoff = NO_FALSE_DETECT_BACKOFF;
 	if (AH_PRIVATE(ah)->ah_eeversion < AR_EEPROM_VER3_3) {
 		if (AH_PRIVATE(ah)->ah_subvendorid == 0x1022 &&
-		    IS_CHAN_OFDM(chan))
+		    IEEE80211_IS_CHAN_OFDM(chan))
 			falseDectectBackoff += CB22_FALSE_DETECT_BACKOFF;
 	} else {
-		uint32_t remainder = chan->channel % 32;
+		uint16_t freq = ath_hal_gethwchannel(ah, chan);
+		uint32_t remainder = freq % 32;
 
 		if (remainder && (remainder < 10 || remainder > 22))
 			falseDectectBackoff += ee->ee_falseDetectBackoff[arrayMode];
@@ -1331,9 +1309,10 @@ ar5211SetTxPowerLimit(struct ath_hal *ah, uint32_t limit)
  * Sets the transmit power in the baseband for the given
  * operating channel and mode.
  */
-HAL_BOOL
-ar5211SetTransmitPower(struct ath_hal *ah, HAL_CHANNEL *chan)
+static HAL_BOOL
+ar5211SetTransmitPower(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
+	uint16_t freq = ath_hal_gethwchannel(ah, chan);
 	HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 	TRGT_POWER_INFO *pi;
 	RD_EDGES_POWER *rep;
@@ -1342,22 +1321,22 @@ ar5211SetTransmitPower(struct ath_hal *ah, HAL_CHANNEL *chan)
 	int i;
 
 	/* setup the pcdac struct to point to the correct info, based on mode */
-	switch (chan->channelFlags & CHANNEL_ALL_NOTURBO) {
-	case CHANNEL_A:
+	switch (chan->ic_flags & IEEE80211_CHAN_ALLFULL) {
+	case IEEE80211_CHAN_A:
 		eepromPcdacs.numChannels = ee->ee_numChannels11a;
 		eepromPcdacs.pChannelList= ee->ee_channels11a;
 		eepromPcdacs.pDataPerChannel = ee->ee_dataPerChannel11a;
 		nchan = ee->ee_numTargetPwr_11a;
 		pi = ee->ee_trgtPwr_11a;
 		break;
-	case CHANNEL_OFDM|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_PUREG:
 		eepromPcdacs.numChannels = ee->ee_numChannels2_4;
 		eepromPcdacs.pChannelList= ee->ee_channels11g;
 		eepromPcdacs.pDataPerChannel = ee->ee_dataPerChannel11g;
 		nchan = ee->ee_numTargetPwr_11g;
 		pi = ee->ee_trgtPwr_11g;
 		break;
-	case CHANNEL_CCK|CHANNEL_2GHZ:
+	case IEEE80211_CHAN_B:
 		eepromPcdacs.numChannels = ee->ee_numChannels2_4;
 		eepromPcdacs.pChannelList= ee->ee_channels11b;
 		eepromPcdacs.pDataPerChannel = ee->ee_dataPerChannel11b;
@@ -1366,11 +1345,11 @@ ar5211SetTransmitPower(struct ath_hal *ah, HAL_CHANNEL *chan)
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
+		    __func__, chan->ic_flags);
 		return AH_FALSE;
 	}
 
-	ar5211SetPowerTable(ah, &eepromPcdacs, chan->channel);
+	ar5211SetPowerTable(ah, &eepromPcdacs, freq);
 
 	rep = AH_NULL;
 	/* Match CTL to EEPROM value */
@@ -1392,7 +1371,8 @@ ar5211SetTransmitPower(struct ath_hal *ah, HAL_CHANNEL *chan)
  * table for writing into the hardware.
  */
 void
-ar5211SetPowerTable(struct ath_hal *ah, PCDACS_EEPROM *pSrcStruct, uint16_t channel)
+ar5211SetPowerTable(struct ath_hal *ah, PCDACS_EEPROM *pSrcStruct,
+	uint16_t channel)
 {
 	static FULL_PCDAC_STRUCT pcdacStruct;
 	static uint16_t pcdacTable[PWR_TABLE_SIZE];
@@ -1509,11 +1489,12 @@ ar5211SetPowerTable(struct ath_hal *ah, PCDACS_EEPROM *pSrcStruct, uint16_t chan
  * Set the transmit power in the baseband for the given
  * operating channel and mode.
  */
-void
+static void
 ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 	TRGT_POWER_INFO *pPowerInfo, uint16_t numChannels,
-	HAL_CHANNEL *chan)
+	const struct ieee80211_channel *chan)
 {
+	uint16_t freq = ath_hal_gethwchannel(ah, chan);
 	HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 	struct ath_hal_5211 *ahp = AH5211(ah);
 	static uint16_t ratesArray[NUM_RATES];
@@ -1534,9 +1515,9 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 	int8_t	  twiceAntennaGain, twiceAntennaReduction = 0;
 
 	pRatesPower = ratesArray;
-	twiceMaxRDPower = chan->maxRegTxPower * 2;
+	twiceMaxRDPower = chan->ic_maxregpower * 2;
 
-	if (IS_CHAN_5GHZ(chan)) {
+	if (IEEE80211_IS_CHAN_5GHZ(chan)) {
 		twiceAntennaGain = ee->ee_antennaGainMax[0];
 	} else {
 		twiceAntennaGain = ee->ee_antennaGainMax[1];
@@ -1553,7 +1534,7 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 		}
 		numEdges = i;
 
-		ar5211GetLowerUpperValues(chan->channel, tempChannelList,
+		ar5211GetLowerUpperValues(freq, tempChannelList,
 			numEdges, &lowerChannel, &upperChannel);
 		/* Get the index for this channel */
 		for (i = 0; i < numEdges; i++)
@@ -1562,7 +1543,7 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 		HALASSERT(i != numEdges);
 
 		if ((lowerChannel == upperChannel &&
-		     lowerChannel == chan->channel) ||
+		     lowerChannel == freq) ||
 		    pRdEdgesPower[i].flag) {
 			twiceMaxEdgePower = pRdEdgesPower[i].twice_rdEdgePower;
 			HALASSERT(twiceMaxEdgePower > 0);
@@ -1573,7 +1554,7 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 	for (i = 0; i < numChannels; i++)
 		tempChannelList[i] = pPowerInfo[i].testChannel;
 
-	ar5211GetLowerUpperValues(chan->channel, tempChannelList,
+	ar5211GetLowerUpperValues(freq, tempChannelList,
 		numChannels, &lowerChannel, &upperChannel);
 
 	/* get the index for the channel */
@@ -1587,7 +1568,7 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 	}
 
 	for (i = 0; i < NUM_RATES; i++) {
-		if (IS_CHAN_OFDM(chan)) {
+		if (IEEE80211_IS_CHAN_OFDM(chan)) {
 			/* power for rates 6,9,12,18,24 is all the same */
 			if (i < 5) {
 				lowerPower = pPowerInfo[lowerIndex].twicePwr6_24;
@@ -1627,7 +1608,7 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 			}
 		}
 
-		twicePower = ar5211GetInterpolatedValue(chan->channel,
+		twicePower = ar5211GetInterpolatedValue(freq,
 			lowerChannel, upperChannel, lowerPower, upperPower, 0);
 
 		/* Reduce power by band edge restrictions */
@@ -1639,7 +1620,7 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 		 * this unless specially configured.  Then we limit
 		 * power only for non-AP operation.
 		 */
-		if (IS_CHAN_TURBO(chan) &&
+		if (IEEE80211_IS_CHAN_TURBO(chan) &&
 		    AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER3_1
 #ifdef AH_ENABLE_AP_SUPPORT
 		    && AH_PRIVATE(ah)->ah_opmode != HAL_M_HOSTAP
@@ -1669,14 +1650,14 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
 #ifdef AH_DEBUG
 	HALDEBUG(ah, HAL_DEBUG_RESET,
 	    "%s: final output power setting %d MHz:\n",
-	    __func__, chan->channel);
+	    __func__, chan->ic_freq);
 	HALDEBUG(ah, HAL_DEBUG_RESET,
 	    "6 Mb %d dBm, MaxRD: %d dBm, MaxEdge %d dBm\n",
 	    scaledPower / 2, twiceMaxRDPower / 2, twiceMaxEdgePower / 2);
 	HALDEBUG(ah, HAL_DEBUG_RESET, "TPC Scale %d dBm - Ant Red %d dBm\n",
 	    tpcScaleReductionTable[AH_PRIVATE(ah)->ah_tpScale] * 2,
 	    twiceAntennaReduction / 2);
-	if (IS_CHAN_TURBO(chan) &&
+	if (IEEE80211_IS_CHAN_TURBO(chan) &&
 	    AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER3_1)
 		HALDEBUG(ah, HAL_DEBUG_RESET, "Max Turbo %d dBm\n",
 		    ee->ee_turbo2WMaxPower5);
@@ -1709,7 +1690,8 @@ ar5211SetRateTable(struct ath_hal *ah, RD_EDGES_POWER *pRdEdgesPower,
  * Get or interpolate the pcdac value from the calibrated data
  */
 uint16_t
-ar5211GetScaledPower(uint16_t channel, uint16_t pcdacValue, const PCDACS_EEPROM *pSrcStruct)
+ar5211GetScaledPower(uint16_t channel, uint16_t pcdacValue,
+	const PCDACS_EEPROM *pSrcStruct)
 {
 	uint16_t powerValue;
 	uint16_t lFreq, rFreq;		/* left and right frequency values */
@@ -1940,11 +1922,11 @@ ar5211InitializeGainValues(struct ath_hal *ah)
 static HAL_BOOL
 ar5211InvalidGainReadback(struct ath_hal *ah, GAIN_VALUES *gv)
 {
-	HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 	uint32_t gStep, g;
 	uint32_t L1, L2, L3, L4;
 
-	if (IS_CHAN_CCK(chan)) {
+	if (IEEE80211_IS_CHAN_CCK(chan)) {
 		gStep = 0x18;
 		L1 = 0;
 		L2 = gStep + 4;
