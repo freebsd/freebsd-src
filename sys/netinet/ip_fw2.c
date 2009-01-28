@@ -2254,6 +2254,7 @@ ipfw_chk(struct ip_fw_args *args)
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (IP_FW_PASS);	/* accept */
 
+	dst_ip.s_addr = 0;		/* make sure it is initialized */
 	pktlen = m->m_pkthdr.len;
 	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
@@ -2711,7 +2712,7 @@ check_body:
 				    uint32_t a =
 					(cmd->opcode == O_IP_DST_LOOKUP) ?
 					    dst_ip.s_addr : src_ip.s_addr;
-				    uint32_t v;
+				    uint32_t v = 0;
 
 				    match = lookup_table(chain, cmd->arg1, a,
 					&v);
