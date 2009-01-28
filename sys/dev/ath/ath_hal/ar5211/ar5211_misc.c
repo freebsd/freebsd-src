@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2006 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -432,7 +432,7 @@ ar5211SetSifsTime(struct ath_hal *ah, u_int us)
 	} else {
 		/* convert to system clocks */
 		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS, ath_hal_mac_clks(ah, us));
-		ahp->ah_sifstime = us;
+		ahp->ah_slottime = us;
 		return AH_TRUE;
 	}
 }
@@ -564,7 +564,8 @@ ar5211AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 }
 
 void
-ar5211AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats, HAL_CHANNEL *chan)
+ar5211AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
+	const struct ieee80211_channel *chan)
 {
 }
 
@@ -603,8 +604,7 @@ ar5211GetAntennaSwitch(struct ath_hal *ah)
 HAL_BOOL
 ar5211SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 {
-	const HAL_CHANNEL *chan =
-		(const HAL_CHANNEL *) AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 
 	if (chan == AH_NULL) {
 		AH5211(ah)->ah_diversityControl = settings;

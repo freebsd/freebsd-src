@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_cal.c,v 1.7 2008/11/11 17:43:23 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -32,26 +32,27 @@
 #define NUM_NOISEFLOOR_READINGS 6       /* 3 chains * (ctl + ext) */
 
 static void ar5416StartNFCal(struct ath_hal *ah);
-static void ar5416LoadNF(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *);
-static int16_t ar5416GetNf(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
+static void ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *);
+static int16_t ar5416GetNf(struct ath_hal *, struct ieee80211_channel *);
 
 /*
  * Determine if calibration is supported by device and channel flags
  */
 static OS_INLINE HAL_BOOL
-ar5416IsCalSupp(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_CAL_TYPE calType) 
+ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
+	HAL_CAL_TYPE calType) 
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 
 	switch (calType & cal->suppCals) {
 	case IQ_MISMATCH_CAL:
 		/* Run IQ Mismatch for non-CCK only */
-		return !IS_CHAN_B(chan);
+		return !IEEE80211_IS_CHAN_B(chan);
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
 		/* Run ADC Gain Cal for non-CCK & non 2GHz-HT20 only */
-		return !IS_CHAN_B(chan) &&
-		    !(IS_CHAN_2GHZ(chan) && IS_CHAN_HT20(chan));
+		return !IEEE80211_IS_CHAN_B(chan) &&
+		    !(IEEE80211_IS_CHAN_2GHZ(chan) && IEEE80211_IS_CHAN_HT20(chan));
 	}
 	return AH_FALSE;
 }
@@ -164,7 +165,7 @@ ar5416RunInitCals(struct ath_hal *ah, int init_cal_count)
  * Initialize Calibration infrastructure.
  */
 HAL_BOOL
-ar5416InitCal(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CHANNEL_INTERNAL *ichan;
@@ -279,7 +280,7 @@ ar5416InitCal(struct ath_hal *ah, HAL_CHANNEL *chan)
  * Reset the calibration valid bit in channel.
  */
 HAL_BOOL
-ar5416ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar5416ResetCalValid(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
@@ -292,7 +293,7 @@ ar5416ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan)
 	if (ichan == AH_NULL) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: invalid channel %u/0x%x; no mapping\n",
-		    __func__, chan->channel, chan->channelFlags);
+		    __func__, chan->ic_freq, chan->ic_flags);
 		return AH_FALSE;
 	}
 	/*
@@ -312,8 +313,8 @@ ar5416ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan)
 
 	HALDEBUG(ah, HAL_DEBUG_PERCAL,
 	    "%s: Resetting Cal %d state for channel %u/0x%x\n",
-	    __func__, currCal->calData->calType, chan->channel,
-	    chan->channelFlags);
+	    __func__, currCal->calData->calType, chan->ic_freq,
+	    chan->ic_flags);
 
 	/* Disable cal validity in channel */
 	ichan->calValid &= ~currCal->calData->calType;
@@ -384,7 +385,7 @@ ar5416DoCalibration(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *ichan,
  * Internal interface to schedule periodic calibration work.
  */
 HAL_BOOL
-ar5416PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan,
+ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 	u_int rxchainmask, HAL_BOOL longcal, HAL_BOOL *isCalDone)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
@@ -400,7 +401,7 @@ ar5416PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan,
 	if (ichan == AH_NULL) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: invalid channel %u/0x%x; no mapping\n",
-		    __func__, chan->channel, chan->channelFlags);
+		    __func__, chan->ic_freq, chan->ic_flags);
 		return AH_FALSE;
 	}
 
@@ -432,7 +433,7 @@ ar5416PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan,
 		 * Get the value from the previous NF cal
 		 * and update the history buffer.
 		 */
-		ar5416GetNf(ah, ichan);
+		ar5416GetNf(ah, chan);
 
 		/* 
 		 * Load the NF from history buffer of the current channel.
@@ -443,12 +444,6 @@ ar5416PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan,
 
 		/* start NF calibration, without updating BB NF register*/
 		ar5416StartNFCal(ah);
-
-		if ((ichan->channelFlags & CHANNEL_CW_INT) != 0) {
-			/* report up and clear internal state */
-			chan->channelFlags |= CHANNEL_CW_INT;
-			ichan->channelFlags &= ~CHANNEL_CW_INT;
-		}
 	}
 	return AH_TRUE;
 }
@@ -458,7 +453,8 @@ ar5416PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan,
  * changes.
  */
 HAL_BOOL
-ar5416PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
+ar5416PerCalibration(struct ath_hal *ah, struct ieee80211_channel *chan,
+	HAL_BOOL *isIQdone)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
@@ -478,29 +474,19 @@ ar5416PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
 
 static HAL_BOOL
 ar5416GetEepromNoiseFloorThresh(struct ath_hal *ah,
-	const HAL_CHANNEL_INTERNAL *chan, int16_t *nft)
+	const struct ieee80211_channel *chan, int16_t *nft)
 {
-	switch (chan->channelFlags & CHANNEL_ALL_NOTURBO) {
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
+	if (IEEE80211_IS_CHAN_5GHZ(chan)) {
 		ath_hal_eepromGet(ah, AR_EEP_NFTHRESH_5, nft);
-		break;
-	case CHANNEL_B:
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
-		ath_hal_eepromGet(ah, AR_EEP_NFTHRESH_2, nft);
-		break;
-	default:
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
-		return AH_FALSE;
+		return AH_TRUE;
 	}
-	return AH_TRUE;
+	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+		ath_hal_eepromGet(ah, AR_EEP_NFTHRESH_2, nft);
+		return AH_TRUE;
+	}
+	HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
+	    __func__, chan->ic_flags);
+	return AH_FALSE;
 }
 
 static void
@@ -512,7 +498,7 @@ ar5416StartNFCal(struct ath_hal *ah)
 }
 
 static void
-ar5416LoadNF(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	static const uint32_t ar5416_cca_regs[] = {
 		AR_PHY_CCA,
@@ -624,7 +610,7 @@ ar5416UpdateNFHistBuff(struct ar5212NfCalHist *h, int16_t *nfarray)
  * Read the NF and check it against the noise floor threshhold
  */
 static int16_t
-ar5416GetNf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 	int16_t nf, nfThresh;
 
@@ -635,6 +621,7 @@ ar5416GetNf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 	} else {
 		/* Finished NF cal, check against threshold */
 		int16_t nfarray[NUM_NOISEFLOOR_READINGS] = { 0 };
+		HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 			
 		/* TODO - enhance for multiple chains and ext ch */
 		ath_hal_getNoiseFloor(ah, nfarray);
@@ -650,14 +637,14 @@ ar5416GetNf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 				 *     happens it indicates a problem regardless
 				 *     of the band.
 				 */
-				chan->channelFlags |= CHANNEL_CW_INT;
+				chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
 				nf = 0;
 			}
 		} else {
 			nf = 0;
 		}
 		ar5416UpdateNFHistBuff(AH5416(ah)->ah_cal.nfCalHist, nfarray);
-		chan->rawNoiseFloor = nf;
+		ichan->rawNoiseFloor = nf;
 	}
 	return nf;
 }

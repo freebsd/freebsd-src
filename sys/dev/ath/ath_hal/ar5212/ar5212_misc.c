@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -33,8 +33,6 @@
 
 #define	AR_NUM_GPIO	6		/* 6 GPIO pins */
 #define	AR_GPIOD_MASK	0x0000002F	/* GPIO data reg r/w mask */
-
-extern void ar5212SetRateDurationTable(struct ath_hal *, HAL_CHANNEL *);
 
 void
 ar5212GetMacAddress(struct ath_hal *ah, uint8_t *mac)
@@ -294,12 +292,12 @@ ar5212ResetTsf(struct ath_hal *ah)
 void
 ar5212SetBasicRate(struct ath_hal *ah, HAL_RATE_SET *rs)
 {
-	HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 	uint32_t reg;
 	uint8_t xset;
 	int i;
 
-	if (chan == AH_NULL || !IS_CHAN_CCK(chan))
+	if (chan == AH_NULL || !IEEE80211_IS_CHAN_CCK(chan))
 		return;
 	xset = 0;
 	for (i = 0; i < rs->rs_count; i++) {
@@ -423,15 +421,15 @@ HAL_BOOL
 ar5212SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING setting)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
-	const HAL_CHANNEL_INTERNAL *ichan = AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 
-	if (!ahp->ah_phyPowerOn || ichan == AH_NULL) {
+	if (!ahp->ah_phyPowerOn || chan == AH_NULL) {
 		/* PHY powered off, just stash settings */
 		ahp->ah_antControl = setting;
 		ahp->ah_diversity = (setting == HAL_ANT_VARIABLE);
 		return AH_TRUE;
 	}
-	return ar5212SetAntennaSwitchInternal(ah, setting, ichan);
+	return ar5212SetAntennaSwitchInternal(ah, setting, chan);
 }
 
 HAL_BOOL
@@ -453,7 +451,7 @@ ar5212SetSifsTime(struct ath_hal *ah, u_int us)
 	} else {
 		/* convert to system clocks */
 		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS, ath_hal_mac_clks(ah, us));
-		ahp->ah_sifstime = us;
+		ahp->ah_slottime = us;
 		return AH_TRUE;
 	}
 }
@@ -592,7 +590,7 @@ ar5212SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 			return;
 
 		/* Don't apply coverage class to non A channels */
-		if (!IS_CHAN_A(AH_PRIVATE(ah)->ah_curchan))
+		if (!IEEE80211_IS_CHAN_A(AH_PRIVATE(ah)->ah_curchan))
 			return;
 
 		/* Get core clock rate */
@@ -601,10 +599,10 @@ ar5212SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 		/* Compute EIFS */
 		slot = coverageclass * 3 * clkRate;
 		eifs = coverageclass * 6 * clkRate;
-		if (IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan)) {
+		if (IEEE80211_IS_CHAN_HALF(AH_PRIVATE(ah)->ah_curchan)) {
 			slot += IFS_SLOT_HALF_RATE;
 			eifs += IFS_EIFS_HALF_RATE;
-		} else if (IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan)) {
+		} else if (IEEE80211_IS_CHAN_QUARTER(AH_PRIVATE(ah)->ah_curchan)) {
 			slot += IFS_SLOT_QUARTER_RATE;
 			eifs += IFS_EIFS_QUARTER_RATE;
 		} else { /* full rate */
