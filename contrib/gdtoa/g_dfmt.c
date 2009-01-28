@@ -33,15 +33,20 @@ THIS SOFTWARE.
 
  char*
 #ifdef KR_headers
-g_dfmt(buf, d, ndig, bufsize) char *buf; double *d; int ndig; unsigned bufsize;
+g_dfmt(buf, d, ndig, bufsize) char *buf; double *d; int ndig; size_t bufsize;
 #else
-g_dfmt(char *buf, double *d, int ndig, unsigned bufsize)
+g_dfmt(char *buf, double *d, int ndig, size_t bufsize)
 #endif
 {
-	static FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, 0 };
+	static FPI fpi0 = { 53, 1-1023-53+1, 2046-1023-53+1, 1, 0 };
 	char *b, *s, *se;
 	ULong bits[2], *L, sign;
 	int decpt, ex, i, mode;
+#ifdef Honor_FLT_ROUNDS
+#include "gdtoa_fltrnds.h"
+#else
+#define fpi &fpi0
+#endif
 
 	if (ndig < 0)
 		ndig = 0;
@@ -52,6 +57,8 @@ g_dfmt(char *buf, double *d, int ndig, unsigned bufsize)
 	sign = L[_0] & 0x80000000L;
 	if ((L[_0] & 0x7ff00000) == 0x7ff00000) {
 		/* Infinity or NaN */
+		if (bufsize < 10)
+			return 0;
 		if (L[_0] & 0xfffff || L[_1]) {
 			return strcp(buf, "NaN");
 			}
@@ -78,12 +85,9 @@ g_dfmt(char *buf, double *d, int ndig, unsigned bufsize)
 		ex = 1;
 	ex -= 0x3ff + 52;
 	mode = 2;
-	if (ndig <= 0) {
-		if (bufsize < 25)
-			return 0;
+	if (ndig <= 0)
 		mode = 0;
-		}
 	i = STRTOG_Normal;
-	s = gdtoa(&fpi, ex, bits, &i, mode, ndig, &decpt, &se);
-	return g__fmt(buf, s, se, decpt, sign);
+	s = gdtoa(fpi, ex, bits, &i, mode, ndig, &decpt, &se);
+	return g__fmt(buf, s, se, decpt, sign, bufsize);
 	}
