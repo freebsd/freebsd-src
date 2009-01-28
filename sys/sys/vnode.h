@@ -285,7 +285,6 @@ struct vattr {
  */
 #define	VA_UTIMES_NULL	0x01		/* utimes argument was NULL */
 #define	VA_EXCLUSIVE	0x02		/* exclusive create request */
-#define	VA_MARK_ATIME	0x04		/* setting atime for execve/mmap */
 
 /*
  * Flags for ioflag. (high 16 bits used to ask for read-ahead and
