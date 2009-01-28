@@ -149,7 +149,7 @@ fifo_cleanup(struct vnode *vp)
 {
 	struct fifoinfo *fip = vp->v_fifoinfo;
 
-	ASSERT_VOP_LOCKED(vp, "fifo_cleanup");
+	ASSERT_VOP_ELOCKED(vp, "fifo_cleanup");
 	if (fip->fi_readers == 0 && fip->fi_writers == 0) {
 		vp->v_fifoinfo = NULL;
 		(void)soclose(fip->fi_readsock);
@@ -422,7 +422,7 @@ fifo_close(ap)
 	struct vnode *vp = ap->a_vp;
 	struct fifoinfo *fip = vp->v_fifoinfo;
 
-	ASSERT_VOP_LOCKED(vp, "fifo_close");
+	ASSERT_VOP_ELOCKED(vp, "fifo_close");
 	if (fip == NULL) {
 		printf("fifo_close: no v_fifoinfo %p\n", vp);
 		return (0);
