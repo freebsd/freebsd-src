@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211_reset.c,v 1.9 2008/11/27 22:29:52 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -552,7 +552,7 @@ uint32_t softLedCfg, softLedState;
 
 	return AH_TRUE;
 bad:
-	if (*status)
+	if (status != AH_NULL)
 		*status = ecode;
 	return AH_FALSE;
 #undef FAIL
