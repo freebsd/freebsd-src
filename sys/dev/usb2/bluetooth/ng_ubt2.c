@@ -406,6 +406,9 @@ ubt_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
+	if (uaa->use_generic == 0)
+		return (ENXIO);
+
 	if (usb2_lookup_id_by_uaa(ubt_ignore_devs,
 			sizeof(ubt_ignore_devs), uaa) == 0)
 		return (ENXIO);
