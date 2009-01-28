@@ -88,7 +88,7 @@ disk_foo(struct somestat *tbuf)
 
 				/* XXX this may not be quite right */
 				/* Map major number to 0 */
-				tbuf.st_dev = uminor(buf->st_dev) & 0xf;
+				tbuf.st_dev = minor(buf->st_dev) & 0xf;
 				tbuf.st_rdev = buf->st_rdev & 0xff;
 			}
 			dev_relthread(dev);
@@ -156,7 +156,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	struct l_newstat tbuf;
 
 	bzero(&tbuf, sizeof(tbuf));
-	tbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
+	tbuf.st_dev = minor(buf->st_dev) | (major(buf->st_dev) << 8);
 	tbuf.st_ino = buf->st_ino;
 	tbuf.st_mode = buf->st_mode;
 	tbuf.st_nlink = buf->st_nlink;
@@ -487,7 +487,7 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	struct l_stat64 lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
+	lbuf.st_dev = minor(buf->st_dev) | (major(buf->st_dev) << 8);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
