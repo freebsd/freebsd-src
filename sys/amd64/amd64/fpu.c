@@ -391,6 +391,7 @@ fpudna()
 {
 	struct pcb *pcb;
 	register_t s;
+	u_short control;
 
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("fpudna: fpcurthread == curthread %d times\n",
@@ -421,6 +422,10 @@ fpudna()
 		 * explicitly load sanitized registers.
 		 */
 		fxrstor(&fpu_cleanstate);
+		if (pcb->pcb_flags & PCB_32BIT) {
+			control = __INITIAL_FPUCW_I386__;
+			fldcw(&control);
+		}
 		pcb->pcb_flags |= PCB_FPUINITDONE;
 	} else
 		fxrstor(&pcb->pcb_save);

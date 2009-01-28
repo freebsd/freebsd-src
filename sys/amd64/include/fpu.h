@@ -92,6 +92,7 @@ struct  savefpu {
  * SSE2 based math.  For FreeBSD/amd64, we go with the default settings.
  */
 #define	__INITIAL_FPUCW__	0x037F
+#define	__INITIAL_FPUCW_I386__	0x127F
 #define	__INITIAL_MXCSR__	0x1F80
 #define	__INITIAL_MXCSR_MASK__	0xFFBF
 
