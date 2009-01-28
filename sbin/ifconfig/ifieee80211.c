@@ -3156,6 +3156,30 @@ print_chaninfo(const struct ieee80211_channel *c, int verb)
 		get_chaninfo(c, verb, buf, sizeof(buf)));
 }
 
+static int
+chanpref(const struct ieee80211_channel *c)
+{
+	if (IEEE80211_IS_CHAN_HT40(c))
+		return 40;
+	if (IEEE80211_IS_CHAN_HT20(c))
+		return 30;
+	if (IEEE80211_IS_CHAN_HALF(c))
+		return 10;
+	if (IEEE80211_IS_CHAN_QUARTER(c))
+		return 5;
+	if (IEEE80211_IS_CHAN_TURBO(c))
+		return 25;
+	if (IEEE80211_IS_CHAN_A(c))
+		return 20;
+	if (IEEE80211_IS_CHAN_G(c))
+		return 20;
+	if (IEEE80211_IS_CHAN_B(c))
+		return 15;
+	if (IEEE80211_IS_CHAN_PUREG(c))
+		return 15;
+	return 0;
+}
+
 static void
 print_channels(int s, const struct ieee80211req_chaninfo *chans,
 	int allchans, int verb)
@@ -3199,7 +3223,10 @@ print_channels(int s, const struct ieee80211req_chaninfo *chans,
 			/* suppress duplicates as above */
 			if (isset(reported, c->ic_ieee) && !verb) {
 				/* XXX we assume duplicates are adjacent */
-				achans->ic_chans[achans->ic_nchans-1] = *c;
+				struct ieee80211_channel *a =
+				    &achans->ic_chans[achans->ic_nchans-1];
+				if (chanpref(c) > chanpref(a))
+					*a = *c;
 			} else {
 				achans->ic_chans[achans->ic_nchans++] = *c;
 				setbit(reported, c->ic_ieee);
