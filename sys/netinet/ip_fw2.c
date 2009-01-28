@@ -197,6 +197,7 @@ SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
     NULL, IPFW_TABLES_MAX, "The maximum number of tables.");
+#endif /* SYSCTL_NODE */
 
 /*
  * Description of dynamic rules.
@@ -277,6 +278,7 @@ static u_int32_t dyn_count;	/* # of dynamic rules */
 static u_int32_t dyn_max;	/* max # of dynamic rules */
 #endif /* VIMAGE_GLOBALS */
 
+#ifdef SYSCTL_NODE
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_buckets,
     CTLFLAG_RW, dyn_buckets, 0, "Number of dyn. buckets");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
@@ -302,18 +304,19 @@ SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
     "Lifetime of dyn. rules for other situations");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_keepalive,
     CTLFLAG_RW, dyn_keepalive, 0, "Enable keepalives for dyn. rules");
-
+#endif /* SYSCTL_NODE */
 
 #ifdef INET6
 /*
  * IPv6 specific variables
  */
+#ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet6_ip6);
+#endif /* SYSCTL_NODE */
 
 static struct sysctl_ctx_list ip6_fw_sysctl_ctx;
 static struct sysctl_oid *ip6_fw_sysctl_tree;
 #endif /* INET6 */
-#endif /* SYSCTL_NODE */
 
 #ifdef VIMAGE_GLOBALS
 static int fw_deny_unknown_exthdrs;
