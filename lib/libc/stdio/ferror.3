@@ -32,7 +32,7 @@
 .\"     @(#)ferror.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2003
+.Dd January 27, 2009
 .Dt FERROR 3
 .Os
 .Sh NAME
@@ -77,8 +77,6 @@ The function
 tests the end-of-file indicator for the stream pointed to by
 .Fa stream ,
 returning non-zero if it is set.
-The end-of-file indicator can only be cleared by the function
-.Fn clearerr .
 .Pp
 The function
 .Fn ferror
