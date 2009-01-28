@@ -49,9 +49,21 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	ULong L, lostbits, *x;
 	Long e, e1;
 #ifdef USE_LOCALE
-	unsigned char decimalpoint = *localeconv()->decimal_point;
+	int i;
+#ifdef NO_LOCALE_CACHE
+	const unsigned char *decimalpoint = (unsigned char*)localeconv()->decimal_point;
 #else
-#define decimalpoint '.'
+	const unsigned char *decimalpoint;
+	static unsigned char *decimalpoint_cache;
+	if (!(s0 = decimalpoint_cache)) {
+		s0 = (unsigned char*)localeconv()->decimal_point;
+		if ((decimalpoint_cache = (char*)malloc(strlen(s0) + 1))) {
+			strcpy(decimalpoint_cache, s0);
+			s0 = decimalpoint_cache;
+			}
+		}
+	decimalpoint = s0;
+#endif
 #endif
 
 	if (!hexdig['0'])
@@ -66,11 +78,21 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	decpt = 0;
 	zret = 0;
 	e = 0;
-	if (!hexdig[*s]) {
+	if (hexdig[*s])
+		havedig++;
+	else {
 		zret = 1;
-		if (*s != decimalpoint)
+#ifdef USE_LOCALE
+		for(i = 0; decimalpoint[i]; ++i) {
+			if (s[i] != decimalpoint[i])
+				goto pcheck;
+			}
+		decpt = s += i;
+#else
+		if (*s != '.')
 			goto pcheck;
 		decpt = ++s;
+#endif
 		if (!hexdig[*s])
 			goto pcheck;
 		while(*s == '0')
@@ -82,11 +104,20 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		}
 	while(hexdig[*s])
 		s++;
-	if (*s == decimalpoint && !decpt) {
+#ifdef USE_LOCALE
+	if (*s == *decimalpoint && !decpt) {
+		for(i = 1; decimalpoint[i]; ++i) {
+			if (s[i] != decimalpoint[i])
+				goto pcheck;
+			}
+		decpt = s += i;
+#else
+	if (*s == '.' && !decpt) {
 		decpt = ++s;
+#endif
 		while(hexdig[*s])
 			s++;
-		}
+		}/*}*/
 	if (decpt)
 		e = -(((Long)(s-decpt)) << 2);
  pcheck:
@@ -118,7 +149,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	  }
 	*sp = (char*)s;
 	if (!havedig)
-		*sp = s0 - 1;
+		*sp = (char*)s0 - 1;
 	if (zret)
 		return STRTOG_Zero;
 	if (big) {
@@ -168,16 +199,26 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		return STRTOG_Normal | STRTOG_Inexlo;
 		}
 	n = s1 - s0 - 1;
-	for(k = 0; n > 7; n >>= 1)
+	for(k = 0; n > (1 << kshift-2) - 1; n >>= 1)
 		k++;
 	b = Balloc(k);
 	x = b->x;
 	n = 0;
 	L = 0;
+#ifdef USE_LOCALE
+	for(i = 0; decimalpoint[i+1]; ++i);
+#endif
 	while(s1 > s0) {
-		if (*--s1 == decimalpoint)
+#ifdef USE_LOCALE
+		if (*--s1 == decimalpoint[i]) {
+			s1 -= i;
 			continue;
-		if (n == 32) {
+			}
+#else
+		if (*--s1 == '.')
+			continue;
+#endif
+		if (n == ULbits) {
 			*x++ = L;
 			L = 0;
 			n = 0;
@@ -187,7 +228,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		}
 	*x++ = L;
 	b->wds = n = x - b->x;
-	n = 32*n - hi0bits(L);
+	n = ULbits*n - hi0bits(L);
 	nbits = fpi->nbits;
 	lostbits = 0;
 	x = b->x;
