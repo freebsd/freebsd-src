@@ -1823,9 +1823,13 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 	        (chanFlags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
 	LIST_FOREACH(nb, bands, next) {
 		b = nb->band;
-		if (verbose)
-			printf("%s: chanFlags 0x%x b %p\n",
-			    __func__, chanFlags, b);
+		if (verbose) {
+			printf("%s:", __func__);
+			printb(" chanFlags", chanFlags, IEEE80211_CHAN_BITS);
+			printb(" bandFlags", nb->flags | b->flags,
+			    IEEE80211_CHAN_BITS);
+			putchar('\n');
+		}
 		prev = NULL;
 		for (freq = b->freqStart; freq <= b->freqEnd; freq += b->chanSep) {
 			uint32_t flags = nb->flags | b->flags;
@@ -1839,8 +1843,12 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			 */
 			if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, chanFlags) == NULL &&
 			    (flags & IEEE80211_CHAN_GSM) == 0) {
-				if (verbose)
-					printf("%u: skip, flags 0x%x not available\n", freq, chanFlags);
+				if (verbose) {
+					printf("%u: skip, ", freq);
+					printb("flags", chanFlags,
+					    IEEE80211_CHAN_BITS);
+					printf(" not available\n");
+				}
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_HALF) && !hasHalfChans) {
@@ -1861,13 +1869,15 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			if ((flags & IEEE80211_CHAN_HT20) &&
 			    (chanFlags & IEEE80211_CHAN_HT20) == 0) {
 				if (verbose)
-					printf("%u: skip, device does not support HT20 operation\n", freq);
+					printf("%u: skip, device does not "
+					    "support HT20 operation\n", freq);
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_HT40) &&
 			    (chanFlags & IEEE80211_CHAN_HT40) == 0) {
 				if (verbose)
-					printf("%u: skip, device does not support HT40 operation\n", freq);
+					printf("%u: skip, device does not "
+					    "support HT40 operation\n", freq);
 				continue;
 			}
 			if ((flags & REQ_ECM) && !reg->ecm) {
@@ -1890,7 +1900,8 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			}
 			if (ci->ic_nchans == IEEE80211_CHAN_MAX) {
 				if (verbose)
-					printf("%u: skip, channel table full\n", freq);
+					printf("%u: skip, channel table full\n",
+					    freq);
 				break;
 			}
 			c = &ci->ic_chans[ci->ic_nchans++];
@@ -1902,10 +1913,12 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 				c->ic_maxregpower = nb->maxPowerDFS;
 			else
 				c->ic_maxregpower = nb->maxPower;
-			if (verbose)
-				printf("[%3d] add freq %u flags 0x%x power %u\n",
-				    ci->ic_nchans-1, c->ic_freq, c->ic_flags,
-				    c->ic_maxregpower);
+			if (verbose) {
+				printf("[%3d] add freq %u ",
+				    ci->ic_nchans-1, c->ic_freq);
+				printb("flags", c->ic_flags, IEEE80211_CHAN_BITS);
+				printf(" power %u\n", c->ic_maxregpower);
+			}
 			/* NB: kernel fills in other fields */
 			prev = c;
 		}
