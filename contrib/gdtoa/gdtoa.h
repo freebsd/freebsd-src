@@ -33,6 +33,7 @@ THIS SOFTWARE.
 #define GDTOA_H_INCLUDED
 
 #include "arith.h"
+#include <stddef.h> /* for size_t */
 
 #ifndef Long
 #define Long long
@@ -111,12 +112,12 @@ extern float  strtof ANSI((CONST char *, char **));
 extern double strtod ANSI((CONST char *, char **));
 extern int strtodg ANSI((CONST char*, char**, FPI*, Long*, ULong*));
 
-extern char*	g_ddfmt  ANSI((char*, double*, int, unsigned));
-extern char*	g_dfmt   ANSI((char*, double*, int, unsigned));
-extern char*	g_ffmt   ANSI((char*, float*,  int, unsigned));
-extern char*	g_Qfmt   ANSI((char*, void*,   int, unsigned));
-extern char*	g_xfmt   ANSI((char*, void*,   int, unsigned));
-extern char*	g_xLfmt  ANSI((char*, void*,   int, unsigned));
+extern char*	g_ddfmt  ANSI((char*, double*, int, size_t));
+extern char*	g_dfmt   ANSI((char*, double*, int, size_t));
+extern char*	g_ffmt   ANSI((char*, float*,  int, size_t));
+extern char*	g_Qfmt   ANSI((char*, void*,   int, size_t));
+extern char*	g_xfmt   ANSI((char*, void*,   int, size_t));
+extern char*	g_xLfmt  ANSI((char*, void*,   int, size_t));
 
 extern int	strtoId  ANSI((CONST char*, char**, double*, double*));
 extern int	strtoIdd ANSI((CONST char*, char**, double*, double*));
