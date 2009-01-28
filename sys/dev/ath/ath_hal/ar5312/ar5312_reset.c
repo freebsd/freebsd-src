@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -34,15 +34,21 @@
 #define BASE_ACTIVATE_DELAY	100	/* 100 usec */
 #define PLL_SETTLE_DELAY	300	/* 300 usec */
 
-extern int16_t ar5212GetNf(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
-extern void ar5212SetRateDurationTable(struct ath_hal *, HAL_CHANNEL *);
+extern int16_t ar5212GetNf(struct ath_hal *, const struct ieee80211_channel *);
+extern void ar5212SetRateDurationTable(struct ath_hal *,
+		const struct ieee80211_channel *);
 extern HAL_BOOL ar5212SetTransmitPower(struct ath_hal *ah,
-                      HAL_CHANNEL_INTERNAL *chan, uint16_t *rfXpdGain);
-extern void ar5212SetDeltaSlope(struct ath_hal *, HAL_CHANNEL *);
-extern HAL_BOOL ar5212SetBoardValues(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
-extern void ar5212SetIFSTiming(struct ath_hal *, HAL_CHANNEL *);
-extern HAL_BOOL	ar5212IsSpurChannel(struct ath_hal *, HAL_CHANNEL *);
-extern HAL_BOOL	ar5212ChannelChange(struct ath_hal *, HAL_CHANNEL *);
+	         const struct ieee80211_channel *chan, uint16_t *rfXpdGain);
+extern void ar5212SetDeltaSlope(struct ath_hal *,
+		 const struct ieee80211_channel *);
+extern HAL_BOOL ar5212SetBoardValues(struct ath_hal *,
+		 const struct ieee80211_channel *);
+extern void ar5212SetIFSTiming(struct ath_hal *,
+		 const struct ieee80211_channel *);
+extern HAL_BOOL	ar5212IsSpurChannel(struct ath_hal *,
+		 const struct ieee80211_channel *);
+extern HAL_BOOL	ar5212ChannelChange(struct ath_hal *,
+		 const struct ieee80211_channel *);
 
 static HAL_BOOL ar5312SetResetReg(struct ath_hal *, uint32_t resetMask);
 
@@ -81,7 +87,8 @@ write_common(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
  */
 HAL_BOOL
 ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
-	HAL_CHANNEL *chan, HAL_BOOL bChannelChange, HAL_STATUS *status)
+	struct ieee80211_channel *chan,
+	HAL_BOOL bChannelChange, HAL_STATUS *status)
 {
 #define	N(a)	(sizeof (a) / sizeof (a[0]))
 #define	FAIL(_code)	do { ecode = _code; goto bad; } while (0)
@@ -102,20 +109,6 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	ee = AH_PRIVATE(ah)->ah_eeprom;
 
 	OS_MARK(ah, AH_MARK_RESET, bChannelChange);
-#define	IS(_c,_f)	(((_c)->channelFlags & _f) || 0)
-	if ((IS(chan, CHANNEL_2GHZ) ^ IS(chan, CHANNEL_5GHZ)) == 0) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; not marked as 2GHz or 5GHz\n",
-		    __func__, chan->channel, chan->channelFlags);
-		FAIL(HAL_EINVAL);
-	}
-	if ((IS(chan, CHANNEL_OFDM) ^ IS(chan, CHANNEL_CCK)) == 0) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; not marked as OFDM or CCK\n",
-		    __func__, chan->channel, chan->channelFlags);
-		FAIL(HAL_EINVAL);
-	}
-#undef IS
 	/*
 	 * Map public channel to private.
 	 */
@@ -123,7 +116,7 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (ichan == AH_NULL) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: invalid channel %u/0x%x; no mapping\n",
-		    __func__, chan->channel, chan->channelFlags);
+		    __func__, chan->ic_freq, chan->ic_flags);
 		FAIL(HAL_EINVAL);
 	}
 	switch (opmode) {
@@ -176,10 +169,10 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		 *  -the modes of the previous and requested channel are the same - some ugly code for XR
 		 */
 		if (bChannelChange &&
-		    (AH_PRIVATE(ah)->ah_curchan != AH_NULL) &&
-		    (chan->channel != AH_PRIVATE(ah)->ah_curchan->channel) &&
-		    ((chan->channelFlags & CHANNEL_ALL) ==
-		     (AH_PRIVATE(ah)->ah_curchan->channelFlags & CHANNEL_ALL))) {
+		    AH_PRIVATE(ah)->ah_curchan != AH_NULL &&
+		    (chan->ic_freq != AH_PRIVATE(ah)->ah_curchan->ic_freq) &&
+		    ((chan->ic_flags & IEEE80211_CHAN_ALLTURBO) ==
+		     (AH_PRIVATE(ah)->ah_curchan->ic_flags & IEEE80211_CHAN_ALLTURBO))) {
 			if (ar5212ChannelChange(ah, chan))
 				/* If ChannelChange completed - skip the rest of reset */
 				return AH_TRUE;
@@ -217,31 +210,13 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	}
 
 	/* Setup the indices for the next set of register array writes */
-	switch (chan->channelFlags & CHANNEL_ALL) {
-	case CHANNEL_A:
-		modesIndex = 1;
+	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+		freqIndex  = 2;
+		modesIndex = IEEE80211_IS_CHAN_108G(chan) ? 5 :
+			     IEEE80211_IS_CHAN_G(chan) ? 4 : 3;
+	} else {
 		freqIndex  = 1;
-		break;
-	case CHANNEL_T:
-		modesIndex = 2;
-		freqIndex  = 1;
-		break;
-	case CHANNEL_B:
-		modesIndex = 3;
-		freqIndex  = 2;
-		break;
-	case CHANNEL_PUREG:
-		modesIndex = 4;
-		freqIndex  = 2;
-		break;
-	case CHANNEL_108G:
-		modesIndex = 5;
-		freqIndex  = 2;
-		break;
-	default:
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
-		FAIL(HAL_EINVAL);
+		modesIndex = IEEE80211_IS_CHAN_ST(chan) ? 2 : 1;
 	}
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
@@ -256,9 +231,8 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
 
-	if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan)) {
+	if (IEEE80211_IS_CHAN_HALF(chan) || IEEE80211_IS_CHAN_QUARTER(chan))
 		ar5212SetIFSTiming(ah, chan);
-	}
 
 	/* Overwrite INI values for revised chipsets */
 	if (AH_PRIVATE(ah)->ah_phyRev >= AR_PHY_CHIP_ID_REV_2) {
@@ -276,7 +250,7 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 			cckOfdmPwrDelta = SCALE_OC_DELTA(ee->ee_cckOfdmPwrDelta);
 		}
 		
-		if (IS_CHAN_G(chan)) {
+		if (IEEE80211_IS_CHAN_G(chan)) {
 			OS_REG_WRITE(ah, AR_PHY_TXPWRADJ,
 				     SM((ee->ee_cckOfdmPwrDelta*-1), AR_PHY_TXPWRADJ_CCK_GAIN_DELTA) |
 				     SM((cckOfdmPwrDelta*-1), AR_PHY_TXPWRADJ_CCK_PCDAC_INDEX));
@@ -315,18 +289,18 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 			     SM(0x16, AR_PHY_SIGMA_DELTA_FILT1) |
 			     SM(0, AR_PHY_SIGMA_DELTA_ADC_CLIP));
 
-		if (IS_CHAN_2GHZ(chan))
+		if (IEEE80211_IS_CHAN_2GHZ(chan))
 			OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN, AR_PHY_RXGAIN_TXRX_RF_MAX, 0x0F);
 
 		/* CCK Short parameter adjustment in 11B mode */
-		if (IS_CHAN_B(chan))
+		if (IEEE80211_IS_CHAN_B(chan))
 			OS_REG_RMW_FIELD(ah, AR_PHY_CCK_RXCTRL4, AR_PHY_CCK_RXCTRL4_FREQ_EST_SHORT, 12);
 
 		/* Set ADC/DAC select values */
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL, 0x04);
 
 		/* Increase 11A AGC Settling */
-		if ((chan->channelFlags & CHANNEL_ALL) == CHANNEL_A)
+		if (IEEE80211_IS_CHAN_A(chan))
 			OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_AGC, 32);
 	} else {
 		/* Set ADC/DAC select values */
@@ -334,29 +308,29 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	}
 
 	/* Setup the transmit power values. */
-	if (!ar5212SetTransmitPower(ah, ichan, rfXpdGain)) {
+	if (!ar5212SetTransmitPower(ah, chan, rfXpdGain)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: error init'ing transmit power\n", __func__);
 		FAIL(HAL_EIO);
 	}
 
 	/* Write the analog registers */
-	if (!ahp->ah_rfHal->setRfRegs(ah, ichan, modesIndex, rfXpdGain)) {
+	if (!ahp->ah_rfHal->setRfRegs(ah, chan, modesIndex, rfXpdGain)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: ar5212SetRfRegs failed\n",
 		    __func__);
 		FAIL(HAL_EIO);
 	}
 
 	/* Write delta slope for OFDM enabled modes (A, G, Turbo) */
-	if (IS_CHAN_OFDM(chan)) {
-		if ((IS_5413(ah) || (AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER5_3)) &&
-		    (!IS_CHAN_B(chan)))
-			ar5212SetSpurMitigation(ah, ichan);
+	if (IEEE80211_IS_CHAN_OFDM(chan)) {
+		if (IS_5413(ah) ||
+		   AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER5_3)
+			ar5212SetSpurMitigation(ah, chan);
 		ar5212SetDeltaSlope(ah, chan);
 	}
 
 	/* Setup board specific options for EEPROM version 3 */
-	if (!ar5212SetBoardValues(ah, ichan)) {
+	if (!ar5212SetBoardValues(ah, chan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: error setting board options\n", __func__);
 		FAIL(HAL_EIO);
@@ -396,7 +370,7 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	OS_REG_WRITE(ah, AR_ISR, ~0);		/* cleared on write */
 
-	if (!ar5212SetChannel(ah, ichan))
+	if (!ar5212SetChannel(ah, chan))
 		FAIL(HAL_EIO);
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
@@ -407,10 +381,9 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* Set Tx frame start to tx data start delay */
 	if (IS_RAD5112_ANY(ah) &&
-	    (IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan) ||
-	     IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan))) {
+	    (IEEE80211_IS_CHAN_HALF(chan) || IEEE80211_IS_CHAN_QUARTER(chan))) {
 		txFrm2TxDStart = 
-			(IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan)) ?
+			IEEE80211_IS_CHAN_HALF(chan) ?
 					TX_FRAME_D_START_HALF_RATE:
 					TX_FRAME_D_START_QUARTER_RATE;
 		OS_REG_RMW_FIELD(ah, AR_PHY_TX_CTL, 
@@ -445,7 +418,7 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 * Value is in 100ns increments.
 	 */
 	synthDelay = OS_REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-	if (IS_CHAN_CCK(chan)) {
+	if (IEEE80211_IS_CHAN_B(chan)) {
 		synthDelay = (4 * synthDelay) / 22;
 	} else {
 		synthDelay /= 10;
@@ -461,9 +434,9 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 * extra BASE_ACTIVATE_DELAY usecs to ensure this condition
 	 * does not happen.
 	 */
-	if (IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan)) {
+	if (IEEE80211_IS_CHAN_HALF(chan)) {
 		OS_DELAY((synthDelay << 1) + BASE_ACTIVATE_DELAY);
-	} else if (IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan)) {
+	} else if (IEEE80211_IS_CHAN_QUARTER(chan)) {
 		OS_DELAY((synthDelay << 2) + BASE_ACTIVATE_DELAY);
 	} else {
 		OS_DELAY(synthDelay + BASE_ACTIVATE_DELAY);
@@ -487,7 +460,7 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		| AR_PHY_AGC_CONTROL_CAL
 		| AR_PHY_AGC_CONTROL_NF);
 
-	if (!IS_CHAN_B(chan) && ahp->ah_bIQCalibration != IQ_CAL_DONE) {
+	if (!IEEE80211_IS_CHAN_B(chan) && ahp->ah_bIQCalibration != IQ_CAL_DONE) {
 		/* Start IQ calibration w/ 2^(INIT_IQCAL_LOG_COUNT_MAX+1) samples */
 		OS_REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4, 
 			AR_PHY_TIMING_CTRL4_IQCAL_LOG_COUNT_MAX,
@@ -583,12 +556,8 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	AH_PRIVATE(ah)->ah_opmode = opmode;	/* record operating mode */
 
-	if (bChannelChange) {
-		if (!(ichan->privFlags & CHANNEL_DFS)) 
-			ichan->privFlags &= ~CHANNEL_INTERFERENCE;
-		chan->channelFlags = ichan->channelFlags;
-		chan->privFlags = ichan->privFlags;
-	}
+	if (bChannelChange && !IEEE80211_IS_CHAN_DFS(chan)) 
+		chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 
 	HALDEBUG(ah, HAL_DEBUG_RESET, "%s: done\n", __func__);
 
@@ -639,10 +608,10 @@ ar5312Disable(struct ath_hal *ah)
  * WARNING: The order of the PLL and mode registers must be correct.
  */
 HAL_BOOL
-ar5312ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar5312ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 
-	OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->channel : 0);
+	OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 
 	/*
 	 * Reset the HW 
@@ -683,50 +652,49 @@ ar5312ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
 		if (IS_RAD5112_ANY(ah)) {
 			rfMode = AR_PHY_MODE_AR5112;
 			if (!IS_5315(ah)) {
-				if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
+				if (IEEE80211_IS_CHAN_CCK(chan)) {
 					phyPLL = AR_PHY_PLL_CTL_44_5312;
 				} else {
-					if (IS_CHAN_HALF_RATE(chan)) {
+					if (IEEE80211_IS_CHAN_HALF(chan)) {
 						phyPLL = AR_PHY_PLL_CTL_40_5312_HALF;
-					} else if (IS_CHAN_QUARTER_RATE(chan)) {
+					} else if (IEEE80211_IS_CHAN_QUARTER(chan)) {
 						phyPLL = AR_PHY_PLL_CTL_40_5312_QUARTER;
 					} else {
 						phyPLL = AR_PHY_PLL_CTL_40_5312;
 					}
 				}
 			} else {
-				if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan))
+				if (IEEE80211_IS_CHAN_CCK(chan))
 					phyPLL = AR_PHY_PLL_CTL_44_5112;
 				else
 					phyPLL = AR_PHY_PLL_CTL_40_5112;
-				if (IS_CHAN_HALF_RATE(chan))
+				if (IEEE80211_IS_CHAN_HALF(chan))
 					phyPLL |= AR_PHY_PLL_CTL_HALF;
-				else if (IS_CHAN_QUARTER_RATE(chan))
+				else if (IEEE80211_IS_CHAN_QUARTER(chan))
 					phyPLL |= AR_PHY_PLL_CTL_QUARTER;
 			}
 		} else {
 			rfMode = AR_PHY_MODE_AR5111;
-			if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan))
+			if (IEEE80211_IS_CHAN_CCK(chan))
 				phyPLL = AR_PHY_PLL_CTL_44;
 			else
 				phyPLL = AR_PHY_PLL_CTL_40;
-			if (IS_CHAN_HALF_RATE(chan))
+			if (IEEE80211_IS_CHAN_HALF(chan))
 				phyPLL = AR_PHY_PLL_CTL_HALF;
-			else if (IS_CHAN_QUARTER_RATE(chan))
+			else if (IEEE80211_IS_CHAN_QUARTER(chan))
 				phyPLL = AR_PHY_PLL_CTL_QUARTER;
 		}
-		if (IS_CHAN_OFDM(chan) && (IS_CHAN_CCK(chan) || 
-					   IS_CHAN_G(chan)))
+		if (IEEE80211_IS_CHAN_G(chan))
 			rfMode |= AR_PHY_MODE_DYNAMIC;
-		else if (IS_CHAN_OFDM(chan))
+		else if (IEEE80211_IS_CHAN_OFDM(chan))
 			rfMode |= AR_PHY_MODE_OFDM;
 		else
 			rfMode |= AR_PHY_MODE_CCK;
-		if (IS_CHAN_5GHZ(chan))
+		if (IEEE80211_IS_CHAN_5GHZ(chan))
 			rfMode |= AR_PHY_MODE_RF5GHZ;
 		else
 			rfMode |= AR_PHY_MODE_RF2GHZ;
-		turbo = IS_CHAN_TURBO(chan) ?
+		turbo = IEEE80211_IS_CHAN_TURBO(chan) ?
 			(AR_PHY_FC_TURBO_MODE | AR_PHY_FC_TURBO_SHORT) : 0;
 		curPhyPLL = OS_REG_READ(ah, AR_PHY_PLL_CTL);
 		/*
@@ -736,7 +704,7 @@ ar5312ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
 		 *   mode bit is set
 		 * - Turbo cannot be set at the same time as CCK or DYNAMIC
 		 */
-		if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
+		if (IEEE80211_IS_CHAN_CCK(chan)) {
 			OS_REG_WRITE(ah, AR_PHY_TURBO, turbo);
 			OS_REG_WRITE(ah, AR_PHY_MODE, rfMode);
 			if (curPhyPLL != phyPLL) {

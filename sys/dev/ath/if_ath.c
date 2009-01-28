@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_llc.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_regdomain.h>
 #ifdef ATH_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
@@ -115,9 +116,6 @@ CTASSERT(ATH_BCBUF <= 8);
 	((u_int32_t)							\
 	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
-
-#define	CTRY_XR9	5001		/* Ubiquiti XR9 */
-#define	CTRY_GZ901	5002		/* ZComax GZ-901 */
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
 		    const char name[IFNAMSIZ], int unit, int opmode,
@@ -661,7 +659,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
-	wmodes = ath_hal_getwirelessmodes(ah, ic->ic_regdomain.country);
+	wmodes = ath_hal_getwirelessmodes(ah);
 	if (wmodes & (HAL_MODE_108G|HAL_MODE_TURBO))
 		ic->ic_caps |= IEEE80211_C_TURBOP;
 #ifdef ATH_SUPPORT_TDMA
@@ -1203,7 +1201,7 @@ ath_resume(struct ath_softc *sc)
 	 * Must reset the chip before we reload the
 	 * keycache as we were powered down on suspend.
 	 */
-	ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_FALSE, &status);
+	ath_hal_reset(ah, sc->sc_opmode, sc->sc_curchan, AH_FALSE, &status);
 	ath_reset_keycache(sc);
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
@@ -1423,56 +1421,6 @@ ath_bmiss_proc(void *arg, int pending)
 }
 
 /*
- * Convert net80211 channel to a HAL channel with the flags
- * constrained to reflect the current operating mode and
- * the frequency possibly mapped for GSM channels.
- */
-static void
-ath_mapchan(const struct ieee80211com *ic,
-	HAL_CHANNEL *hc, const struct ieee80211_channel *chan)
-{
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-	static const u_int modeflags[IEEE80211_MODE_MAX] = {
-		0,			/* IEEE80211_MODE_AUTO */
-		CHANNEL_A,		/* IEEE80211_MODE_11A */
-		CHANNEL_B,		/* IEEE80211_MODE_11B */
-		CHANNEL_PUREG,		/* IEEE80211_MODE_11G */
-		0,			/* IEEE80211_MODE_FH */
-		CHANNEL_108A,		/* IEEE80211_MODE_TURBO_A */
-		CHANNEL_108G,		/* IEEE80211_MODE_TURBO_G */
-		CHANNEL_ST,		/* IEEE80211_MODE_STURBO_A */
-		CHANNEL_A,		/* IEEE80211_MODE_11NA */
-		CHANNEL_PUREG,		/* IEEE80211_MODE_11NG */
-	};
-	enum ieee80211_phymode mode = ieee80211_chan2mode(chan);
-
-	KASSERT(mode < N(modeflags), ("unexpected phy mode %u", mode));
-	KASSERT(modeflags[mode] != 0, ("mode %u undefined", mode));
-	hc->channelFlags = modeflags[mode];
-	if (IEEE80211_IS_CHAN_HALF(chan))
-		hc->channelFlags |= CHANNEL_HALF;
-	if (IEEE80211_IS_CHAN_QUARTER(chan))
-		hc->channelFlags |= CHANNEL_QUARTER;
-	if (IEEE80211_IS_CHAN_HT20(chan))
-		hc->channelFlags |= CHANNEL_HT20;
-	if (IEEE80211_IS_CHAN_HT40D(chan))
-		hc->channelFlags |= CHANNEL_HT40MINUS;
-	if (IEEE80211_IS_CHAN_HT40U(chan))
-		hc->channelFlags |= CHANNEL_HT40PLUS;
-
-	if (IEEE80211_IS_CHAN_GSM(chan)) {
-		if (ic->ic_regdomain.country == CTRY_XR9)
-			hc->channel = 1520 + chan->ic_freq;
-		else if (ic->ic_regdomain.country == CTRY_GZ901)
-			hc->channel = 1544 + chan->ic_freq;
-		else
-			hc->channel = 3344 - chan->ic_freq;
-	} else
-		hc->channel = chan->ic_freq;
-#undef N
-}
-
-/*
  * Handle TKIP MIC setup to deal hardware that doesn't do MIC
  * calcs together with WME.  If necessary disable the crypto
  * hardware and mark the 802.11 state so keys will be setup
@@ -1521,9 +1469,8 @@ ath_init(void *arg)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
 	ath_settkipmic(sc);
-	if (!ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_FALSE, &status)) {
+	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_FALSE, &status)) {
 		if_printf(ifp, "unable to reset hardware; hal status %u\n",
 			status);
 		ATH_UNLOCK(sc);
@@ -1655,18 +1602,12 @@ ath_reset(struct ifnet *ifp)
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
-	/*
-	 * Convert to a HAL channel description with the flags
-	 * constrained to reflect the current operating mode.
-	 */
-	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
-
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc);		/* stop xmit side */
 	ath_stoprecv(sc);		/* stop recv side */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
-	if (!ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_TRUE, &status))
+	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
@@ -3874,13 +3815,11 @@ ath_node_getsignal(const struct ieee80211_node *ni, int8_t *rssi, int8_t *noise)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
-	HAL_CHANNEL hchan;
 
 	*rssi = ic->ic_node_getrssi(ni);
-	if (ni->ni_chan != IEEE80211_CHAN_ANYC) {
-		ath_mapchan(ic, &hchan, ni->ni_chan);
-		*noise = ath_hal_getchannoise(ah, &hchan);
-	} else
+	if (ni->ni_chan != IEEE80211_CHAN_ANYC)
+		*noise = ath_hal_getchannoise(ah, ni->ni_chan);
+	else
 		*noise = -95;		/* nominally correct */
 }
 
@@ -4070,9 +4009,11 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 #ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
 	if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
+		struct ieee80211com *ic = ifp->if_l2com;
+
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
-		else if (sc->sc_curchan.channelFlags & CHANNEL_HT40PLUS)
+		else if (IEEE80211_IS_CHAN_HT40U(ic->ic_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
 		else
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
@@ -4135,7 +4076,7 @@ ath_rx_proc(void *arg, int npending)
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ngood = 0;
-	nf = ath_hal_getchannoise(ah, &sc->sc_curchan);
+	nf = ath_hal_getchannoise(ah, sc->sc_curchan);
 	sc->sc_stats.ast_rx_noise = nf;
 	tsf = ath_hal_gettsf64(ah);
 	do {
@@ -4401,7 +4342,7 @@ rx_next:
 	} while (ath_rxbuf_init(sc, bf) == 0);
 
 	/* rx signal state monitoring */
-	ath_hal_rxmonitor(ah, &sc->sc_halstats, &sc->sc_curchan);
+	ath_hal_rxmonitor(ah, &sc->sc_halstats, sc->sc_curchan);
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
@@ -5696,6 +5637,7 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 		mode = ieee80211_chan2mode(chan);
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
+	sc->sc_curchan = chan;
 
 	sc->sc_rx_th.wr_chan_flags = htole32(chan->ic_flags);
 	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags;
@@ -5719,27 +5661,12 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
-	HAL_CHANNEL hchan;
 
-	/*
-	 * Convert to a HAL channel description with
-	 * the flags constrained to reflect the current
-	 * operating mode.
-	 */
-	ath_mapchan(ic, &hchan, chan);
-
-	DPRINTF(sc, ATH_DEBUG_RESET,
-	    "%s: %u (%u MHz, hal flags 0x%x) -> %u (%u MHz, hal flags 0x%x)\n",
-	    __func__,
-	    ath_hal_mhz2ieee(ah, sc->sc_curchan.channel,
-		sc->sc_curchan.channelFlags),
-	    	sc->sc_curchan.channel, sc->sc_curchan.channelFlags,
-	    ath_hal_mhz2ieee(ah, hchan.channel, hchan.channelFlags),
-	        hchan.channel, hchan.channelFlags);
-	if (hchan.channel != sc->sc_curchan.channel ||
-	    hchan.channelFlags != sc->sc_curchan.channelFlags) {
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %u (%u MHz, flags 0x%x)\n",
+	    __func__, ieee80211_chan2ieee(ic, chan),
+	    chan->ic_freq, chan->ic_flags);
+	if (chan != sc->sc_curchan) {
 		HAL_STATUS status;
-
 		/*
 		 * To switch channels clear any pending DMA operations;
 		 * wait long enough for the RX fifo to drain, reset the
@@ -5749,15 +5676,13 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc);		/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
-		if (!ath_hal_reset(ah, sc->sc_opmode, &hchan, AH_TRUE, &status)) {
+		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
-			    "channel %u (%u Mhz, flags 0x%x hal flags 0x%x), "
-			    "hal status %u\n", __func__,
-			    ieee80211_chan2ieee(ic, chan), chan->ic_freq,
-			    chan->ic_flags, hchan.channelFlags, status);
+			    "channel %u (%u Mhz, flags 0x%x), hal status %u\n",
+			    __func__, ieee80211_chan2ieee(ic, chan),
+			    chan->ic_freq, chan->ic_flags, status);
 			return EIO;
 		}
-		sc->sc_curchan = hchan;
 		sc->sc_diversity = ath_hal_getdiversity(ah);
 
 		/*
@@ -5817,12 +5742,12 @@ ath_calibrate(void *arg)
 		 * reset the data collection state so we start fresh.
 		 */
 		if (sc->sc_resetcal) {
-			(void) ath_hal_calreset(ah, &sc->sc_curchan);
+			(void) ath_hal_calreset(ah, sc->sc_curchan);
 			sc->sc_lastcalreset = ticks;
 			sc->sc_resetcal = 0;
 		}
 	}
-	if (ath_hal_calibrateN(ah, &sc->sc_curchan, longCal, &isCalDone)) {
+	if (ath_hal_calibrateN(ah, sc->sc_curchan, longCal, &isCalDone)) {
 		if (longCal) {
 			/*
 			 * Calibrate noise floor data again in case of change.
@@ -5832,7 +5757,7 @@ ath_calibrate(void *arg)
 	} else {
 		DPRINTF(sc, ATH_DEBUG_ANY,
 			"%s: calibration of channel %u failed\n",
-			__func__, sc->sc_curchan.channel);
+			__func__, sc->sc_curchan->ic_freq);
 		sc->sc_stats.ast_per_calfail++;
 	}
 	if (!isCalDone) {
@@ -6191,141 +6116,24 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 }
 
 static int
-getchannels(struct ath_softc *sc, int *nchans, struct ieee80211_channel chans[],
-	int cc, int ecm, int outdoor)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	HAL_CHANNEL *halchans;
-	int i, nhalchans, error;
-
-	DPRINTF(sc, ATH_DEBUG_REGDOMAIN, "%s: cc %u outdoor %u ecm %u\n",
-	    __func__, cc, outdoor, ecm);
-
-	halchans = malloc(IEEE80211_CHAN_MAX * sizeof(HAL_CHANNEL),
-			M_TEMP, M_NOWAIT | M_ZERO);
-	if (halchans == NULL) {
-		device_printf(sc->sc_dev,
-		    "%s: unable to allocate channel table\n", __func__);
-		return ENOMEM;
-	}
-	error = 0;
-	if (!ath_hal_init_channels(ah, halchans, IEEE80211_CHAN_MAX, &nhalchans,
-	    NULL, 0, NULL, cc, HAL_MODE_ALL, outdoor, ecm)) {
-		u_int32_t rd;
-		(void) ath_hal_getregdomain(ah, &rd);
-		device_printf(sc->sc_dev, "ath_hal_init_channels failed, "
-		    "rd %d cc %u outdoor %u ecm %u\n", rd, cc, outdoor, ecm);
-		error = EINVAL;
-		goto done;
-	}
-	if (nchans == NULL)		/* no table requested */
-		goto done;
-
-	/*
-	 * Convert HAL channels to ieee80211 ones.
-	 */
-	for (i = 0; i < nhalchans; i++) {
-		HAL_CHANNEL *c = &halchans[i];
-		struct ieee80211_channel *ichan = &chans[i];
-
-		ichan->ic_ieee = ath_hal_mhz2ieee(ah, c->channel,
-					c->channelFlags);
-		if (bootverbose)
-			device_printf(sc->sc_dev, "hal channel %u/%x -> %u "
-			    "maxpow %d minpow %d maxreg %d\n",
-			    c->channel, c->channelFlags, ichan->ic_ieee,
-			    c->maxTxPower, c->minTxPower, c->maxRegTxPower);
-		ichan->ic_freq = c->channel;
-
-		if ((c->channelFlags & CHANNEL_PUREG) == CHANNEL_PUREG) {
-			/*
-			 * Except for AR5211, HAL's PUREG means mixed
-			 * DSSS and OFDM.
-			 */
-			ichan->ic_flags = c->channelFlags &~ CHANNEL_PUREG;
-			ichan->ic_flags |= IEEE80211_CHAN_G;
-		} else {
-			ichan->ic_flags = c->channelFlags;
-		}
-
-		if (ath_hal_isgsmsku(ah)) {
-			/*
-			 * Remap to true frequencies: Ubiquiti XR9 cards use a
-			 * frequency mapping different from their SR9 cards.
-			 * We define special country codes to deal with this. 
-			 */
-			if (cc == CTRY_XR9)
-				ichan->ic_freq = ichan->ic_freq - 1520;
-			else if (cc == CTRY_GZ901)
-				ichan->ic_freq = ichan->ic_freq - 1544;
-			else
-				ichan->ic_freq = 3344 - ichan->ic_freq;
-			ichan->ic_flags |= IEEE80211_CHAN_GSM;
-			ichan->ic_ieee = ieee80211_mhz2ieee(ichan->ic_freq,
-						    ichan->ic_flags);
-		}
-		ichan->ic_maxregpower = c->maxRegTxPower;	/* dBm */
-		/* XXX: old hal's don't provide maxTxPower for some parts */
-		ichan->ic_maxpower = (c->maxTxPower != 0) ?
-		    c->maxTxPower : 2*c->maxRegTxPower;		/* 1/2 dBm */
-		ichan->ic_minpower = c->minTxPower;		/* 1/2 dBm */
-	}
-	*nchans = nhalchans;
-done:
-	free(halchans, M_TEMP);
-	return error;
-}
-
-/* XXX hard to include ieee80211_regdomain.h right now */
-#define	SKU_DEBUG	0x1ff
-
-static void
-ath_maprd(const struct ieee80211_regdomain *rd,
-	u_int32_t *ath_rd, u_int32_t *ath_cc)
-{
-	/* map SKU's to Atheros sku's */
-	switch (rd->regdomain) {
-	case SKU_DEBUG:
-		if (rd->country == 0) {
-			*ath_rd = 0;
-			*ath_cc = CTRY_DEBUG;
-			return;
-		}
-		break;
-	}
-	*ath_rd = rd->regdomain;
-	*ath_cc = rd->country;
-}
-
-static int
-ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
+ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *reg,
 	int nchans, struct ieee80211_channel chans[])
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
-	u_int32_t ord, regdomain, cc;
-	int error;
+	HAL_STATUS status;
 
-	(void) ath_hal_getregdomain(ah, &ord);
-	ath_maprd(rd, &regdomain, &cc);
 	DPRINTF(sc, ATH_DEBUG_REGDOMAIN,
-	    "%s: rd %u cc %u location %c ecm %u (mapped rd %u cc %u)\n",
-	    __func__, rd->regdomain, rd->country, rd->location, rd->ecm,
-	    regdomain, cc);
-	ath_hal_setregdomain(ah, regdomain);
+	    "%s: rd %u cc %u location %c%s\n",
+	    __func__, reg->regdomain, reg->country, reg->location,
+	    reg->ecm ? " ecm" : "");
 
-	error = getchannels(sc, &nchans, chans, cc,
-	     rd->ecm ? AH_TRUE : AH_FALSE,
-	     rd->location != 'I' ? AH_TRUE : AH_FALSE);
-	if (error != 0) {
-		/*
-		 * Restore previous state.
-		 */
-		ath_hal_setregdomain(ah, ord);
-		(void) getchannels(sc, NULL, NULL, ic->ic_regdomain.country,
-		     ic->ic_regdomain.ecm ? AH_TRUE : AH_FALSE,
-		     ic->ic_regdomain.location != 'I' ? AH_TRUE : AH_FALSE);
-		return error;
+	status = ath_hal_set_channels(ah, chans, nchans,
+	    reg->country, reg->regdomain);
+	if (status != HAL_OK) {
+		DPRINTF(sc, ATH_DEBUG_REGDOMAIN, "%s: failed, status %u\n",
+		    __func__, status);
+		return EINVAL;		/* XXX */
 	}
 	return 0;
 }
@@ -6336,43 +6144,14 @@ ath_getradiocaps(struct ieee80211com *ic,
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
-	u_int32_t ord;
 
-	(void) ath_hal_getregdomain(ah, &ord);
+	DPRINTF(sc, ATH_DEBUG_REGDOMAIN, "%s: use rd %u cc %d\n",
+	    __func__, SKU_DEBUG, CTRY_DEFAULT);
 
-	DPRINTF(sc, ATH_DEBUG_REGDOMAIN, "%s: use rd %u cc %d, ord %u\n",
-	    __func__, 0, CTRY_DEBUG, ord);
+	/* XXX check return */
+	(void) ath_hal_getchannels(ah, chans, maxchans, nchans,
+	    HAL_MODE_ALL, CTRY_DEFAULT, SKU_DEBUG, AH_TRUE);
 
-	ath_hal_setregdomain(ah, 0);
-	/* XXX not quite right but close enough for now */
-	getchannels(sc, nchans, chans, CTRY_DEBUG, AH_TRUE, AH_FALSE);
-
-	/* NB: restore previous state */
-	ath_hal_setregdomain(ah, ord);
-	(void) getchannels(sc, NULL, NULL, ic->ic_regdomain.country,
-	     ic->ic_regdomain.ecm ? AH_TRUE : AH_FALSE,
-	     ic->ic_regdomain.location != 'I' ? AH_TRUE : AH_FALSE);
-}
-
-static void
-ath_mapsku(u_int32_t ath_rd, u_int32_t ath_cc, struct ieee80211_regdomain *rd)
-{
-	rd->isocc[0] = ' ';	/* XXX don't know */
-	rd->isocc[1] = ' ';
-
-	/* map Atheros sku's to SKU's */
-	switch (ath_rd) {
-	case 0:
-		if (ath_cc == CTRY_DEBUG) {
-			rd->regdomain = SKU_DEBUG;
-			rd->country = 0;
-			return;
-		}
-		break;
-	}
-	/* XXX net80211 types too small */
-	rd->regdomain = (uint16_t) ath_rd;
-	rd->country = (uint16_t) ath_cc;
 }
 
 static int
@@ -6381,33 +6160,35 @@ ath_getchannels(struct ath_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
-	int error;
+	HAL_STATUS status;
 
 	/*
-	 * Convert HAL channels to ieee80211 ones.
+	 * Collect channel set based on EEPROM contents.
 	 */
-	error = getchannels(sc, &ic->ic_nchans, ic->ic_channels,
-	    CTRY_DEFAULT, AH_TRUE, AH_FALSE);
+	status = ath_hal_init_channels(ah, ic->ic_channels, IEEE80211_CHAN_MAX,
+	    &ic->ic_nchans, HAL_MODE_ALL, CTRY_DEFAULT, SKU_NONE, AH_TRUE);
+	if (status != HAL_OK) {
+		if_printf(ifp, "%s: unable to collect channel list from hal, "
+		    "status %d\n", __func__, status);
+		return EINVAL;
+	}
 	(void) ath_hal_getregdomain(ah, &sc->sc_eerd);
 	ath_hal_getcountrycode(ah, &sc->sc_eecc);	/* NB: cannot fail */
-	if (error) {
-		if_printf(ifp, "%s: unable to collect channel list from hal, "
-		    "error %d\n", __func__, error);
-		if (error == EINVAL) {
-			if_printf(ifp, "%s: regdomain likely %u country code %u\n",
-			    __func__, sc->sc_eerd, sc->sc_eecc);
-		}
-		return error;
-	}
+	/* XXX map Atheros sku's to net80211 SKU's */
+	/* XXX net80211 types too small */
+	ic->ic_regdomain.regdomain = (uint16_t) sc->sc_eerd;
+	ic->ic_regdomain.country = (uint16_t) sc->sc_eecc;
+	ic->ic_regdomain.isocc[0] = ' ';	/* XXX don't know */
+	ic->ic_regdomain.isocc[1] = ' ';
+
 	ic->ic_regdomain.ecm = 1;
 	ic->ic_regdomain.location = 'I';
-	ath_mapsku(sc->sc_eerd, sc->sc_eecc, &ic->ic_regdomain);
 
 	DPRINTF(sc, ATH_DEBUG_REGDOMAIN,
-	    "%s: eeprom rd %u cc %u (mapped rd %u cc %u) location %c ecm %u\n",
+	    "%s: eeprom rd %u cc %u (mapped rd %u cc %u) location %c%s\n",
 	    __func__, sc->sc_eerd, sc->sc_eecc,
 	    ic->ic_regdomain.regdomain, ic->ic_regdomain.country,
-	    ic->ic_regdomain.location, ic->ic_regdomain.ecm);
+	    ic->ic_regdomain.location, ic->ic_regdomain.ecm ? " ecm" : "");
 	return 0;
 }
 
@@ -7470,7 +7251,7 @@ ath_announce(struct ath_softc *sc)
 #define	HAL_MODE_DUALBAND	(HAL_MODE_11A|HAL_MODE_11B)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
-	u_int modes, cc;
+	u_int modes;
 
 	if_printf(ifp, "mac %d.%d phy %d.%d",
 		ah->ah_macVersion, ah->ah_macRev,
@@ -7480,8 +7261,7 @@ ath_announce(struct ath_softc *sc)
 	 * to avoid falsely printing revs for inoperable parts.
 	 * Dual-band radio revs are returned in the 5Ghz rev number.
 	 */
-	ath_hal_getcountrycode(ah, &cc);
-	modes = ath_hal_getwirelessmodes(ah, cc);
+	modes = ath_hal_getwirelessmodes(ah);
 	if ((modes & HAL_MODE_DUALBAND) == HAL_MODE_DUALBAND) {
 		if (ah->ah_analog5GhzRev && ah->ah_analog2GhzRev)
 			printf(" 5ghz radio %d.%d 2ghz radio %d.%d",

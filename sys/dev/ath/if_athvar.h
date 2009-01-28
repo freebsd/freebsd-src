@@ -267,7 +267,7 @@ struct ath_softc {
 	HAL_OPMODE		sc_opmode;	/* current operating mode */
 	u_int16_t		sc_curtxpow;	/* current tx power limit */
 	u_int16_t		sc_curaid;	/* current association id */
-	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
+	struct ieee80211_channel *sc_curchan;	/* current installed channel */
 	u_int8_t		sc_curbssid[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
 	struct {
