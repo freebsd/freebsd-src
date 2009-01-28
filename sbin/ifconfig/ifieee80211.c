@@ -3342,10 +3342,13 @@ list_capabilities(int s)
 {
 	struct ieee80211_devcaps_req *dc;
 
-	dc = malloc(IEEE80211_DEVCAPS_SIZE(1));
+	if (verbose)
+		dc = malloc(IEEE80211_DEVCAPS_SIZE(MAXCHAN));
+	else
+		dc = malloc(IEEE80211_DEVCAPS_SIZE(1));
 	if (dc == NULL)
 		errx(1, "no space for device capabilities");
-	dc->dc_chaninfo.ic_nchans = 1;
+	dc->dc_chaninfo.ic_nchans = verbose ? MAXCHAN : 1;
 	getdevcaps(s, dc);
 	printb("drivercaps", dc->dc_drivercaps, IEEE80211_C_BITS);
 	if (dc->dc_cryptocaps != 0 || verbose) {
@@ -3357,6 +3360,10 @@ list_capabilities(int s)
 		printb("htcaps", dc->dc_htcaps, IEEE80211_HTCAP_BITS);
 	}
 	putchar('\n');
+	if (verbose) {
+		chaninfo = &dc->dc_chaninfo;	/* XXX */
+		print_channels(s, &dc->dc_chaninfo, 1/*allchans*/, verbose);
+	}
 	free(dc);
 }
 
