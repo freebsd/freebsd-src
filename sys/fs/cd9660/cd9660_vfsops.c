@@ -264,7 +264,7 @@ iso_mountfs(devvp, mp)
 		vdp = (struct iso_volume_descriptor *)bp->b_data;
 		if (bcmp (vdp->id, ISO_STANDARD_ID, sizeof vdp->id) != 0) {
 			if (bcmp (vdp->id_sierra, ISO_SIERRA_ID,
-				  sizeof vdp->id) != 0) {
+				  sizeof vdp->id_sierra) != 0) {
 				error = EINVAL;
 				goto out;
 			} else
