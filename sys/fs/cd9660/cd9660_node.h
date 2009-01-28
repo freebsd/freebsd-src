@@ -64,8 +64,6 @@ struct iso_node {
 	struct	lockf *i_lockf;	/* head of byte-level lock list */
 	doff_t	i_endoff;	/* end of useful stuff in directory */
 	doff_t	i_diroff;	/* offset in dir, where we found last entry */
-	doff_t	i_offset;	/* offset of free space in directory */
-	ino_t	i_ino;		/* inode number of found directory */
 
 	long iso_extent;	/* extent of file */
 	unsigned long i_size;

@@ -375,6 +375,7 @@ iso_mountfs(devvp, mp)
 	mp->mnt_maxsymlinklen = 0;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED;
 	MNT_IUNLOCK(mp);
 	isomp->im_mountp = mp;
 	isomp->im_dev = dev;
@@ -545,7 +546,7 @@ cd9660_root(mp, flags, vpp, td)
 	 * With RRIP we must use the `.' entry of the root directory.
 	 * Simply tell vget, that it's a relocated directory.
 	 */
-	return (cd9660_vget_internal(mp, ino, LK_EXCLUSIVE, vpp,
+	return (cd9660_vget_internal(mp, ino, flags, vpp,
 	    imp->iso_ftype == ISO_FTYPE_RRIP, dp));
 }
 
@@ -659,6 +660,22 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	if (error || *vpp != NULL)
 		return (error);
 
+	/*
+	 * We must promote to an exclusive lock for vnode creation.  This
+	 * can happen if lookup is passed LOCKSHARED.
+ 	 */
+	if ((flags & LK_TYPE_MASK) == LK_SHARED) {
+		flags &= ~LK_TYPE_MASK;
+		flags |= LK_EXCLUSIVE;
+	}
+
+	/*
+	 * We do not lock vnode creation as it is believed to be too
+	 * expensive for such rare case as simultaneous creation of vnode
+	 * for same ino by different processes. We just allow them to race
+	 * and check later to decide who wins. Let the race begin!
+	 */
+
 	imp = VFSTOISOFS(mp);
 	dev = imp->im_dev;
 
@@ -739,7 +756,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		bp = 0;
 
 	ip->i_mnt = imp;
-	VREF(imp->im_devvp);
 
 	if (relocated) {
 		/*
@@ -797,6 +813,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		vp->v_op = &cd9660_fifoops;
 		break;
 	default:
+		VN_LOCK_ASHARE(vp);
 		break;
 	}
 
