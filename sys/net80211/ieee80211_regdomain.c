@@ -48,10 +48,10 @@ null_getradiocaps(struct ieee80211com *ic, int maxchan,
 	int *n, struct ieee80211_channel *c)
 {
 	/* just feed back the current channel list */
-	*n = ic->ic_nchans;		/* XXX return count copied? */
 	if (maxchan > ic->ic_nchans)
 		maxchan = ic->ic_nchans;
 	memcpy(c, ic->ic_channels, maxchan*sizeof(struct ieee80211_channel));
+	*n = maxchan;
 }
 
 static int
