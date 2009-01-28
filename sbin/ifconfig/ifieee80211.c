@@ -1789,6 +1789,19 @@ chanlookup(const struct ieee80211_channel chans[], int nchans,
 	return NULL;
 }
 
+static int
+chanfind(const struct ieee80211_channel chans[], int nchans, int flags)
+{
+	int i;
+
+	for (i = 0; i < nchans; i++) {
+		const struct ieee80211_channel *c = &chans[i];
+		if ((c->ic_flags & flags) == flags)
+			return 1;
+	}
+	return 0;
+}
+
 static void
 regdomain_addchans(struct ieee80211req_chaninfo *ci,
 	const netband_head *bands,
@@ -1799,9 +1812,15 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 	const struct netband *nb;
 	const struct freqband *b;
 	struct ieee80211_channel *c, *prev;
-	int freq, channelSep;
+	int freq, channelSep, hasHalfChans, hasQuarterChans;
 
 	channelSep = (chanFlags & IEEE80211_CHAN_2GHZ) ? 0 : 40;
+	hasHalfChans = chanfind(avail->ic_chans, avail->ic_nchans,
+	    IEEE80211_CHAN_HALF |
+	       (chanFlags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
+	hasQuarterChans = chanfind(avail->ic_chans, avail->ic_nchans,
+	    IEEE80211_CHAN_QUARTER |
+	        (chanFlags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
 	LIST_FOREACH(nb, bands, next) {
 		b = nb->band;
 		if (verbose)
@@ -1812,28 +1831,31 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			uint32_t flags = nb->flags | b->flags;
 
 			/* check if device can operate on this frequency */
-			if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, chanFlags) == NULL) {
+			/*
+			 * XXX GSM frequency mapping is handled in the kernel
+			 * so we cannot find them in the calibration table;
+			 * just construct the list and the kernel will reject
+			 * if it's wrong.
+			 */
+			if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, chanFlags) == NULL &&
+			    (flags & IEEE80211_CHAN_GSM) == 0) {
 				if (verbose)
 					printf("%u: skip, flags 0x%x not available\n", freq, chanFlags);
 				continue;
 			}
-			/*
-			 * NB: don't enforce 1/2 and 1/4 rate channels being
-			 * specified in the device's calibration list for
-			 * 900MHz cards because most are not self-identifying.
-			 */
-			if ((flags & IEEE80211_CHAN_HALF) &&
-			    ((chanFlags & IEEE80211_CHAN_HALF) == 0 &&
-			     (flags & IEEE80211_CHAN_GSM) == 0)) {
+			if ((flags & IEEE80211_CHAN_HALF) && !hasHalfChans) {
 				if (verbose)
-					printf("%u: skip, device does not support half-rate channels\n", freq);
+					printf("%u: skip, device does not "
+					    "support half-rate channel\n",
+					    freq);
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_QUARTER) &&
-			    ((chanFlags & IEEE80211_CHAN_QUARTER) == 0 &&
-			     (flags & IEEE80211_CHAN_GSM) == 0)) {
+			    !hasQuarterChans) {
 				if (verbose)
-					printf("%u: skip, device does not support quarter-rate channels\n", freq);
+					printf("%u: skip, device does not "
+					    "support quarter-rate channel\n",
+					    freq);
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_HT20) &&
@@ -1932,26 +1954,12 @@ regdomain_makechannels(
 		if (!LIST_EMPTY(&rd->bands_11b))
 			regdomain_addchans(ci, &rd->bands_11b, reg,
 			    IEEE80211_CHAN_B, &dc->dc_chaninfo);
-		if (!LIST_EMPTY(&rd->bands_11g)) {
+		if (!LIST_EMPTY(&rd->bands_11g))
 			regdomain_addchans(ci, &rd->bands_11g, reg,
 			    IEEE80211_CHAN_G, &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11g, reg,
-			    IEEE80211_CHAN_G | IEEE80211_CHAN_HALF,
-			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11g, reg,
-			    IEEE80211_CHAN_G | IEEE80211_CHAN_QUARTER,
-			    &dc->dc_chaninfo);
-		}
-		if (!LIST_EMPTY(&rd->bands_11a)) {
+		if (!LIST_EMPTY(&rd->bands_11a))
 			regdomain_addchans(ci, &rd->bands_11a, reg,
 			    IEEE80211_CHAN_A, &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11a, reg,
-			    IEEE80211_CHAN_A | IEEE80211_CHAN_HALF,
-			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11a, reg,
-			    IEEE80211_CHAN_A | IEEE80211_CHAN_QUARTER,
-			    &dc->dc_chaninfo);
-		}
 		if (!LIST_EMPTY(&rd->bands_11na)) {
 			regdomain_addchans(ci, &rd->bands_11na, reg,
 			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20,
