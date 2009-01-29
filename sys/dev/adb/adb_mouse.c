@@ -46,7 +46,7 @@
 
 #include "adb.h"
 
-#define CDEV_GET_SOFTC(x) devclass_get_softc(adb_mouse_devclass, minor(x) & 0x1f)
+#define CDEV_GET_SOFTC(x) devclass_get_softc(adb_mouse_devclass, dev2unit(x) & 0x1f)
 
 static int adb_mouse_probe(device_t dev);
 static int adb_mouse_attach(device_t dev);
