@@ -23,4 +23,6 @@ athstats.o: opt_ah.h ah_osdep.h
 opt_ah.h:
 	touch opt_ah.h
 ah_osdep.h:
-	touch ah_osdep.h
+	echo 'typedef void *HAL_SOFTC;' >ah_osdep.h
+	echo 'typedef int HAL_BUS_TAG;' >>ah_osdep.h
+	echo 'typedef void *HAL_BUS_HANDLE;' >>ah_osdep.h
