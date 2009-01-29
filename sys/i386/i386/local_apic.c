@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 
 #include <vm/vm.h>
@@ -109,6 +111,8 @@ struct lapic {
 	u_long la_hard_ticks;
 	u_long la_stat_ticks;
 	u_long la_prof_ticks;
+	/* Include IDT_SYSCALL to make indexing easier. */
+	u_int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
 
 /* XXX: should thermal be an NMI? */
@@ -134,8 +138,6 @@ static inthand_t *ioint_handlers[] = {
 	IDTVEC(apic_isr7),	/* 224 - 255 */
 };
 
-/* Include IDT_SYSCALL to make indexing easier. */
-static u_int ioint_irqs[APIC_NUM_IOINTS + 1];
 
 static u_int32_t lapic_timer_divisors[] = { 
 	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
@@ -216,7 +218,6 @@ lapic_init(vm_paddr_t addr)
 
 	/* Perform basic initialization of the BSP's local APIC. */
 	lapic_enable();
-	ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
 
 	/* Set BSP's per-CPU local APIC ID. */
 	PCPU_SET(apic_id, lapic_id());
@@ -224,7 +225,6 @@ lapic_init(vm_paddr_t addr)
 	/* Local APIC timer interrupt. */
 	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] = IRQ_TIMER;
 
 	/* XXX: error/thermal interrupts */
 }
@@ -256,6 +256,9 @@ lapic_create(u_int apic_id, int boot_cpu)
 		lapics[apic_id].la_lvts[i] = lvts[i];
 		lapics[apic_id].la_lvts[i].lvt_active = 0;
 	}
+	lapics[apic_id].la_ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
+	lapics[apic_id].la_ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] =
+	    IRQ_TIMER;
 
 #ifdef SMP
 	cpu_add(apic_id, boot_cpu);
@@ -666,7 +669,8 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 
 	if (vector == -1)
 		panic("Couldn't get vector from ISR!");
-	isrc = intr_lookup_source(apic_idt_to_irq(vector));
+	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
+	    vector));
 	intr_execute_handlers(isrc, frame);
 }
 
@@ -781,9 +785,19 @@ lapic_timer_enable_intr(void)
 	lapic->lvt_timer = value;
 }
 
+u_int
+apic_cpuid(u_int apic_id)
+{
+#ifdef SMP
+	return apic_cpuids[apic_id];
+#else
+	return 0;
+#endif
+}
+
 /* Request a free IDT vector to be used by the specified IRQ. */
 u_int
-apic_alloc_vector(u_int irq)
+apic_alloc_vector(u_int apic_id, u_int irq)
 {
 	u_int vector;
 
@@ -795,9 +809,9 @@ apic_alloc_vector(u_int irq)
 	 */
 	mtx_lock_spin(&icu_lock);
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
-		if (ioint_irqs[vector] != 0)
+		if (lapics[apic_id].la_ioint_irqs[vector] != 0)
 			continue;
-		ioint_irqs[vector] = irq;
+		lapics[apic_id].la_ioint_irqs[vector] = irq;
 		mtx_unlock_spin(&icu_lock);
 		return (vector + APIC_IO_INTS);
 	}
@@ -812,7 +826,7 @@ apic_alloc_vector(u_int irq)
  * satisfied, 0 is returned.
  */
 u_int
-apic_alloc_vectors(u_int *irqs, u_int count, u_int align)
+apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
 {
 	u_int first, run, vector;
 
@@ -835,7 +849,7 @@ apic_alloc_vectors(u_int *irqs, u_int count, u_int align)
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
 
 		/* Vector is in use, end run. */
-		if (ioint_irqs[vector] != 0) {
+		if (lapics[apic_id].la_ioint_irqs[vector] != 0) {
 			run = 0;
 			first = 0;
 			continue;
@@ -855,7 +869,8 @@ apic_alloc_vectors(u_int *irqs, u_int count, u_int align)
 
 		/* Found a run, assign IRQs and return the first vector. */
 		for (vector = 0; vector < count; vector++)
-			ioint_irqs[first + vector] = irqs[vector];
+			lapics[apic_id].la_ioint_irqs[first + vector] =
+			    irqs[vector];
 		mtx_unlock_spin(&icu_lock);
 		return (first + APIC_IO_INTS);
 	}
@@ -864,8 +879,14 @@ apic_alloc_vectors(u_int *irqs, u_int count, u_int align)
 	return (0);
 }
 
+/*
+ * Enable a vector for a particular apic_id.  Since all lapics share idt
+ * entries and ioint_handlers this enables the vector on all lapics.  lapics
+ * which do not have the vector configured would report spurious interrupts
+ * should it fire.
+ */
 void
-apic_enable_vector(u_int vector)
+apic_enable_vector(u_int apic_id, u_int vector)
 {
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
@@ -876,7 +897,7 @@ apic_enable_vector(u_int vector)
 }
 
 void
-apic_disable_vector(u_int vector)
+apic_disable_vector(u_int apic_id, u_int vector)
 {
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
@@ -888,27 +909,42 @@ apic_disable_vector(u_int vector)
 
 /* Release an APIC vector when it's no longer in use. */
 void
-apic_free_vector(u_int vector, u_int irq)
+apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 {
+	struct thread *td;
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
 	KASSERT(irq < NUM_IO_INTS, ("Invalid IRQ %u", irq));
-	KASSERT(ioint_irqs[vector - APIC_IO_INTS] == irq, ("IRQ mismatch"));
+	KASSERT(lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] ==
+	    irq, ("IRQ mismatch"));
+
+	/*
+	 * Bind us to the cpu that owned the vector before freeing it so
+	 * we don't lose an interrupt delivery race.
+	 */
+	td = curthread;
+	thread_lock(td);
+	if (sched_is_bound(td))
+		panic("apic_free_vector: Thread already bound.\n");
+	sched_bind(td, apic_cpuid(apic_id));
 	mtx_lock_spin(&icu_lock);
-	ioint_irqs[vector - APIC_IO_INTS] = 0;
+	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = 0;
 	mtx_unlock_spin(&icu_lock);
+	sched_unbind(td);
+	thread_unlock(td);
+
 }
 
 /* Map an IDT vector (APIC) to an IRQ (interrupt source). */
 u_int
-apic_idt_to_irq(u_int vector)
+apic_idt_to_irq(u_int apic_id, u_int vector)
 {
 
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
-	return (ioint_irqs[vector - APIC_IO_INTS]);
+	return (lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS]);
 }
 
 #ifdef DDB
@@ -919,6 +955,7 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 {
 	struct intsrc *isrc;
 	int i, verbose;
+	u_int apic_id;
 	u_int irq;
 
 	if (strcmp(modif, "vv") == 0)
@@ -927,9 +964,14 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 		verbose = 1;
 	else
 		verbose = 0;
-	for (i = 0; i < APIC_NUM_IOINTS + 1 && !db_pager_quit; i++) {
-		irq = ioint_irqs[i];
-		if (irq != 0 && irq != IRQ_SYSCALL) {
+	for (apic_id = 0; apic_id <= MAX_APIC_ID; apic_id++) {
+		if (lapics[apic_id].la_present == 0)
+			continue;
+		db_printf("Interrupts bound to lapic %u\n", apic_id);
+		for (i = 0; i < APIC_NUM_IOINTS + 1 && !db_pager_quit; i++) {
+			irq = lapics[apic_id].la_ioint_irqs[i];
+			if (irq == 0 || irq == IRQ_SYSCALL)
+				continue;
 			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);
 			if (irq == IRQ_TIMER)
 				db_printf("lapic timer\n");
