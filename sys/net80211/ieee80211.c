@@ -184,6 +184,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_11A,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_TURBO_A,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_TURBO_G,	 ieee80211_rateset_11g);
+	DEFAULTRATES(IEEE80211_MODE_STURBO_A,	 ieee80211_rateset_11a);
 
 	/*
 	 * Set auto mode to reset active channel state and any desired channel.
