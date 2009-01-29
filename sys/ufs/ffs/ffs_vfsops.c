@@ -641,6 +641,7 @@ ffs_mountfs(devvp, mp, td)
 	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
+	dev_ref(dev);
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
@@ -921,6 +922,7 @@ out:
 		free(ump, M_UFSMNT);
 		mp->mnt_data = NULL;
 	}
+	dev_rel(dev);
 	return (error);
 }
 
@@ -1107,6 +1109,7 @@ ffs_unmount(mp, mntflags, td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
+	dev_rel(ump->um_dev);
 	mtx_destroy(UFS_MTX(ump));
 	if (mp->mnt_gjprovider != NULL) {
 		free(mp->mnt_gjprovider, M_UFSMNT);
