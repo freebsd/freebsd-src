@@ -93,6 +93,10 @@ static int	ufs_extattr_set(struct vnode *vp, int attrnamespace,
 		    struct thread *td);
 static int	ufs_extattr_rm(struct vnode *vp, int attrnamespace,
 		    const char *name, struct ucred *cred, struct thread *td);
+static int	ufs_extattr_autostart_locked(struct mount *mp,
+		    struct thread *td);
+static int	ufs_extattr_start_locked(struct ufsmount *ump,
+		    struct thread *td);
 
 /*
  * Per-FS attribute lock protecting attribute operations.
@@ -208,24 +212,22 @@ ufs_extattr_start(struct mount *mp, struct thread *td)
 	ump = VFSTOUFS(mp);
 
 	ufs_extattr_uepm_lock(ump, td);
+	error = ufs_extattr_start_locked(ump, td);
+	ufs_extattr_uepm_unlock(ump, td);
+	return (error);
+}
 
-	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_INITIALIZED)) {
-		error = EOPNOTSUPP;
-		goto unlock;
-	}
-	if (ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED) {
-		error = EBUSY;
-		goto unlock;
-	}
+static int
+ufs_extattr_start_locked(struct ufsmount *ump, struct thread *td)
+{
+	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_INITIALIZED))
+		return (EOPNOTSUPP);
+	if (ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED)
+		return (EBUSY);
 
 	ump->um_extattr.uepm_flags |= UFS_EXTATTR_UEPM_STARTED;
-
 	ump->um_extattr.uepm_ucred = crhold(td->td_ucred);
-
-unlock:
-	ufs_extattr_uepm_unlock(ump, td);
-
-	return (error);
+	return (0);
 }
 
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -448,6 +450,19 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 int
 ufs_extattr_autostart(struct mount *mp, struct thread *td)
 {
+	struct ufsmount *ump;
+	int error;
+
+	ump = VFSTOUFS(mp);
+	ufs_extattr_uepm_lock(ump, td);
+	error = ufs_extattr_autostart_locked(mp, td);
+	ufs_extattr_uepm_unlock(ump, td);
+	return (error);
+}
+
+static int
+ufs_extattr_autostart_locked(struct mount *mp, struct thread *td)
+{
 	struct vnode *rvp, *attr_dvp, *attr_system_dvp, *attr_user_dvp;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	int error;
@@ -491,7 +506,7 @@ ufs_extattr_autostart(struct mount *mp, struct thread *td)
 		goto return_vput_attr_dvp;
 	}
 
-	error = ufs_extattr_start(mp, td);
+	error = ufs_extattr_start_locked(ump, td);
 	if (error) {
 		printf("ufs_extattr_autostart: ufs_extattr_start failed (%d)\n",
 		    error);
