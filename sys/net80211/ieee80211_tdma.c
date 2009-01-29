@@ -79,6 +79,15 @@ __FBSDID("$FreeBSD$");
 #ifndef TDMA_TXRATE_11A_DEFAULT
 #define	TDMA_TXRATE_11A_DEFAULT	2*24
 #endif
+#ifndef TDMA_TXRATE_STURBO_A_DEFAULT
+#define	TDMA_TXRATE_STURBO_A_DEFAULT	2*24
+#endif
+#ifndef TDMA_TXRATE_11NA_DEFAULT
+#define	TDMA_TXRATE_11NA_DEFAULT	(4 | IEEE80211_RATE_MCS)
+#endif
+#ifndef TDMA_TXRATE_11NG_DEFAULT
+#define	TDMA_TXRATE_11NG_DEFAULT	(4 | IEEE80211_RATE_MCS)
+#endif
 
 static void tdma_vdetach(struct ieee80211vap *vap);
 static int tdma_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -90,6 +99,13 @@ static int tdma_update(struct ieee80211vap *vap,
 	int pickslot);
 static int tdma_process_params(struct ieee80211_node *ni,
 	const u_int8_t *ie, u_int32_t rstamp, const struct ieee80211_frame *wh);
+
+static void
+settxparms(struct ieee80211vap *vap, enum ieee80211_phymode mode, int rate)
+{
+	vap->iv_txparms[mode].ucastrate = rate;
+	vap->iv_txparms[mode].mcastrate = rate;
+}
 
 static void
 setackpolicy(struct ieee80211com *ic, int noack)
@@ -126,12 +142,12 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	ts->tdma_slot = 1;			/* passive operation */
 
 	/* setup default fixed rates */
-	vap->iv_txparms[IEEE80211_MODE_11B].ucastrate = TDMA_TXRATE_11B_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11B].mcastrate = TDMA_TXRATE_11B_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11G].ucastrate = TDMA_TXRATE_11G_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11G].mcastrate = TDMA_TXRATE_11G_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11A].ucastrate = TDMA_TXRATE_11A_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11A].mcastrate = TDMA_TXRATE_11A_DEFAULT;
+	settxparms(vap, IEEE80211_MODE_11A, TDMA_TXRATE_11A_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11B, TDMA_TXRATE_11B_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11G, TDMA_TXRATE_11G_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_STURBO_A, TDMA_TXRATE_STURBO_A_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11NA, TDMA_TXRATE_11NA_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11NG, TDMA_TXRATE_11NG_DEFAULT);
 
 	setackpolicy(vap->iv_ic, 1);	/* disable ACK's */
 
