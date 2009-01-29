@@ -227,20 +227,25 @@ static void
 node_setuptxparms(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	enum ieee80211_phymode mode;
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		if (IEEE80211_IS_CHAN_5GHZ(ni->ni_chan))
-			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11NA];
+			mode = IEEE80211_MODE_11NA;
 		else
-			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11NG];
+			mode = IEEE80211_MODE_11NG;
 	} else {				/* legacy rate handling */
-		if (IEEE80211_IS_CHAN_A(ni->ni_chan))
-			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11A];
+		/* NB: 108A/108G should be handled as 11a/11g respectively */
+		if (IEEE80211_IS_CHAN_ST(ni->ni_chan))
+			mode = IEEE80211_MODE_STURBO_A;
+		else if (IEEE80211_IS_CHAN_A(ni->ni_chan))
+			mode = IEEE80211_MODE_11A;
 		else if (ni->ni_flags & IEEE80211_NODE_ERP)
-			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11G];
+			mode = IEEE80211_MODE_11G;
 		else
-			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11B];
+			mode = IEEE80211_MODE_11B;
 	}
+	ni->ni_txparms = &vap->iv_txparms[mode];
 }
 
 /*
