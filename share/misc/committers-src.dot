@@ -102,6 +102,7 @@ iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
+jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jayanth [label="Jayanth Vijayaraghavan\njayanth@FreeBSD.org\n2000/05/08"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jdp [label="John Polstra\njdp@FreeBSD.org\n????/??/??"]
@@ -219,7 +220,9 @@ bms -> thompsa
 brian -> joe
 
 brooks -> bushman
+brooks -> jamie
 
+bz -> jamie
 bz -> syrinx
 
 cperciva -> flz
