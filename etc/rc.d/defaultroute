@@ -21,7 +21,6 @@ defaultroute_start()
 	# Return without waiting if we don't have dhcp interfaces.
 	# Once we can test that the link is actually up, we should
 	# remove this test and always wait.
-	dhcp_interfaces=`list_net_interfaces dhcp`
 	[ -z "`list_net_interfaces dhcp`" ] && return
 
 	# Wait for a default route
