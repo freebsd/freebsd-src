@@ -145,11 +145,6 @@ extern int udp6_sendspace;
 extern int udp6_recvspace;
 
 extern struct	route_in6 ip6_forward_rt;
-
-int ip6_forward_srcrt;			/* XXX */
-int ip6_sourcecheck;			/* XXX */
-int ip6_sourcecheck_interval;		/* XXX */
-int ip6_ours_check_algorithm;
 #endif
 
 struct pfil_head inet6_pfil_hook;
