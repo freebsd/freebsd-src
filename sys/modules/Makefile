@@ -45,6 +45,7 @@ SUBDIR=	${_3dfx} \
 	${_canbus} \
 	${_cardbus} \
 	${_cbb} \
+	cc_cubic \
 	cc_htcp \
 	cd9660 \
 	cd9660_iconv \
