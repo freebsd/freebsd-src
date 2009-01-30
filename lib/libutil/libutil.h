@@ -140,6 +140,15 @@ int pidfile_close(struct pidfh *pfh);
 int pidfile_remove(struct pidfh *pfh);
 #endif
 
+#ifdef _UFS_UFS_QUOTA_H_
+struct quotafile;
+struct quotafile *quota_open(const char *);
+struct quotafile *quota_create(const char *);
+void quota_close(struct quotafile *);
+int quota_read(struct quotafile *, struct dqblk *, int);
+int quota_write(struct quotafile *, const struct dqblk *, int);
+#endif
+
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
