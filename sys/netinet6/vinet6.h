@@ -122,10 +122,10 @@ struct vnet_inet6 {
 	int				_udp6_recvspace;
 	int				_ip6qmaxlen;
 	int				_ip6_prefer_tempaddr;
-	int				_ip6_forward_srcrt;
-	int				_ip6_sourcecheck;
-	int				_ip6_sourcecheck_interval;
-	int				_ip6_ours_check_algorithm;
+	int				_ip6_forward_srcrt;	/* XXX remove */
+	int				_ip6_sourcecheck;	/* XXX remove */
+	int				_ip6_sourcecheck_interval; /* XXX remove */
+	int				_ip6_ours_check_algorithm; /* XXX remove */
 
 	int				_nd6_prune;
 	int				_nd6_delay;
@@ -195,7 +195,6 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6_defmcasthlim		VNET_INET6(ip6_defmcasthlim)
 #define	V_ip6_desync_factor		VNET_INET6(ip6_desync_factor)
 #define	V_ip6_forward_rt		VNET_INET6(ip6_forward_rt)
-#define	V_ip6_forward_srcrt		VNET_INET6(ip6_forward_srcrt)
 #define	V_ip6_forwarding		VNET_INET6(ip6_forwarding)
 #define	V_ip6_hdrnestlimit		VNET_INET6(ip6_hdrnestlimit)
 #define	V_ip6_keepfaith			VNET_INET6(ip6_keepfaith)
@@ -206,12 +205,9 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6_mcast_pmtu		VNET_INET6(ip6_mcast_pmtu)
 #define	V_ip6_mrouter_ver		VNET_INET6(ip6_mrouter_ver)
 #define	V_ip6_opts			VNET_INET6(ip6_opts)
-#define	V_ip6_ours_check_algorithm	VNET_INET6(ip6_ours_check_algorithm)
 #define	V_ip6_prefer_tempaddr		VNET_INET6(ip6_prefer_tempaddr)
 #define	V_ip6_rr_prune			VNET_INET6(ip6_rr_prune)
 #define	V_ip6_sendredirects		VNET_INET6(ip6_sendredirects)
-#define	V_ip6_sourcecheck		VNET_INET6(ip6_sourcecheck)
-#define	V_ip6_sourcecheck_interval	VNET_INET6(ip6_sourcecheck_interval)
 #define	V_ip6_temp_preferred_lifetime	VNET_INET6(ip6_temp_preferred_lifetime)
 #define	V_ip6_temp_regen_advance	VNET_INET6(ip6_temp_regen_advance)
 #define	V_ip6_temp_valid_lifetime	VNET_INET6(ip6_temp_valid_lifetime)
