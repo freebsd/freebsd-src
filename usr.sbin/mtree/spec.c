@@ -254,14 +254,15 @@ set(char *t, NODE *ip)
 			break;
 		case F_TIME:
 			ip->st_mtimespec.tv_sec = strtoul(val, &ep, 10);
-			if (*ep != '.')
-				errx(1, "line %d: invalid time %s",
-				lineno, val);
-			val = ep + 1;
-			ip->st_mtimespec.tv_nsec = strtoul(val, &ep, 10);
+			if (*ep == '.') {
+				val = ep + 1;
+				ip->st_mtimespec.tv_nsec
+				    = strtoul(val, &ep, 10);
+			} else
+				ip->st_mtimespec.tv_nsec = 0;
 			if (*ep)
 				errx(1, "line %d: invalid time %s",
-				lineno, val);
+				    lineno, val);
 			break;
 		case F_TYPE:
 			switch(*val) {
