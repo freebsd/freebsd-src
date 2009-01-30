@@ -6,7 +6,7 @@ MAN  =	rpc.rquotad.8
 
 WARNS ?= 6
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+DPADD=	${LIBRPCSVC} ${LIBUTIL}
+LDADD=	-lrpcsvc -lutil
 
 .include <bsd.prog.mk>
