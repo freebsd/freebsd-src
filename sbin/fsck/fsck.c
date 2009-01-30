@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&selhead);
 	TAILQ_INIT(&opthead);
 
-	while ((i = getopt(argc, argv, "BdvpfFnyl:t:T:")) != -1)
+	while ((i = getopt(argc, argv, "BCdvpfFnyl:t:T:")) != -1)
 		switch (i) {
 		case 'B':
 			if (flags & CHECK_BACKGRD)
@@ -127,6 +127,9 @@ main(int argc, char *argv[])
 
 		case 'p':
 			flags |= CHECK_PREEN;
+			/*FALLTHROUGH*/
+		case 'C':
+			flags |= CHECK_CLEAN;
 			/*FALLTHROUGH*/
 		case 'n':
 		case 'y':
@@ -566,7 +569,7 @@ static void
 usage(void)
 {
 	static const char common[] =
-	    "[-dfnpvy] [-B | -F] [-T fstype:fsoptions] [-t fstype]";
+	    "[-Cdfnpvy] [-B | -F] [-T fstype:fsoptions] [-t fstype]";
 
 	(void)fprintf(stderr, "usage: %s %s [special | node] ...\n",
 	    getprogname(), common);
