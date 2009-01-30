@@ -1,8 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-MAN=	adding_user.8 \
-	crash.8 \
+MAN=	crash.8 \
 	diskless.8 \
 	intro.8 \
 	MAKEDEV.8 \
