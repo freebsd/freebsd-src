@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fstab.h>
 #include <grp.h>
+#include <libutil.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -247,9 +248,10 @@ initfs(void)
 int
 getfsquota(long id, char *path, struct dqblk *dqblk)
 {
+	struct quotafile *qf;
 	struct stat st_path;
 	struct fs_stat *fs;
-	int	qcmd, fd, ret = 0;
+	int qcmd, ret = 0;
 
 	if (stat(path, &st_path) < 0)
 		return (0);
@@ -265,32 +267,16 @@ getfsquota(long id, char *path, struct dqblk *dqblk)
 		if (quotactl(fs->fs_file, qcmd, id, dqblk) == 0)
 			return (1);
 
-		if ((fd = open(fs->qfpathname, O_RDONLY)) < 0) {
+		if ((qf = quota_open(fs->qfpathname)) == NULL) {
 			syslog(LOG_ERR, "open error: %s: %m", fs->qfpathname);
 			return (0);
 		}
-		if (lseek(fd, (off_t)(id * sizeof(struct dqblk)), L_SET) == (off_t)-1) {
-			close(fd);
-			return (1);
-		}
-		switch (read(fd, dqblk, sizeof(struct dqblk))) {
-		case 0:
-			/*
-                         * Convert implicit 0 quota (EOF)
-                         * into an explicit one (zero'ed dqblk)
-                         */
-			bzero(dqblk, sizeof(struct dqblk));
-			ret = 1;
-			break;
-		case sizeof(struct dqblk):	/* OK */
-			ret = 1;
-			break;
-		default:	/* ERROR */
+		if (quota_read(qf, dqblk, id) != 0) {
 			syslog(LOG_ERR, "read error: %s: %m", fs->qfpathname);
-			close(fd);
+			quota_close(qf);
 			return (0);
 		}
-		close(fd);
+		quota_close(qf);
 	}
 	return (ret);
 }

@@ -130,6 +130,18 @@ ufs_quotactl(mp, cmds, id, arg, td)
 		error = quotaoff(td, mp, type);
 		break;
 
+	case Q_SETQUOTA32:
+		error = setquota32(td, mp, id, type, arg);
+		break;
+
+	case Q_SETUSE32:
+		error = setuse32(td, mp, id, type, arg);
+		break;
+
+	case Q_GETQUOTA32:
+		error = getquota32(td, mp, id, type, arg);
+		break;
+
 	case Q_SETQUOTA:
 		error = setquota(td, mp, id, type, arg);
 		break;

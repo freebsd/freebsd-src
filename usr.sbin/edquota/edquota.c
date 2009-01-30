@@ -55,17 +55,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <ufs/ufs/quota.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
 #include <grp.h>
+#include <inttypes.h>
+#include <libutil.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "pathnames.h"
 
 const char *qfname = QUOTAFILENAME;
@@ -102,11 +106,11 @@ main(int argc, char *argv[])
 {
 	struct quotause *qup, *protoprivs, *curprivs;
 	long id, protoid;
-	long long lim;
+	uintmax_t lim;
 	int i, quotatype, range, tmpfd;
 	uid_t startuid, enduid;
-	u_int32_t *limp;
-	char *protoname, *cp, *oldoptarg;
+	u_int64_t *limp;
+	char *protoname, *cp, *oldoptarg, *end;
 	int eflag = 0, tflag = 0, pflag = 0, ch;
 	char *fspath = NULL;
 	char buf[MAXLOGNAME];
@@ -172,11 +176,10 @@ main(int argc, char *argv[])
 					break; /* XXX: report an error */
 				}
 				if (limp != NULL) {
-					lim = strtoll(cp, NULL, 10);
-					if (lim < 0 || lim > UINT_MAX)
-						errx(1, "invalid limit value: "
-						    "%lld", lim);
-					*limp = (u_int32_t)lim;
+					lim = strtoumax(cp, &end, 10);
+					if (end == cp || *end != '\0' || lim > UINT64_MAX)
+						errx(1, "invalid limit: %s", cp);
+					*limp = (u_int64_t)lim;
 				}
 			}
 			qup->dqblk.dqb_bsoftlimit =
@@ -331,10 +334,11 @@ getentry(const char *name, int quotatype)
 struct quotause *
 getprivs(long id, int quotatype, char *fspath)
 {
+	struct quotafile *qf;
 	struct fstab *fs;
 	struct quotause *qup, *quptail;
 	struct quotause *quphead;
-	int qcmd, qupsize, fd;
+	int qcmd, qupsize;
 	char *qfpathname;
 	static int warned = 0;
 
@@ -358,46 +362,19 @@ getprivs(long id, int quotatype, char *fspath)
 		warnx("warning: quotas are not compiled into this kernel");
 				sleep(3);
 			}
-			if ((fd = open(qfpathname, O_RDONLY)) < 0) {
-				fd = open(qfpathname, O_RDWR|O_CREAT, 0640);
-				if (fd < 0 && errno != ENOENT) {
-					warn("%s", qfpathname);
-					free(qup);
-					continue;
-				}
-				warnx("creating quota file %s", qfpathname);
-				sleep(3);
-				(void) fchown(fd, getuid(),
-				    getentry(quotagroup, GRPQUOTA));
-				(void) fchmod(fd, 0640);
-			}
-			if (lseek(fd, (off_t)id * sizeof(struct dqblk),
-			    L_SET) < 0) {
-				warn("seek error on %s", qfpathname);
-				close(fd);
+			if ((qf = quota_open(qfpathname)) == NULL &&
+			    (qf = quota_create(qfpathname)) == NULL) {
+				warn("%s", qfpathname);
 				free(qup);
 				continue;
 			}
-			switch (read(fd, &qup->dqblk, sizeof(struct dqblk))) {
-			case 0:			/* EOF */
-				/*
-				 * Convert implicit 0 quota (EOF)
-				 * into an explicit one (zero'ed dqblk)
-				 */
-				bzero((caddr_t)&qup->dqblk,
-				    sizeof(struct dqblk));
-				break;
-
-			case sizeof(struct dqblk):	/* OK */
-				break;
-
-			default:		/* ERROR */
+			if (quota_read(qf, &qup->dqblk, id) != 0) {
 				warn("read error in %s", qfpathname);
-				close(fd);
+				quota_close(qf);
 				free(qup);
 				continue;
 			}
-			close(fd);
+			quota_close(qf);
 		}
 		strcpy(qup->qfname, qfpathname);
 		strcpy(qup->fsname, fs->fs_file);
@@ -418,38 +395,22 @@ getprivs(long id, int quotatype, char *fspath)
 void
 putprivs(long id, int quotatype, struct quotause *quplist)
 {
+	struct quotafile *qf;
 	struct quotause *qup;
-	int qcmd, fd;
+	int qcmd;
 	struct dqblk dqbuf;
 
 	qcmd = QCMD(Q_SETQUOTA, quotatype);
 	for (qup = quplist; qup; qup = qup->next) {
 		if (quotactl(qup->fsname, qcmd, id, &qup->dqblk) == 0)
 			continue;
-		if ((fd = open(qup->qfname, O_RDWR)) < 0) {
+		if ((qf = quota_open(qup->qfname)) == NULL) {
 			warn("%s", qup->qfname);
 			continue;
 		}
-		if (lseek(fd, (off_t)id * sizeof(struct dqblk), L_SET) < 0) {
-			warn("seek error on %s", qup->qfname);
-			close(fd);
-			continue;
-		}
-		switch (read(fd, &dqbuf, sizeof(struct dqblk))) {
-		case 0:			/* EOF */
-			/*
-			 * Convert implicit 0 quota (EOF)
-			 * into an explicit one (zero'ed dqblk)
-			 */
-			bzero(&dqbuf, sizeof(struct dqblk));
-			break;
-
-		case sizeof(struct dqblk):	/* OK */
-			break;
-
-		default:		/* ERROR */
+		if (quota_read(qf, &dqbuf, id) != 0) {
 			warn("read error in %s", qup->qfname);
-			close(fd);
+			quota_close(qf);
 			continue;
 		}
 		/*
@@ -474,16 +435,10 @@ putprivs(long id, int quotatype, struct quotause *quplist)
 			qup->dqblk.dqb_itime = 0;
 		qup->dqblk.dqb_curinodes = dqbuf.dqb_curinodes;
 		qup->dqblk.dqb_curblocks = dqbuf.dqb_curblocks;
-		if (lseek(fd, (off_t)id * sizeof(struct dqblk), L_SET) < 0) {
-			warn("seek error on %s", qup->qfname);
-			close(fd);
-			continue;
-		}
-		if (write(fd, &qup->dqblk, sizeof (struct dqblk)) !=
-		    sizeof (struct dqblk)) {
+		if (quota_write(qf, &qup->dqblk, id) != 0) {
 			warn("%s", qup->qfname);
-			}
-		close(fd);
+		}
+		quota_close(qf);
 	}
 }
 
