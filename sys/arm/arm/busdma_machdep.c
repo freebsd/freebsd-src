@@ -1144,6 +1144,7 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				cpu_l2cache_wb_range(bpage->vaddr,
 				    bpage->datacount);
 			}
+			dmat->bounce_zone->total_bounced++;
 		}
 		if (op & BUS_DMASYNC_POSTREAD) {
 			if (bpage->vaddr_nocache == 0) {
@@ -1155,6 +1156,7 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			bcopy((void *)(bpage->vaddr_nocache != 0 ? 
 	       		    bpage->vaddr_nocache : bpage->vaddr),
 			    (void *)bpage->datavaddr, bpage->datacount);
+			dmat->bounce_zone->total_bounced++;
 		}
 	}
 }
