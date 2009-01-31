@@ -532,7 +532,6 @@ rearg:
 			MFLAGS_append("-r", NULL);
 			break;
 		case 's':
-			beQuiet = TRUE;
 			beSilent = TRUE;
 			MFLAGS_append("-s", NULL);
 			break;
