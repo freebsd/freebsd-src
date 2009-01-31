@@ -351,9 +351,9 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__bits[0];
         frame.sf_sc.uc_mcontext.sc_gs     = rgs();
         frame.sf_sc.uc_mcontext.sc_fs     = rfs();
-        __asm __volatile("movl %%es,%0" :
+        __asm __volatile("mov %%es,%0" :
 	    "=rm" (frame.sf_sc.uc_mcontext.sc_es));
-        __asm __volatile("movl %%ds,%0" :
+        __asm __volatile("mov %%ds,%0" :
 	    "=rm" (frame.sf_sc.uc_mcontext.sc_ds));
 	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_rsi;
@@ -485,8 +485,8 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.sc_mask   = lmask.__bits[0];
         frame.sf_sc.sc_gs     = rgs();
         frame.sf_sc.sc_fs     = rfs();
-        __asm __volatile("movl %%es,%0" : "=rm" (frame.sf_sc.sc_es));
-        __asm __volatile("movl %%ds,%0" : "=rm" (frame.sf_sc.sc_ds));
+        __asm __volatile("mov %%es,%0" : "=rm" (frame.sf_sc.sc_es));
+        __asm __volatile("mov %%ds,%0" : "=rm" (frame.sf_sc.sc_ds));
 	frame.sf_sc.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.sc_ebp    = regs->tf_rbp;

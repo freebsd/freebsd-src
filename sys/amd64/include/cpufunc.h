@@ -482,7 +482,7 @@ static __inline u_int
 rfs(void)
 {
 	u_int sel;
-	__asm __volatile("movl %%fs,%0" : "=rm" (sel));
+	__asm __volatile("mov %%fs,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -490,7 +490,7 @@ static __inline u_int
 rgs(void)
 {
 	u_int sel;
-	__asm __volatile("movl %%gs,%0" : "=rm" (sel));
+	__asm __volatile("mov %%gs,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -498,20 +498,20 @@ static __inline u_int
 rss(void)
 {
 	u_int sel;
-	__asm __volatile("movl %%ss,%0" : "=rm" (sel));
+	__asm __volatile("mov %%ss,%0" : "=rm" (sel));
 	return (sel);
 }
 
 static __inline void
 load_ds(u_int sel)
 {
-	__asm __volatile("movl %0,%%ds" : : "rm" (sel));
+	__asm __volatile("mov %0,%%ds" : : "rm" (sel));
 }
 
 static __inline void
 load_es(u_int sel)
 {
-	__asm __volatile("movl %0,%%es" : : "rm" (sel));
+	__asm __volatile("mov %0,%%es" : : "rm" (sel));
 }
 
 static inline void
@@ -539,7 +539,7 @@ load_fs(u_int sel)
 
 	/* Preserve the fsbase value across the selector load */
 	fsbase = MSR_FSBASE;
-        __asm __volatile("rdmsr; movl %0,%%fs; wrmsr"
+        __asm __volatile("rdmsr; mov %0,%%fs; wrmsr"
             : : "rm" (sel), "c" (fsbase) : "eax", "edx");
 }
 
@@ -557,7 +557,7 @@ load_gs(u_int sel)
 	 * being trashed happens to be the kernel gsbase at the time.
 	 */
 	gsbase = MSR_GSBASE;
-        __asm __volatile("pushfq; cli; rdmsr; movl %0,%%gs; wrmsr; popfq"
+        __asm __volatile("pushfq; cli; rdmsr; mov %0,%%gs; wrmsr; popfq"
             : : "rm" (sel), "c" (gsbase) : "eax", "edx");
 }
 #else
@@ -565,13 +565,13 @@ load_gs(u_int sel)
 static __inline void
 load_fs(u_int sel)
 {
-	__asm __volatile("movl %0,%%fs" : : "rm" (sel));
+	__asm __volatile("mov %0,%%fs" : : "rm" (sel));
 }
 
 static __inline void
 load_gs(u_int sel)
 {
-	__asm __volatile("movl %0,%%gs" : : "rm" (sel));
+	__asm __volatile("mov %0,%%gs" : : "rm" (sel));
 }
 #endif
 
