@@ -88,14 +88,14 @@ int	 atoi(const char *);
 long	 atol(const char *);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
-void	*calloc(size_t, size_t);
+void	*calloc(size_t, size_t) __malloc_like;
 div_t	 div(int, int) __pure2;
 void	 exit(int) __dead2;
 void	 free(void *);
 char	*getenv(const char *);
 long	 labs(long) __pure2;
 ldiv_t	 ldiv(long, long) __pure2;
-void	*malloc(size_t);
+void	*malloc(size_t) __malloc_like;
 int	 mblen(const char *, size_t);
 size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
