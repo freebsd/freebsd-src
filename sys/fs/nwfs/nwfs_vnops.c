@@ -784,7 +784,6 @@ static int nwfs_strategy (ap)
 	struct buf *bp=ap->a_bp;
 	struct ucred *cr;
 	struct thread *td;
-	int error = 0;
 
 	NCPVNDEBUG("\n");
 	if (bp->b_flags & B_ASYNC)
@@ -801,7 +800,7 @@ static int nwfs_strategy (ap)
 	 * otherwise just do it ourselves.
 	 */
 	if ((bp->b_flags & B_ASYNC) == 0 )
-		error = nwfs_doio(ap->a_vp, bp, cr, td);
+		(void)nwfs_doio(ap->a_vp, bp, cr, td);
 	return (0);
 }
 
