@@ -762,10 +762,6 @@ frag6_slowtimo(void)
 		RTFREE(V_ip6_forward_rt.ro_rt);
 		V_ip6_forward_rt.ro_rt = 0;
 	}
-	if (ipsrcchk_rt.ro_rt) {
-		RTFREE(ipsrcchk_rt.ro_rt);
-		ipsrcchk_rt.ro_rt = 0;
-	}
 #endif
 }
 
