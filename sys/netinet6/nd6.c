@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #define ND6_RECALC_REACHTM_INTERVAL (60 * 120) /* 2 hours */
 
 #define SIN6(s) ((struct sockaddr_in6 *)s)
-#define SDL(s) ((struct sockaddr_dl *)s)
 
 #ifdef VIMAGE_GLOBALS
 int nd6_prune;

@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/vinet6.h>
 
-#define SDL(s)	((struct sockaddr_dl *)s)
-
 static int rtpref(struct nd_defrouter *);
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update __P((struct nd_prefixctl *, struct nd_defrouter *,
