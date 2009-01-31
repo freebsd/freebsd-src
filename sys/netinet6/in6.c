@@ -2122,16 +2122,16 @@ in6_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 		ifa = ifaof_ifpforaddr(__DECONST(struct sockaddr *, l3addr), ifp);
 		if (ifa != NULL) {
 			if (rt != NULL)
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 			return 0;
 		}
 		log(LOG_INFO, "IPv6 address: \"%s\" is not on the network\n",
 		    ip6_sprintf(ip6buf, &((const struct sockaddr_in6 *)l3addr)->sin6_addr));
 		if (rt != NULL)
-			rtfree(rt);
+			RTFREE_LOCKED(rt);
 		return EINVAL;
 	}
-	rtfree(rt);
+	RTFREE_LOCKED(rt);
 	return 0;
 }
 
