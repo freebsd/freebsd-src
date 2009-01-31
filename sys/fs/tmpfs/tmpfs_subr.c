@@ -1259,12 +1259,10 @@ tmpfs_update(struct vnode *vp)
 int
 tmpfs_truncate(struct vnode *vp, off_t length)
 {
-	boolean_t extended;
 	int error;
 	struct tmpfs_node *node;
 
 	node = VP_TO_TMPFS_NODE(vp);
-	extended = length > node->tn_size;
 
 	if (length < 0) {
 		error = EINVAL;
