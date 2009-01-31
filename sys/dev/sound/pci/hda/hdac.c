@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090126_0126"
+#define HDA_DRV_TEST_REV	"20090131_0127"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -7106,7 +7106,7 @@ hdac_config_fetch(struct hdac_softc *sc, uint32_t *on, uint32_t *off)
 			    hdac_quirks_tab[k].key, len - inv) != 0)
 				continue;
 			if (len - inv != strlen(hdac_quirks_tab[k].key))
-				break;
+				continue;
 			HDA_BOOTVERBOSE(
 				printf(" %s%s", (inv != 0) ? "no" : "",
 				    hdac_quirks_tab[k].key);
