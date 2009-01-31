@@ -219,10 +219,11 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 					log(LOG_INFO, "%s: RTM_ADD publish "
 					    "(proxy only) is invalid\n",
 					    __func__);
-					RTFREE(rt);
+					if (rt)
+						RTFREE_LOCKED(rt);
 					return EINVAL;
 				}
-				RTFREE(rt);
+				RTFREE_LOCKED(rt);
 
 				flags |= LLE_PROXY;
 			}
