@@ -350,12 +350,9 @@ ip6_forward(struct mbuf *m, int srcrt)
 	if (dst != NULL && rt != NULL)
 		ipsecrt = 1;
     }
-    skip_ipsec:
-#endif /* IPSEC */
-
-#ifdef IPSEC
 	if (ipsecrt)
 		goto skip_routing;
+skip_ipsec:
 #endif
 
 	dst = (struct sockaddr_in6 *)&V_ip6_forward_rt.ro_dst;
