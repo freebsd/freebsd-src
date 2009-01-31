@@ -255,6 +255,8 @@ set(char *t, NODE *ip)
 		case F_TIME:
 			ip->st_mtimespec.tv_sec = strtoul(val, &ep, 10);
 			if (*ep == '.') {
+				/* Note: we require exactly nine
+				 * digits after the decimal point. */
 				val = ep + 1;
 				ip->st_mtimespec.tv_nsec
 				    = strtoul(val, &ep, 10);
