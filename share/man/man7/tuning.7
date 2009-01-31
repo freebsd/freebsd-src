@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2002
+.Dd January 17, 2007
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -742,6 +742,26 @@ must set this value via the kernel
 option
 .Cd maxusers
 instead.
+.Pp
+The
+.Va kern.dfldsiz
+and
+.Va kern.dflssiz
+tunables set the default soft limits for process data and stack size
+respectively.
+Processes may increase these up to the hard limits by calling
+.Xr setrlimit 2 .
+The
+.Va kern.maxdsiz ,
+.Va kern.maxssiz ,
+and
+.Va kern.maxtsiz
+tunables set the hard limits for process data, stack, and text size
+respectively; processes may not exceed these limits.
+The
+.Va kern.sgrowsiz
+tunable controls how much the stack segment will grow when a process
+needs to allocate more stack.
 .Pp
 .Va kern.ipc.nmbclusters
 may be adjusted to increase the number of network mbufs the system is
