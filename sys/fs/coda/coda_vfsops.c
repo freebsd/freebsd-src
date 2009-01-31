@@ -266,7 +266,6 @@ coda_root(struct mount *vfsp, int flags, struct vnode **vpp,
      struct thread *td)
 {
 	struct coda_mntinfo *mi = vftomi(vfsp);
-	struct vnode **result;
 	int error;
 	struct proc *p = td->td_proc;
 	CodaFid VFid;
@@ -274,7 +273,6 @@ coda_root(struct mount *vfsp, int flags, struct vnode **vpp,
 
 	ENTRY;
 	MARK_ENTRY(CODA_ROOT_STATS);
-	result = NULL;
 	if (vfsp == mi->mi_vfsp) {
 		/*
 		 * Cache the root across calls.  We only need to pass the
