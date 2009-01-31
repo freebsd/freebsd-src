@@ -892,7 +892,6 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	struct udf_mnt *udfmp;
 	struct fileid_desc *fid = NULL;
 	struct udf_dirstream *ds;
-	struct thread *td;
 	u_long nameiop;
 	u_long flags;
 	char *nameptr;
@@ -909,7 +908,6 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	nameptr = a->a_cnp->cn_nameptr;
 	namelen = a->a_cnp->cn_namelen;
 	fsize = le64toh(node->fentry->inf_len);
-	td = a->a_cnp->cn_thread;
 
 	/*
 	 * If this is a LOOKUP and we've already partially searched through

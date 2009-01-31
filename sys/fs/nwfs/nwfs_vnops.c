@@ -627,7 +627,6 @@ nwfs_mkdir(ap)
 	struct componentname *cnp = ap->a_cnp;
 	int len=cnp->cn_namelen;
 	struct ncp_open_info no;
-	struct nwnode *np;
 	struct vnode *newvp = (struct vnode *)0;
 	ncpfid fid;
 	int error = 0;
@@ -651,7 +650,6 @@ nwfs_mkdir(ap)
 		fid.f_id = no.fattr.dirEntNum;
 		error = nwfs_nget(VTOVFS(dvp), fid, &no.fattr, dvp, &newvp);
 		if (!error) {
-			np = VTONW(newvp);
 			newvp->v_type = VDIR;
 			*ap->a_vpp = newvp;
 		}
