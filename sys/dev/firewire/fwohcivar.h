@@ -37,12 +37,6 @@
 
 #include <sys/taskqueue.h>
 
-#if defined(__DragonFly__) ||  __FreeBSD_version < 700043
-#define FWOHCI_INTFILT	0
-#else
-#define FWOHCI_INTFILT	1
-#endif
-
 typedef struct fwohci_softc {
 	struct firewire_comm fc;
 	bus_space_tag_t bst;
@@ -84,7 +78,7 @@ typedef struct fwohci_softc {
 } fwohci_softc_t;
 
 void fwohci_intr (void *arg);
-int fwohci_filt (void *arg);
+void fwohci_filt (void *arg);
 int fwohci_init (struct fwohci_softc *, device_t);
 void fwohci_poll (struct firewire_comm *, int, int);
 void fwohci_reset (struct fwohci_softc *, device_t);
