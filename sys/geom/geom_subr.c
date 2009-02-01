@@ -858,14 +858,14 @@ g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val)
 }
 
 int
-g_handleattr_str(struct bio *bp, const char *attribute, char *str)
+g_handleattr_str(struct bio *bp, const char *attribute, const char *str)
 {
 
 	return (g_handleattr(bp, attribute, str, 0));
 }
 
 int
-g_handleattr(struct bio *bp, const char *attribute, void *val, int len)
+g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 {
 	int error = 0;
 
