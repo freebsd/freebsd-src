@@ -473,6 +473,9 @@ udbp_bulk_read_complete(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 	int error;
 
+	if (sc == NULL) {
+		return;
+	}
 	mtx_lock(&sc->sc_mtx);
 
 	m = sc->sc_bulk_in_buffer;
