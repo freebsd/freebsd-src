@@ -37,19 +37,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <time.h>	/* ctime */
 #include <timeconv.h>	/* _long_to_time */
 #include <unistd.h>
 #include <fcntl.h>
 
-#define IPFW_INTERNAL	/* Access to protected structures in ip_fw.h. */
-
 #include <net/ethernet.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-#include <net/pfvar.h>
-#include <net/route.h> /* def. of struct route */
+#include <net/if.h>		/* only IFNAMSIZ */
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
+#include <netinet/in_systm.h>	/* only n_short, n_long */
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
@@ -586,106 +582,6 @@ strtoport(char *s, char **end, int base, int proto)
 }
 
 /*
- * Map between current altq queue id numbers and names.
- */
-static int altq_fetched = 0;
-static TAILQ_HEAD(, pf_altq) altq_entries = 
-	TAILQ_HEAD_INITIALIZER(altq_entries);
-
-static void
-altq_set_enabled(int enabled)
-{
-	int pffd;
-
-	pffd = open("/dev/pf", O_RDWR);
-	if (pffd == -1)
-		err(EX_UNAVAILABLE,
-		    "altq support opening pf(4) control device");
-	if (enabled) {
-		if (ioctl(pffd, DIOCSTARTALTQ) != 0 && errno != EEXIST)
-			err(EX_UNAVAILABLE, "enabling altq");
-	} else {
-		if (ioctl(pffd, DIOCSTOPALTQ) != 0 && errno != ENOENT)
-			err(EX_UNAVAILABLE, "disabling altq");
-	}
-	close(pffd);
-}
-
-static void
-altq_fetch(void)
-{
-	struct pfioc_altq pfioc;
-	struct pf_altq *altq;
-	int pffd;
-	unsigned int mnr;
-
-	if (altq_fetched)
-		return;
-	altq_fetched = 1;
-	pffd = open("/dev/pf", O_RDONLY);
-	if (pffd == -1) {
-		warn("altq support opening pf(4) control device");
-		return;
-	}
-	bzero(&pfioc, sizeof(pfioc));
-	if (ioctl(pffd, DIOCGETALTQS, &pfioc) != 0) {
-		warn("altq support getting queue list");
-		close(pffd);
-		return;
-	}
-	mnr = pfioc.nr;
-	for (pfioc.nr = 0; pfioc.nr < mnr; pfioc.nr++) {
-		if (ioctl(pffd, DIOCGETALTQ, &pfioc) != 0) {
-			if (errno == EBUSY)
-				break;
-			warn("altq support getting queue list");
-			close(pffd);
-			return;
-		}
-		if (pfioc.altq.qid == 0)
-			continue;
-		altq = safe_calloc(1, sizeof(*altq));
-		*altq = pfioc.altq;
-		TAILQ_INSERT_TAIL(&altq_entries, altq, entries);
-	}
-	close(pffd);
-}
-
-static u_int32_t
-altq_name_to_qid(const char *name)
-{
-	struct pf_altq *altq;
-
-	altq_fetch();
-	TAILQ_FOREACH(altq, &altq_entries, entries)
-		if (strcmp(name, altq->qname) == 0)
-			break;
-	if (altq == NULL)
-		errx(EX_DATAERR, "altq has no queue named `%s'", name);
-	return altq->qid;
-}
-
-static const char *
-altq_qid_to_name(u_int32_t qid)
-{
-	struct pf_altq *altq;
-
-	altq_fetch();
-	TAILQ_FOREACH(altq, &altq_entries, entries)
-		if (qid == altq->qid)
-			break;
-	if (altq == NULL)
-		return NULL;
-	return altq->qname;
-}
-
-static void
-fill_altq_qid(u_int32_t *qid, const char *av)
-{
-	*qid = altq_name_to_qid(av);
-}
-
-/*
  * Fill the body of the command with the list of port ranges.
  */
 static int
@@ -1206,13 +1102,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			printf(" log");
 	}
 	if (altqptr) {
-		const char *qname;
-
-		qname = altq_qid_to_name(altqptr->qid);
-		if (qname == NULL)
-			printf(" altq ?<%u>", altqptr->qid);
-		else
-			printf(" altq %s", qname);
+		print_altq_cmd(altqptr);
 	}
 	if (tagptr) {
 		if (tagptr->len & F_NOT)
@@ -2945,7 +2835,7 @@ chkarg:
 			have_altq = (ipfw_insn *)a;
 			cmd->len = F_INSN_SIZE(ipfw_insn_altq);
 			cmd->opcode = O_ALTQ;
-			fill_altq_qid(&a->qid, *av);
+			a->qid = altq_name_to_qid(*av);
 			ac--; av++;
 		    }
 			break;
