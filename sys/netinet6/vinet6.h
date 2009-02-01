@@ -54,7 +54,7 @@ struct vnet_inet6 {
 	u_int				_frag6_nfrags;
 	struct ip6q			_ip6q;
 
-	struct route_in6 		_ip6_forward_rt;
+	struct route_in6 		_ip6_forward_rt;	/* XXX remove */
 
 	struct in6_addrpolicy 		_defaultaddrpolicy;
 	TAILQ_HEAD(, addrsel_policyent) _addrsel_policytab;
@@ -194,7 +194,6 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6_defhlim			VNET_INET6(ip6_defhlim)
 #define	V_ip6_defmcasthlim		VNET_INET6(ip6_defmcasthlim)
 #define	V_ip6_desync_factor		VNET_INET6(ip6_desync_factor)
-#define	V_ip6_forward_rt		VNET_INET6(ip6_forward_rt)
 #define	V_ip6_forwarding		VNET_INET6(ip6_forwarding)
 #define	V_ip6_hdrnestlimit		VNET_INET6(ip6_hdrnestlimit)
 #define	V_ip6_keepfaith			VNET_INET6(ip6_keepfaith)

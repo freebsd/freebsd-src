@@ -751,18 +751,6 @@ frag6_slowtimo(void)
 	}
 	VNET_LIST_RUNLOCK();
 	IP6Q_UNLOCK();
-
-#if 0
-	/*
-	 * Routing changes might produce a better route than we last used;
-	 * make sure we notice eventually, even if forwarding only for one
-	 * destination and the cache is never replaced.
-	 */
-	if (V_ip6_forward_rt.ro_rt) {
-		RTFREE(V_ip6_forward_rt.ro_rt);
-		V_ip6_forward_rt.ro_rt = 0;
-	}
-#endif
 }
 
 /*
