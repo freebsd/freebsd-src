@@ -24,7 +24,6 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
 #include "ipfw2.h"
@@ -43,7 +42,6 @@
 #include <net/if_dl.h>
 #include <net/route.h> /* def. of struct route */
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip_fw.h>
 #include <arpa/inet.h>
 #include <alias.h>

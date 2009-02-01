@@ -219,6 +219,7 @@ int contigmask(uint8_t *p, int len);
  * functions involved, so we do not lose error checking.
  */
 struct _ipfw_insn;
+struct _ipfw_insn_altq;
 struct _ipfw_insn_u32;
 struct _ipfw_insn_ip6;
 struct _ipfw_insn_icmp6;
@@ -242,6 +243,12 @@ void ipfw_delete(int ac, char *av[]);
 void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
+
+/* altq.c */
+void altq_set_enabled(int enabled);
+u_int32_t altq_name_to_qid(const char *name);
+
+void print_altq_cmd(struct _ipfw_insn_altq *altqptr);
 
 /* dummynet.c */
 void ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[]);
