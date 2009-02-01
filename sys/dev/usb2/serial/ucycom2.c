@@ -216,9 +216,6 @@ ucycom_attach(device_t dev)
 	uint16_t urd_len;
 	uint8_t iface_index;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = uaa->device;
 
 	device_set_usb2_desc(dev);

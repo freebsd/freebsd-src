@@ -407,9 +407,6 @@ ufoma_attach(device_t dev)
 	uint8_t elements;
 	int32_t error;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = dev;
 	sc->sc_unit = device_get_unit(dev);

@@ -195,10 +195,6 @@ ohci_pci_attach(device_t self)
 	int rid;
 	int err;
 
-	if (sc == NULL) {
-		device_printf(self, "Could not allocate sc\n");
-		return (ENXIO);
-	}
 	/* initialise some bus fields */
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;

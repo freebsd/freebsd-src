@@ -335,9 +335,6 @@ umoscom_attach(device_t dev)
 	int error;
 	uint8_t iface_index;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = uaa->device;
 	sc->sc_mcr = 0x08;		/* enable interrupts */
 

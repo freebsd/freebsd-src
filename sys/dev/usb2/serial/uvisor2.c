@@ -321,9 +321,6 @@ uvisor_attach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 	bcopy(uvisor_config, uvisor_config_copy,
 	    sizeof(uvisor_config_copy));
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	sc->sc_udev = uaa->device;

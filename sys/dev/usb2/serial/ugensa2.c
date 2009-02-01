@@ -215,9 +215,6 @@ ugensa_attach(device_t dev)
 	uint8_t iface_index;
 	int x, cnt;
 
-	if (sc == NULL)
-		return (ENOMEM);
-
 	device_set_usb2_desc(dev);
 	mtx_init(&sc->sc_mtx, "ugensa", NULL, MTX_DEF);
 
