@@ -649,9 +649,6 @@ uhub_attach(device_t dev)
 	uint8_t iface_index;
 	usb2_error_t err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = udev;
 	sc->sc_dev = dev;
 

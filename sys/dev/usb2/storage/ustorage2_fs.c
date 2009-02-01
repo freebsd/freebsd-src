@@ -318,9 +318,6 @@ ustorage_fs_attach(device_t dev)
 	struct usb2_interface_descriptor *id;
 	int err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	/*
 	 * NOTE: the softc struct is bzero-ed in device_set_driver.
 	 * We can safely call ustorage_fs_detach without specifically

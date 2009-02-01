@@ -320,9 +320,6 @@ udbp_attach(device_t dev)
 	struct udbp_softc *sc = device_get_softc(dev);
 	int error;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
@@ -476,9 +473,6 @@ udbp_bulk_read_complete(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 	int error;
 
-	if (sc == NULL) {
-		return;
-	}
 	mtx_lock(&sc->sc_mtx);
 
 	m = sc->sc_bulk_in_buffer;

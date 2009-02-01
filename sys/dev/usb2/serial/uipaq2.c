@@ -1129,9 +1129,6 @@ uipaq_attach(device_t dev)
 	uint8_t iface_index;
 	uint8_t i;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = uaa->device;
 
 	device_set_usb2_desc(dev);

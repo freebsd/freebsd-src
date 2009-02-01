@@ -273,9 +273,6 @@ umct_attach(device_t dev)
 	uint16_t maxp;
 	uint8_t iface_index;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = uaa->device;
 	sc->sc_unit = device_get_unit(dev);
 
