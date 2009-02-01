@@ -493,6 +493,7 @@ END_DEBUG
 			/* lost device */
 			sbp_cam_detach_sdev(sdev);
 			sbp_free_sdev(sdev);
+			target->luns[lun] = NULL;
 		}
 	}
 
@@ -781,7 +782,9 @@ END_DEBUG
 					SBP_UNLOCK(sbp);
 				}
 				sdev->status = SBP_DEV_RETRY;
-				sbp_abort_all_ocbs(sdev, CAM_SCSI_BUS_RESET);
+				sbp_cam_detach_sdev(sdev);
+				sbp_free_sdev(sdev);
+				target->luns[i] = NULL;
 				break;
 			case SBP_DEV_PROBE:
 			case SBP_DEV_TOATTACH:
@@ -1255,11 +1258,18 @@ END_DEBUG
 		htonl(((sdev->target->sbp->fd.fc->nodeid | FWLOCALBUS )<< 16));
 	xfer->send.payload[1] = htonl((uint32_t)ocb->bus_addr);
 
+	/*
+	 * sbp_xfer_free() will attempt to acquire
+	 * the SBP lock on entrance.  Also, this removes
+	 * a LOR between the firewire layer and sbp
+	 */
+	SBP_UNLOCK(sdev->target->sbp);
 	if(fw_asyreq(xfer->fc, -1, xfer) != 0){
 			sbp_xfer_free(xfer);
 			ocb->ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ocb->ccb);
 	}
+	SBP_LOCK(sdev->target->sbp);
 }
 
 static void
@@ -2123,6 +2133,7 @@ sbp_free_sdev(struct sbp_dev *sdev)
 		    sdev->ocb[i].dmamap);
 	fwdma_free(sdev->target->sbp->fd.fc, &sdev->dma);
 	free(sdev, M_SBP);
+	sdev = NULL;
 }
 
 static void
