@@ -395,12 +395,12 @@ find11gchannel(struct ieee80211com *ic, int i, int freq)
 	 */
 	for (j = i+1; j < ic->ic_nchans; j++) {
 		c = &ic->ic_channels[j];
-		if (c->ic_freq == freq && IEEE80211_IS_CHAN_ANYG(c))
+		if (c->ic_freq == freq && IEEE80211_IS_CHAN_G(c))
 			return c;
 	}
 	for (j = 0; j < i; j++) {
 		c = &ic->ic_channels[j];
-		if (c->ic_freq == freq && IEEE80211_IS_CHAN_ANYG(c))
+		if (c->ic_freq == freq && IEEE80211_IS_CHAN_G(c))
 			return c;
 	}
 	return NULL;
