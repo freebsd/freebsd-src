@@ -24,7 +24,8 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
+#include <sys/queue.h>
+/* XXX there are several sysctl leftover here */
 #include <sys/sysctl.h>
 
 #include "ipfw2.h"
@@ -38,12 +39,11 @@
 #include <sysexits.h>
 
 #include <net/if.h>
+#include <net/if.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
-#include <arpa/inet.h>
+#include <arpa/inet.h>	/* inet_ntoa */
 
 static struct _s_x dummynet_params[] = {
 	{ "plr",		TOK_PLR },
