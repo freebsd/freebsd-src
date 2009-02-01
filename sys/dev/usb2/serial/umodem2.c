@@ -322,9 +322,6 @@ umodem_attach(device_t dev)
 	uint8_t i;
 	int error;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	sc->sc_ctrl_iface_no = uaa->info.bIfaceNum;

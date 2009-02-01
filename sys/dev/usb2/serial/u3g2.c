@@ -391,9 +391,6 @@ u3g_attach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	/* copy in USB config */
 	for (n = 0; n != U3G_N_TRANSFER; n++) 
 		u3g_config_tmp[n] = u3g_config[n];

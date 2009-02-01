@@ -461,9 +461,6 @@ rum_attach(device_t dev)
 	int error;
 	uint8_t iface_index;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "rum lock", MTX_NETWORK_LOCK,

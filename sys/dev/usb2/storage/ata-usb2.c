@@ -328,9 +328,6 @@ atausb2_attach(device_t dev)
 	uint8_t has_intr;
 	int err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	sc->dev = dev;

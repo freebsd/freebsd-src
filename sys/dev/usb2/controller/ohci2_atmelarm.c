@@ -69,9 +69,6 @@ ohci_atmelarm_attach(device_t dev)
 	int err;
 	int rid;
 
-	if (sc == NULL) {
-		return (ENXIO);
-	}
 	/* initialise some bus fields */
 	sc->sc_ohci.sc_bus.parent = dev;
 	sc->sc_ohci.sc_bus.devices = sc->sc_ohci.sc_devices;

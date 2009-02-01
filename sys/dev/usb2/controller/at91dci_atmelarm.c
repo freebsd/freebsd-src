@@ -131,9 +131,6 @@ at91_udp_attach(device_t dev)
 	int err;
 	int rid;
 
-	if (sc == NULL) {
-		return (ENXIO);
-	}
 	/* setup AT9100 USB device controller interface softc */
 
 	sc->sc_dci.sc_clocks_on = &at91_udp_clocks_on;

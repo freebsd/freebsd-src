@@ -660,9 +660,6 @@ uhid_attach(device_t dev)
 
 	DPRINTFN(10, "sc=%p\n", sc);
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "uhid lock", NULL, MTX_DEF | MTX_RECURSE);

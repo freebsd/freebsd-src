@@ -1069,9 +1069,6 @@ zyd_attach(device_t dev)
 	int error;
 	uint8_t iface_index;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	if (uaa->info.bcdDevice < 0x4330) {
 		device_printf(dev, "device version mismatch: 0x%X "
 		    "(only >= 43.30 supported)\n",

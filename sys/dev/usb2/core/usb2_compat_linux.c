@@ -246,9 +246,6 @@ usb_linux_attach(device_t dev)
 	struct usb_device *p_dev;
 	const struct usb_device_id *id = NULL;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	mtx_lock(&Giant);
 	LIST_FOREACH(udrv, &usb_linux_driver_list, linux_driver_list) {
 		id = usb_linux_lookup_id(udrv->id_table, uaa);
