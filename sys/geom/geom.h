@@ -227,10 +227,11 @@ void g_error_provider(struct g_provider *pp, int error);
 struct g_provider *g_provider_by_name(char const *arg);
 int g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len);
 #define g_getattr(a, c, v) g_getattr__((a), (c), (v), sizeof *(v))
-int g_handleattr(struct bio *bp, const char *attribute, void *val, int len);
+int g_handleattr(struct bio *bp, const char *attribute, const void *val,
+    int len);
 int g_handleattr_int(struct bio *bp, const char *attribute, int val);
 int g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val);
-int g_handleattr_str(struct bio *bp, const char *attribute, char *str);
+int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...);
 struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...);
