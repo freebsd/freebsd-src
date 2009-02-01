@@ -90,11 +90,7 @@ musbotg_attach(device_t dev)
 	int err;
 	int rid;
 
-	if (sc == NULL) {
-		return (ENXIO);
-	}
 	/* setup MUSB OTG USB controller interface softc */
-
 	sc->sc_otg.sc_clocks_on = &musbotg_clocks_on;
 	sc->sc_otg.sc_clocks_off = &musbotg_clocks_off;
 	sc->sc_otg.sc_clocks_arg = sc;

@@ -256,9 +256,6 @@ ubser_attach(device_t dev)
 	uint8_t n;
 	int error;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",

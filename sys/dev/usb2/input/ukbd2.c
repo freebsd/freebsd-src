@@ -625,9 +625,6 @@ ukbd_attach(device_t dev)
 	usb2_error_t err;
 	uint16_t n;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	mtx_assert(&Giant, MA_OWNED);
 
 	kbd_init_struct(kbd, UKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);

@@ -562,9 +562,6 @@ uaudio_attach(device_t dev)
 	struct usb2_interface_descriptor *id;
 	device_t child;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_play_chan.priv_sc = sc;
 	sc->sc_rec_chan.priv_sc = sc;
 	sc->sc_udev = uaa->device;

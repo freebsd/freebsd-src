@@ -1444,9 +1444,6 @@ umass_attach(device_t dev)
 	struct usb2_interface_descriptor *id;
 	int32_t err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	if (device_get_unit(dev) >= UMASS_MAXUNIT) {
 		device_printf(dev, "Maxunit(%u) limit reached!\n",
 		    UMASS_MAXUNIT);

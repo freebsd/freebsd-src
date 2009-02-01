@@ -134,10 +134,6 @@ uss820_atmelarm_attach(device_t dev)
 	int err;
 	int rid;
 
-	if (sc == NULL) {
-		return (ENXIO);
-	}
-
 	/* initialise some bus fields */
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;

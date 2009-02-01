@@ -371,9 +371,6 @@ uplcom_attach(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	DPRINTF("sc = %p\n", sc);
