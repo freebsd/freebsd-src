@@ -143,8 +143,6 @@ extern int icmp6errppslim;
 extern int icmp6_nodeinfo;
 extern int udp6_sendspace;
 extern int udp6_recvspace;
-
-extern struct	route_in6 ip6_forward_rt;
 #endif
 
 struct pfil_head inet6_pfil_hook;
@@ -309,10 +307,12 @@ ip6_input(struct mbuf *m)
 	int nxt, ours = 0;
 	struct ifnet *deliverifp = NULL, *ifp = NULL;
 	struct in6_addr odst;
+	struct route_in6 rin6;
 	int srcrt = 0;
 	struct llentry *lle = NULL;
-	struct sockaddr_in6 dst6;
+	struct sockaddr_in6 dst6, *dst;
 
+	bzero(&rin6, sizeof(struct route_in6));
 #ifdef IPSEC
 	/*
 	 * should the inner packet be considered authentic?
@@ -565,29 +565,13 @@ passin:
 	if (lle != NULL)
 		LLE_RUNLOCK(lle);
 
-	if (V_ip6_forward_rt.ro_rt != NULL &&
-	    (V_ip6_forward_rt.ro_rt->rt_flags & RTF_UP) != 0 &&
-	    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
-	    &((struct sockaddr_in6 *)(&V_ip6_forward_rt.ro_dst))->sin6_addr))
-		V_ip6stat.ip6s_forward_cachehit++;
-	else {
-		struct sockaddr_in6 *dst6;
-
-		if (V_ip6_forward_rt.ro_rt) {
-			/* route is down or destination is different */
-			V_ip6stat.ip6s_forward_cachemiss++;
-			RTFREE(V_ip6_forward_rt.ro_rt);
-			V_ip6_forward_rt.ro_rt = 0;
-		}
-
-		bzero(&V_ip6_forward_rt.ro_dst, sizeof(struct sockaddr_in6));
-		dst6 = (struct sockaddr_in6 *)&V_ip6_forward_rt.ro_dst;
-		dst6->sin6_len = sizeof(struct sockaddr_in6);
-		dst6->sin6_family = AF_INET6;
-		dst6->sin6_addr = ip6->ip6_dst;
-
-		rtalloc((struct route *)&V_ip6_forward_rt);
-	}
+	dst = &rin6.ro_dst;
+	dst->sin6_len = sizeof(struct sockaddr_in6);
+	dst->sin6_family = AF_INET6;
+	dst->sin6_addr = ip6->ip6_dst;
+	rin6.ro_rt = rtalloc1((struct sockaddr *)dst, 0, 0);
+	if (rin6.ro_rt)
+		RT_UNLOCK(rin6.ro_rt);
 
 #define rt6_key(r) ((struct sockaddr_in6 *)((r)->rt_nodes->rn_key))
 
@@ -611,14 +595,14 @@ passin:
 	 * while it would be less efficient.  Or, should we rather install a
 	 * reject route for such a case?
 	 */
-	if (V_ip6_forward_rt.ro_rt &&
-	    (V_ip6_forward_rt.ro_rt->rt_flags &
+	if (rin6.ro_rt &&
+	    (rin6.ro_rt->rt_flags &
 	     (RTF_HOST|RTF_GATEWAY)) == RTF_HOST &&
 #ifdef RTF_WASCLONED
-	    !(V_ip6_forward_rt.ro_rt->rt_flags & RTF_WASCLONED) &&
+	    !(rin6.ro_rt->rt_flags & RTF_WASCLONED) &&
 #endif
 #ifdef RTF_CLONED
-	    !(V_ip6_forward_rt.ro_rt->rt_flags & RTF_CLONED) &&
+	    !(rin6.ro_rt->rt_flags & RTF_CLONED) &&
 #endif
 #if 0
 	    /*
@@ -627,11 +611,11 @@ passin:
 	     * already done through looking up the routing table.
 	     */
 	    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
-	    &rt6_key(V_ip6_forward_rt.ro_rt)->sin6_addr)
+	    &rt6_key(rin6.ro_rt)->sin6_addr)
 #endif
-	    V_ip6_forward_rt.ro_rt->rt_ifp->if_type == IFT_LOOP) {
+	    rin6.ro_rt->rt_ifp->if_type == IFT_LOOP) {
 		struct in6_ifaddr *ia6 =
-			(struct in6_ifaddr *)V_ip6_forward_rt.ro_rt->rt_ifa;
+			(struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
 
 		/*
 		 * record address information into m_tag.
@@ -667,11 +651,11 @@ passin:
 	 * FAITH (Firewall Aided Internet Translator)
 	 */
 	if (V_ip6_keepfaith) {
-		if (V_ip6_forward_rt.ro_rt && V_ip6_forward_rt.ro_rt->rt_ifp
-		 && V_ip6_forward_rt.ro_rt->rt_ifp->if_type == IFT_FAITH) {
+		if (rin6.ro_rt && rin6.ro_rt->rt_ifp &&
+		    rin6.ro_rt->rt_ifp->if_type == IFT_FAITH) {
 			/* XXX do we need more sanity checks? */
 			ours = 1;
-			deliverifp = V_ip6_forward_rt.ro_rt->rt_ifp; /* faith */
+			deliverifp = rin6.ro_rt->rt_ifp; /* faith */
 			goto hbhcheck;
 		}
 	}
@@ -721,7 +705,7 @@ passin:
 #if 0	/*touches NULL pointer*/
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
 #endif
-			return;	/* m have already been freed */
+			goto out;	/* m have already been freed */
 		}
 
 		/* adjust pointer */
@@ -744,7 +728,7 @@ passin:
 			icmp6_error(m, ICMP6_PARAM_PROB,
 				    ICMP6_PARAMPROB_HEADER,
 				    (caddr_t)&ip6->ip6_plen - (caddr_t)ip6);
-			return;
+			goto out;
 		}
 #ifndef PULLDOWN_TEST
 		/* ip6_hopopts_input() ensures that mbuf is contiguous */
@@ -754,7 +738,7 @@ passin:
 			sizeof(struct ip6_hbh));
 		if (hbh == NULL) {
 			V_ip6stat.ip6s_tooshort++;
-			return;
+			goto out;
 		}
 #endif
 		nxt = hbh->ip6h_nxt;
@@ -816,16 +800,13 @@ passin:
 		if (ip6_mrouter && ip6_mforward &&
 		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
 			V_ip6stat.ip6s_cantforward++;
-			m_freem(m);
-			return;
+			goto bad;
 		}
-		if (!ours) {
-			m_freem(m);
-			return;
-		}
+		if (!ours)
+			goto bad;
 	} else if (!ours) {
 		ip6_forward(m, srcrt);
-		return;
+		goto out;
 	}
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -880,9 +861,12 @@ passin:
 #endif /* IPSEC */
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
-	return;
- bad:
+	goto out;
+bad:
 	m_freem(m);
+out:
+	if (rin6.ro_rt)
+		RTFREE(rin6.ro_rt);
 }
 
 /*

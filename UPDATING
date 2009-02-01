@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090201:
+	INET6 statistics (struct ip6stat) was updated.
+	netstat(1) needs to be recompiled.
+
 20090119:
 	NTFS has been removed from GENERIC kernel on amd64 to match
 	GENERIC on i386. Should not cause any issues since mount_ntfs(8)

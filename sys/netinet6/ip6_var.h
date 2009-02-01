@@ -229,9 +229,6 @@ struct	ip6stat {
 	/* number of times that a deprecated address is chosen */
 	u_quad_t ip6s_sources_deprecated[16];
 
-	u_quad_t ip6s_forward_cachehit;
-	u_quad_t ip6s_forward_cachemiss;
-
 	/* number of times that each rule of source selection is applied. */
 	u_quad_t ip6s_sources_rule[16];
 };
