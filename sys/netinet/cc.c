@@ -59,9 +59,6 @@ struct cc_head cc_list = STAILQ_HEAD_INITIALIZER(cc_list);
 
 struct rwlock cc_list_lock;
 
-MALLOC_DECLARE(M_STRING);
-MALLOC_DEFINE(M_STRING, "string", "a string");
-
 /* create a struct to point to our newreno functions */
 struct cc_algo newreno_cc_algo = {
 	.name = "newreno",
@@ -248,7 +245,6 @@ cc_register_algorithm(struct cc_algo *add_cc)
 int
 newreno_init(struct tcpcb *tp)
 {
-	printf("initialising tcp connection with newreno congestion control\n");
 	return 0;
 }
 
@@ -349,10 +345,10 @@ newreno_ack_received(struct tcpcb *tp, struct tcphdr *th)
 /*
  * update the value of ssthresh before entering FR
  */
-void 
+void
 newreno_pre_fr(struct tcpcb *tp, struct tcphdr *th)
 {
-  newreno_ssthresh_update(tp);
+	newreno_ssthresh_update(tp);
 }
 
 /*
@@ -360,7 +356,7 @@ newreno_pre_fr(struct tcpcb *tp, struct tcphdr *th)
  * th can be null, in which case cwnd will be set according to reno instead
  * of new reno.
  */
-void 
+void
 newreno_post_fr(struct tcpcb *tp, struct tcphdr *th)
 {
 	/*
