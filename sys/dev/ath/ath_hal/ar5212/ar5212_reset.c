@@ -954,7 +954,7 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 	int32_t qCoff, qCoffDenom;
 	int32_t iqCorrMeas, iCoff, iCoffDenom;
 	uint32_t powerMeasQ, powerMeasI;
-	HAL_BOOL isBmode;
+	HAL_BOOL isBmode = AH_FALSE;
 
 	OS_MARK(ah, AH_MARK_PERCAL, chan->ic_freq);
 	*isCalDone = AH_FALSE;
