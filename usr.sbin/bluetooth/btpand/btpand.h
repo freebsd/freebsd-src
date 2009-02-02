@@ -51,6 +51,10 @@
 #define	L2CAP_PSM_INVALID(psm)	(((psm) & 0x0101) != 0x0001)
 #endif
 
+#ifndef	L2CAP_PSM_BNEP
+#define	L2CAP_PSM_BNEP	15
+#endif
+
 typedef struct channel	channel_t;
 typedef struct pfilter	pfilter_t;
 typedef struct mfilter	mfilter_t;
