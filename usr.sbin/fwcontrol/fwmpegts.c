@@ -195,10 +195,9 @@ mpegtsrecv(int d, const char *filename, char ich, int count)
 		if (len < 0) {
 			if (errno == EAGAIN) {
 				fprintf(stderr, "(EAGAIN) - push 'Play'?\n");
-				if (len <= 0)
-					continue;
-			} else
-				err(1, "read failed");
+				continue;
+			}
+			err(1, "read failed");
 		}
 		ptr = (uint32_t *) buf;
 
