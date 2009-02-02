@@ -372,6 +372,7 @@ rearg:
 	optind = 1;	/* since we're called more than once */
 	optreset = 1;
 #define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nQpqrstvx:"
+#define OPTFLAGS "ABC:D:d:E:ef:I:ij:km:nPpQqrSstV:vXx:"
 	for (;;) {
 		if ((optind < argc) && strcmp(argv[optind], "--") == 0) {
 			found_dd = TRUE;
@@ -385,6 +386,11 @@ rearg:
 			arch_fatal = FALSE;
 			MFLAGS_append("-A", NULL);
 			break;
+		case 'B':
+			compatMake = TRUE;
+			MFLAGS_append("-B", NULL);
+			unsetenv("MAKE_JOBS_FIFO");
+			break;
 		case 'C':
 			if (chdir(optarg) == -1)
 				err(1, "chdir %s", optarg);
@@ -392,30 +398,6 @@ rearg:
 		case 'D':
 			Var_SetGlobal(optarg, "1");
 			MFLAGS_append("-D", optarg);
-			break;
-		case 'I':
-			Parse_AddIncludeDir(optarg);
-			MFLAGS_append("-I", optarg);
-			break;
-		case 'V':
-			Lst_AtEnd(&variables, estrdup(optarg));
-			MFLAGS_append("-V", optarg);
-			break;
-		case 'X':
-			expandVars = FALSE;
-			break;
-		case 'B':
-			compatMake = TRUE;
-			MFLAGS_append("-B", NULL);
-			unsetenv("MAKE_JOBS_FIFO");
-			break;
-		case 'P':
-			usePipes = FALSE;
-			MFLAGS_append("-P", NULL);
-			break;
-		case 'S':
-			keepgoing = FALSE;
-			MFLAGS_append("-S", NULL);
 			break;
 		case 'd': {
 			char *modules = optarg;
@@ -484,6 +466,10 @@ rearg:
 		case 'f':
 			Lst_AtEnd(&makefiles, estrdup(optarg));
 			break;
+		case 'I':
+			Parse_AddIncludeDir(optarg);
+			MFLAGS_append("-I", optarg);
+			break;
 		case 'i':
 			ignoreErrors = TRUE;
 			MFLAGS_append("-i", NULL);
@@ -513,6 +499,10 @@ rearg:
 			noExecute = TRUE;
 			MFLAGS_append("-n", NULL);
 			break;
+		case 'P':
+			usePipes = FALSE;
+			MFLAGS_append("-P", NULL);
+			break;
 		case 'p':
 			printGraphOnly = TRUE;
 			debug |= DEBUG_GRAPH1;
@@ -531,6 +521,10 @@ rearg:
 			noBuiltins = TRUE;
 			MFLAGS_append("-r", NULL);
 			break;
+		case 'S':
+			keepgoing = FALSE;
+			MFLAGS_append("-S", NULL);
+			break;
 		case 's':
 			beSilent = TRUE;
 			MFLAGS_append("-s", NULL);
@@ -539,10 +533,17 @@ rearg:
 			touchFlag = TRUE;
 			MFLAGS_append("-t", NULL);
 			break;
+		case 'V':
+			Lst_AtEnd(&variables, estrdup(optarg));
+			MFLAGS_append("-V", optarg);
+			break;
 		case 'v':
 			beVerbose = TRUE;
 			beQuiet = FALSE;
 			MFLAGS_append("-v", NULL);
+			break;
+		case 'X':
+			expandVars = FALSE;
 			break;
 		case 'x':
 			if (Main_ParseWarn(optarg, 1) != -1)
