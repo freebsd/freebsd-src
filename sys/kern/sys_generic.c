@@ -903,7 +903,7 @@ static int select_flags[3] = {
  * bit position in the fd_mask array.
  */
 static __inline int
-selflags(fd_mask **ibits, int idx, int bit)
+selflags(fd_mask **ibits, int idx, fd_mask bit)
 {
 	int flags;
 	int msk;
@@ -912,7 +912,7 @@ selflags(fd_mask **ibits, int idx, int bit)
 	for (msk = 0; msk < 3; msk++) {
 		if (ibits[msk] == NULL)
 			continue;
-		if ((ibits[msk][idx] & (fd_mask)bit) == 0)
+		if ((ibits[msk][idx] & bit) == 0)
 			continue;
 		flags |= select_flags[msk];
 	}
