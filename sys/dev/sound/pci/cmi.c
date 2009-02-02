@@ -58,6 +58,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define CMI8338B_PCI_ID   0x010113f6
 #define CMI8738_PCI_ID    0x011113f6
 #define CMI8738B_PCI_ID   0x011213f6
+#define CMI120_USB_ID     0x01030d8c
 
 /* Buffer size max is 64k for permitted DMA boundaries */
 #define CMI_DEFAULT_BUFSZ      16384
@@ -822,6 +823,9 @@ cmi_probe(device_t dev)
 	case CMI8738B_PCI_ID:
 		device_set_desc(dev, "CMedia CMI8738B");
 		return BUS_PROBE_DEFAULT;
+	case CMI120_USB_ID:
+	        device_set_desc(dev, "CMedia CMI120");
+	        return BUS_PROBE_DEFAULT;
 	default:
 		return ENXIO;
 	}
