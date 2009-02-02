@@ -143,7 +143,7 @@ cardbus_device_setup_regs(pcicfgregs *cfg)
 	 * Some cards power up with garbage in their BARs.  This
 	 * code clears all that junk out.
 	 */
-	for (i = 0; i < PCI_MAX_BAR_0; i++)
+	for (i = 0; i < PCIR_MAX_BAR_0; i++)
 		pci_write_config(dev, PCIR_BAR(i), 0, 4);
 
 	cfg->intline =
