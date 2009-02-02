@@ -2733,7 +2733,10 @@ chkarg:
 		action->opcode = O_FORWARD_IP;
 		action->len = F_INSN_SIZE(ipfw_insn_sa);
 
-		p->sa.sin_len = sizeof(struct sockaddr_in);
+		/*
+		 * In the kernel we assume AF_INET and use only
+		 * sin_port and sin_addr.
+		 */
 		p->sa.sin_family = AF_INET;
 		p->sa.sin_port = 0;
 		/*
