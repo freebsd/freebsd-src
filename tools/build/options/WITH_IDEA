@@ -1,6 +1,0 @@
-.\" $FreeBSD$
-Set to build the IDEA encryption code.
-This code is patented in the USA and many European countries.
-It is
-.Em "YOUR RESPONSIBILITY"
-to determine if you can legally use IDEA.

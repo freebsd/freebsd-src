@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-WITHOUT_SSP=

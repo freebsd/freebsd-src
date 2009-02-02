@@ -1,7 +1,0 @@
-
-#------------------------------------------------------------------------------
-# graphviz:  file(1) magic for http://www.graphviz.org/
-0	regex/100	[\r\n\t\ ]*graph[\r\n\t\ ]*.*\\{	graphviz graph text
-!:mime	text/vnd.graphviz
-0	regex/100	[\r\n\t\ ]*digraph[\r\n\t\ ]*.*\\{	graphviz digraph text
-!:mime	text/vnd.graphviz

@@ -1,6 +1,0 @@
-# $FreeBSD$
-set -e
-
-unalias -a
-alias foo=bar
-alias
