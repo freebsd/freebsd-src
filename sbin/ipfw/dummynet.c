@@ -39,7 +39,6 @@
 #include <sysexits.h>
 
 #include <net/if.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
