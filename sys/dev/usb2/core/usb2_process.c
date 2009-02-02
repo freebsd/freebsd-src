@@ -184,11 +184,11 @@ usb2_proc_setup(struct usb2_process *up, struct mtx *p_mtx, uint8_t prio)
 
 	TAILQ_INIT(&up->up_qhead);
 
-	usb2_cv_init(&up->up_cv, "WMSG");
-	usb2_cv_init(&up->up_drain, "DMSG");
+	usb2_cv_init(&up->up_cv, "wmsg");
+	usb2_cv_init(&up->up_drain, "dmsg");
 
 	if (USB_THREAD_CREATE(&usb2_process, up,
-	    &up->up_ptr, "USBPROC")) {
+	    &up->up_ptr, "usbproc")) {
 		DPRINTFN(0, "Unable to create USB process.");
 		up->up_ptr = NULL;
 		goto error;
