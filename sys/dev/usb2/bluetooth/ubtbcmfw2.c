@@ -385,8 +385,8 @@ ubtbcmfw_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	else if (fflags & FWRITE)
 		xfer = sc->sc_xfer[UBTBCMFW_BULK_DT_WR];
 	else
-		return (EINVAL);	/* XXX can happen? */
-		
+		return (EINVAL);	/* should not happen */
+
 	if (usb2_fifo_alloc_buffer(fifo, xfer->max_data_length,
 			UBTBCMFW_IFQ_MAXLEN) != 0)
 		return (ENOMEM);
