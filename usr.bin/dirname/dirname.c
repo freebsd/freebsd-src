@@ -66,12 +66,15 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1)
+	if (argc < 1)
 		usage();
 
-	if ((p = dirname(*argv)) == NULL)
-		err(1, "%s", *argv);
-	(void)printf("%s\n", p);
+	while (argc--) {
+		if ((p = dirname(*argv)) == NULL)
+			err(1, "%s", *argv);
+		argv++;
+		(void)printf("%s\n", p);
+	}
 	exit(0);
 }
 
@@ -79,6 +82,6 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: dirname string\n");
+	(void)fprintf(stderr, "usage: dirname string [...]\n");
 	exit(1);
 }
