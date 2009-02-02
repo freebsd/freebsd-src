@@ -152,15 +152,16 @@ fifolog_write_open(struct fifolog_writer *f, const char *fn, unsigned writerate,
 	es = fifolog_int_findend(f->ff, &o);
 	if (es != NULL)
 		return (es);
-	if (o == 0) {
-		f->seq = 0;
-		f->recno = 0;
+	i = fifolog_int_read(f->ff, o);
+	if (i)
+		return ("Read error, looking for seq");
+	f->seq = be32dec(f->ff->recbuf);
+	if (f->seq == 0) {
+		/* Empty fifolog */
+		f->seq = random();
 	} else {
-		i = fifolog_int_read(f->ff, o);
-		if (i)
-			return ("Read error, looking for seq");
-		f->seq = be32dec(f->ff->recbuf) + 1;
 		f->recno = o + 1;
+		f->seq++;
 	}
 
 	f->ibufsize = 32768;
