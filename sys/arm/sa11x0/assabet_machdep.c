@@ -210,12 +210,10 @@ initarm(void *arg, void *arg2)
 	struct pv_addr	md_addr;
 	struct pv_addr	md_bla;
 	int loop;
-	u_int kerneldatasize, symbolsize;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t lastalloced;
 	vm_offset_t lastaddr;
-	vm_size_t pt_size;
 	uint32_t memsize = 32 * 1024 * 1024;
 	sa1110_uart_vaddr = SACOM1_VBASE;
 
@@ -232,8 +230,6 @@ initarm(void *arg, void *arg2)
 	physical_end =  lastaddr;
 	physical_freestart = (((vm_offset_t)physical_end) + PAGE_MASK) & ~PAGE_MASK;
 	md_addr.pv_va = md_addr.pv_pa = MDROOT_ADDR;
-	kerneldatasize = (u_int32_t)&end - (u_int32_t)KERNVIRTADDR;
-	symbolsize = 0;
 	freemempos = (vm_offset_t)round_page(physical_freestart);
 	memset((void *)freemempos, 0, 256*1024);
 		/* Define a macro to simplify memory allocation */
@@ -272,7 +268,6 @@ initarm(void *arg, void *arg2)
 	 * This page will just contain the system vectors and can be
 	 * shared by all processes.
 	 */
-	pt_size = round_page(freemempos) - physical_freestart;
 
 	/* Allocate stacks for all modes */
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
