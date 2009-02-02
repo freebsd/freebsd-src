@@ -1234,11 +1234,12 @@ xennet_get_responses(struct netfront_info *np,
 		gnttab_release_grant_reference(&np->gref_rx_head, ref);
 
 next:
-		if (m != NULL) {
-				m->m_len = rx->status;
-				m->m_data += rx->offset;
-				m0->m_pkthdr.len += rx->status;
-		}
+		if (m == NULL)
+			break;
+		
+		m->m_len = rx->status;
+		m->m_data += rx->offset;
+		m0->m_pkthdr.len += rx->status;
 		
 		if (!(rx->flags & NETRXF_more_data))
 			break;
