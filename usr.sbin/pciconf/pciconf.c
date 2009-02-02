@@ -37,6 +37,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -66,7 +67,8 @@ struct pci_vendor_info
 
 TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
-static void list_devs(int verbose, int caps);
+static void list_bars(int fd, struct pci_conf *p);
+static void list_devs(int verbose, int bars, int caps);
 static void list_verbose(struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
 static const char *guess_subclass(struct pci_conf *p);
@@ -81,7 +83,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-cv]",
+		"usage: pciconf -l [-bcv]",
 		"       pciconf -a selector",
 		"       pciconf -r [-b | -h] selector addr[:addr2]",
 		"       pciconf -w [-b | -h] selector addr value");
@@ -92,10 +94,10 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int listmode, readmode, writemode, attachedmode, caps, verbose;
+	int listmode, readmode, writemode, attachedmode, bars, caps, verbose;
 	int byte, isshort;
 
-	listmode = readmode = writemode = attachedmode = caps = verbose = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = bars = caps = verbose = byte = isshort = 0;
 
 	while ((c = getopt(argc, argv, "abchlrwv")) != -1) {
 		switch(c) {
@@ -104,6 +106,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'b':
+			bars = 1;
 			byte = 1;
 			break;
 
@@ -143,7 +146,7 @@ main(int argc, char **argv)
 		usage();
 
 	if (listmode) {
-		list_devs(verbose, caps);
+		list_devs(verbose, bars, caps);
 	} else if (attachedmode) {
 		chkattached(argv[optind],
 		    byte ? 1 : isshort ? 2 : 4);
@@ -161,7 +164,7 @@ main(int argc, char **argv)
 }
 
 static void
-list_devs(int verbose, int caps)
+list_devs(int verbose, int bars, int caps)
 {
 	int fd;
 	struct pci_conf_io pc;
@@ -217,12 +220,72 @@ list_devs(int verbose, int caps)
 			    p->pc_revid, p->pc_hdr);
 			if (verbose)
 				list_verbose(p);
+			if (bars)
+				list_bars(fd, p);
 			if (caps)
 				list_caps(fd, p);
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
 	close(fd);
+}
+
+static void
+list_bars(int fd, struct pci_conf *p)
+{
+	struct pci_bar_io bar;
+	uint64_t base;
+	const char *type;
+	int i, range, max;
+
+	switch (p->pc_hdr & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_NORMAL:
+		max = PCIR_MAX_BAR_0;
+		break;
+	case PCIM_HDRTYPE_BRIDGE:
+		max = PCIR_MAX_BAR_1;
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		max = PCIR_MAX_BAR_2;
+		break;
+	default:
+		return;
+	}
+
+	for (i = 0; i <= max; i++) {
+		bar.pbi_sel = p->pc_sel;
+		bar.pbi_reg = PCIR_BAR(i);
+		if (ioctl(fd, PCIOCGETBAR, &bar) < 0)
+			continue;
+		if (PCI_BAR_IO(bar.pbi_base)) {
+			type = "I/O Port";
+			range = 32;
+			base = bar.pbi_base & PCIM_BAR_IO_BASE;
+		} else {
+			if (bar.pbi_base & PCIM_BAR_MEM_PREFETCH)
+				type = "Prefetchable Memory";
+			else
+				type = "Memory";
+			switch (bar.pbi_base & PCIM_BAR_MEM_TYPE) {
+			case PCIM_BAR_MEM_32:
+				range = 32;
+				break;
+			case PCIM_BAR_MEM_1MB:
+				range = 20;
+				break;
+			case PCIM_BAR_MEM_64:
+				range = 64;
+				break;
+			default:
+				range = -1;
+			}
+			base = bar.pbi_base & ~((uint64_t)0xf);
+		}
+		printf("    bar   [%02x] = type %s, range %2d, base %#jx, ",
+		    PCIR_BAR(i), type, range, (uintmax_t)base);
+		printf("size %2d, %s\n", (int)bar.pbi_length,
+		    bar.pbi_enabled ? "enabled" : "disabled");
+	}
 }
 
 static void
