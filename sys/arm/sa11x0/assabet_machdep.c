@@ -261,13 +261,12 @@ initarm(void *arg, void *arg2)
 		}
 	}
 
-	valloc_pages(systempage, 1);
-
 	/*
 	 * Allocate a page for the system page mapped to V0x00000000
 	 * This page will just contain the system vectors and can be
 	 * shared by all processes.
 	 */
+	valloc_pages(systempage, 1);
 
 	/* Allocate stacks for all modes */
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
