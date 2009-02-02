@@ -1363,7 +1363,7 @@ kbdmux_modevent(module_t mod, int type, void *data)
 		break;
 	}
 
-	return (0);
+	return (error);
 }
 
 DEV_MODULE(kbdmux, kbdmux_modevent, NULL);
