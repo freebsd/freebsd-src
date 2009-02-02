@@ -371,7 +371,6 @@ MainParseArgs(int argc, char **argv)
 rearg:
 	optind = 1;	/* since we're called more than once */
 	optreset = 1;
-#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nQpqrstvx:"
 #define OPTFLAGS "ABC:D:d:E:ef:I:ij:km:nPpQqrSstV:vXx:"
 	for (;;) {
 		if ((optind < argc) && strcmp(argv[optind], "--") == 0) {
