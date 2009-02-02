@@ -54,8 +54,8 @@ uint16_t	service_class;
 
 bdaddr_t	local_bdaddr;		/* -d <addr> */
 bdaddr_t	remote_bdaddr;		/* -a <addr> */
-uint16_t	l2cap_psm = 15;		/* -p <psm> */
-int		l2cap_mode = 0;		/* -m <mode> */
+uint16_t	l2cap_psm;		/* -p <psm> */
+int		l2cap_mode;		/* -m <mode> */
 
 int		server_limit;		/* -n <limit> */
 
@@ -176,6 +176,9 @@ main(int argc, char *argv[])
 	/* default options */
 	if (interface_name == NULL)
 		interface_name = "/dev/tap";
+
+	if (l2cap_psm == 0)
+		l2cap_psm = L2CAP_PSM_BNEP;
 
 	if (bdaddr_any(&remote_bdaddr) && server_limit == 0) {
 		if (service_class == SDP_SERVICE_CLASS_PANU)
