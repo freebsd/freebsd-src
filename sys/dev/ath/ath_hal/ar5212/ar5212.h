@@ -399,10 +399,11 @@ struct ath_hal_5212 {
 		(_chan)->ic_flags &= ~IEEE80211_CHAN_CCK;	\
 		(_chan)->ic_flags |= IEEE80211_CHAN_DYN;	\
 		(_flag) = AH_TRUE;				\
-	}							\
+	} else							\
+		(_flag) = AH_FALSE;				\
 } while (0)
 #define RESTORE_CCK(_ah, _chan, _flag) do {                     \
-	if ((IS_2425(_ah) || IS_2417(_ah)) && (_flag)) {	\
+	if ((_flag) && (IS_2425(_ah) || IS_2417(_ah))) {	\
 		(_chan)->ic_flags &= ~IEEE80211_CHAN_DYN;	\
 		(_chan)->ic_flags |= IEEE80211_CHAN_CCK;	\
 	}							\
