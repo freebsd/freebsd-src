@@ -29,6 +29,8 @@
 #ifndef _USB2_HID_H_
 #define	_USB2_HID_H_
 
+#include <dev/usb2/include/usb2_endian.h>
+
 #define	UR_GET_HID_DESCRIPTOR	0x06
 #define	UDESC_HID		0x21
 #define	UDESC_REPORT		0x22
