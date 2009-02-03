@@ -884,9 +884,6 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	cv_init(&tp->t_bgwait, "ttybg");
 	cv_init(&tp->t_dcdwait, "ttydcd");
 
-	ttyinq_init(&tp->t_inq);
-	ttyoutq_init(&tp->t_outq);
-
 	/* Allow drivers to use a custom mutex to lock the TTY. */
 	if (mutex != NULL) {
 		tp->t_mtx = mutex;
