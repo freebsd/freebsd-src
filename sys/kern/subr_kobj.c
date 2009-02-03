@@ -207,7 +207,7 @@ kobj_lookup_method_class(kobj_class_t cls, kobjop_desc_t desc)
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 static kobj_method_t*
@@ -230,7 +230,7 @@ kobj_lookup_method_mi(kobj_class_t cls,
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 kobj_method_t*
@@ -261,7 +261,7 @@ kobj_class_free(kobj_class_t cls)
 {
 	int i;
 	kobj_method_t *m;
-	void* ops = 0;
+	void* ops = NULL;
 
 	KOBJ_ASSERT(MA_NOTOWNED);
 	KOBJ_LOCK();
@@ -281,7 +281,7 @@ kobj_class_free(kobj_class_t cls)
 		 * Free memory and clean up.
 		 */
 		ops = cls->ops;
-		cls->ops = 0;
+		cls->ops = NULL;
 	}
 	
 	KOBJ_UNLOCK();
@@ -302,7 +302,7 @@ kobj_create(kobj_class_t cls,
 	 */
 	obj = malloc(cls->size, mtype, mflags | M_ZERO);
 	if (!obj)
-		return 0;
+		return NULL;
 	kobj_init(obj, cls);
 
 	return obj;
@@ -355,7 +355,7 @@ kobj_delete(kobj_t obj, struct malloc_type *mtype)
 	if (!refs)
 		kobj_class_free(cls);
 
-	obj->ops = 0;
+	obj->ops = NULL;
 	if (mtype)
 		free(obj, mtype);
 }
