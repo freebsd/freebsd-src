@@ -104,7 +104,7 @@ ipmi_acpi_attach(device_t dev)
 	case SSIF_MODE:
 		if (ACPI_FAILURE(acpi_GetInteger(devh, "_ADR", &flags)))
 			return (ENXIO);
-		info.address = flags >> 1;
+		info.address = flags;
 		device_printf(dev, "SSIF interface not supported on ACPI\n");
 		return (0);
 	default:
