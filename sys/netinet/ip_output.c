@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,6 +71,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 #include <netinet/vinet.h>
+#ifdef SCTP
+#include <netinet/sctp.h>
+#include <netinet/sctp_crc32.h>
+#endif
 
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>
@@ -485,7 +490,10 @@ sendit:
 			}
 			m->m_pkthdr.csum_flags |=
 			    CSUM_IP_CHECKED | CSUM_IP_VALID;
-
+#ifdef SCTP
+			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
 		} else
@@ -502,6 +510,10 @@ sendit:
 			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0xffff;
 		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
 		m->m_pkthdr.csum_flags |=
 			    CSUM_IP_CHECKED | CSUM_IP_VALID;
 
@@ -536,6 +548,12 @@ passout:
 		in_delayed_cksum(m);
 		sw_csum &= ~CSUM_DELAY_DATA;
 	}
+#ifdef SCTP
+	if (sw_csum & CSUM_SCTP) {
+		sctp_delayed_cksum(m);
+		sw_csum &= ~CSUM_SCTP;
+	}
+#endif
 	m->m_pkthdr.csum_flags &= ifp->if_hwassist;
 
 	/*
@@ -670,7 +688,13 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 		in_delayed_cksum(m0);
 		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
-
+#ifdef SCTP
+	if (m0->m_pkthdr.csum_flags & CSUM_SCTP &&
+	    (if_hwassist_flags & CSUM_IP_FRAGS) == 0) {
+		sctp_delayed_cksum(m0);
+		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
+	}
+#endif
 	if (len > PAGE_SIZE) {
 		/* 
 		 * Fragment large datagrams such that each segment 

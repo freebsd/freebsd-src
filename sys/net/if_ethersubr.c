@@ -299,6 +299,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
 		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
 			csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			csum_flags |= CSUM_SCTP_VALID;
 		m->m_pkthdr.csum_flags |= csum_flags;
 		m->m_pkthdr.csum_data = 0xffff;
 		return (if_simloop(ifp, m, dst->sa_family, 0));
@@ -339,6 +341,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
 		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
 			csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			csum_flags |= CSUM_SCTP_VALID;
 
 		if (m->m_flags & M_BCAST) {
 			struct mbuf *n;
