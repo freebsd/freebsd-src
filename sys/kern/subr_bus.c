@@ -741,10 +741,10 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 
 /* End of /dev/devctl code */
 
-TAILQ_HEAD(,device)	bus_data_devices;
+static TAILQ_HEAD(,device)	bus_data_devices;
 static int bus_data_generation = 1;
 
-kobj_method_t null_methods[] = {
+static kobj_method_t null_methods[] = {
 	{ 0, 0 }
 };
 
@@ -1735,7 +1735,7 @@ device_probe_child(device_t dev, device_t child)
 	driverlink_t best = NULL;
 	driverlink_t dl;
 	int result, pri = 0;
-	int hasclass = (child->devclass != 0);
+	int hasclass = (child->devclass != NULL);
 
 	GIANT_REQUIRED;
 
@@ -2014,7 +2014,7 @@ device_print_prettyname(device_t dev)
 {
 	const char *name = device_get_name(dev);
 
-	if (name == 0)
+	if (name == NULL)
 		return (printf("unknown: "));
 	return (printf("%s%d: ", name, device_get_unit(dev)));
 }
@@ -3842,7 +3842,7 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 static moduledata_t root_bus_mod = {
 	"rootbus",
 	root_bus_module_handler,
-	0
+	NULL
 };
 DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 
