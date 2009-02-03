@@ -92,6 +92,7 @@ void *bootstacks[MAXCPU];
 
 /* Temporary holder for double fault stack */
 char *doublefault_stack;
+char *nmi_stack;
 
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
@@ -437,6 +438,7 @@ void
 init_secondary(void)
 {
 	struct pcpu *pc;
+	struct nmi_pcpu *np;
 	u_int64_t msr, cr0;
 	int cpu, gsel_tss, x;
 	struct region_descriptor ap_gdt;
@@ -449,6 +451,10 @@ init_secondary(void)
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
+
+	/* The NMI stack runs on IST2. */
+	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
+	common_tss[cpu].tss_ist2 = (long) np;
 
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
@@ -473,6 +479,9 @@ init_secondary(void)
 	pc->pc_tssp = &common_tss[cpu];
 	pc->pc_rsp0 = 0;
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
+
+	/* Save the per-cpu pointer for use by the NMI handler. */
+	np->np_pcpu = (register_t) pc;
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
@@ -725,6 +734,7 @@ start_all_aps(void)
 		/* allocate and set up an idle stack data page */
 		bootstacks[cpu] = (void *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
 		doublefault_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
+		nmi_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
 
 		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
 		bootAP = cpu;
