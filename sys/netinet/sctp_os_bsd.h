@@ -154,11 +154,8 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define MOD_IPSEC ipsec
 
 /* then define the macro(s) that hook into the vimage macros */
-#if defined(__FreeBSD__) && __FreeBSD_version >= 800056
 #define MODULE_GLOBAL(__MODULE, __SYMBOL) V_ ## __SYMBOL
-#else
-#define MODULE_GLOBAL(__MODULE, __SYMBOL) (__SYMBOL)
-#endif
+
 /*
  *
  */
