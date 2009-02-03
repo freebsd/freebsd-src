@@ -114,7 +114,7 @@ DEFINE_CLASS_0(name, name ## _class, methods, size)
 #define DEFINE_CLASS_0(name, classvar, methods, size)	\
 							\
 struct kobj_class classvar = {				\
-	#name, methods, size, 0				\
+	#name, methods, size, NULL			\
 }
 
 /*
@@ -127,7 +127,7 @@ struct kobj_class classvar = {				\
 		       base1)				\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1, 0 };					\
+	{ &base1, NULL };					\
 struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
@@ -143,7 +143,7 @@ struct kobj_class classvar = {				\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
-	  &base2, 0 };					\
+	  &base2, NULL };				\
 struct kobj_class name ## _class = {			\
 	#name, methods, size, name ## _baseclasses	\
 }
@@ -160,7 +160,7 @@ struct kobj_class name ## _class = {			\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2,					\
-	  &base3, 0 };					\
+	  &base3, NULL };				\
 struct kobj_class name ## _class = {			\
 	#name, methods, size, name ## _baseclasses	\
 }
