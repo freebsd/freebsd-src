@@ -16,6 +16,7 @@ font.h                          optional        sc            \
 #
 
 dev/bm/if_bm.c			optional	bm powermac
+dev/cfi/cfi_bus_lbc.c		optional	cfi
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
