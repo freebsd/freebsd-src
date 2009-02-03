@@ -43,7 +43,7 @@ SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL);
 
 static MALLOC_DEFINE(M_CLIST, "clist", "clist queue blocks");
 
-static struct cblock *cfreelist = 0;
+static struct cblock *cfreelist = NULL;
 int cfreecount = 0;
 static int cslushcount;
 static int ctotcount;
@@ -478,7 +478,7 @@ b_to_q(char *src, int amount, struct clist *clistp)
 int
 unputc(struct clist *clistp)
 {
-	struct cblock *cblockp = 0, *cbp = 0;
+	struct cblock *cblockp = NULL, *cbp = NULL;
 	int s;
 	int chr = -1;
 
