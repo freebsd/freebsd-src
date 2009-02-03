@@ -2219,7 +2219,7 @@ assignPrivateChannels(struct ath_hal *ah,
 			/* new entry, assign a private channel entry */
 			if (next >= N(AH_PRIVATE(ah)->ah_channels)) {
 				HALDEBUG(ah, HAL_DEBUG_ANY,
-				    "%s: too many channels, max %u\n",
+				    "%s: too many channels, max %zu\n",
 				    __func__, N(AH_PRIVATE(ah)->ah_channels));
 				return AH_FALSE;
 			}
