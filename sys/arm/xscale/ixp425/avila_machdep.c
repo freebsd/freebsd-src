@@ -159,6 +159,10 @@ static const struct pmap_devmap ixp425_devmap[] = {
 	PTE_NOCACHE,
     },
 
+	/* CFI Flash on the Expansion Bus */
+    { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
+      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
 	/* IXP425 PCI Configuration */
     {
 	IXP425_PCI_VBASE,
