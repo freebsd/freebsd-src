@@ -180,6 +180,10 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 
 	parent = device_get_parent(smbdev);
 
+	/* Make sure that LSB bit is cleared. */
+	if (s->slave & 0x1)
+		return (EINVAL);
+
 	/* Allocate the bus. */
 	if ((error = smbus_request_bus(parent, smbdev,
 			(flags & O_NONBLOCK) ? SMB_DONTWAIT : (SMB_WAIT | SMB_INTR))))
