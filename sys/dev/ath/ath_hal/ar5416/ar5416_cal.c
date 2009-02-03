@@ -392,7 +392,7 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 	HAL_CAL_LIST *currCal = cal->cal_curr;
 	HAL_CHANNEL_INTERNAL *ichan;
 
-	OS_MARK(ah, AH_MARK_PERCAL, chan->channel);
+	OS_MARK(ah, AH_MARK_PERCAL, chan->ic_freq);
 
 	*isCalDone = AH_TRUE;
 
