@@ -61,11 +61,34 @@ SYSCTL_LONG(_kern, OID_AUTO, tty_outq_nslow, CTLFLAG_RD,
 	&ttyoutq_nslow, 0, "Buffered reads to userspace on output");
 
 struct ttyoutq_block {
-	STAILQ_ENTRY(ttyoutq_block) tob_list;
-	char	tob_data[TTYOUTQ_DATASIZE];
+	struct ttyoutq_block	*tob_next;
+	char			tob_data[TTYOUTQ_DATASIZE];
 };
 
 static uma_zone_t ttyoutq_zone;
+
+#define	TTYOUTQ_INSERT_TAIL(to, tob) do {				\
+	if (to->to_end == 0) {						\
+		tob->tob_next = to->to_firstblock;			\
+		to->to_firstblock = tob;				\
+	} else {							\
+		tob->tob_next = to->to_lastblock->tob_next;		\
+		to->to_lastblock->tob_next = tob;			\
+	}								\
+	to->to_nblocks++;						\
+} while (0)
+
+#define	TTYOUTQ_REMOVE_HEAD(to) do {					\
+	to->to_firstblock = to->to_firstblock->tob_next;		\
+	to->to_nblocks--;						\
+} while (0)
+
+#define	TTYOUTQ_RECYCLE(to, tob) do {					\
+	if (to->to_quota <= to->to_nblocks)				\
+		uma_zfree(ttyoutq_zone, tob);				\
+	else								\
+		TTYOUTQ_INSERT_TAIL(to, tob);				\
+} while(0)
 
 void
 ttyoutq_flush(struct ttyoutq *to)
@@ -97,8 +120,7 @@ ttyoutq_setsize(struct ttyoutq *to, struct tty *tp, size_t size)
 		tob = uma_zalloc(ttyoutq_zone, M_WAITOK);
 		tty_lock(tp);
 
-		STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
-		to->to_nblocks++;
+		TTYOUTQ_INSERT_TAIL(to, tob);
 	}
 }
 
@@ -110,10 +132,9 @@ ttyoutq_free(struct ttyoutq *to)
 	ttyoutq_flush(to);
 	to->to_quota = 0;
 
-	while ((tob = STAILQ_FIRST(&to->to_list)) != NULL) {
-		STAILQ_REMOVE_HEAD(&to->to_list, tob_list);
+	while ((tob = to->to_firstblock) != NULL) {
+		TTYOUTQ_REMOVE_HEAD(to);
 		uma_zfree(ttyoutq_zone, tob);
-		to->to_nblocks--;
 	}
 
 	MPASS(to->to_nblocks == 0);
@@ -131,7 +152,7 @@ ttyoutq_read(struct ttyoutq *to, void *buf, size_t len)
 		/* See if there still is data. */
 		if (to->to_begin == to->to_end)
 			break;
-		tob = STAILQ_FIRST(&to->to_list);
+		tob = to->to_firstblock;
 		if (tob == NULL)
 			break;
 
@@ -146,30 +167,25 @@ ttyoutq_read(struct ttyoutq *to, void *buf, size_t len)
 		    TTYOUTQ_DATASIZE);
 		clen = cend - cbegin;
 
-		if (cend == TTYOUTQ_DATASIZE || cend == to->to_end) {
-			/* Read the block until the end. */
-			STAILQ_REMOVE_HEAD(&to->to_list, tob_list);
-			if (to->to_quota < to->to_nblocks) {
-				uma_zfree(ttyoutq_zone, tob);
-				to->to_nblocks--;
-			} else {
-				STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
-			}
-			to->to_begin = 0;
-			if (to->to_end <= TTYOUTQ_DATASIZE) {
-				to->to_end = 0;
-			} else {
-				to->to_end -= TTYOUTQ_DATASIZE;
-			}
-		} else {
-			/* Read the block partially. */
-			to->to_begin += clen;
-		}
-
 		/* Copy the data out of the buffers. */
 		memcpy(cbuf, tob->tob_data + cbegin, clen);
 		cbuf += clen;
 		len -= clen;
+
+		if (cend == to->to_end) {
+			/* Read the complete queue. */
+			to->to_begin = 0;
+			to->to_end = 0;
+		} else if (cend == TTYOUTQ_DATASIZE) {
+			/* Read the block until the end. */
+			TTYOUTQ_REMOVE_HEAD(to);
+			to->to_begin = 0;
+			to->to_end -= TTYOUTQ_DATASIZE;
+			TTYOUTQ_RECYCLE(to, tob);
+		} else {
+			/* Read the block partially. */
+			to->to_begin += clen;
+		}
 	}
 
 	return (cbuf - (char *)buf);
@@ -197,7 +213,7 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 		/* See if there still is data. */
 		if (to->to_begin == to->to_end)
 			return (0);
-		tob = STAILQ_FIRST(&to->to_list);
+		tob = to->to_firstblock;
 		if (tob == NULL)
 			return (0);
 
@@ -226,14 +242,12 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 			 * Fast path: zero copy. Remove the first block,
 			 * so we can unlock the TTY temporarily.
 			 */
-			STAILQ_REMOVE_HEAD(&to->to_list, tob_list);
-			to->to_nblocks--;
+			TTYOUTQ_REMOVE_HEAD(to);
 			to->to_begin = 0;
-			if (to->to_end <= TTYOUTQ_DATASIZE) {
+			if (to->to_end <= TTYOUTQ_DATASIZE)
 				to->to_end = 0;
-			} else {
+			else
 				to->to_end -= TTYOUTQ_DATASIZE;
-			}
 
 			/* Temporary unlock and copy the data to userspace. */
 			tty_unlock(tp);
@@ -241,12 +255,7 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 			tty_lock(tp);
 
 			/* Block can now be readded to the list. */
-			if (to->to_quota <= to->to_nblocks) {
-				uma_zfree(ttyoutq_zone, tob);
-			} else {
-				STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
-				to->to_nblocks++;
-			}
+			TTYOUTQ_RECYCLE(to, tob);
 		} else {
 			char ob[TTYOUTQ_DATASIZE - 1];
 			atomic_add_long(&ttyoutq_nslow, 1);
@@ -280,26 +289,27 @@ ttyoutq_write(struct ttyoutq *to, const void *buf, size_t nbytes)
 	size_t l;
 
 	while (nbytes > 0) {
-		/* Offset in current block. */
-		tob = to->to_lastblock;
 		boff = to->to_end % TTYOUTQ_DATASIZE;
 
 		if (to->to_end == 0) {
 			/* First time we're being used or drained. */
 			MPASS(to->to_begin == 0);
-			tob = to->to_lastblock = STAILQ_FIRST(&to->to_list);
+			tob = to->to_firstblock;
 			if (tob == NULL) {
 				/* Queue has no blocks. */
 				break;
 			}
+			to->to_lastblock = tob;
 		} else if (boff == 0) {
 			/* We reached the end of this block on last write. */
-			tob = STAILQ_NEXT(tob, tob_list);
+			tob = to->to_lastblock->tob_next;
 			if (tob == NULL) {
 				/* We've reached the watermark. */
 				break;
 			}
 			to->to_lastblock = tob;
+		} else {
+			tob = to->to_lastblock;
 		}
 
 		/* Don't copy more than was requested. */
