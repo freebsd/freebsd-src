@@ -120,6 +120,7 @@ sctp_init_sysctls()
 #endif
 }
 
+
 /* It returns an upper limit. No filtering is done here */
 static unsigned int
 number_of_addresses(struct sctp_inpcb *inp)
@@ -408,6 +409,8 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				xstcb.primary_addr = stcb->asoc.primary_destination->ro._l_addr;
 			xstcb.heartbeat_interval = stcb->asoc.heart_beat_delay;
 			xstcb.state = SCTP_GET_STATE(&stcb->asoc);	/* FIXME */
+			/* 7.0 does not support this */
+			xstcb.assoc_id = sctp_get_associd(stcb);
 			xstcb.in_streams = stcb->asoc.streamincnt;
 			xstcb.out_streams = stcb->asoc.streamoutcnt;
 			xstcb.max_nr_retrans = stcb->asoc.overall_error_count;
@@ -506,7 +509,6 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 }
 
 
-
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
@@ -517,10 +519,15 @@ sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint32_t old_sctp_udp_tunneling_port;
 
+	SCTP_INP_INFO_WLOCK();
 	old_sctp_udp_tunneling_port = SCTP_BASE_SYSCTL(sctp_udp_tunneling_port);
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (error == 0) {
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port), SCTPCTL_UDP_TUNNELING_PORT_MIN, SCTPCTL_UDP_TUNNELING_PORT_MAX);
+		if (old_sctp_udp_tunneling_port == SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) {
+			error = 0;
+			goto out;
+		}
 		if (old_sctp_udp_tunneling_port) {
 			sctp_over_udp_stop();
 		}
@@ -530,6 +537,8 @@ sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 			}
 		}
 	}
+out:
+	SCTP_INP_INFO_WUNLOCK();
 	return (error);
 }
 
@@ -624,12 +633,13 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_sctp_cleartrace(SYSCTL_HANDLER_ARGS)
 {
+	int error = 0;
+
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
-	return (0);
+	return (error);
 }
 
 #endif
-
 
 
 /*
