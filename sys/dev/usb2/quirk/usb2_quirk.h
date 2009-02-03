@@ -28,7 +28,7 @@
 #define	_USB2_QUIRK_H_
 
 /* NOTE: UQ_NONE is not a valid quirk */
-enum {
+enum {	/* keep in sync with usb_quirk_str table */
 	UQ_NONE,
 	UQ_AUDIO_SWAP_LR,	/* left and right sound channels are swapped */
 	UQ_AU_INP_ASYNC,	/* input is async despite claim of adaptive */
