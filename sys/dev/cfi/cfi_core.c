@@ -150,11 +150,16 @@ cfi_probe(device_t dev)
 	sc->sc_tag = rman_get_bustag(sc->sc_res);
 	sc->sc_handle = rman_get_bushandle(sc->sc_res);
 
-	sc->sc_width = 1;
-	while (sc->sc_width <= 4) {
-		if (cfi_read_qry(sc, CFI_QRY_IDENT) == 'Q')
-			break;
-		sc->sc_width <<= 1;
+	if (sc->sc_width == 0) {
+		sc->sc_width = 1;
+		while (sc->sc_width <= 4) {
+			if (cfi_read_qry(sc, CFI_QRY_IDENT) == 'Q')
+				break;
+			sc->sc_width <<= 1;
+		}
+	} else if (cfi_read_qry(sc, CFI_QRY_IDENT) != 'Q') {
+		error = ENXIO;
+		goto out;
 	}
 	if (sc->sc_width > 4) {
 		error = ENXIO;
