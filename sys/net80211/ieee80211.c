@@ -472,7 +472,8 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 	    vap->iv_opmode == IEEE80211_M_STA, media_change, media_stat);
 	ieee80211_media_status(ifp, &imr);
 	/* NB: strip explicit mode; we're actually in autoselect */
-	ifmedia_set(&vap->iv_media, imr.ifm_active &~ IFM_MMASK);
+	ifmedia_set(&vap->iv_media,
+	    imr.ifm_active &~ (IFM_MMASK | IFM_IEEE80211_TURBO));
 	if (maxrate)
 		ifp->if_baudrate = IF_Mbps(maxrate);
 
@@ -857,16 +858,16 @@ addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 	ifmedia_add(media, \
 		IFM_MAKEWORD(IFM_IEEE80211, (_s), (_o), 0), 0, NULL)
 	static const u_int mopts[IEEE80211_MODE_MAX] = { 
-		IFM_AUTO,
-		IFM_IEEE80211_11A,
-		IFM_IEEE80211_11B,
-		IFM_IEEE80211_11G,
-		IFM_IEEE80211_FH,
-		IFM_IEEE80211_11A | IFM_IEEE80211_TURBO,
-		IFM_IEEE80211_11G | IFM_IEEE80211_TURBO,
-		IFM_IEEE80211_11A | IFM_IEEE80211_TURBO,
-		IFM_IEEE80211_11NA,
-		IFM_IEEE80211_11NG,
+	    [IEEE80211_MODE_AUTO]	= IFM_AUTO,
+	    [IEEE80211_MODE_11A]	= IFM_IEEE80211_11A,
+	    [IEEE80211_MODE_11B]	= IFM_IEEE80211_11B,
+	    [IEEE80211_MODE_11G]	= IFM_IEEE80211_11G,
+	    [IEEE80211_MODE_FH]		= IFM_IEEE80211_FH,
+	    [IEEE80211_MODE_TURBO_A]	= IFM_IEEE80211_11A|IFM_IEEE80211_TURBO,
+	    [IEEE80211_MODE_TURBO_G]	= IFM_IEEE80211_11G|IFM_IEEE80211_TURBO,
+	    [IEEE80211_MODE_STURBO_A]	= IFM_IEEE80211_11A|IFM_IEEE80211_TURBO,
+	    [IEEE80211_MODE_11NA]	= IFM_IEEE80211_11NA,
+	    [IEEE80211_MODE_11NG]	= IFM_IEEE80211_11NG,
 	};
 	u_int mopt;
 
@@ -996,7 +997,8 @@ ieee80211_media_init(struct ieee80211com *ic)
 		ieee80211com_media_change, ieee80211com_media_status);
 	/* NB: strip explicit mode; we're actually in autoselect */
 	ifmedia_set(&ic->ic_media,
-		media_status(ic->ic_opmode, ic->ic_curchan) &~ IFM_MMASK);
+	    media_status(ic->ic_opmode, ic->ic_curchan) &~
+		(IFM_MMASK | IFM_IEEE80211_TURBO));
 	if (maxrate)
 		ifp->if_baudrate = IF_Mbps(maxrate);
 
