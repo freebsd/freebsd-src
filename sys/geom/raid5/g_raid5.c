@@ -27,14 +27,14 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$Id: g_raid5.c,v 1.271.1.274 2008/07/29 13:58:03 aw Exp aw $");
+__FBSDID("$Id: g_raid5.c, v 1.271.1.274 2008/07/29 13:58:03 aw Exp aw $");
 
 #ifdef KASSERT
-#define MYKASSERT(a,b) KASSERT(a,b)
+#define MYKASSERT(a, b) KASSERT(a, b)
 #else
-#define MYKASSERT(a,b) do {if (!(a)) { G_RAID5_DEBUG(0,"KASSERT in line %d.",__LINE__); panic b;}} while (0)
+#define MYKASSERT(a, b) do {if (!(a)) { G_RAID5_DEBUG(0, "KASSERT in line %d.", __LINE__); panic b;}} while (0)
 #endif
-#define ORDER(a,b) do {if (a > b) { int tmp = a; a = b; b = tmp; }} while(0)
+#define ORDER(a, b) do {if (a > b) { int tmp = a; a = b; b = tmp; }} while(0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -63,7 +63,7 @@ SYSCTL_INT(_kern_geom_raid5, OID_AUTO, csm, CTLFLAG_RW, &g_raid5_cache_size_mem,
       0, "cache size ((<disk count-1)*<stripe size> per bucket) in bytes");
 static int g_raid5_cache_size = -5;
 TUNABLE_INT("kern.geom.raid5.cs", &g_raid5_cache_size);
-SYSCTL_INT(_kern_geom_raid5, OID_AUTO, cs, CTLFLAG_RW, &g_raid5_cache_size,0,
+SYSCTL_INT(_kern_geom_raid5, OID_AUTO, cs, CTLFLAG_RW, &g_raid5_cache_size, 0,
       "cache size ((<disk count-1)*<stripe size> per bucket)");
 static u_int g_raid5_debug = 0;
 TUNABLE_INT("kern.geom.raid5.debug", &g_raid5_debug);
@@ -87,7 +87,7 @@ SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, veri_fac, CTLFLAG_RW, &g_raid5_veri_fac,
     0, "veri brake factor in case of veri_min * X < veri_max");
 static u_int g_raid5_veri_nice = 100;
 TUNABLE_INT("kern.geom.raid5.veri_nice", &g_raid5_veri_nice);
-SYSCTL_UINT(_kern_geom_raid5, OID_AUTO,veri_nice, CTLFLAG_RW,&g_raid5_veri_nice,
+SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, veri_nice, CTLFLAG_RW, &g_raid5_veri_nice,
     0, "wait this many milli seconds after last user-read (less than 1sec)");
 static u_int g_raid5_vsc = 0;
 SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, veri, CTLFLAG_RD, &g_raid5_vsc, 0,
@@ -108,22 +108,22 @@ static u_int g_raid5_w2rc = 0;
 SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, wreq2_cnt, CTLFLAG_RD, &g_raid5_w2rc, 0,
     "write request count (2-phase)");
 static u_int g_raid5_disks_ok = 50;
-SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, dsk_ok, CTLFLAG_RD, &g_raid5_disks_ok,0,
+SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, dsk_ok, CTLFLAG_RD, &g_raid5_disks_ok, 0,
     "repeat EIO'ed request?");
 static u_int g_raid5_blked1 = 0;
-SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, blked1, CTLFLAG_RD, &g_raid5_blked1,0,
+SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, blked1, CTLFLAG_RD, &g_raid5_blked1, 0,
     "1. kind block count");
 static u_int g_raid5_blked2 = 0;
-SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, blked2, CTLFLAG_RD, &g_raid5_blked2,0,
+SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, blked2, CTLFLAG_RD, &g_raid5_blked2, 0,
     "2. kind block count");
 static u_int g_raid5_wqp = 0;
-SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, wqp, CTLFLAG_RD, &g_raid5_wqp,0,
+SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, wqp, CTLFLAG_RD, &g_raid5_wqp, 0,
     "max. write queue length");
 static u_int g_raid5_mhm = 0;
-SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, mhm, CTLFLAG_RD, &g_raid5_mhm,0,
+SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, mhm, CTLFLAG_RD, &g_raid5_mhm, 0,
     "memory hamster miss");
 static u_int g_raid5_mhh = 0;
-SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, mhh, CTLFLAG_RD, &g_raid5_mhh,0,
+SYSCTL_UINT(_kern_geom_raid5, OID_AUTO, mhh, CTLFLAG_RD, &g_raid5_mhh, 0,
     "memory hamster hit");
 
 static MALLOC_DEFINE(M_RAID5, "raid5_data", "GEOM_RAID5 Data");
@@ -161,11 +161,14 @@ gcd(u_int a, u_int b)
 		a = b;
 		b = c % b;
 	}
-	return a;
+	return (a);
 }
+
 static __inline u_int
 g_raid5_lcm(u_int a, u_int b)
-{ return ((a * b) / gcd(a, b)); }
+{
+	return ((a * b) / gcd(a, b));
+}
 
 /*
  * memory hamster stuff
@@ -175,35 +178,57 @@ g_raid5_lcm(u_int a, u_int b)
  */
 static __inline int
 g_raid5_mh_sz_by_a(caddr_t m)
-{ return ((int*)m)[-1]; }
+{
+
+	return ((int *)m)[-1];
+}
+
 static __inline int
 g_raid5_mh_sz_by_i(struct g_raid5_softc *sc, int i)
-{ return g_raid5_mh_sz_by_a(sc->mhl[i]); }
+{
+
+	return (g_raid5_mh_sz_by_a(sc->mhl[i]));
+}
+
 static __inline void
 g_raid5_mh_sz(caddr_t m, int l)
-{ ((int*)m)[-1] = l; }
+{
+
+	((int *)m)[-1] = l;
+}
+
 static __inline void
-g_raid5_free_by_a(caddr_t m)
-{ free(m - sizeof(int), M_RAID5); }
+g_raid5_free_by_a(caddr_t m, lol)
+{
+
+	free(m - sizeof(int), M_RAID5);
+}
+
 static __inline void
 g_raid5_free_by_i(struct g_raid5_softc *sc, int mi)
-{ g_raid5_free_by_a(sc->mhl[mi]); }
+{
+
+	g_raid5_free_by_a(sc->mhl[mi]);
+}
+
 static void
-g_raid5_mh_all_free(struct g_raid5_softc *sc) {
-	for (int i=0; i<sc->mhc; i++)
-		g_raid5_free_by_i(sc,i);
+g_raid5_mh_all_free(struct g_raid5_softc *sc)
+{
+	for (int i = 0; i < sc->mhc; i++)
+		g_raid5_free_by_i(sc, i);
 	sc->mhc = 0;
 }
+
 static caddr_t
 g_raid5_malloc(struct g_raid5_softc *sc, int l, int force)
 {
-	mtx_lock(&sc->mh_mtx);
 	int h = l*2;
 	int fi = -1;
 	int fl = -1;
-	int i;
-	for (i=0; i<sc->mhc; i++) {
-		int ml = g_raid5_mh_sz_by_i(sc,i);
+
+	mtx_lock(&sc->mh_mtx);
+	for (int i = 0; i < sc->mhc; i++) {
+		int ml = g_raid5_mh_sz_by_i(sc, i);
 		if (ml < l || ml > h)
 			continue;
 		if (fl > 0 && ml >= fl)
@@ -224,23 +249,24 @@ g_raid5_malloc(struct g_raid5_softc *sc, int l, int force)
 	} else {
 		g_raid5_mhm++;
 		mtx_unlock(&sc->mh_mtx);
-		m = malloc(l+sizeof(fl), M_RAID5, M_NOWAIT);
+		m = malloc(l + sizeof(fl), M_RAID5, M_NOWAIT);
 		if (m == NULL && force) {
 			g_raid5_mh_all_free(sc);
-			m = malloc(l+sizeof(fl), M_RAID5, M_WAITOK);
+			m = malloc(l + sizeof(fl), M_RAID5, M_WAITOK);
 		}
 		if (m != NULL) {
 			m += sizeof(fl);
-			g_raid5_mh_sz(m,l);
+			g_raid5_mh_sz(m, l);
 		}
 	}
-	return m;
+	return (m);
 }
+
 static void
 g_raid5_free(struct g_raid5_softc *sc, caddr_t m)
 {
 	mtx_lock(&sc->mh_mtx);
-	MYKASSERT(((int*)m)[-1] > 0, ("this is no mem hamster chunk."));
+	MYKASSERT(((int *)m)[-1] > 0, ("this is no mem hamster chunk."));
 	if (sc->mhc < sc->mhs) {
 		sc->mhl[sc->mhc] = m;
 		sc->mhc++;
@@ -248,8 +274,8 @@ g_raid5_free(struct g_raid5_softc *sc, caddr_t m)
 		int l = g_raid5_mh_sz_by_a(m);
 		int mi = -1;
 		int ml = -1;
-		for (int i=0; i<sc->mhc; i++) {
-			int nl = g_raid5_mh_sz_by_i(sc,i);
+		for (int i = 0; i < sc->mhc; i++) {
+			int nl = g_raid5_mh_sz_by_i(sc, i);
 			if (nl >= l)
 				continue;
 			if (ml > 0 && ml <= nl)
@@ -260,12 +286,13 @@ g_raid5_free(struct g_raid5_softc *sc, caddr_t m)
 		if (mi < 0)
 			g_raid5_free_by_a(m);
 		else {
-			g_raid5_free_by_i(sc,mi);
+			g_raid5_free_by_i(sc, mi);
 			sc->mhl[mi] = m;
 		}
 	}
 	mtx_unlock(&sc->mh_mtx);
 }
+
 static void
 g_raid5_mh_destroy(struct g_raid5_softc *sc)
 {
@@ -280,10 +307,16 @@ g_raid5_mh_destroy(struct g_raid5_softc *sc)
  */
 static __inline int
 g_raid5_ce_em(struct g_raid5_cache_entry *ce)
-{ return ce->fst == NULL; }
+{
+	return (ce->fst == NULL);
+}
+
 static __inline struct g_raid5_cache_entry *
 g_raid5_ce_by_i(struct g_raid5_softc *sc, int i)
-{ return sc->ce + i; }
+{
+	return (sc->ce + i);
+}
+
 static struct g_raid5_cache_entry *
 g_raid5_ce_by_sno(struct g_raid5_softc *sc, off_t s)
 {
@@ -292,7 +325,7 @@ g_raid5_ce_by_sno(struct g_raid5_softc *sc, off_t s)
 	s++;
 	int i = s % sc->cs;
 	for (int j=sc->cs; j>0; j--) {
-		struct g_raid5_cache_entry *ce = g_raid5_ce_by_i(sc,i);
+		struct g_raid5_cache_entry *ce = g_raid5_ce_by_i(sc, i);
 		if (ce->sno == s)
 			return ce;
 		if (fce==NULL && ce->sno == 0)
@@ -306,41 +339,57 @@ g_raid5_ce_by_sno(struct g_raid5_softc *sc, off_t s)
 		return NULL;
 	}
 	MYKASSERT(fce->fst == NULL, ("ce not free."));
-	MYKASSERT(fce->dc == 0, ("%p dc inconsistency %d.",fce,fce->dc));
+	MYKASSERT(fce->dc == 0, ("%p dc inconsistency %d.", fce, fce->dc));
 	MYKASSERT(fce->sno == 0, ("ce not free."));
 	fce->sno = s;
-	return fce;
+	return (fce);
 }
+
 static __inline struct g_raid5_cache_entry *
 g_raid5_ce_by_off(struct g_raid5_softc *sc, off_t o)
-{ return g_raid5_ce_by_sno(sc, o/sc->fsl); }
+{
+
+	return (g_raid5_ce_by_sno(sc, o/sc->fsl));
+}
+
 static __inline struct g_raid5_cache_entry *
 g_raid5_ce_by_bio(struct g_raid5_softc *sc, struct bio *bp)
-{ return g_raid5_ce_by_off(sc, bp->bio_offset); }
-#define G_RAID5_C_TRAVERSE(AAA,BBB,CCC) \
-	for (int i = AAA->cs-1; i >= 0; i--) \
-		G_RAID5_CE_TRAVERSE((CCC=g_raid5_ce_by_i(sc,i)), BBB)
-#define G_RAID5_C_TRAVSAFE(AAA,BBB,CCC) \
-	for (int i = AAA->cs-1; i >= 0; i--) \
-		G_RAID5_CE_TRAVSAFE((CCC=g_raid5_ce_by_i(sc,i)), BBB)
-#define G_RAID5_CE_TRAVERSE(AAA, BBB) \
+{
+
+	return (g_raid5_ce_by_off(sc, bp->bio_offset));
+}
+
+#define G_RAID5_C_TRAVERSE(AAA, BBB, CCC)		\
+	for (int i = AAA->cs-1; i >= 0; i--)	\
+		G_RAID5_CE_TRAVERSE((CCC=g_raid5_ce_by_i(sc, i)), BBB)
+
+#define G_RAID5_C_TRAVSAFE(AAA, BBB, CCC)		\
+	for (int i = AAA->cs-1; i >= 0; i--)	\
+		G_RAID5_CE_TRAVSAFE((CCC=g_raid5_ce_by_i(sc, i)), BBB)
+
+#define G_RAID5_CE_TRAVERSE(AAA, BBB)	\
 	for (BBB = AAA->fst; BBB != NULL; BBB = g_raid5_q_nx(BBB))
-#define G_RAID5_CE_TRAVSAFE(AAA, BBB) \
-	for (BBB = AAA->fst, BBB##_nxt = g_raid5_q_nx(BBB); \
-	     BBB != NULL; \
+
+#define G_RAID5_CE_TRAVSAFE(AAA, BBB)				\
+	for (BBB = AAA->fst, BBB##_nxt = g_raid5_q_nx(BBB);	\
+	     BBB != NULL;					\
 	     BBB = BBB##_nxt, BBB##_nxt = g_raid5_q_nx(BBB))
+
 static __inline void
 g_raid5_dc_inc(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce)
 {
+
 	MYKASSERT(ce->dc >= 0 && sc->dc >= 0 && sc->wqp >= 0, ("cannot happen."));
 	if (ce->dc == 0)
 		sc->dc++;
 	ce->dc++;
 	sc->wqp++;
 }
+
 static __inline void
 g_raid5_dc_dec(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce)
 {
+
 	MYKASSERT(ce->dc > 0 && sc->dc > 0 && sc->wqp > 0, ("cannot happen."));
 	ce->dc--;
 	if (ce->dc == 0)
@@ -350,19 +399,31 @@ g_raid5_dc_dec(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce)
 
 static __inline struct bio *
 g_raid5_q_nx(struct bio *bp)
-{ return bp==NULL ? NULL : bp->bio_queue.tqe_next; }
+{
+
+	return (bp == NULL ? NULL : bp->bio_queue.tqe_next);
+}
+
 static __inline struct bio **
 g_raid5_q_pv(struct bio *bp)
-{ return bp->bio_queue.tqe_prev; }
+{
+
+	return (bp->bio_queue.tqe_prev);
+}
+
 static __inline void
-g_raid5_q_rm(struct g_raid5_softc *sc,
-             struct g_raid5_cache_entry *ce, struct bio *bp, int reserved)
+g_raid5_q_rm(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce,
+    struct bio *bp, int reserved)
 {
 	struct bio *nxt = g_raid5_q_nx(bp);
-	bp->bio_queue.tqe_next = NULL;
 	struct bio **prv = g_raid5_q_pv(bp);
+
+	/* FIXME: This should be done in another way. */
+	bp->bio_queue.tqe_next = NULL;
 	bp->bio_queue.tqe_prev = NULL;
+
 	if (nxt != NULL)
+		/* FIXME: This should be done in another way. */
 		nxt->bio_queue.tqe_prev = prv;
 	if (prv != NULL)
 		(*prv) = nxt;
@@ -370,32 +431,36 @@ g_raid5_q_rm(struct g_raid5_softc *sc,
 		ce->fst = nxt;
 		if (nxt == NULL) {
 			if (ce->sd != NULL) {
-				g_raid5_free(sc,ce->sd);
+				g_raid5_free(sc, ce->sd);
 				ce->sd = NULL;
 			}
 			if (ce->sp != NULL) {
-				g_raid5_free(sc,ce->sp);
+				g_raid5_free(sc, ce->sp);
 				ce->sp = NULL;
 			}
-			MYKASSERT(ce->dc == 0, ("dc(%d) must be zero.",ce->dc));
-			MYKASSERT(sc->cc > 0, ("cc(%d) must be positive.",sc->cc));
+			MYKASSERT(ce->dc == 0, ("dc(%d) must be zero.", ce->dc));
+			MYKASSERT(sc->cc > 0, ("cc(%d) must be positive.", sc->cc));
 			sc->cc--;
 			if (!reserved)
 				ce->sno = 0;
 		}
 	}
 }
+
 static __inline void
-g_raid5_q_de(struct g_raid5_softc *sc,
-             struct g_raid5_cache_entry *ce, struct bio *bp, int reserved)
+g_raid5_q_de(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce,
+    struct bio *bp, int reserved)
 {
-	g_raid5_q_rm(sc,ce,bp,reserved);
+
+	g_raid5_q_rm(sc, ce, bp, reserved);
 	g_destroy_bio(bp);
 }
+
 static __inline void
-g_raid5_q_in(struct g_raid5_softc *sc,
-             struct g_raid5_cache_entry *ce, struct bio *bp, int force)
+g_raid5_q_in(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce,
+    struct bio *bp, int force)
 {
+	/* FIXME */
 	bp->bio_queue.tqe_prev = NULL;
 	bp->bio_queue.tqe_next = ce->fst;
 	if (g_raid5_ce_em(ce))
@@ -404,7 +469,7 @@ g_raid5_q_in(struct g_raid5_softc *sc,
 		ce->fst->bio_queue.tqe_prev = &bp->bio_queue.tqe_next;
 	ce->fst = bp;
 	if (ce->sd == NULL)
-		ce->sd = g_raid5_malloc(sc,sc->fsl,force);
+		ce->sd = g_raid5_malloc(sc, sc->fsl, force);
 	if (ce->sd != NULL)
 		bp->bio_data = ce->sd + bp->bio_offset % sc->fsl;
 }
@@ -414,24 +479,30 @@ g_raid5_bintime_cmp(struct bintime *a, struct bintime *b)
 {
 	if (a->sec == b->sec) {
 		if (a->frac == b->frac)
-			return 0;
+			return (0);
 		else if (a->frac > b->frac)
-			return 1;
+			return (1);
 	} else if (a->sec > b->sec)
-		return 1;
-	return -1;
+		return (1);
+	return (-1);
 }
 
 static __inline int64_t
 g_raid5_bintime2micro(struct bintime *a)
-{ return (a->sec*1000000) + (((a->frac>>32)*1000000)>>32); }
+{
+
+	return ((a->sec * 1000000) + (((a->frac >> 32) * 1000000) >> 32));
+}
 
 /*
  * tells if the disk is inserted and not pre-removed
  */
 static __inline u_int
 g_raid5_disk_good(struct g_raid5_softc *sc, int i)
-{ return sc->sc_disks[i] != NULL && sc->preremoved[i] == 0; }
+{
+
+	return (sc->sc_disks[i] != NULL && sc->preremoved[i] == 0);
+}
 
 /*
  * gives the number of "good" disks...
@@ -442,12 +513,12 @@ g_raid5_nvalid(struct g_raid5_softc *sc)
 /* ARNE: just tsting */ /* this for loop should be not necessary, although it might happen, that some strange locking situation (race condition?) causes trouble*/
 	int no = 0;
 	for (int i = 0; i < sc->sc_ndisks; i++)
-		if (g_raid5_disk_good(sc,i))
+		if (g_raid5_disk_good(sc, i))
 			no++; 
 	MYKASSERT(no == sc->vdc, ("valid disk count deviates."));
 /* ARNE: just for testing ^^^^ */
 
-	return sc->vdc;
+	return (sc->vdc);
 }
 
 /*
@@ -455,7 +526,10 @@ g_raid5_nvalid(struct g_raid5_softc *sc)
  */
 static __inline u_int
 g_raid5_allgood(struct g_raid5_softc *sc)
-{ return g_raid5_nvalid(sc) == sc->sc_ndisks; }
+{
+
+	return (g_raid5_nvalid(sc) == sc->sc_ndisks);
+}
 
 /*
  * tells if a certain offset is in a COMPLETE area of the device...
@@ -465,13 +539,14 @@ g_raid5_allgood(struct g_raid5_softc *sc)
 static __inline u_int
 g_raid5_data_good(struct g_raid5_softc *sc, int i, off_t end)
 {
+
 	if (!g_raid5_disk_good(sc, i))
-		return 0;
+		return (0);
 	if (!g_raid5_allgood(sc))
-		return 1;
+		return (1);
 	if (sc->newest == i && sc->verified >= 0 && end > sc->verified)
-		return 0;
-	return 1;
+		return (0);
+	return (1);
 }
 
 /*
@@ -481,15 +556,16 @@ g_raid5_data_good(struct g_raid5_softc *sc, int i, off_t end)
 static __inline u_int
 g_raid5_parity_good(struct g_raid5_softc *sc, int pno, off_t end)
 {
+
 	if (!g_raid5_disk_good(sc, pno))
-		return 0;
+		return (0);
 	if (!g_raid5_allgood(sc))
-		return 1;
+		return (1);
 	if (sc->newest != -1 && sc->newest != pno)
-		return 1;
+		return (1);
 	if (sc->verified >= 0 && end > sc->verified)
-		return 0;
-	return 1;
+		return (0);
+	return (1);
 }
 
 /*
@@ -500,14 +576,15 @@ static __inline int
 g_raid5_find_disk(struct g_raid5_softc * sc, struct g_consumer * cp)
 {
 	struct g_consumer **cpp = cp->private;
+
 	if (cpp == NULL)
-		return -1;
+		return (-1);
 	struct g_consumer *rcp = *cpp;
 	if (rcp == NULL)
-		return -1;
+		return (-1);
 	int dn = cpp - sc->sc_disks;
 	MYKASSERT(dn >= 0 && dn < sc->sc_ndisks, ("dn out of range."));
-	return dn;
+	return (dn);
 }
 
 /*
@@ -515,7 +592,7 @@ g_raid5_find_disk(struct g_raid5_softc * sc, struct g_consumer * cp)
  */
 static int
 g_raid5_write_metadata(struct g_consumer **cpp, struct g_raid5_metadata *md,
-                       struct bio *ur)
+    struct bio *ur)
 {
 	off_t offset;
 	int length;
@@ -527,14 +604,15 @@ g_raid5_write_metadata(struct g_consumer **cpp, struct g_raid5_metadata *md,
 
 	length = cp->provider->sectorsize;
 	MYKASSERT(length >= sizeof(*md), ("sector size too low (%d %d).",
-	                                  length,(int)sizeof(*md)));
+	    length, (int)sizeof(*md)));
 	offset = cp->provider->mediasize - length;
 
 	sector = malloc(length, M_RAID5, M_WAITOK | M_ZERO);
 	raid5_metadata_encode(md, sector);
 
+	/* FIXME: This should be possible to avoid. */
 	if (ur != NULL) {
-		bzero(ur,sizeof(*ur));
+		bzero(ur, sizeof(*ur));
 		ur->bio_cmd = BIO_WRITE;
 		ur->bio_done = NULL;
 		ur->bio_offset = offset;
@@ -546,8 +624,7 @@ g_raid5_write_metadata(struct g_consumer **cpp, struct g_raid5_metadata *md,
 		error = g_write_data(cp, offset, sector, length);
 		free(sector, M_RAID5);
 	}
-
-	return error;
+	return (error);
 }
 
 /*
@@ -565,21 +642,21 @@ g_raid5_read_metadata(struct g_consumer **cpp, struct g_raid5_metadata *md)
 
 	pp = cp->provider;
 	if (pp->error != 0)
-		return pp->error;
+		return (pp->error);
 	if (pp->sectorsize == 0)
-		return ENXIO;
+		return (ENXIO);
 	MYKASSERT(pp->sectorsize >= sizeof(*md), ("sector size too low (%d %d).",
-	                                          pp->sectorsize,(int)sizeof(*md)));
+	    pp->sectorsize, (int)sizeof(*md)));
 
-	error = g_access(cp, 1,0,0);
+	error = g_access(cp, 1, 0, 0);
 	if (error)
-		return error;
+		return (error);
 	g_topology_unlock();
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
 	                  &error);
 	g_topology_lock();
 	if ((*cpp) != NULL)
-		g_access(cp, -1,0,0);
+		g_access(cp, -1, 0, 0);
 	if (buf == NULL)
 		return (error);
 
@@ -587,7 +664,7 @@ g_raid5_read_metadata(struct g_consumer **cpp, struct g_raid5_metadata *md)
 	raid5_metadata_decode(buf, md);
 	g_free(buf);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -595,29 +672,29 @@ g_raid5_read_metadata(struct g_consumer **cpp, struct g_raid5_metadata *md)
  */
 static int
 g_raid5_update_metadata(struct g_raid5_softc *sc, struct g_consumer ** cpp,
-                        int state, int di_no, struct bio *ur)
+    int state, int di_no, struct bio *ur)
 {
 	struct g_raid5_metadata md;
 	struct g_consumer *cp = *cpp;
 
 	if (cp == NULL || sc == NULL || sc->sc_provider == NULL)
-		return EINVAL;
+		return (EINVAL);
 
 	g_topology_assert_not();
 
-	bzero(&md,sizeof(md));
+	bzero(&md, sizeof(md));
 
 	if (state >= 0) {
 		if (sc->no_hot && (state & G_RAID5_STATE_HOT))
 			state &= ~G_RAID5_STATE_HOT;
 
-		strlcpy(md.md_magic,G_RAID5_MAGIC,sizeof(md.md_magic));
+		strlcpy(md.md_magic, G_RAID5_MAGIC, sizeof(md.md_magic));
 		md.md_version = G_RAID5_VERSION;
-		strlcpy(md.md_name,sc->sc_name,sizeof(md.md_name));
+		strlcpy(md.md_name, sc->sc_name, sizeof(md.md_name));
 		if (sc->hardcoded)
-			strlcpy(md.md_provider,cp->provider->name,sizeof(md.md_provider));
+			strlcpy(md.md_provider, cp->provider->name, sizeof(md.md_provider));
 		else
-			bzero(md.md_provider,sizeof(md.md_provider));
+			bzero(md.md_provider, sizeof(md.md_provider));
 		md.md_id = sc->sc_id;
 		md.md_no = di_no;
 		md.md_all = sc->sc_ndisks;
@@ -643,7 +720,7 @@ g_raid5_update_metadata(struct g_raid5_softc *sc, struct g_consumer ** cpp,
 
 	G_RAID5_DEBUG(1, "%s: %s: update meta data: state%d",
 	              sc->sc_name, cp->provider->name, md.md_state);
-	return g_raid5_write_metadata(cpp, &md, ur);
+	return (g_raid5_write_metadata(cpp, &md, ur));
 }
 
 /*
@@ -795,7 +872,7 @@ g_raid5_remove_disk(struct g_raid5_softc *sc, struct g_consumer ** cpp,
 
 	if (sc->sc_type == G_RAID5_TYPE_AUTOMATIC) {
 		g_topology_unlock();
-		g_raid5_update_metadata(sc,&cp,clear_md?-1:G_RAID5_STATE_CALM,dn,NULL);
+		g_raid5_update_metadata(sc, &cp, clear_md?-1:G_RAID5_STATE_CALM, dn, NULL);
 		g_topology_lock();
 		if (clear_md)
 			sc->state |= G_RAID5_STATE_VERIFY;
@@ -835,7 +912,7 @@ g_raid5_orphan(struct g_consumer *cp)
 static __inline void
 g_raid5_free_bio(struct g_raid5_softc *sc, struct bio *bp)
 {
-	g_raid5_free(sc,bp->bio_data);
+	g_raid5_free(sc, bp->bio_data);
 	g_destroy_bio(bp);
 }
 
@@ -871,7 +948,7 @@ g_raid5_combine_inner(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce,
 	combo->bio_data = ce->sd + noff % sc->fsl;
 	if (!combo->bio_caller1 && bp->bio_caller1) /* inherit block */
 		combo->bio_caller1 = bp->bio_caller1;
-	g_raid5_q_de(sc,ce,bp,1);
+	g_raid5_q_de(sc, ce, bp, 1);
 }
 
 /*
@@ -904,29 +981,29 @@ g_raid5_is_cached(struct g_raid5_softc *sc, struct bio *bp)
 static __inline int
 g_raid5_is_current(struct g_raid5_softc *sc, struct bio *bp)
 {
-	return g_raid5_is_cached(sc,bp) ||
+	return g_raid5_is_cached(sc, bp) ||
 	       g_raid5_is_pending(bp) ||
-	       g_raid5_is_issued(sc,bp);
+	       g_raid5_is_issued(sc, bp);
 }
 static __inline int
 g_raid5_is_started(struct g_raid5_softc *sc, struct bio *bp)
-{ return g_raid5_is_issued(sc,bp) || g_raid5_is_requested(sc,bp); }
+{ return g_raid5_is_issued(sc, bp) || g_raid5_is_requested(sc, bp); }
 static __inline int
 g_raid5_is_done(struct g_raid5_softc *sc, struct bio *bp)
-{ return g_raid5_is_started(sc,bp) && bp->bio_driver1 == bp; }
+{ return g_raid5_is_started(sc, bp) && bp->bio_driver1 == bp; }
 static __inline int
 g_raid5_is_bad(struct g_raid5_softc *sc, struct bio *bp)
-{ return g_raid5_is_started(sc,bp) && bp->bio_caller2 == bp; }
+{ return g_raid5_is_started(sc, bp) && bp->bio_caller2 == bp; }
 
 /* cache state codes for ..._dumpconf() */
 static __inline char
 g_raid5_cache_code(struct g_raid5_softc *sc, struct bio *bp)
 {
-	if (g_raid5_is_requested(sc,bp))
+	if (g_raid5_is_requested(sc, bp))
 		return 'r';
-	if (g_raid5_is_issued(sc,bp))
+	if (g_raid5_is_issued(sc, bp))
 		return 'a';
-	if (g_raid5_is_cached(sc,bp))
+	if (g_raid5_is_cached(sc, bp))
 		return 'c';
 	return 'p';
 }
@@ -970,7 +1047,7 @@ g_raid5_stripe_conflict(struct g_raid5_softc *sc,
 	int blow = bbp->bio_offset & (sc->stripesize - 1);
 	off_t besno = bbp->bio_offset + bbp->bio_length - 1;
 	int bhih = besno & (sc->stripesize - 1);
-	ORDER(blow,bhih);
+	ORDER(blow, bhih);
 	besno = (besno >> sc->stripebits) / (sc->sc_ndisks - 1);
 
 	struct bio *bp;
@@ -979,7 +1056,7 @@ g_raid5_stripe_conflict(struct g_raid5_softc *sc,
 			continue;
 		if (bp->bio_length == 0)
 			continue;
-		if (!g_raid5_is_issued(sc,bp))
+		if (!g_raid5_is_issued(sc, bp))
 			continue;
 
 		off_t bsno = (bp->bio_offset >> sc->stripebits) / (sc->sc_ndisks - 1);
@@ -987,7 +1064,7 @@ g_raid5_stripe_conflict(struct g_raid5_softc *sc,
 
 		off_t esno = bp->bio_offset + bp->bio_length - 1;
 		int hih = esno & (sc->stripesize - 1);
-		ORDER(low,hih);
+		ORDER(low, hih);
 		esno = (esno >> sc->stripebits) / (sc->sc_ndisks - 1);
 
 		if (besno >= bsno && esno >= bbsno && bhih >= low && hih >= blow)
@@ -1012,7 +1089,7 @@ g_raid5_overlapf_by_bio(struct bio *bp, struct bio *bbp)
 {
 	off_t end = bp->bio_offset + bp->bio_length;
 	off_t bend = bbp->bio_offset + bbp->bio_length;
-	return g_raid5_overlapf(bp->bio_offset,end, bbp->bio_offset,bend);
+	return g_raid5_overlapf(bp->bio_offset, end, bbp->bio_offset, bend);
 }
 
 /*
@@ -1028,8 +1105,8 @@ g_raid5_flank(off_t a1, off_t a2, off_t b1, off_t b2)
 static __inline int
 g_raid5_overlap(off_t a1, off_t a2, off_t b1, off_t b2, int *overlapf)
 {
-	(*overlapf) = g_raid5_overlapf(a1,a2, b1,b2);
-	return (*overlapf) || g_raid5_flank(a1,a2, b1,b2);
+	(*overlapf) = g_raid5_overlapf(a1, a2, b1, b2);
+	return (*overlapf) || g_raid5_flank(a1, a2, b1, b2);
 }
 
 /*
@@ -1047,11 +1124,11 @@ g_raid5_still_blocked(struct g_raid5_softc *sc,
 	G_RAID5_CE_TRAVERSE(ce, bp) {
 		if (bp == bbp)
 			continue;
-		if (g_raid5_is_cached(sc,bp))
+		if (g_raid5_is_cached(sc, bp))
 			continue;
-		if (g_raid5_overlapf_by_bio(bp,bbp)) {
-			MYKASSERT(g_raid5_is_started(sc,bp),
-			          ("combo error found with %p/%d(%p,%p):%jd+%jd %p/%d(%p,%p):%jd+%jd", bp,bp->bio_cmd==BIO_READ,bp->bio_parent,sc,bp->bio_offset,bp->bio_length, bbp,bbp->bio_cmd==BIO_READ,bbp->bio_parent,sc,bbp->bio_offset,bbp->bio_length));
+		if (g_raid5_overlapf_by_bio(bp, bbp)) {
+			MYKASSERT(g_raid5_is_started(sc, bp),
+			          ("combo error found with %p/%d(%p, %p):%jd+%jd %p/%d(%p, %p):%jd+%jd", bp, bp->bio_cmd==BIO_READ, bp->bio_parent, sc, bp->bio_offset, bp->bio_length, bbp, bbp->bio_cmd==BIO_READ, bbp->bio_parent, sc, bbp->bio_offset, bbp->bio_length));
 			return 1;
 		}
 	}
@@ -1160,7 +1237,7 @@ g_raid5_cache_trans(struct g_raid5_softc *sc, struct bio *pbp, struct bio **obp)
 		MYKASSERT(*obp != pbp, ("bad structure."));
 		MYKASSERT((*obp)->bio_cmd == BIO_READ, ("need BIO_READ here."));
 		MYKASSERT(pbp->bio_caller1 != NULL, ("wrong memory area."));
-		MYKASSERT(!g_raid5_extra_mem(*obp,pbp->bio_caller1), ("bad mem"));
+		MYKASSERT(!g_raid5_extra_mem(*obp, pbp->bio_caller1), ("bad mem"));
 		bcopy(pbp->bio_data, pbp->bio_caller1, pbp->bio_completed);
 		pbp->bio_caller1 = NULL;
 		(*obp)->bio_completed += pbp->bio_completed;
@@ -1213,7 +1290,7 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 				g_raid5_preremove_reset(sc);
 				sc->preremoved[dn] = 1;
 				sc->vdc--;
-				G_RAID5_DEBUG(0,"%s: %s(%d): pre-remove disk due to errors.",
+				G_RAID5_DEBUG(0, "%s: %s(%d): pre-remove disk due to errors.",
 				              sc->sc_name, cp->provider->name, dn);
 			}
 			if (g_raid5_disks_ok > 0)
@@ -1221,23 +1298,23 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 			else
 				g_error_provider(sc->sc_provider, obp->bio_error);
 		}
-		G_RAID5_DEBUG(0,"%s: %p: cmd%c off%jd len%jd err:%d/%d c%d",
+		G_RAID5_DEBUG(0, "%s: %p: cmd%c off%jd len%jd err:%d/%d c%d",
 		              sc->sc_name, obp, obp->bio_cmd==BIO_READ?'R':'W',
 		              obp->bio_offset, obp->bio_length,
-		              bp->bio_error,obp->bio_error,g_raid5_disks_ok);
+		              bp->bio_error, obp->bio_error, g_raid5_disks_ok);
 	}
 
 	int saved = 0;
-	int extra = g_raid5_extra_mem(obp,bp->bio_data);
+	int extra = g_raid5_extra_mem(obp, bp->bio_data);
 	if (bp->bio_cmd == BIO_READ) {
 		if (obp == pbp) {
 			/* best case read */
 			MYKASSERT(pbp->bio_cmd == BIO_READ, ("need BIO_READ here."));
-			MYKASSERT(g_raid5_is_requested(sc,pbp), ("bad structure"));
+			MYKASSERT(g_raid5_is_requested(sc, pbp), ("bad structure"));
 			MYKASSERT(!extra, ("wrong mem area."));
 			pbp->bio_completed += bp->bio_completed;
 			if (pbp->bio_inbed == pbp->bio_children)
-				g_raid5_cache_trans(sc, pbp,&obp);
+				g_raid5_cache_trans(sc, pbp, &obp);
 		} else if (obp->bio_cmd == BIO_READ &&
 		           pbp->bio_children == sc->sc_ndisks) {
 			/* verify read */
@@ -1248,20 +1325,20 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 				bp->bio_length = pbp->bio_length / 2;
 				MYKASSERT(pbp->bio_data+bp->bio_length == bp->bio_data,
 				          ("datptr %p+%jd %p",
-				           pbp->bio_data,bp->bio_length,bp->bio_data));
+				           pbp->bio_data, bp->bio_length, bp->bio_data));
 			}
 			MYKASSERT(bp->bio_length*2 == pbp->bio_length, ("lengths"));
 			if (pbp->bio_data+bp->bio_length != bp->bio_data) {
 				/* not the stripe in question */
-				g_raid5_xor(pbp->bio_data,bp->bio_data,bp->bio_length);
+				g_raid5_xor(pbp->bio_data, bp->bio_data, bp->bio_length);
 				if (extra)
 					saved = 1;
 			}
 			if (pbp->bio_inbed == pbp->bio_children) {
 				g_raid5_vsc++;
 				if (pbp->bio_driver1 != NULL) {
-					MYKASSERT(!g_raid5_extra_mem(obp,pbp->bio_driver1),("bad addr"));
-					bcopy(pbp->bio_data,pbp->bio_driver1,bp->bio_length);
+					MYKASSERT(!g_raid5_extra_mem(obp, pbp->bio_driver1), ("bad addr"));
+					bcopy(pbp->bio_data, pbp->bio_driver1, bp->bio_length);
 					pbp->bio_driver1 = NULL;
 				}
 				if (obp->bio_error == 0 && obp->bio_driver2 == &sc->worker) {
@@ -1283,42 +1360,42 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 					pbp->bio_offset = -pbp->bio_offset-1;
 					obp->bio_completed += bp->bio_length;
 					obp->bio_inbed++;
-					MYKASSERT(g_raid5_extra_mem(obp,pbp->bio_data), ("bad addr"));
-					g_raid5_free_bio(sc,pbp);
+					MYKASSERT(g_raid5_extra_mem(obp, pbp->bio_data), ("bad addr"));
+					g_raid5_free_bio(sc, pbp);
 				} else { /* parity mismatch - no correction */
 					if (!obp->bio_error)
 						obp->bio_error = EIO;
 					obp->bio_inbed++;
-					MYKASSERT(g_raid5_extra_mem(obp,pbp->bio_data), ("bad addr"));
+					MYKASSERT(g_raid5_extra_mem(obp, pbp->bio_data), ("bad addr"));
 					int pos;
 					for (pos=0; pos<bp->bio_length; pos++)
 						if (((char*)pbp->bio_data)[pos] !=
 						    ((char*)pbp->bio_data)[pos+bp->bio_length])
 							break;
-					G_RAID5_DEBUG(0,"%s: %p: parity mismatch: %jd+%jd@%d.",
-					              sc->sc_name,obp,bp->bio_offset,bp->bio_length,pos);
-					g_raid5_free_bio(sc,pbp);
+					G_RAID5_DEBUG(0, "%s: %p: parity mismatch: %jd+%jd@%d.",
+					              sc->sc_name, obp, bp->bio_offset, bp->bio_length, pos);
+					g_raid5_free_bio(sc, pbp);
 				}
 			}
 		} else if (obp->bio_cmd == BIO_WRITE &&
 		           pbp->bio_children == sc->sc_ndisks-2 &&
-		           g_raid5_extra_mem(obp,pbp->bio_data)) {
+		           g_raid5_extra_mem(obp, pbp->bio_data)) {
 			/* preparative read for degraded case write */
 			MYKASSERT(extra, ("wrong memory area."));
 			MYKASSERT(bp->bio_offset == -pbp->bio_offset-1,
 			          ("offsets must correspond"));
 			MYKASSERT(bp->bio_length == pbp->bio_length,
 			          ("length must correspond"));
-			g_raid5_xor(pbp->bio_data,bp->bio_data,bp->bio_length);
+			g_raid5_xor(pbp->bio_data, bp->bio_data, bp->bio_length);
 			saved = 1;
 			if (pbp->bio_inbed == pbp->bio_children) {
 				pbp->bio_offset = -pbp->bio_offset-1;
-				MYKASSERT(g_raid5_extra_mem(obp,pbp->bio_data), ("bad addr"));
+				MYKASSERT(g_raid5_extra_mem(obp, pbp->bio_data), ("bad addr"));
 				if (pbp->bio_error) {
 					obp->bio_inbed++;
-					g_raid5_free_bio(sc,pbp);
+					g_raid5_free_bio(sc, pbp);
 				} else
-					g_raid5_io_req(sc,pbp);
+					g_raid5_io_req(sc, pbp);
 			}
 		} else if ( obp->bio_cmd == BIO_WRITE &&
 		            (pbp->bio_children == 2 ||
@@ -1331,10 +1408,10 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 					  ("length must correspond. %jd / %jd",
 			         bp->bio_length, pbp->bio_length));
 			MYKASSERT(extra, ("wrong memory area %p/%jd+%jd -- %p/%jd+%jd.",
-			                  obp->bio_data,obp->bio_offset,obp->bio_length,
-			                  bp->bio_data,obp->bio_offset,bp->bio_length));
+			                  obp->bio_data, obp->bio_offset, obp->bio_length,
+			                  bp->bio_data, obp->bio_offset, bp->bio_length));
 			struct bio *pab = pbp->bio_caller2;
-			g_raid5_xor(pab->bio_data,bp->bio_data,bp->bio_length);
+			g_raid5_xor(pab->bio_data, bp->bio_data, bp->bio_length);
 			saved = 1;
 			if (pbp->bio_inbed == pbp->bio_children) {
 				pbp->bio_offset = -pbp->bio_offset-1;
@@ -1345,11 +1422,11 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 				        ("offsets must correspond"));
 				MYKASSERT(pbp->bio_driver2 != pab->bio_driver2,
 				        ("disks must be different"));
-				MYKASSERT(g_raid5_extra_mem(obp,pab->bio_data), ("bad addr"));
-				MYKASSERT(!g_raid5_extra_mem(obp,pbp->bio_data), ("bad addr"));
+				MYKASSERT(g_raid5_extra_mem(obp, pab->bio_data), ("bad addr"));
+				MYKASSERT(!g_raid5_extra_mem(obp, pbp->bio_data), ("bad addr"));
 				if (pbp->bio_error) {
 					obp->bio_inbed += 2;
-					g_raid5_free_bio(sc,pab);
+					g_raid5_free_bio(sc, pab);
 					g_destroy_bio(pbp);
 				} else {
 					g_raid5_io_req(sc, pab);
@@ -1359,12 +1436,12 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 		} else {
 			/* read degraded stripe */
 			MYKASSERT(obp->bio_cmd == BIO_READ, ("need BIO_READ here."));
-			MYKASSERT(g_raid5_is_requested(sc,obp), ("bad structure"));
+			MYKASSERT(g_raid5_is_requested(sc, obp), ("bad structure"));
 			MYKASSERT(pbp->bio_children == sc->sc_ndisks-1,
 			        ("must have %d children here.", sc->sc_ndisks-1));
 			MYKASSERT(extra, ("wrong memory area."));
-			MYKASSERT(bp->bio_length==pbp->bio_length,("length must correspond."));
-			g_raid5_xor(pbp->bio_data,bp->bio_data,bp->bio_length);
+			MYKASSERT(bp->bio_length==pbp->bio_length, ("length must correspond."));
+			g_raid5_xor(pbp->bio_data, bp->bio_data, bp->bio_length);
 			saved = 1;
 			if (pbp->bio_inbed == pbp->bio_children) {
 				obp->bio_completed += bp->bio_completed;
@@ -1372,7 +1449,7 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 				g_destroy_bio(pbp);
 				if (obp->bio_inbed == obp->bio_children) {
 					pbp = obp;
-					g_raid5_cache_trans(sc, pbp,&obp);
+					g_raid5_cache_trans(sc, pbp, &obp);
 				}
 			}
 		}
@@ -1386,7 +1463,7 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 	}
 
 	if (saved)
-		g_raid5_free_bio(sc,bp);
+		g_raid5_free_bio(sc, bp);
 	else
 		g_destroy_bio(bp);
 
@@ -1405,15 +1482,15 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 				obp->bio_inbed = 0;
 			} else if (obp->bio_error == 0 && g_raid5_disks_ok < 30)
 				g_raid5_disks_ok = 50;
-			if (g_raid5_is_issued(sc,obp) && obp->bio_cmd == BIO_WRITE) {
+			if (g_raid5_is_issued(sc, obp) && obp->bio_cmd == BIO_WRITE) {
 				if (obp->bio_error == ENOMEM)
 					g_raid5_set_bad(obp); /* retry! */
 				else {
 					if (obp->bio_error) {
 						g_raid5_set_bad(obp); /* abort! */
-						G_RAID5_DEBUG(0,"%s: %p: lost data: off%jd len%jd error%d.",
-										  sc->sc_name,obp,
-						              obp->bio_offset,obp->bio_length,obp->bio_error);
+						G_RAID5_DEBUG(0, "%s: %p: lost data: off%jd len%jd error%d.",
+										  sc->sc_name, obp,
+						              obp->bio_offset, obp->bio_length, obp->bio_error);
 						g_error_provider(sc->sc_provider, obp->bio_error);
 							/* cancels all pending write requests */
 					} else /* done cleanly */
@@ -1423,8 +1500,8 @@ g_raid5_ready(struct g_raid5_softc *sc, struct bio *bp)
 			} else {
 				MYKASSERT(obp->bio_cmd == BIO_READ,
 				          ("incompetent for non-BIO_READ %jd/%jd %d %p/%p.",
-				           obp->bio_length,obp->bio_offset,
-				           sc->sc_ndisks,obp->bio_parent,sc));
+				           obp->bio_length, obp->bio_offset,
+				           sc->sc_ndisks, obp->bio_parent, sc));
 				if (obp != pbp)
 					g_io_deliver(obp, obp->bio_error);
 			}
@@ -1444,7 +1521,7 @@ g_raid5_done(struct bio *bp)
 	struct g_raid5_softc *sc = bp->bio_from->geom->softc;
 	MYKASSERT(sc != NULL, ("SC must not be zero here."));
 	G_RAID5_LOGREQ(bp, "[done err:%d dat:%02x adr:%p]",
-	               bp->bio_error,*(unsigned char*)bp->bio_data,bp->bio_data);
+	               bp->bio_error, *(unsigned char*)bp->bio_data, bp->bio_data);
 
 	if (sc->workerD == NULL)
 		g_raid5_ready(sc, bp);
@@ -1472,7 +1549,7 @@ g_raid5_prep(struct g_raid5_softc *sc,
 		return NULL;
 
 	if (data == NULL) {
-		cbp->bio_data = g_raid5_malloc(sc,len,0);
+		cbp->bio_data = g_raid5_malloc(sc, len, 0);
 		if (cbp->bio_data == NULL) {
 			g_destroy_bio(cbp);
 			return NULL;
@@ -1511,11 +1588,11 @@ g_raid5_conv_veri_read(struct bio_queue_head *queue, struct g_raid5_softc *sc,
 		qno = sc->newest >= 0 ? sc->newest : pno;
 	else
 		qno = dno;
-	if (!g_raid5_disk_good(sc,qno))
+	if (!g_raid5_disk_good(sc, qno))
 		return EIO;
 
-	struct bio *root = g_raid5_prep(sc,queue,obp,BIO_WRITE,-loff-1,len*2,
-	                                NULL,sc->sc_disks[qno]);
+	struct bio *root = g_raid5_prep(sc, queue, obp, BIO_WRITE, -loff-1, len*2,
+	                                NULL, sc->sc_disks[qno]);
 	if (root == NULL)
 		return ENOMEM;
 	bzero(root->bio_data, len);
@@ -1523,10 +1600,10 @@ g_raid5_conv_veri_read(struct bio_queue_head *queue, struct g_raid5_softc *sc,
 	for (int i=0; i<sc->sc_ndisks; i++) {
 		u_char *d = i == qno ? root->bio_data + len : NULL;
 		int l = (i == qno && obp->bio_driver2 == &sc->worker) ? 0 : len;
-		if (!g_raid5_disk_good(sc,i))
+		if (!g_raid5_disk_good(sc, i))
 			return EIO;
-		struct bio *son = g_raid5_prep(sc,queue,root,BIO_READ,loff,l,
-		                               d,sc->sc_disks[i]);
+		struct bio *son = g_raid5_prep(sc, queue, root, BIO_READ, loff, l,
+		                               d, sc->sc_disks[i]);
 		if (son == NULL)
 			return ENOMEM;
 	}
@@ -1574,9 +1651,9 @@ g_raid5_des_sq(struct g_raid5_softc *sc,
 		bioq_remove(queue, cbp);
 
 		if (cbp->bio_data != NULL &&
-		    g_raid5_extra_mem(cbp->bio_parent,cbp->bio_data) &&
-		    g_raid5_extra_mem(bp,cbp->bio_data))
-			g_raid5_free_bio(sc,cbp);
+		    g_raid5_extra_mem(cbp->bio_parent, cbp->bio_data) &&
+		    g_raid5_extra_mem(bp, cbp->bio_data))
+			g_raid5_free_bio(sc, cbp);
 		else
 			g_destroy_bio(cbp);
 	}
@@ -1598,9 +1675,9 @@ g_raid5_order_full(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 	int pno = (sno / (sc->sc_ndisks-1)) % sc->sc_ndisks;
 	int failed = 0;
 	struct bio *pari;
-	if (g_raid5_disk_good(sc,pno)) {
-		pari = g_raid5_prep(sc,queue,bp,BIO_WRITE,
-		                    loff,sc->stripesize,0,sc->sc_disks[pno]);
+	if (g_raid5_disk_good(sc, pno)) {
+		pari = g_raid5_prep(sc, queue, bp, BIO_WRITE,
+		                    loff, sc->stripesize, 0, sc->sc_disks[pno]);
 		if (pari == NULL)
 			return ENOMEM;
 		pari->bio_caller1 = pari;
@@ -1614,15 +1691,15 @@ g_raid5_order_full(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 			continue;
 		if (pari != NULL)
 			g_raid5_xor(pari->bio_data, data, pari->bio_length);
-		if (!g_raid5_disk_good(sc,i)) {
+		if (!g_raid5_disk_good(sc, i)) {
 			failed++;
 			if (failed > 1)
 				return EIO;
 			data += sc->stripesize;
 			continue;
 		}
-		struct bio *cbp = g_raid5_prep(sc,queue,bp,BIO_WRITE,
-		                               loff,sc->stripesize,data,sc->sc_disks[i]);
+		struct bio *cbp = g_raid5_prep(sc, queue, bp, BIO_WRITE,
+		                               loff, sc->stripesize, data, sc->sc_disks[i]);
 		if (cbp == NULL)
 			return ENOMEM;
 		cbp->bio_caller1 = bp;
@@ -1655,7 +1732,7 @@ g_raid5_order(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 	int pno = (sno / (sc->sc_ndisks-1)) % sc->sc_ndisks;
 	if (dno >= pno)
 		dno++;
-	MYKASSERT(dno < sc->sc_ndisks, ("dno: out of range (%d,%d)",pno,dno));
+	MYKASSERT(dno < sc->sc_ndisks, ("dno: out of range (%d, %d)", pno, dno));
 
 
 	int datdead = g_raid5_data_good(sc, dno, lend) ? 0 : 1;
@@ -1668,25 +1745,25 @@ g_raid5_order(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 
 	if (bp->bio_cmd == BIO_READ) {
 		if (sc->state&G_RAID5_STATE_SAFEOP)
-			return g_raid5_conv_veri_read(queue,sc,bp,loff,len,dno,pno,data);
+			return g_raid5_conv_veri_read(queue, sc, bp, loff, len, dno, pno, data);
 		if (datdead) {
-			struct bio*root= g_raid5_prep(sc,queue,bp,BIO_READ,-loff-1,len,data,0);
+			struct bio*root= g_raid5_prep(sc, queue, bp, BIO_READ, -loff-1, len, data, 0);
 			if (root == NULL)
 				return ENOMEM;
 			for (int i=0; i < sc->sc_ndisks; i++) {
 				if (i == dno)
 					continue;
-				if (!g_raid5_disk_good(sc,i))
+				if (!g_raid5_disk_good(sc, i))
 					return EIO;
-				if (g_raid5_prep(sc,queue,root,BIO_READ,
-				                 loff,len,0,sc->sc_disks[i]) == NULL)
+				if (g_raid5_prep(sc, queue, root, BIO_READ,
+				                 loff, len, 0, sc->sc_disks[i]) == NULL)
 					return ENOMEM;
 			}
-			bzero(data,len);
+			bzero(data, len);
 			return 0;
 		}
-		if (g_raid5_prep(sc,queue,bp,BIO_READ,
-		                 loff,len,data,sc->sc_disks[dno]) == NULL)
+		if (g_raid5_prep(sc, queue, bp, BIO_READ,
+		                 loff, len, data, sc->sc_disks[dno]) == NULL)
 			return ENOMEM;
 	} else {
 		MYKASSERT(bp->bio_cmd == BIO_WRITE, ("bio_cmd WRITE expected"));
@@ -1701,8 +1778,8 @@ g_raid5_order(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 		}
 
 		if (pardead) { /* parity disk dead-dead */
-			struct bio *cbp = g_raid5_prep(sc,queue,bp,BIO_WRITE,
-			                               loff,len,data,sc->sc_disks[dno]);
+			struct bio *cbp = g_raid5_prep(sc, queue, bp, BIO_WRITE,
+			                               loff, len, data, sc->sc_disks[dno]);
 			if (cbp == NULL)
 				return ENOMEM;
 			cbp->bio_caller1 = bp;
@@ -1711,14 +1788,14 @@ g_raid5_order(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 		}
 
 		if (sc->sc_ndisks == 2) {
-			struct bio *root = g_raid5_prep(sc,queue,bp,BIO_WRITE,
-			                                loff,len,data,sc->sc_disks[pno]);
+			struct bio *root = g_raid5_prep(sc, queue, bp, BIO_WRITE,
+			                                loff, len, data, sc->sc_disks[pno]);
 			if (root == NULL)
 				return ENOMEM;
 			root->bio_caller1 = bp;
 			if (!datdead &&
-			    g_raid5_prep(sc,queue,bp,BIO_WRITE,
-			                 loff,len,data,sc->sc_disks[dno]) == NULL)
+			    g_raid5_prep(sc, queue, bp, BIO_WRITE,
+			                 loff, len, data, sc->sc_disks[dno]) == NULL)
 				return ENOMEM;
 			g_raid5_w1rc++;
 			return 0;
@@ -1728,26 +1805,26 @@ g_raid5_order(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 			struct bio * root;
 			struct bio * pari;
 
-			pari = g_raid5_prep(sc,queue,bp,BIO_WRITE,
-			                    -loff-1,len,0,sc->sc_disks[pno]);
+			pari = g_raid5_prep(sc, queue, bp, BIO_WRITE,
+			                    -loff-1, len, 0, sc->sc_disks[pno]);
 			if (pari == NULL)
 				return ENOMEM;
-			root = g_raid5_prep(sc,queue,bp,BIO_WRITE,
-			                    -loff-1,len,data,sc->sc_disks[dno]);
+			root = g_raid5_prep(sc, queue, bp, BIO_WRITE,
+			                    -loff-1, len, data, sc->sc_disks[dno]);
 			if (root == NULL)
 				return ENOMEM;
 /*ARNE: pass at least data block read request through the cache */
 			if (sc->sc_ndisks == 3 &&
 			    g_raid5_data_good(sc, 3-dno-pno, lend)) {
-				if (g_raid5_prep(sc,queue,root,BIO_READ, 
-				                 loff,len,0,sc->sc_disks[3-dno-pno]) == NULL)
+				if (g_raid5_prep(sc, queue, root, BIO_READ,
+				                 loff, len, 0, sc->sc_disks[3-dno-pno]) == NULL)
 					return ENOMEM;
 			} else {
-				if (g_raid5_prep(sc,queue,root,BIO_READ,
-				                 loff,len,0,sc->sc_disks[dno]) == NULL)
+				if (g_raid5_prep(sc, queue, root, BIO_READ,
+				                 loff, len, 0, sc->sc_disks[dno]) == NULL)
 					return ENOMEM;
-				if (g_raid5_prep(sc,queue,root,BIO_READ,
-				                 loff,len,0,sc->sc_disks[pno]) == NULL)
+				if (g_raid5_prep(sc, queue, root, BIO_READ,
+				                 loff, len, 0, sc->sc_disks[pno]) == NULL)
 					return ENOMEM;
 			}
 			bcopy(data, pari->bio_data, len);
@@ -1761,8 +1838,8 @@ g_raid5_order(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 
 		/* read all but dno and pno*/
 		int i;
-		struct bio *root = g_raid5_prep(sc,queue,bp,BIO_WRITE,
-		                                -loff-1,len,0,sc->sc_disks[pno]);
+		struct bio *root = g_raid5_prep(sc, queue, bp, BIO_WRITE,
+		                                -loff-1, len, 0, sc->sc_disks[pno]);
 		if (root == NULL)
 			return ENOMEM;
 		for (i=0; i < sc->sc_ndisks; i++) {
@@ -1770,8 +1847,8 @@ g_raid5_order(struct g_raid5_softc *sc, struct bio_queue_head *queue,
 				continue;
 			if (!g_raid5_data_good(sc, i, lend))
 				return EIO;
-			if (g_raid5_prep(sc,queue,root,BIO_READ,
-			                 loff,len,0,sc->sc_disks[i]) == NULL)
+			if (g_raid5_prep(sc, queue, root, BIO_READ,
+			                 loff, len, 0, sc->sc_disks[i]) == NULL)
 				return ENOMEM;
 		}
 		bcopy(data, root->bio_data, len);
@@ -1809,7 +1886,7 @@ g_raid5_dispatch(struct g_raid5_softc *sc, struct bio *bp)
 		int len;
 		if ( bp->bio_cmd == BIO_WRITE && bp->bio_length == sc->fsl &&
 		     g_raid5_nvalid(sc) >= sc->sc_ndisks - 1 ) {
-			error = g_raid5_order_full(sc,&queue,bp,data);
+			error = g_raid5_order_full(sc, &queue, bp, data);
 			len = sc->fsl;
 		} else {
 			int soff = offset & (sc->stripesize-1);
@@ -1822,16 +1899,16 @@ g_raid5_dispatch(struct g_raid5_softc *sc, struct bio *bp)
 	}
 
 	if (error) {
-		g_raid5_des_sq(sc,&queue,bp);
+		g_raid5_des_sq(sc, &queue, bp);
 		if (!bp->bio_error)
 			bp->bio_error = error;
 		if (bp->bio_cmd == BIO_READ && bp->bio_caller2 != NULL) {
 			struct bio *obp = bp->bio_caller2;
-			MYKASSERT(!g_raid5_extra_mem(obp,bp->bio_caller1), ("bad structure."));
+			MYKASSERT(!g_raid5_extra_mem(obp, bp->bio_caller1), ("bad structure."));
 			bp->bio_caller1 = NULL;
 			obp->bio_inbed++;
 			if (obp->bio_inbed == obp->bio_children)
-				g_io_deliver(obp,obp->bio_error);
+				g_io_deliver(obp, obp->bio_error);
 		}
 		g_raid5_set_bad(bp); /* retry or uncache */
 		g_raid5_wakeup(sc);
@@ -1874,18 +1951,18 @@ g_raid5_issue_check(struct g_raid5_softc *sc,
 		return 0;
 	MYKASSERT(bp->bio_cmd == BIO_WRITE, ("wrong cmd."));
 
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
 	/* blocked by already issued? */
 	if (bp->bio_caller1 != NULL) {
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
 		if (g_raid5_still_blocked(sc, ce, bp))
 			return 0;
 		bp->bio_caller1 = NULL;
 	}
 
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
 	if (bp->bio_length < sc->fsl && bp->bio_length > sc->stripesize) {
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
 		int len = sc->stripesize - (bp->bio_offset & (sc->stripesize - 1));
 
 		/* inject tail request */
@@ -1895,16 +1972,16 @@ if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
 		cbp->bio_length = bp->bio_length - len;
 		cbp->bio_t0.sec = bp->bio_t0.sec;
 		g_raid5_q_in(sc, ce, cbp, 1);
-		g_raid5_dc_inc(sc,ce);
+		g_raid5_dc_inc(sc, ce);
 
 		/* shape original request */
 		bp->bio_length = len;
 	}
 
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
 	/* possible 2-phase stripe conflict? */
 	if (g_raid5_stripe_conflict(sc, ce, bp)) {
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
 		if (bp->bio_driver2 == NULL) {
 			g_raid5_blked2++;
 			bp->bio_driver2 = bp;
@@ -1913,14 +1990,14 @@ if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
 	} else if (bp->bio_driver2 != NULL)
 		bp->bio_driver2 = NULL;
 
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
-	g_raid5_set_issued(sc,bp);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
+	g_raid5_set_issued(sc, bp);
 
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
-	g_raid5_issue(sc,bp);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
+	g_raid5_issue(sc, bp);
 
 	sc->wqpi++;
-if (sc->term) G_RAID5_DEBUG(0,"line%d",__LINE__);
+if (sc->term) G_RAID5_DEBUG(0, "line%d", __LINE__);
 	return 1;
 }
 
@@ -1943,14 +2020,14 @@ g_raid5_chk_frag(struct g_raid5_softc *sc,
 			found = 1;
 			continue;
 		}
-		if (!g_raid5_is_cached(sc,bp))
+		if (!g_raid5_is_cached(sc, bp))
 			continue;
 		off_t end = bp->bio_offset + bp->bio_length;
 		if (end < combo->bio_offset || cend < bp->bio_offset)
 			continue;
 		if (f)
 			chged = 1;
-		g_raid5_combine_inner(sc,ce,bp,combo,end);
+		g_raid5_combine_inner(sc, ce, bp, combo, end);
 	}
 	return chged;
 }
@@ -1963,7 +2040,7 @@ g_raid5_write(struct g_raid5_softc *sc, struct bio *wbp, int o, int l)
 {
 	MYKASSERT(wbp != NULL, ("no way!"));
 	MYKASSERT(wbp->bio_cmd == BIO_WRITE, ("no way!"));
-	MYKASSERT(!g_raid5_is_issued(sc,wbp), ("no way!"));
+	MYKASSERT(!g_raid5_is_issued(sc, wbp), ("no way!"));
 
 	struct bio *combo = NULL;
 	struct bio *issued = NULL;
@@ -1977,25 +2054,25 @@ g_raid5_write(struct g_raid5_softc *sc, struct bio *wbp, int o, int l)
 
 	struct bio *bp, *bp_nxt;
 	G_RAID5_CE_TRAVSAFE(ce, bp) {
-		if (g_raid5_is_requested(sc,bp))
+		if (g_raid5_is_requested(sc, bp))
 			return EAGAIN;
 
 		off_t end = bp->bio_offset + bp->bio_length;
 		int overlapf;
-		int overlap = g_raid5_overlap(bp->bio_offset,end, woff,wend, &overlapf);
+		int overlap = g_raid5_overlap(bp->bio_offset, end, woff, wend, &overlapf);
 		if (!overlap)
 			continue;
 
 		/* if bp has been already started,
 		     then no combo but look for another bp that matches and mark wbp */
-		if (g_raid5_is_issued(sc,bp)) {
+		if (g_raid5_is_issued(sc, bp)) {
 			if (overlapf)
 				issued = bp;
 			continue;
 		}
 
-		MYKASSERT(!g_raid5_is_bad(sc,bp), ("bp must not be in state error."));
-		if (g_raid5_is_cached(sc,bp)) {
+		MYKASSERT(!g_raid5_is_bad(sc, bp), ("bp must not be in state error."));
+		if (g_raid5_is_cached(sc, bp)) {
 			if (overlapf) {
 				if (bp->bio_offset < woff) {
 					bp->bio_length = woff - bp->bio_offset;
@@ -2008,7 +2085,7 @@ g_raid5_write(struct g_raid5_softc *sc, struct bio *wbp, int o, int l)
 						g_raid5_set_cached(sc, cbp);
 					}
 				} else if (end <= wend)
-					g_raid5_q_de(sc,ce,bp,1);
+					g_raid5_q_de(sc, ce, bp, 1);
 				else {
 					int d = wend - bp->bio_offset;
 					bp->bio_offset = wend;
@@ -2020,12 +2097,12 @@ g_raid5_write(struct g_raid5_softc *sc, struct bio *wbp, int o, int l)
 		}
 
 		if (combo == NULL) {
-			g_raid5_combine(sc,ce, bp, wbp,woff,l, MAX(end, wend));
+			g_raid5_combine(sc, ce, bp, wbp, woff, l, MAX(end, wend));
 			combo = bp;
 		} else { /* combine bp with combo and remove bp */
 			MYKASSERT(g_raid5_is_pending(combo), ("oops something started?"));
-			g_raid5_combine_inner(sc,ce,bp,combo,end);
-			g_raid5_dc_dec(sc,ce);
+			g_raid5_combine_inner(sc, ce, bp, combo, end);
+			g_raid5_dc_dec(sc, ce);
 		}
 	}
 
@@ -2036,7 +2113,7 @@ g_raid5_write(struct g_raid5_softc *sc, struct bio *wbp, int o, int l)
 		cbp->bio_length = l;
 		cbp->bio_t0.sec = wbp->bio_t0.sec;
 		g_raid5_q_in(sc, ce, cbp, 1);
-		g_raid5_dc_inc(sc,ce);
+		g_raid5_dc_inc(sc, ce);
 		g_raid5_set_pending(cbp);
 		if (issued) {
 			cbp->bio_caller1 = issued;
@@ -2046,7 +2123,7 @@ g_raid5_write(struct g_raid5_softc *sc, struct bio *wbp, int o, int l)
 	bcopy(wbp->bio_data + o, ce->sd + woff % sc->fsl, l);
 
 	if (combo != NULL && combo->bio_length == sc->fsl)
-		g_raid5_issue_check(sc,ce, combo);
+		g_raid5_issue_check(sc, ce, combo);
 
 	if (sc->wqp > g_raid5_wqp)
 		g_raid5_wqp = sc->wqp;
@@ -2061,8 +2138,8 @@ static __inline void
 g_raid5_wqp_dec(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce,
                 struct bio *bp)
 {
-	if (g_raid5_is_issued(sc,bp)) {
-		g_raid5_dc_dec(sc,ce);
+	if (g_raid5_is_issued(sc, bp)) {
+		g_raid5_dc_dec(sc, ce);
 		sc->wqpi--;
 	}
 }
@@ -2076,7 +2153,7 @@ static __inline void
 g_raid5_uncache(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce,
                 struct bio *bp)
 {
-	g_raid5_q_de(sc,ce,bp,0);
+	g_raid5_q_de(sc, ce, bp, 0);
 	if (g_raid5_ce_em(ce)) {
 		MYKASSERT(ce->sno == 0, ("sno must be zero here."));
 		if (sc->cfc > 0)
@@ -2092,7 +2169,7 @@ g_raid5_uncache(struct g_raid5_softc *sc, struct g_raid5_cache_entry *ce,
 static void
 g_raid5_undirty(struct g_raid5_softc *sc, struct bintime *now, int rcf)
 {
-	int wdt = MAX(g_raid5_wdt,2);
+	int wdt = MAX(g_raid5_wdt, 2);
 	if (wdt > g_raid5_wdt)
 		g_raid5_wdt = wdt;
 	int edc = 0;
@@ -2100,17 +2177,17 @@ g_raid5_undirty(struct g_raid5_softc *sc, struct bintime *now, int rcf)
 	struct g_raid5_cache_entry *mce = NULL;
 	struct bio *bp, *bp_nxt;
 	struct g_raid5_cache_entry *ce;
-	G_RAID5_C_TRAVSAFE(sc,bp,ce) {
+	G_RAID5_C_TRAVSAFE(sc, bp, ce) {
 		if (bp_nxt==NULL && ce->dc) {
 			if (pc == 0)
 				edc++;
 			else {
 				pc = 0;
-				if (mce == NULL || g_raid5_bintime_cmp(&ce->lu,&mce->lu) < 0)
+				if (mce == NULL || g_raid5_bintime_cmp(&ce->lu, &mce->lu) < 0)
 					mce = ce;
 			}
 		}
-		if (g_raid5_is_bad(sc,bp)) {
+		if (g_raid5_is_bad(sc, bp)) {
 			MYKASSERT(bp->bio_caller1 == NULL, ("no dependancy possible here."));
 			bp->bio_caller2 = NULL;
 			if (bp->bio_error == ENOMEM) {
@@ -2118,52 +2195,52 @@ g_raid5_undirty(struct g_raid5_softc *sc, struct bintime *now, int rcf)
 					bp->bio_error = 0;
 					g_raid5_set_pending(bp);
 					sc->wqpi--;
-					g_raid5_issue_check(sc,ce,bp);
-					G_RAID5_DEBUG(rcf?0:100,"stale write request in rcf mode");
+					g_raid5_issue_check(sc, ce, bp);
+					G_RAID5_DEBUG(rcf?0:100, "stale write request in rcf mode");
 				} else
-					g_raid5_uncache(sc,ce,bp);
+					g_raid5_uncache(sc, ce, bp);
 			} else {
-				G_RAID5_DEBUG(0,"%s: %p: aborted.",sc->sc_name,bp);
+				G_RAID5_DEBUG(0, "%s: %p: aborted.", sc->sc_name, bp);
 				g_error_provider(sc->sc_provider, bp->bio_error);
-				g_raid5_wqp_dec(sc,ce,bp);
-				g_raid5_uncache(sc,ce,bp);
+				g_raid5_wqp_dec(sc, ce, bp);
+				g_raid5_uncache(sc, ce, bp);
 			}
-		} else if (g_raid5_is_done(sc,bp) || g_raid5_is_cached(sc,bp)) {
-			if (g_raid5_is_done(sc,bp)) {
-				g_raid5_wqp_dec(sc,ce,bp);
-				g_raid5_set_cached(sc,bp);
-				if (g_raid5_chk_frag(sc,ce,bp))
+		} else if (g_raid5_is_done(sc, bp) || g_raid5_is_cached(sc, bp)) {
+			if (g_raid5_is_done(sc, bp)) {
+				g_raid5_wqp_dec(sc, ce, bp);
+				g_raid5_set_cached(sc, bp);
+				if (g_raid5_chk_frag(sc, ce, bp))
 					bp_nxt = g_raid5_q_nx(bp);
 			}
 			if ( rcf || sc->term || (!ce->dc && sc->cfc) ||
 			     sc->cc * 71 > sc->cs * 64 ||          /* >90% */
 			     (now != NULL &&                  /* >80% --> >1sec / >wdt */
 			      now->sec - bp->bio_t0.sec > ((sc->cc*5 > sc->cs*4)?1:wdt)) )
-				g_raid5_uncache(sc,ce,bp);
+				g_raid5_uncache(sc, ce, bp);
 		} else if (g_raid5_is_pending(bp)) {
 			if (rcf)
-				G_RAID5_DEBUG(0,"pending write request in rcf mode (wqp%d wqpi%d)",
-				              sc->wqp,sc->wqpi);
+				G_RAID5_DEBUG(0, "pending write request in rcf mode (wqp%d wqpi%d)",
+				              sc->wqp, sc->wqpi);
 			if (sc->term || bp->bio_length == sc->fsl ||
 			    now == NULL || now->sec - bp->bio_t0.sec > wdt) {
-				if (!g_raid5_issue_check(sc,ce,bp))
+				if (!g_raid5_issue_check(sc, ce, bp))
 					pc++;
 			} else
 				pc++;
 		} else
-			MYKASSERT(!rcf,("stale read request in rcf mode"));
+			MYKASSERT(!rcf, ("stale read request in rcf mode"));
 	}
 	if (mce != NULL) {
 		int cqf = (sc->dc - edc)*5 > sc->cs * 4; /* >80% */
 		int tio = ((sc->dc - edc)*2 > sc->cs) ? 1 : wdt; /* >50% --> >1 / >wdt*/
-		G_RAID5_CE_TRAVERSE(mce,bp) {
+		G_RAID5_CE_TRAVERSE(mce, bp) {
 			if (!g_raid5_is_pending(bp))
 				continue;
 			if (now == NULL || sc->term || bp->bio_length == sc->fsl)
 				continue;
 			if (cqf || sc->wqp - sc->wqpi > g_raid5_maxwql / 4 ||
 			    now->sec - bp->bio_t0.sec > tio)
-				g_raid5_issue_check(sc,mce,bp);
+				g_raid5_issue_check(sc, mce, bp);
 		}
 	}
 }
@@ -2218,14 +2295,14 @@ g_raid5_access(struct g_provider *pp, int dr, int dw, int de)
 		LIST_FOREACH(cp1, &gp->consumer, consumer) {
 			if (g_raid5_find_disk(sc, cp1) < 0)
 				continue;
-			if (cp1->acr < 0) g_access(cp1, -cp1->acr,0,0);
-			if (cp1->acw < 0) g_access(cp1, 0,-cp1->acw,0);
-			if (cp1->ace < 0) g_access(cp1, 0,0,-cp1->ace);
+			if (cp1->acr < 0) g_access(cp1, -cp1->acr, 0, 0);
+			if (cp1->acw < 0) g_access(cp1, 0, -cp1->acw, 0);
+			if (cp1->ace < 0) g_access(cp1, 0, 0, -cp1->ace);
 		}
 		if (sc->destroy_on_za &&
 		    pp->acr+dr == 0 && pp->acw+dw == 0 && pp->ace+de == 0) {
 			sc->destroy_on_za = 0;
-			g_raid5_destroy(sc,1,0);
+			g_raid5_destroy(sc, 1, 0);
 		}
 	}
 
@@ -2239,10 +2316,10 @@ static void
 g_raid5_flush_wq(struct g_raid5_softc *sc)
 {
 	while (sc->wqp > 0) {
-		g_raid5_undirty(sc, NULL,0);
+		g_raid5_undirty(sc, NULL, 0);
 		tsleep(&sc->wqp, PRIBIO, "gr5fl", hz);
 	}
-	g_raid5_undirty(sc, NULL,0);
+	g_raid5_undirty(sc, NULL, 0);
 }
 
 /*
@@ -2252,12 +2329,12 @@ g_raid5_flush_wq(struct g_raid5_softc *sc)
 static void
 g_raid5_flush(struct g_raid5_softc *sc, struct bio* bp)
 {
-G_RAID5_DEBUG(0,"g_raid5_flush() begin %d.", __LINE__);
+G_RAID5_DEBUG(0, "g_raid5_flush() begin %d.", __LINE__);
 	g_raid5_flush_wq(sc);
 
 	g_raid5_open(sc);
 
-G_RAID5_DEBUG(0,"g_raid5_flush() middle %d.", __LINE__);
+G_RAID5_DEBUG(0, "g_raid5_flush() middle %d.", __LINE__);
 	struct bio *cbps[sc->sc_ndisks];
 	int i;
 	for (i=0; i<sc->sc_ndisks; i++) {
@@ -2272,7 +2349,7 @@ G_RAID5_DEBUG(0,"g_raid5_flush() middle %d.", __LINE__);
 		cbps[i]->bio_done = NULL;
 		cbps[i]->bio_attribute = NULL;
 		cbps[i]->bio_data = NULL;
-		g_raid5_io_req(sc,cbps[i]);
+		g_raid5_io_req(sc, cbps[i]);
 	}
 	int err = i < sc->sc_ndisks ? ENOMEM : 0;
 	for (int j=0; j<i; j++) {
@@ -2285,7 +2362,7 @@ G_RAID5_DEBUG(0,"g_raid5_flush() middle %d.", __LINE__);
 	}
 	g_io_deliver(bp, err);
 	g_raid5_unopen(sc);
-G_RAID5_DEBUG(0,"g_raid5_flush() end %d.", __LINE__);
+G_RAID5_DEBUG(0, "g_raid5_flush() end %d.", __LINE__);
 }
 
 #if __FreeBSD_version < 700000
@@ -2304,7 +2381,7 @@ g_raid5_start(struct bio *bp)
 	struct g_raid5_softc *sc = pp->geom->softc;
 	MYKASSERT(sc != NULL, ("%s: provider's error should be set (error %d).",
 	                       pp->name, pp->error));
-	MYKASSERT(!g_raid5_is_issued(sc,bp), ("no cycles!"));
+	MYKASSERT(!g_raid5_is_issued(sc, bp), ("no cycles!"));
 
 	g_topology_assert_not();
 
@@ -2335,13 +2412,13 @@ g_raid5_start(struct bio *bp)
 
 	if (bp->bio_length < 0 ||
 	    bp->bio_offset < 0 || bp->bio_offset > sc->sc_provider->mediasize) {
-		g_io_deliver(bp,EINVAL);
+		g_io_deliver(bp, EINVAL);
 		return;
 	}
 	if (bp->bio_length + bp->bio_offset > sc->sc_provider->mediasize)
 		bp->bio_length = sc->sc_provider->mediasize - bp->bio_offset;
 	if (bp->bio_length == 0) {
-		g_io_deliver(bp,0);
+		g_io_deliver(bp, 0);
 		return;
 	}
 
@@ -2379,8 +2456,8 @@ g_raid5_update_metadatas(struct g_raid5_softc *sc)
 		int error = biowait(urs+no, "gr5wr");
 		free(urs[no].bio_data, M_RAID5);
 		if (error)
-			G_RAID5_DEBUG(0,"%s: %s(%d): meta data update failed: error:%d.",
-			              sc->sc_name,sc->sc_disks[no]->provider->name,no,error);
+			G_RAID5_DEBUG(0, "%s: %s(%d): meta data update failed: error:%d.",
+			              sc->sc_name, sc->sc_disks[no]->provider->name, no, error);
 	}
 }
 
@@ -2429,21 +2506,21 @@ g_raid5_read(struct g_raid5_softc *sc, struct bio *rbp, int o, int l)
 	G_RAID5_CE_TRAVERSE(ce, bp) {
 		off_t off = bp->bio_offset;
 		off_t end = off + bp->bio_length;
-		if (!g_raid5_overlapf(off,end, roff,rend)) {
-			if (!fol && g_raid5_flank(off,end, roff,rend))
+		if (!g_raid5_overlapf(off, end, roff, rend)) {
+			if (!fol && g_raid5_flank(off, end, roff, rend))
 				fol = 1;
 			continue;
 		}
 		if (!fol)
 			fol = 1;
-		if (!err && !g_raid5_is_current(sc,bp))
+		if (!err && !g_raid5_is_current(sc, bp))
 			err = EAGAIN;
 		bp->bio_t0.sec = rbp->bio_t0.sec;
-		struct bio *lbp,*lbp_nxt;
-		TAILQ_FOREACH_SAFE(lbp,&lq.queue,bio_queue,lbp_nxt) {
+		struct bio *lbp, *lbp_nxt;
+		TAILQ_FOREACH_SAFE(lbp, &lq.queue, bio_queue, lbp_nxt) {
 			off_t loff = lbp->bio_offset;
 			off_t lend = loff + lbp->bio_length;
-			if (!g_raid5_overlapf(off,end, loff,lend))
+			if (!g_raid5_overlapf(off, end, loff, lend))
 				continue;
 			if (off <= loff) {
 				int cl;
@@ -2512,7 +2589,7 @@ g_raid5_split(struct g_raid5_softc *sc, struct bio *sbp,
 	for (int o=0; o<sbp->bio_length;) {
 		int l = sbp->bio_length - o;
 		l = MIN(l, sc->fsl - ((sbp->bio_offset+o) % sc->fsl) );
-		int err = g_raid5_mode(sc, sbp,o,l);
+		int err = g_raid5_mode(sc, sbp, o, l);
 		if (err)
 			return err;
 		o += l;
@@ -2566,7 +2643,7 @@ g_raid5_flush_sq(struct g_raid5_softc *sc, struct bintime *now)
 			MYKASSERT(sbp->bio_cmd == BIO_READ, ("read expected."));
 			MYKASSERT(sbp->bio_children==0,
 			          ("no children (cc%d err%d).",
-			           sbp->bio_children,sbp->bio_error));
+			           sbp->bio_children, sbp->bio_error));
 			if (!twarr)
 				twarr = 1;
 			struct bio_queue_head queue;
@@ -2586,7 +2663,7 @@ g_raid5_flush_sq(struct g_raid5_softc *sc, struct bintime *now)
 					no_write = 1;
 			}
 			if (sbp->bio_driver2) {
-				MYKASSERT(sbp->bio_driver2==sbp,("bad ptr"));
+				MYKASSERT(sbp->bio_driver2==sbp, ("bad ptr"));
 				sbp->bio_driver2 = NULL;
 				if (!failed && 0) { /*ARNE*/ /*read ahead is disabled*/
 				struct bio *rah = g_new_bio();
@@ -2611,7 +2688,7 @@ g_raid5_flush_sq(struct g_raid5_softc *sc, struct bintime *now)
 				if (pbp == NULL)
 					break;
 				bioq_remove(&queue, pbp);
-				g_raid5_set_requested(sc,pbp);
+				g_raid5_set_requested(sc, pbp);
 				g_raid5_q_in(sc, pbp->bio_caller2, pbp, 1);
 				pbp->bio_t0.sec = now->sec;
 				if (failed) {
@@ -2621,7 +2698,7 @@ g_raid5_flush_sq(struct g_raid5_softc *sc, struct bintime *now)
 					pbp->bio_caller2 = sbp;
 				g_raid5_dispatch(sc, pbp);
 			}
-			MYKASSERT(failed || sbp->bio_children==src,("wrong structure."));
+			MYKASSERT(failed || sbp->bio_children==src, ("wrong structure."));
 			if (!failed && src == 0)
 				g_io_deliver(sbp, 0); /* Yahoo! fully from the cache... */
 		}
@@ -2631,12 +2708,12 @@ g_raid5_flush_sq(struct g_raid5_softc *sc, struct bintime *now)
 		struct bio *wbp = bioq_first(&sc->wdq);
 		if (wbp == NULL)
 			break;
-		bioq_remove(&sc->wdq,wbp);
+		bioq_remove(&sc->wdq, wbp);
 		wbp->bio_completed = wbp->bio_length;
 		g_io_deliver(wbp, sc->sc_provider->error);
 	}
 
-	g_raid5_undirty(sc, now,0);
+	g_raid5_undirty(sc, now, 0);
 
 	return twarr;
 }
@@ -2724,19 +2801,19 @@ g_raid5_check_and_run(struct g_raid5_softc *sc, int forced)
 		if (sectorsize == 0)
 			sectorsize = disk->provider->sectorsize;
 		else
-			sectorsize = g_raid5_lcm(sectorsize,disk->provider->sectorsize);
+			sectorsize = g_raid5_lcm(sectorsize, disk->provider->sectorsize);
 	}
 	min -= min & (sectorsize - 1);
 	min -= min & (sc->stripesize - 1);
 	sc->disksize = min;
 	min *= sc->sc_ndisks - 1;
 	if (sc->sc_provider->mediasize != -1ULL && sc->sc_provider->mediasize > min)
-		G_RAID5_DEBUG(0,"%s: WARNING: reducing media size (from %jd to %jd).",
+		G_RAID5_DEBUG(0, "%s: WARNING: reducing media size (from %jd to %jd).",
 		              sc->sc_name, sc->sc_provider->mediasize, min);
 	sc->sc_provider->mediasize = min;
 	sc->sc_provider->sectorsize = sectorsize;
 	if (sc->stripesize < sectorsize) {
-		G_RAID5_DEBUG(0,"%s: WARNING: setting stripesize (%u) to sectorsize (%u)",
+		G_RAID5_DEBUG(0, "%s: WARNING: setting stripesize (%u) to sectorsize (%u)",
 		              sc->sc_name, sc->stripesize, sectorsize);
 		g_raid5_set_stripesize(sc, sectorsize);
 	}
@@ -2798,15 +2875,15 @@ g_raid5_worker_conf(struct g_raid5_softc *sc, char **cause)
 		g_raid5_no_more_open(sc);
 		g_raid5_more_open(sc);
 		g_raid5_open(sc);
-		g_raid5_undirty(sc, NULL,1);
+		g_raid5_undirty(sc, NULL, 1);
 		MYKASSERT(sc->dc == 0, ("cache artifact (0.0)."));
 		MYKASSERT(sc->wqp == 0, ("cache artifact (0.1)."));
 		MYKASSERT(sc->wqpi == 0, ("cache artifact (0.2)."));
 		for (int i = sc->cs-1; i >= 0; i--) {
-			MYKASSERT(g_raid5_ce_by_i(sc,i)->fst == NULL, ("cache artifact (1)."));
-			MYKASSERT(g_raid5_ce_by_i(sc,i)->sd == NULL, ("cache artifact (2)."));
-			MYKASSERT(g_raid5_ce_by_i(sc,i)->sp == NULL, ("cache artifact (3)."));
-			MYKASSERT(g_raid5_ce_by_i(sc,i)->dc == 0, ("cache artifact (4)."));
+			MYKASSERT(g_raid5_ce_by_i(sc, i)->fst == NULL, ("cache artifact (1)."));
+			MYKASSERT(g_raid5_ce_by_i(sc, i)->sd == NULL, ("cache artifact (2)."));
+			MYKASSERT(g_raid5_ce_by_i(sc, i)->sp == NULL, ("cache artifact (3)."));
+			MYKASSERT(g_raid5_ce_by_i(sc, i)->dc == 0, ("cache artifact (4)."));
 		}
 		free(sc->ce, M_RAID5);
 		g_raid5_mh_destroy(sc);
@@ -2839,13 +2916,13 @@ g_raid5_worker(void *arg)
 	off_t curveri = -1;
 	off_t last_upd = -1;
 	int last_nv = -1;
-	struct bintime now = {0,0};
-	struct bintime lst_vbp = {0,0};
-	struct bintime lst_rrq = {0,0};
-	struct bintime lst_umd = {0,0};
-	struct bintime veri_min = {0,0};
-	struct bintime veri_max = {0,0};
-	struct bintime veri_pa = {0,0};
+	struct bintime now = {0, 0};
+	struct bintime lst_vbp = {0, 0};
+	struct bintime lst_rrq = {0, 0};
+	struct bintime lst_umd = {0, 0};
+	struct bintime veri_min = {0, 0};
+	struct bintime veri_max = {0, 0};
+	struct bintime veri_pa = {0, 0};
 	int veri_sc = 0;
 	int veri_pau = 0;
 
@@ -2908,7 +2985,7 @@ g_raid5_worker(void *arg)
 		if (!vbp_active) {
 			if (sc->conf_order) {
 				upd_meta = 1;
-				g_raid5_worker_conf(sc,&cause);
+				g_raid5_worker_conf(sc, &cause);
 			}
 			if (sc->verified  >= sc->disksize) {
 				if (!upd_meta) {
@@ -2927,7 +3004,7 @@ g_raid5_worker(void *arg)
 					curveri = sc->verified;
 					if (sc->newest < 0) {
 						for (int i=0; i<sc->sc_ndisks; i++)
-							if (!g_raid5_disk_good(sc,i)) {
+							if (!g_raid5_disk_good(sc, i)) {
 								sc->newest = i;
 								break;
 							}
@@ -2985,7 +3062,7 @@ g_raid5_worker(void *arg)
 				int per = sc->disksize ? curveri * 10000 / sc->disksize : 0;
 				if (nv < sc->sc_ndisks)
 					G_RAID5_DEBUG(0, "%s: first write at %d.%02d%% (cause: %s).",
-					              sc->sc_name, per/100,per%100, cause);
+					              sc->sc_name, per/100, per%100, cause);
 				else {
 					int stepper = sc->disksize > 0 && curveri > last_upd ?
 					                (curveri - last_upd)*10000 / sc->disksize :
@@ -2999,13 +3076,13 @@ g_raid5_worker(void *arg)
 						int64_t dt = g_raid5_bintime2micro(&delta) / 1000;
 						G_RAID5_DEBUG(0, "%s: %s(%d): re-sync in progress: %d.%02d%% "
 						                 "p:%d ETA:%jdmin (cause: %s).", sc->sc_name,
-						              dna,sc->newest, per/100,per%100,veri_pau,
+						              dna, sc->newest, per/100, per%100, veri_pau,
 						              dt*(10000-per)/(stepper*60*1000), cause);
 						veri_pau = 0;
 					} else
-						G_RAID5_DEBUG(1,"%s: %s(%d): re-sync in progress: "
+						G_RAID5_DEBUG(1, "%s: %s(%d): re-sync in progress: "
 						                "%d.%02d%% (cause: %s).", sc->sc_name,
-						                dna, sc->newest, per/100,per%100, cause);
+						                dna, sc->newest, per/100, per%100, cause);
 					lst_vbp = now;
 				}
 			} else
@@ -3030,9 +3107,9 @@ g_raid5_worker(void *arg)
 							sc->verified += vbp.bio_length;
 						wt = 0;
 					}
-					g_raid5_q_rm(sc,g_raid5_ce_by_bio(sc,&Vbp),&Vbp,0);
+					g_raid5_q_rm(sc, g_raid5_ce_by_bio(sc, &Vbp), &Vbp, 0);
 					struct bintime delta = now;
-					bintime_sub(&delta,&Vbp.bio_t0);
+					bintime_sub(&delta, &Vbp.bio_t0);
 					if (veri_sc == 0) {
 						veri_min = delta;
 						veri_max = delta;
@@ -3067,7 +3144,7 @@ g_raid5_worker(void *arg)
 		}
 
 		/* wait due to processing time fluctuation? */
-		if (veri_sc == 0 && g_raid5_bintime_cmp(&now,&veri_pa) < 0) {
+		if (veri_sc == 0 && g_raid5_bintime_cmp(&now, &veri_pa) < 0) {
 			g_raid5_unopen(sc);
 			wt = 1;
 			continue;
@@ -3090,16 +3167,16 @@ g_raid5_worker(void *arg)
 			continue;
 		}
 
-		bzero(&Vbp,sizeof(Vbp));
+		bzero(&Vbp, sizeof(Vbp));
 		Vbp.bio_offset = curveri * (sc->sc_ndisks - 1);
 		Vbp.bio_length = sc->fsl;
-		if (g_raid5_stripe_conflict(sc, g_raid5_ce_by_bio(sc,&Vbp), &Vbp)) {
+		if (g_raid5_stripe_conflict(sc, g_raid5_ce_by_bio(sc, &Vbp), &Vbp)) {
 			g_raid5_unopen(sc);
 			wt = 1;
 			continue;
 		}
 
-		bzero(&vbp,sizeof(vbp));
+		bzero(&vbp, sizeof(vbp));
 		vbp.bio_cmd = BIO_READ;
 		vbp.bio_offset = -1;
 		vbp.bio_length = sc->stripesize;
@@ -3110,14 +3187,14 @@ g_raid5_worker(void *arg)
 		int pno = (curveri >> sc->stripebits) % sc->sc_ndisks;
 		int dno = (pno + 1) % sc->sc_ndisks;
 		if (g_raid5_conv_veri_read(&queue, sc, &vbp, curveri,
-		                           vbp.bio_length,dno,pno,NULL)) {
- 			g_raid5_des_sq(sc,&queue, &vbp);
+		                           vbp.bio_length, dno, pno, NULL)) {
+ 			g_raid5_des_sq(sc, &queue, &vbp);
 			g_raid5_unopen(sc);
 			wt = 1;
 		} else {
 			Vbp.bio_t0.sec = now.sec;
-			g_raid5_set_requested(sc,&Vbp);
-			g_raid5_q_in(sc, g_raid5_ce_by_bio(sc,&Vbp), &Vbp, 1);
+			g_raid5_set_requested(sc, &Vbp);
+			g_raid5_q_in(sc, g_raid5_ce_by_bio(sc, &Vbp), &Vbp, 1);
 
 			g_raid5_req_sq(sc, &queue);
 
@@ -3125,7 +3202,7 @@ g_raid5_worker(void *arg)
 		}
 	}
 
-	G_RAID5_DEBUG(0,"%s: worker thread exiting.",sc->sc_name);
+	G_RAID5_DEBUG(0, "%s: worker thread exiting.", sc->sc_name);
 
 	/* 1st term stage */
 	g_topology_assert_not();
@@ -3144,12 +3221,12 @@ g_raid5_worker(void *arg)
 	wakeup(&sc->workerD);
 	sc->workerD = NULL;
 	mtx_unlock(&sc->dq_mtx);
-	g_raid5_undirty(sc, NULL,1);
+	g_raid5_undirty(sc, NULL, 1);
 /*ARNE
 	MYKASSERT(sc->cc==0 && sc->dc==0,
 	          ("no cache entries allowed here (cc%d dc%d).", sc->cc, sc->dc));
 */
-if (sc->cc || sc->dc) { G_RAID5_DEBUG(0,"no cache entries allowed here (cc%d dc%d).",sc->cc,sc->dc); tsleep(&sc,PRIBIO, "gr5db", hz*3); G_RAID5_DEBUG(0,"no cache entries allowed here (cc%d dc%d).",sc->cc,sc->dc); } /*ARNE*/
+if (sc->cc || sc->dc) { G_RAID5_DEBUG(0, "no cache entries allowed here (cc%d dc%d).", sc->cc, sc->dc); tsleep(&sc, PRIBIO, "gr5db", hz*3); G_RAID5_DEBUG(0, "no cache entries allowed here (cc%d dc%d).", sc->cc, sc->dc); } /*ARNE*/
 
 	/* 3rd term stage */
 	while (sc->term < 2) /* workerD thread still active? */
@@ -3202,7 +3279,7 @@ g_raid5_add_disk(struct g_raid5_softc *sc, struct g_provider *pp, u_int no)
 	if (fcp != NULL && (fcp->acr>0 || fcp->acw>0 || fcp->ace>0))
 		error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
 	else
-		error = g_access(cp, 1,1,1);
+		error = g_access(cp, 1, 1, 1);
 	if (error)
 		goto undo;
 
@@ -3233,10 +3310,10 @@ g_raid5_add_disk(struct g_raid5_softc *sc, struct g_provider *pp, u_int no)
 			sc->verified = 0;
 			if (sc->newest >= 0)
 				G_RAID5_DEBUG(0, "%s: %s(%d): newest disk data (HOT): %d/%d.",
-				              sc->sc_name,pp->name,no,md.md_newest,sc->newest);
+				              sc->sc_name, pp->name, no, md.md_newest, sc->newest);
 			else {
 				G_RAID5_DEBUG(0, "%s: %s(%d): newest disk data (HOT): %d.",
-				              sc->sc_name,pp->name,no,md.md_newest);
+				              sc->sc_name, pp->name, no, md.md_newest);
 				if (md.md_newest >= 0)
 					sc->newest = md.md_newest;
 			}
@@ -3244,7 +3321,7 @@ g_raid5_add_disk(struct g_raid5_softc *sc, struct g_provider *pp, u_int no)
 			if (md.md_newest >= 0 && md.md_verified != -1) {
 				sc->newest = md.md_newest;
 				G_RAID5_DEBUG(0, "%s: %s(%d): newest disk data (CALM): %d.",
-				              sc->sc_name,pp->name,no,md.md_newest);
+				              sc->sc_name, pp->name, no, md.md_newest);
 			}
 			if (md.md_state&G_RAID5_STATE_VERIFY) {
 				sc->state |= G_RAID5_STATE_VERIFY;
@@ -3254,7 +3331,7 @@ g_raid5_add_disk(struct g_raid5_softc *sc, struct g_provider *pp, u_int no)
 		}
 		if (!(sc->state&G_RAID5_STATE_VERIFY) && sc->newest >= 0) {
 			G_RAID5_DEBUG(0, "%s: %s(%d): WARNING: newest disk but no verify.",
-			              sc->sc_name,pp->name,no);
+			              sc->sc_name, pp->name, no);
 			sc->newest = -1;
 		}
 		if (md.md_state&G_RAID5_STATE_SAFEOP)
@@ -3267,7 +3344,7 @@ g_raid5_add_disk(struct g_raid5_softc *sc, struct g_provider *pp, u_int no)
 	cp->private = &sc->sc_disks[no];
 	sc->sc_disks[no] = cp;
 
-	G_RAID5_DEBUG(0, "%s: %s(%d): disk attached.", sc->sc_name,pp->name,no);
+	G_RAID5_DEBUG(0, "%s: %s(%d): disk attached.", sc->sc_name, pp->name, no);
 
 	g_raid5_check_and_run(sc, 0);
 
@@ -3333,7 +3410,7 @@ g_raid5_create(struct g_class *mp, const struct g_raid5_metadata *md,
 	sc->open_count = 0;
 	mtx_init(&sc->open_mtx, "graid5:open", NULL, MTX_DEF);
 	sc->no_sleep = 0;
-	mtx_init(&sc->sleep_mtx,"graid5:sleep/main", NULL, MTX_DEF);
+	mtx_init(&sc->sleep_mtx, "graid5:sleep/main", NULL, MTX_DEF);
 	mtx_init(&sc->sq_mtx, "graid5:sq", NULL, MTX_DEF);
 	bioq_init(&sc->sq);
 	mtx_init(&sc->dq_mtx, "graid5:dq", NULL, MTX_DEF);
@@ -3504,14 +3581,14 @@ g_raid5_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 * Backward compatibility:
 	 */
 	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0) {
-		G_RAID5_DEBUG(0, "%s: %s: wrong hardcode.", md.md_name,pp->name);
+		G_RAID5_DEBUG(0, "%s: %s: wrong hardcode.", md.md_name, pp->name);
 		return NULL;
 	}
 
 	/* check for correct size */
 	if (md.md_provsize != pp->mediasize)
 		G_RAID5_DEBUG(0, "%s: %s: size mismatch (expected %jd, got %jd).",
-		              md.md_name,pp->name, md.md_provsize,pp->mediasize);
+		              md.md_name, pp->name, md.md_provsize, pp->mediasize);
 
 	/*
 	 * Let's check if device already exists.
@@ -3773,7 +3850,7 @@ g_raid5_ctl_remove(struct gctl_req *req, struct g_class *mp)
 			}
 		}
 		if (j == sc->sc_ndisks)
-			gctl_error(req, "Device '%s' has no provider '%s'.",sc->sc_name,name);
+			gctl_error(req, "Device '%s' has no provider '%s'.", sc->sc_name, name);
 		
 	}
 }
@@ -3841,7 +3918,7 @@ g_raid5_ctl_insert(struct gctl_req *req, struct g_class *mp)
 			           " (stripe size is %d).", name, sc->stripesize);
 			return;
 		}
-		for (j=0,f=-1; j < sc->sc_ndisks; j++) {
+		for (j=0, f=-1; j < sc->sc_ndisks; j++) {
 			struct g_consumer *cp = sc->sc_disks[j];
 			if (cp == NULL) {
 				if (f < 0)
@@ -3853,7 +3930,7 @@ g_raid5_ctl_insert(struct gctl_req *req, struct g_class *mp)
 			}
 		}
 		if (f < 0) {
-			gctl_error(req, "Device '%s' has enough providers.",sc->sc_name);
+			gctl_error(req, "Device '%s' has enough providers.", sc->sc_name);
 			return;
 		}
 		cp = g_new_consumer(sc->sc_geom);
@@ -3862,7 +3939,7 @@ g_raid5_ctl_insert(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Cannot attach to provider %s.", name);
 			return;
 		}
-		if (g_access(cp, 1,1,1) != 0) {
+		if (g_access(cp, 1, 1, 1) != 0) {
 			g_detach(cp);
 			g_destroy_consumer(cp);
 			gctl_error(req, "%s: cannot attach to provider.", name);
@@ -3872,13 +3949,13 @@ g_raid5_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		int error = g_raid5_update_metadata(sc, &cp,
 							G_RAID5_STATE_HOT|G_RAID5_STATE_VERIFY, f, NULL);
 		g_topology_lock();
-		g_access(cp, -1,-1,-1);
+		g_access(cp, -1, -1, -1);
 		G_RAID5_DEBUG(0, "%s: %s: wrote meta data on insert: error:%d.",
 		              sc->sc_name, name, error);
 		if (pp->acr || pp->acw || pp->ace) {
-			G_RAID5_DEBUG(0,"%s: have to correct acc counts: ac(%d,%d,%d).",
-			              sc->sc_name,pp->acr,pp->acw,pp->ace);
-			g_access(cp,-pp->acr,-pp->acw,-pp->ace);
+			G_RAID5_DEBUG(0, "%s: have to correct acc counts: ac(%d, %d, %d).",
+			              sc->sc_name, pp->acr, pp->acw, pp->ace);
+			g_access(cp, -pp->acr, -pp->acw, -pp->ace);
 			cp->acr = cp->acw = cp->ace = 0;
 		}
 		g_detach(cp);
@@ -4057,10 +4134,10 @@ g_raid5_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		            indent, sc->wqp, sc->wqpi);
 		struct bio *bp;
 		struct g_raid5_cache_entry *ce;
-		G_RAID5_C_TRAVERSE(sc,bp,ce)
+		G_RAID5_C_TRAVERSE(sc, bp, ce)
 			sbuf_printf(sb, " [%jd..%jd[/%jd%c",
-			            bp->bio_offset,bp->bio_offset+bp->bio_length,
-			            bp->bio_length,g_raid5_cache_code(sc,bp));
+			            bp->bio_offset, bp->bio_offset+bp->bio_length,
+			            bp->bio_length, g_raid5_cache_code(sc, bp));
 		sbuf_printf(sb, "</Pending>\n");
 
 		sbuf_printf(sb, "%s<Type>", indent);
@@ -4081,7 +4158,7 @@ g_raid5_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "%s<Status>Total:%u, Online:%u/%u",
 		    indent, sc->sc_ndisks, nv, sc->vdc);
 		sbuf_printf(sb, ", mhc:%d cc:%d/%d+%d</Status>\n",
-		            sc->mhc,sc->cc,sc->cs,sc->cfc);
+		            sc->mhc, sc->cc, sc->cs, sc->cfc);
 
 		sbuf_printf(sb, "%s<State>", indent);
 		if (sc->sc_provider == NULL || sc->sc_provider->error != 0)
@@ -4155,7 +4232,7 @@ g_raid5_init(struct g_class *mp)
 	if (g_raid5_post_sync == NULL)
 		G_RAID5_DEBUG(0, "WARNING: cannot register shutdown event.");
 	else
-		G_RAID5_DEBUG(0,"registered shutdown event handler.");
+		G_RAID5_DEBUG(0, "registered shutdown event handler.");
 }
 
 /*
@@ -4165,7 +4242,7 @@ static void
 g_raid5_fini(struct g_class *mp)
 {
 	if (g_raid5_post_sync != NULL) {
-		G_RAID5_DEBUG(0,"deregister shutdown event handler.");
+		G_RAID5_DEBUG(0, "deregister shutdown event handler.");
 		EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_raid5_post_sync);
 		g_raid5_post_sync = NULL;
 	}
