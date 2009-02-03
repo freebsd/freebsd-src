@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090203: adding_user.8 moved to adding_user.7
+OLD_FILES+=usr/share/man/man8/adding_user.8.gz
 # 20090122: tzdata2009a import
 OLD_FILES+=usr/share/zoneinfo/Asia/Katmandu
 # 20090102: file 4.26 import
