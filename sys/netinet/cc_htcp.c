@@ -44,14 +44,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/sysctl.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+
+#include <netinet/cc.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
-#include <netinet/cc.h>
+#include <netinet/tcp_var.h>
 
 /* useful defines */
 #define MODNAME "HTCP congestion control"

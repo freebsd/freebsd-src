@@ -34,8 +34,8 @@
 #ifndef _NETINET_CC_H_
 #define _NETINET_CC_H_
 
-#include <sys/queue.h>
-#include <netinet/tcp_var.h>
+/* Needed for TCP_CA_NAME_MAX define which lives in tcp.h for compat reasons */
+#include <netinet/tcp.h>
 
 /*
  * Global CC vars

@@ -35,24 +35,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/sbuf.h>
 
+#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
-#include <netinet/tcp_fsm.h>
-#include <netinet/cc.h>
-
+#include <netinet/tcp_var.h>
 
 /* list of available cc algorithms on the current system */
 struct cc_head cc_list = STAILQ_HEAD_INITIALIZER(cc_list); 
