@@ -519,8 +519,9 @@ sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint32_t old_sctp_udp_tunneling_port;
 
-	SCTP_INP_INFO_WLOCK();
+	SCTP_INP_INFO_RLOCK();
 	old_sctp_udp_tunneling_port = SCTP_BASE_SYSCTL(sctp_udp_tunneling_port);
+	SCTP_INP_INFO_RUNLOCK();
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (error == 0) {
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port), SCTPCTL_UDP_TUNNELING_PORT_MIN, SCTPCTL_UDP_TUNNELING_PORT_MAX);
@@ -528,6 +529,7 @@ sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 			error = 0;
 			goto out;
 		}
+		SCTP_INP_INFO_WLOCK();
 		if (old_sctp_udp_tunneling_port) {
 			sctp_over_udp_stop();
 		}
@@ -536,9 +538,9 @@ sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 				SCTP_BASE_SYSCTL(sctp_udp_tunneling_port) = 0;
 			}
 		}
+		SCTP_INP_INFO_WUNLOCK();
 	}
 out:
-	SCTP_INP_INFO_WUNLOCK();
 	return (error);
 }
 
