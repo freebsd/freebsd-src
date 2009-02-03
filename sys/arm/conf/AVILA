@@ -66,13 +66,15 @@ options 	BOOTP_COMPAT
 device		pci
 device		uart
 
+device		ixpwdog		# watchdog timer
+device		cfi		# flash support
+
 # I2C Bus
 device		iicbus
 device		iicbb
 device		iic
 
 device		ixpiic		# I2C bus glue
-device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
