@@ -148,6 +148,21 @@
 #define	AMDID2_PREFETCH	0x00000100
 
 /*
+ * CPUID instruction 1 eax info
+ */
+#define	CPUID_STEPPING		0x0000000f
+#define	CPUID_MODEL		0x000000f0
+#define	CPUID_FAMILY		0x00000f00
+#define	CPUID_EXT_MODEL		0x000f0000
+#define	CPUID_EXT_FAMILY	0x0ff00000
+#define	AMD64_CPU_MODEL(id) \
+    ((((id) & CPUID_MODEL) >> 4) | \
+    (((id) & CPUID_EXT_MODEL) >> 12))
+#define	AMD64_CPU_FAMILY(id) \
+    ((((id) & CPUID_FAMILY) >> 8) + \
+    (((id) & CPUID_EXT_FAMILY) >> 20))
+
+/*
  * CPUID instruction 1 ebx info
  */
 #define	CPUID_BRAND_INDEX	0x000000ff
@@ -156,9 +171,28 @@
 #define	CPUID_LOCAL_APIC_ID	0xff000000
 
 /*
+ * AMD extended function 8000_0007h edx info
+ */
+#define	AMDPM_TS		0x00000001
+#define	AMDPM_FID		0x00000002
+#define	AMDPM_VID		0x00000004
+#define	AMDPM_TTP		0x00000008
+#define	AMDPM_TM		0x00000010
+#define	AMDPM_STC		0x00000020
+#define	AMDPM_100MHZ_STEPS	0x00000040
+#define	AMDPM_HW_PSTATE		0x00000080
+#define	AMDPM_TSC_INVARIANT	0x00000100
+
+/*
  * AMD extended function 8000_0008h ecx info
  */
 #define	AMDID_CMP_CORES		0x000000ff
+
+/*
+ * CPUID manufacturers identifiers
+ */
+#define	INTEL_VENDOR_ID	"GenuineIntel"
+#define	AMD_VENDOR_ID	"AuthenticAMD"
 
 /*
  * Model-specific registers for the i386 family
@@ -409,5 +443,6 @@
 #define	MSR_IORRMASK1	0xc0010019
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
+#define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 
 #endif /* !_MACHINE_SPECIALREG_H_ */

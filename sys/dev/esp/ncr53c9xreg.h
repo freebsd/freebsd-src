@@ -84,8 +84,8 @@
 #define  NCRSTAT_PHASE	0x07		/*	Phase bits		*/
 
 #define	NCR_SELID	0x04		/* WO - Select/Reselect Bus ID	*/
-#define  NCR_BUSID_HME		0x10 	/* XXX HME reselect ID 		*/
-#define  NCR_BUSID_HME32	0x40	/* XXX HME to select more than 16 */
+#define  NCR_BUSID_HMEXC32	0x40	/*	HME xfer counter is 32bit */
+#define  NCR_BUSID_HMEENCID	0x10 	/*	HME encode reselection ID */
 
 #define	NCR_INTR	0x05		/* RO - Interrupt		*/
 #define  NCRINTR_SBR	0x80		/*	SCSI Bus Reset		*/

@@ -117,7 +117,7 @@ sub_FlashDevice () {
 			NANO_SECTS=63
 			;;
 		4096|4096mb|4g)
-			NANO_MEDIASIZE=`expr 4097802240 / 512`
+			NANO_MEDIASIZE=`expr -e 4097802240 / 512`
 			NANO_HEADS=16
 			NANO_SECTS=63
 			;;
@@ -128,9 +128,9 @@ sub_FlashDevice () {
 		esac
 		;;
 	siliconsystems)
-		case $2 in
+		case $a2 in
 		4096|4g)
-			NANO_MEDIASIZE=`expr 4224761856 / 512`
+			NANO_MEDIASIZE=`expr -e 4224761856 / 512`
 			NANO_HEADS=16
 			NANO_SECTS=63
 			;;
@@ -141,7 +141,7 @@ sub_FlashDevice () {
 		esac
 		;;
 	soekris)
-		case $2 in
+		case $a2 in
 		net4526 | 4526 | net4826 | 4826 | 64 | 64mb)
 			NANO_MEDIASIZE=125056
 			NANO_HEADS=4
@@ -154,7 +154,7 @@ sub_FlashDevice () {
 		esac
 		;;
 	transcend)
-		case $2 in
+		case $a2 in
 		dom064m)
 			NANO_MEDIASIZE=125184
 			NANO_HEADS=4

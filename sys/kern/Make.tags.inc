@@ -16,7 +16,6 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/dev/buslogic/*.[ch] \
 	${SYS}/dev/dpt/*.[ch] \
 	${SYS}/dev/en/*.[ch] \
-	${SYS}/dev/hfa/*.[ch] \
 	${SYS}/dev/iicbus/*.[ch] \
 	${SYS}/dev/isp/*.[ch] \
 	${SYS}/dev/pdq/*.[ch] \

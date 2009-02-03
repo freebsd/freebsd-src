@@ -78,12 +78,8 @@ __FBSDID("$FreeBSD$");
 struct le_dma_softc {
 	struct am7990_softc	sc_am7990;	/* glue to MI code */
 
-	int			sc_rrid;
 	struct resource		*sc_rres;
-	bus_space_tag_t		sc_regt;
-	bus_space_handle_t	sc_regh;
 
-	int			sc_irid;
 	struct resource		*sc_ires;
 	void			*sc_ih;
 
@@ -115,6 +111,7 @@ static device_method_t le_dma_methods[] = {
 
 DEFINE_CLASS_0(le, le_dma_driver, le_dma_methods, sizeof(struct le_dma_softc));
 DRIVER_MODULE(le, dma, le_dma_driver, le_devclass, 0, 0);
+MODULE_DEPEND(le, dma, 1, 1, 1);
 MODULE_DEPEND(le, ether, 1, 1, 1);
 
 /*
@@ -142,10 +139,9 @@ le_dma_wrcsr(struct lance_softc *sc, uint16_t port, uint16_t val)
 {
 	struct le_dma_softc *lesc = (struct le_dma_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RDP, val);
+	bus_write_2(lesc->sc_rres, LEREG1_RAP, port);
+	bus_barrier(lesc->sc_rres, LEREG1_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	bus_write_2(lesc->sc_rres, LEREG1_RDP, val);
 }
 
 static uint16_t
@@ -153,10 +149,9 @@ le_dma_rdcsr(struct lance_softc *sc, uint16_t port)
 {
 	struct le_dma_softc *lesc = (struct le_dma_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	return (bus_space_read_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RDP));
+	bus_write_2(lesc->sc_rres, LEREG1_RAP, port);
+	bus_barrier(lesc->sc_rres, LEREG1_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	return (bus_read_2(lesc->sc_rres, LEREG1_RDP));
 }
 
 static void
@@ -238,7 +233,7 @@ le_dma_hwreset(struct lance_softc *sc)
 	DMA_RESET(dma);
 
 	/* Write bits 24-31 of Lance address. */
-	bus_space_write_4(dma->sc_regt, dma->sc_regh, L64854_REG_ENBAR,
+	bus_write_4(dma->sc_res, L64854_REG_ENBAR,
 	    lesc->sc_laddr & 0xff000000);
 
 	DMA_ENINTR(dma);
@@ -319,7 +314,7 @@ le_dma_attach(device_t dev)
 	struct le_dma_softc *lesc;
 	struct lsi64854_softc *dma;
 	struct lance_softc *sc;
-	int error;
+	int error, i;
 
 	lesc = device_get_softc(dev);
 	sc = &lesc->sc_am7990.lsc;
@@ -334,23 +329,28 @@ le_dma_attach(device_t dev)
 	lesc->sc_dma = dma;
 	lesc->sc_dma->sc_client = lesc;
 
-	lesc->sc_rrid = 0;
+	i = 0;
 	lesc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &lesc->sc_rrid, RF_ACTIVE);
+	    &i, RF_ACTIVE);
 	if (lesc->sc_rres == NULL) {
 		device_printf(dev, "cannot allocate registers\n");
 		error = ENXIO;
 		goto fail_mtx;
 	}
-	lesc->sc_regt = rman_get_bustag(lesc->sc_rres);
-	lesc->sc_regh = rman_get_bushandle(lesc->sc_rres);
 
-	lesc->sc_irid = 0;
+	i = 0;
 	if ((lesc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &lesc->sc_irid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	    &i, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		error = ENXIO;
 		goto fail_rres;
+	}
+
+	/* Attach the DMA engine. */
+	error = lsi64854_attach(dma);
+	if (error != 0) {
+		device_printf(dev, "lsi64854_attach failed\n");
+		goto fail_ires;
 	}
 
 	sc->sc_memsize = LEDMA_MEMSIZE;
@@ -369,7 +369,7 @@ le_dma_attach(device_t dev)
 	    &lesc->sc_dmat);
 	if (error != 0) {
 		device_printf(dev, "cannot allocate buffer DMA tag\n");
-		goto fail_ires;
+		goto fail_lsi;
 	}
 
 	error = bus_dmamem_alloc(lesc->sc_dmat, (void **)&sc->sc_mem,
@@ -383,7 +383,7 @@ le_dma_attach(device_t dev)
 	error = bus_dmamap_load(lesc->sc_dmat, lesc->sc_dmam, sc->sc_mem,
 	    sc->sc_memsize, le_dma_dma_callback, lesc, 0);
 	if (error != 0 || lesc->sc_laddr == 0) {
-                device_printf(dev, "cannot load DMA buffer map\n");
+		device_printf(dev, "cannot load DMA buffer map\n");
 		goto fail_dmem;
 	}
 
@@ -435,10 +435,14 @@ le_dma_attach(device_t dev)
 	bus_dmamem_free(lesc->sc_dmat, sc->sc_mem, lesc->sc_dmam);
  fail_dtag:
 	bus_dma_tag_destroy(lesc->sc_dmat);
+ fail_lsi:
+	lsi64854_detach(dma);
  fail_ires:
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(lesc->sc_ires),
+	    lesc->sc_ires);
  fail_rres:
-	bus_release_resource(dev, SYS_RES_MEMORY, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(lesc->sc_rres),
+	    lesc->sc_rres);
  fail_mtx:
 	LE_LOCK_DESTROY(sc);
 	return (error);
@@ -449,6 +453,7 @@ le_dma_detach(device_t dev)
 {
 	struct le_dma_softc *lesc;
 	struct lance_softc *sc;
+	int error;
 
 	lesc = device_get_softc(dev);
 	sc = &lesc->sc_am7990.lsc;
@@ -458,8 +463,13 @@ le_dma_detach(device_t dev)
 	bus_dmamap_unload(lesc->sc_dmat, lesc->sc_dmam);
 	bus_dmamem_free(lesc->sc_dmat, sc->sc_mem, lesc->sc_dmam);
 	bus_dma_tag_destroy(lesc->sc_dmat);
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
-	bus_release_resource(dev, SYS_RES_MEMORY, lesc->sc_rrid, lesc->sc_rres);
+	error = lsi64854_detach(lesc->sc_dma);
+	if (error != 0)
+		return (error);
+	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(lesc->sc_ires),
+	    lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(lesc->sc_rres),
+	    lesc->sc_rres);
 	LE_LOCK_DESTROY(sc);
 
 	return (0);

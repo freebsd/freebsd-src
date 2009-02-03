@@ -28,11 +28,12 @@
 .\"     @(#)strdup.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd Dec 5, 2008
 .Dt STRDUP 3
 .Os
 .Sh NAME
-.Nm strdup
+.Nm strdup ,
+.Nm strndup
 .Nd save a copy of a string
 .Sh LIBRARY
 .Lb libc
@@ -40,6 +41,8 @@
 .In string.h
 .Ft char *
 .Fn strdup "const char *str"
+.Ft char *
+.Fn strndup "const char *str" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn strdup
@@ -56,6 +59,16 @@ If insufficient memory is available, NULL is returned and
 .Va errno
 is set to
 .Er ENOMEM .
+.Pp
+The
+.Fn strndup
+function copies at most
+.Fa len
+characters from the string
+.Fa str
+always
+.Dv NUL
+terminating the copied string.
 .Sh SEE ALSO
 .Xr free 3 ,
 .Xr malloc 3
@@ -64,3 +77,7 @@ The
 .Fn strdup
 function first appeared in
 .Bx 4.4 .
+The
+.Fn strndup
+function was added in
+.Fx 8.0 .

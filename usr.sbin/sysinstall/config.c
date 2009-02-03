@@ -737,6 +737,7 @@ configPackages(dialogMenuItem *self)
 
     while (1) {
 	int ret, pos, scroll;
+	int current, low, high;
 
 	/* Bring up the packages menu */
 	pos = scroll = 0;
@@ -751,8 +752,14 @@ configPackages(dialogMenuItem *self)
 	    else if (DITEM_STATUS(ret) != DITEM_FAILURE) {
 		dialog_clear();
 		restoreflag = 1;
-		for (tmp = Plist.kids; tmp && tmp->name; tmp = tmp->next)
-		    (void)index_extract(mediaDevice, &Top, tmp, FALSE);
+		if (have_volumes) {
+		    low = low_volume;
+		    high = high_volume;
+		} else
+		    low = high = 0;
+		for (current = low; current <= high; current++)
+		    for (tmp = Plist.kids; tmp && tmp->name; tmp = tmp->next)
+		        (void)index_extract(mediaDevice, &Top, tmp, FALSE, current);
 		break;
 	    }
 	}
@@ -838,7 +845,7 @@ configNFSServer(dialogMenuItem *self)
 		       "kinds of access to your local file systems.\n"
 		       "Press [ENTER] now to invoke an editor on /etc/exports\n");
 	    vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
-	    vsystem("echo '#/usr/src and /usr/ports read-only to machines named after trouble makers' >> /etc/exports");
+	    vsystem("echo '#/usr/src and /usr/obj read-only to machines named after trouble makers,' >> /etc/exports");
 	    vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
 	    vsystem("echo '#and, /a to a network of privileged machines allowed to write on it as root.' >> /etc/exports");
 	    vsystem("echo '#/usr                   huey louie dewie' >> /etc/exports");

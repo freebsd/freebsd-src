@@ -117,3 +117,4 @@ L3:     movzbl  (%eax),%eax             /* unsigned comparison */
 	movzbl  (%edx),%edx
 	subl	%edx,%eax
 	ret
+END(strcmp)

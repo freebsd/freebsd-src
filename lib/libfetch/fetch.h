@@ -46,6 +46,7 @@ struct url {
 	char		*doc;
 	off_t		 offset;
 	size_t		 length;
+	time_t		 ims_time;
 };
 
 struct url_stat {

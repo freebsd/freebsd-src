@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.17.18.21 2007/08/28 07:19:55 tbox Exp $ -->
+<!-- $Id: dig.docbook,v 1.17.18.24 2008/10/14 00:54:40 marka Exp $ -->
 <refentry id="man.dig">
 
   <refentryinfo>
@@ -42,6 +42,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -61,6 +62,7 @@
       <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
       <arg><option>-f <replaceable class="parameter">filename</replaceable></option></arg>
       <arg><option>-k <replaceable class="parameter">filename</replaceable></option></arg>
+      <arg><option>-m</option></arg>
       <arg><option>-p <replaceable class="parameter">port#</replaceable></option></arg>
       <arg><option>-q <replaceable class="parameter">name</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
@@ -118,8 +120,8 @@
     </para>
 
     <para>
-      When no command line arguments or options are given, will perform an
-      NS query for "." (the root).
+      When no command line arguments or options are given,
+      <command>dig</command> will perform an NS query for "." (the root).
     </para>
 
     <para>
@@ -132,8 +134,8 @@
     <para>
       The IN and CH class names overlap with the IN and CH top level
       domains names.  Either use the <option>-t</option> and
-      <option>-c</option> options to specify the type and class or
-      use the <option>-q</option> the specify the domain name or
+      <option>-c</option> options to specify the type and class, 
+      use the <option>-q</option> the specify the domain name, or
       use "IN." and "CH." when looking up these top level domains.
     </para>
 
@@ -228,6 +230,12 @@
       queries, one per line.  Each entry in the file should be organized in
       the same way they would be presented as queries to
       <command>dig</command> using the command-line interface.
+    </para>
+
+    <para>
+      The <option>-m</option> option enables memory usage debugging.
+      <!-- It enables ISC_MEM_DEBUGTRACE and ISC_MEM_DEBUGRECORD
+           documented in include/isc/mem.h -->
     </para>
 
     <para>

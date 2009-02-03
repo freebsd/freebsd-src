@@ -280,7 +280,6 @@ portal_open(ap)
 	 * will happen if the server dies.  Sleep for 5 second intervals
 	 * and keep polling the reference count.   XXX.
 	 */
-	/* XXXRW: Locking? */
 	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		if (fmp->pm_server->f_count == 1) {
@@ -454,8 +453,6 @@ portal_getattr(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
 
-	bzero(vap, sizeof(*vap));
-	vattr_null(vap);
 	vap->va_uid = 0;
 	vap->va_gid = 0;
 	vap->va_size = DEV_BSIZE;
@@ -465,9 +462,10 @@ portal_getattr(ap)
 	vap->va_ctime = vap->va_mtime;
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_rdev = 0;
+	vap->va_rdev = NODEV;
 	/* vap->va_qbytes = 0; */
 	vap->va_bytes = 0;
+	vap->va_filerev = 0;
 	/* vap->va_qsize = 0; */
 	if (vp->v_vflag & VV_ROOT) {
 		vap->va_type = VDIR;

@@ -39,3 +39,4 @@ L6:	xorl	%eax,%eax		/* Perform unsigned comparison	*/
 	movb	-1(%rsi),%dl
 	subl    %edx,%eax
 	ret
+END(memcmp)

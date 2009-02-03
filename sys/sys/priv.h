@@ -455,9 +455,15 @@
 #define	PRIV_NNPFS_DEBUG	630	/* Perforn ARLA_VIOC_NNPFSDEBUG. */
 
 /*
+ * cpuctl(4) privileges.
+ */
+#define PRIV_CPUCTL_WRMSR	640	/* Write model-specific register. */
+#define PRIV_CPUCTL_UPDATE	641	/* Update cpu microcode. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		631
+#define	_PRIV_HIGHEST		642
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

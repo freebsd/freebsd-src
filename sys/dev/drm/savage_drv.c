@@ -40,33 +40,31 @@ static drm_pci_id_list_t savage_pciidlist[] = {
 	savage_PCI_IDS
 };
 
-static void savage_configure(drm_device_t *dev)
+static void savage_configure(struct drm_device *dev)
 {
-	dev->driver.buf_priv_size	= sizeof(drm_savage_buf_priv_t);
-	dev->driver.load		= savage_driver_load;
-	dev->driver.firstopen		= savage_driver_firstopen;
-	dev->driver.lastclose		= savage_driver_lastclose;
-	dev->driver.unload		= savage_driver_unload;
-	dev->driver.reclaim_buffers_locked = savage_reclaim_buffers;
-	dev->driver.dma_ioctl		= savage_bci_buffers;
+	dev->driver->driver_features =
+	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA |
+	    DRIVER_HAVE_DMA;
 
-	dev->driver.ioctls		= savage_ioctls;
-	dev->driver.max_ioctl		= savage_max_ioctl;
+	dev->driver->buf_priv_size	= sizeof(drm_savage_buf_priv_t);
+	dev->driver->load		= savage_driver_load;
+	dev->driver->firstopen		= savage_driver_firstopen;
+	dev->driver->lastclose		= savage_driver_lastclose;
+	dev->driver->unload		= savage_driver_unload;
+	dev->driver->reclaim_buffers_locked = savage_reclaim_buffers;
+	dev->driver->dma_ioctl		= savage_bci_buffers;
 
-	dev->driver.name		= DRIVER_NAME;
-	dev->driver.desc		= DRIVER_DESC;
-	dev->driver.date		= DRIVER_DATE;
-	dev->driver.major		= DRIVER_MAJOR;
-	dev->driver.minor		= DRIVER_MINOR;
-	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
+	dev->driver->ioctls		= savage_ioctls;
+	dev->driver->max_ioctl		= savage_max_ioctl;
 
-	dev->driver.use_agp		= 1;
-	dev->driver.use_mtrr		= 1;
-	dev->driver.use_pci_dma		= 1;
-	dev->driver.use_dma		= 1;
+	dev->driver->name		= DRIVER_NAME;
+	dev->driver->desc		= DRIVER_DESC;
+	dev->driver->date		= DRIVER_DATE;
+	dev->driver->major		= DRIVER_MAJOR;
+	dev->driver->minor		= DRIVER_MINOR;
+	dev->driver->patchlevel		= DRIVER_PATCHLEVEL;
 }
 
-#ifdef __FreeBSD__
 static int
 savage_probe(device_t dev)
 {
@@ -76,18 +74,34 @@ savage_probe(device_t dev)
 static int
 savage_attach(device_t nbdev)
 {
-	drm_device_t *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(nbdev);
 
-	bzero(dev, sizeof(drm_device_t));
+	dev->driver = malloc(sizeof(struct drm_driver_info), DRM_MEM_DRIVER,
+	    M_WAITOK | M_ZERO);
+
 	savage_configure(dev);
+
 	return drm_attach(nbdev, savage_pciidlist);
+}
+
+static int
+savage_detach(device_t nbdev)
+{
+	struct drm_device *dev = device_get_softc(nbdev);
+	int ret;
+
+	ret = drm_detach(nbdev);
+
+	free(dev->driver, DRM_MEM_DRIVER);
+
+	return ret;
 }
 
 static device_method_t savage_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		savage_probe),
 	DEVMETHOD(device_attach,	savage_attach),
-	DEVMETHOD(device_detach,	drm_detach),
+	DEVMETHOD(device_detach,	savage_detach),
 
 	{ 0, 0 }
 };
@@ -95,7 +109,7 @@ static device_method_t savage_methods[] = {
 static driver_t savage_driver = {
 	"drm",
 	savage_methods,
-	sizeof(drm_device_t)
+	sizeof(struct drm_device)
 };
 
 extern devclass_t drm_devclass;
@@ -105,7 +119,3 @@ DRIVER_MODULE(savage, vgapci, savage_driver, drm_devclass, 0, 0);
 DRIVER_MODULE(savage, pci, savage_driver, drm_devclass, 0, 0);
 #endif
 MODULE_DEPEND(savage, drm, 1, 1, 1);
-
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-CFDRIVER_DECL(savage, DV_TTY, NULL);
-#endif

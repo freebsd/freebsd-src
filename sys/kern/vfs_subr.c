@@ -109,7 +109,7 @@ static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
 static int	vfs_knllocked(void *arg);
-
+static void	destroy_vpollinfo(struct vpollinfo *vi);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -361,7 +361,7 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
 	}
 	if (interlkp)
 		mtx_unlock(interlkp);
-	lkflags = LK_SHARED | LK_INTERLOCK;
+	lkflags = LK_SHARED | LK_INTERLOCK | LK_NOWAIT;
 	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp), td))
 		panic("vfs_busy: unexpected lock failure");
 	return (0);
@@ -815,11 +815,8 @@ vdestroy(struct vnode *vp)
 #ifdef MAC
 	mac_destroy_vnode(vp);
 #endif
-	if (vp->v_pollinfo != NULL) {
-		knlist_destroy(&vp->v_pollinfo->vpi_selinfo.si_note);
-		mtx_destroy(&vp->v_pollinfo->vpi_lock);
-		uma_zfree(vnodepoll_zone, vp->v_pollinfo);
-	}
+	if (vp->v_pollinfo != NULL)
+		destroy_vpollinfo(vp->v_pollinfo);
 #ifdef INVARIANTS
 	/* XXX Elsewhere we can detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
@@ -3050,6 +3047,14 @@ vbusy(struct vnode *vp)
 	mtx_unlock(&vnode_free_list_mtx);
 }
 
+static void
+destroy_vpollinfo(struct vpollinfo *vi)
+{
+	knlist_destroy(&vi->vpi_selinfo.si_note);
+	mtx_destroy(&vi->vpi_lock);
+	uma_zfree(vnodepoll_zone, vi);
+}
+
 /*
  * Initalize per-vnode helper structure to hold poll-related state.
  */
@@ -3058,15 +3063,20 @@ v_addpollinfo(struct vnode *vp)
 {
 	struct vpollinfo *vi;
 
+	if (vp->v_pollinfo != NULL)
+		return;
 	vi = uma_zalloc(vnodepoll_zone, M_WAITOK);
+	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
+	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
+	    vfs_knlunlock, vfs_knllocked);
+	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
-		uma_zfree(vnodepoll_zone, vi);
+		VI_UNLOCK(vp);
+		destroy_vpollinfo(vi);
 		return;
 	}
 	vp->v_pollinfo = vi;
-	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
-	knlist_init(&vp->v_pollinfo->vpi_selinfo.si_note, vp, vfs_knllock,
-	    vfs_knlunlock, vfs_knllocked);
+	VI_UNLOCK(vp);
 }
 
 /*
@@ -3081,8 +3091,7 @@ int
 vn_pollrecord(struct vnode *vp, struct thread *td, int events)
 {
 
-	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);
+	v_addpollinfo(vp);
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	if (vp->v_pollinfo->vpi_revents & events) {
 		/*
@@ -3917,8 +3926,7 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 
 	kn->kn_hook = (caddr_t)vp;
 
-	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);
+	v_addpollinfo(vp);
 	if (vp->v_pollinfo == NULL)
 		return (ENOMEM);
 	knl = &vp->v_pollinfo->vpi_selinfo.si_note;

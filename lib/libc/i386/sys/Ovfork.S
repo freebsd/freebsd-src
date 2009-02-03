@@ -52,3 +52,4 @@ ENTRY(__sys_vfork)
 	pushl	%ecx
 	PIC_PROLOGUE
 	jmp     PIC_PLT(HIDENAME(cerror))
+END(__sys_vfork)

@@ -109,3 +109,4 @@ ENTRY(strcpy)
 
 .Ldone:
 	ret
+END(strcpy)

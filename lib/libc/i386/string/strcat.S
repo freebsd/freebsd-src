@@ -98,3 +98,4 @@ L1:	movb	(%edx),%al		/* unroll loop, but not too much */
 L2:	popl	%eax			/* pop destination address */
 	popl	%edi			/* restore edi */
 	ret
+END(strcat)

@@ -52,3 +52,4 @@ ENTRY(__sys_getcontext)
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(__sys_getcontext)

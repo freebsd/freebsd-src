@@ -290,6 +290,7 @@ softclock(void *dummy)
 					lastfunc = c_func;
 				}
 #endif
+				CTR1(KTR_CALLOUT, "callout %p finished", c);
 				if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
 					mtx_unlock(c_mtx);
 			skip:

@@ -614,6 +614,14 @@ stub_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
+stub_check_inpcb_visible(struct ucred *cred, struct inpcb *inp,
+   struct label *inplabel)
+{
+
+	return (0);
+}
+
+static int
 stub_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
@@ -1550,6 +1558,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_check_ifnet_relabel = stub_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = stub_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = stub_check_inpcb_deliver,
+	.mpo_check_inpcb_visible = stub_check_inpcb_visible,
 	.mpo_check_sysv_msgmsq = stub_check_sysv_msgmsq,
 	.mpo_check_sysv_msgrcv = stub_check_sysv_msgrcv,
 	.mpo_check_sysv_msgrmid = stub_check_sysv_msgrmid,

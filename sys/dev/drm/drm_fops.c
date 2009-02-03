@@ -1,6 +1,3 @@
-/* drm_fops.h -- File operations for DRM -*- linux-c -*-
- * Created: Mon Jan  4 08:58:31 1999 by faith@valinux.com
- */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -35,33 +32,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_fops.c
+ * Support code for dealing with the file privates associated with each
+ * open of the DRM device.
+ */
+
 #include "dev/drm/drmP.h"
-
-drm_file_t *drm_find_file_by_proc(drm_device_t *dev, DRM_STRUCTPROC *p)
-{
-#if __FreeBSD_version >= 500021
-	uid_t uid = p->td_ucred->cr_svuid;
-	pid_t pid = p->td_proc->p_pid;
-#else
-	uid_t uid = p->p_cred->p_svuid;
-	pid_t pid = p->p_pid;
-#endif
-	drm_file_t *priv;
-
-	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
-
-	TAILQ_FOREACH(priv, &dev->files, link)
-		if (priv->pid == pid && priv->uid == uid)
-			return priv;
-	return NULL;
-}
 
 /* drm_open_helper is called whenever a process opens /dev/drm. */
 int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
-		    drm_device_t *dev)
+		    struct drm_device *dev)
 {
-	int	     m = minor(kdev);
-	drm_file_t   *priv;
+	struct drm_file *priv;
+	int m = dev2unit(kdev);
 	int retcode;
 
 	if (flags & O_EXCL)
@@ -70,49 +53,44 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 
 	DRM_DEBUG("pid = %d, minor = %d\n", DRM_CURRENTPID, m);
 
-	DRM_LOCK();
-	priv = drm_find_file_by_proc(dev, p);
-	if (priv) {
-		priv->refs++;
-	} else {
-		priv = malloc(sizeof(*priv), M_DRM, M_NOWAIT | M_ZERO);
-		if (priv == NULL) {
-			DRM_UNLOCK();
-			return DRM_ERR(ENOMEM);
-		}
-#if __FreeBSD_version >= 500000
-		priv->uid		= p->td_ucred->cr_svuid;
-		priv->pid		= p->td_proc->p_pid;
-#else
-		priv->uid		= p->p_cred->p_svuid;
-		priv->pid		= p->p_pid;
-#endif
-
-		priv->refs		= 1;
-		priv->minor		= m;
-		priv->ioctl_count 	= 0;
-
-		/* for compatibility root is always authenticated */
-		priv->authenticated	= DRM_SUSER(p);
-
-		if (dev->driver.open) {
-			retcode = dev->driver.open(dev, priv);
-			if (retcode != 0) {
-				free(priv, M_DRM);
-				DRM_UNLOCK();
-				return retcode;
-			}
-		}
-
-		/* first opener automatically becomes master */
-		priv->master = TAILQ_EMPTY(&dev->files);
-
-		TAILQ_INSERT_TAIL(&dev->files, priv, link);
+	priv = malloc(sizeof(*priv), DRM_MEM_FILES, M_NOWAIT | M_ZERO);
+	if (priv == NULL) {
+		return ENOMEM;
 	}
+
+	retcode = devfs_set_cdevpriv(priv, drm_close);
+	if (retcode != 0) {
+		free(priv, DRM_MEM_FILES);
+		return retcode;
+	}
+
+	DRM_LOCK();
+	priv->dev		= dev;
+	priv->uid		= p->td_ucred->cr_svuid;
+	priv->pid		= p->td_proc->p_pid;
+	priv->minor		= m;
+	priv->ioctl_count 	= 0;
+
+	/* for compatibility root is always authenticated */
+	priv->authenticated	= DRM_SUSER(p);
+
+	if (dev->driver->open) {
+		/* shared code returns -errno */
+		retcode = -dev->driver->open(dev, priv);
+		if (retcode != 0) {
+			devfs_clear_cdevpriv();
+			free(priv, DRM_MEM_FILES);
+			DRM_UNLOCK();
+			return retcode;
+		}
+	}
+
+	/* first opener automatically becomes master */
+	priv->master = TAILQ_EMPTY(&dev->files);
+
+	TAILQ_INSERT_TAIL(&dev->files, priv, link);
 	DRM_UNLOCK();
-#ifdef __FreeBSD__
 	kdev->si_drv1 = dev;
-#endif
 	return 0;
 }
 

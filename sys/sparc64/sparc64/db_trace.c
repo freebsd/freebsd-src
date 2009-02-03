@@ -276,10 +276,9 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 void
 db_trace_self(void)
 {
-	db_expr_t addr;
 
-	addr = (db_expr_t)__builtin_frame_address(1);
-	db_backtrace(curthread, (struct frame *)(addr + SPOFF), -1);
+	db_backtrace(curthread,
+	    (struct frame *)__builtin_frame_address(1), -1);
 }
 
 int
@@ -288,5 +287,6 @@ db_trace_thread(struct thread *td, int count)
 	struct pcb *ctx;
 
 	ctx = kdb_thr_ctx(td);
-	return (db_backtrace(td, (struct frame*)(ctx->pcb_sp + SPOFF), count));
+	return (db_backtrace(td,
+	    (struct frame *)(ctx->pcb_sp + SPOFF), count));
 }

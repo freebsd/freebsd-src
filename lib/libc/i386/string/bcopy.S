@@ -97,3 +97,12 @@ ENTRY(bcopy)
 	popl	%esi
 	cld
 	ret
+#ifdef MEMCOPY
+END(memcpy)
+#else
+#ifdef MEMMOVE
+END(memmove)
+#else
+END(bcopy)
+#endif
+#endif

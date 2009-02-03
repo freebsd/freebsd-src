@@ -641,6 +641,17 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 #endif
 
 	vap = &vattr;
+
+	/*
+	 * Initialize defaults for new and unusual fields, so that file
+	 * systems which don't support these fields don't need to know
+	 * about them.
+	 */
+	vap->va_birthtime.tv_sec = -1;
+	vap->va_birthtime.tv_nsec = 0;
+	vap->va_fsid = VNOVAL;
+	vap->va_rdev = NODEV;
+
 	error = VOP_GETATTR(vp, vap, active_cred, td);
 	if (error)
 		return (error);
@@ -800,6 +811,10 @@ _vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line)
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
 			VI_LOCK(vp);
+#ifdef DEBUG_VFS_LOCKS
+		KASSERT(vp->v_holdcnt != 0,
+		    ("vn_lock %p: zero hold count", vp));
+#endif
 		if ((flags & LK_NOWAIT || (flags & LK_TYPE_MASK) == 0) &&
 		    vp->v_iflag & VI_DOOMED) {
 			VI_UNLOCK(vp);
@@ -917,56 +932,6 @@ vn_start_write(vp, mpp, flags)
 unlock:
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
-	return (error);
-}
-
-/*
- * Secondary suspension. Used by operations such as vop_inactive
- * routines that are needed by the higher level functions. These
- * are allowed to proceed until all the higher level functions have
- * completed (indicated by mnt_writeopcount dropping to zero). At that
- * time, these operations are halted until the suspension is over.
- */
-int
-vn_write_suspend_wait(vp, mp, flags)
-	struct vnode *vp;
-	struct mount *mp;
-	int flags;
-{
-	int error;
-
-	if (vp != NULL) {
-		if ((error = VOP_GETWRITEMOUNT(vp, &mp)) != 0) {
-			if (error != EOPNOTSUPP)
-				return (error);
-			return (0);
-		}
-	}
-	/*
-	 * If we are not suspended or have not yet reached suspended
-	 * mode, then let the operation proceed.
-	 */
-	if (mp == NULL)
-		return (0);
-	MNT_ILOCK(mp);
-	if (vp == NULL)
-		MNT_REF(mp);
-	if ((mp->mnt_kern_flag & MNTK_SUSPENDED) == 0) {
-		MNT_REL(mp);
-		MNT_IUNLOCK(mp);
-		return (0);
-	}
-	if (flags & V_NOWAIT) {
-		MNT_REL(mp);
-		MNT_IUNLOCK(mp);
-		return (EWOULDBLOCK);
-	}
-	/*
-	 * Wait for the suspension to finish.
-	 */
-	error = msleep(&mp->mnt_flag, MNT_MTX(mp),
-	    (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0);
-	vfs_rel(mp);
 	return (error);
 }
 

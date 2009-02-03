@@ -61,7 +61,7 @@ typedef struct drm_savage_buf_priv {
 	struct drm_savage_buf_priv *next;
 	struct drm_savage_buf_priv *prev;
 	drm_savage_age_t age;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 } drm_savage_buf_priv_t;
 
 typedef struct drm_savage_dma_page {
@@ -107,7 +107,7 @@ enum savage_family {
 	S3_LAST
 };
 
-extern drm_ioctl_desc_t savage_ioctls[];
+extern struct drm_ioctl_desc savage_ioctls[];
 extern int savage_max_ioctl;
 
 #define S3_SAVAGE3D_SERIES(chip)  ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE_MX))
@@ -195,34 +195,34 @@ typedef struct drm_savage_private {
 	/* Err, there is a macro wait_event in include/linux/wait.h.
 	 * Avoid unwanted macro expansion. */
 	void (*emit_clip_rect)(struct drm_savage_private *dev_priv,
-			       const drm_clip_rect_t *pbox);
+			       const struct drm_clip_rect *pbox);
 	void (*dma_flush)(struct drm_savage_private *dev_priv);
 } drm_savage_private_t;
 
 /* ioctls */
-extern int savage_bci_cmdbuf(DRM_IOCTL_ARGS);
-extern int savage_bci_buffers(DRM_IOCTL_ARGS);
+extern int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int savage_bci_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 /* BCI functions */
 extern uint16_t savage_bci_emit_event(drm_savage_private_t *dev_priv,
 				      unsigned int flags);
-extern void savage_freelist_put(drm_device_t *dev, drm_buf_t *buf);
+extern void savage_freelist_put(struct drm_device *dev, struct drm_buf *buf);
 extern void savage_dma_reset(drm_savage_private_t *dev_priv);
 extern void savage_dma_wait(drm_savage_private_t *dev_priv, unsigned int page);
 extern uint32_t *savage_dma_alloc(drm_savage_private_t *dev_priv,
 				  unsigned int n);
-extern int savage_driver_load(drm_device_t *dev, unsigned long chipset);
-extern int savage_driver_firstopen(drm_device_t *dev);
-extern void savage_driver_lastclose(drm_device_t *dev);
-extern int savage_driver_unload(drm_device_t *dev);
-extern int savage_do_cleanup_bci(drm_device_t *dev);
-extern void savage_reclaim_buffers(drm_device_t *dev, DRMFILE filp);
+extern int savage_driver_load(struct drm_device *dev, unsigned long chipset);
+extern int savage_driver_firstopen(struct drm_device *dev);
+extern void savage_driver_lastclose(struct drm_device *dev);
+extern int savage_driver_unload(struct drm_device *dev);
+extern void savage_reclaim_buffers(struct drm_device *dev,
+				   struct drm_file *file_priv);
 
 /* state functions */
 extern void savage_emit_clip_rect_s3d(drm_savage_private_t *dev_priv,
-				      const drm_clip_rect_t *pbox);
+				      const struct drm_clip_rect *pbox);
 extern void savage_emit_clip_rect_s4(drm_savage_private_t *dev_priv,
-				     const drm_clip_rect_t *pbox);
+				     const struct drm_clip_rect *pbox);
 
 #define SAVAGE_FB_SIZE_S3	0x01000000	/*  16MB */
 #define SAVAGE_FB_SIZE_S4	0x02000000	/*  32MB */
@@ -240,7 +240,7 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t *dev_priv,
  */
 #define SAVAGE_STATUS_WORD0		0x48C00
 #define SAVAGE_STATUS_WORD1		0x48C04
-#define SAVAGE_ALT_STATUS_WORD0 	0x48C60
+#define SAVAGE_ALT_STATUS_WORD0		0x48C60
 
 #define SAVAGE_FIFO_USED_MASK_S3D	0x0001ffff
 #define SAVAGE_FIFO_USED_MASK_S4	0x001fffff
@@ -313,7 +313,7 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t *dev_priv,
 #define SAVAGE_DESTCTRL_S3D		0x34
 #define SAVAGE_SCSTART_S3D		0x35
 #define SAVAGE_SCEND_S3D		0x36
-#define SAVAGE_ZWATERMARK_S3D		0x37 
+#define SAVAGE_ZWATERMARK_S3D		0x37
 #define SAVAGE_DESTTEXRWWATERMARK_S3D	0x38
 /* common stuff */
 #define SAVAGE_VERTBUFADDR		0x3e

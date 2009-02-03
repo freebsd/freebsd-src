@@ -741,9 +741,6 @@ NI4BTEL			opt_i4b.h
 #XXXBZ#NI4BING			opt_i4b.h
 #XXXBZ#NI4BISPPP		opt_i4b.h
 
-# VFS options
-LOOKUP_SHARED		opt_vfs.h
-
 # HWPMC options
 HWPMC_HOOKS
 

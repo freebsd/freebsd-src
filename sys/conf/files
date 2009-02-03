@@ -426,6 +426,7 @@ dev/advansys/adw_pci.c		optional adw pci
 dev/advansys/adwcam.c		optional adw
 dev/advansys/adwlib.c		optional adw
 dev/advansys/adwmcode.c		optional adw
+dev/ae/if_ae.c			optional ae pci
 dev/age/if_age.c		optional age pci
 dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
@@ -445,6 +446,7 @@ dev/aic7xxx/aic7xxx.c		optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
 dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
+dev/ale/if_ale.c		optional ale pci
 dev/amd/amd.c			optional amd
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amr
@@ -574,6 +576,7 @@ dev/drm/i915_dma.c		optional i915drm
 dev/drm/i915_drv.c		optional i915drm
 dev/drm/i915_irq.c		optional i915drm
 dev/drm/i915_mem.c		optional i915drm
+dev/drm/i915_suspend.c		optional i915drm
 dev/drm/mach64_dma.c		optional mach64drm
 dev/drm/mach64_drv.c		optional mach64drm
 dev/drm/mach64_irq.c		optional mach64drm
@@ -682,7 +685,7 @@ dev/hifn/hifn7751.c		optional hifn
 dev/hme/if_hme.c		optional hme
 dev/hme/if_hme_pci.c		optional hme pci
 dev/hme/if_hme_sbus.c		optional hme sbus
-dev/hptiop/hptiop.c		optional hptiop cam
+dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/ichsmb/ichsmb.c		optional ichsmb
@@ -933,6 +936,7 @@ dev/scc/scc_dev_sab82532.c	optional	scc
 dev/scc/scc_dev_z8530.c		optional	scc
 dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
+dev/sdhci/sdhci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
@@ -961,7 +965,6 @@ dev/sound/isa/sbc.c		optional snd_sbc isa
 dev/sound/isa/sndbuf_dma.c	optional sound isa
 dev/sound/pci/als4000.c		optional snd_als4000 pci
 dev/sound/pci/atiixp.c		optional snd_atiixp pci
-#dev/sound/pci/au88x0.c		optional snd_au88x0 pci
 dev/sound/pci/cmi.c		optional snd_cmi pci
 dev/sound/pci/cs4281.c		optional snd_cs4281 pci
 dev/sound/pci/csa.c		optional snd_csa pci \

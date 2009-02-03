@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 size_t
 fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 {
-	int ret;
+	size_t ret;
 
 	FLOCKFILE(fp);
 	ret = __fread(buf, size, count, fp);

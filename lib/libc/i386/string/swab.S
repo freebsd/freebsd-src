@@ -97,3 +97,4 @@ L3:	lodsw
 L4:	popl	%edi
 	popl	%esi
 	ret
+END(swab)

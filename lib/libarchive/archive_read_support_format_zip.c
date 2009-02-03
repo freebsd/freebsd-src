@@ -444,7 +444,9 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_mtime(entry, zip->mtime, 0);
 	archive_entry_set_ctime(entry, zip->ctime, 0);
 	archive_entry_set_atime(entry, zip->atime, 0);
-	archive_entry_set_size(entry, zip->uncompressed_size);
+	/* Set the size only if it's meaningful. */
+	if (0 == (zip->flags & ZIP_LENGTH_AT_END))
+		archive_entry_set_size(entry, zip->uncompressed_size);
 
 	zip->entry_bytes_remaining = zip->compressed_size;
 	zip->entry_offset = 0;
@@ -573,12 +575,16 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		}
 		break;
 	}
+	if (r != ARCHIVE_OK)
+		return (r);
 	/* Update checksum */
-	if (r == ARCHIVE_OK && *size) {
+	if (*size)
 		zip->entry_crc32 =
 		    crc32(zip->entry_crc32, *buff, *size);
-	}
-	return (r);
+	/* Return EOF immediately if this is a non-regular file. */
+	if (AE_IFREG != (zip->mode & AE_IFMT))
+		return (ARCHIVE_EOF);
+	return (ARCHIVE_OK);
 }
 
 /*

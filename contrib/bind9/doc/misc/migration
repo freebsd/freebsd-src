@@ -1,4 +1,4 @@
-Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
 Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
@@ -25,6 +25,16 @@ The default of the "transfer-format" option has changed from
 understand the many-answers zone transfer format (e.g., BIND 4.9.5 or
 older) you need to explicitly specify "transfer-format one-answer;" in
 either the options block or a server statement.
+
+BIND 9.4 onwards implements "allow-query-cache".  The "allow-query"
+option is no longer used to specify access to the cache.  The
+"allow-query" option continues to specify which hosts are allowed
+to ask ordinary DNS questions.  The new "allow-query-cache" option
+is used to specify which hosts are allowed to get answers from the
+cache. Since BIND 9.4.1, if "allow-query-cache" is not set then
+"allow-recursion" is used if it is set, otherwise "allow-query" is
+used if it is set, otherwise the default localnets and localhost
+is used.
 
 1.2. Handling of Configuration File Errors
 
@@ -254,4 +264,4 @@ necessary, the umask should be set explicitly in the script used to
 start the named process.
 
 
-$Id: migration,v 1.45.18.2 2007/09/07 06:34:21 marka Exp $
+$Id: migration,v 1.45.18.3 2008/03/18 15:45:43 jreed Exp $

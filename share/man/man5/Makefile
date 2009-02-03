@@ -46,6 +46,7 @@ MAN=	acct.5 \
 	networks.5 \
 	nsmb.conf.5 \
 	nsswitch.conf.5 \
+	nullfs.5 \
 	passwd.5 \
 	pbm.5 \
 	periodic.conf.5 \

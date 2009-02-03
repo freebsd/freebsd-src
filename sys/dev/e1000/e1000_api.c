@@ -72,7 +72,6 @@ s32 e1000_init_nvm_params(struct e1000_hw *hw)
 	s32 ret_val = E1000_SUCCESS;
 
 	if (hw->nvm.ops.init_params) {
-		hw->nvm.semaphore_delay = 10;
 		ret_val = hw->nvm.ops.init_params(hw);
 		if (ret_val) {
 			DEBUGOUT("NVM Initialization Error\n");
@@ -376,19 +375,6 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 
 out:
 	return ret_val;
-}
-
-/**
- *  e1000_remove_device - Free device specific structure
- *  @hw: pointer to the HW structure
- *
- *  If a device specific structure was allocated, this function will
- *  free it. This is a function pointer entry point called by drivers.
- **/
-void e1000_remove_device(struct e1000_hw *hw)
-{
-	if (hw->mac.ops.remove_device)
-		hw->mac.ops.remove_device(hw);
 }
 
 /**
@@ -924,6 +910,18 @@ s32 e1000_acquire_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.acquire)
 		return hw->phy.ops.acquire(hw);
+
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_cfg_on_link_up - Configure PHY upon link up
+ *  @hw: pointer to the HW structure
+ **/
+s32 e1000_cfg_on_link_up(struct e1000_hw *hw)
+{
+	if (hw->phy.ops.cfg_on_link_up)
+		return hw->phy.ops.cfg_on_link_up(hw);
 
 	return E1000_SUCCESS;
 }

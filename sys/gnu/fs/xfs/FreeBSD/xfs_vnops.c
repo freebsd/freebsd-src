@@ -241,7 +241,6 @@ _xfs_getattr(
 	/* extract the xfs vnode from the private data */
 	//xfs_vnode_t	*xvp = (xfs_vnode_t *)vp->v_data;
 
-	VATTR_NULL(vap);
 	memset(&va,0,sizeof(xfs_vattr_t));
 	va.va_mask = XFS_AT_STAT|XFS_AT_GENCOUNT|XFS_AT_XFLAGS;
 
@@ -274,15 +273,9 @@ _xfs_getattr(
 
 	/*
 	 * Fields with no direct equivalent in XFS
-	 * leave initialized by VATTR_NULL
 	 */
-#if 0
 	vap->va_filerev = 0;
-	vap->va_birthtime = va.va_ctime;
-	vap->va_vaflags = 0;
 	vap->va_flags = 0;
-	vap->va_spare = 0;
-#endif
 
 	return (0);
 }

@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keygen.docbook,v 1.7.18.11 2007/08/28 07:20:00 tbox Exp $ -->
+<!-- $Id: dnssec-keygen.docbook,v 1.7.18.13 2008/10/15 23:46:06 tbox Exp $ -->
 <refentry id="man.dnssec-keygen">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -40,6 +40,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -340,9 +341,9 @@
         <refentrytitle>dnssec-signzone</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
-      <citetitle>RFC 2535</citetitle>,
+      <citetitle>RFC 2539</citetitle>,
       <citetitle>RFC 2845</citetitle>,
-      <citetitle>RFC 2539</citetitle>.
+      <citetitle>RFC 4033</citetitle>.
     </para>
   </refsect1>
 

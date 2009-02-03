@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.76.18.8 2006/07/20 01:10:30 marka Exp $ */
+/* $Id: interfacemgr.c,v 1.76.18.11 2008/07/23 23:33:02 marka Exp $ */
 
 /*! \file */
 
@@ -90,7 +90,7 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	mgr->generation = 1;
 	mgr->listenon4 = NULL;
 	mgr->listenon6 = NULL;
-	
+
 	ISC_LIST_INIT(mgr->interfaces);
 	ISC_LIST_INIT(mgr->listenon);
 
@@ -307,7 +307,8 @@ ns_interface_accepttcp(ns_interface_t *ifp) {
 #ifndef ISC_ALLOW_MAPPED
 	isc_socket_ipv6only(ifp->tcpsocket, ISC_TRUE);
 #endif
-	result = isc_socket_bind(ifp->tcpsocket, &ifp->addr);
+	result = isc_socket_bind(ifp->tcpsocket, &ifp->addr,
+				 ISC_SOCKET_REUSEADDRESS);
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(IFMGR_COMMON_LOGARGS, ISC_LOG_ERROR,
 				 "binding TCP socket: %s",
@@ -322,7 +323,7 @@ ns_interface_accepttcp(ns_interface_t *ifp) {
 		goto tcp_listen_failure;
 	}
 
-	/* 
+	/*
 	 * If/when there a multiple filters listen to the
 	 * result.
 	 */
@@ -509,7 +510,7 @@ setup_locals(ns_interfacemgr_t *mgr, isc_interface_t *interface) {
 	unsigned int prefixlen;
 
 	family = interface->address.family;
-	
+
 	elt.type = dns_aclelementtype_ipprefix;
 	elt.negative = ISC_FALSE;
 	elt.u.ip_prefix.address = interface->address;
@@ -549,7 +550,7 @@ setup_locals(ns_interfacemgr_t *mgr, isc_interface_t *interface) {
 static void
 setup_listenon(ns_interfacemgr_t *mgr, isc_interface_t *interface,
 	       in_port_t port)
-{ 
+{
 	isc_sockaddr_t *addr;
 	isc_sockaddr_t *old;
 
@@ -563,7 +564,7 @@ setup_listenon(ns_interfacemgr_t *mgr, isc_interface_t *interface,
 	     old != NULL;
 	     old = ISC_LIST_NEXT(old, link))
 		if (isc_sockaddr_equal(addr, old))
-			break;	
+			break;
 
 	if (old != NULL)
 		isc_mem_put(mgr->mctx, addr, sizeof(*addr));
@@ -699,7 +700,7 @@ do_scan(ns_interfacemgr_t *mgr, ns_listenlist_t *ext_listen,
 	{
 		isc_interface_t interface;
 		ns_listenlist_t *ll;
-		unsigned int family; 
+		unsigned int family;
 
 		result = isc_interfaceiter_current(iter, &interface);
 		if (result != ISC_R_SUCCESS)
@@ -881,7 +882,7 @@ do_scan(ns_interfacemgr_t *mgr, ns_listenlist_t *ext_listen,
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "interface iteration failed: %s",
 				 isc_result_totext(result));
-	else 
+	else
 		result = ISC_R_SUCCESS;
  cleanup_iter:
 	isc_interfaceiter_destroy(&iter);
@@ -912,7 +913,7 @@ ns_interfacemgr_scan0(ns_interfacemgr_t *mgr, ns_listenlist_t *ext_listen,
 
 	/*
 	 * Warn if we are not listening on any interface, unless
-	 * we're in lwresd-only mode, in which case that is to 
+	 * we're in lwresd-only mode, in which case that is to
 	 * be expected.
 	 */
 	if (ext_listen == NULL &&

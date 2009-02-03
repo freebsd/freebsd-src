@@ -464,7 +464,7 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 
 	req = (void *)data;
 	req->nerror = 0;
-	req->serror = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	req->serror = sbuf_new_auto();
 	/* It is an error if we cannot return an error text */
 	if (req->lerror < 2)
 		return (EINVAL);

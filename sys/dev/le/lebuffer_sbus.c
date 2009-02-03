@@ -100,6 +100,8 @@ static device_method_t lebuffer_methods[] = {
 
 DEFINE_CLASS_0(lebuffer, lebuffer_driver, lebuffer_methods, 1);
 DRIVER_MODULE(lebuffer, sbus, lebuffer_driver, lebuffer_devclass, 0, 0);
+MODULE_DEPEND(lebuffer, sbus, 1, 1, 1);
+MODULE_VERSION(lebuffer, 1);
 
 static int
 lebuffer_probe(device_t dev)

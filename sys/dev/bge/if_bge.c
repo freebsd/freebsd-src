@@ -134,7 +134,7 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
  * ID burned into it, though it will always be overriden by the vendor
  * ID in the EEPROM. Just to be safe, we cover all possibilities.
  */
-static struct bge_type {
+static const struct bge_type {
 	uint16_t	bge_vid;
 	uint16_t	bge_did;
 } bge_devs[] = {
@@ -1370,6 +1370,16 @@ bge_chipinit(struct bge_softc *sc)
 	    BGE_MODECTL_TX_NO_PHDR_CSUM);
 
 	/*
+	 * BCM5701 B5 have a bug causing data corruption when using
+	 * 64-bit DMA reads, which can be terminated early and then
+	 * completed later as 32-bit accesses, in combination with
+	 * certain bridges.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5701 &&
+	    sc->bge_chipid == BGE_CHIPID_BCM5701_B5)
+		BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_FORCE_PCI32);
+
+	/*
 	 * Tell the firmware the driver is running
 	 */
 	if (sc->bge_asf_mode & ASF_STACKUP)
@@ -1851,7 +1861,7 @@ bge_lookup_vendor(uint16_t vid)
 static int
 bge_probe(device_t dev)
 {
-	struct bge_type *t = bge_devs;
+	const struct bge_type *t = bge_devs;
 	struct bge_softc *sc = device_get_softc(dev);
 	uint16_t vid, did;
 
@@ -1873,7 +1883,8 @@ bge_probe(device_t dev)
 #if __FreeBSD_version > 700024
 				const char *pname;
 
-				if (pci_get_vpd_ident(dev, &pname) == 0)
+				if (bge_has_eaddr(sc) &&
+				    pci_get_vpd_ident(dev, &pname) == 0)
 					snprintf(model, 64, "%s", pname);
 				else
 #endif
@@ -2327,10 +2338,11 @@ bge_can_use_msi(struct bge_softc *sc)
 	int can_use_msi = 0;
 
 	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5714_A0:
 	case BGE_ASICREV_BCM5714:
 		/*
-		 * Apparently, MSI doesn't work when this chip is configured
-		 * in single-port mode.
+		 * Apparently, MSI doesn't work when these chips are
+		 * configured in single-port mode.
 		 */
 		if (bge_has_multiple_ports(sc))
 			can_use_msi = 1;
@@ -2340,10 +2352,9 @@ bge_can_use_msi(struct bge_softc *sc)
 		    sc->bge_chiprev != BGE_CHIPREV_5750_BX)
 			can_use_msi = 1;
 		break;
-	case BGE_ASICREV_BCM5752:
-	case BGE_ASICREV_BCM5780:
-		can_use_msi = 1;
-		break;
+	default:
+		if (BGE_IS_575X_PLUS(sc))
+			can_use_msi = 1;
 	}
 	return (can_use_msi);
 }
@@ -2376,11 +2387,7 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->bge_btag = rman_get_bustag(sc->bge_res);
-	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
-
 	/* Save ASIC rev. */
-
 	sc->bge_chipid =
 	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 	    BGE_PCIMISCCTL_ASICREV;
@@ -2465,26 +2472,21 @@ bge_attach(device_t dev)
 		 */
 		if (reg != 0)
 			sc->bge_flags |= BGE_FLAG_PCIE;
-	} else if (pci_find_extcap(dev, PCIY_PCIX, &reg) == 0) {
-		if (reg != 0)
-			sc->bge_flags |= BGE_FLAG_PCIX;
-	}
-			
 #else
 	if (BGE_IS_5705_PLUS(sc)) {
 		reg = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
 		if ((reg & 0xFF) == BGE_PCIE_CAPID)
 			sc->bge_flags |= BGE_FLAG_PCIE;
+#endif
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
 		 * (This bit is not valid on PCI Express controllers.)
 		 */
-		if ((pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4) &
+		if ((pci_read_config(dev, BGE_PCI_PCISTATE, 4) &
 		    BGE_PCISTATE_PCI_BUSMODE) == 0)
 			sc->bge_flags |= BGE_FLAG_PCIX;
 	}
-#endif
 
 #if __FreeBSD_version > 602105
 	{

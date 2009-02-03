@@ -8,6 +8,7 @@ SUBDIR=	${_3dfx} \
 	accf_data \
 	accf_http \
 	${_acpi} \
+	ae \
 	age \
 	${_agp} \
 	aha \
@@ -16,6 +17,7 @@ SUBDIR=	${_3dfx} \
 	aic7xxx \
 	aio \
 	${_amd} \
+	ale \
 	amr \
 	${_an} \
 	${_aout} \
@@ -61,6 +63,7 @@ SUBDIR=	${_3dfx} \
 	${_coff} \
 	${_coretemp} \
 	${_cp} \
+	${_cpuctl} \
 	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
@@ -180,6 +183,8 @@ SUBDIR=	${_3dfx} \
 	mii \
 	mlx \
 	${_mly} \
+	mmc \
+	mmcsd \
 	mpt \
 	mqueue \
 	msdosfs \
@@ -246,6 +251,7 @@ SUBDIR=	${_3dfx} \
 	scc \
 	scd \
 	${_scsi_low} \
+	sdhci \
 	sem \
 	sf \
 	${_sio} \
@@ -387,6 +393,7 @@ _cbb=		cbb
 _ce=		ce
 _coff=		coff
 _cp=		cp
+_cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
@@ -522,6 +529,7 @@ _cbb=		cbb
 _cmx=		cmx
 _ciss=		ciss
 _coretemp=	coretemp
+_cpuctl=	cpuctl
 _cpufreq=	cpufreq
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic

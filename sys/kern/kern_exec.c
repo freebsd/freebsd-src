@@ -363,8 +363,6 @@ do_execve(td, args, mac_p)
 
 	imgp->image_header = NULL;
 
-	SDT_PROBE(proc, kernel, , exec, args->fname, 0, 0, 0, 0 );
-
 	/*
 	 * Translate the file name. namei() returns a vnode pointer
 	 *	in ni_vp amoung other things.
@@ -375,6 +373,8 @@ do_execve(td, args, mac_p)
 	ndp = &nd;
 	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME | MPSAFE |
 	    AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
+
+	SDT_PROBE(proc, kernel, , exec, args->fname, 0, 0, 0, 0 );
 
 interpret:
 	error = namei(ndp);
@@ -476,6 +476,11 @@ interpret:
 	}
 
 	/*
+	 * NB: We unlock the vnode here because it is believed that none
+	 * of the sv_copyout_strings/sv_fixup operations require the vnode.
+	 */
+	VOP_UNLOCK(imgp->vp, 0, td);
+	/*
 	 * Copy out strings (args and env) and initialize stack base
 	 */
 	if (p->p_sysent->sv_copyout_strings)
@@ -512,7 +517,6 @@ interpret:
 	}
 
 	/* close files on exec */
-	VOP_UNLOCK(imgp->vp, 0, td);
 	fdcloseexec(td);
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 
@@ -745,6 +749,7 @@ interpret:
 
 	vfs_mark_atime(imgp->vp, td);
 
+	SDT_PROBE(proc, kernel, , exec_success, args->fname, 0, 0, 0, 0);
 done1:
 	/*
 	 * Free any resources malloc'd earlier that we didn't use.
@@ -755,8 +760,6 @@ done1:
 	else
 		crfree(newcred);
 	VOP_UNLOCK(imgp->vp, 0, td);
-
-	SDT_PROBE(proc, kernel, , exec_success, args->fname, 0, 0, 0, 0);
 
 	/*
 	 * Handle deferred decrement of ref counts.

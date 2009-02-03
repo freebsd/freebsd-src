@@ -1599,6 +1599,24 @@ biba_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
+biba_check_inpcb_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(inplabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (ENOENT);
+
+	return (0);
+}
+
+static int
 biba_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
@@ -3333,6 +3351,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_ifnet_relabel = biba_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = biba_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = biba_check_inpcb_deliver,
+	.mpo_check_inpcb_visible = biba_check_inpcb_visible,
 	.mpo_check_sysv_msgrcv = biba_check_sysv_msgrcv,
 	.mpo_check_sysv_msgrmid = biba_check_sysv_msgrmid,
 	.mpo_check_sysv_msqget = biba_check_sysv_msqget,

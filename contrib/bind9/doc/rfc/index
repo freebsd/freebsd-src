@@ -9,7 +9,7 @@
 1183:	New DNS RR Definitions (AFSDB, RP, X25, ISDN and RT)
 1348:	DNS NSAP RRs
 1535:	A Security Problem and Proposed Correction
-	   With Widely Deployed DNS Software
+	 With Widely Deployed DNS Software
 1536:	Common DNS Implementation Errors and Suggested Fixes
 1537:	Common DNS Data File Configuration Errors
 1591:	Domain Name System Structure and Delegation
@@ -63,6 +63,7 @@
 2931:	DNS Request and Transaction Signatures ( SIG(0)s )
 3007:	Secure Domain Name System (DNS) Dynamic Update
 3008:	Domain Name System Security (DNSSEC) Signing Authority
+3056:	Connection of IPv6 Domains via IPv4 Clouds
 3071:	Reflections on the DNS, RFC 1591, and Categories of Domains
 3090:	DNS Security Extension Clarification on Zone Status
 3110:	RSA/SHA-1 SIGs and RSA KEYs in the Domain Name System (DNS)
@@ -81,17 +82,17 @@
 3490:	Internationalizing Domain Names In Applications (IDNA)
 3491:	Nameprep: A Stringprep Profile for Internationalized Domain Names (IDN)
 3492:	Punycode:A Bootstring encoding of Unicode for
-	  Internationalized Domain Names in Applications (IDNA)
+	 Internationalized Domain Names in Applications (IDNA)
 3493:	Basic Socket Interface Extensions for IPv6
 3513:	Internet Protocol Version 6 (IPv6) Addressing Architecture
 3596:	DNS Extensions to Support IP Version 6
 3597:	Handling of Unknown DNS Resource Record (RR) Types
 3645:	Generic Security Service Algorithm for
-	  Secret Key Transaction Authentication for DNS (GSS-TSIG)
+	 Secret Key Transaction Authentication for DNS (GSS-TSIG)
 3655:	Redefinition of DNS Authenticated Data (AD) bit
 3658:	Delegation Signer (DS) Resource Record (RR)
 3757:	Domain Name System KEY (DNSKEY) Resource Record (RR)
-	  Secure Entry Point (SEP) Flag
+	 Secure Entry Point (SEP) Flag
 3833:	Threat Analysis of the Domain Name System (DNS)
 3845:	DNS Security (DNSSEC) NextSECure (NSEC) RDATA Format
 3901:	DNS IPv6 Transport Operational Guidelines
@@ -112,3 +113,7 @@
 4470:	Minimally Covering NSEC Records and DNSSEC On-line Signing
 4634:	US Secure Hash Algorithms (SHA and HMAC-SHA)
 4641:	DNSSEC Operational Practices
+4648:	The Base16, Base32, and Base64 Data Encodings
+4701:	A DNS Resource Record (RR) for Encoding
+         Dynamic Host Configuration Protocol (DHCP) Information (DHCID RR)
+5155:	DNS Security (DNSSEC) Hashed Authenticated Denial of Existence

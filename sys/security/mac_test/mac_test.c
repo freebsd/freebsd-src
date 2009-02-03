@@ -1258,6 +1258,19 @@ test_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 	return (0);
 }
 
+COUNTER_DECL(check_inpcb_visible);
+static int
+test_check_inpcb_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(inplabel, MAGIC_INPCB);
+	COUNTER_INC(check_inpcb_visible);
+
+	return (0);
+}
+
 COUNTER_DECL(check_sysv_msgmsq);
 static int
 test_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
@@ -2577,6 +2590,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_check_ifnet_relabel = test_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = test_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = test_check_inpcb_deliver,
+	.mpo_check_inpcb_visible = test_check_inpcb_visible,
 	.mpo_check_sysv_msgmsq = test_check_sysv_msgmsq,
 	.mpo_check_sysv_msgrcv = test_check_sysv_msgrcv,
 	.mpo_check_sysv_msgrmid = test_check_sysv_msgrmid,

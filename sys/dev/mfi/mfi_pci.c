@@ -114,11 +114,21 @@ struct mfi_ident {
 	int		flags;
 	const char	*desc;
 } mfi_identifiers[] = {
+	{0x1000, 0x0060, 0x1028, 0xffff, MFI_FLAGS_1078,  "Dell PERC 6"},
+	{0x1000, 0x0060, 0xffff, 0xffff, MFI_FLAGS_1078,  "LSI MegaSAS 1078"},
+	{0x1000, 0x0078, 0xffff, 0xffff, MFI_FLAGS_GEN2,  "LSI MegaSAS Gen2"},
+	{0x1000, 0x0079, 0x1028, 0x1f15, MFI_FLAGS_GEN2,  "Dell PERC H800 Adapter"},
+	{0x1000, 0x0079, 0x1028, 0x1f16, MFI_FLAGS_GEN2,  "Dell PERC H700 Adapter"},
+	{0x1000, 0x0079, 0x1028, 0x1f17, MFI_FLAGS_GEN2,  "Dell PERC H700 Integrated"},
+	{0x1000, 0x0079, 0x1028, 0x1f18, MFI_FLAGS_GEN2,  "Dell PERC H700 Modular"},
+	{0x1000, 0x0079, 0x1028, 0x1f19, MFI_FLAGS_GEN2,  "Dell PERC H700"},
+	{0x1000, 0x0079, 0x1028, 0x1f1b, MFI_FLAGS_GEN2,  "Dell PERC H800"},
+	{0x1000, 0x0079, 0x1028, 0xffff, MFI_FLAGS_GEN2,  "Dell PERC Gen2"},
+	{0x1000, 0x0079, 0xffff, 0xffff, MFI_FLAGS_GEN2,  "LSI MegaSAS Gen2"},
+	{0x1000, 0x007c, 0xffff, 0xffff, MFI_FLAGS_1078,  "LSI MegaSAS 1078"},
 	{0x1000, 0x0411, 0xffff, 0xffff, MFI_FLAGS_1064R, "LSI MegaSAS 1064R"}, /* Brocton IOP */
 	{0x1000, 0x0413, 0xffff, 0xffff, MFI_FLAGS_1064R, "LSI MegaSAS 1064R"}, /* Verde ZCR */
 	{0x1028, 0x0015, 0xffff, 0xffff, MFI_FLAGS_1064R, "Dell PERC 5/i"},
-	{0x1000, 0x0060, 0x1028, 0xffff, MFI_FLAGS_1078,  "Dell PERC 6"},
-	{0x1000, 0x0060, 0xffff, 0xffff, MFI_FLAGS_1078,  "LSI MegaSAS 1078"},
 	{0, 0, 0, 0, 0, NULL}
 };
 
@@ -163,6 +173,8 @@ mfi_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
 	sc->mfi_dev = dev;
+	m = mfi_find_ident(dev);
+	sc->mfi_flags = m->flags;
 
 	/* Verify that the adapter can be set up in PCI space */
 	command = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -179,7 +191,14 @@ mfi_pci_attach(device_t dev)
 	}
 
 	/* Allocate PCI registers */
-	sc->mfi_regs_rid = PCIR_BAR(0);
+	if ((sc->mfi_flags & MFI_FLAGS_1064R) ||
+	    (sc->mfi_flags & MFI_FLAGS_1078)) {
+		/* 1068/1078: Memory mapped BAR is at offset 0x10 */
+		sc->mfi_regs_rid = PCIR_BAR(0);
+	} else if (sc->mfi_flags & MFI_FLAGS_GEN2) {
+		/* GEN2: Memory mapped BAR is at offset 0x14 */
+		sc->mfi_regs_rid = PCIR_BAR(1);
+	}
 	if ((sc->mfi_regs_resource = bus_alloc_resource_any(sc->mfi_dev,
 	    SYS_RES_MEMORY, &sc->mfi_regs_rid, RF_ACTIVE)) == NULL) {
 		device_printf(dev, "Cannot allocate PCI registers\n");
@@ -205,9 +224,6 @@ mfi_pci_attach(device_t dev)
 		device_printf(dev, "Cannot allocate parent DMA tag\n");
 		goto out;
 	}
-
-	m = mfi_find_ident(dev);
-	sc->mfi_flags = m->flags;
 
 	error = mfi_attach(sc);
 out:

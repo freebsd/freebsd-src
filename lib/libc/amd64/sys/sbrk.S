@@ -85,3 +85,4 @@ err:
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(sbrk)

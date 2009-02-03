@@ -314,6 +314,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	 */
 	m->m_pkthdr.rcvif = NULL;
 	m->m_nextpkt = NULL;
+	M_SETFIB(m, so->so_fibnum);
 
 	if (control)
 		m_freem(control);		/* XXX */
@@ -616,7 +617,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
-		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
+		    cr_canseeinpcb(req->td->td_ucred, inp) == 0)
 			inp_list[i++] = inp;
 		INP_RUNLOCK(inp);
 	}

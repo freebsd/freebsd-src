@@ -48,3 +48,4 @@ ENTRY(__sys_getcontext)
 1:
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
+END(__sys_getcontext)

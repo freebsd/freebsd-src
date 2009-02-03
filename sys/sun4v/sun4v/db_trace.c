@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -241,7 +242,6 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 	db_addr_t pc;
 	int trap;
 	int user;
-	int quit;
 
 	if (count == -1)
 		count = 1024;
@@ -249,7 +249,6 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 	trap = 0;
 	user = 0;
 	npc = 0;
-	quit = 0;
 	while (count-- && !user && !db_pager_quit) {
 		pc = (db_addr_t)db_get_value((db_addr_t)&fp->fr_pc,
 		    sizeof(fp->fr_pc), FALSE);
@@ -288,10 +287,9 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 void
 db_trace_self(void)
 {
-	db_expr_t addr;
 
-	addr = (db_expr_t)__builtin_frame_address(1);
-	db_backtrace(curthread, (struct frame *)(addr + SPOFF), -1);
+	db_backtrace(curthread,
+	    (struct frame *)__builtin_frame_address(1), -1);
 }
 
 int
@@ -300,5 +298,6 @@ db_trace_thread(struct thread *td, int count)
 	struct pcb *ctx;
 
 	ctx = kdb_thr_ctx(td);
-	return (db_backtrace(td, (struct frame*)(ctx->pcb_sp + SPOFF), count));
+	return (db_backtrace(td,
+	    (struct frame *)(ctx->pcb_sp + SPOFF), count));
 }

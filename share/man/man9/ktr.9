@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2005
+.Dd November 30, 2008
 .Dt KTR 9
 .Os
 .Sh NAME
@@ -84,9 +84,16 @@ Following the
 .Fa format
 string are zero to five arguments referenced by
 .Fa format .
+Each event is logged with a file name and source line number of the
+originating CTR call, and a timestamp in addition to the log message.
+.Pp
+The event is stored in the circular buffer with supplied arguments as is,
+and formatting is done at the dump time.
+Do not use pointers to the objects with limited lifetime, for instance,
+strings, because the pointer may become invalid when buffer is printed.
+.Pp
 Note that the different macros differ only in the number of arguments each
 one takes, as indicated by its name.
-Each event is logged with a timestamp in addition to the log message.
 .Pp
 The
 .Va ktr_entries
@@ -121,13 +128,11 @@ mi_switch()
 	 * Pick a new current process and record its start time.
 	 */
 	...
-	CTR3(KTR_PROC, "mi_switch: old proc %p (pid %d, %s)", p, p->p_pid,
-	    p->p_comm);
+	CTR3(KTR_PROC, "mi_switch: old proc %p (pid %d)", p, p->p_pid);
 	...
 	cpu_switch();
 	...
-	CTR3(KTR_PROC, "mi_switch: new proc %p (pid %d, %s)", p, p->p_pid,
-	    p->p_comm);
+	CTR3(KTR_PROC, "mi_switch: new proc %p (pid %d)", p, p->p_pid);
 	...
 }
 .Ed

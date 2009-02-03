@@ -16,7 +16,7 @@
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"	$FreeBSD$
 .\"
-.TH TRACEROUTE 8 "21 September 2000"
+.TH TRACEROUTE 8 "19 February 2008"
 .UC 6
 .SH NAME
 traceroute \- print the route packets take to network host
@@ -24,7 +24,7 @@ traceroute \- print the route packets take to network host
 .na
 .B traceroute
 [
-.B \-dDeFISnrvx
+.B \-adDeFISnrvx
 ] [
 .B \-f
 .I first_ttl
@@ -71,6 +71,9 @@ traceroute \- print the route packets take to network host
 .B \-w
 .I waittime
 ] [
+.B \-A
+.I as_server
+] [
 .B \-z
 .I pausemsecs
 ]
@@ -97,6 +100,13 @@ by specifying a packet length (in bytes) after the destination host
 name.
 .PP
 Other options are:
+.TP
+.B \-a
+Turn on AS# lookups for each hop encountered.
+.TP
+.B -A
+Turn  on  AS#  lookups  and  use the given server instead of the
+default.
 .TP
 .B \-e
 Firewall evasion mode.
@@ -443,3 +453,7 @@ should listen for a RST from the destination host (or an intermediate
 router that's filtering packets), but this is not implemented yet.
 .PP
 Please send bug reports to traceroute@ee.lbl.gov.
+.PP
+The AS number capability reports information that may sometimes be
+inaccurate due to discrepancies between the contents of the
+routing database server and the current state of the Internet.

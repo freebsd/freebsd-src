@@ -53,3 +53,4 @@ ENTRY(exect)
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(exect)

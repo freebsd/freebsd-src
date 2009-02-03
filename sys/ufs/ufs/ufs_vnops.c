@@ -330,7 +330,18 @@ ufs_access(ap)
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
 #ifdef QUOTA
+			/*
+			 * Inode is accounted in the quotas only if struct
+			 * dquot is attached to it. VOP_ACCESS() is called
+			 * from vn_open_cred() and provides a convenient
+			 * point to call getinoquota().
+			 */
 			if (VOP_ISLOCKED(vp, ap->a_td) != LK_EXCLUSIVE) {
+
+				/*
+				 * Upgrade vnode lock, since getinoquota()
+				 * requires exclusive lock to modify inode.
+				 */
 				relocked = 1;
 				vhold(vp);
 				vn_lock(vp, LK_UPGRADE | LK_RETRY, ap->a_td);
@@ -434,8 +445,6 @@ ufs_getattr(ap)
 		vap->va_mtime.tv_nsec = ip->i_din1->di_mtimensec;
 		vap->va_ctime.tv_sec = ip->i_din1->di_ctime;
 		vap->va_ctime.tv_nsec = ip->i_din1->di_ctimensec;
-		vap->va_birthtime.tv_sec = 0;
-		vap->va_birthtime.tv_nsec = 0;
 		vap->va_bytes = dbtob((u_quad_t)ip->i_din1->di_blocks);
 	} else {
 		vap->va_rdev = ip->i_din2->di_rdev;

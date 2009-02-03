@@ -54,3 +54,4 @@ ENTRY(__sys_reboot)
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(__sys_reboot)

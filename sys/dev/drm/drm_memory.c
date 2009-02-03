@@ -1,6 +1,3 @@
-/* drm_memory.h -- Memory management wrappers for DRM -*- linux-c -*-
- * Created: Thu Feb  4 14:00:34 1999 by faith@valinux.com
- */
 /*-
  *Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -34,73 +31,59 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_memory.c
+ * Wrappers for kernel memory allocation routines, and MTRR management support.
+ *
+ * This file previously implemented a memory consumption tracking system using
+ * the "area" argument for various different types of allocations, but that
+ * has been stripped out for now.
+ */
+
 #include "dev/drm/drmP.h"
 
-MALLOC_DEFINE(M_DRM, "drm", "DRM Data Structures");
+MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
+MALLOC_DEFINE(DRM_MEM_SAREA, "drm_sarea", "DRM SAREA Data Structures");
+MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
+MALLOC_DEFINE(DRM_MEM_MAGIC, "drm_magic", "DRM MAGIC Data Structures");
+MALLOC_DEFINE(DRM_MEM_IOCTLS, "drm_ioctls", "DRM IOCTL Data Structures");
+MALLOC_DEFINE(DRM_MEM_MAPS, "drm_maps", "DRM MAP Data Structures");
+MALLOC_DEFINE(DRM_MEM_BUFS, "drm_bufs", "DRM BUFFER Data Structures");
+MALLOC_DEFINE(DRM_MEM_SEGS, "drm_segs", "DRM SEGMENTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_PAGES, "drm_pages", "DRM PAGES Data Structures");
+MALLOC_DEFINE(DRM_MEM_FILES, "drm_files", "DRM FILE Data Structures");
+MALLOC_DEFINE(DRM_MEM_QUEUES, "drm_queues", "DRM QUEUE Data Structures");
+MALLOC_DEFINE(DRM_MEM_CMDS, "drm_cmds", "DRM COMMAND Data Structures");
+MALLOC_DEFINE(DRM_MEM_MAPPINGS, "drm_mapping", "DRM MAPPING Data Structures");
+MALLOC_DEFINE(DRM_MEM_BUFLISTS, "drm_buflists", "DRM BUFLISTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_AGPLISTS, "drm_agplists", "DRM AGPLISTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_CTXBITMAP, "drm_ctxbitmap",
+    "DRM CTXBITMAP Data Structures");
+MALLOC_DEFINE(DRM_MEM_SGLISTS, "drm_sglists", "DRM SGLISTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_DRAWABLE, "drm_drawable", "DRM DRAWABLE Data Structures");
 
 void drm_mem_init(void)
 {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	malloc_type_attach(M_DRM);
-#endif
 }
 
 void drm_mem_uninit(void)
 {
 }
 
-void *drm_alloc(size_t size, int area)
+void *drm_ioremap_wc(struct drm_device *dev, drm_local_map_t *map)
 {
-	return malloc(size, M_DRM, M_NOWAIT);
+	return pmap_mapdev_attr(map->offset, map->size, PAT_WRITE_COMBINING);
 }
 
-void *drm_calloc(size_t nmemb, size_t size, int area)
+void *drm_ioremap(struct drm_device *dev, drm_local_map_t *map)
 {
-	return malloc(size * nmemb, M_DRM, M_NOWAIT | M_ZERO);
-}
-
-void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
-{
-	void *pt;
-
-	pt = malloc(size, M_DRM, M_NOWAIT);
-	if (pt == NULL)
-		return NULL;
-	if (oldpt && oldsize) {
-		memcpy(pt, oldpt, oldsize);
-		free(oldpt, M_DRM);
-	}
-	return pt;
-}
-
-void drm_free(void *pt, size_t size, int area)
-{
-	free(pt, M_DRM);
-}
-
-void *drm_ioremap(drm_device_t *dev, drm_local_map_t *map)
-{
-#ifdef __FreeBSD__
 	return pmap_mapdev(map->offset, map->size);
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-	map->bst = dev->pa.pa_memt;
-	if (bus_space_map(map->bst, map->offset, map->size, 
-	    BUS_SPACE_MAP_LINEAR, &map->bsh))
-		return NULL;
-	return bus_space_vaddr(map->bst, map->bsh);
-#endif
 }
 
 void drm_ioremapfree(drm_local_map_t *map)
 {
-#ifdef __FreeBSD__
 	pmap_unmapdev((vm_offset_t) map->handle, map->size);
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-	bus_space_unmap(map->bst, map->bsh, map->size);
-#endif
 }
 
-#ifdef __FreeBSD__
 int
 drm_mtrr_add(unsigned long offset, size_t size, int flags)
 {
@@ -128,30 +111,3 @@ drm_mtrr_del(int __unused handle, unsigned long offset, size_t size, int flags)
 	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
 	return mem_range_attr_set(&mrdesc, &act);
 }
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-int
-drm_mtrr_add(unsigned long offset, size_t size, int flags)
-{
-	struct mtrr mtrrmap;
-	int one = 1;
-
-	mtrrmap.base = offset;
-	mtrrmap.len = size;
-	mtrrmap.type = flags;
-	mtrrmap.flags = MTRR_VALID;
-	return mtrr_set(&mtrrmap, &one, NULL, MTRR_GETSET_KERNEL);
-}
-
-int
-drm_mtrr_del(unsigned long offset, size_t size, int flags)
-{
-	struct mtrr mtrrmap;
-	int one = 1;
-
-	mtrrmap.base = offset;
-	mtrrmap.len = size;
-	mtrrmap.type = flags;
-	mtrrmap.flags = 0;
-	return mtrr_set(&mtrrmap, &one, NULL, MTRR_GETSET_KERNEL);
-}
-#endif

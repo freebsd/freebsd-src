@@ -55,3 +55,4 @@ ENTRY(ptrace)
 err:
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
+END(ptrace)

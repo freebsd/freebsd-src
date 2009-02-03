@@ -617,8 +617,7 @@ allocino(ino_t request, int type)
 		return (0);
 	cg = ino_to_cg(&sblock, ino);
 	getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
-	if (!cg_chkmagic(cgp))
-		pfatal("CG %d: BAD MAGIC NUMBER\n", cg);
+	check_cgmagic(cg, cgp);
 	setbit(cg_inosused(cgp), ino % sblock.fs_ipg);
 	cgp->cg_cs.cs_nifree--;
 	switch (type & IFMT) {

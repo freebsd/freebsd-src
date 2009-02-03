@@ -790,7 +790,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	pp->sectorsize = sc->sc_secsize;
 	g_error_provider(pp, 0);
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	sbuf_printf(sb, "ccd%d: %d components ", sc->sc_unit, *nprovider);
 	for (i = 0; i < *nprovider; i++) {
 		sbuf_printf(sb, "%s%s",
@@ -840,7 +840,7 @@ g_ccd_list(struct gctl_req *req, struct g_class *mp)
 
 	up = gctl_get_paraml(req, "unit", sizeof (int));
 	unit = *up;
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		cs = gp->softc;
 		if (cs == NULL || (unit >= 0 && unit != cs->sc_unit))

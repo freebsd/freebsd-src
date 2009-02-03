@@ -24,6 +24,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_sysctl.c
+ * Implementation of various sysctls for controlling DRM behavior and reporting
+ * debug information.
+ */
+
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
 
@@ -50,14 +55,14 @@ struct drm_sysctl_info {
 	char		       name[2];
 };
 
-int drm_sysctl_init(drm_device_t *dev)
+int drm_sysctl_init(struct drm_device *dev)
 {
 	struct drm_sysctl_info *info;
 	struct sysctl_oid *oid;
 	struct sysctl_oid *top, *drioid;
 	int		  i;
 
-	info = malloc(sizeof *info, M_DRM, M_WAITOK | M_ZERO);
+	info = malloc(sizeof *info, DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
 	if ( !info )
 		return 1;
 	dev->sysctl = info;
@@ -104,12 +109,12 @@ int drm_sysctl_init(drm_device_t *dev)
 	return 0;
 }
 
-int drm_sysctl_cleanup(drm_device_t *dev)
+int drm_sysctl_cleanup(struct drm_device *dev)
 {
 	int error;
 	error = sysctl_ctx_free( &dev->sysctl->ctx );
 
-	free(dev->sysctl, M_DRM);
+	free(dev->sysctl, DRM_MEM_DRIVER);
 	dev->sysctl = NULL;
 
 	return error;
@@ -125,12 +130,12 @@ do {								\
 
 static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
 {
-	drm_device_t *dev = arg1;
+	struct drm_device *dev = arg1;
 	char buf[128];
 	int retcode;
 	int hasunique = 0;
 
-	DRM_SYSCTL_PRINT("%s 0x%x", dev->driver.name, dev2udev(dev->devnode));
+	DRM_SYSCTL_PRINT("%s 0x%x", dev->driver->name, dev2udev(dev->devnode));
 	
 	DRM_LOCK();
 	if (dev->unique) {
@@ -150,7 +155,7 @@ done:
 
 static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 {
-	drm_device_t *dev = arg1;
+	struct drm_device *dev = arg1;
 	drm_local_map_t *map, *tempmaps;
 	const char   *types[] = { "FB", "REG", "SHM", "AGP", "SG" };
 	const char *type, *yesno;
@@ -167,7 +172,8 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 	TAILQ_FOREACH(map, &dev->maplist, link)
 		mapcount++;
 
-	tempmaps = malloc(sizeof(drm_local_map_t) * mapcount, M_DRM, M_NOWAIT);
+	tempmaps = malloc(sizeof(drm_local_map_t) * mapcount, DRM_MEM_DRIVER,
+	    M_NOWAIT);
 	if (tempmaps == NULL) {
 		DRM_UNLOCK();
 		return ENOMEM;
@@ -203,13 +209,13 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 	SYSCTL_OUT(req, "", 1);
 
 done:
-	free(tempmaps, M_DRM);
+	free(tempmaps, DRM_MEM_DRIVER);
 	return retcode;
 }
 
 static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 {
-	drm_device_t	 *dev = arg1;
+	struct drm_device	 *dev = arg1;
 	drm_device_dma_t *dma = dev->dma;
 	drm_device_dma_t tempdma;
 	int *templists;
@@ -227,7 +233,8 @@ static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 	}
 	DRM_SPINLOCK(&dev->dma_lock);
 	tempdma = *dma;
-	templists = malloc(sizeof(int) * dma->buf_count, M_DRM, M_NOWAIT);
+	templists = malloc(sizeof(int) * dma->buf_count, DRM_MEM_DRIVER,
+	    M_NOWAIT);
 	for (i = 0; i < dma->buf_count; i++)
 		templists[i] = dma->buflist[i]->list;
 	dma = &tempdma;
@@ -259,14 +266,14 @@ static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 
 	SYSCTL_OUT(req, "", 1);
 done:
-	free(templists, M_DRM);
+	free(templists, DRM_MEM_DRIVER);
 	return retcode;
 }
 
 static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 {
-	drm_device_t *dev = arg1;
-	drm_file_t *priv, *tempprivs;
+	struct drm_device *dev = arg1;
+	struct drm_file *priv, *tempprivs;
 	char buf[128];
 	int retcode;
 	int privcount, i;
@@ -277,7 +284,8 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 	TAILQ_FOREACH(priv, &dev->files, link)
 		privcount++;
 
-	tempprivs = malloc(sizeof(drm_file_t) * privcount, M_DRM, M_NOWAIT);
+	tempprivs = malloc(sizeof(struct drm_file) * privcount, DRM_MEM_DRIVER,
+	    M_NOWAIT);
 	if (tempprivs == NULL) {
 		DRM_UNLOCK();
 		return ENOMEM;
@@ -302,6 +310,6 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 
 	SYSCTL_OUT(req, "", 1);
 done:
-	free(tempprivs, M_DRM);
+	free(tempprivs, DRM_MEM_DRIVER);
 	return retcode;
 }

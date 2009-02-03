@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.135.18.16 2007/10/31 01:59:47 marka Exp $ */
+/* $Id: xfrin.c,v 1.135.18.23 2008/09/25 04:15:52 marka Exp $ */
 
 /*! \file */
 
@@ -248,7 +248,7 @@ static isc_result_t
 axfr_init(dns_xfrin_ctx_t *xfr) {
 	isc_result_t result;
 
- 	xfr->is_ixfr = ISC_FALSE;
+	xfr->is_ixfr = ISC_FALSE;
 
 	if (xfr->db != NULL)
 		dns_db_detach(&xfr->db);
@@ -425,6 +425,10 @@ xfr_rr(dns_xfrin_ctx_t *xfr, dns_name_t *name, isc_uint32_t ttl,
        dns_rdata_t *rdata)
 {
 	isc_result_t result;
+
+	if (rdata->type == dns_rdatatype_none ||
+	    dns_rdatatype_ismeta(rdata->type))
+		FAIL(DNS_R_FORMERR);
 
  redo:
 	switch (xfr->state) {
@@ -862,7 +866,8 @@ xfrin_start(dns_xfrin_ctx_t *xfr) {
 				isc_sockettype_tcp,
 				&xfr->socket));
 #ifndef BROKEN_TCP_BIND_BEFORE_CONNECT
-	CHECK(isc_socket_bind(xfr->socket, &xfr->sourceaddr));
+	CHECK(isc_socket_bind(xfr->socket, &xfr->sourceaddr,
+			      ISC_SOCKET_REUSEADDRESS));
 #endif
 	CHECK(isc_socket_connect(xfr->socket, &xfr->masteraddr, xfr->task,
 				 xfrin_connect_done, xfr));
@@ -891,8 +896,8 @@ render(dns_message_t *msg, isc_mem_t *mctx, isc_buffer_t *buf) {
 	CHECK(dns_message_renderend(msg));
 	result = ISC_R_SUCCESS;
  failure:
- 	if (cleanup_cctx)
-	 	dns_compress_invalidate(&cctx);
+	if (cleanup_cctx)
+		dns_compress_invalidate(&cctx);
 	return (result);
 }
 
@@ -1050,6 +1055,8 @@ xfrin_send_request(dns_xfrin_ctx_t *xfr) {
 	xfr->id++;
 	xfr->nmsg = 0;
 	msg->id = xfr->id;
+	if (xfr->tsigctx != NULL)
+		dst_context_destroy(&xfr->tsigctx);
 
 	CHECK(render(msg, xfr->mctx, &xfr->qbuffer));
 
@@ -1185,7 +1192,10 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 
 	CHECK(dns_message_settsigkey(msg, xfr->tsigkey));
 	CHECK(dns_message_setquerytsig(msg, xfr->lasttsig));
+
 	msg->tsigctx = xfr->tsigctx;
+	xfr->tsigctx = NULL;
+
 	if (xfr->nmsg > 0)
 		msg->tcp_continuation = 1;
 
@@ -1298,9 +1308,11 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 	xfr->nmsg++;
 
 	/*
-	 * Copy the context back.
+	 * Take the context back.
 	 */
+	INSIST(xfr->tsigctx == NULL);
 	xfr->tsigctx = msg->tsigctx;
+	msg->tsigctx = NULL;
 
 	dns_message_destroy(&msg);
 
@@ -1396,6 +1408,9 @@ maybe_free(dns_xfrin_ctx_t *xfr) {
 	if (xfr->tcpmsg_valid)
 		dns_tcpmsg_invalidate(&xfr->tcpmsg);
 
+	if (xfr->tsigctx != NULL)
+		dst_context_destroy(&xfr->tsigctx);
+
 	if ((xfr->name.attributes & DNS_NAMEATTR_DYNAMIC) != 0)
 		dns_name_free(&xfr->name, xfr->mctx);
 
@@ -1437,7 +1452,7 @@ xfrin_logv(int level, const char *zonetext, isc_sockaddr_t *masteraddr,
 
 static void
 xfrin_log1(int level, const char *zonetext, isc_sockaddr_t *masteraddr,
-           const char *fmt, ...)
+	   const char *fmt, ...)
 {
 	va_list ap;
 

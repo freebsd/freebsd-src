@@ -78,10 +78,11 @@ ENTRY(sigsetjmp)
 	fnstcw	24(%ecx)
 	xorl	%eax,%eax
 	ret
+END(sigsetjmp)
 
 	.weak CNAME(siglongjmp);
-	.set CNAME(siglongjmp),CNAME(__siglongjmp);
-ENTRY(__siglongjmp);
+	.set CNAME(siglongjmp),CNAME(__siglongjmp)
+ENTRY(__siglongjmp)
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)
 	jz	2f
@@ -108,3 +109,4 @@ ENTRY(__siglongjmp);
 	incl	%eax
 1:	movl	%ecx,0(%esp)
 	ret
+END(__siglongjmp)

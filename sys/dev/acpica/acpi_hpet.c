@@ -83,7 +83,9 @@ hpet_enable(struct acpi_hpet_softc *sc)
 	uint32_t val;
 
 	val = bus_read_4(sc->mem_res, HPET_CONFIG);
-	bus_write_4(sc->mem_res, HPET_CONFIG, val | HPET_CNF_ENABLE);
+	val &= ~HPET_CNF_LEG_RT;
+	val |= HPET_CNF_ENABLE;
+	bus_write_4(sc->mem_res, HPET_CONFIG, val);
 }
 
 static void
@@ -92,7 +94,8 @@ hpet_disable(struct acpi_hpet_softc *sc)
 	uint32_t val;
 
 	val = bus_read_4(sc->mem_res, HPET_CONFIG);
-	bus_write_4(sc->mem_res, HPET_CONFIG, val & ~HPET_CNF_ENABLE);
+	val &= ~HPET_CNF_ENABLE;
+	bus_write_4(sc->mem_res, HPET_CONFIG, val);
 }
 
 /* Discover the HPET via the ACPI table of the same name. */

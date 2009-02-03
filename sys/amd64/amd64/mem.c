@@ -119,7 +119,7 @@ kmemphys:
 			addr = trunc_page(v);
 			eaddr = round_page(v + c);
 
-			if (addr < (vm_offset_t)KERNBASE)
+			if (addr < VM_MIN_KERNEL_ADDRESS)
 				return (EFAULT);
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)

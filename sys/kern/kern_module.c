@@ -130,6 +130,21 @@ module_register_init(const void *arg)
 		printf("module_register_init: MOD_LOAD (%s, %p, %p) error"
 		    " %d\n", data->name, (void *)data->evhand, data->priv,
 		    error); 
+	} else {
+		MOD_XLOCK;
+		if (mod->file) {
+			/*
+			 * Once a module is succesfully loaded, move
+			 * it to the head of the module list for this
+			 * linker file.  This resorts the list so that
+			 * when the kernel linker iterates over the
+			 * modules to unload them, it will unload them
+			 * in the reverse order they were loaded.
+			 */
+			TAILQ_REMOVE(&mod->file->modules, mod, flink);
+			TAILQ_INSERT_HEAD(&mod->file->modules, mod, flink);
+		}
+		MOD_XUNLOCK;
 	}
 	mtx_unlock(&Giant);
 }
@@ -196,9 +211,7 @@ module_release(module_t mod)
 		TAILQ_REMOVE(&modules, mod, link);
 		if (mod->file)
 			TAILQ_REMOVE(&mod->file->modules, mod, flink);
-		MOD_XUNLOCK;
 		free(mod, M_MODULE);
-		MOD_XLOCK;
 	}
 }
 
@@ -232,16 +245,25 @@ module_lookupbyid(int modid)
 }
 
 int
-module_unload(module_t mod, int flags)
+module_quiesce(module_t mod)
 {
 	int error;
 
 	mtx_lock(&Giant);
 	error = MOD_EVENT(mod, MOD_QUIESCE);
+	mtx_unlock(&Giant);
 	if (error == EOPNOTSUPP || error == EINVAL)
 		error = 0;
-	if (error == 0 || flags == LINKER_UNLOAD_FORCE)
-		error = MOD_EVENT(mod, MOD_UNLOAD);
+	return (error);
+}
+
+int
+module_unload(module_t mod)
+{
+	int error;
+
+	mtx_lock(&Giant);
+	error = MOD_EVENT(mod, MOD_UNLOAD);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -260,6 +282,14 @@ module_getfnext(module_t mod)
 
 	MOD_LOCK_ASSERT;
 	return (TAILQ_NEXT(mod, flink));
+}
+
+const char *
+module_getname(module_t mod)
+{
+
+	MOD_LOCK_ASSERT;
+	return (mod->name);
 }
 
 void

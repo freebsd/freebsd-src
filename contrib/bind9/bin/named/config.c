@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.47.18.32 2007/09/13 05:04:01 each Exp $ */
+/* $Id: config.c,v 1.47.18.35 2008/09/04 08:03:07 marka Exp $ */
 
 /*! \file */
 
@@ -52,7 +52,7 @@ options {\n\
 #ifndef WIN32
 "	coresize default;\n\
 	datasize default;\n\
-	files default;\n\
+	files unlimited;\n\
 	stacksize default;\n"
 #endif
 "	deallocate-on-exit true;\n\
@@ -99,6 +99,7 @@ options {\n\
 	use-ixfr true;\n\
 	edns-udp-size 4096;\n\
 	max-udp-size 4096;\n\
+	reserved-sockets 512;\n\
 \n\
 	/* view */\n\
 	allow-notify {none;};\n\
@@ -402,7 +403,7 @@ ns_config_putiplist(isc_mem_t *mctx, isc_sockaddr_t **addrsp,
 
 static isc_result_t
 get_masters_def(const cfg_obj_t *cctx, const char *name,
-	        const cfg_obj_t **ret)
+		const cfg_obj_t **ret)
 {
 	isc_result_t result;
 	const cfg_obj_t *masters = NULL;
@@ -520,7 +521,7 @@ ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
 			tresult = get_masters_def(config, listname, &list);
 			if (tresult == ISC_R_NOTFOUND) {
 				cfg_obj_log(addr, ns_g_lctx, ISC_LOG_ERROR,
-                                    "masters \"%s\" not found", listname);
+				    "masters \"%s\" not found", listname);
 
 				result = tresult;
 				goto cleanup;
@@ -598,7 +599,7 @@ ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
 		if (keys[i] == NULL)
 			goto cleanup;
 		dns_name_init(keys[i], NULL);
-		
+
 		keystr = cfg_obj_asstring(key);
 		isc_buffer_init(&b, keystr, strlen(keystr));
 		isc_buffer_add(&b, strlen(keystr));
@@ -654,7 +655,7 @@ ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
 		isc_mem_put(mctx, lists, listcount * sizeof(*lists));
 	if (stack != NULL)
 		isc_mem_put(mctx, stack, stackcount * sizeof(*stack));
-	
+
 	INSIST(keycount == addrcount);
 
 	*addrsp = addrs;

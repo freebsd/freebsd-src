@@ -42,7 +42,7 @@
 		"mov ar.ccv=%2;;\n\t"					\
 		"cmpxchg" #sz "." #sem " %0=%4,%3,ar.ccv\n\t"		\
 		: "=r" (ret), "=m" (*p)					\
-		: "r" (cmpval), "r" (newval), "m" (*p)			\
+		: "r" ((uint64_t)cmpval), "r" (newval), "m" (*p)	\
 		: "memory")
 
 /*

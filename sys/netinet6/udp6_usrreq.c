@@ -458,7 +458,7 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 			error = cr_canseesocket(req->td->td_ucred,
 			    inp->inp_socket);
 		if (error == 0)
-			cru2x(inp->inp_socket->so_cred, &xuc);
+			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
 	} else {
 		INP_INFO_RUNLOCK(&udbinfo);
@@ -918,8 +918,9 @@ udp6_disconnect(struct socket *so)
 
 	in6_pcbdisconnect(inp);
 	inp->in6p_laddr = in6addr_any;
-	/* XXXRW: so_state locking? */
+	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
+	SOCK_UNLOCK(so);
 out:
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);

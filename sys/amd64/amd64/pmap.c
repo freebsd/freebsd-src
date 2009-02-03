@@ -171,10 +171,9 @@ struct pmap kernel_pmap_store;
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
-static int nkpt;
 static int ndmpdp;
 static vm_paddr_t dmaplimit;
-vm_offset_t kernel_vm_end;
+vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
@@ -291,8 +290,6 @@ static __inline pml4_entry_t *
 pmap_pml4e(pmap_t pmap, vm_offset_t va)
 {
 
-	if (!pmap)
-		return NULL;
 	return (&pmap->pm_pml4[pmap_pml4e_index(va)]);
 }
 
@@ -313,7 +310,7 @@ pmap_pdpe(pmap_t pmap, vm_offset_t va)
 	pml4_entry_t *pml4e;
 
 	pml4e = pmap_pml4e(pmap, va);
-	if (pml4e == NULL || (*pml4e & PG_V) == 0)
+	if ((*pml4e & PG_V) == 0)
 		return NULL;
 	return (pmap_pml4e_to_pdpe(pml4e, va));
 }
@@ -516,7 +513,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_pml4 = (pdp_entry_t *) (KERNBASE + KPML4phys);
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
-	nkpt = NKPT;
 
 	/*
 	 * Reserve some special page table entries/VA space for temporary
@@ -603,7 +599,6 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
-	m->md.pv_list_count = 0;
 }
 
 /*
@@ -904,13 +899,12 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	if (pdep != NULL) {
 		pde = *pdep;
 		if (pde) {
-			if ((pde & PG_PS) != 0) {
+			if ((pde & PG_PS) != 0)
 				rtval = (pde & PG_PS_FRAME) | (va & PDRMASK);
-				PMAP_UNLOCK(pmap);
-				return rtval;
+			else {
+				pte = pmap_pde_to_pte(pdep, va);
+				rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
 			}
-			pte = pmap_pde_to_pte(pdep, va);
-			rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
 		}
 	}
 	PMAP_UNLOCK(pmap);
@@ -1493,7 +1487,7 @@ pmap_release(pmap_t pmap)
 static int
 kvm_size(SYSCTL_HANDLER_ARGS)
 {
-	unsigned long ksize = VM_MAX_KERNEL_ADDRESS - KERNBASE;
+	unsigned long ksize = VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS;
 
 	return sysctl_handle_long(oidp, &ksize, 0, req);
 }
@@ -1519,43 +1513,50 @@ pmap_growkernel(vm_offset_t addr)
 	vm_paddr_t paddr;
 	vm_page_t nkpg;
 	pd_entry_t *pde, newpdir;
-	pdp_entry_t newpdp;
+	pdp_entry_t *pdpe;
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
-	if (kernel_vm_end == 0) {
-		kernel_vm_end = KERNBASE;
-		nkpt = 0;
-		while ((*pmap_pde(kernel_pmap, kernel_vm_end) & PG_V) != 0) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
-			nkpt++;
-			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
-				kernel_vm_end = kernel_map->max_offset;
-				break;                       
-			}
-		}
-	}
-	addr = roundup2(addr, PAGE_SIZE * NPTEPG);
+
+	/*
+	 * Return if "addr" is within the range of kernel page table pages
+	 * that were preallocated during pmap bootstrap.  Moreover, leave
+	 * "kernel_vm_end" and the kernel page table as they were.
+	 *
+	 * The correctness of this action is based on the following
+	 * argument: vm_map_findspace() allocates contiguous ranges of the
+	 * kernel virtual address space.  It calls this function if a range
+	 * ends after "kernel_vm_end".  If the kernel is mapped between
+	 * "kernel_vm_end" and "addr", then the range cannot begin at
+	 * "kernel_vm_end".  In fact, its beginning address cannot be less
+	 * than the kernel.  Thus, there is no immediate need to allocate
+	 * any new kernel page table pages between "kernel_vm_end" and
+	 * "KERNBASE".
+	 */
+	if (KERNBASE < addr && addr <= KERNBASE + NKPT * NBPDR)
+		return;
+
+	addr = roundup2(addr, NBPDR);
 	if (addr - 1 >= kernel_map->max_offset)
 		addr = kernel_map->max_offset;
 	while (kernel_vm_end < addr) {
-		pde = pmap_pde(kernel_pmap, kernel_vm_end);
-		if (pde == NULL) {
+		pdpe = pmap_pdpe(kernel_pmap, kernel_vm_end);
+		if ((*pdpe & PG_V) == 0) {
 			/* We need a new PDP entry */
-			nkpg = vm_page_alloc(NULL, nkpt,
+			nkpg = vm_page_alloc(NULL, kernel_vm_end >> PDPSHIFT,
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-			if (!nkpg)
+			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
 			if ((nkpg->flags & PG_ZERO) == 0)
 				pmap_zero_page(nkpg);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
-			newpdp = (pdp_entry_t)
+			*pdpe = (pdp_entry_t)
 				(paddr | PG_V | PG_RW | PG_A | PG_M);
-			*pmap_pdpe(kernel_pmap, kernel_vm_end) = newpdp;
 			continue; /* try again */
 		}
+		pde = pmap_pdpe_to_pde(pdpe, kernel_vm_end);
 		if ((*pde & PG_V) != 0) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+			kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 				kernel_vm_end = kernel_map->max_offset;
 				break;                       
@@ -1563,24 +1564,18 @@ pmap_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		/*
-		 * This index is bogus, but out of the way
-		 */
-		nkpg = vm_page_alloc(NULL, nkpt,
+		nkpg = vm_page_alloc(NULL, pmap_pde_pindex(kernel_vm_end),
 		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
-		if (!nkpg)
+		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
-
-		nkpt++;
-
 		if ((nkpg->flags & PG_ZERO) == 0)
 			pmap_zero_page(nkpg);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (paddr | PG_V | PG_RW | PG_A | PG_M);
-		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
+		pde_store(pde, newpdir);
 
-		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+		kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 			kernel_vm_end = kernel_map->max_offset;
 			break;                       
@@ -1695,7 +1690,6 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 			if (TAILQ_EMPTY(&m->md.pv_list))
 				vm_page_flag_clear(m, PG_WRITEABLE);
-			m->md.pv_list_count--;
 			free_pv_entry(pmap, pv);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
@@ -1843,7 +1837,6 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 	}
 	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found"));
 	TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-	m->md.pv_list_count--;
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		vm_page_flag_clear(m, PG_WRITEABLE);
 	free_pv_entry(pmap, pv);
@@ -1863,7 +1856,6 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv = get_pv_entry(pmap, FALSE);
 	pv->pv_va = va;
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-	m->md.pv_list_count++;
 }
 
 /*
@@ -1880,7 +1872,6 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count++;
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -2120,7 +2111,6 @@ pmap_remove_all(vm_page_t m)
 		pmap_invalidate_page(pmap, pv->pv_va);
 		pmap_free_zero_pages(free);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count--;
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -2612,9 +2602,8 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
  * are taken, but the code works.
  */
 void
-pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex,
-		    vm_size_t size)
+pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
+    vm_pindex_t pindex, vm_size_t size)
 {
 	vm_offset_t va;
 	vm_page_t p, pdpg;
@@ -2738,7 +2727,7 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 
 void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
-	  vm_offset_t src_addr)
+    vm_offset_t src_addr)
 {
 	vm_page_t   free;
 	vm_offset_t addr;
@@ -3030,7 +3019,6 @@ pmap_remove_pages(pmap_t pmap)
 				PV_STAT(pv_entry_spare++);
 				pv_entry_count--;
 				pc->pc_map[field] |= bitmask;
-				m->md.pv_list_count--;
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_flag_clear(m, PG_WRITEABLE);
@@ -3103,7 +3091,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	PMAP_LOCK(pmap);
 	pde = pmap_pde(pmap, addr);
 	if (pde != NULL && (*pde & PG_V)) {
-		pte = vtopte(addr);
+		pte = pmap_pde_to_pte(pde, addr);
 		rv = (*pte & PG_V) == 0;
 	}
 	PMAP_UNLOCK(pmap);
@@ -3350,10 +3338,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 }
 
 int
-pmap_change_attr(va, size, mode)
-	vm_offset_t va;
-	vm_size_t size;
-	int mode;
+pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
 	vm_offset_t base, offset, tmpva;
 	pd_entry_t *pde;

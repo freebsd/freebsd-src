@@ -152,6 +152,20 @@ e1000phy_attach(device_t dev)
 		if (PHY_READ(sc, E1000_ESSR) & E1000_ESSR_FIBER_LINK)
 			sc->mii_flags |= MIIF_HAVEFIBER;
 		break;
+	case MII_MODEL_MARVELL_E1149:
+		/*
+		 * Some 88E1149 PHY's page select is initialized to
+		 * point to other bank instead of copper/fiber bank
+		 * which in turn resulted in wrong registers were
+		 * accessed during PHY operation. It is believed that
+		 * page 0 should be used for copper PHY so reinitialize
+		 * E1000_EADR to select default copper PHY. If parent
+		 * device know the type of PHY(either copper or fiber),
+		 * that information should be used to select default
+		 * type of PHY.
+		 */
+		PHY_WRITE(sc, E1000_EADR, 0);
+		break;
 	case MII_MODEL_MARVELL_E3082:
 		/* 88E3082 10/100 Fast Ethernet PHY. */
 		sc->mii_anegticks = MII_ANEGTICKS;
@@ -209,7 +223,7 @@ static void
 e1000phy_reset(struct mii_softc *sc)
 {
 	struct e1000phy_softc *esc;
-	uint16_t reg;
+	uint16_t reg, page;
 
 	esc = (struct e1000phy_softc *)sc;
 	reg = PHY_READ(sc, E1000_SCR);
@@ -218,12 +232,13 @@ e1000phy_reset(struct mii_softc *sc)
 		PHY_WRITE(sc, E1000_SCR, reg);
 		if (esc->mii_model == MII_MODEL_MARVELL_E1112) {
 			/* Select 1000BASE-X only mode. */
+			page = PHY_READ(sc, E1000_EADR);
 			PHY_WRITE(sc, E1000_EADR, 2);
 			reg = PHY_READ(sc, E1000_SCR);
 			reg &= ~E1000_SCR_MODE_MASK;
 			reg |= E1000_SCR_MODE_1000BX;
 			PHY_WRITE(sc, E1000_SCR, reg);
-			PHY_WRITE(sc, E1000_EADR, 1);
+			PHY_WRITE(sc, E1000_EADR, page);
 		}
 	} else {
 		switch (esc->mii_model) {

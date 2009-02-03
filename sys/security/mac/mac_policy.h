@@ -370,6 +370,8 @@ typedef int	(*mpo_check_ifnet_transmit_t)(struct ifnet *ifp,
 typedef int	(*mpo_check_inpcb_deliver_t)(struct inpcb *inp,
 		    struct label *inplabel, struct mbuf *m,
 		    struct label *mlabel);
+typedef int	(*mpo_check_inpcb_visible_t)(struct ucred *cred,
+		    struct inpcb *inp, struct label *inplabel);
 typedef int	(*mpo_check_sysv_msgmsq_t)(struct ucred *cred,
 		    struct msg *msgptr, struct label *msglabel,
 		    struct msqid_kernel *msqkptr, struct label *msqklabel);
@@ -786,7 +788,7 @@ struct mac_policy_ops {
 	mpo_placeholder_t			_mpo_placeholder15;
 	mpo_placeholder_t			_mpo_placeholder16;
 	mpo_placeholder_t			_mpo_placeholder17;
-	mpo_placeholder_t			_mpo_placeholder18;
+	mpo_check_inpcb_visible_t		mpo_check_inpcb_visible;
 	mpo_check_ifnet_relabel_t		mpo_check_ifnet_relabel;
 	mpo_check_ifnet_transmit_t		mpo_check_ifnet_transmit;
 	mpo_check_inpcb_deliver_t		mpo_check_inpcb_deliver;

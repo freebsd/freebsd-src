@@ -70,12 +70,8 @@ __FBSDID("$FreeBSD$");
 struct le_cbus_softc {
 	struct am7990_softc	sc_am7990;	/* glue to MI code */
 
-	int			sc_rrid;
 	struct resource		*sc_rres;
-	bus_space_tag_t		sc_regt;
-	bus_space_handle_t	sc_regh;
 
-	int			sc_irid;
 	struct resource		*sc_ires;
 	void			*sc_ih;
 
@@ -128,10 +124,9 @@ le_cbus_wrbcr(struct lance_softc *sc, uint16_t port, uint16_t val)
 {
 	struct le_cbus_softc *lesc = (struct le_cbus_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_BDP, val);
+	bus_write_2(lesc->sc_rres, CNET98S_RAP, port);
+	bus_barrier(lesc->sc_rres, CNET98S_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	bus_write_2(lesc->sc_rres, CNET98S_BDP, val);
 }
 
 #ifdef LEDEBUG
@@ -140,10 +135,9 @@ le_cbus_rdbcr(struct lance_softc *sc, uint16_t port)
 {
 	struct le_cbus_softc *lesc = (struct le_cbus_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	return (bus_space_read_2(lesc->sc_regt, lesc->sc_regh, CNET98S_BDP));
+	bus_write_2(lesc->sc_rres, CNET98S_RAP, port);
+	bus_barrier(lesc->sc_rres, CNET98S_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	return (bus_read_2(lesc->sc_rres, CNET98S_BDP));
 }
 #endif
 
@@ -152,10 +146,9 @@ le_cbus_wrcsr(struct lance_softc *sc, uint16_t port, uint16_t val)
 {
 	struct le_cbus_softc *lesc = (struct le_cbus_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RDP, val);
+	bus_write_2(lesc->sc_rres, CNET98S_RAP, port);
+	bus_barrier(lesc->sc_rres, CNET98S_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	bus_write_2(lesc->sc_rres, CNET98S_RDP, val);
 }
 
 static uint16_t
@@ -163,10 +156,9 @@ le_cbus_rdcsr(struct lance_softc *sc, uint16_t port)
 {
 	struct le_cbus_softc *lesc = (struct le_cbus_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, CNET98S_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	return (bus_space_read_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RDP));
+	bus_write_2(lesc->sc_rres, CNET98S_RAP, port);
+	bus_barrier(lesc->sc_rres, CNET98S_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	return (bus_read_2(lesc->sc_rres, CNET98S_RDP));
 }
 
 static void
@@ -179,16 +171,16 @@ le_cbus_hwreset(struct lance_softc *sc)
 	 */
 
 	/* Reset the chip. */
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RESET,
-	    bus_space_read_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RESET));
+	bus_write_2(lesc->sc_rres, CNET98S_RESET,
+	    bus_read_2(lesc->sc_rres, CNET98S_RESET));
 	DELAY(500);
 
 	/* ISA bus configuration */
 	/* ISACSR0 - set Master Mode Read Active time to 300ns. */
-    	le_cbus_wrbcr(sc, LE_BCR0, 0x0006);
+	le_cbus_wrbcr(sc, LE_BCR0, 0x0006);
 	/* ISACSR1 - set Master Mode Write Active time to 300ns. */
-    	le_cbus_wrbcr(sc, LE_BCR1, 0x0006);
-#ifdef LEDEBUG	
+	le_cbus_wrbcr(sc, LE_BCR1, 0x0006);
+#ifdef LEDEBUG
 	device_printf(dev, "ISACSR2=0x%x\n", le_cbus_rdbcr(sc, LE_BCR2));
 #endif
 	/* ISACSR5 - LED1 */
@@ -215,7 +207,7 @@ le_cbus_probe(device_t dev)
 {
 	struct le_cbus_softc *lesc;
 	struct lance_softc *sc;
-	int error;
+	int error, i;
 
 	/*
 	 * Skip PnP devices as some wedge when trying to probe them as
@@ -227,18 +219,16 @@ le_cbus_probe(device_t dev)
 	lesc = device_get_softc(dev);
 	sc = &lesc->sc_am7990.lsc;
 
-	lesc->sc_rrid = 0;
-	lesc->sc_rres = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &lesc->sc_rrid,
+	i = 0;
+	lesc->sc_rres = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &i,
 	    le_ioaddr_cnet98s, CNET98S_IOSIZE, RF_ACTIVE);
 	if (lesc->sc_rres == NULL)
 		return (ENXIO);
 	isa_load_resourcev(lesc->sc_rres, le_ioaddr_cnet98s, CNET98S_IOSIZE);
-	lesc->sc_regt = rman_get_bustag(lesc->sc_rres);
-	lesc->sc_regh = rman_get_bushandle(lesc->sc_rres);
 
 	/* Reset the chip. */
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RESET,
-	    bus_space_read_2(lesc->sc_regt, lesc->sc_regh, CNET98S_RESET));
+	bus_write_2(lesc->sc_rres, CNET98S_RESET,
+	    bus_read_2(lesc->sc_rres, CNET98S_RESET));
 	DELAY(500);
 
 	/* Stop the chip and put it in a known state. */
@@ -253,7 +243,8 @@ le_cbus_probe(device_t dev)
 	error = BUS_PROBE_DEFAULT;
 
  fail:
-	bus_release_resource(dev, SYS_RES_IOPORT, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_IOPORT,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
 	return (error);
 }
 
@@ -269,8 +260,8 @@ le_cbus_attach(device_t dev)
 
 	LE_LOCK_INIT(sc, device_get_nameunit(dev));
 
-	lesc->sc_rrid = 0;
-	lesc->sc_rres = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &lesc->sc_rrid,
+	i = 0;
+	lesc->sc_rres = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &i,
 	    le_ioaddr_cnet98s, CNET98S_IOSIZE, RF_ACTIVE);
 	if (lesc->sc_rres == NULL) {
 		device_printf(dev, "cannot allocate registers\n");
@@ -278,12 +269,10 @@ le_cbus_attach(device_t dev)
 		goto fail_mtx;
 	}
 	isa_load_resourcev(lesc->sc_rres, le_ioaddr_cnet98s, CNET98S_IOSIZE);
-	lesc->sc_regt = rman_get_bustag(lesc->sc_rres);
-	lesc->sc_regh = rman_get_bushandle(lesc->sc_rres);
 
-	lesc->sc_irid = 0;
+	i = 0;
 	if ((lesc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &lesc->sc_irid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	    &i, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		error = ENXIO;
 		goto fail_rres;
@@ -339,7 +328,7 @@ le_cbus_attach(device_t dev)
 	error = bus_dmamap_load(lesc->sc_dmat, lesc->sc_dmam, sc->sc_mem,
 	    sc->sc_memsize, le_cbus_dma_callback, sc, 0);
 	if (error != 0 || sc->sc_addr == 0) {
-                device_printf(dev, "cannot load DMA buffer map\n");
+		device_printf(dev, "cannot load DMA buffer map\n");
 		goto fail_dmem;
 	}
 
@@ -350,8 +339,7 @@ le_cbus_attach(device_t dev)
 	 * Extract the physical MAC address from the ROM.
 	 */
 	for (i = 0; i < sizeof(sc->sc_enaddr); i++)
-		sc->sc_enaddr[i] =  bus_space_read_1(lesc->sc_regt,
-		    lesc->sc_regh, i * 2);
+		sc->sc_enaddr[i] = bus_read_1(lesc->sc_rres, i * 2);
 
 	sc->sc_copytodesc = lance_copytobuf_contig;
 	sc->sc_copyfromdesc = lance_copyfrombuf_contig;
@@ -396,9 +384,11 @@ le_cbus_attach(device_t dev)
  fail_pdtag:
 	bus_dma_tag_destroy(lesc->sc_pdmat);
  fail_ires:
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(lesc->sc_ires), lesc->sc_ires);
  fail_rres:
-	bus_release_resource(dev, SYS_RES_IOPORT, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_IOPORT,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
  fail_mtx:
 	LE_LOCK_DESTROY(sc);
 	return (error);
@@ -419,8 +409,10 @@ le_cbus_detach(device_t dev)
 	bus_dmamem_free(lesc->sc_dmat, sc->sc_mem, lesc->sc_dmam);
 	bus_dma_tag_destroy(lesc->sc_dmat);
 	bus_dma_tag_destroy(lesc->sc_pdmat);
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
-	bus_release_resource(dev, SYS_RES_IOPORT, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(lesc->sc_ires), lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_IOPORT,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
 	LE_LOCK_DESTROY(sc);
 
 	return (0);

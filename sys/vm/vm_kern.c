@@ -267,9 +267,6 @@ kmem_suballoc(parent, min, max, size)
  * 	We don't worry about expanding the map (adding entries) since entries
  * 	for wired maps are statically allocated.
  *
- *	NOTE:  This routine is not supposed to block if M_NOWAIT is set, but
- *	I have not verified that it actually does not block.
- *
  *	`map' is ONLY allowed to be kmem_map or one of the mbuf submaps to
  *	which we never free.
  */
@@ -320,15 +317,6 @@ kmem_malloc(map, size, flags)
 	vm_object_reference(kmem_object);
 	vm_map_insert(map, kmem_object, offset, addr, addr + size,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
-
-	/*
-	 * Note: if M_NOWAIT specified alone, allocate from 
-	 * interrupt-safe queues only (just the free list).  If 
-	 * M_USE_RESERVE is also specified, we can also
-	 * allocate from the cache.  Neither of the latter two
-	 * flags may be specified from an interrupt since interrupts
-	 * are not allowed to mess with the cache queue.
-	 */
 
 	if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
 		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
@@ -502,8 +490,12 @@ kmem_init(start, end)
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	kernel_map = m;
 	(void) vm_map_insert(m, NULL, (vm_ooffset_t) 0,
-	    VM_MIN_KERNEL_ADDRESS, start, VM_PROT_ALL, VM_PROT_ALL,
-	    MAP_NOFAULT);
+#ifdef __amd64__
+	    KERNBASE,
+#else		     
+	    VM_MIN_KERNEL_ADDRESS,
+#endif
+	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
 }

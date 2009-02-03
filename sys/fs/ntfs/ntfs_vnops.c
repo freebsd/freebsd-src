@@ -191,7 +191,7 @@ ntfs_getattr(ap)
 	vap->va_nlink = (ip->i_nlink || ip->i_flag & IN_LOADED ? ip->i_nlink : 1);
 	vap->va_uid = ip->i_mp->ntm_uid;
 	vap->va_gid = ip->i_mp->ntm_gid;
-	vap->va_rdev = 0;				/* XXX UNODEV ? */
+	vap->va_rdev = NODEV;
 	vap->va_size = fp->f_size;
 	vap->va_bytes = fp->f_allocated;
 	vap->va_atime = ntfs_nttimetounix(fp->f_times.t_access);

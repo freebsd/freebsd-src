@@ -2218,6 +2218,9 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			if ((so->so_proto->pr_domain->dom_family == PF_INET) ||
 			    (so->so_proto->pr_domain->dom_family == PF_ROUTE)) {
 				so->so_fibnum = optval;
+				/* Note: ignore error */
+				if (so->so_proto && so->so_proto->pr_ctloutput)
+					(*so->so_proto->pr_ctloutput)(so, sopt);
 			} else {
 				so->so_fibnum = 0;
 			}

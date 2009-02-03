@@ -41,3 +41,4 @@ L1:	movq	%rsi,%rcx		/* zero remainder by bytes */
 	stosb
 
 	ret
+END(bzero)

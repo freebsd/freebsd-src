@@ -61,3 +61,4 @@ L1:
 L2:
 	popl	%ebx
 	ret
+END(strchr)

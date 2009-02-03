@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.126.18.14 2007/08/28 07:20:05 tbox Exp $ */
+/* $Id: view.c,v 1.126.18.16 2008/06/17 23:46:03 tbox Exp $ */
 
 /*! \file */
 
@@ -315,7 +315,7 @@ destroy(dns_view_t *view) {
 			name = ISC_LIST_HEAD(view->rootexclude[i]);
 			while (name != NULL) {
 				ISC_LIST_UNLINK(view->rootexclude[i],
-					 	name, link);
+						name, link);
 				dns_name_free(name, view->mctx);
 				isc_mem_put(view->mctx, name, sizeof(*name));
 				name = ISC_LIST_HEAD(view->rootexclude[i]);
@@ -846,17 +846,6 @@ dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	}
 
  cleanup:
-	if (result == DNS_R_NXDOMAIN || result == DNS_R_NXRRSET) {
-		/*
-		 * We don't care about any DNSSEC proof data in these cases.
-		 */
-		if (dns_rdataset_isassociated(rdataset))
-			dns_rdataset_disassociate(rdataset);
-		if (sigrdataset != NULL &&
-		    dns_rdataset_isassociated(sigrdataset))
-			dns_rdataset_disassociate(sigrdataset);
-	}
-
 	if (dns_rdataset_isassociated(&zrdataset)) {
 		dns_rdataset_disassociate(&zrdataset);
 		if (dns_rdataset_isassociated(&zsigrdataset))
@@ -936,7 +925,7 @@ dns_view_simplefind(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 isc_result_t
 dns_view_findzonecut(dns_view_t *view, dns_name_t *name, dns_name_t *fname,
 		     isc_stdtime_t now, unsigned int options,
-		     isc_boolean_t use_hints, 
+		     isc_boolean_t use_hints,
 		     dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset)
 {
 	return(dns_view_findzonecut2(view, name, fname, now, options,
@@ -1348,7 +1337,7 @@ dns_view_isdelegationonly(dns_view_t *view, dns_name_t *name) {
 	return (ISC_TRUE);
 }
 
-void 
+void
 dns_view_setrootdelonly(dns_view_t *view, isc_boolean_t value) {
 	REQUIRE(DNS_VIEW_VALID(view));
 	view->rootdelonly = value;

@@ -1716,12 +1716,15 @@ device		puc
 # individual driver.
 device		miibus
 
+# ae:   Support for gigabit ethernet adapters based on the Attansic/Atheros
+#       L2 PCI-Express FastEthernet controllers.
 # an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
 #       PCI and ISA varieties.
 # awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
 #       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L1 PCI express gigabit ethernet controllers.
+# ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
 #       adapters.
 # bfe:	Broadcom BCM4401 Ethernet adapter.
@@ -1864,7 +1867,9 @@ device		wi
 device		xe
 
 # PCI Ethernet NICs that use the common MII bus controller code.
+device		ae		# Attansic/Atheros L2 FastEthernet
 device		age		# Attansic/Atheros L1 Gigabit Ethernet
+device		ale		# Atheros AR8121/AR8113/AR8114 Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
@@ -1985,8 +1990,6 @@ device		sound
 # snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
-# snd_au88x0		Aureal Vortex 1/2/Advantage PCI. This driver
-#			lacks support for playback and recording.
 # snd_audiocs:		Crystal Semiconductor CS4231 SBus/EBus. Only
 #			for sparc64.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
@@ -2005,7 +2008,7 @@ device		sound
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
-# snd_ich:		Intel ICH PCI and some more audio controllers
+# snd_ich:		Intel ICH AC'97 and some more audio controllers
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
 # snd_maestro:		ESS Technology Maestro-1/2x PCI.
@@ -2030,7 +2033,6 @@ device		sound
 device		snd_ad1816
 device		snd_als4000
 device		snd_atiixp
-#device		snd_au88x0
 #device		snd_audiocs
 device		snd_cmi
 device		snd_cs4281
@@ -2233,10 +2235,13 @@ device		cardbus
 #
 # MMC/SD
 #
-# mmc: mmc bus
-# mmcsd: mmc memory and sd cards.
-#device		mmc
-#device		mmcsd
+# mmc 		MMC/SD bus
+# mmcsd		MMC/SD memory card
+# sdhci		Generic PCI SD Host Controller
+#
+device		mmc
+device		mmcsd
+device		sdhci
 
 #
 # SMB bus

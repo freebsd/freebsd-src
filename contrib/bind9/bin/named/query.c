@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.257.18.40 2007/09/26 03:08:14 each Exp $ */
+/* $Id: query.c,v 1.257.18.46 2008/10/15 22:33:01 marka Exp $ */
 
 /*! \file */
 
@@ -2298,7 +2298,7 @@ mark_secure(ns_client_t *client, dns_db_t *db, dns_name_t *name,
 static isc_boolean_t
 get_key(ns_client_t *client, dns_db_t *db, dns_rdata_rrsig_t *rrsig,
 	dns_rdataset_t *keyrdataset, dst_key_t **keyp)
-{ 
+{
 	isc_result_t result;
 	dns_dbnode_t *node = NULL;
 	isc_boolean_t secure = ISC_FALSE;
@@ -2331,12 +2331,12 @@ get_key(ns_client_t *client, dns_db_t *db, dns_rdata_rrsig_t *rrsig,
 		isc_buffer_init(&b, rdata.data, rdata.length);
 		isc_buffer_add(&b, rdata.length);
 		result = dst_key_fromdns(&rrsig->signer, rdata.rdclass, &b,
-                                         client->mctx, keyp);
+					 client->mctx, keyp);
 		if (result != ISC_R_SUCCESS)
 			continue;
 		if (rrsig->algorithm == (dns_secalg_t)dst_key_alg(*keyp) &&
-                    rrsig->keyid == (dns_keytag_t)dst_key_id(*keyp) &&
-                    dst_key_iszonekey(*keyp)) {
+		    rrsig->keyid == (dns_keytag_t)dst_key_id(*keyp) &&
+		    dst_key_iszonekey(*keyp)) {
 			secure = ISC_TRUE;
 			break;
 		}
@@ -2354,7 +2354,7 @@ verify(dst_key_t *key, dns_name_t *name, dns_rdataset_t *rdataset,
 	isc_boolean_t ignore = ISC_FALSE;
 
 	dns_fixedname_init(&fixed);
-	
+
 again:
 	result = dns_dnssec_verify2(name, rdataset, key, ignore, mctx,
 				    rdata, NULL);
@@ -2382,7 +2382,7 @@ validate(ns_client_t *client, dns_db_t *db, dns_name_t *name,
 
 	if (sigrdataset == NULL || !dns_rdataset_isassociated(sigrdataset))
 		return (ISC_FALSE);
-	
+
 	for (result = dns_rdataset_first(sigrdataset);
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(sigrdataset)) {
@@ -2757,6 +2757,13 @@ query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 						   &olabels);
 			(void)dns_name_fullcompare(name, &nsec.next, &order,
 						   &nlabels);
+			/*
+			 * Check for a pathological condition created when
+			 * serving some malformed signed zones and bail out.
+			 */
+			if (dns_name_countlabels(name) == nlabels)
+				goto cleanup;
+
 			if (olabels > nlabels)
 				dns_name_split(name, olabels, NULL, wname);
 			else
@@ -2924,13 +2931,14 @@ query_resume(isc_task_t *task, isc_event_t *event) {
 
 static isc_result_t
 query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
-	      dns_rdataset_t *nameservers)
+	      dns_rdataset_t *nameservers, isc_boolean_t resuming)
 {
 	isc_result_t result;
 	dns_rdataset_t *rdataset, *sigrdataset;
 	isc_sockaddr_t *peeraddr;
 
-	inc_stats(client, dns_statscounter_recursion);
+	if (!resuming)
+		inc_stats(client, dns_statscounter_recursion);
 
 	/*
 	 * We are about to recurse, which means that this client will
@@ -3162,11 +3170,11 @@ query_addnoqnameproof(ns_client_t *client, dns_rdataset_t *rdataset) {
 
  cleanup:
 	if (nsec != NULL)
-                query_putrdataset(client, &nsec);
-        if (nsecsig != NULL)
-                query_putrdataset(client, &nsecsig);
-        if (fname != NULL)
-                query_releasename(client, &fname);
+		query_putrdataset(client, &nsec);
+	if (nsecsig != NULL)
+		query_putrdataset(client, &nsecsig);
+	if (fname != NULL)
+		query_releasename(client, &fname);
 }
 
 static inline void
@@ -3269,12 +3277,12 @@ warn_rfc1918(ns_client_t *client, dns_name_t *fname, dns_rdataset_t *rdataset) {
 	dns_rdata_soa_t soa;
 	dns_rdataset_t found;
 	isc_result_t result;
-	
+
 	for (i = 0; i < (sizeof(rfc1918names)/sizeof(*rfc1918names)); i++) {
 		if (dns_name_issubdomain(fname, &rfc1918names[i])) {
 			dns_rdataset_init(&found);
 			result = dns_ncache_getrdataset(rdataset,
-						        &rfc1918names[i],
+							&rfc1918names[i],
 							dns_rdatatype_soa,
 							&found);
 			if (result != ISC_R_SUCCESS)
@@ -3335,6 +3343,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	unsigned int options;
 	isc_boolean_t empty_wild;
 	dns_rdataset_t *noqname;
+	isc_boolean_t resuming;
 
 	CTRACE("query_find");
 
@@ -3360,6 +3369,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	need_wildcardproof = ISC_FALSE;
 	empty_wild = ISC_FALSE;
 	options = 0;
+	resuming = ISC_FALSE;
+	is_zone = ISC_FALSE;
 
 	if (event != NULL) {
 		/*
@@ -3369,7 +3380,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 
 		want_restart = ISC_FALSE;
 		authoritative = ISC_FALSE;
-		is_zone = ISC_FALSE;
 
 		qtype = event->qtype;
 		if (qtype == dns_rdatatype_rrsig || qtype == dns_rdatatype_sig)
@@ -3402,6 +3412,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		}
 
 		result = event->result;
+		resuming = ISC_TRUE;
 
 		goto resume;
 	}
@@ -3602,7 +3613,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			 */
 			if (RECURSIONOK(client)) {
 				result = query_recurse(client, qtype,
-						       NULL, NULL);
+						       NULL, NULL, resuming);
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
@@ -3773,10 +3784,12 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				 */
 				if (dns_rdatatype_atparent(type))
 					result = query_recurse(client, qtype,
-							       NULL, NULL);
+							       NULL, NULL,
+							       resuming);
 				else
 					result = query_recurse(client, qtype,
-							       fname, rdataset);
+							       fname, rdataset,
+							       resuming);
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
@@ -4220,7 +4233,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 						result = query_recurse(client,
 								       qtype,
 								       NULL,
-								       NULL);
+								       NULL,
+								       resuming);
 						if (result == ISC_R_SUCCESS)
 						    client->query.attributes |=
 							NS_QUERYATTR_RECURSING;
@@ -4437,6 +4451,7 @@ ns_query_start(ns_client_t *client) {
 	dns_rdataset_t *rdataset;
 	ns_client_t *qclient;
 	dns_rdatatype_t qtype;
+	isc_boolean_t want_ad;
 
 	CTRACE("ns_query_start");
 
@@ -4576,6 +4591,15 @@ ns_query_start(ns_client_t *client) {
 		client->query.attributes &= ~NS_QUERYATTR_SECURE;
 
 	/*
+	 * Set 'want_ad' if the client has set AD in the query.
+	 * This allows AD to be returned on queries without DO set.
+	 */
+	if ((message->flags & DNS_MESSAGEFLAG_AD) != 0)
+		want_ad = ISC_TRUE;
+	else
+		want_ad = ISC_FALSE;
+
+	/*
 	 * This is an ordinary query.
 	 */
 	result = dns_message_reply(message, ISC_TRUE);
@@ -4594,7 +4618,7 @@ ns_query_start(ns_client_t *client) {
 	 * Set AD.  We must clear it if we add non-validated data to a
 	 * response.
 	 */
-	if (WANTDNSSEC(client))
+	if (WANTDNSSEC(client) || want_ad)
 		message->flags |= DNS_MESSAGEFLAG_AD;
 
 	qclient = NULL;

@@ -4067,10 +4067,12 @@ config_nat(int ac, char **av)
 	if (i)
 		err(1, "setsockopt(%s)", "IP_FW_NAT_CFG");
 
-	/* After every modification, we show the resultant rule. */
-	int _ac = 3;
-	char *_av[] = {"show", "config", id};
-	show_nat(_ac, _av);
+	if (!do_quiet) {
+		/* After every modification, we show the resultant rule. */
+		int _ac = 3;
+		char *_av[] = {"show", "config", id};
+		show_nat(_ac, _av);
+	}
 }
 
 static void
@@ -5980,6 +5982,9 @@ show_nat(int ac, char **av) {
 	frule = 0;
 	lrule = IPFW_DEFAULT_RULE; /* max ipfw rule number */
 	ac--; av++;
+
+	if (test_only)
+		return;
 
 	/* Parse parameters. */
 	for (cmd = IP_FW_NAT_GET_LOG, do_cfg = 0; ac != 0; ac--, av++) {

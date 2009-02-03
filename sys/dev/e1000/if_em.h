@@ -339,6 +339,11 @@ struct adapter {
 	struct task     tx_task;
 	struct taskqueue *tq;           /* private task queue */
 
+#ifdef EM_HW_VLAN_SUPPORT
+	eventhandler_tag vlan_attach;
+	eventhandler_tag vlan_detach;
+#endif
+
 	/* Management and WOL features */
 	int		wol;
 	int		has_manage;

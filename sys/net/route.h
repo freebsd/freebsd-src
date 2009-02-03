@@ -312,19 +312,35 @@ struct rt_addrinfo {
 } while (0)
 
 #define	RTFREE_LOCKED(_rt) do {					\
-		if ((_rt)->rt_refcnt <= 1)			\
-			rtfree(_rt);				\
-		else {						\
-			RT_REMREF(_rt);				\
-			RT_UNLOCK(_rt);				\
-		}						\
-		/* guard against invalid refs */		\
-		_rt = 0;					\
-	} while (0)
+	if ((_rt)->rt_refcnt <= 1)				\
+		rtfree(_rt);					\
+	else {							\
+		RT_REMREF(_rt);					\
+		RT_UNLOCK(_rt);					\
+	}							\
+	/* guard against invalid refs */			\
+	_rt = 0;						\
+} while (0)
 #define	RTFREE(_rt) do {					\
-		RT_LOCK(_rt);					\
-		RTFREE_LOCKED(_rt);				\
-	} while (0)
+	RT_LOCK(_rt);						\
+	RTFREE_LOCKED(_rt);					\
+} while (0)
+
+#define RT_TEMP_UNLOCK(_rt) do {				\
+	RT_ADDREF(_rt);						\
+	RT_UNLOCK(_rt);						\
+} while (0)
+
+#define RT_RELOCK(_rt) do {					\
+	RT_LOCK(_rt);						\
+	if ((_rt)->rt_refcnt <= 1) {				\
+		rtfree(_rt);					\
+		_rt = 0; /*  signal that it went away */	\
+	} else {						\
+		RT_REMREF(_rt);					\
+		/* note that _rt is still valid */		\
+	}							\
+} while (0)
 
 extern struct radix_node_head *rt_tables[][AF_MAX+1];
 
@@ -352,6 +368,7 @@ int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 
 int	 rtexpunge(struct rtentry *);
 void	 rtfree(struct rtentry *);
+int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
@@ -366,7 +383,6 @@ void	 rtredirect(struct sockaddr *, struct sockaddr *,
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 int	 rtrequest1(int, struct rt_addrinfo *, struct rtentry **);
-int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 
 /* defaults to "all" FIBs */
 int	 rtinit_fib(struct ifaddr *, int, int);
@@ -385,7 +401,6 @@ void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
-int	 rt_check_fib(struct rtentry **, struct rtentry **, struct sockaddr *, u_int);
 
 #include <sys/eventhandler.h>
 typedef void (*rtevent_arp_update_fn)(void *, struct rtentry *, uint8_t *, struct sockaddr *);

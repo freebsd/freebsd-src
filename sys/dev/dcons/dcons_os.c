@@ -557,6 +557,8 @@ dcons_drv_init(int stage)
 		 */ 
 		dg.buf = (struct dcons_buf *) contigmalloc(dg.size,
 			M_DEVBUF, 0, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
+		if (dg.buf == NULL)
+			return (-1);
 		dcons_init(dg.buf, dg.size, sc);
 	}
 
@@ -680,9 +682,9 @@ dcons_modevent(module_t mode, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		ret = dcons_drv_init(1);
-		dcons_attach();
 #if __FreeBSD_version >= 500000
 		if (ret == 0) {
+			dcons_attach();
 			dcons_cnprobe(&dcons_consdev);
 			dcons_cninit(&dcons_consdev);
 			cnadd(&dcons_consdev);
@@ -691,24 +693,26 @@ dcons_modevent(module_t mode, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		printf("dcons: unload\n");
-		callout_stop(&dcons_callout);
+		if (drv_init == 1) {
+			callout_stop(&dcons_callout);
 #if __FreeBSD_version < 502122
 #if defined(DDB) && DCONS_FORCE_GDB
 #if CONS_NODEV
-		gdb_arg = NULL;
+			gdb_arg = NULL;
 #else
-		gdbdev = NULL;
+			gdbdev = NULL;
 #endif
 #endif
 #endif
 #if __FreeBSD_version >= 500000
-		cnremove(&dcons_consdev);
+			cnremove(&dcons_consdev);
 #endif
-		dcons_detach(DCONS_CON);
-		dcons_detach(DCONS_GDB);
-		dg.buf->magic = 0;
+			dcons_detach(DCONS_CON);
+			dcons_detach(DCONS_GDB);
+			dg.buf->magic = 0;
 
-		contigfree(dg.buf, DCONS_BUF_SIZE, M_DEVBUF);
+			contigfree(dg.buf, DCONS_BUF_SIZE, M_DEVBUF);
+		}
 
 		break;
 	case MOD_SHUTDOWN:

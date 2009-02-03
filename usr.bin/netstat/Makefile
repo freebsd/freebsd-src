@@ -5,7 +5,7 @@
 
 PROG=	netstat
 SRCS=	if.c inet.c main.c mbuf.c mcast.c mroute.c route.c \
-	unix.c atalk.c netgraph.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c
+	unix.c atalk.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c
 
 WARNS?=	3
 CFLAGS+=-fno-strict-aliasing
@@ -20,8 +20,15 @@ CFLAGS+=-DINET6
 
 BINGRP=	kmem
 BINMODE=2555
-DPADD=	${LIBKVM} ${LIBMEMSTAT} ${LIBNETGRAPH} ${LIBUTIL}
-LDADD=	-lkvm -lmemstat -lnetgraph -lutil
+DPADD=	${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
+LDADD=	-lkvm -lmemstat -lutil
+
+.if ${MK_NETGRAPH_SUPPORT} != "no"
+SRCS+=	netgraph.c
+DPADD+=	${LIBNETGRAPH}
+LDADD+=	-lnetgraph
+CFLAGS+=-DNETGRAPH
+.endif
 
 .if ${MK_IPX_SUPPORT} != "no"
 SRCS+=	ipx.c

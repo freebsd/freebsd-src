@@ -1177,7 +1177,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    uiop->uio_td = NULL;
 	    uiop->uio_offset = off;
 	    error = VOP_WRITE(vp, uiop, ioflags, cred);
-	    /* XXXRW: unlocked write. */
+	    /* Unlocked write. */
 	    nfsrvstats.srvvop_writes++;
 	    FREE((caddr_t)iv, M_TEMP);
 	}
@@ -1492,7 +1492,7 @@ loop1:
 		    }
 		    if (!error) {
 			error = VOP_WRITE(vp, uiop, ioflags, cred);
-			/* XXXRW: unlocked write. */
+			/* Unlocked write. */
 			nfsrvstats.srvvop_writes++;
 			vn_finished_write(mntp);
 		    }
@@ -3600,9 +3600,12 @@ again:
 	 * Probe one of the directory entries to see if the filesystem
 	 * supports VGET.
 	 */
-	if (VFS_VGET(vp->v_mount, dp->d_fileno, LK_EXCLUSIVE, &nvp) ==
-	    EOPNOTSUPP) {
-		error = NFSERR_NOTSUPP;
+	error = VFS_VGET(vp->v_mount, dp->d_fileno, LK_EXCLUSIVE, &nvp);
+	if (error) {
+		if (error == EOPNOTSUPP)
+			error = NFSERR_NOTSUPP;
+		else
+			error = NFSERR_SERVERFAULT;
 		vrele(vp);
 		vp = NULL;
 		free((caddr_t)cookies, M_TEMP);

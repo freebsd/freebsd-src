@@ -163,3 +163,4 @@ ENTRY(strcat)
 
 .Ldone:
 	ret
+END(strcat)

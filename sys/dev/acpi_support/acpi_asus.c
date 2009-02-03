@@ -552,7 +552,7 @@ acpi_asus_probe(device_t dev)
 		}
 	}
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	if (sb == NULL)
 		return (ENOMEM);
 

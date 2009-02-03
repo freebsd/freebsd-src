@@ -74,3 +74,4 @@ found0: popl	%ebx
 no:	popl	%ebx
 	xorl	%eax,%eax
 	ret
+END(wcschr)

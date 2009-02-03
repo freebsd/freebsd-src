@@ -56,3 +56,4 @@ ENTRY(__sys_vfork)
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(__sys_vfork)

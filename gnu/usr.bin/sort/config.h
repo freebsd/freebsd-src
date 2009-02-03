@@ -759,7 +759,7 @@
 #define HAVE_STRNCASECMP 1
 
 /* Define to 1 if you have the `strndup' function. */
-/* #undef HAVE_STRNDUP */
+#define HAVE_STRNDUP 1
 
 /* Define to 1 if you have the `strpbrk' function. */
 #define HAVE_STRPBRK 1

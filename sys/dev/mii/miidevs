@@ -121,6 +121,7 @@ model xxAMD 79C873		0x0000 Am79C873/DM9101 10/100 media interface
 
 /* Atheros Communications/Attansic PHYs. */
 model ATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
+model ATHEROS F2		0x0002 Atheros F2 10/100 PHY
 
 /* Broadcom Corp. PHYs. */
 model BROADCOM 3C905B		0x0012 3c905B 10/100 internal PHY
@@ -150,6 +151,7 @@ model BROADCOM2 BCM5906		0x0004 BCM5906 10/100baseTX PHY
 
 /* Cicada Semiconductor PHYs (now owned by Vitesse?) */
 model CICADA CS8201		0x0001 Cicada CS8201 10/100/1000TX PHY
+model CICADA VSC8211		0x000b Cicada VSC8211 10/100/1000TX PHY
 model CICADA CS8201A		0x0020 Cicada CS8201 10/100/1000TX PHY
 model CICADA CS8201B		0x0021 Cicada CS8201 10/100/1000TX PHY
 model VITESSE VSC8601		0x0002 Vitesse VSC8601 10/100/1000TX PHY

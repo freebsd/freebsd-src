@@ -45,7 +45,6 @@
  * Registers) holds the directed and multicast addresses that we monitor.
  * These entries are also used for MAC-based filtering.
  */
-
 /*
  * For 82576, there are an additional set of RARs that begin at an offset
  * separate from the first set of RARs.
@@ -351,11 +350,10 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
 #define E1000_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */
 
-/* Additional DCA related definitions, note change in position of CPUID */
 #define E1000_DCA_TXCTRL_CPUID_MASK_82576 0xFF000000 /* Tx CPUID Mask */
 #define E1000_DCA_RXCTRL_CPUID_MASK_82576 0xFF000000 /* Rx CPUID Mask */
-#define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID now in the last byte */
-#define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID now in the last byte */
+#define E1000_DCA_TXCTRL_CPUID_SHIFT_82576 24 /* Tx CPUID */
+#define E1000_DCA_RXCTRL_CPUID_SHIFT_82576 24 /* Rx CPUID */
 
 /* Additional interrupt register bit definitions */
 #define E1000_ICR_LSECPNS       0x00000020          /* PN threshold - server */
@@ -365,6 +363,8 @@ struct e1000_adv_tx_context_desc {
 /* ETQF register bit definitions */
 #define E1000_ETQF_FILTER_ENABLE   (1 << 26)
 #define E1000_ETQF_IMM_INT         (1 << 29)
+#define E1000_ETQF_1588            (1 << 30)
+#define E1000_ETQF_QUEUE_ENABLE    (1 << 31)
 /*
  * ETQF filter list: one static filter per filter consumer. This is
  *                   to avoid filter collisions later. Add new filters
@@ -423,12 +423,28 @@ struct e1000_adv_tx_context_desc {
                                                * this are the ACK */
 #define E1000_VT_MSGTYPE_NACK     0xFF000000  /* Messages below or'd with
                                                * this are the NACK */
-#define E1000_VF_MSGTYPE_REQ_MAC  1           /* VF needs to know its MAC */
-#define E1000_VF_MSGTYPE_VFLR     2           /* VF notifies VFLR to PF */
-#define E1000_PF_MSGTYPE_RESET    3           /* PF notifies global reset
-                                               * imminent to VF */
+#define E1000_VT_MSGINFO_SHIFT    16
+/* bits 23:16 are used for exra info for certain messages */
+#define E1000_VT_MSGINFO_MASK     (0xFF << E1000_VT_MSGINFO_SHIFT)
 
-u32  e1000_translate_register_82576(u32 reg);
+#define E1000_VF_MSGTYPE_REQ_MAC  1 /* VF needs to know its MAC */
+#define E1000_VF_MSGTYPE_VFLR     2 /* VF notifies VFLR to PF */
+#define E1000_VF_SET_MULTICAST    3 /* VF requests PF to set MC addr */
+#define E1000_VF_SET_VLAN         4 /* VF requests PF to set VLAN */
+
+/* Add 100h to all PF msgs, leaves room for up to 255 discrete message types
+ * from VF to PF - way more than we'll ever need */
+#define E1000_PF_MSGTYPE_RESET    (1 + 0x100) /* PF notifies global reset
+                                               * imminent to VF */
+#define E1000_PF_MSGTYPE_LSC      (2 + 0x100) /* PF notifies VF of LSC... VF
+                                               * will see extra msg info for
+                                               * status */
+
+#define E1000_PF_MSG_LSCDOWN      (1 << E1000_VT_MSGINFO_SHIFT)
+#define E1000_PF_MSG_LSCUP        (2 << E1000_VT_MSGINFO_SHIFT)
+
+#define ALL_QUEUES   0xFFFF
+
 s32  e1000_send_mail_to_pf_vf(struct e1000_hw *hw, u32 *msg,
                               s16 size);
 s32  e1000_receive_mail_from_pf_vf(struct e1000_hw *hw,
@@ -441,9 +457,18 @@ void e1000_vmdq_loopback_enable_vf(struct e1000_hw *hw);
 void e1000_vmdq_loopback_disable_vf(struct e1000_hw *hw);
 void e1000_vmdq_replication_enable_vf(struct e1000_hw *hw, u32 enables);
 void e1000_vmdq_replication_disable_vf(struct e1000_hw *hw);
-void e1000_init_vfnumber_index_vf(struct e1000_hw *hw, u32 vf_number);
+void e1000_vmdq_enable_replication_mode_vf(struct e1000_hw *hw);
+void e1000_vmdq_broadcast_replication_enable_vf(struct e1000_hw *hw,
+						u32 enables);
+void e1000_vmdq_multicast_replication_enable_vf(struct e1000_hw *hw,
+						u32 enables);
+void e1000_vmdq_broadcast_replication_disable_vf(struct e1000_hw *hw,
+						u32 disables);
+void e1000_vmdq_multicast_replication_disable_vf(struct e1000_hw *hw,
+						u32 disables);
 bool e1000_check_for_pf_ack_vf(struct e1000_hw *hw);
-bool e1000_check_for_pf_mail_vf(struct e1000_hw *hw);
+
+bool e1000_check_for_pf_mail_vf(struct e1000_hw *hw, u32*);
 
 
 #endif

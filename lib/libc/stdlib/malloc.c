@@ -1275,17 +1275,20 @@ base_pages_alloc(size_t minsize)
 {
 
 #ifdef MALLOC_DSS
-	if (opt_dss) {
-		if (base_pages_alloc_dss(minsize) == false)
-			return (false);
-	}
-
 	if (opt_mmap && minsize != 0)
 #endif
 	{
 		if (base_pages_alloc_mmap(minsize) == false)
 			return (false);
 	}
+
+#ifdef MALLOC_DSS
+	if (opt_dss) {
+		if (base_pages_alloc_dss(minsize) == false)
+			return (false);
+	}
+
+#endif
 
 	return (true);
 }
@@ -1709,6 +1712,15 @@ chunk_alloc(size_t size, bool zero)
 	assert((size & chunksize_mask) == 0);
 
 #ifdef MALLOC_DSS
+	if (opt_mmap)
+#endif
+	{
+		ret = chunk_alloc_mmap(size);
+		if (ret != NULL)
+			goto RETURN;
+	}
+
+#ifdef MALLOC_DSS
 	if (opt_dss) {
 		ret = chunk_recycle_dss(size, zero);
 		if (ret != NULL) {
@@ -1719,14 +1731,7 @@ chunk_alloc(size_t size, bool zero)
 		if (ret != NULL)
 			goto RETURN;
 	}
-
-	if (opt_mmap)
 #endif
-	{
-		ret = chunk_alloc_mmap(size);
-		if (ret != NULL)
-			goto RETURN;
-	}
 
 	/* All strategies for allocation failed. */
 	ret = NULL;

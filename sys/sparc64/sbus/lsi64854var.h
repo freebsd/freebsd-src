@@ -41,10 +41,7 @@
 struct lsi64854_softc {
 	device_t		sc_dev;
 
-	int			sc_rid;
 	struct resource		*sc_res;
-	bus_space_handle_t	sc_regh;
-	bus_space_tag_t		sc_regt;
 	u_int			sc_rev;		/* revision */
 	int			sc_burst;	/* max suported burst size */
 
@@ -54,7 +51,7 @@ struct lsi64854_softc {
 #define L64854_CHANNEL_PP	3
 	void			*sc_client;
 
-	int			sc_active;	/* DMA active ? */
+	int			sc_active;	/* DMA active? */
 	bus_dmamap_t		sc_dmamap;	/* DMA map for bus_dma_* */
 
 	bus_dma_tag_t		sc_parent_dmat;
@@ -73,12 +70,8 @@ struct lsi64854_softc {
 	int			sc_dodrain;
 };
 
-#define L64854_GCSR(sc)	\
-	(bus_space_read_4((sc)->sc_regt, (sc)->sc_regh, L64854_REG_CSR))
-
-#define L64854_SCSR(sc, csr)	\
-	bus_space_write_4((sc)->sc_regt, (sc)->sc_regh, L64854_REG_CSR, csr)
-
+#define L64854_GCSR(sc)		bus_read_4((sc)->sc_res, L64854_REG_CSR)
+#define L64854_SCSR(sc, csr)	bus_write_4((sc)->sc_res, L64854_REG_CSR, csr)
 
 /*
  * DMA engine interface functions.
@@ -86,7 +79,6 @@ struct lsi64854_softc {
 #define DMA_RESET(sc)			(((sc)->reset)(sc))
 #define DMA_INTR(sc)			(((sc)->intr)(sc))
 #define DMA_SETUP(sc, a, l, d, s)	(((sc)->setup)(sc, a, l, d, s))
-
 #define DMA_ISACTIVE(sc)		((sc)->sc_active)
 
 #define DMA_ENINTR(sc) do {			\
@@ -103,7 +95,6 @@ struct lsi64854_softc {
 	L64854_SCSR(sc, csr);			\
 	sc->sc_active = 1;			\
 } while (0)
-
 
 int	lsi64854_attach(struct lsi64854_softc *);
 int	lsi64854_detach(struct lsi64854_softc *);

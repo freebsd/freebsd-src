@@ -48,29 +48,20 @@ static void ieee80211_set_tim(struct ieee80211_node *ni, int set);
 void
 ieee80211_power_attach(struct ieee80211com *ic)
 {
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
-	    ic->ic_opmode == IEEE80211_M_IBSS) {
-		/* NB: driver should override */
-		ic->ic_set_tim = ieee80211_set_tim;
-	}
+	/* NB: driver should override */
+	ic->ic_set_tim = ieee80211_set_tim;
 }
 
 void
 ieee80211_power_lateattach(struct ieee80211com *ic)
 {
-	/*
-	 * Allocate these only if needed.  Beware that we
-	 * know adhoc mode doesn't support ATIM yet...
-	 */
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
-		ic->ic_tim_len = howmany(ic->ic_max_aid,8) * sizeof(uint8_t);
-		MALLOC(ic->ic_tim_bitmap, uint8_t *, ic->ic_tim_len,
-			M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (ic->ic_tim_bitmap == NULL) {
-			printf("%s: no memory for TIM bitmap!\n", __func__);
-			/* XXX good enough to keep from crashing? */
-			ic->ic_tim_len = 0;
-		}
+	ic->ic_tim_len = howmany(ic->ic_max_aid,8) * sizeof(uint8_t);
+	MALLOC(ic->ic_tim_bitmap, uint8_t *, ic->ic_tim_len,
+		M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (ic->ic_tim_bitmap == NULL) {
+		printf("%s: no memory for TIM bitmap!\n", __func__);
+		/* XXX good enough to keep from crashing? */
+		ic->ic_tim_len = 0;
 	}
 }
 

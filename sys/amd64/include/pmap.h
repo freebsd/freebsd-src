@@ -104,13 +104,11 @@
 
 /* Initial number of kernel page tables. */
 #ifndef NKPT
-/* 240 page tables needed to map 16G (120B "struct vm_page", 2M page tables). */
-#define	NKPT		240
+#define	NKPT		32
 #endif
 
 #define NKPML4E		1		/* number of kernel PML4 slots */
-#define NKPDPE		1		/* number of kernel PDP slots */
-#define	NKPDE		(NKPDPE*NPDEPG)	/* number of kernel PD slots */
+#define NKPDPE		howmany(NKPT, NPDEPG)/* number of kernel PDP slots */
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
@@ -231,7 +229,7 @@ struct	pv_entry;
 struct	pv_chunk;
 
 struct md_page {
-	int pv_list_count;
+	int pv_unused;
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 

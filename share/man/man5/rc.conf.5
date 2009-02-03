@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2008
+.Dd January 9, 2009
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3160,7 +3160,7 @@ The allowed range of
 ranges from \-1 (the compile time default) to 3 (the
 most secure).
 See
-.Xr init 8
+.Xr security 7
 for the list of possible security levels and their effect
 on system operation.
 .It Va sshd_program
@@ -3412,6 +3412,11 @@ These are flags to pass to
 Unset by default.
 When set, sets the interface to use when setting IP address alias.
 Note that the alias is created at jail startup and removed at jail shutdown.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _fib
+.Pq Vt str
+Unset by default.
+When set, the jail is started with the specified routing table via
+.Xr setfib 1 .
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
 .Pq Vt str
 Set to
@@ -4016,6 +4021,7 @@ Default
 .Xr motd 5 ,
 .Xr newsyslog.conf 5 ,
 .Xr pf.conf 5 ,
+.Xr security 7 ,
 .Xr accton 8 ,
 .Xr amd 8 ,
 .Xr apm 8 ,

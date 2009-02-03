@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nsupdate.html,v 1.14.18.22 2007/05/09 03:33:13 marka Exp $ -->
+<!-- $Id: nsupdate.html,v 1.14.18.23 2008/09/01 02:29:00 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [[<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543417"></a><h2>DESCRIPTION</h2>
+<a name="id2543420"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       is used to submit Dynamic DNS Update requests as defined in RFC2136
       to a name server.
@@ -153,7 +153,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543645"></a><h2>INPUT FORMAT</h2>
+<a name="id2543649"></a><h2>INPUT FORMAT</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       reads input from
       <em class="parameter"><code>filename</code></em>
@@ -402,7 +402,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544648"></a><h2>EXAMPLES</h2>
+<a name="id2544446"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
       <span><strong class="command">nsupdate</strong></span>
@@ -456,7 +456,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544692"></a><h2>FILES</h2>
+<a name="id2544490"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -475,7 +475,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544829"></a><h2>SEE ALSO</h2>
+<a name="id2544560"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">RFC2136</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC3007</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC2104</span></span>,
@@ -488,7 +488,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544900"></a><h2>BUGS</h2>
+<a name="id2542172"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library

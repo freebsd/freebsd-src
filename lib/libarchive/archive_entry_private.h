@@ -136,6 +136,14 @@ struct archive_entry {
 		dev_t		aest_rdevminor;
 	} ae_stat;
 
+	int ae_set; /* bitmap of fields that are currently set */
+#define	AE_SET_HARDLINK	1
+#define	AE_SET_SYMLINK	2
+#define	AE_SET_ATIME	4
+#define	AE_SET_CTIME	8
+#define	AE_SET_MTIME	16
+#define	AE_SET_SIZE	64
+
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
 	 */
@@ -147,8 +155,6 @@ struct archive_entry {
 	struct aes ae_pathname;	/* Name of entry */
 	struct aes ae_symlink;		/* symlink contents */
 	struct aes ae_uname;		/* Name of owner */
-	unsigned char	ae_hardlinkset;
-	unsigned char	ae_symlinkset;
 
 	/* Not used within libarchive; useful for some clients. */
 	struct aes ae_sourcepath;	/* Path this entry is sourced from. */

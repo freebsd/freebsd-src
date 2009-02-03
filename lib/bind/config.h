@@ -160,6 +160,12 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if you cannot bind() before connect() for TCP sockets. */
 /* #undef BROKEN_TCP_BIND_BEFORE_CONNECT */
 
+/* Solaris hack to get select_large_fdset. */
+/* #undef FD_SETSIZE */
+
+/* Define to 1 if you have the `capset' function. */
+/* #undef HAVE_CAPSET */
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 /* #undef HAVE_DLFCN_H */
 
@@ -216,6 +222,15 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
+
+/* Define to 1 if you have the <sys/capability.h> header file. */
+/* #undef HAVE_SYS_CAPABILITY_H */
+
+/* Define to 1 if you have the <sys/devpoll.h> header file. */
+/* #undef HAVE_SYS_DEVPOLL_H */
+
+/* Define to 1 if you have the <sys/dyntune.h> header file. */
+/* #undef HAVE_SYS_DYNTUNE_H */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
@@ -289,9 +304,13 @@ int sigwait(const unsigned int *set, int *sig);
 /* define if idnkit support is to be included. */
 /* #undef WITH_IDN */
 
-/* Define to 1 if your processor stores words with the most significant byte
-   first (like Motorola and SPARC, unlike Intel and VAX). */
-/* #undef WORDS_BIGENDIAN */
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel and VAX). */
+#if defined __BIG_ENDIAN__
+# define WORDS_BIGENDIAN 1
+#elif ! defined __LITTLE_ENDIAN__
+/* # undef WORDS_BIGENDIAN */
+#endif
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
@@ -299,7 +318,7 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
-#define inline 
+#define inline /**/
 #endif
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
@@ -310,3 +329,7 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to `unsigned long' if <sys/types.h> does not define. */
 /* #undef uintptr_t */
+
+/* Define to empty if the keyword `volatile' does not work. Warning: valid
+   code using `volatile' can become incorrect without. Disable with care. */
+/* #undef volatile */

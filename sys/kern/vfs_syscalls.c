@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/limits.h>
 #include <sys/linker.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
@@ -81,6 +83,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/uma.h>
+
+SDT_PROVIDER_DEFINE(vfs);
+SDT_PROBE_DEFINE(vfs, , stat, mode);
+SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
+SDT_PROBE_ARGTYPE(vfs, , stat, mode, 1, "int");
+SDT_PROBE_DEFINE(vfs, , stat, reg);
+SDT_PROBE_ARGTYPE(vfs, , stat, reg, 0, "char *");
+SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
@@ -2114,6 +2124,11 @@ kern_stat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
+	if (!error) {
+		SDT_PROBE(vfs, , stat, mode, path, sb.st_mode, 0, 0, 0);
+		if (S_ISREG(sb.st_mode))
+			SDT_PROBE(vfs, , stat, reg, path, pathseg, 0, 0, 0);
+	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -3761,6 +3776,21 @@ getdirentries(td, uap)
 		long *basep;
 	} */ *uap;
 {
+	long base;
+	int error;
+
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	if (error)
+		return (error);
+	if (uap->basep != NULL)
+		error = copyout(&base, uap->basep, sizeof(long));
+	return (error);
+}
+
+int
+kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
+    long *basep)
+{
 	struct vnode *vp;
 	struct file *fp;
 	struct uio auio;
@@ -3769,8 +3799,10 @@ getdirentries(td, uap)
 	long loff;
 	int error, eofflag;
 
-	AUDIT_ARG(fd, uap->fd);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	AUDIT_ARG(fd, fd);
+	if (count > INT_MAX)
+		return (EINVAL);
+	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -3784,14 +3816,14 @@ unionread:
 		error = EINVAL;
 		goto fail;
 	}
-	aiov.iov_base = uap->buf;
-	aiov.iov_len = uap->count;
+	aiov.iov_base = buf;
+	aiov.iov_len = count;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_resid = uap->count;
+	auio.uio_resid = count;
 	/* vn_lock(vp, LK_SHARED | LK_RETRY, td); */
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
@@ -3808,7 +3840,7 @@ unionread:
 		VFS_UNLOCK_GIANT(vfslocked);
 		goto fail;
 	}
-	if (uap->count == auio.uio_resid &&
+	if (count == auio.uio_resid &&
 	    (vp->v_vflag & VV_ROOT) &&
 	    (vp->v_mount->mnt_flag & MNT_UNION)) {
 		struct vnode *tvp = vp;
@@ -3823,10 +3855,8 @@ unionread:
 	}
 	VOP_UNLOCK(vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
-	if (uap->basep != NULL) {
-		error = copyout(&loff, uap->basep, sizeof(long));
-	}
-	td->td_retval[0] = uap->count - auio.uio_resid;
+	*basep = loff;
+	td->td_retval[0] = count - auio.uio_resid;
 fail:
 	fdrop(fp, td);
 	return (error);

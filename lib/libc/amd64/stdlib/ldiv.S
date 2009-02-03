@@ -13,3 +13,4 @@ ENTRY(ldiv)
 	cqto
 	idivq	%rsi
 	ret
+END(ldiv)

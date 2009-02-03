@@ -8,6 +8,7 @@ MAN=	aac.4 \
 	acpi_video.4 \
 	adv.4 \
 	adw.4 \
+	ae.4 \
 	age.4 \
 	agp.4 \
 	aha.4 \
@@ -15,6 +16,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahd.4 \
 	aio.4 \
+	ale.4 \
 	altq.4 \
 	amd.4 \
 	${_amdsmb.4} \
@@ -53,6 +55,7 @@ MAN=	aac.4 \
 	cnw.4 \
 	coda.4 \
 	${_coretemp.4} \
+	${_cpuctl.4} \
 	cpufreq.4 \
 	crypto.4 \
 	cue.4 \
@@ -117,6 +120,7 @@ MAN=	aac.4 \
 	ieee80211.4 \
 	if_bridge.4 \
 	ifmib.4 \
+	igb.4 \
 	iic.4 \
 	iicbb.4 \
 	iicbus.4 \
@@ -296,8 +300,9 @@ MAN=	aac.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
 	screen.4 \
-	sctp.4 \
 	scsi.4 \
+	sctp.4 \
+	sdhci.4 \
 	sem.4 \
 	ses.4 \
 	sf.4 \
@@ -327,8 +332,8 @@ MAN=	aac.4 \
 	snd_gusc.4 \
 	snd_hda.4 \
 	snd_ich.4 \
-	snd_maestro.4 \
 	snd_maestro3.4 \
+	snd_maestro.4 \
 	snd_mss.4 \
 	snd_neomagic.4 \
 	snd_sbc.4 \
@@ -539,17 +544,18 @@ MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
+MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=wb.4 if_wb.4
 MLINKS+=wi.4 if_wi.4
 MLINKS+=${_wpi.4} ${_if_wpi.4}
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
-MLINKS+=watchdog.4 SW_WATCHDOG.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _acpi_dock.4=	acpi_dock.4
 _amdsmb.4=	amdsmb.4
 _coretemp.4=	coretemp.4
+_cpuctl.4=	cpuctl.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
@@ -560,13 +566,13 @@ _if_nxge.4=	if_nxge.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
 _k8temp.4=	k8temp.4
-_nfsmb.4=	nfsmb.4
 _nfe.4=		nfe.4
+_nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
 _nxge.4=	nxge.4
 _rr232x.4=	rr232x.4
-_spkr.4=	spkr.4
 _speaker.4=	speaker.4
+_spkr.4=	spkr.4
 _wpi.4=		wpi.4
 .endif
 

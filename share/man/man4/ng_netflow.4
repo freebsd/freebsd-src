@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2006
+.Dd October 8, 2008
 .Os
 .Dt NG_NETFLOW 4
 .Sh NAME
@@ -71,7 +71,8 @@ and the same number of hooks named
 etc.,
 plus a single hook named
 .Va export .
-The node does NetFlow accounting of data received on
+By default (ingress NetFlow enabled) node does NetFlow accounting of data
+received on
 .Va iface*
 hooks.
 If corresponding
@@ -81,7 +82,7 @@ If data is received on
 .Va out
 hook, it is bypassed to corresponding
 .Va iface
-hook without any processing.
+hook without any processing (egress NetFlow disabled by default).
 When full export datagram is built it is sent to the
 .Va export
 hook.
@@ -162,6 +163,31 @@ struct ng_netflow_settimeouts {
 	uint32_t	active_timeout;
 };
 .Ed
+.It Dv NGM_NETFLOW_SETCONFIG
+Sets configuration for the specified interface.
+This message requires
+.Vt "struct ng_netflow_setconfig"
+as an argument:
+.Bd -literal -offset 4n
+struct ng_netflow_setconfig {
+	u_int16_t iface;
+	u_int32_t conf;
+#define NG_NETFLOW_CONF_INGRESS		1
+#define NG_NETFLOW_CONF_EGRESS		2
+#define NG_NETFLOW_CONF_ONCE		4
+#define NG_NETFLOW_CONF_THISONCE	8
+};
+.Ed
+.Pp
+Configuration is a bitmask of several options. Option NG_NETFLOW_CONF_INGRESS
+enabled by default enables ingress NetFlow generation (for data coming from
+ifaceX hook). Option NG_NETFLOW_CONF_EGRESS enables egress NetFlow (for data
+coming from outX hook). Option NG_NETFLOW_CONF_ONCE defines that packet should
+be accounted only once if it several times passes via netflow node. Option
+NG_NETFLOW_CONF_THISONCE defines that packet should be accounted only once
+if it several times passes via exactly this netflow node. Last two options are
+important to avoid duplicate accounting when both ingress and egress NetFlow
+are enabled.
 .It Dv NGM_NETFLOW_SHOW
 This control message asks a node to dump the entire contents of the flow cache.
 It is called from
@@ -191,6 +217,8 @@ commands are:
 .Qq Li "setifindex { iface = %u index = %u }"
 .It Dv NGM_NETFLOW_SETTIMEOUTS
 .Qq Li "settimeouts { inactive = %u active = %u }"
+.It Dv NGM_NETFLOW_SETCONFIG
+.Qq Li "setconfig { iface = %u conf = %u }"
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a

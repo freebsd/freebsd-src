@@ -28,31 +28,24 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/endian.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
 #include <sys/systm.h>
 
-#include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-
-#include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/stack.h>
-#include <machine/trap.h>
 #include <machine/vmparam.h>
 
+static void stack_capture(struct stack *st, struct frame *fp);
+
 static void
-stack_capture(struct stack *st, uint64_t addr)
+stack_capture(struct stack *st, struct frame *fp)
 {
 	vm_offset_t callpc;
 
 	stack_zero(st);
 	while (1) {
-		addr += SPOFF;
-		callpc =
-		    be64dec((void *)(addr + offsetof(struct frame, fr_pc)));
+		callpc = fp->fr_pc;
 		if (!INKERNEL(callpc))
 			break;
 		/* Don't bother traversing trap frames. */
@@ -63,30 +56,25 @@ stack_capture(struct stack *st, uint64_t addr)
 			break;
 		if (stack_put(st, callpc) == -1)
 			break;
-		addr =
-		    be64dec((void *)(addr + offsetof(struct frame, fr_fp)));
+		fp = v9next_frame(fp);
 	}
 }
 
 void
 stack_save_td(struct stack *st, struct thread *td)
 {
-	uint64_t addr;
 
 	if (TD_IS_SWAPPED(td))
 		panic("stack_save_td: swapped");
 	if (TD_IS_RUNNING(td))
 		panic("stack_save_td: running");
 
-	addr = td->td_pcb->pcb_sp;
-	stack_capture(st, addr);
+	stack_capture(st, (struct frame *)(td->td_pcb->pcb_sp + SPOFF));
 }
 
 void
 stack_save(struct stack *st)
 {
-	uint64_t addr;
 
-	addr = (uint64_t)__builtin_frame_address(1);
-	stack_capture(st, addr);
+	stack_capture(st, (struct frame *)__builtin_frame_address(1));
 }

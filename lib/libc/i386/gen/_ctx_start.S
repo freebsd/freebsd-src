@@ -49,3 +49,4 @@ ENTRY(_ctx_start)
 	call	PIC_PLT(_ctx_done)	/* should never return */
 	call	PIC_PLT(abort)		/* fubar */
 	ret
+END(_ctx_start)

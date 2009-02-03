@@ -8,6 +8,32 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090119:
+	NTFS has been removed from GENERIC kernel on amd64 to match
+	GENERIC on i386. Should not cause any issues since mount_ntfs(8)
+	will load ntfs.ko module automatically when NTFS support is
+	actually needed, unless ntfs.ko is not installed or security
+	level prohibits loading kernel modules. If either is the case,
+	"options NTFS" has to be added into kernel config.
+
+20090110:
+	powerd(8) was updated to get better SMP support.
+	Meanings of the -i and -r command line options were changed.
+
+20090107:
+	snd_hda(4) driver was updated to version 20081226_0122.
+
+	Due to added HDMI audio and logical audio devices support, updated
+	driver often provides several PCM devices. In some cases it can make
+	system default audio device no longer correspond to the users's
+	habbitual audio connectors. In such cases wanted device can be
+	specified in audio application setup or defined globally via
+	hw.snd.default_unit sysctl according to sound(4) and snd_hda(4)
+	man pages.
+
+20090106:
+	FreeBSD 7.1-RELEASE
+
 20080903:
 	ntpd has been upgraded to 4.2.4p5.
 

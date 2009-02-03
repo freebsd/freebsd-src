@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  */
 
+#if defined(__FreeBSD__)
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -42,11 +44,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
+#if defined(__FreeBSD__)
 #include <sys/eui64.h>
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/fwphyreg.h>
 #include <dev/firewire/iec68113.h>
+#elif defined(__NetBSD__)
+#include "eui64.h"
+#include <dev/ieee1394/firewire.h>
+#include <dev/ieee1394/iec13213.h>
+#include <dev/ieee1394/fwphyreg.h>
+#include <dev/ieee1394/iec68113.h>
+#else
+#warning "You need to add support for your OS"
+#endif
+
 
 #include <netinet/in.h>
 #include <fcntl.h>
@@ -56,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include "fwmethods.h"
 
 static void sysctl_set_int(const char *, int);
@@ -64,25 +79,27 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"fwcontrol [-u bus_num] [-rt] [-f node] [-g gap_count] "
-		    "[-o node] "
-		    "[-b pri_req] [-c node] [-d node] [-l file] "
-		    "[-R file] [-S file] [-m target]\n"
+		"%s [-u bus_num] [-prt] [-c node] [-d node] [-o node] [-s node]\n"
+		"\t  [-l file] [-g gap_count] [-f force_root ] [-b pri_req]\n"
+		"\t  [-M mode] [-R filename] [-S filename] [-m EUI64 | hostname]\n"
 		"\t-u: specify bus number\n"
-		"\t-f: broadcast force_root by phy_config packet\n"
-		"\t-g: broadcast gap_count by phy_config packet\n"
-		"\t-o: send link-on packet to the node\n"
-		"\t-s: write RESET_START register on the node\n"
-		"\t-b: set PRIORITY_BUDGET register on all supported nodes\n"
-		"\t-c: read configuration ROM\n"
+		"\t-p: Display current PHY register settings\n"
 		"\t-r: bus reset\n"
 		"\t-t: read topology map\n"
+		"\t-c: read configuration ROM\n"
 		"\t-d: hex dump of configuration ROM\n"
+		"\t-o: send link-on packet to the node\n"
+		"\t-s: write RESET_START register on the node\n"
 		"\t-l: load and parse hex dump file of configuration ROM\n"
+		"\t-g: set gap count\n"
+		"\t-f: force root node\n"
+		"\t-b: set PRIORITY_BUDGET register on all supported nodes\n"
+		"\t-M: specify dv or mpeg\n"
 		"\t-R: Receive DV or MPEG TS stream\n"
 		"\t-S: Send DV stream\n"
-		"\t-m: set fwmem target\n");
-	exit(EX_USAGE);
+		"\t-m: set fwmem target\n"
+		, getprogname() );
+	fprintf(stderr, "\n");
 }
 
 static void
@@ -92,18 +109,14 @@ fweui2eui64(const struct fw_eui64 *fweui, struct eui64 *eui)
 	*(u_int32_t*)&(eui->octet[4]) = htonl(fweui->lo);
 }
 
-static struct fw_devlstreq *
-get_dev(int fd)
+static void
+get_dev(int fd, struct fw_devlstreq *data)
 {
-	struct fw_devlstreq *data;
-
-	data = (struct fw_devlstreq *)malloc(sizeof(struct fw_devlstreq));
 	if (data == NULL)
-		err(1, "malloc");
+		err(EX_SOFTWARE, "%s: data malloc", __func__);
 	if( ioctl(fd, FW_GDEVLST, data) < 0) {
-       			err(1, "ioctl");
+       			err(EX_IOERR, "%s: ioctl", __func__);
 	}
-	return data;
 }
 
 static int
@@ -130,17 +143,25 @@ str2node(int fd, const char *nodestr)
 	if (eui64_hostton(nodestr, &eui) != 0 && eui64_aton(nodestr, &eui) != 0)
 		return (-1);
 
-	data = get_dev(fd);
+	data = (struct fw_devlstreq *)malloc(sizeof(struct fw_devlstreq));
+	if (data == NULL)
+		err(EX_SOFTWARE, "%s: data malloc", __func__);
+	get_dev(fd,data);
 
 	for (i = 0; i < data->info_len; i++) {
 		fweui2eui64(&data->dev[i].eui, &tmpeui);
 		if (memcmp(&eui, &tmpeui, sizeof(struct eui64)) == 0) {
 			node = data->dev[i].dst;
+			if (data != NULL)
+				free(data);
 			goto gotnode;
 		}
 	}
-	if (i >= data->info_len)
+	if (i >= data->info_len) {
+		if (data != NULL)
+			free(data);
 		return (-1);
+	}
 
 gotnode:
 	if (node < 0 || node > 63)
@@ -158,7 +179,10 @@ list_dev(int fd)
 	char addr[EUI64_SIZ], hostname[40];
 	int i;
 
-	data = get_dev(fd);
+	data = (struct fw_devlstreq *)malloc(sizeof(struct fw_devlstreq));
+	if (data == NULL)
+		err(EX_SOFTWARE, "%s:data malloc", __func__);
+	get_dev(fd, data);
 	printf("%d devices (info_len=%d)\n", data->n, data->info_len);
 	printf("node           EUI64          status    hostname\n");
 	for (i = 0; i < data->info_len; i++) {
@@ -184,6 +208,8 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int readmode, u_
 	u_int32_t *qld, res;
 
         asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 16);
+	if (asyreq == NULL)
+		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 16;
 #if 0
 	asyreq->req.type = FWASREQNODE;
@@ -206,7 +232,7 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int readmode, u_
 		asyreq->pkt.mode.wreqq.data = htonl(data);
 
 	if (ioctl(fd, FW_ASYREQ, asyreq) < 0) {
-       		err(1, "ioctl");
+       		err(EX_IOERR, "%s: ioctl", __func__);
 	}
 	res = qld[3];
 	free(asyreq);
@@ -216,37 +242,56 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int readmode, u_
 		return 0;
 }
 
+/*
+ * Send a PHY Config Packet
+ * ieee 1394a-2005 4.3.4.3
+ *
+ * Message ID   Root ID    R  T   Gap Count
+ * 00(2 bits)   (6 bits)   1  1   (6 bits) 
+ *
+ * if "R" is set, then Root ID will be the next
+ * root node upon the next bus reset.
+ * if "T" is set, then Gap Count will be the
+ * value that all nodes use for their Gap Count
+ * if "R" and "T" are not set, then this message
+ * is either ignored or interpreted as an extended
+ * PHY config Packet as per 1394a-2005 4.3.4.4
+ */
 static void
 send_phy_config(int fd, int root_node, int gap_count)
 {
         struct fw_asyreq *asyreq;
 
 	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 12);
+	if (asyreq == NULL)
+		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 12;
 	asyreq->req.type = FWASREQNODE;
 	asyreq->pkt.mode.ld[0] = 0;
 	asyreq->pkt.mode.ld[1] = 0;
 	asyreq->pkt.mode.common.tcode = FWTCODE_PHY;
 	if (root_node >= 0)
-		asyreq->pkt.mode.ld[1] |= (root_node & 0x3f) << 24 | 1 << 23;
+		asyreq->pkt.mode.ld[1] |= ((root_node << 24) | (1 << 23));
 	if (gap_count >= 0)
-		asyreq->pkt.mode.ld[1] |= 1 << 22 | (gap_count & 0x3f) << 16;
+		asyreq->pkt.mode.ld[1] |= ((1 << 22) | (gap_count << 16));
 	asyreq->pkt.mode.ld[2] = ~asyreq->pkt.mode.ld[1];
 
 	printf("send phy_config root_node=%d gap_count=%d\n",
 						root_node, gap_count);
 
 	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
-       		err(1, "ioctl");
+       		err(EX_IOERR, "%s: ioctl", __func__);
 	free(asyreq);
 }
 
 static void
-send_link_on(int fd, int node)
+link_on(int fd, int node)
 {
         struct fw_asyreq *asyreq;
 
 	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 12);
+	if (asyreq == NULL)
+		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 12;
 	asyreq->req.type = FWASREQNODE;
 	asyreq->pkt.mode.common.tcode = FWTCODE_PHY;
@@ -254,7 +299,7 @@ send_link_on(int fd, int node)
 	asyreq->pkt.mode.ld[2] = ~asyreq->pkt.mode.ld[1];
 
 	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
-       		err(1, "ioctl");
+       		err(EX_IOERR, "%s: ioctl", __func__);
 	free(asyreq);
 }
 
@@ -264,6 +309,8 @@ reset_start(int fd, int node)
         struct fw_asyreq *asyreq;
 
 	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 16);
+	if (asyreq == NULL)
+		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 16;
 	asyreq->req.type = FWASREQNODE;
 	asyreq->pkt.mode.wreqq.dst = FWLOCALBUS | (node & 0x3f);
@@ -276,7 +323,7 @@ reset_start(int fd, int node)
 	asyreq->pkt.mode.wreqq.data = htonl(0x1);
 
 	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
-       		err(1, "ioctl");
+       		err(EX_IOERR, "%s: ioctl", __func__);
 	free(asyreq);
 }
 
@@ -290,7 +337,10 @@ set_pri_req(int fd, u_int32_t pri_req)
 	u_int32_t max, reg, old;
 	int i;
 
-	data = get_dev(fd);
+	data = (struct fw_devlstreq *)malloc(sizeof(struct fw_devlstreq));
+	if (data == NULL)
+		err(EX_SOFTWARE, "%s:data malloc", __func__);
+	get_dev(fd, data);
 #define BUGET_REG 0xf0000218
 	for (i = 0; i < data->info_len; i++) {
 		devinfo = &data->dev[i];
@@ -344,7 +394,10 @@ get_crom(int fd, int node, void *crom_buf, int len)
 	int i, error;
 	struct fw_devlstreq *data;
 
-	data = get_dev(fd);
+	data = (struct fw_devlstreq *)malloc(sizeof(struct fw_devlstreq));
+	if (data == NULL)
+		err(EX_SOFTWARE, "%s:data malloc", __func__);
+	get_dev(fd, data);
 
 	for (i = 0; i < data->info_len; i++) {
 		if (data->dev[i].dst == node && data->dev[i].eui.lo != 0)
@@ -360,7 +413,7 @@ get_crom(int fd, int node, void *crom_buf, int len)
 	buf.ptr = crom_buf;
 	bzero(crom_buf, len);
 	if ((error = ioctl(fd, FW_GCROM, &buf)) < 0) {
-       		err(1, "ioctl");
+       		err(EX_IOERR, "%s: ioctl", __func__);
 	}
 
 	return error;
@@ -449,7 +502,7 @@ load_crom(char *filename, u_int32_t *p)
 	int len=1024, i;
 
 	if ((file = fopen(filename, "r")) == NULL)
-		err(1, "load_crom");
+	  err(1, "load_crom %s", filename);
 	for (i = 0; i < len/(4*8); i ++) {
 		fscanf(file, DUMP_FORMAT,
 			p, p+1, p+2, p+3, p+4, p+5, p+6, p+7);
@@ -469,9 +522,9 @@ show_topology_map(int fd)
 	static const char *speed[] = {"S100", "S200", "S400", "S800"};
 	tmap = malloc(sizeof(struct fw_topology_map));
 	if (tmap == NULL)
-		return;
+		err(EX_SOFTWARE, "%s:tmap malloc", __func__);
 	if (ioctl(fd, FW_GTPMAP, tmap) < 0) {
-       		err(1, "ioctl");
+       		err(EX_IOERR, "%s: ioctl", __func__);
 	}
 	printf("crc_len: %d generation:%d node_count:%d sid_count:%d\n",
 		tmap->crc_len, tmap->generation,
@@ -512,7 +565,7 @@ read_phy_registers(int fd, u_int8_t *buf, int offset, int len)
 	for (i = 0; i < len; i++) {
 		reg.addr = offset + i;
 		if (ioctl(fd, FWOHCI_RDPHYREG, &reg) < 0)
-       			err(1, "ioctl");
+       			err(EX_IOERR, "%s: ioctl", __func__);
 		buf[i] = (u_int8_t) reg.data;
 		printf("0x%02x ",  reg.data);
 	}
@@ -527,7 +580,7 @@ read_phy_page(int fd, u_int8_t *buf, int page, int port)
 	reg.addr = 0x7;
 	reg.data = ((page & 7) << 5) | (port & 0xf);
 	if (ioctl(fd, FWOHCI_WRPHYREG, &reg) < 0)
-       		err(1, "ioctl");
+       		err(EX_IOERR, "%s: ioctl", __func__);
 	read_phy_registers(fd, buf, 8, 8);
 }
 
@@ -590,22 +643,16 @@ dump_phy_registers(int fd)
 	);
 }
 
-static void
-open_dev(int *fd, char *devbase)
+static int
+open_dev(int *fd, char *devname)
 {
-	char name[256];
-	int i;
-
 	if (*fd < 0) {
-		for (i = 0; i < 4; i++) {
-			snprintf(name, sizeof(name), "%s.%d", devbase, i);
-			if ((*fd = open(name, O_RDWR)) >= 0)
-				break;
-		}
+		*fd = open(devname, O_RDWR);
 		if (*fd < 0)
-			err(1, "open");
+			return(-1);
 
 	}
+	return(0);
 }
 
 static void
@@ -625,25 +672,40 @@ detect_recv_fn(int fd, char ich)
 	u_int32_t *ptr;
 	struct ciphdr *ciph;
 	fwmethod *retfn;
+#define RECV_NUM_PACKET 16
+#define RECV_PACKET_SZ  1024
 
 	bufreq.rx.nchunk = 8;
-	bufreq.rx.npacket = 16;
-	bufreq.rx.psize = 1024;
+	bufreq.rx.npacket = RECV_NUM_PACKET;
+	bufreq.rx.psize = RECV_PACKET_SZ;
 	bufreq.tx.nchunk = 0;
 	bufreq.tx.npacket = 0;
 	bufreq.tx.psize = 0;
 
 	if (ioctl(fd, FW_SSTBUF, &bufreq) < 0)
-		err(1, "ioctl FW_SSTBUF");
+		err(EX_IOERR, "%s: ioctl FW_SSTBUF", __func__);
 
 	isoreq.ch = ich & 0x3f;
 	isoreq.tag = (ich >> 6) & 3;
 
 	if (ioctl(fd, FW_SRSTREAM, &isoreq) < 0)
-		err(1, "ioctl FW_SRSTREAM");
+		err(EX_IOERR, "%s: ioctl FW_SRSTREAM", __func__);
 
-	buf = (char *)malloc(1024*16);
-	len = read(fd, buf, 1024*16);
+	buf = (char *)malloc(RECV_NUM_PACKET * RECV_PACKET_SZ);
+	if (buf == NULL)
+		err(EX_SOFTWARE, "%s:buf malloc", __func__);
+	/*
+	 * fwdev.c seems to return EIO on error and 
+	 * the return value of the last uiomove 
+	 * on success.  For now, checking that the 
+	 * return is not less than zero should be
+	 * sufficient.  fwdev.c::fw_read() should
+	 * return the total length read, not the value
+	 * of the last uiomove().
+	 */
+	len = read(fd, buf, RECV_NUM_PACKET * RECV_PACKET_SZ);
+	if (len < 0)
+		err(EX_IOERR, "%s: error reading from device", __func__);
 	ptr = (u_int32_t *) buf;
 	ciph = (struct ciphdr *)(ptr + 1);
 
@@ -666,102 +728,170 @@ detect_recv_fn(int fd, char ich)
 int
 main(int argc, char **argv)
 {
+#define MAX_BOARDS 10
 	u_int32_t crom_buf[1024/4];
-	char devbase[1024] = "/dev/fw0";
-	int fd, ch, len=1024;
+	u_int32_t crom_buf_hex[1024/4];
+	char devbase[64];
+	const char *device_string = "/dev/fw";
+	int fd = -1, ch, len=1024;
+	int32_t current_board = 0;
+ /*
+  * If !command_set, then -u will display the nodes for the board.
+  * This emulates the previous behavior when -u is passed by itself
+  */
+	bool command_set = false;
+	bool open_needed = false;
 	long tmp;
 	struct fw_eui64 eui;
 	struct eui64 target;
 	fwmethod *recvfn = NULL;
+/*
+ * Holders for which functions
+ * to iterate through
+ */
+	bool display_board_only = false;
+	bool display_crom = false;
+	bool send_bus_reset = false;
+	bool display_crom_hex = false;
+	bool load_crom_from_file = false;
+	bool set_fwmem_target = false;
+	bool dump_topology = false;
+	bool dump_phy_reg = false;
 
-	fd = -1;
+	int32_t priority_budget = -1;
+	int32_t set_root_node = -1;
+	int32_t set_gap_count = -1;
+	int32_t send_link_on = -1;
+	int32_t send_reset_start = -1;
+
+	char *crom_string = NULL;
+	char *crom_string_hex = NULL;
+	char *recv_data = NULL;
+	char *send_data = NULL;
 
 	if (argc < 2) {
-		open_dev(&fd, devbase);
-		list_dev(fd);
+		for (current_board = 0; current_board < MAX_BOARDS; current_board++) {
+			snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
+			if (open_dev(&fd, devbase) < 0) {
+				if (current_board == 0) {
+					usage();
+		  			err(EX_IOERR, "%s: Error opening firewire controller #%d %s",
+						      __func__, current_board, devbase);
+				}
+				return(EIO);
+			}
+			list_dev(fd);
+			close(fd);
+			fd = -1;
+		}
 	}
-
-	while ((ch = getopt(argc, argv, "M:f:g:m:o:s:b:prtc:d:l:u:R:S:")) != -1)
+       /*
+	* Parse all command line options, then execute requested operations.
+	*/
+	while ((ch = getopt(argc, argv, "M:f:g:m:o:s:b:prtc:d:l:u:R:S:")) != -1) {
 		switch(ch) {
 		case 'b':
-			tmp = strtol(optarg, NULL, 0);
-			if (tmp < 0 || tmp > (long)0xffffffff)
-				errx(EX_USAGE, "invalid number: %s", optarg);
-			open_dev(&fd, devbase);
-			set_pri_req(fd, tmp);
+			priority_budget = strtol(optarg, NULL, 0);
+			if (priority_budget < 0 || priority_budget > INT32_MAX)
+				errx(EX_USAGE, "%s: priority_budget out of range: %s", __func__, optarg);
+			command_set = true;
+			open_needed = true;
+			display_board_only = false;
 			break;
 		case 'c':
-			open_dev(&fd, devbase);
-			tmp = str2node(fd, optarg);
-			get_crom(fd, tmp, crom_buf, len);
-			show_crom(crom_buf);
+			crom_string = malloc(strlen(optarg)+1);
+			if (crom_string == NULL)
+				err(EX_SOFTWARE, "%s:crom_string malloc", __func__);
+			if ( (strtol(crom_string, NULL, 0) < 0) || strtol(crom_string, NULL, 0) > MAX_BOARDS)
+				errx(EX_USAGE, "%s:Invalid value for node", __func__);
+			strcpy(crom_string, optarg);
+			display_crom = 1;
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'd':
-			open_dev(&fd, devbase);
-			tmp = str2node(fd, optarg);
-			get_crom(fd, tmp, crom_buf, len);
-			dump_crom(crom_buf);
+			crom_string_hex = malloc(strlen(optarg)+1);
+			if (crom_string_hex == NULL)
+				err(EX_SOFTWARE, "%s:crom_string_hex malloc", __func__);
+			strcpy(crom_string_hex, optarg);
+			display_crom_hex = 1;
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'f':
-			tmp = strtol(optarg, NULL, 0);
-			open_dev(&fd, devbase);
-			send_phy_config(fd, tmp, -1);
+#define MAX_PHY_CONFIG 0x3f
+			set_root_node = strtol(optarg, NULL, 0);
+			if ( (set_root_node < 0) || (set_root_node > MAX_PHY_CONFIG) )
+				errx(EX_USAGE, "%s:set_root_node out of range", __func__);
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'g':
-			tmp = strtol(optarg, NULL, 0);
-			open_dev(&fd, devbase);
-			send_phy_config(fd, -1, tmp);
+			set_gap_count = strtol(optarg, NULL, 0);
+			if ( (set_gap_count < 0) || (set_gap_count > MAX_PHY_CONFIG) )
+				errx(EX_USAGE, "%s:set_gap_count out of range", __func__);
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'l':
+			load_crom_from_file = 1;
 			load_crom(optarg, crom_buf);
-			show_crom(crom_buf);
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'm':
-		       if (eui64_hostton(optarg, &target) != 0 &&
-			   eui64_aton(optarg, &target) != 0)
-				errx(EX_USAGE, "invalid target: %s", optarg);
-			eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
-			eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
-			sysctl_set_int("hw.firewire.fwmem.eui64_hi", eui.hi);
-			sysctl_set_int("hw.firewire.fwmem.eui64_lo", eui.lo);
+			set_fwmem_target = 1;
+			open_needed = 0;
+			command_set = true;
+			display_board_only = false;
+			if (eui64_hostton(optarg, &target) != 0 &&
+			    eui64_aton(optarg, &target) != 0)
+				errx(EX_USAGE, "%s: invalid target: %s", __func__, optarg);
 			break;
 		case 'o':
-			open_dev(&fd, devbase);
-			tmp = str2node(fd, optarg);
-			send_link_on(fd, tmp);
+			send_link_on = str2node(fd, optarg);
+			if ( (send_link_on < 0) || (send_link_on > MAX_PHY_CONFIG) )
+				errx(EX_USAGE, "%s: node out of range: %s\n",__func__, optarg);
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'p':
-			open_dev(&fd, devbase);
-			dump_phy_registers(fd);
+			dump_phy_reg = 1;
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'r':
-			open_dev(&fd, devbase);
-			if(ioctl(fd, FW_IBUSRST, &tmp) < 0)
-                       		err(1, "ioctl");
+			send_bus_reset = 1;
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 's':
-			open_dev(&fd, devbase);
-			tmp = str2node(fd, optarg);
-			reset_start(fd, tmp);
+			send_reset_start  = str2node(fd, optarg);
+			if ( (send_reset_start < 0) || (send_reset_start > MAX_PHY_CONFIG) )
+				errx(EX_USAGE, "%s: node out of range: %s\n", __func__, optarg);
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 't':
-			open_dev(&fd, devbase);
-			show_topology_map(fd);
+			dump_topology = 1;
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'u':
-			tmp = strtol(optarg, NULL, 0);
-			snprintf(devbase, sizeof(devbase), "/dev/fw%ld", tmp);
-			if (fd > 0) {
-				close(fd);
-				fd = -1;
-			}
-			if (argc == optind) {
-				open_dev(&fd, devbase);
-				list_dev(fd);
-			}
+			if(!command_set)
+				display_board_only = true;
+			current_board = strtol(optarg, NULL, 0);
+			open_needed = true;
 			break;
-#define TAG	(1<<6)
-#define CHANNEL	63
 		case 'M':
 			switch (optarg[0]) {
 			case 'm':
@@ -774,22 +904,186 @@ main(int argc, char **argv)
 				errx(EX_USAGE, "unrecognized method: %s",
 				    optarg);
 			}
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'R':
-			open_dev(&fd, devbase);
-			if (recvfn == NULL) /* guess... */
-				recvfn = detect_recv_fn(fd, TAG | CHANNEL);
-			close(fd);
-			fd = -1;
-			open_dev(&fd, devbase);
-			(*recvfn)(fd, optarg, TAG | CHANNEL, -1);
+			recv_data = malloc(strlen(optarg)+1);
+			if (recv_data == NULL)
+				err(EX_SOFTWARE, "%s:recv_data malloc", __func__);
+			strcpy(recv_data, optarg);
+			open_needed = false;
+			command_set = true;
+			display_board_only = false;
 			break;
 		case 'S':
-			open_dev(&fd, devbase);
-			dvsend(fd, optarg, TAG | CHANNEL, -1);
+			send_data = malloc(strlen(optarg)+1);
+			if (send_data == NULL)
+				err(EX_SOFTWARE, "%s:send_data malloc", __func__);
+			strcpy(send_data, optarg);
+			open_needed = true;
+			command_set = true;
+			display_board_only = false;
 			break;
+		case '?':
 		default:
 			usage();
+		        warnc(EINVAL, "%s: Unknown command line arguments", __func__);
+			return 0;
 		}
+	} /* end while */
+
+       /*
+	* Catch the error case when the user
+	* executes the command with non ''-''
+	* delimited arguments.
+	* Generate the usage() display and exit.
+	*/
+	if (!command_set && !display_board_only) {
+		usage();
+		warnc(EINVAL, "%s: Unknown command line arguments", __func__);
+		return 0;
+	}
+
+       /*
+	* If -u <bus_number> is passed, execute 
+	* command for that card only.
+	*
+	* If -u <bus_number> is not passed, execute
+	* command for card 0 only. 
+	*
+	*/
+	if(open_needed){
+		snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
+		if (open_dev(&fd, devbase) < 0) {
+		  err(EX_IOERR, "%s: Error opening firewire controller #%d %s", __func__, current_board, devbase);
+		}
+	}
+	/*
+	 * display the nodes on this board "-u"
+	 * only
+	 */
+	if (display_board_only)
+		list_dev(fd);
+
+	/*
+	 * dump_phy_reg "-p" 
+	 */
+	if (dump_phy_reg)
+		dump_phy_registers(fd);
+			
+	/*
+	 * send a BUS_RESET Event "-r"
+	 */
+	if (send_bus_reset) {
+		if(ioctl(fd, FW_IBUSRST, &tmp) < 0)
+               		err(EX_IOERR, "%s: Ioctl of bus reset failed for %s", __func__, devbase);
+	}
+	/*
+	 * Print out the CROM for this node "-c"
+	 */
+	if (display_crom) {
+		tmp = str2node(fd, crom_string);
+		get_crom(fd, tmp, crom_buf, len);
+		show_crom(crom_buf);
+		free(crom_string);
+	}
+	/*
+	 * Hex Dump the CROM for this node "-d"
+	 */
+	if (display_crom_hex) {
+		tmp = str2node(fd, crom_string_hex);
+		get_crom(fd, tmp, crom_buf_hex, len);
+		dump_crom(crom_buf_hex);
+		free(crom_string_hex);
+	}
+	/*
+	 * Set Priority Budget to value for this node "-b"
+	 */
+	if (priority_budget >= 0)
+		set_pri_req(fd, priority_budget);
+
+	/*
+	 * Explicitly set the root node of this bus to value "-f"
+	 */
+	if (set_root_node >= 0)
+		send_phy_config(fd, set_root_node, -1);
+
+	/*
+	 * Set the gap count for this card/bus  "-g"
+	 */
+	if (set_gap_count >= 0)
+		send_phy_config(fd, -1, set_gap_count);
+
+	/*
+	 * Load a CROM from a file "-l"
+	 */
+	if (load_crom_from_file)
+		show_crom(crom_buf);
+	/*
+	 * Set the fwmem target for a node to argument "-m"
+	 */
+	if (set_fwmem_target) {
+		eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
+		eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
+#if defined(__FreeBSD__)
+		sysctl_set_int("hw.firewire.fwmem.eui64_hi", eui.hi);
+		sysctl_set_int("hw.firewire.fwmem.eui64_lo", eui.lo);
+#elif defined(__NetBSD__)
+		sysctl_set_int("hw.fwmem.eui64_hi", eui.hi);
+		sysctl_set_int("hw.fwmem.eui64_lo", eui.lo);
+#else
+#warning "You need to add support for your OS"
+#endif
+
+	}
+
+	/*
+	 * Send a link on to this board/bus "-o"
+	 */
+	if (send_link_on >= 0)
+		link_on(fd, send_link_on);
+
+	/*
+	 * Send a reset start to this board/bus "-s"
+	 */
+	if (send_reset_start >= 0)
+		reset_start(fd, send_reset_start);
+
+	/*
+	 * Dump the node topology for this board/bus "-t"
+	 */
+	if (dump_topology)
+		show_topology_map(fd);
+
+	/*
+	 * Recieve data file from node "-R"
+	 */
+#define TAG	(1<<6)
+#define CHANNEL	63
+	if (recv_data != NULL){
+		if (recvfn == NULL) { /* guess... */
+			recvfn = detect_recv_fn(fd, TAG | CHANNEL);
+			close(fd);
+		}
+		snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
+		if (open_dev(&fd, devbase) < 0)
+		  err(EX_IOERR, "%s: Error opening firewire controller #%d %s in recv_data\n", __func__, current_board, devbase);
+		(*recvfn)(fd, recv_data, TAG | CHANNEL, -1);
+		free(recv_data);
+	}
+
+	/*
+	 * Send data file to node "-S"
+	 */
+	if (send_data != NULL){
+		dvsend(fd, send_data, TAG | CHANNEL, -1);
+		free(send_data);
+	}
+
+	if (fd > 0) {
+		close(fd);
+		fd = -1;
+	}
 	return 0;
 }

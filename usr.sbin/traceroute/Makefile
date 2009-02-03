@@ -5,7 +5,7 @@ TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
 
 PROG=	traceroute
 MAN=	traceroute.8
-SRCS=	version.c traceroute.c ifaddrlist.c findsaddr-socket.c
+SRCS=	as.c version.c traceroute.c ifaddrlist.c findsaddr-socket.c
 BINOWN=	root
 BINMODE=4555
 CLEANFILES=	version.c

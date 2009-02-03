@@ -525,7 +525,6 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
-	m->md.pv_list_count = 0;
 }
 
 #ifdef PAE
@@ -982,14 +981,13 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	PMAP_LOCK(pmap);
 	pde = pmap->pm_pdir[va >> PDRSHIFT];
 	if (pde != 0) {
-		if ((pde & PG_PS) != 0) {
+		if ((pde & PG_PS) != 0)
 			rtval = (pde & PG_PS_FRAME) | (va & PDRMASK);
-			PMAP_UNLOCK(pmap);
-			return rtval;
+		else {
+			pte = pmap_pte(pmap, va);
+			rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
+			pmap_pte_release(pte);
 		}
-		pte = pmap_pte(pmap, va);
-		rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
-		pmap_pte_release(pte);
 	}
 	PMAP_UNLOCK(pmap);
 	return (rtval);
@@ -1628,13 +1626,10 @@ pmap_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		/*
-		 * This index is bogus, but out of the way
-		 */
-		nkpg = vm_page_alloc(NULL, nkpt,
+		nkpg = vm_page_alloc(NULL, kernel_vm_end >> PDRSHIFT,
 		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
-		if (!nkpg)
+		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
 
 		nkpt++;
@@ -1766,7 +1761,6 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 			if (TAILQ_EMPTY(&m->md.pv_list))
 				vm_page_flag_clear(m, PG_WRITEABLE);
-			m->md.pv_list_count--;
 			free_pv_entry(pmap, pv);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
@@ -1921,7 +1915,6 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 	}
 	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found"));
 	TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-	m->md.pv_list_count--;
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		vm_page_flag_clear(m, PG_WRITEABLE);
 	free_pv_entry(pmap, pv);
@@ -1941,7 +1934,6 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv = get_pv_entry(pmap, FALSE);
 	pv->pv_va = va;
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-	m->md.pv_list_count++;
 }
 
 /*
@@ -1958,7 +1950,6 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count++;
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -2176,7 +2167,6 @@ pmap_remove_all(vm_page_t m)
 		pmap_invalidate_page(pmap, pv->pv_va);
 		pmap_free_zero_pages(free);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count--;
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -2684,9 +2674,8 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
  * are taken, but the code works.
  */
 void
-pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex,
-		    vm_size_t size)
+pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
+    vm_pindex_t pindex, vm_size_t size)
 {
 	vm_page_t p;
 
@@ -2791,7 +2780,7 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 
 void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
-	  vm_offset_t src_addr)
+    vm_offset_t src_addr)
 {
 	vm_page_t   free;
 	vm_offset_t addr;
@@ -3117,7 +3106,6 @@ pmap_remove_pages(pmap_t pmap)
 				PV_STAT(pv_entry_spare++);
 				pv_entry_count--;
 				pc->pc_map[field] |= bitmask;
-				m->md.pv_list_count--;
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_flag_clear(m, PG_WRITEABLE);
@@ -3420,10 +3408,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 }
 
 int
-pmap_change_attr(va, size, mode)
-	vm_offset_t va;
-	vm_size_t size;
-	int mode;
+pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
 	vm_offset_t base, offset, tmpva;
 	pt_entry_t *pte;

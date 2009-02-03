@@ -70,6 +70,18 @@ __archive_string_copy(struct archive_string *dest, struct archive_string *src)
 }
 
 void
+__archive_string_concat(struct archive_string *dest, struct archive_string *src)
+{
+	if (src->length > 0) {
+		if (__archive_string_ensure(dest, dest->length + src->length + 1) == NULL)
+			__archive_errx(1, "Out of memory");
+		memcpy(dest->s + dest->length, src->s, src->length);
+		dest->length += src->length;
+		dest->s[dest->length] = 0;
+	}
+}
+
+void
 __archive_string_free(struct archive_string *as)
 {
 	as->length = 0;

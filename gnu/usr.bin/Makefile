@@ -34,12 +34,16 @@ _groff=		groff
 _cvs=		cvs
 .endif
 
+.if ${MK_INFO} != "no"
+_texinfo=	texinfo
+.endif
+
 .if ${MK_MAN} != "no"
 _man=		man
 .endif
 
-.if ${MK_INFO} != "no"
-_texinfo=	texinfo
+.if ${MK_RCS} != "no"
+_rcs=		rcs
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
@@ -48,9 +52,6 @@ _cc=		cc
 .if ${MK_GDB} != "no"
 _gdb=		gdb
 .endif
-.endif
-.if ${MK_RCS} != "no"
-_rcs=		rcs
 .endif
 
 .include <bsd.subdir.mk>

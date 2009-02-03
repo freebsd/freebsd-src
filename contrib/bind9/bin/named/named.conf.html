@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named.conf.html,v 1.1.2.35 2007/08/19 23:26:13 marka Exp $ -->
+<!-- $Id: named.conf.html,v 1.1.2.36 2008/09/05 01:32:08 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">named.conf</code> </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2542042"></a><h2>DESCRIPTION</h2>
+<a name="id2543342"></a><h2>DESCRIPTION</h2>
 <p><code class="filename">named.conf</code> is the configuration file
       for
       <span><strong class="command">named</strong></span>.  Statements are enclosed
@@ -50,14 +50,14 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543367"></a><h2>ACL</h2>
+<a name="id2543370"></a><h2>ACL</h2>
 <div class="literallayout"><p><br>
 acl <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543383"></a><h2>KEY</h2>
+<a name="id2543386"></a><h2>KEY</h2>
 <div class="literallayout"><p><br>
 key <em class="replaceable"><code>domain_name</code></em> {<br>
 	algorithm <em class="replaceable"><code>string</code></em>;<br>
@@ -66,7 +66,7 @@ key <em class="replaceable"><code>domain_name</code></em> {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543402"></a><h2>MASTERS</h2>
+<a name="id2543405"></a><h2>MASTERS</h2>
 <div class="literallayout"><p><br>
 masters <em class="replaceable"><code>string</code></em> [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
 	( <em class="replaceable"><code>masters</code></em> | <em class="replaceable"><code>ipv4_address</code></em> [<span class="optional">port <em class="replaceable"><code>integer</code></em></span>] |<br>
@@ -75,7 +75,7 @@ masters <em class="replaceable"><code>string</code></em> [<span class="optional"
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543448"></a><h2>SERVER</h2>
+<a name="id2543451"></a><h2>SERVER</h2>
 <div class="literallayout"><p><br>
 server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/prefixlen</span>]</code></em> | <em class="replaceable"><code>ipv6_address[<span class="optional">/prefixlen</span>]</code></em> ) {<br>
 	bogus <em class="replaceable"><code>boolean</code></em>;<br>
@@ -97,7 +97,7 @@ server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/pref
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543516"></a><h2>TRUSTED-KEYS</h2>
+<a name="id2543520"></a><h2>TRUSTED-KEYS</h2>
 <div class="literallayout"><p><br>
 trusted-keys {<br>
 	<em class="replaceable"><code>domain_name</code></em> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
@@ -105,7 +105,7 @@ trusted-keys {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543542"></a><h2>CONTROLS</h2>
+<a name="id2543545"></a><h2>CONTROLS</h2>
 <div class="literallayout"><p><br>
 controls {<br>
 	inet ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> | * )<br>
@@ -117,7 +117,7 @@ controls {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543577"></a><h2>LOGGING</h2>
+<a name="id2543580"></a><h2>LOGGING</h2>
 <div class="literallayout"><p><br>
 logging {<br>
 	channel <em class="replaceable"><code>string</code></em> {<br>
@@ -135,7 +135,7 @@ logging {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543616"></a><h2>LWRES</h2>
+<a name="id2543619"></a><h2>LWRES</h2>
 <div class="literallayout"><p><br>
 lwres {<br>
 	listen-on [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
@@ -148,7 +148,7 @@ lwres {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543657"></a><h2>OPTIONS</h2>
+<a name="id2543660"></a><h2>OPTIONS</h2>
 <div class="literallayout"><p><br>
 options {<br>
 	avoid-v4-udp-ports { <em class="replaceable"><code>port</code></em>; ... };<br>
@@ -172,6 +172,7 @@ options {<br>
 	port <em class="replaceable"><code>integer</code></em>;<br>
 	querylog <em class="replaceable"><code>boolean</code></em>;<br>
 	recursing-file <em class="replaceable"><code>quoted_string</code></em>;<br>
+	reserved-sockets <em class="replaceable"><code>integer</code></em>;<br>
 	random-device <em class="replaceable"><code>quoted_string</code></em>;<br>
 	recursive-clients <em class="replaceable"><code>integer</code></em>;<br>
 	serial-query-rate <em class="replaceable"><code>integer</code></em>;<br>
@@ -313,7 +314,7 @@ options {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544401"></a><h2>VIEW</h2>
+<a name="id2544407"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -453,7 +454,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544966"></a><h2>ZONE</h2>
+<a name="id2544972"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	type ( master | slave | stub | hint |<br>
@@ -538,12 +539,12 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545319"></a><h2>FILES</h2>
+<a name="id2545325"></a><h2>FILES</h2>
 <p><code class="filename">/etc/named.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545331"></a><h2>SEE ALSO</h2>
+<a name="id2545337"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,

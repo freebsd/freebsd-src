@@ -465,13 +465,6 @@ in_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
 	return (rtalloc1_fib(dst, report, ignflags, fibnum));
 }
 
-int
-in_rt_check(struct rtentry **lrt, struct rtentry **lrt0,
-	struct sockaddr *dst, u_int fibnum)
-{
-	return (rt_check_fib(lrt, lrt0, dst, fibnum));
-}
-
 void
 in_rtredirect(struct sockaddr *dst,
 	struct sockaddr *gateway,
