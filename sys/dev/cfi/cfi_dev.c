@@ -252,26 +252,31 @@ cfi_devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	int error;
 	u_char val;
 
-	if (cmd != CFIOCQRY)
-		return (ENOIOCTL);
-
 	sc = dev->si_drv1;
+	error = 0;
 
-	error = (sc->sc_writing) ? cfi_block_finish(sc) : 0;
-	if (error)
-		return (error);
+	switch(cmd) {
+	case CFIOCQRY:
+		if (sc->sc_writing) {
+			error = cfi_block_finish(sc);
+			if (error)
+				break;
+		}
 
-	rq = (struct cfiocqry *)data;
+		rq = (struct cfiocqry *)data;
+		if (rq->offset >= sc->sc_size / sc->sc_width)
+			return (ESPIPE);
+		if (rq->offset + rq->count > sc->sc_size / sc->sc_width)
+			return (ENOSPC);
 
-	if (rq->offset >= sc->sc_size / sc->sc_width)
-		return (ESPIPE);
-	if (rq->offset + rq->count > sc->sc_size / sc->sc_width)
-		return (ENOSPC);
-
-	while (!error && rq->count--) {
-		val = cfi_read_qry(sc, rq->offset++);
-		error = copyout(&val, rq->buffer++, 1);
+		while (!error && rq->count--) {
+			val = cfi_read_qry(sc, rq->offset++);
+			error = copyout(&val, rq->buffer++, 1);
+		}
+		break;
+	default:
+		error = ENOIOCTL;
+		break;
 	}
-
 	return (error);
 }
