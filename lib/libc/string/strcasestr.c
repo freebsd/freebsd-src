@@ -40,8 +40,7 @@ __FBSDID("$FreeBSD$");
  * Find the first occurrence of find in s, ignore case.
  */
 char *
-strcasestr(s, find)
-	const char *s, *find;
+strcasestr(const char *s, const char *find)
 {
 	char c, sc;
 	size_t len;

@@ -37,10 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 wchar_t	*
-wmemset(s, c, n)
-	wchar_t *s;
-	wchar_t c;
-	size_t n;
+wmemset(wchar_t *s, wchar_t *c, size_t n)
 {
 	size_t i;
 	wchar_t *p;
