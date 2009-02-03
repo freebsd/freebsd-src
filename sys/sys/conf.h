@@ -219,8 +219,6 @@ struct cdevsw {
 #define	d_gianttrick		__d_giant.gianttrick
 #define	d_postfree_list		__d_giant.postfree_list
 
-#define NUMCDEVSW 256
-
 struct module;
 
 struct devsw_module_data {
