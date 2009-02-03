@@ -1023,16 +1023,16 @@ set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 		switch (sscanf(cp, "%u-%u", &first, &last)) {
 		case 1:
 			if (first > IEEE80211_CHAN_MAX)
-				errx(-1, "channel %u out of range, max %zu",
+				errx(-1, "channel %u out of range, max %u",
 					first, IEEE80211_CHAN_MAX);
 			setbit(chanlist.ic_channels, first);
 			break;
 		case 2:
 			if (first > IEEE80211_CHAN_MAX)
-				errx(-1, "channel %u out of range, max %zu",
+				errx(-1, "channel %u out of range, max %u",
 					first, IEEE80211_CHAN_MAX);
 			if (last > IEEE80211_CHAN_MAX)
-				errx(-1, "channel %u out of range, max %zu",
+				errx(-1, "channel %u out of range, max %u",
 					last, IEEE80211_CHAN_MAX);
 			if (first > last)
 				errx(-1, "void channel range, %u > %u",
