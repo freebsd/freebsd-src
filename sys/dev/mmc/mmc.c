@@ -105,9 +105,9 @@ struct mmc_ivars {
 
 #define CMD_RETRIES	3
 
-SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, 0, "mmc driver");
+SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
 
-int	mmc_debug;
+static int mmc_debug;
 SYSCTL_INT(_hw_mmc, OID_AUTO, debug, CTLFLAG_RW, &mmc_debug, 0, "Debug level");
 
 /* bus entry points */
@@ -570,7 +570,8 @@ mmc_switch(struct mmc_softc *sc, uint8_t set, uint8_t index, uint8_t value)
 }
 
 static int
-mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, uint8_t *res)
+mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value,
+    uint8_t *res)
 {
 	int err;
 	struct mmc_command cmd;
@@ -578,11 +579,11 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, ui
 
 	memset(&cmd, 0, sizeof(struct mmc_command));
 	memset(&data, 0, sizeof(struct mmc_data));
-
 	memset(res, 0, 64);
+
 	cmd.opcode = SD_SWITCH_FUNC;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-	cmd.arg = mode << 31;
+	cmd.arg = mode << 31;			/* 0 - check, 1 - set */
 	cmd.arg |= 0x00FFFFFF;
 	cmd.arg &= ~(0xF << (grp * 4));
 	cmd.arg |= value << (grp * 4);
@@ -656,7 +657,8 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 		return (MMC_ERR_INVALID);
 	}
 	if (mmcbr_get_mode(sc->dev) == mode_sd)
-		err = mmc_sd_switch(sc, 1, 0, value, switch_res);
+		err = mmc_sd_switch(sc, SD_SWITCH_MODE_SET, SD_SWITCH_GROUP1,
+		    value, switch_res);
 	else
 		err = mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL,
 		    EXT_CSD_HS_TIMING, value);
@@ -1144,6 +1146,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 		if (mmcbr_get_ro(sc->dev))
 			ivar->read_only = 1;
 		ivar->bus_width = bus_width_1;
+		ivar->timing = bus_timing_normal;
 		ivar->mode = mmcbr_get_mode(sc->dev);
 		if (ivar->mode == mode_sd) {
 			mmc_decode_cid_sd(ivar->raw_cid, &ivar->cid);
@@ -1162,14 +1165,15 @@ mmc_discover_cards(struct mmc_softc *sc)
 			mmc_select_card(sc, ivar->rca);
 			mmc_app_send_scr(sc, ivar->rca, ivar->raw_scr);
 			mmc_app_decode_scr(ivar->raw_scr, &ivar->scr);
-			/* Get card switch capabilities. */
-			ivar->timing = bus_timing_normal;
+			/* Get card switch capabilities (command class 10). */
 			if ((ivar->scr.sda_vsn >= 1) &&
 			    (ivar->csd.ccc & (1<<10))) {
-				mmc_sd_switch(sc, 0, 0, 0xF, switch_res);
+				mmc_sd_switch(sc, SD_SWITCH_MODE_CHECK,
+				    SD_SWITCH_GROUP1, SD_SWITCH_NOCHANGE,
+				    switch_res);
 				if (switch_res[13] & 2) {
 					ivar->timing = bus_timing_hs;
-					ivar->hs_tran_speed = 50000000;
+					ivar->hs_tran_speed = SD_MAX_HS;
 				}
 			}
 			mmc_app_sd_status(sc, ivar->rca, ivar->raw_sd_status);
@@ -1221,10 +1225,10 @@ mmc_discover_cards(struct mmc_softc *sc)
 			ivar->timing = bus_timing_hs;
 			if (ivar->raw_ext_csd[EXT_CSD_CARD_TYPE]
 			    & EXT_CSD_CARD_TYPE_52)
-				ivar->hs_tran_speed = 52000000;
+				ivar->hs_tran_speed = MMC_TYPE_52_MAX_HS;
 			else if (ivar->raw_ext_csd[EXT_CSD_CARD_TYPE]
 			    & EXT_CSD_CARD_TYPE_26)
-				ivar->hs_tran_speed = 26000000;
+				ivar->hs_tran_speed = MMC_TYPE_26_MAX_HS;
 			else
 				ivar->hs_tran_speed = ivar->tran_speed;
 			/* Find max supported bus width. */
@@ -1524,5 +1528,5 @@ static driver_t mmc_driver = {
 static devclass_t mmc_devclass;
 
 
-DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, 0, 0);
-DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, 0, 0);
+DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);
