@@ -29,6 +29,35 @@
 #ifndef __PPBCONF_H
 #define __PPBCONF_H
 
+#define n(flags) (~(flags) & (flags))
+
+/*
+ * Parallel Port Chipset control bits.
+ */
+#define STROBE		0x01
+#define AUTOFEED	0x02
+#define nINIT		0x04
+#define SELECTIN	0x08
+#define IRQENABLE	0x10
+#define PCD		0x20
+
+#define nSTROBE		n(STROBE)
+#define nAUTOFEED	n(AUTOFEED)
+#define INIT		n(nINIT)
+#define nSELECTIN	n(SELECTIN)
+#define nPCD		n(PCD)
+
+/*
+ * Parallel Port Chipset status bits.
+ */
+#define TIMEOUT		0x01
+#define nFAULT		0x08
+#define SELECT		0x10
+#define PERROR		0x20
+#define nACK		0x40
+#define nBUSY		0x80
+
+#ifdef _KERNEL
 #include <sys/queue.h>
 
 /*
@@ -58,34 +87,6 @@
 #define PPB_IN_EPP_MODE(bus) (PPB_IS_EPP (ppb_get_mode (bus)))
 #define PPB_IN_NIBBLE_MODE(bus) (ppb_get_mode (bus) & PPB_NIBBLE)
 #define PPB_IN_PS2_MODE(bus) (ppb_get_mode (bus) & PPB_PS2)
-
-#define n(flags) (~(flags) & (flags))
-
-/*
- * Parallel Port Chipset control bits.
- */
-#define STROBE		0x01
-#define AUTOFEED	0x02
-#define nINIT		0x04
-#define SELECTIN	0x08
-#define IRQENABLE	0x10
-#define PCD		0x20
-
-#define nSTROBE		n(STROBE)
-#define nAUTOFEED	n(AUTOFEED)
-#define INIT		n(nINIT)
-#define nSELECTIN	n(SELECTIN)
-#define nPCD		n(PCD)
-
-/*
- * Parallel Port Chipset status bits.
- */
-#define TIMEOUT		0x01
-#define nFAULT		0x08
-#define SELECT		0x10
-#define PERROR		0x20
-#define nACK		0x40
-#define nBUSY		0x80
 
 /*
  * Structure to store status information.
@@ -251,7 +252,6 @@ struct callout;
 
 typedef int (*ppc_intr_handler)(void *);
 
-#ifdef _KERNEL
 extern int ppb_attach_device(device_t);
 extern int ppb_request_bus(device_t, device_t, int);
 extern int ppb_release_bus(device_t, device_t);
