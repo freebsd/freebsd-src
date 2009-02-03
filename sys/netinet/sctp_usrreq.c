@@ -908,6 +908,7 @@ sctp_disconnect(struct socket *so)
 					sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING, SCTP_SO_LOCKED);
 				}
 			}
+			soisdisconnecting(so);
 			SCTP_TCB_UNLOCK(stcb);
 			SCTP_INP_RUNLOCK(inp);
 			return (0);
@@ -980,6 +981,11 @@ sctp_shutdown(struct socket *so)
 		struct sctp_tcb *stcb;
 		struct sctp_association *asoc;
 
+		if ((so->so_state &
+		    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
+			SCTP_INP_RUNLOCK(inp);
+			return (ENOTCONN);
+		}
 		socantsendmore(so);
 
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
@@ -3515,6 +3521,22 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			if (events->sctp_sender_dry_event) {
 				sctp_feature_on(inp, SCTP_PCB_FLAGS_DRYEVNT);
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
+					stcb = LIST_FIRST(&inp->sctp_asoc_list);
+					if (stcb) {
+						SCTP_TCB_LOCK(stcb);
+					}
+					if (stcb &&
+					    TAILQ_EMPTY(&stcb->asoc.send_queue) &&
+					    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
+					    (stcb->asoc.stream_queue_cnt == 0)) {
+						sctp_ulp_notify(SCTP_NOTIFY_SENDER_DRY, stcb, 0, NULL, SCTP_SO_LOCKED);
+					}
+					if (stcb) {
+						SCTP_TCB_UNLOCK(stcb);
+					}
+				}
 			} else {
 				sctp_feature_off(inp, SCTP_PCB_FLAGS_DRYEVNT);
 			}

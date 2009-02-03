@@ -36,16 +36,10 @@ __FBSDID("$FreeBSD$");
 #ifndef __crc32c_h__
 #define __crc32c_h__
 
-#ifndef SCTP_USE_ADLER32
-
 #if defined(_KERNEL) || defined(__Userspace__)
-uint32_t update_crc32(uint32_t, unsigned char *, unsigned int);
-
-uint32_t old_update_crc32(uint32_t, unsigned char *, unsigned int);
-
-uint32_t sctp_csum_finalize(uint32_t);
-
+uint32_t sctp_calculate_cksum(struct mbuf *, uint32_t);
+void sctp_delayed_cksum(struct mbuf *);
 
 #endif				/* _KERNEL */
-#endif				/* !SCTP_USE_ADLER32 */
+
 #endif				/* __crc32c_h__ */

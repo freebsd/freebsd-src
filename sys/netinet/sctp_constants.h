@@ -37,8 +37,15 @@ __FBSDID("$FreeBSD$");
 #define __sctp_constants_h__
 
 /* IANA assigned port number for SCTP over UDP encapsulation */
-#define SCTP_OVER_UDP_TUNNELING_PORT 9899
-
+/* For freebsd we cannot bind the port at
+ * startup. Otherwise what will happen is
+ * we really won't be bound. The user must
+ * put it into the sysctl... or we need
+ * to build a special timer for this to allow
+ * us to wait 1 second or so after the system
+ * comes up.
+ */
+#define SCTP_OVER_UDP_TUNNELING_PORT 0
 /* Number of packets to get before sack sent by default */
 #define SCTP_DEFAULT_SACK_FREQ 2
 
@@ -310,10 +317,6 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_PARTIAL_DELIVERY_SHIFT 1
 
-/* Minimum number of bytes read by user before we
- * condsider doing a rwnd update
- */
-
 /*
  * default HMAC for cookies, etc... use one of the AUTH HMAC id's
  * SCTP_HMAC is the HMAC_ID to use
@@ -322,21 +325,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_HMAC		SCTP_AUTH_HMAC_ID_SHA1
 #define SCTP_SIGNATURE_SIZE	SCTP_AUTH_DIGEST_LEN_SHA1
 #define SCTP_SIGNATURE_ALOC_SIZE SCTP_SIGNATURE_SIZE
-
-/* DEFINE HERE WHAT CRC YOU WANT TO USE */
-#define SCTP_USECRC_RFC2960  1
-/* #define SCTP_USECRC_FLETCHER 1 */
-/* #define SCTP_USECRC_SSHCRC32 1 */
-/* #define SCTP_USECRC_FASTCRC32 1 */
-/* #define SCTP_USECRC_CRC32 1 */
-/* #define SCTP_USECRC_TCP32 1 */
-/* #define SCTP_USECRC_CRC16SMAL 1 */
-/* #define SCTP_USECRC_CRC16 1 */
-/* #define SCTP_USECRC_MODADLER 1 */
-
-#ifndef SCTP_ADLER32_BASE
-#define SCTP_ADLER32_BASE 65521
-#endif
 
 /*
  * the SCTP protocol signature this includes the version number encoded in
@@ -619,41 +607,14 @@ __FBSDID("$FreeBSD$");
 
 
 
-/*
- * Number of ticks before the soxwakeup() event that is delayed is sent AFTER
- * the accept() call
- */
-
-/*
- * Of course we really don't collect stale cookies, being folks of decerning
- * taste. However we do count them, if we get too many before the association
- * comes up.. we give up. Below is the constant that dictates when we give it
- * up...this is a implemenation dependent treatment. In ours we do not ask
- * for a extension of time, but just retry this many times...
- */
-
 /* max number of TSN's dup'd that I will hold */
 #define SCTP_MAX_DUP_TSNS	20
 
 /*
  * Here we define the types used when setting the retry amounts.
  */
-/* constants for type of set */
-
-/* Maximum TSN's we will summarize in a drop report */
-
 /* How many drop re-attempts we make on  INIT/COOKIE-ECHO */
 #define SCTP_RETRY_DROPPED_THRESH 4
-
-/*
- * And the max we will keep a history of in the tcb which MUST be lower than
- * 256.
- */
-
-/*
- * Here we define the default timers and the default number of attemts we
- * make for each respective side (send/init).
- */
 
 /*
  * Maxmium number of chunks a single association can have on it. Note that
@@ -763,7 +724,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEBUG_INDATA1	0x01000000
 #define SCTP_DEBUG_INDATA2	0x02000000	/* unused */
 #define SCTP_DEBUG_INDATA3	0x04000000	/* unused */
-#define SCTP_DEBUG_INDATA4	0x08000000	/* unused */
+#define SCTP_DEBUG_CRCOFFLOAD	0x08000000	/* unused */
 #define SCTP_DEBUG_USRREQ1	0x10000000	/* unused */
 #define SCTP_DEBUG_USRREQ2	0x20000000	/* unused */
 #define SCTP_DEBUG_PEEL1	0x40000000
@@ -783,7 +744,7 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_INITIAL_CWND 4380
 
-#define SCTP_DEFAULT_MTU 1500	/* emegency default MTU */
+#define SCTP_DEFAULT_MTU 1500	/* emergency default MTU */
 /* amount peer is obligated to have in rwnd or I will abort */
 #define SCTP_MIN_RWND	1500
 
@@ -995,13 +956,6 @@ __FBSDID("$FreeBSD$");
  * reject it.
  */
 #define SCTP_STACK_VTAG_HASH_SIZE   32
-
-
-/*
- * If we use the per-endpoint model than we do not have a hash table of
- * entries but instead have a single head pointer and we must crawl through
- * the entire list.
- */
 
 /*
  * Number of seconds of time wait for a vtag.

@@ -804,6 +804,10 @@ struct sctpstat {
 	uint32_t sctps_recvexpress;	/* total fast path receives all one
 					 * chunk */
 	uint32_t sctps_recvexpressm;	/* total fast path multi-part data */
+	uint32_t sctps_recvnocrc;
+	uint32_t sctps_recvswcrc;
+	uint32_t sctps_recvhwcrc;
+
 	/* output statistics: */
 	uint32_t sctps_sendpackets;	/* total output packets       */
 	uint32_t sctps_sendsacks;	/* total output SACKs         */
@@ -820,6 +824,9 @@ struct sctpstat {
 	uint32_t sctps_sendecne;/* total output ECNE chunks    */
 	uint32_t sctps_sendauth;/* total output AUTH chunks FIXME   */
 	uint32_t sctps_senderrors;	/* ip_output error counter */
+	uint32_t sctps_sendnocrc;
+	uint32_t sctps_sendswcrc;
+	uint32_t sctps_sendhwcrc;
 	/* PCKDROPREP statistics: */
 	uint32_t sctps_pdrpfmbox;	/* Packet drop from middle box */
 	uint32_t sctps_pdrpfehos;	/* P-drop from end host */
@@ -1009,6 +1016,7 @@ struct xsctp_tcb {
 	uint16_t remote_port;	/* sctpAssocEntry 4   */
 	struct sctp_timeval start_time;	/* sctpAssocEntry 16  */
 	struct sctp_timeval discontinuity_time;	/* sctpAssocEntry 17  */
+	sctp_assoc_t assoc_id;	/* sctpAssocEntry 1   */
 };
 
 struct xsctp_laddr {

@@ -2504,7 +2504,9 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	/* Pull the tcb from the old association */
 	LIST_REMOVE(stcb, sctp_tcbhash);
 	LIST_REMOVE(stcb, sctp_tcblist);
-
+	if (stcb->asoc.in_asocid_hash) {
+		LIST_REMOVE(stcb, sctp_tcbasocidhash);
+	}
 	/* Now insert the new_inp into the TCP connected hash */
 	head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport),
 	    SCTP_BASE_INFO(hashtcpmark))];
@@ -2520,7 +2522,13 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	 * only have one connection? Probably not :> so lets get rid of it
 	 * and not suck up any kernel memory in that.
 	 */
+	if (stcb->asoc.in_asocid_hash) {
+		struct sctpasochead *lhd;
 
+		lhd = &new_inp->sctp_asocidhash[SCTP_PCBHASH_ASOC(stcb->asoc.assoc_id,
+		    new_inp->hashasocidmark)];
+		LIST_INSERT_HEAD(lhd, stcb, sctp_tcbasocidhash);
+	}
 	/* Ok. Let's restart timer. */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, new_inp,
@@ -4652,7 +4660,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* pull from vtag hash */
 	LIST_REMOVE(stcb, sctp_asocs);
-	sctp_add_vtag_to_timewait(asoc->my_vtag, inp->sctp_lport, stcb->rport, SCTP_TIME_WAIT);
+	sctp_add_vtag_to_timewait(asoc->my_vtag, SCTP_TIME_WAIT, inp->sctp_lport, stcb->rport);
 
 	/*
 	 * Now restop the timers to be sure - this is paranoia at is finest!
@@ -4763,7 +4771,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 /*
-  if(ccnt) {
+  if (ccnt) {
   printf("Freed %d from send_queue\n", ccnt);
   ccnt = 0;
   }
@@ -4788,7 +4796,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 /*
-  if(ccnt) {
+  if (ccnt) {
   printf("Freed %d from sent_queue\n", ccnt);
   ccnt = 0;
   }
@@ -4813,7 +4821,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 /*
-  if(ccnt) {
+  if (ccnt) {
   printf("Freed %d from ctrl_queue\n", ccnt);
   ccnt = 0;
   }
@@ -4839,7 +4847,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 /*
-  if(ccnt) {
+  if (ccnt) {
   printf("Freed %d from asconf_queue\n", ccnt);
   ccnt = 0;
   }
@@ -4863,7 +4871,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 /*
-  if(ccnt) {
+  if (ccnt) {
   printf("Freed %d from reasm_queue\n", ccnt);
   ccnt = 0;
   }
@@ -5776,7 +5784,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 
 				/* ok get the v4 address and check/add */
 				phdr = sctp_get_next_param(m, offset,
-				    (struct sctp_paramhdr *)&p4_buf, sizeof(p4_buf));
+				    (struct sctp_paramhdr *)&p4_buf,
+				    sizeof(p4_buf));
 				if (plen != sizeof(struct sctp_ipv4addr_param) ||
 				    phdr == NULL) {
 					return (-5);
@@ -5858,7 +5867,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				struct sctp_ipv6addr_param *p6, p6_buf;
 
 				phdr = sctp_get_next_param(m, offset,
-				    (struct sctp_paramhdr *)&p6_buf, sizeof(p6_buf));
+				    (struct sctp_paramhdr *)&p6_buf,
+				    sizeof(p6_buf));
 				if (plen != sizeof(struct sctp_ipv6addr_param) ||
 				    phdr == NULL) {
 					return (-14);
@@ -5883,8 +5893,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				stcb_tmp = sctp_findassociation_ep_addr(&inp, sa, &net,
 				    local_sa, stcb);
 				atomic_add_int(&stcb->asoc.refcnt, -1);
-				if (stcb_tmp == NULL && (inp == stcb->sctp_ep ||
-				    inp == NULL)) {
+				if (stcb_tmp == NULL &&
+				    (inp == stcb->sctp_ep || inp == NULL)) {
 					/*
 					 * we must validate the state again
 					 * here
@@ -5965,7 +5975,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				return (-23);
 			}
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)&lstore, min(plen, sizeof(lstore)));
+			    (struct sctp_paramhdr *)&lstore,
+			    min(plen, sizeof(lstore)));
 			if (phdr == NULL) {
 				return (-24);
 			}
@@ -6154,6 +6165,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				break;
 			}
 		}
+
 next_param:
 		offset += SCTP_SIZE32(plen);
 		if (offset >= limit) {
@@ -6206,8 +6218,10 @@ next_param:
 			bcopy(p_random->random_data, new_key->key, random_len);
 	}
 #else
-	keylen = sizeof(*p_random) + random_len + sizeof(*chunks) + num_chunks +
-	    sizeof(*hmacs) + hmacs_len;
+	keylen = sizeof(*p_random) + random_len + sizeof(*hmacs) + hmacs_len;
+	if (chunks != NULL) {
+		keylen += sizeof(*chunks) + num_chunks;
+	}
 	new_key = sctp_alloc_key(keylen);
 	if (new_key != NULL) {
 		/* copy in the RANDOM */
@@ -6343,6 +6357,8 @@ skip_vtag_check:
 					/* Audit expires this guy */
 					twait_block->vtag_block[i].tv_sec_at_expire = 0;
 					twait_block->vtag_block[i].v_tag = 0;
+					twait_block->vtag_block[i].lport = 0;
+					twait_block->vtag_block[i].rport = 0;
 				} else if ((twait_block->vtag_block[i].v_tag == tag) &&
 					    (twait_block->vtag_block[i].lport == lport) &&
 				    (twait_block->vtag_block[i].rport == rport)) {

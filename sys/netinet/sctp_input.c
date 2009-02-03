@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_timer.h>
+#include <netinet/sctp_crc32.h>
 #include <netinet/udp.h>
 
 
@@ -1384,14 +1385,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			/* FOOBAR */
 			return (NULL);
 		}
-		/* pre-reserve some space */
-#ifdef INET6
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
-#else
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip));
-#endif
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
 		/* Set the len */
 		SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
 		ph = mtod(op_err, struct sctp_paramhdr *);
@@ -2504,15 +2497,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			/* FOOBAR */
 			return (NULL);
 		}
-		/* pre-reserve some space */
-#ifdef INET6
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
-#else
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip));
-#endif
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
-		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
-
 		/* Set the len */
 		SCTP_BUF_LEN(op_err) = sizeof(struct sctp_stale_cookie_msg);
 		scm = mtod(op_err, struct sctp_stale_cookie_msg *);
@@ -2598,9 +2582,9 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			}
 		}
 	}
-	if (to == NULL)
+	if (to == NULL) {
 		return (NULL);
-
+	}
 	cookie_len -= SCTP_SIGNATURE_SIZE;
 	if (*stcb == NULL) {
 		/* this is the "normal" case... get a new TCB */
@@ -5594,7 +5578,6 @@ sctp_input_with_port(i_pak, off, port)
 	int refcount_up = 0;
 	int length, mlen, offset;
 
-
 	if (SCTP_GET_PKT_VRFID(i_pak, vrf_id)) {
 		SCTP_RELEASE_PKT(i_pak);
 		return;
@@ -5642,6 +5625,11 @@ sctp_input_with_port(i_pak, off, port)
 		}
 		ip = mtod(m, struct ip *);
 	}
+	/* validate mbuf chain length with IP payload length */
+	if (mlen < (SCTP_GET_IPV4_LENGTH(ip) - iphlen)) {
+		SCTP_STAT_INCR(sctps_hdrops);
+		goto bad;
+	}
 	sh = (struct sctphdr *)((caddr_t)ip + iphlen);
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(*sh));
 	SCTPDBG(SCTP_DEBUG_INPUT1,
@@ -5659,15 +5647,26 @@ sctp_input_with_port(i_pak, off, port)
 		goto bad;
 	}
 	/* validate SCTP checksum */
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	    "sctp_input(): Packet of length %d received on %s with csum_flags 0x%x.\n",
+	    m->m_pkthdr.len,
+	    if_name(m->m_pkthdr.rcvif),
+	    m->m_pkthdr.csum_flags);
+	if (m->m_pkthdr.csum_flags & CSUM_SCTP_VALID) {
+		SCTP_STAT_INCR(sctps_recvhwcrc);
+		goto sctp_skip_csum_4;
+	}
 	check = sh->checksum;	/* save incoming checksum */
 	if ((check == 0) && (SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback)) &&
 	    ((ip->ip_src.s_addr == ip->ip_dst.s_addr) ||
 	    (SCTP_IS_IT_LOOPBACK(m)))
 	    ) {
+		SCTP_STAT_INCR(sctps_recvnocrc);
 		goto sctp_skip_csum_4;
 	}
 	sh->checksum = 0;	/* prepare for calc */
-	calc_check = sctp_calculate_sum(m, &mlen, iphlen);
+	calc_check = sctp_calculate_cksum(m, iphlen);
+	SCTP_STAT_INCR(sctps_recvswcrc);
 	if (calc_check != check) {
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
 		    calc_check, check, m, mlen, iphlen);
@@ -5696,11 +5695,6 @@ sctp_input_with_port(i_pak, off, port)
 sctp_skip_csum_4:
 	/* destination port of 0 is illegal, based on RFC2960. */
 	if (sh->dest_port == 0) {
-		SCTP_STAT_INCR(sctps_hdrops);
-		goto bad;
-	}
-	/* validate mbuf chain length with IP payload length */
-	if (mlen < (SCTP_GET_IPV4_LENGTH(ip) - iphlen)) {
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
 	}
