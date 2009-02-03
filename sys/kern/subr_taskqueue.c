@@ -114,7 +114,7 @@ _taskqueue_create(const char *name, int mflags,
 
 	queue = malloc(sizeof(struct taskqueue), M_TASKQUEUE, mflags | M_ZERO);
 	if (!queue)
-		return 0;
+		return NULL;
 
 	STAILQ_INIT(&queue->tq_queue);
 	queue->tq_name = name;
@@ -213,7 +213,7 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	if (!prev || prev->ta_priority >= task->ta_priority) {
 		STAILQ_INSERT_TAIL(&queue->tq_queue, task, ta_link);
 	} else {
-		prev = 0;
+		prev = NULL;
 		for (ins = STAILQ_FIRST(&queue->tq_queue); ins;
 		     prev = ins, ins = STAILQ_NEXT(ins, ta_link))
 			if (ins->ta_priority < task->ta_priority)
@@ -423,11 +423,11 @@ taskqueue_thread_enqueue(void *context)
 	wakeup_one(tq);
 }
 
-TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
+TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, NULL,
 		 swi_add(NULL, "task queue", taskqueue_swi_run, NULL, SWI_TQ,
 		     INTR_MPSAFE, &taskqueue_ih)); 
 
-TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, 0,
+TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, NULL,
 		 swi_add(NULL, "Giant taskq", taskqueue_swi_giant_run,
 		     NULL, SWI_TQ_GIANT, 0, &taskqueue_giant_ih)); 
 
@@ -462,6 +462,6 @@ taskqueue_fast_run(void *dummy)
 	taskqueue_run(taskqueue_fast);
 }
 
-TASKQUEUE_FAST_DEFINE(fast, taskqueue_fast_enqueue, 0,
+TASKQUEUE_FAST_DEFINE(fast, taskqueue_fast_enqueue, NULL,
 	swi_add(NULL, "Fast task queue", taskqueue_fast_run, NULL,
 	SWI_TQ_FAST, INTR_MPSAFE, &taskqueue_fast_ih));
