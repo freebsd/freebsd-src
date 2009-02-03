@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/cc_cubic.h>
-#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
