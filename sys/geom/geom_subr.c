@@ -882,12 +882,13 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 		}
 	} else if (bp->bio_length == len) {
 		bcopy(val, bp->bio_data, len);
-		bp->bio_completed = len;
 	} else {
 		printf("%s: %s bio_length %jd len %d -> EFAULT\n", __func__,
 		    bp->bio_to->name, (intmax_t)bp->bio_length, len);
 		error = EFAULT;
 	}
+	if (error == 0)
+		bp->bio_completed = bp->bio_length;
 	g_io_deliver(bp, error);
 	return (1);
 }
