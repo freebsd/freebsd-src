@@ -144,9 +144,7 @@ bioq_takefirst(struct bio_queue_head *head)
  * This implements the one-way scan which optimizes disk seek times.
  */
 void
-bioq_disksort(bioq, bp)
-	struct bio_queue_head *bioq;
-	struct bio *bp;
+bioq_disksort(struct bio_queue_head *bioq, struct bio *bp)
 {
 	struct bio *bq;
 	struct bio *bn;
