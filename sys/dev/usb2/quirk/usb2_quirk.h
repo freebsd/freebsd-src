@@ -28,56 +28,32 @@
 #define	_USB2_QUIRK_H_
 
 /* NOTE: UQ_NONE is not a valid quirk */
-
-#define	USB_QUIRK(m,n)					\
-  m(n, UQ_NONE)						\
-  /* left and right sound channels are swapped */	\
-  m(n, UQ_AUDIO_SWAP_LR)				\
-  /* input is async despite claim of adaptive */	\
-  m(n, UQ_AU_INP_ASYNC)					\
-  /* don't adjust for fractional samples */		\
-  m(n, UQ_AU_NO_FRAC)					\
-  /* audio device has broken extension unit */		\
-  m(n, UQ_AU_NO_XU)					\
-  /* bad audio spec version number */			\
-  m(n, UQ_BAD_ADC)					\
-  /* device claims audio class, but isn't */		\
-  m(n, UQ_BAD_AUDIO)					\
-  /* printer has broken bidir mode */			\
-  m(n, UQ_BROKEN_BIDIR)					\
-  /* device is bus powered, despite claim */		\
-  m(n, UQ_BUS_POWERED)					\
-  /* device should be ignored by hid class */		\
-  m(n, UQ_HID_IGNORE)					\
-  /* device should be ignored by kbd class */		\
-  m(n, UQ_KBD_IGNORE)					\
-  /* doesn't identify properly */			\
-  m(n, UQ_MS_BAD_CLASS)					\
-  /* mouse sends an unknown leading byte */		\
-  m(n, UQ_MS_LEADING_BYTE)				\
-  /* mouse has Z-axis reversed */			\
-  m(n, UQ_MS_REVZ)					\
-  /* string descriptors are broken */			\
-  m(n, UQ_NO_STRINGS)					\
-  /* device needs clear endpoint stall */		\
-  m(n, UQ_OPEN_CLEARSTALL)				\
-  /* hub lies about power status */			\
-  m(n, UQ_POWER_CLAIM)					\
-  /* spurious mouse button up events */			\
-  m(n, UQ_SPUR_BUT_UP)					\
-  /* has some Unicode strings swapped */		\
-  m(n, UQ_SWAP_UNICODE)					\
-  /* select configuration index 1 by default */		\
-  m(n, UQ_CFG_INDEX_1)					\
-  /* select configuration index 2 by default */		\
-  m(n, UQ_CFG_INDEX_2)					\
-  /* select configuration index 3 by default */		\
-  m(n, UQ_CFG_INDEX_3)					\
-  /* select configuration index 4 by default */		\
-  m(n, UQ_CFG_INDEX_4)					\
-  /* select configuration index 0 by default */		\
-  m(n, UQ_CFG_INDEX_0)
-
-USB_MAKE_ENUM(USB_QUIRK);
+enum {
+	UQ_NONE,
+	UQ_AUDIO_SWAP_LR,	/* left and right sound channels are swapped */
+	UQ_AU_INP_ASYNC,	/* input is async despite claim of adaptive */
+	UQ_AU_NO_FRAC,		/* don't adjust for fractional samples */
+	UQ_AU_NO_XU,		/* audio device has broken extension unit */
+	UQ_BAD_ADC,		/* bad audio spec version number */
+	UQ_BAD_AUDIO,		/* device claims audio class, but isn't */
+	UQ_BROKEN_BIDIR,	/* printer has broken bidir mode */
+	UQ_BUS_POWERED,		/* device is bus powered, despite claim */
+	UQ_HID_IGNORE,		/* device should be ignored by hid class */
+	UQ_KBD_IGNORE,		/* device should be ignored by kbd class */
+	UQ_MS_BAD_CLASS,	/* doesn't identify properly */
+	UQ_MS_LEADING_BYTE,	/* mouse sends an unknown leading byte */
+	UQ_MS_REVZ,		/* mouse has Z-axis reversed */
+	UQ_NO_STRINGS,		/* string descriptors are broken */
+	UQ_OPEN_CLEARSTALL,	/* device needs clear endpoint stall */
+	UQ_POWER_CLAIM,		/* hub lies about power status */
+	UQ_SPUR_BUT_UP,		/* spurious mouse button up events */
+	UQ_SWAP_UNICODE,	/* has some Unicode strings swapped */
+	UQ_CFG_INDEX_1,		/* select configuration index 1 by default */
+	UQ_CFG_INDEX_2,		/* select configuration index 2 by default */
+	UQ_CFG_INDEX_3,		/* select configuration index 3 by default */
+	UQ_CFG_INDEX_4,		/* select configuration index 4 by default */
+	UQ_CFG_INDEX_0,		/* select configuration index 0 by default */
+	USB_QUIRK_MAX
+};
 
 #endif					/* _USB2_QUIRK_H_ */
