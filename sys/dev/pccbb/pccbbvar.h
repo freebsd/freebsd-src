@@ -116,7 +116,7 @@ struct resource	*cbb_alloc_resource(device_t brdev, device_t child,
 	    int type, int *rid, u_long start, u_long end, u_long count,
 	    u_int flags);
 void	cbb_child_detached(device_t brdev, device_t child);
-int	cbb_child_present(device_t self);
+int	cbb_child_present(device_t parent, device_t child);
 int	cbb_deactivate_resource(device_t brdev, device_t child,
 	    int type, int rid, struct resource *r);
 int	cbb_detach(device_t brdev);
@@ -126,10 +126,10 @@ void	cbb_event_thread(void *arg);
 int	cbb_pcic_set_memory_offset(device_t brdev, device_t child, int rid,
 	    uint32_t cardaddr, uint32_t *deltap);
 int	cbb_pcic_set_res_flags(device_t brdev, device_t child, int type,
-	    int rid, uint32_t flags);
+	    int rid, u_long flags);
 int	cbb_power(device_t brdev, int volts);
 int	cbb_power_enable_socket(device_t brdev, device_t child);
-void	cbb_power_disable_socket(device_t brdev, device_t child);
+int	cbb_power_disable_socket(device_t brdev, device_t child);
 int	cbb_read_ivar(device_t brdev, device_t child, int which,
 	    uintptr_t *result);
 int	cbb_release_resource(device_t brdev, device_t child,
