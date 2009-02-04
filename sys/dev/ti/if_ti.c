@@ -1308,12 +1308,11 @@ ti_newbuf_mini(sc, i, m)
 		if (m_new == NULL) {
 			return (ENOBUFS);
 		}
-		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
 	} else {
 		m_new = m;
-		m_new->m_data = m_new->m_pktdat;
-		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
+		m_new->m_data = M_START(m);
 	}
+	m_new->m_len = m_new->m_pkthdr.len = m_new->m_size;
 
 	m_adj(m_new, ETHER_ALIGN);
 	r = &sc->ti_rdata->ti_rx_mini_ring[i];

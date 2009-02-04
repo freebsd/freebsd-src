@@ -117,19 +117,6 @@ void		pppasyncattach(void *);
 void		pppasyncdetach(void);
 
 /*
- * Some useful mbuf macros not in mbuf.h.
- */
-#define M_IS_CLUSTER(m)	((m)->m_flags & M_EXT)
-
-#define M_DATASTART(m)	\
-	(M_IS_CLUSTER(m) ? (m)->m_ext.ext_buf : \
-	    (m)->m_flags & M_PKTHDR ? (m)->m_pktdat : (m)->m_dat)
-
-#define M_DATASIZE(m)	\
-	(M_IS_CLUSTER(m) ? (m)->m_ext.ext_size : \
-	    (m)->m_flags & M_PKTHDR ? MHLEN: MLEN)
-
-/*
  * Does c need to be escaped?
  */
 #define ESCAPE_P(c)	(sc->sc_asyncmap[(c) >> 5] & (1 << ((c) & 0x1F)))
@@ -792,7 +779,7 @@ pppgetm(sc)
 	    *mp = m;
 	    MCLGET(m, M_DONTWAIT);
 	}
-	len -= M_DATASIZE(m);
+	len -= m->m_size;
 	mp = &m->m_next;
     }
 }
@@ -981,7 +968,7 @@ pppinput(c, tp)
 	}
 	m = sc->sc_m;
 	m->m_len = 0;
-	m->m_data = M_DATASTART(sc->sc_m);
+	m->m_data = M_START(sc->sc_m);
 	sc->sc_mc = m;
 	sc->sc_mp = mtod(m, char *);
 	sc->sc_fcs = PPP_INITFCS;
@@ -1036,7 +1023,7 @@ pppinput(c, tp)
 	}
 	sc->sc_mc = m = m->m_next;
 	m->m_len = 0;
-	m->m_data = M_DATASTART(m);
+	m->m_data = M_START(m);
 	sc->sc_mp = mtod(m, char *);
     }
 

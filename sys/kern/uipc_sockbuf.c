@@ -552,9 +552,7 @@ sbcheck(struct sockbuf *sb)
 	    n = m->m_nextpkt;
 	    for (; m; m = m->m_next) {
 		len += m->m_len;
-		mbcnt += MSIZE;
-		if (m->m_flags & M_EXT) /*XXX*/ /* pretty sure this is bogus */
-			mbcnt += m->m_ext.ext_size;
+		mbcnt += m->m_size + sizeof(struct mbuf);
 	    }
 	}
 	if (len != sb->sb_cc || mbcnt != sb->sb_mbcnt) {
@@ -764,7 +762,7 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 			continue;
 		}
 		if (n && (n->m_flags & M_EOR) == 0 &&
-		    M_WRITABLE(n) &&
+		    (n->m_flags & M_RDONLY) == 0 &&
 		    ((sb->sb_flags & SB_NOCOALESCE) == 0) &&
 		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
 		    m->m_len <= M_TRAILINGSPACE(n) &&

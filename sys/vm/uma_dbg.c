@@ -221,7 +221,6 @@ void
 uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 {
 	uma_keg_t keg;
-	uma_slabrefcnt_t slabref;
 	int freei;
 
 	if (slab == NULL) {
@@ -234,13 +233,7 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 
 	freei = ((unsigned long)item - (unsigned long)slab->us_data)
 	    / keg->uk_rsize;
-
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		slabref->us_freelist[freei].us_item = 255;
-	} else {
-		slab->us_freelist[freei].us_item = 255;
-	}
+	slab->us_freelist[freei].us_item = 255;
 
 	return;
 }
@@ -255,7 +248,6 @@ void
 uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 {
 	uma_keg_t keg;
-	uma_slabrefcnt_t slabref;
 	int freei;
 
 	if (slab == NULL) {
@@ -280,34 +272,17 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 		    (freei * keg->uk_rsize) + slab->us_data);
 	}
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		if (slabref->us_freelist[freei].us_item != 255) {
-			printf("Slab at %p, freei %d = %d.\n",
-			    slab, freei, slabref->us_freelist[freei].us_item);
-			panic("Duplicate free of item %p from zone %p(%s)\n",
-			    item, zone, zone->uz_name);
-		}
-
-		/*
-		 * When this is actually linked into the slab this will change.
-		 * Until then the count of valid slabs will make sure we don't
-		 * accidentally follow this and assume it's a valid index.
-		 */
-		slabref->us_freelist[freei].us_item = 0;
-	} else {
-		if (slab->us_freelist[freei].us_item != 255) {
-			printf("Slab at %p, freei %d = %d.\n",
-			    slab, freei, slab->us_freelist[freei].us_item);
-			panic("Duplicate free of item %p from zone %p(%s)\n",
-			    item, zone, zone->uz_name);
-		}
-
-		/*
-		 * When this is actually linked into the slab this will change.
-		 * Until then the count of valid slabs will make sure we don't
-		 * accidentally follow this and assume it's a valid index.
-		 */
-		slab->us_freelist[freei].us_item = 0;
+	if (slab->us_freelist[freei].us_item != 255) {
+		printf("Slab at %p, freei %d = %d.\n",
+		    slab, freei, slab->us_freelist[freei].us_item);
+		panic("Duplicate free of item %p from zone %p(%s)\n",
+		    item, zone, zone->uz_name);
 	}
+
+	/*
+	 * When this is actually linked into the slab this will change.
+	 * Until then the count of valid slabs will make sure we don't
+	 * accidentally follow this and assume it's a valid index.
+	 */
+	slab->us_freelist[freei].us_item = 0;
 }

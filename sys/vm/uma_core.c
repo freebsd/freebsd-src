@@ -103,7 +103,6 @@ static uma_zone_t zones = &masterzone_z;
 
 /* This is the zone from which all of uma_slab_t's are allocated. */
 static uma_zone_t slabzone;
-static uma_zone_t slabrefzone;	/* With refcounters (for UMA_ZONE_REFCNT) */
 
 /*
  * The initial hash tables come out of this zone so they can be allocated
@@ -139,7 +138,6 @@ static int booted = 0;
 
 /* Maximum number of allowed items-per-slab if the slab header is OFFPAGE */
 static u_int uma_max_ipers;
-static u_int uma_max_ipers_ref;
 
 /*
  * This is the handle used to schedule events that need to happen
@@ -742,7 +740,7 @@ finished:
 				    obj);
 		}
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
-			zone_free_item(keg->uk_slabzone, slab, NULL,
+			zone_free_item(slabzone, slab, NULL,
 			    SKIP_NONE, ZFREE_STATFREE);
 #ifdef UMA_DEBUG
 		printf("%s: Returning %d bytes.\n",
@@ -806,7 +804,6 @@ zone_drain(uma_zone_t zone)
 static uma_slab_t
 keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 {
-	uma_slabrefcnt_t slabref;
 	uma_alloc allocf;
 	uma_slab_t slab;
 	u_int8_t *mem;
@@ -823,7 +820,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 	KEG_UNLOCK(keg);
 
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
-		slab = zone_alloc_item(keg->uk_slabzone, NULL, wait);
+		slab = zone_alloc_item(slabzone, NULL, wait);
 		if (slab == NULL) {
 			KEG_LOCK(keg);
 			return NULL;
@@ -846,7 +843,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 	mem = allocf(zone, keg->uk_ppera * UMA_SLAB_SIZE, &flags, wait);
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
-			zone_free_item(keg->uk_slabzone, slab, NULL,
+			zone_free_item(slabzone, slab, NULL,
 			    SKIP_NONE, ZFREE_STATFREE);
 		KEG_LOCK(keg);
 		return (NULL);
@@ -866,16 +863,8 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 	slab->us_firstfree = 0;
 	slab->us_flags = flags;
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		for (i = 0; i < keg->uk_ipers; i++) {
-			slabref->us_freelist[i].us_refcnt = 0;
-			slabref->us_freelist[i].us_item = i+1;
-		}
-	} else {
-		for (i = 0; i < keg->uk_ipers; i++)
-			slab->us_freelist[i].us_item = i+1;
-	}
+	for (i = 0; i < keg->uk_ipers; i++)
+		slab->us_freelist[i].us_item = i+1;
 
 	if (keg->uk_init != NULL) {
 		for (i = 0; i < keg->uk_ipers; i++)
@@ -903,7 +892,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 					    (i * PAGE_SIZE), obj);
 			}
 			if (keg->uk_flags & UMA_ZONE_OFFPAGE)
-				zone_free_item(keg->uk_slabzone, slab,
+				zone_free_item(slabzone, slab,
 				    NULL, SKIP_NONE, ZFREE_STATFREE);
 			keg->uk_freef(mem, UMA_SLAB_SIZE * keg->uk_ppera,
 			    flags);
@@ -1107,13 +1096,8 @@ keg_small_init(uma_keg_t keg)
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = 1;
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		rsize += UMA_FRITMREF_SZ;	/* linkage & refcnt */
-		shsize = sizeof(struct uma_slab_refcnt);
-	} else {
-		rsize += UMA_FRITM_SZ;	/* Account for linkage */
-		shsize = sizeof(struct uma_slab);
-	}
+	rsize += UMA_FRITM_SZ;	/* Account for linkage */
+	shsize = sizeof(struct uma_slab);
 
 	keg->uk_ipers = (UMA_SLAB_SIZE - shsize) / rsize;
 	KASSERT(keg->uk_ipers != 0, ("keg_small_init: ipers is 0"));
@@ -1244,7 +1228,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	keg->uk_allocf = page_alloc;
 	keg->uk_freef = page_free;
 	keg->uk_recurse = 0;
-	keg->uk_slabzone = NULL;
 
 	/*
 	 * The master zone is passed to us at keg-creation time.
@@ -1258,7 +1241,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	if (arg->flags & UMA_ZONE_ZINIT)
 		keg->uk_init = zero_init;
 
-	if (arg->flags & UMA_ZONE_REFCNT || arg->flags & UMA_ZONE_MALLOC)
+	if (arg->flags & UMA_ZONE_MALLOC)
 		keg->uk_flags |= UMA_ZONE_VTOSLAB;
 
 	/*
@@ -1267,30 +1250,13 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	 * we don't account for this here then we may end up in
 	 * keg_small_init() with a calculated 'ipers' of 0.
 	 */
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		if (keg->uk_flags & UMA_ZONE_CACHESPREAD)
-			keg_cachespread_init(keg);
-		else if ((keg->uk_size+UMA_FRITMREF_SZ) >
-		    (UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt)))
-			keg_large_init(keg);
-		else
-			keg_small_init(keg);
-	} else {
-		if (keg->uk_flags & UMA_ZONE_CACHESPREAD)
-			keg_cachespread_init(keg);
-		else if ((keg->uk_size+UMA_FRITM_SZ) >
-		    (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
-			keg_large_init(keg);
-		else
-			keg_small_init(keg);
-	}
-
-	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
-		if (keg->uk_flags & UMA_ZONE_REFCNT)
-			keg->uk_slabzone = slabrefzone;
-		else
-			keg->uk_slabzone = slabzone;
-	}
+	if (keg->uk_flags & UMA_ZONE_CACHESPREAD)
+		keg_cachespread_init(keg);
+	else if ((keg->uk_size+UMA_FRITM_SZ) >
+	    (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
+		keg_large_init(keg);
+	else
+		keg_small_init(keg);
 
 	/*
 	 * If we haven't booted yet we need allocations to go through the
@@ -1322,24 +1288,15 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		u_int totsize;
 
 		/* Size of the slab struct and free list */
-		if (keg->uk_flags & UMA_ZONE_REFCNT)
-			totsize = sizeof(struct uma_slab_refcnt) +
-			    keg->uk_ipers * UMA_FRITMREF_SZ;
-		else
-			totsize = sizeof(struct uma_slab) +
-			    keg->uk_ipers * UMA_FRITM_SZ;
+		totsize = sizeof(struct uma_slab) +
+		    keg->uk_ipers * UMA_FRITM_SZ;
 
 		if (totsize & UMA_ALIGN_PTR)
 			totsize = (totsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
 		keg->uk_pgoff = UMA_SLAB_SIZE - totsize;
-
-		if (keg->uk_flags & UMA_ZONE_REFCNT)
-			totsize = keg->uk_pgoff + sizeof(struct uma_slab_refcnt)
-			    + keg->uk_ipers * UMA_FRITMREF_SZ;
-		else
-			totsize = keg->uk_pgoff + sizeof(struct uma_slab)
-			    + keg->uk_ipers * UMA_FRITM_SZ;
+		totsize = keg->uk_pgoff + sizeof(struct uma_slab)
+		    + keg->uk_ipers * UMA_FRITM_SZ;
 
 		/*
 		 * The only way the following is possible is if with our
@@ -1633,26 +1590,11 @@ uma_startup(void *bootmem, int boot_pages)
 		objsize--;
 	uma_max_ipers = MAX(UMA_SLAB_SIZE / objsize, 64);
 
-	wsize = UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt) - UMA_MAX_WASTE;
-	totsize = wsize;
-	objsize = UMA_SMALLEST_UNIT;
-	while (totsize >= wsize) {
-		totsize = (UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt)) /
-		    (objsize + UMA_FRITMREF_SZ);
-		totsize *= (UMA_FRITMREF_SZ + objsize);
-		objsize++;
-	}
-	if (objsize > UMA_SMALLEST_UNIT)
-		objsize--;
-	uma_max_ipers_ref = MAX(UMA_SLAB_SIZE / objsize, 64);
-
-	KASSERT((uma_max_ipers_ref <= 255) && (uma_max_ipers <= 255),
-	    ("uma_startup: calculated uma_max_ipers values too large!"));
+	KASSERT(uma_max_ipers <= 255,
+	    ("uma_startup: calculated uma_max_ipers value too large!"));
 
 #ifdef UMA_DEBUG
 	printf("Calculated uma_max_ipers (for OFFPAGE) is %d\n", uma_max_ipers);
-	printf("Calculated uma_max_ipers_slab (for OFFPAGE) is %d\n",
-	    uma_max_ipers_ref);
 #endif
 
 	/* "manually" create the initial zone */
@@ -1714,18 +1656,6 @@ uma_startup(void *bootmem, int boot_pages)
 				slabsize,
 				NULL, NULL, NULL, NULL,
 				UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
-
-	/*
-	 * We also create a zone for the bigger slabs with reference
-	 * counts in them, to accomodate UMA_ZONE_REFCNT zones.
-	 */
-	slabsize = uma_max_ipers_ref * UMA_FRITMREF_SZ;
-	slabsize += sizeof(struct uma_slab_refcnt);
-	slabrefzone = uma_zcreate("UMA RCntSlabs",
-				  slabsize,
-				  NULL, NULL, NULL, NULL,
-				  UMA_ALIGN_PTR,
-				  UMA_ZFLAG_INTERNAL);
 
 	hashzone = uma_zcreate("UMA Hash",
 	    sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT,
@@ -1885,14 +1815,6 @@ uma_zsecond_add(uma_zone_t zone, uma_zone_t master)
 	 * The new master must also use vtoslab().
 	 */
 	if ((zone->uz_flags & UMA_ZONE_VTOSLAB) != UMA_ZONE_VTOSLAB) {
-		error = EINVAL;
-		goto out;
-	}
-	/*
-	 * Both must either be refcnt, or not be refcnt.
-	 */
-	if ((zone->uz_flags & UMA_ZONE_REFCNT) !=
-	    (master->uz_flags & UMA_ZONE_REFCNT)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -2297,7 +2219,6 @@ static void *
 slab_alloc_item(uma_zone_t zone, uma_slab_t slab)
 {
 	uma_keg_t keg;
-	uma_slabrefcnt_t slabref;
 	void *item;
 	u_int8_t freei;
 
@@ -2305,12 +2226,7 @@ slab_alloc_item(uma_zone_t zone, uma_slab_t slab)
 	mtx_assert(&keg->uk_lock, MA_OWNED);
 
 	freei = slab->us_firstfree;
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		slab->us_firstfree = slabref->us_freelist[freei].us_item;
-	} else {
-		slab->us_firstfree = slab->us_freelist[freei].us_item;
-	}
+	slab->us_firstfree = slab->us_freelist[freei].us_item;
 	item = slab->us_data + (keg->uk_rsize * freei);
 
 	slab->us_freecount--;
@@ -2688,7 +2604,6 @@ zone_free_item(uma_zone_t zone, void *item, void *udata,
     enum zfreeskip skip, int flags)
 {
 	uma_slab_t slab;
-	uma_slabrefcnt_t slabref;
 	uma_keg_t keg;
 	u_int8_t *mem;
 	u_int8_t freei;
@@ -2745,12 +2660,7 @@ zone_free_item(uma_zone_t zone, void *item, void *udata,
 		uma_dbg_free(zone, slab, item);
 #endif
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		slabref->us_freelist[freei].us_item = slab->us_firstfree;
-	} else {
-		slab->us_freelist[freei].us_item = slab->us_firstfree;
-	}
+	slab->us_freelist[freei].us_item = slab->us_firstfree;
 	slab->us_firstfree = freei;
 	slab->us_freecount++;
 
@@ -2932,26 +2842,6 @@ uma_prealloc(uma_zone_t zone, int items)
 }
 
 /* See uma.h */
-u_int32_t *
-uma_find_refcnt(uma_zone_t zone, void *item)
-{
-	uma_slabrefcnt_t slabref;
-	uma_keg_t keg;
-	u_int32_t *refcnt;
-	int idx;
-
-	slabref = (uma_slabrefcnt_t)vtoslab((vm_offset_t)item &
-	    (~UMA_SLAB_MASK));
-	keg = slabref->us_keg;
-	KASSERT(slabref != NULL && slabref->us_keg->uk_flags & UMA_ZONE_REFCNT,
-	    ("uma_find_refcnt(): zone possibly not UMA_ZONE_REFCNT"));
-	idx = ((unsigned long)item - (unsigned long)slabref->us_data)
-	    / keg->uk_rsize;
-	refcnt = &slabref->us_freelist[idx].us_refcnt;
-	return refcnt;
-}
-
-/* See uma.h */
 void
 uma_reclaim(void)
 {
@@ -2966,7 +2856,6 @@ uma_reclaim(void)
 	 * zones are drained.  We have to do the same for buckets.
 	 */
 	zone_drain(slabzone);
-	zone_drain(slabrefzone);
 	bucket_zone_drain();
 }
 

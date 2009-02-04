@@ -53,8 +53,10 @@
  * externally and attach it to the mbuf in a way similar to that of mbuf
  * clusters.
  */
-#define	MLEN		(MSIZE - sizeof(struct m_hdr))	/* normal data len */
-#define	MHLEN		(MLEN - sizeof(struct pkthdr))	/* data len w/pkthdr */
+#define	MHSIZE		offsetof(struct mbuf, M_dat.M_databuf)
+#define	MPKTHSIZE	offsetof(struct mbuf, M_dat.MH.MH_dat.MH_databuf)
+#define	MLEN		(MSIZE - MHSIZE)	/* normal data len */
+#define	MHLEN		(MSIZE - MPKTHSIZE)	/* data len w/pkthdr */
 #define	MINCLSIZE	(MHLEN + 1)	/* smallest amount to put in cluster */
 #define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
 
@@ -67,34 +69,7 @@
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
 
-/*
- * Argument structure passed to UMA routines during mbuf and packet
- * allocations.
- */
-struct mb_args {
-	int	flags;	/* Flags for mbuf being allocated */
-	short	type;	/* Type of mbuf being allocated */
-};
 #endif /* _KERNEL */
-
-#if defined(__LP64__)
-#define M_HDR_PAD    6
-#else
-#define M_HDR_PAD    2
-#endif
-
-/*
- * Header present at the beginning of every mbuf.
- */
-struct m_hdr {
-	struct mbuf	*mh_next;	/* next buffer in chain */
-	struct mbuf	*mh_nextpkt;	/* next chain in queue/record */
-	caddr_t		 mh_data;	/* location of data */
-	int		 mh_len;	/* amount of data in this mbuf */
-	int		 mh_flags;	/* flags; see below */
-	short		 mh_type;	/* type of data in this mbuf */
-	uint8_t          pad[M_HDR_PAD];/* word align                  */
-};
 
 /*
  * Packet tag structure (see below for details).
@@ -111,6 +86,7 @@ struct m_tag {
  * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
  */
 struct pkthdr {
+	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 	struct ifnet	*rcvif;		/* rcv interface */
 	/* variables for ip and tcp reassembly */
 	void		*header;	/* pointer to packet header */
@@ -123,22 +99,26 @@ struct pkthdr {
 	int		 csum_data;	/* data field used by csum routines */
 	u_int16_t	 tso_segsz;	/* TSO segment size */
 	u_int16_t	 ether_vtag;	/* Ethernet 802.1p+q vlan tag */
-	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
+#if defined(__LP64__)
+	uint32_t	 pad;
+#endif
 };
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
  * set.
  */
-struct m_ext {
+struct mb_ext {
 	caddr_t		 ext_buf;	/* start of buffer */
+	u_short		 ext_size;	/* size of buffer, for ext_free */
+	u_short		 ext_type;	/* type of external storage */
+#if defined(__LP64__)
+	uint32_t	 pad;
+#endif
 	void		(*ext_free)	/* free routine if not the usual */
 			    (void *, void *);
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
-	u_int		 ext_size;	/* size of buffer, for ext_free */
-	volatile u_int	*ref_cnt;	/* pointer to ref count info */
-	int		 ext_type;	/* type of external storage */
 };
 
 /*
@@ -146,28 +126,33 @@ struct m_ext {
  * purposes.
  */
 struct mbuf {
-	struct m_hdr	m_hdr;
+	struct mbuf	*m_next;	/* next buffer in chain */
+	struct mbuf	*m_nextpkt;	/* next chain in queue/record */
+	uma_zone_t	 m_zone;	/* Zone allocated from. */
+	caddr_t		 m_data;	/* location of valid data */
+	volatile int	 m_ref;		/* Reference count. */
+	int		 m_len;		/* amount of data in this mbuf */
+	int		 m_flags;	/* flags; see below */
+#if defined(__LP64__)
+	uint32_t	 pad;
+#endif
+	short		 m_type;	/* type of data in this mbuf */
+	u_short		 m_size;	/* Actual size of buffer. */
 	union {
 		struct {
 			struct pkthdr	MH_pkthdr;	/* M_PKTHDR set */
 			union {
-				struct m_ext	MH_ext;	/* M_EXT set */
-				char		MH_databuf[MHLEN];
+				struct mb_ext	MH_ext;	/* M_EXT set */
+				char		MH_databuf[0];
 			} MH_dat;
 		} MH;
-		char	M_databuf[MLEN];		/* !M_PKTHDR, !M_EXT */
+		char	M_databuf[0];		/* !M_PKTHDR, !M_EXT */
 	} M_dat;
 };
-#define	m_next		m_hdr.mh_next
-#define	m_len		m_hdr.mh_len
-#define	m_data		m_hdr.mh_data
-#define	m_type		m_hdr.mh_type
-#define	m_flags		m_hdr.mh_flags
-#define	m_nextpkt	m_hdr.mh_nextpkt
 #define	m_act		m_nextpkt
 #define	m_pkthdr	M_dat.MH.MH_pkthdr
 #define	m_ext		M_dat.MH.MH_dat.MH_ext
-#define	m_pktdat	M_dat.MH.MH_dat.MH_databuf
+#define	m_pktdat	M_dat.MH.MH_dat.MH_databuf 
 #define	m_dat		M_dat.M_databuf
 
 /*
@@ -229,7 +214,6 @@ struct mbuf {
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
-#define	EXT_EXTREF	400	/* has externally maintained ref_cnt ptr */
 
 /*
  * Flags indicating hw checksum support and sw checksum requirements.  This
@@ -320,14 +304,14 @@ struct mbstat {
  * !_KERNEL so that monitoring tools can look up the zones with
  * libmemstat(3).
  */
-#define	MBUF_MEM_NAME		"mbuf"
 #define	MBUF_CLUSTER_MEM_NAME	"mbuf_cluster"
-#define	MBUF_PACKET_MEM_NAME	"mbuf_packet"
-#define	MBUF_JUMBOP_MEM_NAME	"mbuf_jumbo_page"
 #define	MBUF_JUMBO9_MEM_NAME	"mbuf_jumbo_9k"
 #define	MBUF_JUMBO16_MEM_NAME	"mbuf_jumbo_16k"
+#define	MBUF_JUMBOP_MEM_NAME	"mbuf_jumbo_page"
+#define	MBUF_MEM_NAME		"mbuf"
+#define	MBUF_PACKET_MEM_NAME	"mbuf_packet"
 #define	MBUF_TAG_MEM_NAME	"mbuf_tag"
-#define	MBUF_EXTREFCNT_MEM_NAME	"mbuf_ext_refcnt"
+
 
 #ifdef _KERNEL
 
@@ -347,44 +331,52 @@ struct mbstat {
  * The rest of it is defined in kern/kern_mbuf.c
  */
 
-extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
-extern uma_zone_t	zone_pack;
-extern uma_zone_t	zone_jumbop;
+extern uma_zone_t	zone_ext;
 extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
-extern uma_zone_t	zone_ext_refcnt;
+extern uma_zone_t	zone_jumbop;
+extern uma_zone_t	zone_mbuf;
+extern uma_zone_t	zone_pack;
 
-static __inline struct mbuf	*m_getcl(int how, short type, int flags);
+static __inline struct mbuf 	*m_alloc(uma_zone_t zone, int size, int how,
+				    short type, int flags);
+static __inline void		 m_extadd(struct mbuf *, caddr_t, u_int,
+				    void (*)(void *, void *), void *, void *,
+				    int, int);
+void				 m_ext_free_zone(void *arg1, void *arg2);
+void				 m_ext_free_mbuf(void *arg1, void *arg2);
+void				 m_ext_free_nop(void *arg1, void *arg2);
+static __inline struct mbuf	*m_free(struct mbuf *m);
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_gethdr(int how, short type);
-static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
-				    int size);
+struct mbuf			*_m_getjcl(int how, short type, int flags,
+				    int size, uma_zone_t zone, int exttype);
 static __inline struct mbuf	*m_getclr(int how, short type);	/* XXX */
-static __inline struct mbuf	*m_free(struct mbuf *m);
+static __inline int		 m_init(struct mbuf *m, uma_zone_t zone,
+				    int size, int how, short type, int flags);
 static __inline void		 m_clget(struct mbuf *m, int how);
-static __inline void		*m_cljget(struct mbuf *m, int how, int size);
+void				*_m_cljget(struct mbuf *m, int how, int size,
+				    uma_zone_t zone, int exttype);
 static __inline void		 m_chtype(struct mbuf *m, short new_type);
-void				 mb_free_ext(struct mbuf *);
 static __inline struct mbuf	*m_last(struct mbuf *m);
+int				 m_pkthdr_init(struct mbuf *m, int how);
 
+/*
+ * Determine the type of cluster to allocate for an ext mbuf.
+ */
 static __inline int
 m_gettype(int size)
 {
 	int type;
 	
 	switch (size) {
-	case MSIZE:
-		type = EXT_MBUF;
-		break;
 	case MCLBYTES:
 		type = EXT_CLUSTER;
 		break;
-#if MJUMPAGESIZE != MCLBYTES
 	case MJUMPAGESIZE:
 		type = EXT_JUMBOP;
 		break;
-#endif
 	case MJUM9BYTES:
 		type = EXT_JUMBO9;
 		break;
@@ -392,21 +384,21 @@ m_gettype(int size)
 		type = EXT_JUMBO16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster size", __func__);
+		panic("%s: m_gettype: invalid cluster size", __func__);
 	}
 
 	return (type);
 }
 
+/*
+ * Determine the zone to use when allocating an ext mbuf.
+ */
 static __inline uma_zone_t
 m_getzone(int size)
 {
 	uma_zone_t zone;
 	
 	switch (size) {
-	case MSIZE:
-		zone = zone_mbuf;
-		break;
 	case MCLBYTES:
 		zone = zone_clust;
 		break;
@@ -422,20 +414,105 @@ m_getzone(int size)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster type", __func__);
+		panic("%s: m_getzone: invalid cluster type", __func__);
 	}
 
 	return (zone);
 }
 
+/*
+ * Allocate an mbuf from the provided zone and initialize the size header
+ * area if requested.  Delayed initialization may be performed by calling
+ * m_init() later with the required arguments.
+ *
+ * Returns NULL on failure and an mbuf on success.
+ */
+static __inline struct mbuf *
+m_alloc(uma_zone_t zone, int size, int how, short type, int flags)
+{
+	struct mbuf *m;
+
+	m = uma_zalloc(zone, how);
+	if (m == NULL)
+		return (NULL);
+	if (type == MT_NOINIT)
+		return (m);
+	if (m_init(m, zone, size, how, type, flags)) {
+		uma_zfree(zone, m);
+		return (NULL);
+	}
+	return (m);
+}
+
+/*
+ * Configure a provided mbuf to refer to the provided external storage
+ * buffer and setup a reference count for said buffer.
+ *
+ * Arguments:
+ *    mb	The existing mbuf to which to attach the provided buffer.
+ *    buf	The address of the provided external storage buffer.
+ *    size	The size of the provided buffer.
+ *    freef	A pointer to a routine that is responsible for freeing the
+ *		provided external storage buffer.
+ *    arg{1,2}	Pointers to arguments to be passed to the provided freef
+ *		routine (may be NULL).
+ *    flags	Any other flags to be passed to the provided mbuf.
+ *    type	The type that the external storage buffer should be
+ *		labeled with.
+ *
+ * Returns:
+ *    Nothing.
+ */
+static __inline void
+m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
+    void (*freef)(void *, void *), void *arg1, void *arg2, int flags, int type)
+{
+	mb->m_flags |= (M_EXT | flags);
+	mb->m_data = buf;
+	mb->m_size = size;
+	mb->m_ext.ext_buf = buf;
+	mb->m_ext.ext_size = size;
+	mb->m_ext.ext_free = freef;
+	mb->m_ext.ext_arg1 = arg1;
+	mb->m_ext.ext_arg2 = arg2;
+	mb->m_ext.ext_type = type;
+}
+
+/*
+ * Initialize an mbuf with linear storage.
+ *
+ * Inline because the consumer text overhead will be roughly the same to
+ * initialize or call a function with this many parameters and M_PKTHDR
+ * should go away with constant propagation for !MGETHDR.
+ */
+static __inline int
+m_init(struct mbuf *m, uma_zone_t zone, int size, int how, short type,
+    int flags)
+{
+	int error;
+
+	m->m_next = NULL;
+	m->m_nextpkt = NULL;
+	m->m_zone = zone;
+	m->m_data = m->m_dat;
+	m->m_ref = 1;
+	m->m_len = 0;
+	m->m_flags = flags;
+	m->m_type = type;
+	m->m_size = size;
+	if (flags & M_PKTHDR) {
+		if ((error = m_pkthdr_init(m, how)) != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
 static __inline struct mbuf *
 m_get(int how, short type)
 {
-	struct mb_args args;
 
-	args.flags = 0;
-	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	return m_alloc(zone_mbuf, MLEN, how, type, 0);
 }
 
 /*
@@ -445,11 +522,8 @@ static __inline struct mbuf *
 m_getclr(int how, short type)
 {
 	struct mbuf *m;
-	struct mb_args args;
 
-	args.flags = 0;
-	args.type = type;
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	m = m_alloc(zone_mbuf, MLEN, how, type, 0);
 	if (m != NULL)
 		bzero(m->m_data, MLEN);
 	return (m);
@@ -458,61 +532,63 @@ m_getclr(int how, short type)
 static __inline struct mbuf *
 m_gethdr(int how, short type)
 {
-	struct mb_args args;
 
-	args.flags = M_PKTHDR;
-	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	return m_alloc(zone_mbuf, MHLEN, how, type, M_PKTHDR);
 }
 
 static __inline struct mbuf *
 m_getcl(int how, short type, int flags)
 {
-	struct mb_args args;
+	struct mbuf *m;
 
-	args.flags = flags;
-	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
-}
+	m = m_alloc(zone_pack, MCLBYTES, how, type, flags | M_EXT);
+	/* Restore the data pointer clobbered by m_init. */
+	if (m && type != MT_NOINIT)
+		m->m_data = m->m_ext.ext_buf;
 
-/*
- * m_getjcl() returns an mbuf with a cluster of the specified size attached.
- * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
- *
- * XXX: This is rather large, should be real function maybe.
- */
-static __inline struct mbuf *
-m_getjcl(int how, short type, int flags, int size)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-	uma_zone_t zone;
-
-	args.flags = flags;
-	args.type = type;
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-	zone = m_getzone(size);
-	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
 	return (m);
 }
 
-static __inline void
-m_free_fast(struct mbuf *m)
+static __inline struct mbuf *
+m_getjcl(int how, short type, int flags, int size)
 {
+
+	/*
+	 * Rely on constant propagation to resolve zone and type before
+	 * calling the non-inlined function.
+	 */
+	return _m_getjcl(how, type, flags, size, m_getzone(size),
+	    m_gettype(size));
+}
+
+void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
+
+static __inline void
+m_free_fast(uma_zone_t zone, struct mbuf *m)
+{
+
 #ifdef INVARIANTS
+	KASSERT((m->m_flags & M_NOFREE) == 0, ("%s: M_NOFREE set", __func__));
 	if (m->m_flags & M_PKTHDR)
 		KASSERT(SLIST_EMPTY(&m->m_pkthdr.tags), ("doing fast free of mbuf with tags"));
 #endif
-	
-	uma_zfree_arg(zone_mbuf, m, (void *)MB_NOTAGS);
+
+	uma_zfree(zone, m);
+}
+
+static __inline void
+_m_free(struct mbuf *m)
+{
+
+	if (m->m_flags & M_PKTHDR && !SLIST_EMPTY(&m->m_pkthdr.tags))
+		m_tag_delete_chain(m, NULL);
+	/*
+	 * Free attached storage if this mbuf is the only reference to it.
+	 */
+	if (m->m_flags & M_EXT)
+		m->m_ext.ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
+	if ((m->m_flags & M_NOFREE) == 0)
+        	uma_zfree(m->m_zone, m);
 }
 
 static __inline struct mbuf *
@@ -520,29 +596,10 @@ m_free(struct mbuf *m)
 {
 	struct mbuf *n = m->m_next;
 
-	if (m->m_flags & M_EXT)
-		mb_free_ext(m);
-	else if ((m->m_flags & M_NOFREE) == 0)
-		uma_zfree(zone_mbuf, m);
+	if (m->m_ref == 1 || atomic_fetchadd_int(&m->m_ref, -1) == 1)
+		_m_free(m);
+
 	return (n);
-}
-
-static __inline void
-m_clget(struct mbuf *m, int how)
-{
-
-	if (m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
-	m->m_ext.ext_buf = (char *)NULL;
-	uma_zalloc_arg(zone_clust, m, how);
-	/*
-	 * On a cluster allocation failure, drain the packet zone and retry,
-	 * we might be able to loosen a few clusters up on the drain.
-	 */
-	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
-		zone_drain(zone_pack);
-		uma_zalloc_arg(zone_clust, m, how);
-	}
 }
 
 /*
@@ -555,15 +612,12 @@ m_clget(struct mbuf *m, int how)
 static __inline void *
 m_cljget(struct mbuf *m, int how, int size)
 {
-	uma_zone_t zone;
 
-	if (m && m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
-	if (m != NULL)
-		m->m_ext.ext_buf = NULL;
-
-	zone = m_getzone(size);
-	return (uma_zalloc_arg(zone, m, how));
+	/*
+	 * Rely on constant propagation to resolve zone and type before
+	 * calling the non-inlined function.
+	 */
+	return _m_cljget(m, how, size, m_getzone(size), m_gettype(size));
 }
 
 static __inline void
@@ -595,14 +649,14 @@ m_cljset(struct mbuf *m, void *cl, int type)
 		panic("unknown cluster type");
 		break;
 	}
+	m_extadd(m, cl, size, m_ext_free_zone, zone, cl, 0, type);
+}
 
-	m->m_data = m->m_ext.ext_buf = cl;
-	m->m_ext.ext_free = m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
-	m->m_ext.ext_size = size;
-	m->m_ext.ext_type = type;
-	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
-	m->m_flags |= M_EXT;
+static __inline void
+m_clget(struct mbuf *m, int how)
+{
 
+	m_cljget(m, how, MCLBYTES);
 }
 
 static __inline void
@@ -639,9 +693,7 @@ m_last(struct mbuf *m)
  * be both the local data payload, or an external buffer area, depending on
  * whether M_EXT is set).
  */
-#define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) &&			\
-			 (!(((m)->m_flags & M_EXT)) ||			\
-			 (*((m)->m_ext.ref_cnt) == 1)) )		\
+#define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) && (m)->m_ref == 1)
 
 /* Check if the supplied mbuf has a packet header, or else panic. */
 #define	M_ASSERTPKTHDR(m)						\
@@ -661,25 +713,14 @@ m_last(struct mbuf *m)
  * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place an
  * object of the specified size at the end of the mbuf, longword aligned.
  */
-#define	M_ALIGN(m, len) do {						\
-	KASSERT(!((m)->m_flags & (M_PKTHDR|M_EXT)),			\
-		("%s: M_ALIGN not normal mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_dat,				\
-		("%s: M_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
+#define	M_ALIGN(m, len)							\
+	(m)->m_data += ((m)->m_size - (len)) & ~(sizeof(long) - 1);
 
 /*
  * As above, for mbufs allocated with m_gethdr/MGETHDR or initialized by
  * M_DUP/MOVE_PKTHDR.
  */
-#define	MH_ALIGN(m, len) do {						\
-	KASSERT((m)->m_flags & M_PKTHDR && !((m)->m_flags & M_EXT),	\
-		("%s: MH_ALIGN not PKTHDR mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_pktdat,				\
-		("%s: MH_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
+#define	MH_ALIGN(m, len)	M_ALIGN(m, len)
 
 /*
  * Compute the amount of space available before the current start of data in
@@ -688,11 +729,7 @@ m_last(struct mbuf *m)
  * The M_WRITABLE() is a temporary, conservative safety measure: the burden
  * of checking writability of the mbuf data area rests solely with the caller.
  */
-#define	M_LEADINGSPACE(m)						\
-	((m)->m_flags & M_EXT ?						\
-	    (M_WRITABLE(m) ? (m)->m_data - (m)->m_ext.ext_buf : 0):	\
-	    (m)->m_flags & M_PKTHDR ? (m)->m_data - (m)->m_pktdat :	\
-	    (m)->m_data - (m)->m_dat)
+#define	M_LEADINGSPACE(m)	(M_WRITABLE(m) ? (m)->m_data - M_START(m) : 0)
 
 /*
  * Compute the amount of space available after the end of data in an mbuf.
@@ -701,10 +738,12 @@ m_last(struct mbuf *m)
  * of checking writability of the mbuf data area rests solely with the caller.
  */
 #define	M_TRAILINGSPACE(m)						\
-	((m)->m_flags & M_EXT ?						\
-	    (M_WRITABLE(m) ? (m)->m_ext.ext_buf + (m)->m_ext.ext_size	\
-		- ((m)->m_data + (m)->m_len) : 0) :			\
-	    &(m)->m_dat[MLEN] - ((m)->m_data + (m)->m_len))
+	(M_WRITABLE(m) ?						\
+	    (M_START(m) + (m)->m_size) - ((m)->m_data + (m)->m_len) : 0)
+
+#define	M_START(m)							\
+	((m)->m_flags & M_EXT ? (m)->m_ext.ext_buf :			\
+	    (m)->m_flags & M_PKTHDR ? (m)->m_pktdat : (m)->m_dat)
 
 /*
  * Arrange to prepend space of size plen to mbuf m.  If a new mbuf must be
@@ -755,8 +794,6 @@ int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
-void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(void *, void *), void *, void *, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
@@ -869,7 +906,6 @@ struct mbuf	*m_unshare(struct mbuf *, int how);
 /* Packet tag routines. */
 struct m_tag	*m_tag_alloc(u_int32_t, int, int, int);
 void		 m_tag_delete(struct mbuf *, struct m_tag *);
-void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
 void		 m_tag_free_default(struct m_tag *);
 struct m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct m_tag	*m_tag_copy(struct m_tag *, int);

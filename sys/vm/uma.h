@@ -239,7 +239,6 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
 					 * information in the vm_page.
 					 */
 #define	UMA_ZONE_SECONDARY	0x0200	/* Zone is a Secondary Zone */
-#define	UMA_ZONE_REFCNT		0x0400	/* Allocate refcnts in slabs */
 #define	UMA_ZONE_MAXBUCKET	0x0800	/* Use largest buckets */
 #define	UMA_ZONE_CACHESPREAD	0x1000	/*
 					 * Spread memory start locations across
@@ -255,8 +254,7 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
  * physical parameters of the request and may not be provided by the consumer.
  */
 #define	UMA_ZONE_INHERIT						\
-    (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_HASH |		\
-    UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB)
+    (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_HASH | UMA_ZONE_VTOSLAB)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
@@ -535,21 +533,6 @@ void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
  * NOTE: This is blocking and should only be done at startup
  */
 void uma_prealloc(uma_zone_t zone, int itemcnt);
-
-/*
- * Used to lookup the reference counter allocated for an item
- * from a UMA_ZONE_REFCNT zone.  For UMA_ZONE_REFCNT zones,
- * reference counters are allocated for items and stored in
- * the underlying slab header.
- *
- * Arguments:
- * 	zone  The UMA_ZONE_REFCNT zone to which the item belongs.
- *	item  The address of the item for which we want a refcnt.
- *
- * Returns:
- * 	A pointer to a u_int32_t reference counter.
- */
-u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
 
 /*
  * Used to determine if a fixed-size zone is exhausted.

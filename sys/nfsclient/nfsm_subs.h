@@ -59,18 +59,8 @@ struct mbuf *nfsm_rpchead(struct ucred *cr, int nmflag, int procid,
 			  struct mbuf *mrest, int mrest_len,
 			  struct mbuf **mbp, u_int32_t **xidpp);
 
-#define	M_HASCL(m)	((m)->m_flags & M_EXT)
-#define	NFSMINOFF(m) \
-	do { \
-		if (M_HASCL(m)) \
-			(m)->m_data = (m)->m_ext.ext_buf; \
-		else if ((m)->m_flags & M_PKTHDR) \
-			(m)->m_data = (m)->m_pktdat; \
-		else \
-			(m)->m_data = (m)->m_dat; \
-	} while (0)
-#define	NFSMSIZ(m)	((M_HASCL(m))?MCLBYTES: \
-				(((m)->m_flags & M_PKTHDR)?MHLEN:MLEN))
+#define	NFSMINOFF(m)	M_START((m))
+#define	NFSMSIZ(m)	(m)->m_size
 
 /*
  * Now for the macros that do the simple stuff and call the functions

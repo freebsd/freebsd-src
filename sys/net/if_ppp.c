@@ -166,19 +166,6 @@ static void	ppp_clone_destroy(struct ifnet *);
 IFC_SIMPLE_DECLARE(ppp, 0);
 
 /*
- * Some useful mbuf macros not in mbuf.h.
- */
-#define M_IS_CLUSTER(m)	((m)->m_flags & M_EXT)
-
-#define M_DATASTART(m)	\
-	(M_IS_CLUSTER(m) ? (m)->m_ext.ext_buf : \
-	    (m)->m_flags & M_PKTHDR ? (m)->m_pktdat : (m)->m_dat)
-
-#define M_DATASIZE(m)	\
-	(M_IS_CLUSTER(m) ? (m)->m_ext.ext_size : \
-	    (m)->m_flags & M_PKTHDR ? MHLEN: MLEN)
-
-/*
  * We steal two bits in the mbuf m_flags, to mark high-priority packets
  * for output, and received packets following lost/corrupted packets.
  */
