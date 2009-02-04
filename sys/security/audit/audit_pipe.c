@@ -1077,18 +1077,13 @@ audit_pipe_kqfilter(struct cdev *dev, struct knote *kn)
 static int
 audit_pipe_kqread(struct knote *kn, long hint)
 {
-	struct audit_pipe_entry *ape;
 	struct audit_pipe *ap;
 
 	ap = (struct audit_pipe *)kn->kn_hook;
 	KASSERT(ap != NULL, ("audit_pipe_kqread: ap == NULL"));
-
 	AUDIT_PIPE_LOCK_ASSERT(ap);
 
 	if (ap->ap_qlen != 0) {
-		ape = TAILQ_FIRST(&ap->ap_queue);
-		KASSERT(ape != NULL, ("audit_pipe_kqread: ape == NULL"));
-
 		kn->kn_data = ap->ap_qbyteslen - ap->ap_qoffset;
 		return (1);
 	} else {
