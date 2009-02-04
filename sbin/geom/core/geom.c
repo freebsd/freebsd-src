@@ -480,13 +480,13 @@ library_path(void)
 static void
 load_library(void)
 {
-	char *curpath, path[MAXPATHLEN], *totalpath;
+	char *curpath, path[MAXPATHLEN], *tofree, *totalpath;
 	uint32_t *lib_version;
 	void *dlh;
 	int ret;
 
 	ret = 0;
-	totalpath = strdup(library_path());
+	tofree = totalpath = strdup(library_path());
 	if (totalpath == NULL)
 		err(EXIT_FAILURE, "Not enough memory for library path");
 
@@ -512,7 +512,7 @@ load_library(void)
 		}
 		break;
 	}
-	free(totalpath);
+	free(tofree);
 	/* No library was found, but standard commands can still be used */
 	if (ret == -1)
 		return;
