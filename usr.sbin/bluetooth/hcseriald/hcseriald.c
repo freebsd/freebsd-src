@@ -101,23 +101,10 @@ main(int argc, char *argv[])
 	/* Open device */
 	n = open_device(device, speed, name);
 
-	if (detach) {
-		pid_t	pid = fork();
-
-		if (pid == (pid_t) -1) {
-			syslog(LOG_ERR, "Could not fork(). %s (%d)",
-				strerror(errno), errno);
-			exit(1);
-		}
-
-		if (pid != 0)
-			exit(0);
-
-		if (daemon(0, 0) < 0) {
-			syslog(LOG_ERR, "Could not daemon(0, 0). %s (%d)",
-				strerror(errno), errno);
-			exit(1);
-		}
+	if (detach && daemon(0, 0) < 0) {
+		syslog(LOG_ERR, "Could not daemon(0, 0). %s (%d)",
+			strerror(errno), errno);
+		exit(1);
 	}
 
 	/* Write PID file */
