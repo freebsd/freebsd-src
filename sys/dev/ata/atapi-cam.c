@@ -91,7 +91,7 @@ struct atapi_hcb {
 enum reinit_reason { BOOT_ATTACH, ATTACH, RESET };
 
 /* Device methods */
-static void atapi_cam_identify(device_t *dev, device_t parent);
+static void atapi_cam_identify(driver_t *dev, device_t parent);
 static int atapi_cam_probe(device_t dev);
 static int atapi_cam_attach(device_t dev);
 static int atapi_cam_detach(device_t dev);
@@ -144,7 +144,7 @@ MODULE_DEPEND(atapicam, ata, 1, 1, 1);
 MODULE_DEPEND(atapicam, cam, 1, 1, 1);
 
 static void
-atapi_cam_identify(device_t *dev, device_t parent)
+atapi_cam_identify(driver_t *driver, device_t parent)
 {
 	struct atapi_xpt_softc *scp =
 	    malloc (sizeof (struct atapi_xpt_softc), M_ATACAM, M_NOWAIT|M_ZERO);
