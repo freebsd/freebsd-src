@@ -132,13 +132,14 @@ afd_detach(device_t dev)
     return 0;
 }
 
-static void
+static int
 afd_shutdown(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
+    return 0;
 }
 
 static int
