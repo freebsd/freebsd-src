@@ -333,9 +333,13 @@ ckfini(int markclean)
 			if (!markclean)
 				rerun = 1;
 		}
-	} else if (!preen && !markclean) {
-		printf("\n***** FILE SYSTEM STILL DIRTY *****\n");
-		rerun = 1;
+	} else if (!preen) {
+		if (markclean) {
+			printf("\n***** FILE SYSTEM IS CLEAN *****\n");
+		} else {
+			printf("\n***** FILE SYSTEM STILL DIRTY *****\n");
+			rerun = 1;
+		}
 	}
 	if (debug && totalreads > 0)
 		printf("cache missed %ld of %ld (%d%%)\n", diskreads,
@@ -418,32 +422,73 @@ blwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 }
 
 /*
- * Check cg's magic number.  If catastrophic mode is enabled and the cg's
- * magic number is bad, offer an option to clear the whole cg.
+ * Verify cylinder group's magic number and other parameters.  If the
+ * test fails, offer an option to rebuild the whole cylinder group.
  */
-void
+int
 check_cgmagic(int cg, struct cg *cgp)
 {
 
-	if (!cg_chkmagic(cgp)) {
-	    pwarn("CG %d: BAD MAGIC NUMBER\n", cg);
-	    if (damagedflag) {
-		if (reply("CLEAR CG")) {
-			memset(cgp, 0, (size_t)sblock.fs_cgsize);
-			cgp->cg_initediblk = sblock.fs_ipg;
-			cgp->cg_old_niblk = sblock.fs_ipg;
-			cgp->cg_old_ncyl = sblock.fs_old_cpg;
-			cgp->cg_cgx = cg;
-			cgp->cg_niblk = sblock.fs_ipg;
-			cgp->cg_ndblk = sblock.fs_size - cgbase(&sblock, cg);
-			cgp->cg_magic = CG_MAGIC;
-			cgdirty();
-			printf("PLEASE RERUN FSCK.\n");
-			rerun = 1;
-		}
-	    } else
-		printf("YOU MAY NEED TO RERUN FSCK WITH -D IF IT CRASHED.\n");
+	/*
+	 * Extended cylinder group checks.
+	 */
+	if (cg_chkmagic(cgp) &&
+	    ((sblock.fs_magic == FS_UFS1_MAGIC &&
+	      cgp->cg_old_niblk == sblock.fs_ipg &&
+	      cgp->cg_ndblk <= sblock.fs_fpg &&
+	      cgp->cg_old_ncyl == sblock.fs_old_cpg) ||
+	     (sblock.fs_magic == FS_UFS2_MAGIC &&
+	      cgp->cg_niblk == sblock.fs_ipg &&
+	      cgp->cg_ndblk <= sblock.fs_fpg &&
+	      cgp->cg_initediblk <= sblock.fs_ipg))) {
+		return (1);
 	}
+	pfatal("CYLINDER GROUP %d: BAD MAGIC NUMBER", cg);
+	if (!reply("REBUILD CYLINDER GROUP")) {
+		printf("YOU WILL NEED TO RERUN FSCK.\n");
+		rerun = 1;
+		return (1);
+	}
+	/*
+	 * Zero out the cylinder group and then initialize critical fields.
+	 * Bit maps and summaries will be recalculated by later passes.
+	 */
+	memset(cgp, 0, (size_t)sblock.fs_cgsize);
+	cgp->cg_magic = CG_MAGIC;
+	cgp->cg_cgx = cg;
+	cgp->cg_niblk = sblock.fs_ipg;
+	cgp->cg_initediblk = sblock.fs_ipg < 2 * INOPB(&sblock) ?
+	    sblock.fs_ipg : 2 * INOPB(&sblock);
+	if (cgbase(&sblock, cg) + sblock.fs_fpg < sblock.fs_size)
+		cgp->cg_ndblk = sblock.fs_fpg;
+	else
+		cgp->cg_ndblk = sblock.fs_size - cgbase(&sblock, cg);
+	cgp->cg_iusedoff = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
+	if (sblock.fs_magic == FS_UFS1_MAGIC) {
+		cgp->cg_niblk = 0;
+		cgp->cg_initediblk = 0;
+		cgp->cg_old_ncyl = sblock.fs_old_cpg;
+		cgp->cg_old_niblk = sblock.fs_ipg;
+		cgp->cg_old_btotoff = cgp->cg_iusedoff;
+		cgp->cg_old_boff = cgp->cg_old_btotoff +
+		    sblock.fs_old_cpg * sizeof(int32_t);
+		cgp->cg_iusedoff = cgp->cg_old_boff +
+		    sblock.fs_old_cpg * sizeof(u_int16_t);
+	}
+	cgp->cg_freeoff = cgp->cg_iusedoff + howmany(sblock.fs_ipg, CHAR_BIT);
+	cgp->cg_nextfreeoff = cgp->cg_freeoff + howmany(sblock.fs_fpg,CHAR_BIT);
+	if (sblock.fs_contigsumsize > 0) {
+		cgp->cg_nclusterblks = cgp->cg_ndblk / sblock.fs_frag;
+		cgp->cg_clustersumoff =
+		    roundup(cgp->cg_nextfreeoff, sizeof(u_int32_t));
+		cgp->cg_clustersumoff -= sizeof(u_int32_t);
+		cgp->cg_clusteroff = cgp->cg_clustersumoff +
+		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
+		cgp->cg_nextfreeoff = cgp->cg_clusteroff +
+		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
+	}
+	cgdirty();
+	return (0);
 }
 
 /*
@@ -470,7 +515,8 @@ allocblk(long frags)
 			}
 			cg = dtog(&sblock, i + j);
 			getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
-			check_cgmagic(cg, cgp);
+			if (!check_cgmagic(cg, cgp))
+				return (0);
 			baseblk = dtogd(&sblock, i + j);
 			for (k = 0; k < frags; k++) {
 				setbmap(i + j + k);
