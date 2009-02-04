@@ -42,6 +42,7 @@
 .Op Fl u
 .Op Fl f Ar fspath
 .Op Fl p Ar proto-username
+.Op Fl h
 .Ar username ...
 .Nm
 .Op Fl u
@@ -55,6 +56,7 @@
 .Fl g
 .Op Fl f Ar fspath
 .Op Fl p Ar proto-groupname
+.Op Fl h
 .Ar groupname ...
 .Nm
 .Fl g
@@ -97,6 +99,14 @@ unless the environment variable
 specifies otherwise.
 .Pp
 The quotas may then be modified, new quotas added, etc.
+Block quotas can be specified in bytes (B), kilobytes (K),
+megabytes (M), terabytes (T), pedabytes (P), or exabytes (E).
+If no units are specified, kilobytes are assumed.
+If the
+.Fl h
+flag is specified, the editor will always display the 
+block usage and limits in a more human readable format
+rather than displaying them in the historic kilobyte format.
 Setting a quota to zero indicates that no quota should be imposed.
 Setting a hard limit to one indicates that no allocations should
 be permitted.
@@ -159,6 +169,9 @@ and
 .Ar ihlim
 values is omitted, it is assumed to be zero, therefore
 indicating that no particular quota should be imposed.
+Block quotas can be specified in bytes (B), kilobytes (K),
+megabytes (M), terabytes (T), pedabytes (P), or exabytes (E).
+If no units are specified, kilobytes are assumed.
 .Pp
 If invoked with the
 .Fl f
