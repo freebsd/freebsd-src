@@ -72,10 +72,22 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
+/* Let's be paranoid about block size */
+#if 10 > DEV_BSHIFT
+#define dbtokb(db) \
+	((off_t)(db) >> (10-DEV_BSHIFT))
+#elif 10 < DEV_BSHIFT
+#define dbtokb(db) \
+	((off_t)(db) << (DEV_BSHIFT-10))
+#else
+#define dbtokb(db)	(db)
+#endif
+
 const char *qfname = QUOTAFILENAME;
 const char *qfextension[] = INITQFNAMES;
 const char *quotagroup = QUOTAGROUP;
 char tmpfil[] = _PATH_TMP;
+int hflag;
 
 struct quotause {
 	struct	quotause *next;
@@ -87,9 +99,11 @@ struct quotause {
 #define	FOUND	0x01
 
 int alldigits(const char *s);
-int cvtatos(time_t, char *, time_t *);
-char *cvtstoa(time_t);
+int cvtatos(u_int64_t, char *, u_int64_t *);
+char *cvtstoa(u_int64_t);
+u_int64_t cvtval(u_int64_t, char);
 int editit(char *);
+char *fmthumanval(int64_t);
 void freeprivs(struct quotause *);
 int getentry(const char *, int);
 struct quotause *getprivs(long, int, char *);
@@ -106,11 +120,10 @@ main(int argc, char *argv[])
 {
 	struct quotause *qup, *protoprivs, *curprivs;
 	long id, protoid;
-	uintmax_t lim;
 	int i, quotatype, range, tmpfd;
 	uid_t startuid, enduid;
-	u_int64_t *limp;
-	char *protoname, *cp, *oldoptarg, *end;
+	u_int64_t lim;
+	char *protoname, *cp, *endpt, *oldoptarg;
 	int eflag = 0, tflag = 0, pflag = 0, ch;
 	char *fspath = NULL;
 	char buf[MAXLOGNAME];
@@ -123,7 +136,7 @@ main(int argc, char *argv[])
 	protoprivs = NULL;
 	curprivs = NULL;
 	protoname = NULL;
-	while ((ch = getopt(argc, argv, "ugtf:p:e:")) != -1) {
+	while ((ch = getopt(argc, argv, "ughtf:p:e:")) != -1) {
 		switch(ch) {
 		case 'f':
 			fspath = optarg;
@@ -135,6 +148,9 @@ main(int argc, char *argv[])
 		case 'g':
 			quotatype = GRPQUOTA;
 			break;
+		case 'h':
+			hflag++;
+			break;
 		case 'u':
 			quotatype = USRQUOTA;
 			break;
@@ -142,44 +158,43 @@ main(int argc, char *argv[])
 			tflag++;
 			break;
 		case 'e':
-			if ((qup = malloc(sizeof(*qup))) == NULL)
+			if ((qup = malloc(sizeof(*qup) + BUFSIZ)) == NULL)
 				errx(2, "out of memory");
-			bzero(qup, sizeof(*qup));
+			bzero(qup, sizeof(*qup) + BUFSIZ);
 			i = 0;
 			oldoptarg = optarg;
 			for (cp = optarg; (cp = strsep(&optarg, ":")) != NULL;
 			    i++) {
 				if (cp != oldoptarg)
 					*(cp - 1) = ':';
-				limp = NULL;
 				switch (i) {
 				case 0:
 					strlcpy(qup->fsname, cp,
 					    sizeof(qup->fsname));
 					break;
 				case 1:
-					limp = &qup->dqblk.dqb_bsoftlimit;
-					break;
+					lim = strtoll(cp, &endpt, 10);
+					qup->dqblk.dqb_bsoftlimit =
+						cvtval(lim, *endpt);
+					continue;
 				case 2:
-					limp = &qup->dqblk.dqb_bhardlimit;
-					break;
+					lim = strtoll(cp, &endpt, 10);
+					qup->dqblk.dqb_bhardlimit =
+						cvtval(lim, *endpt);
+					continue;
 				case 3:
-					limp = &qup->dqblk.dqb_isoftlimit;
-					break;
+					qup->dqblk.dqb_isoftlimit =
+						strtoll(cp, NULL, 10);
+					continue;
 				case 4:
-					limp = &qup->dqblk.dqb_ihardlimit;
-					break;
+					qup->dqblk.dqb_ihardlimit =
+						strtoll(cp, NULL, 10);
+					continue;
 				default:
 					warnx("incorrect quota specification: "
 					    "%s", oldoptarg);
 					usage();
 					break; /* XXX: report an error */
-				}
-				if (limp != NULL) {
-					lim = strtoumax(cp, &end, 10);
-					if (end == cp || *end != '\0' || lim > UINT64_MAX)
-						errx(1, "invalid limit: %s", cp);
-					*limp = (u_int64_t)lim;
 				}
 			}
 			qup->dqblk.dqb_bsoftlimit =
@@ -285,10 +300,10 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-		"usage: edquota [-u] [-f fspath] [-p username] username ...",
+		"usage: edquota [-u] [-f fspath] [-p username] [-h] username ...",
 		"       edquota [-u] -e fspath[:bslim[:bhlim[:islim[:ihlim]]]] [-e ...]",
 		"               username ...",
-		"       edquota -g [-f fspath] [-p groupname] groupname ...",
+		"       edquota -g [-f fspath] [-p groupname] [-h] groupname ...",
 		"       edquota -g -e fspath[:bslim[:bhlim[:islim[:ihlim]]]] [-e ...]",
 		"               groupname ...",
 		"       edquota [-u] -t [-f fspath]",
@@ -314,14 +329,17 @@ getentry(const char *name, int quotatype)
 		if ((pw = getpwnam(name)))
 			return (pw->pw_uid);
 		warnx("%s: no such user", name);
+		sleep(3);
 		break;
 	case GRPQUOTA:
 		if ((gr = getgrnam(name)))
 			return (gr->gr_gid);
 		warnx("%s: no such group", name);
+		sleep(3);
 		break;
 	default:
 		warnx("%d: unknown quota type", quotatype);
+		sleep(3);
 		break;
 	}
 	sleep(1);
@@ -499,19 +517,34 @@ writeprivs(struct quotause *quplist, int outfd, char *name, int quotatype)
 		err(1, "%s", tmpfil);
 	fprintf(fd, "Quotas for %s %s:\n", qfextension[quotatype], name);
 	for (qup = quplist; qup; qup = qup->next) {
-		fprintf(fd, "%s: %s %lu, limits (soft = %lu, hard = %lu)\n",
-		    qup->fsname, "kbytes in use:",
-		    (unsigned long)(dbtob(qup->dqblk.dqb_curblocks) / 1024),
-		    (unsigned long)(dbtob(qup->dqblk.dqb_bsoftlimit) / 1024),
-		    (unsigned long)(dbtob(qup->dqblk.dqb_bhardlimit) / 1024));
-		fprintf(fd, "%s %lu, limits (soft = %lu, hard = %lu)\n",
+		fprintf(fd, "%s: in use: %s, ", qup->fsname,
+		    fmthumanval(qup->dqblk.dqb_curblocks));
+		fprintf(fd, "limits (soft = %s, ",
+		    fmthumanval(qup->dqblk.dqb_bsoftlimit));
+		fprintf(fd, "hard = %s)\n",
+		    fmthumanval(qup->dqblk.dqb_bhardlimit));
+		fprintf(fd, "%s %llu, limits (soft = %llu, hard = %llu)\n",
 		    "\tinodes in use:",
-		    (unsigned long)qup->dqblk.dqb_curinodes,
-		    (unsigned long)qup->dqblk.dqb_isoftlimit,
-		    (unsigned long)qup->dqblk.dqb_ihardlimit);
+		    qup->dqblk.dqb_curinodes,
+		    qup->dqblk.dqb_isoftlimit,
+		    qup->dqblk.dqb_ihardlimit);
 	}
 	fclose(fd);
 	return (1);
+}
+
+char *
+fmthumanval(int64_t blocks)
+{
+	static char buf[7], numbuf[20];
+
+	if (hflag) {
+		humanize_number(buf, sizeof(buf) - (blocks < 0 ? 0 : 1),
+		    dbtob(blocks), "", HN_AUTOSCALE, HN_NOSPACE);
+		return (buf);
+	}
+	snprintf(numbuf, 20, "%lluK", dbtokb(blocks));
+	return(numbuf);
 }
 
 /*
@@ -522,8 +555,9 @@ readprivs(struct quotause *quplist, char *inname)
 {
 	struct quotause *qup;
 	FILE *fd;
-	unsigned long bhardlimit, bsoftlimit, curblocks;
-	unsigned long ihardlimit, isoftlimit, curinodes;
+	u_int64_t ihardlimit, isoftlimit, curinodes;
+	u_int64_t bhardlimit, bsoftlimit, curblocks;
+	char bhardunits, bsoftunits, curblockunits;
 	int cnt;
 	char *cp;
 	struct dqblk dqblk;
@@ -549,21 +583,40 @@ readprivs(struct quotause *quplist, char *inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " kbytes in use: %lu, limits (soft = %lu, hard = %lu)",
-		    &curblocks, &bsoftlimit, &bhardlimit);
-		if (cnt != 3) {
+		    " in use: %llu%c, limits (soft = %llu%c, hard = %llu%c)",
+		    &curblocks, &curblockunits, &bsoftlimit, &bsoftunits,
+		    &bhardlimit, &bhardunits);
+		/*
+		 * The next three check for old-style input formats.
+		 */
+		if (cnt != 6)
+			cnt = sscanf(cp,
+			 " in use: %llu%c, limits (soft = %llu%c hard = %llu%c",
+			    &curblocks, &curblockunits, &bsoftlimit,
+			    &bsoftunits, &bhardlimit, &bhardunits);
+		if (cnt != 6)
+			cnt = sscanf(cp,
+			" in use: %llu%c, limits (soft = %llu%c hard = %llu%c)",
+			    &curblocks, &curblockunits, &bsoftlimit,
+			    &bsoftunits, &bhardlimit, &bhardunits);
+		if (cnt != 6)
+			cnt = sscanf(cp,
+			" in use: %llu%c, limits (soft = %llu%c, hard = %llu%c",
+			    &curblocks, &curblockunits, &bsoftlimit,
+			    &bsoftunits, &bhardlimit, &bhardunits);
+		if (cnt != 6) {
 			warnx("%s:%s: bad format", fsp, cp);
 			return (0);
 		}
-		dqblk.dqb_curblocks = btodb((off_t)curblocks * 1024);
-		dqblk.dqb_bsoftlimit = btodb((off_t)bsoftlimit * 1024);
-		dqblk.dqb_bhardlimit = btodb((off_t)bhardlimit * 1024);
+		dqblk.dqb_curblocks = cvtval(curblocks, curblockunits);
+		dqblk.dqb_bsoftlimit = cvtval(bsoftlimit, bsoftunits);
+		dqblk.dqb_bhardlimit = cvtval(bhardlimit, bhardunits);
 		if ((cp = strtok(line2, "\n")) == NULL) {
 			warnx("%s: %s: bad format", fsp, line2);
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    "\tinodes in use: %lu, limits (soft = %lu, hard = %lu)",
+		    "\tinodes in use: %llu, limits (soft = %llu, hard = %llu)",
 		    &curinodes, &isoftlimit, &ihardlimit);
 		if (cnt != 3) {
 			warnx("%s: %s: bad format", fsp, line2);
@@ -598,8 +651,8 @@ readprivs(struct quotause *quplist, char *inname)
 			qup->dqblk.dqb_isoftlimit = dqblk.dqb_isoftlimit;
 			qup->dqblk.dqb_ihardlimit = dqblk.dqb_ihardlimit;
 			qup->flags |= FOUND;
-			if (dqblk.dqb_curblocks == qup->dqblk.dqb_curblocks &&
-			    dqblk.dqb_curinodes == qup->dqblk.dqb_curinodes)
+			/* No easy way to check change in curblocks */
+			if (dqblk.dqb_curinodes == qup->dqblk.dqb_curinodes)
 				break;
 			warnx("%s: cannot change current allocation", fsp);
 			break;
@@ -658,8 +711,7 @@ readtimes(struct quotause *quplist, char *inname)
 	FILE *fd;
 	int cnt;
 	char *cp;
-	time_t itime, btime, iseconds, bseconds;
-	long l_itime, l_btime;
+	u_int64_t itime, btime, iseconds, bseconds;
 	char *fsp, bunits[10], iunits[10], line1[BUFSIZ];
 
 	fd = fopen(inname, "r");
@@ -682,14 +734,12 @@ readtimes(struct quotause *quplist, char *inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " block grace period: %ld %s file grace period: %ld %s",
-		    &l_btime, bunits, &l_itime, iunits);
+		    " block grace period: %llu %s file grace period: %llu %s",
+		    &btime, bunits, &itime, iunits);
 		if (cnt != 4) {
 			warnx("%s:%s: bad format", fsp, cp);
 			return (0);
 		}
-		btime = l_btime;
-		itime = l_itime;
 		if (cvtatos(btime, bunits, &bseconds) == 0)
 			return (0);
 		if (cvtatos(itime, iunits, &iseconds) == 0)
@@ -723,21 +773,21 @@ readtimes(struct quotause *quplist, char *inname)
  * Convert seconds to ASCII times.
  */
 char *
-cvtstoa(time_t secs)
+cvtstoa(u_int64_t secs)
 {
 	static char buf[20];
 
 	if (secs % (24 * 60 * 60) == 0) {
 		secs /= 24 * 60 * 60;
-		sprintf(buf, "%ld day%s", (long)secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%llu day%s", secs, secs == 1 ? "" : "s");
 	} else if (secs % (60 * 60) == 0) {
 		secs /= 60 * 60;
-		sprintf(buf, "%ld hour%s", (long)secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%llu hour%s", secs, secs == 1 ? "" : "s");
 	} else if (secs % 60 == 0) {
 		secs /= 60;
-		sprintf(buf, "%ld minute%s", (long)secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%llu minute%s", secs, secs == 1 ? "" : "s");
 	} else
-		sprintf(buf, "%ld second%s", (long)secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%llu second%s", secs, secs == 1 ? "" : "s");
 	return (buf);
 }
 
@@ -745,7 +795,7 @@ cvtstoa(time_t secs)
  * Convert ASCII input times to seconds.
  */
 int
-cvtatos(time_t period, char *units, time_t *seconds)
+cvtatos(u_int64_t period, char *units, u_int64_t *seconds)
 {
 
 	if (bcmp(units, "second", 6) == 0)
@@ -757,11 +807,58 @@ cvtatos(time_t period, char *units, time_t *seconds)
 	else if (bcmp(units, "day", 3) == 0)
 		*seconds = period * 24 * 60 * 60;
 	else {
-		printf("%s: bad units, specify %s\n", units,
+		warnx("%s: bad units, specify %s\n", units,
 		    "days, hours, minutes, or seconds");
 		return (0);
 	}
 	return (1);
+}
+
+/*
+ * Convert a limit to number of disk blocks.
+ */
+u_int64_t
+cvtval(u_int64_t limit, char units)
+{
+
+	switch(units) {
+	case 'B':
+	case 'b':
+		limit = btodb(limit);
+		break;
+	case '\0':	/* historic behavior */
+	case ',':	/* historic behavior */
+	case ')':	/* historic behavior */
+	case 'K':
+	case 'k':
+		limit *= btodb(1024);
+		break;
+	case 'M':
+	case 'm':
+		limit *= btodb(1048576);
+		break;
+	case 'G':
+	case 'g':
+		limit *= btodb(1073741824);
+		break;
+	case 'T':
+	case 't':
+		limit *= btodb(1099511627776);
+		break;
+	case 'P':
+	case 'p':
+		limit *= btodb(1125899906842624);
+		break;
+	case 'E':
+	case 'e':
+		limit *= btodb(1152921504606846976);
+		break;
+	default:
+		warnx("%llu%c: unknown units, specify K, M, G, T, P, or E\n",
+		    limit, units);
+		break;
+	}
+	return (limit);
 }
 
 /*
@@ -833,6 +930,7 @@ hasquota(struct fstab *fs, int type, char **qfnamep)
 	}
 	if (statfs(fs->fs_file, &sfb) != 0) {
 		warn("cannot statfs mount point %s", fs->fs_file);
+		sleep(3);
 		return (0);
 	}
 	if (strcmp(fs->fs_file, sfb.f_mntonname)) {

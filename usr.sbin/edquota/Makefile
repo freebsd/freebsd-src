@@ -4,6 +4,7 @@
 PROG=	edquota
 MAN=	edquota.8
 
+CSTD=	c99
 WARNS?=	4
 
 DPADD=	${LIBUTIL}
