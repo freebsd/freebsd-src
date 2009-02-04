@@ -874,7 +874,7 @@ tcp_discardcb(struct tcpcb *tp)
 	tcp_free_sackholes(tp);
 
 	/* Allow the cc algorithm in use for this cb to clean up after itself */
-	if (CC_ALGO(tp)->deinit)
+	if (CC_ALGO(tp)->deinit != NULL)
 		CC_ALGO(tp)->deinit(tp);
 
 	CC_ALGO(tp) = NULL;

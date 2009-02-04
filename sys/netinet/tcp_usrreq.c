@@ -1397,7 +1397,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 					 * so it's safe to do these things
 					 * without ordering concerns
 					 */
-					if (CC_ALGO(tp)->deinit)
+					if (CC_ALGO(tp)->deinit != NULL)
 						CC_ALGO(tp)->deinit(tp);
 					CC_ALGO(tp) = cc_algo;
 					/*

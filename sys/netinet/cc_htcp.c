@@ -214,7 +214,7 @@ htcp_deinit(struct tcpcb *tp)
 	printf("deinitialising tcp connection with htcp congestion control\n");
 #endif
 	
-	if (CC_DATA(tp))
+	if (CC_DATA(tp) != NULL)
 		FREE(CC_DATA(tp), M_HTCP);
 }
 
@@ -491,7 +491,7 @@ htcp_ssthresh_update(struct tcpcb *tp)
 static int
 htcp_rtt_scaling_handler(SYSCTL_HANDLER_ARGS)
 {
-	if(!req->newptr)
+	if(req->newptr == NULL)
 		goto skip;
 
 	/* if the value passed in isn't 0 or 1, return an error */
@@ -505,7 +505,7 @@ skip:
 static int
 htcp_adaptive_backoff_handler(SYSCTL_HANDLER_ARGS)
 {
-	if(!req->newptr)
+	if(req->newptr == NULL)
 		goto skip;
 
 	/* if the value passed in isn't 0 or 1, return an error */
@@ -520,7 +520,7 @@ skip:
 static int
 htcp_debug_ticks_handler(SYSCTL_HANDLER_ARGS)
 {
-	if(!req->newptr)
+	if(req->newptr == NULL)
 		goto skip;
 
 	/* if the value passed in is less than 1 */
