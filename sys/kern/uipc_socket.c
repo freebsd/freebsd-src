@@ -1858,7 +1858,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 	struct mbuf *m, *m2;
-	int flags, len, error, offset;
+	int flags, len, error;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
 
@@ -2008,7 +2008,6 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	}
 	KASSERT(m->m_type == MT_DATA, ("soreceive_dgram: !data"));
 
-	offset = 0;
 	while (m != NULL && uio->uio_resid > 0) {
 		len = uio->uio_resid;
 		if (len > m->m_len)
