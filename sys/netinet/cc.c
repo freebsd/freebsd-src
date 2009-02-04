@@ -82,7 +82,7 @@ cc_default_algorithm(SYSCTL_HANDLER_ARGS)
 {
 	struct cc_algo *funcs;
 
-	if (!req->newptr)
+	if (req->newptr == NULL)
 		goto skip;
 
 	CC_LIST_RLOCK();
@@ -213,9 +213,9 @@ cc_deregister_algorithm(struct cc_algo *remove_cc)
 					 * using the deregistered algo's functions...
 					 * Not sure how to do that yet!
 					 */
-					if(CC_ALGO(tp)->init)
+					if(CC_ALGO(tp)->init != NULL)
 						CC_ALGO(tp)->init(tp);
-					if (tmpfuncs->deinit)
+					if (tmpfuncs->deinit != NULL)
 						tmpfuncs->deinit(tp);
 				}
 			}

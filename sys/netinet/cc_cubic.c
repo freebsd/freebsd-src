@@ -147,7 +147,7 @@ cubic_init(struct tcpcb *tp)
 void
 cubic_deinit(struct tcpcb *tp)
 {
-	if (CC_DATA(tp))
+	if (CC_DATA(tp) != NULL)
 		free(CC_DATA(tp), M_CUBIC);
 }
 

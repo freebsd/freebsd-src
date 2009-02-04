@@ -519,7 +519,7 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	tp->t_rtttime = 0;
 
-	if (CC_ALGO(tp)->after_timeout)
+	if (CC_ALGO(tp)->after_timeout != NULL)
 		CC_ALGO(tp)->after_timeout(tp);
 
 	tp->t_dupacks = 0;

@@ -159,7 +159,7 @@ tcp_output(struct tcpcb *tp)
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
 	if (idle && (ticks - tp->t_rcvtime) >= tp->t_rxtcur) {
 		/* reset cwnd after a period of idleness */
-		if (CC_ALGO(tp)->after_idle)
+		if (CC_ALGO(tp)->after_idle != NULL)
 			CC_ALGO(tp)->after_idle(tp);
 	}
 	tp->t_flags &= ~TF_LASTIDLE;

@@ -1818,7 +1818,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					 * defined a hook for tasks to run
 					 * before entering FR, call it
 					 */
-					if (CC_ALGO(tp)->pre_fr)
+					if (CC_ALGO(tp)->pre_fr != NULL)
 						CC_ALGO(tp)->pre_fr(tp, th);
 
 					ENTER_FASTRECOVERY(tp);
@@ -1893,7 +1893,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				else
 					tcp_newreno_partial_ack(tp, th);
 			} else {
-				if (CC_ALGO(tp)->post_fr)
+				if (CC_ALGO(tp)->post_fr != NULL)
 					CC_ALGO(tp)->post_fr(tp, th);
 			}
 		}
@@ -1998,7 +1998,7 @@ process_ACK:
 		 * congestion control algorithm in use for this connection.
 		 */
 		if (!IN_FASTRECOVERY(tp)) {
-			if (CC_ALGO(tp)->ack_received)
+			if (CC_ALGO(tp)->ack_received != NULL)
 				CC_ALGO(tp)->ack_received(tp, th);
 		}
 		SOCKBUF_LOCK(&so->so_snd);
@@ -2889,7 +2889,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 		tp->snd_bandwidth = metrics.rmx_bandwidth;
 
 	/* set the initial cwnd value */
-	if (CC_ALGO(tp)->cwnd_init)
+	if (CC_ALGO(tp)->cwnd_init != NULL)
 		CC_ALGO(tp)->cwnd_init(tp);
 	else
 		tp->snd_cwnd = mss;
