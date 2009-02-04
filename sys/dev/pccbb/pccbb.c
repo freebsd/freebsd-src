@@ -175,7 +175,7 @@ static int	cbb_cardbus_release_resource(device_t brdev, device_t child,
 		    int type, int rid, struct resource *res);
 static int	cbb_cardbus_power_enable_socket(device_t brdev,
 		    device_t child);
-static void	cbb_cardbus_power_disable_socket(device_t brdev,
+static int	cbb_cardbus_power_disable_socket(device_t brdev,
 		    device_t child);
 static int	cbb_func_filt(void *arg);
 static void	cbb_func_intr(void *arg);
@@ -998,11 +998,12 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 	return (0);
 }
 
-static void
+static int
 cbb_cardbus_power_disable_socket(device_t brdev, device_t child)
 {
 	cbb_power(brdev, CARD_OFF);
 	cbb_cardbus_reset(brdev, child, 0);
+	return (0);
 }
 
 /************************************************************************/
@@ -1262,7 +1263,7 @@ cbb_pcic_power_enable_socket(device_t brdev, device_t child)
 	return (0);
 }
 
-static void
+static int
 cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
@@ -1282,6 +1283,7 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 
 	/* enable CSC interrupts */
 	exca_putb(&sc->exca[0], EXCA_INTR, EXCA_INTR_ENABLE);
+	return (0);
 }
 
 /************************************************************************/
@@ -1295,18 +1297,16 @@ cbb_power_enable_socket(device_t brdev, device_t child)
 
 	if (sc->flags & CBB_16BIT_CARD)
 		return (cbb_pcic_power_enable_socket(brdev, child));
-	else
-		return (cbb_cardbus_power_enable_socket(brdev, child));
+	return (cbb_cardbus_power_enable_socket(brdev, child));
 }
 
-void
+int
 cbb_power_disable_socket(device_t brdev, device_t child)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	if (sc->flags & CBB_16BIT_CARD)
-		cbb_pcic_power_disable_socket(brdev, child);
-	else
-		cbb_cardbus_power_disable_socket(brdev, child);
+		return (cbb_pcic_power_disable_socket(brdev, child));
+	return (cbb_cardbus_power_disable_socket(brdev, child));
 }
 
 static int
@@ -1404,7 +1404,7 @@ cbb_pcic_release_resource(device_t brdev, device_t child, int type,
 
 int
 cbb_pcic_set_res_flags(device_t brdev, device_t child, int type, int rid,
-    uint32_t flags)
+    u_long flags)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	struct resource *res;
@@ -1579,9 +1579,9 @@ cbb_resume(device_t self)
 }
 
 int
-cbb_child_present(device_t self)
+cbb_child_present(device_t parent, device_t child)
 {
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(self);
+	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(parent);
 	uint32_t sockstate;
 
 	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
