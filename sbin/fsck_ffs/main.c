@@ -81,8 +81,8 @@ main(int argc, char *argv[])
 
 	sync();
 	skipclean = 1;
-	damagedflag = 0;
-	while ((ch = getopt(argc, argv, "b:Bc:CdDfFm:npy")) != -1) {
+	inoopt = 0;
+	while ((ch = getopt(argc, argv, "b:Bc:CdfFm:npry")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -105,10 +105,6 @@ main(int argc, char *argv[])
 		case 'd':
 			debug++;
 			break;
-
-		case 'D':
-			damagedflag = 1;
-			/* FALLTHROUGH */
 
 		case 'f':
 			skipclean = 0;
@@ -136,6 +132,10 @@ main(int argc, char *argv[])
 
 		case 'C':
 			ckclean++;
+			break;
+
+		case 'r':
+			inoopt++;
 			break;
 
 		case 'y':
@@ -606,7 +606,7 @@ static void
 usage(void)
 {
         (void) fprintf(stderr,
-            "usage: %s [-BCFpfny] [-b block] [-c level] [-m mode] "
+            "usage: %s [-BFprfny] [-b block] [-c level] [-m mode] "
                         "filesystem ...\n",
             getprogname());
         exit(1);

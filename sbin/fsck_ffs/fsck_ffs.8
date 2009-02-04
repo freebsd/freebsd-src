@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BDFpfny
+.Op Fl BFprfny
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -216,22 +216,6 @@ are being converted at once.
 The format of a file system can be determined from the
 first line of output from
 .Xr dumpfs 8 .
-.It Fl D
-Run
-.Nm
-in 'damaged recovery' mode, which will enable certain aggressive
-operations that can make
-.Nm
-to survive with file systems that has very serious data damage, which
-is an useful last resort when on disk data damage is very serious
-and causes
-.Nm
-to crash otherwise.  Be
-.Em very careful
-using this flag, it is dangerous if there are data transmission hazards
-because a false positive cylinder group magic number mismatch could
-cause
-.Em irrevertible data loss!
 .Pp
 This option implies the
 .Fl f
@@ -259,6 +243,15 @@ which is assumed to be affirmative;
 do not open the file system for writing.
 .It Fl p
 Preen file systems (see above).
+.It Fl r
+Free up excess unused inodes.
+Decreasing the number of preallocated inodes reduces the
+running time of future runs of
+.Nm
+and frees up space that can allocated to files.
+The
+.Fl r
+option is ignored when running in preen mode.
 .It Fl y
 Assume a yes response to all questions asked by
 .Nm ;
