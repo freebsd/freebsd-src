@@ -785,20 +785,17 @@ cbb_maxslots(device_t brdev)
 }
 
 static uint32_t
-cbb_read_config(device_t brdev, int b, int s, int f, int reg, int width)
+cbb_read_config(device_t brdev, u_int b, u_int s, u_int f, u_int reg, int width)
 {
-	uint32_t rv;
-
 	/*
 	 * Pass through to the next ppb up the chain (i.e. our grandparent).
 	 */
-	rv = PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
-	    b, s, f, reg, width);
-	return (rv);
+	return (PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
+	    b, s, f, reg, width));
 }
 
 static void
-cbb_write_config(device_t brdev, int b, int s, int f, int reg, uint32_t val,
+cbb_write_config(device_t brdev, u_int b, u_int s, u_int f, u_int reg, uint32_t val,
     int width)
 {
 	/*
