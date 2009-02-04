@@ -651,8 +651,10 @@ defrouter_select(void)
 			selected_dr = dr;
 		}
 		IF_AFDATA_UNLOCK(dr->ifp);
-		if (ln != NULL)
+		if (ln != NULL) {
 			LLE_RUNLOCK(ln);
+			ln = NULL;
+		}
 
 		if (dr->installed && installed_dr == NULL)
 			installed_dr = dr;
