@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090113_0125"
+#define HDA_DRV_TEST_REV	"20090131_0127"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -761,8 +761,10 @@ static const struct {
 
 /* NVIDIA */
 #define HDA_CODEC_NVIDIAMCP78	HDA_CODEC_CONSTRUCT(NVIDIA, 0x0002)
+#define HDA_CODEC_NVIDIAMCP78_2	HDA_CODEC_CONSTRUCT(NVIDIA, 0x0006)
 #define HDA_CODEC_NVIDIAMCP7A	HDA_CODEC_CONSTRUCT(NVIDIA, 0x0007)
 #define HDA_CODEC_NVIDIAMCP67	HDA_CODEC_CONSTRUCT(NVIDIA, 0x0067)
+#define HDA_CODEC_NVIDIAMCP73	HDA_CODEC_CONSTRUCT(NVIDIA, 0x8001)
 #define HDA_CODEC_NVIDIAXXXX	HDA_CODEC_CONSTRUCT(NVIDIA, 0xffff)
 
 /* INTEL */
@@ -905,7 +907,9 @@ static const struct {
 	{ HDA_CODEC_ATIRS690,  "ATI RS690/780 HDMI" },
 	{ HDA_CODEC_ATIR6XX,   "ATI R6xx HDMI" },
 	{ HDA_CODEC_NVIDIAMCP67, "NVidia MCP67 HDMI" },
+	{ HDA_CODEC_NVIDIAMCP73, "NVidia MCP73 HDMI" },
 	{ HDA_CODEC_NVIDIAMCP78, "NVidia MCP78 HDMI" },
+	{ HDA_CODEC_NVIDIAMCP78_2, "NVidia MCP78 HDMI" },
 	{ HDA_CODEC_NVIDIAMCP7A, "NVidia MCP7A HDMI" },
 	{ HDA_CODEC_INTELG45_1, "Intel G45 HDMI" },
 	{ HDA_CODEC_INTELG45_2, "Intel G45 HDMI" },
@@ -2581,8 +2585,15 @@ hdac_widget_getcaps(struct hdac_widget *w, int *waspin)
 	   Change beeper pin node type to beeper to help parser. */
 	*waspin = 0;
 	switch (id) {
+	case HDA_CODEC_AD1882:
+	case HDA_CODEC_AD1883:
+	case HDA_CODEC_AD1984:
+	case HDA_CODEC_AD1984A:
+	case HDA_CODEC_AD1984B:
+	case HDA_CODEC_AD1987:
 	case HDA_CODEC_AD1988:
 	case HDA_CODEC_AD1988B:
+	case HDA_CODEC_AD1989B:
 		beeper = 26;
 		break;
 	case HDA_CODEC_ALC260:
@@ -7095,7 +7106,7 @@ hdac_config_fetch(struct hdac_softc *sc, uint32_t *on, uint32_t *off)
 			    hdac_quirks_tab[k].key, len - inv) != 0)
 				continue;
 			if (len - inv != strlen(hdac_quirks_tab[k].key))
-				break;
+				continue;
 			HDA_BOOTVERBOSE(
 				printf(" %s%s", (inv != 0) ? "no" : "",
 				    hdac_quirks_tab[k].key);
