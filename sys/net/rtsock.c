@@ -347,7 +347,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * 1. Check if the returned address is part of the jail.
 		 */
 		ia = ((struct sockaddr_in *)rt->rt_ifa->ifa_addr)->sin_addr;
-		if (prison_check_ip4(cred, &ia) != 0) {
+		if (prison_check_ip4(cred, &ia) == 0) {
 			info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 
 		} else {
@@ -366,7 +366,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				if (sa->sa_family != AF_INET)
 					continue;
 				ia = ((struct sockaddr_in *)sa)->sin_addr;
-				if (prison_check_ip4(cred, &ia) != 0) {
+				if (prison_check_ip4(cred, &ia) == 0) {
 					found = 1;
 					break;
 				}
@@ -399,7 +399,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 */
 		bcopy(&((struct sockaddr_in6 *)rt->rt_ifa->ifa_addr)->sin6_addr,
 		    &ia6, sizeof(struct in6_addr));
-		if (prison_check_ip6(cred, &ia6) != 0) {
+		if (prison_check_ip6(cred, &ia6) == 0) {
 			info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 		} else {
 			struct ifaddr *ifa;
@@ -418,7 +418,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 					continue;
 				bcopy(&((struct sockaddr_in6 *)sa)->sin6_addr,
 				    &ia6, sizeof(struct in6_addr));
-				if (prison_check_ip6(cred, &ia6) != 0) {
+				if (prison_check_ip6(cred, &ia6) == 0) {
 					found = 1;
 					break;
 				}
@@ -612,9 +612,10 @@ route_output(struct mbuf *m, struct socket *so)
 		case RTM_GET:
 		report:
 			RT_LOCK_ASSERT(rt);
-			if (jailed(curthread->td_ucred) &&
-			    ((rt->rt_flags & RTF_HOST) == 0 ||
-			    !prison_if(curthread->td_ucred, rt_key(rt)))) {
+			if ((rt->rt_flags & RTF_HOST) == 0
+			    ? jailed(curthread->td_ucred)
+			    : prison_if(curthread->td_ucred,
+			    rt_key(rt)) != 0) {
 				RT_UNLOCK(rt);
 				senderr(ESRCH);
 			}
@@ -1263,9 +1264,9 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
-	if (jailed(w->w_req->td->td_ucred) &&
-	    ((rt->rt_flags & RTF_HOST) == 0 ||
-	    !prison_if(w->w_req->td->td_ucred, rt_key(rt))))
+	if ((rt->rt_flags & RTF_HOST) == 0
+	    ? jailed(w->w_req->td->td_ucred)
+	    : prison_if(w->w_req->td->td_ucred, rt_key(rt)) != 0)
 		return (0);
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
@@ -1327,8 +1328,8 @@ sysctl_iflist(int af, struct walkarg *w)
 		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != NULL) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
-			if (jailed(w->w_req->td->td_ucred) &&
-			    !prison_if(w->w_req->td->td_ucred, ifa->ifa_addr))
+			if (prison_if(w->w_req->td->td_ucred,
+			    ifa->ifa_addr) != 0)
 				continue;
 			info.rti_info[RTAX_IFA] = ifa->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
@@ -1376,8 +1377,8 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
-			if (jailed(w->w_req->td->td_ucred) &&
-			    !prison_if(w->w_req->td->td_ucred, ifma->ifma_addr))
+			if (prison_if(w->w_req->td->td_ucred,
+			    ifma->ifma_addr) != 0)
 				continue;
 			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
 			info.rti_info[RTAX_GATEWAY] =

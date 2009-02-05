@@ -240,11 +240,10 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			if (*errorp != 0)
 				return (NULL);
 		}
-		if (cred != NULL && prison_local_ip6(cred, &srcsock.sin6_addr,
-		    (inp != NULL && (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
-			*errorp = EADDRNOTAVAIL;
+		if (cred != NULL && (*errorp = prison_local_ip6(cred,
+		    &srcsock.sin6_addr, (inp != NULL &&
+		    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (NULL);
-		}
 
 		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr((struct sockaddr *)(&srcsock));
 		if (ia6 == NULL ||
@@ -262,11 +261,10 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * Otherwise, if the socket has already bound the source, just use it.
 	 */
 	if (inp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
-		if (cred != NULL && prison_local_ip6(cred, &inp->in6p_laddr,
-		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
-			*errorp = EADDRNOTAVAIL;
+		if (cred != NULL &&
+		    (*errorp = prison_local_ip6(cred, &inp->in6p_laddr,
+		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (NULL);
-		}
 		return (&inp->in6p_laddr);
 	}
 
@@ -823,15 +821,16 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 	INIT_VNET_INET(curvnet);
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0, first, last, *lastport;
-	int count, error = 0, wild = 0, dorandom;
+	int count, error, wild = 0, dorandom;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if (prison_local_ip6(cred, laddr,
-	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
-		return(EINVAL);
+	error = prison_local_ip6(cred, laddr,
+	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0));
+	if (error)
+		return(error);
 
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)

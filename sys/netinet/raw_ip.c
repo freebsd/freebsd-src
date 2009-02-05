@@ -276,10 +276,8 @@ rip_input(struct mbuf *m, int off)
 			continue;
 		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
-		if (jailed(inp->inp_cred)) {
-			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
-				continue;
-		}
+		if (prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
+			continue;
 		if (last != NULL) {
 			struct mbuf *n;
 
@@ -306,10 +304,8 @@ rip_input(struct mbuf *m, int off)
 		if (inp->inp_faddr.s_addr &&
 		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
-		if (jailed(inp->inp_cred)) {
-			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
-				continue;
-		}
+		if (prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
+			continue;
 		if (last != NULL) {
 			struct mbuf *n;
 
@@ -370,14 +366,12 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			ip->ip_off = 0;
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
-		if (jailed(inp->inp_cred)) {
-			if (prison_get_ip4(inp->inp_cred, &ip->ip_src) != 0) {
-				INP_RUNLOCK(inp);
-				m_freem(m);
-				return (EPERM);
-			}
-		} else {
-			ip->ip_src = inp->inp_laddr;
+		ip->ip_src = inp->inp_laddr;
+		error = prison_get_ip4(inp->inp_cred, &ip->ip_src);
+		if (error != 0) {
+			INP_RUNLOCK(inp);
+			m_freem(m);
+			return (error);
 		}
 		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = inp->inp_ip_ttl;
@@ -388,10 +382,11 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		}
 		INP_RLOCK(inp);
 		ip = mtod(m, struct ip *);
-		if (!prison_check_ip4(inp->inp_cred, &ip->ip_src)) {
+		error = prison_check_ip4(inp->inp_cred, &ip->ip_src);
+		if (error != 0) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
-			return (EPERM);
+			return (error);
 		}
 
 		/*
@@ -803,12 +798,14 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INIT_VNET_INET(so->so_vnet);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
 	struct inpcb *inp;
+	int error;
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
 
-	if (!prison_check_ip4(td->td_ucred, &addr->sin_addr))
-		return (EADDRNOTAVAIL);
+	error = prison_check_ip4(td->td_ucred, &addr->sin_addr);
+	if (error != 0)
+		return (error);
 
 	if (TAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
