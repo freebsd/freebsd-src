@@ -257,11 +257,13 @@ exca_mem_map(struct exca_softc *sc, int kind, struct resource *res)
 	if (win >= EXCA_MEM_WINS)
 		return (ENOSPC);
 	if (sc->flags & EXCA_HAS_MEMREG_WIN) {
+#ifdef _LP64
 		if (rman_get_start(res) >> (EXCA_MEMREG_WIN_SHIFT + 8) != 0) {
 			device_printf(sc->dev,
 			    "Does not support mapping above 4GB.");
 			return (EINVAL);
 		}
+#endif
 	} else {
 		if (rman_get_start(res) >> EXCA_MEMREG_WIN_SHIFT != 0) {
 			device_printf(sc->dev,
