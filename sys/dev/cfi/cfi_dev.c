@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cfi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -255,14 +257,13 @@ cfi_devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	sc = dev->si_drv1;
 	error = 0;
 
-	switch(cmd) {
+	switch (cmd) {
 	case CFIOCQRY:
 		if (sc->sc_writing) {
 			error = cfi_block_finish(sc);
 			if (error)
 				break;
 		}
-
 		rq = (struct cfiocqry *)data;
 		if (rq->offset >= sc->sc_size / sc->sc_width)
 			return (ESPIPE);
@@ -274,6 +275,23 @@ cfi_devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			error = copyout(&val, rq->buffer++, 1);
 		}
 		break;
+#ifdef CFI_SUPPORT_STRATAFLASH
+	case CFIOCGFACTORYPR:
+		error = cfi_intel_get_factory_pr(sc, (uint64_t *)data);
+		break;
+	case CFIOCGOEMPR:
+		error = cfi_intel_get_oem_pr(sc, (uint64_t *)data);
+		break;
+	case CFIOCSOEMPR:
+		error = cfi_intel_set_oem_pr(sc, *(uint64_t *)data);
+		break;
+	case CFIOCGPLR:
+		error = cfi_intel_get_plr(sc, (uint32_t *)data);
+		break;
+	case CFIOCSPLR:
+		error = cfi_intel_set_plr(sc);
+		break;
+#endif /* CFI_SUPPORT_STRATAFLASH */
 	default:
 		error = ENOIOCTL;
 		break;
