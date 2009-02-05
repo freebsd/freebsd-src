@@ -437,15 +437,24 @@ getbssid(struct wlanstatfoo_p *wf)
 static void
 wlan_setstamac(struct wlanstatfoo *wf0, const uint8_t *mac)
 {
+	static const uint8_t zeromac[IEEE80211_ADDR_LEN];
 	struct wlanstatfoo_p *wf = (struct wlanstatfoo_p *) wf0;
 
 	if (mac == NULL) {
 		switch (wlan_getopmode(wf0)) {
 		case IEEE80211_M_HOSTAP:
 		case IEEE80211_M_MONITOR:
+			getlladdr(wf);
+			break;
 		case IEEE80211_M_IBSS:
 		case IEEE80211_M_AHDEMO:
-			getlladdr(wf);
+			/*
+			 * NB: this may not work in which case the
+			 * mac must be specified on the command line
+			 */
+			if (getbssid(wf) < 0 ||
+			    IEEE80211_ADDR_EQ(wf->mac, zeromac))
+				getlladdr(wf);
 			break;
 		case IEEE80211_M_STA:
 			if (getbssid(wf) < 0)
