@@ -191,6 +191,7 @@ int prison_local_ip6(struct ucred *, struct in6_addr *, int);
 int prison_remote_ip6(struct ucred *, struct in6_addr *);
 int prison_check_ip6(struct ucred *, struct in6_addr *);
 #endif
+int prison_check_af(struct ucred *cred, int af);
 int prison_if(struct ucred *cred, struct sockaddr *sa);
 int prison_priv_check(struct ucred *cred, int priv);
 
