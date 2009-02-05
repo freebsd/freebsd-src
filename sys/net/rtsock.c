@@ -337,55 +337,48 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
     struct rtentry *rt, union sockaddr_union *saun, struct ucred *cred)
 {
 
+	/* First, see if the returned address is part of the jail. */
+	if (prison_if(cred, rt->rt_ifa->ifa_addr) == 0) {
+		info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
+		return (0);
+	}
+
 	switch (info->rti_info[RTAX_DST]->sa_family) {
 #ifdef INET
 	case AF_INET:
 	{
 		struct in_addr ia;
+		struct ifaddr *ifa;
+		int found;
 
+		found = 0;
 		/*
-		 * 1. Check if the returned address is part of the jail.
+		 * Try to find an address on the given outgoing interface
+		 * that belongs to the jail.
 		 */
-		ia = ((struct sockaddr_in *)rt->rt_ifa->ifa_addr)->sin_addr;
-		if (prison_check_ip4(cred, &ia) == 0) {
-			info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
-
-		} else {
-			struct ifaddr *ifa;
-			int found;
-
-			found = 0;
-
-			/*
-			 * 2. Try to find an address on the given outgoing
-			 *    interface that belongs to the jail.
-			 */
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				struct sockaddr *sa;
-				sa = ifa->ifa_addr;
-				if (sa->sa_family != AF_INET)
-					continue;
-				ia = ((struct sockaddr_in *)sa)->sin_addr;
-				if (prison_check_ip4(cred, &ia) == 0) {
-					found = 1;
-					break;
-				}
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			struct sockaddr *sa;
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET)
+				continue;
+			ia = ((struct sockaddr_in *)sa)->sin_addr;
+			if (prison_check_ip4(cred, &ia) == 0) {
+				found = 1;
+				break;
 			}
-			if (!found) {
-				/*
-				 * 3. As a last resort return the 'default'
-				 * jail address.
-				 */
-				if (prison_get_ip4(cred, &ia) != 0)
-					return (ESRCH);
-			}
-			bzero(&saun->sin, sizeof(struct sockaddr_in));
-			saun->sin.sin_len = sizeof(struct sockaddr_in);
-			saun->sin.sin_family = AF_INET;
-			saun->sin.sin_addr.s_addr = ia.s_addr;
-			info->rti_info[RTAX_IFA] =
-			    (struct sockaddr *)&saun->sin;
 		}
+		if (!found) {
+			/*
+			 * As a last resort return the 'default' jail address.
+			 */
+			if (prison_get_ip4(cred, &ia) != 0)
+				return (ESRCH);
+		}
+		bzero(&saun->sin, sizeof(struct sockaddr_in));
+		saun->sin.sin_len = sizeof(struct sockaddr_in);
+		saun->sin.sin_family = AF_INET;
+		saun->sin.sin_addr.s_addr = ia.s_addr;
+		info->rti_info[RTAX_IFA] = (struct sockaddr *)&saun->sin;
 		break;
 	}
 #endif
@@ -393,54 +386,40 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 	case AF_INET6:
 	{
 		struct in6_addr ia6;
+		struct ifaddr *ifa;
+		int found;
 
+		found = 0;
 		/*
-		 * 1. Check if the returned address is part of the jail.
+		 * Try to find an address on the given outgoing interface
+		 * that belongs to the jail.
 		 */
-		bcopy(&((struct sockaddr_in6 *)rt->rt_ifa->ifa_addr)->sin6_addr,
-		    &ia6, sizeof(struct in6_addr));
-		if (prison_check_ip6(cred, &ia6) == 0) {
-			info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
-		} else {
-			struct ifaddr *ifa;
-			int found;
-
-			found = 0;
-
-			/*
-			 * 2. Try to find an address on the given outgoing
-			 *    interface that belongs to the jail.
-			 */
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				struct sockaddr *sa;
-				sa = ifa->ifa_addr;
-				if (sa->sa_family != AF_INET6)
-					continue;
-				bcopy(&((struct sockaddr_in6 *)sa)->sin6_addr,
-				    &ia6, sizeof(struct in6_addr));
-				if (prison_check_ip6(cred, &ia6) == 0) {
-					found = 1;
-					break;
-				}
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			struct sockaddr *sa;
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET6)
+				continue;
+			bcopy(&((struct sockaddr_in6 *)sa)->sin6_addr,
+			    &ia6, sizeof(struct in6_addr));
+			if (prison_check_ip6(cred, &ia6) == 0) {
+				found = 1;
+				break;
 			}
-			if (!found) {
-				/*
-				 * 3. As a last resort return the 'default'
-				 * jail address.
-				 */
-				if (prison_get_ip6(cred, &ia6) != 0)
-					return (ESRCH);
-			}
-			bzero(&saun->sin6, sizeof(struct sockaddr_in6));
-			saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
-			saun->sin6.sin6_family = AF_INET6;
-			bcopy(&ia6, &saun->sin6.sin6_addr,
-			    sizeof(struct in6_addr));
-			if (sa6_recoverscope(&saun->sin6) != 0)
-				return (ESRCH);
-			info->rti_info[RTAX_IFA] =
-			    (struct sockaddr *)&saun->sin6;
 		}
+		if (!found) {
+			/*
+			 * As a last resort return the 'default' jail address.
+			 */
+			if (prison_get_ip6(cred, &ia6) != 0)
+				return (ESRCH);
+		}
+		bzero(&saun->sin6, sizeof(struct sockaddr_in6));
+		saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
+		saun->sin6.sin6_family = AF_INET6;
+		bcopy(&ia6, &saun->sin6.sin6_addr, sizeof(struct in6_addr));
+		if (sa6_recoverscope(&saun->sin6) != 0)
+			return (ESRCH);
+		info->rti_info[RTAX_IFA] = (struct sockaddr *)&saun->sin6;
 		break;
 	}
 #endif
@@ -628,17 +607,11 @@ route_output(struct mbuf *m, struct socket *so)
 				if (ifp) {
 					info.rti_info[RTAX_IFP] =
 					    ifp->if_addr->ifa_addr;
-					if (jailed(curthread->td_ucred)) {
-						error = rtm_get_jailed(
-						    &info, ifp, rt, &saun,
-						    curthread->td_ucred);
-						if (error != 0) {
-							RT_UNLOCK(rt);
-							senderr(ESRCH);
-						}
-					} else {
-						info.rti_info[RTAX_IFA] =
-						    rt->rt_ifa->ifa_addr;
+					error = rtm_get_jailed(&info, ifp, rt,
+					    &saun, curthread->td_ucred);
+					if (error != 0) {
+						RT_UNLOCK(rt);
+						senderr(error);
 					}
 					if (ifp->if_flags & IFF_POINTOPOINT)
 						info.rti_info[RTAX_BRD] =
