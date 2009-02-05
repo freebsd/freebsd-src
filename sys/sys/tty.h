@@ -64,24 +64,25 @@ struct tty {
 	TAILQ_ENTRY(tty) t_list;	/* (l) TTY list entry. */
 	unsigned int	t_flags;	/* (t) Terminal option flags. */
 /* Keep flags in sync with db_show_tty and pstat(8). */
-#define	TF_NOPREFIX	0x0001	/* Don't prepend "tty" to device name. */
-#define	TF_INITLOCK	0x0002	/* Create init/lock state devices. */
-#define	TF_CALLOUT	0x0004	/* Create "cua" devices. */
-#define	TF_OPENED_IN	0x0008	/* "tty" node is in use. */
-#define	TF_OPENED_OUT	0x0010	/* "cua" node is in use. */
-#define	TF_OPENED	(TF_OPENED_IN|TF_OPENED_OUT)
-#define	TF_GONE		0x0020	/* Device node is gone. */
-#define	TF_OPENCLOSE	0x0040	/* Device is in open()/close(). */
-#define	TF_ASYNC	0x0080	/* Asynchronous I/O enabled. */
-#define	TF_LITERAL	0x0100	/* Accept the next character literally. */
-#define	TF_HIWAT_IN	0x0200	/* We've reached the input watermark. */
-#define	TF_HIWAT_OUT	0x0400	/* We've reached the output watermark. */
+#define	TF_NOPREFIX	0x00001	/* Don't prepend "tty" to device name. */
+#define	TF_INITLOCK	0x00002	/* Create init/lock state devices. */
+#define	TF_CALLOUT	0x00004	/* Create "cua" devices. */
+#define	TF_OPENED_IN	0x00008	/* "tty" node is in use. */
+#define	TF_OPENED_OUT	0x00010	/* "cua" node is in use. */
+#define	TF_OPENED_CONS	0x00020 /* Device in use as console. */
+#define	TF_OPENED	(TF_OPENED_IN|TF_OPENED_OUT|TF_OPENED_CONS)
+#define	TF_GONE		0x00040	/* Device node is gone. */
+#define	TF_OPENCLOSE	0x00080	/* Device is in open()/close(). */
+#define	TF_ASYNC	0x00100	/* Asynchronous I/O enabled. */
+#define	TF_LITERAL	0x00200	/* Accept the next character literally. */
+#define	TF_HIWAT_IN	0x00400	/* We've reached the input watermark. */
+#define	TF_HIWAT_OUT	0x00800	/* We've reached the output watermark. */
 #define	TF_HIWAT	(TF_HIWAT_IN|TF_HIWAT_OUT)
-#define	TF_STOPPED	0x0800	/* Output flow control - stopped. */
-#define	TF_EXCLUDE	0x1000	/* Exclusive access. */
-#define	TF_BYPASS	0x2000	/* Optimized input path. */
-#define	TF_ZOMBIE	0x4000	/* Modem disconnect received. */
-#define	TF_HOOK		0x8000	/* TTY has hook attached. */
+#define	TF_STOPPED	0x01000	/* Output flow control - stopped. */
+#define	TF_EXCLUDE	0x02000	/* Exclusive access. */
+#define	TF_BYPASS	0x04000	/* Optimized input path. */
+#define	TF_ZOMBIE	0x08000	/* Modem disconnect received. */
+#define	TF_HOOK		0x10000	/* TTY has hook attached. */
 	unsigned int	t_revokecnt;	/* (t) revoke() count. */
 
 	/* Buffering mechanisms. */

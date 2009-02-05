@@ -291,11 +291,12 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		}
 	}
 
-	if (TTY_CALLOUT(tp, dev)) {
+	if (dev == dev_console)
+		tp->t_flags |= TF_OPENED_CONS;
+	else if (TTY_CALLOUT(tp, dev))
 		tp->t_flags |= TF_OPENED_OUT;
-	} else {
+	else
 		tp->t_flags |= TF_OPENED_IN;
-	}
 
 done:	tp->t_flags &= ~TF_OPENCLOSE;
 	ttydev_leave(tp);
@@ -308,22 +309,28 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct tty *tp = dev->si_drv1;
 
+	tty_lock(tp);
+
 	/*
 	 * Don't actually close the device if it is being used as the
 	 * console.
 	 */
-	if (dev_console_filename != NULL &&
-	    strcmp(dev_console_filename, tty_devname(tp)) == 0)
-		return (0);
+	MPASS((tp->t_flags & TF_OPENED) != TF_OPENED);
+	if (dev == dev_console)
+		tp->t_flags &= ~TF_OPENED_CONS;
+	else
+		tp->t_flags &= ~(TF_OPENED_IN|TF_OPENED_OUT);
 
-	tty_lock(tp);
+	if (tp->t_flags & TF_OPENED) {
+		tty_unlock(tp);
+		return (0);
+	}
 
 	/*
 	 * This can only be called once. The callin and the callout
 	 * devices cannot be opened at the same time.
 	 */
-	MPASS((tp->t_flags & TF_OPENED) != TF_OPENED);
-	tp->t_flags &= ~(TF_OPENED|TF_EXCLUDE|TF_STOPPED);
+	tp->t_flags &= ~(TF_EXCLUDE|TF_STOPPED);
 
 	/* Properly wake up threads that are stuck - revoke(). */
 	tp->t_revokecnt++;
@@ -1797,13 +1804,14 @@ ttyconsdev_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 /*
- * /dev/console is a little different than normal TTY's. Unlike regular
- * TTY device nodes, this device node will not revoke the entire TTY
- * upon closure and all data written to it will be logged.
+ * /dev/console is a little different than normal TTY's.  When opened,
+ * it determines which TTY to use.  When data gets written to it, it
+ * will be logged in the kernel message buffer.
  */
 static struct cdevsw ttyconsdev_cdevsw = {
 	.d_version	= D_VERSION,
 	.d_open		= ttyconsdev_open,
+	.d_close	= ttydev_close,
 	.d_read		= ttydev_read,
 	.d_write	= ttyconsdev_write,
 	.d_ioctl	= ttydev_ioctl,
@@ -1845,33 +1853,34 @@ static struct {
 	char val;
 } ttystates[] = {
 #if 0
-	{ TF_NOPREFIX,	'N' },
+	{ TF_NOPREFIX,		'N' },
 #endif
-	{ TF_INITLOCK,	'I' },
-	{ TF_CALLOUT,	'C' },
+	{ TF_INITLOCK,		'I' },
+	{ TF_CALLOUT,		'C' },
 
 	/* Keep these together -> 'Oi' and 'Oo'. */
-	{ TF_OPENED,	'O' },
-	{ TF_OPENED_IN,	'i' },
-	{ TF_OPENED_OUT,'o' },
+	{ TF_OPENED,		'O' },
+	{ TF_OPENED_IN,		'i' },
+	{ TF_OPENED_OUT,	'o' },
+	{ TF_OPENED_CONS,	'c' },
 
-	{ TF_GONE,	'G' },
-	{ TF_OPENCLOSE,	'B' },
-	{ TF_ASYNC,	'Y' },
-	{ TF_LITERAL,	'L' },
+	{ TF_GONE,		'G' },
+	{ TF_OPENCLOSE,		'B' },
+	{ TF_ASYNC,		'Y' },
+	{ TF_LITERAL,		'L' },
 
 	/* Keep these together -> 'Hi' and 'Ho'. */
-	{ TF_HIWAT,	'H' },
-	{ TF_HIWAT_IN,	'i' },
-	{ TF_HIWAT_OUT,	'o' },
+	{ TF_HIWAT,		'H' },
+	{ TF_HIWAT_IN,		'i' },
+	{ TF_HIWAT_OUT,		'o' },
 
-	{ TF_STOPPED,	'S' },
-	{ TF_EXCLUDE,	'X' },
-	{ TF_BYPASS,	'l' },
-	{ TF_ZOMBIE,	'Z' },
-	{ TF_HOOK,	's' },
+	{ TF_STOPPED,		'S' },
+	{ TF_EXCLUDE,		'X' },
+	{ TF_BYPASS,		'l' },
+	{ TF_ZOMBIE,		'Z' },
+	{ TF_HOOK,		's' },
 
-	{ 0,	       '\0' },
+	{ 0,			'\0'},
 };
 
 #define	TTY_FLAG_BITS \
