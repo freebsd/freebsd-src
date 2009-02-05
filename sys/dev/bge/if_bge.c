@@ -348,7 +348,7 @@ static void bge_init_locked(struct bge_softc *);
 static void bge_init(void *);
 static void bge_stop(struct bge_softc *);
 static void bge_watchdog(struct bge_softc *);
-static void bge_shutdown(device_t);
+static int bge_shutdown(device_t);
 static int bge_ifmedia_upd_locked(struct ifnet *);
 static int bge_ifmedia_upd(struct ifnet *);
 static void bge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -4280,17 +4280,18 @@ bge_stop(struct bge_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 bge_shutdown(device_t dev)
 {
 	struct bge_softc *sc;
 
 	sc = device_get_softc(dev);
-
 	BGE_LOCK(sc);
 	bge_stop(sc);
 	bge_reset(sc);
 	BGE_UNLOCK(sc);
+
+	return (0);
 }
 
 static int
