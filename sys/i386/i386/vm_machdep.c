@@ -616,7 +616,10 @@ cpu_reset_real()
 
 	disable_intr();
 #ifdef XEN
-	HYPERVISOR_shutdown(SHUTDOWN_poweroff);
+	if (smp_processor_id() == 0)
+		HYPERVISOR_shutdown(SHUTDOWN_reboot);
+	else
+		HYPERVISOR_shutdown(SHUTDOWN_reboot);
 #endif 
 #ifdef CPU_ELAN
 	if (elan_mmcr != NULL)
