@@ -986,7 +986,7 @@ done:
 }
 
 static void
-swcr_identify(device_t *dev, device_t parent)
+swcr_identify(driver_t *drv, device_t parent)
 {
 	/* NB: order 10 is so we get attached after h/w devices */
 	if (device_find_child(parent, "cryptosoft", -1) == NULL &&
@@ -1040,12 +1040,13 @@ swcr_attach(device_t dev)
 	return 0;
 }
 
-static void
+static int
 swcr_detach(device_t dev)
 {
 	crypto_unregister_all(swcr_id);
 	if (swcr_sessions != NULL)
 		free(swcr_sessions, M_CRYPTO_DATA);
+	return 0;
 }
 
 static device_method_t swcr_methods[] = {
