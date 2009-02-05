@@ -43,37 +43,11 @@
 #include <getopt.h>
 #include <stdlib.h>
 
+#include "ah_debug.h"
+
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 
 const char *progname;
-
-enum {
-	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
-	ATH_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
-	ATH_DEBUG_RECV		= 0x00000004,	/* basic recv operation */
-	ATH_DEBUG_RECV_DESC	= 0x00000008,	/* recv descriptors */
-	ATH_DEBUG_RATE		= 0x00000010,	/* rate control */
-	ATH_DEBUG_RESET		= 0x00000020,	/* reset processing */
-	ATH_DEBUG_MODE		= 0x00000040,	/* mode init/setup */
-	ATH_DEBUG_BEACON 	= 0x00000080,	/* beacon handling */
-	ATH_DEBUG_WATCHDOG 	= 0x00000100,	/* watchdog timeout */
-	ATH_DEBUG_INTR		= 0x00001000,	/* ISR */
-	ATH_DEBUG_TX_PROC	= 0x00002000,	/* tx ISR proc */
-	ATH_DEBUG_RX_PROC	= 0x00004000,	/* rx ISR proc */
-	ATH_DEBUG_BEACON_PROC	= 0x00008000,	/* beacon ISR proc */
-	ATH_DEBUG_CALIBRATE	= 0x00010000,	/* periodic calibration */
-	ATH_DEBUG_KEYCACHE	= 0x00020000,	/* key cache management */
-	ATH_DEBUG_STATE		= 0x00040000,	/* 802.11 state transitions */
-	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
-	ATH_DEBUG_LED		= 0x00100000,	/* led management */
-	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
-	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
-	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
-	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
-	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
-	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
-	ATH_DEBUG_ANY		= 0xffffffff
-};
 
 static struct {
 	const char	*name;
@@ -87,7 +61,6 @@ static struct {
 	{ "reset",	ATH_DEBUG_RESET },
 	{ "mode",	ATH_DEBUG_MODE },
 	{ "beacon",	ATH_DEBUG_BEACON },
-	{ "watchdog",	ATH_DEBUG_WATCHDOG },
 	{ "intr",	ATH_DEBUG_INTR },
 	{ "xmit_proc",	ATH_DEBUG_TX_PROC },
 	{ "recv_proc",	ATH_DEBUG_RX_PROC },
@@ -96,13 +69,19 @@ static struct {
 	{ "keycache",	ATH_DEBUG_KEYCACHE },
 	{ "state",	ATH_DEBUG_STATE },
 	{ "node",	ATH_DEBUG_NODE },
-	{ "led",	ATH_DEBUG_LED },
 	{ "ff",		ATH_DEBUG_FF },
-	{ "dfs",	ATH_DEBUG_DFS },
 	{ "tdma",	ATH_DEBUG_TDMA },
 	{ "tdma_timer",	ATH_DEBUG_TDMA_TIMER },
 	{ "regdomain",	ATH_DEBUG_REGDOMAIN },
 	{ "fatal",	ATH_DEBUG_FATAL },
+	{ "ani",	HAL_DEBUG_ANI },
+	{ "txqueue",	HAL_DEBUG_TXQUEUE },
+	{ "nfcal",	HAL_DEBUG_NFCAL },
+	{ "phyio",	HAL_DEBUG_PHYIO },
+	{ "power",	HAL_DEBUG_POWER },
+	{ "rfparam",	HAL_DEBUG_RFPARAM },
+	{ "regio",	HAL_DEBUG_REGIO },
+	{ "attach",	HAL_DEBUG_ATTACH },
 };
 
 static u_int

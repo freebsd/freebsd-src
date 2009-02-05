@@ -1058,7 +1058,7 @@ main(int argc, char *argv[])
 			showchannels = AH_TRUE;
 			break;
 		case 'd':
-			ath_hal_debug = HAL_DEBUG_ANY;
+			ath_hal_debug = ATH_DEBUG_ANY;
 			break;
 		case 'e':
 			extendedChanMode = AH_FALSE;
@@ -1591,7 +1591,7 @@ setRateTable(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		ahp->ah_ofdmTxPower = rpow[0];
 #endif
 
-		HALDEBUG(ah, HAL_DEBUG_ANY,
+		HALDEBUG(ah, ATH_DEBUG_ANY,
 		    "%s: MaxRD: %d TurboMax: %d MaxCTL: %d "
 		    "TPC_Reduction %d\n", __func__,
 		    twiceMaxRDPower, turbo2WMaxPower5,
