@@ -619,7 +619,7 @@ cpu_reset_real()
 	if (smp_processor_id() == 0)
 		HYPERVISOR_shutdown(SHUTDOWN_reboot);
 	else
-		HYPERVISOR_shutdown(SHUTDOWN_reboot);
+		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
 #endif 
 #ifdef CPU_ELAN
 	if (elan_mmcr != NULL)
