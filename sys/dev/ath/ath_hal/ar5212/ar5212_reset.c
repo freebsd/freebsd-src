@@ -1089,7 +1089,16 @@ ar5212PerCalibration(struct ath_hal *ah,  struct ieee80211_channel *chan,
 HAL_BOOL
 ar5212ResetCalValid(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	/* XXX */
+	HAL_CHANNEL_INTERNAL *ichan;
+
+	ichan = ath_hal_checkchannel(ah, chan);
+	if (ichan == AH_NULL) {
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: invalid channel %u/0x%x; no mapping\n",
+		    __func__, chan->ic_freq, chan->ic_flags);
+		return AH_FALSE;
+	}
+	ichan->privFlags &= ~CHANNEL_IQVALID;
 	return AH_TRUE;
 }
 
