@@ -49,6 +49,7 @@ struct netband {
 	const struct freqband *band;	/* channel list description */
 	uint8_t		maxPower;	/* regulatory cap on tx power (dBm) */
 	uint8_t		maxPowerDFS;	/* regulatory cap w/ DFS (dBm) */
+	uint8_t		maxAntGain;	/* max allowed antenna gain (.5 dBm) */
 	uint32_t	flags;		/* net80211 channel flags */
 
 	LIST_ENTRY(netband) next;
