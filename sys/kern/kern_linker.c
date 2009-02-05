@@ -643,8 +643,11 @@ linker_file_unload(linker_file_t file, int flags)
 	 * link error.
 	 */
 	if (file->flags & LINKER_FILE_LINKED) {
+		file->flags &= ~LINKER_FILE_LINKED;
+		KLD_UNLOCK();
 		linker_file_sysuninit(file);
 		linker_file_unregister_sysctls(file);
+		KLD_LOCK();
 	}
 	TAILQ_REMOVE(&linker_files, file, link);
 
