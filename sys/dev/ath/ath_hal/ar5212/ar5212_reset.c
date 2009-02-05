@@ -994,6 +994,12 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 			    AR_PHY_TIMING_CTRL4_DO_IQCAL);
 		} while (++i < IQ_CAL_TRIES);
 
+		HALDEBUG(ah, HAL_DEBUG_PERCAL,
+		    "%s: IQ cal finished: %d tries\n", __func__, i);
+		HALDEBUG(ah, HAL_DEBUG_PERCAL,
+		    "%s: powerMeasI %u powerMeasQ %u iqCorrMeas %d\n",
+		    __func__, powerMeasI, powerMeasQ, iqCorrMeas);
+
 		/*
 		 * Prescale these values to remove 64-bit operation
 		 * requirement at the loss of a little precision.
@@ -1020,19 +1026,7 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 			}
 
 			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "****************** MISGATED IQ CAL! *******************\n");
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "time       = %d, i = %d, \n", OS_GETUPTIME(ah), i);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "powerMeasI = 0x%08x\n", powerMeasI);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "powerMeasQ = 0x%08x\n", powerMeasQ);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "iqCorrMeas = 0x%08x\n", iqCorrMeas);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "iCoff      = %d\n", iCoff);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "qCoff      = %d\n", qCoff);
+			    "%s: iCoff %d qCoff %d\n", __func__, iCoff, qCoff);
 
 			/* Write values and enable correction */
 			OS_REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4,
