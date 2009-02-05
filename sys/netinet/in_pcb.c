@@ -313,7 +313,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = INPLOOKUP_WILDCARD;
-	if (nam) {
+	if (nam == NULL) {
+		if ((error = prison_local_ip4(cred, &laddr)) != 0)
+			return (error);
+	} else {
 		sin = (struct sockaddr_in *)nam;
 		if (nam->sa_len != sizeof (*sin))
 			return (EINVAL);
@@ -392,9 +395,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
 			}
-			error = prison_local_ip4(cred, &sin->sin_addr);
-			if (error)
-				return (error);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, wild, cred);
 			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
@@ -427,10 +427,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	if (lport == 0) {
 		u_short first, last, aux;
 		int count;
-
-		error = prison_local_ip4(cred, &laddr);
-		if (error)
-			return (error);
 
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = V_ipport_hifirstauto;	/* sysctl */
@@ -496,9 +492,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		} while (in_pcblookup_local(pcbinfo, laddr,
 		    lport, wild, cred));
 	}
-	error = prison_local_ip4(cred, &laddr);
-	if (error)
-		return (error);
 	*laddrp = laddr.s_addr;
 	*lportp = lport;
 	return (0);
