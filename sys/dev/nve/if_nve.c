@@ -147,7 +147,7 @@ static int      nve_ifmedia_upd(struct ifnet *);
 static void	nve_ifmedia_upd_locked(struct ifnet *);
 static void     nve_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int      nve_miibus_readreg(device_t, int, int);
-static void     nve_miibus_writereg(device_t, int, int, int);
+static int      nve_miibus_writereg(device_t, int, int, int);
 
 static void     nve_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 static void     nve_dmamap_tx_cb(void *, bus_dma_segment_t *, int, bus_size_t, int);
@@ -1292,7 +1292,7 @@ nve_miibus_readreg(device_t dev, int phy, int reg)
 }
 
 /* miibus Write PHY register wrapper - calls Nvidia API entry point */
-static void
+static int
 nve_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct nve_softc *sc = device_get_softc(dev);
@@ -1303,7 +1303,7 @@ nve_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	DEBUGOUT(NVE_DEBUG_MII, "nve: nve_miibus_writereg - exit\n");
 
-	return;
+	return 0;
 }
 
 /* Watchdog timer to prevent PHY lockups */
