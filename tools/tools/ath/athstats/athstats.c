@@ -217,7 +217,9 @@ static const struct fmt athstats[] = {
 	{ 5,	"tdmat",	"tdmat",	"TDMA slot update set TSF" },
 #define	S_TDMA_TSFADJ	AFTER(S_TDMA_TSF)
 	{ 8,	"tdmadj",	"tdmadj",	"TDMA slot adjust (usecs, smoothed)" },
-#define	S_RATE_CALLS	AFTER(S_TDMA_TSFADJ)
+#define	S_TDMA_ACK	AFTER(S_TDMA_TSFADJ)
+	{ 5,	"tdmack",	"tdmack",	"TDMA tx failed 'cuz ACK required" },
+#define	S_RATE_CALLS	AFTER(S_TDMA_ACK)
 #else
 #define	S_RATE_CALLS	AFTER(S_PER_RFGAIN)
 #endif
@@ -236,7 +238,9 @@ static const struct fmt athstats[] = {
 	{ 5,	"bmissphantom",	"bmissphantom",	"phantom beacon misses" },
 #define	S_TX_RAW	AFTER(S_BMISS_PHANTOM)
 	{ 5,	"txraw",	"txraw",	"tx frames through raw api" },
-#define	S_RX_TOOBIG	AFTER(S_TX_RAW)
+#define	S_TX_RAW_FAIL	AFTER(S_TX_RAW)
+	{ 5,	"txrawfail",	"txrawfail",	"raw tx failed 'cuz interface/hw down" },
+#define	S_RX_TOOBIG	AFTER(S_TX_RAW_FAIL)
 	{ 5,	"rx2big",	"rx2big",	"rx failed 'cuz frame too large"  },
 #ifndef __linux__
 #define	S_CABQ_XMIT	AFTER(S_RX_TOOBIG)
@@ -557,6 +561,8 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_SHORTPRE:	STAT(tx_shortpre);
 	case S_TX_ALTRATE:	STAT(tx_altrate);
 	case S_TX_PROTECT:	STAT(tx_protect);
+	case S_TX_RAW:		STAT(tx_raw);
+	case S_TX_RAW_FAIL:	STAT(tx_raw_fail);
 	case S_RX_NOMBUF:	STAT(rx_nombuf);
 #ifdef S_RX_BUSDMA
 	case S_RX_BUSDMA:	STAT(rx_busdma);
@@ -609,6 +615,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 		snprintf(b, bs, "-%d/+%d",
 		    wf->cur.ath.ast_tdma_tsfadjm, wf->cur.ath.ast_tdma_tsfadjp);
 		return 1;
+	case S_TDMA_ACK:	STAT(tdma_ack);
 #endif
 	case S_RATE_CALLS:	STAT(rate_calls);
 	case S_RATE_RAISE:	STAT(rate_raise);
@@ -771,6 +778,8 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_SHORTPRE:	STAT(tx_shortpre);
 	case S_TX_ALTRATE:	STAT(tx_altrate);
 	case S_TX_PROTECT:	STAT(tx_protect);
+	case S_TX_RAW:		STAT(tx_raw);
+	case S_TX_RAW_FAIL:	STAT(tx_raw_fail);
 	case S_RX_NOMBUF:	STAT(rx_nombuf);
 #ifdef S_RX_BUSDMA
 	case S_RX_BUSDMA:	STAT(rx_busdma);
@@ -824,6 +833,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 		    wf->total.ath.ast_tdma_tsfadjm,
 		    wf->total.ath.ast_tdma_tsfadjp);
 		return 1;
+	case S_TDMA_ACK:	STAT(tdma_ack);
 #endif
 	case S_RATE_CALLS:	STAT(rate_calls);
 	case S_RATE_RAISE:	STAT(rate_raise);
