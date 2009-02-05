@@ -151,7 +151,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 	tuple.memh = rman_get_bushandle(res);
 	tuple.ptr = 0;
 
-	DPRINTF(("cis mem map 0x%x (resource: 0x%lx)\n",
+	DPRINTF(("cis mem map %#x (resource: %#lx)\n",
 	    (unsigned int) tuple.memh, rman_get_start(res)));
 
 	tuple.mult = 2;
@@ -230,7 +230,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 				longlink_common = (tuple.code ==
 				    CISTPL_LONGLINK_C) ? 1 : 0;
 				longlink_addr = pccard_tuple_read_4(&tuple, 0);
-				DPRINTF(("CISTPL_LONGLINK_%s %lx\n",
+				DPRINTF(("CISTPL_LONGLINK_%s %#lx\n",
 				    longlink_common ? "C" : "A",
 				    longlink_addr));
 				break;
@@ -264,8 +264,8 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 
 					addr = tuple.ptr + offset;
 
-					DPRINTF(("CISTPL_CHECKSUM addr=%lx "
-					    "len=%lx cksum=%x",
+					DPRINTF(("CISTPL_CHECKSUM addr=%#lx "
+					    "len=%#lx cksum=%#x",
 					    addr, length, cksum));
 
 					/*
@@ -286,7 +286,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 						    tuple.memh,
 						    addr + tuple.mult * i);
 					if (cksum != (sum & 0xff)) {
-						DPRINTF((" failed sum=%x\n",
+						DPRINTF((" failed sum=%#x\n",
 						    sum));
 						device_printf(dev, 
 						    "CIS checksum failed\n");
@@ -361,7 +361,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 						mfc[i].addr =
 						    pccard_tuple_read_4(&tuple,
 						    1 + 5 * i + 1);
-						DPRINTF((" %s:%lx",
+						DPRINTF((" %s:%#lx",
 						    mfc[i].common ? "common" :
 						    "attr", mfc[i].addr));
 					}
@@ -386,11 +386,11 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 			{
 				int i;
 
-				DPRINTF((" %02x %02x", tuple.code,
+				DPRINTF((" %#02x %#02x", tuple.code,
 				    tuple.length));
 
 				for (i = 0; i < tuple.length; i++) {
-					DPRINTF((" %02x",
+					DPRINTF((" %#02x",
 					    pccard_tuple_read_1(&tuple, i)));
 					if ((i % 16) == 13)
 						DPRINTF(("\n"));
@@ -416,7 +416,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 				CARD_SET_RES_FLAGS(bus, dev, SYS_RES_MEMORY,
 				    rid, longlink_common ?
 				    PCCARD_A_MEM_COM : PCCARD_A_MEM_ATTR);
-				DPRINTF(("cis mem map %x\n",
+				DPRINTF(("cis mem map %#x\n",
 				    (unsigned int) tuple.memh));
 				tuple.mult = longlink_common ? 1 : 2;
 				tuple.ptr = longlink_addr;
@@ -427,7 +427,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 				CARD_SET_RES_FLAGS(bus, dev, SYS_RES_MEMORY,
 				    rid, mfc[mfc_index].common ?
 				    PCCARD_A_MEM_COM : PCCARD_A_MEM_ATTR);
-				DPRINTF(("cis mem map %x\n",
+				DPRINTF(("cis mem map %#x\n",
 				    (unsigned int) tuple.memh));
 				/* set parse state, and point at the next one */
 				tuple.mult = mfc[mfc_index].common ? 1 : 2;
@@ -441,7 +441,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 			tuple.code = pccard_cis_read_1(&tuple, tuple.ptr);
 			if (tuple.code != CISTPL_LINKTARGET) {
 				DPRINTF(("CISTPL_LINKTARGET expected, "
-				    "code %02x observed\n", tuple.code));
+				    "code %#02x observed\n", tuple.code));
 				continue;
 			}
 			tuple.length = pccard_cis_read_1(&tuple, tuple.ptr + 1);
@@ -504,7 +504,7 @@ pccard_print_cis(device_t dev)
 	}
 	printf("\n");
 
-	device_printf(dev, "Manufacturer code 0x%x, product 0x%x\n",
+	device_printf(dev, "Manufacturer code %#x, product %#x\n",
 	    card->manufacturer, card->product);
 
 	STAILQ_FOREACH(pf, &card->pf_head, pf_list) {
@@ -552,7 +552,7 @@ pccard_print_cis(device_t dev)
 			break;
 		}
 
-		printf(", ccr addr %x mask %x\n", pf->ccr_base, pf->ccr_mask);
+		printf(", ccr addr %#x mask %#x\n", pf->ccr_base, pf->ccr_mask);
 
 		STAILQ_FOREACH(cfe, &pf->cfe_head, cfe_list) {
 			device_printf(dev, "function %d, config table entry "
@@ -570,15 +570,15 @@ pccard_print_cis(device_t dev)
 				break;
 			}
 
-			printf("; irq mask %x", cfe->irqmask);
+			printf("; irq mask %#x", cfe->irqmask);
 
 			if (cfe->num_iospace) {
-				printf("; iomask %lx, iospace", cfe->iomask);
+				printf("; iomask %#lx, iospace", cfe->iomask);
 
 				for (i = 0; i < cfe->num_iospace; i++) {
-					printf(" %lx", cfe->iospace[i].start);
+					printf(" %#lx", cfe->iospace[i].start);
 					if (cfe->iospace[i].length)
-						printf("-%lx",
+						printf("-%#lx",
 						    cfe->iospace[i].start +
 						    cfe->iospace[i].length - 1);
 				}
@@ -587,14 +587,14 @@ pccard_print_cis(device_t dev)
 				printf("; memspace");
 
 				for (i = 0; i < cfe->num_memspace; i++) {
-					printf(" %lx",
+					printf(" %#lx",
 					    cfe->memspace[i].cardaddr);
 					if (cfe->memspace[i].length)
-						printf("-%lx",
+						printf("-%#lx",
 						    cfe->memspace[i].cardaddr +
 						    cfe->memspace[i].length - 1);
 					if (cfe->memspace[i].hostaddr)
-						printf("@%lx",
+						printf("@%#lx",
 						    cfe->memspace[i].hostaddr);
 				}
 			}
@@ -1264,7 +1264,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 		DPRINTF(("CISTPL_CFTABLE_ENTRY\n"));
 		break;
 	default:
-		DPRINTF(("unhandled CISTPL %x\n", tuple->code));
+		DPRINTF(("unhandled CISTPL %#x\n", tuple->code));
 		break;
 	}
 
