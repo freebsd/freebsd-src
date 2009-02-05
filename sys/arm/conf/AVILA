@@ -50,7 +50,8 @@ options 	DDB			#Enable the kernel debugger
 #options		DIAGNOSTIC
 
 options 	SCHED_4BSD		#4BSD scheduler
-options		KSE
+options		PREEMPTION
+
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
@@ -78,7 +79,6 @@ options		BOOTP_NFSV3
 options		BOOTP_WIRED_TO=npe0
 #options		BOOTP_WIRED_TO=ath0
 options		BOOTP_COMPAT
-#options		PREEMPTION
 #options		VERBOSE_SYSINIT
 
 device		nexus
