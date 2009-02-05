@@ -144,6 +144,11 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#ifdef XENHVM
+#include <machine/xen/xen-os.h>
+#include <xen/hypervisor.h>
+#include <xen/interface/hvm/hvm_op.h>
+#endif
 
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
@@ -793,8 +798,20 @@ pmap_invalidate_all(pmap_t pmap)
 
 	sched_pin();
 	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
-		invltlb();
-		smp_invltlb();
+#if defined(XENHVM) && defined(notdef)
+		/*
+		 * As far as I can tell, this makes things slower, at
+		 * least where there are only two physical cpus and
+		 * the host is not overcommitted.
+		 */
+		if (is_running_on_xen()) {
+			HYPERVISOR_hvm_op(HVMOP_flush_tlbs, NULL);
+		} else
+#endif
+		{
+			invltlb();
+			smp_invltlb();
+		}
 	} else {
 		cpumask = PCPU_GET(cpumask);
 		other_cpus = PCPU_GET(other_cpus);
