@@ -4994,9 +4994,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		sc->sc_stats.ast_tx_noack++;
 #ifdef ATH_SUPPORT_TDMA
 	if (sc->sc_tdma && (flags & HAL_TXDESC_NOACK) == 0) {
-		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: ACK required w/ TDMA\n",
-		    __func__);
-		/* XXX statistic */
+		DPRINTF(sc, ATH_DEBUG_TDMA,
+		    "%s: discard frame, ACK required w/ TDMA\n", __func__);
+		sc->sc_stats.ast_tdma_ack++;
 		ath_freetx(m0);
 		return EIO;
 	}
@@ -7198,6 +7198,10 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ath_buf *bf;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
+		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
+			"!running" : "invalid");
+		sc->sc_stats.ast_tx_raw_fail++;
 		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENETDOWN;
@@ -7207,6 +7211,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 */
 	bf = ath_getbuf(sc);
 	if (bf == NULL) {
+		/* NB: ath_getbuf handles stat+msg */
 		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENOBUFS;
