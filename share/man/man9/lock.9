@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2008
+.Dd February 05, 2009
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -279,14 +279,6 @@ lock pointed to by the first argument.
 Assert that the current thread has no lock on the
 .Vt lkp
 lock pointed to by the first argument.
-.It Dv KA_HELD
-Assert that an unspecified thread has a lock on the
-.Vt lkp
-lock pointed to by the first argument.
-.It Dv KA_UNHELD
-Assert that no thread has a lock on the
-.Vt lkp
-lock pointed to by the first argument.
 .El
 .Pp
 In addition, one of the following optional assertions can be used with
@@ -305,15 +297,6 @@ Assert that the current thread does not have a recursed lock on
 .Fa lkp .
 .El
 .Pp
-Note that
-.Dv KA_HELD
-and
-.Dv KA_UNHELD
-usage is highly discouraged.
-They are intended to cater a bad behaviour
-introduced by buffer cache lock handling.
-They will hopefully be
-made useless by revisiting such locks.
 .Sh RETURN VALUES
 The
 .Fn lockmgr
