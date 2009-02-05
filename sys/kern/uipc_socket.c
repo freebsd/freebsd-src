@@ -347,15 +347,8 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	    prp->pr_usrreqs->pru_attach == pru_attach_notsupp)
 		return (EPROTONOSUPPORT);
 
-	if (jailed(cred) && jail_socket_unixiproute_only &&
-	    prp->pr_domain->dom_family != PF_LOCAL &&
-	    prp->pr_domain->dom_family != PF_INET &&
-#ifdef INET6
-	    prp->pr_domain->dom_family != PF_INET6 &&
-#endif
-	    prp->pr_domain->dom_family != PF_ROUTE) {
+	if (prison_check_af(cred, prp->pr_domain->dom_family) != 0)
 		return (EPROTONOSUPPORT);
-	}
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);

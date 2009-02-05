@@ -1099,6 +1099,48 @@ prison_check_ip6(struct ucred *cred, struct in6_addr *ia6)
 #endif
 
 /*
+ * Check if a jail supports the given address family.
+ *
+ * Returns 0 if not jailed or the address family is supported, EAFNOSUPPORT
+ * if not.
+ */
+int
+prison_check_af(struct ucred *cred, int af)
+{
+	int error;
+
+	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
+
+
+	if (!jailed(cred))
+		return (0);
+
+	error = 0;
+	switch (af)
+	{
+#ifdef INET
+	case AF_INET:
+		if (cred->cr_prison->pr_ip4 == NULL)
+			error = EAFNOSUPPORT;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (cred->cr_prison->pr_ip6 == NULL)
+			error = EAFNOSUPPORT;
+		break;
+#endif
+	case AF_LOCAL:
+	case AF_ROUTE:
+		break;
+	default:
+		if (jail_socket_unixiproute_only)
+			error = EAFNOSUPPORT;
+	}
+	return (error);
+}
+
+/*
  * Check if given address belongs to the jail referenced by cred (wrapper to
  * prison_check_ip[46]).
  *
