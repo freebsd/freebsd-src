@@ -80,7 +80,7 @@
 #if 0
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "writable_page_tables|writable_descriptor_tables|auto_translated_physmap|pae_pgdir_above_4gb|supervisor_mode_kernel")
 #endif
-	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "writable_page_tables|supervisor_mode_kernel|writable_descriptor_tables")
+	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "supervisor_mode_kernel|writable_descriptor_tables")
 		
 #ifdef PAE
 	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz, "yes")
