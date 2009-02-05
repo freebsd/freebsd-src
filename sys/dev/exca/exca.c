@@ -209,12 +209,9 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	exca_putb(sc, map->cardmem_msb, ((offset >> 8) &
 	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) | attrmem);
 
-#ifdef EXCA_DEBUG
-	if (mem->kind & PCCARD_MEM_ATTR)
-		printf("attribtue memory\n");
-	else
-		printf("common memory\n");
-#endif
+	DPRINTF("%s %d-bit memory",
+	    mem->kind & PCCARD_MEM_ATTR ? "attrubute" : "common",
+	    mem->kind & PCCARD_MEM_16BIT ? 16 : 8);
 	exca_setb(sc, EXCA_ADDRWIN_ENABLE, map->memenable |
 	    EXCA_ADDRWIN_ENABLE_MEMCS16);
 
@@ -229,11 +226,11 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 		r5 = exca_getb(sc, map->cardmem_msb);
 		r6 = exca_getb(sc, map->cardmem_lsb);
 		r7 = exca_getb(sc, map->sysmem_win);
-		printf("exca_do_mem_map win %d: %02x%02x %02x%02x "
-		    "%02x%02x %02x (%08x+%06x.%06x*%06x)\n",
+		printf("exca_do_mem_map win %d: %#02x%#02x %#02x%#02x "
+		    "%#02x%#02x %#02x (%#08x+%#06x.%#06x*%#06x) flags %#x\n",
 		    win, r1, r2, r3, r4, r5, r6, r7,
 		    mem->addr, mem->size, mem->realsize,
-		    mem->cardaddr);
+		    mem->cardaddr, mem->kind);
 	}
 #endif
 }
@@ -259,10 +256,18 @@ exca_mem_map(struct exca_softc *sc, int kind, struct resource *res)
 	}
 	if (win >= EXCA_MEM_WINS)
 		return (ENOSPC);
-	if (((rman_get_start(res) >> EXCA_MEMREG_WIN_SHIFT) & 0xff) != 0 &&
-	    (sc->flags & EXCA_HAS_MEMREG_WIN) == 0) {
-		device_printf(sc->dev, "Does not support mapping above 24M.");
-		return (EINVAL);
+	if (sc->flags & EXCA_HAS_MEMREG_WIN) {
+		if (rman_get_start(res) >> (EXCA_MEMREG_WIN_SHIFT + 8) != 0) {
+			device_printf(sc->dev,
+			    "Does not support mapping above 4GB.");
+			return (EINVAL);
+		}
+	} else {
+		if (rman_get_start(res) >> EXCA_MEMREG_WIN_SHIFT != 0) {
+			device_printf(sc->dev,
+			    "Does not support mapping above 16M.");
+			return (EINVAL);
+		}
 	}
 
 	sc->mem[win].cardaddr = 0;
