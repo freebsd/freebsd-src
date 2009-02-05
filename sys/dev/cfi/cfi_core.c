@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cfi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -70,7 +72,6 @@ cfi_read(struct cfi_softc *sc, u_int ofs)
 		val = ~0;
 		break;
 	}
-
 	return (val);
 }
 
@@ -300,10 +301,10 @@ cfi_detach(device_t dev)
 }
 
 static int
-cfi_wait_ready(struct cfi_softc *sc, u_int timeout)
+cfi_wait_ready(struct cfi_softc *sc, u_int ofs, u_int timeout)
 {
 	int done, error;
-	uint32_t st0, st;
+	uint32_t st0 = 0, st = 0;
 
 	done = 0;
 	error = 0;
@@ -315,21 +316,27 @@ cfi_wait_ready(struct cfi_softc *sc, u_int timeout)
 		switch (sc->sc_cmdset) {
 		case CFI_VEND_INTEL_ECS:
 		case CFI_VEND_INTEL_SCS:
-			st = cfi_read(sc, sc->sc_wrofs);
-			done = (st & 0x80);
+			st = cfi_read(sc, ofs);
+			done = (st & CFI_INTEL_STATUS_WSMS);
 			if (done) {
-				if (st & 0x02)
+				/* NB: bit 0 is reserved */
+				st &= ~(CFI_INTEL_XSTATUS_RSVD |
+					CFI_INTEL_STATUS_WSMS |
+					CFI_INTEL_STATUS_RSVD);
+				if (st & CFI_INTEL_STATUS_DPS)
 					error = EPERM;
-				else if (st & 0x10)
+				else if (st & CFI_INTEL_STATUS_PSLBS)
 					error = EIO;
-				else if (st & 0x20)
+				else if (st & CFI_INTEL_STATUS_ECLBS)
 					error = ENXIO;
+				else if (st)
+					error = EACCES;
 			}
 			break;
 		case CFI_VEND_AMD_SCS:
 		case CFI_VEND_AMD_ECS:
-			st0 = cfi_read(sc, sc->sc_wrofs);
-			st = cfi_read(sc, sc->sc_wrofs);
+			st0 = cfi_read(sc, ofs);
+			st = cfi_read(sc, ofs);
 			done = ((st & 0x40) == (st0 & 0x40)) ? 1 : 0;
 			break;
 		}
@@ -337,7 +344,7 @@ cfi_wait_ready(struct cfi_softc *sc, u_int timeout)
 	if (!done && !error)
 		error = ETIMEDOUT;
 	if (error)
-		printf("\nerror=%d\n", error);
+		printf("\nerror=%d (st 0x%x st0 0x%x)\n", error, st, st0);
 	return (error);
 }
 
@@ -369,7 +376,7 @@ cfi_write_block(struct cfi_softc *sc)
 		/* Better safe than sorry... */
 		return (ENODEV);
 	}
-	error = cfi_wait_ready(sc, sc->sc_erase_timeout);
+	error = cfi_wait_ready(sc, sc->sc_wrofs, sc->sc_erase_timeout);
 	if (error)
 		goto out;
 
@@ -411,7 +418,7 @@ cfi_write_block(struct cfi_softc *sc)
 
 		intr_restore(intr);
 
-		error = cfi_wait_ready(sc, sc->sc_write_timeout);
+		error = cfi_wait_ready(sc, sc->sc_wrofs, sc->sc_write_timeout);
 		if (error)
 			goto out;
 	}
@@ -422,3 +429,145 @@ cfi_write_block(struct cfi_softc *sc)
 	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
 	return (error);
 }
+
+#ifdef CFI_SUPPORT_STRATAFLASH
+/*
+ * Intel StrataFlash Protection Register Support.
+ *
+ * The memory includes a 128-bit Protection Register that can be
+ * used for security.  There are two 64-bit segments; one is programmed
+ * at the factory with a unique 64-bit number which is immutable.
+ * The other segment is left blank for User (OEM) programming.
+ * Once the User/OEM segment is programmed it can be locked
+ * to prevent future programming by writing bit 0 of the Protection
+ * Lock Register (PLR).  The PLR can written only once.
+ */
+
+static uint16_t
+cfi_get16(struct cfi_softc *sc, int off)
+{
+	uint16_t v = bus_space_read_2(sc->sc_tag, sc->sc_handle, off<<1);
+	return v;
+}
+
+static void
+cfi_put16(struct cfi_softc *sc, int off, uint16_t v)
+{
+	bus_space_write_2(sc->sc_tag, sc->sc_handle, off<<1, v);
+}
+
+/*
+ * Read the factory-defined 64-bit segment of the PR.
+ */
+int 
+cfi_intel_get_factory_pr(struct cfi_softc *sc, uint64_t *id)
+{
+	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
+		return EOPNOTSUPP;
+	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
+
+	cfi_write(sc, 0, CFI_INTEL_READ_ID);
+	*id = ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(0)))<<48 |
+	      ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(1)))<<32 |
+	      ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(2)))<<16 |
+	      ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(3)));
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	return 0;
+}
+
+/*
+ * Read the User/OEM 64-bit segment of the PR.
+ */
+int 
+cfi_intel_get_oem_pr(struct cfi_softc *sc, uint64_t *id)
+{
+	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
+		return EOPNOTSUPP;
+	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
+
+	cfi_write(sc, 0, CFI_INTEL_READ_ID);
+	*id = ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(4)))<<48 |
+	      ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(5)))<<32 |
+	      ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(6)))<<16 |
+	      ((uint64_t)cfi_get16(sc, CFI_INTEL_PR(7)));
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	return 0;
+}
+
+/*
+ * Write the User/OEM 64-bit segment of the PR.
+ */
+int
+cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t id)
+{
+	register_t intr;
+	int i, error;
+
+	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
+		return EOPNOTSUPP;
+	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
+
+	for (i = 7; i >= 4; i--, id >>= 16) {
+		intr = intr_disable();
+		cfi_write(sc, 0, CFI_INTEL_PP_SETUP);
+		cfi_put16(sc, CFI_INTEL_PR(i), id&0xffff);
+		intr_restore(intr);
+		error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS,
+		    sc->sc_write_timeout);
+		if (error)
+			break;
+	}
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	return error;
+}
+
+/*
+ * Read the contents of the Protection Lock Register.
+ */
+int 
+cfi_intel_get_plr(struct cfi_softc *sc, uint32_t *plr)
+{
+	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
+		return EOPNOTSUPP;
+	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
+
+	cfi_write(sc, 0, CFI_INTEL_READ_ID);
+	*plr = cfi_get16(sc, CFI_INTEL_PLR);
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	return 0;
+}
+
+/*
+ * Write the Protection Lock Register to lock down the
+ * user-settable segment of the Protection Register.
+ * NOTE: this operation is not reversible.
+ */
+int 
+cfi_intel_set_plr(struct cfi_softc *sc)
+{
+#ifdef CFI_ARMEDANDDANGEROUS
+	register_t intr;
+#endif
+	int error;
+
+	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
+		return EOPNOTSUPP;
+	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
+
+#ifdef CFI_ARMEDANDDANGEROUS
+	/* worthy of console msg */
+	device_printf(sc->sc_dev, "set PLR\n");
+	intr = intr_disable();
+	cfi_write(sc, 0, CFI_INTEL_PP_SETUP);
+	cfi_put16(sc, CFI_INTEL_PLR, 0xFFFD);
+	intr_restore(intr);
+	error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS, sc->sc_write_timeout);
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+#else
+	device_printf(sc->sc_dev, "%s: PLR not set, "
+	    "CFI_ARMEDANDDANGEROUS not configured\n", __func__);
+	error = ENXIO;
+#endif
+	return error;
+}
+#endif /* CFI_SUPPORT_STRATAFLASH */
