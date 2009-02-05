@@ -990,9 +990,8 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 			if (powerMeasI && powerMeasQ)
 				break;
 			/* Do we really need this??? */
-			OS_REG_WRITE (ah,  AR_PHY_TIMING_CTRL4,
-				      OS_REG_READ(ah,  AR_PHY_TIMING_CTRL4) |
-				      AR_PHY_TIMING_CTRL4_DO_IQCAL);
+			OS_REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4,
+			    AR_PHY_TIMING_CTRL4_DO_IQCAL);
 		} while (++i < IQ_CAL_TRIES);
 
 		/*
