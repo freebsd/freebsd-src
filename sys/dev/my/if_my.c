@@ -127,7 +127,7 @@ static void     my_init(void *);
 static void     my_init_locked(struct my_softc *);
 static void     my_stop(struct my_softc *);
 static void     my_watchdog(struct ifnet *);
-static void     my_shutdown(device_t);
+static int      my_shutdown(device_t);
 static int      my_ifmedia_upd(struct ifnet *);
 static void     my_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static u_int16_t my_phy_readreg(struct my_softc *, int);
@@ -1753,7 +1753,7 @@ my_stop(struct my_softc * sc)
  * Stop all chip I/O so that the kernel's probe routines don't get confused
  * by errant DMAs when rebooting.
  */
-static void
+static int
 my_shutdown(device_t dev)
 {
 	struct my_softc *sc;
@@ -1762,5 +1762,5 @@ my_shutdown(device_t dev)
 	MY_LOCK(sc);
 	my_stop(sc);
 	MY_UNLOCK(sc);
-	return;
+	return 0;
 }
