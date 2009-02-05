@@ -93,7 +93,7 @@ METHOD int detach_card {
 #
 # Find "dev" in the passed table of devices.  Return it or NULL.
 #
-METHOD struct pccard_product * do_product_lookup {
+METHOD const struct pccard_product * do_product_lookup {
 	device_t bus;
 	device_t dev;
 	const struct pccard_product *tab;
