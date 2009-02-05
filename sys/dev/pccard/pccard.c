@@ -173,7 +173,7 @@ pccard_set_default_descr(device_t dev)
 		if (pccard_get_product(dev, &prod))
 			return (0);
 		str = malloc(100, M_DEVBUF, M_WAITOK);
-		snprintf(str, 100, "vendor=0x%x product=0x%x", vendor, prod);
+		snprintf(str, 100, "vendor=%#x product=%#x", vendor, prod);
 		device_set_desc_copy(dev, str);
 		free(str, M_DEVBUF);
 	}
@@ -297,8 +297,8 @@ pccard_probe_and_attach_child(device_t dev, device_t child,
 	if (pccard_function_enable(pf) == 0 &&
 	    pccard_set_default_descr(child) == 0 &&
 	    device_attach(child) == 0) {
-		DEVPRINTF((sc->dev, "function %d CCR at %d offset %x mask %x: "
-		    "%x %x %x %x, %x %x %x %x, %x\n",
+		DEVPRINTF((sc->dev, "function %d CCR at %d offset %#x "
+		    "mask %#x: %#x %#x %#x %#x, %#x %#x %#x %#x, %#x\n",
 		    pf->number, pf->pf_ccr_window, pf->pf_ccr_offset,
 		    pf->ccr_mask, pccard_ccr_read(pf, 0x00),
 		    pccard_ccr_read(pf, 0x02), pccard_ccr_read(pf, 0x04),
@@ -506,7 +506,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 				end = start + cfe->iospace[i].length - 1;
 			else
 				end = ~0UL;
-			DEVPRINTF((bus, "I/O rid %d start %lx end %lx\n",
+			DEVPRINTF((bus, "I/O rid %d start %#lx end %#lx\n",
 			    i, start, end));
 			rid = i;
 			len = cfe->iospace[i].length;
@@ -528,7 +528,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 				end = start + cfe->memspace[i].length - 1;
 			else
 				end = ~0UL;
-			DEVPRINTF((bus, "Memory rid %d start %lx end %lx\n",
+			DEVPRINTF((bus, "Memory rid %d start %#lx end %#lx\n",
 			    i, start, end));
 			rid = i;
 			len = cfe->memspace[i].length;
@@ -594,7 +594,7 @@ pccard_function_free(struct pccard_function *pf)
 				device_printf(pf->sc->dev,
 				    "function_free: Resource still owned by "
 				    "child, oops. "
-				    "(type=%d, rid=%d, addr=%lx)\n",
+				    "(type=%d, rid=%d, addr=%#lx)\n",
 				    rle->type, rle->rid,
 				    rman_get_start(rle->res));
 			BUS_RELEASE_RESOURCE(device_get_parent(pf->sc->dev),
@@ -689,7 +689,7 @@ pccard_function_enable(struct pccard_function *pf)
 		    &pf->ccr_rid, 0, ~0, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
-		DEVPRINTF((dev, "ccr_res == %lx-%lx, base=%x\n",
+		DEVPRINTF((dev, "ccr_res == %#lx-%#lx, base=%#x\n",
 		    rman_get_start(pf->ccr_res), rman_get_end(pf->ccr_res),
 		    pf->ccr_base));
 		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
@@ -726,8 +726,8 @@ pccard_function_enable(struct pccard_function *pf)
 	if (pccard_debug) {
 		STAILQ_FOREACH(tmp, &pf->sc->card.pf_head, pf_list) {
 			device_printf(tmp->sc->dev,
-			    "function %d CCR at %d offset %x: "
-			    "%x %x %x %x, %x %x %x %x, %x\n",
+			    "function %d CCR at %d offset %#x: "
+			    "%#x %#x %#x %#x, %#x %#x %#x %#x, %#x\n",
 			    tmp->number, tmp->pf_ccr_window,
 			    tmp->pf_ccr_offset,
 			    pccard_ccr_read(tmp, 0x00),
@@ -1185,7 +1185,7 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if (!rle) {
 		device_printf(dev, "Allocated resource not found, "
-		    "%d %x %lx %lx\n",
+		    "%d %#x %#lx %#lx\n",
 		    type, rid, rman_get_start(r), rman_get_size(r));
 		return ENOENT;
 	}
