@@ -59,6 +59,8 @@ static void _db_show_vap(const struct ieee80211vap *, int);
 static void _db_show_com(const struct ieee80211com *,
 	int showvaps, int showsta, int showprocs);
 
+static void _db_show_node_table(const char *tag,
+	const struct ieee80211_node_table *);
 static void _db_show_channel(const char *tag, const struct ieee80211_channel *);
 static void _db_show_ssid(const char *tag, int ix, int len, const uint8_t *);
 static void _db_show_appie(const char *tag, const struct ieee80211_appie *);
@@ -76,6 +78,15 @@ DB_SHOW_COMMAND(sta, db_show_sta)
 		return;
 	}
 	_db_show_sta((const struct ieee80211_node *) addr);
+}
+
+DB_SHOW_COMMAND(statab, db_show_statab)
+{
+	if (!have_addr) {
+		db_printf("usage: show statab <addr>\n");
+		return;
+	}
+	_db_show_node_table("", (const struct ieee80211_node_table *) addr);
 }
 
 DB_SHOW_COMMAND(vap, db_show_vap)
@@ -213,6 +224,7 @@ _db_show_sta(const struct ieee80211_node *ni)
 		ni->ni_rxfragstamp);
 	db_printf("\trxfrag[0] %p rxfrag[1] %p rxfrag[2] %p\n",
 		ni->ni_rxfrag[0], ni->ni_rxfrag[1], ni->ni_rxfrag[2]);
+	_db_show_key("\tucastkey", 0, &ni->ni_ucastkey);
 	db_printf("\trstamp %u avgrssi 0x%x (rssi %d) noise %d\n",
 		ni->ni_rstamp, ni->ni_avgrssi,
 		IEEE80211_RSSI_GET(ni->ni_avgrssi), ni->ni_noise);
@@ -502,9 +514,12 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf("\n");
 
 	db_printf("\tmax_keyix %d", ic->ic_max_keyix);
-	db_printf(" sta %p", &ic->ic_sta);
 	db_printf(" wme %p", &ic->ic_wme);
+	if (!showsta)
+		db_printf(" sta %p", &ic->ic_sta);
 	db_printf("\n");
+	if (showsta)
+		_db_show_node_table("\t", &ic->ic_sta);
 
 	db_printf("\tprotmode %d", ic->ic_protmode);
 	db_printf(" nonerpsta %u", ic->ic_nonerpsta);
@@ -569,6 +584,26 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 }
 
 static void
+_db_show_node_table(const char *tag, const struct ieee80211_node_table *nt)
+{
+	int i;
+
+	db_printf("%s%s@%p:\n", tag, nt->nt_name, nt);
+	db_printf("%s  nodelock %p", tag, &nt->nt_nodelock);
+	db_printf(" inact_init %d", nt->nt_inact_init);
+	db_printf(" scanlock %p", &nt->nt_scanlock);
+	db_printf(" scangen %u\n", nt->nt_scangen);
+	db_printf("%s  keyixmax %d keyixmap %p\n",
+	    tag, nt->nt_keyixmax, nt->nt_keyixmap);
+	for (i = 0; i < nt->nt_keyixmax; i++) {
+		const struct ieee80211_node *ni = nt->nt_keyixmap[i];
+		if (ni != NULL)
+			db_printf("%s  [%3u] %p %s\n", tag, i, ni,
+			    ether_sprintf(ni->ni_macaddr));
+	}
+}
+
+static void
 _db_show_channel(const char *tag, const struct ieee80211_channel *c)
 {
 	db_printf("%s ", tag);
@@ -577,7 +612,7 @@ _db_show_channel(const char *tag, const struct ieee80211_channel *c)
 	else if (c == IEEE80211_CHAN_ANYC)
 		db_printf("<ANY>");
 	else
-		db_printf("[%u (%u) flags=%b maxreg %u maxpow %u minpow %u state 0x%x extieee %u]",
+		db_printf("[%u (%u) flags=%b maxreg %d maxpow %d minpow %d state 0x%x extieee %u]",
 		    c->ic_freq, c->ic_ieee,
 		    c->ic_flags, IEEE80211_CHAN_BITS,
 		    c->ic_maxregpower, c->ic_maxpower, c->ic_minpower,
@@ -632,8 +667,6 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 	const struct ieee80211_cipher *cip = wk->wk_cipher;
 	int keylen = wk->wk_keylen;
 
-	if ((wk->wk_flags & IEEE80211_KEY_DEVKEY) == 0)
-		return;
 	db_printf(tag, ix);
 	switch (cip->ic_cipher) {
 	case IEEE80211_CIPHER_WEP:
@@ -664,6 +697,8 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 			cip->ic_cipher, wk->wk_keyix, 8*keylen);
 		break;
 	}
+	if (wk->wk_rxkeyix != wk->wk_keyix)
+		db_printf(" rxkeyix %u", wk->wk_rxkeyix);
 	if (memcmp(wk->wk_key, zerodata, keylen) != 0) {
 		int i;
 
@@ -677,22 +712,9 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 		if (cip->ic_cipher != IEEE80211_CIPHER_WEP &&
 		    wk->wk_keytsc != 0)
 			db_printf(" tsc %ju", (uintmax_t)wk->wk_keytsc);
-		if (wk->wk_flags != 0) {
-			const char *sep = " ";
-
-			if (wk->wk_flags & IEEE80211_KEY_XMIT)
-				db_printf("%stx", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_RECV)
-				db_printf("%srx", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_DEFAULT)
-				db_printf("%sdef", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_SWCRYPT)
-				db_printf("%sswcrypt", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_SWMIC)
-				db_printf("%sswmic", sep), sep = "+";
-		}
-		db_printf("\n");
+		db_printf(" flags=%b", wk->wk_flags, IEEE80211_KEY_BITS);
 	}
+	db_printf("\n");
 }
 
 static void
