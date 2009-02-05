@@ -1047,7 +1047,8 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 			ichan->iCoff = iCoff;
 			ichan->qCoff = qCoff;
 		}
-	} else if (!IEEE80211_IS_CHAN_B(chan) && ahp->ah_bIQCalibration == IQ_CAL_DONE &&
+	} else if (!IEEE80211_IS_CHAN_B(chan) &&
+	    ahp->ah_bIQCalibration == IQ_CAL_DONE &&
 	    (ichan->privFlags & CHANNEL_IQVALID) == 0) {
 		/*
 		 * Start IQ calibration if configured channel has changed.
