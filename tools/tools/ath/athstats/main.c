@@ -72,8 +72,7 @@ getfmt(const char *tag)
 	for (i = 0; i < N(tags); i++)
 		if (strcasecmp(tags[i].tag, tag) == 0)
 			return tags[i].fmt;
-	errx(-1, "unknown tag \%s\"", tag);
-	/*NOTREACHED*/
+	return tag;
 #undef N
 }
 
