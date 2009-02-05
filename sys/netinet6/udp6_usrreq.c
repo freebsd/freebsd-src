@@ -883,48 +883,43 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
+	struct sockaddr_in6 *sin6;
 	int error;
 
 	inp = sotoinpcb(so);
+	sin6 = (struct sockaddr_in6 *)nam;
 	KASSERT(inp != NULL, ("udp6_connect: inp == NULL"));
 
 	INP_INFO_WLOCK(&V_udbinfo);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
-		struct sockaddr_in6 *sin6_p;
+	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
+	    IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+		struct sockaddr_in sin;
 
-		sin6_p = (struct sockaddr_in6 *)nam;
-		if (IN6_IS_ADDR_V4MAPPED(&sin6_p->sin6_addr)) {
-			struct sockaddr_in sin;
-
-			if (inp->inp_faddr.s_addr != INADDR_ANY) {
-				error = EISCONN;
-				goto out;
-			}
-			in6_sin6_2_sin(&sin, sin6_p);
-			if (td && (error = prison_remote_ip4(td->td_ucred,
-			    &sin.sin_addr)) != 0)
-				goto out;
-			error = in_pcbconnect(inp, (struct sockaddr *)&sin,
-			    td->td_ucred);
-			if (error == 0) {
-				inp->inp_vflag |= INP_IPV4;
-				inp->inp_vflag &= ~INP_IPV6;
-				soisconnected(so);
-			}
+		if (inp->inp_faddr.s_addr != INADDR_ANY) {
+			error = EISCONN;
 			goto out;
 		}
+		in6_sin6_2_sin(&sin, sin6);
+		error = prison_remote_ip4(td->td_ucred, &sin.sin_addr);
+		if (error != 0)
+			goto out;
+		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
+		    td->td_ucred);
+		if (error == 0) {
+			inp->inp_vflag |= INP_IPV4;
+			inp->inp_vflag &= ~INP_IPV6;
+			soisconnected(so);
+		}
+		goto out;
 	}
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		error = EISCONN;
 		goto out;
 	}
-	if (td) {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
-		if ((error = prison_remote_ip6(td->td_ucred,
-		    &sin6->sin6_addr)) != 0)
-			goto out;
-	}
+	error = prison_remote_ip6(td->td_ucred, &sin6->sin6_addr);
+	if (error != 0)
+		goto out;
 	error = in6_pcbconnect(inp, nam, td->td_ucred);
 	if (error == 0) {
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
