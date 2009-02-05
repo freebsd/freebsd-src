@@ -352,7 +352,7 @@ getit(void)
 	  local_time_version = shadow->version;
 	  barrier();
 	  time = shadow->system_timestamp + get_nsec_offset(shadow);
-	  if (!time_values_up_to_date(cpu))
+	  if (!time_values_up_to_date(smp_processor_id()))
 	    __get_time_values_from_xen(/*cpu */);
 	  barrier();
 	} while (local_time_version != shadow->version);
