@@ -246,23 +246,28 @@ static void __get_time_values_from_xen(void)
 	shared_info_t           *s = HYPERVISOR_shared_info;
 	struct vcpu_time_info   *src;
 	struct shadow_time_info *dst;
+	uint32_t pre_version, post_version;
 
 	src = &s->vcpu_info[smp_processor_id()].time;
 	dst = &per_cpu(shadow_time, smp_processor_id());
 
+	spinlock_enter();
 	do {
-		dst->version = src->version;
+	        pre_version = dst->version = src->version;
 		rmb();
 		dst->tsc_timestamp     = src->tsc_timestamp;
 		dst->system_timestamp  = src->system_time;
 		dst->tsc_to_nsec_mul   = src->tsc_to_system_mul;
 		dst->tsc_shift         = src->tsc_shift;
 		rmb();
+		post_version = src->version;
 	}
-	while ((src->version & 1) | (dst->version ^ src->version));
+	while ((pre_version & 1) | (pre_version ^ post_version));
 
 	dst->tsc_to_usec_mul = dst->tsc_to_nsec_mul / 1000;
+	spinlock_exit();
 }
+
 
 static inline int time_values_up_to_date(int cpu)
 {
@@ -311,15 +316,15 @@ clkintr(void *arg)
 	}
 	
 	/* Process elapsed ticks since last call. */
-	if (delta >= NS_PER_TICK) {
-		processed_system_time += (delta / NS_PER_TICK) * NS_PER_TICK;
-		per_cpu(processed_system_time, cpu) += (delta_cpu / NS_PER_TICK) * NS_PER_TICK;
+	while (delta >= NS_PER_TICK) {
+	        delta -= NS_PER_TICK;
+		processed_system_time += NS_PER_TICK;
+		per_cpu(processed_system_time, cpu) +=  NS_PER_TICK;
+		if (PCPU_GET(cpuid) == 0)
+		      hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+		else
+		      hardclock_cpu(TRAPF_USERMODE(frame));
 	}
-	if (PCPU_GET(cpuid) == 0)
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	else
-		hardclock_cpu(TRAPF_USERMODE(frame));
-
 	/*
 	 * Take synchronised time from Xen once a minute if we're not
 	 * synchronised ourselves, and we haven't chosen to keep an independent
@@ -334,61 +339,25 @@ clkintr(void *arg)
 	/* XXX TODO */
 	return (FILTER_HANDLED);
 }
-
-int clkintr2(void *arg);
-
-int 
-clkintr2(void *arg)
-{
-	int64_t delta_cpu, delta;
-	struct trapframe *frame = (struct trapframe *)arg;
-	int cpu = smp_processor_id();
-	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
-
-	do {
-		__get_time_values_from_xen();
-		
-		delta = delta_cpu = 
-			shadow->system_timestamp + get_nsec_offset(shadow);
-		delta     -= processed_system_time;
-		delta_cpu -= per_cpu(processed_system_time, cpu);
-
-	} while (!time_values_up_to_date(cpu));
-	
-	if (unlikely(delta < (int64_t)0) || unlikely(delta_cpu < (int64_t)0)) {
-		printf("Timer ISR: Time went backwards: %lld\n", delta);
-		return (FILTER_HANDLED);
-	}
-	
-	/* Process elapsed ticks since last call. */
-	if (delta >= NS_PER_TICK) {
-		processed_system_time += (delta / NS_PER_TICK) * NS_PER_TICK;
-		per_cpu(processed_system_time, cpu) += (delta_cpu / NS_PER_TICK) * NS_PER_TICK;
-	}
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-
-	/*
-	 * Take synchronised time from Xen once a minute if we're not
-	 * synchronised ourselves, and we haven't chosen to keep an independent
-	 * time base.
-	 */
-	
-	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version) {
-		update_wallclock();
-		tc_setclock(&shadow_tv);
-	}
-	
-	/* XXX TODO */
-	return (FILTER_HANDLED);
-}
-
 static uint32_t
 getit(void)
 {
 	struct shadow_time_info *shadow;
+	uint64_t time;
+	uint32_t local_time_version;
+
 	shadow = &per_cpu(shadow_time, smp_processor_id());
-	__get_time_values_from_xen();
-	return shadow->system_timestamp + get_nsec_offset(shadow);
+
+	do {
+	  local_time_version = shadow->version;
+	  barrier();
+	  time = shadow->system_timestamp + get_nsec_offset(shadow);
+	  if (!time_values_up_to_date(cpu))
+	    __get_time_values_from_xen(/*cpu */);
+	  barrier();
+	} while (local_time_version != shadow->version);
+
+	  return (time);
 }
 
 
@@ -551,7 +520,6 @@ startrtclock()
 
         timer_freq = xen_timecounter.tc_frequency = 1000000000LL;
         tc_init(&xen_timecounter);
-
 
 	rdtscll(alarm);
 }
@@ -903,13 +871,44 @@ xen_get_offset(void)
 	return edx;
 }
 #endif
+
+/* Convert jiffies to system time. */
+static uint64_t 
+ticks_to_system_time(unsigned long newticks)
+{
+#if 0
+  unsigned long seq;
+#endif
+  long delta;
+  uint64_t st;
+
+
+    delta = newticks - ticks;
+    if (delta < 1) {
+      /* Triggers in some wrap-around cases, but that's okay:
+       * we just end up with a shorter timeout. */
+      st = processed_system_time + NS_PER_TICK;
+    } else if (((unsigned long)delta >> (BITS_PER_LONG-3)) != 0) {
+      /* Very long timeout means there is no pending timer.
+       * We indicate this to Xen by passing zero timeout. */
+      st = 0;
+    } else {
+      st = processed_system_time + delta * (uint64_t)NS_PER_TICK;
+    }
+
+    return (st);
+}
+
 void
 idle_block(void)
 {
+  uint64_t timeout;
 
-	__get_time_values_from_xen();
-	PANIC_IF(HYPERVISOR_set_timer_op(processed_system_time + NS_PER_TICK) != 0);
-	HYPERVISOR_sched_op(SCHEDOP_block, 0);
+  timeout = ticks_to_system_time(ticks + 1)  + NS_PER_TICK/2;
+
+  __get_time_values_from_xen();
+  PANIC_IF(HYPERVISOR_set_timer_op(timeout) != 0);
+  HYPERVISOR_sched_op(SCHEDOP_block, 0);
 }
 
 int
