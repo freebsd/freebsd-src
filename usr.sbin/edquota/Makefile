@@ -4,7 +4,7 @@
 PROG=	edquota
 MAN=	edquota.8
 
-CSTD=	c99
+CSTD=	gnu99
 WARNS?=	4
 
 DPADD=	${LIBUTIL}
