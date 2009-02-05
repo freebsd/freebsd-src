@@ -105,14 +105,14 @@ static int	pccard_get_resource(device_t dev, device_t child, int type,
 static void	pccard_delete_resource(device_t dev, device_t child, int type,
 		    int rid);
 static int	pccard_set_res_flags(device_t dev, device_t child, int type,
-		    int rid, uint32_t flags);
+		    int rid, u_long flags);
 static int	pccard_set_memory_offset(device_t dev, device_t child, int rid,
 		    uint32_t offset, uint32_t *deltap);
 static int	pccard_probe_and_attach_child(device_t dev, device_t child,
 		    struct pccard_function *pf);
 static void	pccard_probe_nomatch(device_t cbdev, device_t child);
 static int	pccard_read_ivar(device_t bus, device_t child, int which,
-		    u_char *result);
+		    uintptr_t *result);
 static void	pccard_driver_added(device_t dev, driver_t *driver);
 static struct resource *pccard_alloc_resource(device_t dev,
 		    device_t child, int type, int *rid, u_long start,
@@ -972,7 +972,7 @@ pccard_delete_resource(device_t dev, device_t child, int type, int rid)
 
 static int
 pccard_set_res_flags(device_t dev, device_t child, int type, int rid,
-    uint32_t flags)
+    u_long flags)
 {
 	return (CARD_SET_RES_FLAGS(device_get_parent(dev), child, type,
 	    rid, flags));
@@ -1055,7 +1055,7 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 }
 
 static int
-pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
+pccard_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *pf = devi->pf;
