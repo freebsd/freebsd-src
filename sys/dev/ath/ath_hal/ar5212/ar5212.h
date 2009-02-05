@@ -122,7 +122,6 @@ typedef struct {
 	uint32_t	targetGain;
 	uint32_t	loTrig;
 	uint32_t	hiTrig;
-	uint32_t	gainFCorrection;
 	uint32_t	active;
 	const GAIN_OPTIMIZATION_STEP *currStep;
 } GAIN_VALUES;

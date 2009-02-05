@@ -990,10 +990,15 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 			if (powerMeasI && powerMeasQ)
 				break;
 			/* Do we really need this??? */
-			OS_REG_WRITE (ah,  AR_PHY_TIMING_CTRL4,
-				      OS_REG_READ(ah,  AR_PHY_TIMING_CTRL4) |
-				      AR_PHY_TIMING_CTRL4_DO_IQCAL);
+			OS_REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4,
+			    AR_PHY_TIMING_CTRL4_DO_IQCAL);
 		} while (++i < IQ_CAL_TRIES);
+
+		HALDEBUG(ah, HAL_DEBUG_PERCAL,
+		    "%s: IQ cal finished: %d tries\n", __func__, i);
+		HALDEBUG(ah, HAL_DEBUG_PERCAL,
+		    "%s: powerMeasI %u powerMeasQ %u iqCorrMeas %d\n",
+		    __func__, powerMeasI, powerMeasQ, iqCorrMeas);
 
 		/*
 		 * Prescale these values to remove 64-bit operation
@@ -1021,19 +1026,7 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 			}
 
 			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "****************** MISGATED IQ CAL! *******************\n");
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "time       = %d, i = %d, \n", OS_GETUPTIME(ah), i);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "powerMeasI = 0x%08x\n", powerMeasI);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "powerMeasQ = 0x%08x\n", powerMeasQ);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "iqCorrMeas = 0x%08x\n", iqCorrMeas);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "iCoff      = %d\n", iCoff);
-			HALDEBUG(ah, HAL_DEBUG_PERCAL,
-			    "qCoff      = %d\n", qCoff);
+			    "%s: iCoff %d qCoff %d\n", __func__, iCoff, qCoff);
 
 			/* Write values and enable correction */
 			OS_REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4,
@@ -1048,7 +1041,8 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 			ichan->iCoff = iCoff;
 			ichan->qCoff = qCoff;
 		}
-	} else if (!IEEE80211_IS_CHAN_B(chan) && ahp->ah_bIQCalibration == IQ_CAL_DONE &&
+	} else if (!IEEE80211_IS_CHAN_B(chan) &&
+	    ahp->ah_bIQCalibration == IQ_CAL_DONE &&
 	    (ichan->privFlags & CHANNEL_IQVALID) == 0) {
 		/*
 		 * Start IQ calibration if configured channel has changed.
@@ -1089,7 +1083,16 @@ ar5212PerCalibration(struct ath_hal *ah,  struct ieee80211_channel *chan,
 HAL_BOOL
 ar5212ResetCalValid(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	/* XXX */
+	HAL_CHANNEL_INTERNAL *ichan;
+
+	ichan = ath_hal_checkchannel(ah, chan);
+	if (ichan == AH_NULL) {
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: invalid channel %u/0x%x; no mapping\n",
+		    __func__, chan->ic_freq, chan->ic_flags);
+		return AH_FALSE;
+	}
+	ichan->privFlags &= ~CHANNEL_IQVALID;
 	return AH_TRUE;
 }
 
