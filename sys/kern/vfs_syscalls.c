@@ -395,14 +395,16 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
-	if (vp->v_iflag & VI_DOOMED) {
+	if (mp == NULL) {
 		error = EBADF;
 		goto out;
 	}
 	error = vfs_busy(mp, 0);
 	vfs_rel(mp);
-	if (error)
-		goto out;
+	if (error) {
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
 #ifdef MAC
 	error = mac_mount_check_stat(td->td_ucred, mp);
 	if (error)
