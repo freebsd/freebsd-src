@@ -859,12 +859,121 @@ udf_readdir(struct vop_readdir_args *a)
 	return (error);
 }
 
-/* Are there any implementations out there that do soft-links? */
 static int
 udf_readlink(struct vop_readlink_args *ap)
 {
-	printf("%s called\n", __func__);
-	return (EOPNOTSUPP);
+	struct path_component *pc, *end;
+	struct vnode *vp;
+	struct uio uio;
+	struct iovec iov[1];
+	struct udf_node *node;
+	void *buf;
+	char *cp;
+	int error, len, root;
+
+	/*
+	 * A symbolic link in UDF is a list of variable-length path
+	 * component structures.  We build a pathname in the caller's
+	 * uio by traversing this list.
+	 */
+	vp = ap->a_vp;
+	node = VTON(vp);
+	len = le64toh(node->fentry->inf_len);
+	buf = malloc(iov[0].iov_len, M_DEVBUF, M_WAITOK);
+	iov[0].iov_base = buf;
+	iov[0].iov_len = len;
+	uio.uio_iov = iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = iov[0].iov_len;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = curthread;
+	error = VOP_READ(vp, &uio, 0, ap->a_cred);
+	if (error)
+		goto error;
+
+	pc = buf;
+	end = (void *)((char *)buf + len);
+	root = 0;
+	while (pc < end) {
+		switch (pc->type) {
+		case UDF_PATH_ROOT:
+			/* Only allow this at the beginning of a path. */
+			if ((void *)pc != buf) {
+				error = EINVAL;
+				goto error;
+			}
+			cp = "/";
+			len = 1;
+			root = 1;
+			break;
+		case UDF_PATH_DOT:
+			cp = ".";
+			len = 1;
+			break;
+		case UDF_PATH_DOTDOT:
+			cp = "..";
+			len = 2;
+			break;
+		case UDF_PATH_PATH:
+			if (pc->length == 0) {
+				error = EINVAL;
+				goto error;
+			}
+			/*
+			 * XXX: We only support CS8 which appears to map
+			 * to ASCII directly.
+			 */
+			switch (pc->identifier[0]) {
+			case 8:
+				cp = pc->identifier + 1;
+				len = pc->length - 1;
+				break;
+			default:
+				error = EOPNOTSUPP;
+				goto error;
+			}
+			break;
+		default:
+			error = EINVAL;
+			goto error;
+		}
+
+		/*
+		 * If this is not the first component, insert a path
+		 * separator.
+		 */
+		if (pc != buf) {
+			/* If we started with root we already have a "/". */
+			if (root)
+				goto skipslash;
+			root = 0;
+			if (ap->a_uio->uio_resid < 1) {
+				error = ENAMETOOLONG;
+				goto error;
+			}
+			error = uiomove("/", 1, ap->a_uio);
+			if (error)
+				break;
+		}
+	skipslash:
+
+		/* Append string at 'cp' of length 'len' to our path. */
+		if (len > ap->a_uio->uio_resid) {
+			error = ENAMETOOLONG;
+			goto error;
+		}
+		error = uiomove(cp, len, ap->a_uio);
+		if (error)
+			break;
+
+		/* Advance to next component. */
+		pc = (void *)((char *)pc + 4 + pc->length);
+	}
+error:
+	free(buf, M_DEVBUF);
+	return (error);
 }
 
 static int
