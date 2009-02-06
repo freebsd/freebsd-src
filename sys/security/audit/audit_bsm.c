@@ -568,7 +568,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(1, "cmd", ar->ar_arg_cmd);
 			kau_write(rec, tok);
 		}
-		/* fall thru */
+		/* FALLTHROUGH */
 
 	case AUE_AUDITON_GETCAR:
 	case AUE_AUDITON_GETCLASS:
@@ -641,7 +641,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
 		}
-		/* fall through */
+		/* FALLTHROUGH */
+
 	case AUE_ACCESS:
 	case AUE_CHDIR:
 	case AUE_CHROOT:
@@ -849,7 +850,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(1, "flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);
 		}
-		/* fall through */
+		/* FALLTHROUGH */
+
 	case AUE_FORK:
 	case AUE_VFORK:
 		if (ARG_IS_VALID(kar, ARG_PID)) {
@@ -985,7 +987,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_text(ar->ar_arg_text);
 			kau_write(rec, tok);
 		}
-		/* fall through */
+		/* FALLTHROUGH */
 
 	case AUE_UMOUNT:
 		UPATH1_VNODE1_TOKENS;
@@ -1034,7 +1036,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
 		}
-		/* fall through */
+		/* FALLTHROUGH */
 
 	case AUE_OPEN_R:
 	case AUE_OPEN_RT:
@@ -1311,6 +1313,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
 		}
+		/* FALLTHROUGH */
+
 	case AUE_SHMUNLINK:
 		if (ARG_IS_VALID(kar, ARG_TEXT)) {
 			tok = au_to_text(ar->ar_arg_text);
@@ -1344,7 +1348,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(4, "value", ar->ar_arg_value);
 			kau_write(rec, tok);
 		}
-		/* fall through */
+		/* FALLTHROUGH */
 
 	case AUE_SEMUNLINK:
 		if (ARG_IS_VALID(kar, ARG_TEXT)) {
