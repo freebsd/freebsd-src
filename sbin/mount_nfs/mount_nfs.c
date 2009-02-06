@@ -469,6 +469,12 @@ copyopt(struct iovec **newiov, int *newiovlen,
 		build_iovec(newiov, newiovlen, name, value, len);
 }
 
+/*
+ * XXX: This function is provided for backwards
+ *      compatibility with older kernels which did not support
+ *      passing NFS mount options to nmount() as individual
+ *      parameters.  It should be eventually be removed.
+ */
 int
 fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 {
@@ -587,18 +593,21 @@ fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 		if (ret != 1 || args.acregmin < 0) {
 			errx(1, "illegal acregmin: %s", opt);
 		}
+		args.flags |= NFSMNT_ACREGMIN;
 	}
 	if (findopt(iov, iovlen, "acregmax", &opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acregmax);
 		if (ret != 1 || args.acregmax < 0) {
 			errx(1, "illegal acregmax: %s", opt);
 		}
+		args.flags |= NFSMNT_ACREGMAX;
 	}
 	if (findopt(iov, iovlen, "acdirmin", &opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acdirmin);
 		if (ret != 1 || args.acdirmin < 0) {
 			errx(1, "illegal acdirmin: %s", opt);
 		}
+		args.flags |= NFSMNT_ACDIRMIN;
 	}
 	if (findopt(iov, iovlen, "acdirmax", &opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acdirmax);
