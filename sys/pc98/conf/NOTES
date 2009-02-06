@@ -288,6 +288,9 @@ device		pci
 # AGP GART support
 device		agp
 
+# AGP debugging.
+options		AGP_DEBUG
+
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
