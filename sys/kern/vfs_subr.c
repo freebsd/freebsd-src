@@ -381,6 +381,7 @@ vfs_unbusy(struct mount *mp)
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
+	KASSERT(mp->mnt_lockref > 0, ("negative mnt_lockref"));
 	mp->mnt_lockref--;
 	if (mp->mnt_lockref == 0 && (mp->mnt_kern_flag & MNTK_DRAINING) != 0) {
 		MPASS(mp->mnt_kern_flag & MNTK_UNMOUNT);
