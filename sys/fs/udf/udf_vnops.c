@@ -48,6 +48,7 @@
 
 #include <vm/uma.h>
 
+#include <fs/fifofs/fifo.h>
 #include <fs/udf/ecma167-udf.h>
 #include <fs/udf/osta.h>
 #include <fs/udf/udf.h>
@@ -60,9 +61,11 @@ static vop_getattr_t	udf_getattr;
 static vop_open_t	udf_open;
 static vop_ioctl_t	udf_ioctl;
 static vop_pathconf_t	udf_pathconf;
+static vop_print_t	udf_print;
 static vop_read_t	udf_read;
 static vop_readdir_t	udf_readdir;
 static vop_readlink_t	udf_readlink;
+static vop_setattr_t	udf_setattr;
 static vop_strategy_t	udf_strategy;
 static vop_bmap_t	udf_bmap;
 static vop_cachedlookup_t	udf_lookup;
@@ -84,11 +87,23 @@ static struct vop_vector udf_vnodeops = {
 	.vop_lookup =		vfs_cache_lookup,
 	.vop_open =		udf_open,
 	.vop_pathconf =		udf_pathconf,
+	.vop_print =		udf_print,
 	.vop_read =		udf_read,
 	.vop_readdir =		udf_readdir,
 	.vop_readlink =		udf_readlink,
 	.vop_reclaim =		udf_reclaim,
+	.vop_setattr =		udf_setattr,
 	.vop_strategy =		udf_strategy,
+	.vop_vptofh =		udf_vptofh,
+};
+
+struct vop_vector udf_fifoops = {
+	.vop_default =		&fifo_specops,
+	.vop_access =		udf_access,
+	.vop_getattr =		udf_getattr,
+	.vop_print =		udf_print,
+	.vop_reclaim =		udf_reclaim,
+	.vop_setattr =		udf_setattr,
 	.vop_vptofh =		udf_vptofh,
 };
 
@@ -318,6 +333,38 @@ udf_getattr(struct vop_getattr_args *a)
 	return (0);
 }
 
+static int
+udf_setattr(struct vop_setattr_args *a)
+{
+	struct vnode *vp;
+	struct vattr *vap;
+
+	vp = a->a_vp;
+	vap = a->a_vap;
+	if (vap->va_flags != (u_long)VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
+	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
+		return (EROFS);
+	if (vap->va_size != (u_quad_t)VNOVAL) {
+		switch (vp->v_type) {
+		case VDIR:
+			return (EISDIR);
+		case VLNK:
+		case VREG:
+			return (EROFS);
+		case VCHR:
+		case VBLK:
+		case VSOCK:
+		case VFIFO:
+		case VNON:
+		case VBAD:
+		case VMARKER:
+			return (0);
+		}
+	}
+	return (0);
+}
+
 /*
  * File specific ioctls.
  */
@@ -352,6 +399,20 @@ udf_pathconf(struct vop_pathconf_args *a)
 	default:
 		return (EINVAL);
 	}
+}
+
+static int
+udf_print(struct vop_print_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct udf_node *node = VTON(vp);
+
+	printf("    ino %lu, on dev %s", (u_long)node->hash_id,
+	    devtoname(node->udfmp->im_dev));
+	if (vp->v_type == VFIFO)
+		fifo_printinfo(vp);
+	printf("\n");
+	return (0);
 }
 
 #define lblkno(udfmp, loc)	((loc) >> (udfmp)->bshift)
