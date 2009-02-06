@@ -3920,6 +3920,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		}
 		db_printf("\n");
 	}
+	db_printf(" ");
 	lockmgr_printinfo(&bp->b_lock);
 }
 

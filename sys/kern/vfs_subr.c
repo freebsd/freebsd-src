@@ -2719,7 +2719,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		    vp->v_object->resident_page_count);
 	printf("    ");
 	lockmgr_printinfo(vp->v_vnlock);
-	printf("\n");
 	if (vp->v_data != NULL)
 		VOP_PRINT(vp);
 }
