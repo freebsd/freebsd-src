@@ -84,6 +84,8 @@
 
 #include <security/mac/mac_framework.h>
 
+static int slowtimo_started;
+
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -399,7 +401,13 @@ if_check(void *dummy __unused)
 	}
 	IFNET_RUNLOCK();
 	splx(s);
-	if_slowtimo(0);
+
+	/*
+	 * If at least one interface added during boot uses
+	 * if_watchdog then start the timer.
+	 */
+	if (slowtimo_started)
+		if_slowtimo(0);
 }
 
 /*
@@ -602,9 +610,17 @@ if_attach(struct ifnet *ifp)
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 
-	if (ifp->if_watchdog != NULL)
+	if (ifp->if_watchdog != NULL) {
 		if_printf(ifp,
 		    "WARNING: using obsoleted if_watchdog interface\n");
+	      
+		/*
+		 * Note that we need if_slowtimo().  If this happens after
+		 * boot, then call if_slowtimo() directly.
+		 */
+		if (atomic_cmpset_int(&slowtimo_started, 0, 1) && !cold)
+			if_slowtimo(0);
+	}
 	if (ifp->if_flags & IFF_NEEDSGIANT)
 		if_printf(ifp,
 		    "WARNING: using obsoleted IFF_NEEDSGIANT flag\n");
