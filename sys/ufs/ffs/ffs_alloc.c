@@ -1858,7 +1858,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	struct cdev *dev;
 
 	cg = dtog(fs, bno);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgblkno = fragstoblks(fs, cgtod(fs, cg));
@@ -1903,7 +1903,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	if (size == fs->fs_bsize) {
 		fragno = fragstoblks(fs, cgbno);
 		if (!ffs_isfreeblock(fs, blksfree, fragno)) {
-			if (devvp->v_type != VCHR) {
+			if (devvp->v_type == VREG) {
 				UFS_UNLOCK(ump);
 				/* devvp is a snapshot */
 				brelse(bp);
@@ -2056,7 +2056,7 @@ ffs_freefile(ump, fs, devvp, ino, mode)
 	struct cdev *dev;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
@@ -2122,7 +2122,7 @@ ffs_checkfreefile(fs, devvp, ino)
 	u_int8_t *inosused;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
 	} else {
