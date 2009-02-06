@@ -2076,7 +2076,7 @@ urtw_init(void *arg)
 	struct ifnet *ifp = sc->sc_ifp;
 	usbd_status error;
 
-	urtw_stop(ifp, 1);
+	urtw_stop(ifp, 0);
 
 	error = urtw_adapter_start(sc);
 	if (error != 0)
