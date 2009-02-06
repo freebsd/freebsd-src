@@ -799,6 +799,8 @@ int	userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 			size_t *retval, int flags);
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			int *nindx, struct sysctl_req *req);
+void	sysctl_lock(void);
+void	sysctl_unlock(void);
 int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
 
 #else	/* !_KERNEL */
