@@ -356,6 +356,7 @@ void
 audit_arg_process(struct proc *p)
 {
 	struct kaudit_record *ar;
+	struct ucred *cred;
 
 	KASSERT(p != NULL, ("audit_arg_process: p == NULL"));
 
@@ -365,13 +366,14 @@ audit_arg_process(struct proc *p)
 	if (ar == NULL)
 		return;
 
-	ar->k_ar.ar_arg_auid = p->p_ucred->cr_audit.ai_auid;
-	ar->k_ar.ar_arg_euid = p->p_ucred->cr_uid;
-	ar->k_ar.ar_arg_egid = p->p_ucred->cr_groups[0];
-	ar->k_ar.ar_arg_ruid = p->p_ucred->cr_ruid;
-	ar->k_ar.ar_arg_rgid = p->p_ucred->cr_rgid;
-	ar->k_ar.ar_arg_asid = p->p_ucred->cr_audit.ai_asid;
-	ar->k_ar.ar_arg_termid_addr = p->p_ucred->cr_audit.ai_termid;
+	cred = p->p_ucred;
+	ar->k_ar.ar_arg_auid = cred->cr_audit.ai_auid;
+	ar->k_ar.ar_arg_euid = cred->cr_uid;
+	ar->k_ar.ar_arg_egid = cred->cr_groups[0];
+	ar->k_ar.ar_arg_ruid = cred->cr_ruid;
+	ar->k_ar.ar_arg_rgid = cred->cr_rgid;
+	ar->k_ar.ar_arg_asid = cred->cr_audit.ai_asid;
+	ar->k_ar.ar_arg_termid_addr = cred->cr_audit.ai_termid;
 	ar->k_ar.ar_arg_pid = p->p_pid;
 	ARG_SET_VALID(ar, ARG_AUID | ARG_EUID | ARG_EGID | ARG_RUID |
 	    ARG_RGID | ARG_ASID | ARG_TERMID_ADDR | ARG_PID | ARG_PROCESS);
