@@ -614,6 +614,7 @@ fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 		if (ret != 1 || args.acdirmax < 0) {
 			errx(1, "illegal acdirmax: %s", opt);
 		}
+		args.flags |= NFSMNT_ACDIRMAX;
 	}
 	if (findopt(iov, iovlen, "deadthresh", &opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.deadthresh);
