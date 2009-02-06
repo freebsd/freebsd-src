@@ -1004,13 +1004,6 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 			bqrelse(bp);
 		}
 	}
-
-	if ((error == 0 || uio->uio_resid != orig_resid) &&
-	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0) {
-		VI_LOCK(vp);
-		ip->i_flag |= IN_ACCESS;
-		VI_UNLOCK(vp);
-	}
 	return (error);
 }
 
@@ -1116,7 +1109,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 			bdwrite(bp);
 		if (error || xfersize == 0)
 			break;
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		ip->i_flag |= IN_CHANGE;
 	}
 	/*
 	 * If we successfully wrote any data, and we are not the superuser
