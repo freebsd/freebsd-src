@@ -129,8 +129,8 @@ struct mtx		audit_mtx;
  * outstanding in the system.
  */
 struct kaudit_queue	audit_q;
-int			audit_q_len;
-int			audit_pre_q_len;
+size_t			audit_q_len;
+size_t			audit_pre_q_len;
 
 /*
  * Audit queue control settings (minimum free, low/high water marks, etc.)
