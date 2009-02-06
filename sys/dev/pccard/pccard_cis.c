@@ -1283,6 +1283,8 @@ decode_funce(const struct pccard_tuple *tuple, struct pccard_function *pf)
 		if (type == PCCARD_TPLFE_TYPE_DISK_DEVICE_INTERFACE) {
 			pf->pf_funce_disk_interface
 				= pccard_tuple_read_1(tuple, 1);
+			pf->pf_funce_disk_power
+				= pccard_tuple_read_1(tuple, 2);
 		}
 		break;
 	case PCCARD_FUNCTION_NETWORK:
