@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090203:
+	The ichsmb(4) driver has been changed to require SMBus slave
+	addresses be left-justified (xxxxxxx0b) rather than right-justified.
+	All of the other SMBus controller drivers require left-justified
+	slave addresses, so this change makes all the drivers provide the
+	same interface.
+
 20090201:
 	INET6 statistics (struct ip6stat) was updated.
 	netstat(1) needs to be recompiled.
