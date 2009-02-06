@@ -210,7 +210,7 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) | attrmem);
 
 	DPRINTF("%s %d-bit memory",
-	    mem->kind & PCCARD_MEM_ATTR ? "attrubute" : "common",
+	    mem->kind & PCCARD_MEM_ATTR ? "attribute" : "common",
 	    mem->kind & PCCARD_MEM_16BIT ? 16 : 8);
 	exca_setb(sc, EXCA_ADDRWIN_ENABLE, map->memenable |
 	    EXCA_ADDRWIN_ENABLE_MEMCS16);
