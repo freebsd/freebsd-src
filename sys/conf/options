@@ -36,7 +36,7 @@ AHC_TMODE_ENABLE	opt_aic7xxx.h
 AHC_DUMP_EEPROM		opt_aic7xxx.h
 AHC_DEBUG		opt_aic7xxx.h
 AHC_DEBUG_OPTS		opt_aic7xxx.h
-AHC_REG_PRETTY_PRINT    opt_aic7xxx.h
+AHC_REG_PRETTY_PRINT	opt_aic7xxx.h
 AHD_DEBUG		opt_aic79xx.h
 AHD_DEBUG_OPTS		opt_aic79xx.h
 AHD_TMODE_ENABLE	opt_aic79xx.h	
@@ -137,7 +137,7 @@ NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 PPC_DEBUG	opt_ppc.h
-PPC_PROBE_CHIPSET opt_ppc.h
+PPC_PROBE_CHIPSET	opt_ppc.h
 PPS_SYNC	opt_ntp.h
 PREEMPTION	opt_sched.h
 QUOTA
@@ -424,13 +424,13 @@ XBONEHACK
 #
 SCTP			opt_sctp.h
 SCTP_DEBUG		opt_sctp.h # Enable debug printfs
-SCTP_WITH_NO_CSUM       opt_sctp.h # Use this at your peril
-SCTP_LOCK_LOGGING       opt_sctp.h # Log to KTR lock activity
-SCTP_MBUF_LOGGING       opt_sctp.h # Log to KTR general mbuf aloc/free
+SCTP_WITH_NO_CSUM	opt_sctp.h # Use this at your peril
+SCTP_LOCK_LOGGING	opt_sctp.h # Log to KTR lock activity
+SCTP_MBUF_LOGGING	opt_sctp.h # Log to KTR general mbuf aloc/free
 SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
-SCTP_PACKET_LOGGING     opt_sctp.h # Log to a packet buffer last N packets
-SCTP_LTRACE_CHUNKS      opt_sctp.h # Log to KTR chunks processed
-SCTP_LTRACE_ERRORS      opt_sctp.h # Log to KTR error returns.
+SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
+SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
+SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
 #
 #
 #
