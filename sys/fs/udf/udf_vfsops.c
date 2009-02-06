@@ -680,6 +680,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		break;
 	case 9:
 		vp->v_type = VFIFO;
+		vp->v_op = &udf_fifoops;
 		break;
 	case 10:
 		vp->v_type = VSOCK;
