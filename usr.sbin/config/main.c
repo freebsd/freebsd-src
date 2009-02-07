@@ -565,9 +565,6 @@ moveifchanged(const char *from_name, const char *to_name)
 
 	if (!changed) {
 		p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
-#ifndef MAP_FAILED
-#define MAP_FAILED ((caddr_t) -1)
-#endif
 		if (p == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", from_name);
 		q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
