@@ -289,6 +289,10 @@ end_element(void *data, const char *name)
 		mt->netband->maxPowerDFS = strtoul(p, NULL, 0);
 		goto done;
 	}
+	if (iseq(name, "maxantgain") && mt->netband != NULL) {
+		mt->netband->maxAntGain = strtoul(p, NULL, 0);
+		goto done;
+	}
 
 	/* <country>...</country> */
 	if (iseq(name, "isocc") && mt->country != NULL) {
