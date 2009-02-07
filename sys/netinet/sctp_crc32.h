@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #if defined(_KERNEL) || defined(__Userspace__)
 uint32_t sctp_calculate_cksum(struct mbuf *, uint32_t);
 void sctp_delayed_cksum(struct mbuf *);
+uint32_t update_crc32(uint32_t, unsigned char *, unsigned int);
+uint32_t sctp_finalize_crc32(uint32_t);
 
 #endif				/* _KERNEL */
 
