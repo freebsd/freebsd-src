@@ -599,7 +599,7 @@ sctp_crc32c_sb8_64_bit(uint32_t crc,
  *
  *		none
  */
-static uint32_t
+uint32_t
 update_crc32(uint32_t crc32c,
     unsigned char *buffer,
     unsigned int length)
@@ -697,7 +697,7 @@ old_update_crc32(uint32_t crc32c,
 }
 
 
-static uint32_t
+uint32_t
 sctp_finalize_crc32(uint32_t crc32c)
 {
 	uint32_t result;

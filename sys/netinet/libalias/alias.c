@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/sysctl.h>
 #else
 #include <sys/types.h>
 #include <stdlib.h>
@@ -141,6 +142,17 @@ __FBSDID("$FreeBSD$");
 #include "alias.h"
 #include "alias_local.h"
 #include "alias_mod.h"
+#endif
+
+/* 
+ * Define libalias SYSCTL Node
+ */
+#ifdef SYSCTL_NODE
+
+SYSCTL_DECL(_net_inet);
+SYSCTL_DECL(_net_inet_ip);
+SYSCTL_NODE(_net_inet_ip, OID_AUTO, alias, CTLFLAG_RW, NULL, "Libalias sysctl API");
+
 #endif
 
 static __inline int
@@ -1335,6 +1347,11 @@ LibAliasInLocked(struct libalias *la, char *ptr, int maxpacketsize)
 		case IPPROTO_TCP:
 			iresult = TcpAliasIn(la, pip);
 			break;
+#ifdef _KERNEL
+		case IPPROTO_SCTP:
+		  iresult = SctpAlias(la, pip, SN_TO_LOCAL);
+			break;
+#endif
  		case IPPROTO_GRE: {
 			int error;
 			struct alias_data ad = {
@@ -1477,10 +1494,15 @@ LibAliasOutLocked(struct libalias *la, char *ptr,	/* valid IP packet */
 		case IPPROTO_UDP:
 			iresult = UdpAliasOut(la, pip, maxpacketsize, create);
 			break;
-			case IPPROTO_TCP:
+		case IPPROTO_TCP:
 			iresult = TcpAliasOut(la, pip, maxpacketsize, create);
 			break;
- 		case IPPROTO_GRE: {
+#ifdef _KERNEL
+		case IPPROTO_SCTP:
+		  iresult = SctpAlias(la, pip, SN_TO_GLOBAL);
+			break;
+#endif
+		case IPPROTO_GRE: {
 			int error;
 			struct alias_data ad = {
 				.lnk = NULL, 

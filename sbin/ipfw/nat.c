@@ -257,7 +257,9 @@ StrToProto (const char* str)
 	if (!strcmp (str, "udp"))
 		return IPPROTO_UDP;
 
-	errx (EX_DATAERR, "unknown protocol %s. Expected tcp or udp", str);
+	if (!strcmp (str, "sctp"))
+		return IPPROTO_SCTP;
+	errx (EX_DATAERR, "unknown protocol %s. Expected sctp, tcp or udp", str);
 }
 
 static int 
@@ -433,13 +435,27 @@ setup_redir_port(char *spool_buf, int len,
 		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
 		lsnat = 1;
 	} else {
-		if (StrToAddrAndPortRange (*av, &r->laddr, protoName, 
-		    &portRange) != 0)
-			errx(EX_DATAERR, "redirect_port:"
-			    "invalid local port range");
+		/*
+		 * The sctp nat does not allow the port numbers to be mapped to 
+		 * new port numbers. Therefore, no ports are to be specified 
+		 * in the target port field.
+		 */
+		if (r->proto == IPPROTO_SCTP) {
+			if (strchr (*av, ':'))
+				errx(EX_DATAERR, "redirect_port:"
+				    "port numbers do not change in sctp, so do not "
+				    "specify them as part of the target");
+			else
+				StrToAddr(*av, &r->laddr);
+		} else {
+			if (StrToAddrAndPortRange (*av, &r->laddr, protoName, 
+				&portRange) != 0)
+				errx(EX_DATAERR, "redirect_port:"
+				    "invalid local port range");
 
-		r->lport = GETLOPORT(portRange);
-		numLocalPorts = GETNUMPORTS(portRange);
+			r->lport = GETLOPORT(portRange);
+			numLocalPorts = GETNUMPORTS(portRange);
+		}
 	}
 	INC_ARGCV();	
 
@@ -463,6 +479,10 @@ setup_redir_port(char *spool_buf, int len,
 	}
 
 	r->pport = GETLOPORT(portRange);
+	if (r->proto == IPPROTO_SCTP) { /* so the logic below still works */
+		numLocalPorts = GETNUMPORTS(portRange);
+		r->lport = r->pport;
+	}
 	r->pport_cnt = GETNUMPORTS(portRange);
 	INC_ARGCV();
 
@@ -518,14 +538,31 @@ setup_redir_port(char *spool_buf, int len,
 				goto nospace;
 			len -= SOF_SPOOL;
 			space += SOF_SPOOL;
-			if (StrToAddrAndPortRange(sep, &tmp->addr, protoName, 
-			    &portRange) != 0)
-				errx(EX_DATAERR, "redirect_port:"
-				    "invalid local port range");
-			if (GETNUMPORTS(portRange) != 1)
-				errx(EX_DATAERR, "redirect_port: local port"
-				    "must be single in this context");
-			tmp->port = GETLOPORT(portRange);
+			/*
+			 * The sctp nat does not allow the port numbers to be mapped to new port numbers
+			 * Therefore, no ports are to be specified in the target port field
+			 */
+			if (r->proto == IPPROTO_SCTP) {
+				if (strchr (sep, ':')) {
+					errx(EX_DATAERR, "redirect_port:"
+					    "port numbers do not change in "
+					    "sctp, so do not specify them as "
+					    "part of the target");
+				} else {
+					StrToAddr(sep, &tmp->addr);
+					tmp->port = r->pport;
+				}
+			} else {
+				if (StrToAddrAndPortRange(sep, &tmp->addr, 
+					protoName, &portRange) != 0)
+					errx(EX_DATAERR, "redirect_port:"
+					    "invalid local port range");
+				if (GETNUMPORTS(portRange) != 1)
+					errx(EX_DATAERR, "redirect_port: "
+					    "local port must be single in "
+					    "this context");
+				tmp->port = GETLOPORT(portRange);
+			}
 			r->spool_cnt++;	
 			/* Point to the next possible cfg_spool. */
 			spool_buf = &spool_buf[SOF_SPOOL];
