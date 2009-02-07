@@ -466,6 +466,11 @@ configfile_filebased(struct sbuf *sb)
 	struct cfgfile *cf;
 	int i;
 
+	/*
+	 * Try to read all configuration files. Since those will be present as
+	 * C string in the macro, we have to slash their ends then the line
+	 * wraps.
+	 */
 	STAILQ_FOREACH(cf, &cfgfiles, cfg_next) {
 		cff = fopen(cf->cfg_path, "r");
 		if (cff == NULL) {
@@ -500,11 +505,6 @@ configfile(void)
 	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
 	assert(sb != NULL);
 	sbuf_clear(sb);
-	/*
-	 * Try to read all configuration files. Since those will be present as
-	 * C string in the macro, we have to slash their ends then the line
-	 * wraps.
-	 */
 	if (filebased) {
 		/* Is needed, can be used for backward compatibility. */
 		configfile_filebased(sb);
