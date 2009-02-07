@@ -271,6 +271,9 @@ device		isa
 # BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
+#
+# EPSON_BOUNCEDMA: XXX
+# EPSON_MEMWIN: XXX
 
 options 	AUTO_EOI_1
 
@@ -368,7 +371,6 @@ hint.mse.0.irq="13"
 
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
-# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -382,10 +384,13 @@ hint.mse.0.irq="13"
 #       (requires miibus)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
+# le:	AMD Am7900 LANCE and Am79C9xx ILACC/PCnet Ethernet interface driver
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
+# snc:	National Semiconductor DP8393X SONIC Ethernet adapter driver
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
+# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 
 # Order for ISA/EISA devices is important here
 
@@ -403,6 +408,7 @@ hint.ie.2.at="isa"
 hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
+#device		le
 # Hint for the PC98-only C-NET(98)S C-bus front-end of le(4).
 hint.le.0.at="isa"
 hint.le.0.port="0x03d0"
@@ -464,8 +470,13 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # Miscellaneous hardware:
 #
 # apm: Laptop Advanced Power Management (experimental)
+# canbus: CanBe I/O Bus
+# canbepm: CanBe Power Management Controller
+# olpt: XXX
+# pmc: Power Management Controller of NEC PC-98Note
 # pmtimer: Timer device driver for power management events (APM or ACPI)
-
+#          Adjusts system timer at wakeup time
+#
 # Notes on APM
 #  The flags takes the following meaning for apm0:
 #    0x0020  Statclock is broken.
@@ -480,7 +491,7 @@ hint.olpt.0.port="0x040"
 device		pmc
 hint.pmc.0.at="isa"
 hint.pmc.0.port="0x8f0"
-device		pmtimer			# Adjust system timer at wakeup time
+device		pmtimer
 
 #
 # Laptop/Notebook options:
