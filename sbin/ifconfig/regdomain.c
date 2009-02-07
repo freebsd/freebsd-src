@@ -208,6 +208,9 @@ decode_flag(struct mystate *mt, const char *p, int len)
 		FLAG(IEEE80211_CHAN_108A),
 		FLAG(IEEE80211_CHAN_108G),
 #undef FLAG
+		{ "ECM",	3,	REQ_ECM },
+		{ "INDOOR",	6,	REQ_INDOOR },
+		{ "OUTDOOR",	7,	REQ_OUTDOOR },
 	};
 	int i;
 
