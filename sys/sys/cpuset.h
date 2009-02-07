@@ -131,6 +131,8 @@ typedef	struct _cpuset {
 #define	CPU_WHICH_TID		1	/* Specifies a thread id. */
 #define	CPU_WHICH_PID		2	/* Specifies a process id. */
 #define	CPU_WHICH_CPUSET	3	/* Specifies a set id. */
+/* CPU_WHICH_IRQ */
+#define	CPU_WHICH_JAIL		5	/* Specifies a jail id. */
 
 /*
  * Reserved cpuset identifiers.
@@ -167,11 +169,15 @@ struct cpuset {
 #define CPU_SET_RDONLY  0x0002  /* No modification allowed. */
 
 extern cpuset_t *cpuset_root;
+struct proc;
+struct thread;
 
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
 void	cpuset_rel(struct cpuset *);
 int	cpuset_setthread(lwpid_t id, cpuset_t *);
+int	cpuset_create_root(struct thread *, struct cpuset **);
+int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
 
 #else
 __BEGIN_DECLS

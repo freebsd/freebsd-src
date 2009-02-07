@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2007
+.Dd November 29, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -539,6 +539,16 @@ If the
 .Ar addr
 is given, displays details about the given GEOM object (class, geom, provider
 or consumer).
+.\"
+.Pp
+.It Ic show Cm jails
+Show the list of
+.Xr jail 8
+instances.
+In addition to what
+.Xr jls 8
+shows, also list kernel internal details.
+.\"
 .Pp
 .It Ic show Cm map Ns Oo Li / Ns Cm f Oc Ar addr
 Prints the VM map at
