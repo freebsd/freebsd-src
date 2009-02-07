@@ -406,8 +406,6 @@ uhci_init(uhci_softc_t *sc)
 	uint16_t x;
 	uint16_t y;
 
-	USB_BUS_LOCK(&sc->sc_bus);
-
 	DPRINTF("start\n");
 
 #if USB_DEBUG
@@ -597,12 +595,12 @@ uhci_init(uhci_softc_t *sc)
 	/* set up the bus struct */
 	sc->sc_bus.methods = &uhci_bus_methods;
 
+	USB_BUS_LOCK(&sc->sc_bus);
 	/* reset the controller */
 	uhci_reset(sc);
 
 	/* start the controller */
 	uhci_start(sc);
-
 	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch lost interrupts */
