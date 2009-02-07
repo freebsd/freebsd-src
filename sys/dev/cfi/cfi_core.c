@@ -438,9 +438,9 @@ cfi_write_block(struct cfi_softc *sc)
  * used for security.  There are two 64-bit segments; one is programmed
  * at the factory with a unique 64-bit number which is immutable.
  * The other segment is left blank for User (OEM) programming.
- * Once the User/OEM segment is programmed it can be locked
- * to prevent future programming by writing bit 0 of the Protection
- * Lock Register (PLR).  The PLR can written only once.
+ * The User/OEM segment is One Time Programmable (OTP).  It can also
+ * be locked to prevent any firther writes by setting bit 0 of the
+ * Protection Lock Register (PLR).  The PLR can written only once.
  */
 
 static uint16_t
@@ -450,11 +450,13 @@ cfi_get16(struct cfi_softc *sc, int off)
 	return v;
 }
 
+#ifdef CFI_ARMEDANDDANGEROUS
 static void
 cfi_put16(struct cfi_softc *sc, int off, uint16_t v)
 {
 	bus_space_write_2(sc->sc_tag, sc->sc_handle, off<<1, v);
 }
+#endif
 
 /*
  * Read the factory-defined 64-bit segment of the PR.
@@ -496,17 +498,21 @@ cfi_intel_get_oem_pr(struct cfi_softc *sc, uint64_t *id)
 
 /*
  * Write the User/OEM 64-bit segment of the PR.
+ * XXX should allow writing individual words/bytes
  */
 int
 cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t id)
 {
+#ifdef CFI_ARMEDANDDANGEROUS
 	register_t intr;
 	int i, error;
+#endif
 
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
 		return EOPNOTSUPP;
 	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
 
+#ifdef CFI_ARMEDANDDANGEROUS
 	for (i = 7; i >= 4; i--, id >>= 16) {
 		intr = intr_disable();
 		cfi_write(sc, 0, CFI_INTEL_PP_SETUP);
@@ -519,6 +525,11 @@ cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t id)
 	}
 	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
 	return error;
+#else
+	device_printf(sc->sc_dev, "%s: OEM PR not set, "
+	    "CFI_ARMEDANDDANGEROUS not configured\n", __func__);
+	return ENXIO;
+#endif
 }
 
 /*
@@ -547,9 +558,8 @@ cfi_intel_set_plr(struct cfi_softc *sc)
 {
 #ifdef CFI_ARMEDANDDANGEROUS
 	register_t intr;
-#endif
 	int error;
-
+#endif
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
 		return EOPNOTSUPP;
 	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
@@ -563,11 +573,11 @@ cfi_intel_set_plr(struct cfi_softc *sc)
 	intr_restore(intr);
 	error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS, sc->sc_write_timeout);
 	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	return error;
 #else
 	device_printf(sc->sc_dev, "%s: PLR not set, "
 	    "CFI_ARMEDANDDANGEROUS not configured\n", __func__);
-	error = ENXIO;
+	return ENXIO;
 #endif
-	return error;
 }
 #endif /* CFI_SUPPORT_STRATAFLASH */
