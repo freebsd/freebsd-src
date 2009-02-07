@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090207:
+	Multi-IPv4/v6/no-IP jail support was merged to STABLE.
+	You need to rebuild jls(8) and to use the new features
+	jail(8), jexec(8) and cpuset(1) with a new kernel.
+	__FreeBSD_version was bumped to 701103.
+
 20090119:
 	NTFS has been removed from GENERIC kernel on amd64 to match
 	GENERIC on i386. Should not cause any issues since mount_ntfs(8)
