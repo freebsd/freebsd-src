@@ -104,13 +104,14 @@ aoa_dma_set_program(struct aoa_dma *dma)
 #define AOA_BUFFER_SIZE		65536
 
 static struct aoa_dma * 
-aoa_dma_create(device_t self)
+aoa_dma_create(struct aoa_softc *sc)
 {
-	struct aoa_softc *sc = pcm_getdevinfo(self);
 	struct aoa_dma *dma;
 	bus_dma_tag_t 	tag;
 	int 		err;
+	device_t	self;
 
+	self = sc->sc_dev;
 	err = bus_dma_tag_create(bus_get_dma_tag(self), 
 	    4, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, 
 	    AOA_BUFFER_SIZE, 1, AOA_BUFFER_SIZE, 0, NULL, NULL, &tag);
@@ -214,14 +215,13 @@ static void *
 aoa_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, 
 	struct pcm_channel *c, int dir)
 {
-	device_t 		 self = devinfo;
-	struct aoa_softc 	*sc = pcm_getdevinfo(self);
+	struct aoa_softc 	*sc = devinfo;
 	struct aoa_dma		*dma;
 	int 	 		 max_slots, err;
 
 	KASSERT(dir == PCMDIR_PLAY, ("bad dir"));
 
-	dma = aoa_dma_create(self);
+	dma = aoa_dma_create(sc);
 	if (!dma)
 		return (NULL);
 	dma->pcm = c;
@@ -230,7 +230,7 @@ aoa_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	/* One slot per block, plus branch to 0 plus STOP. */
 	max_slots = 2 + dma->bufsz / dma->blksz;
-	err = dbdma_allocate_channel(dma->reg, 0, bus_get_dma_tag(self),
+	err = dbdma_allocate_channel(dma->reg, 0, bus_get_dma_tag(sc->sc_dev),
 	    max_slots, &dma->channel );
 	if (err != 0) {
 		aoa_dma_delete(dma);
@@ -308,9 +308,9 @@ aoa_chan_free(kobj_t obj, void *data)
 }
 
 void 
-aoa_interrupt(void *arg)
+aoa_interrupt(void *xsc)
 {
-	struct aoa_softc	*sc = arg;
+	struct aoa_softc	*sc = xsc;
 	struct aoa_dma		*dma;
 
 	if (!(dma = sc->sc_intrp) || !dma->running)
@@ -357,10 +357,15 @@ static kobj_method_t aoa_chan_methods[] = {
 CHANNEL_DECLARE(aoa_chan);
 
 int
-aoa_attach(device_t self, void *sc)
+aoa_attach(void *xsc)
 {
 	char status[SND_STATUSLEN];
+	struct aoa_softc *sc;
+	device_t self;
 	int err;
+
+	sc = xsc;
+	self = sc->sc_dev;
 
 	if (pcm_register(self, sc, 1, 0))
 		return (ENXIO);
@@ -369,7 +374,7 @@ aoa_attach(device_t self, void *sc)
 	    AOA_BUFFER_SIZE);
 	DPRINTF(("pcm_getbuffersize returned %d\n", err));
 
-	pcm_addchan(self, PCMDIR_PLAY, &aoa_chan_class, self);
+	pcm_addchan(self, PCMDIR_PLAY, &aoa_chan_class, sc);
 
 	snprintf(status, sizeof(status), "at %s", ofw_bus_get_name(self)); 
 	pcm_setstatus(self, status);

@@ -78,7 +78,6 @@
 
 struct i2s_softc {
 	struct aoa_softc 	 aoa;
-	device_t		 dev;
 	phandle_t 		 node;
 	phandle_t		 soundnode;
 	struct resource 	*reg;
@@ -179,7 +178,7 @@ i2s_attach(device_t self)
 	
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	sc->dev = self;
+	sc->aoa.sc_dev = self;
 	sc->node = ofw_bus_get_node(self);
 
 	port = of_find_firstchild_byname(sc->node, "i2s-a");
@@ -216,8 +215,8 @@ i2s_attach(device_t self)
 	if (err != 0)
 		return (err);
 
-	bus_setup_intr(self, dbdma_irq, INTR_TYPE_AV | INTR_MPSAFE, NULL,
-	    aoa_interrupt, sc, &dbdma_ih);
+	snd_setup_intr(self, dbdma_irq, INTR_MPSAFE, aoa_interrupt,
+	    sc, &dbdma_ih);
 
 	oirq = rman_get_start(dbdma_irq);
 	err = powerpc_config_intr(oirq, INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
@@ -233,12 +232,12 @@ i2s_attach(device_t self)
 		return (ENOMEM);
 
 	i2s_delayed_attach->ich_func = i2s_postattach;
-	i2s_delayed_attach->ich_arg = self;
+	i2s_delayed_attach->ich_arg = sc;
 
 	if (config_intrhook_establish(i2s_delayed_attach) != 0)
 		return (ENOMEM);
 
-	return (aoa_attach(self,sc));
+	return (aoa_attach(sc));
 }
 
 /*****************************************************************************
@@ -717,16 +716,13 @@ i2s_set_outputs(void *ptr, u_int mask)
 }
 
 static void
-i2s_postattach(void *arg)
+i2s_postattach(void *xsc)
 {
-	device_t 		 self = arg;
-	struct i2s_softc 	*sc;
+	struct i2s_softc 	*sc = xsc;
+	device_t 		 self;
 	int 			 i;
 
-	KASSERT(self != NULL, ("bad arg"));
-	KASSERT(i2s_delayed_attach != NULL, ("bogus call"));
-
-	sc = pcm_getdevinfo(self);
+	self = sc->aoa.sc_dev;
 
 	/* Reset the codec. */
 	i2s_audio_hw_reset(sc);

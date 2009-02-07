@@ -52,7 +52,6 @@
 
 struct davbus_softc {
 	struct aoa_softc 	 aoa;
-	device_t 		 dev;
 	phandle_t 		 node;
 	phandle_t 		 soundnode;
 	struct resource 	*reg;
@@ -497,7 +496,7 @@ davbus_attach(device_t self)
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	sc->dev = self;
+	sc->aoa.sc_dev = self;
 	sc->node = ofw_bus_get_node(self);
 	sc->soundnode = OF_child(sc->node);
 
@@ -529,8 +528,8 @@ davbus_attach(device_t self)
 	if (err != 0)
 		return (err);
 		
-	bus_setup_intr(self, dbdma_irq, INTR_TYPE_AV | INTR_MPSAFE,
-	    NULL, aoa_interrupt, sc, &cookie);
+	snd_setup_intr(self, dbdma_irq, INTR_MPSAFE, aoa_interrupt,
+	    sc, &cookie);
 
 	/* Now initialize the controller. */
 
@@ -555,7 +554,7 @@ davbus_attach(device_t self)
 	    DAVBUS_OUTPUT_SUBFRAME0 | DAVBUS_RATE_44100 | DAVBUS_INTR_PORTCHG);
 
 	/* Attach DBDMA engine and PCM layer */
-	err = aoa_attach(self,sc);
+	err = aoa_attach(sc);
 	if (err)
 		return (err);
 

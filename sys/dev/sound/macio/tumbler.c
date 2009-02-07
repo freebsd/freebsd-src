@@ -95,8 +95,6 @@ static int	tumbler_reinit(struct snd_mixer *m);
 static int	tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
 static int	tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src);
-static int	tumbler_set_volume(struct tumbler_softc *sc, int left,
-		    int right);
 
 static device_method_t tumbler_methods[] = {
 	/* Device interface. */
@@ -381,12 +379,46 @@ static int
 tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct tumbler_softc *sc;
+	struct mtx *mixer_lock;
+	int locked;
+	u_int l, r;
+	u_char reg[6];
 
 	sc = device_get_softc(mix_getdevinfo(m));
+	mixer_lock = mixer_get_lock(m);
+	locked = mtx_owned(mixer_lock);
 
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
-		return (tumbler_set_volume(sc, left, right));
+		if (left > 100 || right > 100)
+			return (0);
+
+		l = (left == 0 ? 0 : tumbler_volume_table[left - 1]);
+		r = (right == 0 ? 0 : tumbler_volume_table[right - 1]);
+		
+		reg[0] = (l & 0xff0000) >> 16;
+		reg[1] = (l & 0x00ff00) >> 8;
+		reg[2] = l & 0x0000ff;
+		reg[3] = (r & 0xff0000) >> 16;
+		reg[4] = (r & 0x00ff00) >> 8;
+		reg[5] = r & 0x0000ff;
+
+		/*
+		 * We need to unlock the mixer lock because iicbus_transfer()
+		 * may sleep. The mixer lock itself is unnecessary here
+		 * because it is meant to serialize hardware access, which
+		 * is taken care of by the I2C layer, so this is safe.
+		 */
+
+		if (locked)
+			mtx_unlock(mixer_lock);
+
+		tumbler_write(sc, TUMBLER_VOLUME, reg);
+
+		if (locked)
+			mtx_lock(mixer_lock);
+
+		return (left | (right << 8));
 	}
 
 	return (0);
@@ -396,28 +428,5 @@ static int
 tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return (0);
-}
-
-static int
-tumbler_set_volume(struct tumbler_softc *sc, int left, int right)
-{
-	u_int l, r;
-	u_char reg[6];
-
-	if (left > 100 || right > 100)
-		return (0);
-
-	l = (left == 0 ? 0 : tumbler_volume_table[left - 1]);
-	r = (right == 0 ? 0 : tumbler_volume_table[right - 1]);
-	
-	reg[0] = (l & 0xff0000) >> 16;
-	reg[1] = (l & 0x00ff00) >> 8;
-	reg[2] = l & 0x0000ff;
-	reg[3] = (r & 0xff0000) >> 16;
-	reg[4] = (r & 0x00ff00) >> 8;
-	reg[5] = r & 0x0000ff;
-	tumbler_write(sc, TUMBLER_VOLUME, reg);
-
-	return (left | (right << 8));
 }
 
