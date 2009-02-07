@@ -223,8 +223,6 @@ ehci_init(ehci_softc_t *sc)
 	uint16_t bit;
 	usb2_error_t err = 0;
 
-	USB_BUS_LOCK(&sc->sc_bus);
-
 	DPRINTF("start\n");
 
 	usb2_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx, 0);
@@ -259,10 +257,12 @@ ehci_init(ehci_softc_t *sc)
 	/* Reset the controller */
 	DPRINTF("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev));
 
+	USB_BUS_LOCK(&sc->sc_bus);
 	err = ehci_hc_reset(sc);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	if (err) {
 		device_printf(sc->sc_bus.bdev, "reset timeout\n");
-		goto done;
+		return (error);
 	}
 	/*
 	 * use current frame-list-size selection 0: 1024*4 bytes 1:  512*4
@@ -270,8 +270,7 @@ ehci_init(ehci_softc_t *sc)
 	 */
 	if (EHCI_CMD_FLS(EOREAD4(sc, EHCI_USBCMD)) == 3) {
 		device_printf(sc->sc_bus.bdev, "invalid frame-list-size\n");
-		err = USB_ERR_IOERROR;
-		goto done;
+		return (USB_ERR_IOERROR);
 	}
 	/* set up the bus struct */
 	sc->sc_bus.methods = &ehci_bus_methods;
@@ -479,7 +478,7 @@ ehci_init(ehci_softc_t *sc)
 	EOWRITE4(sc, EHCI_CONFIGFLAG, EHCI_CONF_CF);
 
 	for (i = 0; i < 100; i++) {
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+		usb2_pause_mtx(NULL, 1);
 		hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
 		if (!hcr) {
 			break;
@@ -487,11 +486,8 @@ ehci_init(ehci_softc_t *sc)
 	}
 	if (hcr) {
 		device_printf(sc->sc_bus.bdev, "run timeout\n");
-		err = USB_ERR_IOERROR;
-		goto done;
+		return (USB_ERR_IOERROR);
 	}
-done:
-	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	if (!err) {
 		/* catch any lost interrupts */
