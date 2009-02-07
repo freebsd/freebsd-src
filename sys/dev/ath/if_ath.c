@@ -3343,6 +3343,7 @@ ath_bstuck_proc(void *arg, int pending)
 
 	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
 		sc->sc_bmisscount);
+	sc->sc_stats.ast_bstuck++;
 	ath_reset(ifp);
 }
 
