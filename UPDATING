@@ -9,6 +9,13 @@ Items affecting the ports and packages system can be found in
 portupgrade.
 
 20090207:
+	ZFS users on amd64 machines with 4GB or more of RAM should
+	reevaluate their need for setting vm.kmem_size_max and
+	vm.kmem_size manually.  In fact, after recent changes to the
+	kernel, the default value of vm.kmem_size is larger than the
+	suggested manual setting in most ZFS/FreeBSD tuning guides.
+
+20090207:
 	Multi-IPv4/v6/no-IP jail support was merged to STABLE.
 	You need to rebuild jls(8) and to use the new features
 	jail(8), jexec(8) and cpuset(1) with a new kernel.
