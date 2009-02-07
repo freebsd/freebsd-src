@@ -168,7 +168,7 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("SMM active, request owner change\n");
 		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_OCR);
 		for (i = 0; (i < 100) && (ctl & OHCI_IR); i++) {
-			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+			usb2_pause_mtx(NULL, 1);
 			ctl = OREAD4(sc, OHCI_CONTROL);
 		}
 		if (ctl & OHCI_IR) {
@@ -181,8 +181,7 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("cold started\n");
 reset:
 		/* controller was cold started */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_BUS_RESET_DELAY);
+		usb2_pause_mtx(NULL, USB_BUS_RESET_DELAY);
 	}
 
 	/*
@@ -192,8 +191,7 @@ reset:
 	DPRINTF("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev));
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_BUS_RESET_DELAY);
+	usb2_pause_mtx(NULL, USB_BUS_RESET_DELAY);
 
 	/* we now own the host controller and the bus has been reset */
 	ival = OHCI_GET_IVAL(OREAD4(sc, OHCI_FM_INTERVAL));
@@ -255,8 +253,7 @@ reset:
 	desca = OREAD4(sc, OHCI_RH_DESCRIPTOR_A);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca | OHCI_NOCP);
 	OWRITE4(sc, OHCI_RH_STATUS, OHCI_LPSC);	/* Enable port power */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    OHCI_ENABLE_POWER_DELAY);
+	usb2_pause_mtx(NULL, OHCI_ENABLE_POWER_DELAY);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca);
 
 	/*
@@ -265,8 +262,7 @@ reset:
 	 */
 	sc->sc_noport = 0;
 	for (i = 0; (i < 10) && (sc->sc_noport == 0); i++) {
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-		    OHCI_READ_DESC_DELAY);
+		usb2_pause_mtx(NULL, OHCI_READ_DESC_DELAY);
 		sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 	}
 
@@ -303,8 +299,6 @@ ohci_init(ohci_softc_t *sc)
 	uint16_t bit;
 	uint16_t x;
 	uint16_t y;
-
-	USB_BUS_LOCK(&sc->sc_bus);
 
 	DPRINTF("start\n");
 
@@ -402,10 +396,8 @@ ohci_init(ohci_softc_t *sc)
 	sc->sc_bus.usbrev = USB_REV_1_0;
 
 	if (ohci_controller_init(sc)) {
-		USB_BUS_UNLOCK(&sc->sc_bus);
 		return (USB_ERR_INVAL);
 	} else {
-		USB_BUS_UNLOCK(&sc->sc_bus);
 		/* catch any lost interrupts */
 		ohci_do_poll(&sc->sc_bus);
 		return (USB_ERR_NORMAL_COMPLETION);
@@ -473,8 +465,6 @@ ohci_resume(ohci_softc_t *sc)
 {
 	uint32_t ctl;
 
-	USB_BUS_LOCK(&sc->sc_bus);
-
 #if USB_DEBUG
 	DPRINTF("\n");
 	if (ohcidebug > 2) {
@@ -484,6 +474,7 @@ ohci_resume(ohci_softc_t *sc)
 	/* some broken BIOSes never initialize the Controller chip */
 	ohci_controller_init(sc);
 
+	USB_BUS_LOCK(&sc->sc_bus);
 	if (sc->sc_intre) {
 		OWRITE4(sc, OHCI_INTERRUPT_ENABLE,
 		    sc->sc_intre & (OHCI_ALL_INTRS | OHCI_MIE));
