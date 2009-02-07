@@ -36,20 +36,32 @@
 .Nd dump file system information
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
 .Op Fl m
 .Ar filesys | device
 .Sh DESCRIPTION
 The
 .Nm
 utility prints out the super block and cylinder group information
-for the file system or special device specified, unless
+for the file system or special device specified, unless the
+.Fl f
+or
 .Fl m
-is specified.
+flag is specified.
 The listing is very long and detailed.
 This
 command is useful mostly for finding out certain file system
 information such as the file system block size and minimum
 free space percentage.
+.Pp
+If
+.Fl f
+is specified, a sorted list of all free fragments and free fragment ranges,
+as represented in cylinder group block free lists, is printed.
+If the flag is specified twice, contiguous free fragments are not collapsed
+into ranges and instead printed in a simple list.
+Fragment numbers may be converted to raw byte offsets by multiplying by the
+fragment size, which may be useful when recovering deleted data.
 .Pp
 If
 .Fl m
