@@ -714,10 +714,11 @@ device		glxsb		# AMD Geode LX Security Block
 #
 # apm: Laptop Advanced Power Management (experimental)
 # ipmi: Intelligent Platform Management Interface
-# pmtimer: Timer device driver for power management events (APM or ACPI)
 # smapi: System Management Application Program Interface driver
 # smbios: DMI/SMBIOS entry point
 # vpd: Vital Product Data kernel interface
+# pmtimer: Adjust system timer at wakeup time
+# pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # asmc: Apple System Management Controller
 
@@ -749,8 +750,7 @@ device		ipmi
 device		smapi
 device		smbios
 device		vpd
-device		pmtimer			# Adjust system timer at wakeup time
-# Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
+device		pmtimer
 device		pbio
 hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
