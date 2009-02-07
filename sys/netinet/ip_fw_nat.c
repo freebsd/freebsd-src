@@ -326,6 +326,10 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	else
 		retval = LibAliasOut(t->lib, c, 
 			mcl->m_len + M_TRAILINGSPACE(mcl));
+	if (retval == PKT_ALIAS_RESPOND) {
+	  m->m_flags |= M_SKIP_FIREWALL;
+	  retval = PKT_ALIAS_OK;
+	}
 	if (retval != PKT_ALIAS_OK &&
 	    retval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
 		/* XXX - should i add some logging? */
