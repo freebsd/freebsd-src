@@ -281,8 +281,8 @@ options 	ED_SIC
 device		iwi
 device		iwn
 device		ipw
-device		nfe		# nVidia nForce MCP on-board Ethernet Networking
-device		nve		# nVidia nForce MCP on-board Ethernet Networking
+device		nfe
+device		nve
 device		ral
 device		wpi
 
@@ -359,9 +359,11 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # Miscellaneous hardware:
 #
 # ipmi: Intelligent Platform Management Interface
+# pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 # smbios: DMI/SMBIOS entry point
 # vpd: Vital Product Data kernel interface
 # asmc: Apple System Management Controller
+# si: Specialix International SI/XIO or SX intelligent serial card
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -370,13 +372,14 @@ options 	SAFE_RNDTEST	# enable rndtest support
 #  The cards can use an IRQ of 11, 12 or 15.
 
 device		ipmi
-# Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 device		pbio
 hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
 device		asmc
+#device		si
+
 #
 # Laptop/Notebook options:
 #
