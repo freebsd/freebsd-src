@@ -450,11 +450,13 @@ cfi_get16(struct cfi_softc *sc, int off)
 	return v;
 }
 
+#ifdef CFI_ARMEDANDDANGEROUS
 static void
 cfi_put16(struct cfi_softc *sc, int off, uint16_t v)
 {
 	bus_space_write_2(sc->sc_tag, sc->sc_handle, off<<1, v);
 }
+#endif
 
 /*
  * Read the factory-defined 64-bit segment of the PR.
@@ -556,9 +558,8 @@ cfi_intel_set_plr(struct cfi_softc *sc)
 {
 #ifdef CFI_ARMEDANDDANGEROUS
 	register_t intr;
-#endif
 	int error;
-
+#endif
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
 		return EOPNOTSUPP;
 	KASSERT(sc->sc_width == 2, ("sc_width %d", sc->sc_width));
@@ -572,11 +573,11 @@ cfi_intel_set_plr(struct cfi_softc *sc)
 	intr_restore(intr);
 	error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS, sc->sc_write_timeout);
 	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	return error;
 #else
 	device_printf(sc->sc_dev, "%s: PLR not set, "
 	    "CFI_ARMEDANDDANGEROUS not configured\n", __func__);
-	error = ENXIO;
+	return ENXIO;
 #endif
-	return error;
 }
 #endif /* CFI_SUPPORT_STRATAFLASH */
