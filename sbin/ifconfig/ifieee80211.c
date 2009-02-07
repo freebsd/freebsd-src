@@ -99,10 +99,6 @@
 #define	IEEE80211_FIXED_RATE_NONE	0xff
 #endif
 
-#define	REQ_ECM		0x01000000	/* enable if ECM set */
-#define	REQ_OUTDOOR	0x02000000	/* enable for outdoor operation */
-#define	REQ_FLAGS	0xff000000	/* private flags, don't pass to os */
-
 /* XXX need these publicly defined or similar */
 #ifndef IEEE80211_NODE_AUTH
 #define	IEEE80211_NODE_AUTH	0x0001		/* authorized for data */
@@ -1802,6 +1798,57 @@ chanfind(const struct ieee80211_channel chans[], int nchans, int flags)
 	return 0;
 }
 
+/*
+ * Check channel compatibility.
+ */
+static int
+checkchan(const struct ieee80211req_chaninfo *avail, int freq, int flags)
+{
+	flags &= ~REQ_FLAGS;
+	/*
+	 * Check if exact channel is in the calibration table;
+	 * everything below is to deal with channels that we
+	 * want to include but that are not explicitly listed.
+	 */
+	if (flags & IEEE80211_CHAN_HT40) {
+		/* NB: we use an HT40 channel center that matches HT20 */
+		flags = (flags &~ IEEE80211_CHAN_HT40) | IEEE80211_CHAN_HT20;
+	}
+	if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, flags) != NULL)
+		return 1;
+	if (flags & IEEE80211_CHAN_GSM) {
+		/*
+		 * XXX GSM frequency mapping is handled in the kernel
+		 * so we cannot find them in the calibration table;
+		 * just accept the channel and the kernel will reject
+		 * the channel list if it's wrong.
+		 */
+		return 1;
+	}
+	/*
+	 * If this is a 1/2 or 1/4 width channel allow it if a full
+	 * width channel is present for this frequency, and the device
+	 * supports fractional channels on this band.  This is a hack
+	 * that avoids bloating the calibration table; it may be better
+	 * by per-band attributes though (we are effectively calculating
+	 * this attribute by scanning the channel list ourself).
+	 */
+	if ((flags & (IEEE80211_CHAN_HALF | IEEE80211_CHAN_QUARTER)) == 0)
+		return 0;
+	if (chanlookup(avail->ic_chans, avail->ic_nchans, freq,
+	    flags &~ (IEEE80211_CHAN_HALF | IEEE80211_CHAN_QUARTER)) == NULL)
+		return 0;
+	if (flags & IEEE80211_CHAN_HALF) {
+		return chanfind(avail->ic_chans, avail->ic_nchans,
+		    IEEE80211_CHAN_HALF |
+		       (flags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
+	} else {
+		return chanfind(avail->ic_chans, avail->ic_nchans,
+		    IEEE80211_CHAN_QUARTER |
+			(flags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
+	}
+}
+
 static void
 regdomain_addchans(struct ieee80211req_chaninfo *ci,
 	const netband_head *bands,
@@ -1812,15 +1859,12 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 	const struct netband *nb;
 	const struct freqband *b;
 	struct ieee80211_channel *c, *prev;
-	int freq, channelSep, hasHalfChans, hasQuarterChans;
+	int freq, hi_adj, lo_adj, channelSep;
+	uint32_t flags;
 
+	hi_adj = (chanFlags & IEEE80211_CHAN_HT40U) ? -20 : 0;
+	lo_adj = (chanFlags & IEEE80211_CHAN_HT40D) ? 20 : 0;
 	channelSep = (chanFlags & IEEE80211_CHAN_2GHZ) ? 0 : 40;
-	hasHalfChans = chanfind(avail->ic_chans, avail->ic_nchans,
-	    IEEE80211_CHAN_HALF |
-	       (chanFlags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
-	hasQuarterChans = chanfind(avail->ic_chans, avail->ic_nchans,
-	    IEEE80211_CHAN_QUARTER |
-	        (chanFlags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
 	LIST_FOREACH(nb, bands, next) {
 		b = nb->band;
 		if (verbose) {
@@ -1831,53 +1875,63 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			putchar('\n');
 		}
 		prev = NULL;
-		for (freq = b->freqStart; freq <= b->freqEnd; freq += b->chanSep) {
-			uint32_t flags = nb->flags | b->flags;
-
-			/* check if device can operate on this frequency */
+		for (freq = b->freqStart + lo_adj;
+		     freq <= b->freqEnd + hi_adj; freq += b->chanSep) {
 			/*
-			 * XXX GSM frequency mapping is handled in the kernel
-			 * so we cannot find them in the calibration table;
-			 * just construct the list and the kernel will reject
-			 * if it's wrong.
+			 * Construct flags for the new channel.  We take
+			 * the attributes from the band descriptions except
+			 * for HT40 which is enabled generically (i.e. +/-
+			 * extension channel) in the band description and
+			 * then constrained according by channel separation.
 			 */
-			if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, chanFlags) == NULL &&
-			    (flags & IEEE80211_CHAN_GSM) == 0) {
+			flags = nb->flags | b->flags;
+			if (flags & IEEE80211_CHAN_HT) {
+				/*
+				 * HT channels are generated specially; we're
+				 * called to add HT20, HT40+, and HT40- chan's
+				 * so we need to expand only band specs for
+				 * the HT channel type being added.
+				 */
+				if ((chanFlags & IEEE80211_CHAN_HT20) &&
+				    (flags & IEEE80211_CHAN_HT20) == 0) {
+					if (verbose)
+						printf("%u: skip, not an "
+						    "HT20 channel\n", freq);
+					continue;
+				}
+				if ((chanFlags & IEEE80211_CHAN_HT40) &&
+				    (flags & IEEE80211_CHAN_HT40) == 0) {
+					if (verbose)
+						printf("%u: skip, not an "
+						    "HT40 channel\n", freq);
+					continue;
+				}
+				/*
+				 * DFS and HT40 don't mix.  This should be
+				 * expressed in the regdomain database but
+				 * just in case enforce it here.
+				 */
+				if ((chanFlags & IEEE80211_CHAN_HT40) &&
+				    (flags & IEEE80211_CHAN_DFS)) {
+					if (verbose)
+						printf("%u: skip, HT40+DFS "
+						    "not permitted\n", freq);
+					continue;
+				}
+				/* NB: HT attribute comes from caller */
+				flags &= ~IEEE80211_CHAN_HT;
+				flags |= chanFlags & IEEE80211_CHAN_HT;
+			}
+			/*
+			 * Check if device can operate on this frequency.
+			 */
+			if (!checkchan(avail, freq, flags)) {
 				if (verbose) {
 					printf("%u: skip, ", freq);
-					printb("flags", chanFlags,
+					printb("flags", flags,
 					    IEEE80211_CHAN_BITS);
 					printf(" not available\n");
 				}
-				continue;
-			}
-			if ((flags & IEEE80211_CHAN_HALF) && !hasHalfChans) {
-				if (verbose)
-					printf("%u: skip, device does not "
-					    "support half-rate channel\n",
-					    freq);
-				continue;
-			}
-			if ((flags & IEEE80211_CHAN_QUARTER) &&
-			    !hasQuarterChans) {
-				if (verbose)
-					printf("%u: skip, device does not "
-					    "support quarter-rate channel\n",
-					    freq);
-				continue;
-			}
-			if ((flags & IEEE80211_CHAN_HT20) &&
-			    (chanFlags & IEEE80211_CHAN_HT20) == 0) {
-				if (verbose)
-					printf("%u: skip, device does not "
-					    "support HT20 operation\n", freq);
-				continue;
-			}
-			if ((flags & IEEE80211_CHAN_HT40) &&
-			    (chanFlags & IEEE80211_CHAN_HT40) == 0) {
-				if (verbose)
-					printf("%u: skip, device does not "
-					    "support HT40 operation\n", freq);
 				continue;
 			}
 			if ((flags & REQ_ECM) && !reg->ecm) {
@@ -1885,9 +1939,16 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 					printf("%u: skip, ECM channel\n", freq);
 				continue;
 			}
+			if ((flags & REQ_INDOOR) && reg->location == 'O') {
+				if (verbose)
+					printf("%u: skip, indoor channel\n",
+					    freq);
+				continue;
+			}
 			if ((flags & REQ_OUTDOOR) && reg->location == 'I') {
 				if (verbose)
-					printf("%u: skip, outdoor channel\n", freq);
+					printf("%u: skip, outdoor channel\n",
+					    freq);
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_HT40) &&
@@ -1907,8 +1968,7 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			c = &ci->ic_chans[ci->ic_nchans++];
 			memset(c, 0, sizeof(*c));
 			c->ic_freq = freq;
-			c->ic_flags = chanFlags |
-			    (flags &~ (REQ_FLAGS | IEEE80211_CHAN_HT40));
+			c->ic_flags = flags;
 			if (c->ic_flags & IEEE80211_CHAN_DFS)
 				c->ic_maxregpower = nb->maxPowerDFS;
 			else
@@ -1973,27 +2033,31 @@ regdomain_makechannels(
 		if (!LIST_EMPTY(&rd->bands_11a))
 			regdomain_addchans(ci, &rd->bands_11a, reg,
 			    IEEE80211_CHAN_A, &dc->dc_chaninfo);
-		if (!LIST_EMPTY(&rd->bands_11na)) {
+		if (!LIST_EMPTY(&rd->bands_11na) && dc->dc_htcaps != 0) {
 			regdomain_addchans(ci, &rd->bands_11na, reg,
 			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20,
 			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11na, reg,
-			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U,
-			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11na, reg,
-			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D,
-			    &dc->dc_chaninfo);
+			if (dc->dc_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
+				regdomain_addchans(ci, &rd->bands_11na, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U,
+				    &dc->dc_chaninfo);
+				regdomain_addchans(ci, &rd->bands_11na, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D,
+				    &dc->dc_chaninfo);
+			}
 		}
-		if (!LIST_EMPTY(&rd->bands_11ng)) {
+		if (!LIST_EMPTY(&rd->bands_11ng) && dc->dc_htcaps != 0) {
 			regdomain_addchans(ci, &rd->bands_11ng, reg,
 			    IEEE80211_CHAN_G | IEEE80211_CHAN_HT20,
 			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11ng, reg,
-			    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U,
-			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11ng, reg,
-			    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D,
-			    &dc->dc_chaninfo);
+			if (dc->dc_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
+				regdomain_addchans(ci, &rd->bands_11ng, reg,
+				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U,
+				    &dc->dc_chaninfo);
+				regdomain_addchans(ci, &rd->bands_11ng, reg,
+				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D,
+				    &dc->dc_chaninfo);
+			}
 		}
 		qsort(ci->ic_chans, ci->ic_nchans, sizeof(ci->ic_chans[0]),
 		    regdomain_sort);
