@@ -3,10 +3,7 @@
 # Part of a unified Makefile for building kernels.  This part contains all
 # of the definitions that need to be before %BEFORE_DEPEND.
 
-SRCCONF?=	/etc/src.conf
-.if exists(${SRCCONF})
-.include "${SRCCONF}"
-.endif
+.include <bsd.own.mk>
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
