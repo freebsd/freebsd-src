@@ -262,7 +262,7 @@ ehci_init(ehci_softc_t *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 	if (err) {
 		device_printf(sc->sc_bus.bdev, "reset timeout\n");
-		return (error);
+		return (err);
 	}
 	/*
 	 * use current frame-list-size selection 0: 1024*4 bytes 1:  512*4
