@@ -61,10 +61,23 @@ chroot_autoupdate()
 
 	# Mount a devfs in the chroot directory if needed
 	#
-	umount ${named_chrootdir}/dev 2>/dev/null
-	devfs_domount ${named_chrootdir}/dev devfsrules_hide_all
-	devfs -m ${named_chrootdir}/dev rule apply path null unhide
-	devfs -m ${named_chrootdir}/dev rule apply path random unhide
+	if [ `${SYSCTL_N} security.jail.jailed` -eq 0 ]; then
+		umount ${named_chrootdir}/dev 2>/dev/null
+		devfs_domount ${named_chrootdir}/dev devfsrules_hide_all
+		devfs -m ${named_chrootdir}/dev rule apply path null unhide
+		devfs -m ${named_chrootdir}/dev rule apply path random unhide
+	else
+		if [ -c ${named_chrootdir}/dev/null -a \
+		    -c ${named_chrootdir}/dev/random ]; then
+			info "named chroot: using pre-mounted devfs."
+		else
+			err 1 "named chroot: devfs cannot be mounted from" \
+			    "within a jail. Thus a chrooted named cannot" \
+			    "be run from within a jail." \
+			    "To run named without chrooting it, set" \
+			    "named_chrootdir=\"\" in /etc/rc.conf."
+		fi
+	fi
 
 	# Copy and/or update key files to the chroot /etc 
 	#
@@ -113,7 +126,12 @@ named_stop()
 named_poststop()
 {
 	if [ -n "${named_chrootdir}" -a -c ${named_chrootdir}/dev/null ]; then
-		umount ${named_chrootdir}/dev 2>/dev/null || true
+		if [ `${SYSCTL_N} security.jail.jailed` -eq 0 ]; then
+			umount ${named_chrootdir}/dev 2>/dev/null || true
+		else
+			warn "named chroot:" \
+			    "cannot unmount devfs from inside jail!"
+		fi
 	fi
 }
 
