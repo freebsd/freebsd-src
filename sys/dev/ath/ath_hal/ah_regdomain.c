@@ -74,6 +74,11 @@ typedef uint64_t chanbmask_t[BMLEN];
 	  W0(_fg) | W0(_fh) ,	\
 	  W1(_fa) | W1(_fb) | W1(_fc) | W1(_fd) | W1(_fe) | W1(_ff) |	\
 	  W1(_fg) | W1(_fh) }
+#define BM9(_fa, _fb, _fc, _fd, _fe, _ff, _fg, _fh, _fi)	\
+	{ W0(_fa) | W0(_fb) | W0(_fc) | W0(_fd) | W0(_fe) | W0(_ff) |	\
+	  W0(_fg) | W0(_fh) | W0(_fi) ,	\
+	  W1(_fa) | W1(_fb) | W1(_fc) | W1(_fd) | W1(_fe) | W1(_ff) |	\
+	  W1(_fg) | W1(_fh) | W1(_fi) }
 
 /*
  * Mask to check whether a domain is a multidomain or a single domain
@@ -1701,16 +1706,16 @@ static const struct cmode modes[] = {
 	  IEEE80211_CHAN_G | IEEE80211_CHAN_QUARTER },
 	{ HAL_MODE_11G_HALF_RATE,
 	  IEEE80211_CHAN_G | IEEE80211_CHAN_HALF },
-	{ HAL_MODE_11NG_HT20,	IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_HT20 },
+	{ HAL_MODE_11NG_HT20,	IEEE80211_CHAN_G | IEEE80211_CHAN_HT20 },
 	{ HAL_MODE_11NG_HT40PLUS,
-	  IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_HT40U },
+	  IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U },
 	{ HAL_MODE_11NG_HT40MINUS,
-	  IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_HT40D },
-	{ HAL_MODE_11NA_HT20,	IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_HT20 },
+	  IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D },
+	{ HAL_MODE_11NA_HT20,	IEEE80211_CHAN_A | IEEE80211_CHAN_HT20 },
 	{ HAL_MODE_11NA_HT40PLUS,
-	  IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_HT40U },
+	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U },
 	{ HAL_MODE_11NA_HT40MINUS,
-	  IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_HT40D },
+	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D },
 };
 
 static OS_INLINE uint16_t
