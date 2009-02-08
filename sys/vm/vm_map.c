@@ -2304,6 +2304,7 @@ vm_map_sync(
 	vm_size_t size;
 	vm_object_t object;
 	vm_ooffset_t offset;
+	unsigned int last_timestamp;
 
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2338,8 +2339,7 @@ vm_map_sync(
 	 * Make a second pass, cleaning/uncaching pages from the indicated
 	 * objects as we go.
 	 */
-	for (current = entry; current != &map->header && current->start < end;
-	    current = current->next) {
+	for (current = entry; current != &map->header && current->start < end;) {
 		offset = current->offset + (start - current->start);
 		size = (end <= current->end ? end : current->end) - start;
 		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
@@ -2359,8 +2359,16 @@ vm_map_sync(
 		} else {
 			object = current->object.vm_object;
 		}
+		vm_object_reference(object);
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
 		vm_object_sync(object, offset, size, syncio, invalidate);
 		start += size;
+		vm_object_deallocate(object);
+		vm_map_lock_read(map);
+		if (last_timestamp == map->timestamp ||
+		    !vm_map_lookup_entry(map, start, &current))
+			current = current->next;
 	}
 
 	vm_map_unlock_read(map);
