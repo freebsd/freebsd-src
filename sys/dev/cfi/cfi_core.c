@@ -439,7 +439,7 @@ cfi_write_block(struct cfi_softc *sc)
  * at the factory with a unique 64-bit number which is immutable.
  * The other segment is left blank for User (OEM) programming.
  * The User/OEM segment is One Time Programmable (OTP).  It can also
- * be locked to prevent any firther writes by setting bit 0 of the
+ * be locked to prevent any further writes by setting bit 0 of the
  * Protection Lock Register (PLR).  The PLR can written only once.
  */
 
