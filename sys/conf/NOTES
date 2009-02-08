@@ -2138,43 +2138,8 @@ device	tnt4882
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
 # mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
-# cy: Cyclades serial driver
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
-# rc: RISCom/8 multiport card
-# rp: Comtrol Rocketport(ISA/PCI) - single card
-# si: Specialix SI/XIO 4-32 port terminal multiplexor
 # cmx: OmniKey CardMan 4040 pccard smartcard reader
-
-# Notes on the Comtrol Rocketport driver:
-#
-# The exact values used for rp0 depend on how many boards you have
-# in the system.  The manufacturer's sample configs are listed as:
-#
-#               device  rp	# core driver support
-#
-#   Comtrol Rocketport ISA single card
-#		hint.rp.0.at="isa"
-#		hint.rp.0.port="0x280"
-#
-#   If instead you have two ISA cards, one installed at 0x100 and the
-#   second installed at 0x180, then you should add the following to
-#   your kernel probe hints:
-#		hint.rp.0.at="isa"
-#		hint.rp.0.port="0x100"
-#		hint.rp.1.at="isa"
-#		hint.rp.1.port="0x180"
-#
-#   For 4 ISA cards, it might be something like this:
-#		hint.rp.0.at="isa"
-#		hint.rp.0.port="0x180"
-#		hint.rp.1.at="isa"
-#		hint.rp.1.port="0x100"
-#		hint.rp.2.at="isa"
-#		hint.rp.2.port="0x340"
-#		hint.rp.3.at="isa"
-#		hint.rp.3.port="0x240"
-#
-#   For PCI cards, you need no hints.
 
 # Mitsumi CD-ROM
 device		mcd
