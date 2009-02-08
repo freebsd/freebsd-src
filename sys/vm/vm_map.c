@@ -1261,16 +1261,19 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t start, vm_size_t length, vm_prot_t prot,
     vm_prot_t max, int cow)
 {
+	vm_map_entry_t freelist;
 	vm_offset_t end;
 	int result;
 
-	vm_map_lock(map);
 	end = start + length;
+	freelist = NULL;
+	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
-	(void) vm_map_delete(map, start, end);
+	(void) vm_map_delete(map, start, end, &freelist);
 	result = vm_map_insert(map, object, offset, start, end, prot,
 	    max, cow);
 	vm_map_unlock(map);
+	vm_map_entry_free_freelist(map, freelist);
 	return (result);
 }
 
@@ -2392,6 +2395,23 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 	entry->wired_count = 0;
 }
 
+void
+vm_map_entry_free_freelist(vm_map_t map, vm_map_entry_t freelist)
+{
+	vm_map_entry_t e;
+	vm_object_t object;
+
+	while (freelist != NULL) {
+		e = freelist;
+		freelist = freelist->next;
+		if ((e->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
+			object = e->object.vm_object;
+			vm_object_deallocate(object);
+		}
+		vm_map_entry_dispose(map, e);
+	}
+}
+
 /*
  *	vm_map_entry_delete:	[ internal use only ]
  *
@@ -2424,10 +2444,8 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 				object->size = offidxstart;
 		}
 		VM_OBJECT_UNLOCK(object);
-		vm_object_deallocate(object);
-	}
-
-	vm_map_entry_dispose(map, entry);
+	} else
+		entry->object.vm_object = NULL;
 }
 
 /*
@@ -2437,7 +2455,8 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
  *	map.
  */
 int
-vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
+vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    vm_map_entry_t *freelist)
 {
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
@@ -2514,6 +2533,8 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		 * modify bits will be set in the wrong object!)
 		 */
 		vm_map_entry_delete(map, entry);
+		entry->next = *freelist;
+		*freelist = entry;
 		entry = next;
 	}
 	return (KERN_SUCCESS);
@@ -2528,12 +2549,15 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 int
 vm_map_remove(vm_map_t map, vm_offset_t start, vm_offset_t end)
 {
+	vm_map_entry_t freelist;
 	int result;
 
+	freelist = NULL;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
-	result = vm_map_delete(map, start, end);
+	result = vm_map_delete(map, start, end, &freelist);
 	vm_map_unlock(map);
+	vm_map_entry_free_freelist(map, freelist);
 	return (result);
 }
 
