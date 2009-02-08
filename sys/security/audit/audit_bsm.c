@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2005 Apple Inc.
+ * Copyright (c) 1999-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -639,7 +639,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_MODLOAD:
 	case AUE_MODUNLOAD:
 	case AUE_MSGSYS:
-	case AUE_NFS_SVC:
 	case AUE_NTP_ADJTIME:
 	case AUE_PIPE:
 	case AUE_PROFILE:
@@ -1016,6 +1015,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		/* FALLTHROUGH */
+
+	case AUE_NFS_SVC:
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(1, "request", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		break;
 
 	case AUE_UMOUNT:
 		UPATH1_VNODE1_TOKENS;
