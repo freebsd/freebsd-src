@@ -567,9 +567,6 @@ vnode_lock:
 vnode_locked:
 			KASSERT(fs.vp == NULL || !fs.map->system_map,
 			    ("vm_fault: vnode-backed object mapped by system map"));
-			KASSERT((fs.first_object->flags & OBJ_NEEDGIANT) == 0 ||
-			    !fs.map->system_map,
-			    ("vm_fault: Object requiring giant mapped by system map"));
 
 			/*
 			 * now we find out if any other pages should be paged
