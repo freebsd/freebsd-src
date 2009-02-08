@@ -721,6 +721,7 @@ device		glxsb		# AMD Geode LX Security Block
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # asmc: Apple System Management Controller
+# si: Specialix International SI/XIO or SX intelligent serial card driver
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -758,6 +759,8 @@ device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
 device		asmc
+#device		si
+
 #
 # Laptop/Notebook options:
 #
