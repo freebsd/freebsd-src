@@ -2738,7 +2738,8 @@ vmspace_fork(struct vmspace *vm1)
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
-			new_entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
+			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 
 			/*
@@ -2764,7 +2765,8 @@ vmspace_fork(struct vmspace *vm1)
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
-			new_entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
+			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
 			vm_map_entry_link(new_map, new_map->header.prev,
