@@ -1050,7 +1050,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 				break;
 			req = mtod(m, caddr_t);
-			error = ipsec4_set_policy(inp, sopt->sopt_name, req,
+			error = ipsec_set_policy(inp, sopt->sopt_name, req,
 			    m->m_len, (sopt->sopt_td != NULL) ?
 			    sopt->sopt_td->td_ucred : NULL);
 			m_freem(m);
@@ -1171,7 +1171,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				req = mtod(m, caddr_t);
 				len = m->m_len;
 			}
-			error = ipsec4_get_policy(sotoinpcb(so), req, len, &m);
+			error = ipsec_get_policy(sotoinpcb(so), req, len, &m);
 			if (error == 0)
 				error = soopt_mcopyout(sopt, m); /* XXX */
 			if (error == 0)
