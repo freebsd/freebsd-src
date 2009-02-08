@@ -571,7 +571,8 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
  * Returns a pointer to the entry when found, otherwise NULL.
  */
 struct tmpfs_dirent *
-tmpfs_dir_lookup(struct tmpfs_node *node, struct componentname *cnp)
+tmpfs_dir_lookup(struct tmpfs_node *node, struct tmpfs_node *f,
+    struct componentname *cnp)
 {
 	boolean_t found;
 	struct tmpfs_dirent *de;
@@ -583,6 +584,8 @@ tmpfs_dir_lookup(struct tmpfs_node *node, struct componentname *cnp)
 
 	found = 0;
 	TAILQ_FOREACH(de, &node->tn_dir.tn_dirhead, td_entries) {
+		if (f != NULL && de->td_node != f)
+		    continue;
 		MPASS(cnp->cn_namelen < 0xffff);
 		if (de->td_namelen == (uint16_t)cnp->cn_namelen &&
 		    bcmp(de->td_name, cnp->cn_nameptr, de->td_namelen) == 0) {
@@ -593,20 +596,6 @@ tmpfs_dir_lookup(struct tmpfs_node *node, struct componentname *cnp)
 	node->tn_status |= TMPFS_NODE_ACCESSED;
 
 	return found ? de : NULL;
-}
-
-struct tmpfs_dirent *
-tmpfs_dir_search(struct tmpfs_node *node, struct tmpfs_node *f)
-{
-	struct tmpfs_dirent *de;
-
-	TMPFS_VALIDATE_DIR(node);
-	node->tn_status |= TMPFS_NODE_ACCESSED;
-	TAILQ_FOREACH(de, &node->tn_dir.tn_dirhead, td_entries) {
-		if (de->td_node == f)
-			return (de);
-	}
-	return (NULL);
 }
 
 /* --------------------------------------------------------------------- */
