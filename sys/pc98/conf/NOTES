@@ -272,8 +272,11 @@ device		isa
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
 #
-# EPSON_BOUNCEDMA: XXX
-# EPSON_MEMWIN: XXX
+# EPSON_BOUNCEDMA was to use a bounce buffer to upper 15MB, but it's
+# broken now.
+#
+# EPSON_MEMWIN disables 15-16MB chunk, and enables EPSON memory window.
+#
 
 options 	AUTO_EOI_1
 
