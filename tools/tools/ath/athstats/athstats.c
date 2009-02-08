@@ -46,6 +46,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <err.h>
+#include <libutil.h>
 
 #include "ah.h"
 #include "ah_desc.h"
@@ -67,15 +68,15 @@
 
 static const struct fmt athstats[] = {
 #define	S_INPUT		0
-	{ 8,	"input",	"input",	"data frames received" },
+	{ 7,	"input",	"input",	"data frames received" },
 #define	S_OUTPUT	AFTER(S_INPUT)
-	{ 8,	"output",	"output",	"data frames transmit" },
+	{ 7,	"output",	"output",	"data frames transmit" },
 #define	S_TX_ALTRATE	AFTER(S_OUTPUT)
 	{ 7,	"altrate",	"altrate",	"tx frames with an alternate rate" },
 #define	S_TX_SHORTRETRY	AFTER(S_TX_ALTRATE)
-	{ 7,	"short",	"short",	"short on-chip tx retries" },
+	{ 6,	"short",	"short",	"short on-chip tx retries" },
 #define	S_TX_LONGRETRY	AFTER(S_TX_SHORTRETRY)
-	{ 7,	"long",		"long",		"long on-chip tx retries" },
+	{ 6,	"long",		"long",		"long on-chip tx retries" },
 #define	S_TX_XRETRIES	AFTER(S_TX_LONGRETRY)
 	{ 6,	"xretry",	"xretry",	"tx failed 'cuz too many retries" },
 #define	S_MIB		AFTER(S_TX_XRETRIES)
@@ -201,7 +202,7 @@ static const struct fmt athstats[] = {
 #define	S_BE_NOMBUF	AFTER(S_RX_PHY_CCK_RESTART)
 	{ 4,	"benombuf",	"benombuf",	"beacon setup failed 'cuz no mbuf" },
 #define	S_BE_XMIT	AFTER(S_BE_NOMBUF)
-	{ 7,	"bexmit",	"bexmit",	"beacons transmitted" },
+	{ 6,	"bexmit",	"bexmit",	"beacons transmitted" },
 #define	S_PER_CAL	AFTER(S_BE_XMIT)
 	{ 4,	"pcal",		"pcal",		"periodic calibrations" },
 #define	S_PER_CALFAIL	AFTER(S_PER_CAL)
@@ -210,13 +211,13 @@ static const struct fmt athstats[] = {
 	{ 4,	"prfga",	"prfga",	"rfgain value change" },
 #if ATH_SUPPORT_TDMA
 #define	S_TDMA_UPDATE	AFTER(S_PER_RFGAIN)
-	{ 5,	"tdmau",	"tdmau",	"TDMA slot timing updates" },
+	{ 6,	"tdmau",	"tdmau",	"TDMA slot timing updates" },
 #define	S_TDMA_TIMERS	AFTER(S_TDMA_UPDATE)
-	{ 5,	"tdmab",	"tdmab",	"TDMA slot update set beacon timers" },
+	{ 6,	"tdmab",	"tdmab",	"TDMA slot update set beacon timers" },
 #define	S_TDMA_TSF	AFTER(S_TDMA_TIMERS)
-	{ 5,	"tdmat",	"tdmat",	"TDMA slot update set TSF" },
+	{ 6,	"tdmat",	"tdmat",	"TDMA slot update set TSF" },
 #define	S_TDMA_TSFADJ	AFTER(S_TDMA_TSF)
-	{ 8,	"tdmadj",	"tdmadj",	"TDMA slot adjust (usecs, smoothed)" },
+	{ 6,	"tdmadj",	"tdmadj",	"TDMA slot adjust (usecs, smoothed)" },
 #define	S_TDMA_ACK	AFTER(S_TDMA_TSFADJ)
 	{ 5,	"tdmack",	"tdmack",	"TDMA tx failed 'cuz ACK required" },
 #define	S_RATE_CALLS	AFTER(S_TDMA_ACK)
@@ -306,9 +307,9 @@ static const struct fmt athstats[] = {
 #define	S_ANI_STEPDOWN	AFTER(S_ANI_STEPUP)
 	{ 5,	"step-","STEP-",	"ANI decreased first step level" },
 #define	S_ANI_OFDMERRS	AFTER(S_ANI_STEPDOWN)
-	{ 8,	"ofdm",	"OFDM",		"cumulative OFDM phy error count" },
+	{ 7,	"ofdm",	"OFDM",		"cumulative OFDM phy error count" },
 #define	S_ANI_CCKERRS	AFTER(S_ANI_OFDMERRS)
-	{ 8,	"cck",	"CCK",		"cumulative CCK phy error count" },
+	{ 7,	"cck",	"CCK",		"cumulative CCK phy error count" },
 #define	S_ANI_RESET	AFTER(S_ANI_CCKERRS)
 	{ 5,	"reset","RESET",	"ANI parameters zero'd for non-STA operation" },
 #define	S_ANI_LZERO	AFTER(S_ANI_RESET)
@@ -316,15 +317,15 @@ static const struct fmt athstats[] = {
 #define	S_ANI_LNEG	AFTER(S_ANI_LZERO)
 	{ 5,	"lneg",	"LNEG",		"ANI calculated listen time < 0" },
 #define	S_MIB_ACKBAD	AFTER(S_ANI_LNEG)
-	{ 5,	"ackbad","ACKBAD",	"missing ACK's" },
+	{ 7,	"ackbad","ACKBAD",	"missing ACK's" },
 #define	S_MIB_RTSBAD	AFTER(S_MIB_ACKBAD)
-	{ 5,	"rtsbad","RTSBAD",	"RTS without CTS" },
+	{ 7,	"rtsbad","RTSBAD",	"RTS without CTS" },
 #define	S_MIB_RTSGOOD	AFTER(S_MIB_RTSBAD)
-	{ 5,	"rtsgood","RTSGOOD",	"successful RTS" },
+	{ 7,	"rtsgood","RTSGOOD",	"successful RTS" },
 #define	S_MIB_FCSBAD	AFTER(S_MIB_RTSGOOD)
-	{ 5,	"fcsbad","FCSBAD",	"bad FCS" },
+	{ 7,	"fcsbad","FCSBAD",	"bad FCS" },
 #define	S_MIB_BEACONS	AFTER(S_MIB_FCSBAD)
-	{ 5,	"beacons","beacons",	"beacons received" },
+	{ 7,	"beacons","beacons",	"beacons received" },
 #define	S_NODE_AVGBRSSI	AFTER(S_MIB_BEACONS)
 	{ 3,	"avgbrssi","BSI",	"average rssi (beacons only)" },
 #define	S_NODE_AVGRSSI	AFTER(S_NODE_AVGBRSSI)
@@ -335,37 +336,37 @@ static const struct fmt athstats[] = {
 #else
 #define	S_ANT_TX0	AFTER(S_ANT_TXSWITCH)
 #endif /* ATH_SUPPORT_ANI */
-	{ 8,	"tx0",	"ant0(tx)",	"frames tx on antenna 0" },
+	{ 7,	"tx0",	"ant0(tx)",	"frames tx on antenna 0" },
 #define	S_ANT_TX1	AFTER(S_ANT_TX0)
-	{ 8,	"tx1",	"ant1(tx)",	"frames tx on antenna 1"  },
+	{ 7,	"tx1",	"ant1(tx)",	"frames tx on antenna 1"  },
 #define	S_ANT_TX2	AFTER(S_ANT_TX1)
-	{ 8,	"tx2",	"ant2(tx)",	"frames tx on antenna 2"  },
+	{ 7,	"tx2",	"ant2(tx)",	"frames tx on antenna 2"  },
 #define	S_ANT_TX3	AFTER(S_ANT_TX2)
-	{ 8,	"tx3",	"ant3(tx)",	"frames tx on antenna 3"  },
+	{ 7,	"tx3",	"ant3(tx)",	"frames tx on antenna 3"  },
 #define	S_ANT_TX4	AFTER(S_ANT_TX3)
-	{ 8,	"tx4",	"ant4(tx)",	"frames tx on antenna 4"  },
+	{ 7,	"tx4",	"ant4(tx)",	"frames tx on antenna 4"  },
 #define	S_ANT_TX5	AFTER(S_ANT_TX4)
-	{ 8,	"tx5",	"ant5(tx)",	"frames tx on antenna 5"  },
+	{ 7,	"tx5",	"ant5(tx)",	"frames tx on antenna 5"  },
 #define	S_ANT_TX6	AFTER(S_ANT_TX5)
-	{ 8,	"tx6",	"ant6(tx)",	"frames tx on antenna 6"  },
+	{ 7,	"tx6",	"ant6(tx)",	"frames tx on antenna 6"  },
 #define	S_ANT_TX7	AFTER(S_ANT_TX6)
-	{ 8,	"tx7",	"ant7(tx)",	"frames tx on antenna 7"  },
+	{ 7,	"tx7",	"ant7(tx)",	"frames tx on antenna 7"  },
 #define	S_ANT_RX0	AFTER(S_ANT_TX7)
-	{ 8,	"rx0",	"ant0(rx)",	"frames rx on antenna 0"  },
+	{ 7,	"rx0",	"ant0(rx)",	"frames rx on antenna 0"  },
 #define	S_ANT_RX1	AFTER(S_ANT_RX0)
-	{ 8,	"rx1",	"ant1(rx)",	"frames rx on antenna 1"   },
+	{ 7,	"rx1",	"ant1(rx)",	"frames rx on antenna 1"   },
 #define	S_ANT_RX2	AFTER(S_ANT_RX1)
-	{ 8,	"rx2",	"ant2(rx)",	"frames rx on antenna 2"   },
+	{ 7,	"rx2",	"ant2(rx)",	"frames rx on antenna 2"   },
 #define	S_ANT_RX3	AFTER(S_ANT_RX2)
-	{ 8,	"rx3",	"ant3(rx)",	"frames rx on antenna 3"   },
+	{ 7,	"rx3",	"ant3(rx)",	"frames rx on antenna 3"   },
 #define	S_ANT_RX4	AFTER(S_ANT_RX3)
-	{ 8,	"rx4",	"ant4(rx)",	"frames rx on antenna 4"   },
+	{ 7,	"rx4",	"ant4(rx)",	"frames rx on antenna 4"   },
 #define	S_ANT_RX5	AFTER(S_ANT_RX4)
-	{ 8,	"rx5",	"ant5(rx)",	"frames rx on antenna 5"   },
+	{ 7,	"rx5",	"ant5(rx)",	"frames rx on antenna 5"   },
 #define	S_ANT_RX6	AFTER(S_ANT_RX5)
-	{ 8,	"rx6",	"ant6(rx)",	"frames rx on antenna 6"   },
+	{ 7,	"rx6",	"ant6(rx)",	"frames rx on antenna 6"   },
 #define	S_ANT_RX7	AFTER(S_ANT_RX6)
-	{ 8,	"rx7",	"ant7(rx)",	"frames rx on antenna 7"   },
+	{ 7,	"rx7",	"ant7(rx)",	"frames rx on antenna 7"   },
 #define	S_TX_SIGNAL	AFTER(S_ANT_RX7)
 	{ 4,	"asignal",	"asig",	"signal of last ack (dBm)" },
 #define	S_RX_SIGNAL	AFTER(S_TX_SIGNAL)
@@ -710,32 +711,38 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 #undef STAT
 }
 
+int
+hnprintf(char *b, size_t bs, const char *fmt, int64_t v)
+{
+	humanize_number(b, bs, v, "", HN_AUTOSCALE, HN_NOSPACE);
+}
+
 static int
 ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) sf;
 #define	STAT(x) \
-	snprintf(b, bs, "%u", wf->total.ath.ast_##x); return 1
+	hnprintf(b, bs, "%u", (int64_t) wf->total.ath.ast_##x); return 1
 #define	PHY(x) \
-	snprintf(b, bs, "%u", wf->total.ath.ast_rx_phy[x]); return 1
+	hnprintf(b, bs, "%u", (int64_t) wf->total.ath.ast_rx_phy[x]); return 1
 #define	ANI(x) \
-	snprintf(b, bs, "%u", wf->total.ani_state.x); return 1
+	hnprintf(b, bs, "%u", (int64_t) wf->total.ani_state.x); return 1
 #define	ANISTAT(x) \
-	snprintf(b, bs, "%u", wf->total.ani_stats.ast_ani_##x); return 1
+	hnprintf(b, bs, "%u", (int64_t) wf->total.ani_stats.ast_ani_##x); return 1
 #define	MIBSTAT(x) \
-	snprintf(b, bs, "%u", wf->total.ani_stats.ast_mibstats.x); return 1
+	hnprintf(b, bs, "%u", (int64_t) wf->total.ani_stats.ast_mibstats.x); return 1
 #define	TXANT(x) \
-	snprintf(b, bs, "%u", wf->total.ath.ast_ant_tx[x]); return 1
+	hnprintf(b, bs, "%u", (int64_t) wf->total.ath.ast_ant_tx[x]); return 1
 #define	RXANT(x) \
-	snprintf(b, bs, "%u", wf->total.ath.ast_ant_rx[x]); return 1
+	hnprintf(b, bs, "%u", (int64_t) wf->total.ath.ast_ant_rx[x]); return 1
 
 	switch (s) {
 	case S_INPUT:
-		snprintf(b, bs, "%lu",
+		hnprintf(b, bs, "%lu",
 		    wf->total.ath.ast_rx_packets - wf->total.ath.ast_rx_mgt);
 		return 1;
 	case S_OUTPUT:
-		snprintf(b, bs, "%lu", wf->total.ath.ast_tx_packets);
+		hnprintf(b, bs, "%lu", wf->total.ath.ast_tx_packets);
 		return 1;
 	case S_RATE:
 		snprintrate(b, bs, wf->total.ath.ast_tx_rate);
