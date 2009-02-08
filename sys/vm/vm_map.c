@@ -1355,13 +1355,13 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 				vm_map_entry_resize_free(map, entry->prev);
 
 			/*
-			 * If the backing object is the vnode object,
-			 * vm_object_deallocate() results in a call to
-			 * vrele(). Because the reference to the
-			 * object is not last, vrele() does not lock
-			 * the vnode, and map lock can be kept without
-			 * causing vnode lock to be taken after the
-			 * map lock.
+			 * If the backing object is a vnode object,
+			 * vm_object_deallocate() calls vrele().
+			 * However, vrele() does not lock the vnode
+			 * because the vnode has additional
+			 * references.  Thus, the map lock can be kept
+			 * without causing a lock-order reversal with
+			 * the vnode lock.
 			 */
 			if (prev->object.vm_object)
 				vm_object_deallocate(prev->object.vm_object);
@@ -2778,7 +2778,7 @@ vmspace_fork(struct vmspace *vm1)
 
 				/*
 				 * As in vm_map_simplify_entry(), the
-				 * vnode lock may not be acquired in
+				 * vnode lock will not be acquired in
 				 * this call to vm_object_deallocate().
 				 */
 				vm_object_deallocate(object);
