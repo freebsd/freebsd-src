@@ -1036,7 +1036,7 @@ iwnfw.fwo			optional iwnfw				\
 	dependency	"iwn.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn.fw" \
 	no-implicit-rule						\
-	clean		"iwn.fwo"
+	clean		"iwnfw.fwo"
 iwn.fw			optional iwnfw					\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu"	\
@@ -1234,7 +1234,7 @@ rt2561fw.fwo			optional rt2561fw | ralfw		\
 	dependency	"rt2561.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561.fw" \
 	no-implicit-rule						\
-	clean		"rt2561.fwo"
+	clean		"rt2561fw.fwo"
 rt2561.fw			optional rt2561fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561.fw.uu" \
@@ -1248,7 +1248,7 @@ rt2561sfw.fwo			optional rt2561sfw | ralfw		\
 	dependency	"rt2561s.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561s.fw" \
 	no-implicit-rule						\
-	clean		"rt2561s.fwo"
+	clean		"rt2561sfw.fwo"
 rt2561s.fw			optional rt2561sfw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561s.fw.uu"	\
@@ -1262,7 +1262,7 @@ rt2661fw.fwo			optional rt2661fw | ralfw		\
 	dependency	"rt2661.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2661.fw" \
 	no-implicit-rule						\
-	clean		"rt2661.fwo"
+	clean		"rt2661fw.fwo"
 rt2661.fw			optional rt2661fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2661.fw.uu"	\
@@ -1276,7 +1276,7 @@ rt2860fw.fwo			optional rt2860fw | ralfw		\
 	dependency	"rt2860.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2860.fw" \
 	no-implicit-rule						\
-	clean		"rt2860.fwo"
+	clean		"rt2860fw.fwo"
 rt2860.fw			optional rt2860fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2860.fw.uu"	\
@@ -1697,7 +1697,7 @@ wpifw.fwo			optional wpifw				\
 	dependency	"wpi.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} wpi.fw" \
 	no-implicit-rule						\
-	clean		"wpi.fwo"
+	clean		"wpifw.fwo"
 wpi.fw			optional wpifw					\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/wpi/iwlwifi-3945-2.14.4.fw.uu"	\
