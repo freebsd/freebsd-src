@@ -4,6 +4,9 @@ PROG=	athstats
 
 SRCS=	main.c statfoo.c athstats.c
 
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+
 .include <bsd.prog.mk>
 
 SRCDIR=	${.CURDIR}/../../../..
