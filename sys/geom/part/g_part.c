@@ -244,7 +244,8 @@ g_part_new_entry(struct g_part_table *table, int index, quad_t start,
 			LIST_INSERT_HEAD(&table->gpt_entry, entry, gpe_entry);
 		else
 			LIST_INSERT_AFTER(last, entry, gpe_entry);
-	}
+	} else
+		entry->gpe_offset = 0;
 	entry->gpe_start = start;
 	entry->gpe_end = end;
 	return (entry);
@@ -257,11 +258,14 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	char buf[32];
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	off_t offset;
 
 	cp = LIST_FIRST(&gp->consumer);
 	pp = cp->provider;
 
-	entry->gpe_offset = entry->gpe_start * pp->sectorsize;
+	offset = entry->gpe_start * pp->sectorsize;
+	if (entry->gpe_offset < offset)
+		entry->gpe_offset = offset;
 
 	if (entry->gpe_pp == NULL) {
 		entry->gpe_pp = g_new_providerf(gp, "%s%s", gp->name,
@@ -271,6 +275,7 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	entry->gpe_pp->index = entry->gpe_index - 1;	/* index is 1-based. */
 	entry->gpe_pp->mediasize = (entry->gpe_end - entry->gpe_start + 1) *
 	    pp->sectorsize;
+	entry->gpe_pp->mediasize -= entry->gpe_offset - offset;
 	entry->gpe_pp->sectorsize = pp->sectorsize;
 	entry->gpe_pp->flags = pp->flags & G_PF_CANDELETE;
 	if (pp->stripesize > 0) {
