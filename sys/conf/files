@@ -2387,6 +2387,7 @@ netinet/libalias/alias_db.c	optional libalias | netgraph_nat
 netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
 netinet/libalias/alias_proxy.c	optional libalias | netgraph_nat
 netinet/libalias/alias_util.c	optional libalias | netgraph_nat
+netinet/libalias/alias_sctp.c	optional libalias | netgraph_nat
 netinet6/dest6.c		optional inet6
 netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
