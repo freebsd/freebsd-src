@@ -187,7 +187,6 @@ busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
  * with the tag are meant to never be defered.
  * XXX Should have a way to identify which driver is responsible here.
  */
-#ifndef NO_DMA
 static void
 dflt_lock(void *arg, bus_dma_lock_op_t op)
 {
@@ -197,7 +196,6 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
 	printf("DRIVER_ERROR: busdma dflt_lock called\n");
 #endif
 }
-#endif
 
 static __inline bus_dmamap_t
 _busdma_alloc_dmamap(void)
@@ -238,7 +236,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		   void *lockfuncarg, bus_dma_tag_t *dmat)
 {
-#ifndef NO_DMA
 	bus_dma_tag_t newtag;
 	int error = 0;
 
@@ -313,10 +310,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
 	    __func__, newtag, (newtag != NULL ? newtag->flags : 0), error);
 	return (error);
-#else 
-	return ENOSYS;
-#endif
-
 }
 
 int
