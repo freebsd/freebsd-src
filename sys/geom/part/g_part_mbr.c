@@ -314,6 +314,7 @@ g_part_mbr_name(struct g_part_table *table, struct g_part_entry *baseentry,
 static int
 g_part_mbr_probe(struct g_part_table *table, struct g_consumer *cp)
 {
+	char psn[8];
 	struct g_provider *pp;
 	u_char *buf, *p;
 	int error, index, res, sum;
@@ -326,6 +327,11 @@ g_part_mbr_probe(struct g_part_table *table, struct g_consumer *cp)
 		return (ENOSPC);
 	if (pp->sectorsize > 4096)
 		return (ENXIO);
+
+	/* We don't nest under an MBR (see EBR instead). */
+	error = g_getattr("PART::scheme", cp, &psn);
+	if (error == 0 && strcmp(psn, g_part_mbr_scheme.name) == 0)
+		return (ELOOP);
 
 	/* Check that there's a MBR. */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
