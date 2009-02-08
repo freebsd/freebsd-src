@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Robert N. M. Watson
- * Copyright (c) 2008 Apple, Inc.
+ * Copyright (c) 2008-2009 Apple, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -76,7 +76,7 @@ static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_presel",
  * Audit pipe buffer parameters.
  */
 #define	AUDIT_PIPE_QLIMIT_DEFAULT	(128)
-#define	AUDIT_PIPE_QLIMIT_MIN		(0)
+#define	AUDIT_PIPE_QLIMIT_MIN		(1)
 #define	AUDIT_PIPE_QLIMIT_MAX		(1024)
 
 /*
