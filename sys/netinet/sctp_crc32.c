@@ -729,7 +729,18 @@ sctp_finalize_crc32(uint32_t crc32c)
 #endif
 	return (crc32c);
 }
+#else
+uint32_t
+update_crc32(uint32_t crc32c, unsigned char *buffer, unsigned int length) {
+	
+	return (0);
+}
 
+uint32_t
+sctp_finalize_crc32(uint32_t crc32c)
+{
+	return (0);
+}
 #endif				/* !defined(SCTP_WITH_NO_CSUM) */
 
 #if defined(SCTP_WITH_NO_CSUM)
