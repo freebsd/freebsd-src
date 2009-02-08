@@ -2679,6 +2679,7 @@ vmspace_fork(struct vmspace *vm1)
 	vm_map_entry_t old_entry;
 	vm_map_entry_t new_entry;
 	vm_object_t object;
+	int locked;
 
 	vm_map_lock(old_map);
 
@@ -2689,6 +2690,8 @@ vmspace_fork(struct vmspace *vm1)
 	vm2->vm_daddr = vm1->vm_daddr;
 	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
 	new_map = &vm2->vm_map;	/* XXX */
+	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
+	KASSERT(locked, ("vmspace_fork: lock failed"));
 	new_map->timestamp = 1;
 
 	old_entry = old_map->header.next;
@@ -2780,6 +2783,8 @@ vmspace_fork(struct vmspace *vm1)
 	}
 unlock_and_return:
 	vm_map_unlock(old_map);
+	if (vm2 != NULL)
+		vm_map_unlock(new_map);
 
 	return (vm2);
 }
