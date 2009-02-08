@@ -202,7 +202,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 		if (symlink_only && !rule->symlink)
 			continue;
 		if (regexec(&rule->re, name, 10, matches, 0))
-			break;
+			continue;
 
 		got_match = 1;
 		print_match |= rule->print;
