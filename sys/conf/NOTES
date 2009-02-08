@@ -714,40 +714,81 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #
 # Network interfaces:
 #  The `loop' device is MANDATORY when networking is enabled.
+device		loop
+
 #  The `ether' device provides generic code to handle
 #  Ethernets; it is MANDATORY when an Ethernet device driver is
 #  configured or token-ring is enabled.
+device		ether
+
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
 #  according to IEEE 802.1Q.  It requires `device miibus'.
+device		vlan
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
+device		wlan
+options		IEEE80211_DEBUG		#enable debugging msgs
+options		IEEE80211_AMPDU_AGE	#age frames in AMPDU reorder q's
+
 #  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
 #  support for WEP, TKIP, and AES-CCMP crypto protocols optionally
 #  used with 802.11 devices that depend on the `wlan' module.
+device		wlan_wep
+device		wlan_ccmp
+device		wlan_tkip
+
 #  The `wlan_xauth' device provides support for external (i.e. user-mode)
 #  authenticators for use with 802.11 drivers that use the `wlan'
 #  module and support 802.1x and/or WPA security protocols.
+device		wlan_xauth
+
 #  The `wlan_acl' device provides a MAC-based access control mechanism
 #  for use with 802.11 drivers operating in ap mode and using the
 #  `wlan' module.
+#  The 'wlan_amrr' device provides AMRR transmit rate control algorithm
+device		wlan_acl
+device		wlan_amrr
+
+# Generic TokenRing
+device		token
+
 #  The `fddi' device provides generic code to support FDDI.
+device		fddi
+
 #  The `arcnet' device provides generic code to support Arcnet.
+device		arcnet
+
 #  The `sppp' device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
+device		sppp
+
 #  The `sl' device implements the Serial Line IP (SLIP) service.
 #  The `ppp' device implements the Point-to-Point Protocol.
+
+
 #  The `bpf' device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.  DHCP requires bpf.
+device		bpf
+
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing and benchmarking purposes.
+device		disc
+
 #  The `edsc' device implements a minimal Ethernet interface,
 #  which discards all packets sent and receives none.
+device		edsc
+
 #  The `tap' device is a pty-like virtual Ethernet interface
-#  The `tun' device implements (user-)ppp and nos-tun
+device		tap
+
+#  The `tun' device implements (user-)ppp and nos-tun(8)
+device		tun
+
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
@@ -755,17 +796,45 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
+device		gif
+device		gre
+options 	XBONEHACK
+
 #  The `faith' device captures packets sent to it and diverts them
 #  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
+device		faith
+device		stf
+
 #  The `ef' device provides support for multiple ethernet frame types
 #  specified via ETHER_* options. See ef(4) for details.
-#
+device		ef
+options 	ETHER_II		# enable Ethernet_II frame
+options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
+options 	ETHER_8022		# enable Ethernet_802.2 frame
+options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
+
 # The pf packet filter consists of three devices:
 #  The `pf' device provides /dev/pf and the firewall code itself.
 #  The `pflog' device provides the pflog0 interface which logs packets.
 #  The `pfsync' device provides the pfsync0 interface used for
 #   synchronization of firewall state tables (over the net).
+device		pf
+device		pflog
+device		pfsync
+
+# Bridge interface.
+device		if_bridge
+
+# Common Address Redundancy Protocol. See carp(4) for more details.
+device		carp
+
+# IPsec interface.
+device		enc
+
+# Link aggregation interface.
+device		lagg
+
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -773,47 +842,7 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 # events for resetting the demand dial activity timer - requires bpf.
 # See pppd(8) for more details.
 #
-device		ether			#Generic Ethernet
-device		vlan			#VLAN support (needs miibus)
-device		wlan			#802.11 support
-options		IEEE80211_DEBUG		#enable debugging msgs
-options		IEEE80211_AMPDU_AGE	#age frames in AMPDU reorder q's
-device		wlan_wep		#802.11 WEP support
-device		wlan_ccmp		#802.11 CCMP support
-device		wlan_tkip		#802.11 TKIP support
-device		wlan_xauth		#802.11 external authenticator support
-device		wlan_acl		#802.11 MAC ACL support
-device		wlan_amrr		#AMRR transmit rate control algorithm
-device		token			#Generic TokenRing
-device		fddi			#Generic FDDI
-device		arcnet			#Generic Arcnet
-device		sppp			#Generic Synchronous PPP
-device		loop			#Network loopback device
-device		bpf			#Berkeley packet filter
-device		disc			#Discard device based on loopback
-device		edsc			#Ethernet discard device
-device		tap			#Virtual Ethernet driver
-device		tun			#Tunnel driver (ppp(8), nos-tun(8))
-device		gre			#IP over IP tunneling
-device		if_bridge		#Bridge interface
-device		pf			#PF OpenBSD packet-filter firewall
-device		pflog			#logging support interface for PF
-device		pfsync			#synchronization interface for PF
-device		carp			#Common Address Redundancy Protocol
-device		enc			#IPsec interface
-device		lagg			#Link aggregation interface
 
-device		ef			# Multiple ethernet frames support
-options 	ETHER_II		# enable Ethernet_II frame
-options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
-options 	ETHER_8022		# enable Ethernet_802.2 frame
-options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
-
-# for IPv6
-device		gif			#IPv6 and IPv4 tunneling
-options 	XBONEHACK
-device		faith			#for IPv6 and IPv4 translation
-device		stf			#6to4 IPv6 over IPv4 encapsulation
 
 #
 # Internet family options:
