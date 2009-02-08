@@ -457,7 +457,7 @@ skip_routing:
 			sp = ipsec_getpolicybyaddr(mcopy, IPSEC_DIR_OUTBOUND,
 				IP_FORWARDING, &ipsecerror);
 			if (sp) {
-				ipsechdrsiz = ipsec6_hdrsiz(mcopy,
+				ipsechdrsiz = ipsec_hdrsiz(mcopy,
 					IPSEC_DIR_OUTBOUND, NULL);
 				if (ipsechdrsiz < mtu)
 					mtu -= ipsechdrsiz;
