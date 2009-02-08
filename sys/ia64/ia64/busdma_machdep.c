@@ -936,6 +936,13 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	active_bpages++;
 	mtx_unlock(&bounce_lock);
 
+	if (dmat->flags & BUS_DMA_KEEP_PG_OFFSET) {
+		/* page offset needs to be preserved */
+		bpage->vaddr &= ~PAGE_MASK;
+		bpage->busaddr &= ~PAGE_MASK;
+		bpage->vaddr |= vaddr & PAGE_MASK;
+		bpage->busaddr |= vaddr & PAGE_MASK;
+	}
 	bpage->datavaddr = vaddr;
 	bpage->datacount = size;
 	STAILQ_INSERT_TAIL(&(map->bpages), bpage, links);
