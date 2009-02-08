@@ -104,7 +104,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		*vpp = dvp;
 		error = 0;
 	} else {
-		de = tmpfs_dir_lookup(dnode, cnp);
+		de = tmpfs_dir_lookup(dnode, NULL, cnp);
 		if (de == NULL) {
 			/* The entry was not found in the directory.
 			 * This is OK if we are creating or renaming an
@@ -772,7 +772,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
-	de = tmpfs_dir_search(dnode, node);
+	de = tmpfs_dir_lookup(dnode, node, v->a_cnp);
 	MPASS(de != NULL);
 
 	/* Files marked as immutable or append-only cannot be deleted. */
@@ -919,7 +919,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	}
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
-	de = tmpfs_dir_search(fdnode, fnode);
+	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
 
 	/* Avoid manipulating '.' and '..' entries. */
 	if (de == NULL) {
@@ -1031,7 +1031,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	 * from the target directory. */
 	if (tvp != NULL) {
 		/* Remove the old entry from the target directory. */
-		de = tmpfs_dir_search(tdnode, tnode);
+		de = tmpfs_dir_lookup(tdnode, tnode, tcnp);
 		tmpfs_dir_detach(tdvp, de);
 
 		/* Free the directory entry we just deleted.  Note that the
@@ -1119,7 +1119,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 
 	/* Get the directory entry associated with node (vp).  This was
 	 * filled by tmpfs_lookup while looking up the entry. */
-	de = tmpfs_dir_search(dnode, node);
+	de = tmpfs_dir_lookup(dnode, node, v->a_cnp);
 	MPASS(TMPFS_DIRENT_MATCHES(de,
 	    v->a_cnp->cn_nameptr,
 	    v->a_cnp->cn_namelen));
