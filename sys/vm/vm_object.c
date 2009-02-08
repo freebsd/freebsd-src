@@ -1273,11 +1273,9 @@ vm_object_shadow(
 		source->shadow_count++;
 		source->generation++;
 #if VM_NRESERVLEVEL > 0
-		result->flags |= source->flags & (OBJ_NEEDGIANT | OBJ_COLORED);
+		result->flags |= source->flags & OBJ_COLORED;
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
 		    ((1 << (VM_NFREEORDER - 1)) - 1);
-#else
-		result->flags |= source->flags & OBJ_NEEDGIANT;
 #endif
 		VM_OBJECT_UNLOCK(source);
 	}
@@ -1349,7 +1347,6 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
-	new_object->flags |= orig_object->flags & OBJ_NEEDGIANT;
 retry:
 	if ((m = TAILQ_FIRST(&orig_object->memq)) != NULL) {
 		if (m->pindex < offidxstart) {

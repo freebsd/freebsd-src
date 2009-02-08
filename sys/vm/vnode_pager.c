@@ -223,8 +223,6 @@ retry:
 		object->un_pager.vnp.vnp_size = size;
 
 		object->handle = handle;
-		if (VFS_NEEDSGIANT(vp->v_mount))
-			vm_object_set_flag(object, OBJ_NEEDGIANT);
 		VI_LOCK(vp);
 		if (vp->v_object != NULL) {
 			/*
