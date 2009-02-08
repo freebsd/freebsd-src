@@ -584,9 +584,6 @@ vnode_locked:
 			 * vm_page_t passed to the routine.
 			 *
 			 * fs.m plus the additional pages are VPO_BUSY'd.
-			 *
-			 * XXX vm_fault_additional_pages() can block
-			 * without releasing the map lock.
 			 */
 			faultcount = vm_fault_additional_pages(
 			    fs.m, behind, ahead, marray, &reqpage);
