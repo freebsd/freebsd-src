@@ -2352,6 +2352,7 @@ device		ds1672
 # ppi	General-purpose I/O ("Geek Port") + IEEE1284 I/O
 # pps	Pulse per second Timing Interface
 # lpbb	Philips official parallel port I2C bit-banging interface
+# pcfclock Parallel port clock driver.
 #
 # Supported interfaces:
 # ppc	ISA-bus parallel port interfaces.
