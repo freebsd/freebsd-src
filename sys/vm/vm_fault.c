@@ -135,6 +135,7 @@ struct faultstate {
 static inline void
 release_page(struct faultstate *fs)
 {
+
 	vm_page_wakeup(fs->m);
 	vm_page_lock_queues();
 	vm_page_deactivate(fs->m);
@@ -145,6 +146,7 @@ release_page(struct faultstate *fs)
 static inline void
 unlock_map(struct faultstate *fs)
 {
+
 	if (fs->lookup_still_valid) {
 		vm_map_lookup_done(fs->map, fs->entry);
 		fs->lookup_still_valid = FALSE;
