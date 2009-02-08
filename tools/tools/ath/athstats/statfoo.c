@@ -109,7 +109,7 @@ statfoo_print_current(struct statfoo *sf, FILE *fd)
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
 			const struct fmt *f = &sf->stats[*cp &~ 0x80];
-			if (sf->get_curstat(sf, *cp &~ 0x80, buf, sizeof(buf)))
+			if (sf->get_curstat(sf, *cp &~ 0x80, buf, f->width))
 				fprintf(fd, "%*s", f->width, buf);
 		} else
 			putc(*cp, fd);
@@ -126,7 +126,7 @@ statfoo_print_total(struct statfoo *sf, FILE *fd)
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
 			const struct fmt *f = &sf->stats[*cp &~ 0x80];
-			if (sf->get_totstat(sf, *cp &~ 0x80, buf, sizeof(buf)))
+			if (sf->get_totstat(sf, *cp &~ 0x80, buf, f->width))
 				fprintf(fd, "%*s", f->width, buf);
 		} else
 			putc(*cp, fd);
