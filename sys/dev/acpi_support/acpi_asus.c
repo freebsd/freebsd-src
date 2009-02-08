@@ -958,9 +958,7 @@ acpi_asus_sysctl_get(struct acpi_asus_softc *sc, int method)
 static int
 acpi_asus_sysctl_set(struct acpi_asus_softc *sc, int method, int arg)
 {
-	ACPI_STATUS		status = AE_OK;
-	ACPI_OBJECT_LIST 	acpiargs;
-	ACPI_OBJECT		acpiarg[1];
+	ACPI_STATUS	status = AE_OK;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_ASSERT(asus);
