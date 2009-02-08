@@ -1579,6 +1579,10 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		entry = pp->private;
 		if (entry == NULL)
 			return;
+		sbuf_printf(sb, "%s<start>%ju</start>\n", indent,
+		    (uintmax_t)entry->gpe_start);
+		sbuf_printf(sb, "%s<end>%ju</end>\n", indent,
+		    (uintmax_t)entry->gpe_end);
 		sbuf_printf(sb, "%s<index>%u</index>\n", indent,
 		    entry->gpe_index);
 		sbuf_printf(sb, "%s<type>%s</type>\n", indent,
@@ -1686,6 +1690,9 @@ g_part_start(struct bio *bp)
 			return;
 		if (g_handleattr_int(bp, "PART::offset",
 		    table->gpt_offset + entry->gpe_start))
+			return;
+		if (g_handleattr_str(bp, "PART::scheme",
+		    table->gpt_scheme->name))
 			return;
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			/*
