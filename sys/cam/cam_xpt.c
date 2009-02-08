@@ -4178,7 +4178,7 @@ xpt_path_string(struct cam_path *path, char *str, size_t str_len)
 	struct sbuf sb;
 
 #ifdef INVARIANTS
-	if (path != NULL && path->bus != NULL && path->bus->sim != NULL)
+	if (path != NULL && path->bus != NULL)
 		mtx_assert(path->bus->sim->mtx, MA_OWNED);
 #endif
 
