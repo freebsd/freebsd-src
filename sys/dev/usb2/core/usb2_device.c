@@ -1401,7 +1401,8 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 			    "(ignored)\n", udev->address);
 		}
 		/* allow device time to set new address */
-		usb2_pause_mtx(&Giant, USB_SET_ADDRESS_SETTLE);
+		usb2_pause_mtx(&Giant, 
+		    USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
 	} else {
 		/* We are not self powered */
 		udev->flags.self_powered = 0;
@@ -1951,6 +1952,20 @@ usb2_check_strings(struct usb2_device *udev)
 	}
 }
 
+/*
+ * Returns:
+ * See: USB_MODE_XXX
+ */
+uint8_t
+usb2_get_mode(struct usb2_device *udev)
+{
+	return (udev->flags.usb2_mode);
+}
+
+/*
+ * Returns:
+ * See: USB_SPEED_XXX
+ */
 uint8_t
 usb2_get_speed(struct usb2_device *udev)
 {

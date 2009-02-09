@@ -164,7 +164,7 @@ usb2_process(void *arg)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_setup
+ *	usb2_proc_create
  *
  * This function will create a process using the given "prio" that can
  * execute callbacks. The mutex pointed to by "p_mtx" will be applied
@@ -176,8 +176,9 @@ usb2_process(void *arg)
  *    0: success
  * Else: failure
  *------------------------------------------------------------------------*/
-uint8_t
-usb2_proc_setup(struct usb2_process *up, struct mtx *p_mtx, uint8_t prio)
+int
+usb2_proc_create(struct usb2_process *up, struct mtx *p_mtx,
+    const char *pmesg, uint8_t prio)
 {
 	up->up_mtx = p_mtx;
 	up->up_prio = prio;
@@ -188,7 +189,7 @@ usb2_proc_setup(struct usb2_process *up, struct mtx *p_mtx, uint8_t prio)
 	usb2_cv_init(&up->up_drain, "dmsg");
 
 	if (USB_THREAD_CREATE(&usb2_process, up,
-	    &up->up_ptr, "usbproc")) {
+	    &up->up_ptr, pmesg)) {
 		DPRINTFN(0, "Unable to create USB process.");
 		up->up_ptr = NULL;
 		goto error;
@@ -196,12 +197,12 @@ usb2_proc_setup(struct usb2_process *up, struct mtx *p_mtx, uint8_t prio)
 	return (0);
 
 error:
-	usb2_proc_unsetup(up);
-	return (1);
+	usb2_proc_free(up);
+	return (ENOMEM);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_unsetup
+ *	usb2_proc_free
  *
  * NOTE: If the structure pointed to by "up" is all zero, this
  * function does nothing.
@@ -210,7 +211,7 @@ error:
  * removed nor called.
  *------------------------------------------------------------------------*/
 void
-usb2_proc_unsetup(struct usb2_process *up)
+usb2_proc_free(struct usb2_process *up)
 {
 	if (!(up->up_mtx)) {
 		/* not initialised */
