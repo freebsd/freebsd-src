@@ -201,6 +201,8 @@ struct fxp_softc {
 #define FXP_FLAG_EXT_RFA	0x0400	/* extended RFDs for csum offload */
 #define FXP_FLAG_SAVE_BAD	0x0800	/* save bad pkts: bad size, CRC, etc */
 #define FXP_FLAG_82559_RXCSUM	0x1000	/* 82559 compatible RX checksum */
+#define FXP_FLAG_WOLCAP		0x2000	/* WOL capability */
+#define FXP_FLAG_WOL		0x4000	/* WOL active */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)		bus_read_1(sc->fxp_res[0], reg)
