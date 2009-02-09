@@ -292,7 +292,7 @@ struct fxp_cb_tx {
 	 */
 	union {
 		struct fxp_ipcb ipcb;
-		struct fxp_tbd tbd[FXP_NTXSEG];
+		struct fxp_tbd tbd[FXP_NTXSEG + 1];
 	} tx_cb_u;
 };
 
