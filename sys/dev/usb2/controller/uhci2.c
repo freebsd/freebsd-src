@@ -271,7 +271,7 @@ uhci_reset(uhci_softc_t *sc)
 	/* wait */
 
 	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_BUS_RESET_DELAY);
+	    USB_MS_TO_TICKS(USB_BUS_RESET_DELAY));
 
 	/* terminate all transfers */
 
@@ -283,7 +283,7 @@ uhci_reset(uhci_softc_t *sc)
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 		if (!(UREAD2(sc, UHCI_CMD) & UHCI_CMD_HCRESET)) {
 			goto done_1;
@@ -299,7 +299,7 @@ done_1:
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 		/* check if HC is stopped */
 		if (UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) {
@@ -345,7 +345,7 @@ uhci_start(uhci_softc_t *sc)
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 		/* check that controller has started */
 
@@ -636,7 +636,8 @@ uhci_suspend(uhci_softc_t *sc)
 
 	UHCICMD(sc, UHCI_CMD_EGSM);
 
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_WAIT);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 
+	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
@@ -655,7 +656,7 @@ uhci_resume(uhci_softc_t *sc)
 	UHCICMD(sc, UHCI_CMD_FGR);
 
 	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_RESUME_DELAY);
+	    USB_MS_TO_TICKS(USB_RESUME_DELAY));
 
 	/* and start traffic again */
 
@@ -2408,7 +2409,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 		if (use_polling) {
 			DELAY(10000);
 		} else {
-			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 10);
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 		}
 	}
 
@@ -2420,7 +2421,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 		DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
 	} else {
 		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_PORT_ROOT_RESET_DELAY);
+		    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
 	}
 
 	DPRINTFN(4, "uhci port %d reset, status0 = 0x%04x\n",
@@ -2453,7 +2454,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 			DELAY(USB_PORT_RESET_DELAY * 1000);
 		} else {
 			usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-			    USB_PORT_RESET_DELAY);
+			    USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
 		}
 
 		x = UREAD2(sc, port);
@@ -2780,9 +2781,9 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			/* wait 20ms for resume sequence to complete */
 			if (use_polling) {
 				/* polling */
-				DELAY(20 * 1000);
+				DELAY(20000);
 			} else {
-				usb2_pause_mtx(&sc->sc_bus.bus_mtx, 20);
+				usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
 			}
 
 			/* clear suspend and resume detect */
@@ -2790,7 +2791,7 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			    UHCI_PORTSC_SUSP));
 
 			/* wait a little bit */
-			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 2);
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 500);
 
 			sc->sc_isresumed |= (1 << index);
 

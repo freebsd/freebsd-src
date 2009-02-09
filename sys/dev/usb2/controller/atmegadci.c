@@ -221,7 +221,7 @@ atmegadci_wakeup_peer(struct usb2_xfer *xfer)
 		DELAY(8000);
 	} else {
 		/* Wait for reset to complete. */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 8);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 	}
 
 	/* hardware should have cleared RMWKUP bit */
@@ -1253,7 +1253,7 @@ atmegadci_init(struct atmegadci_softc *sc)
 	(sc->sc_clocks_on) (&sc->sc_bus);
 
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 	/* enable interrupts */
 	ATMEGA_WRITE_1(sc, ATMEGA_UDIEN,
