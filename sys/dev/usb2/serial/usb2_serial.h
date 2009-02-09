@@ -79,13 +79,12 @@
 #define	UCOM_PREFVER	UCOM_MODVER
 #define	UCOM_MAXVER	1
 
+struct usb2_device;
 struct usb2_com_softc;
+struct usb2_device_request;
 struct thread;
 
-/* NOTE: Only callbacks with "_cfg_" in its name are called
- * from a config thread, and are allowed to sleep! The other
- * callbacks are _not_ allowed to sleep!
- *
+/*
  * NOTE: There is no guarantee that "usb2_com_cfg_close()" will
  * be called after "usb2_com_cfg_open()" if the device is detached
  * while it is open!
@@ -119,41 +118,44 @@ struct usb2_com_callback {
 #define	ULSR_RXRDY	0x01		/* Byte ready in Receive Buffer */
 #define	ULSR_RCV_MASK	0x1f		/* Mask for incoming data or error */
 
-/*
- * List of serial adapter commands or deferred function calls:
- */
-enum {
-	USB_COM_CFG_START_TRANSFERS,
-	USB_COM_CFG_OPEN,
-	USB_COM_CFG_CLOSE,
-	USB_COM_CFG_BREAK_ON,
-	USB_COM_CFG_BREAK_OFF,
-	USB_COM_CFG_DTR_ON,
-	USB_COM_CFG_DTR_OFF,
-	USB_COM_CFG_RTS_ON,
-	USB_COM_CFG_RTS_OFF,
-	USB_COM_CFG_STATUS_CHANGE,
-	USB_COM_CFG_PARAM,
-	USB_COM_CFG_MAX,
+struct usb2_com_cfg_task {
+	struct usb2_proc_msg hdr;
+	struct usb2_com_softc *sc;
 };
 
-struct usb2_com_command_msg {
-	struct usb2_proc_msg hdr;	/* must be first */
-	struct usb2_com_softc *cc_softc;
+struct usb2_com_param_task {
+	struct usb2_proc_msg hdr;
+	struct usb2_com_softc *sc;
+	struct termios termios_copy;
 };
 
 struct usb2_com_super_softc {
-	struct usb2_process sc_config_td;
+	struct usb2_process sc_tq;
 };
 
 struct usb2_com_softc {
-	struct usb2_com_command_msg sc_cmds[2*USB_COM_CFG_MAX];
-	struct termios sc_termios_copy;
+	/*
+	 * NOTE: To avoid loosing level change information we use two
+	 * tasks instead of one for all commands.
+	 *
+	 * Level changes are transitions like:
+	 *
+	 * ON->OFF
+	 * OFF->ON
+	 * OPEN->CLOSE
+	 * CLOSE->OPEN
+	 */
+	struct usb2_com_cfg_task	sc_start_task[2];
+	struct usb2_com_cfg_task	sc_open_task[2];
+	struct usb2_com_cfg_task	sc_close_task[2];
+	struct usb2_com_cfg_task	sc_line_state_task[2];
+	struct usb2_com_cfg_task	sc_status_task[2];
+	struct usb2_com_param_task	sc_param_task[2];
 	struct cv sc_cv;
 	const struct usb2_com_callback *sc_callback;
 	struct usb2_com_super_softc *sc_super;
 	struct tty *sc_tty;
-	struct mtx *sc_parent_mtx;
+	struct mtx *sc_mtx;
 	void   *sc_parent;
 	uint32_t sc_unit;
 	uint32_t sc_local_unit;
@@ -170,20 +172,27 @@ struct usb2_com_softc {
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;
 	uint8_t	sc_ttyfreed;		/* set when TTY has been freed */
-	uint8_t sc_last_cmd_flag[USB_COM_CFG_MAX];
+	/* programmed line state bits */
+	uint8_t sc_pls_set;		/* set bits */
+	uint8_t sc_pls_clr;		/* cleared bits */
+	uint8_t sc_pls_curr;		/* last state */
+#define	UCOM_LS_DTR	0x01
+#define	UCOM_LS_RTS	0x02
+#define	UCOM_LS_BREAK	0x04
 };
 
-int	usb2_com_attach(struct usb2_com_super_softc *ssc,
-	    struct usb2_com_softc *sc, uint32_t sub_units, void *parent,
-	    const struct usb2_com_callback *callback, struct mtx *p_mtx);
-void	usb2_com_detach(struct usb2_com_super_softc *ssc,
-	    struct usb2_com_softc *sc, uint32_t sub_units);
-void	usb2_com_status_change(struct usb2_com_softc *);
-uint8_t	usb2_com_get_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
-	    uint32_t offset, uint32_t len, uint32_t *actlen);
-void	usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
-	    uint32_t offset, uint32_t len);
-uint8_t	usb2_com_cfg_sleep(struct usb2_com_softc *sc, uint32_t timeout);
-uint8_t	usb2_com_cfg_is_gone(struct usb2_com_softc *sc);
+#define	usb2_com_cfg_do_request(udev,com,req,ptr,flags,timo) \
+    usb2_do_request_proc(udev,&(com)->sc_super->sc_tq,req,ptr,flags,NULL,timo)
 
+int	usb2_com_attach(struct usb2_com_super_softc *,
+	    struct usb2_com_softc *, uint32_t, void *,
+	    const struct usb2_com_callback *callback, struct mtx *);
+void	usb2_com_detach(struct usb2_com_super_softc *,
+	    struct usb2_com_softc *, uint32_t);
+void	usb2_com_status_change(struct usb2_com_softc *);
+uint8_t	usb2_com_get_data(struct usb2_com_softc *, struct usb2_page_cache *,
+	    uint32_t, uint32_t, uint32_t *);
+void	usb2_com_put_data(struct usb2_com_softc *, struct usb2_page_cache *,
+	    uint32_t, uint32_t);
+uint8_t	usb2_com_cfg_is_gone(struct usb2_com_softc *);
 #endif					/* _USB2_SERIAL_H_ */

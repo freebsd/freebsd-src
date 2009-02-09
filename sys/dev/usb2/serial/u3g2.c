@@ -88,7 +88,7 @@ struct u3g_speeds_s {
 enum {
 	U3G_BULK_WR,
 	U3G_BULK_RD,
-	U3G_N_TRANSFER = 2,
+	U3G_N_TRANSFER,
 };
 
 struct u3g_softc {
@@ -98,11 +98,8 @@ struct u3g_softc {
 	struct usb2_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
 	struct usb2_device *sc_udev;
 
-	uint8_t	sc_iface_no;		/* interface number */
-	uint8_t	sc_iface_index;		/* interface index */
 	uint8_t	sc_lsr;			/* local status register */
 	uint8_t	sc_msr;			/* U3G status register */
-	struct u3g_speeds_s sc_speed;
 	uint8_t	sc_numports;
 };
 
@@ -148,6 +145,7 @@ static const struct usb2_com_callback u3g_callback = {
 	.usb2_com_stop_write = &u3g_stop_write,
 };
 
+#if 0
 static const struct u3g_speeds_s u3g_speeds[U3GSP_MAX] = {
 	[U3GSP_GPRS] = {64000, 64000},
 	[U3GSP_EDGE] = {384000, 64000},
@@ -157,6 +155,7 @@ static const struct u3g_speeds_s u3g_speeds[U3GSP_MAX] = {
 	[U3GSP_HSUPA] = {1200000, 384000},
 	[U3GSP_HSPA] = {7200000, 384000},
 };
+#endif
 
 static device_method_t u3g_methods[] = {
 	DEVMETHOD(device_probe, u3g_probe),
@@ -385,8 +384,12 @@ u3g_attach(device_t dev)
 	struct usb2_config u3g_config_tmp[U3G_N_TRANSFER];
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct u3g_softc *sc = device_get_softc(dev);
-	uint8_t n;
+	struct usb2_interface *iface;
+	struct usb2_interface_descriptor *id;
 	uint8_t m;
+	uint8_t n;
+	uint8_t i;
+	uint8_t x;
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
@@ -398,30 +401,56 @@ u3g_attach(device_t dev)
 	device_set_usb2_desc(dev);
 
 	sc->sc_udev = uaa->device;
-	sc->sc_iface_no = uaa->info.bIfaceNum;
-	sc->sc_iface_index = uaa->info.bIfaceIndex;
-	sc->sc_speed = u3g_speeds[U3G_GET_SPEED(uaa)];
 
-	for (m = 0; m != U3G_MAXPORTS; m++) {
+	x = 0;		/* interface index */
+	i = 0;		/* endpoint index */
+	m = 0;		/* number of ports */
+
+	while (m != U3G_MAXPORTS) {
 
 		/* update BULK endpoint index */
 		for (n = 0; n != U3G_N_TRANSFER; n++) 
-			u3g_config_tmp[n].ep_index = m;
+			u3g_config_tmp[n].ep_index = i;
 
-		/* try to allocate a set of BULK endpoints */
-		error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
-		    sc->sc_xfer[m], u3g_config_tmp, U3G_N_TRANSFER, 
-		    &sc->sc_ucom[m], &Giant);
-
-		if (error) {
+		iface = usb2_get_iface(uaa->device, x);
+		if (iface == NULL) {
 			if (m != 0)
-				break;	/* end of endpoints */
-			DPRINTF("could not allocate all pipes\n");
+				break;	/* end of interfaces */
+			DPRINTF("did not find any modem endpoints\n");
 			goto detach;
 		}
+
+		id = usb2_get_interface_descriptor(iface);
+		if ((id == NULL) || 
+		    (id->bInterfaceClass != UICLASS_VENDOR)) {
+			/* next interface */
+			x++;
+			i = 0;
+			continue;
+		}
+
+		/* try to allocate a set of BULK endpoints */
+		error = usb2_transfer_setup(uaa->device, &x,
+		    sc->sc_xfer[m], u3g_config_tmp, U3G_N_TRANSFER, 
+		    &sc->sc_ucom[m], &Giant);
+		if (error) {
+			/* next interface */
+			x++;
+			i = 0;
+			continue;
+		}
+
+		/* grab other interface, if any */
+                if (x != uaa->info.bIfaceIndex)
+                        usb2_set_parent_iface(uaa->device, x,
+                            uaa->info.bIfaceIndex);
+
 		/* set stall by default */
 		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_WR]);
 		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_RD]);
+
+		m++;	/* found one port */
+		i++;	/* next endpoint index */
 	}
 
 	sc->sc_numports = m;
