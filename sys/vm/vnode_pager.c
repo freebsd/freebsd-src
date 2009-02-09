@@ -365,7 +365,7 @@ vnode_pager_setsize(vp, nsize)
 
 	if ((object = vp->v_object) == NULL)
 		return;
-	ASSERT_VOP_ELOCKED(vp, "vnode_pager_setsize and not locked vnode");
+/* 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_setsize and not locked vnode"); */
 	VM_OBJECT_LOCK(object);
 	if (nsize == object->un_pager.vnp.vnp_size) {
 		/*
