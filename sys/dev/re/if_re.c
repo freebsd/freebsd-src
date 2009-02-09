@@ -1262,8 +1262,13 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
 		    RL_FLAG_MACSTAT;
 		break;
-	case RL_HWREV_8168C:
 	case RL_HWREV_8168C_SPIN2:
+		sc->rl_flags |= RL_FLAG_MACSLEEP;
+		/* FALLTHROUGH */
+	case RL_HWREV_8168C:
+		if ((hwrev & 0x00700000) == 0x00200000)
+			sc->rl_flags |= RL_FLAG_MACSLEEP;
+		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
@@ -1349,6 +1354,16 @@ re_attach(device_t dev)
 		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
+	}
+
+	/* Take controller out of deep sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) | 0x01);
+		else
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
 	}
 
 	/* Take PHY out of power down mode. */
@@ -2963,6 +2978,12 @@ re_resume(device_t dev)
 	RL_LOCK(sc);
 
 	ifp = sc->rl_ifp;
+	/* Take controller out of sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) | 0x01);
+	}
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
@@ -3018,6 +3039,12 @@ re_setwol(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+	/* Put controller into sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
+	}
 	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
 	    (sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
 		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
