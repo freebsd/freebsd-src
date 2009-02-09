@@ -168,7 +168,7 @@ at91_udp_attach(device_t dev)
 	at91_udp_pull_down(sc);
 
 	/* wait 10ms for pulldown to stabilise */
-	usb2_pause_mtx(NULL, 10);
+	usb2_pause_mtx(NULL, hz / 100);
 
 	sc->sc_iclk = at91_pmc_clock_ref("udc_clk");
 	sc->sc_fclk = at91_pmc_clock_ref("udpck");
