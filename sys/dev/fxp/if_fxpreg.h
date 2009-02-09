@@ -287,7 +287,7 @@ struct fxp_cb_tx {
 	/*
 	 * The following structure isn't actually part of the TxCB,
 	 * unless the extended TxCB feature is being used.  In this
-	 * case, the first two elements of the structure below are 
+	 * case, the first two elements of the structure below are
 	 * fetched along with the TxCB.
 	 */
 	union {
@@ -420,7 +420,7 @@ struct fxp_stats {
 };
 #define FXP_STATS_DUMP_COMPLETE	0xa005
 #define FXP_STATS_DR_COMPLETE	0xa007
-	
+
 /*
  * Serial EEPROM control register bits
  */
