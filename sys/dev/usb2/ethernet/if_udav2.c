@@ -38,11 +38,6 @@
  */
 
 /*
- * NOTE: all function names beginning like "udav_cfg_" can only
- * be called from within the config thread function !
- */
-
-/*
  * TODO:
  *	Interrupt Endpoint support
  *	External PHYs
@@ -56,15 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
 
-#define	usb2_config_td_cc usb2_ether_cc
-#define	usb2_config_td_softc udav_softc
-
 #define	USB_DEBUG_VAR udav_debug
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_busdma.h>
@@ -80,43 +71,29 @@ static device_attach_t udav_attach;
 static device_detach_t udav_detach;
 static device_shutdown_t udav_shutdown;
 
-static usb2_callback_t udav_bulk_write_clear_stall_callback;
 static usb2_callback_t udav_bulk_write_callback;
-static usb2_callback_t udav_bulk_read_clear_stall_callback;
 static usb2_callback_t udav_bulk_read_callback;
-static usb2_callback_t udav_intr_clear_stall_callback;
 static usb2_callback_t udav_intr_callback;
 
-static usb2_config_td_command_t udav_cfg_first_time_setup;
-static usb2_config_td_command_t udav_cfg_pre_init;
-static usb2_config_td_command_t udav_cfg_init;
-static usb2_config_td_command_t udav_config_copy;
-static usb2_config_td_command_t udav_cfg_promisc_upd;
-static usb2_config_td_command_t udav_cfg_pre_stop;
-static usb2_config_td_command_t udav_cfg_stop;
-static usb2_config_td_command_t udav_cfg_ifmedia_change;
-static usb2_config_td_command_t udav_cfg_tick;
+static usb2_ether_fn_t udav_attach_post;
+static usb2_ether_fn_t udav_init;
+static usb2_ether_fn_t udav_stop;
+static usb2_ether_fn_t udav_start;
+static usb2_ether_fn_t udav_tick;
+static usb2_ether_fn_t udav_setmulti;
+static usb2_ether_fn_t udav_setpromisc;
 
-static void	udav_cfg_do_request(struct udav_softc *,
-		    struct usb2_device_request *, void *);
-static void	udav_cfg_csr_read(struct udav_softc *, uint16_t, void *,
-		    uint16_t);
-static void	udav_cfg_csr_write(struct udav_softc *, uint16_t, void *,
-		    uint16_t);
-static uint8_t	udav_cfg_csr_read1(struct udav_softc *, uint16_t);
-static void	udav_cfg_csr_write1(struct udav_softc *, uint16_t, uint8_t);
-static void	udav_init_cb(void *);
-static void	udav_cfg_reset(struct udav_softc *);
-static void	udav_start_cb(struct ifnet *);
-static void	udav_start_transfers(struct udav_softc *);
-static int	udav_ioctl_cb(struct ifnet *, u_long, caddr_t);
-static void	udav_watchdog(void *);
-static int	udav_ifmedia_change_cb(struct ifnet *);
-static void	udav_ifmedia_status_cb(struct ifnet *, struct ifmediareq *);
+static int	udav_csr_read(struct udav_softc *, uint16_t, void *, int);
+static int	udav_csr_write(struct udav_softc *, uint16_t, void *, int);
+static uint8_t	udav_csr_read1(struct udav_softc *, uint16_t);
+static int	udav_csr_write1(struct udav_softc *, uint16_t, uint8_t);
+static void	udav_reset(struct udav_softc *);
+static int	udav_ifmedia_upd(struct ifnet *);
+static void	udav_ifmedia_status(struct ifnet *, struct ifmediareq *);
 
-static miibus_readreg_t udav_cfg_miibus_readreg;
-static miibus_writereg_t udav_cfg_miibus_writereg;
-static miibus_statchg_t udav_cfg_miibus_statchg;
+static miibus_readreg_t udav_miibus_readreg;
+static miibus_writereg_t udav_miibus_writereg;
+static miibus_statchg_t udav_miibus_statchg;
 
 static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
 
@@ -126,7 +103,7 @@ static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
 		.direction = UE_DIR_OUT,
 		.mh.bufsize = (MCLBYTES + 2),
 		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &udav_bulk_write_callback,
+		.mh.callback = udav_bulk_write_callback,
 		.mh.timeout = 10000,	/* 10 seconds */
 	},
 
@@ -136,30 +113,8 @@ static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
 		.direction = UE_DIR_IN,
 		.mh.bufsize = (MCLBYTES + 3),
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &udav_bulk_read_callback,
+		.mh.callback = udav_bulk_read_callback,
 		.mh.timeout = 0,	/* no timeout */
-	},
-
-	[UDAV_BULK_CS_WR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &udav_bulk_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[UDAV_BULK_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &udav_bulk_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 
 	[UDAV_INTR_DT_RD] = {
@@ -168,18 +123,7 @@ static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
 		.direction = UE_DIR_IN,
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &udav_intr_callback,
-	},
-
-	[UDAV_INTR_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &udav_intr_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.mh.callback = udav_intr_callback,
 	},
 };
 
@@ -195,9 +139,9 @@ static device_method_t udav_methods[] = {
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* MII interface */
-	DEVMETHOD(miibus_readreg, udav_cfg_miibus_readreg),
-	DEVMETHOD(miibus_writereg, udav_cfg_miibus_writereg),
-	DEVMETHOD(miibus_statchg, udav_cfg_miibus_statchg),
+	DEVMETHOD(miibus_readreg, udav_miibus_readreg),
+	DEVMETHOD(miibus_writereg, udav_miibus_writereg),
+	DEVMETHOD(miibus_statchg, udav_miibus_statchg),
 
 	{0, 0}
 };
@@ -217,6 +161,18 @@ MODULE_DEPEND(udav, usb2_core, 1, 1, 1);
 MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
 
+static const struct usb2_ether_methods udav_ue_methods = {
+	.ue_attach_post = udav_attach_post,
+	.ue_start = udav_start,
+	.ue_init = udav_init,
+	.ue_stop = udav_stop,
+	.ue_tick = udav_tick,
+	.ue_setmulti = udav_setmulti,
+	.ue_setpromisc = udav_setpromisc,
+	.ue_mii_upd = udav_ifmedia_upd,
+	.ue_mii_sts = udav_ifmedia_status,
+};
+
 #if USB_DEBUG
 static int udav_debug = 0;
 
@@ -225,37 +181,45 @@ SYSCTL_INT(_hw_usb2_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
     "Debug level");
 #endif
 
-#define	UDAV_CFG_SETBIT(sc, reg, x)	\
-	udav_cfg_csr_write1(sc, reg, udav_cfg_csr_read1(sc, reg) | (x))
+#define	UDAV_SETBIT(sc, reg, x)	\
+	udav_csr_write1(sc, reg, udav_csr_read1(sc, reg) | (x))
 
-#define	UDAV_CFG_CLRBIT(sc, reg, x)	\
-	udav_cfg_csr_write1(sc, reg, udav_cfg_csr_read1(sc, reg) & ~(x))
+#define	UDAV_CLRBIT(sc, reg, x)	\
+	udav_csr_write1(sc, reg, udav_csr_read1(sc, reg) & ~(x))
 
 static const struct usb2_device_id udav_devs[] = {
 	/* ShanTou DM9601 USB NIC */
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
-
 	/* ShanTou ST268 USB NIC */
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268, 0)},
-
 	/* Corega USB-TXC */
 	{USB_VPI(USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC, 0)},
 };
+
+static void
+udav_attach_post(struct usb2_ether *ue)
+{
+	struct udav_softc *sc = usb2_ether_getsc(ue);
+
+	/* reset the adapter */
+	udav_reset(sc);
+
+	/* Get Ethernet Address */
+	udav_csr_read(sc, UDAV_PAR, ue->ue_eaddr, ETHER_ADDR_LEN);
+}
 
 static int
 udav_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb2_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if (uaa->info.bConfigIndex != UDAV_CONFIG_INDEX) {
+	if (uaa->info.bConfigIndex != UDAV_CONFIG_INDEX)
 		return (ENXIO);
-	}
-	if (uaa->info.bIfaceIndex != UDAV_IFACE_INDEX) {
+	if (uaa->info.bIfaceIndex != UDAV_IFACE_INDEX)
 		return (ENXIO);
-	}
+
 	return (usb2_lookup_id_by_uaa(udav_devs, sizeof(udav_devs), uaa));
 }
 
@@ -264,49 +228,36 @@ udav_attach(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct udav_softc *sc = device_get_softc(dev);
-	int32_t error;
+	struct usb2_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
+	int error;
 
-	sc->sc_udev = uaa->device;
-	sc->sc_dev = dev;
-	sc->sc_unit = device_get_unit(dev);
 	sc->sc_flags = USB_GET_DRIVER_INFO(uaa);
 
 	device_set_usb2_desc(dev);
 
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
-
-	mtx_init(&sc->sc_mtx, "udav lock", NULL, MTX_DEF | MTX_RECURSE);
-
-	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	iface_index = UDAV_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, udav_config, UDAV_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed!\n");
 		goto detach;
 	}
-	error = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_mtx,
-	    NULL, sizeof(struct usb2_config_td_cc), 16);
+
+	ue->ue_sc = sc;
+	ue->ue_dev = dev;
+	ue->ue_udev = uaa->device;
+	ue->ue_mtx = &sc->sc_mtx;
+	ue->ue_methods = &udav_ue_methods;
+
+	error = usb2_ether_ifattach(ue);
 	if (error) {
-		device_printf(dev, "could not setup config "
-		    "thread!\n");
+		device_printf(dev, "could not attach interface\n");
 		goto detach;
 	}
-	mtx_lock(&sc->sc_mtx);
 
-	sc->sc_flags |= UDAV_FLAG_WAIT_LINK;
-
-	/* start setup */
-
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL, &udav_cfg_first_time_setup, 0, 0);
-
-	udav_watchdog(sc);
-	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -314,151 +265,23 @@ detach:
 	return (ENXIO);			/* failure */
 }
 
-static void
-udav_cfg_first_time_setup(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct ifnet *ifp;
-	int error;
-	uint8_t eaddr[min(ETHER_ADDR_LEN, 6)];
-
-	/* reset the adapter */
-
-	udav_cfg_reset(sc);
-
-	/* get Ethernet Address */
-
-	udav_cfg_csr_read(sc, UDAV_PAR, eaddr, ETHER_ADDR_LEN);
-
-	mtx_unlock(&sc->sc_mtx);
-
-	ifp = if_alloc(IFT_ETHER);
-
-	mtx_lock(&sc->sc_mtx);
-
-	if (ifp == NULL) {
-		printf("%s: could not if_alloc()\n",
-		    sc->sc_name);
-		goto done;
-	}
-
-	ifp->if_softc = sc;
-	if_initname(ifp, "udav", sc->sc_unit);
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = udav_start_cb;
-	ifp->if_ioctl = udav_ioctl_cb;
-	ifp->if_watchdog = NULL;
-	ifp->if_init = udav_init_cb;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	/*
-	 * XXX need Giant when accessing the device structures !
-	 */
-
-	mtx_unlock(&sc->sc_mtx);
-
-	mtx_lock(&Giant);
-
-	error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-	    &udav_ifmedia_change_cb,
-	    &udav_ifmedia_status_cb);
-	mtx_unlock(&Giant);
-
-	mtx_lock(&sc->sc_mtx);
-
-	if (error) {
-		printf("%s: MII without any PHY!\n",
-		    sc->sc_name);
-		if_free(ifp);
-		goto done;
-	}
-	sc->sc_ifp = ifp;
-
-	mtx_unlock(&sc->sc_mtx);
-
-	/*
-	 * Call MI attach routine.
-	 */
-
-	ether_ifattach(ifp, eaddr);
-
-	mtx_lock(&sc->sc_mtx);
-
-done:
-	return;
-}
-
 static int
 udav_detach(device_t dev)
 {
 	struct udav_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp;
+	struct usb2_ether *ue = &sc->sc_ue;
 
-	usb2_config_td_drain(&sc->sc_config_td);
-
-	mtx_lock(&sc->sc_mtx);
-
-	usb2_callout_stop(&sc->sc_watchdog);
-
-	udav_cfg_pre_stop(sc, NULL, 0);
-
-	ifp = sc->sc_ifp;
-
-	mtx_unlock(&sc->sc_mtx);
-
-	/* stop all USB transfers first */
 	usb2_transfer_unsetup(sc->sc_xfer, UDAV_N_TRANSFER);
-
-	/* get rid of any late children */
-	bus_generic_detach(dev);
-
-	if (ifp) {
-		ether_ifdetach(ifp);
-		if_free(ifp);
-	}
-	usb2_config_td_unsetup(&sc->sc_config_td);
-
-	usb2_callout_drain(&sc->sc_watchdog);
-
+	usb2_ether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
-static void
-udav_cfg_do_request(struct udav_softc *sc, struct usb2_device_request *req,
-    void *data)
-{
-	uint16_t length;
-	usb2_error_t err;
-
-	if (usb2_config_td_is_gone(&sc->sc_config_td)) {
-		goto error;
-	}
-	err = usb2_do_request_flags
-	    (sc->sc_udev, &sc->sc_mtx, req, data, 0, NULL, 1000);
-
-	if (err) {
-
-		DPRINTF("device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
-
-error:
-		length = UGETW(req->wLength);
-
-		if ((req->bmRequestType & UT_READ) && length) {
-			bzero(data, length);
-		}
-	}
-}
-
 #if 0
-static void
-udav_cfg_mem_read(struct udav_softc *sc, uint16_t offset, void *buf,
-    uint16_t len)
+static int
+udav_mem_read(struct udav_softc *sc, uint16_t offset, void *buf,
+    int len)
 {
 	struct usb2_device_request req;
 
@@ -470,12 +293,12 @@ udav_cfg_mem_read(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wIndex, offset);
 	USETW(req.wLength, len);
 
-	udav_cfg_do_request(sc, &req, buf);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
-static void
-udav_cfg_mem_write(struct udav_softc *sc, uint16_t offset, void *buf,
-    uint16_t len)
+static int
+udav_mem_write(struct udav_softc *sc, uint16_t offset, void *buf,
+    int len)
 {
 	struct usb2_device_request req;
 
@@ -487,11 +310,11 @@ udav_cfg_mem_write(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wIndex, offset);
 	USETW(req.wLength, len);
 
-	udav_cfg_do_request(sc, &req, buf);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
-static void
-udav_cfg_mem_write1(struct udav_softc *sc, uint16_t offset,
+static int
+udav_mem_write1(struct udav_softc *sc, uint16_t offset,
     uint8_t ch)
 {
 	struct usb2_device_request req;
@@ -502,14 +325,12 @@ udav_cfg_mem_write1(struct udav_softc *sc, uint16_t offset,
 	USETW(req.wIndex, offset);
 	USETW(req.wLength, 0x0000);
 
-	udav_cfg_do_request(sc, &req, NULL);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, NULL, 1000));
 }
-
 #endif
 
-static void
-udav_cfg_csr_read(struct udav_softc *sc, uint16_t offset, void *buf,
-    uint16_t len)
+static int
+udav_csr_read(struct udav_softc *sc, uint16_t offset, void *buf, int len)
 {
 	struct usb2_device_request req;
 
@@ -521,12 +342,11 @@ udav_cfg_csr_read(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wIndex, offset);
 	USETW(req.wLength, len);
 
-	udav_cfg_do_request(sc, &req, buf);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
-static void
-udav_cfg_csr_write(struct udav_softc *sc, uint16_t offset, void *buf,
-    uint16_t len)
+static int
+udav_csr_write(struct udav_softc *sc, uint16_t offset, void *buf, int len)
 {
 	struct usb2_device_request req;
 
@@ -539,20 +359,20 @@ udav_cfg_csr_write(struct udav_softc *sc, uint16_t offset, void *buf,
 	USETW(req.wIndex, offset);
 	USETW(req.wLength, len);
 
-	udav_cfg_do_request(sc, &req, buf);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
 static uint8_t
-udav_cfg_csr_read1(struct udav_softc *sc, uint16_t offset)
+udav_csr_read1(struct udav_softc *sc, uint16_t offset)
 {
 	uint8_t val;
 
-	udav_cfg_csr_read(sc, offset, &val, 1);
+	udav_csr_read(sc, offset, &val, 1);
 	return (val);
 }
 
-static void
-udav_cfg_csr_write1(struct udav_softc *sc, uint16_t offset,
+static int
+udav_csr_write1(struct udav_softc *sc, uint16_t offset,
     uint8_t ch)
 {
 	struct usb2_device_request req;
@@ -565,85 +385,53 @@ udav_cfg_csr_write1(struct udav_softc *sc, uint16_t offset,
 	USETW(req.wIndex, offset);
 	USETW(req.wLength, 0x0000);
 
-	udav_cfg_do_request(sc, &req, NULL);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, NULL, 1000));
 }
 
 static void
-udav_init_cb(void *arg)
+udav_init(struct usb2_ether *ue)
 {
-	struct udav_softc *sc = arg;
+	struct udav_softc *sc = ue->ue_sc;
+	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
 
-	mtx_lock(&sc->sc_mtx);
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, &udav_cfg_pre_init,
-	    &udav_cfg_init, 0, 0);
-	mtx_unlock(&sc->sc_mtx);
-}
-
-static void
-udav_cfg_pre_init(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-	/* immediate configuration */
-
-	udav_cfg_pre_stop(sc, cc, 0);
-
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
-	sc->sc_flags |= UDAV_FLAG_HL_READY;
-}
-
-static void
-udav_cfg_init(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct mii_data *mii = GET_MII(sc);
+	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
 	/*
 	 * Cancel pending I/O
 	 */
-
-	udav_cfg_stop(sc, cc, 0);
+	udav_stop(ue);
 
 	/* set MAC address */
-
-	udav_cfg_csr_write(sc, UDAV_PAR, cc->if_lladdr, ETHER_ADDR_LEN);
+	udav_csr_write(sc, UDAV_PAR, IF_LLADDR(ifp), ETHER_ADDR_LEN);
 
 	/* initialize network control register */
 
 	/* disable loopback  */
-
-	UDAV_CFG_CLRBIT(sc, UDAV_NCR, UDAV_NCR_LBK0 | UDAV_NCR_LBK1);
+	UDAV_CLRBIT(sc, UDAV_NCR, UDAV_NCR_LBK0 | UDAV_NCR_LBK1);
 
 	/* Initialize RX control register */
-	UDAV_CFG_SETBIT(sc, UDAV_RCR, UDAV_RCR_DIS_LONG | UDAV_RCR_DIS_CRC);
+	UDAV_SETBIT(sc, UDAV_RCR, UDAV_RCR_DIS_LONG | UDAV_RCR_DIS_CRC);
 
 	/* load multicast filter and update promiscious mode bit */
-	udav_cfg_promisc_upd(sc, cc, 0);
+	udav_setpromisc(ue);
 
 	/* enable RX */
-	UDAV_CFG_SETBIT(sc, UDAV_RCR, UDAV_RCR_RXEN);
+	UDAV_SETBIT(sc, UDAV_RCR, UDAV_RCR_RXEN);
 
 	/* clear POWER_DOWN state of internal PHY */
-	UDAV_CFG_SETBIT(sc, UDAV_GPCR, UDAV_GPCR_GEP_CNTL0);
-	UDAV_CFG_CLRBIT(sc, UDAV_GPR, UDAV_GPR_GEPIO0);
+	UDAV_SETBIT(sc, UDAV_GPCR, UDAV_GPCR_GEP_CNTL0);
+	UDAV_CLRBIT(sc, UDAV_GPR, UDAV_GPR_GEPIO0);
 
-	mii_mediachg(mii);
+	usb2_transfer_set_stall(sc->sc_xfer[UDAV_BULK_DT_WR]);
 
-	sc->sc_flags |= (UDAV_FLAG_READ_STALL |
-	    UDAV_FLAG_WRITE_STALL |
-	    UDAV_FLAG_LL_READY);
-
-	udav_start_transfers(sc);
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	udav_start(ue);
 }
 
 static void
-udav_cfg_reset(struct udav_softc *sc)
+udav_reset(struct udav_softc *sc)
 {
-	usb2_error_t err;
-	uint16_t to;
+	int i;
 
 	/* Select PHY */
 #if 1
@@ -651,160 +439,129 @@ udav_cfg_reset(struct udav_softc *sc)
 	 * XXX: force select internal phy.
 	 *	external phy routines are not tested.
 	 */
-	UDAV_CFG_CLRBIT(sc, UDAV_NCR, UDAV_NCR_EXT_PHY);
+	UDAV_CLRBIT(sc, UDAV_NCR, UDAV_NCR_EXT_PHY);
 #else
-	if (sc->sc_flags & UDAV_EXT_PHY) {
-		UDAV_CFG_SETBIT(sc, UDAV_NCR, UDAV_NCR_EXT_PHY);
-	} else {
-		UDAV_CFG_CLRBIT(sc, UDAV_NCR, UDAV_NCR_EXT_PHY);
-	}
+	if (sc->sc_flags & UDAV_EXT_PHY)
+		UDAV_SETBIT(sc, UDAV_NCR, UDAV_NCR_EXT_PHY);
+	else
+		UDAV_CLRBIT(sc, UDAV_NCR, UDAV_NCR_EXT_PHY);
 #endif
 
-	UDAV_CFG_SETBIT(sc, UDAV_NCR, UDAV_NCR_RST);
+	UDAV_SETBIT(sc, UDAV_NCR, UDAV_NCR_RST);
 
-	for (to = 0;; to++) {
-
-		if (to < 100) {
-
-			err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
-
-			if (err) {
-				break;
-			}
-			if (!(udav_cfg_csr_read1(sc, UDAV_NCR) & UDAV_NCR_RST)) {
-				break;
-			}
-		} else {
-			printf("%s: reset timeout!\n",
-			    sc->sc_name);
+	for (i = 0; i < UDAV_TX_TIMEOUT; i++) {
+		if (!(udav_csr_read1(sc, UDAV_NCR) & UDAV_NCR_RST))
 			break;
-		}
+		if (usb2_ether_pause(&sc->sc_ue, hz / 100))
+			break;
 	}
 
-	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
+	usb2_ether_pause(&sc->sc_ue, hz / 100);
 }
 
 #define	UDAV_BITS	6
-
 static void
-udav_mchash(struct usb2_config_td_cc *cc, const uint8_t *ptr)
+udav_setmulti(struct usb2_ether *ue)
 {
-	uint8_t h;
+	struct udav_softc *sc = ue->ue_sc;
+	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
+	struct ifmultiaddr *ifma;
+	uint8_t hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+	int h = 0;
 
-	h = ether_crc32_le(ptr, ETHER_ADDR_LEN) &
-	    ((1 << UDAV_BITS) - 1);
-	cc->if_hash[h >> 3] |= 1 << (h & 0x7);
+	UDAV_LOCK_ASSERT(sc, MA_OWNED);
+
+	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+		UDAV_SETBIT(sc, UDAV_RCR, UDAV_RCR_ALL|UDAV_RCR_PRMSC);
+		return;
+	}
+
+	/* first, zot all the existing hash bits */
+	memset(hashtbl, 0x00, sizeof(hashtbl));
+	hashtbl[7] |= 0x80;	/* broadcast address */
+	udav_csr_write(sc, UDAV_MAR, hashtbl, sizeof(hashtbl));
+
+	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	{
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
+		hashtbl[h / 8] |= 1 << (h % 8);
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+	/* disable all multicast */
+	UDAV_CLRBIT(sc, UDAV_RCR, UDAV_RCR_ALL);
+
+	/* write hash value to the register */
+	udav_csr_write(sc, UDAV_MAR, hashtbl, sizeof(hashtbl));
 }
 
 static void
-udav_config_copy(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
+udav_setpromisc(struct usb2_ether *ue)
 {
-	bzero(cc, sizeof(*cc));
-	usb2_ether_cc(sc->sc_ifp, &udav_mchash, cc);
-}
-
-static void
-udav_cfg_promisc_upd(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
+	struct udav_softc *sc = ue->ue_sc;
+	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
 	uint8_t rxmode;
 
-	rxmode = udav_cfg_csr_read1(sc, UDAV_RCR);
-
+	rxmode = udav_csr_read1(sc, UDAV_RCR);
 	rxmode &= ~(UDAV_RCR_ALL | UDAV_RCR_PRMSC);
 
-	if (cc->if_flags & IFF_PROMISC) {
-
+	if (ifp->if_flags & IFF_PROMISC)
 		rxmode |= UDAV_RCR_ALL | UDAV_RCR_PRMSC;
-
-	} else if (cc->if_flags & IFF_ALLMULTI) {
-
+	else if (ifp->if_flags & IFF_ALLMULTI)
 		rxmode |= UDAV_RCR_ALL;
-	}
-	/* write hash value to the register */
-	udav_cfg_csr_write(sc, UDAV_MAR, cc->if_hash, 8);
 
 	/* write new mode bits */
-	udav_cfg_csr_write1(sc, UDAV_RCR, rxmode);
+	udav_csr_write1(sc, UDAV_RCR, rxmode);
 }
 
 static void
-udav_start_cb(struct ifnet *ifp)
+udav_start(struct usb2_ether *ue)
 {
-	struct udav_softc *sc = ifp->if_softc;
+	struct udav_softc *sc = ue->ue_sc;
 
-	mtx_lock(&sc->sc_mtx);
-
-	udav_start_transfers(sc);
-
-	mtx_unlock(&sc->sc_mtx);
-}
-
-static void
-udav_start_transfers(struct udav_softc *sc)
-{
-	if ((sc->sc_flags & UDAV_FLAG_LL_READY) &&
-	    (sc->sc_flags & UDAV_FLAG_HL_READY)) {
-
-		/*
-		 * start the USB transfers, if not already started:
-		 */
-		usb2_transfer_start(sc->sc_xfer[UDAV_INTR_DT_RD]);
-		usb2_transfer_start(sc->sc_xfer[UDAV_BULK_DT_RD]);
-		usb2_transfer_start(sc->sc_xfer[UDAV_BULK_DT_WR]);
-	}
-}
-
-static void
-udav_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct udav_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UDAV_BULK_DT_WR];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UDAV_FLAG_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
-	}
+	/*
+	 * start the USB transfers, if not already started:
+	 */
+	usb2_transfer_start(sc->sc_xfer[UDAV_INTR_DT_RD]);
+	usb2_transfer_start(sc->sc_xfer[UDAV_BULK_DT_RD]);
+	usb2_transfer_start(sc->sc_xfer[UDAV_BULK_DT_WR]);
 }
 
 static void
 udav_bulk_write_callback(struct usb2_xfer *xfer)
 {
 	struct udav_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
 	struct mbuf *m;
-	uint32_t extra_len;
-	uint32_t temp_len;
+	int extra_len;
+	int temp_len;
 	uint8_t buf[2];
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-
 		ifp->if_opackets++;
 
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
-
-		if (sc->sc_flags & UDAV_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_WR]);
-			goto done;
-		}
-		if (sc->sc_flags & UDAV_FLAG_WAIT_LINK) {
+tr_setup:
+		if ((sc->sc_flags & UDAV_FLAG_LINK) == 0) {
 			/*
 			 * don't send anything if there is no link !
 			 */
-			goto done;
+			return;
 		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 
-		if (m == NULL) {
-			goto done;
-		}
-		if (m->m_pkthdr.len > MCLBYTES) {
+		if (m == NULL)
+			return;
+		if (m->m_pkthdr.len > MCLBYTES)
 			m->m_pkthdr.len = MCLBYTES;
-		}
 		if (m->m_pkthdr.len < UDAV_MIN_FRAME_LEN) {
 			extra_len = UDAV_MIN_FRAME_LEN - m->m_pkthdr.len;
 		} else {
@@ -841,35 +598,20 @@ udav_bulk_write_callback(struct usb2_xfer *xfer)
 
 		xfer->frlengths[0] = temp_len;
 		usb2_start_hardware(xfer);
-
-done:
 		return;
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
 		    usb2_errstr(xfer->error));
 
+		ifp->if_oerrors++;
+
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			sc->sc_flags |= UDAV_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_WR]);
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
-		ifp->if_oerrors++;
 		return;
-
-	}
-}
-
-static void
-udav_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct udav_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UDAV_BULK_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UDAV_FLAG_READ_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -877,424 +619,224 @@ static void
 udav_bulk_read_callback(struct usb2_xfer *xfer)
 {
 	struct udav_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = sc->sc_ifp;
-	uint8_t status;
-	uint16_t total_len;
-	struct mbuf *m = NULL;
+	struct usb2_ether *ue = &sc->sc_ue;
+	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct udav_rxpkt stat;
+	int len;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (xfer->actlen < 1) {
+		if (xfer->actlen < sizeof(stat) + ETHER_CRC_LEN) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		xfer->actlen -= 1;
+		usb2_copy_out(xfer->frbuffers, 0, &stat, sizeof(stat));
+		xfer->actlen -= sizeof(stat);
+		len = min(xfer->actlen, le16toh(stat.pktlen));
+		len -= ETHER_CRC_LEN;
 
-		usb2_copy_out(xfer->frbuffers, 0, &status, 1);
-
-		if (status & UDAV_RSR_LCS) {
+		if (stat.rxstat & UDAV_RSR_LCS) {
 			ifp->if_collisions++;
 			goto tr_setup;
 		}
-		if ((status & UDAV_RSR_ERR) || (xfer->actlen < 2)) {
+		if (stat.rxstat & UDAV_RSR_ERR) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, 1, &total_len, 2);
-
-		total_len = le16toh(total_len);
-
-		xfer->actlen -= 2;
-
-		xfer->actlen = min(xfer->actlen, total_len);
-
-		if (xfer->actlen < (sizeof(struct ether_header) + ETHER_CRC_LEN)) {
-			ifp->if_ierrors++;
-			goto tr_setup;
-		}
-		xfer->actlen -= ETHER_CRC_LEN;
-
-		m = usb2_ether_get_mbuf();
-
-		if (m == NULL) {
-			ifp->if_ierrors++;
-			goto tr_setup;
-		}
-		xfer->actlen = min(xfer->actlen, m->m_len);
-
-		usb2_copy_out(xfer->frbuffers, 3, m->m_data, xfer->actlen);
-
-		ifp->if_ipackets++;
-		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = xfer->actlen;
-
+		usb2_ether_rxbuf(ue, xfer->frbuffers, sizeof(stat), len);
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-
-		if (sc->sc_flags & UDAV_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
-
-		/*
-		 * At the end of a USB callback it is always safe to unlock
-		 * the private mutex of a device! That is why we do the
-		 * "if_input" here, and not some lines up!
-		 */
-		if (m) {
-			mtx_unlock(&sc->sc_mtx);
-			(ifp->if_input) (ifp, m);
-			mtx_lock(&sc->sc_mtx);
-		}
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
+		usb2_ether_rxflush(ue);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
-			/* try to clear stall first */
-			sc->sc_flags |= UDAV_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[UDAV_BULK_CS_RD]);
-		}
 		DPRINTF("bulk read error, %s\n",
 		    usb2_errstr(xfer->error));
+
+		if (xfer->error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
+		}
 		return;
-
-	}
-}
-
-static void
-udav_intr_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct udav_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UDAV_INTR_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UDAV_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
 static void
 udav_intr_callback(struct usb2_xfer *xfer)
 {
-	struct udav_softc *sc = xfer->priv_sc;
-
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-
 	case USB_ST_SETUP:
-		if (sc->sc_flags & UDAV_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UDAV_INTR_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			/* start clear stall */
-			sc->sc_flags |= UDAV_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[UDAV_INTR_CS_RD]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
 	}
 }
 
-static int
-udav_ioctl_cb(struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-	struct udav_softc *sc = ifp->if_softc;
-	struct mii_data *mii;
-	int error = 0;
-
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		mtx_lock(&sc->sc_mtx);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				usb2_config_td_queue_command
-				    (&sc->sc_config_td, &udav_config_copy,
-				    &udav_cfg_promisc_upd, 0, 0);
-			} else {
-				usb2_config_td_queue_command
-				    (&sc->sc_config_td, &udav_cfg_pre_init,
-				    &udav_cfg_init, 0, 0);
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				usb2_config_td_queue_command
-				    (&sc->sc_config_td, &udav_cfg_pre_stop,
-				    &udav_cfg_stop, 0, 0);
-			}
-		}
-		mtx_unlock(&sc->sc_mtx);
-		break;
-
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		mtx_lock(&sc->sc_mtx);
-		usb2_config_td_queue_command
-		    (&sc->sc_config_td, &udav_config_copy,
-		    &udav_cfg_promisc_upd, 0, 0);
-		mtx_unlock(&sc->sc_mtx);
-		break;
-
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-		mii = GET_MII(sc);
-		if (mii == NULL) {
-			error = EINVAL;
-		} else {
-			error = ifmedia_ioctl
-			    (ifp, (void *)data, &mii->mii_media, cmd);
-		}
-		break;
-
-	default:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	}
-	return (error);
-}
-
 static void
-udav_watchdog(void *arg)
+udav_stop(struct usb2_ether *ue)
 {
-	struct udav_softc *sc = arg;
+	struct udav_softc *sc = ue->ue_sc;
+	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL, &udav_cfg_tick, 0, 0);
-
-	usb2_callout_reset(&sc->sc_watchdog,
-	    hz, &udav_watchdog, sc);
-}
-
-/*
- * NOTE: can be called when "ifp" is NULL
- */
-static void
-udav_cfg_pre_stop(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-	if (cc) {
-		/* copy the needed configuration */
-		udav_config_copy(sc, cc, refcount);
-	}
-	/* immediate configuration */
-
-	if (ifp) {
-		/* clear flags */
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	}
-	sc->sc_flags &= ~(UDAV_FLAG_HL_READY |
-	    UDAV_FLAG_LL_READY);
-
-	sc->sc_flags |= UDAV_FLAG_WAIT_LINK;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	sc->sc_flags &= ~UDAV_FLAG_LINK;
 
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
 	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_DT_WR]);
 	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_CS_WR]);
-	usb2_transfer_stop(sc->sc_xfer[UDAV_BULK_CS_RD]);
 	usb2_transfer_stop(sc->sc_xfer[UDAV_INTR_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[UDAV_INTR_CS_RD]);
-}
 
-/*
- * NOTE: can be called when "ifp" is NULL
- */
-static void
-udav_cfg_stop(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	udav_cfg_reset(sc);
+	udav_reset(sc);
 }
 
 static int
-udav_ifmedia_change_cb(struct ifnet *ifp)
+udav_ifmedia_upd(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
+	struct mii_data *mii = GET_MII(sc);
 
-	mtx_lock(&sc->sc_mtx);
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL,
-	    &udav_cfg_ifmedia_change, 0, 0);
-	mtx_unlock(&sc->sc_mtx);
+	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
+        sc->sc_flags &= ~UDAV_FLAG_LINK;
+	if (mii->mii_instance) {
+		struct mii_softc *miisc;
+
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+			mii_phy_reset(miisc);
+	}
+	mii_mediachg(mii);
 	return (0);
 }
 
 static void
-udav_cfg_ifmedia_change(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-	struct mii_data *mii = GET_MII(sc);
-
-	if ((ifp == NULL) ||
-	    (mii == NULL)) {
-		/* not ready */
-		return;
-	}
-	sc->sc_flags |= UDAV_FLAG_WAIT_LINK;
-
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
-			mii_phy_reset(miisc);
-		}
-	}
-	mii_mediachg(mii);
-}
-
-static void
-udav_ifmedia_status_cb(struct ifnet *ifp, struct ifmediareq *ifmr)
+udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct udav_softc *sc = ifp->if_softc;
+	struct mii_data *mii = GET_MII(sc);
 
-	mtx_lock(&sc->sc_mtx);
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ifmr->ifm_active = sc->sc_media_active;
-		ifmr->ifm_status = sc->sc_media_status;
-	} else {
-		ifmr->ifm_active = IFM_ETHER | IFM_NONE;
-		ifmr->ifm_status = 0;
-	}
-
-	mtx_unlock(&sc->sc_mtx);
+	UDAV_LOCK(sc);
+	mii_pollstat(mii);
+	UDAV_UNLOCK(sc);
+	ifmr->ifm_active = mii->mii_media_active;
+	ifmr->ifm_status = mii->mii_media_status;
 }
 
 static void
-udav_cfg_tick(struct udav_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
+udav_tick(struct usb2_ether *ue)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	struct udav_softc *sc = ue->ue_sc;
 	struct mii_data *mii = GET_MII(sc);
 
-	if ((ifp == NULL) ||
-	    (mii == NULL)) {
-		/* not ready */
-		return;
-	}
+	UDAV_LOCK_ASSERT(sc, MA_OWNED);
+
 	mii_tick(mii);
-
-	mii_pollstat(mii);
-
-	if ((sc->sc_flags & UDAV_FLAG_WAIT_LINK) &&
-	    (mii->mii_media_status & IFM_ACTIVE) &&
-	    (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)) {
-		sc->sc_flags &= ~UDAV_FLAG_WAIT_LINK;
+	if ((sc->sc_flags & UDAV_FLAG_LINK) == 0
+	    && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->sc_flags |= UDAV_FLAG_LINK;
+		udav_start(ue);
 	}
-	sc->sc_media_active = mii->mii_media_active;
-	sc->sc_media_status = mii->mii_media_status;
-
-	/* start stopped transfers, if any */
-
-	udav_start_transfers(sc);
 }
 
 static int
-udav_cfg_miibus_readreg(device_t dev, int phy, int reg)
+udav_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct udav_softc *sc = device_get_softc(dev);
 	uint16_t data16;
 	uint8_t val[2];
-	uint8_t do_unlock;
+	int locked;
 
 	/* XXX: one PHY only for the internal PHY */
-	if (phy != 0) {
+	if (phy != 0)
 		return (0);
-	}
-	/* avoid recursive locking */
-	if (mtx_owned(&sc->sc_mtx)) {
-		do_unlock = 0;
-	} else {
-		mtx_lock(&sc->sc_mtx);
-		do_unlock = 1;
-	}
+
+	locked = mtx_owned(&sc->sc_mtx);
+	if (!locked)
+		UDAV_LOCK(sc);
 
 	/* select internal PHY and set PHY register address */
-	udav_cfg_csr_write1(sc, UDAV_EPAR,
+	udav_csr_write1(sc, UDAV_EPAR,
 	    UDAV_EPAR_PHY_ADR0 | (reg & UDAV_EPAR_EROA_MASK));
 
 	/* select PHY operation and start read command */
-	udav_cfg_csr_write1(sc, UDAV_EPCR, UDAV_EPCR_EPOS | UDAV_EPCR_ERPRR);
+	udav_csr_write1(sc, UDAV_EPCR, UDAV_EPCR_EPOS | UDAV_EPCR_ERPRR);
 
 	/* XXX: should we wait? */
 
 	/* end read command */
-	UDAV_CFG_CLRBIT(sc, UDAV_EPCR, UDAV_EPCR_ERPRR);
+	UDAV_CLRBIT(sc, UDAV_EPCR, UDAV_EPCR_ERPRR);
 
 	/* retrieve the result from data registers */
-	udav_cfg_csr_read(sc, UDAV_EPDRL, val, 2);
+	udav_csr_read(sc, UDAV_EPDRL, val, 2);
 
-	if (do_unlock) {
-		mtx_unlock(&sc->sc_mtx);
-	}
 	data16 = (val[0] | (val[1] << 8));
 
 	DPRINTFN(11, "phy=%d reg=0x%04x => 0x%04x\n",
 	    phy, reg, data16);
 
+	if (!locked)
+		UDAV_UNLOCK(sc);
 	return (data16);
 }
 
 static int
-udav_cfg_miibus_writereg(device_t dev, int phy, int reg, int data)
+udav_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct udav_softc *sc = device_get_softc(dev);
 	uint8_t val[2];
-	uint8_t do_unlock;
+	int locked;
 
 	/* XXX: one PHY only for the internal PHY */
-	if (phy != 0) {
+	if (phy != 0)
 		return (0);
-	}
-	/* avoid recursive locking */
-	if (mtx_owned(&sc->sc_mtx)) {
-		do_unlock = 0;
-	} else {
-		mtx_lock(&sc->sc_mtx);
-		do_unlock = 1;
-	}
+
+	locked = mtx_owned(&sc->sc_mtx);
+	if (!locked)
+		UDAV_LOCK(sc);
 
 	/* select internal PHY and set PHY register address */
-	udav_cfg_csr_write1(sc, UDAV_EPAR,
+	udav_csr_write1(sc, UDAV_EPAR,
 	    UDAV_EPAR_PHY_ADR0 | (reg & UDAV_EPAR_EROA_MASK));
 
 	/* put the value to the data registers */
 	val[0] = (data & 0xff);
 	val[1] = (data >> 8) & 0xff;
-	udav_cfg_csr_write(sc, UDAV_EPDRL, val, 2);
+	udav_csr_write(sc, UDAV_EPDRL, val, 2);
 
 	/* select PHY operation and start write command */
-	udav_cfg_csr_write1(sc, UDAV_EPCR, UDAV_EPCR_EPOS | UDAV_EPCR_ERPRW);
+	udav_csr_write1(sc, UDAV_EPCR, UDAV_EPCR_EPOS | UDAV_EPCR_ERPRW);
 
 	/* XXX: should we wait? */
 
 	/* end write command */
-	UDAV_CFG_CLRBIT(sc, UDAV_EPCR, UDAV_EPCR_ERPRW);
+	UDAV_CLRBIT(sc, UDAV_EPCR, UDAV_EPCR_ERPRW);
 
-	if (do_unlock) {
-		mtx_unlock(&sc->sc_mtx);
-	}
+	if (!locked)
+		UDAV_UNLOCK(sc);
 	return (0);
 }
 
 static void
-udav_cfg_miibus_statchg(device_t dev)
+udav_miibus_statchg(device_t dev)
 {
 	/* nothing to do */
 }
@@ -1308,13 +850,7 @@ udav_shutdown(device_t dev)
 {
 	struct udav_softc *sc = device_get_softc(dev);
 
-	mtx_lock(&sc->sc_mtx);
-
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, &udav_cfg_pre_stop,
-	    &udav_cfg_stop, 0, 0);
-
-	mtx_unlock(&sc->sc_mtx);
+	usb2_ether_ifshutdown(&sc->sc_ue);
 
 	return (0);
 }
