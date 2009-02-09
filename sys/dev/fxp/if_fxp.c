@@ -40,31 +40,27 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/mbuf.h>
-		/* #include <sys/mutex.h> */
 #include <sys/kernel.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#include <net/bpf.h>
-#include <sys/sockio.h>
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
-#include <net/ethernet.h>
-#include <net/if_arp.h>
-
-
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
 
 #ifdef FXP_IP_CSUM_WAR
 #include <netinet/in.h>
@@ -526,7 +522,7 @@ fxp_attach(device_t dev)
 	 * Systems based on the ICH2/ICH2-M chip from Intel, and possibly
 	 * some systems based a normal 82559 design, have a defect where
 	 * the chip can cause a PCI protocol violation if it receives
-	 * a CU_RESUME command when it is entering the IDLE state.  The 
+	 * a CU_RESUME command when it is entering the IDLE state.  The
 	 * workaround is to disable Dynamic Standby Mode, so the chip never
 	 * deasserts CLKRUN#, and always remains in an active state.
 	 *
@@ -805,7 +801,7 @@ fxp_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = FXP_NTXCB - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	/* 
+	/*
 	 * Hook our interrupt after all initialization is complete.
 	 */
 	error = bus_setup_intr(dev, sc->fxp_res[1], INTR_TYPE_NET | INTR_MPSAFE,
@@ -899,7 +895,7 @@ fxp_detach(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 
 #ifdef DEVICE_POLLING
-	if (sc->ifp->if_capenable & IFCAP_POLLING)   
+	if (sc->ifp->if_capenable & IFCAP_POLLING)
 		ether_poll_deregister(sc->ifp);
 #endif
 
@@ -964,7 +960,7 @@ fxp_suspend(device_t dev)
 	FXP_LOCK(sc);
 
 	fxp_stop(sc);
-	
+
 	sc->suspended = 1;
 
 	FXP_UNLOCK(sc);
@@ -996,7 +992,7 @@ fxp_resume(device_t dev)
 	return (0);
 }
 
-static void 
+static void
 fxp_eeprom_shiftin(struct fxp_softc *sc, int data, int length)
 {
 	uint16_t reg;
@@ -1185,7 +1181,7 @@ fxp_start(struct ifnet *ifp)
 }
 
 /*
- * Start packet transmission on the interface.  
+ * Start packet transmission on the interface.
  * This routine must be called with the softc lock held, and is an
  * internal entry point only.
  */
@@ -1319,8 +1315,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 			if (m_head->m_pkthdr.len < 38) {
 				struct ip *ip;
 				m_head->m_data += ETHER_HDR_LEN;
-				ip = mtod(mb_head, struct ip *);
-				ip->ip_sum = in_cksum(mb_head, ip->ip_hl << 2);
+				ip = mtod(m_head, struct ip *);
+				ip->ip_sum = in_cksum(m_head, ip->ip_hl << 2);
 				m_head->m_data -= ETHER_HDR_LEN;
 			} else {
 				txp->tx_cb->ipcb_ip_activation_high =
@@ -1511,10 +1507,10 @@ fxp_intr(void *xsc)
 	while ((statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
 		/*
 		 * It should not be possible to have all bits set; the
-		 * FXP_SCB_INTR_SWI bit always returns 0 on a read.  If 
+		 * FXP_SCB_INTR_SWI bit always returns 0 on a read.  If
 		 * all bits are set, this may indicate that the card has
 		 * been physically ejected, so ignore it.
-		 */  
+		 */
 		if (statack == 0xff) {
 			FXP_UNLOCK(sc);
 			return;
@@ -1770,7 +1766,7 @@ fxp_tick(void *xsc)
 	 * with external storage to be released in a timely manner rather
 	 * than being defered for a potentially long time. This limits
 	 * the delay to a maximum of one second.
-	 */ 
+	 */
 	fxp_txeof(sc);
 
 	/*
@@ -2203,11 +2199,11 @@ fxp_ifmedia_upd(struct ifnet *ifp)
 
 	mii = device_get_softc(sc->miibus);
 	FXP_LOCK(sc);
-	if (mii->mii_instance) {                                                
-		struct mii_softc	*miisc;                                 
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)                   
-			mii_phy_reset(miisc);                                   
-	}                                      
+	if (mii->mii_instance) {
+		struct mii_softc	*miisc;
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+			mii_phy_reset(miisc);
+	}
 	mii_mediachg(mii);
 	FXP_UNLOCK(sc);
 	return (0);
@@ -2260,7 +2256,7 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp, struct mbuf *oldm)
 		m = oldm;
 		m->m_data = m->m_ext.ext_buf;
 		/*
-		 * return error so the receive loop will 
+		 * return error so the receive loop will
 		 * not pass the packet to upper layer
 		 */
 		reused_mbuf = EAGAIN;
@@ -2688,7 +2684,7 @@ fxp_load_ucode(struct fxp_softc *sc)
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_POSTWRITE);
 	device_printf(sc->dev,
 	    "Microcode loaded, int_delay: %d usec  bundle_max: %d\n",
-	    sc->tunable_int_delay, 
+	    sc->tunable_int_delay,
 	    uc->bundle_max_offset == 0 ? 0 : sc->tunable_bundle_max);
 	sc->flags |= FXP_FLAG_UCODE;
 }
@@ -2710,7 +2706,7 @@ sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high)
 
 /*
  * Interrupt delay is expressed in microseconds, a multiplier is used
- * to convert this to the appropriate clock ticks before using. 
+ * to convert this to the appropriate clock ticks before using.
  */
 static int
 sysctl_hw_fxp_int_delay(SYSCTL_HANDLER_ARGS)
