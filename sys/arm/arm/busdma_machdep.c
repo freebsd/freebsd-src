@@ -112,6 +112,7 @@ struct bounce_zone {
 	int		active_bpages;
 	int		total_bounced;
 	int		total_deferred;
+	int		map_count;
 	bus_size_t	alignment;
 	bus_size_t	boundary;
 	bus_addr_t	lowaddr;
@@ -523,7 +524,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 */
 		maxpages = MAX_BPAGES;
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
-		 || (dmat->map_count > 0 && bz->total_bpages < maxpages)) {
+		 || (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 			int pages;
 
 			pages = MAX(atop(dmat->maxsize), 1);
@@ -539,6 +540,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 				error = 0;
 			}
 		}
+		bz->map_count++;
 	}
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, error);
@@ -560,6 +562,8 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 		    __func__, dmat, EBUSY);
 		return (EBUSY);
 	}
+	if (dmat->bounce_zone)
+		dmat->bounce_zone->map_count--;
         dmat->map_count--;
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
         return (0);
@@ -1277,6 +1281,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	bz->lowaddr = dmat->lowaddr;
 	bz->alignment = dmat->alignment;
 	bz->boundary = dmat->boundary;
+	bz->map_count = 0;
 	snprintf(bz->zoneid, 8, "zone%d", busdma_zonecount);
 	busdma_zonecount++;
 	snprintf(bz->lowaddrid, 18, "%#jx", (uintmax_t)bz->lowaddr);
