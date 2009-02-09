@@ -212,7 +212,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	vm_prot_t prot;
 	int is_first_object_locked, result;
-	boolean_t growstack, wired;
+	boolean_t are_queues_locked, growstack, wired;
 	int map_generation;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ];
@@ -480,7 +480,7 @@ readrest:
 				else
 					firstpindex = fs.first_pindex - 2 * VM_FAULT_READ;
 
-				vm_page_lock_queues();
+				are_queues_locked = FALSE;
 				/*
 				 * note: partially valid pages cannot be 
 				 * included in the lookahead - NFS piecemeal
@@ -495,8 +495,13 @@ readrest:
 					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
 						break;
 					if (mt->busy ||
-					    (mt->oflags & VPO_BUSY) ||
-						mt->hold_count ||
+					    (mt->oflags & VPO_BUSY))
+						continue;
+					if (!are_queues_locked) {
+						are_queues_locked = TRUE;
+						vm_page_lock_queues();
+					}
+					if (mt->hold_count ||
 						mt->wire_count) 
 						continue;
 					pmap_remove_all(mt);
@@ -506,7 +511,8 @@ readrest:
 						vm_page_cache(mt);
 					}
 				}
-				vm_page_unlock_queues();
+				if (are_queues_locked)
+					vm_page_unlock_queues();
 				ahead += behind;
 				behind = 0;
 			}
