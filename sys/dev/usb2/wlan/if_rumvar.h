@@ -100,14 +100,14 @@ struct rum_softc {
 	struct usb2_process		sc_tq;
 
 	const struct ieee80211_rate_table *sc_rates;
-	struct usb2_xfer		*sc_xfer[RUM_N_TRANSFER];
 
 	uint8_t				rf_rev;
 	uint8_t				rffreq;
 
+	struct usb2_xfer		*sc_xfer[RUM_N_TRANSFER];
+
 	enum ieee80211_state		sc_state;
 	int				sc_arg;
-	struct rum_task			sc_synctask[2];
 	struct rum_task			sc_task[2];
 	struct rum_task			sc_promisctask[2];
 	struct rum_task			sc_scantask[2];
@@ -116,7 +116,7 @@ struct rum_softc {
 #define RUM_SCAN_END	1
 #define RUM_SET_CHANNEL	2
 
-	struct rum_tx_data		tx_data[RUM_TX_LIST_COUNT];
+	struct rum_tx_data		*tx_data;
 	rum_txdhead			tx_q;
 	rum_txdhead			tx_free;
 	int				tx_nfree;
@@ -124,10 +124,12 @@ struct rum_softc {
 
 	struct mtx			sc_mtx;
 
+	int				sc_flags;
+#define	RUM_FLAG_DETACH			0x0001
+
 	uint32_t			sta[6];
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[44];
-	uint8_t				sc_bssid[6];
 
 	struct {
 		uint8_t	val;

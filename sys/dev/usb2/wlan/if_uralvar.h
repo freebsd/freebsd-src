@@ -114,12 +114,11 @@ struct ural_softc {
 	enum ieee80211_state		sc_state;
 	int				sc_arg;
 	int                             sc_scan_action; /* should be an enum */
-	struct ural_task		sc_synctask[2];
 	struct ural_task		sc_task[2];
 	struct ural_task		sc_promisctask[2];
 	struct ural_task		sc_scantask[2];
 
-	struct ural_tx_data		tx_data[RAL_TX_LIST_COUNT];
+	struct ural_tx_data		*tx_data;
 	ural_txdhead			tx_q;
 	ural_txdhead			tx_free;
 	int				tx_nfree;
@@ -127,10 +126,12 @@ struct ural_softc {
 
 	struct mtx			sc_mtx;
 
+	int				sc_flags;
+#define	URAL_FLAG_DETACH		0x0001
+
 	uint16_t			sta[11];
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[14];
-	uint8_t				sc_bssid[6];
 
 	struct {
 		uint8_t			val;

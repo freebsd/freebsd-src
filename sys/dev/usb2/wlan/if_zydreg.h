@@ -1127,7 +1127,7 @@ struct zyd_notif_retry {
 	uint16_t		count;
 } __packed;
 
-#define ZYD_CONFIG_INDEX	0
+#define ZYD_CONFIG_NO		1
 #define ZYD_IFACE_INDEX		0
 
 #define ZYD_INTR_TIMEOUT	1000
@@ -1270,12 +1270,13 @@ struct zyd_softc {
 	enum ieee80211_state	sc_state;
 	int			sc_arg;
 	int			sc_flags;
-#define	ZYD_FLAG_FWLOADED		(1 << 0)
-#define	ZYD_FLAG_INITONCE		(1 << 1)
-#define	ZYD_FLAG_INITDONE		(1 << 2)
+#define ZYD_FLAG_FWLOADED		(1 << 0)
+#define ZYD_FLAG_DETACHING		(1 << 1)
+#define ZYD_FLAG_INITONCE		(1 << 2)
+#define	ZYD_FLAG_INITDONE		(1 << 3)
 	int			sc_if_flags;
+	uint32_t		sc_debug;
 
-	struct zyd_task		sc_synctask[2];
 	struct zyd_task		sc_mcasttask[2];
 	struct zyd_task		sc_scantask[2];
 	int			sc_scan_action;
@@ -1316,7 +1317,7 @@ struct zyd_softc {
 
 	struct mtx		sc_mtx;
 	struct cv		sc_intr_cv;
-	struct zyd_tx_data	tx_data[ZYD_TX_LIST_CNT];
+	struct zyd_tx_data	*tx_data;
 	zyd_txdhead		tx_q;
 	zyd_txdhead		tx_free;
 	int			tx_nfree;
