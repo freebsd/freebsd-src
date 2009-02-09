@@ -288,10 +288,7 @@ ufm_get_stat(struct ufm_softc *sc, void *addr)
 	 * Note, there's a 240ms settle time before the status
 	 * will be valid, so sleep that amount.
 	 */
-
-	mtx_lock(&sc->sc_mtx);
-	usb2_pause_mtx(&sc->sc_mtx, USB_MS_HZ / 4);
-	mtx_unlock(&sc->sc_mtx);
+	usb2_pause_mtx(NULL, hz / 4);
 
 	if (ufm_do_req(sc, UFM_CMD0,
 	    0x00, 0x24, &ret)) {
