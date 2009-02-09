@@ -62,8 +62,7 @@ __FBSDID("$FreeBSD$");
 enum {
 	UCYCOM_CTRL_RD,
 	UCYCOM_INTR_RD,
-	UCYCOM_INTR_CS,
-	UCYCOM_N_TRANSFER = 3,
+	UCYCOM_N_TRANSFER,
 };
 
 struct ucycom_softc {
@@ -91,8 +90,6 @@ struct ucycom_softc {
 #define	UCYCOM_CFG_STOPB	0x08
 #define	UCYCOM_CFG_DATAB	0x03
 	uint8_t	sc_ist;			/* status flags from last input */
-	uint8_t	sc_flags;
-#define	UCYCOM_FLAG_INTR_STALL     0x01
 	uint8_t	sc_name[16];
 	uint8_t	sc_iface_no;
 	uint8_t	sc_temp_cfg[32];
@@ -105,7 +102,6 @@ static device_attach_t ucycom_attach;
 static device_detach_t ucycom_detach;
 
 static usb2_callback_t ucycom_ctrl_write_callback;
-static usb2_callback_t ucycom_intr_read_clear_stall_callback;
 static usb2_callback_t ucycom_intr_read_callback;
 
 static void	ucycom_cfg_open(struct usb2_com_softc *);
@@ -136,17 +132,6 @@ static const struct usb2_config ucycom_config[UCYCOM_N_TRANSFER] = {
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.bufsize = UCYCOM_MAX_IOLEN,
 		.mh.callback = &ucycom_intr_read_callback,
-	},
-
-	[UCYCOM_INTR_CS] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &ucycom_intr_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 };
 
@@ -324,7 +309,6 @@ ucycom_stop_read(struct usb2_com_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UCYCOM_INTR_CS]);
 	usb2_transfer_stop(sc->sc_xfer[UCYCOM_INTR_RD]);
 }
 
@@ -438,12 +422,8 @@ ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 	sc->sc_temp_cfg[3] = (baud >> 24) & 0xff;
 	sc->sc_temp_cfg[4] = cfg;
 
-	if (usb2_com_cfg_is_gone(&sc->sc_ucom)) {
-		return;
-	}
-	err = usb2_do_request_flags
-	    (sc->sc_udev, &Giant, &req, sc->sc_temp_cfg, 0, NULL, 1000);
-
+	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
+	    &req, sc->sc_temp_cfg, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
 		    "(ignored)\n", usb2_errstr(err));
@@ -514,19 +494,6 @@ ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-ucycom_intr_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ucycom_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UCYCOM_INTR_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UCYCOM_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-}
-
-static void
 ucycom_intr_read_callback(struct usb2_xfer *xfer)
 {
 	struct ucycom_softc *sc = xfer->priv_sc;
@@ -581,18 +548,15 @@ ucycom_intr_read_callback(struct usb2_xfer *xfer)
 		}
 	case USB_ST_SETUP:
 tr_setup:
-		if (sc->sc_flags & UCYCOM_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UCYCOM_INTR_CS]);
-		} else {
-			xfer->frlengths[0] = sc->sc_ilen;
-			usb2_start_hardware(xfer);
-		}
+		xfer->frlengths[0] = sc->sc_ilen;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flags |= UCYCOM_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[UCYCOM_INTR_CS]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
 
