@@ -168,7 +168,7 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("SMM active, request owner change\n");
 		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_OCR);
 		for (i = 0; (i < 100) && (ctl & OHCI_IR); i++) {
-			usb2_pause_mtx(NULL, 1);
+			usb2_pause_mtx(NULL, hz / 1000);
 			ctl = OREAD4(sc, OHCI_CONTROL);
 		}
 		if (ctl & OHCI_IR) {
@@ -181,7 +181,8 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("cold started\n");
 reset:
 		/* controller was cold started */
-		usb2_pause_mtx(NULL, USB_BUS_RESET_DELAY);
+		usb2_pause_mtx(NULL,
+		    USB_MS_TO_TICKS(USB_BUS_RESET_DELAY));
 	}
 
 	/*
@@ -191,7 +192,8 @@ reset:
 	DPRINTF("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev));
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 
-	usb2_pause_mtx(NULL, USB_BUS_RESET_DELAY);
+	usb2_pause_mtx(NULL,
+	    USB_MS_TO_TICKS(USB_BUS_RESET_DELAY));
 
 	/* we now own the host controller and the bus has been reset */
 	ival = OHCI_GET_IVAL(OREAD4(sc, OHCI_FM_INTERVAL));
@@ -253,7 +255,8 @@ reset:
 	desca = OREAD4(sc, OHCI_RH_DESCRIPTOR_A);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca | OHCI_NOCP);
 	OWRITE4(sc, OHCI_RH_STATUS, OHCI_LPSC);	/* Enable port power */
-	usb2_pause_mtx(NULL, OHCI_ENABLE_POWER_DELAY);
+	usb2_pause_mtx(NULL,
+	    USB_MS_TO_TICKS(OHCI_ENABLE_POWER_DELAY));
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca);
 
 	/*
@@ -262,7 +265,8 @@ reset:
 	 */
 	sc->sc_noport = 0;
 	for (i = 0; (i < 10) && (sc->sc_noport == 0); i++) {
-		usb2_pause_mtx(NULL, OHCI_READ_DESC_DELAY);
+		usb2_pause_mtx(NULL,
+		    USB_MS_TO_TICKS(OHCI_READ_DESC_DELAY));
 		sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 	}
 
@@ -417,10 +421,10 @@ ohci_detach(struct ohci_softc *sc)
 	OWRITE4(sc, OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 
-	/* XXX let stray task complete */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 50);
-
 	USB_BUS_UNLOCK(&sc->sc_bus);
+
+	/* XXX let stray task complete */
+	usb2_pause_mtx(NULL, hz / 20);
 
 	usb2_callout_drain(&sc->sc_tmo_rhsc);
 }
@@ -455,7 +459,7 @@ ohci_suspend(ohci_softc_t *sc)
 	OWRITE4(sc, OHCI_CONTROL, ctl);
 
 	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_RESUME_WAIT);
+	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
@@ -485,10 +489,12 @@ ohci_resume(ohci_softc_t *sc)
 		ctl = OREAD4(sc, OHCI_CONTROL);
 	ctl |= OHCI_HCFS_RESUME;
 	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_DELAY);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
+	    USB_MS_TO_TICKS(USB_RESUME_DELAY));
 	ctl = (ctl & ~OHCI_HCFS_MASK) | OHCI_HCFS_OPERATIONAL;
 	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_RECOVERY);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 
+	    USB_MS_TO_TICKS(USB_RESUME_RECOVERY));
 	sc->sc_control = sc->sc_intre = 0;
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
@@ -827,6 +833,9 @@ ohci_non_isoc_done_sub(struct usb2_xfer *xfer)
 	td_alt_next = td->alt_next;
 	td_flags = 0;
 
+	if (xfer->aframes != xfer->nframes) {
+		xfer->frlengths[xfer->aframes] = 0;
+	}
 	while (1) {
 
 		usb2_pc_cpu_invalidate(td->page_cache);
@@ -850,10 +859,15 @@ ohci_non_isoc_done_sub(struct usb2_xfer *xfer)
 				cc = OHCI_CC_STALL;
 			} else if (xfer->aframes != xfer->nframes) {
 				/*
-				 * subtract remaining length from
-				 * "frlengths[]"
+				 * Sum up total transfer length
+				 * in "frlengths[]":
 				 */
-				xfer->frlengths[xfer->aframes] -= temp;
+				xfer->frlengths[xfer->aframes] += td->len - temp;
+			}
+		} else {
+			if (xfer->aframes != xfer->nframes) {
+				/* transfer was complete */
+				xfer->frlengths[xfer->aframes] += td->len;
 			}
 		}
 		/* Check for last transfer */
@@ -2401,7 +2415,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 						DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
 					} else {
 						usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-						    USB_PORT_ROOT_RESET_DELAY);
+						    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
 					}
 
 					if ((OREAD4(sc, port) & UPS_RESET) == 0) {
