@@ -35,7 +35,6 @@ SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h opt_usb.h opt_bus.h
 SRCS+= usb2_if.c
 SRCS+= usb2_busdma.c
 SRCS+= usb2_compat_linux.c
-SRCS+= usb2_config_td.c
 SRCS+= usb2_core.c
 SRCS+= usb2_debug.c
 SRCS+= usb2_dev.c
