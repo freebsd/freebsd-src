@@ -144,8 +144,7 @@
 #define	RUE_RXSTAT_PMATCH	(0x04 << 12)
 #define	RUE_RXSTAT_MCAST	(0x08 << 12)
 
-#define	GET_MII(sc)	((sc)->sc_miibus ?				\
-			    device_get_softc((sc)->sc_miibus) : NULL)
+#define	GET_MII(sc)		usb2_ether_getmii(&(sc)->sc_ue)
 
 struct rue_intrpkt {
 	uint8_t	rue_tsr;
@@ -166,36 +165,19 @@ struct rue_type {
 enum {
 	RUE_BULK_DT_WR,
 	RUE_BULK_DT_RD,
-	RUE_BULK_CS_WR,
-	RUE_BULK_CS_RD,
 	RUE_INTR_DT_RD,
-	RUE_INTR_CS_RD,
-	RUE_N_TRANSFER = 6,
+	RUE_N_TRANSFER,
 };
 
 struct rue_softc {
-	struct ifnet *sc_ifp;
+	struct usb2_ether	sc_ue;
+	struct mtx		sc_mtx;
+	struct usb2_xfer	*sc_xfer[RUE_N_TRANSFER];
 
-	struct usb2_config_td sc_config_td;
-	struct usb2_callout sc_watchdog;
-	struct mtx sc_mtx;
-
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[RUE_N_TRANSFER];
-	device_t sc_miibus;
-	device_t sc_dev;
-
-	uint32_t sc_unit;
-	uint32_t sc_media_active;
-	uint32_t sc_media_status;
-
-	uint16_t sc_flags;
-#define	RUE_FLAG_WAIT_LINK	0x0001
-#define	RUE_FLAG_INTR_STALL	0x0002
-#define	RUE_FLAG_READ_STALL	0x0004
-#define	RUE_FLAG_WRITE_STALL	0x0008
-#define	RUE_FLAG_LL_READY	0x0010
-#define	RUE_FLAG_HL_READY	0x0020
-
-	uint8_t	sc_name[16];
+	int			sc_flags;
+#define	RUE_FLAG_LINK		0x0001
 };
+
+#define	RUE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	RUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	RUE_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)
