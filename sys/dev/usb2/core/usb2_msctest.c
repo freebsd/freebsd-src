@@ -562,7 +562,7 @@ repeat_inquiry:
 			goto done;
 		}
 	} else if ((err != 2) && --timeout) {
-		usb2_pause_mtx(&sc->mtx, USB_MS_HZ);
+		usb2_pause_mtx(&sc->mtx, hz);
 		goto repeat_inquiry;
 	}
 	err = USB_ERR_INVAL;
