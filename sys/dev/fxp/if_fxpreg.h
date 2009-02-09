@@ -46,6 +46,7 @@
 #define	FXP_CSR_EEPROMCONTROL	14	/* eeprom control (2 bytes) */
 #define	FXP_CSR_MDICONTROL	16	/* mdi control (4 bytes) */
 #define	FXP_CSR_FLOWCONTROL	0x19	/* flow control (2 bytes) */
+#define	FXP_CSR_PMDR		0x1B	/* power management driver (1 byte) */
 #define	FXP_CSR_GENCONTROL	0x1C	/* general control (1 byte) */
 
 /*
