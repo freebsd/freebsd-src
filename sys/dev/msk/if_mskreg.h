@@ -2164,7 +2164,6 @@ struct msk_stat_desc {
 #define MSK_MAXTXSEGS		32
 #define	MSK_TSO_MAXSGSIZE	4096
 #define	MSK_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	MSK_MAXRXSEGS		32
 
 /*
  * It seems that the hardware requires extra decriptors(LEs) to offload
@@ -2191,20 +2190,6 @@ struct msk_stat_desc {
 #define MSK_MAX_FRAMELEN		\
 	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_CRC_LEN)
 #define MSK_MIN_FRAMELEN	(ETHER_MIN_LEN - ETHER_CRC_LEN)
-#define MSK_JSLOTS		((MSK_RX_RING_CNT * 3) / 2)
-
-#define MSK_JRAWLEN		(MSK_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define MSK_JLEN		(MSK_JRAWLEN + (sizeof(uint64_t) - \
-	(MSK_JRAWLEN % sizeof(uint64_t))))
-#define MSK_JPAGESZ PAGE_SIZE
-#define MSK_RESID		\
-	(MSK_JPAGESZ - (MSK_JLEN * MSK_JSLOTS) % MSK_JPAGESZ)
-#define MSK_JMEM		((MSK_JLEN * MSK_JSLOTS) + MSK_RESID)
-
-struct msk_jpool_entry {
-	int                             slot;
-	SLIST_ENTRY(msk_jpool_entry)	jpool_entries;
-};
 
 struct msk_txdesc {
 	struct mbuf		*tx_m;
@@ -2230,10 +2215,6 @@ struct msk_chain_data {
 	bus_dmamap_t		msk_rx_ring_map;
 	bus_dmamap_t		msk_rx_sparemap;
 	bus_dma_tag_t		msk_jumbo_rx_tag;
-	bus_dma_tag_t		msk_jumbo_tag;
-	bus_dmamap_t		msk_jumbo_map;
-	bus_dma_tag_t		msk_jumbo_mtag;
-	caddr_t			msk_jslots[MSK_JSLOTS];
 	struct msk_rxdesc	msk_jumbo_rxdesc[MSK_JUMBO_RX_RING_CNT];
 	bus_dma_tag_t		msk_jumbo_rx_ring_tag;
 	bus_dmamap_t		msk_jumbo_rx_ring_map;
@@ -2255,8 +2236,6 @@ struct msk_ring_data {
 	bus_addr_t		msk_rx_ring_paddr;
 	struct msk_rx_desc	*msk_jumbo_rx_ring;
 	bus_addr_t		msk_jumbo_rx_ring_paddr;
-	void			*msk_jumbo_buf;
-	bus_addr_t		msk_jumbo_buf_paddr;
 };
 
 #define MSK_TX_RING_ADDR(sc, i)	\
@@ -2352,6 +2331,7 @@ struct msk_if_softc {
 	int			msk_link;
 	uint32_t		msk_flags;
 #define	MSK_FLAG_RAMBUF		0x0010
+#define	MSK_FLAG_NOJUMBO	0x0020
 	struct callout		msk_tick_ch;
 	int			msk_watchdog_timer;
 	uint32_t		msk_txq;	/* Tx. Async Queue offset */
@@ -2365,13 +2345,7 @@ struct msk_if_softc {
 	int			msk_if_flags;
 	int			msk_detach;
 	uint16_t		msk_vtag;	/* VLAN tag id. */
-	SLIST_HEAD(__msk_jfreehead, msk_jpool_entry)	msk_jfree_listhead;
-	SLIST_HEAD(__msk_jinusehead, msk_jpool_entry)	msk_jinuse_listhead;
-	struct mtx		msk_jlist_mtx;
 };
-
-#define	MSK_JLIST_LOCK(_sc)	mtx_lock(&(_sc)->msk_jlist_mtx)
-#define	MSK_JLIST_UNLOCK(_sc)	mtx_unlock(&(_sc)->msk_jlist_mtx)
 
 #define MSK_TIMEOUT	1000
 #define	MSK_PHY_POWERUP		1
