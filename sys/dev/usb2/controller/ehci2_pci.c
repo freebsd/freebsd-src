@@ -237,7 +237,6 @@ ehci_pci_attach(device_t self)
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
-	sc->sc_dev = self;
 
 	pci_enable_busmaster(self);
 
@@ -456,7 +455,7 @@ ehci_pci_takecontroller(device_t self)
 				    "timed out waiting for BIOS\n");
 				break;
 			}
-			usb2_pause_mtx(NULL, 10);	/* wait 10ms */
+			usb2_pause_mtx(NULL, hz / 100);	/* wait 10ms */
 		}
 	}
 }

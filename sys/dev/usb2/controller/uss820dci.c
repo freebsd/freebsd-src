@@ -1335,7 +1335,7 @@ uss820dci_init(struct uss820dci_softc *sc)
 	uss820dci_pull_down(sc);
 
 	/* wait 10ms for pulldown to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 10);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 
 	/* check hardware revision */
 	temp = USS820_READ_1(sc, USS820_REV);
