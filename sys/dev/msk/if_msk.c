@@ -244,6 +244,9 @@ static __inline void msk_rxput(struct msk_if_softc *);
 static int msk_handle_events(struct msk_softc *);
 static void msk_handle_hwerr(struct msk_if_softc *, uint32_t);
 static void msk_intr_hwerr(struct msk_softc *);
+#ifndef __NO_STRICT_ALIGNMENT
+static __inline void msk_fixup_rx(struct mbuf *);
+#endif
 static void msk_rxeof(struct msk_if_softc *, uint32_t, int);
 static void msk_jumbo_rxeof(struct msk_if_softc *, uint32_t, int);
 static void msk_txeof(struct msk_if_softc *, int);
@@ -783,7 +786,12 @@ msk_newbuf(struct msk_if_softc *sc_if, int idx)
 		return (ENOBUFS);
 
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
-	m_adj(m, ETHER_ALIGN);
+	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0)
+		m_adj(m, ETHER_ALIGN);
+#ifndef __NO_STRICT_ALIGNMENT
+	else
+		m_adj(m, MSK_RX_BUF_ALIGN);
+#endif
 
 	if (bus_dmamap_load_mbuf_sg(sc_if->msk_cdata.msk_rx_tag,
 	    sc_if->msk_cdata.msk_rx_sparemap, m, segs, &nsegs,
@@ -840,7 +848,12 @@ msk_jumbo_newbuf(struct msk_if_softc *sc_if, int idx)
 		return (ENOBUFS);
 	}
 	m->m_pkthdr.len = m->m_len = MSK_JLEN;
-	m_adj(m, ETHER_ALIGN);
+	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0)
+		m_adj(m, ETHER_ALIGN);
+#ifndef __NO_STRICT_ALIGNMENT
+	else
+		m_adj(m, MSK_RX_BUF_ALIGN);
+#endif
 
 	if (bus_dmamap_load_mbuf_sg(sc_if->msk_cdata.msk_jumbo_rx_tag,
 	    sc_if->msk_cdata.msk_jumbo_rx_sparemap, m, segs, &nsegs,
@@ -1041,14 +1054,16 @@ mskc_setup_rambuffer(struct msk_softc *sc)
 {
 	int next;
 	int i;
-	uint8_t val;
 
 	/* Get adapter SRAM size. */
-	val = CSR_READ_1(sc, B2_E_0);
-	sc->msk_ramsize = (val == 0) ? 128 : val * 4;
+	sc->msk_ramsize = CSR_READ_1(sc, B2_E_0) * 4;
 	if (bootverbose)
 		device_printf(sc->msk_dev,
 		    "RAM buffer size : %dKB\n", sc->msk_ramsize);
+	if (sc->msk_ramsize == 0)
+		return (0);
+
+	sc->msk_pflags |= MSK_FLAG_RAMBUF;
 	/*
 	 * Give receiver 2/3 of memory and round down to the multiple
 	 * of 1024. Tx/Rx RAM buffer size of Yukon II shoud be multiple
@@ -1412,6 +1427,7 @@ msk_attach(device_t dev)
 	sc_if->msk_if_dev = dev;
 	sc_if->msk_port = port;
 	sc_if->msk_softc = sc;
+	sc_if->msk_flags = sc->msk_pflags;
 	sc->msk_if[port] = sc_if;
 	/* Setup Tx/Rx queue register offsets. */
 	if (port == MSK_PORT_A) {
@@ -1976,6 +1992,7 @@ msk_txrx_dma_alloc(struct msk_if_softc *sc_if)
 	struct msk_rxdesc *jrxd;
 	struct msk_jpool_entry *entry;
 	uint8_t *ptr;
+	bus_size_t rxalign;
 	int error, i;
 
 	mtx_init(&sc_if->msk_jlist_mtx, "msk_jlist_mtx", NULL, MTX_DEF);
@@ -2107,9 +2124,16 @@ msk_txrx_dma_alloc(struct msk_if_softc *sc_if)
 		goto fail;
 	}
 
+	rxalign = 1;
+	/*
+	 * Workaround hardware hang which seems to happen when Rx buffer
+	 * is not aligned on multiple of FIFO word(8 bytes).
+	 */
+	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) != 0)
+		rxalign = MSK_RX_BUF_ALIGN;
 	/* Create tag for Rx buffers. */
 	error = bus_dma_tag_create(sc_if->msk_cdata.msk_parent_tag,/* parent */
-		    1, 0,			/* alignment, boundary */
+		    rxalign, 0,			/* alignment, boundary */
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
@@ -2918,6 +2942,23 @@ mskc_resume(device_t dev)
 	return (0);
 }
 
+#ifndef __NO_STRICT_ALIGNMENT
+static __inline void
+msk_fixup_rx(struct mbuf *m)
+{
+        int i;
+        uint16_t *src, *dst;
+
+	src = mtod(m, uint16_t *);
+	dst = src - 3;
+
+	for (i = 0; i < (m->m_len / sizeof(uint16_t) + 1); i++)
+		*dst++ = *src++;
+
+	m->m_data -= (MSK_RX_BUF_ALIGN - ETHER_ALIGN);
+}
+#endif
+
 static void
 msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 {
@@ -2955,6 +2996,10 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 		}
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len;
+#ifndef __NO_STRICT_ALIGNMENT
+		if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) != 0)
+			msk_fixup_rx(m);
+#endif
 		ifp->if_ipackets++;
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
@@ -3008,6 +3053,10 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 		}
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len;
+#ifndef __NO_STRICT_ALIGNMENT
+		if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) != 0)
+			msk_fixup_rx(m);
+#endif
 		ifp->if_ipackets++;
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
@@ -3677,7 +3726,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Configure hardware VLAN tag insertion/stripping. */
 	msk_setvlan(sc_if, ifp);
 
-	if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
+	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0) {
 		/* Set Rx Pause threshould. */
 		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
 		    MSK_ECU_LLPP);
@@ -3790,6 +3839,8 @@ msk_set_rambuffer(struct msk_if_softc *sc_if)
 	int ltpp, utpp;
 
 	sc = sc_if->msk_softc;
+	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0)
+		return;
 
 	/* Setup Rx Queue. */
 	CSR_WRITE_1(sc, RB_ADDR(sc_if->msk_rxq, RB_CTRL), RB_RST_CLR);
