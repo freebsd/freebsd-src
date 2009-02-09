@@ -85,10 +85,6 @@ cblock_alloc_cblocks(int number)
 
 	for (i = 0; i < number; ++i) {
 		cbp = malloc(sizeof *cbp, M_CLIST, M_WAITOK);
-		/*
-		 * Freed cblocks have zero quotes and garbage elsewhere.
-		 * Set the may-have-quote bit to force zeroing the quotes.
-		 */
 		cblock_free(cbp);
 	}
 }
