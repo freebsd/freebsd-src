@@ -148,11 +148,8 @@ SYSCTL_INT(_hw_usb2_uchcom, OID_AUTO, debug, CTLFLAG_RW,
 enum {
 	UCHCOM_BULK_DT_WR,
 	UCHCOM_BULK_DT_RD,
-	UCHCOM_BULK_CS_WR,
-	UCHCOM_BULK_CS_RD,
 	UCHCOM_INTR_DT_RD,
-	UCHCOM_INTR_CS_RD,
-	UCHCOM_N_TRANSFER = 6,
+	UCHCOM_N_TRANSFER,
 };
 
 struct uchcom_softc {
@@ -167,10 +164,6 @@ struct uchcom_softc {
 	uint8_t	sc_version;
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;			/* local status register */
-	uint8_t	sc_flag;
-#define	UCHCOM_FLAG_INTR_STALL  0x01
-#define	UCHCOM_FLAG_READ_STALL  0x02
-#define	UCHCOM_FLAG_WRITE_STALL 0x04
 };
 
 struct uchcom_divider {
@@ -230,11 +223,8 @@ static device_attach_t uchcom_attach;
 static device_detach_t uchcom_detach;
 
 static usb2_callback_t uchcom_intr_callback;
-static usb2_callback_t uchcom_intr_clear_stall_callback;
 static usb2_callback_t uchcom_write_callback;
-static usb2_callback_t uchcom_write_clear_stall_callback;
 static usb2_callback_t uchcom_read_callback;
-static usb2_callback_t uchcom_read_clear_stall_callback;
 
 static const struct usb2_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 
@@ -256,26 +246,6 @@ static const struct usb2_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 		.mh.callback = &uchcom_read_callback,
 	},
 
-	[UCHCOM_BULK_CS_WR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &uchcom_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[UCHCOM_BULK_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &uchcom_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
 	[UCHCOM_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -283,16 +253,6 @@ static const struct usb2_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.bufsize = 0,	/* use wMaxPacketSize */
 		.mh.callback = &uchcom_intr_callback,
-	},
-
-	[UCHCOM_INTR_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &uchcom_intr_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 };
 
@@ -378,8 +338,8 @@ uchcom_attach(device_t dev)
 	sc->sc_rts = 1;
 
 	/* clear stall at first run */
-	sc->sc_flag |= (UCHCOM_FLAG_READ_STALL |
-	    UCHCOM_FLAG_WRITE_STALL);
+	usb2_transfer_set_stall(sc->sc_xfer[UCHCOM_BULK_DT_WR]);
+	usb2_transfer_set_stall(sc->sc_xfer[UCHCOM_BULK_DT_RD]);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uchcom_callback, &Giant);
@@ -412,35 +372,6 @@ uchcom_detach(device_t dev)
  */
 
 static void
-uchcom_do_request(struct uchcom_softc *sc,
-    struct usb2_device_request *req, void *data)
-{
-	uint16_t length;
-	uint16_t actlen;
-	usb2_error_t err;
-
-	length = UGETW(req->wLength);
-	actlen = 0;
-
-	if (usb2_com_cfg_is_gone(&sc->sc_ucom)) {
-		goto done;
-	}
-	err = usb2_do_request_flags(sc->sc_udev, &Giant, req,
-	    data, USB_SHORT_XFER_OK, &actlen, 1000);
-
-	if (err) {
-		DPRINTFN(0, "device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
-	}
-done:
-	if (length != actlen) {
-		if (req->bmRequestType & UT_READ) {
-			bzero(USB_ADD_BYTES(data, actlen), length - actlen);
-		}
-	}
-}
-
-static void
 uchcom_ctrl_write(struct uchcom_softc *sc, uint8_t reqno,
     uint16_t value, uint16_t index)
 {
@@ -452,7 +383,8 @@ uchcom_ctrl_write(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, 0);
 
-	uchcom_do_request(sc, &req, NULL);
+	usb2_com_cfg_do_request(sc->sc_udev,
+	    &sc->sc_ucom, &req, NULL, 0, 1000);
 }
 
 static void
@@ -467,7 +399,8 @@ uchcom_ctrl_read(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, buflen);
 
-	uchcom_do_request(sc, &req, buf);
+	usb2_com_cfg_do_request(sc->sc_udev,
+	    &sc->sc_ucom, &req, buf, USB_SHORT_XFER_OK, 1000);
 }
 
 static void
@@ -812,7 +745,6 @@ uchcom_stop_read(struct usb2_com_softc *ucom)
 	usb2_transfer_stop(sc->sc_xfer[UCHCOM_INTR_DT_RD]);
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UCHCOM_BULK_CS_RD]);
 	usb2_transfer_stop(sc->sc_xfer[UCHCOM_BULK_DT_RD]);
 }
 
@@ -829,7 +761,6 @@ uchcom_stop_write(struct usb2_com_softc *ucom)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UCHCOM_BULK_CS_WR]);
 	usb2_transfer_stop(sc->sc_xfer[UCHCOM_BULK_DT_WR]);
 }
 
@@ -859,33 +790,18 @@ uchcom_intr_callback(struct usb2_xfer *xfer)
 			usb2_com_status_change(&sc->sc_ucom);
 		}
 	case USB_ST_SETUP:
-		if (sc->sc_flag & UCHCOM_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UCHCOM_INTR_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		break;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flag |= UCHCOM_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[UCHCOM_INTR_CS_RD]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		break;
-	}
-}
-
-static void
-uchcom_intr_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uchcom_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UCHCOM_INTR_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flag &= ~UCHCOM_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -898,10 +814,7 @@ uchcom_write_callback(struct usb2_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
-		if (sc->sc_flag & UCHCOM_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UCHCOM_BULK_CS_WR]);
-			return;
-		}
+tr_setup:
 		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UCHCOM_BULK_BUF_SIZE, &actlen)) {
 
@@ -914,24 +827,12 @@ uchcom_write_callback(struct usb2_xfer *xfer)
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flag |= UCHCOM_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[UCHCOM_BULK_CS_WR]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
 
-	}
-}
-
-static void
-uchcom_write_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uchcom_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UCHCOM_BULK_DT_WR];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flag &= ~UCHCOM_FLAG_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -945,34 +846,18 @@ uchcom_read_callback(struct usb2_xfer *xfer)
 		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
 
 	case USB_ST_SETUP:
-		if (sc->sc_flag & UCHCOM_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UCHCOM_BULK_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flag |= UCHCOM_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[UCHCOM_BULK_CS_RD]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
-	}
-}
-
-static void
-uchcom_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uchcom_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UCHCOM_BULK_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flag &= ~UCHCOM_FLAG_READ_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 

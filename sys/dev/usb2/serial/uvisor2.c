@@ -151,9 +151,7 @@ struct uvisor_palm_connection_info {
 enum {
 	UVISOR_BULK_DT_WR,
 	UVISOR_BULK_DT_RD,
-	UVISOR_BULK_CS_WR,
-	UVISOR_BULK_CS_RD,
-	UVISOR_N_TRANSFER = 4,
+	UVISOR_N_TRANSFER,
 };
 
 struct uvisor_softc {
@@ -168,8 +166,6 @@ struct uvisor_softc {
 #define	UVISOR_FLAG_VISOR       0x0002
 #define	UVISOR_FLAG_PALM35      0x0004
 #define	UVISOR_FLAG_SEND_NOTIFY 0x0008
-#define	UVISOR_FLAG_WRITE_STALL 0x0010
-#define	UVISOR_FLAG_READ_STALL  0x0020
 
 	uint8_t	sc_iface_no;
 	uint8_t	sc_iface_index;
@@ -182,9 +178,7 @@ static device_attach_t uvisor_attach;
 static device_detach_t uvisor_detach;
 
 static usb2_callback_t uvisor_write_callback;
-static usb2_callback_t uvisor_write_clear_stall_callback;
 static usb2_callback_t uvisor_read_callback;
-static usb2_callback_t uvisor_read_clear_stall_callback;
 
 static usb2_error_t uvisor_init(struct uvisor_softc *, struct usb2_device *,
 		    struct usb2_config *);
@@ -213,26 +207,6 @@ static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.mh.bufsize = UVISOR_BUFSIZE,	/* bytes */
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.callback = &uvisor_read_callback,
-	},
-
-	[UVISOR_BULK_CS_WR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &uvisor_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[UVISOR_BULK_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &uvisor_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 };
 
@@ -346,8 +320,8 @@ uvisor_attach(device_t dev)
 		goto detach;
 	}
 	/* clear stall at first run */
-	sc->sc_flag |= (UVISOR_FLAG_WRITE_STALL |
-	    UVISOR_FLAG_READ_STALL);
+	usb2_transfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_WR]);
+	usb2_transfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_RD]);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uvisor_callback, &Giant);
@@ -542,9 +516,8 @@ uvisor_cfg_close(struct usb2_com_softc *ucom)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
 
-	err = usb2_do_request_flags
-	    (sc->sc_udev, &Giant, &req, &buffer, 0, NULL, 1000);
-
+	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, buffer, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "close notification failed, error=%s\n",
 		    usb2_errstr(err));
@@ -564,7 +537,6 @@ uvisor_stop_read(struct usb2_com_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_CS_RD]);
 	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_DT_RD]);
 }
 
@@ -581,7 +553,6 @@ uvisor_stop_write(struct usb2_com_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_CS_WR]);
 	usb2_transfer_stop(sc->sc_xfer[UVISOR_BULK_DT_WR]);
 }
 
@@ -594,10 +565,7 @@ uvisor_write_callback(struct usb2_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
-		if (sc->sc_flag & UVISOR_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_WR]);
-			return;
-		}
+tr_setup:
 		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UVISOR_BUFSIZE, &actlen)) {
 
@@ -608,24 +576,11 @@ uvisor_write_callback(struct usb2_xfer *xfer)
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flag |= UVISOR_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_WR]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
-	}
-}
-
-static void
-uvisor_write_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uvisor_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UVISOR_BULK_DT_WR];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flag &= ~UVISOR_FLAG_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -639,33 +594,17 @@ uvisor_read_callback(struct usb2_xfer *xfer)
 		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
 
 	case USB_ST_SETUP:
-		if (sc->sc_flag & UVISOR_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flag |= UVISOR_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[UVISOR_BULK_CS_RD]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
-	}
-}
-
-static void
-uvisor_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uvisor_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UVISOR_BULK_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flag &= ~UVISOR_FLAG_READ_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
