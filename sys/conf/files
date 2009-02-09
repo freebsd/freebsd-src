@@ -1623,6 +1623,7 @@ dev/usb2/serial/umct2.c		optional usb2_core usb2_serial usb2_serial_mct
 dev/usb2/serial/umodem2.c	optional usb2_core usb2_serial usb2_serial_modem
 dev/usb2/serial/umoscom2.c	optional usb2_core usb2_serial usb2_serial_moscom
 dev/usb2/serial/uplcom2.c	optional usb2_core usb2_serial usb2_serial_plcom
+dev/usb2/serial/uslcom2.c	optional usb2_core usb2_serial usb2_serial_slcom
 dev/usb2/serial/usb2_serial.c	optional usb2_core usb2_serial
 dev/usb2/serial/uvisor2.c	optional usb2_core usb2_serial usb2_serial_visor
 dev/usb2/serial/uvscom2.c	optional usb2_core usb2_serial usb2_serial_vscom
