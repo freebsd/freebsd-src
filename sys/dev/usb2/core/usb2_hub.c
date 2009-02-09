@@ -335,7 +335,8 @@ repeat:
 
 		/* wait for maximum device power up time */
 
-		usb2_pause_mtx(&Giant, USB_PORT_POWERUP_DELAY);
+		usb2_pause_mtx(&Giant, 
+		    USB_MS_TO_TICKS(USB_PORT_POWERUP_DELAY));
 
 		/* reset port, which implies enabling it */
 
@@ -736,7 +737,7 @@ uhub_attach(device_t dev)
 		goto error;
 	}
 	/* wait with power off for a while */
-	usb2_pause_mtx(&Giant, USB_POWER_DOWN_TIME);
+	usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(USB_POWER_DOWN_TIME));
 
 	/*
 	 * To have the best chance of success we do things in the exact same
@@ -794,7 +795,7 @@ uhub_attach(device_t dev)
 		    portno);
 
 		/* wait for stable power */
-		usb2_pause_mtx(&Giant, pwrdly);
+		usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(pwrdly));
 	}
 
 	device_printf(dev, "%d port%s with %d "
@@ -1666,7 +1667,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 		return;
 	}
 	/* resume settle time */
-	usb2_pause_mtx(&Giant, USB_PORT_RESUME_DELAY);
+	usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
 
 	if (bus->methods->device_resume != NULL) {
 		/* resume USB device on the USB controller */
@@ -1802,7 +1803,7 @@ repeat:
 
 		/* do DMA delay */
 		temp = usb2_get_dma_delay(udev->bus);
-		usb2_pause_mtx(&Giant, temp);
+		usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(temp));
 
 	}
 	/* suspend current port */

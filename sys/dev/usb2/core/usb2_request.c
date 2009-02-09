@@ -371,7 +371,7 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 					if (temp > 0) {
 						usb2_pause_mtx(
 						    xfer->xroot->xfer_mtx,
-						    temp);
+						    USB_MS_TO_TICKS(temp));
 					}
 #endif
 					xfer->flags.manual_status = 0;
@@ -477,6 +477,49 @@ done:
 }
 
 /*------------------------------------------------------------------------*
+ *	usb2_do_request_proc - factored out code
+ *
+ * This function is factored out code. It does basically the same like
+ * usb2_do_request_flags, except it will check the status of the
+ * passed process argument before doing the USB request. If the
+ * process is draining the USB_ERR_IOERROR code will be returned. It
+ * is assumed that the mutex associated with the process is locked
+ * when calling this function.
+ *------------------------------------------------------------------------*/
+usb2_error_t
+usb2_do_request_proc(struct usb2_device *udev, struct usb2_process *pproc,
+    struct usb2_device_request *req, void *data, uint32_t flags,
+    uint16_t *actlen, uint32_t timeout)
+{
+	usb2_error_t err;
+	uint16_t len;
+
+	/* get request data length */
+	len = UGETW(req->wLength);
+
+	/* check if the device is being detached */
+	if (usb2_proc_is_gone(pproc)) {
+		err = USB_ERR_IOERROR;
+		goto done;
+	}
+
+	/* forward the USB request */
+	err = usb2_do_request_flags(udev, pproc->up_mtx,
+	    req, data, flags, actlen, timeout);
+
+done:
+	/* on failure we zero the data */
+	/* on short packet we zero the unused data */
+	if ((len != 0) && (req->bmRequestType & UE_DIR_IN)) {
+		if (err)
+			memset(data, 0, len);
+		else if (actlen && *actlen != len)
+			memset(((uint8_t *)data) + *actlen, 0, len - *actlen);
+	}
+	return (err);
+}
+
+/*------------------------------------------------------------------------*
  *	usb2_req_reset_port
  *
  * This function will instruct an USB HUB to perform a reset sequence
@@ -520,11 +563,11 @@ usb2_req_reset_port(struct usb2_device *udev, struct mtx *mtx, uint8_t port)
 	while (1) {
 #if USB_DEBUG
 		/* wait for the device to recover from reset */
-		usb2_pause_mtx(mtx, pr_poll_delay);
+		usb2_pause_mtx(mtx, USB_MS_TO_TICKS(pr_poll_delay));
 		n += pr_poll_delay;
 #else
 		/* wait for the device to recover from reset */
-		usb2_pause_mtx(mtx, USB_PORT_RESET_DELAY);
+		usb2_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
 		n += USB_PORT_RESET_DELAY;
 #endif
 		err = usb2_req_get_port_status(udev, mtx, &ps, port);
@@ -559,10 +602,10 @@ usb2_req_reset_port(struct usb2_device *udev, struct mtx *mtx, uint8_t port)
 	}
 #if USB_DEBUG
 	/* wait for the device to recover from reset */
-	usb2_pause_mtx(mtx, pr_recovery_delay);
+	usb2_pause_mtx(mtx, USB_MS_TO_TICKS(pr_recovery_delay));
 #else
 	/* wait for the device to recover from reset */
-	usb2_pause_mtx(mtx, USB_PORT_RESET_RECOVERY);
+	usb2_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_RECOVERY));
 #endif
 
 done:
@@ -624,7 +667,7 @@ usb2_req_get_desc(struct usb2_device *udev, struct mtx *mtx, void *desc,
 			}
 			retries--;
 
-			usb2_pause_mtx(mtx, 200);
+			usb2_pause_mtx(mtx, hz / 5);
 
 			continue;
 		}
@@ -1369,7 +1412,7 @@ retry:
 	udev->address = old_addr;
 
 	/* allow device time to set new address */
-	usb2_pause_mtx(mtx, USB_SET_ADDRESS_SETTLE);
+	usb2_pause_mtx(mtx, USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
 
 	/* get the device descriptor */
 	err = usb2_req_get_desc(udev, mtx, &udev->ddesc,
@@ -1389,7 +1432,7 @@ retry:
 done:
 	if (err && do_retry) {
 		/* give the USB firmware some time to load */
-		usb2_pause_mtx(mtx, 500);
+		usb2_pause_mtx(mtx, hz / 2);
 		/* no more retries after this retry */
 		do_retry = 0;
 		/* try again */
