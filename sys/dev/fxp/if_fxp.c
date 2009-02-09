@@ -2545,7 +2545,8 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 		return (error);
 	}
 
-	bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
+	if (rxp->rx_mbuf != NULL)
+		bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
 	tmp_map = sc->spare_map;
 	sc->spare_map = rxp->rx_map;
 	rxp->rx_map = tmp_map;
