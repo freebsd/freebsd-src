@@ -700,7 +700,12 @@ re_reset(struct rl_softc *sc)
 	if (i == RL_TIMEOUT)
 		device_printf(sc->rl_dev, "reset never completed!\n");
 
-	CSR_WRITE_1(sc, 0x82, 1);
+	if ((sc->rl_flags & RL_FLAG_PHY8169) != 0)
+		CSR_WRITE_1(sc, 0x82, 1);
+	if ((sc->rl_flags & RL_FLAG_PHY8110S) != 0) {
+		CSR_WRITE_1(sc, 0x82, 1);
+		re_gmii_writereg(sc->rl_dev, 1, 0x0B, 0);
+	}
 }
 
 #ifdef RE_DIAG
@@ -756,7 +761,6 @@ re_diag(struct rl_softc *sc)
 
 	ifp->if_flags |= IFF_PROMISC;
 	sc->rl_testmode = 1;
-	re_reset(sc);
 	re_init_locked(sc);
 	sc->rl_flags |= RL_FLAG_LINK;
 	if (sc->rl_type == RL_8169)
@@ -1236,6 +1240,9 @@ re_attach(device_t dev)
 	case RL_HWREV_8139CPLUS:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER;
 		break;
+	case RL_HWREV_8110S:
+		sc->rl_flags |= RL_FLAG_PHY8110S;
+		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
@@ -1245,10 +1252,12 @@ re_attach(device_t dev)
 	case RL_HWREV_8102EL:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
 		    RL_FLAG_PHYWAKE | RL_FLAG_PAR | RL_FLAG_DESCV2 |
-		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER;
+		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
+		sc->rl_flags |= RL_FLAG_WOLRXENB;
+		/* FALLTHROUGH */
 	case RL_HWREV_8168_SPIN3:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
 		    RL_FLAG_MACSTAT;
@@ -1258,7 +1267,8 @@ re_attach(device_t dev)
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
-		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT;
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_CMDSTOP;
 		/*
 		 * These controllers support jumbo frame but it seems
 		 * that enabling it requires touching additional magic
@@ -1271,10 +1281,14 @@ re_attach(device_t dev)
 		 */
 		sc->rl_flags |= RL_FLAG_NOJUMBO;
 		break;
+	case RL_HWREV_8169:
+	case RL_HWREV_8169S:
+		sc->rl_flags |= RL_FLAG_PHY8169;
+		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SC:
 	case RL_HWREV_8169_8110SBL:
-		sc->rl_flags |= RL_FLAG_PHYWAKE;
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHY8169;
 		break;
 	default:
 		break;
@@ -2091,10 +2105,8 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		 * XXX check behaviour on receiver stalls.
 		 */
 
-		if (status & RL_ISR_SYSTEM_ERR) {
-			re_reset(sc);
+		if (status & RL_ISR_SYSTEM_ERR)
 			re_init_locked(sc);
-		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -2158,10 +2170,8 @@ re_int_task(void *arg, int npending)
 	    RL_ISR_TX_ERR|RL_ISR_TX_DESC_UNAVAIL))
 		re_txeof(sc);
 
-	if (status & RL_ISR_SYSTEM_ERR) {
-		re_reset(sc);
+	if (status & RL_ISR_SYSTEM_ERR)
 		re_init_locked(sc);
-	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
@@ -2481,6 +2491,9 @@ re_init_locked(struct rl_softc *sc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	re_stop(sc);
+
+	/* Put controller into known state. */
+	re_reset(sc);
 
 	/*
 	 * Enable C+ RX and TX mode, as well as VLAN stripping and
@@ -2870,7 +2883,12 @@ re_stop(struct rl_softc *sc)
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
+	if ((sc->rl_flags & RL_FLAG_CMDSTOP) != 0)
+		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_STOPREQ | RL_CMD_TX_ENB |
+		    RL_CMD_RX_ENB);
+	else
+		CSR_WRITE_1(sc, RL_COMMAND, 0x00);
+	DELAY(1000);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
 	CSR_WRITE_2(sc, RL_ISR, 0xFFFF);
 
@@ -3000,6 +3018,9 @@ re_setwol(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
+	    (sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
+		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
 	/* Enable config register write. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 

@@ -308,6 +308,7 @@
 #define RL_CMD_TX_ENB		0x0004
 #define RL_CMD_RX_ENB		0x0008
 #define RL_CMD_RESET		0x0010
+#define RL_CMD_STOPREQ		0x0080
 
 /*
  * EEPROM control register
@@ -856,6 +857,10 @@ struct rl_softc {
 #define	RL_FLAG_DESCV2		0x0040
 #define	RL_FLAG_MACSTAT		0x0080
 #define	RL_FLAG_FASTETHER	0x0100
+#define	RL_FLAG_CMDSTOP		0x0200
+#define	RL_FLAG_PHY8169		0x0400
+#define	RL_FLAG_PHY8110S	0x0800
+#define	RL_FLAG_WOLRXENB	0x1000
 #define	RL_FLAG_LINK		0x8000
 };
 
