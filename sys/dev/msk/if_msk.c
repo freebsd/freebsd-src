@@ -2559,7 +2559,16 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		struct ip *ip;
 		struct tcphdr *tcp;
 
-		/* TODO check for M_WRITABLE(m) */
+		if (M_WRITABLE(m) == 0) {
+			/* Get a writable copy. */
+			m = m_dup(*m_head, M_DONTWAIT);
+			m_freem(*m_head);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			*m_head = m;
+		}
 
 		offset = sizeof(struct ether_header);
 		m = m_pullup(m, offset);
@@ -2601,6 +2610,11 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
 			uint16_t csum;
 
+			m = m_pullup(m, offset + sizeof(struct tcphdr));
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
 			csum = in_cksum_skip(m, ntohs(ip->ip_len) + offset -
 			    (ip->ip_hl << 2), offset);
 			*(uint16_t *)(m->m_data + offset +
