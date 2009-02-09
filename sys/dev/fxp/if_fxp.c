@@ -1558,6 +1558,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	struct fxp_rfa *rfa;
 	int rnr = (statack & FXP_SCB_STATACK_RNR) ? 1 : 0;
 	int fxp_rc = 0;
+	uint16_t status;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	if (rnr)
@@ -1635,7 +1636,8 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 		}
 #endif /* DEVICE_POLLING */
 
-		if ((le16toh(rfa->rfa_status) & FXP_RFA_STATUS_C) == 0)
+		status = le16toh(rfa->rfa_status);
+		if ((status & FXP_RFA_STATUS_C) == 0)
 			break;
 
 		/*
@@ -1661,14 +1663,14 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			total_len = le16toh(rfa->actual_size) & 0x3fff;
 			if (total_len < sizeof(struct ether_header) ||
 			    total_len > MCLBYTES - RFA_ALIGNMENT_FUDGE -
-				sc->rfa_size ||
-			    le16toh(rfa->rfa_status) & FXP_RFA_STATUS_CRC) {
+				sc->rfa_size || status & FXP_RFA_STATUS_CRC) {
 				m_freem(m);
 				continue;
 			}
 
                         /* Do IP checksum checking. */
-			if (le16toh(rfa->rfa_status) & FXP_RFA_STATUS_PARSE) {
+			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+			    (status & FXP_RFA_STATUS_PARSE)) {
 				if (rfa->rfax_csum_sts &
 				    FXP_RFDX_CS_IP_CSUM_BIT_VALID)
 					m->m_pkthdr.csum_flags |=
@@ -2372,7 +2374,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct fxp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
-	int flag, mask, error = 0;
+	int flag, mask, error = 0, reinit;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -2432,6 +2434,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
+		reinit = 0;
 		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
@@ -2454,8 +2457,20 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif
-		if (mask & IFCAP_VLAN_MTU) {
-			FXP_LOCK(sc);
+		FXP_LOCK(sc);
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= FXP_CSUM_FEATURES;
+			else
+				ifp->if_hwassist &= ~FXP_CSUM_FEATURES;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_VLAN_MTU) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_MTU) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
 			if (sc->revision != FXP_REV_82557)
 				flag = FXP_FLAG_LONG_PKT_EN;
@@ -2463,9 +2478,11 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				flag = FXP_FLAG_SAVE_BAD;
 			sc->flags ^= flag;
 			if (ifp->if_flags & IFF_UP)
-				fxp_init_body(sc);
-			FXP_UNLOCK(sc);
+				reinit++;
 		}
+		if (reinit > 0)
+			fxp_init_body(sc);
+		FXP_UNLOCK(sc);
 		break;
 
 	default:
