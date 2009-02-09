@@ -1567,7 +1567,6 @@ dev/usb2/ndis/usb2_ndis.c		optional usb2_core usb2_ndis
 #
 dev/usb2/core/usb2_busdma.c		optional usb2_core
 dev/usb2/core/usb2_compat_linux.c	optional usb2_core
-dev/usb2/core/usb2_config_td.c		optional usb2_core
 dev/usb2/core/usb2_core.c		optional usb2_core
 dev/usb2/core/usb2_debug.c		optional usb2_core
 dev/usb2/core/usb2_dev.c		optional usb2_core
