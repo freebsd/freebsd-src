@@ -38,6 +38,7 @@
  * This must be a power of two.
  */
 #define FXP_NTXCB       128
+#define	FXP_NTXCB_HIWAT	((FXP_NTXCB * 7) / 10)
 
 /*
  * Size of the TxCB list.
