@@ -330,12 +330,11 @@ static char *orb_status1_serial_bus_error[] = {
 static void
 sbp_identify(driver_t *driver, device_t parent)
 {
-	device_t child;
 SBP_DEBUG(0)
 	printf("sbp_identify\n");
 END_DEBUG
 
-	child = BUS_ADD_CHILD(parent, 0, "sbp", device_get_unit(parent));
+	BUS_ADD_CHILD(parent, 0, "sbp", device_get_unit(parent));
 }
 
 /*
