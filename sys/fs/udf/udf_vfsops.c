@@ -344,6 +344,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp) {
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED;
 	MNT_IUNLOCK(mp);
 	udfmp->im_mountp = mp;
 	udfmp->im_dev = devvp->v_rdev;
@@ -546,22 +547,13 @@ static int
 udf_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	struct udf_mnt *udfmp;
-	struct vnode *vp;
 	ino_t id;
-	int error;
 
 	udfmp = VFSTOUDFFS(mp);
 
 	id = udf_getid(&udfmp->root_icb);
 
-	error = udf_vget(mp, id, LK_EXCLUSIVE, vpp);
-	if (error)
-		return error;
-
-	vp = *vpp;
-	vp->v_vflag |= VV_ROOT;
-
-	return (0);
+	return (udf_vget(mp, id, flags, vpp));
 }
 
 static int
@@ -596,6 +588,22 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
+
+	/*
+	 * We must promote to an exclusive lock for vnode creation.  This
+	 * can happen if lookup is passed LOCKSHARED.
+ 	 */
+	if ((flags & LK_TYPE_MASK) == LK_SHARED) {
+		flags &= ~LK_TYPE_MASK;
+		flags |= LK_EXCLUSIVE;
+	}
+
+	/*
+	 * We do not lock vnode creation as it is believed to be too
+	 * expensive for such rare case as simultaneous creation of vnode
+	 * for same ino by different processes. We just allow them to race
+	 * and check later to decide who wins. Let the race begin!
+	 */
 
 	td = curthread;
 	udfmp = VFSTOUDFFS(mp);
@@ -689,6 +697,13 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		vp->v_type = VLNK;
 		break;
 	}
+
+	if (vp->v_type != VFIFO)
+		VN_LOCK_ASHARE(vp);
+
+	if (ino == udf_getid(&udfmp->root_icb))
+		vp->v_vflag |= VV_ROOT;
+
 	*vpp = vp;
 
 	return (0);
