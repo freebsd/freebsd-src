@@ -1540,8 +1540,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		 * the chip is an 82550/82551 or not.
 		 */
 		if (sc->flags & FXP_FLAG_EXT_RFA) {
-			cbp->tbd[i + 2].tb_addr = htole32(segs[i].ds_addr);
-			cbp->tbd[i + 2].tb_size = htole32(segs[i].ds_len);
+			cbp->tbd[i + 1].tb_addr = htole32(segs[i].ds_addr);
+			cbp->tbd[i + 1].tb_size = htole32(segs[i].ds_len);
 		} else {
 			cbp->tbd[i].tb_addr = htole32(segs[i].ds_addr);
 			cbp->tbd[i].tb_size = htole32(segs[i].ds_len);
@@ -1550,13 +1550,13 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	if (sc->flags & FXP_FLAG_EXT_RFA) {
 		/* Configure dynamic TBD for 82550/82551. */
 		cbp->tbd_number = 0xFF;
-		cbp->tbd[nseg + 1].tb_size |= htole32(0x8000);
+		cbp->tbd[nseg].tb_size |= htole32(0x8000);
 	} else
 		cbp->tbd_number = nseg;
 	/* Configure TSO. */
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 		cbp->tbd[-1].tb_size = htole32(m->m_pkthdr.tso_segsz << 16);
-		cbp->tbd[1].tb_size = htole32(tcp_payload << 16);
+		cbp->tbd[1].tb_size |= htole32(tcp_payload << 16);
 		cbp->ipcb_ip_schedule |= FXP_IPCB_LARGESEND_ENABLE |
 		    FXP_IPCB_IP_CHECKSUM_ENABLE |
 		    FXP_IPCB_TCP_PACKET |
