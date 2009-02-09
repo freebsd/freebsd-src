@@ -74,6 +74,7 @@ SUBDIR += serial_mct
 SUBDIR += serial_modem
 SUBDIR += serial_moscom
 SUBDIR += serial_plcom
+SUBDIR += serial_slcom
 SUBDIR += serial_visor
 SUBDIR += serial_vscom
 SUBDIR += sound
