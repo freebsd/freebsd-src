@@ -59,15 +59,15 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-
-#ifdef FXP_IP_CSUM_WAR
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+
+#include <machine/bus.h>
 #include <machine/in_cksum.h>
-#endif
+#include <machine/resource.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>		/* for PCIM_CMD_xxx */
@@ -213,6 +213,8 @@ static int		fxp_suspend(device_t dev);
 static int		fxp_resume(device_t dev);
 
 static void		fxp_intr(void *xsc);
+static void		fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp,
+			    struct mbuf *m, uint16_t status, int pos);
 static void		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
 			    uint8_t statack, int count);
 static void 		fxp_init(void *xsc);
@@ -591,6 +593,9 @@ fxp_attach(device_t dev)
 		sc->flags |= FXP_FLAG_SAVE_BAD;
 	}
 
+	/* For 82559 or later chips, Rx checksum offload is supported. */
+	if (sc->revision >= FXP_REV_82559_A0)
+		sc->flags |= FXP_FLAG_82559_RXCSUM;
 	/*
 	 * Enable use of extended RFDs and TCBs for 82550
 	 * and later chips. Note: we need extended TXCB support
@@ -603,6 +608,8 @@ fxp_attach(device_t dev)
 		sc->rfa_size = sizeof (struct fxp_rfa);
 		sc->tx_cmd = FXP_CB_COMMAND_IPCBXMIT;
 		sc->flags |= FXP_FLAG_EXT_RFA;
+		/* Use extended RFA instead of 82559 checksum mode. */
+		sc->flags &= ~FXP_FLAG_82559_RXCSUM;
 	} else {
 		sc->rfa_size = sizeof (struct fxp_rfa) - FXP_RFAX_LEN;
 		sc->tx_cmd = FXP_CB_COMMAND_XMIT;
@@ -778,6 +785,11 @@ fxp_attach(device_t dev)
 		ifp->if_hwassist = FXP_CSUM_FEATURES;
 		ifp->if_capabilities |= IFCAP_HWCSUM;
 		ifp->if_capenable |= IFCAP_HWCSUM;
+	}
+
+	if (sc->flags & FXP_FLAG_82559_RXCSUM) {
+		ifp->if_capabilities |= IFCAP_RXCSUM;
+		ifp->if_capenable |= IFCAP_RXCSUM;
 	}
 
 #ifdef DEVICE_POLLING
@@ -1558,6 +1570,84 @@ fxp_txeof(struct fxp_softc *sc)
 }
 
 static void
+fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp, struct mbuf *m,
+    uint16_t status, int pos)
+{
+	struct ether_header *eh;
+	struct ip *ip;
+	struct udphdr *uh;
+	int32_t hlen, len, pktlen, temp32;
+	uint16_t csum, *opts;
+
+	if ((sc->flags & FXP_FLAG_82559_RXCSUM) == 0) {
+		if ((status & FXP_RFA_STATUS_PARSE) != 0) {
+			if (status & FXP_RFDX_CS_IP_CSUM_BIT_VALID)
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if (status & FXP_RFDX_CS_IP_CSUM_VALID)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((status & FXP_RFDX_CS_TCPUDP_CSUM_BIT_VALID) &&
+			    (status & FXP_RFDX_CS_TCPUDP_CSUM_VALID)) {
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
+		return;
+	}
+
+	pktlen = m->m_pkthdr.len;
+	if (pktlen < sizeof(struct ether_header) + sizeof(struct ip))
+		return;
+	eh = mtod(m, struct ether_header *);
+	if (eh->ether_type != htons(ETHERTYPE_IP))
+		return;
+	ip = (struct ip *)(eh + 1);
+	if (ip->ip_v != IPVERSION)
+		return;
+
+	hlen = ip->ip_hl << 2;
+	pktlen -= sizeof(struct ether_header);
+	if (hlen < sizeof(struct ip))
+		return;
+	if (ntohs(ip->ip_len) < hlen)
+		return;
+	if (ntohs(ip->ip_len) != pktlen)
+		return;
+	if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
+		return;	/* can't handle fragmented packet */
+
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
+		if (pktlen < (hlen + sizeof(struct tcphdr)))
+			return;
+		break;
+	case IPPROTO_UDP:
+		if (pktlen < (hlen + sizeof(struct udphdr)))
+			return;
+		uh = (struct udphdr *)((caddr_t)ip + hlen);
+		if (uh->uh_sum == 0)
+			return; /* no checksum */
+		break;
+	default:
+		return;
+	}
+	/* Extract computed checksum. */
+	csum = be16dec(mtod(m, char *) + pos);
+	/* checksum fixup for IP options */
+	len = hlen - sizeof(struct ip);
+	if (len > 0) {
+		opts = (uint16_t *)(ip + 1);
+		for (; len > 0; len -= sizeof(uint16_t), opts++) {
+			temp32 = csum - *opts;
+			temp32 = (temp32 >> 16) + (temp32 & 65535);
+			csum = temp32 & 65535;
+		}
+	}
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+	m->m_pkthdr.csum_data = csum;
+}
+
+static void
 fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
     int count)
 {
@@ -1661,6 +1751,11 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			 * of bogus length or CRC errors.
 			 */
 			total_len = le16toh(rfa->actual_size) & 0x3fff;
+			if ((sc->flags & FXP_FLAG_82559_RXCSUM) != 0 &&
+			    (ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+				/* Adjust for appended checksum bytes. */
+				total_len -= 2;
+			}
 			if (total_len < sizeof(struct ether_header) ||
 			    total_len > MCLBYTES - RFA_ALIGNMENT_FUDGE -
 				sc->rfa_size || status & FXP_RFA_STATUS_CRC) {
@@ -1668,30 +1763,12 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 				continue;
 			}
 
-                        /* Do IP checksum checking. */
-			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
-			    (status & FXP_RFA_STATUS_PARSE)) {
-				if (rfa->rfax_csum_sts &
-				    FXP_RFDX_CS_IP_CSUM_BIT_VALID)
-					m->m_pkthdr.csum_flags |=
-					    CSUM_IP_CHECKED;
-				if (rfa->rfax_csum_sts &
-				    FXP_RFDX_CS_IP_CSUM_VALID)
-					m->m_pkthdr.csum_flags |=
-					    CSUM_IP_VALID;
-				if ((rfa->rfax_csum_sts &
-				    FXP_RFDX_CS_TCPUDP_CSUM_BIT_VALID) &&
-				    (rfa->rfax_csum_sts &
-				    FXP_RFDX_CS_TCPUDP_CSUM_VALID)) {
-					m->m_pkthdr.csum_flags |=
-					    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
-					m->m_pkthdr.csum_data = 0xffff;
-				}
-			}
-
 			m->m_pkthdr.len = m->m_len = total_len;
 			m->m_pkthdr.rcvif = ifp;
 
+                        /* Do IP checksum checking. */
+			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+				fxp_rxcsum(sc, ifp, m, status, total_len);
 			/*
 			 * Drop locks before calling if_input() since it
 			 * may re-enter fxp_start() in the netisr case.
@@ -2024,7 +2101,8 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->ext_rfa =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 	cbp->mediatype =	sc->flags & FXP_FLAG_SERIAL_MEDIA ? 0 : 1;
 	cbp->csma_dis =		0;	/* (don't) disable link */
-	cbp->tcp_udp_cksum =	0;	/* (don't) enable checksum */
+	cbp->tcp_udp_cksum =	((sc->flags & FXP_FLAG_82559_RXCSUM) != 0 &&
+	    (ifp->if_capenable & IFCAP_RXCSUM) != 0) ? 1 : 0;
 	cbp->vlan_tco =		0;	/* (don't) enable vlan wakeup */
 	cbp->link_wake_en =	0;	/* (don't) assert PME# on link change */
 	cbp->arp_wake_en =	0;	/* (don't) assert PME# on arp */
@@ -2506,8 +2584,11 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist &= ~FXP_CSUM_FEATURES;
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+			if ((sc->flags & FXP_FLAG_82559_RXCSUM) != 0)
+				reinit++;
+		}
 		if ((mask & IFCAP_VLAN_MTU) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_MTU) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
