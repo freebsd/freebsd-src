@@ -1295,14 +1295,10 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	 * in the TCP header. The stack should have
 	 * already done this for us.
 	 */
-	if (m->m_pkthdr.csum_flags) {
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			txp->tx_cb->ipcb_ip_schedule =
-			    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
-			if (m->m_pkthdr.csum_flags & CSUM_TCP)
-				txp->tx_cb->ipcb_ip_schedule |=
-				    FXP_IPCB_TCP_PACKET;
-		}
+	if (m->m_pkthdr.csum_flags & FXP_CSUM_FEATURES) {
+		txp->tx_cb->ipcb_ip_schedule = FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
+		if (m->m_pkthdr.csum_flags & CSUM_TCP)
+			txp->tx_cb->ipcb_ip_schedule |= FXP_IPCB_TCP_PACKET;
 
 #ifdef FXP_IP_CSUM_WAR
 		/*
@@ -1334,6 +1330,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 				ip = mtod(m, struct ip *);
 				ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
 				m->m_data -= ETHER_HDR_LEN;
+				m->m_pkthdr.csum_flags &= ~CSUM_IP;
 			} else {
 				txp->tx_cb->ipcb_ip_activation_high =
 				    FXP_IPCB_HARDWAREPARSING_ENABLE;
