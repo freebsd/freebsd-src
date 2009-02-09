@@ -43,7 +43,6 @@ enum {
 	STRING_LANG_INDEX,
 	STRING_MAC_INDEX,
 	STRING_ETH_CONTROL_INDEX,
-	STRING_ETH_CONTROL_512X4_INDEX,
 	STRING_ETH_DATA_INDEX,
 	STRING_ETH_CONFIG_INDEX,
 	STRING_ETH_VENDOR_INDEX,
@@ -68,24 +67,6 @@ enum {
   'm', 0, ' ', 0, 'i', 0, 'n', 0, \
   't', 0, 'e', 0, 'r', 0, 'f', 0, \
   'a', 0, 'c', 0, 'e', 0,
-
-/*
- * Hardware Accelerated Zero Copy CDC ethernet. Buffer capacity: 512
- * frames by 4 fragments per USB transfer.
- */
-#define	STRING_ETH_512X4_CONTROL \
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'E', 0, 't', 0, 'h', 0, 'e', 0, \
-  'r', 0, 'n', 0, 'e', 0, 't', 0, \
-  ' ', 0, 'C', 0, 'o', 0, 'm', 0, \
-  'm', 0, ' ', 0, 'i', 0, 'n', 0, \
-  't', 0, 'e', 0, 'r', 0, 'f', 0, \
-  'a', 0, 'c', 0, 'e', 0, ' ', 0, \
-  '5', 0, '1', 0, '2', 0, 'x', 0, \
-  '4', 0, ' ', 0, 'H', 0, 'W', 0, \
-  ' ', 0, 'A', 0, 'c', 0, 'c', 0, \
-  'e', 0, 'l', 0, 'e', 0, 'r', 0, \
-  'a', 0, 't', 0, 'e', 0, 'd', 0,
 
 #define	STRING_ETH_DATA \
   'U', 0, 'S', 0, 'B', 0, ' ', 0, \
@@ -127,7 +108,6 @@ enum {
 USB_MAKE_STRING_DESC(STRING_LANG, string_lang);
 USB_MAKE_STRING_DESC(STRING_MAC, string_mac);
 USB_MAKE_STRING_DESC(STRING_ETH_CONTROL, string_eth_control);
-USB_MAKE_STRING_DESC(STRING_ETH_512X4_CONTROL, string_eth_512x4_control);
 USB_MAKE_STRING_DESC(STRING_ETH_DATA, string_eth_data);
 USB_MAKE_STRING_DESC(STRING_ETH_CONFIG, string_eth_config);
 USB_MAKE_STRING_DESC(STRING_ETH_VENDOR, string_eth_vendor);
@@ -222,17 +202,6 @@ static const struct usb2_temp_interface_desc eth_control_interface = {
 	.iInterface = STRING_ETH_CONTROL_INDEX,
 };
 
-static const struct usb2_temp_interface_desc eth_control_if_512x4 = {
-	.ppEndpoints = eth_intr_endpoints,
-	.ppRawDesc = eth_control_if_desc,
-	.bInterfaceClass = UICLASS_CDC,
-	.bInterfaceSubClass = UISUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL,
-	.bInterfaceProtocol = UIPROTO_CDC_ETH_512X4,
-	.iInterface = STRING_ETH_CONTROL_512X4_INDEX,
-	.isAltInterface = 1,		/* this is an alternate setting */
-};
-
-
 static const struct usb2_temp_endpoint_desc *eth_data_endpoints[] = {
 	&bulk_in_ep,
 	&bulk_out_ep,
@@ -258,7 +227,6 @@ static const struct usb2_temp_interface_desc eth_data_interface = {
 
 static const struct usb2_temp_interface_desc *eth_interfaces[] = {
 	&eth_control_interface,
-	&eth_control_if_512x4,
 	&eth_data_null_interface,
 	&eth_data_interface,
 	NULL,
@@ -304,7 +272,6 @@ eth_get_string_desc(uint16_t lang_id, uint8_t string_index)
 		[STRING_LANG_INDEX] = &string_lang,
 		[STRING_MAC_INDEX] = &string_mac,
 		[STRING_ETH_CONTROL_INDEX] = &string_eth_control,
-		[STRING_ETH_CONTROL_512X4_INDEX] = &string_eth_512x4_control,
 		[STRING_ETH_DATA_INDEX] = &string_eth_data,
 		[STRING_ETH_CONFIG_INDEX] = &string_eth_config,
 		[STRING_ETH_VENDOR_INDEX] = &string_eth_vendor,

@@ -65,25 +65,16 @@ __FBSDID("$FreeBSD$");
  * ftp://ftp.realtek.com.tw/lancard/data_sheet/8150/.
  */
 
-/*
- * NOTE: all function names beginning like "rue_cfg_" can only
- * be called from within the config thread function !
- */
-
 #include <dev/usb2/include/usb2_devid.h>
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
-
-#define	usb2_config_td_cc usb2_ether_cc
-#define	usb2_config_td_softc rue_softc
 
 #define	USB_DEBUG_VAR rue_debug
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_busdma.h>
@@ -116,44 +107,33 @@ static device_attach_t rue_attach;
 static device_detach_t rue_detach;
 static device_shutdown_t rue_shutdown;
 
-static usb2_callback_t rue_intr_clear_stall_callback;
+static miibus_readreg_t rue_miibus_readreg;
+static miibus_writereg_t rue_miibus_writereg;
+static miibus_statchg_t rue_miibus_statchg;
+
 static usb2_callback_t rue_intr_callback;
-static usb2_callback_t rue_bulk_read_clear_stall_callback;
 static usb2_callback_t rue_bulk_read_callback;
-static usb2_callback_t rue_bulk_write_clear_stall_callback;
 static usb2_callback_t rue_bulk_write_callback;
 
-static usb2_config_td_command_t rue_config_copy;
-static usb2_config_td_command_t rue_cfg_promisc_upd;
-static usb2_config_td_command_t rue_cfg_first_time_setup;
-static usb2_config_td_command_t rue_cfg_tick;
-static usb2_config_td_command_t rue_cfg_pre_init;
-static usb2_config_td_command_t rue_cfg_init;
-static usb2_config_td_command_t rue_cfg_ifmedia_upd;
-static usb2_config_td_command_t rue_cfg_pre_stop;
-static usb2_config_td_command_t rue_cfg_stop;
+static usb2_ether_fn_t rue_attach_post;
+static usb2_ether_fn_t rue_init;
+static usb2_ether_fn_t rue_stop;
+static usb2_ether_fn_t rue_start;
+static usb2_ether_fn_t rue_tick;
+static usb2_ether_fn_t rue_setmulti;
+static usb2_ether_fn_t rue_setpromisc;
 
-static void rue_cfg_do_request(struct rue_softc *sc, struct usb2_device_request *req, void *data);
-static void rue_cfg_read_mem(struct rue_softc *sc, uint16_t addr, void *buf, uint16_t len);
-static void rue_cfg_write_mem(struct rue_softc *sc, uint16_t addr, void *buf, uint16_t len);
-static uint8_t rue_cfg_csr_read_1(struct rue_softc *sc, uint16_t reg);
-static uint16_t rue_cfg_csr_read_2(struct rue_softc *sc, uint16_t reg);
-static void rue_cfg_csr_write_1(struct rue_softc *sc, uint16_t reg, uint8_t val);
-static void rue_cfg_csr_write_2(struct rue_softc *sc, uint16_t reg, uint16_t val);
-static void rue_cfg_csr_write_4(struct rue_softc *sc, int reg, uint32_t val);
+static int	rue_read_mem(struct rue_softc *, uint16_t, void *, int);
+static int	rue_write_mem(struct rue_softc *, uint16_t, void *, int);
+static uint8_t	rue_csr_read_1(struct rue_softc *, uint16_t);
+static uint16_t	rue_csr_read_2(struct rue_softc *, uint16_t);
+static int	rue_csr_write_1(struct rue_softc *, uint16_t, uint8_t);
+static int	rue_csr_write_2(struct rue_softc *, uint16_t, uint16_t);
+static int	rue_csr_write_4(struct rue_softc *, int, uint32_t);
 
-static miibus_readreg_t rue_cfg_miibus_readreg;
-static miibus_writereg_t rue_cfg_miibus_writereg;
-static miibus_statchg_t rue_cfg_miibus_statchg;
-
-static void rue_cfg_reset(struct rue_softc *sc);
-static void rue_start_cb(struct ifnet *ifp);
-static void rue_start_transfers(struct rue_softc *sc);
-static void rue_init_cb(void *arg);
-static int rue_ifmedia_upd_cb(struct ifnet *ifp);
-static void rue_ifmedia_sts_cb(struct ifnet *ifp, struct ifmediareq *ifmr);
-static int rue_ioctl_cb(struct ifnet *ifp, u_long command, caddr_t data);
-static void rue_watchdog(void *arg);
+static void	rue_reset(struct rue_softc *);
+static int	rue_ifmedia_upd(struct ifnet *);
+static void	rue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static const struct usb2_config rue_config[RUE_N_TRANSFER] = {
 
@@ -163,7 +143,7 @@ static const struct usb2_config rue_config[RUE_N_TRANSFER] = {
 		.direction = UE_DIR_OUT,
 		.mh.bufsize = MCLBYTES,
 		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &rue_bulk_write_callback,
+		.mh.callback = rue_bulk_write_callback,
 		.mh.timeout = 10000,	/* 10 seconds */
 	},
 
@@ -173,30 +153,8 @@ static const struct usb2_config rue_config[RUE_N_TRANSFER] = {
 		.direction = UE_DIR_IN,
 		.mh.bufsize = (MCLBYTES + 4),
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &rue_bulk_read_callback,
+		.mh.callback = rue_bulk_read_callback,
 		.mh.timeout = 0,	/* no timeout */
-	},
-
-	[RUE_BULK_CS_WR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &rue_bulk_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[RUE_BULK_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &rue_bulk_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 
 	[RUE_INTR_DT_RD] = {
@@ -205,18 +163,7 @@ static const struct usb2_config rue_config[RUE_N_TRANSFER] = {
 		.direction = UE_DIR_IN,
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &rue_intr_callback,
-	},
-
-	[RUE_INTR_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &rue_intr_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.mh.callback = rue_intr_callback,
 	},
 };
 
@@ -232,9 +179,9 @@ static device_method_t rue_methods[] = {
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* MII interface */
-	DEVMETHOD(miibus_readreg, rue_cfg_miibus_readreg),
-	DEVMETHOD(miibus_writereg, rue_cfg_miibus_writereg),
-	DEVMETHOD(miibus_statchg, rue_cfg_miibus_statchg),
+	DEVMETHOD(miibus_readreg, rue_miibus_readreg),
+	DEVMETHOD(miibus_writereg, rue_miibus_writereg),
+	DEVMETHOD(miibus_statchg, rue_miibus_statchg),
 
 	{0, 0}
 };
@@ -254,42 +201,26 @@ MODULE_DEPEND(rue, usb2_core, 1, 1, 1);
 MODULE_DEPEND(rue, ether, 1, 1, 1);
 MODULE_DEPEND(rue, miibus, 1, 1, 1);
 
-static void
-rue_cfg_do_request(struct rue_softc *sc, struct usb2_device_request *req,
-    void *data)
-{
-	uint16_t length;
-	usb2_error_t err;
+static const struct usb2_ether_methods rue_ue_methods = {
+	.ue_attach_post = rue_attach_post,
+	.ue_start = rue_start,
+	.ue_init = rue_init,
+	.ue_stop = rue_stop,
+	.ue_tick = rue_tick,
+	.ue_setmulti = rue_setmulti,
+	.ue_setpromisc = rue_setpromisc,
+	.ue_mii_upd = rue_ifmedia_upd,
+	.ue_mii_sts = rue_ifmedia_sts,
+};
 
-	if (usb2_config_td_is_gone(&sc->sc_config_td)) {
-		goto error;
-	}
-	err = usb2_do_request_flags
-	    (sc->sc_udev, &sc->sc_mtx, req, data, 0, NULL, 1000);
+#define	RUE_SETBIT(sc, reg, x) \
+	rue_csr_write_1(sc, reg, rue_csr_read_1(sc, reg) | (x))
 
-	if (err) {
+#define	RUE_CLRBIT(sc, reg, x) \
+	rue_csr_write_1(sc, reg, rue_csr_read_1(sc, reg) & ~(x))
 
-		DPRINTF("device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
-
-error:
-		length = UGETW(req->wLength);
-
-		if ((req->bmRequestType & UT_READ) && length) {
-			bzero(data, length);
-		}
-	}
-}
-
-#define	RUE_CFG_SETBIT(sc, reg, x) \
-	rue_cfg_csr_write_1(sc, reg, rue_cfg_csr_read_1(sc, reg) | (x))
-
-#define	RUE_CFG_CLRBIT(sc, reg, x) \
-	rue_cfg_csr_write_1(sc, reg, rue_cfg_csr_read_1(sc, reg) & ~(x))
-
-static void
-rue_cfg_read_mem(struct rue_softc *sc, uint16_t addr, void *buf,
-    uint16_t len)
+static int
+rue_read_mem(struct rue_softc *sc, uint16_t addr, void *buf, int len)
 {
 	struct usb2_device_request req;
 
@@ -299,12 +230,11 @@ rue_cfg_read_mem(struct rue_softc *sc, uint16_t addr, void *buf,
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, len);
 
-	rue_cfg_do_request(sc, &req, buf);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
-static void
-rue_cfg_write_mem(struct rue_softc *sc, uint16_t addr, void *buf,
-    uint16_t len)
+static int
+rue_write_mem(struct rue_softc *sc, uint16_t addr, void *buf, int len)
 {
 	struct usb2_device_request req;
 
@@ -314,69 +244,65 @@ rue_cfg_write_mem(struct rue_softc *sc, uint16_t addr, void *buf,
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, len);
 
-	rue_cfg_do_request(sc, &req, buf);
+	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
 static uint8_t
-rue_cfg_csr_read_1(struct rue_softc *sc, uint16_t reg)
+rue_csr_read_1(struct rue_softc *sc, uint16_t reg)
 {
 	uint8_t val;
 
-	rue_cfg_read_mem(sc, reg, &val, 1);
+	rue_read_mem(sc, reg, &val, 1);
 	return (val);
 }
 
 static uint16_t
-rue_cfg_csr_read_2(struct rue_softc *sc, uint16_t reg)
+rue_csr_read_2(struct rue_softc *sc, uint16_t reg)
 {
 	uint8_t val[2];
 
-	rue_cfg_read_mem(sc, reg, &val, 2);
+	rue_read_mem(sc, reg, &val, 2);
 	return (UGETW(val));
 }
 
-static void
-rue_cfg_csr_write_1(struct rue_softc *sc, uint16_t reg, uint8_t val)
+static int
+rue_csr_write_1(struct rue_softc *sc, uint16_t reg, uint8_t val)
 {
-	rue_cfg_write_mem(sc, reg, &val, 1);
+	return (rue_write_mem(sc, reg, &val, 1));
 }
 
-static void
-rue_cfg_csr_write_2(struct rue_softc *sc, uint16_t reg, uint16_t val)
+static int
+rue_csr_write_2(struct rue_softc *sc, uint16_t reg, uint16_t val)
 {
 	uint8_t temp[2];
 
 	USETW(temp, val);
-	rue_cfg_write_mem(sc, reg, &temp, 2);
+	return (rue_write_mem(sc, reg, &temp, 2));
 }
 
-static void
-rue_cfg_csr_write_4(struct rue_softc *sc, int reg, uint32_t val)
+static int
+rue_csr_write_4(struct rue_softc *sc, int reg, uint32_t val)
 {
 	uint8_t temp[4];
 
 	USETDW(temp, val);
-	rue_cfg_write_mem(sc, reg, &temp, 4);
+	return (rue_write_mem(sc, reg, &temp, 4));
 }
 
 static int
-rue_cfg_miibus_readreg(device_t dev, int phy, int reg)
+rue_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct rue_softc *sc = device_get_softc(dev);
 	uint16_t rval;
 	uint16_t ruereg;
-	uint8_t do_unlock;
+	int locked;
 
-	if (phy != 0) {			/* RTL8150 supports PHY == 0, only */
+	if (phy != 0)		/* RTL8150 supports PHY == 0, only */
 		return (0);
-	}
-	/* avoid recursive locking */
-	if (mtx_owned(&sc->sc_mtx)) {
-		do_unlock = 0;
-	} else {
-		mtx_lock(&sc->sc_mtx);
-		do_unlock = 1;
-	}
+
+	locked = mtx_owned(&sc->sc_mtx);
+	if (!locked)
+		RUE_LOCK(sc);
 
 	switch (reg) {
 	case MII_BMCR:
@@ -399,40 +325,35 @@ rue_cfg_miibus_readreg(device_t dev, int phy, int reg)
 		rval = 0;
 		goto done;
 	default:
-		if ((RUE_REG_MIN <= reg) && (reg <= RUE_REG_MAX)) {
-			rval = rue_cfg_csr_read_1(sc, reg);
+		if (RUE_REG_MIN <= reg && reg <= RUE_REG_MAX) {
+			rval = rue_csr_read_1(sc, reg);
 			goto done;
 		}
-		printf("rue%d: bad phy register\n", sc->sc_unit);
+		device_printf(sc->sc_ue.ue_dev, "bad phy register\n");
 		rval = 0;
 		goto done;
 	}
 
-	rval = rue_cfg_csr_read_2(sc, ruereg);
+	rval = rue_csr_read_2(sc, ruereg);
 done:
-	if (do_unlock) {
-		mtx_unlock(&sc->sc_mtx);
-	}
+	if (!locked)
+		RUE_UNLOCK(sc);
 	return (rval);
 }
 
 static int
-rue_cfg_miibus_writereg(device_t dev, int phy, int reg, int data)
+rue_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct rue_softc *sc = device_get_softc(dev);
 	uint16_t ruereg;
-	uint8_t do_unlock;
+	int locked;
 
-	if (phy != 0) {			/* RTL8150 supports PHY == 0, only */
+	if (phy != 0)		/* RTL8150 supports PHY == 0, only */
 		return (0);
-	}
-	/* avoid recursive locking */
-	if (mtx_owned(&sc->sc_mtx)) {
-		do_unlock = 0;
-	} else {
-		mtx_lock(&sc->sc_mtx);
-		do_unlock = 1;
-	}
+
+	locked = mtx_owned(&sc->sc_mtx);
+	if (!locked)
+		RUE_LOCK(sc);
 
 	switch (reg) {
 	case MII_BMCR:
@@ -454,24 +375,22 @@ rue_cfg_miibus_writereg(device_t dev, int phy, int reg, int data)
 	case MII_PHYIDR2:
 		goto done;
 	default:
-		if ((RUE_REG_MIN <= reg) && (reg <= RUE_REG_MAX)) {
-			rue_cfg_csr_write_1(sc, reg, data);
+		if (RUE_REG_MIN <= reg && reg <= RUE_REG_MAX) {
+			rue_csr_write_1(sc, reg, data);
 			goto done;
 		}
-		printf("%s: bad phy register\n",
-		    sc->sc_name);
+		device_printf(sc->sc_ue.ue_dev, " bad phy register\n");
 		goto done;
 	}
-	rue_cfg_csr_write_2(sc, ruereg, data);
+	rue_csr_write_2(sc, ruereg, data);
 done:
-	if (do_unlock) {
-		mtx_unlock(&sc->sc_mtx);
-	}
+	if (!locked)
+		RUE_UNLOCK(sc);
 	return (0);
 }
 
 static void
-rue_cfg_miibus_statchg(device_t dev)
+rue_miibus_statchg(device_t dev)
 {
 	/*
 	 * When the code below is enabled the card starts doing weird
@@ -487,19 +406,15 @@ rue_cfg_miibus_statchg(device_t dev)
 	struct rue_softc *sc = device_get_softc(dev);
 	struct mii_data *mii = GET_MII(sc);
 	uint16_t bmcr;
-	uint8_t do_unlock;
+	int locked;
 
-	/* avoid recursive locking */
-	if (mtx_owned(&sc->sc_mtx)) {
-		do_unlock = 0;
-	} else {
-		mtx_lock(&sc->sc_mtx);
-		do_unlock = 1;
-	}
+	locked = mtx_owned(&sc->sc_mtx);
+	if (!locked)
+		RUE_LOCK(sc);
 
-	RUE_CFG_CLRBIT(sc, RUE_CR, (RUE_CR_RE | RUE_CR_TE));
+	RUE_CLRBIT(sc, RUE_CR, (RUE_CR_RE | RUE_CR_TE));
 
-	bmcr = rue_cfg_csr_read_2(sc, RUE_BMCR);
+	bmcr = rue_csr_read_2(sc, RUE_BMCR);
 
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX)
 		bmcr |= RUE_BMCR_SPD_SET;
@@ -511,98 +426,118 @@ rue_cfg_miibus_statchg(device_t dev)
 	else
 		bmcr &= ~RUE_BMCR_DUPLEX;
 
-	rue_cfg_csr_write_2(sc, RUE_BMCR, bmcr);
+	rue_csr_write_2(sc, RUE_BMCR, bmcr);
 
-	RUE_CFG_SETBIT(sc, RUE_CR, (RUE_CR_RE | RUE_CR_TE));
+	RUE_SETBIT(sc, RUE_CR, (RUE_CR_RE | RUE_CR_TE));
 
-	if (do_unlock) {
-		mtx_unlock(&sc->sc_mtx);
-	}
+	if (!locked)
+		RUE_UNLOCK(sc);
 #endif
 }
 
 static void
-rue_mchash(struct usb2_config_td_cc *cc, const uint8_t *ptr)
+rue_setpromisc(struct usb2_ether *ue)
 {
-	uint8_t h;
+	struct rue_softc *sc = usb2_ether_getsc(ue);
+	struct ifnet *ifp = usb2_ether_getifp(ue);
 
-	h = ether_crc32_be(ptr, ETHER_ADDR_LEN) >> 26;
-	cc->if_hash[h / 8] |= 1 << (h & 7);
-	cc->if_nhash = 1;
-}
+	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
-static void
-rue_config_copy(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	bzero(cc, sizeof(*cc));
-	usb2_ether_cc(sc->sc_ifp, &rue_mchash, cc);
+	/* If we want promiscuous mode, set the allframes bit. */
+	if (ifp->if_flags & IFF_PROMISC)
+		RUE_SETBIT(sc, RUE_RCR, RUE_RCR_AAP);
+	else
+		RUE_CLRBIT(sc, RUE_RCR, RUE_RCR_AAP);
 }
 
 /*
  * Program the 64-bit multicast hash filter.
  */
 static void
-rue_cfg_promisc_upd(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
+rue_setmulti(struct usb2_ether *ue)
 {
+	struct rue_softc *sc = usb2_ether_getsc(ue);
+	struct ifnet *ifp = usb2_ether_getifp(ue);
 	uint16_t rxcfg;
+	int h = 0;
+	uint32_t hashes[2] = { 0, 0 };
+	struct ifmultiaddr *ifma;
+	int mcnt = 0;
 
-	rxcfg = rue_cfg_csr_read_2(sc, RUE_RCR);
+	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((cc->if_flags & IFF_ALLMULTI) ||
-	    (cc->if_flags & IFF_PROMISC)) {
+	rxcfg = rue_csr_read_2(sc, RUE_RCR);
+
+	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		rxcfg |= (RUE_RCR_AAM | RUE_RCR_AAP);
 		rxcfg &= ~RUE_RCR_AM;
-		rue_cfg_csr_write_2(sc, RUE_RCR, rxcfg);
-		rue_cfg_csr_write_4(sc, RUE_MAR0, 0xFFFFFFFF);
-		rue_cfg_csr_write_4(sc, RUE_MAR4, 0xFFFFFFFF);
+		rue_csr_write_2(sc, RUE_RCR, rxcfg);
+		rue_csr_write_4(sc, RUE_MAR0, 0xFFFFFFFF);
+		rue_csr_write_4(sc, RUE_MAR4, 0xFFFFFFFF);
 		return;
 	}
-	/* first, zero all the existing hash bits */
-	rue_cfg_csr_write_4(sc, RUE_MAR0, 0);
-	rue_cfg_csr_write_4(sc, RUE_MAR4, 0);
 
-	if (cc->if_nhash)
+	/* first, zot all the existing hash bits */
+	rue_csr_write_4(sc, RUE_MAR0, 0);
+	rue_csr_write_4(sc, RUE_MAR4, 0);
+
+	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link)
+	{
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
+		if (h < 32)
+			hashes[0] |= (1 << h);
+		else
+			hashes[1] |= (1 << (h - 32));
+		mcnt++;
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+	if (mcnt)
 		rxcfg |= RUE_RCR_AM;
 	else
 		rxcfg &= ~RUE_RCR_AM;
 
 	rxcfg &= ~(RUE_RCR_AAM | RUE_RCR_AAP);
 
-	rue_cfg_csr_write_2(sc, RUE_RCR, rxcfg);
-	rue_cfg_write_mem(sc, RUE_MAR0, cc->if_hash, 4);
-	rue_cfg_write_mem(sc, RUE_MAR4, cc->if_hash + 4, 4);
+	rue_csr_write_2(sc, RUE_RCR, rxcfg);
+	rue_csr_write_4(sc, RUE_MAR0, hashes[0]);
+	rue_csr_write_4(sc, RUE_MAR4, hashes[1]);
 }
 
 static void
-rue_cfg_reset(struct rue_softc *sc)
+rue_reset(struct rue_softc *sc)
 {
-	usb2_error_t err;
-	uint16_t to;
+	int i;
 
-	rue_cfg_csr_write_1(sc, RUE_CR, RUE_CR_SOFT_RST);
+	rue_csr_write_1(sc, RUE_CR, RUE_CR_SOFT_RST);
 
-	for (to = 0;; to++) {
-
-		if (to < RUE_TIMEOUT) {
-
-			err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
-
-			if (err) {
-				break;
-			}
-			if (!(rue_cfg_csr_read_1(sc, RUE_CR) & RUE_CR_SOFT_RST)) {
-				break;
-			}
-		} else {
-			printf("%s: reset timeout!\n",
-			    sc->sc_name);
+	for (i = 0; i != RUE_TIMEOUT; i++) {
+		if (usb2_ether_pause(&sc->sc_ue, hz / 1000))
 			break;
-		}
+		if (!(rue_csr_read_1(sc, RUE_CR) & RUE_CR_SOFT_RST))
+			break;
 	}
+	if (i == RUE_TIMEOUT)
+		device_printf(sc->sc_ue.ue_dev, "reset never completed!\n");
 
-	err = usb2_config_td_sleep(&sc->sc_config_td, hz / 100);
+	usb2_ether_pause(&sc->sc_ue, hz / 100);
+}
+
+static void
+rue_attach_post(struct usb2_ether *ue)
+{
+	struct rue_softc *sc = usb2_ether_getsc(ue);
+
+	/* reset the adapter */
+	rue_reset(sc);
+
+	/* get station address from the EEPROM */
+	rue_read_mem(sc, RUE_EEPROM_IDR0, ue->ue_eaddr, ETHER_ADDR_LEN);
 }
 
 /*
@@ -613,15 +548,13 @@ rue_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb2_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if (uaa->info.bConfigIndex != RUE_CONFIG_IDX) {
+	if (uaa->info.bConfigIndex != RUE_CONFIG_IDX)
 		return (ENXIO);
-	}
-	if (uaa->info.bIfaceIndex != RUE_IFACE_IDX) {
+	if (uaa->info.bIfaceIndex != RUE_IFACE_IDX)
 		return (ENXIO);
-	}
+
 	return (usb2_lookup_id_by_uaa(rue_devs, sizeof(rue_devs), uaa));
 }
 
@@ -634,49 +567,33 @@ rue_attach(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct rue_softc *sc = device_get_softc(dev);
-	int32_t error;
+	struct usb2_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
-
-	sc->sc_udev = uaa->device;
-	sc->sc_dev = dev;
-	sc->sc_unit = device_get_unit(dev);
+	int error;
 
 	device_set_usb2_desc(dev);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
-
-	mtx_init(&sc->sc_mtx, "rue lock", NULL, MTX_DEF | MTX_RECURSE);
-
-	usb2_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	iface_index = RUE_IFACE_IDX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, rue_config, RUE_N_TRANSFER,
 	    sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed!\n");
 		goto detach;
 	}
-	error = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_mtx,
-	    NULL, sizeof(struct usb2_config_td_cc), 16);
+
+	ue->ue_sc = sc;
+	ue->ue_dev = dev;
+	ue->ue_udev = uaa->device;
+	ue->ue_mtx = &sc->sc_mtx;
+	ue->ue_methods = &rue_ue_methods;
+
+	error = usb2_ether_ifattach(ue);
 	if (error) {
-		device_printf(dev, "could not setup config "
-		    "thread!\n");
+		device_printf(dev, "could not attach interface\n");
 		goto detach;
 	}
-	mtx_lock(&sc->sc_mtx);
-
-	sc->sc_flags |= RUE_FLAG_WAIT_LINK;
-
-	/* start setup */
-
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL, &rue_cfg_first_time_setup, 0, 0);
-
-	rue_watchdog(sc);
-	mtx_unlock(&sc->sc_mtx);
 	return (0);			/* success */
 
 detach:
@@ -684,138 +601,24 @@ detach:
 	return (ENXIO);			/* failure */
 }
 
-static void
-rue_cfg_first_time_setup(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct ifnet *ifp;
-	int error;
-	uint8_t eaddr[min(ETHER_ADDR_LEN, 6)];
-
-	/* reset the adapter */
-	rue_cfg_reset(sc);
-
-	/* get station address from the EEPROM */
-	rue_cfg_read_mem(sc, RUE_EEPROM_IDR0,
-	    eaddr, ETHER_ADDR_LEN);
-
-	mtx_unlock(&sc->sc_mtx);
-
-	ifp = if_alloc(IFT_ETHER);
-
-	mtx_lock(&sc->sc_mtx);
-
-	if (ifp == NULL) {
-		printf("%s: could not if_alloc()\n",
-		    sc->sc_name);
-		goto done;
-	}
-
-	ifp->if_softc = sc;
-	if_initname(ifp, "rue", sc->sc_unit);
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = rue_ioctl_cb;
-	ifp->if_start = rue_start_cb;
-	ifp->if_watchdog = NULL;
-	ifp->if_init = rue_init_cb;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	/*
-	 * XXX need Giant when accessing the device structures !
-	 */
-
-	mtx_unlock(&sc->sc_mtx);
-
-	mtx_lock(&Giant);
-
-	/* MII setup */
-	error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-	    &rue_ifmedia_upd_cb,
-	    &rue_ifmedia_sts_cb);
-	mtx_unlock(&Giant);
-
-	mtx_lock(&sc->sc_mtx);
-
-	if (error) {
-		printf("%s: MII without any PHY!\n",
-		    sc->sc_name);
-		if_free(ifp);
-		goto done;
-	}
-	sc->sc_ifp = ifp;
-
-	mtx_unlock(&sc->sc_mtx);
-
-	/*
-	 * Call MI attach routine.
-	 */
-
-	ether_ifattach(ifp, eaddr);
-
-	mtx_lock(&sc->sc_mtx);
-
-done:
-	return;
-}
-
 static int
 rue_detach(device_t dev)
 {
 	struct rue_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp;
+	struct usb2_ether *ue = &sc->sc_ue;
 
-	usb2_config_td_drain(&sc->sc_config_td);
-
-	mtx_lock(&sc->sc_mtx);
-
-	usb2_callout_stop(&sc->sc_watchdog);
-
-	rue_cfg_pre_stop(sc, NULL, 0);
-
-	ifp = sc->sc_ifp;
-
-	mtx_unlock(&sc->sc_mtx);
-
-	/* stop all USB transfers first */
 	usb2_transfer_unsetup(sc->sc_xfer, RUE_N_TRANSFER);
-
-	/* get rid of any late children */
-	bus_generic_detach(dev);
-
-	if (ifp) {
-		ether_ifdetach(ifp);
-		if_free(ifp);
-	}
-	usb2_config_td_unsetup(&sc->sc_config_td);
-
-	usb2_callout_drain(&sc->sc_watchdog);
-
+	usb2_ether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
 static void
-rue_intr_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct rue_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[RUE_INTR_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~RUE_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-}
-
-static void
 rue_intr_callback(struct usb2_xfer *xfer)
 {
 	struct rue_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
 	struct rue_intrpkt pkt;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -830,35 +633,20 @@ rue_intr_callback(struct usb2_xfer *xfer)
 			ifp->if_ierrors += pkt.rue_crcerr_cnt;
 			ifp->if_collisions += pkt.rue_col_cnt;
 		}
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
-		if (sc->sc_flags & RUE_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[RUE_INTR_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			/* start clear stall */
-			sc->sc_flags |= RUE_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[RUE_INTR_CS_RD]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-	}
-}
-
-static void
-rue_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct rue_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[RUE_BULK_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~RUE_FLAG_READ_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -866,9 +654,9 @@ static void
 rue_bulk_read_callback(struct usb2_xfer *xfer)
 {
 	struct rue_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct usb2_ether *ue = &sc->sc_ue;
+	struct ifnet *ifp = usb2_ether_getifp(ue);
 	uint16_t status;
-	struct mbuf *m = NULL;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -879,80 +667,33 @@ rue_bulk_read_callback(struct usb2_xfer *xfer)
 		}
 		usb2_copy_out(xfer->frbuffers, xfer->actlen - 4,
 		    &status, sizeof(status));
-
-		status = le16toh(status);
+		xfer->actlen -= 4;
 
 		/* check recieve packet was valid or not */
-
+		status = le16toh(status);
 		if ((status & RUE_RXSTAT_VALID) == 0) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		xfer->actlen -= 4;
-
-		if (xfer->actlen < sizeof(struct ether_header)) {
-			ifp->if_ierrors++;
-			goto tr_setup;
-		}
-		m = usb2_ether_get_mbuf();
-
-		if (m == NULL) {
-			ifp->if_ierrors++;
-			goto tr_setup;
-		}
-		xfer->actlen = min(xfer->actlen, m->m_len);
-
-		usb2_copy_out(xfer->frbuffers, 0, m->m_data, xfer->actlen);
-
-		ifp->if_ipackets++;
-		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = xfer->actlen;
-
+		usb2_ether_rxbuf(ue, xfer->frbuffers, 0, xfer->actlen);
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-
-		if (sc->sc_flags & RUE_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[RUE_BULK_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
-
-		/*
-		 * At the end of a USB callback it is always safe to unlock
-		 * the private mutex of a device! That is why we do the
-		 * "if_input" here, and not some lines up!
-		 */
-		if (m) {
-			mtx_unlock(&sc->sc_mtx);
-			(ifp->if_input) (ifp, m);
-			mtx_lock(&sc->sc_mtx);
-		}
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
+		usb2_ether_rxflush(ue);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
-			/* try to clear stall first */
-			sc->sc_flags |= RUE_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[RUE_BULK_CS_RD]);
-		}
 		DPRINTF("bulk read error, %s\n",
 		    usb2_errstr(xfer->error));
+
+		if (xfer->error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
+		}
 		return;
-
-	}
-}
-
-static void
-rue_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct rue_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[RUE_BULK_DT_WR];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~RUE_FLAG_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -960,36 +701,30 @@ static void
 rue_bulk_write_callback(struct usb2_xfer *xfer)
 {
 	struct rue_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
 	struct mbuf *m;
-	uint32_t temp_len;
+	int temp_len;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-
 		ifp->if_opackets++;
 
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
-
-		if (sc->sc_flags & RUE_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[RUE_BULK_CS_WR]);
-			goto done;
-		}
-		if (sc->sc_flags & RUE_FLAG_WAIT_LINK) {
+tr_setup:
+		if ((sc->sc_flags & RUE_FLAG_LINK) == 0) {
 			/*
 			 * don't send anything if there is no link !
 			 */
-			goto done;
+			return;
 		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 
-		if (m == NULL) {
-			goto done;
-		}
-		if (m->m_pkthdr.len > MCLBYTES) {
+		if (m == NULL)
+			return;
+		if (m->m_pkthdr.len > MCLBYTES)
 			m->m_pkthdr.len = MCLBYTES;
-		}
 		temp_len = m->m_pkthdr.len;
 
 		usb2_m_copy_in(xfer->frbuffers, 0,
@@ -1017,325 +752,150 @@ rue_bulk_write_callback(struct usb2_xfer *xfer)
 
 		usb2_start_hardware(xfer);
 
-done:
 		return;
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
 		    usb2_errstr(xfer->error));
 
+		ifp->if_oerrors++;
+
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			sc->sc_flags |= RUE_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[RUE_BULK_CS_WR]);
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
-		ifp->if_oerrors++;
 		return;
-
 	}
 }
 
 static void
-rue_cfg_tick(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
+rue_tick(struct usb2_ether *ue)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	struct rue_softc *sc = usb2_ether_getsc(ue);
 	struct mii_data *mii = GET_MII(sc);
 
-	if ((ifp == NULL) ||
-	    (mii == NULL)) {
-		/* not ready */
-		return;
-	}
+	RUE_LOCK_ASSERT(sc, MA_OWNED);
+
 	mii_tick(mii);
-
-	mii_pollstat(mii);
-
-	if ((sc->sc_flags & RUE_FLAG_WAIT_LINK) &&
-	    (mii->mii_media_status & IFM_ACTIVE) &&
-	    (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)) {
-		sc->sc_flags &= ~RUE_FLAG_WAIT_LINK;
-	}
-	sc->sc_media_active = mii->mii_media_active;
-	sc->sc_media_status = mii->mii_media_status;
-
-	/* start stopped transfers, if any */
-
-	rue_start_transfers(sc);
-}
-
-static void
-rue_start_cb(struct ifnet *ifp)
-{
-	struct rue_softc *sc = ifp->if_softc;
-
-	mtx_lock(&sc->sc_mtx);
-
-	rue_start_transfers(sc);
-
-	mtx_unlock(&sc->sc_mtx);
-}
-
-static void
-rue_start_transfers(struct rue_softc *sc)
-{
-	if ((sc->sc_flags & RUE_FLAG_LL_READY) &&
-	    (sc->sc_flags & RUE_FLAG_HL_READY)) {
-
-		/*
-		 * start the USB transfers, if not already started:
-		 */
-		usb2_transfer_start(sc->sc_xfer[RUE_INTR_DT_RD]);
-		usb2_transfer_start(sc->sc_xfer[RUE_BULK_DT_RD]);
-		usb2_transfer_start(sc->sc_xfer[RUE_BULK_DT_WR]);
+	if ((sc->sc_flags & RUE_FLAG_LINK) == 0
+	    && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->sc_flags |= RUE_FLAG_LINK;
+		rue_start(ue);
 	}
 }
 
 static void
-rue_init_cb(void *arg)
+rue_start(struct usb2_ether *ue)
 {
-	struct rue_softc *sc = arg;
+	struct rue_softc *sc = usb2_ether_getsc(ue);
 
-	mtx_lock(&sc->sc_mtx);
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, &rue_cfg_pre_init,
-	    &rue_cfg_init, 0, 0);
-	mtx_unlock(&sc->sc_mtx);
+	/*
+	 * start the USB transfers, if not already started:
+	 */
+	usb2_transfer_start(sc->sc_xfer[RUE_INTR_DT_RD]);
+	usb2_transfer_start(sc->sc_xfer[RUE_BULK_DT_RD]);
+	usb2_transfer_start(sc->sc_xfer[RUE_BULK_DT_WR]);
 }
 
 static void
-rue_cfg_pre_init(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
+rue_init(struct usb2_ether *ue)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	struct rue_softc *sc = usb2_ether_getsc(ue);
+	struct ifnet *ifp = usb2_ether_getifp(ue);
 
-	/* immediate configuration */
-
-	rue_cfg_pre_stop(sc, cc, 0);
-
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
-	sc->sc_flags |= RUE_FLAG_HL_READY;
-}
-
-static void
-rue_cfg_init(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct mii_data *mii = GET_MII(sc);
-	uint16_t rxcfg;
+	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
 	/*
 	 * Cancel pending I/O
 	 */
+	rue_reset(sc);
 
-	rue_cfg_stop(sc, cc, 0);
+	/* Set MAC address */
+	rue_write_mem(sc, RUE_IDR0, IF_LLADDR(ifp), ETHER_ADDR_LEN);
 
-	/* set MAC address */
-
-	rue_cfg_write_mem(sc, RUE_IDR0, cc->if_lladdr, ETHER_ADDR_LEN);
+	rue_stop(ue);
 
 	/*
 	 * Set the initial TX and RX configuration.
 	 */
-	rue_cfg_csr_write_1(sc, RUE_TCR, RUE_TCR_CONFIG);
-
-	rxcfg = RUE_RCR_CONFIG;
-
-	/* Set capture broadcast bit to capture broadcast frames. */
-	if (cc->if_flags & IFF_BROADCAST)
-		rxcfg |= RUE_RCR_AB;
-	else
-		rxcfg &= ~RUE_RCR_AB;
-
-	rue_cfg_csr_write_2(sc, RUE_RCR, rxcfg);
+	rue_csr_write_1(sc, RUE_TCR, RUE_TCR_CONFIG);
+	rue_csr_write_2(sc, RUE_RCR, RUE_RCR_CONFIG|RUE_RCR_AB);
 
 	/* Load the multicast filter */
-	rue_cfg_promisc_upd(sc, cc, 0);
+	rue_setpromisc(ue);
+	/* Load the multicast filter. */
+	rue_setmulti(ue);
 
 	/* Enable RX and TX */
-	rue_cfg_csr_write_1(sc, RUE_CR, (RUE_CR_TE | RUE_CR_RE | RUE_CR_EP3CLREN));
+	rue_csr_write_1(sc, RUE_CR, (RUE_CR_TE | RUE_CR_RE | RUE_CR_EP3CLREN));
 
-	mii_mediachg(mii);
+	usb2_transfer_set_stall(sc->sc_xfer[RUE_BULK_DT_WR]);
 
-	sc->sc_flags |= (RUE_FLAG_READ_STALL |
-	    RUE_FLAG_WRITE_STALL |
-	    RUE_FLAG_LL_READY);
-
-	rue_start_transfers(sc);
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	rue_start(ue);
 }
 
 /*
  * Set media options.
  */
 static int
-rue_ifmedia_upd_cb(struct ifnet *ifp)
+rue_ifmedia_upd(struct ifnet *ifp)
 {
 	struct rue_softc *sc = ifp->if_softc;
-
-	mtx_lock(&sc->sc_mtx);
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL,
-	    &rue_cfg_ifmedia_upd, 0, 0);
-	mtx_unlock(&sc->sc_mtx);
-
-	return (0);
-}
-
-static void
-rue_cfg_ifmedia_upd(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct ifnet *ifp = sc->sc_ifp;
 	struct mii_data *mii = GET_MII(sc);
 
-	if ((ifp == NULL) ||
-	    (mii == NULL)) {
-		/* not ready */
-		return;
-	}
-	sc->sc_flags |= RUE_FLAG_WAIT_LINK;
+	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
+        sc->sc_flags &= ~RUE_FLAG_LINK;
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
 
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
-		}
 	}
 	mii_mediachg(mii);
+	return (0);
 }
 
 /*
  * Report current media status.
  */
 static void
-rue_ifmedia_sts_cb(struct ifnet *ifp, struct ifmediareq *ifmr)
+rue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct rue_softc *sc = ifp->if_softc;
+	struct mii_data *mii = GET_MII(sc);
 
-	mtx_lock(&sc->sc_mtx);
-
-	ifmr->ifm_active = sc->sc_media_active;
-	ifmr->ifm_status = sc->sc_media_status;
-
-	mtx_unlock(&sc->sc_mtx);
-}
-
-static int
-rue_ioctl_cb(struct ifnet *ifp, u_long command, caddr_t data)
-{
-	struct rue_softc *sc = ifp->if_softc;
-	struct mii_data *mii;
-	int error = 0;
-
-	switch (command) {
-	case SIOCSIFFLAGS:
-
-		mtx_lock(&sc->sc_mtx);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				usb2_config_td_queue_command
-				    (&sc->sc_config_td, &rue_config_copy,
-				    &rue_cfg_promisc_upd, 0, 0);
-			} else {
-				usb2_config_td_queue_command
-				    (&sc->sc_config_td, &rue_cfg_pre_init,
-				    &rue_cfg_init, 0, 0);
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				usb2_config_td_queue_command
-				    (&sc->sc_config_td, &rue_cfg_pre_stop,
-				    &rue_cfg_stop, 0, 0);
-			}
-		}
-		mtx_unlock(&sc->sc_mtx);
-		break;
-
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		mtx_lock(&sc->sc_mtx);
-		usb2_config_td_queue_command
-		    (&sc->sc_config_td, &rue_config_copy,
-		    &rue_cfg_promisc_upd, 0, 0);
-		mtx_unlock(&sc->sc_mtx);
-		break;
-
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-		mii = GET_MII(sc);
-		if (mii == NULL) {
-			error = EINVAL;
-		} else {
-			error = ifmedia_ioctl
-			    (ifp, (void *)data, &mii->mii_media, command);
-		}
-		break;
-
-	default:
-		error = ether_ioctl(ifp, command, data);
-		break;
-	}
-	return (error);
+	RUE_LOCK(sc);
+	mii_pollstat(mii);
+	RUE_UNLOCK(sc);
+	ifmr->ifm_active = mii->mii_media_active;
+	ifmr->ifm_status = mii->mii_media_status;
 }
 
 static void
-rue_watchdog(void *arg)
+rue_stop(struct usb2_ether *ue)
 {
-	struct rue_softc *sc = arg;
+	struct rue_softc *sc = usb2_ether_getsc(ue);
+	struct ifnet *ifp = usb2_ether_getifp(ue);
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL, &rue_cfg_tick, 0, 0);
-
-	usb2_callout_reset(&sc->sc_watchdog,
-	    hz, &rue_watchdog, sc);
-}
-
-/*
- * NOTE: can be called when "ifp" is NULL
- */
-static void
-rue_cfg_pre_stop(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-	if (cc) {
-		/* copy the needed configuration */
-		rue_config_copy(sc, cc, refcount);
-	}
-	/* immediate configuration */
-
-	if (ifp) {
-		/* clear flags */
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	}
-	sc->sc_flags &= ~(RUE_FLAG_HL_READY |
-	    RUE_FLAG_LL_READY);
-
-	sc->sc_flags |= RUE_FLAG_WAIT_LINK;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	sc->sc_flags &= ~RUE_FLAG_LINK;
 
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
 	usb2_transfer_stop(sc->sc_xfer[RUE_BULK_DT_WR]);
 	usb2_transfer_stop(sc->sc_xfer[RUE_BULK_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[RUE_BULK_CS_WR]);
-	usb2_transfer_stop(sc->sc_xfer[RUE_BULK_CS_RD]);
 	usb2_transfer_stop(sc->sc_xfer[RUE_INTR_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[RUE_INTR_CS_RD]);
-}
 
-static void
-rue_cfg_stop(struct rue_softc *sc,
-    struct usb2_config_td_cc *cc, uint16_t refcount)
-{
-	rue_cfg_csr_write_1(sc, RUE_CR, 0x00);
+	rue_csr_write_1(sc, RUE_CR, 0x00);
 
-	rue_cfg_reset(sc);
+	rue_reset(sc);
 }
 
 /*
@@ -1347,13 +907,7 @@ rue_shutdown(device_t dev)
 {
 	struct rue_softc *sc = device_get_softc(dev);
 
-	mtx_lock(&sc->sc_mtx);
-
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, &rue_cfg_pre_stop,
-	    &rue_cfg_stop, 0, 0);
-
-	mtx_unlock(&sc->sc_mtx);
+	usb2_ether_ifshutdown(&sc->sc_ue);
 
 	return (0);
 }
