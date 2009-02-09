@@ -2608,17 +2608,14 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		 */
 		if (m->m_pkthdr.len < MSK_MIN_FRAMELEN &&
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
-			uint16_t csum;
-
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
-			csum = in_cksum_skip(m, ntohs(ip->ip_len) + offset -
-			    (ip->ip_hl << 2), offset);
 			*(uint16_t *)(m->m_data + offset +
-			    m->m_pkthdr.csum_data) = csum;
+			    m->m_pkthdr.csum_data) = in_cksum_skip(m,
+			    m->m_pkthdr.len, offset);
 			m->m_pkthdr.csum_flags &= ~CSUM_TCP;
 		}
 		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
