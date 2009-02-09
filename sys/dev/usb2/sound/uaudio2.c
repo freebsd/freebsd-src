@@ -539,9 +539,12 @@ uaudio_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb2_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
+
+	if (uaa->use_generic == 0)
+		return (ENXIO);
+
 	/* trigger on the control interface */
 
 	if ((uaa->info.bInterfaceClass == UICLASS_AUDIO) &&
@@ -725,9 +728,7 @@ repeat:
 
 	if (error) {
 		device_printf(dev, "Waiting for sound application to exit!\n");
-		mtx_lock(&Giant);
-		usb2_pause_mtx(&Giant, 2000);
-		mtx_unlock(&Giant);
+		usb2_pause_mtx(NULL, 2 * hz);
 		goto repeat;		/* try again */
 	}
 	return (0);			/* success */
