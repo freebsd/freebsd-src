@@ -99,7 +99,6 @@
  * reception of broadcast frames.
  */
 #define	CUE_MCAST_TABLE_ADDR	0xFA80
-#define	CUE_MCAST_TABLE_LEN	64
 
 #define	CUE_TIMEOUT		1000
 #define	CUE_MIN_FRAMELEN	60
@@ -116,28 +115,18 @@
 enum {
 	CUE_BULK_DT_WR,
 	CUE_BULK_DT_RD,
-	CUE_BULK_CS_WR,
-	CUE_BULK_CS_RD,
-	CUE_N_TRANSFER = 4,
+	CUE_N_TRANSFER,
 };
 
 struct cue_softc {
-	struct ifnet *sc_ifp;
+	struct usb2_ether	sc_ue;
+	struct mtx		sc_mtx;
+	struct usb2_xfer	*sc_xfer[CUE_N_TRANSFER];
 
-	struct usb2_config_td sc_config_td;
-	struct usb2_callout sc_watchdog;
-	struct mtx sc_mtx;
-
-	device_t sc_dev;
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[CUE_N_TRANSFER];
-
-	uint32_t sc_unit;
-
-	uint16_t sc_flags;
-#define	CUE_FLAG_READ_STALL	0x0010	/* wait for clearing of stall */
-#define	CUE_FLAG_WRITE_STALL	0x0020	/* wait for clearing of stall */
-#define	CUE_FLAG_LL_READY	0x0040	/* Lower Layer Ready */
-#define	CUE_FLAG_HL_READY	0x0080	/* Higher Layer Ready */
-#define	CUE_FLAG_INTR_STALL	0x0100	/* wait for clearing of stall */
+	int			sc_flags;
+#define	CUE_FLAG_LINK		0x0001	/* got a link */
 };
+
+#define	CUE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	CUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	CUE_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)
