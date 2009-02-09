@@ -6550,7 +6550,9 @@ sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <sys/proc.h>
+#ifdef INET6
 #include <netinet6/sctp6_var.h>
+#endif
 
 static void
 sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
