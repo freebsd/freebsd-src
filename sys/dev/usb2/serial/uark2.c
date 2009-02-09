@@ -64,9 +64,7 @@
 enum {
 	UARK_BULK_DT_WR,
 	UARK_BULK_DT_RD,
-	UARK_BULK_CS_WR,
-	UARK_BULK_CS_RD,
-	UARK_N_TRANSFER = 4,
+	UARK_N_TRANSFER,
 };
 
 struct uark_softc {
@@ -76,9 +74,6 @@ struct uark_softc {
 	struct usb2_xfer *sc_xfer[UARK_N_TRANSFER];
 	struct usb2_device *sc_udev;
 
-	uint8_t	sc_flags;
-#define	UARK_FLAG_BULK_READ_STALL	0x01
-#define	UARK_FLAG_BULK_WRITE_STALL	0x02
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;
 };
@@ -90,9 +85,7 @@ static device_attach_t uark_attach;
 static device_detach_t uark_detach;
 
 static usb2_callback_t uark_bulk_write_callback;
-static usb2_callback_t uark_bulk_write_clear_stall_callback;
 static usb2_callback_t uark_bulk_read_callback;
-static usb2_callback_t uark_bulk_read_clear_stall_callback;
 
 static void	uark_start_read(struct usb2_com_softc *);
 static void	uark_stop_read(struct usb2_com_softc *);
@@ -124,28 +117,6 @@ static const struct usb2_config
 		.mh.bufsize = UARK_BUF_SIZE,
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.callback = &uark_bulk_read_callback,
-	},
-
-	[UARK_BULK_CS_WR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &uark_bulk_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[UARK_BULK_CS_RD] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &uark_bulk_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 };
 
@@ -224,8 +195,8 @@ uark_attach(device_t dev)
 		goto detach;
 	}
 	/* clear stall at first run */
-	sc->sc_flags |= (UARK_FLAG_BULK_WRITE_STALL |
-	    UARK_FLAG_BULK_READ_STALL);
+	usb2_transfer_set_stall(sc->sc_xfer[UARK_BULK_DT_WR]);
+	usb2_transfer_set_stall(sc->sc_xfer[UARK_BULK_DT_RD]);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uark_callback, &Giant);
@@ -261,10 +232,7 @@ uark_bulk_write_callback(struct usb2_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
-		if (sc->sc_flags & UARK_FLAG_BULK_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UARK_BULK_CS_WR]);
-			return;
-		}
+tr_setup:
 		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UARK_BUF_SIZE, &actlen)) {
 			xfer->frlengths[0] = actlen;
@@ -274,24 +242,12 @@ uark_bulk_write_callback(struct usb2_xfer *xfer)
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flags |= UARK_FLAG_BULK_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[UARK_BULK_CS_WR]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
 
-	}
-}
-
-static void
-uark_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uark_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UARK_BULK_DT_WR];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UARK_FLAG_BULK_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -306,34 +262,18 @@ uark_bulk_read_callback(struct usb2_xfer *xfer)
 		    xfer->actlen);
 
 	case USB_ST_SETUP:
-		if (sc->sc_flags & UARK_FLAG_BULK_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UARK_BULK_CS_RD]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flags |= UARK_FLAG_BULK_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[UARK_BULK_CS_RD]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
-	}
-}
-
-static void
-uark_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uark_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UARK_BULK_DT_RD];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UARK_FLAG_BULK_READ_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -350,7 +290,6 @@ uark_stop_read(struct usb2_com_softc *ucom)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UARK_BULK_CS_RD]);
 	usb2_transfer_stop(sc->sc_xfer[UARK_BULK_DT_RD]);
 }
 
@@ -367,7 +306,6 @@ uark_stop_write(struct usb2_com_softc *ucom)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UARK_BULK_CS_WR]);
 	usb2_transfer_stop(sc->sc_xfer[UARK_BULK_DT_WR]);
 }
 
@@ -454,18 +392,14 @@ uark_cfg_write(struct uark_softc *sc, uint16_t index, uint16_t value)
 	struct usb2_device_request req;
 	usb2_error_t err;
 
-	if (usb2_com_cfg_is_gone(&sc->sc_ucom)) {
-		return;
-	}
 	req.bmRequestType = UARK_WRITE;
 	req.bRequest = UARK_REQUEST;
 	USETW(req.wValue, value);
 	USETW(req.wIndex, index);
 	USETW(req.wLength, 0);
 
-	err = usb2_do_request_flags
-	    (sc->sc_udev, &Giant, &req, NULL, 0, NULL, 1000);
-
+	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, NULL, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
 		    "(ignored)\n", usb2_errstr(err));
