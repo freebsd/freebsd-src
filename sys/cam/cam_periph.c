@@ -171,7 +171,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 			break;
 	}
 	xpt_unlock_buses();
-	if (p_drv == NULL) {
+	if (*p_drv == NULL) {
 		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
 		return (CAM_REQ_INVALID);
 	}
