@@ -73,8 +73,8 @@ dofs_md () {
 
 	if [ "x${DISKLABEL}" != "x" ] ; then
 		${DISKLABEL} ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
-		newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
-		mount /dev/${MDDEVICE}c ${MNT}
+		newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}
+		mount /dev/${MDDEVICE} ${MNT}
 	else
 		newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}
 		mount /dev/${MDDEVICE} ${MNT}
