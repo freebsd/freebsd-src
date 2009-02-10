@@ -2257,7 +2257,7 @@ sis_stop(struct sis_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 sis_shutdown(device_t dev)
 {
 	struct sis_softc	*sc;
@@ -2267,6 +2267,7 @@ sis_shutdown(device_t dev)
 	sis_reset(sc);
 	sis_stop(sc);
 	SIS_UNLOCK(sc);
+	return (0);
 }
 
 static device_method_t sis_methods[] = {
