@@ -173,6 +173,15 @@ tdma_vdetach(struct ieee80211vap *vap)
 	setackpolicy(vap->iv_ic, 0);	/* enable ACK's */
 }
 
+static void
+sta_leave(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (ni->ni_vap == vap && ni != vap->iv_bss)
+		ieee80211_node_leave(ni);
+}
+
 /*
  * TDMA state machine handler.
  */
@@ -180,10 +189,11 @@ static int
 tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
+	struct ieee80211com *ic = vap->iv_ic;
 	enum ieee80211_state ostate;
 	int status;
 
-	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+	IEEE80211_LOCK_ASSERT(ic);
 
 	ostate = vap->iv_state;
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s -> %s (%d)\n",
@@ -201,6 +211,11 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 */
 		vap->iv_state = nstate;			/* state transition */
 		ieee80211_cancel_scan(vap);		/* background scan */
+		if (ostate == IEEE80211_S_RUN) {
+			/* purge station table; entries are stale */
+			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
+			ieee80211_free_node(vap->iv_bss);	/* XXX */
+		}
 		if (vap->iv_flags_ext & IEEE80211_FEXT_SCANREQ) {
 			ieee80211_check_scan(vap,
 			    vap->iv_scanreq_flags,
@@ -326,7 +341,6 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 * Count beacon frame for s/w bmiss handling.
 			 */
 			vap->iv_swbmiss_count++;
-			vap->iv_bmiss_count = 0;
 			/*
 			 * Process tdma ie.  The contents are used to sync
 			 * the slot timing, reconfigure the bss, etc.
