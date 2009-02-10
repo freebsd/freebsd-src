@@ -1756,8 +1756,13 @@ device_probe_child(device_t dev, device_t child)
 		     dl = next_matching_driver(dc, child, dl)) {
 			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
 			device_set_driver(child, dl->driver);
-			if (!hasclass)
-				device_set_devclass(child, dl->driver->name);
+			if (!hasclass) {
+				if (device_set_devclass(child, dl->driver->name)) {
+					PDEBUG(("Unable to set device class"));
+					device_set_driver(child, NULL);
+					continue;
+				}
+			}
 
 			/* Fetch any flags for the device before probing. */
 			resource_int_value(dl->driver->name, child->unit,
@@ -1843,8 +1848,11 @@ device_probe_child(device_t dev, device_t child)
 				return (result);
 
 		/* Set the winning driver, devclass, and flags. */
-		if (!child->devclass)
-			device_set_devclass(child, best->driver->name);
+		if (!child->devclass) {
+			result = device_set_devclass(child, best->driver->name);
+			if (result != 0)
+				return (result);
+		}
 		device_set_driver(child, best->driver);
 		resource_int_value(best->driver->name, child->unit,
 		    "flags", &child->devflags);
