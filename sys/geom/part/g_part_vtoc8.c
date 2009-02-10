@@ -55,12 +55,12 @@ static int g_part_vtoc8_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_vtoc8_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_vtoc8_destroy(struct g_part_table *, struct g_part_parms *);
-static int g_part_vtoc8_dumpconf(struct g_part_table *, struct g_part_entry *,
+static void g_part_vtoc8_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_vtoc8_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_vtoc8_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
-static char *g_part_vtoc8_name(struct g_part_table *, struct g_part_entry *,
+static const char *g_part_vtoc8_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_vtoc8_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_vtoc8_read(struct g_part_table *, struct g_consumer *);
@@ -238,7 +238,7 @@ g_part_vtoc8_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	return (0);
 }
 
-static int
+static void
 g_part_vtoc8_dumpconf(struct g_part_table *basetable,
     struct g_part_entry *entry, struct sbuf *sb, const char *indent)
 {
@@ -257,7 +257,6 @@ g_part_vtoc8_dumpconf(struct g_part_table *basetable,
 	} else {
 		/* confxml: scheme information */
 	}
-	return (0);
 }
 
 static int
@@ -297,7 +296,7 @@ g_part_vtoc8_modify(struct g_part_table *basetable,
 	return (0);
 }
 
-static char *
+static const char *
 g_part_vtoc8_name(struct g_part_table *table, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
