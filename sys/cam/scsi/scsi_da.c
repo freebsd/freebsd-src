@@ -1086,7 +1086,6 @@ dasysctlinit(void *context, int pending)
 	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
-	mtx_lock(&Giant);
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= DA_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
@@ -1094,7 +1093,6 @@ dasysctlinit(void *context, int pending)
 		CTLFLAG_RD, 0, tmpstr);
 	if (softc->sysctl_tree == NULL) {
 		printf("dasysctlinit: unable to allocate sysctl tree\n");
-		mtx_unlock(&Giant);
 		cam_periph_release(periph);
 		return;
 	}
@@ -1108,7 +1106,6 @@ dasysctlinit(void *context, int pending)
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
 
-	mtx_unlock(&Giant);
 	cam_periph_release(periph);
 }
 
