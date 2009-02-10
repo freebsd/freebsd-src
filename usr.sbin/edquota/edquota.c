@@ -101,9 +101,11 @@ struct quotause {
 int alldigits(const char *s);
 int cvtatos(u_int64_t, char *, u_int64_t *);
 char *cvtstoa(u_int64_t);
-u_int64_t cvtval(u_int64_t, char);
+u_int64_t cvtblkval(u_int64_t, char, const char *);
+u_int64_t cvtinoval(u_int64_t, char, const char *);
 int editit(char *);
-char *fmthumanval(int64_t);
+char *fmthumanvalblks(int64_t);
+char *fmthumanvalinos(int64_t);
 void freeprivs(struct quotause *);
 int getentry(const char *, int);
 struct quotause *getprivs(long, int, char *);
@@ -165,6 +167,12 @@ main(int argc, char *argv[])
 			     (cp = strsep(&optarg, ":")) != NULL; i++) {
 				if (cp != oldoptarg)
 					*(cp - 1) = ':';
+				if (i > 0 && !isdigit(*cp)) {
+					warnx("incorrect quota specification: "
+					    "%s", oldoptarg);
+					usage();
+					/* Not Reached */
+				}
 				switch (i) {
 				case 0:
 					strlcpy(qup->fsname, cp,
@@ -173,34 +181,34 @@ main(int argc, char *argv[])
 				case 1:
 					lim = strtoll(cp, &endpt, 10);
 					qup->dqblk.dqb_bsoftlimit =
-						cvtval(lim, *endpt);
+						cvtblkval(lim, *endpt,
+						    "block soft limit");
 					continue;
 				case 2:
 					lim = strtoll(cp, &endpt, 10);
 					qup->dqblk.dqb_bhardlimit =
-						cvtval(lim, *endpt);
+						cvtblkval(lim, *endpt,
+						    "block hard limit");
 					continue;
 				case 3:
 					lim = strtoll(cp, &endpt, 10);
 					qup->dqblk.dqb_isoftlimit =
-						cvtval(lim, *endpt);
+						cvtinoval(lim, *endpt,
+						    "inode soft limit");
 					continue;
 				case 4:
 					lim = strtoll(cp, &endpt, 10);
 					qup->dqblk.dqb_ihardlimit =
-						cvtval(lim, *endpt);
+						cvtinoval(lim, *endpt,
+						    "inode hard limit");
 					continue;
 				default:
 					warnx("incorrect quota specification: "
 					    "%s", oldoptarg);
 					usage();
-					break; /* XXX: report an error */
+					/* Not Reached */
 				}
 			}
-			qup->dqblk.dqb_bsoftlimit =
-			    btodb((off_t)qup->dqblk.dqb_bsoftlimit * 1024);
-			qup->dqblk.dqb_bhardlimit =
-			    btodb((off_t)qup->dqblk.dqb_bhardlimit * 1024);
 			if (protoprivs == NULL) {
 				protoprivs = curprivs = qup;
 			} else {
@@ -212,6 +220,7 @@ main(int argc, char *argv[])
 			break;
 		default:
 			usage();
+			/* Not Reached */
 		}
 	}
 	argc -= optind;
@@ -518,32 +527,47 @@ writeprivs(struct quotause *quplist, int outfd, char *name, int quotatype)
 	fprintf(fd, "Quotas for %s %s:\n", qfextension[quotatype], name);
 	for (qup = quplist; qup; qup = qup->next) {
 		fprintf(fd, "%s: in use: %s, ", qup->fsname,
-		    fmthumanval(qup->dqblk.dqb_curblocks));
+		    fmthumanvalblks(qup->dqblk.dqb_curblocks));
 		fprintf(fd, "limits (soft = %s, ",
-		    fmthumanval(qup->dqblk.dqb_bsoftlimit));
+		    fmthumanvalblks(qup->dqblk.dqb_bsoftlimit));
 		fprintf(fd, "hard = %s)\n",
-		    fmthumanval(qup->dqblk.dqb_bhardlimit));
-		fprintf(fd, "%s %llu, limits (soft = %llu, hard = %llu)\n",
-		    "\tinodes in use:",
-		    qup->dqblk.dqb_curinodes,
-		    qup->dqblk.dqb_isoftlimit,
-		    qup->dqblk.dqb_ihardlimit);
+		    fmthumanvalblks(qup->dqblk.dqb_bhardlimit));
+		fprintf(fd, "\tinodes in use: %s, ",
+		    fmthumanvalinos(qup->dqblk.dqb_curinodes));
+		fprintf(fd, "limits (soft = %s, ",
+		    fmthumanvalinos(qup->dqblk.dqb_isoftlimit));
+		fprintf(fd, "hard = %s)\n",
+		    fmthumanvalinos(qup->dqblk.dqb_ihardlimit));
 	}
 	fclose(fd);
 	return (1);
 }
 
 char *
-fmthumanval(int64_t blocks)
+fmthumanvalblks(int64_t blocks)
 {
 	static char numbuf[20];
 
 	if (hflag) {
-		humanize_number(numbuf, sizeof(numbuf) - (blocks < 0 ? 0 : 1),
+		humanize_number(numbuf, blocks < 0 ? 7 : 6,
 		    dbtob(blocks), "", HN_AUTOSCALE, HN_NOSPACE);
 		return (numbuf);
 	}
 	snprintf(numbuf, sizeof(numbuf), "%lluk", dbtokb(blocks));
+	return(numbuf);
+}
+
+char *
+fmthumanvalinos(int64_t inos)
+{
+	static char numbuf[20];
+
+	if (hflag) {
+		humanize_number(numbuf, inos < 0 ? 7 : 6,
+		    inos, "", HN_AUTOSCALE, HN_NOSPACE | HN_DIVISOR_1000);
+		return (numbuf);
+	}
+	snprintf(numbuf, sizeof(numbuf), "%llu", inos);
 	return(numbuf);
 }
 
@@ -607,42 +631,48 @@ readprivs(struct quotause *quplist, char *inname)
 			warnx("%s:%s: bad format", fsp, cp);
 			return (0);
 		}
-		dqblk.dqb_curblocks = cvtval(curitems, curitemunits);
-		dqblk.dqb_bsoftlimit = cvtval(softlimit, softunits);
-		dqblk.dqb_bhardlimit = cvtval(hardlimit, hardunits);
+		dqblk.dqb_curblocks = cvtblkval(curitems, curitemunits,
+		    "current block count");
+		dqblk.dqb_bsoftlimit = cvtblkval(softlimit, softunits,
+		    "block soft limit");
+		dqblk.dqb_bhardlimit = cvtblkval(hardlimit, hardunits,
+		    "block hard limit");
 		if ((cp = strtok(line2, "\n")) == NULL) {
 			warnx("%s: %s: bad format", fsp, line2);
 			return (0);
 		}
-		cnt = sscanf(cp,
-		    " in use: %llu%c, limits (soft = %llu%c, hard = %llu%c)",
+		cnt = sscanf(&cp[7],
+		    " in use: %llu%c limits (soft = %llu%c, hard = %llu%c)",
 		    &curitems, &curitemunits, &softlimit,
 		    &softunits, &hardlimit, &hardunits);
 		/*
 		 * The next three check for old-style input formats.
 		 */
 		if (cnt != 6)
-			cnt = sscanf(cp,
-			 " in use: %llu%c, limits (soft = %llu%c hard = %llu%c",
+			cnt = sscanf(&cp[7],
+			 " in use: %llu%c limits (soft = %llu%c hard = %llu%c",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6)
-			cnt = sscanf(cp,
-			" in use: %llu%c, limits (soft = %llu%c hard = %llu%c)",
+			cnt = sscanf(&cp[7],
+			" in use: %llu%c limits (soft = %llu%c hard = %llu%c)",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6)
-			cnt = sscanf(cp,
-			" in use: %llu%c, limits (soft = %llu%c, hard = %llu%c",
+			cnt = sscanf(&cp[7],
+			" in use: %llu%c limits (soft = %llu%c, hard = %llu%c",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
-		if (cnt != 3) {
-			warnx("%s: %s: bad format", fsp, line2);
+		if (cnt != 6) {
+			warnx("%s: %s: bad format cnt %d", fsp, &cp[7], cnt);
 			return (0);
 		}
-		dqblk.dqb_curinodes = cvtval(curitems, curitemunits);
-		dqblk.dqb_isoftlimit = cvtval(softlimit, softunits);
-		dqblk.dqb_ihardlimit = cvtval(hardlimit, hardunits);
+		dqblk.dqb_curinodes = cvtinoval(curitems, curitemunits,
+		    "current inode count");
+		dqblk.dqb_isoftlimit = cvtinoval(softlimit, softunits,
+		    "inode soft limit");
+		dqblk.dqb_ihardlimit = cvtinoval(hardlimit, hardunits,
+		    "inode hard limit");
 		for (qup = quplist; qup; qup = qup->next) {
 			if (strcmp(fsp, qup->fsname))
 				continue;
@@ -669,8 +699,10 @@ readprivs(struct quotause *quplist, char *inname)
 			qup->dqblk.dqb_isoftlimit = dqblk.dqb_isoftlimit;
 			qup->dqblk.dqb_ihardlimit = dqblk.dqb_ihardlimit;
 			qup->flags |= FOUND;
-			if (dqblk.dqb_curblocks == qup->dqblk.dqb_curblocks &&
-			    dqblk.dqb_curinodes == qup->dqblk.dqb_curinodes)
+			/* Humanized input returns only approximate counts */
+			if (hflag ||
+			    (dqblk.dqb_curblocks == qup->dqblk.dqb_curblocks &&
+			     dqblk.dqb_curinodes == qup->dqblk.dqb_curinodes))
 				break;
 			warnx("%s: cannot change current allocation", fsp);
 			break;
@@ -836,7 +868,7 @@ cvtatos(u_int64_t period, char *units, u_int64_t *seconds)
  * Convert a limit to number of disk blocks.
  */
 u_int64_t
-cvtval(u_int64_t limit, char units)
+cvtblkval(u_int64_t limit, char units, const char *itemname)
 {
 
 	switch(units) {
@@ -872,11 +904,62 @@ cvtval(u_int64_t limit, char units)
 		limit *= btodb(1152921504606846976);
 		break;
 	case ' ':
-		errx(2, "No space permitted between value and units\n");
+		errx(2, "No space permitted between value and units for %s\n",
+		    itemname);
 		break;
 	default:
-		errx(2, "%llu%c: unknown units, specify K, M, G, T, P, or E\n",
-		    limit, units);
+		errx(2, "%llu%c: unknown units for %s, specify none, K, M, G, T, P, or E\n",
+		    limit, units, itemname);
+		break;
+	}
+	return (limit);
+}
+
+/*
+ * Convert a limit to number of inodes.
+ */
+u_int64_t
+cvtinoval(u_int64_t limit, char units, const char *itemname)
+{
+
+	switch(units) {
+	case 'B':
+	case 'b':
+	case '\0':	/* historic behavior */
+	case ',':	/* historic behavior */
+	case ')':	/* historic behavior */
+		break;
+	case 'K':
+	case 'k':
+		limit *= 1000;
+		break;
+	case 'M':
+	case 'm':
+		limit *= 1000000;
+		break;
+	case 'G':
+	case 'g':
+		limit *= 1000000000;
+		break;
+	case 'T':
+	case 't':
+		limit *= 1000000000000;
+		break;
+	case 'P':
+	case 'p':
+		limit *= 1000000000000000;
+		break;
+	case 'E':
+	case 'e':
+		limit *= 1000000000000000000;
+		break;
+	case ' ':
+		errx(2, "No space permitted between value and units for %s\n",
+		    itemname);
+		break;
+	default:
+		errx(2, "%llu%c: unknown units for %s, specify none, K, M, G, T, P, or E\n",
+		    limit, units, itemname);
 		break;
 	}
 	return (limit);
