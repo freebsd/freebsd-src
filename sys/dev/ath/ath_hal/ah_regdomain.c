@@ -786,8 +786,10 @@ static REG_DMN_FREQ_BAND regDmn5GhzFreq[] = {
  * 5GHz Turbo (dynamic & static) tags
  */
 static REG_DMN_FREQ_BAND regDmn5GhzTurboFreq[] = {
+	{ 4950, 4980, 30, 6, 40, 40, NO_DFS, PSCAN_FCC },
+#define	T1_4950_4980	0
 	{ 5130, 5210, 5,  6, 40, 40, NO_DFS, NO_PSCAN },
-#define	T1_5130_5210	0
+#define	T1_5130_5210	AFTER(T1_4950_4980)
 	{ 5250, 5330, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN },
 #define	T1_5250_5330	AFTER(T1_5130_5210)
 	{ 5370, 5490, 5,  6, 40, 40, NO_DFS, NO_PSCAN },
@@ -1043,7 +1045,8 @@ static REG_DOMAIN regDomains[] = {
 				      F3_5120_5240,
 				      F3_5260_5700,
 				      F8_5745_5825),
-	 .chan11a_turbo		= BM8(T1_5130_5210,
+	 .chan11a_turbo		= BM9(T1_4950_4980,
+				      T1_5130_5210,
 				      T1_5250_5330,
 				      T1_5370_5490,
 				      T1_5530_5650,
