@@ -1372,29 +1372,34 @@ ath_fatal_proc(void *arg, int pending)
 static void
 ath_bmiss_vap(struct ieee80211vap *vap)
 {
-	struct ifnet *ifp = vap->iv_ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
-	u_int64_t lastrx = sc->sc_lastrx;
-	u_int64_t tsf = ath_hal_gettsf64(sc->sc_ah);
-	u_int bmisstimeout =
-		vap->iv_bmissthreshold * vap->iv_bss->ni_intval * 1024;
-
-	DPRINTF(sc, ATH_DEBUG_BEACON,
-	    "%s: tsf %llu lastrx %lld (%llu) bmiss %u\n",
-	    __func__, (unsigned long long) tsf,
-	    (unsigned long long)(tsf - lastrx),
-	    (unsigned long long) lastrx, bmisstimeout);
 	/*
 	 * Workaround phantom bmiss interrupts by sanity-checking
 	 * the time of our last rx'd frame.  If it is within the
 	 * beacon miss interval then ignore the interrupt.  If it's
 	 * truly a bmiss we'll get another interrupt soon and that'll
-	 * be dispatched up for processing.
+	 * be dispatched up for processing.  Note this applies only
+	 * for h/w beacon miss events.
 	 */
-	if (tsf - lastrx > bmisstimeout)
-		ATH_VAP(vap)->av_bmiss(vap);
-	else
-		sc->sc_stats.ast_bmiss_phantom++;
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) == 0) {
+		struct ifnet *ifp = vap->iv_ic->ic_ifp;
+		struct ath_softc *sc = ifp->if_softc;
+		u_int64_t lastrx = sc->sc_lastrx;
+		u_int64_t tsf = ath_hal_gettsf64(sc->sc_ah);
+		u_int bmisstimeout =
+			vap->iv_bmissthreshold * vap->iv_bss->ni_intval * 1024;
+
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: tsf %llu lastrx %lld (%llu) bmiss %u\n",
+		    __func__, (unsigned long long) tsf,
+		    (unsigned long long)(tsf - lastrx),
+		    (unsigned long long) lastrx, bmisstimeout);
+
+		if (tsf - lastrx <= bmisstimeout) {
+			sc->sc_stats.ast_bmiss_phantom++;
+			return;
+		}
+	}
+	ATH_VAP(vap)->av_bmiss(vap);
 }
 
 static int
