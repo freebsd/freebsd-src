@@ -1201,7 +1201,9 @@ ath_resume(struct ath_softc *sc)
 	 * Must reset the chip before we reload the
 	 * keycache as we were powered down on suspend.
 	 */
-	ath_hal_reset(ah, sc->sc_opmode, sc->sc_curchan, AH_FALSE, &status);
+	ath_hal_reset(ah, sc->sc_opmode,
+	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
+	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
