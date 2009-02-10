@@ -555,8 +555,6 @@ cdsysctlinit(void *context, int pending)
 	snprintf(tmpstr, sizeof(tmpstr), "CAM CD unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
-	mtx_lock(&Giant);
-
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= CD_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
@@ -565,7 +563,6 @@ cdsysctlinit(void *context, int pending)
 
 	if (softc->sysctl_tree == NULL) {
 		printf("cdsysctlinit: unable to allocate sysctl tree\n");
-		mtx_unlock(&Giant);
 		cam_periph_release(periph);
 		return;
 	}
@@ -579,7 +576,6 @@ cdsysctlinit(void *context, int pending)
 		&softc->minimum_command_size, 0, cdcmdsizesysctl, "I",
 		"Minimum CDB size");
 
-	mtx_unlock(&Giant);
 	cam_periph_release(periph);
 }
 
