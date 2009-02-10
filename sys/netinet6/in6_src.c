@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sx.h>
 
@@ -224,6 +225,11 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			if (*errorp != 0)
 				return (NULL);
 		}
+		if (cred != NULL && prison_local_ip6(cred, &srcsock.sin6_addr,
+		    (inp != NULL && (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
+			*errorp = EADDRNOTAVAIL;
+			return (NULL);
+		}
 
 		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr((struct sockaddr *)(&srcsock));
 		if (ia6 == NULL ||
@@ -241,6 +247,11 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * Otherwise, if the socket has already bound the source, just use it.
 	 */
 	if (inp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+		if (cred != NULL && prison_local_ip6(cred, &inp->in6p_laddr,
+		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
+			*errorp = EADDRNOTAVAIL;
+			return (NULL);
+		}
 		return (&inp->in6p_laddr);
 	}
 
@@ -290,6 +301,12 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 				continue;
 		}
 		if (!ip6_use_deprecated && IFA6_IS_DEPRECATED(ia))
+			continue;
+
+		if (cred != NULL &&
+		    prison_local_ip6(cred, &ia->ia_addr.sin6_addr,
+			(inp != NULL &&
+			(inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
 			continue;
 
 		/* Rule 1: Prefer same address */
@@ -764,6 +781,10 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+
+	if (prison_local_ip6(cred, laddr,
+	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
+		return(EINVAL);
 
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)

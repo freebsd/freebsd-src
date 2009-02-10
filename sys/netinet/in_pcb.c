@@ -279,7 +279,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	struct in_addr laddr;
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
-	int error, prison = 0;
+	int error;
 	int dorandom;
 
 	/*
@@ -308,9 +308,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (sin->sin_family != AF_INET)
 			return (EAFNOSUPPORT);
 #endif
-		if (sin->sin_addr.s_addr != INADDR_ANY)
-			if (prison_ip(cred, 0, &sin->sin_addr.s_addr))
-				return(EINVAL);
+		if (prison_local_ip4(cred, &sin->sin_addr))
+			return (EINVAL);
 		if (sin->sin_port != *lportp) {
 			/* Don't allow the port to change. */
 			if (*lportp != 0)
@@ -345,14 +344,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
 			    0))
 				return (EACCES);
-			if (jailed(cred))
-				prison = 1;
 			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
 			    priv_check_cred(inp->inp_cred,
 			    PRIV_NETINET_REUSEPORT, 0) != 0) {
 				t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-				    lport, prison ? 0 : INPLOOKUP_WILDCARD,
-				    cred);
+				    lport, INPLOOKUP_WILDCARD, cred);
 	/*
 	 * XXX
 	 * This entire block sorely needs a rewrite.
@@ -369,10 +365,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
 			}
-			if (prison && prison_ip(cred, 0, &sin->sin_addr.s_addr))
+			if (prison_local_ip4(cred, &sin->sin_addr))
 				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-			    lport, prison ? 0 : wild, cred);
+			    lport, wild, cred);
 			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
@@ -404,9 +400,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		u_short first, last;
 		int count;
 
-		if (laddr.s_addr != INADDR_ANY)
-			if (prison_ip(cred, 0, &laddr.s_addr))
-				return (EINVAL);
+		if (prison_local_ip4(cred, &laddr))
+			return (EINVAL);
 
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = ipport_hifirstauto;	/* sysctl */
@@ -490,7 +485,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			    wild, cred));
 		}
 	}
-	if (prison_ip(cred, 0, &laddr.s_addr))
+	if (prison_local_ip4(cred, &laddr))
 		return (EINVAL);
 	*laddrp = laddr.s_addr;
 	*lportp = lport;
@@ -545,6 +540,211 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 }
 
 /*
+ * Do proper source address selection on an unbound socket in case
+ * of connect. Take jails into account as well.
+ */
+static int
+in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
+    struct ucred *cred)
+{
+	struct in_ifaddr *ia;
+	struct ifaddr *ifa;
+	struct sockaddr *sa;
+	struct sockaddr_in *sin;
+	struct route sro;
+	int error;
+
+	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
+
+	error = 0;
+	ia = NULL;
+	bzero(&sro, sizeof(sro));
+
+	sin = (struct sockaddr_in *)&sro.ro_dst;
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(struct sockaddr_in);
+	sin->sin_addr.s_addr = faddr->s_addr;
+
+	/*
+	 * If route is known our src addr is taken from the i/f,
+	 * else punt.
+	 *
+	 * Find out route to destination.
+	 */
+	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
+		in_rtalloc_ign(&sro, RTF_CLONING, inp->inp_inc.inc_fibnum);
+
+	/*
+	 * If we found a route, use the address corresponding to
+	 * the outgoing interface.
+	 * 
+	 * Otherwise assume faddr is reachable on a directly connected
+	 * network and try to find a corresponding interface to take
+	 * the source address from.
+	 */
+	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
+		struct ifnet *ifp;
+
+		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin));
+		if (ia == NULL)
+			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin));
+		if (ia == NULL) {
+			error = ENETUNREACH;
+			goto done;
+		}
+
+		if (cred == NULL || !jailed(cred)) {
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		ifp = ia->ia_ifp;
+		ia = NULL;
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET)
+				continue;
+			sin = (struct sockaddr_in *)sa;
+			if (prison_check_ip4(cred, &sin->sin_addr)) {
+				ia = (struct in_ifaddr *)ifa;
+				break;
+			}
+		}
+		if (ia != NULL) {
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* 3. As a last resort return the 'default' jail address. */
+		if (prison_get_ip4(cred, laddr) != 0)
+			error = EADDRNOTAVAIL;
+		goto done;
+	}
+
+	/*
+	 * If the outgoing interface on the route found is not
+	 * a loopback interface, use the address from that interface.
+	 * In case of jails do those three steps:
+	 * 1. check if the interface address belongs to the jail. If so use it.
+	 * 2. check if we have any address on the outgoing interface
+	 *    belonging to this jail. If so use it.
+	 * 3. as a last resort return the 'default' jail address.
+	 */
+	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) {
+
+		/* If not jailed, use the default returned. */
+		if (cred == NULL || !jailed(cred)) {
+			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* Jailed. */
+		/* 1. Check if the iface address belongs to the jail. */
+		sin = (struct sockaddr_in *)sro.ro_rt->rt_ifa->ifa_addr;
+		if (prison_check_ip4(cred, &sin->sin_addr)) {
+			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/*
+		 * 2. Check if we have any address on the outgoing interface
+		 *    belonging to this jail.
+		 */
+		TAILQ_FOREACH(ifa, &sro.ro_rt->rt_ifp->if_addrhead, ifa_link) {
+
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET)
+				continue;
+			sin = (struct sockaddr_in *)sa;
+			if (prison_check_ip4(cred, &sin->sin_addr)) {
+				ia = (struct in_ifaddr *)ifa;
+				break;
+			}
+		}
+		if (ia != NULL) {
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* 3. As a last resort return the 'default' jail address. */
+		if (prison_get_ip4(cred, laddr) != 0)
+			error = EADDRNOTAVAIL;
+		goto done;
+	}
+
+	/*
+	 * The outgoing interface is marked with 'loopback net', so a route
+	 * to ourselves is here.
+	 * Try to find the interface of the destination address and then
+	 * take the address from there. That interface is not necessarily
+	 * a loopback interface.
+	 * In case of jails, check that it is an address of the jail
+	 * and if we cannot find, fall back to the 'default' jail address.
+	 */
+	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
+		struct sockaddr_in sain;
+
+		bzero(&sain, sizeof(struct sockaddr_in));
+		sain.sin_family = AF_INET;
+		sain.sin_len = sizeof(struct sockaddr_in);
+		sain.sin_addr.s_addr = faddr->s_addr;
+
+		ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sain)));
+		if (ia == NULL)
+			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
+
+		if (cred == NULL || !jailed(cred)) {
+#if __FreeBSD_version < 800000
+			if (ia == NULL)
+				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+#endif
+			if (ia == NULL) {
+				error = ENETUNREACH;
+				goto done;
+			}
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* Jailed. */
+		if (ia != NULL) {
+			struct ifnet *ifp;
+
+			ifp = ia->ia_ifp;
+			ia = NULL;
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+
+				sa = ifa->ifa_addr;
+				if (sa->sa_family != AF_INET)
+					continue;
+				sin = (struct sockaddr_in *)sa;
+				if (prison_check_ip4(cred, &sin->sin_addr)) {
+					ia = (struct in_ifaddr *)ifa;
+					break;
+				}
+			}
+			if (ia != NULL) {
+				laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+				goto done;
+			}
+		}
+
+		/* 3. As a last resort return the 'default' jail address. */
+		if (prison_get_ip4(cred, laddr) != 0)
+			error = EADDRNOTAVAIL;
+		goto done;
+	}
+
+done:
+	if (sro.ro_rt != NULL)
+		RTFREE(sro.ro_rt);
+	return (error);
+}
+
+/*
  * Set up for a connect from a socket to the specified address.
  * On entry, *laddrp and *lportp should contain the current local
  * address and port for the PCB; these are updated to the values
@@ -566,10 +766,8 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 {
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
-	struct sockaddr_in sa;
-	struct ucred *socred;
 	struct inpcb *oinp;
-	struct in_addr laddr, faddr;
+	struct in_addr laddr, faddr, jailia;
 	u_short lport, fport;
 	int error;
 
@@ -592,17 +790,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	lport = *lportp;
 	faddr = sin->sin_addr;
 	fport = sin->sin_port;
-	socred = inp->inp_socket->so_cred;
-	if (laddr.s_addr == INADDR_ANY && jailed(socred)) {
-		bzero(&sa, sizeof(sa));
-		sa.sin_addr.s_addr = htonl(prison_getip(socred));
-		sa.sin_len = sizeof(sa);
-		sa.sin_family = AF_INET;
-		error = in_pcbbind_setup(inp, (struct sockaddr *)&sa,
-		    &laddr.s_addr, &lport, cred);
-		if (error)
-			return (error);
-	}
+
 	if (!TAILQ_EMPTY(&in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
@@ -611,44 +799,27 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * and the primary interface supports broadcast,
 		 * choose the broadcast address for that interface.
 		 */
-		if (faddr.s_addr == INADDR_ANY)
-			faddr = IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->sin_addr;
-		else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
+		if (faddr.s_addr == INADDR_ANY) {
+			if (cred != NULL && jailed(cred)) {
+				if (prison_get_ip4(cred, &jailia) != 0)
+					return (EADDRNOTAVAIL);
+				faddr.s_addr = jailia.s_addr;
+			} else {
+				faddr =
+				    IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->
+				    sin_addr;
+			}
+		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
 		    (TAILQ_FIRST(&in_ifaddrhead)->ia_ifp->if_flags &
 		    IFF_BROADCAST))
 			faddr = satosin(&TAILQ_FIRST(
 			    &in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
 	if (laddr.s_addr == INADDR_ANY) {
-		ia = NULL;
-		/*
-		 * If route is known our src addr is taken from the i/f,
-		 * else punt.
-		 *
-		 * Find out route to destination
-		 */
-		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-			ia = ip_rtaddr(faddr, inp->inp_inc.inc_fibnum);
-		/*
-		 * If we found a route, use the address corresponding to
-		 * the outgoing interface.
-		 *
-		 * Otherwise assume faddr is reachable on a directly connected
-		 * network and try to find a corresponding interface to take
-		 * the source address from.
-		 */
-		if (ia == NULL) {
-			bzero(&sa, sizeof(sa));
-			sa.sin_addr = faddr;
-			sa.sin_len = sizeof(sa);
-			sa.sin_family = AF_INET;
+		error = in_pcbladdr(inp, &faddr, &laddr, cred);
+		if (error)
+			return (error);
 
-			ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sa)));
-			if (ia == NULL)
-				ia = ifatoia(ifa_ifwithnet(sintosa(&sa)));
-			if (ia == NULL)
-				return (ENETUNREACH);
-		}
 		/*
 		 * If the destination address is multicast and an outgoing
 		 * interface has been set as a multicast option, use the
@@ -667,9 +838,9 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 						break;
 				if (ia == NULL)
 					return (EADDRNOTAVAIL);
+				laddr = ia->ia_addr.sin_addr;
 			}
 		}
-		laddr = ia->ia_addr.sin_addr;
 	}
 
 	oinp = in_pcblookup_hash(inp->inp_pcbinfo, faddr, fport, laddr, lport,
@@ -948,6 +1119,7 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
+			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
@@ -955,9 +1127,11 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			    inp->inp_laddr.s_addr == laddr.s_addr &&
 			    inp->inp_lport == lport) {
 				/*
-				 * Found.
+				 * Found?
 				 */
-				return (inp);
+				if (cred == NULL ||
+				    inp->inp_cred->cr_prison == cred->cr_prison)
+					return (inp);
 			}
 		}
 		/*
@@ -987,7 +1161,11 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			 */
 			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
+				if (cred != NULL &&
+				    inp->inp_cred->cr_prison != cred->cr_prison)
+					continue;
 #ifdef INET6
+				/* XXX inp locking */
 				if ((inp->inp_vflag & INP_IPV4) == 0)
 					continue;
 				/*
@@ -1020,9 +1198,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				if (wildcard < matchwild) {
 					match = inp;
 					matchwild = wildcard;
-					if (matchwild == 0) {
+					if (matchwild == 0)
 						break;
-					}
 				}
 			}
 		}
@@ -1040,7 +1217,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
     struct ifnet *ifp)
 {
 	struct inpcbhead *head;
-	struct inpcb *inp;
+	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
 
 	INP_INFO_LOCK_ASSERT(pcbinfo);
@@ -1048,60 +1225,108 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	/*
 	 * First look for an exact match.
 	 */
+	tmpinp = NULL;
 	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(faddr.s_addr, lport, fport,
 	    pcbinfo->ipi_hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
+		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 #endif
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
 		    inp->inp_laddr.s_addr == laddr.s_addr &&
 		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport)
-			return (inp);
+		    inp->inp_lport == lport) {
+			/*
+			 * XXX We should be able to directly return
+			 * the inp here, without any checks.
+			 * Well unless both bound with SO_REUSEPORT?
+			 */
+			if (jailed(inp->inp_cred))
+				return (inp);
+			if (tmpinp == NULL)
+				tmpinp = inp;
+		}
 	}
+	if (tmpinp != NULL)
+		return (tmpinp);
 
 	/*
 	 * Then look for a wildcard match, if requested.
 	 */
-	if (wildcard) {
-		struct inpcb *local_wild = NULL;
+	if (wildcard == INPLOOKUP_WILDCARD) {
+		struct inpcb *local_wild = NULL, *local_exact = NULL;
 #ifdef INET6
 		struct inpcb *local_wild_mapped = NULL;
 #endif
+		struct inpcb *jail_wild = NULL;
+		int injail;
+
+		/*
+		 * Order of socket selection - we always prefer jails.
+		 *      1. jailed, non-wild.
+		 *      2. jailed, wild.
+		 *      3. non-jailed, non-wild.
+		 *      4. non-jailed, wild.
+		 */
 
 		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
 		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
+			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
-			if (inp->inp_faddr.s_addr == INADDR_ANY &&
-			    inp->inp_lport == lport) {
-				if (ifp && ifp->if_type == IFT_FAITH &&
-				    (inp->inp_flags & INP_FAITH) == 0)
+			if (inp->inp_faddr.s_addr != INADDR_ANY ||
+			    inp->inp_lport != lport)
+				continue;
+
+			/* XXX inp locking */
+			if (ifp && ifp->if_type == IFT_FAITH &&
+			    (inp->inp_flags & INP_FAITH) == 0)
+				continue;
+
+			injail = jailed(inp->inp_cred);
+			if (injail) {
+				if (!prison_check_ip4(inp->inp_cred, &laddr))
 					continue;
-				if (inp->inp_laddr.s_addr == laddr.s_addr)
-					return (inp);
-				else if (inp->inp_laddr.s_addr == INADDR_ANY) {
-#ifdef INET6
-					if (INP_CHECK_SOCKAF(inp->inp_socket,
-							     AF_INET6))
-						local_wild_mapped = inp;
-					else
-#endif
-						local_wild = inp;
-				}
+			} else {
+				if (local_exact != NULL)
+					continue;
 			}
-		}
+
+			if (inp->inp_laddr.s_addr == laddr.s_addr) {
+				if (injail)
+					return (inp);
+				else
+					local_exact = inp;
+			} else if (inp->inp_laddr.s_addr == INADDR_ANY) {
 #ifdef INET6
-		if (local_wild == NULL)
+				/* XXX inp locking, NULL check */
+				if (inp->inp_vflag & INP_IPV6PROTO)
+					local_wild_mapped = inp;
+				else
+#endif /* INET6 */
+					if (injail)
+						jail_wild = inp;
+					else
+						local_wild = inp;
+			}
+		} /* LIST_FOREACH */
+		if (jail_wild != NULL)
+			return (jail_wild);
+		if (local_exact != NULL)
+			return (local_exact);
+		if (local_wild != NULL)
+			return (local_wild);
+#ifdef INET6
+		if (local_wild_mapped != NULL)
 			return (local_wild_mapped);
-#endif
-		return (local_wild);
-	}
+#endif /* defined(INET6) */
+	} /* if (wildcard == INPLOOKUP_WILDCARD) */
+
 	return (NULL);
 }
 

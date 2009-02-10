@@ -417,16 +417,15 @@ re_gmii_readreg(device_t dev, int phy, int reg)
 	}
 
 	CSR_WRITE_4(sc, RL_PHYAR, reg << 16);
-	DELAY(1000);
 
-	for (i = 0; i < RL_TIMEOUT; i++) {
+	for (i = 0; i < RL_PHY_TIMEOUT; i++) {
 		rval = CSR_READ_4(sc, RL_PHYAR);
 		if (rval & RL_PHYAR_BUSY)
 			break;
 		DELAY(100);
 	}
 
-	if (i == RL_TIMEOUT) {
+	if (i == RL_PHY_TIMEOUT) {
 		device_printf(sc->rl_dev, "PHY read failed\n");
 		return (0);
 	}
@@ -445,16 +444,15 @@ re_gmii_writereg(device_t dev, int phy, int reg, int data)
 
 	CSR_WRITE_4(sc, RL_PHYAR, (reg << 16) |
 	    (data & RL_PHYAR_PHYDATA) | RL_PHYAR_BUSY);
-	DELAY(1000);
 
-	for (i = 0; i < RL_TIMEOUT; i++) {
+	for (i = 0; i < RL_PHY_TIMEOUT; i++) {
 		rval = CSR_READ_4(sc, RL_PHYAR);
 		if (!(rval & RL_PHYAR_BUSY))
 			break;
 		DELAY(100);
 	}
 
-	if (i == RL_TIMEOUT) {
+	if (i == RL_PHY_TIMEOUT) {
 		device_printf(sc->rl_dev, "PHY write failed\n");
 		return (0);
 	}
@@ -573,7 +571,39 @@ re_miibus_writereg(device_t dev, int phy, int reg, int data)
 static void
 re_miibus_statchg(device_t dev)
 {
+	struct rl_softc		*sc;
+	struct ifnet		*ifp;
+	struct mii_data		*mii;
 
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->rl_miibus);
+	ifp = sc->rl_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	sc->rl_flags &= ~RL_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->rl_flags |= RL_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+			if ((sc->rl_flags & RL_FLAG_FASTETHER) != 0)
+				break;
+			sc->rl_flags |= RL_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
+	/*
+	 * RealTek controllers does not provide any interface to
+	 * Tx/Rx MACs for resolved speed, duplex and flow-control
+	 * parameters.
+	 */
 }
 
 /*
@@ -670,7 +700,12 @@ re_reset(struct rl_softc *sc)
 	if (i == RL_TIMEOUT)
 		device_printf(sc->rl_dev, "reset never completed!\n");
 
-	CSR_WRITE_1(sc, 0x82, 1);
+	if ((sc->rl_flags & RL_FLAG_PHY8169) != 0)
+		CSR_WRITE_1(sc, 0x82, 1);
+	if ((sc->rl_flags & RL_FLAG_PHY8110S) != 0) {
+		CSR_WRITE_1(sc, 0x82, 1);
+		re_gmii_writereg(sc->rl_dev, 1, 0x0B, 0);
+	}
 }
 
 #ifdef RE_DIAG
@@ -726,7 +761,6 @@ re_diag(struct rl_softc *sc)
 
 	ifp->if_flags |= IFF_PROMISC;
 	sc->rl_testmode = 1;
-	re_reset(sc);
 	re_init_locked(sc);
 	sc->rl_flags |= RL_FLAG_LINK;
 	if (sc->rl_type == RL_8169)
@@ -1123,6 +1157,7 @@ re_attach(device_t dev)
 
 	msic = 0;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		sc->rl_flags |= RL_FLAG_PCIE;
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);
@@ -1204,31 +1239,42 @@ re_attach(device_t dev)
 
 	switch (hw_rev->rl_rev) {
 	case RL_HWREV_8139CPLUS:
-		sc->rl_flags |= RL_FLAG_NOJUMBO;
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER;
+		break;
+	case RL_HWREV_8110S:
+		sc->rl_flags |= RL_FLAG_PHY8110S;
 		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
-		    RL_FLAG_PHYWAKE;
+		    RL_FLAG_PHYWAKE | RL_FLAG_FASTETHER;
 		break;
 	case RL_HWREV_8102E:
 	case RL_HWREV_8102EL:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
 		    RL_FLAG_PHYWAKE | RL_FLAG_PAR | RL_FLAG_DESCV2 |
-		    RL_FLAG_MACSTAT;
+		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
+		sc->rl_flags |= RL_FLAG_WOLRXENB;
+		/* FALLTHROUGH */
 	case RL_HWREV_8168_SPIN3:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
 		    RL_FLAG_MACSTAT;
 		break;
-	case RL_HWREV_8168C:
 	case RL_HWREV_8168C_SPIN2:
+		sc->rl_flags |= RL_FLAG_MACSLEEP;
+		/* FALLTHROUGH */
+	case RL_HWREV_8168C:
+		if ((hwrev & 0x00700000) == 0x00200000)
+			sc->rl_flags |= RL_FLAG_MACSLEEP;
+		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
-		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT;
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_CMDSTOP;
 		/*
 		 * These controllers support jumbo frame but it seems
 		 * that enabling it requires touching additional magic
@@ -1241,10 +1287,14 @@ re_attach(device_t dev)
 		 */
 		sc->rl_flags |= RL_FLAG_NOJUMBO;
 		break;
+	case RL_HWREV_8169:
+	case RL_HWREV_8169S:
+		sc->rl_flags |= RL_FLAG_PHY8169;
+		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SC:
 	case RL_HWREV_8169_8110SBL:
-		sc->rl_flags |= RL_FLAG_PHYWAKE;
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHY8169;
 		break;
 	default:
 		break;
@@ -1305,6 +1355,16 @@ re_attach(device_t dev)
 		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
+	}
+
+	/* Take controller out of deep sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) | 0x01);
+		else
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
 	}
 
 	/* Take PHY out of power down mode. */
@@ -1983,16 +2043,6 @@ re_txeof(struct rl_softc *sc)
 	/* No changes made to the TX ring, so no flush needed */
 
 	if (sc->rl_ldata.rl_tx_free != sc->rl_ldata.rl_tx_desc_cnt) {
-		/*
-		 * Some chips will ignore a second TX request issued
-		 * while an existing transmission is in progress. If
-		 * the transmitter goes idle but there are still
-		 * packets waiting to be sent, we need to restart the
-		 * channel here to flush them out. This only seems to
-		 * be required with the PCIe devices.
-		 */
-		CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
-
 #ifdef RE_TX_MODERATION
 		/*
 		 * If not all descriptors have been reaped yet, reload
@@ -2011,30 +2061,16 @@ re_tick(void *xsc)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
 
 	sc = xsc;
-	ifp = sc->rl_ifp;
 
 	RL_LOCK_ASSERT(sc);
 
-	re_watchdog(sc);
-
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
-	if ((sc->rl_flags & RL_FLAG_LINK) != 0) {
-		if (!(mii->mii_media_status & IFM_ACTIVE))
-			sc->rl_flags &= ~RL_FLAG_LINK;
-	} else {
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->rl_flags |= RL_FLAG_LINK;
-			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-				taskqueue_enqueue_fast(taskqueue_fast,
-				    &sc->rl_txtask);
-		}
-	}
-
+	if ((sc->rl_flags & RL_FLAG_LINK) == 0)
+		re_miibus_statchg(sc->rl_dev);
+	re_watchdog(sc);
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
 
@@ -2072,15 +2108,16 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			return;
 		if (status)
 			CSR_WRITE_2(sc, RL_ISR, status);
+		if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
+		    (sc->rl_flags & RL_FLAG_PCIE))
+			CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 
 		/*
 		 * XXX check behaviour on receiver stalls.
 		 */
 
-		if (status & RL_ISR_SYSTEM_ERR) {
-			re_reset(sc);
+		if (status & RL_ISR_SYSTEM_ERR)
 			re_init_locked(sc);
-		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -2135,6 +2172,17 @@ re_int_task(void *arg, int npending)
 	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW))
 		rval = re_rxeof(sc);
 
+	/*
+	 * Some chips will ignore a second TX request issued
+	 * while an existing transmission is in progress. If
+	 * the transmitter goes idle but there are still
+	 * packets waiting to be sent, we need to restart the
+	 * channel here to flush them out. This only seems to
+	 * be required with the PCIe devices.
+	 */
+	if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
+	    (sc->rl_flags & RL_FLAG_PCIE))
+		CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 	if (status & (
 #ifdef RE_TX_MODERATION
 	    RL_ISR_TIMEOUT_EXPIRED|
@@ -2144,15 +2192,8 @@ re_int_task(void *arg, int npending)
 	    RL_ISR_TX_ERR|RL_ISR_TX_DESC_UNAVAIL))
 		re_txeof(sc);
 
-	if (status & RL_ISR_SYSTEM_ERR) {
-		re_reset(sc);
+	if (status & RL_ISR_SYSTEM_ERR)
 		re_init_locked(sc);
-	}
-
-	if (status & RL_ISR_LINKCHG) {
-		callout_stop(&sc->rl_stat_callout);
-		re_tick(sc);
-	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
@@ -2473,6 +2514,9 @@ re_init_locked(struct rl_softc *sc)
 	 */
 	re_stop(sc);
 
+	/* Put controller into known state. */
+	re_reset(sc);
+
 	/*
 	 * Enable C+ RX and TX mode, as well as VLAN stripping and
 	 * RX checksum offload. We must configure the C+ register
@@ -2652,14 +2696,15 @@ re_ifmedia_upd(struct ifnet *ifp)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
+	int			error;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->rl_miibus);
 	RL_LOCK(sc);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	RL_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -2814,18 +2859,30 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 re_watchdog(struct rl_softc *sc)
 {
+	struct ifnet		*ifp;
 
 	RL_LOCK_ASSERT(sc);
 
 	if (sc->rl_watchdog_timer == 0 || --sc->rl_watchdog_timer != 0)
 		return;
 
-	device_printf(sc->rl_dev, "watchdog timeout\n");
-	sc->rl_ifp->if_oerrors++;
-
+	ifp = sc->rl_ifp;
 	re_txeof(sc);
+	if (sc->rl_ldata.rl_tx_free == sc->rl_ldata.rl_tx_desc_cnt) {
+		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
+		    "-- recovering\n");
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		return;
+	}
+
+	if_printf(ifp, "watchdog timeout\n");
+	ifp->if_oerrors++;
+
 	re_rxeof(sc);
 	re_init_locked(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
 }
 
 /*
@@ -2848,7 +2905,12 @@ re_stop(struct rl_softc *sc)
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
+	if ((sc->rl_flags & RL_FLAG_CMDSTOP) != 0)
+		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_STOPREQ | RL_CMD_TX_ENB |
+		    RL_CMD_RX_ENB);
+	else
+		CSR_WRITE_1(sc, RL_COMMAND, 0x00);
+	DELAY(1000);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
 	CSR_WRITE_2(sc, RL_ISR, 0xFFFF);
 
@@ -2923,6 +2985,12 @@ re_resume(device_t dev)
 	RL_LOCK(sc);
 
 	ifp = sc->rl_ifp;
+	/* Take controller out of sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) | 0x01);
+	}
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
@@ -2978,6 +3046,15 @@ re_setwol(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+	/* Put controller into sleep mode. */
+	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {
+		if ((CSR_READ_1(sc, RL_MACDBG) & 0x80) == 0x80)
+			CSR_WRITE_1(sc, RL_GPIO,
+			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
+	}
+	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
+	    (sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
+		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
 	/* Enable config register write. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
