@@ -745,6 +745,12 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			*(int *)data = tapdebug;
 			break;
 
+		case TAPGIFNAME: {
+			struct ifreq	*ifr = (struct ifreq *) data;
+
+			strlcpy(ifr->ifr_name, ifp->if_xname, IFNAMSIZ);
+			} break;
+
 		case FIONBIO:
 			break;
 
