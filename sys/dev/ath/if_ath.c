@@ -283,6 +283,10 @@ SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
 
+static	int ath_bstuck_threshold = 4;		/* max missed beacons */
+SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
+	    0, "max missed beacon xmits before chip reset");
+
 #ifdef ATH_DEBUG
 enum {
 	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
@@ -3118,7 +3122,7 @@ ath_beacon_proc(void *arg, int pending)
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
-		if (sc->sc_bmisscount > 3)		/* NB: 3 is a guess */
+		if (sc->sc_bmisscount >= ath_bstuck_threshold)
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
 		return;
 	}
@@ -7612,7 +7616,7 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
-		if (sc->sc_bmisscount > 3)		/* NB: 3 is a guess */
+		if (sc->sc_bmisscount >= ath_bstuck_threshold)
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
 		return;
 	}
