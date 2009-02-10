@@ -283,6 +283,10 @@ SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
 
+static	int ath_bstuck_threshold = 4;		/* max missed beacons */
+SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
+	    0, "max missed beacon xmits before chip reset");
+
 #ifdef ATH_DEBUG
 enum {
 	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
@@ -1201,7 +1205,9 @@ ath_resume(struct ath_softc *sc)
 	 * Must reset the chip before we reload the
 	 * keycache as we were powered down on suspend.
 	 */
-	ath_hal_reset(ah, sc->sc_opmode, sc->sc_curchan, AH_FALSE, &status);
+	ath_hal_reset(ah, sc->sc_opmode,
+	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
+	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
@@ -3116,7 +3122,7 @@ ath_beacon_proc(void *arg, int pending)
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
-		if (sc->sc_bmisscount > 3)		/* NB: 3 is a guess */
+		if (sc->sc_bmisscount >= ath_bstuck_threshold)
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
 		return;
 	}
@@ -6087,6 +6093,8 @@ ath_setup_stationkey(struct ieee80211_node *ni)
 		/* XXX locking? */
 		ni->ni_ucastkey.wk_keyix = keyix;
 		ni->ni_ucastkey.wk_rxkeyix = rxkeyix;
+		/* NB: must mark device key to get called back on delete */
+		ni->ni_ucastkey.wk_flags |= IEEE80211_KEY_DEVKEY;
 		IEEE80211_ADDR_COPY(ni->ni_ucastkey.wk_macaddr, ni->ni_macaddr);
 		/* NB: this will create a pass-thru key entry */
 		ath_keyset(sc, &ni->ni_ucastkey, vap->iv_bss);
@@ -7610,7 +7618,7 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
-		if (sc->sc_bmisscount > 3)		/* NB: 3 is a guess */
+		if (sc->sc_bmisscount >= ath_bstuck_threshold)
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
 		return;
 	}
