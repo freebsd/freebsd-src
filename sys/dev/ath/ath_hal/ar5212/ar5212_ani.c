@@ -278,14 +278,12 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		if (on) {
 			OS_REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,
 				AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
+			ahp->ah_stats.ast_ani_ofdmon++;
 		} else {
 			OS_REG_CLR_BIT(ah, AR_PHY_SFCORR_LOW,
 				AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
-		}
-		if (on)
-			ahp->ah_stats.ast_ani_ofdmon++;
-		else
 			ahp->ah_stats.ast_ani_ofdmoff++;
+		}
 		aniState->ofdmWeakSigDetectOff = !on;
 		break;
 	}
