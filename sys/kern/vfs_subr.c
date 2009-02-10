@@ -1103,7 +1103,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL) {
+	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
