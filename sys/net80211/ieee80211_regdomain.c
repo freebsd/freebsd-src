@@ -428,8 +428,9 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 	ieee80211_scan_flush(vap);
 	ieee80211_dfs_reset(ic);
 	if (vap->iv_des_chan != IEEE80211_CHAN_ANYC) {
+		c = ieee80211_find_channel(ic, desfreq, desflags);
 		/* NB: may be NULL if not present in new channel list */
-		vap->iv_des_chan = ieee80211_find_channel(ic, desfreq, desflags);
+		vap->iv_des_chan = (c != NULL) ? c : IEEE80211_CHAN_ANYC;
 	}
 	IEEE80211_UNLOCK(ic);
 
