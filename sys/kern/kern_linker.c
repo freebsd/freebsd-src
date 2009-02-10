@@ -425,6 +425,14 @@ linker_load_file(const char *filename, linker_file_t *result)
 	 * the module was not found.
 	 */
 	if (foundfile) {
+
+		/*
+		 * If the file type has not been recognized by the last try
+		 * printout a message before to fail.
+		 */
+		if (error == ENOSYS)
+			printf("linker_load_file: Unsupported file type\n");
+
 		/*
 		 * Format not recognized or otherwise unloadable.
 		 * When loading a module that is statically built into
