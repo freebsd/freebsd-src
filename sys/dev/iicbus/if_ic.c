@@ -105,7 +105,7 @@ static int icioctl(struct ifnet *, u_long, caddr_t);
 static int icoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 		struct rtentry *);
 
-static void icintr(device_t, int, char *);
+static int icintr(device_t, int, char *);
 
 static device_method_t ic_methods[] = {
 	/* device interface */
@@ -272,7 +272,7 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 /*
  * icintr()
  */
-static void
+static int
 icintr(device_t dev, int event, char *ptr)
 {
 	struct ic_softc *sc = (struct ic_softc *)device_get_softc(dev);
@@ -346,7 +346,7 @@ icintr(device_t dev, int event, char *ptr)
 	}
 
 	mtx_unlock(&sc->ic_lock);
-	return;
+	return (0);
 }
 
 /*
