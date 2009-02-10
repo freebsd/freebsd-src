@@ -723,8 +723,10 @@ ffs_write(ap)
 /* XXX is uio->uio_offset the right thing here? */
 		error = UFS_BALLOC(vp, uio->uio_offset, xfersize,
 		    ap->a_cred, flags, &bp);
-		if (error != 0)
+		if (error != 0) {
+			vnode_pager_setsize(vp, ip->i_size);
 			break;
+		}
 		/*
 		 * If the buffer is not valid we have to clear out any
 		 * garbage data from the pages instantiated for the buffer.
