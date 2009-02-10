@@ -67,8 +67,8 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
-#WORLD_FLAGS=-j4
-#KERNEL_FLAGS=-j4
+WORLD_FLAGS=-j4
+KERNEL_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
@@ -191,7 +191,6 @@ MNT=			/mnt
 
 .undef MAKE_FLOPPIES
 .if ${TARGET_ARCH} == "i386"
-MAKE_FLOPPIES=		true
 MAKE_DVD=
 SEPARATE_LIVEFS=
 SPLIT_MFSROOT=
@@ -223,7 +222,6 @@ MFSINODE=		8192
 MFSLABEL=		auto
 SEPARATE_LIVEFS=
 .elif ${TARGET_ARCH} == "amd64"
-MAKE_FLOPPIES=		true
 MAKE_DVD=
 FLOPPYSIZE=		1440
 FLOPPYSPLITSIZE=	1392
