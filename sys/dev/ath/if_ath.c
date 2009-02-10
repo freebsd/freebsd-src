@@ -6093,6 +6093,8 @@ ath_setup_stationkey(struct ieee80211_node *ni)
 		/* XXX locking? */
 		ni->ni_ucastkey.wk_keyix = keyix;
 		ni->ni_ucastkey.wk_rxkeyix = rxkeyix;
+		/* NB: must mark device key to get called back on delete */
+		ni->ni_ucastkey.wk_flags |= IEEE80211_KEY_DEVKEY;
 		IEEE80211_ADDR_COPY(ni->ni_ucastkey.wk_macaddr, ni->ni_macaddr);
 		/* NB: this will create a pass-thru key entry */
 		ath_keyset(sc, &ni->ni_ucastkey, vap->iv_bss);
