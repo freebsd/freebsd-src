@@ -45,9 +45,9 @@
 .Ft "struct quotafile *"
 .Fn quota_create "const char *path"
 .Ft int
-.Fn quota_read "struct quotafile *qf" "struct dqblk *dqb" "int type"
+.Fn quota_read "struct quotafile *qf" "struct dqblk *dqb" "int id"
 .Ft int
-.Fn quota_write "struct quotafile *qf" "const struct dqblk *dqb" "int type"
+.Fn quota_write "struct quotafile *qf" "const struct dqblk *dqb" "int id"
 .Ft int
 .Fn quota_close "struct quotafile *qf"
 .Sh DESCRIPTION
