@@ -1427,7 +1427,7 @@ sdhci_intr(void *arg)
 }
 
 static int
-sdhci_read_ivar(device_t bus, device_t child, int which, u_char *result)
+sdhci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct sdhci_slot *slot = device_get_ivars(child);
 
