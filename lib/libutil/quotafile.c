@@ -231,7 +231,7 @@ quota_write32(struct quotafile *qf, const struct dqblk *dqb, int id)
 	off = id * sizeof(struct dqblk32);
 	if (lseek(qf->fd, off, SEEK_SET) == -1)
 		return (-1);
-	return (write(qf->fd, &dqb32, sizeof(dqb32)));
+	return (write(qf->fd, &dqb32, sizeof(dqb32)) == -1);
 }
 
 static int
@@ -252,7 +252,7 @@ quota_write64(struct quotafile *qf, const struct dqblk *dqb, int id)
 	off = sizeof(struct dqhdr64) + id * sizeof(struct dqblk64);
 	if (lseek(qf->fd, off, SEEK_SET) == -1)
 		return (-1);
-	return (write(qf->fd, &dqb64, sizeof(dqb64)));
+	return (write(qf->fd, &dqb64, sizeof(dqb64)) == -1);
 }
 
 int
