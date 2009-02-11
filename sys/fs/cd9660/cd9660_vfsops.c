@@ -203,7 +203,7 @@ iso_mountfs(devvp, mp)
 	struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
-	struct cdev *dev = devvp->v_rdev;
+	struct cdev *dev;
 	int error = EINVAL;
 	int high_sierra = 0;
 	int iso_bsize;
@@ -219,6 +219,8 @@ iso_mountfs(devvp, mp)
 	struct bufobj *bo;
 	char *cs_local, *cs_disk;
 
+	dev = devvp->v_rdev;
+	dev_ref(dev);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
@@ -226,27 +228,21 @@ iso_mountfs(devvp, mp)
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
-		return error;
+		goto out;
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
 
 	bo = &devvp->v_bufobj;
-	bo->bo_private = cp;
-	bo->bo_ops = g_vfs_bufops;
 
 	/* This is the "logical sector size".  The standard says this
 	 * should be 2048 or the physical sector size on the device,
 	 * whichever is greater.
 	 */
 	if ((ISO_DEFAULT_BLOCK_SIZE % cp->provider->sectorsize) != 0) {
-		DROP_GIANT();
-		g_topology_lock();
-		g_vfs_close(cp);
-		g_topology_unlock();
-                PICKUP_GIANT();
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
 
 	iso_bsize = cp->provider->sectorsize;
@@ -485,6 +481,7 @@ out:
 		free((caddr_t)isomp, M_ISOFSMNT);
 		mp->mnt_data = NULL;
 	}
+	dev_rel(dev);
 	return error;
 }
 
@@ -519,6 +516,7 @@ cd9660_unmount(mp, mntflags, td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
+	dev_rel(isomp->im_dev);
 	free((caddr_t)isomp, M_ISOFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
