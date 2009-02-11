@@ -1583,7 +1583,8 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		if (fdisused(fdp, i) &&
-		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE) {
+		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE &&
+		    fdp->fd_ofiles[i]->f_ops != &badfileops) {
 			newfdp->fd_ofiles[i] = fdp->fd_ofiles[i];
 			newfdp->fd_ofileflags[i] = fdp->fd_ofileflags[i];
 			fhold(newfdp->fd_ofiles[i]);
