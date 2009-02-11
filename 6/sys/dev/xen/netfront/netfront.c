@@ -76,6 +76,8 @@ __FBSDID("$FreeBSD$");
 
 #include "xenbus_if.h"
 
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
+
 #define GRANT_INVALID_REF	0
 
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
@@ -491,11 +493,6 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 	err = xenbus_printf(xbt, node, "feature-rx-notify", "%d", 1);
 	if (err) {
 		message = "writing feature-rx-notify";
-		goto abort_transaction;
-	}
-	err = xenbus_printf(xbt, node, "feature-no-csum-offload", "%d", 1);
-	if (err) {
-		message = "writing feature-no-csum-offload";
 		goto abort_transaction;
 	}
 	err = xenbus_printf(xbt, node, "feature-sg", "%d", 1);
@@ -1366,10 +1363,10 @@ xn_start_locked(struct ifnet *ifp)
 		    mfn, GNTMAP_readonly);
 		tx->gref = sc->grant_tx_ref[id] = ref;
 		tx->size = new_m->m_pkthdr.len;
-#if 0
-		tx->flags = (skb->ip_summed == CHECKSUM_HW) ? NETTXF_csum_blank : 0;
-#endif
-		tx->flags = 0;
+		if (new_m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
+			tx->flags = NETTXF_csum_blank | NETTXF_data_validated;
+		else
+			tx->flags = 0;
 		new_m->m_next = NULL;
 		new_m->m_nextpkt = NULL;
 
@@ -1734,11 +1731,9 @@ create_netdev(device_t dev)
     	ifp->if_mtu = ETHERMTU;
     	ifp->if_snd.ifq_maxlen = NET_TX_RING_SIZE - 1;
 	
-#ifdef notyet
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
     	ifp->if_capenable = ifp->if_capabilities;
-#endif    
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
