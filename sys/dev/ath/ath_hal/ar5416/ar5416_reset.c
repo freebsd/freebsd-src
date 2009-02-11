@@ -2710,6 +2710,7 @@ getLowerUpperIndex(uint8_t target, uint8_t *pList, uint16_t listSize,
         }
     }
     HALASSERT(0);
+    *indexL = *indexR = 0;
     return AH_FALSE;
 }
 
