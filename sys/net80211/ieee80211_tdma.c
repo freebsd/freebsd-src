@@ -214,7 +214,6 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (ostate == IEEE80211_S_RUN) {
 			/* purge station table; entries are stale */
 			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
-			ieee80211_free_node(vap->iv_bss);	/* XXX */
 		}
 		if (vap->iv_flags_ext & IEEE80211_FEXT_SCANREQ) {
 			ieee80211_check_scan(vap,
