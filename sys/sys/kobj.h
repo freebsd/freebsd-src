@@ -92,7 +92,17 @@ struct kobjop_desc {
 /*
  * Shorthand for constructing method tables.
  */
+#if 1
 #define KOBJMETHOD(NAME, FUNC) { &NAME##_desc, (kobjop_t) FUNC }
+#else /* notyet */
+#define KOBJMETHOD(NAME, FUNC) \
+{ &NAME##_desc, (kobjop_t) (FUNC != (NAME##_t *)NULL ? FUNC : NULL) }
+#endif
+
+/*
+ *
+ */
+#define KOBJMETHOD_END	{ NULL, NULL }
 
 /*
  * Declare a class (which should be defined in another file.
@@ -127,7 +137,7 @@ struct kobj_class classvar = {				\
 		       base1)				\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1, NULL };					\
+	{ &base1, NULL };				\
 struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
