@@ -544,10 +544,10 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	do {
 		/* ran out of waiting for the printer */
 		if (trys++ >= LPINITRDY*4) {
-			sc->sc_state = 0;
 			lprintf(("status %x\n", ppb_rstr(ppbus)));
 
 			lpt_release_ppbus(lptdev);
+			sc->sc_state = 0;
 			ppb_unlock(ppbus);
 			return (EBUSY);
 		}
@@ -555,9 +555,8 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		/* wait 1/4 second, give up if we get a signal */
 		if (ppb_sleep(ppbus, lptdev, LPPRI | PCATCH, "lptinit",
 		    hz / 4) != EWOULDBLOCK) {
-			sc->sc_state = 0;
-
 			lpt_release_ppbus(lptdev);
+			sc->sc_state = 0;
 			ppb_unlock(ppbus);
 			return (EBUSY);
 		}
@@ -577,7 +576,8 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	ppb_wctr(ppbus, sc->sc_control);
 
-	sc->sc_state = OPEN;
+	sc->sc_state &= ~LPTINIT;
+	sc->sc_state |= OPEN;
 	sc->sc_xfercnt = 0;
 
 	/* only use timeout if using interrupt */
@@ -611,11 +611,8 @@ lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int err;
 
 	ppb_lock(ppbus);
-	if (sc->sc_flags & LP_BYPASS) {
-		sc->sc_state = 0;
-		ppb_unlock(ppbus);
+	if (sc->sc_flags & LP_BYPASS)
 		goto end_close;
-	}
 
 	if ((err = lpt_request_ppbus(lptdev, PPB_WAIT|PPB_INTR)) != 0) {
 		ppb_unlock(ppbus);
@@ -635,16 +632,16 @@ lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	sc->sc_state &= ~OPEN;
 	callout_stop(&sc->sc_timer);
 	ppb_wctr(ppbus, LPC_NINIT);
-	sc->sc_state = 0;
-	sc->sc_xfercnt = 0;
 
 	/*
 	 * unregistration of interrupt forced by release
 	 */
 	lpt_release_ppbus(lptdev);
-	ppb_unlock(ppbus);
 
 end_close:
+	sc->sc_state = 0;
+	sc->sc_xfercnt = 0;
+	ppb_unlock(ppbus);
 	lprintf(("closed.\n"));
 	return(0);
 }
