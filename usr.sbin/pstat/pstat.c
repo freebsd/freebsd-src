@@ -315,6 +315,11 @@ static struct {
 	{ TF_ZOMBIE,		'Z' },
 	{ TF_HOOK,		's' },
 
+	/* Keep these together -> 'bi' and 'bo'. */
+	{ TF_BUSY,		'b' },
+	{ TF_BUSY_IN,		'i' },
+	{ TF_BUSY_OUT,		'o' },
+
 	{ 0,			'\0'},
 };
 

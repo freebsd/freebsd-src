@@ -83,6 +83,9 @@ struct tty {
 #define	TF_BYPASS	0x04000	/* Optimized input path. */
 #define	TF_ZOMBIE	0x08000	/* Modem disconnect received. */
 #define	TF_HOOK		0x10000	/* TTY has hook attached. */
+#define	TF_BUSY_IN	0x20000	/* Process busy in read() -- not supported. */
+#define	TF_BUSY_OUT	0x40000	/* Process busy in write(). */
+#define	TF_BUSY		(TF_BUSY_IN|TF_BUSY_OUT)
 	unsigned int	t_revokecnt;	/* (t) revoke() count. */
 
 	/* Buffering mechanisms. */

@@ -438,15 +438,28 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	if (tp->t_termios.c_lflag & TOSTOP) {
 		error = tty_wait_background(tp, curthread, SIGTTOU);
-		if (error) {
-			tty_unlock(tp);
-			return (error);
-		}
+		if (error)
+			goto done;
 	}
 
-	error = ttydisc_write(tp, uio, ioflag);
-	tty_unlock(tp);
+	if (ioflag & IO_NDELAY && tp->t_flags & TF_BUSY_OUT) {
+		/* Allow non-blocking writes to bypass serialization. */
+		error = ttydisc_write(tp, uio, ioflag);
+	} else {
+		/* Serialize write() calls. */
+		while (tp->t_flags & TF_BUSY_OUT) {
+			error = tty_wait(tp, &tp->t_bgwait);
+			if (error)
+				goto done;
+		}
+ 
+ 		tp->t_flags |= TF_BUSY_OUT;
+		error = ttydisc_write(tp, uio, ioflag);
+ 		tp->t_flags &= ~TF_BUSY_OUT;
+		cv_broadcast(&tp->t_bgwait);
+	}
 
+done:	tty_unlock(tp);
 	return (error);
 }
 
@@ -1879,6 +1892,11 @@ static struct {
 	{ TF_BYPASS,		'l' },
 	{ TF_ZOMBIE,		'Z' },
 	{ TF_HOOK,		's' },
+
+	/* Keep these together -> 'bi' and 'bo'. */
+	{ TF_BUSY,		'b' },
+	{ TF_BUSY_IN,		'i' },
+	{ TF_BUSY_OUT,		'o' },
 
 	{ 0,			'\0'},
 };
