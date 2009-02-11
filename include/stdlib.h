@@ -256,6 +256,8 @@ int	 cgetustr(char *, const char *, char **);
 int	 daemon(int, int);
 char	*devname(__dev_t, __mode_t);
 char 	*devname_r(__dev_t, __mode_t, char *, int);
+char	*fdevname(int);
+char 	*fdevname_r(int, char *, int);
 int	 getloadavg(double [], int);
 __const char *
 	 getprogname(void);
