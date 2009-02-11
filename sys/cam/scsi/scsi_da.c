@@ -995,6 +995,8 @@ dacleanup(struct cam_periph *periph)
 	softc = (struct da_softc *)periph->softc;
 
 	xpt_print(periph->path, "removing device entry\n");
+	cam_periph_unlock(periph);
+
 	/*
 	 * If we can't free the sysctl tree, oh well...
 	 */
@@ -1003,11 +1005,10 @@ dacleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 
-	cam_periph_unlock(periph);
 	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
-	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
+	cam_periph_lock(periph);
 }
 
 static void

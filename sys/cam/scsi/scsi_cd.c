@@ -401,11 +401,6 @@ cdcleanup(struct cam_periph *periph)
 
 	xpt_print(periph->path, "removing device entry\n");
 
-	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
-	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
-		xpt_print(periph->path, "can't remove sysctl context\n");
-	}
-
 	/*
 	 * In the queued, non-active case, the device in question
 	 * has already been removed from the changer run queue.  Since this
@@ -474,9 +469,14 @@ cdcleanup(struct cam_periph *periph)
 		free(softc->changer, M_DEVBUF);
 	}
 	cam_periph_unlock(periph);
+	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
+	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+		xpt_print(periph->path, "can't remove sysctl context\n");
+	}
+
 	disk_destroy(softc->disk);
-	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
+	cam_periph_lock(periph);
 }
 
 static void
