@@ -1719,8 +1719,8 @@ node_reclaim(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 	if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax &&
 	    nt->nt_keyixmap[keyix] == ni) {
 		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
-			"%s: %p<%s> clear key map entry\n",
-			__func__, ni, ether_sprintf(ni->ni_macaddr));
+			"%s: %p<%s> clear key map entry %u\n",
+			__func__, ni, ether_sprintf(ni->ni_macaddr), keyix);
 		nt->nt_keyixmap[keyix] = NULL;
 		ieee80211_node_decref(ni);	/* NB: don't need free */
 	}
@@ -1763,8 +1763,7 @@ ieee80211_node_reclaim(struct ieee80211_node *ni)
 		 */
 		_ieee80211_free_node(ni);
 		nt = NULL;
-	} else if (ieee80211_node_refcnt(ni) == 1 &&
-	    nt->nt_keyixmap != NULL) {
+	} else if (ieee80211_node_refcnt(ni) == 1 && nt->nt_keyixmap != NULL) {
 		ieee80211_keyix keyix;
 		/*
 		 * Check for a last reference in the key mapping table.
@@ -1774,8 +1773,8 @@ ieee80211_node_reclaim(struct ieee80211_node *ni)
 		    nt->nt_keyixmap[keyix] == ni) {
 			IEEE80211_DPRINTF(ni->ni_vap,
 			    IEEE80211_MSG_NODE,
-			    "%s: %p<%s> clear key map entry", __func__,
-			    ni, ether_sprintf(ni->ni_macaddr));
+			    "%s: %p<%s> clear key map entry %u", __func__,
+			    ni, ether_sprintf(ni->ni_macaddr), keyix);
 			nt->nt_keyixmap[keyix] = NULL;
 			ieee80211_node_decref(ni); /* XXX needed? */
 			_ieee80211_free_node(ni);
