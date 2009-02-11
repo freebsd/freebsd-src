@@ -622,10 +622,13 @@ ffs_mountfs(devvp, mp, td)
 	struct g_consumer *cp;
 	struct mount *nmp;
 
-	dev = devvp->v_rdev;
+	bp = NULL;
+	ump = NULL;
 	cred = td ? td->td_ucred : NOCRED;
-
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+
+	dev = devvp->v_rdev;
+	dev_ref(dev);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
@@ -640,8 +643,7 @@ ffs_mountfs(devvp, mp, td)
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
-		return (error);
-	dev_ref(dev);
+		goto out;
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
@@ -650,8 +652,6 @@ ffs_mountfs(devvp, mp, td)
 	devvp->v_bufobj.bo_private = cp;
 	devvp->v_bufobj.bo_ops = &ffs_ops;
 
-	bp = NULL;
-	ump = NULL;
 	fs = NULL;
 	sblockloc = 0;
 	/*
