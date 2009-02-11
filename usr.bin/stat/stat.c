@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #define HAVE_DEVNAME 1
 #endif /* HAVE_CONFIG_H */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -60,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <grp.h>
 #include <limits.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -204,6 +206,8 @@ main(int argc, char *argv[])
 	int ch, rc, errs, am_readlink;
 	int lsF, fmtchar, usestat, fn, nonl, quiet;
 	char *statfmt, *options, *synopsis;
+	char dname[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
+	const char *file;
 
 	am_readlink = 0;
 	lsF = 0;
@@ -304,22 +308,29 @@ main(int argc, char *argv[])
 
 	errs = 0;
 	do {
-		if (argc == 0)
+		if (argc == 0) {
+			if (fdevname_r(STDIN_FILENO, dname +
+			    sizeof _PATH_DEV - 1, SPECNAMELEN) != NULL)
+				file = dname;
+			else
+				file = "(stdin)";
 			rc = fstat(STDIN_FILENO, &st);
-		else if (usestat)
-			rc = stat(argv[0], &st);
-		else
-			rc = lstat(argv[0], &st);
+		} else {
+			file = argv[0];
+			if (usestat)
+				rc = stat(file, &st);
+			else
+				rc = lstat(file, &st);
+		}
 
 		if (rc == -1) {
 			errs = 1;
 			linkfail = 1;
 			if (!quiet)
-				warn("%s: stat",
-				    argc == 0 ? "(stdin)" : argv[0]);
+				warn("%s: stat", file);
 		}
 		else
-			output(&st, argv[0], statfmt, fn, nonl, quiet);
+			output(&st, file, statfmt, fn, nonl, quiet);
 
 		argv++;
 		argc--;
@@ -810,10 +821,7 @@ format1(const struct stat *st,
 	case SHOW_filename:
 		small = 0;
 		data = 0;
-		if (file == NULL)
-			(void)strncpy(path, "(stdin)", sizeof(path));
-		else
-			(void)strncpy(path, file, sizeof(path));
+		(void)strncpy(path, file, sizeof(path));
 		sdata = path;
 		formats = FMTF_STRING;
 		if (ofmt == 0)
