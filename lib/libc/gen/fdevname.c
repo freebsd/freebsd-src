@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
+ * Copyright (c) 2009 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
- *
- * Portions of this software were developed under sponsorship from Snow
- * B.V., the Netherlands.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,66 +25,30 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
 __FBSDID("$FreeBSD$");
-#endif /* not lint */
 
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/ioctl.h>
-
-#include <errno.h>
-#include <paths.h>
-#include <stdlib.h>
 #include "un-namespace.h"
 
-/*
- * __isptmaster():  return whether the file descriptor refers to a
- *                  pseudo-terminal master device.
- */
-static int
-__isptmaster(int fildes)
+char *
+fdevname_r(int fd, char *buf, int len)
 {
+	struct fiodgname_arg fgn;
 
-	if (_ioctl(fildes, TIOCPTMASTER) == 0)
-		return (0);
+	fgn.buf = buf;
+	fgn.len = len;
 
-	if (errno != EBADF)
-		errno = EINVAL;
-
-	return (-1);
+	if (_ioctl(fd, FIODGNAME, &fgn) == -1)
+		return (NULL);
+	return (buf);
 }
 
-/*
- * In our implementation, grantpt() and unlockpt() don't actually have
- * any use, because PTY's are created on the fly and already have proper
- * permissions upon creation.
- *
- * Just make sure `fildes' actually points to a real PTY master device.
- */
-__strong_reference(__isptmaster, grantpt);
-__strong_reference(__isptmaster, unlockpt);
-
-/*
- * ptsname():  return the pathname of the slave pseudo-terminal device
- *             associated with the specified master.
- */
 char *
-ptsname(int fildes)
+fdevname(int fd)
 {
-	static char pt_slave[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
-	char *ret = NULL;
-	int sverrno = errno;
+	static char buf[SPECNAMELEN + 1];
 
-	/* Make sure fildes points to a master device. */
-	if (__isptmaster(fildes) != 0)
-		goto done;
-	
-	if (fdevname_r(fildes, pt_slave + (sizeof _PATH_DEV - 1),
-	    sizeof pt_slave - (sizeof _PATH_DEV - 1)) != NULL)
-		ret = pt_slave;
-
-done:	/* Make sure ptsname() does not overwrite errno. */
-	errno = sverrno;
-	return (ret);
+	return (fdevname_r(fd, buf, sizeof(buf)));
 }
