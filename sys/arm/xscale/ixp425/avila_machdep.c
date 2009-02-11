@@ -334,17 +334,20 @@ initarm(void *arg, void *arg2)
 	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
 #ifdef ARM_USE_SMALL_ALLOC
-#error "I am broken"		/* XXX save people grief */
 	freemempos -= PAGE_SIZE;
 	freemem_pt = trunc_page(freemem_pt);
-	freemem_after = freemempos - ((freemem_pt - 0x10100000) /
+	freemem_after = freemempos - ((freemem_pt - (PHYSADDR + 0x100000)) /
 	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)
-	    , (void *)0xc0100000, freemem_pt - 0x10100000, 1);
-	freemem_after -= ((freemem_after - 0x10001000) / PAGE_SIZE) *
+	arm_add_smallalloc_pages(
+	    (void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)),
+	    (void *)0xc0100000,
+	    freemem_pt - (PHYSADDR + 0x100000), 1);
+	freemem_after -= ((freemem_after - (PHYSADDR + 0x1000)) / PAGE_SIZE) *
 	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + (KEYVIRTADDR - KERNPHYSADDR))
-	, (void *)0xc0001000, trunc_page(freemem_after) - 0x10001000, 0);
+	arm_add_smallalloc_pages(
+	    (void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)),
+	    (void *)0xc0001000,
+	    trunc_page(freemem_after) - (PHYSADDR + 0x1000), 0);
 	freemempos = trunc_page(freemem_after);
 	freemempos -= PAGE_SIZE;
 #endif
