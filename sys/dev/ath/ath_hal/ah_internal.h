@@ -84,7 +84,7 @@ static struct ath_hal_chip name##_chip = {			\
 	.probe		= _probe,				\
 	.attach		= _attach				\
 };								\
-OS_DATA_SET(ah_chips, name##_chip)
+OS_DATA_SET(ah_chips, _name##_chip)
 #endif
 
 /*
