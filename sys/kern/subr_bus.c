@@ -220,7 +220,7 @@ devclass_sysctl_init(devclass_t dc)
 	sysctl_ctx_init(&dc->sysctl_ctx);
 	dc->sysctl_tree = SYSCTL_ADD_NODE(&dc->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_dev), OID_AUTO, dc->name,
-	    CTLFLAG_RD, 0, "");
+	    CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&dc->sysctl_ctx, SYSCTL_CHILDREN(dc->sysctl_tree),
 	    OID_AUTO, "%parent", CTLFLAG_RD,
 	    dc, DEVCLASS_SYSCTL_PARENT, devclass_sysctl_handler, "A",
@@ -283,7 +283,7 @@ device_sysctl_init(device_t dev)
 	dev->sysctl_tree = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
 	    SYSCTL_CHILDREN(dc->sysctl_tree), OID_AUTO,
 	    dev->nameunit + strlen(dc->name),
-	    CTLFLAG_RD, 0, "");
+	    CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
 	    OID_AUTO, "%desc", CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_DESC, device_sysctl_handler, "A",
@@ -349,8 +349,8 @@ device_sysctl_fini(device_t dev)
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
 static int devctl_disable = 0;
 TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
-    sysctl_devctl_disable, "I", "devctl disable");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
+    0, sysctl_devctl_disable, "I", "devctl disable");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -745,7 +745,7 @@ static TAILQ_HEAD(,device)	bus_data_devices;
 static int bus_data_generation = 1;
 
 static kobj_method_t null_methods[] = {
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(null, null_methods, 0);
@@ -3774,8 +3774,8 @@ root_print_child(device_t dev, device_t child)
 }
 
 static int
-root_setup_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg,
-    void **cookiep)
+root_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
+    driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	/*
 	 * If an interrupt mapping gets to here something bad has happened.
@@ -3809,7 +3809,7 @@ static kobj_method_t root_methods[] = {
 	KOBJMETHOD(bus_setup_intr,	root_setup_intr),
 	KOBJMETHOD(bus_child_present,	root_child_present),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t root_driver = {
