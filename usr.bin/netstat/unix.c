@@ -247,6 +247,7 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 	struct unpcb *unp;
 	struct sockaddr_un *sa;
 	static int first = 1;
+	char buf1[15];
 
 	unp = &xunp->xu_unp;
 	if (unp->unp_addr)
@@ -254,7 +255,7 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 	else
 		sa = (struct sockaddr_un *)0;
 
-	if (first) {
+	if (first && !Lflag) {
 		printf("Active UNIX domain sockets\n");
 		printf(
 "%-8.8s %-6.6s %-6.6s %-6.6s %8.8s %8.8s %8.8s %8.8s Addr\n",
@@ -262,11 +263,21 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 		    "Inode", "Conn", "Refs", "Nextref");
 		first = 0;
 	}
-	printf("%8lx %-6.6s %6u %6u %8lx %8lx %8lx %8lx",
-	       (long)so->so_pcb, socktype[so->so_type], so->so_rcv.sb_cc,
-	       so->so_snd.sb_cc,
-	       (long)unp->unp_vnode, (long)unp->unp_conn,
-	       (long)LIST_FIRST(&unp->unp_refs), (long)LIST_NEXT(unp, unp_reflink));
+
+	if (Lflag && so->so_qlimit == 0)
+		return;
+
+	if (Lflag) {
+		snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
+		    so->so_incqlen, so->so_qlimit);
+		printf("unix  %-14.14s", buf1);
+	} else {
+		printf("%8lx %-6.6s %6u %6u %8lx %8lx %8lx %8lx",
+		    (long)so->so_pcb, socktype[so->so_type], so->so_rcv.sb_cc,
+		    so->so_snd.sb_cc, (long)unp->unp_vnode, (long)unp->unp_conn,
+		    (long)LIST_FIRST(&unp->unp_refs),
+		    (long)LIST_NEXT(unp, unp_reflink));
+	}
 	if (sa)
 		printf(" %.*s",
 		    (int)(sa->sun_len - offsetof(struct sockaddr_un, sun_path)),
