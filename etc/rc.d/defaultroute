@@ -45,7 +45,7 @@ defaultroute_start()
 			break
 		fi
 		if [ ${delay} -eq ${if_up_delay} ]; then
-			echo -n "Waiting ${delay}s for an interface to come up: "
+			echo -n "Waiting ${delay}s for the default route interface: "
 		else
 			echo -n .
 		fi
