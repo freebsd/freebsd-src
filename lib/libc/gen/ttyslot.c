@@ -33,6 +33,7 @@ static char sccsid[] = "@(#)ttyslot.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <paths.h>
 #include <ttyent.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,19 +44,17 @@ ttyslot()
 {
 	struct ttyent *ttyp;
 	int slot;
-	char *p;
 	int cnt;
 	char *name;
 
 	setttyent();
 	for (cnt = 0; cnt < 3; ++cnt)
 		if ( (name = ttyname(cnt)) ) {
-			if ( (p = rindex(name, '/')) )
-				++p;
-			else
-				p = name;
+			if (strncmp(name, _PATH_DEV, sizeof _PATH_DEV - 1) != 0)
+				break;
+			name += sizeof _PATH_DEV - 1;
 			for (slot = 1; (ttyp = getttyent()); ++slot)
-				if (!strcmp(ttyp->ty_name, p)) {
+				if (!strcmp(ttyp->ty_name, name)) {
 					endttyent();
 					return(slot);
 				}
