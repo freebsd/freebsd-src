@@ -259,6 +259,7 @@ SUBDIR=	${_3dfx} \
 	${_stg} \
 	stge \
 	${_streams} \
+	svr4 \
 	sym \
 	${_syscons} \
 	sysvipc \
