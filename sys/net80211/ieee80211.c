@@ -289,9 +289,9 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211vap *vap;
 
-	/* XXX ieee80211_stop_all? */
 	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL)
 		ieee80211_vap_destroy(vap);
+	ieee80211_waitfor_parent(ic);
 
 	ieee80211_sysctl_detach(ic);
 	ieee80211_regdomain_detach(ic);
