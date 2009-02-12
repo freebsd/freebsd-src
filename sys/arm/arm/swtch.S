@@ -205,8 +205,12 @@ ENTRY(cpu_throw)
 
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
-	ldr	r5, =ARM_TP_ADDRESS
-	strt	r6, [r5]
+	ldr	r4, =ARM_TP_ADDRESS
+	str	r6, [r4]
+	ldr	r6, [r5, #(TD_MD + MD_RAS_START)]
+	str	r6, [r4, #4] /* ARM_RAS_START */
+	ldr	r6, [r5, #(TD_MD + MD_RAS_END)]
+	str	r6, [r4, #4] /* ARM_RAS_END */
 
 	/* Hook in a new pcb */
 	ldr	r6, .Lcurpcb
@@ -265,12 +269,20 @@ ENTRY(cpu_switch)
 	 */
 	/* Store the old tp */
 	ldr	r3, =ARM_TP_ADDRESS
-	ldrt	r9, [r3]
+	ldr	r9, [r3]
 	str	r9, [r0, #(TD_MD + MD_TP)]
+	ldr	r9, [r3, #4]
+	str	r9, [r0, #(TD_MD + MD_RAS_START)]
+	ldr	r9, [r3, #8]
+	str	r9, [r0, #(TD_MD + MD_RAS_END)]
 
 	/* Set the new tp */
 	ldr	r9, [r1, #(TD_MD + MD_TP)]
-	strt	r9, [r3]
+	str	r9, [r3]
+	ldr	r9, [r1, #(TD_MD + MD_RAS_START)]
+	str	r9, [r3, #4]
+	ldr	r9, [r1, #(TD_MD + MD_RAS_END)]
+	str	r9, [r3, #8]
 
 	/* Get the user structure for the new process in r9 */
 	ldr	r9, [r1, #(TD_PCB)]
