@@ -99,9 +99,16 @@ struct fw_reg_req_t {
 #define FWRCODE_ER_TYPE		6
 #define FWRCODE_ER_ADDR		7
 
+/*
+ * Defined 1394a-2000
+ * Table 5B-1
+ */
 #define FWSPD_S100	0
 #define FWSPD_S200	1
 #define FWSPD_S400	2
+#define FWSPD_S800	3
+#define FWSPD_S1600	4
+#define FWSPD_S3200	5
 
 #define	FWP_TL_VALID (1 << 7)
 
