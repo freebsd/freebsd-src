@@ -152,7 +152,7 @@ struct sctp_sysctl {
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
 #define SCTPCTL_STRICT_SACKS_MIN	0
 #define SCTPCTL_STRICT_SACKS_MAX	1
-#define SCTPCTL_STRICT_SACKS_DEFAULT	0
+#define SCTPCTL_STRICT_SACKS_DEFAULT	1
 
 /* loopback_nocsum: Enable NO Csum on packets sent on loopback */
 #define SCTPCTL_LOOPBACK_NOCSUM_DESC	"Enable NO Csum on packets sent on loopback"

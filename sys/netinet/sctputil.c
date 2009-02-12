@@ -922,7 +922,9 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 			asoc->my_vtag = override_tag;
 		} else {
 			SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
+#ifdef INVARIANTS
 			panic("Huh is_in_timewait fails");
+#endif
 			return (ENOMEM);
 		}
 
@@ -4848,6 +4850,7 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
+stage_right:
 		if (holds_lock == 0)
 			SCTP_IPI_ADDR_RUNLOCK();
 		return (NULL);
@@ -4868,7 +4871,13 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 	}
 	LIST_FOREACH(sctp_ifap, hash_head, next_bucket) {
 		if (sctp_ifap == NULL) {
+#ifdef INVARIANTS
 			panic("Huh LIST_FOREACH corrupt");
+			goto stage_right;
+#else
+			SCTP_PRINTF("LIST corrupt of sctp_ifap's?\n");
+			goto stage_right;
+#endif
 		}
 		if (addr->sa_family != sctp_ifap->address.sa.sa_family)
 			continue;
@@ -5918,7 +5927,12 @@ out:
 		 * the atomic add to the refcnt.
 		 */
 		if (stcb == NULL) {
+#ifdef INVARIANTS
 			panic("stcb for refcnt has gone NULL?");
+			goto stage_left;
+#else
+			goto stage_left;
+#endif
 		}
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		freecnt_applied = 0;
@@ -5940,6 +5954,7 @@ out:
 			    so->so_rcv.sb_cc);
 		}
 	}
+stage_left:
 	if (wakeup_read_socket) {
 		sctp_sorwakeup(inp, so);
 	}

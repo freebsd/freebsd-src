@@ -11381,6 +11381,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 	struct ip *iph;
 	struct udphdr *udp = NULL;
 	struct mbuf *mout;
+
 #ifdef INET6
 #ifdef SCTP_DEBUG
 	struct sockaddr_in6 lsa6, fsa6;
