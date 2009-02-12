@@ -585,6 +585,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x10, 4, 0,
 	},
 
+	{   0x1409, 0x7268, 0xffff, 0,
+	    "Sunix SUN1888",
+	    0,
+	    PUC_PORT_2P, 0x10, 0, 8,
+	},
+
 	{   0x1409, 0x7168, 0xffff, 0,
 	    NULL,
 	    DEFAULT_RCLK * 8,
