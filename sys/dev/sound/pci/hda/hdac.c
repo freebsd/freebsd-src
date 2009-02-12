@@ -4981,7 +4981,7 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 	/* Find next pin */
 	for (i = seq; i < 16 && ases[as].pins[i] == 0; i++)
 		;
-	/* Check if there is no any left. If so - we succeded. */
+	/* Check if there is no any left. If so - we succeeded. */
 	if (i == 16)
 		return (1);
 	
@@ -5027,7 +5027,7 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 		hdac_audio_trace_dac(devinfo, as, i,
 		    ases[as].pins[i], hpredir, min, res, 0);
 		ases[as].dacs[i] = res;
-		/* We succeded, so call next. */
+		/* We succeeded, so call next. */
 		if (hdac_audio_trace_as_out(devinfo, as, i + 1))
 			return (1);
 		/* If next failed, we should retry with next min */
@@ -6002,7 +6002,7 @@ retry:
 		if (res) {
 			HDA_BOOTVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
-				    "Association %d (%d) trace succeded\n",
+				    "Association %d (%d) trace succeeded\n",
 				    j, as[j].index);
 			);
 		} else {
