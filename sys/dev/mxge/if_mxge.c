@@ -300,7 +300,7 @@ mxge_parse_strings(mxge_softc_t *sc)
 	return ENXIO;
 }
 
-#if #cpu(i386) || defined __i386 || defined i386 || defined __i386__ || #cpu(x86_64) || defined __x86_64__
+#if defined __i386 || defined i386 || defined __i386__ || defined __x86_64__
 static void
 mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 {
