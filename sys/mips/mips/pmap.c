@@ -168,7 +168,7 @@ struct fpage fpages_shared[FPAGES_SHARED];
 struct sysmaps sysmaps_pcpu[MAXCPU];
 
 static PMAP_INLINE void free_pv_entry(pv_entry_t pv);
-static pv_entry_t get_pv_entry(void);
+static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 static __inline void pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 
 static int pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va);
@@ -1304,16 +1304,85 @@ free_pv_entry(pv_entry_t pv)
  * because of the possibility of allocations at interrupt time.
  */
 static pv_entry_t
-get_pv_entry(void)
+get_pv_entry(pmap_t locked_pmap)
 {
+	static const struct timeval printinterval = { 60, 0 };
+	static struct timeval lastprint;
+	struct vpgqueues *vpq;
+	pt_entry_t *pte, oldpte;
+	pmap_t pmap;
+	pv_entry_t allocated_pv, next_pv, pv;
+	vm_offset_t va;
+	vm_page_t m;
 
-	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
-	    (pmap_pagedaemon_waken == 0)) {
-		pmap_pagedaemon_waken = 1;
-		wakeup(&vm_pages_needed);
+	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	allocated_pv = uma_zalloc(pvzone, M_NOWAIT);
+	if (allocated_pv != NULL) {
+		pv_entry_count++;
+		if (pv_entry_count > pv_entry_high_water)
+			pagedaemon_wakeup();
+		else
+			return (allocated_pv);
 	}
-	return uma_zalloc(pvzone, M_NOWAIT);
+	/*
+	 * Reclaim pv entries: At first, destroy mappings to inactive
+	 * pages.  After that, if a pv entry is still needed, destroy
+	 * mappings to active pages.
+	 */
+	if (ratecheck(&lastprint, &printinterval))
+		printf("Approaching the limit on PV entries, "
+		    "increase the vm.pmap.shpgperproc tunable.\n");
+	vpq = &vm_page_queues[PQ_INACTIVE];
+retry:
+	TAILQ_FOREACH(m, &vpq->pl, pageq) {
+		if (m->hold_count || m->busy)
+			continue;
+		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
+			va = pv->pv_va;
+			pmap = pv->pv_pmap;
+			/* Avoid deadlock and lock recursion. */
+			if (pmap > locked_pmap)
+				PMAP_LOCK(pmap);
+			else if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
+				continue;
+			pmap->pm_stats.resident_count--;
+			pte = pmap_pte(pmap, va);
+			KASSERT(pte != NULL, ("pte"));
+			oldpte = loadandclear((u_int *)pte);
+			if (is_kernel_pmap(pmap))
+				*pte = PTE_G;
+			KASSERT((oldpte & PTE_W) == 0,
+			    ("wired pte for unwired page"));
+			if (m->md.pv_flags & PV_TABLE_REF)
+				vm_page_flag_set(m, PG_REFERENCED);
+			if (oldpte & PTE_M)
+				vm_page_dirty(m);
+			pmap_invalidate_page(pmap, va);
+			TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+			m->md.pv_list_count--;
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+			if (TAILQ_EMPTY(&m->md.pv_list)) {
+				vm_page_flag_clear(m, PG_WRITEABLE);
+				m->md.pv_flags &= ~(PV_TABLE_REF | PV_TABLE_MOD);
+			}
+			pmap_unuse_pt(pmap, va, pv->pv_ptem);
+			if (pmap != locked_pmap)
+				PMAP_UNLOCK(pmap);
+			if (allocated_pv == NULL)
+				allocated_pv = pv;
+			else
+				free_pv_entry(pv);
+		}
+	}
+	if (allocated_pv == NULL) {
+		if (vpq == &vm_page_queues[PQ_INACTIVE]) {
+			vpq = &vm_page_queues[PQ_ACTIVE];
+			goto retry;
+		}
+		panic("get_pv_entry: increase the vm.pmap.shpgperproc tunable");
+	}
+	return (allocated_pv);
 }
 
 /*
@@ -1376,9 +1445,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m,
 
 	pv_entry_t pv;
 
-	pv = get_pv_entry();
-	if (pv == NULL)
-		panic("no pv entries: increase vm.pmap.shpgperproc");
+	pv = get_pv_entry(pmap);
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
 	pv->pv_ptem = mpte;
