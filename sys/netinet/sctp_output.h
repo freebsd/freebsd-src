@@ -88,7 +88,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *, int, int *,
-    struct sctp_chunkhdr *);
+    struct sctp_chunkhdr *, int *);
 void sctp_queue_op_err(struct sctp_tcb *, struct mbuf *);
 
 int
@@ -149,6 +149,9 @@ sctp_send_abort_tcb(struct sctp_tcb *, struct mbuf *, int
 void send_forward_tsn(struct sctp_tcb *, struct sctp_association *);
 
 void sctp_send_sack(struct sctp_tcb *);
+
+/* EY 05/07/08 if nr_sacks used, the following function will be called instead of sctp_send_sack */
+void sctp_send_nr_sack(struct sctp_tcb *);
 
 int sctp_send_hb(struct sctp_tcb *, int, struct sctp_nets *);
 

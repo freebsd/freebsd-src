@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_input.h>
 #include <netinet/sctp.h>
 #include <netinet/sctp_uio.h>
-
+#include <netinet/udp.h>
 
 
 void
@@ -769,8 +769,8 @@ start_again:
 						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
 						    &stcb->asoc.sent_queue, SCTP_SO_NOT_LOCKED);
 					}
+					continue;
 				}
-				continue;
 			}
 			if (PR_SCTP_RTX_ENABLED(chk->flags)) {
 				/* Has it been retransmitted tv_sec times? */
@@ -781,8 +781,8 @@ start_again:
 						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
 						    &stcb->asoc.sent_queue, SCTP_SO_NOT_LOCKED);
 					}
+					continue;
 				}
-				continue;
 			}
 			if (chk->sent < SCTP_DATAGRAM_RESEND) {
 				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
@@ -1088,7 +1088,11 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 					 * more, request a RTT update
 					 */
 					if (sctp_send_hb(stcb, 1, net) < 0)
-						return 1;
+						/*
+						 * Less than 0 means we lost
+						 * the assoc
+						 */
+						return (1);
 				}
 			}
 		}
@@ -1146,7 +1150,8 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		 * manually.
 		 */
 		if (sctp_send_hb(stcb, 1, net) < 0)
-			return 1;
+			/* Return less than 0 means we lost the association */
+			return (1);
 	}
 	/*
 	 * Special case for cookie-echo'ed case, we don't do output but must
@@ -1789,6 +1794,9 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 		}
 		if (net->ro._s_addr) {
 			mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._s_addr.sa, net->ro.ro_rt);
+			if (net->port) {
+				mtu -= sizeof(struct udphdr);
+			}
 			if (mtu > next_mtu) {
 				net->mtu = next_mtu;
 			}

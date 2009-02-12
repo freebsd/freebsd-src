@@ -133,6 +133,8 @@ struct sctp_block_entry {
 struct sctp_timewait {
 	uint32_t tv_sec_at_expire;	/* the seconds from boot to expire */
 	uint32_t v_tag;		/* the vtag that can not be reused */
+	uint16_t lport;		/* the local port used in vtag */
+	uint16_t rport;		/* the remote port used in vtag */
 };
 
 struct sctp_tagblock {
@@ -148,8 +150,6 @@ struct sctp_epinfo {
 	struct sctppcbhead *sctp_ephash;
 	u_long hashmark;
 
-	struct sctpasochead *sctp_restarthash;
-	u_long hashrestartmark;
 	/*-
 	 * The TCP model represents a substantial overhead in that we get an
 	 * additional hash table to keep explicit connections in. The
@@ -411,6 +411,10 @@ struct sctp_inpcb {
 	uint32_t total_recvs;
 	uint32_t last_abort_code;
 	uint32_t total_nospaces;
+	struct sctpasochead *sctp_asocidhash;
+	u_long hashasocidmark;
+	uint32_t sctp_associd_counter;
+
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	struct sctp_pcbtsn_rlog readlog[SCTP_READ_LOG_SIZE];
 	uint32_t readlog_index;
@@ -424,7 +428,7 @@ struct sctp_tcb {
 							 * table */
 	           LIST_ENTRY(sctp_tcb) sctp_tcblist;	/* list of all of the
 							 * TCB's */
-	           LIST_ENTRY(sctp_tcb) sctp_tcbrestarhash;	/* next link in restart
+	           LIST_ENTRY(sctp_tcb) sctp_tcbasocidhash;	/* next link in asocid
 								 * hash table */
 	           LIST_ENTRY(sctp_tcb) sctp_asocs;	/* vtag hash list */
 	struct sctp_block_entry *block_entry;	/* pointer locked by  socket
@@ -537,12 +541,15 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **,
     struct sctp_tcb *);
 
 struct sctp_tcb *
+         sctp_findasoc_ep_asocid_locked(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int want_lock);
+
+struct sctp_tcb *
 sctp_findassociation_ep_asocid(struct sctp_inpcb *,
     sctp_assoc_t, int);
 
 struct sctp_tcb *
 sctp_findassociation_ep_asconf(struct mbuf *, int, int,
-    struct sctphdr *, struct sctp_inpcb **, struct sctp_nets **);
+    struct sctphdr *, struct sctp_inpcb **, struct sctp_nets **, uint32_t vrf_id);
 
 int sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id);
 
@@ -557,12 +564,12 @@ sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
 int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
 
 
-void sctp_delete_from_timewait(uint32_t);
+void sctp_delete_from_timewait(uint32_t, uint16_t, uint16_t);
 
-int sctp_is_in_timewait(uint32_t tag);
+int sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport);
 
 void
-     sctp_add_vtag_to_timewait(uint32_t, uint32_t);
+     sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t rport);
 
 void sctp_add_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *, uint32_t);
 
@@ -593,7 +600,7 @@ int
 sctp_set_primary_addr(struct sctp_tcb *, struct sockaddr *,
     struct sctp_nets *);
 
-int sctp_is_vtag_good(struct sctp_inpcb *, uint32_t, struct timeval *, int);
+int sctp_is_vtag_good(struct sctp_inpcb *, uint32_t, uint16_t lport, uint16_t rport, struct timeval *, int);
 
 /* void sctp_drain(void); */
 

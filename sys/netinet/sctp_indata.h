@@ -99,6 +99,16 @@ void
 sctp_handle_sack(struct mbuf *m, int offset, struct sctp_sack_chunk *, struct sctp_tcb *,
     struct sctp_nets *, int *, int, uint32_t);
 
+/* EY does "exactly" the same as sctp_express_handle_sack */
+void
+sctp_express_handle_nr_sack(struct sctp_tcb *stcb, uint32_t cumack,
+    uint32_t rwnd, int nonce_sum_flag, int *abort_now);
+
+/* EY nr_sack version of sctp_handle_sack */
+void
+sctp_handle_nr_sack(struct mbuf *m, int offset, struct sctp_nr_sack_chunk *, struct sctp_tcb *,
+    struct sctp_nets *, int *, int, uint32_t);
+
 /* draft-ietf-tsvwg-usctp */
 void
 sctp_handle_forward_tsn(struct sctp_tcb *,
