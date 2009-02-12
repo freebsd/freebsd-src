@@ -259,7 +259,7 @@ SUBDIR=	${_3dfx} \
 	${_stg} \
 	stge \
 	${_streams} \
-	svr4 \
+	${_svr4} \
 	sym \
 	${_syscons} \
 	sysvipc \
@@ -438,6 +438,7 @@ _sppp=		sppp
 _sr=		sr
 _stg=		stg
 _streams=	streams
+_svr4=		svr4
 _tmpfs=		tmpfs
 _upgt=		upgt
 _urtw=		urtw
