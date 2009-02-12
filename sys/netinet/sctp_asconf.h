@@ -86,6 +86,10 @@ extern void
 extern void
      sctp_net_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
 
+extern void
+sctp_asconf_send_nat_state_update(struct sctp_tcb *stcb,
+    struct sctp_nets *net);
+
 extern int
     sctp_is_addr_pending(struct sctp_tcb *, struct sctp_ifa *);
 

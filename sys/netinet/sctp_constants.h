@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -313,7 +313,6 @@ __FBSDID("$FreeBSD$");
 /* Minimum number of bytes read by user before we
  * condsider doing a rwnd update
  */
-#define SCTP_MIN_READ_BEFORE_CONSIDERING  3000
 
 /*
  * default HMAC for cookies, etc... use one of the AUTH HMAC id's
@@ -382,6 +381,14 @@ __FBSDID("$FreeBSD$");
 						 * hit this value) */
 #define SCTP_DATAGRAM_RESEND		4
 #define SCTP_DATAGRAM_ACKED		10010
+/* EY
+ * If a tsn is nr-gapped, its first tagged as NR_MARKED and then NR_ACKED
+ * When yet another nr-sack is received, if a particular TSN's sent tag
+ * is observed to be NR_ACKED after gap-ack info is processed, this implies
+ * that particular TSN is reneged
+*/
+#define SCTP_DATAGRAM_NR_ACKED 		10020
+#define SCTP_DATAGRAM_NR_MARKED		20005
 #define SCTP_DATAGRAM_MARKED		20010
 #define SCTP_FORWARD_TSN_SKIP		30010
 
@@ -465,6 +472,9 @@ __FBSDID("$FreeBSD$");
 #define SCTP_SET_PRIM_ADDR		0xc004
 #define SCTP_SUCCESS_REPORT		0xc005
 #define SCTP_ULP_ADAPTATION		0xc006
+/* behave-nat-draft */
+#define SCTP_HAS_NAT_SUPPORT            0xc007
+#define SCTP_NAT_VTAGS                  0xc008
 
 /* Notification error codes */
 #define SCTP_NOTIFY_DATAGRAM_UNSENT	0x0001
@@ -553,7 +563,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_INITIAL_MAPPING_ARRAY  16
 /* how much we grow the mapping array each call */
 #define SCTP_MAPPING_ARRAY_INCR     32
-
+/* EY 05/13/08 - nr_sack version of the previous 3 constants */
+/* Maximum the nr mapping array will  grow to (TSN mapping array) */
+#define SCTP_NR_MAPPING_ARRAY	512
+/* size of the inital malloc on the nr mapping array */
+#define SCTP_INITIAL_NR_MAPPING_ARRAY  16
+/* how much we grow the nr mapping array each call */
+#define SCTP_NR_MAPPING_ARRAY_INCR     32
 /*
  * Here we define the timer types used by the implementation as arguments in
  * the set/get timer type calls.
@@ -607,7 +623,6 @@ __FBSDID("$FreeBSD$");
  * Number of ticks before the soxwakeup() event that is delayed is sent AFTER
  * the accept() call
  */
-#define SCTP_EVENTWAKEUP_WAIT_TICKS	3000
 
 /*
  * Of course we really don't collect stale cookies, being folks of decerning
@@ -616,7 +631,6 @@ __FBSDID("$FreeBSD$");
  * up...this is a implemenation dependent treatment. In ours we do not ask
  * for a extension of time, but just retry this many times...
  */
-#define SCTP_MAX_STALE_COOKIES_I_COLLECT 10
 
 /* max number of TSN's dup'd that I will hold */
 #define SCTP_MAX_DUP_TSNS	20
@@ -625,11 +639,8 @@ __FBSDID("$FreeBSD$");
  * Here we define the types used when setting the retry amounts.
  */
 /* constants for type of set */
-#define SCTP_MAXATTEMPT_INIT	2
-#define SCTP_MAXATTEMPT_SEND	3
 
 /* Maximum TSN's we will summarize in a drop report */
-#define SCTP_MAX_DROP_REPORT 16
 
 /* How many drop re-attempts we make on  INIT/COOKIE-ECHO */
 #define SCTP_RETRY_DROPPED_THRESH 4
@@ -638,7 +649,6 @@ __FBSDID("$FreeBSD$");
  * And the max we will keep a history of in the tcb which MUST be lower than
  * 256.
  */
-#define SCTP_MAX_DROP_SAVE_REPORT 16
 
 /*
  * Here we define the default timers and the default number of attemts we
@@ -711,14 +721,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEF_MAX_PATH_RTX	5
 
 #define SCTP_DEF_PMTU_RAISE_SEC	600	/* 10 min between raise attempts */
-#define SCTP_DEF_PMTU_MIN	600
 
-
-#define SCTP_MSEC_IN_A_SEC	1000
-#define SCTP_USEC_IN_A_SEC	1000000
-#define SCTP_NSEC_IN_A_SEC	1000000000
-
-#define SCTP_MAX_OUTSTANDING_DG	10000
 
 /* How many streams I request initally by default */
 #define SCTP_OSTREAM_INITIAL 10
@@ -727,9 +730,7 @@ __FBSDID("$FreeBSD$");
  * How many smallest_mtu's need to increase before a window update sack is
  * sent (should be a power of 2).
  */
-#define SCTP_SEG_TO_RWND_UPD 32
 /* Send window update (incr * this > hiwat). Should be a power of 2 */
-#define SCTP_SCALE_OF_RWND_TO_UPD       4
 #define SCTP_MINIMAL_RWND		(4096)	/* minimal rwnd */
 
 #define SCTP_ADDRMAX		24
@@ -786,15 +787,6 @@ __FBSDID("$FreeBSD$");
 /* amount peer is obligated to have in rwnd or I will abort */
 #define SCTP_MIN_RWND	1500
 
-#define SCTP_WINDOW_MIN	1500	/* smallest rwnd can be */
-#define SCTP_WINDOW_MAX 1048576	/* biggest I can grow rwnd to My playing
-				 * around suggests a value greater than 64k
-				 * does not do much, I guess via the kernel
-				 * limitations on the stream/socket. */
-
-/* I can handle a 1meg re-assembly */
-#define SCTP_DEFAULT_MAXMSGREASM 1048576
-
 #define SCTP_DEFAULT_MAXSEGMENT 65535
 
 #define SCTP_CHUNK_BUFFER_SIZE	512
@@ -813,33 +805,35 @@ __FBSDID("$FreeBSD$");
 /*
  * SCTP upper layer notifications
  */
-#define SCTP_NOTIFY_ASSOC_UP		1
-#define SCTP_NOTIFY_ASSOC_DOWN		2
-#define SCTP_NOTIFY_INTERFACE_DOWN	3
-#define SCTP_NOTIFY_INTERFACE_UP	4
-#define SCTP_NOTIFY_DG_FAIL		5
-#define SCTP_NOTIFY_STRDATA_ERR 	6
-#define SCTP_NOTIFY_ASSOC_ABORTED	7
-#define SCTP_NOTIFY_PEER_OPENED_STREAM	8
-#define SCTP_NOTIFY_STREAM_OPENED_OK	9
-#define SCTP_NOTIFY_ASSOC_RESTART	10
-#define SCTP_NOTIFY_HB_RESP             11
-#define SCTP_NOTIFY_ASCONF_SUCCESS	12
-#define SCTP_NOTIFY_ASCONF_FAILED	13
-#define SCTP_NOTIFY_PEER_SHUTDOWN	14
-#define SCTP_NOTIFY_ASCONF_ADD_IP	15
-#define SCTP_NOTIFY_ASCONF_DELETE_IP	16
-#define SCTP_NOTIFY_ASCONF_SET_PRIMARY	17
+#define SCTP_NOTIFY_ASSOC_UP                     1
+#define SCTP_NOTIFY_ASSOC_DOWN                   2
+#define SCTP_NOTIFY_INTERFACE_DOWN               3
+#define SCTP_NOTIFY_INTERFACE_UP                 4
+#define SCTP_NOTIFY_DG_FAIL                      5
+#define SCTP_NOTIFY_STRDATA_ERR                  6
+#define SCTP_NOTIFY_ASSOC_ABORTED                7
+#define SCTP_NOTIFY_PEER_OPENED_STREAM           8
+#define SCTP_NOTIFY_STREAM_OPENED_OK             9
+#define SCTP_NOTIFY_ASSOC_RESTART               10
+#define SCTP_NOTIFY_HB_RESP                     11
+#define SCTP_NOTIFY_ASCONF_SUCCESS              12
+#define SCTP_NOTIFY_ASCONF_FAILED               13
+#define SCTP_NOTIFY_PEER_SHUTDOWN               14
+#define SCTP_NOTIFY_ASCONF_ADD_IP               15
+#define SCTP_NOTIFY_ASCONF_DELETE_IP            16
+#define SCTP_NOTIFY_ASCONF_SET_PRIMARY          17
 #define SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION 18
-#define SCTP_NOTIFY_INTERFACE_CONFIRMED 20
-#define SCTP_NOTIFY_STR_RESET_RECV      21
-#define SCTP_NOTIFY_STR_RESET_SEND      22
-#define SCTP_NOTIFY_STR_RESET_FAILED_OUT 23
-#define SCTP_NOTIFY_STR_RESET_FAILED_IN 24
-#define SCTP_NOTIFY_AUTH_NEW_KEY	25
-#define SCTP_NOTIFY_AUTH_KEY_CONFLICT	26
-#define SCTP_NOTIFY_SPECIAL_SP_FAIL     27
-#define SCTP_NOTIFY_MAX			27
+#define SCTP_NOTIFY_INTERFACE_CONFIRMED         20
+#define SCTP_NOTIFY_STR_RESET_RECV              21
+#define SCTP_NOTIFY_STR_RESET_SEND              22
+#define SCTP_NOTIFY_STR_RESET_FAILED_OUT        23
+#define SCTP_NOTIFY_STR_RESET_FAILED_IN         24
+#define SCTP_NOTIFY_AUTH_NEW_KEY                25
+#define SCTP_NOTIFY_AUTH_FREE_KEY               26
+#define SCTP_NOTIFY_SPECIAL_SP_FAIL             27
+#define SCTP_NOTIFY_NO_PEER_AUTH                28
+#define SCTP_NOTIFY_SENDER_DRY                  29
+#define SCTP_NOTIFY_MAX                         29
 
 /* This is the value for messages that are NOT completely
  * copied down where we will start to split the message.
@@ -970,7 +964,6 @@ __FBSDID("$FreeBSD$");
 #endif				/* !IPPROTO_SCTP */
 
 #define SCTP_MAX_DATA_BUNDLING		256
-#define SCTP_MAX_CONTROL_BUNDLING	20
 
 /* modular comparison */
 /* True if a > b (mod = M) */

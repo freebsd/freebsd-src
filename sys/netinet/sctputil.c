@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -848,7 +848,7 @@ retry:
 }
 
 uint32_t
-sctp_select_a_tag(struct sctp_inpcb *inp, int save_in_twait)
+sctp_select_a_tag(struct sctp_inpcb *inp, uint16_t lport, uint16_t rport, int save_in_twait)
 {
 	u_long x, not_done;
 	struct timeval now;
@@ -861,7 +861,7 @@ sctp_select_a_tag(struct sctp_inpcb *inp, int save_in_twait)
 			/* we never use 0 */
 			continue;
 		}
-		if (sctp_is_vtag_good(inp, x, &now, save_in_twait)) {
+		if (sctp_is_vtag_good(inp, x, lport, rport, &now, save_in_twait)) {
 			not_done = 0;
 		}
 	}
@@ -894,6 +894,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->heart_beat_delay = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = m->sctp_ep.def_cookie_life;
 	asoc->sctp_cmt_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_on_off);
+	/* EY Init nr_sack variable */
+	asoc->sctp_nr_sack_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_nr_sack_on_off);
 	/* JRS 5/21/07 - Init CMT PF variables */
 	asoc->sctp_cmt_pf = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_pf);
 	asoc->sctp_frag_point = m->sctp_frag_point;
@@ -910,7 +912,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 #endif
 	asoc->sb_send_resv = 0;
 	if (override_tag) {
-		if (sctp_is_in_timewait(override_tag)) {
+#ifdef MICHAELS_EXPERIMENT
+		if (sctp_is_in_timewait(override_tag, stcb->sctp_ep->sctp_lport, stcb->rport)) {
 			/*
 			 * It must be in the time-wait hash, we put it there
 			 * when we aloc one. If not the peer is playing
@@ -924,13 +927,15 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 #endif
 			return (ENOMEM);
 		}
-
+#else
+		asoc->my_vtag = override_tag;
+#endif
 	} else {
-		asoc->my_vtag = sctp_select_a_tag(m, 1);
+		asoc->my_vtag = sctp_select_a_tag(m, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
 	}
 	/* Get the nonce tags */
-	asoc->my_vtag_nonce = sctp_select_a_tag(m, 0);
-	asoc->peer_vtag_nonce = sctp_select_a_tag(m, 0);
+	asoc->my_vtag_nonce = sctp_select_a_tag(m, stcb->sctp_ep->sctp_lport, stcb->rport, 0);
+	asoc->peer_vtag_nonce = sctp_select_a_tag(m, stcb->sctp_ep->sctp_lport, stcb->rport, 0);
 	asoc->vrf_id = vrf_id;
 
 	if (sctp_is_feature_on(m, SCTP_PCB_FLAGS_DONOT_HEARTBEAT))
@@ -951,13 +956,12 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 #endif
 	asoc->refcnt = 0;
 	asoc->assoc_up_sent = 0;
-	asoc->assoc_id = asoc->my_vtag;
 	asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number = asoc->sending_seq =
 	    sctp_select_initial_TSN(&m->sctp_ep);
 	asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
 	/* we are optimisitic here */
 	asoc->peer_supports_pktdrop = 1;
-
+	asoc->peer_supports_nat = 0;
 	asoc->sent_queue_retran_cnt = 0;
 
 	/* for CMT */
@@ -1146,6 +1150,17 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		return (ENOMEM);
 	}
 	memset(asoc->mapping_array, 0, asoc->mapping_array_size);
+	/* EY  - initialize the nr_mapping_array just like mapping array */
+	asoc->nr_mapping_array_size = SCTP_INITIAL_NR_MAPPING_ARRAY;
+	SCTP_MALLOC(asoc->nr_mapping_array, uint8_t *, asoc->nr_mapping_array_size,
+	    SCTP_M_MAP);
+	/*
+	 * if (asoc->nr_mapping_array == NULL) { SCTP_FREE(asoc->strmout,
+	 * SCTP_M_STRMO); SCTP_LTRACE_ERR_RET(NULL, stcb, NULL,
+	 * SCTP_FROM_SCTPUTIL, ENOMEM); return (ENOMEM); }
+	 */
+	memset(asoc->nr_mapping_array, 0, asoc->nr_mapping_array_size);
+
 	/* Now the init of the other outqueues */
 	TAILQ_INIT(&asoc->free_chunks);
 	TAILQ_INIT(&asoc->out_wheel);
@@ -1159,6 +1174,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	TAILQ_INIT(&asoc->asconf_queue);
 	/* authentication fields */
 	asoc->authinfo.random = NULL;
+	asoc->authinfo.active_keyid = 0;
 	asoc->authinfo.assoc_key = NULL;
 	asoc->authinfo.assoc_keyid = 0;
 	asoc->authinfo.recv_key = NULL;
@@ -1201,6 +1217,30 @@ sctp_expand_mapping_array(struct sctp_association *asoc, uint32_t needed)
 	SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 	asoc->mapping_array = new_array;
 	asoc->mapping_array_size = new_size;
+	return (0);
+}
+
+/* EY - nr_sack version of the above method */
+int
+sctp_expand_nr_mapping_array(struct sctp_association *asoc, uint32_t needed)
+{
+	/* nr mapping array needs to grow */
+	uint8_t *new_array;
+	uint32_t new_size;
+
+	new_size = asoc->nr_mapping_array_size + ((needed + 7) / 8 + SCTP_NR_MAPPING_ARRAY_INCR);
+	SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
+	if (new_array == NULL) {
+		/* can't get more, forget it */
+		SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n",
+		    new_size);
+		return (-1);
+	}
+	memset(new_array, 0, new_size);
+	memcpy(new_array, asoc->nr_mapping_array, asoc->nr_mapping_array_size);
+	SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+	asoc->nr_mapping_array = new_array;
+	asoc->nr_mapping_array_size = new_size;
 	return (0);
 }
 
@@ -1617,7 +1657,15 @@ sctp_timeout_handler(void *t)
 			stcb->asoc.timosack++;
 			if (stcb->asoc.cumulative_tsn != stcb->asoc.highest_tsn_inside_map)
 				sctp_sack_check(stcb, 0, 0, &abort_flag);
-			sctp_send_sack(stcb);
+
+			/*
+			 * EY if nr_sacks used then send an nr-sack , a sack
+			 * otherwise
+			 */
+			if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack)
+				sctp_send_nr_sack(stcb);
+			else
+				sctp_send_sack(stcb);
 		}
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
@@ -2905,19 +2953,6 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 #endif
 
 	/*
-	 * First if we are are going down dump everything we can to the
-	 * socket rcv queue.
-	 */
-
-	if ((stcb == NULL) ||
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
-	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)
-	    ) {
-		/* If the socket is gone we are out of here */
-		return;
-	}
-	/*
 	 * For TCP model AND UDP connected sockets we will send an error up
 	 * when an ABORT comes in.
 	 */
@@ -3025,10 +3060,10 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	struct sctp_paddr_change *spc;
 	struct sctp_queued_to_read *control;
 
-	if ((stcb == NULL) || (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVPADDREVNT)))
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVPADDREVNT)) {
 		/* event not enabled */
 		return;
-
+	}
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_paddr_change), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		return;
@@ -3099,15 +3134,15 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 #endif
 )
 {
-	struct mbuf *m_notify, *tt;
+	struct mbuf *m_notify;
 	struct sctp_send_failed *ssf;
 	struct sctp_queued_to_read *control;
 	int length;
 
-	if ((stcb == NULL) || (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVSENDFAILEVNT)))
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVSENDFAILEVNT)) {
 		/* event not enabled */
 		return;
-
+	}
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_send_failed), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3133,20 +3168,18 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 	ssf->ssf_info.sinfo_assoc_id = sctp_get_associd(stcb);
 	ssf->ssf_assoc_id = sctp_get_associd(stcb);
 
-	/* Take off the chunk header */
-	m_adj(chk->data, sizeof(struct sctp_data_chunk));
-
-	/* trim out any 0 len mbufs */
-	while (SCTP_BUF_LEN(chk->data) == 0) {
-		tt = chk->data;
-		chk->data = SCTP_BUF_NEXT(tt);
-		SCTP_BUF_NEXT(tt) = NULL;
-		sctp_m_freem(tt);
-	}
-
 	SCTP_BUF_NEXT(m_notify) = chk->data;
 	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed);
-
+	if (chk->data) {
+		/*
+		 * trim off the sctp chunk header(it should be there)
+		 */
+		if (chk->send_size >= sizeof(struct sctp_data_chunk)) {
+			m_adj(chk->data, sizeof(struct sctp_data_chunk));
+			sctp_mbuf_crush(chk->data);
+			chk->send_size -= sizeof(struct sctp_data_chunk);
+		}
+	}
 	/* Steal off the mbuf */
 	chk->data = NULL;
 	/*
@@ -3187,10 +3220,10 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	struct sctp_queued_to_read *control;
 	int length;
 
-	if ((stcb == NULL) || (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVSENDFAILEVNT)))
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVSENDFAILEVNT)) {
 		/* event not enabled */
 		return;
-
+	}
 	length = sizeof(struct sctp_send_failed) + sp->length;
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_send_failed), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
@@ -3257,10 +3290,10 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb,
 	struct sctp_adaptation_event *sai;
 	struct sctp_queued_to_read *control;
 
-	if ((stcb == NULL) || (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_ADAPTATIONEVNT)))
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_ADAPTATIONEVNT)) {
 		/* event not enabled */
 		return;
-
+	}
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_adaption_event), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3304,11 +3337,10 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 	struct sctp_queued_to_read *control;
 	struct sockbuf *sb;
 
-	if ((stcb == NULL) || (stcb->sctp_socket == NULL) ||
-	    sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_PDAPIEVNT))
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_PDAPIEVNT)) {
 		/* event not enabled */
 		return;
-
+	}
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_pdapi_event), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3378,9 +3410,6 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 	 * For TCP model AND UDP connected sockets we will send an error up
 	 * when an SHUTDOWN completes
 	 */
-	if (stcb == NULL) {
-		return;
-	}
 	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
 		/* mark socket closed for read/write and wakeup! */
@@ -3404,10 +3433,10 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 	}
-	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT))
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT)) {
 		/* event not enabled */
 		return;
-
+	}
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_shutdown_event), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3440,6 +3469,53 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 }
 
 static void
+sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
+    int so_locked
+#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
+    SCTP_UNUSED
+#endif
+)
+{
+	struct mbuf *m_notify;
+	struct sctp_sender_dry_event *event;
+	struct sctp_queued_to_read *control;
+
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_DRYEVNT)) {
+		/* event not enabled */
+		return;
+	}
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_sender_dry_event), 0, M_DONTWAIT, 1, MT_DATA);
+	if (m_notify == NULL) {
+		/* no space left */
+		return;
+	}
+	SCTP_BUF_LEN(m_notify) = 0;
+	event = mtod(m_notify, struct sctp_sender_dry_event *);
+	event->sender_dry_type = SCTP_SENDER_DRY_EVENT;
+	event->sender_dry_flags = 0;
+	event->sender_dry_length = sizeof(struct sctp_sender_dry_event);
+	event->sender_dry_assoc_id = sctp_get_associd(stcb);
+
+	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_sender_dry_event);
+	SCTP_BUF_NEXT(m_notify) = NULL;
+
+	/* append to socket */
+	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
+	    0, 0, 0, 0, 0, 0, m_notify);
+	if (control == NULL) {
+		/* no memory */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	control->length = SCTP_BUF_LEN(m_notify);
+	control->spec_flags = M_NOTIFICATION;
+	/* not that we need this */
+	control->tail_mbuf = m_notify;
+	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+}
+
+static void
 sctp_notify_stream_reset(struct sctp_tcb *stcb,
     int number_entries, uint16_t * list, int flag)
 {
@@ -3448,13 +3524,10 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 	struct sctp_stream_reset_event *strreset;
 	int len;
 
-	if (stcb == NULL) {
-		return;
-	}
-	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_STREAM_RESETEVNT))
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_STREAM_RESETEVNT)) {
 		/* event not enabled */
 		return;
-
+	}
 	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3516,19 +3589,11 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 #endif
 )
 {
-	if (stcb == NULL) {
-		/* unlikely but */
-		return;
-	}
-	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	if ((stcb == NULL) ||
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
-	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)
-	    ) {
-		/* No notifications up when we are in a no socket state */
-		return;
-	}
-	if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-		/* Can't send up to a closed socket any notifications */
+	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
+		/* If the socket is gone we are out of here */
 		return;
 	}
 	if (stcb && ((stcb->asoc.state & SCTP_STATE_COOKIE_WAIT) ||
@@ -3548,6 +3613,10 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		}
 		if (stcb->asoc.adaptation_needed && (stcb->asoc.adaptation_sent == 0)) {
 			sctp_notify_adaptation_layer(stcb, error);
+		}
+		if (stcb->asoc.peer_supports_auth == 0) {
+			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0,
+			    NULL, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_ASSOC_DOWN:
@@ -3613,6 +3682,10 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	case SCTP_NOTIFY_ASSOC_RESTART:
 		sctp_notify_assoc_change(SCTP_RESTART, stcb, error, data, so_locked);
+		if (stcb->asoc.peer_supports_auth == 0) {
+			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0,
+			    NULL, so_locked);
+		}
 		break;
 	case SCTP_NOTIFY_HB_RESP:
 		break;
@@ -3651,16 +3724,22 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	case SCTP_NOTIFY_AUTH_NEW_KEY:
 		sctp_notify_authentication(stcb, SCTP_AUTH_NEWKEY, error,
-		    (uint16_t) (uintptr_t) data);
+		    (uint16_t) (uintptr_t) data,
+		    so_locked);
 		break;
-#if 0
-	case SCTP_NOTIFY_AUTH_KEY_CONFLICT:
-		sctp_notify_authentication(stcb, SCTP_AUTH_KEY_CONFLICT,
-		    error, (uint16_t) (uintptr_t) data);
+	case SCTP_NOTIFY_AUTH_FREE_KEY:
+		sctp_notify_authentication(stcb, SCTP_AUTH_FREE_KEY, error,
+		    (uint16_t) (uintptr_t) data,
+		    so_locked);
 		break;
-#endif				/* not yet? remove? */
-
-
+	case SCTP_NOTIFY_NO_PEER_AUTH:
+		sctp_notify_authentication(stcb, SCTP_AUTH_NO_AUTH, error,
+		    (uint16_t) (uintptr_t) data,
+		    so_locked);
+		break;
+	case SCTP_NOTIFY_SENDER_DRY:
+		sctp_notify_sender_dry_event(stcb, so_locked);
+		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_UTIL1, "%s: unknown notification %xh (%u)\n",
 		    __FUNCTION__, notification, notification);
@@ -3701,17 +3780,6 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 		while (chk) {
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			asoc->sent_queue_cnt--;
-			if (chk->data) {
-				/*
-				 * trim off the sctp chunk header(it should
-				 * be there)
-				 */
-				if (chk->send_size >= sizeof(struct sctp_data_chunk)) {
-					m_adj(chk->data, sizeof(struct sctp_data_chunk));
-					sctp_mbuf_crush(chk->data);
-					chk->send_size -= sizeof(struct sctp_data_chunk);
-				}
-			}
 			sctp_free_bufspace(stcb, asoc, chk, 1);
 			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
 			    SCTP_NOTIFY_DATAGRAM_SENT, chk, so_locked);
@@ -3730,17 +3798,6 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 		while (chk) {
 			TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
 			asoc->send_queue_cnt--;
-			if (chk->data) {
-				/*
-				 * trim off the sctp chunk header(it should
-				 * be there)
-				 */
-				if (chk->send_size >= sizeof(struct sctp_data_chunk)) {
-					m_adj(chk->data, sizeof(struct sctp_data_chunk));
-					sctp_mbuf_crush(chk->data);
-					chk->send_size -= sizeof(struct sctp_data_chunk);
-				}
-			}
 			sctp_free_bufspace(stcb, asoc, chk, 1);
 			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, SCTP_NOTIFY_DATAGRAM_UNSENT, chk, so_locked);
 			if (chk->data) {
@@ -4355,7 +4412,6 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 	SCTP_INP_READ_UNLOCK(new_inp);
 }
 
-
 void
 sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
@@ -4687,7 +4743,9 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 
 #endif
 			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, SCTP_SO_NOT_LOCKED);
+			sctp_flight_size_decrease(tp1);
+			sctp_total_flight_decrease(stcb, tp1);
+			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
 			sctp_m_freem(tp1->data);
 			tp1->data = NULL;
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -4970,7 +5028,15 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t * freed_so_far, int hold_rlock,
 			goto out;
 		}
 		SCTP_STAT_INCR(sctps_wu_sacks_sent);
-		sctp_send_sack(stcb);
+		/*
+		 * EY if nr_sacks used then send an nr-sack , a sack
+		 * otherwise
+		 */
+		if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack)
+			sctp_send_nr_sack(stcb);
+		else
+			sctp_send_sack(stcb);
+
 		sctp_chunk_output(stcb->sctp_ep, stcb,
 		    SCTP_OUTPUT_FROM_USR_RCVD, SCTP_SO_LOCKED);
 		/* make sure no timer is running */
