@@ -306,8 +306,8 @@ fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
 	if((bm & 0x3f) == 0x3f)
 		bm = node;
 	if (firewire_debug)
-		device_printf(sc->fc.dev,
-			"fw_set_bus_manager: %d->%d (loop=%d)\n", bm, node, i);
+		device_printf(sc->fc.dev, "%s: %d->%d (loop=%d)\n",
+				__func__, bm, node, i);
 
 	return(bm);
 }
@@ -332,7 +332,7 @@ again:
 	}
 	if(i >= MAX_RETRY) {
 		if (firewire_debug)
-			device_printf(sc->fc.dev, "phy read failed(1).\n");
+			device_printf(sc->fc.dev, "%s: failed(1).\n", __func__);
 		if (++retry < MAX_RETRY) {
 			DELAY(100);
 			goto again;
@@ -343,15 +343,16 @@ again:
 	if ((stat & OHCI_INT_REG_FAIL) != 0 ||
 			((fun >> PHYDEV_REGADDR) & 0xf) != addr) {
 		if (firewire_debug)
-			device_printf(sc->fc.dev, "phy read failed(2).\n");
+			device_printf(sc->fc.dev, "%s: failed(2).\n", __func__);
 		if (++retry < MAX_RETRY) {
 			DELAY(100);
 			goto again;
 		}
 	}
-	if (firewire_debug || retry >= MAX_RETRY)
+	if (firewire_debug > 1 || retry >= MAX_RETRY)
 		device_printf(sc->fc.dev, 
-		    "fwphy_rddata: 0x%x loop=%d, retry=%d\n", addr, i, retry);
+		    "%s:: 0x%x loop=%d, retry=%d\n",
+			__func__, addr, i, retry);
 #undef MAX_RETRY
 	return((fun >> PHYDEV_RDDATA )& 0xff);
 }
@@ -1848,7 +1849,7 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 		/* Disable bus reset interrupt until sid recv. */
 		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_PHY_BUS_R);
 	
-		device_printf(fc->dev, "BUS reset\n");
+		device_printf(fc->dev, "%s: BUS reset\n", __func__);
 		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_CYC_LOST);
 		OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCSRC);
 
@@ -1885,10 +1886,11 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 		plen = OREAD(sc, OHCI_SID_CNT);
 
 		fc->nodeid = node_id & 0x3f;
-		device_printf(fc->dev, "node_id=0x%08x, SelfID Count=%d, ",
-				fc->nodeid, (plen >> 16) & 0xff);
+		device_printf(fc->dev, "%s: node_id=0x%08x, SelfID Count=%d, ",
+				__func__, fc->nodeid, (plen >> 16) & 0xff);
 		if (!(node_id & OHCI_NODE_VALID)) {
-			printf("Bus reset failure\n");
+			device_printf(fc->dev, "%s: Bus reset failure\n",
+				__func__);
 			goto sidout;
 		}
 
