@@ -260,6 +260,7 @@ ieee80211_gettid(const struct ieee80211_frame *wh)
 	return tid;
 }
 
+void	ieee80211_waitfor_parent(struct ieee80211com *);
 void	ieee80211_start_locked(struct ieee80211vap *);
 void	ieee80211_init(void *);
 void	ieee80211_start_all(struct ieee80211com *);
