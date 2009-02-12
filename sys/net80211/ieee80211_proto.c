@@ -1072,6 +1072,17 @@ parent_updown(void *arg, int npending)
 }
 
 /*
+ * Block until the parent is in a known state.  This is
+ * used after any operations that dispatch a task (e.g.
+ * to auto-configure the parent device up/down).
+ */
+void
+ieee80211_waitfor_parent(struct ieee80211com *ic)
+{
+	taskqueue_drain(taskqueue_thread, &ic->ic_parent_task);
+}
+
+/*
  * Start a vap running.  If this is the first vap to be
  * set running on the underlying device then we
  * automatically bring the device up.
@@ -1258,6 +1269,8 @@ ieee80211_stop_all(struct ieee80211com *ic)
 			ieee80211_stop_locked(vap);
 	}
 	IEEE80211_UNLOCK(ic);
+
+	ieee80211_waitfor_parent(ic);
 }
 
 /*
@@ -1278,6 +1291,8 @@ ieee80211_suspend_all(struct ieee80211com *ic)
 		}
 	}
 	IEEE80211_UNLOCK(ic);
+
+	ieee80211_waitfor_parent(ic);
 }
 
 /*
