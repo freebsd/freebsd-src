@@ -5,6 +5,10 @@
  * can do whatever you want with this stuff. If we meet some day, and you think
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
+ *
+ * The bioq_disksort() (and the specification of the bioq API)
+ * have been written by Luigi Rizzo and Fabio Checconi under the same
+ * license as above.
  */
 
 #include <sys/cdefs.h>
@@ -63,11 +67,86 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
 
 /*
  * BIO queue implementation
+ *
+ * Please read carefully the description below before making any change
+ * to the code, or you might change the behaviour of the data structure
+ * in undesirable ways.
+ *
+ * A bioq stores disk I/O request (bio), normally sorted according to
+ * the distance of the requested position (bio->bio_offset) from the
+ * current head position (bioq->last_offset) in the scan direction, i.e.
+ *
+ * 	(uoff_t)(bio_offset - last_offset)
+ *
+ * Note that the cast to unsigned (uoff_t) is fundamental to insure
+ * that the distance is computed in the scan direction.
+ *
+ * The main methods for manipulating the bioq are:
+ *
+ *   bioq_disksort()	performs an ordered insertion;
+ *
+ *   bioq_first()	return the head of the queue, without removing;
+ *
+ *   bioq_takefirst()	return and remove the head of the queue,
+ *		updating the 'current head position' as
+ *		bioq->last_offset = bio->bio_offset + bio->bio_length;
+ *
+ * When updating the 'current head position', we assume that the result of
+ * bioq_takefirst() is dispatched to the device, so bioq->last_offset
+ * represents the head position once the request is complete.
+ *
+ * If the bioq is manipulated using only the above calls, it starts
+ * with a sorted sequence of requests with bio_offset >= last_offset,
+ * possibly followed by another sorted sequence of requests with
+ * 0 <= bio_offset < bioq->last_offset 
+ *
+ * NOTE: historical behaviour was to ignore bio->bio_length in the
+ *	update, but its use tracks the head position in a better way.
+ *	Historical behaviour was also to update the head position when
+ *	the request under service is complete, rather than when the
+ *	request is extracted from the queue. However, the current API
+ *	has no method to update the head position; secondly, once
+ *	a request has been submitted to the disk, we have no idea of
+ *	the actual head position, so the final one is our best guess.
+ *
+ * --- Direct queue manipulation ---
+ *
+ * A bioq uses an underlying TAILQ to store requests, so we also
+ * export methods to manipulate the TAILQ, in particular:
+ *
+ * bioq_insert_tail()	insert an entry at the end.
+ *		It also creates a 'barrier' so all subsequent
+ *		insertions through bioq_disksort() will end up
+ *		after this entry;
+ *
+ * bioq_insert_head()	insert an entry at the head, update
+ *		bioq->last_offset = bio->bio_offset so that
+ *		all subsequent insertions through bioq_disksort()
+ *		will end up after this entry;
+ *
+ * bioq_remove()	remove a generic element from the queue, act as
+ *		bioq_takefirst() if invoked on the head of the queue.
+ *
+ * The semantic of these methods is the same of the operations
+ * on the underlying TAILQ, but with additional guarantees on
+ * subsequent bioq_disksort() calls. E.g. bioq_insert_tail()
+ * can be useful for making sure that all previous ops are flushed
+ * to disk before continuing.
+ *
+ * Updating bioq->last_offset on a bioq_insert_head() guarantees
+ * that the bio inserted with the last bioq_insert_head() will stay
+ * at the head of the queue even after subsequent bioq_disksort().
+ *
+ * Note that when the direct queue manipulation functions are used,
+ * the queue may contain multiple inversion points (i.e. more than
+ * two sorted sequences of requests).
+ *
  */
 
 void
 bioq_init(struct bio_queue_head *head)
 {
+
 	TAILQ_INIT(&head->queue);
 	head->last_offset = 0;
 	head->insert_point = NULL;
@@ -76,14 +155,13 @@ bioq_init(struct bio_queue_head *head)
 void
 bioq_remove(struct bio_queue_head *head, struct bio *bp)
 {
-	if (bp == head->insert_point) {
-		head->last_offset = bp->bio_offset;
-		head->insert_point = TAILQ_NEXT(bp, bio_queue);
-		if (head->insert_point == NULL) {
-			head->last_offset = 0;
-			head->insert_point = TAILQ_FIRST(&head->queue);
-		}
-	}
+
+	if (bp == TAILQ_FIRST(&head->queue))
+		head->last_offset = bp->bio_offset + bp->bio_length;
+
+	if (bp == head->insert_point)
+		head->insert_point = NULL;
+
 	TAILQ_REMOVE(&head->queue, bp, bio_queue);
 }
 
@@ -100,8 +178,7 @@ void
 bioq_insert_head(struct bio_queue_head *head, struct bio *bp)
 {
 
-	if (TAILQ_EMPTY(&head->queue))
-		head->insert_point = bp;
+	head->last_offset = bp->bio_offset;
 	TAILQ_INSERT_HEAD(&head->queue, bp, bio_queue);
 }
 
@@ -109,9 +186,8 @@ void
 bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 {
 
-	if (TAILQ_EMPTY(&head->queue))
-		head->insert_point = bp;
 	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
+	head->insert_point = bp;
 }
 
 struct bio *
@@ -133,63 +209,42 @@ bioq_takefirst(struct bio_queue_head *head)
 }
 
 /*
+ * Compute the sorting key. The cast to unsigned is
+ * fundamental for correctness, see the description
+ * near the beginning of the file.
+ */
+static inline uoff_t
+bioq_bio_key(struct bio_queue_head *head, struct bio *bp)
+{
+
+	return ((uoff_t)(bp->bio_offset - head->last_offset));
+}
+
+/*
  * Seek sort for disks.
  *
- * The disksort algorithm sorts all requests in a single queue while keeping
- * track of the current position of the disk with insert_point and
- * last_offset.  last_offset is the offset of the last block sent to disk, or
- * 0 once we reach the end.  insert_point points to the first buf after
- * last_offset, and is used to slightly speed up insertions.  Blocks are
- * always sorted in ascending order and the queue always restarts at 0.
- * This implements the one-way scan which optimizes disk seek times.
+ * Sort all requests in a single queue while keeping
+ * track of the current position of the disk with last_offset.
+ * See above for details.
  */
 void
-bioq_disksort(struct bio_queue_head *bioq, struct bio *bp)
+bioq_disksort(struct bio_queue_head *head, struct bio *bp)
 {
-	struct bio *bq;
-	struct bio *bn;
+	struct bio *cur, *prev = NULL;
+	uoff_t key = bioq_bio_key(head, bp);
 
-	/*
-	 * If the queue is empty then it's easy.
-	 */
-	if (bioq_first(bioq) == NULL) {
-		bioq_insert_tail(bioq, bp);
-		return;
+	cur = TAILQ_FIRST(&head->queue);
+
+	if (head->insert_point)
+		cur = head->insert_point;
+
+	while (cur != NULL && key >= bioq_bio_key(head, cur)) {
+		prev = cur;
+		cur = TAILQ_NEXT(cur, bio_queue);
 	}
-	/*
-	 * Optimize for sequential I/O by seeing if we go at the tail.
-	 */
-	bq = TAILQ_LAST(&bioq->queue, bio_queue);
-	if (bp->bio_offset > bq->bio_offset) {
-		TAILQ_INSERT_AFTER(&bioq->queue, bq, bp, bio_queue);
-		return;
-	}
-	/*
-	 * Pick our scan start based on the last request.  A poor man's
-	 * binary search.
-	 */
-	if (bp->bio_offset >= bioq->last_offset) { 
-		bq = bioq->insert_point;
-		/*
-		 * If we're before the next bio and after the last offset,
-		 * update insert_point;
-		 */
-		if (bp->bio_offset < bq->bio_offset) {
-			bioq->insert_point = bp;
-			TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
-			return;
-		}
-	} else
-		bq = TAILQ_FIRST(&bioq->queue);
-	if (bp->bio_offset < bq->bio_offset) {
-		TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
-		return;
-	}
-	/* Insertion sort */
-	while ((bn = TAILQ_NEXT(bq, bio_queue)) != NULL) {
-		if (bp->bio_offset < bn->bio_offset)
-			break;
-		bq = bn;
-	}
-	TAILQ_INSERT_AFTER(&bioq->queue, bq, bp, bio_queue);
+
+	if (prev == NULL)
+		TAILQ_INSERT_HEAD(&head->queue, bp, bio_queue);
+	else
+		TAILQ_INSERT_AFTER(&head->queue, prev, bp, bio_queue);
 }
