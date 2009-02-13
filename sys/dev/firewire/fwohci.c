@@ -2979,7 +2979,7 @@ err:
 		db_tr = STAILQ_NEXT(db_tr, link);
 		resCount = FWOHCI_DMA_READ(db_tr->db[0].db.desc.res)
 						& OHCI_COUNT_MASK;
-	} while (resCount == 0)
+	}
 	printf(" done\n");
 	dbch->top = db_tr;
 	dbch->buf_offset = dbch->xferq.psize - resCount;
