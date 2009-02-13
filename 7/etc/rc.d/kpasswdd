@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kpasswdd
+# REQUIRE: kadmin
+# BEFORE: DAEMON
+
+. /etc/rc.subr
+
+name="kpasswdd"
+load_rc_config $name
+rcvar="kpasswdd_server_enable"
+unset start_cmd
+command="${kpasswdd_server}"
+command_args="&"
+required_vars="kadmind5_server_enable"
+
+run_rc_command "$1"

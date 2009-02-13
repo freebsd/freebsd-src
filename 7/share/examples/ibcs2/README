@@ -1,0 +1,3 @@
+Here is a small hello world type program in iBCS2 coff format.
+You must uudecode it first to run it under the FreeBSD iBCS support.
+

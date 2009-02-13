@@ -1,0 +1,41 @@
+#! /bin/sh
+ 
+# This script must be executed from the TLD of the source tree...
+. ./packageinfo.sh
+
+NAME="$version"
+case $point in
+ [0-9]*)
+    NAME="${NAME}p$point"
+    ;;
+ NEW) ;;
+ '') ;;
+ *) echo "Unexpected value for 'point' <$point>!"
+    exit 1
+    ;;
+esac
+
+case $special in
+ '') ;;
+ *) NAME="${NAME}-$special" ;;
+esac
+
+case $releasecandidate in
+ [Nn][Oo]) ;;
+ [Yy][Ee][Ss]) NAME="${NAME}-RC" ;;
+ *) echo "Unexpected value for 'releasecandidate' <$releasecandidate>!"
+    exit 1
+    ;;
+esac
+
+case $repotype in
+ stable)
+    case $rcpoint in
+     [0-9]*)
+	NAME="${NAME}$rcpoint"
+	;;
+    esac
+    ;;
+esac
+
+echo "$NAME"

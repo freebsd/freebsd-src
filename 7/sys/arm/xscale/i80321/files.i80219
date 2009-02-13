@@ -1,0 +1,14 @@
+#$FreeBSD$
+#
+# IOP Specific
+# 
+arm/arm/bus_space_generic.c		standard
+arm/arm/cpufunc_asm_xscale.S		standard
+arm/arm/irq_dispatch.S			standard
+arm/xscale/i80321/i80321.c		standard
+arm/xscale/i80321/i80321_dma.c		optional	dma
+arm/xscale/i80321/i80321_mcu.c		standard
+arm/xscale/i80321/i80321_pci.c		optional	pci
+arm/xscale/i80321/i80321_space.c	standard
+arm/xscale/i80321/i80321_timer.c	standard
+arm/xscale/i80321/i80321_wdog.c		optional	iopwdog

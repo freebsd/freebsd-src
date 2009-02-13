@@ -1,0 +1,14 @@
+$FreeBSD$
+
+GNU Sort
+	originals can be found at:      ftp://ftp.gnu.org/gnu/coreutils/
+
+Configure by:
+	./configure --disable-nls --without-libiconv-prefix \
+		--without-libintl-prefix
+
+Imported by:
+
+	 cvs import \
+		-m "Virgin import (trimmed) of GNU Sort, coreutils 5.2.1" \
+		src/contrib/gnu-sort FSF SORT_v5_2_1

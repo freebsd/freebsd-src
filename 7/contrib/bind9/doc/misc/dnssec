@@ -1,0 +1,84 @@
+Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2000-2002  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+DNSSEC Release Notes
+
+This document summarizes the state of the DNSSEC implementation in
+this release of BIND9.
+
+
+OpenSSL Library Required
+
+To support DNSSEC, BIND 9 must be linked with version 0.9.6e or newer of
+the OpenSSL library.  As of BIND 9.2, the library is no longer
+included in the distribution - it must be provided by the operating
+system or installed separately.
+
+To build BIND 9 with OpenSSL, use "configure --with-openssl".  If
+the OpenSSL library is installed in a nonstandard location, you can
+specify a path as in "configure --with-openssl=/var".
+
+
+Key Generation and Signing
+
+The tools for generating DNSSEC keys and signatures are now in the
+bin/dnssec directory.  Documentation for these programs can be found
+in doc/arm/Bv9ARM.4.html and the man pages.
+
+The random data used in generating DNSSEC keys and signatures comes
+from either /dev/random (if the OS supports it) or keyboard input.
+Alternatively, a device or file containing entropy/random data can be
+specified.
+
+
+Serving Secure Zones
+
+When acting as an authoritative name server, BIND9 includes KEY, SIG
+and NXT records in responses as specified in RFC2535 when the request
+has the DO flag set in the query.
+
+
+Secure Resolution
+
+Basic support for validation of DNSSEC signatures in responses has
+been implemented but should still be considered experimental.
+
+When acting as a caching name server, BIND9 is capable of performing
+basic DNSSEC validation of positive as well as nonexistence responses.
+This functionality is enabled by including a "trusted-keys" clause
+in the configuration file, containing the top-level zone key of the
+the DNSSEC tree.
+
+Validation of wildcard responses is not currently supported.  In
+particular, a "name does not exist" response will validate
+successfully even if it does not contain the NXT records to prove the
+nonexistence of a matching wildcard.
+
+Proof of insecure status for insecure zones delegated from secure
+zones works when the zones are completely insecure.  Privately
+secured zones delegated from secure zones will not work in all cases,
+such as when the privately secured zone is served by the same server
+as an ancestor (but not parent) zone.
+
+Handling of the CD bit in queries is now fully implemented.  Validation
+is not attempted for recursive queries if CD is set.
+
+
+Secure Dynamic Update
+
+Dynamic update of secure zones has been implemented, but may not be
+complete.  Affected NXT and SIG records are updated by the server when
+an update occurs.  Advanced access control is possible using the
+"update-policy" statement in the zone definition.
+
+
+Secure Zone Transfers
+
+BIND 9 does not implement the zone transfer security mechanisms of
+RFC2535 section 5.6, and we have no plans to implement them in the
+future as we consider them inferior to the use of TSIG or SIG(0) to
+ensure the integrity of zone transfers.
+
+
+$Id: dnssec,v 1.19 2004/03/05 05:04:53 marka Exp $

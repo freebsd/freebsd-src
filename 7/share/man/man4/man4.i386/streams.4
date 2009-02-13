@@ -1,0 +1,85 @@
+.\" Copyright (c) 2000 Mark Newton
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 17, 2008
+.Dt STREAMS 4 i386
+.Os
+.Sh NAME
+.Nm streams
+.Nd System V STREAMS networking ABI support
+.Sh SYNOPSIS
+To compile support for this ABI into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device streams"
+.Ed
+.Pp
+Alternatively, to load the ABI as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+streams_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+module provides limited
+System V Release 4 STREAMS interprocess communication ABI
+(application binary interface) compatibility
+for userland applications.
+.Pp
+Internally,
+.Nm
+provides STREAMS handles by using socket creation kernel routines, and
+adding state-tracking information to the socket to permit manipulation
+by STREAMS emulation code in
+.Xr svr4 4 .
+Hence, opening a stream device produces a result similar to what would be
+obtained by calling
+.Xr socket 2 .
+.Pp
+Applications should never use this interface directly: STREAMS
+emulation is only provided as a service to support ABI requirements in
+the SVR4 environment which
+.Xr svr4 4
+needs to present to client binaries.
+.Sh SEE ALSO
+.Xr svr4 4
+.Sh HISTORY
+System V Release 4 ABI support first appeared in
+.Fx 4.0 .
+The ABI was ported from an equivalent facility present in
+.Nx 1.3
+written by Christos Zoulas.
+.Sh BUGS
+This whole interface is a crude hack to produce STREAMS semantics
+through emulation over sockets.
+.Pp
+Programmers who hope to be able to use this interface to provide
+SVR4 STREAMS services to
+.Bx
+applications will be sorely disappointed.

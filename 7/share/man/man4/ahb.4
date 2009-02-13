@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 1994 Wilko Bulte
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2004
+.Dt AHB 4
+.Os
+.Sh NAME
+.Nm ahb
+.Nd Adaptec EISA SCSI host adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device ahb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ahb_load="YES"
+.Ed
+.Sh DESCRIPTION
+This driver provides access to the
+.Tn SCSI
+bus connected to an Adaptec
+AHA-174X host adapters in
+.Dq Em enhanced
+mode.
+Tagged queueing and synchronous SCSI transfers are supported.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following SCSI host adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec AHA-1740
+.It
+Adaptec AHA-1742
+.It
+Adaptec AHA-1740A
+.It
+Adaptec AHA-1742A
+.El
+.Sh CAVEATS
+The Adaptec 174X is very sensitive to SCSI bus termination and cable
+length.
+It may also have difficulties operating with some modern devices
+that, due to their speed, expose timing problems in the controller.
+There are no known mechanisms for working around device incompatibilities of
+this nature.
+.Sh SEE ALSO
+.Xr aha 4 ,
+.Xr ahc 4 ,
+.Xr aic 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Justin T. Gibbs .

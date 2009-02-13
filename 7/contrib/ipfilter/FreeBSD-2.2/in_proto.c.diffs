@@ -1,0 +1,16 @@
+*** /sys/netinet/in_proto.c.orig	Sat May 24 13:42:26 1997
+--- /sys/netinet/in_proto.c	Sat May 24 13:42:36 1997
+***************
+*** 89,94 ****
+--- 89,99 ----
+  void	eoninput(), eonctlinput(), eonprotoinit();
+  #endif /* EON */
+  
++ #if defined(IPFILTER) && !defined(IPFILTER_LKM)
++ void	iplinit();
++ #define	ip_init	iplinit
++ #endif
++ 
+  extern	struct domain inetdomain;
+  
+  struct protosw inetsw[] = {

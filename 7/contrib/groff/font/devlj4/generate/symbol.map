@@ -1,0 +1,199 @@
+# Map HP Unicode values to groff names for Monotype Symbol font.
+#
+# This font is TrueType only, so the MSL values are dummies.
+#
+# Created 16 January 2004.  Some mappings are taken from Alan Wood's
+# website (www.alanwood.net)
+#
+# You need hpftodit from groff 1.19.1 or newer!
+
+-1	F021	!	# exclamation point
+-1	F022	fa	# for all (u2200)
+-1	F023	# sh	# number sign
+-1	F024	te	# there exists (u2203)
+-1	F025	%	# per cent
+-1	F026	&	# ampersand
+-1	F027	st	# such that, small contains as member (u220D)
+-1	F028	(	# left parenthesis
+-1	F029	)	# right parenthesis
+-1	F02A	**	# math asterisk operator (u2217)
+-1	F02B	pl	# plus
+-1	F02C	,	# comma
+-1	F02D	mi	# minus (- is hyphen) (u2212)
+-1	F02E	.	# period
+-1	F02F	/ sl	# solidus
+-1	F030	0	# numeral 0
+-1	F031	1	# numeral 1
+-1	F032	2	# numeral 2
+-1	F033	3	# numeral 3
+-1	F034	4	# numeral 4
+-1	F035	5	# numeral 5
+-1	F036	6	# numeral 6
+-1	F037	7	# numeral 7
+-1	F038	8	# numeral 8
+-1	F039	9	# numeral 9
+-1	F03A	:	# colon
+-1	F03B	;	# semicolon
+-1	F03C	<	# less than
+-1	F03D	=	# equals
+-1	F03E	>	# greater than
+-1	F03F	?	# question mark
+-1	F040	=~	# approximately equal to, congruent (u2245)
+-1	F041	*A	# capital Alpha (u0391)
+-1	F042	*B	# capital Beta (u0392)
+-1	F043	*X	# capital Chi (u03A7)
+-1	F044	*D	# capital Delta (u0394)
+-1	F045	*E	# capital Epsilon (u0395)
+-1	F046	*F	# capital Phi (u03A6)
+-1	F047	*G	# capital Gamma (u0393)
+-1	F048	*Y	# capital Eta (u0397)
+-1	F049	*I	# capital Iota (u0399)
+-1	F04A	+h	# theta symbol (u03D1)
+-1	F04B	*K	# capital Kappa (u039A)
+-1	F04C	*L	# capital Lambda (u039B)
+-1	F04D	*M	# capital Mu (u039C)
+-1	F04E	*N	# capital Nu (u039D)
+-1	F04F	*O	# capital Omicron (u039F)
+-1	F050	*P	# capital Pi (u03A0)
+-1	F051	*H	# capital Theta (u0398)
+-1	F052	*R	# capital Rho (u03A1)
+-1	F053	*S	# capital Sigma (u03A3)
+-1	F054	*T	# capital Tau (u03A4)
+-1	F055	*U	# capital Upsilon (u03A5)
+-1	F056	ts	# lower case sigma (terminal) (u03C2)
+-1	F057	*W	# capital Omega (u03A9)
+-1	F058	*C	# capital Xi (u039E)
+-1	F059	*Q	# capital Psi (u03A8)
+-1	F05A	*Z	# capital Zeta (u0396)
+-1	F05B	[ lB	# left bracket
+-1	F05C	3d tf	# therefore (u2234)
+-1	F05D	] rB	# right bracket
+-1	F05E	pp	# perpendicular (u22A5)
+-1	F05F	_	# underscore
+-1	F060	---	# radical extender
+-1	F061	*a	# lower case alpha (u03B1)
+-1	F062	*b	# lower case beta (u03B2)
+-1	F063	*x	# lower case chi (u03C7)
+-1	F064	*d	# lower case delta (u03B4)
+-1	F065	*e	# lower case epsilon (u03B5)
+-1	F066	+f	# lower case phi (stroked) (u03D5)
+-1	F067	*g	# lower case gamma (u03B3)
+-1	F068	*y	# lower case eta (u03B7)
+-1	F069	*i	# lower case iota (u03B9)
+-1	F06A	*f	# lower case phi (curly) (u03C6)
+-1	F06B	*k	# lower case kappa (u03BA)
+-1	F06C	*l	# lower case lambda (u03BB)
+-1	F06D	*m	# lower case mu (u03BC)
+-1	F06E	*n	# lower case nu (u03BD)
+-1	F06F	*o	# lower case omicron (u03BF)
+-1	F070	*p	# lower case pi (u03C0)
+-1	F071	*h	# lower case theta (u03B8)
+-1	F072	*r	# lower case rho (u03C1)
+-1	F073	*s	# lower case sigma (u03C3)
+-1	F074	*t	# lower case tau (u03C4)
+-1	F075	*u	# lower case upsilon (u03C5)
+-1	F076	+p	# pi symbol (u03D6)
+-1	F077	*w	# lower case omega (u03C9)
+-1	F078	*c	# lower case xi (u03BE)
+-1	F079	*q	# lower case psi (u03C8)
+-1	F07A	*z	# lower case zeta (u03B6)
+-1	F07B	{ lC	# left brace
+-1	F07C	| ba	# vertical bar
+-1	F07D	} rC	# right brace
+-1	F07E	ap	# similar, tilde operator (u223C)
+-1	F0A1	u03D2	# upsilon with hook symbol (u03D2)
+-1	F0A2	fm	# prime or minutes or feet (u2032)
+-1	F0A3	<=	# less than or equal to (u2264)
+-1	F0A4	f/	# figure slash (fraction) (/ is normal slash) (u2044)
+-1	F0A5	if	# infinity (u221E)
+-1	F0A6	u0192	# Florin or Guilder
+-1	F0A7	CL	# clubs (u2663)
+-1	F0A8	DI	# diamonds (u2666)
+-1	F0A9	HE	# hearts (u2665)
+-1	F0AA	SP	# spades (u2660)
+-1	F0AB	<>	# arrow left and right (u2194)
+-1	F0AC	<-	# arrow left (u2190)
+-1	F0AD	ua	# arrow up (u2191)
+-1	F0AE	->	# arrow right (u2192)
+-1	F0AF	da	# arrow down (u2193)
+-1	F0B0	de	# degree
+-1	F0B1	+-	# plus minus (u00B1)
+-1	F0B2	sd	# double prime or seconds or inches (u2033)
+-1	F0B3	>=	# greater than or equal to (u2265)
+-1	F0B4	mu	# multiply (u00D7)
+-1	F0B5	pt	# proportional (u221D)
+-1	F0B6	pd	# partial derivative / partial differential (u2202)
+-1	F0B7	u2219	# bullet operator (u2219)
+-1	F0B8	di	# divide (u00F7)
+-1	F0B9	!=	# not equal (u2260)
+-1	F0BA	==	# equivalent (u2261)
+-1	F0BB	~= ~~	# almost equal to, asymptotic to (u2248)
+-1	F0BC	u2026	# ellipsis (u2026)
+-1	F0BD	u23D0	# vertical arrow extender (u23D0)
+-1	F0BE	u23AF	# horizontal arrow extender (u23AF)
+-1	F0BF	CR	# carriage return (u21B5)
+-1	F0C0	Ah	# alef symbol (u2135)
+-1	F0C1	Im	# I fraktur (u2111)
+-1	F0C2	Re	# R fraktur (u211C)
+-1	F0C3	wp	# Weierstrass (u2118)
+-1	F0C4	c*	# circle multiply (u2297)
+-1	F0C5	c+	# circle plus (u2295)
+-1	F0C6	es	# empty set (u2205)
+-1	F0C7	ca	# intersection (u2229)
+-1	F0C8	cu	# union (u222A)
+-1	F0C9	sp	# proper superset, superset of (u2283)
+-1	F0CA	ip	# reflex superset (contains or equals), superset of or equal to (u2287)
+-1	F0CB	nb	# not subset (u2284)
+-1	F0CC	sb	# proper subset, subset of (u2282)
+-1	F0CD	ib	# reflex subset (contained in or equals), subset of or equal to (u2286)
+-1	F0CE	mo	# member (element) (u2208)
+-1	F0CF	nm	# not a member (not an element) (u2209)
+-1	F0D0	/_	# angle (u2220)
+-1	F0D1	gr	# nabla or gradient (u2207)
+-1	F0D2	---	# registered (serif) (u00AE)
+-1	F0D3	---	# copyright (serif) (u00A9)
+-1	F0D4	---	# trade mark (serif)
+-1	F0D5	product	# product of (u220F)
+-1	F0D6	sr sqrt	# square root (u221A)
+-1	F0D7	u22C5	# dot operator (u22C5)
+-1	F0D8	no	# not (u00AC)
+-1	F0D9	AN	# logical and (u2227)
+-1	F0DA	OR	# logical or (u2228)
+-1	F0DB	hA	# double arrow left and right (u21D4)
+-1	F0DC	lA lh	# double arrow left (implied by) (u21D0)
+-1	F0DD	arrowverttp uA	# double arrow up (u21D1)
+-1	F0DE	rA rh	# double arrow right (implies) (u21D2)
+-1	F0DF	arrowvertbt dA	# double arrow down (u21D3)
+-1	F0E0	lz	# lozenge (u25CA)
+-1	F0E1	la	# left angle bracket (u2329)
+-1	F0E2	---	# registered (sans serif) (u00AE)
+-1	F0E3	---	# copyright (sans serif) (u00A9)
+-1	F0E4	---	# trade mark (sans serif)
+-1	F0E5	sum	# sum of (u2211)
+-1	F0E6	parenlefttp	# composite left parenthesis (top) (u239B)
+-1	F0E7	parenleftex 	# composite left parenthesis (extender) (u239C)
+-1	F0E8	parenleftbt	# composite left parenthesis (bottom) (u239D)
+-1	F0E9	lc bracketlefttp	# composite left bracket (top) (u23A1)
+-1	F0EA	bracketleftex	# composite left bracket (extender) (u23A2)
+-1	F0EB	lf bracketleftbt	# composite left bracket (bottom) (u23A3)
+-1	F0EC	lt bracelefttp	# composite left brace (top) (u23A7)
+-1	F0ED	lk braceleftex	# composite left brace (middle) (u23A8)
+-1	F0EE	lb braceleftbt	# composite left brace (bottom) (u23A9)
+-1	F0EF	u23AA	# composite brace extender (u23AA)
+-1	F0F0	Eu	# euro sign (u20AC)
+-1	F0F1	ra	# right angle bracket (u232A)
+-1	F0F2	integral is	# integral (u222B)
+-1	F0F3	u2320	# composite integral (top) (u2320)
+-1	F0F4	u23AE	# composite integral extender (u23AE)
+-1	F0F5	u2321	# composite integral (bottom) (u2321)
+-1	F0F6	parenrighttp	# composite right parenthesis (top) (u239E)
+-1	F0F7	parenrightex	# composite right parenthesis (extender) (u239F)
+-1	F0F8	parenrightbt	# composite right parenthesis (bottom) (u23A0)
+-1	F0F9	rc bracketrighttp	# composite right bracket (top) (u23A4)
+-1	F0FA	bracketrightex	# composite right bracket (extender) (u23A5)
+-1	F0FB	rf bracketrightbt	# composite right bracket (bottom) (u23A6)
+-1	F0FC	rt bracerighttp	# composite right brace (top) (u23AB)
+-1	F0FD	rk bracerightex	# composite right brace (middle) (u23AC)
+-1	F0FE	rb bracerightbt	# composite right brace (bottom) (u23AD)
+
+# EOF

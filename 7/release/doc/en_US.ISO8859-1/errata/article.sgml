@@ -1,0 +1,239 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY release.bugfix "7.0-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+    <title>&os;
+<![ %release.type.current [
+    &release.current;
+]]>
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2008</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os;
+<![ %release.type.current [
+      &release.current;,
+]]>
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os;
+<![ %release.type.current [
+      &release.current;
+]]>
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os;
+<![ %release.type.current [
+      &release.current;.
+]]>
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1 id="security">
+    <title>Security Advisories</title>
+
+<![ %release.type.release [
+    <para>No advisories.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
+		>SA-08:05.openssh</ulink></entry>
+	    <entry>17&nbsp;April&nbsp;2008</entry>
+	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
+		>SA-08:06.bind</ulink></entry>
+	    <entry>13&nbsp;July&nbsp;2008</entry>
+	    <entry><para>DNS cache poisoning</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+]]>
+
+  </sect1>
+
+  <sect1 id="open-issues">
+    <title>Open Issues</title>
+
+<![ %release.type.release [
+    <para>No open issues.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>[20080229] &man.tcpdump.1; does not correctly print the
+      TX/RX rates for 802.11 frames.  This issue has been fixed on the
+      HEAD and RELENG_7 branches.</para>
+
+    <para>[20080229] A bug in Linux emulation may cause segmentation
+      faults for some Linux programs using &man.mmap.2;.  This issue
+      has been fixed on the HEAD and RELENG_7 branches.</para>
+
+    <para>[20080229] Instances of packet corruption and instability
+      have been observed with the &man.re.4; network driver.  Some
+      users have reported that using a newer version of this driver
+      (on HEAD) has solved their problems, or at least mitigated
+      them.</para>
+
+    <para>[20080229, updated 20080817] A change in the way that &os; sends TCP options
+      has been reported to cause connectivity issues.
+      This problem has been corrected on
+      HEAD and the RELENG_7 and RELENG_7_0 branches..  Further
+      details are contained in errta notice
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-08:02.tcp.asc">FreeBSD-EN-08:02.tcp</ulink>.</para>
+
+    <para>[20080307] The &os; implementation of SCTP currently depends
+      on having <literal>INET6</literal> support compiled into the
+      kernel.  This requirement is planned to be removed in future
+      releases.</para>
+
+    <para>[20080307] Source upgrades from &os;
+      6.<replaceable>X</replaceable> to &os; &release.bugfix; will
+      generate warnings from &man.kldxref.8; during
+      the <literal>installkernel</literal> step.  These warnings are
+      harmless and can be ignored.</para>
+
+    <para>[20080307] The &man.crypto.4; driver, which is required for
+      IPsec functionality, has severe problems on &os;/&arch.powerpc;
+      (a kernel with <literal>device crypto</literal> included in its
+      configuration will be non-functional).</para>
+
+]]>
+
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Late-Breaking News and Corrections</title>
+
+<![ %release.type.release [
+    <para>No news.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>[20080229] The &os; &release.bugfix; release documentation
+      (release notes, hardware notes, and so forth) all contained a
+      note that users of &os; 7-STABLE should be subscribed to
+      the <literal>freebsd-current</literal> mailing list.  This note
+      should not have appeared.</para>
+
+    <para>[20080229] The release notes gave an incorrect version
+      number for KDE.  The correct version number is 3.5.8.</para>
+
+]]>
+  </sect1>
+
+</article>

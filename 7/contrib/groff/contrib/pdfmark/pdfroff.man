@@ -1,0 +1,552 @@
+.TH PDFROFF @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.\" --------------------------------------------------------------------
+.\" Legal Matters
+.\" --------------------------------------------------------------------
+.ig
+pdfroff.1
+
+File position: <groff-source>/contrib/pdfmark/pdfroff.man
+
+Last update: 
+
+This file is part of groff, the GNU roff type-setting system.
+
+Copyright (C) 2005 Free Software Foundation, Inc.
+written by Keith Marshall <keith.d.marshall@ntlworld.com>
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Front-Cover Texts, no Back-Cover Texts, and the following Invariant
+Sections:--
+
+    a)  This "Legal Matters" section, extending from the start of
+        the document, to the end of the enclosing ".ig" section.
+
+    b)  The entire section bearing the heading "AUTHOR", extending
+        from the ".SH AUTHOR" tag, to the end of the document.
+
+A copy of the Free Documentation License is included as a file called
+FDL in the main directory of the groff source package.
+..
+.\" --------------------------------------------------------------------
+.
+.SH NAME
+pdfroff \- create PDF documents using
+.I groff
+.
+.hw pdfmark
+.de Q
+\&\\$3\*(lq\\$1\*(rq\\$2
+..
+.de nohy
+.hy 0
+\&\\$*
+.hy
+..
+.\" --------------------------------------------------------------------
+.
+.SH SYNOPSIS
+.de cmd
+.   if r@i .in
+.   nr @i \\n(.i
+.   in +\w'\f[B]\\$1\0'u
+.   ti \\n(@iu
+.   B \\$1\0\c
+..
+.de opt
+.   tr -\-
+.   RB [ -\\$1\c
+.   IR \&\\$2 ]
+.   tr --
+..
+.de opta
+.   ie \\n(.$>1 .opt \\$1 \0\\$2
+.   el .opt \\$1
+..
+.de opte
+.   tr -\-
+.   RB [ -\\$1 =\c
+.   IR \&\\$2 ]
+.   tr --
+..
+.de optx
+.   tr -\-
+.   RB [ --no\\$1 \0|\0\c
+.   BR -\\$1 =\c
+.   IR \&\\$2 ]
+.   tr --
+..
+.ad l
+.hy 0
+.ll -5
+.cmd pdfroff
+.opt  abcegilpstzCEGNRSUVXZ
+.opta d cs
+.opta f fam
+.opta F dir
+.opta I dir
+.opta L arg
+.opta m name
+.opta M dir
+.opta n num
+.opta o list
+.opta P arg
+.opta r cn
+.opta T dev
+.opta w name
+.opta W name
+.opt  -no-toc-relocation
+.opte -stylesheet name
+.optx -pdf-output name
+.optx -reference-dictionary name
+.opt  -report-progress
+.B file
+.I ...
+.ll
+.sp
+.cmd pdfroff
+.B -h
+|
+.B --help
+.sp
+.cmd pdfroff
+.B -v
+|
+.B --version
+.RI [ option
+.IR ... ]
+.rr @i
+.in
+.ad
+.hy
+.P
+The command line is parsed in accordance with normal GNU conventions,
+but with one exception \(em when specifying any short form option
+(i.e., a single character option introduced by a single hyphen),
+and if that option expects an argument, then it
+.I must
+be specified independently (i.e., it may
+.I not
+be appended to any group of other single character short form options).
+.P
+Long form option names (i.e., those introduced by a double hyphen)
+may be abbreviated to their minimum length unambigous initial substring.
+.
+.\" --------------------------------------------------------------------
+.
+.SH DESCRIPTION
+.B pdfroff
+is a wrapper program for the GNU text processing system,
+.BR  groff .
+It transparently handles the mechanics of multiple pass
+.B groff
+processing, when applied to suitably marked up
+.B groff
+source files,
+such that tables of contents and body text are formatted separately,
+and are subsequently combined in the correct order, for final publication
+as a single PDF document.
+A further optional
+.Q style\0sheet
+capability is provided;
+this allows for the definition of content which is required to preceed the
+table of contents, in the published document.
+.P
+For each invocation of
+.BR pdfroff ,
+the ultimate
+.B groff
+output stream is post\(hyprocessed by the GhostScript interpreter,
+to produce a finished PDF document.
+.P
+.B pdfroff
+makes no assumptions about, and imposes no restrictions on,
+the use of any
+.B groff
+macro packages which the user may choose to employ,
+in order to achieve a desired document format;
+however, it
+.I does
+include specific built in support for the
+.B pdfmark
+macro package, should the user choose to employ it.
+Specifically, if the
+.I pdfhref
+macro, defined in the
+.B pdfmark.tmac
+package, is used to define public reference marks,
+or dynamic links to such reference marks, then
+.B pdfroff
+will perform as many preformatting
+.B groff
+passes as required, up to a maximum limit of
+.IR four ,
+in order to compile a document reference dictionary,
+to resolve references, and to expand the dynamically defined
+content of links.
+.
+.\" --------------------------------------------------------------------
+.
+.SH USAGE
+.B pdfroff
+usage closely mirrors that of
+.B groff
+itself.
+Indeed,
+with the exception of the
+.BR \-h ,
+.BR \-v ,
+and
+.BI \-T \0dev
+short form options, and
+all long form options,
+which are parsed internally by
+.BR pdfroff ,
+all options and file name arguments specified on the command line are
+passed on to
+.BR groff ,
+to control the formatting of the PDF document.
+Consequently,
+.B pdfroff
+accepts all options and arguments, as specified in
+.BR groff (@MAN1EXT@),
+which may also be considered as the definitive reference for all standard
+.BR pdfroff
+options and argument usage.
+.
+.\" --------------------------------------------------------------------
+.
+.SH OPTIONS
+.B pdfroff
+accepts all of the short form options
+(i.e., those introduced by a single hyphen),
+which are available with
+.B groff
+itself.
+In most cases, these are simply passed transparently to
+.BR groff ;
+the following, however, are handled specially by
+.BR pdfroff .
+.TP
+.B \-h
+Same as
+.BR \-\-help ;
+see below.
+.TP
+.B \-i
+Process standard input, after all other specified input files.
+This is passed transparently to
+.BR groff ,
+but, if grouped with other options, it
+.I must
+be the first in the group.
+Hiding it within a group will
+break standard input processing, in the multiple pass
+.B groff
+processing context of
+.BR pdfroff .
+.TP
+.BI \-T \0dev
+Only
+.BI \-T \0ps
+is supported by
+.BR pdfroff .
+Attempting to specify any other device will cause
+.B pdfroff
+to abort.
+.TP
+.B \-v
+Same as
+.BR \-\-version ;
+see below.
+.P
+See
+.BR groff (@MAN1EXT@)
+for a description of all other short form options,
+which are transparently passed through
+.BR pdfroff
+to
+.BR groff .
+.P
+All long form options
+(i.e., those introduced by a double hyphen)
+are interpreted locally by
+.BR pdfroff ;
+they are
+.B not
+passed on to
+.BR groff ,
+unless otherwise stated below.
+.TP
+.B \-\-help
+Causes
+.B pdfroff
+to display a summary of the its usage syntax, and supported options,
+and then exit.
+.TP
+.B \-\-no\-pdf\-output
+May be used with the
+.BI \-\-reference\-dictionary= name
+option (described below) to eliminate the overhead of PDF formatting,
+when running
+.B pdfroff
+to create a reference dictionary, for use in a different document.
+.TP
+.B \-\-no\-reference\-dictionary
+May be used to eliminate the overhead of creating a reference dictionary,
+when it is known that the target PDF document will contain no public
+references, created by the
+.I pdfhref
+macro.
+.TP
+.B \-\-no\-toc\-relocation
+May be used to eliminate the extra
+.B groff
+processing pass,
+which is required to generate a table of contents,
+and relocate it to the start of the PDF document,
+when processing any document which lacks an automatically
+generated table of contents.
+.TP
+.BI \-\-pdf\-output= name
+Specifies the name to be used for the resultant PDF document;
+if unspecified, the PDF output is written to standard output.
+A future version of
+.B pdfroff
+may use this option,
+to encode the document name in a generated reference dictionary.
+.TP
+.BI \-\-reference\-dictionary= name
+Specifies the name to be used for the generated reference dictionary file;
+if unspecified, the reference dictionary is created in a temporary file,
+which is deleted when
+.B pdfroff
+completes processing of the current document.
+This option
+.I must
+be specified, if it is desired to save the reference dictionary,
+for use in references placed in other PDF documents.
+.TP
+.B \-\-report\-progress
+Causes
+.B pdfroff
+to display an informational message on standard error,
+at the start of each
+.B groff
+processing pass.
+.TP
+.BI \-\-stylesheet= name
+Specifies the name of an
+.IR "input file" ,
+to be used as a style sheet for formatting of content,
+which is to be placed
+.I before
+the table of contents,
+in the formatted PDF document.
+.TP
+.B \-\-version
+Causes
+.B pdfroff
+to display a version identification message.
+The entire command line is then passed transparently to
+.BR groff ,
+in a
+.I one
+pass operation
+.IR only ,
+in order to display the associated
+.B groff
+version information, before exiting.
+.
+.\" --------------------------------------------------------------------
+.
+.SH ENVIRONMENT
+The following environment variables may be set, and exported,
+to modify the behaviour of
+.BR pdfroff .
+.TP
+.B GROFF_TMPDIR
+Identifies the directory in which
+.B pdfroff
+should create temporary files.
+If
+.B GROFF_TMPDIR
+is
+.I not
+specified, then the variables
+.BR TMPDIR ,
+.B TMP
+and
+.B TEMP
+are considered in turn, as possible temporary file repositories.
+If none of these are set, then temporary files will be created
+in the current directory.
+.TP
+.B GROFF_GHOSTSCRIPT_INTERPRETER
+Specifies the program to be invoked, when
+.B pdfroff
+converts
+.B groff
+PostScript output to PDF.
+If
+.B GROFF_GHOSTSCRIPT_INTERPRETER
+is not specified, then
+.B pdfroff
+will search the process
+.BR PATH ,
+looking for a program with any of the well known names
+for the GhostScript interpreter;
+if no GhostScript interpreter can be found,
+.B pdfroff
+will abort.
+.TP
+.B GROFF_AWK_INTERPRETER
+Specifies the program to be invoked, when
+.B pdfroff
+is extracting reference dictionary entries from a
+.B groff
+intermediate message stream.
+If
+.B GROFF_AWK_INTERPRETER
+is not specified, then
+.B pdfroff
+will search the process
+.BR PATH ,
+looking for any of the preferred programs, `gawk', `mawk', `nawk'
+and `awk', in this order;
+if none of these are found,
+.B pdfroff
+will issue a warning message, and continue processing;
+however, in this case, no reference dictionary will be created.
+.TP
+.B OSTYPE
+Typically defined automatically by the operating system,
+.B OSTYPE
+is used on Microsoft Win32/MS\(hyDOS platforms
+.IR only ,
+to infer the default
+.B PATH_SEPARATOR
+character,
+which is used when parsing the process
+.B PATH
+to search for external helper programs.
+.TP
+.B PATH_SEPARATOR
+If set,
+.B PATH_SEPARATOR
+overrides the default separator character,
+(':' on POSIX/UNIX systems,
+inferred from
+.B OSTYPE
+on Microsoft Win32/MS\(hyDOS),
+which is used when parsing the process
+.B PATH
+to search for external helper programs.
+.TP
+.B SHOW_PROGRESS
+If this is set to a non-empty value, then
+.B pdfroff
+will always behave as if the
+.B \-\-report\-progress
+option is specified, on the command line.
+.
+.\" --------------------------------------------------------------------
+.
+.SH FILES
+Input and output files for
+.B pdfroff
+may be named according to any convention of the user's choice.
+Typically, input files may be named according to the choice of the
+principal formatting macro package, e.g.,
+.IB file .ms
+might be an input file for formatting using the
+.B ms
+macros
+.RB ( s.tmac );
+normally, the final output file should be named
+.IB file .pdf\c
+\&.
+.P
+Temporary files, created by
+.BR pdfroff ,
+are placed in the directory specified by environment variables (see
+section
+.BR ENVIRONMENT ),
+and named according to the convention
+.BI pdf $$ .*\c
+\&, where
+.I $$
+is the standard shell variable representing the process ID of the
+.B pdfroff
+process itself, and
+.I *
+represents any of a number of extensions used by
+.B pdfroff
+for temporary and intermediate files.
+.
+.\" --------------------------------------------------------------------
+.
+.SH SEE ALSO
+See
+.BR groff (@MAN1EXT@)
+for the definitive reference to document formatting with
+.BR groff .
+Since
+.B pdfroff
+provides a superset of all
+.B groff
+capabilities,
+.BR groff (@MAN1EXT@)
+may also be considered to be the definitive reference to all
+.I standard
+capabilities of
+.BR pdfroff ,
+with this document providing the reference to
+.BR pdfroff 's
+extended features.
+.P
+While
+.B pdfroff
+imposes neither any restriction on, nor any requirement for,
+the use of any specific
+.B groff
+macro package, a number of supplied macro packages,
+and in particular those associated with the package
+.BR pdfmark.tmac ,
+are best suited for use with
+.BR pdfroff
+as the preferred formatter.
+Detailed documentation on the use of these packages may be found,
+in PDF format, in the reference guide
+.BR "\*(lqPortable Document Format Publishing with GNU Troff\*(rq" ,
+included in the installed documentation set as
+.hy 0
+.BR @PDFDOCDIR@/pdfmark.pdf .
+.hy
+.
+.\" --------------------------------------------------------------------
+.
+.SH AUTHOR
+Copyright \(co 2005, Free Software Foundation, Inc.
+.LP
+This man page is distributed under the terms of the
+GNU Free Documentation License (FDL), version 1.1 or later,
+and is part of the
+.I GNU troff
+software package.
+It was originally written by Keith Marshall,
+.nohy <keith.d.marshall@ntlworld.com>,
+who also wrote the implementation of the
+.I pdfroff
+program, to which it relates.
+.LP
+You should have received a copy of the FDL as part of the
+.I GNU troff
+distribution; it is also available on\-line, at the GNU
+.Q copyleft
+site,
+.nohy <http://www.gnu.org/copyleft/fdl.html>.
+.
+.\" --------------------------------------------------------------------
+.\" EOF / vim: ft=groff

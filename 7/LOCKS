@@ -1,0 +1,12 @@
+$FreeBSD$
+
+This file documents formal review/approval requirements that have been
+approved by core.
+
+subsystem       login   expires  notes
+--------------------------------------
+
+Special cases:
+src/*	RELENG_4_*	Requires Security Officer approval.
+src/*	RELENG_5_*	Requires Security Officer approval.
+src/*	RELENG_6_*	Requires Security Officer approval.

@@ -1,0 +1,112 @@
+
+			BIND-9 IDN patch
+
+	       Japan Network Information Center (JPNIC)
+
+
+* What is this patch for?
+
+This patch adds internationalized domain name (IDN) support to BIND-9.
+You'll get internationalized version of dig/host/nslookup commands.
+
+    + internationalized dig/host/nslookup
+	dig/host/nslookup accepts non-ASCII domain names in the local
+	codeset (such as Shift JIS, Big5 or ISO8859-1) determined by
+	the locale information.  The domain names are normalized and
+	converted to the encoding on the DNS protocol, and sent to DNS
+	servers.  The replies are converted back to the local codeset
+	and displayed.
+
+
+* Compilation & installation
+
+0. Prerequisite
+
+You have to build and install idnkit before building this patched version
+of bind-9.
+
+1. Running configure script
+
+Run `configure' in the top directory.  See `README' for the
+configuration options.
+
+This patch adds the following 4 options to `configure'.  You should
+at least specify `--with-idn' option to enable IDN support.
+
+    --with-idn[=IDN_PREFIX]
+	To enable IDN support, you have to specify `--with-idn' option.
+	The argument IDN_PREFIX is the install prefix of idnkit.  If
+	IDN_PREFIX is omitted, PREFIX (derived from `--prefix=PREFIX')
+	is assumed.
+
+    --with-libiconv[=LIBICONV_PREFIX]
+	Specify this option if idnkit you have installed links GNU
+	libiconv.  The argument LIBICONV_PREFIX is install prefix of
+	GNU libiconv.  If the argument is omitted, PREFIX (derived
+	from `--prefix=PREFIX') is assumed.
+
+	`--with-libiconv' is shorthand option for GNU libiconv.
+
+	    --with-libiconv=/usr/local
+
+	This is equivalent to:
+
+	    --with-iconv='-L/usr/local/lib -R/usr/local/lib -liconv'
+
+	`--with-libiconv' assumes that your C compiler has `-R'
+	option, and that the option adds the specified run-time path
+	to an exacutable binary.  If `-R' option of your compiler has
+	different meaning, or your compiler lacks the option, you
+	should use `--with-iconv' option instead.  Binary command
+	without run-time path information might be unexecutable.
+	In that case, you would see an error message like:
+
+	    error in loading shared libraries: libiconv.so.2: cannot
+	    open shared object file
+
+	If both `--with-libiconv' and `--with-iconv' options are
+	specified, `--with-iconv' is prior to `--with-libiconv'.
+
+    --with-iconv=ICONV_LIBSPEC
+	If your libc doens't provide iconv(), you need to specify the
+	library containing iconv() with this option.  `ICONV_LIBSPEC'
+	is the argument(s) to `cc' or `ld' to link the library, for
+	example, `--with-iconv="-L/usr/local/lib -liconv"'.
+	You don't need to specify the header file directory for "iconv.h"
+	to the compiler, as it isn't included directly by bind-9 with
+	this patch.
+
+    --with-idnlib=IDN_LIBSPEC
+	With this option, you can explicitly specify the argument(s)
+	to `cc' or `ld' to link the idnkit's library, `libidnkit'.  If
+	this option is not specified, `-L${PREFIX}/lib -lidnkit' is
+	assumed, where ${PREFIX} is the installation prefix specified
+	with `--with-idn' option above.  You may need to use this
+	option to specify extra argments, for example,
+	`--with-idnlib="-L/usr/local/lib -R/usr/local/lib -lidnkit"'.
+
+Please consult `README' for other configuration options.
+
+Note that if you want to specify some extra header file directories,
+you should use the environment variable STD_CINCLUDES instead of
+CFLAGS, as described in README.
+
+2. Compilation and installation
+
+After running "configure", just do
+
+	make
+	make install
+
+for compiling and installing.
+
+
+* Contact information
+
+Please see http//www.nic.ad.jp/en/idn/ for the latest news
+about idnkit and this patch.
+
+Bug reports and comments on this kit should be sent to
+mdnkit-bugs@nic.ad.jp and idn-cmt@nic.ad.jp, respectively.
+
+; $Id: README.idnkit,v 1.2.2.2 2005/09/12 02:12:08 marka Exp $

@@ -1,0 +1,37 @@
+Starting with NetBSD-1.6, it is possible to delegate the system clock 
+control to a non root user. This enable running ntpd in a chroot 
+jail under a non privilegied UID/GID, using ntpd -i and -u flags.
+
+The delegation is done through the clockctl(4) pseudodevice driver. 
+This driver makes privilegied system calls such as ntp_adjtime(2)
+available through ioctl(2) on the /dev/clockctl device. If a user
+is able to write to /dev/clockctl, then (s)he can control the system 
+clock.
+
+In order to use this feature, make sure that:
+
+1) Your kernel is compiled with the following option:
+pseudo-device	clockctl
+This is true for GENERIC kernels on most ports. Please check 
+http://wwW.netbsd.org/Documentation/kernel/
+if you need information about building a kernel.
+
+2) You have a ntpd user on your system. Here is the /etc/master.passwd
+entry for ntpd user on NetBSD-1.6:
+ntpd:*:15:15::0:0:& pseudo-user:/var/chroot/ntpd:/sbin/nologin
+And here is the /etc/group entry for group 15:
+ntpd:*:15:
+
+3) /dev/clockctl exists and is writtable by user ntpd. Default 
+NetBSD-1.6 setting is:
+crw-rw----  1 root  ntpd  61, 0 Apr 1  2002 /dev/clockctl
+Major device number and date is likely to be different on your system.
+If you need to create the device, issue the following command:
+cd /dev && ./MAKEDEV clockctl
+
+Here is an example of how to run ntpd chrooted in /var/chroot/ntpd, 
+running with ntpd UID and ntpd GID:
+ntpd -i /var/chroot/ntpd -u ntpd:ntpd
+Note that -i and -u options are enabled at configure time if your 
+system supports system clock control by an unprivilegied user. If this
+is not the case, then the -i and -u options will not be available.

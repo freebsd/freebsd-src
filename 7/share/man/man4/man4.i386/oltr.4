@@ -1,0 +1,88 @@
+.\" Copyright (c) 2005 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 4, 2005
+.Dt OLTR 4 i386
+.Os
+.Sh NAME
+.Nm oltr
+.Nd "Olicom Token Ring device driver"
+.Sh SYNOPSIS
+.Cd "device oltr"
+.Cd "device token"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Olicom Token Ring adapters.
+Only ISA and PCI based devices are supported.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following ISA based Olicom Token Ring adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Olicom OC-3115
+.It
+Olicom ISA 16/4 Adapter (OC-3117)
+.It
+Olicom ISA 16/4 Adapter (OC-3118)
+.El
+.Pp
+The following PCI based adapters are supported:
+.Pp
+.Bl -bullet -compact
+.It
+Olicom PCI 16/4 Adapter (OC-3136)
+.It
+Olicom PCI/II 16/4 Adapter (OC-3137)
+.It
+Olicom PCI 16/4 Adapter (OC-3139)
+.It
+Olicom RapidFire 3140 16/4 PCI Adapter (OC-3140)
+.It
+Olicom RapidFire 3141 Fiber Adapter (OC-3141)
+.It
+Olicom RapidFire 3540 100/16/4 Adapter (OC-3540)
+.El
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Larry Lile .
+This manual page was written by
+.An -nosplit
+.An Christian Brueffer Aq brueffer@FreeBSD.org
+based on input provided by
+.An Matthew N. Dodd Aq mdodd@FreeBSD.org .

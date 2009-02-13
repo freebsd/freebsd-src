@@ -1,0 +1,155 @@
+.\"	$FreeBSD$
+.\"
+.TH IPPOOL 5
+.SH NAME
+ippool, ippool.conf \- IP Pool file format
+.SH DESCRIPTION
+The format for files accepted by ippool is described by the following grammar:
+.LP
+.nf
+line ::= table | groupmap .
+table ::= "table" role tabletype .
+groupmap ::= "group-map" inout role number ipfgroup
+tabletype ::= ipftree | ipfhash .
+
+role ::= "role" "=" "ipf" .
+inout ::= "in" | "out" .
+
+ipftree ::= "type" "=" "tree" number "{" addrlist "}" .
+ipfhash ::= "type" "=" "hash" number hashopts "{" hashlist "}" .
+
+ipfgroup ::= setgroup hashopts "{" grouplist "}" |
+             hashopts "{" setgrouplist "}" .
+setgroup ::= "group" "=" groupname .
+
+hashopts ::= size [ seed ] | seed .
+
+size ::= "size" number .
+seed ::= "seed" number .
+
+addrlist ::= [ "!" ] addrmask ";" [ addrlist ] .
+grouplist ::= groupentry ";" [ grouplist ] | addrmask ";" [ grouplist ] .
+
+setgrouplist ::= groupentry ";" [ setgrouplist ] .
+
+groupentry ::= addrmask "," setgroup .
+
+hashlist ::= hashentry ";" [ hashlist ] .
+hashentry ::= addrmask .
+
+addrmask ::= ipaddr | ipaddr "/" mask .
+
+mask ::= number | ipaddr .
+
+groupname ::= number | name .
+
+number ::= digit { digit } .
+
+ipaddr  = host-num "." host-num "." host-num "." host-num .
+host-num = digit [ digit [ digit ] ] .
+
+digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
+name ::= letter { letter | digit } .
+.fi
+.PP
+The IP pool configuration file is used for defining a single object that
+contains a reference to multiple IP address/netmask pairs.  A pool may consist
+of a mixture of netmask sizes, from 0 to 32.
+.PP
+At this point in time, only IPv4 addressing is supported.
+.TP
+.SH OVERVIEW
+.PP
+The IP pool configuration file provides for defining two different mechanisms
+for improving speed in matching IP addresses with rules.
+The first,
+.B table
+, defines a lookup
+.I table
+to provide a single reference in a
+filter rule to multiple targets and the second,
+.B group-map
+, provides a mechanism to target multiple groups from a single filter line.
+.PP
+The
+.B group-map
+command can only be used with filter rules that use the
+.B call
+command to invoke either
+.B fr_srcgrpmap
+or
+.B fr_dstgrpmap
+, to use the source or destination address,
+respectively, for determining which filter group to jump to next for
+continuation of filter packet processing.
+.SH POOL TYPES
+.PP
+Two storage formats are provided: hash tables and tree structure.  The hash
+table is intended for use with objects all containing the same netmask or a
+few different sized netmasks of non-overlapping address space and the tree
+is designed for being able to support exceptions to a covering mask, in
+addition to normal searching as you would do with a table.  It is not possible
+to use the tree data storage type with
+.B group-map
+configuration entries.
+.SH POOL ROLES
+.PP
+When a pool is defined in the configuration file, it must have an associated
+role.  At present the only supported role is
+.B ipf.
+Future development will see futher expansion of their use by other sections
+of IPFilter code.
+.SH EXAMPLES
+The following examples show how the pool configuration file is used with
+the ipf configuration file to enhance the ability for the ipf configuration
+file to be succinct in meaning.
+.TP
+1
+The first example shows how a filter rule makes reference to a specific
+pool for matching of the source address.
+.nf
+pass in from pool/100 to any
+.fi
+.PP
+The pool configuration, which matches IP addresses 1.1.1.1 and any
+in 2.2.0.0/16, except for those in 2.2.2.0/24.
+.PP
+.nf
+table role = ipf type = tree number = 100
+        { 1.1.1.1/32; 2.2.0.0/16; !2.2.2.0/24 };
+.fi
+.TP
+2
+The following ipf.conf extract uses the
+fr_srcgrpmap/fr_dstgrpmap lookups to use the
+.B group-map
+facility to lookup the next group to use for filter processing, providing
+the
+.B call
+filter rule is matched.
+.nf
+call now fr_srcgrpmap/1010 in all
+call now fr_dstgrpmap/2010 out all
+pass in all group 1020
+block in all group 1030
+pass out all group 2020
+block out all group 2040
+.fi
+.PP
+A ippool configuration to work with the above ipf.conf file might
+look like this:
+.PP
+.nf
+group-map in role = ipf number = 1010
+	{ 1.1.1.1/32, group = 1020; 3.3.0.0/16, group = 1030; };
+group-map out role = ipf number = 2010 group = 2020
+	{ 2.2.2.2/32; 4.4.0.0/16; 5.0.0.0/8, group = 2040; };
+.fi
+.SH FILES
+/dev/iplookup
+.br
+/etc/ippool.conf
+.br
+/etc/hosts
+.SH SEE ALSO
+ippool(8), hosts(5), ipf(5), ipf(8), ipnat(8)

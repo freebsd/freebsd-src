@@ -1,0 +1,238 @@
+$FreeBSD$
+
+       README file, for the boot config file setup.  This is meant
+       to explain how to manage the loader configuration process.
+       The boot and loading process is either defined, or being
+       defined in boot(8) and loader(8).
+
+       The ongoing development of the FreeBSD bootloader, and its
+       rapid deployment while still in the development phase, has
+       resulted in a large number of installations with outdated
+       configurations.  Those installations actively tracking the
+       FreeBSD development should also ensure that their bootloader
+       configurations are updated.  If you see files discussed here
+       that your system doesn't yet have, add them yourself.
+
+       This is an effort to give the currently correct method for
+       setting up your boot process.  It includes information on
+       setting up screen savers and plug and play information, and
+       also on recording any changes you make in your kernel
+       configuration.  This file is temporary, because as I noted,
+       the process is still undergoing development, and will still
+       change.  Man pages are coming out, but they're still going
+       to be somewhat fragile for a while.  If you note anything in
+       here that's broken, it would be a good idea to report it to
+       the FreeBSD-current list, or to Daniel C. Sobral
+       <dcs@FreeBSD.org> or Mike Smith <msmith@FreeBSD.org>.
+
+       After the first two stages in the booting process (described
+       in boot(8)), the last stage of the booting process, called
+       the loader (see loader(8)) reads in the /boot/loader.rc
+       file.  The two lines you should have there are:
+
+       include /boot/loader.4th
+       start
+
+       This reads the ficl (forth) initialization files, then
+       /boot/default/loader.conf.  This file, which strongly
+       resembles in form /etc/rc.conf but functions quite
+       differently, has spots for endless user customization but
+       isn't yet completely finished.  For one thing, it used to
+       assume a /kernel.config instead of a /boot/kernel.conf.
+       Watch the first few lines of /boot/defaults/loader.conf to
+       see if the file name changes.
+
+       [See the section at the end on loader.conf syntax]
+
+       You don't actually want to make any changes to
+       /boot/defaults/loader.conf, the file that is a  hacking-
+       target is:
+
+       /boot/loader.conf
+
+       and might very likely not exist yet on your system).  You
+       should copy /boot/defaults/loader.conf to /boot/loader.conf,
+       and then cut out anything you didn't want changed.
+
+       The start command also loads your kernel for you, so don't
+       put any lines in there like "load kernel", they'll fail (but
+       really have already worked for you).  Start also reads in
+       the file /boot/defaults/loader.conf and /boot/loader.conf.
+       If you don't have /boot/loader.conf, you'll see a message on
+       boot about it, but it's a warning only, no other effects.
+       See the section on loader.conf syntax at the end of this
+       document, for some more pointers on loader.conf syntax.
+
+       The best way to manage splash screens is with entries in
+       /boot/loader.conf, and this is very clearly illustrated in
+       /boot/defaults/loader.conf (which you could just copy over
+       to /boot/loader.conf).  I'm going to illustrate here how you
+       *could* do it in /boot/loader.rc (for information only)
+       but I don't recommend you do this; use the
+       /boot/defaults/loader.conf syntax, it's easier to get it
+       correct.
+
+       You can load your splash screen by putting the following
+       lines into /boot/loader.rc:
+
+       load splash_bmp
+       load -t splash_image_data /path/to/file.bmp
+
+       The top line causes the splash_bmp module to get loaded.
+       The second line has the parameter "-t" which tells the
+       loader that the class of DATA being loaded is not a module,
+       but instead a splash_image_data located in file
+       /path/to/file.bmp.
+
+       To get your plug and play data correctly set, run kget,
+       redirecting the output to /boot/kernel.conf.  Note that kget
+       right now adds an extra "q" to it's output (from the q for
+       quit you press when you exit config), and if you want, you
+       can remove that from the file.  Kget reports data only, so
+       feel free to run it, just to see the output.  Make certain
+       you have the kernel option USERCONFIG set in your kernel, so
+       that you can do a boot -c, to initially set your cards up.
+       Then, edit /boot/loader.conf so that the following line
+       shows up (overwriting, in effect, a similar line in
+       /boot/default/loader.conf):
+
+       userconfig_script_load="YES"
+
+       My own pnp line looks like:
+       pnp 1 0 os irq0 15 irq1 0 drq0 1 drq1 0 port0 1332
+       (kget changes numbers from hexadecimal to decimal).  Note
+       that, at this moment, the change from using /kernel.config
+       to using /boot/kernel.conf as the storage place for kernel
+       config changes is going on.  Take a look at your
+       /boot/defaults/loader.conf, see what's defined as
+       userconfig_script_name, and if you override, make sure the
+       file exists.  Note that the loader only has access to the
+       root filesystem, so be careful where you tell it to read
+       from.
+
+
+          o If you interrupt autoboot, you'll engage interactive
+            mode with loader. Everything you type will have the
+            same effects as if it were lines in /boot/loader.rc.
+
+          o While in interactive mode, you can get help by typing
+            "?", "help [<topic> [<subtopic>]]" and "help index".
+            These are mostly commands one would expect a normal
+            user to use. I recommend you play with them a little,
+            to gain further familiarity with what's going on.
+
+            Note that it is not possible to damage or corrupt your
+            system while experimenting with the loader, as it
+            cannot write to any of your filesystems.
+
+          o The command "unload" will unload everything. This is
+            very useful.  Once loader.rc has finished and the
+            system is in the autoboot count-down, you will usually
+            have the kernel and other modules loaded. Now, suppose
+            your new /kernel is broken, how do you load
+            /kernel.old? By typing:
+
+                 unload
+                 load kernel.old
+                 [any other modules you wish to load]
+                 boot
+
+          o If you use loader.conf, you can do:
+
+                 unload
+                 set kernel=kernel.old
+                 boot-conf
+
+            this will then load all the modules you have
+            configured, using kernel.old as kernel, and boot.
+
+          o From loader, you can use the command "more" to read the
+            contents of /boot/loader.rc, if you wish. This is not
+            FreeBSD's more. It is one of loader's builtin commands.
+            Useful if you can't quite recall what you have there.
+            :-) Of course, you can use this command to read
+            anything else you want.
+
+          o "boot -flag" works, "boot kernelname" works, "boot
+            -flag kernelname" doesn't. "boot kernelname -flag"
+            might work, but I'm not sure. The problem is that these
+            flags are kernel's flags, not boot's flags.
+
+          o There are a number of variables that can be set. You
+            can see them in loader.conf, but you can get much more
+            detailed information using the "help" command, eg. help
+            set <variablename>.
+
+          o The variable root_disk_unit is particularly important,
+            as it solves a relatively common problem. This problem
+            shows when the BIOS assign disk units in a different
+            way than the kernel. For example, if you have two IDE
+            disks, one on the primary, the other on the secondary
+            controller, and both as master, the default in most
+            kernels is having the first as wd0, and the second as
+            wd2. If your root partition is in wd2, you'll get an
+            error, because the BIOS sees these disks as 0 and 1
+            (well, 1 and 2), and that's what loader tells the
+            kernel. In this case, "set root_disk_unit=2" solves the
+            problem.  You use this whenever the kernel fails to
+            mount to root partition because it has a wrong unit
+            number.
+
+       FILE OVERVIEW
+
+
+          o /boot/defaults/loader.conf -- Master configuration
+            file, not to be edited.  Overridden by
+            /boot/loader.conf.
+
+          o /boot/loader.conf -- local system customization file,
+            in form very much like /boot/defaults/loader.conf.
+            This file is meant to be used by local users and the
+            sysinstall process.
+
+          o /boot/loader.conf.local -- local installation override
+            file.  This is intended for use by installations with
+            large numbers of systems, to allow global policy
+            overrides.  No FreeBSD tools should ever write this
+            file.
+
+          o /kernel.config -- old location of kernel configuration
+            changes (like pnp changes).
+
+          o /boot/kernel.conf -- new location for kernel
+            configuration changes.
+
+          o /boot/loader.rc -- loader initial configuration file,
+            chiefly used to source in a forth file, and start the
+            configuration process.
+
+       NOTES ON LOADER.CONF SYNTAX
+
+       I'm copy here from the last 11 lines from
+       /boot/defaults/loader.conf:
+
+       ##############################################################
+       ###  Module loading syntax example  ##########################
+       ##############################################################
+
+       #module_load="YES"              # loads module "module"
+       #module_name="realname"         # uses "realname" instead of "module"
+       #module_type="type"             # passes "-t type" to load
+       #module_flags="flags"           # passes "flags" to the module
+       #module_before="cmd"            # executes "cmd" before loading module
+       #module_after="cmd"             # executes "cmd" after loading module
+       #module_error="cmd"             # executes "cmd" if load fails
+
+       The way this works, the command processor used by the loader
+       (which is a subset of forth) inspects  these  variables  for
+       their  suffix,  and  the  7  lines  above illustrate all the
+       currently defined suffixes, and their use.   Take  the  part
+       before  the  underscore,  and customize it i(make it unique)
+       for your particular use, keeping the  suffix  to  allow  the
+       particular function you want to activate.  Extra underscores
+       are fine, because it's only the  sufixes  that  are  scanned
+       for.
+
+
+
+       (authors Chuck Robey and Daniel Sobral).
