@@ -345,7 +345,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		/* readdir(2) case. Always struct dirent. */
 		if (is64bit)
 			return (EINVAL);
-		nbytes = sizeof(linux_dirent);
+		nbytes = sizeof(*linux_dirent);
 		justone = 1;
 	} else
 		justone = 0;
