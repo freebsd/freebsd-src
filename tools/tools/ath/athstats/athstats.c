@@ -436,6 +436,15 @@ ath_setifname(struct athstatfoo *wf0, const char *ifname)
 #endif
 }
 
+static void 
+ath_zerostats(struct athstatfoo *wf0)
+{
+	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
+
+	if (ioctl(wf->s, SIOCZATHSTATS, &wf->ifr) < 0)
+		err(-1, wf->ifr.ifr_name);
+}
+
 static void
 ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 {
@@ -997,6 +1006,7 @@ athstats_new(const char *ifname, const char *fmtstring)
 #if 0
 		wf->base.setstamac = wlan_setstamac;
 #endif
+		wf->base.zerostats = ath_zerostats;
 		wf->s = socket(AF_INET, SOCK_DGRAM, 0);
 		if (wf->s < 0)
 			err(1, "socket");
