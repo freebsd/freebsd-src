@@ -43,6 +43,9 @@ SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0, "USB Ethernet parameters");
 #define	UE_UNLOCK(_ue)		mtx_unlock((_ue)->ue_mtx)
 #define	UE_LOCK_ASSERT(_ue, t)	mtx_assert((_ue)->ue_mtx, t)
 
+MODULE_DEPEND(usb2_ethernet, usb2_core, 1, 1, 1);
+MODULE_DEPEND(usb2_ethernet, miibus, 1, 1, 1);
+
 static struct unrhdr *ueunit;
 
 static usb2_proc_callback_t ue_attach_post_task;
@@ -582,4 +585,3 @@ usb2_ether_rxflush(struct usb2_ether *ue)
 
 DECLARE_MODULE(usb2_ethernet, usb2_ether_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(usb2_ethernet, 1);
-MODULE_DEPEND(usb2_ethernet, usb2_core, 1, 1, 1);
