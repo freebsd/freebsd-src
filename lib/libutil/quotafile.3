@@ -50,6 +50,8 @@
 .Fn quota_write "struct quotafile *qf" "const struct dqblk *dqb" "int id"
 .Ft int
 .Fn quota_close "struct quotafile *qf"
+.Ft int
+.Fn hasquota "struct fstab *fs" "int type" "char **qfnamep"
 .Sh DESCRIPTION
 .Sh RETURN VALUES
 .Sh SEE ALSO
