@@ -280,13 +280,13 @@ quota_write(struct quotafile *qf, const struct dqblk *dqb, int id)
  * Check to see if a particular quota is to be enabled.
  */
 int
-hasquota(struct fstab *fs, int type, char **qfnamep)
+hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
 {
 	char *opt;
 	char *cp;
 	struct statfs sfb;
+	char buf[BUFSIZ];
 	static char initname, usrname[100], grpname[100];
-	static char buf[BUFSIZ];
 
 	if (!initname) {
 		(void)snprintf(usrname, sizeof(usrname), "%s%s",
@@ -306,19 +306,18 @@ hasquota(struct fstab *fs, int type, char **qfnamep)
 	}
 	if (!opt)
 		return (0);
-	if (cp)
-		*qfnamep = cp;
-	else {
-		(void)snprintf(buf, sizeof(buf), "%s/%s.%s", fs->fs_file,
-		    QUOTAFILENAME, qfextension[type]);
-		*qfnamep = buf;
-	}
 	/*
 	 * Ensure that the filesystem is mounted.
 	 */
 	if (statfs(fs->fs_file, &sfb) != 0 ||
 	    strcmp(fs->fs_file, sfb.f_mntonname)) {
 		return (0);
+	}
+	if (cp) {
+		strncpy(qfnamep, cp, qfbufsize);
+	} else {
+		(void)snprintf(qfnamep, qfbufsize, "%s/%s.%s", fs->fs_file,
+		    QUOTAFILENAME, qfextension[type]);
 	}
 	return (1);
 }
