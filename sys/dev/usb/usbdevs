@@ -613,7 +613,7 @@ vendor GIGASET		0x1690	Gigaset
 vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
 vendor JABLOTRON	0x16d6	Jablotron
-vendor CMOTECH		0x16d8	CMOTECH Co., Ltd.
+vendor CMOTECH		0x16d8	C-motech
 vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
@@ -1030,9 +1030,11 @@ product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
 
 /* CMOTECH products */
-product CMOTECH CNU510		0x5141	CMOTECH CDMA Technologies USB modem
+product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
-product CMOTECH CDMA_MODEM1	0x6280	CMOTECH CDMA Technologies USB modem
+product CMOTECH CGU628		0x6006	CGU-628
+product CMOTECH CDMA_MODEM1	0x6280	CDMA Technologies USB modem
+product CMOTECH DISK		0xf000	disk mode
 
 /* Compaq products */
 product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
