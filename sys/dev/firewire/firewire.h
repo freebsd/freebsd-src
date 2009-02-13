@@ -284,6 +284,10 @@ struct fw_devlstreq {
 	struct fw_devinfo dev[FW_MAX_DEVLST];
 };
 
+/*
+ * Defined in IEEE 1394a-2000
+ * 4.3.4.1
+ */
 #define FW_SELF_ID_PORT_CONNECTED_TO_CHILD 3
 #define FW_SELF_ID_PORT_CONNECTED_TO_PARENT 2
 #define FW_SELF_ID_PORT_NOT_CONNECTED 1
@@ -312,18 +316,32 @@ union fw_self_id {
 			  phy_id:6,
 			  sequel:1,
 			  sequence_num:3,
-			  :2,
-			  porta:2,
-			  portb:2,
-			  portc:2,
-			  portd:2,
-			  porte:2,
-			  portf:2,
-			  portg:2,
-			  porth:2,
-			  :1,
+			  reserved2:2,
+			  port3:2,
+			  port4:2,
+			  port5:2,
+			  port6:2,
+			  port7:2,
+			  port8:2,
+			  port9:2,
+			  port10:2,
+			  reserved1:1,
 			  more_packets:1;
 	} p1;
+	struct {
+		uint32_t
+			  id:2,
+			  phy_id:6,
+			  sequel:1,
+			  sequence_num:3,
+			  :2,
+			  port11:2,
+			  port12:2,
+			  port13:2,
+			  port14:2,
+			  port15:2,
+			  :8;
+	} p2;
 };
 #else
 union fw_self_id {
@@ -346,20 +364,34 @@ union fw_self_id {
 	struct {
 		uint32_t  more_packets:1,
 			  reserved1:1,
-			  porth:2,
-			  portg:2,
-			  portf:2,
-			  porte:2,
-			  portd:2,
-			  portc:2,
-			  portb:2,
-			  porta:2,
+			  port10:2,
+			  port9:2,
+			  port8:2,
+			  port7:2,
+			  port6:2,
+			  port5:2,
+			  port4:2,
+			  port3:2,
 			  reserved2:2,
 			  sequence_num:3,
 			  sequel:1,
 			  phy_id:6,
 			  id:2;
 	} p1;
+	struct {
+		uint32_t
+			  reserved3:8,
+			  port15:2,
+			  port14:2,
+			  port13:2,
+			  port12:2,
+			  port11:2,
+			  reserved4:2,
+			  sequence_num:3,
+			  sequel:1,
+			  phy_id:6,
+			  id:2;
+	} p2;
 };
 #endif
 
