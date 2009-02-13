@@ -533,7 +533,6 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	 */
 	ieee80211_stop_locked(vap);
 
-	/* XXX accumulate iv_stats in ic_stats? */
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
