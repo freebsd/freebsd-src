@@ -104,7 +104,7 @@ static struct ieee80211_node *zyd_node_alloc(struct ieee80211vap *,
 			    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static int	zyd_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	zyd_cmd(struct zyd_softc *, uint16_t, const void *, int,
-		    void *, int, u_int);
+		    void *, int, int);
 static int	zyd_read16(struct zyd_softc *, uint16_t, uint16_t *);
 static int	zyd_read32(struct zyd_softc *, uint16_t, uint32_t *);
 static int	zyd_write16(struct zyd_softc *, uint16_t, uint16_t);
@@ -419,6 +419,7 @@ zyd_attach_post(struct usb2_proc_msg *pm)
 	ic->ic_vap_create = zyd_vap_create;
 	ic->ic_vap_delete = zyd_vap_delete;
 	ic->ic_update_mcast = zyd_update_mcast;
+	ic->ic_update_promisc = zyd_update_mcast;
 
 	bpfattach(ifp, DLT_IEEE802_11_RADIO,
 	    sizeof(struct ieee80211_frame) + sizeof(sc->sc_txtap));
@@ -440,7 +441,7 @@ zyd_detach(device_t dev)
 {
 	struct zyd_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic;
 
 	/* wait for any post attach or other command to complete */
 	usb2_proc_drain(&sc->sc_tq);
@@ -453,6 +454,7 @@ zyd_detach(device_t dev)
 	zyd_unsetup_tx_list(sc);
 
 	if (ifp) {
+		ic = ifp->if_l2com;
 		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 		if_free(ifp);
@@ -810,7 +812,7 @@ tr_setup:
 
 static int
 zyd_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, int ilen,
-    void *odata, int olen, u_int flags)
+    void *odata, int olen, int flags)
 {
 	struct zyd_cmd cmd;
 	struct zyd_rq rq;
@@ -1260,7 +1262,7 @@ zyd_al2230_bandedge6(struct zyd_rf *rf, struct ieee80211_channel *c)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct zyd_phy_pair r[] = ZYD_AL2230_PHY_BANDEDGE6;
-	u_int chan = ieee80211_chan2ieee(ic, c);
+	int chan = ieee80211_chan2ieee(ic, c);
 
 	if (chan == 1 || chan == 11)
 		r[0].val = 0x12;
@@ -2085,7 +2087,7 @@ zyd_set_chan(struct zyd_softc *sc, struct ieee80211_channel *c)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct zyd_rf *rf = &sc->sc_rf;
 	uint32_t tmp;
-	u_int chan;
+	int chan;
 
 	chan = ieee80211_chan2ieee(ic, c);
 	if (chan == 0 || chan == IEEE80211_CHAN_ANY) {
