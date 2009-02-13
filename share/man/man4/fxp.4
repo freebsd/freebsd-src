@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2007
+.Dd December 15, 2008
 .Dt FXP 4
 .Os
 .Sh NAME
@@ -51,6 +51,13 @@ The
 .Nm
 driver provides support for Ethernet adapters based on the Intel
 i82557, i82558, i82559, i82550, and i82562 chips.
+The driver supports TCP/UDP/IP checksum offload for both transmit
+and receive on i82550 and i82551.
+On i82559 only TCP/UDP checksum offload for receive is supported.
+TCP segmentation offload (TSO) for IPv4 as well as VLAN hardware
+tag insertion/stripping is supported on i82550 and i82551.
+Wake On Lan (WOL) support is provided on all controllers
+except i82557, i82259ER and early i82558 revisions.
 .Pp
 The
 .Nm
