@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
+#include <sys/priv.h>
 
 #include <machine/bus.h>
  
@@ -6583,6 +6584,11 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    rt->info[sc->sc_txrix].dot11Rate &~ IEEE80211_RATE_BASIC;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
+	case SIOCZATHSTATS:
+		error = priv_check(curthread, PRIV_DRIVER);
+		if (error == 0)
+			memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
+		break;
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
