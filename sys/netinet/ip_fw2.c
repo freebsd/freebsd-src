@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #define	IPFW_INTERNAL	/* Access to protected data structures in ip_fw.h. */
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
@@ -85,18 +84,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_carp.h>
 #include <netinet/pim.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcpip.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
 #include <netinet/vinet.h>
 
 #include <netgraph/ng_ipfw.h>
-
-#include <altq/if_altq.h>
 
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
@@ -108,7 +102,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
+#ifdef MAC
 #include <security/mac/mac_framework.h>
+#endif
 
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
