@@ -87,25 +87,25 @@ struct ucom_callback u3g_callback = {
 
 
 struct u3g_speeds_s {
-	u_int32_t		ispeed;		// Speed in bits per second
-	u_int32_t		ospeed;		// Speed in bits per second
+	u_int32_t		ispeed;
+	u_int32_t		ospeed;
 };
 
 static const struct u3g_speeds_s u3g_speeds[] = {
-#define U3GSP_GPRS		0
-	{64000,   64000},
-#define U3GSP_EDGE		1
-	{384000,  64000},
-#define U3GSP_CDMA		2
-	{384000,  64000},
-#define U3GSP_UMTS		3
-	{384000,  64000},
-#define U3GSP_HSDPA		4
-	{1200000, 384000},
-#define U3GSP_HSUPA		5
-	{1200000, 384000},
-#define U3GSP_HSPA		6
-	{7200000, 384000},
+#define U3GSP_GPRS	0
+	{64000,		64000},
+#define U3GSP_EDGE	1
+	{384000,	64000},
+#define U3GSP_CDMA	2
+	{384000,	64000},
+#define U3GSP_UMTS	3
+	{384000,	64000},
+#define U3GSP_HSDPA	4
+	{1200000,	384000},
+#define U3GSP_HSUPA	5
+	{1200000,	384000},
+#define U3GSP_HSPA	6
+	{7200000,	384000},
 };
 
 #define U3GIBUFSIZE	1024
@@ -122,7 +122,8 @@ struct u3g_dev_type_s {
 #define U3GFL_HUAWEI_INIT	0x01		// Requires init command (Huawei cards)
 #define U3GFL_SCSI_EJECT	0x02		// Requires SCSI eject command (Novatel)
 #define U3GFL_SIERRA_INIT	0x04		// Requires init command (Sierra cards)
-#define U3GFL_STUB_WAIT		0x08		// Device reappears after a short delay
+#define U3GFL_CMOTECH_INIT	0x08		// Requires init command (CMOTECH cards)
+#define U3GFL_STUB_WAIT		0x80		// Device reappears after a short delay
 };
 
 // Note: The entries marked with XXX should be checked for the correct speed
@@ -184,10 +185,13 @@ static const struct u3g_dev_type_s u3g_devs[] = {
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8765 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC875U },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2 },		U3GSP_HSDPA,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_HP, USB_PRODUCT_HP_HS2300 },			U3GSP_HSDPA,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8780 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8781 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_TRUINSTALL },		U3GSP_UMTS,	U3GFL_SIERRA_INIT },	// Sierra TruInstaller device ID
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_TRUINSTALL },		U3GSP_UMTS,	U3GFL_SIERRA_INIT },
+	{{ USB_VENDOR_HP, USB_PRODUCT_HP_HS2300 },			U3GSP_HSDPA,	U3GFL_NONE },
+	/* OEM: CMOTECH */
+	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CGU628 },		U3GSP_HSDPA,	U3GFL_CMOTECH_INIT },
+	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_DISK },		U3GSP_HSDPA,	U3GFL_NONE },
 };
 #define u3g_lookup(v, p) ((const struct u3g_dev_type_s *)usb_lookup(u3g_devs, v, p))
 
@@ -437,7 +441,7 @@ MODULE_VERSION(u3g, 1);
 struct u3gstub_softc {
 	device_t		sc_dev;
 	usbd_device_handle	sc_udev;
-	usbd_pipe_handle 	sc_pipe;
+	usbd_pipe_handle 	sc_pipe_out, sc_pipe_in;
 	usbd_xfer_handle 	sc_xfer;
 };
 
@@ -457,6 +461,25 @@ u3gstub_huawei_init(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 	return 1;
 }
 
+static void
+u3gstub_BBB_cb(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status err)
+{
+	struct u3gstub_softc *sc = (struct u3gstub_softc *) priv;
+	unsigned char cmd[13];
+
+	if (err) {
+		device_printf(sc->sc_dev,
+			      "Failed to send CD eject command to "
+		              "change to modem mode\n");
+	} else {
+		usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_in, NULL, cmd, sizeof(cmd),
+				0, USBD_DEFAULT_TIMEOUT, NULL);
+		int err = usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION;
+		if (err != USBD_NORMAL_COMPLETION && err != USBD_IN_PROGRESS)
+			DPRINTF("failed to start transfer (CSW)\n");
+	}
+}
+
 static int
 u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 {
@@ -467,7 +490,7 @@ u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 	    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
 	    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
 	    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
-	    0x00,			/* 12: CBW Flag: output, so 0 */
+	    0x00,			/* 12: CBW Flag: output */
 	    0x00,			/* 13: CBW Lun */
 	    0x06,			/* 14: CBW Length */
 
@@ -488,23 +511,38 @@ u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 
 	/* Find the bulk-out endpoints */
 	id = usbd_get_interface_descriptor(uaa->iface);
-	for (i = 0 ; i < id->bNumEndpoints ; i++) {
+	for (i = 0 ; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
 		if (ed != NULL
-		    && UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT
-		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK)
+		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
+			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT) {
+				if (usbd_open_pipe(uaa->iface,
+					           ed->bEndpointAddress,
+				                   USBD_EXCLUSIVE_USE,
+						   &sc->sc_pipe_out)
+				    != USBD_NORMAL_COMPLETION) {
+					DPRINTF("failed to open bulk-out pipe on endpoint %d\n",
+						ed->bEndpointAddress);
+					return 0;
+				}
+			} else {
+				if (usbd_open_pipe(uaa->iface,
+					           ed->bEndpointAddress,
+				                   USBD_EXCLUSIVE_USE,
+						   &sc->sc_pipe_in)
+				    != USBD_NORMAL_COMPLETION) {
+					DPRINTF("failed to open bulk-in pipe on endpoint %d\n",
+						ed->bEndpointAddress);
+					return 0;
+				}
+			}
+		}
+		if (sc->sc_pipe_out && sc->sc_pipe_in)
 			break;
 	}
 
 	if (i == id->bNumEndpoints) {
 		DPRINTF("failed to find bulk-out pipe\n");
-		return 0;
-	}
-
-	if (usbd_open_pipe(uaa->iface, ed->bEndpointAddress,
-			   USBD_EXCLUSIVE_USE, &sc->sc_pipe) != USBD_NORMAL_COMPLETION) {
-		DPRINTF("failed to open bulk-out pipe on endpoint %d\n",
-			ed->bEndpointAddress);
 		return 0;
 	}
 
@@ -514,11 +552,96 @@ u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 		return 0;
 	}
 
-	usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe, NULL, cmd, sizeof(cmd),
-			0, USBD_DEFAULT_TIMEOUT, NULL);
+	usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_out, NULL, cmd, sizeof(cmd),
+			0, USBD_DEFAULT_TIMEOUT, u3gstub_BBB_cb);
 	int err = usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION;
 	if (err != USBD_NORMAL_COMPLETION && err != USBD_IN_PROGRESS) {
-		DPRINTF("failed to start transfer\n");
+		DPRINTF("failed to start transfer (CBW)\n");
+		return 0;
+	}
+
+	return 1;
+}
+
+static int
+u3gstub_cmotech_init(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
+{
+	/* See definition of umass_bbb_cbw_t in sys/dev/usb/umass.c
+	 * in sys/cam/scsi/scsi_all.h .
+         */
+	unsigned char cmd[31] = {
+	    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
+	    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
+	    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
+	    0x80,			/* 12: CBW Flag: output, so 0 */
+	    0x00,			/* 13: CBW Lun */
+	    0x08,			/* 14: CBW Length */
+
+	    0xff,			/* 15+0 */
+	    0x52,			/* 15+1 */
+	    0x44,			/* 15+2 */
+	    0x45,			/* 15+2 */
+	    0x56,			/* 15+4 */
+	    0x43,			/* 15+5 */
+	    0x48,			/* 15+5 */
+	    0x47,			/* 15+5 */
+	    0x00, 0x00, 0x00, 0x00,	/* 15+8..15: unused */
+	    0x00, 0x00, 0x00, 0x00
+	};
+
+	usb_interface_descriptor_t *id;
+	usb_endpoint_descriptor_t *ed = NULL;
+	int i;
+
+
+	/* Find the bulk-out endpoints */
+	id = usbd_get_interface_descriptor(uaa->iface);
+	for (i = 0 ; i < id->bNumEndpoints ; i++) {
+		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
+		if (ed != NULL
+		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
+			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT) {
+				if (usbd_open_pipe(uaa->iface,
+					           ed->bEndpointAddress,
+				                   USBD_EXCLUSIVE_USE,
+						   &sc->sc_pipe_out)
+				    != USBD_NORMAL_COMPLETION) {
+					DPRINTF("failed to open bulk-out pipe on endpoint %d\n",
+						ed->bEndpointAddress);
+					return 0;
+				}
+			} else {
+				if (usbd_open_pipe(uaa->iface,
+					           ed->bEndpointAddress,
+				                   USBD_EXCLUSIVE_USE,
+						   &sc->sc_pipe_in)
+				    != USBD_NORMAL_COMPLETION) {
+					DPRINTF("failed to open bulk-in pipe on endpoint %d\n",
+						ed->bEndpointAddress);
+					return 0;
+				}
+			}
+		}
+		if (sc->sc_pipe_out && sc->sc_pipe_in)
+			break;
+	}
+
+	if (i == id->bNumEndpoints) {
+		DPRINTF("failed to find bulk-out pipe\n");
+		return 0;
+	}
+
+	sc->sc_xfer = usbd_alloc_xfer(uaa->device);
+	if (sc->sc_xfer == NULL) {
+		DPRINTF("failed to allocate xfer\n");
+		return 0;
+	}
+
+	usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_out, NULL, cmd, sizeof(cmd),
+			0, USBD_DEFAULT_TIMEOUT, u3gstub_BBB_cb);
+	int err = usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION;
+	if (err != USBD_NORMAL_COMPLETION && err != USBD_IN_PROGRESS) {
+		DPRINTF("failed to start transfer (CBW)\n");
 		return 0;
 	}
 
@@ -563,6 +686,7 @@ u3gstub_match(device_t self)
 	if (u3g_dev_type->flags&U3GFL_HUAWEI_INIT
 	    || u3g_dev_type->flags&U3GFL_SCSI_EJECT
 	    || u3g_dev_type->flags&U3GFL_SIERRA_INIT
+	    || u3g_dev_type->flags&U3GFL_CMOTECH_INIT
 	    || u3g_dev_type->flags&U3GFL_STUB_WAIT) {
 		/* We assume that if the first interface is still a mass
 		 * storage device the device has not yet changed appearance.
@@ -620,6 +744,12 @@ u3gstub_attach(device_t self)
 				      "changing Sierra modem to modem mode\n");
 		if (!u3gstub_sierra_init(sc, uaa))
 			return ENXIO;
+	} else if (u3g_dev_type->flags&U3GFL_CMOTECH_INIT) {
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "changing CMOTECH modem to modem mode\n");
+		if (!u3gstub_cmotech_init(sc, uaa))
+			return ENXIO;
 	} else if (u3g_dev_type->flags&U3GFL_STUB_WAIT) {
 		if (bootverbose)
 			device_printf(sc->sc_dev, "waiting for modem to change "
@@ -638,9 +768,13 @@ u3gstub_detach(device_t self)
 	if (sc->sc_xfer)
 		usbd_free_xfer(sc->sc_xfer);
 
-	if (sc->sc_pipe) {
-		usbd_abort_pipe(sc->sc_pipe);
-		usbd_close_pipe(sc->sc_pipe);
+	if (sc->sc_pipe_in) {
+		usbd_abort_pipe(sc->sc_pipe_in);
+		usbd_close_pipe(sc->sc_pipe_in);
+	}
+	if (sc->sc_pipe_out) {
+		usbd_abort_pipe(sc->sc_pipe_out);
+		usbd_close_pipe(sc->sc_pipe_out);
 	}
 
 	return 0;
