@@ -438,7 +438,6 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf("\tifp %p", ic->ic_ifp);
 	db_printf(" comlock %p", &ic->ic_comlock);
 	db_printf("\n");
-	_db_show_stats(&ic->ic_stats);
 	db_printf("\theadroom %d", ic->ic_headroom);
 	db_printf(" phytype %d", ic->ic_phytype);
 	db_printf(" opmode %s", ieee80211_opmode_name[ic->ic_opmode]);
