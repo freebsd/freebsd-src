@@ -210,7 +210,7 @@ ENTRY(cpu_throw)
 	ldr	r6, [r5, #(TD_MD + MD_RAS_START)]
 	str	r6, [r4, #4] /* ARM_RAS_START */
 	ldr	r6, [r5, #(TD_MD + MD_RAS_END)]
-	str	r6, [r4, #4] /* ARM_RAS_END */
+	str	r6, [r4, #8] /* ARM_RAS_END */
 
 	/* Hook in a new pcb */
 	ldr	r6, .Lcurpcb
