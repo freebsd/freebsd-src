@@ -84,9 +84,9 @@ usb2_process(void *arg)
 
 	while (1) {
 
-		if (up->up_gone) {
+		if (up->up_gone)
 			break;
-		}
+
 		/*
 		 * NOTE to reimplementors: dequeueing a command from the
 		 * "used" queue and executing it must be atomic, with regard
@@ -213,10 +213,10 @@ error:
 void
 usb2_proc_free(struct usb2_process *up)
 {
-	if (!(up->up_mtx)) {
-		/* not initialised */
+	/* check if not initialised */
+	if (up->up_mtx == NULL)
 		return;
-	}
+
 	usb2_proc_drain(up);
 
 	usb2_cv_destroy(&up->up_cv);
@@ -245,6 +245,10 @@ usb2_proc_msignal(struct usb2_process *up, void *_pm0, void *_pm1)
 	struct usb2_proc_msg *pm2;
 	uint32_t d;
 	uint8_t t;
+
+	/* check if gone, return dummy value */
+	if (up->up_gone)
+		return (_pm0);
 
 	mtx_assert(up->up_mtx, MA_OWNED);
 
@@ -319,9 +323,11 @@ usb2_proc_msignal(struct usb2_process *up, void *_pm0, void *_pm1)
 uint8_t
 usb2_proc_is_gone(struct usb2_process *up)
 {
-	mtx_assert(up->up_mtx, MA_OWNED);
+	if (up->up_gone)
+		return (1);
 
-	return (up->up_gone ? 1 : 0);
+	mtx_assert(up->up_mtx, MA_OWNED);
+	return (0);
 }
 
 /*------------------------------------------------------------------------*
@@ -336,6 +342,10 @@ usb2_proc_mwait(struct usb2_process *up, void *_pm0, void *_pm1)
 {
 	struct usb2_proc_msg *pm0 = _pm0;
 	struct usb2_proc_msg *pm1 = _pm1;
+
+	/* check if gone */
+	if (up->up_gone)
+		return;
 
 	mtx_assert(up->up_mtx, MA_OWNED);
 
@@ -372,13 +382,13 @@ usb2_proc_mwait(struct usb2_process *up, void *_pm0, void *_pm1)
 void
 usb2_proc_drain(struct usb2_process *up)
 {
-	if (!(up->up_mtx)) {
-		/* not initialised */
+	/* check if not initialised */
+	if (up->up_mtx == NULL)
 		return;
-	}
-	if (up->up_mtx != &Giant) {
+	/* handle special case with Giant */
+	if (up->up_mtx != &Giant)
 		mtx_assert(up->up_mtx, MA_NOTOWNED);
-	}
+
 	mtx_lock(up->up_mtx);
 
 	/* Set the gone flag */
@@ -398,7 +408,8 @@ usb2_proc_drain(struct usb2_process *up)
 
 		if (cold) {
 			USB_THREAD_SUSPEND(up->up_ptr);
-			printf("WARNING: A USB process has been left suspended!\n");
+			printf("WARNING: A USB process has "
+			    "been left suspended!\n");
 			break;
 		}
 		usb2_cv_wait(&up->up_cv, up->up_mtx);
@@ -412,65 +423,4 @@ usb2_proc_drain(struct usb2_process *up)
 		    "for USB process drain!\n");
 	}
 	mtx_unlock(up->up_mtx);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_proc_cwait
- *
- * This function will suspend the current process until
- * "usb2_proc_signal()" or "usb2_proc_drain()" is called. The
- * "timeout" parameter defines the maximum wait time in system
- * ticks. If "timeout" is zero that means no timeout.
- *
- * NOTE: This function can only be called from within an USB process.
- *
- * Return values:
- *   USB_PROC_WAIT_TIMEOUT: Timeout
- *   USB_PROC_WAIT_NORMAL: Success
- *   Else: USB process is tearing down
- *------------------------------------------------------------------------*/
-uint8_t
-usb2_proc_cwait(struct usb2_process *up, int timeout)
-{
-	int error;
-
-	mtx_assert(up->up_mtx, MA_OWNED);
-
-	if (up->up_gone) {
-		return (USB_PROC_WAIT_DRAIN);
-	}
-	up->up_csleep = 1;
-
-	if (timeout == 0) {
-		usb2_cv_wait(&up->up_cv, up->up_mtx);
-		error = 0;
-	} else {
-		error = usb2_cv_timedwait(&up->up_cv, up->up_mtx, timeout);
-	}
-
-	up->up_csleep = 0;
-
-	if (up->up_gone) {
-		return (USB_PROC_WAIT_DRAIN);
-	}
-	if (error == EWOULDBLOCK) {
-		return (USB_PROC_WAIT_TIMEOUT);
-	}
-	return (0);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_proc_csignal
- *
- * This function will wakeup the given USB process.
- *------------------------------------------------------------------------*/
-void
-usb2_proc_csignal(struct usb2_process *up)
-{
-	mtx_assert(up->up_mtx, MA_OWNED);
-
-	if (up->up_csleep) {
-		up->up_csleep = 0;
-		usb2_cv_signal(&up->up_cv);
-	}
 }

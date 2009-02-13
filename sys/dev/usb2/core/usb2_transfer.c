@@ -1690,6 +1690,10 @@ usb2_transfer_pending(struct usb2_xfer *xfer)
 	struct usb2_xfer_root *info;
 	struct usb2_xfer_queue *pq;
 
+	if (xfer == NULL) {
+		/* transfer is gone */
+		return (0);
+	}
 	USB_XFER_LOCK_ASSERT(xfer, MA_OWNED);
 
 	if (xfer->flags_int.transferring) {
