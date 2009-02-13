@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
 #include <net/netisr.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>	/* n_long, SYSCTL_DECL(_net) */
 #include <netinet/ip.h>	/* ip_len, ip_off */
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
