@@ -327,7 +327,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	error = namei(&nd);
 	lep = linux_emul_path;
 	if (error == 0) {
-		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
+		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) == 0)
 			lep = dlep;
 		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
