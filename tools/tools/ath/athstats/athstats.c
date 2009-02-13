@@ -116,7 +116,11 @@ static const struct fmt athstats[] = {
 	{ 5,	"txencode",	"txencode",	"tx encapsulation failed" },
 #define	S_TX_NONODE	AFTER(S_TX_ENCAP)
 	{ 5,	"txnonode",	"txnonode",	"tx failed 'cuz no node" },
-#define	S_TX_NOMBUF	AFTER(S_TX_NONODE)
+#define	S_TX_NOBUF	AFTER(S_TX_NONODE)
+	{ 5,	"txnobuf",	"txnobuf",	"tx failed 'cuz dma buffer allocation failed" },
+#define	S_TX_NOFRAG	AFTER(S_TX_NOBUF)
+	{ 5,	"txnofrag",	"txnofrag",	"tx failed 'cuz frag buffer allocation(s) failed" },
+#define	S_TX_NOMBUF	AFTER(S_TX_NOFRAG)
 	{ 5,	"txnombuf",	"txnombuf",	"tx failed 'cuz mbuf allocation failed" },
 #ifndef __linux__
 #define	S_TX_NOMCL	AFTER(S_TX_NOMBUF)
@@ -542,6 +546,8 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_QSTOP:	STAT(tx_qstop);
 	case S_TX_ENCAP:	STAT(tx_encap);
 	case S_TX_NONODE:	STAT(tx_nonode);
+	case S_TX_NOBUF:	STAT(tx_nobuf);
+	case S_TX_NOFRAG:	STAT(tx_nofrag);
 	case S_TX_NOMBUF:	STAT(tx_nombuf);
 #ifdef S_TX_NOMCL
 	case S_TX_NOMCL:	STAT(tx_nomcl);
@@ -759,6 +765,8 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_QSTOP:	STAT(tx_qstop);
 	case S_TX_ENCAP:	STAT(tx_encap);
 	case S_TX_NONODE:	STAT(tx_nonode);
+	case S_TX_NOBUF:	STAT(tx_nobuf);
+	case S_TX_NOFRAG:	STAT(tx_nofrag);
 	case S_TX_NOMBUF:	STAT(tx_nombuf);
 #ifdef S_TX_NOMCL
 	case S_TX_NOMCL:	STAT(tx_nomcl);
