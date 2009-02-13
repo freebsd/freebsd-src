@@ -1663,10 +1663,11 @@ sis_intr(void *arg)
 		     SIS_ISR_TX_OK | SIS_ISR_TX_IDLE) )
 			sis_txeof(sc);
 
-		if (status & (SIS_ISR_RX_DESC_OK|SIS_ISR_RX_OK|SIS_ISR_RX_IDLE))
+		if (status & (SIS_ISR_RX_DESC_OK | SIS_ISR_RX_OK |
+		    SIS_ISR_RX_ERR | SIS_ISR_RX_IDLE))
 			sis_rxeof(sc);
 
-		if (status & (SIS_ISR_RX_ERR | SIS_ISR_RX_OFLOW))
+		if (status & SIS_ISR_RX_OFLOW)
 			sis_rxeoc(sc);
 
 		if (status & (SIS_ISR_RX_IDLE))
