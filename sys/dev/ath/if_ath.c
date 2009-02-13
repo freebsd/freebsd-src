@@ -2071,7 +2071,6 @@ static void
 ath_start(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
@@ -2141,7 +2140,7 @@ ath_start(struct ifnet *ifp)
 		    !ath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, ATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
-			ic->ic_stats.is_tx_nobuf++;	/* XXX */
+			sc->sc_stats.ast_tx_nofrag++;
 			ath_freetx(m);
 			goto bad;
 		}
