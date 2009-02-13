@@ -402,7 +402,7 @@ taskqueue_thread_loop(void *arg)
 	while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0) {
 		taskqueue_run(tq);
 		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
-	};
+	}
 
 	/* rendezvous with thread that asked us to terminate */
 	tq->tq_tcount--;
