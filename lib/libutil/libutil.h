@@ -148,7 +148,7 @@ struct quotafile *quota_create(const char *);
 void quota_close(struct quotafile *);
 int quota_read(struct quotafile *, struct dqblk *, int);
 int quota_write(struct quotafile *, const struct dqblk *, int);
-int hasquota(struct fstab *, int, char **);
+int hasquota(struct fstab *, int, char *, int);
 #endif
 
 __END_DECLS
