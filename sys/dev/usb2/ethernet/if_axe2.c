@@ -341,6 +341,7 @@ axe_miibus_statchg(device_t dev)
 {
 	struct axe_softc *sc = device_get_softc(dev);
 	struct mii_data *mii = GET_MII(sc);
+	struct ifnet *ifp;
 	uint16_t val;
 	int err, locked;
 
@@ -348,11 +349,40 @@ axe_miibus_statchg(device_t dev)
 	if (!locked)
 		AXE_LOCK(sc);
 
-	val = (mii->mii_media_active & IFM_GMASK) == IFM_FDX ?
-	    AXE_MEDIA_FULL_DUPLEX : 0;
+	ifp = usb2_ether_getifp(&sc->sc_ue);
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto done;
+ 
+	sc->sc_flags &= ~AXE_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->sc_flags |= AXE_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+			if ((sc->sc_flags & AXE_FLAG_178) == 0)
+				break;
+			sc->sc_flags |= AXE_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
+ 
+	/* Lost link, do nothing. */
+	if ((sc->sc_flags & AXE_FLAG_LINK) == 0)
+		goto done;
+ 
+	val = 0;
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
+		val |= AXE_MEDIA_FULL_DUPLEX;
 	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772)) {
 		val |= AXE_178_MEDIA_RX_EN | AXE_178_MEDIA_MAGIC;
-
+		if ((sc->sc_flags & AXE_FLAG_178) != 0)
+			val |= AXE_178_MEDIA_ENCK;
 		switch (IFM_SUBTYPE(mii->mii_media_active)) {
 		case IFM_1000_T:
 			val |= AXE_178_MEDIA_GMII | AXE_178_MEDIA_ENCK;
@@ -368,7 +398,7 @@ axe_miibus_statchg(device_t dev)
 	err = axe_cmd(sc, AXE_CMD_WRITE_MEDIA, 0, val, NULL);
 	if (err)
 		device_printf(dev, "media change failed, error %d\n", err);
-
+done:
 	if (!locked)
 		AXE_UNLOCK(sc);
 }
@@ -381,18 +411,18 @@ axe_ifmedia_upd(struct ifnet *ifp)
 {
 	struct axe_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
+	int error;
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
-        sc->sc_flags &= ~AXE_FLAG_LINK;
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
 
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
-	mii_mediachg(mii);
-	return (0);
+	error = mii_mediachg(mii);
+	return (error);
 }
 
 /*
@@ -915,11 +945,10 @@ axe_tick(struct usb2_ether *ue)
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
 	mii_tick(mii);
-	if ((sc->sc_flags & AXE_FLAG_LINK) == 0
-	    && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->sc_flags |= AXE_FLAG_LINK;
-		axe_start(ue);
+	if ((sc->sc_flags & AXE_FLAG_LINK) == 0) {
+		axe_miibus_statchg(ue->ue_dev);
+		if ((sc->sc_flags & AXE_FLAG_LINK) != 0)
+			axe_start(ue);
 	}
 }
 
