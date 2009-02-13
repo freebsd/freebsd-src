@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #define	IPFW_INTERNAL	/* Access to protected data structures in ip_fw.h. */
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
