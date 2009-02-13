@@ -1346,15 +1346,14 @@ kbdmux_modevent(module_t mod, int type, void *data)
 			panic("kbd_get_switch(" KEYBOARD_NAME ") == NULL");
 
 		kbd = kbd_get_keyboard(kbd_find_keyboard(KEYBOARD_NAME, 0));
-		if (kbd == NULL)
-			 panic("kbd_get_keyboard(kbd_find_keyboard(" KEYBOARD_NAME ", 0)) == NULL");
-
-		(*sw->disable)(kbd);
+		if (kbd != NULL) {
+			(*sw->disable)(kbd);
 #ifdef KBD_INSTALL_CDEV
-		kbd_detach(kbd);
+			kbd_detach(kbd);
 #endif
-		(*sw->term)(kbd);
-		kbd_delete_driver(&kbdmux_kbd_driver);
+			(*sw->term)(kbd);
+			kbd_delete_driver(&kbdmux_kbd_driver);
+		}
 		error = 0;
 		break;
 
