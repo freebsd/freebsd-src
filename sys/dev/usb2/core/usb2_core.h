@@ -449,6 +449,7 @@ void	usb2_start_hardware(struct usb2_xfer *xfer);
 void	usb2_transfer_clear_stall(struct usb2_xfer *xfer);
 void	usb2_transfer_drain(struct usb2_xfer *xfer);
 void	usb2_transfer_set_stall(struct usb2_xfer *xfer);
+uint8_t	usb2_transfer_pending(struct usb2_xfer *xfer);
 void	usb2_transfer_start(struct usb2_xfer *xfer);
 void	usb2_transfer_stop(struct usb2_xfer *xfer);
 void	usb2_transfer_unsetup(struct usb2_xfer **pxfer, uint16_t n_setup);
