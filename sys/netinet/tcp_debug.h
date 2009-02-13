@@ -34,7 +34,7 @@
 #define	_NETINET_TCP_DEBUG_H_
 
 struct	tcp_debug {
-	n_time	td_time;
+	uint32_t	td_time;	/* network format */
 	short	td_act;
 	short	td_ostate;
 	caddr_t	td_tcb;
