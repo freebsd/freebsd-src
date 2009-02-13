@@ -83,16 +83,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_carp.h>
 #include <netinet/pim.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcpip.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
 #include <netgraph/ng_ipfw.h>
-
-#include <altq/if_altq.h>
 
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
@@ -104,7 +99,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
+#ifdef MAC
 #include <security/mac/mac_framework.h>
+#endif
 
 /*
  * set_disable contains one bit per set value (0..31).
