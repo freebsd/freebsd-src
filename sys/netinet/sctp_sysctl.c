@@ -409,8 +409,9 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				xstcb.primary_addr = stcb->asoc.primary_destination->ro._l_addr;
 			xstcb.heartbeat_interval = stcb->asoc.heart_beat_delay;
 			xstcb.state = SCTP_GET_STATE(&stcb->asoc);	/* FIXME */
-			/* 7.0 does not support this */
+			/* 7.0 does not support these */
 			xstcb.assoc_id = sctp_get_associd(stcb);
+			xstcb.peers_rwnd = stcb->asoc.peers_rwnd;
 			xstcb.in_streams = stcb->asoc.streamincnt;
 			xstcb.out_streams = stcb->asoc.streamoutcnt;
 			xstcb.max_nr_retrans = stcb->asoc.overall_error_count;
@@ -432,7 +433,6 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			xstcb.cumulative_tsn = stcb->asoc.last_acked_seq;
 			xstcb.cumulative_tsn_ack = stcb->asoc.cumulative_tsn;
 			xstcb.mtu = stcb->asoc.smallest_mtu;
-			xstcb.peers_rwnd = stcb->asoc.peers_rwnd;
 			xstcb.refcnt = stcb->asoc.refcnt;
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_INP_INFO_RUNLOCK();
