@@ -1,0 +1,85 @@
+.\" Copyright (c) 1997 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden). 
+.\" All rights reserved. 
+.\"
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\"
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors 
+.\"    may be used to endorse or promote products derived from this software 
+.\"    without specific prior written permission. 
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\"
+.\" $Id: krb5_sname_to_principal.3,v 1.7 2003/04/16 13:58:17 lha Exp $
+.\"
+.Dd August 8, 1997
+.Dt KRB5_PRINCIPAL 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_sname_to_principal ,
+.Nm krb5_sock_to_principal
+.Nd create a service principal
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fn krb5_sname_to_principal "krb5_context context" "const char *hostname" "const char *sname" "int32_t type" "krb5_principal *principal"
+.Ft krb5_error_code
+.Fn krb5_sock_to_principal "krb5_context context" "int socket" "const char *sname" "int32_t type" "krb5_principal *principal"
+.Sh DESCRIPTION
+These functions create a
+.Dq service
+principal that can, for instance, be used to lookup a key in a keytab. For both these function the
+.Fa sname
+parameter will be used for the first component of the created principal. If
+.Fa sname
+is
+.Dv NULL ,
+.Dq host
+will be used instead.
+.Fn krb5_sname_to_principal
+will use the passed
+.Fa hostname
+for the second component. If type
+.Dv KRB5_NT_SRV_HST
+this name will be looked up with
+.Fn gethostbyname .
+If
+.Fa hostname is
+.Dv NULL ,
+the local hostname will be used.
+.Pp
+.Fn krb5_sock_to_principal
+will use the
+.Dq sockname
+of the passed
+.Fa socket ,
+which should be a bound
+.Dv AF_INET
+socket.
+.Sh SEE ALSO
+.Xr krb5_425_conv_principal 3 ,
+.Xr krb5_build_principal 3 ,
+.Xr krb5_free_principal 3 ,
+.Xr krb5_parse_name 3 ,
+.Xr krb5_unparse_name 3

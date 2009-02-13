@@ -1,0 +1,7 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Example for /etc/ppp/auth-up file.
+
+/usr/bin/logger -p daemon.notice -t pppd "User $2 is logged in"

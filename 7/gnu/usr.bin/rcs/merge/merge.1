@@ -1,0 +1,137 @@
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $FreeBSD$
+.ds r \&\s-1RCS\s0
+.TH MERGE 1 \*(Dt GNU
+.SH NAME
+merge \- three-way file merge
+.SH SYNOPSIS
+.B merge
+[
+.I "options"
+]
+.I "file1 file2 file3"
+.SH DESCRIPTION
+.B merge
+incorporates all changes that lead from
+.I file2
+to
+.I file3
+into
+.IR file1 .
+The result ordinarily goes into
+.IR file1 .
+.B merge
+is useful for combining separate changes to an original.  Suppose
+.I file2
+is the original, and both
+.I file1
+and
+.I file3
+are modifications of
+.IR file2 .
+Then
+.B merge
+combines both changes.
+.PP
+A conflict occurs if both
+.I file1
+and
+.I file3
+have changes in a common segment of lines.
+If a conflict is found,
+.B merge
+normally outputs a warning and brackets the conflict with
+.B <<<<<<<
+and
+.B >>>>>>>
+lines.
+A typical conflict will look like this:
+.LP
+.RS
+.nf
+.BI <<<<<<< " file A"
+.I "lines in file A"
+.B "======="
+.I "lines in file B"
+.BI >>>>>>> " file B"
+.RE
+.fi
+.LP
+If there are conflicts, the user should edit the result and delete one of the
+alternatives.
+.SH OPTIONS
+.TP
+.B \-A
+Output conflicts using the
+.B \-A
+style of
+.BR diff3 (1),
+if supported by
+.BR diff3 .
+This merges all changes leading from
+.I file2
+to
+.I file3
+into
+.IR file1 ,
+and generates the most verbose output.
+.TP
+\f3\-E\fP, \f3\-e\fP
+These options specify conflict styles that generate less information
+than
+.BR \-A .
+See
+.BR diff3 (1)
+for details.
+The default is
+.BR \-E .
+With
+.BR \-e ,
+.B merge
+does not warn about conflicts.
+.TP
+.BI \-L " label"
+This option may be given up to three times, and specifies labels
+to be used in place of the corresponding file names in conflict reports.
+That is,
+.B "merge\ \-L\ x\ \-L\ y\ \-L\ z\ a\ b\ c"
+generates output that looks like it came from files
+.BR x ,
+.B y
+and
+.B z
+instead of from files
+.BR a ,
+.B b
+and
+.BR c .
+.TP
+.BI \-p
+Send results to standard output instead of overwriting
+.IR file1 .
+.TP
+.BI \-q
+Quiet; do not warn about conflicts.
+.TP
+.BI \-V
+Print \*r's version number.
+.SH DIAGNOSTICS
+Exit status is 0 for no conflicts, 1 for some conflicts, 2 for trouble.
+.SH IDENTIFICATION
+Author: Walter F. Tichy.
+.br
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert.
+.SH SEE ALSO
+diff3(1), diff(1), rcsmerge(1), co(1).
+.SH BUGS
+It normally does not make sense to merge binary files as if they were text, but
+.B merge
+tries to do it anyway.
+.br

@@ -1,0 +1,169 @@
+Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2000, 2001  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+Using the BIND 9 Simplified Database Interface
+
+This document describes the care and feeding of the BIND 9 Simplified
+Database Interface, which allows you to extend BIND 9 with new ways
+of obtaining the data that is published as DNS zones.
+
+
+The Original BIND 9 Database Interface
+
+BIND 9 has a well-defined "back-end database interface" that makes it
+possible to replace the component of the name server responsible for
+the storage and retrieval of zone data, called the "database", on a
+per-zone basis.  The default database is an in-memory, red-black-tree
+data structure commonly referred to as "rbtdb", but it is possible to
+write drivers to support any number of alternative database
+technologies such as in-memory hash tables, application specific
+persistent on-disk databases, object databases, or relational
+databases.
+
+The original BIND 9 database interface defined in <dns/db.h> is
+designed to efficiently support the full set of database functionality
+needed by a name server that implements the complete DNS protocols,
+including features such as zone transfers, dynamic update, and DNSSEC.
+Each of these aspects of name server operations places its own set of
+demands on the data store, with the result that the database API is
+quite complex and contains operations that are highly specific to the
+DNS.  For example, data are stored in a binary format, the name space
+is tree structured, and sets of data records are conceptually
+associated with DNSSEC signature sets.  For these reasons, writing a
+driver using this interface is a highly nontrivial undertaking.
+
+
+The Simplified Database Interface
+
+Many BIND users wish to provide access to various data sources through
+the DNS, but are not necessarily interested in completely replacing
+the in-memory "rbt" database or in supporting features like dynamic
+update, DNSSEC, or even zone transfers.
+
+Often, all you want is limited, read-only DNS access to an existing
+system.  For example, you may have an existing relational database
+containing hostname/address mappings and wish to provide forvard and
+reverse DNS lookups based on this information.  Or perhaps you want to
+set up a simple DNS-based load balancing system where the name server
+answers queries about a single DNS name with a dynamically changing
+set of A records.
+
+BIND 9.1 introduced a new, simplified database interface, or "sdb",
+which greatly simplifies the writing of drivers for these kinds of
+applications.
+
+
+The sdb Driver
+
+An sdb driver is an object module, typically written in C, which is
+linked into the name server and registers itself with the sdb
+subsystem.  It provides a set of callback functions, which also serve
+to advertise its capabilities.  When the name server receives DNS
+queries, invokes the callback functions to obtain the data to respond
+with.
+
+Unlike the full database interface, the sdb interface represents all
+domain names and resource records as ASCII text.
+
+
+Writing an sdb Driver
+
+When a driver is registered, it specifies its name, a list of callback
+functions, and flags.
+
+The flags specify whether the driver wants to use relative domain
+names where possible.
+
+The callback functions are as follows.  The only one that must be
+defined is lookup().
+
+  - create(zone, argc, argv, driverdata, dbdata)
+	  Create a database object for "zone".
+
+  - destroy(zone, driverdata, dbdata)
+	  Destroy the database object for "zone".
+
+  - lookup(zone, name, dbdata, lookup)
+	  Return all the records at the domain name "name".
+
+  - authority(zone, dbdata, lookup)
+	  Return the SOA and NS records at the zone apex.
+
+  - allnodes(zone, dbdata, allnodes)
+	  Return all data in the zone, for zone transfers.
+
+For more detail about these functions and their parameters, see
+bind9/lib/dns/include/dns/sdb.h.  For example drivers, see
+bind9/contrib/sdb.
+
+
+Rebuilding the Server
+
+The driver module and header file must be copied to (or linked into)
+the bind9/bin/named and bind9/bin/named/include directories
+respectively, and must be added to the DBDRIVER_OBJS and DBDRIVER_SRCS
+lines in bin/named/Makefile.in (e.g. for the timedb sample sdb driver,
+add timedb.c to DBDRIVER_SRCS and timedb.@O@ to DBDRIVER_OBJS).  If
+the driver needs additional header files or libraries in nonstandard
+places, the DBDRIVER_INCLUDES and DBDRIVER_LIBS lines should also be
+updated.
+
+Calls to dns_sdb_register() and dns_sdb_unregister() (or wrappers,
+e.g. timedb_init() and timedb_clear() for the timedb sample sdb
+driver) must be inserted into the server, in bind9/bin/named/main.c.
+Registration should be in setup(), before the call to
+ns_server_create().  Unregistration should be in cleanup(),
+after the call to ns_server_destroy().  A #include should be added
+corresponding to the driver header file.
+
+You should try doing this with one or more of the sample drivers
+before attempting to write a driver of your own.
+
+
+Configuring the Server
+
+To make a zone use a new database driver, specify a "database" option
+in its "zone" statement in named.conf.  For example, if the driver
+registers itself under the name "acmedb", you might say
+
+   zone "foo.com" {
+	   database "acmedb";
+   };
+
+You can pass arbitrary arguments to the create() function of the
+driver by adding any number of whitespace-separated words after the
+driver name:
+
+   zone "foo.com" {
+	   database "acmedb -mode sql -connect 10.0.0.1";
+   };
+
+
+Hints for Driver Writers
+
+ - If a driver is generating data on the fly, it probably should
+   not implement the allnodes() function, since a zone transfer
+   will not be meaningful.  The allnodes() function is more relevant
+   with data from a database.
+
+ - The authority() function is necessary if and only if the lookup()
+   function will not add SOA and NS records at the zone apex.  If
+   SOA and NS records are provided by the lookup() function,
+   the authority() function should be NULL.
+
+ - When a driver is registered, an opaque object can be provided.  This
+   object is passed into the database create() and destroy() functions.
+
+ - When a database is created, an opaque object can be created that
+   is associated with that database.  This object is passed into the
+   lookup(), authority(), and allnodes() functions, and is
+   destroyed by the destroy() function.
+
+
+Future Directions
+
+A future release may support dynamic loading of sdb drivers.
+
+
+$Id: sdb,v 1.6 2004/03/05 05:04:54 marka Exp $

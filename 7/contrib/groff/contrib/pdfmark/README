@@ -1,0 +1,50 @@
+README for pdfmark.tmac
+=======================
+
+Copyright (C) 2004, Free Software Foundation Inc.
+Contributed by Keith Marshall (keith.d.marshall@ntlworld.com)
+
+This is free software.  See file COPYING, for copying permissions,
+and warranty disclaimer.
+
+This is a preview release of a proposed pdfmark.tmac macro package,
+for use with GNU troff (groff).  It is not yet complete, and should
+be considered as an alpha release;  there are a few problems to be
+resolved (see file PROBLEMS).
+
+Partial documentation is provided, in groff-ms format.  To convert
+this to PDF format, you will require a working groff installation,
+a working ghostscript installation, with the gs command in your PATH,
+and a GNU-compatible make.  The tarball should be unpacked in the
+top directory of your groff source tree, then:
+
+  cd <groff-current>/contrib/pdfmark
+  make pdfmark
+
+where <groff-current> is the top directory of your current groff
+source tree.
+
+Included in this package, are:
+
+  pdfmark.tmac -- the core pdfmark macro set
+  spdf.tmac    -- a rudimentary set of bindings for ms macros
+  pdfmark.ms   -- preliminary documentation
+  cover.ms     -- a template for the documentation cover sheet
+  gnu.eps      -- the groff logo, copied from the groff distribution
+  Makefile     -- makefile, for formatting the documentation
+  README       -- this file
+  PROBLEMS     -- a list of known problems
+  TODO         -- a list of planned features, not yet implemented
+
+To make the pdfmark macros generally usable, copy pdfmark.tmac to the
+'site-tmac' directory appropriate to your groff installation; (ms users
+may also wish to copy spdf.tmac).  The macros may then be accessed, by
+including the '-mpdfmark' option on the groff command line; (for ms
+users, '-mspdf' is equivalent to '-ms -mpdfmark', with some extra
+macros 'thrown in').
+
+Comments, and bug reports are welcomed.  Please post to the groff
+mailing list, groff@gnu.org; (you must be subscribed to this list to
+post mails).  To subscribe, visit
+  
+  http://lists.gnu.org/mailman/listinfo/groff

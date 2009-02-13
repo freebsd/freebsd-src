@@ -1,0 +1,7 @@
+#!/usr/local/bin/tclsh
+
+set CTMname	ports-cur
+set CTMref	/usr/ports
+set CTMignore	{/CVS$|/CVS/|^distfiles}
+set CTMbogus	{\\.core$|/#cvs|/\\.#}
+set CTMmail	ctm-ports-cur@freebsd.org

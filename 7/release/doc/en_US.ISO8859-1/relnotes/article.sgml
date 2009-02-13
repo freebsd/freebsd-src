@@ -1,0 +1,353 @@
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!ENTITY % include.historic "IGNORE">
+<!ENTITY % no.include.historic "IGNORE">
+]>
+
+<article>
+<articleinfo>
+  <title>&os; &release.current; Release Notes</title>
+
+  <corpauthor>The &os; Project</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <year>2006</year>
+    <year>2007</year>
+    <year>2008</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+  </copyright>
+
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.ibm;
+    &tm-attrib.ieee;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.general;
+  </legalnotice>
+
+  <abstract>
+    <para>The release notes for &os; &release.current; contain a summary
+      of the changes made to the &os; base system on the
+      &release.branch; development line.
+      This document lists applicable security advisories that were issued since
+      the last release, as well as significant changes to the &os;
+      kernel and userland.
+      Some brief remarks on upgrading are also presented.</para>
+  </abstract>
+</articleinfo>
+
+<sect1 id="intro">
+  <title>Introduction</title>
+
+  <para>This document contains the release notes for &os;
+    &release.current;.  It
+    describes recently added, changed, or deleted features of &os;.
+    It also provides some notes on upgrading
+    from previous versions of &os;.</para>
+
+<![ %release.type.current [
+
+  <para>The &release.type; distribution to which these release notes
+    apply represents the latest point along the &release.branch; development
+    branch since &release.branch; was created.  Information regarding pre-built, binary
+    &release.type; distributions along this branch
+    can be found at <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+<![ %release.type.snapshot [
+
+  <para>The &release.type; distribution to which these release notes
+    apply represents a point along the &release.branch; development
+    branch between &release.prev; and the future &release.next;.
+    Information regarding
+    pre-built, binary &release.type; distributions along this branch
+    can be found at <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>This distribution of &os; &release.current; is a
+    &release.type; distribution.  It can be found at <ulink
+    url="&release.url;"></ulink> or any of its mirrors.  More
+    information on obtaining this (or other) &release.type;
+    distributions of &os; can be found in the <ulink
+    url="&url.books.handbook;/mirrors.html"><quote>Obtaining
+    &os;</quote> appendix</ulink> to the <ulink
+    url="&url.books.handbook;/">&os;
+    Handbook</ulink>.</para>
+
+]]>
+
+  <para>All users are encouraged to consult the release errata before
+    installing &os;.  The errata document is updated with
+    <quote>late-breaking</quote> information discovered late in the
+    release cycle or after the release.  Typically, it contains
+    information on known bugs, security advisories, and corrections to
+    documentation.  An up-to-date copy of the errata for &os;
+    &release.current; can be found on the &os; Web site.</para>
+
+</sect1>
+
+<sect1 id="new">
+  <title>What's New</title>
+
+  <para>This section describes
+    the most user-visible new or changed features in &os;
+    since &release.prev;.
+  </para>
+
+  <para>Typical release note items
+    document recent security advisories issued after
+    &release.prev;,
+    new drivers or hardware support, new commands or options,
+    major bug fixes, or contributed software upgrades.  They may also
+    list changes to major ports/packages or release engineering
+    practices.  Clearly the release notes cannot list every single
+    change made to &os; between releases; this document focuses
+    primarily on security advisories, user-visible changes, and major
+    architectural improvements.</para>
+
+  <sect2 id="security">
+    <title>Security Advisories</title>
+
+    <para></para>
+  </sect2>
+
+  <sect2 id="kernel">
+    <title>Kernel Changes</title>
+
+    <para>The &man.ddb.4; kernel debugger now has an output capture
+      facility.  Input and output from &man.ddb.4; can now be captured
+      to a memory buffer for later inspection using &man.sysctl.8; or
+      a textdump.  The new <command>capture</command> command controls
+      this feature.</para>
+
+    <para>The &man.ddb.4; debugger now supports a simple scripting
+      facility, which supports a set of named scripts consisting of a
+      set of &man.ddb.4; commands.  These commands can be managed from
+      within &man.ddb.4; or with the use of the new &man.ddb.8;
+      utility.  More details can be found in the &man.ddb.4; manual
+      page.</para>
+
+    <para>The kernel now supports a new textdump format of kernel
+      dumps.  A textdump provides higher-level information via
+      mechanically generated/extracted debugging output, rather than a
+      simple memory dump.  This facility can be used to generate brief
+      kernel bug reports that are rich in debugging information, but
+      are not dependent on kernel symbol tables or precisely
+      synchronized source code.  More information can be found in the
+      &man.textdump.4; manual page.</para>
+
+    <para>[&arch.amd64;, &arch.i386;] The ULE
+      scheduler is now the default process scheduler
+      in <filename>GENERIC</filename> kernels.</para>
+
+    <sect3 id="boot">
+      <title>Boot Loader Changes</title>
+
+      <para></para>
+
+      <para>[&arch.amd64;, &arch.i386;] The BTX kernel used by the boot
+	loader has been changed to invoke BIOS routines from real
+	mode.  This change makes it possible to boot &os; from USB
+	devices.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] A new gptboot boot loader has
+        been added to support booting from a GPT labeled disk.  A
+        new <command>boot</command> command has been added to
+        &man.gpt.8;, which makes a GPT disk bootable by writing the
+        required bits of the boot loader, creating a new boot
+        partition if required.</para>
+
+    </sect3>
+
+    <sect3 id="proc">
+      <title>Hardware Support</title>
+
+      <para>The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
+        PCMCIA smartcard readers, has been added.</para>
+
+      <para>The &man.uslcom.4; driver, a driver for Silicon
+        Laboratories CP2101/CP2102-based USB serial adapters, has been
+        imported from OpenBSD.</para>
+
+      <sect4 id="mm">
+	<title>Multimedia Support</title>
+
+	<para></para>
+      </sect4>
+
+      <sect4 id="net-if">
+	<title>Network Interface Support</title>
+
+	<para>The &man.ale.4; driver has been added to provide support
+	  for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.
+	  This driver is not enabled in <filename>GENERIC</filename>
+	  kernels for this release.</para>
+
+	<para>The &man.em.4; driver has been split into two drivers
+	  with some common parts.  The &man.em.4; driver will continue
+	  to support adapters up to the 82575, as well as new
+	  client/desktop adapters.  A new &man.igb.4; driver
+	  will support new server adapters.</para>
+
+	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
+	  been updated to include a number of stability fixes.</para>
+
+      </sect4>
+    </sect3>
+
+    <sect3 id="net-proto">
+      <title>Network Protocols</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3 id="disks">
+      <title>Disks and Storage</title>
+
+      <para>The &man.aac.4; driver now supports volumes larger than
+        2TB in size.</para>
+
+      <para>The &man.hptrr.4; driver has been updated to version 1.2
+        from Highpoint.</para>
+
+    </sect3>
+
+    <sect3 id="fs">
+      <title>File Systems</title>
+
+      <para></para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>Userland Changes</title>
+
+    <para>The &man.adduser.8; utility now supports
+      a <option>-M</option> option to set the mode of a new user's
+      home directory.</para>
+
+    <para>&man.chflags.1; now supports a <option>-v</option> flag for
+      verbose output and a <option>-f</option> flag to ignore errors
+      with the same semantics as (for example)
+      &man.chmod.1;.</para>
+
+    <para>The &man.realpath.1; utility now supports
+      a <option>-q</option> flag to suppress warnings; it now also
+      accepts multiple paths on its command line.</para>
+
+    <para>&man.cron.8; now supports a <option>-m</option> option,
+      which can help managing cron mails in massive hosting
+      environment.</para>
+
+    <para>&man.ypserv.8; now supports a <option>-P</option> option to
+      specify the port number on which it should listen.</para>
+
+    <sect3 id="rc-scripts">
+      <title><filename>/etc/rc.d</filename> Scripts</title>
+
+      <para></para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="contrib">
+    <title>Contributed Software</title>
+
+    <para><application>AMD</application> has been updated from 6.0.10
+      to 6.1.5.</para>
+
+    <para><application>awk</application> has been updated from 1 May
+      2007 release to the 23 October 2007 release.</para>
+
+    <para><application>bzip2</application> has been updated from 1.0.4
+      to 1.0.5.</para>
+
+    <para><application>OpenPAM</application> has been updated from the
+      Figwort release to the Hydrangea release.</para>
+
+    <para><application>OpenSSH</application> has been updated from
+      4.5p1 to 5.1p1.</para>
+
+    <para><application>sendmail</application> has been updated from
+      8.14.2 to 8.14.3.</para>
+
+    <para>The timezone database has been updated from
+      the <application>tzdata2007h</application> release to
+      the <application>tzdata2008b</application> release.</para>
+
+  </sect2>
+
+  <sect2 id="ports">
+    <title>Ports/Packages Collection Infrastructure</title>
+
+    <para></para>
+
+  </sect2>
+
+  <sect2 id="releng">
+    <title>Release Engineering and Integration</title>
+
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.20.1 to 2.22.</para>
+
+  </sect2>
+
+  <sect2 id="doc">
+    <title>Documentation</title>
+
+    <para></para>
+  </sect2>
+</sect1>
+
+<sect1 id="upgrade">
+  <title>Upgrading from previous releases of &os;</title>
+
+  <para>[&arch.i386;, &arch.amd64;] Beginning with &os; 6.2-RELEASE,
+    binary upgrades between RELEASE versions (and snapshots of the
+    various security branches) are supported using the
+    &man.freebsd-update.8; utility.  The binary upgrade procedure will
+    update unmodified userland utilities, as well as unmodified GENERIC or
+    SMP kernels distributed as a part of an official &os; release.
+    The &man.freebsd-update.8; utility requires that the host being
+    upgraded have Internet connectivity.</para>
+
+  <para>An older form of binary upgrade is supported through the
+    <command>Upgrade</command> option from the main &man.sysinstall.8;
+    menu on CDROM distribution media.  This type of binary upgrade
+    may be useful on non-&arch.i386;, non-&arch.amd64; machines
+    or on systems with no Internet connectivity.</para>
+
+  <para>Source-based upgrades (those based on recompiling the &os;
+    base system from source code) from previous versions are
+    supported, according to the instructions in
+    <filename>/usr/src/UPDATING</filename>.</para>
+
+  <important>
+    <para>Upgrading &os; should, of course, only be attempted after
+      backing up <emphasis>all</emphasis> data and configuration
+      files.</para>
+  </important>
+</sect1>
+</article>

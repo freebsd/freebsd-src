@@ -1,0 +1,29 @@
+PROG=indxbib$(EXEEXT)
+MAN1=indxbib.n
+XLIBS=$(LIBBIB) $(LIBGROFF)
+MLIB=$(LIBM)
+OBJS=\
+  indxbib.$(OBJEXT) \
+  signal.$(OBJEXT)
+CCSRCS=\
+  $(srcdir)/indxbib.cpp
+CSRCS=\
+  $(srcdir)/signal.c
+NAMEPREFIX=$(g)
+
+install_data: $(srcdir)/eign
+	-test -d $(datadir) || $(mkinstalldirs) $(datadir)
+	-test -d $(dataprogramdir) || $(mkinstalldirs) $(dataprogramdir)
+	-test -d $(datasubdir) || $(mkinstalldirs) $(datasubdir)
+	if test -f /usr/lib/eign; then \
+	  rm -f $(common_words_file); \
+	  ln -s /usr/lib/eign $(common_words_file) 2>/dev/null \
+	  || ln /usr/lib/eign $(common_words_file) 2>/dev/null \
+	  || cp /usr/lib/eign $(common_words_file); \
+	else \
+	  rm -f $(common_words_file); \
+	  $(INSTALL_DATA) $(srcdir)/eign $(common_words_file); \
+	fi
+
+uninstall_sub:
+	-rm -f $(common_words_file)

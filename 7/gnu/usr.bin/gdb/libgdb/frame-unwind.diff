@@ -1,0 +1,27 @@
+$FreeBSD$
+
+Index: frame-unwind.c
+===================================================================
+RCS file: /home/ncvs/src/contrib/gdb/gdb/frame-unwind.c,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 frame-unwind.c
+--- frame-unwind.c	20 Jun 2004 18:16:58 -0000	1.1.1.1
++++ frame-unwind.c	10 Sep 2005 06:36:55 -0000
+@@ -27,6 +27,8 @@
+ 
+ static struct gdbarch_data *frame_unwind_data;
+ 
++frame_unwind_sniffer_ftype *kgdb_sniffer_kluge;
++
+ struct frame_unwind_table
+ {
+   frame_unwind_sniffer_ftype **sniffer;
+@@ -49,6 +51,8 @@
+ {
+   struct frame_unwind_table *table = XCALLOC (1, struct frame_unwind_table);
+   append_predicate (table, dummy_frame_sniffer);
++  if (kgdb_sniffer_kluge != NULL)
++    append_predicate (table, kgdb_sniffer_kluge);
+   return table;
+ }
+ 

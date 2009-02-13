@@ -1,0 +1,369 @@
+#	@(#)README	8.26 (Berkeley) 10/19/96
+
+Nvi uses the GNU autoconf program for configuration and compilation.  You
+should enter:
+
+	configure
+	make
+
+and nvi will configure the system and build one or two binaries:  nvi and
+tknvi.  You can use any path to the configure script, e.g., to build for
+an x86 architecture, I suggest that you do:
+
+	mkdir build.x86
+	cd build.x86
+	../build/configure
+	make
+
+There are options that you can specify to the configure command.  See
+the next section for a description of these options.
+
+If you want to rebuild or reconfigure nvi, for example, because you change
+your mind as to the curses library that you want to use, create a new
+directory and reconfigure it using "configure" and whatever options you
+choose, don't try to selectively edit the files.
+
+By default, nvi is installed as "vi", with hard links to "ex" and "view".
+To install them using different names, use the configure program options.
+For example, to install them as "nvi", "nex" and "nview", use:
+
+	configure --program-prefix=n
+
+See the section below on installation for details.
+
+Note, if you're building nvi on a LynxOS system, you should read the
+README.LynxOS file in this directory for additional build instructions
+that are specific to that operating system.
+
+If you have trouble with this procedure, send email to the addresses
+listed in ../README.  In that email, please provide a complete script
+of the output for all of the above commands that you entered.
+
+=-=-=-=-=-=-=
+NVI'S OPTIONS TO THE CONFIGURE PROGRAM
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+There are many options that you can enter to the configuration program.
+To see a complete list of the options, enter "configure --help".  Only
+a few of them are nvi specific.  These options are as follows:
+
+  --disable-curses        DON'T use the nvi-provided curses routines.
+  --disable-db            DON'T use the nvi-provided DB routines.
+  --disable-re            DON'T use the nvi-provided RE routines.
+  --enable-debug          Build a debugging version.
+  --enable-perlinterp     Include a Perl interpreter in vi.
+  --enable-tclinterp      Include a Tk/Tcl interpreter in vi.
+  --enable-tknvi          Build a Tk/Tcl front-end for vi.
+
+disable-curses:
+	By default, nvi loads its own implementation of the curses
+	routines (which are a stripped-down version of the 4.4BSD curses
+	library).  If you have your own curses library implementation and
+	you want to use it instead, enter:
+
+	--disable-curses
+
+	as an argument to configure, and the curses routines will be taken
+	from whatever libraries you load.  Note: System V based curses
+	implementations are usually broken.  See the last section of this
+	README for further information about nvi and the curses library.
+
+disable-db:
+	By default, nvi loads its own versions of the Berkeley DB routines
+	(which are a stripped-down version of DB 1.85).  If you have your
+	own version of the Berkeley DB routines and you want to use them
+	instead, enter:
+
+	--disable-db
+
+	as an argument to configure, and the DB routines will be taken
+	from whatever libraries you load.  Make sure that the DB routines
+	you use are at least version 1.85 or later.
+
+disable-re:
+	By default, nvi loads its own versions of the POSIX 1003.2 Regular
+	Expression routines (which are Henry Spencer's implementation).
+	If your C library contains an implementation of the POSIX 1003.2
+	RE routines (note, this is NOT the same as the historic UNIX RE
+	routines), and you want to use them instead, enter:
+
+	--disable-re
+
+	as an argument to configure, and the RE routines will be taken
+	from whatever libraries you load.  Please ensure that your RE
+	routines implement Henry Spencer's extensions for doing vi-style
+	"word" searches.
+
+enable-debug:
+	If you want to build nvi with no optimization (i.e. without -O
+	as a compiler flag), with -g as a compiler flag, and with DEBUG
+	defined during compilation, enter:
+
+	--enable-debug
+
+	as an argument to configure.
+
+enable-perlinterp:
+	If you have the Perl 5 libraries and you want to compile in the
+	Perl interpreter, enter:
+
+	--enable-perlinterp
+
+	as an argument to configure.  (Note: this is NOT possible with
+	Perl 4, or even with Perl 5 versions earlier than 5.002.)
+
+enable-tclinterp:
+	If you have the Tk/Tcl libraries and you want to compile in the
+	Tcl/Tk interpreter, enter:
+
+	--enable-tclinterp
+
+	as an argument to configure.  If your Tk/Tcl include files and
+	libraries aren't in the standard library and include locations,
+	see the next section of this README file for more information.
+
+enable-tknvi:
+	If you have the Tk/Tcl libraries and you want to build the Tcl/Tk
+	nvi front-end, enter:
+
+	--enable-tknvi
+
+	as an argument to configure.  If your Tk/Tcl include files and
+	libraries aren't in the standard library and include locations,
+	see the next section of this README file for more information.
+
+=-=-=-=-=-=-=
+ADDING OR CHANGING COMPILERS, OR COMPILE OR LOAD LINE FLAGS
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+If you want to use a specific compiler, specify the CC environment
+variable before running configure.  For example:
+
+	env CC=gcc configure
+
+Using anything other than the native compiler will almost certainly
+mean that you'll want to check the compile and load line flags, too.
+
+If you want to specify additional load line flags, specify the ADDLDFLAGS
+environment variable before running configure.  For example:
+
+	env ADDLDFLAGS="-Q" configure
+
+would specify the -Q flag in the load line when the nvi programs are
+loaded.
+
+If you don't want configure to use the default load line flags for the
+system, specify the LDFLAGS environment variable before running configure.
+For example:
+
+	env LDFLAGS="-32" configure
+
+will cause configure to set the load line flags to "-32", and not set
+them based on the current system.
+
+If you want to specify additional compile line flags, specify the
+ADDCPPFLAGS environment variable before running configure.  For example:
+
+	env ADDCPPFLAGS="-I../foo" configure
+
+would cause the compiler to be passed the -I../foo flag when compiling
+test programs during configuration as well as when building nvi object
+files.
+
+If you don't want configure to use the default compile line flags for the
+system, specify the CPPFLAGS environment variable before running configure.
+For example:
+
+	env CPPFLAGS="-I.." configure
+
+will cause configure to use "-I.." as the compile line flags instead of
+the default values.
+
+=-=-=-=-=-=-=
+ADDING LIBRARIES AND INCLUDE FILES
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+If the Tk/Tcl or any other include files or libraries are in non-standard
+places on your system, you will need to specify the directory path where
+they can be found.
+
+If you want to specify additional library paths, set the ADDLIBS environment
+variable before running configure.  For example:
+
+	env ADDLIBS="-L/a/b -L/e/f -ldb" configure
+
+would specify two additional directories to search for libraries, /a/b
+and /e/f, and one additional library to load, "db".
+
+If you want to specify additional include paths, specify the ADDCPPFLAGS
+environment variable before running configure.  For example:
+
+	env ADDCPPFLAGS="-I/usr/local/include" LIBS="-ldb" configure
+
+would search /usr/local/include for include files, as well as load the db
+library as described above.
+
+As a final example, let's say that you've downloaded ncurses from the net
+and you've built it in a directory named ncurses which is at the same
+level in the filesystem hierarchy as nvi.  You would enter something like:
+
+	env ADDCPPFLAGS="-I../../ncurses/include" \
+	    ADDLIBS="-L../../ncurses/libraries" configure
+
+to cause nvi to look for the curses include files and the curses library
+in the ncurses environment.
+
+Notes:
+	Make sure that you prepend -L to any library directory names, and
+	that you prepend -I to any include file directory names!  Also,
+	make sure that you quote the paths as shown above, i.e. with
+	single or double quotes around the values you're specifying for
+	ADDCPPFLAGS and ADDLIBS.
+
+	=-=-=-=-=-=
+	You should NOT need to add any libraries or include files to load
+	the Perl5 interpreter.  The configure script will obtain that
+	information directly from the Perl5 program.  This means that the
+	configure script must be able to find perl in its path.  It looks
+	for "perl5" first, and then "perl".  If you're building a Perl
+	interpreter and neither is found, it's a fatal error.
+
+	=-=-=-=-=-=
+	You do not need to specify additional libraries to load Tk/Tcl,
+	Perl or curses, as the nvi configuration script adds the
+	appropriate libraries to the load line whenever you specify
+	--enable-tknvi or other Perl or Tk/Tcl related option, or build
+	the Tk/Tcl or curses version of nvi.  The library names that are
+	automatically loaded are as follows:
+
+	for Perl:	-lperl
+	for Tk/Tcl:	-ltk -ltcl -lm
+	for curses:	-lcurses
+
+	In addition, the configure script loads:
+
+		... the X libraries when loading the Tk/Tcl libraries,
+		    if they exist.
+
+		... the -ltermcap or -ltermlib libraries when loading
+		    any curses library, if they exist.
+
+	=-=-=-=-=-=
+	The env command is available on most systems, and simply sets one
+	or more environment variables before running a command.  If the
+	env command is not available to you, you can set the environment
+	variables in your shell before running configure.  For example,
+	in sh or ksh, you could do:
+
+		ADDLIBS="-L/a/b -L/e/f -ldb" configure
+
+	and in csh or tcsh, you could do:
+
+		setenv ADDLIBS "-L/a/b -L/e/f -ldb"
+		configure
+
+	See your shell manual page for further information.
+
+=-=-=-=-=-=-=
+INSTALLING NVI
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Nvi installs the following files into the following locations, with
+the following default values:
+
+Variables:		Default value:
+prefix			/usr/local
+exec_prefix		$(prefix)
+bindir			$(prefix)/bin
+datadir			$(prefix)/share
+mandir			$(prefix)/man
+
+File(s):		Default location
+----------------------------------------
+vi			$(bindir)/vi
+vi.1			$(mandir)/man1/vi.1
+vi.0			$(mandir)/cat1/vi.0
+Perl scripts		$(datadir)/vi/perl/
+Tcl scripts		$(datadir)/vi/tcl/
+Message Catalogs	$(datadir)/vi/catalog/
+
+Notes:
+	There are two hard links to the vi program, named ex and view.
+	Similarly, there are two hard links to the unformatted vi manual
+	page, named ex.1 and view.1, and two hard links to the formatted
+	manual page, named ex.0 and view.0.  These links are created when
+	the program and man pages are installed.
+
+	If you want to install vi, ex, view and the man pages as nvi, nex,
+	nview, use the configure option --program-prefix=n.  Other, more
+	complex transformations are possible -- use configure --help to
+	see more options.
+
+	To move the entire installation tree somewhere besides /usr/local,
+	change the value of both "exec_prefix" and "prefix".  To move the
+	binaries to a different place, change the value of "bindir".
+	Similarly, to put the datafiles (the message catalogs, Perl and
+	Tcl scripts) or the man pages in a different place, change the
+	value of "datadir" or "mandir".  These values can be changed as
+	part of configuration:
+
+		configure --exec_prefix=/usr/contrib --prefix=/usr/share
+
+	or when doing the install itself:
+
+		make exec_prefix=/usr/contrib prefix=/usr/contrib install
+
+	The datafile directory (e.g., /usr/local/share/vi by default) is
+	completely removed and then recreated as part of the installation
+	process.
+
+=-=-=-=-=-=-=
+NVI AND THE CURSES LIBRARY
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The major portability problem for nvi is selecting a curses library.
+Unfortunately, it is common to find broken versions of curses -- the
+original System V curses was broken, resulting in all vendors whose
+implementations are derived from System V having broken implementations
+in turn.
+
+For this reason, BY DEFAULT, nvi uses the stripped-down curses library
+that's included in its distribution.  Of course, it would be preferable
+to use the vendor's curses library, or one of the newer implementations
+of curses, e.g., ncurses.
+
+To use the vendor's curses library, specify the:
+
+	--disable-curses
+
+argument to the configure command.  If you use the vendor's or other
+curses library, and you see any of the following symptoms:
+
+	+ Core dumps in curses routines.
+	+ Missing routines when compiling.
+	+ Repainting the wrong characters on the screen.
+	+ Displaying inverse video in the wrong places.
+	+ Failure to reset your terminal to the correct modes on exit.
+
+you have a broken curses implementation, and you should reconfigure nvi
+to use another curses library or the curses library provided with nvi.
+
+There are two alternative sources for curses libraries:
+
+#1: Compile the 4BSD curses library from any of the recent BSD
+    releases: FreeBSD, NetBSD or 4.4BSD-Lite release 2.  These
+    libraries should be able to support nvi.
+
+#2: Retrieve and build the ncurses library.  This library is not
+    recommended unreservedly, at least for now, for two reasons.
+    First, it can't be built on any system where the compiler
+    doesn't support function prototypes.  Second, it currently has
+    a few bugs in its support for nvi.  It mostly works, but it's
+    still not quite right.
+
+One final note.  If you see the following symptoms:
+
+	+ Line-by-line screen repainting instead of scrolling.
+
+it usually means that your termcap or terminfo information is insufficient
+for the terminal.

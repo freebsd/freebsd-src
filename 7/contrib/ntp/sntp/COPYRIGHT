@@ -1,0 +1,80 @@
+        General Public Licence for the software known as MSNTP
+        ------------------------------------------------------
+
+	  (c) Copyright, N.M. Maclaren, 1996, 1997, 2000
+	  (c) Copyright, University of Cambridge, 1996, 1997, 2000
+
+
+
+Free use of MSNTP in source and binary forms is permitted, provided that this
+entire licence is duplicated in all copies, and that any documentation,
+announcements, and other materials related to use acknowledge that the software
+was developed by N.M. Maclaren (hereafter refered to as the Author) at the
+University of Cambridge.  Neither the name of the Author nor the University of
+Cambridge may be used to endorse or promote products derived from this material
+without specific prior written permission.
+
+The Author and the University of Cambridge retain the copyright and all other
+legal rights to the software and make it available non-exclusively.  All users
+must ensure that the software in all its derivations carries a copyright notice
+in the form:
+	  (c) Copyright N.M. Maclaren,
+	  (c) Copyright University of Cambridge.
+
+
+
+                           NO WARRANTY
+
+Because the MSNTP software is licensed free of charge, the Author and the
+University of Cambridge provide absolutely no warranty, either expressed or
+implied, including, but not limited to, the implied warranties of
+merchantability and fitness for a particular purpose.  The entire risk as to
+the quality and performance of the MSNTP software is with you.  Should MSNTP
+prove defective, you assume the cost of all necessary servicing or repair.
+
+In no event, unless required by law, will the Author or the University of
+Cambridge, or any other party who may modify and redistribute this software as
+permitted in accordance with the provisions below, be liable for damages for
+any losses whatsoever, including but not limited to lost profits, lost monies,
+lost or corrupted data, or other special, incidental or consequential losses
+that may arise out of the use or inability to use the MSNTP software.
+
+
+
+                         COPYING POLICY
+
+Permission is hereby granted for copying and distribution of copies of the
+MSNTP source and binary files, and of any part thereof, subject to the
+following licence conditions:
+
+1. You may distribute MSNTP or components of MSNTP, with or without additions
+developed by you or by others.  No charge, other than an "at-cost" distribution
+fee, may be charged for copies, derivations, or distributions of this material
+without the express written consent of the copyright holders.
+
+2. You may also distribute MSNTP along with any other product for sale,
+provided that the cost of the bundled package is the same regardless of whether
+MSNTP is included or not, and provided that those interested only in MSNTP must
+be notified that it is a product freely available from the University of
+Cambridge.
+
+3. If you distribute MSNTP software or parts of MSNTP, with or without
+additions developed by you or others, then you must either make available the
+source to all portions of the MSNTP system (exclusive of any additions made by
+you or by others) upon request, or instead you may notify anyone requesting
+source that it is freely available from the University of Cambridge.
+
+4. You may not omit any of the copyright notices on either the source files,
+the executable files, or the documentation.
+
+5. You may not omit transmission of this License agreement with whatever
+portions of MSNTP that are distributed.
+
+6. Any users of this software must be notified that it is without warranty or
+guarantee of any nature, express or implied, nor is there any fitness for use
+represented.
+
+
+October 1996
+April 1997
+October 2000

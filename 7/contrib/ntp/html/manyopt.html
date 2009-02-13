@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<meta name="generator" content="HTML Tidy, see www.w3.org">
+		<title>Automatic NTP Configuration Options</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>Automatic NTP Configuration Options</h3>
+		<img src="pic/alice51.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
+		<p>Make sure who your friends are.</p>
+		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">20:55</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="275">Tuesday, October 11, 2005</csobj></p>
+		<br clear="left">
+		<h4>Related Links</h4>
+		<script type="text/javascript" language="javascript" src="scripts/links9.txt"></script>
+		<h4>Table of Contents</h4>
+		<ul>
+			<li class="inline"><a href="#bcst">Broadcasting</a>
+			<li class="inline"><a href="#mcst">Manycasting</a>
+			<li class="inline"><a href="#orphan">Orphan Mode</a>
+			<li class="inline"><a href="#opt">Server Discovery Options</a>
+		</ul>
+		<hr>
+		<h4 id="bcst">Broadcasting</h4>
+		<p>Broadcasting is the simplest way to provide automatic server discovery. It uses the multi-destination paradigm, where the subnet spanning tree is constructed automatically, either by the switches in an Ethernet LAN&nbsp;or the DVMRP&nbsp;or PIM&nbsp;protocols when spanning multiple networks.</p>
+		<p>A broadcast or multicast server is mobilized by the broadcast configuration command. The addresses can be either from the IPv4 broadcast/mulitcast address family or the IPv6 address family. Multiple broadcast server associations can be specified for a single host.</p>
+		<p>A host is enabled for broadcast reception using the <tt>broadcastclient</tt> configuration command, with or without the <tt>novolley</tt> option. Upon receiving the first message from a broadcast server, the client mobilizes an ephemeral client association and exchanges a volley of client/server messages in order to quickly authenticate the source, set the clock and measure the propagation delay, then reverts to listen-only mode. A multicast client is mobilized in the same way using the <tt>multicastclient</tt> configuration command and specified multicast group address.</p>
+		<p>Broadcasting can be used with either symmetric key or public key cryptography. Public key cryptography offers the best protection against compromised keys and is generally considered stronger. By default, either of these two means is required, but this can be overridden by the <tt>disable auth</tt> command.</p>
+		<p>In both broadcast and multicast client operations the client association is demobilized in case of error or timeout due to loss of server or connectivity. </p>
+		<h4 id="mcst">Manycasting</h4>
+		<p>Manycasting is a automatic discovery and configuration paradigm new to NTPv4. It is intended as a means for a client to troll the nearby network neighborhood to find cooperating servers, validate them using cryptographic means and evaluate their time values with respect to other servers that might be lurking in the vicinity. The intended result is that each client mobilizes associations with a given number of the &quot;best&quot; nearby servers, yet automatically reconfigures to sustain this number of servers should one or another fail.</p>
+		<p>Note that the manycast paradigm does not coincide with the anycast paradigm described in RFC-1546, which is designed to find a single server from a clique of servers providing the same service. The manycast paradigm is designed to find a plurality of redundant servers satisfying defined optimality criteria.</p>
+		<p>Manycasting can be used with either symmetric key or public key cryptography. Public key cryptography offers the best protection against compromised keys and is generally considered stronger. By default, either of these two means is required, but this can be overridden by the <tt>disable auth</tt> command.</p>
+		<p>A manycast client association is configured using the <tt>manycastclient</tt> configuration command, which is similar to the <tt>server</tt> configuration command, but with a broadcast or multicast address. Depending on address family. The manycast client sends ordinary client mode messages, but with a broadcast address rather than a unicast address. It sends only if less than a given threshold of servers have been found and then only at the minimum feasible rate and minimum feasible time-to-live (TTL) hops. There can be as many manycast client associations as different broadcast addresses, each one serving as a template for a future unicast client/server association.</p>
+		<p>Manycast servers configured with the <tt>manycastserver</tt> command listen on the specified broadcast address for manycast client messages. If a manycast server is in scope of the current TTL and is itself synchronized to a valid source and operating at a stratum level equal to or lower than the manycast client, it replies to the manycast client message with an ordinary unicast server message.</p>
+		<p>The manycast client receiving this message mobilizes a preemptable client association according to the matching manycast client template, but only if cryptographically authenticated and the server stratum is less than or equal to the client stratum. The client runs the NTP mitigation algorithms, which act to demobilize all but a threshold number of associations according to stratum and synchronization distance. The surviving associations then continue in ordinary client/server mode.</p>
+		<p>If for some reason the number of available servers falls below the threshold, the manycast client resumes sending broadcast messages. The polling strategy is designed to reduce as much as possible the volume of broadcast messages and the effects of implosion due to near-simultaneous arrival of manycast server messages. The strategy is determined by the <tt>tos</tt> and <tt>ttl</tt> configuration commands described below.</p>
+		<p>It is possible and frequently useful to configure a host as both manycast client and manycast server. A number of hosts configured this way and sharing a common group address will automatically organize themselves in an optimum configuration based on stratum and synchronization distance.</p>
+		<p>For example, consider an NTP subnet of two primary servers and several secondary servers and a number of dependent clients. With twoAll servers and clients have identical configuration files including both <tt>multicastclient</tt> and <tt>multicastserver</tt> commands using, for instance, multicast group address 239.1.1.1. Each primary server configuration file must include commands for the primary reference source such as a GPS receiver.</p>
+		<p>The remaining configuration files for all secondary servers and clients have the same contents, except for the <tt>tos</tt> command, which is specific for each stratum level. For stratum 1 and stratum 2 servers, that command is not necessary. For stratum 3 and above servers the <tt>tos floor</tt> value is set to the intended stratum number. Thus, all stratum 3 configuration files use <tt>tos floor 3</tt>, all stratum 4 files use <tt>tos floor 4</tt> and so forth.</p>
+		<p>Once operations have stabilized, the primary servers will find the primary reference source and each other, since they both operate at the same stratum (1), but not with any secondary server or client, since these operate at a higher stratum. The secondary servers will find the servers at the same stratum level. If one of the primary servers loses its GPS receiver, it will continue to operate as a client and other clients will time out the corresponding association and re-associate accordingly.</p>
+		<h4 id="orphan">Orphan Mode</h4>
+		<p>Sometimes it is necessary to operate an NTP&nbsp;subnet in isolation, because a local reference clock is unavailable or connectivity to the Internet is not provided. In such cases it may be necessary that the subnet servers and clients remain synchronized to a common timescale, not necessarily the UTC&nbsp;timescale. Previously, this function was provided by the local clock driver, which could be configured for a server that could be reached, directly or indirectly from all other servers and clients in the subnet.</p>
+		<p>There are many disadvantages using the local clock driver: multiple source redundancy is not possible and the subnet is vulnerable to single-point failures. Orphan mode is intended to replace the need for the local clock driver. It operates in subnet configurations in all modes, including broadcast, and multiple servers and clients and handles seamless switching as primary sources fail and recover.</p>
+		<p>A server or client is enabled for orphan mode using the <tt>tos orphan <i>stratum</i></tt> command, where <tt><i>stratum</i></tt> is some stratum less than 16 and greater than any anticipated stratum that might occur with ordinary Internet servers. This is the same consideration that guides the local clock driver stratum.</p>
+		<p>As long as the stratum of any orphan is less than the orphan stratum, the servers and clients operate in the normal way. However, if the stratum equals or exceeds this stratum, the server or client is considered an orphan. If under these conditions a host has no sources of the same or lower stratum, it is designated an orphan parent; otherwise, it is considered an orphan child. Orphan parents show offset zero, root delay zero and reference ID&nbsp;127.0.0.1, which of course is the Unix loopback address. Orphan children show the mitigated offset of their servers, root delay randomized over a moderate range and reference ID of their system peer. An important distinction is that the entire subnet operates at the same orphan stratum and that the order of preference is the root delay, not the stratum and root distance as usual.</p>
+		<p>For the most flexible and reliable operation, all servers and clients in the subnet should include the <tt>orphan</tt> command in the configuration file and with the same orphan stratum. This provides mutual redundancy and diversity for all NTP&nbsp;modes of operation, including broadcast.</p>
+		<p>For example, consider the case where several campus secondary (stratum 2) servers are configured for public Internet primary servers and with each other using symmetric modes. These servers provide synchronization with a number of department servers using broadcast mode, where each of these servers is configured as both a broadcast server and broadcast client. Individual workstations on the department LAN&nbsp;are configured as broadcast clients only. All servers (not necessarily the clients) have the <tt>orphan 5</tt> command, for example.</p>
+		<p>In normal operation all servers and clients operate below stratum 5, so operate with the subnet configuration determined by stratum and root distance. If all sources are lost at any stratum level, the server or client continues operation as orphan parent. However, if sources at the orphan stratum are found, the host synchronizes to the source with lowest root delay. Since orphan root delay is determined randomly at startup, loops are avoided, even in broadcast modes where multiple servers are available.</p>
+		<h4 id="opt">Server Discovery Options</h4>
+		<dl>
+			<dt><tt>tos [ ceiling <i>ceiling</i> | cohort {0 | 1} | floor <i>floor</i> | orphan <i>orphan</i> | maxdistance <i>maxdistance</i> | minclock <i>minclock</i> | minsane <i>minsane</i> ]</tt>
+			<dd>This command affects the clock selection and clustering algorithms. It can be used to select the quality and quantity of peers used to synchronize the system clock and is most useful in manycast mode. The variables operate as follows:
+				<dl>					<dt><tt>beacon <i>beacon</i></tt>
+					<dd>The manycast server sends packets at intervals of 64 s if less than  <i><tt>maxclock</tt></i> servers are available. Otherwise, it sends packets at the <i><tt>beacon</tt></i> interval in seconds. The default is 3600 s.<dt><tt>ceiling <i>ceiling</i></tt>
+					<dd>Servers with stratum at or above <i>ceiling</i> will be discarded if there are at least <i><tt>minclock</tt></i> peers remaining. This value defaults to 15, but can be changed to any number from 1 to 15.
+					<dt><tt>cohort { 0 | 1 }</tt>
+					<dd>This is a binary flag which enables (0) or disables (1) manycast server replies to manycast clients with the same stratum level. This is useful to reduce implosions where large numbers of clients with the same stratum level are present. The default is to enable these replies.
+					<dt><tt>floor <i>floor</i></tt>
+					<dd>Peers with strata below <i>floor</i> will be discarded if there are at least <i>minclock</i> peers remaining. This value defaults to 1, but can be changed to any number from 1 to 15.
+					<dt><tt>orphan <i>stratum</i></tt>
+					<dd>If <tt><i>stratum</i></tt> is set at some value less than 16 a special orphan mode is enterred when no outside source of synchronization is available. To use orphan mode a number of participants are identically configured both as broadcast client and as broadcast server. One or more participants are configured to use an outside source, either a reference clock or another Internet server. When the source or sources fail, the system stratum is set at <tt><i>stratum</i></tt> and a leader is elected to serve as the reference source. When an outside source of synchronization is again available, the orphan mode is disabled.<dt><tt>mindist <i>mindistance</i></tt>
+					<dd>The slection algorithm normally pads each intersection a minimum of one millisecond to avoid needless classification. In some cases, such as reference clocks with high jitter and a PPS signal, it is useful to increase the padding. This command can be used for that purpose. As a general rule, set the mindistance to the maximum expected offset plus the maxiumum expected jitter, in seconds.
+					<dt><tt>maxdist <i>maxdistance</i></tt>
+					<dd>The selection algorithm accumulates a number of packets before setting the clock in order to use the best data available. The number is determined by the synchronization distance for each association and a limit called the distance threshold. The synchronization distance starts at 16, then drops by a factor of about two as each packet is received. The default distance threshold is 1.0, which usually results in four packets. Setting maxdistance to some value between 1 and 16 can be used to change the number of packets required. For instance, setting it to 16 will set the clock on the first packet received; howver, setting it to this value essentially disables the mitigation and grooming algorithms.
+					<dt><tt>minclock <i>minclock</i></tt>
+					<dd>The clustering algorithm repeatedly casts out outlyer associations until no more than <i>minclock</i> associations remain. This value defaults to 3, but can be changed to any number from 1 to the number of configured sources.
+					<dt><tt>minsane <i>minsane</i></tt>
+					<dd>This is the minimum number of candidates available to the clock selection algorithm in order to produce one or more truechimers for the clustering algorithm. If fewer than this number are available, the clock is undisciplined and allowed to run free. The default is 1 for legacy purposes. However, according to principles of Byzantine agreement, <i>minsane</i> should be at least 4 in order to detect and discard a single falseticker.
+				</dl>
+			
+			<dt><tt>ttl <i>hop</i> ...</tt>
+			<dd>This command specifies a list of TTL values in increasing order. up to 8 values can be specified. In manycast mode these values are used in turn in an expanding-ring search. The default is eight multiples of 32 starting at 31.
+		</dl>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

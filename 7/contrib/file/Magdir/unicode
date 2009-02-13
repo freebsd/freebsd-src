@@ -1,0 +1,15 @@
+
+#---------------------------------------------------------------------------
+# Unicode:  BOM prefixed text files - Adrian Havill <havill@turbolinux.co.jp>
+#
+0	string	+/v8			Unicode text, UTF-7
+0	string	+/v9			Unicode text, UTF-7
+0	string	+/v+			Unicode text, UTF-7
+0	string	+/v/			Unicode text, UTF-7
+0	string	\357\273\277		Unicode text, UTF-8
+0	string	\335\163\146\163	Unicode text, UTF-8-EBCDIC
+0	string	\376\377\000\000	Unicode text, UTF-32, big-endian
+0	string	\377\376\000\000	Unicode text, UTF-32, little-endian
+0	string	\376\377		Unicode text, UTF-16, big-endian
+0	string	\377\376		Unicode text, UTF-16, little-endian
+0	string	\016\376\377		Unicode text, SCSU (Standard Compression Scheme for Unicode)

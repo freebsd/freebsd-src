@@ -1,0 +1,105 @@
+.\"
+.\" Copyright (c) 1994, 1995 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" This product includes software developed by Joerg Wunsch
+.\" 4. The name of the developer may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 15, 1993
+.Os
+.Dt CFTIME 3
+.Sh NAME
+.Nm cftime ,
+.Nm ascftime
+.Nd convert date and time to string
+.Sh LIBRARY
+.Lb libcompat
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn cftime "char *s" "char *format" "const time_t *clock"
+.Ft int
+.Fn ascftime "char *s" "const char *format" "const struct tm *tmptr"
+.Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn cftime
+and
+.Fn ascftime
+functions are made obsolete by
+.Xr strftime 3 .
+.Ef
+.Pp
+Use of the functions
+.Fn cftime
+and
+.Fn ascftime
+is strongly deprecated, since there is no way to check for a buffer
+overflow condition.
+Use
+.Xr strftime 3
+instead.
+.Pp
+The
+.Fn ascftime
+function is almost identical to
+.Xr strftime 3 ,
+with the only exception that there is no parameter to tell about the
+maximal buffer length, and the
+.Fa format
+parameter defaults to
+.Dq %C
+if a
+.Em NULL
+pointer is given.
+.Pp
+The
+.Fn cftime
+function does the same job, but it first invokes
+.Xr localtime 3
+in order to convert the given
+.Fa clock ,
+then also performs the conversions as requested by the
+.Fa format
+argument.
+.Sh RETURN VALUES
+The
+.Fn cftime
+and
+.Fn ascftime
+functions return the number of characters written to the output
+buffer
+.Fa s ,
+not counting the trailing null character.
+.Sh SEE ALSO
+.Xr localtime 3 ,
+.Xr strftime 3

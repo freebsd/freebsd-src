@@ -1,0 +1,518 @@
+<!--
+  The FreeBSD German Documentation Project
+  The FreeBSD Documentation Project
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.18 2003/05/11 23:28:35 mheinen Exp $
+  basiert auf: 1.26
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
+%misc;
+]>
+
+<article lang="de">
+  <articleinfo>
+    <title>&os; &release.current; README</title>
+
+    <corpauthor>Das &os; Projekt</corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+
+      <year>2001</year>
+
+      <year>2002</year>
+
+      <year>2003</year>
+
+      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation
+        Project</holder>
+    </copyright>
+
+    <copyright>
+      <year>2002</year>
+
+      <year>2003</year>
+
+      <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The
+        FreeBSD German Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+    <para>Dieses Dokument enth&auml;lt eine kurze Einf&uuml;hrung zu &os;
+      &release.current;.  Es enth&auml;lt einige Hinweise, wie Sie &os;
+      beziehen k&ouml;nnen; wie Sie Kontakt zum &os; Project aufnehmen
+      k&ouml;nnen, sowie Verweise auf zus&auml;tzliche
+      Informationsquellen.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Einf&uuml;hrung</title>
+
+    <para>Diese Ausgabe von &os; ist eine &release.type;-Version von
+      &os;  &release.current; und repr&auml;sentiert den aktuellen
+      Zustand im Entwicklungszweig &release.branch;.</para>
+
+    <sect2>
+      <title>&Uuml;ber &os;</title>
+
+      <para>&os; ist ein auf 4.4 BSD Lite basierendes Betriebssystem
+	f&uuml;r Intel, AMD, Cyrix oder NexGen
+	<quote>x86</quote>-basierte PCs (i386), NEC PC-9801/9821 und
+	kompatible Systeme (pc98), DEC/Compaq/HP Alpha Systeme (alpha)
+	und UltraSPARC Systeme (sparc64).  Versionen f&uuml;r die
+	Plattformen IA64 (ia64), PowerPC (powerpc) und AMD
+	<quote>Hammer</quote> (amd64) sind ebenfalls in der
+	Entwicklung.  &os;  unterst&uuml;tzt viele verschiedene
+	Ger&auml;te und Umgebungen und kann f&uuml;r alle Anwendungen von
+	der Software-Entwicklung &uuml;ber Spiele bis zur Anbietung
+	von Diensten im Internet genutzt werden.</para>
+
+      <para>Diese Version von &os; stellt Ihnen alles zur
+        Verf&uuml;gung, was Sie zum Betrieb eines derartigen Systems
+        brauchen.  Dazu geh&ouml;rt der Quellcode f&uuml;r den Kernel
+        und alle Programme des Basissystems.  Wenn Sie die
+        <quote>source</quote> Distribution installieren, k&ouml;nnen
+        Sie das gesamte System mit einem einzigen Befehl neu
+        kompilieren.  Diese Eigenschaft macht es ideal f&uuml;r
+        Studenten, Forscher, und interessierte Benutzer, die einfach
+        wissen wollen, wie das System funktioniert.</para>
+
+      <para>Die gro&szlig;e Sammlung von angepa&szlig;ter Software
+        anderer Anbieter (die <quote>Ports Collection</quote>) macht
+        es Ihnen leicht, ihre Lieblingtools f&uuml;r &unix; auch
+        f&uuml;r &os; zu finden und zu installieren.  Jeder
+        <quote>port</quote> besteht aus einer Reihe von Skripten, um
+        eine gegebene Anwendung mit einem einzigen Kommando
+        herunterladen, konfigurieren, kompilieren, und installieren zu
+        k&ouml;nnen.  Die &uuml;ber &os.numports; Ports (vom Editor
+        &uuml;ber Programmiersprachen bis zu graphischen Anwendungen)
+        machen FreeBSD zu einer leistungsstarken und umfassenden
+        Arbeitsumgebung, die viele kommerzielle &unix;-Varianten weit
+        hinter sich l&auml;&szlig;t.  Die meisten Ports sind auch als
+        vorkompilierte Packages erh&auml;ltlich, die mit dem
+        Installationsprogramm einfach und schnell installiert werden
+        k&ouml;nnen.</para>
+    </sect2>
+
+    <sect2>
+      <title>Zielgruppe</title>
+
+<![ %release.type.current; [
+      <para>Dieser &release.type; ist prim&auml;r f&uuml;r Bastler und
+        andere Benutzer gedacht, die sich an der laufenden Entwicklung
+        von &os; beteiligen wollen.  Das Entwicklerteam von &os;
+        bem&uuml;ht sich zwar, da&szlig; jeder &release.type; so
+        funktioniert wie versprochen, aber &release.branch; ist nun
+        einmal der Entwicklungszweig.</para>
+
+      <para>Wenn Sie einen &release.type; benutzen wollen, m&uuml;ssen
+	Sie sich mit der Technik von &os; und den aktuellen
+	Vorg&auml;ngen bei der Entwicklung von &os;  &release.branch;
+	(wie sie in der Mailingliste &a.current; diskutiert werden)
+	auskennen.</para>
+
+      <para>[Anmerkung des &Uuml;bersetzers:  Auf der Mailingliste
+	&a.current; wird Englisch gesprochen und die meisten Dokumente
+	sind ebenfalls in dieser Sprache verfa&szlig;t worden.  Ohne
+	gute Englischkenntnisse kommt man also nicht weit.  Allerdings
+	ist die Beteiligung an der Entwicklung der FreeBSD eine der
+	interessanteren Varianten, die eigenen Englisch-Kenntnisse zu
+	erweitern.]</para>
+
+      <para>Wenn Sie mehr an einem st&ouml;rungsfreien Betrieb von
+        &os; als an den neuesten Features von &os; interessiert sind,
+        ist eine offizielle Release (wie z.B. &release.prev.stable;) die
+        deutliche bessere Wahl.  Releases werden ausf&uuml;hrlich
+        getestet und auf Qualit&auml;t gepr&uuml;ft, um
+        Zuverl&auml;ssigkeit und Betriebssicherheit garantieren zu
+        k&ouml;nnen.</para>
+]]>
+
+<![ %release.type.snapshot; [
+      <para>Dieser &release.type; ist prim&auml;r f&uuml;r Bastler und
+        andere Benutzer gedacht, die sich an der laufenden Entwicklung
+        von &os; beteiligen wollen.  Das Entwicklerteam von &os;
+        bem&uuml;ht sich zwar, da&szlig; jeder &release.type; so
+        funktioniert wie versprochen, aber &release.branch; ist nun
+        einmal der Entwicklungszweig.</para>
+
+      <para>Wenn Sie einen &release.type; benutzen wollen, m&uuml;ssen
+	Sie sich mit der Technik von &os; und den aktuellen
+	Vorg&auml;ngen bei der Entwicklung von &os;  &release.branch;
+	(wie sie in der Mailingliste &a.current; diskutiert werden)
+	auskennen.</para>
+
+      <para>[Anmerkung des &Uuml;bersetzers:  Auf der Mailingliste
+	&a.current; wird Englisch gesprochen und die meisten Dokumente
+	sind ebenfalls in dieser Sprache verfa&szlig;t worden.  Ohne
+	gute Englischkenntnisse kommt man also nicht weit.  Allerdings
+	ist die Beteiligung an der Entwicklung der FreeBSD eine der
+	interessanteren Varianten, die eigenen Englisch-Kenntnisse zu
+	erweitern.]</para>
+
+      <para>Wenn Sie mehr an einem st&ouml;rungsfreien Betrieb von
+        &os; als an den neuesten Features von &os; interessiert sind,
+        ist eine offizielle Release (wie z.B. &release.prev.stable;) die
+        deutliche bessere Wahl.  Releases werden ausf&uuml;hrlich
+        getestet und auf Qualit&auml;t gepr&uuml;ft, um
+        Zuverl&auml;ssigkeit und Betriebssicherheit garantieren zu
+        k&ouml;nnen.</para>
+]]>
+
+<![ %release.type.release; [
+      <para>Diese &release.type; von &os; ist f&uuml;r alle Arten von
+        Benutzern gedacht.  Sie wurde ausf&uuml;hrlich gepr&uuml;ft
+        und getestet, um die gr&ouml;&szlig;tm&ouml;gliche
+        Zuverl&auml;ssigkeit und Betriebssicherheit garantieren zu
+        k&ouml;&ouml;nnen.</para>
+
+]]>
+    </sect2>
+  </sect1>
+
+  <sect1 id="obtain">
+    <title>Bezugsquellen f&uuml;r &os;</title>
+
+    <para>&os; kann auf vielen verschiedenen Wegen bezogen werden.
+      Dieses Kapitel konzentriert sich auf die Varianten, die f&uuml;r
+      den Bezug auf einer komplett neuen Version von &os;  gedacht
+      sind und weniger auf die M&ouml;glichkeit zur Aktualisierung
+      eines bereits bestehenden Systems.</para>
+
+    <sect2>
+      <title>CDROM und DVD</title>
+
+      <para>&os;-RELEASE Distributionen k&ouml;nnen auf CDROM oder
+        DVD von diversen Firmen bezogen werden.  Dies ist
+        normalerweise der bequemste Weg, wenn Sie &os; zum ersten Mal
+        installieren, da Sie das System einfach neu installieren
+        k&ouml;nnen, falls das notwendig ist.  Einige Distributionen
+        enthalten einige der optionalen <quote>Packages</quote> aus
+        der &os; Ports Collection.</para>
+
+      <para>Eine &Uuml;bersicht &uuml;ber die Firmen, die FreeBSD auf
+        CDROM oder DVD vertreiben, finden Sie im Anhang <ulink
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors.html"><quote>Bezugsquellen
+        f&uuml;r FreeBSD</quote></ulink> des Handbuches.</para>
+    </sect2>
+
+    <sect2>
+      <title>FTP</title>
+
+      <para>Sie k&ouml;nnen &os; und/oder die optionalen Packages mit
+        FTP vom prim&auml;ren &os;-Server <ulink
+        url="ftp://ftp.FreeBSD.org/"></ulink> und allen seinen
+        <quote>mirrors</quote> beziehen.</para>
+
+      <para>Eine Liste von alternativen Bezugsquellen f&uuml;r &os;
+        finden Sie im Kapitel <ulink
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+        Server</ulink> des Handbuchs und auf unseren <ulink
+        url="http://www.freebsdmirrors.org/"></ulink> Webseiten.  Wir
+        raten Ihnen dringend, einen Mirror in der n&auml;heren
+        Umgebung (aus Netzwerksicht) zu verwenden.</para>
+
+      <para>Zus&auml;tzliche Mirrors sind immer willkommen.  Wenden
+        Sie sich bitte an <email>freebsd-admin@FreeBSD.org</email>,
+        wenn Sie an weiteren Informationen zu diesem Thema
+        interessiert sind.  Zus&auml;tzliche Informationen zu diesem
+        Thema finden Sie im Artikel <ulink
+        URL="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/hubs/">Mirroring
+        FreeBSD</ulink>.</para>
+
+      <para>Sie finden die f&uuml;r den Start der Installation
+        notwendigen Images der Bootdisketten und die Dateien der
+        eigentlichen Distribution auf allen Servern.  Einige Server
+        stellen auch die ISO-Images bereit, die Sie zur Erzeugung
+        einer (bootf&auml;higen) CDROM der &os;-Release
+        ben&ouml;tigen.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 id="contacting">
+    <title>Kontaktinformation f&uuml;r das &os; Projekt</title>
+
+    <sect2>
+      <title>Email und Mailinglisten</title>
+
+      <para>Wenn Sie Fragen haben oder Hilfe ben&ouml;tigen, wenden
+        Sie sich bitte an die Mailingliste &a.questions;.</para>
+
+      <para>Wenn Sie die Entwicklung von &release.branch;
+        mitverfolgen, <emphasis>m&uuml;ssen</emphasis> Sie die
+        Mailingliste &a.current; lesen.  Nur so k&ouml;nnen Sie die
+        teilweise lebensnotwendigen Informationen &uuml;ber die
+        aktuellen Entwicklungen und &Auml;nderungen erhalten, die Sie
+        f&uuml;r den Betrieb des Systems ben&ouml;tigen.</para>
+
+      <para>Da &os; zum gr&ouml;&szlig;ten Teil von Freiwilligen und
+        Idealisten entwickelt wird, freuen wir uns &uuml;ber jeden,
+        der mit anpacken m&ouml;chte &mdash; schon jetzt gibt es mehr
+        W&uuml;nsche als Zeit, um diese umzusetzen.  Wenn Sie Kontakt
+        zu den Entwicklern suchen, um technische Angelegenheiten zu
+        besprechen oder um Ihre Hilfe anzubieten, wenden Sie sich
+        bitte an Mailingliste &a.hackers;.</para>
+
+      <para>Bitte beachten Sie, auf diesen Mailinglisten teilweise
+        <emphasis>extrem viele</emphasis> Mails erscheinen.  Wenn Ihre
+        Mailversorgung nur sehr langsam oder sehr teuer ist, oder Sie
+        nur an den Schlagzeilen der &os;-Entwicklung interessiert
+        sind, d&uuml;rfte es besser sein, wenn Sie sich auf
+        die Mailingliste &a.announce; konzentrieren.</para>
+
+      <para>Alle Mailinglisten stehen f&uuml;r jeden offen, der sich
+	f&uuml;r das jeweilige Thema interessiert.  Besuchen Sie
+	einfach mal auf der <ulink
+	url="http://www.FreeBSD.org/mailman/listinfo">FreeBSD Mailman
+	Info Page</ulink>.  Dort erhalten Sie weitergehende
+	Informationen, wie Sie die diversen Mailinglisten abonnieren
+	k&ouml;nnen, wie Sie auf die Archive zugreifen k&ouml;nnen,
+	usw.  Es gibt viele Mailinglisten, die nur mit einem ganz
+	bestimmten Thema befassen und hier nicht aufgef&uuml;hrt sind.
+	Weitergehende Informationen finden Sie auf den Mailman Seiten
+	und im Bereich <ulink
+	url="http://www.FreeBSD.org/support.html#mailing-list">Mailinglisten</ulink>
+	der &os; Webseite.</para>
+
+      <important>
+        <para>Senden Sie <emphasis>auf gar keinen Fall</emphasis> eine
+          Mail an die Mailinglisten, um diese zu abonnieren.  Benutzen
+          Sie f&uuml;r diesen Zweck das Mailman Interface.</para>
+      </important>
+    </sect2>
+
+    <sect2>
+      <title>Meldungen &uuml;ber Fehler und Probleme</title>
+
+      <para>Vorschl&auml;ge, Fehlermeldungen und zus&auml;tzlicher
+        Sourcecode sind immer willkommen &mdash; bitte informieren Sie
+        uns &uuml;ber jedes Problem, das sie finden.  Fehlermeldungen,
+        die sofort auch die entsprechende Korrektur enthalten, sind
+        nat&uuml;rlich noch willkommener.</para>
+
+      <para>Wenn Ihr System an das Internet angeschlossen ist, sollten
+	Sie &man.send-pr.1; benutzen.  Wenn Sie Ihren <quote>Problem
+	Report</quote> (PRs) auf dieser Art und Weise absetzen, wird
+	er automatisch archiviert und weiterverfolgt.  Die Entwickler
+	von &os;  bem&uuml;hen sich, so schnell wie m&ouml;glich auf
+	alle gemeldeten Fehler zu reagieren.  <ulink
+	url="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">Eine
+	&Uuml;bersicht &uuml;ber alle offenen PRs</ulink> ist auf dem
+	Webserver von &os; verf&uuml;gbar.  Diese Liste ist sehr
+	n&uuml;tzlich, wenn Sie wissen wollen, welche m&ouml;glichen
+	Probleme schon von anderen Benutzern gefunden wurden.</para>
+
+      <para>Bitte beachten Sie, da&szlig; &man.send-pr.1; nur ein
+        Shell-Skript ist, da&szlig; man relativ einfach auch auf
+        anderen Systemen als &os; verwenden kann.  Wir empfehlen Ihnen
+        dringend, diese Variante zu verwenden.  Wenn Sie allerdings
+        aus irgendeinem Grund &man.send-pr.1; nicht benutzen
+        k&ouml;nnen, k&ouml;nnen Sie versuchen, Ihren Problem Report
+        an die Mailingliste &a.bugs; zu senden.</para>
+
+      <para>Weitere Informationen finden Sie im Dokument <ulink
+        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/problem-reports/"><quote>Writing
+        FreeBSD Problem Reports</quote></ulink> auf der Webseite von
+        &os;.  Es enth&auml;lt viele n&uuml;tzliche Tips zum
+        Verfassen und Versenden effektiver Fehlermeldungen.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 id="seealso">
+    <title>Weiterf&uuml;hrende Dokumente</title>
+
+    <para>Es gibt viele verschiedene Quellen f&uuml;r Informationen
+      &uuml;ber &os;, einige sind Bestandteil dieser Distribution,
+      w&auml;hrend andere &uuml;ber das Internet oder in gedruckter
+      Form verf&uuml;gbar sind.</para>
+
+    <sect2 id="release-docs">
+      <title>Dokumentation zur Release</title>
+
+      <para>Sie finden weitergehende &uuml;ber diese &release.type;
+        Distribution in anderen Dokumenten.  Diese Dokumente stehen in
+        verschiedenen Formaten zur Verf&uuml;gung.  Die Varianten Text
+        (<filename>.TXT</filename>) und HTML
+        (<filename>.HTM</filename>) stehen fast immer zur
+        Verf&uuml;gung.  Einige Distributionen stellen weitere Formate
+        wie PostScript (<filename>.PS</filename>) oder das Portable
+        Document Format (<filename>.PDF</filename>) zur
+        Verf&uuml;gung.</para>
+
+      <itemizedlist>
+        <listitem>
+          <para><filename>README.TXT</filename>: Sie lesen es gerade.
+            Hier finden Sie allgemeine Informationen &uuml;ber &os;
+            und ein paar allgemeine Hinweise zum Bezug einer
+            Distribution.</para>
+        </listitem>
+
+	<listitem>
+	  <para><filename>EARLY.TXT</filename>: Spezielle Hinweise
+	    f&uuml;r die ersten Anwender von &os; &release.current;.
+	    Wenn dies Ihre erste Begegnung mit &os; &release.branch;
+	    ist und/oder Sie noch eine 5.<replaceable>X</replaceable>
+	    Version benutzt haben, sollten Sie diesen Artikel auf
+	    jeden Fall lesen.</para>
+	</listitem>
+
+        <listitem>
+          <para><filename>RELNOTES.TXT</filename>: Die begleitenden
+            Informationen zu dieser Release enthalten die Neuerungen
+            in dieser Version von &os; (&release.current;) und die
+            &Auml;nderungen seit der letzten Version (&os;
+            &release.prev;).</para>
+        </listitem>
+
+        <listitem>
+          <para><filename>HARDWARE.TXT</filename>: Die Liste der
+            unterst&uuml;tzten Hardware enth&auml;lt eine
+            &Uuml;bersicht &uuml;ber die Ger&auml;te, auf den &os;
+            erfolgreich getestet wurde.</para>
+        </listitem>
+
+        <listitem>
+          <para><filename>INSTALL.TXT</filename>: Die Anleitung zur
+            Installation von &os; von dem
+            Distributions-Medium.</para>
+        </listitem>
+
+        <listitem>
+          <para><filename>ERRATA.TXT</filename>: Die Errata.
+            Brandaktuelle Informationen, die erst nach dem Erscheinen
+            dieser Version bekannt wurden, finden Sie hier.  Diese
+            Datei ist speziell f&uuml;r die Anwender einer Release
+            (und nicht der Snapshots) von Interesse.  Sie sollten
+            diesen Text auf jeden Fall lesen, bevor Sie &os;
+            installieren, da er die aktuellsten Informationen
+            &uuml;ber die seit der Ver&ouml;ffentlichung gefundenen
+            und behobenen Probleme enth&auml;lt.</para>
+        </listitem>
+      </itemizedlist>
+
+      <note>
+        <para>Einige dieser Dokumente (speziell
+          <filename>RELNOTES.TXT</filename>,
+          <filename>HARDWARE.TXT</filename>, und
+          <filename>INSTALL.TXT</filename>) enthalten Informationen,
+          die nur f&uuml;r eine bestimmte Architektur gellten.  Zum
+          Beispiel enthalten die Release Notes f&uuml;r die Alpha
+          keine Informationen &uuml;ber i386-Systeme, und umgekehrt.
+          Die Information, zu welcher Architektur ein Dokument
+          geh&ouml;rt, steht immer am Anfang des Textes.</para>
+      </note>
+
+      <para>Auf den Plattformen, auf denen &man.sysinstall.8; zur
+	Verf&uuml;gung steht (zur Zeit alpha, i386, ia64, pc98 und
+	sparc64) finden Sie diese Dokumente w&auml;hrend der
+	Installation normalerweise unter dem Men&uuml;punkt
+	Dokumentation.  Um nach der Installation des Systems dieses
+	Men&uuml;  zugreifen zu k&ouml;nnen, m&uuml;ssen Sie das
+	Programm &man.sysinstall.8;  erneut aufrufen.</para>
+
+      <note>
+        <para>Sie sollten auf jeden Fall die Errata zur jeweiligen
+          Version lesen, bevor Sie die Installation beginnen.  Dies
+          ist der einzige Weg, die aktuellsten Informationen zu
+          erhalten und sich &uuml;ber eventuell nach der Installation
+          auftretende Probleme zu informieren.  Die zusammen mit der
+          Ver&ouml;ffentlichung erschienene Version ist per Definition
+          veraltet.  Allerdings sind im Internet aktualisierte
+          Versionen verf&uuml;gbar, die die <quote>aktuellen
+          Errata</quote> f&uuml;r diese Version sind.  Diese Versionen
+          sind bei <ulink
+          url="http://www.FreeBSD.org/releases/"></ulink> und allen
+          aktuellen Mirrors dieser Webseite verf&uuml;gbar.</para>
+      </note>
+    </sect2>
+
+    <sect2>
+      <title>Onlinehilfe (Manual Pages)</title>
+
+      <para>Wie bei fast jedem anderen &unix;-&auml;hnlichen System
+        steht Ihnen auch bei &os; eine Onlinehilfe zur Verf&uuml;gung,
+        die Sie &uuml;ber das Kommando &man.man.1; oder &uuml;ber das
+        <ulink url="http://www.FreeBSD.org/cgi/man.cgi">hypertext
+        manual pages gateway</ulink> auf dem Webserver von &os;
+        ansprechen k&ouml;nnen.  Die Onlinehilfe stellt den Benutzern
+        von &os; Informationen zu einzelnen Befehlen und Interfaces
+        zur Programmierung zur Verf&uuml;gung.</para>
+
+      <para>In einige F&auml;llen behandelt die Online-Hilfe spezielle
+        Themen.  Interessante Beispiele daf&uuml;r sind
+        &man.tuning.7; (Hinweise, wie sie die Performance Ihres
+        Systems verbessern k&ouml;nnen), &man.security.7; (eine
+        Einf&uuml;hrung in das Thema Sicherheit unter &os;), und
+        &man.style.9; (die Spielregeln f&uuml;r die
+        Kernel-Programmierung).</para>
+    </sect2>
+
+    <sect2>
+      <title>B&uuml;cher und Artikel</title>
+
+      <para>Zwei extrem n&uuml;tzliche Sammlungen von Informationen
+        &uuml;ber &os;, die vom &os; Project verwaltet werden, sind
+        das &os; Handbuch und der &os; FAQ.  Die aktuellen Versionen
+        des <ulink
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">Handbuches</ulink>
+        und der <ulink
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/">FAQ</ulink>
+        sind immer auf der Webseite <ulink
+        url="http://www.FreeBSD.org/docs.html">FreeBSD
+        Dokumentation</ulink> und allen Ihren Mirror-Sites
+        verf&uuml;gbar.  Wenn Sie die Distribution
+        <filename>doc</filename> installiert haben, k&ouml;nnen Sie
+        den FAQ und Handbuch mit einem Web-Browser direkt auf Ihrem
+        System lesen.</para>
+
+      <para>Es gibt eine ganze Reihe von Online verf&uuml;gbaren
+        B&uuml;chern und Artikeln, die vom &os; Project herausgegeben
+        werden und auf einzelne &os;-bezogene Themen genauer
+        eingehen.  Dabei wird ein sehr breites Spektrum abgedeckt, es
+        gibt Informationen zur effektiven Nutzung der Mailinglisten,
+        den parallelen Betrieb von &os; und anderen Betriebssystem, und
+        Hinweise f&uuml;r neue Entwickler.  Wie das Handbuch und die
+        FAQ sind auch diese Dokumente auf Webseite &os; Dokumentation
+        und in der Distribution <filename>doc</filename>
+        verf&uuml;gbar.</para>
+
+      <para>Eine Liste zus&auml;tzlicher B&uuml;cher und
+        Dokumentationen zu &os;  finden Sie im Kapitel <ulink
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/bibliography.html">Bibliographie</ulink>
+        des Handbuchs.  Da &os; ganz klar aus der &unix;-Welt stammt,
+        enthalten auch andere Artikel und B&uuml;cher &uuml;ber
+        &unix;-Systeme n&uuml;tzliche Informationen.  Eine Auswahl
+        dieser Dokumente finden Sie ebenfalls in der
+        Bibliographie.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 id="acknowledgements">
+    <title>Danksagung</title>
+
+    <para>&os; ist das Ergebnis der Arbeit vieler hundert, wenn nicht
+      Tausender Personen aus der ganzen Welt, die ungez&auml;hlte
+      Stunden investiert haben, um diese Version m&ouml;glich zu
+      machen.  Die vollst&auml;ndige Liste aller Entwickler und Helfer
+      finden Sie auf der &os;-Webseite <ulink
+      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/"><quote>Beteiligte</quote></ulink>
+      und allen aktuellen Mirrors dieser Webseite.</para>
+
+    <para>Wir m&ouml;chten uns speziell bei den vielen tausend
+      Anwendern und Testern aus der ganzen Welt bedanken, ohne die
+      diese &release.type;  niemals m&ouml;glich gewesen
+      w&auml;re.</para>
+  </sect1>
+</article>

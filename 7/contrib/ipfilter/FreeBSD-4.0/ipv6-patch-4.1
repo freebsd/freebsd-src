@@ -1,0 +1,65 @@
+.\"	$FreeBSD$
+.\"
+*** ip6_input.c.orig	Sat Jul 15 07:14:34 2000
+--- ip6_input.c	Thu Oct 19 17:14:37 2000
+***************
+*** 120,125 ****
+--- 120,127 ----
+  
+  extern struct domain inet6domain;
+  extern struct ip6protosw inet6sw[];
++ extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int,
++ 			     struct mbuf **));
+  
+  u_char ip6_protox[IPPROTO_MAX];
+  static int ip6qmaxlen = IFQ_MAXLEN;
+***************
+*** 289,294 ****
+--- 291,305 ----
+  		ip6stat.ip6s_badvers++;
+  		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
+  		goto bad;
++ 	}
++ 
++ 	if (fr_checkp) {
++ 		struct	mbuf	*m1 = m;
++ 
++ 		if ((*fr_checkp)(ip6, sizeof(*ip6), m->m_pkthdr.rcvif,
++ 				 0, &m1) || !m1)
++ 			return;
++ 		ip6 = mtod(m = m1, struct ip6_hdr *);
+  	}
+  
+  	ip6stat.ip6s_nxthist[ip6->ip6_nxt]++;
+
+*** ip6_output.c.orig	Sat Jul 15 07:14:35 2000
+--- ip6_output.c	Thu Oct 19 17:13:53 2000
+***************
+*** 106,111 ****
+--- 106,113 ----
+  #include <netinet6/ip6_fw.h>
+  #endif
+  
++ extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ 
+  static MALLOC_DEFINE(M_IPMOPTS, "ip6_moptions", "internet multicast options");
+  
+  struct ip6_exthdrs {
+***************
+*** 787,792 ****
+--- 789,803 ----
+  			ip6->ip6_src.s6_addr16[1] = 0;
+  		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
+  			ip6->ip6_dst.s6_addr16[1] = 0;
++ 	}
++ 
++ 	if (fr_checkp) {
++ 		struct  mbuf    *m1 = m;
++ 
++ 		if ((error = (*fr_checkp)(ip6, sizeof(*ip6), ifp, 1, &m1)) ||
++ 		    !m1)
++ 			goto done;
++ 		ip6 = mtod(m = m1, struct ip6_hdr *);
+  	}
+  
+  #ifdef IPV6FIREWALL

@@ -1,0 +1,33 @@
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/sparc64/article.sgml,v 1.6 2005/03/10 11:04:21 den Exp $
+
+     Original revision: 1.5
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % devauto-ru PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//RU">
+%devauto-ru;
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
+%devauto;
+<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSPARC">
+]>
+
+<article lang="ru">
+  &artheader;
+  &sect.intro;
+  &sect.proc.sparc64;
+  &sect.dev;
+</article>

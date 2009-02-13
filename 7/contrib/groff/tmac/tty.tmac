@@ -1,0 +1,93 @@
+.\" tty.tmac
+.\" $FreeBSD$
+.\"
+.nr _C \n(.C
+.cp 0
+.
+.nroff
+.ta T 0.8i
+.
+.\" Don't warn about non-existent fonts.
+.warn \n[.warn]-(\n[.warn]/131072%2*131072)
+.
+.po 0
+.
+.ie c\[pc] \
+.  tr \[bu]\[pc]
+.el \
+.  if c\[md] \
+.    tr \[bu]\[md]
+.
+.fchar \[bu] \z+o
+.fchar \[14] 1/4
+.fchar \[12] 1/2
+.fchar \[34] 3/4
+.fchar \[18] 1/8
+.fchar \[38] 3/8
+.fchar \[58] 5/8
+.fchar \[78] 7/8
+.fchar \[ff] ff
+.fchar \[fi] fi
+.fchar \[fl] fl
+.fchar \[Fi] f\[fi]
+.fchar \[Fl] f\[fl]
+.fchar \[<-] <-
+.fchar \[->] ->
+.fchar \[<>] <->
+.fchar \[em] --
+.fchar \[+-] +-
+.fchar \[t+-] +-
+.fchar \[-+] -+
+.fchar \[co] (C)
+.fchar \[<=] <=
+.fchar \[>=] >=
+.fchar \[<<] <<
+.fchar \[>>] >>
+.fchar \[!=] !=
+.fchar \[==] ==
+.fchar \[ne] !==
+.fchar \[~=] ~=
+.fchar \[sq] []
+.fchar \[lh] <=
+.fchar \[rh] =>
+.fchar \[lA] <=
+.fchar \[rA] =>
+.fchar \[hA] <=>
+.fchar \[rg] (R)
+.fchar \[OE] OE
+.fchar \[oe] oe
+.fchar \[AE] AE
+.fchar \[ae] ae
+.fchar \[IJ] IJ
+.fchar \[ij] ij
+.fchar \[an] -
+.fchar \[eu] EUR
+.fchar \[Eu] EUR
+.fchar \[.i] i
+.fchar \[bq] ,
+.
+.if '\*[.T]'utf8' \
+.  mso unicode.tmac
+.
+.\" color definitions
+.defcolor black rgb #000000
+.defcolor red rgb #ff0000
+.defcolor green rgb #00ff00
+.defcolor blue rgb #0000ff
+.defcolor yellow rgb #ffff00
+.defcolor magenta rgb #ff00ff
+.defcolor cyan rgb #00ffff
+.defcolor white rgb #ffffff
+.
+.cp \n[_C]
+.
+.ie '\*(.T'cp1047' \
+.  do mso cp1047.tmac
+.el .ie '\*(.T'koi8-r' \
+.  do mso koi8-r.tmac
+.el .if !'\*(.T'ascii' \
+.  do mso latin1.tmac
+.
+.\" If you want the character definitions in tty-char.tmac to be loaded
+.\" automatically, remove the `\"' from the next line.
+.\"do mso tty-char.tmac

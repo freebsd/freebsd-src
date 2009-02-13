@@ -1,0 +1,14 @@
+
+
+- frontend driver initializes static xenbus_driver with _ids, _probe, _remove, 
+_resume, _otherend_changed
+
+    - initialization calls xenbus_register_frontend(xenbus_driver)
+
+        - xenbus_register_frontend sets read_otherend details to read_backend_details
+	then calls xenbus_register_driver_common(xenbus_driver, xenbus_frontend)
+
+	     - xenbus_register_driver_common sets underlying driver name to xenbus_driver name
+	     underlying driver bus to xenbus_frontend's bus, driver's probe to xenbus_dev_probe
+	     driver's remove to xenbus_dev_remove then calls driver_register
+

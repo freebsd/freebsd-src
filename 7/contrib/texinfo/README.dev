@@ -1,0 +1,44 @@
+$Id: README.dev,v 1.7 2003/11/24 15:11:06 karl Exp $
+README.dev - Texinfo developer information.
+
+  Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+The development sources for Texinfo is available through anonymous cvs
+at Savannah, see
+  http://savannah.gnu.org/cvs/?group=texinfo
+
+This distribution uses whatever versions of automake, autoconf, and
+gettext are listed in NEWS; usually the latest ones released.  If you
+are getting the Texinfo sources from cvs, or change the Texinfo
+configure.ac, you'll need to have these tools installed to (re)build.
+You'll also need help2man.  (All of these are available from
+ftp://ftp.gnu.org/gnu.)
+
+Here's the order in which to run the tools for a fresh build:
+
+  autoheader    # creates config.in, not necessarily needed every time
+  aclocal -I m4 # for a new version of automake
+  automake
+  autoconf
+  configure CFLAGS=-g --enable-maintainer-mode
+  make
+
+(with arguments to taste, of course.)  Or you can run
+
+  ./bootstrap
+
+instead of the various auto* tools.
+
+
+One final note: If you would like to contribute to the GNU project by
+implementing additional documentation output formats for Texinfo, that
+would be great.  But please do not write a separate translator texi2foo
+for your favorite format foo!  That is the hard way to do the job, and
+makes extra work in subsequent maintenance, since the Texinfo language
+is continually being enhanced and updated.  Instead, the best approach
+is modify Makeinfo to generate the new format, as it does now for Info,
+HTML, XML, and DocBook.

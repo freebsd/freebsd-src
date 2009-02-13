@@ -1,0 +1,33 @@
+#! /bin/sh
+#
+# $FreeBSD$
+
+usage()
+{
+	echo "$*" >&2
+	echo "This script must be run from the top level package directory" >&2
+	exit 1
+}
+
+[ $# -ge 1 ] && usage "usage: mkpkghier"
+[ -f INDEX ] || usage "INDEX file not found"
+[ -d All ] || usage "All directory not found"
+
+old=$(ls | egrep -v "^INDEX$|^All$|^Latest$")
+
+[ -n "$old" ] && { echo Removing old hierarchy; rm -fr $old; }
+
+echo Creating new hierarchy
+awk -F'|' '{ print $1 " " $7; }' INDEX | while read pkg dirs
+do
+	[ -f All/$pkg.tbz ] || {
+		echo "All/$pkg.tbz: Non-existent" >&2
+		continue
+	}
+	for dir in $dirs
+	do
+		mkdir -p $dir
+		[ -e $dir/$pkg.tbz ] && continue
+		ln -s ../All/$pkg.tbz $dir/$pkg.tbz
+	done
+done

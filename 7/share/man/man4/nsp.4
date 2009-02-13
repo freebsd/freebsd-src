@@ -1,0 +1,98 @@
+.\" Copyright (c) 2003 Noriaki MITSUNAGA. All rights reserved.
+.\" Copyright (c) 2003 Hideyuki KURASHINA. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2004
+.Dt NSP 4
+.Os
+.Sh NAME
+.Nm nsp
+.Nd "Workbit Ninja SCSI-3 based PC-Card SCSI host adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device nsp"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nsp_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the
+.Tn SCSI
+bus connected to a PC-Card
+.Tn SCSI
+host adapter based on a Ninja SCSI-3 controller by Workbit.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Alpha-Data AD-PCS201
+.It
+I-O DATA CBSC16
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr pccard 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver has been developed for
+.Nx Ns / Ns Tn pc98
+and ported for
+.Fx .
+It first appeared in
+.Fx 3.4
+with PAO3 and merged in
+.Fx 4.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Naofumi HONDA .
+.Pp
+This manual page was written by
+.An Noriaki MITSUNAGA Aq non@FreeBSD.org
+and
+.An Hideyuki KURASHINA Aq rushani@FreeBSD.org .
+.Sh BUGS
+SMIT mode is only supported under OLDCARD now.

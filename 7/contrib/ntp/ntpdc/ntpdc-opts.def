@@ -1,0 +1,127 @@
+/* -*- Mode: Text -*- */
+
+autogen definitions options;
+
+prog-name      = "ntpdc";
+prog-title     = "vendor-specific NTP query program";
+argument       = '[ host ...]';
+
+#include copyright.def
+#include homerc.def
+#include autogen-version.def
+
+test-main;
+
+flag = {
+    name      = ipv4;
+    value     = 4;
+    equivalence = ipv4;
+    descrip   = "Force IPv4 DNS name resolution";
+    doc = <<-  _EndOfDoc_
+	Force DNS resolution of following host names on the command line
+	to the IPv4 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = ipv6;
+    value     = 6;
+    equivalence = ipv4;
+    descrip   = "Force IPv6 DNS name resolution";
+    doc = <<-  _EndOfDoc_
+	Force DNS resolution of following host names on the command line
+	to the IPv6 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = command;
+    value     = c;
+    arg-type  = string;
+    descrip   = "run a command and exit";
+    max       = NOLIMIT;
+    arg-name  = cmd;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	The following argument is interpreted as an interactive format command
+	and is added to the list of commands to be executed on the specified
+	host(s).
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = listpeers;
+    value     = l;
+    descrip   = "Print a list of the peers";
+    flags-cant = command;
+    doc = <<-  _EndOfDoc_
+	Print a list of the peers known to the server as well as a summary of
+	their state. This is equivalent to the 'listpeers' interactive command.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = peers;
+    value     = p;
+    descrip   = "Print a list of the peers";
+    flags-cant = command;
+    doc = <<-  _EndOfDoc_
+	Print a list of the peers known to the server as well as a summary
+	of their state. This is equivalent to the 'peers' interactive command.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = showpeers;
+    value     = s;
+    descrip   = "Show a list of the peers";
+    flags-cant = command;
+    doc = <<-  _EndOfDoc_
+	Print a list of the peers known to the server as well as a summary
+	of their state. This is equivalent to the 'dmpeers' interactive command.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = interactive;
+    value     = i;
+    flags-cant = command, listpeers, peers, showpeers;
+    descrip   = "Force ntpq to operate in interactive mode";
+    doc = <<-  _EndOfDoc_
+	Force ntpq to operate in interactive mode.  Prompts will be written
+	to the standard output and commands read from the standard input.
+	_EndOfDoc_;
+};
+
+#include debug-opt.def
+
+flag = {
+    name      = numeric;
+    value     = n;
+    descrip   = "numeric host addresses";
+    doc = <<-  _EndOfDoc_
+	Output all host addresses in dotted-quad numeric format rather than
+	converting to the canonical host names. 
+	_EndOfDoc_;
+};
+
+detail = <<-  _END_DETAIL
+	The
+	[= prog-name =]
+	utility program is used to query an NTP daemon about its
+	current state and to request changes in that state.
+	It uses NTP mode 7 control message formats described in the source code.
+	The program may
+	be run either in interactive mode or controlled using command line
+	arguments.
+	Extensive state and statistics information is available
+	through the
+	[= prog-name =]
+	interface.
+	In addition, nearly all the
+	configuration options which can be specified at startup using
+	ntpd's configuration file may also be specified at run time using
+	[= prog-name =] .
+
+
+	_END_DETAIL;
