@@ -6143,10 +6143,9 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_schedule(periph, priority);
 			return;
 		}
-		xpt_release_ccb(done_ccb);
-		softc->action = PROBE_TUR_FOR_NEGOTIATION;
-		xpt_schedule(periph, priority);
-		return;
+
+		csio->data_ptr = NULL;
+		/* FALLTHROUGH */
 	}
 
 	case PROBE_SERIAL_NUM_1:
