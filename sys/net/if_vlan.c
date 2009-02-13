@@ -746,6 +746,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			ether_ifdetach(ifp);
 			vlan_unconfig(ifp);
 			if_free_type(ifp, IFT_ETHER);
+			ifc_free_unit(ifc, unit);
 			free(ifv, M_VLAN);
 
 			return (error);
