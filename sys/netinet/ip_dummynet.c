@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <net/if.h>
 #include <net/netisr.h>
-#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -81,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_var.h>
 
-#include <netinet/if_ether.h> /* for struct arpcom */
+#include <netinet/if_ether.h> /* various ether_* routines */
 
 #include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
 #include <netinet6/ip6_var.h>
