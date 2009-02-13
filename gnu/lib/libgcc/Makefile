@@ -332,8 +332,10 @@ all:	lib${LIB}_eh_p.a
 _libinstall: _lib-eh-install
 
 _lib-eh-install:
+.if ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} lib${LIB}_eh.a ${DESTDIR}${LIBDIR}
+.endif
 .if ${MK_PROFILE} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} lib${LIB}_eh_p.a ${DESTDIR}${LIBDIR}
