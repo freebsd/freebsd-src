@@ -72,18 +72,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <net/if.h>
+#include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
 #include <net/netisr.h>
-#include <net/route.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
+#include <netinet/ip.h>		/* ip_len, ip_off */
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
-#include <netinet/ip_var.h>
+#include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 
-#include <netinet/if_ether.h> /* for struct arpcom */
+#include <netinet/if_ether.h> /* various ether_* routines */
 
 #include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
 #include <netinet6/ip6_var.h>
@@ -157,6 +154,9 @@ static struct callout dn_timeout;
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 #ifdef SYSCTL_NODE
+SYSCTL_DECL(_net_inet);
+SYSCTL_DECL(_net_inet_ip);
+
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, hash_size,
     CTLFLAG_RW, &dn_hash_size, 0, "Default hash table size");
@@ -892,7 +892,7 @@ dummynet_send(struct mbuf *m)
 		case DN_TO_IP_OUT:
 			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 			break ;
-		  case DN_TO_IP_IN :
+		case DN_TO_IP_IN :
 			ip = mtod(m, struct ip *);
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
