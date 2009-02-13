@@ -29,16 +29,19 @@
 
 #include <sys/types.h>
 #include <sys/endian.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 
 #include <ufs/ufs/quota.h>
 
 #include <errno.h>
 #include <fcntl.h>
+#include <fstab.h>
 #include <grp.h>
 #include <pwd.h>
 #include <libutil.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -47,6 +50,8 @@ struct quotafile {
 	int fd;
 	int type; /* 32 or 64 */
 };
+
+static const char *qfextension[] = INITQFNAMES;
 
 struct quotafile *
 quota_open(const char *fn)
@@ -231,7 +236,7 @@ quota_write32(struct quotafile *qf, const struct dqblk *dqb, int id)
 	off = id * sizeof(struct dqblk32);
 	if (lseek(qf->fd, off, SEEK_SET) == -1)
 		return (-1);
-	return (write(qf->fd, &dqb32, sizeof(dqb32)) == -1);
+	return (write(qf->fd, &dqb32, sizeof(dqb32)) == sizeof(dqb32));
 }
 
 static int
@@ -252,7 +257,7 @@ quota_write64(struct quotafile *qf, const struct dqblk *dqb, int id)
 	off = sizeof(struct dqhdr64) + id * sizeof(struct dqblk64);
 	if (lseek(qf->fd, off, SEEK_SET) == -1)
 		return (-1);
-	return (write(qf->fd, &dqb64, sizeof(dqb64)) == -1);
+	return (write(qf->fd, &dqb64, sizeof(dqb64)) == sizeof(dqb64));
 }
 
 int
@@ -269,4 +274,51 @@ quota_write(struct quotafile *qf, const struct dqblk *dqb, int id)
 		return (-1);
 	}
 	/* not reached */
+}
+
+/*
+ * Check to see if a particular quota is to be enabled.
+ */
+int
+hasquota(struct fstab *fs, int type, char **qfnamep)
+{
+	char *opt;
+	char *cp;
+	struct statfs sfb;
+	static char initname, usrname[100], grpname[100];
+	static char buf[BUFSIZ];
+
+	if (!initname) {
+		(void)snprintf(usrname, sizeof(usrname), "%s%s",
+		    qfextension[USRQUOTA], QUOTAFILENAME);
+		(void)snprintf(grpname, sizeof(grpname), "%s%s",
+		    qfextension[GRPQUOTA], QUOTAFILENAME);
+		initname = 1;
+	}
+	strcpy(buf, fs->fs_mntops);
+	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
+		if ((cp = index(opt, '=')))
+			*cp++ = '\0';
+		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
+			break;
+		if (type == GRPQUOTA && strcmp(opt, grpname) == 0)
+			break;
+	}
+	if (!opt)
+		return (0);
+	if (cp)
+		*qfnamep = cp;
+	else {
+		(void)snprintf(buf, sizeof(buf), "%s/%s.%s", fs->fs_file,
+		    QUOTAFILENAME, qfextension[type]);
+		*qfnamep = buf;
+	}
+	/*
+	 * Ensure that the filesystem is mounted.
+	 */
+	if (statfs(fs->fs_file, &sfb) != 0 ||
+	    strcmp(fs->fs_file, sfb.f_mntonname)) {
+		return (0);
+	}
+	return (1);
 }

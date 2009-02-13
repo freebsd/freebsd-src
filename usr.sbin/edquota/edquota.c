@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #define dbtokb(db)	(db)
 #endif
 
-const char *qfname = QUOTAFILENAME;
 const char *qfextension[] = INITQFNAMES;
 const char *quotagroup = QUOTAGROUP;
 char tmpfil[] = _PATH_TMP;
@@ -109,7 +108,6 @@ char *fmthumanvalinos(int64_t);
 void freeprivs(struct quotause *);
 int getentry(const char *, int);
 struct quotause *getprivs(long, int, char *);
-int hasquota(struct fstab *, int, char **);
 void putprivs(long, int, struct quotause *);
 int readprivs(struct quotause *, char *);
 int readtimes(struct quotause *, char *);
@@ -230,6 +228,8 @@ main(int argc, char *argv[])
 			if ((protoid = getentry(protoname, quotatype)) == -1)
 				exit(1);
 			protoprivs = getprivs(protoid, quotatype, fspath);
+			if (protoprivs == NULL)
+				exit(0);
 			for (qup = protoprivs; qup; qup = qup->next) {
 				qup->dqblk.dqb_btime = 0;
 				qup->dqblk.dqb_itime = 0;
@@ -259,20 +259,20 @@ main(int argc, char *argv[])
 						*argv);
 				if ((id = getentry(buf, quotatype)) < 0)
 					continue;
-				if (eflag) {
-					for (qup = protoprivs; qup;
-					    qup = qup->next) {
-						curprivs = getprivs(id,
-						    quotatype, qup->fsname);
-						if (curprivs == NULL)
-							continue;
-						strcpy(qup->qfname,
-						    curprivs->qfname);
-						strcpy(qup->fsname,
-						    curprivs->fsname);
-					}
+				if (!eflag) {
+					putprivs(id, quotatype, protoprivs);
+					continue;
 				}
-				putprivs(id, quotatype, protoprivs);
+				for (qup = protoprivs; qup;
+				    qup = qup->next) {
+					curprivs = getprivs(id, quotatype,
+					    qup->fsname);
+					if (curprivs == NULL)
+						continue;
+					strcpy(qup->qfname, curprivs->qfname);
+					strcpy(qup->fsname, curprivs->fsname);
+					putprivs(id, quotatype, protoprivs);
+				}
 			}
 		}
 		exit(0);
@@ -280,12 +280,12 @@ main(int argc, char *argv[])
 	tmpfd = mkstemp(tmpfil);
 	fchown(tmpfd, getuid(), getgid());
 	if (tflag) {
-		protoprivs = getprivs(0, quotatype, fspath);
-		if (writetimes(protoprivs, tmpfd, quotatype) == 0)
-			exit(1);
-		if (editit(tmpfil) && readtimes(protoprivs, tmpfil))
-			putprivs(0L, quotatype, protoprivs);
-		freeprivs(protoprivs);
+		if ((protoprivs = getprivs(0, quotatype, fspath)) != NULL) {
+			if (writetimes(protoprivs, tmpfd, quotatype) != 0 &&
+			    editit(tmpfil) && readtimes(protoprivs, tmpfil))
+				putprivs(0L, quotatype, protoprivs);
+			freeprivs(protoprivs);
+		}
 		close(tmpfd);
 		unlink(tmpfil);
 		exit(0);
@@ -293,7 +293,8 @@ main(int argc, char *argv[])
 	for ( ; argc > 0; argc--, argv++) {
 		if ((id = getentry(*argv, quotatype)) == -1)
 			continue;
-		curprivs = getprivs(id, quotatype, fspath);
+		if ((curprivs = getprivs(id, quotatype, fspath)) == NULL)
+			exit(1);
 		if (writeprivs(curprivs, tmpfd, *argv, quotatype) == 0)
 			continue;
 		if (editit(tmpfil) && readprivs(curprivs, tmpfil))
@@ -412,6 +413,9 @@ getprivs(long id, int quotatype, char *fspath)
 		quptail = qup;
 		qup->next = 0;
 	}
+	if (quphead == NULL) {
+		warnx("No quotas on %s", fspath ? fspath : "any filesystems");
+	}
 	endfsent();
 	return (quphead);
 }
@@ -462,7 +466,7 @@ putprivs(long id, int quotatype, struct quotause *quplist)
 			qup->dqblk.dqb_itime = 0;
 		qup->dqblk.dqb_curinodes = dqbuf.dqb_curinodes;
 		qup->dqblk.dqb_curblocks = dqbuf.dqb_curblocks;
-		if (quota_write(qf, &qup->dqblk, id) != 0) {
+		if (quota_write(qf, &qup->dqblk, id) == 0) {
 			warn("%s", qup->qfname);
 		}
 		quota_close(qf);
@@ -992,56 +996,5 @@ alldigits(const char *s)
 		if (!isdigit(c))
 			return (0);
 	} while ((c = *s++));
-	return (1);
-}
-
-/*
- * Check to see if a particular quota is to be enabled.
- */
-int
-hasquota(struct fstab *fs, int type, char **qfnamep)
-{
-	char *opt;
-	char *cp;
-	struct statfs sfb;
-	static char initname, usrname[100], grpname[100];
-	static char buf[BUFSIZ];
-
-	if (!initname) {
-		(void)snprintf(usrname, sizeof(usrname), "%s%s",
-		    qfextension[USRQUOTA], qfname);
-		(void)snprintf(grpname, sizeof(grpname), "%s%s",
-		    qfextension[GRPQUOTA], qfname);
-		initname = 1;
-	}
-	strcpy(buf, fs->fs_mntops);
-	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
-		if ((cp = index(opt, '=')))
-			*cp++ = '\0';
-		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
-			break;
-		if (type == GRPQUOTA && strcmp(opt, grpname) == 0)
-			break;
-	}
-	if (!opt)
-		return (0);
-	if (cp)
-		*qfnamep = cp;
-	else {
-		(void)snprintf(buf, sizeof(buf), "%s/%s.%s", fs->fs_file,
-		    qfname, qfextension[type]);
-		*qfnamep = buf;
-	}
-	if (statfs(fs->fs_file, &sfb) != 0) {
-		warn("cannot statfs mount point %s", fs->fs_file);
-		sleep(3);
-		return (0);
-	}
-	if (strcmp(fs->fs_file, sfb.f_mntonname)) {
-		warnx("%s not mounted for %s quotas", fs->fs_file,
-		    type == USRQUOTA ? "user" : "group");
-		sleep(3);
-		return (0);
-	}
 	return (1);
 }
