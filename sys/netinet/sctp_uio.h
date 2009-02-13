@@ -1011,12 +1011,12 @@ struct xsctp_tcb {
 	uint32_t cumulative_tsn;
 	uint32_t cumulative_tsn_ack;
 	uint32_t mtu;
-	uint32_t peers_rwnd;
 	uint32_t refcnt;
 	uint16_t local_port;	/* sctpAssocEntry 3   */
 	uint16_t remote_port;	/* sctpAssocEntry 4   */
 	struct sctp_timeval start_time;	/* sctpAssocEntry 16  */
 	struct sctp_timeval discontinuity_time;	/* sctpAssocEntry 17  */
+	uint32_t peers_rwnd;
 	sctp_assoc_t assoc_id;	/* sctpAssocEntry 1   */
 	uint32_t extra_padding[8];	/* future */
 };
