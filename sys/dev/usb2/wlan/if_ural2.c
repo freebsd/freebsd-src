@@ -165,6 +165,7 @@ static int		ural_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static void		ural_amrr_start(struct ural_softc *,
 			    struct ieee80211_node *);
 static void		ural_amrr_timeout(void *);
+static int		ural_pause(struct ural_softc *sc, int timeout);
 static void		ural_queue_command(struct ural_softc *,
 			    usb2_proc_callback_t *, struct usb2_proc_msg *,
 			    struct usb2_proc_msg *);
@@ -533,7 +534,7 @@ ural_detach(device_t self)
 {
 	struct ural_softc *sc = device_get_softc(self);
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic;
 
 	/* wait for any post attach or other command to complete */
 	usb2_proc_drain(&sc->sc_tq);
@@ -548,6 +549,7 @@ ural_detach(device_t self)
 	RAL_UNLOCK(sc);
 
 	if (ifp) {
+		ic = ifp->if_l2com;
 		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 		if_free(ifp);
@@ -1566,11 +1568,13 @@ ural_bbp_write(struct ural_softc *sc, uint8_t reg, uint8_t val)
 	uint16_t tmp;
 	int ntries;
 
-	for (ntries = 0; ntries < 5; ntries++) {
+	for (ntries = 0; ntries < 100; ntries++) {
 		if (!(ural_read(sc, RAL_PHY_CSR8) & RAL_BBP_BUSY))
 			break;
+		if (ural_pause(sc, hz / 100))
+			break;
 	}
-	if (ntries == 5) {
+	if (ntries == 100) {
 		device_printf(sc->sc_dev, "could not write to BBP\n");
 		return;
 	}
@@ -1588,11 +1592,13 @@ ural_bbp_read(struct ural_softc *sc, uint8_t reg)
 	val = RAL_BBP_WRITE | reg << 8;
 	ural_write(sc, RAL_PHY_CSR7, val);
 
-	for (ntries = 0; ntries < 5; ntries++) {
+	for (ntries = 0; ntries < 100; ntries++) {
 		if (!(ural_read(sc, RAL_PHY_CSR8) & RAL_BBP_BUSY))
 			break;
+		if (ural_pause(sc, hz / 100))
+			break;
 	}
-	if (ntries == 5) {
+	if (ntries == 100) {
 		device_printf(sc->sc_dev, "could not read BBP\n");
 		return 0;
 	}
@@ -1606,11 +1612,13 @@ ural_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val)
 	uint32_t tmp;
 	int ntries;
 
-	for (ntries = 0; ntries < 5; ntries++) {
+	for (ntries = 0; ntries < 100; ntries++) {
 		if (!(ural_read(sc, RAL_PHY_CSR10) & RAL_RF_LOBUSY))
 			break;
+		if (ural_pause(sc, hz / 100))
+			break;
 	}
-	if (ntries == 5) {
+	if (ntries == 100) {
 		device_printf(sc->sc_dev, "could not write to RF\n");
 		return;
 	}
@@ -1693,7 +1701,7 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint8_t power, tmp;
-	u_int i, chan;
+	int i, chan;
 
 	chan = ieee80211_chan2ieee(ic, c);
 	if (chan == 0 || chan == IEEE80211_CHAN_ANY)
@@ -1784,7 +1792,7 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 		/* clear CRC errors */
 		ural_read(sc, RAL_STA_CSR0);
 
-		DELAY(10000);
+		ural_pause(sc, hz / 100);
 		ural_disable_rf_tune(sc);
 	}
 
@@ -2009,7 +2017,8 @@ ural_bbp_init(struct ural_softc *sc)
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (ural_bbp_read(sc, RAL_BBP_VERSION) != 0)
 			break;
-		DELAY(1000);
+		if (ural_pause(sc, hz / 100))
+			break;
 	}
 	if (ntries == 100) {
 		device_printf(sc->sc_dev, "timeout waiting for BBP\n");
@@ -2110,7 +2119,8 @@ ural_init_task(struct usb2_proc_msg *pm)
 		if ((tmp & (RAL_BBP_AWAKE | RAL_RF_AWAKE)) ==
 		    (RAL_BBP_AWAKE | RAL_RF_AWAKE))
 			break;
-		DELAY(1000);
+		if (ural_pause(sc, hz / 100))
+			break;
 	}
 	if (ntries == 100) {
 		device_printf(sc->sc_dev,
@@ -2205,6 +2215,8 @@ ural_stop_task(struct usb2_proc_msg *pm)
 	ural_write(sc, RAL_TXRX_CSR2, RAL_DISABLE_RX);
 	/* reset ASIC and BBP (but won't reset MAC registers!) */
 	ural_write(sc, RAL_MAC_CSR1, RAL_RESET_ASIC | RAL_RESET_BBP);
+	/* wait a little */
+	ural_pause(sc, hz / 10);
 	ural_write(sc, RAL_MAC_CSR1, 0);
 }
 
@@ -2308,6 +2320,16 @@ ural_amrr_task(struct usb2_proc_msg *pm)
 	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
 
 	usb2_callout_reset(&uvp->amrr_ch, hz, ural_amrr_timeout, uvp);
+}
+
+static int
+ural_pause(struct ural_softc *sc, int timeout)
+{
+	if (usb2_proc_is_gone(&sc->sc_tq))
+		return (1);
+
+	usb2_pause_mtx(&sc->sc_mtx, timeout);
+	return (0);
 }
 
 static void
