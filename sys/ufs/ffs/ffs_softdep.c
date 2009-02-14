@@ -921,8 +921,8 @@ process_worklist_item(mp, flags)
 		wk->wk_state |= INPROGRESS;
 		ump->softdep_on_worklist_inprogress++;
 		FREE_LOCK(&lk);
-		ffs_vget(mp, WK_DIRREM(wk)->dm_oldinum,
-		    LK_NOWAIT | LK_EXCLUSIVE, &vp);
+		ffs_vgetf(mp, WK_DIRREM(wk)->dm_oldinum,
+		    LK_NOWAIT | LK_EXCLUSIVE, &vp, FFSV_FORCEINSMQ);
 		ACQUIRE_LOCK(&lk);
 		wk->wk_state &= ~INPROGRESS;
 		ump->softdep_on_worklist_inprogress--;
@@ -1076,8 +1076,11 @@ softdep_flushfiles(oldmnt, flags, td)
 	int flags;
 	struct thread *td;
 {
-	int error, count, loopcnt;
+	int error, depcount, loopcnt, retry_flush_count, retry;
 
+	loopcnt = 10;
+	retry_flush_count = 3;
+retry_flush:
 	error = 0;
 
 	/*
@@ -1086,15 +1089,15 @@ softdep_flushfiles(oldmnt, flags, td)
 	 * creates. In theory, this loop can happen at most twice,
 	 * but we give it a few extra just to be sure.
 	 */
-	for (loopcnt = 10; loopcnt > 0; loopcnt--) {
+	for (; loopcnt > 0; loopcnt--) {
 		/*
 		 * Do another flush in case any vnodes were brought in
 		 * as part of the cleanup operations.
 		 */
 		if ((error = ffs_flushfiles(oldmnt, flags, td)) != 0)
 			break;
-		if ((error = softdep_flushworklist(oldmnt, &count, td)) != 0 ||
-		    count == 0)
+		if ((error = softdep_flushworklist(oldmnt, &depcount, td)) != 0 ||
+		    depcount == 0)
 			break;
 	}
 	/*
@@ -1109,6 +1112,24 @@ softdep_flushfiles(oldmnt, flags, td)
 	}
 	if (!error)
 		error = softdep_waitidle(oldmnt);
+	if (!error) {
+		if (oldmnt->mnt_kern_flag & MNTK_UNMOUNT) {
+			retry = 0;
+			MNT_ILOCK(oldmnt);
+			KASSERT((oldmnt->mnt_kern_flag & MNTK_NOINSMNTQ) != 0,
+			    ("softdep_flushfiles: !MNTK_NOINSMNTQ"));
+			if (oldmnt->mnt_nvnodelistsize > 0) {
+				if (--retry_flush_count > 0) {
+					retry = 1;
+					loopcnt = 3;
+				} else
+					error = EBUSY;
+			}
+			MNT_IUNLOCK(oldmnt);
+			if (retry)
+				goto retry_flush;
+		}
+	}
 	return (error);
 }
 
@@ -2777,8 +2798,9 @@ handle_workitem_freeblocks(freeblks, flags)
 	 */
 	if (freeblks->fb_chkcnt != blocksreleased &&
 	    (fs->fs_flags & FS_UNCLEAN) != 0 &&
-	    ffs_vget(freeblks->fb_list.wk_mp, freeblks->fb_previousinum,
-	    (flags & LK_NOWAIT) | LK_EXCLUSIVE, &vp) == 0) {
+	    ffs_vgetf(freeblks->fb_list.wk_mp, freeblks->fb_previousinum,
+		(flags & LK_NOWAIT) | LK_EXCLUSIVE, &vp, FFSV_FORCEINSMQ)
+	    == 0) {
 		ip = VTOI(vp);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + \
 		    freeblks->fb_chkcnt - blocksreleased);
@@ -3565,8 +3587,8 @@ handle_workitem_remove(dirrem, xp)
 	int error;
 
 	if ((vp = xp) == NULL &&
-	    (error = ffs_vget(dirrem->dm_list.wk_mp,
-	    dirrem->dm_oldinum, LK_EXCLUSIVE, &vp)) != 0) {
+	    (error = ffs_vgetf(dirrem->dm_list.wk_mp,
+		    dirrem->dm_oldinum, LK_EXCLUSIVE, &vp, FFSV_FORCEINSMQ)) != 0) {
 		softdep_error("handle_workitem_remove: vget", error);
 		return;
 	}
@@ -5081,9 +5103,11 @@ softdep_fsync(vp)
 		 * for details on possible races.
 		 */
 		FREE_LOCK(&lk);
-		if (ffs_vget(mp, parentino, LK_NOWAIT | LK_EXCLUSIVE, &pvp)) {
+		if (ffs_vgetf(mp, parentino, LK_NOWAIT | LK_EXCLUSIVE, &pvp,
+		    FFSV_FORCEINSMQ)) {
 			VOP_UNLOCK(vp, 0, td);
-			error = ffs_vget(mp, parentino, LK_EXCLUSIVE, &pvp);
+			error = ffs_vgetf(mp, parentino, LK_EXCLUSIVE,
+			    &pvp, FFSV_FORCEINSMQ);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (error != 0)
 				return (error);
@@ -5583,7 +5607,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		inum = dap->da_newinum;
 		if (dap->da_state & MKDIR_BODY) {
 			FREE_LOCK(&lk);
-			if ((error = ffs_vget(mp, inum, LK_EXCLUSIVE, &vp)))
+			if ((error = ffs_vgetf(mp, inum, LK_EXCLUSIVE, &vp,
+			    FFSV_FORCEINSMQ)))
 				break;
 			if ((error=ffs_syncvnode(vp, MNT_NOWAIT)) ||
 			    (error=ffs_syncvnode(vp, MNT_NOWAIT))) {
@@ -5921,7 +5946,8 @@ clear_remove(td)
 			if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 				continue;
 			FREE_LOCK(&lk);
-			if ((error = ffs_vget(mp, ino, LK_EXCLUSIVE, &vp))) {
+			if ((error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
+			     FFSV_FORCEINSMQ))) {
 				softdep_error("clear_remove: vget", error);
 				vn_finished_write(mp);
 				ACQUIRE_LOCK(&lk);
@@ -5992,7 +6018,8 @@ clear_inodedeps(td)
 		if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 			continue;
 		FREE_LOCK(&lk);
-		if ((error = ffs_vget(mp, ino, LK_EXCLUSIVE, &vp)) != 0) {
+		if ((error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
+		    FFSV_FORCEINSMQ)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
 			vn_finished_write(mp);
 			ACQUIRE_LOCK(&lk);
