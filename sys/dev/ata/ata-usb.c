@@ -196,6 +196,7 @@ atausb_attach(device_t dev)
     usb_endpoint_descriptor_t *ed;
     usbd_device_handle udev;
     usb_device_request_t request;
+    device_t child;
     char devinfo[1024], *proto, *subclass;
     u_int8_t maxlun;
     int err, i;
@@ -337,12 +338,11 @@ atausb_attach(device_t dev)
 
     /* ata channels are children to this USB control device */
     for (i = 0; i <= sc->maxlun; i++) {
-	if (!device_add_child(sc->dev, "ata",
-			      devclass_find_free_unit(ata_devclass, 2))) {
-	    device_printf(sc->dev, "failed to attach ata child device\n");
-	    atausb_detach(dev);
-	    return ENXIO;
-	}
+	if ((child = device_add_child(sc->dev, "ata",
+		devclass_find_free_unit(ata_devclass, 2))) == NULL) {
+	    device_printf(sc->dev, "failed to add ata child device\n");
+	} else
+	    device_set_ivars(child, (void *)(intptr_t)i);
     }
     bus_generic_attach(sc->dev);
     return 0;
@@ -829,23 +829,9 @@ ata_usbchannel_end_transaction(struct ata_request *request)
 static int
 ata_usbchannel_probe(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
-    device_t *children;
-    int count, i;
     char buffer[32];
 
-    /* take care of green memory */
-    bzero(ch, sizeof(struct ata_channel));
-
-    /* find channel number on this controller */
-    device_get_children(device_get_parent(dev), &children, &count);
-    for (i = 0; i < count; i++) {
-        if (children[i] == dev)
-            ch->unit = i;
-    }
-    free(children, M_TEMP);
-
-    sprintf(buffer, "USB lun %d", ch->unit);
+    sprintf(buffer, "USB lun %d", (int)(intptr_t)device_get_ivars(dev));
     device_set_desc_copy(dev, buffer);
 
     return 0;
@@ -856,8 +842,12 @@ ata_usbchannel_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
+    /* take care of green memory */
+    bzero(ch, sizeof(struct ata_channel));
+
     /* initialize the softc basics */
     ch->dev = dev;
+    ch->unit = (intptr_t)device_get_ivars(dev);
     ch->state = ATA_IDLE;
     ch->hw.begin_transaction = ata_usbchannel_begin_transaction;
     ch->hw.end_transaction = ata_usbchannel_end_transaction;
