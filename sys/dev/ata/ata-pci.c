@@ -88,6 +88,7 @@ int
 ata_pci_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    device_t child;
     u_int32_t cmd;
     int unit;
 
@@ -121,11 +122,13 @@ ata_pci_attach(device_t dev)
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++) {
-	if ((unit == 0 || unit == 1) && ctlr->legacy) {
-	    device_add_child(dev, "ata", unit);
-	    continue;
-	}
-	device_add_child(dev, "ata", devclass_find_free_unit(ata_devclass, 2));
+	child = device_add_child(dev, "ata",
+	    ((unit == 0 || unit == 1) && ctlr->legacy) ?
+	    unit : devclass_find_free_unit(ata_devclass, 2));
+	if (child == NULL)
+	    device_printf(dev, "failed to add ata child device\n");
+	else
+	    device_set_ivars(child, (void *)(intptr_t)unit);
     }
     bus_generic_attach(dev);
     return 0;
@@ -504,23 +507,9 @@ MODULE_DEPEND(atapci, ata, 1, 1, 1);
 static int
 ata_pcichannel_probe(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
-    device_t *children;
-    int count, i;
     char buffer[32];
 
-    /* take care of green memory */
-    bzero(ch, sizeof(struct ata_channel));
-
-    /* find channel number on this controller */
-    device_get_children(device_get_parent(dev), &children, &count);
-    for (i = 0; i < count; i++) {
-	if (children[i] == dev)
-	    ch->unit = i;
-    }
-    free(children, M_TEMP);
-
-    sprintf(buffer, "ATA channel %d", ch->unit);
+    sprintf(buffer, "ATA channel %d", (int)(intptr_t)device_get_ivars(dev));
     device_set_desc_copy(dev, buffer);
 
     return ata_probe(dev);
@@ -530,7 +519,13 @@ static int
 ata_pcichannel_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     int error;
+
+    /* take care of green memory */
+    bzero(ch, sizeof(struct ata_channel));
+
+    ch->unit = (intptr_t)device_get_ivars(dev);
 
     if (ctlr->dmainit)
 	ctlr->dmainit(dev);
