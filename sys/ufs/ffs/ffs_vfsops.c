@@ -189,14 +189,35 @@ ffs_mount(struct mount *mp, struct thread *td)
 		devvp = ump->um_devvp;
 		if (fs->fs_ronly == 0 &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
+			/*
+			 * Flush any dirty data and suspend filesystem.
+			 */
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
-			/*
-			 * Flush any dirty data.
-			 */
-			if ((error = ffs_sync(mp, MNT_WAIT, td)) != 0) {
+			for (;;) {
 				vn_finished_write(mp);
-				return (error);
+				if ((error = vfs_write_suspend(mp)) != 0)
+					return (error);
+				MNT_ILOCK(mp);
+				if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
+					/*
+					 * Allow the secondary writes
+					 * to proceed.
+					 */
+					mp->mnt_kern_flag &= ~(MNTK_SUSPENDED |
+					    MNTK_SUSPEND2);
+					wakeup(&mp->mnt_flag);
+					MNT_IUNLOCK(mp);
+					/*
+					 * Allow the curthread to
+					 * ignore the suspension to
+					 * synchronize on-disk state.
+					 */
+					curthread->td_pflags |= TDP_IGNSUSP;
+					break;
+				}
+				MNT_IUNLOCK(mp);
+				vn_start_write(NULL, &mp, V_WAIT);
 			}
 			/*
 			 * Check for and optionally get rid of files open
@@ -211,7 +232,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 				error = ffs_flushfiles(mp, flags, td);
 			}
 			if (error) {
-				vn_finished_write(mp);
+				vfs_write_resume(mp);
 				return (error);
 			}
 			if (fs->fs_pendingblocks != 0 ||
@@ -228,10 +249,9 @@ ffs_mount(struct mount *mp, struct thread *td)
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				fs->fs_ronly = 0;
 				fs->fs_clean = 0;
-				vn_finished_write(mp);
+				vfs_write_resume(mp);
 				return (error);
 			}
-			vn_finished_write(mp);
 			DROP_GIANT();
 			g_topology_lock();
 			g_access(ump->um_cp, 0, -1, 0);
@@ -241,6 +261,11 @@ ffs_mount(struct mount *mp, struct thread *td)
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
 			MNT_IUNLOCK(mp);
+			/*
+			 * Allow the writers to note that filesystem
+			 * is ro now.
+			 */
+			vfs_write_resume(mp);
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
 		    (error = ffs_reload(mp, td)) != 0)
@@ -1004,12 +1029,15 @@ ffs_unmount(mp, mntflags, td)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
-	int error, flags;
+	int error, flags, susp;
 
 	flags = 0;
+	fs = ump->um_fs;
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
-	}
+		susp = fs->fs_ronly != 0;
+	} else
+		susp = 0;
 #ifdef UFS_EXTATTR
 	if ((error = ufs_extattr_stop(mp, td))) {
 		if (error != EOPNOTSUPP)
@@ -1019,14 +1047,34 @@ ffs_unmount(mp, mntflags, td)
 		ufs_extattr_uepm_destroy(&ump->um_extattr);
 	}
 #endif
+	if (susp) {
+		/*
+		 * dounmount already called vn_start_write().
+		 */
+		for (;;) {
+			vn_finished_write(mp);
+			if ((error = vfs_write_suspend(mp)) != 0)
+				return (error);
+			MNT_ILOCK(mp);
+			if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
+				mp->mnt_kern_flag &= ~(MNTK_SUSPENDED |
+				    MNTK_SUSPEND2);
+				wakeup(&mp->mnt_flag);
+				MNT_IUNLOCK(mp);
+				curthread->td_pflags |= TDP_IGNSUSP;
+				break;
+			}
+			MNT_IUNLOCK(mp);
+			vn_start_write(NULL, &mp, V_WAIT);
+		}
+	}
 	if (mp->mnt_flag & MNT_SOFTDEP) {
 		if ((error = softdep_flushfiles(mp, flags, td)) != 0)
-			return (error);
+			goto fail;
 	} else {
 		if ((error = ffs_flushfiles(mp, flags, td)) != 0)
-			return (error);
+			goto fail;
 	}
-	fs = ump->um_fs;
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("%s: unmount pending error: blocks %jd files %d\n",
@@ -1041,8 +1089,12 @@ ffs_unmount(mp, mntflags, td)
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
 		if (error) {
 			fs->fs_clean = 0;
-			return (error);
+			goto fail;
 		}
+	}
+	if (susp) {
+		vfs_write_resume(mp);
+		vn_start_write(NULL, &mp, V_WAIT);
 	}
 	DROP_GIANT();
 	g_topology_lock();
@@ -1062,6 +1114,13 @@ ffs_unmount(mp, mntflags, td)
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
+	return (error);
+
+fail:
+	if (susp) {
+		vfs_write_resume(mp);
+		vn_start_write(NULL, &mp, V_WAIT);
+	}
 	return (error);
 }
 
