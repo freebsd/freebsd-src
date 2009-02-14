@@ -1007,17 +1007,30 @@ int
 insmntque1(struct vnode *vp, struct mount *mp,
 	void (*dtr)(struct vnode *, void *), void *dtr_arg)
 {
+	int locked;
 
 	KASSERT(vp->v_mount == NULL,
 		("insmntque: vnode already on per mount vnode list"));
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
+#if 0
+#ifdef DEBUG_VFS_LOCKS
+	if (!VFS_NEEDSGIANT(mp))
+		ASSERT_VOP_ELOCKED(vp,
+		    "insmntque: mp-safe fs and non-locked vp");
+#endif
+#endif
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_NOINSMNTQ) != 0 &&
-	    mp->mnt_nvnodelistsize == 0) {
-		MNT_IUNLOCK(mp);
-		if (dtr != NULL)
-			dtr(vp, dtr_arg);
-		return (EBUSY);
+	    ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0 ||
+	     mp->mnt_nvnodelistsize == 0)) {
+		locked = VOP_ISLOCKED(vp, curthread);
+		if (!locked || (locked == LK_EXCLUSIVE &&
+		     (vp->v_vflag & VV_FORCEINSMQ) == 0)) {
+			MNT_IUNLOCK(mp);
+			if (dtr != NULL)
+				dtr(vp, dtr_arg);
+			return (EBUSY);
+		}
 	}
 	vp->v_mount = mp;
 	MNT_REF(mp);
@@ -3140,9 +3153,13 @@ vfs_allocate_syncvnode(struct mount *mp)
 		return (error);
 	}
 	vp->v_type = VNON;
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0)
 		panic("vfs_allocate_syncvnode: insmntque failed");
+	vp->v_vflag &= ~VV_FORCEINSMQ;
+	VOP_UNLOCK(vp, 0, curthread);
 	/*
 	 * Place the vnode onto the syncer worklist. We attempt to
 	 * scatter them about on the list so that they will go off
