@@ -58,6 +58,8 @@ static libusb20_dev_get_iface_owner_t ugen20_dev_get_iface_owner;
 static libusb20_dev_get_iface_perm_t ugen20_dev_get_iface_perm;
 static libusb20_dev_get_owner_t ugen20_dev_get_owner;
 static libusb20_dev_get_perm_t ugen20_dev_get_perm;
+static libusb20_dev_get_iface_desc_t ugen20_dev_get_iface_desc;
+static libusb20_dev_get_info_t ugen20_dev_get_info;
 static libusb20_dev_set_iface_owner_t ugen20_dev_set_iface_owner;
 static libusb20_dev_set_iface_perm_t ugen20_dev_set_iface_perm;
 static libusb20_dev_set_owner_t ugen20_dev_set_owner;
@@ -951,6 +953,34 @@ ugen20_bus_get_perm(struct libusb20_backend *pbe,
 {
 	return (ugen20_be_do_perm(USB_GET_BUS_PERM, 0,
 	    bus, 0, 0, NULL, NULL, mode));
+}
+
+static int
+ugen20_dev_get_iface_desc(struct libusb20_device *pdev, 
+    uint8_t iface_index, char *buf, uint8_t len)
+{
+	struct usb2_gen_descriptor ugd;
+
+	memset(&ugd, 0, sizeof(ugd));
+
+	ugd.ugd_data = buf;
+	ugd.ugd_maxlen = len;
+	ugd.ugd_iface_index = iface_index;
+
+	if (ioctl(pdev->file, USB_GET_IFACE_DRIVER, &ugd)) {
+		return (LIBUSB20_ERROR_INVALID_PARAM);
+	}
+	return (0);
+}
+
+static int
+ugen20_dev_get_info(struct libusb20_device *pdev,
+    struct usb2_device_info *pinfo)
+{
+	if (ioctl(pdev->file, USB_GET_DEVICEINFO, pinfo)) {
+		return (LIBUSB20_ERROR_INVALID_PARAM);
+	}
+	return (0);
 }
 
 static int
