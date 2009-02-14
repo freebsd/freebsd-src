@@ -91,8 +91,8 @@
 #include <arpa/inet.h>
 #include "alias.h"
 #include "alias_local.h"
-#include <netinet/sctp_crc32.h>
 #include <machine/in_cksum.h>
+#include <sys/libkern.h>
 #endif //#ifdef _KERNEL
 
 /* ----------------------------------------------------------------------
@@ -864,6 +864,43 @@ SctpAlias(struct libalias *la, struct ip *pip, int direction)
  * @param sndrply SN_SEND_ABORT | SN_REPLY_ABORT | SN_REPLY_ERROR
  * @param direction SN_TO_LOCAL | SN_TO_GLOBAL
  */
+static uint32_t
+local_sctp_finalize_crc32(uint32_t crc32c)
+{
+	/* This routine is duplicated from SCTP 
+	 * we need to do that since it MAY be that SCTP
+	 * is NOT compiled into the kernel. The CRC32C routines
+	 * however are always available in libkern.
+	 */
+	uint32_t result;
+#if BYTE_ORDER == BIG_ENDIAN
+	uint8_t byte0, byte1, byte2, byte3;
+
+#endif
+	/* Complement the result */
+	result = ~crc32c;
+#if BYTE_ORDER == BIG_ENDIAN
+	/*
+	 * For BIG-ENDIAN.. aka Motorola byte order the result is in
+	 * little-endian form. So we must manually swap the bytes. Then we
+	 * can call htonl() which does nothing...
+	 */
+	byte0 = result & 0x000000ff;
+	byte1 = (result >> 8) & 0x000000ff;
+	byte2 = (result >> 16) & 0x000000ff;
+	byte3 = (result >> 24) & 0x000000ff;
+	crc32c = ((byte0 << 24) | (byte1 << 16) | (byte2 << 8) | byte3);
+#else
+	/*
+	 * For INTEL platforms the result comes out in network order. No
+	 * htonl is required or the swap above. So we optimize out both the
+	 * htonl and the manual swap above.
+	 */
+	crc32c = result;
+#endif
+	return (crc32c);
+}
+
 static void
 TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int sndrply, int direction)
 {
@@ -943,7 +980,7 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
   
 	/* calculate SCTP header CRC32 */
 	sctp_hdr->checksum = 0;
-	sctp_hdr->checksum = sctp_finalize_crc32(update_crc32(0xffffffff, (unsigned char *) sctp_hdr, sctp_size));
+	sctp_hdr->checksum = local_sctp_finalize_crc32(calculate_crc32c(0xffffffff, (unsigned char *) sctp_hdr, sctp_size));
 
 	memcpy(sm->ip_hdr, ip, ip_size);
 
