@@ -3400,9 +3400,7 @@ retry:
 			}
 
 			p = vm_page_lookup(object, pindex);
-			vm_page_lock_queues();
 			vm_page_wakeup(p);
-			vm_page_unlock_queues();
 		}
 
 		ptepa = VM_PAGE_TO_PHYS(p);
@@ -3416,15 +3414,11 @@ retry:
 			while ((pdpg =
 			    pmap_allocpde(pmap, va, M_NOWAIT)) == NULL) {
 				PMAP_UNLOCK(pmap);
-				vm_page_lock_queues();
 				vm_page_busy(p);
-				vm_page_unlock_queues();
 				VM_OBJECT_UNLOCK(object);
 				VM_WAIT;
 				VM_OBJECT_LOCK(object);
-				vm_page_lock_queues();
 				vm_page_wakeup(p);
-				vm_page_unlock_queues();
 				PMAP_LOCK(pmap);
 			}
 			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));
