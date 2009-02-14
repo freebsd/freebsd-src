@@ -105,6 +105,7 @@ static struct vfsops ufs_vfsops = {
 	.vfs_uninit =		ffs_uninit,
 	.vfs_unmount =		ffs_unmount,
 	.vfs_vget =		ffs_vget,
+	.vfs_susp_clean =	process_deferred_inactive,
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);
