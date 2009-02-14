@@ -131,4 +131,6 @@ int     softdep_process_worklist(struct mount *, int);
 int     softdep_fsync(struct vnode *);
 int	softdep_waitidle(struct mount *);
 
+int	ffs_rdonly(struct inode *);
+
 #endif /* !_UFS_FFS_EXTERN_H */
