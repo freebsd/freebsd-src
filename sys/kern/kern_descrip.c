@@ -2532,7 +2532,12 @@ export_vnode_for_osysctl(struct vnode *vp, int type,
 	kif->kf_fd = type;
 	kif->kf_type = KF_TYPE_VNODE;
 	/* This function only handles directories. */
-	KASSERT(vp->v_type == VDIR, ("export_vnode_for_osysctl: vnode not directory"));
+	if (vp->v_type != VDIR) {
+		printf("export_vnode_for_osysctl: vnode not directory: %d\n",
+		    vp->v_type);
+		vrele(vp);
+		return (ENOTDIR);
+	}
 	kif->kf_vnode_type = KF_VTYPE_VDIR;
 
 	/*
@@ -2779,7 +2784,12 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 	kif->kf_fd = type;
 	kif->kf_type = KF_TYPE_VNODE;
 	/* This function only handles directories. */
-	KASSERT(vp->v_type == VDIR, ("export_vnode_for_sysctl: vnode not directory"));
+	if (vp->v_type != VDIR) {
+		printf("export_vnode_for_sysctl: vnode not directory: %d\n",
+		    vp->v_type);
+		vrele(vp);
+		return (ENOTDIR);
+	}
 	kif->kf_vnode_type = KF_VTYPE_VDIR;
 
 	/*
