@@ -78,6 +78,8 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_tr_close (void *)dummy_int
 #define	dummy_tr_clear_stall_sync (void *)dummy_int
 #define	dummy_process (void *)dummy_int
+#define	dummy_dev_info (void *)dummy_int
+#define	dummy_dev_get_iface_driver (void *)dummy_int
 
 #define	dummy_tr_submit (void *)dummy_void
 #define	dummy_tr_cancel_async (void *)dummy_void
@@ -99,7 +101,7 @@ repeat:
 		xfer->is_pending = 0;
 	}
 
-	(xfer->callback) (xfer);
+	xfer->callback(xfer);
 
 	if (xfer->is_restart) {
 		xfer->is_restart = 0;
@@ -109,7 +111,7 @@ repeat:
 	    (!xfer->is_pending)) {
 		xfer->is_draining = 0;
 		xfer->status = LIBUSB20_TRANSFER_DRAINED;
-		(xfer->callback) (xfer);
+		xfer->callback(xfer);
 	}
 	return;
 }
@@ -122,7 +124,7 @@ libusb20_tr_close(struct libusb20_transfer *xfer)
 	if (!xfer->is_opened) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
-	error = (xfer->pdev->methods->tr_close) (xfer);
+	error = xfer->pdev->methods->tr_close(xfer);
 
 	if (xfer->pLength) {
 		free(xfer->pLength);
@@ -168,7 +170,7 @@ libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	}
 	memset(xfer->ppBuffer, 0, size);
 
-	error = (xfer->pdev->methods->tr_open) (xfer, MaxBufSize,
+	error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
 	    MaxFrameCount, ep_no);
 
 	if (error) {
@@ -273,7 +275,7 @@ libusb20_tr_stop(struct libusb20_transfer *xfer)
 	}
 	xfer->is_cancel = 1;		/* we are cancelling */
 
-	(xfer->pdev->methods->tr_cancel_async) (xfer);
+	xfer->pdev->methods->tr_cancel_async(xfer);
 	return;
 }
 
@@ -292,7 +294,7 @@ libusb20_tr_drain(struct libusb20_transfer *xfer)
 void
 libusb20_tr_clear_stall_sync(struct libusb20_transfer *xfer)
 {
-	(xfer->pdev->methods->tr_clear_stall_sync) (xfer);
+	xfer->pdev->methods->tr_clear_stall_sync(xfer);
 	return;
 }
 
@@ -420,7 +422,7 @@ libusb20_tr_submit(struct libusb20_transfer *xfer)
 	xfer->is_cancel = 0;		/* not cancelling */
 	xfer->is_restart = 0;		/* not restarting */
 
-	(xfer->pdev->methods->tr_submit) (xfer);
+	xfer->pdev->methods->tr_submit(xfer);
 	return;
 }
 
@@ -452,7 +454,7 @@ libusb20_dev_claim_interface(struct libusb20_device *pdev, uint8_t ifaceIndex)
 	} else if (pdev->claimed_interfaces & (1 << ifaceIndex)) {
 		error = LIBUSB20_ERROR_NOT_FOUND;
 	} else {
-		error = (pdev->methods->claim_interface) (pdev, ifaceIndex);
+		error = pdev->methods->claim_interface(pdev, ifaceIndex);
 	}
 	if (!error) {
 		pdev->claimed_interfaces |= (1 << ifaceIndex);
@@ -480,7 +482,7 @@ libusb20_dev_close(struct libusb20_device *pdev)
 		free(pdev->pTransfer);
 		pdev->pTransfer = NULL;
 	}
-	error = (pdev->beMethods->close_device) (pdev);
+	error = pdev->beMethods->close_device(pdev);
 
 	pdev->methods = &libusb20_dummy_methods;
 
@@ -496,7 +498,7 @@ libusb20_dev_detach_kernel_driver(struct libusb20_device *pdev, uint8_t ifaceInd
 {
 	int error;
 
-	error = (pdev->methods->detach_kernel_driver) (pdev, ifaceIndex);
+	error = pdev->methods->detach_kernel_driver(pdev, ifaceIndex);
 	return (error);
 }
 
@@ -517,7 +519,7 @@ libusb20_dev_kernel_driver_active(struct libusb20_device *pdev, uint8_t ifaceInd
 {
 	int error;
 
-	error = (pdev->methods->kernel_driver_active) (pdev, ifaceIndex);
+	error = pdev->methods->kernel_driver_active(pdev, ifaceIndex);
 	return (error);
 }
 
@@ -555,7 +557,7 @@ libusb20_dev_open(struct libusb20_device *pdev, uint16_t nTransferMax)
 	/* set "nTransfer" early */
 	pdev->nTransfer = nTransferMax;
 
-	error = (pdev->beMethods->open_device) (pdev, nTransferMax);
+	error = pdev->beMethods->open_device(pdev, nTransferMax);
 
 	if (error) {
 		if (pdev->pTransfer != NULL) {
@@ -581,7 +583,7 @@ libusb20_dev_release_interface(struct libusb20_device *pdev, uint8_t ifaceIndex)
 	} else if (!(pdev->claimed_interfaces & (1 << ifaceIndex))) {
 		error = LIBUSB20_ERROR_NOT_FOUND;
 	} else {
-		error = (pdev->methods->release_interface) (pdev, ifaceIndex);
+		error = pdev->methods->release_interface(pdev, ifaceIndex);
 	}
 	if (!error) {
 		pdev->claimed_interfaces &= ~(1 << ifaceIndex);
@@ -594,7 +596,7 @@ libusb20_dev_reset(struct libusb20_device *pdev)
 {
 	int error;
 
-	error = (pdev->methods->reset_device) (pdev);
+	error = pdev->methods->reset_device(pdev);
 	return (error);
 }
 
@@ -603,7 +605,7 @@ libusb20_dev_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode)
 {
 	int error;
 
-	error = (pdev->methods->set_power_mode) (pdev, power_mode);
+	error = pdev->methods->set_power_mode(pdev, power_mode);
 	return (error);
 }
 
@@ -613,7 +615,7 @@ libusb20_dev_get_power_mode(struct libusb20_device *pdev)
 	int error;
 	uint8_t power_mode;
 
-	error = (pdev->methods->get_power_mode) (pdev, &power_mode);
+	error = pdev->methods->get_power_mode(pdev, &power_mode);
 	if (error)
 		power_mode = LIBUSB20_POWER_ON;	/* fake power mode */
 	return (power_mode);
@@ -624,7 +626,7 @@ libusb20_dev_set_alt_index(struct libusb20_device *pdev, uint8_t ifaceIndex, uin
 {
 	int error;
 
-	error = (pdev->methods->set_alt_index) (pdev, ifaceIndex, altIndex);
+	error = pdev->methods->set_alt_index(pdev, ifaceIndex, altIndex);
 	return (error);
 }
 
@@ -633,7 +635,7 @@ libusb20_dev_set_config_index(struct libusb20_device *pdev, uint8_t configIndex)
 {
 	int error;
 
-	error = (pdev->methods->set_config_index) (pdev, configIndex);
+	error = pdev->methods->set_config_index(pdev, configIndex);
 	return (error);
 }
 
@@ -644,7 +646,7 @@ libusb20_dev_request_sync(struct libusb20_device *pdev,
 {
 	int error;
 
-	error = (pdev->methods->do_request_sync) (pdev,
+	error = pdev->methods->do_request_sync(pdev,
 	    setup, data, pactlen, timeout, flags);
 	return (error);
 }
@@ -799,7 +801,7 @@ libusb20_dev_alloc_config(struct libusb20_device *pdev, uint8_t configIndex)
 	} else {
 		do_close = 0;
 	}
-	error = (pdev->methods->get_config_desc_full) (pdev,
+	error = pdev->methods->get_config_desc_full(pdev,
 	    &ptr, &len, configIndex);
 
 	if (error) {
@@ -853,7 +855,7 @@ libusb20_dev_get_config_index(struct libusb20_device *pdev)
 		do_close = 0;
 	}
 
-	error = (pdev->methods->get_config_index) (pdev, &cfg_index);
+	error = pdev->methods->get_config_index(pdev, &cfg_index);
 	if (error) {
 		cfg_index = 0 - 1;	/* current config index */
 	}
@@ -883,7 +885,7 @@ libusb20_dev_process(struct libusb20_device *pdev)
 {
 	int error;
 
-	error = (pdev->methods->process) (pdev);
+	error = pdev->methods->process(pdev);
 	return (error);
 }
 
@@ -921,10 +923,20 @@ libusb20_dev_free(struct libusb20_device *pdev)
 	return;
 }
 
+int
+libusb20_dev_get_info(struct libusb20_device *pdev,
+    struct usb2_device_info *pinfo)
+{
+	if (pinfo == NULL)
+		return (LIBUSB20_ERROR_INVALID_PARAM);
+
+	return (pdev->beMethods->dev_get_info(pdev, pinfo));
+}
+
 const char *
 libusb20_dev_get_backend_name(struct libusb20_device *pdev)
 {
-	return ((pdev->beMethods->get_backend_name) ());
+	return (pdev->beMethods->get_backend_name());
 }
 
 const char *
@@ -961,25 +973,29 @@ libusb20_dev_get_bus_number(struct libusb20_device *pdev)
 int
 libusb20_dev_set_owner(struct libusb20_device *pdev, uid_t user, gid_t group)
 {
-	return ((pdev->beMethods->dev_set_owner) (pdev, user, group));
+	return (pdev->beMethods->dev_set_owner(pdev, user, group));
 }
 
 int
 libusb20_dev_set_perm(struct libusb20_device *pdev, mode_t mode)
 {
-	return ((pdev->beMethods->dev_set_perm) (pdev, mode));
+	return (pdev->beMethods->dev_set_perm(pdev, mode));
 }
 
 int
-libusb20_dev_set_iface_owner(struct libusb20_device *pdev, uint8_t iface_index, uid_t user, gid_t group)
+libusb20_dev_set_iface_owner(struct libusb20_device *pdev,
+    uint8_t iface_index, uid_t user, gid_t group)
 {
-	return ((pdev->beMethods->dev_set_iface_owner) (pdev, iface_index, user, group));
+	return (pdev->beMethods->dev_set_iface_owner(
+	    pdev, iface_index, user, group));
 }
 
 int
-libusb20_dev_set_iface_perm(struct libusb20_device *pdev, uint8_t iface_index, mode_t mode)
+libusb20_dev_set_iface_perm(struct libusb20_device *pdev,
+    uint8_t iface_index, mode_t mode)
 {
-	return ((pdev->beMethods->dev_set_iface_perm) (pdev, iface_index, mode));
+	return (pdev->beMethods->dev_set_iface_perm(
+	    pdev, iface_index, mode));
 }
 
 int
@@ -993,7 +1009,7 @@ libusb20_dev_get_owner(struct libusb20_device *pdev, uid_t *user, gid_t *group)
 	if (group == NULL)
 		group = &b;
 
-	return ((pdev->beMethods->dev_get_owner) (pdev, user, group));
+	return (pdev->beMethods->dev_get_owner(pdev, user, group));
 }
 
 int
@@ -1003,11 +1019,12 @@ libusb20_dev_get_perm(struct libusb20_device *pdev, mode_t *mode)
 
 	if (mode == NULL)
 		mode = &a;
-	return ((pdev->beMethods->dev_get_perm) (pdev, mode));
+	return (pdev->beMethods->dev_get_perm(pdev, mode));
 }
 
 int
-libusb20_dev_get_iface_owner(struct libusb20_device *pdev, uint8_t iface_index, uid_t *user, gid_t *group)
+libusb20_dev_get_iface_owner(struct libusb20_device *pdev,
+    uint8_t iface_index, uid_t *user, gid_t *group)
 {
 	uid_t a;
 	gid_t b;
@@ -1017,35 +1034,51 @@ libusb20_dev_get_iface_owner(struct libusb20_device *pdev, uint8_t iface_index, 
 	if (group == NULL)
 		group = &b;
 
-	return ((pdev->beMethods->dev_get_iface_owner) (pdev, iface_index, user, group));
+	return (pdev->beMethods->dev_get_iface_owner(
+	    pdev, iface_index, user, group));
 }
 
 int
-libusb20_dev_get_iface_perm(struct libusb20_device *pdev, uint8_t iface_index, mode_t *mode)
+libusb20_dev_get_iface_perm(struct libusb20_device *pdev,
+    uint8_t iface_index, mode_t *mode)
 {
 	mode_t a;
 
 	if (mode == NULL)
 		mode = &a;
-	return ((pdev->beMethods->dev_get_iface_perm) (pdev, iface_index, mode));
+	return (pdev->beMethods->dev_get_iface_perm(
+	    pdev, iface_index, mode));
+}
+
+int
+libusb20_dev_get_iface_desc(struct libusb20_device *pdev, 
+    uint8_t iface_index, char *buf, uint8_t len)
+{
+	if ((buf == NULL) || (len == 0))
+		return (LIBUSB20_ERROR_INVALID_PARAM);
+
+	return (pdev->beMethods->dev_get_iface_desc(
+	    pdev, iface_index, buf, len));
 }
 
 /* USB bus operations */
 
 int
-libusb20_bus_set_owner(struct libusb20_backend *pbe, uint8_t bus, uid_t user, gid_t group)
+libusb20_bus_set_owner(struct libusb20_backend *pbe, 
+    uint8_t bus, uid_t user, gid_t group)
 {
-	return ((pbe->methods->bus_set_owner) (pbe, bus, user, group));
+	return (pbe->methods->bus_set_owner(pbe, bus, user, group));
 }
 
 int
 libusb20_bus_set_perm(struct libusb20_backend *pbe, uint8_t bus, mode_t mode)
 {
-	return ((pbe->methods->bus_set_perm) (pbe, bus, mode));
+	return (pbe->methods->bus_set_perm(pbe, bus, mode));
 }
 
 int
-libusb20_bus_get_owner(struct libusb20_backend *pbe, uint8_t bus, uid_t *user, gid_t *group)
+libusb20_bus_get_owner(struct libusb20_backend *pbe,
+    uint8_t bus, uid_t *user, gid_t *group)
 {
 	uid_t a;
 	gid_t b;
@@ -1054,7 +1087,7 @@ libusb20_bus_get_owner(struct libusb20_backend *pbe, uint8_t bus, uid_t *user, g
 		user = &a;
 	if (group == NULL)
 		group = &b;
-	return ((pbe->methods->bus_get_owner) (pbe, bus, user, group));
+	return (pbe->methods->bus_get_owner(pbe, bus, user, group));
 }
 
 int
@@ -1064,7 +1097,7 @@ libusb20_bus_get_perm(struct libusb20_backend *pbe, uint8_t bus, mode_t *mode)
 
 	if (mode == NULL)
 		mode = &a;
-	return ((pbe->methods->bus_get_perm) (pbe, bus, mode));
+	return (pbe->methods->bus_get_perm(pbe, bus, mode));
 }
 
 /* USB backend operations */
@@ -1073,40 +1106,40 @@ int
 libusb20_be_get_dev_quirk(struct libusb20_backend *pbe,
     uint16_t quirk_index, struct libusb20_quirk *pq)
 {
-	return ((pbe->methods->root_get_dev_quirk) (pbe, quirk_index, pq));
+	return (pbe->methods->root_get_dev_quirk(pbe, quirk_index, pq));
 }
 
 int
 libusb20_be_get_quirk_name(struct libusb20_backend *pbe,
     uint16_t quirk_index, struct libusb20_quirk *pq)
 {
-	return ((pbe->methods->root_get_quirk_name) (pbe, quirk_index, pq));
+	return (pbe->methods->root_get_quirk_name(pbe, quirk_index, pq));
 }
 
 int
 libusb20_be_add_dev_quirk(struct libusb20_backend *pbe,
     struct libusb20_quirk *pq)
 {
-	return ((pbe->methods->root_add_dev_quirk) (pbe, pq));
+	return (pbe->methods->root_add_dev_quirk(pbe, pq));
 }
 
 int
 libusb20_be_remove_dev_quirk(struct libusb20_backend *pbe,
     struct libusb20_quirk *pq)
 {
-	return ((pbe->methods->root_remove_dev_quirk) (pbe, pq));
+	return (pbe->methods->root_remove_dev_quirk(pbe, pq));
 }
 
 int
 libusb20_be_set_owner(struct libusb20_backend *pbe, uid_t user, gid_t group)
 {
-	return ((pbe->methods->root_set_owner) (pbe, user, group));
+	return (pbe->methods->root_set_owner(pbe, user, group));
 }
 
 int
 libusb20_be_set_perm(struct libusb20_backend *pbe, mode_t mode)
 {
-	return ((pbe->methods->root_set_perm) (pbe, mode));
+	return (pbe->methods->root_set_perm(pbe, mode));
 }
 
 int
@@ -1119,7 +1152,7 @@ libusb20_be_get_owner(struct libusb20_backend *pbe, uid_t *user, gid_t *group)
 		user = &a;
 	if (group == NULL)
 		group = &b;
-	return ((pbe->methods->root_get_owner) (pbe, user, group));
+	return (pbe->methods->root_get_owner(pbe, user, group));
 }
 
 int
@@ -1129,7 +1162,7 @@ libusb20_be_get_perm(struct libusb20_backend *pbe, mode_t *mode)
 
 	if (mode == NULL)
 		mode = &a;
-	return ((pbe->methods->root_get_perm) (pbe, mode));
+	return (pbe->methods->root_get_perm(pbe, mode));
 }
 
 struct libusb20_device *
@@ -1162,7 +1195,7 @@ libusb20_be_alloc(const struct libusb20_backend_methods *methods)
 
 	/* do the initial device scan */
 	if (pbe->methods->init_backend) {
-		(pbe->methods->init_backend) (pbe);
+		pbe->methods->init_backend(pbe);
 	}
 	return (pbe);
 }
@@ -1223,7 +1256,7 @@ libusb20_be_free(struct libusb20_backend *pbe)
 		libusb20_dev_free(pdev);
 	}
 	if (pbe->methods->exit_backend) {
-		(pbe->methods->exit_backend) (pbe);
+		pbe->methods->exit_backend(pbe);
 	}
 	return;
 }

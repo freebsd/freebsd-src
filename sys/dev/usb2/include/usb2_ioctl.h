@@ -77,13 +77,6 @@ struct usb2_gen_descriptor {
 	uint8_t	reserved[8];
 };
 
-struct usb2_device_names {
-	char   *udn_devnames_ptr;	/* userland pointer to comma separated
-					 * list of device names */
-	uint16_t udn_devnames_len;	/* maximum string length including
-					 * terminating zero */
-};
-
 struct usb2_device_info {
 	uint16_t udi_productNo;
 	uint16_t udi_vendorNo;
@@ -249,7 +242,7 @@ struct usb2_gen_quirk {
 #define	USB_SET_RX_BUFFER_SIZE	_IOW ('U', 118, int)
 #define	USB_SET_RX_STALL_FLAG	_IOW ('U', 119, int)
 #define	USB_SET_TX_STALL_FLAG	_IOW ('U', 120, int)
-#define	USB_GET_DEVICENAMES	_IOW ('U', 121, struct usb2_device_names)
+#define	USB_GET_IFACE_DRIVER	_IOWR('U', 121, struct usb2_gen_descriptor)
 #define	USB_CLAIM_INTERFACE	_IOW ('U', 122, int)
 #define	USB_RELEASE_INTERFACE	_IOW ('U', 123, int)
 #define	USB_IFACE_DRIVER_ACTIVE	_IOW ('U', 124, int)
