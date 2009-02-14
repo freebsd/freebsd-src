@@ -25,35 +25,132 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2008
+.Dd February 14, 2009
 .Dt QUOTAFILE 3
 .Os
 .Sh NAME
 .Nm quota_open
-.Nm quota_create
 .Nm quota_read
-.Nm quota_write
+.Nm quota_write_limits
+.Nm quota_write_usage
 .Nm quota_close
-.Nd "Manipulate quota files"
+.Nd "Manipulate quotas"
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
 .In ufs/ufs/quota.h
 .In libutil.h
+.In fstab.h
 .Ft "struct quotafile *"
-.Fn quota_open "const char *path"
-.Ft "struct quotafile *"
-.Fn quota_create "const char *path"
+.Fn quota_open "struct fstab *fs" "int quotatype" "int openflags"
 .Ft int
 .Fn quota_read "struct quotafile *qf" "struct dqblk *dqb" "int id"
 .Ft int
-.Fn quota_write "struct quotafile *qf" "const struct dqblk *dqb" "int id"
+.Fn quota_write_limits "struct quotafile *qf" "struct dqblk *dqb" "int id"
+.Ft int
+.Fn quota_write_usage "struct quotafile *qf" "struct dqblk *dqb" "int id"
 .Ft int
 .Fn quota_close "struct quotafile *qf"
-.Ft int
-.Fn hasquota "struct fstab *fs" "int type" "char **qfnamep"
 .Sh DESCRIPTION
+These functions are designed to simplify access to filesystem quotas.
+If quotas are active on a filesystem,
+these functions will access them directly from the kernel using the
+.Fn quotactl
+system call.
+If quotas are not active,
+these functions will access them by reading and writing
+the quota files directly.
+.Pp
+The
+.Fn quota_open
+function takes a pointer to an
+.Vt fstab
+entry corresponding to the filesystem on which quotas
+are to be accessed.
+The
+.Va quotatype
+field indicates the type of quotas being sought, either
+.Dv USRQUOTA
+or
+.Dv GRPQUOTA .
+The
+.Va openflags
+are those used by the
+.Fn open
+system call, usually either
+.Dv O_RDONLY
+if the quotas are just to be read, or
+.Dv O_RDWR
+if the quotas are to be updated.
+The
+.Dv O_CREAT
+flag should be specified if a new quota file of the requested type should
+be created if it does not already exist.
+.Pp
+The
+.Fn quota_read
+function reads the quota from the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+into the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_write_limits
+function updates the limit fields (but not the usage fields)
+for the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+from the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_write_usage
+function updates the usage fields (but not the limit fields)
+for the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+from the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_close
+function closes any open file descriptors and frees any storage
+associated with the filesystem and quota type referenced by
+.Va qf .
 .Sh RETURN VALUES
+If the filesystem has quotas associated with it,
+.Fn quota_open
+returns a pointer to a 
+.Vt quotafile
+structure used in subsequent quota access calls.
+If the filesystem has no quotas, or access permission is denied
+.Dv NULL
+is returned and
+.Va errno
+is set to indicate the cause of failure.
+.Pp
+The
+.Fn quota_read ,
+.Fn quota_write_limits ,
+.Fn quota_write_usage ,
+and
+.Fn quota_close
+functions return zero on success.
+On error they return
+.Dv -1
+and set
+.Va errno
+to indicate the cause of failure.
 .Sh SEE ALSO
 .Xr quotactl 2 ,
 .Xr quota.user 5 ,
@@ -68,4 +165,6 @@ functions first appeared in
 The
 .Nm
 functions and this manual page were written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org 
+and
+.An Marshall Kirk McKusick .

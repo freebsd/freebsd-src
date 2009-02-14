@@ -84,16 +84,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 const char *qfextension[] = INITQFNAMES;
-const char *quotagroup = QUOTAGROUP;
 char tmpfil[] = _PATH_TMP;
 int hflag;
 
 struct quotause {
 	struct	quotause *next;
-	long	flags;
+	struct	quotafile *qf;
 	struct	dqblk dqblk;
+	int	flags;
 	char	fsname[MAXPATHLEN + 1];
-	char	qfname[1];	/* actually longer */
 };
 #define	FOUND	0x01
 
@@ -108,7 +107,7 @@ char *fmthumanvalinos(int64_t);
 void freeprivs(struct quotause *);
 int getentry(const char *, int);
 struct quotause *getprivs(long, int, char *);
-void putprivs(long, int, struct quotause *);
+void putprivs(long, struct quotause *);
 int readprivs(struct quotause *, char *);
 int readtimes(struct quotause *, char *);
 static void usage(void);
@@ -142,6 +141,11 @@ main(int argc, char *argv[])
 			fspath = optarg;
 			break;
 		case 'p':
+			if (eflag) {
+				warnx("cannot specify both -e and -p");
+				usage();
+				/* not reached */
+			}
 			protoname = optarg;
 			pflag++;
 			break;
@@ -158,7 +162,12 @@ main(int argc, char *argv[])
 			tflag++;
 			break;
 		case 'e':
-			if ((qup = calloc(1, sizeof(*qup) + BUFSIZ)) == NULL)
+			if (pflag) {
+				warnx("cannot specify both -e and -p");
+				usage();
+				/* not reached */
+			}
+			if ((qup = calloc(1, sizeof(*qup))) == NULL)
 				errx(2, "out of memory");
 			oldoptarg = optarg;
 			for (i = 0, cp = optarg;
@@ -214,7 +223,6 @@ main(int argc, char *argv[])
 				curprivs = qup;
 			}
 			eflag++;
-			pflag++;
 			break;
 		default:
 			usage();
@@ -223,8 +231,8 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
-	if (pflag) {
-		if (protoprivs == NULL) {
+	if (pflag || eflag) {
+		if (pflag) {
 			if ((protoid = getentry(protoname, quotatype)) == -1)
 				exit(1);
 			protoprivs = getprivs(protoid, quotatype, fspath);
@@ -259,22 +267,23 @@ main(int argc, char *argv[])
 						*argv);
 				if ((id = getentry(buf, quotatype)) < 0)
 					continue;
-				if (!eflag) {
-					putprivs(id, quotatype, protoprivs);
+				if (pflag) {
+					putprivs(id, protoprivs);
 					continue;
 				}
-				for (qup = protoprivs; qup;
-				    qup = qup->next) {
+				for (qup = protoprivs; qup; qup = qup->next) {
 					curprivs = getprivs(id, quotatype,
 					    qup->fsname);
 					if (curprivs == NULL)
 						continue;
-					strcpy(qup->qfname, curprivs->qfname);
-					strcpy(qup->fsname, curprivs->fsname);
-					putprivs(id, quotatype, protoprivs);
+					curprivs->dqblk = qup->dqblk;
+					putprivs(id, curprivs);
+					freeprivs(curprivs);
 				}
 			}
 		}
+		if (pflag)
+			freeprivs(protoprivs);
 		exit(0);
 	}
 	tmpfd = mkstemp(tmpfil);
@@ -283,7 +292,7 @@ main(int argc, char *argv[])
 		if ((protoprivs = getprivs(0, quotatype, fspath)) != NULL) {
 			if (writetimes(protoprivs, tmpfd, quotatype) != 0 &&
 			    editit(tmpfil) && readtimes(protoprivs, tmpfil))
-				putprivs(0L, quotatype, protoprivs);
+				putprivs(0L, protoprivs);
 			freeprivs(protoprivs);
 		}
 		close(tmpfd);
@@ -298,7 +307,7 @@ main(int argc, char *argv[])
 		if (writeprivs(curprivs, tmpfd, *argv, quotatype) == 0)
 			continue;
 		if (editit(tmpfil) && readprivs(curprivs, tmpfil))
-			putprivs(id, quotatype, curprivs);
+			putprivs(id, curprivs);
 		freeprivs(curprivs);
 	}
 	close(tmpfd);
@@ -366,46 +375,29 @@ getprivs(long id, int quotatype, char *fspath)
 	struct fstab *fs;
 	struct quotause *qup, *quptail;
 	struct quotause *quphead;
-	int qcmd, qupsize;
-	char *qfpathname;
-	static int warned = 0;
 
 	setfsent();
 	quphead = quptail = NULL;
-	qcmd = QCMD(Q_GETQUOTA, quotatype);
 	while ((fs = getfsent())) {
 		if (fspath && *fspath && strcmp(fspath, fs->fs_spec) &&
 		    strcmp(fspath, fs->fs_file))
 			continue;
 		if (strcmp(fs->fs_vfstype, "ufs"))
 			continue;
-		if (!hasquota(fs, quotatype, &qfpathname))
+		if ((qf = quota_open(fs, quotatype, O_CREAT|O_RDWR)) == NULL) {
+			if (errno != EOPNOTSUPP)
+				warn("cannot open quotas on %s", fs->fs_file);
 			continue;
-		qupsize = sizeof(*qup) + strlen(qfpathname);
-		if ((qup = (struct quotause *)malloc(qupsize)) == NULL)
-			errx(2, "out of memory");
-		if (quotactl(fs->fs_file, qcmd, id, &qup->dqblk) != 0) {
-			if (errno == EOPNOTSUPP && !warned) {
-				warned++;
-		warnx("warning: quotas are not compiled into this kernel");
-				sleep(3);
-			}
-			if ((qf = quota_open(qfpathname)) == NULL &&
-			    (qf = quota_create(qfpathname)) == NULL) {
-				warn("%s", qfpathname);
-				free(qup);
-				continue;
-			}
-			if (quota_read(qf, &qup->dqblk, id) != 0) {
-				warn("read error in %s", qfpathname);
-				quota_close(qf);
-				free(qup);
-				continue;
-			}
-			quota_close(qf);
 		}
-		strcpy(qup->qfname, qfpathname);
-		strcpy(qup->fsname, fs->fs_file);
+		if ((qup = (struct quotause *)calloc(1, sizeof(*qup))) == NULL)
+			errx(2, "out of memory");
+		qup->qf = qf;
+		strncpy(qup->fsname, fs->fs_file, sizeof(qup->fsname));
+		if (quota_read(qf, &qup->dqblk, id) == -1) {
+			warn("cannot read quotas on %s", fs->fs_file);
+			freeprivs(qup);
+			continue;
+		}
 		if (quphead == NULL)
 			quphead = qup;
 		else
@@ -424,53 +416,13 @@ getprivs(long id, int quotatype, char *fspath)
  * Store the requested quota information.
  */
 void
-putprivs(long id, int quotatype, struct quotause *quplist)
+putprivs(long id, struct quotause *quplist)
 {
-	struct quotafile *qf;
 	struct quotause *qup;
-	int qcmd;
-	struct dqblk dqbuf;
 
-	qcmd = QCMD(Q_SETQUOTA, quotatype);
-	for (qup = quplist; qup; qup = qup->next) {
-		if (quotactl(qup->fsname, qcmd, id, &qup->dqblk) == 0)
-			continue;
-		if ((qf = quota_open(qup->qfname)) == NULL) {
-			warn("%s", qup->qfname);
-			continue;
-		}
-		if (quota_read(qf, &dqbuf, id) != 0) {
-			warn("read error in %s", qup->qfname);
-			quota_close(qf);
-			continue;
-		}
-		/*
-		 * Reset time limit if have a soft limit and were
-		 * previously under it, but are now over it
-		 * or if there previously was no soft limit, but
-		 * now have one and are over it.
-		 */
-		if (dqbuf.dqb_bsoftlimit && id != 0 &&
-		    dqbuf.dqb_curblocks < dqbuf.dqb_bsoftlimit &&
-		    dqbuf.dqb_curblocks >= qup->dqblk.dqb_bsoftlimit)
-			qup->dqblk.dqb_btime = 0;
-		if (dqbuf.dqb_bsoftlimit == 0 && id != 0 &&
-		    dqbuf.dqb_curblocks >= qup->dqblk.dqb_bsoftlimit)
-			qup->dqblk.dqb_btime = 0;
-		if (dqbuf.dqb_isoftlimit && id != 0 &&
-		    dqbuf.dqb_curinodes < dqbuf.dqb_isoftlimit &&
-		    dqbuf.dqb_curinodes >= qup->dqblk.dqb_isoftlimit)
-			qup->dqblk.dqb_itime = 0;
-		if (dqbuf.dqb_isoftlimit == 0 && id !=0 &&
-		    dqbuf.dqb_curinodes >= qup->dqblk.dqb_isoftlimit)
-			qup->dqblk.dqb_itime = 0;
-		qup->dqblk.dqb_curinodes = dqbuf.dqb_curinodes;
-		qup->dqblk.dqb_curblocks = dqbuf.dqb_curblocks;
-		if (quota_write(qf, &qup->dqblk, id) == 0) {
-			warn("%s", qup->qfname);
-		}
-		quota_close(qf);
-	}
+	for (qup = quplist; qup; qup = qup->next)
+		if (quota_write_limits(qup->qf, &qup->dqblk, id) == -1)
+			warn("%s", qup->fsname);
 }
 
 /*
@@ -978,6 +930,7 @@ freeprivs(struct quotause *quplist)
 	struct quotause *qup, *nextqup;
 
 	for (qup = quplist; qup; qup = nextqup) {
+		quota_close(qup->qf);
 		nextqup = qup->next;
 		free(qup);
 	}
