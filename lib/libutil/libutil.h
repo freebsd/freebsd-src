@@ -143,12 +143,11 @@ int pidfile_remove(struct pidfh *pfh);
 #ifdef _UFS_UFS_QUOTA_H_
 struct quotafile;
 struct fstab;
-struct quotafile *quota_open(const char *);
-struct quotafile *quota_create(const char *);
+struct quotafile *quota_open(struct fstab *, int, int);
 void quota_close(struct quotafile *);
 int quota_read(struct quotafile *, struct dqblk *, int);
-int quota_write(struct quotafile *, const struct dqblk *, int);
-int hasquota(struct fstab *, int, char *, int);
+int quota_write_limits(struct quotafile *, struct dqblk *, int);
+int quota_write_usage(struct quotafile *, struct dqblk *, int);
 #endif
 
 __END_DECLS

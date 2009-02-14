@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2008 Marshall Kirk McKusick
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,76 +48,132 @@
 #include <unistd.h>
 
 struct quotafile {
-	int fd;
-	int type; /* 32 or 64 */
+	int fd;				/* -1 means using quotactl for access */
+	int wordsize;			/* 32-bit or 64-bit limits */
+	int quotatype;			/* USRQUOTA or GRPQUOTA */
+	char fsname[MAXPATHLEN + 1];	/* mount point of filesystem */
+	char qfname[MAXPATHLEN + 1];	/* quota file if not using quotactl */
 };
 
 static const char *qfextension[] = INITQFNAMES;
 
-struct quotafile *
-quota_open(const char *fn)
+/*
+ * Check to see if a particular quota is to be enabled.
+ */
+static int
+hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
 {
-	struct quotafile *qf;
-	struct dqhdr64 dqh;
-	int serrno;
+	char *opt;
+	char *cp;
+	struct statfs sfb;
+	char buf[BUFSIZ];
+	static char initname, usrname[100], grpname[100];
 
-	if ((qf = calloc(1, sizeof(*qf))) == NULL)
-		return (NULL);
-	if ((qf->fd = open(fn, O_RDWR)) < 0) {
-		serrno = errno;
-		free(qf);
-		errno = serrno;
-		return (NULL);
+	if (!initname) {
+		(void)snprintf(usrname, sizeof(usrname), "%s%s",
+		    qfextension[USRQUOTA], QUOTAFILENAME);
+		(void)snprintf(grpname, sizeof(grpname), "%s%s",
+		    qfextension[GRPQUOTA], QUOTAFILENAME);
+		initname = 1;
 	}
-	qf->type = 32;
-	switch (read(qf->fd, &dqh, sizeof(dqh))) {
-	case -1:
-		serrno = errno;
-		close(qf->fd);
-		free(qf);
-		errno = serrno;
-		return (NULL);
-	case sizeof(dqh):
-		if (strcmp(dqh.dqh_magic, Q_DQHDR64_MAGIC) != 0) {
-			/* no magic, assume 32 bits */
-			qf->type = 32;
-			return (qf);
-		}
-		if (be32toh(dqh.dqh_version) != Q_DQHDR64_VERSION ||
-		    be32toh(dqh.dqh_hdrlen) != sizeof(struct dqhdr64) ||
-		    be32toh(dqh.dqh_reclen) != sizeof(struct dqblk64)) {
-			/* correct magic, wrong version / lengths */
-			close(qf->fd);
-			free(qf);
-			errno = EINVAL;
-			return (NULL);
-		}
-		qf->type = 64;
-		return (qf);
-	default:
-		qf->type = 32;
-		return (qf);
+	strcpy(buf, fs->fs_mntops);
+	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
+		if ((cp = index(opt, '=')))
+			*cp++ = '\0';
+		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
+			break;
+		if (type == GRPQUOTA && strcmp(opt, grpname) == 0)
+			break;
 	}
-	/* not reached */
+	if (!opt)
+		return (0);
+	/*
+	 * Ensure that the filesystem is mounted.
+	 */
+	if (statfs(fs->fs_file, &sfb) != 0 ||
+	    strcmp(fs->fs_file, sfb.f_mntonname)) {
+		return (0);
+	}
+	if (cp) {
+		strncpy(qfnamep, cp, qfbufsize);
+	} else {
+		(void)snprintf(qfnamep, qfbufsize, "%s/%s.%s", fs->fs_file,
+		    QUOTAFILENAME, qfextension[type]);
+	}
+	return (1);
 }
 
 struct quotafile *
-quota_create(const char *fn)
+quota_open(struct fstab *fs, int quotatype, int openflags)
 {
 	struct quotafile *qf;
 	struct dqhdr64 dqh;
 	struct group *grp;
-	int serrno;
+	int qcmd, serrno;
 
 	if ((qf = calloc(1, sizeof(*qf))) == NULL)
 		return (NULL);
-	if ((qf->fd = open(fn, O_RDWR|O_CREAT|O_TRUNC, 0)) < 0) {
+	qf->quotatype = quotatype;
+	strncpy(qf->fsname, fs->fs_file, sizeof(qf->fsname));
+	qcmd = QCMD(Q_GETQUOTA, quotatype);
+	if (quotactl(fs->fs_file, qcmd, 0, &dqh) == 0) {
+		qf->wordsize = 64;
+		qf->fd = -1;
+		return (qf);
+	}
+	if (!hasquota(fs, quotatype, qf->qfname, sizeof(qf->qfname))) {
+		free(qf);
+		errno = EOPNOTSUPP;
+		return (NULL);
+	}
+	if ((qf->fd = open(qf->qfname, openflags & O_ACCMODE)) < 0 &&
+	    (openflags & O_CREAT) == 0) {
 		serrno = errno;
 		free(qf);
 		errno = serrno;
 		return (NULL);
 	}
-	qf->type = 64;
+	/* File open worked, so process it */
+	if (qf->fd != -1) {
+		qf->wordsize = 32;
+		switch (read(qf->fd, &dqh, sizeof(dqh))) {
+		case -1:
+			serrno = errno;
+			close(qf->fd);
+			free(qf);
+			errno = serrno;
+			return (NULL);
+		case sizeof(dqh):
+			if (strcmp(dqh.dqh_magic, Q_DQHDR64_MAGIC) != 0) {
+				/* no magic, assume 32 bits */
+				qf->wordsize = 32;
+				return (qf);
+			}
+			if (be32toh(dqh.dqh_version) != Q_DQHDR64_VERSION ||
+			    be32toh(dqh.dqh_hdrlen) != sizeof(struct dqhdr64) ||
+			    be32toh(dqh.dqh_reclen) != sizeof(struct dqblk64)) {
+				/* correct magic, wrong version / lengths */
+				close(qf->fd);
+				free(qf);
+				errno = EINVAL;
+				return (NULL);
+			}
+			qf->wordsize = 64;
+			return (qf);
+		default:
+			qf->wordsize = 32;
+			return (qf);
+		}
+		/* not reached */
+	}
+	/* Open failed above, but O_CREAT specified, so create a new file */
+	if ((qf->fd = open(qf->qfname, O_RDWR|O_CREAT|O_TRUNC, 0)) < 0) {
+		serrno = errno;
+		free(qf);
+		errno = serrno;
+		return (NULL);
+	}
+	qf->wordsize = 64;
 	memset(&dqh, 0, sizeof(dqh));
 	memcpy(dqh.dqh_magic, Q_DQHDR64_MAGIC, sizeof(dqh.dqh_magic));
 	dqh.dqh_version = htobe32(Q_DQHDR64_VERSION);
@@ -124,7 +181,7 @@ quota_create(const char *fn)
 	dqh.dqh_reclen = htobe32(sizeof(struct dqblk64));
 	if (write(qf->fd, &dqh, sizeof(dqh)) != sizeof(dqh)) {
 		serrno = errno;
-		unlink(fn);
+		unlink(qf->qfname);
 		close(qf->fd);
 		free(qf);
 		errno = serrno;
@@ -140,7 +197,8 @@ void
 quota_close(struct quotafile *qf)
 {
 
-	close(qf->fd);
+	if (qf->fd != -1)
+		close(qf->fd);
 	free(qf);
 }
 
@@ -203,8 +261,13 @@ quota_read64(struct quotafile *qf, struct dqblk *dqb, int id)
 int
 quota_read(struct quotafile *qf, struct dqblk *dqb, int id)
 {
+	int qcmd;
 
-	switch (qf->type) {
+	if (qf->fd == -1) {
+		qcmd = QCMD(Q_GETQUOTA, qf->quotatype);
+		return (quotactl(qf->fsname, qcmd, id, dqb));
+	}
+	switch (qf->wordsize) {
 	case 32:
 		return quota_read32(qf, dqb, id);
 	case 64:
@@ -236,7 +299,9 @@ quota_write32(struct quotafile *qf, const struct dqblk *dqb, int id)
 	off = id * sizeof(struct dqblk32);
 	if (lseek(qf->fd, off, SEEK_SET) == -1)
 		return (-1);
-	return (write(qf->fd, &dqb32, sizeof(dqb32)) == sizeof(dqb32));
+	if (write(qf->fd, &dqb32, sizeof(dqb32)) == sizeof(dqb32))
+		return (0);
+	return (-1);
 }
 
 static int
@@ -257,14 +322,98 @@ quota_write64(struct quotafile *qf, const struct dqblk *dqb, int id)
 	off = sizeof(struct dqhdr64) + id * sizeof(struct dqblk64);
 	if (lseek(qf->fd, off, SEEK_SET) == -1)
 		return (-1);
-	return (write(qf->fd, &dqb64, sizeof(dqb64)) == sizeof(dqb64));
+	if (write(qf->fd, &dqb64, sizeof(dqb64)) == sizeof(dqb64))
+		return (0);
+	return (-1);
 }
 
 int
-quota_write(struct quotafile *qf, const struct dqblk *dqb, int id)
+quota_write_usage(struct quotafile *qf, struct dqblk *dqb, int id)
 {
+	struct dqblk dqbuf;
+	int qcmd;
 
-	switch (qf->type) {
+	if (qf->fd == -1) {
+		qcmd = QCMD(Q_SETUSE, qf->quotatype);
+		return (quotactl(qf->fsname, qcmd, id, dqb));
+	}
+	/*
+	 * Have to do read-modify-write of quota in file.
+	 */
+	if (quota_read(qf, &dqbuf, id) != 0)
+		return (-1);
+	/*
+	 * Reset time limit if have a soft limit and were
+	 * previously under it, but are now over it.
+	 */
+	if (dqbuf.dqb_bsoftlimit && id != 0 &&
+	    dqbuf.dqb_curblocks < dqbuf.dqb_bsoftlimit &&
+	    dqb->dqb_curblocks >= dqbuf.dqb_bsoftlimit)
+		dqbuf.dqb_btime = 0;
+	if (dqbuf.dqb_isoftlimit && id != 0 &&
+	    dqbuf.dqb_curinodes < dqbuf.dqb_isoftlimit &&
+	    dqb->dqb_curinodes >= dqbuf.dqb_isoftlimit)
+		dqbuf.dqb_itime = 0;
+	dqbuf.dqb_curinodes = dqb->dqb_curinodes;
+	dqbuf.dqb_curblocks = dqb->dqb_curblocks;
+	/*
+	 * Write it back.
+	 */
+	switch (qf->wordsize) {
+	case 32:
+		return quota_write32(qf, &dqbuf, id);
+	case 64:
+		return quota_write64(qf, &dqbuf, id);
+	default:
+		errno = EINVAL;
+		return (-1);
+	}
+	/* not reached */
+}
+
+int
+quota_write_limits(struct quotafile *qf, struct dqblk *dqb, int id)
+{
+	struct dqblk dqbuf;
+	int qcmd;
+
+	if (qf->fd == -1) {
+		qcmd = QCMD(Q_SETQUOTA, qf->quotatype);
+		return (quotactl(qf->fsname, qcmd, id, dqb));
+	}
+	/*
+	 * Have to do read-modify-write of quota in file.
+	 */
+	if (quota_read(qf, &dqbuf, id) != 0)
+		return (-1);
+	/*
+	 * Reset time limit if have a soft limit and were
+	 * previously under it, but are now over it
+	 * or if there previously was no soft limit, but
+	 * now have one and are over it.
+	 */
+	if (dqbuf.dqb_bsoftlimit && id != 0 &&
+	    dqbuf.dqb_curblocks < dqbuf.dqb_bsoftlimit &&
+	    dqbuf.dqb_curblocks >= dqb->dqb_bsoftlimit)
+		dqb->dqb_btime = 0;
+	if (dqbuf.dqb_bsoftlimit == 0 && id != 0 &&
+	    dqb->dqb_bsoftlimit > 0 &&
+	    dqbuf.dqb_curblocks >= dqb->dqb_bsoftlimit)
+		dqb->dqb_btime = 0;
+	if (dqbuf.dqb_isoftlimit && id != 0 &&
+	    dqbuf.dqb_curinodes < dqbuf.dqb_isoftlimit &&
+	    dqbuf.dqb_curinodes >= dqb->dqb_isoftlimit)
+		dqb->dqb_itime = 0;
+	if (dqbuf.dqb_isoftlimit == 0 && id !=0 &&
+	    dqb->dqb_isoftlimit > 0 &&
+	    dqbuf.dqb_curinodes >= dqb->dqb_isoftlimit)
+		dqb->dqb_itime = 0;
+	dqb->dqb_curinodes = dqbuf.dqb_curinodes;
+	dqb->dqb_curblocks = dqbuf.dqb_curblocks;
+	/*
+	 * Write it back.
+	 */
+	switch (qf->wordsize) {
 	case 32:
 		return quota_write32(qf, dqb, id);
 	case 64:
@@ -274,50 +423,4 @@ quota_write(struct quotafile *qf, const struct dqblk *dqb, int id)
 		return (-1);
 	}
 	/* not reached */
-}
-
-/*
- * Check to see if a particular quota is to be enabled.
- */
-int
-hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
-{
-	char *opt;
-	char *cp;
-	struct statfs sfb;
-	char buf[BUFSIZ];
-	static char initname, usrname[100], grpname[100];
-
-	if (!initname) {
-		(void)snprintf(usrname, sizeof(usrname), "%s%s",
-		    qfextension[USRQUOTA], QUOTAFILENAME);
-		(void)snprintf(grpname, sizeof(grpname), "%s%s",
-		    qfextension[GRPQUOTA], QUOTAFILENAME);
-		initname = 1;
-	}
-	strcpy(buf, fs->fs_mntops);
-	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
-		if ((cp = index(opt, '=')))
-			*cp++ = '\0';
-		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
-			break;
-		if (type == GRPQUOTA && strcmp(opt, grpname) == 0)
-			break;
-	}
-	if (!opt)
-		return (0);
-	/*
-	 * Ensure that the filesystem is mounted.
-	 */
-	if (statfs(fs->fs_file, &sfb) != 0 ||
-	    strcmp(fs->fs_file, sfb.f_mntonname)) {
-		return (0);
-	}
-	if (cp) {
-		strncpy(qfnamep, cp, qfbufsize);
-	} else {
-		(void)snprintf(qfnamep, qfbufsize, "%s/%s.%s", fs->fs_file,
-		    QUOTAFILENAME, qfextension[type]);
-	}
-	return (1);
 }
