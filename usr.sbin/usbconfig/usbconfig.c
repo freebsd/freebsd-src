@@ -78,6 +78,7 @@ struct options {
 	uint8_t	got_dump_all_config:1;
 	uint8_t	got_dump_info:1;
 	uint8_t	got_dump_access:1;
+	uint8_t	got_show_iface_driver:1;
 	uint8_t	got_remove_device_quirk:1;
 	uint8_t	got_add_device_quirk:1;
 	uint8_t	got_dump_string:1;
@@ -100,6 +101,7 @@ enum {
 	T_SET_PERM,
 	T_ADD_DEVICE_QUIRK,
 	T_REMOVE_DEVICE_QUIRK,
+	T_SHOW_IFACE_DRIVER,
 	T_DUMP_QUIRK_NAMES,
 	T_DUMP_DEVICE_QUIRKS,
 	T_DUMP_DEVICE_DESC,
@@ -138,6 +140,7 @@ static const struct token token[] = {
 	{"dump_string", T_DUMP_STRING, 1},
 	{"dump_access", T_DUMP_ACCESS, 0},
 	{"dump_info", T_DUMP_INFO, 0},
+	{"show_ifdrv", T_SHOW_IFACE_DRIVER, 0},
 	{"suspend", T_SUSPEND, 0},
 	{"resume", T_RESUME, 0},
 	{"power_off", T_POWER_OFF, 0},
@@ -290,6 +293,7 @@ usage(void)
 	    "  dump_string <index>" "\n"
 	    "  dump_access" "\n"
 	    "  dump_info" "\n"
+	    "  show_ifdrv" "\n"
 	    "  suspend" "\n"
 	    "  resume" "\n"
 	    "  power_off" "\n"
@@ -535,7 +539,8 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		    opt->got_dump_access);
 
 		if (opt->got_list || dump_any) {
-			dump_device_info(pdev);
+			dump_device_info(pdev,
+			    opt->got_show_iface_driver);
 		}
 		if (opt->got_dump_access) {
 			printf("\n");
@@ -630,6 +635,10 @@ main(int argc, char **argv)
 		case T_DUMP_DEVICE_QUIRKS:
 			opt->got_dump_device_quirks = 1;
 			opt->got_any++;
+			break;
+
+		case T_SHOW_IFACE_DRIVER:
+			opt->got_show_iface_driver = 1;
 			break;
 
 		case T_UNIT:

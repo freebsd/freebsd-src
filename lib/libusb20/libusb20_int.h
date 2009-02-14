@@ -57,6 +57,8 @@ typedef int (libusb20_dev_get_iface_owner_t)(struct libusb20_device *pdev, uint8
 typedef int (libusb20_dev_get_iface_perm_t)(struct libusb20_device *pdev, uint8_t iface_index, mode_t *mode);
 typedef int (libusb20_dev_get_owner_t)(struct libusb20_device *pdev, uid_t *user, gid_t *group);
 typedef int (libusb20_dev_get_perm_t)(struct libusb20_device *pdev, mode_t *mode);
+typedef int (libusb20_dev_get_info_t)(struct libusb20_device *pdev, struct usb2_device_info *pinfo);
+typedef int (libusb20_dev_get_iface_desc_t)(struct libusb20_device *pdev, uint8_t iface_index, char *buf, uint8_t len);
 typedef int (libusb20_dev_set_iface_owner_t)(struct libusb20_device *pdev, uint8_t iface_index, uid_t user, gid_t group);
 typedef int (libusb20_dev_set_iface_perm_t)(struct libusb20_device *pdev, uint8_t iface_index, mode_t mode);
 typedef int (libusb20_dev_set_owner_t)(struct libusb20_device *pdev, uid_t user, gid_t group);
@@ -85,8 +87,10 @@ typedef void (libusb20_exit_backend_t)(struct libusb20_backend *pbe);
   m(n, bus_get_owner) \
   m(n, bus_set_perm) \
   m(n, bus_get_perm) \
+  m(n, dev_get_info) \
   m(n, dev_get_iface_owner) \
   m(n, dev_get_iface_perm) \
+  m(n, dev_get_iface_desc) \
   m(n, dev_get_owner) \
   m(n, dev_get_perm) \
   m(n, dev_set_iface_owner) \

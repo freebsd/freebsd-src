@@ -27,7 +27,7 @@
 const char *dump_mode(uint8_t value);
 const char *dump_speed(uint8_t value);
 const char *dump_power_mode(uint8_t value);
-void	dump_device_info(struct libusb20_device *pdev);
+void	dump_device_info(struct libusb20_device *pdev, uint8_t show_drv);
 void	dump_be_access(struct libusb20_backend *pbe);
 void	dump_be_quirk_names(struct libusb20_backend *pbe);
 void	dump_be_dev_quirks(struct libusb20_backend *pbe);
