@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2005-2008 Marcel Moolenaar
+ * Copyright (c) 2002, 2005-2009 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,23 +109,6 @@ static struct g_class g_part_class = {
 };
 
 DECLARE_GEOM_CLASS(g_part_class, g_part);
-
-enum g_part_ctl {
-	G_PART_CTL_NONE,
-	G_PART_CTL_ADD,
-	G_PART_CTL_BOOTCODE,
-	G_PART_CTL_COMMIT,
-	G_PART_CTL_CREATE,
-	G_PART_CTL_DELETE,
-	G_PART_CTL_DESTROY,
-	G_PART_CTL_MODIFY,
-	G_PART_CTL_MOVE,
-	G_PART_CTL_RECOVER,
-	G_PART_CTL_RESIZE,
-	G_PART_CTL_SET,
-	G_PART_CTL_UNDO,
-	G_PART_CTL_UNSET
-};
 
 /*
  * Support functions.
@@ -1349,7 +1332,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 
 	/* Obtain permissions if possible/necessary. */
 	close_on_error = 0;
-	table = NULL;	/* Suppress uninit. warning. */
+	table = NULL;
 	if (modifies && (gpp.gpp_parms & G_PART_PARM_GEOM)) {
 		table = gpp.gpp_geom->softc;
 		if (table != NULL && !table->gpt_opened) {
@@ -1365,7 +1348,16 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		}
 	}
 
-	error = EDOOFUS;	/* Prevent bogus  uninit. warning. */
+	/* Allow the scheme to check or modify the parameters. */
+	if (table != NULL) {
+		error = G_PART_PRECHECK(table, ctlreq, &gpp);
+		if (error) {
+			gctl_error(req, "%d pre-check failed", error);
+			goto out;
+		}
+	} else
+		error = EDOOFUS;	/* Prevent bogus uninit. warning. */
+
 	switch (ctlreq) {
 	case G_PART_CTL_NONE:
 		panic("%s", __func__);
@@ -1421,6 +1413,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		}
 	}
 
+ out:
 	if (error && close_on_error) {
 		g_access(LIST_FIRST(&gpp.gpp_geom->consumer), -1, -1, -1);
 		table->gpt_opened = 0;

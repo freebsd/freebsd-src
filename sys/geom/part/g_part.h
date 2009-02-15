@@ -123,6 +123,23 @@ struct g_part_table {
 struct g_part_entry *g_part_new_entry(struct g_part_table *, int, quad_t,
     quad_t);
 
+enum g_part_ctl {
+	G_PART_CTL_NONE,
+	G_PART_CTL_ADD,
+	G_PART_CTL_BOOTCODE,
+	G_PART_CTL_COMMIT,
+	G_PART_CTL_CREATE,
+	G_PART_CTL_DELETE,
+	G_PART_CTL_DESTROY,
+	G_PART_CTL_MODIFY,
+	G_PART_CTL_MOVE,
+	G_PART_CTL_RECOVER,
+	G_PART_CTL_RESIZE,
+	G_PART_CTL_SET,
+	G_PART_CTL_UNDO,
+	G_PART_CTL_UNSET
+};
+
 /* G_PART ctlreq parameters. */
 #define	G_PART_PARM_ENTRIES	0x0001
 #define	G_PART_PARM_FLAGS	0x0002
