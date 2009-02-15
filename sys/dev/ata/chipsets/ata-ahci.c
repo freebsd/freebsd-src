@@ -240,7 +240,7 @@ ata_ahci_status(device_t dev)
 
 	/* clear interrupt(s) */
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, istatus);
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action & (1 << ch->unit));
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, 1 << ch->unit);
 
 	/* do we have any PHY events ? */
 	if (istatus & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC))
