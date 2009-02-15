@@ -95,6 +95,19 @@ METHOD const char * name {
 	size_t bufsz;
 };
 
+# precheck() - method to allow schemes to check the parameters given
+# to the mentioned ctl request. This only applies to the requests that
+# operate on a GEOM. In other words, it does not apply to the create
+# request.
+# It is allowed (intended actually) to change the parameters according
+# to the schemes needs before they are used. Returning an error will
+# terminate the request immediately.
+METHOD int precheck {
+	struct g_part_table *table;
+	enum g_part_ctl req;
+	struct g_part_parms *gpp;
+};
+
 # probe() - probe the provider attached to the given consumer for the
 # existence of the scheme implemented by the G_PART interface handler.
 METHOD int probe {
