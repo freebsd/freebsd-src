@@ -45,6 +45,7 @@ struct ata_pci_controller {
     int                 r_type2;
     int                 r_rid2;
     struct resource     *r_res2;
+    int                 r_irq_rid;
     struct resource     *r_irq;
     void                *handle;
     struct ata_chip_id  *chip;

@@ -150,7 +150,9 @@ ata_pci_detach(device_t dev)
 
     if (ctlr->r_irq) {
 	bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle);
-	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ctlr->r_irq);
+	bus_release_resource(dev, SYS_RES_IRQ, ctlr->r_irq_rid, ctlr->r_irq);
+	if (ctlr->r_irq_rid != ATA_IRQ_RID)
+	    pci_release_msi(dev);
     }
     if (ctlr->r_res2)
 	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
@@ -653,11 +655,19 @@ int
 ata_setup_interrupt(device_t dev, void *intr_func)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    int rid = ATA_IRQ_RID;
+    int i, msi = 0;
 
     if (!ctlr->legacy) {
-	if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-						   RF_SHAREABLE | RF_ACTIVE))) {
+	if (resource_int_value(device_get_name(dev),
+		device_get_unit(dev), "msi", &i) == 0 && i != 0)
+	    msi = 1;
+	if (msi && pci_msi_count(dev) > 0 && pci_alloc_msi(dev, &msi) == 0) {
+	    ctlr->r_irq_rid = 0x1;
+	} else {
+	    ctlr->r_irq_rid = ATA_IRQ_RID;
+	}
+	if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		&ctlr->r_irq_rid, RF_SHAREABLE | RF_ACTIVE))) {
 	    device_printf(dev, "unable to map interrupt\n");
 	    return ENXIO;
 	}
