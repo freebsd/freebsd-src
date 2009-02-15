@@ -1,5 +1,6 @@
 .\"	$KAME: ifmcstat.8,v 1.6 2002/10/31 04:23:43 suz Exp $
 .\"
+.\" Copyright (c) 2007-2009 Bruce Simpson.
 .\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
 .\" All rights reserved.
 .\"
@@ -29,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2007
+.Dd February 15, 2009
 .Dt IFMCSTAT 8
 .Os
 .Sh NAME
@@ -39,10 +40,9 @@
 .Nm
 .Op Fl i Ar interface
 .Op Fl f Ar address-family
+.Op Fl v
 .Op Fl M Ar core
 .Op Fl N Ar system
-.Nm
-.Op Ar kernel
 .\"
 .Sh DESCRIPTION
 The
@@ -55,17 +55,23 @@ The following options are supported:
 specifies the interface to be displayed.
 .Pp
 .It Fl f Ar address-family
-specifies the address-family to be displayed; currently only
-.Ar inet
-and
+specifies the address family to be displayed;
+.Ar inet ,
 .Ar inet6
+and
+.Ar link
 are supported.
+.It Fl v
+specifies that link-layer memberships should be printed;
+they are suppressed by default.
+It may not be specified for
+.Fl f Ar link .
 .El
 .Pp
 The following options are only available if
 .Nm
 has been built with support for
-.Xr kvm 3 .
+.Xr kvm 3 :
 .Bl -tag -width Fl
 .It Fl M Ar core
 extracts values associated with the name list from the specified core,
@@ -74,24 +80,11 @@ instead of the default
 .It Fl N Ar system
 extracts the name list from the specified kernel instead of the
 default, which is the kernel image the system has booted from.
-.It Nm Ar system
-This is the same as specifying
-.Nm
-.Fl N Ar system .
-This usage is deprecated; it is supported only for backwards compatibility.
 .El
 .Sh IMPLEMENTATION NOTES
-When built without
-.Xr kvm 3
-support, the information displayed by
-.Nm
-is more limited.
-This support is recommended for debugging purposes.
-It requires superuser privilege if used to inspect a running kernel.
-.Pp
-When run without using
-.Xr kvm 3
-support,
+When run with the
+.Fl v
+option,
 .Nm
 may print multicast MAC addresses twice if they are
 referenced by a layer 3 protocol.
@@ -101,16 +94,24 @@ When run with
 support,
 the names of all interfaces configured in the system will be
 printed in the first column of output, even if no multicast
-addresses are configured on those interfaces.
+group memberships are present on those interfaces.
+The output may also be slightly different, as the kernel
+data structures are being traversed with minimal post-processing
+of the output.
+.Pp
+When built without
+.Xr kvm 3
+support, the information displayed by
+.Nm
+is more limited.
+This support is recommended for debugging purposes.
+It requires super-user privilege if used to inspect a running kernel.
+.Xr kvm 3
+will be used by default if
+.Nm
+is run with super-user privileges.
 .Sh SEE ALSO
 .Xr getifaddrs 3 ,
 .Xr getifmaddrs 3 ,
 .Xr kvm 3 ,
 .Xr netstat 8
-.Sh BUGS
-.Nm
-does not support the
-.Ar link
-argument to the
-.Ar address-family
-option.
