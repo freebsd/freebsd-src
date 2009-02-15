@@ -595,7 +595,7 @@ ata_ahci_start(device_t dev)
 	     (ch->devices & ATA_PORTMULTIPLIER ? ATA_AHCI_P_CMD_PMA : 0));
 }
 
-static void
+static int
 ata_ahci_wait_ready(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -608,11 +608,12 @@ ata_ahci_wait_ready(device_t dev)
 	    DELAY(1000);
 	    if (timeout++ > 1000) {
 		device_printf(dev, "port is not ready\n");
-		break;
+		return (-1);
 	    }
     } 
     if (bootverbose)
 	device_printf(dev, "ready wait time=%dms\n", timeout);
+    return (0);
 }
 
 static u_int32_t
@@ -651,7 +652,8 @@ ata_ahci_softreset(device_t dev, int port)
     if (ata_ahci_issue_cmd(dev, 0, 0))
 	return -1;
 
-    ata_ahci_wait_ready(dev);
+    if (ata_ahci_wait_ready(dev))
+	return (-1);
 
     return ATA_INL(ctlr->r_res2, ATA_AHCI_P_SIG + offset);
 }
@@ -713,9 +715,14 @@ ata_ahci_reset(device_t dev)
     ata_ahci_wait_ready(dev);
 
     /* only probe for PortMultiplier if HW has support */
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM)
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) {
 	signature = ata_ahci_softreset(dev, ATA_PM);
-    else {
+	/* Workaround for some ATI chips, failing to soft-reset
+	 * when port multiplicator supported, but absent.
+	 * XXX: We can also check PxIS.IPMS==1 here to be sure. */
+	if (signature == 0xffffffff)
+	    signature = ata_ahci_softreset(dev, 0);
+    } else {
 	signature = ata_ahci_softreset(dev, 0);
     }
     if (bootverbose)
