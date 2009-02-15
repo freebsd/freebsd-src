@@ -41,8 +41,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#include <pccard/cis.h>
-
+#include "cis.h"
 #include "readcis.h"
 
 static void   dump_config_map(struct tuple *tp);
