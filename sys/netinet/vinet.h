@@ -33,12 +33,9 @@
 #ifndef _NETINET_VINET_H_
 #define _NETINET_VINET_H_
 
-#include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/md5.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
