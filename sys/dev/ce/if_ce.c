@@ -127,35 +127,11 @@ __FBSDID("$FreeBSD$");
 #define callout_drain callout_stop
 #endif
 
-#if __FreeBSD_version >= 504000
 #define CE_LOCK_NAME		"ceX"
 
-static int	ce_mpsafenet = 1;
-TUNABLE_INT("debug.ce.mpsafenet", &ce_mpsafenet);
-SYSCTL_NODE(_debug, OID_AUTO, ce, CTLFLAG_RD, 0, "Cronyx Tau32-PCI Adapters");
-SYSCTL_INT(_debug_ce, OID_AUTO, mpsafenet, CTLFLAG_RD, &ce_mpsafenet, 0,
-	"Enable/disable MPSAFE network support for Cronyx Tau32-PCI Adapters");
-
-#define CE_LOCK(_bd)		do { \
-				    if (ce_mpsafenet) \
-					mtx_lock (&(_bd)->ce_mtx); \
-				} while (0)
-#define CE_UNLOCK(_bd)		do { \
-				    if (ce_mpsafenet) \
-					mtx_unlock (&(_bd)->ce_mtx); \
-				} while (0)
-
-#define CE_LOCK_ASSERT(_bd)	do { \
-				    if (ce_mpsafenet) \
-					mtx_assert (&(_bd)->ce_mtx, MA_OWNED); \
-				} while (0)
-#else
-static int	ce_mpsafenet = 0;
-
-#define	CE_LOCK(_bd)		do {} while (0 && (_bd) && ce_mpsafenet)
-#define	CE_UNLOCK(_bd)		do {} while (0 && (_bd) && ce_mpsafenet)
-#define	CE_LOCK_ASSERT(_bd)	do {} while (0 && (_bd) && ce_mpsafenet)
-#endif
+#define CE_LOCK(_bd)		mtx_lock (&(_bd)->ce_mtx)
+#define CE_UNLOCK(_bd)		mtx_unlock (&(_bd)->ce_mtx)
+#define CE_LOCK_ASSERT(_bd)	mtx_assert (&(_bd)->ce_mtx, MA_OWNED)
 
 #define CDEV_MAJOR	185
 
@@ -317,7 +293,6 @@ static struct cdevsw ce_cdevsw = {
 	.d_close    = ce_close,
 	.d_ioctl    = ce_ioctl,
 	.d_name     = "ce",
-	.d_flags    = D_NEEDGIANT,
 };
 #endif
 
@@ -650,13 +625,13 @@ static int ce_attach (device_t dev)
 		return (ENXIO);
 	}
 #if __FreeBSD_version >= 500000
-	callout_init (&led_timo[unit], ce_mpsafenet ? CALLOUT_MPSAFE : 0);
+	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
 #else
 	callout_init (&led_timo[unit]);
 #endif
 	error  = bus_setup_intr (dev, bd->ce_irq,
 #if __FreeBSD_version >= 500013
-				INTR_TYPE_NET|(ce_mpsafenet?INTR_MPSAFE:0),
+				INTR_TYPE_NET|INTR_MPSAFE,
 #else
 				INTR_TYPE_NET,
 #endif
@@ -710,8 +685,7 @@ static int ce_attach (device_t dev)
 		}
 #if __FreeBSD_version >= 500000
 		NG_NODE_SET_PRIVATE (d->node, d);
-		callout_init (&d->timeout_handle,
-			     ce_mpsafenet ? CALLOUT_MPSAFE : 0);
+		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
 #else
 		d->node->private = d;
 #endif
@@ -755,10 +729,6 @@ static int ce_attach (device_t dev)
 #endif
 		d->ifp->if_mtu		= PP_MTU;
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
-#if __FreeBSD_version >= 502125
-		if (!ce_mpsafenet)
-			d->ifp->if_flags |= IFF_NEEDSGIANT;
-#endif
 		d->ifp->if_ioctl	= ce_sioctl;
 		d->ifp->if_start	= ce_ifstart;
 		d->ifp->if_watchdog	= ce_ifwatchdog;
@@ -2608,10 +2578,6 @@ static int ce_modevent (module_t mod, int type, void *unused)
 #if __FreeBSD_version < 500000
 	dev = makedev (CDEV_MAJOR, 0);
 #endif
-#if __FreeBSD_version >= 502103
-	if (ce_mpsafenet)
-		ce_cdevsw.d_flags &= ~D_NEEDGIANT;
-#endif
 
 	switch (type) {
 	case MOD_LOAD:
@@ -2632,7 +2598,7 @@ static int ce_modevent (module_t mod, int type, void *unused)
 		cdevsw_add (&ce_cdevsw);
 #endif
 #if __FreeBSD_version >= 500000
-		callout_init (&timeout_handle, ce_mpsafenet?CALLOUT_MPSAFE:0);
+		callout_init (&timeout_handle, CALLOUT_MPSAFE);
 #else
 		callout_init (&timeout_handle);
 #endif
