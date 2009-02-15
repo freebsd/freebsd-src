@@ -427,9 +427,9 @@ cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
 	uint8_t cap;
 
 	cap = read_config(fd, &p->pc_sel, ptr + PCIR_PCIAF_CAP, 1);
-	printf("PCI Advanced Features: %s%s",
-	    (cap & PCIM_PCIAFCAP_FLR)?"FLR ":"",
-	    (cap & PCIM_PCIAFCAP_TP)?"TP ":"");
+	printf("PCI Advanced Features:%s%s",
+	    cap & PCIM_PCIAFCAP_FLR ? " FLR" : "",
+	    cap & PCIM_PCIAFCAP_TP  ? " TP"  : "");
 }
 
 void
