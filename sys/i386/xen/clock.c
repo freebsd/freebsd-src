@@ -125,7 +125,6 @@ int wall_cmos_clock;
 u_int timer_freq = TIMER_FREQ;
 static int independent_wallclock;
 static int xen_disable_rtc_set;
-static u_long cached_gtm;	/* cached quotient for TSC -> microseconds */
 static u_long cyc2ns_scale; 
 static struct timespec shadow_tv;
 static uint32_t shadow_tv_version;	/* XXX: lazy locking */
@@ -205,8 +204,8 @@ scale_delta(uint64_t delta, uint32_t mul_frac, int shift)
 		"mov  %4,%%eax ; "
 		"mov  %%edx,%4 ; "
 		"mul  %5       ; "
-		"add  %4,%%eax ; "
 		"xor  %5,%5    ; "
+		"add  %4,%%eax ; "
 		"adc  %5,%%edx ; "
 		: "=A" (product), "=r" (tmp1), "=r" (tmp2)
 		: "a" ((uint32_t)delta), "1" ((uint32_t)(delta >> 32)), "2" (mul_frac) );
@@ -214,7 +213,8 @@ scale_delta(uint64_t delta, uint32_t mul_frac, int shift)
 	return product;
 }
 
-static uint64_t get_nsec_offset(struct shadow_time_info *shadow)
+static uint64_t
+get_nsec_offset(struct shadow_time_info *shadow)
 {
 	uint64_t now, delta;
 	rdtscll(now);
@@ -507,13 +507,6 @@ startrtclock()
 
 	/* (10^6 * 2^32) / cpu_hz = (10^3 * 2^32) / cpu_khz =
 	   (2^32 * 1 / (clocks/us)) */
-	{	
-		unsigned long eax=0, edx=1000;
-		__asm__("divl %2"
-			:"=a" (cached_gtm), "=d" (edx)
-			:"r" (cpu_khz),
-			"0" (eax), "1" (edx));
-	}
 
 	set_cyc2ns_scale(cpu_khz/1000);
 	tsc_freq = cpu_khz * 1000;
@@ -761,9 +754,9 @@ cpu_initclocks(void)
 {
 	unsigned int time_irq;
 	int error;
-	
-	xen_set_periodic_tick.period_ns = NS_PER_TICK;
 
+	xen_set_periodic_tick.period_ns = NS_PER_TICK;
+	
 	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, 0,
 			   &xen_set_periodic_tick);
 	
@@ -772,8 +765,6 @@ cpu_initclocks(void)
 	    INTR_TYPE_CLK | INTR_FAST, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
-
-
 	/* should fast clock be enabled ? */
 	
 }
@@ -840,63 +831,29 @@ get_system_time(int ticks)
  * Track behavior of cur_timer->get_offset() functionality in timer_tsc.c
  */
 
-#if 0
-static uint32_t
-xen_get_offset(void)
-{
-	register unsigned long eax, edx;
-
-	/* Read the Time Stamp Counter */
-
-	rdtsc(eax,edx);
-
-	/* .. relative to previous jiffy (32 bits is enough) */
-	eax -= shadow_tsc_stamp;
-
-	/*
-	 * Time offset = (tsc_low delta) * cached_gtm
-	 *             = (tsc_low delta) * (usecs_per_clock)
-	 *             = (tsc_low delta) * (usecs_per_jiffy / clocks_per_jiffy)
-	 *
-	 * Using a mull instead of a divl saves up to 31 clock cycles
-	 * in the critical path.
-	 */
-
-	__asm__("mull %2"
-		:"=a" (eax), "=d" (edx)
-		:"rm" (cached_gtm),
-		"0" (eax));
-
-	/* our adjusted time offset in microseconds */
-	return edx;
-}
-#endif
 
 /* Convert jiffies to system time. */
 static uint64_t 
-ticks_to_system_time(unsigned long newticks)
+ticks_to_system_time(int newticks)
 {
-#if 0
-  unsigned long seq;
-#endif
-  long delta;
-  uint64_t st;
+	int delta;
+	uint64_t st;
 
+	delta = newticks - ticks;
+	if (delta < 1) {
+		/* Triggers in some wrap-around cases,
+		 * but that's okay:
+		 * we just end up with a shorter timeout. */
+		st = processed_system_time + NS_PER_TICK;
+	} else if (((unsigned int)delta >> (BITS_PER_LONG-3)) != 0) {
+		/* Very long timeout means there is no pending timer.
+		 * We indicate this to Xen by passing zero timeout. */
+		st = 0;
+	} else {
+		st = processed_system_time + delta * (uint64_t)NS_PER_TICK;
+	}
 
-    delta = newticks - ticks;
-    if (delta < 1) {
-      /* Triggers in some wrap-around cases, but that's okay:
-       * we just end up with a shorter timeout. */
-      st = processed_system_time + NS_PER_TICK;
-    } else if (((unsigned long)delta >> (BITS_PER_LONG-3)) != 0) {
-      /* Very long timeout means there is no pending timer.
-       * We indicate this to Xen by passing zero timeout. */
-      st = 0;
-    } else {
-      st = processed_system_time + delta * (uint64_t)NS_PER_TICK;
-    }
-
-    return (st);
+	return (st);
 }
 
 void
@@ -904,7 +861,7 @@ idle_block(void)
 {
   uint64_t timeout;
 
-  timeout = ticks_to_system_time(ticks + 1)  + NS_PER_TICK/2;
+  timeout = ticks_to_system_time(ticks + 1) + NS_PER_TICK/2;
 
   __get_time_values_from_xen();
   PANIC_IF(HYPERVISOR_set_timer_op(timeout) != 0);
