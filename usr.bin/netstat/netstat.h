@@ -160,7 +160,6 @@ void	tp_protopr(u_long, const char *, int, int);
 void	tp_inproto(u_long);
 void	tp_stats(caddr_t, caddr_t);
 
-void	ifmalist_dump(void);
 void	mroutepr(u_long, u_long);
 void	mrt_stats(u_long);
 void	bpf_stats(char *);
