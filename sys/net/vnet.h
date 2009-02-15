@@ -35,14 +35,8 @@
 
 #include "opt_route.h"
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/protosw.h>
-
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/route.h>
-#include <net/raw_cb.h>
 
 struct vnet_net {
 	int	_if_index;
