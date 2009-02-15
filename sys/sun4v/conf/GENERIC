@@ -215,6 +215,7 @@ device		usb2_serial_mct
 device		usb2_serial_modem
 device		usb2_serial_moscom
 device		usb2_serial_plcom
+device		usb2_serial_slcom
 device		usb2_serial_visor
 device		usb2_serial_vscom
 # USB bluetooth support
