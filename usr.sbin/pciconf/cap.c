@@ -414,6 +414,24 @@ cap_msix(int fd, struct pci_conf *p, uint8_t ptr)
 		printf(" enabled");
 }
 
+static void
+cap_sata(int fd, struct pci_conf *p, uint8_t ptr)
+{
+
+	printf("SATA Index-Data Pair");
+}
+
+static void
+cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
+{
+	uint8_t cap;
+
+	cap = read_config(fd, &p->pc_sel, ptr + PCIR_PCIAF_CAP, 1);
+	printf("PCI Advanced Features: %s%s",
+	    (cap & PCIM_PCIAFCAP_FLR)?"FLR ":"",
+	    (cap & PCIM_PCIAFCAP_TP)?"TP ":"");
+}
+
 void
 list_caps(int fd, struct pci_conf *p)
 {
@@ -475,6 +493,12 @@ list_caps(int fd, struct pci_conf *p)
 			break;
 		case PCIY_MSIX:
 			cap_msix(fd, p, ptr);
+			break;
+		case PCIY_SATA:
+			cap_sata(fd, p, ptr);
+			break;
+		case PCIY_PCIAF:
+			cap_pciaf(fd, p, ptr);
 			break;
 		default:
 			printf("unknown");
