@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090203: removal of pccard header files
+OLD_FILES+=usr/include/pccard/cardinfo.h
+OLD_FILES+=usr/include/pccard/cis.h
+OLD_DIRS+=usr/include/pccard
 # 20090203: adding_user.8 moved to adding_user.7
 OLD_FILES+=usr/share/man/man8/adding_user.8.gz
 # 20090122: tzdata2009a import
