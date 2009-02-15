@@ -41,7 +41,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#include <pccard/cardinfo.h>
 #include <pccard/cis.h>
 
 #include "readcis.h"
