@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090131_0127"
+#define HDA_DRV_TEST_REV	"20090215_0128"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -108,12 +108,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define hdac_unlock(sc)		snd_mtxunlock((sc)->lock)
 #define hdac_lockassert(sc)	snd_mtxassert((sc)->lock)
 #define hdac_lockowned(sc)	mtx_owned((sc)->lock)
-
-#undef HDAC_MSI_ENABLED
-#if __FreeBSD_version >= 700026 ||					\
-    (__FreeBSD_version < 700000 && __FreeBSD_version >= 602106)
-#define HDAC_MSI_ENABLED	1
-#endif
 
 #define HDA_FLAG_MATCH(fl, v)	(((fl) & (v)) == (v))
 #define HDA_DEV_MATCH(fl, v)	((fl) == (v) || \
@@ -1750,13 +1744,11 @@ hdac_irq_alloc(struct hdac_softc *sc)
 	irq = &sc->irq;
 	irq->irq_rid = 0x0;
 
-#ifdef HDAC_MSI_ENABLED
 	if ((sc->flags & HDAC_F_MSI) &&
 	    (result = pci_msi_count(sc->dev)) == 1 &&
 	    pci_alloc_msi(sc->dev, &result) == 0)
 		irq->irq_rid = 0x1;
 	else
-#endif
 		sc->flags &= ~HDAC_F_MSI;
 
 	irq->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
@@ -1799,10 +1791,8 @@ hdac_irq_free(struct hdac_softc *sc)
 	if (irq->irq_res != NULL)
 		bus_release_resource(sc->dev, SYS_RES_IRQ, irq->irq_rid,
 		    irq->irq_res);
-#ifdef HDAC_MSI_ENABLED
-	if ((sc->flags & HDAC_F_MSI) && irq->irq_rid == 0x1)
+	if (irq->irq_rid == 0x1)
 		pci_release_msi(sc->dev);
-#endif
 	irq->irq_handle = NULL;
 	irq->irq_res = NULL;
 	irq->irq_rid = 0x0;
@@ -4059,14 +4049,11 @@ hdac_attach(device_t dev)
 		);
 	}
 
-#ifdef HDAC_MSI_ENABLED
 	if (resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "msi", &i) == 0 && i != 0 &&
-	    pci_msi_count(dev) == 1)
-		sc->flags |= HDAC_F_MSI;
-	else
-#endif
+	    device_get_unit(dev), "msi", &i) == 0 && i == 0)
 		sc->flags &= ~HDAC_F_MSI;
+	else
+		sc->flags |= HDAC_F_MSI;
 
 #if defined(__i386__) || defined(__amd64__)
 	sc->flags |= HDAC_F_DMA_NOCACHE;
