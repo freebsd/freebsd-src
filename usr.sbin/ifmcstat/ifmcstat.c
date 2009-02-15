@@ -61,9 +61,6 @@ __FBSDID("$FreeBSD$");
 #undef _KERNEL
 
 #ifdef INET6
-# ifdef HAVE_MLDV2
-#  include <netinet6/in6_msf.h>
-# endif
 #include <netinet/icmp6.h>
 #define _KERNEL
 # include <netinet6/mld6_var.h>
@@ -142,9 +139,6 @@ static void		in_addr_slistentry(struct in_addr_slist *, char *);
 static void		if6_addrlist(struct ifaddr *);
 static struct in6_multi *
 			in6_multientry(struct in6_multi *);
-#ifdef HAVE_MLDV2
-static void		in6_addr_slistentry(struct in6_addr_slist *, char *);
-#endif
 #endif /* INET6 */
 
 static void		kread(u_long, void *, int);
@@ -437,87 +431,13 @@ static struct in6_multi *
 in6_multientry(struct in6_multi *mc)
 {
 	struct in6_multi multi;
-#ifdef HAVE_MLDV2
-	struct in6_multi_source src;
-	struct router6_info rt6i;
-#endif
 
 	KREAD(mc, &multi, struct in6_multi);
 	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr));
 	printf(" refcnt %u\n", multi.in6m_refcount);
 
-#ifdef HAVE_MLDV2
-	if (multi.in6m_rti != NULL) {
-		KREAD(multi.in6m_rti, &rt6i, struct router_info);
-		printf("\t\t\t");
-		switch (rt6i.rt6i_type) {
-		case MLD_V1_ROUTER:
-			printf("mldv1");
-			break;
-		case MLD_V2_ROUTER:
-			printf("mldv2");
-			break;
-		default:
-			printf("mldv?(%d)", rt6i.rt6i_type);
-			break;
-		}
-
-		if (multi.in6m_source == NULL) {
-			printf("\n");
-			return(multi.in6m_entry.le_next);
-		}
-
-		KREAD(multi.in6m_source, &src, struct in6_multi_source);
-		printf(" mode=%s grpjoin=%d\n",
-		    src.i6ms_mode == MCAST_INCLUDE ? "include" :
-		    src.i6ms_mode == MCAST_EXCLUDE ? "exclude" :
-		    "???",
-		    src.i6ms_grpjoin);
-		in6_addr_slistentry(src.i6ms_cur, "current");
-		in6_addr_slistentry(src.i6ms_rec, "recorded");
-		in6_addr_slistentry(src.i6ms_in, "included");
-		in6_addr_slistentry(src.i6ms_ex, "excluded");
-		in6_addr_slistentry(src.i6ms_alw, "allowed");
-		in6_addr_slistentry(src.i6ms_blk, "blocked");
-		in6_addr_slistentry(src.i6ms_toin, "to-include");
-		in6_addr_slistentry(src.i6ms_ex, "to-exclude");
-	}
-#endif
 	return(multi.in6m_entry.le_next);
 }
-
-#ifdef HAVE_MLDV2
-static void
-in6_addr_slistentry(struct in6_addr_slist *ias, char *heading)
-{
-	struct in6_addr_slist slist;
-	struct i6as_head head;
-	struct in6_addr_source src;
-
-	if (ias == NULL) {
-		printf("\t\t\t\t%s (none)\n", heading);
-		return;
-	}
-	memset(&slist, 0, sizeof(slist));
-	KREAD(ias, &slist, struct in6_addr_source);
-	printf("\t\t\t\t%s (entry num=%d)\n", heading, slist.numsrc);
-	if (slist.numsrc == 0) {
-		return;
-	}
-	KREAD(slist.head, &head, struct i6as_head);
-
-	KREAD(head.lh_first, &src, struct in6_addr_source);
-	while (1) {
-		printf("\t\t\t\t\tsource %s (ref=%d)\n",
-			inet6_n2a(&src.i6as_addr.sin6_addr),
-			src.i6as_refcount);
-		if (src.i6as_list.le_next == NULL)
-			break;
-		KREAD(src.i6as_list.le_next, &src, struct in6_addr_source);
-	}
-	return;
-}
-#endif /* HAVE_MLDV2 */
 
 #endif /* INET6 */
 
