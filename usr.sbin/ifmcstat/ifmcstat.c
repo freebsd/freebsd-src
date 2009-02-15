@@ -193,7 +193,7 @@ main(int argc, char **argv)
 			if ((ifindex = if_nametoindex(optarg)) == 0) {
 				fprintf(stderr, "%s: unknown interface\n",
 				    optarg);
-				exit(1);
+				exit(EX_NOHOST);
 			}
 			break;
 
@@ -215,7 +215,7 @@ main(int argc, char **argv)
 				break;
 			}
 			fprintf(stderr, "%s: unknown address family\n", optarg);
-			exit(1);
+			exit(EX_USAGE);
 			/*NOTREACHED*/
 			break;
 
@@ -253,9 +253,9 @@ main(int argc, char **argv)
 #endif
 	error = ifmcstat_getifmaddrs();
 	if (error != 0)
-		exit(1);
+		exit(EX_OSERR);
 
-	exit(0);
+	exit(EX_OK);
 	/*NOTREACHED*/
 }
 
@@ -296,7 +296,7 @@ ifmcstat_kvm(const char *kernel, const char *core)
 #endif
 		if (vflag)
 			ll_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-next:
+	next:
 		ifp = nifp;
 	}
 
@@ -309,7 +309,7 @@ kread(u_long addr, void *buf, int len)
 
 	if (kvm_read(kvmd, addr, buf, len) != len) {
 		perror("kvm_read");
-		exit(1);
+		exit(EX_OSERR);
 	}
 }
 
@@ -436,7 +436,7 @@ in6_multientry(struct in6_multi *mc)
 	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr));
 	printf(" refcnt %u\n", multi.in6m_refcount);
 
-	return(multi.in6m_entry.le_next);
+	return (multi.in6m_entry.le_next);
 }
 
 #endif /* INET6 */
@@ -584,7 +584,6 @@ in_addr_slistentry(struct in_addr_slist *ias, char *heading)
 			break;
 		KREAD(src.ias_list.le_next, &src, struct in_addr_source);
 	}
-	return;
 }
 #endif /* HAVE_IGMPV3 */
 
@@ -615,10 +614,11 @@ inet6_n2a(struct in6_addr *p)
 		}
 	}
 	if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
-			buf, sizeof(buf), NULL, 0, niflags) == 0)
-		return buf;
-	else
-		return "(invalid)";
+	    buf, sizeof(buf), NULL, 0, niflags) == 0) {
+		return (buf);
+	} else {
+		return ("(invalid)");
+	}
 }
 #endif /* INET6 */
 
