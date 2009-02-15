@@ -184,7 +184,6 @@
 #define VAR_SWAP_SIZE			"swapSize"
 #define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_TRY_RTSOL			"tryRTSOL"
-#define VAR_SKIP_PCCARD			"skipPCCARD"
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
@@ -812,9 +811,6 @@ extern int	packageAdd(dialogMenuItem *self);
 extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_installed(char *name);
-
-/* pccard.c */
-extern void	pccardInitialize(void);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
