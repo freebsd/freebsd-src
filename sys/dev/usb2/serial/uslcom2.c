@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int uslcom_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uplcom, CTLFLAG_RW, 0, "USB uplcom");
-SYSCTL_INT(_hw_usb2_uplcom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb2, OID_AUTO, uslcom, CTLFLAG_RW, 0, "USB uslcom");
+SYSCTL_INT(_hw_usb2_uslcom, OID_AUTO, debug, CTLFLAG_RW,
     &uslcom_debug, 0, "Debug level");
 #endif
 
@@ -188,15 +188,15 @@ static device_method_t uslcom_methods[] = {
 static devclass_t uslcom_devclass;
 
 static driver_t uslcom_driver = {
-	.name = "uplcom",
+	.name = "uslcom",
 	.methods = uslcom_methods,
 	.size = sizeof(struct uslcom_softc),
 };
 
-DRIVER_MODULE(uplcom, ushub, uslcom_driver, uslcom_devclass, NULL, 0);
-MODULE_DEPEND(uplcom, usb2_serial, 1, 1, 1);
-MODULE_DEPEND(uplcom, usb2_core, 1, 1, 1);
-MODULE_VERSION(uplcom, 1);
+DRIVER_MODULE(uslcom, ushub, uslcom_driver, uslcom_devclass, NULL, 0);
+MODULE_DEPEND(uslcom, usb2_serial, 1, 1, 1);
+MODULE_DEPEND(uslcom, usb2_core, 1, 1, 1);
+MODULE_VERSION(uslcom, 1);
 
 static int
 uslcom_probe(device_t dev)
