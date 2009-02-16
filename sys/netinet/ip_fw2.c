@@ -3762,8 +3762,8 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 				continue;
 			clear_counters(rule, log_only);
 		}
-		msg = log_only ? "ipfw: All logging counts reset.\n" :
-		    "ipfw: Accounting cleared.\n";
+		msg = log_only ? "All logging counts reset" :
+		    "Accounting cleared";
 	} else {
 		int cleared = 0;
 		/*
@@ -3784,13 +3784,18 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 			IPFW_WUNLOCK(chain);
 			return (EINVAL);
 		}
-		msg = log_only ? "ipfw: Entry %d logging count reset.\n" :
-		    "ipfw: Entry %d cleared.\n";
+		msg = log_only ? "logging count reset" : "cleared";
 	}
 	IPFW_WUNLOCK(chain);
 
-	if (V_fw_verbose)
-		log(LOG_SECURITY | LOG_NOTICE, msg, rulenum);
+	if (V_fw_verbose) {
+		int lev = LOG_SECURITY | LOG_NOTICE;
+
+		if (rulenum)
+			log(lev, "ipfw: Entry %d %s.\n", rulenum, msg);
+		else
+			log(lev, "ipfw: %s.\n", msg);
+	}
 	return (0);
 }
 
