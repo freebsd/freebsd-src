@@ -40,17 +40,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/vmparam.h>
 
-#include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
+#include <machine/xen/xenfunc.h>
+#include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
+#include <xen/gnttab.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/protocols.h>
 #include <xen/xenbus/xenbusvar.h>
 
 #include <geom/geom_disk.h>
-#include <machine/xen/xenfunc.h>
-#include <xen/gnttab.h>
 
 #include <dev/xen/blkfront/block.h>
 
@@ -106,7 +106,7 @@ static char * blkif_status_name[] = {
 #endif
 #define WPRINTK(fmt, args...) printf("[XEN] " fmt, ##args)
 #if 0
-#define DPRINTK(fmt, args...) printf("[XEN] %s:%d" fmt ".\n", __FUNCTION__, __LINE__,##args)
+#define DPRINTK(fmt, args...) printf("[XEN] %s:%d: " fmt ".\n", __func__, __LINE__, ##args)
 #else
 #define DPRINTK(fmt, args...) 
 #endif
@@ -137,7 +137,6 @@ pfn_to_mfn(vm_paddr_t pfn)
 {
 	return (phystomach(pfn << PAGE_SHIFT) >> PAGE_SHIFT);
 }
-
 
 /*
  * Translate Linux major/minor to an appropriate name and unit
@@ -323,17 +322,17 @@ blkfront_probe(device_t dev)
 static int
 blkfront_attach(device_t dev)
 {
-	int err, vdevice, i, unit;
+	int error, vdevice, i, unit;
 	struct blkfront_info *info;
 	const char *name;
 
 	/* FIXME: Use dynamic device id if this is not set. */
-	err = xenbus_scanf(XBT_NIL, xenbus_get_node(dev),
+	error = xenbus_scanf(XBT_NIL, xenbus_get_node(dev),
 	    "virtual-device", NULL, "%i", &vdevice);
-	if (err) {
-		xenbus_dev_fatal(dev, err, "reading virtual-device");
+	if (error) {
+		xenbus_dev_fatal(dev, error, "reading virtual-device");
 		printf("couldn't find virtual device");
-		return (err);
+		return (error);
 	}
 
 	blkfront_vdevice_to_unit(vdevice, &unit, &name);
@@ -362,9 +361,22 @@ blkfront_attach(device_t dev)
 	/* Front end dir is a number, which is used as the id. */
 	info->handle = strtoul(strrchr(xenbus_get_node(dev),'/')+1, NULL, 0);
 
-	err = talk_to_backend(dev, info);
-	if (err)
-		return (err);
+	error = talk_to_backend(dev, info);
+	if (error)
+		return (error);
+
+	return (0);
+}
+
+static int
+blkfront_suspend(device_t dev)
+{
+	struct blkfront_info *info = device_get_softc(dev);
+
+	/* Prevent new requests being issued until we fix things up. */
+	mtx_lock(&blkif_io_lock);
+	info->connected = BLKIF_STATE_SUSPENDED;
+	mtx_unlock(&blkif_io_lock);
 
 	return (0);
 }
@@ -375,16 +387,14 @@ blkfront_resume(device_t dev)
 	struct blkfront_info *info = device_get_softc(dev);
 	int err;
 
-	DPRINTK("blkfront_resume: %s\n", dev->nodename);
+	DPRINTK("blkfront_resume: %s\n", xenbus_get_node(dev));
 
 	blkif_free(info, 1);
-
 	err = talk_to_backend(dev, info);
-
 	if (info->connected == BLKIF_STATE_SUSPENDED && !err)
 		blkif_recover(info);
 
-	return err;
+	return (err);
 }
 
 /* Common code used when first setting up, and when resuming. */
@@ -425,6 +435,7 @@ talk_to_backend(device_t dev, struct blkfront_info *info)
 		message = "writing protocol";
 		goto abort_transaction;
 	}
+
 	err = xenbus_transaction_end(xbt, 0);
 	if (err) {
 		if (err == EAGAIN)
@@ -462,8 +473,8 @@ setup_blkring(device_t dev, struct blkfront_info *info)
 	SHARED_RING_INIT(sring);
 	FRONT_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	error = xenbus_grant_ring(dev, (vtomach(info->ring.sring) >> PAGE_SHIFT),
-		&info->ring_ref);
+	error = xenbus_grant_ring(dev,
+	    (vtomach(info->ring.sring) >> PAGE_SHIFT), &info->ring_ref);
 	if (error) {
 		free(sring, M_DEVBUF);
 		info->ring.sring = NULL;
@@ -471,11 +482,11 @@ setup_blkring(device_t dev, struct blkfront_info *info)
 	}
 	
 	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-		"xbd", (driver_intr_t *)blkif_int, info,
-					INTR_TYPE_BIO | INTR_MPSAFE, &info->irq);
+	    "xbd", (driver_intr_t *)blkif_int, info,
+	    INTR_TYPE_BIO | INTR_MPSAFE, &info->irq);
 	if (error) {
 		xenbus_dev_fatal(dev, error,
-				 "bind_evtchn_to_irqhandler failed");
+		    "bind_evtchn_to_irqhandler failed");
 		goto fail;
 	}
 
@@ -494,7 +505,7 @@ blkfront_backend_changed(device_t dev, XenbusState backend_state)
 {
 	struct blkfront_info *info = device_get_softc(dev);
 
-	DPRINTK("blkfront:backend_changed.\n");
+	DPRINTK("backend_state=%d\n", backend_state);
 
 	switch (backend_state) {
 	case XenbusStateUnknown:
@@ -707,7 +718,7 @@ blkif_open(struct disk *dp)
 	struct xb_softc	*sc = (struct xb_softc *)dp->d_drv1;
 
 	if (sc == NULL) {
-		printk("xb%d: not found", sc->xb_unit);
+		printf("xb%d: not found", sc->xb_unit);
 		return (ENXIO);
 	}
 
@@ -1019,9 +1030,11 @@ blkif_recover(struct blkfront_info *info)
 	blkif_request_t *req;
 	struct blk_shadow *copy;
 
+	if (!info->sc)
+		return;
+
 	/* Stage 1: Make a safe copy of the shadow state. */
 	copy = (struct blk_shadow *)malloc(sizeof(info->shadow), M_DEVBUF, M_NOWAIT|M_ZERO);
-	PANIC_IF(copy == NULL);
 	memcpy(copy, info->shadow, sizeof(info->shadow));
 
 	/* Stage 2: Set up free list. */
@@ -1084,7 +1097,7 @@ static device_method_t blkfront_methods[] = {
 	DEVMETHOD(device_attach,        blkfront_attach), 
 	DEVMETHOD(device_detach,        blkfront_detach), 
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       bus_generic_suspend), 
+	DEVMETHOD(device_suspend,       blkfront_suspend), 
 	DEVMETHOD(device_resume,        blkfront_resume), 
  
 	/* Xenbus interface */
