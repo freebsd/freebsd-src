@@ -6679,9 +6679,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
 		  && (inq_data->flags & SID_Sync) == 0
 		  && cts->type == CTS_TYPE_CURRENT_SETTINGS)
-		 || ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0)
-		 || (spi->sync_offset == 0)
-		 || (spi->sync_period == 0)) {
+		 || ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0)) {
 			/* Force async */
 			spi->sync_period = 0;
 			spi->sync_offset = 0;
@@ -6729,7 +6727,8 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		if (spi->bus_width == 0)
 			spi->ppr_options = 0;
 
-		if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) == 0) {
+		if ((spi->valid & CTS_SPI_VALID_DISC)
+		 && ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) == 0)) {
 			/*
 			 * Can't tag queue without disconnection.
 			 */
