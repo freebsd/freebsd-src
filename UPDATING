@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090216:	p10	FreeBSD-SA-09:05.telnetd
+	Correctly scrub telnetd's environment.
+
 20090113:	p9	FreeBSD-SA-09:03.ntpd, FreeBSD-SA-09:04.bind
 	Correct ntpd cryptographic signature bypass. [09:03]
 
