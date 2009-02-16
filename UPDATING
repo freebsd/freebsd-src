@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090216:
+	xorg 7.4 wants to configure its input devices via hald which does not
+	yet work with USB2. If the keyboard/mouse does not work in xorg then
+	add
+		Option "AllowEmptyInput" "off"
+	to your ServerLayout section.  This will cause X to use the configured
+	kbd and mouse sections from your xorg.conf
+
 20090215:
 	The GENERIC kernels for all architectures now default to the new USB2
 	stack. No kernel config options or code have been removed so if a
