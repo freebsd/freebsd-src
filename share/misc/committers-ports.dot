@@ -52,6 +52,7 @@ anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
+beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
 beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
 brix [label="Henrik Brix Andersen\nbrix@FreeBSD.org\n2007/10/31"]
@@ -259,6 +260,7 @@ mat -> thierry
 mezz -> tmclaugh
 
 miwi -> amdmi3
+miwi -> beat
 miwi -> farrokhi
 miwi -> gahr
 miwi -> nox
