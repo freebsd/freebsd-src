@@ -226,13 +226,16 @@ pfs_getattr(struct vop_getattr_args *va)
 	if (proc != NULL) {
 		vap->va_uid = proc->p_ucred->cr_ruid;
 		vap->va_gid = proc->p_ucred->cr_rgid;
-		if (pn->pn_attr != NULL)
-			error = pn_attr(curthread, proc, pn, vap);
-		PROC_UNLOCK(proc);
 	} else {
 		vap->va_uid = 0;
 		vap->va_gid = 0;
 	}
+
+	if (pn->pn_attr != NULL)
+		error = pn_attr(curthread, proc, pn, vap);
+
+	if(proc != NULL)
+		PROC_UNLOCK(proc);
 
 	PFS_RETURN (error);
 }
