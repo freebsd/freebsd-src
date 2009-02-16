@@ -98,6 +98,7 @@ ata_pci_attach(device_t dev)
 	ctlr->channels = 2;
     else
 	ctlr->channels = 1;
+    ctlr->ichannels = -1;
     ctlr->allocate = ata_pci_allocate;
     ctlr->dmainit = ata_pci_dmainit;
     ctlr->dev = dev;
@@ -122,6 +123,8 @@ ata_pci_attach(device_t dev)
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++) {
+	if ((ctlr->ichannels & (1 << unit)) == 0)
+	    continue;
 	child = device_add_child(dev, "ata",
 	    ((unit == 0 || unit == 1) && ctlr->legacy) ?
 	    unit : devclass_find_free_unit(ata_devclass, 2));
