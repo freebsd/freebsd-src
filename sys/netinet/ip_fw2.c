@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/condvar.h>
-#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
@@ -58,12 +56,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/ucred.h>
+#include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -94,8 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #endif
 
-#include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
-
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
 #ifdef MAC
@@ -111,11 +107,10 @@ __FBSDID("$FreeBSD$");
  * Rules in set RESVD_SET can only be deleted explicitly.
  */
 static u_int32_t set_disable;
-
 static int fw_verbose;
+static struct callout ipfw_timeout;
 static int verbose_limit;
 
-static struct callout ipfw_timeout;
 static uma_zone_t ipfw_dyn_rule_zone;
 
 /*
@@ -176,6 +171,9 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
     &verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
+    NULL, IPFW_TABLES_MAX, "The maximum number of tables.");
+#endif /* SYSCTL_NODE */
 
 /*
  * Description of dynamic rules.
@@ -252,6 +250,7 @@ static u_int32_t static_len;	/* size in bytes of static rules */
 static u_int32_t dyn_count;		/* # of dynamic rules */
 static u_int32_t dyn_max = 4096;	/* max # of dynamic rules */
 
+#ifdef SYSCTL_NODE
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets, CTLFLAG_RW,
     &dyn_buckets, 0, "Number of dyn. buckets");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets, CTLFLAG_RD,
@@ -276,17 +275,19 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime, CTLFLAG_RW,
     &dyn_short_lifetime, 0, "Lifetime of dyn. rules for other situations");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
     &dyn_keepalive, 0, "Enable keepalives for dyn. rules");
+#endif /* SYSCTL_NODE */
 
 #ifdef INET6
 /*
  * IPv6 specific variables
  */
+#ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet6_ip6);
+#endif /* SYSCTL_NODE */
 
 static struct sysctl_ctx_list ip6_fw_sysctl_ctx;
 static struct sysctl_oid *ip6_fw_sysctl_tree;
 #endif /* INET6 */
-#endif /* SYSCTL_NODE */
 
 static int fw_deny_unknown_exthdrs = 1;
 
@@ -1773,6 +1774,7 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 {
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
+	struct radix_node *rn;
 
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
@@ -1784,14 +1786,14 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	ent->addr.sin_len = ent->mask.sin_len = 8;
 	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
-	IPFW_WLOCK(&layer3_chain);
-	if (rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent) ==
-	    NULL) {
-		IPFW_WUNLOCK(&layer3_chain);
+	IPFW_WLOCK(ch);
+	rn = rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent);
+	if (rn == NULL) {
+		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
 		return (EEXIST);
 	}
-	IPFW_WUNLOCK(&layer3_chain);
+	IPFW_WUNLOCK(ch);
 	return (0);
 }
 
@@ -2205,6 +2207,7 @@ ipfw_chk(struct ip_fw_args *args)
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (IP_FW_PASS);	/* accept */
 
+	dst_ip.s_addr = 0;		/* make sure it is initialized */
 	pktlen = m->m_pkthdr.len;
 	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
@@ -2662,7 +2665,7 @@ check_body:
 				    uint32_t a =
 					(cmd->opcode == O_IP_DST_LOOKUP) ?
 					    dst_ip.s_addr : src_ip.s_addr;
-				    uint32_t v;
+				    uint32_t v = 0;
 
 				    match = lookup_table(chain, cmd->arg1, a,
 					&v);
@@ -3714,8 +3717,8 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 				continue;
 			clear_counters(rule, log_only);
 		}
-		msg = log_only ? "ipfw: All logging counts reset.\n" :
-		    "ipfw: Accounting cleared.\n";
+		msg = log_only ? "logging counts reset" :
+		    "Accounting cleared";
 	} else {
 		int cleared = 0;
 		/*
@@ -3736,13 +3739,18 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 			IPFW_WUNLOCK(chain);
 			return (EINVAL);
 		}
-		msg = log_only ? "ipfw: Entry %d logging count reset.\n" :
-		    "ipfw: Entry %d cleared.\n";
+		msg = log_only ? "logging count reset" : "cleared";
 	}
 	IPFW_WUNLOCK(chain);
 
-	if (fw_verbose)
-		log(LOG_SECURITY | LOG_NOTICE, msg, rulenum);
+	if (fw_verbose) {
+		int lev = LOG_SECURITY | LOG_NOTICE;
+
+		if (rulenum)
+			log(lev, "ipfw: Entry %d %s.\n", rulenum, msg);
+		else
+			log(lev, "ipfw: %s.\n", msg);
+	}
 	return (0);
 }
 
@@ -4357,49 +4365,44 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	case IP_FW_NAT_CFG:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_cfg_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_CFG: ipfw_nat not present, please load it.\n");
+			printf("IP_FW_NAT_CFG: %s\n",
+				"ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_DEL:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_del_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_DEL: ipfw_nat not present, please load it.\n");
-			printf("ipfw_nat not loaded: %d\n", sopt->sopt_name);
+			printf("IP_FW_NAT_DEL: %s\n",
+				"ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_GET_CONFIG:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_get_cfg_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_GET_CFG: ipfw_nat not present, please load it.\n");
+			printf("IP_FW_NAT_GET_CFG: %s\n",
+				"ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_GET_LOG:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_get_log_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_GET_LOG: ipfw_nat not present, please load it.\n");
+			printf("IP_FW_NAT_GET_LOG: %s\n",
+				"ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	default:
 		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
