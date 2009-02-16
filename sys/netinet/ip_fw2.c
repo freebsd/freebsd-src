@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/ucred.h>
 #include <sys/vimage.h>
+#include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -97,8 +98,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet6/scope6_var.h>
 #endif
-
-#include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
