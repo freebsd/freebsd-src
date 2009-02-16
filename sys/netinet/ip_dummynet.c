@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -70,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
+#include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head */
 #include <net/netisr.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>	/* ip_len, ip_off */
