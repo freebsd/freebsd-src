@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
@@ -68,6 +67,8 @@ static int g_part_ebr_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_ebr_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
+static int g_part_ebr_precheck(struct g_part_table *, enum g_part_ctl,
+    struct g_part_parms *);
 static int g_part_ebr_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_ebr_read(struct g_part_table *, struct g_consumer *);
 static int g_part_ebr_setunset(struct g_part_table *, struct g_part_entry *,
@@ -84,6 +85,7 @@ static kobj_method_t g_part_ebr_methods[] = {
 	KOBJMETHOD(g_part_dumpto,	g_part_ebr_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_ebr_modify),
 	KOBJMETHOD(g_part_name,		g_part_ebr_name),
+	KOBJMETHOD(g_part_precheck,	g_part_ebr_precheck),
 	KOBJMETHOD(g_part_probe,	g_part_ebr_probe),
 	KOBJMETHOD(g_part_read,		g_part_ebr_read),
 	KOBJMETHOD(g_part_setunset,	g_part_ebr_setunset),
@@ -102,6 +104,9 @@ static struct g_part_scheme g_part_ebr_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_ebr);
 
+static void ebr_set_chs(struct g_part_table *, uint32_t, u_char *, u_char *,
+    u_char *);
+
 static void
 ebr_entry_decode(const char *p, struct dos_partition *ent)
 {
@@ -117,19 +122,140 @@ ebr_entry_decode(const char *p, struct dos_partition *ent)
 	ent->dp_size = le32dec(p + 12);
 }
 
+static void
+ebr_entry_link(struct g_part_table *table, uint32_t start, uint32_t end,
+   u_char *buf)
+{
+
+	buf[0] = 0 /* dp_flag */;
+	ebr_set_chs(table, start, &buf[3] /* dp_scyl */, &buf[1] /* dp_shd */,
+	    &buf[2] /* dp_ssect */);
+	buf[4] = 5 /* dp_typ */;
+	ebr_set_chs(table, end, &buf[7] /* dp_ecyl */, &buf[5] /* dp_ehd */,
+	    &buf[6] /* dp_esect */);
+	le32enc(buf + 8, start);
+	le32enc(buf + 12, end - start + 1);
+}
+
+static int
+ebr_parse_type(const char *type, u_char *dp_typ)
+{
+	const char *alias;
+	char *endp;
+	long lt;
+
+	if (type[0] == '!') {
+		lt = strtol(type + 1, &endp, 0);
+		if (type[1] == '\0' || *endp != '\0' || lt <= 0 || lt >= 256)
+			return (EINVAL);
+		*dp_typ = (u_char)lt;
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
+	if (!strcasecmp(type, alias)) {
+		*dp_typ = DOSPTYP_386BSD;
+		return (0);
+	}
+	return (EINVAL);
+}
+
+static void
+ebr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
+    u_char *secp)
+{
+	uint32_t cyl, hd, sec;
+
+	sec = lba % table->gpt_sectors + 1;
+	lba /= table->gpt_sectors;
+	hd = lba % table->gpt_heads;
+	lba /= table->gpt_heads;
+	cyl = lba;
+	if (cyl > 1023)
+		sec = hd = cyl = ~0;
+
+	*cylp = cyl & 0xff;
+	*hdp = hd & 0xff;
+	*secp = (sec & 0x3f) | ((cyl >> 2) & 0xc0);
+}
+
 static int
 g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_part_ebr_entry *entry;
+	uint32_t start, size, sectors;
 
-	return (ENOSYS);
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		return (EINVAL);
+
+	gp = basetable->gpt_gp;
+	pp = LIST_FIRST(&gp->consumer)->provider;
+	sectors = basetable->gpt_sectors;
+
+	entry = (struct g_part_ebr_entry *)baseentry;
+
+	start = gpp->gpp_start;
+	size = gpp->gpp_size;
+	if (size < 2 * sectors)
+		return (EINVAL);
+	if (start % sectors) {
+		size = size - sectors + (start % sectors);
+		start = start - (start % sectors) + sectors;
+	}
+	if (size % sectors)
+		size = size - (size % sectors);
+	if (size < 2 * sectors)
+		return (EINVAL);
+
+	if (baseentry->gpe_deleted)
+		bzero(&entry->ent, sizeof(entry->ent));
+
+	KASSERT(baseentry->gpe_start <= start, (__func__));
+	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
+	baseentry->gpe_offset = (off_t)(start + sectors) * pp->sectorsize;
+	baseentry->gpe_start = start;
+	baseentry->gpe_end = start + size - 1;
+	entry->ent.dp_start = sectors;
+	entry->ent.dp_size = size - sectors;
+	ebr_set_chs(basetable, entry->ent.dp_start, &entry->ent.dp_scyl,
+	    &entry->ent.dp_shd, &entry->ent.dp_ssect);
+	ebr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
+	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
+	return (ebr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
 }
 
 static int
 g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
+	char psn[8];
+	struct g_consumer *cp;
+	struct g_provider *pp;
+	uint64_t msize;
+	int error;
 
-	return (ENOSYS);
+	pp = gpp->gpp_provider;
+
+	if (pp->sectorsize < EBRSIZE)
+		return (ENOSPC);
+	if (pp->sectorsize > 4096)
+		return (ENXIO);
+
+	/* Check that we have a parent and that it's a MBR. */
+	if (basetable->gpt_depth == 0)
+		return (ENXIO);
+	cp = LIST_FIRST(&pp->consumers);
+	error = g_getattr("PART::scheme", cp, &psn);
+	if (error)
+		return (error);
+	if (strcmp(psn, "MBR"))
+		return (ENXIO);
+
+	msize = pp->mediasize / pp->sectorsize;
+	basetable->gpt_first = 0;
+	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	return (0);
 }
 
 static int
@@ -176,8 +302,15 @@ static int
 g_part_ebr_modify(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
+	struct g_part_ebr_entry *entry;
 
-	return (ENOSYS);
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		return (EINVAL);
+
+	entry = (struct g_part_ebr_entry *)baseentry;
+	if (gpp->gpp_parms & G_PART_PARM_TYPE)
+		return (ebr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
+	return (0);
 }
 
 static const char *
@@ -187,6 +320,23 @@ g_part_ebr_name(struct g_part_table *table, struct g_part_entry *entry,
 
 	snprintf(buf, bufsz, ".%08u", entry->gpe_index);
 	return (buf);
+}
+
+static int
+g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
+    struct g_part_parms *gpp)
+{
+
+	/*
+	 * The index is a function of the start of the partition.
+	 * This is not something the user can override, nor is it
+	 * something the common code will do right. We can set the
+	 * index now so that we get what we need.
+	 */
+	if (req == G_PART_CTL_ADD)
+		gpp->gpp_index = (gpp->gpp_start / table->gpt_sectors) + 1;
+
+	return (0);
 }
 
 static int
@@ -312,8 +462,37 @@ static int
 g_part_ebr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
     const char *attrib, unsigned int set)
 {
+	struct g_part_entry *iter;
+	struct g_part_ebr_entry *entry;
+	int changed;
 
-	return (ENOSYS);
+	if (strcasecmp(attrib, "active") != 0)
+		return (EINVAL);
+
+	/* Only one entry can have the active attribute. */
+	LIST_FOREACH(iter, &table->gpt_entry, gpe_entry) {
+		if (iter->gpe_deleted)
+			continue;
+		changed = 0;
+		entry = (struct g_part_ebr_entry *)iter;
+		if (iter == baseentry) {
+			if (set && (entry->ent.dp_flag & 0x80) == 0) {
+				entry->ent.dp_flag |= 0x80;
+				changed = 1;
+			} else if (!set && (entry->ent.dp_flag & 0x80)) {
+				entry->ent.dp_flag &= ~0x80;
+				changed = 1;
+			}
+		} else {
+			if (set && (entry->ent.dp_flag & 0x80)) {
+				entry->ent.dp_flag &= ~0x80;
+				changed = 1;
+			}
+		}
+		if (changed && !iter->gpe_created)
+			iter->gpe_modified = 1;
+	}
+	return (0);
 }
 
 static const char *
@@ -334,6 +513,72 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 static int
 g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 {
+	struct g_provider *pp;
+	struct g_part_entry *baseentry, *next;
+	struct g_part_ebr_entry *entry;
+	u_char *buf;
+	u_char *p;
+	int error;
 
-	return (ENOSYS);
+	pp = cp->provider;
+	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+	le16enc(buf + DOSMAGICOFFSET, DOSMAGIC);
+
+	baseentry = LIST_FIRST(&basetable->gpt_entry);
+	while (baseentry != NULL && baseentry->gpe_deleted)
+		baseentry = LIST_NEXT(baseentry, gpe_entry);
+
+	/* Wipe-out the the first EBR when there are no slices. */
+	if (baseentry == NULL) {
+		error = g_write_data(cp, 0, buf, pp->sectorsize);
+		goto out;
+	}
+
+	/*
+	 * If the first partition is not in LBA 0, we need to
+	 * put a "link" EBR in LBA 0.
+	 */
+	if (baseentry->gpe_start != 0) {
+		ebr_entry_link(basetable, (uint32_t)baseentry->gpe_start,
+		    (uint32_t)baseentry->gpe_end, buf + DOSPARTOFF);
+		error = g_write_data(cp, 0, buf, pp->sectorsize);
+		if (error)
+			goto out;
+	}
+
+	do {
+		entry = (struct g_part_ebr_entry *)baseentry;
+
+		p = buf + DOSPARTOFF;
+		p[0] = entry->ent.dp_flag;
+		p[1] = entry->ent.dp_shd;
+		p[2] = entry->ent.dp_ssect;
+		p[3] = entry->ent.dp_scyl;
+		p[4] = entry->ent.dp_typ;
+		p[5] = entry->ent.dp_ehd;
+		p[6] = entry->ent.dp_esect;
+		p[7] = entry->ent.dp_ecyl;
+		le32enc(p + 8, entry->ent.dp_start);
+		le32enc(p + 12, entry->ent.dp_size);
+ 
+		do {
+			next = LIST_NEXT(baseentry, gpe_entry);
+		} while (next != NULL && next->gpe_deleted);
+
+		p += DOSPARTSIZE;
+		if (next != NULL)
+			ebr_entry_link(basetable, (uint32_t)next->gpe_start,
+			    (uint32_t)next->gpe_end, p);
+		else
+			bzero(p, DOSPARTSIZE);
+
+		error = g_write_data(cp, baseentry->gpe_start * pp->sectorsize,
+		    buf, pp->sectorsize);
+
+		baseentry = next;
+	} while (!error && baseentry != NULL);
+
+ out:
+	g_free(buf);
+	return (error);
 }
