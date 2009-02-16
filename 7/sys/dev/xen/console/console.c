@@ -5,6 +5,7 @@
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/consio.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/tty.h>
@@ -19,7 +20,7 @@
 #include <xen/xen_intr.h>
 #include <sys/cons.h>
 #include <sys/proc.h>
-#include <sys/priv.h>
+#include <sys/kdb.h>
 
 #include <dev/xen/console/xencons_ring.h>
 #include <xen/interface/io/console.h>
@@ -44,7 +45,7 @@ static void xc_shutdown(void *arg, int howto);
 static int xc_mute;
 
 static void xcons_force_flush(void);
-static int xencons_priv_interrupt(void *);
+static void xencons_priv_interrupt(void *);
 
 static cn_probe_t       xccnprobe;
 static cn_init_t        xccninit;
@@ -141,12 +142,17 @@ xccngetc(struct consdev *dev)
 	    	return 0;
 	do {
 		if ((c = xccncheckc(dev)) == -1) {
-			/* polling without sleeping in Xen doesn't work well. 
-			 * Sleeping gives other things like clock a chance to 
-			 * run
-			 */
-			tsleep(&cn_mtx, PWAIT | PCATCH, "console sleep", 
-			       XC_POLLTIME);
+#ifdef KDB
+			if (!kdb_active)
+#endif
+				/*
+				 * Polling without sleeping in Xen
+				 * doesn't work well.  Sleeping gives
+				 * other things like clock a chance to
+				 * run
+				 */
+				tsleep(&cn_mtx, PWAIT | PCATCH,
+				    "console sleep", XC_POLLTIME);
 		}
 	} while(c == -1);
 	return c;
@@ -156,11 +162,13 @@ int
 xccncheckc(struct consdev *dev)
 {
 	int ret = (xc_mute ? 0 : -1);
-	if (xencons_has_input()) 
-			xencons_handle_input(NULL);
+
+	if (xencons_has_input())
+		xencons_handle_input(NULL);
 	
 	CN_LOCK(cn_mtx);
 	if ((rp - rc)) {
+		if (kdb_active) printf("%s:%d\n", __func__, __LINE__);
 		/* we need to return only one char */
 		ret = (int)rbuf[RBUF_MASK(rc)];
 		rc++;
@@ -237,7 +245,6 @@ xc_attach(device_t dev)
 	int error;
 	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
 
-
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 		xc_consdev.cn_putc = xccnputc_dom0;
 	} 
@@ -265,12 +272,12 @@ xc_attach(device_t dev)
 				 VIRQ_CONSOLE,
 				 0,
 				 "console",
+				 NULL,
 				 xencons_priv_interrupt,
-					 NULL, INTR_TYPE_TTY, NULL);
+				 INTR_TYPE_TTY, NULL);
 		
 				KASSERT(error >= 0, ("can't register console interrupt"));
 	}
-
 
 	/* register handler to flush console on shutdown */
 	if ((EVENTHANDLER_REGISTER(shutdown_post_sync, xc_shutdown,
@@ -303,7 +310,11 @@ xencons_rx(char *buf, unsigned len)
 				HYPERVISOR_shared_info->evtchn_mask[0]);
 #endif
 	for (i = 0; i < len; i++) {
-		if (xen_console_up) 
+		if (xen_console_up
+#ifdef DDB
+			&& !kdb_active
+#endif
+			) 
 			(*linesw[tp->t_line]->l_rint)(buf[i], tp);
 		else
 			rbuf[RBUF_MASK(rp++)] = buf[i];
@@ -348,7 +359,7 @@ xencons_tx(void)
 	__xencons_tx_flush();
 }
 
-static int
+static void
 xencons_priv_interrupt(void *arg)
 {
 
@@ -359,7 +370,6 @@ xencons_priv_interrupt(void *arg)
 		xencons_rx(rbuf, l);
 
 	xencons_tx();
-	return (FILTER_HANDLED);
 }
 
 int
@@ -387,7 +397,7 @@ xcopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		xcparam(tp, &tp->t_termios);
 		ttsetwater(tp);
-	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
+	} else if (tp->t_state & TS_XCLUDE && priv_check(td, PRIV_TTY_EXCLUSIVE)) {
 		splx(s);
 		return (EBUSY);
 	}
@@ -558,12 +568,3 @@ xcons_force_flush(void)
 }
 
 DRIVER_MODULE(xc, nexus, xc_driver, xc_devclass, 0, 0);
-/*
- * Local variables:
- * mode: C
- * c-set-style: "BSD"
- * c-basic-offset: 8
- * tab-width: 4
- * indent-tabs-mode: t
- * End:
- */

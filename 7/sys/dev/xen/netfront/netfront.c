@@ -24,7 +24,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
@@ -64,17 +63,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 
 #include <machine/xen/xen-os.h>
+#include <machine/xen/xenfunc.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/interface/memory.h>
-#include <dev/xen/netfront/mbufq.h>
-#include <machine/xen/features.h>
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
 
+#include <dev/xen/netfront/mbufq.h>
+
 #include "xenbus_if.h"
+
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
 #define GRANT_INVALID_REF	0
 
@@ -330,9 +332,12 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
     printf("[XEN] " fmt, ##args)
 #define WPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
+#if 0
 #define DPRINTK(fmt, args...) \
     printf("[XEN] %s: " fmt, __func__, ##args)
-
+#else
+#define DPRINTK(fmt, args...)
+#endif
 
 static __inline struct mbuf* 
 makembuf (struct mbuf *buf)
@@ -352,7 +357,7 @@ makembuf (struct mbuf *buf)
 	m_copydata(buf, 0, buf->m_pkthdr.len, mtod(m,caddr_t) );
 
 	m->m_ext.ext_args = (caddr_t *)(uintptr_t)(vtophys(mtod(m,caddr_t)) >> PAGE_SHIFT);
-	
+
        	return m;
 }
 
@@ -490,11 +495,6 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		message = "writing feature-rx-notify";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "feature-no-csum-offload", "%d", 1);
-	if (err) {
-		message = "writing feature-no-csum-offload";
-		goto abort_transaction;
-	}
 	err = xenbus_printf(xbt, node, "feature-sg", "%d", 1);
 	if (err) {
 		message = "writing feature-sg";
@@ -570,7 +570,7 @@ setup_device(device_t dev, struct netfront_info *info)
 		goto fail;
 
 	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-	         "xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
+	    "xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
 
 	if (error) {
 		xenbus_dev_fatal(dev, error,
@@ -585,6 +585,24 @@ setup_device(device_t dev, struct netfront_info *info)
  fail:
 	netif_free(info);
 	return (error);
+}
+
+/**
+ * If this interface has an ipv4 address, send an arp for it. This
+ * helps to get the network going again after migrating hosts.
+ */
+static void
+netfront_send_fake_arp(device_t dev, struct netfront_info *info)
+{
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
+	
+	ifp = info->xn_ifp;
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			arp_ifinit(ifp, ifa);
+		}
+	}
 }
 
 /**
@@ -612,9 +630,7 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
-#ifdef notyet		
-		(void)send_fake_arp(netdev);
-#endif		
+		netfront_send_fake_arp(dev, sc);
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
@@ -1236,12 +1252,11 @@ xennet_get_responses(struct netfront_info *np,
 		gnttab_release_grant_reference(&np->gref_rx_head, ref);
 
 next:
-		if (m == NULL)
-			break;
-		
-		m->m_len = rx->status;
-		m->m_data += rx->offset;
-		m0->m_pkthdr.len += rx->status;
+		if (m != NULL) {
+				m->m_len = rx->status;
+				m->m_data += rx->offset;
+				m0->m_pkthdr.len += rx->status;
+		}
 		
 		if (!(rx->flags & NETRXF_more_data))
 			break;
@@ -1348,10 +1363,10 @@ xn_start_locked(struct ifnet *ifp)
 		    mfn, GNTMAP_readonly);
 		tx->gref = sc->grant_tx_ref[id] = ref;
 		tx->size = new_m->m_pkthdr.len;
-#if 0
-		tx->flags = (skb->ip_summed == CHECKSUM_HW) ? NETTXF_csum_blank : 0;
-#endif
-		tx->flags = 0;
+		if (new_m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
+			tx->flags = NETTXF_csum_blank | NETTXF_data_validated;
+		else
+			tx->flags = 0;
 		new_m->m_next = NULL;
 		new_m->m_nextpkt = NULL;
 
@@ -1446,9 +1461,9 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) 
 				xn_ifinit_locked(sc);
 			arp_ifinit(ifp, ifa);
-			XN_UNLOCK(sc);
+			XN_UNLOCK(sc);	
 		} else {
-			XN_UNLOCK(sc);
+			XN_UNLOCK(sc);	
 			error = ether_ioctl(ifp, cmd, data);
 		}
 		break;
@@ -1716,11 +1731,9 @@ create_netdev(device_t dev)
     	ifp->if_mtu = ETHERMTU;
     	ifp->if_snd.ifq_maxlen = NET_TX_RING_SIZE - 1;
 	
-#ifdef notyet
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
     	ifp->if_capenable = ifp->if_capabilities;
-#endif    
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
