@@ -122,8 +122,9 @@ ata_ahci_chipinit(device_t dev)
     };
 
     /* get the number of HW channels */
+    ctlr->ichannels = ATA_INL(ctlr->r_res2, ATA_AHCI_PI);
     ctlr->channels =
-	MAX(flsl(ATA_INL(ctlr->r_res2, ATA_AHCI_PI)), 
+	MAX(flsl(ctlr->ichannels),
 	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1);
 
     ctlr->reset = ata_ahci_reset;
@@ -666,11 +667,6 @@ ata_ahci_reset(device_t dev)
     u_int64_t work;
     u_int32_t signature;
     int offset = ch->unit << 7;
-
-    if (!(ATA_INL(ctlr->r_res2, ATA_AHCI_PI) & (1 << ch->unit))) {
-	device_printf(dev, "port not implemented\n");
-	return;
-    }
 
     /* setup work areas */
     work = ch->dma.work_bus + ATA_AHCI_CL_OFFSET;
