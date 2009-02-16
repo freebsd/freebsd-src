@@ -32,6 +32,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -617,9 +618,16 @@ usb_std_io(usb_dev_handle * dev, int ep, char *bytes, int size,
 			libusb20_dev_wait_process((void *)dev, -1);
 		}
 
-		if (libusb20_tr_get_status(xfer)) {
-			/* transfer error */
-			return (-1);
+		switch (libusb20_tr_get_status(xfer)) {
+		case 0:
+			/* success */
+			break;
+		case LIBUSB20_TRANSFER_TIMED_OUT:
+			/* transfer timeout */
+			return (-ETIMEDOUT);
+		default:
+			/* other transfer error */
+			return (-ENXIO);
 		}
 		actlen = libusb20_tr_get_actual_length(xfer);
 
