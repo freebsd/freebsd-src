@@ -33,3 +33,4 @@ dev/uart/uart_bus_mbus.c	optional	uart
 dev/uart/uart_cpu_mv.c		optional	uart
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/usb/ehci_mbus.c		optional	ehci
+dev/usb2/controller/ehci2_mbus.c optional usb2_core usb2_controller usb2_controller_ehci
