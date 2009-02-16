@@ -110,6 +110,7 @@ extern u_char	ether_ipmulticast_min[ETHER_ADDR_LEN];
 extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 
 struct llentry;
+struct ifaddr;
 
 int	arpresolve(struct ifnet *ifp, struct rtentry *rt,
 		    struct mbuf *m, struct sockaddr *dst, u_char *desten,
