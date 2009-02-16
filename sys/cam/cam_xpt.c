@@ -5419,8 +5419,32 @@ typedef enum {
 	PROBE_TUR_FOR_NEGOTIATION,
 	PROBE_INQUIRY_BASIC_DV1,
 	PROBE_INQUIRY_BASIC_DV2,
-	PROBE_DV_EXIT
+	PROBE_DV_EXIT,
+	PROBE_INVALID
 } probe_action;
+
+static char *probe_action_text[] = {
+	"PROBE_TUR",
+	"PROBE_INQUIRY",
+	"PROBE_FULL_INQUIRY",
+	"PROBE_MODE_SENSE",
+	"PROBE_SERIAL_NUM_0",
+	"PROBE_SERIAL_NUM_1",
+	"PROBE_TUR_FOR_NEGOTIATION",
+	"PROBE_INQUIRY_BASIC_DV1",
+	"PROBE_INQUIRY_BASIC_DV2",
+	"PROBE_DV_EXIT",
+	"PROBE_INVALID"
+};
+
+#define PROBE_SET_ACTION(softc, newaction)	\
+do {									\
+	char **text = probe_action_text;				\
+	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_INFO,		\
+	    ("Probe %s to %s\n", text[(softc)->action],			\
+	    text[(newaction)]));					\
+	(softc)->action = (newaction);					\
+} while(0)
 
 typedef enum {
 	PROBE_INQUIRY_CKSUM	= 0x01,
@@ -5435,6 +5459,7 @@ typedef struct {
 	probe_flags	flags;
 	MD5_CTX		context;
 	u_int8_t	digest[16];
+	struct cam_periph *periph;
 } probe_softc;
 
 static void
@@ -5566,6 +5591,8 @@ proberegister(struct cam_periph *periph, void *arg)
 			  periph_links.tqe);
 	softc->flags = 0;
 	periph->softc = softc;
+	softc->periph = periph;
+	softc->action = PROBE_INVALID;
 	status = cam_periph_acquire(periph);
 	if (status != CAM_REQ_CMP) {
 		return (status);
@@ -5617,13 +5644,13 @@ probeschedule(struct cam_periph *periph)
 	 */
 	if (((ccb->ccb_h.path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 	 && (ccb->ccb_h.target_lun == 0)) {
-		softc->action = PROBE_TUR;
+		PROBE_SET_ACTION(softc, PROBE_TUR);
 	} else if ((cpi.hba_inquiry & (PI_WIDE_32|PI_WIDE_16|PI_SDTR_ABLE)) != 0
 	      && (cpi.hba_misc & PIM_NOBUSRESET) != 0) {
 		proberequestdefaultnegotiation(periph);
-		softc->action = PROBE_INQUIRY;
+		PROBE_SET_ACTION(softc, PROBE_INQUIRY);
 	} else {
-		softc->action = PROBE_INQUIRY;
+		PROBE_SET_ACTION(softc, PROBE_INQUIRY);
 	}
 
 	if (ccb->crcn.flags & CAM_EXPECT_INQ_CHANGE)
@@ -5712,7 +5739,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		if (inq_buf == NULL) {
 			xpt_print(periph->path, "malloc failure- skipping Basic"
 			    "Domain Validation\n");
-			softc->action = PROBE_DV_EXIT;
+			PROBE_SET_ACTION(softc, PROBE_DV_EXIT);
 			scsi_test_unit_ready(csio,
 					     /*retries*/4,
 					     probedone,
@@ -5758,7 +5785,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		xpt_print(periph->path, "Unable to mode sense control page - "
 		    "malloc failure\n");
-		softc->action = PROBE_SERIAL_NUM_0;
+		PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
 	}
 	/* FALLTHROUGH */
 	case PROBE_SERIAL_NUM_0:
@@ -5827,6 +5854,11 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		probedone(periph, start_ccb);
 		return;
 	}
+	case PROBE_INVALID:
+		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_INFO,
+		    ("probestart: invalid action state\n"));
+	default:
+		break;
 	}
 	xpt_action(start_ccb);
 }
@@ -5980,7 +6012,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 						 /*count*/1,
 						 /*run_queue*/TRUE);
 		}
-		softc->action = PROBE_INQUIRY;
+		PROBE_SET_ACTION(softc, PROBE_INQUIRY);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
 		return;
@@ -6017,7 +6049,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
                                                additional_length) + 1;
 				if (softc->action == PROBE_INQUIRY
 				    && len > SHORT_INQUIRY_LENGTH) {
-					softc->action = PROBE_FULL_INQUIRY;
+					PROBE_SET_ACTION(softc, PROBE_FULL_INQUIRY);
 					xpt_release_ccb(done_ccb);
 					xpt_schedule(periph, priority);
 					return;
@@ -6027,9 +6059,9 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 
 				xpt_devise_transport(path);
 				if (INQ_DATA_TQ_ENABLED(inq_buf))
-					softc->action = PROBE_MODE_SENSE;
+					PROBE_SET_ACTION(softc, PROBE_MODE_SENSE);
 				else
-					softc->action = PROBE_SERIAL_NUM_0;
+					PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
 
 				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 
@@ -6094,7 +6126,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		xpt_release_ccb(done_ccb);
 		free(mode_hdr, M_CAMXPT);
-		softc->action = PROBE_SERIAL_NUM_0;
+		PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -6139,7 +6171,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 
 		if (serialnum_supported) {
 			xpt_release_ccb(done_ccb);
-			softc->action = PROBE_SERIAL_NUM_1;
+			PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_1);
 			xpt_schedule(periph, priority);
 			return;
 		}
@@ -6250,7 +6282,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Perform a TUR to allow the controller to
 			 * perform any necessary transfer negotiation.
 			 */
-			softc->action = PROBE_TUR_FOR_NEGOTIATION;
+			PROBE_SET_ACTION(softc, PROBE_TUR_FOR_NEGOTIATION);
 			xpt_schedule(periph, priority);
 			return;
 		}
@@ -6283,7 +6315,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			    ("Begin Domain Validation\n"));
 			path->device->flags |= CAM_DEV_IN_DV;
 			xpt_release_ccb(done_ccb);
-			softc->action = PROBE_INQUIRY_BASIC_DV1;
+			PROBE_SET_ACTION(softc, PROBE_INQUIRY_BASIC_DV1);
 			xpt_schedule(periph, priority);
 			return;
 		}
@@ -6321,10 +6353,10 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			    softc->action == PROBE_INQUIRY_BASIC_DV1 ? 1 : 2);
 			if (proberequestbackoff(periph, path->device)) {
 				path->device->flags &= ~CAM_DEV_IN_DV;
-				softc->action = PROBE_TUR_FOR_NEGOTIATION;
+				PROBE_SET_ACTION(softc, PROBE_TUR_FOR_NEGOTIATION);
 			} else {
 				/* give up */
-				softc->action = PROBE_DV_EXIT;
+				PROBE_SET_ACTION(softc, PROBE_DV_EXIT);
 			}
 			free(nbuf, M_CAMXPT);
 			xpt_release_ccb(done_ccb);
@@ -6333,12 +6365,12 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		free(nbuf, M_CAMXPT);
 		if (softc->action == PROBE_INQUIRY_BASIC_DV1) {
-			softc->action = PROBE_INQUIRY_BASIC_DV2;
+			PROBE_SET_ACTION(softc, PROBE_INQUIRY_BASIC_DV2);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
 			return;
 		}
-		if (softc->action == PROBE_DV_EXIT) {
+		if (softc->action == PROBE_INQUIRY_BASIC_DV2) {
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 			    ("Leave Domain Validation Successfully\n"));
 		}
@@ -6354,6 +6386,11 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_release_ccb(done_ccb);
 		break;
 	}
+	case PROBE_INVALID:
+		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_INFO,
+		    ("probedone: invalid action state\n"));
+	default:
+		break;
 	}
 	done_ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 	TAILQ_REMOVE(&softc->request_ccbs, &done_ccb->ccb_h, periph_links.tqe);
