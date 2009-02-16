@@ -184,7 +184,7 @@ void force_evtchn_callback(void)
 }
 
 void 
-evtchn_do_upcall(struct intrframe *frame) 
+evtchn_do_upcall(struct trapframe *frame) 
 {
 	unsigned long  l1, l2;
 	unsigned int   l1i, l2i, port;
@@ -450,7 +450,7 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
 
 	irq = bind_caller_port_to_irq(caller_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler, arg, irqflags,
+	error = intr_add_handler(devname, irq, NULL, handler, arg, irqflags,
 	    &xp->xp_pins[irq].xp_cookie);
 
 	if (error) {
@@ -474,7 +474,7 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 
 	irq = bind_listening_port_to_irq(remote_domain);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler, arg, irqflags,
+	error = intr_add_handler(devname, irq, NULL, handler, arg, irqflags,
 	    &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
@@ -488,7 +488,8 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 
 int 
 bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
-    unsigned int remote_port, const char *devname, driver_intr_t handler,
+    unsigned int remote_port, const char *devname,
+    driver_filter_t filter, driver_intr_t handler,
     unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
@@ -496,7 +497,7 @@ bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 
 	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler, NULL,
+	error = intr_add_handler(devname, irq, filter, handler, NULL,
 	    irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
@@ -510,7 +511,7 @@ bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 
 int 
 bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
-    const char *devname, driver_intr_t handler,
+    const char *devname, driver_filter_t filter, driver_intr_t handler,
     unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
@@ -518,7 +519,7 @@ bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 
 	irq = bind_virq_to_irq(virq, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler,
+	error = intr_add_handler(devname, irq, filter, handler,
 	    NULL, irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
@@ -532,7 +533,7 @@ bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 
 int 
 bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
-    const char *devname, driver_intr_t handler,
+    const char *devname, driver_filter_t filter,
     unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
@@ -540,7 +541,7 @@ bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
 	
 	irq = bind_ipi_to_irq(ipi, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, handler,
+	error = intr_add_handler(devname, irq, filter, NULL,
 	    NULL, irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);

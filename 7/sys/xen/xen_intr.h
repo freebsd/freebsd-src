@@ -57,7 +57,7 @@ extern int bind_listening_port_to_irqhandler(unsigned int remote_domain,
  * otherwise.
  */
 extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
-	const char *devname, driver_intr_t handler,
+	const char *devname, driver_filter_t filter, driver_intr_t handler,
 	unsigned long irqflags,	unsigned int *irqp);
 
 /*
@@ -66,7 +66,7 @@ extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
  * otherwise.
  */
 extern int bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
-	const char *devname, driver_intr_t handler,
+	const char *devname, driver_filter_t filter,
 	unsigned long irqflags, unsigned int *irqp);
 
 /*
@@ -75,7 +75,8 @@ extern int bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
  * on success or errno otherwise.
  */
 extern int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
-	unsigned int remote_port, const char *devname, driver_intr_t handler,
+	unsigned int remote_port, const char *devname,
+	driver_filter_t filter, driver_intr_t handler,
 	unsigned long irqflags, unsigned int *irqp);
 
 /*
