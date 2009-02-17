@@ -141,11 +141,11 @@ struct tsec_softc {
 #define TSEC_PUT_GENERIC(hand, tab, count, wrap, val)	\
 		((hand)->tab[TSEC_INC((hand)->count, wrap)] = val)
 
-#define TSEC_BACK_GENERIC(sc, count, wrap) do {				\
-		if ((sc)->count > 0)					\
-			(sc)->count--;					\
-		else							\
-			(sc)->count = (wrap) - 1;			\
+#define TSEC_BACK_GENERIC(sc, count, wrap) do {			\
+		if ((sc)->count > 0)				\
+			(sc)->count--;				\
+		else						\
+			(sc)->count = (wrap) - 1;		\
 } while (0)
 
 /* TX maps interface */
@@ -197,12 +197,12 @@ struct tsec_softc {
 		TSEC_CNT_INIT((sc)->tx_dirty_desc_cnt, TSEC_TX_NUM_DESC);	\
 } while (0)
 
-#define TSEC_GET_CUR_TX_DESC(sc)					\
-		&TSEC_GET_GENERIC(sc, tsec_tx_vaddr, tx_cur_desc_cnt,	\
+#define TSEC_GET_CUR_TX_DESC(sc)						\
+		&TSEC_GET_GENERIC(sc, tsec_tx_vaddr, tx_cur_desc_cnt,		\
 		TSEC_TX_NUM_DESC)
 
-#define TSEC_GET_DIRTY_TX_DESC(sc)					\
-		&TSEC_GET_GENERIC(sc, tsec_tx_vaddr, tx_dirty_desc_cnt,	\
+#define TSEC_GET_DIRTY_TX_DESC(sc)						\
+		&TSEC_GET_GENERIC(sc, tsec_tx_vaddr, tx_dirty_desc_cnt,		\
 		TSEC_TX_NUM_DESC)
 
 #define TSEC_BACK_DIRTY_TX_DESC(sc) \
@@ -366,4 +366,4 @@ int	tsec_suspend(device_t dev); /* XXX */
 
 void	tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr);
 
-#endif
+#endif /* _IF_TSEC_H */

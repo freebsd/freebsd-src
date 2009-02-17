@@ -165,34 +165,36 @@ tsec_attach(struct tsec_softc *sc)
 
 	/* Allocate a busdma tag for TX mbufs. */
 	error = bus_dma_tag_create(NULL,	/* parent */
-		TSEC_TXBUFFER_ALIGNMENT, 0,	/* alignment, boundary */
-		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-		BUS_SPACE_MAXADDR,		/* highaddr */
-		NULL, NULL,			/* filtfunc, filtfuncarg */
-		MCLBYTES * (TSEC_TX_NUM_DESC - 1),/* maxsize */
-		TSEC_TX_NUM_DESC - 1,		/* nsegments */
-		MCLBYTES, 0,			/* maxsegsz, flags */
-		NULL, NULL,			/* lockfunc, lockfuncarg */
-		&sc->tsec_tx_mtag);		/* dmat */
+	    TSEC_TXBUFFER_ALIGNMENT, 0,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filtfunc, filtfuncarg */
+	    MCLBYTES * (TSEC_TX_NUM_DESC - 1),	/* maxsize */
+	    TSEC_TX_NUM_DESC - 1,		/* nsegments */
+	    MCLBYTES, 0,			/* maxsegsz, flags */
+	    NULL, NULL,				/* lockfunc, lockfuncarg */
+	    &sc->tsec_tx_mtag);			/* dmat */
 	if (error) {
-		device_printf(sc->dev, "failed to allocate busdma tag(tx mbufs)\n");
+		device_printf(sc->dev, "failed to allocate busdma tag "
+		    "(tx mbufs)\n");
 		tsec_detach(sc);
 		return (ENXIO);
 	}
 
 	/* Allocate a busdma tag for RX mbufs. */
 	error = bus_dma_tag_create(NULL,	/* parent */
-		TSEC_RXBUFFER_ALIGNMENT, 0,	/* alignment, boundary */
-		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-		BUS_SPACE_MAXADDR,		/* highaddr */
-		NULL, NULL,			/* filtfunc, filtfuncarg */
-		MCLBYTES,			/* maxsize */
-		1,				/* nsegments */
-		MCLBYTES, 0,			/* maxsegsz, flags */
-		NULL, NULL,			/* lockfunc, lockfuncarg */
-		&sc->tsec_rx_mtag);		/* dmat */
+	    TSEC_RXBUFFER_ALIGNMENT, 0,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filtfunc, filtfuncarg */
+	    MCLBYTES,				/* maxsize */
+	    1,					/* nsegments */
+	    MCLBYTES, 0,			/* maxsegsz, flags */
+	    NULL, NULL,				/* lockfunc, lockfuncarg */
+	    &sc->tsec_rx_mtag);			/* dmat */
 	if (error) {
-		device_printf(sc->dev, "failed to allocate busdma tag(rx mbufs)\n");
+		device_printf(sc->dev, "failed to allocate busdma tag "
+		    "(rx mbufs)\n");
 		tsec_detach(sc);
 		return (ENXIO);
 	}
@@ -213,7 +215,8 @@ tsec_attach(struct tsec_softc *sc)
 
 	/* Create RX busdma maps and zero mbuf handlers */
 	for (i = 0; i < TSEC_RX_NUM_DESC; i++) {
-		error = bus_dmamap_create(sc->tsec_rx_mtag, 0, &sc->rx_data[i].map);
+		error = bus_dmamap_create(sc->tsec_rx_mtag, 0,
+		    &sc->rx_data[i].map);
 		if (error) {
 			device_printf(sc->dev, "failed to init RX ring\n");
 			tsec_detach(sc);
@@ -227,8 +230,8 @@ tsec_attach(struct tsec_softc *sc)
 		error = tsec_new_rxbuf(sc->tsec_rx_mtag, sc->rx_data[i].map,
 		    &sc->rx_data[i].mbuf, &sc->rx_data[i].paddr);
 		if (error) {
-			device_printf(sc->dev, "can't load rx DMA map %d, error = "
-			    "%d\n", i, error);
+			device_printf(sc->dev, "can't load rx DMA map %d, "
+			    "error = %d\n", i, error);
 			tsec_detach(sc);
 			return (error);
 		}
@@ -354,9 +357,7 @@ tsec_init_locked(struct tsec_softc *sc)
 	struct tsec_desc *tx_desc = sc->tsec_tx_vaddr;
 	struct tsec_desc *rx_desc = sc->tsec_rx_vaddr;
 	struct ifnet *ifp = sc->tsec_ifp;
-	uint32_t timeout;
-	uint32_t val;
-	uint32_t i;
+	uint32_t timeout, val, i;
 
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 	tsec_stop(sc);
@@ -476,7 +477,8 @@ tsec_init_locked(struct tsec_softc *sc)
 	for (i = 0; i < TSEC_TX_NUM_DESC; i++) {
 		tx_desc[i].bufptr = 0;
 		tx_desc[i].length = 0;
-		tx_desc[i].flags = ((i == TSEC_TX_NUM_DESC - 1) ? TSEC_TXBD_W : 0);
+		tx_desc[i].flags = ((i == TSEC_TX_NUM_DESC - 1) ?
+		    TSEC_TXBD_W : 0);
 	}
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -541,14 +543,14 @@ static void
 tsec_set_mac_address(struct tsec_softc *sc)
 {
 	uint32_t macbuf[2] = { 0, 0 };
-	char *macbufp;
-	char *curmac;
+	char *macbufp, *curmac;
 	int i;
 
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 
 	KASSERT((ETHER_ADDR_LEN <= sizeof(macbuf)),
-	    ("tsec_set_mac_address: (%d <= %d", ETHER_ADDR_LEN, sizeof(macbuf)));
+	    ("tsec_set_mac_address: (%d <= %d", ETHER_ADDR_LEN,
+	    sizeof(macbuf)));
 
 	macbufp = (char *)macbuf;
 	curmac = (char *)IF_LLADDR(sc->tsec_ifp);
@@ -571,8 +573,7 @@ static void
 tsec_dma_ctl(struct tsec_softc *sc, int state)
 {
 	device_t dev;
-	uint32_t dma_flags;
-	uint32_t timeout;
+	uint32_t dma_flags, timeout;
 
 	dev = sc->dev;
 
@@ -636,10 +637,10 @@ tsec_intrs_ctl(struct tsec_softc *sc, int state)
 		TSEC_WRITE(sc, TSEC_REG_IMASK, 0);
 		break;
 	case 1:
-		TSEC_WRITE(sc, TSEC_REG_IMASK, TSEC_IMASK_BREN | TSEC_IMASK_RXCEN |
-		    TSEC_IMASK_BSYEN | TSEC_IMASK_EBERREN | TSEC_IMASK_BTEN |
-		    TSEC_IMASK_TXEEN | TSEC_IMASK_TXBEN | TSEC_IMASK_TXFEN |
-		    TSEC_IMASK_XFUNEN | TSEC_IMASK_RXFEN);
+		TSEC_WRITE(sc, TSEC_REG_IMASK, TSEC_IMASK_BREN |
+		    TSEC_IMASK_RXCEN | TSEC_IMASK_BSYEN | TSEC_IMASK_EBERREN |
+		    TSEC_IMASK_BTEN | TSEC_IMASK_TXEEN | TSEC_IMASK_TXBEN |
+		    TSEC_IMASK_TXFEN | TSEC_IMASK_XFUNEN | TSEC_IMASK_RXFEN);
 		break;
 	default:
 		device_printf(dev, "tsec_intrs_ctl(): unknown state value: %d\n",
@@ -711,8 +712,8 @@ tsec_start_locked(struct ifnet *ifp)
 	if (sc->tsec_link == 0)
 		return;
 
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_POSTREAD |
-	    BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	for (;;) {
 		/* Get packet from the queue */
@@ -760,8 +761,8 @@ tsec_start_locked(struct ifnet *ifp)
 		queued++;
 		BPF_MTAP(ifp, m0);
 	}
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_PREREAD |
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	if (queued) {
 		/* Enable transmitter and watchdog timer */
@@ -793,7 +794,7 @@ tsec_encap(struct tsec_softc *sc, struct mbuf *m0, int fcb_inserted)
 
 	/* Create mapping in DMA memory */
 	error = bus_dmamap_load_mbuf_sg(sc->tsec_tx_mtag,
-	   *mapp, m0, segs, &nsegs, BUS_DMA_NOWAIT); 
+	    *mapp, m0, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error != 0 || nsegs > TSEC_FREE_TX_DESC(sc) || nsegs <= 0) {
 		bus_dmamap_unload(sc->tsec_tx_mtag, *mapp);
 		TSEC_FREE_TX_MAP(sc, mapp);
@@ -1032,7 +1033,7 @@ tsec_new_rxbuf(bus_dma_tag_t tag, bus_dmamap_t map, struct mbuf **mbufp,
 	}
 
 	error = bus_dmamap_load_mbuf_sg(tag, map, new_mbuf, seg, &nsegs,
-			BUS_DMA_NOWAIT);
+	    BUS_DMA_NOWAIT);
 	KASSERT(nsegs == 1, ("Too many segments returned!"));
 	if (nsegs != 1 || error)
 		panic("tsec_new_rxbuf(): nsegs(%d), error(%d)", nsegs, error);
@@ -1085,26 +1086,27 @@ tsec_alloc_dma_desc(device_t dev, bus_dma_tag_t *dtag, bus_dmamap_t *dmap,
 	    dtag);				/* dmat */
 
 	if (error) {
-		device_printf(dev, "failed to allocate busdma %s tag\n", dname);
+		device_printf(dev, "failed to allocate busdma %s tag\n",
+		    dname);
 		(*vaddr) = NULL;
 		return (ENXIO);
 	}
 
 	error = bus_dmamem_alloc(*dtag, vaddr, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-				dmap);
+	    dmap);
 	if (error) {
 		device_printf(dev, "failed to allocate %s DMA safe memory\n",
-			dname);
+		    dname);
 		bus_dma_tag_destroy(*dtag);
 		(*vaddr) = NULL;
 		return (ENXIO);
 	}
 
-	error = bus_dmamap_load(*dtag, *dmap, *vaddr, dsize, tsec_map_dma_addr,
-	    raddr, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(*dtag, *dmap, *vaddr, dsize,
+	    tsec_map_dma_addr, raddr, BUS_DMA_NOWAIT);
 	if (error) {
-		device_printf(dev, "cannot get address of the %s descriptors\n",
-		    dname);
+		device_printf(dev, "cannot get address of the %s "
+		    "descriptors\n", dname);
 		bus_dmamem_free(*dtag, *vaddr, *dmap);
 		bus_dma_tag_destroy(*dtag);
 		(*vaddr) = NULL;
@@ -1122,7 +1124,8 @@ tsec_free_dma_desc(bus_dma_tag_t dtag, bus_dmamap_t dmap, void *vaddr)
 		return;
 
 	/* Unmap descriptors from DMA memory */
-	bus_dmamap_sync(dtag, dmap, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(dtag, dmap, BUS_DMASYNC_POSTREAD |
+	    BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(dtag, dmap);
 
 	/* Free descriptors memory */
@@ -1140,8 +1143,9 @@ tsec_free_dma(struct tsec_softc *sc)
 	/* Free TX maps */
 	for (i = 0; i < TSEC_TX_NUM_DESC; i++)
 		if (sc->tx_map_data[i] != NULL)
-			bus_dmamap_destroy(sc->tsec_tx_mtag, sc->tx_map_data[i]);
-	/* Destroy tag for Tx mbufs */
+			bus_dmamap_destroy(sc->tsec_tx_mtag,
+			    sc->tx_map_data[i]);
+	/* Destroy tag for TX mbufs */
 	bus_dma_tag_destroy(sc->tsec_tx_mtag);
 
 	/* Free RX mbufs and maps */
@@ -1150,7 +1154,8 @@ tsec_free_dma(struct tsec_softc *sc)
 			/* Unload buffer from DMA */
 			bus_dmamap_sync(sc->tsec_rx_mtag, sc->rx_data[i].map,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->tsec_rx_mtag, sc->rx_data[i].map);
+			bus_dmamap_unload(sc->tsec_rx_mtag,
+			    sc->rx_data[i].map);
 
 			/* Free buffer */
 			m_freem(sc->rx_data[i].mbuf);
@@ -1160,7 +1165,7 @@ tsec_free_dma(struct tsec_softc *sc)
 			bus_dmamap_destroy(sc->tsec_rx_mtag,
 			    sc->rx_data[i].map);
 	}
-	/* Destroy tag for Rx mbufs */
+	/* Destroy tag for RX mbufs */
 	bus_dma_tag_destroy(sc->tsec_rx_mtag);
 
 	/* Unload TX/RX descriptors */
@@ -1182,10 +1187,8 @@ tsec_stop(struct tsec_softc *sc)
 
 	ifp = sc->tsec_ifp;
 
-	/* Stop tick engine */
-	callout_stop(&sc->tsec_callout);
-
 	/* Disable interface and watchdog timer */
+	callout_stop(&sc->tsec_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->tsec_watchdog = 0;
 
@@ -1420,7 +1423,8 @@ tsec_transmit_intr_locked(struct tsec_softc *sc)
 		m0 = TSEC_GET_TX_MBUF(sc);
 		mapp = TSEC_GET_TX_MAP(sc);
 
-		bus_dmamap_sync(sc->tsec_tx_mtag, *mapp, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(sc->tsec_tx_mtag, *mapp,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->tsec_tx_mtag, *mapp);
 
 		TSEC_FREE_TX_MAP(sc, mapp);
@@ -1567,7 +1571,8 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 	sc = device_get_softc(dev);
 
 	if (device_get_unit(dev) != phy)
-		device_printf(dev, "Trying to write to an alien PHY(%d)\n", phy);
+		device_printf(dev, "Trying to write to an alien PHY(%d)\n",
+		    phy);
 
 	sc = tsec0_sc;
 
@@ -1575,7 +1580,8 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 	TSEC_WRITE(sc, TSEC_REG_MIIMCON, value);
 
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_READ(sc, TSEC_REG_MIIMIND) & TSEC_MIIMIND_BUSY))
+	while (--timeout && (TSEC_READ(sc, TSEC_REG_MIIMIND) &
+	    TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 
 	if (timeout == 0)
@@ -1614,7 +1620,8 @@ tsec_miibus_statchg(device_t dev)
 		break;
 	case IFM_NONE:
 		if (link)
-			device_printf(dev, "No speed selected but link active!\n");
+			device_printf(dev, "No speed selected but link "
+			    "active!\n");
 		sc->tsec_link = 0;
 		return;
 	default:
