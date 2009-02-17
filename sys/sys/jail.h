@@ -195,21 +195,5 @@ int prison_check_af(struct ucred *cred, int af);
 int prison_if(struct ucred *cred, struct sockaddr *sa);
 int prison_priv_check(struct ucred *cred, int priv);
 
-/*
- * Kernel jail services.
- */
-struct prison_service;
-typedef int (*prison_create_t)(struct prison_service *psrv, struct prison *pr);
-typedef int (*prison_destroy_t)(struct prison_service *psrv, struct prison *pr);
-
-struct prison_service *prison_service_register(const char *name,
-    prison_create_t create, prison_destroy_t destroy);
-void prison_service_deregister(struct prison_service *psrv);
-
-void prison_service_data_set(struct prison_service *psrv, struct prison *pr,
-    void *data);
-void *prison_service_data_get(struct prison_service *psrv, struct prison *pr);
-void *prison_service_data_del(struct prison_service *psrv, struct prison *pr);
-
 #endif /* _KERNEL */
 #endif /* !_SYS_JAIL_H_ */
