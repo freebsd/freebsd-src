@@ -19,4 +19,7 @@ DPADD+=		${LIBPAM}
 LDADD+=		-lpam
 .endif
 
+.c.o:
+	${CC} ${CFLAGS} -DOPENPAM_STATIC_MODULES -c ${.IMPSRC}
+
 .include "../Makefile.inc"
