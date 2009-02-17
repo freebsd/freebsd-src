@@ -701,14 +701,6 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	error = g_getattr("PART::depth", cp, &attr);
 	table->gpt_depth = (!error) ? attr + 1 : 0;
 
-	/* If we're nested, get the absolute sector offset on disk. */
-	if (table->gpt_depth) {
-		error = g_getattr("PART::offset", cp, &attr);
-		if (error)
-			goto fail;
-		table->gpt_offset = attr;
-	}
-
 	/*
 	 * Synthesize a disk geometry. Some partitioning schemes
 	 * depend on it and since some file systems need it even
@@ -1488,14 +1480,6 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	table = gp->softc;
 
-	/* If we're nested, get the absolute sector offset on disk. */
-	if (table->gpt_depth) {
-		error = g_getattr("PART::offset", cp, &attr);
-		if (error)
-			goto fail;
-		table->gpt_offset = attr;
-	}
-
 	/*
 	 * Synthesize a disk geometry. Some partitioning schemes
 	 * depend on it and since some file systems need it even
@@ -1685,9 +1669,6 @@ g_part_start(struct bio *bp)
 		if (g_handleattr_int(bp, "PART::isleaf", table->gpt_isleaf))
 			return;
 		if (g_handleattr_int(bp, "PART::depth", table->gpt_depth))
-			return;
-		if (g_handleattr_int(bp, "PART::offset",
-		    table->gpt_offset + entry->gpe_start))
 			return;
 		if (g_handleattr_str(bp, "PART::scheme",
 		    table->gpt_scheme->name))
