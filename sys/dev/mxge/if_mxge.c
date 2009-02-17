@@ -1,6 +1,6 @@
 /******************************************************************************
 
-Copyright (c) 2006-2008, Myricom Inc.
+Copyright (c) 2006-2009, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -142,13 +142,29 @@ static void mxge_tick(void *arg);
 static int
 mxge_probe(device_t dev)
 {
-  if ((pci_get_vendor(dev) == MXGE_PCI_VENDOR_MYRICOM) &&
-      ((pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E) ||
-       (pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E_9))) {
-	  device_set_desc(dev, "Myri10G-PCIE-8A");
-	  return 0;
-  }
-  return ENXIO;
+	int rev;
+
+
+	if ((pci_get_vendor(dev) == MXGE_PCI_VENDOR_MYRICOM) &&
+	    ((pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E) ||
+	     (pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E_9))) {
+		rev = pci_get_revid(dev);
+		switch (rev) {
+		case MXGE_PCI_REV_Z8E:
+			device_set_desc(dev, "Myri10G-PCIE-8A");
+			break;
+		case MXGE_PCI_REV_Z8ES:
+			device_set_desc(dev, "Myri10G-PCIE-8B");
+			break;
+		default:
+			device_set_desc(dev, "Myri10G-PCIE-8??");
+			device_printf(dev, "Unrecognized rev %d NIC\n",
+				      rev);
+			break;	
+		}
+		return 0;
+	}
+	return ENXIO;
 }
 
 static void
@@ -2505,17 +2521,24 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 	}
 }
 
-static struct mxge_media_type mxge_media_types[] =
+static struct mxge_media_type mxge_xfp_media_types[] =
 {
 	{IFM_10G_CX4,	0x7f, 		"10GBASE-CX4 (module)"},
 	{IFM_10G_SR, 	(1 << 7),	"10GBASE-SR"},
 	{IFM_10G_LR, 	(1 << 6),	"10GBASE-LR"},
 	{0,		(1 << 5),	"10GBASE-ER"},
-	{0,		(1 << 4),	"10GBASE-LRM"},
+	{IFM_10G_LRM,	(1 << 4),	"10GBASE-LRM"},
 	{0,		(1 << 3),	"10GBASE-SW"},
 	{0,		(1 << 2),	"10GBASE-LW"},
 	{0,		(1 << 1),	"10GBASE-EW"},
 	{0,		(1 << 0),	"Reserved"}
+};
+static struct mxge_media_type mxge_sfp_media_types[] =
+{
+	{0,		(1 << 0),	"Reserved"},
+	{IFM_10G_LRM,	(1 << 6),	"10GBASE-LRM"},
+	{IFM_10G_LR, 	(1 << 5),	"10GBASE-LR"},
+	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"}
 };
 
 static void
@@ -2539,8 +2562,11 @@ static void
 mxge_media_probe(mxge_softc_t *sc)
 {
 	mxge_cmd_t cmd;
+	char *cage_type;
 	char *ptr;
-	int i, err, ms;
+	struct mxge_media_type *mxge_media_types = NULL;
+	int i, err, ms, mxge_media_type_entries;
+	uint32_t byte;
 
 	sc->need_media_probe = 0;
 
@@ -2568,16 +2594,38 @@ mxge_media_probe(mxge_softc_t *sc)
 		}
 	}
 	if (*ptr == 'C') {
+		/* -C is CX4 */
 		mxge_set_media(sc, IFM_10G_CX4);
 		return;
 	}
 	else if (*ptr == 'Q') {
+		/* -Q is Quad Ribbon Fiber */
 		device_printf(sc->dev, "Quad Ribbon Fiber Media\n");
 		/* FreeBSD has no media type for Quad ribbon fiber */
 		return;
 	}
 
-	if (*ptr != 'R') {
+	if (*ptr == 'R') {
+		/* -R is XFP */
+		mxge_media_types = mxge_xfp_media_types;
+		mxge_media_type_entries = 
+			sizeof (mxge_xfp_media_types) /
+			sizeof (mxge_xfp_media_types[0]);
+		byte = MXGE_XFP_COMPLIANCE_BYTE;
+		cage_type = "XFP";
+	}
+
+	if (*ptr == 'S' || *(ptr +1) == 'S') {
+		/* -S or -2S is SFP+ */
+		mxge_media_types = mxge_sfp_media_types;
+		mxge_media_type_entries = 
+			sizeof (mxge_sfp_media_types) /
+			sizeof (mxge_sfp_media_types[0]);
+		cage_type = "SFP+";
+		byte = 3;
+	}
+
+	if (mxge_media_types == NULL) {
 		device_printf(sc->dev, "Unknown media type: %c\n", *ptr);
 		return;
 	}
@@ -2591,52 +2639,52 @@ mxge_media_probe(mxge_softc_t *sc)
 	 */
 
 	cmd.data0 = 0;	 /* just fetch 1 byte, not all 256 */
-	cmd.data1 = MXGE_XFP_COMPLIANCE_BYTE; /* the byte we want */
-	err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_I2C_READ, &cmd);
-	if (err == MXGEFW_CMD_ERROR_XFP_FAILURE) {
+	cmd.data1 = byte;
+	err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_READ, &cmd);
+	if (err == MXGEFW_CMD_ERROR_I2C_FAILURE) {
 		device_printf(sc->dev, "failed to read XFP\n");
 	}
-	if (err == MXGEFW_CMD_ERROR_XFP_ABSENT) {
-		device_printf(sc->dev, "Type R with no XFP!?!?\n");
+	if (err == MXGEFW_CMD_ERROR_I2C_ABSENT) {
+		device_printf(sc->dev, "Type R/S with no XFP!?!?\n");
 	}
 	if (err != MXGEFW_CMD_OK) {
 		return;
 	}
 
 	/* now we wait for the data to be cached */
-	cmd.data0 = MXGE_XFP_COMPLIANCE_BYTE;
-	err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_BYTE, &cmd);
+	cmd.data0 = byte;
+	err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_BYTE, &cmd);
 	for (ms = 0; (err == EBUSY) && (ms < 50); ms++) {
 		DELAY(1000);
-		cmd.data0 = MXGE_XFP_COMPLIANCE_BYTE;
-		err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_BYTE, &cmd);
+		cmd.data0 = byte;
+		err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_BYTE, &cmd);
 	}
 	if (err != MXGEFW_CMD_OK) {
-		device_printf(sc->dev, "failed to read XFP (%d, %dms)\n",
-			      err, ms);
+		device_printf(sc->dev, "failed to read %s (%d, %dms)\n",
+			      cage_type, err, ms);
 		return;
 	}
 		
 	if (cmd.data0 == mxge_media_types[0].bitmask) {
 		if (mxge_verbose)
-			device_printf(sc->dev, "XFP:%s\n",
+			device_printf(sc->dev, "%s:%s\n", cage_type,
 				      mxge_media_types[0].name);
 		mxge_set_media(sc, IFM_10G_CX4);
 		return;
 	}
-	for (i = 1;
-	     i < sizeof (mxge_media_types) / sizeof (mxge_media_types[0]);
-	     i++) {
+	for (i = 1; i < mxge_media_type_entries; i++) {
 		if (cmd.data0 & mxge_media_types[i].bitmask) {
 			if (mxge_verbose)
-				device_printf(sc->dev, "XFP:%s\n",
+				device_printf(sc->dev, "%s:%s\n",
+					      cage_type,
 					      mxge_media_types[i].name);
 
 			mxge_set_media(sc, mxge_media_types[i].flag);
 			return;
 		}
 	}
-	device_printf(sc->dev, "XFP media 0x%x unknown\n", cmd.data0);
+	device_printf(sc->dev, "%s media 0x%x unknown\n", cage_type,
+		      cmd.data0);
 
 	return;
 }
