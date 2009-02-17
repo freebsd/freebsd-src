@@ -119,6 +119,7 @@ int
 ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	       u_int64_t lba, u_int16_t count)
 {
+    struct ata_device *atadev = device_get_softc(dev);
     struct ata_request *request = ata_alloc_request();
     int error = ENOMEM;
 
@@ -129,7 +130,13 @@ ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	request->u.ata.count = count;
 	request->u.ata.feature = feature;
 	request->flags = ATA_R_CONTROL;
-	request->timeout = 1;
+	if (atadev->spindown_state) {
+	    device_printf(dev, "request while spun down, starting.\n");
+	    atadev->spindown_state = 0;
+	    request->timeout = 31;
+	} else {
+	    request->timeout = 5;
+	}
 	request->retries = 0;
 	ata_queue_request(request);
 	error = request->result;
