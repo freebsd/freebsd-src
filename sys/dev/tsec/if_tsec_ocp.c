@@ -272,8 +272,8 @@ tsec_release_intr(struct tsec_softc *sc, struct resource *ires, void *ihand,
 
 	error = bus_release_resource(sc->dev, SYS_RES_IRQ, irid, ires);
 	if (error)
-		device_printf(sc->dev, "bus_release_resource() failed for %s intr"
-		    ", error %d\n", iname, error);
+		device_printf(sc->dev, "bus_release_resource() failed for %s "
+		    "intr, error %d\n", iname, error);
 }
 
 static int
