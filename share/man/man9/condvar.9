@@ -136,9 +136,27 @@ When a thread waits on a condition,
 .Fa lock
 is atomically released before the thread is blocked, then reacquired
 before the function call returns.
+In addition, the thread will fully drop the
+.Va Giant
+mutex
+(even if recursed)
+while the it is suspended and will reacquire the
+.Va Giant
+mutex before the function returns.
 The
 .Fn cv_wait_unlock
 function does not reacquire the lock before returning.
+Note that the
+.Va Giant
+mutex may be specified as
+.Fa lock .
+However,
+.Va Giant
+may not be used as
+.Fa lock
+for the
+.Fn cv_wait_unlock
+function.
 All waiters must pass the same
 .Fa lock
 in conjunction with
