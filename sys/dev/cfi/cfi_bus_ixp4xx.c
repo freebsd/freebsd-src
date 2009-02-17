@@ -77,4 +77,4 @@ static driver_t cfi_ixp4xx_driver = {
 	cfi_ixp4xx_methods,
 	sizeof(struct cfi_softc),
 };
-DRIVER_MODULE (cfi, ixp, cfi_ixp4xx_driver, cfi_devclass, 0, 0);
+DRIVER_MODULE(cfi, ixp, cfi_ixp4xx_driver, cfi_devclass, 0, 0);
