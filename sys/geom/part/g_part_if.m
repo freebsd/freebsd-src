@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2006-2008 Marcel Moolenaar
+# Copyright (c) 2006-2009 Marcel Moolenaar
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,16 @@
 # The G_PART scheme interface.
 
 INTERFACE g_part;
+
+# Default implementations of methods.
+CODE {
+	static int
+	default_precheck(struct g_part_table *t __unused,
+	    enum g_part_ctl r __unused, struct g_part_parms *p __unused)
+	{
+		return (0);
+	}
+};
 
 # add() - scheme specific processing for the add verb.
 METHOD int add {
@@ -106,7 +116,7 @@ METHOD int precheck {
 	struct g_part_table *table;
 	enum g_part_ctl req;
 	struct g_part_parms *gpp;
-};
+} DEFAULT default_precheck;
 
 # probe() - probe the provider attached to the given consumer for the
 # existence of the scheme implemented by the G_PART interface handler.
