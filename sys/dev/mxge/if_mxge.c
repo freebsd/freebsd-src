@@ -2535,7 +2535,7 @@ static struct mxge_media_type mxge_xfp_media_types[] =
 };
 static struct mxge_media_type mxge_sfp_media_types[] =
 {
-	{0,		(1 << 0),	"Reserved"},
+	{0,		(1 << 7),	"Reserved"},
 	{IFM_10G_LRM,	(1 << 6),	"10GBASE-LRM"},
 	{IFM_10G_LR, 	(1 << 5),	"10GBASE-LR"},
 	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"}
