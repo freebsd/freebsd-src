@@ -214,8 +214,10 @@ ata_start(device_t dev)
 		if (dumping) {
 		    mtx_unlock(&ch->state_mtx);
 		    mtx_unlock(&ch->queue_mtx);
-		    while (!ata_interrupt(ch) && ch->running)
+		    while (ch->running) {
+			ata_interrupt(ch);
 			DELAY(10);
+		    }
 		    return;
 		}       
 	    }

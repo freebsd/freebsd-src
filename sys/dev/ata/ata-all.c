@@ -147,7 +147,7 @@ ata_attach(device_t dev)
 	return ENXIO;
     }
     if ((error = bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL,
-				(driver_intr_t *)ata_interrupt, ch, &ch->ih))) {
+				ata_interrupt, ch, &ch->ih))) {
 	device_printf(dev, "unable to setup interrupt\n");
 	return error;
     }
@@ -319,7 +319,7 @@ ata_resume(device_t dev)
     return error;
 }
 
-int
+void
 ata_interrupt(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
@@ -354,11 +354,11 @@ ata_interrupt(void *data)
 	    mtx_unlock(&ch->state_mtx);
 	    ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	    ata_finish(request);
-	    return 1;
+	    return;
 	}
     } while (0);
     mtx_unlock(&ch->state_mtx);
-    return 0;
+    return;
 }
 
 /*
