@@ -1332,7 +1332,12 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 		if (tsec_new_rxbuf(sc->tsec_rx_mtag, rx_data[i].map,
 		    &rx_data[i].mbuf, &rx_data[i].paddr)) {
 			ifp->if_ierrors++;
-			continue;
+			/*
+			 * We ran out of mbufs; didn't consume current
+			 * descriptor and have to return it to the queue.
+			 */
+			TSEC_BACK_CUR_RX_DESC(sc);
+			break;
 		}
 
 		/* Attach new buffer to descriptor and clear flags */
