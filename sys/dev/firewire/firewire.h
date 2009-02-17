@@ -292,6 +292,10 @@ struct fw_devlstreq {
 #define FW_SELF_ID_PORT_CONNECTED_TO_PARENT 2
 #define FW_SELF_ID_PORT_NOT_CONNECTED 1
 #define FW_SELF_ID_PORT_NOT_EXISTS 0
+
+#define FW_SELF_ID_PAGE0 0
+#define FW_SELF_ID_PAGE1 1
+
 #if BYTE_ORDER == BIG_ENDIAN
 union fw_self_id {
 	struct {
@@ -301,7 +305,7 @@ union fw_self_id {
 			  link_active:1,
 			  gap_count:6,
 			  phy_speed:2,
-			  phy_delay:2,
+			  reserved:2,
 			  contender:1,
 			  power_class:3,
 			  port0:2,
@@ -353,7 +357,7 @@ union fw_self_id {
 			  port0:2,
 			  power_class:3,
 			  contender:1,
-			  phy_delay:2,
+			  reserved:2,
 			  phy_speed:2,
 			  gap_count:6,
 			  link_active:1,
