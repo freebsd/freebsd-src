@@ -30,6 +30,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -50,6 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
 #include <machine/bus.h>
 
 #include <dev/mii/mii.h>
@@ -62,7 +70,8 @@ static int	tsec_alloc_dma_desc(device_t dev, bus_dma_tag_t *dtag,
     bus_dmamap_t *dmap, bus_size_t dsize, void **vaddr, void *raddr,
     const char *dname);
 static void	tsec_dma_ctl(struct tsec_softc *sc, int state);
-static int	tsec_encap(struct tsec_softc *sc, struct mbuf *m_head);
+static int	tsec_encap(struct tsec_softc *sc, struct mbuf *m_head,
+    int fcb_inserted);
 static void	tsec_free_dma(struct tsec_softc *sc);
 static void	tsec_free_dma_desc(bus_dma_tag_t dtag, bus_dmamap_t dmap, void *vaddr);
 static int	tsec_ifmedia_upd(struct ifnet *ifp);
@@ -83,6 +92,19 @@ static void	tsec_start_locked(struct ifnet *ifp);
 static void	tsec_stop(struct tsec_softc *sc);
 static void	tsec_tick(void *arg);
 static void	tsec_watchdog(struct tsec_softc *sc);
+static void	tsec_add_sysctls(struct tsec_softc *sc);
+static int	tsec_sysctl_ic_time(SYSCTL_HANDLER_ARGS);
+static int	tsec_sysctl_ic_count(SYSCTL_HANDLER_ARGS);
+static void	tsec_set_rxic(struct tsec_softc *sc);
+static void	tsec_set_txic(struct tsec_softc *sc);
+static void	tsec_receive_intr_locked(struct tsec_softc *sc, int count);
+static void	tsec_transmit_intr_locked(struct tsec_softc *sc);
+static void	tsec_error_intr_locked(struct tsec_softc *sc, int count);
+static void	tsec_offload_setup(struct tsec_softc *sc);
+static void	tsec_offload_process_frame(struct tsec_softc *sc,
+    struct mbuf *m);
+static void	tsec_setup_multicast(struct tsec_softc *sc);
+static int	tsec_set_mtu(struct tsec_softc *sc, unsigned int mtu);
 
 struct tsec_softc *tsec0_sc = NULL; /* XXX ugly hack! */
 
@@ -113,18 +135,28 @@ tsec_attach(struct tsec_softc *sc)
 	/* Disable interrupts for now */
 	tsec_intrs_ctl(sc, 0);
 
+	/* Configure defaults for interrupts coalescing */
+	sc->rx_ic_time = 768;
+	sc->rx_ic_count = 16;
+	sc->tx_ic_time = 768;
+	sc->tx_ic_count = 16;
+	tsec_set_rxic(sc);
+	tsec_set_txic(sc);
+	tsec_add_sysctls(sc);
+
 	/* Allocate a busdma tag and DMA safe memory for TX descriptors. */
-	error = tsec_alloc_dma_desc(sc->dev, &sc->tsec_tx_dtag, &sc->tsec_tx_dmap,
-	    sizeof(*sc->tsec_tx_vaddr) * TSEC_TX_NUM_DESC,
+	error = tsec_alloc_dma_desc(sc->dev, &sc->tsec_tx_dtag,
+	    &sc->tsec_tx_dmap, sizeof(*sc->tsec_tx_vaddr) * TSEC_TX_NUM_DESC,
 	    (void **)&sc->tsec_tx_vaddr, &sc->tsec_tx_raddr, "TX");
+
 	if (error) {
 		tsec_detach(sc);
 		return (ENXIO);
 	}
 
 	/* Allocate a busdma tag and DMA safe memory for RX descriptors. */
-	error = tsec_alloc_dma_desc(sc->dev, &sc->tsec_rx_dtag, &sc->tsec_rx_dmap,
-	    sizeof(*sc->tsec_rx_vaddr) * TSEC_RX_NUM_DESC,
+	error = tsec_alloc_dma_desc(sc->dev, &sc->tsec_rx_dtag,
+	    &sc->tsec_rx_dmap, sizeof(*sc->tsec_rx_vaddr) * TSEC_RX_NUM_DESC,
 	    (void **)&sc->tsec_rx_vaddr, &sc->tsec_rx_raddr, "RX");
 	if (error) {
 		tsec_detach(sc);
@@ -213,7 +245,7 @@ tsec_attach(struct tsec_softc *sc)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
+	ifp->if_flags = IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST;
 	ifp->if_init = tsec_init;
 	ifp->if_start = tsec_start;
 	ifp->if_ioctl = tsec_ioctl;
@@ -222,10 +254,17 @@ tsec_attach(struct tsec_softc *sc)
 	ifp->if_snd.ifq_drv_maxlen = TSEC_TX_NUM_DESC - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	/* XXX No special features of TSEC are supported currently */
-	ifp->if_capabilities = 0;
+	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	if (sc->is_etsec)
+		ifp->if_capabilities |= IFCAP_HWCSUM;
+
 	ifp->if_capenable = ifp->if_capabilities;
 
+#ifdef DEVICE_POLLING
+	/* Advertise that polling is supported */
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	
 	/* Probe PHY(s) */
 	error = mii_phy_probe(sc->dev, &sc->tsec_miibus, tsec_ifmedia_upd,
 	    tsec_ifmedia_sts);
@@ -248,6 +287,11 @@ tsec_attach(struct tsec_softc *sc)
 int
 tsec_detach(struct tsec_softc *sc)
 {
+
+#ifdef DEVICE_POLLING
+	if (sc->tsec_ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(sc->tsec_ifp);
+#endif
 
 	/* Stop TSEC controller and free TX queue */
 	if (sc->sc_rres && sc->tsec_ifp)
@@ -381,7 +425,16 @@ tsec_init_locked(struct tsec_softc *sc)
 	/* Step 10: Clear IEVENT register */
 	TSEC_WRITE(sc, TSEC_REG_IEVENT, 0xffffffff);
 
-	/* Step 11: Initialize IMASK */
+	/* Step 11: Enable interrupts */
+#ifdef DEVICE_POLLING
+	/*
+	 * ...only if polling is not turned on. Disable interrupts explicitly
+	 * if polling is enabled.
+	 */
+	if (ifp->if_capenable & IFCAP_POLLING )
+		tsec_intrs_ctl(sc, 0);
+	else
+#endif /* DEVICE_POLLING */
 	tsec_intrs_ctl(sc, 1);
 
 	/* Step 12: Initialize IADDRn */
@@ -434,37 +487,47 @@ tsec_init_locked(struct tsec_softc *sc)
 		rx_desc[i].flags = TSEC_RXBD_E | TSEC_RXBD_I |
 		    ((i == TSEC_RX_NUM_DESC - 1) ? TSEC_RXBD_W : 0);
 	}
-	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap, BUS_DMASYNC_PREREAD |
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	/* Step 18: Initialize the maximum and minimum receive buffer length */
-	TSEC_WRITE(sc, TSEC_REG_MRBLR, TSEC_DEFAULT_MAX_RX_BUFFER_SIZE);
-	TSEC_WRITE(sc, TSEC_REG_MINFLR, TSEC_DEFAULT_MIN_RX_BUFFER_SIZE);
+	/* Step 18: Initialize the maximum receive buffer length */
+	TSEC_WRITE(sc, TSEC_REG_MRBLR, MCLBYTES);
 
-	/* Step 19: Enable Rx and RxBD sdata snooping */
+	/* Step 19: Configure ethernet frame sizes */
+	TSEC_WRITE(sc, TSEC_REG_MINFLR, TSEC_MIN_FRAME_SIZE);
+	tsec_set_mtu(sc, ifp->if_mtu);
+
+	/* Step 20: Enable Rx and RxBD sdata snooping */
 	TSEC_WRITE(sc, TSEC_REG_ATTR, TSEC_ATTR_RDSEN | TSEC_ATTR_RBDSEN);
 	TSEC_WRITE(sc, TSEC_REG_ATTRELI, 0);
 
-	/* Step 20: Reset collision counters in hardware */
+	/* Step 21: Reset collision counters in hardware */
 	TSEC_WRITE(sc, TSEC_REG_MON_TSCL, 0);
 	TSEC_WRITE(sc, TSEC_REG_MON_TMCL, 0);
 	TSEC_WRITE(sc, TSEC_REG_MON_TLCL, 0);
 	TSEC_WRITE(sc, TSEC_REG_MON_TXCL, 0);
 	TSEC_WRITE(sc, TSEC_REG_MON_TNCL, 0);
 
-	/* Step 21: Mask all CAM interrupts */
+	/* Step 22: Mask all CAM interrupts */
 	TSEC_WRITE(sc, TSEC_REG_MON_CAM1, 0xffffffff);
 	TSEC_WRITE(sc, TSEC_REG_MON_CAM2, 0xffffffff);
 
-	/* Step 22: Enable Rx and Tx */
+	/* Step 23: Enable Rx and Tx */
 	val = TSEC_READ(sc, TSEC_REG_MACCFG1);
 	val |= (TSEC_MACCFG1_RX_EN | TSEC_MACCFG1_TX_EN);
 	TSEC_WRITE(sc, TSEC_REG_MACCFG1, val);
 
-	/* Step 23: Reset TSEC counters for Tx and Rx rings */
+	/* Step 24: Reset TSEC counters for Tx and Rx rings */
 	TSEC_TX_RX_COUNTERS_INIT(sc);
 
-	/* Step 24: Activate network interface */
+	/* Step 25: Setup TCP/IP Off-Load engine */
+	if (sc->is_etsec)
+		tsec_offload_setup(sc);
+
+	/* Step 26: Setup multicast filters */
+	tsec_setup_multicast(sc);
+	
+	/* Step 27: Activate network interface */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->tsec_if_flags = ifp->if_flags;
@@ -632,9 +695,10 @@ static void
 tsec_start_locked(struct ifnet *ifp)
 {
 	struct tsec_softc *sc;
-	struct mbuf *m0;
-	struct mbuf *mtmp;
+	struct mbuf *m0, *mtmp;
+	struct tsec_tx_fcb *tx_fcb;
 	unsigned int queued = 0;
+	int csum_flags, fcb_inserted = 0;
 
 	sc = ifp->if_softc;
 
@@ -656,11 +720,39 @@ tsec_start_locked(struct ifnet *ifp)
 		if (m0 == NULL)
 			break;
 
+		/* Insert TCP/IP Off-load frame control block */
+		csum_flags = m0->m_pkthdr.csum_flags;
+		if (csum_flags) {
+
+			M_PREPEND(m0, sizeof(struct tsec_tx_fcb), M_DONTWAIT);
+			if (m0 == NULL)
+				break;
+
+			tx_fcb = mtod(m0, struct tsec_tx_fcb *);
+			tx_fcb->flags = 0;
+			tx_fcb->l3_offset = ETHER_HDR_LEN;
+			tx_fcb->l4_offset = sizeof(struct ip);
+
+			if (csum_flags & CSUM_IP)
+				tx_fcb->flags |= TSEC_TX_FCB_IP4 |
+				    TSEC_TX_FCB_CSUM_IP;
+
+			if (csum_flags & CSUM_TCP)
+				tx_fcb->flags |= TSEC_TX_FCB_TCP |
+				    TSEC_TX_FCB_CSUM_TCP_UDP;
+
+			if (csum_flags & CSUM_UDP)
+				tx_fcb->flags |= TSEC_TX_FCB_UDP |
+				    TSEC_TX_FCB_CSUM_TCP_UDP;
+
+			fcb_inserted = 1;
+		}
+
 		mtmp = m_defrag(m0, M_DONTWAIT);
 		if (mtmp)
 			m0 = mtmp;
 
-		if (tsec_encap(sc, m0)) {
+		if (tsec_encap(sc, m0, fcb_inserted)) {
 			IF_PREPEND(&ifp->if_snd, m0);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -679,14 +771,13 @@ tsec_start_locked(struct ifnet *ifp)
 }
 
 static int
-tsec_encap(struct tsec_softc *sc, struct mbuf *m0)
+tsec_encap(struct tsec_softc *sc, struct mbuf *m0, int fcb_inserted)
 {
 	struct tsec_desc *tx_desc = NULL;
 	struct ifnet *ifp;
 	bus_dma_segment_t segs[TSEC_TX_NUM_DESC];
 	bus_dmamap_t *mapp;
-	int error;
-	int seg, nsegs;
+	int csum_flag = 0, error, seg, nsegs;
 
 	TSEC_TRANSMIT_LOCK_ASSERT(sc);
 
@@ -713,6 +804,9 @@ tsec_encap(struct tsec_softc *sc, struct mbuf *m0)
 	if ((ifp->if_flags & IFF_DEBUG) && (nsegs > 1))
 		if_printf(ifp, "TX buffer has %d segments\n", nsegs);
 
+	if (fcb_inserted)
+		csum_flag = TSEC_TXBD_TOE;
+
 	/* Everything is ok, now we can send buffers */
 	for (seg = 0; seg < nsegs; seg++) {
 		tx_desc = TSEC_GET_CUR_TX_DESC(sc);
@@ -720,13 +814,18 @@ tsec_encap(struct tsec_softc *sc, struct mbuf *m0)
 		tx_desc->length = segs[seg].ds_len;
 		tx_desc->bufptr = segs[seg].ds_addr;
 
+		/*
+		 * Set flags:
+		 *   - wrap
+		 *   - checksum
+		 *   - ready to send
+		 *   - transmit the CRC sequence after the last data byte
+		 *   - interrupt after the last buffer
+		 */
 		tx_desc->flags =
-		    (tx_desc->flags & TSEC_TXBD_W) | /* wrap */
-		    TSEC_TXBD_I |		/* interrupt */
-		    TSEC_TXBD_R |		/* ready to send */
-		    TSEC_TXBD_TC |		/* transmit the CRC sequence
-						 * after the last data byte */
-		    ((seg == nsegs-1) ? TSEC_TXBD_L : 0);/* last in frame */
+		    (tx_desc->flags & TSEC_TXBD_W) |
+		    ((seg == 0) ? csum_flag : 0) | TSEC_TXBD_R | TSEC_TXBD_TC |
+		    ((seg == nsegs - 1) ? TSEC_TXBD_L | TSEC_TXBD_I : 0);
 	}
 
 	/* Save mbuf and DMA mapping for release at later stage */
@@ -754,23 +853,69 @@ tsec_setfilter(struct tsec_softc *sc)
 	TSEC_WRITE(sc, TSEC_REG_RCTRL, flags);
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t tsec_poll;
+
+static void
+tsec_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	uint32_t ie;
+	struct tsec_softc *sc = ifp->if_softc;
+
+	TSEC_GLOBAL_LOCK(sc);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		TSEC_GLOBAL_UNLOCK(sc);
+		return;
+	}
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		ie = TSEC_READ(sc, TSEC_REG_IEVENT);
+
+		/* Clear all events reported */
+		TSEC_WRITE(sc, TSEC_REG_IEVENT, ie);
+		tsec_error_intr_locked(sc, count);
+	}
+
+	tsec_transmit_intr_locked(sc);
+
+	TSEC_GLOBAL_TO_RECEIVE_LOCK(sc);
+
+	tsec_receive_intr_locked(sc, count);
+
+	TSEC_RECEIVE_UNLOCK(sc);
+}
+#endif /* DEVICE_POLLING */
+
 static int
 tsec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct tsec_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	device_t dev;
-	int error = 0;
+	int mask, error = 0;
 
 	dev = sc->dev;
 
 	switch (command) {
+	case SIOCSIFMTU:
+		TSEC_GLOBAL_LOCK(sc);
+		if (tsec_set_mtu(sc, ifr->ifr_mtu))
+			ifp->if_mtu = ifr->ifr_mtu;
+		else
+			error = EINVAL;
+		TSEC_GLOBAL_UNLOCK(sc);
+		break;
 	case SIOCSIFFLAGS:
 		TSEC_GLOBAL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((sc->tsec_if_flags ^ ifp->if_flags) & IFF_PROMISC)
+				if ((sc->tsec_if_flags ^ ifp->if_flags) &
+				    IFF_PROMISC)
 					tsec_setfilter(sc);
+
+				if ((sc->tsec_if_flags ^ ifp->if_flags) &
+				    IFF_ALLMULTI)
+					tsec_setup_multicast(sc);
 			} else
 				tsec_init_locked(sc);
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -779,10 +924,51 @@ tsec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		sc->tsec_if_flags = ifp->if_flags;
 		TSEC_GLOBAL_UNLOCK(sc);
 		break;
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			TSEC_GLOBAL_LOCK(sc);
+			tsec_setup_multicast(sc);
+			TSEC_GLOBAL_UNLOCK(sc);
+		}
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->tsec_mii->mii_media, command);
+		error = ifmedia_ioctl(ifp, ifr, &sc->tsec_mii->mii_media,
+		    command);
 		break;
+	case SIOCSIFCAP:
+		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		if ((mask & IFCAP_HWCSUM) && sc->is_etsec) {
+			TSEC_GLOBAL_LOCK(sc);
+			ifp->if_capenable &= ~IFCAP_HWCSUM;
+			ifp->if_capenable |= IFCAP_HWCSUM & ifr->ifr_reqcap;
+			tsec_offload_setup(sc);
+			TSEC_GLOBAL_UNLOCK(sc);
+		}
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(tsec_poll, ifp);
+				if (error)
+					return (error);
+
+				TSEC_GLOBAL_LOCK(sc);
+				/* Disable interrupts */
+				tsec_intrs_ctl(sc, 0);
+				ifp->if_capenable |= IFCAP_POLLING;
+				TSEC_GLOBAL_UNLOCK(sc);
+			} else {
+				error = ether_poll_deregister(ifp);
+				TSEC_GLOBAL_LOCK(sc);
+				/* Enable interrupts */
+				tsec_intrs_ctl(sc, 1);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				TSEC_GLOBAL_UNLOCK(sc);
+			}
+		}
+#endif
+	break;
+
 	default:
 		error = ether_ioctl(ifp, command, data);
 	}
@@ -831,12 +1017,11 @@ tsec_new_rxbuf(bus_dma_tag_t tag, bus_dmamap_t map, struct mbuf **mbufp,
 {
 	struct mbuf *new_mbuf;
 	bus_dma_segment_t seg[1];
-	int error;
-	int nsegs;
+	int error, nsegs;
 
 	KASSERT(mbufp != NULL, ("NULL mbuf pointer!"));
 
-	new_mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	new_mbuf = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MCLBYTES);
 	if (new_mbuf == NULL)
 		return (ENOBUFS);
 	new_mbuf->m_len = new_mbuf->m_pkthdr.len = new_mbuf->m_ext.ext_size;
@@ -1013,55 +1198,83 @@ tsec_stop(struct tsec_softc *sc)
 		m0 = TSEC_GET_TX_MBUF(sc);
 		mapp = TSEC_GET_TX_MAP(sc);
 
-		bus_dmamap_sync(sc->tsec_tx_mtag, *mapp, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(sc->tsec_tx_mtag, *mapp,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->tsec_tx_mtag, *mapp);
 
 		TSEC_FREE_TX_MAP(sc, mapp);
 		m_freem(m0);
 	}
 
-	/* Disable Rx and Tx */
+	/* Disable RX and TX */
 	tmpval = TSEC_READ(sc, TSEC_REG_MACCFG1);
 	tmpval &= ~(TSEC_MACCFG1_RX_EN | TSEC_MACCFG1_TX_EN);
 	TSEC_WRITE(sc, TSEC_REG_MACCFG1, tmpval);
 	DELAY(10);
 }
 
-void
-tsec_receive_intr(void *arg)
+static void
+tsec_tick(void *arg)
 {
-	struct mbuf *rcv_mbufs[TSEC_RX_NUM_DESC];
 	struct tsec_softc *sc = arg;
+	struct ifnet *ifp;
+	int link;
+
+	TSEC_GLOBAL_LOCK(sc);
+
+	tsec_watchdog(sc);
+
+	ifp = sc->tsec_ifp;
+	link = sc->tsec_link;
+
+	mii_tick(sc->tsec_mii);
+
+	if (link == 0 && sc->tsec_link == 1 &&
+	    (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)))
+		tsec_start_locked(ifp);
+
+	/* Schedule another timeout one second from now. */
+	callout_reset(&sc->tsec_callout, hz, tsec_tick, sc);
+
+	TSEC_GLOBAL_UNLOCK(sc);
+}
+
+/*
+ *  This is the core RX routine. It replenishes mbufs in the descriptor and
+ *  sends data which have been dma'ed into host memory to upper layer.
+ *
+ *  Loops at most count times if count is > 0, or until done if count < 0.
+ */
+static void
+tsec_receive_intr_locked(struct tsec_softc *sc, int count)
+{
 	struct tsec_desc *rx_desc;
 	struct ifnet *ifp;
 	struct rx_data_type *rx_data;
 	struct mbuf *m;
 	device_t dev;
 	uint32_t i;
-	int count;
-	int c1 = 0;
-	int c2;
+	int c;
 	uint16_t flags;
-	uint16_t length;
+
+	TSEC_RECEIVE_LOCK_ASSERT(sc);
 
 	ifp = sc->tsec_ifp;
 	rx_data = sc->rx_data;
 	dev = sc->dev;
 
-	/* Confirm the interrupt was received by driver */
-	TSEC_WRITE(sc, TSEC_REG_IEVENT, TSEC_IEVENT_RXB | TSEC_IEVENT_RXF);
+	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	TSEC_RECEIVE_LOCK(sc);
+	for (c = 0; ; c++) {
+		if (count >= 0 && count-- == 0)
+			break;
 
-	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap, BUS_DMASYNC_POSTREAD |
-	    BUS_DMASYNC_POSTWRITE);
-
-	for (count = 0; /* count < TSEC_RX_NUM_DESC */; count++) {
 		rx_desc = TSEC_GET_CUR_RX_DESC(sc);
 		flags = rx_desc->flags;
 
 		/* Check if there is anything to receive */
-		if ((flags & TSEC_RXBD_E) || (count >= TSEC_RX_NUM_DESC)) {
+		if ((flags & TSEC_RXBD_E) || (c >= TSEC_RX_NUM_DESC)) {
 			/*
 			 * Avoid generating another interrupt
 			 */
@@ -1080,65 +1293,103 @@ tsec_receive_intr(void *arg)
 		    TSEC_RXBD_CR | TSEC_RXBD_OV | TSEC_RXBD_TR)) {
 
 			rx_desc->length = 0;
-			rx_desc->flags = (rx_desc->flags & ~TSEC_RXBD_ZEROONINIT) |
-			    TSEC_RXBD_E | TSEC_RXBD_I;
+			rx_desc->flags = (rx_desc->flags &
+			    ~TSEC_RXBD_ZEROONINIT) | TSEC_RXBD_E | TSEC_RXBD_I;
+
+			if (sc->frame != NULL) {
+				m_free(sc->frame);
+				sc->frame = NULL;
+			}
+
 			continue;
 		}
 
-		if ((flags & TSEC_RXBD_L) == 0)
-			device_printf(dev, "buf is not the last in frame!\n");
-
 		/* Ok... process frame */
-		length = rx_desc->length - ETHER_CRC_LEN;
 		i = TSEC_GET_CUR_RX_DESC_CNT(sc);
-
 		m = rx_data[i].mbuf;
+		m->m_len = rx_desc->length;
+
+		if (sc->frame != NULL) {
+			if ((flags & TSEC_RXBD_L) != 0)
+				m->m_len -= m_length(sc->frame, NULL);
+
+			m->m_flags &= ~M_PKTHDR;
+			m_cat(sc->frame, m);
+		} else {
+			sc->frame = m;
+		}
+
+		m = NULL;
+
+		if ((flags & TSEC_RXBD_L) != 0) {
+			m = sc->frame;
+			sc->frame = NULL;
+		}
 
 		if (tsec_new_rxbuf(sc->tsec_rx_mtag, rx_data[i].map,
 		    &rx_data[i].mbuf, &rx_data[i].paddr)) {
 			ifp->if_ierrors++;
 			continue;
 		}
-		/* Attach new buffer to descriptor, and clear flags */
+
+		/* Attach new buffer to descriptor and clear flags */
 		rx_desc->bufptr = rx_data[i].paddr;
 		rx_desc->length = 0;
 		rx_desc->flags = (rx_desc->flags & ~TSEC_RXBD_ZEROONINIT) |
 		    TSEC_RXBD_E | TSEC_RXBD_I;
 
-		/* Prepare buffer for upper layers */
-		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = length;
+		if (m != NULL) {
+			m->m_pkthdr.rcvif = ifp;
 
-		/* Save it for push */
-		rcv_mbufs[c1++] = m;
+			m_fixhdr(m);
+			m_adj(m, -ETHER_CRC_LEN);
+
+			if (sc->is_etsec)
+				tsec_offload_process_frame(sc, m);
+
+			TSEC_RECEIVE_UNLOCK(sc);
+			(*ifp->if_input)(ifp, m);
+			TSEC_RECEIVE_LOCK(sc);
+		}
 	}
 
-	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap, BUS_DMASYNC_PREREAD |
-	    BUS_DMASYNC_PREWRITE);
-
-	TSEC_RECEIVE_UNLOCK(sc);
-
-	/* Push it now */
-	for (c2 = 0; c2 < c1; c2++)
-		(*ifp->if_input)(ifp, rcv_mbufs[c2]);
+	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
 void
-tsec_transmit_intr(void *arg)
+tsec_receive_intr(void *arg)
 {
 	struct tsec_softc *sc = arg;
+
+	TSEC_RECEIVE_LOCK(sc);
+
+#ifdef DEVICE_POLLING
+	if (sc->tsec_ifp->if_capenable & IFCAP_POLLING) {
+		TSEC_RECEIVE_UNLOCK(sc);
+		return;
+	}
+#endif
+
+	/* Confirm the interrupt was received by driver */
+	TSEC_WRITE(sc, TSEC_REG_IEVENT, TSEC_IEVENT_RXB | TSEC_IEVENT_RXF);
+	tsec_receive_intr_locked(sc, -1);
+
+	TSEC_RECEIVE_UNLOCK(sc);
+}
+
+static void
+tsec_transmit_intr_locked(struct tsec_softc *sc)
+{
 	struct tsec_desc *tx_desc;
 	struct ifnet *ifp;
 	struct mbuf *m0;
 	bus_dmamap_t *mapp;
 	int send = 0;
 
+	TSEC_TRANSMIT_LOCK_ASSERT(sc);
+
 	ifp = sc->tsec_ifp;
-
-	/* Confirm the interrupt was received by driver */
-	TSEC_WRITE(sc, TSEC_REG_IEVENT, TSEC_IEVENT_TXB | TSEC_IEVENT_TXF);
-
-	TSEC_TRANSMIT_LOCK(sc);
 
 	/* Update collision statistics */
 	ifp->if_collisions += TSEC_READ(sc, TSEC_REG_MON_TNCL);
@@ -1178,44 +1429,57 @@ tsec_transmit_intr(void *arg)
 		ifp->if_opackets++;
 		send = 1;
 	}
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_PREREAD |
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	if (send) {
 		/* Now send anything that was pending */
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		tsec_start_locked(ifp);
 
-		/* Stop watchdog if all sent */
+		/* Stop wathdog if all sent */
 		if (TSEC_EMPTYQ_TX_MBUF(sc))
 			sc->tsec_watchdog = 0;
 	}
-	TSEC_TRANSMIT_UNLOCK(sc);
 }
 
 void
-tsec_error_intr(void *arg)
+tsec_transmit_intr(void *arg)
 {
 	struct tsec_softc *sc = arg;
+
+	TSEC_TRANSMIT_LOCK(sc);
+
+#ifdef DEVICE_POLLING
+	if (sc->tsec_ifp->if_capenable & IFCAP_POLLING) {
+		TSEC_TRANSMIT_UNLOCK(sc);
+		return;
+	}
+#endif
+	/* Confirm the interrupt was received by driver */
+	TSEC_WRITE(sc, TSEC_REG_IEVENT, TSEC_IEVENT_TXB | TSEC_IEVENT_TXF);
+	tsec_transmit_intr_locked(sc);
+
+	TSEC_TRANSMIT_UNLOCK(sc);
+}
+
+static void
+tsec_error_intr_locked(struct tsec_softc *sc, int count)
+{
 	struct ifnet *ifp;
 	uint32_t eflags;
+
+	TSEC_GLOBAL_LOCK_ASSERT(sc);
 
 	ifp = sc->tsec_ifp;
 
 	eflags = TSEC_READ(sc, TSEC_REG_IEVENT);
-
-	if (ifp->if_flags & IFF_DEBUG)
-		if_printf(ifp, "tsec_error_intr(): event flags: 0x%x\n", eflags);
 
 	/* Clear events bits in hardware */
 	TSEC_WRITE(sc, TSEC_REG_IEVENT, TSEC_IEVENT_RXC | TSEC_IEVENT_BSY |
 	    TSEC_IEVENT_EBERR | TSEC_IEVENT_MSRO | TSEC_IEVENT_BABT |
 	    TSEC_IEVENT_TXC | TSEC_IEVENT_TXE | TSEC_IEVENT_LC |
 	    TSEC_IEVENT_CRL | TSEC_IEVENT_XFUN);
-
-	if (eflags & TSEC_IEVENT_EBERR)
-		if_printf(ifp, "System bus error occurred during"
-		    " a DMA transaction (flags: 0x%x)\n", eflags);
 
 	/* Check transmitter errors */
 	if (eflags & TSEC_IEVENT_TXE) {
@@ -1226,8 +1490,6 @@ tsec_error_intr(void *arg)
 
 		TSEC_WRITE(sc, TSEC_REG_TSTAT, TSEC_TSTAT_THLT);
 	}
-	if (eflags & TSEC_IEVENT_BABT)
-		ifp->if_oerrors++;
 
 	/* Check receiver errors */
 	if (eflags & TSEC_IEVENT_BSY) {
@@ -1235,37 +1497,36 @@ tsec_error_intr(void *arg)
 		ifp->if_iqdrops++;
 
 		/* Get data from RX buffers */
-		tsec_receive_intr(arg);
+		tsec_receive_intr_locked(sc, count);
 
 		/* Make receiver again active */
 		TSEC_WRITE(sc, TSEC_REG_RSTAT, TSEC_RSTAT_QHLT);
 	}
+
+	if (ifp->if_flags & IFF_DEBUG)
+		if_printf(ifp, "tsec_error_intr(): event flags: 0x%x\n",
+		    eflags);
+
+	if (eflags & TSEC_IEVENT_EBERR) {
+		if_printf(ifp, "System bus error occurred during"
+		    "DMA transaction (flags: 0x%x)\n", eflags);
+		tsec_init_locked(sc);
+	}
+
+	if (eflags & TSEC_IEVENT_BABT)
+		ifp->if_oerrors++;
+
 	if (eflags & TSEC_IEVENT_BABR)
 		ifp->if_ierrors++;
 }
 
-static void
-tsec_tick(void *xsc)
+void
+tsec_error_intr(void *arg)
 {
-	struct tsec_softc *sc = xsc;
-	struct ifnet *ifp;
-	int link;
+	struct tsec_softc *sc = arg;
 
 	TSEC_GLOBAL_LOCK(sc);
-
-	tsec_watchdog(sc);
-
-	ifp = sc->tsec_ifp;
-	link = sc->tsec_link;
-
-	mii_tick(sc->tsec_mii);
-
-	if (link == 0 && sc->tsec_link == 1 && (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)))
-		tsec_start_locked(ifp);
-
-	/* Schedule another timeout one second from now. */
-	callout_reset(&sc->tsec_callout, hz, tsec_tick, sc);
-
+	tsec_error_intr_locked(sc, -1);
 	TSEC_GLOBAL_UNLOCK(sc);
 }
 
@@ -1372,4 +1633,272 @@ tsec_miibus_statchg(device_t dev)
 		ecntrl |= (tmp & TSEC_MACCFG2_MII) ? TSEC_ECNTRL_R100M : 0;
 		TSEC_WRITE(sc, TSEC_REG_ECNTRL, ecntrl);
 	}
+}
+
+static void
+tsec_add_sysctls(struct tsec_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+	struct sysctl_oid *tree;
+
+	ctx = device_get_sysctl_ctx(sc->dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
+	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "int_coal",
+	    CTLFLAG_RD, 0, "TSEC Interrupts coalescing");
+	children = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_time",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, TSEC_IC_RX, tsec_sysctl_ic_time,
+	    "I", "IC RX time threshold (0-65535)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_count",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, TSEC_IC_RX, tsec_sysctl_ic_count,
+	    "I", "IC RX frame count threshold (0-255)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_time",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, TSEC_IC_TX, tsec_sysctl_ic_time,
+	    "I", "IC TX time threshold (0-65535)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_count",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, TSEC_IC_TX, tsec_sysctl_ic_count,
+	    "I", "IC TX frame count threshold (0-255)");
+}
+
+/*
+ * With Interrupt Coalescing (IC) active, a transmit/receive frame
+ * interrupt is raised either upon:
+ *
+ * - threshold-defined period of time elapsed, or
+ * - threshold-defined number of frames is received/transmitted,
+ *   whichever occurs first.
+ *
+ * The following sysctls regulate IC behaviour (for TX/RX separately):
+ *
+ * dev.tsec.<unit>.int_coal.rx_time
+ * dev.tsec.<unit>.int_coal.rx_count
+ * dev.tsec.<unit>.int_coal.tx_time
+ * dev.tsec.<unit>.int_coal.tx_count
+ *
+ * Values:
+ *
+ * - 0 for either time or count disables IC on the given TX/RX path
+ *
+ * - count: 1-255 (expresses frame count number; note that value of 1 is
+ *   effectively IC off)
+ *
+ * - time: 1-65535 (value corresponds to a real time period and is
+ *   expressed in units equivalent to 64 TSEC interface clocks, i.e. one timer
+ *   threshold unit is 26.5 us, 2.56 us, or 512 ns, corresponding to 10 Mbps,
+ *   100 Mbps, or 1Gbps, respectively. For detailed discussion consult the
+ *   TSEC reference manual.
+ */
+
+static int
+tsec_sysctl_ic_time(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t time;
+	struct tsec_softc *sc = (struct tsec_softc *)arg1;
+
+	time = (arg2 == TSEC_IC_RX) ? sc->rx_ic_time : sc->tx_ic_time;
+
+	error = sysctl_handle_int(oidp, &time, 0, req);
+	if (error != 0)
+		return (error);
+
+	if (time > 65535)
+		return (EINVAL);
+
+	TSEC_IC_LOCK(sc);
+	if (arg2 == TSEC_IC_RX) {
+		sc->rx_ic_time = time;
+		tsec_set_rxic(sc);
+	} else {
+		sc->tx_ic_time = time;
+		tsec_set_txic(sc);
+	}
+	TSEC_IC_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+tsec_sysctl_ic_count(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t count;
+	struct tsec_softc *sc = (struct tsec_softc *)arg1;
+
+	count = (arg2 == TSEC_IC_RX) ? sc->rx_ic_count : sc->tx_ic_count;
+
+	error = sysctl_handle_int(oidp, &count, 0, req);
+	if (error != 0)
+		return (error);
+
+	if (count > 255)
+		return (EINVAL);
+
+	TSEC_IC_LOCK(sc);
+	if (arg2 == TSEC_IC_RX) {
+		sc->rx_ic_count = count;
+		tsec_set_rxic(sc);
+	} else {
+		sc->tx_ic_count = count;
+		tsec_set_txic(sc);
+	}
+	TSEC_IC_UNLOCK(sc);
+
+	return (0);
+}
+
+static void
+tsec_set_rxic(struct tsec_softc *sc)
+{
+	uint32_t rxic_val;
+
+	if (sc->rx_ic_count == 0 || sc->rx_ic_time == 0)
+		/* Disable RX IC */
+		rxic_val = 0;
+	else {
+		rxic_val = 0x80000000;
+		rxic_val |= (sc->rx_ic_count << 21);
+		rxic_val |= sc->rx_ic_time;
+	}
+
+	TSEC_WRITE(sc, TSEC_REG_RXIC, rxic_val);
+}
+
+static void
+tsec_set_txic(struct tsec_softc *sc)
+{
+	uint32_t txic_val;
+
+	if (sc->tx_ic_count == 0 || sc->tx_ic_time == 0)
+		/* Disable TX IC */
+		txic_val = 0;
+	else {
+		txic_val = 0x80000000;
+		txic_val |= (sc->tx_ic_count << 21);
+		txic_val |= sc->tx_ic_time;
+	}
+
+	TSEC_WRITE(sc, TSEC_REG_TXIC, txic_val);
+}
+
+static void
+tsec_offload_setup(struct tsec_softc *sc)
+{
+	struct ifnet *ifp = sc->tsec_ifp;
+	uint32_t reg;
+
+	TSEC_GLOBAL_LOCK_ASSERT(sc);
+
+	reg = TSEC_READ(sc, TSEC_REG_TCTRL);
+	reg |= TSEC_TCTRL_IPCSEN | TSEC_TCTRL_TUCSEN;
+
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		ifp->if_hwassist = TSEC_CHECKSUM_FEATURES;
+	else
+		ifp->if_hwassist = 0;
+
+	TSEC_WRITE(sc, TSEC_REG_TCTRL, reg);
+
+	reg = TSEC_READ(sc, TSEC_REG_RCTRL);
+	reg &= ~(TSEC_RCTRL_IPCSEN | TSEC_RCTRL_TUCSEN | TSEC_RCTRL_PRSDEP);
+	reg |= TSEC_RCTRL_PRSDEP_PARSE_L2 | TSEC_RCTRL_VLEX;
+
+	if (ifp->if_capenable & IFCAP_RXCSUM)
+		reg |= TSEC_RCTRL_IPCSEN | TSEC_RCTRL_TUCSEN |
+		    TSEC_RCTRL_PRSDEP_PARSE_L234;
+
+	TSEC_WRITE(sc, TSEC_REG_RCTRL, reg);
+}
+
+
+static void
+tsec_offload_process_frame(struct tsec_softc *sc, struct mbuf *m)
+{
+	struct tsec_rx_fcb rx_fcb;
+	int csum_flags = 0;
+	int protocol, flags;
+
+	TSEC_RECEIVE_LOCK_ASSERT(sc);
+
+	m_copydata(m, 0, sizeof(struct tsec_rx_fcb), (caddr_t)(&rx_fcb));
+	flags = rx_fcb.flags;
+	protocol = rx_fcb.protocol;
+
+	if (TSEC_RX_FCB_IP_CSUM_CHECKED(flags)) {
+		csum_flags |= CSUM_IP_CHECKED;
+
+		if ((flags & TSEC_RX_FCB_IP_CSUM_ERROR) == 0)
+			csum_flags |= CSUM_IP_VALID;
+	}
+
+	if ((protocol == IPPROTO_TCP || protocol == IPPROTO_UDP) &&
+	    TSEC_RX_FCB_TCP_UDP_CSUM_CHECKED(flags) &&
+	    (flags & TSEC_RX_FCB_TCP_UDP_CSUM_ERROR) == 0) {
+
+		csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+		m->m_pkthdr.csum_data = 0xFFFF;
+	}
+
+	m->m_pkthdr.csum_flags = csum_flags;
+
+	if (flags & TSEC_RX_FCB_VLAN) {
+		m->m_pkthdr.ether_vtag = rx_fcb.vlan;
+		m->m_flags |= M_VLANTAG;
+	}
+
+	m_adj(m, sizeof(struct tsec_rx_fcb));
+}
+
+static void
+tsec_setup_multicast(struct tsec_softc *sc)
+{
+	uint32_t hashtable[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+	struct ifnet *ifp = sc->tsec_ifp;
+	struct ifmultiaddr *ifma;
+	uint32_t h;
+	int i;
+
+	TSEC_GLOBAL_LOCK_ASSERT(sc);
+
+	if (ifp->if_flags & IFF_ALLMULTI) {
+		for (i = 0; i < 8; i++)
+			TSEC_WRITE(sc, TSEC_REG_GADDR(i), 0xFFFFFFFF);
+
+		return;
+	}
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+
+		h = (ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 24) & 0xFF;
+
+		hashtable[(h >> 5)] |= 1 << (0x1F - (h & 0x1F));
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+	for (i = 0; i < 8; i++)
+		TSEC_WRITE(sc, TSEC_REG_GADDR(i), hashtable[i]);
+}
+
+static int
+tsec_set_mtu(struct tsec_softc *sc, unsigned int mtu)
+{
+
+	mtu += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
+
+	TSEC_GLOBAL_LOCK_ASSERT(sc);
+
+	if (mtu >= TSEC_MIN_FRAME_SIZE && mtu <= TSEC_MAX_FRAME_SIZE) {
+		TSEC_WRITE(sc, TSEC_REG_MAXFRM, mtu);
+		return (mtu);
+	}
+
+	return (0);
 }

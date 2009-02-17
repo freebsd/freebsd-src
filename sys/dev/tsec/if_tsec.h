@@ -31,6 +31,17 @@
 #define TSEC_RX_NUM_DESC	256
 #define TSEC_TX_NUM_DESC	256
 
+/* Interrupt Coalescing types */
+#define	TSEC_IC_RX		0
+#define	TSEC_IC_TX		1
+
+/* eTSEC ID */
+#define	TSEC_ETSEC_ID		0x0124
+
+/* Frame sizes */
+#define	TSEC_MIN_FRAME_SIZE	64
+#define	TSEC_MAX_FRAME_SIZE	9600
+
 struct tsec_softc {
 	/* XXX MII bus requires that struct ifnet is first!!! */
 	struct ifnet	*tsec_ifp;
@@ -84,6 +95,7 @@ struct tsec_softc {
 	int		sc_error_irid;
 
 	int		tsec_if_flags;
+	int		is_etsec;
 
 	/* Watchdog and MII tick related */
 	struct callout	tsec_callout;
@@ -106,6 +118,16 @@ struct tsec_softc {
 	uint32_t	tx_mbuf_used_get_cnt;
 	uint32_t	tx_mbuf_used_put_cnt;
 	struct mbuf	*tx_mbuf_used_data[TSEC_TX_NUM_DESC];
+
+	/* interrupt coalescing */
+	struct mtx	ic_lock;
+	uint32_t	rx_ic_time;	/* RW, valid values 0..65535 */
+	uint32_t	rx_ic_count;	/* RW, valid values 0..255 */
+	uint32_t	tx_ic_time;
+	uint32_t	tx_ic_count;
+
+	/* currently received frame */
+	struct mbuf	*frame;
 };
 
 /* interface to get/put generic objects */
@@ -235,13 +257,22 @@ struct tsec_softc {
 #define TSEC_TRANSMIT_LOCK_ASSERT(sc)	mtx_assert(&(sc)->transmit_lock, MA_OWNED)
 
 /* Lock for receiver */
-#define TSEC_RECEIVE_LOCK(sc) do {				\
-		mtx_assert(&(sc)->transmit_lock, MA_NOTOWNED);	\
-		mtx_lock(&(sc)->receive_lock);			\
+#define TSEC_RECEIVE_LOCK(sc) do {					\
+		mtx_assert(&(sc)->transmit_lock, MA_NOTOWNED);		\
+		mtx_lock(&(sc)->receive_lock);				\
 } while (0)
 
 #define TSEC_RECEIVE_UNLOCK(sc)		mtx_unlock(&(sc)->receive_lock)
 #define TSEC_RECEIVE_LOCK_ASSERT(sc)	mtx_assert(&(sc)->receive_lock, MA_OWNED)
+
+/* Lock for interrupts coalescing */
+#define	TSEC_IC_LOCK(sc) do {						\
+		mtx_assert(&(sc)->ic_lock, MA_NOTOWNED);		\
+		mtx_lock(&(sc)->ic_lock);				\
+} while (0)
+
+#define	TSEC_IC_UNLOCK(sc)		mtx_unlock(&(sc)->ic_lock)
+#define	TSEC_IC_LOCK_ASSERT(sc)		mtx_assert(&(sc)->ic_lock, MA_OWNED)
 
 /* Global tsec lock (with all locks) */
 #define TSEC_GLOBAL_LOCK(sc) do {					\
@@ -273,13 +304,48 @@ struct tsec_softc {
 } while (0)
 
 struct tsec_desc {
-	volatile uint16_t	flags; /* descriptor flags */
-	volatile uint16_t	length; /* buffer length */
-	volatile uint32_t	bufptr; /* buffer pointer */
+	volatile uint16_t	flags;	/* descriptor flags */
+	volatile uint16_t	length;	/* buffer length */
+	volatile uint32_t	bufptr;	/* buffer pointer */
 };
 
 #define TSEC_READ_RETRY	10000
 #define TSEC_READ_DELAY	100
+
+/* Structures and defines for TCP/IP Off-load */
+struct tsec_tx_fcb {
+	volatile uint16_t	flags;
+	volatile uint8_t	l4_offset;
+	volatile uint8_t	l3_offset;
+	volatile uint16_t	ph_chsum;
+	volatile uint16_t	vlan;
+};
+
+struct tsec_rx_fcb {
+	volatile uint16_t	flags;
+	volatile uint8_t	rq_index;
+	volatile uint8_t	protocol;
+	volatile uint16_t	unused;
+	volatile uint16_t	vlan;
+};
+
+#define	TSEC_CHECKSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+
+#define	TSEC_TX_FCB_IP4		TSEC_TX_FCB_L3_IS_IP
+#define	TSEC_TX_FCB_IP6		(TSEC_TX_FCB_L3_IS_IP | TSEC_TX_FCB_L3_IS_IP6)
+
+#define	TSEC_TX_FCB_TCP		TSEC_TX_FCB_L4_IS_TCP_UDP
+#define	TSEC_TX_FCB_UDP		(TSEC_TX_FCB_L4_IS_TCP_UDP | TSEC_TX_FCB_L4_IS_UDP)
+
+#define	TSEC_RX_FCB_IP_CSUM_CHECKED(flags)					\
+		((flags & (TSEC_RX_FCB_IP_FOUND | TSEC_RX_FCB_IP6_FOUND |	\
+		TSEC_RX_FCB_IP_CSUM | TSEC_RX_FCB_PARSE_ERROR))			\
+		 == (TSEC_RX_FCB_IP_FOUND | TSEC_RX_FCB_IP_CSUM))
+
+#define TSEC_RX_FCB_TCP_UDP_CSUM_CHECKED(flags)					\
+		((flags & (TSEC_RX_FCB_TCP_UDP_FOUND | TSEC_RX_FCB_TCP_UDP_CSUM	\
+		| TSEC_RX_FCB_PARSE_ERROR))					\
+		== (TSEC_RX_FCB_TCP_UDP_FOUND | TSEC_RX_FCB_TCP_UDP_CSUM))
 
 /* Prototypes */
 extern devclass_t tsec_devclass;
