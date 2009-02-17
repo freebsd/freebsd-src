@@ -968,7 +968,7 @@ tsec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif
-	break;
+		break;
 
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -1710,7 +1710,6 @@ tsec_add_sysctls(struct tsec_softc *sc)
  *   100 Mbps, or 1Gbps, respectively. For detailed discussion consult the
  *   TSEC reference manual.
  */
-
 static int
 tsec_sysctl_ic_time(SYSCTL_HANDLER_ARGS)
 {
