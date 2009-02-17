@@ -870,11 +870,11 @@ tsec_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
-		ie = TSEC_READ(sc, TSEC_REG_IEVENT);
+		tsec_error_intr_locked(sc, count);
 
 		/* Clear all events reported */
+		ie = TSEC_READ(sc, TSEC_REG_IEVENT);
 		TSEC_WRITE(sc, TSEC_REG_IEVENT, ie);
-		tsec_error_intr_locked(sc, count);
 	}
 
 	tsec_transmit_intr_locked(sc);
