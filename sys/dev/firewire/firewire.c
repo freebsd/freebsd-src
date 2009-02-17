@@ -1270,12 +1270,29 @@ fw_print_sid(uint32_t sid)
 {
 	union fw_self_id *s;
 	s = (union fw_self_id *) &sid;
-	printf("node:%d link:%d gap:%d spd:%d del:%d con:%d pwr:%d"
-		" p0:%d p1:%d p2:%d i:%d m:%d\n",
-		s->p0.phy_id, s->p0.link_active, s->p0.gap_count,
-		s->p0.phy_speed, s->p0.phy_delay, s->p0.contender,
-		s->p0.power_class, s->p0.port0, s->p0.port1,
-		s->p0.port2, s->p0.initiated_reset, s->p0.more_packets);
+	if ( s->p0.sequel ) {
+		if ( s->p1.sequence_num == FW_SELF_ID_PAGE0 ) {
+			printf("node:%d p3:%d p4:%d p5:%d p6:%d p7:%d"
+				"p8:%d p9:%d p10:%d\n",
+				s->p1.phy_id, s->p1.port3, s->p1.port4,
+				s->p1.port5, s->p1.port6, s->p1.port7,
+				s->p1.port8, s->p1.port9, s->p1.port10);
+		} else if (s->p2.sequence_num == FW_SELF_ID_PAGE1 ){
+			printf("node:%d p11:%d p12:%d p13:%d p14:%d p15:%d\n",
+				s->p2.phy_id, s->p2.port11, s->p2.port12,
+				s->p2.port13, s->p2.port14, s->p2.port15);
+		} else {
+			printf("node:%d Unknown Self ID Page number %d\n",
+				s->p1.phy_id, s->p1.sequence_num);
+		}
+	} else {
+		printf("node:%d link:%d gap:%d spd:%d con:%d pwr:%d"
+			" p0:%d p1:%d p2:%d i:%d m:%d\n",
+			s->p0.phy_id, s->p0.link_active, s->p0.gap_count,
+			s->p0.phy_speed, s->p0.contender,
+			s->p0.power_class, s->p0.port0, s->p0.port1,
+			s->p0.port2, s->p0.initiated_reset, s->p0.more_packets);
+	}
 }
 
 /*
