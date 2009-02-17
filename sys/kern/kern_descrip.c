@@ -2933,6 +2933,10 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			kif->kf_type = KF_TYPE_MQUEUE;
 			break;
 
+		case DTYPE_SEM:
+			kif->kf_type = KF_TYPE_SEM;
+			break;
+
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
 			break;
@@ -3070,6 +3074,8 @@ file_type_to_name(short type)
 		return ("crpt");
 	case DTYPE_MQUEUE:
 		return ("mque");
+	case DTYPE_SEM:
+		return ("ksem");
 	default:
 		return ("unkn");
 	}

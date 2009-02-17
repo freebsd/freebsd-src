@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2002 Alfred Perlstein <alfred@FreeBSD.org>
+ * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
+ * Written by: John Baldwin <jhb@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +11,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -26,40 +30,30 @@
  * $FreeBSD$
  */
 
-#ifndef _POSIX4_KSEM_H_
-#define	_POSIX4_KSEM_H_
+#ifndef __TEST_H__
+#define	__TEST_H__
 
-#ifndef _KERNEL
-#error "no user-servicable parts inside"
-#endif
+#include <sys/linker_set.h>
 
-#include <sys/condvar.h>
-
-struct ksem {
-	int		ks_ref;		/* number of references */
-	mode_t		ks_mode;	/* protection bits */
-	uid_t		ks_uid;		/* creator uid */
-	gid_t		ks_gid;		/* creator gid */
-	unsigned int	ks_value;	/* current value */
-	struct cv	ks_cv;		/* waiters sleep here */
-	int		ks_waiters;	/* number of waiters */
-	int		ks_flags;
-
-	/*
-	 * Values maintained solely to make this a better-behaved file
-	 * descriptor for fstat() to run on.
-	 *
-	 * XXX: dubious
-	 */
-	struct timespec	ks_atime;
-	struct timespec	ks_mtime;
-	struct timespec	ks_ctime;
-	struct timespec	ks_birthtime;
-
-	struct label	*ks_label;	/* MAC label */
+struct regression_test {
+	void	(*rt_function)(void);
+	const char *rt_name;
 };
 
-#define	KS_ANONYMOUS	0x0001		/* Anonymous (unnamed) semaphore. */
-#define	KS_DEAD		0x0002		/* No new waiters allowed. */
+#define	TEST(function, name)						\
+	static struct regression_test _regtest_##function = {		\
+		(function),						\
+		(name)							\
+	};								\
+	DATA_SET(regression_tests_set, _regtest_##function)
 
-#endif /* !_POSIX4_KSEM_H_ */
+void	fail(void);
+void	fail_err(const char *fmt, ...);
+void	pass(void);
+void	run_tests(void);
+void	skip(const char *reason);
+void	todo(const char *reason);
+
+#define	fail_errno(tag)		fail_err("%s: %s", (tag), strerror(errno))
+
+#endif /* !__TEST_H__ */
