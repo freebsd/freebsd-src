@@ -77,7 +77,7 @@ struct crom_src_buf {
 	struct crom_chunk hw;
 };
 
-int firewire_debug=0, try_bmr=1, hold_count=3;
+int firewire_debug=0, try_bmr=1, hold_count=0;
 SYSCTL_INT(_debug, OID_AUTO, firewire_debug, CTLFLAG_RW, &firewire_debug, 0,
 	"FireWire driver debug flag");
 SYSCTL_NODE(_hw, OID_AUTO, firewire, CTLFLAG_RD, 0, "FireWire Subsystem");
@@ -1503,7 +1503,8 @@ fw_explore_node(struct fw_device *dfwdev)
 	uint32_t *csr;
 	struct csrhdr *hdr;
 	struct bus_info *binfo;
-	int err, node, spd;
+	int err, node;
+	uint32_t speed_test = 0;
 
 	fc = dfwdev->fc;
 	csr = dfwdev->csrrom;
@@ -1511,8 +1512,12 @@ fw_explore_node(struct fw_device *dfwdev)
 
 	/* First quad */
 	err = fw_explore_read_quads(dfwdev, CSRROMOFF, &csr[0], 1);
-	if (err)
+	if (err) {
+		device_printf(fc->bdev, "%s: node%d: explore_read_quads failure\n",
+		    __func__, node);
+		dfwdev->status = FWDEVINVAL;
 		return (-1);
+	}
 	hdr = (struct csrhdr *)&csr[0];
 	if (hdr->info_len != 4) {
 		if (firewire_debug)
@@ -1532,7 +1537,18 @@ fw_explore_node(struct fw_device *dfwdev)
 			    node, binfo->bus_name);
 		return (-1);
 	}
-	spd = fc->speed_map->speed[fc->nodeid][node];
+
+	if (firewire_debug)
+		device_printf(fc->bdev, "%s: node(%d) BUS INFO BLOCK:\n"
+					"irmc(%d) cmc(%d) isc(%d) bmc(%d) pmc(%d) "
+					"cyc_clk_acc(%d) max_rec(%d) max_rom(%d) "
+					"generation(%d) link_spd(%d)\n",
+					__func__, node,
+					binfo->irmc, binfo->cmc, binfo->isc,
+					binfo->bmc, binfo->pmc, binfo->cyc_clk_acc,
+					binfo->max_rec, binfo->max_rom,
+					binfo->generation, binfo->link_spd);
+
 	STAILQ_FOREACH(fwdev, &fc->devices, link)
 		if (FW_EUI64_EQUAL(fwdev->eui, binfo->eui64))
 			break;
@@ -1547,6 +1563,40 @@ fw_explore_node(struct fw_device *dfwdev)
 		}
 		fwdev->fc = fc;
 		fwdev->eui = binfo->eui64;
+		/*
+		 * Pre-1394a-2000 didn't have link_spd in
+		 * the Bus Info block, so try and use the 
+		 * speed map value.
+		 * 1394a-2000 compliant devices only use
+		 * the Bus Info Block link spd value, so
+		 * ignore the speed map alltogether. SWB
+		 */
+		if ( binfo->link_spd == FWSPD_S100 /* 0 */) {
+			device_printf(fc->bdev, "%s"
+				"Pre 1394a-2000 detected\n",
+				__func__);
+			fwdev->speed = fc->speed_map->speed[fc->nodeid][node];
+		} else
+			fwdev->speed = binfo->link_spd;
+		/*
+		 * Test this speed with a read to the CSRROM.
+		 * If it fails, slow down the speed and retry.
+		 */
+		while (fwdev->speed > 0) {
+			err = fw_explore_read_quads(fwdev, CSRROMOFF,
+            				&speed_test, 1);
+			if (err)
+				fwdev->speed--;
+			else
+				break;
+				
+		}
+		if (fwdev->speed != binfo->link_spd)
+			device_printf(fc->bdev, "%s: fwdev->speed(%s)"
+						" set lower than binfo->link_spd(%s)\n",
+						__func__,
+						linkspeed[fwdev->speed],
+						linkspeed[binfo->link_spd]);
 		/* inesrt into sorted fwdev list */
 		pfwdev = NULL;
 		STAILQ_FOREACH(tfwdev, &fc->devices, link) {
@@ -1562,12 +1612,11 @@ fw_explore_node(struct fw_device *dfwdev)
 			STAILQ_INSERT_AFTER(&fc->devices, pfwdev, fwdev, link);
 
 		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
-		    linkspeed[spd],
+		    linkspeed[fwdev->speed],
 		    fwdev->eui.hi, fwdev->eui.lo);
 	}
 	fwdev->dst = node;
 	fwdev->status = FWDEVINIT;
-	fwdev->speed = spd;
 
 	/* unchanged ? */
 	if (bcmp(&csr[0], &fwdev->csrrom[0], sizeof(uint32_t) * 5) == 0) {
