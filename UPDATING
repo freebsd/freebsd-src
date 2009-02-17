@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090217:
+	The rc.conf(5) option if_up_delay has been renamed to
+	defaultroute_delay to better reflect its purpose. If you have
+	customized this setting in /etc/rc.conf you need to update it to
+	use the new name.
+
 20090216:
 	xorg 7.4 wants to configure its input devices via hald which does not
 	yet work with USB2. If the keyboard/mouse does not work in xorg then
