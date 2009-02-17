@@ -88,6 +88,7 @@ struct cbb_softc {
 	struct proc	*event_thread;
 	void (*chipinit)(struct cbb_softc *);
 	int	powerintr;
+	struct root_hold_token *sc_root_token;
 };
 
 /* result of detect_card */

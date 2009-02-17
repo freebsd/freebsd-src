@@ -500,6 +500,15 @@ cbb_event_thread(void *arg)
 		mtx_unlock(&Giant);
 
 		/*
+		 * First time through we need to tell mountroot that we're
+		 * done.
+		 */
+		if (sc->sc_root_token) {
+			root_mount_rel(sc->sc_root_token);
+			sc->sc_root_token = NULL;
+		}
+
+		/*
 		 * Wait until it has been 250ms since the last time we
 		 * get an interrupt.  We handle the rest of the interrupt
 		 * at the top of the loop.  Although we clear the bit in the
