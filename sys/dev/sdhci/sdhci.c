@@ -1187,6 +1187,12 @@ sdhci_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 	slot->flags = 0;
 	sdhci_start(slot);
 	SDHCI_UNLOCK(slot);
+	if (dumping) {
+		while (slot->req != NULL) {
+			sdhci_intr(slot->sc);
+			DELAY(10);
+		}
+	}
 	return (0);
 }
 
