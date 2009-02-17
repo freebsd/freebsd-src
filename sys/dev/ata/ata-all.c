@@ -358,7 +358,6 @@ ata_interrupt(void *data)
 	}
     } while (0);
     mtx_unlock(&ch->state_mtx);
-    return;
 }
 
 /*
