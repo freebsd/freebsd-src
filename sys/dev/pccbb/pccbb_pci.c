@@ -439,6 +439,7 @@ cbb_pci_attach(device_t brdev)
 		device_printf(brdev, "unable to create event thread.\n");
 		panic("cbb_create_event_thread");
 	}
+	sc->sc_root_token = root_mount_hold(device_get_nameunit(sc->dev));
 	return (0);
 err:
 	if (sc->irq_res)
