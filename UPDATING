@@ -28,7 +28,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	add
 		Option "AllowEmptyInput" "off"
 	to your ServerLayout section.  This will cause X to use the configured
-	kbd and mouse sections from your xorg.conf
+	kbd and mouse sections from your xorg.conf.
 
 20090215:
 	The GENERIC kernels for all architectures now default to the new USB2
@@ -36,7 +36,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	problem arises please report it and optionally revert to the old USB
 	stack. If you are loading USB kernel modules or have a custom kernel
 	that includes GENERIC then ensure that usb names are also changed over,
-	eg uftdi -> usb2_serial_ftdi
+	eg uftdi -> usb2_serial_ftdi.
 
 20090203:
 	The ichsmb(4) driver has been changed to require SMBus slave
