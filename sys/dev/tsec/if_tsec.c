@@ -1363,6 +1363,16 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 
 	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	/*
+	 * Make sure TSEC receiver is not halted.
+	 *
+	 * Various conditions can stop the TSEC receiver, but not all are
+	 * signaled and handled by error interrupt, so make sure the receiver
+	 * is running. Writing to TSEC_REG_RSTAT restarts the receiver when
+	 * halted, and is harmless if already running.
+	 */
+	TSEC_WRITE(sc, TSEC_REG_RSTAT, TSEC_RSTAT_QHLT);
 }
 
 void
@@ -1507,9 +1517,6 @@ tsec_error_intr_locked(struct tsec_softc *sc, int count)
 
 		/* Get data from RX buffers */
 		tsec_receive_intr_locked(sc, count);
-
-		/* Make receiver again active */
-		TSEC_WRITE(sc, TSEC_REG_RSTAT, TSEC_RSTAT_QHLT);
 	}
 
 	if (ifp->if_flags & IFF_DEBUG)
