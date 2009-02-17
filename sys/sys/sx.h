@@ -34,9 +34,10 @@
 
 #include <sys/_lock.h>
 #include <sys/_sx.h>
-#include <sys/lock_profile.h>
 
 #ifdef	_KERNEL
+#include <sys/pcpu.h>
+#include <sys/lock_profile.h>
 #include <machine/atomic.h>
 #endif
 
