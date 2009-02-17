@@ -74,13 +74,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	the base system (it was a port).
 
 20081216:
-	The afdata and ifnet locks have been changed from mutexes to 
+	The afdata and ifnet locks have been changed from mutexes to
 	rwlocks, network modules will need to be re-compiled.
 
 20081214:
 	__FreeBSD_version 800059 incorporates the new arp-v2 rewrite.
 	RTF_CLONING, RTF_LLINFO and RTF_WASCLONED flags are eliminated.
-	The new code reduced struct rtentry{} by 16 bytes on 32-bit 
+	The new code reduced struct rtentry{} by 16 bytes on 32-bit
 	architecture and 40 bytes on 64-bit architecture. The userland
 	applications "arp" and "ndp" have been updated accordingly.
 	The output from "netstat -r" shows only routing entries and
