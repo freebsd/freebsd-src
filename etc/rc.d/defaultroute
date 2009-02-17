@@ -35,16 +35,16 @@ defaultroute_start()
 	fi
 
 	# Wait for a default route
-	delay=${if_up_delay}
+	delay=${defaultroute_delay}
 	while [ ${delay} -gt 0 ]; do
 		defif=`get_default_if -inet`
 		if [ -n "${defif}" ]; then
-			if [ ${delay} -ne ${if_up_delay} ]; then
+			if [ ${delay} -ne ${defaultroute_delay} ]; then
 				echo -n "($defif)"
 			fi
 			break
 		fi
-		if [ ${delay} -eq ${if_up_delay} ]; then
+		if [ ${delay} -eq ${defaultroute_delay} ]; then
 			echo -n "Waiting ${delay}s for the default route interface: "
 		else
 			echo -n .
