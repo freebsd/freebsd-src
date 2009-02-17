@@ -134,15 +134,23 @@ tsec_ocp_probe(device_t dev)
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 
-	/* Check that we actually have a TSEC at this address */
-	id = TSEC_READ(sc, TSEC_REG_ID) | TSEC_READ(sc, TSEC_REG_ID2);
+	/* Check if we are eTSEC (enhanced TSEC) */
+	id = TSEC_READ(sc, TSEC_REG_ID);
+	sc->is_etsec = ((id >> 16) == TSEC_ETSEC_ID) ? 1 : 0;
+	id |= TSEC_READ(sc, TSEC_REG_ID2);
 
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rrid, sc->sc_rres);
 
-	if (id == 0)
+	if (id == 0) {
+		device_printf(dev, "could not identify TSEC type\n");
 		return (ENXIO);
+	}
 
-	device_set_desc(dev, "Three-Speed Ethernet Controller");
+	if (sc->is_etsec)
+		device_set_desc(dev, "Enhanced Three-Speed Ethernet Controller");
+	else
+		device_set_desc(dev, "Three-Speed Ethernet Controller");
+
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -166,6 +174,8 @@ tsec_ocp_attach(device_t dev)
 	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "TSEC TX lock",
 	    MTX_DEF);
 	mtx_init(&sc->receive_lock, device_get_nameunit(dev), "TSEC RX lock",
+	    MTX_DEF);
+	mtx_init(&sc->ic_lock, device_get_nameunit(dev), "TSEC IC lock",
 	    MTX_DEF);
 	
 	/* Allocate IO memory for TSEC registers */
@@ -300,6 +310,7 @@ tsec_ocp_detach(device_t dev)
 	/* Destroy locks */
 	mtx_destroy(&sc->receive_lock);
 	mtx_destroy(&sc->transmit_lock);
+	mtx_destroy(&sc->ic_lock);
 	return (0);
 }
 
