@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_serverworks_chipinit(device_t dev);
-static int ata_serverworks_allocate(device_t dev);
+static int ata_serverworks_ch_attach(device_t dev);
 static void ata_serverworks_tf_read(struct ata_request *request);
 static void ata_serverworks_tf_write(struct ata_request *request);
 static void ata_serverworks_setmode(device_t dev, int mode);
@@ -113,7 +113,7 @@ ata_serverworks_chipinit(device_t dev)
 	    return ENXIO;
 
 	ctlr->channels = ctlr->chip->cfg2;
-	ctlr->allocate = ata_serverworks_allocate;
+	ctlr->ch_attach = ata_serverworks_ch_attach;
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     }
@@ -144,7 +144,7 @@ ata_serverworks_chipinit(device_t dev)
 }
 
 static int
-ata_serverworks_allocate(device_t dev)
+ata_serverworks_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);

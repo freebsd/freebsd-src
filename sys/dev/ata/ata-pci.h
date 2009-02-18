@@ -55,10 +55,10 @@ struct ata_pci_controller {
     int                 (*chipinit)(device_t);
     int                 (*suspend)(device_t);
     int                 (*resume)(device_t);
-    int                 (*allocate)(device_t);
+    int                 (*ch_attach)(device_t);
+    int                 (*ch_detach)(device_t);
     int                 (*locking)(device_t, int);
     void                (*reset)(device_t);
-    void                (*dmainit)(device_t);
     void                (*setmode)(device_t, int);
     struct {
     void                (*function)(void *);
@@ -409,7 +409,7 @@ struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type,
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
-int ata_pci_allocate(device_t dev);
+int ata_pci_ch_attach(device_t dev);
 int ata_pci_status(device_t dev);
 void ata_pci_hw(device_t dev);
 void ata_pci_dmainit(device_t dev);
@@ -434,7 +434,7 @@ void ata_pm_identify(device_t dev);
 
 /* global prototypes from chipsets/ata-*.c */
 int ata_ahci_chipinit(device_t);
-int ata_ahci_allocate(device_t dev);
+int ata_ahci_ch_attach(device_t dev);
 void ata_ahci_reset(device_t dev);
 void ata_ahci_dmainit(device_t dev);
 int ata_marvell_edma_chipinit(device_t);

@@ -53,12 +53,12 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_intel_chipinit(device_t dev);
-static int ata_intel_allocate(device_t dev);
+static int ata_intel_ch_attach(device_t dev);
 static void ata_intel_reset(device_t dev);
 static void ata_intel_old_setmode(device_t dev, int mode);
 static void ata_intel_new_setmode(device_t dev, int mode);
 static void ata_intel_sata_setmode(device_t dev, int mode);
-static int ata_intel_31244_allocate(device_t dev);
+static int ata_intel_31244_ch_attach(device_t dev);
 static int ata_intel_31244_status(device_t dev);
 static void ata_intel_31244_tf_write(struct ata_request *request);
 static void ata_intel_31244_reset(device_t dev);
@@ -171,7 +171,7 @@ ata_intel_chipinit(device_t dev)
 							RF_ACTIVE)))
 		return ENXIO;
 	    ctlr->channels = 4;
-	    ctlr->allocate = ata_intel_31244_allocate;
+	    ctlr->ch_attach = ata_intel_31244_ch_attach;
 	    ctlr->reset = ata_intel_31244_reset;
 	}
 	ctlr->setmode = ata_sata_setmode;
@@ -180,7 +180,7 @@ ata_intel_chipinit(device_t dev)
     /* non SATA intel chips goes here */
     else if (ctlr->chip->max_dma < ATA_SA150) {
 	ctlr->channels = ctlr->chip->cfg2;
-	ctlr->allocate = ata_intel_allocate;
+	ctlr->ch_attach = ata_intel_ch_attach;
 	ctlr->setmode = ata_intel_new_setmode;
     }
 
@@ -189,7 +189,7 @@ ata_intel_chipinit(device_t dev)
 	/* force all ports active "the legacy way" */
 	pci_write_config(dev, 0x92, pci_read_config(dev, 0x92, 2) | 0x0f, 2);
 
-	ctlr->allocate = ata_intel_allocate;
+	ctlr->ch_attach = ata_intel_ch_attach;
 	ctlr->reset = ata_intel_reset;
 
 	/* 
@@ -218,13 +218,13 @@ ata_intel_chipinit(device_t dev)
 }
 
 static int
-ata_intel_allocate(device_t dev)
+ata_intel_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     /* if r_res2 is valid it points to SATA interface registers */
@@ -257,7 +257,7 @@ ata_intel_reset(device_t dev)
 	    mask = 0x0003;
 	else {
 	    mask = (0x0001 << ch->unit);
-	    /* XXX SOS should be in intel_allocate if we grow it */
+	    /* XXX SOS should be in intel_ch_attach if we grow it */
 	    ch->flags |= ATA_NO_SLAVE;
 	}
     }
@@ -396,7 +396,7 @@ ata_intel_sata_setmode(device_t dev, int mode)
 }
 
 static int
-ata_intel_31244_allocate(device_t dev)
+ata_intel_31244_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);

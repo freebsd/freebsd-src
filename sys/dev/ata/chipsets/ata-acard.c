@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_acard_chipinit(device_t dev);
-static int ata_acard_allocate(device_t dev);
+static int ata_acard_ch_attach(device_t dev);
 static int ata_acard_status(device_t dev);
 static void ata_acard_850_setmode(device_t dev, int mode);
 static void ata_acard_86X_setmode(device_t dev, int mode);
@@ -97,7 +97,7 @@ ata_acard_chipinit(device_t dev)
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 
-    ctlr->allocate = ata_acard_allocate;
+    ctlr->ch_attach = ata_acard_ch_attach;
     if (ctlr->chip->cfg1 == ATP_OLD) {
 	ctlr->setmode = ata_acard_850_setmode;
 	ctlr->locking = ata_serialize;
@@ -108,12 +108,12 @@ ata_acard_chipinit(device_t dev)
 }
 
 static int
-ata_acard_allocate(device_t dev)
+ata_acard_ch_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     ch->hw.status = ata_acard_status;
