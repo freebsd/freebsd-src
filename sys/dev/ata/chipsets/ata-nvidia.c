@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_nvidia_chipinit(device_t dev);
-static int ata_nvidia_allocate(device_t dev);
+static int ata_nvidia_ch_attach(device_t dev);
 static int ata_nvidia_status(device_t dev);
 static void ata_nvidia_reset(device_t dev);
 static void ata_nvidia_setmode(device_t dev, int mode);
@@ -130,7 +130,7 @@ ata_nvidia_chipinit(device_t dev)
 						   &ctlr->r_rid2, RF_ACTIVE))) {
 	    int offset = ctlr->chip->cfg1 & NV4 ? 0x0440 : 0x0010;
 
-	    ctlr->allocate = ata_nvidia_allocate;
+	    ctlr->ch_attach = ata_nvidia_ch_attach;
 	    ctlr->reset = ata_nvidia_reset;
 
 	    /* enable control access */
@@ -171,13 +171,13 @@ ata_nvidia_chipinit(device_t dev)
 }
 
 static int
-ata_nvidia_allocate(device_t dev)
+ata_nvidia_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;

@@ -53,16 +53,16 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_promise_chipinit(device_t dev);
-static int ata_promise_allocate(device_t dev);
+static int ata_promise_ch_attach(device_t dev);
 static int ata_promise_status(device_t dev);
 static int ata_promise_dmastart(struct ata_request *request);
 static int ata_promise_dmastop(struct ata_request *request);
 static void ata_promise_dmareset(device_t dev);
 static void ata_promise_dmainit(device_t dev);
 static void ata_promise_setmode(device_t dev, int mode);
-static int ata_promise_tx2_allocate(device_t dev);
+static int ata_promise_tx2_ch_attach(device_t dev);
 static int ata_promise_tx2_status(device_t dev);
-static int ata_promise_mio_allocate(device_t dev);
+static int ata_promise_mio_ch_attach(device_t dev);
 static void ata_promise_mio_intr(void *data);
 static int ata_promise_mio_status(device_t dev);
 static int ata_promise_mio_command(struct ata_request *request);
@@ -226,19 +226,17 @@ ata_promise_chipinit(device_t dev)
     case PR_NEW:
 	/* setup clocks */
 	ATA_OUTB(ctlr->r_res1, 0x11, ATA_INB(ctlr->r_res1, 0x11) | 0x0a);
-
-	ctlr->dmainit = ata_promise_dmainit;
 	/* FALLTHROUGH */
 
     case PR_OLD:
 	/* enable burst mode */
 	ATA_OUTB(ctlr->r_res1, 0x1f, ATA_INB(ctlr->r_res1, 0x1f) | 0x01);
-	ctlr->allocate = ata_promise_allocate;
+	ctlr->ch_attach = ata_promise_ch_attach;
 	ctlr->setmode = ata_promise_setmode;
 	return 0;
 
     case PR_TX:
-	ctlr->allocate = ata_promise_tx2_allocate;
+	ctlr->ch_attach = ata_promise_tx2_ch_attach;
 	ctlr->setmode = ata_promise_setmode;
 	return 0;
 
@@ -284,9 +282,8 @@ ata_promise_chipinit(device_t dev)
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;
 	    device_set_ivars(dev, hpkt);
-	    ctlr->allocate = ata_promise_mio_allocate;
+	    ctlr->ch_attach = ata_promise_mio_ch_attach;
 	    ctlr->reset = ata_promise_mio_reset;
-	    ctlr->dmainit = ata_promise_mio_dmainit;
 	    ctlr->setmode = ata_promise_setmode;
 	    ctlr->channels = 4;
 	    return 0;
@@ -337,9 +334,8 @@ sataii:
 	if ((ctlr->chip->cfg2 == PR_SATA2) || (ctlr->chip->cfg2 == PR_CMBO2))
 	    ATA_OUTL(ctlr->r_res2, 0x44, ATA_INL(ctlr->r_res2, 0x44) | 0x2000);
 
-	ctlr->allocate = ata_promise_mio_allocate;
+	ctlr->ch_attach = ata_promise_mio_ch_attach;
 	ctlr->reset = ata_promise_mio_reset;
-	ctlr->dmainit = ata_promise_mio_dmainit;
 	ctlr->setmode = ata_promise_mio_setmode;
 
 	return 0;
@@ -354,11 +350,15 @@ failnfree:
 }
 
 static int
-ata_promise_allocate(device_t dev)
+ata_promise_ch_attach(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ata_pci_allocate(dev))
+    if (ctlr->chip->cfg1 == PR_NEW)
+	ata_promise_dmainit(dev);
+
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     ch->hw.status = ata_promise_status;
@@ -521,11 +521,11 @@ ata_promise_setmode(device_t dev, int mode)
 }
 
 static int
-ata_promise_tx2_allocate(device_t dev)
+ata_promise_tx2_ch_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     ch->hw.status = ata_promise_tx2_status;
@@ -545,13 +545,15 @@ ata_promise_tx2_status(device_t dev)
 }
 
 static int
-ata_promise_mio_allocate(device_t dev)
+ata_promise_mio_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = (ctlr->chip->cfg2 & PR_SX4X) ? 0x000c0000 : 0;
     int i;
- 
+
+    ata_promise_mio_dmainit(dev);
+
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = offset + 0x0200 + (i << 2) + (ch->unit << 7); 

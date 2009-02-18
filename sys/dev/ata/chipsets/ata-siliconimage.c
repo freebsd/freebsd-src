@@ -52,14 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
-static int ata_cmd_allocate(device_t dev);
+static int ata_cmd_ch_attach(device_t dev);
 static int ata_cmd_status(device_t dev);
 static void ata_cmd_setmode(device_t dev, int mode);
-static int ata_sii_allocate(device_t dev);
+static int ata_sii_ch_attach(device_t dev);
 static int ata_sii_status(device_t dev);
 static void ata_sii_reset(device_t dev);
 static void ata_sii_setmode(device_t dev, int mode);
-static int ata_siiprb_allocate(device_t dev);
+static int ata_siiprb_ch_attach(device_t dev);
 static int ata_siiprb_status(device_t dev);
 static int ata_siiprb_begin_transaction(struct ata_request *request);
 static int ata_siiprb_end_transaction(struct ata_request *request);
@@ -138,9 +138,8 @@ ata_sii_chipinit(device_t dev)
 	    bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,ctlr->r_res1);
 	    return ENXIO;
 	}
-	ctlr->allocate = ata_siiprb_allocate;
+	ctlr->ch_attach = ata_siiprb_ch_attach;
 	ctlr->reset = ata_siiprb_reset;
-	ctlr->dmainit = ata_siiprb_dmainit;
 	ctlr->setmode = ata_sata_setmode;
 	ctlr->channels = (ctlr->chip->cfg2 == SII_4CH) ? 4 : 2;
 
@@ -187,7 +186,7 @@ ata_sii_chipinit(device_t dev)
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
 	if (ctlr->r_res2)
-	    ctlr->allocate = ata_sii_allocate;
+	    ctlr->ch_attach = ata_sii_ch_attach;
 
 	if (ctlr->chip->max_dma >= ATA_SA150) {
 	    ctlr->reset = ata_sii_reset;
@@ -206,7 +205,7 @@ ata_sii_chipinit(device_t dev)
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x71, 0x01, 1);
 
-	ctlr->allocate = ata_cmd_allocate;
+	ctlr->ch_attach = ata_cmd_ch_attach;
 	ctlr->setmode = ata_cmd_setmode;
 	break;
     }
@@ -214,13 +213,13 @@ ata_sii_chipinit(device_t dev)
 }
 
 static int
-ata_cmd_allocate(device_t dev)
+ata_cmd_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     if (ctlr->chip->cfg2 & SII_INTR)
@@ -300,7 +299,7 @@ ata_cmd_setmode(device_t dev, int mode)
 }
 
 static int
-ata_sii_allocate(device_t dev)
+ata_sii_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -467,11 +466,13 @@ struct ata_siiprb_command {
 } __packed;
 
 static int
-ata_siiprb_allocate(device_t dev)
+ata_siiprb_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ch->unit * 0x2000;
+
+    ata_siiprb_dmainit(dev);
 
     /* set the SATA resources */
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;

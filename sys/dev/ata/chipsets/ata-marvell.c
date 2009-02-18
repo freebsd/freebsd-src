@@ -53,9 +53,9 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_marvell_pata_chipinit(device_t dev);
-static int ata_marvell_pata_allocate(device_t dev);
+static int ata_marvell_pata_ch_attach(device_t dev);
 static void ata_marvell_pata_setmode(device_t dev, int mode);
-static int ata_marvell_edma_allocate(device_t dev);
+static int ata_marvell_edma_ch_attach(device_t dev);
 static int ata_marvell_edma_status(device_t dev);
 static int ata_marvell_edma_begin_transaction(struct ata_request *request);
 static int ata_marvell_edma_end_transaction(struct ata_request *request);
@@ -135,19 +135,19 @@ ata_marvell_pata_chipinit(device_t dev)
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 
-    ctlr->allocate = ata_marvell_pata_allocate;
+    ctlr->ch_attach = ata_marvell_pata_ch_attach;
     ctlr->setmode = ata_marvell_pata_setmode;
     ctlr->channels = ctlr->chip->cfg1;
     return 0;
 }
 
 static int
-ata_marvell_pata_allocate(device_t dev)
+ata_marvell_pata_ch_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
  
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
  
     /* dont use 32 bit PIO transfers */
@@ -189,9 +189,8 @@ ata_marvell_edma_chipinit(device_t dev)
     /* mask all PCI interrupts */
     ATA_OUTL(ctlr->r_res1, 0x01d5c, 0x00000000);
 
-    ctlr->allocate = ata_marvell_edma_allocate;
+    ctlr->ch_attach = ata_marvell_edma_ch_attach;
     ctlr->reset = ata_marvell_edma_reset;
-    ctlr->dmainit = ata_marvell_edma_dmainit;
     ctlr->setmode = ata_sata_setmode;
     ctlr->channels = ctlr->chip->cfg1;
 
@@ -217,12 +216,14 @@ ata_marvell_edma_chipinit(device_t dev)
 }
 
 static int
-ata_marvell_edma_allocate(device_t dev)
+ata_marvell_edma_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     u_int64_t work = ch->dma.work_bus;
     int i;
+
+    ata_marvell_edma_dmainit(dev);
 
     /* clear work area */
     bzero(ch->dma.work, 1024+256);
