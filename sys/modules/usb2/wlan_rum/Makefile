@@ -32,7 +32,7 @@ S=${.CURDIR}/../../..
 KMOD=usb2_wlan_rum
 SRCS= 
 SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h
-SRCS+= opt_usb.h miibus_if.h opt_inet.h opt_bus.h
+SRCS+= opt_usb.h miibus_if.h opt_inet.h opt_bus.h usbdevs.h
 SRCS+= if_rum2.c
 
 .include <bsd.kmod.mk>
