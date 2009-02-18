@@ -1013,7 +1013,7 @@ handle_rtmsg(struct rt_msghdr *rtm)
 		break;
 
 	  case RTM_IFINFO:
-		ifm = (struct if_msghdr *)rtm;
+		ifm = (struct if_msghdr *)(void *)rtm;
 		mib_extract_addrs(ifm->ifm_addrs, (u_char *)(ifm + 1), addrs);
 		if ((ifp = mib_find_if_sys(ifm->ifm_index)) == NULL)
 			break;
