@@ -32,7 +32,7 @@ S=${.CURDIR}/../../..
 KMOD=usb2_misc_dbp
 SRCS= 
 SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h
-SRCS+= opt_usb.h opt_bus.h opt_netgraph.h
+SRCS+= opt_usb.h opt_bus.h opt_netgraph.h usbdevs.h
 SRCS+= udbp2.c
 
 .include <bsd.kmod.mk>

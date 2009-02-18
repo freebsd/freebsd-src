@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
  * http://www.asix.com.tw/FrootAttach/datasheet/AX88772_datasheet_Rev10.pdf
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>

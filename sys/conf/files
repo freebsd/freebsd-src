@@ -80,12 +80,12 @@ teken_state.h		optional sc					   \
 	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
-usbdevs.h			optional usb				   \
+usbdevs.h			optional usb | usb2_core		   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"usbdevs.h"
-usbdevs_data.h			optional usb				   \
+usbdevs_data.h			optional usb | usb2_core		   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
 	no-obj no-implicit-rule before-depend				   \
