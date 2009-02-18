@@ -29,7 +29,7 @@
 #include <dev/usb2/include/usb2_error.h>
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_ioctl.h>
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR usb2_debug
 
@@ -1869,8 +1869,8 @@ struct usb_knowndev {
 
 #define	USB_KNOWNDEV_NOPROD	0x01	/* match on vendor only */
 
-#include <dev/usb2/include/usb2_devid.h>
-#include <dev/usb2/include/usb2_devtable.h>
+#include "usbdevs.h"
+#include "usbdevs_data.h"
 #endif					/* USB_VERBOSE */
 
 /*------------------------------------------------------------------------*

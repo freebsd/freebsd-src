@@ -32,6 +32,7 @@ S=     ${.CURDIR}/../../..
 KMOD=  usb2_core
 SRCS= 
 SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h opt_usb.h opt_bus.h
+SRCS+= usbdevs.h usbdevs_data.h
 SRCS+= usb2_if.c
 SRCS+= usb2_busdma.c
 SRCS+= usb2_compat_linux.c

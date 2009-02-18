@@ -29,7 +29,7 @@
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_ioctl.h>
 #include <dev/usb2/include/usb2_mfunc.h>
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR usb2_debug
 
