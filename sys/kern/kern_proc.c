@@ -115,6 +115,7 @@ MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
 static void doenterpgrp(struct proc *, struct pgrp *);
 static void orphanpg(struct pgrp *pg);
+static void fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp,
     int preferthread);
@@ -670,6 +671,30 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 #endif /* DDB */
 
 /*
+ * Calculate the kinfo_proc members which contain process-wide
+ * informations.
+ * Must be called with the target process locked.
+ */
+static void
+fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
+{
+	struct thread *td;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	kp->ki_estcpu = 0;
+	kp->ki_pctcpu = 0;
+	kp->ki_runtime = 0;
+	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
+		kp->ki_pctcpu += sched_pctcpu(td);
+		kp->ki_runtime += cputick2usec(td->td_runtime);
+		kp->ki_estcpu += td->td_estcpu;
+		thread_unlock(td);
+	}
+}
+
+/*
  * Clear kinfo_proc and fill in any information that is common
  * to all threads in the process.
  * Must be called with the target process locked.
@@ -869,14 +894,15 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_numthreads = p->p_numthreads;
 	kp->ki_pcb = td->td_pcb;
 	kp->ki_kstack = (void *)td->td_kstack;
-	kp->ki_pctcpu = sched_pctcpu(td);
-	kp->ki_estcpu = td->td_estcpu;
 	kp->ki_slptime = (ticks - td->td_slptick) / hz;
 	kp->ki_pri.pri_class = td->td_pri_class;
 	kp->ki_pri.pri_user = td->td_user_pri;
 
-	if (preferthread)
+	if (preferthread) {
 		kp->ki_runtime = cputick2usec(td->td_runtime);
+		kp->ki_pctcpu = sched_pctcpu(td);
+		kp->ki_estcpu = td->td_estcpu;
+	}
 
 	/* We can't get this anymore but ps etc never used it anyway. */
 	kp->ki_rqindex = 0;
@@ -894,9 +920,11 @@ void
 fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 {
 
+	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
+
 	fill_kinfo_proc_only(p, kp);
-	if (FIRST_THREAD_IN_PROC(p) != NULL)
-		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp, 0);
+	fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp, 0);
+	fill_kinfo_aggregate(p, kp);
 }
 
 struct pstats *
@@ -960,26 +988,20 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 	pid_t pid = p->p_pid;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
 
-	fill_kinfo_proc_only(p, &kinfo_proc);
-	if (flags & KERN_PROC_NOTHREADS) {
-		if (FIRST_THREAD_IN_PROC(p) != NULL)
-			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p),
-			    &kinfo_proc, 0);
+	fill_kinfo_proc(p, &kinfo_proc);
+	if (flags & KERN_PROC_NOTHREADS)
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-				   sizeof(kinfo_proc));
-	} else {
-		if (FIRST_THREAD_IN_PROC(p) != NULL)
-			FOREACH_THREAD_IN_PROC(p, td) {
-				fill_kinfo_thread(td, &kinfo_proc, 1);
-				error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-						   sizeof(kinfo_proc));
-				if (error)
-					break;
-			}
-		else
+		    sizeof(kinfo_proc));
+	else {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			fill_kinfo_thread(td, &kinfo_proc, 1);
 			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-					   sizeof(kinfo_proc));
+			    sizeof(kinfo_proc));
+			if (error)
+				break;
+		}
 	}
 	PROC_UNLOCK(p);
 	if (error)
