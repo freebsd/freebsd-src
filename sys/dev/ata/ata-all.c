@@ -186,6 +186,11 @@ ata_detach(device_t dev)
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
     ch->r_irq = NULL;
+
+    /* free DMA resources if DMA HW present*/
+    if (ch->dma.free)
+	ch->dma.free(dev);
+
     mtx_destroy(&ch->state_mtx);
     mtx_destroy(&ch->queue_mtx);
     return 0;
