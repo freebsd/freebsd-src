@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_sis_chipinit(device_t dev);
-static int ata_sis_allocate(device_t dev);
+static int ata_sis_ch_attach(device_t dev);
 static void ata_sis_reset(device_t dev);
 static void ata_sis_setmode(device_t dev, int mode);
 
@@ -186,7 +186,7 @@ ata_sis_chipinit(device_t dev)
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
-	    ctlr->allocate = ata_sis_allocate;
+	    ctlr->ch_attach = ata_sis_ch_attach;
 	    ctlr->reset = ata_sis_reset;
 
 	    /* enable PCI interrupt */
@@ -203,14 +203,14 @@ ata_sis_chipinit(device_t dev)
 }
 
 static int
-ata_sis_allocate(device_t dev)
+ata_sis_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ch->unit << ((ctlr->chip->chipid == ATA_SIS182) ? 5 : 6);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;

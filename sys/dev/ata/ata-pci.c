@@ -99,8 +99,7 @@ ata_pci_attach(device_t dev)
     else
 	ctlr->channels = 1;
     ctlr->ichannels = -1;
-    ctlr->allocate = ata_pci_allocate;
-    ctlr->dmainit = ata_pci_dmainit;
+    ctlr->ch_attach = ata_pci_ch_attach;
     ctlr->dev = dev;
 
     /* if needed try to enable busmastering */
@@ -344,7 +343,7 @@ ata_generic_chipinit(device_t dev)
 }
 
 int
-ata_pci_allocate(device_t dev)
+ata_pci_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -360,6 +359,8 @@ ata_pci_allocate(device_t dev)
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	return ENXIO;
     }
+
+    ata_pci_dmainit(dev);
 
     for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
 	ch->r_io[i].res = io;
@@ -532,10 +533,7 @@ ata_pcichannel_attach(device_t dev)
 
     ch->unit = (intptr_t)device_get_ivars(dev);
 
-    if (ctlr->dmainit)
-	ctlr->dmainit(dev);
-
-    if ((error = ctlr->allocate(dev)))
+    if ((error = ctlr->ch_attach(dev)))
 	return error;
 
     return ata_attach(dev);
@@ -544,14 +542,16 @@ ata_pcichannel_attach(device_t dev)
 static int
 ata_pcichannel_detach(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     int error;
 
     if ((error = ata_detach(dev)))
 	return error;
 
-    /* XXX SOS free resources for io and ctlio ?? */
+    if (ctlr->ch_detach)
+	return (ctlr->ch_detach(dev));
 
-    return 0;
+    return (0);
 }
 
 static int
