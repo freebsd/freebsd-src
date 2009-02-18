@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
  * P-in m@ater and various data communication card adapters.
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>

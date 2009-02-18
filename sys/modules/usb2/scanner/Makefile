@@ -32,7 +32,7 @@ S=${.CURDIR}/../../..
 KMOD=usb2_scanner
 SRCS= 
 SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h
-SRCS+= opt_usb.h opt_bus.h 
+SRCS+= opt_usb.h opt_bus.h  usbdevs.h
 SRCS+= uscanner2.c
 
 .include <bsd.kmod.mk>

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
  * 2000/2/24  first version.
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>

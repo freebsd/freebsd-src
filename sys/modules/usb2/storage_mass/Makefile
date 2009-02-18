@@ -32,7 +32,7 @@ S=${.CURDIR}/../../..
 KMOD=usb2_storage_mass
 SRCS= 
 SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h
-SRCS+= opt_usb.h opt_bus.h opt_cam.h opt_ata.h ata_if.h
+SRCS+= opt_usb.h opt_bus.h opt_cam.h opt_ata.h ata_if.h usbdevs.h
 SRCS+= umass2.c
 
 .include <bsd.kmod.mk>
