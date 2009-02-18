@@ -59,6 +59,7 @@ andre [label="Andre Oppermann\nandre@FreeBSD.org\n2003/11/12"]
 anholt [label="Eric Anholt\nanholt@FreeBSD.org\n2002/04/22"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
+avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
 benjsc [label="Benjamin Close\nbenjsc@FreeBSD.org\n2007/02/09"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2002/01/29"]
@@ -300,6 +301,7 @@ jb -> sson
 jdp -> fjoe
 
 jhb -> arr
+jhb -> avg
 jhb -> jeff
 jhb -> kbyanc
 jhb -> rnoland
@@ -368,6 +370,8 @@ philip -> jls
 philip -> matteo
 
 pjd -> lulf
+
+rpaulo -> avg
 
 ru -> ceri
 ru -> cjc
