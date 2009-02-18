@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include "xenbus_if.h"
 
-#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP | CSUM_TSO)
 
 #define GRANT_INVALID_REF	0
 
@@ -968,6 +968,7 @@ xn_txeof(struct netfront_info *np)
 	RING_IDX i, prod;
 	unsigned short id;
 	struct ifnet *ifp;
+	netif_tx_response_t *txr;
 	struct mbuf *m;
 	
 	XN_TX_LOCK_ASSERT(np);
@@ -983,7 +984,11 @@ xn_txeof(struct netfront_info *np)
 		rmb(); /* Ensure we see responses up to 'rp'. */
 		
 		for (i = np->tx.rsp_cons; i != prod; i++) {
-			id = RING_GET_RESPONSE(&np->tx, i)->id;
+			txr = RING_GET_RESPONSE(&np->tx, i);
+			if (txr->status == NETIF_RSP_NULL)
+				continue;
+
+			id = txr->id;
 			m = np->xn_cdata.xn_tx_chain[id]; 
 			
 			/*
@@ -1398,8 +1403,9 @@ xn_start_locked(struct ifnet *ifp)
 					else
 						tx->flags |= NETTXF_extra_info;
 
-					gso->u.gso.size = m->m_pkthdr.len;
-					gso->u.gso.type = XEN_NETIF_GSO_TYPE_TCPV4;
+					gso->u.gso.size = m->m_pkthdr.tso_segsz;
+					gso->u.gso.type =
+						XEN_NETIF_GSO_TYPE_TCPV4;
 					gso->u.gso.pad = 0;
 					gso->u.gso.features = 0;
 
@@ -1781,7 +1787,7 @@ create_netdev(device_t dev)
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
 #if __FreeBSD_version >= 700000
-	//ifp->if_capabilities |= IFCAP_TSO4;
+	ifp->if_capabilities |= IFCAP_TSO4;
 #endif
     	ifp->if_capenable = ifp->if_capabilities;
 	
