@@ -218,6 +218,7 @@ struct sbp_dev{
 	char vendor[32];
 	char product[32];
 	char revision[10];
+	char bustgtlun[32];
 };
 
 struct sbp_target {
@@ -364,36 +365,35 @@ END_DEBUG
 	return (0);
 }
 
+/*
+ * Display device characteristics on the console
+ */
 static void
-sbp_show_sdev_info(struct sbp_dev *sdev, int new)
+sbp_show_sdev_info(struct sbp_dev *sdev)
 {
 	struct fw_device *fwdev;
 
-	printf("%s:%d:%d ",
-		device_get_nameunit(sdev->target->sbp->fd.dev),
-		sdev->target->target_id,
-		sdev->lun_id
-	);
-	if (new == 2) {
-		return;
-	}
 	fwdev = sdev->target->fwdev;
-	printf("ordered:%d type:%d EUI:%08x%08x node:%d "
-		"speed:%d maxrec:%d",
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s: %s: ordered:%d type:%d EUI:%08x%08x node:%d "
+		"speed:%d maxrec:%d\n",
+		__func__,
+		sdev->bustgtlun,
 		(sdev->type & 0x40) >> 6,
 		(sdev->type & 0x1f),
 		fwdev->eui.hi,
 		fwdev->eui.lo,
 		fwdev->dst,
 		fwdev->speed,
-		fwdev->maxrec
-	);
-	if (new)
-		printf(" new!\n");
-	else
-		printf("\n");
-	sbp_show_sdev_info(sdev, 2);
-	printf("'%s' '%s' '%s'\n", sdev->vendor, sdev->product, sdev->revision);
+		fwdev->maxrec);
+
+	device_printf(sdev->target->sbp->fd.dev,
+			"%s: %s '%s' '%s' '%s'\n",
+			__func__,
+			sdev->bustgtlun,
+			sdev->vendor,
+			sdev->product,
+			sdev->revision);
 }
 
 static struct {
@@ -549,6 +549,10 @@ END_DEBUG
 			CALLOUT_INIT(&sdev->login_callout);
 			sdev->status = SBP_DEV_RESET;
 			new = 1;
+			snprintf(sdev->bustgtlun, 32, "%s:%d:%d",
+					device_get_nameunit(sdev->target->sbp->fd.dev),
+					sdev->target->target_id,
+					sdev->lun_id);
 		}
 		sdev->flags |= VALID_LUN;
 		sdev->type = (reg->val & 0xff0000) >> 16;
@@ -717,20 +721,18 @@ static void
 sbp_probe_target(void *arg)
 {
 	struct sbp_target *target = (struct sbp_target *)arg;
-	struct sbp_softc *sbp;
+	struct sbp_softc *sbp = target->sbp;
 	struct sbp_dev *sdev;
-	struct firewire_comm *fc;
 	int i, alive;
 
 	alive = SBP_FWDEV_ALIVE(target->fwdev);
 SBP_DEBUG(1)
-	printf("sbp_probe_target %d\n", target->target_id);
-	if (!alive)
-		printf("not alive\n");
+	device_printf(sbp->fd.dev, "%s %d%salive\n",
+		 __func__, target->target_id,
+		(!alive) ? " not " : "");
 END_DEBUG
 
 	sbp = target->sbp;
-	fc = target->sbp->fd.fc;
 	sbp_alloc_lun(target);
 
 	/* XXX untimeout mgm_ocb and dequeue */
@@ -746,10 +748,7 @@ END_DEBUG
 				SBP_UNLOCK(sbp);
 			}
 			sbp_probe_lun(sdev);
-SBP_DEBUG(0)
-			sbp_show_sdev_info(sdev, 
-					(sdev->status == SBP_DEV_RESET));
-END_DEBUG
+			sbp_show_sdev_info(sdev);
 
 			sbp_abort_all_ocbs(sdev, CAM_SCSI_BUS_RESET);
 			switch (sdev->status) {
@@ -771,8 +770,8 @@ END_DEBUG
 			case SBP_DEV_ATTACHED:
 SBP_DEBUG(0)
 				/* the device has gone */
-				sbp_show_sdev_info(sdev, 2);
-				printf("lost target\n");
+				device_printf(sbp->fd.dev, "%s: lost target\n",
+					__func__);
 END_DEBUG
 				if (sdev->path) {
 					SBP_LOCK(sbp);
@@ -857,12 +856,10 @@ END_DEBUG
 	/* traverse device list */
 	STAILQ_FOREACH(fwdev, &sbp->fd.fc->devices, link) {
 SBP_DEBUG(0)
-		printf("sbp_post_explore: EUI:%08x%08x ",
-				fwdev->eui.hi, fwdev->eui.lo);
-		if (fwdev->status != FWDEVATTACHED)
-			printf("not attached, state=%d.\n", fwdev->status);
-		else
-			printf("attached\n");
+		device_printf(sbp->fd.dev,"%s:: EUI:%08x%08x %s attached, state=%d\n",
+				__func__, fwdev->eui.hi, fwdev->eui.lo,
+				(fwdev->status != FWDEVATTACHED) ? "not" : "",
+				fwdev->status);
 END_DEBUG
 		alive = SBP_FWDEV_ALIVE(fwdev);
 		for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
@@ -899,8 +896,7 @@ sbp_loginres_callback(struct fw_xfer *xfer){
 	struct sbp_dev *sdev;
 	sdev = (struct sbp_dev *)xfer->sc;
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_loginres_callback\n");
+	device_printf(sdev->target->sbp->fd.dev,"%s\n", __func__);
 END_DEBUG
 	/* recycle */
 	s = splfw();
@@ -933,8 +929,8 @@ sbp_reset_start_callback(struct fw_xfer *xfer)
 	int i;
 
 	if (xfer->resp != 0) {
-		sbp_show_sdev_info(sdev, 2);
-		printf("sbp_reset_start failed: resp=%d\n", xfer->resp);
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s: %s failed: resp=%d\n", __func__, sdev->bustgtlun, xfer->resp);
 	}
 
 	for (i = 0; i < target->num_lun; i++) {
@@ -951,8 +947,8 @@ sbp_reset_start(struct sbp_dev *sdev)
 	struct fw_pkt *fp;
 
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_reset_start\n");
+	device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s\n", __func__,sdev->bustgtlun);
 END_DEBUG
 
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
@@ -973,18 +969,11 @@ sbp_mgm_callback(struct fw_xfer *xfer)
 	sdev = (struct sbp_dev *)xfer->sc;
 
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_mgm_callback\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	resp = xfer->resp;
 	sbp_xfer_free(xfer);
-#if 0
-	if (resp != 0) {
-		sbp_show_sdev_info(sdev, 2);
-		printf("management ORB failed(%d) ... RESET_START\n", resp);
-		sbp_reset_start(sdev);
-	}
-#endif
 	return;
 }
 
@@ -1011,14 +1000,14 @@ sbp_cam_scan_lun(struct cam_periph *periph, union ccb *ccb)
 	sdev = (struct sbp_dev *) ccb->ccb_h.ccb_sdev_ptr;
 	target = sdev->target;
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_cam_scan_lun\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		sdev->status = SBP_DEV_ATTACHED;
 	} else {
-		sbp_show_sdev_info(sdev, 2);
-		printf("scan failed\n");
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s failed\n", __func__, sdev->bustgtlun);
 	}
 	sdev = sbp_next_dev(target, sdev->lun_id + 1);
 	if (sdev == NULL) {
@@ -1047,8 +1036,8 @@ sbp_cam_scan_target(void *arg)
 		return;
 	}
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_cam_scan_target\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	ccb = malloc(sizeof(union ccb), M_SBP, M_NOWAIT | M_ZERO);
 	if (ccb == NULL) {
@@ -1089,8 +1078,8 @@ sbp_do_attach(struct fw_xfer *xfer)
 	target = sdev->target;
 	sbp = target->sbp;
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_do_attach\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	sbp_xfer_free(xfer);
 
@@ -1120,12 +1109,12 @@ sbp_agent_reset_callback(struct fw_xfer *xfer)
 
 	sdev = (struct sbp_dev *)xfer->sc;
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("%s\n", __func__);
+	device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	if (xfer->resp != 0) {
-		sbp_show_sdev_info(sdev, 2);
-		printf("%s: resp=%d\n", __func__, xfer->resp);
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s resp=%d\n", __func__, sdev->bustgtlun, xfer->resp);
 	}
 
 	sbp_xfer_free(xfer);
@@ -1144,8 +1133,8 @@ sbp_agent_reset(struct sbp_dev *sdev)
 	struct fw_pkt *fp;
 
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_agent_reset\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0x04);
 	if (xfer == NULL)
@@ -1167,8 +1156,8 @@ sbp_busy_timeout_callback(struct fw_xfer *xfer)
 
 	sdev = (struct sbp_dev *)xfer->sc;
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_busy_timeout_callback\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	sbp_xfer_free(xfer);
 	sbp_agent_reset(sdev);
@@ -1180,8 +1169,8 @@ sbp_busy_timeout(struct sbp_dev *sdev)
 	struct fw_pkt *fp;
 	struct fw_xfer *xfer;
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_busy_timeout\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
 
@@ -1200,8 +1189,8 @@ sbp_orb_pointer_callback(struct fw_xfer *xfer)
 	sdev = (struct sbp_dev *)xfer->sc;
 
 SBP_DEBUG(2)
-	sbp_show_sdev_info(sdev, 2);
-	printf("%s\n", __func__);
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	if (xfer->resp != 0) {
 		/* XXX */
@@ -1230,8 +1219,10 @@ sbp_orb_pointer(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("%s: 0x%08x\n", __func__, (uint32_t)ocb->bus_addr);
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s 0x%08x\n",
+		__func__, sdev->bustgtlun,
+		(uint32_t)ocb->bus_addr);
 END_DEBUG
 
 	mtx_assert(&sdev->target->sbp->mtx, MA_OWNED);
@@ -1278,12 +1269,13 @@ sbp_doorbell_callback(struct fw_xfer *xfer)
 	sdev = (struct sbp_dev *)xfer->sc;
 
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_doorbell_callback\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	if (xfer->resp != 0) {
 		/* XXX */
-		printf("%s: xfer->resp = %d\n", __func__, xfer->resp);
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s: xfer->resp = %d\n", __func__, xfer->resp);
 	}
 	sbp_xfer_free(xfer);
 	sdev->flags &= ~ORB_DOORBELL_ACTIVE;
@@ -1302,8 +1294,8 @@ sbp_doorbell(struct sbp_dev *sdev)
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_doorbell\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 
 	if ((sdev->flags & ORB_DOORBELL_ACTIVE) != 0) {
@@ -1431,8 +1423,10 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func, struct sbp_ocb *aocb)
 	ocb->orb[7] = htonl(SBP_DEV2ADDR(target->target_id, sdev->lun_id));
 
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("%s\n", orb_fun_name[(func>>16)&0xf]);
+	device_printf(sdev->target->sbp->fd.dev,
+		 "%s:%s %s\n",
+		 __func__,sdev->bustgtlun,
+		 orb_fun_name[(func>>16)&0xf]);
 END_DEBUG
 	switch (func) {
 	case ORB_FUN_LGI:
@@ -1485,10 +1479,6 @@ start:
 	fp->mode.wreqb.extcode = 0;
 	xfer->send.payload[0] = htonl(nid << 16);
 	xfer->send.payload[1] = htonl(ocb->bus_addr & 0xffffffff);
-SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("mgm orb: %08x\n", (uint32_t)ocb->bus_addr);
-END_DEBUG
 
 	fw_asyreq(xfer->fc, -1, xfer);
 }
@@ -1532,16 +1522,15 @@ sbp_scsi_status(struct sbp_status *sbp_status, struct sbp_ocb *ocb)
 SBP_DEBUG(0)
 	sbp_print_scsi_cmd(ocb);
 	/* XXX need decode status */
-	sbp_show_sdev_info(ocb->sdev, 2);
-	printf("SCSI status %x sfmt %x valid %x key %x code %x qlfr %x len %d\n",
+	printf("%s: SCSI status %x sfmt %x valid %x key %x code %x qlfr %x len %d\n",
+		ocb->sdev->bustgtlun,
 		sbp_cmd_status->status,
 		sbp_cmd_status->sfmt,
 		sbp_cmd_status->valid,
 		sbp_cmd_status->s_key,
 		sbp_cmd_status->s_code,
 		sbp_cmd_status->s_qlfr,
-		sbp_status->len
-	);
+		sbp_status->len);
 END_DEBUG
 
 	switch (sbp_cmd_status->status) {
@@ -1601,9 +1590,10 @@ END_DEBUG
 */
 		break;
 	default:
-		sbp_show_sdev_info(ocb->sdev, 2);
-		printf("sbp_scsi_status: unknown scsi status 0x%x\n",
-						sbp_cmd_status->status);
+		device_printf(ocb->sdev->target->sbp->fd.dev,
+				"%s:%s unknown scsi status 0x%x\n",
+				__func__, ocb->sdev->bustgtlun,
+				sbp_cmd_status->status);
 	}
 }
 
@@ -1620,8 +1610,8 @@ sbp_fix_inq_data(struct sbp_ocb *ocb)
 	if (ccb->csio.cdb_io.cdb_bytes[1] & SI_EVPD)
 		return;
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_fix_inq_data\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	inq = (struct scsi_inquiry_data *) ccb->csio.data_ptr;
 	switch (SID_TYPE(inq)) {
@@ -1730,23 +1720,26 @@ END_DEBUG
 		}
 		ocb = sbp_dequeue_ocb(sdev, sbp_status);
 		if (ocb == NULL) {
-			sbp_show_sdev_info(sdev, 2);
+			device_printf(sdev->target->sbp->fd.dev,
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
-			printf("No ocb(%lx) on the queue\n",
+				"%s:%s No ocb(%lx) on the queue\n",
 #else
-			printf("No ocb(%x) on the queue\n",
+				"%s:%s No ocb(%x) on the queue\n",
 #endif
-					ntohl(sbp_status->orb_lo));
+				__func__,sdev->bustgtlun,
+				ntohl(sbp_status->orb_lo));
 		}
 		break;
 	case 2:
 		/* unsolicit */
-		sbp_show_sdev_info(sdev, 2);
-		printf("unsolicit status received\n");
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s unsolicit status received\n",
+			__func__, sdev->bustgtlun);
 		break;
 	default:
-		sbp_show_sdev_info(sdev, 2);
-		printf("unknown sbp_status->src\n");
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s unknown sbp_status->src\n",
+			__func__, sdev->bustgtlun);
 	}
 
 	status_valid0 = (sbp_status->src < 2
@@ -1757,18 +1750,20 @@ END_DEBUG
 	if (!status_valid0 || debug > 2){
 		int status;
 SBP_DEBUG(0)
-		sbp_show_sdev_info(sdev, 2);
-		printf("ORB status src:%x resp:%x dead:%x"
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s ORB status src:%x resp:%x dead:%x"
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 				" len:%x stat:%x orb:%x%08lx\n",
 #else
 				" len:%x stat:%x orb:%x%08x\n",
 #endif
+			__func__, sdev->bustgtlun,
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
 			ntohs(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
 END_DEBUG
-		sbp_show_sdev_info(sdev, 2);
+		device_printf(sdev->target->sbp->fd.dev,
+				"%s\n", sdev->bustgtlun);
 		status = sbp_status->status;
 		switch(sbp_status->resp) {
 		case 0:
@@ -1827,14 +1822,19 @@ END_DEBUG
 				login_res->cmd_lo = ntohl(login_res->cmd_lo);
 				if (status_valid) {
 SBP_DEBUG(0)
-sbp_show_sdev_info(sdev, 2);
-printf("login: len %d, ID %d, cmd %08x%08x, recon_hold %d\n", login_res->len, login_res->id, login_res->cmd_hi, login_res->cmd_lo, ntohs(login_res->recon_hold));
+					device_printf(sdev->target->sbp->fd.dev,
+						"%s:%s login: len %d, ID %d, cmd %08x%08x, recon_hold %d\n",
+						__func__, sdev->bustgtlun,
+						login_res->len, login_res->id,
+						login_res->cmd_hi, login_res->cmd_lo,
+						ntohs(login_res->recon_hold));
 END_DEBUG
 					sbp_busy_timeout(sdev);
 				} else {
 					/* forgot logout? */
-					sbp_show_sdev_info(sdev, 2);
-					printf("login failed\n");
+					device_printf(sdev->target->sbp->fd.dev,
+						"%s:%s login failed\n",
+						__func__, sdev->bustgtlun);
 					sdev->status = SBP_DEV_RESET;
 				}
 				break;
@@ -1842,23 +1842,22 @@ END_DEBUG
 				login_res = sdev->login;
 				if (status_valid) {
 SBP_DEBUG(0)
-sbp_show_sdev_info(sdev, 2);
-printf("reconnect: len %d, ID %d, cmd %08x%08x\n", login_res->len, login_res->id, login_res->cmd_hi, login_res->cmd_lo);
+					device_printf(sdev->target->sbp->fd.dev,
+						"%s:%s reconnect: len %d, ID %d, cmd %08x%08x\n",
+						__func__, sdev->bustgtlun,
+						login_res->len, login_res->id,
+						login_res->cmd_hi, login_res->cmd_lo);
 END_DEBUG
-#if 1
 					if (sdev->status == SBP_DEV_ATTACHED)
 						sbp_scan_dev(sdev);
 					else
 						sbp_agent_reset(sdev);
-#else
-					sdev->status = SBP_DEV_ATTACHED;
-					sbp_mgm_orb(sdev, ORB_FUN_ATS, NULL);
-#endif
 				} else {
 					/* reconnection hold time exceed? */
 SBP_DEBUG(0)
-					sbp_show_sdev_info(sdev, 2);
-					printf("reconnect failed\n");
+					device_printf(sdev->target->sbp->fd.dev,
+						"%s:%s reconnect failed\n",
+						__func__, sdev->bustgtlun);
 END_DEBUG
 					sbp_login(sdev);
 				}
@@ -1875,8 +1874,9 @@ END_DEBUG
 				sbp_agent_reset(sdev);
 				break;
 			default:
-				sbp_show_sdev_info(sdev, 2);
-				printf("unknown function %d\n", orb_fun);
+				device_printf(sdev->target->sbp->fd.dev,
+					"%s:%s unknown function %d\n",
+					__func__, sdev->bustgtlun, orb_fun);
 				break;
 			}
 			sbp_mgm_orb(sdev, ORB_FUN_RUNQUEUE, NULL);
@@ -1885,15 +1885,7 @@ END_DEBUG
 			sdev->timeout = 0;
 			if(ocb->ccb != NULL){
 				union ccb *ccb;
-/*
-				uint32_t *ld;
-				ld = ocb->ccb->csio.data_ptr;
-				if(ld != NULL && ocb->ccb->csio.dxfer_len != 0)
-					printf("ptr %08x %08x %08x %08x\n", ld[0], ld[1], ld[2], ld[3]);
-				else
-					printf("ptr NULL\n");
-printf("len %d\n", sbp_status->len);
-*/
+
 				ccb = ocb->ccb;
 				if(sbp_status->len > 1){
 					sbp_scsi_status(sbp_status, ocb);
@@ -2279,9 +2271,9 @@ sbp_mgm_timeout(void *arg)
 	struct sbp_dev *sdev = ocb->sdev;
 	struct sbp_target *target = sdev->target;
 
-	sbp_show_sdev_info(sdev, 2);
-	printf("request timeout(mgm orb:0x%08x) ... ",
-	    (uint32_t)ocb->bus_addr);
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s request timeout(mgm orb:0x%08x)\n",
+		__func__, sdev->bustgtlun, (uint32_t)ocb->bus_addr);
 	target->mgm_ocb_cur = NULL;
 	sbp_free_ocb(sdev, ocb);
 #if 0
@@ -2289,10 +2281,10 @@ sbp_mgm_timeout(void *arg)
 	printf("run next request\n");
 	sbp_mgm_orb(sdev, ORB_FUN_RUNQUEUE, NULL);
 #endif
-#if 1
-	printf("reset start\n");
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s reset start\n",
+		__func__, sdev->bustgtlun);
 	sbp_reset_start(sdev);
-#endif
 }
 
 static void
@@ -2301,9 +2293,9 @@ sbp_timeout(void *arg)
 	struct sbp_ocb *ocb = (struct sbp_ocb *)arg;
 	struct sbp_dev *sdev = ocb->sdev;
 
-	sbp_show_sdev_info(sdev, 2);
-	printf("request timeout(cmd orb:0x%08x) ... ",
-	    (uint32_t)ocb->bus_addr);
+	device_printf(sdev->target->sbp->fd.dev,
+		"%s:%s request timeout(cmd orb:0x%08x) ... ",
+		__func__, sdev->bustgtlun, (uint32_t)ocb->bus_addr);
 
 	sdev->timeout ++;
 	switch(sdev->timeout) {
@@ -2760,13 +2752,13 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 	int flags;
 
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
+	device_printf(sdev->target->sbp->fd.dev,
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
-	printf("%s: 0x%08lx src %d\n",
+	"%s:%s 0x%08lx src %d\n",
 #else
-	printf("%s: 0x%08x src %d\n",
+	"%s:%s 0x%08x src %d\n",
 #endif
-	    __func__, ntohl(sbp_status->orb_lo), sbp_status->src);
+	    __func__, sdev->bustgtlun, ntohl(sbp_status->orb_lo), sbp_status->src);
 END_DEBUG
 	SBP_LOCK(sdev->target->sbp);
 	for (ocb = STAILQ_FIRST(&sdev->ocbs); ocb != NULL; ocb = next) {
@@ -2823,8 +2815,9 @@ END_DEBUG
 	splx(s);
 SBP_DEBUG(0)
 	if (ocb && order > 0) {
-		sbp_show_sdev_info(sdev, 2);
-		printf("unordered execution order:%d\n", order);
+		device_printf(sdev->target->sbp->fd.dev,
+			"%s:%s unordered execution order:%d\n",
+			__func__, sdev->bustgtlun, order);
 	}
 END_DEBUG
 	return (ocb);
@@ -2838,11 +2831,11 @@ sbp_enqueue_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 
 	mtx_assert(&sdev->target->sbp->mtx, MA_OWNED);
 SBP_DEBUG(1)
-	sbp_show_sdev_info(sdev, 2);
+	device_printf(sdev->target->sbp->fd.dev,
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
-	printf("%s: 0x%08x\n", __func__, ocb->bus_addr);
+	"%s:%s 0x%08x\n", __func__, sdev->bustgtlun, ocb->bus_addr);
 #else
-	printf("%s: 0x%08jx\n", __func__, (uintmax_t)ocb->bus_addr);
+	"%s:%s 0x%08jx\n", __func__, sdev->bustgtlun, (uintmax_t)ocb->bus_addr);
 #endif
 END_DEBUG
 	prev2 = prev = STAILQ_LAST(&sdev->ocbs, sbp_ocb, ocb);
@@ -2924,11 +2917,11 @@ sbp_abort_ocb(struct sbp_ocb *ocb, int status)
 
 	sdev = ocb->sdev;
 SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
+	device_printf(sdev->target->sbp->fd.dev,
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
-	printf("sbp_abort_ocb 0x%x\n", ocb->bus_addr);
+	"%s:%s 0x%x\n", __func__, sdev->bustgtlun, ocb->bus_addr);
 #else
-	printf("sbp_abort_ocb 0x%jx\n", (uintmax_t)ocb->bus_addr);
+	"%s:%s 0x%jx\n", __func__, sdev->bustgtlun, (uintmax_t)ocb->bus_addr);
 #endif
 END_DEBUG
 SBP_DEBUG(1)
