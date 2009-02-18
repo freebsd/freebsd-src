@@ -897,12 +897,12 @@ nfs_lookup(struct vop_lookup_args *ap)
 
 		newvp = *vpp;
 		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
-		 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
-		     nfsstats.lookupcache_hits++;
-		     if (cnp->cn_nameiop != LOOKUP &&
-			 (flags & ISLASTCN))
-			     cnp->cn_flags |= SAVENAME;
-		     return (0);
+		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+			nfsstats.lookupcache_hits++;
+			if (cnp->cn_nameiop != LOOKUP &&
+			    (flags & ISLASTCN))
+				cnp->cn_flags |= SAVENAME;
+			return (0);
 		}
 		cache_purge(newvp);
 		if (dvp != newvp)
