@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_highpoint_chipinit(device_t dev);
-static int ata_highpoint_allocate(device_t dev);
+static int ata_highpoint_ch_attach(device_t dev);
 static void ata_highpoint_setmode(device_t dev, int mode);
 static int ata_highpoint_check_80pin(device_t dev, int mode);
 
@@ -134,18 +134,18 @@ ata_highpoint_chipinit(device_t dev)
 	    pci_write_config(dev, 0x5b,
 			     (pci_read_config(dev, 0x5b, 1) & 0x01) | 0x20, 1);
     }
-    ctlr->allocate = ata_highpoint_allocate;
+    ctlr->ch_attach = ata_highpoint_ch_attach;
     ctlr->setmode = ata_highpoint_setmode;
     return 0;
 }
 
 static int
-ata_highpoint_allocate(device_t dev)
+ata_highpoint_ch_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     ch->flags |= ATA_ALWAYS_DMASTAT;

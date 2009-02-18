@@ -128,8 +128,7 @@ ata_ahci_chipinit(device_t dev)
 	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1);
 
     ctlr->reset = ata_ahci_reset;
-    ctlr->dmainit = ata_ahci_dmainit;
-    ctlr->allocate = ata_ahci_allocate;
+    ctlr->ch_attach = ata_ahci_ch_attach;
     ctlr->setmode = ata_sata_setmode;
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
@@ -197,11 +196,13 @@ ata_ahci_suspend(device_t dev)
 
 
 int
-ata_ahci_allocate(device_t dev)
+ata_ahci_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ch->unit << 7;
+
+    ata_ahci_dmainit(dev);
 
     /* set the SATA resources */
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
