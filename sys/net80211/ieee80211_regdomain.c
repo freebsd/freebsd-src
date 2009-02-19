@@ -214,7 +214,7 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
     (IEEE80211_CHAN_TURBO | IEEE80211_CHAN_STURBO | \
      IEEE80211_CHAN_HALF | IEEE80211_CHAN_QUARTER)
 	/* XXX what about auto? */
-	/* flag set of channels to be excluded */
+	/* flag set of channels to be excluded (band added below) */
 	static const int skipflags[IEEE80211_MODE_MAX] = {
 	    [IEEE80211_MODE_AUTO]	= CHAN_UNINTERESTING,
 	    [IEEE80211_MODE_11A]	= CHAN_UNINTERESTING,
@@ -227,6 +227,10 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	    [IEEE80211_MODE_TURBO_A]	= CHAN_UNINTERESTING,
 	    [IEEE80211_MODE_TURBO_G]	= CHAN_UNINTERESTING,
 	    [IEEE80211_MODE_STURBO_A]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_HALF]	= IEEE80211_CHAN_TURBO
+					| IEEE80211_CHAN_STURBO,
+	    [IEEE80211_MODE_QUARTER]	= IEEE80211_CHAN_TURBO
+					| IEEE80211_CHAN_STURBO,
 	    [IEEE80211_MODE_11NA]	= CHAN_UNINTERESTING,
 	    [IEEE80211_MODE_11NG]	= CHAN_UNINTERESTING,
 	};
