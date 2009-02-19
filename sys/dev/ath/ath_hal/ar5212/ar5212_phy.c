@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_phy.c,v 1.5 2008/11/15 03:43:53 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -27,6 +27,8 @@
 #define	OFDM	IEEE80211_T_OFDM
 #define	CCK	IEEE80211_T_CCK
 #define	TURBO	IEEE80211_T_TURBO
+#define	HALF	IEEE80211_T_OFDM_HALF
+#define	QUART	IEEE80211_T_OFDM_QUARTER
 
 HAL_RATE_TABLE ar5212_11a_table = {
 	8,  /* number of rates */
@@ -51,14 +53,14 @@ HAL_RATE_TABLE ar5212_half_table = {
 	{
 /*                                                  short            ctrl  */
 /*                valid                 rateCode Preamble  dot11Rate Rate */
-/*   6 Mb */ {  AH_TRUE, OFDM,    3000,     0x0b,    0x00, (0x80|6),   0 },
-/*   9 Mb */ {  AH_TRUE, OFDM,    4500,     0x0f,    0x00,        9,   0 },
-/*  12 Mb */ {  AH_TRUE, OFDM,    6000,     0x0a,    0x00, (0x80|12),   2 },
-/*  18 Mb */ {  AH_TRUE, OFDM,    9000,     0x0e,    0x00,        18,   2 },
-/*  24 Mb */ {  AH_TRUE, OFDM,   12000,     0x09,    0x00, (0x80|24),   4 },
-/*  36 Mb */ {  AH_TRUE, OFDM,   18000,     0x0d,    0x00,        36,   4 },
-/*  48 Mb */ {  AH_TRUE, OFDM,   24000,     0x08,    0x00,        48,   4 },
-/*  54 Mb */ {  AH_TRUE, OFDM,   27000,     0x0c,    0x00,       54,   4 }
+/*   3 Mb */ {  AH_TRUE, HALF,    3000,     0x0b,    0x00, (0x80|6),   0 },
+/* 4.5 Mb */ {  AH_TRUE, HALF,    4500,     0x0f,    0x00,        9,   0 },
+/*   6 Mb */ {  AH_TRUE, HALF,    6000,     0x0a,    0x00, (0x80|12),  2 },
+/*   9 Mb */ {  AH_TRUE, HALF,    9000,     0x0e,    0x00,       18,   2 },
+/*  12 Mb */ {  AH_TRUE, HALF,   12000,     0x09,    0x00, (0x80|24),  4 },
+/*  18 Mb */ {  AH_TRUE, HALF,   18000,     0x0d,    0x00,       36,   4 },
+/*  24 Mb */ {  AH_TRUE, HALF,   24000,     0x08,    0x00,       48,   4 },
+/*  27 Mb */ {  AH_TRUE, HALF,   27000,     0x0c,    0x00,       54,   4 }
 	},
 };
 
@@ -68,14 +70,14 @@ HAL_RATE_TABLE ar5212_quarter_table = {
 	{
 /*                                                  short            ctrl  */
 /*                valid                 rateCode Preamble  dot11Rate Rate */
-/*   6 Mb */ {  AH_TRUE, OFDM,    1500,     0x0b,    0x00, (0x80|3),   0 },
-/*   9 Mb */ {  AH_TRUE, OFDM,    2250,     0x0f,    0x00,        4,   0 },
-/*  12 Mb */ {  AH_TRUE, OFDM,    3000,     0x0a,    0x00, (0x80|6),   2 },
-/*  18 Mb */ {  AH_TRUE, OFDM,    4500,     0x0e,    0x00,        9,   2 },
-/*  24 Mb */ {  AH_TRUE, OFDM,    6000,     0x09,    0x00, (0x80|12),   4 },
-/*  36 Mb */ {  AH_TRUE, OFDM,    9000,     0x0d,    0x00,        18,   4 },
-/*  48 Mb */ {  AH_TRUE, OFDM,   12000,     0x08,    0x00,        24,   4 },
-/*  54 Mb */ {  AH_TRUE, OFDM,   13500,     0x0c,    0x00,       27,   4 }
+/* 1.5 Mb */ {  AH_TRUE, QUART,   1500,     0x0b,    0x00, (0x80|3),   0 },
+/*   2 Mb */ {  AH_TRUE, QUART,   2250,     0x0f,    0x00,        4,   0 },
+/*   3 Mb */ {  AH_TRUE, QUART,   3000,     0x0a,    0x00, (0x80|6),   2 },
+/* 4.5 Mb */ {  AH_TRUE, QUART,   4500,     0x0e,    0x00,        9,   2 },
+/*   6 Mb */ {  AH_TRUE, QUART,   6000,     0x09,    0x00, (0x80|12),  4 },
+/*   9 Mb */ {  AH_TRUE, QUART,   9000,     0x0d,    0x00,       18,   4 },
+/*  12 Mb */ {  AH_TRUE, QUART,  12000,     0x08,    0x00,       24,   4 },
+/*13.5 Mb */ {  AH_TRUE, QUART,  13500,     0x0c,    0x00,       27,   4 }
 	},
 };
 
