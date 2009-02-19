@@ -842,8 +842,9 @@ ata_usbchannel_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    /* take care of green memory */
-    bzero(ch, sizeof(struct ata_channel));
+    if (ch->attached)
+	return (0);
+    ch->attached = 1;
 
     /* initialize the softc basics */
     ch->dev = dev;
@@ -875,6 +876,10 @@ ata_usbchannel_detach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     device_t *children;
     int nchildren, i;
+
+    if (!ch->attached)
+	return (0);
+    ch->attached = 0;
 
     /* detach & delete all children */
     if (!device_get_children(dev, &children, &nchildren)) {
