@@ -43,6 +43,7 @@ static char rcsid[] =
 #include "value.h"
 #include "var.h"
 #include "mystring.h"
+#include <stdlib.h>
 
 struct var *
 var_set1(head, name, v)
