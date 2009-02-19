@@ -644,12 +644,6 @@ nfs_getattr(struct vop_getattr_args *ap)
 	 */
 	if (nfs_getattrcache(vp, &vattr) == 0)
 		goto nfsmout;
-	if (v3 && nfsaccess_cache_timeout > 0) {
-		nfsstats.accesscache_misses++;
-		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred);
-		if (nfs_getattrcache(vp, &vattr) == 0)
-			goto nfsmout;
-	}
 	nfsstats.rpccnt[NFSPROC_GETATTR]++;
 	mreq = nfsm_reqhead(vp, NFSPROC_GETATTR, NFSX_FH(v3));
 	mb = mreq;
