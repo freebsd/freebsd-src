@@ -35,9 +35,6 @@
 __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
-WARN_REFERENCES(vfork, \
-    "warning: reference to compatibility vfork(); include <unistd.h> for correct reference")
-
 /*
  * pid = vfork();
  *
