@@ -103,6 +103,10 @@ ata_isa_attach(device_t dev)
     u_long tmp;
     int i, rid;
 
+    if (ch->attached)
+	return (0);
+    ch->attached = 1;
+
     /* allocate the io port range */
     rid = ATA_IOADDR_RID;
     if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
@@ -145,6 +149,10 @@ ata_isa_detach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     int error;
+
+    if (!ch->attached)
+	return (0);
+    ch->attached = 0;
 
     error = ata_detach(dev);
 

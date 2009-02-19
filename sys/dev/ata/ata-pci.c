@@ -550,8 +550,9 @@ ata_pcichannel_attach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int error;
 
-    /* take care of green memory */
-    bzero(ch, sizeof(struct ata_channel));
+    if (ch->attached)
+	return (0);
+    ch->attached = 1;
 
     ch->unit = (intptr_t)device_get_ivars(dev);
 
@@ -565,7 +566,12 @@ static int
 ata_pcichannel_detach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     int error;
+
+    if (!ch->attached)
+	return (0);
+    ch->attached = 0;
 
     if ((error = ata_detach(dev)))
 	return error;

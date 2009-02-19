@@ -500,6 +500,7 @@ struct ata_resource {
 struct ata_channel {
     device_t                    dev;            /* device handle */
     int                         unit;           /* physical channel */
+    int                         attached;       /* channel is attached */
     struct ata_resource         r_io[ATA_MAX_RES];/* I/O resources */
     struct resource             *r_irq;         /* interrupt of this channel */
     void                        *ih;            /* interrupt handle */
