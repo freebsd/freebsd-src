@@ -655,16 +655,16 @@ setbasicrates(struct ieee80211_rateset *rs,
     enum ieee80211_phymode mode, int add)
 {
 	static const struct ieee80211_rateset basic[IEEE80211_MODE_MAX] = {
-	    { .rs_nrates = 0 },		/* IEEE80211_MODE_AUTO */
-	    { 3, { 12, 24, 48 } },	/* IEEE80211_MODE_11A */
-	    { 2, { 2, 4 } },		/* IEEE80211_MODE_11B */
-	    { 4, { 2, 4, 11, 22 } },	/* IEEE80211_MODE_11G (mixed b/g) */
-	    { .rs_nrates = 0 },		/* IEEE80211_MODE_FH */
-	    { 3, { 12, 24, 48 } },	/* IEEE80211_MODE_TURBO_A */
-	    { 4, { 2, 4, 11, 22 } },	/* IEEE80211_MODE_TURBO_G (mixed b/g) */
-	    { 3, { 12, 24, 48 } },	/* IEEE80211_MODE_STURBO_A */
-	    { 3, { 12, 24, 48 } },	/* IEEE80211_MODE_11NA */
-	    { 4, { 2, 4, 11, 22 } },	/* IEEE80211_MODE_11NG (mixed b/g) */
+	    [IEEE80211_MODE_11A]	= { 3, { 12, 24, 48 } },
+	    [IEEE80211_MODE_11B]	= { 2, { 2, 4 } },
+					    /* NB: mixed b/g */
+	    [IEEE80211_MODE_11G]	= { 4, { 2, 4, 11, 22 } },
+	    [IEEE80211_MODE_TURBO_A]	= { 3, { 12, 24, 48 } },
+	    [IEEE80211_MODE_TURBO_G]	= { 4, { 2, 4, 11, 22 } },
+	    [IEEE80211_MODE_STURBO_A]	= { 3, { 12, 24, 48 } },
+	    [IEEE80211_MODE_11NA]	= { 3, { 12, 24, 48 } },
+					    /* NB: mixed b/g */
+	    [IEEE80211_MODE_11NG]	= { 4, { 2, 4, 11, 22 } },
 	};
 	int i, j;
 
@@ -717,89 +717,89 @@ typedef struct phyParamType {
 } paramType;
 
 static const struct phyParamType phyParamForAC_BE[IEEE80211_MODE_MAX] = {
-	{ 3, 4,  6,  0, 0 },	/* IEEE80211_MODE_AUTO */
-	{ 3, 4,  6,  0, 0 },	/* IEEE80211_MODE_11A */
-	{ 3, 4,  6,  0, 0 },	/* IEEE80211_MODE_11B */
-	{ 3, 4,  6,  0, 0 },	/* IEEE80211_MODE_11G */
-	{ 3, 4,  6,  0, 0 },	/* IEEE80211_MODE_FH */
-	{ 2, 3,  5,  0, 0 },	/* IEEE80211_MODE_TURBO_A */
-	{ 2, 3,  5,  0, 0 },	/* IEEE80211_MODE_TURBO_G */
-	{ 2, 3,  5,  0, 0 },	/* IEEE80211_MODE_STURBO_A */
-	{ 3, 4,  6,  0, 0 },	/* IEEE80211_MODE_11NA */
-	{ 3, 4,  6,  0, 0 },	/* IEEE80211_MODE_11NG */
+	[IEEE80211_MODE_AUTO]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_11A]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_11B]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_11G]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_FH]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_TURBO_A]= { 2, 3,  5,  0, 0 },
+	[IEEE80211_MODE_TURBO_G]= { 2, 3,  5,  0, 0 },
+	[IEEE80211_MODE_STURBO_A]={ 2, 3,  5,  0, 0 },
+	[IEEE80211_MODE_11NA]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_11NG]	= { 3, 4,  6,  0, 0 },
 };
 static const struct phyParamType phyParamForAC_BK[IEEE80211_MODE_MAX] = {
-	{ 7, 4, 10,  0, 0 },	/* IEEE80211_MODE_AUTO */
-	{ 7, 4, 10,  0, 0 },	/* IEEE80211_MODE_11A */
-	{ 7, 4, 10,  0, 0 },	/* IEEE80211_MODE_11B */
-	{ 7, 4, 10,  0, 0 },	/* IEEE80211_MODE_11G */
-	{ 7, 4, 10,  0, 0 },	/* IEEE80211_MODE_FH */
-	{ 7, 3, 10,  0, 0 },	/* IEEE80211_MODE_TURBO_A */
-	{ 7, 3, 10,  0, 0 },	/* IEEE80211_MODE_TURBO_G */
-	{ 7, 3, 10,  0, 0 },	/* IEEE80211_MODE_STURBO_A */
-	{ 7, 4, 10,  0, 0 },	/* IEEE80211_MODE_11NA */
-	{ 7, 4, 10,  0, 0 },	/* IEEE80211_MODE_11NG */
+	[IEEE80211_MODE_AUTO]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11A]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11B]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11G]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_FH]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_TURBO_A]= { 7, 3, 10,  0, 0 },
+	[IEEE80211_MODE_TURBO_G]= { 7, 3, 10,  0, 0 },
+	[IEEE80211_MODE_STURBO_A]={ 7, 3, 10,  0, 0 },
+	[IEEE80211_MODE_11NA]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11NG]	= { 7, 4, 10,  0, 0 },
 };
 static const struct phyParamType phyParamForAC_VI[IEEE80211_MODE_MAX] = {
-	{ 1, 3, 4,  94, 0 },	/* IEEE80211_MODE_AUTO */
-	{ 1, 3, 4,  94, 0 },	/* IEEE80211_MODE_11A */
-	{ 1, 3, 4, 188, 0 },	/* IEEE80211_MODE_11B */
-	{ 1, 3, 4,  94, 0 },	/* IEEE80211_MODE_11G */
-	{ 1, 3, 4, 188, 0 },	/* IEEE80211_MODE_FH */
-	{ 1, 2, 3,  94, 0 },	/* IEEE80211_MODE_TURBO_A */
-	{ 1, 2, 3,  94, 0 },	/* IEEE80211_MODE_TURBO_G */
-	{ 1, 2, 3,  94, 0 },	/* IEEE80211_MODE_STURBO_A */
-	{ 1, 3, 4,  94, 0 },	/* IEEE80211_MODE_11NA */
-	{ 1, 3, 4,  94, 0 },	/* IEEE80211_MODE_11NG */
+	[IEEE80211_MODE_AUTO]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_11A]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_11B]	= { 1, 3, 4, 188, 0 },
+	[IEEE80211_MODE_11G]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_FH]	= { 1, 3, 4, 188, 0 },
+	[IEEE80211_MODE_TURBO_A]= { 1, 2, 3,  94, 0 },
+	[IEEE80211_MODE_TURBO_G]= { 1, 2, 3,  94, 0 },
+	[IEEE80211_MODE_STURBO_A]={ 1, 2, 3,  94, 0 },
+	[IEEE80211_MODE_11NA]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_11NG]	= { 1, 3, 4,  94, 0 },
 };
 static const struct phyParamType phyParamForAC_VO[IEEE80211_MODE_MAX] = {
-	{ 1, 2, 3,  47, 0 },	/* IEEE80211_MODE_AUTO */
-	{ 1, 2, 3,  47, 0 },	/* IEEE80211_MODE_11A */
-	{ 1, 2, 3, 102, 0 },	/* IEEE80211_MODE_11B */
-	{ 1, 2, 3,  47, 0 },	/* IEEE80211_MODE_11G */
-	{ 1, 2, 3, 102, 0 },	/* IEEE80211_MODE_FH */
-	{ 1, 2, 2,  47, 0 },	/* IEEE80211_MODE_TURBO_A */
-	{ 1, 2, 2,  47, 0 },	/* IEEE80211_MODE_TURBO_G */
-	{ 1, 2, 2,  47, 0 },	/* IEEE80211_MODE_STURBO_A */
-	{ 1, 2, 3,  47, 0 },	/* IEEE80211_MODE_11NA */
-	{ 1, 2, 3,  47, 0 },	/* IEEE80211_MODE_11NG */
+	[IEEE80211_MODE_AUTO]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_11A]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_11B]	= { 1, 2, 3, 102, 0 },
+	[IEEE80211_MODE_11G]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_FH]	= { 1, 2, 3, 102, 0 },
+	[IEEE80211_MODE_TURBO_A]= { 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_TURBO_G]= { 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_STURBO_A]={ 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_11NA]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_11NG]	= { 1, 2, 3,  47, 0 },
 };
 
 static const struct phyParamType bssPhyParamForAC_BE[IEEE80211_MODE_MAX] = {
-	{ 3, 4, 10,  0, 0 },	/* IEEE80211_MODE_AUTO */
-	{ 3, 4, 10,  0, 0 },	/* IEEE80211_MODE_11A */
-	{ 3, 4, 10,  0, 0 },	/* IEEE80211_MODE_11B */
-	{ 3, 4, 10,  0, 0 },	/* IEEE80211_MODE_11G */
-	{ 3, 4, 10,  0, 0 },	/* IEEE80211_MODE_FH */
-	{ 2, 3, 10,  0, 0 },	/* IEEE80211_MODE_TURBO_A */
-	{ 2, 3, 10,  0, 0 },	/* IEEE80211_MODE_TURBO_G */
-	{ 2, 3, 10,  0, 0 },	/* IEEE80211_MODE_STURBO_A */
-	{ 3, 4, 10,  0, 0 },	/* IEEE80211_MODE_11NA */
-	{ 3, 4, 10,  0, 0 },	/* IEEE80211_MODE_11NG */
+	[IEEE80211_MODE_AUTO]	= { 3, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11A]	= { 3, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11B]	= { 3, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11G]	= { 3, 4, 10,  0, 0 },
+	[IEEE80211_MODE_FH]	= { 3, 4, 10,  0, 0 },
+	[IEEE80211_MODE_TURBO_A]= { 2, 3, 10,  0, 0 },
+	[IEEE80211_MODE_TURBO_G]= { 2, 3, 10,  0, 0 },
+	[IEEE80211_MODE_STURBO_A]={ 2, 3, 10,  0, 0 },
+	[IEEE80211_MODE_11NA]	= { 3, 4, 10,  0, 0 },
+	[IEEE80211_MODE_11NG]	= { 3, 4, 10,  0, 0 },
 };
 static const struct phyParamType bssPhyParamForAC_VI[IEEE80211_MODE_MAX] = {
-	{ 2, 3, 4,  94, 0 },	/* IEEE80211_MODE_AUTO */
-	{ 2, 3, 4,  94, 0 },	/* IEEE80211_MODE_11A */
-	{ 2, 3, 4, 188, 0 },	/* IEEE80211_MODE_11B */
-	{ 2, 3, 4,  94, 0 },	/* IEEE80211_MODE_11G */
-	{ 2, 3, 4, 188, 0 },	/* IEEE80211_MODE_FH */
-	{ 2, 2, 3,  94, 0 },	/* IEEE80211_MODE_TURBO_A */
-	{ 2, 2, 3,  94, 0 },	/* IEEE80211_MODE_TURBO_G */
-	{ 2, 2, 3,  94, 0 },	/* IEEE80211_MODE_STURBO_A */
-	{ 2, 3, 4,  94, 0 },	/* IEEE80211_MODE_11NA */
-	{ 2, 3, 4,  94, 0 },	/* IEEE80211_MODE_11NG */
+	[IEEE80211_MODE_AUTO]	= { 2, 3, 4,  94, 0 },
+	[IEEE80211_MODE_11A]	= { 2, 3, 4,  94, 0 },
+	[IEEE80211_MODE_11B]	= { 2, 3, 4, 188, 0 },
+	[IEEE80211_MODE_11G]	= { 2, 3, 4,  94, 0 },
+	[IEEE80211_MODE_FH]	= { 2, 3, 4, 188, 0 },
+	[IEEE80211_MODE_TURBO_A]= { 2, 2, 3,  94, 0 },
+	[IEEE80211_MODE_TURBO_G]= { 2, 2, 3,  94, 0 },
+	[IEEE80211_MODE_STURBO_A]={ 2, 2, 3,  94, 0 },
+	[IEEE80211_MODE_11NA]	= { 2, 3, 4,  94, 0 },
+	[IEEE80211_MODE_11NG]	= { 2, 3, 4,  94, 0 },
 };
 static const struct phyParamType bssPhyParamForAC_VO[IEEE80211_MODE_MAX] = {
-	{ 2, 2, 3,  47, 0 },	/* IEEE80211_MODE_AUTO */
-	{ 2, 2, 3,  47, 0 },	/* IEEE80211_MODE_11A */
-	{ 2, 2, 3, 102, 0 },	/* IEEE80211_MODE_11B */
-	{ 2, 2, 3,  47, 0 },	/* IEEE80211_MODE_11G */
-	{ 2, 2, 3, 102, 0 },	/* IEEE80211_MODE_FH */
-	{ 1, 2, 2,  47, 0 },	/* IEEE80211_MODE_TURBO_A */
-	{ 1, 2, 2,  47, 0 },	/* IEEE80211_MODE_TURBO_G */
-	{ 1, 2, 2,  47, 0 },	/* IEEE80211_MODE_STURBO_A */
-	{ 2, 2, 3,  47, 0 },	/* IEEE80211_MODE_11NA */
-	{ 2, 2, 3,  47, 0 },	/* IEEE80211_MODE_11NG */
+	[IEEE80211_MODE_AUTO]	= { 2, 2, 3,  47, 0 },
+	[IEEE80211_MODE_11A]	= { 2, 2, 3,  47, 0 },
+	[IEEE80211_MODE_11B]	= { 2, 2, 3, 102, 0 },
+	[IEEE80211_MODE_11G]	= { 2, 2, 3,  47, 0 },
+	[IEEE80211_MODE_FH]	= { 2, 2, 3, 102, 0 },
+	[IEEE80211_MODE_TURBO_A]= { 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_TURBO_G]= { 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_STURBO_A]={ 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_11NA]	= { 2, 2, 3,  47, 0 },
+	[IEEE80211_MODE_11NG]	= { 2, 2, 3,  47, 0 },
 };
 
 static void
@@ -922,16 +922,16 @@ void
 ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 {
 	static const paramType phyParam[IEEE80211_MODE_MAX] = {
-		{ 2, 4, 10, 64, 0 },	/* IEEE80211_MODE_AUTO */
-		{ 2, 4, 10, 64, 0 },	/* IEEE80211_MODE_11A */
-		{ 2, 5, 10, 64, 0 },	/* IEEE80211_MODE_11B */
-		{ 2, 4, 10, 64, 0 },	/* IEEE80211_MODE_11G */
-		{ 2, 5, 10, 64, 0 },	/* IEEE80211_MODE_FH */
-		{ 1, 3, 10, 64, 0 },	/* IEEE80211_MODE_TURBO_A */
-		{ 1, 3, 10, 64, 0 },	/* IEEE80211_MODE_TURBO_G */
-		{ 1, 3, 10, 64, 0 },	/* IEEE80211_MODE_STURBO_A */
-		{ 2, 4, 10, 64, 0 },	/* IEEE80211_MODE_11NA */ /*XXXcheck*/
-		{ 2, 4, 10, 64, 0 },	/* IEEE80211_MODE_11NG */ /*XXXcheck*/
+	    [IEEE80211_MODE_AUTO]	= { 2, 4, 10, 64, 0 },
+	    [IEEE80211_MODE_11A]	= { 2, 4, 10, 64, 0 },
+	    [IEEE80211_MODE_11B]	= { 2, 5, 10, 64, 0 },
+	    [IEEE80211_MODE_11G]	= { 2, 4, 10, 64, 0 },
+	    [IEEE80211_MODE_FH]		= { 2, 5, 10, 64, 0 },
+	    [IEEE80211_MODE_TURBO_A]	= { 1, 3, 10, 64, 0 },
+	    [IEEE80211_MODE_TURBO_G]	= { 1, 3, 10, 64, 0 },
+	    [IEEE80211_MODE_STURBO_A]	= { 1, 3, 10, 64, 0 },
+	    [IEEE80211_MODE_11NA]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
+	    [IEEE80211_MODE_11NG]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	};
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_wme_state *wme = &ic->ic_wme;
@@ -1007,17 +1007,17 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	/* XXX multi-bss */
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
 	    ic->ic_sta_assoc < 2 && (wme->wme_flags & WME_F_AGGRMODE) != 0) {
-        	static const uint8_t logCwMin[IEEE80211_MODE_MAX] = {
-              		3,	/* IEEE80211_MODE_AUTO */
-              		3,	/* IEEE80211_MODE_11A */
-              		4,	/* IEEE80211_MODE_11B */
-              		3,	/* IEEE80211_MODE_11G */
-              		4,	/* IEEE80211_MODE_FH */
-              		3,	/* IEEE80211_MODE_TURBO_A */
-              		3,	/* IEEE80211_MODE_TURBO_G */
-              		3,	/* IEEE80211_MODE_STURBO_A */
-              		3,	/* IEEE80211_MODE_11NA */
-              		3,	/* IEEE80211_MODE_11NG */
+		static const uint8_t logCwMin[IEEE80211_MODE_MAX] = {
+		    [IEEE80211_MODE_AUTO]	= 3,
+		    [IEEE80211_MODE_11A]	= 3,
+		    [IEEE80211_MODE_11B]	= 4,
+		    [IEEE80211_MODE_11G]	= 3,
+		    [IEEE80211_MODE_FH]		= 4,
+		    [IEEE80211_MODE_TURBO_A]	= 3,
+		    [IEEE80211_MODE_TURBO_G]	= 3,
+		    [IEEE80211_MODE_STURBO_A]	= 3,
+		    [IEEE80211_MODE_11NA]	= 3,
+		    [IEEE80211_MODE_11NG]	= 3,
 		};
 		chanp = &wme->wme_chanParams.cap_wmeParams[WME_AC_BE];
 		bssp = &wme->wme_bssChanParams.cap_wmeParams[WME_AC_BE];
