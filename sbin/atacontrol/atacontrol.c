@@ -364,6 +364,8 @@ main(int argc, char **argv)
 		fd = open_dev(argv[2], O_RDONLY);
 		if (argc == 4) {
 			mode = str2mode(argv[3]);
+			if (mode == -1)
+				errx(1, "unknown mode");
 			if (ioctl(fd, IOCATASMODE, &mode) < 0)
 				warn("ioctl(IOCATASMODE)");
 		}
