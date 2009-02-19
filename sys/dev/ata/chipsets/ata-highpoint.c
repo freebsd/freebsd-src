@@ -135,6 +135,7 @@ ata_highpoint_chipinit(device_t dev)
 			     (pci_read_config(dev, 0x5b, 1) & 0x01) | 0x20, 1);
     }
     ctlr->ch_attach = ata_highpoint_ch_attach;
+    ctlr->ch_detach = ata_pci_ch_detach;
     ctlr->setmode = ata_highpoint_setmode;
     return 0;
 }
