@@ -43,6 +43,8 @@ enum ieee80211_phytype {
 	IEEE80211_T_OFDM,		/* frequency division multiplexing */
 	IEEE80211_T_TURBO,		/* high rate OFDM, aka turbo mode */
 	IEEE80211_T_HT,			/* high throughput */
+	IEEE80211_T_OFDM_HALF,		/* 1/2 rate OFDM */
+	IEEE80211_T_OFDM_QUARTER,	/* 1/4 rate OFDM */
 };
 #define	IEEE80211_T_CCK	IEEE80211_T_DS	/* more common nomenclature */
 
