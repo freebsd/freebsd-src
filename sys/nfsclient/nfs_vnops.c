@@ -594,13 +594,6 @@ nfs_close(struct vop_close_args *ap)
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		mtx_lock(&np->n_mtx);
 	    }
- 	    /* 
- 	     * Invalidate the attribute cache in all cases.
- 	     * An open is going to fetch fresh attrs any way, other procs
- 	     * on this node that have file open will be forced to do an 
- 	     * otw attr fetch, but this is safe.
- 	     */
-	    np->n_attrstamp = 0;
 	    if (np->n_flag & NWRITEERR) {
 		np->n_flag &= ~NWRITEERR;
 		error = np->n_error;
