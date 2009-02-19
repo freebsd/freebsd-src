@@ -43,6 +43,7 @@ static char rcsid[] =
 #include <signal.h>
 #include "ww.h"
 #include "tt.h"
+#include <stdlib.h>
 
 /*ARGSUSED*/
 int
