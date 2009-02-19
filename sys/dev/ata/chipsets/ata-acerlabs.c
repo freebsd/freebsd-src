@@ -106,6 +106,7 @@ ata_ali_chipinit(device_t dev)
     case ALI_SATA:
 	ctlr->channels = ctlr->chip->cfg1;
 	ctlr->ch_attach = ata_ali_sata_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_sata_setmode;
 
 	/* AHCI mode is correctly supported only on the ALi 5288. */
@@ -134,6 +135,7 @@ ata_ali_chipinit(device_t dev)
 			  "using PIO transfers above 137GB as workaround for "
 			  "48bit DMA access bug, expect reduced performance\n");
 	ctlr->ch_attach = ata_ali_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->reset = ata_ali_reset;
 	ctlr->setmode = ata_ali_setmode;
 	break;

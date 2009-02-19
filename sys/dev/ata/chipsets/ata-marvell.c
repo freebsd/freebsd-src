@@ -56,6 +56,7 @@ static int ata_marvell_pata_chipinit(device_t dev);
 static int ata_marvell_pata_ch_attach(device_t dev);
 static void ata_marvell_pata_setmode(device_t dev, int mode);
 static int ata_marvell_edma_ch_attach(device_t dev);
+static int ata_marvell_edma_ch_detach(device_t dev);
 static int ata_marvell_edma_status(device_t dev);
 static int ata_marvell_edma_begin_transaction(struct ata_request *request);
 static int ata_marvell_edma_end_transaction(struct ata_request *request);
@@ -136,6 +137,7 @@ ata_marvell_pata_chipinit(device_t dev)
 	return ENXIO;
 
     ctlr->ch_attach = ata_marvell_pata_ch_attach;
+    ctlr->ch_detach = ata_pci_ch_detach;
     ctlr->setmode = ata_marvell_pata_setmode;
     ctlr->channels = ctlr->chip->cfg1;
     return 0;
@@ -190,6 +192,7 @@ ata_marvell_edma_chipinit(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x01d5c, 0x00000000);
 
     ctlr->ch_attach = ata_marvell_edma_ch_attach;
+    ctlr->ch_detach = ata_marvell_edma_ch_detach;
     ctlr->reset = ata_marvell_edma_reset;
     ctlr->setmode = ata_sata_setmode;
     ctlr->channels = ctlr->chip->cfg1;
@@ -305,6 +308,14 @@ ata_marvell_edma_ch_attach(device_t dev)
     /* enable EDMA machinery */
     ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000001);
     return 0;
+}
+
+static int
+ata_marvell_edma_ch_detach(device_t dev)
+{
+
+    ata_dmafini(dev);
+    return (0);
 }
 
 static int

@@ -100,6 +100,7 @@ ata_pci_attach(device_t dev)
 	ctlr->channels = 1;
     ctlr->ichannels = -1;
     ctlr->ch_attach = ata_pci_ch_attach;
+    ctlr->ch_detach = ata_pci_ch_detach;
     ctlr->dev = dev;
 
     /* if needed try to enable busmastering */
@@ -382,6 +383,21 @@ ata_pci_ch_attach(device_t dev)
 }
 
 int
+ata_pci_ch_detach(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ata_pci_dmafini(dev);
+
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID,
+	ch->r_io[ATA_CONTROL].res);
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID,
+	ch->r_io[ATA_IDX_ADDR].res);
+
+    return (0);
+}
+
+int
 ata_pci_status(device_t dev)
 {
     struct ata_pci_controller *controller =
@@ -477,6 +493,12 @@ ata_pci_dmainit(device_t dev)
     ch->dma.reset = ata_pci_dmareset;
 }
 
+void
+ata_pci_dmafini(device_t dev)
+{
+
+    ata_dmafini(dev);
+}
 
 static device_method_t ata_pci_methods[] = {
     /* device interface */

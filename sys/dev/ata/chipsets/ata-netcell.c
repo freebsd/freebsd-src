@@ -82,6 +82,7 @@ ata_netcell_chipinit(device_t dev)
         return ENXIO;
 
     ctlr->ch_attach = ata_netcell_ch_attach;
+    ctlr->ch_detach = ata_pci_ch_detach;
     ctlr->setmode = ata_netcell_setmode;
     return 0;
 }
