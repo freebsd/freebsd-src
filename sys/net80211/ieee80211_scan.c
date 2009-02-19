@@ -84,6 +84,8 @@ struct scan_state {
 #define	ROAM_RATE_11A_DEFAULT		2*12	/* 11a bss */
 #define	ROAM_RATE_11B_DEFAULT		2*5	/* 11b bss */
 #define	ROAM_RATE_11BONLY_DEFAULT	2*1	/* 11b-only bss */
+#define	ROAM_RATE_HALF_DEFAULT		2*6	/* half-width 11a/g bss */
+#define	ROAM_RATE_QUARTER_DEFAULT	2*3	/* quarter-width 11a/g bss */
 #define	ROAM_MCS_11N_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11n bss */
 
 static	void scan_restart_pwrsav(void *);
@@ -141,6 +143,10 @@ static const struct ieee80211_roamparam defroam[IEEE80211_MODE_MAX] = {
 				    .rate = ROAM_RATE_11A_DEFAULT },
 	[IEEE80211_MODE_STURBO_A]={ .rssi = ROAM_RSSI_11A_DEFAULT,
 				    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_HALF]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_HALF_DEFAULT },
+	[IEEE80211_MODE_QUARTER]= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_QUARTER_DEFAULT },
 	[IEEE80211_MODE_11NA]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
 				    .rate = ROAM_MCS_11N_DEFAULT },
 	[IEEE80211_MODE_11NG]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
