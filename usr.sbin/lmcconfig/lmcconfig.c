@@ -68,6 +68,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #if defined(NETGRAPH)
 # include <netgraph.h>
