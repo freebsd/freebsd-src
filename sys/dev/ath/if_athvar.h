@@ -259,9 +259,7 @@ struct ath_softc {
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
-#define	IEEE80211_MODE_HALF	(IEEE80211_MODE_MAX+0)
-#define	IEEE80211_MODE_QUARTER	(IEEE80211_MODE_MAX+1)
-	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX+2];
+	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
 	HAL_OPMODE		sc_opmode;	/* current operating mode */
