@@ -663,6 +663,24 @@ cache_purge(vp)
 }
 
 /*
+ * Invalidate all negative entries for a particular directory vnode.
+ */
+void
+cache_purge_negative(vp)
+	struct vnode *vp;
+{
+	struct namecache *cp, *ncp;
+
+	CTR1(KTR_VFS, "cache_purge_negative(%p)", vp);
+	CACHE_WLOCK();
+	LIST_FOREACH_SAFE(cp, &vp->v_cache_src, nc_src, ncp) {
+		if (cp->nc_vp == NULL)
+			cache_zap(cp);
+	}
+	CACHE_WUNLOCK();
+}
+
+/*
  * Flush all entries referencing a particular filesystem.
  */
 void
