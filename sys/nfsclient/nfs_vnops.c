@@ -852,6 +852,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
+	struct vattr vattr;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
@@ -880,8 +881,12 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (error > 0 && error != ENOENT)
 		return (error);
 	if (error == -1) {
-		struct vattr vattr;
-
+		/*
+		 * We only accept a positive hit in the cache if the
+		 * change time of the file matches our cached copy.
+		 * Otherwise, we discard the cache entry and fallback
+		 * to doing a lookup RPC.
+		 */
 		newvp = *vpp;
 		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
 		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
@@ -897,6 +902,24 @@ nfs_lookup(struct vop_lookup_args *ap)
 		else 
 			vrele(newvp);
 		*vpp = NULLVP;
+	} else if (error == ENOENT) {
+		/*
+		 * We only accept a negative hit in the cache if the
+		 * modification time of the parent directory matches
+		 * our cached copy.  Otherwise, we discard all of the
+		 * negative cache entries for this directory.
+		 */
+		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
+		    vattr.va_mtime.tv_sec == np->n_dmtime) {
+			nfsstats.lookupcache_hits++;
+			if ((cnp->cn_nameiop == CREATE ||
+			    cnp->cn_nameiop == RENAME) &&
+			    (flags & ISLASTCN))
+				cnp->cn_flags |= SAVENAME;
+			return (ENOENT);
+		}
+		cache_purge_negative(dvp);
+		np->n_dmtime = 0;
 	}
 	error = 0;
 	newvp = NULLVP;
@@ -982,16 +1005,38 @@ nfsmout:
 			vput(newvp);
 			*vpp = NULLVP;
 		}
+
+		if (error != ENOENT)
+			goto done;
+
+		/* The requested file was not found. */
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
-		    (flags & ISLASTCN) && error == ENOENT) {
+		    (flags & ISLASTCN)) {
+			/*
+			 * XXX: UFS does a full VOP_ACCESS(dvp,
+			 * VWRITE) here instead of just checking
+			 * MNT_RDONLY.
+			 */
 			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
-				error = EROFS;
-			else
-				error = EJUSTRETURN;
-		}
-		if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
+				return (EROFS);
 			cnp->cn_flags |= SAVENAME;
+			return (EJUSTRETURN);
+		}
+
+		if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE) {
+			/*
+			 * Maintain n_dmtime as the modification time
+			 * of the parent directory when the oldest -ve
+			 * name cache entry for this directory was
+			 * added.
+			 */
+			if (np->n_dmtime == 0)
+				np->n_dmtime = np->n_vattr.va_mtime.tv_sec;
+			cache_enter(dvp, NULL, cnp);
+		}
+		return (ENOENT);
 	}
+done:
 	return (error);
 }
 
