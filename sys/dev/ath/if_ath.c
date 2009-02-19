@@ -5641,12 +5641,7 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	 * Change channels and update the h/w rate map
 	 * if we're switching; e.g. 11a to 11b/g.
 	 */
-	if (IEEE80211_IS_CHAN_HALF(chan))
-		mode = IEEE80211_MODE_HALF;
-	else if (IEEE80211_IS_CHAN_QUARTER(chan))
-		mode = IEEE80211_MODE_QUARTER;
-	else
-		mode = ieee80211_chan2mode(chan);
+	mode = ieee80211_chan2mode(chan);
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
 	sc->sc_curchan = chan;
