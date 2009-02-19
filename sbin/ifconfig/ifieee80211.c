@@ -126,9 +126,19 @@ static void LINE_INIT(char c);
 static void LINE_BREAK(void);
 static void LINE_CHECK(const char *fmt, ...);
 
-static const char *modename[] = {
-	"auto", "11a", "11b", "11g", "fh", "turboA", "turboG",
-	"sturbo", "11na", "11ng"
+static const char *modename[IEEE80211_MODE_MAX] = {
+	[IEEE80211_MODE_AUTO]	  = "auto",
+	[IEEE80211_MODE_11A]	  = "11a",
+	[IEEE80211_MODE_11B]	  = "11b",
+	[IEEE80211_MODE_11G]	  = "11g",
+	[IEEE80211_MODE_FH]	  = "fh",
+	[IEEE80211_MODE_TURBO_A]  = "turboA",
+	[IEEE80211_MODE_TURBO_G]  = "turboG",
+	[IEEE80211_MODE_STURBO_A] = "sturbo",
+	[IEEE80211_MODE_11NA]	  = "11na",
+	[IEEE80211_MODE_11NG]	  = "11ng",
+	[IEEE80211_MODE_HALF]	  = "half",
+	[IEEE80211_MODE_QUARTER]  = "quarter"
 };
 
 static void set80211(int s, int type, int val, int len, void *data);
@@ -357,6 +367,10 @@ chan2mode(const struct ieee80211_channel *c)
 		return IEEE80211_MODE_STURBO_A;
 	if (IEEE80211_IS_CHAN_FHSS(c))
 		return IEEE80211_MODE_FH;
+	if (IEEE80211_IS_CHAN_HALF(c))
+		return IEEE80211_MODE_HALF;
+	if (IEEE80211_IS_CHAN_QUARTER(c))
+		return IEEE80211_MODE_QUARTER;
 	if (IEEE80211_IS_CHAN_A(c))
 		return IEEE80211_MODE_11A;
 	if (IEEE80211_IS_CHAN_ANYG(c))
@@ -1303,7 +1317,6 @@ getmodeflags(const char *val)
 			case 'g':		/* 802.11g */
 				flags |= IEEE80211_CHAN_G;
 				break;
-			case 'h':		/* ht = 802.11n */
 			case 'n':		/* 802.11n */
 				flags |= IEEE80211_CHAN_HT;
 				break;
@@ -1317,6 +1330,12 @@ getmodeflags(const char *val)
 				break;
 			case 's':		/* st = Atheros Static Turbo */
 				flags |= IEEE80211_CHAN_STURBO;
+				break;
+			case 'h':		/* 1/2-width channels */
+				flags |= IEEE80211_CHAN_HALF;
+				break;
+			case 'q':		/* 1/4-width channels */
+				flags |= IEEE80211_CHAN_QUARTER;
 				break;
 			default:
 				errx(-1, "%s: Invalid mode attribute %c\n",
@@ -1357,6 +1376,10 @@ getmodeflags(const char *val)
 	    _base.params[IEEE80211_MODE_11G]._param = _v;		\
     if ((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)		\
 	    _base.params[IEEE80211_MODE_11B]._param = _v;		\
+    if (_flags & IEEE80211_CHAN_HALF)					\
+	    _base.params[IEEE80211_MODE_HALF]._param = _v;		\
+    if (_flags & IEEE80211_CHAN_QUARTER)				\
+	    _base.params[IEEE80211_MODE_QUARTER]._param = _v;		\
 } while (0)
 #define	_APPLY1(_flags, _base, _param, _v) do {				\
     if (_flags & IEEE80211_CHAN_HT) {					\
@@ -1370,6 +1393,10 @@ getmodeflags(const char *val)
 	    _base.params[IEEE80211_MODE_TURBO_G]._param = _v;		\
     else if ((_flags & IEEE80211_CHAN_ST) == IEEE80211_CHAN_ST)		\
 	    _base.params[IEEE80211_MODE_STURBO_A]._param = _v;		\
+    else if (_flags & IEEE80211_CHAN_HALF)				\
+	    _base.params[IEEE80211_MODE_HALF]._param = _v;		\
+    else if (_flags & IEEE80211_CHAN_QUARTER)				\
+	    _base.params[IEEE80211_MODE_QUARTER]._param = _v;		\
     else if ((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)		\
 	    _base.params[IEEE80211_MODE_11A]._param = _v;		\
     else if ((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)		\
@@ -1379,50 +1406,15 @@ getmodeflags(const char *val)
 } while (0)
 #define	_APPLY_RATE(_flags, _base, _param, _v) do {			\
     if (_flags & IEEE80211_CHAN_HT) {					\
-	    if ((_flags & (IEEE80211_CHAN_5GHZ|IEEE80211_CHAN_2GHZ)) == 0) {\
-		    _base.params[IEEE80211_MODE_11NA]._param = _v|0x80;	\
-		    _base.params[IEEE80211_MODE_11NG]._param = _v|0x80;	\
-	    } else if (_flags & IEEE80211_CHAN_5GHZ)			\
-		    _base.params[IEEE80211_MODE_11NA]._param = _v|0x80;	\
-	    else							\
-		    _base.params[IEEE80211_MODE_11NG]._param = _v|0x80;	\
+	(_v) = (_v / 2) | IEEE80211_RATE_MCS;				\
     }									\
-    if (_flags & IEEE80211_CHAN_TURBO) {				\
-	    if ((_flags & (IEEE80211_CHAN_5GHZ|IEEE80211_CHAN_2GHZ)) == 0) {\
-		    _base.params[IEEE80211_MODE_TURBO_A]._param = 2*_v;	\
-		    _base.params[IEEE80211_MODE_TURBO_G]._param = 2*_v;	\
-	    } else if (_flags & IEEE80211_CHAN_5GHZ)			\
-		    _base.params[IEEE80211_MODE_TURBO_A]._param = 2*_v;	\
-	    else							\
-		    _base.params[IEEE80211_MODE_TURBO_G]._param = 2*_v;	\
-    }									\
-    if (_flags & IEEE80211_CHAN_STURBO)					\
-	    _base.params[IEEE80211_MODE_STURBO_A]._param = 2*_v;	\
-    if ((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)		\
-	    _base.params[IEEE80211_MODE_11A]._param = 2*_v;		\
-    if ((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)		\
-	    _base.params[IEEE80211_MODE_11G]._param = (_v == 5 ? 11 : 2*_v);\
-    if ((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)		\
-	    _base.params[IEEE80211_MODE_11B]._param = (_v == 5 ? 11 : 2*_v);\
+    _APPLY(_flags, _base, _param, _v);					\
 } while (0)
 #define	_APPLY_RATE1(_flags, _base, _param, _v) do {			\
     if (_flags & IEEE80211_CHAN_HT) {					\
-	    if (_flags & IEEE80211_CHAN_5GHZ)				\
-		    _base.params[IEEE80211_MODE_11NA]._param = _v|0x80;	\
-	    else							\
-		    _base.params[IEEE80211_MODE_11NG]._param = _v|0x80;	\
-    } else if ((_flags & IEEE80211_CHAN_108A) == IEEE80211_CHAN_108A)	\
-	    _base.params[IEEE80211_MODE_TURBO_A]._param = 2*_v;		\
-    else if ((_flags & IEEE80211_CHAN_108G) == IEEE80211_CHAN_108G)	\
-	    _base.params[IEEE80211_MODE_TURBO_G]._param = 2*_v;		\
-    else if ((_flags & IEEE80211_CHAN_ST) == IEEE80211_CHAN_ST)		\
-	    _base.params[IEEE80211_MODE_STURBO_A]._param = 2*_v;	\
-    else if ((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)		\
-	    _base.params[IEEE80211_MODE_11A]._param = 2*_v;		\
-    else if ((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)		\
-	    _base.params[IEEE80211_MODE_11G]._param = (_v == 5 ? 11 : 2*_v);\
-    else if ((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)		\
-	    _base.params[IEEE80211_MODE_11B]._param = (_v == 5 ? 11 : 2*_v);\
+	(_v) = (_v / 2) | IEEE80211_RATE_MCS;				\
+    }									\
+    _APPLY1(_flags, _base, _param, _v);					\
 } while (0)
 
 static
@@ -1444,55 +1436,70 @@ DECL_CMD_FUNC(set80211roamrssi, val, d)
 	callback_register(setroam_cb, &roamparams);
 }
 
+static int
+getrate(const char *val, const char *tag)
+{
+	double v = atof(val);
+	int rate;
+
+	rate = (int) (2*v);
+	if (rate != 2*v)
+		errx(-1, "invalid %s rate (must be .5 Mb/s units)", tag);
+	return rate;		/* NB: returns 2x the specified value */
+}
+
 static
 DECL_CMD_FUNC(set80211roamrate, val, d)
 {
-	int v = atoi(val), flags;
+	int rate, flags;
 
+	rate = getrate(val, "roam");
 	flags = getmodeflags(val);
 	getroam(s);
 	if (flags == 0) {		/* NB: no flags => current channel */
 		flags = getcurchan(s)->ic_flags;
-		_APPLY_RATE1(flags, roamparams, rate, v);
+		_APPLY_RATE1(flags, roamparams, rate, rate);
 	} else
-		_APPLY_RATE(flags, roamparams, rate, v);
+		_APPLY_RATE(flags, roamparams, rate, rate);
 	callback_register(setroam_cb, &roamparams);
 }
 
 static
 DECL_CMD_FUNC(set80211mcastrate, val, d)
 {
-	int v = atoi(val), flags;
+	int rate, flags;
 
+	rate = getrate(val, "mcast");
 	flags = getmodeflags(val);
 	gettxparams(s);
 	if (flags == 0) {		/* NB: no flags => current channel */
 		flags = getcurchan(s)->ic_flags;
-		_APPLY_RATE1(flags, txparams, mcastrate, v);
+		_APPLY_RATE1(flags, txparams, mcastrate, rate);
 	} else
-		_APPLY_RATE(flags, txparams, mcastrate, v);
+		_APPLY_RATE(flags, txparams, mcastrate, rate);
 	callback_register(settxparams_cb, &txparams);
 }
 
 static
 DECL_CMD_FUNC(set80211mgtrate, val, d)
 {
-	int v = atoi(val), flags;
+	int rate, flags;
 
+	rate = getrate(val, "mgmt");
 	flags = getmodeflags(val);
 	gettxparams(s);
 	if (flags == 0) {		/* NB: no flags => current channel */
 		flags = getcurchan(s)->ic_flags;
-		_APPLY_RATE1(flags, txparams, mgmtrate, v);
+		_APPLY_RATE1(flags, txparams, mgmtrate, rate);
 	} else
-		_APPLY_RATE(flags, txparams, mgmtrate, v);
+		_APPLY_RATE(flags, txparams, mgmtrate, rate);
 	callback_register(settxparams_cb, &txparams);
 }
 
 static
 DECL_CMD_FUNC(set80211ucastrate, val, d)
 {
-	int v, flags;
+	int flags;
 
 	gettxparams(s);
 	flags = getmodeflags(val);
@@ -1505,12 +1512,12 @@ DECL_CMD_FUNC(set80211ucastrate, val, d)
 			_APPLY(flags, txparams, ucastrate,
 			    IEEE80211_FIXED_RATE_NONE);
 	} else {
-		v = atoi(val);
+		int rate = getrate(val, "ucast");
 		if (flags == 0) {	/* NB: no flags => current channel */
 			flags = getcurchan(s)->ic_flags;
-			_APPLY_RATE1(flags, txparams, ucastrate, v);
+			_APPLY_RATE1(flags, txparams, ucastrate, rate);
 		} else
-			_APPLY_RATE(flags, txparams, ucastrate, v);
+			_APPLY_RATE(flags, txparams, ucastrate, rate);
 	}
 	callback_register(settxparams_cb, &txparams);
 }
@@ -3518,27 +3525,27 @@ list_roam(int s)
 	int mode;
 
 	getroam(s);
-	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_11NA; mode++) {
+	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_MAX; mode++) {
 		rp = &roamparams.params[mode];
 		if (rp->rssi == 0 && rp->rate == 0)
 			continue;
-		if (rp->rssi & 1)
-			LINE_CHECK("roam:%-6.6s rssi %2u.5dBm rate %2u Mb/s",
-			    modename[mode], rp->rssi/2, rp->rate/2);
-		else
-			LINE_CHECK("roam:%-6.6s rssi %4udBm rate %2u Mb/s",
-			    modename[mode], rp->rssi/2, rp->rate/2);
-	}
-	for (; mode < IEEE80211_MODE_MAX; mode++) {
-		rp = &roamparams.params[mode];
-		if (rp->rssi == 0 && rp->rate == 0)
-			continue;
-		if (rp->rssi & 1)
-			LINE_CHECK("roam:%-6.6s rssi %2u.5dBm  MCS %2u    ",
-			    modename[mode], rp->rssi/2, rp->rate &~ 0x80);
-		else
-			LINE_CHECK("roam:%-6.6s rssi %4udBm  MCS %2u    ",
-			    modename[mode], rp->rssi/2, rp->rate &~ 0x80);
+		if (mode == IEEE80211_MODE_11NA || mode == IEEE80211_MODE_11NG) {
+			if (rp->rssi & 1)
+				LINE_CHECK("roam:%-7.7s rssi %2u.5dBm  MCS %2u    ",
+				    modename[mode], rp->rssi/2,
+				    rp->rate &~ IEEE80211_RATE_MCS);
+			else
+				LINE_CHECK("roam:%-7.7s rssi %4udBm  MCS %2u    ",
+				    modename[mode], rp->rssi/2,
+				    rp->rate &~ IEEE80211_RATE_MCS);
+		} else {
+			if (rp->rssi & 1)
+				LINE_CHECK("roam:%-7.7s rssi %2u.5dBm rate %2u Mb/s",
+				    modename[mode], rp->rssi/2, rp->rate/2);
+			else
+				LINE_CHECK("roam:%-7.7s rssi %4udBm rate %2u Mb/s",
+				    modename[mode], rp->rssi/2, rp->rate/2);
+		}
 	}
 }
 
@@ -3549,36 +3556,40 @@ list_txparams(int s)
 	int mode;
 
 	gettxparams(s);
-	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_11NA; mode++) {
+	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_MAX; mode++) {
 		tp = &txparams.params[mode];
 		if (tp->mgmtrate == 0 && tp->mcastrate == 0)
 			continue;
-		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			LINE_CHECK("%-6.6s ucast NONE    mgmt %2u Mb/s "
-			    "mcast %2u Mb/s maxretry %u",
-			    modename[mode], tp->mgmtrate/2,
-			    tp->mcastrate/2, tp->maxretry);
-		else
-			LINE_CHECK("%-6.6s ucast %2u Mb/s mgmt %2u Mb/s "
-			    "mcast %2u Mb/s maxretry %u",
-			    modename[mode], tp->ucastrate/2, tp->mgmtrate/2,
-			    tp->mcastrate/2, tp->maxretry);
-	}
-	for (; mode < IEEE80211_MODE_MAX; mode++) {
-		tp = &txparams.params[mode];
-		if (tp->mgmtrate == 0 && tp->mcastrate == 0)
-			continue;
-		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			LINE_CHECK("%-6.6s ucast NONE    mgmt %2u MCS  "
-			    "mcast %2u MCS  maxretry %u",
-			    modename[mode], tp->mgmtrate &~ 0x80,
-			    tp->mcastrate &~ 0x80, tp->maxretry);
-		else
-			LINE_CHECK("%-6.6s ucast %2u MCS  mgmt %2u MCS  "
-			    "mcast %2u MCS  maxretry %u",
-			    modename[mode], tp->ucastrate &~ 0x80,
-			    tp->mgmtrate &~ 0x80,
-			    tp->mcastrate &~ 0x80, tp->maxretry);
+		if (mode == IEEE80211_MODE_11NA || mode == IEEE80211_MODE_11NG) {
+			if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
+				LINE_CHECK("%-7.7s ucast NONE    mgmt %2u MCS  "
+				    "mcast %2u MCS  maxretry %u",
+				    modename[mode],
+				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
+				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    tp->maxretry);
+			else
+				LINE_CHECK("%-7.7s ucast %2u MCS  mgmt %2u MCS  "
+				    "mcast %2u MCS  maxretry %u",
+				    modename[mode],
+				    tp->ucastrate &~ IEEE80211_RATE_MCS,
+				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
+				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    tp->maxretry);
+		} else {
+			if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
+				LINE_CHECK("%-7.7s ucast NONE    mgmt %2u Mb/s "
+				    "mcast %2u Mb/s maxretry %u",
+				    modename[mode],
+				    tp->mgmtrate/2,
+				    tp->mcastrate/2, tp->maxretry);
+			else
+				LINE_CHECK("%-7.7s ucast %2u Mb/s mgmt %2u Mb/s "
+				    "mcast %2u Mb/s maxretry %u",
+				    modename[mode],
+				    tp->ucastrate/2, tp->mgmtrate/2,
+				    tp->mcastrate/2, tp->maxretry);
+		}
 	}
 }
 
@@ -3880,14 +3891,16 @@ printkey(const struct ieee80211req_key *ik)
 static void
 printrate(const char *tag, int v, int defrate, int defmcs)
 {
-	if (v == 11)
-		LINE_CHECK("%s 5.5", tag);
-	else if (v & 0x80) {
+	if ((v & IEEE80211_RATE_MCS) == 0) {
+		if (v != defrate) {
+			if (v & 1)
+				LINE_CHECK("%s %d.5", tag, v/2);
+			else
+				LINE_CHECK("%s %d", tag, v/2);
+		}
+	} else {
 		if (v != defmcs)
 			LINE_CHECK("%s %d", tag, v &~ 0x80);
-	} else {
-		if (v != defrate)
-			LINE_CHECK("%s %d", tag, v/2);
 	}
 }
 
@@ -4180,8 +4193,10 @@ end:
 		tp = &txparams.params[chan2mode(c)];
 		printrate("ucastrate", tp->ucastrate,
 		    IEEE80211_FIXED_RATE_NONE, IEEE80211_FIXED_RATE_NONE);
-		printrate("mcastrate", tp->mcastrate, 2*1, 0x80|0);
-		printrate("mgmtrate", tp->mgmtrate, 2*1, 0x80|0);
+		printrate("mcastrate", tp->mcastrate, 2*1,
+		    IEEE80211_RATE_MCS|0);
+		printrate("mgmtrate", tp->mgmtrate, 2*1,
+		    IEEE80211_RATE_MCS|0);
 		if (tp->maxretry != 6)		/* XXX */
 			LINE_CHECK("maxretry %d", tp->maxretry);
 	} else {
