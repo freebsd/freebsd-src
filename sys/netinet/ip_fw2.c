@@ -2219,15 +2219,15 @@ ipfw_chk(struct ip_fw_args *args)
  * pointer might become stale after other pullups (but we never use it
  * this way).
  */
-#define PULLUP_TO(len, p, T)						\
+#define PULLUP_TO(_len, p, T)						\
 do {									\
-	int x = (len) + sizeof(T);					\
+	int x = (_len) + sizeof(T);					\
 	if ((m)->m_len < x) {						\
 		args->m = m = m_pullup(m, x);				\
 		if (m == NULL)						\
 			goto pullup_failed;				\
 	}								\
-	p = (mtod(m, char *) + (len));					\
+	p = (mtod(m, char *) + (_len));					\
 } while (0)
 
 	/*
@@ -3717,7 +3717,7 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 				continue;
 			clear_counters(rule, log_only);
 		}
-		msg = log_only ? "logging counts reset" :
+		msg = log_only ? "All logging counts reset" :
 		    "Accounting cleared";
 	} else {
 		int cleared = 0;
