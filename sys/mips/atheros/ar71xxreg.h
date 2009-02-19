@@ -101,6 +101,21 @@
 
 #define	AR71XX_UART_ADDR		0x18020000
 
+#define	AR71XX_PLL_CPU_CONFIG		0x18050000
+#define	AR71XX_PLL_SEC_CONFIG		0x18050004
+#define	AR71XX_PLL_CPU_CLK_CTRL		0x18050008
+#define	AR71XX_PLL_ETH_INT0_CLK		0x18050010
+#define	AR71XX_PLL_ETH_INT1_CLK		0x18050014
+#define		XPLL_ETH_INT_CLK_10		0x00991099
+#define		XPLL_ETH_INT_CLK_100		0x00441011
+#define		XPLL_ETH_INT_CLK_1000		0x13110000
+#define		XPLL_ETH_INT_CLK_1000_GMII	0x14110000
+#define		PLL_ETH_INT_CLK_10		0x00991099
+#define		PLL_ETH_INT_CLK_100		0x00001099
+#define		PLL_ETH_INT_CLK_1000		0x00110000
+#define	AR71XX_PLL_ETH_EXT_CLK		0x18050018
+#define	AR71XX_PLL_PCI_CLK		0x1805001C
+
 /* 
  * APB interrupt status and mask register and interrupt bit numbers for 
  */
@@ -120,9 +135,155 @@
 #define		PCI_INTR_CORE		(1 << 4)
 
 #define AR71XX_RST_RESET	0x18060024
-#define		RST_RESET_PCI_CORE	(1 << 0)
-#define		RST_RESET_PCI_BUS	(1 << 1)
-#define		RST_RESET_CPU_COLD	(1 << 20) /* Cold reset */
 #define		RST_RESET_FULL_CHIP	(1 << 24) /* Same as pulling
 							     the reset pin */
+#define		RST_RESET_CPU_COLD	(1 << 20) /* Cold reset */
+#define		RST_RESET_GE1_MAC	(1 << 13)
+#define		RST_RESET_GE1_PHY	(1 << 12)
+#define		RST_RESET_GE0_MAC	(1 <<  9)
+#define		RST_RESET_GE0_PHY	(1 <<  8)
+#define		RST_RESET_PCI_BUS	(1 <<  1)
+#define		RST_RESET_PCI_CORE	(1 <<  0)
+
+/*
+ * GigE adapters region
+ */
+#define AR71XX_MAC0_BASE	0x19000000
+#define AR71XX_MAC1_BASE	0x1A000000
+
+#define		AR71XX_MAC_CFG1			0x00
+#define			MAC_CFG1_SOFT_RESET		(1 << 31)
+#define			MAC_CFG1_SIMUL_RESET		(1 << 30)
+#define			MAC_CFG1_MAC_RX_BLOCK_RESET	(1 << 19)
+#define			MAC_CFG1_MAC_TX_BLOCK_RESET	(1 << 18)
+#define			MAC_CFG1_RX_FUNC_RESET		(1 << 17)
+#define			MAC_CFG1_TX_FUNC_RESET		(1 << 16)
+#define			MAC_CFG1_LOOPBACK		(1 <<  8)
+#define			MAC_CFG1_RXFLOW_CTRL		(1 <<  5)
+#define			MAC_CFG1_TXFLOW_CTRL		(1 <<  4)
+#define			MAC_CFG1_SYNC_RX		(1 <<  3)
+#define			MAC_CFG1_RX_ENABLE		(1 <<  2)
+#define			MAC_CFG1_SYNC_TX		(1 <<  1)
+#define			MAC_CFG1_TX_ENABLE		(1 <<  0)
+#define		AR71XX_MAC_CFG2			0x04
+#define			MAC_CFG2_PREAMBLE_LEN_MASK	0xf
+#define			MAC_CFG2_PREAMBLE_LEN_SHIFT	12
+#define			MAC_CFG2_IFACE_MODE_1000	(2 << 8)
+#define			MAC_CFG2_IFACE_MODE_10_100	(1 << 8)
+#define			MAC_CFG2_IFACE_MODE_SHIFT	8
+#define			MAC_CFG2_IFACE_MODE_MASK	3
+#define			MAC_CFG2_HUGE_FRAME		(1 << 5)
+#define			MAC_CFG2_LENGTH_FIELD		(1 << 4)
+#define			MAC_CFG2_ENABLE_PADCRC		(1 << 2)
+#define			MAC_CFG2_ENABLE_CRC		(1 << 1)
+#define			MAC_CFG2_FULL_DUPLEX		(1 << 0)
+#define		AR71XX_MAC_IFG			0x08
+#define		AR71XX_MAC_HDUPLEX		0x0C
+#define		AR71XX_MAC_MAX_FRAME_LEN	0x10
+#define		AR71XX_MAC_MII_CFG		0x20
+#define			MAC_MII_CFG_RESET		(1 << 31)
+#define			MAC_MII_CFG_SCAN_AUTO_INC	(1 <<  5)
+#define			MAC_MII_CFG_PREAMBLE_SUP	(1 <<  4)
+#define			MAC_MII_CFG_CLOCK_SELECT_MASK	0x7
+#define			MAC_MII_CFG_CLOCK_DIV_4		0
+#define			MAC_MII_CFG_CLOCK_DIV_6		2
+#define			MAC_MII_CFG_CLOCK_DIV_8		3
+#define			MAC_MII_CFG_CLOCK_DIV_10	4
+#define			MAC_MII_CFG_CLOCK_DIV_14	5
+#define			MAC_MII_CFG_CLOCK_DIV_20	6
+#define			MAC_MII_CFG_CLOCK_DIV_28	7
+#define		AR71XX_MAC_MII_CMD		0x24
+#define			MAC_MII_CMD_SCAN_CYCLE		(1 << 1)
+#define			MAC_MII_CMD_READ		1
+#define			MAC_MII_CMD_WRITE		0
+#define		AR71XX_MAC_MII_ADDR		0x28
+#define			MAC_MII_PHY_ADDR_SHIFT		8
+#define			MAC_MII_PHY_ADDR_MASK		0xff
+#define			MAC_MII_REG_MASK		0x1f
+#define		AR71XX_MAC_MII_CONTROL		0x2C
+#define			MAC_MII_CONTROL_MASK		0xffff
+#define		AR71XX_MAC_MII_STATUS		0x30
+#define			MAC_MII_STATUS_MASK		0xffff
+#define		AR71XX_MAC_MII_INDICATOR	0x34
+#define			MAC_MII_INDICATOR_NOT_VALID	(1 << 2)
+#define			MAC_MII_INDICATOR_SCANNING	(1 << 1)
+#define			MAC_MII_INDICATOR_BUSY		(1 << 0)
+#define		AR71XX_MAC_IFCONTROL		0x38
+#define			MAC_IFCONTROL_SPEED	(1 << 16)
+#define		AR71XX_MAC_STA_ADDR1		0x40
+#define		AR71XX_MAC_STA_ADDR2		0x44
+#define		AR71XX_MAC_FIFO_CFG0		0x48
+#define			FIFO_CFG0_TX_FABRIC		(1 << 4)
+#define			FIFO_CFG0_TX_SYSTEM		(1 << 3)
+#define			FIFO_CFG0_RX_FABRIC		(1 << 2)
+#define			FIFO_CFG0_RX_SYSTEM		(1 << 1)
+#define			FIFO_CFG0_WATERMARK		(1 << 0)
+#define			FIFO_CFG0_ALL			((1 << 5) - 1)
+#define			FIFO_CFG0_ENABLE_SHIFT		8
+#define		AR71XX_MAC_FIFO_CFG1		0x4C
+#define		AR71XX_MAC_FIFO_CFG2		0x50
+#define		AR71XX_MAC_FIFO_TX_THRESHOLD	0x54
+#define		AR71XX_MAC_FIFO_RX_FILTMATCH	0x58
+#define			FIFO_RX_FILTMATCH_ALL		((1 << 18) - 1)
+#define		AR71XX_MAC_FIFO_RX_FILTMASK	0x5C
+#define			FIFO_RX_FILTMASK_BYTE_MODE	(1 << 19)
+#define			FIFO_RX_FILTMASK_NO_SHORT_FRAME	(1 << 18)
+#define			FIFO_RX_FILTMASK_ALL		((1 << 20) - 1)
+/* 
+ * These flags applicable both to AR71XX_MAC_FIFO_RX_FILTMASK and
+ * to AR71XX_MAC_FIFO_RX_FILTMATCH
+ */
+#define			FIFO_RX_FILT_UNICAST		(1 << 17)
+#define			FIFO_RX_FILT_TRUNC_FRAME	(1 << 16)
+#define			FIFO_RX_FILT_VLAN_TAG		(1 << 15)
+#define			FIFO_RX_FILT_UNSUP_OPCODE	(1 << 14)
+#define			FIFO_RX_FILT_PAUSE_FRAME	(1 << 13)
+#define			FIFO_RX_FILT_CTRL_FRAME		(1 << 12)
+#define			FIFO_RX_FILT_LONG_EVENT		(1 << 11)
+#define			FIFO_RX_FILT_DRIBBLE_NIBBLE	(1 << 10)
+#define			FIFO_RX_FILT_BCAST		(1 <<  9)
+#define			FIFO_RX_FILT_MCAST		(1 <<  8)
+#define			FIFO_RX_FILT_OK			(1 <<  7)
+#define			FIFO_RX_FILT_OORANGE		(1 <<  6)
+#define			FIFO_RX_FILT_LEN_MSMTCH		(1 <<  5)
+#define			FIFO_RX_FILT_CRC_ERROR		(1 <<  4)
+#define			FIFO_RX_FILT_CODE_ERROR		(1 <<  3)
+#define			FIFO_RX_FILT_FALSE_CARRIER	(1 <<  2)
+#define			FIFO_RX_FILT_RX_DV_EVENT	(1 <<  1)
+#define			FIFO_RX_FILT_DROP_EVENT		(1 <<  0)
+#define		AR71XX_MAC_FIFO_RAM0		0x60
+#define		AR71XX_MAC_FIFO_RAM1		0x64
+#define		AR71XX_MAC_FIFO_RAM2		0x68
+#define		AR71XX_MAC_FIFO_RAM3		0x6C
+#define		AR71XX_MAC_FIFO_RAM4		0x70
+#define		AR71XX_MAC_FIFO_RAM5		0x74
+#define		AR71XX_MAC_FIFO_RAM6		0x78
+#define		AR71XX_DMA_TX_CONTROL		0x180
+#define			DMA_TX_CONTROL_EN		(1 << 0)
+#define		AR71XX_DMA_TX_DESC		0x184
+#define		AR71XX_DMA_TX_STATUS		0x188
+#define			DMA_TX_STATUS_PCOUNT_MASK	0xff
+#define			DMA_TX_STATUS_PCOUNT_SHIFT	16
+#define			DMA_TX_STATUS_BUS_ERROR		(1 << 3) 
+#define			DMA_TX_STATUS_UNDERRUN		(1 << 1) 
+#define			DMA_TX_STATUS_PKT_SENT		(1 << 0) 
+#define		AR71XX_DMA_RX_CONTROL		0x18C
+#define			DMA_RX_CONTROL_EN		(1 << 0)
+#define		AR71XX_DMA_RX_DESC		0x190
+#define		AR71XX_DMA_RX_STATUS		0x194
+#define			DMA_RX_STATUS_PCOUNT_MASK	0xff
+#define			DMA_RX_STATUS_PCOUNT_SHIFT	16
+#define			DMA_RX_STATUS_BUS_ERROR		(1 << 3) 
+#define			DMA_RX_STATUS_OVERFLOW		(1 << 1) 
+#define			DMA_RX_STATUS_PKT_RECVD		(1 << 0) 
+#define		AR71XX_DMA_INTR				0x198
+#define		AR71XX_DMA_INTR_STATUS			0x19C
+#define			DMA_INTR_ALL			((1 << 8) - 1)
+#define			DMA_INTR_RX_BUS_ERROR		(1 << 7)
+#define			DMA_INTR_RX_OVERFLOW		(1 << 6)
+#define			DMA_INTR_RX_PKT_RCVD		(1 << 4)
+#define			DMA_INTR_TX_BUS_ERROR		(1 << 3)
+#define			DMA_INTR_TX_UNDERRUN		(1 << 1)
+#define			DMA_INTR_TX_PKT_SENT		(1 << 0)
+
 #endif /* _AR71XX_REG_H_ */
