@@ -187,6 +187,7 @@ ata_sis_chipinit(device_t dev)
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
 	    ctlr->ch_attach = ata_sis_ch_attach;
+	    ctlr->ch_detach = ata_pci_ch_detach;
 	    ctlr->reset = ata_sis_reset;
 
 	    /* enable PCI interrupt */

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 /* local prototypes */
 static int ata_serverworks_chipinit(device_t dev);
 static int ata_serverworks_ch_attach(device_t dev);
+static int ata_serverworks_ch_detach(device_t dev);
 static void ata_serverworks_tf_read(struct ata_request *request);
 static void ata_serverworks_tf_write(struct ata_request *request);
 static void ata_serverworks_setmode(device_t dev, int mode);
@@ -114,6 +115,7 @@ ata_serverworks_chipinit(device_t dev)
 
 	ctlr->channels = ctlr->chip->cfg2;
 	ctlr->ch_attach = ata_serverworks_ch_attach;
+	ctlr->ch_detach = ata_serverworks_ch_detach;
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     }
@@ -151,6 +153,8 @@ ata_serverworks_ch_attach(device_t dev)
     int ch_offset;
     int i;
 
+    ata_pci_dmainit(dev);
+
     ch_offset = ch->unit * 0x100;
 
     for (i = ATA_DATA; i < ATA_MAX_RES; i++)
@@ -187,6 +191,14 @@ ata_serverworks_ch_attach(device_t dev)
     ch->dma.max_iosize = 64 * DEV_BSIZE;
 
     return 0;
+}
+
+static int
+ata_serverworks_ch_detach(device_t dev)
+{
+
+    ata_pci_dmafini(dev);
+    return (0);
 }
 
 static void

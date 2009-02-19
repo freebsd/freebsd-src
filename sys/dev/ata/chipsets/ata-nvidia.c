@@ -131,6 +131,7 @@ ata_nvidia_chipinit(device_t dev)
 	    int offset = ctlr->chip->cfg1 & NV4 ? 0x0440 : 0x0010;
 
 	    ctlr->ch_attach = ata_nvidia_ch_attach;
+	    ctlr->ch_detach = ata_pci_ch_detach;
 	    ctlr->reset = ata_nvidia_reset;
 
 	    /* enable control access */

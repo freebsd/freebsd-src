@@ -56,10 +56,12 @@ static int ata_cmd_ch_attach(device_t dev);
 static int ata_cmd_status(device_t dev);
 static void ata_cmd_setmode(device_t dev, int mode);
 static int ata_sii_ch_attach(device_t dev);
+static int ata_sii_ch_detach(device_t dev);
 static int ata_sii_status(device_t dev);
 static void ata_sii_reset(device_t dev);
 static void ata_sii_setmode(device_t dev, int mode);
 static int ata_siiprb_ch_attach(device_t dev);
+static int ata_siiprb_ch_detach(device_t dev);
 static int ata_siiprb_status(device_t dev);
 static int ata_siiprb_begin_transaction(struct ata_request *request);
 static int ata_siiprb_end_transaction(struct ata_request *request);
@@ -139,6 +141,7 @@ ata_sii_chipinit(device_t dev)
 	    return ENXIO;
 	}
 	ctlr->ch_attach = ata_siiprb_ch_attach;
+	ctlr->ch_detach = ata_siiprb_ch_detach;
 	ctlr->reset = ata_siiprb_reset;
 	ctlr->setmode = ata_sata_setmode;
 	ctlr->channels = (ctlr->chip->cfg2 == SII_4CH) ? 4 : 2;
@@ -185,8 +188,10 @@ ata_sii_chipinit(device_t dev)
 	/* enable PCI interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
-	if (ctlr->r_res2)
+	if (ctlr->r_res2) {
 	    ctlr->ch_attach = ata_sii_ch_attach;
+	    ctlr->ch_detach = ata_sii_ch_detach;
+	}
 
 	if (ctlr->chip->max_dma >= ATA_SA150) {
 	    ctlr->reset = ata_sii_reset;
@@ -206,6 +211,7 @@ ata_sii_chipinit(device_t dev)
 	pci_write_config(dev, 0x71, 0x01, 1);
 
 	ctlr->ch_attach = ata_cmd_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_cmd_setmode;
 	break;
     }
@@ -306,6 +312,8 @@ ata_sii_ch_attach(device_t dev)
     int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i;
 
+    ata_pci_dmainit(dev);
+
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = 0x80 + i + (unit01 << 6) + (unit10 << 8);
@@ -344,6 +352,14 @@ ata_sii_ch_attach(device_t dev)
     ata_pci_hw(dev);
     ch->hw.status = ata_sii_status;
     return 0;
+}
+
+static int
+ata_sii_ch_detach(device_t dev)
+{
+
+    ata_pci_dmafini(dev);
+    return (0);
 }
 
 static int
@@ -492,6 +508,14 @@ ata_siiprb_ch_attach(device_t dev)
     ch->hw.pm_read = ata_siiprb_pm_read;
     ch->hw.pm_write = ata_siiprb_pm_write;
      
+    return 0;
+}
+
+static int
+ata_siiprb_ch_detach(device_t dev)
+{
+
+    ata_dmafini(dev);
     return 0;
 }
 
