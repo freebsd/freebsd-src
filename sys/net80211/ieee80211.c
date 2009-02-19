@@ -1442,7 +1442,7 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		return findmedia(rates, N(rates), rate | IFM_IEEE80211_FH);
 	case IEEE80211_MODE_AUTO:
 		/* NB: ic may be NULL for some drivers */
-		if (ic && ic->ic_phytype == IEEE80211_T_FH)
+		if (ic != NULL && ic->ic_phytype == IEEE80211_T_FH)
 			return findmedia(rates, N(rates),
 			    rate | IFM_IEEE80211_FH);
 		/* NB: hack, 11g matches both 11b+11a rates */
