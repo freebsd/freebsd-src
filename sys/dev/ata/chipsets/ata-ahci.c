@@ -62,6 +62,7 @@ static int ata_ahci_pm_write(device_t dev, int port, int reg, u_int32_t result);
 static u_int32_t ata_ahci_softreset(device_t dev, int port);
 static void ata_ahci_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static int ata_ahci_setup_fis(struct ata_ahci_cmd_tab *ctp, struct ata_request *equest);
+static void ata_ahci_dmainit(device_t dev);
 
 /*
  * AHCI v1.x compliant SATA chipset support functions
@@ -129,6 +130,7 @@ ata_ahci_chipinit(device_t dev)
 
     ctlr->reset = ata_ahci_reset;
     ctlr->ch_attach = ata_ahci_ch_attach;
+    ctlr->ch_detach = ata_ahci_ch_detach;
     ctlr->setmode = ata_sata_setmode;
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
@@ -223,6 +225,14 @@ ata_ahci_ch_attach(device_t dev)
     ch->hw.pm_write = ata_ahci_pm_write;
 
     return 0;
+}
+
+int
+ata_ahci_ch_detach(device_t dev)
+{
+
+    ata_dmafini(dev);
+    return (0);
 }
 
 static int
@@ -763,7 +773,7 @@ ata_ahci_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
     args->nsegs = nsegs;
 }
 
-void
+static void
 ata_ahci_dmainit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));

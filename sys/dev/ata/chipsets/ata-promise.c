@@ -58,11 +58,11 @@ static int ata_promise_status(device_t dev);
 static int ata_promise_dmastart(struct ata_request *request);
 static int ata_promise_dmastop(struct ata_request *request);
 static void ata_promise_dmareset(device_t dev);
-static void ata_promise_dmainit(device_t dev);
 static void ata_promise_setmode(device_t dev, int mode);
 static int ata_promise_tx2_ch_attach(device_t dev);
 static int ata_promise_tx2_status(device_t dev);
 static int ata_promise_mio_ch_attach(device_t dev);
+static int ata_promise_mio_ch_detach(device_t dev);
 static void ata_promise_mio_intr(void *data);
 static int ata_promise_mio_status(device_t dev);
 static int ata_promise_mio_command(struct ata_request *request);
@@ -232,11 +232,13 @@ ata_promise_chipinit(device_t dev)
 	/* enable burst mode */
 	ATA_OUTB(ctlr->r_res1, 0x1f, ATA_INB(ctlr->r_res1, 0x1f) | 0x01);
 	ctlr->ch_attach = ata_promise_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_promise_setmode;
 	return 0;
 
     case PR_TX:
 	ctlr->ch_attach = ata_promise_tx2_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_promise_setmode;
 	return 0;
 
@@ -283,6 +285,7 @@ ata_promise_chipinit(device_t dev)
 	    hpkt->busy = 0;
 	    device_set_ivars(dev, hpkt);
 	    ctlr->ch_attach = ata_promise_mio_ch_attach;
+	    ctlr->ch_detach = ata_promise_mio_ch_detach;
 	    ctlr->reset = ata_promise_mio_reset;
 	    ctlr->setmode = ata_promise_setmode;
 	    ctlr->channels = 4;
@@ -335,6 +338,7 @@ sataii:
 	    ATA_OUTL(ctlr->r_res2, 0x44, ATA_INL(ctlr->r_res2, 0x44) | 0x2000);
 
 	ctlr->ch_attach = ata_promise_mio_ch_attach;
+	ctlr->ch_detach = ata_promise_mio_ch_detach;
 	ctlr->reset = ata_promise_mio_reset;
 	ctlr->setmode = ata_promise_mio_setmode;
 
@@ -355,11 +359,14 @@ ata_promise_ch_attach(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ctlr->chip->cfg1 == PR_NEW)
-	ata_promise_dmainit(dev);
-
     if (ata_pci_ch_attach(dev))
 	return ENXIO;
+
+    if (ctlr->chip->cfg1 == PR_NEW) {
+        ch->dma.start = ata_promise_dmastart;
+        ch->dma.stop = ata_promise_dmastop;
+        ch->dma.reset = ata_promise_dmareset;
+    }
 
     ch->hw.status = ata_promise_status;
     return 0;
@@ -431,17 +438,6 @@ ata_promise_dmareset(device_t dev)
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR); 
     ch->flags &= ~ATA_DMA_ACTIVE;
-}
-
-static void
-ata_promise_dmainit(device_t dev)
-{
-    struct ata_channel *ch = device_get_softc(dev);
-
-    ata_dmainit(dev);
-    ch->dma.start = ata_promise_dmastart;
-    ch->dma.stop = ata_promise_dmastop;
-    ch->dma.reset = ata_promise_dmareset;
 }
 
 static void
@@ -586,6 +582,14 @@ ata_promise_mio_ch_attach(device_t dev)
 	ch->hw.pm_write = ata_promise_mio_pm_write;
      }
     return 0;
+}
+
+static int
+ata_promise_mio_ch_detach(device_t dev)
+{
+
+    ata_dmafini(dev);
+    return (0);
 }
 
 static void

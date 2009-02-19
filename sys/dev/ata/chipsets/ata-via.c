@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 /* local prototypes */
 static int ata_via_chipinit(device_t dev);
 static int ata_via_ch_attach(device_t dev);
+static int ata_via_ch_detach(device_t dev);
 static void ata_via_reset(device_t dev);
 static void ata_via_old_setmode(device_t dev, int mode);
 static void ata_via_southbridge_fixup(device_t dev);
@@ -140,6 +141,7 @@ ata_via_chipinit(device_t dev)
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
 	    ctlr->ch_attach = ata_via_ch_attach;
+	    ctlr->ch_detach = ata_via_ch_detach;
 	    ctlr->reset = ata_via_reset;
 
 	    /* enable PCI interrupt */
@@ -194,6 +196,8 @@ ata_via_ch_attach(device_t dev)
 	struct resource *r_io;
 	int i, rid;
 		
+	ata_pci_dmainit(dev);
+
 	rid = PCIR_BAR(ch->unit);
 	if (!(r_io = bus_alloc_resource_any(device_get_parent(dev),
 					    SYS_RES_IOPORT,
@@ -232,6 +236,31 @@ ata_via_ch_attach(device_t dev)
 
     /* XXX SOS PHY hotplug handling missing in VIA chip ?? */
     /* XXX SOS unknown how to enable PHY state change interrupt */
+    return 0;
+}
+
+static int
+ata_via_ch_detach(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    /* newer SATA chips has resources in one BAR for each channel */
+    if (ctlr->chip->cfg2 & VIABAR) {
+	int rid;
+		
+	rid = PCIR_BAR(ch->unit);
+	bus_release_resource(device_get_parent(dev),
+	    SYS_RES_IOPORT, rid, ch->r_io[ATA_CONTROL].res);
+
+	ata_pci_dmafini(dev);
+    }
+    else {
+	/* setup the usual register normal pci style */
+	if (ata_pci_ch_detach(dev))
+	    return ENXIO;
+    }
+
     return 0;
 }
 

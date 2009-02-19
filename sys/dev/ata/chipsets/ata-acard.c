@@ -98,6 +98,7 @@ ata_acard_chipinit(device_t dev)
 	return ENXIO;
 
     ctlr->ch_attach = ata_acard_ch_attach;
+    ctlr->ch_detach = ata_pci_ch_detach;
     if (ctlr->chip->cfg1 == ATP_OLD) {
 	ctlr->setmode = ata_acard_850_setmode;
 	ctlr->locking = ata_serialize;
