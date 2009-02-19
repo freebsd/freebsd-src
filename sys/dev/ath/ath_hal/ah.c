@@ -539,6 +539,15 @@ ath_hal_getregdump(struct ath_hal *ah, const HAL_REGRANGE *regs,
 	}
 	return (char *) dp - (char *) dstbuf;
 }
+ 
+static void
+ath_hal_setregs(struct ath_hal *ah, const HAL_REGWRITE *regs, int space)
+{
+	while (space >= sizeof(HAL_REGWRITE)) {
+		OS_REG_WRITE(ah, regs->addr, regs->value);
+		regs++, space -= sizeof(HAL_REGWRITE);
+	}
+}
 
 HAL_BOOL
 ath_hal_getdiagstate(struct ath_hal *ah, int request,
@@ -552,6 +561,10 @@ ath_hal_getdiagstate(struct ath_hal *ah, int request,
 		return AH_TRUE;
 	case HAL_DIAG_REGS:
 		*resultsize = ath_hal_getregdump(ah, args, *result,*resultsize);
+		return AH_TRUE;
+	case HAL_DIAG_SETREGS:
+		ath_hal_setregs(ah, args, argsize);
+		*resultsize = 0;
 		return AH_TRUE;
 	case HAL_DIAG_FATALERR:
 		*result = &AH_PRIVATE(ah)->ah_fatalState[0];
