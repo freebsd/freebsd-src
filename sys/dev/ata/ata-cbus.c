@@ -279,6 +279,10 @@ ata_cbuschannel_attach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int i;
 
+    if (ch->attached)
+	return (0);
+    ch->attached = 1;
+
     ch->unit = (intptr_t)device_get_ivars(dev);
     /* setup the resource vectors */
     for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
@@ -295,6 +299,17 @@ ata_cbuschannel_attach(device_t dev)
     ata_generic_hw(dev);
 
     return ata_attach(dev);
+}
+
+static int
+ata_cbuschannel_detach(device_t dev)
+{
+
+    if (!ch->attached)
+	return (0);
+    ch->attached = 0;
+
+    return ata_detach(dev);
 }
 
 static int
@@ -343,7 +358,7 @@ static device_method_t ata_cbuschannel_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_cbuschannel_probe),
     DEVMETHOD(device_attach,    ata_cbuschannel_attach),
-    DEVMETHOD(device_detach,    ata_detach),
+    DEVMETHOD(device_detach,    ata_cbuschannel_detach),
     DEVMETHOD(device_suspend,   ata_suspend),
     DEVMETHOD(device_resume,    ata_resume),
 
