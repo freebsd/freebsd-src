@@ -14,3 +14,12 @@ hint.uart.0.irq=3
 # pci
 hint.pcib.0.at="nexus0"
 hint.pcib.0.irq=0
+
+hint.arge.0.at="nexus0"
+hint.arge.0.maddr=0x19000000
+hint.arge.0.msize=0x1000
+hint.arge.0.irq=2
+# hint.arge.1.at="nexus0"
+# hint.arge.1.maddr=0x1A000000
+# hint.arge.1.msize=0x1000
+# hint.arge.1.irq=3
