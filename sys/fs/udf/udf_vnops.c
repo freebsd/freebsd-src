@@ -831,17 +831,16 @@ udf_readdir(struct vop_readdir_args *a)
 			error = udf_uiodir(&uiodir, dir.d_reclen, uio,
 			    ds->this_off);
 		}
-		if (error) {
-			printf("uiomove returned %d\n", error);
+		if (error)
 			break;
-		}
-
 	}
 
 	/* tell the calling layer whether we need to be called again */
 	*a->a_eofflag = uiodir.eofflag;
 	uio->uio_offset = ds->offset + ds->off;
 
+	if(error < 0)
+		error = 0;
 	if (!error)
 		error = ds->error;
 
