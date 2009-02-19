@@ -409,8 +409,8 @@ typedef struct {
 	int		rateCount;		/* NB: for proper padding */
 	uint8_t		rateCodeToIndex[144];	/* back mapping */
 	struct {
-		uint8_t	valid;		/* valid for rate control use */
-		uint8_t	phy;		/* CCK/OFDM/XR */
+		uint8_t		valid;		/* valid for rate control use */
+		uint8_t		phy;		/* CCK/OFDM/XR */
 		uint32_t	rateKbps;	/* transfer rate in kbs */
 		uint8_t		rateCode;	/* rate for h/w descriptors */
 		uint8_t		shortPreamble;	/* mask for enabling short
