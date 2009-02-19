@@ -58,6 +58,8 @@ const char *ieee80211_phymode_name[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]  = "turboA",
 	[IEEE80211_MODE_TURBO_G]  = "turboG",
 	[IEEE80211_MODE_STURBO_A] = "sturboA",
+	[IEEE80211_MODE_HALF]	  = "half",
+	[IEEE80211_MODE_QUARTER]  = "quarter",
 	[IEEE80211_MODE_11NA]	  = "11na",
 	[IEEE80211_MODE_11NG]	  = "11ng",
 };
@@ -112,7 +114,7 @@ static void
 ieee80211_chan_init(struct ieee80211com *ic)
 {
 #define	DEFAULTRATES(m, def) do { \
-	if (isset(ic->ic_modecaps, m) && ic->ic_sup_rates[m].rs_nrates == 0) \
+	if (ic->ic_sup_rates[m].rs_nrates == 0) \
 		ic->ic_sup_rates[m] = def; \
 } while (0)
 	struct ieee80211_channel *c;
@@ -159,6 +161,10 @@ ieee80211_chan_init(struct ieee80211com *ic)
 			setbit(ic->ic_modecaps, IEEE80211_MODE_TURBO_G);
 		if (IEEE80211_IS_CHAN_ST(c))
 			setbit(ic->ic_modecaps, IEEE80211_MODE_STURBO_A);
+		if (IEEE80211_IS_CHAN_HALF(c))
+			setbit(ic->ic_modecaps, IEEE80211_MODE_HALF);
+		if (IEEE80211_IS_CHAN_QUARTER(c))
+			setbit(ic->ic_modecaps, IEEE80211_MODE_QUARTER);
 		if (IEEE80211_IS_CHAN_HTA(c))
 			setbit(ic->ic_modecaps, IEEE80211_MODE_11NA);
 		if (IEEE80211_IS_CHAN_HTG(c))
@@ -185,6 +191,8 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_TURBO_A,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_TURBO_G,	 ieee80211_rateset_11g);
 	DEFAULTRATES(IEEE80211_MODE_STURBO_A,	 ieee80211_rateset_11a);
+	DEFAULTRATES(IEEE80211_MODE_HALF,	 ieee80211_rateset_half);
+	DEFAULTRATES(IEEE80211_MODE_QUARTER,	 ieee80211_rateset_quarter);
 	DEFAULTRATES(IEEE80211_MODE_11NA,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_11NG,	 ieee80211_rateset_11g);
 
@@ -867,6 +875,8 @@ addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 	    [IEEE80211_MODE_TURBO_A]	= IFM_IEEE80211_11A|IFM_IEEE80211_TURBO,
 	    [IEEE80211_MODE_TURBO_G]	= IFM_IEEE80211_11G|IFM_IEEE80211_TURBO,
 	    [IEEE80211_MODE_STURBO_A]	= IFM_IEEE80211_11A|IFM_IEEE80211_TURBO,
+	    [IEEE80211_MODE_HALF]	= IFM_IEEE80211_11A,	/* XXX */
+	    [IEEE80211_MODE_QUARTER]	= IFM_IEEE80211_11A,	/* XXX */
 	    [IEEE80211_MODE_11NA]	= IFM_IEEE80211_11NA,
 	    [IEEE80211_MODE_11NG]	= IFM_IEEE80211_11NG,
 	};
@@ -955,7 +965,7 @@ ieee80211_media_setup(struct ieee80211com *ic,
 	 * use a "placeholder" media subtype and any fixed MCS
 	 * must be specified with a different mechanism.
 	 */
-	for (; mode < IEEE80211_MODE_MAX; mode++) {
+	for (; mode <= IEEE80211_MODE_11NG; mode++) {
 		if (isclr(ic->ic_modecaps, mode))
 			continue;
 		addmedia(media, caps, addsta, mode, IFM_AUTO);
@@ -1006,13 +1016,10 @@ ieee80211_media_init(struct ieee80211com *ic)
 	/* XXX need to propagate new media settings to vap's */
 }
 
+/* XXX inline or eliminate? */
 const struct ieee80211_rateset *
 ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *c)
 {
-	if (IEEE80211_IS_CHAN_HALF(c))
-		return &ieee80211_rateset_half;
-	if (IEEE80211_IS_CHAN_QUARTER(c))
-		return &ieee80211_rateset_quarter;
 	/* XXX does this work for 11ng basic rates? */
 	return &ic->ic_sup_rates[ieee80211_chan2mode(c)];
 }
@@ -1317,6 +1324,10 @@ ieee80211_chan2mode(const struct ieee80211_channel *chan)
 		return IEEE80211_MODE_STURBO_A;
 	else if (IEEE80211_IS_CHAN_TURBO(chan))
 		return IEEE80211_MODE_TURBO_A;
+	else if (IEEE80211_IS_CHAN_HALF(chan))
+		return IEEE80211_MODE_HALF;
+	else if (IEEE80211_IS_CHAN_QUARTER(chan))
+		return IEEE80211_MODE_QUARTER;
 	else if (IEEE80211_IS_CHAN_A(chan))
 		return IEEE80211_MODE_11A;
 	else if (IEEE80211_IS_CHAN_ANYG(chan))
@@ -1432,6 +1443,8 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 	rate &= IEEE80211_RATE_VAL;
 	switch (mode) {
 	case IEEE80211_MODE_11A:
+	case IEEE80211_MODE_HALF:		/* XXX good 'nuf */
+	case IEEE80211_MODE_QUARTER:
 	case IEEE80211_MODE_11NA:
 	case IEEE80211_MODE_TURBO_A:
 	case IEEE80211_MODE_STURBO_A:
