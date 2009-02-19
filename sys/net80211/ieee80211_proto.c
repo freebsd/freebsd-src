@@ -662,6 +662,8 @@ setbasicrates(struct ieee80211_rateset *rs,
 	    [IEEE80211_MODE_TURBO_A]	= { 3, { 12, 24, 48 } },
 	    [IEEE80211_MODE_TURBO_G]	= { 4, { 2, 4, 11, 22 } },
 	    [IEEE80211_MODE_STURBO_A]	= { 3, { 12, 24, 48 } },
+	    [IEEE80211_MODE_HALF]	= { 3, { 6, 12, 24 } },
+	    [IEEE80211_MODE_QUARTER]	= { 3, { 3, 6, 12 } },
 	    [IEEE80211_MODE_11NA]	= { 3, { 12, 24, 48 } },
 					    /* NB: mixed b/g */
 	    [IEEE80211_MODE_11NG]	= { 4, { 2, 4, 11, 22 } },
@@ -725,6 +727,8 @@ static const struct phyParamType phyParamForAC_BE[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]= { 2, 3,  5,  0, 0 },
 	[IEEE80211_MODE_TURBO_G]= { 2, 3,  5,  0, 0 },
 	[IEEE80211_MODE_STURBO_A]={ 2, 3,  5,  0, 0 },
+	[IEEE80211_MODE_HALF]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_QUARTER]= { 3, 4,  6,  0, 0 },
 	[IEEE80211_MODE_11NA]	= { 3, 4,  6,  0, 0 },
 	[IEEE80211_MODE_11NG]	= { 3, 4,  6,  0, 0 },
 };
@@ -737,6 +741,8 @@ static const struct phyParamType phyParamForAC_BK[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]= { 7, 3, 10,  0, 0 },
 	[IEEE80211_MODE_TURBO_G]= { 7, 3, 10,  0, 0 },
 	[IEEE80211_MODE_STURBO_A]={ 7, 3, 10,  0, 0 },
+	[IEEE80211_MODE_HALF]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_QUARTER]= { 7, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NA]	= { 7, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NG]	= { 7, 4, 10,  0, 0 },
 };
@@ -749,6 +755,8 @@ static const struct phyParamType phyParamForAC_VI[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]= { 1, 2, 3,  94, 0 },
 	[IEEE80211_MODE_TURBO_G]= { 1, 2, 3,  94, 0 },
 	[IEEE80211_MODE_STURBO_A]={ 1, 2, 3,  94, 0 },
+	[IEEE80211_MODE_HALF]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_QUARTER]= { 1, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NA]	= { 1, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NG]	= { 1, 3, 4,  94, 0 },
 };
@@ -761,6 +769,8 @@ static const struct phyParamType phyParamForAC_VO[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]= { 1, 2, 2,  47, 0 },
 	[IEEE80211_MODE_TURBO_G]= { 1, 2, 2,  47, 0 },
 	[IEEE80211_MODE_STURBO_A]={ 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_HALF]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_QUARTER]= { 1, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NA]	= { 1, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NG]	= { 1, 2, 3,  47, 0 },
 };
@@ -774,6 +784,8 @@ static const struct phyParamType bssPhyParamForAC_BE[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]= { 2, 3, 10,  0, 0 },
 	[IEEE80211_MODE_TURBO_G]= { 2, 3, 10,  0, 0 },
 	[IEEE80211_MODE_STURBO_A]={ 2, 3, 10,  0, 0 },
+	[IEEE80211_MODE_HALF]	= { 3, 4, 10,  0, 0 },
+	[IEEE80211_MODE_QUARTER]= { 3, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NA]	= { 3, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NG]	= { 3, 4, 10,  0, 0 },
 };
@@ -786,6 +798,8 @@ static const struct phyParamType bssPhyParamForAC_VI[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]= { 2, 2, 3,  94, 0 },
 	[IEEE80211_MODE_TURBO_G]= { 2, 2, 3,  94, 0 },
 	[IEEE80211_MODE_STURBO_A]={ 2, 2, 3,  94, 0 },
+	[IEEE80211_MODE_HALF]	= { 2, 3, 4,  94, 0 },
+	[IEEE80211_MODE_QUARTER]= { 2, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NA]	= { 2, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NG]	= { 2, 3, 4,  94, 0 },
 };
@@ -798,6 +812,8 @@ static const struct phyParamType bssPhyParamForAC_VO[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_TURBO_A]= { 1, 2, 2,  47, 0 },
 	[IEEE80211_MODE_TURBO_G]= { 1, 2, 2,  47, 0 },
 	[IEEE80211_MODE_STURBO_A]={ 1, 2, 2,  47, 0 },
+	[IEEE80211_MODE_HALF]	= { 2, 2, 3,  47, 0 },
+	[IEEE80211_MODE_QUARTER]= { 2, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NA]	= { 2, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NG]	= { 2, 2, 3,  47, 0 },
 };
@@ -930,6 +946,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	    [IEEE80211_MODE_TURBO_A]	= { 1, 3, 10, 64, 0 },
 	    [IEEE80211_MODE_TURBO_G]	= { 1, 3, 10, 64, 0 },
 	    [IEEE80211_MODE_STURBO_A]	= { 1, 3, 10, 64, 0 },
+	    [IEEE80211_MODE_HALF]	= { 2, 4, 10, 64, 0 },
+	    [IEEE80211_MODE_QUARTER]	= { 2, 4, 10, 64, 0 },
 	    [IEEE80211_MODE_11NA]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	    [IEEE80211_MODE_11NG]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	};
@@ -1016,6 +1034,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		    [IEEE80211_MODE_TURBO_A]	= 3,
 		    [IEEE80211_MODE_TURBO_G]	= 3,
 		    [IEEE80211_MODE_STURBO_A]	= 3,
+		    [IEEE80211_MODE_HALF]	= 3,
+		    [IEEE80211_MODE_QUARTER]	= 3,
 		    [IEEE80211_MODE_11NA]	= 3,
 		    [IEEE80211_MODE_11NG]	= 3,
 		};

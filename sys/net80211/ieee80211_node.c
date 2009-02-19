@@ -237,6 +237,10 @@ node_setuptxparms(struct ieee80211_node *ni)
 		/* NB: 108A/108G should be handled as 11a/11g respectively */
 		if (IEEE80211_IS_CHAN_ST(ni->ni_chan))
 			mode = IEEE80211_MODE_STURBO_A;
+		else if (IEEE80211_IS_CHAN_HALF(ni->ni_chan))
+			mode = IEEE80211_MODE_HALF;
+		else if (IEEE80211_IS_CHAN_QUARTER(ni->ni_chan))
+			mode = IEEE80211_MODE_QUARTER;
 		else if (IEEE80211_IS_CHAN_A(ni->ni_chan))
 			mode = IEEE80211_MODE_11A;
 		else if (ni->ni_flags & IEEE80211_NODE_ERP)
