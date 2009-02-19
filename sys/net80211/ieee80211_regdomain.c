@@ -216,17 +216,19 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	/* XXX what about auto? */
 	/* flag set of channels to be excluded */
 	static const int skipflags[IEEE80211_MODE_MAX] = {
-	    CHAN_UNINTERESTING,				/* MODE_AUTO */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_11A */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_11B */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_11G */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_OFDM |	/* MODE_FH */
-	        IEEE80211_CHAN_CCK | IEEE80211_CHAN_DYN,
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_TURBO_A */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_TURBO_G */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_STURBO_A */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_11NA */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_11NG */
+	    [IEEE80211_MODE_AUTO]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11A]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11B]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11G]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_FH]		= CHAN_UNINTERESTING
+					| IEEE80211_CHAN_OFDM
+					| IEEE80211_CHAN_CCK
+					| IEEE80211_CHAN_DYN,
+	    [IEEE80211_MODE_TURBO_A]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_TURBO_G]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_STURBO_A]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11NA]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11NG]	= CHAN_UNINTERESTING,
 	};
 	const struct ieee80211_regdomain *rd = &ic->ic_regdomain;
 	uint8_t nextchan, chans[IEEE80211_CHAN_BYTES], *frm;
@@ -268,6 +270,10 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	nruns = 0;
 	memset(chans, 0, sizeof(chans));
 	skip = skipflags[ieee80211_chan2mode(ic->ic_bsschan)];
+	if (IEEE80211_IS_CHAN_5GHZ(ic->ic_bsschan))
+		skip |= IEEE80211_CHAN_2GHZ;
+	else if (IEEE80211_IS_CHAN_2GHZ(ic->ic_bsschan))
+		skip |= IEEE80211_CHAN_5GHZ;
 	for (i = 0; i < ic->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &ic->ic_channels[i];
 
