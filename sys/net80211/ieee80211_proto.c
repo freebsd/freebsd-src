@@ -182,22 +182,19 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	 * max retry count.  These settings can be changed by the
 	 * driver and/or user applications.
 	 */
-	for (i = IEEE80211_MODE_11A; i < IEEE80211_MODE_11NA; i++) {
+	for (i = IEEE80211_MODE_11A; i < IEEE80211_MODE_MAX; i++) {
 		const struct ieee80211_rateset *rs = &ic->ic_sup_rates[i];
 
 		vap->iv_txparms[i].ucastrate = IEEE80211_FIXED_RATE_NONE;
-		/* NB: we default to min supported rate for channel */
-		vap->iv_txparms[i].mgmtrate =
-		    rs->rs_rates[0] & IEEE80211_RATE_VAL;
-		vap->iv_txparms[i].mcastrate = 
-		    rs->rs_rates[0] & IEEE80211_RATE_VAL;
-		vap->iv_txparms[i].maxretry = IEEE80211_TXMAX_DEFAULT;
-	}
-	for (; i < IEEE80211_MODE_MAX; i++) {
-		vap->iv_txparms[i].ucastrate = IEEE80211_FIXED_RATE_NONE;
-		/* NB: default to MCS 0 */
-		vap->iv_txparms[i].mgmtrate = 0 | 0x80;
-		vap->iv_txparms[i].mcastrate = 0 | 0x80;
+		if (i == IEEE80211_MODE_11NA || i == IEEE80211_MODE_11NG) {
+			vap->iv_txparms[i].mgmtrate = 0 | IEEE80211_RATE_MCS;
+			vap->iv_txparms[i].mcastrate = 0 | IEEE80211_RATE_MCS;
+		} else {
+			vap->iv_txparms[i].mgmtrate =
+			    rs->rs_rates[0] & IEEE80211_RATE_VAL;
+			vap->iv_txparms[i].mcastrate = 
+			    rs->rs_rates[0] & IEEE80211_RATE_VAL;
+		}
 		vap->iv_txparms[i].maxretry = IEEE80211_TXMAX_DEFAULT;
 	}
 	vap->iv_roaming = IEEE80211_ROAMING_AUTO;
