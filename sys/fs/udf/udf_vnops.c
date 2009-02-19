@@ -839,7 +839,7 @@ udf_readdir(struct vop_readdir_args *a)
 	*a->a_eofflag = uiodir.eofflag;
 	uio->uio_offset = ds->offset + ds->off;
 
-	if(error < 0)
+	if (error < 0)
 		error = 0;
 	if (!error)
 		error = ds->error;
