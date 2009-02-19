@@ -185,6 +185,8 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_TURBO_A,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_TURBO_G,	 ieee80211_rateset_11g);
 	DEFAULTRATES(IEEE80211_MODE_STURBO_A,	 ieee80211_rateset_11a);
+	DEFAULTRATES(IEEE80211_MODE_11NA,	 ieee80211_rateset_11a);
+	DEFAULTRATES(IEEE80211_MODE_11NG,	 ieee80211_rateset_11g);
 
 	/*
 	 * Set auto mode to reset active channel state and any desired channel.
@@ -1011,12 +1013,7 @@ ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *
 		return &ieee80211_rateset_half;
 	if (IEEE80211_IS_CHAN_QUARTER(c))
 		return &ieee80211_rateset_quarter;
-	if (IEEE80211_IS_CHAN_HTA(c))
-		return &ic->ic_sup_rates[IEEE80211_MODE_11A];
-	if (IEEE80211_IS_CHAN_HTG(c)) {
-		/* XXX does this work for basic rates? */
-		return &ic->ic_sup_rates[IEEE80211_MODE_11G];
-	}
+	/* XXX does this work for 11ng basic rates? */
 	return &ic->ic_sup_rates[ieee80211_chan2mode(c)];
 }
 

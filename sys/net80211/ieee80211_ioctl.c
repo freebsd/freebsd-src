@@ -2121,8 +2121,7 @@ ieee80211_ioctl_settxparams(struct ieee80211vap *vap,
 			continue;
 		src = &parms.params[i];
 		dst = &vap->iv_txparms[i];
-		rs = &ic->ic_sup_rates[i == IEEE80211_MODE_11NA ?
-		    IEEE80211_MODE_11A : IEEE80211_MODE_11G];
+		rs = &ic->ic_sup_rates[i];
 		if (src->ucastrate != dst->ucastrate) {
 			if (!checkmcs(src->ucastrate) &&
 			    !checkrate(rs, src->ucastrate))
