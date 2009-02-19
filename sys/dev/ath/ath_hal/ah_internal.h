@@ -49,6 +49,11 @@ typedef struct {
 	uint16_t	end;		/* ending register or zero */
 } HAL_REGRANGE;
 
+typedef struct {
+	uint32_t	addr;		/* regiser address/offset */
+	uint32_t	value;		/* value to write */
+} HAL_REGWRITE;
+
 /*
  * Transmit power scale factor.
  *
@@ -609,16 +614,14 @@ enum {
 	HAL_DIAG_RESETKEY	= 16,	/* Reset keycache backdoor */
 	HAL_DIAG_EEREAD		= 17,	/* Read EEPROM word */
 	HAL_DIAG_EEWRITE	= 18,	/* Write EEPROM word */
-	/* 19 was HAL_DIAG_TXCONT, 20-23 were for radar */
-	HAL_DIAG_REGREAD        = 24,   /* Reg reads */
-	HAL_DIAG_REGWRITE       = 25,   /* Reg writes */
-	HAL_DIAG_GET_REGBASE    = 26,   /* Get register base */
+	/* 19-26 removed, do not reuse */
 	HAL_DIAG_RDWRITE	= 27,	/* Write regulatory domain */
 	HAL_DIAG_RDREAD		= 28,	/* Get regulatory domain */
 	HAL_DIAG_FATALERR	= 29,	/* Read cached interrupt state */
 	HAL_DIAG_11NCOMPAT	= 30,	/* 11n compatibility tweaks */
 	HAL_DIAG_ANI_PARAMS	= 31,	/* ANI noise immunity parameters */
 	HAL_DIAG_CHECK_HANGS	= 32,	/* check h/w hangs */
+	HAL_DIAG_SETREGS	= 33,	/* write registers */
 };
 
 enum {
