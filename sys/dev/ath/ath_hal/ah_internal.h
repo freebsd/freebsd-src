@@ -84,12 +84,12 @@ struct ath_hal_chip {
 };
 #ifndef AH_CHIP
 #define	AH_CHIP(_name, _probe, _attach)				\
-static struct ath_hal_chip name##_chip = {			\
+static struct ath_hal_chip _name##_chip = {			\
 	.name		= #_name,				\
 	.probe		= _probe,				\
 	.attach		= _attach				\
 };								\
-OS_DATA_SET(ah_chips, name##_chip)
+OS_DATA_SET(ah_chips, _name##_chip)
 #endif
 
 /*
