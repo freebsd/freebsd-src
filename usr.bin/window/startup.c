@@ -45,6 +45,7 @@ static char rcsid[] =
 #include "var.h"
 #include "char.h"
 #include "local.h"
+#include <stdio.h>
 
 doconfig()
 {
