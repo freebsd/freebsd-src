@@ -1319,6 +1319,8 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 
 		/* XXX no rate negotiation; just dup */
 		ni->ni_rates = vap->iv_bss->ni_rates;
+		if (ieee80211_iserp_rateset(&ni->ni_rates))
+			ni->ni_flags |= IEEE80211_NODE_ERP;
 		if (vap->iv_opmode == IEEE80211_M_AHDEMO) {
 			/*
 			 * In adhoc demo mode there are no management
@@ -1394,6 +1396,8 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 		struct ieee80211com *ic = vap->iv_ic;
 
 		ieee80211_init_neighbor(ni, wh, sp);
+		if (ieee80211_iserp_rateset(&ni->ni_rates))
+			ni->ni_flags |= IEEE80211_NODE_ERP;
 		node_setuptxparms(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
