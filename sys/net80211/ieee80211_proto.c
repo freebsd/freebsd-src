@@ -819,6 +819,29 @@ static const struct phyParamType bssPhyParamForAC_VO[IEEE80211_MODE_MAX] = {
 };
 
 static void
+_setifsparams(struct wmeParams *wmep, const paramType *phy)
+{
+	wmep->wmep_aifsn = phy->aifsn;
+	wmep->wmep_logcwmin = phy->logcwmin;	
+	wmep->wmep_logcwmax = phy->logcwmax;		
+	wmep->wmep_txopLimit = phy->txopLimit;
+}
+
+static void
+setwmeparams(struct ieee80211vap *vap, const char *type, int ac,
+	struct wmeParams *wmep, const paramType *phy)
+{
+	wmep->wmep_acm = phy->acm;
+	_setifsparams(wmep, phy);
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
+	    "set %s (%s) [acm %u aifsn %u logcwmin %u logcwmax %u txop %u]\n",
+	    ieee80211_wme_acnames[ac], type,
+	    wmep->wmep_acm, wmep->wmep_aifsn, wmep->wmep_logcwmin,
+	    wmep->wmep_logcwmax, wmep->wmep_txopLimit);
+}
+
+static void
 ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -863,49 +886,14 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 			pBssPhyParam = &bssPhyParamForAC_BE[mode];
 			break;
 		}
-
 		wmep = &wme->wme_wmeChanParams.cap_wmeParams[i];
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
-			wmep->wmep_acm = pPhyParam->acm;
-			wmep->wmep_aifsn = pPhyParam->aifsn;	
-			wmep->wmep_logcwmin = pPhyParam->logcwmin;	
-			wmep->wmep_logcwmax = pPhyParam->logcwmax;		
-			wmep->wmep_txopLimit = pPhyParam->txopLimit;
+			setwmeparams(vap, "chan", i, wmep, pPhyParam);
 		} else {
-			wmep->wmep_acm = pBssPhyParam->acm;
-			wmep->wmep_aifsn = pBssPhyParam->aifsn;	
-			wmep->wmep_logcwmin = pBssPhyParam->logcwmin;	
-			wmep->wmep_logcwmax = pBssPhyParam->logcwmax;		
-			wmep->wmep_txopLimit = pBssPhyParam->txopLimit;
-
+			setwmeparams(vap, "chan", i, wmep, pBssPhyParam);
 		}	
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
-			"%s: %s chan [acm %u aifsn %u log2(cwmin) %u "
-			"log2(cwmax) %u txpoLimit %u]\n", __func__
-			, ieee80211_wme_acnames[i]
-			, wmep->wmep_acm
-			, wmep->wmep_aifsn
-			, wmep->wmep_logcwmin
-			, wmep->wmep_logcwmax
-			, wmep->wmep_txopLimit
-		);
-
 		wmep = &wme->wme_wmeBssChanParams.cap_wmeParams[i];
-		wmep->wmep_acm = pBssPhyParam->acm;
-		wmep->wmep_aifsn = pBssPhyParam->aifsn;	
-		wmep->wmep_logcwmin = pBssPhyParam->logcwmin;	
-		wmep->wmep_logcwmax = pBssPhyParam->logcwmax;		
-		wmep->wmep_txopLimit = pBssPhyParam->txopLimit;
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
-			"%s: %s  bss [acm %u aifsn %u log2(cwmin) %u "
-			"log2(cwmax) %u txpoLimit %u]\n", __func__
-			, ieee80211_wme_acnames[i]
-			, wmep->wmep_acm
-			, wmep->wmep_aifsn
-			, wmep->wmep_logcwmin
-			, wmep->wmep_logcwmax
-			, wmep->wmep_txopLimit
-		);
+		setwmeparams(vap, "bss ", i, wmep, pBssPhyParam);
 	}
 	/* NB: check ic_bss to avoid NULL deref on initial attach */
 	if (vap->iv_bss != NULL) {
@@ -937,7 +925,7 @@ ieee80211_wme_initparams(struct ieee80211vap *vap)
 void
 ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 {
-	static const paramType phyParam[IEEE80211_MODE_MAX] = {
+	static const paramType aggrParam[IEEE80211_MODE_MAX] = {
 	    [IEEE80211_MODE_AUTO]	= { 2, 4, 10, 64, 0 },
 	    [IEEE80211_MODE_11A]	= { 2, 4, 10, 64, 0 },
 	    [IEEE80211_MODE_11B]	= { 2, 5, 10, 64, 0 },
@@ -958,7 +946,10 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	enum ieee80211_phymode mode;
 	int i;
 
-       	/* set up the channel access parameters for the physical device */
+       	/*
+	 * Set up the channel access parameters for the physical
+	 * device.  First populate the configured settings.
+	 */
 	for (i = 0; i < WME_NUM_AC; i++) {
 		chanp = &wme->wme_chanParams.cap_wmeParams[i];
 		wmep = &wme->wme_wmeChanParams.cap_wmeParams[i];
@@ -1002,27 +993,21 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		chanp = &wme->wme_chanParams.cap_wmeParams[WME_AC_BE];
 		bssp = &wme->wme_bssChanParams.cap_wmeParams[WME_AC_BE];
 
-		chanp->wmep_aifsn = bssp->wmep_aifsn = phyParam[mode].aifsn;
+		chanp->wmep_aifsn = bssp->wmep_aifsn = aggrParam[mode].aifsn;
 		chanp->wmep_logcwmin = bssp->wmep_logcwmin =
-			phyParam[mode].logcwmin;
+		    aggrParam[mode].logcwmin;
 		chanp->wmep_logcwmax = bssp->wmep_logcwmax =
-			phyParam[mode].logcwmax;
+		    aggrParam[mode].logcwmax;
 		chanp->wmep_txopLimit = bssp->wmep_txopLimit =
-			(vap->iv_flags & IEEE80211_F_BURST) ?
-				phyParam[mode].txopLimit : 0;		
+		    (vap->iv_flags & IEEE80211_F_BURST) ?
+			aggrParam[mode].txopLimit : 0;		
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
-			"%s: %s [acm %u aifsn %u log2(cwmin) %u "
-			"log2(cwmax) %u txpoLimit %u]\n", __func__
-			, ieee80211_wme_acnames[WME_AC_BE]
-			, chanp->wmep_acm
-			, chanp->wmep_aifsn
-			, chanp->wmep_logcwmin
-			, chanp->wmep_logcwmax
-			, chanp->wmep_txopLimit
-		);
+		    "update %s (chan+bss) [acm %u aifsn %u logcwmin %u "
+		    "logcwmax %u txop %u]\n", ieee80211_wme_acnames[WME_AC_BE],
+		    chanp->wmep_acm, chanp->wmep_aifsn, chanp->wmep_logcwmin,
+		    chanp->wmep_logcwmax, chanp->wmep_txopLimit);
 	}
 	
-	/* XXX multi-bss */
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
 	    ic->ic_sta_assoc < 2 && (wme->wme_flags & WME_F_AGGRMODE) != 0) {
 		static const uint8_t logCwMin[IEEE80211_MODE_MAX] = {
@@ -1044,10 +1029,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 
 		chanp->wmep_logcwmin = bssp->wmep_logcwmin = logCwMin[mode];
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
-			"%s: %s log2(cwmin) %u\n", __func__
-			, ieee80211_wme_acnames[WME_AC_BE]
-			, chanp->wmep_logcwmin
-		);
+		    "update %s (chan+bss) logcwmin %u\n",
+		    ieee80211_wme_acnames[WME_AC_BE], chanp->wmep_logcwmin);
     	}	
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {	/* XXX ibss? */
 		/*
@@ -1062,10 +1045,10 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	wme->wme_update(ic);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
-		"%s: WME params updated, cap_info 0x%x\n", __func__,
-		vap->iv_opmode == IEEE80211_M_STA ?
-			wme->wme_wmeChanParams.cap_info :
-			wme->wme_bssChanParams.cap_info);
+	    "%s: WME params updated, cap_info 0x%x\n", __func__,
+	    vap->iv_opmode == IEEE80211_M_STA ?
+		wme->wme_wmeChanParams.cap_info :
+		wme->wme_bssChanParams.cap_info);
 }
 
 void
