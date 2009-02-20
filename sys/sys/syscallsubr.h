@@ -193,6 +193,9 @@ int	kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct stat *sbp);
 int	kern_statat(struct thread *td, int flag, int fd, char *path,
 	    enum uio_seg pathseg, struct stat *sbp);
+int	kern_statat_vnhook(struct thread *td, int flag, int fd, char *path,
+	    enum uio_seg pathseg, struct stat *sbp,
+	    void (*hook)(struct vnode *vp, struct stat *sbp));
 int	kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct statfs *buf);
 int	kern_symlink(struct thread *td, char *path, char *link,
