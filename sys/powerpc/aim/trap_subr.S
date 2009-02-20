@@ -79,13 +79,13 @@
 /*
  * FRAME_SETUP assumes:
  *	SPRG1		SP (1)
+ * 	SPRG3		trap type
  *	savearea	r28-r31,DAR,DSISR   (DAR & DSISR only for DSI traps)
  *	r28		LR
  *	r29		CR
  *	r30		scratch
  *	r31		scratch
  *	r1		kernel stack
- *	LR		trap type (from calling address, mask with 0xff00)
  *	SRR0/1		as at start of trap
  */
 #define	FRAME_SETUP(savearea)						\
@@ -146,8 +146,7 @@
 	lwz	%r31,(savearea+CPUSAVE_SRR1)(%r2); /* saved SRR1 */	\
 	mfxer	%r3;							\
 	mfctr	%r4;							\
-	mflr	%r5;							\
-	andi.	%r5,%r5,0xff00;		/* convert LR to exc # */	\
+	mfsprg3	%r5;							\
 	stw	%r3, FRAME_XER+8(1);	/* save xer/ctr/exc */		\
 	stw	%r4, FRAME_CTR+8(1);					\
 	stw	%r5, FRAME_EXC+8(1);					\
@@ -264,18 +263,10 @@ CNAME(rstsize) = . - CNAME(rstcode)
 	.globl	CNAME(trapcode),CNAME(trapsize)
 CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
-	GET_CPUINFO(%r1)
-	stw	%r28,(PC_TEMPSAVE+CPUSAVE_R28)(%r1)	/* free r28-r31 */
-	stw	%r29,(PC_TEMPSAVE+CPUSAVE_R29)(%r1)
-	stw	%r30,(PC_TEMPSAVE+CPUSAVE_R30)(%r1)
-	stw	%r31,(PC_TEMPSAVE+CPUSAVE_R31)(%r1)
-	mfsprg1	%r1			/* restore SP, in case of branch */
-	mflr	%r28			/* save LR */
-	mfcr	%r29			/* save CR */
-/* Test whether we already had PR set */
-	mfsrr1	%r31
-	mtcr	%r31
-	bla	s_trap			/* LR & 0xff00 is exception # */
+	mflr	%r1			/* Save the old LR in r1 */
+	mtsprg2 %r1			/* And then in SPRG2 */
+	li	%r1, 0x20		/* How to get the vector from LR */
+	bla	generictrap		/* LR & SPRG3 is exception # */
 CNAME(trapsize) = .-CNAME(trapcode)
 
 /*
@@ -296,10 +287,15 @@ CNAME(alitrap):
 	mfsprg1	%r1			/* restore SP, in case of branch */
 	mflr	%r28			/* save LR */
 	mfcr	%r29			/* save CR */
-/* Test whether we already had PR set */
+
+	/* Put our exception vector in SPRG0 */
+	li	%r31, EXC_ALI
+	mtsprg3	%r31
+
+	/* Test whether we already had PR set */
 	mfsrr1	%r31
 	mtcr	%r31
-	bla	s_trap			/* LR & 0xff00 is exception # */
+	bla	s_trap
 CNAME(alisize) = .-CNAME(alitrap)
 
 /*
@@ -364,6 +360,11 @@ CNAME(dsisize) = .-CNAME(dsitrap)
  * Preamble code for DSI/ISI traps
  */
 disitrap:
+	/* Write the trap vector to SPRG0 by computing LR & 0xff00 */
+	mflr	%r1
+	andi.	%r1,%r1,0xff00
+	mtsprg3	%r1
+	
 	GET_CPUINFO(%r1)
 	lwz	%r30,(PC_DISISAVE+CPUSAVE_R28)(%r1)
 	stw	%r30,(PC_TEMPSAVE+CPUSAVE_R28)(%r1)
@@ -416,6 +417,47 @@ realtrap:
 	mtcr	%r1
 	mfsprg1	%r1			/* restore SP (might have been
 					   overwritten) */
+	bf	17,k_trap		/* branch if PSL_PR is false */
+	GET_CPUINFO(%r1)
+	lwz	%r1,PC_CURPCB(%r1)
+	RESTORE_KERN_SRS(%r30,%r31)	/* enable kernel mapping */
+	ba s_trap
+
+/*
+ * generictrap does some standard setup for trap handling to minimize
+ * the code that need be installed in the actual vectors. It expects
+ * the following conditions.
+ * 
+ * R1 - Trap vector = LR & (0xff00 | R1)
+ * SPRG1 - Original R1 contents
+ * SPRG2 - Original LR
+ */
+
+generictrap:
+	/* Save R1 for computing the exception vector */
+	mtsprg3 %r1
+
+	/* Save interesting registers */
+	GET_CPUINFO(%r1)
+	stw	%r28,(PC_TEMPSAVE+CPUSAVE_R28)(%r1)	/* free r28-r31 */
+	stw	%r29,(PC_TEMPSAVE+CPUSAVE_R29)(%r1)
+	stw	%r30,(PC_TEMPSAVE+CPUSAVE_R30)(%r1)
+	stw	%r31,(PC_TEMPSAVE+CPUSAVE_R31)(%r1)
+	mfsprg1	%r1			/* restore SP, in case of branch */
+	mfsprg2	%r28			/* save LR */
+	mfcr	%r29			/* save CR */
+
+	/* Compute the exception vector from the link register */
+	mfsprg3 %r31
+	ori	%r31,%r31,0xff00
+	mflr	%r30
+	and	%r30,%r30,%r31
+	mtsprg3	%r30
+
+	/* Test whether we already had PR set */
+	mfsrr1	%r31
+	mtcr	%r31
+
 s_trap:
 	bf	17,k_trap		/* branch if PSL_PR is false */
 	GET_CPUINFO(%r1)
@@ -464,14 +506,6 @@ CNAME(asttrapexit):
 	FRAME_LEAVE(PC_TEMPSAVE)
 	rfi
 
-/*
- *     Temporary: vector-unavailable traps are directed to vector-assist traps
- */
-	.globl  CNAME(vectrap),CNAME(vectrapsize)
-CNAME(vectrap):
-	ba	EXC_VECAST
-CNAME(vectrapsize) = .-CNAME(vectrap)
-
 #if defined(KDB)
 /*
  * Deliberate entry to dbtrap
@@ -499,6 +533,14 @@ CNAME(breakpoint):
  * Now the kdb trap catching code.
  */
 dbtrap:
+	/* Write the trap vector to SPRG0 by computing LR & 0xff00 */
+	mflr	%r1
+	andi.	%r1,%r1,0xff00
+	mtsprg3	%r1
+
+	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha	/* get new SP */
+	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
+
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
 	addi	%r3,%r1,8
@@ -536,24 +578,25 @@ CNAME(dblow):
 	mfcr	%r29			/* save CR in r29 */
 	mfsrr1	%r1
 	mtcr	%r1
-	GET_CPUINFO(%r1)
 	bf	17,1f			/* branch if privileged */
-	stw	%r28,(PC_TEMPSAVE+CPUSAVE_R28)(%r1)	/* free r28 */
-        mfsprg2	%r28				/* r29 holds cr ... */
-        stw	%r28,(PC_TEMPSAVE+CPUSAVE_R29)(%r1)	/* free r29 */
-        stw	%r30,(PC_TEMPSAVE+CPUSAVE_R30)(%r1)	/* free r30 */
-        stw	%r31,(PC_TEMPSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
-        mflr	%r28					/* save LR */
-        bla     u_trap
+
+	/* Unprivileged case */
+	mtcr	%r29			/* put the condition register back */
+        mfsprg2	%r29			/* ... and r29 */
+        mflr	%r1			/* save LR */
+	mtsprg2 %r1			/* And then in SPRG2 */
+	li	%r1, 0	 		/* How to get the vector from LR */
+
+        bla     generictrap		/* and we look like a generic trap */
 1:
+	/* Privileged, so drop to KDB */
+	GET_CPUINFO(%r1)
 	stw	%r28,(PC_DBSAVE+CPUSAVE_R28)(%r1)	/* free r28 */
         mfsprg2	%r28				/* r29 holds cr...  */
         stw	%r28,(PC_DBSAVE+CPUSAVE_R29)(%r1)	/* free r29 */
         stw	%r30,(PC_DBSAVE+CPUSAVE_R30)(%r1)	/* free r30 */
         stw	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
         mflr	%r28					/* save LR */
-	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
 	bla	dbtrap
 CNAME(dbsize) = .-CNAME(dblow)
 #endif /* KDB */
