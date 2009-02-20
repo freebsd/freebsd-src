@@ -450,7 +450,7 @@ ar5212SetSifsTime(struct ath_hal *ah, u_int us)
 		return AH_FALSE;
 	} else {
 		/* convert to system clocks */
-		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS, ath_hal_mac_clks(ah, us));
+		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS, ath_hal_mac_clks(ah, us-2));
 		ahp->ah_slottime = us;
 		return AH_TRUE;
 	}
@@ -460,7 +460,7 @@ u_int
 ar5212GetSifsTime(struct ath_hal *ah)
 {
 	u_int clks = OS_REG_READ(ah, AR_D_GBL_IFS_SIFS) & 0xffff;
-	return ath_hal_mac_usec(ah, clks);	/* convert from system clocks */
+	return ath_hal_mac_usec(ah, clks)+2;	/* convert from system clocks */
 }
 
 HAL_BOOL
