@@ -1318,10 +1318,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
  *	because we marked them all VM_PAGER_PEND on return from putpages ).
  *
  *	This routine may not block.
- *	This routine is called at splbio() or better
- *
- *	We up ourselves to splvm() as required for various vm_page related
- *	calls.
  */
 static void
 swp_pager_async_iodone(struct buf *bp)
