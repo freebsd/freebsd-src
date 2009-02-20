@@ -212,7 +212,7 @@
 #define         ATA_AHCI_P_CMD_NOOP     0x00000000
 #define         ATA_AHCI_P_CMD_ACTIVE   0x10000000
 #define         ATA_AHCI_P_CMD_PARTIAL  0x20000000
-#define         ATA_AHCI_P_CMD_SLUMPER  0x60000000
+#define         ATA_AHCI_P_CMD_SLUMBER  0x60000000
 
 #define ATA_AHCI_P_TFD                  0x120
 #define ATA_AHCI_P_SIG                  0x124
