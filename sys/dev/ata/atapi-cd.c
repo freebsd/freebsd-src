@@ -219,7 +219,10 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 	case CDIOCRESET:
 	    acd_test_ready(dev);
 	    break;
-	   
+
+	case DIOCGPROVIDERALIAS:
+	    break;
+
 	default:
 	    acd_read_toc(dev);
 	    acd_prevent_allow(dev, 1);
