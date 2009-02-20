@@ -75,6 +75,15 @@ METHOD int destroy {
 	struct g_part_parms *gpp;
 };
 
+# devalias() - return the name (if any) to be used as an alias for
+# the device special file created for the partition entry.
+METHOD int devalias {
+	struct g_part_table *table;
+	struct g_part_entry *entry;
+	char *buf;
+	size_t bufsz;
+};
+
 # dumpconf()
 METHOD void dumpconf {
 	struct g_part_table *table;

@@ -113,6 +113,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
+	char *alias;
 	int error;
 	struct cdev *dev;
 
@@ -134,6 +135,17 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	gp->softc = dev;
 	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;
+
+	g_topology_unlock();
+
+	alias = g_malloc(MAXPATHLEN, M_WAITOK | M_ZERO);
+	error = (pp->geom->ioctl == NULL) ? ENODEV :
+	    pp->geom->ioctl(pp, DIOCGPROVIDERALIAS, alias, 0, curthread);
+	if (!error && alias[0] != '\0')
+		make_dev_alias(dev, "%s", alias);
+	g_free(alias);
+
+	g_topology_lock();
 	return (gp);
 }
 
