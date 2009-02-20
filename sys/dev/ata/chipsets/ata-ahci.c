@@ -230,6 +230,22 @@ ata_ahci_ch_attach(device_t dev)
 int
 ata_ahci_ch_detach(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int offset = ch->unit << 7;
+
+    /* Disable port interrupts. */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IE + offset, 0);
+    /* Reset command register. */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, 0);
+
+    /* Allow everything including partial and slumber modes. */
+    ATA_IDX_OUTL(ch, ATA_SCONTROL, 0);
+    /* Request slumber mode transition and give some time to get there. */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, ATA_AHCI_P_CMD_SLUMBER);
+    DELAY(100);
+    /* Disable PHY. */
+    ATA_IDX_OUTL(ch, ATA_SCONTROL, ATA_SC_DET_DISABLE);
 
     ata_dmafini(dev);
     return (0);
