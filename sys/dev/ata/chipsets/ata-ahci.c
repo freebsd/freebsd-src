@@ -679,6 +679,9 @@ ata_ahci_reset(device_t dev)
     u_int32_t signature;
     int offset = ch->unit << 7;
 
+    /* Disable port interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IE + offset, 0);
+
     /* setup work areas */
     work = ch->dma.work_bus + ATA_AHCI_CL_OFFSET;
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLB + offset, work & 0xffffffff);
