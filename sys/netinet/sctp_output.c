@@ -15014,7 +15014,7 @@ skip_preblock:
 			} else {
 				un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
 				    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
-				if (net->flight_size > (net->mtu * stcb->asoc.max_burst)) {
+				if (net->flight_size > net->cwnd) {
 					queue_only = 1;
 					SCTP_STAT_INCR(sctps_send_burst_avoid);
 				} else if (net->flight_size > net->cwnd) {
@@ -15291,7 +15291,7 @@ skip_out_eof:
 	} else {
 		un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
 		    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
-		if (net->flight_size > (net->mtu * stcb->asoc.max_burst)) {
+		if (net->flight_size > net->cwnd) {
 			queue_only = 1;
 			SCTP_STAT_INCR(sctps_send_burst_avoid);
 		} else if (net->flight_size > net->cwnd) {
