@@ -171,6 +171,7 @@ ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FPU, PCB_FPU);
+ASSYM(PCB_VEC, PCB_VEC);
 
 ASSYM(PCB_AIM_USR, offsetof(struct pcb, pcb_cpu.aim.usr));
 ASSYM(PCB_BOOKE_CTR, offsetof(struct pcb, pcb_cpu.booke.ctr));
