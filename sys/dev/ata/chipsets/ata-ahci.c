@@ -653,7 +653,7 @@ ata_ahci_softreset(device_t dev, int port)
 	device_printf(dev, "setting SRST failed ??\n");
 	//return -1;
 
-    ata_udelay(5000);
+    ata_udelay(50);
 
     /* pull reset inactive -> device softreset */
     bzero(ctp->cfis, 64);
