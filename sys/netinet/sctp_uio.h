@@ -377,7 +377,7 @@ struct sctp_stream_reset_event {
 #define SCTP_STRRESET_ALL_STREAMS  0x0004
 #define SCTP_STRRESET_STREAM_LIST  0x0008
 #define SCTP_STRRESET_FAILED       0x0010
-
+#define SCTP_STRRESET_ADD_STREAM   0x0020
 
 /* SCTP notification event */
 struct sctp_tlv {
@@ -596,6 +596,7 @@ struct sctp_blk_args {
 #define SCTP_RESET_LOCAL_SEND  0x0002
 #define SCTP_RESET_BOTH        0x0003
 #define SCTP_RESET_TSN         0x0004
+#define SCTP_RESET_ADD_STREAMS 0x0005
 
 struct sctp_stream_reset {
 	sctp_assoc_t strrst_assoc_id;
@@ -941,9 +942,7 @@ struct sctpstat {
 	uint32_t sctps_cached_strmoq;	/* Number of cached stream oq's used */
 	uint32_t sctps_left_abandon;	/* Number of unread message abandonded
 					 * by close */
-	uint32_t sctps_send_burst_avoid;	/* Send burst avoidance,
-						 * already max burst inflight
-						 * to net */
+	uint32_t sctps_send_burst_avoid;	/* Unused */
 	uint32_t sctps_send_cwnd_avoid;	/* Send cwnd full  avoidance, already
 					 * max burst inflight to net */
 	uint32_t sctps_fwdtsn_map_over;	/* number of map array over-runs via
