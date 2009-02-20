@@ -418,11 +418,12 @@ __FBSDID("$FreeBSD$");
 #define SCTP_HOSTNAME_ADDRESS		0x000b
 #define SCTP_SUPPORTED_ADDRTYPE		0x000c
 
-/* draft-ietf-stewart-strreset-xxx */
+/* draft-ietf-stewart-tsvwg-strreset-xxx */
 #define SCTP_STR_RESET_OUT_REQUEST	0x000d
 #define SCTP_STR_RESET_IN_REQUEST	0x000e
 #define SCTP_STR_RESET_TSN_REQUEST	0x000f
 #define SCTP_STR_RESET_RESPONSE		0x0010
+#define SCTP_STR_RESET_ADD_STREAMS  0x0011
 
 #define SCTP_MAX_RESET_PARAMS 2
 #define SCTP_STREAM_RESET_TSN_DELTA    0x1000
@@ -794,7 +795,11 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_SPECIAL_SP_FAIL             27
 #define SCTP_NOTIFY_NO_PEER_AUTH                28
 #define SCTP_NOTIFY_SENDER_DRY                  29
-#define SCTP_NOTIFY_MAX                         29
+#define SCTP_NOTIFY_STR_RESET_ADD_OK            30
+#define SCTP_NOTIFY_STR_RESET_ADD_FAIL          31
+#define SCTP_NOTIFY_STR_RESET_INSTREAM_ADD_OK   32
+#define SCTP_NOTIFY_MAX                         32
+
 
 /* This is the value for messages that are NOT completely
  * copied down where we will start to split the message.

@@ -4885,7 +4885,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
 		asoc->strmout = NULL;
 	}
-	asoc->streamoutcnt = 0;
+	asoc->strm_realoutsize = asoc->streamoutcnt = 0;
 	if (asoc->strmin) {
 		struct sctp_queued_to_read *ctl;
 
