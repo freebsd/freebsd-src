@@ -339,8 +339,6 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 out:
 	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	if (mtx_owned(&Giant))
-		printf("statfs(%d): %s: %d\n", vfslocked, path, error);
 	return (error);
 }
 
@@ -2343,6 +2341,15 @@ int
 kern_statat(struct thread *td, int flag, int fd, char *path,
     enum uio_seg pathseg, struct stat *sbp)
 {
+
+	return (kern_statat_vnhook(td, flag, fd, path, pathseg, sbp, NULL));
+}
+
+int
+kern_statat_vnhook(struct thread *td, int flag, int fd, char *path,
+    enum uio_seg pathseg, struct stat *sbp,
+    void (*hook)(struct vnode *vp, struct stat *sbp))
+{
 	struct nameidata nd;
 	struct stat sb;
 	int error, vfslocked;
@@ -2362,12 +2369,12 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 		SDT_PROBE(vfs, , stat, mode, path, sb.st_mode, 0, 0, 0);
 		if (S_ISREG(sb.st_mode))
 			SDT_PROBE(vfs, , stat, reg, path, pathseg, 0, 0, 0);
+		if (__predict_false(hook != NULL))
+			hook(nd.ni_vp, &sb);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	if (mtx_owned(&Giant))
-		printf("stat(%d): %s\n", vfslocked, path);
 	if (error)
 		return (error);
 	*sbp = sb;

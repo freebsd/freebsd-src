@@ -62,6 +62,44 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+static void
+translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
+{
+	int major, minor;
+
+	if (vp->v_type == VCHR && vp->v_rdev != NULL &&
+	    linux_driver_get_major_minor(vp->v_rdev->si_name,
+	    &major, &minor) == 0) {
+		sb->st_rdev = (major << 8 | minor);
+	}
+}
+
+static int
+linux_kern_statat(struct thread *td, int flag, int fd, char *path,
+    enum uio_seg pathseg, struct stat *sbp)
+{
+
+	return (kern_statat_vnhook(td, flag, fd, path, pathseg, sbp,
+	    translate_vnhook_major_minor));
+}
+
+static int
+linux_kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
+    struct stat *sbp)
+{
+
+	return (linux_kern_statat(td, 0, AT_FDCWD, path, pathseg, sbp));
+}
+
+static int
+linux_kern_lstat(struct thread *td, char *path, enum uio_seg pathseg,
+    struct stat *sbp)
+{
+
+	return (linux_kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    pathseg, sbp));
+}
+
 /*
  * XXX: This was removed from newstat_copyout(), and almost identical
  * XXX: code was in stat64_copyout().  findcdev() needs to be replaced
@@ -102,14 +140,15 @@ static void
 translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 {
 	struct file *fp;
+	struct vnode *vp;
 	int major, minor;
 
 	if ((!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode)) ||
 	    fget(td, fd, &fp) != 0)
 		return;
-	if (fp->f_vnode != NULL &&
-	    fp->f_vnode->v_un.vu_cdev != NULL &&
-	    linux_driver_get_major_minor(fp->f_vnode->v_un.vu_cdev->si_name,
+	vp = fp->f_vnode;
+	if (vp != NULL && vp->v_rdev != NULL &&
+	    linux_driver_get_major_minor(vp->v_rdev->si_name,
 					 &major, &minor) == 0) {
 		buf->st_rdev = (major << 8 | minor);
 	} else if (fp->f_type == DTYPE_PTS) {
@@ -122,32 +161,6 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 		}
 	}
 	fdrop(fp, td);
-}
-
-static void
-translate_path_major_minor_at(struct thread *td, char *path,
-    struct stat *buf, int dfd)
-{
-	struct proc *p = td->td_proc;
-	struct filedesc *fdp = p->p_fd;
-	int fd;
-	int temp;
-
-	if (!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode))
-		return;
-	temp = td->td_retval[0];
-	if (kern_openat(td, dfd, path, UIO_SYSSPACE, O_RDONLY, 0) != 0)
-		return;
-	fd = td->td_retval[0];
-	td->td_retval[0] = temp;
-	translate_fd_major_minor(td, fd, buf);
-	fdclose(fdp, fdp->fd_ofiles[fd], fd, td);
-}
-
-static inline void
-translate_path_major_minor(struct thread *td, char *path, struct stat *buf)
-{
-	translate_path_major_minor_at(td, path, buf, AT_FDCWD);
 }
 
 static int
@@ -187,9 +200,7 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 		printf(ARGS(newstat, "%s, *"), path);
 #endif
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &buf);
-	if (!error)
-		translate_path_major_minor(td, path, &buf);
+	error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
 	LFREEPATH(path);
 	if (error)
 		return (error);
@@ -210,9 +221,7 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 		printf(ARGS(newlstat, "%s, *"), path);
 #endif
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &sb);
-	if (!error)
-		translate_path_major_minor(td, path, &sb);
+	error = linux_kern_lstat(td, path, UIO_SYSSPACE, &sb);
 	LFREEPATH(path);
 	if (error)
 		return (error);
@@ -279,12 +288,11 @@ linux_stat(struct thread *td, struct linux_stat_args *args)
 	if (ldebug(stat))
 		printf(ARGS(stat, "%s, *"), path);
 #endif
-	error = kern_stat(td, path, UIO_SYSSPACE, &buf);
+	error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
 	if (error) {
 		LFREEPATH(path);
 		return (error);
 	}
-	translate_path_major_minor(td, path, &buf);
 	LFREEPATH(path);
 	return(stat_copyout(&buf, args->up));
 }
@@ -302,12 +310,11 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 	if (ldebug(lstat))
 		printf(ARGS(lstat, "%s, *"), path);
 #endif
-	error = kern_lstat(td, path, UIO_SYSSPACE, &buf);
+	error = linux_kern_lstat(td, path, UIO_SYSSPACE, &buf);
 	if (error) {
 		LFREEPATH(path);
 		return (error);
 	}
-	translate_path_major_minor(td, path, &buf);
 	LFREEPATH(path);
 	return(stat_copyout(&buf, args->up));
 }
@@ -526,9 +533,7 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 		printf(ARGS(stat64, "%s, *"), filename);
 #endif
 
-	error = kern_stat(td, filename, UIO_SYSSPACE, &buf);
-	if (!error)
-		translate_path_major_minor(td, filename, &buf);
+	error = linux_kern_stat(td, filename, UIO_SYSSPACE, &buf);
 	LFREEPATH(filename);
 	if (error)
 		return (error);
@@ -549,9 +554,7 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 		printf(ARGS(lstat64, "%s, *"), args->filename);
 #endif
 
-	error = kern_lstat(td, filename, UIO_SYSSPACE, &sb);
-	if (!error)
-		translate_path_major_minor(td, filename, &sb);
+	error = linux_kern_lstat(td, filename, UIO_SYSSPACE, &sb);
 	LFREEPATH(filename);
 	if (error)
 		return (error);
@@ -597,8 +600,7 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 		printf(ARGS(fstatat64, "%i, %s, %i"), args->dfd, path, args->flag);
 #endif
 
-	error = kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
-	translate_path_major_minor_at(td, args->pathname, &buf, dfd);
+	error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
 	if (!error)
 		error = stat64_copyout(&buf, args->statbuf);
 	LFREEPATH(path);
