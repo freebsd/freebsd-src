@@ -8620,13 +8620,12 @@ re_look:
 			sp->some_taken = 1;
 		}
 	} else {
-		to_move = sctp_can_we_split_this(stcb, length, goal_mtu,
-		    frag_point, eeor_mode);
+		to_move = sctp_can_we_split_this(stcb, length, goal_mtu, frag_point, eeor_mode);
 		if (to_move) {
 			/*-
-		         * We use a snapshot of length in case it
-		         * is expanding during the compare.
-		         */
+			 * We use a snapshot of length in case it
+			 * is expanding during the compare.
+			 */
 			uint32_t llen;
 
 			llen = length;
@@ -8634,9 +8633,9 @@ re_look:
 				to_move = llen;
 				if (send_lock_up == 0) {
 					/*-
-				         * We are taking all of an incomplete msg
-				         * thus we need a send lock.
-				         */
+					 * We are taking all of an incomplete msg
+					 * thus we need a send lock.
+					 */
 					SCTP_TCB_SEND_LOCK(stcb);
 					send_lock_up = 1;
 					if (sp->msg_is_complete) {
@@ -8836,8 +8835,7 @@ dont_do_it:
 		goto out_of;
 	}
 	sctp_snd_sb_alloc(stcb, sizeof(struct sctp_data_chunk));
-	chk->book_size = chk->send_size = (to_move +
-	    sizeof(struct sctp_data_chunk));
+	chk->book_size = chk->send_size = (to_move + sizeof(struct sctp_data_chunk));
 	chk->book_size_scale = 0;
 	chk->sent = SCTP_DATAGRAM_UNSENT;
 
@@ -13339,13 +13337,49 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
 	return;
 }
 
+static void
+sctp_add_a_stream(struct sctp_tmit_chunk *chk,
+    uint32_t seq,
+    uint16_t adding)
+{
+	int len, old_len;
+	struct sctp_chunkhdr *ch;
+	struct sctp_stream_reset_add_strm *addstr;
+
+	ch = mtod(chk->data, struct sctp_chunkhdr *);
+	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
+
+	/* get to new offset for the param. */
+	addstr = (struct sctp_stream_reset_add_strm *)((caddr_t)ch + len);
+	/* now how long will this param be? */
+	len = sizeof(struct sctp_stream_reset_add_strm);
+
+	/* Fill it out. */
+	addstr->ph.param_type = htons(SCTP_STR_RESET_ADD_STREAMS);
+	addstr->ph.param_length = htons(len);
+	addstr->request_seq = htonl(seq);
+	addstr->number_of_streams = htons(adding);
+	addstr->reserved = 0;
+
+	/* now fix the chunk length */
+	ch->chunk_length = htons(len + old_len);
+	chk->send_size = len + old_len;
+	chk->book_size = SCTP_SIZE32(chk->send_size);
+	chk->book_size_scale = 0;
+	SCTP_BUF_LEN(chk->data) = SCTP_SIZE32(chk->send_size);
+	return;
+}
 
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
     int number_entries, uint16_t * list,
-    uint8_t send_out_req, uint32_t resp_seq,
+    uint8_t send_out_req,
+    uint32_t resp_seq,
     uint8_t send_in_req,
-    uint8_t send_tsn_req)
+    uint8_t send_tsn_req,
+    uint8_t add_stream,
+    uint16_t adding
+)
 {
 
 	struct sctp_association *asoc;
@@ -13361,7 +13395,8 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EBUSY);
 		return (EBUSY);
 	}
-	if ((send_out_req == 0) && (send_in_req == 0) && (send_tsn_req == 0)) {
+	if ((send_out_req == 0) && (send_in_req == 0) && (send_tsn_req == 0) &&
+	    (add_stream == 0)) {
 		/* nothing to do */
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 		return (EINVAL);
@@ -13409,6 +13444,11 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		sctp_add_stream_reset_out(chk, number_entries, list,
 		    seq, resp_seq, (stcb->asoc.sending_seq - 1));
 		asoc->stream_reset_out_is_outstanding = 1;
+		seq++;
+		asoc->stream_reset_outstanding++;
+	}
+	if (add_stream) {
+		sctp_add_a_stream(chk, seq, adding);
 		seq++;
 		asoc->stream_reset_outstanding++;
 	}
@@ -14432,7 +14472,7 @@ sctp_lower_sosend(struct socket *so,
 						if (tmp_str != NULL) {
 							SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
 							asoc->strmout = tmp_str;
-							asoc->streamoutcnt = asoc->pre_open_streams;
+							asoc->strm_realoutsize = asoc->streamoutcnt = asoc->pre_open_streams;
 						} else {
 							asoc->pre_open_streams = asoc->streamoutcnt;
 						}
@@ -15016,9 +15056,6 @@ skip_preblock:
 				    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
 				if (net->flight_size > net->cwnd) {
 					queue_only = 1;
-					SCTP_STAT_INCR(sctps_send_burst_avoid);
-				} else if (net->flight_size > net->cwnd) {
-					queue_only = 1;
 					SCTP_STAT_INCR(sctps_send_cwnd_avoid);
 				} else {
 					queue_only = 0;
@@ -15292,9 +15329,6 @@ skip_out_eof:
 		un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
 		    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
 		if (net->flight_size > net->cwnd) {
-			queue_only = 1;
-			SCTP_STAT_INCR(sctps_send_burst_avoid);
-		} else if (net->flight_size > net->cwnd) {
 			queue_only = 1;
 			SCTP_STAT_INCR(sctps_send_cwnd_avoid);
 		} else {
