@@ -61,6 +61,7 @@ static void ata_nvidia_setmode(device_t dev, int mode);
 /* misc defines */
 #define NV4             0x01
 #define NVQ             0x02
+#define NVAHCI          0x04
 
 
 /*
@@ -97,7 +98,31 @@ ata_nvidia_probe(device_t dev)
      { ATA_NFORCE_MCP61_S3, 0, NV4|NVQ, 0, ATA_SA300, "nForce MCP61" },
      { ATA_NFORCE_MCP65,    0, 0,       0, ATA_UDMA6, "nForce MCP65" },
      { ATA_NFORCE_MCP67,    0, 0,       0, ATA_UDMA6, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A2, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A3, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A4, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A5, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A6, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A7, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A8, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_A9, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
      { ATA_NFORCE_MCP73,    0, 0,       0, ATA_UDMA6, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A2, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A3, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A4, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A5, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A6, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A7, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A8, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_A9, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
+     { ATA_NFORCE_MCP73_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
      { ATA_NFORCE_MCP77,    0, 0,       0, ATA_UDMA6, "nForce MCP77" },
      { 0, 0, 0, 0, 0, 0}} ;
 
@@ -108,7 +133,10 @@ ata_nvidia_probe(device_t dev)
 	return ENXIO;
 
     ata_set_desc(dev);
-    ctlr->chipinit = ata_nvidia_chipinit;
+    if (ctlr->chip->cfg1 & NVAHCI)
+	ctlr->chipinit = ata_ahci_chipinit;
+    else
+	ctlr->chipinit = ata_nvidia_chipinit;
     return 0;
 }
 
