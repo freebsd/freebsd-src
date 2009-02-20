@@ -304,6 +304,7 @@ ata_cbuschannel_attach(device_t dev)
 static int
 ata_cbuschannel_detach(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
 
     if (!ch->attached)
 	return (0);
