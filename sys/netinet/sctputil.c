@@ -1119,7 +1119,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	 * Now the stream parameters, here we allocate space for all streams
 	 * that we request by default.
 	 */
-	asoc->streamoutcnt = asoc->pre_open_streams =
+	asoc->strm_realoutsize = asoc->streamoutcnt = asoc->pre_open_streams =
 	    m->sctp_ep.pre_open_stream_count;
 	SCTP_MALLOC(asoc->strmout, struct sctp_stream_out *,
 	    asoc->streamoutcnt * sizeof(struct sctp_stream_out),
@@ -3351,6 +3351,63 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 	    &stcb->sctp_socket->so_rcv, 1, so_locked);
 }
 
+
+static void
+sctp_notify_stream_reset_add(struct sctp_tcb *stcb, int number_entries, int flag)
+{
+	struct mbuf *m_notify;
+	struct sctp_queued_to_read *control;
+	struct sctp_stream_reset_event *strreset;
+	int len;
+
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_STREAM_RESETEVNT)) {
+		/* event not enabled */
+		return;
+	}
+	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
+	if (m_notify == NULL)
+		/* no space left */
+		return;
+	SCTP_BUF_LEN(m_notify) = 0;
+	len = sizeof(struct sctp_stream_reset_event) + (number_entries * sizeof(uint16_t));
+	if (len > M_TRAILINGSPACE(m_notify)) {
+		/* never enough room */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	strreset = mtod(m_notify, struct sctp_stream_reset_event *);
+	strreset->strreset_type = SCTP_STREAM_RESET_EVENT;
+	strreset->strreset_flags = SCTP_STRRESET_ADD_STREAM | flag;
+	strreset->strreset_length = len;
+	strreset->strreset_assoc_id = sctp_get_associd(stcb);
+	strreset->strreset_list[0] = number_entries;
+
+	SCTP_BUF_LEN(m_notify) = len;
+	SCTP_BUF_NEXT(m_notify) = NULL;
+	if (sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv) < SCTP_BUF_LEN(m_notify)) {
+		/* no space */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	/* append to socket */
+	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
+	    0, 0, 0, 0, 0, 0,
+	    m_notify);
+	if (control == NULL) {
+		/* no memory */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	control->spec_flags = M_NOTIFICATION;
+	control->length = SCTP_BUF_LEN(m_notify);
+	/* not that we need this */
+	control->tail_mbuf = m_notify;
+	sctp_add_to_readq(stcb->sctp_ep, stcb,
+	    control,
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+}
+
+
 static void
 sctp_notify_stream_reset(struct sctp_tcb *stcb,
     int number_entries, uint16_t * list, int flag)
@@ -3528,6 +3585,16 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	case SCTP_NOTIFY_HB_RESP:
 		break;
+	case SCTP_NOTIFY_STR_RESET_INSTREAM_ADD_OK:
+		sctp_notify_stream_reset_add(stcb, error, SCTP_STRRESET_INBOUND_STR);
+		break;
+	case SCTP_NOTIFY_STR_RESET_ADD_OK:
+		sctp_notify_stream_reset_add(stcb, error, SCTP_STRRESET_OUTBOUND_STR);
+		break;
+	case SCTP_NOTIFY_STR_RESET_ADD_FAIL:
+		sctp_notify_stream_reset_add(stcb, error, (SCTP_STRRESET_FAILED | SCTP_STRRESET_OUTBOUND_STR));
+		break;
+
 	case SCTP_NOTIFY_STR_RESET_SEND:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *) data), SCTP_STRRESET_OUTBOUND_STR);
 		break;
