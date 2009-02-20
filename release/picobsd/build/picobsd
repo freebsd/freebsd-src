@@ -150,7 +150,7 @@ set_defaults() {
     trap fail 15
 }
 
-# entry for 4.x and earlier trees
+# use the new build infrastructure
 create_includes_and_libraries2() {
     local no
     log "create_includes_and_libraries2() for ${SRC}"
@@ -163,7 +163,7 @@ create_includes_and_libraries2() {
     export MAKEOBJDIRPREFIX
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
-    make _+_= $no toolchain
+    make _+_= $no toolchain _includes _libraries
     )
 }
 
