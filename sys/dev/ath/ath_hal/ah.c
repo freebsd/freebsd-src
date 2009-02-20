@@ -266,10 +266,6 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 		clks = usecs * CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
 			clks <<= 1;
-		else if (IEEE80211_IS_CHAN_HALF(c))
-			clks >>= 1;
-		else if (IEEE80211_IS_CHAN_QUARTER(c))
-			clks >>= 2;
 	} else
 		clks = usecs * CLOCK_RATE[WIRELESS_MODE_11b];
 	return clks;
@@ -286,10 +282,6 @@ ath_hal_mac_usec(struct ath_hal *ah, u_int clks)
 		usec = clks / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
 			usec >>= 1;
-		else if (IEEE80211_IS_CHAN_HALF(c))
-			usec <<= 1;
-		else if (IEEE80211_IS_CHAN_QUARTER(c))
-			usec <<= 2;
 	} else
 		usec = clks / CLOCK_RATE[WIRELESS_MODE_11b];
 	return usec;
