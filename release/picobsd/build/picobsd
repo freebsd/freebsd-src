@@ -21,7 +21,6 @@
 #   Makefile.conf	Makefile used to build the kernel
 #   config		shell variables, sourced here.
 #   mfs.mtree		mtree config file
-#
 #   floppy.tree/	files which go on the floppy
 #   mfs_tree/		files which go onto the mfs
 #
@@ -29,10 +28,13 @@
 #   PICOBSD		kernel config file
 #   config		shell variables, sourced here.
 #   crunch.conf		crunchgen configuration
+#   mfs.mtree		overrides ${PICO_TREE}/mfs.mtree
 #   floppy.tree.exclude	files from floppy.tree/ which we do not need here.
-#   floppy.tree/	local additions to the floppy.tree
+#   floppy.tree/	local additions to ${PICO_TREE}/mfs_free
 #   floppy.tree.${site}/ same as above, site specific.
 #   mfs_tree/		local additions to the mfs_free
+#   buildtree.mk	optional makefile to build an extension for floppy tree
+#			(generated in buildtree/ )
 
 #
 #--- The main entry point is at the end.
@@ -98,6 +100,7 @@ set_defaults() {
     EDITOR=${EDITOR:-vi}
     fd_size=${fd_size:-1440}
 
+    o_use_loader="yes"		# use /boot/loader
     o_all_in_mfs="yes"		# put all files in mfs so you can boot and run
 				# the image via diskless boot.
     o_clean=""			# do not clean
@@ -127,6 +130,7 @@ set_defaults() {
     				# mountpoint used to build memory filesystems
     c_fs=fs.PICOBSD		# filename used for the memory filesystem
     c_img=picobsd.bin		# filename used for the picobsd image
+    generate_iso="NO"		# don't generate the iso image
 
     # select the right memory disk name
     case `uname -r` in
@@ -146,6 +150,7 @@ set_defaults() {
     trap fail 15
 }
 
+# entry for 4.x and earlier trees
 create_includes_and_libraries2() {
     local no
     log "create_includes_and_libraries2() for ${SRC}"
@@ -207,7 +212,7 @@ create_includes_and_libraries() {
 
 # set_type <type> looks in user or system directories for the floppy type
 # specified as first argument, and sets variables according to the config.
-# file. Sets THETYPE, SITE, name, MY_TREE and BUILDDIR
+# file. Also sets MY_TREE and BUILDDIR and SITE
 
 set_type() {
     local a i
@@ -255,6 +260,13 @@ set_msgs() {		# OK
 \t3.  Site-info: ${SITE}\n\t4.  Full-path: ${MY_TREE}\n"
 }
 
+# build the iso image
+build_iso_image() {
+    log "build_iso_image()"
+    clear
+    set_msgs
+    printf "${MSG}---> Build the iso image not ready yet\n\n"
+}
 
 # Main build procedure.
 build_image() {
@@ -307,10 +319,6 @@ build_package() {
     echo "##############################################" >>build.status
     for z in bridge dial router net isp ; do
 	set_type ${z}
-        if [ "${name}" = "" ] ; then
-	    echo "*** TYPE=${z} not found" >>build.status
-	    continue
-	fi
 	echo "---------------------------------------------">>build.status
 	echo "Building TYPE=${z}, SIZE=${MFS_SIZE}" >>build.status
 	msg="(ok)"	# error message
@@ -484,10 +492,10 @@ populate_floppy_fs() {		# OK
     dst=${BUILDDIR}/floppy.tree
     log "pwd=`pwd` Populating floppy filesystem..."
 
-    # clean relics from old compilations.
-    rm -rf ${dst} || true
-    mkdir ${dst}
+    rm -rf ${dst} || true	# clean relics from old compilations.
+    mkdir ${dst}		# create a clean tree
 
+    # compute exclude list for generic tree
     excl=${MY_TREE}/floppy.tree.exclude
     if [ -f ${excl} ] ; then
 	log "Files excluded from generic tree: `echo;cat ${excl}`"
@@ -495,29 +503,26 @@ populate_floppy_fs() {		# OK
     else
 	excl=""
     fi
-    (cd ${PICO_TREE}/floppy.tree ; tar -cf - --exclude CVS --exclude .svn \
-    		${excl} . ) | \
+    # copy from the floppy trees into the destination
+    for FLOPPY_TREE in ${PICO_TREE}/floppy.tree ${MY_TREE}/floppy.tree \
+		${MY_TREE}/floppy.tree.${SITE} ; do
+	if [ -d ${FLOPPY_TREE} ] ; then
+	    (cd ${FLOPPY_TREE} ; tar -cf - --exclude CVS \
+		    --exclude .svn ${excl} . ) | \
 		(cd ${dst} ; tar x${o_tarv}f - )
-    log "Copied from generic floppy-tree `echo; ls -laR ${dst}`"
+	    log "Copied from ${FLOPPY_TREE}"
+	fi
+	excl="" # reset the exclude list.
+    done
 
-    srcdir=${MY_TREE}/floppy.tree
-    if [ -d ${srcdir} ] ; then
-	log "update with type-specific files:"
-	(cd ${srcdir} ; tar -cf - --exclude CVS --exclude .svn . ) | \
-	    (cd ${dst} ; tar x${o_tarv}f - )
-	log "Copied from type floppy-tree `echo; ls -laR ${dst}`"
-    else
-	log "No type-specific floppy-tree"
+    # add local manipulation
+    if [ -f ${MY_TREE}/buildtree.mk ] ; then
+	log "building local floppy tree"
+	${BINMAKE} -C ${dst} -f ${MY_TREE}/buildtree.mk floppy.tree
     fi
-    if [ -d ${srcdir}.${SITE} ] ; then
-	log "Update with site-specific (${SITE}) files:"
-	(cd ${srcdir}.${SITE} ; tar -cf - --exclude CVS --exclude .svn . ) | \
-	    (cd ${dst} ; tar x${o_tarv}f - )
-	log "Copied from site floppy-tree `echo; ls -laR ${dst}`"
-    else
-	log "No site-specific floppy-tree"
-    fi
-
+ 
+    # compress the files in etc/, just in case
+    # XXX this should be done in the makefile.
     # gzip returns an error if it fails to compress some file
     (cd $dst ; gzip -9 etc/*
 	    log "Compressed files in etc/ `echo; ls -l etc`"
@@ -532,13 +537,12 @@ populate_floppy_fs() {		# OK
 # Finally, if required, make a copy of the floppy.tree onto /fd
 
 populate_mfs_tree() {
-    local a dst
+    local a dst MFS_TREE
 
     log "populate_mfs_tree()"
     dst=${BUILDDIR}/mfs.tree
-    # clean relics from old compilations.
-    rm -rf ${dst} || true
-    mkdir ${dst}
+    rm -rf ${dst} || true	# clean relics from old compilations.
+    mkdir ${dst}		# create a fresh tree
 
     log "pwd=`pwd`, Populating MFS tree..."
 
@@ -555,7 +559,7 @@ populate_mfs_tree() {
     ln -s /dev/null ${dst}/var/run/log
     ln -s /etc/termcap ${dst}/usr/share/misc/termcap
 
-
+    ### now build the crunched binaries ###
     (
     cd ${BUILDDIR}/crunch
     log "Making and installing crunch1 from `pwd` src ${SRC}..."
@@ -599,12 +603,18 @@ populate_mfs_tree() {
 	fi
     done
 
+    if [ -f ${MY_TREE}/buildtree.mk ] ; then
+	log "building local floppy tree"
+	${BINMAKE} -C ${dst} -f ${MY_TREE}/buildtree.mk mfs.tree
+    fi
+
     if [ "${o_all_in_mfs}" = "yes" ]; then
 	log "Copy generic floppy_tree into MFS..."
-	# this may fail in case the floppy is empty
+	# ignore failure in case the floppy is empty
 	cp -Rp ${BUILDDIR}/floppy.tree/* ${dst}/fd || true
     fi
 
+    # 4.x compatibility - create device nodes
     if [ "${o_no_devfs}" != "" ] ; then
 	# create device entries using MAKEDEV
 	(cd ${dst}/dev
@@ -623,19 +633,21 @@ populate_mfs_tree() {
 	log "importing ${import_files} into mfs"
 	# We do it in a chroot environment on the target so
 	# symlinks are followed correctly.
-	cp `which tar` ${dst}/my_copy_of_tar
+	# Make sure we have a statically linked tar there.
+	mkdir -p ${dst}/rescue
+	cp /rescue/tar ${dst}/rescue
 	(cd ${l_usrtree}/.. ; tar cf - ${import_files} ) | \
-	    (chroot ${dst} /my_copy_of_tar xf - )
-	rm ${dst}/my_copy_of_tar
+	    (chroot ${dst} /rescue/tar xPf - )
+	rm -rf ${dst}/rescue
     fi
 
     (cd ${BUILDDIR}
 	# override the owner
 	echo "/set uid=0 gid=0" > mtree.out
-	mtree -c -p ${dst} -k "" >> mtree.out
+	mtree -ic -p ${dst} -k "" >> mtree.out
 	log "mtre.out at ${BUILDDIR}/mtree.out"
 	makefs -t ffs -o bsize=4096 -o fsize=512 \
-		-s ${MFS_SIZE}k -f 100 -F mtree.out ${c_fs} ${dst}
+		-s ${MFS_SIZE}k -f 1000 -F mtree.out ${c_fs} ${dst}
 	ls -l ${c_fs} )
     log "done mfs image"
 }
@@ -712,14 +724,16 @@ fill_floppy_image() {
     fi
 
     log "Labeling floppy image"
-    log "patch ${c_boot2} to boot /kernel right away"
     b2=${BUILDDIR}/boot2 # modified boot2
     cp -f ${c_boot2} ${b2}
     chmod 0644 ${b2}
 
-    set `strings -at d ${b2} | grep "/boot/loader"`
-    echo -e "/kernel\0\0\0\0\0" | \
-	dd of=${b2} obs=$1 oseek=1 conv=notrunc 2>/dev/null
+    if [ ${o_use_loader} = "no" ] ; then
+	log "patch ${c_boot2} to boot /kernel right away"
+	set `strings -at d ${b2} | grep "/boot/loader"`
+	echo -e "/kernel\0\0\0\0\0" | \
+	    dd of=${b2} obs=$1 oseek=1 conv=notrunc 2>/dev/null
+    fi
     chmod 0444 ${b2}
 
     dst=${BUILDDIR}/image.tree
@@ -739,22 +753,39 @@ fill_floppy_image() {
     if [ ${mfs_start} -gt 0 -a ${mfs_size} -ge ${imgsize} ] ; then
 	mfs_ofs=$((${mfs_start} + 8192))
 	log "Preload kernel with file ${c_fs} at ${mfs_ofs}"
+	logverbose "`ls -l ${c_fs}` to fit in ${mfs_size}"
 	dd if=${c_fs} ibs=8192 iseek=1 of=kernel obs=${mfs_ofs} \
-	    oseek=1 conv=notrunc 2> /dev/null
+	    oseek=1 conv=notrunc # 2> /dev/null
     else
     	log "not loading mfs, size ${mfs_size} img ${imgsize}"
     fi
     log "Compress with kgzip and copy to floppy image"
-    kgzip -o kernel.gz kernel
-    cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
+    if [ ${o_use_loader} = "no" ] ; then
+	kgzip -o kernel.gz kernel
+	cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
+    else
+        gzip kernel
+	mkdir -p  ${dst}/boot/kernel
+	echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
+	echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
+	cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
+	cp -p kernel.gz ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
+    fi
 
-    log "Now transfer floppy tree if not already in MFS image"
     # now transfer the floppy tree. If it is already in mfs, dont bother.
     if [ "${o_all_in_mfs}" != "yes" ] ; then
+	log "Now transfer floppy tree if not already in MFS image"
 	cp -Rp floppy.tree/* ${dst} || \
 		fail $? no_space "copying floppy tree"
     fi
     )
+
+    # add local manipulation to the image
+    if [ -f ${MY_TREE}/buildtree.mk ] ; then
+	${BINMAKE} -C ${dst} -f ${MY_TREE}/buildtree.mk image.tree
+    fi
+
+    log "image used `du -s ${dst}` of ${blocks}k"
     (cd ${BUILDDIR}
     makefs -t ffs -o bsize=4096 -o fsize=512 \
 	-s ${blocks}k -f 50 ${c_img} ${dst}
@@ -764,9 +795,19 @@ fill_floppy_image() {
     ${l_label} -f `pwd`/${c_img} | sed -e '/  c:/{p;s/c:/a:/;}' | \
 	${l_label} -R -f `pwd`/${c_img} /dev/stdin
     ${l_label} -f `pwd`/${c_img}
+
     ls -l ${c_img}
-	logverbose "after disklabel"
-	 )
+    ${l_label} -f `pwd`/${c_img}
+    logverbose "after disklabel"
+    )
+
+    echo "BUILDDIR ${BUILDDIR}"
+    if [ "${generate_iso}" = "YES" ]; then
+	echo "generate_iso ${generate_iso}"
+	#build_iso_image()
+	exit 1
+    fi
+
     # dump the primary and secondary boot
     # XXX primary is 512 bytes
     dd if=${c_boot1} of=${BUILDDIR}/${c_img} conv=notrunc 2>/dev/null
@@ -781,7 +822,8 @@ fill_floppy_image() {
     rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
     # df -ik ${dst} | colrm 70 > .build.reply
     rm -rf ${dst}
-    rm ${BUILDDIR}/kernel.gz ${BUILDDIR}/${c_fs}
+    rm ${BUILDDIR}/${c_fs}
+    # rm ${BUILDDIR}/kernel.gz
 }
 
 # This function creates variables which depend on the source tree in use:
@@ -824,8 +866,7 @@ set_build_parameters() {
 # arguments.
 
 set_defaults
-args=""
-while [ x"$1" != x ]; do
+while [ true ]; do
     case $1 in
     --src)	# set the source path instead of /usr/src
 	SRC=`(cd $2; pwd)`
@@ -840,12 +881,17 @@ while [ x"$1" != x ]; do
 	shift
 	;;
 
+    --no_loader)	# omit /boot/loader, just rely on boot2
+			# (it may have problems with kernels > 4MB)
+	o_use_loader="no"
+	;;
+
     --all_in_mfs)
 	o_all_in_mfs="yes"
 	;;
 
     --no_all_in_mfs)
-	o_all_in_mfs=""
+	o_all_in_mfs="no"
 	;;
 
     --modules)	# also build kernel modules
@@ -865,20 +911,23 @@ while [ x"$1" != x ]; do
 	o_tarv="v"			# tar verbose flag
 	o_makeopts="-d l" # be verbose
 	;;
+
+    --iso) # generate iso image
+	generate_iso="YES"
+	;;
+
     *)
-	args="$args $1"			# accumulate args
+	break
 	;;
 
     esac
     shift
 done
 set_build_parameters	# things that depend on ${SRC}
+set_type $1 $2		# type and site, respectively
 
 # If $1="package", it creates a neat set of floppies
-set -- ${args}
 [ "$1" = "package" ] && build_package
-
-set_type $args		# type and site, respectively
 
 [ "${o_interactive}" != "NO" ] && main_dialog
 
