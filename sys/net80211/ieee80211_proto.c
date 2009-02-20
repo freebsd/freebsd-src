@@ -853,7 +853,7 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 
 	IEEE80211_LOCK_ASSERT(ic);
 
-	if ((ic->ic_caps & IEEE80211_C_WME) == 0)
+	if ((ic->ic_caps & IEEE80211_C_WME) == 0 || ic->ic_nrunning > 1)
 		return;
 
 	/*
@@ -905,6 +905,7 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 		 */
 		wme->wme_hipri_switch_thresh =
 			(HIGH_PRI_SWITCH_THRESH * vap->iv_bss->ni_intval) / 100;
+		wme->wme_flags &= ~WME_F_AGGRMODE;
 		ieee80211_wme_updateparams(vap);
 	}
 }
