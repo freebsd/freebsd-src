@@ -561,9 +561,9 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 		le32enc(p + 8, entry->ent.dp_start);
 		le32enc(p + 12, entry->ent.dp_size);
  
-		do {
-			next = LIST_NEXT(baseentry, gpe_entry);
-		} while (next != NULL && next->gpe_deleted);
+		next = LIST_NEXT(baseentry, gpe_entry);
+		while (next != NULL && next->gpe_deleted)
+			next = LIST_NEXT(next, gpe_entry);
 
 		p += DOSPARTSIZE;
 		if (next != NULL)
