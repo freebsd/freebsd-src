@@ -98,6 +98,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 {
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
+	uint32_t reg;
 
 	/* clear the BSS and SBSS segments */
 	kernend = round_page((vm_offset_t)&end);
@@ -133,6 +134,26 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
+
+	/*
+	 * Reset USB devices 
+	 */
+	reg = ATH_READ_REG(AR71XX_RST_RESET);
+	reg |= 
+	    RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY;
+	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	DELAY(1000);
+	reg &= 
+	    ~(RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
+	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	
+	ATH_WRITE_REG(AR71XX_USB_CTRL_CONFIG,
+	    USB_CTRL_CONFIG_OHCI_DES_SWAP | USB_CTRL_CONFIG_OHCI_BUF_SWAP |
+	    USB_CTRL_CONFIG_EHCI_DES_SWAP | USB_CTRL_CONFIG_EHCI_BUF_SWAP);
+
+	ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ, 
+	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) | (3 << USB_CTRL_FLADJ_A5_SHIFT));
+	DELAY(1000);
 
 #ifdef DDB
 	kdb_init();
