@@ -808,15 +808,15 @@ ata_promise_mio_reset(device_t dev)
 		if (1 | bootverbose)
         	    device_printf(dev, "SIGNATURE: %08x\n", signature);
 
-		switch (signature) {
-		case 0x00000101:
+		switch (signature >> 16) {
+		case 0x0000:
 		    ch->devices = ATA_ATA_MASTER;
 		    break;
-		case 0x96690101:
+		case 0x9669:
 		    ch->devices = ATA_PORTMULTIPLIER;
 		    ata_pm_identify(dev);
 		    break;
-		case 0xeb140101:
+		case 0xeb14:
 		    ch->devices = ATA_ATAPI_MASTER;
 		    break;
 		default: /* SOS XXX */
