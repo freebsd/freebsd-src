@@ -218,6 +218,7 @@ g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	KASSERT(baseentry->gpe_start <= start, (__func__));
 	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
+	baseentry->gpe_index = (start / sectors) + 1;
 	baseentry->gpe_offset = (off_t)(start + sectors) * pp->sectorsize;
 	baseentry->gpe_start = start;
 	baseentry->gpe_end = start + size - 1;
@@ -257,6 +258,7 @@ g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 		return (ENXIO);
 
 	msize = pp->mediasize / pp->sectorsize;
+	basetable->gpt_entries = msize / basetable->gpt_sectors;
 	basetable->gpt_first = 0;
 	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
 	return (0);
