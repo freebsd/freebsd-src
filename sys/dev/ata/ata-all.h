@@ -530,6 +530,7 @@ struct ata_channel {
     TAILQ_HEAD(, ata_request)   ata_queue;      /* head of ATA queue */
     struct ata_request          *freezepoint;   /* composite freezepoint */
     struct ata_request          *running;       /* currently running request */
+    struct task			conntask;	/* PHY events handling task */
 };
 
 /* disk bay/enclosure related */

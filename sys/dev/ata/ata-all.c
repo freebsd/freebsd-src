@@ -62,6 +62,7 @@ static struct cdevsw ata_cdevsw = {
 /* prototypes */
 static void ata_boot_attach(void);
 static device_t ata_add_child(device_t, struct ata_device *, int);
+static void ata_conn_event(void *, int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
@@ -127,6 +128,7 @@ ata_attach(device_t dev)
     bzero(&ch->queue_mtx, sizeof(struct mtx));
     mtx_init(&ch->queue_mtx, "ATA queue lock", NULL, MTX_DEF);
     TAILQ_INIT(&ch->ata_queue);
+    TASK_INIT(&ch->conntask, 0, ata_conn_event, dev);
 
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
@@ -181,6 +183,7 @@ ata_detach(device_t dev)
 		device_delete_child(dev, children[i]);
 	free(children, M_TEMP);
     } 
+    taskqueue_drain(taskqueue_thread, &ch->conntask);
 
     /* release resources */
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
@@ -194,6 +197,14 @@ ata_detach(device_t dev)
     mtx_destroy(&ch->state_mtx);
     mtx_destroy(&ch->queue_mtx);
     return 0;
+}
+
+static void
+ata_conn_event(void *context, int dummy)
+{
+    device_t dev = (device_t)context;
+
+    ata_reinit(dev);
 }
 
 int
@@ -217,6 +228,11 @@ ata_reinit(device_t dev)
 
     /* catch eventual request in ch->running */
     mtx_lock(&ch->state_mtx);
+    if (ch->state & ATA_STALL_QUEUE) {
+	/* Recursive reinits and reinits during detach prohobited. */
+	mtx_unlock(&ch->state_mtx);
+	return (ENXIO);
+    }
     if ((request = ch->running))
 	callout_stop(&request->callout);
     ch->running = NULL;
@@ -273,6 +289,9 @@ ata_reinit(device_t dev)
     ch->state = ATA_IDLE;
     mtx_unlock(&ch->state_mtx);
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
+
+    /* Add new children. */
+    ata_identify(dev);
 
     if (bootverbose)
 	device_printf(dev, "reinit done ..\n");
@@ -684,14 +703,27 @@ ata_identify(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_device *atadev;
+    device_t *children;
     device_t child;
-    int i;
+    int nchildren, i, n = ch->devices;
 
     if (bootverbose)
-	device_printf(dev, "identify ch->devices=%08x\n", ch->devices);
+	device_printf(dev, "Identifying devices: %08x\n", ch->devices);
 
+    mtx_lock(&Giant);
+    /* Skip existing devices. */
+    if (!device_get_children(dev, &children, &nchildren)) {
+	for (i = 0; i < nchildren; i++) {
+	    if (children[i] && (atadev = device_get_softc(children[i])))
+		n &= ~((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << atadev->unit);
+	}
+	free(children, M_TEMP);
+    }
+    /* Create new devices. */
+    if (bootverbose)
+	device_printf(dev, "New devices: %08x\n", n);
     for (i = 0; i < ATA_PM; ++i) {
-	if (ch->devices & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
+	if (n & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
 	    int unit = -1;
 
 	    if (!(atadev = malloc(sizeof(struct ata_device),
@@ -701,7 +733,7 @@ ata_identify(device_t dev)
 	    }
 	    atadev->unit = i;
 #ifdef ATA_STATIC_ID
-	    if (ch->devices & ((ATA_ATA_MASTER << i)))
+	    if (n & (ATA_ATA_MASTER << i))
 		unit = (device_get_unit(dev) << 1) + i;
 #endif
 	    if ((child = ata_add_child(dev, atadev, unit))) {
@@ -716,6 +748,7 @@ ata_identify(device_t dev)
     }
     bus_generic_probe(dev);
     bus_generic_attach(dev);
+    mtx_unlock(&Giant);
     return 0;
 }
 

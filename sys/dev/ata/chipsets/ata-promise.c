@@ -637,7 +637,6 @@ ata_promise_mio_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    struct ata_connect_task *tp;
     u_int32_t fake_reg, stat_reg, vector, status;
 
     switch (ctlr->chip->cfg2) {
@@ -663,31 +662,17 @@ ata_promise_mio_status(device_t dev)
     ATA_OUTL(ctlr->r_res2, stat_reg, status & (0x00000011 << ch->unit));
 
     /* check for and handle disconnect events */
-    if ((status & (0x00000001 << ch->unit)) &&
-	(tp = (struct ata_connect_task *)
-	      malloc(sizeof(struct ata_connect_task),
-		     M_ATA, M_NOWAIT | M_ZERO))) {
-
+    if (status & (0x00000001 << ch->unit)) {
 	if (bootverbose)
 	    device_printf(dev, "DISCONNECT requested\n");
-	tp->action = ATA_C_DETACH;
-	tp->dev = dev;
-	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	taskqueue_enqueue(taskqueue_thread, &tp->task);
+	taskqueue_enqueue(taskqueue_thread, &ch->conntask);
     }
 
     /* check for and handle connect events */
-    if ((status & (0x00000010 << ch->unit)) &&
-	(tp = (struct ata_connect_task *)
-	      malloc(sizeof(struct ata_connect_task),
-		     M_ATA, M_NOWAIT | M_ZERO))) {
-
+    if (status & (0x00000010 << ch->unit)) {
 	if (bootverbose)
 	    device_printf(dev, "CONNECT requested\n");
-	tp->action = ATA_C_ATTACH;
-	tp->dev = dev;
-	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	taskqueue_enqueue(taskqueue_thread, &tp->task);
+	taskqueue_enqueue(taskqueue_thread, &ch->conntask);
     }
 
     /* do we have any device action ? */
