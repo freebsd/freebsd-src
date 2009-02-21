@@ -624,7 +624,7 @@ ata_ahci_start(device_t dev)
 }
 
 static int
-ata_ahci_wait_ready(device_t dev)
+ata_ahci_wait_ready(device_t dev, int t)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -634,7 +634,7 @@ ata_ahci_wait_ready(device_t dev)
     while (ATA_INL(ctlr->r_res2, ATA_AHCI_P_TFD + offset) &
 	(ATA_S_BUSY | ATA_S_DRQ)) {
 	    DELAY(1000);
-	    if (timeout++ > 1000) {
+	    if (timeout++ > t) {
 		device_printf(dev, "port is not ready\n");
 		return (-1);
 	    }
@@ -680,7 +680,7 @@ ata_ahci_softreset(device_t dev, int port)
     if (ata_ahci_issue_cmd(dev, 0, 0))
 	return -1;
 
-    if (ata_ahci_wait_ready(dev))
+    if (ata_ahci_wait_ready(dev, 1000))
 	return (-1);
 
     return ATA_INL(ctlr->r_res2, ATA_AHCI_P_SIG + offset);
@@ -738,7 +738,7 @@ ata_ahci_reset(device_t dev)
 	      ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
 
     /* Wait for initial TFD from device. */
-    ata_ahci_wait_ready(dev);
+    ata_ahci_wait_ready(dev, 10000);
 
     /* only probe for PortMultiplier if HW has support */
     if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) {
