@@ -28,15 +28,11 @@
 #ifndef _APBVAR_H_
 #define _APBVAR_H_
 
-#define	APB_MEM_START	0x18000000
-#define	APB_MEM_END	0x18ffffff
-
 #define	APB_IRQ_BASE		0
 #define	APB_IRQ_END		7
 #define	APB_NIRQS		8
 
 struct apb_softc {
-	struct rman		apb_mem_rman;
 	struct rman		apb_irq_rman;
 	/* IRQ events structs for child devices */
 	struct intr_event	*sc_eventstab[APB_NIRQS];	
