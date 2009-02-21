@@ -50,41 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
-/*
- * SATA support functions
- */
-void
-ata_sata_phy_event(void *context, int dummy)
-{
-    struct ata_connect_task *tp = (struct ata_connect_task *)context;
-    struct ata_channel *ch = device_get_softc(tp->dev);
-    device_t *children;
-    int nchildren, i;
-
-    mtx_lock(&Giant);   /* newbus suckage it needs Giant */
-    if (tp->action == ATA_C_ATTACH) {
-	if (bootverbose)
-	    device_printf(tp->dev, "CONNECTED\n");
-	ATA_RESET(tp->dev);
-	ata_identify(tp->dev);
-    }
-    if (tp->action == ATA_C_DETACH) {
-	if (!device_get_children(tp->dev, &children, &nchildren)) {
-	    for (i = 0; i < nchildren; i++)
-		if (children[i])
-		    device_delete_child(tp->dev, children[i]);
-	    free(children, M_TEMP);
-	}    
-	mtx_lock(&ch->state_mtx);
-	ch->state = ATA_IDLE;
-	mtx_unlock(&ch->state_mtx);
-	if (bootverbose)
-	    device_printf(tp->dev, "DISCONNECTED\n");
-    }
-    mtx_unlock(&Giant); /* suckage code dealt with, release Giant */
-    free(tp, M_ATA);
-}
-
 void
 ata_sata_phy_check_events(device_t dev)
 {
@@ -94,32 +59,17 @@ ata_sata_phy_check_events(device_t dev)
     /* clear error bits/interrupt */
     ATA_IDX_OUTL(ch, ATA_SERROR, error);
 
-    /* do we have any events flagged ? */
-    if (error) {
-	struct ata_connect_task *tp;
-	u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
-
-	/* if we have a connection event deal with it */
-	if ((error & ATA_SE_PHY_CHANGED) &&
-	    (tp = (struct ata_connect_task *)
-		  malloc(sizeof(struct ata_connect_task),
-			 M_ATA, M_NOWAIT | M_ZERO))) {
-
+    /* if we have a connection event deal with it */
+    if (error & ATA_SE_PHY_CHANGED) {
+	if (bootverbose) {
+	    u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
 	    if (((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) ||
 		((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)) {
-		if (bootverbose)
 		    device_printf(dev, "CONNECT requested\n");
-		tp->action = ATA_C_ATTACH;
-	    }
-	    else {
-		if (bootverbose)
+	    } else
 		    device_printf(dev, "DISCONNECT requested\n");
-		tp->action = ATA_C_DETACH;
-	    }
-	    tp->dev = dev;
-	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	    taskqueue_enqueue(taskqueue_thread, &tp->task);
 	}
+	taskqueue_enqueue(taskqueue_thread, &ch->conntask);
     }
 }
 

@@ -66,15 +66,6 @@ struct ata_pci_controller {
     } interrupt[8];     /* XXX SOS max ch# for now */
 };
 
-/* structure for SATA connection update hotplug/hotswap support */
-struct ata_connect_task {
-    struct task task;
-    device_t    dev;  
-    int         action;
-#define ATA_C_ATTACH    1
-#define ATA_C_DETACH    2
-};
-
 /* defines for known chipset PCI id's */
 #define ATA_ACARD_ID            0x1191
 #define ATA_ATP850              0x00021191
@@ -451,7 +442,6 @@ int ata_check_80pin(device_t dev, int mode);
 int ata_mode2idx(int mode);
 
 /* global prototypes ata-sata.c */
-void ata_sata_phy_event(void *context, int dummy);
 void ata_sata_phy_check_events(device_t dev);
 int ata_sata_phy_reset(device_t dev);
 void ata_sata_setmode(device_t dev, int mode);
