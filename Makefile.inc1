@@ -230,7 +230,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		-DWITHOUT_SSP \
+		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DWITHOUT_NLS -DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
@@ -240,8 +240,9 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
+		SSP_CFLAGS= \
 		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS \
-		-DNO_WARNS -DNO_CTF -DWITHOUT_SSP
+		-DNO_WARNS -DNO_CTF
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -458,7 +459,7 @@ build32:
 .if ${MK_KERBEROS} != "no"
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= \
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    ${_t}
 .endfor
 .endif
@@ -481,7 +482,7 @@ build32:
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= \
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    build-tools
 .endfor
 	cd ${.CURDIR}; \
@@ -782,14 +783,14 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} -DWITHOUT_SSP -DNO_CPU_CFLAGS -DNO_CTF \
+	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
 	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} -DWITHOUT_SSP -DNO_CPU_CFLAGS -DNO_CTF ${target}
+	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF ${target}
 .endfor
 .endif
 .if !defined(NO_KERNELDEPEND)
