@@ -295,11 +295,11 @@ ata_pm_identify(device_t dev)
 	    device_printf(dev, "p%d: SIGNATURE=%08x\n", port, signature);
 
 	/* figure out whats there */
-	switch (signature) {
-	case 0x00000101:
+	switch (signature >> 16) {
+	case 0x0000:
 	    ch->devices |= (ATA_ATA_MASTER << port);
 	    continue;
-	case 0xeb140101:
+	case 0xeb14:
 	    ch->devices |= (ATA_ATAPI_MASTER << port);
 	    continue;
 	}
