@@ -126,6 +126,7 @@ powerpc/powermac/uninorth.c	optional	powermac pci
 powerpc/powermac/cuda.c		optional	powermac cuda
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/macgpio.c	optional	powermac pci 
+powerpc/powerpc/altivec.c	optional	aim
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
