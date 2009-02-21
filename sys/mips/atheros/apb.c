@@ -165,7 +165,6 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	if (isdefault) {
 		rle = resource_list_find(&ivar->resources, type, *rid);
-		printf("DEFAULT: %d, %p\n", *rid, rle);
 		if (rle == NULL) {
 			return (NULL);
 		}
