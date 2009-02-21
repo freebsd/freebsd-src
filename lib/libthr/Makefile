@@ -8,9 +8,8 @@
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
 
-WITHOUT_SSP=
-
 .include <bsd.own.mk>
+MK_SSP=	no
 
 .if ${SHLIBDIR} == "/usr/lib"
 SHLIBDIR= /lib
