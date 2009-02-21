@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Sheldon Hearn <sheldonh@FreeBSD.org>.
  * All rights reserved.
  *
@@ -58,7 +58,7 @@ main(int argc, char **argv)
 	char   *fname, *rname;
 
 	fd = -1;
-	rsize = tsize = 0;
+	rsize = tsize = sz = 0;
 	error = 0;
 	rname = NULL;
 	while ((ch = getopt(argc, argv, "cr:s:")) != -1)
