@@ -42,6 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/apbvar.h>
 #include <mips/atheros/ar71xxreg.h>
 
+#undef APB_DEBUG
+#ifdef APB_DEBUG
+#define dprintf printf
+#else 
+#define dprintf(x, arg...)
+#endif  /* APB_DEBUG */
+
 static int	apb_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static device_t	apb_add_child(device_t, int, const char *, int);
@@ -94,13 +101,6 @@ apb_attach(device_t dev)
 	int rid = 0;
 
 	device_set_desc(dev, "APB Bus bridge");
-	sc->apb_mem_rman.rm_type = RMAN_ARRAY;
-	sc->apb_mem_rman.rm_descr = "APB memory";
-	if (rman_init(&sc->apb_mem_rman) != 0 ||
-	    rman_manage_region(&sc->apb_mem_rman, APB_MEM_START,
-	        APB_MEM_END) != 0)
-		panic("apb_attach: failed to set up I/O rman");
-
 	sc->apb_irq_rman.rm_type = RMAN_ARRAY;
 	sc->apb_irq_rman.rm_descr = "APB IRQ";
 
@@ -142,8 +142,16 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	isdefault = (start == 0UL && end == ~0UL);
 	needactivate = flags & RF_ACTIVE;
-	passthrough = (device_get_parent(child) != bus);
+	/*
+	 * Pass memory requests to nexus device
+	 */
+	passthrough = (device_get_parent(child) != bus) ||
+		(type == SYS_RES_MEMORY);
 	rle = NULL;
+
+	dprintf("%s: entry (%p, %p, %d, %p, %p, %p, %ld, %d)\n",
+	    __func__, bus, child, type, rid, (void *)(intptr_t)start,
+	    (void *)(intptr_t)end, count, flags);
 
 	if (passthrough)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type,
@@ -157,6 +165,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	if (isdefault) {
 		rle = resource_list_find(&ivar->resources, type, *rid);
+		printf("DEFAULT: %d, %p\n", *rid, rle);
 		if (rle == NULL) {
 			return (NULL);
 		}
@@ -167,14 +176,15 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		start = rle->start;
 		end = rle->end;
 		count = rle->count;
+
+		dprintf("%s: default resource (%p, %p, %ld)\n",
+		    __func__, (void *)(intptr_t)start,
+		    (void *)(intptr_t)end, count);
 	}
 
 	switch (type) {
 	case SYS_RES_IRQ:
 		rm = &sc->apb_irq_rman;
-		break;
-	case SYS_RES_MEMORY:
-		rm = &sc->apb_mem_rman;
 		break;
 	default:
 		printf("%s: unknown resource type %d\n", __func__, type);
