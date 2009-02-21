@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 struct g_part_bsd_table {
 	struct g_part_table	base;
-	u_char			*label;
+	u_char			*bbarea;
 	uint32_t		offset;
 };
 
@@ -58,6 +58,7 @@ struct g_part_bsd_entry {
 
 static int g_part_bsd_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
+static int g_part_bsd_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_bsd_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_bsd_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_bsd_dumpconf(struct g_part_table *, struct g_part_entry *,
@@ -75,6 +76,7 @@ static int g_part_bsd_write(struct g_part_table *, struct g_consumer *);
 
 static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_bsd_add),
+	KOBJMETHOD(g_part_bootcode,	g_part_bsd_bootcode),
 	KOBJMETHOD(g_part_create,	g_part_bsd_create),
 	KOBJMETHOD(g_part_destroy,	g_part_bsd_destroy),
 	KOBJMETHOD(g_part_dumpconf,	g_part_bsd_dumpconf),
@@ -95,6 +97,7 @@ static struct g_part_scheme g_part_bsd_scheme = {
 	.gps_entrysz = sizeof(struct g_part_bsd_entry),
 	.gps_minent = 8,
 	.gps_maxent = 20,
+	.gps_bootcodesz = BBSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_bsd);
 
@@ -157,6 +160,30 @@ g_part_bsd_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 }
 
 static int
+g_part_bsd_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
+{
+	struct g_part_bsd_table *table;
+	const u_char *codeptr;
+	size_t hdsz, tlsz;
+	size_t codesz, tlofs;
+
+	hdsz = 512;
+	tlofs = hdsz + 148 + basetable->gpt_entries * 16;
+	tlsz = BBSIZE - tlofs;
+	table = (struct g_part_bsd_table *)basetable;
+	bzero(table->bbarea, hdsz);
+	bzero(table->bbarea + tlofs, tlsz);
+	codeptr = gpp->gpp_codeptr;
+	codesz = MIN(hdsz, gpp->gpp_codesize);
+	if (codesz > 0)
+		bcopy(codeptr, table->bbarea, codesz);
+	codesz = MIN(tlsz, gpp->gpp_codesize - tlofs);
+	if (codesz > 0)
+		bcopy(codeptr + tlofs, table->bbarea + tlofs, codesz);
+	return (0);
+}
+
+static int
 g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_consumer *cp;
@@ -173,13 +200,16 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	if (pp->sectorsize < sizeof(struct disklabel))
 		return (ENOSPC);
+	if (BBSIZE % pp->sectorsize)
+		return (ENOTBLK);
 
 	msize = pp->mediasize / pp->sectorsize;
 	secpercyl = basetable->gpt_sectors * basetable->gpt_heads;
 	ncyls = msize / secpercyl;
 
 	table = (struct g_part_bsd_table *)basetable;
-	ptr = table->label = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+	table->bbarea = g_malloc(BBSIZE, M_WAITOK | M_ZERO);
+	ptr = table->bbarea + pp->sectorsize;
 
 	le32enc(ptr + 0, DISKMAGIC);			/* d_magic */
 	le32enc(ptr + 40, pp->sectorsize);		/* d_secsize */
@@ -284,6 +314,8 @@ g_part_bsd_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (pp->sectorsize < sizeof(struct disklabel) ||
 	    pp->mediasize < BBSIZE)
 		return (ENOSPC);
+	if (BBSIZE % pp->sectorsize)
+		return (ENOTBLK);
 
 	/* Check that there's a disklabel. */
 	buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
@@ -313,11 +345,11 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 	table = (struct g_part_bsd_table *)basetable;
 	msize = pp->mediasize / pp->sectorsize;
 
-	buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
-	if (buf == NULL)
+	table->bbarea = g_read_data(cp, 0, BBSIZE, &error);
+	if (table->bbarea == NULL)
 		return (error);
 
-	table->label = buf;
+	buf = table->bbarea + pp->sectorsize;
 
 	if (le32dec(buf + 40) != pp->sectorsize)
 		goto invalid_label;
@@ -388,7 +420,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 
  invalid_label:
 	printf("GEOM: %s: invalid disklabel.\n", pp->name);
-	g_free(table->label);
+	g_free(table->bbarea);
 	return (EINVAL);
 }
 
@@ -421,14 +453,15 @@ g_part_bsd_write(struct g_part_table *basetable, struct g_consumer *cp)
 	struct g_part_bsd_entry *entry;
 	struct g_part_bsd_table *table;
 	uint16_t sum;
-	u_char *p, *pe;
+	u_char *label, *p, *pe;
 	int error, index;
 
 	pp = cp->provider;
 	table = (struct g_part_bsd_table *)basetable;
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
+	label = table->bbarea + pp->sectorsize;
 	for (index = 1; index <= basetable->gpt_entries; index++) {
-		p = table->label + 148 + (index - 1) * 16;
+		p = label + 148 + (index - 1) * 16;
 		entry = (baseentry != NULL && index == baseentry->gpe_index)
 		    ? (struct g_part_bsd_entry *)baseentry : NULL;
 		if (entry != NULL && !baseentry->gpe_deleted) {
@@ -446,13 +479,13 @@ g_part_bsd_write(struct g_part_table *basetable, struct g_consumer *cp)
 	}
 
 	/* Calculate checksum. */
-	le16enc(table->label + 136, 0);
-	pe = table->label + 148 + basetable->gpt_entries * 16;
+	le16enc(label + 136, 0);
+	pe = label + 148 + basetable->gpt_entries * 16;
 	sum = 0;
-	for (p = table->label; p < pe; p += 2)
+	for (p = label; p < pe; p += 2)
 		sum ^= le16dec(p);
-	le16enc(table->label + 136, sum);
+	le16enc(label + 136, sum);
 
-	error = g_write_data(cp, pp->sectorsize, table->label, pp->sectorsize);
+	error = g_write_data(cp, 0, table->bbarea, BBSIZE);
 	return (error);
 }
