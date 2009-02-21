@@ -1869,7 +1869,6 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 
 	vm_object_pip_add(object, 1);
 again:
-	vm_page_lock_queues();
 	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		if (p->pindex < start) {
 			p = vm_page_splay(start, object->root);
@@ -1877,6 +1876,7 @@ again:
 				p = TAILQ_NEXT(p, listq);
 		}
 	}
+	vm_page_lock_queues();
 	/*
 	 * Assert: the variable p is either (1) the page with the
 	 * least pindex greater than or equal to the parameter pindex
