@@ -900,7 +900,13 @@ apic_disable_vector(u_int apic_id, u_int vector)
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 	KASSERT(ioint_handlers[vector / 32] != NULL,
 	    ("No ISR handler for vector %u", vector));
+#ifdef notyet
+	/*
+	 * We can not currently clear the idt entry because other cpus
+	 * may have a valid vector at this offset.
+	 */
 	setidt(vector, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+#endif
 }
 
 /* Release an APIC vector when it's no longer in use. */
@@ -924,9 +930,11 @@ apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 	if (sched_is_bound(td))
 		panic("apic_free_vector: Thread already bound.\n");
 	sched_bind(td, apic_cpuid(apic_id));
+	thread_unlock(td);
 	mtx_lock_spin(&icu_lock);
 	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = 0;
 	mtx_unlock_spin(&icu_lock);
+	thread_lock(td);
 	sched_unbind(td);
 	thread_unlock(td);
 
