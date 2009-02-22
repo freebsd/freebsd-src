@@ -126,6 +126,10 @@ usb2_attach(device_t dev)
 		DPRINTFN(0, "USB device has no ivars\n");
 		return (ENXIO);
 	}
+
+	/* delay vfs_mountroot until the bus is explored */
+	bus->bus_roothold = root_mount_hold(device_get_nameunit(dev));
+
 	if (usb2_post_init_called) {
 		mtx_lock(&Giant);
 		usb2_attach_sub(dev, bus);
@@ -153,6 +157,10 @@ usb2_detach(device_t dev)
 	usb2_callout_drain(&bus->power_wdog);
 
 	/* Let the USB explore process detach all devices. */
+	if (bus->bus_roothold != NULL) {
+		root_mount_rel(bus->bus_roothold);
+		bus->bus_roothold = NULL;
+	}
 
 	USB_BUS_LOCK(bus);
 	if (usb2_proc_msignal(&bus->explore_proc,
@@ -224,6 +232,10 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
 		mtx_unlock(&Giant);
 
 		USB_BUS_LOCK(bus);
+	}
+	if (bus->bus_roothold != NULL) {
+		root_mount_rel(bus->bus_roothold);
+		bus->bus_roothold = NULL;
 	}
 }
 
