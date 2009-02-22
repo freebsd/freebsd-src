@@ -346,7 +346,8 @@ scan_dump(struct ieee80211_scan_state *ss)
 
 	if_printf(vap->iv_ifp, "scan set ");
 	ieee80211_scan_dump_channels(ss);
-	printf(" dwell min %lu max %lu\n", ss->ss_mindwell, ss->ss_maxdwell);
+	printf(" dwell min %lums max %lums\n",
+	    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(ss->ss_maxdwell));
 }
 #endif /* IEEE80211_DEBUG */
 
@@ -919,7 +920,7 @@ again:
 			maxdwell = ss->ss_maxdwell;
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: chan %3d%c -> %3d%c [%s, dwell min %lu max %lu]\n",
+		    "%s: chan %3d%c -> %3d%c [%s, dwell min %lums max %lums]\n",
 		    __func__,
 		    ieee80211_chan2ieee(ic, ic->ic_curchan),
 		        channel_type(ic->ic_curchan),
@@ -927,7 +928,7 @@ again:
 		    (ss->ss_flags & IEEE80211_SCAN_ACTIVE) &&
 			(chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0 ?
 			"active" : "passive",
-		    ss->ss_mindwell, maxdwell);
+		    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(maxdwell));
 
 		/*
 		 * Potentially change channel and phy mode.
