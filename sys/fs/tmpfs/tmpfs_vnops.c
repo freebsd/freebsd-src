@@ -496,8 +496,7 @@ nocache:
 	VM_OBJECT_LOCK(tobj);
 out:
 	vm_page_lock_queues();
-	vm_page_unwire(m, 0);
-	vm_page_activate(m);
+	vm_page_unwire(m, TRUE);
 	vm_page_unlock_queues();
 	vm_page_wakeup(m);
 	vm_object_pip_subtract(tobj, 1);
@@ -635,8 +634,7 @@ out:
 		vm_page_zero_invalid(tpg, TRUE);
 		vm_page_dirty(tpg);
 	}
-	vm_page_unwire(tpg, 0);
-	vm_page_activate(tpg);
+	vm_page_unwire(tpg, TRUE);
 	vm_page_unlock_queues();
 	vm_page_wakeup(tpg);
 	if (vpg != NULL)
