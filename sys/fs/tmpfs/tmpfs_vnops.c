@@ -52,8 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <sys/sched.h>
-#include <sys/sf_buf.h>
+
 #include <machine/_inttypes.h>
 
 #include <fs/fifofs/fifo.h>
@@ -436,10 +435,9 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 {
 	vm_pindex_t	idx;
 	vm_page_t	m;
-	struct sf_buf	*sf;
-	off_t		offset, addr;
+	vm_offset_t	offset;
+	off_t		addr;
 	size_t		tlen;
-	caddr_t		va;
 	int		error;
 
 	addr = uio->uio_offset;
@@ -458,12 +456,7 @@ lookupvpg:
 			goto lookupvpg;
 		vm_page_busy(m);
 		VM_OBJECT_UNLOCK(vobj);
-		sched_pin();
-		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-		va = (caddr_t)sf_buf_kva(sf);
-		error = uiomove(va + offset, tlen, uio);
-		sf_buf_free(sf);
-		sched_unpin();
+		error = uiomove_fromphys(&m, offset, tlen, uio);
 		VM_OBJECT_LOCK(vobj);
 		vm_page_wakeup(m);
 		VM_OBJECT_UNLOCK(vobj);
@@ -487,12 +480,7 @@ nocache:
 			vm_page_zero_invalid(m, TRUE);
 	}
 	VM_OBJECT_UNLOCK(tobj);
-	sched_pin();
-	sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-	va = (caddr_t)sf_buf_kva(sf);
-	error = uiomove(va + offset, tlen, uio);
-	sf_buf_free(sf);
-	sched_unpin();
+	error = uiomove_fromphys(&m, offset, tlen, uio);
 	VM_OBJECT_LOCK(tobj);
 out:
 	vm_page_lock_queues();
@@ -557,10 +545,9 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 {
 	vm_pindex_t	idx;
 	vm_page_t	vpg, tpg;
-	struct sf_buf	*sf;
-	off_t		offset, addr;
+	vm_offset_t	offset;
+	off_t		addr;
 	size_t		tlen;
-	caddr_t		va;
 	int		error;
 
 	error = 0;
@@ -586,12 +573,7 @@ lookupvpg:
 		vm_page_undirty(vpg);
 		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(vobj);
-		sched_pin();
-		sf = sf_buf_alloc(vpg, SFB_CPUPRIVATE);
-		va = (caddr_t)sf_buf_kva(sf);
-		error = uiomove(va + offset, tlen, uio);
-		sf_buf_free(sf);
-		sched_unpin();
+		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
@@ -613,14 +595,9 @@ nocache:
 			vm_page_zero_invalid(tpg, TRUE);
 	}
 	VM_OBJECT_UNLOCK(tobj);
-	if (vpg == NULL) {
-		sched_pin();
-		sf = sf_buf_alloc(tpg, SFB_CPUPRIVATE);
-		va = (caddr_t)sf_buf_kva(sf);
-		error = uiomove(va + offset, tlen, uio);
-		sf_buf_free(sf);
-		sched_unpin();
-	} else {
+	if (vpg == NULL)
+		error = uiomove_fromphys(&tpg, offset, tlen, uio);
+	else {
 		KASSERT(vpg->valid == VM_PAGE_BITS_ALL, ("parts of vpg invalid"));
 		pmap_copy_page(vpg, tpg);
 	}
