@@ -932,8 +932,7 @@ ata_atapi(device_t dev)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
 
-    return ((atadev->unit == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) ||
-            (atadev->unit == ATA_SLAVE && ch->devices & ATA_ATAPI_SLAVE));
+    return (ch->devices & (ATA_ATAPI_MASTER << atadev->unit));
 }
 
 int
