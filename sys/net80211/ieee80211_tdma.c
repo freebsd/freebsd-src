@@ -240,11 +240,14 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (status == 0 && 
 	    nstate == IEEE80211_S_RUN && ostate != IEEE80211_S_RUN &&
 	    (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) &&
-	    ts->tdma_slot != 0) {
+	    ts->tdma_slot != 0 &&
+	    vap->iv_des_chan == IEEE80211_CHAN_ANYC) {
 		/*
 		 * Start s/w beacon miss timer for slave devices w/o
-		 * hardware support.  The 2x is a fudge for our doing
-		 * this in software.
+		 * hardware support.  Note we do this only if we're
+		 * not locked to a channel (i.e. roam to follow the
+		 * master). The 2x is a fudge for our doing this in
+		 * software.
 		 */
 		vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(
 		    2 * vap->iv_bmissthreshold * ts->tdma_bintval *
