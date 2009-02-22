@@ -244,18 +244,20 @@ change the value.
 .It Li debug
 Setting a non-zero value enables debugging at various levels.
 Debug level 1 will record actions at a journal level, relating to journal
-switches, metadata updates etc.
+switches, metadata updates, etc.
 Debug level 2 will record actions at a higher level, relating to the numbers of
-entries in journals, access requests etc.
+entries in journals, access requests, etc.
 Debug level 3 will record verbose detail, including insertion of I/Os to the
 journal.
 .It Li switch_time
 The maximum number of seconds a journal is allowed to remain open before
 switching to a new journal.
 .It Li force_switch
-Force a journal switch when the journal uses more than N% of the free journal space.
+Force a journal switch when the journal uses more than N% of the free journal
+space.
 .It Li parallel_flushes
-The number of flush I/O requests to be sent in parallel when flushing the journal to the data provider.
+The number of flush I/O requests to be sent in parallel when flushing the
+journal to the data provider.
 .It Li accept_immediately
 The maximum number of I/O requests accepted at the same time.
 .It Li parallel_copies
@@ -263,7 +265,9 @@ The number of copy I/O requests to send in parallel.
 .It Li record_entries
 The maximum number of record entries to allow in a single journal.
 .It Li optimize
-Controls whether entries in a journal will be optimized, by combining overlapping I/Os into a single I/O, and reordering the entries in a journal. This can be disabled by setting the sysctl to 0.
+Controls whether entries in a journal will be optimized by combining overlapping
+I/Os into a single I/O and reordering the entries in a journal.
+This can be disabled by setting the sysctl to 0.
 .El
 .Ss cache
 The string and integer information available for the cache level
@@ -286,13 +290,17 @@ The number of bytes currently allocated to the cache.
 .It Li limit
 The maximum number of bytes to be allocated to the cache.
 .It Li divisor
-Sets the cache size to be used as a proportion of kmem_size. A value of 2 (the default) will cause the cache size to be set to 1/2 of the kmem_size.
+Sets the cache size to be used as a proportion of kmem_size.
+A value of 2 (the default) will cause the cache size to be set to 1/2 of the
+kmem_size.
 .It Li switch
 Force a journal switch when this percentage of cache has been used.
 .It Li misses
-The number of cache misses, when data has been read, but was not found in the cache.
+The number of cache misses, when data has been read, but was not found in the
+cache.
 .It Li alloc_failures
-The number of times memory failed to be allocated to the cache because the cache limit was hit.
+The number of times memory failed to be allocated to the cache because the cache
+limit was hit.
 .El
 .Ss stats
 The string and integer information available for the statistics level
@@ -317,7 +325,8 @@ The number of I/Os which were combined by journal optimization.
 .It Li switches
 The number of journal switches.
 .It Li wait_for_copy
-The number of times the journal switch process had to wait for the previous journal copy to complete.
+The number of times the journal switch process had to wait for the previous
+journal copy to complete.
 .It Li journal_full
 The number of times the journal was almost full, forcing a journal switch.
 .It Li low_mem
