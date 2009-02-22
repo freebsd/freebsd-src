@@ -82,6 +82,11 @@ str2mode(char *str)
 	if (!strcasecmp(str, "UDMA100")) return ATA_UDMA5;
 	if (!strcasecmp(str, "UDMA6")) return ATA_UDMA6;
 	if (!strcasecmp(str, "UDMA133")) return ATA_UDMA6;
+	if (!strcasecmp(str, "SATA150")) return ATA_SA150;
+	if (!strcasecmp(str, "SATA300")) return ATA_SA300;
+	if (!strcasecmp(str, "USB")) return ATA_USB;
+	if (!strcasecmp(str, "USB1")) return ATA_USB1;
+	if (!strcasecmp(str, "USB2")) return ATA_USB2;
 	if (!strcasecmp(str, "BIOSDMA")) return ATA_DMA;
 	return -1;
 }

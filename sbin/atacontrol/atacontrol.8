@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2008
+.Dd February 21, 2009
 .Dt ATACONTROL 8
 .Os
 .Sh NAME
@@ -180,9 +180,7 @@ Modes are given like
 case does not matter.
 .Pp
 Currently supported modes are:
-.Cm PIO0 , PIO1 , PIO2 , PIO3 , PIO4 ,
-.Cm WDMA2 ,
-.Cm UDMA2
+.Cm BIOSPIO , PIO0 , PIO1 , PIO2 , PIO3 , PIO4 , WDMA2 , UDMA2
 (alias
 .Cm UDMA33 ) ,
 .Cm UDMA4
@@ -190,11 +188,13 @@ Currently supported modes are:
 .Cm UDMA66 ) ,
 .Cm UDMA5
 (alias
-.Cm UDMA100 )
-and
+.Cm UDMA100 ) ,
 .Cm UDMA6
 (alias
-.Cm UDMA133 ) .
+.Cm UDMA133 ) ,
+.Cm SATA150 , SATA300 , USB , USB1 , USB2
+and
+.Cm BIOSDMA .
 .It Ic cap
 Show detailed info about the device on
 .Ar device .
