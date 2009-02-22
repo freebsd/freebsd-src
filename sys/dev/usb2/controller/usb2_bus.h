@@ -53,6 +53,7 @@ struct usb2_bus {
 	struct usb2_bus_stat stats_ok;
 	struct usb2_process explore_proc;
 	struct usb2_process roothub_proc;
+	struct root_hold_token *bus_roothold;
 	/*
 	 * There are two callback processes. One for Giant locked
 	 * callbacks. One for non-Giant locked callbacks. This should
