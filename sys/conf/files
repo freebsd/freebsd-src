@@ -502,7 +502,7 @@ dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
 dev/ata/ata-raid.c		optional ataraid
-dev/ata/ata-usb.c		optional atausb ousb
+legacy/dev/ata/ata-usb.c	optional atausb ousb
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
@@ -1394,8 +1394,8 @@ dev/sound/pcm/sndstat.c		optional sound
 dev/sound/pcm/sound.c		optional sound
 dev/sound/pcm/vchan.c		optional sound
 #dev/sound/usb/upcm.c		optional snd_upcm ousb
-dev/sound/usb/uaudio.c		optional snd_uaudio ousb
-dev/sound/usb/uaudio_pcm.c	optional snd_uaudio ousb
+legacy/dev/sound/usb/uaudio.c		optional snd_uaudio ousb
+legacy/dev/sound/usb/uaudio_pcm.c	optional snd_uaudio ousb
 dev/sound/midi/midi.c		optional sound
 dev/sound/midi/mpu401.c		optional sound
 dev/sound/midi/mpu_if.m		optional sound
