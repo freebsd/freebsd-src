@@ -30,8 +30,7 @@
 #include <sys/soundcard.h>
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/chip.h>
-
-#include <dev/usb/sound/uaudio.h>
+#include <dev/sound/usb/uaudio.h>
 
 #include "mixer_if.h"
 
