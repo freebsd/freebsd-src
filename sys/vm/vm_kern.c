@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -500,3 +501,24 @@ kmem_init(start, end)
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
 }
+
+/*
+ * Allow userspace to directly trigger the VM drain routine for testing
+ * purposes.
+ */
+static int
+debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+
+	i = 0;
+	error = sysctl_handle_int(oidp, &i, 0, req);
+	if (error)
+		return (error);
+	if (i)	 
+		EVENTHANDLER_INVOKE(vm_lowmem, 0);
+	return (0);
+}
+
+SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+    debug_vm_lowmem, "I", "set to trigger vm_lowmem event");
