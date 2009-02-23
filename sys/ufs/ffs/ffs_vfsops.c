@@ -1079,7 +1079,7 @@ ffs_unmount(mp, mntflags, td)
 		error = softdep_flushfiles(mp, flags, td);
 	else
 		error = ffs_flushfiles(mp, flags, td);
-	if (error != 0)
+	if (error != 0 && error != ENXIO)
 		goto fail;
 
 	UFS_LOCK(ump);
@@ -1094,7 +1094,7 @@ ffs_unmount(mp, mntflags, td)
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
-		if (error) {
+		if (error && error != ENXIO) {
 			fs->fs_clean = 0;
 			goto fail;
 		}
