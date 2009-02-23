@@ -120,10 +120,6 @@
         ..
         usb
         ..
-        usb2
-            include
-            ..
-        ..
         utopia
         ..
         vkbd

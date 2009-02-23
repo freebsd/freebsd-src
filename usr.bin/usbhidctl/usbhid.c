@@ -47,7 +47,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <usbhid.h>
-#include <dev/usb2/include/usb2_hid.h>
+#include <dev/usb/usbhid.h>
 
 int verbose = 0;
 int all = 0;
