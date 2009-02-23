@@ -1932,15 +1932,15 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	pc->pc_map[field] |= 1ul << bit;
 	/* move to head of list */
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 	if (pc->pc_map[0] != PC_FREE0 || pc->pc_map[1] != PC_FREE1 ||
-	    pc->pc_map[2] != PC_FREE2)
+	    pc->pc_map[2] != PC_FREE2) {
+		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 		return;
+	}
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
-	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire(m, 0);
