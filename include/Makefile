@@ -54,7 +54,7 @@ LSUBDIRS=	cam/scsi \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
-LSUBSUBDIRS=	dev/mpt/mpilib dev/usb2/include
+LSUBSUBDIRS=	dev/mpt/mpilib
 
 .if ${MACHINE_ARCH} == "powerpc"
 _dev_powermac_nvram=	dev/powermac_nvram
