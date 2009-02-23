@@ -778,7 +778,7 @@ ata_ahci_reset(device_t dev)
 	break;
     default: /* SOS XXX */
 	if (bootverbose)
-	    device_printf(dev, "Unknown signature, asuming disk device\n");
+	    device_printf(dev, "Unknown signature, assuming disk device\n");
 	ch->devices = ATA_ATA_MASTER;
     }
     if (bootverbose)
