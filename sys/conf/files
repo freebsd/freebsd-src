@@ -502,6 +502,7 @@ dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
 dev/ata/ata-raid.c		optional ataraid
+dev/ata/ata-usb.c		optional atausb usb
 legacy/dev/ata/ata-usb.c	optional atausb ousb
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
@@ -1393,7 +1394,8 @@ dev/sound/pcm/mixer_if.m	optional sound
 dev/sound/pcm/sndstat.c		optional sound
 dev/sound/pcm/sound.c		optional sound
 dev/sound/pcm/vchan.c		optional sound
-#dev/sound/usb/upcm.c		optional snd_upcm ousb
+dev/sound/usb/uaudio.c		optional snd_uaudio usb
+dev/sound/usb/uaudio_pcm.c	optional snd_uaudio usb
 legacy/dev/sound/usb/uaudio.c		optional snd_uaudio ousb
 legacy/dev/sound/usb/uaudio_pcm.c	optional snd_uaudio ousb
 dev/sound/midi/midi.c		optional sound
@@ -1552,7 +1554,6 @@ dev/usb/controller/usb_controller.c	optional usb
 #
 # USB storage drivers
 #
-dev/usb/storage/ata-usb.c	optional atausb
 dev/usb/storage/umass.c		optional umass
 dev/usb/storage/urio.c		optional urio
 dev/usb/storage/ustorage_fs.c	optional usfs
@@ -1653,11 +1654,6 @@ dev/usb/template/usb_template_mtp.c	optional usb_template
 # USB image drivers
 #
 dev/usb/image/uscanner.c	optional uscanner
-#
-# USB sound and MIDI drivers
-#
-dev/usb/sound/uaudio.c		optional usound
-dev/usb/sound/uaudio_pcm.c	optional usound
 #
 # USB END
 #
