@@ -132,6 +132,8 @@ ata_jmicron_chipinit(device_t dev)
 
 	/* set the number of HW channels */ 
 	ctlr->channels = ctlr->chip->cfg1 + ctlr->chip->cfg2;
+	ctlr->ichannels |= ((0xffffffffU >> (32 - ctlr->chip->cfg2))
+	    << ctlr->chip->cfg1);
     }
     return 0;
 }
