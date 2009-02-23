@@ -337,7 +337,7 @@ show_stat(struct stat64 *sp, const char *what)
 		printf("%lld", (long long)sp->st_ctime);
 #ifdef HAS_CHFLAGS
 	else if (strcmp(what, "flags") == 0)
-		printf("%s", flags2str(chflags_flags, sp->st_flags));
+		printf("%s", flags2str(chflags_flags, (long long)sp->st_flags));
 #endif
 	else if (strcmp(what, "type") == 0) {
 		switch (sp->st_mode & S_IFMT) {
@@ -443,17 +443,17 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 				fprintf(stderr, "too few arguments\n");
 				exit(1);
 			}
-			rval = open(STR(0), flags, (mode_t)NUM(2));
+			rval = open(STR(0), (int)flags, (mode_t)NUM(2));
 		} else {
 			if (i == 3) {
 				fprintf(stderr, "too many arguments\n");
 				exit(1);
 			}
-			rval = open(STR(0), flags);
+			rval = open(STR(0), (int)flags);
 		}
 		break;
 	case ACTION_CREATE:
-		rval = open(STR(0), O_CREAT | O_EXCL, NUM(1));
+		rval = open(STR(0), O_CREAT | O_EXCL, (mode_t)NUM(1));
 		if (rval >= 0)
 			close(rval);
 		break;
@@ -461,7 +461,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = unlink(STR(0));
 		break;
 	case ACTION_MKDIR:
-		rval = mkdir(STR(0), NUM(1));
+		rval = mkdir(STR(0), (mode_t)NUM(1));
 		break;
 	case ACTION_RMDIR:
 		rval = rmdir(STR(0));
@@ -476,30 +476,30 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = rename(STR(0), STR(1));
 		break;
 	case ACTION_MKFIFO:
-		rval = mkfifo(STR(0), NUM(1));
+		rval = mkfifo(STR(0), (mode_t)NUM(1));
 		break;
 	case ACTION_CHMOD:
-		rval = chmod(STR(0), NUM(1));
+		rval = chmod(STR(0), (mode_t)NUM(1));
 		break;
 #ifdef HAS_LCHMOD
 	case ACTION_LCHMOD:
-		rval = lchmod(STR(0), NUM(1));
+		rval = lchmod(STR(0), (mode_t)NUM(1));
 		break;
 #endif
 	case ACTION_CHOWN:
-		rval = chown(STR(0), NUM(1), NUM(2));
+		rval = chown(STR(0), (uid_t)NUM(1), (gid_t)NUM(2));
 		break;
 	case ACTION_LCHOWN:
-		rval = lchown(STR(0), NUM(1), NUM(2));
+		rval = lchown(STR(0), (uid_t)NUM(1), (gid_t)NUM(2));
 		break;
 #ifdef HAS_CHFLAGS
 	case ACTION_CHFLAGS:
-		rval = chflags(STR(0), str2flags(chflags_flags, STR(1)));
+		rval = chflags(STR(0), (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
 #ifdef HAS_LCHFLAGS
 	case ACTION_LCHFLAGS:
-		rval = lchflags(STR(0), str2flags(chflags_flags, STR(1)));
+		rval = lchflags(STR(0), (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
 	case ACTION_TRUNCATE:
