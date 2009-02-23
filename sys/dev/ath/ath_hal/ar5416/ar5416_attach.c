@@ -156,6 +156,21 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
 }
 
+uint32_t
+ar5416GetRadioRev(struct ath_hal *ah)
+{
+	uint32_t val;
+	int i;
+
+	/* Read Radio Chip Rev Extract */
+	OS_REG_WRITE(ah, AR_PHY(0x36), 0x00007058);
+	for (i = 0; i < 8; i++)
+		OS_REG_WRITE(ah, AR_PHY(0x20), 0x00010000);
+	val = (OS_REG_READ(ah, AR_PHY(256)) >> 24) & 0xff;
+	val = ((val & 0xf0) >> 4) | ((val & 0x0f) << 4);
+	return ath_hal_reverseBits(val, 8);
+}
+
 /*
  * Attach for an AR5416 part.
  */
