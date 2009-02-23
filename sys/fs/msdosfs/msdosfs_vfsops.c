@@ -779,12 +779,12 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 	error = vflush(mp, 0, flags, td);
-	if (error)
+	if (error && error != ENXIO)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
 	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
 		error = markvoldirty(pmp, 0);
-		if (error) {
+		if (error && error != ENXIO) {
 			(void)markvoldirty(pmp, 1);
 			return (error);
 		}
@@ -835,7 +835,7 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	return (0);
+	return (error);
 }
 
 static int
