@@ -144,8 +144,6 @@ struct ath_hal_5211 {
 
 struct ath_hal;
 
-extern	struct ath_hal *ar5211Attach(uint16_t, HAL_SOFTC,
-	HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS *);
 extern	void ar5211Detach(struct ath_hal *);
 
 extern	HAL_BOOL ar5211Reset(struct ath_hal *, HAL_OPMODE,
