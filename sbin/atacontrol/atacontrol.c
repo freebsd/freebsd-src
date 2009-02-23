@@ -132,11 +132,11 @@ param_print(struct ata_params *parm)
 	printf("<%.40s/%.8s> ", parm->model, parm->revision);
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		if (parm->satacapabilities & ATA_SATA_GEN2)
-			printf("Serial ATA II\n");
+			printf("SATA revision 2.x\n");
 		else if (parm->satacapabilities & ATA_SATA_GEN1)
-			printf("Serial ATA v1.0\n");
+			printf("SATA revision 1.x\n");
 		else
-			printf("Unknown serial ATA version\n");
+			printf("Unknown SATA revision\n");
 	}
 	else
 		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
@@ -157,11 +157,11 @@ cap_print(struct ata_params *parm)
 	printf("Protocol              ");
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		if (parm->satacapabilities & ATA_SATA_GEN2)
-			printf("Serial ATA II\n");
+			printf("SATA revision 2.x\n");
 		else if (parm->satacapabilities & ATA_SATA_GEN1)
-			printf("Serial ATA v1.0\n");
+			printf("SATA revision 1.x\n");
 		else
-			printf("Unknown serial ATA version\n");
+			printf("Unknown SATA revision\n");
 	}
 	else
 		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
