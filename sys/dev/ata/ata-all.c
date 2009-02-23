@@ -722,6 +722,10 @@ ata_identify(device_t dev)
     /* Create new devices. */
     if (bootverbose)
 	device_printf(dev, "New devices: %08x\n", n);
+    if (n == 0) {
+	mtx_unlock(&Giant);
+	return (0);
+    }
     for (i = 0; i < ATA_PM; ++i) {
 	if (n & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
 	    int unit = -1;
