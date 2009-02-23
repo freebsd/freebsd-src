@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
 
+#include <security/audit/audit.h>
+
 #ifdef NFS_LEGACYRPC
 
 static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
