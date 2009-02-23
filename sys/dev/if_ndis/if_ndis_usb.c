@@ -52,10 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdivar.h>
+#include <legacy/dev/usb/usb.h>
+#include <legacy/dev/usb/usbdi.h>
+#include <legacy/dev/usb/usbdi_util.h>
+#include <legacy/dev/usb/usbdivar.h>
 #include "usbdevs.h"
 
 #include <net80211/ieee80211_var.h>
