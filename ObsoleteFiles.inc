@@ -14,6 +14,49 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090223: changeover of USB stacks
+OLD_DIRS+=usr/include/dev/usb2
+OLD_FILES+=usr/include/dev/usb/dsbr100io.h
+OLD_FILES+=usr/include/dev/usb/ehcireg.h
+OLD_FILES+=usr/include/dev/usb/ehcivar.h
+OLD_FILES+=usr/include/dev/usb/hid.h
+OLD_FILES+=usr/include/dev/usb/if_auereg.h
+OLD_FILES+=usr/include/dev/usb/if_axereg.h
+OLD_FILES+=usr/include/dev/usb/if_cdcereg.h
+OLD_FILES+=usr/include/dev/usb/if_cuereg.h
+OLD_FILES+=usr/include/dev/usb/if_kuereg.h
+OLD_FILES+=usr/include/dev/usb/if_ruereg.h
+OLD_FILES+=usr/include/dev/usb/if_rumreg.h
+OLD_FILES+=usr/include/dev/usb/if_rumvar.h
+OLD_FILES+=usr/include/dev/usb/if_udavreg.h
+OLD_FILES+=usr/include/dev/usb/if_upgtvar.h
+OLD_FILES+=usr/include/dev/usb/if_uralreg.h
+OLD_FILES+=usr/include/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/dev/usb/if_zydfw.h
+OLD_FILES+=usr/include/dev/usb/if_zydreg.h
+OLD_FILES+=usr/include/dev/usb/kue_fw.h
+OLD_FILES+=usr/include/dev/usb/ohcireg.h
+OLD_FILES+=usr/include/dev/usb/ohcivar.h
+OLD_FILES+=usr/include/dev/usb/rio500_usb.h
+OLD_FILES+=usr/include/dev/usb/rt2573_ucode.h
+OLD_FILES+=usr/include/dev/usb/sl811hsreg.h
+OLD_FILES+=usr/include/dev/usb/sl811hsvar.h
+OLD_FILES+=usr/include/dev/usb/ubser.h
+OLD_FILES+=usr/include/dev/usb/ucomvar.h
+OLD_FILES+=usr/include/dev/usb/udbp.h
+OLD_FILES+=usr/include/dev/usb/uftdireg.h
+OLD_FILES+=usr/include/dev/usb/ugraphire_rdesc.h
+OLD_FILES+=usr/include/dev/usb/uhcireg.h
+OLD_FILES+=usr/include/dev/usb/uhcivar.h
+OLD_FILES+=usr/include/dev/usb/usb_ethersubr.h
+OLD_FILES+=usr/include/dev/usb/usb_mem.h
+OLD_FILES+=usr/include/dev/usb/usb_port.h
+OLD_FILES+=usr/include/dev/usb/usb_quirks.h
+OLD_FILES+=usr/include/dev/usb/usbcdc.h
+OLD_FILES+=usr/include/dev/usb/usbdi.h
+OLD_FILES+=usr/include/dev/usb/usbdi_util.h
+OLD_FILES+=usr/include/dev/usb/usbdivar.h
+OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
 # 20090203: removal of pccard header files
 OLD_FILES+=usr/include/pccard/cardinfo.h
 OLD_FILES+=usr/include/pccard/cis.h
