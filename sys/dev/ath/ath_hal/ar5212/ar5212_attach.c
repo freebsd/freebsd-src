@@ -151,11 +151,6 @@ static const struct ath_hal_private ar5212hal = {{
 #ifdef AH_SUPPORT_WRITE_EEPROM
 	.ah_eepromWrite			= ar5212EepromWrite,
 #endif
-	.ah_gpioCfgOutput		= ar5212GpioCfgOutput,
-	.ah_gpioCfgInput		= ar5212GpioCfgInput,
-	.ah_gpioGet			= ar5212GpioGet,
-	.ah_gpioSet			= ar5212GpioSet,
-	.ah_gpioSetIntr			= ar5212GpioSetIntr,
 	.ah_getChipPowerLimits		= ar5212GetChipPowerLimits,
 };
 
