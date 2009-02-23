@@ -288,7 +288,7 @@ CNAME(alitrap):
 	mflr	%r28			/* save LR */
 	mfcr	%r29			/* save CR */
 
-	/* Put our exception vector in SPRG0 */
+	/* Put our exception vector in SPRG3 */
 	li	%r31, EXC_ALI
 	mtsprg3	%r31
 
@@ -360,7 +360,7 @@ CNAME(dsisize) = .-CNAME(dsitrap)
  * Preamble code for DSI/ISI traps
  */
 disitrap:
-	/* Write the trap vector to SPRG0 by computing LR & 0xff00 */
+	/* Write the trap vector to SPRG3 by computing LR & 0xff00 */
 	mflr	%r1
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
@@ -533,7 +533,7 @@ CNAME(breakpoint):
  * Now the kdb trap catching code.
  */
 dbtrap:
-	/* Write the trap vector to SPRG0 by computing LR & 0xff00 */
+	/* Write the trap vector to SPRG3 by computing LR & 0xff00 */
 	mflr	%r1
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
