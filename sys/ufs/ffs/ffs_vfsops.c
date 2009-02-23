@@ -1075,13 +1075,13 @@ ffs_unmount(mp, mntflags, td)
 			vn_start_write(NULL, &mp, V_WAIT);
 		}
 	}
-	if (mp->mnt_flag & MNT_SOFTDEP) {
-		if ((error = softdep_flushfiles(mp, flags, td)) != 0)
-			goto fail;
-	} else {
-		if ((error = ffs_flushfiles(mp, flags, td)) != 0)
-			goto fail;
-	}
+	if (mp->mnt_flag & MNT_SOFTDEP)
+		error = softdep_flushfiles(mp, flags, td);
+	else
+		error = ffs_flushfiles(mp, flags, td);
+	if (error != 0)
+		goto fail;
+
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("%s: unmount pending error: blocks %jd files %d\n",
