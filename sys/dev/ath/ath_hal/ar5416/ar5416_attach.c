@@ -174,7 +174,7 @@ ar5416GetRadioRev(struct ath_hal *ah)
 /*
  * Attach for an AR5416 part.
  */
-struct ath_hal *
+static struct ath_hal *
 ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
 {
