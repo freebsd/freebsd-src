@@ -267,6 +267,7 @@ SUBDIR=	${_3dfx} \
 	udf_iconv \
 	${_ufs} \
 	unionfs \
+	usb \
 	utopia \
 	${_vesa} \
 	vge \
