@@ -502,6 +502,7 @@ kmem_init(start, end)
 	vm_map_unlock(m);
 }
 
+#ifdef DIAGNOSTIC
 /*
  * Allow userspace to directly trigger the VM drain routine for testing
  * purposes.
@@ -522,3 +523,4 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
     debug_vm_lowmem, "I", "set to trigger vm_lowmem event");
+#endif
