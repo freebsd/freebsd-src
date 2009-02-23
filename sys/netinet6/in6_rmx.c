@@ -244,6 +244,8 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
 
+	RADIX_NODE_HEAD_WLOCK_ASSERT(ap->rnh);
+
 	if (rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
 
