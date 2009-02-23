@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090223:
+	The new USB2 stack has now been permanently moved in and all kernel and
+	module names revered to their previous values (eg, usb, ehci, ohci,
+	ums, ...).  The old usb stack can be compled in by prefixing the name
+	with the letter 'o', the old usb modules have been removed.
+	Updating entry 20090216 for xorg may still apply.
+
 20090217:
 	The rc.conf(5) option if_up_delay has been renamed to
 	defaultroute_delay to better reflect its purpose. If you have
