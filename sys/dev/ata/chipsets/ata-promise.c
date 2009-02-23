@@ -822,7 +822,7 @@ ata_promise_mio_reset(device_t dev)
 		default: /* SOS XXX */
 		    if (bootverbose)
 			device_printf(dev,
-				      "No signature, asuming disk device\n");
+				      "No signature, assuming disk device\n");
 		    ch->devices = ATA_ATA_MASTER;
 		}
 		if (bootverbose)
