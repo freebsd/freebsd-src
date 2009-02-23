@@ -1626,8 +1626,8 @@ dev/usb/serial/usb_serial.c 	optional ucom | \
 #
 # USB bluetooth drivers
 #
-dev/usb/bluetooth/ng_ubt.c		optional ubt
-dev/usb/bluetooth/ubtbcmfw.c		optional ubtbcmfw
+dev/usb/bluetooth/ng_ubt.c		optional netgraph_bluetooth_ubt usb
+dev/usb/bluetooth/ubtbcmfw.c		optional netgraph_bluetooth_ubtbcmfw usb
 #
 # USB misc drivers
 #
@@ -2243,8 +2243,8 @@ netgraph/atm/uni/ng_uni.c	optional ngatm_uni \
 netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
 netgraph/bluetooth/drivers/bt3c/ng_bt3c_pccard.c optional netgraph_bluetooth_bt3c
 netgraph/bluetooth/drivers/h4/ng_h4.c optional netgraph_bluetooth_h4
-netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt
-netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw
+netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt ousb
+netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw ousb
 netgraph/bluetooth/hci/ng_hci_cmds.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_evnt.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_main.c optional netgraph_bluetooth_hci
