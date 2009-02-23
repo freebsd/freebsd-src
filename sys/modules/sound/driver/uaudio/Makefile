@@ -2,7 +2,7 @@
 
 S=	${.CURDIR}/../../../..
 
-.PATH:	$S/dev/usb/sound
+.PATH:	$S/dev/sound/usb
 
 KMOD=	snd_uaudio
 SRCS=	bus_if.h device_if.h usb_if.h vnode_if.h
