@@ -98,7 +98,6 @@ device		bpf
 device          ohci            # OHCI localbus->USB interface
 device          usb             # USB Bus (required)
 #device         udbp            # USB Double Bulk Pipe devices
-device          ugen            # Generic
 device          uhid            # "Human Interface Devices"
 device          ulpt            # Printer
 device          umass           # Disks/Mass storage - Requires scbus and da
@@ -116,7 +115,6 @@ device          kue             # Kawasaki LSI USB Ethernet
 device          rue             # RealTek RTL8150 USB Ethernet
 device		udav
 # usb serial
-device          ucom
 device          uark
 device          ubsa
 device          uftdi
