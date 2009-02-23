@@ -14,12 +14,12 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416reg.h,v 1.10 2008/11/11 00:11:30 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _DEV_ATH_AR5416REG_H
 #define	_DEV_ATH_AR5416REG_H
 
-#include "ar5212/ar5212reg.h"
+#include <dev/ath/ath_hal/ar5212/ar5212reg.h>
 
 /*
  * Register added starting with the AR5416
