@@ -1243,10 +1243,6 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	RAL_LOCK_ASSERT(sc, MA_OWNED);
 	KASSERT(params != NULL, ("no raw xmit params"));
 
-	data = STAILQ_FIRST(&sc->tx_free);
-	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
-	sc->tx_nfree--;
-
 	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
 	/* XXX validate */
 	if (rate == 0) {
@@ -1261,12 +1257,16 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		    params->ibp_flags & IEEE80211_BPF_RTS ?
 			 IEEE80211_PROT_RTSCTS : IEEE80211_PROT_CTSONLY,
 		    rate);
-		if (error) {
+		if (error || sc->tx_nfree == 0) {
 			m_freem(m0);
-			return error;
+			return ENOBUFS;
 		}
 		flags |= RAL_TX_IFS_SIFS;
 	}
+
+	data = STAILQ_FIRST(&sc->tx_free);
+	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
+	sc->tx_nfree--;
 
 	data->m = m0;
 	data->ni = ni;
@@ -1328,9 +1328,9 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			prot = ic->ic_protmode;
 		if (prot != IEEE80211_PROT_NONE) {
 			error = ural_sendprot(sc, m0, ni, prot, rate);
-			if (error) {
+			if (error || sc->tx_nfree == 0) {
 				m_freem(m0);
-				return error;
+				return ENOBUFS;
 			}
 			flags |= RAL_TX_IFS_SIFS;
 		}
@@ -1380,7 +1380,7 @@ ural_start(struct ifnet *ifp)
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		if (sc->tx_nfree == 0) {
+		if (sc->tx_nfree < RAL_TX_MINFREE) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -2235,7 +2235,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
-	if (sc->tx_nfree == 0) {
+	if (sc->tx_nfree < RAL_TX_MINFREE) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		RAL_UNLOCK(sc);
 		m_freem(m);

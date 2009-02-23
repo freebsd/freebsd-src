@@ -1167,10 +1167,6 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	RUM_LOCK_ASSERT(sc, MA_OWNED);
 	KASSERT(params != NULL, ("no raw xmit params"));
 
-	data = STAILQ_FIRST(&sc->tx_free);
-	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
-	sc->tx_nfree--;
-
 	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
 	/* XXX validate */
 	if (rate == 0) {
@@ -1185,12 +1181,16 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		    params->ibp_flags & IEEE80211_BPF_RTS ?
 			 IEEE80211_PROT_RTSCTS : IEEE80211_PROT_CTSONLY,
 		    rate);
-		if (error) {
+		if (error || sc->tx_nfree == 0) {
 			m_freem(m0);
-			return error;
+			return ENOBUFS;
 		}
 		flags |= RT2573_TX_LONG_RETRY | RT2573_TX_IFS_SIFS;
 	}
+
+	data = STAILQ_FIRST(&sc->tx_free);
+	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
+	sc->tx_nfree--;
 
 	data->m = m0;
 	data->ni = ni;
@@ -1254,9 +1254,9 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			prot = ic->ic_protmode;
 		if (prot != IEEE80211_PROT_NONE) {
 			error = rum_sendprot(sc, m0, ni, prot, rate);
-			if (error) {
+			if (error || sc->tx_nfree == 0) {
 				m_freem(m0);
-				return error;
+				return ENOBUFS;
 			}
 			flags |= RT2573_TX_LONG_RETRY | RT2573_TX_IFS_SIFS;
 		}
@@ -1306,7 +1306,7 @@ rum_start(struct ifnet *ifp)
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		if (sc->tx_nfree == 0) {
+		if (sc->tx_nfree < RUM_TX_MINFREE) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -2149,7 +2149,7 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
-	if (sc->tx_nfree == 0) {
+	if (sc->tx_nfree < RUM_TX_MINFREE) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		RUM_UNLOCK(sc);
 		m_freem(m);
