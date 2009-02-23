@@ -39,11 +39,11 @@
 #include "libusb20_desc.h"
 #include "libusb20_int.h"
 
-#include <dev/usb2/include/usb2_standard.h>
-#include <dev/usb2/include/usb2_ioctl.h>
-#include <dev/usb2/include/usb2_mfunc.h>
-#include <dev/usb2/include/usb2_error.h>
-#include <dev/usb2/include/usb2_revision.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_mfunc.h>
+#include <dev/usb/usb_error.h>
+#include <dev/usb/usb_revision.h>
 
 static libusb20_init_backend_t ugen20_init_backend;
 static libusb20_open_device_t ugen20_open_device;
