@@ -80,12 +80,12 @@ teken_state.h		optional sc					   \
 	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
-usbdevs.h			optional usb | usb2_core		   \
+usbdevs.h			optional usb | ousb			   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"usbdevs.h"
-usbdevs_data.h			optional usb | usb2_core		   \
+usbdevs_data.h			optional usb | ousb			   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -502,7 +502,7 @@ dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
 dev/ata/ata-raid.c		optional ataraid
-dev/ata/ata-usb.c		optional atausb
+dev/ata/ata-usb.c		optional atausb ousb
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
@@ -1393,9 +1393,9 @@ dev/sound/pcm/mixer_if.m	optional sound
 dev/sound/pcm/sndstat.c		optional sound
 dev/sound/pcm/sound.c		optional sound
 dev/sound/pcm/vchan.c		optional sound
-#dev/sound/usb/upcm.c		optional snd_upcm usb
-dev/sound/usb/uaudio.c		optional snd_uaudio usb
-dev/sound/usb/uaudio_pcm.c	optional snd_uaudio usb
+#dev/sound/usb/upcm.c		optional snd_upcm ousb
+dev/sound/usb/uaudio.c		optional snd_uaudio ousb
+dev/sound/usb/uaudio_pcm.c	optional snd_uaudio ousb
 dev/sound/midi/midi.c		optional sound
 dev/sound/midi/mpu401.c		optional sound
 dev/sound/midi/mpu_if.m		optional sound
@@ -1478,200 +1478,188 @@ dev/uart/uart_tty.c		optional uart
 dev/ubsec/ubsec.c		optional ubsec
 #
 # USB support
-dev/usb/ehci.c			optional ehci
-dev/usb/ehci_ddb.c		optional ehci
-dev/usb/ehci_pci.c		optional ehci pci
-dev/usb/hid.c			optional usb
-dev/usb/if_aue.c		optional aue
-dev/usb/if_axe.c		optional axe
-dev/usb/if_cdce.c		optional cdce
-dev/usb/if_cue.c		optional cue
-dev/usb/if_kue.c		optional kue
-dev/usb/if_ural.c		optional ural
-dev/usb/if_rue.c		optional rue
-dev/usb/if_rum.c		optional rum
-dev/usb/if_udav.c		optional udav
-dev/usb/if_zyd.c		optional zyd
-dev/usb/ohci.c			optional ohci
-dev/usb/ohci_pci.c		optional ohci pci
-dev/usb/sl811hs.c		optional slhci
-dev/usb/slhci_pccard.c		optional slhci pccard
-dev/usb/uark.c			optional uark
-dev/usb/u3g.c			optional u3g
-dev/usb/ubsa.c			optional ubsa
-dev/usb/ubser.c			optional ubser
-dev/usb/ucom.c			optional ucom
-dev/usb/ucycom.c		optional ucycom
-dev/usb/udbp.c			optional udbp
-dev/usb/ufoma.c			optional ufoma
-dev/usb/ufm.c			optional ufm
-dev/usb/uftdi.c			optional uftdi
-dev/usb/ugen.c			optional ugen
-dev/usb/uhci.c			optional uhci
-dev/usb/uhci_pci.c		optional uhci pci
-dev/usb/uhid.c			optional uhid
-dev/usb/uhub.c			optional usb
-dev/usb/uipaq.c			optional uipaq
-dev/usb/ukbd.c			optional ukbd
-dev/usb/ulpt.c			optional ulpt
-dev/usb/umass.c			optional umass
-dev/usb/umct.c			optional umct
-dev/usb/umodem.c		optional umodem
-dev/usb/ums.c			optional ums
-dev/usb/uplcom.c		optional uplcom
-dev/usb/urio.c			optional urio
-dev/usb/usb.c			optional usb
-dev/usb/usb_ethersubr.c		optional usb
+legacy/dev/usb/ehci.c		optional oehci
+legacy/dev/usb/ehci_ddb.c	optional oehci
+legacy/dev/usb/ehci_pci.c	optional oehci pci
+legacy/dev/usb/hid.c		optional ousb
+legacy/dev/usb/if_aue.c		optional oaue
+legacy/dev/usb/if_axe.c		optional oaxe
+legacy/dev/usb/if_cdce.c	optional ocdce
+legacy/dev/usb/if_cue.c		optional ocue
+legacy/dev/usb/if_kue.c		optional okue
+legacy/dev/usb/if_ural.c	optional oural
+legacy/dev/usb/if_rue.c		optional orue
+legacy/dev/usb/if_rum.c		optional orum
+legacy/dev/usb/if_udav.c	optional oudav
+legacy/dev/usb/if_zyd.c		optional ozyd
+legacy/dev/usb/ohci.c		optional oohci
+legacy/dev/usb/ohci_pci.c	optional oohci pci
+legacy/dev/usb/sl811hs.c	optional oslhci
+legacy/dev/usb/slhci_pccard.c	optional oslhci pccard
+legacy/dev/usb/uark.c		optional ouark
+legacy/dev/usb/u3g.c		optional ou3g
+legacy/dev/usb/ubsa.c		optional oubsa
+legacy/dev/usb/ubser.c		optional oubser
+legacy/dev/usb/ucom.c		optional oucom
+legacy/dev/usb/ucycom.c		optional oucycom
+legacy/dev/usb/udbp.c		optional oudbp
+legacy/dev/usb/ufoma.c		optional oufoma
+legacy/dev/usb/ufm.c		optional oufm
+legacy/dev/usb/uftdi.c		optional ouftdi
+legacy/dev/usb/ugen.c		optional ougen
+legacy/dev/usb/uhci.c		optional ouhci
+legacy/dev/usb/uhci_pci.c	optional ouhci pci
+legacy/dev/usb/uhid.c		optional ouhid
+legacy/dev/usb/uhub.c		optional ousb
+legacy/dev/usb/uipaq.c		optional ouipaq
+legacy/dev/usb/ukbd.c		optional oukbd
+legacy/dev/usb/ulpt.c		optional oulpt
+legacy/dev/usb/umass.c		optional oumass
+legacy/dev/usb/umct.c		optional oumct
+legacy/dev/usb/umodem.c		optional oumodem
+legacy/dev/usb/ums.c		optional oums
+legacy/dev/usb/uplcom.c		optional ouplcom
+legacy/dev/usb/urio.c		optional ourio
+legacy/dev/usb/usb.c		optional ousb
+legacy/dev/usb/usb_ethersubr.c	optional ousb
+legacy/dev/usb/usb_if.m		optional ousb
+legacy/dev/usb/usb_mem.c	optional ousb
+legacy/dev/usb/usb_quirks.c	optional ousb
+legacy/dev/usb/usb_subr.c	optional ousb
+legacy/dev/usb/usbdi.c		optional ousb
+legacy/dev/usb/usbdi_util.c	optional ousb
+legacy/dev/usb/uscanner.c	optional ouscanner
+legacy/dev/usb/uslcom.c		optional ouslcom
+legacy/dev/usb/uvisor.c		optional ouvisor
+legacy/dev/usb/uvscom.c		optional ouvscom
+#
+# USB controller drivers
+#
+dev/usb/controller/at91dci.c		optional at91dci
+dev/usb/controller/at91dci_atmelarm.c	optional at91dci at91rm9200
+dev/usb/controller/musb_otg.c		optional musb
+dev/usb/controller/musb_otg_atmelarm.c	optional musb at91rm9200
+dev/usb/controller/ehci.c		optional ehci
+dev/usb/controller/ehci_pci.c		optional ehci pci
+dev/usb/controller/ohci.c		optional ohci
+dev/usb/controller/ohci_atmelarm.c	optional ohci at91rm9200
+dev/usb/controller/ohci_pci.c		optional ohci pci
+dev/usb/controller/uhci.c		optional uhci
+dev/usb/controller/uhci_pci.c		optional uhci pci
+dev/usb/controller/uss820dci.c		optional uss820dci
+dev/usb/controller/uss820dci_atmelarm.c	optional uss820dci at91rm9200
+dev/usb/controller/usb_controller.c	optional usb
+#
+# USB storage drivers
+#
+dev/usb/storage/ata-usb.c	optional atausb
+dev/usb/storage/umass.c		optional umass
+dev/usb/storage/urio.c		optional urio
+dev/usb/storage/ustorage_fs.c	optional usfs
+#
+# USB core
+#
+dev/usb/usb_busdma.c		optional usb
+dev/usb/usb_compat_linux.c	optional usb
+dev/usb/usb_core.c		optional usb
+dev/usb/usb_debug.c		optional usb
+dev/usb/usb_dev.c		optional usb
+dev/usb/usb_device.c		optional usb
+dev/usb/usb_dynamic.c		optional usb
+dev/usb/usb_error.c		optional usb
+dev/usb/usb_generic.c		optional usb
+dev/usb/usb_handle_request.c	optional usb
+dev/usb/usb_hid.c		optional usb
+dev/usb/usb_hub.c		optional usb
 dev/usb/usb_if.m		optional usb
-dev/usb/usb_mem.c		optional usb
-dev/usb/usb_quirks.c		optional usb
-dev/usb/usb_subr.c		optional usb
-dev/usb/usbdi.c			optional usb
-dev/usb/usbdi_util.c		optional usb
-dev/usb/uscanner.c		optional uscanner
-dev/usb/uslcom.c		optional uslcom
-dev/usb/uvisor.c		optional uvisor
-dev/usb/uvscom.c		optional uvscom
+dev/usb/usb_lookup.c		optional usb
+dev/usb/usb_mbuf.c		optional usb
+dev/usb/usb_msctest.c		optional usb
+dev/usb/usb_parse.c		optional usb
+dev/usb/usb_process.c		optional usb
+dev/usb/usb_request.c		optional usb
+dev/usb/usb_sw_transfer.c	optional usb
+dev/usb/usb_transfer.c		optional usb
+dev/usb/usb_util.c		optional usb
 #
-# USB2 controller drivers
+# USB ethernet drivers
 #
-dev/usb2/controller/at91dci.c		optional usb2_core usb2_controller usb2_controller_at91dci
-dev/usb2/controller/at91dci_atmelarm.c	optional usb2_core usb2_controller usb2_controller_at91dci at91rm9200
-dev/usb2/controller/musb2_otg.c		optional usb2_core usb2_controller usb2_controller_musb
-dev/usb2/controller/musb2_otg_atmelarm.c optional usb2_core usb2_controller usb2_controller_musb at91rm9200
-dev/usb2/controller/ehci2.c		optional usb2_core usb2_controller usb2_controller_ehci
-dev/usb2/controller/ehci2_pci.c		optional usb2_core usb2_controller usb2_controller_ehci pci
-dev/usb2/controller/ohci2.c		optional usb2_core usb2_controller usb2_controller_ohci
-dev/usb2/controller/ohci2_atmelarm.c	optional usb2_core usb2_controller usb2_controller_ohci at91rm9200
-dev/usb2/controller/ohci2_pci.c		optional usb2_core usb2_controller usb2_controller_ohci pci
-dev/usb2/controller/uhci2.c		optional usb2_core usb2_controller usb2_controller_uhci
-dev/usb2/controller/uhci2_pci.c		optional usb2_core usb2_controller usb2_controller_uhci pci
-dev/usb2/controller/uss820dci.c		optional usb2_core usb2_controller usb2_controller_uss820dci
-dev/usb2/controller/uss820dci_atmelarm.c	optional usb2_core usb2_controller usb2_controller_uss820dci at91rm9200
-dev/usb2/controller/usb2_controller.c	optional usb2_core usb2_controller
+dev/usb/net/if_aue.c		optional aue
+dev/usb/net/if_axe.c		optional axe
+dev/usb/net/if_cdce.c		optional cdce
+dev/usb/net/if_cue.c		optional cue
+dev/usb/net/if_kue.c		optional kue
+dev/usb/net/if_rue.c		optional rue
+dev/usb/net/if_udav.c		optional udav
+dev/usb/net/usb_ethernet.c \
+	optional (aue | axe | cdce | cue | kue | rue | udav)
 #
-# USB2 storage drivers
+# USB WLAN drivers
 #
-dev/usb2/storage/ata-usb2.c		optional usb2_core usb2_storage usb2_storage_ata
-dev/usb2/storage/umass2.c		optional usb2_core usb2_storage usb2_storage_mass
-dev/usb2/storage/urio2.c		optional usb2_core usb2_storage usb2_storage_rio
-dev/usb2/storage/usb2_storage.c		optional usb2_core usb2_storage
-dev/usb2/storage/ustorage2_fs.c		optional usb2_core usb2_storage usb2_storage_fs
+dev/usb/wlan/if_rum.c		optional rum
+dev/usb/wlan/if_ural.c		optional ural
+dev/usb/wlan/if_zyd.c		optional zyd
 #
-# USB2 NDIS driver
+# USB serial and parallel port drivers
 #
-dev/usb2/ndis/if_ndis_usb2.c		optional usb2_core usb2_ndis
-dev/usb2/ndis/usb2_ndis.c		optional usb2_core usb2_ndis
+dev/usb/serial/u3g.c		optional u3g
+dev/usb/serial/uark.c		optional uark
+dev/usb/serial/ubsa.c		optional ubsa
+dev/usb/serial/ubser.c		optional ubser
+dev/usb/serial/uchcom.c		optional uchcom
+dev/usb/serial/ucycom.c		optional ucycom
+dev/usb/serial/ufoma.c		optional ufoma
+dev/usb/serial/uftdi.c		optional uftdi
+dev/usb/serial/ugensa.c		optional ugensa
+dev/usb/serial/uipaq.c		optional uipaq
+dev/usb/serial/ulpt.c		optional ulpt
+dev/usb/serial/umct.c		optional umct
+dev/usb/serial/umodem.c		optional umodem
+dev/usb/serial/umoscom.c	optional umoscom
+dev/usb/serial/uplcom.c		optional uplcom
+dev/usb/serial/uslcom.c		optional uslcom
+dev/usb/serial/uvisor.c		optional uvisor
+dev/usb/serial/uvscom.c		optional uvscom
+dev/usb/serial/usb_serial.c \
+	optional (ucom | u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
 #
-# USB2 core
+# USB bluetooth drivers
 #
-dev/usb2/core/usb2_busdma.c		optional usb2_core
-dev/usb2/core/usb2_compat_linux.c	optional usb2_core
-dev/usb2/core/usb2_core.c		optional usb2_core
-dev/usb2/core/usb2_debug.c		optional usb2_core
-dev/usb2/core/usb2_dev.c		optional usb2_core
-dev/usb2/core/usb2_device.c		optional usb2_core
-dev/usb2/core/usb2_dynamic.c		optional usb2_core
-dev/usb2/core/usb2_error.c		optional usb2_core
-dev/usb2/core/usb2_generic.c		optional usb2_core
-dev/usb2/core/usb2_handle_request.c	optional usb2_core
-dev/usb2/core/usb2_hid.c		optional usb2_core
-dev/usb2/core/usb2_hub.c		optional usb2_core
-dev/usb2/core/usb2_if.m			optional usb2_core
-dev/usb2/core/usb2_lookup.c		optional usb2_core
-dev/usb2/core/usb2_mbuf.c		optional usb2_core
-dev/usb2/core/usb2_msctest.c		optional usb2_core
-dev/usb2/core/usb2_parse.c		optional usb2_core
-dev/usb2/core/usb2_process.c		optional usb2_core
-dev/usb2/core/usb2_request.c		optional usb2_core
-dev/usb2/core/usb2_sw_transfer.c	optional usb2_core
-dev/usb2/core/usb2_transfer.c		optional usb2_core
-dev/usb2/core/usb2_util.c		optional usb2_core
+dev/usb/bluetooth/ng_ubt.c		optional ubt
+dev/usb/bluetooth/ubtbcmfw.c		optional ubtbcmfw
 #
-# USB2 ethernet drivers
+# USB misc drivers
 #
-dev/usb2/ethernet/if_aue2.c		optional usb2_core usb2_ethernet usb2_ethernet_aue
-dev/usb2/ethernet/if_axe2.c		optional usb2_core usb2_ethernet usb2_ethernet_axe
-dev/usb2/ethernet/if_cdce2.c		optional usb2_core usb2_ethernet usb2_ethernet_cdce
-dev/usb2/ethernet/if_cue2.c		optional usb2_core usb2_ethernet usb2_ethernet_cue
-dev/usb2/ethernet/if_kue2.c		optional usb2_core usb2_ethernet usb2_ethernet_kue
-dev/usb2/ethernet/if_rue2.c		optional usb2_core usb2_ethernet usb2_ethernet_rue
-dev/usb2/ethernet/if_udav2.c		optional usb2_core usb2_ethernet usb2_ethernet_dav
-dev/usb2/ethernet/usb2_ethernet.c	optional usb2_core usb2_ethernet
+dev/usb/misc/ufm.c		optional ufm
+dev/usb/misc/udbp.c		optional udbp
 #
-# USB2 WLAN drivers
+# USB input drivers
 #
-dev/usb2/wlan/if_rum2.c		optional usb2_core usb2_wlan usb2_wlan_rum
-dev/usb2/wlan/if_ural2.c	optional usb2_core usb2_wlan usb2_wlan_ral
-dev/usb2/wlan/if_zyd2.c		optional usb2_core usb2_wlan usb2_wlan_zyd
-dev/usb2/wlan/usb2_wlan.c	optional usb2_core usb2_wlan
+dev/usb/input/uhid.c		optional uhid
+dev/usb/input/ukbd.c		optional ukbd
+dev/usb/input/ums.c		optional ums
 #
-# USB2 serial and parallel port drivers
+# USB quirks
 #
-dev/usb2/serial/u3g2.c		optional usb2_core usb2_serial usb2_serial_3g
-dev/usb2/serial/uark2.c		optional usb2_core usb2_serial usb2_serial_ark
-dev/usb2/serial/ubsa2.c		optional usb2_core usb2_serial usb2_serial_bsa
-dev/usb2/serial/ubser2.c	optional usb2_core usb2_serial usb2_serial_bser
-dev/usb2/serial/uchcom2.c	optional usb2_core usb2_serial usb2_serial_chcom
-dev/usb2/serial/ucycom2.c	optional usb2_core usb2_serial usb2_serial_cycom
-dev/usb2/serial/ufoma2.c	optional usb2_core usb2_serial usb2_serial_foma
-dev/usb2/serial/uftdi2.c	optional usb2_core usb2_serial usb2_serial_ftdi
-dev/usb2/serial/ugensa2.c	optional usb2_core usb2_serial usb2_serial_gensa
-dev/usb2/serial/uipaq2.c	optional usb2_core usb2_serial usb2_serial_ipaq
-dev/usb2/serial/ulpt2.c		optional usb2_core usb2_serial usb2_serial_lpt
-dev/usb2/serial/umct2.c		optional usb2_core usb2_serial usb2_serial_mct
-dev/usb2/serial/umodem2.c	optional usb2_core usb2_serial usb2_serial_modem
-dev/usb2/serial/umoscom2.c	optional usb2_core usb2_serial usb2_serial_moscom
-dev/usb2/serial/uplcom2.c	optional usb2_core usb2_serial usb2_serial_plcom
-dev/usb2/serial/uslcom2.c	optional usb2_core usb2_serial usb2_serial_slcom
-dev/usb2/serial/usb2_serial.c	optional usb2_core usb2_serial
-dev/usb2/serial/uvisor2.c	optional usb2_core usb2_serial usb2_serial_visor
-dev/usb2/serial/uvscom2.c	optional usb2_core usb2_serial usb2_serial_vscom
-dev/usb2/serial/u3g2.c		optional usb2_core usb2_serial usb2_serial_3g
+dev/usb/quirk/usb_quirk.c	optional usb
 #
-# USB2 bluetooth drivers
+# USB templates
 #
-dev/usb2/bluetooth/usb2_bluetooth.c	optional usb2_core usb2_bluetooth
-dev/usb2/bluetooth/ng_ubt2.c		optional usb2_core usb2_bluetooth usb2_bluetooth_ng
-dev/usb2/bluetooth/ubtbcmfw2.c		optional usb2_core usb2_bluetooth usb2_bluetooth_fw
-
+dev/usb/template/usb_template.c	optional usb_template
+dev/usb/template/usb_template_cdce.c	optional usb_template
+dev/usb/template/usb_template_msc.c	optional usb_template
+dev/usb/template/usb_template_mtp.c	optional usb_template
 #
-# USB2 misc drivers
+# USB image drivers
 #
-dev/usb2/misc/usb2_misc.c	optional usb2_core usb2_misc
-dev/usb2/misc/ufm2.c		optional usb2_core usb2_misc usb2_misc_fm
-dev/usb2/misc/udbp2.c		optional usb2_core usb2_misc usb2_misc_dbp
+dev/usb/image/uscanner.c	optional uscanner
 #
-# USB2 input drivers
+# USB sound and MIDI drivers
 #
-dev/usb2/input/uhid2.c		optional usb2_core usb2_input usb2_input_hid
-dev/usb2/input/ukbd2.c		optional usb2_core usb2_input usb2_input_kbd
-dev/usb2/input/ums2.c		optional usb2_core usb2_input usb2_input_ms
-dev/usb2/input/usb2_input.c	optional usb2_core usb2_input
+dev/usb/sound/uaudio.c		optional usound
+dev/usb/sound/uaudio_pcm.c	optional usound
 #
-# USB2 quirks
-#
-dev/usb2/quirk/usb2_quirk.c	optional usb2_core usb2_quirk
-#
-# USB2 templates
-#
-dev/usb2/template/usb2_template.c	optional usb2_core usb2_template
-dev/usb2/template/usb2_template_cdce.c	optional usb2_core usb2_template
-dev/usb2/template/usb2_template_msc.c	optional usb2_core usb2_template
-dev/usb2/template/usb2_template_mtp.c	optional usb2_core usb2_template
-#
-# USB2 image drivers
-#
-dev/usb2/image/usb2_image.c	optional usb2_core usb2_image
-dev/usb2/image/uscanner2.c	optional usb2_core usb2_image usb2_scanner
-#
-# USB2 sound and MIDI drivers
-#
-dev/usb2/sound/usb2_sound.c	optional usb2_core usb2_sound
-dev/usb2/sound/uaudio2.c	optional usb2_core usb2_sound
-dev/usb2/sound/uaudio2_pcm.c	optional usb2_core usb2_sound
-#
-# USB2 END
+# USB END
 #
 dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
