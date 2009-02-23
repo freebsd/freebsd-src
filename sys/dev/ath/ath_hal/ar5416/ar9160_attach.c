@@ -57,8 +57,6 @@ static const HAL_PERCAL_DATA ar9160_adc_init_dc_cal = {
 	.calPostProc	= ar5416AdcDcCalibration
 };
 
-struct ath_hal *ar9160Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status);
 static void ar9160Detach(struct ath_hal *);
 static HAL_BOOL ar9160FillCapabilityInfo(struct ath_hal *ah);
 
@@ -90,7 +88,7 @@ ar9160AniSetup(struct ath_hal *ah)
 /*
  * Attach for an AR9160 part.
  */
-struct ath_hal *
+static struct ath_hal *
 ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
 {
