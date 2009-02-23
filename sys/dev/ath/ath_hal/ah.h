@@ -789,6 +789,9 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
 		HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS* status);
 
+extern	const char *ath_hal_mac_name(struct ath_hal *);
+extern	const char *ath_hal_rf_name(struct ath_hal *);
+
 /*
  * Regulatory interfaces.  Drivers should use ath_hal_init_channels to
  * request a set of channels for a particular country code and/or
