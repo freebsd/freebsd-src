@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar9160_attach.c,v 1.14 2008/11/27 22:30:08 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -190,7 +190,7 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
 
 	/* Read Radio Chip Rev Extract */
-	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5212GetRadioRev(ah);
+	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5416GetRadioRev(ah);
 	switch (AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR) {
         case AR_RAD2133_SREV_MAJOR:	/* Sowl: 2G/3x3 */
 	case AR_RAD5133_SREV_MAJOR:	/* Sowl: 2+5G/3x3 */
