@@ -406,7 +406,7 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
-_usbdevs=	usbdevs
+#_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif
 
