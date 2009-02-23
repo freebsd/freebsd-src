@@ -13,7 +13,6 @@ nodevice	uhci
 nodevice	ohci
 nodevice	ehci
 nodevice	usb
-nodevice	ugen
 nodevice	uhid
 nodevice	ukbd
 nodevice	ulpt
@@ -25,7 +24,6 @@ nodevice	zyd
 nodevice	urio
 nodevice	uscanner
 # USB Serial devices
-nodevice	ucom
 nodevice	u3g
 nodevice	uark
 nodevice	ubsa

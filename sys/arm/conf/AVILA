@@ -133,7 +133,6 @@ device		usb
 #options 	USB_DEBUG
 device		ohci
 device		ehci
-device		ugen
 #device		umass
 #device		scbus		# SCSI bus (required for SCSI)
 #device		da		# Direct Access (disks)
