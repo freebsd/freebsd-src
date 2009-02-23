@@ -203,6 +203,8 @@ in_rtqkill(struct radix_node *rn, void *rock)
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
 
+	RADIX_NODE_HEAD_WLOCK_ASSERT(ap->rnh);
+
 	if (rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
 
@@ -213,7 +215,8 @@ in_rtqkill(struct radix_node *rn, void *rock)
 			err = in_rtrequest(RTM_DELETE,
 					(struct sockaddr *)rt_key(rt),
 					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags, 0, rt->rt_fibnum);
+					rt->rt_flags | RTF_RNH_LOCKED, 0,
+					rt->rt_fibnum);
 			if (err) {
 				log(LOG_WARNING, "in_rtqkill: error %d\n", err);
 			} else {
