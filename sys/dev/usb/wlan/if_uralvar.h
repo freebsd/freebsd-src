@@ -18,6 +18,7 @@
  */
 
 #define RAL_TX_LIST_COUNT	8
+#define RAL_TX_MINFREE		2
 
 #define URAL_SCAN_START         1
 #define URAL_SCAN_END           2

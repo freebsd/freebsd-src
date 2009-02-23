@@ -18,6 +18,7 @@
  */
 
 #define RUM_TX_LIST_COUNT	8
+#define RUM_TX_MINFREE		2
 
 struct rum_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
