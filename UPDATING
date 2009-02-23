@@ -25,7 +25,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 20090223:
 	The new USB2 stack has now been permanently moved in and all kernel and
 	module names revered to their previous values (eg, usb, ehci, ohci,
-	ums, ...).  The old usb stack can be compled in by prefixing the name
+	ums, ...).  The old usb stack can be compiled in by prefixing the name
 	with the letter 'o', the old usb modules have been removed.
 	Updating entry 20090216 for xorg may still apply.
 
