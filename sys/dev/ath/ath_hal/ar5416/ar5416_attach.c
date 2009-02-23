@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_attach.c,v 1.27 2008/11/27 22:30:07 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -147,11 +147,6 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 #ifdef AH_SUPPORT_WRITE_EEPROM
 	ahp->ah_priv.ah_eepromWrite	= ar5416EepromWrite;
 #endif
-	ahp->ah_priv.ah_gpioCfgOutput	= ar5416GpioCfgOutput;
-	ahp->ah_priv.ah_gpioCfgInput	= ar5416GpioCfgInput;
-	ahp->ah_priv.ah_gpioGet		= ar5416GpioGet;
-	ahp->ah_priv.ah_gpioSet		= ar5416GpioSet;
-	ahp->ah_priv.ah_gpioSetIntr	= ar5416GpioSetIntr;
 	ahp->ah_priv.ah_getChipPowerLimits = ar5416GetChipPowerLimits;
 
 	/*

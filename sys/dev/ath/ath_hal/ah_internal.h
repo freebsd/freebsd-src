@@ -242,12 +242,6 @@ struct ath_hal_private {
 				uint16_t *data);
 	HAL_BOOL	(*ah_eepromWrite)(struct ath_hal *, u_int off,
 				uint16_t data);
-	HAL_BOOL	(*ah_gpioCfgOutput)(struct ath_hal *, uint32_t gpio);
-	HAL_BOOL	(*ah_gpioCfgInput)(struct ath_hal *, uint32_t gpio);
-	uint32_t	(*ah_gpioGet)(struct ath_hal *, uint32_t gpio);
-	HAL_BOOL	(*ah_gpioSet)(struct ath_hal *,
-				uint32_t gpio, uint32_t val);
-	void		(*ah_gpioSetIntr)(struct ath_hal*, u_int, uint32_t);
 	HAL_BOOL	(*ah_getChipPowerLimits)(struct ath_hal *,
 				struct ieee80211_channel *);
 	int16_t		(*ah_getNfAdjust)(struct ath_hal *,
@@ -318,15 +312,15 @@ struct ath_hal_private {
 #define	ath_hal_eepromWrite(_ah, _off, _data) \
 	AH_PRIVATE(_ah)->ah_eepromWrite(_ah, _off, _data)
 #define	ath_hal_gpioCfgOutput(_ah, _gpio) \
-	AH_PRIVATE(_ah)->ah_gpioCfgOutput(_ah, _gpio)
+	(_ah)->ah_gpioCfgOutput(_ah, _gpio)
 #define	ath_hal_gpioCfgInput(_ah, _gpio) \
-	AH_PRIVATE(_ah)->ah_gpioCfgInput(_ah, _gpio)
+	(_ah)->ah_gpioCfgInput(_ah, _gpio)
 #define	ath_hal_gpioGet(_ah, _gpio) \
-	AH_PRIVATE(_ah)->ah_gpioGet(_ah, _gpio)
+	(_ah)->ah_gpioGet(_ah, _gpio)
 #define	ath_hal_gpioSet(_ah, _gpio, _val) \
-	AH_PRIVATE(_ah)->ah_gpioGet(_ah, _gpio, _val)
+	(_ah)->ah_gpioSet(_ah, _gpio, _val)
 #define	ath_hal_gpioSetIntr(_ah, _gpio, _ilevel) \
-	AH_PRIVATE(_ah)->ah_gpioSetIntr(_ah, _gpio, _ilevel)
+	(_ah)->ah_gpioSetIntr(_ah, _gpio, _ilevel)
 #define	ath_hal_getpowerlimits(_ah, _chan) \
 	AH_PRIVATE(_ah)->ah_getChipPowerLimits(_ah, _chan)
 #define ath_hal_getNfAdjust(_ah, _c) \
