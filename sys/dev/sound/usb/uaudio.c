@@ -71,12 +71,12 @@
 #include <dev/usb/usb_dynamic.h>
 
 #include <dev/usb/quirk/usb_quirk.h>
-#include <dev/usb/sound/uaudio_reg.h>
-#include <dev/usb/sound/uaudio.h>
 
 #include <sys/reboot.h>			/* for bootverbose */
 
 #include <dev/sound/pcm/sound.h>
+#include <dev/sound/usb/uaudioreg.h>
+#include <dev/sound/usb/uaudio.h>
 #include <dev/sound/chip.h>
 #include "feeder_if.h"
 
