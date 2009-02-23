@@ -60,9 +60,10 @@ ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 	case SI86_FPHW: {	/* Floating Point information */
 		int val, error;
 
-		if (hw_float) val = IBCS2_FP_387;	/* FPU hardware */
-		else val = IBCS2_FP_SW;			/* FPU emulator */
-			
+		if (hw_float)
+			val = IBCS2_FP_387;
+		else
+			val = IBCS2_FP_NO;
 		if ((error = copyout(&val, args->arg, sizeof(val))) != 0)
 			return error;
 		return 0;
