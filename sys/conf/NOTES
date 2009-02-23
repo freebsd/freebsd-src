@@ -2402,7 +2402,7 @@ device		ohci
 # EHCI controller
 device		ehci
 # SL811 Controller
-device 		slhci
+#device 		slhci
 # General USB code (mandatory for USB)
 device		usb
 #
