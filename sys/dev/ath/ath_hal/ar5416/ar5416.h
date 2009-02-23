@@ -85,6 +85,7 @@ struct ath_hal;
 
 extern	struct ath_hal * ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 		HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status);
+extern	uint32_t ar5416GetRadioRev(struct ath_hal *ah);
 extern	void ar5416InitState(struct ath_hal_5416 *, uint16_t devid,
 		HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
 		HAL_STATUS *status);
