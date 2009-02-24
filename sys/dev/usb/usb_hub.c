@@ -244,7 +244,7 @@ uhub_read_port_status(struct uhub_softc *sc, uint8_t portno)
 	usb2_error_t err;
 
 	err = usb2_req_get_port_status(
-	    sc->sc_udev, &Giant, &ps, portno);
+	    sc->sc_udev, NULL, &ps, portno);
 
 	/* update status regardless of error */
 
@@ -289,7 +289,7 @@ repeat:
 
 	/* first clear the port connection change bit */
 
-	err = usb2_req_clear_port_feature(udev, &Giant,
+	err = usb2_req_clear_port_feature(udev, NULL,
 	    portno, UHF_C_PORT_CONNECTION);
 
 	if (err) {
@@ -329,18 +329,18 @@ repeat:
 			DPRINTF("Port %d was still "
 			    "suspended, clearing.\n", portno);
 			err = usb2_req_clear_port_feature(sc->sc_udev,
-			    &Giant, portno, UHF_PORT_SUSPEND);
+			    NULL, portno, UHF_PORT_SUSPEND);
 		}
 		/* USB Host Mode */
 
 		/* wait for maximum device power up time */
 
-		usb2_pause_mtx(&Giant, 
+		usb2_pause_mtx(NULL, 
 		    USB_MS_TO_TICKS(USB_PORT_POWERUP_DELAY));
 
 		/* reset port, which implies enabling it */
 
-		err = usb2_req_reset_port(udev, &Giant, portno);
+		err = usb2_req_reset_port(udev, NULL, portno);
 
 		if (err) {
 			DPRINTFN(0, "port %d reset "
@@ -425,7 +425,7 @@ error:
 	if (err == 0) {
 		if (sc->sc_st.port_status & UPS_PORT_ENABLED) {
 			err = usb2_req_clear_port_feature(
-			    sc->sc_udev, &Giant,
+			    sc->sc_udev, NULL,
 			    portno, UHF_PORT_ENABLE);
 		}
 	}
@@ -459,7 +459,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 
 	/* first clear the port suspend change bit */
 
-	err = usb2_req_clear_port_feature(udev, &Giant,
+	err = usb2_req_clear_port_feature(udev, NULL,
 	    portno, UHF_C_PORT_SUSPEND);
 	if (err) {
 		DPRINTF("clearing suspend failed.\n");
@@ -542,7 +542,7 @@ uhub_explore(struct usb2_device *udev)
 		if (sc->sc_st.port_change & UPS_C_OVERCURRENT_INDICATOR) {
 			DPRINTF("Overcurrent on port %u.\n", portno);
 			err = usb2_req_clear_port_feature(
-			    udev, &Giant, portno, UHF_C_PORT_OVER_CURRENT);
+			    udev, NULL, portno, UHF_C_PORT_OVER_CURRENT);
 			if (err) {
 				/* most likely the HUB is gone */
 				break;
@@ -558,7 +558,7 @@ uhub_explore(struct usb2_device *udev)
 		}
 		if (sc->sc_st.port_change & UPS_C_PORT_ENABLED) {
 			err = usb2_req_clear_port_feature(
-			    udev, &Giant, portno, UHF_C_PORT_ENABLE);
+			    udev, NULL, portno, UHF_C_PORT_ENABLE);
 			if (err) {
 				/* most likely the HUB is gone */
 				break;
@@ -682,13 +682,13 @@ uhub_attach(device_t dev)
 	DPRINTFN(2, "getting HUB descriptor\n");
 
 	/* assuming that there is one port */
-	err = usb2_req_get_hub_descriptor(udev, &Giant, &hubdesc, 1);
+	err = usb2_req_get_hub_descriptor(udev, NULL, &hubdesc, 1);
 
 	nports = hubdesc.bNbrPorts;
 
 	if (!err && (nports >= 8)) {
 		/* get complete HUB descriptor */
-		err = usb2_req_get_hub_descriptor(udev, &Giant, &hubdesc, nports);
+		err = usb2_req_get_hub_descriptor(udev, NULL, &hubdesc, nports);
 	}
 	if (err) {
 		DPRINTFN(0, "getting hub descriptor failed,"
@@ -737,7 +737,7 @@ uhub_attach(device_t dev)
 		goto error;
 	}
 	/* wait with power off for a while */
-	usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(USB_POWER_DOWN_TIME));
+	usb2_pause_mtx(NULL, USB_MS_TO_TICKS(USB_POWER_DOWN_TIME));
 
 	/*
 	 * To have the best chance of success we do things in the exact same
@@ -784,7 +784,7 @@ uhub_attach(device_t dev)
 		}
 		if (!err) {
 			/* turn the power on */
-			err = usb2_req_set_port_feature(udev, &Giant,
+			err = usb2_req_set_port_feature(udev, NULL,
 			    portno, UHF_PORT_POWER);
 		}
 		if (err) {
@@ -795,7 +795,7 @@ uhub_attach(device_t dev)
 		    portno);
 
 		/* wait for stable power */
-		usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(pwrdly));
+		usb2_pause_mtx(NULL, USB_MS_TO_TICKS(pwrdly));
 	}
 
 	device_printf(dev, "%d port%s with %d "
@@ -1661,13 +1661,13 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 
 	/* resume current port (Valid in Host and Device Mode) */
 	err = usb2_req_clear_port_feature(udev->parent_hub,
-	    &Giant, udev->port_no, UHF_PORT_SUSPEND);
+	    NULL, udev->port_no, UHF_PORT_SUSPEND);
 	if (err) {
 		DPRINTFN(0, "Resuming port failed!\n");
 		return;
 	}
 	/* resume settle time */
-	usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+	usb2_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
 
 	if (bus->methods->device_resume != NULL) {
 		/* resume USB device on the USB controller */
@@ -1703,7 +1703,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 	if (usb2_peer_can_wakeup(udev)) {
 		/* clear remote wakeup */
 		err = usb2_req_clear_device_feature(udev,
-		    &Giant, UF_DEVICE_REMOTE_WAKEUP);
+		    NULL, UF_DEVICE_REMOTE_WAKEUP);
 		if (err) {
 			DPRINTFN(0, "Clearing device "
 			    "remote wakeup failed: %s!\n",
@@ -1782,7 +1782,7 @@ repeat:
 	if (usb2_peer_can_wakeup(udev)) {
 		/* allow device to do remote wakeup */
 		err = usb2_req_set_device_feature(udev,
-		    &Giant, UF_DEVICE_REMOTE_WAKEUP);
+		    NULL, UF_DEVICE_REMOTE_WAKEUP);
 		if (err) {
 			DPRINTFN(0, "Setting device "
 			    "remote wakeup failed!\n");
@@ -1803,12 +1803,12 @@ repeat:
 
 		/* do DMA delay */
 		temp = usb2_get_dma_delay(udev->bus);
-		usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(temp));
+		usb2_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
 
 	}
 	/* suspend current port */
 	err = usb2_req_set_port_feature(udev->parent_hub,
-	    &Giant, udev->port_no, UHF_PORT_SUSPEND);
+	    NULL, udev->port_no, UHF_PORT_SUSPEND);
 	if (err) {
 		DPRINTFN(0, "Suspending port failed\n");
 		return;

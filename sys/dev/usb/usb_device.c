@@ -551,12 +551,12 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 		 * device. "usb2_free_iface_data()" will also reset
 		 * the current config number and index.
 		 */
-		err = usb2_req_set_config(udev, &Giant, USB_UNCONFIG_NO);
+		err = usb2_req_set_config(udev, NULL, USB_UNCONFIG_NO);
 		goto done;
 	}
 	/* get the full config descriptor */
 	err = usb2_req_get_config_desc_full(udev,
-	    &Giant, &cdp, M_USB, index);
+	    NULL, &cdp, M_USB, index);
 	if (err) {
 		goto done;
 	}
@@ -583,7 +583,7 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 				 * determined by the HUB characteristics.
 				 */
 				err = usb2_req_get_hub_descriptor
-				    (udev, &Giant, &hd, 1);
+				    (udev, NULL, &hd, 1);
 				if (err) {
 					DPRINTFN(0, "could not read "
 					    "HUB descriptor: %s\n",
@@ -597,7 +597,7 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 				    UGETW(hd.wHubCharacteristics));
 			} else {
 				err = usb2_req_get_device_status
-				    (udev, &Giant, &ds);
+				    (udev, NULL, &ds);
 				if (err) {
 					DPRINTFN(0, "could not read "
 					    "device status: %s\n",
@@ -640,7 +640,7 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 	udev->curr_config_index = index;
 
 	/* Set the actual configuration value. */
-	err = usb2_req_set_config(udev, &Giant, cdp->bConfigurationValue);
+	err = usb2_req_set_config(udev, NULL, cdp->bConfigurationValue);
 	if (err) {
 		goto done;
 	}
@@ -669,8 +669,10 @@ done:
  *
  * This function will select an alternate interface index for the
  * given interface index. The interface should not be in use when this
- * function is called. That means there should be no open USB
- * transfers. Else an error is returned.
+ * function is called. That means there should not be any open USB
+ * transfers. Else an error is returned. If the alternate setting is
+ * already set this function will simply return success. This function
+ * is called in Host mode and Device mode!
  *
  * Returns:
  *    0: Success
@@ -697,6 +699,15 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 	}
 	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
 		usb2_detach_device(udev, iface_index, 1);
+	} else {
+		if (iface->alt_index == alt_index) {
+			/* 
+			 * Optimise away duplicate setting of
+			 * alternate setting in USB Host Mode!
+			 */
+			err = 0;
+			goto done;
+		}
 	}
 	/*
 	 * Free all generic FIFOs for this interface, except control
@@ -708,8 +719,7 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 	if (err) {
 		goto done;
 	}
-	err = usb2_req_set_alt_interface_no
-	    (udev, &Giant, iface_index,
+	err = usb2_req_set_alt_interface_no(udev, NULL, iface_index,
 	    iface->idesc->bAlternateSetting);
 
 done:
@@ -1415,7 +1425,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 
 	if (udev->flags.usb2_mode == USB_MODE_HOST) {
 
-		err = usb2_req_set_address(udev, &Giant, device_index);
+		err = usb2_req_set_address(udev, NULL, device_index);
 
 		/* This is the new USB device address from now on */
 
@@ -1435,7 +1445,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 			    "(ignored)\n", udev->address);
 		}
 		/* allow device time to set new address */
-		usb2_pause_mtx(&Giant, 
+		usb2_pause_mtx(NULL, 
 		    USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
 	} else {
 		/* We are not self powered */
@@ -1464,13 +1474,13 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	 * 0. If this value is different from "USB_MAX_IPACKET" a new
 	 * USB control request will be setup!
 	 */
-	err = usb2_req_get_desc(udev, &Giant, NULL, &udev->ddesc,
+	err = usb2_req_get_desc(udev, NULL, NULL, &udev->ddesc,
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
 		    "at addr %d failed!\n", udev->address);
 		/* XXX try to re-enumerate the device */
-		err = usb2_req_re_enumerate(udev, &Giant);
+		err = usb2_req_re_enumerate(udev, NULL);
 		if (err) {
 			goto done;
 		}
@@ -1486,7 +1496,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	    udev->speed);
 
 	/* get the full device descriptor */
-	err = usb2_req_get_device_desc(udev, &Giant, &udev->ddesc);
+	err = usb2_req_get_device_desc(udev, NULL, &udev->ddesc);
 	if (err) {
 		DPRINTF("addr=%d, getting full desc failed\n",
 		    udev->address);
@@ -1525,7 +1535,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	    udev->ddesc.iProduct ||
 	    udev->ddesc.iSerialNumber) {
 		/* read out the language ID string */
-		err = usb2_req_get_string_desc(udev, &Giant,
+		err = usb2_req_get_string_desc(udev, NULL,
 		    (char *)scratch_ptr, 4, scratch_size,
 		    USB_LANGUAGE_TABLE);
 	} else {
@@ -1544,21 +1554,21 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 
 	/* get serial number string */
 	err = usb2_req_get_string_any
-	    (udev, &Giant, (char *)scratch_ptr,
+	    (udev, NULL, (char *)scratch_ptr,
 	    scratch_size, udev->ddesc.iSerialNumber);
 
 	strlcpy(udev->serial, (char *)scratch_ptr, sizeof(udev->serial));
 
 	/* get manufacturer string */
 	err = usb2_req_get_string_any
-	    (udev, &Giant, (char *)scratch_ptr,
+	    (udev, NULL, (char *)scratch_ptr,
 	    scratch_size, udev->ddesc.iManufacturer);
 
 	strlcpy(udev->manufacturer, (char *)scratch_ptr, sizeof(udev->manufacturer));
 
 	/* get product string */
 	err = usb2_req_get_string_any
-	    (udev, &Giant, (char *)scratch_ptr,
+	    (udev, NULL, (char *)scratch_ptr,
 	    scratch_size, udev->ddesc.iProduct);
 
 	strlcpy(udev->product, (char *)scratch_ptr, sizeof(udev->product));
@@ -1609,7 +1619,7 @@ repeat_set_config:
 					set_config_failed = 1;
 					/* XXX try to re-enumerate the device */
 					err = usb2_req_re_enumerate(
-					    udev, &Giant);
+					    udev, NULL);
 					if (err == 0)
 					    goto repeat_set_config;
 				}
