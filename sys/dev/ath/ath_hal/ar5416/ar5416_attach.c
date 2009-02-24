@@ -336,8 +336,6 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	if (ahp->ah_miscMode != 0)
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 
-	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: Attaching AR2133 radio\n",
-	    __func__);
 	rfStatus = ar2133RfAttach(ah, &ecode);
 	if (!rfStatus) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: RF setup failed, status %u\n",
