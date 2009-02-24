@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.211 2008/07/01 07:24:22 dtucker Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.212 2008/10/14 18:11:33 stevesk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -69,10 +69,6 @@ extern char *__progname;
 extern uid_t original_real_uid;
 extern uid_t original_effective_uid;
 extern pid_t proxy_command_pid;
-
-#ifndef INET6_ADDRSTRLEN		/* for non IPv6 machines */
-#define INET6_ADDRSTRLEN 46
-#endif
 
 static int show_other_keys(const char *, Key *);
 static void warn_changed_key(Key *);
@@ -741,8 +737,8 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		if (options.host_key_alias == NULL && port != 0 &&
 		    port != SSH_DEFAULT_PORT) {
 			debug("checking without port identifier");
-			if (check_host_key(hostname, hostaddr, 0, host_key, 2,
-			    user_hostfile, system_hostfile) == 0) {
+			if (check_host_key(hostname, hostaddr, 0, host_key,
+			    ROQUIET, user_hostfile, system_hostfile) == 0) {
 				debug("found matching key w/out port");
 				break;
 			}

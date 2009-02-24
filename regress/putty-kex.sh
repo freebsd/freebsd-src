@@ -7,7 +7,8 @@ DATA=/bin/ls
 COPY=${OBJ}/copy
 
 if test "x$REGRESS_INTEROP_PUTTY" != "xyes" ; then
-	fatal "putty interop tests not enabled"
+	echo "putty interop tests not enabled"
+	exit 0
 fi
 
 for k in dh-gex-sha1 dh-group1-sha1 dh-group14-sha1 ; do

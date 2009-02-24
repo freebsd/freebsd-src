@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.171 2008/07/13 21:22:52 sthen Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.173 2009/02/21 19:32:04 tobias Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -135,7 +135,7 @@ ask_filename(struct passwd *pw, const char *prompt)
 			name = _PATH_SSH_CLIENT_ID_RSA;
 			break;
 		default:
-			fprintf(stderr, "bad key type");
+			fprintf(stderr, "bad key type\n");
 			exit(1);
 			break;
 		}
@@ -421,7 +421,7 @@ do_convert_from_ssh2(struct passwd *pw)
 		 PEM_write_RSAPrivateKey(stdout, k->rsa, NULL, NULL, 0, NULL, NULL)) :
 	    key_write(k, stdout);
 	if (!ok) {
-		fprintf(stderr, "key write failed");
+		fprintf(stderr, "key write failed\n");
 		exit(1);
 	}
 	key_free(k);
@@ -1015,11 +1015,11 @@ do_change_comment(struct passwd *pw)
 	}
 	f = fdopen(fd, "w");
 	if (f == NULL) {
-		printf("fdopen %s failed", identity_file);
+		printf("fdopen %s failed\n", identity_file);
 		exit(1);
 	}
 	if (!key_write(public, f))
-		fprintf(stderr, "write key failed");
+		fprintf(stderr, "write key failed\n");
 	key_free(public);
 	fprintf(f, " %s\n", new_comment);
 	fclose(f);
@@ -1366,7 +1366,7 @@ main(int argc, char **argv)
 		printf("Generating public/private %s key pair.\n", key_type_name);
 	private = key_generate(type, bits);
 	if (private == NULL) {
-		fprintf(stderr, "key_generate failed");
+		fprintf(stderr, "key_generate failed\n");
 		exit(1);
 	}
 	public  = key_from_private(private);
@@ -1426,7 +1426,7 @@ passphrase_again:
 	if (identity_comment) {
 		strlcpy(comment, identity_comment, sizeof(comment));
 	} else {
-		/* Create default commend field for the passphrase. */
+		/* Create default comment field for the passphrase. */
 		snprintf(comment, sizeof comment, "%s@%s", pw->pw_name, hostname);
 	}
 
@@ -1456,11 +1456,11 @@ passphrase_again:
 	}
 	f = fdopen(fd, "w");
 	if (f == NULL) {
-		printf("fdopen %s failed", identity_file);
+		printf("fdopen %s failed\n", identity_file);
 		exit(1);
 	}
 	if (!key_write(public, f))
-		fprintf(stderr, "write key failed");
+		fprintf(stderr, "write key failed\n");
 	fprintf(f, " %s\n", comment);
 	fclose(f);
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.318 2008/07/02 13:47:39 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.324 2009/02/12 03:00:56 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -179,7 +179,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: ssh [-1246AaCfgKkMNnqsTtVvXxY] [-b bind_address] [-c cipher_spec]\n"
+"usage: ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]\n"
 "           [-D [bind_address:]port] [-e escape_char] [-F configfile]\n"
 "           [-i identity_file] [-L [bind_address:]port:host:hostport]\n"
 "           [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]\n"
@@ -203,7 +203,7 @@ void muxserver_listen(void);
 int
 main(int ac, char **av)
 {
-	int i, opt, exit_status;
+	int i, opt, exit_status, use_syslog;
 	char *p, *cp, *line, buf[256];
 	struct stat st;
 	struct passwd *pw;
@@ -269,10 +269,11 @@ main(int ac, char **av)
 
 	/* Parse command-line arguments. */
 	host = NULL;
+	use_syslog = 0;
 
  again:
 	while ((opt = getopt(ac, av, "1246ab:c:e:fgi:kl:m:no:p:qstvx"
-	    "ACD:F:I:KL:MNO:PR:S:TVw:XY")) != -1) {
+	    "ACD:F:I:KL:MNO:PR:S:TVw:XYy")) != -1) {
 		switch (opt) {
 		case '1':
 			options.protocol = SSH_PROTO_1;
@@ -298,6 +299,9 @@ main(int ac, char **av)
 			break;
 		case 'X':
 			options.forward_x11 = 1;
+			break;
+		case 'y':
+			use_syslog = 1;
 			break;
 		case 'Y':
 			options.forward_x11 = 1;
@@ -439,7 +443,7 @@ main(int ac, char **av)
 			break;
 		case 'p':
 			options.port = a2port(optarg);
-			if (options.port == 0) {
+			if (options.port <= 0) {
 				fprintf(stderr, "Bad port '%s'\n", optarg);
 				exit(255);
 			}
@@ -449,7 +453,7 @@ main(int ac, char **av)
 			break;
 
 		case 'L':
-			if (parse_forward(&fwd, optarg))
+			if (parse_forward(&fwd, optarg, 0, 0))
 				add_local_forward(&options, &fwd);
 			else {
 				fprintf(stderr,
@@ -460,7 +464,7 @@ main(int ac, char **av)
 			break;
 
 		case 'R':
-			if (parse_forward(&fwd, optarg)) {
+			if (parse_forward(&fwd, optarg, 0, 1)) {
 				add_remote_forward(&options, &fwd);
 			} else {
 				fprintf(stderr,
@@ -471,30 +475,14 @@ main(int ac, char **av)
 			break;
 
 		case 'D':
-			cp = p = xstrdup(optarg);
-			memset(&fwd, '\0', sizeof(fwd));
-			fwd.connect_host = "socks";
-			if ((fwd.listen_host = hpdelim(&cp)) == NULL) {
-				fprintf(stderr, "Bad dynamic forwarding "
-				    "specification '%.100s'\n", optarg);
-				exit(255);
-			}
-			if (cp != NULL) {
-				fwd.listen_port = a2port(cp);
-				fwd.listen_host =
-				    cleanhostname(fwd.listen_host);
+			if (parse_forward(&fwd, optarg, 1, 0)) {
+				add_local_forward(&options, &fwd);
 			} else {
-				fwd.listen_port = a2port(fwd.listen_host);
-				fwd.listen_host = NULL;
-			}
-
-			if (fwd.listen_port == 0) {
-				fprintf(stderr, "Bad dynamic port '%s'\n",
-				    optarg);
+				fprintf(stderr,
+				    "Bad dynamic forwarding specification "
+				    "'%s'\n", optarg);
 				exit(255);
 			}
-			add_local_forward(&options, &fwd);
-			xfree(p);
 			break;
 
 		case 'C':
@@ -614,7 +602,7 @@ main(int ac, char **av)
 	 */
 	log_init(av[0],
 	    options.log_level == -1 ? SYSLOG_LEVEL_INFO : options.log_level,
-	    SYSLOG_FACILITY_USER, 1);
+	    SYSLOG_FACILITY_USER, !use_syslog);
 
 	/*
 	 * Read per-user configuration file.  Ignore the system wide config
@@ -640,7 +628,7 @@ main(int ac, char **av)
 	channel_set_af(options.address_family);
 
 	/* reinit */
-	log_init(av[0], options.log_level, SYSLOG_FACILITY_USER, 1);
+	log_init(av[0], options.log_level, SYSLOG_FACILITY_USER, !use_syslog);
 
 	seed_rng();
 
@@ -849,9 +837,16 @@ ssh_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 {
 	Forward *rfwd = (Forward *)ctxt;
 
+	/* XXX verbose() on failure? */
 	debug("remote forward %s for: listen %d, connect %s:%d",
 	    type == SSH2_MSG_REQUEST_SUCCESS ? "success" : "failure",
 	    rfwd->listen_port, rfwd->connect_host, rfwd->connect_port);
+	if (type == SSH2_MSG_REQUEST_SUCCESS && rfwd->listen_port == 0) {
+		logit("Allocated port %u for remote forward to %s:%d",
+			packet_get_int(),
+			rfwd->connect_host, rfwd->connect_port);
+	}
+	
 	if (type == SSH2_MSG_REQUEST_FAILURE) {
 		if (options.exit_on_forward_failure)
 			fatal("Error: remote port forwarding failed for "
@@ -1200,7 +1195,8 @@ ssh_session2(void)
 		id = ssh_session2_open();
 
 	/* If we don't expect to open a new session, then disallow it */
-	if (options.control_master == SSHCTL_MASTER_NO) {
+	if (options.control_master == SSHCTL_MASTER_NO &&
+	    (datafellows & SSH_NEW_OPENSSH)) {
 		debug("Requesting no-more-sessions@openssh.com");
 		packet_start(SSH2_MSG_GLOBAL_REQUEST);
 		packet_put_cstring("no-more-sessions@openssh.com");

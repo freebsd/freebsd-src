@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.85 2008/06/10 04:50:25 dtucker Exp $ */
+/* $OpenBSD: servconf.h,v 1.87 2009/01/22 10:02:34 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -41,9 +41,9 @@
 #define INTERNAL_SFTP_NAME	"internal-sftp"
 
 typedef struct {
-	u_int num_ports;
-	u_int ports_from_cmdline;
-	u_short ports[MAX_PORTS];	/* Port number to listen on. */
+	u_int	num_ports;
+	u_int	ports_from_cmdline;
+	int	ports[MAX_PORTS];	/* Port number to listen on. */
 	char   *listen_addr;		/* Address on which the server listens. */
 	struct addrinfo *listen_addrs;	/* Addresses on which the server listens. */
 	int     address_family;		/* Address family used by the server. */
@@ -96,6 +96,8 @@ typedef struct {
 						 * authentication. */
 	int     kbd_interactive_authentication;	/* If true, permit */
 	int     challenge_response_authentication;
+	int     zero_knowledge_password_authentication;
+					/* If true, permit jpake auth */
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     permit_user_env;	/* If true, read ~/.ssh/environment */

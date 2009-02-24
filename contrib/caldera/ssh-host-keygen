@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: ssh-host-keygen,v 1.2 2003/11/21 12:48:57 djm Exp $
+# $Id: ssh-host-keygen,v 1.3 2008/11/03 09:16:01 djm Exp $
 #
 # This script is normally run only *once* for a given host
 # (in a given period of time) -- on updates/upgrades/recovery
@@ -15,16 +15,16 @@ if [ -f $keydir/ssh_host_key -o \
 	     -f $keydir/ssh_host_key.pub ]; then
   echo "You already have an SSH1 RSA host key in $keydir/ssh_host_key."
 else
-  echo "Generating 1024 bit SSH1 RSA host key."
-  $keygen -b 1024 -t rsa1 -f $keydir/ssh_host_key -C '' -N ''
+  echo "Generating SSH1 RSA host key."
+  $keygen -t rsa1 -f $keydir/ssh_host_key -C '' -N ''
 fi
 
 if [ -f $keydir/ssh_host_rsa_key -o \
 	     -f $keydir/ssh_host_rsa_key.pub ]; then
   echo "You already have an SSH2 RSA host key in $keydir/ssh_host_rsa_key."
 else
-  echo "Generating 1024 bit SSH2 RSA host key."
-  $keygen -b 1024 -t rsa -f $keydir/ssh_host_rsa_key -C '' -N ''
+  echo "Generating SSH2 RSA host key."
+  $keygen -t rsa -f $keydir/ssh_host_rsa_key -C '' -N ''
 fi
 
 if [ -f $keydir/ssh_host_dsa_key -o \

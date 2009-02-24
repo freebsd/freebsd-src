@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.103 2008/07/13 22:16:03 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.107 2009/02/02 11:15:14 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -207,36 +207,37 @@ cmd_interrupt(int signo)
 static void
 help(void)
 {
-	printf("Available commands:\n");
-	printf("cd path                       Change remote directory to 'path'\n");
-	printf("lcd path                      Change local directory to 'path'\n");
-	printf("chgrp grp path                Change group of file 'path' to 'grp'\n");
-	printf("chmod mode path               Change permissions of file 'path' to 'mode'\n");
-	printf("chown own path                Change owner of file 'path' to 'own'\n");
-	printf("df [path]                     Display statistics for current directory or\n");
-	printf("                              filesystem containing 'path'\n");
-	printf("help                          Display this help text\n");
-	printf("get remote-path [local-path]  Download file\n");
-	printf("lls [ls-options [path]]       Display local directory listing\n");
-	printf("ln oldpath newpath            Symlink remote file\n");
-	printf("lmkdir path                   Create local directory\n");
-	printf("lpwd                          Print local working directory\n");
-	printf("ls [path]                     Display remote directory listing\n");
-	printf("lumask umask                  Set local umask to 'umask'\n");
-	printf("mkdir path                    Create remote directory\n");
-	printf("progress                      Toggle display of progress meter\n");
-	printf("put local-path [remote-path]  Upload file\n");
-	printf("pwd                           Display remote working directory\n");
-	printf("exit                          Quit sftp\n");
-	printf("quit                          Quit sftp\n");
-	printf("rename oldpath newpath        Rename remote file\n");
-	printf("rmdir path                    Remove remote directory\n");
-	printf("rm path                       Delete remote file\n");
-	printf("symlink oldpath newpath       Symlink remote file\n");
-	printf("version                       Show SFTP version\n");
-	printf("!command                      Execute 'command' in local shell\n");
-	printf("!                             Escape to local shell\n");
-	printf("?                             Synonym for help\n");
+	printf("Available commands:\n"
+	    "bye                                Quit sftp\n"
+	    "cd path                            Change remote directory to 'path'\n"
+	    "chgrp grp path                     Change group of file 'path' to 'grp'\n"
+	    "chmod mode path                    Change permissions of file 'path' to 'mode'\n"
+	    "chown own path                     Change owner of file 'path' to 'own'\n"
+	    "df [-hi] [path]                    Display statistics for current directory or\n"
+	    "                                   filesystem containing 'path'\n"
+	    "exit                               Quit sftp\n"
+	    "get [-P] remote-path [local-path]  Download file\n"
+	    "help                               Display this help text\n"
+	    "lcd path                           Change local directory to 'path'\n"
+	    "lls [ls-options [path]]            Display local directory listing\n"
+	    "lmkdir path                        Create local directory\n"
+	    "ln oldpath newpath                 Symlink remote file\n"
+	    "lpwd                               Print local working directory\n"
+	    "ls [-1aflnrSt] [path]              Display remote directory listing\n"
+	    "lumask umask                       Set local umask to 'umask'\n"
+	    "mkdir path                         Create remote directory\n"
+	    "progress                           Toggle display of progress meter\n"
+	    "put [-P] local-path [remote-path]  Upload file\n"
+	    "pwd                                Display remote working directory\n"
+	    "quit                               Quit sftp\n"
+	    "rename oldpath newpath             Rename remote file\n"
+	    "rm path                            Delete remote file\n"
+	    "rmdir path                         Remove remote directory\n"
+	    "symlink oldpath newpath            Symlink remote file\n"
+	    "version                            Show SFTP version\n"
+	    "!command                           Execute 'command' in local shell\n"
+	    "!                                  Escape to local shell\n"
+	    "?                                  Synonym for help\n");
 }
 
 static void
@@ -1234,8 +1235,8 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
     int err_abort)
 {
 	char *path1, *path2, *tmp;
-	int pflag, lflag, iflag, hflag, cmdnum, i;
-	unsigned long n_arg;
+	int pflag = 0, lflag = 0, iflag = 0, hflag = 0, cmdnum, i;
+	unsigned long n_arg = 0;
 	Attrib a, *aa;
 	char path_buf[MAXPATHLEN];
 	int err = 0;
@@ -1386,17 +1387,19 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		remote_glob(conn, path1, GLOB_NOCHECK, NULL, &g);
 		for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 			if (!(aa = do_stat(conn, g.gl_pathv[i], 0))) {
-				if (err != 0 && err_abort)
+				if (err_abort) {
+					err = -1;
 					break;
-				else
+				} else
 					continue;
 			}
 			if (!(aa->flags & SSH2_FILEXFER_ATTR_UIDGID)) {
 				error("Can't get current ownership of "
 				    "remote file \"%s\"", g.gl_pathv[i]);
-				if (err != 0 && err_abort)
+				if (err_abort) {
+					err = -1;
 					break;
-				else
+				} else
 					continue;
 			}
 			aa->flags &= SSH2_FILEXFER_ATTR_UIDGID;
@@ -1668,8 +1671,8 @@ usage(void)
 	    "usage: %s [-1Cv] [-B buffer_size] [-b batchfile] [-F ssh_config]\n"
 	    "            [-o ssh_option] [-P sftp_server_path] [-R num_requests]\n"
 	    "            [-S program] [-s subsystem | sftp_server] host\n"
-	    "       %s [[user@]host[:file [file]]]\n"
-	    "       %s [[user@]host[:dir[/]]]\n"
+	    "       %s [user@]host[:file ...]\n"
+	    "       %s [user@]host[:dir[/]]\n"
 	    "       %s -b batchfile [user@]host\n", __progname, __progname, __progname, __progname);
 	exit(1);
 }

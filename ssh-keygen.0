@@ -14,7 +14,7 @@ SYNOPSIS
      ssh-keygen -l [-f input_keyfile]
      ssh-keygen -B [-f input_keyfile]
      ssh-keygen -D reader
-     ssh-keygen -F hostname [-f known_hosts_file]
+     ssh-keygen -F hostname [-f known_hosts_file] [-l]
      ssh-keygen -H [-f known_hosts_file]
      ssh-keygen -R hostname [-f known_hosts_file]
      ssh-keygen -U reader [-f input_keyfile]
@@ -286,4 +286,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.4                      June 12, 2008                               5
+OpenBSD 4.5                      July 24, 2008                               5
