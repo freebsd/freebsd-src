@@ -215,8 +215,6 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 #endif
 	}
-	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: Attaching AR2133 radio\n",
-	    __func__);
 	rfStatus = ar2133RfAttach(ah, &ecode);
 	if (!rfStatus) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: RF setup failed, status %u\n",
