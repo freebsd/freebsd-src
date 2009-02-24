@@ -87,8 +87,7 @@ SYSCTL_INT(_hw_usb2_ums, OID_AUTO, debug, CTLFLAG_RW,
 
 enum {
 	UMS_INTR_DT,
-	UMS_INTR_CS,
-	UMS_N_TRANSFER = 2,
+	UMS_N_TRANSFER,
 };
 
 struct ums_softc {
@@ -113,9 +112,8 @@ struct ums_softc {
 #define	UMS_FLAG_Z_AXIS     0x0004
 #define	UMS_FLAG_T_AXIS     0x0008
 #define	UMS_FLAG_SBU        0x0010	/* spurious button up events */
-#define	UMS_FLAG_INTR_STALL 0x0020	/* set if transfer error */
-#define	UMS_FLAG_REVZ	    0x0040	/* Z-axis is reversed */
-#define	UMS_FLAG_W_AXIS     0x0080
+#define	UMS_FLAG_REVZ	    0x0020	/* Z-axis is reversed */
+#define	UMS_FLAG_W_AXIS     0x0040
 
 	uint8_t	sc_buttons;
 	uint8_t	sc_iid;
@@ -124,7 +122,6 @@ struct ums_softc {
 
 static void ums_put_queue_timeout(void *__sc);
 
-static usb2_callback_t ums_clear_stall_callback;
 static usb2_callback_t ums_intr_callback;
 
 static device_probe_t ums_probe;
@@ -159,19 +156,6 @@ ums_put_queue_timeout(void *__sc)
 }
 
 static void
-ums_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ums_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UMS_INTR_DT];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UMS_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-}
-
-static void
 ums_intr_callback(struct usb2_xfer *xfer)
 {
 	struct ums_softc *sc = xfer->priv_sc;
@@ -194,9 +178,9 @@ ums_intr_callback(struct usb2_xfer *xfer)
 			    sizeof(sc->sc_temp));
 			len = sizeof(sc->sc_temp);
 		}
-		if (len == 0) {
+		if (len == 0)
 			goto tr_setup;
-		}
+
 		usb2_copy_out(xfer->frbuffers, 0, buf, len);
 
 		DPRINTFN(6, "data = %02x %02x %02x %02x "
@@ -207,21 +191,23 @@ ums_intr_callback(struct usb2_xfer *xfer)
 		    (len > 6) ? buf[6] : 0, (len > 7) ? buf[7] : 0);
 
 		/*
-		 * The M$ Wireless Intellimouse 2.0 sends 1 extra leading byte
-		 * of data compared to most USB mice. This byte frequently
-		 * switches from 0x01 (usual state) to 0x02. I assume it is to
-		 * allow extra, non-standard, reporting (say battery-life).
+		 * The M$ Wireless Intellimouse 2.0 sends 1 extra
+		 * leading byte of data compared to most USB
+		 * mice. This byte frequently switches from 0x01
+		 * (usual state) to 0x02. I assume it is to allow
+		 * extra, non-standard, reporting (say battery-life).
 		 *
-		 * However at the same time it generates a left-click message
-		 * on the button byte which causes spurious left-click's where
-		 * there shouldn't be.  This should sort that.  Currently it's
-		 * the only user of UMS_FLAG_T_AXIS so use it as an
-		 * identifier.
+		 * However at the same time it generates a left-click
+		 * message on the button byte which causes spurious
+		 * left-click's where there shouldn't be.  This should
+		 * sort that.  Currently it's the only user of
+		 * UMS_FLAG_T_AXIS so use it as an identifier.
 		 *
 		 *
-		 * UPDATE: This problem affects the M$ Wireless Notebook Optical Mouse,
-		 * too. However, the leading byte for this mouse is normally 0x11,
-		 * and the phantom mouse click occurs when its 0x14.
+		 * UPDATE: This problem affects the M$ Wireless
+		 * Notebook Optical Mouse, too. However, the leading
+		 * byte for this mouse is normally 0x11, and the
+		 * phantom mouse click occurs when its 0x14.
 		 *
 		 * We probably should switch to some more official quirk.
 		 */
@@ -287,12 +273,14 @@ ums_intr_callback(struct usb2_xfer *xfer)
 			 */
 
 			/*
-		         * The Qtronix keyboard has a built in PS/2 port for a mouse.
-		         * The firmware once in a while posts a spurious button up
-		         * event. This event we ignore by doing a timeout for 50 msecs.
-		         * If we receive dx=dy=dz=buttons=0 before we add the event to
-		         * the queue.
-		         * In any other case we delete the timeout event.
+		         * The Qtronix keyboard has a built in PS/2
+		         * port for a mouse.  The firmware once in a
+		         * while posts a spurious button up
+		         * event. This event we ignore by doing a
+		         * timeout for 50 msecs.  If we receive
+		         * dx=dy=dz=buttons=0 before we add the event
+		         * to the queue.  In any other case we delete
+		         * the timeout event.
 		         */
 			if ((sc->sc_flags & UMS_FLAG_SBU) &&
 			    (dx == 0) && (dy == 0) && (dz == 0) && (dt == 0) &&
@@ -309,25 +297,21 @@ ums_intr_callback(struct usb2_xfer *xfer)
 		}
 	case USB_ST_SETUP:
 tr_setup:
-		if (sc->sc_flags & UMS_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UMS_INTR_CS]);
-		} else {
-			/* check if we can put more data into the FIFO */
-			if (usb2_fifo_put_bytes_max(
-			    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
-				xfer->frlengths[0] = xfer->max_data_length;
-				usb2_start_hardware(xfer);
-			}
+		/* check if we can put more data into the FIFO */
+		if (usb2_fifo_put_bytes_max(
+		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
+			xfer->frlengths[0] = xfer->max_data_length;
+			usb2_start_hardware(xfer);
 		}
-		return;
+		break;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			/* start clear stall */
-			sc->sc_flags |= UMS_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[UMS_INTR_CS]);
+			/* try clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
-		return;
+		break;
 	}
 }
 
@@ -341,16 +325,6 @@ static const struct usb2_config ums_config[UMS_N_TRANSFER] = {
 		.mh.bufsize = 0,	/* use wMaxPacketSize */
 		.mh.callback = &ums_intr_callback,
 	},
-
-	[UMS_INTR_CS] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &ums_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
 };
 
 static int
@@ -359,39 +333,34 @@ ums_probe(device_t dev)
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct usb2_interface_descriptor *id;
 	void *d_ptr;
-	int32_t error = 0;
+	int error;
 	uint16_t d_len;
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb2_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if (uaa->iface == NULL) {
-		return (ENXIO);
-	}
+
 	id = usb2_get_interface_descriptor(uaa->iface);
 
 	if ((id == NULL) ||
-	    (id->bInterfaceClass != UICLASS_HID)) {
+	    (id->bInterfaceClass != UICLASS_HID))
 		return (ENXIO);
-	}
-	error = usb2_req_get_hid_desc
-	    (uaa->device, &Giant,
+
+	error = usb2_req_get_hid_desc(uaa->device, &Giant,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
 
-	if (error) {
+	if (error)
 		return (ENXIO);
-	}
+
 	if (hid_is_collection(d_ptr, d_len,
-	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))) {
+	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
 		error = 0;
-	} else if ((id->bInterfaceSubClass == UISUBCLASS_BOOT) &&
-	    (id->bInterfaceProtocol == UIPROTO_MOUSE)) {
+	else if ((id->bInterfaceSubClass == UISUBCLASS_BOOT) &&
+	    (id->bInterfaceProtocol == UIPROTO_MOUSE))
 		error = 0;
-	} else {
+	else
 		error = ENXIO;
-	}
 
 	free(d_ptr, M_TEMP);
 	return (error);
@@ -404,9 +373,10 @@ ums_attach(device_t dev)
 	struct ums_softc *sc = device_get_softc(dev);
 	void *d_ptr = NULL;
 	int unit = device_get_unit(dev);
-	int32_t isize;
+	int isize;
+	int isizebits;
+	int err;
 	uint32_t flags;
-	int32_t err;
 	uint16_t d_len;
 	uint8_t i;
 
@@ -443,14 +413,14 @@ ums_attach(device_t dev)
 		goto detach;
 	}
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-	    hid_input, &sc->sc_loc_x, &flags)) {
+	    hid_input, &sc->sc_loc_x, &flags, &sc->sc_iid)) {
 
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_X_AXIS;
 		}
 	}
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-	    hid_input, &sc->sc_loc_y, &flags)) {
+	    hid_input, &sc->sc_loc_y, &flags, &sc->sc_iid)) {
 
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_Y_AXIS;
@@ -458,9 +428,9 @@ ums_attach(device_t dev)
 	}
 	/* Try the wheel first as the Z activator since it's tradition. */
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_WHEEL), hid_input, &sc->sc_loc_z, &flags) ||
+	    HUG_WHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid) ||
 	    hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_TWHEEL), hid_input, &sc->sc_loc_z, &flags)) {
+	    HUG_TWHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid)) {
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_Z_AXIS;
 		}
@@ -469,14 +439,14 @@ ums_attach(device_t dev)
 		 * put the Z on the W coordinate.
 		 */
 		if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-		    HUG_Z), hid_input, &sc->sc_loc_w, &flags)) {
+		    HUG_Z), hid_input, &sc->sc_loc_w, &flags, &sc->sc_iid)) {
 
 			if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 				sc->sc_flags |= UMS_FLAG_W_AXIS;
 			}
 		}
 	} else if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_Z), hid_input, &sc->sc_loc_z, &flags)) {
+	    HUG_Z), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid)) {
 
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_Z_AXIS;
@@ -490,7 +460,7 @@ ums_attach(device_t dev)
 	 * TWHEEL
 	 */
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_TWHEEL),
-	    hid_input, &sc->sc_loc_t, &flags)) {
+	    hid_input, &sc->sc_loc_t, &flags, &sc->sc_iid)) {
 
 		sc->sc_loc_t.pos += 8;
 
@@ -502,14 +472,14 @@ ums_attach(device_t dev)
 
 	for (i = 0; i < UMS_BUTTON_MAX; i++) {
 		if (!hid_locate(d_ptr, d_len, HID_USAGE2(HUP_BUTTON, (i + 1)),
-		    hid_input, &sc->sc_loc_btn[i], NULL)) {
+			hid_input, &sc->sc_loc_btn[i], NULL, &sc->sc_iid)) {
 			break;
 		}
 	}
 
 	sc->sc_buttons = i;
 
-	isize = hid_report_size(d_ptr, d_len, hid_input, &sc->sc_iid);
+	isize = hid_report_size(d_ptr, d_len, hid_input, NULL);
 
 	/*
 	 * The Microsoft Wireless Notebook Optical Mouse seems to be in worse
@@ -533,27 +503,23 @@ ums_attach(device_t dev)
 		sc->sc_loc_btn[1].pos = 9;
 		sc->sc_loc_btn[2].pos = 10;
 	}
+
 	/*
-	 * The Microsoft Wireless Notebook Optical Mouse 3000 Model 1049 has
-	 * five Report IDs: 19 23 24 17 18 (in the order they appear in report
-	 * descriptor), it seems that report id 17 contains the necessary
-	 * mouse information(3-buttons,X,Y,wheel) so we specify it manually.
+	 * Some Microsoft devices have incorrectly high location
+	 * positions. Correct this:
 	 */
-	if ((uaa->info.idVendor == USB_VENDOR_MICROSOFT) &&
-	    (uaa->info.idProduct == USB_PRODUCT_MICROSOFT_WLNOTEBOOK3)) {
-		sc->sc_flags = (UMS_FLAG_X_AXIS |
-		    UMS_FLAG_Y_AXIS |
-		    UMS_FLAG_Z_AXIS);
-		sc->sc_buttons = 3;
-		isize = 5;
-		sc->sc_iid = 17;
-		sc->sc_loc_x.pos = 8;
-		sc->sc_loc_y.pos = 16;
-		sc->sc_loc_z.pos = 24;
-		sc->sc_loc_btn[0].pos = 0;
-		sc->sc_loc_btn[1].pos = 1;
-		sc->sc_loc_btn[2].pos = 2;
+	isizebits = isize * 8;
+	if ((sc->sc_iid != 0) && (isizebits > 8)) {
+		isizebits -= 8;	/* remove size of report ID */
+		sc->sc_loc_w.pos %= isizebits;
+		sc->sc_loc_x.pos %= isizebits;
+		sc->sc_loc_y.pos %= isizebits;
+		sc->sc_loc_z.pos %= isizebits;
+		sc->sc_loc_t.pos %= isizebits;
+		for (i = 0; i != UMS_BUTTON_MAX; i++)
+			sc->sc_loc_btn[i].pos %= isizebits;
 	}
+
 	if (usb2_test_quirk(uaa, UQ_MS_REVZ)) {
 		/* Some wheels need the Z axis reversed. */
 		sc->sc_flags |= UMS_FLAG_REVZ;
@@ -668,7 +634,6 @@ ums_stop_read(struct usb2_fifo *fifo)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[UMS_INTR_CS]);
 	usb2_transfer_stop(sc->sc_xfer[UMS_INTR_DT]);
 	usb2_callout_stop(&sc->sc_callout);
 }

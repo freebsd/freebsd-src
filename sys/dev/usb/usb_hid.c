@@ -155,7 +155,7 @@ top:
 	}
 	for (;;) {
 		p = s->p;
-		if (p >= s->end)
+		if ((p >= s->end) || (p < s->start))
 			return (0);
 
 		bSize = *p++;
@@ -388,32 +388,53 @@ top:
  *	hid_report_size
  *------------------------------------------------------------------------*/
 int
-hid_report_size(const void *buf, int len, enum hid_kind k, uint8_t *idp)
+hid_report_size(const void *buf, int len, enum hid_kind k, uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
-	int hi, lo, size, id;
+	uint32_t temp;
+	uint32_t hpos;
+	uint32_t lpos;
+	uint8_t any_id;
 
-	id = 0;
-	hi = lo = -1;
-	for (d = hid_start_parse(buf, len, 1 << k); hid_get_item(d, &h);)
+	any_id = 0;
+	hpos = 0;
+	lpos = 0xFFFFFFFF;
+
+	for (d = hid_start_parse(buf, len, 1 << k); hid_get_item(d, &h);) {
 		if (h.kind == k) {
-			if (h.report_ID != 0 && !id)
-				id = h.report_ID;
-			if (h.report_ID == id) {
-				if (lo < 0)
-					lo = h.loc.pos;
-				hi = h.loc.pos + h.loc.size * h.loc.count;
+			/* check for ID-byte presense */
+			if ((h.report_ID != 0) && !any_id) {
+				if (id != NULL)
+					*id = h.report_ID;
+				any_id = 1;
 			}
+			/* compute minimum */
+			if (lpos > h.loc.pos)
+				lpos = h.loc.pos;
+			/* compute end position */
+			temp = h.loc.pos + (h.loc.size * h.loc.count);
+			/* compute maximum */
+			if (hpos < temp)
+				hpos = temp;
 		}
+	}
 	hid_end_parse(d);
-	size = hi - lo;
-	if (id != 0) {
-		size += 8;
-		*idp = id;		/* XXX wrong */
-	} else
-		*idp = 0;
-	return ((size + 7) / 8);
+
+	/* safety check - can happen in case of currupt descriptors */
+	if (lpos > hpos)
+		temp = 0;
+	else
+		temp = hpos - lpos;
+
+	/* check for ID byte */
+	if (any_id)
+		temp += 8;
+	else if (id != NULL)
+		*id = 0;
+
+	/* return length in bytes rounded up */
+	return ((temp + 7) / 8);
 }
 
 /*------------------------------------------------------------------------*
@@ -421,7 +442,7 @@ hid_report_size(const void *buf, int len, enum hid_kind k, uint8_t *idp)
  *------------------------------------------------------------------------*/
 int
 hid_locate(const void *desc, int size, uint32_t u, enum hid_kind k,
-    struct hid_location *loc, uint32_t *flags)
+    struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
@@ -432,12 +453,19 @@ hid_locate(const void *desc, int size, uint32_t u, enum hid_kind k,
 				*loc = h.loc;
 			if (flags != NULL)
 				*flags = h.flags;
+			if (id != NULL)
+				*id = h.report_ID;
 			hid_end_parse(d);
 			return (1);
 		}
 	}
+	if (loc != NULL)
+		loc->size = 0;
+	if (flags != NULL)
+		*flags = 0;
+	if (id != NULL)
+		*id = 0;
 	hid_end_parse(d);
-	loc->size = 0;
 	return (0);
 }
 
@@ -450,26 +478,35 @@ hid_get_data(const uint8_t *buf, uint32_t len, struct hid_location *loc)
 	uint32_t hpos = loc->pos;
 	uint32_t hsize = loc->size;
 	uint32_t data;
-	int i, s, t;
+	uint32_t rpos;
+	uint8_t n;
 
 	DPRINTFN(11, "hid_get_data: loc %d/%d\n", hpos, hsize);
 
+	/* Range check and limit */
 	if (hsize == 0)
 		return (0);
+	if (hsize > 32)
+		hsize = 32;
 
+	/* Get data in a safe way */	
 	data = 0;
-	s = hpos / 8;
-	for (i = hpos; i < (hpos + hsize); i += 8) {
-		t = (i / 8);
-		if (t < len) {
-			data |= buf[t] << ((t - s) * 8);
-		}
+	rpos = (hpos / 8);
+	n = (hsize + 7) / 8;
+	rpos += n;
+	while (n--) {
+		rpos--;
+		if (rpos < len)
+			data |= buf[rpos] << (8 * n);
 	}
-	data >>= hpos % 8;
-	data &= (1 << hsize) - 1;
-	hsize = 32 - hsize;
-	/* Sign extend */
-	data = ((int32_t)data << hsize) >> hsize;
+
+	/* Correctly shift down data */
+	data = (data >> (hpos % 8));
+
+	/* Mask and sign extend in one */
+	n = 32 - hsize;
+	data = ((int32_t)data << n) >> n;
+
 	DPRINTFN(11, "hid_get_data: loc %d/%d = %lu\n",
 	    loc->pos, loc->size, (long)data);
 	return (data);
