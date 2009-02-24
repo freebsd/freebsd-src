@@ -46,4 +46,5 @@ IxNpeMicrocode.dat			optional npe_fw			\
 #
 arm/xscale/ixp425/ixp425_qmgr.c		optional qmgr
 #
-dev/usb/ehci_ixp4xx.c			optional ehci
+dev/usb/controller/ehci_ixp4xx.c	optional ehci usb
+legacy/dev/usb/ehci_ixp4xx.c		optional ehci ousb
