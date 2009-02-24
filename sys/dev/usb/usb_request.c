@@ -615,17 +615,24 @@ done:
  * argument specifies the minimum descriptor length. The "max_len"
  * argument specifies the maximum descriptor length. If the real
  * descriptor length is less than the minimum length the missing
- * byte(s) will be zeroed. The length field, first byte, of the USB
- * descriptor will get overwritten in case it indicates a length that
- * is too big. Also the type field, second byte, of the USB descriptor
- * will get forced to the correct type.
+ * byte(s) will be zeroed. The type field, the second byte of the USB
+ * descriptor, will get forced to the correct type. If the "actlen"
+ * pointer is non-NULL, the actual length of the transfer will get
+ * stored in the 16-bit unsigned integer which it is pointing to. The
+ * first byte of the descriptor will not get updated. If the "actlen"
+ * pointer is NULL the first byte of the descriptor will get updated
+ * to reflect the actual length instead. If "min_len" is not equal to
+ * "max_len" then this function will try to retrive the beginning of
+ * the descriptor and base the maximum length on the first byte of the
+ * descriptor.
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 usb2_error_t
-usb2_req_get_desc(struct usb2_device *udev, struct mtx *mtx, void *desc,
+usb2_req_get_desc(struct usb2_device *udev,
+    struct mtx *mtx, uint16_t *actlen, void *desc,
     uint16_t min_len, uint16_t max_len,
     uint16_t id, uint8_t type, uint8_t index,
     uint8_t retries)
@@ -667,11 +674,11 @@ usb2_req_get_desc(struct usb2_device *udev, struct mtx *mtx, void *desc,
 
 		if (min_len == max_len) {
 
-			/* enforce correct type and length */
-
-			if (buf[0] > min_len) {
+			/* enforce correct length */
+			if ((buf[0] > min_len) && (actlen == NULL))
 				buf[0] = min_len;
-			}
+
+			/* enforce correct type */
 			buf[1] = type;
 
 			goto done;
@@ -693,6 +700,12 @@ usb2_req_get_desc(struct usb2_device *udev, struct mtx *mtx, void *desc,
 		min_len = max_len;
 	}
 done:
+	if (actlen != NULL) {
+		if (err)
+			*actlen = 0;
+		else
+			*actlen = min_len;
+	}
 	return (err);
 }
 
@@ -808,7 +821,7 @@ usb2_req_get_string_desc(struct usb2_device *udev, struct mtx *mtx, void *sdesc,
     uint16_t max_len, uint16_t lang_id,
     uint8_t string_index)
 {
-	return (usb2_req_get_desc(udev, mtx, sdesc, 2, max_len, lang_id,
+	return (usb2_req_get_desc(udev, mtx, NULL, sdesc, 2, max_len, lang_id,
 	    UDESC_STRING, string_index, 0));
 }
 
@@ -827,7 +840,7 @@ usb2_req_get_config_desc(struct usb2_device *udev, struct mtx *mtx,
 
 	DPRINTFN(4, "confidx=%d\n", conf_index);
 
-	err = usb2_req_get_desc(udev, mtx, d, sizeof(*d),
+	err = usb2_req_get_desc(udev, mtx, NULL, d, sizeof(*d),
 	    sizeof(*d), 0, UDESC_CONFIG, conf_index, 0);
 	if (err) {
 		goto done;
@@ -878,7 +891,7 @@ usb2_req_get_config_desc_full(struct usb2_device *udev, struct mtx *mtx,
 	if (cdesc == NULL) {
 		return (USB_ERR_NOMEM);
 	}
-	err = usb2_req_get_desc(udev, mtx, cdesc, len, len, 0,
+	err = usb2_req_get_desc(udev, mtx, NULL, cdesc, len, len, 0,
 	    UDESC_CONFIG, index, 3);
 	if (err) {
 		free(cdesc, mtype);
@@ -904,7 +917,7 @@ usb2_req_get_device_desc(struct usb2_device *udev, struct mtx *mtx,
     struct usb2_device_descriptor *d)
 {
 	DPRINTFN(4, "\n");
-	return (usb2_req_get_desc(udev, mtx, d, sizeof(*d),
+	return (usb2_req_get_desc(udev, mtx, NULL, d, sizeof(*d),
 	    sizeof(*d), 0, UDESC_DEVICE, 0, 3));
 }
 
@@ -1407,7 +1420,7 @@ retry:
 	usb2_pause_mtx(mtx, USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
 
 	/* get the device descriptor */
-	err = usb2_req_get_desc(udev, mtx, &udev->ddesc,
+	err = usb2_req_get_desc(udev, mtx, NULL, &udev->ddesc,
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
