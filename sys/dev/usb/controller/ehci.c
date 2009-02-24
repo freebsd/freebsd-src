@@ -3051,7 +3051,6 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 	uint16_t value;
 	uint16_t index;
 	uint8_t l;
-	uint8_t use_polling;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -3068,8 +3067,6 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
-
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
@@ -3217,23 +3214,13 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 				EOWRITE4(sc, port, v | EHCI_PS_FPR);
 			}
 			/* wait 20ms for resume sequence to complete */
-			if (use_polling) {
-				/* polling */
-				DELAY(20000);
-			} else {
-				usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
-			}
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
 
 			EOWRITE4(sc, port, v & ~(EHCI_PS_SUSP |
 			    EHCI_PS_FPR | (3 << 10) /* High Speed */ ));
 
-			/* settle time */
-			if (use_polling) {
-				/* polling */
-				DELAY(4000);
-			} else {
-				usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 250);
-			}
+			/* 4ms settle time */
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 250);
 			break;
 		case UHF_PORT_POWER:
 			EOWRITE4(sc, port, v & ~EHCI_PS_PP);
@@ -3382,27 +3369,17 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 			v &= ~(EHCI_PS_PE | EHCI_PS_PR);
 			EOWRITE4(sc, port, v | EHCI_PS_PR);
 
-			if (use_polling) {
-				/* polling */
-				DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
-			} else {
-				/* Wait for reset to complete. */
-				usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-				    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
-			}
+			/* Wait for reset to complete. */
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx,
+			    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
 
 			/* Terminate reset sequence. */
 			if (!(sc->sc_flags & EHCI_SCFLG_NORESTERM))
 				EOWRITE4(sc, port, v);
 
-			if (use_polling) {
-				/* polling */
-				DELAY(EHCI_PORT_RESET_COMPLETE * 1000);
-			} else {
-				/* Wait for HC to complete reset. */
-				usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-				    USB_MS_TO_TICKS(EHCI_PORT_RESET_COMPLETE));
-			}
+			/* Wait for HC to complete reset. */
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx,
+			    USB_MS_TO_TICKS(EHCI_PORT_RESET_COMPLETE));
 
 			v = EOREAD4(sc, port);
 			DPRINTF("ehci after reset, status=0x%08x\n", v);
@@ -3956,7 +3933,6 @@ struct usb2_bus_methods ehci_bus_methods =
 	.pipe_init = ehci_pipe_init,
 	.xfer_setup = ehci_xfer_setup,
 	.xfer_unsetup = ehci_xfer_unsetup,
-	.do_poll = ehci_do_poll,
 	.get_dma_delay = ehci_get_dma_delay,
 	.device_resume = ehci_device_resume,
 	.device_suspend = ehci_device_suspend,

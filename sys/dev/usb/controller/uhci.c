@@ -2382,7 +2382,7 @@ struct usb2_hub_descriptor_min uhci_hubd_piix =
  * events have been reset.
  */
 static usb2_error_t
-uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
+uhci_portreset(uhci_softc_t *sc, uint16_t index)
 {
 	uint16_t port;
 	uint16_t x;
@@ -2406,23 +2406,14 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
 
 		/* wait a little bit */
-		if (use_polling) {
-			DELAY(10000);
-		} else {
-			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
-		}
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 	}
 
 	x = URWMASK(UREAD2(sc, port));
 	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
 
-	if (use_polling) {
-		/* polling */
-		DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
-	} else {
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
-	}
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
+	    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
 
 	DPRINTFN(4, "uhci port %d reset, status0 = 0x%04x\n",
 	    index, UREAD2(sc, port));
@@ -2449,13 +2440,8 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 
 	for (lim = 0; lim < 12; lim++) {
 
-		if (use_polling) {
-			/* polling */
-			DELAY(USB_PORT_RESET_DELAY * 1000);
-		} else {
-			usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-			    USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
-		}
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
+		    USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
 
 		x = UREAD2(sc, port);
 
@@ -2540,7 +2526,6 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 	uint16_t index;
 	uint16_t status;
 	uint16_t change;
-	uint8_t use_polling;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -2557,8 +2542,6 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
-
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
@@ -2779,12 +2762,7 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			UWRITE2(sc, port, URWMASK(x));
 
 			/* wait 20ms for resume sequence to complete */
-			if (use_polling) {
-				/* polling */
-				DELAY(20000);
-			} else {
-				usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
-			}
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
 
 			/* clear suspend and resume detect */
 			UWRITE2(sc, port, URWMASK(x) & ~(UHCI_PORTSC_RD |
@@ -2831,7 +2809,7 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			UWRITE2(sc, port, x | UHCI_PORTSC_SUSP);
 			break;
 		case UHF_PORT_RESET:
-			std->err = uhci_portreset(sc, index, use_polling);
+			std->err = uhci_portreset(sc, index);
 			goto done;
 		case UHF_PORT_POWER:
 			/* pretend we turned on power */
@@ -3372,7 +3350,6 @@ struct usb2_bus_methods uhci_bus_methods =
 	.pipe_init = uhci_pipe_init,
 	.xfer_setup = uhci_xfer_setup,
 	.xfer_unsetup = uhci_xfer_unsetup,
-	.do_poll = uhci_do_poll,
 	.get_dma_delay = uhci_get_dma_delay,
 	.device_resume = uhci_device_resume,
 	.device_suspend = uhci_device_suspend,

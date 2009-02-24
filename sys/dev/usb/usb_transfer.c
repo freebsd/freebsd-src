@@ -2705,120 +2705,14 @@ usb2_clear_stall_callback(struct usb2_xfer *xfer1,
 	return (1);			/* Clear Stall Finished */
 }
 
-#if (USB_NO_POLL == 0)
-
-/*------------------------------------------------------------------------*
- *	usb2_callout_poll
- *------------------------------------------------------------------------*/
-static void
-usb2_callout_poll(struct usb2_xfer *xfer)
-{
-	struct usb2_callout *co;
-	void (*cb) (void *);
-	void *arg;
-	struct mtx *mtx;
-	uint32_t delta;
-
-	if (xfer == NULL) {
-		return;
-	}
-	co = &xfer->timeout_handle;
-
-#if __FreeBSD_version >= 800000
-	mtx = (void *)(co->co.c_lock);
-#else
-	mtx = co->co.c_mtx;
-#endif
-	mtx_lock(mtx);
-
-	if (usb2_callout_pending(co)) {
-		delta = ticks - co->co.c_time;
-		if (!(delta & 0x80000000)) {
-
-			cb = co->co.c_func;
-			arg = co->co.c_arg;
-
-			/* timed out */
-			usb2_callout_stop(co);
-
-			(cb) (arg);
-		}
-	}
-	mtx_unlock(mtx);
-}
-
-
-/*------------------------------------------------------------------------*
- *	usb2_do_poll
- *
- * This function is called from keyboard driver when in polling
- * mode.
- *------------------------------------------------------------------------*/
 void
 usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max)
 {
-	struct usb2_xfer *xfer;
-	struct usb2_xfer_root *xroot;
-	struct usb2_device *udev;
-	struct usb2_proc_msg *pm;
-	uint32_t to;
-	uint16_t n;
-
-	/* compute system tick delay */
-	to = ((uint32_t)(1000000)) / ((uint32_t)(hz));
-	DELAY(to);
-	atomic_add_int((volatile int *)&ticks, 1);
-
-	for (n = 0; n != max; n++) {
-		xfer = ppxfer[n];
-		if (xfer) {
-			xroot = xfer->xroot;
-			udev = xroot->udev;
-
-			/*
-			 * Poll hardware - signal that we are polling by
-			 * locking the private mutex:
-			 */
-			USB_XFER_LOCK(xfer);
-			(udev->bus->methods->do_poll) (udev->bus);
-			USB_XFER_UNLOCK(xfer);
-
-			/* poll clear stall start */
-			USB_BUS_LOCK(xfer->xroot->bus);
-			pm = &udev->cs_msg[0].hdr;
-			(pm->pm_callback) (pm);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
-
-			if (udev->default_xfer[1]) {
-
-				/* poll timeout */
-				usb2_callout_poll(udev->default_xfer[1]);
-
-				/* poll clear stall done thread */
-				USB_BUS_LOCK(xfer->xroot->bus);
-				pm = &udev->default_xfer[1]->
-				    xroot->done_m[0].hdr;
-				(pm->pm_callback) (pm);
-				USB_BUS_UNLOCK(xfer->xroot->bus);
-			}
-			/* poll timeout */
-			usb2_callout_poll(xfer);
-
-			/* poll done thread */
-			USB_BUS_LOCK(xfer->xroot->bus);
-			pm = &xroot->done_m[0].hdr;
-			(pm->pm_callback) (pm);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
-		}
+	static uint8_t once = 0;
+	/* polling is currently not supported */
+	if (!once) {
+		once = 1;
+		printf("usb2_do_poll: USB polling is "
+		    "not supported!\n");
 	}
 }
-
-#else
-
-void
-usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max)
-{
-	/* polling not supported */
-}
-
-#endif
