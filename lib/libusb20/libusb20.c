@@ -1165,6 +1165,23 @@ libusb20_be_get_perm(struct libusb20_backend *pbe, mode_t *mode)
 	return (pbe->methods->root_get_perm(pbe, mode));
 }
 
+int
+libusb20_be_set_template(struct libusb20_backend *pbe, int temp)
+{
+	return (pbe->methods->root_set_template(pbe, temp));
+}
+
+int
+libusb20_be_get_template(struct libusb20_backend *pbe, int *ptemp)
+{
+	int temp;
+
+	if (ptemp == NULL)
+		ptemp = &temp;
+
+	return (pbe->methods->root_get_template(pbe, ptemp));
+}
+
 struct libusb20_device *
 libusb20_be_device_foreach(struct libusb20_backend *pbe, struct libusb20_device *pdev)
 {

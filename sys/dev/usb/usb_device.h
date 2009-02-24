@@ -155,6 +155,10 @@ struct usb2_device {
 	char	product[64];		/* product string */
 };
 
+/* globals */
+
+extern int usb2_template;
+
 /* function prototypes */
 
 struct usb2_device *usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,

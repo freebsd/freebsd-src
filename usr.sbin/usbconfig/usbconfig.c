@@ -42,6 +42,7 @@
 struct options {
 	const char *quirkname;
 	void   *buffer;
+	int template;
 	gid_t	gid;
 	uid_t	uid;
 	mode_t	mode;
@@ -65,6 +66,8 @@ struct options {
 	uint8_t	got_set_alt:1;
 	uint8_t	got_set_owner:1;
 	uint8_t	got_set_perm:1;
+	uint8_t	got_set_template:1;
+	uint8_t	got_get_template:1;
 	uint8_t	got_suspend:1;
 	uint8_t	got_resume:1;
 	uint8_t	got_reset:1;
@@ -99,6 +102,8 @@ enum {
 	T_SET_ALT,
 	T_SET_OWNER,
 	T_SET_PERM,
+	T_SET_TEMPLATE,
+	T_GET_TEMPLATE,
 	T_ADD_DEVICE_QUIRK,
 	T_REMOVE_DEVICE_QUIRK,
 	T_SHOW_IFACE_DRIVER,
@@ -130,6 +135,8 @@ static const struct token token[] = {
 	{"set_alt", T_SET_ALT, 1},
 	{"set_owner", T_SET_OWNER, 1},
 	{"set_perm", T_SET_PERM, 1},
+	{"set_template", T_SET_TEMPLATE, 1},
+	{"get_template", T_GET_TEMPLATE, 0},
 	{"add_dev_quirk_vplh", T_ADD_DEVICE_QUIRK, 5},
 	{"remove_dev_quirk_vplh", T_REMOVE_DEVICE_QUIRK, 5},
 	{"dump_quirk_names", T_DUMP_QUIRK_NAMES, 0},
@@ -283,6 +290,8 @@ usage(void)
 	    "  set_alt <alt_index>" "\n"
 	    "  set_owner <user:group>" "\n"
 	    "  set_perm <mode>" "\n"
+	    "  set_template <template>" "\n"
+	    "  get_template" "\n"
 	    "  add_dev_quirk_vplh <vid> <pid> <lo_rev> <hi_rev> <quirk>" "\n"
 	    "  remove_dev_quirk_vplh <vid> <pid> <lo_rev> <hi_rev> <quirk>" "\n"
 	    "  dump_quirk_names" "\n"
@@ -357,6 +366,20 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		opt->got_any--;
 		be_dev_add_quirk(pbe,
 		    opt->vid, opt->pid, opt->lo_rev, opt->hi_rev, opt->quirkname);
+	}
+	if (opt->got_set_template) {
+		opt->got_any--;
+		if (libusb20_be_set_template(pbe, opt->template)) {
+			printf("Setting USB template %u failed, "
+			    "continuing.\n", opt->template);
+		}
+	}
+	if (opt->got_get_template) {
+		opt->got_any--;
+		if (libusb20_be_get_template(pbe, &opt->template))
+			printf("USB template: <unknown>\n");
+		else
+			printf("USB template: %u\n", opt->template);
 	}
 	if (opt->got_any == 0) {
 		/*
@@ -690,6 +713,16 @@ main(int argc, char **argv)
 			opt->got_set_perm = 1;
 			opt->got_any++;
 			n++;
+			break;
+		case T_SET_TEMPLATE:
+			opt->template = a_mode(argv[n + 1]);
+			opt->got_set_template = 1;
+			opt->got_any++;
+			n++;
+			break;
+		case T_GET_TEMPLATE:
+			opt->got_get_template = 1;
+			opt->got_any++;
 			break;
 		case T_DUMP_DEVICE_DESC:
 			opt->got_dump_device_desc = 1;
