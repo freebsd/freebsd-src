@@ -166,6 +166,10 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	else
 		HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar9160Addac, 2);
 
+	ecode = ath_hal_v14EepromAttach(ah);
+	if (ecode != HAL_OK)
+		goto bad;
+
 	if (!ar5416ChipReset(ah, AH_NULL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		ecode = HAL_EIO;
@@ -216,10 +220,6 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 		    __func__, ecode);
 		goto bad;
 	}
-
-	ecode = ath_hal_v14EepromAttach(ah);
-	if (ecode != HAL_OK)
-		goto bad;
 
 	/*
 	 * Got everything we need now to setup the capabilities.
