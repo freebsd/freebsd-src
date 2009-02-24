@@ -15,6 +15,20 @@
 #
 
 # 20090223: changeover of USB stacks
+OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_cdc.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_defs.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_devid.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_devtable.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_endian.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_error.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_hid.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_mfunc.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_revision.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_standard.h
+OLD_DIRS+=usr/include/dev/usb2/include
 OLD_DIRS+=usr/include/dev/usb2
 OLD_FILES+=usr/include/dev/usb/dsbr100io.h
 OLD_FILES+=usr/include/dev/usb/ehcireg.h
