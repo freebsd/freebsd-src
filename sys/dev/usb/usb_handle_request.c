@@ -277,6 +277,10 @@ tr_repeat:
 				}
 				break;
 			}
+			/* 
+			 * Doing the alternate setting will detach the
+			 * interface aswell:
+			 */
 			error = usb2_set_alt_interface_index(udev,
 			    iface_index, req.wValue[0]);
 			if (error) {
