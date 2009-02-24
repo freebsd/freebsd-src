@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Bernd Walter <ticso@freebsd.org>
+ * Copyright (c) 2004 Bernd Walter <ticso@FreeBSD.org>
  *
  * $URL: https://devel.bwct.de/svn/projects/ubser/ubser.c $
  * $Date: 2004-02-29 01:53:10 +0100 (Sun, 29 Feb 2004) $

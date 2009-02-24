@@ -3,7 +3,7 @@ __FBSDID("$FreeBSD$");
 
 /*-
  * Copyright (c) 1999 MAEKAWA Masahide <bishop@rr.iij4u.or.jp>,
- *		      Nick Hibma <n_hibma@freebsd.org>
+ *		      Nick Hibma <n_hibma@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * The SCSI related part of this driver has been derived from the
- * dev/ppbus/vpo.c driver, by Nicolas Souchu (nsouch@freebsd.org).
+ * dev/ppbus/vpo.c driver, by Nicolas Souchu (nsouch@FreeBSD.org).
  *
  * The CAM layer uses so called actions which are messages sent to the host
  * adapter for completion. The actions come in through umass_cam_action. The

@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
  * Wolfgang Grandeggar <wolfgang@cec.ch>.
  * This device smells a lot like the Belkin F5U103, except that it has
  * suffered some mild brain-damage.  This driver is based off of the ubsa.c
- * driver from Alexander Kabaev <kan@freebsd.org>.  Merging the two together
+ * driver from Alexander Kabaev <kan@FreeBSD.org>.  Merging the two together
  * might be useful, though the subtle differences might lead to lots of
  * #ifdef's.
  */
