@@ -323,6 +323,40 @@ usb2_free_pipe_data(struct usb2_device *udev,
 }
 
 /*------------------------------------------------------------------------*
+ *	usb2_pipe_foreach
+ *
+ * This function will iterate all the USB endpoints except the control
+ * endpoint. This function is NULL safe.
+ *
+ * Return values:
+ * NULL: End of USB pipes
+ * Else: Pointer to next USB pipe
+ *------------------------------------------------------------------------*/
+struct usb2_pipe *
+usb2_pipe_foreach(struct usb2_device *udev, struct usb2_pipe *pipe)
+{
+	struct usb2_pipe *pipe_end = udev->pipes + USB_EP_MAX;
+
+	/* be NULL safe */
+	if (udev == NULL)
+		return (NULL);
+
+	/* get next pipe */
+	if (pipe == NULL)
+		pipe = udev->pipes;
+	else
+		pipe++;
+
+	/* find next allocated pipe */
+	while (pipe != pipe_end) {
+		if (pipe->edesc != NULL)
+			return (pipe);
+		pipe++;
+	}
+	return (NULL);
+}
+
+/*------------------------------------------------------------------------*
  *	usb2_fill_iface_data
  *
  * This function will fill in interface data and allocate USB pipes
@@ -1430,7 +1464,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	 * 0. If this value is different from "USB_MAX_IPACKET" a new
 	 * USB control request will be setup!
 	 */
-	err = usb2_req_get_desc(udev, &Giant, &udev->ddesc,
+	err = usb2_req_get_desc(udev, &Giant, NULL, &udev->ddesc,
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "

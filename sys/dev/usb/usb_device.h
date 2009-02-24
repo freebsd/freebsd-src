@@ -183,5 +183,6 @@ void	*usb2_find_descriptor(struct usb2_device *udev, void *id,
 	    uint8_t subtype, uint8_t subtype_mask);
 void	usb_linux_free_device(struct usb_device *dev);
 uint8_t	usb2_peer_can_wakeup(struct usb2_device *udev);
+struct usb2_pipe *usb2_pipe_foreach(struct usb2_device *udev, struct usb2_pipe *pipe);
 
 #endif					/* _USB2_DEVICE_H_ */

@@ -50,8 +50,9 @@ usb2_error_t usb2_req_get_config_desc_full(struct usb2_device *udev,
 		    struct mtx *mtx, struct usb2_config_descriptor **ppcd,
 		    struct malloc_type *mtype, uint8_t conf_index);
 usb2_error_t usb2_req_get_desc(struct usb2_device *udev, struct mtx *mtx,
-		    void *desc, uint16_t min_len, uint16_t max_len, uint16_t id,
-		    uint8_t type, uint8_t index, uint8_t retries);
+		    uint16_t *actlen, void *desc, uint16_t min_len,
+		    uint16_t max_len, uint16_t id, uint8_t type,
+		    uint8_t index, uint8_t retries);
 usb2_error_t usb2_req_get_device_desc(struct usb2_device *udev, struct mtx *mtx,
 		    struct usb2_device_descriptor *d);
 usb2_error_t usb2_req_get_device_status(struct usb2_device *udev,
