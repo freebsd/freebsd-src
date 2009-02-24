@@ -573,6 +573,38 @@ vm_map_locked(vm_map_t map)
 		return (sx_xlocked(&map->lock));
 }
 
+#ifdef INVARIANTS
+static void
+_vm_map_assert_locked(vm_map_t map, const char *file, int line)
+{
+
+	if (map->system_map)
+		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
+	else
+		_sx_assert(&map->lock, SA_XLOCKED, file, line);
+}
+
+#if 0
+static void
+_vm_map_assert_locked_read(vm_map_t map, const char *file, int line)
+{
+
+	if (map->system_map)
+		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
+	else
+		_sx_assert(&map->lock, SA_SLOCKED, file, line);
+}
+#endif
+
+#define	VM_MAP_ASSERT_LOCKED(map) \
+    _vm_map_assert_locked(map, LOCK_FILE, LOCK_LINE)
+#define	VM_MAP_ASSERT_LOCKED_READ(map) \
+    _vm_map_assert_locked_read(map, LOCK_FILE, LOCK_LINE)
+#else
+#define	VM_MAP_ASSERT_LOCKED(map)
+#define	VM_MAP_ASSERT_LOCKED_READ(map)
+#endif
+
 /*
  *	vm_map_unlock_and_wait:
  */
@@ -846,6 +878,7 @@ vm_map_entry_link(vm_map_t map,
 	CTR4(KTR_VM,
 	    "vm_map_entry_link: map %p, nentries %d, entry %p, after %p", map,
 	    map->nentries, entry, after_where);
+	VM_MAP_ASSERT_LOCKED(map);
 	map->nentries++;
 	entry->prev = after_where;
 	entry->next = after_where->next;
@@ -876,6 +909,7 @@ vm_map_entry_unlink(vm_map_t map,
 {
 	vm_map_entry_t next, prev, root;
 
+	VM_MAP_ASSERT_LOCKED(map);
 	if (entry != map->root)
 		vm_map_entry_splay(entry->start, map->root);
 	if (entry->left == NULL)
@@ -1024,6 +1058,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
 	vm_eflags_t protoeflags;
+
+	VM_MAP_ASSERT_LOCKED(map);
 
 	/*
 	 * Check that the start and end points are not bogus.
@@ -1416,6 +1452,8 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 {
 	vm_map_entry_t new_entry;
 
+	VM_MAP_ASSERT_LOCKED(map);
+
 	/*
 	 * Split off the front portion -- note that we must insert the new
 	 * entry BEFORE this one, so that this entry has the specified
@@ -1473,6 +1511,8 @@ static void
 _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 {
 	vm_map_entry_t new_entry;
+
+	VM_MAP_ASSERT_LOCKED(map);
 
 	/*
 	 * If there is no object backing this entry, we might as well create
@@ -2461,6 +2501,8 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
 
+	VM_MAP_ASSERT_LOCKED(map);
+
 	/*
 	 * Find the start of the region, and clip it
 	 */
@@ -2620,6 +2662,8 @@ vm_map_copy_entry(
 	vm_map_entry_t dst_entry)
 {
 	vm_object_t src_object;
+
+	VM_MAP_ASSERT_LOCKED(dst_map);
 
 	if ((dst_entry->eflags|src_entry->eflags) & MAP_ENTRY_IS_SUB_MAP)
 		return;
