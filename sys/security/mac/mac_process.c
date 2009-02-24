@@ -249,7 +249,7 @@ static void
 mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
     struct vm_map *map)
 {
-	struct vm_map_entry *vme;
+	vm_map_entry_t vme;
 	int vfslocked, result;
 	vm_prot_t revokeperms;
 	vm_object_t backing_object, object;
