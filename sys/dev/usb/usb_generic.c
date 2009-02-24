@@ -664,7 +664,7 @@ ugen_get_cdesc(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd)
 
 	} else {
 		if (usb2_req_get_config_desc_full(udev,
-		    &Giant, &cdesc, M_USBDEV,
+		    NULL, &cdesc, M_USBDEV,
 		    ugd->ugd_config_index)) {
 			return (ENXIO);
 		}
@@ -695,7 +695,7 @@ ugen_get_sdesc(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd)
 	uint16_t size = sizeof(f->udev->bus->scratch[0].data);
 	int error;
 
-	if (usb2_req_get_string_desc(f->udev, &Giant, ptr,
+	if (usb2_req_get_string_desc(f->udev, NULL, ptr,
 	    size, ugd->ugd_lang_id, ugd->ugd_string_index)) {
 		error = EINVAL;
 	} else {
