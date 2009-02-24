@@ -2192,6 +2192,7 @@ product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
 /* SI Labs */
 product SILABS	POLOLU		0x803b	Pololu Serial
+product SILABS	SAEL		0x8053	SA-EL USB
 product SILABS	ARGUSISP	0x8066	Argussoft ISP
 product SILABS	CRUMB128	0x807a	Crumb128 board
 product SILABS	DEGREE		0x80ca	Degree Controls Inc
