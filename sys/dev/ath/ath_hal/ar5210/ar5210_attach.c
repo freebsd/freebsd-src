@@ -33,6 +33,9 @@ static	HAL_BOOL ar5210GetChannelEdges(struct ath_hal *,
 static	HAL_BOOL ar5210GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 
+static void ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5210DisablePCIE(struct ath_hal *ah);
+
 static const struct ath_hal_private ar5210hal = {{
 	.ah_magic			= AR5210_MAGIC,
 	.ah_abi				= HAL_ABI_VERSION,
@@ -44,6 +47,8 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_reset			= ar5210Reset,
 	.ah_phyDisable			= ar5210PhyDisable,
 	.ah_disable			= ar5210Disable,
+	.ah_configPCIE			= ar5210ConfigPCIE,
+	.ah_disablePCIE			= ar5210DisablePCIE,
 	.ah_setPCUConfig		= ar5210SetPCUConfig,
 	.ah_perCalibration		= ar5210PerCalibration,
 	.ah_perCalibrationN		= ar5210PerCalibrationN,
@@ -316,6 +321,16 @@ ar5210GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 	chan->ic_maxpower = AR5210_MAX_RATE_POWER;
 	chan->ic_minpower = 0;
 	return AH_TRUE;
+}
+
+static void
+ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+{
+}
+
+static void
+ar5210DisablePCIE(struct ath_hal *ah)
+{
 }
 
 /*

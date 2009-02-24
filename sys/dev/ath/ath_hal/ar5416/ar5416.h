@@ -57,6 +57,7 @@ struct ath_hal_5416 {
 	HAL_INI_ARRAY	ah_ini_bank6;
 	HAL_INI_ARRAY	ah_ini_bank7;
 	HAL_INI_ARRAY	ah_ini_addac;
+	HAL_INI_ARRAY	ah_ini_pcieserdes;
 
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
 	u_int		ah_gpioMask;
@@ -89,6 +90,7 @@ extern	void ar5416InitState(struct ath_hal_5416 *, uint16_t devid,
 		HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
 		HAL_STATUS *status);
 extern	void ar5416Detach(struct ath_hal *ah);
+extern	void ar5416AttachPCIE(struct ath_hal *ah);
 extern	HAL_BOOL ar5416FillCapabilityInfo(struct ath_hal *ah);
 
 #define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
