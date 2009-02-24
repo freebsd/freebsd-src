@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.246 2008/07/02 02:24:18 djm Exp $
-.Dd $Mdocdate: July 2 2008 $
+.\" $OpenBSD: sshd.8,v 1.247 2008/10/03 13:08:12 jmc Exp $
+.Dd $Mdocdate: October 3 2008 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -741,8 +741,6 @@ will not allow it to be used unless the
 .Cm StrictModes
 option has been set to
 .Dq no .
-The recommended permissions can be set by executing
-.Dq chmod go-w ~/ ~/.ssh ~/.ssh/authorized_keys .
 .Pp
 .It ~/.ssh/environment
 This file is read into the environment at login (if it exists).

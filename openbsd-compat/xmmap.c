@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $Id: xmmap.c,v 1.14 2007/06/11 02:52:24 djm Exp $ */
+/* $Id: xmmap.c,v 1.15 2009/02/16 04:21:40 djm Exp $ */
 
 #include "includes.h"
 
@@ -71,7 +71,8 @@ xmmap(size_t size)
 			fatal("mkstemp(\"%s\"): %s",
 			    MM_SWAP_TEMPLATE, strerror(errno));
 		unlink(tmpname);
-		ftruncate(tmpfd, size);
+		if (ftruncate(tmpfd, size) != 0)
+			fatal("%s: ftruncate: %s", __func__, strerror(errno));
 		address = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_SHARED,
 		    tmpfd, (off_t)0);
 		close(tmpfd);

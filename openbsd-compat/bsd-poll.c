@@ -1,4 +1,4 @@
-/* $Id: bsd-poll.c,v 1.3 2008/04/04 05:16:36 djm Exp $ */
+/* $Id: bsd-poll.c,v 1.4 2008/08/29 21:32:38 dtucker Exp $ */
 
 /*
  * Copyright (c) 2004, 2005, 2007 Darren Tucker (dtucker at zip com au).
@@ -46,11 +46,12 @@ poll(struct pollfd *fds, nfds_t nfds, int timeout)
 	struct timeval tv, *tvp = NULL;
 
 	for (i = 0; i < nfds; i++) {
+		fd = fds[i].fd;
 		if (fd >= FD_SETSIZE) {
 			errno = EINVAL;
 			return -1;
 		}
-		maxfd = MAX(maxfd, fds[i].fd);
+		maxfd = MAX(maxfd, fd);
 	}
 
 	nmemb = howmany(maxfd + 1 , NFDBITS);

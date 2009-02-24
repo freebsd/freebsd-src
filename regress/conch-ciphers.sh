@@ -7,7 +7,8 @@ DATA=/bin/ls
 COPY=${OBJ}/copy
 
 if test "x$REGRESS_INTEROP_CONCH" != "xyes" ; then
-	fatal "conch interop tests not enabled"
+	echo "conch interop tests not enabled"
+	exit 0
 fi
 
 start_sshd

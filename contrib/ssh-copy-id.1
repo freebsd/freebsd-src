@@ -18,7 +18,7 @@ the original English.
 ..
 .TH SSH-COPY-ID 1 "14 November 1999" "OpenSSH"
 .SH NAME
-ssh-copy-id \- install your identity.pub in a remote machine's authorized_keys
+ssh-copy-id \- install your public key in a remote machine's authorized_keys
 .SH SYNOPSIS
 .B ssh-copy-id [-i [identity_file]]
 .I "[user@]machine"
@@ -42,7 +42,7 @@ set in its configuration).
 If the
 .B -i
 option is given then the identity file (defaults to
-.BR ~/.ssh/identity.pub )
+.BR ~/.ssh/id_rsa.pub )
 is used, regardless of whether there are any keys in your
 .BR ssh-agent .
 Otherwise, if this:

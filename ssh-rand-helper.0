@@ -48,4 +48,4 @@ AUTHORS
 SEE ALSO
      ssh(1), ssh-add(1), ssh-keygen(1), sshd(8)
 
-OpenBSD 4.4                     April 14, 2002                               1
+OpenBSD 4.5                     April 14, 2002                               1

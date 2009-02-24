@@ -1,6 +1,6 @@
 #%PAM-1.0
 auth       required     /lib/security/pam_pwdb.so shadow nodelay
-auth       required     /lib/security/pam_nologin.so
+account    required     /lib/security/pam_nologin.so
 account    required     /lib/security/pam_pwdb.so
 password   required     /lib/security/pam_cracklib.so
 password   required     /lib/security/pam_pwdb.so shadow nullok use_authtok

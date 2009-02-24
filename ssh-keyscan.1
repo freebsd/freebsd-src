@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.24 2008/04/30 10:14:03 djm Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.26 2008/12/29 01:12:36 stevesk Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -6,7 +6,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd $Mdocdate: April 30 2008 $
+.Dd $Mdocdate: December 29 2008 $
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -21,7 +21,7 @@
 .Op Fl T Ar timeout
 .Op Fl t Ar type
 .Op Ar host | addrlist namelist
-.Op Ar ...
+.Ar ...
 .Ek
 .Sh DESCRIPTION
 .Nm
@@ -137,7 +137,7 @@ or
 .Pa /etc/ssh/ssh_known_hosts
 .Sh EXAMPLES
 Print the
-.Pa rsa1
+.Pa rsa
 host key for machine
 .Pa hostname :
 .Bd -literal

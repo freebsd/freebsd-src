@@ -1,4 +1,4 @@
-/* $OpenBSD: dispatch.c,v 1.21 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: dispatch.c,v 1.22 2008/10/31 15:05:34 stevesk Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -37,7 +37,6 @@
 #include "packet.h"
 #include "compat.h"
 
-#define DISPATCH_MIN	0
 #define DISPATCH_MAX	255
 
 dispatch_fn *dispatch[DISPATCH_MAX];

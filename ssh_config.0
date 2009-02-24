@@ -41,7 +41,7 @@ DESCRIPTION
      Host    Restricts the following declarations (up to the next Host key-
              word) to be only for those hosts that match one of the patterns
              given after the keyword.  If more than one pattern is provided,
-             they should be separated by whitepsace.  A single `*' as a pat-
+             they should be separated by whitespace.  A single `*' as a pat-
              tern can be used to provide global defaults for all hosts.  The
              host is the hostname argument given on the command line (i.e. the
              name is not converted to a canonicalized host name before match-
@@ -93,9 +93,9 @@ DESCRIPTION
              ``arcfour128'', ``arcfour256'', ``arcfour'', ``blowfish-cbc'',
              and ``cast128-cbc''.  The default is:
 
-                aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
-                arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
-                aes192-ctr,aes256-ctr
+                aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
+                aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
+                aes256-cbc,arcfour
 
      ClearAllForwardings
              Specifies that all local, remote, and dynamic port forwardings
@@ -463,8 +463,11 @@ DESCRIPTION
              specified by enclosing addresses in square brackets or by using
              an alternative syntax: [bind_address/]port and host/hostport.
              Multiple forwardings may be specified, and additional forwardings
-             can be given on the command line.  Only the superuser can forward
-             privileged ports.
+             can be given on the command line.  Privileged ports can be for-
+             warded only when logging in as root on the remote machine.
+
+             If the port argument is `0', the listen port will be dynamically
+             allocated on the server and reported to the client at run time.
 
              If the bind_address is not specified, the default is to only bind
              to loopback addresses.  If the bind_address is `*' or an empty
@@ -609,9 +612,11 @@ DESCRIPTION
 
      VisualHostKey
              If this flag is set to ``yes'', an ASCII art representation of
-             the remote host key fingerprint is printed additionally to the
-             hex fingerprint string.  If this flag is set to ``no'', only the
-             hex fingerprint string will be printed.  The default is ``no''.
+             the remote host key fingerprint is printed in addition to the hex
+             fingerprint string at login and for unknown host keys.  If this
+             flag is set to ``no'', no fingerprint strings are printed at lo-
+             gin and only the hex fingerprint string will be printed for un-
+             known host keys.  The default is ``no''.
 
      XAuthLocation
              Specifies the full pathname of the xauth(1) program.  The default
@@ -662,4 +667,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.4                      June 26, 2008                              11
+OpenBSD 4.5                    February 22, 2009                            11
