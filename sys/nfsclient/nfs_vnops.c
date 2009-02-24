@@ -208,6 +208,11 @@ static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
+static int	nfs_prime_access_cache = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, prime_access_cache, CTLFLAG_RW,
+	   &nfs_prime_access_cache, 0,
+	   "Prime NFS ACCESS cache when fetching attributes");
+
 static int	nfsv3_commit_on_close = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW,
 	   &nfsv3_commit_on_close, 0, "write+commit on close, else only write");
@@ -644,6 +649,12 @@ nfs_getattr(struct vop_getattr_args *ap)
 	 */
 	if (nfs_getattrcache(vp, &vattr) == 0)
 		goto nfsmout;
+	if (v3 && nfs_prime_access_cache && nfsaccess_cache_timeout > 0) {
+		nfsstats.accesscache_misses++;
+		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred);
+		if (nfs_getattrcache(vp, &vattr) == 0)
+			goto nfsmout;
+	}
 	nfsstats.rpccnt[NFSPROC_GETATTR]++;
 	mreq = nfsm_reqhead(vp, NFSPROC_GETATTR, NFSX_FH(v3));
 	mb = mreq;
