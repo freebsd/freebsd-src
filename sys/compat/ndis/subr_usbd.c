@@ -1140,10 +1140,8 @@ USBD_GetUSBDIVersion(ui)
 }
 
 static usb_interface_descriptor_t *
-USBD_ParseConfigurationDescriptor(conf, intfnum, altset)
-        usb_config_descriptor_t *conf;
-	uint8_t intfnum;
-	uint8_t altset;
+USBD_ParseConfigurationDescriptor(usb_config_descriptor_t *conf,
+	uint8_t intfnum, uint8_t altset)
 {
         return USBD_ParseConfigurationDescriptorEx(conf, conf, intfnum, altset,
 	    -1, -1, -1);

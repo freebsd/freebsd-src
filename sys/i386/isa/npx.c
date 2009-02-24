@@ -460,8 +460,7 @@ npx_attach(dev)
  * Initialize floating point unit.
  */
 void
-npxinit(control)
-	u_short control;
+npxinit(u_short control)
 {
 	static union savefpu dummy;
 	register_t savecrit;

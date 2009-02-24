@@ -5628,10 +5628,7 @@ sctp_print_mbuf_chain(struct mbuf *m)
 #endif
 
 void
-sctp_input_with_port(i_pak, off, port)
-	struct mbuf *i_pak;
-	int off;
-	uint16_t port;
+sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 {
 #ifdef SCTP_MBUF_LOGGING
 	struct mbuf *mat;
