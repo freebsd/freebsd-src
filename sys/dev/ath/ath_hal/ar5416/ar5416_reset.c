@@ -763,19 +763,19 @@ ar5416SetDeltaSlope(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 #define INIT_CLOCKMHZSCALED	0x64000000
 	uint32_t coef_scaled, ds_coef_exp, ds_coef_man;
-	uint32_t clockMhzScaled = INIT_CLOCKMHZSCALED;
+	uint32_t clockMhzScaled;
 
 	CHAN_CENTERS centers;
 
-	if (IEEE80211_IS_CHAN_TURBO(chan))
-		clockMhzScaled *= 2;
 	/* half and quarter rate can divide the scaled clock by 2 or 4 respectively */
 	/* scale for selected channel bandwidth */ 
-	if (IEEE80211_IS_CHAN_HALF(chan)) {
-		clockMhzScaled = clockMhzScaled >> 1;
-	} else if (IEEE80211_IS_CHAN_QUARTER(chan)) {
-		clockMhzScaled = clockMhzScaled >> 2;
-	} 
+	clockMhzScaled = INIT_CLOCKMHZSCALED;
+	if (IEEE80211_IS_CHAN_TURBO(chan))
+		clockMhzScaled <<= 1;
+	else if (IEEE80211_IS_CHAN_HALF(chan))
+		clockMhzScaled >>= 1;
+	else if (IEEE80211_IS_CHAN_QUARTER(chan))
+		clockMhzScaled >>= 2;
 
 	/*
 	 * ALGO -> coef = 1e8/fcarrier*fclock/40;
@@ -846,6 +846,7 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
      * Need to verify range +/- 9.5 for static ht20, otherwise spur
      * is out-of-band and can be ignored.
      */
+    /* XXX ath9k changes */
     for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {
         cur_bb_spur = ath_hal_getSpurChan(ah, i, is2GHz);
         if (AR_NO_SPUR == cur_bb_spur)
@@ -1110,7 +1111,7 @@ ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
             break;
         cur_bb_spur = cur_bb_spur - freq;
 
-        if (IS_CHAN_HT40(ichan)) {
+        if (IEEE80211_IS_CHAN_HT40(chan)) {
             if ((cur_bb_spur > -AR_SPUR_FEEQ_BOUND_HT40) && 
                 (cur_bb_spur < AR_SPUR_FEEQ_BOUND_HT40)) {
                 bb_spur = cur_bb_spur;
@@ -1187,7 +1188,7 @@ ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
      * in 11A mode the denominator of spur_freq_sd should be 40 and
      * it should be 44 in 11G
      */
-    denominator = IEEE80211_IS_CHAN_2GHZ(ichan) ? 44 : 40;
+    denominator = IEEE80211_IS_CHAN_2GHZ(chan) ? 44 : 40;
     spur_freq_sd = ((bb_spur_off * 2048) / denominator) & 0x3ff;
 
     newVal = (AR_PHY_TIMING11_USE_SPUR_IN_AGC |
