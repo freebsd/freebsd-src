@@ -70,6 +70,8 @@ typedef int (libusb20_root_get_perm_t)(struct libusb20_backend *pbe, mode_t *mod
 typedef int (libusb20_root_set_owner_t)(struct libusb20_backend *pbe, uid_t user, gid_t group);
 typedef int (libusb20_root_set_perm_t)(struct libusb20_backend *pbe, mode_t mode);
 typedef void (libusb20_exit_backend_t)(struct libusb20_backend *pbe);
+typedef int (libusb20_root_set_template_t)(struct libusb20_backend *pbe, int temp);
+typedef int (libusb20_root_get_template_t)(struct libusb20_backend *pbe, int *ptemp);
 
 #define	LIBUSB20_DEFINE(n,field) \
   libusb20_##field##_t *field;
@@ -105,6 +107,8 @@ typedef void (libusb20_exit_backend_t)(struct libusb20_backend *pbe);
   m(n, root_get_owner) \
   m(n, root_set_perm) \
   m(n, root_get_perm) \
+  m(n, root_set_template) \
+  m(n, root_get_template) \
   /* mandatory device methods */ \
   m(n, open_device) \
   m(n, close_device) \

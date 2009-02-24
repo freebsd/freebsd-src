@@ -1377,6 +1377,15 @@ usb2_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	case USB_DEV_QUIRK_REMOVE:
 		err = usb2_quirk_ioctl_p(cmd, data, fflag, td);
 		break;
+	case USB_GET_TEMPLATE:
+		*(int *)data = usb2_template;
+		break;
+	case USB_SET_TEMPLATE:
+		err = priv_check(curthread, PRIV_ROOT);
+		if (err)
+			break;
+		usb2_template = *(int *)data;
+		break;
 	default:
 		err = ENOTTY;
 		break;
