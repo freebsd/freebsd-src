@@ -1,8 +1,8 @@
 /*-
- * Copyright (c) 2000 Nick Hibma <n_hibma@freebsd.org>
+ * Copyright (c) 2000 Nick Hibma <n_hibma@FreeBSD.org>
  * All rights reserved.
  *
- * Copyright (c) 2005 Ed Schouten <ed@fxq.nl>
+ * Copyright (c) 2005 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
