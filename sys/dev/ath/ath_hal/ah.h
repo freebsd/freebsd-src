@@ -624,6 +624,8 @@ struct ath_hal {
 				HAL_BOOL bChannelChange, HAL_STATUS *status);
 	HAL_BOOL  __ahdecl(*ah_phyDisable)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_disable)(struct ath_hal *);
+	void	  __ahdecl(*ah_configPCIE)(struct ath_hal *, HAL_BOOL restore);
+	void	  __ahdecl(*ah_disablePCIE)(struct ath_hal *);
 	void	  __ahdecl(*ah_setPCUConfig)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*,
 			struct ieee80211_channel *, HAL_BOOL *);

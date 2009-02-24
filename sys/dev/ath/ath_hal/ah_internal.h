@@ -269,6 +269,7 @@ struct ath_hal_private {
 	uint16_t	ah_phyRev;		/* PHY revision */
 	uint16_t	ah_analog5GhzRev;	/* 2GHz radio revision */
 	uint16_t	ah_analog2GhzRev;	/* 5GHz radio revision */
+	uint8_t		ah_ispcie;		/* PCIE, special treatment */
 
 	HAL_OPMODE	ah_opmode;		/* operating mode from reset */
 	const struct ieee80211_channel *ah_curchan;/* operating channel */
@@ -327,6 +328,10 @@ struct ath_hal_private {
 	AH_PRIVATE(_ah)->ah_getNfAdjust(_ah, _c)
 #define	ath_hal_getNoiseFloor(_ah, _nfArray) \
 	AH_PRIVATE(_ah)->ah_getNoiseFloor(_ah, _nfArray)
+#define	ath_hal_configPCIE(_ah, _reset) \
+	(_ah)->ah_configPCIE(_ah, _reset)
+#define	ath_hal_disablePCIE(_ah) \
+	(_ah)->ah_disablePCIE(_ah)
 
 #define	ath_hal_eepromDetach(_ah) \
 	AH_PRIVATE(_ah)->ah_eepromDetach(_ah)
