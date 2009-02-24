@@ -1342,6 +1342,7 @@ usb2_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 
 	u.data = data;
 
+	err = 0;
 	switch (cmd) {
 	case USB_READ_DIR:
 		err = usb2_read_symlink(u.urd->urd_data,
