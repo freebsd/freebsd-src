@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
 
+#if __FreeBSD_version >= 700000
 /*
  * Should the driver do LRO on the RX end
  *  this can be toggled on the fly, but the
@@ -96,6 +97,12 @@ __FBSDID("$FreeBSD$");
  */
 static int xn_enable_lro = 1;
 TUNABLE_INT("hw.xn.enable_lro", &xn_enable_lro);
+#else
+
+#define IFCAP_TSO4	0
+#define CSUM_TSO	0
+
+#endif
 
 #ifdef CONFIG_XEN
 static int MODPARM_rx_copy = 0;
@@ -416,10 +423,12 @@ netfront_attach(device_t dev)
 		return err;
 	}
 
+#if __FreeBSD_version >= 700000
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "enable_lro", CTLTYPE_INT|CTLFLAG_RW,
 	    &xn_enable_lro, 0, "Large Receive Offload");
+#endif
 
 	return 0;
 }
