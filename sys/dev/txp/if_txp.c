@@ -1376,11 +1376,8 @@ oactive:
  * Handle simple commands sent to the typhoon
  */
 static int
-txp_command(sc, id, in1, in2, in3, out1, out2, out3, wait)
-	struct txp_softc *sc;
-	u_int16_t id, in1, *out1;
-	u_int32_t in2, in3, *out2, *out3;
-	int wait;
+txp_command(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
+    u_int32_t in3, u_int16_t *out1, u_int32_t *out2, u_int32_t *out3, int wait)
 {
 	struct txp_rsp_desc *rsp = NULL;
 
@@ -1401,14 +1398,9 @@ txp_command(sc, id, in1, in2, in3, out1, out2, out3, wait)
 }
 
 static int
-txp_command2(sc, id, in1, in2, in3, in_extp, in_extn, rspp, wait)
-	struct txp_softc *sc;
-	u_int16_t id, in1;
-	u_int32_t in2, in3;
-	struct txp_ext_desc *in_extp;
-	u_int8_t in_extn;
-	struct txp_rsp_desc **rspp;
-	int wait;
+txp_command2(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
+    u_int32_t in3, struct txp_ext_desc *in_extp, u_int8_t in_extn,
+    struct txp_rsp_desc **rspp, int wait)
 {
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_cmd_desc *cmd;
@@ -1474,12 +1466,8 @@ txp_command2(sc, id, in1, in2, in3, in_extp, in_extn, rspp, wait)
 }
 
 static int
-txp_response(sc, ridx, id, seq, rspp)
-	struct txp_softc *sc;
-	u_int32_t ridx;
-	u_int16_t id;
-	u_int16_t seq;
-	struct txp_rsp_desc **rspp;
+txp_response(struct txp_softc *sc, u_int32_t ridx, u_int16_t id, u_int16_t seq,
+    struct txp_rsp_desc **rspp)
 {
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_rsp_desc *rsp;

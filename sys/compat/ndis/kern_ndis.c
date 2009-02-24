@@ -258,10 +258,8 @@ ndis_getdone_func(adapter, status)
 }
 
 static void
-ndis_resetdone_func(adapter, status, addressingreset)
-	ndis_handle		adapter;
-	ndis_status		status;
-	uint8_t			addressingreset;
+ndis_resetdone_func(ndis_handle adapter, ndis_status status,
+	uint8_t addressingreset)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
