@@ -969,7 +969,8 @@ xn_rxeof(struct netfront_info *np)
 			XN_RX_UNLOCK(np);
 #if __FreeBSD_version >= 700000
 			/* Use LRO if possible */
-			if (lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
+			if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
+			    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
 				/*
 				 * If LRO fails, pass up to the stack
 				 * directly.
@@ -1614,13 +1615,37 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
+		if (mask & IFCAP_TXCSUM) {
+			if (IFCAP_TXCSUM & ifp->if_capenable) {
+				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
+				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
+				    | CSUM_IP | CSUM_TSO);
+			} else {
+				ifp->if_capenable |= IFCAP_TXCSUM;
+				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP
+				    | CSUM_IP);
+			}
+		}
+		if (mask & IFCAP_RXCSUM) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 		}
 #if __FreeBSD_version >= 700000
 		if (mask & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			/* XXX inform backend? */
+			if (IFCAP_TSO4 & ifp->if_capenable) {
+				ifp->if_capenable &= ~IFCAP_TSO4;
+				ifp->if_hwassist &= ~CSUM_TSO;
+			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
+				ifp->if_capenable |= IFCAP_TSO4;
+				ifp->if_hwassist |= CSUM_TSO;
+			} else {
+				DPRINTK("Xen requires tx checksum offload"
+				    " be enabled to use TSO\n");
+				error = EINVAL;
+			}
+		}
+		if (mask & IFCAP_LRO) {
+			ifp->if_capenable ^= IFCAP_LRO;
+			
 		}
 #endif
 		error = 0;
