@@ -4,7 +4,7 @@
 __FBSDID("$FreeBSD$");
 
 /*-
- * Copyright (c) 2003, M. Warner Losh <imp@freebsd.org>.
+ * Copyright (c) 2003, M. Warner Losh <imp@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
