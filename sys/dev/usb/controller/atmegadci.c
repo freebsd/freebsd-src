@@ -204,25 +204,18 @@ static void
 atmegadci_wakeup_peer(struct usb2_xfer *xfer)
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
-	uint8_t use_polling;
 	uint8_t temp;
 
 	if (!sc->sc_flags.status_suspend) {
 		return;
 	}
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	temp = ATMEGA_READ_1(sc, ATMEGA_UDCON);
 	ATMEGA_WRITE_1(sc, ATMEGA_UDCON, temp | ATMEGA_UDCON_RMWKUP);
 
 	/* wait 8 milliseconds */
-	if (use_polling) {
-		/* polling */
-		DELAY(8000);
-	} else {
-		/* Wait for reset to complete. */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
-	}
+	/* Wait for reset to complete. */
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 
 	/* hardware should have cleared RMWKUP bit */
 }
@@ -1695,7 +1688,6 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	uint16_t value;
 	uint16_t index;
-	uint8_t use_polling;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -1712,8 +1704,6 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
-
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
@@ -2319,7 +2309,6 @@ struct usb2_bus_methods atmegadci_bus_methods =
 	.pipe_init = &atmegadci_pipe_init,
 	.xfer_setup = &atmegadci_xfer_setup,
 	.xfer_unsetup = &atmegadci_xfer_unsetup,
-	.do_poll = &atmegadci_do_poll,
 	.get_hw_ep_profile = &atmegadci_get_hw_ep_profile,
 	.set_stall = &atmegadci_set_stall,
 	.clear_stall = &atmegadci_clear_stall,

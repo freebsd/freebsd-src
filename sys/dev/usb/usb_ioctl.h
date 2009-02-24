@@ -48,7 +48,6 @@ struct usb2_read_dir {
 struct usb2_ctl_request {
 	void   *ucr_data;
 	uint16_t ucr_flags;
-#define	USB_USE_POLLING         0x0001	/* internal flag */
 #define	USB_SHORT_XFER_OK       0x0004	/* allow short reads */
 #define	USB_DELAY_STATUS_STAGE  0x0010	/* insert delay before STATUS stage */
 #define	USB_USER_DATA_PTR	0x0020	/* internal flag */
