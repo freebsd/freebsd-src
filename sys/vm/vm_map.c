@@ -143,7 +143,7 @@ static void vmspace_zfini(void *mem, int size);
 static int vm_map_zinit(void *mem, int ize, int flags);
 static void vm_map_zfini(void *mem, int size);
 static void _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max);
-
+static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
 #ifdef INVARIANTS
 static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
@@ -456,11 +456,28 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 void
 _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
+	vm_map_entry_t free_entry, entry;
+	vm_object_t object;
+
+	free_entry = map->deferred_freelist;
+	map->deferred_freelist = NULL;
 
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
 	else
 		_sx_xunlock(&map->lock, file, line);
+
+	while (free_entry != NULL) {
+		entry = free_entry;
+		free_entry = free_entry->next;
+
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
+			object = entry->object.vm_object;
+			vm_object_deallocate(object);
+		}
+
+		vm_map_entry_dispose(map, entry);
+	}
 }
 
 void
@@ -682,6 +699,7 @@ _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
+	map->deferred_freelist = NULL;
 }
 
 void
@@ -1297,19 +1315,16 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t start, vm_size_t length, vm_prot_t prot,
     vm_prot_t max, int cow)
 {
-	vm_map_entry_t freelist;
 	vm_offset_t end;
 	int result;
 
 	end = start + length;
-	freelist = NULL;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
-	(void) vm_map_delete(map, start, end, &freelist);
+	(void) vm_map_delete(map, start, end);
 	result = vm_map_insert(map, object, offset, start, end, prot,
 	    max, cow);
 	vm_map_unlock(map);
-	vm_map_entry_free_freelist(map, freelist);
 	return (result);
 }
 
@@ -2435,23 +2450,6 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 	entry->wired_count = 0;
 }
 
-void
-vm_map_entry_free_freelist(vm_map_t map, vm_map_entry_t freelist)
-{
-	vm_map_entry_t e;
-	vm_object_t object;
-
-	while (freelist != NULL) {
-		e = freelist;
-		freelist = freelist->next;
-		if ((e->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
-			object = e->object.vm_object;
-			vm_object_deallocate(object);
-		}
-		vm_map_entry_dispose(map, e);
-	}
-}
-
 /*
  *	vm_map_entry_delete:	[ internal use only ]
  *
@@ -2495,8 +2493,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
  *	map.
  */
 int
-vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    vm_map_entry_t *freelist)
+vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 {
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
@@ -2575,8 +2572,8 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * will be set in the wrong object!)
 		 */
 		vm_map_entry_delete(map, entry);
-		entry->next = *freelist;
-		*freelist = entry;
+		entry->next = map->deferred_freelist;
+		map->deferred_freelist = entry;
 		entry = next;
 	}
 	return (KERN_SUCCESS);
@@ -2591,15 +2588,12 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end,
 int
 vm_map_remove(vm_map_t map, vm_offset_t start, vm_offset_t end)
 {
-	vm_map_entry_t freelist;
 	int result;
 
-	freelist = NULL;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
-	result = vm_map_delete(map, start, end, &freelist);
+	result = vm_map_delete(map, start, end);
 	vm_map_unlock(map);
-	vm_map_entry_free_freelist(map, freelist);
 	return (result);
 }
 

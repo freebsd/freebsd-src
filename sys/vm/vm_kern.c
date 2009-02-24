@@ -272,7 +272,7 @@ kmem_malloc(map, size, flags)
 	int flags;
 {
 	vm_offset_t offset, i;
-	vm_map_entry_t entry, freelist;
+	vm_map_entry_t entry;
 	vm_offset_t addr;
 	vm_page_t m;
 	int pflags;
@@ -356,10 +356,8 @@ retry:
 				vm_page_unlock_queues();
 			}
 			VM_OBJECT_UNLOCK(kmem_object);
-			freelist = NULL;
-			vm_map_delete(map, addr, addr + size, &freelist);
+			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
-			vm_map_entry_free_freelist(map, freelist);
 			return (0);
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
@@ -458,18 +456,14 @@ kmem_free_wakeup(map, addr, size)
 	vm_offset_t addr;
 	vm_size_t size;
 {
-	vm_map_entry_t freelist;
 
-	freelist = NULL;
 	vm_map_lock(map);
-	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size),
-	     &freelist);
+	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
 	if (map->needs_wakeup) {
 		map->needs_wakeup = FALSE;
 		vm_map_wakeup(map);
 	}
 	vm_map_unlock(map);
-	vm_map_entry_free_freelist(map, freelist);
 }
 
 /*
