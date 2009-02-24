@@ -59,6 +59,7 @@ struct ath_hal_5416 {
 	HAL_INI_ARRAY	ah_ini_addac;
 
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
+	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
 	uint8_t		ah_keytype[AR5416_KEYTABLE_SIZE];
 	/*
