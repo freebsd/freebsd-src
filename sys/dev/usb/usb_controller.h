@@ -57,7 +57,6 @@ struct usb2_bus_methods {
 	/* USB Device and Host mode - Mandatory */
 
 	void    (*pipe_init) (struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc, struct usb2_pipe *pipe);
-	void    (*do_poll) (struct usb2_bus *);
 	void    (*xfer_setup) (struct usb2_setup_params *parm);
 	void    (*xfer_unsetup) (struct usb2_xfer *xfer);
 	void    (*get_dma_delay) (struct usb2_bus *, uint32_t *pdelay);

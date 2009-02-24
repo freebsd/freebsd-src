@@ -2156,7 +2156,6 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 	uint16_t value;
 	uint16_t index;
 	uint8_t l;
-	uint8_t use_polling;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -2173,8 +2172,6 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
-
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
@@ -2410,13 +2407,8 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 			OWRITE4(sc, port, UPS_RESET);
 			for (v = 0;; v++) {
 				if (v < 12) {
-					if (use_polling) {
-						/* polling */
-						DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
-					} else {
-						usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-						    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
-					}
+					usb2_pause_mtx(&sc->sc_bus.bus_mtx,
+					    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
 
 					if ((OREAD4(sc, port) & UPS_RESET) == 0) {
 						break;
@@ -2853,7 +2845,6 @@ struct usb2_bus_methods ohci_bus_methods =
 	.pipe_init = ohci_pipe_init,
 	.xfer_setup = ohci_xfer_setup,
 	.xfer_unsetup = ohci_xfer_unsetup,
-	.do_poll = ohci_do_poll,
 	.get_dma_delay = ohci_get_dma_delay,
 	.device_resume = ohci_device_resume,
 	.device_suspend = ohci_device_suspend,

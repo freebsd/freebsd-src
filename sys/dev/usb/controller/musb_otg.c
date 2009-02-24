@@ -206,25 +206,18 @@ musbotg_wakeup_peer(struct usb2_xfer *xfer)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint8_t temp;
-	uint8_t use_polling;
 
 	if (!(sc->sc_flags.status_suspend)) {
 		return;
 	}
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
 	temp |= MUSB2_MASK_RESUME;
 	MUSB2_WRITE_1(sc, MUSB2_REG_POWER, temp);
 
 	/* wait 8 milliseconds */
-	if (use_polling) {
-		/* polling */
-		DELAY(8000);
-	} else {
-		/* Wait for reset to complete. */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
-	}
+	/* Wait for reset to complete. */
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 
 	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
 	temp &= ~MUSB2_MASK_RESUME;
@@ -2232,7 +2225,6 @@ musbotg_root_ctrl_done(struct usb2_xfer *xfer,
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint16_t value;
 	uint16_t index;
-	uint8_t use_polling;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -2249,8 +2241,6 @@ musbotg_root_ctrl_done(struct usb2_xfer *xfer,
 
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
-
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
@@ -2867,7 +2857,6 @@ struct usb2_bus_methods musbotg_bus_methods =
 	.pipe_init = &musbotg_pipe_init,
 	.xfer_setup = &musbotg_xfer_setup,
 	.xfer_unsetup = &musbotg_xfer_unsetup,
-	.do_poll = &musbotg_do_poll,
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,

@@ -1844,7 +1844,6 @@ uss820dci_root_ctrl_done(struct usb2_xfer *xfer,
 	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
 	uint16_t value;
 	uint16_t index;
-	uint8_t use_polling;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -1861,8 +1860,6 @@ uss820dci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
-
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
@@ -2481,7 +2478,6 @@ struct usb2_bus_methods uss820dci_bus_methods =
 	.pipe_init = &uss820dci_pipe_init,
 	.xfer_setup = &uss820dci_xfer_setup,
 	.xfer_unsetup = &uss820dci_xfer_unsetup,
-	.do_poll = &uss820dci_do_poll,
 	.get_hw_ep_profile = &uss820dci_get_hw_ep_profile,
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,

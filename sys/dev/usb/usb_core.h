@@ -34,10 +34,6 @@
 
 /* Default USB configuration */
 
-#ifndef USB_NO_POLL
-#define	USB_NO_POLL 0
-#endif
-
 #ifndef USB_USE_CONDVAR
 #define	USB_USE_CONDVAR 0
 #endif
