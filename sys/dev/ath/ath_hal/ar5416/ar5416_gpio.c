@@ -85,7 +85,7 @@ ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 
 	reg = OS_REG_READ(ah, AR_GPIO_OE_OUT);
 	reg &= ~(AR_GPIO_OE_OUT_DRV << gpio_shift);
-	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift,
+	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift;
 	OS_REG_WRITE(ah, AR_GPIO_OE_OUT, reg);
 
 	return AH_TRUE;
@@ -107,7 +107,7 @@ ar5416GpioCfgInput(struct ath_hal *ah, uint32_t gpio)
 
 	reg = OS_REG_READ(ah, AR_GPIO_OE_OUT);
 	reg &= ~(AR_GPIO_OE_OUT_DRV << gpio_shift);
-	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift,
+	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift;
 	OS_REG_WRITE(ah, AR_GPIO_OE_OUT, reg);
 
 	return AH_TRUE;
