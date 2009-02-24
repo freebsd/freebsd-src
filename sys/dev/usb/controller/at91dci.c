@@ -260,23 +260,16 @@ static void
 at91dci_wakeup_peer(struct usb2_xfer *xfer)
 {
 	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
-	uint8_t use_polling;
 
 	if (!(sc->sc_flags.status_suspend)) {
 		return;
 	}
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, AT91_UDP_GSTATE_ESR);
 
 	/* wait 8 milliseconds */
-	if (use_polling) {
-		/* polling */
-		DELAY(8000);
-	} else {
-		/* Wait for reset to complete. */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
-	}
+	/* Wait for reset to complete. */
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, 0);
 }
@@ -1826,7 +1819,6 @@ at91dci_root_ctrl_done(struct usb2_xfer *xfer,
 	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	uint16_t value;
 	uint16_t index;
-	uint8_t use_polling;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -1843,8 +1835,6 @@ at91dci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
-
-	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
@@ -2459,7 +2449,6 @@ struct usb2_bus_methods at91dci_bus_methods =
 	.pipe_init = &at91dci_pipe_init,
 	.xfer_setup = &at91dci_xfer_setup,
 	.xfer_unsetup = &at91dci_xfer_unsetup,
-	.do_poll = &at91dci_do_poll,
 	.get_hw_ep_profile = &at91dci_get_hw_ep_profile,
 	.set_stall = &at91dci_set_stall,
 	.clear_stall = &at91dci_clear_stall,

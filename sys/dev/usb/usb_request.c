@@ -201,10 +201,6 @@ tr_setup:
  *  o USB_SHORT_XFER_OK: allows the data transfer to be shorter than
  *  specified
  *
- *  o USB_USE_POLLING: forces the transfer to complete from the
- *  current context by polling the interrupt handler. This flag can be
- *  used to perform USB transfers after that the kernel has crashed.
- *
  *  o USB_DELAY_STATUS_STAGE: allows the status stage to be performed
  *  at a later point in time. This is tunable by the "hw.usb.ss_delay"
  *  sysctl. This flag is mostly useful for debugging.
@@ -385,12 +381,8 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 		usb2_transfer_start(xfer);
 
 		while (usb2_transfer_pending(xfer)) {
-			if ((flags & USB_USE_POLLING) || cold) {
-				usb2_do_poll(udev->default_xfer, USB_DEFAULT_XFER_MAX);
-			} else {
-				usb2_cv_wait(udev->default_cv,
-				    xfer->xroot->xfer_mtx);
-			}
+			usb2_cv_wait(udev->default_cv,
+			    xfer->xroot->xfer_mtx);
 		}
 
 		err = xfer->error;
