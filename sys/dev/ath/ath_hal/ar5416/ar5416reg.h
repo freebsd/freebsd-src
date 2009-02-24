@@ -31,7 +31,6 @@
 #define	AR_GTTM			0x0068	/* global transmit timeout mode */
 #define	AR_CST			0x006C	/* carrier sense timeout */
 #define	AR_MAC_LED		0x1f04	/* LED control */
-#define	AR5416_PCIE_PM_CTRL	0x4014
 #define	AR_AHB_MODE		0x4024	/* AHB mode for dma */
 #define	AR_INTR_SYNC_CAUSE_CLR	0x4028	/* clear interrupt */
 #define	AR_INTR_SYNC_CAUSE	0x4028	/* check pending interrupts */
@@ -42,8 +41,15 @@
 #define	AR_INTR_ASYNC_ENABLE	0x403c	/* enable interrupts */
 #define	AR5416_PCIE_SERDES	0x4040
 #define	AR5416_PCIE_SERDES2	0x4044
-#define	AR_GPIO_IN		0x4048	/* GPIO input register */
-#define	AR_GPIO_INTR_OUT	0x404c	/* GPIO output register */
+#define	AR_GPIO_IN_OUT		0x4048	/* GPIO input/output register */
+#define	AR_GPIO_OE_OUT		0x404c	/* GPIO output enable register */
+#define	AR_GPIO_INTR_POL	0x4050	/* GPIO interrupt polarity */
+#define	AR_GPIO_INPUT_EN_VAL	0x4054	/* GPIO input enable and value */
+#define	AR_GPIO_INPUT_MUX1	0x4058
+#define	AR_GPIO_INPUT_MUX2	0x405c
+#define	AR_GPIO_OUTPUT_MUX1	0x4060
+#define	AR_GPIO_OUTPUT_MUX2	0x4064
+#define	AR_GPIO_OUTPUT_MUX3	0x4068
 #define	AR_EEPROM_STATUS_DATA	0x407c
 #define	AR_OBS			0x4080
 #define	AR_RTC_RC		0x7000	/* reset control */
@@ -258,6 +264,21 @@
 	 AR_INTR_SYNC_RADM_CPL_TIMEOUT | AR_INTR_SYNC_LOCAL_TIMEOUT | \
 	 AR_INTR_SYNC_MAC_SLEEP_ACCESS)
 
+#define	AR_INTR_SYNC_MASK_GPIO		0xFFFC0000
+#define	AR_INTR_SYNC_MASK_GPIO_S	18
+
+#define	AR_INTR_SYNC_ENABLE_GPIO	0xFFFC0000
+#define	AR_INTR_SYNC_ENABLE_GPIO_S	18
+
+#define	AR_INTR_ASYNC_MASK_GPIO		0xFFFC0000	/* async int mask */
+#define	AR_INTR_ASYNC_MASK_GPIO_S	18
+
+#define	AR_INTR_ASYNC_CAUSE_GPIO	0xFFFC0000	/* GPIO interrupts */
+#define	AR_INTR_ASYNC_USED	(AR_INTR_MAC_IRQ | AR_INTR_ASYNC_CAUSE_GPIO)
+
+#define	AR_INTR_ASYNC_ENABLE_GPIO	0xFFFC0000	/* enable interrupts */
+#define	AR_INTR_ASYNC_ENABLE_GPIO_S	18
+
 /* RTC registers */
 #define	AR_RTC_RC_M		0x00000003
 #define	AR_RTC_RC_MAC_WARM	0x00000001
@@ -417,6 +438,22 @@
 #define	AR_GPIO_OUT_VAL_S	10
 #define	AR_GPIO_INTR_CTRL	0x3FF00000
 #define	AR_GPIO_INTR_CTRL_S	20
+
+#define	AR_GPIO_IN_VAL		0x0FFFC000	/* pre-9280 */
+#define	AR_GPIO_IN_VAL_S	14
+#define	AR928X_GPIO_IN_VAL	0x000FFC00
+#define	AR928X_GPIO_IN_VAL_S	10
+#define	AR9285_GPIO_IN_VAL	0x00FFF000
+#define	AR9285_GPIO_IN_VAL_S	12
+
+#define	AR_GPIO_OE_OUT_DRV	0x3	/* 2 bit mask shifted by 2*bitpos */
+#define	AR_GPIO_OE_OUT_DRV_NO	0x0	/* tristate */
+#define	AR_GPIO_OE_OUT_DRV_LOW	0x1	/* drive if low */
+#define	AR_GPIO_OE_OUT_DRV_HI	0x2	/* drive if high */
+#define	AR_GPIO_OE_OUT_DRV_ALL	0x3	/* drive always */
+
+#define	AR_GPIO_INTR_POL_VAL	0x1FFF
+#define	AR_GPIO_INTR_POL_VAL_S	0
 
 #define	AR_2040_JOINED_RX_CLEAR	0x00000001	/* use ctl + ext rx_clear for cca */
 

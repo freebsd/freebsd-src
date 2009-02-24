@@ -117,7 +117,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #define	FAIL(_code)	do { ecode = _code; goto bad; } while (0)
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	HAL_CHANNEL_INTERNAL *ichan;
-	uint32_t softLedCfg;
 	uint32_t saveDefAntenna, saveLedState;
 	uint32_t macStaId1;
 	uint16_t rfXpdGain[2];
@@ -181,7 +180,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	saveLedState = OS_REG_READ(ah, AR_MAC_LED) &
 		(AR_MAC_LED_ASSOC | AR_MAC_LED_MODE |
 		 AR_MAC_LED_BLINK_THRESH_SEL | AR_MAC_LED_BLINK_SLOW);
-	softLedCfg = OS_REG_READ(ah, AR_GPIO_INTR_OUT);	
 
 	/*
 	 * Adjust gain parameters before reset if
@@ -342,8 +340,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* Restore previous led state */
 	OS_REG_WRITE(ah, AR_MAC_LED, OS_REG_READ(ah, AR_MAC_LED) | saveLedState);
-	/* Restore soft Led state to GPIO */
-	OS_REG_WRITE(ah, AR_GPIO_INTR_OUT, softLedCfg);
 
 	/* Restore previous antenna */
 	OS_REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
