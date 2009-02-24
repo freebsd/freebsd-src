@@ -31,6 +31,8 @@
 #define	AR_GTTM			0x0068	/* global transmit timeout mode */
 #define	AR_CST			0x006C	/* carrier sense timeout */
 #define	AR_MAC_LED		0x1f04	/* LED control */
+#define	AR_WA			0x4004	/* PCIE work-arounds */
+#define	AR_PCIE_PM_CTRL		0x4014
 #define	AR_AHB_MODE		0x4024	/* AHB mode for dma */
 #define	AR_INTR_SYNC_CAUSE_CLR	0x4028	/* clear interrupt */
 #define	AR_INTR_SYNC_CAUSE	0x4028	/* check pending interrupts */
@@ -184,6 +186,17 @@
 #define	AR_MAC_LED_ASSOC_ACTIVE	0x00000400 /* STA is associated */
 #define	AR_MAC_LED_ASSOC_PEND	0x00000800 /* STA is trying to associate */
 #define	AR_MAC_LED_ASSOC_S	10
+
+#define	AR_WA_UNTIE_RESET_EN	0x00008000	/* ena PCI reset to POR */
+#define	AR_WA_RESET_EN		0x00040000	/* ena AR_WA_UNTIE_RESET_EN */
+#define	AR_WA_ANALOG_SHIFT	0x00100000
+#define	AR_WA_POR_SHORT		0x00200000	/* PCIE phy reset control */
+
+#define	AR_WA_DEFAULT		0x0000073f
+#define	AR9280_WA_DEFAULT	0x0040073f
+#define	AR9285_WA_DEFAULT	0x004a05cb
+
+#define	AR_PCIE_PM_CTRL_ENA	0x00080000
 
 #define	AR_AHB_EXACT_WR_EN	0x00000000	/* write exact bytes */
 #define	AR_AHB_BUF_WR_EN	0x00000001	/* buffer write upto cacheline*/
