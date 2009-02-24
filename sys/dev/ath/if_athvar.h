@@ -700,8 +700,8 @@ void	ath_intr(void *);
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
 
-#define ath_hal_gpioCfgOutput(_ah, _gpio) \
-        ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio)))
+#define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
+        ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))
 #define ath_hal_gpioset(_ah, _gpio, _b) \
         ((*(_ah)->ah_gpioSet)((_ah), (_gpio), (_b)))
 #define ath_hal_gpioget(_ah, _gpio) \

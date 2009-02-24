@@ -450,7 +450,8 @@ extern	HAL_BOOL ar5212SetRegulatoryDomain(struct ath_hal *ah,
 		uint16_t regDomain, HAL_STATUS *stats);
 extern	u_int ar5212GetWirelessModes(struct ath_hal *ah);
 extern	void ar5212EnableRfKill(struct ath_hal *);
-extern	HAL_BOOL ar5212GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5212GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	HAL_BOOL ar5212GpioCfgInput(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5212GpioSet(struct ath_hal *, uint32_t gpio, uint32_t val);
 extern	uint32_t ar5212GpioGet(struct ath_hal *ah, uint32_t gpio);
