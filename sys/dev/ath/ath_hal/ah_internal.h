@@ -311,8 +311,8 @@ struct ath_hal_private {
 	AH_PRIVATE(_ah)->ah_eepromRead(_ah, _off, _data)
 #define	ath_hal_eepromWrite(_ah, _off, _data) \
 	AH_PRIVATE(_ah)->ah_eepromWrite(_ah, _off, _data)
-#define	ath_hal_gpioCfgOutput(_ah, _gpio) \
-	(_ah)->ah_gpioCfgOutput(_ah, _gpio)
+#define	ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
+	(_ah)->ah_gpioCfgOutput(_ah, _gpio, _type)
 #define	ath_hal_gpioCfgInput(_ah, _gpio) \
 	(_ah)->ah_gpioCfgInput(_ah, _gpio)
 #define	ath_hal_gpioGet(_ah, _gpio) \

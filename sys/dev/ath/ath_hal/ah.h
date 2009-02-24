@@ -359,6 +359,22 @@ typedef enum {
 } HAL_INT;
 
 typedef enum {
+	HAL_GPIO_MUX_OUTPUT		= 0,
+	HAL_GPIO_MUX_PCIE_ATTENTION_LED	= 1,
+	HAL_GPIO_MUX_PCIE_POWER_LED	= 2,
+	HAL_GPIO_MUX_TX_FRAME		= 3,
+	HAL_GPIO_MUX_RX_CLEAR_EXTERNAL	= 4,
+	HAL_GPIO_MUX_MAC_NETWORK_LED	= 5,
+	HAL_GPIO_MUX_MAC_POWER_LED	= 6
+} HAL_GPIO_MUX_TYPE;
+
+typedef enum {
+	HAL_GPIO_INTR_LOW		= 0,
+	HAL_GPIO_INTR_HIGH		= 1,
+	HAL_GPIO_INTR_DISABLE		= 2
+} HAL_GPIO_INTR_TYPE;
+
+typedef enum {
 	HAL_RFGAIN_INACTIVE		= 0,
 	HAL_RFGAIN_READ_REQUESTED	= 1,
 	HAL_RFGAIN_NEED_CHANGE		= 2
@@ -700,7 +716,8 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setLedState)(struct ath_hal*, HAL_LED_STATE);
 	void	  __ahdecl(*ah_writeAssocid)(struct ath_hal*,
 				const uint8_t *bssid, uint16_t assocId);
-	HAL_BOOL  __ahdecl(*ah_gpioCfgOutput)(struct ath_hal *, uint32_t gpio);
+	HAL_BOOL  __ahdecl(*ah_gpioCfgOutput)(struct ath_hal *,
+				uint32_t gpio, HAL_GPIO_MUX_TYPE);
 	HAL_BOOL  __ahdecl(*ah_gpioCfgInput)(struct ath_hal *, uint32_t gpio);
 	uint32_t __ahdecl(*ah_gpioGet)(struct ath_hal *, uint32_t gpio);
 	HAL_BOOL  __ahdecl(*ah_gpioSet)(struct ath_hal *,
