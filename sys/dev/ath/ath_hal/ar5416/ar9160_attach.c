@@ -148,7 +148,7 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	AH_PRIVATE(ah)->ah_macVersion =
 	    (val & AR_XSREV_VERSION) >> AR_XSREV_TYPE_S;
 	AH_PRIVATE(ah)->ah_macRev = MS(val, AR_XSREV_REVISION);
-	/* XXX extract pcie info */
+	AH_PRIVATE(ah)->ah_ispcie = (val & AR_XSREV_TYPE_HOST_MODE) == 0;
 
 	/* setup common ini data; rf backends handle remainder */
 	HAL_INI_INIT(&ahp->ah_ini_modes, ar9160Modes, 6);
@@ -169,6 +169,9 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	ecode = ath_hal_v14EepromAttach(ah);
 	if (ecode != HAL_OK)
 		goto bad;
+
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_pcieserdes, ar9160PciePhy, 2);
+	ar5416AttachPCIE(ah);
 
 	if (!ar5416ChipReset(ah, AH_NULL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);

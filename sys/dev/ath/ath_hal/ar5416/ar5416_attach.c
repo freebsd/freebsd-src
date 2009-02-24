@@ -28,6 +28,8 @@
 
 #include "ar5416/ar5416.ini"
 
+static void ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+
 static void
 ar5416AniSetup(struct ath_hal *ah)
 {
@@ -76,6 +78,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_reset			= ar5416Reset;
 	ah->ah_phyDisable		= ar5416PhyDisable;
 	ah->ah_disable			= ar5416Disable;
+	ah->ah_configPCIE		= ar5416ConfigPCIE;
 	ah->ah_perCalibration		= ar5416PerCalibration;
 	ah->ah_perCalibrationN		= ar5416PerCalibrationN,
 	ah->ah_resetCalValid		= ar5416ResetCalValid,
@@ -219,6 +222,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	val = OS_REG_READ(ah, AR_SREV) & AR_SREV_ID;
 	AH_PRIVATE(ah)->ah_macVersion = val >> AR_SREV_ID_S;
 	AH_PRIVATE(ah)->ah_macRev = val & AR_SREV_REVISION;
+	AH_PRIVATE(ah)->ah_ispcie = (devid == AR5416_DEVID_PCIE);
 
 	/* setup common ini data; rf backends handle remainder */
 	HAL_INI_INIT(&ahp->ah_ini_modes, ar5416Modes, 6);
@@ -243,6 +247,9 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 		AH5416(ah)->ah_ini_addac.data = (uint32_t *) &AH5416(ah)[1];
 		HAL_INI_VAL((struct ini *)&AH5416(ah)->ah_ini_addac, 31, 1) = 0;
 	}
+
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_pcieserdes, ar5416PciePhy, 2);
+	ar5416AttachPCIE(ah);
 
 	ecode = ath_hal_v14EepromAttach(ah);
 	if (ecode != HAL_OK)
@@ -366,6 +373,26 @@ ar5416Detach(struct ath_hal *ah)
 	ar5416SetPowerMode(ah, HAL_PM_FULL_SLEEP, AH_TRUE);
 	ath_hal_eepromDetach(ah);
 	ath_hal_free(ah);
+}
+
+void
+ar5416AttachPCIE(struct ath_hal *ah)
+{
+	if (AH_PRIVATE(ah)->ah_ispcie)
+		ath_hal_configPCIE(ah, AH_FALSE);
+	else
+		ath_hal_disablePCIE(ah);
+}
+
+static void
+ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+{
+	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
+		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
+		OS_DELAY(1000);
+		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+		OS_REG_WRITE(ah, AR_WA, AR_WA_DEFAULT);
+	}
 }
 
 /*
