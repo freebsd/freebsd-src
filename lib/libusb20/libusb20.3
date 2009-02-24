@@ -698,6 +698,30 @@ returned.
 .
 .Sh USB BACKEND OPERATIONS
 .
+.Fn libusb20_be_get_template pbackend ptemp
+This function will return the currently selected global USB device
+side mode template into the integer pointer
+.Fa ptemp .
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_set_template pbackend temp
+This function will set the global USB device side mode template to
+.Fa temp .
+The new template is not activated until after the next USB
+enumeration.
+The template number decides how the USB device will present itself to
+the USB Host, like Mass Storage Device, USB Ethernet Device. Also see
+the
+.Xr usb2_template 4
+module.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
 .Fn libusb20_be_get_dev_quirk pbackend index pquirk
 This function will return the device quirk according to
 .Fa index

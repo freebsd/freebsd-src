@@ -267,6 +267,8 @@ struct usb2_gen_quirk {
 #define	USB_SET_PORT_DISABLE	_IOW ('U', 144, int)
 #define	USB_SET_POWER_MODE	_IOW ('U', 145, int)
 #define	USB_GET_POWER_MODE	_IOR ('U', 146, int)
+#define	USB_SET_TEMPLATE	_IOW ('U', 147, int)
+#define	USB_GET_TEMPLATE	_IOR ('U', 148, int)
 
 /* Modem device */
 #define	USB_GET_CM_OVER_DATA	_IOR ('U', 180, int)

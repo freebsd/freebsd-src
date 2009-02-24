@@ -72,6 +72,8 @@ static libusb20_root_set_owner_t ugen20_root_set_owner;
 static libusb20_root_get_owner_t ugen20_root_get_owner;
 static libusb20_root_set_perm_t ugen20_root_set_perm;
 static libusb20_root_get_perm_t ugen20_root_get_perm;
+static libusb20_root_set_template_t ugen20_root_set_template;
+static libusb20_root_get_template_t ugen20_root_get_template;
 
 const struct libusb20_backend_methods libusb20_ugen20_backend = {
 	LIBUSB20_BACKEND(LIBUSB20_DECLARE, ugen20)
@@ -1178,4 +1180,16 @@ ugen20_root_get_perm(struct libusb20_backend *pbe, mode_t *mode)
 {
 	return (ugen20_be_do_perm(USB_GET_ROOT_PERM, 0, 0, 0, 0,
 	    NULL, NULL, mode));
+}
+
+static int
+ugen20_root_set_template(struct libusb20_backend *pbe, int temp)
+{
+	return (ugen20_be_ioctl(USB_SET_TEMPLATE, &temp));
+}
+
+static int
+ugen20_root_get_template(struct libusb20_backend *pbe, int *ptemp)
+{
+	return (ugen20_be_ioctl(USB_GET_TEMPLATE, ptemp));
 }
