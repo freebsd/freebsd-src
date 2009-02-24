@@ -2527,10 +2527,10 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		pmap_remove(map->pmap, entry->start, entry->end);
 
 		/*
-		 * Delete the entry (which may delete the object) only after
-		 * removing all pmap entries pointing to its pages.
-		 * (Otherwise, its page frames may be reallocated, and any
-		 * modify bits will be set in the wrong object!)
+		 * Delete the entry only after removing all pmap
+		 * entries pointing to its pages.  (Otherwise, its
+		 * page frames may be reallocated, and any modify bits
+		 * will be set in the wrong object!)
 		 */
 		vm_map_entry_delete(map, entry);
 		entry->next = *freelist;
