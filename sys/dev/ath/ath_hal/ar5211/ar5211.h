@@ -233,7 +233,8 @@ extern	u_int ar5211GetWirelessModes(struct ath_hal *);
 extern	void ar5211EnableRfKill(struct ath_hal *);
 extern	uint32_t ar5211GpioGet(struct ath_hal *, uint32_t gpio);
 extern	void ar5211GpioSetIntr(struct ath_hal *, u_int, uint32_t ilevel);
-extern	HAL_BOOL ar5211GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5211GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	HAL_BOOL ar5211GpioCfgInput(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5211GpioSet(struct ath_hal *, uint32_t gpio, uint32_t val);
 extern	void ar5211SetLedState(struct ath_hal *, HAL_LED_STATE);

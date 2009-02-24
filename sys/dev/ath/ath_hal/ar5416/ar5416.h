@@ -120,7 +120,8 @@ extern	HAL_BOOL ar5416IsInterruptPending(struct ath_hal *ah);
 extern	HAL_BOOL ar5416GetPendingInterrupts(struct ath_hal *, HAL_INT *masked);
 extern	HAL_INT ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints);
 
-extern	HAL_BOOL ar5416GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5416GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	HAL_BOOL ar5416GpioCfgInput(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5416GpioSet(struct ath_hal *, uint32_t gpio, uint32_t val);
 extern	uint32_t ar5416GpioGet(struct ath_hal *ah, uint32_t gpio);

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_gpio.c,v 1.3 2008/11/10 04:08:04 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -36,7 +36,7 @@
  * Configure GPIO Output lines
  */
 HAL_BOOL
-ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio)
+ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 {
 	HALASSERT(gpio < AR_NUM_GPIO);
 	OS_REG_CLR_BIT(ah, AR_GPIO_INTR_OUT, AR_GPIO_BIT(gpio));
