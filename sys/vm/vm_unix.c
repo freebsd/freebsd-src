@@ -72,7 +72,6 @@ obreak(td, uap)
 	struct obreak_args *uap;
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
-	vm_map_entry_t freelist;
 	vm_offset_t new, old, base;
 	rlim_t datalim, vmemlim;
 	int rv;
@@ -86,7 +85,6 @@ obreak(td, uap)
 
 	do_map_wirefuture = FALSE;
 	new = round_page((vm_offset_t)uap->nsize);
-	freelist = NULL;
 	vm_map_lock(&vm->vm_map);
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
@@ -140,7 +138,7 @@ obreak(td, uap)
 			do_map_wirefuture = TRUE;
 		}
 	} else if (new < old) {
-		rv = vm_map_delete(&vm->vm_map, new, old, &freelist);
+		rv = vm_map_delete(&vm->vm_map, new, old);
 		if (rv != KERN_SUCCESS) {
 			error = ENOMEM;
 			goto done;
@@ -149,7 +147,6 @@ obreak(td, uap)
 	}
 done:
 	vm_map_unlock(&vm->vm_map);
-	vm_map_entry_free_freelist(&vm->vm_map, freelist);
 
 	if (do_map_wirefuture)
 		(void) vm_map_wire(&vm->vm_map, old, new,
