@@ -7,8 +7,8 @@ SYNOPSIS
      sftp [-1Cv] [-B buffer_size] [-b batchfile] [-F ssh_config]
           [-o ssh_option] [-P sftp_server_path] [-R num_requests] [-S program]
           [-s subsystem | sftp_server] host
-     sftp [[user@]host[:file [file]]]
-     sftp [[user@]host[:dir[/]]]
+     sftp [user@]host[:file ...]
+     sftp [user@]host[:dir[/]]
      sftp -b batchfile [user@]host
 
 DESCRIPTION
@@ -257,7 +257,7 @@ INTERACTIVE COMMANDS
      version
              Display the sftp protocol version.
 
-     ! command
+     !command
              Execute command in local shell.
 
      !       Escape to local shell.
@@ -271,4 +271,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 4.4                      July 15, 2008                               5
+OpenBSD 4.5                    December 9, 2008                              5

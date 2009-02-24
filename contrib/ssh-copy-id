@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# Shell script to install your identity.pub on a remote machine
+# Shell script to install your public key on a remote machine
 # Takes the remote machine name as an argument.
 # Obviously, the remote machine must accept password authentication,
 # or one of the other keys in your ssh-agent, for this to work.
 
-ID_FILE="${HOME}/.ssh/identity.pub"
+ID_FILE="${HOME}/.ssh/id_rsa.pub"
 
 if [ "-i" = "$1" ]; then
   shift

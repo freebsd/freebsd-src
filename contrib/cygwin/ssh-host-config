@@ -25,7 +25,7 @@ source ${CSIH_SCRIPT}
 port_number=22
 privsep_configured=no
 privsep_used=yes
-cygwin_value="ntsec"
+cygwin_value=""
 password_value=
 
 # ======================================================================
@@ -37,13 +37,13 @@ create_host_keys() {
     csih_inform "Generating ${SYSCONFDIR}/ssh_host_key"
     ssh-keygen -t rsa1 -f ${SYSCONFDIR}/ssh_host_key -N '' > /dev/null
   fi
-  
+
   if [ ! -f "${SYSCONFDIR}/ssh_host_rsa_key" ]
   then
     csih_inform "Generating ${SYSCONFDIR}/ssh_host_rsa_key"
     ssh-keygen -t rsa -f ${SYSCONFDIR}/ssh_host_rsa_key -N '' > /dev/null
   fi
-  
+
   if [ ! -f "${SYSCONFDIR}/ssh_host_dsa_key" ]
   then
     csih_inform "Generating ${SYSCONFDIR}/ssh_host_dsa_key"
@@ -75,12 +75,12 @@ update_services_file() {
     _spaces="                  # "
   fi
   _serv_tmp="${_my_etcdir}/srv.out.$$"
-  
-  mount -t -f "${_win_etcdir}" "${_my_etcdir}"
-  
+
+  mount -o text -f "${_win_etcdir}" "${_my_etcdir}"
+
   # Depends on the above mount
   _wservices=`cygpath -w "${_services}"`
-  
+
   # Remove sshd 22/port from services
   if [ `grep -q 'sshd[ \t][ \t]*22' "${_services}"; echo $?` -eq 0 ]
   then
@@ -89,16 +89,16 @@ update_services_file() {
     then
       if mv "${_serv_tmp}" "${_services}"
       then
-        csih_inform "Removing sshd from ${_wservices}"
+	csih_inform "Removing sshd from ${_wservices}"
       else
-        csih_warning "Removing sshd from ${_wservices} failed!"
+	csih_warning "Removing sshd from ${_wservices} failed!"
       fi
       rm -f "${_serv_tmp}"
     else
       csih_warning "Removing sshd from ${_wservices} failed!"
     fi
   fi
-  
+
   # Add ssh 22/tcp  and ssh 22/udp to services
   if [ `grep -q 'ssh[ \t][ \t]*22' "${_services}"; echo $?` -ne 0 ]
   then
@@ -106,9 +106,9 @@ update_services_file() {
     then
       if mv "${_serv_tmp}" "${_services}"
       then
-        csih_inform "Added ssh to ${_wservices}"
+	csih_inform "Added ssh to ${_wservices}"
       else
-        csih_warning "Adding ssh to ${_wservices} failed!"
+	csih_warning "Adding ssh to ${_wservices} failed!"
       fi
       rm -f "${_serv_tmp}"
     else
@@ -134,16 +134,16 @@ sshd_privsep() {
       csih_inform "For more info on privilege separation read /usr/share/doc/openssh/README.privsep."
       if csih_request "Should privilege separation be used?"
       then
-        privsep_used=yes
-        if ! csih_create_unprivileged_user sshd
-        then
+	privsep_used=yes
+	if ! csih_create_unprivileged_user sshd
+	then
   	  csih_warning "Couldn't create user 'sshd'!"
-          csih_warning "Privilege separation set to 'no' again!"
-          csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
+	  csih_warning "Privilege separation set to 'no' again!"
+	  csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
   	  privsep_used=no
-        fi
+	fi
       else
-        privsep_used=no
+	privsep_used=no
       fi
     else
       # On 9x don't use privilege separation.  Since security isn't
@@ -151,7 +151,7 @@ sshd_privsep() {
       privsep_used=no
     fi
   fi
-  
+
   # Create default sshd_config from skeleton files in /etc/defaults/etc or
   # modify to add the missing privsep configuration option
   if cmp "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults/${SYSCONFDIR}/sshd_config" >/dev/null 2>&1
@@ -161,8 +161,8 @@ sshd_privsep() {
     sed -e "s/^#UsePrivilegeSeparation yes/UsePrivilegeSeparation ${privsep_used}/
   	  s/^#Port 22/Port ${port_number}/
   	  s/^#StrictModes yes/StrictModes no/" \
-        < ${SYSCONFDIR}/sshd_config \
-        > "${sshdconfig_tmp}"
+	< ${SYSCONFDIR}/sshd_config \
+	> "${sshdconfig_tmp}"
     mv "${sshdconfig_tmp}" ${SYSCONFDIR}/sshd_config
   elif [ "${privsep_configured}" != "yes" ]
   then
@@ -193,19 +193,19 @@ update_inetd_conf() {
       # will be replaced by a file in inetd.d/
       if [ `grep -q '^[# \t]*ssh' "${_inetcnf}"; echo $?` -eq 0 ]
       then
-        grep -v '^[# \t]*ssh' "${_inetcnf}" >> "${_inetcnf_tmp}"
-        if [ -f "${_inetcnf_tmp}" ]
-        then
-          if mv "${_inetcnf_tmp}" "${_inetcnf}"
-          then
+	grep -v '^[# \t]*ssh' "${_inetcnf}" >> "${_inetcnf_tmp}"
+	if [ -f "${_inetcnf_tmp}" ]
+	then
+	  if mv "${_inetcnf_tmp}" "${_inetcnf}"
+	  then
   	    csih_inform "Removed ssh[d] from ${_inetcnf}"
-          else
+	  else
   	    csih_warning "Removing ssh[d] from ${_inetcnf} failed!"
-          fi
-          rm -f "${_inetcnf_tmp}"
-        else
-          csih_warning "Removing ssh[d] from ${_inetcnf} failed!"
-        fi
+	  fi
+	  rm -f "${_inetcnf_tmp}"
+	else
+	  csih_warning "Removing ssh[d] from ${_inetcnf} failed!"
+	fi
       fi
     fi
 
@@ -214,13 +214,13 @@ update_inetd_conf() {
     then
       if [ "${_with_comment}" -eq 0 ]
       then
-        sed -e 's/@COMMENT@[ \t]*//' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
+	sed -e 's/@COMMENT@[ \t]*//' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
       else
-        sed -e 's/@COMMENT@[ \t]*/# /' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
+	sed -e 's/@COMMENT@[ \t]*/# /' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
       fi
       mv "${_sshd_inetd_conf_tmp}" "${_sshd_inetd_conf}"
       csih_inform "Updated ${_sshd_inetd_conf}"
-    fi 
+    fi
 
   elif [ -f "${_inetcnf}" ]
   then
@@ -233,26 +233,26 @@ update_inetd_conf() {
       grep -v '^[# \t]*sshd' "${_inetcnf}" >> "${_inetcnf_tmp}"
       if [ -f "${_inetcnf_tmp}" ]
       then
-        if mv "${_inetcnf_tmp}" "${_inetcnf}"
-        then
+	if mv "${_inetcnf_tmp}" "${_inetcnf}"
+	then
 	    csih_inform "Removed sshd from ${_inetcnf}"
-        else
+	else
 	    csih_warning "Removing sshd from ${_inetcnf} failed!"
-        fi
-        rm -f "${_inetcnf_tmp}"
+	fi
+	rm -f "${_inetcnf_tmp}"
       else
-        csih_warning "Removing sshd from ${_inetcnf} failed!"
+	csih_warning "Removing sshd from ${_inetcnf} failed!"
       fi
     fi
-  
+
     # Add ssh line to inetd.conf
     if [ `grep -q '^[# \t]*ssh' "${_inetcnf}"; echo $?` -ne 0 ]
     then
       if [ "${_with_comment}" -eq 0 ]
       then
-        echo 'ssh  stream  tcp     nowait  root    /usr/sbin/sshd sshd -i' >> "${_inetcnf}"
+	echo 'ssh  stream  tcp     nowait  root    /usr/sbin/sshd sshd -i' >> "${_inetcnf}"
       else
-        echo '# ssh  stream  tcp     nowait  root    /usr/sbin/sshd sshd -i' >> "${_inetcnf}"
+	echo '# ssh  stream  tcp     nowait  root    /usr/sbin/sshd sshd -i' >> "${_inetcnf}"
       fi
       csih_inform "Added ssh to ${_inetcnf}"
     fi
@@ -278,80 +278,83 @@ install_service() {
       echo -e "${_csih_QUERY_STR} Do you want to install sshd as a service?"
       if csih_request "(Say \"no\" if it is already installed as a service)"
       then
-	csih_inform "Note that the CYGWIN variable must contain at least \"ntsec\""
-        csih_inform "for sshd to be able to change user context without password."
-        csih_get_cygenv "${cygwin_value}"
+	csih_get_cygenv "${cygwin_value}"
 
-        if ( csih_is_nt2003 || [ "$csih_FORCE_PRIVILEGED_USER" = "yes" ] )
-        then
-          csih_inform "On Windows Server 2003, Windows Vista, and above, the"
-          csih_inform "SYSTEM account cannot setuid to other users -- a capability"
-          csih_inform "sshd requires.  You need to have or to create a privileged"
-          csih_inform "account.  This script will help you do so."
-          echo
-          if ! csih_create_privileged_user "${password_value}"
-          then
-            csih_error_recoverable "There was a serious problem creating a privileged user."
-            csih_request "Do you want to proceed anyway?" || exit 1
-          fi
-        fi
+	if ( csih_is_nt2003 || [ "$csih_FORCE_PRIVILEGED_USER" = "yes" ] )
+	then
+	  csih_inform "On Windows Server 2003, Windows Vista, and above, the"
+	  csih_inform "SYSTEM account cannot setuid to other users -- a capability"
+	  csih_inform "sshd requires.  You need to have or to create a privileged"
+	  csih_inform "account.  This script will help you do so."
+	  echo
+	  if ! csih_create_privileged_user "${password_value}"
+	  then
+	    csih_error_recoverable "There was a serious problem creating a privileged user."
+	    csih_request "Do you want to proceed anyway?" || exit 1
+	  fi
+	fi
 
-        # never returns empty if NT or above
-        run_service_as=$(csih_service_should_run_as)
+	# never returns empty if NT or above
+	run_service_as=$(csih_service_should_run_as)
 
-        if [ "${run_service_as}" = "${csih_PRIVILEGED_USERNAME}" ]
-        then
-          password="${csih_PRIVILEGED_PASSWORD}"
-          if [ -z "${password}" ]
-          then
-            csih_get_value "Please enter the password for user '${run_service_as}':" "-s"
-            password="${csih_value}"
-          fi
-        fi
+	if [ "${run_service_as}" = "${csih_PRIVILEGED_USERNAME}" ]
+	then
+	  password="${csih_PRIVILEGED_PASSWORD}"
+	  if [ -z "${password}" ]
+	  then
+	    csih_get_value "Please enter the password for user '${run_service_as}':" "-s"
+	    password="${csih_value}"
+	  fi
+	fi
 
-        # at this point, we either have $run_service_as = "system" and $password is empty,
-        # or $run_service_as is some privileged user and (hopefully) $password contains
-        # the correct password.  So, from here out, we use '-z "${password}"' to discriminate
-        # the two cases.
+	# at this point, we either have $run_service_as = "system" and $password is empty,
+	# or $run_service_as is some privileged user and (hopefully) $password contains
+	# the correct password.  So, from here out, we use '-z "${password}"' to discriminate
+	# the two cases.
 
-        csih_check_user "${run_service_as}"
+	csih_check_user "${run_service_as}"
 
-        if [ -z "${password}" ]
-        then
-	  if cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd -a "-D" -y tcpip \
-             -e CYGWIN="${csih_cygenv}"
-          then
-            echo
-            csih_inform "The sshd service has been installed under the LocalSystem"
-            csih_inform "account (also known as SYSTEM). To start the service now, call"
-            csih_inform "\`net start sshd' or \`cygrunsrv -S sshd'.  Otherwise, it"
-            csih_inform "will start automatically after the next reboot."
-          fi
-        else
-	  if cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd -a "-D" -y tcpip \
-             -e CYGWIN="${csih_cygenv}" -u "${run_service_as}" -w "${password}"
-          then
+	if [ -n "${csih_cygenv}" ]
+	then
+	  cygwin_env="-e CYGWIN=\"${csih_cygenv}\""
+	fi
+	if [ -z "${password}" ]
+	then
+	  if eval cygrunsrv -I sshd -d \"CYGWIN sshd\" -p /usr/sbin/sshd \
+			    -a "-D" -y tcpip ${cygwin_env}
+	  then
+	    echo
+	    csih_inform "The sshd service has been installed under the LocalSystem"
+	    csih_inform "account (also known as SYSTEM). To start the service now, call"
+	    csih_inform "\`net start sshd' or \`cygrunsrv -S sshd'.  Otherwise, it"
+	    csih_inform "will start automatically after the next reboot."
+	  fi
+	else
+	  if eval cygrunsrv -I sshd -d \"CYGWIN sshd\" -p /usr/sbin/sshd \
+			    -a "-D" -y tcpip ${cygwin_env} \
+			    -u "${run_service_as}" -w "${password}"
+	  then
 	    echo
 	    csih_inform "The sshd service has been installed under the '${run_service_as}'"
 	    csih_inform "account.  To start the service now, call \`net start sshd' or"
-            csih_inform "\`cygrunsrv -S sshd'.  Otherwise, it will start automatically"
-            csih_inform "after the next reboot."
-          fi
-        fi
+	    csih_inform "\`cygrunsrv -S sshd'.  Otherwise, it will start automatically"
+	    csih_inform "after the next reboot."
+	  fi
+	fi
 
-        # now, if successfully installed, set ownership of the affected files 
-        if cygrunsrv -Q sshd >/dev/null 2>&1
-        then
-          chown "${run_service_as}" ${SYSCONFDIR}/ssh*
-          chown "${run_service_as}".544 ${LOCALSTATEDIR}/empty
-          chown "${run_service_as}".544 ${LOCALSTATEDIR}/log/lastlog
-          if [ -f ${LOCALSTATEDIR}/log/sshd.log ]
-          then
+	# now, if successfully installed, set ownership of the affected files
+	if cygrunsrv -Q sshd >/dev/null 2>&1
+	then
+	  chown "${run_service_as}" ${SYSCONFDIR}/ssh*
+	  chown "${run_service_as}".544 ${LOCALSTATEDIR}/empty
+	  chown "${run_service_as}".544 ${LOCALSTATEDIR}/log/lastlog
+	  if [ -f ${LOCALSTATEDIR}/log/sshd.log ]
+	  then
 	    chown "${run_service_as}".544 ${LOCALSTATEDIR}/log/sshd.log
-          fi
-        else
-          csih_warning "Something went wrong installing the sshd service."
-        fi
+	  fi
+	else
+	  csih_warning "Something went wrong installing the sshd service."
+	fi
       fi # user allowed us to install as service
     fi # service not yet installed
   fi # csih_is_nt
@@ -456,7 +459,7 @@ done
 
 # Check for running ssh/sshd processes first. Refuse to do anything while
 # some ssh processes are still running
-if ps -ef | grep -v grep | grep -q ssh
+if ps -ef | grep -q '/sshd\?$'
 then
   echo
   csih_error "There are still ssh processes running. Please shut them down first."
@@ -475,9 +478,9 @@ setfacl -m u:system:rwx "${LOCALSTATEDIR}/log"
 # Create /var/log/lastlog if not already exists
 if [ -e ${LOCALSTATEDIR}/log/lastlog -a ! -f ${LOCALSTATEDIR}/log/lastlog ]
 then
-  echo 
+  echo
   csih_error_multi "${LOCALSTATEDIR}/log/lastlog exists, but is not a file." \
-                   "Cannot create ssh host configuration."
+		   "Cannot create ssh host configuration."
 fi
 if [ ! -e ${LOCALSTATEDIR}/log/lastlog ]
 then
@@ -520,7 +523,7 @@ sshd_privsep
 
 
 
-update_services_file 
+update_services_file
 update_inetd_conf
 install_service
 

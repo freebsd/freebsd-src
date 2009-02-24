@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.277 2008/07/02 13:47:39 djm Exp $
-.Dd $Mdocdate: July 2 2008 $
+.\" $OpenBSD: ssh.1,v 1.282 2009/02/12 03:44:25 djm Exp $
+.Dd $Mdocdate: February 12 2009 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
-.Op Fl 1246AaCfgKkMNnqsTtVvXxY
+.Op Fl 1246AaCfgKkMNnqsTtVvXxYy
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Oo Fl D\ \&
@@ -550,7 +550,7 @@ using an alternative syntax:
 .Pp
 By default, the listening socket on the server will be bound to the loopback
 interface only.
-This may be overriden by specifying a
+This may be overridden by specifying a
 .Ar bind_address .
 An empty
 .Ar bind_address ,
@@ -563,6 +563,13 @@ will only succeed if the server's
 .Cm GatewayPorts
 option is enabled (see
 .Xr sshd_config 5 ) .
+.Pp
+If the
+.Ar port
+argument is
+.Ql 0 ,
+the listen port will be dynamically allocated on the server and reported
+to the client at run time.
 .It Fl S Ar ctl_path
 Specifies the location of a control socket for connection sharing.
 Refer to the description of
@@ -658,6 +665,11 @@ Disables X11 forwarding.
 Enables trusted X11 forwarding.
 Trusted X11 forwardings are not subjected to the X11 SECURITY extension
 controls.
+.It Fl y
+Send log information using the
+.Xr syslog 3
+system module.
+By default this information is sent to stderr.
 .El
 .Pp
 .Nm
@@ -893,9 +905,10 @@ Send a BREAK to the remote system
 .It Cm ~C
 Open command line.
 Currently this allows the addition of port forwardings using the
-.Fl L
-and
+.Fl L ,
 .Fl R
+and
+.Fl D
 options (see above).
 It also allows the cancellation of existing remote port-forwardings
 using

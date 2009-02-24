@@ -4,7 +4,7 @@ NAME
      ssh - OpenSSH SSH client (remote login program)
 
 SYNOPSIS
-     ssh [-1246AaCfgKkMNnqsTtVvXxY] [-b bind_address] [-c cipher_spec]
+     ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
          [-D [bind_address:]port] [-e escape_char] [-F configfile]
          [-i identity_file] [-L [bind_address:]port:host:hostport]
          [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]
@@ -304,11 +304,14 @@ DESCRIPTION
              [bind_address/]host/port/hostport.
 
              By default, the listening socket on the server will be bound to
-             the loopback interface only.  This may be overriden by specifying
-             a bind_address.  An empty bind_address, or the address `*', indi-
-             cates that the remote socket should listen on all interfaces.
+             the loopback interface only.  This may be overridden by specify-
+             ing a bind_address.  An empty bind_address, or the address `*',
+             indicates that the remote socket should listen on all interfaces.
              Specifying a remote bind_address will only succeed if the serv-
              er's GatewayPorts option is enabled (see sshd_config(5)).
+
+             If the port argument is `0', the listen port will be dynamically
+             allocated on the server and reported to the client at run time.
 
      -S ctl_path
              Specifies the location of a control socket for connection shar-
@@ -364,6 +367,9 @@ DESCRIPTION
 
      -Y      Enables trusted X11 forwarding.  Trusted X11 forwardings are not
              subjected to the X11 SECURITY extension controls.
+
+     -y      Send log information using the syslog(3) system module.  By de-
+             fault this information is sent to stderr.
 
      ssh may additionally obtain configuration data from a per-user configura-
      tion file and a system-wide configuration file.  The file format and con-
@@ -500,8 +506,8 @@ ESCAPE CHARACTERS
              version 2 and if the peer supports it).
 
      ~C      Open command line.  Currently this allows the addition of port
-             forwardings using the -L and -R options (see above).  It also al-
-             lows the cancellation of existing remote port-forwardings using
+             forwardings using the -L, -R and -D options (see above).  It also
+             allows the cancellation of existing remote port-forwardings using
              -KR[bind_address:]port.  !command allows the user to execute a
              local command if the PermitLocalCommand option is enabled in
              ssh_config(5).  Basic help is available, using the -h option.
@@ -864,4 +870,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.4                      July 2, 2008                               14
+OpenBSD 4.5                    February 12, 2009                            14

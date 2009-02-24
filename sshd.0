@@ -458,8 +458,7 @@ FILES
              are writable by other users, then the file could be modified or
              replaced by unauthorized users.  In this case, sshd will not al-
              low it to be used unless the StrictModes option has been set to
-             ``no''.  The recommended permissions can be set by executing
-             ``chmod go-w ~/ ~/.ssh ~/.ssh/authorized_keys''.
+             ``no''.
 
      ~/.ssh/environment
              This file is read into the environment at login (if it exists).
@@ -572,4 +571,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are dis-
      abled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 4.4                      July 2, 2008                                9
+OpenBSD 4.5                     October 3, 2008                              9
