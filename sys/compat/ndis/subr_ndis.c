@@ -905,10 +905,8 @@ NdisInitializeReadWriteLock(lock)
 }
 
 static void
-NdisAcquireReadWriteLock(lock, writeacc, state)
-	ndis_rw_lock		*lock;
-	uint8_t			writeacc;
-	ndis_lock_state		*state;
+NdisAcquireReadWriteLock(ndis_rw_lock *lock, uint8_t writeacc,
+    ndis_lock_state *state)
 {
 	if (writeacc == TRUE) {
 		KeAcquireSpinLock(&lock->nrl_spinlock, &state->nls_oldirql);
@@ -1091,13 +1089,9 @@ ndis_map_cb(arg, segs, nseg, error)
 }
 
 static void
-NdisMStartBufferPhysicalMapping(adapter, buf, mapreg, writedev, addrarray, arraysize)
-	ndis_handle		adapter;
-	ndis_buffer		*buf;
-	uint32_t		mapreg;
-	uint8_t			writedev;
-	ndis_paddr_unit		*addrarray;
-	uint32_t		*arraysize;
+NdisMStartBufferPhysicalMapping(ndis_handle adapter, ndis_buffer *buf,
+    uint32_t mapreg, uint8_t writedev, ndis_paddr_unit *addrarray,
+    uint32_t *arraysize)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
@@ -1474,12 +1468,8 @@ NdisQueryMapRegisterCount(bustype, cnt)
 }
 
 static ndis_status
-NdisMAllocateMapRegisters(adapter, dmachannel, dmasize, physmapneeded, maxmap)
-	ndis_handle		adapter;
-	uint32_t		dmachannel;
-	uint8_t			dmasize;
-	uint32_t		physmapneeded;
-	uint32_t		maxmap;
+NdisMAllocateMapRegisters(ndis_handle adapter, uint32_t dmachannel,
+    uint8_t dmasize, uint32_t physmapneeded, uint32_t maxmap)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
@@ -1557,12 +1547,8 @@ ndis_mapshared_cb(arg, segs, nseg, error)
  */
 
 static void
-NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
-	ndis_handle		adapter;
-	uint32_t		len;
-	uint8_t			cached;
-	void			**vaddr;
-	ndis_physaddr		*paddr;
+NdisMAllocateSharedMemory(ndis_handle adapter, uint32_t len, uint8_t cached,
+    void **vaddr, ndis_physaddr *paddr)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
@@ -1680,11 +1666,8 @@ ndis_asyncmem_complete(dobj, arg)
 }
 
 static ndis_status
-NdisMAllocateSharedMemoryAsync(adapter, len, cached, ctx)
-	ndis_handle		adapter;
-	uint32_t		len;
-	uint8_t			cached;
-	void			*ctx;
+NdisMAllocateSharedMemoryAsync(ndis_handle adapter, uint32_t len,
+    uint8_t cached, void *ctx)
 {
 	ndis_miniport_block	*block;
 	struct ndis_allocwork	*w;
@@ -1717,12 +1700,8 @@ NdisMAllocateSharedMemoryAsync(adapter, len, cached, ctx)
 }
 
 static void
-NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
-	ndis_handle		adapter;
-	uint32_t		len;
-	uint8_t			cached;
-	void			*vaddr;
-	ndis_physaddr		paddr;
+NdisMFreeSharedMemory(ndis_handle adapter, uint32_t len, uint8_t cached,
+    void *vaddr, ndis_physaddr paddr)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
@@ -1829,10 +1808,8 @@ NdisMGetDmaAlignment(handle)
  */
 
 static ndis_status
-NdisMInitializeScatterGatherDma(adapter, is64, maxphysmap)
-	ndis_handle		adapter;
-	uint8_t			is64;
-	uint32_t		maxphysmap;
+NdisMInitializeScatterGatherDma(ndis_handle adapter, uint8_t is64,
+    uint32_t maxphysmap)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
@@ -2433,14 +2410,9 @@ ndis_intrhand(dpc, intr, sysarg1, sysarg2)
 }
 
 static ndis_status
-NdisMRegisterInterrupt(intr, adapter, ivec, ilevel, reqisr, shared, imode)
-	ndis_miniport_interrupt	*intr;
-	ndis_handle		adapter;
-	uint32_t		ivec;
-	uint32_t		ilevel;
-	uint8_t			reqisr;
-	uint8_t			shared;
-	ndis_interrupt_mode	imode;
+NdisMRegisterInterrupt(ndis_miniport_interrupt *intr, ndis_handle adapter,
+    uint32_t ivec, uint32_t ilevel, uint8_t reqisr, uint8_t shared,
+    ndis_interrupt_mode imode)
 {
 	ndis_miniport_block	*block;
 	ndis_miniport_characteristics *ch;
