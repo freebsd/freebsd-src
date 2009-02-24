@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
@@ -47,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#if __FreeBSD_version >= 700000
+#include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -82,6 +87,15 @@ __FBSDID("$FreeBSD$");
 
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
+
+/*
+ * Should the driver do LRO on the RX end
+ *  this can be toggled on the fly, but the
+ *  interface must be reset (down/up) for it
+ *  to take effect.
+ */
+static int xn_enable_lro = 1;
+TUNABLE_INT("hw.xn.enable_lro", &xn_enable_lro);
 
 #ifdef CONFIG_XEN
 static int MODPARM_rx_copy = 0;
@@ -196,6 +210,9 @@ struct net_device_stats
 struct netfront_info {
 		
 	struct ifnet *xn_ifp;
+#if __FreeBSD_version >= 700000
+	struct lro_ctrl xn_lro;
+#endif
 
 	struct net_device_stats stats;
 	u_int tx_full;
@@ -398,6 +415,11 @@ netfront_attach(device_t dev)
 		xenbus_dev_fatal(dev, err, "creating netdev");
 		return err;
 	}
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "enable_lro", CTLTYPE_INT|CTLFLAG_RW,
+	    &xn_enable_lro, 0, "Large Receive Offload");
 
 	return 0;
 }
@@ -847,6 +869,10 @@ static void
 xn_rxeof(struct netfront_info *np)
 {
 	struct ifnet *ifp;
+#if __FreeBSD_version >= 700000
+	struct lro_ctrl *lro = &np->xn_lro;
+	struct lro_entry *queued;
+#endif
 	struct netfront_rx_info rinfo;
 	struct netif_rx_response *rx = &rinfo.rx;
 	struct netif_extra_info *extras = rinfo.extras;
@@ -941,12 +967,33 @@ xn_rxeof(struct netfront_info *np)
 			 * Do we really need to drop the rx lock?
 			 */
 			XN_RX_UNLOCK(np);
-			/* Pass it up. */
+#if __FreeBSD_version >= 700000
+			/* Use LRO if possible */
+			if (lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
+				/*
+				 * If LRO fails, pass up to the stack
+				 * directly.
+				 */
+				(*ifp->if_input)(ifp, m);
+			}
+#else
 			(*ifp->if_input)(ifp, m);
+#endif
 			XN_RX_LOCK(np);
 		}
 	
 		np->rx.rsp_cons = i;
+
+#if __FreeBSD_version >= 700000
+		/*
+		 * Flush any outstanding LRO work
+		 */
+		while (!SLIST_EMPTY(&lro->lro_active)) {
+			queued = SLIST_FIRST(&lro->lro_active);
+			SLIST_REMOVE_HEAD(&lro->lro_active, next);
+			tcp_lro_flush(lro, queued);
+		}
+#endif
 
 #if 0
 		/* If we get a callback with very few responses, reduce fill target. */
@@ -1788,6 +1835,15 @@ create_netdev(device_t dev)
     	ifp->if_capabilities = IFCAP_HWCSUM;
 #if __FreeBSD_version >= 700000
 	ifp->if_capabilities |= IFCAP_TSO4;
+	if (xn_enable_lro) {
+		int err = tcp_lro_init(&np->xn_lro);
+		if (err) {
+			device_printf(dev, "LRO initialization failed\n");
+			goto exit;
+		}
+		np->xn_lro.ifp = ifp;
+		ifp->if_capabilities |= IFCAP_LRO;
+	}
 #endif
     	ifp->if_capenable = ifp->if_capabilities;
 	
