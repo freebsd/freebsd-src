@@ -195,6 +195,12 @@
     ..
     kadm5
     ..
+    legacy
+        dev
+            usb
+            ..
+        ..
+    ..
     libmilter
     ..
     lwres
