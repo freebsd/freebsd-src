@@ -489,10 +489,11 @@ txp_download_fw(sc)
 {
 	struct txp_fw_file_header *fileheader;
 	struct txp_fw_section_header *secthead;
-	int sect;
+	int error, sect;
 	u_int32_t r, i, ier, imr;
 
 	r = 0;
+	error = 0;
 	ier = READ_REG(sc, TXP_IER);
 	WRITE_REG(sc, TXP_IER, ier | TXP_INT_A2H_0);
 
@@ -507,7 +508,8 @@ txp_download_fw(sc)
 	}
 	if (r != STAT_WAITING_FOR_HOST_REQUEST) {
 		device_printf(sc->sc_dev, "not waiting for host request\n");
-		return (-1);
+		error = -1;
+		goto fail;
 	}
 
 	/* Ack the status */
@@ -516,24 +518,34 @@ txp_download_fw(sc)
 	fileheader = (struct txp_fw_file_header *)tc990image;
 	if (bcmp("TYPHOON", fileheader->magicid, sizeof(fileheader->magicid))) {
 		device_printf(sc->sc_dev, "fw invalid magic\n");
-		return (-1);
+		error = -1;
+		goto fail;
 	}
 
 	/* Tell boot firmware to get ready for image */
 	WRITE_REG(sc, TXP_H2A_1, fileheader->addr);
+	WRITE_REG(sc, TXP_H2A_2, fileheader->hmac[0]);
+	WRITE_REG(sc, TXP_H2A_3, fileheader->hmac[1]);
+	WRITE_REG(sc, TXP_H2A_4, fileheader->hmac[2]);
+	WRITE_REG(sc, TXP_H2A_5, fileheader->hmac[3]);
+	WRITE_REG(sc, TXP_H2A_6, fileheader->hmac[4]);
 	WRITE_REG(sc, TXP_H2A_0, TXP_BOOTCMD_RUNTIME_IMAGE);
 
 	if (txp_download_fw_wait(sc)) {
 		device_printf(sc->sc_dev, "fw wait failed, initial\n");
-		return (-1);
+		error = -1;
+		goto fail;
 	}
 
 	secthead = (struct txp_fw_section_header *)(((u_int8_t *)tc990image) +
 	    sizeof(struct txp_fw_file_header));
 
 	for (sect = 0; sect < fileheader->nsections; sect++) {
-		if (txp_download_fw_section(sc, secthead, sect))
-			return (-1);
+		
+		if (txp_download_fw_section(sc, secthead, sect)) {
+			error = -1;
+			goto fail;
+		}
 		secthead = (struct txp_fw_section_header *)
 		    (((u_int8_t *)secthead) + secthead->nbytes +
 		    sizeof(*secthead));
@@ -549,13 +561,15 @@ txp_download_fw(sc)
 	}
 	if (r != STAT_WAITING_FOR_BOOT) {
 		device_printf(sc->sc_dev, "not waiting for boot\n");
-		return (-1);
+		error = -1;
+		goto fail;
 	}
 
+fail:
 	WRITE_REG(sc, TXP_IER, ier);
 	WRITE_REG(sc, TXP_IMR, imr);
 
-	return (0);
+	return (error);
 }
 
 static int
