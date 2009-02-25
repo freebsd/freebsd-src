@@ -1650,27 +1650,34 @@ retry:
 				return (ENETUNREACH);
 			}
 			/*
-			 * Relock it and lose the added reference.
-			 * All sorts of things could have happenned while we
-			 * had no lock on it, so check for them.
+			 * Relock it and lose the added reference.  All sorts
+			 * of things could have happenned while we had no
+			 * lock on it, so check for them.  rt need to be
+			 * unlocked to avoid possible deadlock.
 			 */
+			RT_UNLOCK(rt);
 			RT_RELOCK(rt0);
-			if (rt0 == NULL || ((rt0->rt_flags & RTF_UP) == 0))
+			if (rt0 == NULL || ((rt0->rt_flags & RTF_UP) == 0)) {
 				/* Ru-roh.. what we had is no longer any good */
+				RTFREE(rt);
 				goto retry;
+			}
 			/* 
 			 * While we were away, someone replaced the gateway.
 			 * Since a reference count is involved we can't just
 			 * overwrite it.
 			 */
 			if (rt0->rt_gwroute) {
-				if (rt0->rt_gwroute != rt) {
-					RTFREE_LOCKED(rt);
-					goto retry;
-				}
+				if (rt0->rt_gwroute != rt)
+					RTFREE(rt);
 			} else {
 				rt0->rt_gwroute = rt;
 			}
+			/* 
+			 * Since rt was not locked, we need recheck that
+			 * it still may be used (e.g. up)
+			 */
+			goto retry;
 		}
 		RT_LOCK_ASSERT(rt);
 		RT_UNLOCK(rt0);
