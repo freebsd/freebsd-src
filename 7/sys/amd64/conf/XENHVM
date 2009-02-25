@@ -1,5 +1,5 @@
 #
-# GENERIC -- Generic kernel configuration file for FreeBSD/amd64
+# XENHVM -- Xen HVM kernel configuration file for FreeBSD/amd64
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
