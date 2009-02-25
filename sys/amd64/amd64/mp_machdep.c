@@ -1227,7 +1227,7 @@ sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
 #ifdef SCHED_ULE
 	/*
 	 * SCHED_ULE doesn't allow enabling/disabling HT cores at
-	 * tun time.
+	 * run time.
 	 */
 	if (allowed != hyperthreading_allowed)
 		return (ENOTSUP);
