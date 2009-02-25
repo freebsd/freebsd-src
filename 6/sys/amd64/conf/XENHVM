@@ -1,5 +1,5 @@
 #
-# GENERIC -- Generic kernel configuration file for FreeBSD/amd64
+# XENHVM -- Xen HVM kernel configuration file for FreeBSD/amd64
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -71,6 +71,7 @@ device		atpic			# 8259A compatability
 # Linux 32-bit ABI support
 options 	LINPROCFS		# Cannot be a module yet.
 options		SMP
+options		GDB
 
 # Bus support.
 device		acpi
