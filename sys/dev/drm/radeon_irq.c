@@ -192,6 +192,7 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 	    (drm_radeon_private_t *) dev->dev_private;
 	u32 stat;
 	u32 r500_disp_int;
+	u32 tmp;
 
 	/* Only consider the bits we're interested in - others could be used
 	 * outside the DRM
@@ -217,6 +218,33 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 			drm_handle_vblank(dev, 0);
 		if (stat & RADEON_CRTC2_VBLANK_STAT)
 			drm_handle_vblank(dev, 1);
+	}
+	if (dev->msi_enabled) {
+		switch(dev_priv->flags & RADEON_FAMILY_MASK) {
+			case CHIP_RS400:
+			case CHIP_RS480:
+				tmp = RADEON_READ(RADEON_AIC_CNTL) &
+				    ~RS400_MSI_REARM;
+				RADEON_WRITE(RADEON_AIC_CNTL, tmp);
+				RADEON_WRITE(RADEON_AIC_CNTL,
+				    tmp | RS400_MSI_REARM);
+				break;
+			case CHIP_RS690:
+			case CHIP_RS740:
+				tmp = RADEON_READ(RADEON_BUS_CNTL) &
+				    ~RS600_MSI_REARM;
+				RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+				RADEON_WRITE(RADEON_BUS_CNTL, tmp |
+				    RS600_MSI_REARM);
+				break;
+			 default:
+				tmp = RADEON_READ(RADEON_MSI_REARM_EN) &
+				    ~RV370_MSI_REARM_EN;
+				RADEON_WRITE(RADEON_MSI_REARM_EN, tmp);
+				RADEON_WRITE(RADEON_MSI_REARM_EN,
+				    tmp | RV370_MSI_REARM_EN);
+				break;
+		}
 	}
 	return IRQ_HANDLED;
 }
