@@ -658,9 +658,7 @@ int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
 	int is_driver_ioctl = 0;
 	struct drm_file *file_priv;
 
-	DRM_LOCK();
 	retcode = devfs_get_cdevpriv((void **)&file_priv);
-	DRM_UNLOCK();
 	if (retcode != 0) {
 		DRM_ERROR("can't find authenticator\n");
 		return EINVAL;
