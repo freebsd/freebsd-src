@@ -193,7 +193,6 @@ int drm_attach(device_t nbdev, drm_pci_id_list_t *idlist)
 	mtx_init(&dev->irq_lock, "drmirq", NULL, MTX_DEF);
 	mtx_init(&dev->vbl_lock, "drmvbl", NULL, MTX_DEF);
 	mtx_init(&dev->drw_lock, "drmdrw", NULL, MTX_DEF);
-	mtx_init(&dev->tsk_lock, "drmtsk", NULL, MTX_DEF);
 
 	id_entry = drm_find_description(pci_get_vendor(dev->device),
 	    pci_get_device(dev->device), idlist);
@@ -440,7 +439,6 @@ error:
 	DRM_UNLOCK();
 	destroy_dev(dev->devnode);
 
-	mtx_destroy(&dev->tsk_lock);
 	mtx_destroy(&dev->drw_lock);
 	mtx_destroy(&dev->vbl_lock);
 	mtx_destroy(&dev->irq_lock);
@@ -503,13 +501,11 @@ static void drm_unload(struct drm_device *dev)
 	if (pci_disable_busmaster(dev->device))
 		DRM_ERROR("Request to disable bus-master failed.\n");
 
-	mtx_destroy(&dev->tsk_lock);
 	mtx_destroy(&dev->drw_lock);
 	mtx_destroy(&dev->vbl_lock);
 	mtx_destroy(&dev->irq_lock);
 	mtx_destroy(&dev->dev_lock);
 }
-
 
 int drm_version(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
