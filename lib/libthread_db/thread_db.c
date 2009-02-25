@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <thread_db.h>
 #include <unistd.h>
+#include <sys/cdefs.h>
+#include <sys/linker_set.h>
 
 #include "thread_db_int.h"
 
@@ -41,24 +43,20 @@ struct td_thragent
 
 static TAILQ_HEAD(, td_thragent) proclist = TAILQ_HEAD_INITIALIZER(proclist);
 
-extern struct ta_ops libpthread_db_ops;
-extern struct ta_ops libthr_db_ops;
-
-static struct ta_ops *ops[] = {
-	&libpthread_db_ops,
-	&libthr_db_ops,
-};
+SET_DECLARE(__ta_ops, struct ta_ops);
 
 td_err_e
 td_init(void)
 {
 	td_err_e ret, tmp;
+	struct ta_ops *ops_p, **ops_pp;
 	size_t i;
 
 	ret = 0;
-	for (i = 0; i < sizeof(ops)/sizeof(ops[0]); i++) {
-		if (ops[i]->to_init != NULL) {
-			tmp = ops[i]->to_init();
+	SET_FOREACH(ops_pp, __ta_ops) {
+		ops_p = *ops_pp;
+		if (ops_p->to_init != NULL) {
+			tmp = ops_p->to_init();
 			if (tmp != TD_OK)
 				ret = tmp;
 		}
@@ -107,11 +105,13 @@ td_err_e
 td_ta_new(struct ps_prochandle *ph, td_thragent_t **pta)
 {
 	size_t i;
+	struct ta_ops *ops_p, **ops_pp;
 
-	for (i = 0; i < sizeof(ops)/sizeof(ops[0]); ++i) {
-		if (ops[i]->to_ta_new(ph, pta) == TD_OK) {
+	SET_FOREACH(ops_pp, __ta_ops) {
+		ops_p = *ops_pp;
+		if (ops_p->to_ta_new(ph, pta) == TD_OK) {
 			TAILQ_INSERT_HEAD(&proclist, *pta, ta_next);
-			(*pta)->ta_ops = ops[i];
+			(*pta)->ta_ops = ops_p;
 			return (TD_OK);
 		}
 	}
