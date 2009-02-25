@@ -172,13 +172,6 @@ int drm_irq_install(struct drm_device *dev)
 	DRM_UNLOCK();
 
 	/* Install handler */
-	dev->irqrid = 0;
-	dev->irqr = bus_alloc_resource_any(dev->device, SYS_RES_IRQ, 
-				      &dev->irqrid, RF_SHAREABLE);
-	if (!dev->irqr) {
-		retcode = ENOENT;
-		goto err;
-	}
 #if __FreeBSD_version >= 700031
 	retcode = bus_setup_intr(dev->device, dev->irqr,
 				 INTR_TYPE_TTY | INTR_MPSAFE,
@@ -200,25 +193,17 @@ int drm_irq_install(struct drm_device *dev)
 err:
 	DRM_LOCK();
 	dev->irq_enabled = 0;
-	if (dev->irqrid != 0) {
-		bus_release_resource(dev->device, SYS_RES_IRQ, dev->irqrid,
-		    dev->irqr);
-		dev->irqrid = 0;
-	}
 	DRM_UNLOCK();
+
 	return retcode;
 }
 
 int drm_irq_uninstall(struct drm_device *dev)
 {
-	int irqrid;
-
 	if (!dev->irq_enabled)
 		return EINVAL;
 
 	dev->irq_enabled = 0;
-	irqrid = dev->irqrid;
-	dev->irqrid = 0;
 
 	DRM_DEBUG("irq=%d\n", dev->irq);
 
@@ -226,7 +211,6 @@ int drm_irq_uninstall(struct drm_device *dev)
 
 	DRM_UNLOCK();
 	bus_teardown_intr(dev->device, dev->irqr, dev->irqh);
-	bus_release_resource(dev->device, SYS_RES_IRQ, irqrid, dev->irqr);
 	DRM_LOCK();
 
 	drm_vblank_cleanup(dev);

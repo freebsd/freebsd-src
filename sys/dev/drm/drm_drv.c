@@ -134,6 +134,27 @@ static struct cdevsw drm_cdevsw = {
 	.d_flags =	D_TRACKCLOSE | D_NEEDGIANT
 };
 
+static struct drm_msi_blacklist_entry drm_msi_blacklist[] = {
+	{0x8086, 0x2772}, /* Intel i945G	*/ \
+	{0x8086, 0x27A2}, /* Intel i945GM	*/ \
+	{0x8086, 0x27AE}, /* Intel i945GME	*/ \
+	{0, 0}
+};
+
+static int drm_msi_is_blacklisted(int vendor, int device)
+{
+	int i = 0;
+	
+	for (i = 0; drm_msi_blacklist[i].vendor != 0; i++) {
+		if ((drm_msi_blacklist[i].vendor == vendor) &&
+		    (drm_msi_blacklist[i].device == device)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int drm_probe(device_t dev, drm_pci_id_list_t *idlist)
 {
 	drm_pci_id_list_t *id_entry;
@@ -169,7 +190,7 @@ int drm_attach(device_t nbdev, drm_pci_id_list_t *idlist)
 {
 	struct drm_device *dev;
 	drm_pci_id_list_t *id_entry;
-	int unit;
+	int unit, msicount;
 
 	unit = device_get_unit(nbdev);
 	dev = device_get_softc(nbdev);
@@ -189,21 +210,66 @@ int drm_attach(device_t nbdev, drm_pci_id_list_t *idlist)
 			DRM_DEV_MODE,
 			"dri/card%d", unit);
 
+#if __FreeBSD_version >= 700053
+	dev->pci_domain = pci_get_domain(dev->device);
+#else
+	dev->pci_domain = 0;
+#endif
+	dev->pci_bus = pci_get_bus(dev->device);
+	dev->pci_slot = pci_get_slot(dev->device);
+	dev->pci_func = pci_get_function(dev->device);
+
+	dev->pci_vendor = pci_get_vendor(dev->device);
+	dev->pci_device = pci_get_device(dev->device);
+
+	if (!drm_msi_is_blacklisted(dev->pci_vendor, dev->pci_device)) {
+		msicount = pci_msi_count(dev->device);
+		DRM_DEBUG("MSI count = %d\n", msicount);
+		if (msicount > 1)
+			msicount = 1;
+
+		if (pci_alloc_msi(dev->device, &msicount) == 0) {
+			DRM_INFO("MSI enabled %d message(s)\n", msicount);
+			dev->msi_enabled = 1;
+			dev->irqrid = 1;
+		}
+	}
+
+	dev->irqr = bus_alloc_resource_any(dev->device, SYS_RES_IRQ,
+	    &dev->irqrid, RF_SHAREABLE);
+	if (!dev->irqr) {
+		return ENOENT;
+	}
+
+	dev->irq = (int) rman_get_start(dev->irqr);
+
 	mtx_init(&dev->dev_lock, "drmdev", NULL, MTX_DEF);
 	mtx_init(&dev->irq_lock, "drmirq", NULL, MTX_DEF);
 	mtx_init(&dev->vbl_lock, "drmvbl", NULL, MTX_DEF);
 	mtx_init(&dev->drw_lock, "drmdrw", NULL, MTX_DEF);
 
-	id_entry = drm_find_description(pci_get_vendor(dev->device),
-	    pci_get_device(dev->device), idlist);
+	id_entry = drm_find_description(dev->pci_vendor,
+	    dev->pci_device, idlist);
 	dev->id_entry = id_entry;
 
 	return drm_load(dev);
 }
 
-int drm_detach(device_t dev)
+int drm_detach(device_t nbdev)
 {
-	drm_unload(device_get_softc(dev));
+	struct drm_device *dev;
+
+	dev = device_get_softc(nbdev);
+
+	drm_unload(dev);
+
+	bus_release_resource(dev->device, SYS_RES_IRQ, dev->irqrid, dev->irqr);
+
+	if (dev->msi_enabled) {
+		pci_release_msi(dev->device);
+		DRM_INFO("MSI released\n");
+	}
+
 	return 0;
 }
 
@@ -351,19 +417,6 @@ static int drm_load(struct drm_device *dev)
 	int i, retcode;
 
 	DRM_DEBUG("\n");
-
-	dev->irq = pci_get_irq(dev->device);
-#if __FreeBSD_version >= 700053
-	dev->pci_domain = pci_get_domain(dev->device);
-#else
-	dev->pci_domain = 0;
-#endif
-	dev->pci_bus = pci_get_bus(dev->device);
-	dev->pci_slot = pci_get_slot(dev->device);
-	dev->pci_func = pci_get_function(dev->device);
-
-	dev->pci_vendor = pci_get_vendor(dev->device);
-	dev->pci_device = pci_get_device(dev->device);
 
 	TAILQ_INIT(&dev->maplist);
 
