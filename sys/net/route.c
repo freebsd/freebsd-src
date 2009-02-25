@@ -277,6 +277,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	struct rt_addrinfo info;
 	u_long nflags;
 	int err = 0, msgtype = RTM_MISS;
+	int needlock;
 
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
 	if (dst->sa_family != AF_INET)	/* Only INET supports > 1 fib now */
@@ -290,7 +291,13 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		rtstat.rts_unreach++;
 		goto miss2;
 	}
-	RADIX_NODE_HEAD_LOCK(rnh);
+	needlock = !(ignflags & RTF_RNH_LOCKED);
+	if (needlock)
+		RADIX_NODE_HEAD_LOCK(rnh);
+#ifdef INVARIANTS
+	else
+		RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
+#endif
 	if ((rn = rnh->rnh_matchaddr(dst, rnh)) &&
 	    (rn->rn_flags & RNF_ROOT) == 0) {
 		/*
@@ -343,7 +350,8 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 			RT_LOCK(newrt);
 			RT_ADDREF(newrt);
 		}
-		RADIX_NODE_HEAD_UNLOCK(rnh);
+		if (needlock)
+			RADIX_NODE_HEAD_UNLOCK(rnh);
 	} else {
 		/*
 		 * Either we hit the root or couldn't find any match,
@@ -352,7 +360,8 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		 */
 		rtstat.rts_unreach++;
 	miss:
-		RADIX_NODE_HEAD_UNLOCK(rnh);
+		if (needlock)
+			RADIX_NODE_HEAD_UNLOCK(rnh);
 	miss2:	if (report) {
 			/*
 			 * If required, report the failure to the supervising
@@ -482,6 +491,8 @@ rtredirect_fib(struct sockaddr *dst,
 	short *stat = NULL;
 	struct rt_addrinfo info;
 	struct ifaddr *ifa;
+	struct radix_node_head *rnh =
+	    rt_tables[fibnum][dst->sa_family];
 
 	/* verify the gateway is directly reachable */
 	if ((ifa = ifa_ifwithnet(gateway)) == NULL) {
@@ -531,6 +542,8 @@ rtredirect_fib(struct sockaddr *dst,
 			info.rti_info[RTAX_NETMASK] = netmask;
 			info.rti_ifa = ifa;
 			info.rti_flags = flags;
+			if (rt0 != NULL)
+				RT_UNLOCK(rt0); /* drop lock to avoid LOR with RNH */
 			error = rtrequest1_fib(RTM_ADD, &info, &rt, fibnum);
 			if (rt != NULL) {
 				RT_LOCK(rt);
@@ -538,7 +551,7 @@ rtredirect_fib(struct sockaddr *dst,
 				flags = rt->rt_flags;
 			}
 			if (rt0)
-				RTFREE_LOCKED(rt0);
+				RTFREE(rt0);
 			
 			stat = &rtstat.rts_dynamic;
 		} else {
@@ -554,8 +567,12 @@ rtredirect_fib(struct sockaddr *dst,
 			/*
 			 * add the key and gateway (in one malloc'd chunk).
 			 */
+			RT_UNLOCK(rt);
+			RADIX_NODE_HEAD_LOCK(rnh);
+			RT_LOCK(rt);
 			rt_setgate(rt, rt_key(rt), gateway);
-			gwrt = rtalloc1(gateway, 1, 0);
+			gwrt = rtalloc1(gateway, 1, RTF_RNH_LOCKED);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
 			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
 			RTFREE_LOCKED(gwrt);
 		}
@@ -641,7 +658,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 	if (ifa == NULL)
 		ifa = ifa_ifwithnet(gateway);
 	if (ifa == NULL) {
-		struct rtentry *rt = rtalloc1_fib(gateway, 0, 0UL, fibnum);
+		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
 			return (NULL);
 		/*
@@ -788,7 +805,9 @@ rtexpunge(struct rtentry *rt)
 	struct ifaddr *ifa;
 	int error = 0;
 
+	rnh = rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
 	RT_LOCK_ASSERT(rt);
+	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 #if 0
 	/*
 	 * We cannot assume anything about the reference count
@@ -803,8 +822,6 @@ rtexpunge(struct rtentry *rt)
 	rnh = rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
-
-	RADIX_NODE_HEAD_LOCK(rnh);
 
 	/*
 	 * Remove the item from the tree; it should be there,
@@ -860,7 +877,6 @@ rtexpunge(struct rtentry *rt)
 	 */
 	rttrash++;
 bad:
-	RADIX_NODE_HEAD_UNLOCK(rnh);
 	return (error);
 }
 
@@ -874,7 +890,7 @@ int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
-	int error = 0;
+	int error = 0, needlock = 0;
 	register struct rtentry *rt;
 	register struct radix_node *rn;
 	register struct radix_node_head *rnh;
@@ -891,7 +907,12 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	rnh = rt_tables[fibnum][dst->sa_family];
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
-	RADIX_NODE_HEAD_LOCK(rnh);
+	needlock = ((flags & RTF_RNH_LOCKED) == 0);
+	flags &= ~RTF_RNH_LOCKED;
+	if (needlock)
+		RADIX_NODE_HEAD_LOCK(rnh);
+	else
+		RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 	/*
 	 * If we are adding a host route then we don't want to put
 	 * a netmask in the tree, nor do we want to clone it.
@@ -1036,7 +1057,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			 * then we just blow it away and retry the insertion
 			 * of the new one.
 			 */
-			rt2 = rtalloc1_fib(dst, 0, 0, fibnum);
+			rt2 = rtalloc1_fib(dst, 0, RTF_RNH_LOCKED, fibnum);
 			if (rt2 && rt2->rt_parent) {
 				rtexpunge(rt2);
 				RT_UNLOCK(rt2);
@@ -1125,7 +1146,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		error = EOPNOTSUPP;
 	}
 bad:
-	RADIX_NODE_HEAD_UNLOCK(rnh);
+	if (needlock)
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 	return (error);
 #undef senderr
 }
@@ -1153,7 +1175,7 @@ rt_fixdelete(struct radix_node *rn, void *vp)
 	if (rt->rt_parent == rt0 &&
 	    !(rt->rt_flags & (RTF_PINNED | RTF_CLONING))) {
 		return rtrequest_fib(RTM_DELETE, rt_key(rt), NULL, rt_mask(rt),
-				 rt->rt_flags, NULL, rt->rt_fibnum);
+				 rt->rt_flags|RTF_RNH_LOCKED, NULL, rt->rt_fibnum);
 	}
 	return 0;
 }
@@ -1230,6 +1252,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 
 again:
 	RT_LOCK_ASSERT(rt);
+	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 
 	/*
 	 * A host route with the destination equal to the gateway
@@ -1256,7 +1279,7 @@ again:
 		struct rtentry *gwrt;
 
 		RT_UNLOCK(rt);		/* XXX workaround LOR */
-		gwrt = rtalloc1_fib(gate, 1, 0, rt->rt_fibnum);
+		gwrt = rtalloc1_fib(gate, 1, RTF_RNH_LOCKED, rt->rt_fibnum);
 		if (gwrt == rt) {
 			RT_REMREF(rt);
 			return (EADDRINUSE); /* failure */
@@ -1327,12 +1350,8 @@ again:
 
 		arg.rnh = rnh;
 		arg.rt0 = rt;
-		RT_UNLOCK(rt);		/* XXX workaround LOR */
-		RADIX_NODE_HEAD_LOCK(rnh);
-		RT_LOCK(rt);
 		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
 				       rt_fixchange, &arg);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
 	}
 
 	return 0;
