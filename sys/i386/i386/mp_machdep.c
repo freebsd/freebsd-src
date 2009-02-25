@@ -204,6 +204,7 @@ struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
 	int	cpu_disabled:1;
+	int	cpu_hyperthread:1;
 } static cpu_info[MAX_APIC_ID + 1];
 int cpu_apic_ids[MAXCPU];
 int apic_cpuids[MAX_APIC_ID + 1];
@@ -400,11 +401,6 @@ cpu_mp_start(void)
 	cpu_apic_ids[0] = boot_cpu_id;
 	apic_cpuids[boot_cpu_id] = 0;
 
-	assign_cpu_ids();
-
-	/* Start each Application Processor */
-	start_all_aps();
-
 	/* Setup the initial logical CPUs info. */
 	logical_cpus = logical_cpus_mask = 0;
 	if (cpu_feature & CPUID_HTT)
@@ -451,6 +447,11 @@ cpu_mp_start(void)
 			hyperthreading_cpus = logical_cpus;
 	}
 
+	assign_cpu_ids();
+
+	/* Start each Application Processor */
+	start_all_aps();
+
 	set_interrupt_apic_ids();
 }
 
@@ -462,18 +463,26 @@ void
 cpu_mp_announce(void)
 {
 	int i, x;
+	const char *hyperthread;
 
 	/* List CPUs */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
 	for (i = 1, x = 0; x <= MAX_APIC_ID; x++) {
 		if (!cpu_info[x].cpu_present || cpu_info[x].cpu_bsp)
 			continue;
+		if (cpu_info[x].cpu_hyperthread) {
+			hyperthread = "/HT";
+		} else {
+			hyperthread = "";
+		}
 		if (cpu_info[x].cpu_disabled)
-			printf("  cpu (AP): APIC ID: %2d (disabled)\n", x);
+			printf("  cpu (AP%s): APIC ID: %2d (disabled)\n",
+			    hyperthread, x);
 		else {
 			KASSERT(i < mp_ncpus,
 			    ("mp_ncpus and actual cpus are out of whack"));
-			printf(" cpu%d (AP): APIC ID: %2d\n", i++, x);
+			printf(" cpu%d (AP%s): APIC ID: %2d\n", i++,
+			    hyperthread, x);
 		}
 	}
 }
@@ -682,10 +691,27 @@ assign_cpu_ids(void)
 {
 	u_int i;
 
+	TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
+	    &hyperthreading_allowed);
+
 	/* Check for explicitly disabled CPUs. */
 	for (i = 0; i <= MAX_APIC_ID; i++) {
 		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp)
 			continue;
+
+		if (hyperthreading_cpus > 1 && i % hyperthreading_cpus != 0) {
+			cpu_info[i].cpu_hyperthread = 1;
+#if defined(SCHED_ULE)
+			/*
+			 * Don't use HT CPU if it has been disabled by a
+			 * tunable.
+			 */
+			if (hyperthreading_allowed == 0) {
+				cpu_info[i].cpu_disabled = 1;
+				continue;
+			}
+#endif
+		}
 
 		/* Don't use this CPU if it has been disabled by a tunable. */
 		if (resource_disabled("lapic", i)) {
@@ -1369,6 +1395,16 @@ sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+#ifdef SCHED_ULE
+	/*
+	 * SCHED_ULE doesn't allow enabling/disabling HT cores at
+	 * tun time.
+	 */
+	if (allowed != hyperthreading_allowed)
+		return (ENOTSUP);
+	return (error);
+#endif
+
 	if (allowed)
 		hlt_cpus_mask &= ~hyperthreading_cpus_mask;
 	else
@@ -1413,8 +1449,6 @@ cpu_hlt_setup(void *dummy __unused)
 		 * of hlt_logical_cpus.
 		 */
 		if (hyperthreading_cpus_mask) {
-			TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
-			    &hyperthreading_allowed);
 			SYSCTL_ADD_PROC(&logical_cpu_clist,
 			    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
 			    "hyperthreading_allowed", CTLTYPE_INT|CTLFLAG_RW,
