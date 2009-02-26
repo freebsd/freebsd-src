@@ -145,6 +145,13 @@
 #define	VM_NFREEORDER		16
 
 /*
+ * Disable superpage reservations.
+ */
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL		0
+#endif
+
+/*
  * Manipulating region bits of an address.
  */
 #define IA64_RR_BASE(n)         (((u_int64_t) (n)) << 61)

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2006 Rice University
- * Copyright (c) 2007 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2007-2008 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Alan L. Cox,
@@ -32,25 +32,31 @@
  */
 
 /*
- *	Physical memory system definitions
+ *	Superpage reservation management definitions
  */
 
-#ifndef	_VM_PHYS_H_
-#define	_VM_PHYS_H_
+#ifndef	_VM_RESERV_H_
+#define	_VM_RESERV_H_
 
 #ifdef _KERNEL
 
-void vm_phys_add_page(vm_paddr_t pa);
-vm_page_t vm_phys_alloc_contig(unsigned long npages,
-    vm_paddr_t low, vm_paddr_t high,
-    unsigned long alignment, unsigned long boundary);
-vm_page_t vm_phys_alloc_pages(int pool, int order);
-vm_paddr_t vm_phys_bootstrap_alloc(vm_size_t size, unsigned long alignment);
-void vm_phys_free_pages(vm_page_t m, int order);
-void vm_phys_init(void);
-void vm_phys_set_pool(int pool, vm_page_t m, int order);
-boolean_t vm_phys_unfree_page(vm_page_t m);
-boolean_t vm_phys_zero_pages_idle(void);
+#if VM_NRESERVLEVEL > 0
 
+vm_page_t	vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex);
+void		vm_reserv_break_all(vm_object_t object);
+boolean_t	vm_reserv_free_page(vm_page_t m);
+void		vm_reserv_init(void);
+int		vm_reserv_level_iffullpop(vm_page_t m);
+boolean_t	vm_reserv_reactivate_page(vm_page_t m);
+boolean_t	vm_reserv_reclaim_contig(vm_paddr_t size, vm_paddr_t low,
+		    vm_paddr_t high, unsigned long alignment,
+		    unsigned long boundary);
+boolean_t	vm_reserv_reclaim_inactive(void);
+void		vm_reserv_rename(vm_page_t m, vm_object_t new_object,
+		    vm_object_t old_object, vm_pindex_t old_object_offset);
+vm_paddr_t	vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end,
+		    vm_paddr_t high_water);
+
+#endif	/* VM_NRESERVLEVEL > 0 */
 #endif	/* _KERNEL */
-#endif	/* !_VM_PHYS_H_ */
+#endif	/* !_VM_RESERV_H_ */

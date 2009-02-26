@@ -107,8 +107,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 }
 
 void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t p, vm_prot_t prot,
-    boolean_t wired)
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t p,
+    vm_prot_t prot, boolean_t wired)
 {
 	MMU_ENTER(mmu_obj, pmap, va, p, prot, wired);
 }

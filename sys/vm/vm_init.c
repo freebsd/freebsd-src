@@ -186,16 +186,17 @@ again:
 		panic("startup: table size inconsistency");
 
 	clean_map = kmem_suballoc(kernel_map, &kmi->clean_sva, &kmi->clean_eva,
-			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS));
+	    nbuf * BKVASIZE + nswbuf * MAXPHYS, FALSE);
 	buffer_map = kmem_suballoc(clean_map, &kmi->buffer_sva,
-			&kmi->buffer_eva, (nbuf*BKVASIZE));
+	    &kmi->buffer_eva, nbuf * BKVASIZE, FALSE);
 	buffer_map->system_map = 1;
 	pager_map = kmem_suballoc(clean_map, &kmi->pager_sva, &kmi->pager_eva,
-				(nswbuf*MAXPHYS));
+	    nswbuf * MAXPHYS, FALSE);
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(exec_map_entries*(ARG_MAX+(PAGE_SIZE*3))));
-	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva);
+	    exec_map_entries * (ARG_MAX + (PAGE_SIZE * 3)), FALSE);
+	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva,
+	    FALSE);
 
 	/*
 	 * XXX: Mbuf system machine-specific initializations should

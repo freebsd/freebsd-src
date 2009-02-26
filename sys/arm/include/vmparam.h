@@ -85,6 +85,13 @@
  */
 #define	VM_NFREEORDER		9
 
+/*
+ * Disable superpage reservations.
+ */
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL		0
+#endif
+
 #define UPT_MAX_ADDRESS		VADDR(UPTPTDI + 3, 0)
 #define UPT_MIN_ADDRESS		VADDR(UPTPTDI, 0)
 

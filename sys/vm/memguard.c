@@ -174,7 +174,7 @@ memguard_init(vm_map_t parent_map, unsigned long size)
 	size *= PAGE_SIZE;
 
 	memguard_map = kmem_suballoc(parent_map, (vm_offset_t *)&base,
-	    (vm_offset_t *)&limit, (vm_size_t)size);
+	    (vm_offset_t *)&limit, (vm_size_t)size, FALSE);
 	memguard_map->system_map = 1;
 	memguard_mapsize = size;
 	memguard_mapused = 0;
