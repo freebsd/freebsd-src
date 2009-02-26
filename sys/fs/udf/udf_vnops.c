@@ -419,6 +419,14 @@ udf_print(struct vop_print_args *ap)
 #define blkoff(udfmp, loc)	((loc) & (udfmp)->bmask)
 #define lblktosize(udfmp, blk)	((blk) << (udfmp)->bshift)
 
+static inline int
+is_data_in_fentry(const struct udf_node *node)
+{
+	const struct file_entry *fentry = node->fentry;
+
+	return ((le16toh(fentry->icbtag.flags) & 0x7) == 3);
+}
+
 static int
 udf_read(struct vop_read_args *ap)
 {
@@ -426,7 +434,9 @@ udf_read(struct vop_read_args *ap)
 	struct uio *uio = ap->a_uio;
 	struct udf_node *node = VTON(vp);
 	struct udf_mnt *udfmp;
+	struct file_entry *fentry;
 	struct buf *bp;
+	uint8_t *data;
 	daddr_t lbn, rablock;
 	off_t diff, fsize;
 	int error = 0;
@@ -436,6 +446,22 @@ udf_read(struct vop_read_args *ap)
 		return (0);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
+
+	if (is_data_in_fentry(node)) {
+		fentry = node->fentry;
+		data = &fentry->data[le32toh(fentry->l_ea)];
+		fsize = le32toh(fentry->l_ad);
+
+		n = uio->uio_resid;
+		diff = fsize - uio->uio_offset;
+		if (diff <= 0)
+			return (0);
+		if (diff < n)
+			n = diff;
+		error = uiomove(data + uio->uio_offset, (int)n, uio);
+		return (error);
+	}
+
 	fsize = le64toh(node->fentry->inf_len);
 	udfmp = node->udfmp;
 	do {
