@@ -237,14 +237,8 @@ ata_start(device_t dev)
 void
 ata_finish(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(request->parent);
 
-    /*
-     * if in ATA_STALL_QUEUE state or request has ATA_R_DIRECT flags set
-     * we need to call ata_complete() directly here (no taskqueue involvement)
-     */
-    if (dumping ||
-	(ch->state & ATA_STALL_QUEUE) || (request->flags & ATA_R_DIRECT)) {
+    if (dumping) {
 	ATA_DEBUG_RQ(request, "finish directly");
 	ata_completed(request, 0);
     }

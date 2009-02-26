@@ -275,7 +275,7 @@ ata_raid_flush(struct bio *bp)
 	request->u.ata.feature = 0;
 	request->timeout = 1;
 	request->retries = 0;
-	request->flags |= ATA_R_ORDERED | ATA_R_DIRECT;
+	request->flags |= ATA_R_ORDERED | ATA_R_THREAD;
 	ata_queue_request(request);
     }
     return 0;
@@ -1570,7 +1570,7 @@ ata_raid_wipe_metadata(struct ar_softc *rdp)
 	    if (!(meta = malloc(size, M_AR, M_NOWAIT | M_ZERO)))
 		return ENOMEM;
 	    if (ata_raid_rw(rdp->disks[disk].dev, lba, meta, size,
-			    ATA_R_WRITE | ATA_R_DIRECT)) {
+			    ATA_R_WRITE | ATA_R_THREAD)) {
 		device_printf(rdp->disks[disk].dev, "wipe metadata failed\n");
 		error = EIO;
 	    }
@@ -2264,7 +2264,7 @@ ata_raid_hptv2_write_meta(struct ar_softc *rdp)
 	    if (ata_raid_rw(rdp->disks[disk].dev,
 			    HPTV2_LBA(rdp->disks[disk].dev), meta,
 			    sizeof(struct promise_raid_conf),
-			    ATA_R_WRITE | ATA_R_DIRECT)) {
+			    ATA_R_WRITE | ATA_R_THREAD)) {
 		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
 		error = EIO;
 	    }
@@ -2710,7 +2710,7 @@ ata_raid_intel_write_meta(struct ar_softc *rdp)
 	if (rdp->disks[disk].dev) {
 	    if (ata_raid_rw(rdp->disks[disk].dev,
 			    INTEL_LBA(rdp->disks[disk].dev),
-			    meta, 1024, ATA_R_WRITE | ATA_R_DIRECT)) {
+			    meta, 1024, ATA_R_WRITE | ATA_R_THREAD)) {
 		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
 		error = EIO;
 	    }
@@ -3055,7 +3055,7 @@ ata_raid_jmicron_write_meta(struct ar_softc *rdp)
 	    if (ata_raid_rw(rdp->disks[disk].dev,
 			    JMICRON_LBA(rdp->disks[disk].dev),
 			    meta, sizeof(struct jmicron_raid_conf),
-			    ATA_R_WRITE | ATA_R_DIRECT)) {
+			    ATA_R_WRITE | ATA_R_THREAD)) {
 		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
 		error = EIO;
 	    }
@@ -3778,7 +3778,7 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 	    if (ata_raid_rw(rdp->disks[disk].dev,
 			    PROMISE_LBA(rdp->disks[disk].dev),
 			    meta, sizeof(struct promise_raid_conf),
-			    ATA_R_WRITE | ATA_R_DIRECT)) {
+			    ATA_R_WRITE | ATA_R_THREAD)) {
 		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
 		error = EIO;
 	    }
@@ -4126,7 +4126,7 @@ ata_raid_sis_write_meta(struct ar_softc *rdp)
 	    if (ata_raid_rw(rdp->disks[disk].dev,
 			    SIS_LBA(rdp->disks[disk].dev),
 			    meta, sizeof(struct sis_raid_conf),
-			    ATA_R_WRITE | ATA_R_DIRECT)) {
+			    ATA_R_WRITE | ATA_R_THREAD)) {
 		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
 		error = EIO;
 	    }
@@ -4351,7 +4351,7 @@ ata_raid_via_write_meta(struct ar_softc *rdp)
 	    if (ata_raid_rw(rdp->disks[disk].dev,
 			    VIA_LBA(rdp->disks[disk].dev),
 			    meta, sizeof(struct via_raid_conf),
-			    ATA_R_WRITE | ATA_R_DIRECT)) {
+			    ATA_R_WRITE | ATA_R_THREAD)) {
 		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
 		error = EIO;
 	    }

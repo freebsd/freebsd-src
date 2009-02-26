@@ -627,7 +627,7 @@ ata_getparam(struct ata_device *atadev, int init)
 	request->timeout = 1;
 	request->retries = 0;
 	request->u.ata.command = command;
-	request->flags = (ATA_R_READ|ATA_R_AT_HEAD|ATA_R_DIRECT|ATA_R_QUIET);
+	request->flags = (ATA_R_READ|ATA_R_AT_HEAD|ATA_R_THREAD|ATA_R_QUIET);
 	request->data = (void *)&atadev->param;
 	request->bytecount = sizeof(struct ata_params);
 	request->donecount = 0;
