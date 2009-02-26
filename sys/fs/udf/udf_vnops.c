@@ -1056,8 +1056,19 @@ udf_bmap(struct vop_bmap_args *a)
 	if (a->a_runb)
 		*a->a_runb = 0;
 
-	error = udf_bmap_internal(node, a->a_bn * node->udfmp->bsize, &lsector,
-	    &max_size);
+	/*
+	 * UDF_INVALID_BMAP means data embedded into fentry, this is an internal
+	 * error that should not be propagated to calling code.
+	 * Most obvious mapping for this error is EOPNOTSUPP as we can not truly
+	 * translate block numbers in this case.
+	 * Incidentally, this return code will make vnode pager to use VOP_READ
+	 * to get data for mmap-ed pages and udf_read knows how to do the right
+	 * thing for this kind of files.
+	 */
+	error = udf_bmap_internal(node, a->a_bn << node->udfmp->bshift,
+	    &lsector, &max_size);
+	if (error == UDF_INVALID_BMAP)
+		return (EOPNOTSUPP);
 	if (error)
 		return (error);
 
