@@ -58,10 +58,7 @@ extern int xdecrypt( char *, char * );
  * passwd to decrypt it.
  */
 int
-getsecretkey(netname, secretkey, passwd)
-	char *netname;
-	char *secretkey;
-	char *passwd;
+getsecretkey(char *netname, char *secretkey, char *passwd)
 {
 	char lookup[3 * HEXKEYBYTES];
 	char *p;
