@@ -56,7 +56,6 @@ strtouq(const char *nptr, char **endptr, int base)
 	/*
 	 * See strtoq for comments as to the logic used.
 	 */
-	s = nptr;
 	do {
 		c = *s++;
 	} while (isspace(c));
