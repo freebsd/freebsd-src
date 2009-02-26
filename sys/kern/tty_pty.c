@@ -113,7 +113,7 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 
 	/* Create the controller device node. */
 	*dev = make_dev_credf(MAKEDEV_REF, &ptydev_cdevsw, 0,
-	    NULL, UID_ROOT, GID_WHEEL, 0666, name);
+	    NULL, UID_ROOT, GID_WHEEL, 0666, "%s", name);
 }
 
 static void
