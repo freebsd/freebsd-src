@@ -591,7 +591,6 @@ interpret:
 		len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
 		bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
 	} else {
-		len = MAXCOMLEN;
 		if (vn_commname(binvp, p->p_comm, MAXCOMLEN + 1) == 0)
 			len = MAXCOMLEN;
 		else {
@@ -1060,8 +1059,6 @@ exec_copyin_args(struct image_args *args, char *fname,
 	char *argp, *envp;
 	int error;
 	size_t length;
-
-	error = 0;
 
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
