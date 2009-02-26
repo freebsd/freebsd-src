@@ -1045,6 +1045,7 @@ udf_bmap(struct vop_bmap_args *a)
 	struct udf_node *node;
 	uint32_t max_size;
 	daddr_t lsector;
+	int nblk;
 	int error;
 
 	node = VTON(a->a_vp);
@@ -1075,9 +1076,23 @@ udf_bmap(struct vop_bmap_args *a)
 	/* Translate logical to physical sector number */
 	*a->a_bnp = lsector << (node->udfmp->bshift - DEV_BSHIFT);
 
-	/* Punt on read-ahead for now */
-	if (a->a_runp)
-		*a->a_runp = 0;
+	/*
+	 * Determine maximum number of readahead blocks following the
+	 * requested block.
+	 */
+	if (a->a_runp) {
+		nblk = (max_size >> node->udfmp->bshift) - 1;
+		if (nblk <= 0)
+			*a->a_runp = 0;
+		else if (nblk >= (MAXBSIZE >> node->udfmp->bshift))
+			*a->a_runp = (MAXBSIZE >> node->udfmp->bshift) - 1;
+		else
+			*a->a_runp = nblk;
+	}
+
+	if (a->a_runb) {
+		*a->a_runb = 0;
+	}
 
 	return (0);
 }
