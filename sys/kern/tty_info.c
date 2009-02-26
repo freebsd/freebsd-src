@@ -261,7 +261,6 @@ tty_info(struct tty *tp)
 
 	PROC_LOCK(pick);
 	picktd = NULL;
-	td = FIRST_THREAD_IN_PROC(pick);
 	FOREACH_THREAD_IN_PROC(pick, td)
 		if (thread_compare(picktd, td))
 			picktd = td;
