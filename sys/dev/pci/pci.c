@@ -554,7 +554,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					addr = REG(ptr + PCIR_HTMSI_ADDRESS_HI,
 					    4);
 					addr <<= 32;
-					addr = REG(ptr + PCIR_HTMSI_ADDRESS_LO,
+					addr |= REG(ptr + PCIR_HTMSI_ADDRESS_LO,
 					    4);
 					if (addr != MSI_INTEL_ADDR_BASE)
 						device_printf(pcib,
