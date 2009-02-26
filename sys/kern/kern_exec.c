@@ -318,7 +318,7 @@ do_execve(td, args, mac_p)
 	struct mac *mac_p;
 {
 	struct proc *p = td->td_proc;
-	struct nameidata nd, *ndp;
+	struct nameidata nd;
 	struct ucred *newcred = NULL, *oldcred;
 	struct uidinfo *euip;
 	register_t *stack_base;
@@ -396,8 +396,7 @@ do_execve(td, args, mac_p)
 	 * interpreter if this is an interpreted binary.
 	 */
 	if (args->fname != NULL) {
-		ndp = &nd;
-		NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
+		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
 		    | MPSAFE | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 	}
 
@@ -405,12 +404,12 @@ do_execve(td, args, mac_p)
 
 interpret:
 	if (args->fname != NULL) {
-		error = namei(ndp);
+		error = namei(&nd);
 		if (error)
 			goto exec_fail;
 
-		vfslocked = NDHASGIANT(ndp);
-		binvp  = ndp->ni_vp;
+		vfslocked = NDHASGIANT(&nd);
+		binvp  = nd.ni_vp;
 		imgp->vp = binvp;
 	} else {
 		AUDIT_ARG(fd, args->fd);
@@ -495,7 +494,7 @@ interpret:
 		imgp->vp->v_vflag &= ~VV_TEXT;
 		/* free name buffer and old vnode */
 		if (args->fname != NULL)
-			NDFREE(ndp, NDF_ONLY_PNBUF);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
 		mac_execve_interpreter_enter(binvp, &interpvplabel);
 #endif
@@ -509,7 +508,7 @@ interpret:
 		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = 0;
 		/* set new name to that of the interpreter */
-		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
+		NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		args->fname = imgp->interpreter_name;
 		goto interpret;
@@ -588,8 +587,8 @@ interpret:
 
 	/* name this process - nameiexec(p, ndp) */
 	if (args->fname) {
-		len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
-		bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
+		len = min(nd.ni_cnd.cn_namelen,MAXCOMLEN);
+		bcopy(nd.ni_cnd.cn_nameptr, p->p_comm, len);
 	} else {
 		if (vn_commname(binvp, p->p_comm, MAXCOMLEN + 1) == 0)
 			len = MAXCOMLEN;
@@ -851,7 +850,7 @@ exec_fail_dealloc:
 
 	if (imgp->vp != NULL) {
 		if (args->fname)
-			NDFREE(ndp, NDF_ONLY_PNBUF);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (imgp->opened)
 			VOP_CLOSE(imgp->vp, FREAD, td->td_ucred, td);
 		vput(imgp->vp);
