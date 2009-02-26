@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #define BOTH    3
 
 static int
-proc_sum(struct proc *p, int *estcpup)
+proc_sum(struct proc *p, fixpt_t *estcpup)
 {
 	struct thread *td;
 	int estcpu;
