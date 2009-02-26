@@ -97,14 +97,22 @@ main(int argc, char **argv)
 
 	listmode = readmode = writemode = attachedmode = caps = verbose = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "aclrwbhv")) != -1) {
+	while ((c = getopt(argc, argv, "abchlrwv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
 			break;
 
+		case 'b':
+			byte = 1;
+			break;
+
 		case 'c':
 			caps = 1;
+			break;
+
+		case 'h':
+			isshort = 1;
 			break;
 
 		case 'l':
@@ -117,14 +125,6 @@ main(int argc, char **argv)
 
 		case 'w':
 			writemode = 1;
-			break;
-
-		case 'b':
-			byte = 1;
-			break;
-
-		case 'h':
-			isshort = 1;
 			break;
 
 		case 'v':
