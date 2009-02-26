@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_reserv.h>
 
 struct vm_freelist {
 	struct pglist pl;
@@ -464,11 +465,13 @@ vm_phys_set_pool(int pool, vm_page_t m, int order)
 }
 
 /*
- * Remove the given physical page "m" from the free lists.
+ * Search for the given physical page "m" in the free lists.  If the search
+ * succeeds, remove "m" from the free lists and return TRUE.  Otherwise, return
+ * FALSE, indicating that "m" is not in the free lists.
  *
  * The free page queues must be locked.
  */
-void
+boolean_t
 vm_phys_unfree_page(vm_page_t m)
 {
 	struct vm_freelist *fl;
@@ -486,21 +489,21 @@ vm_phys_unfree_page(vm_page_t m)
 	 */
 	seg = &vm_phys_segs[m->segind];
 	for (m_set = m, order = 0; m_set->order == VM_NFREEORDER &&
-	    order < VM_NFREEORDER; ) {
+	    order < VM_NFREEORDER - 1; ) {
 		order++;
 		pa = m->phys_addr & (~(vm_paddr_t)0 << (PAGE_SHIFT + order));
-		KASSERT(pa >= seg->start && pa < seg->end,
-		    ("vm_phys_unfree_page: paddr %#jx is not within segment %p",
-		    (uintmax_t)pa, seg));
-		m_set = &seg->first_page[atop(pa - seg->start)];
+		if (pa >= seg->start)
+			m_set = &seg->first_page[atop(pa - seg->start)];
+		else
+			return (FALSE);
 	}
-	KASSERT(m_set->order >= order, ("vm_phys_unfree_page: page %p's order"
-	    " (%d) is less than expected (%d)", m_set, m_set->order, order));
+	if (m_set->order < order)
+		return (FALSE);
+	if (m_set->order == VM_NFREEORDER)
+		return (FALSE);
 	KASSERT(m_set->order < VM_NFREEORDER,
 	    ("vm_phys_unfree_page: page %p has unexpected order %d",
 	    m_set, m_set->order));
-	KASSERT(order < VM_NFREEORDER,
-	    ("vm_phys_unfree_page: order %d is out of range", order));
 
 	/*
 	 * Next, remove "m_set" from the free lists.  Finally, extract
@@ -527,6 +530,7 @@ vm_phys_unfree_page(vm_page_t m)
 		fl[order].lcnt++;
 	}
 	KASSERT(m_set == m, ("vm_phys_unfree_page: fatal inconsistency"));
+	return (TRUE);
 }
 
 /*
@@ -604,6 +608,9 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 	/* Compute the queue that is the best fit for npages. */
 	for (order = 0; (1 << order) < npages; order++);
 	mtx_lock(&vm_page_queue_free_mtx);
+#if VM_NRESERVLEVEL > 0
+retry:
+#endif
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		for (oind = min(order, VM_NFREEORDER - 1); oind < VM_NFREEORDER; oind++) {
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
@@ -661,6 +668,10 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 			}
 		}
 	}
+#if VM_NRESERVLEVEL > 0
+	if (vm_reserv_reclaim_contig(size, low, high, alignment, boundary))
+		goto retry;
+#endif
 	mtx_unlock(&vm_page_queue_free_mtx);
 	return (NULL);
 done:

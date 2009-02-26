@@ -1039,8 +1039,8 @@ pmap_add_tte(pmap_t pmap, vm_offset_t va, vm_page_t m, tte_t *tte_data, int wire
  * will be wired down.
  */
 void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-	   boolean_t wired)
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired)
 {
 	vm_paddr_t pa, opa;
 	uint64_t tte_data, otte_data;

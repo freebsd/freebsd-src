@@ -146,10 +146,14 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
 	if (object == NULL) {
 		/*
-		 * Allocate object and associate it with the pager.
+		 * Allocate object and associate it with the pager.  Initialize
+		 * the object's pg_color based upon the physical address of the
+		 * device's memory.
 		 */
 		mtx_unlock(&dev_pager_mtx);
 		object1 = vm_object_allocate(OBJT_DEVICE, pindex);
+		object1->flags |= OBJ_COLORED;
+		object1->pg_color = atop(paddr) - OFF_TO_IDX(off - PAGE_SIZE);
 		mtx_lock(&dev_pager_mtx);
 		object = vm_pager_object_lookup(&dev_pager_object_list, handle);
 		if (object != NULL) {
