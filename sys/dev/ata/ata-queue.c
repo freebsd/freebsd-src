@@ -497,7 +497,6 @@ ata_timeout(struct ata_request *request)
     //request->flags |= ATA_R_DEBUG;
     ATA_DEBUG_RQ(request, "timeout");
 
-    mtx_lock(&ch->state_mtx);
     /*
      * if we have an ATA_ACTIVE request running, we flag the request 
      * ATA_R_TIMEOUT so ata_finish will handle it correctly
