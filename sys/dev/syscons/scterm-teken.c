@@ -108,7 +108,7 @@ static const teken_funcs_t scteken_funcs = {
 static int
 scteken_init(scr_stat *scp, void **softc, int code)
 {
-	teken_stat *ts = scp->ts;
+	teken_stat *ts;
 	teken_pos_t tp;
 
 	if (*softc == NULL) {
