@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090215_0128"
+#define HDA_DRV_TEST_REV	"20090226_0129"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -467,53 +467,56 @@ static uint32_t hdac_fmt[] = {
 
 static struct pcmchan_caps hdac_caps = {48000, 48000, hdac_fmt, 0};
 
+#define HDAC_NO_MSI	1
+
 static const struct {
 	uint32_t	model;
 	char		*desc;
+	char		flags;
 } hdac_devices[] = {
-	{ HDA_INTEL_82801F,  "Intel 82801F" },
-	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB" },
-	{ HDA_INTEL_82801G,  "Intel 82801G" },
-	{ HDA_INTEL_82801H,  "Intel 82801H" },
-	{ HDA_INTEL_82801I,  "Intel 82801I" },
-	{ HDA_INTEL_82801J,  "Intel 82801J" },
-	{ HDA_INTEL_PCH,     "Intel PCH" },
-	{ HDA_INTEL_SCH,     "Intel SCH" },
-	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
-	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
-	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61" },
-	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61" },
-	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65" },
-	{ HDA_NVIDIA_MCP65_2, "NVidia MCP65" },
-	{ HDA_NVIDIA_MCP67_1, "NVidia MCP67" },
-	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67" },
-	{ HDA_NVIDIA_MCP73_1, "NVidia MCP73" },
-	{ HDA_NVIDIA_MCP73_2, "NVidia MCP73" },
-	{ HDA_NVIDIA_MCP78_1, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP78_2, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP78_3, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP78_4, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP79_1, "NVidia MCP79" },
-	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79" },
-	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79" },
-	{ HDA_NVIDIA_MCP79_4, "NVidia MCP79" },
-	{ HDA_ATI_SB450,     "ATI SB450"     },
-	{ HDA_ATI_SB600,     "ATI SB600"     },
-	{ HDA_ATI_RS600,     "ATI RS600"     },
-	{ HDA_ATI_RS690,     "ATI RS690"     },
-	{ HDA_ATI_RS780,     "ATI RS780"     },
-	{ HDA_ATI_R600,      "ATI R600"      },
-	{ HDA_ATI_RV610,     "ATI RV610"     },
-	{ HDA_ATI_RV620,     "ATI RV620"     },
-	{ HDA_ATI_RV630,     "ATI RV630"     },
-	{ HDA_ATI_RV635,     "ATI RV635"     },
-	{ HDA_ATI_RV710,     "ATI RV710"     },
-	{ HDA_ATI_RV730,     "ATI RV730"     },
-	{ HDA_ATI_RV740,     "ATI RV740"     },
-	{ HDA_ATI_RV770,     "ATI RV770"     },
-	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A" },
-	{ HDA_SIS_966,       "SiS 966" },
-	{ HDA_ULI_M5461,     "ULI M5461" },
+	{ HDA_INTEL_82801F,  "Intel 82801F",	0 },
+	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0 },
+	{ HDA_INTEL_82801G,  "Intel 82801G",	0 },
+	{ HDA_INTEL_82801H,  "Intel 82801H",	0 },
+	{ HDA_INTEL_82801I,  "Intel 82801I",	0 },
+	{ HDA_INTEL_82801J,  "Intel 82801J",	0 },
+	{ HDA_INTEL_PCH,     "Intel PCH",	0 },
+	{ HDA_INTEL_SCH,     "Intel SCH",	0 },
+	{ HDA_NVIDIA_MCP51,  "NVidia MCP51",	HDAC_NO_MSI },
+	{ HDA_NVIDIA_MCP55,  "NVidia MCP55",	0 },
+	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61",	0 },
+	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61",	0 },
+	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65",	0 },
+	{ HDA_NVIDIA_MCP65_2, "NVidia MCP65",	0 },
+	{ HDA_NVIDIA_MCP67_1, "NVidia MCP67",	0 },
+	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67",	0 },
+	{ HDA_NVIDIA_MCP73_1, "NVidia MCP73",	0 },
+	{ HDA_NVIDIA_MCP73_2, "NVidia MCP73",	0 },
+	{ HDA_NVIDIA_MCP78_1, "NVidia MCP78",	0 },
+	{ HDA_NVIDIA_MCP78_2, "NVidia MCP78",	0 },
+	{ HDA_NVIDIA_MCP78_3, "NVidia MCP78",	0 },
+	{ HDA_NVIDIA_MCP78_4, "NVidia MCP78",	0 },
+	{ HDA_NVIDIA_MCP79_1, "NVidia MCP79",	0 },
+	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79",	0 },
+	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79",	0 },
+	{ HDA_NVIDIA_MCP79_4, "NVidia MCP79",	0 },
+	{ HDA_ATI_SB450,     "ATI SB450",	0 },
+	{ HDA_ATI_SB600,     "ATI SB600",	0 },
+	{ HDA_ATI_RS600,     "ATI RS600",	0 },
+	{ HDA_ATI_RS690,     "ATI RS690",	0 },
+	{ HDA_ATI_RS780,     "ATI RS780",	0 },
+	{ HDA_ATI_R600,      "ATI R600",	0 },
+	{ HDA_ATI_RV610,     "ATI RV610",	0 },
+	{ HDA_ATI_RV620,     "ATI RV620",	0 },
+	{ HDA_ATI_RV630,     "ATI RV630",	0 },
+	{ HDA_ATI_RV635,     "ATI RV635",	0 },
+	{ HDA_ATI_RV710,     "ATI RV710",	0 },
+	{ HDA_ATI_RV730,     "ATI RV730",	0 },
+	{ HDA_ATI_RV740,     "ATI RV740",	0 },
+	{ HDA_ATI_RV770,     "ATI RV770",	0 },
+	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A",0 },
+	{ HDA_SIS_966,       "SiS 966",		0 },
+	{ HDA_ULI_M5461,     "ULI M5461",	0 },
 	/* Unknown */
 	{ HDA_INTEL_ALL,  "Intel (Unknown)"  },
 	{ HDA_NVIDIA_ALL, "NVidia (Unknown)" },
@@ -3978,11 +3981,31 @@ hdac_attach(device_t dev)
 {
 	struct hdac_softc *sc;
 	int result;
-	int i;
+	int i, devid = -1;
+	uint32_t model;
+	uint16_t class, subclass;
 	uint16_t vendor;
 	uint8_t v;
 
 	device_printf(dev, "HDA Driver Revision: %s\n", HDA_DRV_TEST_REV);
+
+	model = (uint32_t)pci_get_device(dev) << 16;
+	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
+	class = pci_get_class(dev);
+	subclass = pci_get_subclass(dev);
+
+	for (i = 0; i < HDAC_DEVICES_LEN; i++) {
+		if (hdac_devices[i].model == model) {
+			devid = i;
+			break;
+		}
+		if (HDA_DEV_MATCH(hdac_devices[i].model, model) &&
+		    class == PCIC_MULTIMEDIA &&
+		    subclass == PCIS_MULTIMEDIA_HDA) {
+			devid = i;
+			break;
+		}
+	}
 
 	sc = device_get_softc(dev);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
@@ -4049,11 +4072,17 @@ hdac_attach(device_t dev)
 		);
 	}
 
-	if (resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "msi", &i) == 0 && i == 0)
+	if (devid >= 0 && (hdac_devices[i].flags & HDAC_NO_MSI))
 		sc->flags &= ~HDAC_F_MSI;
 	else
 		sc->flags |= HDAC_F_MSI;
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "msi", &i) == 0) {
+		if (i == 0)
+			sc->flags &= ~HDAC_F_MSI;
+		else
+			sc->flags |= HDAC_F_MSI;
+	}
 
 #if defined(__i386__) || defined(__amd64__)
 	sc->flags |= HDAC_F_DMA_NOCACHE;
