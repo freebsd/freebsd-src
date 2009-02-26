@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090226: libmp(3) functions renamed
+OLD_LIBS+=usr/lib/libmp.so.6
 # 20090223: changeover of USB stacks
 OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
 OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
