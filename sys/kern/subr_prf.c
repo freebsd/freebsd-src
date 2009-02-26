@@ -137,7 +137,6 @@ uprintf(const char *fmt, ...)
 		return (0);
 
 	sx_slock(&proctree_lock);
-	p = td->td_proc;
 	PROC_LOCK(p);
 	if ((p->p_flag & P_CONTROLT) == 0) {
 		PROC_UNLOCK(p);
