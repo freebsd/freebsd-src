@@ -417,7 +417,7 @@ udf_print(struct vop_print_args *ap)
 
 #define lblkno(udfmp, loc)	((loc) >> (udfmp)->bshift)
 #define blkoff(udfmp, loc)	((loc) & (udfmp)->bmask)
-#define lblktosize(imp, blk)	((blk) << (udfmp)->bshift)
+#define lblktosize(udfmp, blk)	((blk) << (udfmp)->bshift)
 
 static int
 udf_read(struct vop_read_args *ap)
@@ -981,10 +981,11 @@ udf_strategy(struct vop_strategy_args *a)
 	struct buf *bp;
 	struct vnode *vp;
 	struct udf_node *node;
-	int maxsize;
-	daddr_t sector;
 	struct bufobj *bo;
-	int multiplier;
+	off_t offset;
+	uint32_t maxsize;
+	daddr_t sector;
+	int error;
 
 	bp = a->a_bp;
 	vp = a->a_vp;
@@ -995,20 +996,16 @@ udf_strategy(struct vop_strategy_args *a)
 		 * Files that are embedded in the fentry don't translate well
 		 * to a block number.  Reject.
 		 */
-		if (udf_bmap_internal(node, bp->b_lblkno * node->udfmp->bsize,
-		    &sector, &maxsize)) {
+		offset = lblktosize(node->udfmp, bp->b_lblkno);
+		error = udf_bmap_internal(node, offset, &sector, &maxsize);
+		if (error) {
 			clrbuf(bp);
 			bp->b_blkno = -1;
+			bufdone(bp);
+			return (0);
 		}
-
 		/* bmap gives sector numbers, bio works with device blocks */
-		multiplier = node->udfmp->bsize / DEV_BSIZE;
-		bp->b_blkno = sector * multiplier;
-
-	}
-	if ((long)bp->b_blkno == -1) {
-		bufdone(bp);
-		return (0);
+		bp->b_blkno = sector << (node->udfmp->bshift - DEV_BSHIFT);
 	}
 	bo = node->udfmp->im_bo;
 	bp->b_iooffset = dbtob(bp->b_blkno);
