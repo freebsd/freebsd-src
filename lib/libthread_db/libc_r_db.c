@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <machine/setjmp.h>
+#include <sys/linker_set.h>
 #include <proc_service.h>
 #include <stdlib.h>
 #include <string.h>
@@ -346,3 +347,5 @@ struct ta_ops libc_r_db_ops = {
 	.to_thr_setxmmregs	= libc_r_db_thr_setxmmregs,
 #endif
 };
+
+DATA_SET(__ta_ops, libc_r_db_ops);
