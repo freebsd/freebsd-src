@@ -1296,16 +1296,20 @@ static int
 udf_readatoffset(struct udf_node *node, int *size, off_t offset,
     struct buf **bp, uint8_t **data)
 {
-	struct udf_mnt *udfmp;
-	struct file_entry *fentry = NULL;
+	struct udf_mnt *udfmp = node->udfmp;
+	struct vnode *vp = node->i_vnode;
+	struct file_entry *fentry;
 	struct buf *bp1;
 	uint32_t max_size;
 	daddr_t sector;
+	off_t off;
+	int adj_size;
 	int error;
 
-	udfmp = node->udfmp;
-
-	*bp = NULL;
+	/*
+	 * This call is made *not* only to detect UDF_INVALID_BMAP case,
+	 * max_size is used as an ad-hoc read-ahead hint for "normal" case.
+	 */
 	error = udf_bmap_internal(node, offset, &sector, &max_size);
 	if (error == UDF_INVALID_BMAP) {
 		/*
@@ -1323,9 +1327,18 @@ udf_readatoffset(struct udf_node *node, int *size, off_t offset,
 	/* Adjust the size so that it is within range */
 	if (*size == 0 || *size > max_size)
 		*size = max_size;
-	*size = min(*size, MAXBSIZE);
 
-	if ((error = udf_readlblks(udfmp, sector, *size + (offset & udfmp->bmask), bp))) {
+	/*
+	 * Because we will read starting at block boundary, we need to adjust
+	 * how much we need to read so that all promised data is in.
+	 * Also, we can't promise to read more than MAXBSIZE bytes starting
+	 * from block boundary, so adjust what we promise too.
+	 */
+	off = blkoff(udfmp, offset);
+	*size = min(*size, MAXBSIZE - off);
+	adj_size = (*size + off + udfmp->bmask) & ~udfmp->bmask;
+	*bp = NULL;
+	if ((error = bread(vp, lblkno(udfmp, offset), adj_size, NOCRED, bp))) {
 		printf("warning: udf_readlblks returned error %d\n", error);
 		/* note: *bp may be non-NULL */
 		return (error);
