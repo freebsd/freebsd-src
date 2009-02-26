@@ -95,25 +95,10 @@ struct ifid {
 MALLOC_DECLARE(M_UDFFENTRY);
 
 static __inline int
-udf_readlblks(struct udf_mnt *udfmp, int sector, int size, struct buf **bp)
+udf_readdevblks(struct udf_mnt *udfmp, int sector, int size, struct buf **bp)
 {
 	return (RDSECTOR(udfmp->im_devvp, sector,
 			 (size + udfmp->bmask) & ~udfmp->bmask, bp));
-}
-
-static __inline int
-udf_readalblks(struct udf_mnt *udfmp, int lsector, int size, struct buf **bp)
-{
-	daddr_t rablock, lblk;
-	int rasize;
-
-	lblk = (lsector + udfmp->part_start) << (udfmp->bshift - DEV_BSHIFT);
-	rablock = (lblk + 1) << udfmp->bshift;
-	rasize = size;
-
-	return (breadn(udfmp->im_devvp, lblk,
-		       (size + udfmp->bmask) & ~udfmp->bmask,
-		       &rablock, &rasize, 1,  NOCRED, bp));
 }
 
 /*
