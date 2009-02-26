@@ -367,7 +367,6 @@ struct ata_request {
 #define         ATA_R_AT_HEAD           0x00000200
 #define         ATA_R_REQUEUE           0x00000400
 #define         ATA_R_THREAD            0x00000800
-#define         ATA_R_DIRECT            0x00001000
 
 #define         ATA_R_DEBUG             0x10000000
 #define         ATA_R_DANGER1           0x20000000
