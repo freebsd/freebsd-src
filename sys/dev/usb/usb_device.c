@@ -74,6 +74,10 @@ static usb2_error_t usb2_fill_iface_data(struct usb2_device *, uint8_t,
 		    uint8_t);
 static void	usb2_notify_addq(const char *type, struct usb2_device *);
 static void	usb2_fifo_free_wrap(struct usb2_device *, uint8_t, uint8_t);
+static struct cdev *usb2_make_dev(struct usb2_device *, int, int, int);
+static void	usb2_cdev_create(struct usb2_device *);
+static void	usb2_cdev_free(struct usb2_device *);
+static void	usb2_cdev_cleanup(void *);
 
 /* This variable is global to allow easy access to it: */
 
@@ -274,6 +278,7 @@ static void
 usb2_fill_pipe_data(struct usb2_device *udev, uint8_t iface_index,
     struct usb2_endpoint_descriptor *edesc, struct usb2_pipe *pipe)
 {
+
 	bzero(pipe, sizeof(*pipe));
 
 	(udev->bus->methods->pipe_init) (udev, edesc, pipe);
@@ -416,6 +421,7 @@ usb2_fill_iface_data(struct usb2_device *udev,
 	iface->idesc = id;
 	iface->alt_index = alt_index;
 	iface->parent_iface_index = USB_IFACE_INDEX_ANY;
+	iface->ep_in_mask = iface->ep_out_mask = 0;
 
 	nendpt = id->bNumEndpoints;
 	DPRINTFN(5, "found idesc nendpt=%d\n", nendpt);
@@ -438,6 +444,14 @@ usb2_fill_iface_data(struct usb2_device *udev,
 
 found:
 		ed = (void *)desc;
+
+		/* Fill in the endpoint bitmasks */
+		if (ed->bEndpointAddress & UE_DIR_IN)
+			iface->ep_in_mask |=
+			    1 << UE_GET_ADDR(ed->bEndpointAddress);
+		else
+			iface->ep_out_mask |=
+			    1 << UE_GET_ADDR(ed->bEndpointAddress);
 
 		/* find a free pipe */
 		while (pipe != pipe_end) {
@@ -488,7 +502,6 @@ usb2_free_iface_data(struct usb2_device *udev)
 		iface->idesc = NULL;
 		iface->alt_index = 0;
 		iface->parent_iface_index = USB_IFACE_INDEX_ANY;
-		iface->perm.mode = 0;	/* disable permissions */
 		iface++;
 	}
 
@@ -543,6 +556,7 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 	usb2_fifo_free_wrap(udev, USB_IFACE_INDEX_ANY, 0);
 
 	/* free all configuration data structures */
+	usb2_cdev_free(udev);
 	usb2_free_iface_data(udev);
 
 	if (index == USB_UNCONFIG_INDEX) {
@@ -652,10 +666,13 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 			goto done;
 		}
 	}
+	/* create device nodes for each endpoint */
+	usb2_cdev_create(udev);
 
 done:
 	DPRINTF("error=%s\n", usb2_errstr(err));
 	if (err) {
+		usb2_cdev_free(udev);
 		usb2_free_iface_data(udev);
 	}
 	if (do_unlock) {
@@ -713,6 +730,7 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 	 * Free all generic FIFOs for this interface, except control
 	 * endpoint FIFOs:
 	 */
+	usb2_cdev_free(udev);
 	usb2_fifo_free_wrap(udev, iface_index, 0);
 
 	err = usb2_fill_iface_data(udev, iface_index, alt_index);
@@ -721,6 +739,9 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 	}
 	err = usb2_req_set_alt_interface_no(udev, NULL, iface_index,
 	    iface->idesc->bAlternateSetting);
+
+	/* create device nodes for each endpoint */
+	usb2_cdev_create(udev);
 
 done:
 	if (do_unlock) {
@@ -1354,6 +1375,8 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	usb2_cv_init(udev->default_cv, "WCTRL");
 	usb2_cv_init(udev->default_cv + 1, "UGONE");
 
+	LIST_INIT(&udev->pd_list);
+
 	/* initialise our mutex */
 	mtx_init(udev->default_mtx, "USB device mutex", NULL, MTX_DEF);
 
@@ -1422,6 +1445,14 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 
 	/* set device index */
 	udev->device_index = device_index;
+
+	/* Create the control endpoint device */
+	udev->default_dev = usb2_make_dev(udev, 0 , 0, FREAD|FWRITE);
+	/* Create a link from /dev/ugenX.X to the default endpoint */
+	snprintf(udev->ugen_name, sizeof(udev->ugen_name),
+	    USB_GENERIC_NAME "%u.%u", device_get_unit(bus->bdev),
+	    device_index);
+	make_dev_alias(udev->default_dev, udev->ugen_name);
 
 	if (udev->flags.usb2_mode == USB_MODE_HOST) {
 
@@ -1673,21 +1704,9 @@ repeat_set_config:
 	usb2_bus_port_set_device(bus, parent_hub ?
 	    parent_hub->hub->ports + port_index : NULL, udev, device_index);
 
-	/* make a symlink for UGEN */
-	if (snprintf((char *)scratch_ptr, scratch_size,
-	    USB_DEVICE_NAME "%u.%u.0.0",
-	    device_get_unit(udev->bus->bdev),
-	    udev->device_index)) {
-		/* ignore */
-	}
-	udev->ugen_symlink =
-	    usb2_alloc_symlink((char *)scratch_ptr, "ugen%u.%u",
-	    device_get_unit(udev->bus->bdev),
-	    udev->device_index);
-
-	printf("ugen%u.%u: <%s> at %s\n",
-	    device_get_unit(udev->bus->bdev),
-	    udev->device_index, udev->manufacturer,
+	/* Link and announce the ugen device name */
+	udev->ugen_symlink = usb2_alloc_symlink(udev->ugen_name);
+	printf("%s: <%s> at %s\n", udev->ugen_name, udev->manufacturer,
 	    device_get_nameunit(udev->bus->bdev));
 
 	usb2_notify_addq("+", udev);
@@ -1700,6 +1719,100 @@ done:
 	return (udev);
 }
 
+static struct cdev *
+usb2_make_dev(struct usb2_device *udev, int iface_index, int ep, int mode)
+{
+	struct usb2_fs_privdata* pd;
+	char devname[20];
+
+	/* Store information to locate ourselves again later */
+	pd = malloc(sizeof(struct usb2_fs_privdata), M_USBDEV,
+	    M_WAITOK | M_ZERO);
+	pd->bus_index = device_get_unit(udev->bus->bdev);
+	pd->dev_index = udev->device_index;
+	pd->iface_index = iface_index;
+	pd->ep_addr = ep;
+	pd->mode = mode;
+
+	/* Now, create the device itself */
+	snprintf(devname, sizeof(devname), "%u.%u.%u.%u",
+	    pd->bus_index, pd->dev_index,
+	    pd->iface_index, pd->ep_addr);
+	pd->cdev = make_dev(&usb2_devsw, 0, UID_ROOT,
+	    GID_OPERATOR, 0600, USB_DEVICE_DIR "/%s", devname);
+	pd->cdev->si_drv1 = pd;
+
+	return (pd->cdev);
+}
+
+static void
+usb2_cdev_create(struct usb2_device *udev)
+{
+	struct usb2_interface *iface;
+	struct usb2_fs_privdata* pd;
+	struct cdev *dev;
+	uint8_t niface;
+	int i, ep, mode, inmode, outmode;
+
+	KASSERT(LIST_FIRST(&udev->pd_list) == NULL, ("stale cdev entries"));
+
+	DPRINTFN(2, "Creating device nodes\n");
+
+	usb2_interface_count(udev, &niface);
+	if (niface == 0)
+		return;		/* nothing to do */
+
+	if (usb2_get_mode(udev) == USB_MODE_DEVICE) {
+		inmode = FWRITE;
+		outmode = FREAD;
+	} else {		 /* USB_MODE_HOST */
+		inmode = FREAD;
+		outmode = FWRITE;
+	}
+
+	for (i = 0; i < niface; i++) {
+		iface = usb2_get_iface(udev, i);
+		if (iface == NULL)
+			break;
+
+		/* Create all available endpoints except EP0 */
+		for (ep = 1; ep < 16; ep++) {
+			mode = 0;
+			mode |= iface->ep_in_mask & (1 << ep) ? inmode : 0;
+			mode |= iface->ep_out_mask & (1 << ep) ? outmode : 0;
+			if (mode == 0)
+				continue;	/* no IN or OUT endpoint */
+
+			dev = usb2_make_dev(udev, i , ep, mode);
+			pd = dev->si_drv1;
+			LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
+		}
+	}
+}
+
+static void
+usb2_cdev_free(struct usb2_device *udev)
+{
+	struct usb2_fs_privdata* pd;
+
+	DPRINTFN(2, "Freeing device nodes\n");
+
+	while ((pd = LIST_FIRST(&udev->pd_list)) != NULL) {
+		KASSERT(pd->cdev->si_drv1 == pd, ("privdata corrupt"));
+		KASSERT(pd->ep_addr > 0, ("freeing EP0"));
+
+		destroy_dev_sched_cb(pd->cdev, usb2_cdev_cleanup, pd);
+		pd->cdev = NULL;
+		LIST_REMOVE(pd, pd_next);
+	}
+}
+
+static void
+usb2_cdev_cleanup(void* arg)
+{
+	free(arg, M_USBDEV);
+}
+
 /*------------------------------------------------------------------------*
  *	usb2_free_device
  *
@@ -1708,26 +1821,16 @@ done:
 void
 usb2_free_device(struct usb2_device *udev)
 {
-	struct usb2_bus *bus;
+	struct usb2_bus *bus = udev->bus;;
 
-	if (udev == NULL) {
-		/* already freed */
-		return;
-	}
 	DPRINTFN(4, "udev=%p port=%d\n", udev, udev->port_no);
 
 	usb2_notify_addq("-", udev);
 
-	bus = udev->bus;
+	printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
+	    udev->manufacturer, device_get_nameunit(bus->bdev));
 
-	printf("ugen%u.%u: <%s> at %s (disconnected)\n",
-	    device_get_unit(bus->bdev),
-	    udev->device_index, udev->manufacturer,
-	    device_get_nameunit(bus->bdev));
-
-	/*
-	 * Destroy UGEN symlink, if any
-	 */
+	/* Destroy UGEN symlink, if any */
 	if (udev->ugen_symlink) {
 		usb2_free_symlink(udev->ugen_symlink);
 		udev->ugen_symlink = NULL;
@@ -1759,7 +1862,10 @@ usb2_free_device(struct usb2_device *udev)
 	/*
 	 * Free all interface related data and FIFOs, if any.
 	 */
+	usb2_cdev_free(udev);
 	usb2_free_iface_data(udev);
+	destroy_dev_sched_cb(udev->default_dev, usb2_cdev_cleanup,
+	    udev->default_dev->si_drv1);
 
 	/* unsetup any leftover default USB transfers */
 	usb2_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
@@ -1783,6 +1889,7 @@ usb2_free_device(struct usb2_device *udev)
 	usb2_cv_destroy(udev->default_cv + 1);
 
 	mtx_destroy(udev->default_mtx);
+	KASSERT(LIST_FIRST(&udev->pd_list) == NULL, ("leaked cdev entries"));
 
 	/* free device */
 	free(udev, M_USB);
@@ -2112,7 +2219,7 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 	if (udev->parent_hub) {
 		snprintf(data, 1024,
 		    "%s"
-		    "ugen%u.%u "
+		    "%s "
 		    "vendor=0x%04x "
 		    "product=0x%04x "
 		    "devclass=0x%02x "
@@ -2121,22 +2228,20 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 		    "at "
 		    "port=%u "
 		    "on "
-		    "ugen%u.%u\n",
+		    "%s\n",
 		    type,
-		    device_get_unit(udev->bus->bdev),
-		    udev->device_index,
+		    udev->ugen_name,
 		    UGETW(udev->ddesc.idVendor),
 		    UGETW(udev->ddesc.idProduct),
 		    udev->ddesc.bDeviceClass,
 		    udev->ddesc.bDeviceSubClass,
 		    udev->serial,
 		    udev->port_no,
-		    device_get_unit(udev->bus->bdev),
-		    udev->parent_hub->device_index);
+		    udev->parent_hub->ugen_name);
 	} else {
 		snprintf(data, 1024,
 		    "%s"
-		    "ugen%u.%u "
+		    "%s "
 		    "vendor=0x%04x "
 		    "product=0x%04x "
 		    "devclass=0x%02x "
@@ -2146,8 +2251,7 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 		    "on "
 		    "%s\n",
 		    type,
-		    device_get_unit(udev->bus->bdev),
-		    udev->device_index,
+		    udev->ugen_name,
 		    UGETW(udev->ddesc.idVendor),
 		    UGETW(udev->ddesc.idProduct),
 		    udev->ddesc.bDeviceClass,

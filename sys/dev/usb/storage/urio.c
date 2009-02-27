@@ -228,13 +228,11 @@ urio_attach(device_t dev)
 		DPRINTF("error=%s\n", usb2_errstr(error));
 		goto detach;
 	}
-	/* set interface permissions */
-	usb2_set_iface_perm(uaa->device, uaa->info.bIfaceIndex,
-	    UID_ROOT, GID_OPERATOR, 0644);
 
 	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &urio_fifo_methods, &sc->sc_fifo,
-	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex);
+	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}
@@ -370,7 +368,7 @@ urio_stop_write(struct usb2_fifo *fifo)
 }
 
 static int
-urio_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+urio_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct urio_softc *sc = fifo->priv_sc0;
 
@@ -403,7 +401,7 @@ urio_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 }
 
 static void
-urio_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
+urio_close(struct usb2_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
@@ -412,7 +410,7 @@ urio_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 
 static int
 urio_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
-    int fflags, struct thread *td)
+    int fflags)
 {
 	struct usb2_ctl_request ur;
 	struct RioCommand *rio_cmd;
