@@ -172,7 +172,6 @@ static void		rum_enable_tsf_sync(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
-static void		rum_update_mcast(struct ifnet *);
 static void		rum_update_promisc(struct ifnet *);
 static const char	*rum_get_rf(int);
 static void		rum_read_eeprom(struct rum_softc *);
@@ -518,7 +517,6 @@ rum_attach_post(struct usb2_proc_msg *pm)
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic);
-	ic->ic_update_mcast = rum_update_mcast;
 	ic->ic_update_promisc = rum_update_promisc;
 	ic->ic_newassoc = rum_newassoc;
 	ic->ic_raw_xmit = rum_raw_xmit;
@@ -1871,12 +1869,6 @@ rum_promisctask(struct usb2_proc_msg *pm)
 
 	DPRINTF("%s promiscuous mode\n", (ifp->if_flags & IFF_PROMISC) ?
 	    "entering" : "leaving");
-}
-
-static void
-rum_update_mcast(struct ifnet *ifp)
-{
-	/* not supported */
 }
 
 static void

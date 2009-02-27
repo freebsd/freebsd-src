@@ -155,7 +155,6 @@ static void		ural_set_basicrates(struct ural_softc *,
 			    const struct ieee80211_channel *);
 static void		ural_set_bssid(struct ural_softc *, const uint8_t *);
 static void		ural_set_macaddr(struct ural_softc *, uint8_t *);
-static void		ural_update_mcast(struct ifnet *);
 static void		ural_update_promisc(struct ifnet *);
 static const char	*ural_get_rf(int);
 static void		ural_read_eeprom(struct ural_softc *);
@@ -509,7 +508,6 @@ ural_attach_post(struct usb2_proc_msg *pm)
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic);
-	ic->ic_update_mcast = ural_update_mcast;
 	ic->ic_update_promisc = ural_update_promisc;
 	ic->ic_newassoc = ural_newassoc;
 	ic->ic_raw_xmit = ural_raw_xmit;
@@ -2024,12 +2022,6 @@ ural_promisctask(struct usb2_proc_msg *pm)
 
 	DPRINTF("%s promiscuous mode\n", (ifp->if_flags & IFF_PROMISC) ?
 	    "entering" : "leaving");
-}
-
-static void
-ural_update_mcast(struct ifnet *ifp)
-{
-	/* not supported */
 }
 
 static void
