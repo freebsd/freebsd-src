@@ -35,6 +35,7 @@
 #if defined(__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_types.h>
 #ifdef __FreeBSD__
+#include <net/route.h>
 #include <net/vnet.h>
 #endif
 

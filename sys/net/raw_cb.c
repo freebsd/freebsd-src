@@ -31,6 +31,8 @@
  * $FreeBSD$
  */
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/domain.h>
 #include <sys/lock.h>
@@ -46,6 +48,7 @@
 
 #include <net/if.h>
 #include <net/raw_cb.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 /*
