@@ -115,14 +115,15 @@ options		AH_SUPPORT_AR5416
 #device		hifn		# NB: Soekris minipci card known to work
 
 # NB: must use old usb stack; new one does not work
-#device		ousb
+makeoptions	WITH_LEGACY	# NB: required to get includes
+device		ousb
 #options		USB_DEBUG
-#device		oohci
-#device		oehci
-#device		ougen
+device		oohci
+device		oehci
+device		ougen
 
-#device		oaxe
+device		oaxe
 
-#device		umass
-#device		scbus           # SCSI bus (required for SCSI)
-#device		da              # Direct Access (disks)
+device		umass
+device		scbus           # SCSI bus (required for SCSI)
+device		da              # Direct Access (disks)
