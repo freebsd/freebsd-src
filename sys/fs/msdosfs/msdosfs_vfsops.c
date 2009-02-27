@@ -408,7 +408,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 {
 	struct msdosfsmount *pmp;
 	struct buf *bp;
-	struct cdev *dev = devvp->v_rdev;
+	struct cdev *dev;
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
@@ -419,8 +419,12 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
+	bp = NULL;		/* This and pmp both used in error_exit. */
+	pmp = NULL;
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	/* XXX: use VOP_ACCESS to check FS perms */
+
+	dev = devvp->v_rdev;
+	dev_ref(dev);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "msdosfs", ronly ? 0 : 1);
@@ -428,11 +432,9 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
-		return (error);
+		goto error_exit;
 
 	bo = &devvp->v_bufobj;
-	bp = NULL;		/* This and pmp both used in error_exit. */
-	pmp = NULL;
 
 	/*
 	 * Read the boot sector of the filesystem, and then check the
@@ -707,6 +709,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	 * fillinusemap() needs pm_devvp.
 	 */
 	pmp->pm_devvp = devvp;
+	pmp->pm_dev = dev;
 
 	/*
 	 * Have the inuse map filled in.
@@ -763,6 +766,7 @@ error_exit:
 		free(pmp, M_MSDOSFSMNT);
 		mp->mnt_data = NULL;
 	}
+	dev_rel(dev);
 	return (error);
 }
 
@@ -827,6 +831,7 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(pmp->pm_devvp);
+	dev_rel(pmp->pm_dev);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
 		msdosfs_fileno_free(mp);
