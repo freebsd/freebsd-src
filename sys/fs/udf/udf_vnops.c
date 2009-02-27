@@ -1319,6 +1319,12 @@ udf_readatoffset(struct udf_node *node, int *size, off_t offset,
 		fentry = node->fentry;
 		*data = &fentry->data[le32toh(fentry->l_ea)];
 		*size = le32toh(fentry->l_ad);
+		if (offset >= *size)
+			*size = 0;
+		else {
+			*data += offset;
+			*size -= offset;
+		}
 		return (0);
 	} else if (error != 0) {
 		return (error);
