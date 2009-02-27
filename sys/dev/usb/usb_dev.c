@@ -1466,7 +1466,7 @@ usb2_static_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			*(int *)data = usb2_template;
 			break;
 		case USB_SET_TEMPLATE:
-			err = priv_check(curthread, PRIV_ROOT);
+			err = priv_check(curthread, PRIV_DRIVER);
 			if (err)
 				break;
 			usb2_template = *(int *)data;
