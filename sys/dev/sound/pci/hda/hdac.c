@@ -4072,7 +4072,7 @@ hdac_attach(device_t dev)
 		);
 	}
 
-	if (devid >= 0 && (hdac_devices[i].flags & HDAC_NO_MSI))
+	if (devid >= 0 && (hdac_devices[devid].flags & HDAC_NO_MSI))
 		sc->flags &= ~HDAC_F_MSI;
 	else
 		sc->flags |= HDAC_F_MSI;
