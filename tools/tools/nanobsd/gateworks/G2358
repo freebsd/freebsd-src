@@ -21,7 +21,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
 
 options		HZ=100
-options		DEVICE_POLLING
+#options		DEVICE_POLLING
 
 # Debugging for use in -current
 options		KDB
@@ -33,22 +33,22 @@ options 	DDB			#Enable the kernel debugger
 #options		DIAGNOSTIC
 
 options 	SCHED_4BSD		#4BSD scheduler
-#options		PREEMPTION
+options		PREEMPTION
 
 options 	INET			#InterNETworking
 #options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
-options 	SOFTUPDATES		#Enable FFS soft updates support
+#options 	SOFTUPDATES		#Enable FFS soft updates support
 #options 	UFS_ACL			#Support for access control lists
-options 	UFS_DIRHASH		#Improve performance on big directories
+#options 	UFS_DIRHASH		#Improve performance on big directories
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSLOCKD		#Network Lock Manager
 options 	KTRACE			#ktrace(1) support
-options 	SYSVSHM			#SYSV-style shared memory
-options 	SYSVMSG			#SYSV-style message queues
-options 	SYSVSEM			#SYSV-style semaphores
+#options 	SYSVSHM			#SYSV-style shared memory
+#options 	SYSVMSG			#SYSV-style message queues
+#options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+#options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 #options		VERBOSE_SYSINIT
 
 #device		saarm
@@ -56,22 +56,24 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 device		pci
 device		uart
 
-# I2C Bus
+# I2C support
 device		iicbus
 device		iicbb
 device		iic
-
 device		ixpiic
-device		ixpwdog		# watchdog timer
-device		ds1672		# DS1672 on I2C bus
-device		ad7418		# AD7418 on I2C bus
+device		ds1672		# DS1672 on ipxiic
+device		ad7418		# AD7418 on ipxiic
 
-device		cambria_led
-device		cambria_fled
+device		ixpwdog		# watchdog timer
+device		cambria_fled	# front panel led
+device		cambria_led	# octal led latch
 
 device		ata
 device		atadisk         # ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
+
+device		cfi		# flash support
+#options		CFI_SUPPORT_STRATAFLASH
 
 device		npe		# Network Processing Engine
 device		npe_fw
@@ -92,6 +94,7 @@ device          random          # Entropy device
 device		wlan		# 802.11 support
 options		IEEE80211_DEBUG		# enable debugging msgs
 options		IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
+options		IEEE80211_SUPPORT_TDMA
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
@@ -100,6 +103,7 @@ device		ath		# Atheros pci/cardbus NIC's
 device		ath_rate_sample	# SampleRate tx rate control for ath
 options		ATH_DEBUG	# enable athdebug msgs
 options		ATH_DIAGAPI	# enable api for athregs
+options		ATH_SUPPORT_TDMA
 
 device		ath_hal		# Atheros HAL (includes binary component)
 options		AH_DEBUG
@@ -110,12 +114,15 @@ options		AH_SUPPORT_AR5416
 #device		cryptodev
 #device		hifn		# NB: Soekris minipci card known to work
 
-device		usb
-options 	USB_DEBUG
-device		uhci
-device		ohci
-device		ehci
-device		ugen
-device		umass
-device		scbus		# SCSI bus (required for SCSI)
-device		da		# Direct Access (disks)
+# NB: must use old usb stack; new one does not work
+#device		ousb
+#options		USB_DEBUG
+#device		oohci
+#device		oehci
+#device		ougen
+
+#device		oaxe
+
+#device		umass
+#device		scbus           # SCSI bus (required for SCSI)
+#device		da              # Direct Access (disks)
