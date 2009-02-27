@@ -1685,7 +1685,7 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 	    (udev->parent_hub == NULL)) {
 		return (EINVAL);
 	}
-	err = priv_check(curthread, PRIV_ROOT);
+	err = priv_check(curthread, PRIV_DRIVER);
 	if (err)
 		return (err);
 
@@ -1766,7 +1766,7 @@ ugen_do_port_feature(struct usb2_fifo *f, uint8_t port_no,
 	struct usb2_hub *hub;
 	int err;
 
-	err = priv_check(curthread, PRIV_ROOT);
+	err = priv_check(curthread, PRIV_DRIVER);
 	if (err) {
 		return (err);
 	}
