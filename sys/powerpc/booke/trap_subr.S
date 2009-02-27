@@ -207,6 +207,9 @@
 	stw	%r4, FRAME_CTR+8(1);					\
 	li	%r5, exc;						\
 	stw	%r5, FRAME_EXC+8(1);					\
+	/* save DBCR0 */						\
+	mfspr	%r3, SPR_DBCR0;						\
+	stw	%r3, FRAME_BOOKE_DBCR0+8(1);				\
 	/* save xSSR0-1 */						\
 	lwz	%r30, (savearea+CPUSAVE_SRR0)(%r2);			\
 	lwz	%r31, (savearea+CPUSAVE_SRR1)(%r2);			\
@@ -231,6 +234,9 @@
 	mtxer	%r5;							\
 	mtlr	%r6;							\
 	mtcr	%r7;							\
+	/* restore DBCR0 */						\
+	lwz	%r4, FRAME_BOOKE_DBCR0+8(%r1);				\
+	mtspr	SPR_DBCR0, %r4;						\
 	/* restore xSRR0-1 */						\
 	lwz	%r30, FRAME_SRR0+8(%r1);				\
 	lwz	%r31, FRAME_SRR1+8(%r1);				\
