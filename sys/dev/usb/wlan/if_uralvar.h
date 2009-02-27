@@ -61,6 +61,7 @@ struct ural_softc;
 
 struct ural_task {
 	struct usb2_proc_msg	hdr;
+	usb2_proc_callback_t	*func;
 	struct ural_softc	*sc;
 };
 
@@ -111,6 +112,7 @@ struct ural_softc {
 	uint8_t				rf_rev;
 
 	struct usb2_xfer		*sc_xfer[URAL_N_TRANSFER];
+	struct ural_task		*sc_last_task;
 
 	enum ieee80211_state		sc_state;
 	int				sc_arg;
@@ -127,6 +129,7 @@ struct ural_softc {
 	struct ural_rx_desc		sc_rx_desc;
 
 	struct mtx			sc_mtx;
+	struct cv			sc_cmd_cv;
 
 	uint16_t			sta[11];
 	uint32_t			rf_regs[4];
