@@ -198,23 +198,23 @@
 	/* save DEAR, ESR */						\
 	lwz	%r28, (savearea+CPUSAVE_BOOKE_DEAR)(%r2);		\
 	lwz	%r29, (savearea+CPUSAVE_BOOKE_ESR)(%r2);		\
-	stw	%r28, FRAME_BOOKE_DEAR+8(1);				\
-	stw	%r29, FRAME_BOOKE_ESR+8(1);				\
+	stw	%r28, FRAME_BOOKE_DEAR+8(%r1);				\
+	stw	%r29, FRAME_BOOKE_ESR+8(%r1);				\
 	/* save XER, CTR, exc number */					\
 	mfxer	%r3;							\
 	mfctr	%r4;							\
-	stw	%r3, FRAME_XER+8(1);					\
-	stw	%r4, FRAME_CTR+8(1);					\
+	stw	%r3, FRAME_XER+8(%r1);					\
+	stw	%r4, FRAME_CTR+8(%r1);					\
 	li	%r5, exc;						\
-	stw	%r5, FRAME_EXC+8(1);					\
+	stw	%r5, FRAME_EXC+8(%r1);					\
 	/* save DBCR0 */						\
 	mfspr	%r3, SPR_DBCR0;						\
-	stw	%r3, FRAME_BOOKE_DBCR0+8(1);				\
+	stw	%r3, FRAME_BOOKE_DBCR0+8(%r1);				\
 	/* save xSSR0-1 */						\
 	lwz	%r30, (savearea+CPUSAVE_SRR0)(%r2);			\
 	lwz	%r31, (savearea+CPUSAVE_SRR1)(%r2);			\
-	stw	%r30, FRAME_SRR0+8(1);					\
-	stw	%r31, FRAME_SRR1+8(1)
+	stw	%r30, FRAME_SRR0+8(%r1);				\
+	stw	%r31, FRAME_SRR1+8(%r1)
 
 /*
  *
