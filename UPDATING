@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090227:
+	The /dev handling for the new USB stack has changed, a
+	buildworld/installworld is required for libusb20.
+
 20090223:
 	The new USB2 stack has now been permanently moved in and all kernel and
 	module names reverted to their previous values (eg, usb, ehci, ohci,
