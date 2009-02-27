@@ -85,13 +85,15 @@ hid_get_report_desc(int fd)
 	/* get actual length first */
 	ugd.ugd_data = NULL;
 	ugd.ugd_maxlen = 65535;
-#ifdef HID_COMPAT7
 	if (ioctl(fd, USB_GET_REPORT_DESC, &ugd) < 0) {
+#ifdef HID_COMPAT7
 		/* could not read descriptor */
 		/* try FreeBSD 7 compat code */
 		return (hid_get_report_desc_compat7(fd));
-	}
+#else
+		return (NULL);
 #endif
+	}
 
 	/*
 	 * NOTE: The kernel will return a failure if 
