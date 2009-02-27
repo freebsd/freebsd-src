@@ -295,38 +295,11 @@ int
 printf(const char *fmt, ...)
 {
 	va_list ap;
-	struct putchar_arg pca;
 	int retval;
-#ifdef PRINTF_BUFR_SIZE
-	char bufr[PRINTF_BUFR_SIZE];
-#endif
 
 	va_start(ap, fmt);
-	pca.tty = NULL;
-	pca.flags = TOCONS | TOLOG;
-	pca.pri = -1;
-#ifdef PRINTF_BUFR_SIZE
-	pca.p_bufr = bufr;
-	pca.p_next = pca.p_bufr;
-	pca.n_bufr = sizeof(bufr);
-	pca.remain = sizeof(bufr);
-	*pca.p_next = '\0';
-#else
-	/* Don't buffer console output. */
-	pca.p_bufr = NULL;
-#endif
-
-	retval = kvprintf(fmt, putchar, &pca, 10, ap);
+	retval = vprintf(fmt, ap);
 	va_end(ap);
-
-#ifdef PRINTF_BUFR_SIZE
-	/* Write any buffered console output: */
-	if (*pca.p_bufr != '\0')
-		cnputs(pca.p_bufr);
-#endif
-
-	if (!panicstr)
-		msgbuftrigger = 1;
 
 	return (retval);
 }
