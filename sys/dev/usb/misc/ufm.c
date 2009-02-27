@@ -139,13 +139,10 @@ ufm_attach(device_t dev)
 
 	device_set_usb2_desc(dev);
 
-	/* set interface permissions */
-	usb2_set_iface_perm(uaa->device, uaa->info.bIfaceIndex,
-	    UID_ROOT, GID_OPERATOR, 0644);
-
 	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ufm_fifo_methods, &sc->sc_fifo,
-	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex);
+	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}
@@ -169,7 +166,7 @@ ufm_detach(device_t dev)
 }
 
 static int
-ufm_open(struct usb2_fifo *dev, int fflags, struct thread *td)
+ufm_open(struct usb2_fifo *dev, int fflags)
 {
 	if ((fflags & (FWRITE | FREAD)) != (FWRITE | FREAD)) {
 		return (EACCES);
@@ -300,7 +297,7 @@ ufm_get_stat(struct ufm_softc *sc, void *addr)
 
 static int
 ufm_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
-    int fflags, struct thread *td)
+    int fflags)
 {
 	struct ufm_softc *sc = fifo->priv_sc0;
 	int error = 0;

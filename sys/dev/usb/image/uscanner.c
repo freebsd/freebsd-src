@@ -399,13 +399,11 @@ uscanner_attach(device_t dev)
 		    "error=%s\n", usb2_errstr(error));
 		goto detach;
 	}
-	/* set interface permissions */
-	usb2_set_iface_perm(uaa->device, uaa->info.bIfaceIndex,
-	    UID_ROOT, GID_OPERATOR, 0644);
 
 	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &uscanner_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex);
+	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}
@@ -553,7 +551,7 @@ uscanner_write_clear_stall_callback(struct usb2_xfer *xfer)
  * uscanner character device opening method.
  */
 static int
-uscanner_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+uscanner_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct uscanner_softc *sc;
 
@@ -585,7 +583,7 @@ uscanner_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 }
 
 static void
-uscanner_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
+uscanner_close(struct usb2_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);

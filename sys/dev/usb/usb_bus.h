@@ -69,7 +69,6 @@ struct usb2_bus {
 	 * This mutex protects the USB hardware:
 	 */
 	struct mtx bus_mtx;
-	struct usb2_perm perm;
 	struct usb2_xfer_queue intr_q;
 	struct usb2_callout power_wdog;	/* power management */
 
