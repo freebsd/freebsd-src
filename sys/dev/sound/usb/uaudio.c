@@ -379,9 +379,9 @@ static void	umidi_start_read(struct usb2_fifo *);
 static void	umidi_stop_read(struct usb2_fifo *);
 static void	umidi_start_write(struct usb2_fifo *);
 static void	umidi_stop_write(struct usb2_fifo *);
-static int	umidi_open(struct usb2_fifo *, int, struct thread *);
-static int	umidi_ioctl(struct usb2_fifo *, u_long cmd, void *, int, struct thread *);
-static void	umidi_close(struct usb2_fifo *, int, struct thread *);
+static int	umidi_open(struct usb2_fifo *, int);
+static int	umidi_ioctl(struct usb2_fifo *, u_long cmd, void *, int);
+static void	umidi_close(struct usb2_fifo *, int);
 static void	umidi_init(device_t dev);
 static int32_t	umidi_probe(device_t dev);
 static int32_t	umidi_detach(device_t dev);
@@ -3585,7 +3585,7 @@ umidi_stop_write(struct usb2_fifo *fifo)
 }
 
 static int
-umidi_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+umidi_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct umidi_chan *chan = fifo->priv_sc0;
 	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
@@ -3617,7 +3617,7 @@ umidi_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 }
 
 static void
-umidi_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
+umidi_close(struct usb2_fifo *fifo, int fflags)
 {
 	if (fflags & FREAD) {
 		usb2_fifo_free_buffer(fifo);
@@ -3630,7 +3630,7 @@ umidi_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 
 static int
 umidi_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data,
-    int fflags, struct thread *td)
+    int fflags)
 {
 	return (ENODEV);
 }
@@ -3684,9 +3684,6 @@ umidi_probe(device_t dev)
 	    (chan->max_cable == 0)) {
 		chan->max_cable = UMIDI_CABLES_MAX;
 	}
-	/* set interface permissions */
-	usb2_set_iface_perm(sc->sc_udev, chan->iface_index,
-	    UID_ROOT, GID_OPERATOR, 0644);
 
 	for (n = 0; n < chan->max_cable; n++) {
 
@@ -3694,7 +3691,8 @@ umidi_probe(device_t dev)
 
 		error = usb2_fifo_attach(sc->sc_udev, chan, &chan->mtx,
 		    &umidi_fifo_methods, &sub->fifo, unit, n,
-		    chan->iface_index);
+		    chan->iface_index,
+		    UID_ROOT, GID_OPERATOR, 0644);
 		if (error) {
 			goto detach;
 		}

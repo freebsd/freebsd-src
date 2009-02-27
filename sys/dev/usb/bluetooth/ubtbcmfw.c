@@ -211,13 +211,10 @@ ubtbcmfw_attach(device_t dev)
 		goto detach;
 	}
 
-	/* Set interface permissions */
-	usb2_set_iface_perm(uaa->device, uaa->info.bIfaceIndex,
-		UID_ROOT, GID_OPERATOR, 0644);
-
 	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 			&ubtbcmfw_fifo_methods, &sc->sc_fifo,
-			device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex);
+			device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+			UID_ROOT, GID_OPERATOR, 0644);
 	if (error != 0) {
 		device_printf(dev, "could not attach fifo. %s\n",
 			usb2_errstr(error));
@@ -369,7 +366,7 @@ ubtbcmfw_stop_write(struct usb2_fifo *fifo)
  */
 
 static int
-ubtbcmfw_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+ubtbcmfw_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
 	struct usb2_xfer	*xfer;
@@ -398,7 +395,7 @@ ubtbcmfw_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
  */
 
 static void
-ubtbcmfw_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
+ubtbcmfw_close(struct usb2_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE))
 		usb2_fifo_free_buffer(fifo);
@@ -410,7 +407,7 @@ ubtbcmfw_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 
 static int
 ubtbcmfw_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data,
-    int fflags, struct thread *td)
+    int fflags)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
 	int			error = 0;

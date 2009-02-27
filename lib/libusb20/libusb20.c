@@ -971,86 +971,6 @@ libusb20_dev_get_bus_number(struct libusb20_device *pdev)
 }
 
 int
-libusb20_dev_set_owner(struct libusb20_device *pdev, uid_t user, gid_t group)
-{
-	return (pdev->beMethods->dev_set_owner(pdev, user, group));
-}
-
-int
-libusb20_dev_set_perm(struct libusb20_device *pdev, mode_t mode)
-{
-	return (pdev->beMethods->dev_set_perm(pdev, mode));
-}
-
-int
-libusb20_dev_set_iface_owner(struct libusb20_device *pdev,
-    uint8_t iface_index, uid_t user, gid_t group)
-{
-	return (pdev->beMethods->dev_set_iface_owner(
-	    pdev, iface_index, user, group));
-}
-
-int
-libusb20_dev_set_iface_perm(struct libusb20_device *pdev,
-    uint8_t iface_index, mode_t mode)
-{
-	return (pdev->beMethods->dev_set_iface_perm(
-	    pdev, iface_index, mode));
-}
-
-int
-libusb20_dev_get_owner(struct libusb20_device *pdev, uid_t *user, gid_t *group)
-{
-	uid_t a;
-	gid_t b;
-
-	if (user == NULL)
-		user = &a;
-	if (group == NULL)
-		group = &b;
-
-	return (pdev->beMethods->dev_get_owner(pdev, user, group));
-}
-
-int
-libusb20_dev_get_perm(struct libusb20_device *pdev, mode_t *mode)
-{
-	mode_t a;
-
-	if (mode == NULL)
-		mode = &a;
-	return (pdev->beMethods->dev_get_perm(pdev, mode));
-}
-
-int
-libusb20_dev_get_iface_owner(struct libusb20_device *pdev,
-    uint8_t iface_index, uid_t *user, gid_t *group)
-{
-	uid_t a;
-	gid_t b;
-
-	if (user == NULL)
-		user = &a;
-	if (group == NULL)
-		group = &b;
-
-	return (pdev->beMethods->dev_get_iface_owner(
-	    pdev, iface_index, user, group));
-}
-
-int
-libusb20_dev_get_iface_perm(struct libusb20_device *pdev,
-    uint8_t iface_index, mode_t *mode)
-{
-	mode_t a;
-
-	if (mode == NULL)
-		mode = &a;
-	return (pdev->beMethods->dev_get_iface_perm(
-	    pdev, iface_index, mode));
-}
-
-int
 libusb20_dev_get_iface_desc(struct libusb20_device *pdev, 
     uint8_t iface_index, char *buf, uint8_t len)
 {
@@ -1059,45 +979,6 @@ libusb20_dev_get_iface_desc(struct libusb20_device *pdev,
 
 	return (pdev->beMethods->dev_get_iface_desc(
 	    pdev, iface_index, buf, len));
-}
-
-/* USB bus operations */
-
-int
-libusb20_bus_set_owner(struct libusb20_backend *pbe, 
-    uint8_t bus, uid_t user, gid_t group)
-{
-	return (pbe->methods->bus_set_owner(pbe, bus, user, group));
-}
-
-int
-libusb20_bus_set_perm(struct libusb20_backend *pbe, uint8_t bus, mode_t mode)
-{
-	return (pbe->methods->bus_set_perm(pbe, bus, mode));
-}
-
-int
-libusb20_bus_get_owner(struct libusb20_backend *pbe,
-    uint8_t bus, uid_t *user, gid_t *group)
-{
-	uid_t a;
-	gid_t b;
-
-	if (user == NULL)
-		user = &a;
-	if (group == NULL)
-		group = &b;
-	return (pbe->methods->bus_get_owner(pbe, bus, user, group));
-}
-
-int
-libusb20_bus_get_perm(struct libusb20_backend *pbe, uint8_t bus, mode_t *mode)
-{
-	mode_t a;
-
-	if (mode == NULL)
-		mode = &a;
-	return (pbe->methods->bus_get_perm(pbe, bus, mode));
 }
 
 /* USB backend operations */
@@ -1128,41 +1009,6 @@ libusb20_be_remove_dev_quirk(struct libusb20_backend *pbe,
     struct libusb20_quirk *pq)
 {
 	return (pbe->methods->root_remove_dev_quirk(pbe, pq));
-}
-
-int
-libusb20_be_set_owner(struct libusb20_backend *pbe, uid_t user, gid_t group)
-{
-	return (pbe->methods->root_set_owner(pbe, user, group));
-}
-
-int
-libusb20_be_set_perm(struct libusb20_backend *pbe, mode_t mode)
-{
-	return (pbe->methods->root_set_perm(pbe, mode));
-}
-
-int
-libusb20_be_get_owner(struct libusb20_backend *pbe, uid_t *user, gid_t *group)
-{
-	uid_t a;
-	gid_t b;
-
-	if (user == NULL)
-		user = &a;
-	if (group == NULL)
-		group = &b;
-	return (pbe->methods->root_get_owner(pbe, user, group));
-}
-
-int
-libusb20_be_get_perm(struct libusb20_backend *pbe, mode_t *mode)
-{
-	mode_t a;
-
-	if (mode == NULL)
-		mode = &a;
-	return (pbe->methods->root_get_perm(pbe, mode));
 }
 
 int

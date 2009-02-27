@@ -41,9 +41,9 @@
 struct usb2_fifo;
 struct usb2_mbuf;
 
-typedef int (usb2_fifo_open_t)(struct usb2_fifo *fifo, int fflags, struct thread *td);
-typedef void (usb2_fifo_close_t)(struct usb2_fifo *fifo, int fflags, struct thread *td);
-typedef int (usb2_fifo_ioctl_t)(struct usb2_fifo *fifo, u_long cmd, void *addr, int fflags, struct thread *td);
+typedef int (usb2_fifo_open_t)(struct usb2_fifo *fifo, int fflags);
+typedef void (usb2_fifo_close_t)(struct usb2_fifo *fifo, int fflags);
+typedef int (usb2_fifo_ioctl_t)(struct usb2_fifo *fifo, u_long cmd, void *addr, int fflags);
 typedef void (usb2_fifo_cmd_t)(struct usb2_fifo *fifo);
 typedef void (usb2_fifo_filter_t)(struct usb2_fifo *fifo, struct usb2_mbuf *m);
 
@@ -82,6 +82,39 @@ struct usb2_fifo_methods {
 };
 
 /*
+ * Private per-device information.
+ */
+struct usb2_cdev_privdata {
+	struct usb2_bus		*bus;
+	struct usb2_device	*udev;
+	struct usb2_interface	*iface;
+	struct usb2_fifo	*rxfifo;
+	struct usb2_fifo	*txfifo;
+	int			bus_index;	/* bus index */
+	int			dev_index;	/* device index */
+	int			iface_index;	/* interface index */
+	int			ep_addr;	/* endpoint address */
+	uint8_t			fifo_index;	/* FIFO index */
+	uint8_t			is_read;	/* location has read access */
+	uint8_t			is_write;	/* location has write access */
+	uint8_t			is_uref;	/* USB refcount decr. needed */
+	uint8_t			is_usbfs;	/* USB-FS is active */
+	int			fflags;
+};
+
+struct usb2_fs_privdata {
+	int bus_index;
+	int dev_index;
+	int iface_index;
+	int ep_addr;
+	int mode;
+	int fifo_index;
+	struct cdev *cdev;
+
+	LIST_ENTRY(usb2_fs_privdata) pd_next;
+};
+
+/*
  * Most of the fields in the "usb2_fifo" structure are used by the
  * generic USB access layer.
  */
@@ -99,7 +132,7 @@ struct usb2_fifo {
 	struct usb2_xfer *xfer[2];
 	struct usb2_xfer **fs_xfer;
 	struct mtx *priv_mtx;		/* client data */
-	struct file *curr_file;		/* set if FIFO is opened by a FILE */
+	int    opened;			/* set if FIFO is opened by a FILE */
 	void   *priv_sc0;		/* client data */
 	void   *priv_sc1;		/* client data */
 	void   *queue_data;
@@ -126,7 +159,10 @@ struct usb2_fifo {
 
 struct usb2_fifo_sc {
 	struct usb2_fifo *fp[2];
+	struct cdev* dev;
 };
+
+extern struct cdevsw usb2_devsw;
 
 int	usb2_fifo_wait(struct usb2_fifo *fifo);
 void	usb2_fifo_signal(struct usb2_fifo *fifo);
@@ -136,7 +172,7 @@ void	usb2_fifo_free_buffer(struct usb2_fifo *f);
 int	usb2_fifo_attach(struct usb2_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb2_fifo_methods *pm,
 	    struct usb2_fifo_sc *f_sc, uint16_t unit, uint16_t subunit,
-	    uint8_t iface_index);
+	    uint8_t iface_index, uid_t uid, gid_t gid, int mode);
 void	usb2_fifo_detach(struct usb2_fifo_sc *f_sc);
 uint32_t usb2_fifo_put_bytes_max(struct usb2_fifo *fifo);
 void	usb2_fifo_put_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc,
@@ -155,13 +191,9 @@ void	usb2_fifo_get_data_error(struct usb2_fifo *fifo);
 uint8_t	usb2_fifo_opened(struct usb2_fifo *fifo);
 void	usb2_fifo_free(struct usb2_fifo *f);
 void	usb2_fifo_reset(struct usb2_fifo *f);
-int	usb2_check_thread_perm(struct usb2_device *udev, struct thread *td,
-	    int fflags, uint8_t iface_index, uint8_t ep_index);
 void	usb2_fifo_wakeup(struct usb2_fifo *f);
-struct usb2_symlink *usb2_alloc_symlink(const char *target,
-	    const char *fmt,...);
+struct usb2_symlink *usb2_alloc_symlink(const char *target);
 void	usb2_free_symlink(struct usb2_symlink *ps);
-uint32_t usb2_lookup_symlink(const char *src_ptr, uint8_t src_len);
 int	usb2_read_symlink(uint8_t *user_ptr, uint32_t startentry,
 	    uint32_t user_len);
 

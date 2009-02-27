@@ -514,72 +514,6 @@ returned.
 .
 .Pp
 .
-.Fn libusb20_dev_set_owner pdev uid gid
-This function will set the ownership of the given USB device.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_dev_set_perm pdev mode
-This function will set the permissions of the given USB device.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_dev_set_iface_owner pdev iface_index uid gid
-This function will set the ownership of the given USB interface.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_dev_set_iface_perm pdev iface_index mode
-This function will set the permissions of the given USB interface.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_dev_get_owner pdev puid pgid
-This function will retrieve the current USB device ownership.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_dev_get_perm pdev pmode
-This function will retrieve the current USB device permissions.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_dev_get_iface_owner pdev iface_index puid pgid
-This function will retrieve the current USB interface ownership for
-the given USB interface.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_dev_get_iface_perm pdev iface_index pmode
-This function will retrieve the current USB interface permissions for
-the given USB interface.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
 .Fn libusb20_dev_get_device_desc pdev
 This function returns a pointer to the decoded and host endian version
 of the device descriptor.
@@ -663,39 +597,6 @@ A timeout value can be specified which is passed on to the
 .Xr 2 poll
 function.
 .
-.Sh USB BUS OPERATIONS
-.
-.Fn libusb20_bus_set_owner pbackend bus_index uid gid
-This function will set the ownership for the given USB bus.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_bus_set_perm pbackend bus_index mode
-This function will set the permissions for the given USB bus.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_bus_get_owner pbackend bus_index puid pgid
-This function will retrieve the ownership for the given USB bus.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_bus_get_perm pbackend bus_index pmode
-This function will retrieve the permissions for the given USB bus.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.
 .Sh USB BACKEND OPERATIONS
 .
 .Fn libusb20_be_get_template pbackend ptemp
@@ -772,47 +673,6 @@ returned.
 If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
 returned.
 .
-.Pp
-.
-.Fn libusb20_be_set_owner pbackend uid gid
-This function will set the ownership for the given backend.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_be_set_perm pbackend mode
-This function will set the permissions for the given backend.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_be_get_owner pbackend puid pgid
-This function will retrieve the ownership of the given backend.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_be_get_perm pbackend pmode
-This function will retrieve the permissions of the given backend.
-.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
-.Fn libusb20_be_alloc pmethods
-This is an internal function to allocate a USB backend.
-.
-.Pp
-.Fn libusb20_be_alloc_default void
-.Fn libusb20_be_alloc_freebsd void
 .Fn libusb20_be_alloc_linux void
 These functions are used to allocate a specific USB backend or the
 operating system default USB backend. Allocating a backend is a way to

@@ -253,14 +253,6 @@ int	libusb20_dev_reset(struct libusb20_device *pdev);
 int	libusb20_dev_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode);
 uint8_t	libusb20_dev_get_power_mode(struct libusb20_device *pdev);
 int	libusb20_dev_set_alt_index(struct libusb20_device *pdev, uint8_t iface_index, uint8_t alt_index);
-int	libusb20_dev_set_owner(struct libusb20_device *pdev, uid_t user, gid_t group);
-int	libusb20_dev_set_perm(struct libusb20_device *pdev, mode_t mode);
-int	libusb20_dev_set_iface_owner(struct libusb20_device *pdev, uint8_t iface_index, uid_t user, gid_t group);
-int	libusb20_dev_set_iface_perm(struct libusb20_device *pdev, uint8_t iface_index, mode_t mode);
-int	libusb20_dev_get_owner(struct libusb20_device *pdev, uid_t *user, gid_t *group);
-int	libusb20_dev_get_perm(struct libusb20_device *pdev, mode_t *mode);
-int	libusb20_dev_get_iface_owner(struct libusb20_device *pdev, uint8_t iface_index, uid_t *user, gid_t *group);
-int	libusb20_dev_get_iface_perm(struct libusb20_device *pdev, uint8_t iface_index, mode_t *mode);
 int	libusb20_dev_get_info(struct libusb20_device *pdev, struct usb2_device_info *pinfo);
 int	libusb20_dev_get_iface_desc(struct libusb20_device *pdev, uint8_t iface_index, char *buf, uint8_t len);
 
@@ -276,23 +268,12 @@ void	libusb20_dev_free(struct libusb20_device *pdev);
 void	libusb20_dev_set_debug(struct libusb20_device *pdev, int debug);
 void	libusb20_dev_wait_process(struct libusb20_device *pdev, int timeout);
 
-/* USB bus operations */
-
-int	libusb20_bus_set_owner(struct libusb20_backend *pbe, uint8_t bus, uid_t user, gid_t group);
-int	libusb20_bus_set_perm(struct libusb20_backend *pbe, uint8_t bus, mode_t mode);
-int	libusb20_bus_get_owner(struct libusb20_backend *pbe, uint8_t bus, uid_t *user, gid_t *group);
-int	libusb20_bus_get_perm(struct libusb20_backend *pbe, uint8_t bus, mode_t *mode);
-
 /* USB global operations */
 
 int	libusb20_be_get_dev_quirk(struct libusb20_backend *pbe, uint16_t index, struct libusb20_quirk *pq);
 int	libusb20_be_get_quirk_name(struct libusb20_backend *pbe, uint16_t index, struct libusb20_quirk *pq);
 int	libusb20_be_add_dev_quirk(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
 int	libusb20_be_remove_dev_quirk(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
-int	libusb20_be_set_owner(struct libusb20_backend *be, uid_t user, gid_t group);
-int	libusb20_be_set_perm(struct libusb20_backend *be, mode_t mode);
-int	libusb20_be_get_owner(struct libusb20_backend *be, uid_t *user, gid_t *group);
-int	libusb20_be_get_perm(struct libusb20_backend *be, mode_t *mode);
 
 /* USB backend operations */
 

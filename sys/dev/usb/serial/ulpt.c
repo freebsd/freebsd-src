@@ -395,7 +395,7 @@ ulpt_stop_write(struct usb2_fifo *fifo)
 }
 
 static int
-ulpt_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+ulpt_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -404,11 +404,11 @@ ulpt_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (sc->sc_fflags == 0) {
 		ulpt_reset(sc);
 	}
-	return (unlpt_open(fifo, fflags, td));
+	return (unlpt_open(fifo, fflags));
 }
 
 static int
-unlpt_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+unlpt_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -446,7 +446,7 @@ unlpt_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 }
 
 static void
-ulpt_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
+ulpt_close(struct usb2_fifo *fifo, int fflags)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -459,7 +459,7 @@ ulpt_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 
 static int
 ulpt_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data,
-    int fflags, struct thread *td)
+    int fflags)
 {
 	return (ENODEV);
 }
@@ -595,19 +595,17 @@ found:
 	}
 #endif
 
-	/* set interface permissions */
-	usb2_set_iface_perm(uaa->device, uaa->info.bIfaceIndex,
-	    UID_ROOT, GID_OPERATOR, 0644);
-
 	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ulpt_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex);
+	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}
 	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &unlpt_fifo_methods, &sc->sc_fifo_noreset,
-	    unit, 0 - 1, uaa->info.bIfaceIndex);
+	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}

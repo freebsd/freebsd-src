@@ -36,7 +36,8 @@
 #include <dev/usb/usb_endian.h>
 #include <dev/usb/usb.h>
 
-#define	USB_DEVICE_NAME "usb"
+#define	USB_DEVICE_NAME "usbctl"
+#define	USB_DEVICE_DIR "usb"
 #define	USB_GENERIC_NAME "ugen"
 
 struct usb2_read_dir {
@@ -180,18 +181,6 @@ struct usb2_fs_clear_stall_sync {
 	uint8_t	ep_index;
 };
 
-struct usb2_dev_perm {
-	/* Access information */
-	uint32_t user_id;
-	uint32_t group_id;
-	uint16_t mode;
-
-	/* Device location */
-	uint16_t bus_index;
-	uint16_t dev_index;
-	uint16_t iface_index;
-};
-
 struct usb2_gen_quirk {
 	uint16_t index;			/* Quirk Index */
 	uint16_t vid;			/* Vendor ID */
@@ -248,14 +237,7 @@ struct usb2_gen_quirk {
 #define	USB_IFACE_DRIVER_DETACH	_IOW ('U', 125, int)
 #define	USB_GET_PLUGTIME	_IOR ('U', 126, uint32_t)
 #define	USB_READ_DIR		_IOW ('U', 127, struct usb2_read_dir)
-#define	USB_SET_ROOT_PERM	_IOW ('U', 128, struct usb2_dev_perm)
-#define	USB_SET_BUS_PERM	_IOW ('U', 129, struct usb2_dev_perm)
-#define	USB_SET_DEVICE_PERM	_IOW ('U', 130, struct usb2_dev_perm)
-#define	USB_SET_IFACE_PERM	_IOW ('U', 131, struct usb2_dev_perm)
-#define	USB_GET_ROOT_PERM	_IOWR('U', 132, struct usb2_dev_perm)
-#define	USB_GET_BUS_PERM	_IOWR('U', 133, struct usb2_dev_perm)
-#define	USB_GET_DEVICE_PERM	_IOWR('U', 134, struct usb2_dev_perm)
-#define	USB_GET_IFACE_PERM	_IOWR('U', 135, struct usb2_dev_perm)
+/* 128 - 135 unused */
 #define	USB_SET_TX_FORCE_SHORT	_IOW ('U', 136, int)
 #define	USB_SET_TX_TIMEOUT	_IOW ('U', 137, int)
 #define	USB_GET_TX_FRAME_SIZE	_IOR ('U', 138, int)
