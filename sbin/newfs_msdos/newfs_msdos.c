@@ -793,13 +793,25 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
     /* Maybe it's a fixed drive */
     if (lp == NULL) {
 	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
-	    if (ioctl(fd, DIOCGSECTORSIZE, &dlp.d_secsize) == -1)
+	    if (bpb->bps == 0 && ioctl(fd, DIOCGSECTORSIZE, &dlp.d_secsize) == -1)
 		errx(1, "Cannot get sector size, %s", strerror(errno));
-	    if (ioctl(fd, DIOCGFWSECTORS, &dlp.d_nsectors) == -1)
-		errx(1, "Cannot get number of sectors, %s", strerror(errno));
-	    if (ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks)== -1)
-		errx(1, "Cannot get number of heads, %s", strerror(errno));
+
+	    /* XXX Should we use bpb->bps if it's set? */
 	    dlp.d_secperunit = ms / dlp.d_secsize;
+
+	    if (bpb->spt == 0 && ioctl(fd, DIOCGFWSECTORS, &dlp.d_nsectors) == -1) {
+		warnx("Cannot get number of sectors per track, %s", strerror(errno));
+		dlp.d_nsectors = 63;
+	    }
+	    if (bpb->hds == 0 && ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
+		warnx("Cannot get number of heads, %s", strerror(errno));
+		if (dlp.d_secperunit <= 63*1*1024)
+		    dlp.d_ntracks = 1;
+		else if (dlp.d_secperunit <= 63*16*1024)
+		    dlp.d_ntracks = 16;
+		else
+		    dlp.d_ntracks = 255;
+	    }
 	}
 
 	hs = (ms / dlp.d_secsize) - dlp.d_secperunit;
