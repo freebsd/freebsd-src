@@ -48,27 +48,11 @@ typedef int (libusb20_root_get_dev_quirk_t)(struct libusb20_backend *pbe, uint16
 typedef int (libusb20_root_get_quirk_name_t)(struct libusb20_backend *pbe, uint16_t index, struct libusb20_quirk *pq);
 typedef int (libusb20_root_add_dev_quirk_t)(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
 typedef int (libusb20_root_remove_dev_quirk_t)(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
-typedef int (libusb20_bus_get_owner_t)(struct libusb20_backend *pbe, uint8_t bus, uid_t *user, gid_t *group);
-typedef int (libusb20_bus_get_perm_t)(struct libusb20_backend *pbe, uint8_t bus, mode_t *mode);
-typedef int (libusb20_bus_set_owner_t)(struct libusb20_backend *pbe, uint8_t bus, uid_t user, gid_t group);
-typedef int (libusb20_bus_set_perm_t)(struct libusb20_backend *pbe, uint8_t bus, mode_t mode);
 typedef int (libusb20_close_device_t)(struct libusb20_device *pdev);
-typedef int (libusb20_dev_get_iface_owner_t)(struct libusb20_device *pdev, uint8_t iface_index, uid_t *user, gid_t *group);
-typedef int (libusb20_dev_get_iface_perm_t)(struct libusb20_device *pdev, uint8_t iface_index, mode_t *mode);
-typedef int (libusb20_dev_get_owner_t)(struct libusb20_device *pdev, uid_t *user, gid_t *group);
-typedef int (libusb20_dev_get_perm_t)(struct libusb20_device *pdev, mode_t *mode);
 typedef int (libusb20_dev_get_info_t)(struct libusb20_device *pdev, struct usb2_device_info *pinfo);
 typedef int (libusb20_dev_get_iface_desc_t)(struct libusb20_device *pdev, uint8_t iface_index, char *buf, uint8_t len);
-typedef int (libusb20_dev_set_iface_owner_t)(struct libusb20_device *pdev, uint8_t iface_index, uid_t user, gid_t group);
-typedef int (libusb20_dev_set_iface_perm_t)(struct libusb20_device *pdev, uint8_t iface_index, mode_t mode);
-typedef int (libusb20_dev_set_owner_t)(struct libusb20_device *pdev, uid_t user, gid_t group);
-typedef int (libusb20_dev_set_perm_t)(struct libusb20_device *pdev, mode_t mode);
 typedef int (libusb20_init_backend_t)(struct libusb20_backend *pbe);
 typedef int (libusb20_open_device_t)(struct libusb20_device *pdev, uint16_t transfer_count_max);
-typedef int (libusb20_root_get_owner_t)(struct libusb20_backend *pbe, uid_t *user, gid_t *group);
-typedef int (libusb20_root_get_perm_t)(struct libusb20_backend *pbe, mode_t *mode);
-typedef int (libusb20_root_set_owner_t)(struct libusb20_backend *pbe, uid_t user, gid_t group);
-typedef int (libusb20_root_set_perm_t)(struct libusb20_backend *pbe, mode_t mode);
 typedef void (libusb20_exit_backend_t)(struct libusb20_backend *pbe);
 typedef int (libusb20_root_set_template_t)(struct libusb20_backend *pbe, int temp);
 typedef int (libusb20_root_get_template_t)(struct libusb20_backend *pbe, int *ptemp);
@@ -85,28 +69,12 @@ typedef int (libusb20_root_get_template_t)(struct libusb20_backend *pbe, int *pt
   /* optional backend methods */ \
   m(n, init_backend) \
   m(n, exit_backend) \
-  m(n, bus_set_owner) \
-  m(n, bus_get_owner) \
-  m(n, bus_set_perm) \
-  m(n, bus_get_perm) \
   m(n, dev_get_info) \
-  m(n, dev_get_iface_owner) \
-  m(n, dev_get_iface_perm) \
   m(n, dev_get_iface_desc) \
-  m(n, dev_get_owner) \
-  m(n, dev_get_perm) \
-  m(n, dev_set_iface_owner) \
-  m(n, dev_set_iface_perm) \
-  m(n, dev_set_owner) \
-  m(n, dev_set_perm) \
   m(n, root_get_dev_quirk) \
   m(n, root_get_quirk_name) \
   m(n, root_add_dev_quirk) \
   m(n, root_remove_dev_quirk) \
-  m(n, root_set_owner) \
-  m(n, root_get_owner) \
-  m(n, root_set_perm) \
-  m(n, root_get_perm) \
   m(n, root_set_template) \
   m(n, root_get_template) \
   /* mandatory device methods */ \

@@ -583,13 +583,10 @@ ums_attach(device_t dev)
 	sc->sc_status.dy = 0;
 	sc->sc_status.dz = 0;
 
-	/* set interface permissions */
-	usb2_set_iface_perm(uaa->device, uaa->info.bIfaceIndex,
-	    UID_ROOT, GID_OPERATOR, 0644);
-
 	err = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ums_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex);
+	    unit, 0 - 1, uaa->info.bIfaceIndex,
+  	    UID_ROOT, GID_OPERATOR, 0644);
 	if (err) {
 		goto detach;
 	}
@@ -697,7 +694,7 @@ ums_reset_buf(struct ums_softc *sc)
 }
 
 static int
-ums_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+ums_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
@@ -724,7 +721,7 @@ ums_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 }
 
 static void
-ums_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
+ums_close(struct usb2_fifo *fifo, int fflags)
 {
 	if (fflags & FREAD) {
 		usb2_fifo_free_buffer(fifo);
@@ -732,8 +729,7 @@ ums_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 }
 
 static int
-ums_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
-    int fflags, struct thread *td)
+ums_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr, int fflags)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 	mousemode_t mode;

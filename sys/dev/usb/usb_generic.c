@@ -149,7 +149,7 @@ ugen_transfer_setup(struct usb2_fifo *f,
 }
 
 static int
-ugen_open(struct usb2_fifo *f, int fflags, struct thread *td)
+ugen_open(struct usb2_fifo *f, int fflags)
 {
 	struct usb2_pipe *pipe = f->priv_sc0;
 	struct usb2_endpoint_descriptor *ed = pipe->edesc;
@@ -183,7 +183,7 @@ ugen_open(struct usb2_fifo *f, int fflags, struct thread *td)
 }
 
 static void
-ugen_close(struct usb2_fifo *f, int fflags, struct thread *td)
+ugen_close(struct usb2_fifo *f, int fflags)
 {
 	DPRINTFN(6, "flag=0x%x\n", fflags);
 
@@ -872,10 +872,6 @@ ugen_check_request(struct usb2_device *udev, struct usb2_device_request *req)
 		if (pipe == NULL) {
 			return (EINVAL);
 		}
-		if (usb2_check_thread_perm(udev, curthread, FREAD | FWRITE,
-		    pipe->iface_index, req->wIndex[0] & UE_ADDR)) {
-			return (EPERM);
-		}
 		if ((req->bRequest == UR_CLEAR_FEATURE) &&
 		    (UGETW(req->wValue) == UF_ENDPOINT_HALT)) {
 			usb2_clear_data_toggle(udev, pipe);
@@ -1367,8 +1363,7 @@ ugen_fifo_in_use(struct usb2_fifo *f, int fflags)
 }
 
 static int
-ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags,
-    struct thread *td)
+ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 {
 	struct usb2_config usb2_config[1];
 	struct usb2_device_request req;
@@ -1458,11 +1453,6 @@ ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags,
 		}
 		iface_index = pipe->iface_index;
 
-		error = usb2_check_thread_perm(f->udev, curthread, fflags,
-		    iface_index, u.popen->ep_no);
-		if (error) {
-			break;
-		}
 		bzero(usb2_config, sizeof(usb2_config));
 
 		usb2_config[0].type = ed->bmAttributes & UE_XFERTYPE;
@@ -1948,8 +1938,7 @@ ugen_iface_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 }
 
 static int
-ugen_ioctl_post(struct usb2_fifo *f, u_long cmd, void *addr, int fflags,
-    struct thread *td)
+ugen_ioctl_post(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 {
 	union {
 		struct usb2_interface_descriptor *idesc;

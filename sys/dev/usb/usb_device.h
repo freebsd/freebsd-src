@@ -61,11 +61,12 @@ struct usb2_pipe {
  * The following structure defines an USB interface.
  */
 struct usb2_interface {
-	struct usb2_perm perm;		/* interface permissions */
 	struct usb2_interface_descriptor *idesc;
 	device_t subdev;
 	uint8_t	alt_index;
 	uint8_t	parent_iface_index;
+	uint16_t ep_in_mask;		/* bitmask of IN endpoints */
+	uint16_t ep_out_mask;		/* bitmask of OUT endpoints */
 };
 
 /*
@@ -101,12 +102,12 @@ struct usb2_power_save {
 struct usb2_device {
 	struct usb2_clear_stall_msg cs_msg[2];	/* generic clear stall
 						 * messages */
-	struct usb2_perm perm;
 	struct sx default_sx[2];
 	struct mtx default_mtx[1];
 	struct cv default_cv[2];
 	struct usb2_interface ifaces[USB_IFACE_MAX];
 	struct usb2_pipe default_pipe;	/* Control Endpoint 0 */
+	struct cdev *default_dev;	/* Control Endpoint 0 device node */
 	struct usb2_pipe pipes[USB_EP_MAX];
 	struct usb2_power_save pwr_save;/* power save data */
 
@@ -120,10 +121,16 @@ struct usb2_device {
 	struct usb2_temp_data *usb2_template_ptr;
 	struct usb2_pipe *pipe_curr;	/* current clear stall pipe */
 	struct usb2_fifo *fifo[USB_FIFO_MAX];
+
+	char ugen_name[20];			/* name of ugenX.X device */
 	struct usb2_symlink *ugen_symlink;	/* our generic symlink */
+
+	LIST_HEAD(,usb2_fs_privdata) pd_list;
 
 	uint32_t plugtime;		/* copy of "ticks" */
 
+	uint16_t ep_rd_opened;		/* bitmask of endpoints opened */
+	uint16_t ep_wr_opened;		/*  from the device nodes. */
 	uint16_t refcount;
 #define	USB_DEV_REF_MAX 0xffff
 

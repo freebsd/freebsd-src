@@ -447,7 +447,7 @@ done:
 }
 
 static int
-uhid_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
+uhid_open(struct usb2_fifo *fifo, int fflags)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
@@ -474,7 +474,7 @@ uhid_open(struct usb2_fifo *fifo, int fflags, struct thread *td)
 }
 
 static void
-uhid_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
+uhid_close(struct usb2_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
@@ -483,7 +483,7 @@ uhid_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 
 static int
 uhid_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
-    int fflags, struct thread *td)
+    int fflags)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 	struct usb2_gen_descriptor *ugd;
@@ -734,13 +734,11 @@ uhid_attach(device_t dev)
 		    sc->sc_fsize);
 		sc->sc_fsize = UHID_BSIZE;
 	}
-	/* set interface permissions */
-	usb2_set_iface_perm(uaa->device, uaa->info.bIfaceIndex,
-	    UID_ROOT, GID_OPERATOR, 0644);
 
 	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &uhid_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex);
+	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}

@@ -64,8 +64,6 @@ struct options {
 	uint8_t	got_iface:1;
 	uint8_t	got_set_config:1;
 	uint8_t	got_set_alt:1;
-	uint8_t	got_set_owner:1;
-	uint8_t	got_set_perm:1;
 	uint8_t	got_set_template:1;
 	uint8_t	got_get_template:1;
 	uint8_t	got_suspend:1;
@@ -80,7 +78,6 @@ struct options {
 	uint8_t	got_dump_curr_config:1;
 	uint8_t	got_dump_all_config:1;
 	uint8_t	got_dump_info:1;
-	uint8_t	got_dump_access:1;
 	uint8_t	got_show_iface_driver:1;
 	uint8_t	got_remove_device_quirk:1;
 	uint8_t	got_add_device_quirk:1;
@@ -100,8 +97,6 @@ enum {
 	T_IFACE,
 	T_SET_CONFIG,
 	T_SET_ALT,
-	T_SET_OWNER,
-	T_SET_PERM,
 	T_SET_TEMPLATE,
 	T_GET_TEMPLATE,
 	T_ADD_DEVICE_QUIRK,
@@ -113,7 +108,6 @@ enum {
 	T_DUMP_CURR_CONFIG_DESC,
 	T_DUMP_ALL_CONFIG_DESC,
 	T_DUMP_STRING,
-	T_DUMP_ACCESS,
 	T_DUMP_INFO,
 	T_SUSPEND,
 	T_RESUME,
@@ -133,8 +127,6 @@ static const struct token token[] = {
 	{"-i", T_IFACE, 1},
 	{"set_config", T_SET_CONFIG, 1},
 	{"set_alt", T_SET_ALT, 1},
-	{"set_owner", T_SET_OWNER, 1},
-	{"set_perm", T_SET_PERM, 1},
 	{"set_template", T_SET_TEMPLATE, 1},
 	{"get_template", T_GET_TEMPLATE, 0},
 	{"add_dev_quirk_vplh", T_ADD_DEVICE_QUIRK, 5},
@@ -145,7 +137,6 @@ static const struct token token[] = {
 	{"dump_curr_config_desc", T_DUMP_CURR_CONFIG_DESC, 0},
 	{"dump_all_config_desc", T_DUMP_ALL_CONFIG_DESC, 0},
 	{"dump_string", T_DUMP_STRING, 1},
-	{"dump_access", T_DUMP_ACCESS, 0},
 	{"dump_info", T_DUMP_INFO, 0},
 	{"show_ifdrv", T_SHOW_IFACE_DRIVER, 0},
 	{"suspend", T_SUSPEND, 0},
@@ -238,43 +229,19 @@ num_id(const char *name, const char *type)
 	return (val);
 }
 
-static gid_t
-a_gid(const char *s)
+static int
+get_int(const char *s)
 {
-	struct group *gr;
-
-	if (*s == '\0') {
-		/* empty group ID */
-		return ((gid_t)-1);
-	}
-	return ((gr = getgrnam(s)) ? gr->gr_gid : num_id(s, "group"));
-}
-
-static uid_t
-a_uid(const char *s)
-{
-	struct passwd *pw;
-
-	if (*s == '\0') {
-		/* empty user ID */
-		return ((uid_t)-1);
-	}
-	return ((pw = getpwnam(s)) ? pw->pw_uid : num_id(s, "user"));
-}
-
-static mode_t
-a_mode(const char *s)
-{
-	uint16_t val;
+	int val;
 	char *ep;
 
 	errno = 0;
-	val = strtoul(s, &ep, 8);
+	val = strtoul(s, &ep, 0);
 	if (errno) {
 		err(1, "%s", s);
 	}
 	if (*ep != '\0') {
-		errx(1, "illegal permissions: %s", s);
+		errx(1, "illegal number: %s", s);
 	}
 	return val;
 }
@@ -288,8 +255,6 @@ usage(void)
 	    "commands:" "\n"
 	    "  set_config <cfg_index>" "\n"
 	    "  set_alt <alt_index>" "\n"
-	    "  set_owner <user:group>" "\n"
-	    "  set_perm <mode>" "\n"
 	    "  set_template <template>" "\n"
 	    "  get_template" "\n"
 	    "  add_dev_quirk_vplh <vid> <pid> <lo_rev> <hi_rev> <quirk>" "\n"
@@ -300,7 +265,6 @@ usage(void)
 	    "  dump_curr_config_desc" "\n"
 	    "  dump_all_config_desc" "\n"
 	    "  dump_string <index>" "\n"
-	    "  dump_access" "\n"
 	    "  dump_info" "\n"
 	    "  show_ifdrv" "\n"
 	    "  suspend" "\n"
@@ -344,10 +308,6 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		    "'set_alt', 'reset', 'suspend', 'resume', "
 		    "'power_save', 'power_on' and 'power_off' "
 		    "at the same time!");
-	}
-	if (opt->got_dump_access) {
-		opt->got_any--;
-		dump_be_access(pbe);
 	}
 	if (opt->got_dump_quirk_names) {
 		opt->got_any--;
@@ -399,62 +359,6 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 			continue;
 		}
 		matches++;
-
-		/* do owner and permissions first */
-
-		if (opt->got_bus && opt->got_addr && opt->got_iface) {
-			if (opt->got_set_owner) {
-				if (libusb20_dev_set_iface_owner(pdev,
-				    opt->iface, opt->uid, opt->gid)) {
-					err(1, "setting owner and group failed\n");
-				}
-			}
-			if (opt->got_set_perm) {
-				if (libusb20_dev_set_iface_perm(pdev,
-				    opt->iface, opt->mode)) {
-					err(1, "setting mode failed\n");
-				}
-			}
-		} else if (opt->got_bus && opt->got_addr) {
-			if (opt->got_set_owner) {
-				if (libusb20_dev_set_owner(pdev,
-				    opt->uid, opt->gid)) {
-					err(1, "setting owner and group failed\n");
-				}
-			}
-			if (opt->got_set_perm) {
-				if (libusb20_dev_set_perm(pdev,
-				    opt->mode)) {
-					err(1, "setting mode failed\n");
-				}
-			}
-		} else if (opt->got_bus) {
-			if (opt->got_set_owner) {
-				if (libusb20_bus_set_owner(pbe, opt->bus,
-				    opt->uid, opt->gid)) {
-					err(1, "setting owner and group failed\n");
-				}
-			}
-			if (opt->got_set_perm) {
-				if (libusb20_bus_set_perm(pbe, opt->bus,
-				    opt->mode)) {
-					err(1, "setting mode failed\n");
-				}
-			}
-		} else {
-			if (opt->got_set_owner) {
-				if (libusb20_be_set_owner(pbe,
-				    opt->uid, opt->gid)) {
-					err(1, "setting owner and group failed\n");
-				}
-			}
-			if (opt->got_set_perm) {
-				if (libusb20_be_set_perm(pbe,
-				    opt->mode)) {
-					err(1, "setting mode failed\n");
-				}
-			}
-		}
 
 		if (libusb20_dev_open(pdev, 0)) {
 			err(1, "could not open device");
@@ -558,17 +462,11 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		    (opt->got_dump_device_desc ||
 		    opt->got_dump_curr_config ||
 		    opt->got_dump_all_config ||
-		    opt->got_dump_info ||
-		    opt->got_dump_access);
+		    opt->got_dump_info);
 
 		if (opt->got_list || dump_any) {
 			dump_device_info(pdev,
 			    opt->got_show_iface_driver);
-		}
-		if (opt->got_dump_access) {
-			printf("\n");
-			dump_device_access(pdev, opt->got_iface ?
-			    opt->iface : 0xFF);
 		}
 		if (opt->got_dump_device_desc) {
 			printf("\n");
@@ -695,27 +593,8 @@ main(int argc, char **argv)
 			opt->got_any++;
 			n++;
 			break;
-		case T_SET_OWNER:
-			cp = argv[n + 1];
-			cp = strchr(cp, ':');
-			if (cp == NULL) {
-				err(1, "missing colon in '%s'!", argv[n + 1]);
-			}
-			*(cp++) = '\0';
-			opt->gid = a_gid(cp);
-			opt->uid = a_uid(argv[n + 1]);
-			opt->got_set_owner = 1;
-			opt->got_any++;
-			n++;
-			break;
-		case T_SET_PERM:
-			opt->mode = a_mode(argv[n + 1]);
-			opt->got_set_perm = 1;
-			opt->got_any++;
-			n++;
-			break;
 		case T_SET_TEMPLATE:
-			opt->template = a_mode(argv[n + 1]);
+			opt->template = get_int(argv[n + 1]);
 			opt->got_set_template = 1;
 			opt->got_any++;
 			n++;
@@ -748,10 +627,6 @@ main(int argc, char **argv)
 			opt->got_dump_string = 1;
 			opt->got_any++;
 			n++;
-			break;
-		case T_DUMP_ACCESS:
-			opt->got_dump_access = 1;
-			opt->got_any += 2;
 			break;
 		case T_SUSPEND:
 			opt->got_suspend = 1;

@@ -178,16 +178,6 @@ typedef void (usb2_callback_t)(struct usb2_xfer *);
 /* structures */
 
 /*
- * This structure contains permissions.
- */
-
-struct usb2_perm {
-	uint32_t uid;
-	uint32_t gid;
-	uint16_t mode;
-};
-
-/*
  * Common queue structure for USB transfers.
  */
 struct usb2_xfer_queue {
@@ -383,25 +373,6 @@ struct usb2_attach_arg {
 	uint8_t	use_generic;		/* hint for generic drivers */
 };
 
-/* Structure used when referring an USB device */
-
-struct usb2_location {
-	struct usb2_bus *bus;
-	struct usb2_device *udev;
-	struct usb2_interface *iface;
-	struct usb2_fifo *rxfifo;
-	struct usb2_fifo *txfifo;
-	uint32_t devloc;		/* original devloc */
-	uint16_t bus_index;		/* bus index */
-	uint8_t	dev_index;		/* device index */
-	uint8_t	iface_index;		/* interface index */
-	uint8_t	fifo_index;		/* FIFO index */
-	uint8_t	is_read;		/* set if location has read access */
-	uint8_t	is_write;		/* set if location has write access */
-	uint8_t	is_uref;		/* set if USB refcount decr. needed */
-	uint8_t	is_usbfs;		/* set if USB-FS is active */
-};
-
 /* external variables */
 
 MALLOC_DECLARE(M_USB);
@@ -449,13 +420,8 @@ uint8_t	usb2_transfer_pending(struct usb2_xfer *xfer);
 void	usb2_transfer_start(struct usb2_xfer *xfer);
 void	usb2_transfer_stop(struct usb2_xfer *xfer);
 void	usb2_transfer_unsetup(struct usb2_xfer **pxfer, uint16_t n_setup);
-usb2_error_t usb2_ref_device(struct file *fp, struct usb2_location *ploc,
-	    uint32_t devloc);
-void	usb2_unref_device(struct usb2_location *ploc);
 void	usb2_set_parent_iface(struct usb2_device *udev, uint8_t iface_index,
 	    uint8_t parent_index);
-void	usb2_set_iface_perm(struct usb2_device *udev, uint8_t iface_index,
-	    uint32_t uid, uint32_t gid, uint16_t mode);
 uint8_t	usb2_get_bus_index(struct usb2_device *udev);
 uint8_t	usb2_get_device_index(struct usb2_device *udev);
 void	usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode);
