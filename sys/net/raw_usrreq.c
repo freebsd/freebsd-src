@@ -31,6 +31,8 @@
  * $FreeBSD$
  */
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -48,6 +50,7 @@
 
 #include <net/if.h>
 #include <net/raw_cb.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 MTX_SYSINIT(rawcb_mtx, &rawcb_mtx, "rawcb", MTX_DEF);

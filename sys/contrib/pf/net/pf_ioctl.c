@@ -36,14 +36,12 @@
  */
 
 #ifdef __FreeBSD__
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#endif
 
-#ifdef __FreeBSD__
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_route.h"
 #include "opt_bpf.h"
 #include "opt_pf.h"
 

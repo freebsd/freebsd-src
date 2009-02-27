@@ -32,6 +32,7 @@
 #include "opt_inet.h"
 #ifdef __FreeBSD__
 #include "opt_inet6.h"
+#include "opt_route.h"
 #endif
 #endif /* __FreeBSD__ || __NetBSD__ */
 
@@ -54,7 +55,10 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#ifdef __FreeBSD__
+#include <net/route.h>
 #include <net/vnet.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

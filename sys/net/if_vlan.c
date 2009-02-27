@@ -41,6 +41,7 @@
  * and ask it to send them.
  */
 
+#include "opt_route.h"
 #include "opt_vlan.h"
 
 #include <sys/param.h>
@@ -64,6 +65,7 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #define VLANNAME	"vlan"
