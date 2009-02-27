@@ -901,8 +901,8 @@ int	drm_addmap_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int	drm_rmmap_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-int	drm_addbufs_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
+int	drm_addbufs(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv);
 int	drm_infobufs(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 int	drm_markbufs(struct drm_device *dev, void *data,
