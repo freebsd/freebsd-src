@@ -56,6 +56,7 @@ struct rum_softc;
 
 struct rum_task {
 	struct usb2_proc_msg	hdr;
+	usb2_proc_callback_t	*func;
 	struct rum_softc	*sc;
 };
 
@@ -102,6 +103,7 @@ struct rum_softc {
 
 	const struct ieee80211_rate_table *sc_rates;
 	struct usb2_xfer		*sc_xfer[RUM_N_TRANSFER];
+	struct rum_task			*sc_last_task;
 
 	uint8_t				rf_rev;
 	uint8_t				rffreq;
@@ -123,6 +125,7 @@ struct rum_softc {
 	int				tx_nfree;
 	struct rum_rx_desc		sc_rx_desc;
 
+	struct cv			sc_cmd_cv;
 	struct mtx			sc_mtx;
 
 	uint32_t			sta[6];
