@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/libkern.h>
 #include <netinet/sctp.h>
-#include <netinet/sctp_os.h>
 #include <netinet/sctp_crc32.h>
 #include <netinet/sctp_pcb.h>
 
