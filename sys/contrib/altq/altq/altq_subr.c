@@ -47,6 +47,9 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
+#ifdef __FreeBSD__
+#include <sys/vimage.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -76,7 +79,6 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
-#include <sys/vimage.h>
 #include <machine/clock.h>
 #endif
 #if defined(__i386__)

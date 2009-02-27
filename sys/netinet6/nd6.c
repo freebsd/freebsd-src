@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_arc.h>
@@ -75,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/vinet6.h>
 
 #include <sys/limits.h>
-#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 

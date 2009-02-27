@@ -44,6 +44,7 @@
 #include <sys/queue.h>
 #endif
 #include <sys/socket.h>
+#include <sys/vimage.h>
 
 #include <net/route.h>
 
