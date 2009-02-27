@@ -322,6 +322,7 @@ atausb2_attach(device_t dev)
 	struct usb2_interface_descriptor *id;
 	const char *proto, *subclass;
 	struct usb2_device_request request;
+	device_t child;
 	uint16_t i;
 	uint8_t maxlun;
 	uint8_t has_intr;
@@ -413,11 +414,11 @@ atausb2_attach(device_t dev)
 
 	/* ata channels are children to this USB control device */
 	for (i = 0; i <= sc->maxlun; i++) {
-		if (!device_add_child(sc->dev, "ata",
-		    devclass_find_free_unit(ata_devclass, 2))) {
-			device_printf(sc->dev, "failed to attach ata child device\n");
-			goto detach;
-		}
+		if ((child = device_add_child(sc->dev, "ata",
+		    devclass_find_free_unit(ata_devclass, 2))) == NULL) {
+			device_printf(sc->dev, "failed to add ata child device\n");
+		} else
+		    device_set_ivars(child, (void *)(intptr_t)i);
 	}
 	bus_generic_attach(sc->dev);
 
@@ -957,23 +958,10 @@ ata_usbchannel_end_transaction(struct ata_request *request)
 static int
 ata_usbchannel_probe(device_t dev)
 {
-	struct ata_channel *ch = device_get_softc(dev);
-	device_t *children;
-	int count, i;
 	char buffer[32];
 
-	/* take care of green memory */
-	bzero(ch, sizeof(struct ata_channel));
-
-	/* find channel number on this controller */
-	if (!device_get_children(device_get_parent(dev), &children, &count)) {
-		for (i = 0; i < count; i++) {
-			if (children[i] == dev)
-				ch->unit = i;
-		}
-		free(children, M_TEMP);
-	}
-	snprintf(buffer, sizeof(buffer), "USB lun %d", ch->unit);
+	snprintf(buffer, sizeof(buffer), "USB lun %d",
+	    (int)(intptr_t)device_get_ivars(dev));
 	device_set_desc_copy(dev, buffer);
 
 	return (0);
@@ -984,8 +972,13 @@ ata_usbchannel_attach(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 
+	if (ch->attached)
+		return (0);
+	ch->attached = 1;
+
 	/* initialize the softc basics */
 	ch->dev = dev;
+	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->state = ATA_IDLE;
 	ch->hw.begin_transaction = ata_usbchannel_begin_transaction;
 	ch->hw.end_transaction = ata_usbchannel_end_transaction;
@@ -1014,6 +1007,10 @@ ata_usbchannel_detach(device_t dev)
 	struct ata_channel *ch = device_get_softc(dev);
 	device_t *children;
 	int nchildren, i;
+
+	if (!ch->attached)
+		return (0);
+	ch->attached = 0;
 
 	/* detach & delete all children */
 	if (!device_get_children(dev, &children, &nchildren)) {
