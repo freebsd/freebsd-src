@@ -127,16 +127,18 @@ tablefull(const char *tab)
 int
 uprintf(const char *fmt, ...)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
 	va_list ap;
 	struct putchar_arg pca;
+	struct proc *p;
+	struct thread *td;
 	int retval;
 
-	if (td == NULL || TD_IS_IDLETHREAD(td))
+	td = curthread;
+	if (TD_IS_IDLETHREAD(td))
 		return (0);
 
 	sx_slock(&proctree_lock);
+	p = td->td_proc;
 	PROC_LOCK(p);
 	if ((p->p_flag & P_CONTROLT) == 0) {
 		PROC_UNLOCK(p);
