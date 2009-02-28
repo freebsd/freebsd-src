@@ -110,6 +110,11 @@ FBSD_1.0 {
 	wscanf;
 };
 
+FBSD_1.1 {
+	 getdelim;
+	 getline;
+};
+
 FBSDprivate_1.0 {
 	_flockfile;
 	_flockfile_debug_stub;
