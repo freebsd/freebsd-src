@@ -2263,6 +2263,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 		break;
 	case T_NODEVICE:
 		dtype = "Uninstalled";
+		break;
 	default:
 		dtype = "unknown";
 		break;
