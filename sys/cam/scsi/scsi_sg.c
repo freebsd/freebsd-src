@@ -941,6 +941,7 @@ sg_scsiio_status(struct ccb_scsiio *csio, u_short *hoststat, u_short *drvstat)
 	case CAM_DEV_NOT_THERE:
 		*hoststat = DID_BAD_TARGET;
 		*drvstat = 0;
+		break;
 	case CAM_SEL_TIMEOUT:
 		*hoststat = DID_NO_CONNECT;
 		*drvstat = 0;
