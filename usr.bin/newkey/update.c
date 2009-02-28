@@ -70,11 +70,7 @@ __FBSDID("$FreeBSD$");
 static char SHELL[] = "/bin/sh";
 static char YPDBPATH[]="/var/yp";	/* This is defined but not used! */
 static char UPDATEFILE[] = "updaters";
-#else
-static char PKFILE[] = "/etc/publickey";
-#endif	/* YP */
 
-#ifdef YP
 static int _openchild(char *, FILE **, FILE **);
 static char *basename(char *path);
 
@@ -238,8 +234,8 @@ static int match(char *, char *);
  * the local file and then shuts up.
  */
 int
-localupdate(char *name, char *filename, u_int op, u_int keylen,
-    char *key, u_int datalen, char *data)
+localupdate(char *name, char *filename, u_int op, u_int keylen __unused,
+    char *key, u_int datalen __unused, char *data)
 {
 	char line[256];
 	FILE *rf;
