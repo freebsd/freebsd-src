@@ -101,6 +101,7 @@ int		 fattr_type(const struct fattr *);
 void		 fattr_maskout(struct fattr *, int);
 int		 fattr_getmask(const struct fattr *);
 nlink_t		 fattr_getlinkcount(const struct fattr *);
+char		*fattr_getlinktarget(const struct fattr *);
 void		 fattr_umask(struct fattr *, mode_t);
 void		 fattr_merge(struct fattr *, const struct fattr *);
 void		 fattr_mergedefault(struct fattr *);
@@ -111,5 +112,7 @@ int		 fattr_install(struct fattr *, const char *, const char *);
 int		 fattr_equal(const struct fattr *, const struct fattr *);
 void		 fattr_free(struct fattr *);
 int		 fattr_supported(int);
+off_t		 fattr_filesize(const struct fattr *);
+
 
 #endif /* !_FATTR_H_ */

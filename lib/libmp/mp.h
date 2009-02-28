@@ -11,22 +11,22 @@ typedef struct _mint {
 	BIGNUM *bn;
 } MINT;
 
-void gcd(const MINT *, const MINT *, MINT *);
-MINT *itom(short);
-void madd(const MINT *, const MINT *, MINT *);
-int mcmp(const MINT *, const MINT *);
-void mdiv(const MINT *, const MINT *, MINT *, MINT *);
-void mfree(MINT *);
-void min(MINT *);
-void mout(const MINT *);
-void move(const MINT *, MINT *);
-void msqrt(const MINT *, MINT *, MINT *);
-void msub(const MINT *, const MINT *, MINT *);
-char *mtox(const MINT *);
-void mult(const MINT *, const MINT *, MINT *);
-void pow(const MINT *, const MINT *, const MINT *, MINT *);
-void rpow(const MINT *, short, MINT *);
-void sdiv(const MINT *, short, MINT *, short *);
-MINT *xtom(const char *);
+void mp_gcd(const MINT *, const MINT *, MINT *);
+MINT *mp_itom(short);
+void mp_madd(const MINT *, const MINT *, MINT *);
+int mp_mcmp(const MINT *, const MINT *);
+void mp_mdiv(const MINT *, const MINT *, MINT *, MINT *);
+void mp_mfree(MINT *);
+void mp_min(MINT *);
+void mp_mout(const MINT *);
+void mp_move(const MINT *, MINT *);
+void mp_msqrt(const MINT *, MINT *, MINT *);
+void mp_msub(const MINT *, const MINT *, MINT *);
+char *mp_mtox(const MINT *);
+void mp_mult(const MINT *, const MINT *, MINT *);
+void mp_pow(const MINT *, const MINT *, const MINT *, MINT *);
+void mp_rpow(const MINT *, short, MINT *);
+void mp_sdiv(const MINT *, short, MINT *, short *);
+MINT *mp_xtom(const char *);
 
 #endif /* !_MP_H_ */

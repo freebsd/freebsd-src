@@ -11,16 +11,40 @@
 # probable things advanced users would want to uncomment are probably
 # the number of comments and the encoder version.
 #
+# FIXME: The first match has been made a search, so that it can skip
+# over prepended ID3 tags. This will work for MIME type detection, but
+# won't work for detecting other properties of the file (they all need
+# to be made relative to the search). In any case, if the file has ID3
+# tags, the ID3 information will be printed, not the Ogg information,
+# so until that's fixed, this doesn't matter.
+# FIXME[2]: Disable the above for now, since search assumes text mode.
+#
 # --- Ogg Framing ---
-0		string		OggS		Ogg data
+#0		search/1000	OggS		Ogg data
+0		string	OggS		Ogg data
+!:mime		application/ogg
 >4		byte		!0		UNKNOWN REVISION %u
 ##>4		byte		0		revision 0
 >4		byte		0
 ##>>14		lelong		x		(Serial %lX)
 # non-Vorbis content: FLAC (Free Lossless Audio Codec, http://flac.sourceforge.net)
->>28		string		fLaC		\b, FLAC audio
+>>28		string		\x7fFLAC	\b, FLAC audio
 # non-Vorbis content: Theora
 >>28		string		\x80theora	\b, Theora video
+# non-Vorbis content: Kate
+>>28		string		\x80kate\0\0\0\0	\b, Kate
+>>>37		ubyte		x		v%u
+>>>38		ubyte		x		\b.%u,
+>>>40		byte		0		utf8 encoding,
+>>>40		byte		!0		unknown character encoding,
+>>>60		string		>\0		language %s,
+>>>60		string		\0		no language set,
+>>>76		string		>\0		category %s
+>>>76		string		\0		no category set
+# non-Vorbis content: Skeleton
+>>28		string		fishead\0	\b, Skeleton
+>>>36		short		x		v%u
+>>>40		short		x		\b.%u
 # non-Vorbis content: Speex
 >>28		string		Speex\ \ \ 	\b, Speex audio
 # non-Vorbis content: OGM

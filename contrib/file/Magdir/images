@@ -1,6 +1,6 @@
-
 #------------------------------------------------------------------------------
-# images:  file(1) magic for image formats (see also "iff")
+# images:  file(1) magic for image formats (see also "iff", and "c-lang" for
+# XPM bitmaps)
 #
 # originally from jef@helios.ee.lbl.gov (Jef Poskanzer),
 # additions by janl@ifi.uio.no as well as others. Jan also suggested
@@ -30,13 +30,20 @@
 
 # PBMPLUS images
 # The next byte following the magic is always whitespace.
-0	string		P1		Netpbm PBM image text
-0	string		P2		Netpbm PGM image text
-0	string		P3		Netpbm PPM image text
+0	search/1	P1		Netpbm PBM image text
+!:mime	image/x-portable-bitmap
+0	search/1	P2		Netpbm PGM image text
+!:mime	image/x-portable-greymap
+0	search/1	P3		Netpbm PPM image text
+!:mime	image/x-portable-pixmap
 0	string		P4		Netpbm PBM "rawbits" image data
+!:mime	image/x-portable-bitmap
 0	string		P5		Netpbm PGM "rawbits" image data
+!:mime	image/x-portable-greymap
 0	string		P6		Netpbm PPM "rawbits" image data
+!:mime	image/x-portable-pixmap
 0	string		P7		Netpbm PAM image file
+!:mime	image/x-portable-pixmap
 
 # From: bryanh@giraffe-data.com (Bryan Henderson)
 0	string		\117\072	Solitaire Image Recorder format
@@ -50,13 +57,17 @@
 >21	byte		51		version 3
 
 # NIFF (Navy Interchange File Format, a modification of TIFF) images
+# [GRR:  this *must* go before TIFF]
 0	string		IIN1		NIFF image data
+!:mime	image/x-niff
 
 # Tag Image File Format, from Daniel Quinlan (quinlan@yggdrasil.com)
 # The second word of TIFF files is the TIFF version number, 42, which has
 # never changed.  The TIFF specification recommends testing for it.
 0	string		MM\x00\x2a	TIFF image data, big-endian
+!:mime	image/tiff
 0	string		II\x2a\x00	TIFF image data, little-endian
+!:mime	image/tiff
 
 # PNG [Portable Network Graphics, or "PNG's Not GIF"] images
 # (Greg Roelofs, newt@uchicago.edu)
@@ -64,24 +75,41 @@
 #
 # 137 P N G \r \n ^Z \n [4-byte length] H E A D [HEAD data] [HEAD crc] ...
 #
-0	string		\x89PNG		PNG image data,
->4	belong		!0x0d0a1a0a	CORRUPTED,
->4	belong		0x0d0a1a0a
->>16	belong		x		%ld x
->>20	belong		x		%ld,
->>24	byte		x		%d-bit
->>25	byte		0		grayscale,
->>25	byte		2		\b/color RGB,
->>25	byte		3		colormap,
->>25	byte		4		gray+alpha,
->>25	byte		6		\b/color RGBA,
-#>>26	byte		0		deflate/32K,
->>28	byte		0		non-interlaced
->>28	byte		1		interlaced
-1	string		PNG		PNG image data, CORRUPTED
+0	string		\x89PNG\x0d\x0a\x1a\x0a		PNG image
+!:mime	image/png
+>16	belong		x		\b, %ld x
+>20	belong		x		%ld,
+>24	byte		x		%d-bit
+>25	byte		0		grayscale,
+>25	byte		2		\b/color RGB,
+>25	byte		3		colormap,
+>25	byte		4		gray+alpha,
+>25	byte		6		\b/color RGBA,
+#>26	byte		0		deflate/32K,
+>28	byte		0		non-interlaced
+>28	byte		1		interlaced
+
+# possible GIF replacements; none yet released!
+# (Greg Roelofs, newt@uchicago.edu)
+#
+# GRR 950115:  this was mine ("Zip GIF"):
+0	string		GIF94z		ZIF image (GIF+deflate alpha)
+!:mime	image/x-unknown
+#
+# GRR 950115:  this is Jeremy Wohl's Free Graphics Format (better):
+#					
+0	string		FGF95a		FGF image (GIF+deflate beta)
+!:mime	image/x-unknown
+#
+# GRR 950115:  this is Thomas Boutell's Portable Bitmap Format proposal
+# (best; not yet implemented):
+#					
+0	string		PBF		PBF image (deflate compression)
+!:mime	image/x-unknown
 
 # GIF
 0	string		GIF8		GIF image data
+!:mime	image/gif
 >4	string		7a		\b, version 8%s,
 >4	string		9a		\b, version 8%s,
 >6	leshort		>0		%hd x
@@ -113,7 +141,7 @@
 >4	long		3		\b, rectangular 32-bit (24-bit with matte)
 
 # FIG (Facility for Interactive Generation of figures), an object-based format
-0	string		#FIG		FIG image text
+0	search/1	#FIG		FIG image text
 >5	string		x		\b, version %.3s
 
 # PHIGS
@@ -129,9 +157,6 @@
 
 # CGM image files
 0	string		BEGMF		clear text Computer Graphics Metafile
-# XXX - questionable magic
-0	beshort&0xffe0	0x0020		binary Computer Graphics Metafile
-0	beshort		0x3020		character Computer Graphics Metafile
 
 # MGR bitmaps  (Michael Haardt, u31b3hs@pool.informatik.rwth-aachen.de)
 0	string	yz	MGR bitmap, modern format, 8-bit aligned
@@ -152,15 +177,23 @@
 0	string		Sfff		structured fax file
 
 
-# PC bitmaps (OS/2, Windoze BMP files)  (Greg Roelofs, newt@uchicago.edu)
-0	string		BM		PC bitmap data
->14	leshort		12		\b, OS/2 1.x format
+# PC bitmaps (OS/2, Windows BMP files)  (Greg Roelofs, newt@uchicago.edu)
+0	string		BM
+>14	leshort		12		PC bitmap, OS/2 1.x format
+!:mime	image/x-ms-bmp
 >>18	leshort		x		\b, %d x
 >>20	leshort		x		%d
->14	leshort		64		\b, OS/2 2.x format
+>14	leshort		64		PC bitmap, OS/2 2.x format
+!:mime	image/x-ms-bmp
 >>18	leshort		x		\b, %d x
 >>20	leshort		x		%d
->14	leshort		40		\b, Windows 3.x format
+>14	leshort		40		PC bitmap, Windows 3.x format
+!:mime	image/x-ms-bmp
+>>18	lelong		x		\b, %d x
+>>22	lelong		x		%d x
+>>28	leshort		x		%d
+>14	leshort		128		PC bitmap, Windows NT/2000 format
+!:mime	image/x-ms-bmp
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
 >>28	leshort		x		%d
@@ -174,7 +207,7 @@
 
 # XPM icons (Greg Roelofs, newt@uchicago.edu)
 # note possible collision with C/REXX entry in c-lang; currently commented out
-0	string		/*\ XPM\ */	X pixmap image text
+0	search/1	/*\ XPM\ */	X pixmap image text
 
 # Utah Raster Toolkit RLE images (janl@ifi.uio.no)
 0	leshort		0xcc52		RLE image data,
@@ -260,7 +293,6 @@
 
 # other images
 0	string	This\ is\ a\ BitMap\ file	Lisp Machine bit-array-file
-0	string		=!!		Bennet Yee's "face" format
 
 # From SunOS 5.5.1 "/etc/magic" - appeared right before Sun raster image
 # stuff.
@@ -269,6 +301,7 @@
 
 # DICOM medical imaging data
 128	string	DICM			DICOM medical imaging data
+!:mime	application/dicom
 
 # XWD - X Window Dump file.
 #   As described in /usr/X11R6/include/X11/XWDFile.h
@@ -367,6 +400,7 @@
 
 # Adobe Photoshop
 0	string		8BPS Adobe Photoshop Image
+!:mime	image/vnd.adobe.photoshop
 
 # XV thumbnail indicator (ThMO)
 0	string		P7\ 332		XV thumbnail image data
@@ -456,9 +490,9 @@
 >12     long    x               \b, track size %d bytes
 >16     byte    x               \b, device type 33%2.2X
 
-# Squeak images and - etoffi@softhome.net
-0 string \146\031\0\0  Squeak image data
-0 string 'From\040Squeak  Squeak program text
+# Squeak images and programs - etoffi@softhome.net
+0	string		\146\031\0\0	Squeak image data
+0	search/1	'From\040Squeak	Squeak program text
 
 # partimage: file(1) magic for PartImage files (experimental, incomplete)
 # Author: Hans-Joachim Baader <hjb@pro-linux.de>
@@ -505,12 +539,18 @@
 # http://www.dalibor.cz/minolta/raw_file_format.htm
 0	string	\000MRM			Minolta Dimage camera raw image data
 
-# From: stephane.loeuillet@tiscali.f
-# http://www.djvuzone.org/
-0	string	AT&TFORM		DjVu Image file
+# Summary: DjVu image / document
+# Extension: .djvu
+# Reference: http://djvu.org/docs/DjVu3Spec.djvu
+# Submitted by: Stephane Loeuillet <stephane.loeuillet@tiscali.fr>
+# Modified by (1): Abel Cheung <abelcheung@gmail.com>
+0	string	AT&TFORM
+!:mime	image/vnd.djvu
+>12	string	DJVM		DjVu multiple page document
+>12	string	DJVU		DjVu image or single page document
+>12	string	DJVI		DjVu shared document
+>12	string	THUM		DjVu page thumbnails
 
-# From: Jason Bacon <bacon@smithers.neuro.mcw.edu>
-0	beshort	0x3020			character Computer Graphics Metafile
 
 # From Marc Espie
 0	lelong	20000630		OpenEXR image data
@@ -523,9 +563,40 @@
 # Hierarchical Data Format, used to facilitate scientific data exchange
 # specifications at http://hdf.ncsa.uiuc.edu/
 0	belong	0x0e031301	Hierarchical Data Format (version 4) data
+!:mime	application/x-hdf
 0	string	\211HDF\r\n\032	Hierarchical Data Format (version 5) data
+!:mime	application/x-hdf
 
 # From: Tobias Burnus <burnus@net-b.de>
 # Xara (for a while: Corel Xara) is a graphic package, see
-# http://www.xara.com/ for Windows and as GPL application for
+# http://www.xara.com/ for Windows and as GPL application for Linux
 0	string	XARA\243\243	Xara graphics file
+
+# http://www.cartesianinc.com/Tech/
+0	string	CPC\262		Cartesian Perceptual Compression image
+!:mime	image/x-cpi
+
+# From Albert Cahalan <acahalan@gmail.com>
+# puredigital used it for the CVS disposable camcorder
+#8       lelong  4       ZBM bitmap image data
+#>4      leshort x       %u x
+#>6      leshort x       %u
+
+# From Albert Cahalan <acahalan@gmail.com>
+# uncompressed 5:6:5 HighColor image for OLPC XO firmware icons
+0       string C565     OLPC firmware icon image data
+>4      leshort x       %u x
+>6      leshort x       %u
+
+# Applied Images - Image files from Cytovision
+# Gustavo Junior Alves <gjalves@gjalves.com.br>
+0	string	\xce\xda\xde\xfa	Cytovision Metaphases file
+0	string	\xed\xad\xef\xac	Cytovision Karyotype file
+0	string	\x0b\x00\x03\x00	Cytovision FISH Probe file
+0	string	\xed\xfe\xda\xbe	Cytovision FLEX file
+0	string	\xed\xab\xed\xfe	Cytovision FLEX file
+0	string	\xad\xfd\xea\xad	Cytovision RATS file
+
+# Wavelet Scalar Quantization format used in gray-scale fingerprint images
+# From Tano M Fotang <mfotang@quanteq.com>
+0	string	\xff\xa0\xff\xa8\x00	Wavelet Scalar Quantization image data

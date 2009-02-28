@@ -32,18 +32,8 @@
  *
  * Created 25 August 1985 by John Gilmore, ihnp4!hoptoad!gnu.
  *
- * $File: tar.h,v 1.11 2007/01/16 14:56:45 ljt Exp $ # checkin only
+ * $File: tar.h,v 1.12 2008/02/07 00:58:52 christos Exp $ # checkin only
  */
-
-/*
- * Kludge for handling systems that cannot cope with multiple
- * external definitions of a variable.  In ONE routine (tar.c),
- * we #define TAR_EXTERN to null; here, we set it to "extern" if
- * it is not already set.
- */
-#ifndef TAR_EXTERN
-#define TAR_EXTERN extern
-#endif
 
 /*
  * Header block on tape.
@@ -78,58 +68,6 @@ union record {
 	} header;
 };
 
-/* The checksum field is filled with this while the checksum is computed. */
-#define	CHKBLANKS	"        "	/* 8 blanks, no null */
-
 /* The magic field is filled with this if uname and gname are valid. */
 #define	TMAGIC		"ustar"		/* 5 chars and a null */
 #define	GNUTMAGIC	"ustar  "	/* 7 chars and a null */
-
-/* The linkflag defines the type of file */
-#define	LF_OLDNORMAL	'\0'		/* Normal disk file, Unix compat */
-#define	LF_NORMAL	'0'		/* Normal disk file */
-#define	LF_LINK		'1'		/* Link to previously dumped file */
-#define	LF_SYMLINK	'2'		/* Symbolic link */
-#define	LF_CHR		'3'		/* Character special file */
-#define	LF_BLK		'4'		/* Block special file */
-#define	LF_DIR		'5'		/* Directory */
-#define	LF_FIFO		'6'		/* FIFO special file */
-#define	LF_CONTIG	'7'		/* Contiguous file */
-/* Further link types may be defined later. */
-
-/*
- * Exit codes from the "tar" program
- */
-#define	EX_SUCCESS	0		/* success! */
-#define	EX_ARGSBAD	1		/* invalid args */
-#define	EX_BADFILE	2		/* invalid filename */
-#define	EX_BADARCH	3		/* bad archive */
-#define	EX_SYSTEM	4		/* system gave unexpected error */
-
-/*
- * Structure for keeping track of filenames and lists thereof.
- */
-struct name {
-	struct name	*next;
-	short		length;
-	char		found;
-	char		name[NAMSIZ+1];
-};
-
-/*
- *
- * Due to the next struct declaration, each routine that includes
- * "tar.h" must also include <sys/types.h>.  I tried to make it automatic,
- * but System V has no defines in <sys/types.h>, so there is no way of
- * knowing when it has been included.  In addition, it cannot be included
- * twice, but must be included exactly once.  Argghh!
- *
- * Thanks, typedef.  Thanks, USG.
- */
-struct link {
-	struct link	*next;
-	dev_t		dev;
-	ino_t		ino;
-	short		linkcount;
-	char		name[NAMSIZ+1];
-};

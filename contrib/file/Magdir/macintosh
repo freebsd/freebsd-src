@@ -5,6 +5,7 @@
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
 # Daniel Quinlan, quinlan@yggdrasil.com
 11	string	must\ be\ converted\ with\ BinHex	BinHex binary text
+!:mime	application/mac-binhex40
 >41	string	x					\b, version %.3s
 
 # Stuffit archives are the de facto standard of compression for Macintosh
@@ -18,37 +19,41 @@
 
 # Newer StuffIt archives (grant@netbsd.org)
 0	string		StuffIt			StuffIt Archive
+!:mime	application/x-stuffit
 #>162	string		>0			: %s
 
 # Macintosh Applications and Installation binaries (franklsm@tuns.ca)
-0	string		APPL			Macintosh Application (data)
->2	string		x			\b: %s
+# GRR: Too weak
+#0	string		APPL			Macintosh Application (data)
+#>2	string		x			\b: %s
 
 # Macintosh System files (franklsm@tuns.ca)
-0	string		zsys			Macintosh System File (data)
-0	string		FNDR			Macintosh Finder (data)
-0	string		libr			Macintosh Library (data)
->2	string		x			: %s
-0	string		shlb			Macintosh Shared Library (data)
->2	string		x			: %s
-0	string		cdev			Macintosh Control Panel (data)
->2	string		x			: %s
-0	string		INIT			Macintosh Extension (data)
->2	string		x			: %s
-0	string		FFIL			Macintosh Truetype Font (data)
->2	string		x			: %s
-0	string		LWFN			Macintosh Postscript Font (data)
->2	string		x			: %s
+# GRR: Too weak
+#0	string		zsys			Macintosh System File (data)
+#0	string		FNDR			Macintosh Finder (data)
+#0	string		libr			Macintosh Library (data)
+#>2	string		x			: %s
+#0	string		shlb			Macintosh Shared Library (data)
+#>2	string		x			: %s
+#0	string		cdev			Macintosh Control Panel (data)
+#>2	string		x			: %s
+#0	string		INIT			Macintosh Extension (data)
+#>2	string		x			: %s
+#0	string		FFIL			Macintosh Truetype Font (data)
+#>2	string		x			: %s
+#0	string		LWFN			Macintosh Postscript Font (data)
+#>2	string		x			: %s
 
 # Additional Macintosh Files (franklsm@tuns.ca)
-0	string		PACT			Macintosh Compact Pro Archive (data)
->2	string		x			: %s
-0	string		ttro			Macintosh TeachText File (data)
->2	string		x			: %s
-0	string		TEXT			Macintosh TeachText File (data)
->2	string		x			: %s
-0	string		PDF			Macintosh PDF File (data)
->2	string		x			: %s
+# GRR: Too weak
+#0	string		PACT			Macintosh Compact Pro Archive (data)
+#>2	string		x			: %s
+#0	string		ttro			Macintosh TeachText File (data)
+#>2	string		x			: %s
+#0	string		TEXT			Macintosh TeachText File (data)
+#>2	string		x			: %s
+#0	string		PDF			Macintosh PDF File (data)
+#>2	string		x			: %s
 
 # MacBinary format (Eric Fischer, enf@pobox.com)
 #
@@ -320,41 +325,50 @@
 # shorter than 32 bytes must be terminated with NULL" so I'll treat it as a 
 # cstring. Of course, partitions can contain more than four entries, but 
 # what're you gonna do?
-0x200		beshort		0x504D		Apple Partition data
->0x2		beshort		x		block size: %d,
->0x230		string		x		first type: %s,
->0x210		string		x		name: %s,
->0x254		belong		x		number of blocks: %d,
->0x400		beshort		0x504D		
->>0x430		string		x		second type: %s,
->>0x410		string		x		name: %s,
->>0x454		belong		x		number of blocks: %d,
->>0x800		beshort		0x504D		
->>>0x830	string		x		third type: %s,
->>>0x810	string		x		name: %s,
->>>0x854	belong		x		number of blocks: %d,
->>>0xa00	beshort		0x504D		
->>>>0xa30	string		x		fourth type: %s,
->>>>0xa10	string		x		name: %s,
->>>>0xa54	belong		x		number of blocks: %d
-# AFAIK, only the signature is different
-0x200		beshort		0x5453		Apple Old Partition data
->0x2		beshort		x		block size: %d,
->0x230		string		x		first type: %s,
->0x210		string		x		name: %s,
->0x254		belong		x		number of blocks: %d,
->0x400		beshort		0x504D		
->>0x430		string		x		second type: %s,
->>0x410		string		x		name: %s,
->>0x454		belong		x		number of blocks: %d,
->>0x800		beshort		0x504D		
->>>0x830	string		x		third type: %s,
->>>0x810	string		x		name: %s,
->>>0x854	belong		x		number of blocks: %d,
->>>0xa00	beshort		0x504D		
->>>>0xa30	string		x		fourth type: %s,
->>>>0xa10	string		x		name: %s,
->>>>0xa54	belong		x		number of blocks: %d
+# GRR: This magic is too weak, it is just "PM"
+#0x200		beshort		0x504D		Apple Partition data
+#>0x2		beshort		x		(block size: %d):
+#>0x230		string		x		first type: %s,
+#>0x210		string		x		name: %s,
+#>0x254		belong		x		number of blocks: %d,
+#>0x400		beshort		0x504D		
+#>>0x430		string		x		second type: %s,
+#>>0x410		string		x		name: %s,
+#>>0x454		belong		x		number of blocks: %d,
+#>>0x600		beshort		0x504D
+#>>>0x630	string		x		third type: %s,
+#>>>0x610	string		x		name: %s,
+#>>>0x654	belong		x		number of blocks: %d,
+#>>0x800		beshort		0x504D		
+#>>>0x830	string		x		fourth type: %s,
+#>>>0x810	string		x		name: %s,
+#>>>0x854	belong		x		number of blocks: %d,
+#>>>0xa00	beshort		0x504D		
+#>>>>0xa30	string		x		fifth type: %s,
+#>>>>0xa10	string		x		name: %s,
+#>>>>0xa54	belong		x		number of blocks: %d
+#>>>0xc00	beshort		0x504D
+#>>>>0xc30	string		x		sixth type: %s,
+#>>>>0xc10	string		x		name: %s,
+#>>>>0xc54	belong		x		number of blocks: %d
+## AFAIK, only the signature is different
+#0x200		beshort		0x5453		Apple Old Partition data
+#>0x2		beshort		x		block size: %d,
+#>0x230		string		x		first type: %s,
+#>0x210		string		x		name: %s,
+#>0x254		belong		x		number of blocks: %d,
+#>0x400		beshort		0x504D		
+#>>0x430		string		x		second type: %s,
+#>>0x410		string		x		name: %s,
+#>>0x454		belong		x		number of blocks: %d,
+#>>0x800		beshort		0x504D		
+#>>>0x830	string		x		third type: %s,
+#>>>0x810	string		x		name: %s,
+#>>>0x854	belong		x		number of blocks: %d,
+#>>>0xa00	beshort		0x504D		
+#>>>>0xa30	string		x		fourth type: %s,
+#>>>>0xa10	string		x		name: %s,
+#>>>>0xa54	belong		x		number of blocks: %d
 
 # From: Remi Mommsen <mommsen@slac.stanford.edu>
 0		string		BOMStore	Mac OS X bill of materials (BOM) file

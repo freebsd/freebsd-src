@@ -33,7 +33,9 @@ PRECIOUSLIB=
 .include "${.CURDIR}/sys/Makefile.inc"
 
 .if ${DEFAULT_THREAD_LIB} == "libc_r"
+.if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
+.endif
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 .endif

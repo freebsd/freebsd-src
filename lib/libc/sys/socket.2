@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2008
+.Dd January 5, 2009
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -130,6 +130,11 @@ particular to the
 in which communication
 is to take place; see
 .Xr protocols 5 .
+.Pp
+The
+.Fa protocol
+argument may be set to zero (0) to request the default
+implementation of a socket type for the protocol, if any.
 .Pp
 Sockets of type
 .Dv SOCK_STREAM

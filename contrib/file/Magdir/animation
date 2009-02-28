@@ -8,57 +8,78 @@
 
 # SGI and Apple formats
 0	string		MOVI		Silicon Graphics movie file
+!:mime	video/x-sgi-movie
 4       string          moov            Apple QuickTime
+!:mime	video/quicktime
 >12     string          mvhd            \b movie (fast start)
 >12     string          mdra            \b URL
 >12     string          cmov            \b movie (fast start, compressed header)
 >12     string          rmra            \b multiple URLs
 4       string          mdat            Apple QuickTime movie (unoptimized)
-4       string          wide            Apple QuickTime movie (unoptimized)
-4       string          skip            Apple QuickTime movie (modified)
-4       string          free            Apple QuickTime movie (modified)
+!:mime	video/quicktime
+#4       string          wide            Apple QuickTime movie (unoptimized)
+#!:mime	video/quicktime
+#4       string          skip            Apple QuickTime movie (modified)
+#!:mime	video/quicktime
+#4       string          free            Apple QuickTime movie (modified)
+#!:mime	video/quicktime
 4       string          idsc            Apple QuickTime image (fast start)
-4       string          idat            Apple QuickTime image (unoptimized)
+!:mime	image/x-quicktime
+#4       string          idat            Apple QuickTime image (unoptimized)
+#!:mime	image/x-quicktime
 4       string          pckg            Apple QuickTime compressed archive
+!:mime	application/x-quicktime-player
 4	string/B	jP		JPEG 2000 image
+!:mime	image/jp2
 4	string		ftyp		ISO Media
 >8	string		isom		\b, MPEG v4 system, version 1
+!:mime	video/mp4
 >8	string		iso2		\b, MPEG v4 system, part 12 revision
 >8	string		mp41		\b, MPEG v4 system, version 1
+!:mime	video/mp4
 >8	string		mp42		\b, MPEG v4 system, version 2
+!:mime	video/mp4
 >8	string		mp7t		\b, MPEG v4 system, MPEG v7 XML
 >8	string		mp7b		\b, MPEG v4 system, MPEG v7 binary XML
 >8	string/B	jp2		\b, JPEG 2000
+!:mime	image/jp2
 >8	string		3gp		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
 >>11	byte		4		\b v4 (H.263/AMR GSM 6.10)
 >>11	byte		5		\b v5 (H.263/AMR GSM 6.10)
 >>11	byte		6		\b v6 (ITU H.264/AMR GSM 6.10)
 >8	string		mmp4		\b, MPEG v4 system, 3GPP Mobile
+!:mime	video/mp4
 >8	string		avc1		\b, MPEG v4 system, 3GPP JVT AVC
+!:mime	video/3gpp
 >8	string/B	M4A		\b, MPEG v4 system, iTunes AAC-LC
+!:mime	audio/mp4
+>8	string/B	M4V		\b, MPEG v4 system, iTunes AVC-LC
+!:mime	video/mp4
 >8	string/B	M4P		\b, MPEG v4 system, iTunes AES encrypted
 >8	string/B	M4B		\b, MPEG v4 system, iTunes bookmarked
 >8	string/B	qt		\b, Apple QuickTime movie
+!:mime	video/quicktime
 
 # MPEG sequences
 # Scans for all common MPEG header start codes
-0        belong             0x00000001     JVT NAL sequence
->4       byte&0x1F          0x07           \b, H.264 video
+0	 belong		    0x00000001     
+>4	 byte&0x1F	    0x07	   JVT NAL sequence, H.264 video
 >>5      byte               66             \b, baseline
 >>5      byte               77             \b, main
 >>5      byte               88             \b, extended
 >>7      byte               x              \b @ L %u
-0        belong&0xFFFFFF00  0x00000100     MPEG sequence
->3       byte               0xBA
+0        belong&0xFFFFFF00  0x00000100     
+>3       byte               0xBA           MPEG sequence
 >>4      byte               &0x40          \b, v2, program multiplex
 >>4      byte               ^0x40          \b, v1, system multiplex
->3       byte               0xBB           \b, v1/2, multiplex (missing pack header)
->3       byte&0x1F          0x07           \b, H.264 video
+>3       byte               0xBB           MPEG sequence, v1/2, multiplex (missing pack header)
+>3       byte&0x1F          0x07           MPEG sequence, H.264 video
 >>4      byte               66             \b, baseline
 >>4      byte               77             \b, main
 >>4      byte               88             \b, extended
 >>6      byte               x              \b @ L %u
->3       byte               0xB0           \b, v4
+>3       byte               0xB0           MPEG sequence, v4
 >>5      belong             0x000001B5
 >>>9     byte               &0x80
 >>>>10   byte&0xF0          16             \b, video
@@ -127,7 +148,7 @@
 >>4      byte               251            \b, FGS @ L3
 >>4      byte               252            \b, FGS @ L4
 >>4      byte               253            \b, FGS @ L5
->3       byte               0xB5           \b, v4
+>3       byte               0xB5           MPEG sequence, v4
 >>4      byte               &0x80
 >>>5     byte&0xF0          16             \b, video (missing profile header)
 >>>5     byte&0xF0          32             \b, still texture (missing profile header)
@@ -137,7 +158,7 @@
 >>4      byte&0xF8          16             \b, still texture (missing profile header)
 >>4      byte&0xF8          24             \b, mesh (missing profile header)
 >>4      byte&0xF8          32             \b, face (missing profile header)
->3       byte               0xB3
+>3       byte               0xB3           MPEG sequence
 >>12     belong             0x000001B8     \b, v1, progressive Y'CbCr 4:2:0 video
 >>12     belong             0x000001B2     \b, v1, progressive Y'CbCr 4:2:0 video
 >>12     belong             0x000001B5     \b, v2,
@@ -252,22 +273,39 @@
 # modified to fully support MPEG ADTS
 
 # MP3, M1A
-0       beshort&0xFFFE  0xFFFA         MPEG ADTS, layer III, v1
+# modified by Joerg Jenderek
+# GRR the original test are too common for many DOS files
+# so don't accept as MP3 until we've tested the rate
+0       beshort&0xFFFE  0xFFFA
 # rates
->2      byte&0xF0       0x10           \b,  32 kBits
->2      byte&0xF0       0x20           \b,  40 kBits
->2      byte&0xF0       0x30           \b,  48 kBits
->2      byte&0xF0       0x40           \b,  56 kBits
->2      byte&0xF0       0x50           \b,  64 kBits
->2      byte&0xF0       0x60           \b,  80 kBits
->2      byte&0xF0       0x70           \b,  96 kBits
->2      byte&0xF0       0x80           \b, 112 kBits
->2      byte&0xF0       0x90           \b, 128 kBits
->2      byte&0xF0       0xA0           \b, 160 kBits
->2      byte&0xF0       0xB0           \b, 192 kBits
->2      byte&0xF0       0xC0           \b, 224 kBits
->2      byte&0xF0       0xD0           \b, 256 kBits
->2      byte&0xF0       0xE0           \b, 320 kBits
+>2      byte&0xF0       0x10           MPEG ADTS, layer III, v1,  32 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x20           MPEG ADTS, layer III, v1,  40 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x30           MPEG ADTS, layer III, v1,  48 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x40           MPEG ADTS, layer III, v1,  56 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x50           MPEG ADTS, layer III, v1,  64 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x60           MPEG ADTS, layer III, v1,  80 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x70           MPEG ADTS, layer III, v1,  96 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x80           MPEG ADTS, layer III, v1, 112 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x90           MPEG ADTS, layer III, v1, 128 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xA0           MPEG ADTS, layer III, v1, 160 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xB0           MPEG ADTS, layer III, v1, 192 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xC0           MPEG ADTS, layer III, v1, 224 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xD0           MPEG ADTS, layer III, v1, 256 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xE0           MPEG ADTS, layer III, v1, 320 kbps
+!:mime	audio/mpeg
 # timing
 >2      byte&0x0C       0x00           \b, 44.1 kHz
 >2      byte&0x0C       0x04           \b, 48 kHz
@@ -288,20 +326,20 @@
 # MP2, M1A
 0       beshort&0xFFFE  0xFFFC         MPEG ADTS, layer II, v1
 # rates
->2      byte&0xF0       0x10           \b,  32 kBits
->2      byte&0xF0       0x20           \b,  48 kBits
->2      byte&0xF0       0x30           \b,  56 kBits
->2      byte&0xF0       0x40           \b,  64 kBits
->2      byte&0xF0       0x50           \b,  80 kBits
->2      byte&0xF0       0x60           \b,  96 kBits
->2      byte&0xF0       0x70           \b, 112 kBits
->2      byte&0xF0       0x80           \b, 128 kBits
->2      byte&0xF0       0x90           \b, 160 kBits
->2      byte&0xF0       0xA0           \b, 192 kBits
->2      byte&0xF0       0xB0           \b, 224 kBits
->2      byte&0xF0       0xC0           \b, 256 kBits
->2      byte&0xF0       0xD0           \b, 320 kBits
->2      byte&0xF0       0xE0           \b, 384 kBits
+>2      byte&0xF0       0x10           \b,  32 kbps
+>2      byte&0xF0       0x20           \b,  48 kbps
+>2      byte&0xF0       0x30           \b,  56 kbps
+>2      byte&0xF0       0x40           \b,  64 kbps
+>2      byte&0xF0       0x50           \b,  80 kbps
+>2      byte&0xF0       0x60           \b,  96 kbps
+>2      byte&0xF0       0x70           \b, 112 kbps
+>2      byte&0xF0       0x80           \b, 128 kbps
+>2      byte&0xF0       0x90           \b, 160 kbps
+>2      byte&0xF0       0xA0           \b, 192 kbps
+>2      byte&0xF0       0xB0           \b, 224 kbps
+>2      byte&0xF0       0xC0           \b, 256 kbps
+>2      byte&0xF0       0xD0           \b, 320 kbps
+>2      byte&0xF0       0xE0           \b, 384 kbps
 # timing
 >2      byte&0x0C       0x00           \b, 44.1 kHz
 >2      byte&0x0C       0x04           \b, 48 kHz
@@ -322,58 +360,60 @@
 # MPA, M1A
 # updated by Joerg Jenderek
 # GRR the original test are too common for many DOS files, so test 32 <= kbits <= 448
-0	beshort&0xFFFE		0xFFFE	
->2	ubyte&0xF0	>0x0F		
->>2	ubyte&0xF0	<0xE1		MPEG ADTS, layer I, v1
-# rate
->>>2      byte&0xF0       0x10           \b,  32 kBits
->>>2      byte&0xF0       0x20           \b,  64 kBits
->>>2      byte&0xF0       0x30           \b,  96 kBits
->>>2      byte&0xF0       0x40           \b, 128 kBits
->>>2      byte&0xF0       0x50           \b, 160 kBits
->>>2      byte&0xF0       0x60           \b, 192 kBits
->>>2      byte&0xF0       0x70           \b, 224 kBits
->>>2      byte&0xF0       0x80           \b, 256 kBits
->>>2      byte&0xF0       0x90           \b, 288 kBits
->>>2      byte&0xF0       0xA0           \b, 320 kBits
->>>2      byte&0xF0       0xB0           \b, 352 kBits
->>>2      byte&0xF0       0xC0           \b, 384 kBits
->>>2      byte&0xF0       0xD0           \b, 416 kBits
->>>2      byte&0xF0       0xE0           \b, 448 kBits
-# timing
->>>2      byte&0x0C       0x00           \b, 44.1 kHz
->>>2      byte&0x0C       0x04           \b, 48 kHz
->>>2      byte&0x0C       0x08           \b, 32 kHz
-# channels/options
->>>3      byte&0xC0       0x00           \b, Stereo
->>>3      byte&0xC0       0x40           \b, JntStereo
->>>3      byte&0xC0       0x80           \b, 2x Monaural
->>>3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01          \b, Data Verify
-#>2     byte            &0x02          \b, Packet Pad
-#>2     byte            &0x01          \b, Custom Flag
-#>3     byte            &0x08          \b, Copyrighted
-#>3     byte            &0x04          \b, Original Source
-#>3     byte&0x03       1              \b, NR: 50/15 ms
-#>3     byte&0x03       3              \b, NR: CCIT J.17
+# GRR this test is still too general as it catches a BOM of UTF-16 files (0xFFFE)
+# FIXME: Almost all little endian UTF-16 text with BOM are clobbered by these entries
+#0	beshort&0xFFFE		0xFFFE	
+#>2	ubyte&0xF0	>0x0F		
+#>>2	ubyte&0xF0	<0xE1		MPEG ADTS, layer I, v1
+## rate
+#>>>2      byte&0xF0       0x10           \b,  32 kbps
+#>>>2      byte&0xF0       0x20           \b,  64 kbps
+#>>>2      byte&0xF0       0x30           \b,  96 kbps
+#>>>2      byte&0xF0       0x40           \b, 128 kbps
+#>>>2      byte&0xF0       0x50           \b, 160 kbps
+#>>>2      byte&0xF0       0x60           \b, 192 kbps
+#>>>2      byte&0xF0       0x70           \b, 224 kbps
+#>>>2      byte&0xF0       0x80           \b, 256 kbps
+#>>>2      byte&0xF0       0x90           \b, 288 kbps
+#>>>2      byte&0xF0       0xA0           \b, 320 kbps
+#>>>2      byte&0xF0       0xB0           \b, 352 kbps
+#>>>2      byte&0xF0       0xC0           \b, 384 kbps
+#>>>2      byte&0xF0       0xD0           \b, 416 kbps
+#>>>2      byte&0xF0       0xE0           \b, 448 kbps
+## timing
+#>>>2      byte&0x0C       0x00           \b, 44.1 kHz
+#>>>2      byte&0x0C       0x04           \b, 48 kHz
+#>>>2      byte&0x0C       0x08           \b, 32 kHz
+## channels/options
+#>>>3      byte&0xC0       0x00           \b, Stereo
+#>>>3      byte&0xC0       0x40           \b, JntStereo
+#>>>3      byte&0xC0       0x80           \b, 2x Monaural
+#>>>3      byte&0xC0       0xC0           \b, Monaural
+##>1     byte            ^0x01          \b, Data Verify
+##>2     byte            &0x02          \b, Packet Pad
+##>2     byte            &0x01          \b, Custom Flag
+##>3     byte            &0x08          \b, Copyrighted
+##>3     byte            &0x04          \b, Original Source
+##>3     byte&0x03       1              \b, NR: 50/15 ms
+##>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MP3, M2A
 0       beshort&0xFFFE  0xFFF2         MPEG ADTS, layer III, v2
 # rate
->2      byte&0xF0       0x10           \b,   8 kBits
->2      byte&0xF0       0x20           \b,  16 kBits
->2      byte&0xF0       0x30           \b,  24 kBits
->2      byte&0xF0       0x40           \b,  32 kBits
->2      byte&0xF0       0x50           \b,  40 kBits
->2      byte&0xF0       0x60           \b,  48 kBits
->2      byte&0xF0       0x70           \b,  56 kBits
->2      byte&0xF0       0x80           \b,  64 kBits
->2      byte&0xF0       0x90           \b,  80 kBits
->2      byte&0xF0       0xA0           \b,  96 kBits
->2      byte&0xF0       0xB0           \b, 112 kBits
->2      byte&0xF0       0xC0           \b, 128 kBits
->2      byte&0xF0       0xD0           \b, 144 kBits
->2      byte&0xF0       0xE0           \b, 160 kBits
+>2      byte&0xF0       0x10           \b,   8 kbps
+>2      byte&0xF0       0x20           \b,  16 kbps
+>2      byte&0xF0       0x30           \b,  24 kbps
+>2      byte&0xF0       0x40           \b,  32 kbps
+>2      byte&0xF0       0x50           \b,  40 kbps
+>2      byte&0xF0       0x60           \b,  48 kbps
+>2      byte&0xF0       0x70           \b,  56 kbps
+>2      byte&0xF0       0x80           \b,  64 kbps
+>2      byte&0xF0       0x90           \b,  80 kbps
+>2      byte&0xF0       0xA0           \b,  96 kbps
+>2      byte&0xF0       0xB0           \b, 112 kbps
+>2      byte&0xF0       0xC0           \b, 128 kbps
+>2      byte&0xF0       0xD0           \b, 144 kbps
+>2      byte&0xF0       0xE0           \b, 160 kbps
 # timing
 >2      byte&0x0C       0x00           \b, 22.05 kHz
 >2      byte&0x0C       0x04           \b, 24 kHz
@@ -394,20 +434,20 @@
 # MP2, M2A
 0       beshort&0xFFFE  0xFFF4         MPEG ADTS, layer II, v2
 # rate 
->2      byte&0xF0       0x10           \b,   8 kBits
->2      byte&0xF0       0x20           \b,  16 kBits 
->2      byte&0xF0       0x30           \b,  24 kBits
->2      byte&0xF0       0x40           \b,  32 kBits
->2      byte&0xF0       0x50           \b,  40 kBits
->2      byte&0xF0       0x60           \b,  48 kBits
->2      byte&0xF0       0x70           \b,  56 kBits
->2      byte&0xF0       0x80           \b,  64 kBits
->2      byte&0xF0       0x90           \b,  80 kBits
->2      byte&0xF0       0xA0           \b,  96 kBits
->2      byte&0xF0       0xB0           \b, 112 kBits
->2      byte&0xF0       0xC0           \b, 128 kBits
->2      byte&0xF0       0xD0           \b, 144 kBits
->2      byte&0xF0       0xE0           \b, 160 kBits
+>2      byte&0xF0       0x10           \b,   8 kbps
+>2      byte&0xF0       0x20           \b,  16 kbps 
+>2      byte&0xF0       0x30           \b,  24 kbps
+>2      byte&0xF0       0x40           \b,  32 kbps
+>2      byte&0xF0       0x50           \b,  40 kbps
+>2      byte&0xF0       0x60           \b,  48 kbps
+>2      byte&0xF0       0x70           \b,  56 kbps
+>2      byte&0xF0       0x80           \b,  64 kbps
+>2      byte&0xF0       0x90           \b,  80 kbps
+>2      byte&0xF0       0xA0           \b,  96 kbps
+>2      byte&0xF0       0xB0           \b, 112 kbps
+>2      byte&0xF0       0xC0           \b, 128 kbps
+>2      byte&0xF0       0xD0           \b, 144 kbps
+>2      byte&0xF0       0xE0           \b, 160 kbps
 # timing
 >2      byte&0x0C       0x00           \b, 22.05 kHz
 >2      byte&0x0C       0x04           \b, 24 kHz
@@ -428,20 +468,20 @@
 # MPA, M2A
 0       beshort&0xFFFE  0xFFF6         MPEG ADTS, layer I, v2
 # rate
->2      byte&0xF0       0x10           \b,  32 kBits
->2      byte&0xF0       0x20           \b,  48 kBits
->2      byte&0xF0       0x30           \b,  56 kBits
->2      byte&0xF0       0x40           \b,  64 kBits
->2      byte&0xF0       0x50           \b,  80 kBits
->2      byte&0xF0       0x60           \b,  96 kBits
->2      byte&0xF0       0x70           \b, 112 kBits
->2      byte&0xF0       0x80           \b, 128 kBits
->2      byte&0xF0       0x90           \b, 144 kBits
->2      byte&0xF0       0xA0           \b, 160 kBits
->2      byte&0xF0       0xB0           \b, 176 kBits
->2      byte&0xF0       0xC0           \b, 192 kBits
->2      byte&0xF0       0xD0           \b, 224 kBits
->2      byte&0xF0       0xE0           \b, 256 kBits
+>2      byte&0xF0       0x10           \b,  32 kbps
+>2      byte&0xF0       0x20           \b,  48 kbps
+>2      byte&0xF0       0x30           \b,  56 kbps
+>2      byte&0xF0       0x40           \b,  64 kbps
+>2      byte&0xF0       0x50           \b,  80 kbps
+>2      byte&0xF0       0x60           \b,  96 kbps
+>2      byte&0xF0       0x70           \b, 112 kbps
+>2      byte&0xF0       0x80           \b, 128 kbps
+>2      byte&0xF0       0x90           \b, 144 kbps
+>2      byte&0xF0       0xA0           \b, 160 kbps
+>2      byte&0xF0       0xB0           \b, 176 kbps
+>2      byte&0xF0       0xC0           \b, 192 kbps
+>2      byte&0xF0       0xD0           \b, 224 kbps
+>2      byte&0xF0       0xE0           \b, 256 kbps
 # timing
 >2      byte&0x0C       0x00           \b, 22.05 kHz
 >2      byte&0x0C       0x04           \b, 24 kHz
@@ -462,20 +502,20 @@
 # MP3, M25A
 0       beshort&0xFFFE  0xFFE2         MPEG ADTS, layer III,  v2.5
 # rate  
->2      byte&0xF0       0x10           \b,   8 kBits
->2      byte&0xF0       0x20           \b,  16 kBits
->2      byte&0xF0       0x30           \b,  24 kBits
->2      byte&0xF0       0x40           \b,  32 kBits
->2      byte&0xF0       0x50           \b,  40 kBits
->2      byte&0xF0       0x60           \b,  48 kBits
->2      byte&0xF0       0x70           \b,  56 kBits
->2      byte&0xF0       0x80           \b,  64 kBits
->2      byte&0xF0       0x90           \b,  80 kBits
->2      byte&0xF0       0xA0           \b,  96 kBits
->2      byte&0xF0       0xB0           \b, 112 kBits
->2      byte&0xF0       0xC0           \b, 128 kBits
->2      byte&0xF0       0xD0           \b, 144 kBits
->2      byte&0xF0       0xE0           \b, 160 kBits
+>2      byte&0xF0       0x10           \b,   8 kbps
+>2      byte&0xF0       0x20           \b,  16 kbps
+>2      byte&0xF0       0x30           \b,  24 kbps
+>2      byte&0xF0       0x40           \b,  32 kbps
+>2      byte&0xF0       0x50           \b,  40 kbps
+>2      byte&0xF0       0x60           \b,  48 kbps
+>2      byte&0xF0       0x70           \b,  56 kbps
+>2      byte&0xF0       0x80           \b,  64 kbps
+>2      byte&0xF0       0x90           \b,  80 kbps
+>2      byte&0xF0       0xA0           \b,  96 kbps
+>2      byte&0xF0       0xB0           \b, 112 kbps
+>2      byte&0xF0       0xC0           \b, 128 kbps
+>2      byte&0xF0       0xD0           \b, 144 kbps
+>2      byte&0xF0       0xE0           \b, 160 kbps
 # timing
 >2      byte&0x0C       0x00           \b, 11.025 kHz
 >2      byte&0x0C       0x04           \b, 12 kHz
@@ -497,6 +537,7 @@
 
 # Stored AAC streams (instead of the MP4 format)
 0       string          ADIF           MPEG ADIF, AAC
+!:mime	audio/x-hx-aac-adif
 >4      byte            &0x80
 >>13    byte            &0x10          \b, VBR
 >>13    byte            ^0x10          \b, CBR
@@ -521,6 +562,7 @@
 
 # Live or stored single AAC stream (used with MPEG-2 systems)
 0       beshort&0xFFF6  0xFFF0         MPEG ADTS, AAC
+!:mime	audio/x-hx-aac-adts
 >1      byte            &0x08          \b, v2
 >1      byte            ^0x08          \b, v4
 # profile
@@ -557,6 +599,7 @@
 
 # Live MPEG-4 audio streams (instead of RTP FlexMux)
 0       beshort&0xFFE0  0x56E0         MPEG-4 LOAS
+!:mime	audio/x-mp4a-latm
 #>1     beshort&0x1FFF  x              \b, %u byte packet
 >3      byte&0xE0       0x40
 >>4     byte&0x3C       0x04           \b, single stream
@@ -570,22 +613,34 @@
 >>4     byte&0x78       0x18           \b, 3 streams
 >>4     byte            &0x20          \b, 4 or more streams
 >>4     byte            &0x40          \b, 8 or more streams
-0       beshort         0x4DE1         MPEG-4 LO-EP audio stream
+# This magic isn't strong enough (matches plausible ISO-8859-1 text)
+#0       beshort         0x4DE1         MPEG-4 LO-EP audio stream
+#!:mime	audio/x-mp4a-latm
 
-# FLI animation format
-4	leshort		0xAF11			FLI file
->6	leshort		x			- %d frames,
->8	leshort		x			width=%d pixels,
->10	leshort		x			height=%d pixels,
->12	leshort		x			depth=%d,
->16	leshort		x			ticks/frame=%d
-# FLC animation format
-4	leshort		0xAF12			FLC file
->6	leshort		x			- %d frames
->8	leshort		x			width=%d pixels,
->10	leshort		x			height=%d pixels,
->12	leshort		x			depth=%d,
->16	leshort		x			ticks/frame=%d
+# Summary: FLI animation format
+# Created by: Daniel Quinlan <quinlan@yggdrasil.com>
+# Modified by (1): Abel Cheung <abelcheung@gmail.com> (avoid over-generic detection)
+4	leshort		0xAF11
+# standard FLI always has 320x200 resolution and 8 bit color
+>8	leshort		320
+>>10	leshort		200
+>>>12	leshort		8			FLI animation, 320x200x8
+!:mime	video/x-fli
+>>>>6	leshort		x			\b, %d frames
+# frame speed is multiple of 1/70s
+>>>>16	leshort		x			\b, %d/70s per frame
+
+# Summary: FLC animation format
+# Created by: Daniel Quinlan <quinlan@yggdrasil.com>
+# Modified by (1): Abel Cheung <abelcheung@gmail.com> (avoid over-generic detection)
+4	leshort		0xAF12
+# standard FLC always use 8 bit color
+>12	leshort		8			FLC animation
+!:mime	video/x-flc
+>>8	leshort		x			\b, %d
+>>10	leshort		x			\bx%dx8
+>>6	uleshort	x			\b, %d frames
+>>16	uleshort	x			\b, %dms per frame
 
 # DL animation format
 # XXX - collision with most `mips' magic
@@ -599,9 +654,11 @@
 # 255 (hex FF)!  The DL format is really bad.
 #
 #0	byte	1	DL version 1, medium format (160x100, 4 images/screen)
+#!:mime	video/x-unknown
 #>42	byte	x	- %d screens,
 #>43	byte	x	%d commands
 #0	byte	2	DL version 2
+#!:mime	video/x-unknown
 #>1	byte	1	- large format (320x200,1 image/screen),
 #>1	byte	2	- medium format (160x100,4 images/screen),
 #>1	byte	>2	- unknown format,
@@ -641,6 +698,7 @@
 
 # MNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
 0	string			\x8aMNG		MNG video data,
+!:mime	video/x-mng
 >4	belong			!0x0d0a1a0a	CORRUPTED,
 >4	belong			0x0d0a1a0a
 >>16    belong	x				%ld x
@@ -648,6 +706,7 @@
 
 # JNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
 0	string			\x8bJNG		JNG video data,
+!:mime	video/x-jng
 >4	belong			!0x0d0a1a0a	CORRUPTED,
 >4	belong			0x0d0a1a0a
 >>16    belong	x				%ld x
@@ -658,7 +717,16 @@
 
 # VRML (Virtual Reality Modelling Language)
 0       string/b        #VRML\ V1.0\ ascii	VRML 1 file
+!:mime	model/vrml
 0	string/b	#VRML\ V2.0\ utf8	ISO/IEC 14772 VRML 97 file
+!:mime	model/vrml
+
+# X3D (Extensible 3D) [http://www.web3d.org/specifications/x3d-3.0.dtd]
+# From Michel Briand <michelbriand@free.fr>
+0	string		\<?xml\ version="
+!:strength +1
+>20	search/1000/cb  \<!DOCTYPE\ X3D		X3D (Extensible 3D) model xml text
+!:mime model/x3d
 
 #---------------------------------------------------------------------------
 # HVQM4: compressed movie format designed by Hudson for Nintendo GameCube
@@ -681,7 +749,10 @@
 
 # From: Behan Webster <behanw@websterwood.com>
 # NuppelVideo used by Mythtv (*.nuv)
-0	regex		NuppelVideo|MythTVVideo MythTV NuppelVideo
+# Note: there are two identical stanzas here differing only in the
+# initial string matched. It used to be done with a regex, but we're
+# trying to get rid of those.
+0	string		NuppelVideo	MythTV NuppelVideo
 >12	string		x		v%s
 >20	lelong		x		(%d
 >24	lelong		x		\bx%d),
@@ -689,3 +760,33 @@
 >36	string		I		\binterlaced,
 >40	ledouble	x		\baspect:%.2f,
 >48	ledouble	x		\bfps:%.2f
+0	string		MythTV		MythTV NuppelVideo
+>12	string		x		v%s
+>20	lelong		x		(%d
+>24	lelong		x		\bx%d),
+>36	string		P		\bprogressive,
+>36	string		I		\binterlaced,
+>40	ledouble	x		\baspect:%.2f,
+>48	ledouble	x		\bfps:%.2f
+
+#						MPEG file
+# MPEG sequences
+# FIXME: This section is from the old magic.mime file and needs integrating with the rest
+0       belong             0x000001BA
+>4      byte               &0x40
+!:mime	video/mp2p
+>4      byte               ^0x40
+!:mime	video/mpeg
+0       belong             0x000001BB
+!:mime	video/mpeg
+0       belong             0x000001B0
+!:mime	video/mp4v-es
+0       belong             0x000001B5
+!:mime	video/mp4v-es
+0       belong             0x000001B3
+!:mime	video/mpv
+0       belong&0xFF5FFF1F  0x47400010
+!:mime	video/mp2t
+0       belong             0x00000001
+>4      byte&0x1F	   0x07
+!:mime	video/h264

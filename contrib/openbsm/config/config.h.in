@@ -6,6 +6,9 @@
 /* Define if audit system calls present */
 #undef HAVE_AUDIT_SYSCALLS
 
+/* Define if be32enc is present */
+#undef HAVE_BE32ENC
+
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
 
@@ -66,6 +69,9 @@
 
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
+
+/* Define to 1 if you have the `pthread_mutex_lock' function. */
+#undef HAVE_PTHREAD_MUTEX_LOCK
 
 /* Define to 1 if `stat' has the bug that it succeeds when given the
    zero-length file name argument. */

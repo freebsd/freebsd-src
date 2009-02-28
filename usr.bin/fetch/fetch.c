@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <fetch.h>
 
 #define MINBUFSIZE	4096
+#define TIMEOUT		120
 
 /* Option flags */
 int	 A_flag;	/*    -A: do not follow 302 redirects */
@@ -75,7 +76,7 @@ int	 R_flag;	/*    -R: don't delete partially transferred files */
 int	 r_flag;	/*    -r: restart previously interrupted transfer */
 off_t	 S_size;        /*    -S: require size to match */
 int	 s_flag;        /*    -s: show size, don't fetch */
-long	 T_secs = 120;	/*    -T: transfer timeout in seconds */
+long	 T_secs;	/*    -T: transfer timeout in seconds */
 int	 t_flag;	/*!   -t: workaround TCP bug */
 int	 U_flag;	/*    -U: do not use high ports */
 int	 v_level = 1;	/*    -v: verbosity level */
@@ -88,8 +89,8 @@ int	 sigalrm;	/* SIGALRM received */
 int	 siginfo;	/* SIGINFO received */
 int	 sigint;	/* SIGINT received */
 
-long	 ftp_timeout;	/* default timeout for FTP transfers */
-long	 http_timeout;	/* default timeout for HTTP transfers */
+long	 ftp_timeout = TIMEOUT;		/* default timeout for FTP transfers */
+long	 http_timeout = TIMEOUT;	/* default timeout for HTTP transfers */
 char	*buf;		/* transfer buffer */
 
 

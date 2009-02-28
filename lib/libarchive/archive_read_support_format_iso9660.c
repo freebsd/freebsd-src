@@ -466,7 +466,10 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	 * seek backwards to extract it, so issue a warning. */
 	if (file->offset < iso9660->current_position) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Ignoring out-of-order file");
+		    "Ignoring out-of-order file @%x (%s) %jd < %jd",
+		    file,
+		    iso9660->pathname.s,
+		    file->offset, iso9660->current_position);
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
 		release_file(iso9660, file);
@@ -607,7 +610,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->parent = parent;
 	if (parent != NULL)
 		parent->refcount++;
-	file->offset = toi(isodirrec + DR_extent_offset, DR_extent_size)
+	file->offset = (uint64_t)toi(isodirrec + DR_extent_offset, DR_extent_size)
 	    * iso9660->logical_block_size;
 	file->size = toi(isodirrec + DR_size_offset, DR_size_size);
 	file->mtime = isodate7(isodirrec + DR_date_offset);

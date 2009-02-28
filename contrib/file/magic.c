@@ -1,7 +1,7 @@
 /*
  * Copyright (c) Christos Zoulas 2003.
  * All Rights Reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *  
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,7 +38,9 @@
 #ifdef QUICK
 #include <sys/mman.h>
 #endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>	/* for PIPE_BUF */
+#endif
 
 #if defined(HAVE_UTIMES)
 # include <sys/time.h>
@@ -63,8 +65,17 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.45 2007/12/27 16:35:59 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.54 2008/07/25 23:30:32 rrt Exp $")
 #endif	/* lint */
+
+#ifndef PIPE_BUF
+/* Get the PIPE_BUF from pathconf */
+#ifdef _PC_PIPE_BUF
+#define PIPE_BUF pathconf(".", _PC_PIPE_BUF)
+#else
+#define PIPE_BUF 512
+#endif
+#endif
 
 #ifdef __EMX__
 private char *apptypeName = NULL;
@@ -75,7 +86,7 @@ protected int file_os2_apptype(struct magic_set *ms, const char *fn,
 private void free_mlist(struct mlist *);
 private void close_and_restore(const struct magic_set *, const char *, int,
     const struct stat *);
-private int info_from_stat(struct magic_set *, mode_t);
+private int unreadable_info(struct magic_set *, mode_t, const char *);
 #ifndef COMPILE_ONLY
 private const char *file_or_fd(struct magic_set *, const char *, int);
 #endif
@@ -88,38 +99,30 @@ public struct magic_set *
 magic_open(int flags)
 {
 	struct magic_set *ms;
+	size_t len;
 
-	if ((ms = calloc((size_t)1, sizeof(struct magic_set))) == NULL)
+	if ((ms = CAST(magic_set *, calloc((size_t)1,
+	    sizeof(struct magic_set)))) == NULL)
 		return NULL;
 
 	if (magic_setflags(ms, flags) == -1) {
 		errno = EINVAL;
-		goto free1;
+		goto free;
 	}
 
-	ms->o.ptr = ms->o.buf = malloc(ms->o.left = ms->o.size = 1024);
-	if (ms->o.buf == NULL)
-		goto free1;
+	ms->o.buf = ms->o.pbuf = NULL;
+	len = (ms->c.len = 10) * sizeof(*ms->c.li);
 
-	ms->o.pbuf = malloc(ms->o.psize = 1024);
-	if (ms->o.pbuf == NULL)
-		goto free2;
+	if ((ms->c.li = CAST(struct level_info *, malloc(len))) == NULL)
+		goto free;
 
-	ms->c.li = malloc((ms->c.len = 10) * sizeof(*ms->c.li));
-	if (ms->c.li == NULL)
-		goto free3;
-	
 	ms->haderr = 0;
 	ms->error = -1;
 	ms->mlist = NULL;
 	ms->file = "unknown";
 	ms->line = 0;
 	return ms;
-free3:
-	free(ms->o.pbuf);
-free2:
-	free(ms->o.buf);
-free1:
+free:
 	free(ms);
 	return NULL;
 }
@@ -143,13 +146,13 @@ free_mlist(struct mlist *mlist)
 }
 
 private int
-info_from_stat(struct magic_set *ms, mode_t md)
+unreadable_info(struct magic_set *ms, mode_t md, const char *file)
 {
 	/* We cannot open it, but we were able to stat it. */
-	if (md & 0222)
+	if (access(file, W_OK) == 0)
 		if (file_printf(ms, "writable, ") == -1)
 			return -1;
-	if (md & 0111)
+	if (access(file, X_OK) == 0)
 		if (file_printf(ms, "executable, ") == -1)
 			return -1;
 	if (S_ISREG(md))
@@ -218,7 +221,7 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 		 */
 #ifdef HAVE_UTIMES
 		struct timeval  utsbuf[2];
-		memset(utsbuf, 0, sizeof(struct timeval) * 2);
+		(void)memset(utsbuf, 0, sizeof(utsbuf));
 		utsbuf[0].tv_sec = sb->st_atime;
 		utsbuf[1].tv_sec = sb->st_mtime;
 
@@ -226,7 +229,7 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 #elif defined(HAVE_UTIME_H) || defined(HAVE_SYS_UTIME_H)
 		struct utimbuf  utbuf;
 
-		memset(&utbuf, 0, sizeof(struct utimbuf));
+		(void)memset(utbuf, 0, sizeof(utbuf));
 		utbuf.actime = sb->st_atime;
 		utbuf.modtime = sb->st_mtime;
 		(void) utime(name, &utbuf); /* don't care if loses */
@@ -268,7 +271,7 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	 * some overlapping space for matches near EOF
 	 */
 #define SLOP (1 + sizeof(union VALUETYPE))
-	if ((buf = malloc(HOWMANY + SLOP)) == NULL)
+	if ((buf = CAST(unsigned char *, malloc(HOWMANY + SLOP))) == NULL)
 		return NULL;
 
 	if (file_reset(ms) == -1)
@@ -298,11 +301,18 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 		errno = 0;
 		if ((fd = open(inname, flags)) < 0) {
 #ifdef __CYGWIN__
+			/* FIXME: Do this with EXEEXT from autotools */
 			char *tmp = alloca(strlen(inname) + 5);
 			(void)strcat(strcpy(tmp, inname), ".exe");
 			if ((fd = open(tmp, flags)) < 0) {
 #endif
-				if (info_from_stat(ms, sb.st_mode) == -1)
+				if (unreadable_info(ms, sb.st_mode,
+#ifdef __CYGWIN
+						    tmp
+#else
+						    inname
+#endif
+						    ) == -1)
 					goto done;
 				rv = 0;
 				goto done;
@@ -332,7 +342,7 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 
 		if (nbytes == 0) {
 			/* We can not read it, but we were able to stat it. */
-			if (info_from_stat(ms, sb.st_mode) == -1)
+			if (unreadable_info(ms, sb.st_mode, inname) == -1)
 				goto done;
 			rv = 0;
 			goto done;
@@ -363,7 +373,7 @@ magic_buffer(struct magic_set *ms, const void *buf, size_t nb)
 		return NULL;
 	/*
 	 * The main work is done here!
-	 * We have the file name and/or the data buffer to be identified. 
+	 * We have the file name and/or the data buffer to be identified.
 	 */
 	if (file_buffer(ms, -1, NULL, buf, nb) == -1) {
 		return NULL;

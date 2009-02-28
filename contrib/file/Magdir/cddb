@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # CDDB: file(1) magic for CDDB(tm) format CD text data files
 #
@@ -8,4 +7,4 @@
 # CDDB-enabled CD player applications.
 #
 
-0       string/b        #\040xmcd               CDDB(tm) format CD text data
+0	search/1/b	#\040xmcd	CDDB(tm) format CD text data

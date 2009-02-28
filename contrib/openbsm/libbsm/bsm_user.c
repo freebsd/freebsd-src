@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#18 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#19 $
  */
 
 #include <config/config.h>
@@ -35,7 +35,9 @@
 #include <bsm/libbsm.h>
 
 #include <string.h>
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -51,7 +53,9 @@ static FILE		*fp = NULL;
 static char		 linestr[AU_LINE_MAX];
 static const char	*user_delim = ":";
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * Parse one line from the audit_user file into the au_user_ent structure.
@@ -97,9 +101,13 @@ void
 setauuser(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setauuser_locked();
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -109,12 +117,16 @@ void
 endauuser(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	if (fp != NULL) {
 		fclose(fp);
 		fp = NULL;
 	}
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -154,9 +166,13 @@ getauuserent_r(struct au_user_ent *u)
 {
 	struct au_user_ent *up;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	up = getauuserent_r_locked(u);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (up);
 }
 
@@ -184,17 +200,23 @@ getauusernam_r(struct au_user_ent *u, const char *name)
 	if (name == NULL)
 		return (NULL);
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 
 	setauuser_locked();
 	while ((up = getauuserent_r_locked(u)) != NULL) {
 		if (strcmp(name, u->au_name) == 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 			pthread_mutex_unlock(&mutex);
+#endif
 			return (u);
 		}
 	}
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (NULL);
 
 }

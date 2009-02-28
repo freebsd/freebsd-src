@@ -34,10 +34,12 @@
 typedef enum {
 	STREAM_FILTER_NULL,
 	STREAM_FILTER_ZLIB,
-	STREAM_FILTER_MD5
+	STREAM_FILTER_MD5,
+	STREAM_FILTER_MD5RCS
 } stream_filter_t;
 
 struct stream;
+struct buf;
 
 typedef ssize_t	stream_readfn_t(void *, void *, size_t);
 typedef ssize_t	stream_writefn_t(void *, const void *, size_t);
@@ -48,13 +50,20 @@ stream_readfn_t		stream_read_fd;
 stream_writefn_t	stream_write_fd;
 stream_closefn_t	stream_close_fd;
 
+/* Convenience functions for handling character buffers. */
+stream_readfn_t		stream_read_buf;
+stream_writefn_t	stream_append_buf;
+stream_closefn_t	stream_close_buf;
+
 struct stream	*stream_open(void *, stream_readfn_t *, stream_writefn_t *,
 		     stream_closefn_t *);
 struct stream	*stream_open_fd(int, stream_readfn_t *, stream_writefn_t *,
 		     stream_closefn_t *);
+struct stream	*stream_open_buf(struct buf *);
 struct stream	*stream_open_file(const char *, int, ...);
 int		 stream_fileno(struct stream *);
 ssize_t		 stream_read(struct stream *, void *, size_t);
+ssize_t		 stream_read_blocking(struct stream *, void *, size_t);
 ssize_t		 stream_write(struct stream *, const void *, size_t);
 char		*stream_getln(struct stream *, size_t *);
 int		 stream_printf(struct stream *, const char *, ...)
@@ -62,6 +71,7 @@ int		 stream_printf(struct stream *, const char *, ...)
 int		 stream_flush(struct stream *);
 int		 stream_sync(struct stream *);
 int		 stream_truncate(struct stream *, off_t);
+void		 stream_truncate_buf(struct buf *, off_t);
 int		 stream_truncate_rel(struct stream *, off_t);
 int		 stream_rewind(struct stream *);
 int		 stream_eof(struct stream *);
@@ -69,4 +79,6 @@ int		 stream_close(struct stream *);
 int		 stream_filter_start(struct stream *, stream_filter_t, void *);
 void		 stream_filter_stop(struct stream *);
 
+struct buf	*buf_new(size_t);
+void		 buf_free(struct buf *);
 #endif /* !_STREAM_H_ */

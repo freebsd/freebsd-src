@@ -10,6 +10,8 @@
 ** destructor.
 *****************************************************************************/
 
+#include <stdlib.h>
+
 int UserDataRequest::setParams(WpaGui *_wpagui, const char *reqMsg)
 {
     char *tmp, *pos, *pos2;

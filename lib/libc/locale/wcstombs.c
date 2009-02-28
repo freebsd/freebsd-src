@@ -37,7 +37,9 @@ wcstombs(char * __restrict s, const wchar_t * __restrict pwcs, size_t n)
 {
 	static const mbstate_t initial;
 	mbstate_t mbs;
+	const wchar_t *pwcsp;
 
 	mbs = initial;
-	return (__wcsnrtombs(s, &pwcs, SIZE_T_MAX, n, &mbs));
+	pwcsp = pwcs;
+	return (__wcsnrtombs(s, &pwcsp, SIZE_T_MAX, n, &mbs));
 }

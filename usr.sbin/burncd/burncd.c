@@ -59,7 +59,7 @@ struct track_info {
 };
 static struct track_info tracks[100];
 static int quiet, verbose, saved_block_size, notracks;
-static volatile int global_fd_for_cleanup;
+static volatile sig_atomic_t global_fd_for_cleanup;
 
 void add_track(char *, int, int, int);
 void do_DAO(int fd, int, int);

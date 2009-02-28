@@ -12,8 +12,8 @@ everything beneath that directory will be left alone.
 
 You can copy "refuse" to your sup directory and add or remove
 whatever you like.  The example supfiles in this directory set
-CVSup's base directory to "/usr".  The sup directory is in the base
-directory; i.e., it is "/usr/sup".  If you have changed your base
+CVSup's base directory to "/var/db".  The sup directory is in the base
+directory; i.e., it is "/var/db/sup".  If you have changed your base
 directory, your sup directory is /path/to/base/sup.
 
 This file used to contain /usr/src/etc/sendmail/freebsd.mc in case
@@ -62,4 +62,4 @@ depend on files in completely different parts.
 
 For more information about refuse files see cvsup(1), which is
 installed by the "cvsup" and "cvsup-bin" ports.  See also the CVSup
-FAQ at <http://www.polstra.com/projects/freeware/CVSup/>.
+FAQ at <http://www.cvsup.org/faq.html>.

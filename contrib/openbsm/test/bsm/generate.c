@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006-2007 Robert N. M. Watson
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#9 $
+ * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#14 $
  */
 
 /*
@@ -553,7 +554,7 @@ generate_process64ex_record(const char *directory, const char *record_filename,
 	free(buf);
 }
 
-static char		 return32_status = 0xd7;
+static char		 return32_status = EINVAL;
 static uint32_t		 return32_ret = 0x12345678;
 
 static void
@@ -561,7 +562,8 @@ generate_return32_token(const char *directory, const char *token_filename)
 {
 	token_t *return32_token;
 
-	return32_token = au_to_return32(return32_status, return32_ret);
+	return32_token = au_to_return32(au_errno_to_bsm(return32_status),
+	    return32_ret);
 	if (return32_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_return32");
 	write_token(directory, token_filename, return32_token);
@@ -572,7 +574,8 @@ generate_return32_record(const char *directory, const char *record_filename)
 {
 	token_t *return32_token;
 
-	return32_token = au_to_return32(return32_status, return32_ret);
+	return32_token = au_to_return32(au_errno_to_bsm(return32_status),
+	    return32_ret);
 	if (return32_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_return32");
 	write_record(directory, record_filename, return32_token, AUE_NULL);
@@ -789,6 +792,7 @@ generate_seq_record(const char *directory, const char *record_filename)
 	write_record(directory, record_filename, seq_token, AUE_NULL);
 }
 
+#if 0
 /*
  * AUT_ACL
  */
@@ -820,7 +824,9 @@ generate_ipc_perm_record(const char *directory, const char *record_filename)
 	token_t *ipc_perm_token;
 
 }
+#endif
 
+#if 0
 /*
  * AUT_LABEL
  */
@@ -838,6 +844,7 @@ generate_groups_record(const char *directory, const char *record_filename)
 	token_t *groups_token;
 
 }
+#endif
 
 /*
  * AUT_ILABEL
@@ -875,6 +882,7 @@ generate_groups_record(const char *directory, const char *record_filename)
  * AUT_EXEC_ENV
  */
 
+#if 0
 static void
 generate_attr32_token(const char *directory, const char *token_filename)
 {
@@ -888,6 +896,7 @@ generate_attr32_record(const char *directory, const char *record_filename)
 	token_t *attr32_token;
 
 }
+#endif
 
 static char	*zonename_sample = "testzone";
 
@@ -911,6 +920,126 @@ generate_zonename_record(const char *directory, const char *record_filename)
 	if (zonename_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_zonename");
 	write_record(directory, record_filename, zonename_token, AUE_NULL);
+}
+
+static u_short socketex_domain = PF_INET;
+static u_short socketex_type = SOCK_STREAM;
+static struct sockaddr_in socketex_laddr, socketex_raddr;
+
+static void
+generate_socketex_token(const char *directory, const char *token_filename)
+{
+	token_t *socketex_token;
+
+	bzero(&socketex_laddr, sizeof(socketex_laddr));
+	socketex_laddr.sin_family = AF_INET;
+	socketex_laddr.sin_len = sizeof(socketex_laddr);
+	socketex_laddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+	bzero(&socketex_raddr, sizeof(socketex_raddr));
+	socketex_raddr.sin_family = AF_INET;
+	socketex_raddr.sin_len = sizeof(socketex_raddr);
+	socketex_raddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+	socketex_token = au_to_socket_ex(au_domain_to_bsm(socketex_domain),
+	    au_socket_type_to_bsm(socketex_type),
+	    (struct sockaddr *)&socketex_laddr,
+	    (struct sockaddr *)&socketex_raddr);
+	if (socketex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_socket_ex");
+	write_token(directory, token_filename, socketex_token);
+}
+
+static void
+generate_socketex_record(const char *directory, const char *record_filename)
+{
+	token_t *socketex_token;
+
+	bzero(&socketex_laddr, sizeof(socketex_laddr));
+	socketex_laddr.sin_family = AF_INET;
+	socketex_laddr.sin_len = sizeof(socketex_laddr);
+	socketex_laddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+	bzero(&socketex_raddr, sizeof(socketex_raddr));
+	socketex_raddr.sin_family = AF_INET;
+	socketex_raddr.sin_len = sizeof(socketex_raddr);
+	socketex_raddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+	socketex_token = au_to_socket_ex(au_domain_to_bsm(socketex_domain),
+	    au_socket_type_to_bsm(socketex_type),
+	    (struct sockaddr *)&socketex_laddr,
+	    (struct sockaddr *)&socketex_raddr);
+	if (socketex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_socket_ex");
+	write_record(directory, record_filename, socketex_token, AUE_NULL);
+}
+
+/*
+ * Generate a series of error-number specific return tokens in records.
+ */
+static void
+generate_error_record(const char *directory, const char *filename, int error)
+{
+	char pathname[PATH_MAX];
+	token_t *return32_token;
+
+	return32_token = au_to_return32(au_errno_to_bsm(error), -1);
+	if (return32_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_return32");
+	(void)snprintf(pathname, PATH_MAX, "%s_record", filename);
+	write_record(directory, pathname, return32_token, AUE_NULL);
+}
+
+/*
+ * Not all the error numbers, just a few present on all platforms for now.
+ */
+const struct {
+	int error_number;
+	const char *error_name;
+} error_list[] = {
+	{ EPERM, "EPERM" },
+	{ ENOENT, "ENOENT" },
+	{ ESRCH, "ESRCH" },
+	{ EINTR, "EINTR" },
+	{ EIO, "EIO" },
+	{ ENXIO, "ENXIO" },
+	{ E2BIG, "E2BIG" },
+	{ ENOEXEC, "ENOEXEC" },
+	{ EBADF, "EBADF" },
+	{ ECHILD, "ECHILD" },
+	{ EDEADLK, "EDEADLK" },
+	{ ENOMEM, "ENOMEM" },
+	{ EACCES, "EACCES" },
+	{ EFAULT, "EFAULT" },
+	{ ENOTBLK, "ENOTBLK" },
+	{ EBUSY, "EBUSY" },
+	{ EEXIST, "EEXIST" },
+	{ EXDEV, "EXDEV" },
+	{ ENODEV, "ENODEV" },
+	{ ENOTDIR, "ENOTDIR" },
+	{ EISDIR, "EISDIR" },
+	{ EINVAL, "EINVAL" },
+	{ ENFILE, "ENFILE" },
+	{ EMFILE, "EMFILE" },
+	{ ENOTTY, "ENOTTY" },
+	{ ETXTBSY, "ETXTBSY" },
+	{ EFBIG, "EFBIG" },
+	{ ENOSPC, "ENOSPC" },
+	{ ESPIPE, "ESPIPE" },
+	{ EROFS, "EROFS" },
+	{ EMLINK, "EMLINK" },
+	{ EPIPE, "EPIPE" }
+};
+const int error_list_count = sizeof(error_list)/sizeof(error_list[0]);
+
+static void
+do_error_records(const char *directory)
+{
+	int i;
+
+	for (i = 0; i < error_list_count; i++)
+		generate_error_record(directory, error_list[i].error_name,
+		    error_list[i].error_number);
 }
 
 int
@@ -975,11 +1104,14 @@ main(int argc, char *argv[])
 		generate_iport_token(directory, "iport_token");
 		generate_arg32_token(directory, "arg32_token");
 		generate_seq_token(directory, "seq_token");
+#if 0
 		generate_attr_token(directory,  "attr_token");
 		generate_ipc_perm_token(directory, "ipc_perm_token");
 		generate_groups_token(directory, "groups_token");
 		generate_attr32_token(directory, "attr32_token");
+#endif
 		generate_zonename_token(directory, "zonename_token");
+		generate_socketex_token(directory, "socketex_token");
 	}
 
 	if (do_records) {
@@ -1010,11 +1142,15 @@ main(int argc, char *argv[])
 		generate_iport_record(directory, "iport_record");
 		generate_arg32_record(directory, "arg32_record");
 		generate_seq_record(directory, "seq_record");
+#if 0
 		generate_attr_record(directory,  "attr_record");
 		generate_ipc_perm_record(directory, "ipc_perm_record");
 		generate_groups_record(directory, "groups_record");
 		generate_attr32_record(directory, "attr32_record");
+#endif
 		generate_zonename_record(directory, "zonename_record");
+		generate_socketex_record(directory, "socketex_record");
+		do_error_records(directory);
 	}
 
 	return (0);

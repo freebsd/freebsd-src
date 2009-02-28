@@ -45,7 +45,7 @@
 #include "tar.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: is_tar.c,v 1.29 2007/10/17 19:33:31 christos Exp $")
+FILE_RCSID("@(#)$File: is_tar.c,v 1.31 2008/02/04 20:51:17 christos Exp $")
 #endif
 
 #define	isodigit(c)	( ((c) >= '0') && ((c) <= '7') )
@@ -53,7 +53,7 @@ FILE_RCSID("@(#)$File: is_tar.c,v 1.29 2007/10/17 19:33:31 christos Exp $")
 private int is_tar(const unsigned char *, size_t);
 private int from_oct(int, const char *);	/* Decode octal number */
 
-static const char *tartype[] = {
+static const char tartype[][32] = {
 	"tar archive",
 	"POSIX tar archive",
 	"POSIX tar archive (GNU)",
@@ -85,7 +85,8 @@ file_is_tar(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
  * Return 
  *	0 if the checksum is bad (i.e., probably not a tar archive), 
  *	1 for old UNIX tar file,
- *	2 for Unix Std (POSIX) tar file.
+ *	2 for Unix Std (POSIX) tar file,
+ *	3 for GNU tar file.
  */
 private int
 is_tar(const unsigned char *buf, size_t nbytes)

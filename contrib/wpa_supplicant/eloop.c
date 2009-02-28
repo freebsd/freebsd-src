@@ -232,7 +232,10 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
 	timeout = os_malloc(sizeof(*timeout));
 	if (timeout == NULL)
 		return -1;
-	os_get_time(&timeout->time);
+	if (os_get_time(&timeout->time) < 0) {
+		os_free(timeout);
+		return -1;
+	}
 	timeout->time.sec += secs;
 	timeout->time.usec += usecs;
 	while (timeout->time.usec >= 1000000) {
@@ -299,6 +302,25 @@ int eloop_cancel_timeout(eloop_timeout_handler handler,
 	}
 
 	return removed;
+}
+
+
+int eloop_is_timeout_registered(eloop_timeout_handler handler,
+				void *eloop_data, void *user_data)
+{
+	struct eloop_timeout *tmp;
+
+	tmp = eloop.timeout;
+	while (tmp != NULL) {
+		if (tmp->handler == handler &&
+		    tmp->eloop_data == eloop_data &&
+		    tmp->user_data == user_data)
+			return 1;
+
+		tmp = tmp->next;
+	}
+
+	return 0;
 }
 
 

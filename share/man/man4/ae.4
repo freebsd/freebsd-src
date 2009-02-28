@@ -121,8 +121,7 @@ the network connection (cable).
 .It "ae%d: reset timeout."
 The card reset operation has been timed out.
 .It "ae%d: Generating random ethernet address."
-No valid ethernet address was found neither in the controller registers not in
-NVRAM.
+No valid Ethernet address was found in the controller NVRAM and registers.
 Random locally administered address with ASUS OUI identifier will be used
 instead.
 .El
@@ -135,8 +134,8 @@ instead.
 .Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh BUGS
-The Attansic L2 FastEthernet contoller supports DMA but do not use a descriptor
-based transfer mechanism via scatter-gather DMA.
+The Attansic L2 FastEthernet contoller supports DMA but does not use a
+descriptor based transfer mechanism via scatter-gather DMA.
 Thus the data should be copied to/from the controller memory on each
 transmit/receive.
 Furthermore, a lot of data alignment restrictions apply.
@@ -150,4 +149,4 @@ driver and this manual page was written by
 .An Stanislav Sedov
 .Aq stas@FreeBSD.org .
 It first appeared in
-.Fx 8.0 .
+.Fx 7.1 .

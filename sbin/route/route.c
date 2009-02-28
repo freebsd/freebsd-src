@@ -791,33 +791,34 @@ inet_makenetandmask(net, sin, bits)
 	char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
-	if (net == 0)
-		mask = addr = 0;
-	else {
-		if (net <= 0xff)
-			addr = net << IN_CLASSA_NSHIFT;
-		else if (net <= 0xffff)
-			addr = net << IN_CLASSB_NSHIFT;
-		else if (net <= 0xffffff)
-			addr = net << IN_CLASSC_NSHIFT;
-		else
-			addr = net;
+	/* 
+	 * XXX: This approach unable to handle 0.0.0.1/32 correctly
+	 * as inet_network() converts 0.0.0.1 and 1 equally.
+	 */
+	if (net <= 0xff)
+		addr = net << IN_CLASSA_NSHIFT;
+	else if (net <= 0xffff)
+		addr = net << IN_CLASSB_NSHIFT;
+	else if (net <= 0xffffff)
+		addr = net << IN_CLASSC_NSHIFT;
+	else
+		addr = net;
 
-		if (bits != 0)
-			mask = 0xffffffff << (32 - bits);
-		else {
-			if (IN_CLASSA(addr))
-				mask = IN_CLASSA_NET;
-			else if (IN_CLASSB(addr))
-				mask = IN_CLASSB_NET;
-			else if (IN_CLASSC(addr))
-				mask = IN_CLASSC_NET;
-			else if (IN_MULTICAST(addr))
-				mask = IN_CLASSD_NET;
-			else
-				mask = 0xffffffff;
-		}
-	}
+	if (bits != 0)
+		mask = 0xffffffff << (32 - bits);
+	else if (net == 0)
+		mask = 0;
+	else if (IN_CLASSA(addr))
+		mask = IN_CLASSA_NET;
+	else if (IN_CLASSB(addr))
+		mask = IN_CLASSB_NET;
+	else if (IN_CLASSC(addr))
+		mask = IN_CLASSC_NET;
+	else if (IN_MULTICAST(addr))
+		mask = IN_CLASSD_NET;
+	else
+		mask = 0xffffffff;
+
 	sin->sin_addr.s_addr = htonl(addr);
 	sin = &so_mask.sin;
 	sin->sin_addr.s_addr = htonl(mask);

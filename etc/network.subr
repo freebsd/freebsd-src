@@ -515,7 +515,9 @@ childif_create()
 			i=`ifconfig wlan create ${create_args}`
 			ifconfig $i name $child && cfg=0
 		fi
-		ifn_start $child
+		if autoif $child; then
+			ifn_start $child
+		fi
 	done
 
 	return ${cfg}

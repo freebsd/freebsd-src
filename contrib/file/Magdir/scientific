@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # scientific:  file(1) magic for scientific formats 
 #
@@ -58,3 +57,15 @@
 >1104	ulong	>0		%d x
 >1108	ulong	>0		%d,
 >1120	ulong	>0		%d bits/pixel
+
+# Type: GEDCOM genealogical (family history) data
+# From: Giuseppe Bilotta
+0       search/1/c	0\ HEAD         GEDCOM genealogy text
+>&0     search		1\ GEDC
+>>&0    search		2\ VERS         version
+>>>&1   search/1	>\0		%s
+# From: Phil Endecott <phil05@chezphil.org>
+0	string	\000\060\000\040\000\110\000\105\000\101\000\104		GEDCOM data
+0	string	\060\000\040\000\110\000\105\000\101\000\104\000		GEDCOM data
+0	string	\376\377\000\060\000\040\000\110\000\105\000\101\000\104	GEDCOM data
+0	string	\377\376\060\000\040\000\110\000\105\000\101\000\104\000	GEDCOM data

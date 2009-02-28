@@ -176,9 +176,9 @@ do_use_prefix(int len, struct rr_pco_match *rpm,
 		irr->irr_u_uselen = rpu->rpu_uselen;
 		irr->irr_u_keeplen = rpu->rpu_keeplen;
 		irr->irr_raf_mask_onlink =
-			(rpu->rpu_ramask & ICMP6_RR_PCOUSE_RAFLAGS_ONLINK);
+			!!(rpu->rpu_ramask & ICMP6_RR_PCOUSE_RAFLAGS_ONLINK);
 		irr->irr_raf_mask_auto =
-			(rpu->rpu_ramask & ICMP6_RR_PCOUSE_RAFLAGS_AUTO);
+			!!(rpu->rpu_ramask & ICMP6_RR_PCOUSE_RAFLAGS_AUTO);
 		irr->irr_vltime = ntohl(rpu->rpu_vltime);
 		irr->irr_pltime = ntohl(rpu->rpu_pltime);
 		irr->irr_raf_onlink =

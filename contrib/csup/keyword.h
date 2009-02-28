@@ -42,6 +42,7 @@ struct keyword;
 
 struct keyword	*keyword_new(void);
 int		 keyword_decode_expand(const char *);
+const char	*keyword_encode_expand(int);
 int		 keyword_alias(struct keyword *, const char *, const char *);
 int		 keyword_enable(struct keyword *, const char *);
 int		 keyword_disable(struct keyword *, const char *);

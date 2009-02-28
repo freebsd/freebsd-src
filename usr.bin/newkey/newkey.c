@@ -87,7 +87,7 @@ static char YPDBPATH[]="/var/yp";
 static char PKMAP[] = "publickey.byname";
 #else
 static char PKFILE[] = "/etc/publickey";
-static char *err_string();
+static const char *err_string(int);
 #endif	/* YP */
 
 static void usage(void);
@@ -199,10 +199,10 @@ setpublicmap(char *name, char *public, char *secret)
 	 * to an input error code.  An input value of zero will return
 	 * a success message.
 	 */
-static char *
+static const char *
 err_string(int code)
 {
-	char *pmesg;
+	const char *pmesg;
 
 	switch (code) {
 	case 0:

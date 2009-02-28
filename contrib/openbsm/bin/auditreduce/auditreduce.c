@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#28 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#31 $
  */
 
 /* 
@@ -41,6 +41,9 @@
  */ 
 
 #include <config/config.h>
+
+#define	_GNU_SOURCE		/* Required for strptime() on glibc2. */
+
 #ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
 #else
@@ -567,7 +570,7 @@ select_records(FILE *fp)
  * The -o option has the form object_type=object_value.  Identify the object
  * components.
  */
-void
+static void
 parse_object_type(char *name, char *val)
 {
 	if (val == NULL)

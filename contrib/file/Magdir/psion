@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # psion:  file(1) magic for Psion handhelds data
 # from: Peter Breitenlohner <peb@mppmu.mpg.de>
@@ -11,6 +10,7 @@
 >4	lelong		0x1000006A	application information file
 >4	lelong		0x1000006D
 >>8	lelong		0x1000007D	sketch image
+!:mime image/x-psion-sketch
 >>8	lelong		0x1000007E	voice note
 >>8	lelong		0x1000007F	word file
 >>8	lelong		0x10000085	OPL program

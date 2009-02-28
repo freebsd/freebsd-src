@@ -36,7 +36,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	netipsec ${_netipx} netnatm ${_netncp} netsmb \
 	nfs nfsclient nfsserver \
-	pccard sys vm
+	sys vm
 
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
@@ -54,7 +54,7 @@ LSUBDIRS=	cam/scsi \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
-LSUBSUBDIRS=	dev/mpt/mpilib dev/usb2/include
+LSUBSUBDIRS=	dev/mpt/mpilib legacy/dev/usb
 
 .if ${MACHINE_ARCH} == "powerpc"
 _dev_powermac_nvram=	dev/powermac_nvram

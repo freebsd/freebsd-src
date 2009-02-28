@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/Makefile.in#9 $
+# $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/Makefile.in#10 $
 #
 
 VPATH = @srcdir@
@@ -49,16 +49,17 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man8dir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
-am__auditd_SOURCES_DIST = audit_warn.c auditd.c \
-	auditd_control_server.c audit_triggers_server.c
+am__auditd_SOURCES_DIST = audit_warn.c auditd.c auditd_fbsd.c \
+	auditd_controlServer.c audit_triggersServer.c auditd_darwin.c
 @USE_MACH_IPC_FALSE@am_auditd_OBJECTS = audit_warn.$(OBJEXT) \
-@USE_MACH_IPC_FALSE@	auditd.$(OBJEXT)
-@USE_MACH_IPC_TRUE@am_auditd_OBJECTS =  \
-@USE_MACH_IPC_TRUE@	auditd_control_server.$(OBJEXT) \
-@USE_MACH_IPC_TRUE@	audit_triggers_server.$(OBJEXT) \
-@USE_MACH_IPC_TRUE@	audit_warn.$(OBJEXT) auditd.$(OBJEXT)
+@USE_MACH_IPC_FALSE@	auditd.$(OBJEXT) auditd_fbsd.$(OBJEXT)
+@USE_MACH_IPC_TRUE@am_auditd_OBJECTS = auditd_controlServer.$(OBJEXT) \
+@USE_MACH_IPC_TRUE@	audit_triggersServer.$(OBJEXT) \
+@USE_MACH_IPC_TRUE@	audit_warn.$(OBJEXT) auditd.$(OBJEXT) \
+@USE_MACH_IPC_TRUE@	auditd_darwin.$(OBJEXT)
 auditd_OBJECTS = $(am_auditd_OBJECTS)
-auditd_DEPENDENCIES = $(top_builddir)/libbsm/libbsm.la
+auditd_DEPENDENCIES = $(top_builddir)/libbsm/libbsm.la \
+	$(top_builddir)/libauditd/libauditd.la
 DEFAULT_INCLUDES = -I. -I$(top_builddir)/config@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -189,11 +190,11 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 @USE_NATIVE_INCLUDES_FALSE@INCLUDES = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/sys
 @USE_NATIVE_INCLUDES_TRUE@INCLUDES = -I$(top_builddir) -I$(top_srcdir)
-auditd_LDADD = $(top_builddir)/libbsm/libbsm.la
+auditd_LDADD = $(top_builddir)/libbsm/libbsm.la $(top_builddir)/libauditd/libauditd.la
 man8_MANS = auditd.8
-@USE_MACH_IPC_FALSE@auditd_SOURCES = audit_warn.c auditd.c
-@USE_MACH_IPC_TRUE@auditd_SOURCES = auditd_control_server.c audit_triggers_server.c audit_warn.c auditd.c
-@USE_MACH_IPC_TRUE@CLEANFILES = auditd_control_server.c auditd_control_server.h audit_triggers_server.c audit_triggers_server.h
+@USE_MACH_IPC_FALSE@auditd_SOURCES = audit_warn.c auditd.c auditd_fbsd.c
+@USE_MACH_IPC_TRUE@auditd_SOURCES = auditd_controlServer.c audit_triggersServer.c audit_warn.c auditd.c auditd_darwin.c
+@USE_MACH_IPC_TRUE@CLEANFILES = auditd_control_server.c auditd_controlServer.h audit_triggersServer.c audit_triggersServer.h
 all: all-am
 
 .SUFFIXES:
@@ -265,10 +266,12 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/audit_triggers_server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/audit_triggersServer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/audit_warn.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd_control_server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd_controlServer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd_darwin.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd_fbsd.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -527,11 +530,11 @@ uninstall-man: uninstall-man8
 	uninstall-sbinPROGRAMS
 
 
-@USE_MACH_IPC_TRUE@auditd_control_server.c: auditd_control.defs
-@USE_MACH_IPC_TRUE@	$(MIG) -user /dev/null -header /dev/null -server auditd_control_server.c -sheader auditd_control_server.h $(top_srcdir)/bin/auditd/auditd_control.defs
+@USE_MACH_IPC_TRUE@auditd_controlServer.c auditd_controlServer.h: auditd_control.defs
+@USE_MACH_IPC_TRUE@	$(MIG) -user /dev/null -header /dev/null -server auditd_controlServer.c -sheader auditd_controlServer.h $(top_srcdir)/bin/auditd/auditd_control.defs
 
-@USE_MACH_IPC_TRUE@audit_triggers_server.c: audit_triggers.defs
-@USE_MACH_IPC_TRUE@	$(MIG) -user /dev/null -header /dev/null -server audit_triggers_server.c -sheader audit_triggers_server.h $(top_srcdir)/bin/auditd/audit_triggers.defs
+@USE_MACH_IPC_TRUE@audit_triggersServer.c audit_triggersServer.h: audit_triggers.defs
+@USE_MACH_IPC_TRUE@	$(MIG) -user /dev/null -header /dev/null -server audit_triggersServer.c -sheader audit_triggersServer.h $(top_srcdir)/bin/auditd/audit_triggers.defs
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

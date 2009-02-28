@@ -1,3 +1,4 @@
+.\" $File: libmagic.man,v 1.18 2008/02/28 22:24:46 rrt Exp $
 .\"
 .\" Copyright (c) Christos Zoulas 2003.
 .\" All Rights Reserved.
@@ -164,7 +165,7 @@ bytes size.
 .Pp
 The
 .Fn magic_setflags
-function, sets the 
+function sets the 
 .Ar flags
 described above. Note that using both MIME flags together can also
 return extra information on the charset.
@@ -185,7 +186,9 @@ separated list of database files passed in as
 or NULL for the default database. It returns 0 on success and -1 on
 failure. The compiled files created are named from the
 .Xr basename 1
-of each file argument with ".mgc" appended to it.
+of each file argument with
+.Dq .mgc
+appended to it.
 .Pp
 The
 .Fn magic_load
@@ -199,7 +202,11 @@ The default database file is named by the MAGIC environment variable.  If
 that variable is not set, the default database file name is __MAGIC__.
 .Pp
 .Fn magic_load
-adds ".mime" and/or ".mgc" to the database filename as appropriate.
+adds
+.Dq .mime
+and/or
+.Dq .mgc
+to the database filename as appropriate.
 .Sh RETURN VALUES
 The function
 .Fn magic_open

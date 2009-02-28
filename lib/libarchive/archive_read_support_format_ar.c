@@ -511,11 +511,10 @@ ar_parse_gnu_filename_table(struct archive_read *a)
 		}
 	}
 	/*
-	 * Sanity check, last two chars must be `/\n' or '\n\n',
-	 * depending on whether the string table is padded by a '\n'
-	 * (string table produced by GNU ar always has a even size).
+	 * GNU ar always pads the table to an even size.
+	 * The pad character is either '\n' or '`'.
 	 */
-	if (p != ar->strtab + size && *p != '\n')
+	if (p != ar->strtab + size && *p != '\n' && *p != '`')
 		goto bad_string_table;
 
 	/* Enforce zero termination. */

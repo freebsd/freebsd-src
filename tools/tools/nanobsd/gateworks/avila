@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+NANO_NAME="avila-HEAD"
+NANO_SRC=`pwd | sed 's/.tools.tools.nanobsd.*//'`
+NANO_KERNEL="G2348"
+
+NANO_IMAGES=2
+FlashDevice Sandisk 512
+
+. common

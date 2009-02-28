@@ -512,8 +512,6 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		}
 	}
 
-	p1a(ip6s_forward_cachehit, "\t%ju forward cache hit\n");
-	p1a(ip6s_forward_cachemiss, "\t%ju forward cache miss\n");
 	printf("\tSource addresses selection rule applied:\n");
 	for (i = 0; i < 16; i++) {
 		if (ip6stat.ip6s_sources_rule[i])
@@ -866,7 +864,8 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 #define	p(f, m) if (icmp6stat.f || sflag <= 1) \
     printf(m, (uintmax_t)icmp6stat.f, plural(icmp6stat.f))
-#define	p_5(f, m) printf(m, (uintmax_t)icmp6stat.f)
+#define	p_5(f, m) if (icmp6stat.f || sflag <= 1) \
+    printf(m, (uintmax_t)icmp6stat.f)
 
 	p(icp6s_error, "\t%ju call%s to icmp6_error\n");
 	p(icp6s_canterror,

@@ -58,28 +58,19 @@ Leap	2008	Dec	31	23:59:60	+	S
 # e-mail    : services.iers@obspm.fr
 # http://hpiers.obspm.fr/eop-pc
 #
-# Paris, 4 July 2008
+# Paris, 15 January 2009
 #
-# Bulletin C 36
+# Bulletin C 37
 #
 # To authorities responsible
 # for the measurement and
 # distribution of time
 #
-# UTC TIME STEP
-# on the 1st of January 2009
-#
-# A positive leap second will be introduced at the end of December 2008.
-# The sequence of dates of the UTC second markers will be:		
-#
-# 2008 December 31,     23h 59m 59s
-# 2008 December 31,     23h 59m 60s
-# 2009 January   1,      0h  0m  0s
-#
-# The difference between UTC and the International Atomic Time TAI is:
-#
-# from 2006 January 1, 0h UTC, to 2009 January 1  0h UTC  : UTC-TAI = - 33s
-# from 2009 January 1, 0h UTC, until further notice       : UTC-TAI = - 34s
+# NO positive leap second will be introduced at the end of June 2009.
+# The difference between Coordinated Universal Time UTC and the 
+# International Atomic Time TAI is :             
+#                
+#     from 2009 January 1, 0h UTC, until further notice : UTC-TAI = -34 s
 #
 # Leap seconds can be introduced in UTC at the end of the months of December
 # or June, depending on the evolution of UT1-TAI. Bulletin C is mailed every

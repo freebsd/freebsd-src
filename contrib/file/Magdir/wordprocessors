@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # wordprocessors:  file(1) magic fo word processors.
 #
@@ -12,7 +11,7 @@
 >26	byte	0x46	\b, A4
 
 #WordPerfect type files Version 1.6 - PLEASE DO NOT REMOVE THIS LINE
-0	string	\377WPC\020\000\000\000\022\012\001\001\000\000\000\000	(WP) loadable text
+0	string	\377WPC\020\000\000\000\022\012\001\001\000\000\000\000	(WP) loadable file
 >15	byte	0	Optimized for Intel
 >15	byte	1	Optimized for Non-Intel
 1	string	WPC	(Corel/WP)
@@ -107,6 +106,7 @@
 0	string	HWP\ Document\ File	Hangul (Korean) Word Processor File 3.0
 # From: Won-Kyu Park <wkpark@kldp.org>
 512	string		R\0o\0o\0t\0	Hangul (Korean) Word Processor File 2000
+!:mime	application/x-hwp
 
 # CosmicBook, from Benoît Rouits
 0       string  CSBK    Ted Neslson's CosmicBook hypertext file
@@ -122,15 +122,29 @@
 2	string	IIXPR3			Intel Quark Express Document (English)
 2	string	IIXPRa			Intel Quark Express Document (Korean)
 2	string	MMXPR3			Motorola Quark Express Document (English)
+!:mime	application/x-quark-xpress-3
 2	string	MMXPRa			Motorola Quark Express Document (Korean)
 
 # adobe indesign (document, whatever...) from querkan
 0	belong	0x0606edf5		Adobe InDesign
 >16	string	DOCUMENT		Document
 
-# From: Michael Piefel <piefel@debian.org>
-# sqtroff intermediate language (replacement for ditroff int. lang.)
-0	string		X\ 495		SoftQuad troff Context intermediate for AT&T 495 laser printer
-0	string		X\ hp		SoftQuad troff Context intermediate for HP LaserJet
-0	string		X\ impr		SoftQuad troff Context intermediate for IMAGEN imPRESS
-0	string		X\ ps		SoftQuad troff Context intermediate for PostScript
+#------------------------------------------------------------------------------
+# ichitaro456: file(1) magic for Just System Word Processor Ichitaro
+#
+# Contributor kenzo-:
+# Reversed-engineered JS Ichitaro magic numbers
+#
+
+0	string		DOC
+>43	byte		0x14	Just System Word Processor Ichitaro v4
+!:mime	application/x-ichitaro4
+>144	string	JDASH		application/x-ichitaro4
+
+0	string		DOC
+>43	byte		0x15	Just System Word Processor Ichitaro v5
+!:mime	application/x-ichitaro5
+
+0	string		DOC
+>43	byte		0x16	Just System Word Processor Ichitaro v6
+!:mime	application/x-ichitaro6

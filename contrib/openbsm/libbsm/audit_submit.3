@@ -27,7 +27,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#14 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#15 $
 .\"
 .Dd January 18, 2008
 .Dt audit_submit 3
@@ -58,7 +58,10 @@ The return token is dependent on the
 .Fa status
 and
 .Fa reterr
-arguments.
+arguments; unlike the argument to
+.Xr au_to_return ,
+.Fa reterr
+should be a local rather than BSM error number.
 Optionally, a text token will be created as a part of this record.
 .Pp
 Text token output is under the control of a

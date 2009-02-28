@@ -28,4 +28,3 @@ MISSING FEATURES:
   checkout files (files in CVS/ subdirectores), a command line override
   to only update a specific collection and a third verbosity level to
   display commit log messages.
-- Add support for CVS mode (maybe?).

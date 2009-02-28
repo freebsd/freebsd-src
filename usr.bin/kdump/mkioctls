@@ -18,11 +18,14 @@ fi
 
 LC_ALL=C; export LC_ALL
 
+# include subdirs to exclude from the search
+exclude="^legacy/.*"
+
 # Build a list of headers that have ioctls in them.
 # XXX should we use an ANSI cpp?
 ioctl_includes=`
 	cd $1
-	find -H -s * -name '*.h' |
+	find -H -s * -name '*.h' \! -regex $exclude |
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		awk '{printf("#include <%s>\\\\n", $1)}'

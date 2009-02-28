@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,7 @@ const char *progname;
 #define	IEEE80211_MSG_ACTION	0x00000010	/* action frame handling */
 #define	IEEE80211_MSG_WDS	0x00000008	/* WDS handling */
 #define	IEEE80211_MSG_IOCTL	0x00000004	/* ioctl handling */
-#define	IEEE80211_MSG_ADDBA	0x00000002	/* ADDBA handling */
+#define	IEEE80211_MSG_TDMA	0x00000002	/* TDMA handling */
 
 static struct {
 	const char	*name;
@@ -113,7 +113,7 @@ static struct {
 	{ "action",	IEEE80211_MSG_ACTION },
 	{ "wds",	IEEE80211_MSG_WDS },
 	{ "ioctl",	IEEE80211_MSG_IOCTL },
-	{ "addba",	IEEE80211_MSG_ADDBA },
+	{ "tdma",	IEEE80211_MSG_TDMA },
 };
 
 static u_int

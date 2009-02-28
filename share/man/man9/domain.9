@@ -94,8 +94,6 @@ struct protosw {
 	pr_output_t *pr_output;		/* output to protocol (from above) */
 	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
-/* user-protocol hook */
-	pr_usrreq_t	*pr_ousrreq;
 /* utility hooks */
 	pr_init_t *pr_init;
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */

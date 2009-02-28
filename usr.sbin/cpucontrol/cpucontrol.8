@@ -55,33 +55,36 @@ device.
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to read and write an arbitrary machine-specific
-CPU registers via
+utility can be used to read and write arbitrary machine-specific
+CPU registers via the
 .Xr cpuctl 4
-controlled special device and apply the CPU firmware updates.
+special device.
+It can also be used to apply CPU firmware updates.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl d Ar datadir
-Where to look for microcode images. The option can be specified multiple times.
+Where to look for microcode images.
+The option can be specified multiple times.
 .It Fl m Ar msr Ns Op = Ns Ar value
-Read/write the specified MSR. Both the MSR and the value should be given as a hex number.
+Read/write the specified MSR.
+Both the MSR and the value should be given as a hex number.
 .It Fl i Ar level
-Retrieve CPUID info. Level should be given as a hex number.
+Retrieve CPUID info.
+Level should be given as a hex number.
 .It Fl u
-Apply CPU firmware updates. The
+Apply CPU firmware updates.
+The
 .Nm
 utility will walk through the configured data directories
-and will apply all firmware patches available for this CPU.
+and apply all firmware updates available for this CPU.
 .It Fl v
 Increase the verbosity level.
 .It Fl h
 Show help message.
 .El
 .Sh EXIT STATUS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh EXAMPLES
 The command
 .Pp
@@ -93,20 +96,24 @@ To set the CPU 0 TSC MSR register value to 0x1 issue
 .Pp
 .Dq Li "cpucontrol -m 0x10=0x1 /dev/cpuctl0"
 .Pp
-.Pp
 The command
 .Pp
 .Dq Li "cpucontrol -i 0x1 /dev/cpuctl1"
 .Pp
 will retrieve the CPUID level 0x1 from CPU 1.
 .Pp
-To perform firmware updated on CPU 0 from images located at
+To perform firmware updates on CPU 0 from images located at
 .Pa /usr/local/share/cpuctl/
 use the following command:
 .Pp
 .Dq Li "cpucontrol -d /usr/local/share/cpuctl/ -u /dev/cpuctl0"
 .Sh SEE ALSO
 .Xr cpuctl 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .
 .Sh BUGS
 Yes, probably, report if any.
 .Sh AUTHORS

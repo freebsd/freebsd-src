@@ -203,21 +203,32 @@ notify(struct utmp *utp, char file[], off_t offset, int folder)
 	struct stat stb;
 	struct termios tio;
 	char tty[20], name[sizeof(utmp[0].ut_name) + 1];
+	const char *cr = utp->ut_line;
 
-	(void)snprintf(tty, sizeof(tty), "%s%.*s",
-	    _PATH_DEV, (int)sizeof(utp->ut_line), utp->ut_line);
-	if (strchr(tty + sizeof(_PATH_DEV) - 1, '/')) {
+	if (strncmp(cr, "pts/", 4) == 0)
+		cr += 4;
+	if (strchr(cr, '/')) {
 		/* A slash is an attempt to break security... */
-		syslog(LOG_AUTH | LOG_NOTICE, "'/' in \"%s\"", tty);
+		syslog(LOG_AUTH | LOG_NOTICE, "Unexpected `/' in `%s'",
+		    utp->ut_line);
 		return;
 	}
-	if (stat(tty, &stb) || !(stb.st_mode & (S_IXUSR | S_IXGRP))) {
+	(void)snprintf(tty, sizeof(tty), "%s%.*s",
+	    _PATH_DEV, (int)sizeof(utp->ut_line), utp->ut_line);
+	if (stat(tty, &stb) == -1 || !(stb.st_mode & (S_IXUSR | S_IXGRP))) {
 		dsyslog(LOG_DEBUG, "%s: wrong mode on %s", utp->ut_name, tty);
 		return;
 	}
 	dsyslog(LOG_DEBUG, "notify %s on %s\n", utp->ut_name, tty);
-	if (fork())
+	switch (fork()) {
+	case -1:
+		syslog(LOG_NOTICE, "fork failed (%m)");
 		return;
+	case 0:
+		break;
+	default:
+		return;
+	}
 	(void)signal(SIGALRM, SIG_DFL);
 	(void)alarm((u_int)30);
 	if ((tp = fopen(tty, "w")) == NULL) {

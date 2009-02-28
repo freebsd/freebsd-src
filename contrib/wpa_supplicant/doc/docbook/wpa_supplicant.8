@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT" "8" "19 February 2008" "" ""
+.TH "WPA_SUPPLICANT" "8" "28 November 2008" "" ""
 
 .SH NAME
 wpa_supplicant \- Wi-Fi Protected Access client and IEEE 802.1X supplicant
@@ -214,7 +214,11 @@ PMKSA caching
 .RE
 .SH "AVAILABLE DRIVERS"
 .PP
-The available drivers to specify with the -D option are:
+A summary of available driver backends is below. Support for each
+of the driver backends is chosen at wpa_supplicant compile time. For a
+list of supported driver backends that may be used with the -D option on
+your system, refer to the help output of wpa_supplicant
+(\fBwpa_supplicant -h\fR).
 .TP
 \fBhostap\fR
 (default) Host AP driver (Intersil Prism2/2.5/3).
@@ -250,33 +254,47 @@ BSD 802.11 support (Atheros, etc.).
 \fBndis\fR
 Windows NDIS driver.
 .SH "COMMAND LINE OPTIONS"
+.PP
+Most command line options have global scope. Some are given per
+interface, and are only valid if at least one \fB-i\fR option
+is specified, otherwise they're ignored. Option groups for different
+interfaces must be separated by \fB-N\fR option.
+.TP
+\fB-b br_ifname\fR
+Optional bridge interface name. (Per interface)
 .TP
 \fB-B\fR
 Run daemon in the background.
 .TP
 \fB-i ifname\fR
-Interface to listen on.
+Interface to listen on. Multiple instances of this option can
+be present, one per interface, separated by \fB-N\fR
+option (see below).
 .TP
 \fB-c filename\fR
-Path to configuration file.
+Path to configuration file. (Per interface)
 .TP
 \fB-P PID_file\fR
 Path to PID file.
 .TP
 \fB-C ctrl_interface\fR
-Path to ctrl_interface socket (only used if -c is not).
+Path to ctrl_interface socket (Per interface. Only used if
+\fB-c\fR is not).
 .TP
 \fB-g global ctrl_interface\fR
-Path to global ctrl_interface socket.
+Path to global ctrl_interface socket. If specified, interface
+definitions may be omitted.
 .TP
 \fB-D driver\fR
-Driver to use.  See the available options below.
+Driver to use. (Per interface, see the available options
+below.)
 .TP
 \fB-f output file\fR
 Log output to specified file instead of stdout.
 .TP
 \fB-d\fR
-Increase debugging verbosity (-dd even more).
+Increase debugging verbosity (\fB-dd\fR even
+more).
 .TP
 \fB-K\fR
 Include keys (passwords, etc.) in debug output.
@@ -296,7 +314,12 @@ Help.  Show a usage message.
 Show license (GPL and BSD).
 .TP
 \fB-q\fR
-Decrease debugging verbosity (-qq even less).
+Decrease debugging verbosity (\fB-qq\fR even
+less).
+.TP
+\fB-u\fR
+Enabled DBus control interface. If enabled, interface
+definitions may be omitted.
 .TP
 \fB-v\fR
 Show version.
@@ -367,9 +390,9 @@ with other versions)
 .TP
 \fBHost AP driver for Prism2/2.5/3 (development snapshot/v0.2.x)\fR
 (http://hostap.epitest.fi/) Driver needs to be set in
-Managed mode ('iwconfig wlan0 mode managed').  Please note
-that station firmware version needs to be 1.7.0 or newer to
-work in WPA mode.
+Managed mode (\fBiwconfig wlan0 mode managed\fR).
+Please note that station firmware version needs to be 1.7.0 or
+newer to work in WPA mode.
 .TP
 \fBLinuxant DriverLoader\fR
 (http://www.linuxant.com/driverloader/)
@@ -506,8 +529,8 @@ can be used to enable WPA support:
 Add MODE="Managed" and WPA="y" to the network scheme in
 \fI/etc/pcmcia/wireless.opts\fR\&.
 .PP
-Add the following block to the end of 'start' action handler
-in \fI/etc/pcmcia/wireless\fR:
+Add the following block to the end of \fBstart\fR
+action handler in \fI/etc/pcmcia/wireless\fR:
 .sp
 .RS
 
@@ -519,8 +542,8 @@ fi
 .fi
 .RE
 .PP
-Add the following block to the end of 'stop' action handler
-(may need to be separated from other actions) in
+Add the following block to the end of \fBstop\fR
+action handler (may need to be separated from other actions) in
 \fI/etc/pcmcia/wireless\fR:
 .sp
 .RS

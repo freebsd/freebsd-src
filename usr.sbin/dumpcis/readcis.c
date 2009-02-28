@@ -40,9 +40,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <pccard/cardinfo.h>
-#include <pccard/cis.h>
-
+#include "cardinfo.h"
+#include "cis.h"
 #include "readcis.h"
 
 static int ck_linktarget(int, off_t, int);

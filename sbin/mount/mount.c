@@ -31,15 +31,13 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 #if 0
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -68,16 +66,20 @@ static const char rcsid[] =
 #define MOUNT_META_OPTION_FSTAB		"fstab"
 #define MOUNT_META_OPTION_CURRENT	"current"
 
-#define	MAX_ARGS			100
-
 int debug, fstab_style, verbose;
+
+struct cpa {
+	char	**a;
+	ssize_t	sz;
+	int	c;
+};
 
 char   *catopt(char *, const char *);
 struct statfs *getmntpt(const char *);
 int	hasopt(const char *, const char *);
 int	ismounted(struct fstab *, struct statfs *, int);
 int	isremountable(const char *);
-void	mangle(char *, int *, char *[]);
+void	mangle(char *, struct cpa *);
 char   *update_options(char *, char *, int);
 int	mountfs(const char *, const char *, const char *,
 			int, const char *, const char *);
@@ -499,15 +501,26 @@ hasopt(const char *mntopts, const char *option)
 	return (found);
 }
 
+static void
+append_arg(struct cpa *sa, char *arg)
+{
+	if (sa->c + 1 == sa->sz) {
+		sa->sz = sa->sz == 0 ? 8 : sa->sz * 2;
+		sa->a = realloc(sa->a, sizeof(sa->a) * sa->sz);
+		if (sa->a == NULL)
+			errx(1, "realloc failed");
+	}
+	sa->a[++sa->c] = arg;
+}
+
 int
 mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	const char *options, const char *mntopts)
 {
-	static int argc;
-	char *argv[MAX_ARGS];
 	struct statfs sf;
 	int i, ret;
 	char *optbuf, execname[PATH_MAX], mntpath[PATH_MAX];
+	static struct cpa mnt_argv;
 
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
@@ -542,32 +555,28 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	/* Construct the name of the appropriate mount command */
 	(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
 
-	argc = 0;
-	argv[argc++] = execname;
-	mangle(optbuf, &argc, argv);
-	argv[argc++] = strdup(spec);
-	argv[argc++] = strdup(name);
-	argv[argc] = NULL;
-
-	if (MAX_ARGS <= argc )
-		errx(1, "Cannot process more than %d mount arguments",
-		    MAX_ARGS);
+	mnt_argv.c = -1;
+	append_arg(&mnt_argv, execname);
+	mangle(optbuf, &mnt_argv);
+	append_arg(&mnt_argv, strdup(spec));
+	append_arg(&mnt_argv, strdup(name));
+	append_arg(&mnt_argv, NULL);
 
 	if (debug) {
 		if (use_mountprog(vfstype))
 			printf("exec: mount_%s", vfstype);
 		else
 			printf("mount -t %s", vfstype);
-		for (i = 1; i < argc; i++)
-			(void)printf(" %s", argv[i]);
+		for (i = 1; i < mnt_argv.c; i++)
+			(void)printf(" %s", mnt_argv.a[i]);
 		(void)printf("\n");
 		return (0);
 	}
 
 	if (use_mountprog(vfstype)) {
-		ret = exec_mountprog(name, execname, argv);
+		ret = exec_mountprog(name, execname, mnt_argv.a);
 	} else {
-		ret = mount_fs(vfstype, argc, argv);
+		ret = mount_fs(vfstype, mnt_argv.c, mnt_argv.a);
 	}
 
 	free(optbuf);
@@ -670,12 +679,10 @@ catopt(char *s0, const char *s1)
 }
 
 void
-mangle(char *options, int *argcp, char *argv[])
+mangle(char *options, struct cpa *a)
 {
 	char *p, *s;
-	int argc;
 
-	argc = *argcp;
 	for (s = options; (p = strsep(&s, ",")) != NULL;)
 		if (*p != '\0') {
 			if (strcmp(p, "noauto") == 0) {
@@ -707,19 +714,17 @@ mangle(char *options, int *argcp, char *argv[])
 			    sizeof(groupquotaeq) - 1) == 0) {
 				continue;
 			} else if (*p == '-') {
-				argv[argc++] = p;
+				append_arg(a, p);
 				p = strchr(p, '=');
 				if (p != NULL) {
 					*p = '\0';
-					argv[argc++] = p+1;
+					append_arg(a, p + 1);
 				}
 			} else {
-				argv[argc++] = strdup("-o");
-				argv[argc++] = p;
+				append_arg(a, strdup("-o"));
+				append_arg(a, p);
 			}
 		}
-
-	*argcp = argc;
 }
 
 

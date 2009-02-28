@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 20, 2008
+.Dd February 17, 2009
 .Dt USB2_CORE 4
 .Os
 .
@@ -459,6 +459,11 @@ operation.
 This flag allows the received transfer length, "xfer->actlen" to be
 less than "xfer->sumlen" upon completion of a transfer.  This flag can
 be changed during operation.
+.It short_frames_ok
+This flag allows the reception of multiple short USB frames. This flag
+only has effect for BULK and INTERRUPT endpoints and if the number of
+frames received is greater than 1. This flag can be changed during
+operation.
 .It pipe_bof
 This flag causes a failing USB transfer to remain first in the PIPE
 queue except in the case of "xfer->error" equal to

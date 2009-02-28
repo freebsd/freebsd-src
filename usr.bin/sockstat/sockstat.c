@@ -596,25 +596,25 @@ display(void)
 			continue;
 		pos = 0;
 		if ((pwd = getpwuid(xf->xf_uid)) == NULL)
-			pos += xprintf("%lu", (u_long)xf->xf_uid);
+			pos += xprintf("%lu ", (u_long)xf->xf_uid);
 		else
-			pos += xprintf("%s", pwd->pw_name);
+			pos += xprintf("%s ", pwd->pw_name);
 		while (pos < 9)
 			pos += xprintf(" ");
 		pos += xprintf("%.10s", getprocname(xf->xf_pid));
 		while (pos < 20)
 			pos += xprintf(" ");
-		pos += xprintf("%lu", (u_long)xf->xf_pid);
+		pos += xprintf("%lu ", (u_long)xf->xf_pid);
 		while (pos < 26)
 			pos += xprintf(" ");
-		pos += xprintf("%d", xf->xf_fd);
+		pos += xprintf("%d ", xf->xf_fd);
 		while (pos < 29)
 			pos += xprintf(" ");
 		pos += xprintf("%s", s->protoname);
 		if (s->vflag & INP_IPV4)
-			pos += xprintf("4");
+			pos += xprintf("4 ");
 		if (s->vflag & INP_IPV6)
-			pos += xprintf("6");
+			pos += xprintf("6 ");
 		while (pos < 36)
 			pos += xprintf(" ");
 		switch (s->family) {

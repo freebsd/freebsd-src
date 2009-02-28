@@ -1,7 +1,9 @@
 $FreeBSD$
 
-    linker.hints file consists from the one or more records. First record of
-file is special and determines its version:
+linker.hints file consists from the one or more records,
+and is processed by sys/kern/kern_linker.c::linker_hints_lookup()
+
+First record of file is special and determines its version:
 
 int	version;
 
@@ -16,25 +18,28 @@ struct record {
 'data' determines its type:
 
 struct data {
-	int	type;		/* type of data. currently MTD_* values */
+	int	type;		/* type of data. currently MDT_* values */
 };
 
     The rest of record depends on the type.
 
 struct string {
-	int	length;		/* length of string */
+	uint8_t	length;		/* length of string */
 	char	val[];		/* string itself (no terminating zero) */
 };
 
 struct data_mdt_version {
 	int	type = MDT_VERSION;
 	struct string	modname;
+	/* padding */
 	int	version;
 	struct string	kldname;
+	/* padding */
 };
 
 struct data_mdt_module {
-	int	type = MDT_VERSION;
+	int	type = MDT_MODULE;
 	struct string	modname;
 	struct string	kldname;
+	/* padding */
 };

@@ -56,13 +56,18 @@ strtopQ(s, sp, V) CONST char *s; char **sp; void *V;
 strtopQ(CONST char *s, char **sp, void *V)
 #endif
 {
-	static FPI fpi = { 113, 1-16383-113+1, 32766 - 16383 - 113 + 1, 1, SI };
+	static FPI fpi0 = { 113, 1-16383-113+1, 32766 - 16383 - 113 + 1, 1, SI };
 	ULong bits[4];
 	Long exp;
 	int k;
 	ULong *L = (ULong*)V;
+#ifdef Honor_FLT_ROUNDS
+#include "gdtoa_fltrnds.h"
+#else
+#define fpi &fpi0
+#endif
 
-	k = strtodg(s, sp, &fpi, &exp, bits);
+	k = strtodg(s, sp, fpi, &exp, bits);
 	switch(k & STRTOG_Retmask) {
 	  case STRTOG_NoNumber:
 	  case STRTOG_Zero:

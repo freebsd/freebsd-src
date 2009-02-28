@@ -7,6 +7,10 @@
 options MD_ROOT_SIZE=3200      # same as def_sz
 
 hints	"PICOBSD.hints"
+
+# values accessible through getenv()
+# env		"PICOBSD.env"
+
 cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
@@ -68,7 +72,7 @@ device		sc
 device		npx
 
 # Serial (COM) ports
-device		sio
+device		uart
 
 # Audio support
 #device		pcm
@@ -107,10 +111,10 @@ device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
 #device		gif	4	# IPv6 and IPv4 tunneling
 #device		faith	1	# IPv6-to-IPv4 relaying (translation)
-#device		tap
+device		tap
 
-options		DEVICE_POLLING
+#options		DEVICE_POLLING
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
-#device		bpf		# Berkeley packet filter
+device		bpf		# Berkeley packet filter

@@ -1,14 +1,30 @@
-
 #------------------------------------------------------------------------------
 # apple:  file(1) magic for Apple file formats
 #
-0	string		FiLeStArTfIlEsTaRt	binscii (apple ][) text
+0	search/1	FiLeStArTfIlEsTaRt	binscii (apple ][) text
 0	string		\x0aGL			Binary II (apple ][) data
 0	string		\x76\xff		Squeezed (apple ][) data
 0	string		NuFile			NuFile archive (apple ][) data
 0	string		N\xf5F\xe9l\xe5		NuFile archive (apple ][) data
 0	belong		0x00051600		AppleSingle encoded Macintosh file
 0	belong		0x00051607		AppleDouble encoded Macintosh file
+
+# Type: Apple Emulator 2IMG format
+# From: Radek Vokal <rvokal@redhat.com>
+0	string		2IMG	Apple ][ 2IMG Disk Image
+>4	string		XGS!	\b, XGS
+>4	string		CTKG	\b, Catakig
+>4	string		ShIm	\b, Sheppy's ImageMaker
+>4	string		WOOF	\b, Sweet 16
+>4	string		B2TR	\b, Bernie ][ the Rescue
+>4	string		!nfc	\b, ASIMOV2
+>4	string		x	\b, Unknown Format
+>0xc	byte		00	\b, DOS 3.3 sector order
+>>0x10	byte		00	\b, Volume 254
+>>0x10	byte&0x7f	x	\b, Volume %u
+>0xc	byte		01	\b, ProDOS sector order
+>>0x14	short		x	\b, %u Blocks
+>0xc	byte		02	\b, NIB data
 
 # magic for Newton PDA package formats
 # from Ruda Moura <ruda@helllabs.org>
@@ -118,11 +134,12 @@
 # Nevertheless this will manage to catch a lot of images that happen
 # to have a solid-colored line at the bottom of the screen.
 
-8144	string	\x7F\x7F\x7F\x7F\x7F\x7F\x7F\x7F	Apple II image with white background
-8144	string	\x55\x2A\x55\x2A\x55\x2A\x55\x2A	Apple II image with purple background
-8144	string	\x2A\x55\x2A\x55\x2A\x55\x2A\x55	Apple II image with green background
-8144	string	\xD5\xAA\xD5\xAA\xD5\xAA\xD5\xAA	Apple II image with blue background
-8144	string	\xAA\xD5\xAA\xD5\xAA\xD5\xAA\xD5	Apple II image with orange background
+# GRR: Magic too weak
+#8144	string	\x7F\x7F\x7F\x7F\x7F\x7F\x7F\x7F	Apple II image with white background
+#8144	string	\x55\x2A\x55\x2A\x55\x2A\x55\x2A	Apple II image with purple background
+#8144	string	\x2A\x55\x2A\x55\x2A\x55\x2A\x55	Apple II image with green background
+#8144	string	\xD5\xAA\xD5\xAA\xD5\xAA\xD5\xAA	Apple II image with blue background
+#8144	string	\xAA\xD5\xAA\xD5\xAA\xD5\xAA\xD5	Apple II image with orange background
 
 # Beagle Bros. Apple Mechanic fonts
 

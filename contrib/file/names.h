@@ -32,7 +32,7 @@
  * appear at fixed offsets into the file. Don't make HOWMANY
  * too high unless you have a very fast CPU.
  *
- * $File: names.h,v 1.29 2007/12/27 20:30:35 christos Exp $
+ * $File: names.h,v 1.32 2008/02/11 00:19:29 rrt Exp $
  */
 
 /*
@@ -57,8 +57,8 @@
 #define	L_PO	13		/* PO */
 
 static const struct {
-	const char *human;
-	const char *mime;
+	char human[48];
+	char mime[16];
 } types[] = {
 	{ "C program",					"text/x-c", },
 	{ "C++ program",				"text/x-c++" },
@@ -74,8 +74,7 @@ static const struct {
 	{ "BCPL program",				"text/x-bcpl" },
 	{ "M4 macro language pre-processor",		"text/x-m4" },
 	{ "PO (gettext message catalogue)",             "text/x-po" },
-	{ "cannot happen error on names.h/types",	"error/x-error" },
-	{ 0, 0}
+	{ "cannot happen error on names.h/types",	"error/x-error" }
 };
 
 /*
@@ -114,8 +113,8 @@ static const struct {
  * as Java, as it comes after "the" and "The".  Perhaps we need a fancier
  * heuristic to identify Java?
  */
-static struct names {
-	const char *name;
+static const struct names {
+	char name[14];
 	short type;
 } names[] = {
 	/* These must be sorted by eye for optimal hit rate */
@@ -145,18 +144,6 @@ static struct names {
 	{"LDFLAGS",	L_MAKE},
 	{"all:",	L_MAKE},
 	{".PRECIOUS",	L_MAKE},
-/* Too many files of text have these words in them.  Find another way
- * to recognize Fortrash.
- */
-#ifdef	NOTDEF
-	{"subroutine",	L_FORT},
-	{"function",	L_FORT},
-	{"block",	L_FORT},
-	{"common",	L_FORT},
-	{"dimension",	L_FORT},
-	{"integer",	L_FORT},
-	{"data",	L_FORT},
-#endif	/*NOTDEF*/
 	{".ascii",	L_MACH},
 	{".asciiz",	L_MACH},
 	{".byte",	L_MACH},
@@ -181,6 +168,6 @@ static struct names {
 	{"<BODY",	L_HTML},
 	{"<html",	L_HTML},
 	{"<HTML",	L_HTML},
-	{NULL,		0}
+	{"<!--",	L_HTML},
 };
-#define NNAMES ((sizeof(names)/sizeof(struct names)) - 1)
+#define NNAMES (sizeof(names)/sizeof(struct names))

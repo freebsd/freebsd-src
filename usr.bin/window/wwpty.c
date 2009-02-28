@@ -43,6 +43,7 @@ static char rcsid[] =
 #include "ww.h"
 #include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
 #if !defined(OLD_TTY) && !defined(TIOCPKT)
 #include <sys/ioctl.h>
 #endif

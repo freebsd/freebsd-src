@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
  * Simple Atheros-specific tool to inspect and monitor network traffic
  * statistics.
  *
- *	athstats [-i interface] [-l] [-o fmtstring] [interval]
+ *	athstats [-i interface] [-z] [-l] [-o fmtstring] [interval]
  *
  * (default interface is ath0).  If interval is specified a rolling output
  * a la netstat -i is displayed every interval seconds.  The format of
@@ -59,6 +59,9 @@ static struct {
   { "ani",
     "avgbrssi,avgrssi,avgtxrssi,NI,SI,step,owsd,cwst,NI+,NI-,SI+,SI-,OFDM,CCK,LISTEN"
   },
+  { "tdma",
+    "input,output,bexmit,tdmau,tdmadj,crcerr,phyerr,phytor,rssi,noise,rate"
+  },
 };
 
 static const char *
@@ -69,8 +72,7 @@ getfmt(const char *tag)
 	for (i = 0; i < N(tags); i++)
 		if (strcasecmp(tags[i].tag, tag) == 0)
 			return tags[i].fmt;
-	errx(-1, "unknown tag \%s\"", tag);
-	/*NOTREACHED*/
+	return tag;
 #undef N
 }
 
@@ -93,7 +95,7 @@ main(int argc, char *argv[])
 	if (ifname == NULL)
 		ifname = "ath0";
 	wf = athstats_new(ifname, getfmt("default"));
-	while ((c = getopt(argc, argv, "i:lo:")) != -1) {
+	while ((c = getopt(argc, argv, "i:lo:z")) != -1) {
 		switch (c) {
 		case 'i':
 			wf->setifname(wf, optarg);
@@ -104,8 +106,11 @@ main(int argc, char *argv[])
 		case 'o':
 			wf->setfmt(wf, getfmt(optarg));
 			break;
+		case 'z':
+			wf->zerostats(wf);
+			break;
 		default:
-			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);
+			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [-z] [interval]\n", argv[0]);
 			/*NOTREACHED*/
 		}
 	}

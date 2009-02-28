@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2005 David Schultz <das@FreeBSD.org>
+ * Copyright (c) 2002-2009 David Schultz <das@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #define	testfmt(result, fmt, ...)	\
 	_testfmt((result), __LINE__, #__VA_ARGS__, fmt, __VA_ARGS__)
@@ -326,10 +327,13 @@ smash_stack(void)
 void
 _testfmt(const char *result, int line, const char *argstr, const char *fmt,...)
 {
-	char s[100];
-	va_list ap;
+#define	BUF	100
+	wchar_t ws[BUF], wfmt[BUF], wresult[BUF];
+	char s[BUF];
+	va_list ap, ap2;
 
 	va_start(ap, fmt);
+	va_copy(ap2, ap);
 	smash_stack();
 	vsnprintf(s, sizeof(s), fmt, ap);
 	if (strcmp(result, s) != 0) {
@@ -338,4 +342,16 @@ _testfmt(const char *result, int line, const char *argstr, const char *fmt,...)
 		    line, fmt, argstr, s, result);
 		abort();
 	}
+
+	smash_stack();
+	mbstowcs(ws, s, BUF - 1);
+	mbstowcs(wfmt, fmt, BUF - 1);
+	mbstowcs(wresult, result, BUF - 1);
+	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
+	if (wcscmp(wresult, ws) != 0) {
+		fprintf(stderr,
+		    "%d: wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]\n",
+		    line, wfmt, argstr, ws, wresult);
+		abort();
+	}	
 }
