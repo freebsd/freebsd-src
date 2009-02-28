@@ -66,19 +66,6 @@ static int
 afd_probe(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
-
-    if (atadev->type != ATA_T_ATAPI)
-	return (ENXIO);
-
-    if (!(atadev->flags & ATA_D_PROBED)) {
-	atadev->flags |= ATA_D_PROBED;
-	if (ata_getparam(atadev, 1) == 0)
-	    atadev->flags |= ATA_D_VALID;
-    }
-
-    if (!(atadev->flags & ATA_D_VALID))
-	return (ENXIO);
-
     if ((atadev->param.config & ATA_PROTO_ATAPI) &&
 	(atadev->param.config & ATA_ATAPI_TYPE_MASK) == ATA_ATAPI_TYPE_DIRECT)
 	return 0;  
