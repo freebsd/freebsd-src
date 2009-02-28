@@ -472,6 +472,7 @@
  *  _POSIX_C_SOURCE == 199506		1003.1c-1995, 1003.1i-1995,
  *					and the omnibus ISO/IEC 9945-1: 1996
  *  _POSIX_C_SOURCE == 200112		1003.1-2001
+ *  _POSIX_C_SOURCE == 200809		1003.1-2008
  *
  * In addition, the X/Open Portability Guide, which is now the Single UNIX
  * Specification, defines a feature-test macro which indicates the version of
@@ -494,7 +495,11 @@
 
 /* Deal with various X/Open Portability Guides and Single UNIX Spec. */
 #ifdef _XOPEN_SOURCE
-#if _XOPEN_SOURCE - 0 >= 600
+#if _XOPEN_SOURCE - 0 >= 700
+#define	__XSI_VISIBLE		700
+#undef _POSIX_C_SOURCE
+#define	_POSIX_C_SOURCE		200809
+#elif _XOPEN_SOURCE - 0 >= 600
 #define	__XSI_VISIBLE		600
 #undef _POSIX_C_SOURCE
 #define	_POSIX_C_SOURCE		200112
@@ -513,7 +518,10 @@
 #define	_POSIX_C_SOURCE		198808
 #endif
 #ifdef _POSIX_C_SOURCE
-#if _POSIX_C_SOURCE >= 200112
+#if _POSIX_C_SOURCE >= 200809
+#define	__POSIX_VISIBLE		200809
+#define	__ISO_C_VISIBLE		1999
+#elif _POSIX_C_SOURCE >= 200121
 #define	__POSIX_VISIBLE		200112
 #define	__ISO_C_VISIBLE		1999
 #elif _POSIX_C_SOURCE >= 199506
@@ -556,8 +564,8 @@
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1999
 #else				/* Default environment: show everything. */
-#define	__POSIX_VISIBLE		200112
-#define	__XSI_VISIBLE		600
+#define	__POSIX_VISIBLE		200809
+#define	__XSI_VISIBLE		700
 #define	__BSD_VISIBLE		1
 #define	__ISO_C_VISIBLE		1999
 #endif
