@@ -32,7 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
@@ -56,12 +58,11 @@ static device_method_t ppc_isa_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		ppc_isa_probe),
 	DEVMETHOD(device_attach,	ppc_isa_attach),
-	DEVMETHOD(device_detach,	ppc_attach),
+	DEVMETHOD(device_detach,	ppc_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
-	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
+	DEVMETHOD(bus_write_ivar,	ppc_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	ppc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	ppc_release_resource),
 
@@ -143,6 +144,7 @@ ppc_isa_write(device_t dev, char *buf, int len, int how)
 	int s, error = 0;
 	int spin;
 
+	PPC_ASSERT_LOCKED(ppc);
 	if (!(ppc->ppc_avm & PPB_ECP))
 		return (EINVAL);
 	if (ppc->ppc_dmachan == 0)
@@ -215,7 +217,8 @@ ppc_isa_write(device_t dev, char *buf, int len, int how)
 	 */
 	do {
 		/* release CPU */
-		error = tsleep(ppc, PPBPRI | PCATCH, "ppcdma", 0);
+		error = mtx_sleep(ppc, &ppc->ppc_lock, PPBPRI | PCATCH,
+		    "ppcdma", 0);
 	} while (error == EWOULDBLOCK);
 
 	splx(s);
@@ -244,7 +247,8 @@ ppc_isa_write(device_t dev, char *buf, int len, int how)
 #ifdef PPC_DEBUG
 		printf("Z");
 #endif
-		error = tsleep(ppc, PPBPRI | PCATCH, "ppcfifo", hz/100);
+		error = mtx_sleep(ppc, &ppc->ppc_lock, PPBPRI | PCATCH,
+		    "ppcfifo", hz / 100);
 		if (error != EWOULDBLOCK) {
 #ifdef PPC_DEBUG
 			printf("I");
