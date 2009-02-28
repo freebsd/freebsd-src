@@ -147,7 +147,7 @@ static void
 atapi_cam_identify(driver_t *driver, device_t parent)
 {
 	struct atapi_xpt_softc *scp =
-	    malloc (sizeof (struct atapi_xpt_softc), M_ATACAM, M_NOWAIT|M_ZERO);
+	    malloc (sizeof (struct atapi_xpt_softc), M_ATA, M_NOWAIT|M_ZERO);
 	device_t child;
 
 	if (scp == NULL) {
@@ -159,10 +159,11 @@ atapi_cam_identify(driver_t *driver, device_t parent)
 	child = device_add_child(parent, "atapicam", -1);
 	if (child == NULL) {
 		printf ("atapi_cam_identify: out of memory, can't add child");
-		free (scp, M_ATACAM);
+		free (scp, M_ATA);
 		return;
 	}
 	scp->atapi_cam_dev.unit = -1;
+	scp->atapi_cam_dev.type = ATA_T_ATAPI_CAM;
 	scp->atapi_cam_dev.dev  = child;
 	device_quiet(child);
 	device_set_softc(child, scp);
@@ -174,12 +175,10 @@ atapi_cam_probe(device_t dev)
 	struct ata_device *atadev = device_get_softc (dev);
 
 	KASSERT(atadev != NULL, ("expect valid struct ata_device"));
-	if (atadev->unit < 0) {
-		device_set_desc(dev, "ATAPI CAM Attachment");
-		return (0);
-	} else {
-		return ENXIO;
-	}
+	if (atadev->type != ATA_T_ATAPI_CAM)
+		return (ENXIO);
+	device_set_desc(dev, "ATAPI CAM Attachment");
+	return (0);
 }
 
 static int
@@ -925,11 +924,8 @@ atapi_cam_event_handler(module_t mod, int what, void *arg) {
 	    if (devlist != NULL) {
 		while (devlist != NULL && devcount > 0) {
 		    device_t child = devlist[--devcount];
-		    struct atapi_xpt_softc *scp = device_get_softc(child);
 
-		    device_delete_child(device_get_parent(child),child);
-		    if (scp != NULL)
-			free(scp, M_ATACAM);
+		    ata_delete_child(device_get_parent(child),child);
 		}
 		free(devlist, M_TEMP);
 	    }
