@@ -601,9 +601,11 @@ store_char(ch, a, rep, pos)
 	{
 		if (!is_ansi_end(ch) && !is_ansi_middle(ch)) {
 			/* Remove whole unrecognized sequence.  */
-			do {
+			while (curr) {
 				--curr;
-			} while (!IS_CSI_START(linebuf[curr]));
+				if (IS_CSI_START(linebuf[curr]))
+					break;
+			}
 			return 0;
 		}
 		a = AT_ANSI;	/* Will force re-AT_'ing around it.  */
