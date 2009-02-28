@@ -71,6 +71,16 @@ g_vfs_done(struct bio *bip)
 	struct buf *bp;
 	int vfslocked;
 
+	/*
+	 * Provider ('bio_to') could have withered away sometime
+	 * between incrementing the 'nend' in g_io_deliver() and now,
+	 * making 'bio_to' a dangling pointer.  We cannot do that
+	 * in g_wither_geom(), as it would require going over
+	 * the 'g_bio_run_up' list, resetting the pointer.
+	 */
+	if (bip->bio_from->provider == NULL)
+		bip->bio_to = NULL;
+
 	if (bip->bio_error) {
 		printf("g_vfs_done():");
 		g_print_bio(bip);
@@ -136,7 +146,7 @@ g_vfs_orphan(struct g_consumer *cp)
 	g_detach(cp);
 
 	/*
-	 * Do not destroy the geom. Filesystem will do this during unmount.
+	 * Do not destroy the geom.  Filesystem will do that during unmount.
 	 */
 }
 
