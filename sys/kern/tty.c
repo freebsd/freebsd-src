@@ -724,14 +724,14 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	switch (cmd) {
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
-		bcopy(dev->si_drv2, data, sizeof(struct termios));
+		memcpy(data, dev->si_drv2, sizeof(struct termios));
 		break;
 	case TIOCSETA:
 		/* Set terminal flags through tcsetattr(). */
 		error = priv_check(td, PRIV_TTY_SETA);
 		if (error)
 			break;
-		bcopy(data, dev->si_drv2, sizeof(struct termios));
+		memcpy(dev->si_drv2, data, sizeof(struct termios));
 		break;
 	case TIOCGETD:
 		*(int *)data = TTYDISC;
@@ -769,7 +769,7 @@ tty_init_termios(struct tty *tp)
 	t->c_oflag = TTYDEF_OFLAG;
 	t->c_ispeed = TTYDEF_SPEED;
 	t->c_ospeed = TTYDEF_SPEED;
-	bcopy(ttydefchars, &t->c_cc, sizeof ttydefchars);
+	memcpy(&t->c_cc, ttydefchars, sizeof ttydefchars);
 
 	tp->t_termios_init_out = *t;
 }
@@ -1344,7 +1344,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
-		bcopy(&tp->t_termios, data, sizeof(struct termios));
+		memcpy(data, &tp->t_termios, sizeof(struct termios));
 		return (0);
 	case TIOCSETA:
 	case TIOCSETAW:
@@ -1399,7 +1399,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		tp->t_termios.c_iflag = t->c_iflag;
 		tp->t_termios.c_oflag = t->c_oflag;
 		tp->t_termios.c_lflag = t->c_lflag;
-		bcopy(t->c_cc, &tp->t_termios.c_cc, sizeof(t->c_cc));
+		memcpy(&tp->t_termios.c_cc, t->c_cc, sizeof t->c_cc);
 
 		ttydisc_optimize(tp);
 
@@ -1568,13 +1568,13 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCGWINSZ:
 		/* Obtain window size. */
-		bcopy(&tp->t_winsize, data, sizeof(struct winsize));
+		memcpy(data, &tp->t_winsize, sizeof(struct winsize));
 		return (0);
 	case TIOCSWINSZ:
 		/* Set window size. */
 		if (bcmp(&tp->t_winsize, data, sizeof(struct winsize)) == 0)
 			return (0);
-		bcopy(data, &tp->t_winsize, sizeof(struct winsize));
+		memcpy(&tp->t_winsize, data, sizeof(struct winsize));
 		tty_signal_pgrp(tp, SIGWINCH);
 		return (0);
 	case TIOCEXCL:
