@@ -66,13 +66,15 @@ options 	BOOTP_COMPAT
 device		pci
 device		uart
 
+device		ixpwdog		# watchdog timer
+device		cfi		# flash support
+
 # I2C Bus
 device		iicbus
 device		iicbb
 device		iic
 
 device		ixpiic		# I2C bus glue
-device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
@@ -86,7 +88,7 @@ device		npe		# Network Processing Engine
 device		npe_fw
 device		firmware
 device		qmgr		# Q Manager (required by npe)
-device		miibus		# NB: required by npe
+device		mii		# NB: required by npe
 device		ether
 device		bpf
 
@@ -131,7 +133,6 @@ device		usb
 #options 	USB_DEBUG
 device		ohci
 device		ehci
-device		ugen
 #device		umass
 #device		scbus		# SCSI bus (required for SCSI)
 #device		da		# Direct Access (disks)

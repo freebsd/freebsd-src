@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-extern int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin);
+extern const struct obio_pci_irq_map pci_irq_map[];
 
 struct obio_device obio_devices[] = {
 	{ "ic", MV_IC_BASE, MV_IC_SIZE,
@@ -106,13 +106,13 @@ const struct obio_pci mv_pci_info[] = {
 		MV_PCI_BASE, MV_PCI_SIZE,
 		MV_PCI_IO_BASE, MV_PCI_IO_SIZE,		3, 0x51,
 		MV_PCI_MEM_BASE, MV_PCI_MEM_SIZE,	3, 0x59,
-		platform_pci_get_irq, -1
+		pci_irq_map, -1
 	},
 
 	{ 0, 0, 0 }
 };
 
-struct resource_spec mv_gpio_spec[] = {
+struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -167,3 +167,24 @@ const struct decode_win idma_win_tbl[] = {
 };
 const struct decode_win *idma_wins = idma_win_tbl;
 int idma_wins_no = sizeof(idma_win_tbl) / sizeof(struct decode_win);
+
+uint32_t
+get_tclk(void)
+{
+	uint32_t sar;
+
+	/*
+	 * On Orion TCLK is can be configured to 150 MHz or 166 MHz.
+	 * Current setting is read from Sample At Reset register.
+	 */
+	sar = bus_space_read_4(obio_tag, MV_MPP_BASE, SAMPLE_AT_RESET);
+	sar = (sar & TCLK_MASK) >> TCLK_SHIFT;
+	switch (sar) {
+	case 1:
+		return (TCLK_150MHZ);
+	case 2:
+		return (TCLK_166MHZ);
+	default:
+		panic("Unknown TCLK settings!");
+	}
+}

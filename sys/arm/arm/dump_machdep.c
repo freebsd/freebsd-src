@@ -158,14 +158,12 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	vm_paddr_t pa;
-	vm_offset_t va;
 	uint32_t pgs;
 	size_t counter, sz, chunk;
 	int c, error;
 
 	error = 0;	/* catch case in which chunk size is 0 */
 	counter = 0;
-	va = 0;
 	pgs = mdp->md_size / PAGE_SIZE;
 	pa = mdp->md_start;
 

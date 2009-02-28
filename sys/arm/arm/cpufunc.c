@@ -358,7 +358,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 };
 
-struct cpu_functions feroceon_cpufuncs = {
+struct cpu_functions sheeva_cpufuncs = {
 	/* CPU functions */
 
 	cpufunc_id,			/* id			*/
@@ -368,7 +368,7 @@ struct cpu_functions feroceon_cpufuncs = {
 
 	cpufunc_control,		/* control		*/
 	cpufunc_domains,		/* Domain		*/
-	feroceon_setttb,		/* Setttb		*/
+	sheeva_setttb,			/* Setttb		*/
 	cpufunc_faultstatus,		/* Faultstatus		*/
 	cpufunc_faultaddress,		/* Faultaddress		*/
 
@@ -387,17 +387,17 @@ struct cpu_functions feroceon_cpufuncs = {
 	armv5_ec_icache_sync_range,	/* icache_sync_range	*/
 
 	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
-	feroceon_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-	feroceon_dcache_inv_range,	/* dcache_inv_range	*/
-	feroceon_dcache_wb_range,	/* dcache_wb_range	*/
+	sheeva_dcache_wbinv_range,	/* dcache_wbinv_range	*/
+	sheeva_dcache_inv_range,	/* dcache_inv_range	*/
+	sheeva_dcache_wb_range,		/* dcache_wb_range	*/
 
 	armv5_ec_idcache_wbinv_all,	/* idcache_wbinv_all	*/
-	feroceon_idcache_wbinv_range,	/* idcache_wbinv_all	*/
+	sheeva_idcache_wbinv_range,	/* idcache_wbinv_all	*/
 
-	feroceon_l2cache_wbinv_all,	/* l2cache_wbinv_all    */
-	feroceon_l2cache_wbinv_range,	/* l2cache_wbinv_range  */
-	feroceon_l2cache_inv_range,	/* l2cache_inv_range    */
-	feroceon_l2cache_wb_range,	/* l2cache_wb_range     */
+	sheeva_l2cache_wbinv_all,	/* l2cache_wbinv_all    */
+	sheeva_l2cache_wbinv_range,	/* l2cache_wbinv_range  */
+	sheeva_l2cache_inv_range,	/* l2cache_inv_range    */
+	sheeva_l2cache_wb_range,	/* l2cache_wb_range     */
 
 	/* Other functions */
 
@@ -1000,7 +1000,7 @@ set_cpufuncs()
 		    cputype == CPU_ID_MV88FR571_VD ||
 		    cputype == CPU_ID_MV88FR571_41) {
 
-			cpufuncs = feroceon_cpufuncs;
+			cpufuncs = sheeva_cpufuncs;
 			/*
 			 * Workaround for Marvell MV78100 CPU: Cache prefetch
 			 * mechanism may affect the cache coherency validity,
@@ -1011,12 +1011,12 @@ set_cpufuncs()
 			 */
 			if (cputype == CPU_ID_MV88FR571_VD ||
 			    cputype == CPU_ID_MV88FR571_41) {
-				feroceon_control_ext(0xffffffff,
+				sheeva_control_ext(0xffffffff,
 				    FC_DCACHE_STREAM_EN | FC_WR_ALLOC_EN |
 				    FC_BRANCH_TARG_BUF_DIS | FC_L2CACHE_EN |
 				    FC_L2_PREF_DIS);
 			} else {
-				feroceon_control_ext(0xffffffff,
+				sheeva_control_ext(0xffffffff,
 				    FC_DCACHE_STREAM_EN | FC_WR_ALLOC_EN |
 				    FC_BRANCH_TARG_BUF_DIS | FC_L2CACHE_EN);
 			}

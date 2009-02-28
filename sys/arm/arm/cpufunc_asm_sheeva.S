@@ -34,12 +34,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/param.h>
 
-.Lferoceon_cache_line_size:
+.Lsheeva_cache_line_size:
 	.word	_C_LABEL(arm_pdcache_line_size)
-.Lferoceon_asm_page_mask:
+.Lsheeva_asm_page_mask:
 	.word	_C_LABEL(PAGE_MASK)
 
-ENTRY(feroceon_setttb)
+ENTRY(sheeva_setttb)
 	/* Disable irqs */
 	mrs	r2, cpsr
 	orr	r3, r2, #I32_bit | F32_bit
@@ -63,11 +63,11 @@ ENTRY(feroceon_setttb)
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	RET
 
-ENTRY(feroceon_dcache_wbinv_range)
+ENTRY(sheeva_dcache_wbinv_range)
 	str	lr, [sp, #-4]!
 	mrs	lr, cpsr
 	/* Start with cache line aligned address */
-	ldr	ip, .Lferoceon_cache_line_size
+	ldr	ip, .Lsheeva_cache_line_size
 	ldr	ip, [ip]
 	sub	ip, ip, #1
 	and	r2, r0, ip
@@ -76,7 +76,7 @@ ENTRY(feroceon_dcache_wbinv_range)
 	bics	r1, r1, ip
 	bics	r0, r0, ip
 
-	ldr	ip, .Lferoceon_asm_page_mask
+	ldr	ip, .Lsheeva_asm_page_mask
 	and	r2, r0, ip
 	rsb	r2, r2, #PAGE_SIZE
 	cmp	r1, r2
@@ -105,11 +105,11 @@ ENTRY(feroceon_dcache_wbinv_range)
 	ldr	lr, [sp], #4
 	RET
 
-ENTRY(feroceon_idcache_wbinv_range)
+ENTRY(sheeva_idcache_wbinv_range)
 	str	lr, [sp, #-4]!
 	mrs	lr, cpsr
 	/* Start with cache line aligned address */
-	ldr	ip, .Lferoceon_cache_line_size
+	ldr	ip, .Lsheeva_cache_line_size
 	ldr	ip, [ip]
 	sub	ip, ip, #1
 	and	r2, r0, ip
@@ -118,7 +118,7 @@ ENTRY(feroceon_idcache_wbinv_range)
 	bics	r1, r1, ip
 	bics	r0, r0, ip
 
-	ldr	ip, .Lferoceon_asm_page_mask
+	ldr	ip, .Lsheeva_asm_page_mask
 	and	r2, r0, ip
 	rsb	r2, r2, #PAGE_SIZE
 	cmp	r1, r2
@@ -136,7 +136,7 @@ ENTRY(feroceon_idcache_wbinv_range)
 	msr	cpsr_c, lr
 
 	/* Invalidate and clean icache line by line */
-	ldr	r3, .Lferoceon_cache_line_size
+	ldr	r3, .Lsheeva_cache_line_size
 	ldr	r3, [r3]
 2:
 	mcr	p15, 0, r0, c7, c5, 1
@@ -156,11 +156,11 @@ ENTRY(feroceon_idcache_wbinv_range)
 	ldr	lr, [sp], #4
 	RET
 
-ENTRY(feroceon_dcache_inv_range)
+ENTRY(sheeva_dcache_inv_range)
 	str	lr, [sp, #-4]!
 	mrs	lr, cpsr
 	/* Start with cache line aligned address */
-	ldr	ip, .Lferoceon_cache_line_size
+	ldr	ip, .Lsheeva_cache_line_size
 	ldr	ip, [ip]
 	sub	ip, ip, #1
 	and	r2, r0, ip
@@ -169,7 +169,7 @@ ENTRY(feroceon_dcache_inv_range)
 	bics	r1, r1, ip
 	bics	r0, r0, ip
 
-	ldr	ip, .Lferoceon_asm_page_mask
+	ldr	ip, .Lsheeva_asm_page_mask
 	and	r2, r0, ip
 	rsb	r2, r2, #PAGE_SIZE
 	cmp	r1, r2
@@ -198,11 +198,11 @@ ENTRY(feroceon_dcache_inv_range)
 	ldr	lr, [sp], #4
 	RET
 
-ENTRY(feroceon_dcache_wb_range)
+ENTRY(sheeva_dcache_wb_range)
 	str	lr, [sp, #-4]!
 	mrs	lr, cpsr
 	/* Start with cache line aligned address */
-	ldr	ip, .Lferoceon_cache_line_size
+	ldr	ip, .Lsheeva_cache_line_size
 	ldr	ip, [ip]
 	sub	ip, ip, #1
 	and	r2, r0, ip
@@ -211,7 +211,7 @@ ENTRY(feroceon_dcache_wb_range)
 	bics	r1, r1, ip
 	bics	r0, r0, ip
 
-	ldr	ip, .Lferoceon_asm_page_mask
+	ldr	ip, .Lsheeva_asm_page_mask
 	and	r2, r0, ip
 	rsb	r2, r2, #PAGE_SIZE
 	cmp	r1, r2
@@ -240,11 +240,11 @@ ENTRY(feroceon_dcache_wb_range)
 	ldr	lr, [sp], #4
 	RET
 
-ENTRY(feroceon_l2cache_wbinv_range)
+ENTRY(sheeva_l2cache_wbinv_range)
 	str	lr, [sp, #-4]!
 	mrs	lr, cpsr
 	/* Start with cache line aligned address */
-	ldr	ip, .Lferoceon_cache_line_size
+	ldr	ip, .Lsheeva_cache_line_size
 	ldr	ip, [ip]
 	sub	ip, ip, #1
 	and	r2, r0, ip
@@ -253,7 +253,7 @@ ENTRY(feroceon_l2cache_wbinv_range)
 	bics	r1, r1, ip
 	bics	r0, r0, ip
 
-	ldr	ip, .Lferoceon_asm_page_mask
+	ldr	ip, .Lsheeva_asm_page_mask
 	and	r2, r0, ip
 	rsb	r2, r2, #PAGE_SIZE
 	cmp	r1, r2
@@ -284,11 +284,11 @@ ENTRY(feroceon_l2cache_wbinv_range)
 	ldr	lr, [sp], #4
 	RET
 
-ENTRY(feroceon_l2cache_inv_range)
+ENTRY(sheeva_l2cache_inv_range)
 	str	lr, [sp, #-4]!
 	mrs	lr, cpsr
 	/* Start with cache line aligned address */
-	ldr	ip, .Lferoceon_cache_line_size
+	ldr	ip, .Lsheeva_cache_line_size
 	ldr	ip, [ip]
 	sub	ip, ip, #1
 	and	r2, r0, ip
@@ -297,7 +297,7 @@ ENTRY(feroceon_l2cache_inv_range)
 	bics	r1, r1, ip
 	bics	r0, r0, ip
 
-	ldr	ip, .Lferoceon_asm_page_mask
+	ldr	ip, .Lsheeva_asm_page_mask
 	and	r2, r0, ip
 	rsb	r2, r2, #PAGE_SIZE
 	cmp	r1, r2
@@ -326,11 +326,11 @@ ENTRY(feroceon_l2cache_inv_range)
 	ldr	lr, [sp], #4
 	RET
 
-ENTRY(feroceon_l2cache_wb_range)
+ENTRY(sheeva_l2cache_wb_range)
 	str	lr, [sp, #-4]!
 	mrs	lr, cpsr
 	/* Start with cache line aligned address */
-	ldr	ip, .Lferoceon_cache_line_size
+	ldr	ip, .Lsheeva_cache_line_size
 	ldr	ip, [ip]
 	sub	ip, ip, #1
 	and	r2, r0, ip
@@ -339,7 +339,7 @@ ENTRY(feroceon_l2cache_wb_range)
 	bics	r1, r1, ip
 	bics	r0, r0, ip
 
-	ldr	ip, .Lferoceon_asm_page_mask
+	ldr	ip, .Lsheeva_asm_page_mask
 	and	r2, r0,	ip
 	rsb	r2, r2, #PAGE_SIZE
 	cmp	r1, r2
@@ -368,14 +368,14 @@ ENTRY(feroceon_l2cache_wb_range)
 	ldr	lr, [sp], #4
 	RET
 
-ENTRY(feroceon_l2cache_wbinv_all)
+ENTRY(sheeva_l2cache_wbinv_all)
 	mov	r0, #0
 	mcr	p15, 1, r0, c15, c9, 0	/* Clean L2 */
 	mcr	p15, 1, r0, c15, c11, 0	/* Invalidate L2 */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 
-ENTRY(feroceon_control_ext)
+ENTRY(sheeva_control_ext)
 	mrc	p15, 1, r3, c15, c1, 0	/* Read the control register */
 	bic	r2, r3, r0		/* Clear bits */
 	eor     r2, r2, r1		/* XOR bits */

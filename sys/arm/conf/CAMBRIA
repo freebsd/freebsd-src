@@ -87,7 +87,7 @@ device		npe		# Network Processing Engine
 device		npe_fw
 device		firmware
 device		qmgr		# Q Manager (required by npe)
-device		miibus		# NB: required by npe
+device		mii		# NB: required by npe
 device		ether
 device		bpf
 
@@ -103,7 +103,6 @@ device		usb
 options		USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
 #options		USB_DEBUG
 device		ehci
-device		ugen
 device		umass
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
