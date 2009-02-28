@@ -54,6 +54,7 @@ static void mach64_configure(struct drm_device *dev)
 	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ;
 
 	dev->driver->buf_priv_size	= 1; /* No dev_priv */
+	dev->driver->load		= mach64_driver_load;
 	dev->driver->lastclose		= mach64_driver_lastclose;
 	dev->driver->get_vblank_counter	= mach64_get_vblank_counter;
 	dev->driver->enable_vblank	= mach64_enable_vblank;
@@ -92,6 +93,12 @@ mach64_attach(device_t nbdev)
 	mach64_configure(dev);
 
 	return drm_attach(nbdev, mach64_pciidlist);
+}
+
+int
+mach64_driver_load(struct drm_device * dev, unsigned long flags)
+{
+        return drm_vblank_init(dev, 1);
 }
 
 static int
