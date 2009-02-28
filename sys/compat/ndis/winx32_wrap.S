@@ -369,7 +369,7 @@ ENTRY(x86_getfs)
 	ret
 
 ENTRY(x86_setfs)
-	movl	4(%esp),%fs
+	mov	4(%esp),%fs
 	ret
 
 ENTRY(x86_gettid)

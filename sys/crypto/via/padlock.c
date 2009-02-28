@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
-#if defined(__i386__) && !defined(PC98)
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -72,7 +72,7 @@ static int padlock_process(device_t, struct cryptop *crp, int hint __unused);
 MALLOC_DEFINE(M_PADLOCK, "padlock_data", "PadLock Data");
 
 static void
-padlock_identify(device_t *dev, device_t parent)
+padlock_identify(driver_t *drv, device_t parent)
 {
 	/* NB: order 10 is so we get attached after h/w devices */
 	if (device_find_child(parent, "padlock", -1) == NULL &&
@@ -85,7 +85,7 @@ padlock_probe(device_t dev)
 {
 	char capp[256];
 
-#if defined(__i386__) && !defined(PC98)
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
 	/* If there is no AES support, we has nothing to do here. */
 	if (!(via_feature_xcrypt & VIA_HAS_AES)) {
 		device_printf(dev, "No ACE support.\n");

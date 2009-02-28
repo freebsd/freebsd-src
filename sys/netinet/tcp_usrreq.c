@@ -441,8 +441,8 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (sinp->sin_family == AF_INET
 	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
 		return (EAFNOSUPPORT);
-	if (prison_remote_ip4(td->td_ucred, &sinp->sin_addr) != 0)
-		return (EINVAL);
+	if ((error = prison_remote_ip4(td->td_ucred, &sinp->sin_addr)) != 0)
+		return (error);
 
 	TCPDEBUG0;
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -508,10 +508,9 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		in6_sin6_2_sin(&sin, sin6p);
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
-		if (prison_remote_ip4(td->td_ucred, &sin.sin_addr) != 0) {
-			error = EINVAL;
+		if ((error = prison_remote_ip4(td->td_ucred,
+		    &sin.sin_addr)) != 0)
 			goto out;
-		}
 		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
 			goto out;
 		error = tcp_output_connect(so, nam);
@@ -520,10 +519,8 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_flags |= INC_ISIPV6;
-	if (prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr) != 0) {
-		error = EINVAL;
+	if ((error = prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr)) != 0)
 		goto out;
-	}
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
 		goto out;
 	error = tcp_output_connect(so, nam);
@@ -698,7 +695,8 @@ tcp_usr_shutdown(struct socket *so)
 	TCPDEBUG1();
 	socantsendmore(so);
 	tcp_usrclosed(tp);
-	error = tcp_output_disconnect(tp);
+	if (!(inp->inp_vflag & INP_DROPPED))
+		error = tcp_output_disconnect(tp);
 
 out:
 	TCPDEBUG2(PRU_SHUTDOWN);
@@ -831,7 +829,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			INP_INFO_WUNLOCK(&V_tcbinfo);
 			headlocked = 0;
 		}
-		if (tp != NULL) {
+		if (!(inp->inp_vflag & INP_DROPPED)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
 			error = tcp_output_send(tp);

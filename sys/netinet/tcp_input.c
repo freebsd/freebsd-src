@@ -117,6 +117,8 @@ int	tcp_insecure_rst;
 int	tcp_do_autorcvbuf;
 int	tcp_autorcvbuf_inc;
 int	tcp_autorcvbuf_max;
+int	tcp_do_rfc3465;
+int	tcp_abc_l_var;
 #endif
 
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
@@ -143,6 +145,13 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
+
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
+    tcp_do_rfc3465, 0,
+    "Enable RFC 3465 (Appropriate Byte Counting)");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
+    tcp_abc_l_var, 2,
+    "Cap the max cwnd increment during slow-start to this number of segments");
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, enable,
@@ -2293,20 +2302,59 @@ process_ACK:
 
 		/*
 		 * When new data is acked, open the congestion window.
-		 * If the window gives us less than ssthresh packets
-		 * in flight, open exponentially (maxseg per packet).
-		 * Otherwise open linearly: maxseg per window
-		 * (maxseg^2 / cwnd per packet).
-		 * If cwnd > maxseg^2, fix the cwnd increment at 1 byte
-		 * to avoid capping cwnd (as suggested in RFC2581).
+		 * Method depends on which congestion control state we're
+		 * in (slow start or cong avoid) and if ABC (RFC 3465) is
+		 * enabled.
+		 *
+		 * slow start: cwnd <= ssthresh
+		 * cong avoid: cwnd > ssthresh
+		 *
+		 * slow start and ABC (RFC 3465):
+		 *   Grow cwnd exponentially by the amount of data
+		 *   ACKed capping the max increment per ACK to
+		 *   (abc_l_var * maxseg) bytes.
+		 *
+		 * slow start without ABC (RFC 2581):
+		 *   Grow cwnd exponentially by maxseg per ACK.
+		 *
+		 * cong avoid and ABC (RFC 3465):
+		 *   Grow cwnd linearly by maxseg per RTT for each
+		 *   cwnd worth of ACKed data.
+		 *
+		 * cong avoid without ABC (RFC 2581):
+		 *   Grow cwnd linearly by approximately maxseg per RTT using
+		 *   maxseg^2 / cwnd per ACK as the increment.
+		 *   If cwnd > maxseg^2, fix the cwnd increment at 1 byte to
+		 *   avoid capping cwnd.
 		 */
 		if ((!V_tcp_do_newreno && !(tp->t_flags & TF_SACK_PERMIT)) ||
 		    !IN_FASTRECOVERY(tp)) {
 			u_int cw = tp->snd_cwnd;
 			u_int incr = tp->t_maxseg;
-			if (cw > tp->snd_ssthresh)
-				incr = max((incr * incr / cw), 1);
-			tp->snd_cwnd = min(cw+incr, TCP_MAXWIN<<tp->snd_scale);
+			/* In congestion avoidance? */
+			if (cw > tp->snd_ssthresh) {
+				if (V_tcp_do_rfc3465) {
+					tp->t_bytes_acked += acked;
+					if (tp->t_bytes_acked >= tp->snd_cwnd)
+						tp->t_bytes_acked -= cw;
+					else
+						incr = 0;
+				}
+				else
+					incr = max((incr * incr / cw), 1);
+			/*
+			 * In slow-start with ABC enabled and no RTO in sight?
+			 * (Must not use abc_l_var > 1 if slow starting after an
+			 * RTO. On RTO, snd_nxt = snd_una, so the snd_nxt ==
+			 * snd_max check is sufficient to handle this).
+			 */
+			} else if (V_tcp_do_rfc3465 &&
+			    tp->snd_nxt == tp->snd_max)
+				incr = min(acked,
+				    V_tcp_abc_l_var * tp->t_maxseg);
+			/* ABC is on by default, so (incr == 0) frequently. */
+			if (incr > 0)
+				tp->snd_cwnd = min(cw+incr, TCP_MAXWIN<<tp->snd_scale);
 		}
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > so->so_snd.sb_cc) {
@@ -2328,8 +2376,10 @@ process_ACK:
 			tp->snd_recover = th->th_ack - 1;
 		if ((V_tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
 		    IN_FASTRECOVERY(tp) &&
-		    SEQ_GEQ(th->th_ack, tp->snd_recover))
+		    SEQ_GEQ(th->th_ack, tp->snd_recover)) {
 			EXIT_FASTRECOVERY(tp);
+			tp->t_bytes_acked = 0;
+		}
 		tp->snd_una = th->th_ack;
 		if (tp->t_flags & TF_SACK_PERMIT) {
 			if (SEQ_GT(tp->snd_una, tp->snd_recover))

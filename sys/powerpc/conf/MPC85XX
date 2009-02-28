@@ -22,6 +22,8 @@ options 	BOOTP_WIRED_TO=tsec0
 options 	CD9660
 options 	COMPAT_43
 options 	DDB
+options		DEVICE_POLLING
+options		HZ=1000
 #options 	DIAGNOSTIC
 options 	FFS
 options 	GDB
@@ -68,7 +70,7 @@ device		scc
 device		tsec
 device		tun
 device		uart
-device		ugen
 #device		uhci
 device		umass
 device		usb
+device		vlan

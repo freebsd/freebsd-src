@@ -56,11 +56,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdivar.h>
-#include <dev/usb/usb_quirks.h>
+#include <legacy/dev/usb/usb.h>
+#include <legacy/dev/usb/usbdi.h>
+#include <legacy/dev/usb/usbdi_util.h>
+#include <legacy/dev/usb/usbdivar.h>
+#include <legacy/dev/usb/usb_quirks.h>
 #include "usbdevs.h"
 
 #include <compat/ndis/pe_var.h>
@@ -1140,10 +1140,8 @@ USBD_GetUSBDIVersion(ui)
 }
 
 static usb_interface_descriptor_t *
-USBD_ParseConfigurationDescriptor(conf, intfnum, altset)
-        usb_config_descriptor_t *conf;
-	uint8_t intfnum;
-	uint8_t altset;
+USBD_ParseConfigurationDescriptor(usb_config_descriptor_t *conf,
+	uint8_t intfnum, uint8_t altset)
 {
         return USBD_ParseConfigurationDescriptorEx(conf, conf, intfnum, altset,
 	    -1, -1, -1);

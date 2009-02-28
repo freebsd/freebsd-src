@@ -658,7 +658,6 @@ null_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct null_node *xp = VTONULL(vp);
 	struct vnode *lowervp = xp->null_lowervp;
-	struct lock *vnlock;
 
 	if (lowervp)
 		null_hashrem(xp);
@@ -669,7 +668,6 @@ null_reclaim(struct vop_reclaim_args *ap)
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	vp->v_object = NULL;
-	vnlock = vp->v_vnlock;
 	vp->v_vnlock = &vp->v_lock;
 	if (lowervp) {
 		lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));

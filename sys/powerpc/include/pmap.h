@@ -111,17 +111,17 @@ struct	md_page {
 #else
 
 struct pmap {
-	struct mtx pm_mtx;		/* pmap mutex */
-	tlbtid_t pm_tid;		/* TID to identify this pmap entries in TLB */
-	u_int pm_active;		/* active on cpus */
-	int pm_refs;			/* ref count */
-	struct pmap_statistics pm_stats;/* pmap statistics */
+	struct mtx		pm_mtx;		/* pmap mutex */
+	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
+	u_int			pm_active;	/* active on cpus */
+	int			pm_refs;	/* ref count */
+	struct pmap_statistics	pm_stats;	/* pmap statistics */
 
 	/* Page table directory, array of pointers to page tables. */
-	pte_t *pm_pdir[PDIR_NENTRIES];
+	pte_t			*pm_pdir[PDIR_NENTRIES];
 
 	/* List of allocated ptbl bufs (ptbl kva regions). */
-	TAILQ_HEAD(, ptbl_buf) ptbl_list;
+	TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;
 };
 typedef	struct pmap *pmap_t;
 

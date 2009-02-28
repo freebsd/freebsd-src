@@ -87,52 +87,65 @@ extattrctl(td, uap)
 	AUDIT_ARG(text, attrname);
 
 	vfslocked = fnvfslocked = 0;
-	/*
-	 * uap->filename is not always defined.  If it is, grab a vnode lock,
-	 * which VFS_EXTATTRCTL() will later release.
-	 */
+	mp = NULL;
 	filename_vp = NULL;
 	if (uap->filename != NULL) {
-		NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKLEAF |
-		    AUDITVNODE2, UIO_USERSPACE, uap->filename, td);
+		NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE2,
+		    UIO_USERSPACE, uap->filename, td);
 		error = namei(&nd);
 		if (error)
 			return (error);
 		fnvfslocked = NDHASGIANT(&nd);
 		filename_vp = nd.ni_vp;
-		NDFREE(&nd, NDF_NO_VP_RELE | NDF_NO_VP_UNLOCK);
+		NDFREE(&nd, NDF_NO_VP_RELE);
 	}
 
 	/* uap->path is always defined. */
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKLEAF | AUDITVNODE1,
+	    UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
-	if (error) {
-		if (filename_vp != NULL)
-			vput(filename_vp);
+	if (error)
 		goto out;
-	}
 	vfslocked = NDHASGIANT(&nd);
 	mp = nd.ni_vp->v_mount;
-	error = vn_start_write(nd.ni_vp, &mp_writable, V_WAIT | PCATCH);
-	NDFREE(&nd, 0);
+	error = vfs_busy(mp, 0);
 	if (error) {
-		if (filename_vp != NULL)
-			vput(filename_vp);
+		NDFREE(&nd, 0);
+		mp = NULL;
 		goto out;
+	}
+	VOP_UNLOCK(nd.ni_vp, 0);
+	error = vn_start_write(nd.ni_vp, &mp_writable, V_WAIT | PCATCH);
+	NDFREE(&nd, NDF_NO_VP_UNLOCK);
+	if (error)
+		goto out;
+	if (filename_vp != NULL) {
+		/*
+		 * uap->filename is not always defined.  If it is,
+		 * grab a vnode lock, which VFS_EXTATTRCTL() will
+		 * later release.
+		 */
+		error = vn_lock(filename_vp, LK_EXCLUSIVE);
+		if (error) {
+			vn_finished_write(mp_writable);
+			goto out;
+		}
 	}
 
 	error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp, uap->attrnamespace,
 	    uap->attrname != NULL ? attrname : NULL, td);
 
 	vn_finished_write(mp_writable);
+out:
+	if (mp != NULL)
+		vfs_unbusy(mp);
+
 	/*
 	 * VFS_EXTATTRCTL will have unlocked, but not de-ref'd, filename_vp,
 	 * so vrele it if it is defined.
 	 */
 	if (filename_vp != NULL)
 		vrele(filename_vp);
-out:
 	VFS_UNLOCK_GIANT(fnvfslocked);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);

@@ -165,7 +165,7 @@ static int
 grackle_attach(device_t dev)
 {
 	struct		grackle_softc *sc;
-	phandle_t	node, iparent;
+	phandle_t	node;
 	u_int32_t	busrange[2];
 	struct		grackle_range *rp, *io, *mem[2];
 	int		nmem, i, error;
@@ -254,14 +254,6 @@ grackle_attach(device_t dev)
 
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(cell_t));
 
-	/* We need the number of interrupt cells to read the imap */
-	if (OF_getprop(node, "interrupt-parent", &iparent,sizeof(iparent)) <= 0)
-		iparent = node;
-
-	if (OF_getprop(iparent,"#interrupt-cells",&sc->sc_icells, 
-	    sizeof(sc->sc_icells)) <= 0)
-		sc->sc_icells = 1;
-
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
 }
@@ -348,15 +340,14 @@ grackle_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct grackle_softc *sc;
 	struct ofw_pci_register reg;
-	uint32_t pintr, mintr[2];
+	uint32_t pintr, mintr;
 	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bus);
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
-	    sizeof(reg), &pintr, sizeof(pintr), &mintr, 
-	    sizeof(mintr[0])*sc->sc_icells, maskbuf))
-		return (mintr[0]);
+	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr), maskbuf))
+		return (mintr);
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)

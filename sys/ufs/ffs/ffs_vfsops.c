@@ -622,10 +622,13 @@ ffs_mountfs(devvp, mp, td)
 	struct g_consumer *cp;
 	struct mount *nmp;
 
-	dev = devvp->v_rdev;
+	bp = NULL;
+	ump = NULL;
 	cred = td ? td->td_ucred : NOCRED;
-
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+
+	dev = devvp->v_rdev;
+	dev_ref(dev);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
@@ -640,7 +643,7 @@ ffs_mountfs(devvp, mp, td)
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
-		return (error);
+		goto out;
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
@@ -649,8 +652,6 @@ ffs_mountfs(devvp, mp, td)
 	devvp->v_bufobj.bo_private = cp;
 	devvp->v_bufobj.bo_ops = &ffs_ops;
 
-	bp = NULL;
-	ump = NULL;
 	fs = NULL;
 	sblockloc = 0;
 	/*
@@ -921,6 +922,7 @@ out:
 		free(ump, M_UFSMNT);
 		mp->mnt_data = NULL;
 	}
+	dev_rel(dev);
 	return (error);
 }
 
@@ -1030,6 +1032,9 @@ ffs_unmount(mp, mntflags, td)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
 	int error, flags, susp;
+#ifdef UFS_EXTATTR
+	int e_restart;
+#endif
 
 	flags = 0;
 	fs = ump->um_fs;
@@ -1043,8 +1048,10 @@ ffs_unmount(mp, mntflags, td)
 		if (error != EOPNOTSUPP)
 			printf("ffs_unmount: ufs_extattr_stop returned %d\n",
 			    error);
+		e_restart = 0;
 	} else {
 		ufs_extattr_uepm_destroy(&ump->um_extattr);
+		e_restart = 1;
 	}
 #endif
 	if (susp) {
@@ -1068,13 +1075,13 @@ ffs_unmount(mp, mntflags, td)
 			vn_start_write(NULL, &mp, V_WAIT);
 		}
 	}
-	if (mp->mnt_flag & MNT_SOFTDEP) {
-		if ((error = softdep_flushfiles(mp, flags, td)) != 0)
-			goto fail;
-	} else {
-		if ((error = ffs_flushfiles(mp, flags, td)) != 0)
-			goto fail;
-	}
+	if (mp->mnt_flag & MNT_SOFTDEP)
+		error = softdep_flushfiles(mp, flags, td);
+	else
+		error = ffs_flushfiles(mp, flags, td);
+	if (error != 0 && error != ENXIO)
+		goto fail;
+
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("%s: unmount pending error: blocks %jd files %d\n",
@@ -1087,7 +1094,7 @@ ffs_unmount(mp, mntflags, td)
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
-		if (error) {
+		if (error && error != ENXIO) {
 			fs->fs_clean = 0;
 			goto fail;
 		}
@@ -1102,6 +1109,7 @@ ffs_unmount(mp, mntflags, td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
+	dev_rel(ump->um_dev);
 	mtx_destroy(UFS_MTX(ump));
 	if (mp->mnt_gjprovider != NULL) {
 		free(mp->mnt_gjprovider, M_UFSMNT);
@@ -1121,6 +1129,15 @@ fail:
 		vfs_write_resume(mp);
 		vn_start_write(NULL, &mp, V_WAIT);
 	}
+#ifdef UFS_EXTATTR
+	if (e_restart) {
+		ufs_extattr_uepm_init(&ump->um_extattr);
+#ifdef UFS_EXTATTR_AUTOSTART
+		(void) ufs_extattr_autostart(mp, td);
+#endif
+	}
+#endif
+
 	return (error);
 }
 

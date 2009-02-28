@@ -73,7 +73,9 @@ __FBSDID("$FreeBSD$");
 #define	MAXFILES (maxproc * 2)
 #endif
 
-enum VM_GUEST { VM_GUEST_NO, VM_GUEST_VM, VM_GUEST_XEN };
+/* Values of enum VM_GUEST members are used as indices in 
+ * vm_guest_sysctl_names */
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 

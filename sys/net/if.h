@@ -452,8 +452,6 @@ __END_DECLS
 #endif
 
 #ifdef _KERNEL
-struct thread;
-
 /* XXX - this should go away soon. */
 #include <net/if_var.h>
 #endif

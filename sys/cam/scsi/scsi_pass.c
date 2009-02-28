@@ -165,13 +165,12 @@ passcleanup(struct cam_periph *periph)
 
 	softc = (struct pass_softc *)periph->softc;
 
-	devstat_remove_entry(softc->device_stats);
-
-	destroy_dev(softc->dev);
-
-	if (bootverbose) {
+	if (bootverbose)
 		xpt_print(periph->path, "removing device entry\n");
-	}
+	devstat_remove_entry(softc->device_stats);
+	cam_periph_unlock(periph);
+	destroy_dev(softc->dev);
+	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
 }
 
@@ -298,8 +297,6 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	struct cam_periph *periph;
 	struct pass_softc *softc;
 	int error;
-
-	error = 0; /* default to no error */
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)

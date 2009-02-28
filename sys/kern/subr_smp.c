@@ -115,7 +115,7 @@ static volatile int smp_rv_ncpus;
 static void (*volatile smp_rv_setup_func)(void *arg);
 static void (*volatile smp_rv_action_func)(void *arg);
 static void (*volatile smp_rv_teardown_func)(void *arg);
-static void * volatile smp_rv_func_arg;
+static void *volatile smp_rv_func_arg;
 static volatile int smp_rv_waiters[3];
 
 /* 

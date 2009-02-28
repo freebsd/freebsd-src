@@ -14,7 +14,7 @@ NON_GPROF_ENTRY(svr4_sigcode)
 	testl	$PSL_VM,SVR4_UC_EFLAGS(%eax)
 	jnz	1f
 #endif
-	movl	SVR4_UC_GS(%eax),%gs
+	mov	SVR4_UC_GS(%eax),%gs
 1:	pushl	%eax			# pointer to ucontext
 	pushl	$1			# set context
 	movl	$svr4_sys_context,%eax

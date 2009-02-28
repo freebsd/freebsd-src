@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -67,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/vinet6.h>
-
-#define SDL(s)	((struct sockaddr_dl *)s)
 
 static int rtpref(struct nd_defrouter *);
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
@@ -653,8 +652,10 @@ defrouter_select(void)
 			selected_dr = dr;
 		}
 		IF_AFDATA_UNLOCK(dr->ifp);
-		if (ln != NULL)
+		if (ln != NULL) {
 			LLE_RUNLOCK(ln);
+			ln = NULL;
+		}
 
 		if (dr->installed && installed_dr == NULL)
 			installed_dr = dr;

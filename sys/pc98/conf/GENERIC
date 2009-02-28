@@ -1,8 +1,8 @@
 #
 # GENERIC -- Generic kernel configuration file for FreeBSD/pc98
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -25,6 +25,12 @@ ident		GENERIC
 
 # To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
+
+# Use the following to compile in values accessible to the kernel
+# through getenv() (or kenv(1) in userland). The format of the file
+# is 'variable=value', see kenv(1)
+#
+# env		"GENERIC.env"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
@@ -250,7 +256,6 @@ device		bpf		# Berkeley packet filter
 #device		ehci		# EHCI PCI->USB interface (USB 2.0)
 #device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-#device		ugen		# Generic
 #device		uhid		# "Human Interface Devices"
 #device		ukbd		# Keyboard
 #device		ulpt		# Printer
@@ -262,7 +267,6 @@ device		bpf		# Berkeley packet filter
 #device		urio		# Diamond Rio 500 MP3 player
 #device		uscanner	# Scanners
 # USB Serial devices
-#device		ucom		# Generic com ttys
 #device		uark		# Technologies ARK3116 based serial adapters
 #device		ubsa		# Belkin F5U103 and compatible serial adapters
 #device		ubser		# BWCT console serial adapters

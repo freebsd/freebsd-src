@@ -339,8 +339,6 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 out:
 	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	if (mtx_owned(&Giant))
-		printf("statfs(%d): %s: %d\n", vfslocked, path, error);
 	return (error);
 }
 
@@ -395,14 +393,16 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
-	if (vp->v_iflag & VI_DOOMED) {
+	if (mp == NULL) {
 		error = EBADF;
 		goto out;
 	}
 	error = vfs_busy(mp, 0);
 	vfs_rel(mp);
-	if (error)
-		goto out;
+	if (error) {
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
 #ifdef MAC
 	error = mac_mount_check_stat(td->td_ucred, mp);
 	if (error)
@@ -758,7 +758,7 @@ fchdir(td, uap)
 	VREF(vp);
 	fdrop(fp, td);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
@@ -766,7 +766,7 @@ fchdir(td, uap)
 		if (vfs_busy(mp, 0))
 			continue;
 		tvfslocked = VFS_LOCK_GIANT(mp);
-		error = VFS_ROOT(mp, LK_EXCLUSIVE, &tdp, td);
+		error = VFS_ROOT(mp, LK_SHARED, &tdp, td);
 		vfs_unbusy(mp);
 		if (error) {
 			VFS_UNLOCK_GIANT(tvfslocked);
@@ -2341,6 +2341,15 @@ int
 kern_statat(struct thread *td, int flag, int fd, char *path,
     enum uio_seg pathseg, struct stat *sbp)
 {
+
+	return (kern_statat_vnhook(td, flag, fd, path, pathseg, sbp, NULL));
+}
+
+int
+kern_statat_vnhook(struct thread *td, int flag, int fd, char *path,
+    enum uio_seg pathseg, struct stat *sbp,
+    void (*hook)(struct vnode *vp, struct stat *sbp))
+{
 	struct nameidata nd;
 	struct stat sb;
 	int error, vfslocked;
@@ -2360,12 +2369,12 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 		SDT_PROBE(vfs, , stat, mode, path, sb.st_mode, 0, 0, 0);
 		if (S_ISREG(sb.st_mode))
 			SDT_PROBE(vfs, , stat, reg, path, pathseg, 0, 0, 0);
+		if (__predict_false(hook != NULL))
+			hook(nd.ni_vp, &sb);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	if (mtx_owned(&Giant))
-		printf("stat(%d): %s\n", vfslocked, path);
 	if (error)
 		return (error);
 	*sbp = sb;
@@ -3934,7 +3943,7 @@ unionread:
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_resid = uap->count;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
 	error = mac_vnode_check_readdir(td->td_ucred, vp);
@@ -4093,8 +4102,7 @@ unionread:
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_resid = count;
-	/* vn_lock(vp, LK_SHARED | LK_RETRY); */
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC

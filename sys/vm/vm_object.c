@@ -1273,11 +1273,9 @@ vm_object_shadow(
 		source->shadow_count++;
 		source->generation++;
 #if VM_NRESERVLEVEL > 0
-		result->flags |= source->flags & (OBJ_NEEDGIANT | OBJ_COLORED);
+		result->flags |= source->flags & OBJ_COLORED;
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
 		    ((1 << (VM_NFREEORDER - 1)) - 1);
-#else
-		result->flags |= source->flags & OBJ_NEEDGIANT;
 #endif
 		VM_OBJECT_UNLOCK(source);
 	}
@@ -1349,7 +1347,6 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
-	new_object->flags |= orig_object->flags & OBJ_NEEDGIANT;
 retry:
 	if ((m = TAILQ_FIRST(&orig_object->memq)) != NULL) {
 		if (m->pindex < offidxstart) {
@@ -1872,7 +1869,6 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 
 	vm_object_pip_add(object, 1);
 again:
-	vm_page_lock_queues();
 	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		if (p->pindex < start) {
 			p = vm_page_splay(start, object->root);
@@ -1880,6 +1876,7 @@ again:
 				p = TAILQ_NEXT(p, listq);
 		}
 	}
+	vm_page_lock_queues();
 	/*
 	 * Assert: the variable p is either (1) the page with the
 	 * least pindex greater than or equal to the parameter pindex

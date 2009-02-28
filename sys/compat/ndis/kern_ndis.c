@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
+#include <legacy/dev/usb/usb.h>
+#include <legacy/dev/usb/usbdi.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -258,10 +258,8 @@ ndis_getdone_func(adapter, status)
 }
 
 static void
-ndis_resetdone_func(adapter, status, addressingreset)
-	ndis_handle		adapter;
-	ndis_status		status;
-	uint8_t			addressingreset;
+ndis_resetdone_func(ndis_handle adapter, ndis_status status,
+	uint8_t addressingreset)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;

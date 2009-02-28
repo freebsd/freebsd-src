@@ -108,11 +108,8 @@ ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
 #endif
 
 #if defined(E500)
-ASSYM(PTE_RPN, offsetof(struct pte_entry, rpn));
-ASSYM(PTE_FLAGS, offsetof(struct pte_entry, flags));
-ASSYM(TLB0TABLE_MAS1, offsetof(struct tlb_entry, mas1));
-ASSYM(TLB0TABLE_MAS2, offsetof(struct tlb_entry, mas2));
-ASSYM(TLB0TABLE_MAS3, offsetof(struct tlb_entry, mas3));
+ASSYM(PTE_RPN, offsetof(struct pte, rpn));
+ASSYM(PTE_FLAGS, offsetof(struct pte, flags));
 ASSYM(TLB0_ENTRY_SIZE, sizeof(struct tlb_entry));
 #endif
 
@@ -161,6 +158,7 @@ ASSYM(FRAME_AIM_DAR, offsetof(struct trapframe, cpu.aim.dar));
 ASSYM(FRAME_AIM_DSISR, offsetof(struct trapframe, cpu.aim.dsisr));
 ASSYM(FRAME_BOOKE_DEAR, offsetof(struct trapframe, cpu.booke.dear));
 ASSYM(FRAME_BOOKE_ESR, offsetof(struct trapframe, cpu.booke.esr));
+ASSYM(FRAME_BOOKE_DBCR0, offsetof(struct trapframe, cpu.booke.dbcr0));
 
 ASSYM(CF_FUNC, offsetof(struct callframe, cf_func));
 ASSYM(CF_ARG0, offsetof(struct callframe, cf_arg0));
@@ -174,10 +172,12 @@ ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FPU, PCB_FPU);
+ASSYM(PCB_VEC, PCB_VEC);
 
 ASSYM(PCB_AIM_USR, offsetof(struct pcb, pcb_cpu.aim.usr));
 ASSYM(PCB_BOOKE_CTR, offsetof(struct pcb, pcb_cpu.booke.ctr));
 ASSYM(PCB_BOOKE_XER, offsetof(struct pcb, pcb_cpu.booke.xer));
+ASSYM(PCB_BOOKE_DBCR0, offsetof(struct pcb, pcb_cpu.booke.dbcr0));
 
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));

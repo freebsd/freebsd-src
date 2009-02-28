@@ -129,6 +129,8 @@ typedef void tlb_flush_user_t(void);
 struct pmap;
 struct tlb_entry;
 
+extern int dtlb_slots;
+extern int itlb_slots;
 extern int kernel_tlb_slots;
 extern struct tlb_entry *kernel_tlbs;
 

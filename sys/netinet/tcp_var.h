@@ -189,6 +189,7 @@ struct tcpcb {
 	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / vimage / 1 general use */
 	struct toe_usrreqs *t_tu;       /* offload operations vector */
 	void	*t_toe;			/* TOE pcb pointer */
+	int	t_bytes_acked;		/* # bytes acked during current RTT */
 };
 
 /*
@@ -539,6 +540,8 @@ extern	int tcp_insecure_rst;
 extern	int tcp_do_autorcvbuf;
 extern	int tcp_autorcvbuf_inc;
 extern	int tcp_autorcvbuf_max;
+extern	int tcp_do_rfc3465;
+extern	int tcp_abc_l_var;
 
 extern	int tcp_do_tso;
 extern	int tcp_do_autosndbuf;

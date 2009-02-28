@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/socket.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/vimage.h>
 
@@ -261,13 +263,19 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		LIST_FOREACH(iap, INADDR_HASH(dst.s_addr), ia_hash)
 			if (iap->ia_ifp == ifp &&
 			    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
-				ia = iap;
+				if (td == NULL || prison_check_ip4(
+				    td->td_ucred, &dst) == 0)
+					ia = iap;
 				break;
 			}
 		if (ia == NULL)
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				iap = ifatoia(ifa);
 				if (iap->ia_addr.sin_family == AF_INET) {
+					if (td != NULL &&
+					    prison_check_ip4(td->td_ucred,
+					    &iap->ia_addr.sin_addr) != 0)
+						continue;
 					ia = iap;
 					break;
 				}
@@ -995,9 +1003,6 @@ in_purgemaddrs(struct ifnet *ifp)
 	struct in_multi *inm;
 	struct in_multi *oinm;
 
-#ifdef DIAGNOSTIC
-	printf("%s: purging ifp %p\n", __func__, ifp);
-#endif
 	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
 	LIST_FOREACH_SAFE(inm, &V_in_multihead, inm_link, oinm) {
@@ -1106,9 +1111,10 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	hashkey = sin->sin_addr.s_addr;
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 	LIST_FOREACH(lle, lleh, lle_next) {
+		struct sockaddr_in *sa2 = (struct sockaddr_in *)L3_ADDR(lle);
 		if (lle->la_flags & LLE_DELETED)
 			continue;
-		if (bcmp(L3_ADDR(lle), l3addr, sizeof(struct sockaddr_in)) == 0)
+		if (sa2->sin_addr.s_addr == sin->sin_addr.s_addr)
 			break;
 	}
 	if (lle == NULL) {
@@ -1192,6 +1198,9 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			/* skip deleted entries */
 			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
 				continue;
+			/* Skip if jailed and not a valid IP of the prison. */
+			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
+				continue;
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
@@ -1200,6 +1209,10 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			 */
 			bzero(&arpc, sizeof(arpc));
 			arpc.rtm.rtm_msglen = sizeof(arpc);
+			arpc.rtm.rtm_version = RTM_VERSION;
+			arpc.rtm.rtm_type = RTM_GET;
+			arpc.rtm.rtm_flags = RTF_UP;
+			arpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
 			arpc.sin.sin_family = AF_INET;
 			arpc.sin.sin_len = sizeof(arpc.sin);
 			arpc.sin.sin_addr.s_addr = SIN(lle)->sin_addr.s_addr;

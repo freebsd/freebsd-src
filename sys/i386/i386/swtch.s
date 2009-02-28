@@ -130,7 +130,7 @@ ENTRY(cpu_switch)
 	movl	%ebp,PCB_EBP(%edx)
 	movl	%esi,PCB_ESI(%edx)
 	movl	%edi,PCB_EDI(%edx)
-	movl	%gs,PCB_GS(%edx)
+	mov	%gs,PCB_GS(%edx)
 	pushfl					/* PSL */
 	popl	PCB_PSL(%edx)
 	/* Test if debug registers should be saved. */
@@ -313,7 +313,7 @@ sw1:
 	/* This must be done after loading the user LDT. */
 	.globl	cpu_switch_load_gs
 cpu_switch_load_gs:
-	movl	PCB_GS(%edx),%gs
+	mov	PCB_GS(%edx),%gs
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
@@ -383,7 +383,7 @@ ENTRY(savectx)
 	movl	%ebp,PCB_EBP(%ecx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
-	movl	%gs,PCB_GS(%ecx)
+	mov	%gs,PCB_GS(%ecx)
 	pushfl
 	popl	PCB_PSL(%ecx)
 
