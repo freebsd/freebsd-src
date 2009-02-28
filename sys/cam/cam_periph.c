@@ -290,7 +290,7 @@ cam_periph_acquire(struct cam_periph *periph)
 }
 
 void
-cam_periph_release(struct cam_periph *periph)
+cam_periph_release_locked(struct cam_periph *periph)
 {
 
 	if (periph == NULL)
@@ -302,7 +302,21 @@ cam_periph_release(struct cam_periph *periph)
 		camperiphfree(periph);
 	}
 	xpt_unlock_buses();
+}
 
+void
+cam_periph_release(struct cam_periph *periph)
+{
+	struct cam_sim *sim;
+
+	if (periph == NULL)
+		return;
+	
+	sim = periph->sim;
+	mtx_assert(sim->mtx, MA_NOTOWNED);
+	mtx_lock(sim->mtx);
+	cam_periph_release_locked(periph);
+	mtx_unlock(sim->mtx);
 }
 
 int
@@ -329,7 +343,7 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
 		periph->flags |= CAM_PERIPH_LOCK_WANTED;
 		if ((error = msleep(periph, mtx, priority, "caplck", 0)) != 0) {
-			cam_periph_release(periph);
+			cam_periph_release_locked(periph);
 			return (error);
 		}
 	}
@@ -350,7 +364,7 @@ cam_periph_unhold(struct cam_periph *periph)
 		wakeup(periph);
 	}
 
-	cam_periph_release(periph);
+	cam_periph_release_locked(periph);
 }
 
 /*

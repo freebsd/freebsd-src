@@ -6314,7 +6314,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	xpt_done(done_ccb);
 	if (TAILQ_FIRST(&softc->request_ccbs) == NULL) {
 		cam_periph_invalidate(periph);
-		cam_periph_release(periph);
+		cam_periph_release_locked(periph);
 	} else {
 		probeschedule(periph);
 	}
