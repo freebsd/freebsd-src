@@ -410,6 +410,10 @@ struct ata_device {
 #define         ATA_MASTER              0x00
 #define         ATA_SLAVE               0x01
 #define         ATA_PM                  0x0f
+    int                         type;           /* device type */
+#define         ATA_T_ATA               0x00
+#define         ATA_T_ATAPI             0x01
+#define         ATA_T_ATAPI_CAM         0x02
 
     struct ata_params           param;          /* ata param structure */
     int                         mode;           /* current transfermode */
@@ -422,6 +426,8 @@ struct ata_device {
 #define         ATA_D_MEDIA_CHANGED     0x0002
 #define         ATA_D_ENC_PRESENT       0x0004
 #define         ATA_D_48BIT_ACTIVE      0x0008
+#define         ATA_D_PROBED            0x0010
+#define         ATA_D_VALID             0x0020
 };
 
 /* structure for holding DMA Physical Region Descriptors (PRD) entries */
@@ -559,6 +565,8 @@ void ata_interrupt(void *data);
 int ata_device_ioctl(device_t dev, u_long cmd, caddr_t data);
 int ata_getparam(struct ata_device *atadev, int init);
 int ata_identify(device_t dev);
+device_t ata_add_child(device_t, int, int);
+int ata_delete_child(device_t , device_t);
 void ata_default_registers(device_t dev);
 void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
