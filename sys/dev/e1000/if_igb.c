@@ -279,7 +279,7 @@ TUNABLE_INT("hw.igb.enable_aim", &igb_enable_aim);
 static int igb_low_latency = IGB_LOW_LATENCY;
 TUNABLE_INT("hw.igb.low_latency", &igb_low_latency);
 static int igb_ave_latency = IGB_AVE_LATENCY;
-TUNABLE_INT("hw.igb.ave_latency", &igb_low_latency);
+TUNABLE_INT("hw.igb.ave_latency", &igb_ave_latency);
 static int igb_bulk_latency = IGB_BULK_LATENCY;
 TUNABLE_INT("hw.igb.bulk_latency", &igb_bulk_latency);
                 

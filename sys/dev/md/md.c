@@ -629,9 +629,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
 				sched_unpin();
-				vm_page_lock_queues();
 				vm_page_wakeup(m);
-				vm_page_unlock_queues();
 				break;
 			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
@@ -641,9 +639,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
 				sched_unpin();
-				vm_page_lock_queues();
 				vm_page_wakeup(m);
-				vm_page_unlock_queues();
 				break;
 			}
 			bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
@@ -655,9 +651,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
 				sched_unpin();
-				vm_page_lock_queues();
 				vm_page_wakeup(m);
-				vm_page_unlock_queues();
 				break;
 			}
 			bzero((void *)(sf_buf_kva(sf) + offs), len);
@@ -667,8 +661,8 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		}
 		sf_buf_free(sf);
 		sched_unpin();
-		vm_page_lock_queues();
 		vm_page_wakeup(m);
+		vm_page_lock_queues();
 		vm_page_activate(m);
 		if (bp->bio_cmd == BIO_WRITE)
 			vm_page_dirty(m);
@@ -1133,13 +1127,15 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		mdinit(sc);
 		return (0);
 	case MDIOCDETACH:
-		if (mdio->md_mediasize != 0 || mdio->md_options != 0)
+		if (mdio->md_mediasize != 0 ||
+		    (mdio->md_options & ~MD_FORCE) != 0)
 			return (EINVAL);
 
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
 			return (ENOENT);
-		if (sc->opencount != 0 && !(sc->flags & MD_FORCE))
+		if (sc->opencount != 0 && !(sc->flags & MD_FORCE) &&
+		    !(mdio->md_options & MD_FORCE))
 			return (EBUSY);
 		return (mddestroy(sc, td));
 	case MDIOCQUERY:

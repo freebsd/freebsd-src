@@ -53,6 +53,7 @@ bus_space_tag_t uart_bus_space_mem;
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
+
 	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
 }
 
@@ -77,7 +78,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	    0, &di->bas.bsh) != 0)
 		return (ENXIO);
 
-	di->baudrate = 115200;
+	di->baudrate = 0;
 	di->bas.regshft = 2;
 	di->bas.rclk = get_tclk();
 	di->databits = 8;

@@ -61,7 +61,7 @@ ds1672_probe(device_t dev)
 {
 	/* XXX really probe? */
 	device_set_desc(dev, "Dallas Semiconductor DS1672 RTC");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

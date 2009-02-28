@@ -112,12 +112,14 @@
 #define	PCIY_SECDEV	0x0f	/* Secure Device */
 #define	PCIY_EXPRESS	0x10	/* PCI Express */
 #define	PCIY_MSIX	0x11	/* MSI-X */
+#define	PCIY_SATA	0x12	/* SATA */
+#define	PCIY_PCIAF	0x13	/* PCI Advanced Features */
 
 /* config registers for header type 0 devices */
 
 #define	PCIR_BARS	0x10
 #define	PCIR_BAR(x)		(PCIR_BARS + (x) * 4)
-#define	PCI_MAX_BAR_0		5	/* Number of standard bars */
+#define	PCIR_MAX_BAR_0		5
 #define	PCI_RID2BAR(rid)	(((rid) - PCIR_BARS) / 4)
 #define	PCI_BAR_IO(x)		(((x) & PCIM_BAR_SPACE) == PCIM_BAR_IO_SPACE)
 #define	PCI_BAR_MEM(x)		(((x) & PCIM_BAR_SPACE) == PCIM_BAR_MEM_SPACE)
@@ -158,6 +160,7 @@
 
 /* config registers for header type 1 (PCI-to-PCI bridge) devices */
 
+#define	PCIR_MAX_BAR_1	1
 #define	PCIR_SECSTAT_1	0x1e
 
 #define	PCIR_PRIBUS_1	0x18
@@ -188,6 +191,7 @@
 
 /* config registers for header type 2 (CardBus) devices */
 
+#define	PCIR_MAX_BAR_2	0
 #define	PCIR_CAP_PTR_2	0x14
 #define	PCIR_SECSTAT_2	0x16
 
@@ -609,3 +613,12 @@
 #define	PCIM_MSIX_BIR_BAR_20		4
 #define	PCIM_MSIX_BIR_BAR_24		5
 #define	PCIM_MSIX_VCTRL_MASK		0x1
+
+/* PCI Advanced Features definitions */
+#define	PCIR_PCIAF_CAP		0x3
+#define	PCIM_PCIAFCAP_TP	0x01
+#define	PCIM_PCIAFCAP_FLR	0x02
+#define	PCIR_PCIAF_CTRL		0x4
+#define	PCIR_PCIAFCTRL_FLR	0x01
+#define	PCIR_PCIAF_STATUS	0x5
+#define	PCIR_PCIAFSTATUS_TP	0x01

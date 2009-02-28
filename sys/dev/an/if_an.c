@@ -2989,7 +2989,7 @@ an_watchdog(struct ifnet *ifp)
 	return;
 }
 
-void
+int
 an_shutdown(device_t dev)
 {
 	struct an_softc		*sc;
@@ -2998,7 +2998,7 @@ an_shutdown(device_t dev)
 	an_stop(sc);
 	sc->an_gone = 1;
 
-	return;
+	return 0;
 }
 
 void

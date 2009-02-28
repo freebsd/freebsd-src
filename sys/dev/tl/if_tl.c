@@ -282,7 +282,7 @@ static void tl_init(void *);
 static void tl_init_locked(struct tl_softc *);
 static void tl_stop(struct tl_softc *);
 static void tl_watchdog(struct ifnet *);
-static void tl_shutdown(device_t);
+static int tl_shutdown(device_t);
 static int tl_ifmedia_upd(struct ifnet *);
 static void tl_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -2347,7 +2347,7 @@ tl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 tl_shutdown(dev)
 	device_t		dev;
 {
@@ -2359,5 +2359,5 @@ tl_shutdown(dev)
 	tl_stop(sc);
 	TL_UNLOCK(sc);
 
-	return;
+	return (0);
 }
