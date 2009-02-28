@@ -299,7 +299,7 @@ tty_info(struct tty *tp)
 	PGRP_UNLOCK(tp->t_pgrp);
 	rufetchcalc(pick, &ru, &utime, &stime);
 	pid = pick->p_pid;
-	bcopy(pick->p_comm, comm, sizeof(comm));
+	strlcpy(comm, pick->p_comm, sizeof comm);
 	PROC_UNLOCK(pick);
 
 	/* Print command, pid, state, utime, stime, %cpu, and rss. */

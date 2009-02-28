@@ -310,7 +310,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
 		tty_lock(tp);
-		bcopy(&tp->t_termios, data, sizeof(struct termios));
+		memcpy(data, &tp->t_termios, sizeof(struct termios));
 		tty_unlock(tp);
 		return (0);
 #endif /* PTS_LINUX */
