@@ -123,9 +123,10 @@ void
 cam_sim_release(struct cam_sim *sim)
 {
 	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
+	mtx_assert(sim->mtx, MA_OWNED);
 
 	sim->refcount--;
-	if (sim->refcount <= 1)
+	if (sim->refcount == 0)
 		wakeup(sim);
 }
 
@@ -133,6 +134,7 @@ void
 cam_sim_hold(struct cam_sim *sim)
 {
 	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
+	mtx_assert(sim->mtx, MA_OWNED);
 
 	sim->refcount++;
 }
