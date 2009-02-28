@@ -210,13 +210,19 @@ int	wcwidth(wchar_t);
 #define	wcwidth(_c)	__wcwidth(_c)
 #endif
 
-#if __BSD_VISIBLE
-wchar_t	*fgetwln(struct __sFILE * __restrict, size_t * __restrict);
+#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
 size_t	mbsnrtowcs(wchar_t * __restrict, const char ** __restrict, size_t,
 	    size_t, mbstate_t * __restrict);
 wchar_t	*wcsdup(const wchar_t *) __malloc_like;
+int	wcscasecmp(const wchar_t *, const wchar_t *);
+int	wcsncasecmp(const wchar_t *, const wchar_t *, size_t n);
+size_t	wcsnlen(const wchar_t *, size_t) __pure;
 size_t	wcsnrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 	    size_t, mbstate_t * __restrict);
+#endif
+
+#if __BSD_VISIBLE
+wchar_t	*fgetwln(struct __sFILE * __restrict, size_t * __restrict);
 size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
 size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #endif
