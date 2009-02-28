@@ -27,7 +27,7 @@
  */
 
 #ifndef _SYS_ELF_GENERIC_H_
-#define _SYS_ELF_GENERIC_H_ 1
+#define	_SYS_ELF_GENERIC_H_ 1
 
 #include <sys/cdefs.h>
 
@@ -40,20 +40,20 @@
 #error "__ELF_WORD_SIZE must be defined as 32 or 64"
 #endif
 
-#define ELF_CLASS	__CONCAT(ELFCLASS,__ELF_WORD_SIZE)
+#define	ELF_CLASS	__CONCAT(ELFCLASS,__ELF_WORD_SIZE)
 
 #if BYTE_ORDER == LITTLE_ENDIAN
-#define ELF_DATA	ELFDATA2LSB
+#define	ELF_DATA	ELFDATA2LSB
 #elif BYTE_ORDER == BIG_ENDIAN
-#define ELF_DATA	ELFDATA2MSB
+#define	ELF_DATA	ELFDATA2MSB
 #else
 #error "Unknown byte order"
 #endif
 
-#define __elfN(x)	__CONCAT(__CONCAT(__CONCAT(elf,__ELF_WORD_SIZE),_),x)
-#define __ElfN(x)	__CONCAT(__CONCAT(__CONCAT(Elf,__ELF_WORD_SIZE),_),x)
-#define __ELFN(x)	__CONCAT(__CONCAT(__CONCAT(ELF,__ELF_WORD_SIZE),_),x)
-#define __ElfType(x)	typedef __ElfN(x) __CONCAT(Elf_,x)
+#define	__elfN(x)	__CONCAT(__CONCAT(__CONCAT(elf,__ELF_WORD_SIZE),_),x)
+#define	__ElfN(x)	__CONCAT(__CONCAT(__CONCAT(Elf,__ELF_WORD_SIZE),_),x)
+#define	__ELFN(x)	__CONCAT(__CONCAT(__CONCAT(ELF,__ELF_WORD_SIZE),_),x)
+#define	__ElfType(x)	typedef __ElfN(x) __CONCAT(Elf_,x)
 
 __ElfType(Addr);
 __ElfType(Half);
@@ -78,11 +78,11 @@ __ElfType(Hashelt);
 __ElfType(Size);
 __ElfType(Ssize);
 
-#define ELF_R_SYM	__ELFN(R_SYM)
-#define ELF_R_TYPE	__ELFN(R_TYPE)
-#define ELF_R_INFO	__ELFN(R_INFO)
-#define ELF_ST_BIND	__ELFN(ST_BIND)
-#define ELF_ST_TYPE	__ELFN(ST_TYPE)
-#define ELF_ST_INFO	__ELFN(ST_INFO)
+#define	ELF_R_SYM	__ELFN(R_SYM)
+#define	ELF_R_TYPE	__ELFN(R_TYPE)
+#define	ELF_R_INFO	__ELFN(R_INFO)
+#define	ELF_ST_BIND	__ELFN(ST_BIND)
+#define	ELF_ST_TYPE	__ELFN(ST_TYPE)
+#define	ELF_ST_INFO	__ELFN(ST_INFO)
 
 #endif /* !_SYS_ELF_GENERIC_H_ */

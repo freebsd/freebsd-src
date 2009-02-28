@@ -102,6 +102,13 @@
 #define	BUS_DMA_NOWRITE		0x100
 #define	BUS_DMA_NOCACHE		0x200
 
+/*
+ * The following flag is a DMA tag hint that the page offset of the
+ * loaded kernel virtual address must be preserved in the first
+ * physical segment address, when the KVA is loaded into DMA.
+ */
+#define	BUS_DMA_KEEP_PG_OFFSET	0x400
+
 /* Forwards needed by prototypes below. */
 struct mbuf;
 struct uio;

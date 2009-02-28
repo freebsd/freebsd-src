@@ -54,8 +54,6 @@ struct cblock {
 };
 
 #ifdef _KERNEL
-extern	int cfreecount;
-
 int	 b_to_q(char *cp, int cc, struct clist *q);
 void	 clist_alloc_cblocks(struct clist *q, int ccmax, int ccres);
 void	 clist_free_cblocks(struct clist *q);
