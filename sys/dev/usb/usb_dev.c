@@ -473,8 +473,7 @@ usb2_fifo_create(struct usb2_cdev_privdata *cpd)
 	/* Check TX FIFO */
 	if (is_tx &&
 	    (udev->fifo[n + USB_FIFO_TX] == NULL)) {
-		pipe = usb2_dev_get_pipe(udev,
-		    ep, USB_FIFO_TX);
+		pipe = usb2_dev_get_pipe(udev, ep, USB_FIFO_TX);
 		DPRINTFN(5, "dev_get_pipe(%d, 0x%x)\n", ep, USB_FIFO_TX);
 		if (pipe == NULL) {
 			DPRINTFN(5, "dev_get_pipe returned NULL\n");
@@ -501,8 +500,7 @@ usb2_fifo_create(struct usb2_cdev_privdata *cpd)
 	if (is_rx &&
 	    (udev->fifo[n + USB_FIFO_RX] == NULL)) {
 
-		pipe = usb2_dev_get_pipe(udev,
-		    ep, USB_FIFO_RX);
+		pipe = usb2_dev_get_pipe(udev, ep, USB_FIFO_RX);
 		DPRINTFN(5, "dev_get_pipe(%d, 0x%x)\n", ep, USB_FIFO_RX);
 		if (pipe == NULL) {
 			DPRINTFN(5, "dev_get_pipe returned NULL\n");
@@ -598,8 +596,7 @@ usb2_fifo_free(struct usb2_fifo *f)
 }
 
 static struct usb2_pipe *
-usb2_dev_get_pipe(struct usb2_device *udev,
-    uint8_t ep_index, uint8_t dir)
+usb2_dev_get_pipe(struct usb2_device *udev, uint8_t ep_index, uint8_t dir)
 {
 	struct usb2_pipe *pipe;
 	uint8_t ep_dir;

@@ -1722,8 +1722,7 @@ usb2_make_dev(struct usb2_device *udev, int ep, int mode)
 
 	/* Now, create the device itself */
 	snprintf(devname, sizeof(devname), "%u.%u.%u",
-	    pd->bus_index, pd->dev_index,
-	    pd->ep_addr);
+	    pd->bus_index, pd->dev_index, pd->ep_addr);
 	pd->cdev = make_dev(&usb2_devsw, 0, UID_ROOT,
 	    GID_OPERATOR, 0600, USB_DEVICE_DIR "/%s", devname);
 	pd->cdev->si_drv1 = pd;
@@ -1734,7 +1733,7 @@ usb2_make_dev(struct usb2_device *udev, int ep, int mode)
 static void
 usb2_cdev_create(struct usb2_device *udev)
 {
-	struct usb2_config_descriptor *cd = usb2_get_config_descriptor(udev);
+	struct usb2_config_descriptor *cd;
 	struct usb2_endpoint_descriptor *ed;
 	struct usb2_descriptor *desc;
 	struct usb2_fs_privdata* pd;
@@ -1762,6 +1761,7 @@ usb2_cdev_create(struct usb2_device *udev)
 	 * Collect all used endpoint numbers instead of just
 	 * generating 16 static endpoints.
 	 */
+	cd = usb2_get_config_descriptor(udev);
 	while ((desc = usb2_desc_foreach(cd, desc))) {
 		/* filter out all endpoint descriptors */
 		if ((desc->bDescriptorType == UDESC_ENDPOINT) &&
