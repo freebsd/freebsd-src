@@ -74,7 +74,7 @@ static usb2_error_t usb2_fill_iface_data(struct usb2_device *, uint8_t,
 		    uint8_t);
 static void	usb2_notify_addq(const char *type, struct usb2_device *);
 static void	usb2_fifo_free_wrap(struct usb2_device *, uint8_t, uint8_t);
-static struct cdev *usb2_make_dev(struct usb2_device *, int, int, int);
+static struct cdev *usb2_make_dev(struct usb2_device *, int, int);
 static void	usb2_cdev_create(struct usb2_device *);
 static void	usb2_cdev_free(struct usb2_device *);
 static void	usb2_cdev_cleanup(void *);
@@ -421,7 +421,6 @@ usb2_fill_iface_data(struct usb2_device *udev,
 	iface->idesc = id;
 	iface->alt_index = alt_index;
 	iface->parent_iface_index = USB_IFACE_INDEX_ANY;
-	iface->ep_in_mask = iface->ep_out_mask = 0;
 
 	nendpt = id->bNumEndpoints;
 	DPRINTFN(5, "found idesc nendpt=%d\n", nendpt);
@@ -444,14 +443,6 @@ usb2_fill_iface_data(struct usb2_device *udev,
 
 found:
 		ed = (void *)desc;
-
-		/* Fill in the endpoint bitmasks */
-		if (ed->bEndpointAddress & UE_DIR_IN)
-			iface->ep_in_mask |=
-			    1 << UE_GET_ADDR(ed->bEndpointAddress);
-		else
-			iface->ep_out_mask |=
-			    1 << UE_GET_ADDR(ed->bEndpointAddress);
 
 		/* find a free pipe */
 		while (pipe != pipe_end) {
@@ -730,7 +721,6 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 	 * Free all generic FIFOs for this interface, except control
 	 * endpoint FIFOs:
 	 */
-	usb2_cdev_free(udev);
 	usb2_fifo_free_wrap(udev, iface_index, 0);
 
 	err = usb2_fill_iface_data(udev, iface_index, alt_index);
@@ -739,9 +729,6 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 	}
 	err = usb2_req_set_alt_interface_no(udev, NULL, iface_index,
 	    iface->idesc->bAlternateSetting);
-
-	/* create device nodes for each endpoint */
-	usb2_cdev_create(udev);
 
 done:
 	if (do_unlock) {
@@ -1447,7 +1434,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->device_index = device_index;
 
 	/* Create the control endpoint device */
-	udev->default_dev = usb2_make_dev(udev, 0 , 0, FREAD|FWRITE);
+	udev->default_dev = usb2_make_dev(udev, 0, FREAD|FWRITE);
 	/* Create a link from /dev/ugenX.X to the default endpoint */
 	snprintf(udev->ugen_name, sizeof(udev->ugen_name),
 	    USB_GENERIC_NAME "%u.%u", device_get_unit(bus->bdev),
@@ -1720,7 +1707,7 @@ done:
 }
 
 static struct cdev *
-usb2_make_dev(struct usb2_device *udev, int iface_index, int ep, int mode)
+usb2_make_dev(struct usb2_device *udev, int ep, int mode)
 {
 	struct usb2_fs_privdata* pd;
 	char devname[20];
@@ -1730,14 +1717,13 @@ usb2_make_dev(struct usb2_device *udev, int iface_index, int ep, int mode)
 	    M_WAITOK | M_ZERO);
 	pd->bus_index = device_get_unit(udev->bus->bdev);
 	pd->dev_index = udev->device_index;
-	pd->iface_index = iface_index;
 	pd->ep_addr = ep;
 	pd->mode = mode;
 
 	/* Now, create the device itself */
-	snprintf(devname, sizeof(devname), "%u.%u.%u.%u",
+	snprintf(devname, sizeof(devname), "%u.%u.%u",
 	    pd->bus_index, pd->dev_index,
-	    pd->iface_index, pd->ep_addr);
+	    pd->ep_addr);
 	pd->cdev = make_dev(&usb2_devsw, 0, UID_ROOT,
 	    GID_OPERATOR, 0600, USB_DEVICE_DIR "/%s", devname);
 	pd->cdev->si_drv1 = pd;
@@ -1748,19 +1734,17 @@ usb2_make_dev(struct usb2_device *udev, int iface_index, int ep, int mode)
 static void
 usb2_cdev_create(struct usb2_device *udev)
 {
-	struct usb2_interface *iface;
+	struct usb2_config_descriptor *cd = usb2_get_config_descriptor(udev);
+	struct usb2_endpoint_descriptor *ed;
+	struct usb2_descriptor *desc;
 	struct usb2_fs_privdata* pd;
 	struct cdev *dev;
-	uint8_t niface;
-	int i, ep, mode, inmode, outmode;
+	int inmode, outmode, inmask, outmask, mode;
+	uint8_t ep;
 
 	KASSERT(LIST_FIRST(&udev->pd_list) == NULL, ("stale cdev entries"));
 
 	DPRINTFN(2, "Creating device nodes\n");
-
-	usb2_interface_count(udev, &niface);
-	if (niface == 0)
-		return;		/* nothing to do */
 
 	if (usb2_get_mode(udev) == USB_MODE_DEVICE) {
 		inmode = FWRITE;
@@ -1770,23 +1754,39 @@ usb2_cdev_create(struct usb2_device *udev)
 		outmode = FWRITE;
 	}
 
-	for (i = 0; i < niface; i++) {
-		iface = usb2_get_iface(udev, i);
-		if (iface == NULL)
-			break;
+	inmask = 0;
+	outmask = 0;
+	desc = NULL;
 
-		/* Create all available endpoints except EP0 */
-		for (ep = 1; ep < 16; ep++) {
-			mode = 0;
-			mode |= iface->ep_in_mask & (1 << ep) ? inmode : 0;
-			mode |= iface->ep_out_mask & (1 << ep) ? outmode : 0;
-			if (mode == 0)
-				continue;	/* no IN or OUT endpoint */
+	/*
+	 * Collect all used endpoint numbers instead of just
+	 * generating 16 static endpoints.
+	 */
+	while ((desc = usb2_desc_foreach(cd, desc))) {
+		/* filter out all endpoint descriptors */
+		if ((desc->bDescriptorType == UDESC_ENDPOINT) &&
+		    (desc->bLength >= sizeof(*ed))) {
+			ed = (struct usb2_endpoint_descriptor *)desc;
 
-			dev = usb2_make_dev(udev, i , ep, mode);
-			pd = dev->si_drv1;
-			LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
+			/* update masks */
+			ep = ed->bEndpointAddress;
+			if (UE_GET_DIR(ep)  == UE_DIR_OUT)
+				outmask |= 1 << UE_GET_ADDR(ep);
+			else
+				inmask |= 1 << UE_GET_ADDR(ep);
 		}
+	}
+
+	/* Create all available endpoints except EP0 */
+	for (ep = 1; ep < 16; ep++) {
+		mode = inmask & (1 << ep) ? inmode : 0;
+		mode |= outmask & (1 << ep) ? outmode : 0;
+		if (mode == 0)
+			continue;	/* no IN or OUT endpoint */
+
+		dev = usb2_make_dev(udev, ep, mode);
+		pd = dev->si_drv1;
+		LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
 	}
 }
 

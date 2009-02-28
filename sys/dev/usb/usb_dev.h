@@ -92,7 +92,6 @@ struct usb2_cdev_privdata {
 	struct usb2_fifo	*txfifo;
 	int			bus_index;	/* bus index */
 	int			dev_index;	/* device index */
-	int			iface_index;	/* interface index */
 	int			ep_addr;	/* endpoint address */
 	uint8_t			fifo_index;	/* FIFO index */
 	uint8_t			is_read;	/* location has read access */
@@ -105,7 +104,6 @@ struct usb2_cdev_privdata {
 struct usb2_fs_privdata {
 	int bus_index;
 	int dev_index;
-	int iface_index;
 	int ep_addr;
 	int mode;
 	int fifo_index;
