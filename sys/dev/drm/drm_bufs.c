@@ -880,8 +880,7 @@ int drm_addbufs_pci(struct drm_device *dev, struct drm_buf_desc *request)
 	return ret;
 }
 
-int drm_addbufs_ioctl(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv)
+int drm_addbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_buf_desc *request = data;
 	int err;
