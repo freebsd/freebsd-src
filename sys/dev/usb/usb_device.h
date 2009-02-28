@@ -65,8 +65,6 @@ struct usb2_interface {
 	device_t subdev;
 	uint8_t	alt_index;
 	uint8_t	parent_iface_index;
-	uint16_t ep_in_mask;		/* bitmask of IN endpoints */
-	uint16_t ep_out_mask;		/* bitmask of OUT endpoints */
 };
 
 /*
