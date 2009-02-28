@@ -902,6 +902,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 #endif
 	DRM_SPININIT(&dev_priv->user_irq_lock, "userirq");
 
+	ret = drm_vblank_init(dev, I915_NUM_PIPE);
+
+	if (ret) {
+		(void) i915_driver_unload(dev);
+		return ret;
+	}
+
 	return ret;
 }
 
