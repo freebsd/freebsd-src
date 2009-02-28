@@ -47,7 +47,7 @@
  * IRQ values beyond 256 are used by MSI.  We leave 255 unused to avoid
  * confusion since 255 is used in PCI to indicate an invalid IRQ.
  */
-#define	NUM_MSI_INTS	128
+#define	NUM_MSI_INTS	512
 #define	FIRST_MSI_INT	256
 #define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS)
 
@@ -119,6 +119,15 @@ struct intsrc {
 };
 
 struct trapframe;
+
+/*
+ * The following data structure holds per-cpu data, and is placed just
+ * above the top of the space used for the NMI stack.
+ */
+struct nmi_pcpu {
+	register_t	np_pcpu;
+	register_t	__padding;	/* pad to 16 bytes */
+};
 
 extern struct mtx icu_lock;
 extern int elcr_found;
