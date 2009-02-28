@@ -85,8 +85,8 @@ char	*strerror(int);
 int	 strerror_r(int, char *, size_t);
 #endif
 #if __BSD_VISIBLE
-size_t	 strlcat(char *, const char *, size_t);
-size_t	 strlcpy(char *, const char *, size_t);
+size_t	 strlcat(char * __restrict, const char * __restrict, size_t);
+size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
 #endif
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
