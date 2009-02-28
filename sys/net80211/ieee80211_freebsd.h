@@ -207,8 +207,6 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 #define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
 #define time_before_eq(a,b)	time_after_eq(b,a)
 
-#define	memmove(dst, src, n)	ovbcopy(src, dst, n)
-
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
 /* tx path usage */
