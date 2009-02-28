@@ -6137,7 +6137,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		xpt_release_ccb(done_ccb);
 		softc->action = PROBE_TUR_FOR_NEGOTIATION;
-		xpt_schedule(periph, done_ccb->ccb_h.pinfo.priority);
+		xpt_schedule(periph, priority);
 		return;
 	}
 
