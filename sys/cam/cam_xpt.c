@@ -5194,6 +5194,11 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		/* Save some state for use while we probe for devices */
 		scan_info = (xpt_scan_bus_info *)
 		    malloc(sizeof(xpt_scan_bus_info), M_CAMXPT, M_NOWAIT);
+		if (scan_info == NULL) {
+			request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			xpt_done(request_ccb);
+			return;
+		}
 		scan_info->request_ccb = request_ccb;
 		scan_info->cpi = &work_ccb->cpi;
 
