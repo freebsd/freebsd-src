@@ -822,22 +822,7 @@ fp_common:
 				}
 			} else if ((cp = GETARG(char *)) == NULL)
 				cp = "(null)";
-			if (prec >= 0) {
-				/*
-				 * can't use strlen; can only look for the
-				 * NUL in the first `prec' characters, and
-				 * strlen() will go further.
-				 */
-				char *p = memchr(cp, 0, (size_t)prec);
-
-				if (p != NULL) {
-					size = p - cp;
-					if (size > prec)
-						size = prec;
-				} else
-					size = prec;
-			} else
-				size = strlen(cp);
+			size = (prec >= 0) ? strnlen(cp, prec) : strlen(cp);
 			sign = '\0';
 			break;
 		case 'U':
