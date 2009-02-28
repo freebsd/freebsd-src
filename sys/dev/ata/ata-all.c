@@ -61,7 +61,7 @@ static struct cdevsw ata_cdevsw = {
 
 /* prototypes */
 static void ata_boot_attach(void);
-static device_t ata_add_child(device_t, struct ata_device *, int);
+static void ata_conn_event(void *, int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
@@ -127,6 +127,7 @@ ata_attach(device_t dev)
     bzero(&ch->queue_mtx, sizeof(struct mtx));
     mtx_init(&ch->queue_mtx, "ATA queue lock", NULL, MTX_DEF);
     TAILQ_INIT(&ch->ata_queue);
+    TASK_INIT(&ch->conntask, 0, ata_conn_event, dev);
 
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
@@ -147,7 +148,7 @@ ata_attach(device_t dev)
 	return ENXIO;
     }
     if ((error = bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL,
-				(driver_intr_t *)ata_interrupt, ch, &ch->ih))) {
+				ata_interrupt, ch, &ch->ih))) {
 	device_printf(dev, "unable to setup interrupt\n");
 	return error;
     }
@@ -178,17 +179,31 @@ ata_detach(device_t dev)
     if (!device_get_children(dev, &children, &nchildren)) {
 	for (i = 0; i < nchildren; i++)
 	    if (children[i])
-		device_delete_child(dev, children[i]);
+		ata_delete_child(dev, children[i]);
 	free(children, M_TEMP);
     } 
+    taskqueue_drain(taskqueue_thread, &ch->conntask);
 
     /* release resources */
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
     ch->r_irq = NULL;
+
+    /* free DMA resources if DMA HW present*/
+    if (ch->dma.free)
+	ch->dma.free(dev);
+
     mtx_destroy(&ch->state_mtx);
     mtx_destroy(&ch->queue_mtx);
     return 0;
+}
+
+static void
+ata_conn_event(void *context, int dummy)
+{
+    device_t dev = (device_t)context;
+
+    ata_reinit(dev);
 }
 
 int
@@ -212,6 +227,11 @@ ata_reinit(device_t dev)
 
     /* catch eventual request in ch->running */
     mtx_lock(&ch->state_mtx);
+    if (ch->state & ATA_STALL_QUEUE) {
+	/* Recursive reinits and reinits during detach prohobited. */
+	mtx_unlock(&ch->state_mtx);
+	return (ENXIO);
+    }
     if ((request = ch->running))
 	callout_stop(&request->callout);
     ch->running = NULL;
@@ -244,7 +264,7 @@ ata_reinit(device_t dev)
 			    ata_finish(request);
 		    request = NULL;
 		}
-		device_delete_child(dev, children[i]);
+		ata_delete_child(dev, children[i]);
 	    }
 	}
 	free(children, M_TEMP);
@@ -268,6 +288,9 @@ ata_reinit(device_t dev)
     ch->state = ATA_IDLE;
     mtx_unlock(&ch->state_mtx);
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
+
+    /* Add new children. */
+    ata_identify(dev);
 
     if (bootverbose)
 	device_printf(dev, "reinit done ..\n");
@@ -304,11 +327,10 @@ ata_suspend(device_t dev)
 int
 ata_resume(device_t dev)
 {
-    struct ata_channel *ch;
     int error;
 
     /* check for valid device */
-    if (!dev || !(ch = device_get_softc(dev)))
+    if (!dev || !device_get_softc(dev))
 	return ENXIO;
 
     /* reinit the devices, we dont know what mode/state they are in */
@@ -319,7 +341,7 @@ ata_resume(device_t dev)
     return error;
 }
 
-int
+void
 ata_interrupt(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
@@ -354,11 +376,10 @@ ata_interrupt(void *data)
 	    mtx_unlock(&ch->state_mtx);
 	    ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	    ata_finish(request);
-	    return 1;
+	    return;
 	}
     } while (0);
     mtx_unlock(&ch->state_mtx);
-    return 0;
 }
 
 /*
@@ -382,30 +403,32 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 
     case IOCATAREINIT:
 	if (*value >= devclass_get_maxunit(ata_devclass) ||
-	    !(device = devclass_get_device(ata_devclass, *value)))
+	    !(device = devclass_get_device(ata_devclass, *value)) ||
+	    !device_is_attached(device))
 	    return ENXIO;
 	error = ata_reinit(device);
 	break;
 
     case IOCATAATTACH:
 	if (*value >= devclass_get_maxunit(ata_devclass) ||
-	    !(device = devclass_get_device(ata_devclass, *value)))
+	    !(device = devclass_get_device(ata_devclass, *value)) ||
+	    !device_is_attached(device))
 	    return ENXIO;
-	/* XXX SOS should enable channel HW on controller */
-	error = ata_attach(device);
+	error = DEVICE_ATTACH(device);
 	break;
 
     case IOCATADETACH:
 	if (*value >= devclass_get_maxunit(ata_devclass) ||
-	    !(device = devclass_get_device(ata_devclass, *value)))
+	    !(device = devclass_get_device(ata_devclass, *value)) ||
+	    !device_is_attached(device))
 	    return ENXIO;
-	error = ata_detach(device);
-	/* XXX SOS should disable channel HW on controller */
+	error = DEVICE_DETACH(device);
 	break;
 
     case IOCATADEVICES:
 	if (devices->channel >= devclass_get_maxunit(ata_devclass) ||
-	    !(device = devclass_get_device(ata_devclass, devices->channel)))
+	    !(device = devclass_get_device(ata_devclass, devices->channel)) ||
+	    !device_is_attached(device))
 	    return ENXIO;
 	bzero(devices->name[0], 32);
 	bzero(&devices->params[0], sizeof(struct ata_params));
@@ -566,19 +589,44 @@ ata_boot_attach(void)
 /*
  * misc support functions
  */
-static device_t
-ata_add_child(device_t parent, struct ata_device *atadev, int unit)
+device_t
+ata_add_child(device_t parent, int unit, int atapi)
 {
+    struct ata_device *atadev;
     device_t child;
+    int dev_unit = -1;
 
-    if ((child = device_add_child(parent, NULL, unit))) {
+#ifdef ATA_STATIC_ID
+    if (!atapi)
+	dev_unit = (device_get_unit(parent) << 1) + unit;
+#endif
+    if ((child = device_add_child(parent, NULL, dev_unit))) {
+	if (!(atadev = malloc(sizeof(struct ata_device),
+			  M_ATA, M_NOWAIT | M_ZERO))) {
+	    device_printf(parent, "out of memory\n");
+	    device_delete_child(parent, child);
+	    return (NULL);
+	}
 	device_set_softc(child, atadev);
 	device_quiet(child);
 	atadev->dev = child;
+	atadev->unit = unit;
+	atadev->type = atapi ? ATA_T_ATAPI : ATA_T_ATA;
 	atadev->max_iosize = DEV_BSIZE;
 	atadev->mode = ATA_PIO_MAX;
     }
-    return child;
+    return (child);
+}
+
+int
+ata_delete_child(device_t parent, device_t child)
+{
+    struct ata_device *atadev = device_get_softc(child);
+    int res;
+
+    res = device_delete_child(parent, child);
+    free(atadev, M_ATA);
+    return (res);
 }
 
 int
@@ -589,11 +637,11 @@ ata_getparam(struct ata_device *atadev, int init)
     u_int8_t command = 0;
     int error = ENOMEM, retries = 2;
 
-    if (ch->devices & (ATA_ATA_MASTER << atadev->unit))
+    if (atadev->type == ATA_T_ATA)
 	command = ATA_ATA_IDENTIFY;
-    if (ch->devices & (ATA_ATAPI_MASTER << atadev->unit))
+    else if (atadev->type == ATA_T_ATAPI)
 	command = ATA_ATAPI_IDENTIFY;
-    if (!command)
+    else
 	return ENXIO;
 
     while (retries-- > 0 && error) {
@@ -603,7 +651,9 @@ ata_getparam(struct ata_device *atadev, int init)
 	request->timeout = 1;
 	request->retries = 0;
 	request->u.ata.command = command;
-	request->flags = (ATA_R_READ|ATA_R_AT_HEAD|ATA_R_DIRECT|ATA_R_QUIET);
+	request->flags = (ATA_R_READ|ATA_R_AT_HEAD|ATA_R_THREAD);
+	if (!bootverbose)
+	    request->flags |= ATA_R_QUIET;
 	request->data = (void *)&atadev->param;
 	request->bytecount = sizeof(struct ata_params);
 	request->donecount = 0;
@@ -637,17 +687,18 @@ ata_getparam(struct ata_device *atadev, int init)
 	btrim(atacap->serial, sizeof(atacap->serial));
 	bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
 
-	if (bootverbose)
-	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
+	if (init) {
+	    char buffer[64];
+
+	    if (bootverbose) {
+		printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
 		   device_get_unit(ch->dev),
 		   ata_unit2str(atadev),
 		   ata_mode2str(ata_pmode(atacap)),
 		   ata_mode2str(ata_wmode(atacap)),
 		   ata_mode2str(ata_umode(atacap)),
 		   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
-
-	if (init) {
-	    char buffer[64];
+	    }
 
 	    sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
 	    device_set_desc_copy(atadev->dev, buffer);
@@ -679,38 +730,36 @@ ata_identify(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_device *atadev;
-    device_t child;
-    int i;
+    device_t *children;
+    int nchildren, i, n = ch->devices;
 
     if (bootverbose)
-	device_printf(dev, "identify ch->devices=%08x\n", ch->devices);
+	device_printf(dev, "Identifying devices: %08x\n", ch->devices);
 
-    for (i = 0; i < ATA_PM; ++i) {
-	if (ch->devices & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
-	    int unit = -1;
-
-	    if (!(atadev = malloc(sizeof(struct ata_device),
-				  M_ATA, M_NOWAIT | M_ZERO))) {
-		device_printf(dev, "out of memory\n");
-		return ENOMEM;
-	    }
-	    atadev->unit = i;
-#ifdef ATA_STATIC_ID
-	    if (ch->devices & ((ATA_ATA_MASTER << i)))
-		unit = (device_get_unit(dev) << 1) + i;
-#endif
-	    if ((child = ata_add_child(dev, atadev, unit))) {
-		if (ata_getparam(atadev, 1)) {
-		    device_delete_child(dev, child);
-		    free(atadev, M_ATA);
-		}
-	    }
-	    else
-		free(atadev, M_ATA);
+    mtx_lock(&Giant);
+    /* Skip existing devices. */
+    if (!device_get_children(dev, &children, &nchildren)) {
+	for (i = 0; i < nchildren; i++) {
+	    if (children[i] && (atadev = device_get_softc(children[i])))
+		n &= ~((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << atadev->unit);
 	}
+	free(children, M_TEMP);
     }
+    if (bootverbose)
+	device_printf(dev, "New devices: %08x\n", n);
+    if (n == 0) {
+	mtx_unlock(&Giant);
+	return (0);
+    }
+    /* Create new devices. */
+    for (i = 0; i < ATA_PM; ++i) {
+	if (n & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i)))
+	    ata_add_child(dev, i, n & (ATA_ATAPI_MASTER << i));
+    }
+
     bus_generic_probe(dev);
     bus_generic_attach(dev);
+    mtx_unlock(&Giant);
     return 0;
 }
 
@@ -894,8 +943,7 @@ ata_atapi(device_t dev)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
 
-    return ((atadev->unit == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) ||
-            (atadev->unit == ATA_SLAVE && ch->devices & ATA_ATAPI_SLAVE));
+    return (ch->devices & (ATA_ATAPI_MASTER << atadev->unit));
 }
 
 int

@@ -212,7 +212,7 @@
 #define         ATA_AHCI_P_CMD_NOOP     0x00000000
 #define         ATA_AHCI_P_CMD_ACTIVE   0x10000000
 #define         ATA_AHCI_P_CMD_PARTIAL  0x20000000
-#define         ATA_AHCI_P_CMD_SLUMPER  0x60000000
+#define         ATA_AHCI_P_CMD_SLUMBER  0x60000000
 
 #define ATA_AHCI_P_TFD                  0x120
 #define ATA_AHCI_P_SIG                  0x124
@@ -367,7 +367,6 @@ struct ata_request {
 #define         ATA_R_AT_HEAD           0x00000200
 #define         ATA_R_REQUEUE           0x00000400
 #define         ATA_R_THREAD            0x00000800
-#define         ATA_R_DIRECT            0x00001000
 
 #define         ATA_R_DEBUG             0x10000000
 #define         ATA_R_DANGER1           0x20000000
@@ -411,6 +410,10 @@ struct ata_device {
 #define         ATA_MASTER              0x00
 #define         ATA_SLAVE               0x01
 #define         ATA_PM                  0x0f
+    int                         type;           /* device type */
+#define         ATA_T_ATA               0x00
+#define         ATA_T_ATAPI             0x01
+#define         ATA_T_ATAPI_CAM         0x02
 
     struct ata_params           param;          /* ata param structure */
     int                         mode;           /* current transfermode */
@@ -423,6 +426,8 @@ struct ata_device {
 #define         ATA_D_MEDIA_CHANGED     0x0002
 #define         ATA_D_ENC_PRESENT       0x0004
 #define         ATA_D_48BIT_ACTIVE      0x0008
+#define         ATA_D_PROBED            0x0010
+#define         ATA_D_VALID             0x0020
 };
 
 /* structure for holding DMA Physical Region Descriptors (PRD) entries */
@@ -500,6 +505,7 @@ struct ata_resource {
 struct ata_channel {
     device_t                    dev;            /* device handle */
     int                         unit;           /* physical channel */
+    int                         attached;       /* channel is attached */
     struct ata_resource         r_io[ATA_MAX_RES];/* I/O resources */
     struct resource             *r_irq;         /* interrupt of this channel */
     void                        *ih;            /* interrupt handle */
@@ -529,6 +535,7 @@ struct ata_channel {
     TAILQ_HEAD(, ata_request)   ata_queue;      /* head of ATA queue */
     struct ata_request          *freezepoint;   /* composite freezepoint */
     struct ata_request          *running;       /* currently running request */
+    struct task			conntask;	/* PHY events handling task */
 };
 
 /* disk bay/enclosure related */
@@ -554,10 +561,12 @@ int ata_detach(device_t dev);
 int ata_reinit(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
-int ata_interrupt(void *data);
+void ata_interrupt(void *data);
 int ata_device_ioctl(device_t dev, u_long cmd, caddr_t data);
 int ata_getparam(struct ata_device *atadev, int init);
 int ata_identify(device_t dev);
+device_t ata_add_child(device_t, int, int);
+int ata_delete_child(device_t , device_t);
 void ata_default_registers(device_t dev);
 void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);

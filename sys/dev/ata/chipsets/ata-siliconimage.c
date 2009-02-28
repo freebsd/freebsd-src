@@ -52,14 +52,16 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
-static int ata_cmd_allocate(device_t dev);
+static int ata_cmd_ch_attach(device_t dev);
 static int ata_cmd_status(device_t dev);
 static void ata_cmd_setmode(device_t dev, int mode);
-static int ata_sii_allocate(device_t dev);
+static int ata_sii_ch_attach(device_t dev);
+static int ata_sii_ch_detach(device_t dev);
 static int ata_sii_status(device_t dev);
 static void ata_sii_reset(device_t dev);
 static void ata_sii_setmode(device_t dev, int mode);
-static int ata_siiprb_allocate(device_t dev);
+static int ata_siiprb_ch_attach(device_t dev);
+static int ata_siiprb_ch_detach(device_t dev);
 static int ata_siiprb_status(device_t dev);
 static int ata_siiprb_begin_transaction(struct ata_request *request);
 static int ata_siiprb_end_transaction(struct ata_request *request);
@@ -138,9 +140,9 @@ ata_sii_chipinit(device_t dev)
 	    bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,ctlr->r_res1);
 	    return ENXIO;
 	}
-	ctlr->allocate = ata_siiprb_allocate;
+	ctlr->ch_attach = ata_siiprb_ch_attach;
+	ctlr->ch_detach = ata_siiprb_ch_detach;
 	ctlr->reset = ata_siiprb_reset;
-	ctlr->dmainit = ata_siiprb_dmainit;
 	ctlr->setmode = ata_sata_setmode;
 	ctlr->channels = (ctlr->chip->cfg2 == SII_4CH) ? 4 : 2;
 
@@ -186,8 +188,10 @@ ata_sii_chipinit(device_t dev)
 	/* enable PCI interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
-	if (ctlr->r_res2)
-	    ctlr->allocate = ata_sii_allocate;
+	if (ctlr->r_res2) {
+	    ctlr->ch_attach = ata_sii_ch_attach;
+	    ctlr->ch_detach = ata_sii_ch_detach;
+	}
 
 	if (ctlr->chip->max_dma >= ATA_SA150) {
 	    ctlr->reset = ata_sii_reset;
@@ -206,7 +210,8 @@ ata_sii_chipinit(device_t dev)
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x71, 0x01, 1);
 
-	ctlr->allocate = ata_cmd_allocate;
+	ctlr->ch_attach = ata_cmd_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_cmd_setmode;
 	break;
     }
@@ -214,13 +219,13 @@ ata_sii_chipinit(device_t dev)
 }
 
 static int
-ata_cmd_allocate(device_t dev)
+ata_cmd_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     if (ctlr->chip->cfg2 & SII_INTR)
@@ -300,12 +305,14 @@ ata_cmd_setmode(device_t dev, int mode)
 }
 
 static int
-ata_sii_allocate(device_t dev)
+ata_sii_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i;
+
+    ata_pci_dmainit(dev);
 
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
@@ -345,6 +352,14 @@ ata_sii_allocate(device_t dev)
     ata_pci_hw(dev);
     ch->hw.status = ata_sii_status;
     return 0;
+}
+
+static int
+ata_sii_ch_detach(device_t dev)
+{
+
+    ata_pci_dmafini(dev);
+    return (0);
 }
 
 static int
@@ -467,11 +482,13 @@ struct ata_siiprb_command {
 } __packed;
 
 static int
-ata_siiprb_allocate(device_t dev)
+ata_siiprb_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ch->unit * 0x2000;
+
+    ata_siiprb_dmainit(dev);
 
     /* set the SATA resources */
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
@@ -491,6 +508,14 @@ ata_siiprb_allocate(device_t dev)
     ch->hw.pm_read = ata_siiprb_pm_read;
     ch->hw.pm_write = ata_siiprb_pm_write;
      
+    return 0;
+}
+
+static int
+ata_siiprb_ch_detach(device_t dev)
+{
+
+    ata_dmafini(dev);
     return 0;
 }
 
@@ -824,17 +849,17 @@ ata_siiprb_reset(device_t dev)
 	device_printf(dev, "SIGNATURE=%08x\n", signature);
 
     /* figure out whats there */
-    switch (signature) {
-    case 0x00000101:
+    switch (signature >> 16) {
+    case 0x0000:
 	ch->devices = ATA_ATA_MASTER;
 	break;
-    case 0x96690101:
+    case 0x9669:
 	ch->devices = ATA_PORTMULTIPLIER;
 	ATA_OUTL(ctlr->r_res2, 0x1000 + offset, 0x2000); /* enable PM support */
 	//SOS XXX need to clear all PM status and interrupts!!!!
 	ata_pm_identify(dev);
 	break;
-    case 0xeb140101:
+    case 0xeb14:
 	ch->devices = ATA_ATAPI_MASTER;
 	break;
     default:

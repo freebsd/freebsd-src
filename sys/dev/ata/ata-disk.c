@@ -79,6 +79,18 @@ ad_probe(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
+    if (atadev->type != ATA_T_ATA)
+	return (ENXIO);
+
+    if (!(atadev->flags & ATA_D_PROBED)) {
+	atadev->flags |= ATA_D_PROBED;
+	if (ata_getparam(atadev, 1) == 0)
+	    atadev->flags |= ATA_D_VALID;
+    }
+
+    if (!(atadev->flags & ATA_D_VALID))
+	return (ENXIO);
+
     if (!(atadev->param.config & ATA_PROTO_ATAPI) ||
 	(atadev->param.config == ATA_CFA_MAGIC1) ||
 	(atadev->param.config == ATA_CFA_MAGIC2) ||
@@ -182,13 +194,14 @@ ad_detach(device_t dev)
     return 0;
 }
 
-static void
+static int
 ad_shutdown(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
+    return 0;
 }
 
 static int
@@ -198,10 +211,9 @@ ad_reinit(device_t dev)
     struct ata_device *atadev = device_get_softc(dev);
 
     /* if detach pending, return error */
-    if (((atadev->unit == ATA_MASTER) && !(ch->devices & ATA_ATA_MASTER)) ||
-	((atadev->unit == ATA_SLAVE) && !(ch->devices & ATA_ATA_SLAVE))) {
+    if (!(ch->devices & (ATA_ATA_MASTER << atadev->unit)))
 	return 1;
-    }
+
     ad_init(dev);
     return 0;
 }

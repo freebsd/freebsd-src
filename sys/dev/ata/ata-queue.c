@@ -119,6 +119,7 @@ int
 ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	       u_int64_t lba, u_int16_t count)
 {
+    struct ata_device *atadev = device_get_softc(dev);
     struct ata_request *request = ata_alloc_request();
     int error = ENOMEM;
 
@@ -129,7 +130,13 @@ ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	request->u.ata.count = count;
 	request->u.ata.feature = feature;
 	request->flags = ATA_R_CONTROL;
-	request->timeout = 1;
+	if (atadev->spindown_state) {
+	    device_printf(dev, "request while spun down, starting.\n");
+	    atadev->spindown_state = 0;
+	    request->timeout = 31;
+	} else {
+	    request->timeout = 5;
+	}
 	request->retries = 0;
 	ata_queue_request(request);
 	error = request->result;
@@ -214,8 +221,10 @@ ata_start(device_t dev)
 		if (dumping) {
 		    mtx_unlock(&ch->state_mtx);
 		    mtx_unlock(&ch->queue_mtx);
-		    while (!ata_interrupt(ch))
+		    while (ch->running) {
+			ata_interrupt(ch);
 			DELAY(10);
+		    }
 		    return;
 		}       
 	    }
@@ -228,14 +237,8 @@ ata_start(device_t dev)
 void
 ata_finish(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(request->parent);
 
-    /*
-     * if in ATA_STALL_QUEUE state or request has ATA_R_DIRECT flags set
-     * we need to call ata_complete() directly here (no taskqueue involvement)
-     */
-    if (dumping ||
-	(ch->state & ATA_STALL_QUEUE) || (request->flags & ATA_R_DIRECT)) {
+    if (dumping) {
 	ATA_DEBUG_RQ(request, "finish directly");
 	ata_completed(request, 0);
     }
@@ -434,7 +437,8 @@ ata_completed(void *context, int dummy)
 		printf("\n");
 	}
 
-	if ((request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ?
+	if (!request->result &&
+	     (request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ?
 	     request->u.atapi.sense.key & ATA_SENSE_KEY_MASK : 
 	     request->error))
 	    request->result = EIO;

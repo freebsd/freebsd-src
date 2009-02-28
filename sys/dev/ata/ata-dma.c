@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 
 /* prototypes */
-static void ata_dmafini(device_t dev);
 static void ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static void ata_dmaalloc(device_t dev);
 static void ata_dmafree(device_t dev);
