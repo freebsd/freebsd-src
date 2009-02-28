@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2005
+.Dd February 28, 2009
 .Dt WMEMCHR 3
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Nm wmemcpy ,
 .Nm wmemmove ,
 .Nm wmemset ,
+.Nm wcscasecmp ,
 .Nm wcscat ,
 .Nm wcschr ,
 .Nm wcscmp ,
@@ -53,9 +54,11 @@
 .Nm wcslcat ,
 .Nm wcslcpy ,
 .Nm wcslen ,
+.Nm wcsncasecmp ,
 .Nm wcsncat ,
 .Nm wcsncmp ,
 .Nm wcsncpy ,
+.Nm wcsnlen ,
 .Nm wcspbrk ,
 .Nm wcsrchr ,
 .Nm wcsspn ,
@@ -75,6 +78,8 @@
 .Fn wmemmove "wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft wchar_t *
 .Fn wmemset "wchar_t *s" "wchar_t c" "size_t n"
+.Ft int
+.Fn wcscasecmp "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
 .Fn wcscat "wchar_t * restrict s1" "const wchar_t * restrict s2"
 .Ft wchar_t *
@@ -93,12 +98,16 @@
 .Fn wcslcpy "wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft size_t
 .Fn wcslen "const wchar_t *s"
+.Ft int
+.Fn wcsncasecmp "const wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft wchar_t *
 .Fn wcsncat "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
 .Ft int
 .Fn wcsncmp "const wchar_t *s1" "const wchar_t * s2" "size_t n"
 .Ft wchar_t *
 .Fn wcsncpy "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
+.Ft size_t
+.Fn wcsnlen "const wchar_t *s" "size_t maxlen"
 .Ft wchar_t *
 .Fn wcspbrk "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
@@ -119,6 +128,7 @@ counterpart, such as
 .Xr memcpy 3 ,
 .Xr memmove 3 ,
 .Xr memset 3 ,
+.Xr strcasecmp 3 ,
 .Xr strcat 3 ,
 .Xr strchr 3 ,
 .Xr strcmp 3 ,
@@ -131,6 +141,7 @@ counterpart, such as
 .Xr strncat 3 ,
 .Xr strncmp 3 ,
 .Xr strncpy 3 ,
+.Xr strnlen 3 ,
 .Xr strpbrk 3 ,
 .Xr strrchr 3 ,
 .Xr strspn 3 ,
@@ -139,8 +150,15 @@ counterpart, such as
 These functions conform to
 .St -isoC-99 ,
 with the exception of
+.Fn wcscasecmp ,
 .Fn wcsdup ,
-.Fn wcslcat ,
+.Fn wcsncasecmp ,
+and
+.Fn wcsnlen ,
+which conform to
+.St -p1003.1-2008 ;
+and
+.Fn wcslcat
 and
 .Fn wcslcpy ,
 which are extensions.
