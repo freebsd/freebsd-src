@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090301:
+	The layout of struct ifnet has changed, requiring a rebuild of all
+	network device driver modules.
+
 20090227:
 	The /dev handling for the new USB stack has changed, a
 	buildworld/installworld is required for libusb20.
