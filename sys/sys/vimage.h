@@ -113,6 +113,79 @@ int	vi_symlookup(struct kld_sym_lookup *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
 
 /*
+ * Size-guards for the vimage structures.
+ * If you need to update the values you MUST increment __FreeBSD_version.
+ * See description further down to see how to get the new values.
+ */
+#ifdef __amd64__
+#define	SIZEOF_vnet_net		464
+#define	SIZEOF_vnet_net_LINT	5144
+#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_ipsec	31160
+#endif
+#ifdef __arm__
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
+#define	SIZEOF_vnet_inet	2396
+#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_ipsec	1
+#endif
+#ifdef __i386__ /* incl. pc98 */
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	2576
+#define	SIZEOF_vnet_inet	2396
+#define	SIZEOF_vnet_inet6	8528
+#define	SIZEOF_vnet_ipsec	31016
+#endif
+#ifdef __ia64__
+#define	SIZEOF_vnet_net		464
+#define	SIZEOF_vnet_net_LINT	5144
+#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_ipsec	31160
+#endif
+#ifdef __mips__
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
+#define	SIZEOF_vnet_inet	2432
+#define	SIZEOF_vnet_inet6	8552
+#define	SIZEOF_vnet_ipsec	1
+#endif
+#ifdef __powerpc__
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	2576
+#define	SIZEOF_vnet_inet	2432
+#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_ipsec	31048
+#endif
+#ifdef __sparc64__ /* incl. sun4v */
+#define	SIZEOF_vnet_net		464
+#define	SIZEOF_vnet_net_LINT	5144
+#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_ipsec	31160
+#endif
+
+#ifdef COMPILING_LINT
+#undef	SIZEOF_vnet_net
+#define	SIZEOF_vnet_net	SIZEOF_vnet_net_LINT
+#endif
+
+#ifndef	SIZEOF_vnet_net
+#error "SIZEOF_vnet_net no defined for this architecture."
+#endif
+#ifndef	SIZEOF_vnet_inet
+#error "SIZEOF_vnet_inet no defined for this architecture."
+#endif
+#ifndef	SIZEOF_vnet_inet6
+#error "SIZEOF_vnet_inet6 no defined for this architecture."
+#endif
+#ifndef	SIZEOF_vnet_ipsec
+#error "SIZEOF_vnet_ipsec no defined for this architecture."
+#endif
+
+/*
  * x must be a positive integer constant (expected value),
  * y must be compile-time evaluated to a positive integer,
  * e.g. CTASSERT_EQUAL(FOO_EXPECTED_SIZE, sizeof (struct foo));
@@ -135,5 +208,31 @@ void	vnet_mod_register(const struct vnet_modinfo *);
 		    _but_got)[(y)]);					\
 	}								\
 	struct __hack
+
+/*
+ * x shall be the expected value (SIZEOF_vnet_* from above)
+ * and y shall be the real size (sizeof(struct vnet_*)).
+ * If you run into the CTASSERT() you want to compile a universe
+ * with COPTFLAGS+="-O -Wuninitialized -DVIMAGE_CHECK_SIZES".
+ * This should give you the errors for the proper values defined above.
+ * Make sure to re-run universe with the proper values afterwards -
+ * -DMAKE_JUST_KERNELS should be enough.
+ * 
+ * Note: 
+ * CTASSERT() takes precedence in the current FreeBSD world thus the
+ * CTASSERT_EQUAL() will not neccessarily trigger if one uses both.
+ * But as CTASSERT_EQUAL() needs special compile time options, we
+ * want the default case to be backed by CTASSERT().
+ */
+#ifndef VIMAGE_CTASSERT
+#ifdef VIMAGE_CHECK_SIZES
+#define	VIMAGE_CTASSERT(x, y)						\
+	CTASSERT_EQUAL(x, y)
+#else
+#define	VIMAGE_CTASSERT(x, y)						\
+	CTASSERT_EQUAL(x, y);						\
+	CTASSERT(x == 0 || x == y)
+#endif
+#endif
 
 #endif /* !_SYS_VIMAGE_H_ */
