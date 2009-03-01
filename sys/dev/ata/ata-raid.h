@@ -76,7 +76,8 @@ struct ar_softc {
 #define AR_F_SII_RAID           0x0800
 #define AR_F_SIS_RAID           0x1000
 #define AR_F_VIA_RAID           0x2000
-#define AR_F_FORMAT_MASK        0x3fff
+#define AR_F_DDF_RAID		0x4000
+#define AR_F_FORMAT_MASK        0x7fff
 
     u_int               generation;
     u_int64_t           total_sectors;
@@ -164,6 +165,9 @@ struct adaptec_raid_conf {
     u_int32_t           dummy_9[62];
 } __packed;
 
+/* DDF Information.  Metadata definitions are in another file */
+#define DDF_LBA(dev) \
+	(((struct ad_softc *)device_get_ivars(dev))->total_secs - 1)
 
 /* Highpoint V2 RocketRAID Metadata */
 #define HPTV2_LBA(dev)  9
