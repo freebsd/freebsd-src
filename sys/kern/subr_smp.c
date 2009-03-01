@@ -362,9 +362,11 @@ smp_rendezvous_cpus(cpumask_t map,
 		return;
 	}
 
-	for (i = 0; i < mp_maxid; i++)
+	for (i = 0; i <= mp_maxid; i++)
 		if (((1 << i) & map) != 0 && !CPU_ABSENT(i))
 			ncpus++;
+	if (ncpus == 0)
+		return;
 
 	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);
