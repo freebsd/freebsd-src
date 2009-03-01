@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #endif /* !_KERNEL */
 
 /*
- * This is the default number of seconds we wait for devices to settle
+ * This is the default number of milliseconds we wait for devices to settle
  * after a SCSI bus reset.
  */
 #ifndef SCSI_DELAY
