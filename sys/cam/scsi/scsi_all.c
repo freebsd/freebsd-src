@@ -103,23 +103,27 @@ static int	set_scsi_delay(int delay);
 
 #if !defined(SCSI_NO_OP_STRINGS)
 
-#define D 0x001
-#define T 0x002
-#define L 0x004
-#define P 0x008
-#define W 0x010
-#define R 0x020
-#define S 0x040
-#define O 0x080
-#define M 0x100
-#define C 0x200
-#define A 0x400
-#define E 0x800
+#define	D	(1 << T_DIRECT)
+#define	T	(1 << T_SEQUENTIAL)
+#define	L	(1 << T_PRINTER)
+#define	P	(1 << T_PROCESSOR)
+#define	W	(1 << T_WORM)
+#define	R	(1 << T_CDROM)
+#define	O	(1 << T_OPTICAL)
+#define	M	(1 << T_CHANGER)
+#define	A	(1 << T_STORARRAY)
+#define	E	(1 << T_ENCLOSURE)
+#define	B	(1 << T_RBC)
+#define	K	(1 << T_OCRW)
+#define	V	(1 << T_ADC)
+#define	F	(1 << T_OSD)
+#define	S	(1 << T_SCANNER)
+#define	C	(1 << T_COMM)
 
-#define ALL 0xFFF
+#define ALL	(D | T | L | P | W | R | O | M | A | E | B | K | V | F | S | C)
 
 static struct op_table_entry plextor_cd_ops[] = {
-	{0xD8, R, "CD-DA READ"}
+	{ 0xD8, R, "CD-DA READ" }
 };
 
 static struct scsi_op_quirk_entry scsi_op_quirk_table[] = {
@@ -140,519 +144,456 @@ static struct scsi_op_quirk_entry scsi_op_quirk_table[] = {
 };
 
 static struct op_table_entry scsi_op_codes[] = {
-/*
- * From: ftp://ftp.symbios.com/pub/standards/io/t10/drafts/spc/op-num.txt
- * Modifications by Kenneth Merry (ken@FreeBSD.ORG)
- *
- * Note:  order is important in this table, scsi_op_desc() currently
- * depends on the opcodes in the table being in order to save search time.
- */
-/*  
- * File: OP-NUM.TXT
- *
- * SCSI Operation Codes
- * Numeric Sorted Listing
- * as of 11/13/96
- * 
- *     D - DIRECT ACCESS DEVICE (SBC)                    device column key
- *     .T - SEQUENTIAL ACCESS DEVICE (SSC)              -------------------
- *     . L - PRINTER DEVICE (SSC)                       M = Mandatory
- *     .  P - PROCESSOR DEVICE (SPC)                    O = Optional
- *     .  .W - WRITE ONCE READ MULTIPLE DEVICE (SBC)    V = Vendor specific
- *     .  . R - CD DEVICE (MMC)                         R = Reserved
- *     .  .  S - SCANNER DEVICE (SGC)                   Z = Obsolete
- *     .  .  .O - OPTICAL MEMORY DEVICE (SBC)
- *     .  .  . M - MEDIA CHANGER DEVICE (SMC)
- *     .  .  .  C - COMMUNICATION DEVICE (SSC)
- *     .  .  .  .A - STORAGE ARRAY DEVICE (SCC)
- *     .  .  .  . E - ENCLOSURE SERVICES DEVICE (SES)
- * OP  DTLPWRSOMCAE  Description
- * --  ------------  ---------------------------------------------------- */
-/* 00  MMMMMMMMMMMM  TEST UNIT READY */
-{0x00, ALL, 		"TEST UNIT READY"},
-
-/* 01   M            REWIND */
-{0x01, T,           "REWIND"},
-/* 01  Z V ZO ZO     REZERO UNIT */
-{0x01, D|L|W|O|M,   "REZERO UNIT"},
-
-/* 02  VVVVVV  V   */
-
-/* 03  MMMMMMMMMMMM  REQUEST SENSE */
-{0x03, ALL,         "REQUEST SENSE"},
-
-/* 04  M    O O      FORMAT UNIT */
-{0x04, D|R|O,       "FORMAT UNIT"},
-/* 04   O            FORMAT MEDIUM */
-{0x04, T,           "FORMAT MEDIUM"},
-/* 04    O           FORMAT */
-{0x04, L,           "FORMAT"},
-
-/* 05  VMVVVV  V     READ BLOCK LIMITS */
-{0x05, T,           "READ BLOCK LIMITS"},
-
-/* 06  VVVVVV  V   */
-
-/* 07  OVV O  OV     REASSIGN BLOCKS */
-{0x07, D|W|O,       "REASSIGN BLOCKS"},
-/* 07          O     INITIALIZE ELEMENT STATUS */
-{0x07, M,           "INITIALIZE ELEMENT STATUS"},
-
-/* 08  OMV OO OV     READ(06) */
-{0x08, D|T|W|R|O,   "READ(06)"},
-/* 08     O          RECEIVE */
-{0x08, P,           "RECEIVE"},
-/* 08           M    GET MESSAGE(06) */
-{0x08, C,           "GET MESSAGE(06)"},
-
-/* 09  VVVVVV  V   */
-
-/* 0A  OM  O  OV     WRITE(06) */
-{0x0A, D|T|W|O, "WRITE(06)"},
-/* 0A     M          SEND(06) */
-{0x0A, P,           "SEND(06)"},
-/* 0A           M    SEND MESSAGE(06) */
-{0x0A, C,           "SEND MESSAGE(06)"},
-/* 0A    M           PRINT */
-{0x0A, L,           "PRINT"},
-
-/* 0B  Z   ZO ZV     SEEK(06) */
-{0x0B, D|W|R|O,     "SEEK(06)"},
-/* 0B    O           SLEW AND PRINT */
-{0x0B, L,           "SLEW AND PRINT"},
-
-/* 0C  VVVVVV  V   */
-/* 0D  VVVVVV  V   */
-/* 0E  VVVVVV  V   */
-/* 0F  VOVVVV  V     READ REVERSE */
-{0x0F, T,           "READ REVERSE"},
-
-/* 10  VM VVV        WRITE FILEMARKS */
-{0x10, T,           "WRITE FILEMARKS"},
-/* 10    O O         SYNCHRONIZE BUFFER */
-{0x10, L|W,         "SYNCHRONIZE BUFFER"},
-
-/* 11  VMVVVV        SPACE */
-{0x11, T,           "SPACE"},
-
-/* 12  MMMMMMMMMMMM  INQUIRY */
-{0x12, ALL,         "INQUIRY"},
-
-/* 13  VOVVVV        VERIFY(06) */
-{0x13, T,           "VERIFY(06)"},
-
-/* 14  VOOVVV        RECOVER BUFFERED DATA */
-{0x14, T|L,         "RECOVER BUFFERED DATA"},
-
-/* 15  OMO OOOOOOOO  MODE SELECT(06) */
-{0x15, ALL & ~(P),    "MODE SELECT(06)"},
-
-/* 16  MMMOMMMM   O  RESERVE(06) */
-{0x16, D|T|L|P|W|R|S|O|E, "RESERVE(06)"},
-/* 16          M     RESERVE ELEMENT(06) */
-{0x16, M,           "RESERVE ELEMENT(06)"},
-
-/* 17  MMMOMMMM   O  RELEASE(06) */
-{0x17, ALL & ~(M|C|A), "RELEASE(06)"},
-/* 17          M     RELEASE ELEMENT(06) */
-{0x17, M,           "RELEASE ELEMENT(06)"},
-
-/* 18  OOOOOOOO      COPY */
-{0x18, ALL & ~(M|C|A|E), "COPY"},
-
-/* 19  VMVVVV        ERASE */
-{0x19, T,           "ERASE"},
-
-/* 1A  OMO OOOOOOOO  MODE SENSE(06) */
-{0x1A, ALL & ~(P),  "MODE SENSE(06)"},
-
-/* 1B  O   OM O      STOP START UNIT */
-{0x1B, D|W|R|O,     "STOP START UNIT"},
-/* 1B   O            LOAD UNLOAD */
-{0x1B, T,           "LOAD UNLOAD"},
-/* 1B        O       SCAN */
-{0x1B, S,           "SCAN"},
-/* 1B    O           STOP PRINT */
-{0x1B, L,           "STOP PRINT"},
-
-/* 1C  OOOOOOOOOO M  RECEIVE DIAGNOSTIC RESULTS */
-{0x1C, ALL & ~(A),  "RECEIVE DIAGNOSTIC RESULTS"},
-
-/* 1D  MMMMMMMMMMMM  SEND DIAGNOSTIC */
-{0x1D, ALL,         "SEND DIAGNOSTIC"},
-
-/* 1E  OO  OM OO     PREVENT ALLOW MEDIUM REMOVAL */
-{0x1E, D|T|W|R|O|M, "PREVENT ALLOW MEDIUM REMOVAL"},
-
-/* 1F */
-/* 20  V   VV V */
-/* 21  V   VV V */
-/* 22  V   VV V */
-/* 23  V   VV V */
-
-/* 24  V   VVM       SET WINDOW */
-{0x24, S,           "SET WINDOW"},
-
-/* 25  M   M  M      READ CAPACITY */
-{0x25, D|W|O,       "READ CAPACITY"},
-/* 25       M        READ CD RECORDED CAPACITY */
-{0x25, R,           "READ CD RECORDED CAPACITY"},
-/* 25        O       GET WINDOW */
-{0x25, S,           "GET WINDOW"},
-
-/* 26  V   VV */
-/* 27  V   VV */
-
-/* 28  M   MMMM      READ(10) */
-{0x28, D|W|R|S|O,   "READ(10)"},
-/* 28           O    GET MESSAGE(10) */
-{0x28, C,           "GET MESSAGE(10)"},
-
-/* 29  V   VV O      READ GENERATION */
-{0x29, O,           "READ GENERATION"},
-
-/* 2A  M   MM M      WRITE(10) */
-{0x2A, D|W|R|O,     "WRITE(10)"},
-/* 2A        O       SEND(10) */
-{0x2A, S,           "SEND(10)"},
-/* 2A           O    SEND MESSAGE(10) */
-{0x2A, C,           "SEND MESSAGE(10)"},
-
-/* 2B  O   OM O      SEEK(10) */
-{0x2B, D|W|R|O,     "SEEK(10)"},
-/* 2B   O            LOCATE */
-{0x2B, T,           "LOCATE"},
-/* 2B          O     POSITION TO ELEMENT */
-{0x2B, M,           "POSITION TO ELEMENT"},
-
-/* 2C  V      O      ERASE(10) */
-{0x2C, O,           "ERASE(10)"},
-
-/* 2D  V   O  O      READ UPDATED BLOCK */
-{0x2D, W|O,         "READ UPDATED BLOCK"},
-
-/* 2E  O   O  O      WRITE AND VERIFY(10) */
-{0x2E, D|W|O,       "WRITE AND VERIFY(10)"},
-
-/* 2F  O   OO O      VERIFY(10) */
-{0x2F, D|W|R|O,     "VERIFY(10)"},
-
-/* 30  Z   ZO Z      SEARCH DATA HIGH(10) */
-{0x30, D|W|R|O,     "SEARCH DATA HIGH(10)"},
-
-/* 31  Z   ZO Z      SEARCH DATA EQUAL(10) */
-{0x31, D|W|R|O,     "SEARCH DATA EQUAL(10)"},
-/* 31        O       OBJECT POSITION */
-{0x31, S,           "OBJECT POSITION"},
-
-/* 32  Z   ZO Z      SEARCH DATA LOW(10) */
-{0x32, D|W|R|O,     "SEARCH DATA LOW(10"},
-
-/* 33  O   OO O      SET LIMITS(10) */
-{0x33, D|W|R|O,     "SET LIMITS(10)"},
-
-/* 34  O   OO O      PRE-FETCH */
-{0x34, D|W|R|O,     "PRE-FETCH"},
-/* 34   O            READ POSITION */
-{0x34, T,           "READ POSITION"},
-/* 34        O       GET DATA BUFFER STATUS */
-{0x34, S,           "GET DATA BUFFER STATUS"},
-
-/* 35  O   OM O      SYNCHRONIZE CACHE */
-{0x35, D|W|R|O,     "SYNCHRONIZE CACHE"},
-
-/* 36  O   OO O      LOCK UNLOCK CACHE */
-{0x36, D|W|R|O,     "LOCK UNLOCK CACHE"},
-
-/* 37  O      O      READ DEFECT DATA(10) */
-{0x37, D|O,         "READ DEFECT DATA(10)"},
-
-/* 38      O  O      MEDIUM SCAN */
-{0x38, W|O,         "MEDIUM SCAN"},
-
-/* 39  OOOOOOOO      COMPARE */
-{0x39, ALL & ~(M|C|A|E), "COMPARE"},
-
-/* 3A  OOOOOOOO      COPY AND VERIFY */
-{0x3A, ALL & ~(M|C|A|E), "COPY AND VERIFY"},
-
-/* 3B  OOOOOOOOOO O  WRITE BUFFER */
-{0x3B, ALL & ~(A),  "WRITE BUFFER"},
-
-/* 3C  OOOOOOOOOO    READ BUFFER */
-{0x3C, ALL & ~(A|E),"READ BUFFER"},
-
-/* 3D      O  O      UPDATE BLOCK */
-{0x3D, W|O,         "UPDATE BLOCK"},
-
-/* 3E  O   OO O      READ LONG */
-{0x3E, D|W|R|O,     "READ LONG"},
-
-/* 3F  O   O  O      WRITE LONG */
-{0x3F, D|W|O,       "WRITE LONG"},
-
-/* 40  OOOOOOOOOO    CHANGE DEFINITION */
-{0x40, ALL & ~(A|E),"CHANGE DEFINITION"},
-
-/* 41  O             WRITE SAME */
-{0x41, D,           "WRITE SAME"},
-
-/* 42       M        READ SUB-CHANNEL */
-{0x42, R,           "READ SUB-CHANNEL"}, 
-
-/* 43       M        READ TOC/PMA/ATIP {MMC Proposed} */
-{0x43, R,           "READ TOC/PMA/ATIP {MMC Proposed}"},
-
-/* 44   M            REPORT DENSITY SUPPORT */
-{0x44, T,           "REPORT DENSITY SUPPORT"},
-/* 44       M        READ HEADER */
-{0x44, R,           "READ HEADER"},
-
-/* 45       O        PLAY AUDIO(10) */
-{0x45, R,           "PLAY AUDIO(10)"},
-
-/* 46 */
-
-/* 47       O        PLAY AUDIO MSF */
-{0x47, R,           "PLAY AUDIO MSF"},
-
-/* 48       O        PLAY AUDIO TRACK INDEX */
-{0x48, R,           "PLAY AUDIO TRACK INDEX"},
-
-/* 49       O        PLAY TRACK RELATIVE(10) */
-{0x49, R,           "PLAY TRACK RELATIVE(10)"},
-
-/* 4A */
-
-/* 4B       O        PAUSE/RESUME */
-{0x4B, R,           "PAUSE/RESUME"},
-
-/* 4C  OOOOOOOOOOO   LOG SELECT */
-{0x4C, ALL & ~(E),  "LOG SELECT"},
-
-/* 4D  OOOOOOOOOOO   LOG SENSE */
-{0x4D, ALL & ~(E),  "LOG SENSE"},
-
-/* 4E       O        STOP PLAY/SCAN {MMC Proposed} */
-{0x4E, R,           "STOP PLAY/SCAN {MMC Proposed}"},
-
-/* 4F */
-
-/* 50  O             XDWRITE(10) */
-{0x50, D,           "XDWRITE(10)"},
-
-/* 51  O             XPWRITE(10) */
-{0x51, D,           "XPWRITE(10)"},
-/* 51       M        READ DISC INFORMATION {MMC Proposed} */
-{0x51, R,           "READ DISC INFORMATION {MMC Proposed}"},
-
-/* 52  O             XDREAD(10) */
-{0x52, D,           "XDREAD(10)"},
-/* 52       M        READ TRACK INFORMATION {MMC Proposed} */
-{0x52, R,           "READ TRACK INFORMATION {MMC Proposed}"},
-
-/* 53       M        RESERVE TRACK {MMC Proposed} */
-{0x53, R,           "RESERVE TRACK {MMC Proposed}"},
-
-/* 54       O        SEND OPC INFORMATION {MMC Proposed} */
-{0x54, R,           "SEND OPC INFORMATION {MMC Proposed}"},
-
-/* 55  OOO OOOOOOOO  MODE SELECT(10) */
-{0x55, ALL & ~(P),  "MODE SELECT(10)"},
-
-/* 56  MMMOMMMM   O  RESERVE(10) */
-{0x56, ALL & ~(M|C|A), "RESERVE(10)"},
-/* 56          M     RESERVE ELEMENT(10) */
-{0x56, M,           "RESERVE ELEMENT(10)"},
-
-/* 57  MMMOMMMM   O  RELEASE(10) */
-{0x57, ALL & ~(M|C|A), "RELEASE(10"},
-/* 57          M     RELEASE ELEMENT(10) */
-{0x57, M,           "RELEASE ELEMENT(10)"},
-
-/* 58       O        REPAIR TRACK {MMC Proposed} */
-{0x58, R,           "REPAIR TRACK {MMC Proposed}"},
-
-/* 59       O        READ MASTER CUE {MMC Proposed} */
-{0x59, R,           "READ MASTER CUE {MMC Proposed}"},
-
-/* 5A  OOO OOOOOOOO  MODE SENSE(10) */
-{0x5A, ALL & ~(P),  "MODE SENSE(10)"},
-
-/* 5B       M        CLOSE TRACK/SESSION {MMC Proposed} */
-{0x5B, R,           "CLOSE TRACK/SESSION {MMC Proposed}"},
-
-/* 5C       O        READ BUFFER CAPACITY {MMC Proposed} */
-{0x5C, R,           "READ BUFFER CAPACITY {MMC Proposed}"},
-
-/* 5D       O        SEND CUE SHEET {MMC Proposed} */
-{0x5D, R,           "SEND CUE SHEET {MMC Proposed}"},
-
-/* 5E  OOOOOOOOO  O  PERSISTENT RESERVE IN */
-{0x5E, ALL & ~(C|A),"PERSISTENT RESERVE IN"},
-
-/* 5F  OOOOOOOOO  O  PERSISTENT RESERVE OUT */
-{0x5F, ALL & ~(C|A),"PERSISTENT RESERVE OUT"},
-
-/* 80  O             XDWRITE EXTENDED(16) */
-{0x80, D,           "XDWRITE EXTENDED(16)"},
-
-/* 81  O             REBUILD(16) */
-{0x81, D,           "REBUILD(16)"},
-
-/* 82  O             REGENERATE(16) */
-{0x82, D,           "REGENERATE(16)"},
-
-/* 83 */
-/* 84 */
-/* 85 */
-/* 86 */
-/* 87 */
-/* 88  MM  OO O    O   READ(16) */
-{0x88, D|T|W|R|O,     "READ(16)"},
-/* 89 */
-/* 8A  OM  O  O    O   WRITE(16) */
-{0x8A, D|T|W|R|O,     "WRITE(16)"},
-/* 8B */
-/* 8C */
-/* 8D */
-/* 8E */
-/* 8F */
-/* 90 */
-/* 91 */
-/* 92 */
-/* 93 */
-/* 94 */
-/* 95 */
-/* 96 */
-/* 97 */
-/* 98 */
-/* 99 */
-/* 9A */
-/* 9B */
-/* 9C */
-/* 9D */
-/* XXX KDM ALL for these?  op-num.txt defines them for none.. */
-/* 9E                  SERVICE ACTION IN(16) */
-{0x9E, ALL,           "SERVICE ACTION IN(16)"},
-/* 9F                  SERVICE ACTION OUT(16) */
-{0x9F, ALL,           "SERVICE ACTION OUT(16)"},
-
-/* A0  OOOOOOOOOOO   REPORT LUNS */
-{0xA0, ALL & ~(E),  "REPORT LUNS"},
-
-/* A1       O        BLANK {MMC Proposed} */
-{0xA1, R,           "BLANK {MMC Proposed}"},
-
-/* A2       O        WRITE CD MSF {MMC Proposed} */
-{0xA2, R,           "WRITE CD MSF {MMC Proposed}"},
-
-/* A3            M   MAINTENANCE (IN) */
-{0xA3, A,           "MAINTENANCE (IN)"},
-
-/* A4            O   MAINTENANCE (OUT) */
-{0xA4, A,           "MAINTENANCE (OUT)"},
-
-/* A5   O      M     MOVE MEDIUM */
-{0xA5, T|M,         "MOVE MEDIUM"},
-/* A5       O        PLAY AUDIO(12) */
-{0xA5, R,           "PLAY AUDIO(12)"},
-
-/* A6          O     EXCHANGE MEDIUM */
-{0xA6, M,           "EXCHANGE MEDIUM"},
-/* A6       O        LOAD/UNLOAD CD {MMC Proposed} */
-{0xA6, R,           "LOAD/UNLOAD CD {MMC Proposed}"},
-
-/* A7  OO  OO OO     MOVE MEDIUM ATTACHED */
-{0xA7, D|T|W|R|O|M, "MOVE MEDIUM ATTACHED"},
-
-/* A8  O   OM O      READ(12) */
-{0xA8,D|W|R|O,      "READ(12)"},
-/* A8           O    GET MESSAGE(12) */
-{0xA8, C,           "GET MESSAGE(12)"},
-
-/* A9       O        PLAY TRACK RELATIVE(12) */
-{0xA9, R,           "PLAY TRACK RELATIVE(12)"},
-
-/* AA  O   O  O      WRITE(12) */
-{0xAA,D|W|O,        "WRITE(12)"},
-/* AA       O        WRITE CD(12) {MMC Proposed} */
-{0xAA, R,           "WRITE CD(12) {MMC Proposed}"},
-/* AA           O    SEND MESSAGE(12) */
-{0xAA, C,           "SEND MESSAGE(12)"},
-
-/* AB */
-
-/* AC         O      ERASE(12) */
-{0xAC, O,           "ERASE(12)"},
-
-/* AD */
-
-/* AE      O  O      WRITE AND VERIFY(12) */
-{0xAE, W|O,         "WRITE AND VERIFY(12)"},
-
-/* AF      OO O      VERIFY(12) */
-{0xAF, W|R|O,       "VERIFY(12)"},
-
-/* B0      ZO Z      SEARCH DATA HIGH(12) */
-{0xB0, W|R|O,       "SEARCH DATA HIGH(12)"},
-
-/* B1      ZO Z      SEARCH DATA EQUAL(12) */
-{0xB1, W|R|O,       "SEARCH DATA EQUAL(12)"},
-
-/* B2      ZO Z      SEARCH DATA LOW(12) */
-{0xB2, W|R|O,       "SEARCH DATA LOW(12)"},
-
-/* B3      OO O      SET LIMITS(12) */
-{0xB3, W|R|O,       "SET LIMITS(12)"},
-
-/* B4  OO  OO OO     READ ELEMENT STATUS ATTACHED */
-{0xB4, D|T|W|R|O|M, "READ ELEMENT STATUS ATTACHED"},
-
-/* B5          O     REQUEST VOLUME ELEMENT ADDRESS */
-{0xB5, M,           "REQUEST VOLUME ELEMENT ADDRESS"},
-
-/* B6          O     SEND VOLUME TAG */
-{0xB6, M,           "SEND VOLUME TAG"},
-
-/* B7         O      READ DEFECT DATA(12) */
-{0xB7, O,           "READ DEFECT DATA(12)"},
-
-/* B8   O      M     READ ELEMENT STATUS */
-{0xB8, T|M,         "READ ELEMENT STATUS"},
-/* B8       O        SET CD SPEED {MMC Proposed} */
-{0xB8, R,           "SET CD SPEED {MMC Proposed}"},
-
-/* B9       M        READ CD MSF {MMC Proposed} */
-{0xB9, R,           "READ CD MSF {MMC Proposed}"},
-
-/* BA       O        SCAN {MMC Proposed} */
-{0xBA, R,           "SCAN {MMC Proposed}"},
-/* BA            M   REDUNDANCY GROUP (IN) */
-{0xBA, A,           "REDUNDANCY GROUP (IN)"},
-
-/* BB       O        SET CD-ROM SPEED {proposed} */
-{0xBB, R,           "SET CD-ROM SPEED {proposed}"},
-/* BB            O   REDUNDANCY GROUP (OUT) */
-{0xBB, A,           "REDUNDANCY GROUP (OUT)"},
-
-/* BC       O        PLAY CD {MMC Proposed} */
-{0xBC, R,           "PLAY CD {MMC Proposed}"},
-/* BC            M   SPARE (IN) */
-{0xBC, A,           "SPARE (IN)"},
-
-/* BD       M        MECHANISM STATUS {MMC Proposed} */
-{0xBD, R,           "MECHANISM STATUS {MMC Proposed}"},
-/* BD            O   SPARE (OUT) */
-{0xBD, A,           "SPARE (OUT)"},
-
-/* BE       O        READ CD {MMC Proposed} */
-{0xBE, R,           "READ CD {MMC Proposed}"},
-/* BE            M   VOLUME SET (IN) */
-{0xBE, A,           "VOLUME SET (IN)"},
-
-/* BF            O   VOLUME SET (OUT) */
-{0xBF, A,           "VOLUME SET (OUT)"}
+	/*
+	 * From: http://www.t10.org/lists/op-num.txt
+	 * Modifications by Kenneth Merry (ken@FreeBSD.ORG)
+	 *              and Jung-uk Kim (jkim@FreeBSD.org)
+	 *
+	 * Note:  order is important in this table, scsi_op_desc() currently
+	 * depends on the opcodes in the table being in order to save
+	 * search time.
+	 * Note:  scanner and comm. devices are carried over from the previous
+	 * version because they were removed in the latest spec.
+	 */
+	/* File: OP-NUM.TXT
+	 *
+	 * SCSI Operation Codes
+	 * Numeric Sorted Listing
+	 * as of  3/11/08
+	 *
+	 *     D - DIRECT ACCESS DEVICE (SBC-2)                device column key
+	 *     .T - SEQUENTIAL ACCESS DEVICE (SSC-2)           -----------------
+	 *     . L - PRINTER DEVICE (SSC)                      M = Mandatory
+	 *     .  P - PROCESSOR DEVICE (SPC)                   O = Optional
+	 *     .  .W - WRITE ONCE READ MULTIPLE DEVICE (SBC-2) V = Vendor spec.
+	 *     .  . R - CD/DVE DEVICE (MMC-3)                  Z = Obsolete
+	 *     .  .  O - OPTICAL MEMORY DEVICE (SBC-2)
+	 *     .  .  .M - MEDIA CHANGER DEVICE (SMC-2)
+	 *     .  .  . A - STORAGE ARRAY DEVICE (SCC-2)
+	 *     .  .  . .E - ENCLOSURE SERVICES DEVICE (SES)
+	 *     .  .  .  .B - SIMPLIFIED DIRECT-ACCESS DEVICE (RBC)
+	 *     .  .  .  . K - OPTICAL CARD READER/WRITER DEVICE (OCRW)
+	 *     .  .  .  .  V - AUTOMATION/DRIVE INTERFACE (ADC)
+	 *     .  .  .  .  .F - OBJECT-BASED STORAGE (OSD)
+	 * OP  DTLPWROMAEBKVF  Description
+	 * --  --------------  ---------------------------------------------- */
+	/* 00  MMMMMMMMMMMMMM  TEST UNIT READY */
+	{ 0x00,	ALL, "TEST UNIT READY" },
+	/* 01   M              REWIND */
+	{ 0x01,	T, "REWIND" },
+	/* 01  Z V ZZZZ        REZERO UNIT */
+	{ 0x01,	D | W | R | O | M, "REZERO UNIT" },
+	/* 02  VVVVVV V */
+	/* 03  MMMMMMMMMMOMMM  REQUEST SENSE */
+	{ 0x03,	ALL, "REQUEST SENSE" },
+	/* 04  M    OO         FORMAT UNIT */
+	{ 0x04,	D | R | O, "FORMAT UNIT" },
+	/* 04   O              FORMAT MEDIUM */
+	{ 0x04,	T, "FORMAT MEDIUM" },
+	/* 04    O             FORMAT */
+	{ 0x04,	L, "FORMAT" },
+	/* 05  VMVVVV V        READ BLOCK LIMITS */
+	{ 0x05,	T, "READ BLOCK LIMITS" },
+	/* 06  VVVVVV V */
+	/* 07  OVV O OV        REASSIGN BLOCKS */
+	{ 0x07,	D | W | O, "REASSIGN BLOCKS" },
+	/* 07         O        INITIALIZE ELEMENT STATUS */
+	{ 0x07,	M, "INITIALIZE ELEMENT STATUS" },
+	/* 08  MOV O OV        READ(6) */
+	{ 0x08,	D | T | W | O, "READ(6)" },
+	/* 08     O            RECEIVE */
+	{ 0x08,	P, "RECEIVE" },
+	/* 08                  GET MESSAGE(6) */
+	{ 0x08, C, "GET MESSAGE(6)" },
+	/* 09  VVVVVV V */
+	/* 0A  OO  O OV        WRITE(6) */
+	{ 0x0A,	D | T | W | O, "WRITE(6)" },
+	/* 0A     M            SEND(6) */
+	{ 0x0A,	P, "SEND(6)" },
+	/* 0A                  SEND MESSAGE(6) */
+	{ 0x0A, C, "SEND MESSAGE(6)" },
+	/* 0A    M             PRINT */
+	{ 0x0A,	L, "PRINT" },
+	/* 0B  Z   ZOZV        SEEK(6) */
+	{ 0x0B,	D | W | R | O, "SEEK(6)" },
+	/* 0B   O              SET CAPACITY */
+	{ 0x0B,	T, "SET CAPACITY" },
+	/* 0B    O             SLEW AND PRINT */
+	{ 0x0B,	L, "SLEW AND PRINT" },
+	/* 0C  VVVVVV V */
+	/* 0D  VVVVVV V */
+	/* 0E  VVVVVV V */
+	/* 0F  VOVVVV V        READ REVERSE(6) */
+	{ 0x0F,	T, "READ REVERSE(6)" },
+	/* 10  VM VVV          WRITE FILEMARKS(6) */
+	{ 0x10,	T, "WRITE FILEMARKS(6)" },
+	/* 10    O             SYNCHRONIZE BUFFER */
+	{ 0x10,	L, "SYNCHRONIZE BUFFER" },
+	/* 11  VMVVVV          SPACE(6) */
+	{ 0x11,	T, "SPACE(6)" },
+	/* 12  MMMMMMMMMMMMMM  INQUIRY */
+	{ 0x12,	ALL, "INQUIRY" },
+	/* 13  V VVVV */
+	/* 13   O              VERIFY(6) */
+	{ 0x13,	T, "VERIFY(6)" },
+	/* 14  VOOVVV          RECOVER BUFFERED DATA */
+	{ 0x14,	T | L, "RECOVER BUFFERED DATA" },
+	/* 15  OMO O OOOO OO   MODE SELECT(6) */
+	{ 0x15,	ALL & ~(P | R | B | F), "MODE SELECT(6)" },
+	/* 16  ZZMZO OOOZ O    RESERVE(6) */
+	{ 0x16,	ALL & ~(R | B | V | F | C), "RESERVE(6)" },
+	/* 16         Z        RESERVE ELEMENT(6) */
+	{ 0x16,	M, "RESERVE ELEMENT(6)" },
+	/* 17  ZZMZO OOOZ O    RELEASE(6) */
+	{ 0x17,	ALL & ~(R | B | V | F | C), "RELEASE(6)" },
+	/* 17         Z        RELEASE ELEMENT(6) */
+	{ 0x17,	M, "RELEASE ELEMENT(6)" },
+	/* 18  ZZZZOZO    Z    COPY */
+	{ 0x18,	D | T | L | P | W | R | O | K | S, "COPY" },
+	/* 19  VMVVVV          ERASE(6) */
+	{ 0x19,	T, "ERASE(6)" },
+	/* 1A  OMO O OOOO OO   MODE SENSE(6) */
+	{ 0x1A,	ALL & ~(P | R | B | F), "MODE SENSE(6)" },
+	/* 1B  O   OOO O MO O  START STOP UNIT */
+	{ 0x1B,	D | W | R | O | A | B | K | F, "START STOP UNIT" },
+	/* 1B   O          M   LOAD UNLOAD */
+	{ 0x1B,	T | V, "LOAD UNLOAD" },
+	/* 1B                  SCAN */
+	{ 0x1B, S, "SCAN" },
+	/* 1B    O             STOP PRINT */
+	{ 0x1B,	L, "STOP PRINT" },
+	/* 1B         O        OPEN/CLOSE IMPORT/EXPORT ELEMENT */
+	{ 0x1B,	M, "OPEN/CLOSE IMPORT/EXPORT ELEMENT" },
+	/* 1C  OOOOO OOOM OOO  RECEIVE DIAGNOSTIC RESULTS */
+	{ 0x1C,	ALL & ~(R | B), "RECEIVE DIAGNOSTIC RESULTS" },
+	/* 1D  MMMMM MMOM MMM  SEND DIAGNOSTIC */
+	{ 0x1D,	ALL & ~(R | B), "SEND DIAGNOSTIC" },
+	/* 1E  OO  OOOO   O O  PREVENT ALLOW MEDIUM REMOVAL */
+	{ 0x1E,	D | T | W | R | O | M | K | F, "PREVENT ALLOW MEDIUM REMOVAL" },
+	/* 1F */
+	/* 20  V   VVV    V */
+	/* 21  V   VVV    V */
+	/* 22  V   VVV    V */
+	/* 23  V   V V    V */
+	/* 23       O          READ FORMAT CAPACITIES */
+	{ 0x23,	R, "READ FORMAT CAPACITIES" },
+	/* 24  V   VV          SET WINDOW */
+	{ 0x24, S, "SET WINDOW" },
+	/* 25  M   M M   M     READ CAPACITY(10) */
+	{ 0x25,	D | W | O | B, "READ CAPACITY(10)" },
+	/* 25       O          READ CAPACITY */
+	{ 0x25,	R, "READ CAPACITY" },
+	/* 25             M    READ CARD CAPACITY */
+	{ 0x25,	K, "READ CARD CAPACITY" },
+	/* 25                  GET WINDOW */
+	{ 0x25, S, "GET WINDOW" },
+	/* 26  V   VV */
+	/* 27  V   VV */
+	/* 28  M   MOM   MM    READ(10) */
+	{ 0x28,	D | W | R | O | B | K | S, "READ(10)" },
+	/* 28                  GET MESSAGE(10) */
+	{ 0x28, C, "GET MESSAGE(10)" },
+	/* 29  V   VVO         READ GENERATION */
+	{ 0x29,	O, "READ GENERATION" },
+	/* 2A  O   MOM   MO    WRITE(10) */
+	{ 0x2A,	D | W | R | O | B | K, "WRITE(10)" },
+	/* 2A                  SEND(10) */
+	{ 0x2A, S, "SEND(10)" },
+	/* 2A                  SEND MESSAGE(10) */
+	{ 0x2A, C, "SEND MESSAGE(10)" },
+	/* 2B  Z   OOO    O    SEEK(10) */
+	{ 0x2B,	D | W | R | O | K, "SEEK(10)" },
+	/* 2B   O              LOCATE(10) */
+	{ 0x2B,	T, "LOCATE(10)" },
+	/* 2B         O        POSITION TO ELEMENT */
+	{ 0x2B,	M, "POSITION TO ELEMENT" },
+	/* 2C  V    OO         ERASE(10) */
+	{ 0x2C,	R | O, "ERASE(10)" },
+	/* 2D        O         READ UPDATED BLOCK */
+	{ 0x2D,	O, "READ UPDATED BLOCK" },
+	/* 2D  V */
+	/* 2E  O   OOO   MO    WRITE AND VERIFY(10) */
+	{ 0x2E,	D | W | R | O | B | K, "WRITE AND VERIFY(10)" },
+	/* 2F  O   OOO         VERIFY(10) */
+	{ 0x2F,	D | W | R | O, "VERIFY(10)" },
+	/* 30  Z   ZZZ         SEARCH DATA HIGH(10) */
+	{ 0x30,	D | W | R | O, "SEARCH DATA HIGH(10)" },
+	/* 31  Z   ZZZ         SEARCH DATA EQUAL(10) */
+	{ 0x31,	D | W | R | O, "SEARCH DATA EQUAL(10)" },
+	/* 31                  OBJECT POSITION */
+	{ 0x31, S, "OBJECT POSITION" },
+	/* 32  Z   ZZZ         SEARCH DATA LOW(10) */
+	{ 0x32,	D | W | R | O, "SEARCH DATA LOW(10)" },
+	/* 33  Z   OZO         SET LIMITS(10) */
+	{ 0x33,	D | W | R | O, "SET LIMITS(10)" },
+	/* 34  O   O O    O    PRE-FETCH(10) */
+	{ 0x34,	D | W | O | K, "PRE-FETCH(10)" },
+	/* 34   M              READ POSITION */
+	{ 0x34,	T, "READ POSITION" },
+	/* 34                  GET DATA BUFFER STATUS */
+	{ 0x34, S, "GET DATA BUFFER STATUS" },
+	/* 35  O   OOO   MO    SYNCHRONIZE CACHE(10) */
+	{ 0x35,	D | W | R | O | B | K, "SYNCHRONIZE CACHE(10)" },
+	/* 36  Z   O O    O    LOCK UNLOCK CACHE(10) */
+	{ 0x36,	D | W | O | K, "LOCK UNLOCK CACHE(10)" },
+	/* 37  O     O         READ DEFECT DATA(10) */
+	{ 0x37,	D | O, "READ DEFECT DATA(10)" },
+	/* 37         O        INITIALIZE ELEMENT STATUS WITH RANGE */
+	{ 0x37,	M, "INITIALIZE ELEMENT STATUS WITH RANGE" },
+	/* 38      O O    O    MEDIUM SCAN */
+	{ 0x38,	W | O | K, "MEDIUM SCAN" },
+	/* 39  ZZZZOZO    Z    COMPARE */
+	{ 0x39,	D | T | L | P | W | R | O | K | S, "COMPARE" },
+	/* 3A  ZZZZOZO    Z    COPY AND VERIFY */
+	{ 0x3A,	D | T | L | P | W | R | O | K | S, "COPY AND VERIFY" },
+	/* 3B  OOOOOOOOOOMOOO  WRITE BUFFER */
+	{ 0x3B,	ALL, "WRITE BUFFER" },
+	/* 3C  OOOOOOOOOO OOO  READ BUFFER */
+	{ 0x3C,	ALL & ~(B), "READ BUFFER" },
+	/* 3D        O         UPDATE BLOCK */
+	{ 0x3D,	O, "UPDATE BLOCK" },
+	/* 3E  O   O O         READ LONG(10) */
+	{ 0x3E,	D | W | O, "READ LONG(10)" },
+	/* 3F  O   O O         WRITE LONG(10) */
+	{ 0x3F,	D | W | O, "WRITE LONG(10)" },
+	/* 40  ZZZZOZOZ        CHANGE DEFINITION */
+	{ 0x40,	D | T | L | P | W | R | O | M | S | C, "CHANGE DEFINITION" },
+	/* 41  O               WRITE SAME(10) */
+	{ 0x41,	D, "WRITE SAME(10)" },
+	/* 42       O          READ SUB-CHANNEL */
+	{ 0x42,	R, "READ SUB-CHANNEL" },
+	/* 43       O          READ TOC/PMA/ATIP */
+	{ 0x43,	R, "READ TOC/PMA/ATIP" },
+	/* 44   M          M   REPORT DENSITY SUPPORT */
+	{ 0x44,	T | V, "REPORT DENSITY SUPPORT" },
+	/* 44                  READ HEADER */
+	/* 45       O          PLAY AUDIO(10) */
+	{ 0x45,	R, "PLAY AUDIO(10)" },
+	/* 46       M          GET CONFIGURATION */
+	{ 0x46,	R, "GET CONFIGURATION" },
+	/* 47       O          PLAY AUDIO MSF */
+	{ 0x47,	R, "PLAY AUDIO MSF" },
+	/* 48 */
+	/* 49 */
+	/* 4A       M          GET EVENT STATUS NOTIFICATION */
+	{ 0x4A,	R, "GET EVENT STATUS NOTIFICATION" },
+	/* 4B       O          PAUSE/RESUME */
+	{ 0x4B,	R, "PAUSE/RESUME" },
+	/* 4C  OOOOO OOOO OOO  LOG SELECT */
+	{ 0x4C,	ALL & ~(R | B), "LOG SELECT" },
+	/* 4D  OOOOO OOOO OMO  LOG SENSE */
+	{ 0x4D,	ALL & ~(R | B), "LOG SENSE" },
+	/* 4E       O          STOP PLAY/SCAN */
+	{ 0x4E,	R, "STOP PLAY/SCAN" },
+	/* 4F */
+	/* 50  O               XDWRITE(10) */
+	{ 0x50,	D, "XDWRITE(10)" },
+	/* 51  O               XPWRITE(10) */
+	{ 0x51,	D, "XPWRITE(10)" },
+	/* 51       O          READ DISC INFORMATION */
+	{ 0x51,	R, "READ DISC INFORMATION" },
+	/* 52  O               XDREAD(10) */
+	{ 0x52,	D, "XDREAD(10)" },
+	/* 52       O          READ TRACK INFORMATION */
+	{ 0x52,	R, "READ TRACK INFORMATION" },
+	/* 53       O          RESERVE TRACK */
+	{ 0x53,	R, "RESERVE TRACK" },
+	/* 54       O          SEND OPC INFORMATION */
+	{ 0x54,	R, "SEND OPC INFORMATION" },
+	/* 55  OOO OMOOOOMOMO  MODE SELECT(10) */
+	{ 0x55,	ALL & ~(P), "MODE SELECT(10)" },
+	/* 56  ZZMZO OOOZ      RESERVE(10) */
+	{ 0x56,	ALL & ~(R | B | K | V | F | C), "RESERVE(10)" },
+	/* 56         Z        RESERVE ELEMENT(10) */
+	{ 0x56,	M, "RESERVE ELEMENT(10)" },
+	/* 57  ZZMZO OOOZ      RELEASE(10) */
+	{ 0x57,	ALL & ~(R | B | K | V | F | C), "RELEASE(10)" },
+	/* 57         Z        RELEASE ELEMENT(10) */
+	{ 0x57,	M, "RELEASE ELEMENT(10)" },
+	/* 58       O          REPAIR TRACK */
+	{ 0x58,	R, "REPAIR TRACK" },
+	/* 59 */
+	/* 5A  OOO OMOOOOMOMO  MODE SENSE(10) */
+	{ 0x5A,	ALL & ~(P), "MODE SENSE(10)" },
+	/* 5B       O          CLOSE TRACK/SESSION */
+	{ 0x5B,	R, "CLOSE TRACK/SESSION" },
+	/* 5C       O          READ BUFFER CAPACITY */
+	{ 0x5C,	R, "READ BUFFER CAPACITY" },
+	/* 5D       O          SEND CUE SHEET */
+	{ 0x5D,	R, "SEND CUE SHEET" },
+	/* 5E  OOOOO OOOO   M  PERSISTENT RESERVE IN */
+	{ 0x5E,	ALL & ~(R | B | K | V | C), "PERSISTENT RESERVE IN" },
+	/* 5F  OOOOO OOOO   M  PERSISTENT RESERVE OUT */
+	{ 0x5F,	ALL & ~(R | B | K | V | C), "PERSISTENT RESERVE OUT" },
+	/* 7E  OO   O OOOO O   extended CDB */
+	{ 0x7E,	D | T | R | M | A | E | B | V, "extended CDB" },
+	/* 7F  O            M  variable length CDB (more than 16 bytes) */
+	{ 0x7F,	D | F, "variable length CDB (more than 16 bytes)" },
+	/* 80  Z               XDWRITE EXTENDED(16) */
+	{ 0x80,	D, "XDWRITE EXTENDED(16)" },
+	/* 80   M              WRITE FILEMARKS(16) */
+	{ 0x80,	T, "WRITE FILEMARKS(16)" },
+	/* 81  Z               REBUILD(16) */
+	{ 0x81,	D, "REBUILD(16)" },
+	/* 81   O              READ REVERSE(16) */
+	{ 0x81,	T, "READ REVERSE(16)" },
+	/* 82  Z               REGENERATE(16) */
+	{ 0x82,	D, "REGENERATE(16)" },
+	/* 83  OOOOO O    OO   EXTENDED COPY */
+	{ 0x83,	D | T | L | P | W | O | K | V, "EXTENDED COPY" },
+	/* 84  OOOOO O    OO   RECEIVE COPY RESULTS */
+	{ 0x84,	D | T | L | P | W | O | K | V, "RECEIVE COPY RESULTS" },
+	/* 85  O    O    O     ATA COMMAND PASS THROUGH(16) */
+	{ 0x85,	D | R | B, "ATA COMMAND PASS THROUGH(16)" },
+	/* 86  OO OO OOOOOOO   ACCESS CONTROL IN */
+	{ 0x86,	ALL & ~(L | R | F), "ACCESS CONTROL IN" },
+	/* 87  OO OO OOOOOOO   ACCESS CONTROL OUT */
+	{ 0x87,	ALL & ~(L | R | F), "ACCESS CONTROL OUT" },
+	/*
+	 * XXX READ(16)/WRITE(16) were not listed for CD/DVE in op-num.txt
+	 * but we had it since r1.40.  Do we really want them?
+	 */
+	/* 88  MM  O O   O     READ(16) */
+	{ 0x88,	D | T | W | O | B, "READ(16)" },
+	/* 89 */
+	/* 8A  OM  O O   O     WRITE(16) */
+	{ 0x8A,	D | T | W | O | B, "WRITE(16)" },
+	/* 8B  O               ORWRITE */
+	{ 0x8B,	D, "ORWRITE" },
+	/* 8C  OO  O OO  O M   READ ATTRIBUTE */
+	{ 0x8C,	D | T | W | O | M | B | V, "READ ATTRIBUTE" },
+	/* 8D  OO  O OO  O O   WRITE ATTRIBUTE */
+	{ 0x8D,	D | T | W | O | M | B | V, "WRITE ATTRIBUTE" },
+	/* 8E  O   O O   O     WRITE AND VERIFY(16) */
+	{ 0x8E,	D | W | O | B, "WRITE AND VERIFY(16)" },
+	/* 8F  OO  O O   O     VERIFY(16) */
+	{ 0x8F,	D | T | W | O | B, "VERIFY(16)" },
+	/* 90  O   O O   O     PRE-FETCH(16) */
+	{ 0x90,	D | W | O | B, "PRE-FETCH(16)" },
+	/* 91  O   O O   O     SYNCHRONIZE CACHE(16) */
+	{ 0x91,	D | W | O | B, "SYNCHRONIZE CACHE(16)" },
+	/* 91   O              SPACE(16) */
+	{ 0x91,	T, "SPACE(16)" },
+	/* 92  Z   O O         LOCK UNLOCK CACHE(16) */
+	{ 0x92,	D | W | O, "LOCK UNLOCK CACHE(16)" },
+	/* 92   O              LOCATE(16) */
+	{ 0x92,	T, "LOCATE(16)" },
+	/* 93  O               WRITE SAME(16) */
+	{ 0x93,	D, "WRITE SAME(16)" },
+	/* 93   M              ERASE(16) */
+	{ 0x93,	T, "ERASE(16)" },
+	/* 94 [usage proposed by SCSI Socket Services project] */
+	/* 95 [usage proposed by SCSI Socket Services project] */
+	/* 96 [usage proposed by SCSI Socket Services project] */
+	/* 97 [usage proposed by SCSI Socket Services project] */
+	/* 98 */
+	/* 99 */
+	/* 9A */
+	/* 9B */
+	/* 9C */
+	/* 9D */
+	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
+	/* 9E                  SERVICE ACTION IN(16) */
+	{ 0x9E, ALL, "SERVICE ACTION IN(16)" },
+	/* XXX KDM ALL for this?  op-num.txt defines it for ADC.. */
+	/* 9F              M   SERVICE ACTION OUT(16) */
+	{ 0x9F,	ALL, "SERVICE ACTION OUT(16)" },
+	/* A0  MMOOO OMMM OMO  REPORT LUNS */
+	{ 0xA0,	ALL & ~(R | B), "REPORT LUNS" },
+	/* A1       O          BLANK */
+	{ 0xA1,	R, "BLANK" },
+	/* A1  O         O     ATA COMMAND PASS THROUGH(12) */
+	{ 0xA1,	D | B, "ATA COMMAND PASS THROUGH(12)" },
+	/* A2  OO   O      O   SECURITY PROTOCOL IN */
+	{ 0xA2,	D | T | R | V, "SECURITY PROTOCOL IN" },
+	/* A3  OOO O OOMOOOM   MAINTENANCE (IN) */
+	{ 0xA3,	ALL & ~(P | R | F), "MAINTENANCE (IN)" },
+	/* A3       O          SEND KEY */
+	{ 0xA3,	R, "SEND KEY" },
+	/* A4  OOO O OOOOOOO   MAINTENANCE (OUT) */
+	{ 0xA4,	ALL & ~(P | R | F), "MAINTENANCE (OUT)" },
+	/* A4       O          REPORT KEY */
+	{ 0xA4,	R, "REPORT KEY" },
+	/* A5   O  O OM        MOVE MEDIUM */
+	{ 0xA5,	T | W | O | M, "MOVE MEDIUM" },
+	/* A5       O          PLAY AUDIO(12) */
+	{ 0xA5,	R, "PLAY AUDIO(12)" },
+	/* A6         O        EXCHANGE MEDIUM */
+	{ 0xA6,	M, "EXCHANGE MEDIUM" },
+	/* A6       O          LOAD/UNLOAD C/DVD */
+	{ 0xA6,	R, "LOAD/UNLOAD C/DVD" },
+	/* A7  ZZ  O O         MOVE MEDIUM ATTACHED */
+	{ 0xA7,	D | T | W | O, "MOVE MEDIUM ATTACHED" },
+	/* A7       O          SET READ AHEAD */
+	{ 0xA7,	R, "SET READ AHEAD" },
+	/* A8  O   OOO         READ(12) */
+	{ 0xA8,	D | W | R | O, "READ(12)" },
+	/* A8                  GET MESSAGE(12) */
+	{ 0xA8, C, "GET MESSAGE(12)" },
+	/* A9              O   SERVICE ACTION OUT(12) */
+	{ 0xA9,	V, "SERVICE ACTION OUT(12)" },
+	/* AA  O   OOO         WRITE(12) */
+	{ 0xAA,	D | W | R | O, "WRITE(12)" },
+	/* AA                  SEND MESSAGE(12) */
+	{ 0xAA, C, "SEND MESSAGE(12)" },
+	/* AB       O      O   SERVICE ACTION IN(12) */
+	{ 0xAB,	R | V, "SERVICE ACTION IN(12)" },
+	/* AC        O         ERASE(12) */
+	{ 0xAC,	O, "ERASE(12)" },
+	/* AC       O          GET PERFORMANCE */
+	{ 0xAC,	R, "GET PERFORMANCE" },
+	/* AD       O          READ DVD STRUCTURE */
+	{ 0xAD,	R, "READ DVD STRUCTURE" },
+	/* AE  O   O O         WRITE AND VERIFY(12) */
+	{ 0xAE,	D | W | O, "WRITE AND VERIFY(12)" },
+	/* AF  O   OZO         VERIFY(12) */
+	{ 0xAF,	D | W | R | O, "VERIFY(12)" },
+	/* B0      ZZZ         SEARCH DATA HIGH(12) */
+	{ 0xB0,	W | R | O, "SEARCH DATA HIGH(12)" },
+	/* B1      ZZZ         SEARCH DATA EQUAL(12) */
+	{ 0xB1,	W | R | O, "SEARCH DATA EQUAL(12)" },
+	/* B2      ZZZ         SEARCH DATA LOW(12) */
+	{ 0xB2,	W | R | O, "SEARCH DATA LOW(12)" },
+	/* B3  Z   OZO         SET LIMITS(12) */
+	{ 0xB3,	D | W | R | O, "SET LIMITS(12)" },
+	/* B4  ZZ  OZO         READ ELEMENT STATUS ATTACHED */
+	{ 0xB4,	D | T | W | R | O, "READ ELEMENT STATUS ATTACHED" },
+	/* B5  OO   O      O   SECURITY PROTOCOL OUT */
+	{ 0xB5,	D | T | R | V, "SECURITY PROTOCOL OUT" },
+	/* B5         O        REQUEST VOLUME ELEMENT ADDRESS */
+	{ 0xB5,	M, "REQUEST VOLUME ELEMENT ADDRESS" },
+	/* B6         O        SEND VOLUME TAG */
+	{ 0xB6,	M, "SEND VOLUME TAG" },
+	/* B6       O          SET STREAMING */
+	{ 0xB6,	R, "SET STREAMING" },
+	/* B7  O     O         READ DEFECT DATA(12) */
+	{ 0xB7,	D | O, "READ DEFECT DATA(12)" },
+	/* B8   O  OZOM        READ ELEMENT STATUS */
+	{ 0xB8,	T | W | R | O | M, "READ ELEMENT STATUS" },
+	/* B9       O          READ CD MSF */
+	{ 0xB9,	R, "READ CD MSF" },
+	/* BA  O   O OOMO      REDUNDANCY GROUP (IN) */
+	{ 0xBA,	D | W | O | M | A | E, "REDUNDANCY GROUP (IN)" },
+	/* BA       O          SCAN */
+	{ 0xBA,	R, "SCAN" },
+	/* BB  O   O OOOO      REDUNDANCY GROUP (OUT) */
+	{ 0xBB,	D | W | O | M | A | E, "REDUNDANCY GROUP (OUT)" },
+	/* BB       O          SET CD SPEED */
+	{ 0xBB,	R, "SET CD SPEED" },
+	/* BC  O   O OOMO      SPARE (IN) */
+	{ 0xBC,	D | W | O | M | A | E, "SPARE (IN)" },
+	/* BD  O   O OOOO      SPARE (OUT) */
+	{ 0xBD,	D | W | O | M | A | E, "SPARE (OUT)" },
+	/* BD       O          MECHANISM STATUS */
+	{ 0xBD,	R, "MECHANISM STATUS" },
+	/* BE  O   O OOMO      VOLUME SET (IN) */
+	{ 0xBE,	D | W | O | M | A | E, "VOLUME SET (IN)" },
+	/* BE       O          READ CD */
+	{ 0xBE,	R, "READ CD" },
+	/* BF  O   O OOOO      VOLUME SET (OUT) */
+	{ 0xBF,	D | W | O | M | A | E, "VOLUME SET (OUT)" },
+	/* BF       O          SEND DVD STRUCTURE */
+	{ 0xBF,	R, "SEND DVD STRUCTURE" }
 };
 
 const char *
@@ -660,7 +601,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 {
 	caddr_t match;
 	int i, j;
-	u_int16_t opmask;
+	u_int32_t opmask;
 	u_int16_t pd_type;
 	int       num_ops[2];
 	struct op_table_entry *table[2];
@@ -764,22 +705,20 @@ const int sense_key_table_size =
     sizeof(sense_key_table)/sizeof(sense_key_table[0]);
 
 static struct asc_table_entry quantum_fireball_entries[] = {
-	{SST(0x04, 0x0b, SS_START|SSQ_DECREMENT_COUNT|ENXIO, 
-	     "Logical unit not ready, initializing cmd. required")}
+	{ SST(0x04, 0x0b, SS_START | SSQ_DECREMENT_COUNT | ENXIO, 
+	     "Logical unit not ready, initializing cmd. required") }
 };
 
 static struct asc_table_entry sony_mo_entries[] = {
-	{SST(0x04, 0x00, SS_START|SSQ_DECREMENT_COUNT|ENXIO,
-	     "Logical unit not ready, cause not reportable")}
+	{ SST(0x04, 0x00, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
+	     "Logical unit not ready, cause not reportable") }
 };
 
 static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 	{
 		/*
-		 * The Quantum Fireball ST and SE like to return 0x04 0x0b when
-		 * they really should return 0x04 0x02.  0x04,0x0b isn't
-		 * defined in any SCSI spec, and it isn't mentioned in the
-		 * hardware manual for these drives.
+		 * XXX The Quantum Fireball ST and SE like to return 0x04 0x0b
+		 * when they really should return 0x04 0x02.
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "QUANTUM", "FIREBALL S*", "*"},
 		/*num_sense_keys*/0,
@@ -804,677 +743,1901 @@ const int sense_quirk_table_size =
     sizeof(sense_quirk_table)/sizeof(sense_quirk_table[0]);
 
 static struct asc_table_entry asc_table[] = {
-/*
- * From File: ASC-NUM.TXT
- * SCSI ASC/ASCQ Assignments
- * Numeric Sorted Listing
- * as of  5/12/97
- *
- * D - DIRECT ACCESS DEVICE (SBC)                     device column key
- * .T - SEQUENTIAL ACCESS DEVICE (SSC)               -------------------
- * . L - PRINTER DEVICE (SSC)                           blank = reserved
- * .  P - PROCESSOR DEVICE (SPC)                     not blank = allowed
- * .  .W - WRITE ONCE READ MULTIPLE DEVICE (SBC)
- * .  . R - CD DEVICE (MMC)
- * .  .  S - SCANNER DEVICE (SGC)
- * .  .  .O - OPTICAL MEMORY DEVICE (SBC)
- * .  .  . M - MEDIA CHANGER DEVICE (SMC)
- * .  .  .  C - COMMUNICATION DEVICE (SSC)
- * .  .  .  .A - STORAGE ARRAY DEVICE (SCC)
- * .  .  .  . E - ENCLOSURE SERVICES DEVICE (SES)
- * DTLPWRSOMCAE        ASC   ASCQ  Action  Description
- * ------------        ----  ----  ------  -----------------------------------*/
-/* DTLPWRSOMCAE */{SST(0x00, 0x00, SS_NOP,
-			"No additional sense information") },
-/*  T    S      */{SST(0x00, 0x01, SS_RDEF,
-			"Filemark detected") },
-/*  T    S      */{SST(0x00, 0x02, SS_RDEF,
-			"End-of-partition/medium detected") },
-/*  T           */{SST(0x00, 0x03, SS_RDEF,
-			"Setmark detected") },
-/*  T    S      */{SST(0x00, 0x04, SS_RDEF,
-			"Beginning-of-partition/medium detected") },
-/*  T    S      */{SST(0x00, 0x05, SS_RDEF,
-			"End-of-data detected") },
-/* DTLPWRSOMCAE */{SST(0x00, 0x06, SS_RDEF,
-			"I/O process terminated") },
-/*      R       */{SST(0x00, 0x11, SS_FATAL|EBUSY,
-			"Audio play operation in progress") },
-/*      R       */{SST(0x00, 0x12, SS_NOP,
-			"Audio play operation paused") },
-/*      R       */{SST(0x00, 0x13, SS_NOP,
-			"Audio play operation successfully completed") },
-/*      R       */{SST(0x00, 0x14, SS_RDEF,
-			"Audio play operation stopped due to error") },
-/*      R       */{SST(0x00, 0x15, SS_NOP,
-			"No current audio status to return") },
-/* DTLPWRSOMCAE */{SST(0x00, 0x16, SS_FATAL|EBUSY,
-			"Operation in progress") },
-/* DTL WRSOM AE */{SST(0x00, 0x17, SS_RDEF,
-			"Cleaning requested") },
-/* D   W  O     */{SST(0x01, 0x00, SS_RDEF,
-			"No index/sector signal") },
-/* D   WR OM    */{SST(0x02, 0x00, SS_RDEF,
-			"No seek complete") },
-/* DTL W SO     */{SST(0x03, 0x00, SS_RDEF,
-			"Peripheral device write fault") },
-/*  T           */{SST(0x03, 0x01, SS_RDEF,
-			"No write current") },
-/*  T           */{SST(0x03, 0x02, SS_RDEF,
-			"Excessive write errors") },
-/* DTLPWRSOMCAE */{SST(0x04, 0x00, SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|EIO,
-			"Logical unit not ready, cause not reportable") },
-/* DTLPWRSOMCAE */{SST(0x04, 0x01, SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|EBUSY,
-			"Logical unit is in process of becoming ready") },
-/* DTLPWRSOMCAE */{SST(0x04, 0x02, SS_START|SSQ_DECREMENT_COUNT|ENXIO,
-			"Logical unit not ready, initializing cmd. required") },
-/* DTLPWRSOMCAE */{SST(0x04, 0x03, SS_FATAL|ENXIO,
-			"Logical unit not ready, manual intervention required")},
-/* DTL    O     */{SST(0x04, 0x04, SS_FATAL|EBUSY,
-			"Logical unit not ready, format in progress") },
-/* DT  W  OMCA  */{SST(0x04, 0x05, SS_FATAL|EBUSY,
-			"Logical unit not ready, rebuild in progress") },
-/* DT  W  OMCA  */{SST(0x04, 0x06, SS_FATAL|EBUSY,
-			"Logical unit not ready, recalculation in progress") },
-/* DTLPWRSOMCAE */{SST(0x04, 0x07, SS_FATAL|EBUSY,
-			"Logical unit not ready, operation in progress") },
-/*      R       */{SST(0x04, 0x08, SS_FATAL|EBUSY,
-			"Logical unit not ready, long write in progress") },
-/* DTL WRSOMCAE */{SST(0x05, 0x00, SS_RDEF,
-			"Logical unit does not respond to selection") },
-/* D   WR OM    */{SST(0x06, 0x00, SS_RDEF,
-			"No reference position found") },
-/* DTL WRSOM    */{SST(0x07, 0x00, SS_RDEF,
-			"Multiple peripheral devices selected") },
-/* DTL WRSOMCAE */{SST(0x08, 0x00, SS_RDEF,
-			"Logical unit communication failure") },
-/* DTL WRSOMCAE */{SST(0x08, 0x01, SS_RDEF,
-			"Logical unit communication time-out") },
-/* DTL WRSOMCAE */{SST(0x08, 0x02, SS_RDEF,
-			"Logical unit communication parity error") },
-/* DT   R OM    */{SST(0x08, 0x03, SS_RDEF,
-			"Logical unit communication crc error (ultra-dma/32)")},
-/* DT  WR O     */{SST(0x09, 0x00, SS_RDEF,
-			"Track following error") },
-/*     WR O     */{SST(0x09, 0x01, SS_RDEF,
-			"Tracking servo failure") },
-/*     WR O     */{SST(0x09, 0x02, SS_RDEF,
-			"Focus servo failure") },
-/*     WR O     */{SST(0x09, 0x03, SS_RDEF,
-			"Spindle servo failure") },
-/* DT  WR O     */{SST(0x09, 0x04, SS_RDEF,
-			"Head select fault") },
-/* DTLPWRSOMCAE */{SST(0x0A, 0x00, SS_FATAL|ENOSPC,
-			"Error log overflow") },
-/* DTLPWRSOMCAE */{SST(0x0B, 0x00, SS_RDEF,
-			"Warning") },
-/* DTLPWRSOMCAE */{SST(0x0B, 0x01, SS_RDEF,
-			"Specified temperature exceeded") },
-/* DTLPWRSOMCAE */{SST(0x0B, 0x02, SS_RDEF,
-			"Enclosure degraded") },
-/*  T   RS      */{SST(0x0C, 0x00, SS_RDEF,
-			"Write error") },
-/* D   W  O     */{SST(0x0C, 0x01, SS_NOP|SSQ_PRINT_SENSE,
-			"Write error - recovered with auto reallocation") },
-/* D   W  O     */{SST(0x0C, 0x02, SS_RDEF,
-			"Write error - auto reallocation failed") },
-/* D   W  O     */{SST(0x0C, 0x03, SS_RDEF,
-			"Write error - recommend reassignment") },
-/* DT  W  O     */{SST(0x0C, 0x04, SS_RDEF,
-			"Compression check miscompare error") },
-/* DT  W  O     */{SST(0x0C, 0x05, SS_RDEF,
-			"Data expansion occurred during compression") },
-/* DT  W  O     */{SST(0x0C, 0x06, SS_RDEF,
-			"Block not compressible") },
-/*      R       */{SST(0x0C, 0x07, SS_RDEF,
-			"Write error - recovery needed") },
-/*      R       */{SST(0x0C, 0x08, SS_RDEF,
-			"Write error - recovery failed") },
-/*      R       */{SST(0x0C, 0x09, SS_RDEF,
-			"Write error - loss of streaming") },
-/*      R       */{SST(0x0C, 0x0A, SS_RDEF,
-			"Write error - padding blocks added") },
-/* D   W  O     */{SST(0x10, 0x00, SS_RDEF,
-			"ID CRC or ECC error") },
-/* DT  WRSO     */{SST(0x11, 0x00, SS_RDEF,
-			"Unrecovered read error") },
-/* DT  W SO     */{SST(0x11, 0x01, SS_RDEF,
-			"Read retries exhausted") },
-/* DT  W SO     */{SST(0x11, 0x02, SS_RDEF,
-			"Error too long to correct") },
-/* DT  W SO     */{SST(0x11, 0x03, SS_RDEF,
-			"Multiple read errors") },
-/* D   W  O     */{SST(0x11, 0x04, SS_RDEF,
-			"Unrecovered read error - auto reallocate failed") },
-/*     WR O     */{SST(0x11, 0x05, SS_RDEF,
-			"L-EC uncorrectable error") },
-/*     WR O     */{SST(0x11, 0x06, SS_RDEF,
-			"CIRC unrecovered error") },
-/*     W  O     */{SST(0x11, 0x07, SS_RDEF,
-			"Data re-synchronization error") },
-/*  T           */{SST(0x11, 0x08, SS_RDEF,
-			"Incomplete block read") },
-/*  T           */{SST(0x11, 0x09, SS_RDEF,
-			"No gap found") },
-/* DT     O     */{SST(0x11, 0x0A, SS_RDEF,
-			"Miscorrected error") },
-/* D   W  O     */{SST(0x11, 0x0B, SS_RDEF,
-			"Unrecovered read error - recommend reassignment") },
-/* D   W  O     */{SST(0x11, 0x0C, SS_RDEF,
-			"Unrecovered read error - recommend rewrite the data")},
-/* DT  WR O     */{SST(0x11, 0x0D, SS_RDEF,
-			"De-compression CRC error") },
-/* DT  WR O     */{SST(0x11, 0x0E, SS_RDEF,
-			"Cannot decompress using declared algorithm") },
-/*      R       */{SST(0x11, 0x0F, SS_RDEF,
-			"Error reading UPC/EAN number") },
-/*      R       */{SST(0x11, 0x10, SS_RDEF,
-			"Error reading ISRC number") },
-/*      R       */{SST(0x11, 0x11, SS_RDEF,
-			"Read error - loss of streaming") },
-/* D   W  O     */{SST(0x12, 0x00, SS_RDEF,
-			"Address mark not found for id field") },
-/* D   W  O     */{SST(0x13, 0x00, SS_RDEF,
-			"Address mark not found for data field") },
-/* DTL WRSO     */{SST(0x14, 0x00, SS_RDEF,
-			"Recorded entity not found") },
-/* DT  WR O     */{SST(0x14, 0x01, SS_RDEF,
-			"Record not found") },
-/*  T           */{SST(0x14, 0x02, SS_RDEF,
-			"Filemark or setmark not found") },
-/*  T           */{SST(0x14, 0x03, SS_RDEF,
-			"End-of-data not found") },
-/*  T           */{SST(0x14, 0x04, SS_RDEF,
-			"Block sequence error") },
-/* DT  W  O     */{SST(0x14, 0x05, SS_RDEF,
-			"Record not found - recommend reassignment") },
-/* DT  W  O     */{SST(0x14, 0x06, SS_RDEF,
-			"Record not found - data auto-reallocated") },
-/* DTL WRSOM    */{SST(0x15, 0x00, SS_RDEF,
-			"Random positioning error") },
-/* DTL WRSOM    */{SST(0x15, 0x01, SS_RDEF,
-			"Mechanical positioning error") },
-/* DT  WR O     */{SST(0x15, 0x02, SS_RDEF,
-			"Positioning error detected by read of medium") },
-/* D   W  O     */{SST(0x16, 0x00, SS_RDEF,
-			"Data synchronization mark error") },
-/* D   W  O     */{SST(0x16, 0x01, SS_RDEF,
-			"Data sync error - data rewritten") },
-/* D   W  O     */{SST(0x16, 0x02, SS_RDEF,
-			"Data sync error - recommend rewrite") },
-/* D   W  O     */{SST(0x16, 0x03, SS_NOP|SSQ_PRINT_SENSE,
-			"Data sync error - data auto-reallocated") },
-/* D   W  O     */{SST(0x16, 0x04, SS_RDEF,
-			"Data sync error - recommend reassignment") },
-/* DT  WRSO     */{SST(0x17, 0x00, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with no error correction applied") },
-/* DT  WRSO     */{SST(0x17, 0x01, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with retries") },
-/* DT  WR O     */{SST(0x17, 0x02, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with positive head offset") },
-/* DT  WR O     */{SST(0x17, 0x03, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with negative head offset") },
-/*     WR O     */{SST(0x17, 0x04, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with retries and/or CIRC applied") },
-/* D   WR O     */{SST(0x17, 0x05, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data using previous sector id") },
-/* D   W  O     */{SST(0x17, 0x06, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data without ECC - data auto-reallocated") },
-/* D   W  O     */{SST(0x17, 0x07, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data without ECC - recommend reassignment")},
-/* D   W  O     */{SST(0x17, 0x08, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data without ECC - recommend rewrite") },
-/* D   W  O     */{SST(0x17, 0x09, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data without ECC - data rewritten") },
-/* D   W  O     */{SST(0x18, 0x00, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with error correction applied") },
-/* D   WR O     */{SST(0x18, 0x01, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with error corr. & retries applied") },
-/* D   WR O     */{SST(0x18, 0x02, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data - data auto-reallocated") },
-/*      R       */{SST(0x18, 0x03, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with CIRC") },
-/*      R       */{SST(0x18, 0x04, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with L-EC") },
-/* D   WR O     */{SST(0x18, 0x05, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data - recommend reassignment") },
-/* D   WR O     */{SST(0x18, 0x06, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data - recommend rewrite") },
-/* D   W  O     */{SST(0x18, 0x07, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered data with ECC - data rewritten") },
-/* D      O     */{SST(0x19, 0x00, SS_RDEF,
-			"Defect list error") },
-/* D      O     */{SST(0x19, 0x01, SS_RDEF,
-			"Defect list not available") },
-/* D      O     */{SST(0x19, 0x02, SS_RDEF,
-			"Defect list error in primary list") },
-/* D      O     */{SST(0x19, 0x03, SS_RDEF,
-			"Defect list error in grown list") },
-/* DTLPWRSOMCAE */{SST(0x1A, 0x00, SS_RDEF,
-			"Parameter list length error") },
-/* DTLPWRSOMCAE */{SST(0x1B, 0x00, SS_RDEF,
-			"Synchronous data transfer error") },
-/* D      O     */{SST(0x1C, 0x00, SS_RDEF,
-			"Defect list not found") },
-/* D      O     */{SST(0x1C, 0x01, SS_RDEF,
-			"Primary defect list not found") },
-/* D      O     */{SST(0x1C, 0x02, SS_RDEF,
-			"Grown defect list not found") },
-/* D   W  O     */{SST(0x1D, 0x00, SS_FATAL,
-			"Miscompare during verify operation" )},
-/* D   W  O     */{SST(0x1E, 0x00, SS_NOP|SSQ_PRINT_SENSE,
-			"Recovered id with ecc correction") },
-/* D      O     */{SST(0x1F, 0x00, SS_RDEF,
-			"Partial defect list transfer") },
-/* DTLPWRSOMCAE */{SST(0x20, 0x00, SS_FATAL|EINVAL,
-			"Invalid command operation code") },
-/* DT  WR OM    */{SST(0x21, 0x00, SS_FATAL|EINVAL,
-			"Logical block address out of range" )},
-/* DT  WR OM    */{SST(0x21, 0x01, SS_FATAL|EINVAL,
-			"Invalid element address") },
-/* D            */{SST(0x22, 0x00, SS_FATAL|EINVAL,
-			"Illegal function") }, /* Deprecated. Use 20 00, 24 00, or 26 00 instead */
-/* DTLPWRSOMCAE */{SST(0x24, 0x00, SS_FATAL|EINVAL,
-			"Invalid field in CDB") },
-/* DTLPWRSOMCAE */{SST(0x25, 0x00, SS_FATAL|ENXIO,
-			"Logical unit not supported") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x00, SS_FATAL|EINVAL,
-			"Invalid field in parameter list") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x01, SS_FATAL|EINVAL,
-			"Parameter not supported") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x02, SS_FATAL|EINVAL,
-			"Parameter value invalid") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x03, SS_FATAL|EINVAL,
-			"Threshold parameters not supported") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x04, SS_FATAL|EINVAL,
-			"Invalid release of active persistent reservation") },
-/* DT  W  O     */{SST(0x27, 0x00, SS_FATAL|EACCES,
-			"Write protected") },
-/* DT  W  O     */{SST(0x27, 0x01, SS_FATAL|EACCES,
-			"Hardware write protected") },
-/* DT  W  O     */{SST(0x27, 0x02, SS_FATAL|EACCES,
-			"Logical unit software write protected") },
-/*  T           */{SST(0x27, 0x03, SS_FATAL|EACCES,
-			"Associated write protect") },
-/*  T           */{SST(0x27, 0x04, SS_FATAL|EACCES,
-			"Persistent write protect") },
-/*  T           */{SST(0x27, 0x05, SS_FATAL|EACCES,
-			"Permanent write protect") },
-/* DTLPWRSOMCAE */{SST(0x28, 0x00, SS_FATAL|ENXIO,
-			"Not ready to ready change, medium may have changed") },
-/* DTLPWRSOMCAE */{SST(0x28, 0x01, SS_FATAL|ENXIO,
-			"Import or export element accessed") },
-/*
- * XXX JGibbs - All of these should use the same errno, but I don't think
- * ENXIO is the correct choice.  Should we borrow from the networking
- * errnos?  ECONNRESET anyone?
- */
-/* DTLPWRSOMCAE */{SST(0x29, 0x00, SS_FATAL|ENXIO,
-			"Power on, reset, or bus device reset occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x01, SS_RDEF,
-			"Power on occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x02, SS_RDEF,
-			"Scsi bus reset occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x03, SS_RDEF,
-			"Bus device reset function occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x04, SS_RDEF,
-			"Device internal reset") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x05, SS_RDEF,
-			"Transceiver mode changed to single-ended") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x06, SS_RDEF,
-			"Transceiver mode changed to LVD") },
-/* DTL WRSOMCAE */{SST(0x2A, 0x00, SS_RDEF,
-			"Parameters changed") },
-/* DTL WRSOMCAE */{SST(0x2A, 0x01, SS_RDEF,
-			"Mode parameters changed") },
-/* DTL WRSOMCAE */{SST(0x2A, 0x02, SS_RDEF,
-			"Log parameters changed") },
-/* DTLPWRSOMCAE */{SST(0x2A, 0x03, SS_RDEF,
-			"Reservations preempted") },
-/* DTLPWRSO C   */{SST(0x2B, 0x00, SS_RDEF,
-			"Copy cannot execute since host cannot disconnect") },
-/* DTLPWRSOMCAE */{SST(0x2C, 0x00, SS_RDEF,
-			"Command sequence error") },
-/*       S      */{SST(0x2C, 0x01, SS_RDEF,
-			"Too many windows specified") },
-/*       S      */{SST(0x2C, 0x02, SS_RDEF,
-			"Invalid combination of windows specified") },
-/*      R       */{SST(0x2C, 0x03, SS_RDEF,
-			"Current program area is not empty") },
-/*      R       */{SST(0x2C, 0x04, SS_RDEF,
-			"Current program area is empty") },
-/*  T           */{SST(0x2D, 0x00, SS_RDEF,
-			"Overwrite error on update in place") },
-/* DTLPWRSOMCAE */{SST(0x2F, 0x00, SS_RDEF,
-			"Commands cleared by another initiator") },
-/* DT  WR OM    */{SST(0x30, 0x00, SS_RDEF,
-			"Incompatible medium installed") },
-/* DT  WR O     */{SST(0x30, 0x01, SS_RDEF,
-			"Cannot read medium - unknown format") },
-/* DT  WR O     */{SST(0x30, 0x02, SS_RDEF,
-			"Cannot read medium - incompatible format") },
-/* DT           */{SST(0x30, 0x03, SS_RDEF,
-			"Cleaning cartridge installed") },
-/* DT  WR O     */{SST(0x30, 0x04, SS_RDEF,
-			"Cannot write medium - unknown format") },
-/* DT  WR O     */{SST(0x30, 0x05, SS_RDEF,
-			"Cannot write medium - incompatible format") },
-/* DT  W  O     */{SST(0x30, 0x06, SS_RDEF,
-			"Cannot format medium - incompatible medium") },
-/* DTL WRSOM AE */{SST(0x30, 0x07, SS_RDEF,
-			"Cleaning failure") },
-/*      R       */{SST(0x30, 0x08, SS_RDEF,
-			"Cannot write - application code mismatch") },
-/*      R       */{SST(0x30, 0x09, SS_RDEF,
-			"Current session not fixated for append") },
-/* DT  WR O     */{SST(0x31, 0x00, SS_RDEF,
-			"Medium format corrupted") },
-/* D L  R O     */{SST(0x31, 0x01, SS_RDEF,
-			"Format command failed") },
-/* D   W  O     */{SST(0x32, 0x00, SS_RDEF,
-			"No defect spare location available") },
-/* D   W  O     */{SST(0x32, 0x01, SS_RDEF,
-			"Defect list update failure") },
-/*  T           */{SST(0x33, 0x00, SS_RDEF,
-			"Tape length error") },
-/* DTLPWRSOMCAE */{SST(0x34, 0x00, SS_RDEF,
-			"Enclosure failure") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x00, SS_RDEF,
-			"Enclosure services failure") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x01, SS_RDEF,
-			"Unsupported enclosure function") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x02, SS_RDEF,
-			"Enclosure services unavailable") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x03, SS_RDEF,
-			"Enclosure services transfer failure") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x04, SS_RDEF,
-			"Enclosure services transfer refused") },
-/*   L          */{SST(0x36, 0x00, SS_RDEF,
-			"Ribbon, ink, or toner failure") },
-/* DTL WRSOMCAE */{SST(0x37, 0x00, SS_RDEF,
-			"Rounded parameter") },
-/* DTL WRSOMCAE */{SST(0x39, 0x00, SS_RDEF,
-			"Saving parameters not supported") },
-/* DTL WRSOM    */{SST(0x3A, 0x00, SS_FATAL|ENXIO,
-			"Medium not present") },
-/* DT  WR OM    */{SST(0x3A, 0x01, SS_FATAL|ENXIO,
-			"Medium not present - tray closed") },
-/* DT  WR OM    */{SST(0x3A, 0x02, SS_FATAL|ENXIO,
-			"Medium not present - tray open") },
-/*  TL          */{SST(0x3B, 0x00, SS_RDEF,
-			"Sequential positioning error") },
-/*  T           */{SST(0x3B, 0x01, SS_RDEF,
-			"Tape position error at beginning-of-medium") },
-/*  T           */{SST(0x3B, 0x02, SS_RDEF,
-			"Tape position error at end-of-medium") },
-/*   L          */{SST(0x3B, 0x03, SS_RDEF,
-			"Tape or electronic vertical forms unit not ready") },
-/*   L          */{SST(0x3B, 0x04, SS_RDEF,
-			"Slew failure") },
-/*   L          */{SST(0x3B, 0x05, SS_RDEF,
-			"Paper jam") },
-/*   L          */{SST(0x3B, 0x06, SS_RDEF,
-			"Failed to sense top-of-form") },
-/*   L          */{SST(0x3B, 0x07, SS_RDEF,
-			"Failed to sense bottom-of-form") },
-/*  T           */{SST(0x3B, 0x08, SS_RDEF,
-			"Reposition error") },
-/*       S      */{SST(0x3B, 0x09, SS_RDEF,
-			"Read past end of medium") },
-/*       S      */{SST(0x3B, 0x0A, SS_RDEF,
-			"Read past beginning of medium") },
-/*       S      */{SST(0x3B, 0x0B, SS_RDEF,
-			"Position past end of medium") },
-/*  T    S      */{SST(0x3B, 0x0C, SS_RDEF,
-			"Position past beginning of medium") },
-/* DT  WR OM    */{SST(0x3B, 0x0D, SS_FATAL|ENOSPC,
-			"Medium destination element full") },
-/* DT  WR OM    */{SST(0x3B, 0x0E, SS_RDEF,
-			"Medium source element empty") },
-/*      R       */{SST(0x3B, 0x0F, SS_RDEF,
-			"End of medium reached") },
-/* DT  WR OM    */{SST(0x3B, 0x11, SS_RDEF,
-			"Medium magazine not accessible") },
-/* DT  WR OM    */{SST(0x3B, 0x12, SS_RDEF,
-			"Medium magazine removed") },
-/* DT  WR OM    */{SST(0x3B, 0x13, SS_RDEF,
-			"Medium magazine inserted") },
-/* DT  WR OM    */{SST(0x3B, 0x14, SS_RDEF,
-			"Medium magazine locked") },
-/* DT  WR OM    */{SST(0x3B, 0x15, SS_RDEF,
-			"Medium magazine unlocked") },
-/* DTLPWRSOMCAE */{SST(0x3D, 0x00, SS_RDEF,
-			"Invalid bits in identify message") },
-/* DTLPWRSOMCAE */{SST(0x3E, 0x00, SS_RDEF,
-			"Logical unit has not self-configured yet") },
-/* DTLPWRSOMCAE */{SST(0x3E, 0x01, SS_RDEF,
-			"Logical unit failure") },
-/* DTLPWRSOMCAE */{SST(0x3E, 0x02, SS_RDEF,
-			"Timeout on logical unit") },
-/* DTLPWRSOMCAE */{SST(0x3F, 0x00, SS_RDEF,
-			"Target operating conditions have changed") },
-/* DTLPWRSOMCAE */{SST(0x3F, 0x01, SS_RDEF,
-			"Microcode has been changed") },
-/* DTLPWRSOMC   */{SST(0x3F, 0x02, SS_RDEF,
-			"Changed operating definition") },
-/* DTLPWRSOMCAE */{SST(0x3F, 0x03, SS_RDEF,
-			"Inquiry data has changed") },
-/* DT  WR OMCAE */{SST(0x3F, 0x04, SS_RDEF,
-			"Component device attached") },
-/* DT  WR OMCAE */{SST(0x3F, 0x05, SS_RDEF,
-			"Device identifier changed") },
-/* DT  WR OMCAE */{SST(0x3F, 0x06, SS_RDEF,
-			"Redundancy group created or modified") },
-/* DT  WR OMCAE */{SST(0x3F, 0x07, SS_RDEF,
-			"Redundancy group deleted") },
-/* DT  WR OMCAE */{SST(0x3F, 0x08, SS_RDEF,
-			"Spare created or modified") },
-/* DT  WR OMCAE */{SST(0x3F, 0x09, SS_RDEF,
-			"Spare deleted") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0A, SS_RDEF,
-			"Volume set created or modified") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0B, SS_RDEF,
-			"Volume set deleted") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0C, SS_RDEF,
-			"Volume set deassigned") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0D, SS_RDEF,
-			"Volume set reassigned") },
-/* D            */{SST(0x40, 0x00, SS_RDEF,
-			"Ram failure") }, /* deprecated - use 40 NN instead */
-/* DTLPWRSOMCAE */{SST(0x40, 0x80, SS_RDEF,
-			"Diagnostic failure: ASCQ = Component ID") },
-/* DTLPWRSOMCAE */{SST(0x40, 0xFF, SS_RDEF|SSQ_RANGE,
-			NULL) },/* Range 0x80->0xFF */
-/* D            */{SST(0x41, 0x00, SS_RDEF,
-			"Data path failure") }, /* deprecated - use 40 NN instead */
-/* D            */{SST(0x42, 0x00, SS_RDEF,
-			"Power-on or self-test failure") }, /* deprecated - use 40 NN instead */
-/* DTLPWRSOMCAE */{SST(0x43, 0x00, SS_RDEF,
-			"Message error") },
-/* DTLPWRSOMCAE */{SST(0x44, 0x00, SS_RDEF,
-			"Internal target failure") },
-/* DTLPWRSOMCAE */{SST(0x45, 0x00, SS_RDEF,
-			"Select or reselect failure") },
-/* DTLPWRSOMC   */{SST(0x46, 0x00, SS_RDEF,
-			"Unsuccessful soft reset") },
-/* DTLPWRSOMCAE */{SST(0x47, 0x00, SS_RDEF,
-			"SCSI parity error") },
-/* DTLPWRSOMCAE */{SST(0x48, 0x00, SS_RDEF,
-			"Initiator detected error message received") },
-/* DTLPWRSOMCAE */{SST(0x49, 0x00, SS_RDEF,
-			"Invalid message error") },
-/* DTLPWRSOMCAE */{SST(0x4A, 0x00, SS_RDEF,
-			"Command phase error") },
-/* DTLPWRSOMCAE */{SST(0x4B, 0x00, SS_RDEF,
-			"Data phase error") },
-/* DTLPWRSOMCAE */{SST(0x4C, 0x00, SS_RDEF,
-			"Logical unit failed self-configuration") },
-/* DTLPWRSOMCAE */{SST(0x4D, 0x00, SS_RDEF,
-			"Tagged overlapped commands: ASCQ = Queue tag ID") },
-/* DTLPWRSOMCAE */{SST(0x4D, 0xFF, SS_RDEF|SSQ_RANGE,
-			NULL)}, /* Range 0x00->0xFF */
-/* DTLPWRSOMCAE */{SST(0x4E, 0x00, SS_RDEF,
-			"Overlapped commands attempted") },
-/*  T           */{SST(0x50, 0x00, SS_RDEF,
-			"Write append error") },
-/*  T           */{SST(0x50, 0x01, SS_RDEF,
-			"Write append position error") },
-/*  T           */{SST(0x50, 0x02, SS_RDEF,
-			"Position error related to timing") },
-/*  T     O     */{SST(0x51, 0x00, SS_RDEF,
-			"Erase failure") },
-/*  T           */{SST(0x52, 0x00, SS_RDEF,
-			"Cartridge fault") },
-/* DTL WRSOM    */{SST(0x53, 0x00, SS_RDEF,
-			"Media load or eject failed") },
-/*  T           */{SST(0x53, 0x01, SS_RDEF,
-			"Unload tape failure") },
-/* DT  WR OM    */{SST(0x53, 0x02, SS_RDEF,
-			"Medium removal prevented") },
-/*    P         */{SST(0x54, 0x00, SS_RDEF,
-			"Scsi to host system interface failure") },
-/*    P         */{SST(0x55, 0x00, SS_RDEF,
-			"System resource failure") },
-/* D      O     */{SST(0x55, 0x01, SS_FATAL|ENOSPC,
-			"System buffer full") },
-/*      R       */{SST(0x57, 0x00, SS_RDEF,
-			"Unable to recover table-of-contents") },
-/*        O     */{SST(0x58, 0x00, SS_RDEF,
-			"Generation does not exist") },
-/*        O     */{SST(0x59, 0x00, SS_RDEF,
-			"Updated block read") },
-/* DTLPWRSOM    */{SST(0x5A, 0x00, SS_RDEF,
-			"Operator request or state change input") },
-/* DT  WR OM    */{SST(0x5A, 0x01, SS_RDEF,
-			"Operator medium removal request") },
-/* DT  W  O     */{SST(0x5A, 0x02, SS_RDEF,
-			"Operator selected write protect") },
-/* DT  W  O     */{SST(0x5A, 0x03, SS_RDEF,
-			"Operator selected write permit") },
-/* DTLPWRSOM    */{SST(0x5B, 0x00, SS_RDEF,
-			"Log exception") },
-/* DTLPWRSOM    */{SST(0x5B, 0x01, SS_RDEF,
-			"Threshold condition met") },
-/* DTLPWRSOM    */{SST(0x5B, 0x02, SS_RDEF,
-			"Log counter at maximum") },
-/* DTLPWRSOM    */{SST(0x5B, 0x03, SS_RDEF,
-			"Log list codes exhausted") },
-/* D      O     */{SST(0x5C, 0x00, SS_RDEF,
-			"RPL status change") },
-/* D      O     */{SST(0x5C, 0x01, SS_NOP|SSQ_PRINT_SENSE,
-			"Spindles synchronized") },
-/* D      O     */{SST(0x5C, 0x02, SS_RDEF,
-			"Spindles not synchronized") },
-/* DTLPWRSOMCAE */{SST(0x5D, 0x00, SS_RDEF,
-			"Failure prediction threshold exceeded") },
-/* DTLPWRSOMCAE */{SST(0x5D, 0xFF, SS_RDEF,
-			"Failure prediction threshold exceeded (false)") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x00, SS_RDEF,
-			"Low power condition on") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x01, SS_RDEF,
-			"Idle condition activated by timer") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x02, SS_RDEF,
-			"Standby condition activated by timer") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x03, SS_RDEF,
-			"Idle condition activated by command") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x04, SS_RDEF,
-			"Standby condition activated by command") },
-/*       S      */{SST(0x60, 0x00, SS_RDEF,
-			"Lamp failure") },
-/*       S      */{SST(0x61, 0x00, SS_RDEF,
-			"Video acquisition error") },
-/*       S      */{SST(0x61, 0x01, SS_RDEF,
-			"Unable to acquire video") },
-/*       S      */{SST(0x61, 0x02, SS_RDEF,
-			"Out of focus") },
-/*       S      */{SST(0x62, 0x00, SS_RDEF,
-			"Scan head positioning error") },
-/*      R       */{SST(0x63, 0x00, SS_RDEF,
-			"End of user area encountered on this track") },
-/*      R       */{SST(0x63, 0x01, SS_FATAL|ENOSPC,
-			"Packet does not fit in available space") },
-/*      R       */{SST(0x64, 0x00, SS_FATAL|ENXIO,
-			"Illegal mode for this track") },
-/*      R       */{SST(0x64, 0x01, SS_RDEF,
-			"Invalid packet size") },
-/* DTLPWRSOMCAE */{SST(0x65, 0x00, SS_RDEF,
-			"Voltage fault") },
-/*       S      */{SST(0x66, 0x00, SS_RDEF,
-			"Automatic document feeder cover up") },
-/*       S      */{SST(0x66, 0x01, SS_RDEF,
-			"Automatic document feeder lift up") },
-/*       S      */{SST(0x66, 0x02, SS_RDEF,
-			"Document jam in automatic document feeder") },
-/*       S      */{SST(0x66, 0x03, SS_RDEF,
-			"Document miss feed automatic in document feeder") },
-/*           A  */{SST(0x67, 0x00, SS_RDEF,
-			"Configuration failure") },
-/*           A  */{SST(0x67, 0x01, SS_RDEF,
-			"Configuration of incapable logical units failed") },
-/*           A  */{SST(0x67, 0x02, SS_RDEF,
-			"Add logical unit failed") },
-/*           A  */{SST(0x67, 0x03, SS_RDEF,
-			"Modification of logical unit failed") },
-/*           A  */{SST(0x67, 0x04, SS_RDEF,
-			"Exchange of logical unit failed") },
-/*           A  */{SST(0x67, 0x05, SS_RDEF,
-			"Remove of logical unit failed") },
-/*           A  */{SST(0x67, 0x06, SS_RDEF,
-			"Attachment of logical unit failed") },
-/*           A  */{SST(0x67, 0x07, SS_RDEF,
-			"Creation of logical unit failed") },
-/*           A  */{SST(0x68, 0x00, SS_RDEF,
-			"Logical unit not configured") },
-/*           A  */{SST(0x69, 0x00, SS_RDEF,
-			"Data loss on logical unit") },
-/*           A  */{SST(0x69, 0x01, SS_RDEF,
-			"Multiple logical unit failures") },
-/*           A  */{SST(0x69, 0x02, SS_RDEF,
-			"Parity/data mismatch") },
-/*           A  */{SST(0x6A, 0x00, SS_RDEF,
-			"Informational, refer to log") },
-/*           A  */{SST(0x6B, 0x00, SS_RDEF,
-			"State change has occurred") },
-/*           A  */{SST(0x6B, 0x01, SS_RDEF,
-			"Redundancy level got better") },
-/*           A  */{SST(0x6B, 0x02, SS_RDEF,
-			"Redundancy level got worse") },
-/*           A  */{SST(0x6C, 0x00, SS_RDEF,
-			"Rebuild failure occurred") },
-/*           A  */{SST(0x6D, 0x00, SS_RDEF,
-			"Recalculate failure occurred") },
-/*           A  */{SST(0x6E, 0x00, SS_RDEF,
-			"Command to logical unit failed") },
-/*  T           */{SST(0x70, 0x00, SS_RDEF,
-			"Decompression exception short: ASCQ = Algorithm ID") },
-/*  T           */{SST(0x70, 0xFF, SS_RDEF|SSQ_RANGE,
-			NULL) }, /* Range 0x00 -> 0xFF */
-/*  T           */{SST(0x71, 0x00, SS_RDEF,
-			"Decompression exception long: ASCQ = Algorithm ID") },
-/*  T           */{SST(0x71, 0xFF, SS_RDEF|SSQ_RANGE,
-			NULL) }, /* Range 0x00 -> 0xFF */	
-/*      R       */{SST(0x72, 0x00, SS_RDEF,
-			"Session fixation error") },
-/*      R       */{SST(0x72, 0x01, SS_RDEF,
-			"Session fixation error writing lead-in") },
-/*      R       */{SST(0x72, 0x02, SS_RDEF,
-			"Session fixation error writing lead-out") },
-/*      R       */{SST(0x72, 0x03, SS_RDEF,
-			"Session fixation error - incomplete track in session") },
-/*      R       */{SST(0x72, 0x04, SS_RDEF,
-			"Empty or partially written reserved track") },
-/*      R       */{SST(0x73, 0x00, SS_RDEF,
-			"CD control error") },
-/*      R       */{SST(0x73, 0x01, SS_RDEF,
-			"Power calibration area almost full") },
-/*      R       */{SST(0x73, 0x02, SS_FATAL|ENOSPC,
-			"Power calibration area is full") },
-/*      R       */{SST(0x73, 0x03, SS_RDEF,
-			"Power calibration area error") },
-/*      R       */{SST(0x73, 0x04, SS_RDEF,
-			"Program memory area update failure") },
-/*      R       */{SST(0x73, 0x05, SS_RDEF,
-			"program memory area is full") }
+	/*
+	 * From: http://www.t10.org/lists/asc-num.txt
+	 * Modifications by Jung-uk Kim (jkim@FreeBSD.org)
+	 */
+	/*
+	 * File: ASC-NUM.TXT
+	 *
+	 * SCSI ASC/ASCQ Assignments
+	 * Numeric Sorted Listing
+	 * as of  7/29/08
+	 *
+	 * D - DIRECT ACCESS DEVICE (SBC-2)                   device column key
+	 * .T - SEQUENTIAL ACCESS DEVICE (SSC)               -------------------
+	 * . L - PRINTER DEVICE (SSC)                           blank = reserved
+	 * .  P - PROCESSOR DEVICE (SPC)                     not blank = allowed
+	 * .  .W - WRITE ONCE READ MULTIPLE DEVICE (SBC-2)
+	 * .  . R - CD DEVICE (MMC)
+	 * .  .  O - OPTICAL MEMORY DEVICE (SBC-2)
+	 * .  .  .M - MEDIA CHANGER DEVICE (SMC)
+	 * .  .  . A - STORAGE ARRAY DEVICE (SCC)
+	 * .  .  .  E - ENCLOSURE SERVICES DEVICE (SES)
+	 * .  .  .  .B - SIMPLIFIED DIRECT-ACCESS DEVICE (RBC)
+	 * .  .  .  . K - OPTICAL CARD READER/WRITER DEVICE (OCRW)
+	 * .  .  .  .  V - AUTOMATION/DRIVE INTERFACE (ADC)
+	 * .  .  .  .  .F - OBJECT-BASED STORAGE (OSD)
+	 * DTLPWROMAEBKVF
+	 * ASC      ASCQ  Action
+	 * Description
+	 */
+	/* DTLPWROMAEBKVF */
+	{ SST(0x00, 0x00, SS_NOP,
+	    "No additional sense information") },
+	/*  T             */
+	{ SST(0x00, 0x01, SS_RDEF,
+	    "Filemark detected") },
+	/*  T             */
+	{ SST(0x00, 0x02, SS_RDEF,
+	    "End-of-partition/medium detected") },
+	/*  T             */
+	{ SST(0x00, 0x03, SS_RDEF,
+	    "Setmark detected") },
+	/*  T             */
+	{ SST(0x00, 0x04, SS_RDEF,
+	    "Beginning-of-partition/medium detected") },
+	/*  TL            */
+	{ SST(0x00, 0x05, SS_RDEF,
+	    "End-of-data detected") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x00, 0x06, SS_RDEF,
+	    "I/O process terminated") },
+	/*  T             */
+	{ SST(0x00, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Programmable early warning detected") },
+	/*      R         */
+	{ SST(0x00, 0x11, SS_FATAL | EBUSY,
+	    "Audio play operation in progress") },
+	/*      R         */
+	{ SST(0x00, 0x12, SS_NOP,
+	    "Audio play operation paused") },
+	/*      R         */
+	{ SST(0x00, 0x13, SS_NOP,
+	    "Audio play operation successfully completed") },
+	/*      R         */
+	{ SST(0x00, 0x14, SS_RDEF,
+	    "Audio play operation stopped due to error") },
+	/*      R         */
+	{ SST(0x00, 0x15, SS_NOP,
+	    "No current audio status to return") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x00, 0x16, SS_FATAL | EBUSY,
+	    "Operation in progress") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x00, 0x17, SS_RDEF,
+	    "Cleaning requested") },
+	/*  T             */
+	{ SST(0x00, 0x18, SS_RDEF,	/* XXX TBD */
+	    "Erase operation in progress") },
+	/*  T             */
+	{ SST(0x00, 0x19, SS_RDEF,	/* XXX TBD */
+	    "Locate operation in progress") },
+	/*  T             */
+	{ SST(0x00, 0x1A, SS_RDEF,	/* XXX TBD */
+	    "Rewind operation in progress") },
+	/*  T             */
+	{ SST(0x00, 0x1B, SS_RDEF,	/* XXX TBD */
+	    "Set capacity operation in progress") },
+	/*  T             */
+	{ SST(0x00, 0x1C, SS_RDEF,	/* XXX TBD */
+	    "Verify operation in progress") },
+	/* DT        B    */
+	{ SST(0x00, 0x1D, SS_RDEF,	/* XXX TBD */
+	    "ATA pass through information available") },
+	/* DT   R MAEBKV  */
+	{ SST(0x00, 0x1E, SS_RDEF,	/* XXX TBD */
+	    "Conflicting SA creation request") },
+	/* D   W O   BK   */
+	{ SST(0x01, 0x00, SS_RDEF,
+	    "No index/sector signal") },
+	/* D   WRO   BK   */
+	{ SST(0x02, 0x00, SS_RDEF,
+	    "No seek complete") },
+	/* DTL W O   BK   */
+	{ SST(0x03, 0x00, SS_RDEF,
+	    "Peripheral device write fault") },
+	/*  T             */
+	{ SST(0x03, 0x01, SS_RDEF,
+	    "No write current") },
+	/*  T             */
+	{ SST(0x03, 0x02, SS_RDEF,
+	    "Excessive write errors") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x00, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EIO,
+	    "Logical unit not ready, cause not reportable") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x01, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
+	    "Logical unit is in process of becoming ready") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x02, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
+	    "Logical unit not ready, initializing command required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x03, SS_FATAL | ENXIO,
+	    "Logical unit not ready, manual intervention required") },
+	/* DTL  RO   B    */
+	{ SST(0x04, 0x04, SS_FATAL | EBUSY,
+	    "Logical unit not ready, format in progress") },
+	/* DT  W O A BK F */
+	{ SST(0x04, 0x05, SS_FATAL | EBUSY,
+	    "Logical unit not ready, rebuild in progress") },
+	/* DT  W O A BK   */
+	{ SST(0x04, 0x06, SS_FATAL | EBUSY,
+	    "Logical unit not ready, recalculation in progress") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x07, SS_FATAL | EBUSY,
+	    "Logical unit not ready, operation in progress") },
+	/*      R         */
+	{ SST(0x04, 0x08, SS_FATAL | EBUSY,
+	    "Logical unit not ready, long write in progress") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, self-test in progress") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not accessible, asymmetric access state transition")},
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not accessible, target port in standby state") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not accessible, target port in unavailable state") },
+	/*              F */
+	{ SST(0x04, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, structure check required") },
+	/* DT  WROM  B    */
+	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, auxiliary memory not accessible") },
+	/* DT  WRO AEB VF */
+	{ SST(0x04, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, notify (enable spinup) required") },
+	/*        M    V  */
+	{ SST(0x04, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, offline") },
+	/* DT   R MAEBKV  */
+	{ SST(0x04, 0x13, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, SA creation in progress") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x05, 0x00, SS_RDEF,
+	    "Logical unit does not respond to selection") },
+	/* D   WROM  BK   */
+	{ SST(0x06, 0x00, SS_RDEF,
+	    "No reference position found") },
+	/* DTL WROM  BK   */
+	{ SST(0x07, 0x00, SS_RDEF,
+	    "Multiple peripheral devices selected") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x08, 0x00, SS_RDEF,
+	    "Logical unit communication failure") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x08, 0x01, SS_RDEF,
+	    "Logical unit communication time-out") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x08, 0x02, SS_RDEF,
+	    "Logical unit communication parity error") },
+	/* DT   ROM  BK   */
+	{ SST(0x08, 0x03, SS_RDEF,
+	    "Logical unit communication CRC error (Ultra-DMA/32)") },
+	/* DTLPWRO    K   */
+	{ SST(0x08, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Unreachable copy target") },
+	/* DT  WRO   B    */
+	{ SST(0x09, 0x00, SS_RDEF,
+	    "Track following error") },
+	/*     WRO    K   */
+	{ SST(0x09, 0x01, SS_RDEF,
+	    "Tracking servo failure") },
+	/*     WRO    K   */
+	{ SST(0x09, 0x02, SS_RDEF,
+	    "Focus servo failure") },
+	/*     WRO        */
+	{ SST(0x09, 0x03, SS_RDEF,
+	    "Spindle servo failure") },
+	/* DT  WRO   B    */
+	{ SST(0x09, 0x04, SS_RDEF,
+	    "Head select fault") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0A, 0x00, SS_FATAL | ENOSPC,
+	    "Error log overflow") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x00, SS_RDEF,
+	    "Warning") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x01, SS_RDEF,
+	    "Warning - specified temperature exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x02, SS_RDEF,
+	    "Warning - enclosure degraded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Warning - background self-test failed") },
+	/* DTLPWRO AEBKVF */
+	{ SST(0x0B, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Warning - background pre-scan detected medium error") },
+	/* DTLPWRO AEBKVF */
+	{ SST(0x0B, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Warning - background medium scan detected medium error") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Warning - non-volatile cache now volatile") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Warning - degraded power to non-volatile cache") },
+	/*  T   R         */
+	{ SST(0x0C, 0x00, SS_RDEF,
+	    "Write error") },
+	/*            K   */
+	{ SST(0x0C, 0x01, SS_NOP | SSQ_PRINT_SENSE,
+	    "Write error - recovered with auto reallocation") },
+	/* D   W O   BK   */
+	{ SST(0x0C, 0x02, SS_RDEF,
+	    "Write error - auto reallocation failed") },
+	/* D   W O   BK   */
+	{ SST(0x0C, 0x03, SS_RDEF,
+	    "Write error - recommend reassignment") },
+	/* DT  W O   B    */
+	{ SST(0x0C, 0x04, SS_RDEF,
+	    "Compression check miscompare error") },
+	/* DT  W O   B    */
+	{ SST(0x0C, 0x05, SS_RDEF,
+	    "Data expansion occurred during compression") },
+	/* DT  W O   B    */
+	{ SST(0x0C, 0x06, SS_RDEF,
+	    "Block not compressible") },
+	/*      R         */
+	{ SST(0x0C, 0x07, SS_RDEF,
+	    "Write error - recovery needed") },
+	/*      R         */
+	{ SST(0x0C, 0x08, SS_RDEF,
+	    "Write error - recovery failed") },
+	/*      R         */
+	{ SST(0x0C, 0x09, SS_RDEF,
+	    "Write error - loss of streaming") },
+	/*      R         */
+	{ SST(0x0C, 0x0A, SS_RDEF,
+	    "Write error - padding blocks added") },
+	/* DT  WROM  B    */
+	{ SST(0x0C, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Auxiliary memory write error") },
+	/* DTLPWRO AEBKVF */
+	{ SST(0x0C, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Write error - unexpected unsolicited data") },
+	/* DTLPWRO AEBKVF */
+	{ SST(0x0C, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Write error - not enough unsolicited data") },
+	/*      R         */
+	{ SST(0x0C, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Defects in error window") },
+	/* DTLPWRO A  K   */
+	{ SST(0x0D, 0x00, SS_RDEF,	/* XXX TBD */
+	    "Error detected by third party temporary initiator") },
+	/* DTLPWRO A  K   */
+	{ SST(0x0D, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Third party device failure") },
+	/* DTLPWRO A  K   */
+	{ SST(0x0D, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Copy target device not reachable") },
+	/* DTLPWRO A  K   */
+	{ SST(0x0D, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Incorrect copy target device type") },
+	/* DTLPWRO A  K   */
+	{ SST(0x0D, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Copy target device data underrun") },
+	/* DTLPWRO A  K   */
+	{ SST(0x0D, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Copy target device data overrun") },
+	/* DT PWROMAEBK F */
+	{ SST(0x0E, 0x00, SS_RDEF,	/* XXX TBD */
+	    "Invalid information unit") },
+	/* DT PWROMAEBK F */
+	{ SST(0x0E, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Information unit too short") },
+	/* DT PWROMAEBK F */
+	{ SST(0x0E, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Information unit too long") },
+	/* DT P R MAEBK F */
+	{ SST(0x0E, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Invalid field in command information unit") },
+	/* D   W O   BK   */
+	{ SST(0x10, 0x00, SS_RDEF,
+	    "ID CRC or ECC error") },
+	/* DT  W O        */
+	{ SST(0x10, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Logical block guard check failed") },
+	/* DT  W O        */
+	{ SST(0x10, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Logical block application tag check failed") },
+	/* DT  W O        */
+	{ SST(0x10, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Logical block reference tag check failed") },
+	/* DT  WRO   BK   */
+	{ SST(0x11, 0x00, SS_RDEF,
+	    "Unrecovered read error") },
+	/* DT  WRO   BK   */
+	{ SST(0x11, 0x01, SS_RDEF,
+	    "Read retries exhausted") },
+	/* DT  WRO   BK   */
+	{ SST(0x11, 0x02, SS_RDEF,
+	    "Error too long to correct") },
+	/* DT  W O   BK   */
+	{ SST(0x11, 0x03, SS_RDEF,
+	    "Multiple read errors") },
+	/* D   W O   BK   */
+	{ SST(0x11, 0x04, SS_RDEF,
+	    "Unrecovered read error - auto reallocate failed") },
+	/*     WRO   B    */
+	{ SST(0x11, 0x05, SS_RDEF,
+	    "L-EC uncorrectable error") },
+	/*     WRO   B    */
+	{ SST(0x11, 0x06, SS_RDEF,
+	    "CIRC unrecovered error") },
+	/*     W O   B    */
+	{ SST(0x11, 0x07, SS_RDEF,
+	    "Data re-synchronization error") },
+	/*  T             */
+	{ SST(0x11, 0x08, SS_RDEF,
+	    "Incomplete block read") },
+	/*  T             */
+	{ SST(0x11, 0x09, SS_RDEF,
+	    "No gap found") },
+	/* DT    O   BK   */
+	{ SST(0x11, 0x0A, SS_RDEF,
+	    "Miscorrected error") },
+	/* D   W O   BK   */
+	{ SST(0x11, 0x0B, SS_RDEF,
+	    "Unrecovered read error - recommend reassignment") },
+	/* D   W O   BK   */
+	{ SST(0x11, 0x0C, SS_RDEF,
+	    "Unrecovered read error - recommend rewrite the data") },
+	/* DT  WRO   B    */
+	{ SST(0x11, 0x0D, SS_RDEF,
+	    "De-compression CRC error") },
+	/* DT  WRO   B    */
+	{ SST(0x11, 0x0E, SS_RDEF,
+	    "Cannot decompress using declared algorithm") },
+	/*      R         */
+	{ SST(0x11, 0x0F, SS_RDEF,
+	    "Error reading UPC/EAN number") },
+	/*      R         */
+	{ SST(0x11, 0x10, SS_RDEF,
+	    "Error reading ISRC number") },
+	/*      R         */
+	{ SST(0x11, 0x11, SS_RDEF,
+	    "Read error - loss of streaming") },
+	/* DT  WROM  B    */
+	{ SST(0x11, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Auxiliary memory read error") },
+	/* DTLPWRO AEBKVF */
+	{ SST(0x11, 0x13, SS_RDEF,	/* XXX TBD */
+	    "Read error - failed retransmission request") },
+	/* D              */
+	{ SST(0x11, 0x14, SS_RDEF,	/* XXX TBD */
+	    "Read error - LBA marked bad by application client") },
+	/* D   W O   BK   */
+	{ SST(0x12, 0x00, SS_RDEF,
+	    "Address mark not found for ID field") },
+	/* D   W O   BK   */
+	{ SST(0x13, 0x00, SS_RDEF,
+	    "Address mark not found for data field") },
+	/* DTL WRO   BK   */
+	{ SST(0x14, 0x00, SS_RDEF,
+	    "Recorded entity not found") },
+	/* DT  WRO   BK   */
+	{ SST(0x14, 0x01, SS_RDEF,
+	    "Record not found") },
+	/*  T             */
+	{ SST(0x14, 0x02, SS_RDEF,
+	    "Filemark or setmark not found") },
+	/*  T             */
+	{ SST(0x14, 0x03, SS_RDEF,
+	    "End-of-data not found") },
+	/*  T             */
+	{ SST(0x14, 0x04, SS_RDEF,
+	    "Block sequence error") },
+	/* DT  W O   BK   */
+	{ SST(0x14, 0x05, SS_RDEF,
+	    "Record not found - recommend reassignment") },
+	/* DT  W O   BK   */
+	{ SST(0x14, 0x06, SS_RDEF,
+	    "Record not found - data auto-reallocated") },
+	/*  T             */
+	{ SST(0x14, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Locate operation failure") },
+	/* DTL WROM  BK   */
+	{ SST(0x15, 0x00, SS_RDEF,
+	    "Random positioning error") },
+	/* DTL WROM  BK   */
+	{ SST(0x15, 0x01, SS_RDEF,
+	    "Mechanical positioning error") },
+	/* DT  WRO   BK   */
+	{ SST(0x15, 0x02, SS_RDEF,
+	    "Positioning error detected by read of medium") },
+	/* D   W O   BK   */
+	{ SST(0x16, 0x00, SS_RDEF,
+	    "Data synchronization mark error") },
+	/* D   W O   BK   */
+	{ SST(0x16, 0x01, SS_RDEF,
+	    "Data sync error - data rewritten") },
+	/* D   W O   BK   */
+	{ SST(0x16, 0x02, SS_RDEF,
+	    "Data sync error - recommend rewrite") },
+	/* D   W O   BK   */
+	{ SST(0x16, 0x03, SS_NOP | SSQ_PRINT_SENSE,
+	    "Data sync error - data auto-reallocated") },
+	/* D   W O   BK   */
+	{ SST(0x16, 0x04, SS_RDEF,
+	    "Data sync error - recommend reassignment") },
+	/* DT  WRO   BK   */
+	{ SST(0x17, 0x00, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with no error correction applied") },
+	/* DT  WRO   BK   */
+	{ SST(0x17, 0x01, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with retries") },
+	/* DT  WRO   BK   */
+	{ SST(0x17, 0x02, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with positive head offset") },
+	/* DT  WRO   BK   */
+	{ SST(0x17, 0x03, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with negative head offset") },
+	/*     WRO   B    */
+	{ SST(0x17, 0x04, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with retries and/or CIRC applied") },
+	/* D   WRO   BK   */
+	{ SST(0x17, 0x05, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data using previous sector ID") },
+	/* D   W O   BK   */
+	{ SST(0x17, 0x06, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data without ECC - data auto-reallocated") },
+	/* D   WRO   BK   */
+	{ SST(0x17, 0x07, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data without ECC - recommend reassignment") },
+	/* D   WRO   BK   */
+	{ SST(0x17, 0x08, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data without ECC - recommend rewrite") },
+	/* D   WRO   BK   */
+	{ SST(0x17, 0x09, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data without ECC - data rewritten") },
+	/* DT  WRO   BK   */
+	{ SST(0x18, 0x00, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with error correction applied") },
+	/* D   WRO   BK   */
+	{ SST(0x18, 0x01, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with error corr. & retries applied") },
+	/* D   WRO   BK   */
+	{ SST(0x18, 0x02, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data - data auto-reallocated") },
+	/*      R         */
+	{ SST(0x18, 0x03, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with CIRC") },
+	/*      R         */
+	{ SST(0x18, 0x04, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with L-EC") },
+	/* D   WRO   BK   */
+	{ SST(0x18, 0x05, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data - recommend reassignment") },
+	/* D   WRO   BK   */
+	{ SST(0x18, 0x06, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data - recommend rewrite") },
+	/* D   W O   BK   */
+	{ SST(0x18, 0x07, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered data with ECC - data rewritten") },
+	/*      R         */
+	{ SST(0x18, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Recovered data with linking") },
+	/* D     O    K   */
+	{ SST(0x19, 0x00, SS_RDEF,
+	    "Defect list error") },
+	/* D     O    K   */
+	{ SST(0x19, 0x01, SS_RDEF,
+	    "Defect list not available") },
+	/* D     O    K   */
+	{ SST(0x19, 0x02, SS_RDEF,
+	    "Defect list error in primary list") },
+	/* D     O    K   */
+	{ SST(0x19, 0x03, SS_RDEF,
+	    "Defect list error in grown list") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x1A, 0x00, SS_RDEF,
+	    "Parameter list length error") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x1B, 0x00, SS_RDEF,
+	    "Synchronous data transfer error") },
+	/* D     O   BK   */
+	{ SST(0x1C, 0x00, SS_RDEF,
+	    "Defect list not found") },
+	/* D     O   BK   */
+	{ SST(0x1C, 0x01, SS_RDEF,
+	    "Primary defect list not found") },
+	/* D     O   BK   */
+	{ SST(0x1C, 0x02, SS_RDEF,
+	    "Grown defect list not found") },
+	/* DT  WRO   BK   */
+	{ SST(0x1D, 0x00, SS_FATAL,
+	    "Miscompare during verify operation") },
+	/* D   W O   BK   */
+	{ SST(0x1E, 0x00, SS_NOP | SSQ_PRINT_SENSE,
+	    "Recovered ID with ECC correction") },
+	/* D     O    K   */
+	{ SST(0x1F, 0x00, SS_RDEF,
+	    "Partial defect list transfer") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x20, 0x00, SS_FATAL | EINVAL,
+	    "Invalid command operation code") },
+	/* DT PWROMAEBK   */
+	{ SST(0x20, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Access denied - initiator pending-enrolled") },
+	/* DT PWROMAEBK   */
+	{ SST(0x20, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Access denied - no access rights") },
+	/* DT PWROMAEBK   */
+	{ SST(0x20, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Access denied - invalid mgmt ID key") },
+	/*  T             */
+	{ SST(0x20, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Illegal command while in write capable state") },
+	/*  T             */
+	{ SST(0x20, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Obsolete") },
+	/*  T             */
+	{ SST(0x20, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Illegal command while in explicit address mode") },
+	/*  T             */
+	{ SST(0x20, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Illegal command while in implicit address mode") },
+	/* DT PWROMAEBK   */
+	{ SST(0x20, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Access denied - enrollment conflict") },
+	/* DT PWROMAEBK   */
+	{ SST(0x20, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Access denied - invalid LU identifier") },
+	/* DT PWROMAEBK   */
+	{ SST(0x20, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Access denied - invalid proxy token") },
+	/* DT PWROMAEBK   */
+	{ SST(0x20, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Access denied - ACL LUN conflict") },
+	/* DT  WRO   BK   */
+	{ SST(0x21, 0x00, SS_FATAL | EINVAL,
+	    "Logical block address out of range") },
+	/* DT  WROM  BK   */
+	{ SST(0x21, 0x01, SS_FATAL | EINVAL,
+	    "Invalid element address") },
+	/*      R         */
+	{ SST(0x21, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Invalid address for write") },
+	/*      R         */
+	{ SST(0x21, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Invalid write crossing layer jump") },
+	/* D              */
+	{ SST(0x22, 0x00, SS_FATAL | EINVAL,
+	    "Illegal function (use 20 00, 24 00, or 26 00)") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x24, 0x00, SS_FATAL | EINVAL,
+	    "Invalid field in CDB") },
+	/* DTLPWRO AEBKVF */
+	{ SST(0x24, 0x01, SS_RDEF,	/* XXX TBD */
+	    "CDB decryption error") },
+	/*  T             */
+	{ SST(0x24, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Obsolete") },
+	/*  T             */
+	{ SST(0x24, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Obsolete") },
+	/*              F */
+	{ SST(0x24, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Security audit value frozen") },
+	/*              F */
+	{ SST(0x24, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Security working key frozen") },
+	/*              F */
+	{ SST(0x24, 0x06, SS_RDEF,	/* XXX TBD */
+	    "NONCE not unique") },
+	/*              F */
+	{ SST(0x24, 0x07, SS_RDEF,	/* XXX TBD */
+	    "NONCE timestamp out of range") },
+	/* DT   R MAEBKV  */
+	{ SST(0x24, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Invalid XCDB") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x25, 0x00, SS_FATAL | ENXIO,
+	    "Logical unit not supported") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x26, 0x00, SS_FATAL | EINVAL,
+	    "Invalid field in parameter list") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x26, 0x01, SS_FATAL | EINVAL,
+	    "Parameter not supported") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x26, 0x02, SS_FATAL | EINVAL,
+	    "Parameter value invalid") },
+	/* DTLPWROMAE K   */
+	{ SST(0x26, 0x03, SS_FATAL | EINVAL,
+	    "Threshold parameters not supported") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x26, 0x04, SS_FATAL | EINVAL,
+	    "Invalid release of persistent reservation") },
+	/* DTLPWRO A BK   */
+	{ SST(0x26, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Data decryption error") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Too many target descriptors") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Unsupported target descriptor type code") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Too many segment descriptors") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Unsupported segment descriptor type code") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Unexpected inexact segment") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Inline data length exceeded") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Invalid operation for copy source or destination") },
+	/* DTLPWRO    K   */
+	{ SST(0x26, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Copy segment granularity violation") },
+	/* DT PWROMAEBK   */
+	{ SST(0x26, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Invalid parameter while port is enabled") },
+	/*              F */
+	{ SST(0x26, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Invalid data-out buffer integrity check value") },
+	/*  T             */
+	{ SST(0x26, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Data decryption key fail limit reached") },
+	/*  T             */
+	{ SST(0x26, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Incomplete key-associated data set") },
+	/*  T             */
+	{ SST(0x26, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Vendor specific key reference not found") },
+	/* DT  WRO   BK   */
+	{ SST(0x27, 0x00, SS_FATAL | EACCES,
+	    "Write protected") },
+	/* DT  WRO   BK   */
+	{ SST(0x27, 0x01, SS_FATAL | EACCES,
+	    "Hardware write protected") },
+	/* DT  WRO   BK   */
+	{ SST(0x27, 0x02, SS_FATAL | EACCES,
+	    "Logical unit software write protected") },
+	/*  T   R         */
+	{ SST(0x27, 0x03, SS_FATAL | EACCES,
+	    "Associated write protect") },
+	/*  T   R         */
+	{ SST(0x27, 0x04, SS_FATAL | EACCES,
+	    "Persistent write protect") },
+	/*  T   R         */
+	{ SST(0x27, 0x05, SS_FATAL | EACCES,
+	    "Permanent write protect") },
+	/*      R       F */
+	{ SST(0x27, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Conditional write protect") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x28, 0x00, SS_FATAL | ENXIO,
+	    "Not ready to ready change, medium may have changed") },
+	/* DT  WROM  B    */
+	{ SST(0x28, 0x01, SS_FATAL | ENXIO,
+	    "Import or export element accessed") },
+	/*      R         */
+	{ SST(0x28, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Format-layer may have changed") },
+	/*        M       */
+	{ SST(0x28, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Import/export element accessed, medium changed") },
+	/*
+	 * XXX JGibbs - All of these should use the same errno, but I don't
+	 * think ENXIO is the correct choice.  Should we borrow from
+	 * the networking errnos?  ECONNRESET anyone?
+	 */
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x00, SS_FATAL | ENXIO,
+	    "Power on, reset, or bus device reset occurred") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x01, SS_RDEF,
+	    "Power on occurred") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x02, SS_RDEF,
+	    "SCSI bus reset occurred") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x03, SS_RDEF,
+	    "Bus device reset function occurred") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x04, SS_RDEF,
+	    "Device internal reset") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x05, SS_RDEF,
+	    "Transceiver mode changed to single-ended") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x06, SS_RDEF,
+	    "Transceiver mode changed to LVD") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x29, 0x07, SS_RDEF,	/* XXX TBD */
+	    "I_T nexus loss occurred") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x2A, 0x00, SS_RDEF,
+	    "Parameters changed") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x2A, 0x01, SS_RDEF,
+	    "Mode parameters changed") },
+	/* DTL WROMAE K   */
+	{ SST(0x2A, 0x02, SS_RDEF,
+	    "Log parameters changed") },
+	/* DTLPWROMAE K   */
+	{ SST(0x2A, 0x03, SS_RDEF,
+	    "Reservations preempted") },
+	/* DTLPWROMAE     */
+	{ SST(0x2A, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Reservations released") },
+	/* DTLPWROMAE     */
+	{ SST(0x2A, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Registrations preempted") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2A, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Asymmetric access state changed") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2A, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Implicit asymmetric access state transition failed") },
+	/* DT  WROMAEBKVF */
+	{ SST(0x2A, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Priority changed") },
+	/* D              */
+	{ SST(0x2A, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Capacity data has changed") },
+	/* DT             */
+	{ SST(0x2A, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Error history I_T nexus cleared") },
+	/* DT             */
+	{ SST(0x2A, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Error history snapshot released") },
+	/*              F */
+	{ SST(0x2A, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Error recovery attributes have changed") },
+	/*  T             */
+	{ SST(0x2A, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Data encryption capabilities changed") },
+	/* DT     M E  V  */
+	{ SST(0x2A, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Timestamp changed") },
+	/*  T             */
+	{ SST(0x2A, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Data encryption parameters changed by another I_T nexus") },
+	/*  T             */
+	{ SST(0x2A, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Data encryption parameters changed by vendor specific event") },
+	/*  T             */
+	{ SST(0x2A, 0x13, SS_RDEF,	/* XXX TBD */
+	    "Data encryption key instance counter has changed") },
+	/* DT   R MAEBKV  */
+	{ SST(0x2A, 0x14, SS_RDEF,	/* XXX TBD */
+	    "SA creation capabilities data has changed") },
+	/* DTLPWRO    K   */
+	{ SST(0x2B, 0x00, SS_RDEF,
+	    "Copy cannot execute since host cannot disconnect") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2C, 0x00, SS_RDEF,
+	    "Command sequence error") },
+	/*                */
+	{ SST(0x2C, 0x01, SS_RDEF,
+	    "Too many windows specified") },
+	/*                */
+	{ SST(0x2C, 0x02, SS_RDEF,
+	    "Invalid combination of windows specified") },
+	/*      R         */
+	{ SST(0x2C, 0x03, SS_RDEF,
+	    "Current program area is not empty") },
+	/*      R         */
+	{ SST(0x2C, 0x04, SS_RDEF,
+	    "Current program area is empty") },
+	/*           B    */
+	{ SST(0x2C, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Illegal power condition request") },
+	/*      R         */
+	{ SST(0x2C, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Persistent prevent conflict") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2C, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Previous busy status") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2C, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Previous task set full status") },
+	/* DTLPWROM EBKVF */
+	{ SST(0x2C, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Previous reservation conflict status") },
+	/*              F */
+	{ SST(0x2C, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Partition or collection contains user objects") },
+	/*  T             */
+	{ SST(0x2C, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Not reserved") },
+	/*  T             */
+	{ SST(0x2D, 0x00, SS_RDEF,
+	    "Overwrite error on update in place") },
+	/*      R         */
+	{ SST(0x2E, 0x00, SS_RDEF,	/* XXX TBD */
+	    "Insufficient time for operation") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2F, 0x00, SS_RDEF,
+	    "Commands cleared by another initiator") },
+	/* D              */
+	{ SST(0x2F, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Commands cleared by power loss notification") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2F, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Commands cleared by device server") },
+	/* DT  WROM  BK   */
+	{ SST(0x30, 0x00, SS_RDEF,
+	    "Incompatible medium installed") },
+	/* DT  WRO   BK   */
+	{ SST(0x30, 0x01, SS_RDEF,
+	    "Cannot read medium - unknown format") },
+	/* DT  WRO   BK   */
+	{ SST(0x30, 0x02, SS_RDEF,
+	    "Cannot read medium - incompatible format") },
+	/* DT   R     K   */
+	{ SST(0x30, 0x03, SS_RDEF,
+	    "Cleaning cartridge installed") },
+	/* DT  WRO   BK   */
+	{ SST(0x30, 0x04, SS_RDEF,
+	    "Cannot write medium - unknown format") },
+	/* DT  WRO   BK   */
+	{ SST(0x30, 0x05, SS_RDEF,
+	    "Cannot write medium - incompatible format") },
+	/* DT  WRO   B    */
+	{ SST(0x30, 0x06, SS_RDEF,
+	    "Cannot format medium - incompatible medium") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x30, 0x07, SS_RDEF,
+	    "Cleaning failure") },
+	/*      R         */
+	{ SST(0x30, 0x08, SS_RDEF,
+	    "Cannot write - application code mismatch") },
+	/*      R         */
+	{ SST(0x30, 0x09, SS_RDEF,
+	    "Current session not fixated for append") },
+	/* DT  WRO AEBK   */
+	{ SST(0x30, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Cleaning request rejected") },
+	/*  T             */
+	{ SST(0x30, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "WORM medium - overwrite attempted") },
+	/*  T             */
+	{ SST(0x30, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "WORM medium - integrity check") },
+	/*      R         */
+	{ SST(0x30, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Medium not formatted") },
+	/*        M       */
+	{ SST(0x30, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Incompatible volume type") },
+	/*        M       */
+	{ SST(0x30, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Incompatible volume qualifier") },
+	/* DT  WRO   BK   */
+	{ SST(0x31, 0x00, SS_RDEF,
+	    "Medium format corrupted") },
+	/* D L  RO   B    */
+	{ SST(0x31, 0x01, SS_RDEF,
+	    "Format command failed") },
+	/*      R         */
+	{ SST(0x31, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Zoned formatting failed due to spare linking") },
+	/* D   W O   BK   */
+	{ SST(0x32, 0x00, SS_RDEF,
+	    "No defect spare location available") },
+	/* D   W O   BK   */
+	{ SST(0x32, 0x01, SS_RDEF,
+	    "Defect list update failure") },
+	/*  T             */
+	{ SST(0x33, 0x00, SS_RDEF,
+	    "Tape length error") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x34, 0x00, SS_RDEF,
+	    "Enclosure failure") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x35, 0x00, SS_RDEF,
+	    "Enclosure services failure") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x35, 0x01, SS_RDEF,
+	    "Unsupported enclosure function") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x35, 0x02, SS_RDEF,
+	    "Enclosure services unavailable") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x35, 0x03, SS_RDEF,
+	    "Enclosure services transfer failure") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x35, 0x04, SS_RDEF,
+	    "Enclosure services transfer refused") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x35, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Enclosure services checksum error") },
+	/*   L            */
+	{ SST(0x36, 0x00, SS_RDEF,
+	    "Ribbon, ink, or toner failure") },
+	/* DTL WROMAEBKVF */
+	{ SST(0x37, 0x00, SS_RDEF,
+	    "Rounded parameter") },
+	/*           B    */
+	{ SST(0x38, 0x00, SS_RDEF,	/* XXX TBD */
+	    "Event status notification") },
+	/*           B    */
+	{ SST(0x38, 0x02, SS_RDEF,	/* XXX TBD */
+	    "ESN - power management class event") },
+	/*           B    */
+	{ SST(0x38, 0x04, SS_RDEF,	/* XXX TBD */
+	    "ESN - media class event") },
+	/*           B    */
+	{ SST(0x38, 0x06, SS_RDEF,	/* XXX TBD */
+	    "ESN - device busy class event") },
+	/* DTL WROMAE K   */
+	{ SST(0x39, 0x00, SS_RDEF,
+	    "Saving parameters not supported") },
+	/* DTL WROM  BK   */
+	{ SST(0x3A, 0x00, SS_FATAL | ENXIO,
+	    "Medium not present") },
+	/* DT  WROM  BK   */
+	{ SST(0x3A, 0x01, SS_FATAL | ENXIO,
+	    "Medium not present - tray closed") },
+	/* DT  WROM  BK   */
+	{ SST(0x3A, 0x02, SS_FATAL | ENXIO,
+	    "Medium not present - tray open") },
+	/* DT  WROM  B    */
+	{ SST(0x3A, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Medium not present - loadable") },
+	/* DT  WRO   B    */
+	{ SST(0x3A, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Medium not present - medium auxiliary memory accessible") },
+	/*  TL            */
+	{ SST(0x3B, 0x00, SS_RDEF,
+	    "Sequential positioning error") },
+	/*  T             */
+	{ SST(0x3B, 0x01, SS_RDEF,
+	    "Tape position error at beginning-of-medium") },
+	/*  T             */
+	{ SST(0x3B, 0x02, SS_RDEF,
+	    "Tape position error at end-of-medium") },
+	/*   L            */
+	{ SST(0x3B, 0x03, SS_RDEF,
+	    "Tape or electronic vertical forms unit not ready") },
+	/*   L            */
+	{ SST(0x3B, 0x04, SS_RDEF,
+	    "Slew failure") },
+	/*   L            */
+	{ SST(0x3B, 0x05, SS_RDEF,
+	    "Paper jam") },
+	/*   L            */
+	{ SST(0x3B, 0x06, SS_RDEF,
+	    "Failed to sense top-of-form") },
+	/*   L            */
+	{ SST(0x3B, 0x07, SS_RDEF,
+	    "Failed to sense bottom-of-form") },
+	/*  T             */
+	{ SST(0x3B, 0x08, SS_RDEF,
+	    "Reposition error") },
+	/*                */
+	{ SST(0x3B, 0x09, SS_RDEF,
+	    "Read past end of medium") },
+	/*                */
+	{ SST(0x3B, 0x0A, SS_RDEF,
+	    "Read past beginning of medium") },
+	/*                */
+	{ SST(0x3B, 0x0B, SS_RDEF,
+	    "Position past end of medium") },
+	/*  T             */
+	{ SST(0x3B, 0x0C, SS_RDEF,
+	    "Position past beginning of medium") },
+	/* DT  WROM  BK   */
+	{ SST(0x3B, 0x0D, SS_FATAL | ENOSPC,
+	    "Medium destination element full") },
+	/* DT  WROM  BK   */
+	{ SST(0x3B, 0x0E, SS_RDEF,
+	    "Medium source element empty") },
+	/*      R         */
+	{ SST(0x3B, 0x0F, SS_RDEF,
+	    "End of medium reached") },
+	/* DT  WROM  BK   */
+	{ SST(0x3B, 0x11, SS_RDEF,
+	    "Medium magazine not accessible") },
+	/* DT  WROM  BK   */
+	{ SST(0x3B, 0x12, SS_RDEF,
+	    "Medium magazine removed") },
+	/* DT  WROM  BK   */
+	{ SST(0x3B, 0x13, SS_RDEF,
+	    "Medium magazine inserted") },
+	/* DT  WROM  BK   */
+	{ SST(0x3B, 0x14, SS_RDEF,
+	    "Medium magazine locked") },
+	/* DT  WROM  BK   */
+	{ SST(0x3B, 0x15, SS_RDEF,
+	    "Medium magazine unlocked") },
+	/*      R         */
+	{ SST(0x3B, 0x16, SS_RDEF,	/* XXX TBD */
+	    "Mechanical positioning or changer error") },
+	/*              F */
+	{ SST(0x3B, 0x17, SS_RDEF,	/* XXX TBD */
+	    "Read past end of user object") },
+	/*        M       */
+	{ SST(0x3B, 0x18, SS_RDEF,	/* XXX TBD */
+	    "Element disabled") },
+	/*        M       */
+	{ SST(0x3B, 0x19, SS_RDEF,	/* XXX TBD */
+	    "Element enabled") },
+	/*        M       */
+	{ SST(0x3B, 0x1A, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device removed") },
+	/*        M       */
+	{ SST(0x3B, 0x1B, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device inserted") },
+	/* DTLPWROMAE K   */
+	{ SST(0x3D, 0x00, SS_RDEF,
+	    "Invalid bits in IDENTIFY message") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3E, 0x00, SS_RDEF,
+	    "Logical unit has not self-configured yet") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3E, 0x01, SS_RDEF,
+	    "Logical unit failure") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3E, 0x02, SS_RDEF,
+	    "Timeout on logical unit") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3E, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Logical unit failed self-test") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3E, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Logical unit unable to update self-test log") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3F, 0x00, SS_RDEF,
+	    "Target operating conditions have changed") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3F, 0x01, SS_RDEF,
+	    "Microcode has been changed") },
+	/* DTLPWROM  BK   */
+	{ SST(0x3F, 0x02, SS_RDEF,
+	    "Changed operating definition") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3F, 0x03, SS_RDEF,
+	    "INQUIRY data has changed") },
+	/* DT  WROMAEBK   */
+	{ SST(0x3F, 0x04, SS_RDEF,
+	    "Component device attached") },
+	/* DT  WROMAEBK   */
+	{ SST(0x3F, 0x05, SS_RDEF,
+	    "Device identifier changed") },
+	/* DT  WROMAEB    */
+	{ SST(0x3F, 0x06, SS_RDEF,
+	    "Redundancy group created or modified") },
+	/* DT  WROMAEB    */
+	{ SST(0x3F, 0x07, SS_RDEF,
+	    "Redundancy group deleted") },
+	/* DT  WROMAEB    */
+	{ SST(0x3F, 0x08, SS_RDEF,
+	    "Spare created or modified") },
+	/* DT  WROMAEB    */
+	{ SST(0x3F, 0x09, SS_RDEF,
+	    "Spare deleted") },
+	/* DT  WROMAEBK   */
+	{ SST(0x3F, 0x0A, SS_RDEF,
+	    "Volume set created or modified") },
+	/* DT  WROMAEBK   */
+	{ SST(0x3F, 0x0B, SS_RDEF,
+	    "Volume set deleted") },
+	/* DT  WROMAEBK   */
+	{ SST(0x3F, 0x0C, SS_RDEF,
+	    "Volume set deassigned") },
+	/* DT  WROMAEBK   */
+	{ SST(0x3F, 0x0D, SS_RDEF,
+	    "Volume set reassigned") },
+	/* DTLPWROMAE     */
+	{ SST(0x3F, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Reported LUNs data has changed") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3F, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Echo buffer overwritten") },
+	/* DT  WROM  B    */
+	{ SST(0x3F, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Medium loadable") },
+	/* DT  WROM  B    */
+	{ SST(0x3F, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Medium auxiliary memory accessible") },
+	/* DTLPWR MAEBK F */
+	{ SST(0x3F, 0x12, SS_RDEF,	/* XXX TBD */
+	    "iSCSI IP address added") },
+	/* DTLPWR MAEBK F */
+	{ SST(0x3F, 0x13, SS_RDEF,	/* XXX TBD */
+	    "iSCSI IP address removed") },
+	/* DTLPWR MAEBK F */
+	{ SST(0x3F, 0x14, SS_RDEF,	/* XXX TBD */
+	    "iSCSI IP address changed") },
+	/* D              */
+	{ SST(0x40, 0x00, SS_RDEF,
+	    "RAM failure") },		/* deprecated - use 40 NN instead */
+	/* DTLPWROMAEBKVF */
+	{ SST(0x40, 0x80, SS_RDEF,
+	    "Diagnostic failure: ASCQ = Component ID") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x40, 0xFF, SS_RDEF | SSQ_RANGE,
+	    NULL) },			/* Range 0x80->0xFF */
+	/* D              */
+	{ SST(0x41, 0x00, SS_RDEF,
+	    "Data path failure") },	/* deprecated - use 40 NN instead */
+	/* D              */
+	{ SST(0x42, 0x00, SS_RDEF,
+	    "Power-on or self-test failure") },
+					/* deprecated - use 40 NN instead */
+	/* DTLPWROMAEBKVF */
+	{ SST(0x43, 0x00, SS_RDEF,
+	    "Message error") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x44, 0x00, SS_RDEF,
+	    "Internal target failure") },
+	/* DT        B    */
+	{ SST(0x44, 0x71, SS_RDEF,	/* XXX TBD */
+	    "ATA device failed set features") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x45, 0x00, SS_RDEF,
+	    "Select or reselect failure") },
+	/* DTLPWROM  BK   */
+	{ SST(0x46, 0x00, SS_RDEF,
+	    "Unsuccessful soft reset") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x47, 0x00, SS_RDEF,
+	    "SCSI parity error") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x47, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Data phase CRC error detected") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x47, 0x02, SS_RDEF,	/* XXX TBD */
+	    "SCSI parity error detected during ST data phase") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x47, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Information unit iuCRC error detected") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x47, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Asynchronous information protection error detected") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x47, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Protocol service CRC error") },
+	/* DT     MAEBKVF */
+	{ SST(0x47, 0x06, SS_RDEF,	/* XXX TBD */
+	    "PHY test function in progress") },
+	/* DT PWROMAEBK   */
+	{ SST(0x47, 0x7F, SS_RDEF,	/* XXX TBD */
+	    "Some commands cleared by iSCSI protocol event") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x48, 0x00, SS_RDEF,
+	    "Initiator detected error message received") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x49, 0x00, SS_RDEF,
+	    "Invalid message error") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x4A, 0x00, SS_RDEF,
+	    "Command phase error") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x4B, 0x00, SS_RDEF,
+	    "Data phase error") },
+	/* DT PWROMAEBK   */
+	{ SST(0x4B, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Invalid target port transfer tag received") },
+	/* DT PWROMAEBK   */
+	{ SST(0x4B, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Too much write data") },
+	/* DT PWROMAEBK   */
+	{ SST(0x4B, 0x03, SS_RDEF,	/* XXX TBD */
+	    "ACK/NAK timeout") },
+	/* DT PWROMAEBK   */
+	{ SST(0x4B, 0x04, SS_RDEF,	/* XXX TBD */
+	    "NAK received") },
+	/* DT PWROMAEBK   */
+	{ SST(0x4B, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Data offset error") },
+	/* DT PWROMAEBK   */
+	{ SST(0x4B, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Initiator response timeout") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x4C, 0x00, SS_RDEF,
+	    "Logical unit failed self-configuration") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x4D, 0x00, SS_RDEF,
+	    "Tagged overlapped commands: ASCQ = Queue tag ID") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x4D, 0xFF, SS_RDEF | SSQ_RANGE,
+	    NULL) },			/* Range 0x00->0xFF */
+	/* DTLPWROMAEBKVF */
+	{ SST(0x4E, 0x00, SS_RDEF,
+	    "Overlapped commands attempted") },
+	/*  T             */
+	{ SST(0x50, 0x00, SS_RDEF,
+	    "Write append error") },
+	/*  T             */
+	{ SST(0x50, 0x01, SS_RDEF,
+	    "Write append position error") },
+	/*  T             */
+	{ SST(0x50, 0x02, SS_RDEF,
+	    "Position error related to timing") },
+	/*  T   RO        */
+	{ SST(0x51, 0x00, SS_RDEF,
+	    "Erase failure") },
+	/*      R         */
+	{ SST(0x51, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Erase failure - incomplete erase operation detected") },
+	/*  T             */
+	{ SST(0x52, 0x00, SS_RDEF,
+	    "Cartridge fault") },
+	/* DTL WROM  BK   */
+	{ SST(0x53, 0x00, SS_RDEF,
+	    "Media load or eject failed") },
+	/*  T             */
+	{ SST(0x53, 0x01, SS_RDEF,
+	    "Unload tape failure") },
+	/* DT  WROM  BK   */
+	{ SST(0x53, 0x02, SS_RDEF,
+	    "Medium removal prevented") },
+	/*        M       */
+	{ SST(0x53, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Medium removal prevented by data transfer element") },
+	/*  T             */
+	{ SST(0x53, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Medium thread or unthread failure") },
+	/*    P           */
+	{ SST(0x54, 0x00, SS_RDEF,
+	    "SCSI to host system interface failure") },
+	/*    P           */
+	{ SST(0x55, 0x00, SS_RDEF,
+	    "System resource failure") },
+	/* D     O   BK   */
+	{ SST(0x55, 0x01, SS_FATAL | ENOSPC,
+	    "System buffer full") },
+	/* DTLPWROMAE K   */
+	{ SST(0x55, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Insufficient reservation resources") },
+	/* DTLPWROMAE K   */
+	{ SST(0x55, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Insufficient resources") },
+	/* DTLPWROMAE K   */
+	{ SST(0x55, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Insufficient registration resources") },
+	/* DT PWROMAEBK   */
+	{ SST(0x55, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Insufficient access control resources") },
+	/* DT  WROM  B    */
+	{ SST(0x55, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Auxiliary memory out of space") },
+	/*              F */
+	{ SST(0x55, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Quota error") },
+	/*  T             */
+	{ SST(0x55, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Maximum number of supplemental decryption keys exceeded") },
+	/*        M       */
+	{ SST(0x55, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Medium auxiliary memory not accessible") },
+	/*        M       */
+	{ SST(0x55, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Data currently unavailable") },
+	/*      R         */
+	{ SST(0x57, 0x00, SS_RDEF,
+	    "Unable to recover table-of-contents") },
+	/*       O        */
+	{ SST(0x58, 0x00, SS_RDEF,
+	    "Generation does not exist") },
+	/*       O        */
+	{ SST(0x59, 0x00, SS_RDEF,
+	    "Updated block read") },
+	/* DTLPWRO   BK   */
+	{ SST(0x5A, 0x00, SS_RDEF,
+	    "Operator request or state change input") },
+	/* DT  WROM  BK   */
+	{ SST(0x5A, 0x01, SS_RDEF,
+	    "Operator medium removal request") },
+	/* DT  WRO A BK   */
+	{ SST(0x5A, 0x02, SS_RDEF,
+	    "Operator selected write protect") },
+	/* DT  WRO A BK   */
+	{ SST(0x5A, 0x03, SS_RDEF,
+	    "Operator selected write permit") },
+	/* DTLPWROM   K   */
+	{ SST(0x5B, 0x00, SS_RDEF,
+	    "Log exception") },
+	/* DTLPWROM   K   */
+	{ SST(0x5B, 0x01, SS_RDEF,
+	    "Threshold condition met") },
+	/* DTLPWROM   K   */
+	{ SST(0x5B, 0x02, SS_RDEF,
+	    "Log counter at maximum") },
+	/* DTLPWROM   K   */
+	{ SST(0x5B, 0x03, SS_RDEF,
+	    "Log list codes exhausted") },
+	/* D     O        */
+	{ SST(0x5C, 0x00, SS_RDEF,
+	    "RPL status change") },
+	/* D     O        */
+	{ SST(0x5C, 0x01, SS_NOP | SSQ_PRINT_SENSE,
+	    "Spindles synchronized") },
+	/* D     O        */
+	{ SST(0x5C, 0x02, SS_RDEF,
+	    "Spindles not synchronized") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x5D, 0x00, SS_RDEF,
+	    "Failure prediction threshold exceeded") },
+	/*      R    B    */
+	{ SST(0x5D, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Media failure prediction threshold exceeded") },
+	/*      R         */
+	{ SST(0x5D, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Logical unit failure prediction threshold exceeded") },
+	/*      R         */
+	{ SST(0x5D, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Spare area exhaustion prediction threshold exceeded") },
+	/* D         B    */
+	{ SST(0x5D, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure general hard drive failure") },
+	/* D         B    */
+	{ SST(0x5D, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure drive error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure data error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x13, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure seek error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x14, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure too many block reassigns") },
+	/* D         B    */
+	{ SST(0x5D, 0x15, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure access times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x16, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure start unit times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x17, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure channel parametrics") },
+	/* D         B    */
+	{ SST(0x5D, 0x18, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure controller detected") },
+	/* D         B    */
+	{ SST(0x5D, 0x19, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure throughput performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x1A, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure seek time performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x1B, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure spin-up retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x1C, SS_RDEF,	/* XXX TBD */
+	    "Hardware impending failure drive calibration retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x20, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure general hard drive failure") },
+	/* D         B    */
+	{ SST(0x5D, 0x21, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure drive error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x22, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure data error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x23, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure seek error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x24, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure too many block reassigns") },
+	/* D         B    */
+	{ SST(0x5D, 0x25, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure access times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x26, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure start unit times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x27, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure channel parametrics") },
+	/* D         B    */
+	{ SST(0x5D, 0x28, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure controller detected") },
+	/* D         B    */
+	{ SST(0x5D, 0x29, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure throughput performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x2A, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure seek time performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x2B, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure spin-up retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x2C, SS_RDEF,	/* XXX TBD */
+	    "Controller impending failure drive calibration retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x30, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure general hard drive failure") },
+	/* D         B    */
+	{ SST(0x5D, 0x31, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure drive error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x32, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure data error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x33, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure seek error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x34, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure too many block reassigns") },
+	/* D         B    */
+	{ SST(0x5D, 0x35, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure access times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x36, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure start unit times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x37, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure channel parametrics") },
+	/* D         B    */
+	{ SST(0x5D, 0x38, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure controller detected") },
+	/* D         B    */
+	{ SST(0x5D, 0x39, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure throughput performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x3A, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure seek time performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x3B, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure spin-up retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x3C, SS_RDEF,	/* XXX TBD */
+	    "Data channel impending failure drive calibration retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x40, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure general hard drive failure") },
+	/* D         B    */
+	{ SST(0x5D, 0x41, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure drive error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x42, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure data error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x43, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure seek error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x44, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure too many block reassigns") },
+	/* D         B    */
+	{ SST(0x5D, 0x45, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure access times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x46, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure start unit times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x47, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure channel parametrics") },
+	/* D         B    */
+	{ SST(0x5D, 0x48, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure controller detected") },
+	/* D         B    */
+	{ SST(0x5D, 0x49, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure throughput performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x4A, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure seek time performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x4B, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure spin-up retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x4C, SS_RDEF,	/* XXX TBD */
+	    "Servo impending failure drive calibration retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x50, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure general hard drive failure") },
+	/* D         B    */
+	{ SST(0x5D, 0x51, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure drive error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x52, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure data error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x53, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure seek error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x54, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure too many block reassigns") },
+	/* D         B    */
+	{ SST(0x5D, 0x55, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure access times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x56, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure start unit times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x57, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure channel parametrics") },
+	/* D         B    */
+	{ SST(0x5D, 0x58, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure controller detected") },
+	/* D         B    */
+	{ SST(0x5D, 0x59, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure throughput performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x5A, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure seek time performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x5B, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure spin-up retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x5C, SS_RDEF,	/* XXX TBD */
+	    "Spindle impending failure drive calibration retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x60, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure general hard drive failure") },
+	/* D         B    */
+	{ SST(0x5D, 0x61, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure drive error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x62, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure data error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x63, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure seek error rate too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x64, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure too many block reassigns") },
+	/* D         B    */
+	{ SST(0x5D, 0x65, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure access times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x66, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure start unit times too high") },
+	/* D         B    */
+	{ SST(0x5D, 0x67, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure channel parametrics") },
+	/* D         B    */
+	{ SST(0x5D, 0x68, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure controller detected") },
+	/* D         B    */
+	{ SST(0x5D, 0x69, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure throughput performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x6A, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure seek time performance") },
+	/* D         B    */
+	{ SST(0x5D, 0x6B, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure spin-up retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x6C, SS_RDEF,	/* XXX TBD */
+	    "Firmware impending failure drive calibration retry count") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x5D, 0xFF, SS_RDEF,
+	    "Failure prediction threshold exceeded (false)") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x00, SS_RDEF,
+	    "Low power condition on") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x01, SS_RDEF,
+	    "Idle condition activated by timer") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x02, SS_RDEF,
+	    "Standby condition activated by timer") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x03, SS_RDEF,
+	    "Idle condition activated by command") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x04, SS_RDEF,
+	    "Standby condition activated by command") },
+	/*           B    */
+	{ SST(0x5E, 0x41, SS_RDEF,	/* XXX TBD */
+	    "Power state change to active") },
+	/*           B    */
+	{ SST(0x5E, 0x42, SS_RDEF,	/* XXX TBD */
+	    "Power state change to idle") },
+	/*           B    */
+	{ SST(0x5E, 0x43, SS_RDEF,	/* XXX TBD */
+	    "Power state change to standby") },
+	/*           B    */
+	{ SST(0x5E, 0x45, SS_RDEF,	/* XXX TBD */
+	    "Power state change to sleep") },
+	/*           BK   */
+	{ SST(0x5E, 0x47, SS_RDEF,	/* XXX TBD */
+	    "Power state change to device control") },
+	/*                */
+	{ SST(0x60, 0x00, SS_RDEF,
+	    "Lamp failure") },
+	/*                */
+	{ SST(0x61, 0x00, SS_RDEF,
+	    "Video acquisition error") },
+	/*                */
+	{ SST(0x61, 0x01, SS_RDEF,
+	    "Unable to acquire video") },
+	/*                */
+	{ SST(0x61, 0x02, SS_RDEF,
+	    "Out of focus") },
+	/*                */
+	{ SST(0x62, 0x00, SS_RDEF,
+	    "Scan head positioning error") },
+	/*      R         */
+	{ SST(0x63, 0x00, SS_RDEF,
+	    "End of user area encountered on this track") },
+	/*      R         */
+	{ SST(0x63, 0x01, SS_FATAL | ENOSPC,
+	    "Packet does not fit in available space") },
+	/*      R         */
+	{ SST(0x64, 0x00, SS_FATAL | ENXIO,
+	    "Illegal mode for this track") },
+	/*      R         */
+	{ SST(0x64, 0x01, SS_RDEF,
+	    "Invalid packet size") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x65, 0x00, SS_RDEF,
+	    "Voltage fault") },
+	/*                */
+	{ SST(0x66, 0x00, SS_RDEF,
+	    "Automatic document feeder cover up") },
+	/*                */
+	{ SST(0x66, 0x01, SS_RDEF,
+	    "Automatic document feeder lift up") },
+	/*                */
+	{ SST(0x66, 0x02, SS_RDEF,
+	    "Document jam in automatic document feeder") },
+	/*                */
+	{ SST(0x66, 0x03, SS_RDEF,
+	    "Document miss feed automatic in document feeder") },
+	/*         A      */
+	{ SST(0x67, 0x00, SS_RDEF,
+	    "Configuration failure") },
+	/*         A      */
+	{ SST(0x67, 0x01, SS_RDEF,
+	    "Configuration of incapable logical units failed") },
+	/*         A      */
+	{ SST(0x67, 0x02, SS_RDEF,
+	    "Add logical unit failed") },
+	/*         A      */
+	{ SST(0x67, 0x03, SS_RDEF,
+	    "Modification of logical unit failed") },
+	/*         A      */
+	{ SST(0x67, 0x04, SS_RDEF,
+	    "Exchange of logical unit failed") },
+	/*         A      */
+	{ SST(0x67, 0x05, SS_RDEF,
+	    "Remove of logical unit failed") },
+	/*         A      */
+	{ SST(0x67, 0x06, SS_RDEF,
+	    "Attachment of logical unit failed") },
+	/*         A      */
+	{ SST(0x67, 0x07, SS_RDEF,
+	    "Creation of logical unit failed") },
+	/*         A      */
+	{ SST(0x67, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Assign failure occurred") },
+	/*         A      */
+	{ SST(0x67, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Multiply assigned logical unit") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x67, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Set target port groups command failed") },
+	/* DT        B    */
+	{ SST(0x67, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "ATA device feature not enabled") },
+	/*         A      */
+	{ SST(0x68, 0x00, SS_RDEF,
+	    "Logical unit not configured") },
+	/*         A      */
+	{ SST(0x69, 0x00, SS_RDEF,
+	    "Data loss on logical unit") },
+	/*         A      */
+	{ SST(0x69, 0x01, SS_RDEF,
+	    "Multiple logical unit failures") },
+	/*         A      */
+	{ SST(0x69, 0x02, SS_RDEF,
+	    "Parity/data mismatch") },
+	/*         A      */
+	{ SST(0x6A, 0x00, SS_RDEF,
+	    "Informational, refer to log") },
+	/*         A      */
+	{ SST(0x6B, 0x00, SS_RDEF,
+	    "State change has occurred") },
+	/*         A      */
+	{ SST(0x6B, 0x01, SS_RDEF,
+	    "Redundancy level got better") },
+	/*         A      */
+	{ SST(0x6B, 0x02, SS_RDEF,
+	    "Redundancy level got worse") },
+	/*         A      */
+	{ SST(0x6C, 0x00, SS_RDEF,
+	    "Rebuild failure occurred") },
+	/*         A      */
+	{ SST(0x6D, 0x00, SS_RDEF,
+	    "Recalculate failure occurred") },
+	/*         A      */
+	{ SST(0x6E, 0x00, SS_RDEF,
+	    "Command to logical unit failed") },
+	/*      R         */
+	{ SST(0x6F, 0x00, SS_RDEF,	/* XXX TBD */
+	    "Copy protection key exchange failure - authentication failure") },
+	/*      R         */
+	{ SST(0x6F, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Copy protection key exchange failure - key not present") },
+	/*      R         */
+	{ SST(0x6F, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Copy protection key exchange failure - key not established") },
+	/*      R         */
+	{ SST(0x6F, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Read of scrambled sector without authentication") },
+	/*      R         */
+	{ SST(0x6F, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Media region code is mismatched to logical unit region") },
+	/*      R         */
+	{ SST(0x6F, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Drive region must be permanent/region reset count error") },
+	/*      R         */
+	{ SST(0x6F, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Insufficient block count for binding NONCE recording") },
+	/*      R         */
+	{ SST(0x6F, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Conflict in binding NONCE recording") },
+	/*  T             */
+	{ SST(0x70, 0x00, SS_RDEF,
+	    "Decompression exception short: ASCQ = Algorithm ID") },
+	/*  T             */
+	{ SST(0x70, 0xFF, SS_RDEF | SSQ_RANGE,
+	    NULL) },			/* Range 0x00 -> 0xFF */
+	/*  T             */
+	{ SST(0x71, 0x00, SS_RDEF,
+	    "Decompression exception long: ASCQ = Algorithm ID") },
+	/*  T             */
+	{ SST(0x71, 0xFF, SS_RDEF | SSQ_RANGE,
+	    NULL) },			/* Range 0x00 -> 0xFF */
+	/*      R         */
+	{ SST(0x72, 0x00, SS_RDEF,
+	    "Session fixation error") },
+	/*      R         */
+	{ SST(0x72, 0x01, SS_RDEF,
+	    "Session fixation error writing lead-in") },
+	/*      R         */
+	{ SST(0x72, 0x02, SS_RDEF,
+	    "Session fixation error writing lead-out") },
+	/*      R         */
+	{ SST(0x72, 0x03, SS_RDEF,
+	    "Session fixation error - incomplete track in session") },
+	/*      R         */
+	{ SST(0x72, 0x04, SS_RDEF,
+	    "Empty or partially written reserved track") },
+	/*      R         */
+	{ SST(0x72, 0x05, SS_RDEF,	/* XXX TBD */
+	    "No more track reservations allowed") },
+	/*      R         */
+	{ SST(0x72, 0x06, SS_RDEF,	/* XXX TBD */
+	    "RMZ extension is not allowed") },
+	/*      R         */
+	{ SST(0x72, 0x07, SS_RDEF,	/* XXX TBD */
+	    "No more test zone extensions are allowed") },
+	/*      R         */
+	{ SST(0x73, 0x00, SS_RDEF,
+	    "CD control error") },
+	/*      R         */
+	{ SST(0x73, 0x01, SS_RDEF,
+	    "Power calibration area almost full") },
+	/*      R         */
+	{ SST(0x73, 0x02, SS_FATAL | ENOSPC,
+	    "Power calibration area is full") },
+	/*      R         */
+	{ SST(0x73, 0x03, SS_RDEF,
+	    "Power calibration area error") },
+	/*      R         */
+	{ SST(0x73, 0x04, SS_RDEF,
+	    "Program memory area update failure") },
+	/*      R         */
+	{ SST(0x73, 0x05, SS_RDEF,
+	    "Program memory area is full") },
+	/*      R         */
+	{ SST(0x73, 0x06, SS_RDEF,	/* XXX TBD */
+	    "RMA/PMA is almost full") },
+	/*      R         */
+	{ SST(0x73, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Current power calibration area almost full") },
+	/*      R         */
+	{ SST(0x73, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Current power calibration area is full") },
+	/*      R         */
+	{ SST(0x73, 0x17, SS_RDEF,	/* XXX TBD */
+	    "RDZ is full") },
+	/*  T             */
+	{ SST(0x74, 0x00, SS_RDEF,	/* XXX TBD */
+	    "Security error") },
+	/*  T             */
+	{ SST(0x74, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Unable to decrypt data") },
+	/*  T             */
+	{ SST(0x74, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Unencrypted data encountered while decrypting") },
+	/*  T             */
+	{ SST(0x74, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Incorrect data encryption key") },
+	/*  T             */
+	{ SST(0x74, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Cryptographic integrity validation failed") },
+	/*  T             */
+	{ SST(0x74, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Error decrypting data") },
+	/*  T             */
+	{ SST(0x74, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Unknown signature verification key") },
+	/*  T             */
+	{ SST(0x74, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Encryption parameters not useable") },
+	/* DT   R M E  VF */
+	{ SST(0x74, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Digital signature validation failure") },
+	/*  T             */
+	{ SST(0x74, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Encryption mode mismatch on read") },
+	/*  T             */
+	{ SST(0x74, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Encrypted block not raw read enabled") },
+	/*  T             */
+	{ SST(0x74, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Incorrect encryption parameters") },
+	/* DT   R MAEBKV  */
+	{ SST(0x74, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Unable to decrypt parameter list") },
+	/*  T             */
+	{ SST(0x74, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Encryption algorithm disabled") },
+	/* DT   R MAEBKV  */
+	{ SST(0x74, 0x10, SS_RDEF,	/* XXX TBD */
+	    "SA creation parameter value invalid") },
+	/* DT   R MAEBKV  */
+	{ SST(0x74, 0x11, SS_RDEF,	/* XXX TBD */
+	    "SA creation parameter value rejected") },
+	/* DT   R MAEBKV  */
+	{ SST(0x74, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Invalid SA usage") },
+	/*  T             */
+	{ SST(0x74, 0x21, SS_RDEF,	/* XXX TBD */
+	    "Data encryption configuration prevented") },
+	/* DT   R MAEBKV  */
+	{ SST(0x74, 0x30, SS_RDEF,	/* XXX TBD */
+	    "SA creation parameter not supported") },
+	/* DT   R MAEBKV  */
+	{ SST(0x74, 0x40, SS_RDEF,	/* XXX TBD */
+	    "Authentication failed") },
+	/*             V  */
+	{ SST(0x74, 0x61, SS_RDEF,	/* XXX TBD */
+	    "External data encryption key manager access error") },
+	/*             V  */
+	{ SST(0x74, 0x62, SS_RDEF,	/* XXX TBD */
+	    "External data encryption key manager error") },
+	/*             V  */
+	{ SST(0x74, 0x63, SS_RDEF,	/* XXX TBD */
+	    "External data encryption key not found") },
+	/*             V  */
+	{ SST(0x74, 0x64, SS_RDEF,	/* XXX TBD */
+	    "External data encryption request not authorized") },
+	/*  T             */
+	{ SST(0x74, 0x6E, SS_RDEF,	/* XXX TBD */
+	    "External data encryption control timeout") },
+	/*  T             */
+	{ SST(0x74, 0x6F, SS_RDEF,	/* XXX TBD */
+	    "External data encryption control error") },
+	/* DT   R M E  V  */
+	{ SST(0x74, 0x71, SS_RDEF,	/* XXX TBD */
+	    "Logical unit access not authorized") },
+	/* D              */
+	{ SST(0x74, 0x79, SS_RDEF,	/* XXX TBD */
+	    "Security conflict in translated device") }
 };
 
 const int asc_table_size = sizeof(asc_table)/sizeof(asc_table[0]);
@@ -2213,7 +3376,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 			break;
 		default:
 		case SID_QUAL_BAD_LU:
-			qtype = "(lun not supported)";
+			qtype = "(LUN not supported)";
 			break;
 		}
 	}
@@ -2231,11 +3394,11 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	case T_PROCESSOR:
 		dtype = "Processor";
 		break;
+	case T_WORM:
+		dtype = "WORM";
+		break;
 	case T_CDROM:
 		dtype = "CD-ROM";
-		break;
-	case T_WORM:
-		dtype = "Worm";
 		break;
 	case T_SCANNER:
 		dtype = "Scanner";
@@ -2260,6 +3423,12 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 		break;
 	case T_OCRW:
 		dtype = "Optical Card Read/Write";
+		break;
+	case T_OSD:
+		dtype = "Object-Based Storage";
+		break;
+	case T_ADC:
+		dtype = "Automation/Drive Interface";
 		break;
 	case T_NODEVICE:
 		dtype = "Uninstalled";
