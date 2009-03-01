@@ -683,8 +683,7 @@ ata_ahci_softreset(device_t dev, int port)
     ctp->cfis[1] = port & 0x0f;
     //ctp->cfis[7] = ATA_D_LBA | ATA_D_IBM;
     ctp->cfis[15] = ATA_A_4BIT;
-    if (ata_ahci_issue_cmd(dev, 0, 0))
-	return -1;
+    ata_ahci_issue_cmd(dev, 0, 1000);
 
     if (ata_ahci_wait_ready(dev, 1000)) {
 	device_printf(dev, "software reset clear timeout\n");
