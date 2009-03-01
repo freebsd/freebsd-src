@@ -268,7 +268,7 @@
  * software that is unaware of C99 keywords.
  */
 #if !(__GNUC__ == 2 && __GNUC_MINOR__ == 95)
-#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901 || defined(lint)
 #define	__restrict
 #else
 #define	__restrict	restrict
