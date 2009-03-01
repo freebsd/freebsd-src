@@ -45,7 +45,6 @@ options		DUMMYNET
 device		if_bridge
 options		HZ=1000
 
-device		isa
 device		pci
 
 # Floppy drives
@@ -67,9 +66,6 @@ device		vga			# VGA screen
 # syscons is the default console driver, resembling an SCO console
 
 device		sc
-
-# Floating point support - do not disable.
-device		npx
 
 # Serial (COM) ports
 device		uart
