@@ -674,18 +674,19 @@ daopen(struct disk *dp)
 		softc->disk->d_fwheads = softc->params.heads;
 		softc->disk->d_devstat->block_size = softc->params.secsize;
 		softc->disk->d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
-	}
-	
-	if (error == 0) {
+
 		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
 		    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 			daprevent(periph, PR_PREVENT);
-	} else {
+	} else
 		softc->flags &= ~DA_FLAG_OPEN;
-		cam_periph_release(periph);
-	}
+
 	cam_periph_unhold(periph);
 	cam_periph_unlock(periph);
+
+	if (error != 0) {
+		cam_periph_release(periph);
+	}
 	return (error);
 }
 
