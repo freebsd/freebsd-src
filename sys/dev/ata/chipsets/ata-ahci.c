@@ -470,7 +470,7 @@ ata_ahci_issue_cmd(device_t dev, u_int16_t flags, int timeout)
     clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET);
 
     /* set PM port */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, (port << 8) | 0x00000001);
+    //ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, (port << 8) | 0x00000001);
 
     /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
