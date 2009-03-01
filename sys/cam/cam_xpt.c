@@ -5439,7 +5439,8 @@ static char *probe_action_text[] = {
 
 #define PROBE_SET_ACTION(softc, newaction)	\
 do {									\
-	char **text = probe_action_text;				\
+	char **text;							\
+	text = probe_action_text;					\
 	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_INFO,		\
 	    ("Probe %s to %s\n", text[(softc)->action],			\
 	    text[(newaction)]));					\
