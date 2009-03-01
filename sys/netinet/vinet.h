@@ -196,6 +196,9 @@ struct vnet_inet {
 	int	_fw_one_pass;
 };
 
+/* Size guard. See sys/vimage.h. */
+VIMAGE_CTASSERT(SIZEOF_vnet_inet, sizeof(struct vnet_inet));
+
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
 extern struct vnet_inet vnet_inet_0;

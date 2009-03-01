@@ -56,6 +56,9 @@ struct vnet_net {
 	int	_ether_ipfw;
 };
 
+/* Size guard. See sys/vimage.h. */
+VIMAGE_CTASSERT(SIZEOF_vnet_net, sizeof(struct vnet_net));
+
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
 extern struct vnet_net vnet_net_0;
