@@ -1,0 +1,425 @@
+<ui version="4.0" >
+ <class>NetworkConfig</class>
+ <widget class="QDialog" name="NetworkConfig" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>410</width>
+    <height>534</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>NetworkConfig</string>
+  </property>
+  <layout class="QGridLayout" >
+   <item row="1" column="3" >
+    <widget class="QPushButton" name="cancelButton" >
+     <property name="text" >
+      <string>Cancel</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0" colspan="4" >
+    <widget class="QFrame" name="frame9" >
+     <property name="frameShape" >
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <property name="frameShadow" >
+      <enum>QFrame::Plain</enum>
+     </property>
+     <layout class="QGridLayout" >
+      <item row="0" column="0" >
+       <widget class="QLabel" name="ssidLabel" >
+        <property name="text" >
+         <string>SSID</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1" >
+       <widget class="QLineEdit" name="ssidEdit" >
+        <property name="toolTip" >
+         <string>Network name (Service Set IDentifier)</string>
+        </property>
+        <property name="text" >
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" >
+       <widget class="QLabel" name="authLabel" >
+        <property name="text" >
+         <string>Authentication</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1" >
+       <widget class="QComboBox" name="authSelect" >
+        <item>
+         <property name="text" >
+          <string>Plaintext or static WEP</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>IEEE 802.1X</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>WPA-Personal (PSK)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>WPA-Enterprise (EAP)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>WPA2-Personal (PSK)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>WPA2-Enterprise (EAP)</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="2" column="0" >
+       <widget class="QLabel" name="encrLabel" >
+        <property name="text" >
+         <string>Encryption</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" >
+       <widget class="QComboBox" name="encrSelect" >
+        <item>
+         <property name="text" >
+          <string>None</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>WEP</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>TKIP</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>CCMP</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0" >
+       <widget class="QLabel" name="pskLabel" >
+        <property name="text" >
+         <string>PSK</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1" >
+       <widget class="QLineEdit" name="pskEdit" >
+        <property name="enabled" >
+         <bool>false</bool>
+        </property>
+        <property name="toolTip" >
+         <string>WPA/WPA2 pre-shared key or passphrase</string>
+        </property>
+        <property name="whatsThis" >
+         <string/>
+        </property>
+        <property name="echoMode" >
+         <enum>QLineEdit::Password</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" >
+       <widget class="QLabel" name="eapLabel" >
+        <property name="text" >
+         <string>EAP method</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1" >
+       <widget class="QComboBox" name="eapSelect" >
+        <property name="enabled" >
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0" >
+       <widget class="QLabel" name="identityLabel" >
+        <property name="text" >
+         <string>Identity</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1" >
+       <widget class="QLineEdit" name="identityEdit" >
+        <property name="enabled" >
+         <bool>false</bool>
+        </property>
+        <property name="toolTip" >
+         <string>Username/Identity for EAP methods</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0" >
+       <widget class="QLabel" name="passwordLabel" >
+        <property name="text" >
+         <string>Password</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1" >
+       <widget class="QLineEdit" name="passwordEdit" >
+        <property name="enabled" >
+         <bool>false</bool>
+        </property>
+        <property name="toolTip" >
+         <string>Password for EAP methods</string>
+        </property>
+        <property name="echoMode" >
+         <enum>QLineEdit::Password</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0" >
+       <widget class="QLabel" name="cacertLabel" >
+        <property name="text" >
+         <string>CA certificate</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1" >
+       <widget class="QLineEdit" name="cacertEdit" >
+        <property name="enabled" >
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0" colspan="2" >
+       <widget class="QGroupBox" name="wepBox" >
+        <property name="enabled" >
+         <bool>true</bool>
+        </property>
+        <property name="title" >
+         <string>WEP keys</string>
+        </property>
+        <layout class="QGridLayout" >
+         <item row="0" column="0" >
+          <widget class="QRadioButton" name="wep0Radio" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+           <property name="text" >
+            <string>key 0</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" >
+          <widget class="QRadioButton" name="wep1Radio" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+           <property name="text" >
+            <string>key 1</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0" >
+          <widget class="QRadioButton" name="wep3Radio" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+           <property name="text" >
+            <string>key 3</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0" >
+          <widget class="QRadioButton" name="wep2Radio" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+           <property name="text" >
+            <string>key 2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1" >
+          <widget class="QLineEdit" name="wep0Edit" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" >
+          <widget class="QLineEdit" name="wep1Edit" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1" >
+          <widget class="QLineEdit" name="wep2Edit" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1" >
+          <widget class="QLineEdit" name="wep3Edit" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="9" column="0" colspan="2" >
+       <widget class="QGroupBox" name="optionalSettingsBox" >
+        <property name="enabled" >
+         <bool>true</bool>
+        </property>
+        <property name="title" >
+         <string>Optional Settings</string>
+        </property>
+        <layout class="QGridLayout" >
+         <item row="0" column="1" >
+          <widget class="QLineEdit" name="idstrEdit" >
+           <property name="toolTip" >
+            <string>Network Identification String</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3" >
+          <widget class="QSpinBox" name="prioritySpinBox" >
+           <property name="toolTip" >
+            <string>Network Priority</string>
+           </property>
+           <property name="maximum" >
+            <number>10000</number>
+           </property>
+           <property name="singleStep" >
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0" >
+          <widget class="QLabel" name="idstrLabel" >
+           <property name="text" >
+            <string>IDString</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2" >
+          <widget class="QLabel" name="priorityLabel" >
+           <property name="text" >
+            <string>Priority</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" >
+          <widget class="QLabel" name="phase2Label" >
+           <property name="text" >
+            <string>Inner auth</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" >
+          <widget class="QComboBox" name="phase2Select" >
+           <property name="enabled" >
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="2" >
+    <widget class="QPushButton" name="addButton" >
+     <property name="text" >
+      <string>Add</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="3" >
+    <widget class="QPushButton" name="removeButton" >
+     <property name="enabled" >
+      <bool>false</bool>
+     </property>
+     <property name="text" >
+      <string>Remove</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0" >
+    <spacer>
+     <property name="orientation" >
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" >
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="1" >
+    <widget class="QPushButton" name="useWpsButton" >
+     <property name="enabled" >
+      <bool>false</bool>
+     </property>
+     <property name="text" >
+      <string>WPS</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11" />
+ <pixmapfunction></pixmapfunction>
+ <tabstops>
+  <tabstop>ssidEdit</tabstop>
+  <tabstop>authSelect</tabstop>
+  <tabstop>encrSelect</tabstop>
+  <tabstop>pskEdit</tabstop>
+  <tabstop>eapSelect</tabstop>
+  <tabstop>identityEdit</tabstop>
+  <tabstop>passwordEdit</tabstop>
+  <tabstop>cacertEdit</tabstop>
+  <tabstop>wep0Radio</tabstop>
+  <tabstop>wep0Edit</tabstop>
+  <tabstop>wep1Radio</tabstop>
+  <tabstop>wep1Edit</tabstop>
+  <tabstop>wep2Radio</tabstop>
+  <tabstop>wep2Edit</tabstop>
+  <tabstop>wep3Radio</tabstop>
+  <tabstop>wep3Edit</tabstop>
+  <tabstop>idstrEdit</tabstop>
+  <tabstop>prioritySpinBox</tabstop>
+  <tabstop>phase2Select</tabstop>
+  <tabstop>addButton</tabstop>
+  <tabstop>removeButton</tabstop>
+  <tabstop>cancelButton</tabstop>
+ </tabstops>
+ <includes>
+  <include location="global" >qtreewidget.h</include>
+ </includes>
+ <resources/>
+ <connections/>
+</ui>

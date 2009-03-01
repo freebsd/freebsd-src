@@ -1,0 +1,38 @@
+TARGET		wpa_supplicant.exe
+UID		0x0 0x0
+VENDORID	0
+TARGETTYPE	exe
+
+SYSTEMINCLUDE \epoc32\include \epoc32\include\variant \epoc32\include\ecom \epoc32\include\libc
+
+USERINCLUDE	.. ..\..\src ..\..\src\utils ..\..\src\common ..\..\src\crypto ..\..\src\rsn_supp
+
+SOURCEPATH	..
+SOURCE		main_symbian.cpp
+SOURCE		config.c config_file.c
+SOURCE		eapol_sm.c
+SOURCE		wpa_supplicant.c events.c
+SOURCEPATH	..\..\src\rsn_supp
+SOURCE		wpa.c preauth.c pmksa_cache.c peerkey.c wpa_ie.c
+SOURCEPATH	..\..\src\drivers
+SOURCE		drivers.c
+SOURCEPATH	..\..\src\common
+SOURCE		wpa_common.c
+SOURCEPATH	..\..\src\utils
+SOURCE		os_none.c common.c wpa_debug.c eloop_none.c base64.c
+SOURCEPATH	..\..\src\crypto
+SOURCE		sha1.c md5.c rc4.c md4.c des.c aes_wrap.c aes.c ms_funcs.c
+SOURCE		tls_internal.c crypto_internal.c
+SOURCEPATH	..\..\src\tls
+SOURCE		asn1.c bignum.c rsa.c x509v3.c tlsv1_client.c tlsv1_common.c
+SOURCEPATH	..\..\src\l2_packet
+SOURCE		l2_packet_none.c
+SOURCEPATH	..\..\src\eap_peer
+SOURCE		eap.c eap_methods.c
+SOURCE		eap_md5.c eap_tls.c eap_mschapv2.c eap_peap.c eap_gtc.c
+SOURCE		eap_ttls.c eap_otp.c eap_leap.c eap_tls_common.c eap_tlv.c
+SOURCE		eap_fast.c eap_fast_pac.c
+SOURCEPATH	..\..\src\eap_common
+SOURCE		eap_common.c
+
+LIBRARY		euser.lib estlib.lib

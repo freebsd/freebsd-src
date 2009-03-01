@@ -1,0 +1,5 @@
+<RCC>
+ <qresource prefix="/icons" >
+  <file alias="wpa_gui.svg">icons/wpa_gui.svg</file>
+ </qresource>
+</RCC>
