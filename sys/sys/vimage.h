@@ -112,4 +112,28 @@ struct vnet_modlink {
 int	vi_symlookup(struct kld_sym_lookup *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
 
+/*
+ * x must be a positive integer constant (expected value),
+ * y must be compile-time evaluated to a positive integer,
+ * e.g. CTASSERT_EQUAL(FOO_EXPECTED_SIZE, sizeof (struct foo));
+ * One needs to compile with -Wuninitialized and thus at least -O
+ * for this to trigger and -Werror if it should be fatal.
+ */
+#define	CTASSERT_EQUAL(x, y)						\
+	static int __attribute__((__used__))				\
+	    __attribute__((__section__(".debug_ctassert_equal")))	\
+	__CONCAT(__ctassert_equal_at_line_, __LINE__)(void);		\
+									\
+	static int __attribute__((__used__))				\
+	    __attribute__((__section__(".debug_ctassert_equal")))	\
+	__CONCAT(__ctassert_equal_at_line_, __LINE__)(void)		\
+	{								\
+		int __CONCAT(__CONCAT(__expected_, x),			\
+		    _but_got)[(y) + (x)];				\
+		__CONCAT(__CONCAT(__expected_, x), _but_got)[(x)] = 1;	\
+		return (__CONCAT(__CONCAT(__expected_, x),		\
+		    _but_got)[(y)]);					\
+	}								\
+	struct __hack
+
 #endif /* !_SYS_VIMAGE_H_ */
