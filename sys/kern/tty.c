@@ -724,14 +724,14 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	switch (cmd) {
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
-		memcpy(data, dev->si_drv2, sizeof(struct termios));
+		*(struct termios*)data = *(struct termios*)dev->si_drv2;
 		break;
 	case TIOCSETA:
 		/* Set terminal flags through tcsetattr(). */
 		error = priv_check(td, PRIV_TTY_SETA);
 		if (error)
 			break;
-		memcpy(dev->si_drv2, data, sizeof(struct termios));
+		*(struct termios*)dev->si_drv2 = *(struct termios*)data;
 		break;
 	case TIOCGETD:
 		*(int *)data = TTYDISC;
@@ -1344,7 +1344,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
-		memcpy(data, &tp->t_termios, sizeof(struct termios));
+		*(struct termios*)data = tp->t_termios;
 		return (0);
 	case TIOCSETA:
 	case TIOCSETAW:
@@ -1568,13 +1568,13 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCGWINSZ:
 		/* Obtain window size. */
-		memcpy(data, &tp->t_winsize, sizeof(struct winsize));
+		*(struct winsize*)data = tp->t_winsize;
 		return (0);
 	case TIOCSWINSZ:
 		/* Set window size. */
 		if (bcmp(&tp->t_winsize, data, sizeof(struct winsize)) == 0)
 			return (0);
-		memcpy(&tp->t_winsize, data, sizeof(struct winsize));
+		tp->t_winsize = *(struct winsize*)data;
 		tty_signal_pgrp(tp, SIGWINCH);
 		return (0);
 	case TIOCEXCL:
