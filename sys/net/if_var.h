@@ -162,10 +162,13 @@ struct ifnet {
 		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
+	void	(*if_qflush)		/* flush any queues */
+		(struct ifnet *);
+	int	(*if_transmit)		/* initiate output routine */
+		(struct ifnet *, struct mbuf *);
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	void	*if_llsoftc;		/* link layer softc */
 	int	if_drv_flags;		/* driver-managed status flags */
-	u_int	if_spare_flags2;	/* spare flags 2 */
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 
@@ -187,12 +190,14 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
-	void	*if_pspare[8];		/* TOE 3; vimage 3; general use 4 */
-	void	(*if_qflush)		/* flush any queues */
-		(struct ifnet *);
-	int	(*if_transmit)	/* initiate output routine */
-		(struct ifnet *, struct mbuf *);
-	int	if_ispare[2];		/* general use 2 */
+
+	/*
+	 * Spare fields are added so that we can modify sensitive data
+	 * structures without changing the kernel binary interface, and must
+	 * be used with care where binary compatibility is required.
+	 */
+	void	*if_pspare[8];
+	int	if_ispare[4];
 };
 
 typedef void if_init_f_t(void *);
