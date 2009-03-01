@@ -1,0 +1,8 @@
+PRJ_PLATFORMS
+WINSCW GCCE
+
+PRJ_EXPORTS
+
+PRJ_MMPFILES
+
+wpa_supplicant.mmp
