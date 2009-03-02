@@ -1,14 +1,18 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include "${.CURDIR}/../Makefile.inc"
 
-WPA_SUPPLICANT_DISTDIR?= ${.CURDIR}/../../../contrib/wpa_supplicant
-.PATH: ${.CURDIR}/.. ${WPA_SUPPLICANT_DISTDIR}
+.PATH.c:${WPA_SUPPLICANT_DISTDIR} \
+	${WPA_DISTDIR}/src/drivers \
+	${WPA_DISTDIR}/src/eap_peer \
+	${WPA_DISTDIR}/src/rsn_supp
 
 PROG=	wpa_supplicant
-SRCS=	config.c eloop.c common.c md5.c rc4.c sha1.c aes_wrap.c \
-	wpa_supplicant.c events.c wpa.c preauth.c pmksa_cache.c \
-	ctrl_iface.c ctrl_iface_unix.c l2_packet.c main.c drivers.c \
+SRCS=	aes.c aes_wrap.c blacklist.c common.c config.c ctrl_iface.c \
+	ctrl_iface_unix.c drivers.c eloop.c events.c l2_packet.c main.c \
+	md5.c preauth.c pmksa_cache.c rc4.c scan.c scan_helpers.c sha1.c \
+	wpa.c wpa_common.c wpa_debug.c wpa_ie.c wpa_supplicant.c \
+	wpabuf.c wpas_glue.c \
 	driver_ndis.c Packet32.c \
 	driver_wired.c \
 	driver_freebsd.c os_unix.c
@@ -17,15 +21,17 @@ MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 
 .if ${MK_EXAMPLES} != "no"
 FILESDIR= ${SHAREDIR}/examples/etc
+.PATH:	${WPA_SUPPLICANT_DISTDIR}
 FILES=	wpa_supplicant.conf
 .endif
 
-CFLAGS+= -I${.CURDIR} -I${WPA_SUPPLICANT_DISTDIR}
+CFLAGS+=-I${WPA_SUPPLICANT_DISTDIR}
+CFLAGS+=-I${WPA_DISTDIR}/src/drivers
+CFLAGS+=-I${WPA_DISTDIR}/src/rsn_supp
+
 CFLAGS+= -DCONFIG_DRIVER_BSD
 CFLAGS+= -DCONFIG_DRIVER_NDIS
 CFLAGS+= -DCONFIG_DRIVER_WIRED
-CFLAGS+= -DCONFIG_CTRL_IFACE
-CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
 CFLAGS+= -DCONFIG_TERMINATE_ONLASTIF
 CFLAGS+= -DCONFIG_DEBUG_SYSLOG
 CFLAGS+= -g
@@ -43,15 +49,19 @@ LDADD+=${WPA_SUPPLICANT_LDADD}
 #LDFLAGS+=${WPA_SUPPLICANT_LDFLAGS}
 
 .if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
-SRCS+=	eapol_sm.c eap.c eap_methods.c
+SRCS+=	eapol_supp_sm.c eap.c eap_common.c eap_methods.c
 CFLAGS+= -DIEEE8021X_EAPOL
 
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 CFLAGS+=-DEAP_TLS -DEAP_PEAP -DEAP_MSCHAPv2 -DEAP_LEAP -DEAP_PSK \
 	-DEAP_TLV -DEAP_TLS_FUNCS -DEAP_TLS_OPENSSL
-SRCS+=	eap_tls.c eap_peap.c eap_mschapv2.c eap_leap.c \
+SRCS+=	chap.c crypto_openssl.c \
+	eap_leap.c \
+	eap_mschapv2.c \
+	eap_peap.c eap_peap_common.c \
 	eap_psk.c eap_psk_common.c \
-	eap_tlv.c eap_tls_common.c tls_openssl.c ms_funcs.c crypto.c
+	eap_tls.c eap_tls_common.c \
+	mschapv2.c ms_funcs.c tls_openssl.c
 
 CFLAGS+=-DEAP_TTLS -DEAP_MD5
 SRCS+=	eap_ttls.c eap_md5.c
