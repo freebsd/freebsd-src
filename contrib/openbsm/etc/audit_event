@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#34 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#36 $
 # $FreeBSD$
 #
 # The mapping between event identifiers and values is also hard-coded in
@@ -491,7 +491,7 @@
 43128:AUE_MAC_GET_PID:mac_get_pid(2):pc
 43129:AUE_MAC_GET_LINK:mac_get_link(2):fa
 43130:AUE_MAC_SET_LINK:mac_set_link(2):fm
-43131:AUE_MAC_EXECVE:mac_exeve(2):ex,pc
+43131:AUE_MAC_EXECVE:mac_execve(2):ex,pc
 43132:AUE_GETPATH_FROMFD:getpath_fromfd(2):fa
 43133:AUE_GETPATH_FROMADDR:getpath_fromaddr(2):fa
 43134:AUE_MQ_OPEN:mq_open(2):ip
@@ -552,6 +552,8 @@
 43189:AUE_CAP_GETMODE:cap_getmode(2):pc
 43190:AUE_POSIX_SPAWN:posix_spawn(2):pc
 43191:AUE_FSGETPATH:fsgetpath(2):ot
+43192:AUE_PREAD:pread(2):no
+43193:AUE_PWRITE:pwrite(2):no
 #
 # Solaris userspace events.
 #
