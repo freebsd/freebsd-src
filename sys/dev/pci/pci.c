@@ -2864,6 +2864,8 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 			}
 			mte->mte_handlers++;
 		}
+		/* Disable INTx if we are using MSI/MSIX */
+		pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
 	bad:
 		if (error) {
 			(void)bus_generic_teardown_intr(dev, child, irq,
@@ -2918,6 +2920,8 @@ pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 			if (mte->mte_handlers == 0)
 				pci_mask_msix(child, rid - 1);
 		}
+		/* Restore INTx capability for MSI/MSIX */
+		pci_clear_command_bit(dev, child, PCIM_CMD_INTxDIS);
 	}
 	error = bus_generic_teardown_intr(dev, child, irq, cookie);
 	if (device_get_parent(child) == dev && rid > 0)
