@@ -1,0 +1,56 @@
+/**
+\mainpage Developers' documentation for wpa_supplicant
+
+%wpa_supplicant is a WPA Supplicant for Linux, BSD and Windows with
+support for WPA and WPA2 (IEEE 802.11i / RSN). Supplicant is the IEEE
+802.1X/WPA component that is used in the client stations. It
+implements key negotiation with a WPA Authenticator and it can optionally
+control roaming and IEEE 802.11 authentication/association of the wlan
+driver.
+
+The goal of this documentation and comments in the source code is to
+give enough information for other developers to understand how
+%wpa_supplicant has been implemented, how it can be modified, how new
+drivers can be supported, and how %wpa_supplicant can be ported to
+other operating systems. If any information is missing, feel free to
+contact Jouni Malinen <j@w1.fi> for more
+information. Contributions as patch files are also very welcome at the
+same address. Please note that %wpa_supplicant is licensed under dual
+license, GPLv2 or BSD at user's choice. All contributions to
+%wpa_supplicant are expected to use compatible licensing terms.
+
+The source code and read-only access to %wpa_supplicant Git repository
+is available from the project home page at
+http://w1.fi/wpa_supplicant/. This developers' documentation
+is also available as a PDF file from
+http://w1.fi/wpa_supplicant/wpa_supplicant-devel.pdf .
+
+The design goal for %wpa_supplicant was to use hardware, driver, and
+OS independent, portable C code for all WPA functionality. The source
+code is divided into separate C files as shown on the \ref
+code_structure "code structure page". All hardware/driver specific
+functionality is in separate files that implement a \ref
+driver_wrapper "well-defined driver API". Information about porting
+to different target boards and operating systems is available on
+the \ref porting "porting page".
+
+EAPOL (IEEE 802.1X) state machines are implemented as a separate
+module that interacts with \ref eap_module "EAP peer implementation".
+In addition to programs aimed at normal production use,
+%wpa_supplicant source tree includes number of \ref testing_tools
+"testing and development tools" that make it easier to test the
+programs without having to setup a full test setup with wireless
+cards. These tools can also be used to implement automatic test
+suites.
+
+%wpa_supplicant implements a
+\ref ctrl_iface_page "control interface" that can be used by
+external programs to control the operations of the %wpa_supplicant
+daemon and to get status information and event notifications. There is
+a small C library that provides helper functions to facilitate the use of the
+control interface. This library can also be used with C++.
+
+\image html wpa_supplicant.png "wpa_supplicant modules"
+\image latex wpa_supplicant.eps "wpa_supplicant modules" width=15cm
+
+*/
