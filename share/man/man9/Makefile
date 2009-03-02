@@ -1243,7 +1243,10 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_filteropt.9 \
 	vfs_getopt.9 vfs_flagopt.9 \
 	vfs_getopt.9 vfs_getopts.9 \
-	vfs_getopt.9 vfs_scanopt.9
+	vfs_getopt.9 vfs_scanopt.9 \
+	vfs_getopt.9 vfs_setopt.9 \
+	vfs_getopt.9 vfs_setopt_part.9 \
+	vfs_getopt.9 vfs_setopts.9
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9 \

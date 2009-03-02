@@ -78,7 +78,6 @@ static int	vfs_domount(struct thread *td, const char *fstype,
 static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(const char *mountfrom);
 static void	free_mntarg(struct mntarg *ma);
-static int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -94,14 +93,6 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 /* For any iteration/modification of mountlist */
 struct mtx mountlist_mtx;
 MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
-
-TAILQ_HEAD(vfsoptlist, vfsopt);
-struct vfsopt {
-	TAILQ_ENTRY(vfsopt) link;
-	char	*name;
-	void	*value;
-	int	len;
-};
 
 /*
  * The vnode of the system's root (/ in the filesystem, without chroot
@@ -164,11 +155,6 @@ vfs_freeopt(struct vfsoptlist *opts, struct vfsopt *opt)
 	free(opt->name, M_MOUNT);
 	if (opt->value != NULL)
 		free(opt->value, M_MOUNT);
-#ifdef INVARIANTS
-	else if (opt->len != 0)
-		panic("%s: mount option with NULL value but length != 0",
-		    __func__);
-#endif
 	free(opt, M_MOUNT);
 }
 
@@ -204,6 +190,7 @@ vfs_deleteopt(struct vfsoptlist *opts, const char *name)
 static int
 vfs_equalopts(const char *opt1, const char *opt2)
 {
+	char *p;
 
 	/* "opt" vs. "opt" or "noopt" vs. "noopt" */
 	if (strcmp(opt1, opt2) == 0)
@@ -214,6 +201,17 @@ vfs_equalopts(const char *opt1, const char *opt2)
 	/* "opt" vs. "noopt" */
 	if (strncmp(opt2, "no", 2) == 0 && strcmp(opt1, opt2 + 2) == 0)
 		return (1);
+	while ((p = strchr(opt1, '.')) != NULL &&
+	    !strncmp(opt1, opt2, ++p - opt1)) {
+		opt2 += p - opt1;
+		opt1 = p;
+		/* "foo.noopt" vs. "foo.opt" */
+		if (strncmp(opt1, "no", 2) == 0 && strcmp(opt1 + 2, opt2) == 0)
+			return (1);
+		/* "foo.opt" vs. "foo.noopt" */
+		if (strncmp(opt2, "no", 2) == 0 && strcmp(opt1, opt2 + 2) == 0)
+			return (1);
+	}
 	return (0);
 }
 
@@ -244,34 +242,23 @@ vfs_sanitizeopts(struct vfsoptlist *opts)
 /*
  * Build a linked list of mount options from a struct uio.
  */
-static int
+int
 vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 {
 	struct vfsoptlist *opts;
 	struct vfsopt *opt;
-	size_t memused;
+	size_t memused, namelen, optlen;
 	unsigned int i, iovcnt;
-	int error, namelen, optlen;
+	int error;
 
 	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
 	TAILQ_INIT(opts);
 	memused = 0;
 	iovcnt = auio->uio_iovcnt;
 	for (i = 0; i < iovcnt; i += 2) {
-		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
 		namelen = auio->uio_iov[i].iov_len;
 		optlen = auio->uio_iov[i + 1].iov_len;
-		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
-		opt->value = NULL;
-		opt->len = 0;
-
-		/*
-		 * Do this early, so jumps to "bad" will free the current
-		 * option.
-		 */
-		TAILQ_INSERT_TAIL(opts, opt, link);
 		memused += sizeof(struct vfsopt) + optlen + namelen;
-
 		/*
 		 * Avoid consuming too much memory, and attempts to overflow
 		 * memused.
@@ -283,6 +270,19 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 			goto bad;
 		}
 
+		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
+		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
+		opt->value = NULL;
+		opt->len = 0;
+		opt->pos = i / 2;
+		opt->seen = 0;
+
+		/*
+		 * Do this early, so jumps to "bad" will free the current
+		 * option.
+		 */
+		TAILQ_INSERT_TAIL(opts, opt, link);
+
 		if (auio->uio_segflg == UIO_SYSSPACE) {
 			bcopy(auio->uio_iov[i].iov_base, opt->name, namelen);
 		} else {
@@ -292,7 +292,7 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 				goto bad;
 		}
 		/* Ensure names are null-terminated strings. */
-		if (opt->name[namelen - 1] != '\0') {
+		if (namelen == 0 || opt->name[namelen - 1] != '\0') {
 			error = EINVAL;
 			goto bad;
 		}
@@ -361,6 +361,7 @@ vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *opts)
 			new->value = NULL;
 		}
 		new->len = opt->len;
+		new->seen = opt->seen;
 		TAILQ_INSERT_TAIL(toopts, new, link);
 next:
 		continue;
@@ -380,8 +381,6 @@ nmount(td, uap)
 	} */ *uap;
 {
 	struct uio *auio;
-	struct iovec *iov;
-	unsigned int i;
 	int error;
 	u_int iovcnt;
 
@@ -413,16 +412,6 @@ nmount(td, uap)
 		CTR2(KTR_VFS, "%s: failed for invalid uio op with %d errno",
 		    __func__, error);
 		return (error);
-	}
-	iov = auio->uio_iov;
-	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > MMAXOPTIONLEN) {
-			free(auio, M_IOV);
-			CTR1(KTR_VFS, "%s: failed for invalid new auio",
-			    __func__);
-			return (EINVAL);
-		}
-		iov++;
 	}
 	error = vfs_donmount(td, uap->flags, auio);
 
@@ -692,6 +681,8 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		noro_opt->name = strdup("noro", M_MOUNT);
 		noro_opt->value = NULL;
 		noro_opt->len = 0;
+		noro_opt->pos = -1;
+		noro_opt->seen = 1;
 		TAILQ_INSERT_TAIL(optlist, noro_opt, link);
 	}
 
@@ -1611,6 +1602,22 @@ vfs_mount_error(struct mount *mp, const char *fmt, ...)
 	va_end(ap);
 }
 
+void
+vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...)
+{
+	va_list ap;
+	int error, len;
+	char *errmsg;
+
+	error = vfs_getopt(opts, "errmsg", (void **)&errmsg, &len);
+	if (error || errmsg == NULL || len <= 0)
+		return;
+
+	va_start(ap, fmt);
+	vsnprintf(errmsg, (size_t)len, fmt, ap);
+	va_end(ap);
+}
+
 /*
  * Find and mount the root filesystem
  */
@@ -1880,6 +1887,7 @@ vfs_getopt(opts, name, buf, len)
 
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
 			if (len != NULL)
 				*len = opt->len;
 			if (buf != NULL)
@@ -1890,20 +1898,19 @@ vfs_getopt(opts, name, buf, len)
 	return (ENOENT);
 }
 
-static int
+int
 vfs_getopt_pos(struct vfsoptlist *opts, const char *name)
 {
 	struct vfsopt *opt;
-	int i;
 
 	if (opts == NULL)
 		return (-1);
 
-	i = 0;
 	TAILQ_FOREACH(opt, opts, link) {
-		if (strcmp(name, opt->name) == 0)
-			return (i);
-		++i;
+		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
+			return (opt->pos);
+		}
 	}
 	return (-1);
 }
@@ -1917,7 +1924,9 @@ vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) != 0)
 			continue;
-		if (((char *)opt->value)[opt->len - 1] != '\0') {
+		opt->seen = 1;
+		if (opt->len == 0 ||
+		    ((char *)opt->value)[opt->len - 1] != '\0') {
 			*error = EINVAL;
 			return (NULL);
 		}
@@ -1934,6 +1943,7 @@ vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val)
 
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
 			if (w != NULL)
 				*w |= val;
 			return (1);
@@ -1956,6 +1966,7 @@ vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) != 0)
 			continue;
+		opt->seen = 1;
 		if (opt->len == 0 || opt->value == NULL)
 			return (0);
 		if (((char *)opt->value)[opt->len - 1] != '\0')
@@ -1966,6 +1977,67 @@ vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 		return (ret);
 	}
 	return (0);
+}
+
+int
+vfs_setopt(struct vfsoptlist *opts, const char *name, void *value, int len)
+{
+	struct vfsopt *opt;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		opt->seen = 1;
+		if (opt->value == NULL)
+			opt->len = len;
+		else {
+			if (opt->len != len)
+				return (EINVAL);
+			bcopy(value, opt->value, len);
+		}
+		return (0);
+	}
+	return (ENOENT);
+}
+
+int
+vfs_setopt_part(struct vfsoptlist *opts, const char *name, void *value, int len)
+{
+	struct vfsopt *opt;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		opt->seen = 1;
+		if (opt->value == NULL)
+			opt->len = len;
+		else {
+			if (opt->len < len)
+				return (EINVAL);
+			opt->len = len;
+			bcopy(value, opt->value, len);
+		}
+		return (0);
+	}
+	return (ENOENT);
+}
+
+int
+vfs_setopts(struct vfsoptlist *opts, const char *name, const char *value)
+{
+	struct vfsopt *opt;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		opt->seen = 1;
+		if (opt->value == NULL)
+			opt->len = strlen(value) + 1;
+		else if (strlcpy(opt->value, value, opt->len) >= opt->len)
+			return (EINVAL);
+		return (0);
+	}
+	return (ENOENT);
 }
 
 /*
@@ -1989,6 +2061,7 @@ vfs_copyopt(opts, name, dest, len)
 
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
 			if (len != opt->len)
 				return (EINVAL);
 			bcopy(opt->value, dest, opt->len);
