@@ -75,12 +75,7 @@ __FBSDID("$FreeBSD$");
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__ovfl_get(t, p, ssz, buf, bufsz)
-	BTREE *t;
-	void *p;
-	size_t *ssz;
-	void **buf;
-	size_t *bufsz;
+__ovfl_get(BTREE *t, void *p, size_t *ssz, void **buf, size_t *bufsz)
 {
 	PAGE *h;
 	pgno_t pg;
@@ -134,10 +129,7 @@ __ovfl_get(t, p, ssz, buf, bufsz)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__ovfl_put(t, dbt, pg)
-	BTREE *t;
-	const DBT *dbt;
-	pgno_t *pg;
+__ovfl_put(BTREE *t, const DBT *dbt, pgno_t *pg)
 {
 	PAGE *h, *last;
 	void *p;
@@ -188,9 +180,7 @@ __ovfl_put(t, dbt, pg)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__ovfl_delete(t, p)
-	BTREE *t;
-	void *p;
+__ovfl_delete(BTREE *t, void *p)
 {
 	PAGE *h;
 	pgno_t pg;

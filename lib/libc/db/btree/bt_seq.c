@@ -72,10 +72,7 @@ static int __bt_seqset(BTREE *, EPG *, DBT *, int);
  *	RET_ERROR, RET_SUCCESS or RET_SPECIAL if there's no next key.
  */
 int
-__bt_seq(dbp, key, data, flags)
-	const DB *dbp;
-	DBT *key, *data;
-	u_int flags;
+__bt_seq(const DB *dbp, DBT *key, DBT *data, u_int flags)
 {
 	BTREE *t;
 	EPG e;
@@ -147,11 +144,7 @@ __bt_seq(dbp, key, data, flags)
  *	RET_ERROR, RET_SUCCESS or RET_SPECIAL if there's no next key.
  */
 static int
-__bt_seqset(t, ep, key, flags)
-	BTREE *t;
-	EPG *ep;
-	DBT *key;
-	int flags;
+__bt_seqset(BTREE *t, EPG *ep, DBT *key, int flags)
 {
 	PAGE *h;
 	pgno_t pg;
@@ -235,10 +228,7 @@ __bt_seqset(t, ep, key, flags)
  *	RET_ERROR, RET_SUCCESS or RET_SPECIAL if there's no next key.
  */
 static int
-__bt_seqadv(t, ep, flags)
-	BTREE *t;
-	EPG *ep;
-	int flags;
+__bt_seqadv(BTREE *t, EPG *ep, int flags)
 {
 	CURSOR *c;
 	PAGE *h;
@@ -337,11 +327,7 @@ usecurrent:		F_CLR(c, CURS_AFTER | CURS_BEFORE);
  *	or RET_SPECIAL if no such key exists.
  */
 static int
-__bt_first(t, key, erval, exactp)
-	BTREE *t;
-	const DBT *key;
-	EPG *erval;
-	int *exactp;
+__bt_first(BTREE *t, const DBT *key, EPG *erval, int *exactp)
 {
 	PAGE *h;
 	EPG *ep, save;

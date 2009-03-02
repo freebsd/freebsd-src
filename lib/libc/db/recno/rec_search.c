@@ -59,10 +59,7 @@ __FBSDID("$FreeBSD$");
  *	the bt_cur field of the tree.  A pointer to the field is returned.
  */
 EPG *
-__rec_search(t, recno, op)
-	BTREE *t;
-	recno_t recno;
-	enum SRCHOP op;
+__rec_search(BTREE *t, recno_t recno, enum SRCHOP op)
 {
 	indx_t index;
 	PAGE *h;
