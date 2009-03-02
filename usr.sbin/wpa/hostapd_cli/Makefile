@@ -1,10 +1,8 @@
 # $FreeBSD$
 
-CONTRIB=	${.CURDIR}/../../../contrib
-HOSTAPD_DISTDIR?= ${CONTRIB}/hostapd
-WPA_SUPPLICANT_DISTDIR?= ${CONTRIB}/wpa_supplicant
+.include "${.CURDIR}/../Makefile.inc"
 
-.PATH: ${HOSTAPD_DISTDIR} ${WPA_SUPPLICANT_DISTDIR}
+.PATH.c:${HOSTAPD_DISTDIR}
 
 PROG=	hostapd_cli
 SRCS=	hostapd_cli.c wpa_ctrl.c os_unix.c
