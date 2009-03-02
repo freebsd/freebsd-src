@@ -79,7 +79,7 @@ union arg {
 	long	*plongarg;
 	long long *plonglongarg;
 	ptrdiff_t *pptrdiffarg;
-	size_t	*psizearg;
+	ssize_t	*pssizearg;
 	intmax_t *pintmaxarg;
 #ifndef NO_FLOATING_POINT
 	double	doublearg;
