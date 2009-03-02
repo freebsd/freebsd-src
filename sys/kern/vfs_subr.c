@@ -345,7 +345,19 @@ vfs_busy(struct mount *mp, int flags)
 
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
-	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
+	/*
+	 * If mount point is currenly being unmounted, sleep until the
+	 * mount point fate is decided.  If thread doing the unmounting fails,
+	 * it will clear MNTK_UNMOUNT flag before waking us up, indicating
+	 * that this mount point has survived the unmount attempt and vfs_busy
+	 * should retry.  Otherwise the unmounter thread will set MNTK_REFEXPIRE
+	 * flag in addition to MNTK_UNMOUNT, indicating that mount point is
+	 * about to be really destroyed.  vfs_busy needs to release its
+	 * reference on the mount point in this case and return with ENOENT,
+	 * telling the caller that mount mount it tried to busy is no longer
+	 * valid.
+	 */
+	while (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		if (flags & MBF_NOWAIT || mp->mnt_kern_flag & MNTK_REFEXPIRE) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
@@ -357,12 +369,8 @@ vfs_busy(struct mount *mp, int flags)
 			mtx_unlock(&mountlist_mtx);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
 		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
-		MNT_REL(mp);
-		MNT_IUNLOCK(mp);
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_lock(&mountlist_mtx);
-		CTR1(KTR_VFS, "%s: failed busying after sleep", __func__);
-		return (ENOENT);
 	}
 	if (flags & MBF_MNTLSTLOCK)
 		mtx_unlock(&mountlist_mtx);
