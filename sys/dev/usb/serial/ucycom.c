@@ -71,6 +71,7 @@ struct ucycom_softc {
 
 	struct usb2_device *sc_udev;
 	struct usb2_xfer *sc_xfer[UCYCOM_N_TRANSFER];
+	struct mtx sc_mtx;
 
 	uint32_t sc_model;
 #define	MODEL_CY7C63743		0x63743
@@ -204,6 +205,7 @@ ucycom_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "ucycom", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
@@ -250,14 +252,14 @@ ucycom_attach(device_t dev)
 	iface_index = UCYCOM_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, ucycom_config, UCYCOM_N_TRANSFER,
-	    sc, &Giant);
+	    sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB "
 		    "transfers failed!\n");
 		goto detach;
 	}
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &ucycom_callback, &Giant);
+	    &ucycom_callback, &sc->sc_mtx);
 
 	if (error) {
 		goto detach;
@@ -281,8 +283,8 @@ ucycom_detach(device_t dev)
 	struct ucycom_softc *sc = device_get_softc(dev);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UCYCOM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

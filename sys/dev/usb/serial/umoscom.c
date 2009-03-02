@@ -166,6 +166,7 @@ struct umoscom_softc {
 
 	struct usb2_xfer *sc_xfer[UMOSCOM_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint8_t	sc_mcr;
 	uint8_t	sc_lcr;
@@ -300,20 +301,24 @@ umoscom_attach(device_t dev)
 	device_set_desc(dev, "MOSCHIP USB Serial Port Adapter");
 	device_printf(dev, "<MOSCHIP USB Serial Port Adapter>\n");
 
+	mtx_init(&sc->sc_mtx, "umoscom", NULL, MTX_DEF);
+
 	iface_index = UMOSCOM_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, umoscom_config_data,
-	    UMOSCOM_N_TRANSFER, sc, &Giant);
+	    UMOSCOM_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		goto detach;
 	}
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &umoscom_callback, &Giant);
+	    &umoscom_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -330,13 +335,9 @@ umoscom_detach(device_t dev)
 {
 	struct umoscom_softc *sc = device_get_softc(dev);
 
-	mtx_lock(&Giant);
-
-	mtx_unlock(&Giant);
-
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UMOSCOM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
