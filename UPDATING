@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090302:
+	The workaround is committed to allow to create System V shared
+	memory segment of size > 2 Gb on the 64-bit architectures.
+	Due to limitation of the existing ABI, the shm_segsz member
+	of the struct shmid_ds, returned by shmctl(IPC_STAT) call is
+	wrong for large segments. Note that limits shall be explicitely
+	raised to allow such segments to be created.
+
 20090301:
 	The layout of struct ifnet has changed, requiring a rebuild of all
 	network device driver modules.
