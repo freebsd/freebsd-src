@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 #include "btree.h"
 
 static int	 bt_broot(BTREE *, PAGE *, PAGE *, PAGE *);
-static PAGE	*bt_page (BTREE *, PAGE *, PAGE **, PAGE **, indx_t *, size_t);
+static PAGE	*bt_page(BTREE *, PAGE *, PAGE **, PAGE **, indx_t *, size_t);
 static int	 bt_preserve(BTREE *, pgno_t);
-static PAGE	*bt_psplit (BTREE *, PAGE *, PAGE *, PAGE *, indx_t *, size_t);
-static PAGE	*bt_root (BTREE *, PAGE *, PAGE **, PAGE **, indx_t *, size_t);
+static PAGE	*bt_psplit(BTREE *, PAGE *, PAGE *, PAGE *, indx_t *, size_t);
+static PAGE	*bt_root(BTREE *, PAGE *, PAGE **, PAGE **, indx_t *, size_t);
 static int	 bt_rroot(BTREE *, PAGE *, PAGE *, PAGE *);
 static recno_t	 rec_total(PAGE *);
 
@@ -74,13 +74,8 @@ u_long	bt_rootsplit, bt_split, bt_sortsplit, bt_pfxsaved;
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__bt_split(t, sp, key, data, flags, ilen, argskip)
-	BTREE *t;
-	PAGE *sp;
-	const DBT *key, *data;
-	int flags;
-	size_t ilen;
-	u_int32_t argskip;
+__bt_split(BTREE *t, PAGE *sp, const DBT *key, const DBT *data, int flags,
+    size_t ilen, u_int32_t argskip)
 {
 	BINTERNAL *bi;
 	BLEAF *bl, *tbl;
@@ -336,11 +331,7 @@ err2:	mpool_put(t->bt_mp, l, 0);
  *	Pointer to page in which to insert or NULL on error.
  */
 static PAGE *
-bt_page(t, h, lp, rp, skip, ilen)
-	BTREE *t;
-	PAGE *h, **lp, **rp;
-	indx_t *skip;
-	size_t ilen;
+bt_page(BTREE *t, PAGE *h, PAGE **lp, PAGE **rp, indx_t *skip, size_t ilen)
 {
 	PAGE *l, *r, *tp;
 	pgno_t npg;
@@ -441,11 +432,7 @@ bt_page(t, h, lp, rp, skip, ilen)
  *	Pointer to page in which to insert or NULL on error.
  */
 static PAGE *
-bt_root(t, h, lp, rp, skip, ilen)
-	BTREE *t;
-	PAGE *h, **lp, **rp;
-	indx_t *skip;
-	size_t ilen;
+bt_root(BTREE *t, PAGE *h, PAGE **lp, PAGE **rp, indx_t *skip, size_t ilen)
 {
 	PAGE *l, *r, *tp;
 	pgno_t lnpg, rnpg;
@@ -488,9 +475,7 @@ bt_root(t, h, lp, rp, skip, ilen)
  *	RET_ERROR, RET_SUCCESS
  */
 static int
-bt_rroot(t, h, l, r)
-	BTREE *t;
-	PAGE *h, *l, *r;
+bt_rroot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 {
 	char *dest;
 
@@ -528,9 +513,7 @@ bt_rroot(t, h, l, r)
  *	RET_ERROR, RET_SUCCESS
  */
 static int
-bt_broot(t, h, l, r)
-	BTREE *t;
-	PAGE *h, *l, *r;
+bt_broot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 {
 	BINTERNAL *bi;
 	BLEAF *bl;
@@ -605,11 +588,7 @@ bt_broot(t, h, l, r)
  *	Pointer to page in which to insert.
  */
 static PAGE *
-bt_psplit(t, h, l, r, pskip, ilen)
-	BTREE *t;
-	PAGE *h, *l, *r;
-	indx_t *pskip;
-	size_t ilen;
+bt_psplit(BTREE *t, PAGE *h, PAGE *l, PAGE *r, indx_t *pskip, size_t ilen)
 {
 	BINTERNAL *bi;
 	BLEAF *bl;
@@ -783,9 +762,7 @@ bt_psplit(t, h, l, r, pskip, ilen)
  *	RET_SUCCESS, RET_ERROR.
  */
 static int
-bt_preserve(t, pg)
-	BTREE *t;
-	pgno_t pg;
+bt_preserve(BTREE *t, pgno_t pg)
 {
 	PAGE *h;
 
@@ -811,8 +788,7 @@ bt_preserve(t, pg)
  * all the way back to bt_split/bt_rroot and it's not very clean.
  */
 static recno_t
-rec_total(h)
-	PAGE *h;
+rec_total(PAGE *h)
 {
 	recno_t recs;
 	indx_t nxt, top;

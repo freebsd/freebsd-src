@@ -59,10 +59,7 @@ static int rec_rdelete(BTREE *, recno_t);
  *	RET_ERROR, RET_SUCCESS and RET_SPECIAL if the key not found.
  */
 int
-__rec_delete(dbp, key, flags)
-	const DB *dbp;
-	const DBT *key;
-	u_int flags;
+__rec_delete(const DB *dbp, const DBT *key, u_int flags)
 {
 	BTREE *t;
 	recno_t nrec;
@@ -115,9 +112,7 @@ einval:		errno = EINVAL;
  *	RET_ERROR, RET_SUCCESS and RET_SPECIAL if the key not found.
  */
 static int
-rec_rdelete(t, nrec)
-	BTREE *t;
-	recno_t nrec;
+rec_rdelete(BTREE *t, recno_t nrec)
 {
 	EPG *e;
 	PAGE *h;
