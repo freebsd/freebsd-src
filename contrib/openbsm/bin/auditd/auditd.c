@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2008 Apple Inc.
+ * Copyright (c) 2004-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#41 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#43 $
  */
 
 #include <sys/types.h>
@@ -67,12 +67,16 @@
 #endif
 
 /*
- * XXX the following is temporary until this can be added to the kernel
+ * XXX The following are temporary until these can be added to the kernel
  * audit.h header.
  */
 #ifndef	AUDIT_TRIGGER_INITIALIZE
 #define	AUDIT_TRIGGER_INITIALIZE	7
 #endif
+#ifndef	AUDIT_TRIGGER_EXPIRE_TRAILS
+#define	AUDIT_TRIGGER_EXPIRE_TRAILS	8
+#endif
+
 
 /*
  * LaunchD flag (Mac OS X and, maybe, FreeBSD only.)  See launchd(8) and 
@@ -166,7 +170,7 @@ close_lastfile(char *TS)
 
 		/* Rename the last file -- append timestamp. */
 		if ((ptr = strstr(lastfile, NOT_TERMINATED)) != NULL) {
-			strlcpy(ptr, TS, TIMESTAMP_LEN);
+			memcpy(ptr, TS, POSTFIX_LEN);
 			if (rename(oldname, lastfile) != 0)
 				auditd_log_err(
 				    "Could not rename %s to %s: %m", oldname,
@@ -274,6 +278,14 @@ do_trail_file(void)
 		 */
 		return (-1);
 	}
+
+	/*
+	 * Finally, see if there are any trail files to expire.
+	 */
+	err = auditd_expire_trails(audit_warn_expired);
+	if (err)
+		auditd_log_err("auditd_expire_trails(): %s",
+		    auditd_strerror(err));
 
 	return (0);
 }
@@ -550,6 +562,14 @@ auditd_handle_trigger(int trigger)
 			audit_setup();
 		break;
 
+	case AUDIT_TRIGGER_EXPIRE_TRAILS:
+		auditd_log_info("Got audit expire trails trigger");
+		err = auditd_expire_trails(audit_warn_expired);
+		if (err)
+			auditd_log_err("auditd_expire_trails(): %s",
+		    	    auditd_strerror(err));
+		break;
+
 	default:
 		auditd_log_err("Got unknown trigger %d", trigger);
 		break;
@@ -669,13 +689,18 @@ auditd_config_controls(void)
 	 */
 	err = auditd_set_host();
 	if (err) {
-		auditd_log_err("auditd_set_host() %s: %m",
-		    auditd_strerror(err));
-		ret = -1;
+		if (err == ADE_PARSE) {
+			auditd_log_notice(
+			    "audit_control(5) may be missing 'host:' field");
+		} else {
+			auditd_log_err("auditd_set_host() %s: %m",
+			    auditd_strerror(err));
+			ret = -1;
+		}
 	} else
 		auditd_log_debug(
 		    "Set audit host address information in kernel.");
-	
+
 	return (ret);
 }
 

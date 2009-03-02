@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Apple Inc.
+ * Copyright (c) 2005-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#10 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#11 $
  */
 
 #include <sys/types.h>
@@ -233,6 +233,21 @@ audit_warn_tmpfile(void)
 
 	args[0] = TMPFILE_WARN;
 	args[1] = NULL;
+
+	return (auditwarnlog(args));
+}
+
+/*
+ * Indicates that this trail file has expired and was removed.
+ */
+int
+audit_warn_expired(char *filename)
+{
+	char *args[3];
+
+	args[0] = EXPIRED_WARN;
+	args[1] = filename;
+	args[2] = NULL;
 
 	return (auditwarnlog(args));
 }
