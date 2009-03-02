@@ -127,12 +127,18 @@ struct ostatfs {
 	long	f_spare[2];		/* unused spare */
 };
 
-#define	MMAXOPTIONLEN	65536		/* maximum length of a mount option */
-
 TAILQ_HEAD(vnodelst, vnode);
 
-struct vfsoptlist;
-struct vfsopt;
+/* Mount options list */
+TAILQ_HEAD(vfsoptlist, vfsopt);
+struct vfsopt {
+	TAILQ_ENTRY(vfsopt) link;
+	char	*name;
+	void	*value;
+	int	len;
+	int	pos;
+	int	seen;
+};
 
 /*
  * Structure per mounted filesystem.  Each mounted filesystem has an
@@ -702,12 +708,21 @@ void	vfs_mount_destroy(struct mount *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
 void	vfs_freeopts(struct vfsoptlist *opts);
 void	vfs_deleteopt(struct vfsoptlist *opts, const char *name);
+int	vfs_buildopts(struct uio *auio, struct vfsoptlist **options);
 int	vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
+int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 char	*vfs_getopts(struct vfsoptlist *, const char *, int *error);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_filteropt(struct vfsoptlist *, const char **legal);
+void	vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...);
 int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...);
+int	vfs_setopt(struct vfsoptlist *opts, const char *name, void *value,
+	    int len);
+int	vfs_setopt_part(struct vfsoptlist *opts, const char *name, void *value,
+	    int len);
+int	vfs_setopts(struct vfsoptlist *opts, const char *name,
+	    const char *value);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 void	vfs_msync(struct mount *, int);
