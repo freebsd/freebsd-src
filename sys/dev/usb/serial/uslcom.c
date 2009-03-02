@@ -194,7 +194,7 @@ static driver_t uslcom_driver = {
 	.size = sizeof(struct uslcom_softc),
 };
 
-DRIVER_MODULE(uslcom, ushub, uslcom_driver, uslcom_devclass, NULL, 0);
+DRIVER_MODULE(uslcom, uhub, uslcom_driver, uslcom_devclass, NULL, 0);
 MODULE_DEPEND(uslcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uslcom, usb, 1, 1, 1);
 MODULE_VERSION(uslcom, 1);
