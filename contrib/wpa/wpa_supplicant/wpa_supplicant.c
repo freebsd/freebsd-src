@@ -2016,6 +2016,8 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
 		return NULL;
 
 	wpa_debug_open_file(params->wpa_debug_file_path);
+	if (params->wpa_debug_syslog)
+		wpa_debug_open_syslog();
 
 	ret = eap_peer_register_methods();
 	if (ret) {
@@ -2166,5 +2168,6 @@ void wpa_supplicant_deinit(struct wpa_global *global)
 	os_free(global->params.ctrl_interface);
 
 	os_free(global);
+	wpa_debug_close_syslog();
 	wpa_debug_close_file();
 }
