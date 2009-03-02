@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2008 Apple Inc.
+ * Copyright (c) 2004-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#41 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#42 $
  */
 
 #ifndef _LIBBSM_H_
@@ -76,13 +76,14 @@
 #define	AUDIT_CONTROL_FILE	"/etc/security/audit_control"
 #define	AUDIT_USER_FILE		"/etc/security/audit_user"
 
-#define	DIR_CONTROL_ENTRY	"dir"
-#define	MINFREE_CONTROL_ENTRY	"minfree"
-#define	FILESZ_CONTROL_ENTRY	"filesz"
-#define	FLAGS_CONTROL_ENTRY	"flags"
-#define	NA_CONTROL_ENTRY	"naflags"
-#define	POLICY_CONTROL_ENTRY	"policy"
+#define	DIR_CONTROL_ENTRY		"dir"
+#define	MINFREE_CONTROL_ENTRY		"minfree"
+#define	FILESZ_CONTROL_ENTRY		"filesz"
+#define	FLAGS_CONTROL_ENTRY		"flags"
+#define	NA_CONTROL_ENTRY		"naflags"
+#define	POLICY_CONTROL_ENTRY		"policy"
 #define	AUDIT_HOST_CONTROL_ENTRY	"host"
+#define	EXPIRE_AFTER_CONTROL_ENTRY	"expire-after"
 
 #define	AU_CLASS_NAME_MAX	8
 #define	AU_CLASS_DESC_MAX	72
@@ -766,6 +767,7 @@ int			 getacflg(char *auditstr, int len);
 int			 getacna(char *auditstr, int len);
 int			 getacpol(char *auditstr, size_t len);
 int			 getachost(char *auditstr, size_t len);
+int			 getacexpire(int *andflg, time_t *age, size_t *size);
 int			 getauditflagsbin(char *auditstr, au_mask_t *masks);
 int			 getauditflagschar(char *auditstr, au_mask_t *masks,
 			    int verbose);
