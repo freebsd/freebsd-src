@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -79,12 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <amd64/isa/isa.h>
-
-#ifdef COMPAT_IA32
-
-extern struct sysentvec ia32_freebsd_sysvec;
-
-#endif
 
 static void	cpu_reset_real(void);
 #ifdef SMP
@@ -331,7 +326,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	cpu_thread_clean(td);
 
 #ifdef COMPAT_IA32
-	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
 		/*
 	 	 * Set the trap frame to point at the beginning of the uts
 		 * function.
@@ -377,7 +372,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		return (EINVAL);
 
 #ifdef COMPAT_IA32
-	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
 		if (td == curthread) {
 			critical_enter();
 			td->td_pcb->pcb_gsbase = (register_t)tls_base;
