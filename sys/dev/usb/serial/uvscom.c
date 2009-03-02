@@ -247,7 +247,7 @@ static driver_t uvscom_driver = {
 	.size = sizeof(struct uvscom_softc),
 };
 
-DRIVER_MODULE(uvscom, ushub, uvscom_driver, uvscom_devclass, NULL, 0);
+DRIVER_MODULE(uvscom, uhub, uvscom_driver, uvscom_devclass, NULL, 0);
 MODULE_DEPEND(uvscom, ucom, 1, 1, 1);
 MODULE_DEPEND(uvscom, usb, 1, 1, 1);
 MODULE_VERSION(uvscom, UVSCOM_MODVER);

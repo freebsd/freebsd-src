@@ -783,5 +783,5 @@ static driver_t uhid_driver = {
 	.size = sizeof(struct uhid_softc),
 };
 
-DRIVER_MODULE(uhid, ushub, uhid_driver, uhid_devclass, NULL, 0);
+DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
 MODULE_DEPEND(uhid, usb, 1, 1, 1);

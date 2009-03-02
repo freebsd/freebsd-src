@@ -2538,4 +2538,4 @@ static driver_t rum_driver = {
 
 static devclass_t rum_devclass;
 
-DRIVER_MODULE(rum, ushub, rum_driver, rum_devclass, NULL, 0);
+DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
