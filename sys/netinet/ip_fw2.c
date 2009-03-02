@@ -165,7 +165,6 @@ struct table_entry {
 };
 
 #ifdef VIMAGE_GLOBALS
-static int fw_debug;
 static int autoinc_step;
 #endif
 
@@ -181,8 +180,6 @@ SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, autoinc_step,
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_RW | CTLFLAG_SECURE3, fw_one_pass, 0,
     "Only do a single pass through ipfw when using dummynet(4)");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW,
-    fw_debug, 0, "Enable printing of debug ip_fw statements");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, verbose,
     CTLFLAG_RW | CTLFLAG_SECURE3,
     fw_verbose, 0, "Log matches to ipfw rules");
@@ -4535,7 +4532,6 @@ ipfw_init(void)
 	struct ip_fw default_rule;
 	int error;
 
-	V_fw_debug = 1;
 	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
 
 	V_ipfw_dyn_v = NULL;
