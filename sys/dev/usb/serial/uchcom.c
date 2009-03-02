@@ -158,6 +158,7 @@ struct uchcom_softc {
 
 	struct usb2_xfer *sc_xfer[UCHCOM_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint8_t	sc_dtr;			/* local copy */
 	uint8_t	sc_rts;			/* local copy */
@@ -303,6 +304,7 @@ uchcom_attach(device_t dev)
 	DPRINTFN(11, "\n");
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "uchcom", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
 
@@ -318,7 +320,7 @@ uchcom_attach(device_t dev)
 	iface_index = UCHCOM_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device,
 	    &iface_index, sc->sc_xfer, uchcom_config_data,
-	    UCHCOM_N_TRANSFER, sc, &Giant);
+	    UCHCOM_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		DPRINTF("one or more missing USB endpoints, "
@@ -338,11 +340,13 @@ uchcom_attach(device_t dev)
 	sc->sc_rts = 1;
 
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UCHCOM_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UCHCOM_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &uchcom_callback, &Giant);
+	    &uchcom_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -361,8 +365,8 @@ uchcom_detach(device_t dev)
 	DPRINTFN(11, "\n");
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UCHCOM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

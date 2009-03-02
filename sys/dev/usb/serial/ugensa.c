@@ -221,8 +221,10 @@ ugensa_attach(device_t dev)
 			goto detach;
 		}
 		/* clear stall at first run */
+		mtx_lock(&sc->sc_mtx);
 		usb2_transfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
 		usb2_transfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_RD]);
+		mtx_unlock(&sc->sc_mtx);
 
 		/* initialize port number */
 		ssc->sc_usb2_com_ptr->sc_portno = sc->sc_niface;

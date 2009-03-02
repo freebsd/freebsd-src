@@ -90,6 +90,7 @@ struct u3g_softc {
 
 	struct usb2_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint8_t	sc_lsr;			/* local status register */
 	uint8_t	sc_msr;			/* U3G status register */
@@ -455,6 +456,7 @@ u3g_attach(device_t dev)
 		u3g_config_tmp[n] = u3g_config[n];
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "u3g", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
 
@@ -488,7 +490,7 @@ u3g_attach(device_t dev)
 		/* try to allocate a set of BULK endpoints */
 		error = usb2_transfer_setup(uaa->device, &x,
 		    sc->sc_xfer[m], u3g_config_tmp, U3G_N_TRANSFER, 
-		    &sc->sc_ucom[m], &Giant);
+		    &sc->sc_ucom[m], &sc->sc_mtx);
 		if (error) {
 			/* next interface */
 			x++;
@@ -502,8 +504,10 @@ u3g_attach(device_t dev)
                             uaa->info.bIfaceIndex);
 
 		/* set stall by default */
+		mtx_lock(&sc->sc_mtx);
 		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_WR]);
 		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_RD]);
+		mtx_unlock(&sc->sc_mtx);
 
 		m++;	/* found one port */
 		i++;	/* next endpoint index */
@@ -512,7 +516,7 @@ u3g_attach(device_t dev)
 	sc->sc_numports = m;
 
 	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom, 
-	    sc->sc_numports, sc, &u3g_callback, &Giant);
+	    sc->sc_numports, sc, &u3g_callback, &sc->sc_mtx);
 	if (error) {
 		DPRINTF("usb2_com_attach failed\n");
 		goto detach;
@@ -542,6 +546,7 @@ u3g_detach(device_t dev)
 
 	for (m = 0; m != U3G_MAXPORTS; m++)
 		usb2_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

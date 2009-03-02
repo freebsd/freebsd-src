@@ -135,6 +135,7 @@ struct uvscom_softc {
 
 	struct usb2_xfer *sc_xfer[UVSCOM_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_line;		/* line control register */
 
@@ -276,6 +277,7 @@ uvscom_attach(device_t dev)
 	int error;
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "uvscom", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
 
@@ -285,7 +287,7 @@ uvscom_attach(device_t dev)
 	sc->sc_iface_index = UVSCOM_IFACE_INDEX;
 
 	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
-	    sc->sc_xfer, uvscom_config, UVSCOM_N_TRANSFER, sc, &Giant);
+	    sc->sc_xfer, uvscom_config, UVSCOM_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		DPRINTF("could not allocate all USB transfers!\n");
@@ -294,18 +296,20 @@ uvscom_attach(device_t dev)
 	sc->sc_line = UVSCOM_LINE_INIT;
 
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UVSCOM_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UVSCOM_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &uvscom_callback, &Giant);
+	    &uvscom_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
 	/* start interrupt pipe */
-	mtx_lock(&Giant);
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_start(sc->sc_xfer[UVSCOM_INTR_DT_RD]);
-	mtx_unlock(&Giant);
+	mtx_unlock(&sc->sc_mtx);
 
 	return (0);
 
@@ -323,12 +327,12 @@ uvscom_detach(device_t dev)
 
 	/* stop interrupt pipe */
 
-	if (sc->sc_xfer[UVSCOM_INTR_DT_RD]) {
+	if (sc->sc_xfer[UVSCOM_INTR_DT_RD])
 		usb2_transfer_stop(sc->sc_xfer[UVSCOM_INTR_DT_RD]);
-	}
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
 
+	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
 	usb2_transfer_unsetup(sc->sc_xfer, UVSCOM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

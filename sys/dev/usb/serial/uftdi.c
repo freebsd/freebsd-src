@@ -96,6 +96,7 @@ struct uftdi_softc {
 	struct usb2_device *sc_udev;
 	struct usb2_xfer *sc_xfer[UFTDI_N_TRANSFER];
 	device_t sc_dev;
+	struct mtx sc_mtx;
 
 	uint32_t sc_unit;
 	enum uftdi_type sc_type;
@@ -259,6 +260,7 @@ uftdi_attach(device_t dev)
 	sc->sc_unit = device_get_unit(dev);
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
@@ -280,7 +282,7 @@ uftdi_attach(device_t dev)
 
 	error = usb2_transfer_setup(uaa->device,
 	    &sc->sc_iface_index, sc->sc_xfer, uftdi_config,
-	    UFTDI_N_TRANSFER, sc, &Giant);
+	    UFTDI_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		device_printf(dev, "allocating USB "
@@ -290,8 +292,10 @@ uftdi_attach(device_t dev)
 	sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;
 
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	/* set a valid "lcr" value */
 
@@ -301,7 +305,7 @@ uftdi_attach(device_t dev)
 	    FTDI_SIO_SET_DATA_BITS(8));
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &uftdi_callback, &Giant);
+	    &uftdi_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -318,8 +322,8 @@ uftdi_detach(device_t dev)
 	struct uftdi_softc *sc = device_get_softc(dev);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UFTDI_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
