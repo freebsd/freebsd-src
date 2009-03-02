@@ -57,8 +57,7 @@ __FBSDID("$FreeBSD$");
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__rec_close(dbp)
-	DB *dbp;
+__rec_close(DB *dbp)
 {
 	BTREE *t;
 	int status;
@@ -104,9 +103,7 @@ __rec_close(dbp)
  *	RET_SUCCESS, RET_ERROR.
  */
 int
-__rec_sync(dbp, flags)
-	const DB *dbp;
-	u_int flags;
+__rec_sync(const DB *dbp, u_int flags)
 {
 	struct iovec iov[2];
 	BTREE *t;
