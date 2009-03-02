@@ -7,7 +7,7 @@ WPA_SUPPLICANT_DISTDIR?= ${CONTRIB}/wpa_supplicant
 .PATH: ${HOSTAPD_DISTDIR} ${WPA_SUPPLICANT_DISTDIR}
 
 PROG=	hostapd_cli
-SRCS=	hostapd_cli.c wpa_ctrl.c
+SRCS=	hostapd_cli.c wpa_ctrl.c os_unix.c
 
 CFLAGS+= -DCONFIG_CTRL_IFACE
 CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
