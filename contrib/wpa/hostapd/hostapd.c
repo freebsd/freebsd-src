@@ -1910,10 +1910,12 @@ int main(int argc, char *argv[])
 	if (optind == argc)
 		usage();
 
+#ifdef EAP_SERVER
 	if (eap_server_register_methods()) {
 		wpa_printf(MSG_ERROR, "Failed to register EAP methods");
 		return -1;
 	}
+#endif /* EAP_SERVER */
 
 	interfaces.count = argc - optind;
 
@@ -2019,7 +2021,9 @@ int main(int argc, char *argv[])
 	closelog();
 #endif /* CONFIG_NATIVE_WINDOWS */
 
+#ifdef EAP_SERVER
 	eap_server_unregister_methods();
+#endif /* EAP_SERVER */
 
 	os_daemonize_terminate(pid_file);
 
