@@ -1,5 +1,24 @@
 OpenBSM Version History
 
+OpenBSM 1.1 beta 1
+
+- The filesz parameter in audit_control(5) now accepts suffixes: 'B' for
+  Bytes, 'K' for Kilobytes, 'M' for Megabytes, and 'G' for Gigabytes.
+  For legacy support no suffix defaults to bytes.
+- Audit trail log expiration support added.  It is configured in
+  audit_control(5) with the expire-after parameter.  If there is no 
+  expire-after parameter in audit_control(5), the default, then the audit
+  trail files are not expired and removed.  See audit_control(5) for
+  more information.
+- Change defaults in audit_control: warn at 5% rather than 20% free for audit
+  partitions, rotate automatically at 2mb, and set the default policy to
+  cnt,argv rather than cnt so that execve(2) arguments are captured if
+  AUE_EXECVE events are audited.  These may provide more usable defaults for
+  many users.
+- Use au_domain_to_bsm(3) and au_socket_type_to_bsm(3) to convert
+  au_to_socket_ex(3) arguments to BSM format.
+- Fix error encoding AUT_IPC_PERM tokens.
+
 OpenBSM 1.1 alpha 5
 
 - Stub libauditd(3) man page added.
@@ -412,4 +431,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/NEWS#27 $
+$P4: //depot/projects/trustedbsd/openbsm/NEWS#32 $

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Apple Inc.
+.\" Copyright (c) 2004-2009 Apple Inc.
 .\" Copyright (c) 2006 Robert N. M. Watson
 .\" All rights reserved.
 .\"
@@ -26,9 +26,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#20 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#22 $
 .\"
-.Dd January 4, 2006
+.Dd January 29, 2009
 .Dt AUDIT_CONTROL 5
 .Os
 .Sh NAME
@@ -86,6 +86,18 @@ rotate the audit trail file at around this size.
 Sizes less than the minimum trail size (default of 512K) will be rejected as
 invalid.
 If 0, trail files will not be automatically rotated based on file size.
+For convenience, the trail size may be expressed with suffix letters:
+B (Bytes), K (Kilobytes), M (Megabytes), or G (Gigabytes).
+For example, 2M is the same as 2097152.
+.It Va expire-after
+Specifies when audit log files will expire and be removed.
+This may be after a time period has passed since the file was last
+written to or when the aggregate of all the trail files have reached a 
+specified size or a combination of both.
+If no expire-after parameter is given then audit log files with not
+expire and be removed by the audit control system.
+See the information below for the format of the expiration
+specification.
 .El
 .Sh AUDIT FLAGS
 Audit flags are a comma-delimited list of audit classes as defined in the
@@ -170,6 +182,51 @@ flag but not
 .Cm ahlt
 flag unless it is intended that audit logs exceeding available disk space
 halt the system.
+.Sh AUDIT LOG EXPIRATION SPECIFICATION
+The expiration specification can be one value or two values with the
+logical conjunction of AND/OR between them.
+Values for the audit log file age are numbers with the following
+suffixes:
+.Pp
+.Bl -tag -width "(space) or" -compact -offset indent
+.It Li s
+Log file age in seconds.
+.It Li h
+Log file age in hours.
+.It Li d
+Log file age in days.
+.It Li y
+Log file age in years.
+.El
+.Pp
+Values for the disk space used are numbers with the following suffixes:
+.Pp
+.Bl -tag -width "(space) or" -compact -offset indent
+.It (space) or
+.It Li B
+Disk space used in Bytes.
+.It Li K
+Disk space used in Kilobytes.
+.It Li M
+Disk space used in Megabytes. 
+.It Li G
+Disk space used in Gigabytes. 
+.El
+.Pp
+The suffixes on the values are case sensitive.  
+If both an age and disk space value are used they are seperated by
+AND or OR and both values are used to determine when audit
+log files expire.
+In the case of AND, both the age and disk space conditions must be meet
+before the log file is removed.
+In the case of OR, either condition may expire the log file.
+For example:
+.Bd -literal -offset indent
+expire-after: 60d AND 1G 
+.Ed
+.Pp
+will expire files that are older than 60 days but only if 1
+gigabyte of disk space total is being used by the audit logs.
 .Sh DEFAULT
 The following settings appear in the default
 .Nm
@@ -177,10 +234,10 @@ file:
 .Bd -literal -offset indent
 dir:/var/audit
 flags:lo
-minfree:20
+minfree:5
 naflags:lo
-policy:cnt
-filesz:0
+policy:cnt,argv
+filesz:2097152
 .Ed
 .Pp
 The
@@ -190,9 +247,12 @@ events.
 The
 .Va policy
 parameter specifies that the system should neither fail stop nor suspend
-processes when the audit store fills.
-The trail file will not be automatically rotated by the audit daemon based on
-file size.
+processes when the audit store fills and that command line arguments should
+be audited for
+.Dv AUE_EXECVE
+events.
+The trail file will be automatically rotated by the audit daemon when the
+file size reaches approximately 2MB.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control
