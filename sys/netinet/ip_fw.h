@@ -693,7 +693,7 @@ struct vnet_ipfw {
 	int	_fw_deny_unknown_exthdrs;
 	int	_fw_verbose;
 	int	_verbose_limit;
-	int	_fw_debug;
+	int	_fw_debug;		/* actually unused */
 	int	_autoinc_step;
 	ipfw_dyn_rule **_ipfw_dyn_v;
 	struct ip_fw_chain _layer3_chain;
