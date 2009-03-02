@@ -126,7 +126,7 @@ static devclass_t uhub_devclass;
 
 static driver_t uhub_driver =
 {
-	.name = "ushub",
+	.name = "uhub",
 	.methods = (device_method_t[]){
 		DEVMETHOD(device_probe, uhub_probe),
 		DEVMETHOD(device_attach, uhub_attach),
@@ -144,8 +144,8 @@ static driver_t uhub_driver =
 	.size = sizeof(struct uhub_softc)
 };
 
-DRIVER_MODULE(ushub, usbus, uhub_driver, uhub_devclass, 0, 0);
-DRIVER_MODULE(ushub, ushub, uhub_driver, uhub_devclass, NULL, 0);
+DRIVER_MODULE(uhub, usbus, uhub_driver, uhub_devclass, 0, 0);
+DRIVER_MODULE(uhub, uhub, uhub_driver, uhub_devclass, NULL, 0);
 
 static void
 uhub_intr_callback(struct usb2_xfer *xfer)

@@ -148,7 +148,7 @@ static driver_t uark_driver = {
 	.size = sizeof(struct uark_softc),
 };
 
-DRIVER_MODULE(uark, ushub, uark_driver, uark_devclass, NULL, 0);
+DRIVER_MODULE(uark, uhub, uark_driver, uark_devclass, NULL, 0);
 MODULE_DEPEND(uark, ucom, 1, 1, 1);
 MODULE_DEPEND(uark, usb, 1, 1, 1);
 

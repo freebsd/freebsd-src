@@ -104,7 +104,7 @@ static driver_t ufm_driver = {
 	.size = sizeof(struct ufm_softc),
 };
 
-DRIVER_MODULE(ufm, ushub, ufm_driver, ufm_devclass, NULL, 0);
+DRIVER_MODULE(ufm, uhub, ufm_driver, ufm_devclass, NULL, 0);
 MODULE_DEPEND(ufm, usb, 1, 1, 1);
 
 static int
