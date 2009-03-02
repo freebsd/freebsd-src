@@ -33,7 +33,7 @@
  * Simple Atheros-specific tool to inspect and monitor network traffic
  * statistics.
  *
- *	athstats [-i interface] [-z] [-l] [-o fmtstring] [interval]
+ *	athstats [-i interface] [-bz] [-l] [-o fmtstring] [interval]
  *
  * (default interface is ath0).  If interval is specified a rolling output
  * a la netstat -i is displayed every interval seconds.  The format of
@@ -89,14 +89,17 @@ main(int argc, char *argv[])
 {
 	struct athstatfoo *wf;
 	const char *ifname;
-	int c;
+	int c, banner = 1;
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
 		ifname = "ath0";
 	wf = athstats_new(ifname, getfmt("default"));
-	while ((c = getopt(argc, argv, "i:lo:z")) != -1) {
+	while ((c = getopt(argc, argv, "bi:lo:z")) != -1) {
 		switch (c) {
+		case 'b':
+			banner = 0;
+			break;
 		case 'i':
 			wf->setifname(wf, optarg);
 			break;
@@ -127,7 +130,8 @@ main(int argc, char *argv[])
 		signalled = 0;
 		alarm(interval);
 	banner:
-		wf->print_header(wf, stdout);
+		if (banner)
+			wf->print_header(wf, stdout);
 		line = 0;
 	loop:
 		if (line != 0) {
