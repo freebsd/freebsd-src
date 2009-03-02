@@ -636,9 +636,7 @@ ulpt_detach(device_t dev)
 	mtx_unlock(&sc->sc_mtx);
 
 	usb2_transfer_unsetup(sc->sc_xfer, ULPT_N_TRANSFER);
-
 	usb2_callout_drain(&sc->sc_watchdog);
-
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

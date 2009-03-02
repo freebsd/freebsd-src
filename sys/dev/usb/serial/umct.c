@@ -93,6 +93,7 @@ struct umct_softc {
 
 	struct usb2_device *sc_udev;
 	struct usb2_xfer *sc_xfer[UMCT_N_TRANSFER];
+	struct mtx sc_mtx;
 
 	uint32_t sc_unit;
 
@@ -233,6 +234,7 @@ umct_attach(device_t dev)
 	sc->sc_unit = device_get_unit(dev);
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "umct", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
@@ -241,7 +243,7 @@ umct_attach(device_t dev)
 
 	iface_index = UMCT_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
-	    sc->sc_xfer, umct_config, UMCT_N_TRANSFER, sc, &Giant);
+	    sc->sc_xfer, umct_config, UMCT_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		device_printf(dev, "allocating USB "
@@ -274,7 +276,7 @@ umct_attach(device_t dev)
 		}
 	}
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &umct_callback, &Giant);
+	    &umct_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -291,8 +293,8 @@ umct_detach(device_t dev)
 	struct umct_softc *sc = device_get_softc(dev);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UMCT_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

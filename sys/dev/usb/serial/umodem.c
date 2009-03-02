@@ -142,6 +142,7 @@ struct umodem_softc {
 
 	struct usb2_xfer *sc_xfer[UMODEM_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_line;
 
@@ -288,6 +289,7 @@ umodem_attach(device_t dev)
 	int error;
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "umodem", NULL, MTX_DEF);
 
 	sc->sc_ctrl_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index[1] = uaa->info.bIfaceIndex;
@@ -348,17 +350,19 @@ umodem_attach(device_t dev)
 	error = usb2_transfer_setup(uaa->device,
 	    sc->sc_iface_index, sc->sc_xfer,
 	    umodem_config, UMODEM_N_TRANSFER,
-	    sc, &Giant);
+	    sc, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
 
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UMODEM_BULK_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UMODEM_BULK_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &umodem_callback, &Giant);
+	    &umodem_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -781,8 +785,8 @@ umodem_detach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UMODEM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
