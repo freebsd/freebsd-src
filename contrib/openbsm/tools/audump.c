@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#7 $
+ * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#8 $
  */
 
 #include <bsm/libbsm.h>
@@ -80,6 +80,8 @@ audump_control(void)
 	char string[PATH_MAX], string2[PATH_MAX];
 	int ret, val;
 	long policy;
+	time_t age;
+	size_t size;
 
 	ret = getacflg(string, PATH_MAX);
 	if (ret == -2)
@@ -126,6 +128,32 @@ audump_control(void)
 	if (au_poltostr(policy, PATH_MAX, string2) < 0)
 		err(-1, "au_poltostr");
 	printf("policy:%s\n", string2);
+
+	ret = getacfilesz(&size);
+	if (ret == -2)
+		err(-1, "getacfilesz");
+	if (ret != 0)
+		err(-1, "getacfilesz: %d", ret);
+
+	printf("filesz:%ldB\n", size);
+
+
+	ret = getachost(string, PATH_MAX);
+	if (ret == -2)
+		err(-1, "getachost");
+	if (ret == -3)
+		err(-1, "getachost: %d", ret);
+	if (ret == 0 && ret != 1)
+		printf("host:%s\n", string);
+
+	ret = getacexpire(&val, &age, &size);
+	if (ret == -2)
+		err(-1, "getacexpire");
+	if (ret == -1)
+		err(-1, "getacexpire: %d", ret);
+	if (ret == 0 && ret != 1)
+		printf("expire-after:%ldB  %s %lds\n", size,
+		    val ? "AND" : "OR", age);
 }
 
 static void
