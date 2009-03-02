@@ -160,6 +160,7 @@ struct ufoma_softc {
 	struct usb2_com_super_softc sc_super_ucom;
 	struct usb2_com_softc sc_ucom;
 	struct cv sc_cv;
+	struct mtx sc_mtx;
 
 	struct usb2_xfer *sc_ctrl_xfer[UFOMA_CTRL_ENDPT_MAX];
 	struct usb2_xfer *sc_bulk_xfer[UFOMA_BULK_ENDPT_MAX];
@@ -365,6 +366,7 @@ ufoma_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_unit = device_get_unit(dev);
 
+	mtx_init(&sc->sc_mtx, "ufoma", NULL, MTX_DEF);
 	usb2_cv_init(&sc->sc_cv, "CWAIT");
 
 	device_set_usb2_desc(dev);
@@ -383,7 +385,7 @@ ufoma_attach(device_t dev)
 
 	error = usb2_transfer_setup(uaa->device,
 	    &sc->sc_ctrl_iface_index, sc->sc_ctrl_xfer,
-	    ufoma_ctrl_config, UFOMA_CTRL_ENDPT_MAX, sc, &Giant);
+	    ufoma_ctrl_config, UFOMA_CTRL_ENDPT_MAX, sc, &sc->sc_mtx);
 
 	if (error) {
 		device_printf(dev, "allocating control USB "
@@ -424,11 +426,13 @@ ufoma_attach(device_t dev)
 	sc->sc_modetoactivate = mad->bMode[0];
 
 	/* clear stall at first run, if any */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
 	usb2_transfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &ufoma_callback, &Giant);
+	    &ufoma_callback, &sc->sc_mtx);
 	if (error) {
 		DPRINTF("usb2_com_attach failed\n");
 		goto detach;
@@ -465,14 +469,13 @@ ufoma_detach(device_t dev)
 	struct ufoma_softc *sc = device_get_softc(dev);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_ctrl_xfer, UFOMA_CTRL_ENDPT_MAX);
-
 	usb2_transfer_unsetup(sc->sc_bulk_xfer, UFOMA_BULK_ENDPT_MAX);
 
 	if (sc->sc_modetable) {
 		free(sc->sc_modetable, M_USBDEV);
 	}
+	mtx_destroy(&sc->sc_mtx);
 	usb2_cv_destroy(&sc->sc_cv);
 
 	return (0);
@@ -512,7 +515,7 @@ ufoma_cfg_link_state(struct ufoma_softc *sc)
 	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, sc->sc_modetable, 0, 1000);
 
-	error = usb2_cv_timedwait(&sc->sc_cv, &Giant, hz);
+	error = usb2_cv_timedwait(&sc->sc_cv, &sc->sc_mtx, hz);
 
 	if (error) {
 		DPRINTF("NO response\n");
@@ -534,7 +537,7 @@ ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state)
 	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 
-	error = usb2_cv_timedwait(&sc->sc_cv, &Giant,
+	error = usb2_cv_timedwait(&sc->sc_cv, &sc->sc_mtx,
 	    (UFOMA_MAX_TIMEOUT * hz));
 	if (error) {
 		DPRINTF("No response\n");
@@ -1035,7 +1038,7 @@ ufoma_modem_setup(device_t dev, struct ufoma_softc *sc,
 
 	error = usb2_transfer_setup(uaa->device,
 	    &sc->sc_data_iface_index, sc->sc_bulk_xfer,
-	    ufoma_bulk_config, UFOMA_BULK_ENDPT_MAX, sc, &Giant);
+	    ufoma_bulk_config, UFOMA_BULK_ENDPT_MAX, sc, &sc->sc_mtx);
 
 	if (error) {
 		device_printf(dev, "allocating BULK USB "

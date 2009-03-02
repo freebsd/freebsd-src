@@ -86,6 +86,7 @@ struct uipaq_softc {
 
 	struct usb2_xfer *sc_xfer[UIPAQ_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_line;
 
@@ -1102,6 +1103,7 @@ uipaq_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "uipaq", NULL, MTX_DEF);
 
 	/*
 	 * Send magic bytes, cribbed from Linux ipaq driver that
@@ -1125,17 +1127,19 @@ uipaq_attach(device_t dev)
 	iface_index = UIPAQ_IFACE_INDEX;
 	error = usb2_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, uipaq_config_data,
-	    UIPAQ_N_TRANSFER, sc, &Giant);
+	    UIPAQ_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		goto detach;
 	}
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &uipaq_callback, &Giant);
+	    &uipaq_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -1152,8 +1156,8 @@ uipaq_detach(device_t dev)
 	struct uipaq_softc *sc = device_get_softc(dev);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

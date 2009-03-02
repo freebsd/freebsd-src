@@ -160,6 +160,7 @@ struct uvisor_softc {
 
 	struct usb2_xfer *sc_xfer[UVISOR_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_flag;
 #define	UVISOR_FLAG_PALM4       0x0001
@@ -297,6 +298,8 @@ uvisor_attach(device_t dev)
 	    sizeof(uvisor_config_copy));
 	device_set_usb2_desc(dev);
 
+	mtx_init(&sc->sc_mtx, "uvisor", NULL, MTX_DEF);
+
 	sc->sc_udev = uaa->device;
 
 	/* configure the device */
@@ -314,17 +317,19 @@ uvisor_attach(device_t dev)
 	}
 	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
 	    sc->sc_xfer, uvisor_config_copy, UVISOR_N_TRANSFER,
-	    sc, &Giant);
+	    sc, &sc->sc_mtx);
 	if (error) {
 		DPRINTF("could not allocate all pipes\n");
 		goto detach;
 	}
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &uvisor_callback, &Giant);
+	    &uvisor_callback, &sc->sc_mtx);
 	if (error) {
 		DPRINTF("usb2_com_attach failed\n");
 		goto detach;
@@ -344,8 +349,8 @@ uvisor_detach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UVISOR_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

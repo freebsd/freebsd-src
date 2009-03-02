@@ -122,6 +122,7 @@ struct ubser_softc {
 
 	struct usb2_xfer *sc_xfer[UBSER_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_tx_size;
 
@@ -227,6 +228,7 @@ ubser_attach(device_t dev)
 	int error;
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "ubser", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
 	    device_get_nameunit(dev));
@@ -258,7 +260,7 @@ ubser_attach(device_t dev)
 	device_printf(dev, "found %i serials\n", sc->sc_numser);
 
 	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
-	    sc->sc_xfer, ubser_config, UBSER_N_TRANSFER, sc, &Giant);
+	    sc->sc_xfer, ubser_config, UBSER_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -275,18 +277,16 @@ ubser_attach(device_t dev)
 	}
 
 	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom,
-	    sc->sc_numser, sc, &ubser_callback, &Giant);
+	    sc->sc_numser, sc, &ubser_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
-	mtx_lock(&Giant);
 
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_RD]);
-
 	usb2_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
-
-	mtx_unlock(&Giant);
+	mtx_unlock(&sc->sc_mtx);
 
 	return (0);			/* success */
 
@@ -303,8 +303,8 @@ ubser_detach(device_t dev)
 	DPRINTF("\n");
 
 	usb2_com_detach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_numser);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UBSER_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

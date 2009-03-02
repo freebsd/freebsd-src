@@ -153,6 +153,7 @@ struct ubsa_softc {
 
 	struct usb2_xfer *sc_xfer[UBSA_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint8_t	sc_iface_no;		/* interface number */
 	uint8_t	sc_iface_index;		/* interface index */
@@ -289,24 +290,27 @@ ubsa_attach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "ubsa", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index = UBSA_IFACE_INDEX;
 
 	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
-	    sc->sc_xfer, ubsa_config, UBSA_N_TRANSFER, sc, &Giant);
+	    sc->sc_xfer, ubsa_config, UBSA_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		DPRINTF("could not allocate all pipes\n");
 		goto detach;
 	}
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &ubsa_callback, &Giant);
+	    &ubsa_callback, &sc->sc_mtx);
 	if (error) {
 		DPRINTF("usb2_com_attach failed\n");
 		goto detach;
@@ -326,8 +330,8 @@ ubsa_detach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
