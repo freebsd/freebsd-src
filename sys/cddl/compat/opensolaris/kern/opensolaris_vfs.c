@@ -39,14 +39,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_MOUNT);
 
-TAILQ_HEAD(vfsoptlist, vfsopt);
-struct vfsopt {
-	TAILQ_ENTRY(vfsopt) link;
-	char	*name;
-	void	*value;
-	int	len;
-};
-
 void
 vfs_setmntopt(vfs_t *vfsp, const char *name, const char *arg,
     int flags __unused)
@@ -64,6 +56,8 @@ vfs_setmntopt(vfs_t *vfsp, const char *name, const char *arg,
 	namesize = strlen(name) + 1;
 	opt->name = malloc(namesize, M_MOUNT, M_WAITOK);
 	strlcpy(opt->name, name, namesize);
+	opt->pos = -1;
+	opt->seen = 1;
 
 	if (arg == NULL) {
 		opt->value = NULL;
@@ -80,22 +74,9 @@ vfs_setmntopt(vfs_t *vfsp, const char *name, const char *arg,
 void
 vfs_clearmntopt(vfs_t *vfsp, const char *name)
 {
-	struct vfsopt *opt;
 
-	if (vfsp->mnt_opt == NULL)
-		return;
 	/* TODO: Locking. */
-	TAILQ_FOREACH(opt, vfsp->mnt_opt, link) {
-		if (strcmp(opt->name, name) == 0)
-			break;
-	}
-	if (opt != NULL) {
-		TAILQ_REMOVE(vfsp->mnt_opt, opt, link);
-		free(opt->name, M_MOUNT);
-		if (opt->value != NULL)
-			free(opt->value, M_MOUNT);
-		free(opt, M_MOUNT);
-	}
+	vfs_deleteopt(vfsp->mnt_opt, name);
 }
 
 int
