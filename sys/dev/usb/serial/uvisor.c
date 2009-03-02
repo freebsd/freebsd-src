@@ -235,7 +235,7 @@ static driver_t uvisor_driver = {
 	.size = sizeof(struct uvisor_softc),
 };
 
-DRIVER_MODULE(uvisor, ushub, uvisor_driver, uvisor_devclass, NULL, 0);
+DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
 MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
 

@@ -3742,7 +3742,7 @@ umidi_detach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(uaudio, ushub, uaudio_driver, uaudio_devclass, NULL, 0);
+DRIVER_MODULE(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0);
 MODULE_DEPEND(uaudio, usb, 1, 1, 1);
 MODULE_DEPEND(uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(uaudio, 1);

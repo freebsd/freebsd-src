@@ -271,7 +271,7 @@ static driver_t atausb2_driver = {
 	.size = sizeof(struct atausb2_softc),
 };
 
-DRIVER_MODULE(atausb, ushub, atausb2_driver, atausb2_devclass, 0, 0);
+DRIVER_MODULE(atausb, uhub, atausb2_driver, atausb2_devclass, 0, 0);
 MODULE_DEPEND(atausb, usb, 1, 1, 1);
 MODULE_VERSION(atausb, 1);
 

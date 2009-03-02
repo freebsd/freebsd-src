@@ -3172,7 +3172,7 @@ static driver_t zyd_driver = {
 
 static devclass_t zyd_devclass;
 
-DRIVER_MODULE(zyd, ushub, zyd_driver, zyd_devclass, NULL, 0);
+DRIVER_MODULE(zyd, uhub, zyd_driver, zyd_devclass, NULL, 0);
 MODULE_DEPEND(zyd, usb, 1, 1, 1);
 MODULE_DEPEND(zyd, wlan, 1, 1, 1);
 MODULE_DEPEND(zyd, wlan_amrr, 1, 1, 1);

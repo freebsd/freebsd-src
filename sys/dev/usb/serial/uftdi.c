@@ -196,7 +196,7 @@ static driver_t uftdi_driver = {
 	.size = sizeof(struct uftdi_softc),
 };
 
-DRIVER_MODULE(uftdi, ushub, uftdi_driver, uftdi_devclass, NULL, 0);
+DRIVER_MODULE(uftdi, uhub, uftdi_driver, uftdi_devclass, NULL, 0);
 MODULE_DEPEND(uftdi, ucom, 1, 1, 1);
 MODULE_DEPEND(uftdi, usb, 1, 1, 1);
 

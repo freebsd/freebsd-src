@@ -244,7 +244,7 @@ static driver_t umodem_driver = {
 	.size = sizeof(struct umodem_softc),
 };
 
-DRIVER_MODULE(umodem, ushub, umodem_driver, umodem_devclass, NULL, 0);
+DRIVER_MODULE(umodem, uhub, umodem_driver, umodem_devclass, NULL, 0);
 MODULE_DEPEND(umodem, ucom, 1, 1, 1);
 MODULE_DEPEND(umodem, usb, 1, 1, 1);
 MODULE_VERSION(umodem, UMODEM_MODVER);

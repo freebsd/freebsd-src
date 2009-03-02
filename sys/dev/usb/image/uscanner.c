@@ -200,7 +200,7 @@ static driver_t uscanner_driver = {
 	.size = sizeof(struct uscanner_softc),
 };
 
-DRIVER_MODULE(uscanner, ushub, uscanner_driver, uscanner_devclass, NULL, 0);
+DRIVER_MODULE(uscanner, uhub, uscanner_driver, uscanner_devclass, NULL, 0);
 MODULE_DEPEND(uscanner, usb, 1, 1, 1);
 
 /*
