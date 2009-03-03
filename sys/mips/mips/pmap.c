@@ -409,7 +409,8 @@ again:
 		kernel_segmap[j] = (pd_entry_t)(pgtab + (i * NPTEPG));
 
 	avail_start = phys_avail[0];
-	for (i = 0; phys_avail[i + 2]; i += 2);
+	for (i = 0; phys_avail[i + 2]; i += 2)
+		continue;
 	avail_end = phys_avail[i + 1];
 
 	/*
