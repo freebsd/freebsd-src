@@ -366,7 +366,7 @@ smp_rendezvous_cpus(cpumask_t map,
 		if (((1 << i) & map) != 0 && !CPU_ABSENT(i))
 			ncpus++;
 	if (ncpus == 0)
-		return;
+		panic("ncpus is 0 with map=0x%x", map);
 
 	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);
