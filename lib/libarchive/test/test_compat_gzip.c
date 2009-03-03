@@ -82,6 +82,7 @@ verify(const char *name)
 
 DEFINE_TEST(test_compat_gzip)
 {
+#if HAVE_ZLIB_H
 	/* This sample has been 'split', each piece compressed separately,
 	 * then concatenated.  Gunzip will emit the concatenated result. */
 	/* Not supported in libarchive 2.6 and earlier */
@@ -89,6 +90,9 @@ DEFINE_TEST(test_compat_gzip)
 	/* This sample has been compressed as a single stream, but then
 	 * some unrelated garbage text has been appended to the end. */
 	verify("test_compat_gzip_2.tgz");
+#else
+	skipping("Need zlib");
+#endif
 }
 
 

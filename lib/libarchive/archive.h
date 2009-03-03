@@ -47,7 +47,11 @@
 /* These should match the types used in 'struct stat' */
 #ifdef _WIN32
 #define	__LA_INT64_T	__int64
-#define	__LA_SSIZE_T	long
+# if	defined(_WIN64)
+#  define	__LA_SSIZE_T	__int64
+# else
+#  define	__LA_SSIZE_T	long
+# endif
 #define	__LA_UID_T	unsigned int
 #define	__LA_GID_T	unsigned int
 #else

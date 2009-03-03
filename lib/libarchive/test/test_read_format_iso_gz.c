@@ -53,6 +53,7 @@ static unsigned char archive[] = {
 
 DEFINE_TEST(test_read_format_iso_gz)
 {
+#if HAVE_ZLIB_H
 	struct archive_entry *ae;
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
@@ -67,6 +68,9 @@ DEFINE_TEST(test_read_format_iso_gz)
 	archive_read_finish(a);
 #else
 	assert(0 == archive_read_finish(a));
+#endif
+#else
+	skipping("Need zlib");
 #endif
 }
 

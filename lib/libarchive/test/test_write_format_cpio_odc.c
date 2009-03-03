@@ -218,7 +218,7 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	assertEqualMem(e + 76, "TRAILER!!!\0", 11); /* Name */
 	e += 87;
 
-	assertEqualInt(used, e - buff);
+	assertEqualInt((int)used, e - buff);
 
 	free(buff);
 }

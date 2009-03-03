@@ -82,8 +82,12 @@ compat_bzip2(const char *name)
 
 DEFINE_TEST(test_compat_bzip2)
 {
+#if HAVE_BZLIB_H
 	compat_bzip2("test_compat_bzip2_1.tbz");
 	compat_bzip2("test_compat_bzip2_2.tbz");
+#else
+	skipping("Need bzlib");
+#endif
 }
 
 

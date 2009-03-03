@@ -42,8 +42,8 @@ DEFINE_TEST(test_write_format_tar)
 		assert((a = archive_write_new()) != NULL);
 		assertA(0 == archive_write_set_format_ustar(a));
 		assertA(0 == archive_write_set_compression_none(a));
-		assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
-		assertA(0 == archive_write_set_bytes_in_last_block(a, blocksize));
+		assertA(0 == archive_write_set_bytes_per_block(a, (int)blocksize));
+		assertA(0 == archive_write_set_bytes_in_last_block(a, (int)blocksize));
 		assertA(blocksize == (size_t)archive_write_get_bytes_in_last_block(a));
 		assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 		assertA(blocksize == (size_t)archive_write_get_bytes_in_last_block(a));

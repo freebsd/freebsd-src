@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_read_format_zip)
 {
+#if HAVE_ZLIB_H
 	const char *refname = "test_read_format_zip.zip";
 	struct archive_entry *ae;
 	struct archive *a;
@@ -52,7 +53,7 @@ DEFINE_TEST(test_read_format_zip)
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &pv, &s, &o));
-	assertEqualInt(s, 0);
+	assertEqualInt((int)s, 0);
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
@@ -76,6 +77,9 @@ DEFINE_TEST(test_read_format_zip)
 	archive_read_finish(a);
 #else
 	assert(0 == archive_read_finish(a));
+#endif
+#else
+	skipping("Need zlib");
 #endif
 }
 
