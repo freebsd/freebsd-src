@@ -25,9 +25,6 @@
 
 #include "archive_platform.h"
 
-/* Don't compile this if we don't have bzlib. */
-#if HAVE_BZLIB_H
-
 __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
@@ -47,6 +44,16 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+
+#ifndef HAVE_BZLIB_H
+int
+archive_write_set_compression_bzip2(struct archive *_a)
+{
+	/* Unsupported bzip2 compression, we don't have bzlib */
+	return (ARCHIVE_FATAL);
+}
+#else
+/* Don't compile this if we don't have bzlib. */
 
 struct private_data {
 	bz_stream	 stream;
