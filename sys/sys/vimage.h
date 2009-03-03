@@ -224,6 +224,7 @@ void	vnet_mod_register(const struct vnet_modinfo *);
  * But as CTASSERT_EQUAL() needs special compile time options, we
  * want the default case to be backed by CTASSERT().
  */
+#if 0
 #ifndef VIMAGE_CTASSERT
 #ifdef VIMAGE_CHECK_SIZES
 #define	VIMAGE_CTASSERT(x, y)						\
@@ -233,6 +234,9 @@ void	vnet_mod_register(const struct vnet_modinfo *);
 	CTASSERT_EQUAL(x, y);						\
 	CTASSERT(x == 0 || x == y)
 #endif
+#endif
+#else
+#define	VIMAGE_CTASSERT(x, y)		struct __hack
 #endif
 
 #endif /* !_SYS_VIMAGE_H_ */
