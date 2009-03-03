@@ -52,7 +52,9 @@ static void create(struct archive_entry *ae, const char *msg)
 	 * that automatically. */
 	if (archive_entry_filetype(ae) == AE_IFDIR)
 		st.st_mode &= ~S_ISGID;
+#ifndef _WIN32
 	assertEqualInt(st.st_mode, archive_entry_mode(ae) & ~UMASK);
+#endif
 }
 
 static void create_reg_file(struct archive_entry *ae, const char *msg)
@@ -97,8 +99,10 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
+#ifndef _WIN32
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-        assertEqualInt(st.st_size, sizeof(data));
+#endif
+	assertEqualInt(st.st_size, sizeof(data));
 	/* test_write_disk_times has more detailed tests of this area. */
         assertEqualInt(st.st_mtime, 123456789);
         failure("No atime was specified, so atime should get set to current time");
@@ -142,7 +146,9 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
+#ifndef _WIN32
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
+#endif
 	assertEqualInt(st.st_size, i);
 
 	compare = malloc(datasize);
@@ -177,7 +183,9 @@ static void create_reg_file3(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
+#ifndef _WIN32
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
+#endif
 	assertEqualInt(st.st_size, 5);
 }
 
@@ -204,7 +212,9 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
+#ifndef _WIN32
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
+#endif
 	failure(msg);
 	assertEqualInt(st.st_size, sizeof(data));
 }

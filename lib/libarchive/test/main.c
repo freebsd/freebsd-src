@@ -44,7 +44,7 @@
 #define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version()
-#define KNOWNREF	"test_compat_gtar_1.tgz.uu"
+#define KNOWNREF	"test_compat_gtar_1.tar.uu"
 __FBSDID("$FreeBSD$");
 
 /*
@@ -81,7 +81,20 @@ static int skips = 0;
 static int assertions = 0;
 
 /* Directory where uuencoded reference files can be found. */
-static char *refdir;
+static const char *refdir;
+
+
+#ifdef _WIN32
+
+static void
+invalid_paramter_handler(const wchar_t * expression,
+    const wchar_t * function, const wchar_t * file,
+    unsigned int line, uintptr_t pReserved)
+{
+	/* nop */
+}
+
+#endif
 
 /*
  * My own implementation of the standard assert() macro emits the
@@ -751,7 +764,11 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
+#ifndef _WIN32
 			systemf("rm -rf %s", tests[i].name);
+#else
+			systemf("rmdir /S /Q %s", tests[i].name);
+#endif
 		}
 	}
 	/* Return appropriate status. */
@@ -844,19 +861,18 @@ extract_reference_file(const char *name)
 }
 
 static char *
-get_refdir(const char *tmpdir)
+get_refdir(void)
 {
 	char tried[512] = { '\0' };
 	char buff[128];
 	char *pwd, *p;
 
 	/* Get the current dir. */
-	systemf("/bin/pwd > %s/refdir", tmpdir);
-	pwd = slurpfile(NULL, "%s/refdir", tmpdir);
+	/* XXX Visual C++ uses _getcwd() XXX */
+	pwd = getcwd(NULL, 0);
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 	printf("PWD: %s\n", pwd);
-	systemf("rm %s/refdir", tmpdir);
 
 	/* Look for a known file. */
 	snprintf(buff, sizeof(buff), "%s", pwd);
@@ -904,24 +920,24 @@ success:
 int main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i, tests_run = 0, tests_failed = 0, opt;
+	int i, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
-	char *progname, *p;
-	const char *tmp;
+	const char *progname = LIBRARY "_test";
+	const char *tmp, *option_arg, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
-	/*
-	 * Name of this program, used to build root of our temp directory
-	 * tree.
-	 */
-	progname = p = argv[0];
-	while (*p != '\0') {
-		if (*p == '/')
-			progname = p + 1;
-		++p;
-	}
+	(void)argc; /* UNUSED */
+
+#ifdef _WIN32
+	/* To stop to run the default invalid parameter handler. */
+	_set_invalid_parameter_handler(invalid_paramter_handler);
+	/* for open() to a binary mode. */
+	_set_fmode(_O_BINARY);
+	/* Disable annoying assertion message box. */
+	_CrtSetReportMode(_CRT_ASSERT, 0);
+#endif
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
@@ -947,39 +963,60 @@ int main(int argc, char **argv)
 	refdir = getenv(ENVBASE "_TEST_FILES");
 
 	/*
-	 * Parse options.
+	 * Parse options, without using getopt(), which isn't available
+	 * on all platforms.
 	 */
-	while ((opt = getopt(argc, argv, "dkp:qr:v")) != -1) {
-		switch (opt) {
-		case 'd':
-			dump_on_failure = 1;
-			break;
-		case 'k':
-			keep_temp_files = 1;
-			break;
-		case 'p':
+	++argv; /* Skip program name */
+	while (*argv != NULL) {
+		p = *argv++;
+		if (*p++ != '-')
+			usage(progname);
+		while (*p != '\0') {
+			option = *p++;
+			option_arg = NULL;
+			/* If 'opt' takes an argument, parse that. */
+			if (option == 'p' || option == 'r') {
+				if (*p != '\0')
+					option_arg = p;
+				else if (*argv == NULL) {
+					fprintf(stderr,
+					    "Option -%c requires argument.\n",
+					    option);
+					usage(progname);
+				} else
+					option_arg = *argv++;
+				p = ""; /* End of this option word. */
+			}
+
+			/* Now, handle the option. */
+			switch (option) {
+			case 'd':
+				dump_on_failure = 1;
+				break;
+			case 'k':
+				keep_temp_files = 1;
+				break;
+			case 'p':
 #ifdef PROGRAM
-			testprog = optarg;
+				testprog = option_arg;
 #else
-			usage(progname);
+				usage(progname);
 #endif
-			break;
-		case 'q':
-			quiet_flag++;
-			break;
-		case 'r':
-			refdir = optarg;
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case '?':
-		default:
-			usage(progname);
+				break;
+			case 'q':
+				quiet_flag++;
+				break;
+			case 'r':
+				refdir = option_arg;
+				break;
+			case 'v':
+				verbose = 1;
+				break;
+			default:
+				usage(progname);
+			}
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
 	/*
 	 * Sanity-check that our options make sense.
@@ -1016,7 +1053,7 @@ int main(int argc, char **argv)
 	 * the "usual places."
 	 */
 	if (refdir == NULL)
-		refdir = refdir_alloc = get_refdir(tmpdir);
+		refdir = refdir_alloc = get_refdir();
 
 	/*
 	 * Banner with basic information.
@@ -1035,7 +1072,7 @@ int main(int argc, char **argv)
 	/*
 	 * Run some or all of the individual tests.
 	 */
-	if (argc == 0) {
+	if (*argv == NULL) {
 		/* Default: Run all tests. */
 		for (i = 0; i < limit; i++) {
 			if (test_run(i, tmpdir))
