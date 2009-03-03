@@ -68,6 +68,7 @@ machtophys(vm_paddr_t ma)
 
 #define vtomach(va)	pmap_kextract((vm_offset_t) (va))
 #define PFNTOMFN(pa)	(pa)
+#define MFNTOPFN(ma)	(ma)
 
 #define set_phys_to_machine(pfn, mfn)	((void)0)
 #define PT_UPDATES_FLUSH()		((void)0)
