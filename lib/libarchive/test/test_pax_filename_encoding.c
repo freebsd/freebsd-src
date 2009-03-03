@@ -210,6 +210,13 @@ DEFINE_TEST(test_pax_filename_encoding_3)
 		return;
 	}
 
+	/* If wctomb is broken, warn and return. */
+	if (wctomb(buff, 0x1234) > 0) {
+		skipping("Cannot test conversion failures because \"C\" "
+		    "locale on this system has no invalid characters.");
+		return;
+	}
+
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_pax(a));
 	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
