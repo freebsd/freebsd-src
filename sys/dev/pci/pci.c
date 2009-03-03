@@ -136,7 +136,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
 	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
@@ -2294,8 +2294,8 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 
 	/*
 	 * Disable decoding via the command register before
-	 * determining the BARs length since we will be placing them
-	 * in a weird state.
+	 * determining the BAR's length since we will be placing it in
+	 * a weird state.
 	 */
 	cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
 	PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND,
@@ -2336,7 +2336,10 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		return (barlen);
 
 	if (ln2range == 64)
-		/* Read the other half of a 64bit map register */
+		/*
+		 * Read the other half of a 64bit map register.  We
+		 * assume that the size of the BAR is less than 2^32.
+		 */
 		base |= (uint64_t) PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) << 32;
 	if (bootverbose) {
 		printf("\tmap[%02x]: type %s, range %2d, base %#jx, size %2d",
@@ -2422,8 +2425,10 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		 */
 		resource_list_delete(rl, type, reg);
 		start = 0;
-	} else
+	} else {
 		start = rman_get_start(res);
+		rman_set_device(res, bus);
+	}
 	pci_write_config(dev, reg, start, 4);
 	if (ln2range == 64)
 		pci_write_config(dev, reg + 4, start >> 32, 4);
@@ -2441,6 +2446,7 @@ static void
 pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
     int s, int f, struct resource_list *rl, int force, uint32_t prefetchmask)
 {
+	struct resource *r;
 	int rid, type, progif;
 #if 0
 	/* if this device supports PCI native addressing use it */
@@ -2463,12 +2469,14 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 	} else {
 		rid = PCIR_BAR(0);
 		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7, 8,
-		    0);
+		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7,
+		    8, 0);
+		rman_set_device(r, bus);
 		rid = PCIR_BAR(1);
 		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6, 1,
-		    0);
+		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6,
+		    1, 0);
+		rman_set_device(r, bus);
 	}
 	if (progif & PCIP_STORAGE_IDE_MODESEC) {
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(2), rl, force,
@@ -2478,12 +2486,14 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 	} else {
 		rid = PCIR_BAR(2);
 		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177, 8,
-		    0);
+		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177,
+		    8, 0);
+		rman_set_device(r, bus);
 		rid = PCIR_BAR(3);
 		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376, 1,
-		    0);
+		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376,
+		    1, 0);
+		rman_set_device(r, bus);
 	}
 	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(4), rl, force,
 	    prefetchmask & (1 << 4));
@@ -3391,6 +3401,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	struct resource *res;
 	pci_addr_t map, testval;
+	uint16_t cmd;
 	int mapsize;
 
 	/*
@@ -3402,12 +3413,21 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 */
 	res = NULL;
 	map = pci_read_config(child, *rid, 4);
+
+	/*
+	 * Disable decoding via the command register before
+	 * determining the BAR's length since we will be placing it in
+	 * a weird state.
+	 */
+	cmd = pci_read_config(child, PCIR_COMMAND, 2);
+	pci_write_config(child, PCIR_COMMAND,
+	    cmd & ~(PCI_BAR_MEM(map) ? PCIM_CMD_MEMEN : PCIM_CMD_PORTEN), 2);
+
+	/* Determine the BAR's length. */
 	pci_write_config(child, *rid, 0xffffffff, 4);
 	testval = pci_read_config(child, *rid, 4);
 	if (pci_maprange(testval) == 64)
 		map |= (pci_addr_t)pci_read_config(child, *rid + 4, 4) << 32;
-	if (pci_mapbase(testval) == 0)
-		goto out;
 
 	/*
 	 * Restore the original value of the BAR.  We may have reprogrammed
@@ -3415,6 +3435,11 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 * we need the console device addressable.
 	 */
 	pci_write_config(child, *rid, map, 4);
+	pci_write_config(child, PCIR_COMMAND, cmd, 2);
+
+	/* Ignore a BAR with a base of 0. */
+	if (pci_mapbase(testval) == 0)
+		goto out;
 
 	if (PCI_BAR_MEM(testval)) {
 		if (type != SYS_RES_MEMORY) {
@@ -3452,13 +3477,14 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 * appropriate bar for that resource.
 	 */
 	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
-	    start, end, count, flags);
+	    start, end, count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(child,
 		    "%#lx bytes of rid %#x res %d failed (%#lx, %#lx).\n",
 		    count, *rid, type, start, end);
 		goto out;
 	}
+	rman_set_device(res, dev);
 	resource_list_add(rl, type, *rid, start, end, count);
 	rle = resource_list_find(rl, type, *rid);
 	if (rle == NULL)
@@ -3472,10 +3498,10 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
 		    count, *rid, type, rman_get_start(res));
 	map = rman_get_start(res);
-out:;
 	pci_write_config(child, *rid, map, 4);
 	if (pci_maprange(testval) == 64)
 		pci_write_config(child, *rid + 4, map >> 32, 4);
+out:;
 	return (res);
 }
 
@@ -3487,74 +3513,122 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
 	struct resource_list_entry *rle;
+	struct resource *res;
 	pcicfgregs *cfg = &dinfo->cfg;
+
+	if (device_get_parent(child) != dev)
+		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+		    type, rid, start, end, count, flags));
 
 	/*
 	 * Perform lazy resource allocation
 	 */
-	if (device_get_parent(child) == dev) {
-		switch (type) {
-		case SYS_RES_IRQ:
-			/*
-			 * Can't alloc legacy interrupt once MSI messages
-			 * have been allocated.
-			 */
-			if (*rid == 0 && (cfg->msi.msi_alloc > 0 ||
-			    cfg->msix.msix_alloc > 0))
-				return (NULL);
-			/*
-			 * If the child device doesn't have an
-			 * interrupt routed and is deserving of an
-			 * interrupt, try to assign it one.
-			 */
-			if (*rid == 0 && !PCI_INTERRUPT_VALID(cfg->intline) &&
-			    (cfg->intpin != 0))
-				pci_assign_interrupt(dev, child, 0);
-			break;
-		case SYS_RES_IOPORT:
-		case SYS_RES_MEMORY:
-			if (*rid < PCIR_BAR(cfg->nummaps)) {
-				/*
-				 * Enable the I/O mode.  We should
-				 * also be assigning resources too
-				 * when none are present.  The
-				 * resource_list_alloc kind of sorta does
-				 * this...
-				 */
-				if (PCI_ENABLE_IO(dev, child, type))
-					return (NULL);
-			}
-			rle = resource_list_find(rl, type, *rid);
-			if (rle == NULL)
-				return (pci_alloc_map(dev, child, type, rid,
-				    start, end, count, flags));
-			break;
-		}
+	switch (type) {
+	case SYS_RES_IRQ:
 		/*
-		 * If we've already allocated the resource, then
-		 * return it now.  But first we may need to activate
-		 * it, since we don't allocate the resource as active
-		 * above.  Normally this would be done down in the
-		 * nexus, but since we short-circuit that path we have
-		 * to do its job here.  Not sure if we should free the
-		 * resource if it fails to activate.
+		 * Can't alloc legacy interrupt once MSI messages have
+		 * been allocated.
 		 */
+		if (*rid == 0 && (cfg->msi.msi_alloc > 0 ||
+		    cfg->msix.msix_alloc > 0))
+			return (NULL);
+
+		/*
+		 * If the child device doesn't have an interrupt
+		 * routed and is deserving of an interrupt, try to
+		 * assign it one.
+		 */
+		if (*rid == 0 && !PCI_INTERRUPT_VALID(cfg->intline) &&
+		    (cfg->intpin != 0))
+			pci_assign_interrupt(dev, child, 0);
+		break;
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		/* Allocate resources for this BAR if needed. */
 		rle = resource_list_find(rl, type, *rid);
-		if (rle != NULL && rle->res != NULL) {
+		if (rle == NULL) {
+			res = pci_alloc_map(dev, child, type, rid, start, end,
+			    count, flags);
+			if (res == NULL)
+				return (NULL);
+			rle = resource_list_find(rl, type, *rid);
+		}
+
+		/*
+		 * If the resource belongs to the bus, then give it to
+		 * the child.  We need to activate it if requested
+		 * since the bus always allocates inactive resources.
+		 */
+		if (rle != NULL && rle->res != NULL &&
+		    rman_get_device(rle->res) == dev) {
 			if (bootverbose)
 				device_printf(child,
 			    "Reserved %#lx bytes for rid %#x type %d at %#lx\n",
 				    rman_get_size(rle->res), *rid, type,
 				    rman_get_start(rle->res));
+			rman_set_device(rle->res, child);
 			if ((flags & RF_ACTIVE) &&
-			    bus_generic_activate_resource(dev, child, type,
-			    *rid, rle->res) != 0)
+			    bus_activate_resource(child, type, *rid,
+			    rle->res) != 0)
 				return (NULL);
 			return (rle->res);
 		}
 	}
 	return (resource_list_alloc(rl, dev, child, type, rid,
 	    start, end, count, flags));
+}
+
+int
+pci_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	int error;
+
+	if (device_get_parent(child) != dev)
+		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+		    type, rid, r));
+
+	/*
+	 * For BARs we don't actually want to release the resource.
+	 * Instead, we deactivate the resource if needed and then give
+	 * ownership of the BAR back to the bus.
+	 */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		if (rman_get_device(r) != child)
+			return (EINVAL);
+		if (rman_get_flags(r) & RF_ACTIVE) {
+			error = bus_deactivate_resource(child, type, rid, r);
+			if (error)
+				return (error);
+		}
+		rman_set_device(r, dev);
+		return (0);
+	}
+	return (bus_generic_rl_release_resource(dev, child, type, rid, r));
+}
+
+int
+pci_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	int error;
+
+	error = bus_generic_activate_resource(dev, child, type, rid, r);
+	if (error)
+		return (error);
+
+	/* Enable decoding in the command register when activating BARs. */
+	if (device_get_parent(child) == dev) {
+		switch (type) {
+		case SYS_RES_IOPORT:
+		case SYS_RES_MEMORY:
+			error = PCI_ENABLE_IO(dev, child, type);
+			break;
+		}
+	}
+	return (error);
 }
 
 void
@@ -3570,27 +3644,34 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 	dinfo = device_get_ivars(child);
 	rl = &dinfo->resources;
 	rle = resource_list_find(rl, type, rid);
-	if (rle) {
-		if (rle->res) {
-			if (rman_get_device(rle->res) != dev ||
-			    rman_get_flags(rle->res) & RF_ACTIVE) {
-				device_printf(dev, "delete_resource: "
-				    "Resource still owned by child, oops. "
-				    "(type=%d, rid=%d, addr=%lx)\n",
-				    rle->type, rle->rid,
-				    rman_get_start(rle->res));
-				return;
-			}
-			bus_release_resource(dev, type, rid, rle->res);
+	if (rle == NULL)
+		return;
+
+	if (rle->res) {
+		if (rman_get_device(rle->res) != dev ||
+		    rman_get_flags(rle->res) & RF_ACTIVE) {
+			device_printf(dev, "delete_resource: "
+			    "Resource still owned by child, oops. "
+			    "(type=%d, rid=%d, addr=%lx)\n",
+			    rle->type, rle->rid,
+			    rman_get_start(rle->res));
+			return;
 		}
-		resource_list_delete(rl, type, rid);
+
+		/*
+		 * If this is a BAR, clear the BAR so it stops
+		 * decoding before releasing the resource.
+		 */
+		switch (type) {
+		case SYS_RES_IOPORT:
+		case SYS_RES_MEMORY:
+			/* XXX: 64-bit BARs? */
+			pci_write_config(child, rid, 0, 4);
+			break;
+		}
+		bus_release_resource(dev, type, rid, rle->res);
 	}
-	/*
-	 * Why do we turn off the PCI configuration BAR when we delete a
-	 * resource? -- imp
-	 */
-	pci_write_config(child, rid, 0, 4);
-	BUS_DELETE_RESOURCE(device_get_parent(dev), child, type, rid);
+	resource_list_delete(rl, type, rid);
 }
 
 struct resource_list *
