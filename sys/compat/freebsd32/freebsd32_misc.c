@@ -2019,7 +2019,6 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
  	error = copyin(uap->name, name, uap->namelen * sizeof(int));
  	if (error)
 		return (error);
-	mtx_lock(&Giant);
 	if (uap->oldlenp)
 		oldlen = fuword32(uap->oldlenp);
 	else
@@ -2028,12 +2027,10 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 		uap->old, &oldlen, 1,
 		uap->new, uap->newlen, &j, SCTL_MASK32);
 	if (error && error != ENOMEM)
-		goto done2;
+		return (error);
 	if (uap->oldlenp)
 		suword32(uap->oldlenp, j);
-done2:
-	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 int
@@ -2642,8 +2639,7 @@ freebsd32_nmount(struct thread *td,
     } */ *uap)
 {
 	struct uio *auio;
-	struct iovec *iov;
-	int error, k;
+	int error;
 
 	AUDIT_ARG(fflags, uap->flags);
 
@@ -2665,14 +2661,8 @@ freebsd32_nmount(struct thread *td,
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	for (iov = auio->uio_iov, k = 0; k < uap->iovcnt; ++k, ++iov) {
-		if (iov->iov_len > MMAXOPTIONLEN) {
-			free(auio, M_IOV);
-			return (EINVAL);
-		}
-	}
-
 	error = vfs_donmount(td, uap->flags, auio);
+
 	free(auio, M_IOV);
 	return error;
 }

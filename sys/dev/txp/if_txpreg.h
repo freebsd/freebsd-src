@@ -622,6 +622,7 @@ struct txp_fw_file_header {
 	u_int32_t	version;
 	u_int32_t	nsections;
 	u_int32_t	addr;
+	u_int32_t	hmac[5];
 };
 
 struct txp_fw_section_header {

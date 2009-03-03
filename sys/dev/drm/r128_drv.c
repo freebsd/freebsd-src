@@ -52,6 +52,7 @@ static void r128_configure(struct drm_device *dev)
 	    DRIVER_SG | DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ;
 
 	dev->driver->buf_priv_size	= sizeof(drm_r128_buf_priv_t);
+	dev->driver->load		= r128_driver_load;
 	dev->driver->preclose		= r128_driver_preclose;
 	dev->driver->lastclose		= r128_driver_lastclose;
 	dev->driver->get_vblank_counter	= r128_get_vblank_counter;
@@ -91,6 +92,11 @@ r128_attach(device_t nbdev)
 	r128_configure(dev);
 
 	return drm_attach(nbdev, r128_pciidlist);
+}
+
+int r128_driver_load(struct drm_device * dev, unsigned long flags)
+{
+	return drm_vblank_init(dev, 1);
 }
 
 static int

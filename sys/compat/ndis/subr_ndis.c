@@ -95,6 +95,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <legacy/dev/usb/usb.h>
+#include <legacy/dev/usb/usbdi.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -302,6 +304,15 @@ static void dummy(void);
  */
 #define NDIS_POOL_EXTRA		16
 
+struct ktimer_list {
+	ktimer			*kl_timer;
+	list_entry		kl_next;
+};
+
+static struct list_entry	ndis_timerlist;
+static kspin_lock		ndis_timerlock;
+static int			ndis_isusbdev;
+
 int
 ndis_libinit()
 {
@@ -316,6 +327,9 @@ ndis_libinit()
 		    patch->ipt_argcnt, patch->ipt_ftype);
 		patch++;
 	}
+
+	KeInitializeSpinLock(&ndis_timerlock);
+	InitializeListHead(&ndis_timerlist);
 
 	return(0);
 }
@@ -891,10 +905,8 @@ NdisInitializeReadWriteLock(lock)
 }
 
 static void
-NdisAcquireReadWriteLock(lock, writeacc, state)
-	ndis_rw_lock		*lock;
-	uint8_t			writeacc;
-	ndis_lock_state		*state;
+NdisAcquireReadWriteLock(ndis_rw_lock *lock, uint8_t writeacc,
+    ndis_lock_state *state)
 {
 	if (writeacc == TRUE) {
 		KeAcquireSpinLock(&lock->nrl_spinlock, &state->nls_oldirql);
@@ -1077,13 +1089,9 @@ ndis_map_cb(arg, segs, nseg, error)
 }
 
 static void
-NdisMStartBufferPhysicalMapping(adapter, buf, mapreg, writedev, addrarray, arraysize)
-	ndis_handle		adapter;
-	ndis_buffer		*buf;
-	uint32_t		mapreg;
-	uint8_t			writedev;
-	ndis_paddr_unit		*addrarray;
-	uint32_t		*arraysize;
+NdisMStartBufferPhysicalMapping(ndis_handle adapter, ndis_buffer *buf,
+    uint32_t mapreg, uint8_t writedev, ndis_paddr_unit *addrarray,
+    uint32_t *arraysize)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
@@ -1215,6 +1223,16 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	ndis_timer_function	func;
 	void			*ctx;
 {
+	ndis_miniport_block	*block;
+	struct ktimer_list	*kl;
+	struct ndis_softc	*sc;
+	uint8_t			irql;
+
+	block = (ndis_miniport_block *)handle;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	if (sc->ndis_iftype == PNPBus && ndis_isusbdev == 0)
+		ndis_isusbdev = 1;
+
 	/* Save the driver's funcptr and context */
 
 	timer->nmt_timerfunc = func;
@@ -1232,7 +1250,38 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	    ndis_findwrap((funcptr)ndis_timercall), timer);
 	timer->nmt_ktimer.k_dpc = &timer->nmt_kdpc;
 
-	return;
+	if (ndis_isusbdev == 1) {
+		kl = (struct ktimer_list *)malloc(sizeof(*kl), M_DEVBUF,
+		    M_NOWAIT | M_ZERO);
+		if (kl == NULL)
+			panic("out of memory");	/* no way to report errors  */
+
+		kl->kl_timer = &timer->nmt_ktimer;
+		KeAcquireSpinLock(&ndis_timerlock, &irql);
+		InsertHeadList((&ndis_timerlist), (&kl->kl_next));
+		KeReleaseSpinLock(&ndis_timerlock, irql);
+	}
+}
+
+void
+ndis_cancel_timerlist(void)
+{
+	list_entry		*l;
+	struct ktimer_list	*kl;
+	uint8_t			cancelled, irql;
+
+	KeAcquireSpinLock(&ndis_timerlock, &irql);
+
+	while(!IsListEmpty(&ndis_timerlist)) {
+		l = RemoveHeadList(&ndis_timerlist);
+		kl = CONTAINING_RECORD(l, struct ktimer_list, kl_next);
+		KeReleaseSpinLock(&ndis_timerlock, irql);
+		cancelled = KeCancelTimer(kl->kl_timer);
+		free(kl, M_DEVBUF);
+		KeAcquireSpinLock(&ndis_timerlock, &irql);
+	}
+
+	KeReleaseSpinLock(&ndis_timerlock, irql);
 }
 
 /*
@@ -1277,6 +1326,26 @@ NdisMCancelTimer(timer, cancelled)
 	ndis_timer		*timer;
 	uint8_t			*cancelled;
 {
+	list_entry		*l;
+	struct ktimer_list	*kl;
+	uint8_t			irql;
+
+	if (ndis_isusbdev == 1) {
+		KeAcquireSpinLock(&ndis_timerlock, &irql);
+		l = ndis_timerlist.nle_flink;
+		while(l != &ndis_timerlist) {
+			kl = CONTAINING_RECORD(l, struct ktimer_list, kl_next);
+			if (kl->kl_timer == &timer->nt_ktimer) {
+				RemoveEntryList((&kl->kl_next));
+				l = l->nle_flink;
+				free(kl, M_DEVBUF);
+				continue;
+			}
+			l = l->nle_flink;
+		}
+		KeReleaseSpinLock(&ndis_timerlock, irql);
+	}
+
 	*cancelled = KeCancelTimer(&timer->nt_ktimer);
 	return;
 }
@@ -1399,12 +1468,8 @@ NdisQueryMapRegisterCount(bustype, cnt)
 }
 
 static ndis_status
-NdisMAllocateMapRegisters(adapter, dmachannel, dmasize, physmapneeded, maxmap)
-	ndis_handle		adapter;
-	uint32_t		dmachannel;
-	uint8_t			dmasize;
-	uint32_t		physmapneeded;
-	uint32_t		maxmap;
+NdisMAllocateMapRegisters(ndis_handle adapter, uint32_t dmachannel,
+    uint8_t dmasize, uint32_t physmapneeded, uint32_t maxmap)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
@@ -1482,12 +1547,8 @@ ndis_mapshared_cb(arg, segs, nseg, error)
  */
 
 static void
-NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
-	ndis_handle		adapter;
-	uint32_t		len;
-	uint8_t			cached;
-	void			**vaddr;
-	ndis_physaddr		*paddr;
+NdisMAllocateSharedMemory(ndis_handle adapter, uint32_t len, uint8_t cached,
+    void **vaddr, ndis_physaddr *paddr)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
@@ -1605,11 +1666,8 @@ ndis_asyncmem_complete(dobj, arg)
 }
 
 static ndis_status
-NdisMAllocateSharedMemoryAsync(adapter, len, cached, ctx)
-	ndis_handle		adapter;
-	uint32_t		len;
-	uint8_t			cached;
-	void			*ctx;
+NdisMAllocateSharedMemoryAsync(ndis_handle adapter, uint32_t len,
+    uint8_t cached, void *ctx)
 {
 	ndis_miniport_block	*block;
 	struct ndis_allocwork	*w;
@@ -1642,12 +1700,8 @@ NdisMAllocateSharedMemoryAsync(adapter, len, cached, ctx)
 }
 
 static void
-NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
-	ndis_handle		adapter;
-	uint32_t		len;
-	uint8_t			cached;
-	void			*vaddr;
-	ndis_physaddr		paddr;
+NdisMFreeSharedMemory(ndis_handle adapter, uint32_t len, uint8_t cached,
+    void *vaddr, ndis_physaddr paddr)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
@@ -1754,10 +1808,8 @@ NdisMGetDmaAlignment(handle)
  */
 
 static ndis_status
-NdisMInitializeScatterGatherDma(adapter, is64, maxphysmap)
-	ndis_handle		adapter;
-	uint8_t			is64;
-	uint32_t		maxphysmap;
+NdisMInitializeScatterGatherDma(ndis_handle adapter, uint8_t is64,
+    uint32_t maxphysmap)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
@@ -2358,14 +2410,9 @@ ndis_intrhand(dpc, intr, sysarg1, sysarg2)
 }
 
 static ndis_status
-NdisMRegisterInterrupt(intr, adapter, ivec, ilevel, reqisr, shared, imode)
-	ndis_miniport_interrupt	*intr;
-	ndis_handle		adapter;
-	uint32_t		ivec;
-	uint32_t		ilevel;
-	uint8_t			reqisr;
-	uint8_t			shared;
-	ndis_interrupt_mode	imode;
+NdisMRegisterInterrupt(ndis_miniport_interrupt *intr, ndis_handle adapter,
+    uint32_t ivec, uint32_t ilevel, uint8_t reqisr, uint8_t shared,
+    ndis_interrupt_mode imode)
 {
 	ndis_miniport_block	*block;
 	ndis_miniport_characteristics *ch;

@@ -185,6 +185,71 @@ devfs_clear_cdevpriv(void)
 	devfs_fpdrop(fp);
 }
 
+static int
+devfs_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode **dvp = ap->a_vpp;
+	struct devfs_mount *dmp;
+	char *buf = ap->a_buf;
+	int *buflen = ap->a_buflen;
+	struct devfs_dirent *dd, *de;
+	int i, error;
+
+	dmp = VFSTODEVFS(vp->v_mount);
+	i = *buflen;
+	dd = vp->v_data;
+	error = 0;
+
+	sx_xlock(&dmp->dm_lock);
+
+	if (vp->v_type == VCHR) {
+		i -= strlen(dd->de_cdp->cdp_c.si_name);
+		if (i < 0) {
+			error = ENOMEM;
+			goto finished;
+		}
+		bcopy(dd->de_cdp->cdp_c.si_name, buf + i,
+		    strlen(dd->de_cdp->cdp_c.si_name));
+		de = dd->de_dir;
+	} else if (vp->v_type == VDIR) {
+		if (dd == dmp->dm_rootdir) {
+			*dvp = vp;
+			vhold(*dvp);
+			goto finished;
+		}
+		i -= dd->de_dirent->d_namlen;
+		if (i < 0) {
+			error = ENOMEM;
+			goto finished;
+		}
+		bcopy(dd->de_dirent->d_name, buf + i,
+		    dd->de_dirent->d_namlen);
+		de = dd;
+	} else {
+		error = ENOENT;
+		goto finished;
+	}
+	*buflen = i;
+	de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+	de = TAILQ_NEXT(de, de_list);		/* ".." */
+	de = de->de_dir;
+	mtx_lock(&devfs_de_interlock);
+	*dvp = de->de_vnode;
+	if (*dvp != NULL) {
+		VI_LOCK(*dvp);
+		mtx_unlock(&devfs_de_interlock);
+		vholdl(*dvp);
+		VI_UNLOCK(*dvp);
+	} else {
+		mtx_unlock(&devfs_de_interlock);
+		error = ENOENT;
+	}
+finished:
+	sx_xunlock(&dmp->dm_lock);
+	return (error);
+}
+
 /*
  * Construct the fully qualified path name relative to the mountpoint
  */
@@ -475,12 +540,28 @@ devfs_close_f(struct file *fp, struct thread *td)
 	return (error);
 }
 
-/* ARGSUSED */
 static int
 devfs_fsync(struct vop_fsync_args *ap)
 {
-	if (!vn_isdisk(ap->a_vp, NULL))
+	int error;
+	struct bufobj *bo;
+	struct devfs_dirent *de;
+
+	if (!vn_isdisk(ap->a_vp, &error)) {
+		bo = &ap->a_vp->v_bufobj;
+		de = ap->a_vp->v_data;
+		if (error == ENXIO && bo->bo_dirty.bv_cnt > 0) {
+			printf("Device %s went missing before all of the data "
+			    "could be written to it; expect data loss.\n",
+			    de->de_dirent->d_name);
+
+			error = vop_stdfsync(ap);
+			if (bo->bo_dirty.bv_cnt != 0 || error != 0)
+				panic("devfs_fsync: vop_stdfsync failed.");
+		}
+
 		return (0);
+	}
 
 	return (vop_stdfsync(ap));
 }
@@ -993,7 +1074,7 @@ devfs_readdir(struct vop_readdir_args *ap)
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
-	off_t off, oldoff;
+	off_t off;
 	int *tmp_ncookies = NULL;
 
 	if (ap->a_vp->v_type != VDIR)
@@ -1032,7 +1113,6 @@ devfs_readdir(struct vop_readdir_args *ap)
 	error = 0;
 	de = ap->a_vp->v_data;
 	off = 0;
-	oldoff = uio->uio_offset;
 	TAILQ_FOREACH(dd, &de->de_dlist, de_list) {
 		KASSERT(dd->de_cdp != (void *)0xdeadc0de, ("%s %d\n", __func__, __LINE__));
 		if (dd->de_flags & DE_WHITEOUT)
@@ -1465,6 +1545,7 @@ static struct vop_vector devfs_vnodeops = {
 	.vop_setlabel =		devfs_setlabel,
 #endif
 	.vop_symlink =		devfs_symlink,
+	.vop_vptocnp =		devfs_vptocnp,
 };
 
 static struct vop_vector devfs_specops = {
@@ -1499,6 +1580,7 @@ static struct vop_vector devfs_specops = {
 #endif
 	.vop_strategy =		VOP_PANIC,
 	.vop_symlink =		VOP_PANIC,
+	.vop_vptocnp =		devfs_vptocnp,
 	.vop_write =		VOP_PANIC,
 };
 

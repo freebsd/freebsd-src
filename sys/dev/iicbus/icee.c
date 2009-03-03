@@ -86,7 +86,7 @@ icee_probe(device_t dev)
 {
 	/* XXX really probe? -- not until we know the size... */
 	device_set_desc(dev, "I2C EEPROM");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

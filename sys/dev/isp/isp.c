@@ -335,6 +335,23 @@ isp_reset(ispsoftc_t *isp)
 		/*
 		 * XXX: Should probably do some bus sensing.
 		 */
+	} else if (IS_ULTRA3(isp)) {
+		sdparam *sdp = isp->isp_param;
+
+		isp->isp_clock = 100;
+
+		if (IS_10160(isp))
+			btype = "10160";
+		else if (IS_12160(isp))
+			btype = "12160";
+		else
+			btype = "<UNKLVD>";
+		sdp->isp_lvdmode = 1;
+
+		if (IS_DUALBUS(isp)) {
+			sdp++;
+			sdp->isp_lvdmode = 1;
+		}
 	} else if (IS_ULTRA2(isp)) {
 		static const char m[] = "bus %d is in %s Mode";
 		uint16_t l;
@@ -346,10 +363,6 @@ isp_reset(ispsoftc_t *isp)
 			btype = "1280";
 		else if (IS_1080(isp))
 			btype = "1080";
-		else if (IS_10160(isp))
-			btype = "10160";
-		else if (IS_12160(isp))
-			btype = "12160";
 		else
 			btype = "<UNKLVD>";
 

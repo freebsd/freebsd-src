@@ -437,6 +437,7 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 		mpt_prt(mpt, "failed to read FC Port Page 0\n");
 		return (-1);
 	}
+	mpt2host_config_page_fc_port_0(&mpt->mpt_fcport_page0);
 
 	mpt->mpt_fcport_speed = mpt->mpt_fcport_page0.CurrentSpeed;
 
@@ -527,13 +528,14 @@ mpt_set_initial_config_fc(struct mpt_softc *mpt)
 		mpt_prt(mpt, "failed to read FC page 1\n");
 		return (mpt_fc_reset_link(mpt, 1));
 	}
+	mpt2host_config_page_fc_port_1(&fc);
 
 	/*
 	 * Check our flags to make sure we support the role we want.
 	 */
 	doit = 0;
 	role = 0;
-	fl = le32toh(fc.Flags);;
+	fl = fc.Flags;
 
 	if (fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_INIT) {
 		role |= MPT_ROLE_INITIATOR;
@@ -587,7 +589,8 @@ mpt_set_initial_config_fc(struct mpt_softc *mpt)
 	}
 
 	if (doit) {
-		fc.Flags = htole32(fl);
+		fc.Flags = fl;
+		host2mpt_config_page_fc_port_1(&fc);
 		r = mpt_write_cfg_page(mpt,
 		    MPI_CONFIG_ACTION_PAGE_WRITE_NVRAM, 0, &fc.Header,
 		    sizeof(fc), FALSE, 5000);
@@ -982,6 +985,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 	if (rv) {
 		mpt_prt(mpt, "failed to read SPI Port Page 0\n");
 	} else {
+		mpt2host_config_page_scsi_port_0(&mpt->mpt_port_page0);
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "SPI Port Page 0: Capabilities %x PhysicalInterface %x\n",
 		    mpt->mpt_port_page0.Capabilities,
@@ -993,6 +997,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 	if (rv) {
 		mpt_prt(mpt, "failed to read SPI Port Page 1\n");
 	} else {
+		mpt2host_config_page_scsi_port_1(&mpt->mpt_port_page1);
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "SPI Port Page 1: Configuration %x OnBusTimerValue %x\n",
 		    mpt->mpt_port_page1.Configuration,
@@ -1008,6 +1013,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 		    "Port Page 2: Flags %x Settings %x\n",
 		    mpt->mpt_port_page2.PortFlags,
 		    mpt->mpt_port_page2.PortSettings);
+		mpt2host_config_page_scsi_port_2(&mpt->mpt_port_page2);
 		for (i = 0; i < 16; i++) {
 			mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		  	    " Port Page 2 Tgt %d: timo %x SF %x Flags %x\n",
@@ -1026,6 +1032,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 			    "cannot read SPI Target %d Device Page 0\n", i);
 			continue;
 		}
+		mpt2host_config_page_scsi_device_0(&mpt->mpt_dev_page0[i]);
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "target %d page 0: Negotiated Params %x Information %x\n",
 		    i, mpt->mpt_dev_page0[i].NegotiatedParameters,
@@ -1039,6 +1046,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 			    "cannot read SPI Target %d Device Page 1\n", i);
 			continue;
 		}
+		mpt2host_config_page_scsi_device_1(&mpt->mpt_dev_page1[i]);
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "target %d page 1: Requested Params %x Configuration %x\n",
 		    i, mpt->mpt_dev_page1[i].RequestedParameters,
@@ -1068,6 +1076,7 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 		    "be %x\n", mpt->mpt_port_page1.Configuration, pp1val);
 		tmp = mpt->mpt_port_page1;
 		tmp.Configuration = pp1val;
+		host2mpt_config_page_scsi_port_1(&tmp);
 		error = mpt_write_cur_cfg_page(mpt, 0,
 		    &tmp.Header, sizeof(tmp), FALSE, 5000);
 		if (error) {
@@ -1078,6 +1087,7 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 		if (error) {
 			return (-1);
 		}
+		mpt2host_config_page_scsi_port_1(&tmp);
 		if (tmp.Configuration != pp1val) {
 			mpt_prt(mpt,
 			    "failed to reset SPI Port Page 1 Config value\n");
@@ -1432,7 +1442,8 @@ bad:
 		memset(se, 0, sizeof (*se));
 		se->Address.Low = htole32(dm_segs->ds_addr & 0xffffffff);
 		if (sizeof(bus_addr_t) > 4) {
-			se->Address.High = ((uint64_t) dm_segs->ds_addr) >> 32;
+			se->Address.High =
+			    htole32(((uint64_t)dm_segs->ds_addr) >> 32);
 		}
 		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 		tf = flags;
@@ -1507,9 +1518,9 @@ bad:
 		chain_list_addr += cur_off;
 		if (sizeof (bus_addr_t) > 4) {
 			ce->Address.High =
-			    htole32((uint32_t) ((uint64_t)chain_list_addr >> 32));
+			    htole32(((uint64_t)chain_list_addr) >> 32);
 		}
-		ce->Address.Low = htole32((uint32_t) chain_list_addr);
+		ce->Address.Low = htole32(chain_list_addr & 0xffffffff);
 		ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT |
 			    MPI_SGE_FLAGS_64_BIT_ADDRESSING;
 
@@ -1536,6 +1547,7 @@ bad:
 			ce->Length = (this_seg_lim - seg) *
 			    sizeof (SGE_SIMPLE64);
 		}
+		ce->Length = htole16(ce->Length);
 
 		/*
 		 * Fill in the chain list SGE elements with our segment data.
@@ -1546,7 +1558,8 @@ bad:
 		 */
 		while (seg < this_seg_lim) {
 			memset(se, 0, sizeof (*se));
-			se->Address.Low = htole32(dm_segs->ds_addr);
+			se->Address.Low = htole32(dm_segs->ds_addr &
+			    0xffffffff);
 			if (sizeof (bus_addr_t) > 4) {
 				se->Address.High =
 				    htole32(((uint64_t)dm_segs->ds_addr) >> 32);
@@ -1830,7 +1843,7 @@ bad:
 		uint32_t tf;
 
 		memset(se, 0,sizeof (*se));
-		se->Address = dm_segs->ds_addr;
+		se->Address = htole32(dm_segs->ds_addr);
 
 
 
@@ -1908,7 +1921,7 @@ bad:
 
 
 
-		ce->Address = chain_list_addr;
+		ce->Address = htole32(chain_list_addr);
 		ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
 
 
@@ -1935,6 +1948,7 @@ bad:
 			ce->Length = (this_seg_lim - seg) *
 			    sizeof (SGE_SIMPLE32);
 		}
+		ce->Length = htole16(ce->Length);
 
 		/*
 		 * Fill in the chain list SGE elements with our segment data.
@@ -1945,7 +1959,7 @@ bad:
 		 */
 		while (seg < this_seg_lim) {
 			memset(se, 0, sizeof (*se));
-			se->Address = dm_segs->ds_addr;
+			se->Address = htole32(dm_segs->ds_addr);
 
 
 
@@ -2193,6 +2207,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 			mpt_req->Control |= MPI_SCSIIO_CONTROL_NO_DISCONNECT;
 		}
 	}
+	mpt_req->Control = htole32(mpt_req->Control);
 
 	/* Copy the scsi command block into place */
 	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
@@ -2317,7 +2332,7 @@ mpt_bus_reset(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun,
 	error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_DONE,
 	    REQ_STATE_DONE, sleep_ok, 5000);
 
-	status = mpt->tmf_req->IOCStatus;
+	status = le16toh(mpt->tmf_req->IOCStatus);
 	response = mpt->tmf_req->ResponseCode;
 	mpt->tmf_req->state = REQ_STATE_FREE;
 
@@ -2524,10 +2539,11 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		struct cam_sim *sim;
 		struct cam_path *tmppath;
 		struct ccb_relsim crs;
-		PTR_EVENT_DATA_QUEUE_FULL pqf =
-		    (PTR_EVENT_DATA_QUEUE_FULL) msg->Data;
+		PTR_EVENT_DATA_QUEUE_FULL pqf;
 		lun_id_t lun_id;
 
+		pqf = (PTR_EVENT_DATA_QUEUE_FULL)msg->Data;
+		pqf->CurrentDepth = le16toh(pqf->CurrentDepth);
 		mpt_prt(mpt, "QUEUE FULL EVENT: Bus 0x%02x Target 0x%02x Depth "
 		    "%d\n", pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
 		if (mpt->phydisk_sim) {
@@ -3086,9 +3102,10 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 	 && (ccb->ccb_h.flags & (CAM_SENSE_PHYS | CAM_SENSE_PTR)) == 0) {
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 		ccb->csio.sense_resid =
-		    ccb->csio.sense_len - scsi_io_reply->SenseCount;
+		    ccb->csio.sense_len - le32toh(scsi_io_reply->SenseCount);
 		bcopy(req->sense_vbuf, &ccb->csio.sense_data,
-		      min(ccb->csio.sense_len, scsi_io_reply->SenseCount));
+		    min(ccb->csio.sense_len,
+		    le32toh(scsi_io_reply->SenseCount)));
 	}
 
 	if ((sstate & MPI_SCSI_STATE_QUEUE_TAG_REJECTED) != 0) {
@@ -3776,6 +3793,8 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 			mpt_prt(mpt, "can't get tgt %d config page 0\n", tgt);
 			return (rv);
 		}
+		mpt2host_config_page_scsi_device_0(&tmp);
+		
 		MPTLOCK_2_CAMLOCK(mpt);
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "mpt_get_spi_settings[%d]: current NP %x Info %x\n", tgt,
@@ -3905,6 +3924,7 @@ mpt_update_spi_config(struct mpt_softc *mpt, int tgt)
 	    "mpt_update_spi_config[%d].page1: Requested Params 0x%08x\n",
 	    tgt, mpt->mpt_dev_page1[tgt].RequestedParameters);
 	tmp = mpt->mpt_dev_page1[tgt];
+	host2mpt_config_page_scsi_device_1(&tmp);
 	rv = mpt_write_cur_cfg_page(mpt, tgt,
 	    &tmp.Header, sizeof(tmp), FALSE, 5000);
 	if (rv) {
@@ -4156,7 +4176,7 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_DONE,
 		    REQ_STATE_DONE, TRUE, 500);
 
-		status = mpt->tmf_req->IOCStatus;
+		status = le16toh(mpt->tmf_req->IOCStatus);
 		response = mpt->tmf_req->ResponseCode;
 		mpt->tmf_req->state = REQ_STATE_FREE;
 

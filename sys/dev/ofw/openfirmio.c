@@ -221,7 +221,7 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			if (error)
 				break;
 		}
-		ok = OF_nextprop(node, name, newname);
+		ok = OF_nextprop(node, name, newname, sizeof(newname));
 		if (ok == 0) {
 			error = ENOENT;
 			break;

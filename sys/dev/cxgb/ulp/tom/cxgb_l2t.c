@@ -93,15 +93,15 @@ arp_hash(u32 key, int ifindex, const struct l2t_data *d)
 }
 
 static inline void
-neigh_replace(struct l2t_entry *e, struct rtentry *rt)
+neigh_replace(struct l2t_entry *e, struct llentry *neigh)
 {
-	RT_LOCK(rt);
-	RT_ADDREF(rt);
-	RT_UNLOCK(rt);
+	LLE_WLOCK(neigh);
+	LLE_ADDREF(neigh);
+	LLE_WUNLOCK(neigh);
 	
 	if (e->neigh)
-		RTFREE(e->neigh);
-	e->neigh = rt;
+		LLE_FREE(e->neigh);
+	e->neigh = neigh;
 }
 
 /*
@@ -164,7 +164,7 @@ arpq_enqueue(struct l2t_entry *e, struct mbuf *m)
 int
 t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m, struct l2t_entry *e)
 {
-	struct rtentry *rt =  e->neigh;
+	struct llentry *lle =  e->neigh;
 	struct sockaddr_in sin;
 
 	bzero(&sin, sizeof(struct sockaddr_in));
@@ -177,7 +177,7 @@ again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
 		arpresolve(rt->rt_ifp, rt, NULL,
-		     (struct sockaddr *)&sin, e->dmac);
+		     (struct sockaddr *)&sin, e->dmac, &lle);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE)
 			e->state = L2T_STATE_VALID;
@@ -201,7 +201,7 @@ again:
 		 * entries when there's no memory.
 		 */
 		if (arpresolve(rt->rt_ifp, rt, NULL,
-		     (struct sockaddr *)&sin, e->dmac) == 0) {
+		     (struct sockaddr *)&sin, e->dmac, &lle) == 0) {
 			CTR6(KTR_CXGB, "mac=%x:%x:%x:%x:%x:%x\n",
 			    e->dmac[0], e->dmac[1], e->dmac[2], e->dmac[3], e->dmac[4], e->dmac[5]);
 			
@@ -222,12 +222,12 @@ again:
 void
 t3_l2t_send_event(struct t3cdev *dev, struct l2t_entry *e)
 {
-	struct rtentry *rt;
 	struct mbuf *m0;
 	struct sockaddr_in sin;
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr.s_addr = e->addr;
+	struct llentry *lle;
 	
 	if ((m0 = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 		return;
@@ -237,7 +237,7 @@ again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
 		arpresolve(rt->rt_ifp, rt, NULL,
-		     (struct sockaddr *)&sin, e->dmac);
+		     (struct sockaddr *)&sin, e->dmac, &lle);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE) {
 			e->state = L2T_STATE_VALID;
@@ -263,7 +263,7 @@ again:
 		 * entries when there's no memory.
 		 */
 		arpresolve(rt->rt_ifp, rt, NULL,
-		    (struct sockaddr *)&sin, e->dmac);
+		    (struct sockaddr *)&sin, e->dmac, &lle);
 
 	}
 	return;
@@ -321,18 +321,18 @@ found:
 void
 t3_l2e_free(struct l2t_data *d, struct l2t_entry *e)
 {
-	struct rtentry *rt = NULL;
-	
+	struct llentry *lle;
+
 	mtx_lock(&e->lock);
 	if (atomic_load_acq_int(&e->refcnt) == 0) {  /* hasn't been recycled */
-		rt = e->neigh;
+		lle = e->neigh;
 		e->neigh = NULL;
 	}
 	
 	mtx_unlock(&e->lock);
 	atomic_add_int(&d->nfree, 1);
-	if (rt)
-		RTFREE(rt);
+	if (lle)
+		LLE_FREE(lle);
 }
 
 
@@ -341,11 +341,8 @@ t3_l2e_free(struct l2t_data *d, struct l2t_entry *e)
  * Must be called with softirqs disabled.
  */
 static inline void
-reuse_entry(struct l2t_entry *e, struct rtentry *neigh)
+reuse_entry(struct l2t_entry *e, struct llentry *neigh)
 {
-	struct llinfo_arp *la;
-
-	la = (struct llinfo_arp *)neigh->rt_llinfo; 
 
 	mtx_lock(&e->lock);                /* avoid race with t3_l2t_free */
 	if (neigh != e->neigh)
@@ -362,13 +359,13 @@ reuse_entry(struct l2t_entry *e, struct rtentry *neigh)
 }
 
 struct l2t_entry *
-t3_l2t_get(struct t3cdev *dev, struct rtentry *neigh, struct ifnet *ifp,
+t3_l2t_get(struct t3cdev *dev, struct llentry *neigh, struct ifnet *ifp,
 	struct sockaddr *sa)
 {
 	struct l2t_entry *e;
 	struct l2t_data *d = L2DATA(dev);
 	u32 addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
-	int ifidx = neigh->rt_ifp->if_index;
+	int ifidx = ifp->if_index;
 	int hash = arp_hash(addr, ifidx, d);
 	unsigned int smt_idx = ((struct port_info *)ifp->if_softc)->port_id;
 
@@ -448,20 +445,19 @@ handle_failed_resolution(struct t3cdev *dev, struct mbuf *arpq)
 }
 
 void
-t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh,
+t3_l2t_update(struct t3cdev *dev, struct llentry *neigh,
     uint8_t *enaddr, struct sockaddr *sa)
 {
 	struct l2t_entry *e;
 	struct mbuf *arpq = NULL;
 	struct l2t_data *d = L2DATA(dev);
 	u32 addr = *(u32 *) &((struct sockaddr_in *)sa)->sin_addr;
-	int ifidx = neigh->rt_ifp->if_index;
 	int hash = arp_hash(addr, ifidx, d);
 	struct llinfo_arp *la;
 
 	rw_rlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
-		if (e->addr == addr && e->ifindex == ifidx) {
+		if (e->addr == addr) {
 			mtx_lock(&e->lock);
 			goto found;
 		}

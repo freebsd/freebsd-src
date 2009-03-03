@@ -216,6 +216,7 @@ COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 static int
 command_reboot(int argc, char *argv[])
 {
+
 	printf("Resetting...\n");
 	ub_reset();
 

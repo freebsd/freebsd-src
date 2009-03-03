@@ -172,8 +172,14 @@ macgpio_attach(device_t dev)
 
 		if (OF_getprop(child,"reg",&dinfo->gpio_num,
 		    sizeof(dinfo->gpio_num)) != sizeof(dinfo->gpio_num)) {
-			free(dinfo, M_MACGPIO);
-			continue;
+			/*
+			 * Some early GPIO controllers don't provide GPIO
+			 * numbers for GPIOs designed only to provide
+			 * interrupt resources.  We should still allow these
+			 * to attach, but with caution.
+			 */
+
+			dinfo->gpio_num = -1;
 		}
 
 		resource_list_init(&dinfo->mdi_resources);
@@ -217,7 +223,7 @@ macgpio_print_child(device_t dev, device_t child)
 		printf(" gpio %d", dinfo->gpio_num - GPIO_BASE);
 	else if (dinfo->gpio_num >= GPIO_EXTINT_BASE)
 		printf(" extint-gpio %d", dinfo->gpio_num - GPIO_EXTINT_BASE);
-	else
+	else if (dinfo->gpio_num >= 0)
 		printf(" addr 0x%02x", dinfo->gpio_num); /* should not happen */
 
 	resource_list_print_type(&dinfo->mdi_resources, "irq", SYS_RES_IRQ, 
@@ -240,7 +246,8 @@ macgpio_probe_nomatch(device_t dev, device_t child)
 		if ((type = ofw_bus_get_type(child)) == NULL)
 			type = "(unknown)";
 		device_printf(dev, "<%s, %s>", type, ofw_bus_get_name(child));
-		printf(" gpio %d",dinfo->gpio_num);
+		if (dinfo->gpio_num >= 0)
+			printf(" gpio %d",dinfo->gpio_num);
 		resource_list_print_type(&dinfo->mdi_resources, "irq", 
 		    SYS_RES_IRQ, "%ld");
 		printf(" (no driver attached)\n");
@@ -279,9 +286,11 @@ macgpio_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (type != SYS_RES_IRQ)
 		return ENXIO;
 
-	val = bus_read_1(sc->sc_gpios,dinfo->gpio_num);
-	val |= 0x80;
-	bus_write_1(sc->sc_gpios,dinfo->gpio_num,val);
+	if (dinfo->gpio_num >= 0) {
+		val = bus_read_1(sc->sc_gpios,dinfo->gpio_num);
+		val |= 0x80;
+		bus_write_1(sc->sc_gpios,dinfo->gpio_num,val);
+	}
 
 	return (bus_activate_resource(bus, type, rid, res));
 }
@@ -301,9 +310,11 @@ macgpio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	if (type != SYS_RES_IRQ)
 		return ENXIO;
 
-	val = bus_read_1(sc->sc_gpios,dinfo->gpio_num);
-	val &= ~0x80;
-	bus_write_1(sc->sc_gpios,dinfo->gpio_num,val);
+	if (dinfo->gpio_num >= 0) {
+		val = bus_read_1(sc->sc_gpios,dinfo->gpio_num);
+		val &= ~0x80;
+		bus_write_1(sc->sc_gpios,dinfo->gpio_num,val);
+	}
 
 	return (bus_deactivate_resource(bus, type, rid, res));
 }
@@ -317,6 +328,9 @@ macgpio_read(device_t dev)
 	sc = device_get_softc(device_get_parent(dev));
 	dinfo = device_get_ivars(dev);
 
+	if (dinfo->gpio_num < 0)
+		return (0);
+
 	return (bus_read_1(sc->sc_gpios,dinfo->gpio_num));
 }
 
@@ -328,6 +342,9 @@ macgpio_write(device_t dev, uint8_t val)
 
 	sc = device_get_softc(device_get_parent(dev));
 	dinfo = device_get_ivars(dev);
+
+	if (dinfo->gpio_num < 0)
+		return;
 
 	bus_write_1(sc->sc_gpios,dinfo->gpio_num,val);
 }

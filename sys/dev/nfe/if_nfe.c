@@ -3080,7 +3080,7 @@ nfe_sysctl_node(struct nfe_softc *sc)
 	    &stats->rx_unicast, "Unicast Frames");
 	NFE_SYSCTL_STAT_ADD32(ctx, child, "multicast",
 	    &stats->rx_multicast, "Multicast Frames");
-	NFE_SYSCTL_STAT_ADD32(ctx, child, "brocadcast",
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "broadcast",
 	    &stats->rx_broadcast, "Broadcast Frames");
 	if ((sc->nfe_flags & NFE_MIB_V2) != 0) {
 		NFE_SYSCTL_STAT_ADD64(ctx, child, "octets",

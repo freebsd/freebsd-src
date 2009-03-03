@@ -219,7 +219,7 @@ struct ip6_rthdr {
 	/* followed by routing type specific data */
 } __packed;
 
-/* Type 0 Routing header */
+/* Type 0 Routing header, deprecated by RFC 5095. */
 struct ip6_rthdr0 {
 	u_int8_t  ip6r0_nxt;		/* next header */
 	u_int8_t  ip6r0_len;		/* length in units of 8 octets */

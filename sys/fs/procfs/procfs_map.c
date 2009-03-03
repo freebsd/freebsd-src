@@ -46,6 +46,9 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#ifdef COMPAT_IA32
+#include <sys/sysent.h>
+#endif
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
@@ -53,19 +56,11 @@
 #include <fs/procfs/procfs.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-
-#ifdef COMPAT_IA32
-#include <sys/procfs.h>
-#include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
-
-extern struct sysentvec ia32_freebsd_sysvec;
-#endif
-
 
 #define MEBUFFERSIZE 256
 
@@ -82,7 +77,8 @@ extern struct sysentvec ia32_freebsd_sysvec;
 int
 procfs_doprocmap(PFS_FILL_ARGS)
 {
-	vm_map_t map = &p->p_vmspace->vm_map;
+	struct vmspace *vm;
+	vm_map_t map;
 	vm_map_entry_t entry, tmp_entry;
 	struct vnode *vp;
 	char *fullpath, *freepath;
@@ -102,13 +98,17 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		return (EOPNOTSUPP);
 
 #ifdef COMPAT_IA32
-        if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
-                if (p->p_sysent != &ia32_freebsd_sysvec)
+        if (curproc->p_sysent->sv_flags & SV_ILP32) {
+                if (!(p->p_sysent->sv_flags & SV_ILP32))
                         return (EOPNOTSUPP);
                 wrap32 = 1;
         }
 #endif
 
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL)
+		return (ESRCH);
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	     entry = entry->next) {
@@ -219,13 +219,12 @@ procfs_doprocmap(PFS_FILL_ARGS)
 
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
-
+		vm_map_lock_read(map);
 		if (error == -1) {
 			error = 0;
 			break;
 		}
-		vm_map_lock_read(map);
-		if (last_timestamp + 1 != map->timestamp) {
+		if (last_timestamp != map->timestamp) {
 			/*
 			 * Look again for the entry because the map was
 			 * modified while it was unlocked.  Specifically,
@@ -236,5 +235,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 	return (error);
 }

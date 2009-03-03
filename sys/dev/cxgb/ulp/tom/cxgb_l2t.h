@@ -68,7 +68,7 @@ struct l2t_entry {
 	int ifindex;                  /* neighbor's net_device's ifindex */
 	uint16_t smt_idx;             /* SMT index */
 	uint16_t vlan;                /* VLAN TCI (id: bits 0-11, prio: 13-15 */
-	struct rtentry *neigh;        /* associated neighbour */
+	struct llentry *neigh;        /* associated neighbour */
 	struct l2t_entry *first;      /* start of hash chain */
 	struct l2t_entry *next;       /* next l2t_entry on chain */
 	struct mbuf *arpq_head;       /* queue of packets awaiting resolution */

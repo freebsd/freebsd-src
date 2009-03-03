@@ -60,6 +60,8 @@ struct ipipstat
 
 #ifdef _KERNEL
 extern	int ipip_allow;
+#ifdef VIMAGE_GLOBALS
 extern	struct ipipstat ipipstat;
+#endif
 #endif /* _KERNEL */
 #endif /* _NETINET_IPIP_H_ */

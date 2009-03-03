@@ -150,8 +150,5 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	cninit();
 	mips_init();
-	/* Set counter_freq for tick_init_params() */
-	platform_counter_freq = 175 * 1000 * 1000;
-
 	mips_timer_init_params(platform_counter_freq, 0);
 }

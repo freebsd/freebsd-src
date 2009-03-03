@@ -43,6 +43,8 @@ enum ieee80211_phytype {
 	IEEE80211_T_OFDM,		/* frequency division multiplexing */
 	IEEE80211_T_TURBO,		/* high rate OFDM, aka turbo mode */
 	IEEE80211_T_HT,			/* high throughput */
+	IEEE80211_T_OFDM_HALF,		/* 1/2 rate OFDM */
+	IEEE80211_T_OFDM_QUARTER,	/* 1/4 rate OFDM */
 };
 #define	IEEE80211_T_CCK	IEEE80211_T_DS	/* more common nomenclature */
 
@@ -64,8 +66,10 @@ enum ieee80211_phymode {
 	IEEE80211_MODE_STURBO_A	= 7,	/* 5GHz, OFDM, 2x clock, static */
 	IEEE80211_MODE_11NA	= 8,	/* 5GHz, w/ HT */
 	IEEE80211_MODE_11NG	= 9,	/* 2GHz, w/ HT */
+	IEEE80211_MODE_HALF	= 10,	/* OFDM, 1/2x clock */
+	IEEE80211_MODE_QUARTER	= 11,	/* OFDM, 1/4x clock */
 };
-#define	IEEE80211_MODE_MAX	(IEEE80211_MODE_11NG+1)
+#define	IEEE80211_MODE_MAX	(IEEE80211_MODE_QUARTER+1)
 
 /*
  * Operating mode.  Devices do not necessarily support
@@ -135,16 +139,22 @@ struct ieee80211_channel {
 	int8_t		ic_minpower;	/* minimum tx power in .5 dBm */
 	uint8_t		ic_state;	/* dynamic state */
 	uint8_t		ic_extieee;	/* HT40 extension channel number */
+	int8_t		ic_maxantgain;	/* maximum antenna gain in .5 dBm */
+	uint8_t		ic_pad;
+	uint16_t	ic_devdata;	/* opaque device/driver data */
 };
 
-#define	IEEE80211_CHAN_MAX	255
+#define	IEEE80211_CHAN_MAX	256
 #define	IEEE80211_CHAN_BYTES	32	/* howmany(IEEE80211_CHAN_MAX, NBBY) */
 #define	IEEE80211_CHAN_ANY	0xffff	/* token for ``any channel'' */
 #define	IEEE80211_CHAN_ANYC \
 	((struct ieee80211_channel *) IEEE80211_CHAN_ANY)
 
-/* bits 0-3 are for private use by drivers */
 /* channel attributes */
+#define	IEEE80211_CHAN_PRIV0	0x00000001 /* driver private bit 0 */
+#define	IEEE80211_CHAN_PRIV1	0x00000002 /* driver private bit 1 */
+#define	IEEE80211_CHAN_PRIV2	0x00000004 /* driver private bit 2 */
+#define	IEEE80211_CHAN_PRIV3	0x00000008 /* driver private bit 3 */
 #define	IEEE80211_CHAN_TURBO	0x00000010 /* Turbo channel */
 #define	IEEE80211_CHAN_CCK	0x00000020 /* CCK channel */
 #define	IEEE80211_CHAN_OFDM	0x00000040 /* OFDM channel */
@@ -169,6 +179,11 @@ struct ieee80211_channel {
 #define	IEEE80211_CHAN_HT40	(IEEE80211_CHAN_HT40U | IEEE80211_CHAN_HT40D)
 #define	IEEE80211_CHAN_HT	(IEEE80211_CHAN_HT20 | IEEE80211_CHAN_HT40)
 
+#define	IEEE80211_CHAN_BITS \
+	"\20\1PRIV0\2PRIV2\3PRIV3\4PRIV4\5TURBO\6CCK\7OFDM\0102GHZ\0115GHZ" \
+	"\12PASSIVE\13DYN\14GFSK\15GSM\16STURBO\17HALF\20QUARTER\21HT20" \
+	"\22HT40U\23HT40D\24DFS\0254MSXMIT\26NOADHOC\27NOHOSTAP\03011D"
+
 /*
  * Useful combinations of channel characteristics.
  */
@@ -183,9 +198,9 @@ struct ieee80211_channel {
 #define	IEEE80211_CHAN_G \
 	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
 #define IEEE80211_CHAN_108A \
-	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
+	(IEEE80211_CHAN_A | IEEE80211_CHAN_TURBO)
 #define	IEEE80211_CHAN_108G \
-	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
+	(IEEE80211_CHAN_PUREG | IEEE80211_CHAN_TURBO)
 #define	IEEE80211_CHAN_ST \
 	(IEEE80211_CHAN_108A | IEEE80211_CHAN_STURBO)
 
@@ -223,9 +238,9 @@ struct ieee80211_channel {
 #define	IEEE80211_IS_CHAN_PASSIVE(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_PASSIVE) != 0)
 #define	IEEE80211_IS_CHAN_OFDM(_c) \
-	(((_c)->ic_flags & IEEE80211_CHAN_OFDM) != 0)
+	(((_c)->ic_flags & (IEEE80211_CHAN_OFDM | IEEE80211_CHAN_DYN)) != 0)
 #define	IEEE80211_IS_CHAN_CCK(_c) \
-	(((_c)->ic_flags & IEEE80211_CHAN_CCK) != 0)
+	(((_c)->ic_flags & (IEEE80211_CHAN_CCK | IEEE80211_CHAN_DYN)) != 0)
 #define	IEEE80211_IS_CHAN_GFSK(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_GFSK) != 0)
 #define	IEEE80211_IS_CHAN_TURBO(_c) \
@@ -273,12 +288,15 @@ struct ieee80211_channel {
 /* dynamic state */
 #define	IEEE80211_CHANSTATE_RADAR	0x01	/* radar detected */
 #define	IEEE80211_CHANSTATE_CACDONE	0x02	/* CAC completed */
+#define	IEEE80211_CHANSTATE_CWINT	0x04	/* interference detected */
 #define	IEEE80211_CHANSTATE_NORADAR	0x10	/* post notify on radar clear */
 
 #define	IEEE80211_IS_CHAN_RADAR(_c) \
 	(((_c)->ic_state & IEEE80211_CHANSTATE_RADAR) != 0)
 #define	IEEE80211_IS_CHAN_CACDONE(_c) \
 	(((_c)->ic_state & IEEE80211_CHANSTATE_CACDONE) != 0)
+#define	IEEE80211_IS_CHAN_CWINT(_c) \
+	(((_c)->ic_state & IEEE80211_CHANSTATE_CWINT) != 0)
 
 /* ni_chan encoding for FH phy */
 #define	IEEE80211_FH_CHANMOD	80

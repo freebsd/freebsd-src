@@ -103,16 +103,16 @@ lpbb_callback(device_t dev, int index, caddr_t *data)
 	case IIC_REQUEST_BUS:
 		/* request the ppbus */
 		how = *(int *)data;
-		mtx_lock(&Giant);
+		ppb_lock(ppbus);
 		error = ppb_request_bus(ppbus, dev, how);
-		mtx_unlock(&Giant);
+		ppb_unlock(ppbus);
 		break;
 
 	case IIC_RELEASE_BUS:
 		/* release the ppbus */
-		mtx_lock(&Giant);
+		ppb_lock(ppbus);
 		error = ppb_release_bus(ppbus, dev);
-		mtx_unlock(&Giant);
+		ppb_unlock(ppbus);
 		break;
 
 	default:
@@ -129,25 +129,38 @@ lpbb_callback(device_t dev, int index, caddr_t *data)
 #define ALIM    0x20
 #define I2CKEY  0x50
 
+/* Reset bus by setting SDA first and then SCL. */
+static void
+lpbb_reset_bus(device_t dev)
+{
+	device_t ppbus = device_get_parent(dev);
+
+	ppb_assert_locked(ppbus);
+	ppb_wdtr(ppbus, (u_char)~SDA_out);
+	ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) | SCL_out));
+}
+
 static int
 lpbb_getscl(device_t dev)
 {
+	device_t ppbus = device_get_parent(dev);
 	int rval;
 
-	mtx_lock(&Giant);
-	rval = ((ppb_rstr(device_get_parent(dev)) & SCL_in) == SCL_in);
-	mtx_unlock(&Giant);
+	ppb_lock(ppbus);
+	rval = ((ppb_rstr(ppbus) & SCL_in) == SCL_in);
+	ppb_unlock(ppbus);
 	return (rval);
 }
 
 static int
 lpbb_getsda(device_t dev)
 {
+	device_t ppbus = device_get_parent(dev);
 	int rval;
 
-	mtx_lock(&Giant);
-	rval = ((ppb_rstr(device_get_parent(dev)) & SDA_in) == SDA_in);
-	mtx_unlock(&Giant);
+	ppb_lock(ppbus);
+	rval = ((ppb_rstr(ppbus) & SDA_in) == SDA_in);
+	ppb_unlock(ppbus);
 	return (rval);
 }
 
@@ -156,12 +169,12 @@ lpbb_setsda(device_t dev, char val)
 {
 	device_t ppbus = device_get_parent(dev);
 
-	mtx_lock(&Giant);
+	ppb_lock(ppbus);
 	if (val == 0)
 		ppb_wdtr(ppbus, (u_char)SDA_out);
 	else
 		ppb_wdtr(ppbus, (u_char)~SDA_out);
-	mtx_unlock(&Giant);
+	ppb_unlock(ppbus);
 }
 
 static void
@@ -169,12 +182,12 @@ lpbb_setscl(device_t dev, unsigned char val)
 {
 	device_t ppbus = device_get_parent(dev);
 
-	mtx_lock(&Giant);
+	ppb_lock(ppbus);
 	if (val == 0)
 		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) & ~SCL_out));
 	else
 		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) | SCL_out));
-	mtx_unlock(&Giant);
+	ppb_unlock(ppbus);
 }
 
 static int
@@ -182,23 +195,24 @@ lpbb_detect(device_t dev)
 {
 	device_t ppbus = device_get_parent(dev);
 
+	ppb_lock(ppbus);
 	if (ppb_request_bus(ppbus, dev, PPB_DONTWAIT)) {
+		ppb_unlock(ppbus);
 		device_printf(dev, "can't allocate ppbus\n");
 		return (0);
 	}
 
-	/* reset bus */
-	lpbb_setsda(dev, 1);
-	lpbb_setscl(dev, 1);
+	lpbb_reset_bus(dev);
 
 	if ((ppb_rstr(ppbus) & I2CKEY) ||
 		((ppb_rstr(ppbus) & ALIM) != ALIM)) {
-
 		ppb_release_bus(ppbus, dev);
+		ppb_unlock(ppbus);
 		return (0);
 	}
 
 	ppb_release_bus(ppbus, dev);
+	ppb_unlock(ppbus);
 
 	return (1);
 }
@@ -208,18 +222,17 @@ lpbb_reset(device_t dev, u_char speed, u_char addr, u_char * oldaddr)
 {
 	device_t ppbus = device_get_parent(dev);
 
-	mtx_lock(&Giant);
+	ppb_lock(ppbus);
 	if (ppb_request_bus(ppbus, dev, PPB_DONTWAIT)) {
+		ppb_unlock(ppbus);
 		device_printf(dev, "can't allocate ppbus\n");
 		return (0);
 	}
 
-	/* reset bus */
-	lpbb_setsda(dev, 1);
-	lpbb_setscl(dev, 1);
+	lpbb_reset_bus(dev);
 
 	ppb_release_bus(ppbus, dev);
-	mtx_unlock(&Giant);
+	ppb_unlock(ppbus);
 
 	return (IIC_ENOADDR);
 }

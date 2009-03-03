@@ -110,7 +110,6 @@ device		mlx		# Mylex DAC960 family
 # USB host controllers and peripherals
 device		ehci		# EHCI host controller
 device		ohci		# OHCI PCI->USB interface
-device		ugen		# Generic device
 device		uhci		# UHCI PCI->USB interface
 device		uhid		# Human Interface Devices
 device		ukbd		# Keyboard

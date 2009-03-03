@@ -55,10 +55,6 @@ __FBSDID("$FreeBSD$");
 #define MSR_MISC_ENABLE		0x1a0
 #define MSR_SS_ENABLE		(1<<16)
 
-#ifndef CPU_VENDOR_CENTAUR
-#define	CPU_VENDOR_CENTAUR	0x111d
-#endif
-
 /* Frequency and MSR control values. */
 typedef struct {
 	uint16_t	freq;

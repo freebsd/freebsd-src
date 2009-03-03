@@ -18,9 +18,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/module.h>
+#include <sys/sx.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/timepps.h>
@@ -43,15 +45,15 @@ struct pps_data {
 	device_t ppsdev;
 	device_t ppbus;
 	int	busy;
-	struct callout_handle timeout;
+	struct callout timeout;
 	int	lastdata;
 
-	struct mtx	mtx;
+	struct sx lock;
 	struct resource *intr_resource;	/* interrupt resource */
 	void *intr_cookie;		/* interrupt registration cookie */
 };
 
-static int	ppsintr(void *arg);
+static void	ppsintr(void *arg);
 static void 	ppshcpoll(void *arg);
 
 #define DEVTOSOFTC(dev) \
@@ -107,18 +109,29 @@ ppsattach(device_t dev)
 	struct pps_data *sc = DEVTOSOFTC(dev);
 	device_t ppbus = device_get_parent(dev);
 	struct cdev *d;
-	int i, unit, rid = 0;
-
-	mtx_init(&sc->mtx, device_get_nameunit(dev), "pps", MTX_SPIN);
+	int error, i, unit, rid = 0;
 
 	/* declare our interrupt handler */
 	sc->intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE);
 
 	/* interrupts seem mandatory */
-	if (sc->intr_resource == NULL)
+	if (sc->intr_resource == NULL) {
+		device_printf(dev, "Unable to allocate interrupt resource\n");
 		return (ENXIO);
+	}
 
+	error = bus_setup_intr(dev, sc->intr_resource,
+	    INTR_TYPE_TTY | INTR_MPSAFE, NULL, ppsintr,
+	    sc, &sc->intr_cookie);
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->intr_resource);
+		device_printf(dev, "Unable to register interrupt handler\n");
+		return (error);
+	}
+
+	sx_init(&sc->lock, "pps");
+	ppb_init_callout(ppbus, &sc->timeout, 0);
 	sc->ppsdev = dev;
 	sc->ppbus = ppbus;
 	unit = device_get_unit(ppbus);
@@ -130,8 +143,11 @@ ppsattach(device_t dev)
 	d->si_drv2 = (void*)0;
 	pps_init(&sc->pps[0]);
 
-	if (ppb_request_bus(ppbus, dev, PPB_DONTWAIT))
+	ppb_lock(ppbus);
+	if (ppb_request_bus(ppbus, dev, PPB_DONTWAIT)) {
+		ppb_unlock(ppbus);
 		return (0);
+	}
 
 	do {
 		i = ppb_set_mode(sc->ppbus, PPB_EPP);
@@ -168,6 +184,7 @@ ppsattach(device_t dev)
 		ppstry(ppbus, 0x55, 0xff);
 		ppstry(ppbus, 0xaa, 0xff);
 		ppstry(ppbus, 0xff, 0xff);
+		ppb_unlock(ppbus);
 
 		for (i = 1; i < 9; i++) {
 			d = make_dev(&pps_cdevsw, unit + 0x10000 * i,
@@ -178,9 +195,11 @@ ppsattach(device_t dev)
 			d->si_drv2 = (void *)(intptr_t)i;
 			pps_init(&sc->pps[i]);
 		}
+		ppb_lock(ppbus);
 	} while (0);
 	i = ppb_set_mode(sc->ppbus, PPB_COMPATIBLE);
 	ppb_release_bus(ppbus, dev);
+	ppb_unlock(ppbus);
 
 	return (0);
 }
@@ -189,22 +208,24 @@ static	int
 ppsopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct pps_data *sc = dev->si_drv1;
+	device_t ppbus = sc->ppbus;
 	int subdev = (intptr_t)dev->si_drv2;
-	int error, i;
+	int i;
 
+	/*
+	 * The sx lock is here solely to serialize open()'s to close
+	 * the race of concurrent open()'s when pps(4) doesn't own the
+	 * ppbus.
+	 */
+	sx_xlock(&sc->lock);
+	ppb_lock(ppbus);
 	if (!sc->busy) {
 		device_t ppsdev = sc->ppsdev;
-		device_t ppbus = sc->ppbus;
 
-		if (ppb_request_bus(ppbus, ppsdev, PPB_WAIT|PPB_INTR))
+		if (ppb_request_bus(ppbus, ppsdev, PPB_WAIT|PPB_INTR)) {
+			ppb_unlock(ppbus);
+			sx_xunlock(&sc->lock);
 			return (EINTR);
-
-		/* attach the interrupt handler */
-		if ((error = bus_setup_intr(ppsdev, sc->intr_resource,
-		    (INTR_TYPE_TTY | INTR_MPSAFE), ppsintr, NULL,
-		    sc, &sc->intr_cookie))) {
-			ppb_release_bus(ppbus, ppsdev);
-			return (error);
 		}
 
 		i = ppb_set_mode(sc->ppbus, PPB_PS2);
@@ -214,10 +235,13 @@ ppsopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		ppb_wctr(ppbus, i);
 	}
 	if (subdev > 0 && !(sc->busy & ~1)) {
-		sc->timeout = timeout(ppshcpoll, sc, 1);
+		/* XXX: Timeout of 1?  hz/100 instead perhaps? */
+		callout_reset(&sc->timeout, 1, ppshcpoll, sc);
 		sc->lastdata = ppb_rdtr(sc->ppbus);
 	}
 	sc->busy |= (1 << subdev);
+	ppb_unlock(ppbus);
+	sx_xunlock(&sc->lock);
 	return(0);
 }
 
@@ -227,10 +251,12 @@ ppsclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	struct pps_data *sc = dev->si_drv1;
 	int subdev = (intptr_t)dev->si_drv2;
 
+	sx_xlock(&sc->lock);
 	sc->pps[subdev].ppsparam.mode = 0;	/* PHK ??? */
+	ppb_lock(sc->ppbus);
 	sc->busy &= ~(1 << subdev);
 	if (subdev > 0 && !(sc->busy & ~1))
-		untimeout(ppshcpoll, sc, sc->timeout);
+		callout_stop(&sc->timeout);
 	if (!sc->busy) {
 		device_t ppsdev = sc->ppsdev;
 		device_t ppbus = sc->ppbus;
@@ -238,10 +264,11 @@ ppsclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 		ppb_wdtr(ppbus, 0);
 		ppb_wctr(ppbus, 0);
 
-		/* Note: the interrupt handler is automatically detached */
 		ppb_set_mode(ppbus, PPB_COMPATIBLE);
 		ppb_release_bus(ppbus, ppsdev);
 	}
+	ppb_unlock(sc->ppbus);
+	sx_xunlock(&sc->lock);
 	return(0);
 }
 
@@ -251,10 +278,7 @@ ppshcpoll(void *arg)
 	struct pps_data *sc = arg;
 	int i, j, k, l;
 
-	if (!(sc->busy & ~1))
-		return;
-	mtx_lock_spin(&sc->mtx);
-	sc->timeout = timeout(ppshcpoll, sc, 1);
+	KASSERT(sc->busy & ~1, ("pps polling w/o opened devices"));
 	i = ppb_rdtr(sc->ppbus);
 	if (i == sc->lastdata)
 		return;
@@ -269,25 +293,24 @@ ppshcpoll(void *arg)
 		k += k;
 	}
 	sc->lastdata = i;
-	mtx_unlock_spin(&sc->mtx);
+	callout_reset(&sc->timeout, 1, ppshcpoll, sc);
 }
 
-static int
+static void
 ppsintr(void *arg)
 {
 	struct pps_data *sc = (struct pps_data *)arg;
 
+	ppb_assert_locked(sc->ppbus);
 	pps_capture(&sc->pps[0]);
 	if (!(ppb_rstr(sc->ppbus) & nACK))
-		return (FILTER_STRAY);
+		return;
+
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT)
 		ppb_wctr(sc->ppbus, IRQENABLE | AUTOFEED);
-	mtx_lock_spin(&sc->mtx);
 	pps_event(&sc->pps[0], PPS_CAPTUREASSERT);
-	mtx_unlock_spin(&sc->mtx);
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT)
 		ppb_wctr(sc->ppbus, IRQENABLE);
-	return (FILTER_HANDLED);
 }
 
 static int
@@ -297,9 +320,9 @@ ppsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	int subdev = (intptr_t)dev->si_drv2;
 	int err;
 
-	mtx_lock_spin(&sc->mtx);
+	ppb_lock(sc->ppbus);
 	err = pps_ioctl(cmd, data, &sc->pps[subdev]);
-	mtx_unlock_spin(&sc->mtx);
+	ppb_unlock(sc->ppbus);
 	return (err);
 }
 

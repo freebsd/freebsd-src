@@ -35,6 +35,7 @@
 #define	_POWERPC_CUDAVAR_H_
 
 #define CUDA_DEVSTR	"Apple CUDA I/O Controller"
+#define	CUDA_MAXPACKETS	10
 
 /* Cuda addresses */
 #define CUDA_ADB	0
@@ -99,8 +100,10 @@ struct cuda_softc {
 	int		sc_out_length;
 	int		sc_received;
 
+	struct cuda_packet sc_pkts[CUDA_MAXPACKETS];
 	struct cuda_pktq sc_inq;
 	struct cuda_pktq sc_outq;
+	struct cuda_pktq sc_freeq;
 };
 
 #endif /* _POWERPC_CUDAVAR_H_ */

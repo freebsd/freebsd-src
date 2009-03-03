@@ -106,7 +106,7 @@ struct rusage {
  */
 
 #ifdef _RLIMIT_IDENT
-static char *rlimit_ident[] = {
+static char *rlimit_ident[RLIM_NLIMITS] = {
 	"cpu",
 	"fsize",
 	"data",
@@ -118,6 +118,7 @@ static char *rlimit_ident[] = {
 	"nofile",
 	"sbsize",
 	"vmem",
+	"npts",
 };
 #endif
 

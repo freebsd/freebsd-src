@@ -106,6 +106,12 @@ struct in_conninfo {
 	/* protocol dependent part */
 	struct	in_endpoints inc_ie;
 };
+
+/*
+ * Flags for inc_flags.
+ */
+#define	INC_ISIPV6	0x01
+
 #define inc_isipv6	inc_flags	/* temp compatability */
 #define	inc_fport	inc_ie.ie_fport
 #define	inc_lport	inc_ie.ie_lport
@@ -385,7 +391,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
 #define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
-#define	INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
+#define	INP_TIMEWAIT	0x8		/* inpcb in TIMEWAIT, ppcb is tcptw */
 #define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
 #define	INP_DROPPED	0x20		/* protocol drop flag */
 #define	INP_SOCKREF	0x40		/* strong socket reference */
@@ -405,6 +411,8 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_FAITH		0x200	/* accept FAITH'ed connections */
 #define	INP_RECVTTL		0x400	/* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x800	/* don't fragment packet */
+#define	INP_NONLOCALOK		0x1000	/* Allow bind to spoof any address */
+					/* - requires options IP_NONLOCALBIND */
 
 #define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
 
@@ -435,7 +443,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	IN6P_RECVIF		INP_RECVIF
 #define	IN6P_MTUDISC		INP_MTUDISC
 #define	IN6P_FAITH		INP_FAITH
-#define	IN6P_CONTROLOPTS INP_CONTROLOPTS
+#define	IN6P_CONTROLOPTS	INP_CONTROLOPTS
 	/*
 	 * socket AF version is {newer than,or include}
 	 * actual datagram AF version
@@ -450,6 +458,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
 
 #ifdef _KERNEL
+#ifdef VIMAGE_GLOBALS
 extern int	ipport_reservedhigh;
 extern int	ipport_reservedlow;
 extern int	ipport_lowfirstauto;
@@ -463,6 +472,7 @@ extern int	ipport_randomcps;
 extern int	ipport_randomtime;
 extern int	ipport_stoprandom;
 extern int	ipport_tcpallocs;
+#endif
 extern struct callout ipport_tick_callout;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);

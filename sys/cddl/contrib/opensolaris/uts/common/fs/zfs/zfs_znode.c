@@ -494,7 +494,7 @@ zfs_init_fs(zfsvfs_t *zfsvfs, znode_t **zpp)
 static uint64_t
 zfs_expldev(dev_t dev)
 {
-	return (((uint64_t)umajor(dev) << NBITSMINOR64) | uminor(dev));
+	return (((uint64_t)major(dev) << NBITSMINOR64) | minor(dev));
 }
 /*
  * Special cmpldev for ZFS private use.

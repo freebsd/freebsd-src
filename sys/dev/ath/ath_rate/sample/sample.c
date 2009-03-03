@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/sysctl.h>
-#include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -755,23 +754,18 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
         sn->static_rix = -1;
 	if (tp != NULL && tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		/*
-		 * A fixed rate is to be used; ic_fixed_rate is the
-		 * IEEE code for this rate (sans basic bit).  Convert this
-		 * to the index into the negotiated rate set for
-		 * the node.
+		 * A fixed rate is to be used; ucastrate is the IEEE code
+		 * for this rate (sans basic bit).  Check this against the
+		 * negotiated rate set for the node.  Note the fixed rate
+		 * may not be available for various reasons so we only
+		 * setup the static rate index if the lookup is successful.
+		 * XXX handle MCS
 		 */
-		/* NB: the rate set is assumed sorted */
-		srate = ni->ni_rates.rs_nrates - 1;
-		for (; srate >= 0 && RATE(srate) != tp->ucastrate; srate--)
-			;
-		/*
-		 * The fixed rate may not be available due to races
-		 * and mode settings.  Also orphaned nodes created in
-		 * adhoc mode may not have any rate set so this lookup
-		 * can fail.
-		 */
-		if (srate >= 0)
-			sn->static_rix = sc->sc_rixmap[srate];
+		for (srate = ni->ni_rates.rs_nrates - 1; srate >= 0; srate--)
+			if (RATE(srate) == tp->ucastrate) {
+				sn->static_rix = sc->sc_rixmap[tp->ucastrate];
+				break;
+			}
 	}
 
 	/*
@@ -993,29 +987,3 @@ ath_rate_detach(struct ath_ratectrl *arc)
 	
 	free(ssc, M_DEVBUF);
 }
-
-/*
- * Module glue.
- */
-static int
-sample_modevent(module_t mod, int type, void *unused)
-{
-	switch (type) {
-	case MOD_LOAD:
-		if (bootverbose)
-			printf("ath_rate: version 1.9 <SampleRate bit-rate selection algorithm>\n");
-		return 0;
-	case MOD_UNLOAD:
-		return 0;
-	}
-	return EINVAL;
-}
-
-static moduledata_t sample_mod = {
-	"ath_rate",
-	sample_modevent,
-	0
-};
-DECLARE_MODULE(ath_rate, sample_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
-MODULE_VERSION(ath_rate, 1);
-MODULE_DEPEND(ath_rate, wlan, 1, 1, 1);

@@ -48,7 +48,9 @@ struct rip6stat {
 };
 
 #ifdef _KERNEL
+#ifdef VIMAGE_GLOBALS
 extern struct rip6stat rip6stat;
+#endif
 #endif
 
 #endif

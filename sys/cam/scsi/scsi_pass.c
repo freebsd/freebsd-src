@@ -165,13 +165,12 @@ passcleanup(struct cam_periph *periph)
 
 	softc = (struct pass_softc *)periph->softc;
 
-	devstat_remove_entry(softc->device_stats);
-
-	destroy_dev(softc->dev);
-
-	if (bootverbose) {
+	if (bootverbose)
 		xpt_print(periph->path, "removing device entry\n");
-	}
+	devstat_remove_entry(softc->device_stats);
+	cam_periph_unlock(periph);
+	destroy_dev(softc->dev);
+	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
 }
 
@@ -299,8 +298,6 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	struct pass_softc *softc;
 	int error;
 
-	error = 0; /* default to no error */
-
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);
@@ -346,12 +343,12 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	if ((softc->flags & PASS_FLAG_OPEN) == 0) {
 		softc->flags |= PASS_FLAG_OPEN;
+		cam_periph_unlock(periph);
 	} else {
 		/* Device closes aren't symmertical, so fix up the refcount */
+		cam_periph_unlock(periph);
 		cam_periph_release(periph);
 	}
-
-	cam_periph_unlock(periph);
 
 	return (error);
 }

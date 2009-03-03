@@ -65,6 +65,10 @@ static struct mem_region OFfree[OFMEM_REGIONS + 3];
 extern register_t ofmsr[5];
 extern struct	pmap ofw_pmap;
 static int	(*ofwcall)(void *);
+static void	*fdt;
+int		ofw_real_mode;
+
+static int	openfirmware(void *args);
 
 /*
  * Saved SPRG0-3 from OpenFirmware. Will be restored prior to the callback.
@@ -192,19 +196,54 @@ mem_regions(struct mem_region **memp, int *memsz,
 }
 
 void
-set_openfirm_callback(int (*openfirm)(void *))
+OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 {
+	if (ofmsr[0] & PSL_DR)
+		ofw_real_mode = 0;
+	else
+		ofw_real_mode = 1;
 
 	ofwcall = openfirm;
+	fdt = fdt_ptr;
 }
 
-int
+boolean_t
+OF_bootstrap()
+{
+	boolean_t status = FALSE;
+
+	if (ofwcall != NULL) {
+		if (ofw_real_mode)
+			status = OF_install(OFW_STD_REAL, 0);
+		else
+			status = OF_install(OFW_STD_DIRECT, 0);
+
+		if (status != TRUE)
+			return status;
+
+		OF_init(openfirmware);
+	} else {
+		status = OF_install(OFW_FDT, 0);
+
+		if (status != TRUE)
+			return status;
+
+		OF_init(fdt);
+	} 
+
+	return (status);
+}
+
+static int
 openfirmware(void *args)
 {
 	long	oldmsr;
 	int	result;
 	u_int	srsave[16];
 	u_int   i;
+
+	if (pmap_bootstrapped && ofw_real_mode)
+		args = (void *)pmap_kextract((vm_offset_t)args);
 
 	__asm __volatile(	"\t"
 		"sync\n\t"
@@ -217,7 +256,7 @@ openfirmware(void *args)
 
 	ofw_sprg_prepare();
 
-	if (pmap_bootstrapped) {
+	if (pmap_bootstrapped && !ofw_real_mode) {
 		/*
 		 * Swap the kernel's address space with Open Firmware's
 		 */
@@ -236,7 +275,7 @@ openfirmware(void *args)
 
        	result = ofwcall(args);
 
-	if (pmap_bootstrapped) {
+	if (pmap_bootstrapped && !ofw_real_mode) {
 		/*
 		 * Restore the kernel's addr space. The isync() doesn;t
 		 * work outside the loop unless mtsrin() is open-coded

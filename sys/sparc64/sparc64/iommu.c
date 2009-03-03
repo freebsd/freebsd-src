@@ -822,7 +822,7 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
 }
 
 /*
- * IOMMU DVMA operations, common to PCI and SBus.
+ * IOMMU DVMA operations, common to PCI and SBus
  */
 static int
 iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
@@ -833,8 +833,8 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 	bus_size_t sgsize, esize;
 	vm_offset_t vaddr, voffs;
 	vm_paddr_t curaddr;
-	int error, sgcnt, firstpg, stream;
 	pmap_t pmap = NULL;
+	int error, firstpg, sgcnt;
 
 	KASSERT(buflen != 0, ("%s: buflen == 0!", __func__));
 	if (buflen > dt->dt_maxsize)
@@ -855,7 +855,9 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 
 	sgcnt = *segp;
 	firstpg = 1;
-	stream = iommu_use_streaming(is, map, buflen);
+	map->dm_flags &= ~DMF_STREAMED;
+	map->dm_flags |= iommu_use_streaming(is, map, buflen) != 0 ?
+	    DMF_STREAMED : 0;
 	for (; buflen > 0; ) {
 		/*
 		 * Get the physical address for this page.
@@ -876,7 +878,7 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 		vaddr += sgsize;
 
 		iommu_enter(is, trunc_io_page(dvmaddr), trunc_io_page(curaddr),
-		    stream, flags);
+		    (map->dm_flags & DMF_STREAMED) != 0, flags);
 
 		/*
 		 * Chop the chunk up into segments of at most maxsegsz, but try
@@ -1141,7 +1143,7 @@ iommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	/* XXX This is probably bogus. */
 	if ((op & BUS_DMASYNC_PREREAD) != 0)
 		membar(Sync);
-	if ((map->dm_flags & DMF_COHERENT) == 0 && IOMMU_HAS_SB(is) &&
+	if ((map->dm_flags & DMF_STREAMED) != 0 &&
 	    ((op & BUS_DMASYNC_POSTREAD) != 0 ||
 	    (op & BUS_DMASYNC_PREWRITE) != 0)) {
 		IS_LOCK(is);

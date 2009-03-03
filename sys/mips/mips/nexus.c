@@ -58,6 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
+#ifdef NEXUS_DEBUG
+#define dprintf printf
+#else 
+#define dprintf(x, arg...)
+#endif  /* NEXUS_DEBUG */
+
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
 struct nexus_device {
@@ -253,7 +259,7 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	resource_long_value(dname, dunit, "maddr", &maddr);
 	resource_int_value(dname, dunit, "msize", &msize);
 
-	printf("%s: discovered hinted child %s at maddr %p(%d)\n",
+	dprintf("%s: discovered hinted child %s at maddr %p(%d)\n",
 	    __func__, device_get_nameunit(child),
 	    (void *)(intptr_t)maddr, msize);
 
@@ -298,10 +304,10 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman			*rm;
 	int				 isdefault, needactivate, passthrough;
 
-	printf("%s: entry (%p, %p, %d, %p, %p, %p, %ld, %d)\n",
+	dprintf("%s: entry (%p, %p, %d, %p, %p, %p, %ld, %d)\n",
 	    __func__, bus, child, type, rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
-	printf("%s: requested rid is %d\n", __func__, *rid);
+	dprintf("%s: requested rid is %d\n", __func__, *rid);
 
 	isdefault = (start == 0UL && end == ~0UL && count == 1);
 	needactivate = flags & RF_ACTIVE;
@@ -408,7 +414,7 @@ nexus_set_resource(device_t dev, device_t child, int type, int rid,
 	struct resource_list		*rl = &ndev->nx_resources;
 	struct resource_list_entry	*rle;
 
-	printf("%s: entry (%p, %p, %d, %d, %p, %ld)\n",
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %ld)\n",
 	    __func__, dev, child, type, rid, (void *)(intptr_t)start, count);
 
 	rle = resource_list_add(rl, type, rid, start, start + count - 1,
@@ -443,7 +449,7 @@ nexus_delete_resource(device_t dev, device_t child, int type, int rid)
 	struct nexus_device	*ndev = DEVTONX(child);
 	struct resource_list	*rl = &ndev->nx_resources;
 
-	printf("%s: entry\n", __func__);
+	dprintf("%s: entry\n", __func__);
 
 	resource_list_delete(rl, type, rid);
 }
@@ -452,7 +458,7 @@ static int
 nexus_release_resource(device_t bus, device_t child, int type, int rid,
 		       struct resource *r)
 {
-	printf("%s: entry\n", __func__);
+	dprintf("%s: entry\n", __func__);
 
 	if (rman_get_flags(r) & RF_ACTIVE) {
 		int error = bus_deactivate_resource(child, type, rid, r);

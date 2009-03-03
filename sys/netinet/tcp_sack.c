@@ -135,7 +135,6 @@ int tcp_sack_globalholes;
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_sack, OID_AUTO, enable,
     CTLFLAG_RW, tcp_do_sack, 0, "Enable/Disable TCP SACK support");
-TUNABLE_INT("net.inet.tcp.sack.enable", &tcp_do_sack);
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_sack, OID_AUTO, maxholes,
     CTLFLAG_RW, tcp_sack_maxholes, 0, 

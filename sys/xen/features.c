@@ -3,7 +3,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/features.h>
 
 uint8_t xen_features[XENFEAT_NR_SUBMAPS * 32] /* __read_mostly */;

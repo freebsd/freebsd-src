@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -128,6 +129,18 @@ ffs_update(vp, waitfor)
 	}
 }
 
+static void
+ffs_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_object_t object;
+
+	if ((object = vp->v_object) == NULL)
+		return;
+	VM_OBJECT_LOCK(object);
+	vm_object_page_remove(object, start, end, FALSE);
+	VM_OBJECT_UNLOCK(object);
+}
+
 #define	SINGLE	0	/* index of single indirect block */
 #define	DOUBLE	1	/* index of double indirect block */
 #define	TRIPLE	2	/* index of triple indirect block */
@@ -205,12 +218,14 @@ ffs_truncate(vp, length, flags, cred, td)
 			(void) chkdq(ip, -extblocks, NOCRED, 0);
 #endif
 			vinvalbuf(vp, V_ALT, 0, 0);
+			ffs_pages_remove(vp,
+			    OFF_TO_IDX(lblktosize(fs, -extblocks)), 0);
 			ip->i_din2->di_extsize = 0;
 			for (i = 0; i < NXADDR; i++) {
 				oldblks[i] = ip->i_din2->di_extb[i];
 				ip->i_din2->di_extb[i] = 0;
 			}
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
+			ip->i_flag |= IN_CHANGE;
 			if ((error = ffs_update(vp, 1)))
 				return (error);
 			for (i = 0; i < NXADDR; i++) {
@@ -281,6 +296,9 @@ ffs_truncate(vp, length, flags, cred, td)
 			    IO_EXT | IO_NORMAL : IO_NORMAL);
 			ASSERT_VOP_LOCKED(vp, "ffs_truncate1");
 			vinvalbuf(vp, needextclean ? 0 : V_NORMAL, 0, 0);
+			if (!needextclean)
+				ffs_pages_remove(vp, 0,
+				    OFF_TO_IDX(lblktosize(fs, -extblocks)));
 			vnode_pager_setsize(vp, 0);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(vp, 0));
@@ -296,8 +314,10 @@ ffs_truncate(vp, length, flags, cred, td)
 		vnode_pager_setsize(vp, length);
 		flags |= BA_CLRBUF;
 		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
-		if (error)
+		if (error) {
+			vnode_pager_setsize(vp, osize);
 			return (error);
+		}
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 		if (bp->b_bufsize == fs->fs_bsize)

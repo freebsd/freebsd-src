@@ -53,12 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/vinet6.h>
 
-#if 0
-static int ip6_rthdr0 __P((struct mbuf *, struct ip6_hdr *,
-    struct ip6_rthdr0 *));
-
-#endif /* Disable route header processing. */
-
 /*
  * proto - is unused
  */
@@ -96,38 +90,22 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	}
 #endif
 
+	/*
+	 * While this switch may look gratuitous, leave it in
+	 * in favour of RH2 implementations, etc.
+	 */
 	switch (rh->ip6r_type) {
-#if 0
+#ifndef BURN_BRIDGES
 	case IPV6_RTHDR_TYPE_0:
-		rhlen = (rh->ip6r_len + 1) << 3;
-#ifndef PULLDOWN_TEST
 		/*
-		 * note on option length:
-		 * due to IP6_EXTHDR_CHECK assumption, we cannot handle
-		 * very big routing header (max rhlen == 2048).
+		 * According to RFC 5095, 3.  Deprecation of RH0,
+		 * we must handle RH0 like the default (unknown
+		 * routing header type) case.
 		 */
-		IP6_EXTHDR_CHECK(m, off, rhlen, IPPROTO_DONE);
-#else
-		/*
-		 * note on option length:
-		 * maximum rhlen: 2048
-		 * max mbuf m_pulldown can handle: MCLBYTES == usually 2048
-		 * so, here we are assuming that m_pulldown can handle
-		 * rhlen == 2048 case.  this may not be a good thing to
-		 * assume - we may want to avoid pulling it up altogether.
-		 */
-		IP6_EXTHDR_GET(rh, struct ip6_rthdr *, m, off, rhlen);
-		if (rh == NULL) {
-			V_ip6stat.ip6s_tooshort++;
-			return IPPROTO_DONE;
-		}
+		/* FALLTHROUGH */
 #endif
-		if (ip6_rthdr0(m, ip6, (struct ip6_rthdr0 *)rh))
-			return (IPPROTO_DONE);
-		break;
-#endif /* Disable route header 0 */
 	default:
-		/* unknown routing type */
+		/* Unknown routing header type. */
 		if (rh->ip6r_segleft == 0) {
 			rhlen = (rh->ip6r_len + 1) << 3;
 			break;	/* Final dst. Just ignore the header. */
@@ -141,107 +119,3 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	*offp += rhlen;
 	return (rh->ip6r_nxt);
 }
-
-/*
- * Type0 routing header processing
- *
- * RFC2292 backward compatibility warning: no support for strict/loose bitmap,
- * as it was dropped between RFC1883 and RFC2460.
- */
-#if 0
-static int
-ip6_rthdr0(struct mbuf *m, struct ip6_hdr *ip6, struct ip6_rthdr0 *rh0)
-{
-	INIT_VNET_INET6(curvnet);
-	int addrs, index;
-	struct in6_addr *nextaddr, tmpaddr;
-	struct in6_ifaddr *ifa;
-
-	if (rh0->ip6r0_segleft == 0)
-		return (0);
-
-	if (rh0->ip6r0_len % 2
-#ifdef COMPAT_RFC1883
-	    || rh0->ip6r0_len > 46
-#endif
-		) {
-		/*
-		 * Type 0 routing header can't contain more than 23 addresses.
-		 * RFC 2462: this limitation was removed since strict/loose
-		 * bitmap field was deleted.
-		 */
-		V_ip6stat.ip6s_badoptions++;
-		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-			    (caddr_t)&rh0->ip6r0_len - (caddr_t)ip6);
-		return (-1);
-	}
-
-	if ((addrs = rh0->ip6r0_len / 2) < rh0->ip6r0_segleft) {
-		V_ip6stat.ip6s_badoptions++;
-		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-			    (caddr_t)&rh0->ip6r0_segleft - (caddr_t)ip6);
-		return (-1);
-	}
-
-	index = addrs - rh0->ip6r0_segleft;
-	rh0->ip6r0_segleft--;
-	nextaddr = ((struct in6_addr *)(rh0 + 1)) + index;
-
-	/*
-	 * reject invalid addresses.  be proactive about malicious use of
-	 * IPv4 mapped/compat address.
-	 * XXX need more checks?
-	 */
-	if (IN6_IS_ADDR_MULTICAST(nextaddr) ||
-	    IN6_IS_ADDR_UNSPECIFIED(nextaddr) ||
-	    IN6_IS_ADDR_V4MAPPED(nextaddr) ||
-	    IN6_IS_ADDR_V4COMPAT(nextaddr)) {
-		V_ip6stat.ip6s_badoptions++;
-		m_freem(m);
-		return (-1);
-	}
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
-	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst) ||
-	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst) ||
-	    IN6_IS_ADDR_V4COMPAT(&ip6->ip6_dst)) {
-		V_ip6stat.ip6s_badoptions++;
-		m_freem(m);
-		return (-1);
-	}
-
-	/*
-	 * Determine the scope zone of the next hop, based on the interface
-	 * of the current hop. [RFC4007, Section 9]
-	 * Then disambiguate the scope zone for the next hop (if necessary).
-	 */
-	if ((ifa = ip6_getdstifaddr(m)) == NULL)
-		goto bad;
-	if (in6_setscope(nextaddr, ifa->ia_ifp, NULL) != 0) {
-		V_ip6stat.ip6s_badscope++;
-		goto bad;
-	}
-
-	/*
-	 * Swap the IPv6 destination address and nextaddr. Forward the packet.
-	 */
-	tmpaddr = *nextaddr;
-	*nextaddr = ip6->ip6_dst;
-	in6_clearscope(nextaddr); /* XXX */
-	ip6->ip6_dst = tmpaddr;
-
-#ifdef COMPAT_RFC1883
-	if (rh0->ip6r0_slmap[index / 8] & (1 << (7 - (index % 8))))
-		ip6_forward(m, IPV6_SRCRT_NEIGHBOR);
-	else
-		ip6_forward(m, IPV6_SRCRT_NOTNEIGHBOR);
-#else
-	ip6_forward(m, 1);
-#endif
-
-	return (-1);			/* m would be freed in ip6_forward() */
-
-  bad:
-	m_freem(m);
-	return (-1);
-}
-#endif

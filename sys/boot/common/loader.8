@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2007
+.Dd February 15, 2009
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -214,6 +214,17 @@ Kernel and modules can be either in a.out or ELF format.
 Any arguments passed after the name of the file to be loaded
 will be passed as arguments to that file.
 Currently, argument passing does not work for the kernel.
+.Pp
+.It Ic load_geli Xo
+.Op Fl n Ar keyno
+.Ar prov Ar file
+.Xc
+Loads a
+.Xr geli 8
+encryption keyfile for the given provider name.
+The key index can be specified via
+.Ar keyno 
+or will default to zero.
 .Pp
 .It Ic ls Xo
 .Op Fl l

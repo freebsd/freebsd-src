@@ -285,7 +285,6 @@ struct vattr {
  */
 #define	VA_UTIMES_NULL	0x01		/* utimes argument was NULL */
 #define	VA_EXCLUSIVE	0x02		/* exclusive create request */
-#define	VA_MARK_ATIME	0x04		/* setting atime for execve/mmap */
 
 /*
  * Flags for ioflag. (high 16 bits used to ask for read-ahead and
@@ -563,6 +562,7 @@ void	cache_enter(struct vnode *dvp, struct vnode *vp,
 int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp);
 void	cache_purge(struct vnode *vp);
+void	cache_purge_negative(struct vnode *vp);
 void	cache_purgevfs(struct mount *mp);
 int	change_dir(struct vnode *vp, struct thread *td);
 int	change_root(struct vnode *vp, struct thread *td);
@@ -636,6 +636,9 @@ int	vn_extattr_set(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, int buflen, char *buf, struct thread *td);
 int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
+int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
+	    struct vnode **rvp);
+
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp);
@@ -659,6 +662,7 @@ int	vop_stdvptofh(struct vop_vptofh_args *ap);
 int	vop_eopnotsupp(struct vop_generic_args *ap);
 int	vop_ebadf(struct vop_generic_args *ap);
 int	vop_einval(struct vop_generic_args *ap);
+int	vop_enoent(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
@@ -723,6 +727,7 @@ extern struct vop_vector default_vnodeops;
 #define VOP_EBADF	((void*)(uintptr_t)vop_ebadf)
 #define VOP_ENOTTY	((void*)(uintptr_t)vop_enotty)
 #define VOP_EINVAL	((void*)(uintptr_t)vop_einval)
+#define VOP_ENOENT	((void*)(uintptr_t)vop_enoent)
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
 
 /* vfs_hash.c */

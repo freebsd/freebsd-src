@@ -47,7 +47,8 @@ void radeon_irq_set_state(struct drm_device *dev, u32 mask, int state)
 	else
 		dev_priv->irq_enable_reg &= ~mask;
 
-	RADEON_WRITE(RADEON_GEN_INT_CNTL, dev_priv->irq_enable_reg);
+	if (dev->irq_enabled)
+		RADEON_WRITE(RADEON_GEN_INT_CNTL, dev_priv->irq_enable_reg);
 }
 
 static void r500_vbl_irq_set_state(struct drm_device *dev, u32 mask, int state)
@@ -59,7 +60,8 @@ static void r500_vbl_irq_set_state(struct drm_device *dev, u32 mask, int state)
 	else
 		dev_priv->r500_disp_irq_reg &= ~mask;
 
-	RADEON_WRITE(R500_DxMODE_INT_MASK, dev_priv->r500_disp_irq_reg);
+	if (dev->irq_enabled)
+		RADEON_WRITE(R500_DxMODE_INT_MASK, dev_priv->r500_disp_irq_reg);
 }
 
 int radeon_enable_vblank(struct drm_device *dev, int crtc)
@@ -190,6 +192,7 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 	    (drm_radeon_private_t *) dev->dev_private;
 	u32 stat;
 	u32 r500_disp_int;
+	u32 tmp;
 
 	/* Only consider the bits we're interested in - others could be used
 	 * outside the DRM
@@ -215,6 +218,33 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 			drm_handle_vblank(dev, 0);
 		if (stat & RADEON_CRTC2_VBLANK_STAT)
 			drm_handle_vblank(dev, 1);
+	}
+	if (dev->msi_enabled) {
+		switch(dev_priv->flags & RADEON_FAMILY_MASK) {
+			case CHIP_RS400:
+			case CHIP_RS480:
+				tmp = RADEON_READ(RADEON_AIC_CNTL) &
+				    ~RS400_MSI_REARM;
+				RADEON_WRITE(RADEON_AIC_CNTL, tmp);
+				RADEON_WRITE(RADEON_AIC_CNTL,
+				    tmp | RS400_MSI_REARM);
+				break;
+			case CHIP_RS690:
+			case CHIP_RS740:
+				tmp = RADEON_READ(RADEON_BUS_CNTL) &
+				    ~RS600_MSI_REARM;
+				RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+				RADEON_WRITE(RADEON_BUS_CNTL, tmp |
+				    RS600_MSI_REARM);
+				break;
+			 default:
+				tmp = RADEON_READ(RADEON_MSI_REARM_EN) &
+				    ~RV370_MSI_REARM_EN;
+				RADEON_WRITE(RADEON_MSI_REARM_EN, tmp);
+				RADEON_WRITE(RADEON_MSI_REARM_EN,
+				    tmp | RV370_MSI_REARM_EN);
+				break;
+		}
 	}
 	return IRQ_HANDLED;
 }
@@ -342,14 +372,9 @@ int radeon_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
-	int ret;
 
 	atomic_set(&dev_priv->swi_emitted, 0);
 	DRM_INIT_WAITQUEUE(&dev_priv->swi_queue);
-
-	ret = drm_vblank_init(dev, 2);
-	if (ret)
-		return ret;
 
 	dev->max_vblank_count = 0x001fffff;
 

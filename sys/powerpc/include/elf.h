@@ -80,9 +80,6 @@ __ElfType(Auxinfo);
 
 #define	AT_COUNT	13	/* Count of defined aux entry types. */
 
-/* Used in John Polstra's testbed stuff. */
-#define	AT_DEBUG	14	/* Debugging level. */
-
 /*
  * Relocation types.
  */

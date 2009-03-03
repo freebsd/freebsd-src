@@ -32,7 +32,7 @@
  */
 
 struct ieee80211_dfs_state {
-	int		nol_event[IEEE80211_CHAN_MAX+1];
+	int		nol_event[IEEE80211_CHAN_MAX];
 	struct callout	nol_timer;		/* NOL list processing */
 	struct callout	cac_timer;		/* CAC timer */
 	struct timeval	lastevent;		/* time of last radar event */

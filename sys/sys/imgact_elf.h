@@ -29,13 +29,13 @@
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
-#define _SYS_IMGACT_ELF_H_
+#define	_SYS_IMGACT_ELF_H_
 
 #include <machine/elf.h>
 
 #ifdef _KERNEL
 
-#define AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
+#define	AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 
 struct thread;
 
@@ -52,7 +52,6 @@ typedef struct {
 	Elf_Size	base;
 	Elf_Size	flags;
 	Elf_Size	entry;
-	Elf_Size	trace;
 } __ElfN(Auxargs);
 
 typedef struct {
@@ -63,14 +62,14 @@ typedef struct {
 	const char *interp_path;
 	struct sysentvec *sysvec;
 	const char *interp_newpath;
-        int flags;
-#define		BI_CAN_EXEC_DYN	0x0001
+	int flags;
+#define	BI_CAN_EXEC_DYN	0x0001
 } __ElfN(Brandinfo);
 
 __ElfType(Auxargs);
 __ElfType(Brandinfo);
 
-#define MAX_BRANDS	8
+#define	MAX_BRANDS	8
 
 int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
 int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
@@ -81,7 +80,7 @@ int	__elfN(coredump)(struct thread *, struct vnode *, off_t);
 /* Machine specific function to dump per-thread information. */
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);
 
-extern	int __elfN(fallback_brand);
+extern int __elfN(fallback_brand);
 
 #endif /* _KERNEL */
 

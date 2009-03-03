@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -38,33 +35,117 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/pio.h>
 #include <machine/spr.h>
 
 #include <powerpc/mpc85xx/ocpbus.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
 
 /*
  * MPC85xx system specific routines
  */
 
-void
-cpu_reset()
+uint32_t
+ccsr_read4(uintptr_t addr)
 {
-	uint32_t svr = mfspr(SPR_SVR);
+	volatile uint32_t *ptr = (void *)addr;
 
-	if (svr == SVR_MPC8572E || svr == SVR_MPC8572)
+	return (*ptr);
+}
+
+void
+ccsr_write4(uintptr_t addr, uint32_t val)
+{
+	volatile uint32_t *ptr = (void *)addr;
+
+	*ptr = val;
+	__asm __volatile("eieio; sync");
+}
+
+static __inline int
+law_getmax(void)
+{
+	uint32_t ver;
+
+	ver = SVR_VER(mfspr(SPR_SVR));
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
+		return (12);
+	else
+		return (8);
+}
+
+#define	_LAW_SR(trgt,size)	(0x80000000 | (trgt << 20) | (ffsl(size) - 2))
+#define	_LAW_BAR(addr)		(addr >> 12)
+
+int
+law_enable(int trgt, u_long addr, u_long size)
+{
+	uint32_t bar, sr;
+	int i, law_max;
+
+	law_max = law_getmax();
+	bar = _LAW_BAR(addr);
+	sr = _LAW_SR(trgt, size);
+
+	/* Bail if already programmed. */
+	for (i = 0; i < law_max; i++)
+		if (sr == ccsr_read4(OCP85XX_LAWSR(i)) &&
+		    bar == ccsr_read4(OCP85XX_LAWBAR(i)))
+			return (0);
+
+	/* Find an unused access window. */
+	for (i = 0; i < law_max; i++)
+		if ((ccsr_read4(OCP85XX_LAWSR(i)) & 0x80000000) == 0)
+			break;
+
+	if (i == law_max)
+		return (ENOSPC);
+
+	ccsr_write4(OCP85XX_LAWBAR(i), bar);
+	ccsr_write4(OCP85XX_LAWSR(i), sr);
+	return (0);
+}
+
+int
+law_disable(int trgt, u_long addr, u_long size)
+{
+	uint32_t bar, sr;
+	int i, law_max;
+
+	law_max = law_getmax();
+	bar = _LAW_BAR(addr);
+	sr = _LAW_SR(trgt, size);
+
+	/* Find and disable requested LAW. */
+	for (i = 0; i < law_max; i++)
+		if (sr == ccsr_read4(OCP85XX_LAWSR(i)) &&
+		    bar == ccsr_read4(OCP85XX_LAWBAR(i))) {
+			ccsr_write4(OCP85XX_LAWBAR(i), 0);
+			ccsr_write4(OCP85XX_LAWSR(i), 0);
+			return (0);
+		}
+
+	return (ENOENT);
+}
+
+void
+cpu_reset(void)
+{
+	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
+
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
 		/* Systems with dedicated reset register */
-		out32(OCP85XX_RSTCR, 2);
+		ccsr_write4(OCP85XX_RSTCR, 2);
 	else {
 		/* Clear DBCR0, disables debug interrupts and events. */
 		mtspr(SPR_DBCR0, 0);
-		__asm volatile("isync");
+		__asm __volatile("isync");
 
 		/* Enable Debug Interrupts in MSR. */
 		mtmsr(mfmsr() | PSL_DE);
 
 		/* Enable debug interrupts and issue reset. */
-		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
+		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
+		    DBCR0_RST_SYSTEM);
 	}
 
 	printf("Reset failed...\n");

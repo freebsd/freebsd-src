@@ -131,8 +131,7 @@ mbus_print_child(device_t dev, device_t child)
 	if (od == NULL)
 		panic("Unknown device on %s", device_get_nameunit(dev));
 
-	rv = 0;
-	rv += bus_print_child_header(dev, child);
+	rv = bus_print_child_header(dev, child);
 
 	rv += resource_list_print_type(&od->od_resources, "at mem",
 	    SYS_RES_MEMORY, "0x%08lx");

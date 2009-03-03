@@ -36,6 +36,7 @@
 /*
  * Fields in %eflags.
  */
+		.set PSL_RESERVED_DEFAULT,0x00000002
 		.set PSL_T,0x00000100		# Trap flag
 		.set PSL_I,0x00000200		# Interrupt enable flag
 		.set PSL_VM,0x00020000		# Virtual 8086 mode flag
@@ -455,6 +456,18 @@ intx31: 	pushl $-1			# Dummy int no for btx_v86
  * -0x3c %fs
  * -0x40 %ds
  * -0x44 %es
+ * -0x48 zero %eax (hardware int only)	
+ * -0x4c zero %ecx (hardware int only)
+ * -0x50 zero %edx (hardware int only)
+ * -0x54 zero %ebx (hardware int only)
+ * -0x58 zero %esp (hardware int only)
+ * -0x5c zero %ebp (hardware int only)
+ * -0x60 zero %esi (hardware int only)
+ * -0x64 zero %edi (hardware int only)
+ * -0x68 zero %gs (hardware int only)
+ * -0x6c zero %fs (hardware int only)
+ * -0x70 zero %ds (hardware int only)
+ * -0x74 zero %es (hardware int only)
  */
 int_hw: 	cld				# String ops inc
 		pusha				# Save gp regs
@@ -467,12 +480,15 @@ int_hw: 	cld				# String ops inc
 		pushl %ds			#  address
 		popl %es			#  data
 		leal 0x44(%esp,1),%esi		# Base of frame
+		movl %esp,MEM_ESPR-0x04		# Save kernel stack pointer
 		movl -0x14(%esi),%eax		# Get Int no
 		cmpl $-1,%eax			# Hardware interrupt?
-		jne intusr.2			# Yes
+		jne intusr.1			# Yes
 /*
- * v86 calls save the btx_v86 pointer on the real mode stack and read the
- * address and flags from the btx_v86 structure.
+ * v86 calls save the btx_v86 pointer on the real mode stack and read
+ * the address and flags from the btx_v86 structure.  For interrupt
+ * handler invocations (VM86 INTx requests), disable interrupts,
+ * tracing, and alignment checking while the handler runs.
  */
 		movl $MEM_USR,%ebx		# User base
 		movl %ebx,%edx			#  address
@@ -482,35 +498,36 @@ int_hw: 	cld				# String ops inc
 		movl %edx,MEM_ESPR-0x08		# Save btx_v86 ptr
 		movl V86_ADDR(%edx),%eax	# Get int no/address
 		movl V86_CTL(%edx),%edx		# Get control flags
-		jmp intusr.3			# Skip hardware interrupt
-/*
- * Hardware interrupts store a NULL btx_v86 pointer and use the address
- * (interrupt number) from the stack with empty flags.  Also, we clear
- * the segment registers for the interrupt handler.
- */
-intusr.2:	xorl %edx,%edx			# Control flags
-		movl %edx,MEM_ESPR-0x08		# NULL btx_v86 ptr
-		movl %edx,-0x38(%esi)		# Real mode %gs of 0
-		movl %edx,-0x3c(%esi)		# Real mode %fs of 0
-		movl %edx,-0x40(%esi)		# Real mode %ds of 0
-		movl %edx,-0x44(%esi)		# Real mode %es of 0
-/*
- * %eax now holds either the interrupt number or segment:offset of function.
- * %edx now holds the V86F_* flags.
- *
- * For interrupt handler invocations (either hardware interrupts or VM86
- * INTx requests) we also disable interrupts, tracing, and alignment checking
- * while the handler runs.
- */
-intusr.3:	movl -0x08(%esi),%ebx		# Save user flags in %ebx
+		movl -0x08(%esi),%ebx		# Save user flags in %ebx
 		testl $V86F_ADDR,%edx		# Segment:offset?
 		jnz intusr.4			# Yes
-		shll $0x2,%eax			# Scale
-		movl (%eax),%eax		# Load int vector
 		andl $~(PSL_I|PSL_T|PSL_AC),%ebx # Disable interrupts, tracing,
 						#  and alignment checking for
 						#  interrupt handler
+		jmp intusr.3			# Skip hardware interrupt
+/*
+ * Hardware interrupts store a NULL btx_v86 pointer and use the
+ * address (interrupt number) from the stack with empty flags.  Also,
+ * push a dummy frame of zeros onto the stack for all the general
+ * purpose and segment registers and clear %eflags.  This gives the
+ * hardware interrupt handler a clean slate.
+ */
+intusr.1:	xorl %edx,%edx			# Control flags
+		movl %edx,MEM_ESPR-0x08		# NULL btx_v86 ptr
+		movl $12,%ecx			# Frame is 12 dwords
+intusr.2:	pushl $0x0			# Fill frame
+		loop intusr.2			#  with zeros
+		movl $PSL_RESERVED_DEFAULT,%ebx # Set clean %eflags
+/*
+ * Look up real mode IDT entry for hardware interrupts and VM86 INTx
+ * requests.
+ */
+intusr.3:	shll $0x2,%eax			# Scale
+		movl (%eax),%eax		# Load int vector
 		jmp intusr.5			# Skip CALLF test
+/*
+ * Panic if V86F_CALLF isn't set with V86F_ADDR.
+ */
 intusr.4:	testl $V86F_CALLF,%edx		# Far call?
 		jnz intusr.5			# Ok
 		movl %edx,0x30(%esp,1)		# Place VM86 flags in int no
@@ -522,6 +539,11 @@ intusr.4:	testl $V86F_CALLF,%edx		# Far call?
 		popl %gs
 		popal				# Restore gp regs
 		jmp ex_noc			# Panic
+/*
+ * %eax now holds the segment:offset of the function.
+ * %ebx now holds the %eflags to pass to real mode.
+ * %edx now holds the V86F_* flags.
+ */
 intusr.5:	movw %bx,MEM_ESPR-0x12		# Pass user flags to real mode
 						#  target
 /*
@@ -536,8 +558,7 @@ intusr.5:	movw %bx,MEM_ESPR-0x12		# Pass user flags to real mode
 		rep				#  from btx_v86
 		movsl				#  to kernel stack
 		popl %esi			# Restore
-intusr.6:	movl %esp,MEM_ESPR-0x04		# Save kernel stack pointer
-		movl -0x08(%esi),%ebx		# Copy user flags to real
+intusr.6:	movl -0x08(%esi),%ebx		# Copy user flags to real
 		movl %ebx,MEM_ESPR-0x0c		#  mode return trampoline
 		movl $rret_tramp,%ebx		# Set return trampoline
 		movl %ebx,MEM_ESPR-0x10		#  CS:IP
@@ -611,9 +632,16 @@ rret_tramp.1:	xorl %ecx,%ecx			# Zero
 		movb $SEL_TSS,%cl		# Set task
 		ltr %cx				#  register
 /*
- * Now we are back in protected mode.  Copy the registers off of the real
- * mode stack onto the kernel stack.  Also, initialize all the seg regs on
- * the kernel stack.
+ * Now we are back in protected mode.  The kernel stack frame set up
+ * before entering real mode is still intact. For hardware interrupts,
+ * leave the frame unchanged.
+ */
+		cmpl $0,MEM_ESPR-0x08		# Leave saved regs unchanged
+		jz rret_tramp.3			#  for hardware ints
+/*
+ * For V86 calls, copy the registers off of the real mode stack onto
+ * the kernel stack as we want their updated values.  Also, initialize
+ * the segment registers on the kernel stack.
  *
  * Note that the %esp in the kernel stack after this is garbage, but popa
  * ignores it, so we don't have to fix it up.
@@ -624,20 +652,17 @@ rret_tramp.1:	xorl %ecx,%ecx			# Zero
 		movl $8,%ecx			# Copy GP regs from
 		rep				#  real mode stack
 		movsl				#  to kernel stack
-		popl %esi			# Restore
 		movl $SEL_UDATA,%eax		# Selector for data seg regs
 		movl $4,%ecx			# Initialize %ds,
 		rep				#  %es, %fs, and
 		stosl				#  %gs
 /*
- * If this was a V86 call, copy the saved seg regs on the real mode stack
- * back over to the btx_v86 structure.  Also, conditionally update the saved
- * eflags on the kernel stack based on the flags from the user.
+ * For V86 calls, copy the saved seg regs on the real mode stack back
+ * over to the btx_v86 structure.  Also, conditionally update the
+ * saved eflags on the kernel stack based on the flags from the user.
  */
 		movl MEM_ESPR-0x08,%ecx		# Get btx_v86 ptr
-		jecxz rret_tramp.3		# Skip for hardware ints
 		leal V86_GS(%ecx),%edi		# %edi => btx_v86 seg regs
-		pushl %esi			# Save
 		leal MEM_ESPR-0x2c,%esi		# %esi => real mode seg regs
 		xchgl %ecx,%edx			# Save btx_v86 ptr
 		movl $4,%ecx			# Copy seg regs

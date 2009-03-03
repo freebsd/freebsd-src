@@ -62,7 +62,7 @@ struct mv_gpio_softc {
 	uint8_t			use_high;
 };
 
-extern struct resource_spec mv_gpio_spec[];
+extern struct resource_spec mv_gpio_res[];
 
 static struct mv_gpio_softc *mv_gpio_softc = NULL;
 static uint32_t	gpio_setup[MV_GPIO_MAX_NPINS];
@@ -113,8 +113,8 @@ mv_gpio_probe(device_t dev)
 static int
 mv_gpio_attach(device_t dev)
 {
-	int	error, i;
-	struct	mv_gpio_softc *sc;
+	int error, i;
+	struct mv_gpio_softc *sc;
 	uint32_t dev_id, rev_id;
 
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
@@ -143,7 +143,7 @@ mv_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	error = bus_alloc_resources(dev, mv_gpio_spec, sc->res);
+	error = bus_alloc_resources(dev, mv_gpio_res, sc->res);
 	if (error) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -171,10 +171,22 @@ mv_gpio_attach(device_t dev)
 		    INTR_TYPE_MISC | INTR_FAST,
 		    (driver_filter_t *)mv_gpio_intr, NULL,
 		    sc, &sc->ih_cookie[i]) != 0) {
-			bus_release_resources(dev, mv_gpio_spec, sc->res);
+			bus_release_resources(dev, mv_gpio_res, sc->res);
 			device_printf(dev, "could not set up intr %d\n", i);
 			return (ENXIO);
 		}
+	}
+
+	/* Setup GPIO lines */
+	for (i = 0; mv_gpio_config[i].gc_gpio >= 0; i++) {
+		mv_gpio_configure(mv_gpio_config[i].gc_gpio,
+		    mv_gpio_config[i].gc_flags, ~0u);
+
+		if (mv_gpio_config[i].gc_output < 0)
+			mv_gpio_out_en(mv_gpio_config[i].gc_gpio, 0);
+		else
+			mv_gpio_out(mv_gpio_config[i].gc_gpio,
+			    mv_gpio_config[i].gc_output, 1);
 	}
 
 	return (0);
@@ -183,9 +195,9 @@ mv_gpio_attach(device_t dev)
 static void
 mv_gpio_intr(void *arg)
 {
-	uint32_t	int_cause, gpio_val;
-	uint32_t	int_cause_hi, gpio_val_hi = 0;
-	int		i;
+	uint32_t int_cause, gpio_val;
+	uint32_t int_cause_hi, gpio_val_hi = 0;
+	int i;
 
 	int_cause = mv_gpio_reg_read(GPIO_INT_CAUSE);
 	gpio_val = mv_gpio_reg_read(GPIO_DATA_IN);
@@ -219,7 +231,7 @@ mv_gpio_intr(void *arg)
  * GPIO interrupt handling
  */
 
-static struct intr_event	*gpio_events[MV_GPIO_MAX_NPINS];
+static struct intr_event *gpio_events[MV_GPIO_MAX_NPINS];
 
 int
 mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
@@ -243,8 +255,8 @@ mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
 		gpio_events[pin] = event;
 	}
 
-	intr_event_add_handler(event, name, filt, hand, arg, intr_priority(flags),
-	    flags, cookiep);
+	intr_event_add_handler(event, name, filt, hand, arg,
+	    intr_priority(flags), flags, cookiep);
 	return (0);
 }
 
@@ -277,7 +289,7 @@ mv_gpio_intr_unmask(int pin)
 static void
 mv_gpio_intr_handler(int pin)
 {
-	struct	intr_event *event;
+	struct intr_event *event;
 
 	event = gpio_events[pin];
 	if (event == NULL || TAILQ_EMPTY(&event->ie_handlers))
@@ -295,8 +307,8 @@ mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask)
 
 	if (mask & MV_GPIO_BLINK)
 		mv_gpio_blink(pin, flags & MV_GPIO_BLINK);
-	if (mask & MV_GPIO_POLARITY)
-		mv_gpio_polarity(pin, flags & MV_GPIO_POLARITY);
+	if (mask & MV_GPIO_POLAR_LOW)
+		mv_gpio_polarity(pin, flags & MV_GPIO_POLAR_LOW);
 	if (mask & MV_GPIO_EDGE)
 		mv_gpio_edge(pin, flags & MV_GPIO_EDGE);
 	if (mask & MV_GPIO_LEVEL)

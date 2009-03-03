@@ -5643,10 +5643,11 @@ fbsd_detach(device_t dev)
   return 0; /* no error */
   }
 
-static void
+static int
 fbsd_shutdown(device_t dev)
   {
   shutdown_card(device_get_softc(dev));
+  return 0;
   }
 
 static int

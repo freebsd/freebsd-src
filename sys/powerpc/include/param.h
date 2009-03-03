@@ -56,6 +56,9 @@
 
 #ifndef _NO_NAMESPACE_POLLUTION
 
+/* Needed to display interrupts on OFW PCI */
+#define __PCI_REROUTE_INTERRUPT
+
 #ifndef _MACHINE_PARAM_H_
 #define	_MACHINE_PARAM_H_
 

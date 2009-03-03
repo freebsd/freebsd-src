@@ -39,7 +39,6 @@
 #define	_VNODE_PAGER_	1
 
 #ifdef _KERNEL
-struct vnode *vnode_pager_lock(vm_object_t);
 
 /*
  * XXX Generic routines; currently called by badly written FS code; these

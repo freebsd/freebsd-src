@@ -167,7 +167,7 @@ static const struct agp_i810_match {
 	    "Intel GM965 SVGA controller"},
 	{0x2A128086, CHIP_I965, 0x00020000,
 	    "Intel GME965 SVGA controller"},
-	{0x2A428086, CHIP_I965, 0x00020000,
+	{0x2A428086, CHIP_G4X, 0x00020000,
 	    "Intel GM45 SVGA controller"},
 	{0x2E028086, CHIP_G4X, 0x00020000,
 	    "Intel 4 Series SVGA controller"},
@@ -284,6 +284,7 @@ agp_i810_probe(device_t dev)
 	case CHIP_I915:
 	case CHIP_I965:
 	case CHIP_G33:
+	case CHIP_G4X:
 		deven = pci_read_config(bdev, AGP_I915_DEVEN, 4);
 		if ((deven & AGP_I915_DEVEN_D2F0) ==
 		    AGP_I915_DEVEN_D2F0_DISABLED) {
@@ -348,6 +349,7 @@ agp_i810_dump_regs(device_t dev)
 	case CHIP_I915:
 	case CHIP_I965:
 	case CHIP_G33:
+	case CHIP_G4X:
 		device_printf(dev, "AGP_I855_GCC1: 0x%02x\n",
 		    pci_read_config(sc->bdev, AGP_I855_GCC1, 1));
 		device_printf(dev, "AGP_I915_MSAC: 0x%02x\n",
@@ -397,7 +399,7 @@ agp_i810_attach(device_t dev)
 		return error;
 
 	if (sc->chiptype != CHIP_I965 && sc->chiptype != CHIP_G33 &&
-	    ptoa((vm_paddr_t)Maxmem) > 0xfffffffful)
+	    sc->chiptype != CHIP_G4X && ptoa((vm_paddr_t)Maxmem) > 0xfffffffful)
 	{
 		device_printf(dev, "agp_i810.c does not support physical "
 		    "memory above 4GB.\n");
@@ -659,8 +661,7 @@ agp_i810_attach(device_t dev)
 			return EINVAL;
 		}
 
-		if (sc->chiptype != CHIP_G4X)
-		    gtt_size += 4;
+		gtt_size += 4;
 
 		sc->stolen = (stolen - gtt_size) * 1024 / 4096;
 		if (sc->stolen > 0)
@@ -780,6 +781,7 @@ agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 	case CHIP_I915:
 	case CHIP_I965:
 	case CHIP_G33:
+	case CHIP_G4X:
 		return agp_generic_set_aperture(dev, aperture);
 	}
 
@@ -798,7 +800,8 @@ agp_i810_write_gtt_entry(device_t dev, int offset, vm_offset_t physical,
 	u_int32_t pte;
 
 	pte = (u_int32_t)physical | 1;
-	if (sc->chiptype == CHIP_I965 || sc->chiptype == CHIP_G33) {
+	if (sc->chiptype == CHIP_I965 || sc->chiptype == CHIP_G33 ||
+	    sc->chiptype == CHIP_G4X) {
 		pte |= (physical & 0x0000000f00000000ull) >> 28;
 	} else {
 		/* If we do actually have memory above 4GB on an older system,
@@ -824,6 +827,10 @@ agp_i810_write_gtt_entry(device_t dev, int offset, vm_offset_t physical,
 	case CHIP_I965:
 		bus_write_4(sc->sc_res[0],
 		    (offset >> AGP_PAGE_SHIFT) * 4 + (512 * 1024), pte);
+		break;
+	case CHIP_G4X:
+		bus_write_4(sc->sc_res[0],
+		    (offset >> AGP_PAGE_SHIFT) * 4 + (2 * 1024 * 1024), pte);
 		break;
 	}
 }

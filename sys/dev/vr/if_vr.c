@@ -133,7 +133,7 @@ static struct vr_type {
 	    0,
 	    "VIA VT6105 Rhine III 10/100BaseTX" },
 	{ VIA_VENDORID, VIA_DEVICEID_RHINE_III_M,
-	    VR_Q_CSUM | VR_Q_CAM,
+	    VR_Q_CSUM,
 	    "VIA VT6105M Rhine III 10/100BaseTX" },
 	{ DELTA_VENDORID, DELTA_DEVICEID_RHINE_II,
 	    VR_Q_NEEDALIGN,

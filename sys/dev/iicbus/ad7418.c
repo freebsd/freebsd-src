@@ -82,7 +82,7 @@ ad7418_probe(device_t dev)
 {
 	/* XXX really probe? */
 	device_set_desc(dev, "Analog Devices AD7418 ADC");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

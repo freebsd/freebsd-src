@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -77,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/syslog.h>
 #include <sys/ucred.h>
 #include <sys/vimage.h>
 
@@ -442,40 +444,23 @@ skip_ipsec2:;
 		struct ip6_rthdr *rh =
 			(struct ip6_rthdr *)(mtod(exthdrs.ip6e_rthdr,
 						  struct ip6_rthdr *));
-		struct ip6_rthdr0 *rh0;
-		struct in6_addr *addr;
-		struct sockaddr_in6 sa;
 
+		/*
+		 * While this switch may look gratuitous, leave it in
+		 * in favour of RH2 implementations, etc.
+		 */
 		switch (rh->ip6r_type) {
+#ifndef BURN_BRIDGES
 		case IPV6_RTHDR_TYPE_0:
-			 rh0 = (struct ip6_rthdr0 *)rh;
-			 addr = (struct in6_addr *)(rh0 + 1);
-
-			 /*
-			  * construct a sockaddr_in6 form of
-			  * the first hop.
-			  *
-			  * XXX: we may not have enough
-			  * information about its scope zone;
-			  * there is no standard API to pass
-			  * the information from the
-			  * application.
-			  */
-			 bzero(&sa, sizeof(sa));
-			 sa.sin6_family = AF_INET6;
-			 sa.sin6_len = sizeof(sa);
-			 sa.sin6_addr = addr[0];
-			 if ((error = sa6_embedscope(&sa,
-			     V_ip6_use_defzone)) != 0) {
-				 goto bad;
-			 }
-			 ip6->ip6_dst = sa.sin6_addr;
-			 bcopy(&addr[1], &addr[0], sizeof(struct in6_addr)
-			     * (rh0->ip6r0_segleft - 1));
-			 addr[rh0->ip6r0_segleft - 1] = finaldst;
-			 /* XXX */
-			 in6_clearscope(addr + rh0->ip6r0_segleft - 1);
-			 break;
+			/*
+			 * According to RFC 5095 we should not implement
+			 * it in any way but we may want to give the user
+			 * a hint for now.
+			 */
+			log(LOG_INFO, "[%s:%d] IPv6 Type 0 Routing Headers are "
+			    "deprecated.\n", __func__, __LINE__);
+			/* FALLTHROUGH */
+#endif
 		default:	/* is it possible? */
 			 error = EINVAL;
 			 goto bad;
@@ -615,7 +600,7 @@ again:
 	dst_sa.sin6_len = sizeof(dst_sa);
 	dst_sa.sin6_addr = ip6->ip6_dst;
 	if ((error = in6_selectroute(&dst_sa, opt, im6o, ro,
-	    &ifp, &rt, 0)) != 0) {
+	    &ifp, &rt)) != 0) {
 		switch (error) {
 		case EHOSTUNREACH:
 			V_ip6stat.ip6s_noroute++;
@@ -1320,7 +1305,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 		struct in_conninfo inc;
 
 		bzero(&inc, sizeof(inc));
-		inc.inc_flags = 1; /* IPv6 */
+		inc.inc_flags |= INC_ISIPV6;
 		inc.inc6_faddr = *dst;
 
 		if (ifp == NULL)
@@ -1464,7 +1449,7 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 					else {
 						/* -1 = kernel default */
 						in6p->in6p_hops = optval;
-						if ((in6p->in6p_vflag &
+						if ((in6p->inp_vflag &
 						     INP_IPV4) != 0)
 							in6p->inp_ip_ttl = optval;
 					}
@@ -1472,19 +1457,19 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 #define OPTSET(bit) \
 do { \
 	if (optval) \
-		in6p->in6p_flags |= (bit); \
+		in6p->inp_flags |= (bit); \
 	else \
-		in6p->in6p_flags &= ~(bit); \
+		in6p->inp_flags &= ~(bit); \
 } while (/*CONSTCOND*/ 0)
 #define OPTSET2292(bit) \
 do { \
-	in6p->in6p_flags |= IN6P_RFC2292; \
+	in6p->inp_flags |= IN6P_RFC2292; \
 	if (optval) \
-		in6p->in6p_flags |= (bit); \
+		in6p->inp_flags |= (bit); \
 	else \
-		in6p->in6p_flags &= ~(bit); \
+		in6p->inp_flags &= ~(bit); \
 } while (/*CONSTCOND*/ 0)
-#define OPTBIT(bit) (in6p->in6p_flags & (bit) ? 1 : 0)
+#define OPTBIT(bit) (in6p->inp_flags & (bit) ? 1 : 0)
 
 				case IPV6_RECVPKTINFO:
 					/* cannot mix with RFC2292 */
@@ -1558,7 +1543,7 @@ do { \
 					break;
 
 				case IPV6_FAITH:
-					OPTSET(IN6P_FAITH);
+					OPTSET(INP_FAITH);
 					break;
 
 				case IPV6_RECVPATHMTU:
@@ -1578,16 +1563,16 @@ do { \
 					 * available only prior to bind(2).
 					 * see ipng mailing list, Jun 22 2001.
 					 */
-					if (in6p->in6p_lport ||
+					if (in6p->inp_lport ||
 					    !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr)) {
 						error = EINVAL;
 						break;
 					}
 					OPTSET(IN6P_IPV6_V6ONLY);
 					if (optval)
-						in6p->in6p_vflag &= ~INP_IPV4;
+						in6p->inp_vflag &= ~INP_IPV4;
 					else
-						in6p->in6p_vflag |= INP_IPV4;
+						in6p->inp_vflag |= INP_IPV4;
 					break;
 				case IPV6_RECVTCLASS:
 					/* cannot mix with RFC2292 XXX */
@@ -1768,18 +1753,18 @@ do { \
 
 				switch (optval) {
 				case IPV6_PORTRANGE_DEFAULT:
-					in6p->in6p_flags &= ~(IN6P_LOWPORT);
-					in6p->in6p_flags &= ~(IN6P_HIGHPORT);
+					in6p->inp_flags &= ~(INP_LOWPORT);
+					in6p->inp_flags &= ~(INP_HIGHPORT);
 					break;
 
 				case IPV6_PORTRANGE_HIGH:
-					in6p->in6p_flags &= ~(IN6P_LOWPORT);
-					in6p->in6p_flags |= IN6P_HIGHPORT;
+					in6p->inp_flags &= ~(INP_LOWPORT);
+					in6p->inp_flags |= INP_HIGHPORT;
 					break;
 
 				case IPV6_PORTRANGE_LOW:
-					in6p->in6p_flags &= ~(IN6P_HIGHPORT);
-					in6p->in6p_flags |= IN6P_LOWPORT;
+					in6p->inp_flags &= ~(INP_HIGHPORT);
+					in6p->inp_flags |= INP_LOWPORT;
 					break;
 
 				default:
@@ -1799,7 +1784,7 @@ do { \
 				if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 					break;
 				req = mtod(m, caddr_t);
-				error = ipsec6_set_policy(in6p, optname, req,
+				error = ipsec_set_policy(in6p, optname, req,
 				    m->m_len, (sopt->sopt_td != NULL) ?
 				    sopt->sopt_td->td_ucred : NULL);
 				m_freem(m);
@@ -1881,7 +1866,7 @@ do { \
 					break;
 
 				case IPV6_FAITH:
-					optval = OPTBIT(IN6P_FAITH);
+					optval = OPTBIT(INP_FAITH);
 					break;
 
 				case IPV6_V6ONLY:
@@ -1891,10 +1876,10 @@ do { \
 				case IPV6_PORTRANGE:
 				    {
 					int flags;
-					flags = in6p->in6p_flags;
-					if (flags & IN6P_HIGHPORT)
+					flags = in6p->inp_flags;
+					if (flags & INP_HIGHPORT)
 						optval = IPV6_PORTRANGE_HIGH;
-					else if (flags & IN6P_LOWPORT)
+					else if (flags & INP_LOWPORT)
 						optval = IPV6_PORTRANGE_LOW;
 					else
 						optval = 0;
@@ -2024,7 +2009,7 @@ do { \
 					req = mtod(m, caddr_t);
 					len = m->m_len;
 				}
-				error = ipsec6_get_policy(in6p, req, len, mp);
+				error = ipsec_get_policy(in6p, req, len, mp);
 				if (error == 0)
 					error = soopt_mcopyout(sopt, m); /* XXX */
 				if (error == 0 && m)
@@ -2050,7 +2035,7 @@ ip6_raw_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0, optval, optlen;
 	const int icmp6off = offsetof(struct icmp6_hdr, icmp6_cksum);
-	struct in6pcb *in6p = sotoin6pcb(so);
+	struct inpcb *in6p = sotoinpcb(so);
 	int level, op, optname;
 
 	level = sopt->sopt_level;
@@ -3326,7 +3311,7 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
  * Compute IPv6 extension header length.
  */
 int
-ip6_optlen(struct in6pcb *in6p)
+ip6_optlen(struct inpcb *in6p)
 {
 	int len;
 

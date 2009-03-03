@@ -78,11 +78,9 @@ static void i915_configure(struct drm_device *dev)
 	dev->driver->buf_priv_size	= sizeof(drm_i915_private_t);
 	dev->driver->load		= i915_driver_load;
 	dev->driver->unload		= i915_driver_unload;
-	dev->driver->firstopen		= i915_driver_firstopen;
 	dev->driver->preclose		= i915_driver_preclose;
 	dev->driver->lastclose		= i915_driver_lastclose;
 	dev->driver->device_is_agp	= i915_driver_device_is_agp;
-	dev->driver->get_vblank_counter	= i915_get_vblank_counter;
 	dev->driver->enable_vblank	= i915_enable_vblank;
 	dev->driver->disable_vblank	= i915_disable_vblank;
 	dev->driver->irq_preinstall	= i915_driver_irq_preinstall;

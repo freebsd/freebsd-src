@@ -127,10 +127,6 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 			break;
 		}
 
-		if ((rt->rt_flags & RTF_CLONING) != 0) {
-			printf("atm_rtrequest: cloning route detected?\n");
-			break;
-		}
 		if (gate->sa_family != AF_LINK ||
 		    gate->sa_len < sizeof(null_sdl)) {
 			log(LOG_DEBUG, "atm_rtrequest: bad gateway value");
@@ -332,8 +328,6 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 			goto bad;	/* failed */
 		RT_REMREF(rt);		/* don't keep LL references */
 		if ((rt->rt_flags & RTF_GATEWAY) != 0 ||
-		    (rt->rt_flags & RTF_LLINFO) == 0 ||
-		    /* XXX: are we using LLINFO? */
 		    rt->rt_gateway->sa_family != AF_LINK) {
 			RT_UNLOCK(rt);
 			goto bad;

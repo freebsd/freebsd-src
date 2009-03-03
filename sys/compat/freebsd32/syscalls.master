@@ -454,9 +454,13 @@
 				    u_int nfds, int timeout); }
 253	AUE_ISSETUGID	NOPROTO	{ int issetugid(void); }
 254	AUE_LCHOWN	NOPROTO	{ int lchown(char *path, int uid, int gid); }
-255	AUE_NULL	UNIMPL	nosys
-256	AUE_NULL	UNIMPL	nosys
-257	AUE_NULL	UNIMPL	nosys
+255	AUE_NULL	NOSTD	{ int freebsd32_aio_read( \
+				    struct aiocb32 *aiocbp); }
+256	AUE_NULL	NOSTD	{ int freebsd32_aio_write( \
+				    struct aiocb32 *aiocbp); }
+257	AUE_NULL	NOSTD	{ int freebsd32_lio_listio(int mode, \
+				    struct aiocb32 * const *acb_list, \
+				    int nent, struct sigevent *sig); }
 258	AUE_NULL	UNIMPL	nosys
 259	AUE_NULL	UNIMPL	nosys
 260	AUE_NULL	UNIMPL	nosys
@@ -535,13 +539,22 @@
 312	AUE_SETRESGID	NOPROTO	{ int setresgid(gid_t rgid, gid_t egid, \
 				    gid_t sgid); }
 313	AUE_NULL	OBSOL	signanosleep
-314	AUE_NULL	UNIMPL	aio_return
-315	AUE_NULL	UNIMPL	aio_suspend
-316	AUE_NULL	UNIMPL	aio_cancel
-317	AUE_NULL	UNIMPL	aio_error
-318	AUE_NULL	UNIMPL	aio_read
-319	AUE_NULL	UNIMPL	aio_write
-320	AUE_NULL	UNIMPL	lio_listio
+314	AUE_NULL	NOSTD	{ int freebsd32_aio_return( \
+				    struct aiocb32 *aiocbp); }
+315	AUE_NULL	NOSTD	{ int freebsd32_aio_suspend( \
+				    struct aiocb32 * const * aiocbp, int nent, \
+				    const struct timespec32 *timeout); }
+316	AUE_NULL	NOSTD	{ int freebsd32_aio_cancel(int fd, \
+				    struct aiocb32 *aiocbp); }
+317	AUE_NULL	NOSTD	{ int freebsd32_aio_error( \
+				    struct aiocb32 *aiocbp); }
+318	AUE_NULL	NOSTD	{ int freebsd32_oaio_read( \
+				    struct oaiocb32 *aiocbp); }
+319	AUE_NULL	NOSTD	{ int freebsd32_oaio_write( \
+				    struct oaiocb32 *aiocbp); }
+320	AUE_NULL	NOSTD	{ int freebsd32_olio_listio(int mode, \
+				    struct oaiocb32 * const *acb_list, \
+				    int nent, struct osigevent32 *sig); }
 321	AUE_NULL	NOPROTO	{ int yield(void); }
 322	AUE_NULL	OBSOL	thr_sleep
 323	AUE_NULL	OBSOL	thr_wakeup
@@ -618,7 +631,9 @@
 358	AUE_EXTATTR_DELETE_FILE	NOPROTO	{ int extattr_delete_file( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname); }
-359	AUE_NULL	UNIMPL	aio_waitcomplete
+359	AUE_NULL	NOSTD	{ int freebsd32_aio_waitcomplete( \
+				    struct aiocb32 **aiocbp, \
+				    struct timespec32 *timeout); }
 360	AUE_GETRESUID	NOPROTO	{ int getresuid(uid_t *ruid, uid_t *euid, \
 				    uid_t *suid); }
 361	AUE_GETRESGID	NOPROTO	{ int getresgid(gid_t *rgid, gid_t *egid, \
@@ -766,7 +781,8 @@
 462	AUE_NULL	UNIMPL	kmq_unlink
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
-465	AUE_NULL	UNIMPL	aio_fsync
+465	AUE_NULL	NOSTD	{ int freebsd32_aio_fsync(int op, \
+				    struct aiocb32 *aiocbp); }
 466	AUE_RTPRIO	NOPROTO	{ int rtprio_thread(int function, \
 				    lwpid_t lwpid, struct rtprio *rtp); }
 467	AUE_NULL	UNIMPL	nosys

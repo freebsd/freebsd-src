@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef IEEE80211_SUPPORT_TDMA
+#include <net80211/ieee80211_tdma.h>
+#endif
 #include <net80211/ieee80211_wds.h>
 
 #ifdef INET
@@ -203,10 +206,8 @@ ieee80211_start(struct ifnet *ifp)
 			continue;
 		}
 		/* XXX AUTH'd */
-		/* XXX mark vap to identify if associd is required */
 		if (ni->ni_associd == 0 &&
-		    (vap->iv_opmode == IEEE80211_M_STA ||
-		     vap->iv_opmode == IEEE80211_M_HOSTAP || IS_DWDS(vap))) {
+		    (ni->ni_flags & IEEE80211_NODE_ASSOCID)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
 			    eh->ether_dhost, NULL,
 			    "sta not associated (type 0x%04x)",
@@ -268,7 +269,7 @@ ieee80211_start(struct ifnet *ifp)
 		m->m_pkthdr.rcvif = (void *)ni;
 
 		/* XXX defer if_start calls? */
-		error = (parent->if_transmit)(parent, m);
+		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);
@@ -1375,6 +1376,9 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 		remainder -= payload;
 		off += payload;
 	} while (remainder != 0);
+
+	/* set the last fragment */
+	m->m_flags |= M_LASTFRAG;
 	whf->i_fc[1] &= ~IEEE80211_FC1_MORE_FRAG;
 
 	/* strip first mbuf now that everything has been copied */
@@ -2502,6 +2506,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	 *	[tlv] WME parameters
 	 *	[tlv] Vendor OUI HT capabilities (optional)
 	 *	[tlv] Vendor OUI HT information (optional)
+	 *	[tlv] TDMA parameters (optional)
 	 *	[tlv] application data (optional)
 	 */
 
@@ -2591,6 +2596,12 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_htcap_vendor(frm, ni);
 		frm = ieee80211_add_htinfo_vendor(frm, ni);
 	}
+#ifdef IEEE80211_SUPPORT_TDMA
+	if (vap->iv_caps & IEEE80211_C_TDMA) {
+		bo->bo_tdma = frm;
+		frm = ieee80211_add_tdma(frm, vap);
+	}
+#endif
 	if (vap->iv_appie_beacon != NULL) {
 		bo->bo_appie = frm;
 		bo->bo_appie_len = vap->iv_appie_beacon->ie_len;
@@ -2639,6 +2650,7 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 	 * XXX Vendor-specific OIDs (e.g. Atheros)
 	 *	[tlv] WPA parameters
 	 *	[tlv] WME parameters
+	 *	[tlv] TDMA parameters (optional)
 	 *	[tlv] application data (optional)
 	 * NB: we allocate the max space required for the TIM bitmap.
 	 * XXX how big is this?
@@ -2663,6 +2675,10 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		 + 4+2*sizeof(struct ieee80211_ie_htinfo)/* HT info */
 		 + (vap->iv_caps & IEEE80211_C_WME ?	/* WME */
 			sizeof(struct ieee80211_wme_param) : 0)
+#ifdef IEEE80211_SUPPORT_TDMA
+		 + (vap->iv_caps & IEEE80211_C_TDMA ?	/* TDMA */
+			sizeof(struct ieee80211_tdma_param) : 0)
+#endif
 		 + IEEE80211_MAX_APPIE
 		 ;
 	m = ieee80211_getmgtframe(&frm,
@@ -2781,7 +2797,14 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		ieee80211_ht_update_beacon(vap, bo);
 		clrbit(bo->bo_flags, IEEE80211_BEACON_HTINFO);
 	}
-
+#ifdef IEEE80211_SUPPORT_TDMA
+	if (vap->iv_caps & IEEE80211_C_TDMA) {
+		/*
+		 * NB: the beacon is potentially updated every TBTT.
+		 */
+		ieee80211_tdma_update_beacon(vap, bo);
+	}
+#endif
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {	/* NB: no IBSS support*/
 		struct ieee80211_tim_ie *tie =
 			(struct ieee80211_tim_ie *) bo->bo_tim;

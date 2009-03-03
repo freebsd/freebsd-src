@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/filio.h>
 #ifdef COMPAT_43TTY
 #include <sys/ioctl_compat.h>
@@ -290,11 +291,12 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		}
 	}
 
-	if (TTY_CALLOUT(tp, dev)) {
+	if (dev == dev_console)
+		tp->t_flags |= TF_OPENED_CONS;
+	else if (TTY_CALLOUT(tp, dev))
 		tp->t_flags |= TF_OPENED_OUT;
-	} else {
+	else
 		tp->t_flags |= TF_OPENED_IN;
-	}
 
 done:	tp->t_flags &= ~TF_OPENCLOSE;
 	ttydev_leave(tp);
@@ -310,11 +312,25 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	tty_lock(tp);
 
 	/*
+	 * Don't actually close the device if it is being used as the
+	 * console.
+	 */
+	MPASS((tp->t_flags & TF_OPENED) != TF_OPENED);
+	if (dev == dev_console)
+		tp->t_flags &= ~TF_OPENED_CONS;
+	else
+		tp->t_flags &= ~(TF_OPENED_IN|TF_OPENED_OUT);
+
+	if (tp->t_flags & TF_OPENED) {
+		tty_unlock(tp);
+		return (0);
+	}
+
+	/*
 	 * This can only be called once. The callin and the callout
 	 * devices cannot be opened at the same time.
 	 */
-	MPASS((tp->t_flags & TF_OPENED) != TF_OPENED);
-	tp->t_flags &= ~(TF_OPENED|TF_EXCLUDE|TF_STOPPED);
+	tp->t_flags &= ~(TF_EXCLUDE|TF_STOPPED);
 
 	/* Properly wake up threads that are stuck - revoke(). */
 	tp->t_revokecnt++;
@@ -422,15 +438,28 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	if (tp->t_termios.c_lflag & TOSTOP) {
 		error = tty_wait_background(tp, curthread, SIGTTOU);
-		if (error) {
-			tty_unlock(tp);
-			return (error);
-		}
+		if (error)
+			goto done;
 	}
 
-	error = ttydisc_write(tp, uio, ioflag);
-	tty_unlock(tp);
+	if (ioflag & IO_NDELAY && tp->t_flags & TF_BUSY_OUT) {
+		/* Allow non-blocking writes to bypass serialization. */
+		error = ttydisc_write(tp, uio, ioflag);
+	} else {
+		/* Serialize write() calls. */
+		while (tp->t_flags & TF_BUSY_OUT) {
+			error = tty_wait(tp, &tp->t_bgwait);
+			if (error)
+				goto done;
+		}
+ 
+ 		tp->t_flags |= TF_BUSY_OUT;
+		error = ttydisc_write(tp, uio, ioflag);
+ 		tp->t_flags &= ~TF_BUSY_OUT;
+		cv_broadcast(&tp->t_bgwait);
+	}
 
+done:	tty_unlock(tp);
 	return (error);
 }
 
@@ -695,14 +724,14 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	switch (cmd) {
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
-		bcopy(dev->si_drv2, data, sizeof(struct termios));
+		*(struct termios*)data = *(struct termios*)dev->si_drv2;
 		break;
 	case TIOCSETA:
 		/* Set terminal flags through tcsetattr(). */
 		error = priv_check(td, PRIV_TTY_SETA);
 		if (error)
 			break;
-		bcopy(data, dev->si_drv2, sizeof(struct termios));
+		*(struct termios*)dev->si_drv2 = *(struct termios*)data;
 		break;
 	case TIOCGETD:
 		*(int *)data = TTYDISC;
@@ -740,7 +769,7 @@ tty_init_termios(struct tty *tp)
 	t->c_oflag = TTYDEF_OFLAG;
 	t->c_ispeed = TTYDEF_SPEED;
 	t->c_ospeed = TTYDEF_SPEED;
-	bcopy(ttydefchars, &t->c_cc, sizeof ttydefchars);
+	memcpy(&t->c_cc, ttydefchars, sizeof ttydefchars);
 
 	tp->t_termios_init_out = *t;
 }
@@ -870,20 +899,17 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 
 	tty_init_termios(tp);
 
-	cv_init(&tp->t_inwait, "tty input");
-	cv_init(&tp->t_outwait, "tty output");
-	cv_init(&tp->t_bgwait, "tty background");
-	cv_init(&tp->t_dcdwait, "tty dcd");
-
-	ttyinq_init(&tp->t_inq);
-	ttyoutq_init(&tp->t_outq);
+	cv_init(&tp->t_inwait, "ttyin");
+	cv_init(&tp->t_outwait, "ttyout");
+	cv_init(&tp->t_bgwait, "ttybg");
+	cv_init(&tp->t_dcdwait, "ttydcd");
 
 	/* Allow drivers to use a custom mutex to lock the TTY. */
 	if (mutex != NULL) {
 		tp->t_mtx = mutex;
 	} else {
 		tp->t_mtx = &tp->t_mtxobj;
-		mtx_init(&tp->t_mtxobj, "tty lock", NULL, MTX_DEF);
+		mtx_init(&tp->t_mtxobj, "ttymtx", NULL, MTX_DEF);
 	}
 
 	knlist_init(&tp->t_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
@@ -1044,7 +1070,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD,
+SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
 	0, 0, sysctl_kern_ttys, "S,xtty", "List of TTYs");
 
 /*
@@ -1318,7 +1344,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
-		bcopy(&tp->t_termios, data, sizeof(struct termios));
+		*(struct termios*)data = tp->t_termios;
 		return (0);
 	case TIOCSETA:
 	case TIOCSETAW:
@@ -1373,7 +1399,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		tp->t_termios.c_iflag = t->c_iflag;
 		tp->t_termios.c_oflag = t->c_oflag;
 		tp->t_termios.c_lflag = t->c_lflag;
-		bcopy(t->c_cc, &tp->t_termios.c_cc, sizeof(t->c_cc));
+		memcpy(&tp->t_termios.c_cc, t->c_cc, sizeof t->c_cc);
 
 		ttydisc_optimize(tp);
 
@@ -1542,13 +1568,13 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCGWINSZ:
 		/* Obtain window size. */
-		bcopy(&tp->t_winsize, data, sizeof(struct winsize));
+		*(struct winsize*)data = tp->t_winsize;
 		return (0);
 	case TIOCSWINSZ:
 		/* Set window size. */
 		if (bcmp(&tp->t_winsize, data, sizeof(struct winsize)) == 0)
 			return (0);
-		bcopy(data, &tp->t_winsize, sizeof(struct winsize));
+		tp->t_winsize = *(struct winsize*)data;
 		tty_signal_pgrp(tp, SIGWINCH);
 		return (0);
 	case TIOCEXCL:
@@ -1673,18 +1699,24 @@ ttyhook_defrint(struct tty *tp, char c, int flags)
 }
 
 int
-ttyhook_register(struct tty **rtp, struct thread *td, int fd,
+ttyhook_register(struct tty **rtp, struct proc *p, int fd,
     struct ttyhook *th, void *softc)
 {
 	struct tty *tp;
 	struct file *fp;
 	struct cdev *dev;
 	struct cdevsw *cdp;
+	struct filedesc *fdp;
 	int error;
 
 	/* Validate the file descriptor. */
-	if (fget(td, fd, &fp) != 0)
-		return (EINVAL);
+	if ((fdp = p->p_fd) == NULL)
+		return (EBADF);
+	FILEDESC_SLOCK(fdp);
+	if ((fp = fget_locked(fdp, fd)) == NULL || fp->f_ops == &badfileops) {
+		FILEDESC_SUNLOCK(fdp);
+		return (EBADF);
+	}
 	
 	/* Make sure the vnode is bound to a character device. */
 	error = EINVAL;
@@ -1723,7 +1755,7 @@ ttyhook_register(struct tty **rtp, struct thread *td, int fd,
 
 done3:	tty_unlock(tp);
 done2:	dev_relthread(dev);
-done1:	fdrop(fp, td);
+done1:	FILEDESC_SUNLOCK(fdp);
 	return (error);
 }
 
@@ -1785,13 +1817,14 @@ ttyconsdev_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 /*
- * /dev/console is a little different than normal TTY's. Unlike regular
- * TTY device nodes, this device node will not revoke the entire TTY
- * upon closure and all data written to it will be logged.
+ * /dev/console is a little different than normal TTY's.  When opened,
+ * it determines which TTY to use.  When data gets written to it, it
+ * will be logged in the kernel message buffer.
  */
 static struct cdevsw ttyconsdev_cdevsw = {
 	.d_version	= D_VERSION,
 	.d_open		= ttyconsdev_open,
+	.d_close	= ttydev_close,
 	.d_read		= ttydev_read,
 	.d_write	= ttyconsdev_write,
 	.d_ioctl	= ttydev_ioctl,
@@ -1833,33 +1866,39 @@ static struct {
 	char val;
 } ttystates[] = {
 #if 0
-	{ TF_NOPREFIX,	'N' },
+	{ TF_NOPREFIX,		'N' },
 #endif
-	{ TF_INITLOCK,	'I' },
-	{ TF_CALLOUT,	'C' },
+	{ TF_INITLOCK,		'I' },
+	{ TF_CALLOUT,		'C' },
 
 	/* Keep these together -> 'Oi' and 'Oo'. */
-	{ TF_OPENED,	'O' },
-	{ TF_OPENED_IN,	'i' },
-	{ TF_OPENED_OUT,'o' },
+	{ TF_OPENED,		'O' },
+	{ TF_OPENED_IN,		'i' },
+	{ TF_OPENED_OUT,	'o' },
+	{ TF_OPENED_CONS,	'c' },
 
-	{ TF_GONE,	'G' },
-	{ TF_OPENCLOSE,	'B' },
-	{ TF_ASYNC,	'Y' },
-	{ TF_LITERAL,	'L' },
+	{ TF_GONE,		'G' },
+	{ TF_OPENCLOSE,		'B' },
+	{ TF_ASYNC,		'Y' },
+	{ TF_LITERAL,		'L' },
 
 	/* Keep these together -> 'Hi' and 'Ho'. */
-	{ TF_HIWAT,	'H' },
-	{ TF_HIWAT_IN,	'i' },
-	{ TF_HIWAT_OUT,	'o' },
+	{ TF_HIWAT,		'H' },
+	{ TF_HIWAT_IN,		'i' },
+	{ TF_HIWAT_OUT,		'o' },
 
-	{ TF_STOPPED,	'S' },
-	{ TF_EXCLUDE,	'X' },
-	{ TF_BYPASS,	'l' },
-	{ TF_ZOMBIE,	'Z' },
-	{ TF_HOOK,	's' },
+	{ TF_STOPPED,		'S' },
+	{ TF_EXCLUDE,		'X' },
+	{ TF_BYPASS,		'l' },
+	{ TF_ZOMBIE,		'Z' },
+	{ TF_HOOK,		's' },
 
-	{ 0,	       '\0' },
+	/* Keep these together -> 'bi' and 'bo'. */
+	{ TF_BUSY,		'b' },
+	{ TF_BUSY_IN,		'i' },
+	{ TF_BUSY_OUT,		'o' },
+
+	{ 0,			'\0'},
 };
 
 #define	TTY_FLAG_BITS \

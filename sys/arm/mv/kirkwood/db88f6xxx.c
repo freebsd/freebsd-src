@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/bus.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
@@ -99,6 +100,10 @@ static const struct pmap_devmap pmap_devmap[] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
+const struct gpio_config mv_gpio_config[] = {
+	{ -1, -1, -1 }
+};
+
 int
 platform_pmap_init(void)
 {
@@ -107,6 +112,47 @@ platform_pmap_init(void)
 	pmap_devmap_bootstrap_table = &pmap_devmap[0];
 
 	return (0);
+}
+
+void
+platform_mpp_init(void)
+{
+
+	/*
+	 * MPP configuration for DB-88F6281-BP and DB-88F6281-BP-A
+	 *
+	 * MPP[0]:  NF_IO[2]
+	 * MPP[1]:  NF_IO[3]
+	 * MPP[2]:  NF_IO[4]
+	 * MPP[3]:  NF_IO[5]
+	 * MPP[4]:  NF_IO[6]
+	 * MPP[5]:  NF_IO[7]
+	 * MPP[6]:  SYSRST_OUTn
+	 * MPP[7]:  SPI_SCn
+	 * MPP[8]:  TW_SDA
+	 * MPP[9]:  TW_SCK
+	 * MPP[10]: UA0_TXD
+	 * MPP[11]: UA0_RXD
+	 * MPP[12]: SD_CLK
+	 * MPP[13]: SD_CMD
+	 * MPP[14]: SD_D[0]
+	 * MPP[15]: SD_D[1]
+	 * MPP[16]: SD_D[2]
+	 * MPP[17]: SD_D[3]
+	 * MPP[18]: NF_IO[0]
+	 * MPP[19]: NF_IO[1]
+	 * MPP[20]: SATA1_AC
+	 * MPP[21]: SATA0_AC
+	 *
+	 * Others:  GPIO
+	 */
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL0, 0x21111111);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL1, 0x11113311);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL2, 0x00551111);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL3, 0x00000000);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL4, 0x00000000);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL5, 0x00000000);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL6, 0x00000000);
 }
 
 static void
@@ -121,7 +167,3 @@ platform_identify(void *dummy)
 	 */
 }
 SYSINIT(platform_identify, SI_SUB_CPU, SI_ORDER_SECOND, platform_identify, NULL);
-
-/*
- * TODO routine setting GPIO/MPP pins
- */

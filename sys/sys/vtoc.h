@@ -72,7 +72,7 @@ struct vtoc8 {
 	struct {
 		uint16_t	tag;
 		uint16_t	flag;
-	} part[VTOC8_NPARTS];
+	} part[VTOC8_NPARTS] __packed;
 	uint16_t	__alignment;
 	uint32_t	bootinfo[3];
 	uint32_t	sanity;

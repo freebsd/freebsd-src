@@ -33,14 +33,58 @@
 #ifndef	_SYS_VIMAGE_H_
 #define	_SYS_VIMAGE_H_
 
-#define VIMAGE_GLOBALS 1
+#include <sys/queue.h>
+
+struct kld_sym_lookup;
+
+struct vnet_symmap {
+	char	*name;
+	void	*base;
+	size_t	size;
+};
+
+struct vnet_modinfo {
+	char				*vmi_name;
+	struct vnet_symmap		*vmi_symmap;
+};
+
+struct vnet_modlink {
+	TAILQ_ENTRY(vnet_modlink)	vml_mod_le;
+	const struct vnet_modinfo	*vml_modinfo;
+};
+
+#define VNET_MOD_DECLARE(m_name_uc, m_name_lc, m_iattach, m_idetach, 	\
+    m_dependson, m_symmap)						\
+	static const struct vnet_modinfo vnet_##m_name_lc##_modinfo = {	\
+		.vmi_name		= #m_name_lc,			\
+		.vmi_symmap		= m_symmap			\
+};
+
+#if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
+#error "You cannot have both option VIMAGE and option VIMAGE_GLOBALS!"
+#endif
+
+#ifdef VIMAGE_GLOBALS
+#define	VSYM(base, sym) (sym)
+#else
+#ifdef VIMAGE
+#error "No option VIMAGE yet!"
+#else
+#define	VSYM(base, sym) (base ## _0._ ## sym)
+#endif
+#endif
+
+#define VNET_SYMMAP(mod, name)						\
+	{ #name, &(vnet_ ## mod ## _0._ ## name),			\
+	sizeof(vnet_ ## mod ## _0._ ## name) }
+
+#define VNET_SYMMAP_END		{ NULL, 0 }
 
 /* Non-VIMAGE null-macros */
 #define	CURVNET_SET(arg)
 #define	CURVNET_SET_QUIET(arg)
 #define	CURVNET_RESTORE()
 #define	VNET_ASSERT(condition)
-#define	VSYM(base, sym) (sym)
 #define	INIT_FROM_VNET(vnet, modindex, modtype, sym)
 #define	VNET_ITERATOR_DECL(arg)
 #define	VNET_FOREACH(arg)
@@ -58,11 +102,141 @@
 #define	P_TO_VCPU(p)
 
 /* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
-#define	VPROCG(sym)		VSYM(vprocg, sym)
-#define	VCPU(sym)		VSYM(vcpu, sym)
+#define	VPROCG(sym)		(sym)
+#define	VCPU(sym)		(sym)
 
 #define	V_hostname		VPROCG(hostname)
-#define	G_hostname		VSYM(basevprocg, hostname) /* global hostname */
+#define	G_hostname		VPROCG(hostname) /* global hostname */
 #define	V_domainname		VPROCG(domainname)
+
+int	vi_symlookup(struct kld_sym_lookup *, char *);
+void	vnet_mod_register(const struct vnet_modinfo *);
+
+/*
+ * Size-guards for the vimage structures.
+ * If you need to update the values you MUST increment __FreeBSD_version.
+ * See description further down to see how to get the new values.
+ */
+#ifdef __amd64__
+#define	SIZEOF_vnet_net		464
+#define	SIZEOF_vnet_net_LINT	5144
+#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_ipsec	31160
+#endif
+#ifdef __arm__
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
+#define	SIZEOF_vnet_inet	2396
+#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_ipsec	1
+#endif
+#ifdef __i386__ /* incl. pc98 */
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	2576
+#define	SIZEOF_vnet_inet	2396
+#define	SIZEOF_vnet_inet6	8528
+#define	SIZEOF_vnet_ipsec	31016
+#endif
+#ifdef __ia64__
+#define	SIZEOF_vnet_net		464
+#define	SIZEOF_vnet_net_LINT	5144
+#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_ipsec	31160
+#endif
+#ifdef __mips__
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
+#define	SIZEOF_vnet_inet	2432
+#define	SIZEOF_vnet_inet6	8552
+#define	SIZEOF_vnet_ipsec	1
+#endif
+#ifdef __powerpc__
+#define	SIZEOF_vnet_net		236
+#define	SIZEOF_vnet_net_LINT	2576
+#define	SIZEOF_vnet_inet	2432
+#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_ipsec	31048
+#endif
+#ifdef __sparc64__ /* incl. sun4v */
+#define	SIZEOF_vnet_net		464
+#define	SIZEOF_vnet_net_LINT	5144
+#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_ipsec	31160
+#endif
+
+#ifdef COMPILING_LINT
+#undef	SIZEOF_vnet_net
+#define	SIZEOF_vnet_net	SIZEOF_vnet_net_LINT
+#endif
+
+#ifndef	SIZEOF_vnet_net
+#error "SIZEOF_vnet_net no defined for this architecture."
+#endif
+#ifndef	SIZEOF_vnet_inet
+#error "SIZEOF_vnet_inet no defined for this architecture."
+#endif
+#ifndef	SIZEOF_vnet_inet6
+#error "SIZEOF_vnet_inet6 no defined for this architecture."
+#endif
+#ifndef	SIZEOF_vnet_ipsec
+#error "SIZEOF_vnet_ipsec no defined for this architecture."
+#endif
+
+/*
+ * x must be a positive integer constant (expected value),
+ * y must be compile-time evaluated to a positive integer,
+ * e.g. CTASSERT_EQUAL(FOO_EXPECTED_SIZE, sizeof (struct foo));
+ * One needs to compile with -Wuninitialized and thus at least -O
+ * for this to trigger and -Werror if it should be fatal.
+ */
+#define	CTASSERT_EQUAL(x, y)						\
+	static int __attribute__((__used__))				\
+	    __attribute__((__section__(".debug_ctassert_equal")))	\
+	__CONCAT(__ctassert_equal_at_line_, __LINE__)(void);		\
+									\
+	static int __attribute__((__used__))				\
+	    __attribute__((__section__(".debug_ctassert_equal")))	\
+	__CONCAT(__ctassert_equal_at_line_, __LINE__)(void)		\
+	{								\
+		int __CONCAT(__CONCAT(__expected_, x),			\
+		    _but_got)[(y) + (x)];				\
+		__CONCAT(__CONCAT(__expected_, x), _but_got)[(x)] = 1;	\
+		return (__CONCAT(__CONCAT(__expected_, x),		\
+		    _but_got)[(y)]);					\
+	}								\
+	struct __hack
+
+/*
+ * x shall be the expected value (SIZEOF_vnet_* from above)
+ * and y shall be the real size (sizeof(struct vnet_*)).
+ * If you run into the CTASSERT() you want to compile a universe
+ * with COPTFLAGS+="-O -Wuninitialized -DVIMAGE_CHECK_SIZES".
+ * This should give you the errors for the proper values defined above.
+ * Make sure to re-run universe with the proper values afterwards -
+ * -DMAKE_JUST_KERNELS should be enough.
+ * 
+ * Note: 
+ * CTASSERT() takes precedence in the current FreeBSD world thus the
+ * CTASSERT_EQUAL() will not neccessarily trigger if one uses both.
+ * But as CTASSERT_EQUAL() needs special compile time options, we
+ * want the default case to be backed by CTASSERT().
+ */
+#if 0
+#ifndef VIMAGE_CTASSERT
+#ifdef VIMAGE_CHECK_SIZES
+#define	VIMAGE_CTASSERT(x, y)						\
+	CTASSERT_EQUAL(x, y)
+#else
+#define	VIMAGE_CTASSERT(x, y)						\
+	CTASSERT_EQUAL(x, y);						\
+	CTASSERT(x == 0 || x == y)
+#endif
+#endif
+#else
+#define	VIMAGE_CTASSERT(x, y)		struct __hack
+#endif
 
 #endif /* !_SYS_VIMAGE_H_ */

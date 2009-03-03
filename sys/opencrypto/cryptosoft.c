@@ -433,12 +433,17 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
 		break;
 	case CRYPTO_MD5_KPDK:
 	case CRYPTO_SHA1_KPDK:
+	{
+		/* We need a buffer that can hold an md5 and a sha1 result. */
+		u_char buf[SHA1_RESULTLEN];
+
 		sw->sw_klen = klen;
 		bcopy(key, sw->sw_octx, klen);
 		axf->Init(sw->sw_ictx);
 		axf->Update(sw->sw_ictx, key, klen);
-		axf->Final(NULL, sw->sw_ictx);
+		axf->Final(buf, sw->sw_ictx);
 		break;
+	}
 	default:
 		printf("%s: CRD_F_KEY_EXPLICIT flag given, but algorithm %d "
 		    "doesn't use keys.\n", __func__, axf->type);
@@ -981,7 +986,7 @@ done:
 }
 
 static void
-swcr_identify(device_t *dev, device_t parent)
+swcr_identify(driver_t *drv, device_t parent)
 {
 	/* NB: order 10 is so we get attached after h/w devices */
 	if (device_find_child(parent, "cryptosoft", -1) == NULL &&
@@ -1035,12 +1040,13 @@ swcr_attach(device_t dev)
 	return 0;
 }
 
-static void
+static int
 swcr_detach(device_t dev)
 {
 	crypto_unregister_all(swcr_id);
 	if (swcr_sessions != NULL)
 		free(swcr_sessions, M_CRYPTO_DATA);
+	return 0;
 }
 
 static device_method_t swcr_methods[] = {

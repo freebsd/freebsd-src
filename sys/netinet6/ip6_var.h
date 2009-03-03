@@ -229,9 +229,6 @@ struct	ip6stat {
 	/* number of times that a deprecated address is chosen */
 	u_quad_t ip6s_sources_deprecated[16];
 
-	u_quad_t ip6s_forward_cachehit;
-	u_quad_t ip6s_forward_cachemiss;
-
 	/* number of times that each rule of source selection is applied. */
 	u_quad_t ip6s_sources_rule[16];
 };
@@ -279,24 +276,24 @@ struct ip6aux {
 #define IP6_HDR_ALIGNED_P(ip)	((((intptr_t) (ip)) & 3) == 0)
 #endif
 
+#ifdef VIMAGE_GLOBALS
 extern struct	ip6stat ip6stat;	/* statistics */
 extern int	ip6_defhlim;		/* default hop limit */
 extern int	ip6_defmcasthlim;	/* default multicast hop limit */
 extern int	ip6_forwarding;		/* act as router? */
-extern int	ip6_forward_srcrt;	/* forward src-routed? */
 extern int	ip6_gif_hlim;		/* Hop limit for gif encap packet */
 extern int	ip6_use_deprecated;	/* allow deprecated addr as source */
 extern int	ip6_rr_prune;		/* router renumbering prefix
 					 * walk list every 5 sec.    */
 extern int	ip6_mcast_pmtu;		/* enable pMTU discovery for multicast? */
 extern int	ip6_v6only;
+#endif /* VIMAGE_GLOBALS */
 
 extern struct socket *ip6_mrouter;	/* multicast routing daemon */
+#ifdef VIMAGE_GLOBALS
 extern int	ip6_sendredirects;	/* send IP redirects when forwarding? */
 extern int	ip6_maxfragpackets; /* Maximum packets in reassembly queue */
 extern int	ip6_maxfrags;	/* Maximum fragments in reassembly queue */
-extern int	ip6_sourcecheck;	/* Verify source interface */
-extern int	ip6_sourcecheck_interval; /* Interval between log messages */
 extern int	ip6_accept_rtadv;	/* Acts as a host not a router */
 extern int	ip6_keepfaith;		/* Firewall Aided Internet Translator */
 extern int	ip6_log_interval;
@@ -304,25 +301,22 @@ extern time_t	ip6_log_time;
 extern int	ip6_hdrnestlimit; /* upper limit of # of extension headers */
 extern int	ip6_dad_count;		/* DupAddrDetectionTransmits */
 
-extern int ip6_auto_flowlabel;
-extern int ip6_auto_linklocal;
-
-extern int   ip6_anonportmin;		/* minimum ephemeral port */
-extern int   ip6_anonportmax;		/* maximum ephemeral port */
-extern int   ip6_lowportmin;		/* minimum reserved port */
-extern int   ip6_lowportmax;		/* maximum reserved port */
+extern int	ip6_auto_flowlabel;
+extern int	ip6_auto_linklocal;
 
 extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
 extern int	ip6_prefer_tempaddr; /* whether to prefer temporary addresses
 					in the source address selection */
 
-extern int	ip6_use_defzone; /* whether to use the default scope zone
-				    when unspecified */
-
-extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
 #ifdef IPSTEALTH
 extern int	ip6stealth;
 #endif
+
+extern int	ip6_use_defzone; /* whether to use the default scope zone
+				    when unspecified */
+#endif /* VIMAGE_GLOBALS */
+
+extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
 
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;
@@ -398,7 +392,7 @@ struct in6_addr *in6_selectsrc __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ifnet **, int *));
 int in6_selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **, int));
+	struct rtentry **));
 u_int32_t ip6_randomid __P((void));
 u_int32_t ip6_randomflowlabel __P((void));
 #endif /* _KERNEL */

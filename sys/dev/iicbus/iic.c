@@ -116,7 +116,11 @@ iic_identify(driver_t *driver, device_t parent)
 static int
 iic_probe(device_t dev)
 {
+	if (iicbus_get_addr(dev) > 0)
+		return (ENXIO);
+
 	device_set_desc(dev, "I2C generic I/O");
+
 	return (0);
 }
 	
@@ -364,6 +368,11 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		}
 		free(usrbufs, M_TEMP);
 		break;
+
+	case I2CRPTSTART:
+		error = iicbus_repeated_start(parent, s->slave, 0);
+		break;
+
 	default:
 		error = ENOTTY;
 	}

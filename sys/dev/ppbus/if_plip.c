@@ -152,7 +152,11 @@ struct lp_data {
 	int		sc_iferrs;
 
 	struct resource *res_irq;
+	void		*sc_intr_cookie;
 };
+
+static struct mtx lp_tables_lock;
+MTX_SYSINIT(lp_tables, &lp_tables_lock, "plip tables", MTX_DEF);
 
 /* Tables for the lp# interface */
 static u_char *txmith;
@@ -170,12 +174,40 @@ static int lpinittables(void);
 static int lpioctl(struct ifnet *, u_long, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
+static void lpstop(struct lp_data *);
 static void lp_intr(void *);
+static int lp_module_handler(module_t, int, void *);
 
 #define	DEVTOSOFTC(dev) \
 	((struct lp_data *)device_get_softc(dev))
 
 static devclass_t lp_devclass;
+
+static int
+lp_module_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_UNLOAD:
+		mtx_lock(&lp_tables_lock);
+		if (txmith != NULL) {
+			free(txmith, M_DEVBUF);
+			txmith = NULL;
+		}
+		if (ctxmith != NULL) {
+			free(ctxmith, M_DEVBUF);
+			ctxmith = NULL;
+		}
+		mtx_unlock(&lp_tables_lock);
+		break;
+	case MOD_LOAD:
+	case MOD_QUIESCE:
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+	return (0);
+}
 
 static void
 lp_identify(driver_t *driver, device_t parent)
@@ -201,7 +233,7 @@ lp_attach(device_t dev)
 {
 	struct lp_data *lp = DEVTOSOFTC(dev);
 	struct ifnet *ifp;
-	int rid = 0;
+	int error, rid = 0;
 
 	lp->sc_dev = dev;
 
@@ -224,8 +256,7 @@ lp_attach(device_t dev)
 	ifp->if_softc = lp;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = LPMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
 	ifp->if_ioctl = lpioctl;
 	ifp->if_output = lpoutput;
 	ifp->if_hdrlen = 0;
@@ -235,8 +266,39 @@ lp_attach(device_t dev)
 
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 
+	/*
+	 * Attach our interrupt handler.  It is only called while we
+	 * own the ppbus.
+	 */
+	error = bus_setup_intr(dev, lp->res_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, lp_intr, lp, &lp->sc_intr_cookie);
+	if (error) {
+		bpfdetach(ifp);
+		if_detach(ifp);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, lp->res_irq);
+		device_printf(dev, "Unable to register interrupt handler\n");
+		return (error);
+	}
+
 	return (0);
 }
+
+static int
+lp_detach(device_t dev)
+{
+	struct lp_data *sc = device_get_softc(dev);
+	device_t ppbus = device_get_parent(dev);
+
+	ppb_lock(ppbus);
+	lpstop(sc);
+	ppb_unlock(ppbus);
+	bpfdetach(sc->sc_ifp);
+	if_detach(sc->sc_ifp);
+	bus_teardown_intr(dev, sc->res_irq, sc->sc_intr_cookie);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->res_irq);
+	return (0);
+}
+
 /*
  * Build the translation tables for the LPIP (BSD unix) protocol.
  * We don't want to calculate these nasties in our tight loop, so we
@@ -247,17 +309,22 @@ lpinittables(void)
 {
 	int i;
 
+	mtx_lock(&lp_tables_lock);
 	if (txmith == NULL)
 		txmith = malloc(4 * LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
 
-	if (txmith == NULL)
+	if (txmith == NULL) {
+		mtx_unlock(&lp_tables_lock);
 		return (1);
+	}
 
 	if (ctxmith == NULL)
 		ctxmith = malloc(4 * LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
 
-	if (ctxmith == NULL)
+	if (ctxmith == NULL) {
+		mtx_unlock(&lp_tables_lock);
 		return (1);
+	}
 
 	for (i = 0; i < LPIPTBLSIZE; i++) {
 		ctxmith[i] = (i & 0xF0) >> 4;
@@ -272,7 +339,58 @@ lpinittables(void)
 		trecvh[i] = ((~i) & 0x80) | ((i & 0x38) << 1);
 		trecvl[i] = (((~i) & 0x80) >> 4) | ((i & 0x38) >> 3);
 	}
+	mtx_unlock(&lp_tables_lock);
 
+	return (0);
+}
+
+static void
+lpstop(struct lp_data *sc)
+{
+	device_t ppbus = device_get_parent(sc->sc_dev);
+
+	ppb_assert_locked(ppbus);
+	ppb_wctr(ppbus, 0x00);
+	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	free(sc->sc_ifbuf, M_DEVBUF);
+	sc->sc_ifbuf = NULL;
+
+	/* IFF_UP is not set, try to release the bus anyway */
+	ppb_release_bus(ppbus, sc->sc_dev);
+}
+
+static int
+lpinit_locked(struct ifnet *ifp)
+{
+	struct lp_data *sc = ifp->if_softc;
+	device_t dev = sc->sc_dev;
+	device_t ppbus = device_get_parent(dev);
+	int error;
+
+	ppb_assert_locked(ppbus);
+	error = ppb_request_bus(ppbus, dev, PPB_DONTWAIT);
+	if (error)
+		return (error);
+
+	/* Now IFF_UP means that we own the bus */
+	ppb_set_mode(ppbus, PPB_COMPATIBLE);
+
+	if (lpinittables()) {
+		ppb_release_bus(ppbus, dev);
+		return (ENOBUFS);
+	}
+
+	sc->sc_ifbuf = malloc(sc->sc_ifp->if_mtu + MLPIPHDRLEN,
+	    M_DEVBUF, M_NOWAIT);
+	if (sc->sc_ifbuf == NULL) {
+		ppb_release_bus(ppbus, dev);
+		return (ENOBUFS);
+	}
+
+	ppb_wctr(ppbus, IRQENABLE);
+
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	return (0);
 }
 
@@ -288,7 +406,6 @@ lpioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	struct ifreq *ifr = (struct ifreq *)data;
 	u_char *ptr;
-	void *ih;
 	int error;
 
 	switch (cmd) {
@@ -301,67 +418,32 @@ lpioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifp->if_flags |= IFF_UP;
 		/* FALLTHROUGH */
 	case SIOCSIFFLAGS:
+		error = 0;
+		ppb_lock(ppbus);
 		if ((!(ifp->if_flags & IFF_UP)) &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-
-			ppb_wctr(ppbus, 0x00);
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
-			/* IFF_UP is not set, try to release the bus anyway */
-			ppb_release_bus(ppbus, dev);
-			break;
-		}
-		if (((ifp->if_flags & IFF_UP)) &&
-		    (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
-
-			/* XXX
-			 * Should the request be interruptible?
-			 */
-			if ((error = ppb_request_bus(ppbus, dev, PPB_WAIT |
-			    PPB_INTR)))
-				return (error);
-
-			/* Now IFF_UP means that we own the bus */
-			ppb_set_mode(ppbus, PPB_COMPATIBLE);
-
-			if (lpinittables()) {
-				ppb_release_bus(ppbus, dev);
-				return (ENOBUFS);
-			}
-
-			sc->sc_ifbuf = malloc(sc->sc_ifp->if_mtu + MLPIPHDRLEN,
-			    M_DEVBUF, M_WAITOK);
-			if (sc->sc_ifbuf == NULL) {
-				ppb_release_bus(ppbus, dev);
-				return (ENOBUFS);
-			}
-
-			/*
-			 * Attach our interrupt handler.  It is
-			 * detached later when the bus is released.
-			 */
-			if ((error = bus_setup_intr(dev, sc->res_irq,
-			    INTR_TYPE_NET, NULL, lp_intr, dev, &ih))) {
-				ppb_release_bus(ppbus, dev);
-				return (error);
-			}
-
-			ppb_wctr(ppbus, IRQENABLE);
-			ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		}
-		break;
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
+			lpstop(sc);
+		else if (((ifp->if_flags & IFF_UP)) &&
+		    (!(ifp->if_drv_flags & IFF_DRV_RUNNING)))
+			error = lpinit_locked(ifp);
+		ppb_unlock(ppbus);
+		return (error);
 
 	case SIOCSIFMTU:
-		ptr = sc->sc_ifbuf;
-		sc->sc_ifbuf = malloc(ifr->ifr_mtu + MLPIPHDRLEN, M_DEVBUF,
-		    M_NOWAIT);
-		if (sc->sc_ifbuf == NULL) {
+		ppb_lock(ppbus);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ptr = malloc(ifr->ifr_mtu + MLPIPHDRLEN, M_DEVBUF,
+			    M_NOWAIT);
+			if (ptr == NULL) {
+				ppb_unlock(ppbus);
+				return (ENOBUFS);
+			}
+			if (sc->sc_ifbuf)
+				free(sc->sc_ifbuf, M_DEVBUF);
 			sc->sc_ifbuf = ptr;
-			return (ENOBUFS);
 		}
-		if (ptr)
-			free(ptr, M_DEVBUF);
 		sc->sc_ifp->if_mtu = ifr->ifr_mtu;
+		ppb_unlock(ppbus);
 		break;
 
 	case SIOCGIFMTU:
@@ -417,14 +499,14 @@ clpinbyte(int spin, device_t ppbus)
 {
 	u_char c, cl;
 
-	while((ppb_rstr(ppbus) & CLPIP_SHAKE))
+	while ((ppb_rstr(ppbus) & CLPIP_SHAKE))
 		if (!--spin) {
 			return (-1);
 		}
 	cl = ppb_rstr(ppbus);
 	ppb_wdtr(ppbus, 0x10);
 
-	while(!(ppb_rstr(ppbus) & CLPIP_SHAKE))
+	while (!(ppb_rstr(ppbus) & CLPIP_SHAKE))
 		if (!--spin) {
 			return (-1);
 		}
@@ -445,16 +527,14 @@ lptap(struct ifnet *ifp, struct mbuf *m)
 static void
 lp_intr(void *arg)
 {
-	device_t dev = (device_t)arg;
-	device_t ppbus = device_get_parent(dev);
-	struct lp_data *sc = DEVTOSOFTC(dev);
-	int len, s, j;
+	struct lp_data *sc = arg;
+	device_t ppbus = device_get_parent(sc->sc_dev);
+	int len, j;
 	u_char *bp;
 	u_char c, cl;
 	struct mbuf *top;
 
-	s = splhigh();
-
+	ppb_assert_locked(ppbus);
 	if (sc->sc_ifp->if_flags & IFF_LINK0) {
 
 		/* Ack. the request */
@@ -500,13 +580,15 @@ lp_intr(void *arg)
 		top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, sc->sc_ifp,
 		    0);
 		if (top) {
+			ppb_unlock(ppbus);
 			if (bpf_peers_present(sc->sc_ifp->if_bpf))
 				lptap(sc->sc_ifp, top);
 
 			/* mbuf is free'd on failure. */
 			netisr_queue(NETISR_IP, top);
+			ppb_lock(ppbus);
 		}
-		goto done;
+		return;
 	}
 	while ((ppb_rstr(ppbus) & LPIP_SHAKE)) {
 		len = sc->sc_ifp->if_mtu + LPIPHDRLEN;
@@ -517,7 +599,7 @@ lp_intr(void *arg)
 			ppb_wdtr(ppbus, 8);
 
 			j = LPMAXSPIN2;
-			while((ppb_rstr(ppbus) & LPIP_SHAKE))
+			while ((ppb_rstr(ppbus) & LPIP_SHAKE))
 				if (!--j)
 					goto err;
 
@@ -550,14 +632,16 @@ lp_intr(void *arg)
 		top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, sc->sc_ifp,
 		    0);
 		if (top) {
+			ppb_unlock(ppbus);
 			if (bpf_peers_present(sc->sc_ifp->if_bpf))
 				lptap(sc->sc_ifp, top);
 
 			/* mbuf is free'd on failure. */
 			netisr_queue(NETISR_IP, top);
+			ppb_lock(ppbus);
 		}
 	}
-	goto done;
+	return;
 
 err:
 	ppb_wdtr(ppbus, 0);
@@ -575,9 +659,6 @@ err:
 		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		sc->sc_iferrs = 0;
 	}
-
-done:
-	splx(s);
 }
 
 static __inline int
@@ -602,7 +683,7 @@ lpoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct lp_data *sc = ifp->if_softc;
 	device_t dev = sc->sc_dev;
 	device_t ppbus = device_get_parent(dev);
-	int s, err;
+	int err;
 	struct mbuf *mm;
 	u_char *cp = "\0\0";
 	u_char chksum = 0;
@@ -611,11 +692,10 @@ lpoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	/* We need a sensible value if we abort */
 	cp++;
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ppb_lock(ppbus);
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	err = 1;		/* assume we're aborting because of an error */
-
-	s = splhigh();
 
 	/* Suspend (on laptops) or receive-errors might have taken us offline */
 	ppb_wctr(ppbus, IRQENABLE);
@@ -623,7 +703,7 @@ lpoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	if (ifp->if_flags & IFF_LINK0) {
 		if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
 			lprintf("&");
-			lp_intr(dev);
+			lp_intr(sc);
 		}
 
 		/* Alert other end to pending packet */
@@ -681,6 +761,7 @@ lpoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		err = 0;			/* No errors */
 
 	nend:
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if (err)  {			/* if we didn't timeout... */
 			ifp->if_oerrors++;
 			lprintf("X");
@@ -695,15 +776,15 @@ lpoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 		if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
 			lprintf("^");
-			lp_intr(dev);
+			lp_intr(sc);
 		}
-		(void) splx(s);
+		ppb_unlock(ppbus);
 		return (0);
 	}
 
 	if (ppb_rstr(ppbus) & LPIP_SHAKE) {
 		lprintf("&");
-		lp_intr(dev);
+		lp_intr(sc);
 	}
 
 	if (lpoutbyte(0x08, LPMAXSPIN1, ppbus))
@@ -726,6 +807,7 @@ end:
 	--cp;
 	ppb_wdtr(ppbus, txmitl[*cp] ^ 0x17);
 
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (err)  {			/* if we didn't timeout... */
 		ifp->if_oerrors++;
 		lprintf("X");
@@ -740,10 +822,10 @@ end:
 
 	if (ppb_rstr(ppbus) & LPIP_SHAKE) {
 		lprintf("^");
-		lp_intr(dev);
+		lp_intr(sc);
 	}
 
-	(void) splx(s);
+	ppb_unlock(ppbus);
 	return (0);
 }
 
@@ -752,6 +834,7 @@ static device_method_t lp_methods[] = {
 	DEVMETHOD(device_identify,	lp_identify),
 	DEVMETHOD(device_probe,		lp_probe),
 	DEVMETHOD(device_attach,	lp_attach),
+	DEVMETHOD(device_detach,	lp_detach),
 
 	{ 0, 0 }
 };
@@ -762,5 +845,5 @@ static driver_t lp_driver = {
 	sizeof(struct lp_data),
 };
 
-DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, 0, 0);
+DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, lp_module_handler, 0);
 MODULE_DEPEND(plip, ppbus, 1, 1, 1);

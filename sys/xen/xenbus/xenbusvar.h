@@ -103,32 +103,37 @@ struct xenbus_transaction
 
 #define XBT_NIL ((struct xenbus_transaction) { 0 })
 
-char **xenbus_directory(struct xenbus_transaction t,
-			const char *dir, const char *node, unsigned int *num);
-void *xenbus_read(struct xenbus_transaction t,
-		  const char *dir, const char *node, unsigned int *len);
-int xenbus_write(struct xenbus_transaction t,
-		 const char *dir, const char *node, const char *string);
-int xenbus_mkdir(struct xenbus_transaction t,
-		 const char *dir, const char *node);
-int xenbus_exists(struct xenbus_transaction t,
-		  const char *dir, const char *node);
+int xenbus_directory(struct xenbus_transaction t, const char *dir,
+    const char *node, unsigned int *num, char ***result);
+int xenbus_read(struct xenbus_transaction t, const char *dir,
+    const char *node, unsigned int *len, void **result);
+int xenbus_write(struct xenbus_transaction t, const char *dir,
+    const char *node, const char *string);
+int xenbus_mkdir(struct xenbus_transaction t, const char *dir,
+    const char *node);
+int xenbus_exists(struct xenbus_transaction t, const char *dir,
+    const char *node);
 int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node);
 int xenbus_transaction_start(struct xenbus_transaction *t);
 int xenbus_transaction_end(struct xenbus_transaction t, int abort);
 
-/* Single read and scanf: returns -errno or num scanned if > 0. */
+/*
+ * Single read and scanf: returns errno or zero. If scancountp is
+ * non-null, then number of items scanned is returned in *scanncountp.
+ */
 int xenbus_scanf(struct xenbus_transaction t,
-		 const char *dir, const char *node, const char *fmt, ...)
-	__attribute__((format(scanf, 4, 5)));
+    const char *dir, const char *node, int *scancountp, const char *fmt, ...)
+	__attribute__((format(scanf, 5, 6)));
 
-/* Single printf and write: returns -errno or 0. */
+/* Single printf and write: returns errno or 0. */
 int xenbus_printf(struct xenbus_transaction t,
 		  const char *dir, const char *node, const char *fmt, ...)
 	__attribute__((format(printf, 4, 5)));
 
-/* Generic read function: NULL-terminated triples of name,
- * sprintf-style type string, and pointer. Returns 0 or errno.*/
+/*
+ * Generic read function: NULL-terminated triples of name,
+ * sprintf-style type string, and pointer. Returns 0 or errno.
+ */
 int xenbus_gather(struct xenbus_transaction t, const char *dir, ...);
 
 /* notifer routines for when the xenstore comes up */
@@ -142,7 +147,9 @@ void xs_suspend(void);
 void xs_resume(void);
 
 /* Used by xenbus_dev to borrow kernel's store connection. */
-void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg);
+int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void **result);
+
+#if 0
 
 #define XENBUS_IS_ERR_READ(str) ({			\
 	if (!IS_ERR(str) && strlen(str) == 0) {		\
@@ -152,12 +159,15 @@ void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg);
 	IS_ERR(str);					\
 })
 
-#define XENBUS_EXIST_ERR(err) ((err) == -ENOENT || (err) == -ERANGE)
+#endif
+
+#define XENBUS_EXIST_ERR(err) ((err) == ENOENT || (err) == ERANGE)
+
 
 /**
  * Register a watch on the given path, using the given xenbus_watch structure
  * for storage, and the given callback function as the callback.  Return 0 on
- * success, or -errno on error.  On success, the given path will be saved as
+ * success, or errno on error.  On success, the given path will be saved as
  * watch->node, and remains the caller's to free.  On error, watch->node will
  * be NULL, the device will switch to XenbusStateClosing, and the error will
  * be saved in the store.
@@ -171,7 +181,7 @@ int xenbus_watch_path(device_t dev, char *path,
 /**
  * Register a watch on the given path/path2, using the given xenbus_watch
  * structure for storage, and the given callback function as the callback.
- * Return 0 on success, or -errno on error.  On success, the watched path
+ * Return 0 on success, or errno on error.  On success, the watched path
  * (path/path2) will be saved as watch->node, and becomes the caller's to
  * kfree().  On error, watch->node will be NULL, so the caller has nothing to
  * free, the device will switch to XenbusStateClosing, and the error will be
@@ -186,7 +196,7 @@ int xenbus_watch_path2(device_t dev, const char *path,
 /**
  * Advertise in the store a change of the given driver to the given new_state.
  * which case this is performed inside its own transaction.  Return 0 on
- * success, or -errno on error.  On error, the device will switch to
+ * success, or errno on error.  On error, the device will switch to
  * XenbusStateClosing, and the error will be saved in the store.
  */
 int xenbus_switch_state(device_t dev,
@@ -194,16 +204,17 @@ int xenbus_switch_state(device_t dev,
 
 
 /**
- * Grant access to the given ring_mfn to the peer of the given device.  Return
- * 0 on success, or -errno on error.  On error, the device will switch to
- * XenbusStateClosing, and the error will be saved in the store.
+ * Grant access to the given ring_mfn to the peer of the given device.
+ * Return 0 on success, or errno on error.  On error, the device will
+ * switch to XenbusStateClosing, and the error will be saved in the
+ * store. The grant ring reference is returned in *refp.
  */
-int xenbus_grant_ring(device_t dev, unsigned long ring_mfn);
+int xenbus_grant_ring(device_t dev, unsigned long ring_mfn, int *refp);
 
 
 /**
  * Allocate an event channel for the given xenbus_device, assigning the newly
- * created local port to *port.  Return 0 on success, or -errno on error.  On
+ * created local port to *port.  Return 0 on success, or errno on error.  On
  * error, the device will switch to XenbusStateClosing, and the error will be
  * saved in the store.
  */
@@ -211,7 +222,7 @@ int xenbus_alloc_evtchn(device_t dev, int *port);
 
 
 /**
- * Free an existing event channel. Returns 0 on success or -errno on error.
+ * Free an existing event channel. Returns 0 on success or errno on error.
  */
 int xenbus_free_evtchn(device_t dev, int port);
 

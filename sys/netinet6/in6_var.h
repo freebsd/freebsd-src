@@ -88,12 +88,16 @@ struct in6_addrlifetime {
 
 struct nd_ifinfo;
 struct scope6_id;
+struct lltable;
 struct in6_ifextra {
 	struct in6_ifstat *in6_ifstat;
 	struct icmp6_ifstat *icmp6_ifstat;
 	struct nd_ifinfo *nd_ifinfo;
 	struct scope6_id *scope6_id;
+	struct lltable *lltable;
 };
+
+#define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
 
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
@@ -470,9 +474,13 @@ struct	in6_rrenumreq {
 #endif
 
 #ifdef _KERNEL
+#ifdef VIMAGE_GLOBALS
 extern struct in6_ifaddr *in6_ifaddr;
 
 extern struct icmp6stat icmp6stat;
+
+extern unsigned long in6_maxmtu;
+#endif /* VIMAGE_GLOBALS */
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
@@ -481,7 +489,6 @@ do {								\
 
 extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
-extern unsigned long in6_maxmtu;
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IP6MADDR);
 #endif /* MALLOC_DECLARE */

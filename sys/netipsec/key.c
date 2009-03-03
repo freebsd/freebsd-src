@@ -1160,8 +1160,13 @@ key_freeso(struct socket *so)
 	IPSEC_ASSERT(so != NULL, ("null so"));
 
 	switch (so->so_proto->pr_domain->dom_family) {
+#if defined(INET) || defined(INET6)
 #ifdef INET
 	case PF_INET:
+#endif
+#ifdef INET6
+	case PF_INET6:
+#endif
 	    {
 		struct inpcb *pcb = sotoinpcb(so);
 
@@ -1172,30 +1177,7 @@ key_freeso(struct socket *so)
 		key_freesp_so(&pcb->inp_sp->sp_out);
 	    }
 		break;
-#endif
-#ifdef INET6
-	case PF_INET6:
-	    {
-#ifdef HAVE_NRL_INPCB
-		struct inpcb *pcb  = sotoinpcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->inp_sp->sp_in);
-		key_freesp_so(&pcb->inp_sp->sp_out);
-#else
-		struct in6pcb *pcb  = sotoin6pcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->in6p_sp->sp_in);
-		key_freesp_so(&pcb->in6p_sp->sp_out);
-#endif
-	    }
-		break;
-#endif /* INET6 */
+#endif /* INET || INET6 */
 	default:
 		ipseclog((LOG_DEBUG, "%s: unknown address family=%d.\n",
 		    __func__, so->so_proto->pr_domain->dom_family));
@@ -2437,10 +2419,7 @@ key_spddump(so, m, mhp)
 }
 
 static struct mbuf *
-key_setdumpsp(sp, type, seq, pid)
-	struct secpolicy *sp;
-	u_int8_t type;
-	u_int32_t seq, pid;
+key_setdumpsp(struct secpolicy *sp, u_int8_t type, u_int32_t seq, u_int32_t pid)
 {
 	struct mbuf *result = NULL, *m;
 	struct seclifetime lt;
@@ -3341,10 +3320,8 @@ key_mature(struct secasvar *sav)
  * subroutine for SADB_GET and SADB_DUMP.
  */
 static struct mbuf *
-key_setdumpsa(sav, type, satype, seq, pid)
-	struct secasvar *sav;
-	u_int8_t type, satype;
-	u_int32_t seq, pid;
+key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
+    u_int32_t seq, u_int32_t pid)
 {
 	struct mbuf *result = NULL, *tres = NULL, *m;
 	int i;
@@ -3482,12 +3459,8 @@ fail:
  * set data into sadb_msg.
  */
 static struct mbuf *
-key_setsadbmsg(type, tlen, satype, seq, pid, reserved)
-	u_int8_t type, satype;
-	u_int16_t tlen;
-	u_int32_t seq;
-	pid_t pid;
-	u_int16_t reserved;
+key_setsadbmsg(u_int8_t type, u_int16_t tlen, u_int8_t satype, u_int32_t seq,
+    pid_t pid, u_int16_t reserved)
 {
 	struct mbuf *m;
 	struct sadb_msg *p;
@@ -3562,11 +3535,7 @@ key_setsadbsa(sav)
  * set data into sadb_address.
  */
 static struct mbuf *
-key_setsadbaddr(exttype, saddr, prefixlen, ul_proto)
-	u_int16_t exttype;
-	const struct sockaddr *saddr;
-	u_int8_t prefixlen;
-	u_int16_t ul_proto;
+key_setsadbaddr(u_int16_t exttype, const struct sockaddr *saddr, u_int8_t prefixlen, u_int16_t ul_proto)
 {
 	struct mbuf *m;
 	struct sadb_address *p;
@@ -3613,9 +3582,7 @@ key_setsadbaddr(exttype, saddr, prefixlen, ul_proto)
  * set data into sadb_x_sa2.
  */
 static struct mbuf *
-key_setsadbxsa2(mode, seq, reqid)
-	u_int8_t mode;
-	u_int32_t seq, reqid;
+key_setsadbxsa2(u_int8_t mode, u_int32_t seq, u_int32_t reqid)
 {
 	struct mbuf *m;
 	struct sadb_x_sa2 *p;
@@ -3647,10 +3614,7 @@ key_setsadbxsa2(mode, seq, reqid)
  * set data into sadb_x_policy
  */
 static struct mbuf *
-key_setsadbxpolicy(type, dir, id)
-	u_int16_t type;
-	u_int8_t dir;
-	u_int32_t id;
+key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id)
 {
 	struct mbuf *m;
 	struct sadb_x_policy *p;
@@ -4397,8 +4361,7 @@ key_randomfill(p, l)
  *	0: invalid satype.
  */
 static u_int16_t
-key_satype2proto(satype)
-	u_int8_t satype;
+key_satype2proto(u_int8_t satype)
 {
 	switch (satype) {
 	case SADB_SATYPE_UNSPEC:
@@ -4423,8 +4386,7 @@ key_satype2proto(satype)
  *	0: invalid protocol type.
  */
 static u_int8_t
-key_proto2satype(proto)
-	u_int16_t proto;
+key_proto2satype(u_int16_t proto)
 {
 	switch (proto) {
 	case IPPROTO_AH:
@@ -5289,11 +5251,8 @@ key_delete(so, m, mhp)
  * delete all SAs for src/dst.  Called from key_delete().
  */
 static int
-key_delete_all(so, m, mhp, proto)
-	struct socket *so;
-	struct mbuf *m;
-	const struct sadb_msghdr *mhp;
-	u_int16_t proto;
+key_delete_all(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp,
+    u_int16_t proto)
 {
 	INIT_VNET_IPSEC(curvnet);
 	struct sadb_address *src0, *dst0;
@@ -7328,9 +7287,7 @@ key_sa_routechange(dst)
 }
 
 static void
-key_sa_chgstate(sav, state)
-	struct secasvar *sav;
-	u_int8_t state;
+key_sa_chgstate(struct secasvar *sav, u_int8_t state)
 {
 	IPSEC_ASSERT(sav != NULL, ("NULL sav"));
 	SAHTREE_LOCK_ASSERT();

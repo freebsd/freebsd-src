@@ -24,6 +24,39 @@
 \
 \ $FreeBSD$
 
+
+\ The following pnp code is used in pnp.4th and pnp.c
+structure: STAILQ_HEAD
+	ptr stqh_first	\ type*
+	ptr stqh_last	\ type**
+;structure
+
+structure: STAILQ_ENTRY
+	ptr stqe_next	\ type*
+;structure
+
+structure: pnphandler
+	ptr pnph.name
+	ptr pnph.enumerate
+;structure
+
+structure: pnpident
+	ptr pnpid.ident					\ char*
+	sizeof STAILQ_ENTRY cells member: pnpid.link	\ pnpident
+;structure
+
+structure: pnpinfo \ sync with sys/boot/config/bootstrap.h
+	ptr pnpi.desc
+	int pnpi.revision
+	ptr pnpi.module				\ (char*) module args
+	int pnpi.argc
+	ptr pnpi.argv
+	ptr pnpi.handler			\ pnphandler
+	sizeof STAILQ_HEAD member: pnpi.ident	\ pnpident
+	sizeof STAILQ_ENTRY member: pnpi.link	\ pnpinfo
+;structure
+\ end of pnp support
+
 pnpdevices drop
 
 : enumerate

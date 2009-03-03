@@ -60,5 +60,6 @@ u_int32_t swap32(u_int32_t);
 const char *board_init(void);
 void clr_board(void);
 int avila_read(char*, unsigned, unsigned);
+u_int cpu_id(void);
 
 #endif /* !ARM_BOOT_LIB_H */

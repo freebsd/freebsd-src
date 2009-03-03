@@ -94,8 +94,8 @@ struct netif_driver *netif_drivers[] = {
  */
 
 struct file_format *file_formats[] = {
-    &uboot_elf,
-    NULL
+	&uboot_elf,
+	NULL
 };
 
 /* 
@@ -104,6 +104,6 @@ struct file_format *file_formats[] = {
 extern struct console uboot_console;
 
 struct console *consoles[] = {
-    &uboot_console,
-    NULL
+	&uboot_console,
+	NULL
 };

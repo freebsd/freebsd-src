@@ -606,6 +606,9 @@ printcpuinfo(void)
 		case 0x6d0:
 			strcpy(cpu_model, "VIA C7 Esther");
 			break;
+		case 0x6f0:
+			strcpy(cpu_model, "VIA Nano");
+			break;
 		default:
 			strcpy(cpu_model, "VIA/IDT Unknown");
 		}
@@ -826,15 +829,15 @@ printcpuinfo(void)
 				"\003SVM"	/* Secure Virtual Mode */
 				"\004ExtAPIC"	/* Extended APIC register */
 				"\005CR8"	/* CR8 in legacy mode */
-				"\006<b5>"
-				"\007<b6>"
-				"\010<b7>"
+				"\006ABM"	/* LZCNT instruction */
+				"\007SSE4A"	/* SSE4A */
+				"\010MAS"	/* Misaligned SSE mode */
 				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
-				"\012<b9>"
-				"\013<b10>"
-				"\014<b11>"
-				"\015<b12>"
-				"\016<b13>"
+				"\012OSVW"	/* OS visible workaround */
+				"\013IBS"	/* Instruction based sampling */
+				"\014SSE5"	/* SSE5 */
+				"\015SKINIT"	/* SKINIT/STGI */
+				"\016WDT"	/* Watchdog timer */
 				"\017<b14>"
 				"\020<b15>"
 				"\021<b16>"
@@ -855,6 +858,9 @@ printcpuinfo(void)
 				"\040<b31>"
 				);
 			}
+
+			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+				print_via_padlock_info();
 
 			if ((cpu_feature & CPUID_HTT) &&
 			    cpu_vendor_id == CPU_VENDOR_AMD)
@@ -877,6 +883,12 @@ printcpuinfo(void)
 				    I386_CPU_MODEL(cpu_id) >= 0xe) ||
 				    (I386_CPU_FAMILY(cpu_id) == 0xf &&
 				    I386_CPU_MODEL(cpu_id) >= 0x3))
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_CENTAUR:
+				if (I386_CPU_FAMILY(cpu_id) == 0x6 &&
+				    I386_CPU_MODEL(cpu_id) >= 0xf &&
+				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 					tsc_is_invariant = 1;
 				break;
 			}
@@ -915,8 +927,6 @@ printcpuinfo(void)
 			printf("\n  CPU cache: write-through mode");
 #endif
 	}
-	if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
-		print_via_padlock_info();
 
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
@@ -1568,6 +1578,7 @@ print_via_padlock_info(void)
 			return;
 	case 0x6a0:
 	case 0x6d0:
+	case 0x6f0:
 		break;
 	default:
 		return;

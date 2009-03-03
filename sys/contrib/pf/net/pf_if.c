@@ -35,6 +35,7 @@
 #if defined(__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_types.h>
 #ifdef __FreeBSD__
+#include <net/route.h>
 #include <net/vnet.h>
 #endif
 
@@ -115,7 +117,9 @@ void		 pfi_change_group_event(void * __unused, char *);
 void		 pfi_detach_group_event(void * __unused, struct ifg_group *);
 void		 pfi_ifaddr_event(void * __unused, struct ifnet *);
 
+#ifdef VIMAGE_GLOBALS
 extern struct ifgrouphead ifg_head;
+#endif
 #endif
 
 RB_PROTOTYPE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);

@@ -37,8 +37,29 @@
 
 #include "ofw_bus_if.h"
 
+#define	ORIP_NOINT	-1
+#define	ORIR_NOTFOUND	0xffffffff
+
+struct ofw_bus_iinfo {
+	u_int8_t		*opi_imap;
+	u_int8_t		*opi_imapmsk;
+	int			opi_imapsz;
+	pcell_t			opi_addrc;
+};
+
 int	ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *, phandle_t);
 void	ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *);
+
+/* Helper method to report interesting OF properties in pnpinfo */
+int	ofw_bus_gen_child_pnpinfo_str(device_t, device_t, char *, size_t);
+
+/* Routines for processing firmware interrupt maps */
+
+void	ofw_bus_setup_iinfo(phandle_t, struct ofw_bus_iinfo *, int);
+int	ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
+	    void *, int, void *, int, void *);
+int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
+	    void *, void *, int);
 
 ofw_bus_get_compat_t	ofw_bus_gen_get_compat;
 ofw_bus_get_model_t	ofw_bus_gen_get_model;

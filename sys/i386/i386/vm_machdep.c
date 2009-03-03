@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #ifdef XEN
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #endif
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
@@ -616,7 +616,10 @@ cpu_reset_real()
 
 	disable_intr();
 #ifdef XEN
-	HYPERVISOR_shutdown(SHUTDOWN_poweroff);
+	if (smp_processor_id() == 0)
+		HYPERVISOR_shutdown(SHUTDOWN_reboot);
+	else
+		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
 #endif 
 #ifdef CPU_ELAN
 	if (elan_mmcr != NULL)

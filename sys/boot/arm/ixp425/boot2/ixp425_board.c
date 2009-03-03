@@ -27,20 +27,35 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/ata.h>
+#include <sys/linker_set.h>
 
 #include <stdarg.h>
 
 #include "lib.h"
 #include "cf_ata.h"
 
+#include <machine/armreg.h>
 #include <arm/xscale/ixp425/ixp425reg.h>
 #include <dev/ic/ns16550.h>
 
-static u_int8_t *ubase;
+struct board_config {
+	const char *desc;
+	int	(*probe)(int boardtype_hint);
+	void	(*init)(void);
+};
+/* set of registered boards */
+SET_DECLARE(boards, struct board_config);
+#define	BOARD_CONFIG(name, _desc)			\
+static struct board_config name##config = {		\
+	.desc	= _desc,				\
+	.probe	= name##_probe,				\
+	.init	= name##_init,				\
+};							\
+DATA_SET(boards, name##config)
 
-#define BOARD_AVILA		0
-#define BOARD_PRONGHORN		1
-static int board;
+static u_int cputype;
+#define	cpu_is_ixp43x()	(cputype == CPU_ID_IXP435)
+static u_int8_t *ubase;
 
 static u_int8_t uart_getreg(u_int8_t *, int);
 static void uart_setreg(u_int8_t *, int, u_int8_t);
@@ -57,32 +72,18 @@ static void cf_clr(void);
 const char *
 board_init(void)
 {
-	volatile u_int32_t *cs;
-	const char *bt = NULL;
+	struct board_config **pbp;
 
-	/*
-	 * Redboot only configure the chip selects that are needed, so
-	 * use that to figure out if it is an Avila or ADI board. The
-	 * Avila boards use CS2 and ADI does not.
-	 */
-	cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS2_OFFSET);
-	if (*cs != 0) {
-		board = BOARD_AVILA;
-		bt = "Avila";
-	} else {
-		board = BOARD_PRONGHORN;
-		bt = "Pronghorn Metro";
-	}
+	cputype = cpu_id() & CPU_ID_CPU_MASK;
 
-	/* Config the serial port. RedBoot should do the rest. */
-	if (board == BOARD_AVILA)
-		ubase = (u_int8_t *)(IXP425_UART0_HWBASE);
-	else
-		ubase = (u_int8_t *)(IXP425_UART1_HWBASE);
-
-	cf_init();
-
-	return bt;
+	SET_FOREACH(pbp, boards)
+		/* XXX pass down redboot board type */
+		if ((*pbp)->probe(0)) {
+			(*pbp)->init();
+			return (*pbp)->desc;
+		}
+	/* XXX panic, unknown board type */
+	return "???";
 }
 
 /*
@@ -228,6 +229,9 @@ struct {
 	u_int8_t sectors;
 	u_int32_t cylinders;
 
+	u_int32_t *cs1to;
+	u_int32_t *cs2to;
+
 	u_int8_t *cs1;
 	u_int8_t *cs2;
 
@@ -265,37 +269,20 @@ cf_init(void)
 #ifdef DEBUG
 	int rval;
 #endif
-	volatile u_int32_t *cs;
 
-	/* Setup the CF select timeing. Maybe already done by RedBoot? */
-	if (board == BOARD_AVILA) {
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS1_OFFSET);
-		*cs |= (EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
-		DPRINTF("t1 %x, ", *cs);
-
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS2_OFFSET);
-		*cs |= (EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
-		DPRINTF("t2 %x\n", *cs);
-
-		dskinf.cs1 = (u_int8_t *)IXP425_EXP_BUS_CS1_HWBASE;
-		dskinf.cs2 = (u_int8_t *)IXP425_EXP_BUS_CS2_HWBASE;
-	} else {
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS3_OFFSET);
-		*cs |= (EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
-		DPRINTF("t1 %x, ", *cs);
-
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS4_OFFSET);
-		*cs |= (EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
-		DPRINTF("t2 %x\n", *cs);
-
-		dskinf.cs1 = (u_int8_t *)IXP425_EXP_BUS_CS3_HWBASE;
-		dskinf.cs2 = (u_int8_t *)IXP425_EXP_BUS_CS4_HWBASE;
-	}
-	DPRINTF("cs1 %x, cs2 %x\n", dskinf.cs1, dskinf.cs2);
-
+	/* NB: board init routines setup other parts of dskinf */
 	dskinf.use_stream8 = 0;
 	dskinf.use_lba = 0;
 	dskinf.debug = 1;
+
+	DPRINTF("cs1 %x, cs2 %x\n", dskinf.cs1, dskinf.cs2);
+
+	/* Setup the CF window */
+	*dskinf.cs1to |= (EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
+	DPRINTF("t1 %x, ", *dskinf.cs1to);
+
+	*dskinf.cs2to |= (EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
+	DPRINTF("t2 %x\n", *dskinf.cs2to);
 
 	/* Detect if there is a disk. */
 	cfwrite8(CF_DRV_HEAD, CF_D_IBM);
@@ -340,29 +327,26 @@ static void
 cfenable16(void)
 {
 	u_int32_t val;
-	volatile u_int32_t *cs;
 
-	if (board == BOARD_AVILA)
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS1_OFFSET);
-	else
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS3_OFFSET);
-	val = *cs;
-	*cs = val & (~1);
-	DPRINTF("cfenable16: cs1 timing reg %x\n", *cs);
+	val = *dskinf.cs1to;
+	*dskinf.cs1to = val &~ EXP_BYTE_EN;
+	DELAY(100);
+#if 0
+	DPRINTF("%s: cs1 timing reg %x\n", *dskinf.cs1to, __func__);
+#endif
 }
 
 static void
 cfdisable16(void)
 {
 	u_int32_t val;
-	volatile u_int32_t *cs;
 
-	if (board == BOARD_AVILA)
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS1_OFFSET);
-	else
-		cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS3_OFFSET);
-	val = *cs;
-	*cs = val | 1;
+	DELAY(100);
+	val = *dskinf.cs1to;
+	*dskinf.cs1to = val | EXP_BYTE_EN;
+#if 0
+	DPRINTF("%s: cs1 timing reg %x\n", *dskinf.cs1to, __func__);
+#endif
 }
 
 static u_int8_t
@@ -478,7 +462,8 @@ cfwait(u_int8_t mask)
 	while (tout <= 5000000) {
 		status = cfread8(CF_STATUS);
 		if (status == 0xff) {
-			printf("cfwait: master: no status, reselecting\n");
+			printf("%s: master: no status, reselecting\n",
+			    __func__);
 			cfwrite8(CF_DRV_HEAD, CF_D_IBM);
 			DELAY(1);
 			status = cfread8(CF_STATUS);
@@ -487,10 +472,14 @@ cfwait(u_int8_t mask)
 			return -1;
 		dskinf.status = status;
 		if (!(status & CF_S_BUSY)) {
-			if (status & CF_S_ERROR)
+			if (status & CF_S_ERROR) {
 				dskinf.error = cfread8(CF_ERROR);
+				printf("%s: error, status 0x%x error 0x%x\n",
+				    __func__, status, dskinf.error);
+			}
 			if ((status & mask) == mask) {
-				DPRINTF("cfwait: tout %u\n", tout);
+				DPRINTF("%s: status 0x%x mask 0x%x tout %u\n",
+				    __func__, status, mask, tout);
 				return (status & CF_S_ERROR);
 			}
 		}
@@ -695,3 +684,88 @@ avila_read(char *dest, unsigned source, unsigned length)
 	return 0;
 }
 
+/*
+ * Gateworks Avila Support.
+ */
+static int
+avila_probe(int boardtype_hint)
+{
+	volatile u_int32_t *cs;
+	/*
+	 * Redboot only configure the chip selects that are needed, so
+	 * use that to figure out if it is an Avila or ADI board. The
+	 * Avila boards use CS2 and ADI does not.
+	 */
+	cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS2_OFFSET);
+	return (*cs != 0);
+}
+
+static void
+avila_init(void)
+{
+	/* Config the serial port. RedBoot should do the rest. */
+	ubase = (u_int8_t *)(IXP425_UART0_HWBASE);
+
+	dskinf.cs1to = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS1_OFFSET);
+	dskinf.cs2to = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS2_OFFSET);
+	dskinf.cs1 = (u_int8_t *)IXP425_EXP_BUS_CS1_HWBASE;
+	dskinf.cs2 = (u_int8_t *)IXP425_EXP_BUS_CS2_HWBASE;
+
+	cf_init();
+}
+BOARD_CONFIG(avila, "Gateworks Avila");
+
+/*
+ * Gateworks Cambria Support.
+ */
+static int
+cambria_probe(int boardtype_hint)
+{
+	return cpu_is_ixp43x();
+}
+
+static void
+cambria_init(void)
+{
+	/* Config the serial port. RedBoot should do the rest. */
+	ubase = (u_int8_t *)(IXP425_UART0_HWBASE);
+
+	dskinf.cs1to = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS3_OFFSET);
+	dskinf.cs2to = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS4_OFFSET);
+	dskinf.cs1 = (u_int8_t *)CAMBRIA_CFSEL0_HWBASE;
+	dskinf.cs2 = (u_int8_t *)CAMBRIA_CFSEL1_HWBASE;
+
+	cf_init();
+}
+BOARD_CONFIG(cambria, "Gateworks Cambria");
+
+/*
+ * Pronghorn Metro Support.
+ */
+static int
+pronghorn_probe(int boardtype_hint)
+{
+	volatile u_int32_t *cs;
+	/*
+	 * Redboot only configure the chip selects that are needed, so
+	 * use that to figure out if it is an Avila or ADI board. The
+	 * Avila boards use CS2 and ADI does not.
+	 */
+	cs = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS2_OFFSET);
+	return (*cs == 0);
+}
+
+static void
+pronghorn_init(void)
+{
+	/* Config the serial port. RedBoot should do the rest. */
+	ubase = (u_int8_t *)(IXP425_UART1_HWBASE);
+
+	dskinf.cs1to = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS3_OFFSET);
+	dskinf.cs2to = (u_int32_t *)(IXP425_EXP_HWBASE + EXP_TIMING_CS4_OFFSET);
+	dskinf.cs1 = (u_int8_t *)IXP425_EXP_BUS_CS3_HWBASE;
+	dskinf.cs2 = (u_int8_t *)IXP425_EXP_BUS_CS4_HWBASE;
+
+	cf_init();
+}
+BOARD_CONFIG(pronghorn, "Pronghorn Metro");

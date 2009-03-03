@@ -61,6 +61,8 @@ struct cam_sim *  cam_sim_alloc(sim_action_func sim_action,
 				int max_tagged_dev_transactions,
 				struct cam_devq *queue);
 void		  cam_sim_free(struct cam_sim *sim, int free_devq);
+void		  cam_sim_hold(struct cam_sim *sim);
+void		  cam_sim_release(struct cam_sim *sim);
 
 /* Optional sim attributes may be set with these. */
 void	cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
@@ -105,8 +107,9 @@ struct cam_sim {
 #define CAM_SIM_ON_DONEQ		0x04
 	struct callout		callout;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
+	int			refcount; /* References to the SIM. */
 
-	/* "Pool" of inactive ccbs managed by xpt_alloc_ccb and xpt_free_ccb */
+	/* "Pool" of inactive ccbs managed by xpt_get_ccb and xpt_release_ccb */
 	SLIST_HEAD(,ccb_hdr)	ccb_freeq;
 	/*
 	 * Maximum size of ccb pool.  Modified as devices are added/removed

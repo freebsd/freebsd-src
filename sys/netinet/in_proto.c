@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 #include "opt_pf.h"
 #include "opt_carp.h"
 #include "opt_sctp.h"
@@ -46,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/domain.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
@@ -58,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
@@ -363,7 +366,9 @@ struct domain inetdomain = {
 	.dom_rtattach =		in_inithead,
 #endif
 	.dom_rtoffset =		32,
-	.dom_maxrtkey =		sizeof(struct sockaddr_in)
+	.dom_maxrtkey =		sizeof(struct sockaddr_in),
+	.dom_ifattach =		in_domifattach,
+	.dom_ifdetach =		in_domifdetach
 };
 
 DOMAIN_SET(inet);

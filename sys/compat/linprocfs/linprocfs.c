@@ -39,6 +39,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  */
 
+#include "opt_route.h"
 #include "opt_compat.h"
 
 #include <sys/cdefs.h>
@@ -76,9 +77,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
@@ -275,11 +278,17 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 
 	sbuf_cat(sb, "flags\t\t:");
 
-	if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
-		flags[16] = "fcmov";
-	} else if (!strcmp(cpu_vendor, "CyrixInstead")) {
+#ifdef __i386__
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_AMD:
+		if (class < 6)
+			flags[16] = "fcmov";
+		break;
+	case CPU_VENDOR_CYRIX:
 		flags[24] = "cxmmx";
+		break;
 	}
+#endif
 
 	for (i = 0; i < 32; i++)
 		if (cpu_feature & (1 << i))
@@ -320,7 +329,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	error = namei(&nd);
 	lep = linux_emul_path;
 	if (error == 0) {
-		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
+		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) == 0)
 			lep = dlep;
 		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
@@ -874,7 +883,8 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 static int
 linprocfs_doprocmaps(PFS_FILL_ARGS)
 {
-	vm_map_t map = &p->p_vmspace->vm_map;
+	struct vmspace *vm;
+	vm_map_t map;
 	vm_map_entry_t entry, tmp_entry;
 	vm_object_t obj, tobj, lobj;
 	vm_offset_t e_start, e_end;
@@ -899,6 +909,10 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		return (EOPNOTSUPP);
 
 	error = 0;
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL)
+		return (ESRCH);
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
@@ -969,12 +983,12 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		    );
 		if (freename)
 			free(freename, M_TEMP);
+		vm_map_lock_read(map);
 		if (error == -1) {
 			error = 0;
 			break;
 		}
-		vm_map_lock_read(map);
-		if (last_timestamp + 1 != map->timestamp) {
+		if (last_timestamp != map->timestamp) {
 			/*
 			 * Look again for the entry because the map was
 			 * modified while it was unlocked.  Specifically,
@@ -985,6 +999,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 
 	return (error);
 }

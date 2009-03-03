@@ -142,18 +142,14 @@ WRITE_PORT_ULONG(port, val)
 }
 
 static void
-WRITE_PORT_USHORT(port, val)
-	uint16_t		*port;
-	uint16_t		val;
+WRITE_PORT_USHORT(uint16_t *port, uint16_t val)
 {
 	bus_space_write_2(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
 	return;
 }
 
 static void
-WRITE_PORT_UCHAR(port, val)
-	uint8_t			*port;
-	uint8_t			val;
+WRITE_PORT_UCHAR(uint8_t *port, uint8_t val)
 {
 	bus_space_write_1(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
 	return;
@@ -378,9 +374,7 @@ KfAcquireSpinLock(lock)
 }
 
 void
-KfReleaseSpinLock(lock, newirql)
-	kspin_lock		*lock;
-	uint8_t			newirql;
+KfReleaseSpinLock(kspin_lock *lock, uint8_t newirql)
 {
 	KeReleaseSpinLockFromDpcLevel(lock);
 	KeLowerIrql(newirql);
@@ -407,8 +401,7 @@ KeQueryPerformanceCounter(freq)
 }
 
 uint8_t
-KfRaiseIrql(irql)
-	uint8_t			irql;
+KfRaiseIrql(uint8_t irql)
 {
 	uint8_t			oldirql;
 
@@ -428,8 +421,7 @@ KfRaiseIrql(irql)
 }
 
 void 
-KfLowerIrql(oldirql)
-	uint8_t			oldirql;
+KfLowerIrql(uint8_t oldirql)
 {
 	if (oldirql == DISPATCH_LEVEL)
 		return;
@@ -453,8 +445,7 @@ KeRaiseIrqlToDpcLevel(void)
 }
 
 static void
-_KeLowerIrql(oldirql)
-	uint8_t			oldirql;
+_KeLowerIrql(uint8_t oldirql)
 {
 	KeLowerIrql(oldirql);
 	return;

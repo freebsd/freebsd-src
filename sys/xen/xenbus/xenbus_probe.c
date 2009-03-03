@@ -88,9 +88,7 @@ kasprintf(const char *fmt, ...)
 	len = vsnprintf(dummy, 0, fmt, ap);
 	va_end(ap);
 
-	p = kmalloc(len + 1, GFP_KERNEL);
-	if (!p)
-		return NULL;
+	p = malloc(len + 1, M_DEVBUF, M_WAITOK);
 	va_start(ap, fmt);
 	vsprintf(p, fmt, ap);
 	va_end(ap);
@@ -187,6 +185,7 @@ xenbus_add_device(device_t dev, const char *bus,
 	struct xenbus_device_ivars *ivars;
 	enum xenbus_state state;
 	char *statepath;
+	int error;
 
 	ivars = malloc(sizeof(struct xenbus_device_ivars),
 	    M_DEVBUF, M_ZERO|M_WAITOK);
@@ -217,17 +216,19 @@ xenbus_add_device(device_t dev, const char *bus,
 	/*
 	 * Find the backend details
 	 */
-	xenbus_gather(XBT_NIL, ivars->xd_node,
+	error = xenbus_gather(XBT_NIL, ivars->xd_node,
 	    "backend-id", "%i", &ivars->xd_otherend_id,
 	    "backend", NULL, &ivars->xd_otherend_path,
 	    NULL);
+	if (error)
+		return (error);
 
 	sx_init(&ivars->xd_lock, "xdlock");
 	ivars->xd_type = strdup(type, M_DEVBUF);
 	ivars->xd_state = XenbusStateInitialising;
 
 	statepath = malloc(strlen(ivars->xd_otherend_path)
-	    + strlen("/state") + 1, M_DEVBUF, M_NOWAIT);
+	    + strlen("/state") + 1, M_DEVBUF, M_WAITOK);
 	sprintf(statepath, "%s/state", ivars->xd_otherend_path);
 
 	ivars->xd_otherend_watch.node = statepath;
@@ -245,10 +246,11 @@ xenbus_enumerate_type(device_t dev, const char *bus, const char *type)
 {
 	char **dir;
 	unsigned int i, count;
+	int error;
 
-	dir = xenbus_directory(XBT_NIL, bus, type, &count);
-	if (IS_ERR(dir))
-		return (EINVAL);
+	error = xenbus_directory(XBT_NIL, bus, type, &count, &dir);
+	if (error)
+		return (error);
 	for (i = 0; i < count; i++)
 		xenbus_add_device(dev, bus, type, dir[i]);
 
@@ -262,10 +264,11 @@ xenbus_enumerate_bus(device_t dev, const char *bus)
 {
 	char **dir;
 	unsigned int i, count;
+	int error;
 
-	dir = xenbus_directory(XBT_NIL, bus, "", &count);
-	if (IS_ERR(dir))
-		return (EINVAL);
+	error = xenbus_directory(XBT_NIL, bus, "", &count, &dir);
+	if (error)
+		return (error);
 	for (i = 0; i < count; i++) {
 		xenbus_enumerate_type(dev, bus, dir[i]);
 	}
@@ -386,28 +389,90 @@ xenbus_attach(device_t dev)
 	return (0);
 }
 
-static void
+static int
 xenbus_suspend(device_t dev)
 {
+	int error;
+
 	DPRINTK("");
-	panic("implement me");
-#if 0
-	bus_for_each_dev(&xenbus_frontend.bus, NULL, NULL, suspend_dev);
-	bus_for_each_dev(&xenbus_backend.bus, NULL, NULL, suspend_dev);
-#endif
+
+	error = bus_generic_suspend(dev);
+	if (error)
+		return (error);
+
 	xs_suspend();
+
+	return (0);
 }
 
-static void
+static int
 xenbus_resume(device_t dev)
 {
+	device_t *kids;
+	struct xenbus_device_ivars *ivars;
+	int i, count, error;
+	char *statepath;
+
 	xb_init_comms();
 	xs_resume();
-	panic("implement me");
+
+	/*
+	 * We must re-examine each device and find the new path for
+	 * its backend.
+	 */
+	if (device_get_children(dev, &kids, &count) == 0) {
+		for (i = 0; i < count; i++) {
+			if (device_get_state(kids[i]) == DS_NOTPRESENT)
+				continue;
+
+			ivars = device_get_ivars(kids[i]);
+
+			unregister_xenbus_watch(
+				&ivars->xd_otherend_watch);
+			ivars->xd_state = XenbusStateInitialising;
+
+			/*
+			 * Find the new backend details and
+			 * re-register our watch.
+			 */
+			free(ivars->xd_otherend_path, M_DEVBUF);
+			error = xenbus_gather(XBT_NIL, ivars->xd_node,
+			    "backend-id", "%i", &ivars->xd_otherend_id,
+			    "backend", NULL, &ivars->xd_otherend_path,
+			    NULL);
+			if (error)
+				return (error);
+
+			DEVICE_RESUME(kids[i]);
+
+			statepath = malloc(strlen(ivars->xd_otherend_path)
+			    + strlen("/state") + 1, M_DEVBUF, M_WAITOK);
+			sprintf(statepath, "%s/state", ivars->xd_otherend_path);
+
+			free(ivars->xd_otherend_watch.node, M_DEVBUF);
+			ivars->xd_otherend_watch.node = statepath;
+			register_xenbus_watch(
+				&ivars->xd_otherend_watch);
+
 #if 0
-	bus_for_each_dev(&xenbus_frontend.bus, NULL, NULL, resume_dev);
-	bus_for_each_dev(&xenbus_backend.bus, NULL, NULL, resume_dev);
-#endif 
+			/*
+			 * Can't do this yet since we are running in
+			 * the xenwatch thread and if we sleep here,
+			 * we will stop delivering watch notifications
+			 * and the device will never come back online.
+			 */
+			sx_xlock(&ivars->xd_lock);
+			while (ivars->xd_state != XenbusStateClosed
+			    && ivars->xd_state != XenbusStateConnected)
+				sx_sleep(&ivars->xd_state, &ivars->xd_lock,
+				    0, "xdresume", 0);
+			sx_xunlock(&ivars->xd_lock);
+#endif
+		}
+		free(kids, M_TEMP);
+	}
+
+	return (0);
 }
 
 static int
@@ -433,9 +498,11 @@ xenbus_read_ivar(device_t dev, device_t child, int index,
 	case XENBUS_IVAR_NODE:
 		*result = (uintptr_t) ivars->xd_node;
 		return (0);
+
 	case XENBUS_IVAR_TYPE:
 		*result = (uintptr_t) ivars->xd_type;
 		return (0);
+
 	case XENBUS_IVAR_STATE:
 		*result = (uintptr_t) ivars->xd_state;
 		return (0);
@@ -468,8 +535,8 @@ xenbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 			goto out;
 
 		error = xenbus_scanf(XBT_NIL, ivars->xd_node, "state",
-		    "%d", &currstate);
-		if (error < 0)
+		    NULL, "%d", &currstate);
+		if (error)
 			goto out;
 
 		error = xenbus_printf(XBT_NIL, ivars->xd_node, "state",
@@ -494,15 +561,14 @@ xenbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 		 */
 		return (EINVAL);
 	}
+
 	return (ENOENT);
 }
 
 SYSCTL_DECL(_dev);
 SYSCTL_NODE(_dev, OID_AUTO, xen, CTLFLAG_RD, NULL, "Xen");
-#if 0
 SYSCTL_INT(_dev_xen, OID_AUTO, xsd_port, CTLFLAG_RD, &xen_store_evtchn, 0, "");
 SYSCTL_ULONG(_dev_xen, OID_AUTO, xsd_kva, CTLFLAG_RD, (u_long *) &xen_store, 0, "");
-#endif
 
 static device_method_t xenbus_methods[] = { 
 	/* Device interface */ 

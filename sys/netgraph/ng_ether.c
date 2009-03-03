@@ -46,6 +46,8 @@
  * ng_ether(4) netgraph node type
  */
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -63,6 +65,7 @@
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_bridgevar.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
@@ -102,8 +105,8 @@ static void	ng_ether_detach(struct ifnet *ifp);
 static void	ng_ether_link_state(struct ifnet *ifp, int state); 
 
 /* Other functions */
-static int	ng_ether_rcv_lower(node_p node, struct mbuf *m);
-static int	ng_ether_rcv_upper(node_p node, struct mbuf *m);
+static int	ng_ether_rcv_lower(hook_p node, item_p item);
+static int	ng_ether_rcv_upper(hook_p node, item_p item);
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ether_constructor;
@@ -389,13 +392,16 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 		name = NG_ETHER_HOOK_LOWER;
 
 	/* Which hook? */
-	if (strcmp(name, NG_ETHER_HOOK_UPPER) == 0)
+	if (strcmp(name, NG_ETHER_HOOK_UPPER) == 0) {
 		hookptr = &priv->upper;
-	else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0)
+		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_upper);
+	} else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0) {
 		hookptr = &priv->lower;
-	else if (strcmp(name, NG_ETHER_HOOK_ORPHAN) == 0)
+		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_lower);
+	} else if (strcmp(name, NG_ETHER_HOOK_ORPHAN) == 0) {
 		hookptr = &priv->orphan;
-	else
+		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_lower);
+	} else
 		return (EINVAL);
 
 	/* Check if already connected (shouldn't be, but doesn't hurt) */
@@ -571,21 +577,13 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 /*
  * Receive data on a hook.
+ * Since we use per-hook recveive methods this should never be called.
  */
 static int
 ng_ether_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = NG_HOOK_NODE(hook);
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct mbuf *m;
-
-	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 
-	if (hook == priv->lower || hook == priv->orphan)
-		return ng_ether_rcv_lower(node, m);
-	if (hook == priv->upper)
-		return ng_ether_rcv_upper(node, m);
 	panic("%s: weird hook", __func__);
 #ifdef RESTARTABLE_PANICS /* so we don't get an error msg in LINT */
 	return (0);
@@ -596,12 +594,18 @@ ng_ether_rcvdata(hook_p hook, item_p item)
  * Handle an mbuf received on the "lower" or "orphan" hook.
  */
 static int
-ng_ether_rcv_lower(node_p node, struct mbuf *m)
+ng_ether_rcv_lower(hook_p hook, item_p item)
 {
+	struct mbuf *m;
+	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
  	struct ifnet *const ifp = priv->ifp;
 
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
+
 	/* Check whether interface is ready for packets */
+
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		NG_FREE_M(m);
@@ -639,10 +643,15 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m)
  * Handle an mbuf received on the "upper" hook.
  */
 static int
-ng_ether_rcv_upper(node_p node, struct mbuf *m)
+ng_ether_rcv_upper(hook_p hook, item_p item)
 {
+	struct mbuf *m;
+	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *ifp = priv->ifp;
+
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
 
 	/* Check length and pull off header */
 	if (m->m_pkthdr.len < sizeof(struct ether_header)) {

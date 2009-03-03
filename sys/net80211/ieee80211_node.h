@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,6 +80,7 @@ struct ieee80211_ies {
 	uint8_t	*ath_ie;	/* captured Atheros ie */
 	uint8_t	*htcap_ie;	/* captured HTCAP ie */
 	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
+	uint8_t	*tdma_ie;	/* captured TDMA ie */
 	/* NB: these must be the last members of this structure */
 	uint8_t	*data;		/* frame data > 802.11 header */
 	int	len;		/* data size in bytes */
@@ -117,6 +118,7 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_RIFS	0x004000	/* RIFS enabled */
 #define	IEEE80211_NODE_SGI20	0x008000	/* Short GI in HT20 enabled */
 #define	IEEE80211_NODE_SGI40	0x010000	/* Short GI in HT40 enabled */
+#define	IEEE80211_NODE_ASSOCID	0x020000	/* xmit requires associd */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */
@@ -203,6 +205,11 @@ MALLOC_DECLARE(M_80211_NODE_IE);
 	 IEEE80211_NODE_AMPDU | IEEE80211_NODE_MIMO_PS | \
 	 IEEE80211_NODE_MIMO_RTS | IEEE80211_NODE_RIFS | \
 	 IEEE80211_NODE_SGI20 | IEEE80211_NODE_SGI40)
+
+#define	IEEE80211_NODE_BITS \
+	"\20\1AUTH\2QOS\3ERP\5PWR_MGT\6AREF\7HT\10HTCOMPAT\11WPS\12TSN" \
+	"\13AMPDU_RX\14AMPDU_TX\15MIMO_PS\16MIMO_RTS\17RIFS\20SGI20\21SGI40" \
+	"\22ASSOCID"
 
 #define	IEEE80211_NODE_AID(ni)	IEEE80211_AID(ni->ni_associd)
 
