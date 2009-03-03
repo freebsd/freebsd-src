@@ -37,12 +37,18 @@ DEFINE_TEST(test_write_compress_program)
 	struct archive *a;
 	size_t used;
 	int blocksize = 1024;
+	int r;
 
 	/* Create a new archive in memory. */
 	/* Write it through an external "gzip" program. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_program(a, "gzip"));
+	r = archive_write_set_compression_program(a, "gzip");
+	if (r == ARCHIVE_FATAL) {
+		skipping("Write compression via external program unsupported on this platform");
+		archive_write_finish(a);
+		return;
+	}
 	assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
 	assertA(0 == archive_write_set_bytes_in_last_block(a, blocksize));
 	assertA(blocksize == archive_write_get_bytes_in_last_block(a));

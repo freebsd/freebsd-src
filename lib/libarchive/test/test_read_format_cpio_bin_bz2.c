@@ -34,6 +34,7 @@ static unsigned char archive[] = {
 
 DEFINE_TEST(test_read_format_cpio_bin_bz2)
 {
+#if HAVE_BZLIB_H
 	struct archive_entry *ae;
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
@@ -50,6 +51,9 @@ DEFINE_TEST(test_read_format_cpio_bin_bz2)
 	archive_read_finish(a);
 #else
 	assert(0 == archive_read_finish(a));
+#endif
+#else
+	skipping("Need bzlib");
 #endif
 }
 

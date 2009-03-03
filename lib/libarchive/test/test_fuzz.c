@@ -51,13 +51,19 @@ __FBSDID("$FreeBSD$");
 static const char *
 files[] = {
 	"test_fuzz_1.iso",
+#if HAVE_BZLIB_H
 	"test_compat_bzip2_1.tbz",
-	"test_compat_gtar_1.tgz",
+#endif
+	"test_compat_gtar_1.tar",
 	"test_compat_tar_hardlink_1.tar",
+#if HAVE_ZLIB_H
 	"test_compat_zip_1.zip",
+#endif
 	"test_read_format_gtar_sparse_1_17_posix10_modified.tar",
 	"test_read_format_tar_empty_filename.tar",
+#if HAVE_ZLIB_H
 	"test_read_format_zip.zip",
+#endif
 	NULL
 };
 
@@ -84,7 +90,7 @@ DEFINE_TEST(test_fuzz)
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
-			numbytes = rand() % (size / 100);
+			numbytes = (int)(rand() % (size / 100));
 			for (j = 0; j < numbytes; ++j)
 				image[rand() % size] = (char)rand();
 
@@ -93,7 +99,7 @@ DEFINE_TEST(test_fuzz)
 			fd = open("after.test.failure.send.this.file."
 			    "to.libarchive.maintainers.with.system.details",
 			    O_WRONLY | O_CREAT | O_TRUNC, 0744);
-			write(fd, image, size);
+			write(fd, image, (off_t)size);
 			close(fd);
 
 			assert((a = archive_read_new()) != NULL);
