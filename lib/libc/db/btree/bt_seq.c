@@ -232,7 +232,7 @@ __bt_seqadv(BTREE *t, EPG *ep, int flags)
 {
 	CURSOR *c;
 	PAGE *h;
-	indx_t index;
+	indx_t idx;
 	pgno_t pg;
 	int exact;
 
@@ -270,15 +270,15 @@ __bt_seqadv(BTREE *t, EPG *ep, int flags)
 		 */
 		if (F_ISSET(c, CURS_AFTER))
 			goto usecurrent;
-		index = c->pg.index;
-		if (++index == NEXTINDEX(h)) {
+		idx = c->pg.index;
+		if (++idx == NEXTINDEX(h)) {
 			pg = h->nextpg;
 			mpool_put(t->bt_mp, h, 0);
 			if (pg == P_INVALID)
 				return (RET_SPECIAL);
 			if ((h = mpool_get(t->bt_mp, pg, 0)) == NULL)
 				return (RET_ERROR);
-			index = 0;
+			idx = 0;
 		}
 		break;
 	case R_PREV:			/* Previous record. */
@@ -293,22 +293,22 @@ usecurrent:		F_CLR(c, CURS_AFTER | CURS_BEFORE);
 			ep->index = c->pg.index;
 			return (RET_SUCCESS);
 		}
-		index = c->pg.index;
-		if (index == 0) {
+		idx = c->pg.index;
+		if (idx == 0) {
 			pg = h->prevpg;
 			mpool_put(t->bt_mp, h, 0);
 			if (pg == P_INVALID)
 				return (RET_SPECIAL);
 			if ((h = mpool_get(t->bt_mp, pg, 0)) == NULL)
 				return (RET_ERROR);
-			index = NEXTINDEX(h) - 1;
+			idx = NEXTINDEX(h) - 1;
 		} else
-			--index;
+			--idx;
 		break;
 	}
 
 	ep->page = h;
-	ep->index = index;
+	ep->index = idx;
 	return (RET_SUCCESS);
 }
 
@@ -421,13 +421,10 @@ __bt_first(BTREE *t, const DBT *key, EPG *erval, int *exactp)
  * Parameters:
  *	t:	the tree
  *   pgno:	page number
- *  index:	page index
+ *    idx:	page index
  */
 void
-__bt_setcur(t, pgno, index)
-	BTREE *t;
-	pgno_t pgno;
-	u_int index;
+__bt_setcur(BTREE *t, pgno_t pgno, u_int idx)
 {
 	/* Lose any already deleted key. */
 	if (t->bt_cursor.key.data != NULL) {
@@ -439,6 +436,6 @@ __bt_setcur(t, pgno, index)
 
 	/* Update the cursor. */
 	t->bt_cursor.pg.pgno = pgno;
-	t->bt_cursor.pg.index = index;
+	t->bt_cursor.pg.index = idx;
 	F_SET(&t->bt_cursor, CURS_INIT);
 }
