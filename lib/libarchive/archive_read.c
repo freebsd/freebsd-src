@@ -595,11 +595,12 @@ archive_read_close(struct archive *_a)
 	/* TODO: Clean up the formatters. */
 
 	/* Clean up the stream pipeline. */
-	if (a->source != NULL) {
+	while (a->source != NULL) {
+		struct archive_read_source *t = a->source->upstream;
 		r1 = (a->source->close)(a->source);
 		if (r1 < r)
 			r = r1;
-		a->source = NULL;
+		a->source = t;
 	}
 
 	/* Release the reader objects. */
