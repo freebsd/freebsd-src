@@ -68,7 +68,7 @@ __bt_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
 	DBT tkey, tdata;
 	EPG *e;
 	PAGE *h;
-	indx_t index, nxtindex;
+	indx_t idx, nxtindex;
 	pgno_t pg;
 	u_int32_t nbytes, tmp;
 	int dflags, exact, status;
@@ -149,7 +149,7 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 	if (flags == R_CURSOR) {
 		if ((h = mpool_get(t->bt_mp, t->bt_cursor.pg.pgno, 0)) == NULL)
 			return (RET_ERROR);
-		index = t->bt_cursor.pg.index;
+		idx = t->bt_cursor.pg.index;
 		goto delete;
 	}
 
@@ -161,7 +161,7 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 		if ((e = __bt_search(t, key, &exact)) == NULL)
 			return (RET_ERROR);
 	h = e->page;
-	index = e->index;
+	idx = e->index;
 
 	/*
 	 * Add the key/data pair to the tree.  If an identical key is already
@@ -183,7 +183,7 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 		 * Note, the delete may empty the page, so we need to put a
 		 * new entry into the page immediately.
 		 */
-delete:		if (__bt_dleaf(t, key, h, index) == RET_ERROR) {
+delete:		if (__bt_dleaf(t, key, h, idx) == RET_ERROR) {
 			mpool_put(t->bt_mp, h, 0);
 			return (RET_ERROR);
 		}
@@ -199,35 +199,35 @@ delete:		if (__bt_dleaf(t, key, h, index) == RET_ERROR) {
 	nbytes = NBLEAFDBT(key->size, data->size);
 	if (h->upper - h->lower < nbytes + sizeof(indx_t)) {
 		if ((status = __bt_split(t, h, key,
-		    data, dflags, nbytes, index)) != RET_SUCCESS)
+		    data, dflags, nbytes, idx)) != RET_SUCCESS)
 			return (status);
 		goto success;
 	}
 
-	if (index < (nxtindex = NEXTINDEX(h)))
-		memmove(h->linp + index + 1, h->linp + index,
-		    (nxtindex - index) * sizeof(indx_t));
+	if (idx < (nxtindex = NEXTINDEX(h)))
+		memmove(h->linp + idx + 1, h->linp + idx,
+		    (nxtindex - idx) * sizeof(indx_t));
 	h->lower += sizeof(indx_t);
 
-	h->linp[index] = h->upper -= nbytes;
+	h->linp[idx] = h->upper -= nbytes;
 	dest = (char *)h + h->upper;
 	WR_BLEAF(dest, key, data, dflags);
 
 	/* If the cursor is on this page, adjust it as necessary. */
 	if (F_ISSET(&t->bt_cursor, CURS_INIT) &&
 	    !F_ISSET(&t->bt_cursor, CURS_ACQUIRE) &&
-	    t->bt_cursor.pg.pgno == h->pgno && t->bt_cursor.pg.index >= index)
+	    t->bt_cursor.pg.pgno == h->pgno && t->bt_cursor.pg.index >= idx)
 		++t->bt_cursor.pg.index;
 
 	if (t->bt_order == NOT) {
 		if (h->nextpg == P_INVALID) {
-			if (index == NEXTINDEX(h) - 1) {
+			if (idx == NEXTINDEX(h) - 1) {
 				t->bt_order = FORWARD;
-				t->bt_last.index = index;
+				t->bt_last.index = idx;
 				t->bt_last.pgno = h->pgno;
 			}
 		} else if (h->prevpg == P_INVALID) {
-			if (index == 0) {
+			if (idx == 0) {
 				t->bt_order = BACK;
 				t->bt_last.index = 0;
 				t->bt_last.pgno = h->pgno;
