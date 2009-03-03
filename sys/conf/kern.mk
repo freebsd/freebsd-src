@@ -91,7 +91,7 @@ INLINE_LIMIT?=	15000
 #
 .if ${MACHINE_ARCH} == "mips"
 CFLAGS+=	-msoft-float -mno-dsp
-INLINE_LIMIT?=	15000
+INLINE_LIMIT?=	8000
 .endif
 
 #
