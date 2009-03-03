@@ -339,7 +339,6 @@ compress_source_close(struct archive_read_source *self)
 {
 	struct private_data *state = (struct private_data *)self->data;
 
-	self->upstream->close(self->upstream);
 	free(state->out_block);
 	free(state);
 	free(self);
