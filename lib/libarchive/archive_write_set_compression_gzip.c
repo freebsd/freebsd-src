@@ -25,9 +25,6 @@
 
 #include "archive_platform.h"
 
-/* Don't compile this if we don't have zlib. */
-#if HAVE_ZLIB_H
-
 __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
@@ -47,6 +44,16 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+
+#ifndef HAVE_ZLIB_H
+int
+archive_write_set_compression_gzip(struct archive *_a)
+{
+	/* Unsupported gzip compression, we don't have zlib */
+	return (ARCHIVE_FATAL);
+}
+#else
+/* Don't compile this if we don't have zlib. */
 
 struct private_data {
 	z_stream	 stream;
