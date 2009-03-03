@@ -62,6 +62,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_WCHAR_H
 #include <wchar.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -227,9 +230,15 @@ aes_get_wcs(struct aes *aes)
 		w = (wchar_t *)malloc((wcs_length + 1) * sizeof(wchar_t));
 		if (w == NULL)
 			__archive_errx(1, "No memory for aes_get_wcs()");
+#ifndef _WIN32
 		r = mbstowcs(w, aes->aes_mbs.s, wcs_length);
-		w[wcs_length] = 0;
+#else
+		r = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
+		    aes->aes_mbs.s, (int)aes->aes_mbs.length, w,
+		    (int)wcs_length);
+#endif
 		if (r > 0) {
+			w[r] = 0;
 			aes->aes_set |= AES_SET_WCS;
 			return (aes->aes_wcs = w);
 		}

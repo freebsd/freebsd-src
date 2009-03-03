@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_WCHAR_H
 #include <wchar.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "archive_private.h"
 #include "archive_string.h"
@@ -175,6 +178,7 @@ __archive_strappend_int(struct archive_string *as, int d, int base)
 	return (as);
 }
 
+#ifndef _WIN32
 /*
  * Home-grown wctomb for UTF-8.
  */
@@ -375,3 +379,83 @@ __archive_string_utf8_w(struct archive_string *as)
 	*dest++ = L'\0';
 	return (ws);
 }
+
+#else
+
+static struct archive_string *
+my_archive_strappend_w(struct archive_string *as,
+    unsigned int codepage, const wchar_t *w)
+{
+	char *p;
+	int l, wl;
+	BOOL useDefaultChar = FALSE;
+
+	wl = (int)wcslen(w);
+	l = wl * 4 + 4;
+	p = malloc(l);
+	if (p == NULL)
+		__archive_errx(1, "Out of memory");
+	/* To check a useDefaultChar is to simulate error handling of
+	 * the my_wcstombs() which is running on non Windows system with
+	 * wctomb().
+	 * And to set NULL for last argument is necessary when a codepage
+	 * is not CP_ACP(current locale).
+	 */
+	l = WideCharToMultiByte(codepage, 0, w, wl, p, l, NULL,
+		(codepage == CP_ACP) ? &useDefaultChar : NULL);
+	if (l == 0 || useDefaultChar) {
+		free(p);
+		return (NULL);
+	}
+	__archive_string_append(as, p, l);
+	free(p);
+	return (as);
+}
+
+/*
+ * Translates a wide character string into UTF-8 and appends
+ * to the archive_string.  Note: returns NULL if conversion fails.
+ */
+struct archive_string *
+__archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
+{
+
+	return (my_archive_strappend_w(as, CP_UTF8, w));
+}
+
+/*
+ * Translates a wide character string into current locale character set
+ * and appends to the archive_string.  Note: returns NULL if conversion
+ * fails.
+ */
+struct archive_string *
+__archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
+{
+
+	return (my_archive_strappend_w(as, CP_ACP, w));
+}
+
+/*
+ * Return a wide-character string by converting this archive_string
+ * from UTF-8.
+ */
+wchar_t *
+__archive_string_utf8_w(struct archive_string *as)
+{
+	wchar_t *ws;
+	int n;
+
+	ws = (wchar_t *)malloc((as->length + 1) * sizeof(wchar_t));
+	if (ws == NULL)
+		__archive_errx(1, "Out of memory");
+	n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+		as->s, (int)as->length, ws, (int)as->length);
+	if (n == 0) {
+		free(ws);
+		return (NULL);
+	}
+	ws[n] = L'\0';
+	return (ws);
+}
+
+#endif /* !_WIN32 */

@@ -45,7 +45,11 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#ifndef _WIN32
 #include <dirent.h>
+#else
+#include <direct.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -66,6 +70,16 @@
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
 #define	__FBSDID(a)     /* null */
+#endif
+
+#ifdef _WIN32
+#define LOCALE_DE	"deu"
+#else
+#define LOCALE_DE	"de_DE.UTF-8"
+#endif
+
+#ifndef O_BINARY
+#define	O_BINARY 0
 #endif
 
 /*

@@ -34,6 +34,8 @@ static unsigned char archive[] = {
 
 DEFINE_TEST(test_read_compress_program)
 {
+	int r;
+
 #if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("archive_read_support_compression_program()");
 #else
@@ -41,7 +43,12 @@ DEFINE_TEST(test_read_compress_program)
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, 0, archive_read_support_compression_none(a));
-	assertEqualIntA(a, 0, archive_read_support_compression_program(a, "gunzip"));
+	r = archive_read_support_compression_program(a, "gunzip");
+	if (r == ARCHIVE_FATAL) {
+		skipping("archive_read_support_compression_program() unsupported on this platform");
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, r);
 	assert(0 == archive_read_support_format_all(a));
 	assertEqualIntA(a, 0, archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));

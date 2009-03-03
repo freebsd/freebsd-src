@@ -63,7 +63,11 @@ test_compat_zip_1(void)
 
 DEFINE_TEST(test_compat_zip)
 {
+#if HAVE_ZLIB_H
 	test_compat_zip_1();
+#else
+	skipping("Need zlib");
+#endif
 }
 
 
