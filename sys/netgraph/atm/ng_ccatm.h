@@ -166,7 +166,6 @@ struct ngm_ccatm_portlist {
 
 struct ccatm_op {
 	uint32_t	op;	/* request code */
-	u_char		data[];
 };
 
 #endif
