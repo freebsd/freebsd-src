@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * Parameters:
  *	t:	tree to search
  *	recno:	key to find
- *	op: 	search operation
+ *	op:	search operation
  *
  * Returns:
  *	EPG for matching record, if any, or the EPG for the location of the
@@ -87,7 +87,7 @@ __rec_search(BTREE *t, recno_t recno, enum SRCHOP op)
 		}
 
 		BT_PUSH(t, pg, idx - 1);
-		
+
 		pg = r->pgno;
 		switch (op) {
 		case SDELETE:
@@ -114,8 +114,8 @@ err:	sverrno = errno;
 				--GETRINTERNAL(h, parent->index)->nrecs;
 			else
 				++GETRINTERNAL(h, parent->index)->nrecs;
-                        mpool_put(t->bt_mp, h, MPOOL_DIRTY);
-                }
+			mpool_put(t->bt_mp, h, MPOOL_DIRTY);
+		}
 	errno = sverrno;
 	return (NULL);
 }

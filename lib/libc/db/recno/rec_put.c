@@ -169,7 +169,7 @@ einval:		errno = EINVAL;
 		t->bt_cursor.rcursor = nrec;
 		break;
 	}
-	
+
 	F_SET(t, R_MODIFIED);
 	return (__rec_ret(t, NULL, nrec, key, NULL));
 }

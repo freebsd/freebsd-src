@@ -196,7 +196,7 @@ __bt_cmp(BTREE *t, const DBT *k1, EPG *e)
  *
  * Parameters:
  *	a:	DBT #1
- *	b: 	DBT #2
+ *	b:	DBT #2
  *
  * Returns:
  *	< 0 if a is < b
@@ -227,7 +227,7 @@ __bt_defcmp(const DBT *a, const DBT *b)
  *
  * Parameters:
  *	a:	DBT #1
- *	b: 	DBT #2
+ *	b:	DBT #2
  *
  * Returns:
  *	Number of bytes needed to distinguish b from a.
