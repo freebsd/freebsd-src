@@ -274,6 +274,9 @@ static const struct usb2_device_id uplcom_devs[] = {
 	{USB_UPL(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PHAROS, 0, 0xFFFF, TYPE_PL2303)},
 	/* Willcom W-SIM */
 	{USB_UPL(USB_VENDOR_PROLIFIC2, USB_PRODUCT_PROLIFIC2_WSIM, 0, 0xFFFF, TYPE_PL2303X)},
+	/* Mobile Action MA-620 Infrared Adapter */
+	{USB_UPL(USB_VENDOR_MOBILEACTION, USB_PRODUCT_MOBILEACTION_MA620, 0, 0xFFFF, TYPE_PL2303X)},
+
 };
 
 static device_method_t uplcom_methods[] = {
