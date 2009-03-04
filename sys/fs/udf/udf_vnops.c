@@ -738,7 +738,7 @@ udf_getfid(struct udf_dirstream *ds)
 	 * Update the offset. Align on a 4 byte boundary because the
 	 * UDF spec says so.
 	 */
-	ds->this_off = ds->off;
+	ds->this_off = ds->offset + ds->off;
 	if (!ds->fid_fragment) {
 		ds->off += (total_fid_size + 3) & ~0x03;
 	} else {
