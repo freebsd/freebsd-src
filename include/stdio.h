@@ -344,6 +344,7 @@ char	*tempnam(const char *, const char *);
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 ssize_t	 getdelim(char ** __restrict, size_t * __restrict, int,
 	    FILE * __restrict);
+int	 renameat(int, const char *, int, const char *);
 
 /*
  * Every programmer and his dog wrote functions called getline()
@@ -379,7 +380,6 @@ void	 fcloseall(void);
 char	*fgetln(FILE *, size_t *);
 __const char *fmtcheck(const char *, const char *) __format_arg(2);
 int	 fpurge(FILE *);
-int	 renameat(int, const char *, int, const char *);
 void	 setbuffer(FILE *, char *, int);
 int	 setlinebuf(FILE *);
 int	 vasprintf(char **, const char *, __va_list)
