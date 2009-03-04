@@ -476,6 +476,18 @@ checktable(const struct scanlist *scan, const struct ieee80211_channel *c)
 	return 0;
 }
 
+static int
+onscanlist(const struct ieee80211_scan_state *ss,
+	const struct ieee80211_channel *c)
+{
+	int i;
+
+	for (i = 0; i < ss->ss_last; i++)
+		if (ss->ss_chans[i] == c)
+			return 1;
+	return 0;
+}
+
 static void
 sweepchannels(struct ieee80211_scan_state *ss, struct ieee80211vap *vap,
 	const struct scanlist table[])
@@ -524,6 +536,21 @@ sweepchannels(struct ieee80211_scan_state *ss, struct ieee80211vap *vap,
 		/* Add channel to scanning list. */
 		ss->ss_chans[ss->ss_last++] = c;
 	}
+	/*
+	 * Explicitly add any desired channel if:
+	 * - not already on the scan list
+	 * - allowed by any desired mode constraint
+	 * - there is space in the scan list
+	 * This allows the channel to be used when the filtering
+	 * mechanisms would otherwise elide it (e.g HT, turbo).
+	 */
+	c = vap->iv_des_chan;
+	if (c != IEEE80211_CHAN_ANYC &&
+	    !onscanlist(ss, c) &&
+	    (vap->iv_des_mode == IEEE80211_MODE_AUTO ||
+	     vap->iv_des_mode == ieee80211_chan2mode(c)) &&
+	    ss->ss_last < IEEE80211_SCAN_MAX)
+		ss->ss_chans[ss->ss_last++] = c;
 }
 
 static void
