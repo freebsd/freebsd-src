@@ -143,10 +143,6 @@ ata_via_chipinit(device_t dev)
 	    ctlr->ch_attach = ata_via_ch_attach;
 	    ctlr->ch_detach = ata_via_ch_detach;
 	    ctlr->reset = ata_via_reset;
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
 
 	if (ctlr->chip->cfg2 & VIABAR) {

@@ -135,10 +135,6 @@ ata_ahci_chipinit(device_t dev)
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
-    /* enable PCI interrupt */
-    pci_write_config(dev, PCIR_COMMAND,
-		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-
     /* announce we support the HW */
     version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
     device_printf(dev,

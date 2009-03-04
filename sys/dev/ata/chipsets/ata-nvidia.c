@@ -183,11 +183,6 @@ ata_nvidia_chipinit(device_t dev)
 		/* enable device and PHY state change interrupts */
 		ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
 	    }
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
-
 	}
 	ctlr->setmode = ata_sata_setmode;
     }
