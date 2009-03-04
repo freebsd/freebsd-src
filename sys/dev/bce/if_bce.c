@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
  *   BCM5708C B1, B2
  *   BCM5708S B1, B2
  *   BCM5709C A1, C0
- *   BCM5716  C0
+ * 	 BCM5716C C0
  *
  * The following controllers are not supported by this driver:
  *   BCM5706C A0, A1 (pre-production)
@@ -71,19 +71,19 @@ __FBSDID("$FreeBSD$");
 	/* 1073741824 = 1 in             2 */
 
 	/* Controls how often the l2_fhdr frame error check will fail. */
-	int bce_debug_l2fhdr_status_check = 0;
+	int l2fhdr_error_sim_control = 0;
 
 	/* Controls how often the unexpected attention check will fail. */
-	int bce_debug_unexpected_attention = 0;
+	int unexpected_attention_sim_control = 0;
 
 	/* Controls how often to simulate an mbuf allocation failure. */
-	int bce_debug_mbuf_allocation_failure = 0;
+	int mbuf_alloc_failed_sim_control = 0;
 
 	/* Controls how often to simulate a DMA mapping failure. */
-	int bce_debug_dma_map_addr_failure = 0;
+	int dma_map_addr_failed_sim_control = 0;
 
 	/* Controls how often to simulate a bootcode failure. */
-	int bce_debug_bootcode_running_failure = 0;
+	int bootcode_running_failure_sim_control = 0;
 #endif
 
 /****************************************************************************/
@@ -495,7 +495,8 @@ SYSCTL_UINT(_hw_bce, OID_AUTO, msi_enable, CTLFLAG_RDTUN, &bce_msi_enable, 0,
 /* ToDo: Add tunable to enable/disable strict MTU handling. */
 /* Currently allows "loose" RX MTU checking (i.e. sets the  */
 /* H/W RX MTU to the size of the largest receive buffer, or */
-/* 2048 bytes).                                             */
+/* 2048 bytes). This will cause a UNH failure but is more   */
+/* desireable from a functional perspective.                */
 
 
 /****************************************************************************/
@@ -595,7 +596,7 @@ bce_print_adapter_info(struct bce_softc *sc)
 	}
 
 	/* Firmware version and device features. */
-	printf("F/W (0x%08X); Flags( ", sc->bce_fw_ver);
+	printf("B/C (0x%08X); Flags( ", sc->bce_bc_ver);
 #ifdef ZERO_COPY_SOCKETS
 	printf("SPLT ");
 #endif
@@ -846,7 +847,7 @@ bce_attach(device_t dev)
 		__FUNCTION__, sc->bce_shmem_base);
 
 	/* Fetch the bootcode revision. */
-	sc->bce_fw_ver = REG_RD_IND(sc, sc->bce_shmem_base +
+	sc->bce_bc_ver = REG_RD_IND(sc, sc->bce_shmem_base +
 		BCE_DEV_INFO_BC_REV);
 
 	/* Check if any management firmware is running. */
@@ -2863,20 +2864,16 @@ bce_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	bus_addr_t *busaddr = arg;
 
 	/* Simulate a mapping failure. */
-	DBRUNIF(DB_RANDOMTRUE(bce_debug_dma_map_addr_failure),
-		printf("bce: %s(%d): Simulating DMA mapping error.\n",
-			__FILE__, __LINE__);
+	DBRUNIF(DB_RANDOMTRUE(dma_map_addr_failed_sim_control),
 		error = ENOMEM);
 
 	/* Check for an error and signal the caller that an error occurred. */
 	if (error) {
-		printf("bce %s(%d): DMA mapping error! error = %d, "
-		    "nseg = %d\n", __FILE__, __LINE__, error, nseg);
 		*busaddr = 0;
-		return;
+	} else {
+		*busaddr = segs->ds_addr;
 	}
 
-	*busaddr = segs->ds_addr;
 	return;
 }
 
@@ -3272,6 +3269,11 @@ bce_dma_alloc(device_t dev)
 #else
 	max_size = max_seg_size = MJUM9BYTES;
 #endif
+	max_segments = 1;
+
+	DBPRINT(sc, BCE_INFO, "%s(): Creating rx_mbuf_tag (max size = 0x%jX "
+		"max segments = %d, max segment size = 0x%jX)\n", __FUNCTION__,
+		(uintmax_t) max_size, max_segments, (uintmax_t) max_seg_size);
 
 	if (bus_dma_tag_create(sc->parent_tag,
 			1,
@@ -3280,7 +3282,7 @@ bce_dma_alloc(device_t dev)
 			BUS_SPACE_MAXADDR,
 			NULL, NULL,
 			max_size,
-			1,
+			max_segments,
 			max_seg_size,
 			0,
 			NULL, NULL,
@@ -4156,15 +4158,24 @@ bce_init_cpus(struct bce_softc *sc)
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
 		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-		bce_load_rv2p_fw(sc, bce_xi_rv2p_proc1, sizeof(bce_xi_rv2p_proc1),
-			RV2P_PROC1);
-		bce_load_rv2p_fw(sc, bce_xi_rv2p_proc2, sizeof(bce_xi_rv2p_proc2),
-			RV2P_PROC2);
+
+		if ((BCE_CHIP_REV(sc) == BCE_CHIP_REV_Ax)) {
+			bce_load_rv2p_fw(sc, bce_xi90_rv2p_proc1, 
+				sizeof(bce_xi90_rv2p_proc1), RV2P_PROC1);
+			bce_load_rv2p_fw(sc, bce_xi90_rv2p_proc2, 
+				sizeof(bce_xi90_rv2p_proc2), RV2P_PROC2);
+		} else {
+			bce_load_rv2p_fw(sc, bce_xi_rv2p_proc1, 
+				sizeof(bce_xi_rv2p_proc1), RV2P_PROC1);
+			bce_load_rv2p_fw(sc, bce_xi_rv2p_proc2, 
+				sizeof(bce_xi_rv2p_proc2), RV2P_PROC2);
+		}
+
 	} else {
-		bce_load_rv2p_fw(sc, bce_rv2p_proc1, sizeof(bce_rv2p_proc1),
-			RV2P_PROC1);
-		bce_load_rv2p_fw(sc, bce_rv2p_proc2, sizeof(bce_rv2p_proc2),
-			RV2P_PROC2);
+		bce_load_rv2p_fw(sc, bce_rv2p_proc1, 
+			sizeof(bce_rv2p_proc1),	RV2P_PROC1);
+		bce_load_rv2p_fw(sc, bce_rv2p_proc2,
+			sizeof(bce_rv2p_proc2),	RV2P_PROC2);
 	}
 
 	bce_init_rxp_cpu(sc);
@@ -4727,7 +4738,7 @@ bce_blockinit(struct bce_softc *sc)
 	/* Verify that bootcode is running. */
 	reg = REG_RD_IND(sc, sc->bce_shmem_base + BCE_DEV_INFO_SIGNATURE);
 
-	DBRUNIF(DB_RANDOMTRUE(bce_debug_bootcode_running_failure),
+	DBRUNIF(DB_RANDOMTRUE(bootcode_running_failure_sim_control),
 		BCE_PRINTF("%s(%d): Simulating bootcode failure.\n",
 			__FILE__, __LINE__);
 		reg = 0);
@@ -4814,9 +4825,9 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 	if (m == NULL) {
 
 		/* Simulate an mbuf allocation failure. */
-		DBRUNIF(DB_RANDOMTRUE(bce_debug_mbuf_allocation_failure),
-			sc->mbuf_alloc_failed++;
-			sc->debug_mbuf_sim_alloc_failed++;
+		DBRUNIF(DB_RANDOMTRUE(mbuf_alloc_failed_sim_control),
+			sc->mbuf_alloc_failed_count++;
+			sc->mbuf_alloc_failed_sim_count++;
 			rc = ENOBUFS;
 			goto bce_get_rx_buf_exit);
 
@@ -4831,7 +4842,7 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 #endif
 
 		if (m_new == NULL) {
-			sc->mbuf_alloc_failed++;
+			sc->mbuf_alloc_failed_count++;
 			rc = ENOBUFS;
 			goto bce_get_rx_buf_exit;
 		}
@@ -4861,7 +4872,9 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 		BCE_PRINTF("%s(%d): Error mapping mbuf into RX chain (%d)!\n",
 			__FILE__, __LINE__, error);
 
+		sc->dma_map_addr_rx_failed_count++;
 		m_freem(m_new);
+
 		DBRUN(sc->debug_rx_mbuf_alloc--);
 
 		rc = ENOBUFS;
@@ -4939,16 +4952,16 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 	if (m == NULL) {
 
 		/* Simulate an mbuf allocation failure. */
-		DBRUNIF(DB_RANDOMTRUE(bce_debug_mbuf_allocation_failure),
-			sc->mbuf_alloc_failed++;
-			sc->debug_mbuf_sim_alloc_failed++;
+		DBRUNIF(DB_RANDOMTRUE(mbuf_alloc_failed_sim_control),
+			sc->mbuf_alloc_failed_count++;
+			sc->mbuf_alloc_failed_sim_count++;
 			rc = ENOBUFS;
 			goto bce_get_pg_buf_exit);
 
 		/* This is a new mbuf allocation. */
 		m_new = m_getcl(M_DONTWAIT, MT_DATA, 0);
 		if (m_new == NULL) {
-			sc->mbuf_alloc_failed++;
+			sc->mbuf_alloc_failed_count++;
 			rc = ENOBUFS;
 			goto bce_get_pg_buf_exit;
 		}
@@ -5766,20 +5779,20 @@ bce_rx_intr(struct bce_softc *sc)
 		sc->free_rx_bd++;
 
 		/*
-		 * Frames received on the NetXteme II are prepended
-		 * with an l2_fhdr structure which provides status
-		 * information about the received frame (including
-		 * VLAN tags and checksum info).  The frames are also
-		 * automatically adjusted to align the IP header
-		 * (i.e. two null bytes are inserted before the
-		 * Ethernet header).  As a result the data DMA'd by
-		 * the controller into the mbuf is as follows:
+		 * Frames received on the NetXteme II are prepended	with an
+		 * l2_fhdr structure which provides status information about
+		 * the received frame (including VLAN tags and checksum info).
+		 * The frames are also automatically adjusted to align the IP
+		 * header (i.e. two null bytes are inserted before the Ethernet
+		 * header).  As a result the data DMA'd by the controller into
+		 * the mbuf is as follows:
+		 * 
 		 * +---------+-----+---------------------+-----+
 		 * | l2_fhdr | pad | packet data         | FCS |
 		 * +---------+-----+---------------------+-----+
-		 * The l2_fhdr needs to be checked and skipped and
-		 * the FCS needs to be stripped before sending the
-		 * packet up the stack.
+		 * 
+		 * The l2_fhdr needs to be checked and skipped and the FCS needs
+		 * to be stripped before sending the packet up the stack.
 		 */
 		l2fhdr  = mtod(m0, struct l2_fhdr *);
 
@@ -5894,8 +5907,9 @@ bce_rx_intr(struct bce_softc *sc)
 			BCE_PRINTF("Invalid Ethernet frame size!\n");
 			m_print(m0, 128));
 
-		DBRUNIF(DB_RANDOMTRUE(bce_debug_l2fhdr_status_check),
+		DBRUNIF(DB_RANDOMTRUE(l2fhdr_error_sim_control),
 			BCE_PRINTF("Simulating l2_fhdr status error.\n");
+			sc->l2fhdr_error_sim_count++;
 			status = status | L2_FHDR_ERRORS_PHY_DECODE);
 
 		/* Check the received frame for errors. */
@@ -5905,7 +5919,7 @@ bce_rx_intr(struct bce_softc *sc)
 
 			/* Log the error and release the mbuf. */
 			ifp->if_ierrors++;
-			DBRUN(sc->l2fhdr_status_errors++);
+			sc->l2fhdr_error_count++;
 
 			m_freem(m0);
 			m0 = NULL;
@@ -5946,10 +5960,7 @@ bce_rx_intr(struct bce_softc *sc)
 			}
 		}
 
-		/*
-		 * If we received a packet with a vlan tag,
-		 * attach that information to the packet.
-		 */
+		/* Attach the VLAN tag.	*/
 		if (status & L2_FHDR_STATUS_L2_VLAN_TAG) {
 #if __FreeBSD_version < 700000
 			VLAN_INPUT_TAG(ifp, m0, l2fhdr->l2_fhdr_vlan_tag, continue);
@@ -5959,7 +5970,7 @@ bce_rx_intr(struct bce_softc *sc)
 #endif
 		}
 
-		/* Pass the mbuf off to the upper layers. */
+		/* Increment received packet statistics. */
 		ifp->if_ipackets++;
 
 bce_rx_int_next_rx:
@@ -6273,14 +6284,17 @@ bce_init_locked(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_LOAD,
 		"%s(): rx_bd_mbuf_alloc_size = %d, rx_bce_mbuf_data_len = %d, "
-		"rx_bd_mbuf_align_pad = %d, pg_bd_mbuf_alloc_size = %d\n",
-		__FUNCTION__, sc->rx_bd_mbuf_alloc_size, sc->rx_bd_mbuf_data_len,
-		sc->rx_bd_mbuf_align_pad, sc->pg_bd_mbuf_alloc_size);
+		"rx_bd_mbuf_align_pad = %d\n", __FUNCTION__, 
+		sc->rx_bd_mbuf_alloc_size, sc->rx_bd_mbuf_data_len,
+		sc->rx_bd_mbuf_align_pad);
 
 	/* Program appropriate promiscuous/multicast filtering. */
 	bce_set_rx_mode(sc);
 
 #ifdef ZERO_COPY_SOCKETS
+	DBPRINT(sc, BCE_INFO_LOAD, "%s(): pg_bd_mbuf_alloc_size = %d\n",
+		__FUNCTION__, sc->pg_bd_mbuf_alloc_size);
+
 	/* Init page buffer descriptor chain. */
 	bce_init_pg_chain(sc);
 #endif
@@ -6489,10 +6503,7 @@ bce_tx_encap_skip_tso:
 	/* Check if the DMA mapping was successful */
 	if (error == EFBIG) {
 
-		/* The mbuf is too fragmented for our DMA mapping. */
-   		DBPRINT(sc, BCE_WARN, "%s(): fragmented mbuf (%d pieces)\n",
-			__FUNCTION__, nsegs);
-		DBRUN(bce_dump_mbuf(sc, m0););
+		sc->fragmented_mbuf_count++;
 
 		/* Try to defrag the mbuf. */
 		m0 = m_defrag(*m_head, M_DONTWAIT);
@@ -6500,7 +6511,7 @@ bce_tx_encap_skip_tso:
 			/* Defrag was unsuccessful */
 			m_freem(*m_head);
 			*m_head = NULL;
-			sc->mbuf_alloc_failed++;
+			sc->mbuf_alloc_failed_count++;
 			rc = ENOBUFS;
 			goto bce_tx_encap_exit;
 		}
@@ -6513,7 +6524,7 @@ bce_tx_encap_skip_tso:
 		/* Still getting an error after a defrag. */
 		if (error == ENOMEM) {
 			/* Insufficient DMA buffers available. */
-			sc->tx_dma_map_failures++;
+			sc->dma_map_addr_tx_failed_count++;
 			rc = error;
 			goto bce_tx_encap_exit;
 		} else if (error != 0) {
@@ -6523,19 +6534,19 @@ bce_tx_encap_skip_tso:
 			    __FILE__, __LINE__);
 			m_freem(m0);
 			*m_head = NULL;
-			sc->tx_dma_map_failures++;
+			sc->dma_map_addr_tx_failed_count++;
 			rc = ENOBUFS;
 			goto bce_tx_encap_exit;
 		}
 	} else if (error == ENOMEM) {
 		/* Insufficient DMA buffers available. */
-		sc->tx_dma_map_failures++;
+		sc->dma_map_addr_tx_failed_count++;
 		rc = error;
 		goto bce_tx_encap_exit;
 	} else if (error != 0) {
 		m_freem(m0);
 		*m_head = NULL;
-		sc->tx_dma_map_failures++;
+		sc->dma_map_addr_tx_failed_count++;
 		rc = error;
 		goto bce_tx_encap_exit;
 	}
@@ -7040,9 +7051,10 @@ bce_intr(void *xsc)
 
 		status_attn_bits = sc->status_block->status_attn_bits;
 
-		DBRUNIF(DB_RANDOMTRUE(bce_debug_unexpected_attention),
-			BCE_PRINTF("Simulating unexpected status attention bit set.");
-			status_attn_bits = status_attn_bits | STATUS_ATTN_BITS_PARITY_ERROR);
+	DBRUNIF(DB_RANDOMTRUE(unexpected_attention_sim_control),
+		BCE_PRINTF("Simulating unexpected status attention bit set.");
+		sc->unexpected_attention_sim_count++;
+		status_attn_bits = status_attn_bits | STATUS_ATTN_BITS_PARITY_ERROR);
 
 		/* Was it a link change interrupt? */
 		if ((status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) !=
@@ -7060,13 +7072,13 @@ bce_intr(void *xsc)
 			(sc->status_block->status_attn_bits_ack &
 			~STATUS_ATTN_BITS_LINK_STATE))) {
 
-			DBRUN(sc->unexpected_attentions++);
+		sc->unexpected_attention_count++;
 
 			BCE_PRINTF("%s(%d): Fatal attention detected: 0x%08X\n",
 				__FILE__, __LINE__, sc->status_block->status_attn_bits);
 
 			DBRUNMSG(BCE_FATAL,
-				if (bce_debug_unexpected_attention == 0)
+				if (unexpected_attention_sim_control == 0)
 					bce_breakpoint(sc));
 
 			bce_init_locked(sc);
@@ -7315,8 +7327,8 @@ bce_stats_update(struct bce_softc *sc)
 	sc->stat_EtherStatsUndersizePkts =
 		stats->stat_EtherStatsUndersizePkts;
 
-	sc->stat_EtherStatsOverrsizePkts =
-		stats->stat_EtherStatsOverrsizePkts;
+	sc->stat_EtherStatsOversizePkts =
+		stats->stat_EtherStatsOversizePkts;
 
 	sc->stat_EtherStatsPktsRx64Octets =
 		stats->stat_EtherStatsPktsRx64Octets;
@@ -7420,7 +7432,7 @@ bce_stats_update(struct bce_softc *sc)
 	/* ToDo: This method loses soft errors. */
 	ifp->if_ierrors =
 		(u_long) sc->stat_EtherStatsUndersizePkts +
-		(u_long) sc->stat_EtherStatsOverrsizePkts +
+		(u_long) sc->stat_EtherStatsOversizePkts +
 		(u_long) sc->stat_IfInMBUFDiscards +
 		(u_long) sc->stat_Dot3StatsAlignmentErrors +
 		(u_long) sc->stat_Dot3StatsFCSErrors +
@@ -7871,6 +7883,91 @@ bce_add_sysctls(struct bce_softc *sc)
 
 #ifdef BCE_DEBUG
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"l2fhdr_error_sim_control",
+		CTLFLAG_RW, &l2fhdr_error_sim_control,
+		0, "Debug control to force l2fhdr errors");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"l2fhdr_error_sim_count",
+		CTLFLAG_RD, &sc->l2fhdr_error_sim_count,
+		0, "Number of simulated l2_fhdr errors");
+#endif
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"l2fhdr_error_count",
+		CTLFLAG_RD, &sc->l2fhdr_error_count,
+		0, "Number of l2_fhdr errors");
+
+#ifdef BCE_DEBUG
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"mbuf_alloc_failed_sim_control",
+		CTLFLAG_RW, &mbuf_alloc_failed_sim_control,
+		0, "Debug control to force mbuf allocation failures");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"mbuf_alloc_failed_sim_count",
+		CTLFLAG_RD, &sc->mbuf_alloc_failed_sim_count,
+		0, "Number of simulated mbuf cluster allocation failures");
+#endif
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"mbuf_alloc_failed_count",
+		CTLFLAG_RD, &sc->mbuf_alloc_failed_count,
+		0, "Number of mbuf allocation failures");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"fragmented_mbuf_count",
+		CTLFLAG_RD, &sc->fragmented_mbuf_count,
+		0, "Number of fragmented mbufs");
+
+#ifdef BCE_DEBUG
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"dma_map_addr_failed_sim_control",
+		CTLFLAG_RW, &dma_map_addr_failed_sim_control,
+		0, "Debug control to force DMA mapping failures");
+
+	/* ToDo: Figure out how to update this value in bce_dma_map_addr(). */
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"dma_map_addr_failed_sim_count",
+		CTLFLAG_RD, &sc->dma_map_addr_failed_sim_count,
+		0, "Number of simulated DMA mapping failures");
+	
+#endif
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"dma_map_addr_rx_failed_count",
+		CTLFLAG_RD, &sc->dma_map_addr_rx_failed_count,
+		0, "Number of RX DMA mapping failures");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"dma_map_addr_tx_failed_count",
+		CTLFLAG_RD, &sc->dma_map_addr_tx_failed_count,
+		0, "Number of TX DMA mapping failures");
+
+#ifdef BCE_DEBUG
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"unexpected_attention_sim_control",
+		CTLFLAG_RW, &unexpected_attention_sim_control,
+		0, "Debug control to simulate unexpected attentions");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"unexpected_attention_sim_count",
+		CTLFLAG_RW, &sc->unexpected_attention_sim_count,
+		0, "Number of simulated unexpected attentions");
+#endif
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"unexpected_attention_count",
+		CTLFLAG_RW, &sc->unexpected_attention_count,
+		0, "Number of unexpected attentions");
+
+#ifdef BCE_DEBUG
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		"debug_bootcode_running_failure",
+		CTLFLAG_RW, &bootcode_running_failure_sim_control,
+		0, "Debug control to force bootcode running failures");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		"rx_low_watermark",
 		CTLFLAG_RD, &sc->rx_low_watermark,
 		0, "Lowest level of free rx_bd's");
@@ -7889,26 +7986,6 @@ bce_add_sysctls(struct bce_softc *sc)
 		"tx_full_count",
 		CTLFLAG_RD, &sc->tx_full_count,
 		0, "Number of times the TX chain was full");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"l2fhdr_status_errors",
-		CTLFLAG_RD, &sc->l2fhdr_status_errors,
-		0, "l2_fhdr status errors");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"unexpected_attentions",
-		CTLFLAG_RD, &sc->unexpected_attentions,
-		0, "Unexpected attentions");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"lost_status_block_updates",
-		CTLFLAG_RD, &sc->lost_status_block_updates,
-		0, "Lost status block updates");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"debug_mbuf_sim_alloc_failed",
-		CTLFLAG_RD, &sc->debug_mbuf_sim_alloc_failed,
-		0, "Simulated mbuf cluster allocation failures");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		"requested_tso_frames",
@@ -7935,16 +8012,6 @@ bce_add_sysctls(struct bce_softc *sc)
 		CTLFLAG_RD, &sc->tx_intr_time,
 		"TX interrupt time");
 #endif
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"mbuf_alloc_failed",
-		CTLFLAG_RD, &sc->mbuf_alloc_failed,
-		0, "mbuf cluster allocation failures");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"tx_dma_map_failures",
-		CTLFLAG_RD, &sc->tx_dma_map_failures,
-		0, "tx dma mapping failures");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
 		"stat_IfHcInOctets",
@@ -8062,9 +8129,9 @@ bce_add_sysctls(struct bce_softc *sc)
 		0, "Undersize packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsOverrsizePkts",
-		CTLFLAG_RD, &sc->stat_EtherStatsOverrsizePkts,
-		0, "stat_EtherStatsOverrsizePkts");
+		"stat_EtherStatsOversizePkts",
+		CTLFLAG_RD, &sc->stat_EtherStatsOversizePkts,
+		0, "stat_EtherStatsOversizePkts");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 		"stat_EtherStatsPktsRx64Octets",
@@ -9455,9 +9522,9 @@ bce_dump_stats_block(struct bce_softc *sc)
 		BCE_PRINTF("         0x%08X : EtherStatsUndersizePkts\n",
 			sblk->stat_EtherStatsUndersizePkts);
 
-	if (sblk->stat_EtherStatsOverrsizePkts)
+	if (sblk->stat_EtherStatsOversizePkts)
 		BCE_PRINTF("         0x%08X : EtherStatsOverrsizePkts\n",
-			sblk->stat_EtherStatsOverrsizePkts);
+			sblk->stat_EtherStatsOversizePkts);
 
 	if (sblk->stat_EtherStatsPktsRx64Octets)
 		BCE_PRINTF("         0x%08X : EtherStatsPktsRx64Octets\n",
@@ -9724,13 +9791,9 @@ bce_dump_driver_state(struct bce_softc *sc)
 		sc->pg_low_watermark, sc->max_pg_bd);
 #endif
 
-	BCE_PRINTF("         0x%08X - (sc->mbuf_alloc_failed) "
+	BCE_PRINTF("         0x%08X - (sc->mbuf_alloc_failed_count) "
 		"mbuf alloc failures\n",
-		sc->mbuf_alloc_failed);
-
-	BCE_PRINTF("         0x%08X - (sc->debug_mbuf_sim_alloc_failed) "
-		"simulated mbuf alloc failures\n",
-		sc->debug_mbuf_sim_alloc_failed);
+		sc->mbuf_alloc_failed_count);
 
 	BCE_PRINTF("         0x%08X - (sc->bce_flags) bce mac flags\n",
 		sc->bce_flags);
@@ -9762,7 +9825,7 @@ bce_dump_hw_state(struct bce_softc *sc)
 		" Hardware State "
 		"----------------------------\n");
 
-	BCE_PRINTF("0x%08X - bootcode version\n", sc->bce_fw_ver);
+	BCE_PRINTF("0x%08X - bootcode version\n", sc->bce_bc_ver);
 
 	val = REG_RD(sc, BCE_MISC_ENABLE_STATUS_BITS);
 	BCE_PRINTF("0x%08X - (0x%06X) misc_enable_status_bits\n",
@@ -9887,7 +9950,7 @@ bce_dump_bc_state(struct bce_softc *sc)
 		" Bootcode State "
 		"----------------------------\n");
 
-	BCE_PRINTF("0x%08X - bootcode version\n", sc->bce_fw_ver);
+	BCE_PRINTF("0x%08X - bootcode version\n", sc->bce_bc_ver);
 
 	val = REG_RD_IND(sc, sc->bce_shmem_base + BCE_BC_RESET_TYPE);
 	BCE_PRINTF("0x%08X - (0x%06X) reset_type\n",
