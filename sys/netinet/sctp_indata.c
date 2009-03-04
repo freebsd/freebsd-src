@@ -4182,6 +4182,18 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 	struct sctp_tmit_chunk *chk;
 
 	/* First setup this one and get it moved back */
+	sctp_flight_size_decrease(tp1);
+	sctp_total_flight_decrease(stcb, tp1);
+	tp1->window_probe = 0;
+	if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) || (tp1->data == NULL)) {
+		/* TSN's skipped we do NOT move back. */
+		sctp_misc_ints(SCTP_FLIGHT_LOG_DWN_WP_FWD,
+		    tp1->whoTo->flight_size,
+		    tp1->book_size,
+		    (uintptr_t) tp1->whoTo,
+		    tp1->rec.data.TSN_seq);
+		return;
+	}
 	tp1->sent = SCTP_DATAGRAM_UNSENT;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_WP,
@@ -4190,8 +4202,6 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 		    (uintptr_t) tp1->whoTo,
 		    tp1->rec.data.TSN_seq);
 	}
-	sctp_flight_size_decrease(tp1);
-	sctp_total_flight_decrease(stcb, tp1);
 	TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 	TAILQ_INSERT_HEAD(&asoc->send_queue, tp1, sctp_next);
 	asoc->sent_queue_cnt--;
@@ -4480,10 +4490,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		asoc->total_flight = 0;
 		asoc->total_flight_count = 0;
 	}
-	/* Fix up the a-p-a-p for future PR-SCTP sends */
-	if (compare_with_wrap(cumack, asoc->advanced_peer_ack_point, MAX_TSN)) {
-		asoc->advanced_peer_ack_point = cumack;
-	}
 	/* ECN Nonce updates */
 	if (asoc->ecn_nonce_allowed) {
 		if (asoc->nonce_sum_check) {
@@ -4698,6 +4704,14 @@ again:
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
 		}
+	}
+	/*********************************************/
+	/* Here we perform PR-SCTP procedures        */
+	/* (section 4.2)                             */
+	/*********************************************/
+	/* C1. update advancedPeerAckPoint */
+	if (compare_with_wrap(cumack, asoc->advanced_peer_ack_point, MAX_TSN)) {
+		asoc->advanced_peer_ack_point = cumack;
 	}
 	/* PR-Sctp issues need to be addressed too */
 	if ((asoc->peer_supports_prsctp) && (asoc->pr_sctp_cnt > 0)) {
@@ -5446,14 +5460,6 @@ done_with_it:
 		sctp_strike_gap_ack_chunks(stcb, asoc, biggest_tsn_acked,
 		    biggest_tsn_newly_acked, this_sack_lowest_newack, accum_moved);
 	}
-	/*********************************************/
-	/* Here we perform PR-SCTP procedures        */
-	/* (section 4.2)                             */
-	/*********************************************/
-	/* C1. update advancedPeerAckPoint */
-	if (compare_with_wrap(cum_ack, asoc->advanced_peer_ack_point, MAX_TSN)) {
-		asoc->advanced_peer_ack_point = cum_ack;
-	}
 	/* JRS - Use the congestion control given in the CC module */
 	asoc->cc_functions.sctp_cwnd_update_after_fr(stcb, asoc);
 
@@ -5614,6 +5620,10 @@ again:
 		}
 		done_once = 1;
 		goto again;
+	}
+	/* Fix up the a-p-a-p for future PR-SCTP sends */
+	if (compare_with_wrap(cum_ack, asoc->advanced_peer_ack_point, MAX_TSN)) {
+		asoc->advanced_peer_ack_point = cum_ack;
 	}
 	/* C2. try to further move advancedPeerAckPoint ahead */
 	if ((asoc->peer_supports_prsctp) && (asoc->pr_sctp_cnt > 0)) {
