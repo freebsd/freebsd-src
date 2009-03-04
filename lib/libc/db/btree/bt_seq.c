@@ -258,7 +258,7 @@ __bt_seqadv(BTREE *t, EPG *ep, int flags)
 		return (RET_ERROR);
 
 	/*
- 	 * Find the next/previous record in the tree and point the cursor at
+	 * Find the next/previous record in the tree and point the cursor at
 	 * it.  The cursor may not be moved until a new key has been found.
 	 */
 	switch (flags) {
@@ -348,7 +348,7 @@ __bt_first(BTREE *t, const DBT *key, EPG *erval, int *exactp)
 			*erval = *ep;
 			return (RET_SUCCESS);
 		}
-			
+
 		/*
 		 * Walk backwards, as long as the entry matches and there are
 		 * keys left in the tree.  Save a copy of each match in case
