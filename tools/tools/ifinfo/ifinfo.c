@@ -169,8 +169,8 @@ printit(const struct ifmibdata *ifmd, const char *dname)
 					  ifmd->ifmd_data.ifi_physical));
 	printf("\taddress length: %d\n", ifmd->ifmd_data.ifi_addrlen);
 	printf("\theader length: %d\n", ifmd->ifmd_data.ifi_hdrlen);
-	printf("\treceive quota: %d\n", ifmd->ifmd_data.ifi_recvquota);
-	printf("\ttransmit quota: %d\n", ifmd->ifmd_data.ifi_xmitquota);
+	printf("\treceive spare char1: %u\n", ifmd->ifmd_data.ifi_spare_char1);
+	printf("\ttransmit spare char2: %u\n", ifmd->ifmd_data.ifi_spare_char2);
 	printf("\tmtu: %lu\n", ifmd->ifmd_data.ifi_mtu);
 	printf("\tmetric: %lu\n", ifmd->ifmd_data.ifi_metric);
 	printf("\tline rate: %lu bit/s\n", ifmd->ifmd_data.ifi_baudrate);
