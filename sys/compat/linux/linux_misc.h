@@ -45,4 +45,19 @@
 #define	LINUX_MREMAP_MAYMOVE	1
 #define	LINUX_MREMAP_FIXED	2
 
+extern const char *linux_platform;
+
+/*
+ * Non-standard aux entry types used in Linux ELF binaries.
+ */
+
+#define	LINUX_AT_PLATFORM	15	/* String identifying CPU */
+#define	LINUX_AT_HWCAP		16	/* CPU capabilities */
+#define	LINUX_AT_CLKTCK		17	/* frequency at which times() increments */
+#define	LINUX_AT_SECURE		23	/* secure mode boolean */
+#define	LINUX_AT_BASE_PLATFORM	24	/* string identifying real platform, may
+					 * differ from AT_PLATFORM.
+					 */
+#define	LINUX_AT_EXECFN		31	/* filename of program */
+
 #endif	/* _LINUX_MISC_H_ */

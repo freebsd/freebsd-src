@@ -108,6 +108,10 @@ typedef struct {
 
 #define	LINUX_CTL_MAXNAME	10
 
+#define	LINUX_AT_COUNT		16	/* Count of used aux entry types.
+					 * Keep this synchronized with
+					 * elf_linux_fixup() code.
+					 */
 struct l___sysctl_args
 {
 	l_uintptr_t	name;
