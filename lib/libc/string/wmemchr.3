@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2009
+.Dd March 4, 2009
 .Dt WMEMCHR 3
 .Os
 .Sh NAME
@@ -44,6 +44,8 @@
 .Nm wmemcpy ,
 .Nm wmemmove ,
 .Nm wmemset ,
+.Nm wcpcpy ,
+.Nm wcpncpy ,
 .Nm wcscasecmp ,
 .Nm wcscat ,
 .Nm wcschr ,
@@ -78,6 +80,10 @@
 .Fn wmemmove "wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft wchar_t *
 .Fn wmemset "wchar_t *s" "wchar_t c" "size_t n"
+.Ft wchar_t *
+.Fn wcpcpy "wchar_t *s1" "wchar_t *s2"
+.Ft wchar_t *
+.Fn wcpncpy "wchar_t *s1" "wchar_t *s2" "size_t n"
 .Ft int
 .Fn wcscasecmp "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
@@ -128,6 +134,8 @@ counterpart, such as
 .Xr memcpy 3 ,
 .Xr memmove 3 ,
 .Xr memset 3 ,
+.Xr stpcpy 3 ,
+.Xr stpncpy 3 ,
 .Xr strcasecmp 3 ,
 .Xr strcat 3 ,
 .Xr strchr 3 ,
@@ -150,6 +158,8 @@ counterpart, such as
 These functions conform to
 .St -isoC-99 ,
 with the exception of
+.Fn wcpcpy ,
+.Fn wcpncpy ,
 .Fn wcscasecmp ,
 .Fn wcsdup ,
 .Fn wcsncasecmp ,
