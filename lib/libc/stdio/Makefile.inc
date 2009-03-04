@@ -4,7 +4,8 @@
 # stdio sources
 .PATH: ${.CURDIR}/stdio
 
-SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fcloseall.c fdopen.c \
+SRCS+=	_flock_stub.c asprintf.c clrerr.c dprintf.c \
+	fclose.c fcloseall.c fdopen.c \
 	feof.c ferror.c fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c \
 	fgetwln.c fgetws.c \
 	fileno.c findfp.c flags.c fopen.c fprintf.c fpurge.c fputc.c fputs.c \
@@ -17,7 +18,7 @@ SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fcloseall.c fdopen.c \
 	refill.c remove.c rewind.c rget.c scanf.c setbuf.c setbuffer.c \
 	setvbuf.c snprintf.c sprintf.c sscanf.c stdio.c swprintf.c swscanf.c \
 	tempnam.c tmpfile.c \
-	tmpnam.c ungetc.c ungetwc.c vasprintf.c vfprintf.c \
+	tmpnam.c ungetc.c ungetwc.c vasprintf.c vdprintf.c vfprintf.c \
 	vfscanf.c \
 	vfwprintf.c vfwscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
 	vsscanf.c \
@@ -57,9 +58,9 @@ MLINKS+=getc.3 fgetc.3 getc.3 getc_unlocked.3 getc.3 getchar.3 \
 MLINKS+=getline.3 getdelim.3
 MLINKS+=getwc.3 fgetwc.3 getwc.3 getwchar.3
 MLINKS+=mktemp.3 mkdtemp.3 mktemp.3 mkstemp.3 mktemp.3 mkstemps.3
-MLINKS+=printf.3 asprintf.3 printf.3 fprintf.3 \
+MLINKS+=printf.3 asprintf.3 printf.3 dprintf.3 printf.3 fprintf.3 \
 	printf.3 snprintf.3 printf.3 sprintf.3 \
-	printf.3 vasprintf.3 \
+	printf.3 vasprintf.3 printf.3 vdprintf.3 \
 	printf.3 vfprintf.3 printf.3 vprintf.3 printf.3 vsnprintf.3 \
 	printf.3 vsprintf.3
 MLINKS+=putc.3 fputc.3 putc.3 putc_unlocked.3 putc.3 putchar.3 \
