@@ -39,7 +39,7 @@ options 	DDB			#Enable the kernel debugger
 #options		DIAGNOSTIC
 
 options 	SCHED_4BSD		#4BSD scheduler
-options		PREEMPTION
+#options		PREEMPTION	# NB: appears broken
 
 options 	INET			#InterNETworking
 #options 	INET6			#IPv6 communications protocols
