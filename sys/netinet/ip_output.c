@@ -112,6 +112,7 @@ static void	ip_mloopback
 	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
 
 
+extern int in_mcast_loop;
 extern	struct protosw inetsw[];
 
 /*
@@ -293,8 +294,6 @@ again:
 		mtu = ifp->if_mtu;
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
-		struct in_multi *inm;
-
 		m->m_flags |= M_MCAST;
 		/*
 		 * IP destination address is multicast.  Make sure "dst"
@@ -334,20 +333,17 @@ again:
 				ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 
-		IN_MULTI_LOCK();
-		IN_LOOKUP_MULTI(ip->ip_dst, ifp, inm);
-		if (inm != NULL &&
-		   (imo == NULL || imo->imo_multicast_loop)) {
-			IN_MULTI_UNLOCK();
+		if ((imo == NULL && in_mcast_loop) ||
+		    (imo && imo->imo_multicast_loop)) {
 			/*
-			 * If we belong to the destination multicast group
-			 * on the outgoing interface, and the caller did not
-			 * forbid loopback, loop back a copy.
+			 * Loop back multicast datagram if not expressly
+			 * forbidden to do so, even if we are not a member
+			 * of the group; ip_input() will filter it later,
+			 * thus deferring a hash lookup and mutex acquisition
+			 * at the expense of a cheap copy using m_copym().
 			 */
 			ip_mloopback(ifp, m, dst, hlen);
-		}
-		else {
-			IN_MULTI_UNLOCK();
+		} else {
 			/*
 			 * If we are acting as a multicast router, perform
 			 * multicast forwarding as if the packet had just
@@ -382,8 +378,9 @@ again:
 		 * back, above, but must not be transmitted on a network.
 		 * Also, multicasts addressed to the loopback interface
 		 * are not sent -- the above call to ip_mloopback() will
-		 * loop back a copy if this host actually belongs to the
-		 * destination group on the loopback interface.
+		 * loop back a copy. ip_input() will drop the copy if
+		 * this host does not belong to the destination group on
+		 * the loopback interface.
 		 */
 		if (ip->ip_ttl == 0 || ifp->if_flags & IFF_LOOPBACK) {
 			m_freem(m);
@@ -758,7 +755,7 @@ smart_frag_failure:
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload
-		 * goes into an additional mbuf chain returned by m_copy().
+		 * goes into an additional mbuf chain returned by m_copym().
 		 */
 		m->m_data += max_linkhdr;
 		mhip = mtod(m, struct ip *);
@@ -777,7 +774,7 @@ smart_frag_failure:
 		} else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
-		m->m_next = m_copy(m0, off, len);
+		m->m_next = m_copym(m0, off, len, M_DONTWAIT);
 		if (m->m_next == NULL) {	/* copy failed */
 			m_free(m);
 			error = ENOBUFS;	/* ??? */
