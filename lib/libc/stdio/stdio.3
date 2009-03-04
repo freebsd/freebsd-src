@@ -28,7 +28,7 @@
 .\"     @(#)stdio.3	8.7 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2009
+.Dd March 3, 2009
 .Dt STDIO 3
 .Os
 .Sh NAME
@@ -243,6 +243,7 @@ library conforms to
 .It Sy "Function	Description"
 .It "asprintf	formatted output conversion"
 .It "clearerr	check and reset stream status"
+.It "dprintf	formatted output conversion"
 .It "fclose	close a stream"
 .It "fdopen	stream open functions"
 .It "feof	check and reset stream status"
@@ -313,6 +314,7 @@ library conforms to
 .It "ungetc	un-get character from input stream"
 .It "ungetwc	un-get wide character from input stream"
 .It "vasprintf	formatted output conversion"
+.It "vdprintf	formatted output conversion"
 .It "vfprintf	formatted output conversion"
 .It "vfscanf	input format conversion"
 .It "vfwprintf	formatted wide character output conversion"
