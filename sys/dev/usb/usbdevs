@@ -1767,6 +1767,9 @@ product MITSUMI CDRRW		0x0000	CD-R/RW Drive
 product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
 product MITSUMI FDD		0x6901	USB FDD
 
+/* Mobile Action products */
+product MOBILEACTION MA620	0x0620	MA-620 Infrared Adapter
+
 /* Mobility products */
 product MOBILITY EA		0x0204	Ethernet
 product MOBILITY EASIDOCK	0x0304	EasiDock Ethernet
