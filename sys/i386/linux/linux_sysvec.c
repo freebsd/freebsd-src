@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <machine/cpu.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
@@ -107,6 +109,10 @@ static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
+static register_t *linux_copyout_strings(struct image_params *imgp);
+
+static int linux_szplatform;
+const char *linux_platform;
 
 extern LIST_HEAD(futex_list, futex) futex_list;
 extern struct sx futex_sx;
@@ -231,22 +237,30 @@ linux_fixup(register_t **stack_base, struct image_params *imgp)
 	**stack_base = (intptr_t)(void *)argv;
 	(*stack_base)--;
 	**stack_base = imgp->args->argc;
-	return 0;
+	return (0);
 }
 
 static int
 elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 {
+	struct proc *p;
 	Elf32_Auxargs *args;
+	Elf32_Addr *uplatform;
+	struct ps_strings *arginfo;
 	register_t *pos;
 
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
+
+	p = imgp->proc;
+	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
+	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szsigcode -
+	    linux_szplatform);
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 
-	if (args->execfd != -1)
-		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, cpu_feature);
+	AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, hz);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
@@ -254,10 +268,14 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, 0);
 	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_ucred->cr_ruid);
 	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
+	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(uplatform));
+	if (args->execfd != -1)
+		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
@@ -265,8 +283,124 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 
 	(*stack_base)--;
 	**stack_base = (register_t)imgp->args->argc;
-	return 0;
+	return (0);
 }
+
+/*
+ * Copied from kern/kern_exec.c
+ */
+static register_t *
+linux_copyout_strings(struct image_params *imgp)
+{
+	int argc, envc;
+	char **vectp;
+	char *stringp, *destp;
+	register_t *stack_base;
+	struct ps_strings *arginfo;
+	struct proc *p;
+
+	/*
+	 * Calculate string base and vector table pointers.
+	 * Also deal with signal trampoline code for this exec type.
+	 */
+	p = imgp->proc;
+	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
+	destp = (caddr_t)arginfo - linux_szsigcode - SPARE_USRSPACE -
+	    linux_szplatform - roundup((ARG_MAX - imgp->args->stringspace),
+	    sizeof(char *));
+
+	/*
+	 * install sigcode
+	 */
+	copyout(p->p_sysent->sv_sigcode, ((caddr_t)arginfo -
+	    linux_szsigcode), linux_szsigcode);
+
+	/*
+	 * install LINUX_PLATFORM
+	 */
+	copyout(linux_platform, ((caddr_t)arginfo - linux_szsigcode -
+	    linux_szplatform), linux_szplatform);
+
+	/*
+	 * If we have a valid auxargs ptr, prepare some room
+	 * on the stack.
+	 */
+	if (imgp->auxargs) {
+		/*
+		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
+		 * lower compatibility.
+		 */
+		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size :
+		    (LINUX_AT_COUNT * 2);
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets,and imgp->auxarg_size is room
+		 * for argument of Runtime loader.
+		 */
+		vectp = (char **)(destp - (imgp->args->argc +
+		    imgp->args->envc + 2 + imgp->auxarg_size) * sizeof(char *));
+	} else {
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets
+		 */
+		vectp = (char **)(destp - (imgp->args->argc + imgp->args->envc + 2) *
+		    sizeof(char *));
+	}
+
+	/*
+	 * vectp also becomes our initial stack base
+	 */
+	stack_base = (register_t *)vectp;
+
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
+
+	/*
+	 * Copy out strings - arguments and environment.
+	 */
+	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
+
+	/*
+	 * Fill in "ps_strings" struct for ps, w, etc.
+	 */
+	suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp);
+	suword(&arginfo->ps_nargvstr, argc);
+
+	/*
+	 * Fill in argument portion of vector table.
+	 */
+	for (; argc > 0; --argc) {
+		suword(vectp++, (long)(intptr_t)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
+	}
+
+	/* a null vector table pointer separates the argp's from the envp's */
+	suword(vectp++, 0);
+
+	suword(&arginfo->ps_envstr, (long)(intptr_t)vectp);
+	suword(&arginfo->ps_nenvstr, envc);
+
+	/*
+	 * Fill in environment portion of vector table.
+	 */
+	for (; envc > 0; --envc) {
+		suword(vectp++, (long)(intptr_t)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
+	}
+
+	/* end of vector table is a null pointer */
+	suword(vectp, 0);
+
+	return (stack_base);
+}
+
+
 
 extern int _ucodesel, _udatasel;
 extern unsigned long linux_sznonrtsigcode;
@@ -808,6 +942,25 @@ exec_linux_setregs(struct thread *td, u_long entry,
 	fldcw(&control);
 }
 
+static void
+linux_get_machine(const char **dst)
+{
+
+	switch (cpu_class) {
+	case CPUCLASS_686:
+		*dst = "i686";
+		break;
+	case CPUCLASS_586:
+		*dst = "i586";
+		break;
+	case CPUCLASS_486:
+		*dst = "i486";
+		break;
+	default:
+		*dst = "i386";
+	}
+}
+
 struct sysentvec linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
@@ -863,7 +1016,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_usrstack	= USRSTACK,
 	.sv_psstrings	= PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
-	.sv_copyout_strings = exec_copyout_strings,
+	.sv_copyout_strings = linux_copyout_strings,
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
@@ -929,6 +1082,9 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			      NULL, 1000);
 			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec, linux_proc_exec,
 			      NULL, 1000);
+			linux_get_machine(&linux_platform);
+			linux_szplatform = roundup(strlen(linux_platform) + 1,
+			    sizeof(char *));
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
