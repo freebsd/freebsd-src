@@ -212,9 +212,6 @@ ata_marvell_edma_chipinit(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x01d64, 0x000000ff/*HC0*/ | 0x0001fe00/*HC1*/ |
 	     /*(1<<19) | (1<<20) | (1<<21) |*/(1<<22) | (1<<24) | (0x7f << 25));
 
-    /* enable PCI interrupt */
-    pci_write_config(dev, PCIR_COMMAND,
-		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     return 0;
 }
 
