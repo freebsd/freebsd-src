@@ -1018,10 +1018,6 @@ udf_strategy(struct vop_strategy_args *a)
 	node = VTON(vp);
 
 	if (bp->b_blkno == bp->b_lblkno) {
-		/*
-		 * Files that are embedded in the fentry don't translate well
-		 * to a block number.  Reject.
-		 */
 		offset = lblktosize(node->udfmp, bp->b_lblkno);
 		error = udf_bmap_internal(node, offset, &sector, &maxsize);
 		if (error) {
