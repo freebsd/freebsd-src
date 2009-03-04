@@ -413,6 +413,33 @@ int	 setegid(gid_t);
 int	 seteuid(uid_t);
 #endif
 
+/* 1003.1-2008 */
+#if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE
+int	 getsid(pid_t _pid);
+int	 fchdir(int);
+int	 getpgid(pid_t _pid);
+int	 lchown(const char *, uid_t, gid_t);
+ssize_t	 pread(int, void *, size_t, off_t);
+ssize_t	 pwrite(int, const void *, size_t, off_t);
+
+/* See comment at ftruncate() above. */
+#ifndef _TRUNCATE_DECLARED
+#define	_TRUNCATE_DECLARED
+int	 truncate(const char *, off_t);
+#endif
+#endif /* __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE */
+
+#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+int	faccessat(int, const char *, int, int);
+int	fchmodat(int, const char *, mode_t, int);
+int	fchownat(int, const char *, uid_t, gid_t, int);
+int	fexecve(int, char *const [], char *const []);
+int	linkat(int, const char *, int, const char *, int);
+ssize_t	readlinkat(int, const char * __restrict, char * __restrict, size_t);
+int	symlinkat(const char *, int, const char *);
+int	unlinkat(int, const char *, int);
+#endif /* __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE */
+
 /*
  * symlink() was originally in POSIX.1a, which was withdrawn after
  * being overtaken by events (1003.1-2001).  It was in XPG4.2, and of
@@ -427,16 +454,9 @@ int	 symlink(const char * __restrict, const char * __restrict);
 char	*crypt(const char *, const char *);
 /* char	*ctermid(char *); */		/* XXX ??? */
 int	 encrypt(char *, int);
-int	 fchdir(int);
 long	 gethostid(void);
-int	 getpgid(pid_t _pid);
-int	 getsid(pid_t _pid);
-char	*getwd(char *);			/* LEGACY: obsoleted by getcwd() */
-int	 lchown(const char *, uid_t, gid_t);
 int	 lockf(int, int, off_t);
 int	 nice(int);
-ssize_t	 pread(int, void *, size_t, off_t);
-ssize_t	 pwrite(int, const void *, size_t, off_t);
 int	 setpgrp(pid_t _pid, pid_t _pgrp); /* obsoleted by setpgid() */
 int	 setregid(gid_t, gid_t);
 int	 setreuid(uid_t, uid_t);
@@ -447,15 +467,7 @@ void	 swab(const void * __restrict, void * __restrict, ssize_t);
 #endif /* _SWAB_DECLARED */
 
 void	 sync(void);
-useconds_t	 ualarm(useconds_t, useconds_t);
-int	 usleep(useconds_t);
-pid_t	 vfork(void);
 
-/* See comment at ftruncate() above. */
-#ifndef _TRUNCATE_DECLARED
-#define	_TRUNCATE_DECLARED
-int	 truncate(const char *, off_t);
-#endif
 #endif /* __XSI_VISIBLE */
 
 #if __XSI_VISIBLE <= 500 || __BSD_VISIBLE
@@ -465,6 +477,14 @@ int	 getdtablesize(void);
 int	 getpagesize(void) __pure2;
 char	*getpass(const char *);
 void	*sbrk(intptr_t);
+#endif
+
+#if __XSI_VISIBLE <= 600 || __BSD_VISIBLE
+char	*getwd(char *);			/* obsoleted by getcwd() */
+useconds_t
+	 ualarm(useconds_t, useconds_t);
+int	 usleep(useconds_t);
+pid_t	 vfork(void);
 #endif
 
 #if __BSD_VISIBLE
@@ -494,7 +514,10 @@ int	 initgroups(const char *, gid_t);
 int	 iruserok(unsigned long, int, const char *, const char *);
 int	 iruserok_sa(const void *, int, int, const char *, const char *);
 int	 issetugid(void);
+#ifndef _MKDTEMP_DECLARED
 char	*mkdtemp(char *);
+#define	_MKDTEMP_DECLARED
+#endif
 #ifndef	_MKNOD_DECLARED
 int	 mknod(const char *, mode_t, dev_t);
 #define	_MKNOD_DECLARED
@@ -559,17 +582,6 @@ void	*valloc(size_t);			/* obsoleted by malloc() */
 #define	_OPTRESET_DECLARED
 extern int optreset;			/* getopt(3) external variable */
 #endif
-#endif /* __BSD_VISIBLE */
-
-#if __BSD_VISIBLE
-int	faccessat(int, const char *, int, int);
-int	fchmodat(int, const char *, mode_t, int);
-int	fchownat(int, const char *, uid_t, gid_t, int);
-int	fexecve(int, char *const [], char *const []);
-int	linkat(int, const char *, int, const char *, int);
-ssize_t	readlinkat(int, const char * __restrict, char * __restrict, size_t);
-int	symlinkat(const char *, int, const char *);
-int	unlinkat(int, const char *, int);
 #endif /* __BSD_VISIBLE */
 __END_DECLS
 
