@@ -149,7 +149,7 @@ __bt_split(BTREE *t, PAGE *sp, const DBT *key, const DBT *data, int flags,
 		if ((h = mpool_get(t->bt_mp, parent->pgno, 0)) == NULL)
 			goto err2;
 
-	 	/*
+		/*
 		 * The new key goes ONE AFTER the index, because the split
 		 * was to the right.
 		 */

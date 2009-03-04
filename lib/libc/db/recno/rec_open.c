@@ -203,7 +203,7 @@ slow:			if ((t->bt_rfp = fdopen(rfd, "r")) == NULL)
 	if (openinfo && openinfo->flags & R_SNAPSHOT &&
 	    !F_ISSET(t, R_EOF | R_INMEM) &&
 	    t->bt_irec(t, MAX_REC_NUMBER) == RET_ERROR)
-                goto err;
+		goto err;
 	return (dbp);
 
 einval:	errno = EINVAL;

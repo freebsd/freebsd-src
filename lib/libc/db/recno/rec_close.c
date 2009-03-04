@@ -82,9 +82,10 @@ __rec_close(DB *dbp)
 		if (F_ISSET(t, R_CLOSEFP)) {
 			if (fclose(t->bt_rfp))
 				status = RET_ERROR;
-		} else
+		} else {
 			if (_close(t->bt_rfd))
 				status = RET_ERROR;
+		}
 	}
 
 	if (__bt_close(dbp) == RET_ERROR)
@@ -154,7 +155,7 @@ __rec_sync(const DB *dbp, u_int flags)
 			status = (dbp->seq)(dbp, &key, &data, R_NEXT);
 		}
 	} else {
-		iov[1].iov_base = (char *)&t->bt_bval;
+		iov[1].iov_base = &t->bt_bval;
 		iov[1].iov_len = 1;
 
 		status = (dbp->seq)(dbp, &key, &data, R_FIRST);

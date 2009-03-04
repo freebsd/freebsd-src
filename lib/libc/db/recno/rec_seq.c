@@ -103,7 +103,7 @@ __rec_seq(const DB *dbp, DBT *key, DBT *data, u_int flags)
 einval:		errno = EINVAL;
 		return (RET_ERROR);
 	}
-	
+
 	if (t->bt_nrecs == 0 || nrec > t->bt_nrecs) {
 		if (!F_ISSET(t, R_EOF | R_INMEM) &&
 		    (status = t->bt_irec(t, nrec)) != RET_SUCCESS)

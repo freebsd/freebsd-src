@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  *	e:	key/data pair to be returned
  *   nrec:	record number
  *    key:	user's key structure
- *	data:	user's data structure
+ *   data:	user's data structure
  *
  * Returns:
  *	RET_SUCCESS, RET_ERROR.
