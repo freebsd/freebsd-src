@@ -213,10 +213,6 @@ ata_intel_chipinit(device_t dev)
 	    ctlr->setmode = ata_intel_sata_setmode;
 	else
 	    ctlr->setmode = ata_sata_setmode;
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     }
     return 0;
 }

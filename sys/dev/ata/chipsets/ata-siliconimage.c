@@ -150,10 +150,6 @@ ata_sii_chipinit(device_t dev)
 	ATA_OUTL(ctlr->r_res1, 0x0040, 0x80000000);
 	DELAY(10000);
 	ATA_OUTL(ctlr->r_res1, 0x0040, 0x0000000f);
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	break;
 
     case SII_MEMIO:
