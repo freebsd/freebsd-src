@@ -84,6 +84,8 @@ FBSD_1.1 {
 	stpncpy;
 	strndup;
 	strnlen;
+	wcpcpy;
+	wcpncpy;
 	wcscasecmp;
 	wcsncasecmp;
 	wcsnlen;
