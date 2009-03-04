@@ -228,8 +228,9 @@ __FBSDID("$FreeBSD$");
 #define SCTP_MAP_TSN_ENTERS        119
 #define SCTP_THRESHOLD_CLEAR       120
 #define SCTP_THRESHOLD_INCR        121
+#define SCTP_FLIGHT_LOG_DWN_WP_FWD 122
 
-#define SCTP_LOG_MAX_TYPES 122
+#define SCTP_LOG_MAX_TYPES 123
 /*
  * To turn on various logging, you must first enable 'options KTR' and
  * you might want to bump the entires 'options KTR_ENTRIES=80000'.
