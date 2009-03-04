@@ -2825,14 +2825,24 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 	if (error)
 		return (error);
 
-	/*
-	 * If this is a direct child, check to see if the interrupt is
-	 * MSI or MSI-X.  If so, ask our parent to map the MSI and give
-	 * us the address and data register values.  If we fail for some
-	 * reason, teardown the interrupt handler.
-	 */
+	/* If this is not a direct child, just bail out. */
+	if (device_get_parent(child) != dev) {
+		*cookiep = cookie;
+		return(0);
+	}
+
 	rid = rman_get_rid(irq);
-	if (device_get_parent(child) == dev && rid > 0) {
+	if (rid == 0) {
+		/* Make sure that INTx is enabled */
+		pci_clear_command_bit(dev, child, PCIM_CMD_INTxDIS);
+	} else {
+		/*
+		 * Check to see if the interrupt is MSI or MSI-X.
+		 * Ask our parent to map the MSI and give
+		 * us the address and data register values.
+		 * If we fail for some reason, teardown the
+		 * interrupt handler.
+		 */
 		dinfo = device_get_ivars(child);
 		if (dinfo->cfg.msi.msi_alloc > 0) {
 			if (dinfo->cfg.msi.msi_addr == 0) {
@@ -2874,7 +2884,8 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 			}
 			mte->mte_handlers++;
 		}
-		/* Disable INTx if we are using MSI/MSIX */
+
+		/* Make sure that INTx is disabled if we are using MSI/MSIX */
 		pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
 	bad:
 		if (error) {
@@ -2896,16 +2907,24 @@ pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	struct pci_devinfo *dinfo;
 	int error, rid;
 
-	/*
-	 * If this is a direct child, check to see if the interrupt is
-	 * MSI or MSI-X.  If so, decrement the appropriate handlers
-	 * count and mask the MSI-X message, or disable MSI messages
-	 * if the count drops to 0.
-	 */
 	if (irq == NULL || !(rman_get_flags(irq) & RF_ACTIVE))
 		return (EINVAL);
+
+	/* If this isn't a direct child, just bail out */
+	if (device_get_parent(child) != dev)
+		return(bus_generic_teardown_intr(dev, child, irq, cookie));
+
 	rid = rman_get_rid(irq);
-	if (device_get_parent(child) == dev && rid > 0) {
+	if (rid > 0) {
+		/* Mask INTx */
+		pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
+	} else {
+		/*
+		 * Check to see if the interrupt is MSI or MSI-X.  If so,
+		 * decrement the appropriate handlers count and mask the
+		 * MSI-X message, or disable MSI messages if the count
+		 * drops to 0.
+		 */
 		dinfo = device_get_ivars(child);
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, rid);
 		if (rle->res != irq)
@@ -2930,11 +2949,9 @@ pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 			if (mte->mte_handlers == 0)
 				pci_mask_msix(child, rid - 1);
 		}
-		/* Restore INTx capability for MSI/MSIX */
-		pci_clear_command_bit(dev, child, PCIM_CMD_INTxDIS);
 	}
 	error = bus_generic_teardown_intr(dev, child, irq, cookie);
-	if (device_get_parent(child) == dev && rid > 0)
+	if (rid > 0)
 		KASSERT(error == 0,
 		    ("%s: generic teardown failed for MSI/MSI-X", __func__));
 	return (error);
