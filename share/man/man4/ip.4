@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2007
+.Dd February 13, 2009
 .Dt IP 4
 .Os
 .Sh NAME
@@ -404,8 +404,9 @@ group and if multicast loopback has not been disabled on the sending socket
 Multicast datagrams with TTL greater than 1 may be forwarded
 to other networks if a multicast router is attached to the local network.
 .Pp
-For hosts with multiple interfaces, each multicast transmission is
-sent from the primary network interface.
+For hosts with multiple interfaces, where an interface has not
+been specified for a multicast group membership,
+each multicast transmission is sent from the primary network interface.
 The
 .Dv IP_MULTICAST_IF
 option overrides the default for
@@ -423,12 +424,25 @@ to specify the default interface.
 .Pp
 To specify an interface by index, an instance of
 .Vt ip_mreqn
-should be passed instead.
+may be passed instead.
 The
 .Vt imr_ifindex
 member should be set to the index of the desired interface,
 or 0 to specify the default interface.
 The kernel differentiates between these two structures by their size.
+.Pp
+The use of
+.Vt IP_MULTICAST_IF
+is
+.Em not recommended ,
+as multicast memberships are scoped to each
+individual interface.
+It is supported for legacy use only by applications,
+such as routing daemons, which expect to
+be able to transmit link-local IPv4 multicast datagrams (224.0.0.0/24)
+on multiple interfaces,
+without requesting an individual membership for each interface.
+.Pp
 .\"
 An interface's local IP address and multicast capability can
 be obtained via the
@@ -485,24 +499,32 @@ struct ip_mreq {
 .Ed
 .Pp
 .Va imr_interface
-should be set to
-.Dv INADDR_ANY
-to choose the default multicast interface,
-or the
+should be set to the
 .Tn IP
 address of a particular multicast-capable interface if
 the host is multihomed.
-.\" TODO: Remove this piece when the RFC 3678 API is implemented and
-.\" the RFC 1724 hack is removed.
-Since
-.Fx 4.4 ,
+It may be set to
+.Dv INADDR_ANY
+to choose the default interface, although this is not recommended;
+this is considered to be the first interface corresponding
+to the default route.
+Otherwise, the first multicast-capable interface
+configured in the system will be used.
+.Pp
+Prior to
+.Fx 7.0 ,
 if the
 .Va imr_interface
 member is within the network range
 .Li 0.0.0.0/8 ,
 it is treated as an interface index in the system interface MIB,
 as per the RIP Version 2 MIB Extension (RFC-1724).
-.\" TODO: Update this piece when IPv4 source-address selection is implemented.
+In versions of
+.Fx
+since 7.0, this behavior is no longer supported.
+Developers should
+instead use the RFC 3678 multicast source filter APIs; in particular,
+.Dv MCAST_JOIN_GROUP .
 .Pp
 Up to
 .Dv IP_MAX_MEMBERSHIPS
@@ -510,14 +532,6 @@ memberships may be added on a single socket.
 Membership is associated with a single interface;
 programs running on multihomed hosts may need to
 join the same group on more than one interface.
-.Pp
-The IGMP protocol uses the primary IP address of the interface
-as its identifier for group membership.
-If multiple IP aliases are configured on the same interface,
-they will be ignored.
-This shortcoming was addressed in IPv6; MLDv2 requires
-that the unique link-local address for an interface is
-used to identify an MLDv2 listener.
 .Pp
 To drop a membership, use:
 .Bd -literal
@@ -529,6 +543,113 @@ where
 .Fa mreq
 contains the same values as used to add the membership.
 Memberships are dropped when the socket is closed or the process exits.
+.\" TODO: Update this piece when IPv4 source-address selection is implemented.
+.Pp
+The IGMP protocol uses the primary IP address of the interface
+as its identifier for group membership.
+This is the first IP address configured on the interface.
+If this address is removed or changed, the results are
+undefined, as the IGMP membership state will then be inconsistent.
+If multiple IP aliases are configured on the same interface,
+they will be ignored.
+.Pp
+This shortcoming was addressed in IPv6; MLDv2 requires
+that the unique link-local address for an interface is
+used to identify an MLDv2 listener.
+.Ss "Source-Specific Multicast Options"
+Since
+.Fx 8.0 ,
+the use of Source-Specific Multicast (SSM) is supported.
+These extensions require an IGMPv3 multicast router in order to
+make best use of them.
+If a legacy multicast router is present on the link,
+.Fx
+will simply downgrade to the version of IGMP spoken by the router,
+and the benefits of source filtering on the upstream link
+will not be present, although the kernel will continue to
+squelch transmissions from blocked sources.
+.Pp
+Each group membership on a socket now has a filter mode:
+.Bl -tag -width MCAST_EXCLUDE
+.It Dv MCAST_EXCLUDE
+Datagrams sent to this group are accepted,
+unless the source is in a list of blocked source addresses.
+.It Dv MCAST_INCLUDE
+Datagrams sent to this group are accepted
+only if the source is in a list of accepted source addresses.
+.El
+.Pp
+Groups joined using the legacy
+.Dv IP_ADD_MEMBERSHIP
+option are placed in exclusive-mode,
+and are able to request that certain sources are blocked or allowed.
+This is known as the
+.Em delta-based API .
+.Pp
+To block a multicast source on an existing group membership:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_BLOCK_SOURCE, &mreqs, sizeof(mreqs));
+.Ed
+.Pp
+where
+.Fa mreqs
+is the following structure:
+.Bd -literal
+struct ip_mreq_source {
+    struct in_addr imr_multiaddr; /* IP multicast address of group */
+    struct in_addr imr_sourceaddr; /* IP address of source */
+    struct in_addr imr_interface; /* local IP address of interface */
+}
+.Ed
+.Va imr_sourceaddr
+should be set to the address of the source to be blocked.
+.Pp
+To unblock a multicast source on an existing group:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_UNBLOCK_SOURCE, &mreqs, sizeof(mreqs));
+.Ed
+.Pp
+The
+.Dv IP_BLOCK_SOURCE
+and
+.Dv IP_UNBLOCK_SOURCE
+options are
+.Em not permitted
+for inclusive-mode group memberships.
+.Pp
+To join a multicast group in
+.Dv MCAST_INCLUDE
+mode with a single source,
+or add another source to an existing inclusive-mode membership:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &mreqs, sizeof(mreqs));
+.Ed
+.Pp
+To leave a single source from an existing group in inclusive mode:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP, &mreqs, sizeof(mreqs));
+.Ed
+If this is the last accepted source for the group, the membership
+will be dropped.
+.Pp
+The
+.Dv IP_ADD_SOURCE_MEMBERSHIP
+and
+.Dv IP_DROP_SOURCE_MEMBERSHIP
+options are
+.Em not accepted
+for exclusive-mode group memberships.
+However, both exclusive and inclusive mode memberships
+support the use of the
+.Em full-state API
+documented in RFC 3678.
+For management of source filter lists using this API,
+please refer to
+.Xr sourcefilter 3 .
 .\"-----------------------
 .Ss "Raw IP Sockets"
 .Pp
@@ -676,7 +797,16 @@ field was not equal to the length of the datagram written to the socket.
 .Xr icmp 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
-.Xr multicast 4
+.Xr multicast 4 ,
+.Xr sourcefilter 3
+.Rs
+.%A D. Thaler
+.%A B. Fenner
+.%A B. Quinn
+.%T "Socket Interface Extensions for Multicast Source Filters"
+.%N RFC 3678
+.%D Jan 2004
+.Re
 .Sh HISTORY
 The
 .Nm
