@@ -309,8 +309,8 @@ typedef struct _btree {
 	CURSOR	  bt_cursor;		/* cursor */
 
 #define	BT_PUSH(t, p, i) {						\
-	t->bt_sp->pgno = p; 						\
-	t->bt_sp->index = i; 						\
+	t->bt_sp->pgno = p;						\
+	t->bt_sp->index = i;						\
 	++t->bt_sp;							\
 }
 #define	BT_POP(t)	(t->bt_sp == t->bt_stack ? NULL : --t->bt_sp)

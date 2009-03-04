@@ -412,8 +412,8 @@ __big_return(HTAB *hashp, BUFHEAD *bufp, int ndx, DBT *val, int set_current)
 			return (0);
 		}
 
-	val->size = collect_data(hashp, bufp, (int)len, set_current);
-	if (val->size == -1)
+	val->size = (size_t)collect_data(hashp, bufp, (int)len, set_current);
+	if (val->size == (size_t)-1)
 		return (-1);
 	if (save_p->addr != save_addr) {
 		/* We are pretty short on buffers. */
@@ -484,8 +484,8 @@ collect_data(HTAB *hashp, BUFHEAD *bufp, int len, int set)
 int
 __big_keydata(HTAB *hashp, BUFHEAD *bufp, DBT *key, DBT *val, int set)
 {
-	key->size = collect_key(hashp, bufp, 0, val, set);
-	if (key->size == -1)
+	key->size = (size_t)collect_key(hashp, bufp, 0, val, set);
+	if (key->size == (size_t)-1)
 		return (-1);
 	key->data = (u_char *)hashp->tmp_key;
 	return (0);
@@ -544,12 +544,10 @@ __big_split(HTAB *hashp,
     u_int32_t obucket,	/* Old Bucket */
     SPLIT_RETURN *ret)
 {
-	BUFHEAD *tmpp;
-	u_int16_t *tp;
-	BUFHEAD *bp;
+	BUFHEAD *bp, *tmpp;
 	DBT key, val;
 	u_int32_t change;
-	u_int16_t free_space, n, off;
+	u_int16_t free_space, n, off, *tp;
 
 	bp = big_keyp;
 
@@ -561,7 +559,7 @@ __big_split(HTAB *hashp,
 	if ( (ret->next_addr = __find_last_page(hashp, &big_keyp)) ) {
 		if (!(ret->nextp =
 		    __get_buf(hashp, ret->next_addr, big_keyp, 0)))
-			return (-1);;
+			return (-1);
 	} else
 		ret->nextp = NULL;
 

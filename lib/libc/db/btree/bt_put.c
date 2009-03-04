@@ -99,7 +99,7 @@ __bt_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
 		 */
 		if (F_ISSET(&t->bt_cursor, CURS_INIT) &&
 		    !F_ISSET(&t->bt_cursor,
-		        CURS_ACQUIRE | CURS_AFTER | CURS_BEFORE))
+			CURS_ACQUIRE | CURS_AFTER | CURS_BEFORE))
 			break;
 		/* FALLTHROUGH */
 	default:
@@ -257,7 +257,7 @@ u_long bt_cache_hit, bt_cache_miss;
  *	key:	key to insert
  *
  * Returns:
- * 	EPG for new record or NULL if not found.
+ *	EPG for new record or NULL if not found.
  */
 static EPG *
 bt_fast(BTREE *t, const DBT *key, const DBT *data, int *exactp)
