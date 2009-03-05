@@ -25,8 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-static unsigned char nulls[10000000];
-static unsigned char buff[10000000];
+static unsigned char nulls[10000];
+static unsigned char  buff[10000000];
 
 /* Check that header_position tracks correctly on read. */
 DEFINE_TEST(test_read_position)
@@ -34,42 +34,61 @@ DEFINE_TEST(test_read_position)
 	struct archive *a;
 	struct archive_entry *ae;
 	size_t write_pos;
-	const size_t data_size = 1000000;
+	intmax_t read_position;
+	size_t i, j;
+	size_t data_sizes[] = {0, 5, 511, 512, 513};
 
-	/* Create a simple archive_entry. */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_pathname(ae, "testfile");
-	archive_entry_set_mode(ae, S_IFREG);
-	archive_entry_set_size(ae, data_size);
+	/* Sanity test */
+	assert(sizeof(nulls) + 512 + 1024 <= sizeof(buff));
 
+	/* Create an archive. */
 	assert(NULL != (a = archive_write_new()));
 	assertA(0 == archive_write_set_format_pax_restricted(a));
 	assertA(0 == archive_write_set_bytes_per_block(a, 512));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &write_pos));
-	assertA(0 == archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertA(data_size == (size_t)archive_write_data(a, nulls, sizeof(nulls)));
-#if ARCHIVE_VERSION_NUMBER < 2000000
+
+	for (i = 0; i < sizeof(data_sizes)/sizeof(data_sizes[0]); ++i) {
+		/* Create a simple archive_entry. */
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_set_pathname(ae, "testfile");
+		archive_entry_set_mode(ae, S_IFREG);
+		archive_entry_set_size(ae, data_sizes[i]);
+		assertA(0 == archive_write_header(a, ae));
+		archive_entry_free(ae);
+		assertA(data_sizes[i]
+		    == (size_t)archive_write_data(a, nulls, sizeof(nulls)));
+	}
 	assertA(0 == archive_write_close(a));
-	archive_write_finish(a);
-#else
 	assertA(0 == archive_write_finish(a));
-#endif
-	/* 512-byte header + data_size (rounded up) + 1024 end-of-archive */
-	assert(write_pos == ((512 + data_size + 1024 + 511)/512)*512);
 
 	/* Read the archive back. */
 	assert(NULL != (a = archive_read_new()));
 	assertA(0 == archive_read_support_format_tar(a));
 	assertA(0 == archive_read_open_memory2(a, buff, sizeof(buff), 512));
-	assert((intmax_t)0 == (intmax_t)archive_read_header_position(a));
-	assertA(0 == archive_read_next_header(a, &ae));
-	assert((intmax_t)0 == (intmax_t)archive_read_header_position(a));
-	assertA(0 == archive_read_data_skip(a));
-	assert((intmax_t)0 == (intmax_t)archive_read_header_position(a));
+
+	read_position = 0;
+	/* Initial header position is zero. */
+	assert(read_position == (intmax_t)archive_read_header_position(a));
+	for (j = 0; j < i; ++j) {
+		assertA(0 == archive_read_next_header(a, &ae));
+		assert(read_position
+		    == (intmax_t)archive_read_header_position(a));
+		/* Every other entry: read, then skip */
+		if (j & 1)
+			assertEqualInt(ARCHIVE_OK,
+			    archive_read_data_into_buffer(a, buff, 1));
+		assertA(0 == archive_read_data_skip(a));
+		/* read_data_skip() doesn't change header_position */
+		assert(read_position
+		    == (intmax_t)archive_read_header_position(a));
+
+		read_position += 512; /* Size of header. */
+		read_position += (data_sizes[j] + 511) & ~511;
+	}
+
 	assertA(1 == archive_read_next_header(a, &ae));
-	assert((intmax_t)((data_size + 511 + 512)/512)*512 == (intmax_t)archive_read_header_position(a));
+	assert(read_position == (intmax_t)archive_read_header_position(a));
 	assertA(0 == archive_read_close(a));
-	assert((intmax_t)((data_size + 511 + 512)/512)*512 == (intmax_t)archive_read_header_position(a));
+	assert(read_position == (intmax_t)archive_read_header_position(a));
 	archive_read_finish(a);
 }

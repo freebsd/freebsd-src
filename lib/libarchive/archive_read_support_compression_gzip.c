@@ -62,9 +62,9 @@ struct private_data {
 	char		 eof; /* True = found end of compressed data. */
 };
 
-/* Gzip Source. */
-static ssize_t	gzip_source_read(struct archive_read_source *, const void **);
-static int	gzip_source_close(struct archive_read_source *);
+/* Gzip Filter. */
+static ssize_t	gzip_filter_read(struct archive_read_filter *, const void **);
+static int	gzip_filter_close(struct archive_read_filter *);
 #endif
 
 /*
@@ -73,30 +73,28 @@ static int	gzip_source_close(struct archive_read_source *);
  * error messages.)  So the bid framework here gets compiled even
  * if zlib is unavailable.
  */
-static int	gzip_reader_bid(struct archive_reader *, const void *, size_t);
-static struct archive_read_source *gzip_reader_init(struct archive_read *,
-    struct archive_reader *, struct archive_read_source *,
-    const void *, size_t);
-static int	gzip_reader_free(struct archive_reader *);
+static int	gzip_bidder_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
+static int	gzip_bidder_init(struct archive_read_filter *);
+static int	gzip_bidder_free(struct archive_read_filter_bidder *);
 
 int
 archive_read_support_compression_gzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_reader *reader = __archive_read_get_reader(a);
+	struct archive_read_filter_bidder *bidder = __archive_read_get_bidder(a);
 
-	if (reader == NULL)
+	if (bidder == NULL)
 		return (ARCHIVE_FATAL);
 
-	reader->data = NULL;
-	reader->bid = gzip_reader_bid;
-	reader->init = gzip_reader_init;
-	reader->free = gzip_reader_free;
+	bidder->data = NULL;
+	bidder->bid = gzip_bidder_bid;
+	bidder->init = gzip_bidder_init;
+	bidder->free = gzip_bidder_free;
 	return (ARCHIVE_OK);
 }
 
 static int
-gzip_reader_free(struct archive_reader *self){
+gzip_bidder_free(struct archive_read_filter_bidder *self){
 	(void)self; /* UNUSED */
 	return (ARCHIVE_OK);
 }
@@ -109,41 +107,35 @@ gzip_reader_free(struct archive_reader *self){
  * from verifying as much as we would like.
  */
 static int
-gzip_reader_bid(struct archive_reader *self, const void *buff, size_t len)
+gzip_bidder_bid(struct archive_read_filter_bidder *self,
+    struct archive_read_filter *filter)
 {
 	const unsigned char *buffer;
+	size_t avail;
 	int bits_checked;
 
 	(void)self; /* UNUSED */
 
-	if (len < 1)
+	buffer = __archive_read_filter_ahead(filter, 8, &avail);
+	if (buffer == NULL)
 		return (0);
 
-	buffer = (const unsigned char *)buff;
 	bits_checked = 0;
 	if (buffer[0] != 037)	/* Verify first ID byte. */
 		return (0);
 	bits_checked += 8;
-	if (len < 2)
-		return (bits_checked);
 
 	if (buffer[1] != 0213)	/* Verify second ID byte. */
 		return (0);
 	bits_checked += 8;
-	if (len < 3)
-		return (bits_checked);
 
 	if (buffer[2] != 8)	/* Compression must be 'deflate'. */
 		return (0);
 	bits_checked += 8;
-	if (len < 4)
-		return (bits_checked);
 
 	if ((buffer[3] & 0xE0)!= 0)	/* No reserved flags set. */
 		return (0);
 	bits_checked += 3;
-	if (len < 5)
-		return (bits_checked);
 
 	/*
 	 * TODO: Verify more; in particular, gzip has an optional
@@ -163,77 +155,56 @@ gzip_reader_bid(struct archive_reader *self, const void *buff, size_t len)
  * decompression.  We can, however, still detect compressed archives
  * and emit a useful message.
  */
-static struct archive_read_source *
-gzip_reader_init(struct archive_read *a, struct archive_reader *reader,
-    struct archive_read_source *upstream, const void *buff, size_t n)
+static int
+gzip_bidder_init(struct archive_read_filter *filter)
 {
-	(void)a;	/* UNUSED */
-	(void)buff;	/* UNUSED */
-	(void)n;	/* UNUSED */
 
-	archive_set_error(&a->archive, -1,
+	archive_set_error(&filter->archive->archive, -1,
 	    "This version of libarchive was compiled without gzip support");
-	return (NULL);
+	return (ARCHIVE_FATAL);
 }
 
 #else
 
 /*
- * Initialize the source object.
+ * Initialize the filter object.
  */
-static struct archive_read_source *
-gzip_reader_init(struct archive_read *a, struct archive_reader *reader,
-    struct archive_read_source *upstream, const void *buff, size_t n)
+static int
+gzip_bidder_init(struct archive_read_filter *self)
 {
+	struct private_data *state;
 	static const size_t out_block_size = 64 * 1024;
 	void *out_block;
-	struct archive_read_source *self;
-	struct private_data *state;
 
-	(void)reader; /* UNUSED */
+	self->code = ARCHIVE_COMPRESSION_GZIP;
+	self->name = "gzip";
 
-	a->archive.compression_code = ARCHIVE_COMPRESSION_GZIP;
-	a->archive.compression_name = "gzip";
-
-	self = calloc(sizeof(*self), 1);
 	state = (struct private_data *)calloc(sizeof(*state), 1);
 	out_block = (unsigned char *)malloc(out_block_size);
-	if (self == NULL || state == NULL || out_block == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate data for %s decompression",
-		    a->archive.compression_name);
+	if (state == NULL || out_block == NULL) {
 		free(out_block);
 		free(state);
-		free(self);
-		return (NULL);
+		archive_set_error(&self->archive->archive, ENOMEM,
+		    "Can't allocate data for %s decompression",
+		    self->name);
+		return (ARCHIVE_FATAL);
 	}
 
-	self->archive = a;
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->upstream = upstream;
-	self->read = gzip_source_read;
+	self->read = gzip_filter_read;
 	self->skip = NULL; /* not supported */
-	self->close = gzip_source_close;
+	self->close = gzip_filter_close;
 
 	state->crc = crc32(0L, NULL, 0);
 	state->header_done = 0; /* We've not yet begun to parse header... */
 
-	/*
-	 * A bug in zlib.h: stream.next_in should be marked 'const'
-	 * but isn't (the library never alters data through the
-	 * next_in pointer, only reads it).  The result: this ugly
-	 * cast to remove 'const'.
-	 */
-	state->stream.next_in = (Bytef *)(uintptr_t)(const void *)buff;
-	state->stream.avail_in = n;
-
-	return (self);
+	return (ARCHIVE_OK);
 }
 
 static int
-header(struct archive_read_source *self)
+header(struct archive_read_filter *self)
 {
 	struct private_data *state;
 	int ret, b;
@@ -372,7 +343,7 @@ header(struct archive_read_source *self)
 }
 
 static ssize_t
-gzip_source_read(struct archive_read_source *self, const void **p)
+gzip_filter_read(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state;
 	size_t read_avail, decompressed;
@@ -390,20 +361,21 @@ gzip_source_read(struct archive_read_source *self, const void **p)
 	while (state->stream.avail_out > 0 && !state->eof) {
 		/* If the last upstream block is done, get another one. */
 		if (state->stream.avail_in == 0) {
-			ret = (self->upstream->read)(self->upstream,
-			    &read_buf);
+			read_buf = __archive_read_filter_ahead(self->upstream,
+			    1, &ret);
+			if (read_buf == NULL)
+				return (ARCHIVE_FATAL);
 			/* stream.next_in is really const, but zlib
 			 * doesn't declare it so. <sigh> */
 			state->stream.next_in
 			    = (unsigned char *)(uintptr_t)read_buf;
-			if (ret < 0)
-				return (ARCHIVE_FATAL);
 			state->stream.avail_in = ret;
 			/* There is no more data, return whatever we have. */
 			if (ret == 0) {
 				state->eof = 1;
 				break;
 			}
+			__archive_read_filter_consume(self->upstream, ret);
 		}
 
 		/* If we're still parsing header bytes, walk through those. */
@@ -461,7 +433,7 @@ gzip_source_read(struct archive_read_source *self, const void **p)
  * Clean up the decompressor.
  */
 static int
-gzip_source_close(struct archive_read_source *self)
+gzip_filter_close(struct archive_read_filter *self)
 {
 	struct private_data *state;
 	int ret;
@@ -484,7 +456,6 @@ gzip_source_close(struct archive_read_source *self)
 
 	free(state->out_block);
 	free(state);
-	free(self);
 	return (ret);
 }
 

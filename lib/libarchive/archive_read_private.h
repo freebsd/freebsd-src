@@ -33,72 +33,80 @@
 #include "archive_private.h"
 
 struct archive_read;
-struct archive_reader;
-struct archive_read_source;
+struct archive_read_filter_bidder;
+struct archive_read_filter;
 
 /*
- * A "reader" knows how to provide blocks.  That can include something
- * that reads blocks from disk or socket or a transformation layer
- * that reads blocks from another source and transforms them.  This
- * includes decompression and decryption filters.
- *
- * How bidding works:
+ * How bidding works for filters:
  *   * The bid manager reads the first block from the current source.
  *   * It shows that block to each registered bidder.
- *   * The winning bidder is initialized (with the block and information
- *     about the source)
- *   * The winning bidder becomes the new source and the process repeats
- * This ends only when no reader provides a non-zero bid.
+ *   * The bid manager creates a new filter structure for the winning
+ *     bidder and gives the winning bidder a chance to initialize it.
+ *   * The new filter becomes the top filter in the archive_read structure
+ *     and we repeat the process.
+ * This ends only when no bidder provides a non-zero bid.
  */
-struct archive_reader {
-	/* Configuration data for the reader. */
+struct archive_read_filter_bidder {
+	/* Configuration data for the bidder. */
 	void *data;
-	/* Bidder is handed the initial block from its source. */
-	int (*bid)(struct archive_reader *, const void *buff, size_t);
-	/* Init() is given the archive, upstream source, and the initial
-	 * block above.  It returns a populated source structure. */
-	struct archive_read_source *(*init)(struct archive_read *,
-	    struct archive_reader *, struct archive_read_source *source,
-	    const void *, size_t);
-	/* Release the reader and any configuration data it allocated. */
-	int (*free)(struct archive_reader *);
+	/* Taste the upstream filter to see if we handle this. */
+	int (*bid)(struct archive_read_filter_bidder *,
+	    struct archive_read_filter *);
+	/* Initialize a newly-created filter. */
+	int (*init)(struct archive_read_filter *);
+	/* Release the bidder's configuration data. */
+	int (*free)(struct archive_read_filter_bidder *);
 };
 
 /*
- * A "source" is an instance of a reader.  This structure is
- * allocated and initialized by the init() method of a reader
- * above.
+ * This structure is allocated within the archive_read core
+ * and initialized by archive_read and the init() method of the
+ * corresponding bidder above.
  */
-struct archive_read_source {
-	/* Essentially all sources will need these values, so
+struct archive_read_filter {
+	/* Essentially all filters will need these values, so
 	 * just declare them here. */
-	struct archive_reader *reader; /* Reader that I'm an instance of. */
-	struct archive_read_source *upstream; /* Who I get blocks from. */
-	struct archive_read *archive; /* associated archive. */
+	struct archive_read_filter_bidder *bidder; /* My bidder. */
+	struct archive_read_filter *upstream; /* Who I read from. */
+	struct archive_read *archive; /* Associated archive. */
 	/* Return next block. */
-	ssize_t (*read)(struct archive_read_source *, const void **);
+	ssize_t (*read)(struct archive_read_filter *, const void **);
 	/* Skip forward this many bytes. */
-	int64_t (*skip)(struct archive_read_source *self, int64_t request);
-	/* Close (recursively) and free(self). */
-	int (*close)(struct archive_read_source *self);
+	int64_t (*skip)(struct archive_read_filter *self, int64_t request);
+	/* Close (just this filter) and free(self). */
+	int (*close)(struct archive_read_filter *self);
 	/* My private data. */
 	void *data;
+
+	const char	*name;
+	int		 code;
+
+	/* Used by reblocking logic. */
+	char		*buffer;
+	size_t		 buffer_size;
+	char		*next;		/* Current read location. */
+	size_t		 avail;		/* Bytes in my buffer. */
+	const void	*client_buff;	/* Client buffer information. */
+	size_t		 client_total;
+	const char	*client_next;
+	size_t		 client_avail;
+	int64_t		 position;
+	char		 end_of_file;
+	char		 fatal;
 };
 
 /*
- * The client source is almost the same as an internal source.
+ * The client looks a lot like a filter, so we just wrap it here.
  *
- * TODO: Make archive_read_source and archive_read_client identical so
+ * TODO: Make archive_read_filter and archive_read_client identical so
  * that users of the library can easily register their own
  * transformation filters.  This will probably break the API/ABI and
- * so should be deferred until libarchive 3.0.
+ * so should be deferred at least until libarchive 3.0.
  */
 struct archive_read_client {
-	archive_open_callback	*opener;
 	archive_read_callback	*reader;
 	archive_skip_callback	*skipper;
 	archive_close_callback	*closer;
-	void			*data;
 };
 
 struct archive_read {
@@ -122,27 +130,14 @@ struct archive_read {
 	/* Callbacks to open/read/write/close client archive stream. */
 	struct archive_read_client client;
 
-	/* Registered readers. */
-	struct archive_reader readers[8];
+	/* Registered filter bidders. */
+	struct archive_read_filter_bidder bidders[8];
 
-	/* Source */
-	struct archive_read_source *source;
+	/* Last filter in chain */
+	struct archive_read_filter *filter;
 
 	/* File offset of beginning of most recently-read header. */
 	off_t		  header_position;
-
-
-	/* Used by reblocking logic. */
-	char		*buffer;
-	size_t		 buffer_size;
-	char		*next;		/* Current read location. */
-	size_t		 avail;		/* Bytes in my buffer. */
-	const void	*client_buff;	/* Client buffer information. */
-	size_t		 client_total;
-	const char	*client_next;
-	size_t		 client_avail;
-	char		 end_of_file;
-	char		 fatal;
 
 	/*
 	 * Format detection is mostly the same as compression
@@ -177,13 +172,14 @@ int	__archive_read_register_format(struct archive_read *a,
 	    int (*read_data_skip)(struct archive_read *),
 	    int (*cleanup)(struct archive_read *));
 
-struct archive_reader
-	*__archive_read_get_reader(struct archive_read *a);
+struct archive_read_filter_bidder
+	*__archive_read_get_bidder(struct archive_read *a);
 
-const void
-	*__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
-ssize_t
-	__archive_read_consume(struct archive_read *, size_t);
-int64_t
-	__archive_read_skip(struct archive_read *, int64_t);
+const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
+const void *__archive_read_filter_ahead(struct archive_read_filter *,
+    size_t, ssize_t *);
+ssize_t	__archive_read_consume(struct archive_read *, size_t);
+ssize_t	__archive_read_filter_consume(struct archive_read_filter *, size_t);
+int64_t	__archive_read_skip(struct archive_read *, int64_t);
+int64_t	__archive_read_filter_skip(struct archive_read_filter *, int64_t);
 #endif
