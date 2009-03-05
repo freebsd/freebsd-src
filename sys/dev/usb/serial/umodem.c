@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Comm Class spec:  http://www.usb.org/developers/devclass_docs/usbccs10.pdf
  *                   http://www.usb.org/developers/devclass_docs/usbcdc11.pdf
+ *                   http://www.usb.org/developers/devclass_docs/cdc_wmc10.zip
  */
 
 /*
@@ -253,8 +254,6 @@ static int
 umodem_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	uint8_t cm;
-	uint8_t acm;
 	int error;
 
 	DPRINTFN(11, "\n");
@@ -263,19 +262,6 @@ umodem_probe(device_t dev)
 		return (ENXIO);
 	}
 	error = usb2_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);
-	if (error) {
-		return (error);
-	}
-	if (uaa->driver_info == NULL) {
-		/* some modems do not have any capabilities */
-		return (error);
-	}
-	umodem_get_caps(uaa, &cm, &acm);
-	if (!(cm & USB_CDC_CM_DOES_CM) ||
-	    !(cm & USB_CDC_CM_OVER_DATA) ||
-	    !(acm & USB_CDC_ACM_HAS_LINE)) {
-		error = ENXIO;
-	}
 	return (error);
 }
 
@@ -285,6 +271,7 @@ umodem_attach(device_t dev)
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct umodem_softc *sc = device_get_softc(dev);
 	struct usb2_cdc_cm_descriptor *cmd;
+	struct usb2_cdc_union_descriptor *cud;
 	uint8_t i;
 	int error;
 
@@ -302,10 +289,20 @@ umodem_attach(device_t dev)
 	cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
 
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
-		device_printf(dev, "no CM descriptor!\n");
-		goto detach;
+
+		cud = usb2_find_descriptor(uaa->device, NULL,
+		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
+		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
+
+		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
+			device_printf(dev, "no CM or union descriptor!\n");
+			goto detach;
+		}
+
+		sc->sc_data_iface_no = cud->bSlaveInterface[0];
+	} else {
+		sc->sc_data_iface_no = cmd->bDataInterface;
 	}
-	sc->sc_data_iface_no = cmd->bDataInterface;
 
 	device_printf(dev, "data interface %d, has %sCM over "
 	    "data, has %sbreak\n",
@@ -419,21 +416,19 @@ umodem_get_caps(struct usb2_attach_arg *uaa, uint8_t *cm, uint8_t *acm)
 	struct usb2_cdc_cm_descriptor *cmd;
 	struct usb2_cdc_acm_descriptor *cad;
 
-	*cm = *acm = 0;
-
 	cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
-		DPRINTF("no CM desc\n");
-		return;
-	}
-	*cm = cmd->bmCapabilities;
+		DPRINTF("no CM desc (faking one)\n");
+		*cm = USB_CDC_CM_DOES_CM | USB_CDC_CM_OVER_DATA;
+	} else
+		*cm = cmd->bmCapabilities;
 
 	cad = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_ACM);
 	if ((cad == NULL) || (cad->bLength < sizeof(*cad))) {
 		DPRINTF("no ACM desc\n");
-		return;
-	}
-	*acm = cad->bmCapabilities;
+		*acm = 0;
+	} else
+		*acm = cad->bmCapabilities;
 }
 
 static void
