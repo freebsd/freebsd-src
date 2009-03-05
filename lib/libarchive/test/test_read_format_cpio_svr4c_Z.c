@@ -39,17 +39,23 @@ DEFINE_TEST(test_read_format_cpio_svr4c_Z)
 	struct archive *a;
 /*	printf("Archive address: start=%X, end=%X\n", archive, archive+sizeof(archive)); */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_COMPRESS);
-	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_SVR4_CRC);
-	assert(0 == archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	failure("archive_compression_name(a)=\"%s\"",
+	    archive_compression_name(a));
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
+	failure("archive_format_name(a)=\"%s\"", archive_format_name(a));
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_CRC);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 #endif
 }
 

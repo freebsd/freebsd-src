@@ -33,6 +33,9 @@
 #include <locale.h>
 #include <stdarg.h>
 #include <time.h>
+#ifdef _WIN32
+#include <crtdbg.h>
+#endif
 
 /*
  * This same file is used pretty much verbatim for all test harnesses.
@@ -907,6 +910,10 @@ get_refdir(void)
 		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 	}
 
+	/* You should have to add "$(TargetDir)" to
+	 * Properties > Configuration Properties > Debugging > Working Directory,
+	 * if you are running libarchive_test.exe on Visual Studio.
+	 */
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
 	printf("  Checked following directories:\n%s\n", tried);
 	exit(1);
@@ -966,7 +973,7 @@ int main(int argc, char **argv)
 	 * Parse options, without using getopt(), which isn't available
 	 * on all platforms.
 	 */
-	++argv; /* Skip program name */
+	++argv; --argc;/* Skip program name */
 	while (*argv != NULL) {
 		p = *argv++;
 		if (*p++ != '-')

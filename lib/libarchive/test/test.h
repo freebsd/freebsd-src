@@ -73,6 +73,7 @@
 #endif
 
 #ifdef _WIN32
+#define snprintf	sprintf_s
 #define LOCALE_DE	"deu"
 #else
 #define LOCALE_DE	"de_DE.UTF-8"
