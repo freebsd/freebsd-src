@@ -57,6 +57,22 @@ __FBSDID("$FreeBSD$");
 
 static int	build_stream(struct archive_read *);
 static int	choose_format(struct archive_read *);
+static struct archive_vtable *archive_read_vtable(void);
+static int	_archive_read_close(struct archive *);
+static int	_archive_read_finish(struct archive *);
+
+static struct archive_vtable *
+archive_read_vtable(void)
+{
+	static struct archive_vtable av;
+	static int inited = 0;
+
+	if (!inited) {
+		av.archive_finish = _archive_read_finish;
+		av.archive_close = _archive_read_close;
+	}
+	return (&av);
+}
 
 /*
  * Allocate, initialize and return a struct archive object.
@@ -74,6 +90,7 @@ archive_read_new(void)
 
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->entry = archive_entry_new();
+	a->archive.vtable = archive_read_vtable();
 
 	return (&a->archive);
 }
@@ -134,6 +151,7 @@ client_close_proxy(struct archive_read_filter *self)
 	if (self->archive->client.closer != NULL)
 		r = (self->archive->client.closer)((struct archive *)self->archive,
 		    self->data);
+	self->data = NULL;
 	return (r);
 }
 
@@ -556,8 +574,8 @@ archive_read_data_block(struct archive *_a,
  * Don't assume we actually read anything or performed any non-trivial
  * initialization.
  */
-int
-archive_read_close(struct archive *_a)
+static int
+_archive_read_close(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
@@ -602,13 +620,8 @@ archive_read_close(struct archive *_a)
 /*
  * Release memory and other resources.
  */
-#if ARCHIVE_API_VERSION > 1
 int
-#else
-/* Temporarily allow library to compile with either 1.x or 2.0 API. */
-void
-#endif
-archive_read_finish(struct archive *_a)
+_archive_read_finish(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int i;
