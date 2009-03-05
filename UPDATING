@@ -23,11 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090302:
-	The workaround is committed to allow to create System V shared
-	memory segment of size > 2 Gb on the 64-bit architectures.
-	Due to limitation of the existing ABI, the shm_segsz member
+	A workaround is committed to allow the creation of System V shared
+	memory segment of size > 2 GB on the 64-bit architectures.
+	Due to a limitation of the existing ABI, the shm_segsz member
 	of the struct shmid_ds, returned by shmctl(IPC_STAT) call is
-	wrong for large segments. Note that limits shall be explicitely
+	wrong for large segments. Note that limits must be explicitely
 	raised to allow such segments to be created.
 
 20090301:
