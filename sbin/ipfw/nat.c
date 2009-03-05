@@ -319,7 +319,7 @@ StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto,
  */
 
 static int
-setup_redir_addr(char *spool_buf, int len,
+setup_redir_addr(char *spool_buf, unsigned int len,
 		 int *_ac, char ***_av) 
 {
 	char **av, *sep; /* Token separator. */
@@ -384,7 +384,7 @@ nospace:
 }
 
 static int
-setup_redir_port(char *spool_buf, int len,
+setup_redir_port(char *spool_buf, unsigned int len,
 		 int *_ac, char ***_av) 
 {
 	char **av, *sep, *protoName;
@@ -575,7 +575,7 @@ nospace:
 }
 
 static int
-setup_redir_proto(char *spool_buf, int len,
+setup_redir_proto(char *spool_buf, unsigned int len,
 		 int *_ac, char ***_av) 
 {
 	char **av;
@@ -858,8 +858,8 @@ ipfw_config_nat(int ac, char **av)
 	if (!co.do_quiet) {
 		/* After every modification, we show the resultant rule. */
 		int _ac = 3;
-		char *_av[] = {"show", "config", id};
-		ipfw_show_nat(_ac, _av);
+		const char *_av[] = {"show", "config", id};
+		ipfw_show_nat(_ac, (char **)(void *)_av);
 	}
 }
 
