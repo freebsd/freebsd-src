@@ -105,7 +105,7 @@ static int
 bzip2_reader_bid(struct archive_read_filter_bidder *self, struct archive_read_filter *filter)
 {
 	const unsigned char *buffer;
-	size_t avail;
+	ssize_t avail;
 	int bits_checked;
 
 	(void)self; /* UNUSED */
@@ -200,7 +200,7 @@ bzip2_filter_read(struct archive_read_filter *self, const void **p)
 	struct private_data *state;
 	size_t read_avail, decompressed;
 	unsigned char *read_buf;
-	int ret;
+	ssize_t ret;
 
 	state = (struct private_data *)self->data;
 	read_avail = 0;
