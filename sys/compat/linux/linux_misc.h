@@ -60,4 +60,9 @@ extern const char *linux_platform;
 					 */
 #define	LINUX_AT_EXECFN		31	/* filename of program */
 
+/* Linux sets the i387 to extended precision. */
+#if defined(__i386__) || defined(__amd64__)
+#define	__LINUX_NPXCW__		0x37f
+#endif
+
 #endif	/* _LINUX_MISC_H_ */
