@@ -141,11 +141,19 @@ void	stop_emulating(void);
 	(cpu_fxsr ? \
 		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_sw : \
 		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_sw)
+#define SET_FPU_CW(savefpu, value) do { \
+	if (cpu_fxsr) \
+		(savefpu)->sv_xmm.sv_env.en_cw = (value); \
+	else \
+		(savefpu)->sv_87.sv_env.en_cw = (value); \
+} while (0)
 #else /* CPU_ENABLE_SSE */
 #define GET_FPU_CW(thread) \
 	(thread->td_pcb->pcb_save.sv_87.sv_env.en_cw)
 #define GET_FPU_SW(thread) \
 	(thread->td_pcb->pcb_save.sv_87.sv_env.en_sw)
+#define SET_FPU_CW(savefpu, value) \
+	(savefpu)->sv_87.sv_env.en_cw = (value)
 #endif /* CPU_ENABLE_SSE */
 
 typedef u_char bool_t;
@@ -793,6 +801,8 @@ npxdna(void)
 		 * load sanitized registers.
 		 */
 		fpurstor(&npx_cleanstate);
+		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
+			fldcw(&pcb->pcb_initial_npxcw);
 		pcb->pcb_flags |= PCB_NPXINITDONE;
 	} else {
 		/*
@@ -891,6 +901,7 @@ npxgetregs(td, addr)
 
 	if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
 		bcopy(&npx_cleanstate, addr, sizeof(npx_cleanstate));
+		SET_FPU_CW(addr, td->td_pcb->pcb_initial_npxcw);
 		return (_MC_FPOWNED_NONE);
 	}
 	s = intr_disable();
