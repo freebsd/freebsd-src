@@ -416,13 +416,8 @@ trap(struct trapframe *frame)
 
 		case T_DNA:
 			/* transparent fault (due to context switch "late") */
-			if (fpudna())
-				goto userout;
-			printf("pid %d killed due to lack of floating point\n",
-				p->p_pid);
-			i = SIGKILL;
-			ucode = 0;
-			break;
+			fpudna();
+			goto userout;
 
 		case T_FPOPFLT:		/* FPU operand fetch fault */
 			ucode = ILL_COPROC;
@@ -450,11 +445,9 @@ trap(struct trapframe *frame)
 			 * XXX this should be fatal unless the kernel has
 			 * registered such use.
 			 */
-			if (fpudna()) {
-				printf("fpudna in kernel mode!\n");
-				goto out;
-			}
-			break;
+			fpudna();
+			printf("fpudna in kernel mode!\n");
+			goto out;
 
 		case T_STKFLT:		/* stack fault */
 			break;
