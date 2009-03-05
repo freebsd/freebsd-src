@@ -975,9 +975,10 @@ int main(int argc, char **argv)
 	 */
 	++argv; --argc;/* Skip program name */
 	while (*argv != NULL) {
+		if (**argv != '-')
+			break;
 		p = *argv++;
-		if (*p++ != '-')
-			usage(progname);
+		++p; /* Skip '-' */
 		while (*p != '\0') {
 			option = *p++;
 			option_arg = NULL;
