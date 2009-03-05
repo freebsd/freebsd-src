@@ -40,6 +40,10 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#include <winbase.h>
+#endif
 
 #include "archive_private.h"
 
@@ -52,6 +56,10 @@ errmsg(const char *m)
 static void
 diediedie(void)
 {
+#if defined(_WIN32) && defined(_DEBUG)
+	/* Cause a breakpoint exception  */
+	DebugBreak();
+#endif
 	*(char *)0 = 1;	/* Deliberately segfault and force a coredump. */
 	_exit(1);	/* If that didn't work, just exit with an error. */
 }
