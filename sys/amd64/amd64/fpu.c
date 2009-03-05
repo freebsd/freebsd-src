@@ -390,7 +390,6 @@ fpudna(void)
 {
 	struct pcb *pcb;
 	register_t s;
-	u_short control;
 
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("fpudna: fpcurthread == curthread %d times\n",
@@ -421,10 +420,8 @@ fpudna(void)
 		 * explicitly load sanitized registers.
 		 */
 		fxrstor(&fpu_cleanstate);
-		if (pcb->pcb_flags & PCB_32BIT) {
-			control = __INITIAL_FPUCW_I386__;
-			fldcw(&control);
-		}
+		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
+			fldcw(&pcb->pcb_initial_fpucw);
 		pcb->pcb_flags |= PCB_FPUINITDONE;
 	} else
 		fxrstor(&pcb->pcb_save);
@@ -457,6 +454,7 @@ fpugetregs(struct thread *td, struct savefpu *addr)
 
 	if ((td->td_pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
 		bcopy(&fpu_cleanstate, addr, sizeof(fpu_cleanstate));
+		addr->sv_env.en_cw = td->td_pcb->pcb_initial_fpucw;
 		return (_MC_FPOWNED_NONE);
 	}
 	s = intr_disable();
