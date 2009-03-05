@@ -134,12 +134,13 @@ Permission denied due to mismatch between operation and mode of
 shared memory segment.
 .El
 .Sh "BUGS"
+The segment size has size_t type.
 The shm_segsz member of the
 .Vt shmid_ds
-structure has int type, that is too short to represent full range
-of the values for segment size, which is allowed to be size_t.
-If shared memory limits are raised to allow segments with size > 2 Gb
-to be created, be aware that IPC_STAT call may return truncated value
+structure has type int, which is too short to represent the full range
+of values for a segment size.
+If shared memory limits are raised to allow segments with size > 2 GB
+to be created, be aware that IPC_STAT call may return a truncated value
 for shm_segsz.
 .El
 .Sh "SEE ALSO"
