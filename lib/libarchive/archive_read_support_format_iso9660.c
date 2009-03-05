@@ -414,8 +414,10 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 
 	/* Get the next entry that appears after the current offset. */
 	r = next_entry_seek(a, iso9660, &file);
-	if (r != ARCHIVE_OK)
+	if (r != ARCHIVE_OK) {
+		release_file(iso9660, file);
 		return (r);
+	}
 
 	iso9660->entry_bytes_remaining = file->size;
 	iso9660->entry_sparse_offset = 0; /* Offset for sparse-file-aware clients. */
@@ -1092,6 +1094,9 @@ static void
 release_file(struct iso9660 *iso9660, struct file_info *file)
 {
 	struct file_info *parent;
+
+	if (file == NULL)
+		return;
 
 	if (file->refcount == 0) {
 		parent = file->parent;
