@@ -146,7 +146,6 @@ struct table_entry {
 	u_int32_t		value;
 };
 
-static int fw_debug = 1;
 static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
 
 extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
@@ -162,8 +161,6 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_RW | CTLFLAG_SECURE3,
     &fw_one_pass, 0,
     "Only do a single pass through ipfw when using dummynet(4)");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW,
-    &fw_debug, 0, "Enable printing of debug ip_fw statements");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose,
     CTLFLAG_RW | CTLFLAG_SECURE3,
     &fw_verbose, 0, "Log matches to ipfw rules");
@@ -2208,6 +2205,7 @@ ipfw_chk(struct ip_fw_args *args)
 		return (IP_FW_PASS);	/* accept */
 
 	dst_ip.s_addr = 0;		/* make sure it is initialized */
+	src_ip.s_addr = 0;		/* make sure it is initialized */
 	pktlen = m->m_pkthdr.len;
 	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
