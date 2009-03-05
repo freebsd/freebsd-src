@@ -6861,6 +6861,22 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	return !ath_hal_setintmit(sc->sc_ah, intmit) ? EINVAL : 0;
 }
 
+#ifdef ATH_SUPPORT_TDMA
+static int
+ath_sysctl_setcca(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int setcca, error;
+
+	setcca = sc->sc_setcca;
+	error = sysctl_handle_int(oidp, &setcca, 0, req);
+	if (error || !req->newptr)
+		return error;
+	sc->sc_setcca = (setcca != 0);
+	return 0;
+}
+#endif /* ATH_SUPPORT_TDMA */
+
 static void
 ath_sysctlattach(struct ath_softc *sc)
 {
@@ -6974,6 +6990,9 @@ ath_sysctlattach(struct ath_softc *sc)
 		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"superframe", CTLFLAG_RD, &sc->sc_tdmabintval, 0,
 			"TDMA calculated super frame");
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+			"setcca", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+			ath_sysctl_setcca, "I", "enable CCA control");
 	}
 #endif
 }
@@ -7423,7 +7442,8 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	ath_hal_intrset(ah, 0);
 
 	ath_beaconq_config(sc);			/* setup h/w beacon q */
-	ath_hal_setcca(ah, AH_FALSE);		/* disable CCA */
+	if (sc->sc_setcca)
+		ath_hal_setcca(ah, AH_FALSE);	/* disable CCA */
 	ath_tdma_bintvalsetup(sc, tdma);	/* calculate beacon interval */
 	ath_tdma_settimers(sc, sc->sc_tdmabintval,
 		sc->sc_tdmabintval | HAL_BEACON_RESET_TSF);
