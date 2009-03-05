@@ -115,10 +115,14 @@ struct ath_stats {
 	u_int32_t	ast_tdma_tsf;	/* TDMA slot update set TSF */
 	u_int16_t	ast_tdma_tsfadjp;/* TDMA slot adjust+ (usec, smoothed)*/
 	u_int16_t	ast_tdma_tsfadjm;/* TDMA slot adjust- (usec, smoothed)*/
-	u_int32_t	ast_pad[17];
+	u_int32_t	ast_tdma_ack;	/* TDMA tx failed 'cuz ACK required */
+	u_int32_t	ast_tx_raw_fail;/* raw tx failed 'cuz h/w down */
+	u_int32_t	ast_tx_nofrag;	/* tx dropped 'cuz no ath frag buffer */
+	u_int32_t	ast_pad[14];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
+#define	SIOCZATHSTATS	_IOWR('i', 139, struct ifreq)
 
 struct ath_diag {
 	char	ad_name[IFNAMSIZ];	/* if name, e.g. "ath0" */

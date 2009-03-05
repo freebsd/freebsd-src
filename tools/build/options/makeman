@@ -118,7 +118,7 @@ for a particular build via the
 .Fl D
 option of
 .Xr make 1
-or in environment; see
+or in its environment; see
 .Xr environ 7 .
 .Pp
 The values of variables are ignored regardless of their setting;

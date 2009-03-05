@@ -35,6 +35,11 @@ THIS SOFTWARE.
 static char *dir[4] = { "toward zero", "nearest", "toward +Infinity",
 			"toward -Infinity" };
 
+#ifdef Honor_FLT_ROUNDS
+#include <fenv.h>
+static int fe_conv[4] = {FE_TOWARDZERO, FE_TONEAREST, FE_UPWARD, FE_DOWNWARD };
+#endif
+
  int
 #ifdef KR_headers
 getround(r, s) int r; char *s;
@@ -59,6 +64,9 @@ getround(int r, char *s)
 		else
 			printf("changed from %d (%s) to %d (%s)\n",
 				r, dir[r], i, dir[i]);
+#ifdef Honor_FLT_ROUNDS
+		fesetround(fe_conv[i]);
+#endif
 		return i;
 		}
 	printf("Bad rounding direction %d: choose among\n", i);
@@ -67,3 +75,16 @@ getround(int r, char *s)
 	printf("Leaving rounding mode for strtor... at %d (%s)\n", r, dir[r]);
 	return r;
 	}
+
+#ifdef USE_MY_LOCALE
+#include <locale.h>
+
+ struct lconv *
+localeconv(void)
+{
+	static struct lconv mylocale;
+	mylocale.decimal_point = "<Pt>";
+	return &mylocale;
+	}
+#endif
+

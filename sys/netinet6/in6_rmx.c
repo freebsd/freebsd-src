@@ -75,6 +75,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -243,6 +245,8 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 	struct rtqk_arg *ap = rock;
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
+
+	RADIX_NODE_HEAD_WLOCK_ASSERT(ap->rnh);
 
 	if (rt->rt_flags & RTPRF_OURS) {
 		ap->found++;

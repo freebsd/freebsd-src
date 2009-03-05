@@ -52,13 +52,7 @@
 /*
  * Track beginning of privilege list.
  */
-#define	_PRIV_LOWEST	0
-
-/*
- * PRIV_ROOT is a catch-all for as yet unnamed privileges.  No new
- * references to this privilege should be added.
- */
-#define	PRIV_ROOT	1	/* Catch-all during development. */
+#define	_PRIV_LOWEST	1
 
 /*
  * The remaining privileges typically correspond to one or a small
@@ -67,6 +61,7 @@
  * privileges, such as the ability to reboot, and then loosely by
  * subsystem, indicated by a subsystem name.
  */
+#define	_PRIV_ROOT		1	/* Removed. */
 #define	PRIV_ACCT		2	/* Manage process accounting. */
 #define	PRIV_MAXFILES		3	/* Exceed system open files limit. */
 #define	PRIV_MAXPROC		4	/* Exceed system processes limit. */

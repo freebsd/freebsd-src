@@ -105,7 +105,7 @@ static void	ae_phy_init(ae_softc_t *sc);
 static int	ae_reset(ae_softc_t *sc);
 static void	ae_init(void *arg);
 static int	ae_init_locked(ae_softc_t *sc);
-static unsigned	int	ae_detach(device_t dev);
+static int	ae_detach(device_t dev);
 static int	ae_miibus_readreg(device_t dev, int phy, int reg);
 static int	ae_miibus_writereg(device_t dev, int phy, int reg, int val);
 static void	ae_miibus_statchg(device_t dev);
@@ -746,7 +746,7 @@ ae_init_locked(ae_softc_t *sc)
 	return (0);
 }
 
-static unsigned int
+static int
 ae_detach(device_t dev)
 {
 	struct ae_softc *sc;

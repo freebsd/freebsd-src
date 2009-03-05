@@ -378,10 +378,10 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 			    ip6_sprintf(ip6buf, &sin6.sin6_addr));
 #endif
 			if (rt)
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 			return 0;
 		}
-		rtfree(rt);
+		RTFREE_LOCKED(rt);
 	}
 
 	return 128 * 2;

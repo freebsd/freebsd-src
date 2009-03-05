@@ -41,8 +41,10 @@
  * - SGI MIPSpro
  * - Microsoft Visual C++ 6.0 (supposedly newer versions too)
  */
-#if defined(__WATCOMC__) || defined(__sgi) || defined(_MSC_VER)
+#if defined(__WATCOMC__) || defined(__sgi)
 #define	inline
+#elif defined(_MSC_VER)
+#define inline __inline
 #endif
 
 /* Alignment-agnostic encode/decode bytestream to/from little/big endian. */

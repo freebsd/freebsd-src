@@ -56,7 +56,9 @@ two letters:
 		whose sum is the desired value
 
 For decimal -> binary conversions, there are three families of
-helper routines: one for round-nearest:
+helper routines: one for round-nearest (or the current rounding
+mode on IEEE-arithmetic systems that provide the C99 fegetround()
+function, if compiled with -DHonor_FLT_ROUNDS):
 
 	strtof
 	strtod
@@ -191,6 +193,9 @@ in the buffer, if the buffer was long enough, or 0.  Other forms of
 conversion are easily done with the help of gdtoa(), such as %e or %f
 style and conversions with direction of rounding specified (so that, if
 desired, the decimal value is either >= or <= the binary value).
+On IEEE-arithmetic systems that provide the C99 fegetround() function,
+if compiled with -DHonor_FLT_ROUNDS, these routines honor the current
+rounding mode.
 
 For an example of more general conversions based on dtoa(), see
 netlib's "printf.c from ampl/solvers".
@@ -341,6 +346,12 @@ honor the current rounding mode.  Because FLT_ROUNDS is buggy on some
 standard says it should -- when Honor_FLT_ROUNDS is #defined, the
 current rounding mode is obtained from fegetround() rather than from
 FLT_ROUNDS, unless Trust_FLT_ROUNDS is also #defined.
+
+Compile with -DUSE_LOCALE to use the current locale; otherwise
+decimal points are assumed to be '.'.  With -DUSE_LOCALE, unless
+you also compile with -DNO_LOCALE_CACHE, the details about the
+current "decimal point" character string are cached and assumed not
+to change during the program's execution.
 
 Please send comments to	David M. Gay (dmg at acm dot org, with " at "
 changed at "@" and " dot " changed to ".").

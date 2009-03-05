@@ -43,6 +43,10 @@
 .Fn devname "dev_t dev" "mode_t type"
 .Ft char *
 .Fn devname_r "dev_t dev" "mode_t type" "char *buf" "int len"
+.Ft char *
+.Fn fdevname "int fd"
+.Ft char *
+.Fn fdevname_r "int fd" "char *buf" "int len"
 .Sh DESCRIPTION
 The
 .Fn devname
@@ -69,11 +73,24 @@ and
 .Fa type
 in a human-readable format.
 .Pp
+The
+.Fn fdevname
+and
+.Fn fdevname_r
+function obtains the device name directly from a file descriptor
+pointing to a character device.
+If it is unable to come up with a suitable name, these functions will
+return a NULL pointer.
+.Pp
 .Fn devname
-returns the name stored in a static buffer which will be overwritten
+and
+.Fn fdevname
+return the name stored in a static buffer which will be overwritten
 on subsequent calls.
 .Fn devname_r
-takes a buffer and length as argument to avoid this problem.
+and
+.Fn fdevname_r
+take a buffer and length as argument to avoid this problem.
 .Sh EXAMPLES
 .Bd -literal -compact
 int fd;
@@ -83,6 +100,7 @@ char *name;
 	fd = open("/dev/tun");
 	fstat(fd, &buf);
 	printf("devname is /dev/%s\en", devname(buf.st_rdev, S_IFCHR));
+	printf("fdevname is /dev/%s\en", fdevname(fd));
 .Ed
 .Sh SEE ALSO
 .Xr stat 2
@@ -91,3 +109,7 @@ The
 .Fn devname
 function appeared in
 .Bx 4.4 .
+The
+.Fn fdevname
+function appeared in
+.Fx 8.0 .

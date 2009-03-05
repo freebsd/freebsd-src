@@ -98,10 +98,8 @@ typedef u_char bool_t;
 
 static	void	fpu_clean_state(void);
 
-int	hw_float = 1;
-SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
-	CTLFLAG_RD, &hw_float, 0, 
-	"Floatingpoint instructions executed in hardware");
+SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
+    NULL, 1, "Floating point instructions executed in hardware");
 
 static	struct savefpu		fpu_cleanstate;
 static	bool_t			fpu_cleanstate_ready;
@@ -391,6 +389,7 @@ fpudna()
 {
 	struct pcb *pcb;
 	register_t s;
+	u_short control;
 
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("fpudna: fpcurthread == curthread %d times\n",
@@ -421,6 +420,10 @@ fpudna()
 		 * explicitly load sanitized registers.
 		 */
 		fxrstor(&fpu_cleanstate);
+		if (pcb->pcb_flags & PCB_32BIT) {
+			control = __INITIAL_FPUCW_I386__;
+			fldcw(&control);
+		}
 		pcb->pcb_flags |= PCB_FPUINITDONE;
 	} else
 		fxrstor(&pcb->pcb_save);

@@ -28,6 +28,8 @@ CC = cc
 CFLAGS = -g -I..
 A = ../gdtoa.a
 L = -lm
+L1 =
+#use "L1=-lm" when compiled with -DHonor_FLTP_ROUNDS or -DUSE_LOCALE
 INFFIX = | sed 's/[Ii][Nn][Ff][intyINTY]*/Infinity/g'
 
 .c.o:
@@ -41,7 +43,7 @@ dt: $(dt)
 
 dItest = dItest.o getround.o $A
 dItest: $(dItest)
-	$(CC) -o dItest $(dItest)
+	$(CC) -o dItest $(dItest) $(L1)
 
 ddtest = ddtest.o getround.o $A
 ddtest: $(ddtest)
@@ -53,19 +55,19 @@ dtest: $(dtest)
 
 ftest = ftest.o getround.o $A
 ftest: $(ftest)
-	$(CC) -o ftest $(ftest)
+	$(CC) -o ftest $(ftest) $(L1)
 
 Qtest = Qtest.o getround.o $A
 Qtest: $(Qtest)
-	$(CC) -o Qtest $(Qtest)
+	$(CC) -o Qtest $(Qtest) $(L1)
 
 xtest = xtest.o getround.o $A
 xtest: $(xtest)
-	$(CC) -o xtest $(xtest)
+	$(CC) -o xtest $(xtest) $(L1)
 
 xLtest = xLtest.o getround.o $A
 xLtest: $(xLtest)
-	$(CC) -o xLtest $(xLtest)
+	$(CC) -o xLtest $(xLtest) $(L1)
 
 strtopddSI.o: strtopddSI.c ../strtopdd.c
 
@@ -83,7 +85,7 @@ ddtestsi: $(ddtestsi)
 
 dItestsi = dItest.o strtodISI.o strtoIdSI.o getround.o $A
 dItestsi: $(dItestsi)
-	$(CC) -o dItestsi $(dItestsi)
+	$(CC) -o dItestsi $(dItestsi) $(L1)
 
 strtodt = strtodt.o $A
 strtodt: $(strtodt)
@@ -132,7 +134,8 @@ tests: Q.out x.out xL.out dt dItest ddtest dtest ftest Qtest xLtest xtest ddtest
 		cat bad/strtodt.out
 	./strtodtnrp testnos3 >bad/strtodtnrp.out && rm bad/strtodtnrp.out || \
 		cat bad/strtodtnrp.out
-	rmdir bad
+	rmdir bad 2>/dev/null || \
+	(cd bad; for i in *; do cmp -s $$i ../obad/$$i && rm $$i;done; cd ..; rmdir bad)
 	touch tests
 
 xs0 = README Qtest.c dItest.c ddtest.c dtest.c dt.c ftest.c getround.c \

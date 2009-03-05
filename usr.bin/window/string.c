@@ -42,6 +42,8 @@ static char rcsid[] =
 
 #include <string.h> /* System string definitions. */
 #include "mystring.h" /* Local string definitions. */
+#include <stdio.h>
+#include <stdlib.h>
 
 char *
 str_cpy(s)

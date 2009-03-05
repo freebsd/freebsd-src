@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -330,9 +331,9 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			error = in6_setscope(&sa6->sin6_addr, ifp, NULL);
 		if (error != 0)
 			return (error);
-		if (td != NULL && !prison_check_ip6(td->td_ucred,
-		    &sa6->sin6_addr))
-			return (EADDRNOTAVAIL);
+		if (td != NULL && (error = prison_check_ip6(td->td_ucred,
+		    &sa6->sin6_addr)) != 0)
+			return (error);
 		ia = in6ifa_ifpwithaddr(ifp, &sa6->sin6_addr);
 	} else
 		ia = NULL;
@@ -2122,16 +2123,16 @@ in6_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 		ifa = ifaof_ifpforaddr(__DECONST(struct sockaddr *, l3addr), ifp);
 		if (ifa != NULL) {
 			if (rt != NULL)
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 			return 0;
 		}
 		log(LOG_INFO, "IPv6 address: \"%s\" is not on the network\n",
 		    ip6_sprintf(ip6buf, &((const struct sockaddr_in6 *)l3addr)->sin6_addr));
 		if (rt != NULL)
-			rtfree(rt);
+			RTFREE_LOCKED(rt);
 		return EINVAL;
 	}
-	rtfree(rt);
+	RTFREE_LOCKED(rt);
 	return 0;
 }
 
@@ -2241,8 +2242,7 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
 				continue;
 			/* Skip if jailed and not a valid IP of the prison. */
-			if (jailed(wr->td->td_ucred) &&
-			    !prison_if(wr->td->td_ucred, L3_ADDR(lle)))
+			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
 				continue;
 			/*
 			 * produce a msg made of:

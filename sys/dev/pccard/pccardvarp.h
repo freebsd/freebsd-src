@@ -75,7 +75,8 @@ struct pccard_config_entry {
 };
 
 struct pccard_funce_disk {
-	int pfd_interface;
+	uint8_t pfd_interface;
+	uint8_t pfd_power;
 };
 
 struct pccard_funce_lan {
@@ -119,6 +120,7 @@ struct pccard_function {
 
 	union pccard_funce pf_funce; /* CISTPL_FUNCE */
 #define pf_funce_disk_interface pf_funce.pfv_disk.pfd_interface
+#define pf_funce_disk_power pf_funce.pfv_disk.pfd_power
 #define pf_funce_lan_nid pf_funce.pfv_lan.pfl_nid
 #define pf_funce_lan_nidlen pf_funce.pfv_lan.pfl_nidlen
 };

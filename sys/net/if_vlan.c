@@ -41,6 +41,7 @@
  * and ask it to send them.
  */
 
+#include "opt_route.h"
 #include "opt_vlan.h"
 
 #include <sys/param.h>
@@ -64,6 +65,7 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #define VLANNAME	"vlan"
@@ -746,6 +748,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			ether_ifdetach(ifp);
 			vlan_unconfig(ifp);
 			if_free_type(ifp, IFT_ETHER);
+			ifc_free_unit(ifc, unit);
 			free(ifv, M_VLAN);
 
 			return (error);
@@ -1301,7 +1304,6 @@ vlan_trunk_capabilities(struct ifnet *ifp)
 static int
 vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ifaddr *ifa;
 	struct ifnet *p;
 	struct ifreq *ifr;
 	struct ifvlan *ifv;
@@ -1309,7 +1311,6 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int error = 0;
 
 	ifr = (struct ifreq *)data;
-	ifa = (struct ifaddr *)data;
 	ifv = ifp->if_softc;
 
 	switch (cmd) {

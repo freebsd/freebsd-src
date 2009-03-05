@@ -98,12 +98,10 @@ static int
 cardbus_device_buffer_cis(device_t parent, device_t child,
     struct cis_buffer *cbp)
 {
-	struct cardbus_softc *sc;
 	struct tuple_callbacks cb[] = {
 		{CISTPL_GENERIC, "GENERIC", cardbus_build_cis}
 	};
 
-	sc = device_get_softc(parent);
 	return (cardbus_parse_cis(parent, child, cb, cbp));
 }
 

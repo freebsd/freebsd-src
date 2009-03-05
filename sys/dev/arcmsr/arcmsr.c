@@ -140,12 +140,12 @@
 */
 static struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb);
 static u_int8_t arcmsr_seek_cmd2abort(union ccb * abortccb);
-static u_int32_t arcmsr_probe(device_t dev);
-static u_int32_t arcmsr_attach(device_t dev);
-static u_int32_t arcmsr_detach(device_t dev);
+static int arcmsr_probe(device_t dev);
+static int arcmsr_attach(device_t dev);
+static int arcmsr_detach(device_t dev);
 static u_int32_t arcmsr_iop_ioctlcmd(struct AdapterControlBlock *acb, u_int32_t ioctl_cmd, caddr_t arg);
 static void arcmsr_iop_parking(struct AdapterControlBlock *acb);
-static void arcmsr_shutdown(device_t dev);
+static int arcmsr_shutdown(device_t dev);
 static void arcmsr_interrupt(struct AdapterControlBlock *acb);
 static void arcmsr_polling_srbdone(struct AdapterControlBlock *acb, struct CommandControlBlock *poll_srb);
 static void arcmsr_free_resource(struct AdapterControlBlock *acb);
@@ -2150,7 +2150,8 @@ static void arcmsr_action(struct cam_sim * psim, union ccb * pccb)
 				spi->sync_offset=32;
 				spi->bus_width=MSG_EXT_WDTR_BUS_16_BIT;
 				scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
-				spi->valid = CTS_SPI_VALID_SYNC_RATE
+				spi->valid = CTS_SPI_VALID_DISC
+					| CTS_SPI_VALID_SYNC_RATE
 					| CTS_SPI_VALID_SYNC_OFFSET
 					| CTS_SPI_VALID_BUS_WIDTH;
 				scsi->valid = CTS_SCSI_VALID_TQ;
@@ -3029,7 +3030,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 ************************************************************************
 ************************************************************************
 */
-static u_int32_t arcmsr_attach(device_t dev)
+static int arcmsr_attach(device_t dev)
 {
 	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)device_get_softc(dev);
 	u_int32_t unit=device_get_unit(dev);
@@ -3152,7 +3153,7 @@ static u_int32_t arcmsr_attach(device_t dev)
 ************************************************************************
 ************************************************************************
 */
-static u_int32_t arcmsr_probe(device_t dev)
+static int arcmsr_probe(device_t dev)
 {
 	u_int32_t id;
 	static char buf[256];
@@ -3197,7 +3198,7 @@ static u_int32_t arcmsr_probe(device_t dev)
 ************************************************************************
 ************************************************************************
 */
-static void arcmsr_shutdown(device_t dev)
+static int arcmsr_shutdown(device_t dev)
 {
 	u_int32_t  i;
 	u_int32_t intmask_org;
@@ -3231,13 +3232,13 @@ static void arcmsr_shutdown(device_t dev)
 	acb->workingsrb_doneindex=0;
 	acb->workingsrb_startindex=0;
 	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
-	return;
+	return (0);
 }
 /*
 ************************************************************************
 ************************************************************************
 */
-static u_int32_t arcmsr_detach(device_t dev)
+static int arcmsr_detach(device_t dev)
 {
 	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)device_get_softc(dev);
 	int i;

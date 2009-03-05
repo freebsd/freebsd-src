@@ -107,7 +107,7 @@ memory_read(struct archive *a, void *client_data, const void **buff)
 	*buff = mine->copy_buff;
 
         mine->buffer += size;
-	return (size);
+	return ((ssize_t)size);
 }
 
 /*

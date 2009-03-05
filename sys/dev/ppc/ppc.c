@@ -115,7 +115,7 @@ static char *ppc_epp_protocol[] = { " (EPP 1.9)", " (EPP 1.7)", 0 };
 /*
  * ppc_ecp_sync()		XXX
  */
-void
+int
 ppc_ecp_sync(device_t dev)
 {
 	int i, r;
@@ -123,22 +123,22 @@ ppc_ecp_sync(device_t dev)
 
 	PPC_ASSERT_LOCKED(ppc);
 	if (!(ppc->ppc_avm & PPB_ECP) && !(ppc->ppc_dtm & PPB_ECP))
-		return;
+		return 0;
 
 	r = r_ecr(ppc);
 	if ((r & 0xe0) != PPC_ECR_EPP)
-		return;
+		return 0;
 
 	for (i = 0; i < 100; i++) {
 		r = r_ecr(ppc);
 		if (r & 0x1)
-			return;
+			return 0;
 		DELAY(100);
 	}
 
 	device_printf(dev, "ECP sync failed as data still present in FIFO.\n");
 
-	return;
+	return 0;
 }
 
 /*
@@ -1613,7 +1613,7 @@ ppc_write(device_t dev, char *buf, int len, int how)
 	return (EINVAL);
 }
 
-void
+int
 ppc_reset_epp(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
@@ -1621,7 +1621,7 @@ ppc_reset_epp(device_t dev)
 	PPC_ASSERT_LOCKED(ppc);
 	ppc_reset_epp_timeout(ppc);
 
-	return;
+	return 0;
 }
 
 int

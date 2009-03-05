@@ -39,6 +39,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  */
 
+#include "opt_route.h"
 #include "opt_compat.h"
 
 #include <sys/cdefs.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #include <vm/vm.h>
@@ -327,7 +329,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	error = namei(&nd);
 	lep = linux_emul_path;
 	if (error == 0) {
-		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
+		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) == 0)
 			lep = dlep;
 		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));

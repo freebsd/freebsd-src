@@ -1,6 +1,5 @@
 #-
-# Copyright (c) 1992-1998 Nick Hibma <n_hibma@freebsd.org>
-# All rights reserved.
+# Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -35,8 +34,19 @@
 
 INTERFACE usb;
 
-# The device should start probing for new drivers again
+# The device received a control request
 #
-METHOD int reconfigure {
+# Return values:
+# 0: Success
+# ENOTTY: Transaction stalled
+# Else: Use builtin request handler
+#
+METHOD int handle_request {
 	device_t dev;
+	const void *req; /* pointer to the device request */
+	void **pptr; /* data pointer */
+	uint16_t *plen; /* maximum transfer length */
+	uint16_t offset; /* data offset */
+	uint8_t is_complete; /* set if transfer is complete */
 };
+

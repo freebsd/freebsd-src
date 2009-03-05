@@ -613,7 +613,7 @@ vendor GIGASET		0x1690	Gigaset
 vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
 vendor JABLOTRON	0x16d6	Jablotron
-vendor CMOTECH		0x16d8	CMOTECH Co., Ltd.
+vendor CMOTECH		0x16d8	C-motech
 vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
@@ -1030,9 +1030,11 @@ product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
 
 /* CMOTECH products */
-product CMOTECH CNU510		0x5141	CMOTECH CDMA Technologies USB modem
+product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
-product CMOTECH CDMA_MODEM1	0x6280	CMOTECH CDMA Technologies USB modem
+product CMOTECH CGU628		0x6006	CGU-628
+product CMOTECH CDMA_MODEM1	0x6280	CDMA Technologies USB modem
+product CMOTECH DISK		0xf000	disk mode
 
 /* Compaq products */
 product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
@@ -1508,6 +1510,7 @@ product IOMEGA ZIP250		0x0030	Zip 250
 
 /* Ituner networks products */
 product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
+product ITUNERNET USBLCD4X20	0xc001	USB-LCD 4x20
 
 /* Jablotron products */
 product JABLOTRON PC60B		0x0001	PC-60B
@@ -1680,6 +1683,7 @@ product MELCO PCOPRS1		0x00b3	PC-OP-RS1 RemoteStation
 product MELCO SG54HP		0x00d8	WLI-U2-SG54HP
 product MELCO G54HP		0x00d9	WLI-U2-G54HP
 product MELCO KG54L		0x00da	WLI-U2-KG54L
+product MELCO SG54HG		0x00f4	WLI-U2-SG54HG
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
@@ -1800,6 +1804,7 @@ product MSYSTEMS DISKONKEY2	0x0011	DiskOnKey
 
 /* Myson products */
 product MYSON HEDEN		0x8818	USB-IDE
+product MYSON STARREADER	0x9920	USB flash card adapter
 
 /* National Semiconductor */
 product NATIONAL BEARPAW1200	0x1000	BearPaw 1200
@@ -1863,6 +1868,8 @@ product NOVATEL U720		0x2110	Merlin U720
 product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
+product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
+product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
@@ -2185,6 +2192,7 @@ product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
 /* SI Labs */
 product SILABS	POLOLU		0x803b	Pololu Serial
+product SILABS	SAEL		0x8053	SA-EL USB
 product SILABS	ARGUSISP	0x8066	Argussoft ISP
 product SILABS	CRUMB128	0x807a	Crumb128 board
 product SILABS	DEGREE		0x80ca	Degree Controls Inc

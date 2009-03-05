@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 /*

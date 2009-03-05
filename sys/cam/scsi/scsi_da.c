@@ -995,6 +995,8 @@ dacleanup(struct cam_periph *periph)
 	softc = (struct da_softc *)periph->softc;
 
 	xpt_print(periph->path, "removing device entry\n");
+	cam_periph_unlock(periph);
+
 	/*
 	 * If we can't free the sysctl tree, oh well...
 	 */
@@ -1003,11 +1005,10 @@ dacleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 
-	cam_periph_unlock(periph);
 	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
-	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
+	cam_periph_lock(periph);
 }
 
 static void
@@ -1086,7 +1087,6 @@ dasysctlinit(void *context, int pending)
 	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
-	mtx_lock(&Giant);
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= DA_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
@@ -1094,7 +1094,6 @@ dasysctlinit(void *context, int pending)
 		CTLFLAG_RD, 0, tmpstr);
 	if (softc->sysctl_tree == NULL) {
 		printf("dasysctlinit: unable to allocate sysctl tree\n");
-		mtx_unlock(&Giant);
 		cam_periph_release(periph);
 		return;
 	}
@@ -1108,7 +1107,6 @@ dasysctlinit(void *context, int pending)
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
 
-	mtx_unlock(&Giant);
 	cam_periph_release(periph);
 }
 

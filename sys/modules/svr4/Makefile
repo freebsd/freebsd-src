@@ -9,6 +9,8 @@ SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_mac.h opt_svr4.h \
 	svr4_machdep.c svr4_resource.c svr4_ipc.c
 OBJS=	svr4_locore.o 
 
+SRCS+=	opt_ktrace.h opt_sysvipc.h opt_route.h
+
 CLEANFILES=	svr4_assym.h svr4_genassym.o
 
 svr4_assym.h: svr4_genassym.o

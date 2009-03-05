@@ -299,13 +299,13 @@ struct ieee80211req_maclist {
 };
 
 /*
- * Set the active channel list.  Note this list is
- * intersected with the available channel list in
- * calculating the set of channels actually used in
- * scanning.
+ * Set the active channel list by IEEE channel #: each channel
+ * to be marked active is set in a bit vector.  Note this list is
+ * intersected with the available channel list in calculating
+ * the set of channels actually used in scanning.
  */
 struct ieee80211req_chanlist {
-	uint8_t		ic_channels[IEEE80211_CHAN_BYTES];
+	uint8_t		ic_channels[32];	/* NB: can be variable length */
 };
 
 /*
@@ -313,8 +313,13 @@ struct ieee80211req_chanlist {
  */
 struct ieee80211req_chaninfo {
 	u_int	ic_nchans;
-	struct ieee80211_channel ic_chans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel ic_chans[1];	/* NB: variable length */
 };
+#define	IEEE80211_CHANINFO_SIZE(_nchan) \
+	(sizeof(struct ieee80211req_chaninfo) + \
+	 (((_nchan)-1) * sizeof(struct ieee80211_channel)))
+#define	IEEE80211_CHANINFO_SPACE(_ci) \
+	IEEE80211_CHANINFO_SIZE((_ci)->ic_nchans)
 
 /*
  * Retrieve the WPA/RSN information element for an associated station.
@@ -463,6 +468,11 @@ struct ieee80211_regdomain_req {
 	struct ieee80211_regdomain	rd;
 	struct ieee80211req_chaninfo	chaninfo;
 };
+#define	IEEE80211_REGDOMAIN_SIZE(_nchan) \
+	(sizeof(struct ieee80211_regdomain_req) + \
+	 (((_nchan)-1) * sizeof(struct ieee80211_channel)))
+#define	IEEE80211_REGDOMAIN_SPACE(_req) \
+	IEEE80211_REGDOMAIN_SIZE((_req)->chaninfo.ic_nchans)
 
 /*
  * Get driver capabilities.  Driver, hardware crypto, and
@@ -475,6 +485,11 @@ struct ieee80211_devcaps_req {
 	uint32_t	dc_htcaps;		/* HT/802.11n support */
 	struct ieee80211req_chaninfo dc_chaninfo;
 };
+#define	IEEE80211_DEVCAPS_SIZE(_nchan) \
+	(sizeof(struct ieee80211_devcaps_req) + \
+	 (((_nchan)-1) * sizeof(struct ieee80211_channel)))
+#define	IEEE80211_DEVCAPS_SPACE(_dc) \
+	IEEE80211_DEVCAPS_SIZE((_dc)->dc_chaninfo.ic_nchans)
 
 struct ieee80211_chanswitch_req {
 	struct ieee80211_channel csa_chan;	/* new channel */

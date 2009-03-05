@@ -45,10 +45,18 @@ struct freqband {
 	LIST_ENTRY(freqband) next;
 };
 
+/* private flags, don't pass to os */
+#define	REQ_ECM		0x1		/* enable if ECM set */
+#define	REQ_INDOOR	0x2		/* enable only for indoor operation */
+#define	REQ_OUTDOOR	0x4		/* enable only for outdoor operation */
+
+#define	REQ_FLAGS	(REQ_ECM|REQ_INDOOR|REQ_OUTDOOR)
+
 struct netband {
 	const struct freqband *band;	/* channel list description */
 	uint8_t		maxPower;	/* regulatory cap on tx power (dBm) */
 	uint8_t		maxPowerDFS;	/* regulatory cap w/ DFS (dBm) */
+	uint8_t		maxAntGain;	/* max allowed antenna gain (.5 dBm) */
 	uint32_t	flags;		/* net80211 channel flags */
 
 	LIST_ENTRY(netband) next;

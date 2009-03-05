@@ -33,6 +33,7 @@
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
+#include "opt_route.h"
 #include "opt_mac.h"
 #include "opt_carp.h"
 
@@ -2271,8 +2272,7 @@ again:
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa = ifa->ifa_addr;
 
-			if (jailed(curthread->td_ucred) &&
-			    !prison_if(curthread->td_ucred, sa))
+			if (prison_if(curthread->td_ucred, sa) != 0)
 				continue;
 			addrs++;
 #ifdef COMPAT_43

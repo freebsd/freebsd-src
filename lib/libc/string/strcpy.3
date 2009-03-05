@@ -32,18 +32,20 @@
 .\"     @(#)strcpy.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2001
+.Dd February 28, 2009
 .Dt STRCPY 3
 .Os
 .Sh NAME
-.Nm strcpy , strncpy
+.Nm stpcpy, stpncpy, strcpy , strncpy
 .Nd copy strings
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
 .Ft char *
-.Fn stpcpy "char *dst" "const char *src"
+.Fn stpcpy "char * restrict dst" "const char * restrict src"
+.Ft char *
+.Fn stpncpy "char * restrict dst" "const char * restrict src" "size_t len"
 .Ft char *
 .Fn strcpy "char * restrict dst" "const char * restrict src"
 .Ft char *
@@ -63,8 +65,10 @@ to
 character.)
 .Pp
 The
+.Fn stpncpy
+and
 .Fn strncpy
-function copies at most
+functions copy at most
 .Fa len
 characters from
 .Fa src
@@ -95,10 +99,21 @@ return
 .Fa dst .
 The
 .Fn stpcpy
-function returns a pointer to the terminating
+and
+.Fn stpncpy
+functions return a pointer to the terminating
 .Ql \e0
 character of
 .Fa dst .
+If
+.Fn stpncpy
+does not terminate
+.Fa dst
+with a
+.Dv NUL
+character, it instead returns a pointer to
+.Li dst[n]
+(which does not necessarily refer to a valid memory location.)
 .Sh EXAMPLES
 The following sets
 .Va chararray
@@ -185,14 +200,16 @@ conform to
 .St -isoC .
 The
 .Fn stpcpy
-function is an MS-DOS and GNUism.
-The
-.Fn stpcpy
-function
-conforms to no standard.
+and
+.Fn stpncpy
+functions conform to
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn stpcpy
 function first appeared in
 .Fx 4.4 ,
-coming from 1998-vintage Linux.
+and
+.Fn stpncpy
+was added in
+.Fx 8.0 .

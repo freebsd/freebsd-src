@@ -1133,7 +1133,6 @@
 <rd id="sr9">
   <name>SR9</name>
   <sku>0x0298</sku>
-  <defcc ref="SR9"/>
   <netband mode="11g">
     <band>
       <freqband ref="S1_907_922_5"/>
@@ -1156,20 +1155,19 @@
 <rd id="xr9">
   <name>XR9</name>
   <sku>0x299</sku>
-  <defcc ref="XR9"/>
   <netband mode="11g">
     <band>
-      <freqband ref="S2_907_922_5"/>
+      <freqband ref="S1_907_922_5"/>
       <maxpower>30</maxpower>
       <flags>IEEE80211_CHAN_G</flags>
     </band>
     <band>
-      <freqband ref="S2_907_922_10"/>
+      <freqband ref="S1_907_922_10"/>
       <maxpower>30</maxpower>
       <flags>IEEE80211_CHAN_G</flags>
     </band>
     <band>
-      <freqband ref="S2_912_917"/>
+      <freqband ref="S1_912_917"/>
       <maxpower>30</maxpower>
       <flags>IEEE80211_CHAN_G</flags>
     </band>
@@ -1179,7 +1177,6 @@
 <rd id="gz901">
   <name>GZ901</name>
   <sku>0x29a</sku>
-  <defcc ref="GZ901"/>
   <netband mode="11g">
     <band>
       <freqband ref="S1_908_923_5"/>
@@ -1318,9 +1315,6 @@
 </country>
 <country id="GT">
   <isocc>320</isocc> <name>Guatemala</name> <rd ref="none"/>
-</country>
-<country id="GZ901">
-  <isocc>5002</isocc> <name>ZComax GZ-901</name> <rd ref="gz901"/>
 </country>
 <country id="HN">
   <isocc>340</isocc> <name>Honduras</name> <rd ref="none"/>
@@ -1516,12 +1510,6 @@
 </country>
 <country id="TR">
   <isocc>792</isocc> <name>Turkey</name> <rd ref="etsi"/>
-</country>
-<country id="SR9">
-  <isocc>5000</isocc> <name>Ubiquiti SR9</name> <rd ref="sr9"/>
-</country>
-<country id="XR9">
-  <isocc>5001</isocc> <name>Ubiquiti XR9</name> <rd ref="xr9"/>
 </country>
 <country id="UA">
   <isocc>804</isocc> <name>Ukraine</name> <rd ref="none"/>
@@ -1725,55 +1713,37 @@
 </freqband>
 
 <freqband id="S1_907_922_5">
-  <freqstart>2422</freqstart> <freqend>2437</freqend>
+  <freqstart>907</freqstart> <freqend>922</freqend>
   <chanwidth>5</chanwidth> <chansep>5</chansep>
   <flags>IEEE80211_CHAN_GSM</flags>
   <flags>IEEE80211_CHAN_QUARTER</flags>
 </freqband>
 <freqband id="S1_907_922_10">
-  <freqstart>2422</freqstart> <freqend>2437</freqend>
+  <freqstart>907</freqstart> <freqend>922</freqend>
   <chanwidth>10</chanwidth> <chansep>5</chansep>
   <flags>IEEE80211_CHAN_GSM</flags>
   <flags>IEEE80211_CHAN_HALF</flags>
 </freqband>
 <freqband id="S1_912_917">
-  <freqstart>2427</freqstart> <freqend>2432</freqend>
-  <chanwidth>20</chanwidth> <chansep>5</chansep>
-  <flags>IEEE80211_CHAN_GSM</flags>
-</freqband>
-
-<freqband id="S2_907_922_5">
-  <freqstart>2427</freqstart> <freqend>2442</freqend>
-  <chanwidth>5</chanwidth> <chansep>5</chansep>
-  <flags>IEEE80211_CHAN_GSM</flags>
-  <flags>IEEE80211_CHAN_QUARTER</flags>
-</freqband>
-<freqband id="S2_907_922_10">
-  <freqstart>2427</freqstart> <freqend>2442</freqend>
-  <chanwidth>10</chanwidth> <chansep>5</chansep>
-  <flags>IEEE80211_CHAN_GSM</flags>
-  <flags>IEEE80211_CHAN_HALF</flags>
-</freqband>
-<freqband id="S2_912_917">
-  <freqstart>2432</freqstart> <freqend>2437</freqend>
+  <freqstart>912</freqstart> <freqend>917</freqend>
   <chanwidth>20</chanwidth> <chansep>5</chansep>
   <flags>IEEE80211_CHAN_GSM</flags>
 </freqband>
 
 <freqband id="S1_908_923_5">
-  <freqstart>2447</freqstart> <freqend>2467</freqend>
+  <freqstart>908</freqstart> <freqend>923</freqend>
   <chanwidth>5</chanwidth> <chansep>5</chansep>
   <flags>IEEE80211_CHAN_GSM</flags>
   <flags>IEEE80211_CHAN_QUARTER</flags>
 </freqband>
 <freqband id="S1_913_918_10">
-  <freqstart>2457</freqstart> <freqend>2462</freqend>
+  <freqstart>913</freqstart> <freqend>918</freqend>
   <chanwidth>10</chanwidth> <chansep>5</chansep>
   <flags>IEEE80211_CHAN_GSM</flags>
   <flags>IEEE80211_CHAN_HALF</flags>
 </freqband>
 <freqband id="S1_913_918">
-  <freqstart>2457</freqstart> <freqend>2462</freqend>
+  <freqstart>913</freqstart> <freqend>918</freqend>
   <chanwidth>20</chanwidth> <chansep>5</chansep>
   <flags>IEEE80211_CHAN_GSM</flags>
 </freqband>

@@ -435,8 +435,6 @@ free(void *addr, struct malloc_type *mtp)
 	addr = redzone_addr_ntor(addr);
 #endif
 
-	size = 0;
-
 	slab = vtoslab((vm_offset_t)addr & (~UMA_SLAB_MASK));
 
 	if (slab == NULL)

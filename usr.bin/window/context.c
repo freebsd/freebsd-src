@@ -44,6 +44,7 @@ static char rcsid[] =
 #include "mystring.h"
 #include "context.h"
 #include <fcntl.h>
+#include <stdlib.h>
 
 /*
  * Context push/pop for nested command files.

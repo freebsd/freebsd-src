@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/ucred.h>
 #include <sys/vimage.h>
+#include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/radix.h>
@@ -76,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #define	IPFW_INTERNAL	/* Access to protected data structures in ip_fw.h. */
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
@@ -87,10 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_carp.h>
 #include <netinet/pim.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcpip.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
@@ -98,19 +96,17 @@ __FBSDID("$FreeBSD$");
 
 #include <netgraph/ng_ipfw.h>
 
-#include <altq/if_altq.h>
-
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #ifdef INET6
 #include <netinet6/scope6_var.h>
 #endif
 
-#include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
-
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
+#ifdef MAC
 #include <security/mac/mac_framework.h>
+#endif
 
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
@@ -209,7 +205,6 @@ struct table_entry {
 };
 
 #ifdef VIMAGE_GLOBALS
-static int fw_debug;
 static int autoinc_step;
 #endif
 
@@ -225,8 +220,6 @@ SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, autoinc_step,
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_RW | CTLFLAG_SECURE3, fw_one_pass, 0,
     "Only do a single pass through ipfw when using dummynet(4)");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW,
-    fw_debug, 0, "Enable printing of debug ip_fw statements");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, verbose,
     CTLFLAG_RW | CTLFLAG_SECURE3,
     fw_verbose, 0, "Log matches to ipfw rules");
@@ -237,6 +230,7 @@ SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
     NULL, IPFW_TABLES_MAX, "The maximum number of tables.");
+#endif /* SYSCTL_NODE */
 
 /*
  * Description of dynamic rules.
@@ -317,6 +311,7 @@ static u_int32_t dyn_count;	/* # of dynamic rules */
 static u_int32_t dyn_max;	/* max # of dynamic rules */
 #endif /* VIMAGE_GLOBALS */
 
+#ifdef SYSCTL_NODE
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_buckets,
     CTLFLAG_RW, dyn_buckets, 0, "Number of dyn. buckets");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
@@ -342,18 +337,19 @@ SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
     "Lifetime of dyn. rules for other situations");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_keepalive,
     CTLFLAG_RW, dyn_keepalive, 0, "Enable keepalives for dyn. rules");
-
+#endif /* SYSCTL_NODE */
 
 #ifdef INET6
 /*
  * IPv6 specific variables
  */
+#ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet6_ip6);
+#endif /* SYSCTL_NODE */
 
 static struct sysctl_ctx_list ip6_fw_sysctl_ctx;
 static struct sysctl_oid *ip6_fw_sysctl_tree;
 #endif /* INET6 */
-#endif /* SYSCTL_NODE */
 
 #ifdef VIMAGE_GLOBALS
 static int fw_deny_unknown_exthdrs;
@@ -2371,6 +2367,7 @@ ipfw_chk(struct ip_fw_args *args)
 	if ((args->flags & IP_FW_ARGS_LAYER2) == 0)
 		ip = mtod(m, struct ip *);
 
+	dst_ip.s_addr = 0;		/* make sure it is initialized */
 	pktlen = m->m_pkthdr.len;
 	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
@@ -2832,7 +2829,7 @@ check_body:
 				if (is_ipv4 || (args->flags & IP_FW_ARGS_LAYER2)) {
 				    ipfw_ether_addr *ea;
 				    uint32_t a;
-				    uint32_t v;
+				    uint32_t v = 0;
 
 				    if (cmd->opcode == O_IP_DST_LOOKUP) {
 					    a = dst_ip.s_addr;
@@ -3982,8 +3979,8 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 				continue;
 			clear_counters(rule, log_only);
 		}
-		msg = log_only ? "ipfw: All logging counts reset.\n" :
-		    "ipfw: Accounting cleared.\n";
+		msg = log_only ? "All logging counts reset" :
+		    "Accounting cleared";
 	} else {
 		int cleared = 0;
 		/*
@@ -4004,13 +4001,18 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 			IPFW_WUNLOCK(chain);
 			return (EINVAL);
 		}
-		msg = log_only ? "ipfw: Entry %d logging count reset.\n" :
-		    "ipfw: Entry %d cleared.\n";
+		msg = log_only ? "logging count reset" : "cleared";
 	}
 	IPFW_WUNLOCK(chain);
 
-	if (V_fw_verbose)
-		log(LOG_SECURITY | LOG_NOTICE, msg, rulenum);
+	if (V_fw_verbose) {
+		int lev = LOG_SECURITY | LOG_NOTICE;
+
+		if (rulenum)
+			log(lev, "ipfw: Entry %d %s.\n", rulenum, msg);
+		else
+			log(lev, "ipfw: %s.\n", msg);
+	}
 	return (0);
 }
 
@@ -4754,7 +4756,6 @@ ipfw_init(void)
 	struct ip_fw default_rule;
 	int error;
 
-	V_fw_debug = 1;
 	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
 
 	V_ipfw_dyn_v = NULL;

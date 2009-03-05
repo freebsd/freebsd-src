@@ -70,6 +70,22 @@ struct dom_binding;
 static struct passwd yp_password;
 
 static void
+xlate_passwd(struct x_master_passwd *xpwd, struct passwd *pwd)
+{
+	pwd->pw_name = xpwd->pw_name;
+	pwd->pw_passwd = xpwd->pw_passwd;
+	pwd->pw_uid = xpwd->pw_uid;
+	pwd->pw_gid = xpwd->pw_gid;
+	pwd->pw_change = xpwd->pw_change;
+	pwd->pw_class = xpwd->pw_class;
+	pwd->pw_gecos = xpwd->pw_gecos;
+	pwd->pw_dir = xpwd->pw_dir;
+	pwd->pw_shell = xpwd->pw_shell;
+	pwd->pw_expire = xpwd->pw_expire;
+	pwd->pw_fields = xpwd->pw_fields;
+}
+
+static void
 copy_yp_pass(char *p, int x, int m)
 {
 	char *t, *s = p;
@@ -709,6 +725,7 @@ yppasswdproc_update_master_1_svc(master_yppasswd *argp,
 	char passfile_hold_buf[MAXPATHLEN + 2];
 	struct sockaddr_in *rqhost;
 	SVCXPRT	*transp;
+	struct passwd newpasswd;
 
 	result = 1;
 	transp = rqstp->rq_xprt;
@@ -820,7 +837,8 @@ allow additions to be made to the password database");
 		yp_error("pw_tmp() failed");
 		return &result;
 	}
-	if (pw_copy(pfd, tfd, (struct passwd *)&argp->newpw, NULL) == -1) {
+	xlate_passwd(&argp->newpw, &newpasswd);
+	if (pw_copy(pfd, tfd, &newpasswd, NULL) == -1) {
 		pw_fini();
 		yp_error("pw_copy() failed");
 		return &result;
@@ -858,8 +876,8 @@ allow additions to be made to the password database");
 	pw_fini();
 
 	if (inplace) {
-		if ((rval = update_inplace((struct passwd *)&argp->newpw,
-							argp->domain))) {
+		xlate_passwd(&argp->newpw, &newpasswd);
+		if ((rval = update_inplace(&newpasswd, argp->domain))) {
 			yp_error("inplace update failed -- rebuilding maps");
 		}
 	}

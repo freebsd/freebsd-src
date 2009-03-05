@@ -109,7 +109,6 @@ hpfs_mount (
 {
 	int		err = 0, error;
 	struct vnode	*devvp;
-	struct hpfsmount *hpmp = 0;
 	struct nameidata ndp;
 	struct export_args export;
 	char *from;
@@ -133,8 +132,6 @@ hpfs_mount (
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		dprintf(("hpfs_omount: MNT_UPDATE: "));
-
-		hpmp = VFSTOHPFS(mp);
 
 		if (from == NULL) {
 			error = vfs_copyopt(mp->mnt_optnew, "export",
@@ -337,12 +334,10 @@ hpfs_unmount(
 	int mntflags,
 	struct thread *td)
 {
-	int error, flags, ronly;
+	int error, flags;
 	register struct hpfsmount *hpmp = VFSTOHPFS(mp);
 
 	dprintf(("hpfs_unmount():\n"));
-
-	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
 	flags = 0;
 	if(mntflags & MNT_FORCE)

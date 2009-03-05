@@ -33,8 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "collate.h"
 
 int
-strcoll(s, s2)
-	const char *s, *s2;
+strcoll(const char *s, const char *s2)
 {
 	int len, len2, prim, prim2, sec, sec2, ret, ret2;
 	const char *t, *t2;

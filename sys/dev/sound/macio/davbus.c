@@ -52,7 +52,6 @@
 
 struct davbus_softc {
 	struct aoa_softc 	 aoa;
-	device_t 		 dev;
 	phandle_t 		 node;
 	phandle_t 		 soundnode;
 	struct resource 	*reg;
@@ -78,7 +77,7 @@ static device_method_t pcm_davbus_methods[] = {
 static driver_t pcm_davbus_driver = {
 	"pcm",
 	pcm_davbus_methods,
-	sizeof(struct davbus_softc)
+	PCM_SOFTC_SIZE
 };
 
 DRIVER_MODULE(pcm_davbus, macio, pcm_davbus_driver, pcm_devclass, 0, 0);
@@ -91,7 +90,6 @@ static int
 davbus_probe(device_t self)
 {
 	const char 		*name;
-	struct davbus_softc 	*sc;
 
 	name = ofw_bus_get_name(self);
 	if (!name)
@@ -100,11 +98,6 @@ davbus_probe(device_t self)
 	if (strcmp(name, "davbus") != 0)
 		return (ENXIO);
 	
-	sc = device_get_softc(self);
-	if (!sc)
-		return (ENOMEM);
-	bzero(sc, sizeof(*sc));
-
 	device_set_desc(self, "Apple DAVBus Audio Controller");
 
 	return (0);
@@ -495,13 +488,15 @@ screamer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 static int
 davbus_attach(device_t self)
 {
-	struct davbus_softc 	*sc = device_get_softc(self);
+	struct davbus_softc 	*sc;
 	struct resource 	*dbdma_irq, *cintr;
 	void 			*cookie;
 	char			 compat[64];
 	int 			 rid, oirq, err;
 
-	sc->dev = self;
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
+
+	sc->aoa.sc_dev = self;
 	sc->node = ofw_bus_get_node(self);
 	sc->soundnode = OF_child(sc->node);
 
@@ -533,8 +528,8 @@ davbus_attach(device_t self)
 	if (err != 0)
 		return (err);
 		
-	bus_setup_intr(self, dbdma_irq, INTR_TYPE_AV | INTR_MPSAFE,
-	    NULL, aoa_interrupt, sc, &cookie);
+	snd_setup_intr(self, dbdma_irq, INTR_MPSAFE, aoa_interrupt,
+	    sc, &cookie);
 
 	/* Now initialize the controller. */
 
@@ -559,7 +554,7 @@ davbus_attach(device_t self)
 	    DAVBUS_OUTPUT_SUBFRAME0 | DAVBUS_RATE_44100 | DAVBUS_INTR_PORTCHG);
 
 	/* Attach DBDMA engine and PCM layer */
-	err = aoa_attach(self);
+	err = aoa_attach(sc);
 	if (err)
 		return (err);
 

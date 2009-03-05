@@ -332,9 +332,7 @@ static int
 sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	int ocn_mute;
 
-	ocn_mute = cn_mute;
 	error = sysctl_handle_int(oidp, &cn_mute, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);

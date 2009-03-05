@@ -594,7 +594,6 @@ pmap_init_pat(void)
 	if (!(cpu_feature & CPUID_PAT))
 		panic("no PAT??");
 
-#ifdef PAT_WORKS
 	/*
 	 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
 	 * Program 4 and 5 as WP and WC.
@@ -604,23 +603,6 @@ pmap_init_pat(void)
 	pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
 	pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
 	    PAT_VALUE(5, PAT_WRITE_COMBINING);
-#else
-	/*
-	 * Due to some Intel errata, we can only safely use the lower 4
-	 * PAT entries.  Thus, just replace PAT Index 2 with WC instead
-	 * of UC-.
-	 *
-	 *   Intel Pentium III Processor Specification Update
-	 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
-	 * or Mode C Paging)
-	 *
-	 *   Intel Pentium IV  Processor Specification Update
-	 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
-	 */
-	pat_msr = rdmsr(MSR_PAT);
-	pat_msr &= ~PAT_MASK(2);
-	pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
-#endif
 	wrmsr(MSR_PAT, pat_msr);
 }
 
@@ -783,10 +765,9 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 			break;
 		}
 	}
-	
+
 	/* Map the caching mode to a PAT index. */
 	switch (mode) {
-#ifdef PAT_WORKS
 	case PAT_UNCACHEABLE:
 		pat_index = 3;
 		break;
@@ -805,25 +786,9 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 	case PAT_WRITE_PROTECTED:
 		pat_index = 4;
 		break;
-#else
-	case PAT_UNCACHED:
-	case PAT_UNCACHEABLE:
-	case PAT_WRITE_PROTECTED:
-		pat_index = 3;
-		break;
-	case PAT_WRITE_THROUGH:
-		pat_index = 1;
-		break;
-	case PAT_WRITE_BACK:
-		pat_index = 0;
-		break;
-	case PAT_WRITE_COMBINING:
-		pat_index = 2;
-		break;
-#endif
 	default:
 		panic("Unknown caching mode %d\n", mode);
-	}	
+	}
 
 	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
 	cache_bits = 0;
@@ -1932,15 +1897,15 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	pc->pc_map[field] |= 1ul << bit;
 	/* move to head of list */
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 	if (pc->pc_map[0] != PC_FREE0 || pc->pc_map[1] != PC_FREE1 ||
-	    pc->pc_map[2] != PC_FREE2)
+	    pc->pc_map[2] != PC_FREE2) {
+		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 		return;
+	}
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
-	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire(m, 0);
@@ -3400,9 +3365,7 @@ retry:
 			}
 
 			p = vm_page_lookup(object, pindex);
-			vm_page_lock_queues();
 			vm_page_wakeup(p);
-			vm_page_unlock_queues();
 		}
 
 		ptepa = VM_PAGE_TO_PHYS(p);
@@ -3416,15 +3379,11 @@ retry:
 			while ((pdpg =
 			    pmap_allocpde(pmap, va, M_NOWAIT)) == NULL) {
 				PMAP_UNLOCK(pmap);
-				vm_page_lock_queues();
 				vm_page_busy(p);
-				vm_page_unlock_queues();
 				VM_OBJECT_UNLOCK(object);
 				VM_WAIT;
 				VM_OBJECT_LOCK(object);
-				vm_page_lock_queues();
 				vm_page_wakeup(p);
-				vm_page_unlock_queues();
 				PMAP_LOCK(pmap);
 			}
 			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));

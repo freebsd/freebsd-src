@@ -235,8 +235,8 @@ struct witness {
 	uint16_t 		w_num_descendants; /* direct/indirect
 						    * descendant count */
 	int16_t 		w_ddb_level;
-	int 			w_displayed:1;
-	int 			w_reversed:1;
+	unsigned		w_displayed:1;
+	unsigned		w_reversed:1;
 };
 
 STAILQ_HEAD(witness_list, witness);
@@ -376,7 +376,7 @@ static void	witness_setflag(struct lock_object *lock, int flag, int set);
 #define	witness_debugger(c)
 #endif
 
-SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, 0, "Witness Locking");
+SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL, "Witness Locking");
 
 /*
  * If set to 0, lock order checking is disabled.  If set to -1,
@@ -1511,12 +1511,6 @@ found:
 		    instance->li_line);
 		panic("share->uexcl");
 	}
-	if ((instance->li_flags & LI_NORELEASE) != 0 && witness_watch > 0) {
-		printf("forbidden unlock of (%s) %s @ %s:%d\n", class->lc_name,
-		    lock->lo_name, file, line);
-		panic("lock marked norelease");
-	}
-
 	/* If we are recursed, unrecurse. */
 	if ((instance->li_flags & LI_RECURSEMASK) > 0) {
 		CTR4(KTR_WITNESS, "%s: pid %d unrecursed on %s r=%d", __func__,
@@ -1524,6 +1518,12 @@ found:
 		    instance->li_flags);
 		instance->li_flags--;
 		return;
+	}
+	/* The lock is now being dropped, check for NORELEASE flag */
+	if ((instance->li_flags & LI_NORELEASE) != 0 && witness_watch > 0) {
+		printf("forbidden unlock of (%s) %s @ %s:%d\n", class->lc_name,
+		    lock->lo_name, file, line);
+		panic("lock marked norelease");
 	}
 
 	/* Otherwise, remove this item from the list. */

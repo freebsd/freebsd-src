@@ -236,25 +236,10 @@ struct cp {
 #define	SPP_FMT		"%s: "
 #define	SPP_ARGS(ifp)	(ifp)->if_xname
 
-#define SPPP_LOCK(sp) \
-		do { \
-		    if (!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT)) \
-			mtx_lock (&(sp)->mtx); \
-		} while (0)
-#define SPPP_UNLOCK(sp) \
-		do { \
-		    if (!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT)) \
-			mtx_unlock (&(sp)->mtx); \
-		} while (0)
-
-#define SPPP_LOCK_ASSERT(sp) \
-		do { \
-		    if (!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT)) \
-			mtx_assert (&(sp)->mtx, MA_OWNED); \
-		} while (0)
-#define SPPP_LOCK_OWNED(sp) \
-		(!(SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) && \
-		 mtx_owned (&sp->mtx))
+#define SPPP_LOCK(sp)	mtx_lock (&(sp)->mtx)
+#define SPPP_UNLOCK(sp)	mtx_unlock (&(sp)->mtx)
+#define SPPP_LOCK_ASSERT(sp)	mtx_assert (&(sp)->mtx, MA_OWNED)
+#define SPPP_LOCK_OWNED(sp)	mtx_owned (&sp->mtx)
 
 #ifdef INET
 /*
@@ -1055,8 +1040,7 @@ sppp_attach(struct ifnet *ifp)
 	mtx_init(&sp->mtx, "sppp", MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE);
 	
 	/* Initialize keepalive handler. */
- 	callout_init(&sp->keepalive_callout,
-		    (ifp->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->keepalive_callout, CALLOUT_MPSAFE);
 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
  		    (void *)sp); 
 
@@ -1088,8 +1072,7 @@ sppp_attach(struct ifnet *ifp)
 #ifdef INET6
 	sp->confflags |= CONF_ENABLE_IPV6;
 #endif
- 	callout_init(&sp->ifstart_callout,
-		    (ifp->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->ifstart_callout, CALLOUT_MPSAFE);
 	sp->if_start = ifp->if_start;
 	ifp->if_start = sppp_ifstart;
 	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAITOK);
@@ -2211,8 +2194,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
- 	callout_init(&sp->ch[IDX_LCP],
-		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_LCP], CALLOUT_MPSAFE);
 }
 
 static void
@@ -2903,8 +2885,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPCP] = 0;
 	sp->pp_seq[IDX_IPCP] = 0;
 	sp->pp_rseq[IDX_IPCP] = 0;
- 	callout_init(&sp->ch[IDX_IPCP],
-		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPCP], CALLOUT_MPSAFE);
 }
 
 static void
@@ -3463,8 +3444,7 @@ sppp_ipv6cp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPV6CP] = 0;
 	sp->pp_seq[IDX_IPV6CP] = 0;
 	sp->pp_rseq[IDX_IPV6CP] = 0;
- 	callout_init(&sp->ch[IDX_IPV6CP],
-		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPV6CP], CALLOUT_MPSAFE);
 }
 
 static void
@@ -4272,8 +4252,7 @@ sppp_chap_init(struct sppp *sp)
 	sp->fail_counter[IDX_CHAP] = 0;
 	sp->pp_seq[IDX_CHAP] = 0;
 	sp->pp_rseq[IDX_CHAP] = 0;
- 	callout_init(&sp->ch[IDX_CHAP],
-		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_CHAP], CALLOUT_MPSAFE);
 }
 
 static void
@@ -4604,10 +4583,8 @@ sppp_pap_init(struct sppp *sp)
 	sp->fail_counter[IDX_PAP] = 0;
 	sp->pp_seq[IDX_PAP] = 0;
 	sp->pp_rseq[IDX_PAP] = 0;
- 	callout_init(&sp->ch[IDX_PAP],
-		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
- 	callout_init(&sp->pap_my_to_ch,
-		    (SP2IFP(sp)->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_PAP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->pap_my_to_ch, CALLOUT_MPSAFE);
 }
 
 static void

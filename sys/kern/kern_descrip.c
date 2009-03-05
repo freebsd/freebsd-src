@@ -1583,7 +1583,8 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		if (fdisused(fdp, i) &&
-		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE) {
+		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE &&
+		    fdp->fd_ofiles[i]->f_ops != &badfileops) {
 			newfdp->fd_ofiles[i] = fdp->fd_ofiles[i];
 			newfdp->fd_ofileflags[i] = fdp->fd_ofileflags[i];
 			fhold(newfdp->fd_ofiles[i]);
@@ -2531,7 +2532,10 @@ export_vnode_for_osysctl(struct vnode *vp, int type,
 	kif->kf_fd = type;
 	kif->kf_type = KF_TYPE_VNODE;
 	/* This function only handles directories. */
-	KASSERT(vp->v_type == VDIR, ("export_vnode_for_osysctl: vnode not directory"));
+	if (vp->v_type != VDIR) {
+		vrele(vp);
+		return (ENOTDIR);
+	}
 	kif->kf_vnode_type = KF_VTYPE_VDIR;
 
 	/*
@@ -2778,7 +2782,10 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 	kif->kf_fd = type;
 	kif->kf_type = KF_TYPE_VNODE;
 	/* This function only handles directories. */
-	KASSERT(vp->v_type == VDIR, ("export_vnode_for_sysctl: vnode not directory"));
+	if (vp->v_type != VDIR) {
+		vrele(vp);
+		return (ENOTDIR);
+	}
 	kif->kf_vnode_type = KF_VTYPE_VDIR;
 
 	/*

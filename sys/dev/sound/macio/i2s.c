@@ -78,7 +78,6 @@
 
 struct i2s_softc {
 	struct aoa_softc 	 aoa;
-	device_t		 dev;
 	phandle_t 		 node;
 	phandle_t		 soundnode;
 	struct resource 	*reg;
@@ -111,7 +110,7 @@ static device_method_t pcm_i2s_methods[] = {
 static driver_t pcm_i2s_driver = {
 	"pcm",
 	pcm_i2s_methods,
-	sizeof(struct i2s_softc)
+	PCM_SOFTC_SIZE
 };
 
 DRIVER_MODULE(pcm_i2s, macio, pcm_i2s_driver, pcm_devclass, 0, 0);
@@ -153,7 +152,6 @@ static int
 i2s_probe(device_t self)
 {
 	const char 		*name;
-	struct i2s_softc 	*sc;
 
 	name = ofw_bus_get_name(self);
 	if (!name)
@@ -162,11 +160,6 @@ i2s_probe(device_t self)
 	if (strcmp(name, "i2s") != 0)
 		return (ENXIO);
 	
-	sc = device_get_softc(self);
-	if (!sc)
-		return (ENOMEM);
-	bzero(sc, sizeof(*sc));
-
 	device_set_desc(self, "Apple I2S Audio Controller");
 
 	return (0);
@@ -177,13 +170,15 @@ static phandle_t of_find_firstchild_byname(phandle_t, const char *);
 static int
 i2s_attach(device_t self)
 {
-	struct i2s_softc 	*sc = device_get_softc(self);
+	struct i2s_softc 	*sc;
 	struct resource 	*dbdma_irq;
 	void			*dbdma_ih;
 	int 			 rid, oirq, err;
 	phandle_t 		 port;
+	
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	sc->dev = self;
+	sc->aoa.sc_dev = self;
 	sc->node = ofw_bus_get_node(self);
 
 	port = of_find_firstchild_byname(sc->node, "i2s-a");
@@ -220,8 +215,8 @@ i2s_attach(device_t self)
 	if (err != 0)
 		return (err);
 
-	bus_setup_intr(self, dbdma_irq, INTR_TYPE_AV | INTR_MPSAFE, NULL,
-	    aoa_interrupt, sc, &dbdma_ih);
+	snd_setup_intr(self, dbdma_irq, INTR_MPSAFE, aoa_interrupt,
+	    sc, &dbdma_ih);
 
 	oirq = rman_get_start(dbdma_irq);
 	err = powerpc_config_intr(oirq, INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
@@ -237,12 +232,12 @@ i2s_attach(device_t self)
 		return (ENOMEM);
 
 	i2s_delayed_attach->ich_func = i2s_postattach;
-	i2s_delayed_attach->ich_arg = self;
+	i2s_delayed_attach->ich_arg = sc;
 
 	if (config_intrhook_establish(i2s_delayed_attach) != 0)
 		return (ENOMEM);
 
-	return (aoa_attach(self));
+	return (aoa_attach(sc));
 }
 
 /*****************************************************************************
@@ -322,7 +317,6 @@ aoagpio_probe(device_t gpio)
 	/* Try to find a match. */
 	for (m = gpio_controls; m->name != NULL; m++) {
 		if (strcmp(name, m->name) == 0) {
-
 			sc = device_get_softc(gpio);
 			gpio_ctrls[m->ctrl] = sc;
 			sc->dev = gpio;
@@ -722,16 +716,13 @@ i2s_set_outputs(void *ptr, u_int mask)
 }
 
 static void
-i2s_postattach(void *arg)
+i2s_postattach(void *xsc)
 {
-	device_t 		 self = arg;
-	struct i2s_softc 	*sc;
+	struct i2s_softc 	*sc = xsc;
+	device_t 		 self;
 	int 			 i;
 
-	KASSERT(self != NULL, ("bad arg"));
-	KASSERT(i2s_delayed_attach != NULL, ("bogus call"));
-
-	sc = device_get_softc(self);
+	self = sc->aoa.sc_dev;
 
 	/* Reset the codec. */
 	i2s_audio_hw_reset(sc);

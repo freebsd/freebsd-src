@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd January 15, 2009
+.Dd January 27, 2009
 .Dt ATHRD 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd list channels and transmit power for a country/regulatory domain
 .Sh SYNOPSIS
 .Nm
-.Op Fl aioedlpcfr4ABGT
+.Op Fl aedlpcfr4ABGT
 .Op Fl m Ar mode
 .Bk
 .Op Ar country
@@ -61,10 +61,6 @@ use as G channels and similary for A and T channels.
 With this option
 .Nm
 will list all channels.
-.It Fl i
-Calculate channels based on indoor use.
-.It Fl o
-Calculate channels based on outdoor use (default).
 .It Fl e
 Calculate channels not assuming extended channel mode.
 .It Fl d

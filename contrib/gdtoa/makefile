@@ -25,7 +25,7 @@
 
 .SUFFIXES: .c .o
 CC = cc
-CFLAGS = -g -DINFNAN_CHECK
+CFLAGS = -g
 
 .c.o:
 	$(CC) -c $(CFLAGS) $*.c
@@ -55,9 +55,9 @@ gdtoa.a: dmisc.c dtoa.c g_Qfmt.c g__fmt.c g_ddfmt.c g_dfmt.c g_ffmt.c\
 # If your system lacks ranlib, you do not need it.
 
 xs0 = README arithchk.c dmisc.c dtoa.c g_Qfmt.c g__fmt.c g_ddfmt.c g_dfmt.c\
-	 g_ffmt.c g_xLfmt.c g_xfmt.c gdtoa.c gdtoa.h gdtoaimp.h gethex.c\
-	 gmisc.c hd_init.c hexnan.c makefile misc.c qnan.c smisc.c strtoIQ.c\
-	 strtoId.c strtoIdd.c strtoIf.c strtoIg.c strtoIx.c strtoIxL.c\
+	 g_ffmt.c g_xLfmt.c g_xfmt.c gdtoa.c gdtoa.h gdtoa_fltrnds.h gdtoaimp.h\
+	 gethex.c gmisc.c hd_init.c hexnan.c makefile misc.c qnan.c smisc.c\
+	 strtoIQ.c strtoId.c strtoIdd.c strtoIf.c strtoIg.c strtoIx.c strtoIxL.c\
 	 strtod.c strtodI.c strtodg.c strtodnrp.c strtof.c strtopQ.c strtopd.c\
 	 strtopdd.c strtopf.c strtopx.c strtopxL.c strtorQ.c strtord.c strtordd.c\
 	 strtorf.c strtorx.c strtorxL.c sum.c ulp.c

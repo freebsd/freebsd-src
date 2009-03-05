@@ -259,15 +259,13 @@ struct ath_softc {
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
-#define	IEEE80211_MODE_HALF	(IEEE80211_MODE_MAX+0)
-#define	IEEE80211_MODE_QUARTER	(IEEE80211_MODE_MAX+1)
-	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX+2];
+	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
 	HAL_OPMODE		sc_opmode;	/* current operating mode */
 	u_int16_t		sc_curtxpow;	/* current tx power limit */
 	u_int16_t		sc_curaid;	/* current association id */
-	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
+	struct ieee80211_channel *sc_curchan;	/* current installed channel */
 	u_int8_t		sc_curbssid[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
 	struct {
@@ -702,8 +700,8 @@ void	ath_intr(void *);
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
 
-#define ath_hal_gpioCfgOutput(_ah, _gpio) \
-        ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio)))
+#define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
+        ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))
 #define ath_hal_gpioset(_ah, _gpio, _b) \
         ((*(_ah)->ah_gpioSet)((_ah), (_gpio), (_b)))
 #define ath_hal_gpioget(_ah, _gpio) \

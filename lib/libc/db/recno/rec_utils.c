@@ -51,17 +51,13 @@ __FBSDID("$FreeBSD$");
  *	e:	key/data pair to be returned
  *   nrec:	record number
  *    key:	user's key structure
- *	data:	user's data structure
+ *   data:	user's data structure
  *
  * Returns:
  *	RET_SUCCESS, RET_ERROR.
  */
 int
-__rec_ret(t, e, nrec, key, data)
-	BTREE *t;
-	EPG *e;
-	recno_t nrec;
-	DBT *key, *data;
+__rec_ret(BTREE *t, EPG *e, recno_t nrec, DBT *key, DBT *data)
 {
 	RLEAF *rl;
 	void *p;

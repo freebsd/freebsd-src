@@ -446,10 +446,7 @@ ntoskrnl_memmove(dst, src, size)
 }
 
 static void *
-ntoskrnl_memchr(buf, ch, len)
-	void			*buf;
-	unsigned char		ch;
-	size_t			len;
+ntoskrnl_memchr(void *buf, unsigned char ch, size_t len)
 {
 	if (len != 0) {
 		unsigned char *p = buf;
@@ -520,10 +517,8 @@ ntoskrnl_tolower(c)
 }
 
 static uint8_t 
-RtlEqualUnicodeString(str1, str2, caseinsensitive)
-	unicode_string		*str1;
-	unicode_string		*str2;
-	uint8_t			caseinsensitive;
+RtlEqualUnicodeString(unicode_string *str1, unicode_string *str2,
+	uint8_t caseinsensitive)
 {
 	int			i;
 
@@ -595,10 +590,7 @@ ntoskrnl_unicode_to_ascii(unicode, ascii, len)
 }
 
 uint32_t
-RtlUnicodeStringToAnsiString(dest, src, allocate)
-	ansi_string		*dest;
-	unicode_string		*src;
-	uint8_t			allocate;
+RtlUnicodeStringToAnsiString(ansi_string *dest, unicode_string *src, uint8_t allocate)
 {
 	if (dest == NULL || src == NULL)
 		return(STATUS_INVALID_PARAMETER);
@@ -626,10 +618,8 @@ RtlUnicodeStringToAnsiString(dest, src, allocate)
 }
 
 uint32_t
-RtlAnsiStringToUnicodeString(dest, src, allocate)
-	unicode_string		*dest;
-	ansi_string		*src;
-	uint8_t			allocate;
+RtlAnsiStringToUnicodeString(unicode_string *dest, ansi_string *src,
+	uint8_t allocate)
 {
 	if (dest == NULL || src == NULL)
 		return(STATUS_INVALID_PARAMETER);
@@ -727,14 +717,9 @@ IoGetDriverObjectExtension(drv, clid)
 
 
 uint32_t
-IoCreateDevice(drv, devextlen, devname, devtype, devchars, exclusive, newdev)
-	driver_object		*drv;
-	uint32_t		devextlen;
-	unicode_string		*devname;
-	uint32_t		devtype;
-	uint32_t		devchars;
-	uint8_t			exclusive;
-	device_object		**newdev;
+IoCreateDevice(driver_object *drv, uint32_t devextlen, unicode_string *devname,
+	uint32_t devtype, uint32_t devchars, uint8_t exclusive,
+	device_object **newdev)
 {
 	device_object		*dev;
 
@@ -952,17 +937,9 @@ IoBuildAsynchronousFsdRequest(func, dobj, buf, len, off, status)
 }
 
 static irp *
-IoBuildDeviceIoControlRequest(iocode, dobj, ibuf, ilen, obuf, olen,
-    isinternal, event, status)
-	uint32_t		iocode;
-	device_object		*dobj;
-	void			*ibuf;
-	uint32_t		ilen;
-	void			*obuf;
-	uint32_t		olen;
-	uint8_t			isinternal;
-	nt_kevent		*event;
-	io_status_block		*status;
+IoBuildDeviceIoControlRequest(uint32_t iocode, device_object *dobj, void *ibuf,
+	uint32_t ilen, void *obuf, uint32_t olen, uint8_t isinternal,
+	nt_kevent *event, io_status_block *status)
 {
 	irp			*ip;
 	io_stack_location	*sl;
@@ -1048,9 +1025,7 @@ IoBuildDeviceIoControlRequest(iocode, dobj, ibuf, ilen, obuf, olen,
 }
 
 static irp *
-IoAllocateIrp(stsize, chargequota)
-	uint8_t			stsize;
-	uint8_t			chargequota;
+IoAllocateIrp(uint8_t stsize, uint8_t chargequota)
 {
 	irp			*i;
 
@@ -1064,9 +1039,7 @@ IoAllocateIrp(stsize, chargequota)
 }
 
 static irp *
-IoMakeAssociatedIrp(ip, stsize)
-	irp			*ip;
-	uint8_t			stsize;
+IoMakeAssociatedIrp(irp *ip, uint8_t stsize)
 {
 	irp			*associrp;
 
@@ -1093,10 +1066,7 @@ IoFreeIrp(ip)
 }
 
 static void
-IoInitializeIrp(io, psize, ssize)
-	irp			*io;
-	uint16_t		psize;
-	uint8_t			ssize;
+IoInitializeIrp(irp *io, uint16_t psize, uint8_t ssize)
 {
 	bzero((char *)io, IoSizeOfIrp(ssize));
 	io->irp_size = psize;
@@ -1125,16 +1095,14 @@ IoReuseIrp(ip, status)
 }
 
 void
-IoAcquireCancelSpinLock(irql)
-	uint8_t			*irql;
+IoAcquireCancelSpinLock(uint8_t *irql)
 {
 	KeAcquireSpinLock(&ntoskrnl_cancellock, irql);
 	return;
 }
 
 void
-IoReleaseCancelSpinLock(irql)
-	uint8_t			irql;
+IoReleaseCancelSpinLock(uint8_t irql)
 {
 	KeReleaseSpinLock(&ntoskrnl_cancellock, irql);
 	return;
@@ -1185,9 +1153,7 @@ IofCallDriver(dobj, ip)
 }
 
 void
-IofCompleteRequest(ip, prioboost)
-	irp			*ip;
-	uint8_t			prioboost;
+IofCompleteRequest(irp *ip, uint8_t prioboost)
 {
 	uint32_t		status;
 	device_object		*dobj;
@@ -1302,9 +1268,7 @@ KeAcquireInterruptSpinLock(iobj)
 }
 
 void
-KeReleaseInterruptSpinLock(iobj, irql)
-	kinterrupt		*iobj;
-	uint8_t			irql;
+KeReleaseInterruptSpinLock(kinterrupt *iobj, uint8_t irql)
 {
 	KeReleaseSpinLock(&ntoskrnl_intlock, irql);
 	return;
@@ -1342,19 +1306,9 @@ KeSynchronizeExecution(iobj, syncfunc, syncctx)
  */
 
 uint32_t
-IoConnectInterrupt(iobj, svcfunc, svcctx, lock, vector, irql,
-	syncirql, imode, shared, affinity, savefloat)
-	kinterrupt		**iobj;
-	void			*svcfunc;
-	void			*svcctx;
-	uint32_t		vector;
-	kspin_lock		*lock;
-	uint8_t			irql;
-	uint8_t			syncirql;
-	uint8_t			imode;
-	uint8_t			shared;
-	uint32_t		affinity;
-	uint8_t			savefloat;
+IoConnectInterrupt(kinterrupt **iobj, void *svcfunc, void *svcctx,
+	kspin_lock *lock, uint32_t vector, uint8_t irql, uint8_t syncirql,
+	uint8_t imode, uint8_t shared, uint32_t affinity, uint8_t savefloat)
 {
 	uint8_t			curirql;
 
@@ -1699,12 +1653,8 @@ KeTickCount(void)
  */
 
 uint32_t
-KeWaitForSingleObject(arg, reason, mode, alertable, duetime)
-	void			*arg;
-	uint32_t		reason;
-	uint32_t		mode;
-	uint8_t			alertable;
-	int64_t			*duetime;
+KeWaitForSingleObject(void *arg, uint32_t reason, uint32_t mode,
+    uint8_t alertable, int64_t *duetime)
 {
 	wait_block		w;
 	struct thread		*td = curthread;
@@ -1811,16 +1761,9 @@ KeWaitForSingleObject(arg, reason, mode, alertable, duetime)
 }
 
 static uint32_t
-KeWaitForMultipleObjects(cnt, obj, wtype, reason, mode,
-	alertable, duetime, wb_array)
-	uint32_t		cnt;
-	nt_dispatch_header	*obj[];
-	uint32_t		wtype;
-	uint32_t		reason;
-	uint32_t		mode;
-	uint8_t			alertable;
-	int64_t			*duetime;
-	wait_block		*wb_array;
+KeWaitForMultipleObjects(uint32_t cnt, nt_dispatch_header *obj[], uint32_t wtype,
+	uint32_t reason, uint32_t mode, uint8_t alertable, int64_t *duetime,
+	wait_block *wb_array)
 {
 	struct thread		*td = curthread;
 	wait_block		*whead, *w;
@@ -2021,9 +1964,7 @@ wait_done:
 }
 
 static void
-WRITE_REGISTER_USHORT(reg, val)
-	uint16_t		*reg;
-	uint16_t		val;
+WRITE_REGISTER_USHORT(uint16_t *reg, uint16_t val)
 {
 	bus_space_write_2(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg, val);
 	return;
@@ -2053,16 +1994,13 @@ READ_REGISTER_ULONG(reg)
 }
 
 static uint8_t
-READ_REGISTER_UCHAR(reg)
-	uint8_t			*reg;
+READ_REGISTER_UCHAR(uint8_t *reg)
 {
 	return(bus_space_read_1(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg));
 }
 
 static void
-WRITE_REGISTER_UCHAR(reg, val)
-	uint8_t			*reg;
-	uint8_t			val;
+WRITE_REGISTER_UCHAR(uint8_t *reg, uint8_t val)
 {
 	bus_space_write_1(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg, val);
 	return;
@@ -2117,33 +2055,25 @@ _aullrem(a, b)
 }
 
 static int64_t
-_allshl(a, b)
-	int64_t			a;
-	uint8_t			b;
+_allshl(int64_t a, uint8_t b)
 {
 	return (a << b);
 }
 
 static uint64_t
-_aullshl(a, b)
-	uint64_t		a;
-	uint8_t			b;
+_aullshl(uint64_t a, uint8_t b)
 {
 	return (a << b);
 }
 
 static int64_t
-_allshr(a, b)
-	int64_t			a;
-	uint8_t			b;
+_allshr(int64_t a, uint8_t b)
 {
 	return (a >> b);
 }
 
 static uint64_t
-_aullshr(a, b)
-	uint64_t		a;
-	uint8_t			b;
+_aullshr(uint64_t a, uint8_t b)
 {
 	return (a >> b);
 }
@@ -2208,15 +2138,9 @@ ntoskrnl_findwrap(func)
 }
 
 static void
-ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
-    flags, size, tag, depth)
-	paged_lookaside_list	*lookaside;
-	lookaside_alloc_func	*allocfunc;
-	lookaside_free_func	*freefunc;
-	uint32_t		flags;
-	size_t			size;
-	uint32_t		tag;
-	uint16_t		depth;
+ExInitializePagedLookasideList(paged_lookaside_list *lookaside,
+	lookaside_alloc_func *allocfunc, lookaside_free_func *freefunc,
+	uint32_t flags, size_t size, uint32_t tag, uint16_t depth)
 {
 	bzero((char *)lookaside, sizeof(paged_lookaside_list));
 
@@ -2263,15 +2187,9 @@ ExDeletePagedLookasideList(lookaside)
 }
 
 static void
-ExInitializeNPagedLookasideList(lookaside, allocfunc, freefunc,
-    flags, size, tag, depth)
-	npaged_lookaside_list	*lookaside;
-	lookaside_alloc_func	*allocfunc;
-	lookaside_free_func	*freefunc;
-	uint32_t		flags;
-	size_t			size;
-	uint32_t		tag;
-	uint16_t		depth;
+ExInitializeNPagedLookasideList(npaged_lookaside_list *lookaside,
+	lookaside_alloc_func *allocfunc, lookaside_free_func *freefunc,
+	uint32_t flags, size_t size, uint32_t tag, uint16_t depth)
 {
 	bzero((char *)lookaside, sizeof(npaged_lookaside_list));
 
@@ -2489,12 +2407,8 @@ ExInterlockedAddLargeStatistic(addend, inc)
 };
 
 mdl *
-IoAllocateMdl(vaddr, len, secondarybuf, chargequota, iopkt)
-	void			*vaddr;
-	uint32_t		len;
-	uint8_t			secondarybuf;
-	uint8_t			chargequota;
-	irp			*iopkt;
+IoAllocateMdl(void *vaddr, uint32_t len, uint8_t secondarybuf,
+	uint8_t chargequota, irp *iopkt)
 {
 	mdl			*m;
 	int			zone = 0;
@@ -2643,23 +2557,15 @@ MmBuildMdlForNonPagedPool(m)
 }
 
 static void *
-MmMapLockedPages(buf, accessmode)
-	mdl			*buf;
-	uint8_t			accessmode;
+MmMapLockedPages(mdl *buf, uint8_t accessmode)
 {
 	buf->mdl_flags |= MDL_MAPPED_TO_SYSTEM_VA;
 	return(MmGetMdlVirtualAddress(buf));
 }
 
 static void *
-MmMapLockedPagesSpecifyCache(buf, accessmode, cachetype, vaddr,
-    bugcheck, prio)
-	mdl			*buf;
-	uint8_t			accessmode;
-	uint32_t		cachetype;
-	void			*vaddr;
-	uint32_t		bugcheck;
-	uint32_t		prio;
+MmMapLockedPagesSpecifyCache(mdl *buf, uint8_t accessmode, uint32_t cachetype,
+	void *vaddr, uint32_t bugcheck, uint32_t prio)
 {
 	return(MmMapLockedPages(buf, accessmode));
 }
@@ -3237,9 +3143,7 @@ srand(seed)
 }
 
 static uint8_t
-IoIsWdmVersionAvailable(major, minor)
-	uint8_t			major;
-	uint8_t			minor;
+IoIsWdmVersionAvailable(uint8_t major, uint8_t minor)
 {
 	if (major == WDM_MAJOR && minor == WDM_MINOR_WINXP)
 		return(TRUE);
@@ -3299,9 +3203,7 @@ KeInitializeMutex(kmutex, level)
 }
 
 static uint32_t
-KeReleaseMutex(kmutex, kwait)
-	kmutant			*kmutex;
-	uint8_t			kwait;
+KeReleaseMutex(kmutant *kmutex, uint8_t kwait)
 {
 	uint32_t		prevstate;
 
@@ -3333,10 +3235,7 @@ KeReadStateMutex(kmutex)
 }
 
 void
-KeInitializeEvent(kevent, type, state)
-	nt_kevent		*kevent;
-	uint32_t		type;
-	uint8_t			state;
+KeInitializeEvent(nt_kevent *kevent, uint32_t type, uint8_t state)
 {
 	InitializeListHead((&kevent->k_header.dh_waitlisthead));
 	kevent->k_header.dh_sigstate = state;
@@ -3363,10 +3262,7 @@ KeResetEvent(kevent)
 }
 
 uint32_t
-KeSetEvent(kevent, increment, kwait)
-	nt_kevent		*kevent;
-	uint32_t		increment;
-	uint8_t			kwait;
+KeSetEvent(nt_kevent *kevent, uint32_t increment, uint8_t kwait)
 {
 	uint32_t		prevstate;
 	wait_block		*w;
@@ -3468,14 +3364,8 @@ KeReadStateEvent(kevent)
  */
 
 static ndis_status
-ObReferenceObjectByHandle(handle, reqaccess, otype,
-    accessmode, object, handleinfo)
-	ndis_handle		handle;
-	uint32_t		reqaccess;
-	void			*otype;
-	uint8_t			accessmode;
-	void			**object;
-	void			**handleinfo;
+ObReferenceObjectByHandle(ndis_handle handle, uint32_t reqaccess, void *otype,
+	uint8_t accessmode, void **object, void **handleinfo)
 {
 	nt_objref		*nr;
 
@@ -4122,9 +4012,7 @@ KeSetImportanceDpc(dpc, imp)
 }
 
 void
-KeSetTargetProcessorDpc(dpc, cpu)
-	kdpc			*dpc;
-	uint8_t			cpu;
+KeSetTargetProcessorDpc(kdpc *dpc, uint8_t cpu)
 {
 	if (cpu > mp_ncpus)
 		return;
@@ -4269,10 +4157,7 @@ KeReadStateTimer(timer)
 }
 
 static int32_t
-KeDelayExecutionThread(wait_mode, alertable, interval)
-        uint8_t                 wait_mode;
-        uint8_t                 alertable;
-        int64_t                 *interval;
+KeDelayExecutionThread(uint8_t wait_mode, uint8_t alertable, int64_t *interval)
 {
 	ktimer                  timer;
 

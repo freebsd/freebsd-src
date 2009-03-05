@@ -48,9 +48,6 @@ __FBSDID("$FreeBSD$");
 #define	USAGE \
 	"usage: ktrdump [-cfqrt] [-e execfile] [-i ktrfile] [-m corefile] [-o outfile]\n"
 
-extern char *optarg;
-extern int optind;
-
 static void usage(void);
 
 static struct nlist nl[] = {

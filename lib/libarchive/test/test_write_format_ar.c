@@ -46,7 +46,6 @@ DEFINE_TEST(test_write_format_ar)
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ar_svr4(a));
-	assertA(0 == archive_write_set_compression_gzip(a));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* write the filename table */
@@ -153,7 +152,6 @@ DEFINE_TEST(test_write_format_ar)
 	memset(buff, 0, sizeof(buff));
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ar_bsd(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_bzip2(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* write a entry need long name extension */

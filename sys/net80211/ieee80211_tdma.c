@@ -79,6 +79,21 @@ __FBSDID("$FreeBSD$");
 #ifndef TDMA_TXRATE_11A_DEFAULT
 #define	TDMA_TXRATE_11A_DEFAULT	2*24
 #endif
+#ifndef TDMA_TXRATE_STURBO_A_DEFAULT
+#define	TDMA_TXRATE_STURBO_A_DEFAULT	2*24
+#endif
+#ifndef TDMA_TXRATE_HALF_DEFAULT
+#define	TDMA_TXRATE_HALF_DEFAULT	2*12
+#endif
+#ifndef TDMA_TXRATE_QUARTER_DEFAULT
+#define	TDMA_TXRATE_QUARTER_DEFAULT	2*6
+#endif
+#ifndef TDMA_TXRATE_11NA_DEFAULT
+#define	TDMA_TXRATE_11NA_DEFAULT	(4 | IEEE80211_RATE_MCS)
+#endif
+#ifndef TDMA_TXRATE_11NG_DEFAULT
+#define	TDMA_TXRATE_11NG_DEFAULT	(4 | IEEE80211_RATE_MCS)
+#endif
 
 static void tdma_vdetach(struct ieee80211vap *vap);
 static int tdma_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -90,6 +105,13 @@ static int tdma_update(struct ieee80211vap *vap,
 	int pickslot);
 static int tdma_process_params(struct ieee80211_node *ni,
 	const u_int8_t *ie, u_int32_t rstamp, const struct ieee80211_frame *wh);
+
+static void
+settxparms(struct ieee80211vap *vap, enum ieee80211_phymode mode, int rate)
+{
+	vap->iv_txparms[mode].ucastrate = rate;
+	vap->iv_txparms[mode].mcastrate = rate;
+}
 
 static void
 setackpolicy(struct ieee80211com *ic, int noack)
@@ -126,12 +148,14 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	ts->tdma_slot = 1;			/* passive operation */
 
 	/* setup default fixed rates */
-	vap->iv_txparms[IEEE80211_MODE_11B].ucastrate = TDMA_TXRATE_11B_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11B].mcastrate = TDMA_TXRATE_11B_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11G].ucastrate = TDMA_TXRATE_11G_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11G].mcastrate = TDMA_TXRATE_11G_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11A].ucastrate = TDMA_TXRATE_11A_DEFAULT;
-	vap->iv_txparms[IEEE80211_MODE_11A].mcastrate = TDMA_TXRATE_11A_DEFAULT;
+	settxparms(vap, IEEE80211_MODE_11A, TDMA_TXRATE_11A_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11B, TDMA_TXRATE_11B_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11G, TDMA_TXRATE_11G_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_STURBO_A, TDMA_TXRATE_STURBO_A_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11NA, TDMA_TXRATE_11NA_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_11NG, TDMA_TXRATE_11NG_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_HALF, TDMA_TXRATE_HALF_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_QUARTER, TDMA_TXRATE_QUARTER_DEFAULT);
 
 	setackpolicy(vap->iv_ic, 1);	/* disable ACK's */
 
@@ -157,6 +181,15 @@ tdma_vdetach(struct ieee80211vap *vap)
 	setackpolicy(vap->iv_ic, 0);	/* enable ACK's */
 }
 
+static void
+sta_leave(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (ni->ni_vap == vap && ni != vap->iv_bss)
+		ieee80211_node_leave(ni);
+}
+
 /*
  * TDMA state machine handler.
  */
@@ -164,10 +197,11 @@ static int
 tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
+	struct ieee80211com *ic = vap->iv_ic;
 	enum ieee80211_state ostate;
 	int status;
 
-	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+	IEEE80211_LOCK_ASSERT(ic);
 
 	ostate = vap->iv_state;
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s -> %s (%d)\n",
@@ -185,6 +219,10 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 */
 		vap->iv_state = nstate;			/* state transition */
 		ieee80211_cancel_scan(vap);		/* background scan */
+		if (ostate == IEEE80211_S_RUN) {
+			/* purge station table; entries are stale */
+			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
+		}
 		if (vap->iv_flags_ext & IEEE80211_FEXT_SCANREQ) {
 			ieee80211_check_scan(vap,
 			    vap->iv_scanreq_flags,
@@ -202,11 +240,14 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (status == 0 && 
 	    nstate == IEEE80211_S_RUN && ostate != IEEE80211_S_RUN &&
 	    (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) &&
-	    ts->tdma_slot != 0) {
+	    ts->tdma_slot != 0 &&
+	    vap->iv_des_chan == IEEE80211_CHAN_ANYC) {
 		/*
 		 * Start s/w beacon miss timer for slave devices w/o
-		 * hardware support.  The 2x is a fudge for our doing
-		 * this in software.
+		 * hardware support.  Note we do this only if we're
+		 * not locked to a channel (i.e. roam to follow the
+		 * master). The 2x is a fudge for our doing this in
+		 * software.
 		 */
 		vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(
 		    2 * vap->iv_bmissthreshold * ts->tdma_bintval *
@@ -310,7 +351,6 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 * Count beacon frame for s/w bmiss handling.
 			 */
 			vap->iv_swbmiss_count++;
-			vap->iv_bmiss_count = 0;
 			/*
 			 * Process tdma ie.  The contents are used to sync
 			 * the slot timing, reconfigure the bss, etc.

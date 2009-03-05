@@ -94,28 +94,33 @@ cd9660_lookup(ap)
 	struct iso_node *dp;		/* inode for directory being searched */
 	struct iso_mnt *imp;		/* filesystem that directory is in */
 	struct buf *bp;			/* a buffer of directory entries */
-	struct iso_directory_record *ep = 0;/* the current directory entry */
+	struct iso_directory_record *ep;/* the current directory entry */
+	struct iso_directory_record *ep2;/* copy of current directory entry */
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
 	int saveoffset = 0;		/* offset of last directory entry in dir */
+	doff_t i_diroff;		/* cached i_diroff value. */
+	doff_t i_offset;		/* cached i_offset value. */
 	int numdirpasses;		/* strategy for directory search */
 	doff_t endsearch;		/* offset to end directory search */
 	struct vnode *pdp;		/* saved dp during symlink work */
 	struct vnode *tdp;		/* returned by cd9660_vget_internal */
 	u_long bmask;			/* block offset mask */
 	int error;
-	ino_t ino = 0, saved_ino;
-	int reclen;
+	ino_t ino, i_ino;
+	int ltype, reclen;
 	u_short namelen;
 	int isoflags;
 	char altname[NAME_MAX];
 	int res;
 	int assoc, len;
 	char *name;
+	struct mount *mp;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 
+	ep2 = ep = NULL;
 	bp = NULL;
 	*vpp = NULL;
 	vdp = ap->a_dvp;
@@ -125,9 +130,11 @@ cd9660_lookup(ap)
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 */
-
+	ino = reclen = 0;
+	i_diroff = dp->i_diroff;
 	len = cnp->cn_namelen;
 	name = cnp->cn_nameptr;
+
 	/*
 	 * A leading `=' means, we are looking for an associated file
 	 */
@@ -149,15 +156,14 @@ cd9660_lookup(ap)
 	 * of simplicity.
 	 */
 	bmask = imp->im_bmask;
-	if (nameiop != LOOKUP || dp->i_diroff == 0 ||
-	    dp->i_diroff > dp->i_size) {
+	if (nameiop != LOOKUP || i_diroff == 0 || i_diroff > dp->i_size) {
 		entryoffsetinblock = 0;
-		dp->i_offset = 0;
+		i_offset = 0;
 		numdirpasses = 1;
 	} else {
-		dp->i_offset = dp->i_diroff;
-		if ((entryoffsetinblock = dp->i_offset & bmask) &&
-		    (error = cd9660_blkatoff(vdp, (off_t)dp->i_offset, NULL, &bp)))
+		i_offset = i_diroff;
+		if ((entryoffsetinblock = i_offset & bmask) &&
+		    (error = cd9660_blkatoff(vdp, (off_t)i_offset, NULL, &bp)))
 				return (error);
 		numdirpasses = 2;
 		nchstats.ncs_2passes++;
@@ -165,17 +171,17 @@ cd9660_lookup(ap)
 	endsearch = dp->i_size;
 
 searchloop:
-	while (dp->i_offset < endsearch) {
+	while (i_offset < endsearch) {
 		/*
 		 * If offset is on a block boundary,
 		 * read the next directory block.
 		 * Release previous if it exists.
 		 */
-		if ((dp->i_offset & bmask) == 0) {
+		if ((i_offset & bmask) == 0) {
 			if (bp != NULL)
 				brelse(bp);
 			if ((error =
-			    cd9660_blkatoff(vdp, (off_t)dp->i_offset, NULL, &bp)) != 0)
+			    cd9660_blkatoff(vdp, (off_t)i_offset, NULL, &bp)) != 0)
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -188,8 +194,8 @@ searchloop:
 		reclen = isonum_711(ep->length);
 		if (reclen == 0) {
 			/* skip to next block, if any */
-			dp->i_offset =
-			    (dp->i_offset & ~bmask) + imp->logical_block_size;
+			i_offset =
+			    (i_offset & ~bmask) + imp->logical_block_size;
 			continue;
 		}
 
@@ -224,7 +230,7 @@ searchloop:
 						 * Save directory entry's inode number and
 						 * release directory buffer.
 						 */
-						dp->i_ino = isodirino(ep, imp);
+						i_ino = isodirino(ep, imp);
 						goto found;
 					}
 					if (namelen != 1
@@ -241,7 +247,7 @@ searchloop:
 					else
 						ino = dbtob(bp->b_blkno)
 							+ entryoffsetinblock;
-					saveoffset = dp->i_offset;
+					saveoffset = i_offset;
 				} else if (ino)
 					goto foundino;
 #ifdef	NOSORTBUG	/* On some CDs directory entries are not sorted correctly */
@@ -257,22 +263,22 @@ searchloop:
 				ino = isodirino(ep, imp);
 			else
 				ino = dbtob(bp->b_blkno) + entryoffsetinblock;
-			dp->i_ino = ino;
-			cd9660_rrip_getname(ep,altname,&namelen,&dp->i_ino,imp);
+			i_ino = ino;
+			cd9660_rrip_getname(ep, altname, &namelen, &i_ino, imp);
 			if (namelen == cnp->cn_namelen
 			    && !bcmp(name,altname,namelen))
 				goto found;
 			ino = 0;
 			break;
 		}
-		dp->i_offset += reclen;
+		i_offset += reclen;
 		entryoffsetinblock += reclen;
 	}
 	if (ino) {
 foundino:
-		dp->i_ino = ino;
-		if (saveoffset != dp->i_offset) {
-			if (lblkno(imp, dp->i_offset) !=
+		i_ino = ino;
+		if (saveoffset != i_offset) {
+			if (lblkno(imp, i_offset) !=
 			    lblkno(imp, saveoffset)) {
 				if (bp != NULL)
 					brelse(bp);
@@ -283,7 +289,8 @@ foundino:
 			entryoffsetinblock = saveoffset & bmask;
 			ep = (struct iso_directory_record *)
 				((char *)bp->b_data + entryoffsetinblock);
-			dp->i_offset = saveoffset;
+			reclen = isonum_711(ep->length);
+			i_offset = saveoffset;
 		}
 		goto found;
 	}
@@ -294,8 +301,8 @@ notfound:
 	 */
 	if (numdirpasses == 2) {
 		numdirpasses--;
-		dp->i_offset = 0;
-		endsearch = dp->i_diroff;
+		i_offset = 0;
+		endsearch = i_diroff;
 		goto searchloop;
 	}
 	if (bp != NULL)
@@ -320,10 +327,10 @@ found:
 	 * in the cache as to where the entry was found.
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
-		dp->i_diroff = dp->i_offset;
+		dp->i_diroff = i_offset;
 
 	/*
-	 * Step through the translation in the name.  We do not `iput' the
+	 * Step through the translation in the name.  We do not `vput' the
 	 * directory because we may need it again if a symbolic link
 	 * is relative to the current directory.  Instead we save it
 	 * unlocked as "pdp".  We must get the target inode before unlocking
@@ -333,7 +340,7 @@ found:
 	 * when following backward pointers ".." we must unlock the
 	 * parent directory before getting the requested directory.
 	 * There is a potential race condition here if both the current
-	 * and parent directories are removed before the `iget' for the
+	 * and parent directories are removed before the `vget' for the
 	 * inode associated with ".." returns.  We hope that this occurs
 	 * infrequently since we cannot avoid this race condition without
 	 * implementing a sophisticated deadlock detection algorithm.
@@ -342,30 +349,75 @@ found:
 	 * that point backwards in the directory structure.
 	 */
 	pdp = vdp;
+
 	/*
-	 * If ino is different from dp->i_ino,
+	 * Make a copy of the directory entry for non "." lookups so
+	 * we can drop the buffer before calling vget() to avoid a
+	 * lock order reversal between the vnode lock and the buffer
+	 * lock.
+	 */
+	if (dp->i_number != i_ino) {
+		ep2 = malloc(reclen, M_TEMP, M_WAITOK);
+		bcopy(ep, ep2, reclen);
+		ep = ep2;
+	}
+	brelse(bp);
+
+	/*
+	 * If ino is different from i_ino,
 	 * it's a relocated directory.
 	 */
 	if (flags & ISDOTDOT) {
-		saved_ino = dp->i_ino;
-		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
-		error = cd9660_vget_internal(vdp->v_mount, saved_ino,
-					     LK_EXCLUSIVE, &tdp,
-					     saved_ino != ino, ep);
-		brelse(bp);
-		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);
+		/*
+		 * Expanded copy of vn_vget_ino() so that we can use
+		 * cd9660_vget_internal().
+		 */
+		mp = pdp->v_mount;
+		ltype = VOP_ISLOCKED(pdp);
+		for (;;) {
+			error = vfs_busy(mp, MBF_NOWAIT);
+			if (error == 0)
+				break;
+			VOP_UNLOCK(pdp, 0);
+			pause("vn_vget", 1);
+			vn_lock(pdp, ltype | LK_RETRY);
+			if (pdp->v_iflag & VI_DOOMED)
+				return (ENOENT);
+		}
+		VOP_UNLOCK(pdp, 0);
+		error = cd9660_vget_internal(vdp->v_mount, i_ino,
+					     cnp->cn_lkflags, &tdp,
+					     i_ino != ino, ep);
+		free(ep2, M_TEMP);
+		vfs_unbusy(mp);
+		vn_lock(pdp, ltype | LK_RETRY);
+		if (pdp->v_iflag & VI_DOOMED) {
+			if (error == 0)
+				vput(tdp);
+			error = ENOENT;
+		}
 		if (error)
 			return (error);
 		*vpp = tdp;
-	} else if (dp->i_number == dp->i_ino) {
-		brelse(bp);
+	} else if (dp->i_number == i_ino) {
 		VREF(vdp);	/* we want ourself, ie "." */
+		/*
+		 * When we lookup "." we still can be asked to lock it
+		 * differently.
+		 */
+		ltype = cnp->cn_lkflags & LK_TYPE_MASK;
+		if (ltype != VOP_ISLOCKED(vdp)) {
+			if (ltype == LK_EXCLUSIVE)
+				vn_lock(vdp, LK_UPGRADE | LK_RETRY);
+			else /* if (ltype == LK_SHARED) */
+				vn_lock(vdp, LK_DOWNGRADE | LK_RETRY);
+		}
 		*vpp = vdp;
 	} else {
-		error = cd9660_vget_internal(vdp->v_mount, dp->i_ino,
-					     LK_EXCLUSIVE, &tdp,
-					     dp->i_ino != ino, ep);
-		brelse(bp);
+		error = cd9660_vget_internal(vdp->v_mount, i_ino,
+					     cnp->cn_lkflags, &tdp,
+					     i_ino != ino, ep);
+		free(ep2, M_TEMP);
 		if (error)
 			return (error);
 		*vpp = tdp;

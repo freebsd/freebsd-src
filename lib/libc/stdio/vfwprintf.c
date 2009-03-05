@@ -479,7 +479,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 #define	INTMAX_SIZE	(INTMAXT|SIZET|PTRDIFFT|LLONGINT)
 #define SJARG() \
 	(flags&INTMAXT ? GETARG(intmax_t) : \
-	    flags&SIZET ? (intmax_t)GETARG(size_t) : \
+	    flags&SIZET ? (intmax_t)GETARG(ssize_t) : \
 	    flags&PTRDIFFT ? (intmax_t)GETARG(ptrdiff_t) : \
 	    (intmax_t)GETARG(long long))
 #define	UJARG() \
@@ -890,23 +890,7 @@ fp_common:
 					cp = convbuf;
 				}
 			}
-
-			if (prec >= 0) {
-				/*
-				 * can't use wcslen; can only look for the
-				 * NUL in the first `prec' characters, and
-				 * wcslen() will go further.
-				 */
-				wchar_t *p = wmemchr(cp, 0, (size_t)prec);
-
-				if (p != NULL) {
-					size = p - cp;
-					if (size > prec)
-						size = prec;
-				} else
-					size = prec;
-			} else
-				size = wcslen(cp);
+			size = (prec >= 0) ? wcsnlen(cp, prec) : wcslen(cp);
 			sign = '\0';
 			break;
 		case 'U':

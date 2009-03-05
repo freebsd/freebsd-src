@@ -33,7 +33,7 @@
  * Simple Atheros-specific tool to inspect and monitor network traffic
  * statistics.
  *
- *	athstats [-i interface] [-l] [-o fmtstring] [interval]
+ *	athstats [-i interface] [-bz] [-l] [-o fmtstring] [interval]
  *
  * (default interface is ath0).  If interval is specified a rolling output
  * a la netstat -i is displayed every interval seconds.  The format of
@@ -72,8 +72,7 @@ getfmt(const char *tag)
 	for (i = 0; i < N(tags); i++)
 		if (strcasecmp(tags[i].tag, tag) == 0)
 			return tags[i].fmt;
-	errx(-1, "unknown tag \%s\"", tag);
-	/*NOTREACHED*/
+	return tag;
 #undef N
 }
 
@@ -90,14 +89,17 @@ main(int argc, char *argv[])
 {
 	struct athstatfoo *wf;
 	const char *ifname;
-	int c;
+	int c, banner = 1;
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
 		ifname = "ath0";
 	wf = athstats_new(ifname, getfmt("default"));
-	while ((c = getopt(argc, argv, "i:lo:")) != -1) {
+	while ((c = getopt(argc, argv, "bi:lo:z")) != -1) {
 		switch (c) {
+		case 'b':
+			banner = 0;
+			break;
 		case 'i':
 			wf->setifname(wf, optarg);
 			break;
@@ -107,8 +109,11 @@ main(int argc, char *argv[])
 		case 'o':
 			wf->setfmt(wf, getfmt(optarg));
 			break;
+		case 'z':
+			wf->zerostats(wf);
+			break;
 		default:
-			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);
+			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [-z] [interval]\n", argv[0]);
 			/*NOTREACHED*/
 		}
 	}
@@ -125,7 +130,8 @@ main(int argc, char *argv[])
 		signalled = 0;
 		alarm(interval);
 	banner:
-		wf->print_header(wf, stdout);
+		if (banner)
+			wf->print_header(wf, stdout);
 		line = 0;
 	loop:
 		if (line != 0) {

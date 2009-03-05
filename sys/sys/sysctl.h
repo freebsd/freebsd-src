@@ -222,7 +222,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 /* This constructs a "raw" MIB oid. */
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	static struct sysctl_oid sysctl__##parent##_##name = {		 \
-		&sysctl_##parent##_children, { 0 }, nbr, kind,		 \
+		&sysctl_##parent##_children, { NULL }, nbr, kind,	 \
 		a1, a2, #name, handler, fmt, 0, __DESCR(descr) };        \
 	DATA_SET(sysctl_set, sysctl__##parent##_##name)
 
@@ -258,7 +258,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
 #define SYSCTL_ADD_NODE(ctx, parent, nbr, name, access, handler, descr)	    \
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_NODE|(access),	    \
-	0, 0, handler, "N", __DESCR(descr))
+	NULL, 0, handler, "N", __DESCR(descr))
 
 /* Oid for a string.  len can be 0 to indicate '\0' termination. */
 #define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
@@ -799,6 +799,8 @@ int	userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 			size_t *retval, int flags);
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			int *nindx, struct sysctl_req *req);
+void	sysctl_lock(void);
+void	sysctl_unlock(void);
 int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
 
 #else	/* !_KERNEL */

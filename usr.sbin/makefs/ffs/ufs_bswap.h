@@ -58,23 +58,17 @@ static __inline u_int32_t ufs_rw32 __P((u_int32_t, int));
 static __inline u_int64_t ufs_rw64 __P((u_int64_t, int));
 
 static __inline u_int16_t
-ufs_rw16(a, ns)
-	u_int16_t a;
-	int ns;
+ufs_rw16(u_int16_t a, int ns)
 {
 	return ((ns) ?  bswap16(a) : (a));
 }
 static __inline u_int32_t
-ufs_rw32(a, ns)
-	u_int32_t a;
-	int ns;
+ufs_rw32(u_int32_t a, int ns)
 {
 	return ((ns) ?  bswap32(a) : (a));
 }
 static __inline u_int64_t
-ufs_rw64(a, ns)
-	u_int64_t a;
-	int ns;
+ufs_rw64(u_int64_t a, int ns)
 {
 	return ((ns) ?  bswap64(a) : (a));
 }

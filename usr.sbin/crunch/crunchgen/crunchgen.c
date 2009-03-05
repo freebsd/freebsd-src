@@ -709,7 +709,7 @@ void fillin_program_objs(prog_t *p, char *path)
 	if (outhdrname[0] != '\0')
 		fprintf(f, ".include \"%s\"\n", outhdrname);
 	fprintf(f, ".include \"%s\"\n", path);
-	fprintf(f, ".NOTPARALLEL:\n.NO_PARALLEL:\n.POSIX:\n");
+	fprintf(f, ".POSIX:\n");
 	if (buildopts) {
 		fprintf(f, "BUILDOPTS+=");
 		output_strlst(f, buildopts);
@@ -728,7 +728,7 @@ void fillin_program_objs(prog_t *p, char *path)
 
 	fclose(f);
 
-	snprintf(line, MAXLINELEN, "cd %s && make -f %s -Q crunchgen_objs",
+	snprintf(line, MAXLINELEN, "cd %s && make -f %s -B crunchgen_objs",
 	    p->srcdir, tempfname);
 	if ((f = popen(line, "r")) == NULL) {
 		warn("submake pipe");

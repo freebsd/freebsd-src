@@ -43,6 +43,7 @@ static char rcsid[] =
 #include "ww.h"
 #include "tt.h"
 #include <signal.h>
+#include <strings.h>
 
 wwflush()
 {

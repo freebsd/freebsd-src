@@ -341,9 +341,7 @@ ip6_ipsec_mtu(struct mbuf *m)
 				   &ipsecerror);
 	if (sp != NULL) {
 		/* count IPsec header size */
-		ipsechdr = ipsec4_hdrsiz(m,
-					 IPSEC_DIR_OUTBOUND,
-					 NULL);
+		ipsechdr = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, NULL);
 
 		/*
 		 * find the correct route for outer IPv4

@@ -39,37 +39,25 @@
 #include "libusb20_desc.h"
 #include "libusb20_int.h"
 
-#include <dev/usb2/include/usb2_standard.h>
-#include <dev/usb2/include/usb2_ioctl.h>
-#include <dev/usb2/include/usb2_mfunc.h>
-#include <dev/usb2/include/usb2_error.h>
-#include <dev/usb2/include/usb2_revision.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_mfunc.h>
+#include <dev/usb/usb_error.h>
+#include <dev/usb/usb_revision.h>
 
 static libusb20_init_backend_t ugen20_init_backend;
 static libusb20_open_device_t ugen20_open_device;
 static libusb20_close_device_t ugen20_close_device;
 static libusb20_get_backend_name_t ugen20_get_backend_name;
 static libusb20_exit_backend_t ugen20_exit_backend;
-static libusb20_bus_set_owner_t ugen20_bus_set_owner;
-static libusb20_bus_get_owner_t ugen20_bus_get_owner;
-static libusb20_bus_set_perm_t ugen20_bus_set_perm;
-static libusb20_bus_get_perm_t ugen20_bus_get_perm;
-static libusb20_dev_get_iface_owner_t ugen20_dev_get_iface_owner;
-static libusb20_dev_get_iface_perm_t ugen20_dev_get_iface_perm;
-static libusb20_dev_get_owner_t ugen20_dev_get_owner;
-static libusb20_dev_get_perm_t ugen20_dev_get_perm;
-static libusb20_dev_set_iface_owner_t ugen20_dev_set_iface_owner;
-static libusb20_dev_set_iface_perm_t ugen20_dev_set_iface_perm;
-static libusb20_dev_set_owner_t ugen20_dev_set_owner;
-static libusb20_dev_set_perm_t ugen20_dev_set_perm;
+static libusb20_dev_get_iface_desc_t ugen20_dev_get_iface_desc;
+static libusb20_dev_get_info_t ugen20_dev_get_info;
 static libusb20_root_get_dev_quirk_t ugen20_root_get_dev_quirk;
 static libusb20_root_get_quirk_name_t ugen20_root_get_quirk_name;
 static libusb20_root_add_dev_quirk_t ugen20_root_add_dev_quirk;
 static libusb20_root_remove_dev_quirk_t ugen20_root_remove_dev_quirk;
-static libusb20_root_set_owner_t ugen20_root_set_owner;
-static libusb20_root_get_owner_t ugen20_root_get_owner;
-static libusb20_root_set_perm_t ugen20_root_set_perm;
-static libusb20_root_get_perm_t ugen20_root_get_perm;
+static libusb20_root_set_template_t ugen20_root_set_template;
+static libusb20_root_get_template_t ugen20_root_get_template;
 
 const struct libusb20_backend_methods libusb20_ugen20_backend = {
 	LIBUSB20_BACKEND(LIBUSB20_DECLARE, ugen20)
@@ -148,7 +136,7 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 	pdev->bus_number = ugen20_path_convert_one(&tmp);
 	pdev->device_address = ugen20_path_convert_one(&tmp);
 
-	snprintf(buf, sizeof(buf), "/dev/ugen%u.%u",
+	snprintf(buf, sizeof(buf), "/dev/" USB_GENERIC_NAME "%u.%u",
 	    pdev->bus_number, pdev->device_address);
 
 	f = open(buf, O_RDWR);
@@ -214,7 +202,7 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 	/* generate a nice description for printout */
 
 	snprintf(pdev->usb_desc, sizeof(pdev->usb_desc),
-	    "ugen%u.%u: <%s %s> at usbus%u", pdev->bus_number,
+	    USB_GENERIC_NAME "%u.%u: <%s %s> at usbus%u", pdev->bus_number,
 	    pdev->device_address, devinfo.udi_product,
 	    devinfo.udi_vendor, pdev->bus_number);
 
@@ -280,7 +268,7 @@ ugen20_init_backend(struct libusb20_backend *pbe)
 
 	memset(&state, 0, sizeof(state));
 
-	state.f = open("/dev/usb", O_RDONLY);
+	state.f = open("/dev/" USB_DEVICE_NAME, O_RDONLY);
 	if (state.f < 0)
 		return (LIBUSB20_ERROR_OTHER);
 
@@ -375,7 +363,7 @@ ugen20_open_device(struct libusb20_device *pdev, uint16_t nMaxTransfer)
 	int g;
 	int error;
 
-	snprintf(buf, sizeof(buf), "/dev/ugen%u.%u",
+	snprintf(buf, sizeof(buf), "/dev/" USB_GENERIC_NAME "%u.%u",
 	    pdev->bus_number, pdev->device_address);
 
 	/*
@@ -869,7 +857,7 @@ ugen20_be_ioctl(uint32_t cmd, void *data)
 	int f;
 	int error;
 
-	f = open("/dev/usb", O_RDONLY);
+	f = open("/dev/" USB_DEVICE_NAME, O_RDONLY);
 	if (f < 0)
 		return (LIBUSB20_ERROR_OTHER);
 	error = ioctl(f, cmd, data);
@@ -885,125 +873,31 @@ ugen20_be_ioctl(uint32_t cmd, void *data)
 }
 
 static int
-ugen20_be_do_perm(uint32_t get_cmd, uint32_t set_cmd, uint8_t bus,
-    uint8_t dev, uint8_t iface, uid_t *uid,
-    gid_t *gid, mode_t *mode)
+ugen20_dev_get_iface_desc(struct libusb20_device *pdev, 
+    uint8_t iface_index, char *buf, uint8_t len)
 {
-	struct usb2_dev_perm perm;
-	int error;
+	struct usb2_gen_descriptor ugd;
 
-	memset(&perm, 0, sizeof(perm));
+	memset(&ugd, 0, sizeof(ugd));
 
-	perm.bus_index = bus;
-	perm.dev_index = dev;
-	perm.iface_index = iface;
+	ugd.ugd_data = buf;
+	ugd.ugd_maxlen = len;
+	ugd.ugd_iface_index = iface_index;
 
-	error = ugen20_be_ioctl(get_cmd, &perm);
-	if (error)
-		return (error);
-
-	if (set_cmd == 0) {
-		if (uid)
-			*uid = perm.user_id;
-		if (gid)
-			*gid = perm.group_id;
-		if (mode)
-			*mode = perm.mode;
-		return (0);
+	if (ioctl(pdev->file, USB_GET_IFACE_DRIVER, &ugd)) {
+		return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
-	if (uid)
-		perm.user_id = *uid;
-	if (gid)
-		perm.group_id = *gid;
-	if (mode)
-		perm.mode = *mode;
-
-	return (ugen20_be_ioctl(set_cmd, &perm));
+	return (0);
 }
 
 static int
-ugen20_bus_set_owner(struct libusb20_backend *pbe,
-    uint8_t bus, uid_t user, gid_t group)
+ugen20_dev_get_info(struct libusb20_device *pdev,
+    struct usb2_device_info *pinfo)
 {
-	return (ugen20_be_do_perm(USB_GET_BUS_PERM, USB_SET_BUS_PERM,
-	    bus, 0, 0, &user, &group, NULL));
-}
-
-static int
-ugen20_bus_get_owner(struct libusb20_backend *pbe, uint8_t bus,
-    uid_t *user, gid_t *group)
-{
-	return (ugen20_be_do_perm(USB_GET_BUS_PERM, 0,
-	    bus, 0, 0, user, group, NULL));
-}
-
-static int
-ugen20_bus_set_perm(struct libusb20_backend *pbe,
-    uint8_t bus, mode_t mode)
-{
-	return (ugen20_be_do_perm(USB_GET_BUS_PERM, USB_SET_BUS_PERM,
-	    bus, 0, 0, NULL, NULL, &mode));
-}
-
-static int
-ugen20_bus_get_perm(struct libusb20_backend *pbe,
-    uint8_t bus, mode_t *mode)
-{
-	return (ugen20_be_do_perm(USB_GET_BUS_PERM, 0,
-	    bus, 0, 0, NULL, NULL, mode));
-}
-
-static int
-ugen20_dev_get_iface_owner(struct libusb20_device *pdev,
-    uint8_t iface_index, uid_t *user, gid_t *group)
-{
-	return (ugen20_be_do_perm(USB_GET_IFACE_PERM, 0,
-	    pdev->bus_number, pdev->device_address, iface_index,
-	    user, group, NULL));
-}
-
-static int
-ugen20_dev_get_iface_perm(struct libusb20_device *pdev,
-    uint8_t iface_index, mode_t *mode)
-{
-	return (ugen20_be_do_perm(USB_GET_IFACE_PERM, 0,
-	    pdev->bus_number, pdev->device_address, iface_index,
-	    NULL, NULL, mode));
-}
-
-static int
-ugen20_dev_get_owner(struct libusb20_device *pdev,
-    uid_t *user, gid_t *group)
-{
-	return (ugen20_be_do_perm(USB_GET_DEVICE_PERM, 0,
-	    pdev->bus_number, pdev->device_address, 0,
-	    user, group, NULL));
-}
-
-static int
-ugen20_dev_get_perm(struct libusb20_device *pdev, mode_t *mode)
-{
-	return (ugen20_be_do_perm(USB_GET_DEVICE_PERM, 0,
-	    pdev->bus_number, pdev->device_address, 0,
-	    NULL, NULL, mode));
-}
-
-static int
-ugen20_dev_set_iface_owner(struct libusb20_device *pdev,
-    uint8_t iface_index, uid_t user, gid_t group)
-{
-	return (ugen20_be_do_perm(USB_GET_IFACE_PERM, USB_SET_IFACE_PERM,
-	    pdev->bus_number, pdev->device_address, iface_index,
-	    &user, &group, NULL));
-}
-
-static int
-ugen20_dev_set_iface_perm(struct libusb20_device *pdev,
-    uint8_t iface_index, mode_t mode)
-{
-	return (ugen20_be_do_perm(USB_GET_IFACE_PERM, USB_SET_IFACE_PERM,
-	    pdev->bus_number, pdev->device_address, iface_index,
-	    NULL, NULL, &mode));
+	if (ioctl(pdev->file, USB_GET_DEVICEINFO, pinfo)) {
+		return (LIBUSB20_ERROR_INVALID_PARAM);
+	}
+	return (0);
 }
 
 static int
@@ -1105,47 +999,13 @@ ugen20_root_remove_dev_quirk(struct libusb20_backend *pbe,
 }
 
 static int
-ugen20_dev_set_owner(struct libusb20_device *pdev,
-    uid_t user, gid_t group)
+ugen20_root_set_template(struct libusb20_backend *pbe, int temp)
 {
-	return (ugen20_be_do_perm(USB_GET_DEVICE_PERM, USB_SET_DEVICE_PERM,
-	    pdev->bus_number, pdev->device_address, 0,
-	    &user, &group, NULL));
+	return (ugen20_be_ioctl(USB_SET_TEMPLATE, &temp));
 }
 
 static int
-ugen20_dev_set_perm(struct libusb20_device *pdev, mode_t mode)
+ugen20_root_get_template(struct libusb20_backend *pbe, int *ptemp)
 {
-	return (ugen20_be_do_perm(USB_GET_DEVICE_PERM, USB_SET_DEVICE_PERM,
-	    pdev->bus_number, pdev->device_address, 0,
-	    NULL, NULL, &mode));
-}
-
-static int
-ugen20_root_set_owner(struct libusb20_backend *pbe,
-    uid_t user, gid_t group)
-{
-	return (ugen20_be_do_perm(USB_GET_ROOT_PERM, USB_SET_ROOT_PERM, 0, 0, 0,
-	    &user, &group, NULL));
-}
-
-static int
-ugen20_root_get_owner(struct libusb20_backend *pbe, uid_t *user, gid_t *group)
-{
-	return (ugen20_be_do_perm(USB_GET_ROOT_PERM, 0, 0, 0, 0,
-	    user, group, NULL));
-}
-
-static int
-ugen20_root_set_perm(struct libusb20_backend *pbe, mode_t mode)
-{
-	return (ugen20_be_do_perm(USB_GET_ROOT_PERM, USB_SET_ROOT_PERM, 0, 0, 0,
-	    NULL, NULL, &mode));
-}
-
-static int
-ugen20_root_get_perm(struct libusb20_backend *pbe, mode_t *mode)
-{
-	return (ugen20_be_do_perm(USB_GET_ROOT_PERM, 0, 0, 0, 0,
-	    NULL, NULL, mode));
+	return (ugen20_be_ioctl(USB_GET_TEMPLATE, ptemp));
 }

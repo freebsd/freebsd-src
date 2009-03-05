@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
  *	socket type			stream/dgram/raw/rdm/seqpacket
  *	protocol			tcp[4][6][/faith], udp[4][6], unix
  *	wait/nowait			single-threaded/multi-threaded
- *	user				user to run daemon as
+ *	user[:group][/login-class]	user/group/login-class to run daemon as
  *	server program			full path name
  *	server program arguments	maximum of MAXARGS (20)
  *
@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
  *	socket type			stream/dgram/raw/rdm/seqpacket
  *	protocol			rpc/tcp[4][6], rpc/udp[4][6]
  *	wait/nowait			single-threaded/multi-threaded
- *	user				user to run daemon as
+ *	user[:group][/login-class]	user/group/login-class to run daemon as
  *	server program			full path name
  *	server program arguments	maximum of MAXARGS
  *

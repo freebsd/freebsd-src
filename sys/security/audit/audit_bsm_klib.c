@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2008 Apple Inc.
+ * Copyright (c) 1999-2009 Apple Inc.
  * Copyright (c) 2005 Robert N. M. Watson
  * All rights reserved.
  *
@@ -346,7 +346,7 @@ audit_flags_and_error_to_openevent(int oflags, int error)
 /*
  * Convert a MSGCTL command to a specific event.
  */
-int
+au_event_t
 audit_msgctl_to_event(int cmd)
 {
 
@@ -369,7 +369,7 @@ audit_msgctl_to_event(int cmd)
 /*
  * Convert a SEMCTL command to a specific event.
  */
-int
+au_event_t
 audit_semctl_to_event(int cmd)
 {
 
@@ -413,7 +413,7 @@ audit_semctl_to_event(int cmd)
 /*
  * Convert a command for the auditon() system call to a audit event.
  */
-int
+au_event_t
 auditon_command_event(int cmd)
 {
 

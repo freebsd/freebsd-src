@@ -91,6 +91,8 @@ static int mmcsd_detach(device_t dev);
 static int mmcsd_open(struct disk *dp);
 static int mmcsd_close(struct disk *dp);
 static void mmcsd_strategy(struct bio *bp);
+static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
+	off_t offset, size_t length);
 static void mmcsd_task(void *arg);
 
 static const char *mmcsd_card_name(device_t dev);
@@ -130,7 +132,7 @@ mmcsd_attach(device_t dev)
 	d->d_open = mmcsd_open;
 	d->d_close = mmcsd_close;
 	d->d_strategy = mmcsd_strategy;
-	// d->d_dump = mmcsd_dump;	Need polling mmc layer
+	d->d_dump = mmcsd_dump;
 	d->d_name = "mmcsd";
 	d->d_drv1 = sc;
 	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
@@ -413,6 +415,33 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 		sc->eend = start;
 	}
 	return (end);
+}
+
+static int
+mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
+	off_t offset, size_t length)
+{
+	struct disk *disk = arg;
+	struct mmcsd_softc *sc = (struct mmcsd_softc *)disk->d_drv1;
+	device_t dev = sc->dev;
+	struct bio bp;
+	daddr_t block, end;
+
+	/* length zero is special and really means flush buffers to media */
+	if (!length)
+		return (0);
+
+	bzero(&bp, sizeof(struct bio));
+	bp.bio_disk = disk;
+	bp.bio_pblkno = offset / disk->d_sectorsize;
+	bp.bio_bcount = length;
+	bp.bio_data = virtual;
+	bp.bio_cmd = BIO_WRITE;
+	end = bp.bio_pblkno + bp.bio_bcount / sc->disk->d_sectorsize;
+	MMCBUS_ACQUIRE_BUS(device_get_parent(dev), dev);
+	block = mmcsd_rw(sc, &bp);
+	MMCBUS_RELEASE_BUS(device_get_parent(dev), dev);
+	return ((end < block) ? EIO : 0);
 }
 
 static void

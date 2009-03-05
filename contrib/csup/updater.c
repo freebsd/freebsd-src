@@ -1656,10 +1656,12 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 
 	if (rf == NULL) {
 		fattr_maskout(oldfattr, ~FA_MODTIME);
-		if (fattr_equal(oldfattr, sr->sr_serverattr) == 0)
+		if (fattr_equal(oldfattr, sr->sr_serverattr))
 		 	lprintf(1, " SetAttrs %s", fup->coname);
 		else
 			lprintf(1, " Touch %s", fup->coname);
+		/* Install new attributes. */
+		fattr_install(sr->sr_serverattr, fup->destpath, NULL);
 		if (fup->attic)
 			lprintf(1, " -> Attic");
 		lprintf(1, "\n");

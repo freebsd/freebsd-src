@@ -32,6 +32,7 @@
 #include "opt_inet.h"
 #ifdef __FreeBSD__
 #include "opt_inet6.h"
+#include "opt_route.h"
 #endif
 #endif /* __FreeBSD__ || __NetBSD__ */
 
@@ -47,11 +48,17 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
+#ifdef __FreeBSD__
+#include <sys/vimage.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#ifdef __FreeBSD__
+#include <net/route.h>
 #include <net/vnet.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -76,7 +83,6 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
-#include <sys/vimage.h>
 #include <machine/clock.h>
 #endif
 #if defined(__i386__)
@@ -812,10 +818,7 @@ read_dsfield(m, pktattr)
 }
 
 void
-write_dsfield(m, pktattr, dsfield)
-	struct mbuf *m;
-	struct altq_pktattr *pktattr;
-	u_int8_t dsfield;
+write_dsfield(struct mbuf *m, struct altq_pktattr *pktattr, u_int8_t dsfield)
 {
 	struct mbuf *m0;
 

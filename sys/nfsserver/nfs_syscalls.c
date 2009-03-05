@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
 
+#include <security/audit/audit.h>
+
 #ifdef NFS_LEGACYRPC
 
 static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
@@ -136,6 +138,8 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	int error;
 
 	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
+
+	AUDIT_ARG(cmd, uap->flag);
 
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)

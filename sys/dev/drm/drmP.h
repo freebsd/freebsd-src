@@ -63,7 +63,6 @@ struct drm_file;
 #include <sys/signalvar.h>
 #include <sys/poll.h>
 #include <sys/tree.h>
-#include <sys/taskqueue.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -294,8 +293,8 @@ for ( ret = 0 ; !ret && !(condition) ; ) {			\
 	DRM_UNLOCK();						\
 	mtx_lock(&dev->irq_lock);				\
 	if (!(condition))					\
-	   ret = -mtx_sleep(&(queue), &dev->irq_lock, 		\
-			 PZERO | PCATCH, "drmwtq", (timeout));	\
+	    ret = -mtx_sleep(&(queue), &dev->irq_lock, 		\
+		PCATCH, "drmwtq", (timeout));			\
 	mtx_unlock(&dev->irq_lock);				\
 	DRM_LOCK();						\
 }
@@ -319,6 +318,12 @@ typedef struct drm_pci_id_list
 	long driver_private;
 	char *name;
 } drm_pci_id_list_t;
+
+struct drm_msi_blacklist_entry
+{
+	int vendor;
+	int device;
+};
 
 #define DRM_AUTH	0x1
 #define DRM_MASTER	0x2
@@ -628,7 +633,6 @@ struct drm_device {
 	struct mtx	  irq_lock;	/* protects irq condition checks */
 	struct mtx	  dev_lock;	/* protects everything else */
 	DRM_SPINTYPE	  drw_lock;
-	DRM_SPINTYPE	  tsk_lock;
 
 				/* Usage Counters */
 	int		  open_count;	/* Outstanding files open	   */
@@ -657,6 +661,7 @@ struct drm_device {
 				/* Context support */
 	int		  irq;		/* Interrupt used by board	   */
 	int		  irq_enabled;	/* True if the irq handler is enabled */
+	int		  msi_enabled;	/* MSI enabled */
 	int		  irqrid;	/* Interrupt used by board */
 	struct resource   *irqr;	/* Resource for interrupt used by board	   */
 	void		  *irqh;	/* Handle from bus_setup_intr      */
@@ -695,9 +700,6 @@ struct drm_device {
 	struct unrhdr	  *drw_unrhdr;
 	/* RB tree of drawable infos */
 	RB_HEAD(drawable_tree, bsd_drm_drawable_info) drw_head;
-
-	struct task	  locked_task;
-	void		  (*locked_task_call)(struct drm_device *dev);
 };
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
@@ -792,6 +794,7 @@ void	drm_handle_vblank(struct drm_device *dev, int crtc);
 u32	drm_vblank_count(struct drm_device *dev, int crtc);
 int	drm_vblank_get(struct drm_device *dev, int crtc);
 void	drm_vblank_put(struct drm_device *dev, int crtc);
+void	drm_vblank_cleanup(struct drm_device *dev);
 int	drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
 int	drm_vblank_init(struct drm_device *dev, int num_crtcs);
 void	drm_vbl_send_signals(struct drm_device *dev, int crtc);
@@ -899,8 +902,8 @@ int	drm_addmap_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int	drm_rmmap_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-int	drm_addbufs_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
+int	drm_addbufs(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv);
 int	drm_infobufs(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 int	drm_markbufs(struct drm_device *dev, void *data,
@@ -918,8 +921,6 @@ int	drm_control(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
 int	drm_wait_vblank(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-void	drm_locked_tasklet(struct drm_device *dev,
-			   void (*tasklet)(struct drm_device *dev));
 
 /* AGP/GART support (drm_agpsupport.c) */
 int	drm_agp_acquire_ioctl(struct drm_device *dev, void *data,

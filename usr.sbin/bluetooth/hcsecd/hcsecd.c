@@ -128,9 +128,8 @@ main(int argc, char *argv[])
 			(void * const) &filter, sizeof(filter)) < 0)
 		err(1, "Could not set HCI socket filter");
 
-	if (detach)
-		if (daemon(0, 0) < 0)
-			err(1, "Could not daemon()ize");
+	if (detach && daemon(0, 0) < 0)
+		err(1, "Could not daemon()ize");
 
 	openlog(HCSECD_IDENT, LOG_NDELAY|LOG_PERROR|LOG_PID, LOG_DAEMON);
 
