@@ -2313,9 +2313,11 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, map, 4);
 	PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
 
-	if (PCI_BAR_MEM(map))
+	if (PCI_BAR_MEM(map)) {
 		type = SYS_RES_MEMORY;
-	else
+		if (map & PCIM_BAR_MEM_PREFETCH)
+			prefetch = 1;
+	} else
 		type = SYS_RES_IOPORT;
 	ln2size = pci_mapsize(testval);
 	ln2range = pci_maprange(testval);
@@ -3488,6 +3490,8 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	count = 1UL << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
+	if (PCI_BAR_MEM(testval) && (testval & PCIM_BAR_MEM_PREFETCH))
+		flags |= RF_PREFETCHABLE;
 
 	/*
 	 * Allocate enough resource, and then write back the
