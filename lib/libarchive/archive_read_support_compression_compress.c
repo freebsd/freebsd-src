@@ -168,7 +168,7 @@ compress_bidder_bid(struct archive_read_filter_bidder *self,
     struct archive_read_filter *filter)
 {
 	const unsigned char *buffer;
-	size_t avail;
+	ssize_t avail;
 	int bits_checked;
 
 	(void)self; /* UNUSED */
@@ -410,7 +410,8 @@ static int
 getbits(struct archive_read_filter *self, int n)
 {
 	struct private_data *state = (struct private_data *)self->data;
-	int code, ret;
+	int code;
+	ssize_t ret;
 	static const int mask[] = {
 		0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff,
 		0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
