@@ -83,9 +83,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UTIME_H
 #include <utime.h>
 #endif
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 #include "archive.h"
 #include "archive_string.h"
@@ -519,9 +516,6 @@ static ssize_t
 write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 {
 	uint64_t start_size = size;
-#if _WIN32
-	HANDLE handle;
-#endif
 	ssize_t bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
 
@@ -530,9 +524,6 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		    "Attempt to write to an empty file");
 		return (ARCHIVE_WARN);
 	}
-#if _WIN32
-	handle = (HANDLE)_get_osfhandle(a->fd);
-#endif
 
 	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
 #if HAVE_STRUCT_STAT_ST_BLKSIZE
@@ -581,26 +572,9 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 			if (a->offset + bytes_to_write > block_end)
 				bytes_to_write = block_end - a->offset;
 		}
-#ifdef _WIN32
 		/* Seek if necessary to the specified offset. */
 		if (offset != a->fd_offset) {
-			LARGE_INTEGER distance;
-			distance.QuadPart = offset;
-			if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
-				archive_set_error(&a->archive, _dosmaperr(GetLastError()),
-				    "Seek failed");
-				return (ARCHIVE_FATAL);
-			}
- 		}
-		if (!WriteFile(handle, buff, bytes_to_write, &bytes_written, NULL)) {
-			archive_set_error(&a->archive, _dosmaperr(GetLastError()),
-			    "Write failed");
-			return (ARCHIVE_WARN);
-		}
-#else
-		/* Seek if necessary to the specified offset. */
-		if (a->offset != a->fd_offset) {
-			if (lseek(a->fd, a->offset, SEEK_SET) < 0) {
+			if (lseek(a->fd, offset, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
@@ -614,7 +588,6 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 			archive_set_error(&a->archive, errno, "Write failed");
 			return (ARCHIVE_WARN);
 		}
-#endif
 		buff += bytes_written;
 		size -= bytes_written;
 		a->offset += bytes_written;
