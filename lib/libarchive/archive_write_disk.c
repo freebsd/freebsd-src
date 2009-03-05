@@ -573,8 +573,8 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 				bytes_to_write = block_end - a->offset;
 		}
 		/* Seek if necessary to the specified offset. */
-		if (offset != a->fd_offset) {
-			if (lseek(a->fd, offset, SEEK_SET) < 0) {
+		if (a->offset != a->fd_offset) {
+			if (lseek(a->fd, a->offset, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
