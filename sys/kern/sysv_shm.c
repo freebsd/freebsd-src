@@ -122,7 +122,7 @@ static sy_call_t *shmcalls[] = {
 #define	SHMSEG_WANTED		0x1000
 
 static int shm_last_free, shm_nused, shmalloced;
-size_t shm_committed;
+vm_size_t shm_committed;
 static struct shmid_kernel	*shmsegs;
 
 struct shmmap_state {
@@ -245,7 +245,7 @@ static void
 shm_deallocate_segment(shmseg)
 	struct shmid_kernel *shmseg;
 {
-	size_t size;
+	vm_size_t size;
 
 	GIANT_REQUIRED;
 
@@ -265,7 +265,7 @@ shm_delete_mapping(struct vmspace *vm, struct shmmap_state *shmmap_s)
 {
 	struct shmid_kernel *shmseg;
 	int segnum, result;
-	size_t size;
+	vm_size_t size;
 
 	GIANT_REQUIRED;
 
@@ -362,8 +362,8 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	mtx_lock(&Giant);
 	shmmap_s = p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
-		size = shminfo.shmseg * sizeof(struct shmmap_state);
-		shmmap_s = malloc(size, M_SHM, M_WAITOK);
+		shmmap_s = malloc(shminfo.shmseg * sizeof(struct shmmap_state),
+		    M_SHM, M_WAITOK);
 		for (i = 0; i < shminfo.shmseg; i++)
 			shmmap_s[i].shmid = -1;
 		p->p_vmspace->vm_shm = shmmap_s;
@@ -722,7 +722,7 @@ shmget_existing(td, uap, mode, segnum)
 	if (error != 0)
 		return (error);
 #endif
-	if (uap->size && uap->size > shmseg->shm_bsegsz)
+	if (uap->size != 0 && uap->size > shmseg->shm_bsegsz)
 		return (EINVAL);
 	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->u.shm_perm);
 	return (0);
