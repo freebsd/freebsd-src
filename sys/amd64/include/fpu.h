@@ -97,7 +97,7 @@ struct  savefpu {
 #define	__INITIAL_MXCSR_MASK__	0xFFBF
 
 #ifdef _KERNEL
-int	fpudna(void);
+void	fpudna(void);
 void	fpudrop(void);
 void	fpuexit(struct thread *td);
 int	fpuformat(void);
