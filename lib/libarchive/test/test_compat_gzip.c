@@ -86,7 +86,7 @@ DEFINE_TEST(test_compat_gzip)
 	/* This sample has been 'split', each piece compressed separately,
 	 * then concatenated.  Gunzip will emit the concatenated result. */
 	/* Not supported in libarchive 2.6 and earlier */
-	/* verify("test_compat_gzip_1.tgz"); */
+	verify("test_compat_gzip_1.tgz");
 	/* This sample has been compressed as a single stream, but then
 	 * some unrelated garbage text has been appended to the end. */
 	verify("test_compat_gzip_2.tgz");

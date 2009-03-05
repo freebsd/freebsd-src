@@ -51,14 +51,11 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ZLIB_H
 struct private_data {
 	z_stream	 stream;
+	char		 in_stream;
 	unsigned char	*out_block;
 	size_t		 out_block_size;
 	int64_t		 total_out;
 	unsigned long	 crc;
-	int		 header_count;
-	char		 header_done;
-	char		 header_state;
-	char		 header_flags;
 	char		 eof; /* True = found end of compressed data. */
 };
 
@@ -72,10 +69,14 @@ static int	gzip_filter_close(struct archive_read_filter *);
  * them.  (In fact, we like detecting them because we can give better
  * error messages.)  So the bid framework here gets compiled even
  * if zlib is unavailable.
+ *
+ * TODO: If zlib is unavailable, gzip_bidder_init() should
+ * use the compress_program framework to try to fire up an external
+ * gunzip program.
  */
-static int	gzip_bidder_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
+static int	gzip_bidder_bid(struct archive_read_filter_bidder *,
+		    struct archive_read_filter *);
 static int	gzip_bidder_init(struct archive_read_filter *);
-static int	gzip_bidder_free(struct archive_read_filter_bidder *);
 
 int
 archive_read_support_compression_gzip(struct archive *_a)
@@ -89,62 +90,116 @@ archive_read_support_compression_gzip(struct archive *_a)
 	bidder->data = NULL;
 	bidder->bid = gzip_bidder_bid;
 	bidder->init = gzip_bidder_init;
-	bidder->free = gzip_bidder_free;
-	return (ARCHIVE_OK);
-}
-
-static int
-gzip_bidder_free(struct archive_read_filter_bidder *self){
-	(void)self; /* UNUSED */
+	bidder->free = NULL; /* No data, so no cleanup necessary. */
 	return (ARCHIVE_OK);
 }
 
 /*
- * Test whether we can handle this data.
+ * Read and verify the header.
  *
- * This logic returns zero if any part of the signature fails.  It
- * also tries to Do The Right Thing if a very short buffer prevents us
- * from verifying as much as we would like.
+ * Returns zero if the header couldn't be validated, else returns
+ * number of bytes in header.  If pbits is non-NULL, it receives a
+ * count of bits verified, suitable for use by bidder.
+ */
+static int
+peek_at_header(struct archive_read_filter *filter, int *pbits)
+{
+	const unsigned char *p;
+	ssize_t avail, len;
+	int bits = 0;
+	int header_flags;
+
+	/* Start by looking at the first ten bytes of the header, which
+	 * is all fixed layout. */
+	len = 10;
+	p = __archive_read_filter_ahead(filter, len, &avail);
+	if (p == NULL || avail == 0)
+		return (0);
+	if (p[0] != 037)
+		return (0);
+	bits += 8;
+	if (p[1] != 0213)
+		return (0);
+	bits += 8;
+	if (p[2] != 8) /* We only support deflation. */
+		return (0);
+	bits += 8;
+	if ((p[3] & 0xE0)!= 0)	/* No reserved flags set. */
+		return (0);
+	bits += 3;
+	header_flags = p[3];
+	/* Bytes 4-7 are mod time. */
+	/* Byte 8 is deflate flags. */
+	/* XXXX TODO: return deflate flags back to consume_header for use
+	   in initializing the decompressor. */
+	/* Byte 9 is OS. */
+
+	/* Optional extra data:  2 byte length plus variable body. */
+	if (header_flags & 4) {
+		p = __archive_read_filter_ahead(filter, len + 2, &avail);
+		if (p == NULL)
+			return (0);
+		len += ((int)p[len + 1] << 8) | (int)p[len];
+	}
+
+	/* Null-terminated optional filename. */
+	if (header_flags & 8) {
+		do {
+			++len;
+			if (avail < len)
+				p = __archive_read_filter_ahead(filter,
+				    len, &avail);
+			if (p == NULL)
+				return (0);
+		} while (p[len - 1] != 0);
+	}
+
+	/* Null-terminated optional comment. */
+	if (header_flags & 16) {
+		do {
+			++len;
+			if (avail < len)
+				p = __archive_read_filter_ahead(filter,
+				    len, &avail);
+			if (p == NULL)
+				return (0);
+		} while (p[len - 1] != 0);
+	}
+
+	/* Optional header CRC */
+	if ((header_flags & 2)) {
+		p = __archive_read_filter_ahead(filter, len + 2, &avail);
+		if (p == NULL)
+			return (0);
+#if 0
+	int hcrc = ((int)p[len + 1] << 8) | (int)p[len];
+	int crc = /* XXX TODO: Compute header CRC. */;
+	if (crc != hcrc)
+		return (0);
+	bits += 16;
+#endif
+		len += 2;
+	}
+
+	if (pbits != NULL)
+		*pbits = bits;
+	return (len);
+}
+
+/*
+ * Bidder just verifies the header and returns the number of verified bits.
  */
 static int
 gzip_bidder_bid(struct archive_read_filter_bidder *self,
     struct archive_read_filter *filter)
 {
-	const unsigned char *buffer;
-	size_t avail;
 	int bits_checked;
 
 	(void)self; /* UNUSED */
 
-	buffer = __archive_read_filter_ahead(filter, 8, &avail);
-	if (buffer == NULL)
-		return (0);
-
-	bits_checked = 0;
-	if (buffer[0] != 037)	/* Verify first ID byte. */
-		return (0);
-	bits_checked += 8;
-
-	if (buffer[1] != 0213)	/* Verify second ID byte. */
-		return (0);
-	bits_checked += 8;
-
-	if (buffer[2] != 8)	/* Compression must be 'deflate'. */
-		return (0);
-	bits_checked += 8;
-
-	if ((buffer[3] & 0xE0)!= 0)	/* No reserved flags set. */
-		return (0);
-	bits_checked += 3;
-
-	/*
-	 * TODO: Verify more; in particular, gzip has an optional
-	 * header CRC, which would give us 16 more verified bits.  We
-	 * may also be able to verify certain constraints on other
-	 * fields.
-	 */
-
-	return (bits_checked);
+	if (peek_at_header(filter, &bits_checked))
+		return (bits_checked);
+	return (0);
 }
 
 
@@ -185,8 +240,7 @@ gzip_bidder_init(struct archive_read_filter *self)
 		free(out_block);
 		free(state);
 		archive_set_error(&self->archive->archive, ENOMEM,
-		    "Can't allocate data for %s decompression",
-		    self->name);
+		    "Can't allocate data for gzip decompression");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -197,147 +251,98 @@ gzip_bidder_init(struct archive_read_filter *self)
 	self->skip = NULL; /* not supported */
 	self->close = gzip_filter_close;
 
-	state->crc = crc32(0L, NULL, 0);
-	state->header_done = 0; /* We've not yet begun to parse header... */
+	state->in_stream = 0; /* We're not actually within a stream yet. */
 
 	return (ARCHIVE_OK);
 }
 
 static int
-header(struct archive_read_filter *self)
+consume_header(struct archive_read_filter *self)
 {
 	struct private_data *state;
-	int ret, b;
+	ssize_t avail;
+	size_t len;
+	int ret;
 
 	state = (struct private_data *)self->data;
 
-	/*
-	 * If still parsing the header, interpret the
-	 * next byte.
-	 */
-	b = *(state->stream.next_in++);
-	state->stream.avail_in--;
+	/* If this is a real header, consume it. */
+	len = peek_at_header(self->upstream, NULL);
+	if (len == 0)
+		return (ARCHIVE_EOF);
+	__archive_read_filter_consume(self->upstream, len);
 
-	/*
-	 * Simple state machine to parse the GZip header one byte at
-	 * a time.  If you see a way to make this easier to understand,
-	 * please let me know. ;-)
-	 */
-	switch (state->header_state) {
-	case 0: /* First byte of signature. */
-		/* We only return EOF for a failure here. */
-		if (b != 037)
-			return (ARCHIVE_EOF);
-		state->header_state = 1;
-		break;
-	case 1: /* Second byte of signature. */
-	case 2: /* Compression type must be 8 == deflate. */
-		if (b != (0xff & "\037\213\010"[(int)state->header_state])) {
-			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Invalid GZip header (saw %d at offset %d)",
-			    b, state->header_state);
-			return (ARCHIVE_FATAL);
-		}
-		++state->header_state;
-		break;
-	case 3: /* GZip flags. */
-		state->header_flags = b;
-		state->header_state = 4;
-		break;
-	case 4: case 5: case 6: case 7: /* Mod time. */
-	case 8: /* Deflate flags. */
-	case 9: /* OS. */
-		++state->header_state;
-		break;
-	case 10: /* Optional Extra: First byte of Length. */
-		if ((state->header_flags & 4)) {
-			state->header_count = 255 & (int)b;
-			state->header_state = 11;
-			break;
-		}
-		/* Fall through if no Optional Extra field. */
-	case 11: /* Optional Extra: Second byte of Length. */
-		if ((state->header_flags & 4)) {
-			state->header_count
-			    = (0xff00 & ((int)b << 8)) | state->header_count;
-			state->header_state = 12;
-			break;
-		}
-		/* Fall through if no Optional Extra field. */
-	case 12: /* Optional Extra Field: counted length. */
-		if ((state->header_flags & 4)) {
-			--state->header_count;
-			if (state->header_count == 0) state->header_state = 13;
-			else state->header_state = 12;
-			break;
-		}
-		/* Fall through if no Optional Extra field. */
-	case 13: /* Optional Original Filename. */
-		if ((state->header_flags & 8)) {
-			if (b == 0) state->header_state = 14;
-			else state->header_state = 13;
-			break;
-		}
-		/* Fall through if no Optional Original Filename. */
-	case 14: /* Optional Comment. */
-		if ((state->header_flags & 16)) {
-			if (b == 0) state->header_state = 15;
-			else state->header_state = 14;
-			break;
-		}
-		/* Fall through if no Optional Comment. */
-	case 15: /* Optional Header CRC: First byte. */
-		if ((state->header_flags & 2)) {
-			state->header_state = 16;
-			break;
-		}
-		/* Fall through if no Optional Header CRC. */
-	case 16: /* Optional Header CRC: Second byte. */
-		if ((state->header_flags & 2)) {
-			state->header_state = 17;
-			break;
-		}
-		/* Fall through if no Optional Header CRC. */
-	case 17: /* First byte of compressed data. */
-		state->header_done = 1; /* done with header */
-		state->stream.avail_in++; /* Discard first byte. */
-		state->stream.next_in--;
+	/* Initialize CRC accumulator. */
+	state->crc = crc32(0L, NULL, 0);
 
-		/* Initialize compression library. */
-		ret = inflateInit2(&(state->stream),
-		    -15 /* Don't check for zlib header */);
+	/* Initialize compression library. */
+	state->stream.next_in = (unsigned char *)(uintptr_t)
+	    __archive_read_filter_ahead(self->upstream, 1, &avail);
+	state->stream.avail_in = avail;
+	ret = inflateInit2(&(state->stream),
+	    -15 /* Don't check for zlib header */);
 
-		/* Decipher the error code. */
-		switch (ret) {
-		case Z_OK:
-			return (ARCHIVE_OK);
-		case Z_STREAM_ERROR:
-			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Internal error initializing compression library: "
-			    "invalid setup parameter");
-			break;
-		case Z_MEM_ERROR:
-			archive_set_error(&self->archive->archive, ENOMEM,
-			    "Internal error initializing compression library: "
-			    "out of memory");
-			break;
-		case Z_VERSION_ERROR:
-			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Internal error initializing compression library: "
-			    "invalid library version");
-			break;
-		default:
-			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Internal error initializing compression library: "
-			    " Zlib error %d", ret);
-			break;
-		}
+	/* Decipher the error code. */
+	switch (ret) {
+	case Z_OK:
+		state->in_stream = 1;
+		return (ARCHIVE_OK);
+	case Z_STREAM_ERROR:
+		archive_set_error(&self->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Internal error initializing compression library: "
+		    "invalid setup parameter");
+		break;
+	case Z_MEM_ERROR:
+		archive_set_error(&self->archive->archive, ENOMEM,
+		    "Internal error initializing compression library: "
+		    "out of memory");
+		break;
+	case Z_VERSION_ERROR:
+		archive_set_error(&self->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Internal error initializing compression library: "
+		    "invalid library version");
+		break;
+	default:
+		archive_set_error(&self->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Internal error initializing compression library: "
+		    " Zlib error %d", ret);
+		break;
+	}
+	return (ARCHIVE_FATAL);
+}
+
+static int
+consume_trailer(struct archive_read_filter *self)
+{
+	struct private_data *state;
+	const unsigned char *p;
+	ssize_t avail;
+
+	state = (struct private_data *)self->data;
+
+	state->in_stream = 0;
+	switch (inflateEnd(&(state->stream))) {
+	case Z_OK:
+		break;
+	default:
+		archive_set_error(&self->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Failed to clean up gzip decompressor");
 		return (ARCHIVE_FATAL);
 	}
+
+	/* GZip trailer is a fixed 8 byte structure. */
+	p = __archive_read_filter_ahead(self->upstream, 8, &avail);
+	if (p == NULL || avail == 0)
+		return (ARCHIVE_FATAL);
+
+	/* XXX TODO: Verify the length and CRC. */
+
+	/* We've verified the trailer, so consume it now. */
+	__archive_read_filter_consume(self->upstream, 8);
 
 	return (ARCHIVE_OK);
 }
@@ -346,12 +351,11 @@ static ssize_t
 gzip_filter_read(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state;
-	size_t read_avail, decompressed;
-	const void *read_buf;
+	size_t decompressed;
+	ssize_t avail_in;
 	int ret;
 
 	state = (struct private_data *)self->data;
-	read_avail = 0;
 
 	/* Empty our output buffer. */
 	state->stream.next_out = state->out_block;
@@ -359,62 +363,47 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 
 	/* Try to fill the output buffer. */
 	while (state->stream.avail_out > 0 && !state->eof) {
-		/* If the last upstream block is done, get another one. */
-		if (state->stream.avail_in == 0) {
-			read_buf = __archive_read_filter_ahead(self->upstream,
-			    1, &ret);
-			if (read_buf == NULL)
-				return (ARCHIVE_FATAL);
-			/* stream.next_in is really const, but zlib
-			 * doesn't declare it so. <sigh> */
-			state->stream.next_in
-			    = (unsigned char *)(uintptr_t)read_buf;
-			state->stream.avail_in = ret;
-			/* There is no more data, return whatever we have. */
-			if (ret == 0) {
+		/* If we're not in a stream, read a header
+		 * and initialize the decompression library. */
+		if (!state->in_stream) {
+			ret = consume_header(self);
+			if (ret == ARCHIVE_EOF) {
 				state->eof = 1;
 				break;
 			}
-			__archive_read_filter_consume(self->upstream, ret);
-		}
-
-		/* If we're still parsing header bytes, walk through those. */
-		if (!state->header_done) {
-			ret = header(self);
 			if (ret < ARCHIVE_OK)
 				return (ret);
-			if (ret == ARCHIVE_EOF)
-				state->eof = 1;
-		} else {
-			/* Decompress as much as we can in one pass. */
-			/* XXX Skip trailer XXX */
-			ret = inflate(&(state->stream), 0);
-			switch (ret) {
-			case Z_STREAM_END: /* Found end of stream. */
-				switch (inflateEnd(&(state->stream))) {
-				case Z_OK:
-					break;
-				default:
-					archive_set_error(&self->archive->archive,
-						ARCHIVE_ERRNO_MISC,
-						"Failed to clean up gzip decompressor");
-					return (ARCHIVE_FATAL);
-				}
-				/* zlib has been torn down */
-				state->header_done = 0;
-				state->eof = 1;
-				/* FALL THROUGH */
-			case Z_OK: /* Decompressor made some progress. */
-				/* If we filled our buffer, update stats and return. */
-				break;
-			default:
-				/* Return an error. */
-				archive_set_error(&self->archive->archive,
-						  ARCHIVE_ERRNO_MISC,
-						  "%s decompression failed",
-						  self->archive->archive.compression_name);
-				return (ARCHIVE_FATAL);
-			}
+		}
+
+		/* Peek at the next available data. */
+		/* ZLib treats stream.next_in as const but doesn't declare
+		 * it so, hence this ugly cast. */
+		state->stream.next_in = (unsigned char *)(uintptr_t)
+		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
+		if (state->stream.next_in == NULL)
+			return (ARCHIVE_FATAL);
+		state->stream.avail_in = avail_in;
+
+		/* Decompress and consume some of that data. */
+		ret = inflate(&(state->stream), 0);
+		switch (ret) {
+		case Z_OK: /* Decompressor made some progress. */
+			__archive_read_filter_consume(self->upstream,
+			    avail_in - state->stream.avail_in);
+			break;
+		case Z_STREAM_END: /* Found end of stream. */
+			__archive_read_filter_consume(self->upstream,
+			    avail_in - state->stream.avail_in);
+			/* Consume the stream trailer; release the
+			 * decompression library. */
+			ret = consume_trailer(self);
+			break;
+		default:
+			/* Return an error. */
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "gzip decompression failed");
+			return (ARCHIVE_FATAL);
 		}
 	}
 
@@ -426,7 +415,6 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 	else
 		*p = state->out_block;
 	return (decompressed);
-
 }
 
 /*
@@ -441,15 +429,14 @@ gzip_filter_close(struct archive_read_filter *self)
 	state = (struct private_data *)self->data;
 	ret = ARCHIVE_OK;
 
-	if (state->header_done) {
+	if (state->in_stream) {
 		switch (inflateEnd(&(state->stream))) {
 		case Z_OK:
 			break;
 		default:
 			archive_set_error(&(self->archive->archive),
-					  ARCHIVE_ERRNO_MISC,
-					  "Failed to clean up %s compressor",
-					  self->archive->archive.compression_name);
+			    ARCHIVE_ERRNO_MISC,
+			    "Failed to clean up gzip compressor");
 			ret = ARCHIVE_FATAL;
 		}
 	}
