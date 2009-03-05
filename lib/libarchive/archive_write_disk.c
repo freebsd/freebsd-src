@@ -278,8 +278,8 @@ archive_write_disk_vtable(void)
 	static int inited = 0;
 
 	if (!inited) {
-		av.archive_write_close = _archive_write_close;
-		av.archive_write_finish = _archive_write_finish;
+		av.archive_close = _archive_write_close;
+		av.archive_finish = _archive_write_finish;
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
 		av.archive_write_data = _archive_write_data;

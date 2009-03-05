@@ -33,23 +33,35 @@ __FBSDID("$FreeBSD$");
 int
 archive_write_close(struct archive *a)
 {
-	return ((a->vtable->archive_write_close)(a));
+	return ((a->vtable->archive_close)(a));
+}
+
+int
+archive_read_close(struct archive *a)
+{
+	return ((a->vtable->archive_close)(a));
 }
 
 #if ARCHIVE_API_VERSION > 1
 int
 archive_write_finish(struct archive *a)
 {
-	return ((a->vtable->archive_write_finish)(a));
+	return ((a->vtable->archive_finish)(a));
 }
 #else
 /* Temporarily allow library to compile with either 1.x or 2.0 API. */
 void
 archive_write_finish(struct archive *a)
 {
-	(void)(a->vtable->archive_write_finish)(a);
+	(void)(a->vtable->archive_finish)(a);
 }
 #endif
+
+int
+archive_read_finish(struct archive *a)
+{
+	return ((a->vtable->archive_finish)(a));
+}
 
 int
 archive_write_header(struct archive *a, struct archive_entry *entry)

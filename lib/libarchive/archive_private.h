@@ -52,8 +52,8 @@
 #define	ARCHIVE_STATE_FATAL	0x8000U
 
 struct archive_vtable {
-	int	(*archive_write_close)(struct archive *);
-	int	(*archive_write_finish)(struct archive *);
+	int	(*archive_close)(struct archive *);
+	int	(*archive_finish)(struct archive *);
 	int	(*archive_write_header)(struct archive *,
 	    struct archive_entry *);
 	int	(*archive_write_finish_entry)(struct archive *);
