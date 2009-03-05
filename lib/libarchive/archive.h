@@ -629,11 +629,14 @@ __LA_DECL void		 archive_copy_error(struct archive *dest,
 }
 #endif
 
-/* This is meaningless outside of this header. */
+/* These are meaningless outside of this header. */
 #undef __LA_DECL
 #undef __LA_GID_T
-#undef __LA_INT64_T
-#undef __LA_SSIZE_T
 #undef __LA_UID_T
+
+/* These need to remain defined because they're used in the
+ * callback type definitions.  XXX Fix this.  This is ugly. XXX */
+/* #undef __LA_INT64_T */
+/* #undef __LA_SSIZE_T */
 
 #endif /* !ARCHIVE_H_INCLUDED */
