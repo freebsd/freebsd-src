@@ -132,7 +132,7 @@
 #define	PCIM_BAR_MEM_1MB	2	/* Locate below 1MB in PCI <= 2.1 */
 #define	PCIM_BAR_MEM_64		4
 #define	PCIM_BAR_MEM_PREFETCH	0x00000008
-#define	PCIM_BAR_MEM_BASE	0xfffffff0
+#define	PCIM_BAR_MEM_BASE	0xfffffffffffffff0ULL
 #define	PCIM_BAR_IO_RESERVED	0x00000002
 #define	PCIM_BAR_IO_BASE	0xfffffffc
 #define	PCIR_CIS	0x28

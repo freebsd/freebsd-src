@@ -71,10 +71,10 @@ __FBSDID("$FreeBSD$");
 #define	ACPI_PWR_FOR_SLEEP(x, y, z)
 #endif
 
-static uint32_t		pci_mapbase(unsigned mapreg);
-static const char	*pci_maptype(unsigned mapreg);
-static int		pci_mapsize(unsigned testval);
-static int		pci_maprange(unsigned mapreg);
+static pci_addr_t	pci_mapbase(uint64_t mapreg);
+static const char	*pci_maptype(uint64_t mapreg);
+static int		pci_mapsize(uint64_t testval);
+static int		pci_maprange(uint64_t mapreg);
 static void		pci_fixancient(pcicfgregs *cfg);
 
 static int		pci_porten(device_t pcib, int b, int s, int f);
@@ -316,8 +316,8 @@ pci_find_device(uint16_t vendor, uint16_t device)
 
 /* return base address of memory or port map */
 
-static uint32_t
-pci_mapbase(uint32_t mapreg)
+static pci_addr_t
+pci_mapbase(uint64_t mapreg)
 {
 
 	if (PCI_BAR_MEM(mapreg))
@@ -329,7 +329,7 @@ pci_mapbase(uint32_t mapreg)
 /* return map type of memory or port map */
 
 static const char *
-pci_maptype(unsigned mapreg)
+pci_maptype(uint64_t mapreg)
 {
 
 	if (PCI_BAR_IO(mapreg))
@@ -342,7 +342,7 @@ pci_maptype(unsigned mapreg)
 /* return log2 of map size decoded for memory or port map */
 
 static int
-pci_mapsize(uint32_t testval)
+pci_mapsize(uint64_t testval)
 {
 	int ln2size;
 
@@ -361,7 +361,7 @@ pci_mapsize(uint32_t testval)
 /* return log2 of address range supported by map register */
 
 static int
-pci_maprange(unsigned mapreg)
+pci_maprange(uint64_t mapreg)
 {
 	int ln2range = 0;
 
@@ -2279,8 +2279,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
     int b, int s, int f, int reg, struct resource_list *rl, int force,
     int prefetch)
 {
-	uint32_t map;
-	pci_addr_t base;
+	pci_addr_t base, map;
 	pci_addr_t start, end, count;
 	uint8_t ln2size;
 	uint8_t ln2range;
@@ -2291,6 +2290,10 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	struct resource *res;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
+	ln2range = pci_maprange(map);
+	if (ln2range == 64)
+		map |= (uint64_t)PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) <<
+		    32;
 
 	/*
 	 * Disable decoding via the command register before
@@ -2308,9 +2311,16 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, 0xffffffff, 4);
 	testval = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
+	if (ln2range == 64) {
+		PCIB_WRITE_CONFIG(pcib, b, s, f, reg + 4, 0xffffffff, 4);
+		testval |= (uint64_t)PCIB_READ_CONFIG(pcib, b, s, f, reg + 4,
+		    4) << 32;
+	}
 
 	/* Restore the BAR and command register. */
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, map, 4);
+	if (ln2range == 64)
+		PCIB_WRITE_CONFIG(pcib, b, s, f, reg + 4, map >> 32, 4);
 	PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
 
 	if (PCI_BAR_MEM(map)) {
@@ -2320,7 +2330,6 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	} else
 		type = SYS_RES_IOPORT;
 	ln2size = pci_mapsize(testval);
-	ln2range = pci_maprange(testval);
 	base = pci_mapbase(map);
 	barlen = ln2range == 64 ? 2 : 1;
 
@@ -2337,12 +2346,6 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	    (type == SYS_RES_IOPORT && ln2size < 2))
 		return (barlen);
 
-	if (ln2range == 64)
-		/*
-		 * Read the other half of a 64bit map register.  We
-		 * assume that the size of the BAR is less than 2^32.
-		 */
-		base |= (uint64_t) PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) << 32;
 	if (bootverbose) {
 		printf("\tmap[%02x]: type %s, range %2d, base %#jx, size %2d",
 		    reg, pci_maptype(map), ln2range, (uintmax_t)base, ln2size);
@@ -3421,7 +3424,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	struct resource *res;
 	pci_addr_t map, testval;
 	uint16_t cmd;
-	int mapsize;
+	int maprange, mapsize;
 
 	/*
 	 * Weed out the bogons, and figure out how large the BAR/map
@@ -3432,6 +3435,9 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 */
 	res = NULL;
 	map = pci_read_config(child, *rid, 4);
+	maprange = pci_maprange(map);
+	if (maprange == 64)
+		map |= (pci_addr_t)pci_read_config(child, *rid + 4, 4) << 32;
 
 	/*
 	 * Disable decoding via the command register before
@@ -3445,8 +3451,11 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	/* Determine the BAR's length. */
 	pci_write_config(child, *rid, 0xffffffff, 4);
 	testval = pci_read_config(child, *rid, 4);
-	if (pci_maprange(testval) == 64)
-		map |= (pci_addr_t)pci_read_config(child, *rid + 4, 4) << 32;
+	if (maprange == 64) {
+		pci_write_config(child, *rid + 4, 0xffffffff, 4);
+		testval |= (pci_addr_t)pci_read_config(child, *rid + 4, 4) <<
+		    32;
+	}
 
 	/*
 	 * Restore the original value of the BAR.  We may have reprogrammed
@@ -3454,6 +3463,8 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 * we need the console device addressable.
 	 */
 	pci_write_config(child, *rid, map, 4);
+	if (maprange == 64)
+		pci_write_config(child, *rid + 4, map, 4);
 	pci_write_config(child, PCIR_COMMAND, cmd, 2);
 
 	/* Ignore a BAR with a base of 0. */
@@ -3520,7 +3531,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 		    count, *rid, type, rman_get_start(res));
 	map = rman_get_start(res);
 	pci_write_config(child, *rid, map, 4);
-	if (pci_maprange(testval) == 64)
+	if (maprange == 64)
 		pci_write_config(child, *rid + 4, map >> 32, 4);
 out:;
 	return (res);
