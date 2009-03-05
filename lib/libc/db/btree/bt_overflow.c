@@ -92,7 +92,7 @@ __ovfl_get(BTREE *t, void *p, size_t *ssz, void **buf, size_t *bufsz)
 #endif
 	/* Make the buffer bigger as necessary. */
 	if (*bufsz < sz) {
-		*buf = (char *)(*buf == NULL ? malloc(sz) : reallocf(*buf, sz));
+		*buf = reallocf(*buf, sz);
 		if (*buf == NULL)
 			return (RET_ERROR);
 		*bufsz = sz;
