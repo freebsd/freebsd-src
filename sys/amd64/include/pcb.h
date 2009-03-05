@@ -74,6 +74,7 @@ struct pcb {
 	u_int64_t	pcb_dr7;
 
 	struct	savefpu	pcb_save;
+	uint16_t	pcb_initial_fpucw;
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 
