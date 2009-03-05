@@ -104,6 +104,7 @@ ipfw_main(int oldac, char **oldav)
 	const char *errstr;
 	char **av, **save_av;
 	int do_acct = 0;		/* Show packet/byte count */
+	int try_next = 0;		/* set if pipe cmd not found */
 
 #define WHITESP		" \t\f\v\n\r"
 	if (oldac < 2)
@@ -332,7 +333,6 @@ ipfw_main(int oldac, char **oldav)
 		av[1] = p;
 	}
 
-	int try_next = 0;
 	if (co.use_set == 0) {
 		if (_substrcmp(*av, "add") == 0)
 			ipfw_add(ac, av);
