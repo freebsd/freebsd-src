@@ -174,7 +174,6 @@ static	volatile u_int		npx_intrs_while_probing;
 static	volatile u_int		npx_traps_while_probing;
 
 static	union savefpu		npx_cleanstate;
-static	bool_t			npx_cleanstate_ready;
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
 static	bool_t			npx_irq13;
@@ -376,19 +375,14 @@ npx_probe(dev)
 				return (0);
 			}
 			/*
-			 * Worse, even IRQ13 is broken.  Use emulator.
+			 * Worse, even IRQ13 is broken.
 			 */
 		}
 	}
-	/*
-	 * Probe failed, but we want to get to npxattach to initialize the
-	 * emulator and say that it has been installed.  XXX handle devices
-	 * that aren't really devices better.
-	 */
-#ifdef SMP
-	if (mp_ncpus > 1)
-		panic("npx0 cannot be emulated on an SMP system");
-#endif
+
+	/* Probe failed.  Floating point simply won't work. */
+	device_printf(dev, "WARNING: no FPU!\n");
+
 	/* FALLTHROUGH */
 no_irq13:
 	idt[IDT_MF] = save_idt_npxtrap;
@@ -397,7 +391,7 @@ no_irq13:
 		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
 	}
 	bus_release_resource(dev, SYS_RES_IOPORT, ioport_rid, ioport_res);
-	return (0);
+	return (npx_exists ? 0 : ENXIO);
 }
 
 /*
@@ -414,32 +408,34 @@ npx_attach(dev)
 
 	if (npx_irq13)
 		device_printf(dev, "IRQ 13 interface\n");
-	else if (!npx_ex16)
-		device_printf(dev, "WARNING: no FPU!\n");
 	else if (!device_is_quiet(dev) || bootverbose)
 		device_printf(dev, "INT 16 interface\n");
 
-	npxinit(__INITIAL_NPXCW__);
+	npxinit();
 
-	if (npx_cleanstate_ready == 0) {
-		s = intr_disable();
-		stop_emulating();
-		fpusave(&npx_cleanstate);
-		start_emulating();
+	s = intr_disable();
+	stop_emulating();
+	fpusave(&npx_cleanstate);
+	start_emulating();
 #ifdef CPU_ENABLE_SSE
-		if (cpu_fxsr) {
-			if (npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask)
-				cpu_mxcsr_mask = 
-			    	    npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask;
-			else
-				cpu_mxcsr_mask = 0xFFBF;
-		}
+	if (cpu_fxsr) {
+		if (npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask)
+			cpu_mxcsr_mask = 
+			    npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask;
+		else
+			cpu_mxcsr_mask = 0xFFBF;
+		bzero(npx_cleanstate.sv_xmm.sv_fp,
+		    sizeof(npx_cleanstate.sv_xmm.sv_fp));
+		bzero(npx_cleanstate.sv_xmm.sv_xmm,
+		    sizeof(npx_cleanstate.sv_xmm.sv_xmm));
+		/* XXX might need even more zeroing. */
+	} else
 #endif
-		npx_cleanstate_ready = 1;
-		intr_restore(s);
-	}
+		bzero(npx_cleanstate.sv_87.sv_ac,
+		    sizeof(npx_cleanstate.sv_87.sv_ac));
+	intr_restore(s);
 #ifdef I586_CPU_XXX
-	if (cpu_class == CPUCLASS_586 && npx_ex16 && npx_exists &&
+	if (cpu_class == CPUCLASS_586 && npx_ex16 &&
 	    timezero("i586_bzero()", i586_bzero) <
 	    timezero("bzero()", bzero) * 4 / 5) {
 		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY))
@@ -460,10 +456,11 @@ npx_attach(dev)
  * Initialize floating point unit.
  */
 void
-npxinit(u_short control)
+npxinit(void)
 {
 	static union savefpu dummy;
 	register_t savecrit;
+	u_short control;
 
 	if (!npx_exists)
 		return;
@@ -480,6 +477,7 @@ npxinit(u_short control)
 	if (cpu_fxsr)
 		fninit();
 #endif
+	control = __INITIAL_NPXCW__;
 	fldcw(&control);
 	start_emulating();
 	intr_restore(savecrit);
@@ -760,14 +758,10 @@ npxtrap()
 static int err_count = 0;
 
 int
-npxdna()
+npxdna(void)
 {
 	struct pcb *pcb;
 	register_t s;
-#ifdef CPU_ENABLE_SSE
-	int mxcsr;
-#endif
-	u_short control;
 
 	if (!npx_exists)
 		return (0);
@@ -796,17 +790,9 @@ npxdna()
 		/*
 		 * This is the first time this thread has used the FPU or
 		 * the PCB doesn't contain a clean FPU state.  Explicitly
-		 * initialize the FPU and load the default control word.
+		 * load sanitized registers.
 		 */
-		fninit();
-		control = __INITIAL_NPXCW__;
-		fldcw(&control);
-#ifdef CPU_ENABLE_SSE
-		if (cpu_fxsr) {
-			mxcsr = __INITIAL_MXCSR__;
-			ldmxcsr(mxcsr);
-		}
-#endif
+		fpurstor(&npx_cleanstate);
 		pcb->pcb_flags |= PCB_NPXINITDONE;
 	} else {
 		/*
@@ -904,10 +890,7 @@ npxgetregs(td, addr)
 		return (_MC_FPOWNED_NONE);
 
 	if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
-		if (npx_cleanstate_ready)
-			bcopy(&npx_cleanstate, addr, sizeof(npx_cleanstate));
-		else
-			bzero(addr, sizeof(*addr));
+		bcopy(&npx_cleanstate, addr, sizeof(npx_cleanstate));
 		return (_MC_FPOWNED_NONE);
 	}
 	s = intr_disable();
