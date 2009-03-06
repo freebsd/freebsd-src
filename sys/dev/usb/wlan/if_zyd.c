@@ -796,10 +796,14 @@ zyd_intr_write_callback(struct usb2_xfer *xfer)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		rqp = xfer->priv_fifo;
-		DPRINTF(sc, ZYD_DEBUG_CMD, "command %p transferred\n", rqp);
-		if ((rqp->flags & ZYD_CMD_FLAG_READ) == 0)
-			wakeup(rqp);	/* wakeup caller */
+		DPRINTF(sc, ZYD_DEBUG_CMD, "command %p transferred\n",
+		    xfer->priv_fifo);
+		STAILQ_FOREACH(rqp, &sc->sc_rqh, rq) {
+			/* Ensure the cached rq pointer is still valid */
+			if (rqp == xfer->priv_fifo &&
+			    (rqp->flags & ZYD_CMD_FLAG_READ) == 0)
+				wakeup(rqp);	/* wakeup caller */
+		}
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
