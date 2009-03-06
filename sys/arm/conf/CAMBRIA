@@ -98,15 +98,6 @@ device		if_bridge
 device		md
 device          random          # Entropy device
 
-# NB: 2 USB 2.0 ports standard
-device		usb
-options		USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
-#options		USB_DEBUG
-device		ehci
-device		umass
-device		scbus		# SCSI bus (required for SCSI)
-device		da		# Direct Access (disks)
-
 # Wireless NIC cards
 device		wlan		# 802.11 support
 options		IEEE80211_DEBUG
@@ -142,6 +133,16 @@ device		ath_rf5413
 #device		ath_rf9280
 #device		ath_ar9285
 
-device		ural
-device		zyd
-device		wlan_amrr
+# NB: 2 USB 2.0 ports standard
+makeoptions	WITH_LEGACY
+device		ousb
+options		USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
+#options		USB_DEBUG
+device		oehci
+device		oumass
+device		scbus		# SCSI bus (required for SCSI)
+device		da		# Direct Access (disks)
+
+#device		oural
+#device		ozyd
+#device		wlan_amrr
