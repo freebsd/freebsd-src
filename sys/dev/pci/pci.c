@@ -2920,7 +2920,7 @@ pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		return(bus_generic_teardown_intr(dev, child, irq, cookie));
 
 	rid = rman_get_rid(irq);
-	if (rid > 0) {
+	if (rid == 0) {
 		/* Mask INTx */
 		pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
 	} else {
