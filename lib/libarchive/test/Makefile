@@ -26,6 +26,7 @@ TESTS= \
 	test_pax_filename_encoding.c		\
 	test_read_compress_program.c		\
 	test_read_data_large.c			\
+	test_read_disk.c			\
 	test_read_extract.c			\
 	test_read_format_ar.c			\
 	test_read_format_cpio_bin.c		\
