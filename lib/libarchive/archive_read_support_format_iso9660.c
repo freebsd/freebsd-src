@@ -279,7 +279,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    iso9660,
+	    "iso9660",
 	    archive_read_format_iso9660_bid,
+	    NULL,
 	    archive_read_format_iso9660_read_header,
 	    archive_read_format_iso9660_read_data,
 	    archive_read_format_iso9660_read_data_skip,

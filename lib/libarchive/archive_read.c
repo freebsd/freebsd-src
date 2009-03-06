@@ -108,6 +108,95 @@ archive_read_extract_set_skip_file(struct archive *_a, dev_t d, ino_t i)
 	a->skip_file_ino = i;
 }
 
+/*
+ * Set read options for the format.
+ */
+int
+archive_read_set_format_options(struct archive *_a, const char *s)
+{
+	struct archive_read *a;
+	char key[64], val[64];
+	int len, r;
+
+	a = (struct archive_read *)_a;
+	if (a->format == NULL || a->format->options == NULL ||
+	    a->format->name == NULL)
+		/* This format does not support option. */
+		return (ARCHIVE_OK);
+
+	while ((len = __archive_parse_options(s, a->format->name,
+	    sizeof(key), key, sizeof(val), val)) > 0) {
+		if (val[0] == '\0')
+			r = a->format->options(a, key, NULL);
+		else
+			r = a->format->options(a, key, val);
+		if (r == ARCHIVE_FATAL)
+			return (r);
+		s += len;
+	}
+	if (len < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Illegal format options.");
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Set read options for the filter.
+ */
+int
+archive_read_set_filter_options(struct archive *_a, const char *s)
+{
+	struct archive_read *a;
+	struct archive_read_filter *filter;
+	struct archive_read_filter_bidder *bidder;
+	char key[64], val[64];
+	int len, r;
+
+	a = (struct archive_read *)_a;
+	filter = a->filter;
+	len = 0;
+	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
+		bidder = filter->bidder;
+		if (bidder->options == NULL)
+			/* This bidder does not support option */
+			continue;
+		while ((len = __archive_parse_options(s, filter->name,
+		    sizeof(key), key, sizeof(val), val)) > 0) {
+			if (val[0] == '\0')
+				r = bidder->options(bidder, key, NULL);
+			else
+				r = bidder->options(bidder, key, val);
+			if (r == ARCHIVE_FATAL)
+				return (r);
+			s += len;
+		}
+	}
+	if (len < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Illegal format options.");
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Set read options for the format and the filter.
+ */
+int
+archive_read_set_options(struct archive *_a, const char *s)
+{
+	int r;
+
+	r = archive_read_set_format_options(_a, s);
+	if (r != ARCHIVE_OK)
+		return (r);
+	r = archive_read_set_filter_options(_a, s);
+	if (r != ARCHIVE_OK)
+		return (r);
+	return (ARCHIVE_OK);
+}
 
 /*
  * Open the archive
@@ -658,7 +747,9 @@ _archive_read_finish(struct archive *_a)
 int
 __archive_read_register_format(struct archive_read *a,
     void *format_data,
+    const char *name,
     int (*bid)(struct archive_read *),
+    int (*options)(struct archive_read *, const char *, const char *),
     int (*read_header)(struct archive_read *, struct archive_entry *),
     int (*read_data)(struct archive_read *, const void **, size_t *, off_t *),
     int (*read_data_skip)(struct archive_read *),
@@ -677,11 +768,13 @@ __archive_read_register_format(struct archive_read *a,
 			return (ARCHIVE_WARN); /* We've already installed */
 		if (a->formats[i].bid == NULL) {
 			a->formats[i].bid = bid;
+			a->formats[i].options = options;
 			a->formats[i].read_header = read_header;
 			a->formats[i].read_data = read_data;
 			a->formats[i].read_data_skip = read_data_skip;
 			a->formats[i].cleanup = cleanup;
 			a->formats[i].data = format_data;
+			a->formats[i].name = name;
 			return (ARCHIVE_OK);
 		}
 	}

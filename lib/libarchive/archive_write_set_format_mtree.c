@@ -107,6 +107,20 @@ archive_write_mtree_header(struct archive_write *a,
 	return (ARCHIVE_OK);
 }
 
+#if 0
+static void
+strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
+{
+	static const char hex[] = "0123456789abcdef";
+	int i;
+
+	for (i = 0; i < n; i++) {
+		archive_strappend_char(s, hex[bin[i] >> 4]);
+		archive_strappend_char(s, hex[bin[i] & 0x0f]);
+	}
+}
+#endif
+
 static int
 archive_write_mtree_finish_entry(struct archive_write *a)
 {
@@ -248,6 +262,7 @@ archive_write_set_format_mtree(struct archive *_a)
 	a->format_destroy = archive_write_mtree_destroy;
 
 	a->pad_uncompressed = 0;
+	a->format_name = "mtree";
 	a->format_write_header = archive_write_mtree_header;
 	a->format_finish = archive_write_mtree_finish;
 	a->format_write_data = archive_write_mtree_data;

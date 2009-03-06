@@ -150,7 +150,9 @@ archive_read_support_format_cpio(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    cpio,
+	    "cpio",
 	    archive_read_format_cpio_bid,
+	    NULL,
 	    archive_read_format_cpio_read_header,
 	    archive_read_format_cpio_read_data,
 	    NULL,

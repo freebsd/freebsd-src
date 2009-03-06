@@ -84,6 +84,7 @@ archive_read_support_compression_bzip2(struct archive *_a)
 	reader->data = NULL;
 	reader->bid = bzip2_reader_bid;
 	reader->init = bzip2_reader_init;
+	reader->options = NULL;
 	reader->free = bzip2_reader_free;
 	return (ARCHIVE_OK);
 }
