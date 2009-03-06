@@ -1161,7 +1161,7 @@ cpu_idle_wakeup(int cpu)
 void (*cpu_idle_hook)(void) = cpu_idle_default;
 
 /*
- * Clear registers on exec
+ * Reset registers to default values on exec.
  */
 void
 exec_setregs(td, entry, stack, ps_strings)
@@ -1226,6 +1226,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	 * emulators don't provide an entry point for initialization.
 	 */
 	td->td_pcb->pcb_flags &= ~FP_SOFTFP;
+	pcb->pcb_initial_npxcw = __INITIAL_NPXCW__;
 
 	/*
 	 * Drop the FP state if we hold it, so that the process gets a
