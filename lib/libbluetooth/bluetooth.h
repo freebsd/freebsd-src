@@ -1,7 +1,9 @@
 /*
  * bluetooth.h
- *
- * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2001-2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,9 +37,12 @@
 #include <sys/types.h>
 #include <sys/bitstring.h>
 #include <sys/endian.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <errno.h>
 #include <netdb.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>
 #include <netgraph/bluetooth/include/ng_btsocket.h>
@@ -71,6 +76,63 @@ void              bt_endprotoent      (void);
 
 char const *      bt_ntoa             (bdaddr_t const *ba, char *str);
 int               bt_aton             (char const *str, bdaddr_t *ba);
+
+/* bt_devXXXX() functions (inspired by NetBSD) */
+int               bt_devaddr          (char const *devname, bdaddr_t *addr);
+int               bt_devname          (char *devname, bdaddr_t const *addr);
+
+/* 
+ * Bluetooth HCI functions
+ */
+
+#define	HCI_DEVMAX			32		/* arbitrary */
+#define	HCI_DEVNAME_SIZE		NG_NODESIZ
+#define	HCI_DEVFEATURES_SIZE		NG_HCI_FEATURES_SIZE
+
+struct bt_devinfo
+{
+	char		devname[HCI_DEVNAME_SIZE];
+
+	uint32_t	state;		/* device/implementation specific */
+
+	bdaddr_t	bdaddr;
+	uint16_t	_reserved0;
+
+	uint8_t		features[HCI_DEVFEATURES_SIZE];
+
+	/* buffer info */
+	uint16_t	_reserved1;
+	uint16_t	cmd_free;
+	uint16_t	sco_size;
+	uint16_t	sco_pkts;
+	uint16_t	sco_free;
+	uint16_t	acl_size;
+	uint16_t	acl_pkts;
+	uint16_t	acl_free;
+
+	/* stats */
+	uint32_t	cmd_sent;
+	uint32_t	evnt_recv;
+	uint32_t	acl_recv;
+	uint32_t	acl_sent;
+	uint32_t	sco_recv;
+	uint32_t	sco_sent;
+	uint32_t	bytes_recv;
+	uint32_t	bytes_sent;
+
+	/* misc/specific */
+	uint16_t	link_policy_info;
+	uint16_t	packet_type_info;
+	uint16_t	role_switch_info;
+	uint16_t	debug;
+
+	uint8_t		_padding[20];	/* leave space for future additions */
+};
+
+typedef int	(bt_devenum_cb_t)(int, struct bt_devinfo const *, void *);
+
+int		bt_devinfo (struct bt_devinfo *di);
+int		bt_devenum (bt_devenum_cb_t *cb, void *arg);
 
 /*
  * bdaddr utility functions (from NetBSD)
