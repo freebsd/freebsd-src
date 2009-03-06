@@ -354,18 +354,8 @@ vop_nopoll(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	/*
-	 * Return true for read/write.  If the user asked for something
-	 * special, return POLLNVAL, so that clients have a way of
-	 * determining reliably whether or not the extended
-	 * functionality is present without hard-coding knowledge
-	 * of specific filesystem implementations.
-	 * Stay in sync with kern_conf.c::no_poll().
-	 */
-	if (ap->a_events & ~POLLSTANDARD)
-		return (POLLNVAL);
 
-	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
+	return (poll_no_poll(ap->a_events));
 }
 
 /*
