@@ -1466,6 +1466,57 @@ check_symlinks(struct archive_write_disk *a)
 	return (ARCHIVE_OK);
 }
 
+#ifdef _WIN32
+/*
+ * 1. Convert a path separator from '\' to '/' .
+ *    We shouldn't check multi-byte character directly because some
+ *    character-set have been using the '\' character for a part of
+ *    its multibyte character code.
+ * 2. Replace unusable characters in Windows with underscore('_').
+ * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
+ */
+static void
+cleanup_pathname_win(struct archive_write_disk *a)
+{
+	wchar_t wc;
+	char *p;
+	size_t alen, l;
+
+	alen = 0;
+	l = 0;
+	for (p = a->name; *p != '\0'; p++) {
+		++alen;
+		if (*p == '\\')
+			l = 1;
+		/* Rewrite the path name if its character is a unusable. */
+		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
+		    *p == '<' || *p == '>' || *p == '|')
+			*p = '_';
+	}
+	if (alen == 0 || l == 0)
+		return;
+	/*
+	 * Convert path separator.
+	 */
+	p = a->name;
+	while (*p != '\0' && alen) {
+		l = mbtowc(&wc, p, alen);
+		if (l == -1) {
+			while (*p != '\0') {
+				if (*p == '\\')
+					*p = '/';
+				++p;
+			}
+			break;
+		}
+		if (l == 1 && wc == L'\\')
+			*p = '/';
+		p += l;
+		alen -= l;
+	}
+}
+#endif
+
 /*
  * Canonicalize the pathname.  In particular, this strips duplicate
  * '/' characters, '.' elements, and trailing '/'.  It also raises an
@@ -1485,6 +1536,9 @@ cleanup_pathname(struct archive_write_disk *a)
 		return (ARCHIVE_FAILED);
 	}
 
+#ifdef _WIN32
+	cleanup_pathname_win(a);
+#endif
 	/* Skip leading '/'. */
 	if (*src == '/')
 		separator = *src++;
