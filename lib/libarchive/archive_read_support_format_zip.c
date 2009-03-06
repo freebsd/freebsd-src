@@ -153,7 +153,9 @@ archive_read_support_format_zip(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    zip,
+	    "zip",
 	    archive_read_format_zip_bid,
+	    NULL,
 	    archive_read_format_zip_read_header,
 	    archive_read_format_zip_read_data,
 	    archive_read_format_zip_read_data_skip,

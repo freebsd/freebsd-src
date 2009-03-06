@@ -181,6 +181,7 @@ archive_write_set_format_ustar(struct archive *_a)
 	a->format_data = ustar;
 
 	a->pad_uncompressed = 1;	/* Mimic gtar in this respect. */
+	a->format_name = "ustar";
 	a->format_write_header = archive_write_ustar_header;
 	a->format_write_data = archive_write_ustar_data;
 	a->format_finish = archive_write_ustar_finish;

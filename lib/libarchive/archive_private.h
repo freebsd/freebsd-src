@@ -102,6 +102,9 @@ void	__archive_check_magic(struct archive *, unsigned int magic,
 
 void	__archive_errx(int retvalue, const char *msg) __LA_DEAD;
 
+int	__archive_parse_options(const char *p, const char *fn,
+	    int keysize, char *key, int valsize, char *val);
+
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
 
 #endif

@@ -152,6 +152,7 @@ archive_read_support_compression_compress(struct archive *_a)
 	bidder->data = NULL;
 	bidder->bid = compress_bidder_bid;
 	bidder->init = compress_bidder_init;
+	bidder->options = NULL;
 	bidder->free = compress_bidder_free;
 	return (ARCHIVE_OK);
 }
