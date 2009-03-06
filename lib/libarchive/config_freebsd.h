@@ -25,7 +25,7 @@
  * $FreeBSD$
  */
 
-/* FreeBSD 5.0 and later have ACL support. */
+/* FreeBSD 5.0 and later have ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_CREATE_ENTRY 1
 #define	HAVE_ACL_GET_PERM_NP 1
@@ -101,7 +101,6 @@
 #define	HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC 1
 #define	HAVE_STRUCT_STAT_ST_FLAGS 1
 #define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
-#define	HAVE_SYS_ACL_H 1
 #define	HAVE_SYS_IOCTL_H 1
 #define	HAVE_SYS_SELECT_H 1
 #define	HAVE_SYS_STAT_H 1
