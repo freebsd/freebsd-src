@@ -148,8 +148,8 @@ archive_read_support_format_mtree(struct archive *_a)
 	memset(mtree, 0, sizeof(*mtree));
 	mtree->fd = -1;
 
-	r = __archive_read_register_format(a, mtree,
-	    mtree_bid, read_header, read_data, skip, cleanup);
+	r = __archive_read_register_format(a, mtree, "mtree",
+	    mtree_bid, NULL, read_header, read_data, skip, cleanup);
 
 	if (r != ARCHIVE_OK)
 		free(mtree);

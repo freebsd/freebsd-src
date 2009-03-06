@@ -105,7 +105,9 @@ archive_read_support_format_ar(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    ar,
+	    "ar",
 	    archive_read_format_ar_bid,
+	    NULL,
 	    archive_read_format_ar_read_header,
 	    archive_read_format_ar_read_data,
 	    archive_read_format_ar_skip,
