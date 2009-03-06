@@ -913,10 +913,6 @@ get_refdir(void)
 	}
 
 #if defined(_WIN32) && defined(_DEBUG)
-	/* You should have to add "$(TargetDir)" to
-	 * Properties > Configuration Properties > Debugging > Working Directory,
-	 * if you are running libarchive_test.exe on Visual Studio.
-	 */
 	DebugBreak();
 #endif
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
@@ -1117,7 +1113,7 @@ int main(int argc, char **argv)
 		    tests_failed, tests_run);
 		printf(" Total of %d assertions checked.\n", assertions);
 		printf(" Total of %d assertions failed.\n", failures);
-		printf(" Total of %d assertions skipped.\n", skips);
+		printf(" Total of %d reported skips.\n", skips);
 	}
 
 	free(refdir_alloc);
