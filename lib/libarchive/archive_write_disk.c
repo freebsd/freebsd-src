@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_EXTATTR_H
+#include <sys/extattr.h>
+#endif
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
@@ -411,6 +414,8 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		a->todo |= TODO_TIMES;
 	if (a->flags & ARCHIVE_EXTRACT_ACL)
 		a->todo |= TODO_ACLS;
+	if (a->flags & ARCHIVE_EXTRACT_XATTR)
+		a->todo |= TODO_XATTR;
 	if (a->flags & ARCHIVE_EXTRACT_FFLAGS)
 		a->todo |= TODO_FFLAGS;
 	if (a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) {
@@ -424,6 +429,17 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 #endif
 
 	ret = restore_entry(a);
+
+	/*
+	 * On the GNU tar mailing list, some people working with new
+	 * Linux filesystems observed that system xattrs used as
+	 * layout hints need to be restored before the file contents
+	 * are written, so this can't be done at file close.
+	 */
+	if (a->todo & TODO_XATTR) {
+		int r2 = set_xattrs(a);
+		if (r2 < ret) ret = r2;
+	}
 
 #ifdef HAVE_FCHDIR
 	/* If we changed directory above, restore it here. */
@@ -720,14 +736,18 @@ _archive_write_finish_entry(struct archive *_a)
 		int r2 = set_acls(a);
 		if (r2 < ret) ret = r2;
 	}
-	if (a->todo & TODO_XATTR) {
-		int r2 = set_xattrs(a);
-		if (r2 < ret) ret = r2;
-	}
+	/*
+	 * Some flags prevent file modification; they must be restored after
+	 * file contents are written.
+	 */
 	if (a->todo & TODO_FFLAGS) {
 		int r2 = set_fflags(a);
 		if (r2 < ret) ret = r2;
 	}
+	/*
+	 * Time has to be restored after all other metadata;
+	 * otherwise atime will get changed.
+	 */
 	if (a->todo & TODO_TIMES) {
 		int r2 = set_times(a);
 		if (r2 < ret) ret = r2;
@@ -1012,7 +1032,8 @@ restore_entry(struct archive_write_disk *a)
 
 	if (en) {
 		/* Everything failed; give up here. */
-		archive_set_error(&a->archive, en, "Can't create '%s'", a->name);
+		archive_set_error(&a->archive, en, "Can't create '%s'",
+		    a->name);
 		return (ARCHIVE_FAILED);
 	}
 
@@ -1657,7 +1678,8 @@ create_dir(struct archive_write_disk *a, char *path)
 	if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
 		return (ARCHIVE_OK);
 
-	archive_set_error(&a->archive, errno, "Failed to create dir '%s'", path);
+	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
+	    path);
 	return (ARCHIVE_FAILED);
 }
 
@@ -2322,6 +2344,71 @@ set_xattrs(struct archive_write_disk *a)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Invalid extended attribute encountered");
 			ret = ARCHIVE_WARN;
+		}
+	}
+	return (ret);
+}
+#elif HAVE_EXTATTR_SET_FILE
+/*
+ * Restore extended attributes -  FreeBSD implementation
+ */
+static int
+set_xattrs(struct archive_write_disk *a)
+{
+	struct archive_entry *entry = a->entry;
+	static int warning_done = 0;
+	int ret = ARCHIVE_OK;
+	int i = archive_entry_xattr_reset(entry);
+
+	while (i--) {
+		const char *name;
+		const void *value;
+		size_t size;
+		archive_entry_xattr_next(entry, &name, &value, &size);
+		if (name != NULL) {
+			int e;
+			int namespace;
+
+			if (strncmp(name, "user.", 5) == 0) {
+				/* "user." attributes go to user namespace */
+				name += 5;
+				namespace = EXTATTR_NAMESPACE_USER;
+			} else {
+				/* Warn about other extended attributes. */
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Can't restore extended attribute ``%s''",
+				    name);
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			errno = 0;
+#if HAVE_EXTATTR_SET_FD
+			if (a->fd >= 0)
+				e = extattr_set_fd(a->fd, namespace, name, value, size);
+			else
+#endif
+			/* TODO: should we use extattr_set_link() instead? */
+			{
+				e = extattr_set_file(archive_entry_pathname(entry),
+				    namespace, name, value, size);
+			}
+			if (e != (int)size) {
+				if (errno == ENOTSUP) {
+					if (!warning_done) {
+						warning_done = 1;
+						archive_set_error(&a->archive, errno,
+						    "Cannot restore extended "
+						    "attributes on this file "
+						    "system");
+					}
+				} else {
+					archive_set_error(&a->archive, errno,
+					    "Failed to set extended attribute");
+				}
+
+				ret = ARCHIVE_WARN;
+			}
 		}
 	}
 	return (ret);
