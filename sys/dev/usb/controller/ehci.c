@@ -2189,12 +2189,21 @@ static void
 ehci_device_bulk_start(struct usb2_xfer *xfer)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
+	uint32_t temp;
 
 	/* setup TD's and QH */
 	ehci_setup_standard_chain(xfer, &sc->sc_async_p_last);
 
 	/* put transfer on interrupt queue */
 	ehci_transfer_intr_enqueue(xfer);
+
+	/* XXX Performance quirk: Some Host Controllers have a too low
+	 * interrupt rate. Issue an IAAD to stimulate the Host
+	 * Controller after queueing the BULK transfer.
+	 */
+	temp = EOREAD4(sc, EHCI_USBCMD);
+	if (!(temp & EHCI_CMD_IAAD))
+		EOWRITE4(sc, EHCI_USBCMD, temp | EHCI_CMD_IAAD);
 }
 
 struct usb2_pipe_methods ehci_device_bulk_methods =
