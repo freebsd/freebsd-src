@@ -317,6 +317,8 @@ struct cdev;
 dev_t dev2udev(struct cdev *x);
 const char *devtoname(struct cdev *cdev);
 
+int poll_no_poll(int events);
+
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);
 
