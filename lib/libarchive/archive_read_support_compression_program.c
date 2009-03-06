@@ -109,11 +109,11 @@ archive_read_support_compression_program(struct archive *_a, const char *cmd)
 	struct archive_read_filter_bidder *bidder = __archive_read_get_bidder(a);
 	struct program_bidder *state;
 
-	state = (struct program_bidder *)calloc(sizeof (*state), 1);
-
-	if (state == NULL)
-		return (ARCHIVE_FATAL);
 	if (bidder == NULL)
+		return (ARCHIVE_FATAL);
+
+	state = (struct program_bidder *)calloc(sizeof (*state), 1);
+	if (state == NULL)
 		return (ARCHIVE_FATAL);
 
 	state->cmd = strdup(cmd);
