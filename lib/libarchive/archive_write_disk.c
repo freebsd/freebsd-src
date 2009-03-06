@@ -519,6 +519,9 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	ssize_t bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
 
+	if (size == 0)
+		return (ARCHIVE_OK);
+
 	if (a->filesize == 0 || a->fd < 0) {
 		archive_set_error(&a->archive, 0,
 		    "Attempt to write to an empty file");
