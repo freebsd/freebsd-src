@@ -172,7 +172,7 @@ archive_read_format_zip_bid(struct archive_read *a)
 {
 	const char *p;
 	const void *buff;
-	size_t bytes_avail, offset;
+	ssize_t bytes_avail, offset;
 
 	if ((p = __archive_read_ahead(a, 4, NULL)) == NULL)
 		return (-1);
@@ -241,7 +241,8 @@ skip_sfx(struct archive_read *a)
 {
 	const void *h;
 	const char *p, *q;
-	size_t skip, bytes;
+	size_t skip;
+	ssize_t bytes;
 
 	/*
 	 * TODO: We should be able to skip forward by a bunch
