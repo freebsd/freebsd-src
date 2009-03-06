@@ -1682,7 +1682,7 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 	stream_close(dest);
 	rcsfile_free(rf);
 	if (error)
-		return (UPDATER_ERR_PROTO);
+		lprintf(-1, "Error writing %s\n", name);
 
 finish:
 	sr->sr_clientattr = fattr_frompath(path, FATTR_NOFOLLOW);
