@@ -122,6 +122,7 @@ archive_read_support_compression_program(struct archive *_a, const char *cmd)
 	bidder->data = state;
 	bidder->bid = program_bidder_bid;
 	bidder->init = program_bidder_init;
+	bidder->options = NULL;
 	bidder->free = program_bidder_free;
 	return (ARCHIVE_OK);
 }

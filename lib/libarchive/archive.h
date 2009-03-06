@@ -384,6 +384,19 @@ __LA_DECL int		 archive_read_data_into_buffer(struct archive *,
 			    void *buffer, __LA_SSIZE_T len);
 __LA_DECL int		 archive_read_data_into_fd(struct archive *, int fd);
 
+/*
+ * Set read options.
+ */
+/* Apply option string to the format only. */
+__LA_DECL int		archive_read_set_format_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to the filter only. */
+__LA_DECL int		archive_read_set_filter_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to both the format and the filter. */
+__LA_DECL int		archive_read_set_options(struct archive *_a,
+			    const char *s);
+
 /*-
  * Convenience function to recreate the current entry (whose header
  * has just been read) on disk.
@@ -551,6 +564,20 @@ __LA_DECL void		 archive_write_finish(struct archive *);
  * archive_write_finish() will implicitly call archive_write_close(). */
 __LA_DECL int		 archive_write_finish(struct archive *);
 #endif
+
+/*
+ * Set write options.
+ */
+/* Apply option string to the format only. */
+__LA_DECL int		archive_write_set_format_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to the compressor only. */
+__LA_DECL int		archive_write_set_compressor_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to both the format and the compressor. */
+__LA_DECL int		archive_write_set_options(struct archive *_a,
+			    const char *s);
+
 
 /*-
  * To create objects on disk:
