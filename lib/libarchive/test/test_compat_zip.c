@@ -32,6 +32,7 @@ test_compat_zip_1(void)
 	char name[] = "test_compat_zip_1.zip";
 	struct archive_entry *ae;
 	struct archive *a;
+	int r;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
@@ -44,7 +45,16 @@ test_compat_zip_1(void)
 	assertEqualString("META-INF/MANIFEST.MF", archive_entry_pathname(ae));
 
 	/* Read second entry. */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	r = archive_read_next_header(a, &ae);
+	if (r != ARCHIVE_OK) {
+		if (strcmp(archive_error_string(a),
+		    "libarchive compiled without deflate support (no libz)") == 0) {
+			skipping("Skipping ZIP compression check: %s",
+			    archive_error_string(a));
+			goto finish;
+		}
+	}
+	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualString("tmp.class", archive_entry_pathname(ae));
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -53,6 +63,7 @@ test_compat_zip_1(void)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ZIP);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+finish:
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
@@ -63,11 +74,7 @@ test_compat_zip_1(void)
 
 DEFINE_TEST(test_compat_zip)
 {
-#if HAVE_ZLIB_H
 	test_compat_zip_1();
-#else
-	skipping("Need zlib");
-#endif
 }
 
 
