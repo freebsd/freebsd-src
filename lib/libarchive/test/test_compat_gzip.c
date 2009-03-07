@@ -69,6 +69,7 @@ verify(const char *name)
 
 	/* Verify that the format detection worked. */
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_GZIP);
+	assertEqualString(archive_compression_name(a), "gzip");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
