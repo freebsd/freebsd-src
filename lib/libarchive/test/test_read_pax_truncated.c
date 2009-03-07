@@ -72,7 +72,7 @@ DEFINE_TEST(test_read_pax_truncated)
 		assert((a = archive_read_new()) != NULL);
 		assertA(0 == archive_read_support_format_all(a));
 		assertA(0 == archive_read_support_compression_all(a));
-		assertA(0 == read_open_memory(a, buff, i, 13));
+		assertA(0 == read_open_memory2(a, buff, i, 13));
 
 		if (i < 1536) {
 			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
