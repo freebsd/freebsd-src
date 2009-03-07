@@ -38,8 +38,8 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>  /* Linux requires this for off_t */
-#if !defined(__WATCOMC__) && !defined(_MSC_VER)
-/* Header unavailable on Watcom C or MS Visual C++. */
+#if !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX)
+/* Header unavailable on Watcom C or MS Visual C++ or SFU. */
 #include <inttypes.h> /* int64_t, etc. */
 #endif
 #include <stdio.h> /* For FILE * */
