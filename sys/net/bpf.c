@@ -898,22 +898,28 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 /*
- * Reset a descriptor by flushing its packet buffer and clearing the
- * receive and drop counts.
+ * Reset a descriptor by flushing its packet buffer and clearing the receive
+ * and drop counts.  This is doable for kernel-only buffers, but with
+ * zero-copy buffers, we can't write to (or rotate) buffers that are
+ * currently owned by userspace.  It would be nice if we could encapsulate
+ * this logic in the buffer code rather than here.
  */
 static void
 reset_d(struct bpf_d *d)
 {
 
 	mtx_assert(&d->bd_mtx, MA_OWNED);
-	if (d->bd_hbuf) {
+
+	if ((d->bd_hbuf != NULL) &&
+	    (d->bd_bufmode != BPF_BUFMODE_ZBUF || bpf_canfreebuf(d))) {
 		/* Free the hold buffer. */
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
+		d->bd_hlen = 0;
 		bpf_buf_reclaimed(d);
 	}
-	d->bd_slen = 0;
-	d->bd_hlen = 0;
+	if (bpf_canwritebuf(d))
+		d->bd_slen = 0;
 	d->bd_rcount = 0;
 	d->bd_dcount = 0;
 	d->bd_fcount = 0;
