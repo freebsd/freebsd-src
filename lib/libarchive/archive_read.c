@@ -289,11 +289,9 @@ archive_read_open2(struct archive *_a, void *client_data,
 	filter->read = client_read_proxy;
 	filter->skip = client_skip_proxy;
 	filter->close = client_close_proxy;
+	filter->name = "none";
+	filter->code = ARCHIVE_COMPRESSION_NONE;
 	a->filter = filter;
-
-	/* In case there's no filter. */
-	a->archive.compression_code = ARCHIVE_COMPRESSION_NONE;
-	a->archive.compression_name = "none";
 
 	/* Build out the input pipeline. */
 	e = build_stream(a);
