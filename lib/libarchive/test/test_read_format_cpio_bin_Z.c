@@ -46,6 +46,7 @@ DEFINE_TEST(test_read_format_cpio_bin_Z)
 	failure("archive_compression_name(a)=\"%s\"",
 	    archive_compression_name(a));
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
+	assertEqualString(archive_compression_name(a), "compress (.Z)");
 	failure("archive_format_name(a)=\"%s\"",
 	    archive_format_name(a));
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_LE);
