@@ -38,14 +38,21 @@ DEFINE_TEST(test_write_compress_program)
 	size_t used;
 	int blocksize = 1024;
 	int r;
+	const char *extprog;
 
+	if ((extprog = external_gzip_program(0)) == NULL) {
+		skipping("There is no gzip compression "
+		    "program in this platform");
+		return;
+	}
 	/* Create a new archive in memory. */
 	/* Write it through an external "gzip" program. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	r = archive_write_set_compression_program(a, "gzip");
+	r = archive_write_set_compression_program(a, extprog);
 	if (r == ARCHIVE_FATAL) {
-		skipping("Write compression via external program unsupported on this platform");
+		skipping("Write compression via external "
+		    "program unsupported on this platform");
 		archive_write_finish(a);
 		return;
 	}
@@ -84,7 +91,32 @@ DEFINE_TEST(test_write_compress_program)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
-	assertA(0 == archive_read_next_header(a, &ae));
+	r = archive_read_next_header(a, &ae);
+	if (r != ARCHIVE_OK) {
+		if (strcmp(archive_error_string(a),
+		    "Unrecognized archive format") == 0) {
+			skipping("This version of libarchive was compiled "
+			    "without gzip support");
+			assert(0 == archive_read_finish(a));
+			/*
+			 * Try using an external "gunzip","gzip -d" program
+			 */
+			if ((extprog = external_gzip_program(1)) == NULL) {
+				skipping("There is no gzip uncompression "
+				    "program in this platform");
+				return;
+			}
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_compression_none(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_compression_program(a, extprog));
+			assertA(0 == archive_read_support_format_all(a));
+			assertA(0 == archive_read_open_memory(a, buff, used));
+			r = archive_read_next_header(a, &ae);
+		}
+	}
+	assertA(0 == r);
 
 	assert(1 == archive_entry_mtime(ae));
 	assert(0 == archive_entry_atime(ae));
