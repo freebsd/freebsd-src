@@ -300,6 +300,9 @@ __LA_DECL int		 archive_read_support_compression_gzip(struct archive *);
 __LA_DECL int		 archive_read_support_compression_none(struct archive *);
 __LA_DECL int		 archive_read_support_compression_program(struct archive *,
 		     const char *command);
+__LA_DECL int		 archive_read_support_compression_program_signature
+				(struct archive *, const char *,
+				    const void * /* match */, size_t);
 
 __LA_DECL int		 archive_read_support_format_all(struct archive *);
 __LA_DECL int		 archive_read_support_format_ar(struct archive *);
