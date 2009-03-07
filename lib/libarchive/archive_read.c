@@ -115,24 +115,30 @@ int
 archive_read_set_format_options(struct archive *_a, const char *s)
 {
 	struct archive_read *a;
+	struct archive_format_descriptor *format;
 	char key[64], val[64];
+	size_t i;
 	int len, r;
 
 	a = (struct archive_read *)_a;
-	if (a->format == NULL || a->format->options == NULL ||
-	    a->format->name == NULL)
-		/* This format does not support option. */
-		return (ARCHIVE_OK);
+	len = 0;
+	for (i = 0; i < sizeof(a->formats)/sizeof(a->formats[0]); i++) {
+		format = &a->formats[i];
+		if (format == NULL || format->options == NULL ||
+		    format->name == NULL)
+			/* This format does not support option. */
+			continue;
 
-	while ((len = __archive_parse_options(s, a->format->name,
-	    sizeof(key), key, sizeof(val), val)) > 0) {
-		if (val[0] == '\0')
-			r = a->format->options(a, key, NULL);
-		else
-			r = a->format->options(a, key, val);
-		if (r == ARCHIVE_FATAL)
-			return (r);
-		s += len;
+		while ((len = __archive_parse_options(s, format->name,
+		    sizeof(key), key, sizeof(val), val)) > 0) {
+			if (val[0] == '\0')
+				r = format->options(a, key, NULL);
+			else
+				r = format->options(a, key, val);
+			if (r == ARCHIVE_FATAL)
+				return (r);
+			s += len;
+		}
 	}
 	if (len < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -159,6 +165,8 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	len = 0;
 	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
 		bidder = filter->bidder;
+		if (bidder == NULL)
+			continue;
 		if (bidder->options == NULL)
 			/* This bidder does not support option */
 			continue;
