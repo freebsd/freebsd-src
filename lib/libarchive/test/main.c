@@ -96,7 +96,7 @@ static const char *refdir;
 #ifdef _WIN32
 
 static void
-invalid_paramter_handler(const wchar_t * expression,
+invalid_parameter_handler(const wchar_t * expression,
     const wchar_t * function, const wchar_t * file,
     unsigned int line, uintptr_t pReserved)
 {
@@ -994,7 +994,7 @@ int main(int argc, char **argv)
 
 #ifdef _WIN32
 	/* To stop to run the default invalid parameter handler. */
-	_set_invalid_parameter_handler(invalid_paramter_handler);
+	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* for open() to a binary mode. */
 	_set_fmode(_O_BINARY);
 	/* Disable annoying assertion message box. */
