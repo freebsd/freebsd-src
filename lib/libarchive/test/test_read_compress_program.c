@@ -41,12 +41,20 @@ DEFINE_TEST(test_read_compress_program)
 #else
 	struct archive_entry *ae;
 	struct archive *a;
+	const char *extprog;
+
+	if ((extprog = external_gzip_program(1)) == NULL) {
+		skipping("There is no gzip uncompression "
+		    "program in this platform");
+		return;
+	}
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_compression_none(a));
-	r = archive_read_support_compression_program(a, "gunzip");
+	r = archive_read_support_compression_program(a, extprog);
 	if (r == ARCHIVE_FATAL) {
-		skipping("archive_read_support_compression_program() unsupported on this platform");
+		skipping("archive_read_support_compression_program() "
+		    "unsupported on this platform");
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, r);

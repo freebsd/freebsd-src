@@ -62,7 +62,11 @@ __FBSDID("$FreeBSD$");
  */
 #undef DEFINE_TEST
 #define	DEFINE_TEST(name) void name(void);
+#ifdef LIST_H
+#include LIST_H
+#else
 #include "list.h"
+#endif
 
 /* Interix doesn't define these in a standard header. */
 #if __INTERIX__
@@ -343,10 +347,10 @@ test_assert_equal_string(const char *file, int line,
 	    file, line);
 	fprintf(stderr, "      %s = ", e1);
 	strdump(v1);
-	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : strlen(v1));
+	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : (int)strlen(v1));
 	fprintf(stderr, "      %s = ", e2);
 	strdump(v2);
-	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : strlen(v2));
+	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : (int)strlen(v2));
 	report_failure(extra);
 	return (0);
 }
@@ -421,7 +425,7 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 	char sep;
 
 	for(i=0; i < l; i+=16) {
-		fprintf(stderr, "%04x", i + offset);
+		fprintf(stderr, "%04x", (unsigned)(i + offset));
 		sep = ' ';
 		for (j = 0; j < 16 && i + j < l; j++) {
 			if (ref != NULL && p[i + j] != ref[i + j])
@@ -718,8 +722,29 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 #undef DEFINE_TEST
 #define	DEFINE_TEST(n) { n, #n },
 struct { void (*func)(void); const char *name; } tests[] = {
+#ifdef LIST_H
+	#include LIST_H
+#else
 	#include "list.h"
+#endif
 };
+
+static void
+close_descriptors(int warn)
+{
+	int i;
+	int left_open = 0;
+
+	for (i = 3; i < 100; ++i) {
+		if (close(i) == 0)
+			++left_open;
+	}
+	if (warn && left_open > 0) {
+		fprintf(stderr, " ** %d descriptors unclosed\n", left_open);
+		failures += left_open;
+		report_failure(NULL);
+	}
+}
 
 /*
  * Each test is run in a private work dir.  Those work dirs
@@ -762,8 +787,12 @@ static int test_run(int i, const char *tmpdir)
 	}
 	/* Explicitly reset the locale before each test. */
 	setlocale(LC_ALL, "C");
+	/* Make sure there are no stray descriptors going into the test. */
+	close_descriptors(0);
 	/* Run the actual test. */
 	(*tests[i].func)();
+	/* Close stray descriptors, record as errors against this test. */
+	close_descriptors(1);
 	/* Summarize the results of this test. */
 	summarize();
 	/* If there were no failures, we can remove the work dir. */
@@ -865,6 +894,32 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+#ifdef _WIN32
+#define DEV_NULL "NUL"
+#else
+#define DEV_NULL "/dev/null"
+#endif
+
+const char *
+external_gzip_program(int un)
+{
+	const char *extprog;
+
+	if (un) {
+		extprog = "gunzip";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+		extprog = "gzip -d";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+	} else {
+		extprog = "gzip";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+	}
+	return (NULL);
+}
+
 static char *
 get_refdir(void)
 {
@@ -873,7 +928,6 @@ get_refdir(void)
 	char *pwd, *p;
 
 	/* Get the current dir. */
-	/* XXX Visual C++ uses _getcwd() XXX */
 	pwd = getcwd(NULL, 0);
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
@@ -974,7 +1028,7 @@ int main(int argc, char **argv)
 	 * Parse options, without using getopt(), which isn't available
 	 * on all platforms.
 	 */
-	++argv; --argc;/* Skip program name */
+	++argv; /* Skip program name */
 	while (*argv != NULL) {
 		if (**argv != '-')
 			break;
