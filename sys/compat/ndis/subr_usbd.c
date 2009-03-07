@@ -56,12 +56,14 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
 
-#include <legacy/dev/usb/usb.h>
-#include <legacy/dev/usb/usbdi.h>
-#include <legacy/dev/usb/usbdi_util.h>
-#include <legacy/dev/usb/usbdivar.h>
-#include <legacy/dev/usb/usb_quirks.h>
-#include "usbdevs.h"
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_defs.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_device.h>
+#include <dev/usb/usb_error.h>
+#include <dev/usb/usb_request.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -73,29 +75,24 @@ __FBSDID("$FreeBSD$");
 #include <dev/if_ndis/if_ndisvar.h>
 
 static driver_object usbd_driver;
+static usb2_callback_t usbd_non_isoc_callback;
 
 static int32_t		 usbd_func_bulkintr(irp *);
 static int32_t		 usbd_func_vendorclass(irp *);
 static int32_t		 usbd_func_selconf(irp *);
+static int32_t		 usbd_func_abort_pipe(irp *);
+static usb2_error_t	 usbd_setup_endpoint(irp *, uint8_t,
+			    struct usb2_endpoint_descriptor	*);
 static int32_t		 usbd_func_getdesc(irp *);
-static usbd_status	 usbd_get_desc_ndis(usbd_device_handle, int, int, int,
-			    void *, int *);
 static union usbd_urb	*usbd_geturb(irp *);
-static usbd_status	 usbd_init_ndispipe(irp *, usb_endpoint_descriptor_t *);
-static usbd_xfer_handle	 usbd_init_ndisxfer(irp *, usb_endpoint_descriptor_t *,
-			    void *, uint32_t);
+static struct ndisusb_ep*usbd_get_ndisep(irp *, usb_endpoint_descriptor_t *);
 static int32_t		 usbd_iodispatch(device_object *, irp *);
 static int32_t		 usbd_ioinvalid(device_object *, irp *);
 static int32_t		 usbd_pnp(device_object *, irp *);
 static int32_t		 usbd_power(device_object *, irp *);
 static void		 usbd_irpcancel(device_object *, irp *);
-static void		 usbd_irpcancel_cb(void *);
 static int32_t		 usbd_submit_urb(irp *);
 static int32_t		 usbd_urb2nt(int32_t);
-static void		 usbd_xfereof(usbd_xfer_handle, usbd_private_handle,
-			    usbd_status);
-static void		 usbd_xferadd(usbd_xfer_handle, usbd_private_handle,
-			    usbd_status);
 static void		 usbd_xfertask(device_object *, void *);
 static void		 dummy(void);
 
@@ -156,7 +153,7 @@ usbd_libinit(void)
 
 	/* Set up our dipatch routine. */
 	for (i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION; i++)
-                usbd_driver.dro_dispatch[i] =
+		usbd_driver.dro_dispatch[i] =
 			(driver_dispatch)usbd_ioinvalid_wrap;
 
 	usbd_driver.dro_dispatch[IRP_MJ_INTERNAL_DEVICE_CONTROL] =
@@ -314,36 +311,36 @@ usbd_urb2nt(status)
 	return (STATUS_FAILURE);
 }
 
-/* Convert FreeBSD's usbd_status to USBD_STATUS  */
+/* Convert FreeBSD's usb2_error_t to USBD_STATUS  */
 static int32_t
 usbd_usb2urb(int status)
 {
 
 	switch (status) {
-	case USBD_NORMAL_COMPLETION:
+	case USB_ERR_NORMAL_COMPLETION:
 		return (USBD_STATUS_SUCCESS);
-	case USBD_IN_PROGRESS:
+	case USB_ERR_PENDING_REQUESTS:
 		return (USBD_STATUS_PENDING);
-	case USBD_TIMEOUT:
+	case USB_ERR_TIMEOUT:
 		return (USBD_STATUS_TIMEOUT);
-	case USBD_SHORT_XFER:
+	case USB_ERR_SHORT_XFER:
 		return (USBD_STATUS_ERROR_SHORT_TRANSFER);
-	case USBD_IOERROR:
+	case USB_ERR_IOERROR:
 		return (USBD_STATUS_XACT_ERROR);
-	case USBD_NOMEM:
+	case USB_ERR_NOMEM:
 		return (USBD_STATUS_NO_MEMORY);
-	case USBD_INVAL:
+	case USB_ERR_INVAL:
 		return (USBD_STATUS_REQUEST_FAILED);
-	case USBD_NOT_STARTED:
-	case USBD_TOO_DEEP:
-	case USBD_NO_POWER:
+	case USB_ERR_NOT_STARTED:
+	case USB_ERR_TOO_DEEP:
+	case USB_ERR_NO_POWER:
 		return (USBD_STATUS_DEVICE_GONE);
-	case USBD_CANCELLED:
+	case USB_ERR_CANCELLED:
 		return (USBD_STATUS_CANCELED);
 	default:
 		break;
 	}
-	
+
 	return (USBD_STATUS_NOT_SUPPORTED);
 }
 
@@ -394,6 +391,10 @@ usbd_submit_urb(ip)
 		status = usbd_func_selconf(ip);
 		USBD_URB_STATUS(urb) = status;
 		break;
+	case URB_FUNCTION_ABORT_PIPE:
+		status = usbd_func_abort_pipe(ip);
+		USBD_URB_STATUS(urb) = status;
+		break;
 	case URB_FUNCTION_GET_DESCRIPTOR_FROM_DEVICE:
 		status = usbd_func_getdesc(ip);
 		USBD_URB_STATUS(urb) = status;
@@ -412,99 +413,62 @@ static int32_t
 usbd_func_getdesc(ip)
 	irp			*ip;
 {
+#define	NDISUSB_GETDESC_MAXRETRIES		3
 	device_t dev = IRP_NDIS_DEV(ip);
-	int actlen, i;
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct ndis_softc *sc = device_get_softc(dev);
 	struct usbd_urb_control_descriptor_request *ctldesc;
+	uint8_t irql;
+	uint16_t actlen;
 	uint32_t len;
 	union usbd_urb *urb;
-	usb_config_descriptor_t cd, *cdp;
-	usbd_status status;
-
-	mtx_lock(&Giant);
+	usb_config_descriptor_t *cdp;
+	usb2_error_t status;
 
 	urb = usbd_geturb(ip);
 	ctldesc = &urb->uu_ctldesc;
 	if (ctldesc->ucd_desctype == UDESC_CONFIG) {
-		/* Get the short config descriptor. */
-		status = usbd_get_config_desc(uaa->device, ctldesc->ucd_idx,
-		    &cd);
-		if (status != USBD_NORMAL_COMPLETION) {
-			ctldesc->ucd_trans_buflen = 0;
-			mtx_unlock(&Giant);
-			return usbd_usb2urb(status);
+		/*
+		 * The NDIS driver is not allowed to change the
+		 * config! There is only one choice!
+		 */
+		cdp = usb2_get_config_descriptor(sc->ndisusb_dev);
+		if (cdp == NULL) {
+			status = USB_ERR_INVAL;
+			goto exit;
 		}
-		/* Get the full descriptor.  Try a few times for slow devices. */
-		len = MIN(ctldesc->ucd_trans_buflen, UGETW(cd.wTotalLength));
-		for (i = 0; i < 3; i++) {
-			status = usbd_get_desc_ndis(uaa->device,
-			    ctldesc->ucd_desctype, ctldesc->ucd_idx,
-			    len, ctldesc->ucd_trans_buf, &actlen);
-			if (status == USBD_NORMAL_COMPLETION)
-				break;
-			usbd_delay_ms(uaa->device, 200);
-		}
-		if (status != USBD_NORMAL_COMPLETION) {
-			ctldesc->ucd_trans_buflen = 0;
-			mtx_unlock(&Giant);
-			return usbd_usb2urb(status);
-		}
-
-		cdp = (usb_config_descriptor_t *)ctldesc->ucd_trans_buf;
 		if (cdp->bDescriptorType != UDESC_CONFIG) {
 			device_printf(dev, "bad desc %d\n",
 			    cdp->bDescriptorType);
-			status = USBD_INVAL;
+			status = USB_ERR_INVAL;
+			goto exit;
 		}
-	} else if (ctldesc->ucd_desctype == UDESC_STRING) {
-		/* Try a few times for slow devices.  */
-		for (i = 0; i < 3; i++) {
-			status = usbd_get_string_desc(uaa->device,
-			    (UDESC_STRING << 8) + ctldesc->ucd_idx,
-			    ctldesc->ucd_langid, ctldesc->ucd_trans_buf,
-			    &actlen);
-			if (actlen > ctldesc->ucd_trans_buflen)
-				panic("small string buffer for UDESC_STRING");
-			if (status == USBD_NORMAL_COMPLETION)
-				break;
-			usbd_delay_ms(uaa->device, 200);
-		}
-	} else
-		status = usbd_get_desc_ndis(uaa->device, ctldesc->ucd_desctype,
-		    ctldesc->ucd_idx, ctldesc->ucd_trans_buflen,
-		    ctldesc->ucd_trans_buf, &actlen);
-
-	if (status != USBD_NORMAL_COMPLETION) {
+		/* get minimum length */
+		len = MIN(UGETW(cdp->wTotalLength), ctldesc->ucd_trans_buflen);
+		/* copy out config descriptor */
+		memcpy(ctldesc->ucd_trans_buf, cdp, len);
+		/* set actual length */
+		actlen = len;
+		status = USB_ERR_NORMAL_COMPLETION;
+	} else {
+		KeRaiseIrql(DISPATCH_LEVEL, &irql);
+		status = usb2_req_get_desc(sc->ndisusb_dev, hal_getdisplock(),
+		    &actlen, ctldesc->ucd_trans_buf, 2,
+		    ctldesc->ucd_trans_buflen, ctldesc->ucd_langid,
+		    ctldesc->ucd_desctype, ctldesc->ucd_idx,
+		    NDISUSB_GETDESC_MAXRETRIES);
+		KeLowerIrql(irql);
+	}
+exit:
+	if (status != USB_ERR_NORMAL_COMPLETION) {
 		ctldesc->ucd_trans_buflen = 0;
-		mtx_unlock(&Giant);
 		return usbd_usb2urb(status);
 	}
 
 	ctldesc->ucd_trans_buflen = actlen;
 	ip->irp_iostat.isb_info = actlen;
 
-	mtx_unlock(&Giant);
-
 	return (USBD_STATUS_SUCCESS);
-}
-
-/*
- * FIXME: at USB1, not USB2, framework, there's no a interface to get `actlen'.
- * However, we need it!!!
- */
-static usbd_status
-usbd_get_desc_ndis(usbd_device_handle dev, int type, int index, int len,
-    void *desc, int *actlen)
-{
-	usb_device_request_t req;
-
-	req.bmRequestType = UT_READ_DEVICE;
-	req.bRequest = UR_GET_DESCRIPTOR;
-	USETW2(req.wValue, type, index);
-	USETW(req.wIndex, 0);
-	USETW(req.wLength, len);
-	return usbd_do_request_flags_pipe(dev, dev->default_pipe, &req, desc,
-	    0, actlen, USBD_DEFAULT_TIMEOUT);
+#undef NDISUSB_GETDESC_MAXRETRIES
 }
 
 static int32_t
@@ -513,16 +477,16 @@ usbd_func_selconf(ip)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	int i, j;
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct ndis_softc *sc = device_get_softc(dev);
+	struct usb2_device *udev = sc->ndisusb_dev;
+	struct usb2_pipe *p = NULL;
 	struct usbd_interface_information *intf;
 	struct usbd_pipe_information *pipe;
 	struct usbd_urb_select_configuration *selconf;
 	union usbd_urb *urb;
 	usb_config_descriptor_t *conf;
 	usb_endpoint_descriptor_t *edesc;
-	usbd_device_handle udev = uaa->device;
-	usbd_interface_handle iface;
-	usbd_status ret;
+	usb2_error_t ret;
 
 	urb = usbd_geturb(ip);
 
@@ -530,44 +494,43 @@ usbd_func_selconf(ip)
 	conf = selconf->usc_conf;
 	if (conf == NULL) {
 		device_printf(dev, "select configuration is NULL\n");
-		return usbd_usb2urb(USBD_NORMAL_COMPLETION);
+		return usbd_usb2urb(USB_ERR_NORMAL_COMPLETION);
 	}
 
 	if (conf->bConfigurationValue > NDISUSB_CONFIG_NO)
-		device_printf(dev, "warning: config_no is larger than default");
+		device_printf(dev,
+		    "warning: config_no is larger than default (%#x/%#x)\n",
+		    conf->bConfigurationValue, NDISUSB_CONFIG_NO);
 
 	intf = &selconf->usc_intf;
 	for (i = 0; i < conf->bNumInterface && intf->uii_len > 0; i++) {
-		ret = usbd_device2interface_handle(uaa->device,
-		    intf->uii_intfnum, &iface);
-		if (ret != USBD_NORMAL_COMPLETION) {
-			device_printf(dev,
-			    "getting interface handle failed: %s\n",
-			    usbd_errstr(ret));
-			return usbd_usb2urb(ret);
-		}
-		
-		ret = usbd_set_interface(iface, intf->uii_altset);
-		if (ret != USBD_NORMAL_COMPLETION && ret != USBD_IN_USE) {
+		ret = usb2_set_alt_interface_index(udev,
+		    intf->uii_intfnum, intf->uii_altset);
+		if (ret != USB_ERR_NORMAL_COMPLETION && ret != USB_ERR_IN_USE) {
 			device_printf(dev,
 			    "setting alternate interface failed: %s\n",
-			    usbd_errstr(ret));
+			    usb2_errstr(ret));
 			return usbd_usb2urb(ret);
 		}
-		
-		for (j = 0; j < iface->idesc->bNumEndpoints; j++) {
+
+		for (j = 0; (p = usb2_pipe_foreach(udev, p)); j++) {
 			if (j >= intf->uii_numeps) {
 				device_printf(dev,
 				    "endpoint %d and above are ignored",
 				    intf->uii_numeps);
 				break;
 			}
-			edesc = iface->endpoints[j].edesc;
+			edesc = p->edesc;
 			pipe = &intf->uii_pipes[j];
 			pipe->upi_handle = edesc;
 			pipe->upi_epaddr = edesc->bEndpointAddress;
 			pipe->upi_maxpktsize = UGETW(edesc->wMaxPacketSize);
 			pipe->upi_type = UE_GET_XFERTYPE(edesc->bmAttributes);
+
+			ret = usbd_setup_endpoint(ip, intf->uii_intfnum, edesc);
+			if (ret != USB_ERR_NORMAL_COMPLETION)
+				return usbd_usb2urb(ret);
+
 			if (pipe->upi_type != UE_INTERRUPT)
 				continue;
 
@@ -593,17 +556,98 @@ usbd_func_selconf(ip)
 	return USBD_STATUS_SUCCESS;
 }
 
+static usb2_error_t
+usbd_setup_endpoint(ip, ifidx, ep)
+	irp				*ip;
+	uint8_t				ifidx;
+	struct usb2_endpoint_descriptor	*ep;
+{
+	device_t dev = IRP_NDIS_DEV(ip);
+	struct ndis_softc *sc = device_get_softc(dev);
+	struct ndisusb_ep *ne;
+	struct usb2_config cfg;
+	struct usb2_xfer *xfer;
+	usb2_error_t status;
+
+	/* check for non-supported transfer types */
+	if (UE_GET_XFERTYPE(ep->bmAttributes) == UE_CONTROL ||
+	    UE_GET_XFERTYPE(ep->bmAttributes) == UE_ISOCHRONOUS) {
+		device_printf(dev, "%s: unsuppotted transfer types %#x\n",
+		    __func__, UE_GET_XFERTYPE(ep->bmAttributes));
+		return (USB_ERR_INVAL);
+	}
+
+	ne = &sc->ndisusb_ep[NDISUSB_GET_ENDPT(ep->bEndpointAddress)];
+	InitializeListHead(&ne->ne_active);
+	InitializeListHead(&ne->ne_pending);
+	KeInitializeSpinLock(&ne->ne_lock);
+	ne->ne_dirin = UE_GET_DIR(ep->bEndpointAddress) >> 7;
+
+	memset(&cfg, 0, sizeof(struct usb2_config));
+	cfg.type	= UE_GET_XFERTYPE(ep->bmAttributes);
+	cfg.endpoint	= UE_GET_ADDR(ep->bEndpointAddress);
+	cfg.direction	= UE_GET_DIR(ep->bEndpointAddress);
+	cfg.mh.callback	= &usbd_non_isoc_callback;
+	cfg.mh.bufsize	= UGETW(ep->wMaxPacketSize);
+	cfg.mh.flags.proxy_buffer = 1;
+	if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN)
+		cfg.mh.flags.short_xfer_ok = 1;
+
+	status = usb2_transfer_setup(sc->ndisusb_dev, &ifidx, ne->ne_xfer,
+	    &cfg, 1, sc, hal_getdisplock());
+	if (status != USB_ERR_NORMAL_COMPLETION) {
+		device_printf(dev, "couldn't setup xfer: %s\n",
+		    usb2_errstr(status));
+		return (status);
+	}
+	xfer = ne->ne_xfer[0];
+	xfer->priv_fifo = ne;
+	if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN)
+		xfer->timeout = NDISUSB_NO_TIMEOUT;
+	else {
+		if (UE_GET_XFERTYPE(ep->bmAttributes) == UE_BULK)
+			xfer->timeout = NDISUSB_TX_TIMEOUT;
+		else
+			xfer->timeout = NDISUSB_INTR_TIMEOUT;
+	}
+
+	return (status);
+}
+
+static int32_t
+usbd_func_abort_pipe(ip)
+	irp			*ip;
+{
+	struct ndisusb_ep *ne;
+	uint8_t irql;
+	union usbd_urb *urb;
+
+	urb = usbd_geturb(ip);
+	ne = usbd_get_ndisep(ip, urb->uu_pipe.upr_handle);
+	if (ne == NULL) {
+		device_printf(IRP_NDIS_DEV(ip), "get NULL endpoint info.\n");
+		return (USBD_STATUS_INVALID_PIPE_HANDLE);
+	}
+
+	KeRaiseIrql(DISPATCH_LEVEL, &irql);
+	usb2_transfer_stop(ne->ne_xfer[0]);
+	usb2_transfer_start(ne->ne_xfer[0]);
+	KeLowerIrql(irql);
+
+	return (USBD_STATUS_SUCCESS);
+}
+
 static int32_t
 usbd_func_vendorclass(ip)
 	irp			*ip;
 {
 	device_t dev = IRP_NDIS_DEV(ip);
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct ndis_softc *sc = device_get_softc(dev);
 	struct usbd_urb_vendor_or_class_request *vcreq;
-	uint8_t type = 0;
+	uint8_t irql, type = 0;
 	union usbd_urb *urb;
-	usb_device_request_t req;
-	usbd_status status;
+	struct usb2_device_request req;
+	usb2_error_t status;
 
 	urb = usbd_geturb(ip);
 	vcreq = &urb->uu_vcreq;
@@ -634,7 +678,7 @@ usbd_func_vendorclass(ip)
 		type = UT_VENDOR | UT_ENDPOINT;
 		break;
 	default:
-		/* never reach.  */
+		/* never reached.  */
 		break;
 	}
 
@@ -648,105 +692,12 @@ usbd_func_vendorclass(ip)
 	USETW(req.wValue, vcreq->uvc_value);
 	USETW(req.wLength, vcreq->uvc_trans_buflen);
 
-	if (vcreq->uvc_trans_flags & USBD_TRANSFER_DIRECTION_IN) {
-		mtx_lock(&Giant);
-		status = usbd_do_request(uaa->device, &req,
-		    vcreq->uvc_trans_buf);
-		mtx_unlock(&Giant);
-	} else
-		status = usbd_do_request_async(uaa->device, &req,
-		    vcreq->uvc_trans_buf);
+	KeRaiseIrql(DISPATCH_LEVEL, &irql);
+	status = usb2_do_request(sc->ndisusb_dev, hal_getdisplock(), &req,
+	    vcreq->uvc_trans_buf);
+	KeLowerIrql(irql);
 
 	return usbd_usb2urb(status);
-}
-
-static usbd_status
-usbd_init_ndispipe(ip, ep)
-	irp			*ip;
-	usb_endpoint_descriptor_t *ep;
-{
-	device_t dev = IRP_NDIS_DEV(ip);
-	struct ndis_softc *sc = device_get_softc(dev);
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	usbd_interface_handle iface;
-	usbd_status status;
-
-	status = usbd_device2interface_handle(uaa->device, NDISUSB_IFACE_INDEX,
-	    &iface);
-	if (status != USBD_NORMAL_COMPLETION) {
-		device_printf(dev, "could not get interface handle\n");
-		return (status);
-	}
-
-	switch (UE_GET_XFERTYPE(ep->bmAttributes)) {
-	case UE_BULK:
-		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN) {
-			/* RX (bulk IN)  */
-			if (sc->ndisusb_ep[NDISUSB_ENDPT_BIN] != NULL)
-				return (USBD_NORMAL_COMPLETION);
-
-			status = usbd_open_pipe(iface, ep->bEndpointAddress,
-			    USBD_EXCLUSIVE_USE,
-			    &sc->ndisusb_ep[NDISUSB_ENDPT_BIN]);
-			break;
-		}
-
-		/* TX (bulk OUT)  */
-		if (sc->ndisusb_ep[NDISUSB_ENDPT_BOUT] != NULL)
-			return (USBD_NORMAL_COMPLETION);
-
-		status = usbd_open_pipe(iface, ep->bEndpointAddress,
-		    USBD_EXCLUSIVE_USE, &sc->ndisusb_ep[NDISUSB_ENDPT_BOUT]);
-		break;
-	case UE_INTERRUPT:
-		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN) {
-			/* Interrupt IN.  */
-			if (sc->ndisusb_ep[NDISUSB_ENDPT_IIN] != NULL)
-				return (USBD_NORMAL_COMPLETION);
-
-			status = usbd_open_pipe(iface, ep->bEndpointAddress,
-			    USBD_EXCLUSIVE_USE,
-			    &sc->ndisusb_ep[NDISUSB_ENDPT_IIN]);
-			break;
-		}
-
-		/* Interrupt OUT.  */
-		if (sc->ndisusb_ep[NDISUSB_ENDPT_IOUT] != NULL)
-			return (USBD_NORMAL_COMPLETION);
-
-		status = usbd_open_pipe(iface, ep->bEndpointAddress,
-		    USBD_EXCLUSIVE_USE, &sc->ndisusb_ep[NDISUSB_ENDPT_IOUT]);
-		break;
-	default:
-		device_printf(dev, "can't handle xfertype 0x%x\n",
-		    UE_GET_XFERTYPE(ep->bmAttributes));
-		return (USBD_INVAL);
-	}
-
-	if (status != USBD_NORMAL_COMPLETION)
-		device_printf(dev,  "open pipe failed: (0x%x) %s\n",
-		    ep->bEndpointAddress, usbd_errstr(status));
-
-	return (status);
-}
-
-static void
-usbd_irpcancel_cb(priv)
-	void			*priv;
-{
-	struct ndisusb_cancel *nc = priv;
-	struct ndis_softc *sc = device_get_softc(nc->dev);
-	usbd_status status;
-	usbd_xfer_handle xfer = nc->xfer;
-
-	if (sc->ndisusb_status & NDISUSB_STATUS_DETACH)
-		goto exit;
-
-	status = usbd_abort_pipe(xfer->pipe);
-	if (status != USBD_NORMAL_COMPLETION)
-		device_printf(nc->dev, "can't be canceld");
-exit:
-	free(nc, M_USBDEV);
 }
 
 static void
@@ -754,118 +705,188 @@ usbd_irpcancel(dobj, ip)
 	device_object		*dobj;
 	irp			*ip;
 {
-	device_t dev = IRP_NDIS_DEV(ip);
-	struct ndisusb_cancel *nc;
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct ndisusb_ep *ne = IRP_NDISUSB_EP(ip);
+	uint8_t irql;
 
-	if (IRP_NDISUSB_XFER(ip) == NULL) {
+	if (ne == NULL) {
 		ip->irp_cancel = TRUE;
 		IoReleaseCancelSpinLock(ip->irp_cancelirql);
 		return;
 	}
 
 	/*
-	 * XXX Since we're under DISPATCH_LEVEL during calling usbd_irpcancel(),
-	 * we can't sleep at all.  However, currently FreeBSD's USB stack
-	 * requires a sleep to abort a transfer.  It's inevitable! so it causes
-	 * serveral fatal problems (e.g. kernel hangups or crashes).  I think
-	 * that there are no ways to make this reliable.  In this implementation,
-	 * I used usb_add_task() but it's not a perfect method to solve this
-	 * because of as follows: NDIS drivers would expect that IRP's
-	 * completely canceld when usbd_irpcancel() is returned but we need
-	 * a sleep to do it.  During canceling XFERs, usbd_intr() would be
-	 * called with a status, USBD_CANCELLED.
+	 * Make sure that the current USB transfer proxy is
+	 * cancelled and then restarted.
 	 */
-	nc = malloc(sizeof(struct ndisusb_cancel), M_USBDEV, M_NOWAIT | M_ZERO);
-	if (nc == NULL) {
-		ip->irp_cancel = FALSE;
-		IoReleaseCancelSpinLock(ip->irp_cancelirql);
-		return;
-	}
-
-	nc->dev = dev;
-	nc->xfer = IRP_NDISUSB_XFER(ip);
-	usb_init_task(&nc->task, usbd_irpcancel_cb, nc);
-
-	IRP_NDISUSB_XFER(ip) = NULL;
-	usb_add_task(uaa->device, &nc->task, USB_TASKQ_DRIVER);
+	KeRaiseIrql(DISPATCH_LEVEL, &irql);
+	usb2_transfer_stop(ne->ne_xfer[0]);
+	usb2_transfer_start(ne->ne_xfer[0]);
+	KeLowerIrql(irql);
 
 	ip->irp_cancel = TRUE;
 	IoReleaseCancelSpinLock(ip->irp_cancelirql);
 }
 
-static usbd_xfer_handle
-usbd_init_ndisxfer(ip, ep, buf, buflen)
-	irp			*ip;
-	usb_endpoint_descriptor_t *ep;
-	void			*buf;
-	uint32_t		buflen;
-{
-	device_t dev = IRP_NDIS_DEV(ip);
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	usbd_xfer_handle xfer;
-	
-	xfer = usbd_alloc_xfer(uaa->device);
-	if (xfer == NULL)
-		return (NULL);
-
-	if (buf != NULL && MmIsAddressValid(buf) == FALSE && buflen > 0) {
-		xfer->buffer = usbd_alloc_buffer(xfer, buflen);
-		if (xfer->buffer == NULL)
-			return (NULL);
-
-		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_OUT)
-			memcpy(xfer->buffer, buf, buflen);
-	} else
-		xfer->buffer = buf;
-
-	xfer->length = buflen;
-
-	IoAcquireCancelSpinLock(&ip->irp_cancelirql);
-	IRP_NDISUSB_XFER(ip) = xfer;
-	ip->irp_cancelfunc = (cancel_func)usbd_irpcancel_wrap;
-	IoReleaseCancelSpinLock(ip->irp_cancelirql);
-
-	return (xfer);
-}
-
 static void
-usbd_xferadd(xfer, priv, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle priv;
-	usbd_status status;
+usbd_xfer_complete(struct ndis_softc *sc, struct ndisusb_ep *ne,
+    struct ndisusb_xfer *nx, usb2_error_t status)
 {
-	irp *ip = priv;
-	device_t dev = IRP_NDIS_DEV(ip);
-	struct ndis_softc *sc = device_get_softc(dev);
-	struct ndisusb_xfer *nx;
+	struct ndisusb_xferdone *nd;
 	uint8_t irql;
 
-	nx = malloc(sizeof(struct ndisusb_xfer), M_USBDEV, M_NOWAIT | M_ZERO);
-	if (nx == NULL) {
-		device_printf(dev, "out of memory");
+	nd = malloc(sizeof(struct ndisusb_xferdone), M_USBDEV,
+	    M_NOWAIT | M_ZERO);
+	if (nd == NULL) {
+		device_printf(sc->ndis_dev, "out of memory");
 		return;
 	}
-	nx->nx_xfer = xfer;
-	nx->nx_priv = priv;
-	nx->nx_status = status;
+	nd->nd_xfer = nx;
+	nd->nd_status = status;
 
-	KeAcquireSpinLock(&sc->ndisusb_xferlock, &irql);
-	InsertTailList((&sc->ndisusb_xferlist), (&nx->nx_xferlist));
-	KeReleaseSpinLock(&sc->ndisusb_xferlock, irql);
+	KeAcquireSpinLock(&sc->ndisusb_xferdonelock, &irql);
+	InsertTailList((&sc->ndisusb_xferdonelist), (&nd->nd_donelist));
+	KeReleaseSpinLock(&sc->ndisusb_xferdonelock, irql);
 
-	IoQueueWorkItem(sc->ndisusb_xferitem,
+	IoQueueWorkItem(sc->ndisusb_xferdoneitem,
 	    (io_workitem_func)usbd_xfertask_wrap, WORKQUEUE_CRITICAL, sc);
 }
 
-static void
-usbd_xfereof(xfer, priv, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle priv;
-	usbd_status status;
+static struct ndisusb_xfer *
+usbd_aq_getfirst(struct ndis_softc *sc, struct ndisusb_ep *ne)
 {
+	struct ndisusb_xfer *nx;
+	uint8_t irql;
 
-	usbd_xferadd(xfer, priv, status);
+	KeAcquireSpinLock(&ne->ne_lock, &irql);
+	if (IsListEmpty(&ne->ne_active)) {
+		device_printf(sc->ndis_dev,
+		    "%s: the active queue can't be empty.\n", __func__);
+		KeReleaseSpinLock(&ne->ne_lock, irql);
+		return (NULL);
+	}
+	nx = CONTAINING_RECORD(ne->ne_active.nle_flink, struct ndisusb_xfer,
+	    nx_next);
+	RemoveEntryList(&nx->nx_next);
+	KeReleaseSpinLock(&ne->ne_lock, irql);
+
+	return (nx);
+}
+
+static void
+usbd_non_isoc_callback(struct usb2_xfer *xfer)
+{
+	irp *ip;
+	struct ndis_softc *sc = xfer->priv_sc;
+	struct ndisusb_ep *ne = xfer->priv_fifo;
+	struct ndisusb_xfer *nx;
+	struct usbd_urb_bulk_or_intr_transfer *ubi;
+	uint8_t irql;
+	uint32_t len;
+	union usbd_urb *urb;
+	usb_endpoint_descriptor_t *ep;
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+		nx = usbd_aq_getfirst(sc, ne);
+		if (nx == NULL)
+			return;
+
+		/* copy in data with regard to the URB */
+		if (ne->ne_dirin != 0)
+			usb2_copy_out(xfer->frbuffers, 0, nx->nx_urbbuf,
+			    xfer->frlengths[0]);
+		nx->nx_urbbuf += xfer->frlengths[0];
+		nx->nx_urbactlen += xfer->frlengths[0];
+		nx->nx_urblen -= xfer->frlengths[0];
+
+		/* check for short transfer */
+		if (xfer->actlen < xfer->sumlen)
+			nx->nx_urblen = 0;
+		else {
+			/* check remainder */
+			if (nx->nx_urblen > 0) {
+				KeAcquireSpinLock(&ne->ne_lock, &irql);
+				InsertHeadList((&ne->ne_active), (&nx->nx_next));
+				KeReleaseSpinLock(&ne->ne_lock, irql);
+
+				ip = nx->nx_priv;
+				urb = usbd_geturb(ip);
+				ubi = &urb->uu_bulkintr;
+				ep = ubi->ubi_epdesc;
+				goto extra;
+			}
+		}
+		usbd_xfer_complete(sc, ne, nx,
+		    ((xfer->actlen < xfer->sumlen) && (nx->nx_shortxfer == 0)) ?
+		    USB_ERR_SHORT_XFER : USB_ERR_NORMAL_COMPLETION);
+
+		/* fall through */
+	case USB_ST_SETUP:
+next:
+		/* get next transfer */
+		KeAcquireSpinLock(&ne->ne_lock, &irql);
+		if (IsListEmpty(&ne->ne_pending)) {
+			KeReleaseSpinLock(&ne->ne_lock, irql);
+			return;
+		}
+		nx = CONTAINING_RECORD(ne->ne_pending.nle_flink,
+		    struct ndisusb_xfer, nx_next);
+		RemoveEntryList(&nx->nx_next);
+		/* add a entry to the active queue's tail.  */
+		InsertTailList((&ne->ne_active), (&nx->nx_next));
+		KeReleaseSpinLock(&ne->ne_lock, irql);
+
+		ip = nx->nx_priv;
+		urb = usbd_geturb(ip);
+		ubi = &urb->uu_bulkintr;
+		ep = ubi->ubi_epdesc;
+
+		nx->nx_urbbuf		= ubi->ubi_trans_buf;
+		nx->nx_urbactlen	= 0;
+		nx->nx_urblen		= ubi->ubi_trans_buflen;
+		nx->nx_shortxfer	= (ubi->ubi_trans_flags &
+		    USBD_SHORT_TRANSFER_OK) ? 1 : 0;
+extra:
+		len = MIN(xfer->max_data_length, nx->nx_urblen);
+		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_OUT)
+			usb2_copy_in(xfer->frbuffers, 0, nx->nx_urbbuf, len);
+		xfer->frlengths[0] = len;
+		xfer->nframes = 1;
+		usb2_start_hardware(xfer);
+		break;
+	default:
+		nx = usbd_aq_getfirst(sc, ne);
+		if (nx == NULL)
+			return;
+		if (xfer->error != USB_ERR_CANCELLED) {
+			xfer->flags.stall_pipe = 1;
+			device_printf(sc->ndis_dev, "usb xfer warning (%s)\n",
+			    usb2_errstr(xfer->error));
+		}
+		usbd_xfer_complete(sc, ne, nx, xfer->error);
+		if (xfer->error != USB_ERR_CANCELLED)
+			goto next;
+		break;
+	}
+}
+
+static struct ndisusb_ep *
+usbd_get_ndisep(ip, ep)
+	irp			*ip;
+	usb_endpoint_descriptor_t *ep;
+{
+	device_t dev = IRP_NDIS_DEV(ip);
+	struct ndis_softc *sc = device_get_softc(dev);
+	struct ndisusb_ep *ne;
+
+	ne = &sc->ndisusb_ep[NDISUSB_GET_ENDPT(ep->bEndpointAddress)];
+
+	IoAcquireCancelSpinLock(&ip->irp_cancelirql);
+	IRP_NDISUSB_EP(ip) = ne;
+	ip->irp_cancelfunc = (cancel_func)usbd_irpcancel_wrap;
+	IoReleaseCancelSpinLock(ip->irp_cancelirql);
+
+	return (ne);
 }
 
 static void
@@ -878,72 +899,49 @@ usbd_xfertask(dobj, arg)
 	device_t dev;
 	list_entry *l;
 	struct ndis_softc *sc = arg;
-	struct ndisusb_xfer *nx;
+	struct ndisusb_xferdone *nd;
+	struct ndisusb_xfer *nq;
 	struct usbd_urb_bulk_or_intr_transfer *ubi;
 	uint8_t irql;
 	union usbd_urb *urb;
-	usbd_private_handle priv;
-	usbd_status status;
-	usbd_xfer_handle xfer;
+	usb2_error_t status;
+	void *priv;
 
 	dev = sc->ndis_dev;
 
-	if (IsListEmpty(&sc->ndisusb_xferlist))
+	if (IsListEmpty(&sc->ndisusb_xferdonelist))
 		return;
 
-	KeAcquireSpinLock(&sc->ndisusb_xferlock, &irql);
-	l = sc->ndisusb_xferlist.nle_flink;
-	while (l != &sc->ndisusb_xferlist) {
-		nx = CONTAINING_RECORD(l, struct ndisusb_xfer, nx_xferlist);
-		xfer = nx->nx_xfer;
-		priv = nx->nx_priv;
-		status = nx->nx_status;
+	KeAcquireSpinLock(&sc->ndisusb_xferdonelock, &irql);
+	l = sc->ndisusb_xferdonelist.nle_flink;
+	while (l != &sc->ndisusb_xferdonelist) {
+		nd = CONTAINING_RECORD(l, struct ndisusb_xferdone, nd_donelist);
+		nq = nd->nd_xfer;
+		priv = nq->nx_priv;
+		status = nd->nd_status;
 		error = 0;
 		ip = priv;
-
-		if (status != USBD_NORMAL_COMPLETION) {
-			if (status == USBD_NOT_STARTED) {
-				error = 1;
-				goto next;
-			}
-			if (status == USBD_STALLED)
-				usbd_clear_endpoint_stall_async(xfer->pipe);
-			/*
-			 * NB: just for notice.  We must handle error cases also
-			 * because if we just return without notifying to the
-			 * NDIS driver the driver never knows about that there
-			 * was a error.  This can cause a lot of problems like
-			 * system hangs.
-			 */
-			device_printf(dev, "usb xfer warning (%s)\n",
-			    usbd_errstr(status));
-		}
-		
 		urb = usbd_geturb(ip);
-		
+
 		KASSERT(urb->uu_hdr.uuh_func ==
 		    URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER,
 		    ("function(%d) isn't for bulk or interrupt",
 			urb->uu_hdr.uuh_func));
-		
+
 		IoAcquireCancelSpinLock(&ip->irp_cancelirql);
-		
+
 		ip->irp_cancelfunc = NULL;
-		IRP_NDISUSB_XFER(ip) = NULL;
-		
+		IRP_NDISUSB_EP(ip) = NULL;
+
 		switch (status) {
-		case USBD_NORMAL_COMPLETION:
+		case USB_ERR_NORMAL_COMPLETION:
 			ubi = &urb->uu_bulkintr;
-			ubi->ubi_trans_buflen = xfer->actlen;
-			if (ubi->ubi_trans_flags & USBD_TRANSFER_DIRECTION_IN)
-				memcpy(ubi->ubi_trans_buf, xfer->buffer,
-				    xfer->actlen);
-			
-			ip->irp_iostat.isb_info = xfer->actlen;
+			ubi->ubi_trans_buflen = nq->nx_urbactlen;
+			ip->irp_iostat.isb_info = nq->nx_urbactlen;
 			ip->irp_iostat.isb_status = STATUS_SUCCESS;
 			USBD_URB_STATUS(urb) = USBD_STATUS_SUCCESS;
 			break;
-		case USBD_CANCELLED:
+		case USB_ERR_CANCELLED:
 			ip->irp_iostat.isb_info = 0;
 			ip->irp_iostat.isb_status = STATUS_CANCELLED;
 			USBD_URB_STATUS(urb) = USBD_STATUS_CANCELED;
@@ -955,32 +953,31 @@ usbd_xfertask(dobj, arg)
 			    usbd_urb2nt(USBD_URB_STATUS(urb));
 			break;
 		}
-		
+
 		IoReleaseCancelSpinLock(ip->irp_cancelirql);
-next:
+
 		l = l->nle_flink;
-		RemoveEntryList(&nx->nx_xferlist);
-		usbd_free_xfer(nx->nx_xfer);
-		free(nx, M_USBDEV);
+		RemoveEntryList(&nd->nd_donelist);
+		free(nq, M_USBDEV);
+		free(nd, M_USBDEV);
 		if (error)
 			continue;
 		/* NB: call after cleaning  */
 		IoCompleteRequest(ip, IO_NO_INCREMENT);
 	}
-	KeReleaseSpinLock(&sc->ndisusb_xferlock, irql);
+	KeReleaseSpinLock(&sc->ndisusb_xferdonelock, irql);
 }
 
 static int32_t
 usbd_func_bulkintr(ip)
 	irp			*ip;
 {
-	device_t dev = IRP_NDIS_DEV(ip);
-	struct ndis_softc *sc = device_get_softc(dev);
+	struct ndisusb_ep *ne;
+	struct ndisusb_xfer *nx;
 	struct usbd_urb_bulk_or_intr_transfer *ubi;
+	uint8_t irql;
 	union usbd_urb *urb;
 	usb_endpoint_descriptor_t *ep;
-	usbd_status status;
-	usbd_xfer_handle xfer;
 
 	urb = usbd_geturb(ip);
 	ubi = &urb->uu_bulkintr;
@@ -988,49 +985,22 @@ usbd_func_bulkintr(ip)
 	if (ep == NULL)
 		return (USBD_STATUS_INVALID_PIPE_HANDLE);
 
-	status = usbd_init_ndispipe(ip, ep);
-	if (status != USBD_NORMAL_COMPLETION)
-		return usbd_usb2urb(status);
+	ne = usbd_get_ndisep(ip, ep);
+	if (ne == NULL) {
+		device_printf(IRP_NDIS_DEV(ip), "get NULL endpoint info.\n");
+		return (USBD_STATUS_INVALID_PIPE_HANDLE);
+	}
 
-	xfer = usbd_init_ndisxfer(ip, ep, ubi->ubi_trans_buf,
-	    ubi->ubi_trans_buflen);
-	if (xfer == NULL) {
-		device_printf(IRP_NDIS_DEV(ip), "can't allocate xfer\n");
+	nx = malloc(sizeof(struct ndisusb_xfer), M_USBDEV, M_NOWAIT | M_ZERO);
+	if (nx == NULL) {
+		device_printf(IRP_NDIS_DEV(ip), "out of memory\n");
 		return (USBD_STATUS_NO_MEMORY);
 	}
-
-	if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN) {
-		xfer->flags |= USBD_SHORT_XFER_OK;
-		if (!(ubi->ubi_trans_flags & USBD_SHORT_TRANSFER_OK))
-			xfer->flags &= ~USBD_SHORT_XFER_OK;
-	}
-
-	if (UE_GET_XFERTYPE(ep->bmAttributes) == UE_BULK) {
-		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN)
-			/* RX (bulk IN)  */
-			usbd_setup_xfer(xfer, sc->ndisusb_ep[NDISUSB_ENDPT_BIN],
-			    ip, xfer->buffer, xfer->length, xfer->flags,
-			    USBD_NO_TIMEOUT, usbd_xfereof);
-		else {
-			/* TX (bulk OUT)  */
-			xfer->flags |= USBD_NO_COPY;
-			
-			usbd_setup_xfer(xfer, sc->ndisusb_ep[NDISUSB_ENDPT_BOUT],
-			    ip, xfer->buffer, xfer->length, xfer->flags,
-			    NDISUSB_TX_TIMEOUT, usbd_xfereof);
-		}
-	} else {
-		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN)
-			/* Interrupt IN  */
-			usbd_setup_xfer(xfer, sc->ndisusb_ep[NDISUSB_ENDPT_IIN],
-			    ip, xfer->buffer, xfer->length, xfer->flags,
-			    USBD_NO_TIMEOUT, usbd_xfereof);
-		else
-			/* Interrupt OUT  */
-			usbd_setup_xfer(xfer, sc->ndisusb_ep[NDISUSB_ENDPT_IOUT],
-			    ip, xfer->buffer, xfer->length, xfer->flags,
-			    NDISUSB_INTR_TIMEOUT, usbd_xfereof);
-	}
+	nx->nx_ep = ne;
+	nx->nx_priv = ip;
+	KeAcquireSpinLock(&ne->ne_lock, &irql);
+	InsertTailList((&ne->ne_pending), (&nx->nx_next));
+	KeReleaseSpinLock(&ne->ne_lock, irql);
 
 	/* we've done to setup xfer.  Let's transfer it.  */
 	ip->irp_iostat.isb_status = STATUS_PENDING;
@@ -1038,35 +1008,30 @@ usbd_func_bulkintr(ip)
 	USBD_URB_STATUS(urb) = USBD_STATUS_PENDING;
 	IoMarkIrpPending(ip);
 
-	status = usbd_transfer(xfer);
-	if (status == USBD_IN_PROGRESS)
-		return (USBD_STATUS_PENDING);
+	KeRaiseIrql(DISPATCH_LEVEL, &irql);
+	usb2_transfer_start(ne->ne_xfer[0]);
+	KeLowerIrql(irql);
 
-	usbd_free_xfer(xfer);
-	IRP_NDISUSB_XFER(ip) = NULL;
-	IoUnmarkIrpPending(ip);
-	USBD_URB_STATUS(urb) = usbd_usb2urb(status);
-
-	return USBD_URB_STATUS(urb);
+	return (USBD_STATUS_PENDING);
 }
 
 static union usbd_urb *
 USBD_CreateConfigurationRequest(conf, len)
-        usb_config_descriptor_t *conf;
+	usb_config_descriptor_t *conf;
 	uint16_t *len;
 {
-        struct usbd_interface_list_entry list[2];
-        union usbd_urb *urb;
+	struct usbd_interface_list_entry list[2];
+	union usbd_urb *urb;
 
 	bzero(list, sizeof(struct usbd_interface_list_entry) * 2);
-        list[0].uil_intfdesc = USBD_ParseConfigurationDescriptorEx(conf, conf,
+	list[0].uil_intfdesc = USBD_ParseConfigurationDescriptorEx(conf, conf,
 	    -1, -1, -1, -1, -1);
-        urb = USBD_CreateConfigurationRequestEx(conf, list);
-        if (urb == NULL)
-                return NULL;
+	urb = USBD_CreateConfigurationRequestEx(conf, list);
+	if (urb == NULL)
+		return NULL;
 
-        *len = urb->uu_selconf.usc_hdr.uuh_len;
-        return urb;
+	*len = urb->uu_selconf.usc_hdr.uuh_len;
+	return urb;
 }
 
 static union usbd_urb *
@@ -1074,11 +1039,11 @@ USBD_CreateConfigurationRequestEx(conf, list)
 	usb_config_descriptor_t *conf;
 	struct usbd_interface_list_entry *list;
 {
-        int i, j, size;
-        struct usbd_interface_information *intf;
-        struct usbd_pipe_information *pipe;
-        struct usbd_urb_select_configuration *selconf;
-        usb_interface_descriptor_t *desc;
+	int i, j, size;
+	struct usbd_interface_information *intf;
+	struct usbd_pipe_information *pipe;
+	struct usbd_urb_select_configuration *selconf;
+	usb_interface_descriptor_t *desc;
 
 	for (i = 0, size = 0; i < conf->bNumInterface; i++) {
 		j = list[i].uil_intfdesc->bNumEndpoints;
@@ -1088,49 +1053,50 @@ USBD_CreateConfigurationRequestEx(conf, list)
 	size += sizeof(struct usbd_urb_select_configuration) -
 	    sizeof(struct usbd_interface_information);
 
-        selconf = ExAllocatePoolWithTag(NonPagedPool, size, 0);
-        if (selconf == NULL)
-                return NULL;
-        selconf->usc_hdr.uuh_func = URB_FUNCTION_SELECT_CONFIGURATION;
-        selconf->usc_hdr.uuh_len = size;
-        selconf->usc_handle = conf;
-        selconf->usc_conf = conf;
+	selconf = ExAllocatePoolWithTag(NonPagedPool, size, 0);
+	if (selconf == NULL)
+		return NULL;
+	selconf->usc_hdr.uuh_func = URB_FUNCTION_SELECT_CONFIGURATION;
+	selconf->usc_hdr.uuh_len = size;
+	selconf->usc_handle = conf;
+	selconf->usc_conf = conf;
 
-        intf = &selconf->usc_intf;
-        for (i = 0; i < conf->bNumInterface; i++) {
+	intf = &selconf->usc_intf;
+	for (i = 0; i < conf->bNumInterface; i++) {
 		if (list[i].uil_intfdesc == NULL)
 			break;
 
-                list[i].uil_intf = intf;
-                desc = list[i].uil_intfdesc;
+		list[i].uil_intf = intf;
+		desc = list[i].uil_intfdesc;
 
-                intf->uii_len = sizeof(struct usbd_interface_information) +
+		intf->uii_len = sizeof(struct usbd_interface_information) +
 		    (desc->bNumEndpoints - 1) *
 		    sizeof(struct usbd_pipe_information);
-                intf->uii_intfnum = desc->bInterfaceNumber;
-                intf->uii_altset = desc->bAlternateSetting;
-                intf->uii_intfclass = desc->bInterfaceClass;
-                intf->uii_intfsubclass = desc->bInterfaceSubClass;
-                intf->uii_intfproto = desc->bInterfaceProtocol;
-                intf->uii_handle = desc;
-                intf->uii_numeps = desc->bNumEndpoints;
+		intf->uii_intfnum = desc->bInterfaceNumber;
+		intf->uii_altset = desc->bAlternateSetting;
+		intf->uii_intfclass = desc->bInterfaceClass;
+		intf->uii_intfsubclass = desc->bInterfaceSubClass;
+		intf->uii_intfproto = desc->bInterfaceProtocol;
+		intf->uii_handle = desc;
+		intf->uii_numeps = desc->bNumEndpoints;
 
-                pipe = &intf->uii_pipes[0];
-                for (j = 0; j < intf->uii_numeps; j++)
-                        pipe[j].upi_maxtxsize =
+		pipe = &intf->uii_pipes[0];
+		for (j = 0; j < intf->uii_numeps; j++)
+			pipe[j].upi_maxtxsize =
 			    USBD_DEFAULT_MAXIMUM_TRANSFER_SIZE;
 
-                intf = (struct usbd_interface_information *)((char *)intf +
+		intf = (struct usbd_interface_information *)((char *)intf +
 		    intf->uii_len);
-        }
+	}
 
-        return ((union usbd_urb *)selconf);
+	return ((union usbd_urb *)selconf);
 }
 
 static void
 USBD_GetUSBDIVersion(ui)
 	usbd_version_info	*ui;
 {
+
 	/* Pretend to be Windows XP. */
 
 	ui->uvi_usbdi_vers = USBDI_VERSION;
@@ -1143,7 +1109,8 @@ static usb_interface_descriptor_t *
 USBD_ParseConfigurationDescriptor(usb_config_descriptor_t *conf,
 	uint8_t intfnum, uint8_t altset)
 {
-        return USBD_ParseConfigurationDescriptorEx(conf, conf, intfnum, altset,
+
+	return USBD_ParseConfigurationDescriptorEx(conf, conf, intfnum, altset,
 	    -1, -1, -1);
 }
 
@@ -1216,4 +1183,3 @@ image_patch_table usbd_functbl[] = {
 };
 
 MODULE_DEPEND(ndis, usb, 1, 1, 1);
-
