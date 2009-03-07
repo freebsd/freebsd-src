@@ -55,6 +55,12 @@ compat_bzip2(const char *name)
 	/* Read entries, match up names with list above. */
 	for (i = 0; i < 6; ++i) {
 		r = archive_read_next_header(a, &ae);
+		if (UnsupportedCompress(r, a)) {
+			skipping("Skipping BZIP2 compression check: "
+				"This version of libarchive was compiled "
+			    "without bzip2 support");
+			goto finish;
+		}
 		failure("Could not read file %d (%s) from %s", i, n[i], name);
 		assertEqualIntA(a, ARCHIVE_OK, r);
 		if (r != ARCHIVE_OK) {
@@ -73,6 +79,7 @@ compat_bzip2(const char *name)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+finish:
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
@@ -83,12 +90,8 @@ compat_bzip2(const char *name)
 
 DEFINE_TEST(test_compat_bzip2)
 {
-#if HAVE_BZLIB_H
 	compat_bzip2("test_compat_bzip2_1.tbz");
 	compat_bzip2("test_compat_bzip2_2.tbz");
-#else
-	skipping("Need bzlib");
-#endif
 }
 
 

@@ -189,3 +189,14 @@ int read_open_memory2(struct archive *, void *, size_t, size_t);
   test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
 #define assertEqualStringA(a,v1,v2)   \
   test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
+
+/*
+ * A compression is not supported
+ * Use this define after archive_read_next_header() is called
+ */
+#define UnsupportedCompress(r, a) \
+	(r != ARCHIVE_OK && \
+	 (strcmp(archive_error_string(a), \
+	    "Unrecognized archive format") == 0 && \
+	  archive_compression(a) == ARCHIVE_COMPRESSION_NONE))
+
