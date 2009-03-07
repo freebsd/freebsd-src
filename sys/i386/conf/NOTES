@@ -882,8 +882,8 @@ options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
 
 # Enable NDIS binary driver support
-#options 	NDISAPI
-#device		ndis
+options 	NDISAPI
+device		ndis
 
 
 #####################################################################
