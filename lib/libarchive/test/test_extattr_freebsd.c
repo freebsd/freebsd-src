@@ -41,6 +41,9 @@ DEFINE_TEST(test_extattr_freebsd)
 	skipping("extattr restore supported only on FreeBSD 5.0 and later");
 #else
 	char buff[64];
+	const char *xname;
+	const void *xval;
+	size_t xsize;
 	struct stat st;
 	struct archive *a;
 	struct archive_entry *ae;
@@ -150,5 +153,21 @@ DEFINE_TEST(test_extattr_freebsd)
 			assertEqualString(buff, "123456");
 		}
 	}
+
+	/* Use libarchive APIs to read the file back into an entry and
+	 * verify that the extattr was read correctly. */
+	assert((a = archive_read_disk_new()) != NULL);
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test0");
+	assertEqualInt(ARCHIVE_OK,
+	    archive_read_disk_entry_from_file(a, ae, -1, NULL));
+	assertEqualInt(1, archive_entry_xattr_reset(ae));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+	assertEqualString(xname, "user.foo");
+	assertEqualInt(xsize, 5);
+	assertEqualMem(xval, "12345", xsize);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 #endif
 }
