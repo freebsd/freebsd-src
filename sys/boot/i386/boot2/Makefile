@@ -70,7 +70,7 @@ boot2.ld: boot2.ldr boot2.bin ${BTXKERN}
 	    -o ${.TARGET} -P 1 boot2.bin
 
 boot2.ldr:
-	dd if=/dev/zero of=${.TARGET} bs=276 count=1
+	dd if=/dev/zero of=${.TARGET} bs=512 count=1
 
 boot2.bin: boot2.out
 	objcopy -S -O binary boot2.out ${.TARGET}
