@@ -113,15 +113,33 @@ struct ndis_vap {
 };
 #define	NDIS_VAP(vap)	((struct ndis_vap *)(vap))
 
-#define	NDISUSB_CONFIG_NO			1
+#define	NDISUSB_CONFIG_NO			0
 #define	NDISUSB_IFACE_INDEX			0
+/* XXX at USB2 there's no USBD_NO_TIMEOUT macro anymore  */
+#define	NDISUSB_NO_TIMEOUT			0
 #define	NDISUSB_INTR_TIMEOUT			1000
 #define	NDISUSB_TX_TIMEOUT			10000
+struct ndisusb_xfer;
+struct ndisusb_ep {
+	struct usb2_xfer	*ne_xfer[1];
+	list_entry		ne_active;
+	list_entry		ne_pending;
+	kspin_lock		ne_lock;
+	uint8_t			ne_dirin;
+};
 struct ndisusb_xfer {
-	usbd_xfer_handle	nx_xfer;
-	usbd_private_handle	nx_priv;
-	usbd_status		nx_status;
-	list_entry		nx_xferlist;
+	struct ndisusb_ep	*nx_ep;
+	void			*nx_priv;
+	uint8_t			*nx_urbbuf;
+	uint32_t		nx_urbactlen;
+	uint32_t		nx_urblen;
+	uint8_t			nx_shortxfer;
+	list_entry		nx_next;
+};
+struct ndisusb_xferdone {
+	struct ndisusb_xfer	*nd_xfer;
+	usb2_error_t		nd_status;
+	list_entry		nd_donelist;
 };
 
 struct ndis_softc {
@@ -201,31 +219,18 @@ struct ndis_softc {
 	int			ndis_tx_timer;
 	int			ndis_hang_timer;
 
-	io_workitem		*ndisusb_xferitem;
-	list_entry		ndisusb_xferlist;
-	kspin_lock		ndisusb_xferlock;
-#define	NDISUSB_ENDPT_BOUT	0
-#define	NDISUSB_ENDPT_BIN	1
-#define	NDISUSB_ENDPT_IIN	2
-#define	NDISUSB_ENDPT_IOUT	3
-#define	NDISUSB_ENDPT_MAX	4
-	usbd_pipe_handle	ndisusb_ep[NDISUSB_ENDPT_MAX];
-	char			*ndisusb_iin_buf;
+	struct usb2_device	*ndisusb_dev;
+#define	NDISUSB_GET_ENDPT(addr) \
+	((UE_GET_DIR(addr) >> 7) | (UE_GET_ADDR(addr) << 1))
+#define	NDISUSB_ENDPT_MAX	((UE_ADDR + 1) * 2)
+	struct ndisusb_ep	ndisusb_ep[NDISUSB_ENDPT_MAX];
+	io_workitem		*ndisusb_xferdoneitem;
+	list_entry		ndisusb_xferdonelist;
+	kspin_lock		ndisusb_xferdonelock;
 	int			ndisusb_status;
 #define NDISUSB_STATUS_DETACH	0x1
 };
 
-#define	NDISMTX_LOCK(_sc)	mtx_lock(&(_sc)->ndis_mtx)
-#define	NDISMTX_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
-#define	NDISUSB_LOCK(_sc)	mtx_lock(&Giant)
-#define	NDISUSB_UNLOCK(_sc)	mtx_unlock(&Giant)
-#define	NDIS_LOCK(_sc) do {						\
-	if ((_sc)->ndis_iftype == PNPBus)				\
-		NDISUSB_LOCK(_sc);					\
-	NDISMTX_LOCK(_sc);						\
-} while (0)
-#define	NDIS_UNLOCK(_sc) do {						\
-	if ((_sc)->ndis_iftype == PNPBus)				\
-		NDISUSB_UNLOCK(_sc);					\
-	NDISMTX_UNLOCK(_sc);						\
-} while (0)
+#define	NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
+#define	NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
+#define	NDIS_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->ndis_mtx, t)
