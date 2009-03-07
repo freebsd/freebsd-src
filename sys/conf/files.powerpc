@@ -34,6 +34,7 @@ dev/syscons/scterm-sc.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_powerpc.c	optional	uart
 kern/syscalls.c			optional	ktr
+powerpc/powerpc/altivec.c	standard
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard

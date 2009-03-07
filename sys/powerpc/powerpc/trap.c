@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
+#include <machine/altivec.h>
 #include <machine/cpu.h>
 #include <machine/db_machdep.h>
 #include <machine/fpu.h>
@@ -188,24 +189,16 @@ trap(struct trapframe *frame)
 			enable_fpu(td);
 			break;
 
-#ifdef	ALTIVEC
 		case EXC_VEC:
-			if ((vecthread = PCPU_GET(vecthread)) != NULL) {
-				KASSERT(vecthread != td,
-				    ("altivec already enabled"));
-				save_vec(vecthread);
-			}
-			PCPU_SET(vecthread, td);
-			td->td_pcb->pcb_veccpu = PCPU_GET(cpuid);
+			KASSERT((td->td_pcb->pcb_flags & PCB_VEC) != PCB_VEC,
+			    ("Altivec already enabled for thread"));
 			enable_vec(td);
-			frame->srr1 |= PSL_VEC;
 			break;
-#else
-		case EXC_VEC:
+
 		case EXC_VECAST:
+			printf("Vector assist exception!\n");
 			sig = SIGILL;
 			break;
-#endif /* ALTIVEC */
 
 		case EXC_ALI:
 			if (fix_unaligned(td, frame) != 0)
