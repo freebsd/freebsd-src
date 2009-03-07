@@ -34,26 +34,32 @@ static unsigned char archive[] = {
 
 DEFINE_TEST(test_read_format_cpio_bin_bz2)
 {
-#if HAVE_BZLIB_H
 	struct archive_entry *ae;
 	struct archive *a;
+	int r;
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	r = archive_read_next_header(a, &ae);
+	if (UnsupportedCompress(r, a)) {
+		skipping("Skipping BZ2 compression check: "
+		    "This version of libarchive was compiled "
+		    "without bz2 support");
+		goto finish;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, r);
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
 	assert(archive_format(a) == ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assert(0 == archive_read_close(a));
+finish:
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
 	assert(0 == archive_read_finish(a));
-#endif
-#else
-	skipping("Need bzlib");
 #endif
 }
 

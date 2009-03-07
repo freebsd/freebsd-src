@@ -51,19 +51,13 @@ __FBSDID("$FreeBSD$");
 static const char *
 files[] = {
 	"test_fuzz_1.iso",
-#if HAVE_BZLIB_H
 	"test_compat_bzip2_1.tbz",
-#endif
 	"test_compat_gtar_1.tar",
 	"test_compat_tar_hardlink_1.tar",
-#if HAVE_ZLIB_H
 	"test_compat_zip_1.zip",
-#endif
 	"test_read_format_gtar_sparse_1_17_posix10_modified.tar",
 	"test_read_format_tar_empty_filename.tar",
-#if HAVE_ZLIB_H
 	"test_read_format_zip.zip",
-#endif
 	NULL
 };
 
@@ -72,9 +66,11 @@ DEFINE_TEST(test_fuzz)
 	const char **filep;
 
 	for (filep = files; *filep != NULL; ++filep) {
+		struct archive_entry *ae;
+		struct archive *a;
 		char *rawimage, *image;
 		size_t size;
-		int i;
+		int i, r;
 
 		extract_reference_file(*filep);
 		rawimage = slurpfile(&size, *filep);
@@ -83,9 +79,37 @@ DEFINE_TEST(test_fuzz)
 		assert(image != NULL);
 		srand(time(NULL));
 
+		assert((a = archive_read_new()) != NULL);
+		assert(0 == archive_read_support_compression_all(a));
+		assert(0 == archive_read_support_format_all(a));
+		assert(0 == archive_read_open_memory(a, rawimage, size));
+		r = archive_read_next_header(a, &ae);
+		if (UnsupportedCompress(r, a)) {
+			skipping("Skipping GZIP/BZIP2 compression check: "
+			    "This version of libarchive was compiled "
+			    "without gzip/bzip2 support");
+			assert(0 == archive_read_close(a));
+			assert(0 == archive_read_finish(a));
+			continue;
+		}
+		assert(0 == r);
+		if (r == ARCHIVE_OK) {
+			char buff[20];
+
+			r = archive_read_data(a, buff, 19);
+			if (r < ARCHIVE_OK && strcmp(archive_error_string(a),
+			    "libarchive compiled without deflate support (no libz)") == 0) {
+				skipping("Skipping ZIP compression check: %s",
+				    archive_error_string(a));
+				assert(0 == archive_read_close(a));
+				assert(0 == archive_read_finish(a));
+				continue;
+			}
+		}
+		assert(0 == archive_read_close(a));
+		assert(0 == archive_read_finish(a));
+
 		for (i = 0; i < 100; ++i) {
-			struct archive_entry *ae;
-			struct archive *a;
 			int j, fd, numbytes;
 
 			/* Fuzz < 1% of the bytes in the archive. */
