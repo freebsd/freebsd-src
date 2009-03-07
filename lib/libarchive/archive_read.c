@@ -234,6 +234,8 @@ static int64_t
 client_skip_proxy(struct archive_read_filter *self, int64_t request)
 {
 	int64_t r;
+	if (self->archive->client.skipper == NULL)
+		return (0);
 	r = (self->archive->client.skipper)(&self->archive->archive,
 	    self->data, request);
 	self->archive->archive.raw_position += r;
