@@ -1776,8 +1776,8 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 
 			temp.qtd_status &=
 			    htoehci32(temp.sc, EHCI_QTD_SET_CERR(3));
-			temp.qtd_status |= htole32
-			    (EHCI_QTD_ACTIVE |
+			temp.qtd_status |= htoehci32(temp.sc,
+			    EHCI_QTD_ACTIVE |
 			    EHCI_QTD_SET_PID(EHCI_QTD_PID_SETUP) |
 			    EHCI_QTD_SET_TOGGLE(0));
 
@@ -2591,13 +2591,13 @@ ehci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 		td->sitd_mask = htoehci32(sc, sitd_mask);
 
 		if (nframes == 0) {
-			td->sitd_status = htole32
-			    (EHCI_SITD_IOC |
+			td->sitd_status = htoehci32(sc,
+			    EHCI_SITD_IOC |
 			    EHCI_SITD_ACTIVE |
 			    EHCI_SITD_SET_LEN(*plen));
 		} else {
-			td->sitd_status = htole32
-			    (EHCI_SITD_ACTIVE |
+			td->sitd_status = htoehci32(sc,
+			    EHCI_SITD_ACTIVE |
 			    EHCI_SITD_SET_LEN(*plen));
 		}
 		usb2_pc_cpu_flush(td->page_cache);
@@ -2670,8 +2670,8 @@ ehci_device_isoc_hs_open(struct usb2_xfer *xfer)
 			td->itd_status[7] = 0;
 
 			/* set endpoint and address */
-			td->itd_bp[0] = htole32
-			    (EHCI_ITD_SET_ADDR(xfer->address) |
+			td->itd_bp[0] = htoehci32(sc,
+			    EHCI_ITD_SET_ADDR(xfer->address) |
 			    EHCI_ITD_SET_ENDPT(UE_GET_ADDR(xfer->endpoint)));
 
 			temp =
