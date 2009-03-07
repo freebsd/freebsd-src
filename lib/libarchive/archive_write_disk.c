@@ -2535,19 +2535,25 @@ older(struct stat *st, struct archive_entry *entry)
 	/* Definitely older. */
 	if (st->st_mtimespec.tv_nsec < archive_entry_mtime_nsec(entry))
 		return (1);
-	/* Definitely younger. */
-	if (st->st_mtimespec.tv_nsec > archive_entry_mtime_nsec(entry))
-		return (0);
 #elif HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
 	/* Definitely older. */
 	if (st->st_mtim.tv_nsec < archive_entry_mtime_nsec(entry))
 		return (1);
-	/* Definitely older. */
-	if (st->st_mtim.tv_nsec > archive_entry_mtime_nsec(entry))
-		return (0);
+#elif HAVE_STRUCT_STAT_ST_MTIME_N
+	/* older. */
+	if (st->st_mtime_n < archive_entry_mtime_nsec(entry))
+		return (1);
+#elif HAVE_STRUCT_STAT_ST_UMTIME
+	/* older. */
+	if (st->st_umtime * 1000 < archive_entry_mtime_nsec(entry))
+		return (1);
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+	/* older. */
+	if (st->st_mtime_usec * 1000 < archive_entry_mtime_nsec(entry))
+		return (1);
 #else
 	/* This system doesn't have high-res timestamps. */
 #endif
-	/* Same age, so not older. */
+	/* Same age or newer, so not older. */
 	return (0);
 }
