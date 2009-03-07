@@ -54,9 +54,29 @@ static ssize_t	memory_read_skip(struct archive *, void *, size_t request);
 static off_t	memory_read_skip(struct archive *, void *, off_t request);
 #endif
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
+static int	read_open_memory_internal(struct archive *a, void *buff,
+    size_t size, size_t read_size, int fullapi);
+
 
 int
 read_open_memory(struct archive *a, void *buff, size_t size, size_t read_size)
+{
+	return read_open_memory_internal(a, buff, size, read_size, 1);
+}
+
+/*
+ * As above, but don't register any optional part of the API, to verify
+ * that internals work correctly with just the minimal entry points.
+ */
+int
+read_open_memory2(struct archive *a, void *buff, size_t size, size_t read_size)
+{
+	return read_open_memory_internal(a, buff, size, read_size, 0);
+}
+
+static int
+read_open_memory_internal(struct archive *a, void *buff,
+    size_t size, size_t read_size, int fullapi)
 {
 	struct read_memory_data *mine;
 
@@ -71,8 +91,12 @@ read_open_memory(struct archive *a, void *buff, size_t size, size_t read_size)
 	mine->read_size = read_size;
 	mine->copy_buff_size = read_size + 64;
 	mine->copy_buff = malloc(mine->copy_buff_size);
-	return (archive_read_open2(a, mine, memory_read_open,
-		    memory_read, memory_read_skip, memory_read_close));
+	if (fullapi)
+		return (archive_read_open2(a, mine, memory_read_open,
+			    memory_read, memory_read_skip, memory_read_close));
+	else
+		return (archive_read_open2(a, mine, NULL,
+			    memory_read, NULL, NULL));
 }
 
 /*
