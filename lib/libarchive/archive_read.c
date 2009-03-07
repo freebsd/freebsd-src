@@ -805,8 +805,10 @@ __archive_read_get_bidder(struct archive_read *a)
 	number_slots = sizeof(a->bidders) / sizeof(a->bidders[0]);
 
 	for (i = 0; i < number_slots; i++) {
-		if (a->bidders[i].bid == NULL)
+		if (a->bidders[i].bid == NULL) {
+			memset(a->bidders + i, 0, sizeof(a->bidders[0]));
 			return (a->bidders + i);
+		}
 	}
 
 	__archive_errx(1, "Not enough slots for compression registration");
