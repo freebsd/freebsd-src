@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
 
-#include <legacy/dev/usb/usb.h>
-#include <legacy/dev/usb/usbdi.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_core.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -322,7 +322,7 @@ ndis_create_sysctls(arg)
 #else
 		TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
 #endif
-                	oidp = e->entry;
+			oidp = e->entry;
 			if (strcasecmp(oidp->oid_name, vals->nc_cfgkey) == 0)
 				break;
 			oidp = NULL;
@@ -571,7 +571,7 @@ ndis_convert_res(arg)
 	struct resource_list	brl_rev;
 	struct resource_list_entry	*n;
 #endif
-	int 			error = 0;
+	int			error = 0;
 
 	sc = arg;
 	block = sc->ndis_block;
@@ -1231,7 +1231,7 @@ ndis_init_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
-        ndis_init_handler	initfunc;
+	ndis_init_handler	initfunc;
 	ndis_status		status, openstatus = 0;
 	ndis_medium		mediumarray[NdisMediumMax];
 	uint32_t		chosenmedium, i;
@@ -1250,8 +1250,8 @@ ndis_init_nic(arg)
 	for (i = 0; i < NdisMediumMax; i++)
 		mediumarray[i] = i;
 
-        status = MSCALL6(initfunc, &openstatus, &chosenmedium,
-            mediumarray, NdisMediumMax, block, block);
+	status = MSCALL6(initfunc, &openstatus, &chosenmedium,
+	    mediumarray, NdisMediumMax, block, block);
 
 	/*
 	 * If the init fails, blow away the other exported routines
@@ -1398,7 +1398,7 @@ NdisAddDevice(drv, pdo)
 
 	sc = device_get_softc(pdo->do_devext);
 
-        if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus) {
+	if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus) {
 		error = bus_setup_intr(sc->ndis_dev, sc->ndis_irq,
 		    INTR_TYPE_NET | INTR_MPSAFE,
 		    NULL, ntoskrnl_intr, NULL, &sc->ndis_intrhand);
@@ -1431,7 +1431,7 @@ NdisAddDevice(drv, pdo)
 	 * Stash pointers to the miniport block and miniport
 	 * characteristics info in the if_ndis softc so the
 	 * UNIX wrapper driver can get to them later.
-         */
+	 */
 	sc->ndis_block = block;
 	sc->ndis_chars = IoGetDriverObjectExtension(drv, (void *)1);
 

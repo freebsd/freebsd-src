@@ -102,7 +102,7 @@ hal_libinit()
 		patch++;
 	}
 
-	
+
 	return(0);
 }
 
@@ -122,6 +122,13 @@ hal_libfini()
 	}
 
 	return(0);
+}
+
+struct mtx *
+hal_getdisplock()
+{
+
+	return &disp_lock[curthread->td_oncpu];
 }
 
 static void
@@ -420,7 +427,7 @@ KfRaiseIrql(uint8_t irql)
 	return(oldirql);
 }
 
-void 
+void
 KfLowerIrql(uint8_t oldirql)
 {
 	if (oldirql == DISPATCH_LEVEL)
