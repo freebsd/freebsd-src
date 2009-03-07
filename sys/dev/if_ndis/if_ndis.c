@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <legacy/dev/usb/usb.h>
-#include <legacy/dev/usb/usbdi.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_core.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -557,9 +557,9 @@ ndis_attach(dev)
 	mtx_init(&sc->ndis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	KeInitializeSpinLock(&sc->ndis_rxlock);
-	KeInitializeSpinLock(&sc->ndisusb_xferlock);
+	KeInitializeSpinLock(&sc->ndisusb_xferdonelock);
 	InitializeListHead(&sc->ndis_shlist);
-	InitializeListHead(&sc->ndisusb_xferlist);
+	InitializeListHead(&sc->ndisusb_xferdonelist);
 	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
 
 	if (sc->ndis_iftype == PCMCIABus) {
@@ -623,7 +623,8 @@ ndis_attach(dev)
 	sc->ndis_startitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndis_resetitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndis_inputitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
-	sc->ndisusb_xferitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndisusb_xferdoneitem =
+	    IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
 
 	/* Call driver's init routine. */
@@ -718,8 +719,6 @@ ndis_attach(dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	if (sc->ndis_iftype == PNPBus)
-		ifp->if_flags |= IFF_NEEDSGIANT;
 	ifp->if_ioctl = ndis_ioctl;
 	ifp->if_start = ndis_start;
 	ifp->if_init = ndis_init;
@@ -966,8 +965,10 @@ fail:
 	if (sc->ndis_iftype == PNPBus && ndisusb_halt == 0)
 		return (error);
 
+	DPRINTF(("attach done.\n"));
 	/* We're done talking to the NIC for now; halt it. */
 	ndis_halt_nic(sc);
+	DPRINTF(("halting done.\n"));
 
 	return(error);
 }
@@ -1058,8 +1059,8 @@ ndis_detach(dev)
 		IoFreeWorkItem(sc->ndis_resetitem);
 	if (sc->ndis_inputitem != NULL)
 		IoFreeWorkItem(sc->ndis_inputitem);
-	if (sc->ndisusb_xferitem != NULL)
-		IoFreeWorkItem(sc->ndisusb_xferitem);
+	if (sc->ndisusb_xferdoneitem != NULL)
+		IoFreeWorkItem(sc->ndisusb_xferdoneitem);
 
 	bus_generic_detach(dev);
 	ndis_unload_driver(sc);
@@ -1569,7 +1570,7 @@ ndis_txeof(adapter, packet, status)
 	ndis_free_packet(packet);
 	m_freem(m);
 
-	NDISMTX_LOCK(sc);
+	NDIS_LOCK(sc);
 	sc->ndis_txarray[idx] = NULL;
 	sc->ndis_txpending++;
 
@@ -1581,7 +1582,7 @@ ndis_txeof(adapter, packet, status)
 	sc->ndis_tx_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	NDISMTX_UNLOCK(sc);
+	NDIS_UNLOCK(sc);
 
 	IoQueueWorkItem(sc->ndis_startitem,
 	    (io_workitem_func)ndis_starttask_wrap,
@@ -1606,9 +1607,9 @@ ndis_linksts(adapter, status, sbuf, slen)
 
 	/* Event list is all full up, drop this one. */
 
-	NDISMTX_LOCK(sc);
+	NDIS_LOCK(sc);
 	if (sc->ndis_evt[sc->ndis_evtpidx].ne_sts) {
-		NDISMTX_UNLOCK(sc);
+		NDIS_UNLOCK(sc);
 		return;
 	}
 
@@ -1618,7 +1619,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 		sc->ndis_evt[sc->ndis_evtpidx].ne_buf = malloc(slen,
 		    M_TEMP, M_NOWAIT);
 		if (sc->ndis_evt[sc->ndis_evtpidx].ne_buf == NULL) {
-			NDISMTX_UNLOCK(sc);
+			NDIS_UNLOCK(sc);
 			return;
 		}
 		bcopy((char *)sbuf,
@@ -1627,7 +1628,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 	sc->ndis_evt[sc->ndis_evtpidx].ne_sts = status;
 	sc->ndis_evt[sc->ndis_evtpidx].ne_len = slen;
 	NDIS_EVTINC(sc->ndis_evtpidx);
-	NDISMTX_UNLOCK(sc);
+	NDIS_UNLOCK(sc);
 
 	return;
 }

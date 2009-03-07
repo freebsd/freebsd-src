@@ -315,9 +315,9 @@ ntoskrnl_libinit()
 	 */
 
 #ifdef NTOSKRNL_MULTIPLE_DPCS
-        for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i < mp_ncpus; i++) {
 #else
-        for (i = 0; i < 1; i++) {
+	for (i = 0; i < 1; i++) {
 #endif
 		kq = kq_queues + i;
 		kq->kq_cpu = i;
@@ -326,17 +326,17 @@ ntoskrnl_libinit()
 		    RFHIGHPID, NDIS_KSTACK_PAGES, name);
 		if (error)
 			panic("failed to launch DPC thread");
-        }
+	}
 
 	/*
 	 * Launch the workitem threads.
 	 */
 
-        for (i = 0; i < WORKITEM_THREADS; i++) {
+	for (i = 0; i < WORKITEM_THREADS; i++) {
 		kq = wq_queues + i;
 		sprintf(name, "Windows Workitem %d", i);
 		error = kproc_create(ntoskrnl_workitem_thread, kq, &p,
-                    RFHIGHPID, NDIS_KSTACK_PAGES, name);
+		    RFHIGHPID, NDIS_KSTACK_PAGES, name);
 		if (error)
 			panic("failed to launch workitem thread");
 	}
@@ -498,8 +498,8 @@ ntoskrnl_strncat(dst, src, n)
 			d++;
 		} while (--n != 0);
 		*d = 0;
-        }
-        return (dst);
+	}
+	return (dst);
 }
 
 static int
@@ -516,7 +516,7 @@ ntoskrnl_tolower(c)
 	return(tolower(c));
 }
 
-static uint8_t 
+static uint8_t
 RtlEqualUnicodeString(unicode_string *str1, unicode_string *str2,
 	uint8_t caseinsensitive)
 {
@@ -931,7 +931,7 @@ IoBuildAsynchronousFsdRequest(func, dobj, buf, len, off, status)
 			sl->isl_parameters.isl_write.isl_byteoff = *off;
 		else
 			sl->isl_parameters.isl_write.isl_byteoff = 0;
-	}	
+	}
 
 	return(ip);
 }
@@ -1281,7 +1281,7 @@ KeSynchronizeExecution(iobj, syncfunc, syncctx)
 	void			*syncctx;
 {
 	uint8_t			irql;
-	
+
 	KeAcquireSpinLock(&ntoskrnl_intlock, &irql);
 	MSCALL1(syncfunc, syncctx);
 	KeReleaseSpinLock(&ntoskrnl_intlock, irql);
@@ -1415,7 +1415,7 @@ ntoskrnl_is_signalled(obj, td)
 	struct thread		*td;
 {
 	kmutant			*km;
-	
+
 	if (obj->dh_type == DISP_TYPE_MUTANT) {
 		km = (kmutant *)obj;
 		if ((obj->dh_sigstate <= 0 && km->km_ownerthread == td) ||
@@ -1812,11 +1812,11 @@ KeWaitForMultipleObjects(uint32_t cnt, nt_dispatch_header *obj[], uint32_t wtype
 		wcnt++;
 		if (ntoskrnl_is_signalled(obj[i], td)) {
 			/*
-		 	 * There's a limit to how many times
-		 	 * we can recursively acquire a mutant.
-		 	 * If we hit the limit, something
+			 * There's a limit to how many times
+			 * we can recursively acquire a mutant.
+			 * If we hit the limit, something
 			 * is very wrong.
-		 	 */
+			 */
 			if (obj[i]->dh_sigstate == INT32_MIN &&
 			    obj[i]->dh_type == DISP_TYPE_MUTANT) {
 				mtx_unlock(&ntoskrnl_dispatchlock);
@@ -1861,7 +1861,7 @@ KeWaitForMultipleObjects(uint32_t cnt, nt_dispatch_header *obj[], uint32_t wtype
 
 	(w - 1)->wb_next = whead;
 
-        /* Wait on any objects that aren't yet signalled. */
+	/* Wait on any objects that aren't yet signalled. */
 
 	/* Calculate timeout, if any. */
 
@@ -2334,15 +2334,15 @@ KefReleaseSpinLockFromDpcLevel(lock)
 uint8_t
 KeAcquireSpinLockRaiseToDpc(kspin_lock *lock)
 {
-        uint8_t                 oldirql;
+	uint8_t			oldirql;
 
-        if (KeGetCurrentIrql() > DISPATCH_LEVEL)
-                panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
+	if (KeGetCurrentIrql() > DISPATCH_LEVEL)
+		panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
 
-        KeRaiseIrql(DISPATCH_LEVEL, &oldirql);
-        KeAcquireSpinLockAtDpcLevel(lock);
+	KeRaiseIrql(DISPATCH_LEVEL, &oldirql);
+	KeAcquireSpinLockAtDpcLevel(lock);
 
-        return(oldirql);
+	return(oldirql);
 }
 #else
 void
@@ -2464,7 +2464,7 @@ IoFreeMdl(m)
 	else
 		ExFreePool(m);
 
-        return;
+	return;
 }
 
 static void *
@@ -2520,7 +2520,7 @@ MmSizeOfMdl(vaddr, len)
 {
 	uint32_t		l;
 
-        l = sizeof(struct mdl) +
+	l = sizeof(struct mdl) +
 	    (sizeof(vm_offset_t *) * SPAN_PAGES(vaddr, len));
 
 	return(l);
@@ -2706,7 +2706,7 @@ ntoskrnl_finddev(dev, paddr, res)
 		}
 	}
 
-	
+
 	/* Won't somebody please think of the children! */
 
 	if (children != NULL)
@@ -2764,10 +2764,10 @@ ntoskrnl_workitem_thread(arg)
 	}
 
 #if __FreeBSD_version < 502113
-        mtx_lock(&Giant);
+	mtx_lock(&Giant);
 #endif
-        kproc_exit(0);
-        return; /* notreached */
+	kproc_exit(0);
+	return; /* notreached */
 }
 
 static void
@@ -2779,7 +2779,7 @@ ntoskrnl_destroy_workitem_threads(void)
 	for (i = 0; i < WORKITEM_THREADS; i++) {
 		kq = wq_queues + i;
 		kq->kq_exit = 1;
-		KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);	
+		KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);
 		while (kq->kq_exit)
 			tsleep(kq->kq_td->td_proc, PWAIT, "waitiw", hz/10);
 	}
@@ -3636,9 +3636,9 @@ sysctl_show_timers(SYSCTL_HANDLER_ARGS)
 {
 	int			ret;
 
-        ret = 0;
+	ret = 0;
 	ntoskrnl_show_timers();
-        return (sysctl_handle_int(oidp, &ret, 0, req));
+	return (sysctl_handle_int(oidp, &ret, 0, req));
 }
 
 static void
@@ -3803,9 +3803,9 @@ ntoskrnl_dpc_thread(arg)
 	sched_bind(curthread, kq->kq_cpu);
 #endif
 #endif
-        sched_prio(curthread, PRI_MIN_KERN);
+	sched_prio(curthread, PRI_MIN_KERN);
 #if __FreeBSD_version < 600000
-        curthread->td_base_pri = PRI_MIN_KERN;
+	curthread->td_base_pri = PRI_MIN_KERN;
 #endif
 	thread_unlock(curthread);
 
@@ -3840,10 +3840,10 @@ ntoskrnl_dpc_thread(arg)
 	}
 
 #if __FreeBSD_version < 502113
-        mtx_lock(&Giant);
+	mtx_lock(&Giant);
 #endif
-        kproc_exit(0);
-        return; /* notreached */
+	kproc_exit(0);
+	return; /* notreached */
 }
 
 static void
@@ -4320,7 +4320,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FFUNC(InterlockedPushEntrySList, 2),
 	IMPORT_SFUNC(ExQueryDepthSList, 1),
 	IMPORT_FFUNC_MAP(ExpInterlockedPopEntrySList,
-	 	InterlockedPopEntrySList, 1),
+		InterlockedPopEntrySList, 1),
 	IMPORT_FFUNC_MAP(ExpInterlockedPushEntrySList,
 		InterlockedPushEntrySList, 2),
 	IMPORT_FFUNC(ExInterlockedPopEntrySList, 2),
