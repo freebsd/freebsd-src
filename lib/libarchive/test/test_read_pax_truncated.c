@@ -29,9 +29,8 @@ DEFINE_TEST(test_read_pax_truncated)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	ssize_t used, i;
-	size_t buff_size = 1000000;
-	ssize_t filedata_size = 100000;
+	size_t used, i, buff_size = 1000000;
+	size_t filedata_size = 100000;
 	char *buff = malloc(buff_size);
 	char *buff2 = malloc(buff_size);
 	char *filedata = malloc(filedata_size);
@@ -40,7 +39,8 @@ DEFINE_TEST(test_read_pax_truncated)
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_pax(a));
 	assertA(0 == archive_write_set_compression_none(a));
-	assertA(0 == archive_write_open_memory(a, buff, buff_size, &used));
+	assertEqualIntA(a, ARCHIVE_OK,
+			archive_write_open_memory(a, buff, buff_size, &used));
 
 	/*
 	 * Write a file to it.
@@ -56,7 +56,8 @@ DEFINE_TEST(test_read_pax_truncated)
 	archive_entry_set_size(ae, filedata_size);
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
-	assertA(filedata_size == archive_write_data(a, filedata, filedata_size));
+	assertA((ssize_t)filedata_size
+	    == archive_write_data(a, filedata, filedata_size));
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
