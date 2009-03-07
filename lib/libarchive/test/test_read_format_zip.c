@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_read_format_zip)
 {
-#if HAVE_ZLIB_H
 	const char *refname = "test_read_format_zip.zip";
 	struct archive_entry *ae;
 	struct archive *a;
@@ -41,6 +40,7 @@ DEFINE_TEST(test_read_format_zip)
 	const void *pv;
 	size_t s;
 	off_t o;
+	int r;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -59,7 +59,16 @@ DEFINE_TEST(test_read_format_zip)
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
 	failure("archive_read_data() returns number of bytes read");
-	assertEqualInt(18, archive_read_data(a, buff, 19));
+	r = archive_read_data(a, buff, 19);
+	if (r < ARCHIVE_OK) {
+		if (strcmp(archive_error_string(a),
+		    "libarchive compiled without deflate support (no libz)") == 0) {
+			skipping("Skipping ZIP compression check: %s",
+			    archive_error_string(a));
+			goto finish;
+		}
+	}
+	assertEqualInt(18, r);
 	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
@@ -72,14 +81,11 @@ DEFINE_TEST(test_read_format_zip)
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
 	assert(0 == archive_read_close(a));
-
+finish:
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
 	assert(0 == archive_read_finish(a));
-#endif
-#else
-	skipping("Need zlib");
 #endif
 }
 
