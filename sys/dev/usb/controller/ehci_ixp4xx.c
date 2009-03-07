@@ -211,6 +211,7 @@ ehci_ixp_attach(device_t self)
 		     | EHCI_SCFLG_BIGEMMIO
 		     | EHCI_SCFLG_NORESTERM
 		     ;
+	(void) ehci_reset(sc);
 
 	err = ehci_init(sc);
 	if (!err) {
