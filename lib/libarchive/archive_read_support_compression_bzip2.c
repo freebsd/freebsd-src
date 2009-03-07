@@ -200,7 +200,7 @@ bzip2_filter_read(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state;
 	size_t read_avail, decompressed;
-	unsigned char *read_buf;
+	const char *read_buf;
 	ssize_t ret;
 
 	state = (struct private_data *)self->data;
@@ -262,11 +262,11 @@ bzip2_filter_read(struct archive_read_filter *self, const void **p)
 
 		/* stream.next_in is really const, but bzlib
 		 * doesn't declare it so. <sigh> */
-		read_buf = (unsigned char *)(uintptr_t)
+		read_buf =
 		    __archive_read_filter_ahead(self->upstream, 1, &ret);
 		if (read_buf == NULL)
 			return (ARCHIVE_FATAL);
-		state->stream.next_in = read_buf;
+		state->stream.next_in = (char *)(uintptr_t)read_buf;
 		state->stream.avail_in = ret;
 		/* There is no more data, return whatever we have. */
 		if (ret == 0) {
@@ -280,7 +280,7 @@ bzip2_filter_read(struct archive_read_filter *self, const void **p)
 		/* Decompress as much as we can in one pass. */
 		ret = BZ2_bzDecompress(&(state->stream));
 		__archive_read_filter_consume(self->upstream,
-		    (unsigned char *)state->stream.next_in - read_buf);
+		    state->stream.next_in - read_buf);
 
 		switch (ret) {
 		case BZ_STREAM_END: /* Found end of stream. */
