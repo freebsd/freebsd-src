@@ -158,6 +158,7 @@ DEFINE_TEST(test_read_extract)
 	failure("The file on disk could not be opened.");
 	assert(fd != 0);
 	bytes_read = read(fd, buff, FILE_BUFF_SIZE);
+	close(fd);
 	failure("The file contents read from disk are the wrong size");
 	assert(bytes_read == FILE_BUFF_SIZE);
 	failure("The file contents on disk do not match the file contents that were put into the archive.");
