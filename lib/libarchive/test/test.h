@@ -157,6 +157,9 @@ char *slurpfile(size_t *, const char *fmt, ...);
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
 
+/* Get external gzip program name */
+const char *external_gzip_program(int un);
+
 /*
  * Special interfaces for libarchive test harness.
  */
