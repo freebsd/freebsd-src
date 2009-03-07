@@ -414,8 +414,10 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		a->mode &= ~S_ISVTX;
 		a->mode &= ~a->user_umask;
 	}
+#ifndef _WIN32
 	if (a->flags & ARCHIVE_EXTRACT_OWNER)
 		a->todo |= TODO_OWNER;
+#endif
 	if (a->flags & ARCHIVE_EXTRACT_TIME)
 		a->todo |= TODO_TIMES;
 	if (a->flags & ARCHIVE_EXTRACT_ACL)
@@ -1942,6 +1944,7 @@ set_mode(struct archive_write_disk *a, int mode)
 			return (r);
 		if (a->pst->st_gid != a->gid) {
 			mode &= ~ S_ISGID;
+#ifndef _WIN32
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				/*
 				 * This is only an error if you
@@ -1954,16 +1957,19 @@ set_mode(struct archive_write_disk *a, int mode)
 				    "Can't restore SGID bit");
 				r = ARCHIVE_WARN;
 			}
+#endif
 		}
 		/* While we're here, double-check the UID. */
 		if (a->pst->st_uid != a->uid
 		    && (a->todo & TODO_SUID)) {
 			mode &= ~ S_ISUID;
+#ifndef _WIN32
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't restore SUID bit");
 				r = ARCHIVE_WARN;
 			}
+#endif
 		}
 		a->todo &= ~TODO_SGID_CHECK;
 		a->todo &= ~TODO_SUID_CHECK;
@@ -1975,11 +1981,13 @@ set_mode(struct archive_write_disk *a, int mode)
 		 */
 		if (a->user_uid != a->uid) {
 			mode &= ~ S_ISUID;
+#ifndef _WIN32
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't make file SUID");
 				r = ARCHIVE_WARN;
 			}
+#endif
 		}
 		a->todo &= ~TODO_SUID_CHECK;
 	}
