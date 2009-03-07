@@ -238,30 +238,32 @@ file_close(struct archive *a, void *client_data)
 
 	(void)a; /* UNUSED */
 
-	/*
-	 * Sometimes, we should flush the input before closing.
-	 *   Regular files: faster to just close without flush.
-	 *   Devices: must not flush (user might need to
-	 *      read the "next" item on a non-rewind device).
-	 *   Pipes and sockets:  must flush (otherwise, the
-	 *      program feeding the pipe or socket may complain).
-	 * Here, I flush everything except for regular files and
-	 * device nodes.
-	 */
-	if (!S_ISREG(mine->st_mode)
-	    && !S_ISCHR(mine->st_mode)
-	    && !S_ISBLK(mine->st_mode)) {
-		ssize_t bytesRead;
-		do {
-			bytesRead = read(mine->fd, mine->buffer,
-			    mine->block_size);
-		} while (bytesRead > 0);
+	/* Only flush and close if open succeeded. */
+	if (mine->fd >= 0) {
+		/*
+		 * Sometimes, we should flush the input before closing.
+		 *   Regular files: faster to just close without flush.
+		 *   Devices: must not flush (user might need to
+		 *      read the "next" item on a non-rewind device).
+		 *   Pipes and sockets:  must flush (otherwise, the
+		 *      program feeding the pipe or socket may complain).
+		 * Here, I flush everything except for regular files and
+		 * device nodes.
+		 */
+		if (!S_ISREG(mine->st_mode)
+		    && !S_ISCHR(mine->st_mode)
+		    && !S_ISBLK(mine->st_mode)) {
+			ssize_t bytesRead;
+			do {
+				bytesRead = read(mine->fd, mine->buffer,
+				    mine->block_size);
+			} while (bytesRead > 0);
+		}
+		/* If a named file was opened, then it needs to be closed. */
+		if (mine->filename[0] != '\0')
+			close(mine->fd);
 	}
-	/* If a named file was opened, then it needs to be closed. */
-	if (mine->filename[0] != '\0')
-		close(mine->fd);
-	if (mine->buffer != NULL)
-		free(mine->buffer);
+	free(mine->buffer);
 	free(mine);
 	return (ARCHIVE_OK);
 }
