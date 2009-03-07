@@ -520,8 +520,67 @@ typedef struct ehci_softc {
 #define	EOWRITE4(sc, a, x)						\
 	    bus_space_write_4((sc)->sc_io_tag, (sc)->sc_io_hdl, (sc)->sc_offs+(a), (x))
 
+#ifdef USB_EHCI_BIG_ENDIAN_DESC
+/*
+ * Handle byte order conversion between host and ``host controller''.
+ * Typically the latter is little-endian but some controllers require
+ * big-endian in which case we may need to manually swap.
+ */
+static __inline uint32_t
+htohc32(const struct ehci_softc *sc, const uint32_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? htobe32(v) : htole32(v);
+}
+
+static __inline uint16_t
+htohc16(const struct ehci_softc *sc, const uint16_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? htobe16(v) : htole16(v);
+}
+
+static __inline uint32_t
+hc32toh(const struct ehci_softc *sc, const uint32_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? be32toh(v) : le32toh(v);
+}
+
+static __inline uint16_t
+hc16toh(const struct ehci_softc *sc, const uint16_t v)
+{
+	return sc->sc_flags & EHCI_SCFLG_BIGEDESC ? be16toh(v) : le16toh(v);
+}
+#else
+/*
+ * Normal little-endian only conversion routines.
+ */
+static __inline uint32_t
+htohc32(const struct ehci_softc *sc, const uint32_t v)
+{
+	return htole32(v);
+}
+
+static __inline uint16_t
+htohc16(const struct ehci_softc *sc, const uint16_t v)
+{
+	return htole16(v);
+}
+
+static __inline uint32_t
+hc32toh(const struct ehci_softc *sc, const uint32_t v)
+{
+	return le32toh(v);
+}
+
+static __inline uint16_t
+hc16toh(const struct ehci_softc *sc, const uint16_t v)
+{
+	return le16toh(v);
+}
+#endif
+
 usb2_bus_mem_cb_t ehci_iterate_hw_softc;
 
+usb2_error_t ehci_reset(ehci_softc_t *sc);
 usb2_error_t ehci_init(ehci_softc_t *sc);
 void	ehci_detach(struct ehci_softc *sc);
 void	ehci_suspend(struct ehci_softc *sc);
