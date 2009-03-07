@@ -127,7 +127,7 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
 static int bpf_zerocopy_enable = 1;
 SYSCTL_INT(_net_bpf, OID_AUTO, zerocopy_enable, CTLFLAG_RW,
     &bpf_zerocopy_enable, 0, "Enable new zero-copy BPF buffer sessions");
-SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
+SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
 static	d_open_t	bpfopen;
