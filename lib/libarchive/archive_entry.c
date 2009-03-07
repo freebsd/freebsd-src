@@ -39,17 +39,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysmacros.h>
 #endif
 #endif
-#ifdef HAVE_EXT2FS_EXT2_FS_H
-#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
-#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
 #endif
+/*
+ * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
+ * As the include guards don't agree, the order of include is important.
+ */
 #ifdef HAVE_LINUX_EXT2_FS_H
 #include <linux/ext2_fs.h>	/* for Linux file flags */
+#endif
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
 #endif
 #include <stddef.h>
 #include <stdio.h>
