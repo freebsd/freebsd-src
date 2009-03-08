@@ -190,12 +190,14 @@ extern STAILQ_HEAD(files_name_head, files_name) fntab;
 
 extern int	profiling;
 extern int	debugging;
+extern int	f_build;
 extern int	found_defaults;
 
 extern int	maxusers;
 
 extern char *PREFIX;		/* Config file name - for error messages */
 extern char srcdir[];		/* root of the kernel source tree */
+extern char bldfile[];		/* Target buildfile name. */
 
 #define eq(a,b)	(!strcmp(a,b))
 #define ns(s)	strdup(s)

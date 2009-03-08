@@ -118,7 +118,10 @@ makefile(void)
 	int versreq;
 
 	read_files();
-	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
+	if (f_build)
+		snprintf(line, sizeof(line), "../../conf/Buildfile.%s", machinename);
+	else
+		snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
 	ifp = fopen(line, "r");
 	if (ifp == 0) {
 		snprintf(line, sizeof(line), "Makefile.%s", machinename);
@@ -181,7 +184,10 @@ makefile(void)
 	}
 	(void) fclose(ifp);
 	(void) fclose(ofp);
-	moveifchanged(path("Makefile.new"), path("Makefile"));
+	if (f_build)
+		moveifchanged(path("Makefile.new"), path(bldfile));
+	else
+		moveifchanged(path("Makefile.new"), path("Makefile"));
 }
 
 /*
@@ -546,10 +552,17 @@ read_files(void)
 	char fname[MAXPATHLEN];
 	struct files_name *nl, *tnl;
 	
-	(void) snprintf(fname, sizeof(fname), "../../conf/files");
+	if (f_build)
+		(void) snprintf(fname, sizeof(fname), "../../conf/files.bld");
+	else
+		(void) snprintf(fname, sizeof(fname), "../../conf/files");
 	read_file(fname);
-	(void) snprintf(fname, sizeof(fname),
-		       	"../../conf/files.%s", machinename);
+	if (f_build)
+		(void) snprintf(fname, sizeof(fname),
+				"../../conf/files.%s.bld", machinename);
+	else
+		(void) snprintf(fname, sizeof(fname),
+				"../../conf/files.%s", machinename);
 	read_file(fname);
 	for (nl = STAILQ_FIRST(&fntab); nl != NULL; nl = tnl) {
 		read_file(nl->f_name);

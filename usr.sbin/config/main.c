@@ -77,8 +77,10 @@ static const char rcsid[] =
 char *	PREFIX;
 char 	destdir[MAXPATHLEN];
 char 	srcdir[MAXPATHLEN];
+char 	bldfile[MAXPATHLEN];
 
 int	debugging;
+int	f_build = 0;
 int	profiling;
 int	found_defaults;
 int	incignore;
@@ -119,6 +121,10 @@ main(int argc, char **argv)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
+			break;
+		case 'b':
+			f_build = 1;
+			strncpy(bldfile, optarg, sizeof(bldfile));
 			break;
 		case 'd':
 			if (*destdir == '\0')
@@ -242,8 +248,10 @@ main(int argc, char **argv)
 	makehints();			/* build hints.c */
 	headers();			/* make a lot of .h files */
 	cleanheaders(p);
-	printf("Kernel build directory is %s\n", p);
-	printf("Don't forget to do ``make cleandepend && make depend''\n");
+	if (!f_build) {
+		printf("Kernel build directory is %s\n", p);
+		printf("Don't forget to do ``make cleandepend && make depend''\n");
+	}
 	exit(0);
 }
 
