@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/dev/an
+COMMONDIR =
+
+INCS = \
+	if_aironet_ieee.h \
+	if_anreg.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

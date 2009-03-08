@@ -1,0 +1,48 @@
+# $FreeBSD$
+
+.PATH:  ${BSDSRCTOP}/contrib/libstdc++/include/ext
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/ext
+COMMONDIR =
+
+INCS = \
+	algorithm \
+	array_allocator.h \
+	atomicity.h \
+	bitmap_allocator.h \
+	codecvt_specializations.h \
+	concurrence.h \
+	debug_allocator.h \
+	functional \
+	hash_fun.h \
+	hash_map \
+	hash_set \
+	hashtable.h \
+	iterator \
+	malloc_allocator.h \
+	memory \
+	mt_allocator.h \
+	new_allocator.h \
+	numeric \
+	numeric_traits.h \
+	pod_char_traits.h \
+	pool_allocator.h \
+	rb_tree \
+	rc_string_base.h \
+	rope \
+	ropeimpl.h \
+	slist \
+	sso_string_base.h \
+	stdio_filebuf.h \
+	stdio_sync_filebuf.h \
+	throw_allocator.h \
+	type_traits.h \
+	typelist.h \
+	vstring.h \
+	vstring.tcc \
+	vstring_fwd.h \
+	vstring_util.h
+
+SRCDIRDEP= contrib/libstdc++/include/ext
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/linux_lvm
+COMMONDIR =
+
+INCS = \
+	g_linux_lvm.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

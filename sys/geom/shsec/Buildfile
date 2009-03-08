@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/shsec
+COMMONDIR =
+
+INCS = \
+	g_shsec.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

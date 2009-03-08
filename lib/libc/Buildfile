@@ -1,0 +1,80 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = c
+SHLIB_MAJOR = 7
+WARNS ?= 2
+CFLAGS +=-I${.CURDIR}/include
+CFLAGS +=-I${.CURDIR}/${MACHINE_ARCH}
+INSTALL_PIC_ARCHIVE =
+
+# Define (empty) variables so that make doesn't give substitution
+# errors if the included makefiles don't change these:
+MDSRCS=
+MISRCS=
+MDASM=
+MIASM=
+NOASM=
+
+.if exists(${.CURDIR}/${MACHINE_ARCH}/Buildfile.inc)
+.include "${.CURDIR}/${MACHINE_ARCH}/Buildfile.inc"
+.endif
+.include "${.CURDIR}/db/Buildfile.inc"
+.include "${.CURDIR}/compat-43/Buildfile.inc"
+.include "${.CURDIR}/gdtoa/Buildfile.inc"
+.include "${.CURDIR}/gen/Buildfile.inc"
+.include "${.CURDIR}/gmon/Buildfile.inc"
+.include "${.CURDIR}/inet/Buildfile.inc"
+.include "${.CURDIR}/isc/Buildfile.inc"
+.include "${.CURDIR}/locale/Buildfile.inc"
+.include "${.CURDIR}/nameser/Buildfile.inc"
+.include "${.CURDIR}/net/Buildfile.inc"
+.include "${.CURDIR}/nls/Buildfile.inc"
+.include "${.CURDIR}/posix1e/Buildfile.inc"
+.if ${MACHINE_ARCH} != "amd64" && \
+    ${MACHINE_ARCH} != "ia64" && \
+    ${MACHINE_ARCH} != "sparc64"
+.include "${.CURDIR}/quad/Buildfile.inc"
+.endif
+.include "${.CURDIR}/regex/Buildfile.inc"
+.include "${.CURDIR}/resolv/Buildfile.inc"
+.include "${.CURDIR}/stdio/Buildfile.inc"
+.include "${.CURDIR}/stdlib/Buildfile.inc"
+.include "${.CURDIR}/stdtime/Buildfile.inc"
+.include "${.CURDIR}/string/Buildfile.inc"
+.include "${.CURDIR}/sys/Buildfile.inc"
+.include "${.CURDIR}/rpc/Buildfile.inc"
+.include "${.CURDIR}/uuid/Buildfile.inc"
+.include "${.CURDIR}/xdr/Buildfile.inc"
+.if ${MACHINE_ARCH} == "arm"
+.include "${.CURDIR}/softfloat/Buildfile.inc"
+.endif
+CFLAGS += -DYP
+.include "${.CURDIR}/yp/Buildfile.inc"
+CFLAGS += -DHESIOD
+CFLAGS += -DNS_CACHING
+
+VERSION_DEF = ${.CURDIR}/Versions.def
+SYMBOL_MAPS = ${SYM_MAPS}
+CFLAGS += -DSYMBOL_VERSIONING
+
+# If there are no machine dependent sources, append all the
+# machine-independent sources:
+.if empty(MDSRCS)
+SRCS +=	${MISRCS}
+.else
+# Append machine-dependent sources, then append machine-independent sources
+# for which there is no machine-dependent variant.
+SRCS +=	${MDSRCS}
+.for _src in ${MISRCS}
+.if ${MDSRCS:R:M${_src:R}} == ""
+SRCS +=	${_src}
+.endif
+.endfor
+.endif
+
+SRCDIRDEP= contrib/gdtoa lib/libc/compat-43 lib/libc/db lib/libc/db/btree lib/libc/db/db lib/libc/db/hash lib/libc/db/mpool lib/libc/db/recno lib/libc/gdtoa lib/libc/gen lib/libc/gmon lib/libc/i386 lib/libc/i386/gen lib/libc/i386/stdlib lib/libc/i386/string lib/libc/i386/sys lib/libc/include lib/libc/include/isc lib/libc/inet lib/libc/isc lib/libc/locale lib/libc/nameser lib/libc/net lib/libc/nls lib/libc/posix1e lib/libc/quad lib/libc/regex lib/libc/resolv lib/libc/rpc lib/libc/stdio lib/libc/stdlib lib/libc/stdtime lib/libc/string lib/libc/sys lib/libc/uuid lib/libc/xdr lib/libc/yp
+DIRDEP= include include/arpa include/gssapi include/machine include/osreldate include/rpc include/rpcsvc lib/libutil lib/msun stage sys/MACHINE_ARCH/include sys/altq sys/bsm sys/net sys/netinet sys/netinet6 sys/rpc sys/sys sys/vm usr.bin/rpcgen_host
+.include <bsd.lib.mk>

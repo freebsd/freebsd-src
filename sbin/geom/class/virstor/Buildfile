@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+.PATH:	${BSDSRCTOP}/sys/geom/virstor
+
+CLASS = virstor
+
+SRCS += \
+	binstream.c \
+	g_virstor_md.c
+
+LDADD = -lmd
+
+SRCDIRDEP= sbin/geom/core sbin/geom/misc sys/geom/virstor
+DIRDEP= include include/machine lib/libgeom lib/libmd stage sys/MACHINE_ARCH/include sys/geom sys/geom/virstor sys/sys
+.include <bsd.lib.mk>

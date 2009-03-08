@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+INCDIR= ${STAGEDIR}/usr/include
+COMMONDIR=
+
+INCS = osreldate.h
+
+osreldate.h : ${BSDSRCTOP}/sys/sys/param.h
+	{ \
+	SRCTOP=${.SRCTOP} PARAMFILE=${BSDSRCTOP}/sys/sys/param.h \
+	KERN_IDENT=${KERN_IDENT} . ${.CURDIR}/newvers.sh; \
+	echo "$$COPYRIGHT"; \
+	echo "#ifdef _KERNEL"; \
+	echo "#error \"<osreldate.h> cannot be used in the kernel, use <sys/param.h>\""; \
+	echo "#else"; \
+	echo "#undef __FreeBSD_version"; \
+	echo "#define __FreeBSD_version $$RELDATE"; \
+	echo "#endif"; } >> ${.TARGET}
+	rm -f version vers.c
+
+SRCDIRDEP= sys/sys
+DIRDEP= stage
+.include <bsd.headers.mk>

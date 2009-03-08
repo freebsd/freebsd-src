@@ -1,0 +1,42 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/dev/usb
+COMMONDIR =
+
+INCS = \
+	ufm_ioctl.h \
+	usb.h \
+	usb_bus.h \
+	usb_busdma.h \
+	usb_cdc.h \
+	usb_compat_linux.h \
+	usb_controller.h \
+	usb_core.h \
+	usb_debug.h \
+	usb_defs.h \
+	usb_dev.h \
+	usb_device.h \
+	usb_dynamic.h \
+	usb_endian.h \
+	usb_error.h \
+	usb_generic.h \
+	usb_handle_request.h \
+	usb_hid.h \
+	usb_hub.h \
+	usb_ioctl.h \
+	usb_lookup.h \
+	usb_mbuf.h \
+	usb_mfunc.h \
+	usb_msctest.h \
+	usb_parse.h \
+	usb_pci.h \
+	usb_process.h \
+	usb_request.h \
+	usb_revision.h \
+	usb_sw_transfer.h \
+	usb_transfer.h \
+	usb_util.h \
+	usbhid.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

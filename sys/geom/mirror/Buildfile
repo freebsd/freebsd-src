@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/mirror
+COMMONDIR =
+
+INCS = \
+	g_mirror.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

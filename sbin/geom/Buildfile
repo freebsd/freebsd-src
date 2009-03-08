@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+SUBDIR = \
+	class \
+	core
+
+.include <bsd.subdir.mk>

@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/nop
+COMMONDIR =
+
+INCS = \
+	g_nop.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

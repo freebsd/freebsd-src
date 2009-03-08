@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/sys/contrib/altq/altq
+
+INCDIR = ${STAGEDIR}/usr/include/altq
+COMMONDIR =
+
+INCS = \
+	altq.h \
+	altq_cbq.h \
+	altq_cdnr.h \
+	altq_classq.h \
+	altq_hfsc.h \
+	altq_priq.h \
+	altq_red.h \
+	altq_rio.h \
+	altq_rmclass.h \
+	altq_rmclass_debug.h \
+	altq_var.h \
+	altqconf.h \
+	if_altq.h
+
+SRCDIRDEP= sys/contrib/altq/altq
+DIRDEP= stage
+.include <bsd.headers.mk>

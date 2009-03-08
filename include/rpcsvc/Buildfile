@@ -1,0 +1,49 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/rpcsvc
+COMMONDIR =
+
+INCS = \
+	nis_db.h \
+	nis_tags.h \
+	nislib.h \
+	yp_prot.h \
+	ypclnt.h
+
+RPCCOM = ${RPCGEN} -C
+
+XSRCS = \
+	bootparam_prot.x \
+	crypt.x  \
+	key_prot.x \
+	klm_prot.x \
+	mount.x \
+	nfs_prot.x \
+	nis.x \
+	nis_cache.x \
+	nis_callback.x \
+	nis_object.x \
+	nlm_prot.x \
+	pmap_prot.x \
+	rex.x \
+	rnusers.x \
+	rquota.x \
+	rstat.x \
+	rwall.x \
+	sm_inter.x \
+	spray.x \
+	yp.x \
+	yppasswd.x \
+	ypupdate_prot.x \
+	ypxfrd.x
+
+.for _x in ${XSRCS}
+INCS +=  ${_x:R}.h
+${_x:R}.h: ${_x}
+	${RPCCOM} -h -DWANT_NFS3 ${.ALLSRC} -o ${.TARGET}
+.endfor
+
+INCS += ${XSRCS}
+
+DIRDEP= stage usr.bin/rpcgen_host
+.include <bsd.headers.mk>

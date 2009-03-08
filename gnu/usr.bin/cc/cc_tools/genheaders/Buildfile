@@ -1,0 +1,119 @@
+# $FreeBSD$
+
+GCCDIR=		${.SRCTOP}/contrib/gcc
+GCCLIB=		${.SRCTOP}/contrib/gcclibs
+
+.include "${BSDSRCTOP}/gnu/usr.bin/cc/Buildfile.tgt"
+
+.PATH:		${GCCDIR} ${BSDSRCTOP}/gnu/usr.bin/cc/cc_tools
+
+INCS = \
+	auto-host.h \
+	freebsd-native.h \
+	size-host.h
+
+GENHDRS=	bconfig.h \
+		config.h \
+		gthr-default.h \
+		options.h \
+		tconfig.h \
+		tm.h \
+		tm_p.h \
+		unwind.h
+
+INCDIR = ${STAGEDIR}/usr/include/gnu/gcc
+INCS += ${GENHDRS}
+
+#-----------------------------------------------------------------------
+# Determine content of variables used by the target/host config files
+
+.include "Buildfile.tgtinc"
+
+#
+# Option files.
+#
+OPT_FILES=	c.opt common.opt
+
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt)
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt
+.endif
+
+.if exists(${.CURDIR}/${GCC_CPU}-freebsd.opt)
+OPT_FILES+=	${.CURDIR}/${GCC_CPU}-freebsd.opt
+.endif
+
+.if ${TARGET_ARCH} == "powerpc"
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/sysv4.opt
+.endif
+
+.if ${TARGET_ARCH} == "sparc64"
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/long-double-switch.opt
+.endif
+
+.if exists(${.CURDIR}/freebsd.opt)
+OPT_FILES+=	${.CURDIR}/freebsd.opt
+.endif
+
+# Options
+optionlist: ${OPT_FILES}
+	LC_ALL=C awk -f ${GCCDIR}/opt-gather.awk ${.ALLSRC} > ${.TARGET}
+
+options.h:	optionlist
+	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
+	    -f ${GCCDIR}/opth-gen.awk \
+		< ${.ALLSRC} > ${.TARGET}
+
+options.c:	optionlist
+	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
+	    -f ${GCCDIR}/optc-gen.awk \
+		-v header_name="config.h system.h coretypes.h tm.h" \
+		< ${.ALLSRC} > ${.TARGET}
+
+# Build config
+bconfig.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="auto-host.h ansidecl.h" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
+	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
+.endif
+
+config.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="auto-host.h ansidecl.h" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+
+# Target machine config
+tm.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="${TARGET_INC}" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
+	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
+.endif
+
+# Target machine protos/preds.
+tm_p.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="${GCC_CPU}/${GCC_CPU}-protos.h tm-preds.h" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh tm_p.h
+
+tconfig.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="auto-host.h ansidecl.h" \
+	DEFINES="USED_FOR_TARGET" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+
+gthr-default.h: ${GCCDIR}/gthr-posix.h
+	cp ${.ALLSRC} ${.TARGET}
+
+unwind.h: ${GCCDIR}/unwind-generic.h
+	cp ${.ALLSRC} ${.TARGET}
+
+SRCDIRDEP= contrib/gcc contrib/gcc/config/i386 gnu/usr.bin/cc/cc_tools
+DIRDEP= stage
+.include <bsd.headers.mk>

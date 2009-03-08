@@ -1,0 +1,27 @@
+# $FreeBSD$
+
+SUBDIR = \
+	bc \
+	binutils \
+	cc \
+	cpio \
+	cvs \
+	dc \
+	dialog \
+	diff \
+	diff3 \
+	gdb \
+	gperf \
+	grep \
+	groff \
+	man \
+	patch \
+	perl \
+	pr \
+	rcs \
+	sdiff \
+	send-pr \
+	sort \
+	texinfo
+
+.include <bsd.subdir.mk>

@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/nfsclient
+COMMONDIR =
+
+INCS = \
+	krpc.h \
+	nfs.h \
+	nfs_lock.h \
+	nfsargs.h \
+	nfsdiskless.h \
+	nfsm_subs.h \
+	nfsmount.h \
+	nfsnode.h \
+	nfsstats.h \
+	nlminfo.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

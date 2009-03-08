@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/cam/scsi
+COMMONDIR =
+
+INCS = \
+	scsi_all.h \
+	scsi_cd.h \
+	scsi_ch.h \
+	scsi_da.h \
+	scsi_dvcfg.h \
+	scsi_iu.h \
+	scsi_low.h \
+	scsi_low_pisa.h \
+	scsi_message.h \
+	scsi_pass.h \
+	scsi_pt.h \
+	scsi_sa.h \
+	scsi_ses.h \
+	scsi_sg.h \
+	scsi_targetio.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

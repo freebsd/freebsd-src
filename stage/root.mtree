@@ -1,0 +1,96 @@
+/set type=dir uname=root gname=wheel mode=0755
+.
+    bin
+    ..
+    boot
+        defaults
+        ..
+        kernel
+        ..
+        modules
+        ..
+    ..
+    dev             mode=0555
+    ..
+/set type=dir uname=root gname=wheel mode=0755
+    buildtools
+        ncurses
+        ..
+    ..
+    config
+    ..
+    data
+    ..
+    errmsg
+    ..
+    etc
+        X11
+        ..
+        bluetooth
+        ..
+        defaults
+        ..
+        etc.i386
+        ..
+        etc.powerpc
+        ..
+        gnats
+        ..
+        isdn            mode=0700
+        ..
+        mail
+        ..
+        mtree
+        ..
+        ntp             mode=0700
+        ..
+        pam.d
+        ..
+        periodic
+            daily
+            ..
+            monthly
+            ..
+            security
+            ..
+            weekly
+            ..
+        ..
+        ppp
+        ..
+        rc.d
+        ..
+        security
+        ..
+        skel
+        ..
+        ssh
+        ..
+        ssl
+        ..
+    ..
+    lib
+        geom
+        ..
+    ..
+    libexec
+    ..
+    mnt
+    ..
+    proc            mode=0555
+    ..
+    rescue
+    ..
+    root
+    ..
+    sbin
+        install
+        ..
+    ..
+    tmp             mode=01777
+    ..
+    usr
+    ..
+    var
+    ..
+..

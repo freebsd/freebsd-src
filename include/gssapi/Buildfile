@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/gssapi
+COMMONDIR =
+
+INCS = \
+	gssapi.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+SUBDIR = \
+	acpiconf \
+	acpidb \
+	acpidump \
+	iasl
+
+.include <bsd.subdir.mk>

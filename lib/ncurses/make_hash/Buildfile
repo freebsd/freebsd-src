@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+.PATH: ${NCURSES_DIR}/ncurses/tinfo
+
+BINDIR = ${STAGEDIR}/buildtools/ncurses
+
+PROG = make_hash
+
+SRCS = comp_hash.c
+
+HOSTPROG =
+
+
+CFLAGS +=  -DMAIN_PROGRAM
+BUILTFILES = hashsize.h
+
+hashsize.h:
+	sh ${NCURSES_DIR}/include/MKhashsize.sh ${NCURSES_DIR}/include/Caps > ${.TARGET}
+
+SRCDIRDEP= contrib/ncurses/include contrib/ncurses/ncurses contrib/ncurses/ncurses/tinfo
+DIRDEP= include lib/ncurses/include stage sys/sys
+.include <bsd.prog.mk>

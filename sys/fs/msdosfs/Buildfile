@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/fs/msdosfs
+COMMONDIR =
+
+INCS = \
+	bootsect.h \
+	bpb.h \
+	denode.h \
+	direntry.h \
+	fat.h \
+	msdosfsmount.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

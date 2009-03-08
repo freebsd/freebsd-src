@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+PROG = date
+
+SRCS = \
+	date.c \
+	netdate.c \
+	vary.c
+
+LDADD += -lutil
+
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/protocols lib/csu/MACHINE_ARCH lib/libc lib/libutil stage sys/MACHINE_ARCH/include sys/netinet sys/netinet6 sys/sys
+.include <bsd.prog.mk>

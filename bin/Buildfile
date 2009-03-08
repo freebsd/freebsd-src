@@ -1,0 +1,42 @@
+# $FreeBSD$
+
+SUBDIR = \
+	cat \
+	chflags \
+	chio \
+	chmod \
+	cp \
+	csh \
+	date \
+	dd \
+	df \
+	domainname \
+	echo \
+	ed \
+	expr \
+	getfacl \
+	hostname \
+	kenv \
+	kill \
+	ln \
+	ls \
+	mkdir \
+	mv \
+	pax \
+	pkill \
+	ps \
+	pwd \
+	rcp \
+	realpath \
+	rm \
+	rmail \
+	rmdir \
+	setfacl \
+	sh \
+	sleep \
+	stty \
+	sync \
+	test \
+	uuidgen
+
+.include <bsd.subdir.mk>

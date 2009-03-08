@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+.PATH:	${BSDSRCTOP}/sys/kern
+
+LIBDIR = ${STAGEDIR}/lib
+
+LIB = sbuf
+
+SRCS = subr_sbuf.c 
+
+WARNS ?= 2
+
+SRCDIRDEP= sys/kern
+DIRDEP= include include/machine stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.lib.mk>

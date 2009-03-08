@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/fs/hpfs
+COMMONDIR =
+
+INCS = \
+	hpfs.h \
+	hpfs_ioctl.h \
+	hpfs_subr.h \
+	hpfsmount.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

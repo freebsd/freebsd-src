@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+SUBDIR = \
+	cache \
+	concat \
+	journal \
+	label \
+	mirror \
+	multipath \
+	nop \
+	part \
+	raid3 \
+	shsec \
+	stripe \
+	virstor
+
+.include <bsd.subdir.mk>

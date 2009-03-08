@@ -1,0 +1,77 @@
+# $FreeBSD$
+
+GCCDIR = ${BSDSRCTOP}/contrib/gcc
+GCCLIB = ${BSDSRCTOP}/contrib/gcclibs
+CCDIR =	${BSDSRCTOP}/gnu/usr.bin/cc
+
+.include "${CCDIR}/Buildfile.tgt"
+
+.PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
+
+OBJSDIR = ${STAGEDIR}/usr/lib
+
+OBJS = \
+	crtbegin.o \
+	crtend.o \
+	crtbeginT.o
+
+SOBJS = \
+	crtbeginS.o \
+	crtendS.o
+
+CSTD ?=	 gnu89
+
+CFLAGS += -DIN_GCC -DHAVE_LD_EH_FRAME_HDR -D__GLIBC__=3
+CFLAGS += -finhibit-size-directive -fno-inline-functions
+CFLAGS += -fno-exceptions -fno-zero-initialized-in-bss
+CFLAGS += -fno-zero-initialized-in-bss -fno-toplevel-reorder
+CFLAGS += -I${GCCLIB}/include
+CFLAGS += -I${GCCDIR}/config
+CFLAGS += -I${GCCDIR}
+CFLAGS += -I.
+CFLAGS += -I${CCDIR}/cc_tools
+CFLAGS += -I${STAGEDIR}/usr/include/gnu/gcc
+CFLAGS += -I${SHAREDSTAGEDIR}/usr/include/gnu/gcc
+
+CRTS_CFLAGS = -DCRTSTUFFS_O -DSHARED ${PICFLAG}
+
+.if ${MACHINE_ARCH} == "ia64"
+BEGINSRC = crtbegin.asm
+ENDSRC = crtend.asm
+CFLAGS += -x assembler-with-cpp # Ugly hack
+CFLAGS += -include osreldate.h
+.endif
+.if ${MACHINE_ARCH} == "powerpc"
+TGTOBJS = crtsavres.o
+SRCS += crtsavres.asm
+.endif
+.if ${MACHINE_ARCH} == "sparc64"
+TGTOBJS = crtfastmath.o
+SRCS += crtfastmath.c
+.endif
+BEGINSRC ?= crtstuff.c
+ENDSRC ?= crtstuff.c
+
+crtbegin.o: ${BEGINSRC}
+	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+
+crtbeginT.o: ${BEGINSRC}
+	${CC} ${CFLAGS} -g0 -DCRT_BEGIN -DCRTSTUFFT_O \
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+
+crtbeginS.o: ${BEGINSRC}
+	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+
+crtend.o: ${ENDSRC}
+	${CC} ${CFLAGS} -g0 -DCRT_END \
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+
+crtendS.o: ${ENDSRC}
+	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+
+SRCDIRDEP= contrib/gcc contrib/gcc/config contrib/gcc/config/i386 contrib/gcclibs/include gnu/usr.bin/cc/cc_tools
+DIRDEP= gnu/usr.bin/cc/cc_tools/genheaders include include/machine stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.objs.mk>

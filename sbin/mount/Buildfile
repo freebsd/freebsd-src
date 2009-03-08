@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+PROG = mount
+
+SRCS = \
+	mount.c \
+	mount_fs.c \
+	getmntopts.c \
+	vfslist.c
+
+WARNS ?= 6
+
+LDADD += -lutil
+
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/machine lib/csu/MACHINE_ARCH lib/libc lib/libutil stage sys/MACHINE_ARCH/include sys/bsm sys/sys
+.include <bsd.prog.mk>

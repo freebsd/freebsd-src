@@ -1,0 +1,28 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/vm
+COMMONDIR =
+
+INCS = \
+	memguard.h \
+	pmap.h \
+	redzone.h \
+	swap_pager.h \
+	uma.h \
+	uma_dbg.h \
+	uma_int.h \
+	vm.h \
+	vm_extern.h \
+	vm_kern.h \
+	vm_map.h \
+	vm_object.h \
+	vm_page.h \
+	vm_pageout.h \
+	vm_pager.h \
+	vm_param.h \
+	vm_phys.h \
+	vm_reserv.h \
+	vnode_pager.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

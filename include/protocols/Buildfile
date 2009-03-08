@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/protocols
+COMMONDIR =
+
+INCS = \
+	dumprestore.h \
+	routed.h \
+	rwhod.h \
+	talkd.h \
+	timed.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,47 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/contrib/libstdc++/include/std
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2
+COMMONDIR =
+
+STDHDRS = \
+	std_algorithm.h \
+	std_bitset.h \
+	std_complex.h \
+	std_deque.h \
+	std_fstream.h \
+	std_functional.h \
+	std_iomanip.h \
+	std_ios.h \
+	std_iosfwd.h \
+	std_iostream.h \
+	std_istream.h \
+	std_iterator.h \
+	std_limits.h \
+	std_list.h \
+	std_locale.h \
+	std_map.h \
+	std_memory.h \
+	std_numeric.h \
+	std_ostream.h \
+	std_queue.h \
+	std_set.h \
+	std_sstream.h \
+	std_stack.h \
+	std_stdexcept.h \
+	std_streambuf.h \
+	std_string.h \
+	std_utility.h \
+	std_valarray.h \
+	std_vector.h
+
+.for h in ${STDHDRS}
+INCS += ${h:R:S;^std_;;}
+${h:R:S;^std_;;}: ${h}
+	cp ${.ALLSRC} ${.TARGET}
+.endfor
+
+SRCDIRDEP= contrib/libstdc++/include/std
+DIRDEP= stage
+.include <bsd.headers.mk>

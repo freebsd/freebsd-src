@@ -1,0 +1,39 @@
+#	$FreeBSD$
+
+PROG = ipnat
+SRCS = \
+	ipnat.c \
+	ipnat_l.c \
+	ipnat_y.c
+
+CFLAGS += -I.
+
+GENHDRS = \
+	ipnat_l.h \
+	ipnat_y.h
+
+ipnat_y.c: ipnat_y.y
+	${YACC} -d ${.ALLSRC}
+	sed -e 's/yy/ipnat_yy/g' \
+	    -e 's/y.tab.c/ipnat_y.c/' \
+	    -e s/\"ipnat_y.y\"/\"..\\/tools\\/ipnat_y.y\"/ \
+	    y.tab.c > ${.TARGET}
+	sed -e 's/yy/ipnat_yy/g' \
+	    -e 's/y.tab.h/ipnat_y.h/' \
+	    y.tab.h > ${.TARGET:.c=.h}
+
+ipnat_y.h: ipnat_y.c
+
+ipnat_l.c: lexer.c
+	sed -e 's/yy/ipnat_yy/g' \
+	    -e 's/y.tab.h/ipnat_y.h/' \
+	    -e 's/lexer.h/ipnat_l.h/' \
+	    ${.ALLSRC} > ${.TARGET}
+
+ipnat_l.h: lexer.h
+	sed -e 's/yy/ipnat_yy/g' \
+	    ${.ALLSRC} > ${.TARGET}
+
+SRCDIRDEP= contrib/ipfilter contrib/ipfilter/tools sys/contrib/ipfilter/netinet sys/net sys/netinet sys/netinet6 sys/sys
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/arpa include/machine lib/csu/MACHINE_ARCH lib/libc lib/libkvm sbin/ipf/libipf stage sys/MACHINE_ARCH/include sys/altq
+.include <bsd.prog.mk>

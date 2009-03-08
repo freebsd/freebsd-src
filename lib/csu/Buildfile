@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+SUBDIR = \
+	amd64 \
+	arm \
+	i386 \
+	ia64 \
+	mips \
+	powerpc \
+	sparc64
+
+.include <bsd.subdir.mk>

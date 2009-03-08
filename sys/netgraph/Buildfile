@@ -1,0 +1,59 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/netgraph
+COMMONDIR =
+
+INCS = \
+	netgraph.h \
+	ng_UI.h \
+	ng_async.h \
+	ng_atmllc.h \
+	ng_bpf.h \
+	ng_bridge.h \
+	ng_car.h \
+	ng_cisco.h \
+	ng_deflate.h \
+	ng_device.h \
+	ng_echo.h \
+	ng_eiface.h \
+	ng_etf.h \
+	ng_ether.h \
+	ng_ether_echo.h \
+	ng_fec.h \
+	ng_frame_relay.h \
+	ng_gif.h \
+	ng_gif_demux.h \
+	ng_hole.h \
+	ng_hub.h \
+	ng_iface.h \
+	ng_ip_input.h \
+	ng_ipfw.h \
+	ng_ksocket.h \
+	ng_l2tp.h \
+	ng_lmi.h \
+	ng_message.h \
+	ng_mppc.h \
+	ng_nat.h \
+	ng_one2many.h \
+	ng_parse.h \
+	ng_pipe.h \
+	ng_ppp.h \
+	ng_pppoe.h \
+	ng_pptpgre.h \
+	ng_pred1.h \
+	ng_rfc1490.h \
+	ng_sample.h \
+	ng_socket.h \
+	ng_socketvar.h \
+	ng_source.h \
+	ng_split.h \
+	ng_sppp.h \
+	ng_tag.h \
+	ng_tcpmss.h \
+	ng_tee.h \
+	ng_tty.h \
+	ng_vjc.h \
+	ng_vlan.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,34 @@
+# $FreeBSD$
+
+.PATH:	${BSDSRCTOP}/contrib/pf/pfctl
+.PATH:	${BSDSRCTOP}/sys/contrib/pf/net
+.PATH:	${BSDSRCTOP}/contrib/pf/man
+
+PROG=	pfctl
+
+SRCS = \
+	parse.y \
+	pf_print_state.c \
+	pf_ruleset.c \
+	pfctl.c \
+	pfctl_altq.c \
+	pfctl_optimize.c \
+	pfctl_osfp.c \
+	pfctl_parser.c \
+	pfctl_qstats.c \
+	pfctl_radix.c \
+	pfctl_table.c
+
+CFLAGS += -Wall -Wmissing-prototypes -Wno-uninitialized
+CFLAGS += -Wstrict-prototypes -I${BSDSRCTOP}/contrib/pf/pfctl
+
+# XXX ALTQ
+CFLAGS += -DENABLE_ALTQ
+
+YFLAGS =
+
+LDADD += -lm -lmd
+
+SRCDIRDEP= contrib/pf/pfctl sys/contrib/pf/net
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/arpa include/machine lib/csu/MACHINE_ARCH lib/libc lib/libmd lib/msun stage sys/MACHINE_ARCH/include sys/altq sys/bsm sys/net sys/netinet sys/netinet6 sys/sys sys/vm
+.include <bsd.prog.mk>

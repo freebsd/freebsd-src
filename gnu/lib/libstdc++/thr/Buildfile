@@ -1,0 +1,53 @@
+# $FreeBSD$
+
+GCCDIR = ${BSDSRCTOP}/contrib/gcc
+
+.PATH: ${GCCDIR}
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/bits
+
+INCS = \
+	gthr.h \
+	gthr-single.h \
+	gthr-posix.h \
+	gthr-tpf.h \
+	gthr-default.h
+
+gthr.h: ${GCCDIR}/gthr.h
+	sed -e '/^#pragma/b' \
+	    -e '/^#/s/\(${uppercase}${uppercase}*\)/_GLIBCXX_\1/g' \
+	    -e 's/_GLIBCXX_SUPPORTS_WEAK/__GXX_WEAK__/g' \
+	    -e 's,^#include "\(.*\)",#include <bits/\1>,g' \
+	    -e 's,^#endif /_GLIBCXX_.*,#endif,' \
+	    < ${.ALLSRC} > ${.TARGET}
+
+gthr-single.h: ${GCCDIR}/gthr-single.h
+	sed -e 's/\(UNUSED\)/_GLIBCXX_\1/g' \
+	    -e 's/\(GCC${uppercase}*_H\)/_GLIBCXX_\1/g' \
+	    < ${.ALLSRC} > ${.TARGET}
+
+gthr-posix.h: ${GCCDIR}/gthr-posix.h
+	sed -e 's/\(UNUSED\)/_GLIBCXX_\1/g' \
+	    -e 's/\(GCC${uppercase}*_H\)/_GLIBCXX_\1/g' \
+	    -e 's/SUPPORTS_WEAK/__GXX_WEAK__/g' \
+	    -e 's/\(${uppercase}*USE_WEAK\)/_GLIBCXX_\1/g' \
+	    < ${.ALLSRC} > ${.TARGET}
+
+gthr-tpf.h: ${GCCDIR}/gthr-posix.h
+	sed -e 's/\(UNUSED\)/_GLIBCXX_\1/g' \
+	    -e 's/\(GCC${uppercase}*_H\)/_GLIBCXX_\1/g' \
+	    -e 's/SUPPORTS_WEAK/__GXX_WEAK__/g' \
+	    -e 's/\(${uppercase}*USE_WEAK\)/_GLIBCXX_\1/g' \
+	    < ${.ALLSRC} > ${.TARGET}
+
+gthr-default.h: ${GCCDIR}/gthr-posix.h
+	sed -e 's/\(UNUSED\)/_GLIBCXX_\1/g' \
+	    -e 's/\(GCC${uppercase}*_H\)/_GLIBCXX_\1/g' \
+	    -e 's/SUPPORTS_WEAK/__GXX_WEAK__/g' \
+	    -e 's/\(${uppercase}*USE_WEAK\)/_GLIBCXX_\1/g' \
+	    -e 's,^#include "\(.*\)",#include <bits/\1>,g' \
+	    < ${.ALLSRC} > ${.TARGET}
+
+SRCDIRDEP= contrib/gcc
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+LIB = y
+
+SRCS = \
+	main.c \
+	yyerror.c
+
+NO_PIC =
+
+DIRDEP= include stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.lib.mk>

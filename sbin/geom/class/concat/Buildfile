@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+CLASS = concat
+
+SRCDIRDEP= sbin/geom/core sbin/geom/misc
+DIRDEP= include include/machine lib/libgeom stage sys/MACHINE_ARCH/include sys/geom sys/geom/concat sys/sys
+.include <bsd.lib.mk>

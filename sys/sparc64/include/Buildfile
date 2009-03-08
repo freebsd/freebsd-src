@@ -1,0 +1,95 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/sparc64
+
+INCS = \
+	_bus.h \
+	_inttypes.h \
+	_limits.h \
+	_stdint.h \
+	_types.h \
+	asi.h \
+	asm.h \
+	asmacros.h \
+	atomic.h \
+	bus.h \
+	bus_common.h \
+	bus_dma.h \
+	bus_private.h \
+	cache.h \
+	ccr.h \
+	clock.h \
+	cpu.h \
+	cpufunc.h \
+	db_machdep.h \
+	dcr.h \
+	elf.h \
+	endian.h \
+	exec.h \
+	float.h \
+	floatingpoint.h \
+	fp.h \
+	frame.h \
+	fsr.h \
+	gdb_machdep.h \
+	idprom.h \
+	ieee.h \
+	ieeefp.h \
+	in_cksum.h \
+	instr.h \
+	intr_machdep.h \
+	iommureg.h \
+	iommuvar.h \
+	kdb.h \
+	kerneldump.h \
+	ktr.h \
+	limits.h \
+	lsu.h \
+	md_var.h \
+	memdev.h \
+	metadata.h \
+	mutex.h \
+	ofw_machdep.h \
+	ofw_mem.h \
+	ofw_nexus.h \
+	param.h \
+	pcb.h \
+	pcpu.h \
+	pmap.h \
+	pmc_mdep.h \
+	proc.h \
+	profile.h \
+	pstate.h \
+	ptrace.h \
+	reg.h \
+	reloc.h \
+	resource.h \
+	runq.h \
+	sc_machdep.h \
+	setjmp.h \
+	sf_buf.h \
+	sigframe.h \
+	signal.h \
+	smp.h \
+	stack.h \
+	stdarg.h \
+	sysarch.h \
+	tick.h \
+	tlb.h \
+	trap.h \
+	tsb.h \
+	tstate.h \
+	tte.h \
+	ucontext.h \
+	upa.h \
+	utrap.h \
+	varargs.h \
+	ver.h \
+	vmparam.h \
+	watch.h \
+	wstate.h
+
+ONLY_MACHINE = sparc64
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+SUBDIR = \
+	libcrypt \
+	libcrypto \
+	libssh \
+	libssl
+
+.include <bsd.subdir.mk>

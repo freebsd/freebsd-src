@@ -1,0 +1,54 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/include/rpcsvc
+
+LIB = rpcsvc
+
+RPCSRCS = \
+	klm_prot.x \
+	mount.x \
+	nfs_prot.x \
+	nlm_prot.x \
+	rex.x \
+	rnusers.x \
+	rquota.x \
+	rstat.x \
+	rwall.x \
+	sm_inter.x \
+	spray.x \
+	yppasswd.x \
+	ypupdate_prot.x \
+	ypxfrd.x
+
+OTHERSRCS = \
+	rnusers.c \
+	rstat.c \
+	rwall.c
+
+SECRPCSRCS = \
+	secretkey.c \
+	xcrypt.c
+
+OTHERSRCS += \
+	yp_passwd.c \
+	yp_update.c
+
+INCDIRS= -I${COMMONSTAGEDIR}/usr/include/rpcsvc
+INCDIRS+= -I${COMMONSHAREDSTAGEDIR}/usr/include/rpcsvc
+
+CFLAGS+= -DYP ${INCDIRS}
+
+GENSRCS = ${RPCSRCS:R:S/$/_xdr.c/g}
+
+SRCS += ${GENSRCS} ${OTHERSRCS} ${SECRPCSRCS}
+
+WARNS ?= 1
+
+SRCDIRDEP= include/rpcsvc
+DIRDEP= include include/rpc include/rpcsvc stage sys/MACHINE_ARCH/include sys/netinet sys/netinet6 sys/rpc sys/sys usr.bin/rpcgen_host
+.include <bsd.lib.mk>
+
+.SUFFIXES: .x _xdr.c
+
+.x_xdr.c:
+	${RPCGEN} -C -c ${.IMPSRC} -o ${.TARGET}

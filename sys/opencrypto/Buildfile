@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/opencrypto
+COMMONDIR =
+
+INCS = \
+	cast.h \
+	castsb.h \
+	cryptodev.h \
+	cryptosoft.h \
+	deflate.h \
+	rmd160.h \
+	skipjack.h \
+	xform.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

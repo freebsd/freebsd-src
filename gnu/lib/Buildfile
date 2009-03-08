@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+SUBDIR = \
+	csu \
+	libdialog \
+	libg2c \
+	libgcc \
+	libgcov \
+	libgomp \
+	libiberty \
+	libobjc \
+	libreadline \
+	libregex \
+	libssp \
+	libstdc++ \
+	libsupc++
+
+.include <bsd.subdir.mk>

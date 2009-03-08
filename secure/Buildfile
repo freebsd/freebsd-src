@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+SUBDIR = \
+	lib \
+	libexec \
+	usr.bin \
+	usr.sbin
+
+.include <bsd.subdir.mk>

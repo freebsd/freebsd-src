@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/isofs/cd9660
+COMMONDIR =
+
+INCS = \
+	cd9660_mount.h \
+	cd9660_node.h \
+	cd9660_rrip.h \
+	iso.h \
+	iso_rrip.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

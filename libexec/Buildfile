@@ -1,0 +1,37 @@
+# $FreeBSD$
+
+SUBDIR = \
+	atrun \
+	bootpd \
+	bugfiler \
+	comsat \
+	fingerd \
+	ftpd \
+	getty \
+	kpasswdd \
+	lukemftpd \
+	mail.local \
+	makekey \
+	mknetid \
+	pppoed \
+	rbootd \
+	revnetgroup \
+	rlogind \
+	rpc.rquotad \
+	rpc.rstatd \
+	rpc.rusersd \
+	rpc.rwalld \
+	rpc.sprayd \
+	rshd \
+	rtld-aout \
+	rtld-elf \
+	save-entropy \
+	smrsh \
+	talkd \
+	tcpd \
+	telnetd \
+	tftp-proxy \
+	tftpd \
+	ypxfr
+
+.include <bsd.subdir.mk>

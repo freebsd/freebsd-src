@@ -1,0 +1,66 @@
+# $FreeBSD$
+
+.PATH:  ${BSDSRCTOP}/contrib/libstdc++/include/tr1
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/tr1
+COMMONDIR =
+
+INCS = \
+	array \
+	bind_iterate.h \
+	bind_repeat.h \
+	boost_shared_ptr.h \
+	cctype \
+	cfenv cfloat \
+	cinttypes \
+	climits \
+	cmath \
+	common.h \
+	complex \
+	cstdarg \
+	cstdbool \
+	cstdint \
+	cstdio \
+	cstdlib \
+	ctgmath \
+	ctime \
+	ctype.h \
+	cwchar \
+	cwctype \
+	fenv.h \
+	float.h \
+	functional \
+	functional_hash.h \
+	functional_iterate.h \
+	hashtable \
+	hashtable_policy.h \
+	inttypes.h \
+	limits.h \
+	math.h \
+	memory \
+	mu_iterate.h \
+	random \
+	random.tcc \
+	ref_fwd.h \
+	ref_wrap_iterate.h \
+	repeat.h \
+	stdarg.h \
+	stdbool.h \
+	stdint.h \
+	stdio.h \
+	stdlib.h \
+	tgmath.h \
+	tuple \
+	tuple_defs.h \
+	tuple_iterate.h \
+	type_traits \
+	type_traits_fwd.h \
+	unordered_map \
+	unordered_set \
+	utility \
+	wchar.h \
+	wctype.h
+
+SRCDIRDEP= contrib/libstdc++/include/tr1
+DIRDEP= stage
+.include <bsd.headers.mk>

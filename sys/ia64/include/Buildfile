@@ -1,0 +1,78 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/machine
+
+INCS = \
+	_bus.h \
+	_inttypes.h \
+	_limits.h \
+	_regset.h \
+	_stdint.h \
+	_types.h \
+	acpica_machdep.h \
+	asm.h \
+	atomic.h \
+	bootinfo.h \
+	bus.h \
+	bus_dma.h \
+	clock.h \
+	cpu.h \
+	cpufunc.h \
+	db_machdep.h \
+	dig64.h \
+	efi.h \
+	elf.h \
+	endian.h \
+	exec.h \
+	float.h \
+	floatingpoint.h \
+	fpu.h \
+	frame.h \
+	gdb_machdep.h \
+	ia64_cpu.h \
+	ieee.h \
+	ieeefp.h \
+	in_cksum.h \
+	intr.h \
+	intrcnt.h \
+	kdb.h \
+	limits.h \
+	mca.h \
+	md_var.h \
+	memdev.h \
+	mutex.h \
+	nexusvar.h \
+	pal.h \
+	param.h \
+	pcb.h \
+	pci_cfgreg.h \
+	pcpu.h \
+	pmap.h \
+	pmc_mdep.h \
+	proc.h \
+	profile.h \
+	pte.h \
+	ptrace.h \
+	reg.h \
+	reloc.h \
+	resource.h \
+	runq.h \
+	sal.h \
+	sapicreg.h \
+	sapicvar.h \
+	setjmp.h \
+	sf_buf.h \
+	sigframe.h \
+	signal.h \
+	smp.h \
+	stdarg.h \
+	sysarch.h \
+	ucontext.h \
+	unwind.h \
+	varargs.h \
+	vmparam.h
+
+ONLY_MACHINE = ia64
+
+DIRDEP= stage
+.include <bsd.headers.mk>

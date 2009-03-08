@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/fs/ntfs
+COMMONDIR =
+
+INCS = \
+	ntfs.h \
+	ntfs_compr.h \
+	ntfs_ihash.h \
+	ntfs_inode.h \
+	ntfs_subr.h \
+	ntfs_vfsops.h \
+	ntfsmount.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

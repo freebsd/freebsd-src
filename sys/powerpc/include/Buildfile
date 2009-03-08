@@ -1,0 +1,85 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/machine
+
+INCS = \
+	_bus.h \
+	_inttypes.h \
+	_limits.h \
+	_stdint.h \
+	_types.h \
+	altivec.h \
+	asm.h \
+	atomic.h \
+	bat.h \
+	bootinfo.h \
+	bus.h \
+	bus_dma.h \
+	clock.h \
+	cpu.h \
+	cpufunc.h \
+	db_machdep.h \
+	dbdma.h \
+	elf.h \
+	endian.h \
+	exec.h \
+	float.h \
+	floatingpoint.h \
+	fpu.h \
+	frame.h \
+	gdb_machdep.h \
+	hid.h \
+	ieee.h \
+	ieeefp.h \
+	in_cksum.h \
+	intr.h \
+	intr_machdep.h \
+	kdb.h \
+	limits.h \
+	md_var.h \
+	memdev.h \
+	metadata.h \
+	mmuvar.h \
+	mutex.h \
+	ocpbus.h \
+	ofw_machdep.h \
+	openpicreg.h \
+	openpicvar.h \
+	param.h \
+	pcb.h \
+	pcpu.h \
+	pio.h \
+	pmap.h \
+	pmc_mdep.h \
+	powerpc.h \
+	proc.h \
+	profile.h \
+	psl.h \
+	pte.h \
+	ptrace.h \
+	reg.h \
+	reloc.h \
+	resource.h \
+	runq.h \
+	sc_machdep.h \
+	setjmp.h \
+	sf_buf.h \
+	sigframe.h \
+	signal.h \
+	smp.h \
+	spr.h \
+	sr.h \
+	stack.h \
+	stdarg.h \
+	tlb.h \
+	trap.h \
+	trap_aim.h \
+	trap_booke.h \
+	ucontext.h \
+	varargs.h \
+	vmparam.h
+
+ONLY_MACHINE = powerpc
+
+DIRDEP= stage
+.include <bsd.headers.mk>

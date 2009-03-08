@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = geom
+
+SRCS = \
+	geom_ctl.c \
+	geom_getxml.c \
+	geom_stats.c \
+	geom_util.c \
+	geom_xml2tree.c
+
+INCS = libgeom.h
+
+CFLAGS += -I${.CURDIR}
+
+WARNS ?= 3
+
+LDADD = -lbsdxml -lsbuf
+
+DIRDEP= include include/machine lib/libexpat stage sys/MACHINE_ARCH/include sys/geom sys/sys
+.include <bsd.lib.mk>

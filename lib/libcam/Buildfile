@@ -1,0 +1,26 @@
+# $FreeBSD$
+
+.PATH:  ${BSDSRCTOP}/sys/cam/scsi ${BSDSRCTOP}/sys/cam
+
+LIBDIR = ${STAGEDIR}/lib
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = cam
+
+SRCS = \
+	cam.c \
+	camlib.c \
+	scsi_all.c \
+	scsi_cmdparse.c \
+	scsi_da.c \
+	scsi_sa.c
+
+INCS = camlib.h
+
+CFLAGS += -I${.CURDIR}
+
+LDADD =  -lsbuf
+
+SRCDIRDEP= sys/cam sys/cam/scsi
+DIRDEP= include include/machine stage sys/MACHINE_ARCH/include sys/cam sys/cam/scsi sys/sys
+.include <bsd.lib.mk>

@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+SUBDIR = \
+	ipf \
+	ipfs \
+	ipfstat \
+	ipftest \
+	ipmon \
+	ipnat \
+	ippool \
+	ipresend \
+	ipsend \
+	iptest \
+	libipf \
+	rules
+
+.include <bsd.subdir.mk>

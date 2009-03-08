@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/sys/${MACHINE}/include
+
+INCDIR = ${STAGEDIR}/usr/include
+
+INCS = \
+	float.h \
+	stdarg.h
+
+SRCDIRDEP= sys/i386/include
+DIRDEP= stage
+.include <bsd.headers.mk>

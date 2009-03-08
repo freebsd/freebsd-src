@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/netgraph/bluetooth/include
+COMMONDIR =
+
+INCS = \
+	ng_bluetooth.h \
+	ng_bt3c.h \
+	ng_btsocket.h \
+	ng_btsocket_hci_raw.h \
+	ng_btsocket_l2cap.h \
+	ng_btsocket_rfcomm.h \
+	ng_btsocket_sco.h \
+	ng_h4.h \
+	ng_hci.h \
+	ng_l2cap.h \
+	ng_ubt.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

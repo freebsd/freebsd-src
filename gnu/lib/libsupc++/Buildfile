@@ -1,0 +1,63 @@
+# $FreeBSD$
+
+GCCDIR = ${BSDSRCTOP}/contrib/gcc
+GCCLIB = ${BSDSRCTOP}/contrib/gcclibs
+SRCDIR = ${BSDSRCTOP}/contrib/libstdc++/libsupc++
+
+.PATH: ${SRCDIR} ${GCCLIB}/libiberty 
+
+LIBDIR = ${STAGEDIR}/usr/lib
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2
+
+# Static only.
+LIB = supc++
+
+SRCS = \
+	del_op.cc \
+	del_opnt.cc \
+	del_opv.cc \
+	del_opvnt.cc \
+	eh_alloc.cc \
+	eh_arm.cc \
+	eh_aux_runtime.cc \
+	eh_call.cc \
+	eh_catch.cc \
+	eh_exception.cc \
+	eh_globals.cc \
+	eh_personality.cc \
+	eh_term_handler.cc \
+	eh_terminate.cc \
+	eh_throw.cc \
+	eh_type.cc \
+	eh_unex_handler.cc \
+	guard.cc \
+	new_handler.cc \
+	new_op.cc \
+	new_opnt.cc \
+	new_opv.cc \
+	new_opvnt.cc \
+	pure.cc \
+	tinfo.cc \
+	tinfo2.cc \
+	vec.cc \
+	vterminate.cc
+
+# from libiberty:
+SRCS +=	cp-demangle.c
+
+CFLAGS += -DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
+CFLAGS += -I${GCCLIB}/include -I${SRCDIR} -I${GCCDIR}
+CFLAGS += -I${.CURDIR}/../libstdc++ -I.
+CFLAGS += -frandom-seed=RepeatabilityConsideredGood
+CXXFLAGS += -fno-implicit-templates -ffunction-sections -fdata-sections
+
+HDRS = exception new typeinfo cxxabi.h exception_defines.h
+INCS = ${HDRS:S;^;${SRCDIR}/;}
+
+GENHDRS += unwind.h
+unwind.h: ${GCCDIR}/unwind-generic.h
+	cp ${.ALLSRC} ${.TARGET}
+
+SRCDIRDEP= contrib/gcc contrib/gcclibs/include contrib/gcclibs/libiberty contrib/libstdc++/libsupc++ gnu/lib/libstdc++
+DIRDEP= gnu/lib/libstdc++/base gnu/lib/libstdc++/bits gnu/lib/libstdc++/ext gnu/lib/libstdc++/march gnu/lib/libstdc++/target gnu/lib/libstdc++/thr include include/machine stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.lib.mk>

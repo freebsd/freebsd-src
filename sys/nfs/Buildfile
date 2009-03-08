@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/nfs
+COMMONDIR =
+
+INCS = \
+	nfs_common.h \
+	nfsproto.h \
+	rpcv2.h \
+	xdr_subs.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

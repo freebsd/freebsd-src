@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+SUBDIR = \
+	bdes \
+	openssl \
+	scp \
+	sftp \
+	ssh \
+	ssh-add \
+	ssh-agent \
+	ssh-keygen \
+	ssh-keyscan
+
+.include <bsd.subdir.mk>

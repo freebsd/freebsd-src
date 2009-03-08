@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+.PATH:	${BSDSRCTOP}/sys/geom
+
+PROG =	fdisk
+
+SRCS = \
+	fdisk.c \
+	geom_mbr_enc.c
+
+WARNS ?=	4
+
+LDADD += -lgeom -lbsdxml -lsbuf
+
+ONLY_MACHINE = ${MACHINE_LIST:Npc98}
+
+SRCDIRDEP= sys/geom
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include lib/csu/MACHINE_ARCH lib/libc lib/libexpat lib/libgeom lib/libsbuf stage sys/MACHINE_ARCH/include sys/bsm sys/geom sys/sys
+.include <bsd.prog.mk>
+
+test:	${PROG}
+	sh ${.CURDIR}/runtest.sh

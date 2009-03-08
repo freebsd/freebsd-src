@@ -1,0 +1,27 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/sys/netinet/libalias
+
+LIBDIR = ${STAGEDIR}/lib
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = alias
+
+SHLIB_MAJOR = 6
+
+SRCS = \
+	alias.c \
+	alias_db.c \
+	alias_proxy.c \
+	alias_util.c \
+	alias_mod.c
+
+INCS = alias.h
+
+WARNS ?= 6
+
+NO_WERROR =
+
+SRCDIRDEP= sys/netinet/libalias
+DIRDEP= include include/arpa include/machine lib/ncurses/ncurses stage sys/MACHINE_ARCH/include sys/net sys/netinet sys/netinet6 sys/sys
+.include <bsd.lib.mk>

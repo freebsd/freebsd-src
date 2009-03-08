@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/fs/udf
+COMMONDIR =
+
+INCS = \
+	ecma167-udf.h \
+	osta.h \
+	udf.h \
+	udf_mount.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

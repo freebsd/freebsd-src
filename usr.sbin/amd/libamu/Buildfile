@@ -1,0 +1,54 @@
+# Makefile for amd
+# 	This file is under a "BSD" copyright (c) by David O'Brien 1998
+#
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/usr/lib
+
+.PATH: ${BSDSRCTOP}/contrib/amd/libamu \
+       ${BSDSRCTOP}/contrib/amd/conf/transp \
+       ${BSDSRCTOP}/contrib/amd/conf/mtab \
+       ${BSDSRCTOP}/contrib/amd/conf/umount
+
+LIB = amu
+
+INTERNALLIB =
+
+SRCS = \
+	hasmntopt.c \
+	misc_rpc.c \
+	mount_fs.c \
+	mtab.c \
+	nfs_prot_xdr.c \
+	strutil.c \
+	wire.c \
+	xutil.c
+
+# These would be links created by the GNU-style configure
+SRCS += \
+	transp_sockets.c \
+	mtab_bsd.c \
+	umount_bsd44.c
+
+# Generated at compile time (replaces supplied xdr_func.c)
+SRCS += \
+	nfs_prot_x.c \
+	xdr_func_%undef.c
+
+GENSRCS += nfs_prot_x.c xdr_func_%undef.c
+
+CFLAGS += -I${BSDSRCTOP}/contrib/amd/libamu
+CFLAGS += -I${COMMONSTAGEDIR}/usr/include/rpcsvc
+CFLAGS += -I${COMMONSHAREDSTAGEDIR}/usr/include/rpcsvc
+
+nfs_prot_x.c: ${NFS_PROT_X}
+	${RPCGEN} -c -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
+
+XDRDEFS!= grep 'ifndef.*HAVE_XDR' ${.CURDIR}/../../../contrib/amd/libamu/xdr_func.c | awk '{print "-D"$$2}'
+
+xdr_func_%undef.c: xdr_func.c
+	-unifdef ${XDRDEFS} < ${.ALLSRC} > ${.TARGET}
+
+SRCDIRDEP= contrib/amd/conf/mtab contrib/amd/conf/nfs_prot contrib/amd/conf/transp contrib/amd/conf/umount contrib/amd/include contrib/amd/libamu
+DIRDEP= include include/arpa include/machine include/rpc include/rpcsvc lib/libwrap stage sys/MACHINE_ARCH/include sys/altq sys/bsm sys/fs/cd9660 sys/fs/msdosfs sys/net sys/netinet sys/netinet6 sys/nfs sys/nfsclient sys/rpc sys/sys sys/ufs/ufs usr.bin/rpcgen_host usr.sbin/amd/include
+.include <bsd.lib.mk>

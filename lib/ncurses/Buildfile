@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+SUBDIR = \
+	form \
+	formw \
+	make_hash \
+	make_keys \
+	menu \
+	menuw \
+	ncurses \
+	ncursesw \
+	panel \
+	panelw
+
+.include <bsd.subdir.mk>

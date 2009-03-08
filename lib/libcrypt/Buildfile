@@ -1,0 +1,41 @@
+#
+# $FreeBSD$
+#
+
+.PATH: ${BSDSRCTOP}/lib/libmd ${BSDSRCTOP}/secure/lib/libcrypt ${BSDSRCTOP}/lib/libutil
+
+LIBDIR = ${STAGEDIR}/lib
+
+LIB = crypt
+
+SHLIB_MAJOR = 4
+
+SRCS = \
+	crypt-md5.c \
+	crypt-nthash.c \
+	crypt.c \
+	md4c.c \
+	md5c.c \
+	misc.c
+
+CFLAGS += -I${BSDSRCTOP}/lib/libmd -I${BSDSRCTOP}/lib/libutil
+
+SRCS += \
+	blowfish.c \
+	crypt-blowfish.c \
+	crypt-des.c
+
+CFLAGS += -I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH
+
+# And the auth_getval() code and support.
+SRCS += auth.c property.c
+
+.for sym in auth_getval property_find properties_read properties_free \
+	MD4Init MD4Final MD4Update MD4Pad \
+	MD5Init MD5Final MD5Update MD5Pad
+CFLAGS += -D${sym}=__${sym}
+.endfor
+
+SRCDIRDEP= lib/libmd lib/libutil secure/lib/libcrypt
+DIRDEP= include include/arpa include/machine stage sys/MACHINE_ARCH/include sys/netinet sys/netinet6 sys/sys
+.include <bsd.lib.mk>

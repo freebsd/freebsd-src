@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+.if !exists(${STAGEDIR}/usr/include)
+_CREATEDIR=	createdir
+createdir :
+	mkdir -p ${STAGEDIR}/usr/include
+.else
+_CREATEDIR=
+.endif
+
+root.mtree.done	: root.mtree ${_CREATEDIR}
+	${MTREE} -rdeU -f ${.CURDIR}/root.mtree -p ${STAGEDIR} > /dev/null
+	touch ${.TARGET}
+
+usr.mtree.done	: usr.mtree ${_CREATEDIR}
+	${MTREE} -rdeU -f ${.CURDIR}/usr.mtree -p ${STAGEDIR}/usr > /dev/null
+	touch ${.TARGET}
+
+include.mtree.done	: include.mtree ${_CREATEDIR}
+	${MTREE} -rdeU -f ${.CURDIR}/include.mtree -p ${STAGEDIR}/usr/include > /dev/null
+	touch ${.TARGET}
+
+.if ${__MKLVL__} != 1
+all	: root.mtree.done usr.mtree.done include.mtree.done
+.endif
+
+CLEANDIRS= tmp
+
+.include <bsd.dirdep.mk>

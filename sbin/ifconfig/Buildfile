@@ -1,0 +1,43 @@
+# $FreeBSD$
+
+PROG = ifconfig
+
+SRCS = ifconfig.c		# base support
+
+#
+# NB: The order here defines the order in which the constructors
+#     are called.  This in turn defines the default order in which
+#     status is displayed.  Probably should add a priority mechanism
+#     to the registration process so we don't depend on this aspect
+#     of the toolchain.
+#
+SRCS += af_link.c		# LLC support
+SRCS += af_inet.c		# IPv4 support
+SRCS += af_inet6.c		# IPv6 support
+SRCS += af_atalk.c		# AppleTalk support
+
+SRCS += ifclone.c		# clone device support
+SRCS += ifmac.c			# MAC support
+SRCS += ifmedia.c		# SIOC[GS]IFMEDIA support
+SRCS += ifvlan.c		# SIOC[GS]ETVLAN support
+SRCS += ifgre.c			# GRE keys etc
+
+SRCS += ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
+
+LDADD += -lbsdxml -lsbuf
+
+SRCS += ifcarp.c		# SIOC[GS]VH support
+SRCS += ifgroup.c		# ...
+SRCS += ifpfsync.c		# pfsync(4) support
+
+SRCS += ifbridge.c		# bridge support
+SRCS += iflagg.c		# lagg support
+
+SRCS += af_ipx.c		# IPX support
+LDADD += -lipx
+
+CFLAGS += -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wnested-externs
+WARNS ?= 0
+
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/arpa include/machine lib/csu/MACHINE_ARCH lib/libc lib/libexpat lib/libipx lib/libsbuf stage sys/MACHINE_ARCH/include sys/altq sys/net sys/net80211 sys/netatalk sys/netinet sys/netinet6 sys/netipx sys/sys sys/vm
+.include <bsd.prog.mk>

@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/eli
+COMMONDIR =
+
+INCS = \
+	g_eli.h \
+	pkcs5v2.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

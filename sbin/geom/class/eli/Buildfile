@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/sys/geom/eli ${BSDSRCTOP}/sys/crypto/sha2
+
+CLASS =	eli
+
+SRCS = \
+	g_eli_crypto.c \
+	g_eli_key.c \
+	pkcs5v2.c \
+	sha2.c
+
+LDADD = -lmd -lcrypto
+
+WARNS ?= 3
+
+SRCDIRDEP= sys/crypto/sha2 sys/geom/eli
+DIRDEP= include include/machine lib/libmd secure/lib/libcrypto stage sys/MACHINE_ARCH/include sys/crypto/sha2 sys/geom/eli sys/opencrypto sys/sys
+.include <bsd.lib.mk>

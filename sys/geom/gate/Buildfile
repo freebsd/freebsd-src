@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/gate
+COMMONDIR =
+
+INCS = \
+	g_gate.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

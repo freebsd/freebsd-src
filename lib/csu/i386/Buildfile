@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/lib/csu/common ${BSDSRCTOP}/lib/csu/i386-elf
+
+OBJSDIR = ${STAGEDIR}/usr/lib
+
+SRCS = \
+	crt1.c crti.S crtn.S
+
+OBJS += gcrt1.o
+
+WARNS?=		6
+
+NO_SHARED=
+
+CFLAGS += \
+	-I${STAGEDIR}/usr/include \
+	-I${COMMONSTAGEDIR}/usr/include \
+	-I${BSDSRCTOP}/lib/csu/common \
+	-I${BSDSRCTOP}/lib/libc/include
+
+gcrt1.o: crt1.c
+	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
+
+ONLY_MACHINE = i386
+
+SRCDIRDEP= lib/csu/common lib/csu/i386-elf lib/libc/include
+DIRDEP= include stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.objs.mk>

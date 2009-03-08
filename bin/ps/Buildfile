@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+PROG = ps
+SRCS = \
+	fmt.c \
+	keyword.c \
+	nlist.c \
+	print.c \
+	ps.c
+
+#
+# To support "lazy" ps for non root/wheel users
+# add -DLAZY_PS to the cflags.  This helps
+# keep ps from being an unnecessary load
+# on large systems.
+#
+CFLAGS += -DLAZY_PS
+LDADD += -lm -lkvm
+
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/machine lib/csu/MACHINE_ARCH lib/libc lib/libkvm lib/msun secure/lib/libcrypto stage sys/MACHINE_ARCH/include sys/bsm sys/sys sys/vm
+.include <bsd.prog.mk>

@@ -1,0 +1,430 @@
+# $FreeBSD: src/gnu/lib/libstdc++/Makefile,v 1.63 2008/12/31 07:39:23 imp Exp $
+
+LIBDIR = ${STAGEDIR}/usr/lib
+
+GCCDIR=	${.SRCTOP}/contrib/gcc
+GCCLIB=	${.SRCTOP}/contrib/gcclibs
+SRCDIR=	${.SRCTOP}/contrib/libstdc++
+SUPDIR=	${SRCDIR}/libsupc++
+
+.PATH: ${SRCDIR}/src ${SRCDIR}/libmath ${SRCDIR}/config/io \
+       ${SRCDIR}/config/locale/darwin ${SRCDIR}/config/locale/generic \
+       ${SRCDIR}/include ${SUPDIR} ${GCCLIB}/libiberty
+
+LIB = stdc++
+SHLIB_MAJOR=	6
+
+CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
+.if ${MACHINE_ARCH} == "arm"
+CFLAGS+=	-D_GLIBCXX_SJLJ_EXCEPTIONS=1
+.endif
+CFLAGS+=	-I.
+CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${SUPDIR}
+CFLAGS+=	-I${GCCDIR}
+CFLAGS+=	-I${SRCDIR}/include
+CFLAGS+=	-I${GCCLIB}/include
+CFLAGS+=	-I${GCCLIB}/libcpp/include
+CFLAGS+=	-I${.OBJDIR}/../../usr.bin/cc/cc_tools/genheaders
+CFLAGS+=	-I${.OBJDIR}/../../usr.bin/cc/cc_tools/libcctools
+
+#CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools
+#CFLAGS+=	-I${SRCDIR}/include -I. -I./target
+#CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
+
+CFLAGS+=	-I${STAGEDIR}/usr/include/c++/4.2
+CFLAGS+=	-I${STAGEDIR}/usr/include/c++/4.2/backward
+CFLAGS+=	-I${COMMONSTAGEDIR}/usr/include/c++/4.2
+CFLAGS+=	-I${COMMONSTAGEDIR}/usr/include/c++/4.2/backward
+CFLAGS+=	-I${SHAREDSTAGEDIR}/usr/include/c++/4.2
+CFLAGS+=	-I${SHAREDSTAGEDIR}/usr/include/c++/4.2/backward
+CFLAGS+=	-I${COMMONSHAREDSTAGEDIR}/usr/include/c++/4.2
+CFLAGS+=	-I${COMMONSHAREDSTAGEDIR}/usr/include/c++/4.2/backward
+CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
+CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
+		-Wno-deprecated
+
+LDADD=		-lm
+
+# libstdc++ sources
+SRCS+=	bitmap_allocator.cc pool_allocator.cc \
+	mt_allocator.cc codecvt.cc compatibility.cc complex_io.cc \
+	ctype.cc debug.cc debug_list.cc functexcept.cc globals_io.cc \
+	ios.cc ios_failure.cc ios_init.cc ios_locale.cc limits.cc \
+	list.cc locale.cc locale_init.cc locale_facets.cc \
+	localename.cc stdexcept.cc strstream.cc tree.cc \
+	allocator-inst.cc concept-inst.cc fstream-inst.cc ext-inst.cc \
+	ios-inst.cc iostream-inst.cc istream-inst.cc istream.cc \
+	locale-inst.cc misc-inst.cc ostream-inst.cc sstream-inst.cc \
+	streambuf-inst.cc streambuf.cc string-inst.cc valarray-inst.cc \
+	wlocale-inst.cc wstring-inst.cc atomicity.cc \
+	codecvt_members.cc collate_members.cc ctype_members.cc \
+	messages_members.cc monetary_members.cc numeric_members.cc \
+	time_members.cc basic_file_stdio.cc c_locale.cc \
+#	compatibility-ldbl.cc
+
+# target sources
+SRCS+=  atomicity.cc codecvt_members.cc collate_members.cc ctype_members.cc \
+	messages_members.cc monetary_members.cc numeric_members.cc \
+	time_members.cc
+
+# target sources extra
+SRCS+=  basic_file_stdio.cc c_locale.cc
+
+# C parts of math
+SRCS+=	stubs.c
+
+# Embedded copy of libsupc++
+SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc eh_alloc.cc eh_arm.cc \
+	eh_aux_runtime.cc eh_call.cc eh_catch.cc eh_exception.cc eh_globals.cc \
+	eh_personality.cc eh_term_handler.cc eh_terminate.cc eh_throw.cc \
+	eh_type.cc eh_unex_handler.cc guard.cc new_handler.cc new_op.cc \
+	new_opnt.cc new_opv.cc new_opvnt.cc pure.cc tinfo.cc tinfo2.cc \
+	vec.cc vterminate.cc
+
+# from libiberty:
+SRCS+=	cp-demangle.c
+
+.if exists(${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h)
+ATOMICITY_H=	${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h
+.else
+ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_mutex/atomicity.h
+.endif
+
+.if ${MACHINE_ARCH} == "amd64"
+.if exists(${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h)
+ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h
+.endif
+.endif
+
+atomicity.cc:	${ATOMICITY_H}
+	ln -sf ${.ALLSRC} ${.TARGET}
+
+# Not installed, but kept here for completeness
+COMPATHDRS=	assert.h ctype.h errno.h float.h iso646.h limits.h locale.h \
+		math.h setjmp.h signal.h stdarg.h stddef.h stdio.h stdlib.h \
+		string.h time.h wchar.h wctype.h
+COMPATHDRS:=	${COMPATHDRS:S;^;${SRCDIR}/include/debug/;}
+COMPATHDRSDIR=	${CXXINCLUDEDIR}/c_compatibility
+
+PBHDRS+= \
+	basic_tree_policy/basic_tree_policy_base.hpp \
+	basic_tree_policy/null_node_metadata.hpp \
+	basic_tree_policy/traits.hpp \
+	basic_types.hpp \
+	binary_heap_/binary_heap_.hpp \
+	binary_heap_/const_iterator.hpp \
+	binary_heap_/const_point_iterator.hpp \
+	binary_heap_/constructors_destructor_fn_imps.hpp \
+	binary_heap_/debug_fn_imps.hpp \
+	binary_heap_/entry_cmp.hpp \
+	binary_heap_/entry_pred.hpp \
+	binary_heap_/erase_fn_imps.hpp \
+	binary_heap_/find_fn_imps.hpp \
+	binary_heap_/info_fn_imps.hpp \
+	binary_heap_/insert_fn_imps.hpp \
+	binary_heap_/iterators_fn_imps.hpp \
+	binary_heap_/policy_access_fn_imps.hpp \
+	binary_heap_/resize_policy.hpp \
+	binary_heap_/split_join_fn_imps.hpp \
+	binary_heap_/trace_fn_imps.hpp \
+	binomial_heap_base_/binomial_heap_base_.hpp \
+	binomial_heap_base_/constructors_destructor_fn_imps.hpp \
+	binomial_heap_base_/debug_fn_imps.hpp \
+	binomial_heap_base_/erase_fn_imps.hpp \
+	binomial_heap_base_/find_fn_imps.hpp \
+	binomial_heap_base_/insert_fn_imps.hpp \
+	binomial_heap_base_/split_join_fn_imps.hpp \
+	binomial_heap_/binomial_heap_.hpp \
+	binomial_heap_/constructors_destructor_fn_imps.hpp \
+	binomial_heap_/debug_fn_imps.hpp \
+	bin_search_tree_/bin_search_tree_.hpp \
+	bin_search_tree_/cond_dtor_entry_dealtor.hpp \
+	bin_search_tree_/cond_key_dtor_entry_dealtor.hpp
+
+PBHDRS+= \
+	bin_search_tree_/constructors_destructor_fn_imps.hpp \
+	bin_search_tree_/debug_fn_imps.hpp \
+	bin_search_tree_/erase_fn_imps.hpp \
+	bin_search_tree_/find_fn_imps.hpp \
+	bin_search_tree_/info_fn_imps.hpp \
+	bin_search_tree_/insert_fn_imps.hpp \
+	bin_search_tree_/iterators_fn_imps.hpp \
+	bin_search_tree_/node_iterators.hpp \
+	bin_search_tree_/point_iterators.hpp \
+	bin_search_tree_/policy_access_fn_imps.hpp \
+	bin_search_tree_/r_erase_fn_imps.hpp \
+	bin_search_tree_/rotate_fn_imps.hpp \
+	bin_search_tree_/split_join_fn_imps.hpp \
+	bin_search_tree_/traits.hpp \
+	cc_hash_table_map_/cc_ht_map_.hpp \
+	cc_hash_table_map_/cmp_fn_imps.hpp \
+	cc_hash_table_map_/cond_key_dtor_entry_dealtor.hpp \
+	cc_hash_table_map_/constructor_destructor_fn_imps.hpp \
+	cc_hash_table_map_/constructor_destructor_no_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/constructor_destructor_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/debug_fn_imps.hpp \
+	cc_hash_table_map_/debug_no_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/debug_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/entry_list_fn_imps.hpp \
+	cc_hash_table_map_/erase_fn_imps.hpp \
+	cc_hash_table_map_/erase_no_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/erase_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/find_fn_imps.hpp \
+	cc_hash_table_map_/find_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/info_fn_imps.hpp \
+	cc_hash_table_map_/insert_fn_imps.hpp \
+	cc_hash_table_map_/insert_no_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/insert_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/iterators_fn_imps.hpp \
+	cc_hash_table_map_/policy_access_fn_imps.hpp \
+	cc_hash_table_map_/resize_fn_imps.hpp \
+	cc_hash_table_map_/resize_no_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/resize_store_hash_fn_imps.hpp \
+	cc_hash_table_map_/size_fn_imps.hpp \
+	cc_hash_table_map_/standard_policies.hpp
+
+PBHDRS+= \
+	cc_hash_table_map_/trace_fn_imps.hpp \
+	cond_dealtor.hpp \
+	constructors_destructor_fn_imps.hpp \
+	container_base_dispatch.hpp \
+	eq_fn/eq_by_less.hpp \
+	eq_fn/hash_eq_fn.hpp \
+	gp_hash_table_map_/constructor_destructor_fn_imps.hpp \
+	gp_hash_table_map_/constructor_destructor_no_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/constructor_destructor_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/debug_fn_imps.hpp \
+	gp_hash_table_map_/debug_no_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/debug_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/erase_fn_imps.hpp \
+	gp_hash_table_map_/erase_no_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/erase_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/find_fn_imps.hpp \
+	gp_hash_table_map_/find_no_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/find_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/gp_ht_map_.hpp \
+	gp_hash_table_map_/info_fn_imps.hpp \
+	gp_hash_table_map_/insert_fn_imps.hpp \
+	gp_hash_table_map_/insert_no_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/insert_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/iterator_fn_imps.hpp \
+	gp_hash_table_map_/policy_access_fn_imps.hpp \
+	gp_hash_table_map_/resize_fn_imps.hpp \
+	gp_hash_table_map_/resize_no_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/resize_store_hash_fn_imps.hpp \
+	gp_hash_table_map_/standard_policies.hpp \
+	gp_hash_table_map_/trace_fn_imps.hpp \
+	hash_fn/direct_mask_range_hashing_imp.hpp \
+	hash_fn/direct_mod_range_hashing_imp.hpp \
+	hash_fn/linear_probe_fn_imp.hpp \
+	hash_fn/mask_based_range_hashing.hpp \
+	hash_fn/mod_based_range_hashing.hpp \
+	hash_fn/probe_fn_base.hpp \
+	hash_fn/quadratic_probe_fn_imp.hpp \
+	hash_fn/ranged_hash_fn.hpp \
+	hash_fn/ranged_probe_fn.hpp
+
+PBHDRS+= \
+	hash_fn/sample_probe_fn.hpp \
+	hash_fn/sample_ranged_hash_fn.hpp \
+	hash_fn/sample_ranged_probe_fn.hpp \
+	hash_fn/sample_range_hashing.hpp \
+	left_child_next_sibling_heap_/const_iterator.hpp \
+	left_child_next_sibling_heap_/const_point_iterator.hpp \
+	left_child_next_sibling_heap_/constructors_destructor_fn_imps.hpp \
+	left_child_next_sibling_heap_/debug_fn_imps.hpp \
+	left_child_next_sibling_heap_/erase_fn_imps.hpp \
+	left_child_next_sibling_heap_/info_fn_imps.hpp \
+	left_child_next_sibling_heap_/insert_fn_imps.hpp \
+	left_child_next_sibling_heap_/iterators_fn_imps.hpp \
+	left_child_next_sibling_heap_/left_child_next_sibling_heap_.hpp \
+	left_child_next_sibling_heap_/node.hpp \
+	left_child_next_sibling_heap_/null_metadata.hpp \
+	left_child_next_sibling_heap_/policy_access_fn_imps.hpp \
+	left_child_next_sibling_heap_/trace_fn_imps.hpp \
+	list_update_map_/constructor_destructor_fn_imps.hpp \
+	list_update_map_/debug_fn_imps.hpp \
+	list_update_map_/entry_metadata_base.hpp \
+	list_update_map_/erase_fn_imps.hpp \
+	list_update_map_/find_fn_imps.hpp \
+	list_update_map_/info_fn_imps.hpp \
+	list_update_map_/insert_fn_imps.hpp \
+	list_update_map_/iterators_fn_imps.hpp \
+	list_update_map_/lu_map_.hpp \
+	list_update_map_/trace_fn_imps.hpp \
+	list_update_policy/counter_lu_metadata.hpp \
+	list_update_policy/counter_lu_policy_imp.hpp \
+	list_update_policy/mtf_lu_policy_imp.hpp \
+	list_update_policy/sample_update_policy.hpp \
+	map_debug_base.hpp \
+	ov_tree_map_/cond_dtor.hpp \
+	ov_tree_map_/constructors_destructor_fn_imps.hpp \
+	ov_tree_map_/debug_fn_imps.hpp \
+	ov_tree_map_/erase_fn_imps.hpp \
+	ov_tree_map_/info_fn_imps.hpp \
+	ov_tree_map_/insert_fn_imps.hpp \
+	ov_tree_map_/iterators_fn_imps.hpp \
+	ov_tree_map_/node_iterators.hpp \
+	ov_tree_map_/ov_tree_map_.hpp
+
+PBHDRS+= \
+	ov_tree_map_/policy_access_fn_imps.hpp \
+	ov_tree_map_/split_join_fn_imps.hpp \
+	ov_tree_map_/traits.hpp \
+	pairing_heap_/constructors_destructor_fn_imps.hpp \
+	pairing_heap_/debug_fn_imps.hpp \
+	pairing_heap_/erase_fn_imps.hpp \
+	pairing_heap_/find_fn_imps.hpp \
+	pairing_heap_/insert_fn_imps.hpp \
+	pairing_heap_/pairing_heap_.hpp \
+	pairing_heap_/split_join_fn_imps.hpp \
+	pat_trie_/child_iterator.hpp \
+	pat_trie_/cond_dtor_entry_dealtor.hpp \
+	pat_trie_/const_child_iterator.hpp \
+	pat_trie_/constructors_destructor_fn_imps.hpp \
+	pat_trie_/debug_fn_imps.hpp \
+	pat_trie_/erase_fn_imps.hpp \
+	pat_trie_/find_fn_imps.hpp \
+	pat_trie_/head.hpp \
+	pat_trie_/info_fn_imps.hpp \
+	pat_trie_/insert_join_fn_imps.hpp \
+	pat_trie_/internal_node.hpp \
+	pat_trie_/iterators_fn_imps.hpp \
+	pat_trie_/leaf.hpp \
+	pat_trie_/node_base.hpp \
+	pat_trie_/node_iterators.hpp \
+	pat_trie_/node_metadata_base.hpp \
+	pat_trie_/pat_trie_.hpp \
+	pat_trie_/point_iterators.hpp \
+	pat_trie_/policy_access_fn_imps.hpp \
+	pat_trie_/r_erase_fn_imps.hpp \
+	pat_trie_/rotate_fn_imps.hpp \
+	pat_trie_/split_fn_imps.hpp \
+	pat_trie_/split_join_branch_bag.hpp \
+	pat_trie_/synth_e_access_traits.hpp \
+	pat_trie_/trace_fn_imps.hpp \
+	pat_trie_/traits.hpp \
+	pat_trie_/update_fn_imps.hpp \
+	priority_queue_base_dispatch.hpp \
+	rb_tree_map_/constructors_destructor_fn_imps.hpp \
+	rb_tree_map_/debug_fn_imps.hpp
+
+PBHDRS+= \
+	rb_tree_map_/erase_fn_imps.hpp \
+	rb_tree_map_/find_fn_imps.hpp \
+	rb_tree_map_/info_fn_imps.hpp \
+	rb_tree_map_/insert_fn_imps.hpp \
+	rb_tree_map_/node.hpp \
+	rb_tree_map_/rb_tree_.hpp \
+	rb_tree_map_/split_join_fn_imps.hpp \
+	rb_tree_map_/traits.hpp \
+	rc_binomial_heap_/constructors_destructor_fn_imps.hpp \
+	rc_binomial_heap_/debug_fn_imps.hpp \
+	rc_binomial_heap_/erase_fn_imps.hpp \
+	rc_binomial_heap_/insert_fn_imps.hpp \
+	rc_binomial_heap_/rc_binomial_heap_.hpp \
+	rc_binomial_heap_/rc.hpp \
+	rc_binomial_heap_/split_join_fn_imps.hpp \
+	rc_binomial_heap_/trace_fn_imps.hpp \
+	resize_policy/cc_hash_max_collision_check_resize_trigger_imp.hpp \
+	resize_policy/hash_exponential_size_policy_imp.hpp \
+	resize_policy/hash_load_check_resize_trigger_imp.hpp \
+	resize_policy/hash_load_check_resize_trigger_size_base.hpp \
+	resize_policy/hash_prime_size_policy_imp.hpp \
+	resize_policy/hash_standard_resize_policy_imp.hpp \
+	resize_policy/sample_resize_policy.hpp \
+	resize_policy/sample_resize_trigger.hpp \
+	resize_policy/sample_size_policy.hpp \
+	splay_tree_/constructors_destructor_fn_imps.hpp \
+	splay_tree_/debug_fn_imps.hpp \
+	splay_tree_/erase_fn_imps.hpp \
+	splay_tree_/find_fn_imps.hpp \
+	splay_tree_/info_fn_imps.hpp \
+	splay_tree_/insert_fn_imps.hpp \
+	splay_tree_/node.hpp \
+	splay_tree_/splay_fn_imps.hpp \
+	splay_tree_/splay_tree_.hpp \
+	splay_tree_/split_join_fn_imps.hpp \
+	splay_tree_/traits.hpp \
+	standard_policies.hpp \
+	thin_heap_/constructors_destructor_fn_imps.hpp \
+	thin_heap_/debug_fn_imps.hpp \
+	thin_heap_/erase_fn_imps.hpp
+
+PBHDRS+= \
+	thin_heap_/find_fn_imps.hpp \
+	thin_heap_/insert_fn_imps.hpp \
+	thin_heap_/split_join_fn_imps.hpp \
+	thin_heap_/thin_heap_.hpp \
+	thin_heap_/trace_fn_imps.hpp \
+	tree_policy/node_metadata_selector.hpp \
+	tree_policy/null_node_update_imp.hpp \
+	tree_policy/order_statistics_imp.hpp \
+	tree_policy/sample_tree_node_update.hpp \
+	tree_trace_base.hpp \
+	trie_policy/node_metadata_selector.hpp \
+	trie_policy/null_node_update_imp.hpp \
+	trie_policy/order_statistics_imp.hpp \
+	trie_policy/prefix_search_node_update_imp.hpp \
+	trie_policy/sample_trie_e_access_traits.hpp \
+	trie_policy/sample_trie_node_update.hpp \
+	trie_policy/string_trie_e_access_traits_imp.hpp \
+	trie_policy/trie_policy_base.hpp \
+	types_traits.hpp \
+	type_utils.hpp \
+	unordered_iterator/const_iterator.hpp \
+	unordered_iterator/const_point_iterator.hpp \
+	unordered_iterator/iterator.hpp \
+	unordered_iterator/point_iterator.hpp
+
+PBHDRSDIRS= \
+	pairing_heap_ \
+	splay_tree_ \
+	list_update_map_ \
+	basic_tree_policy \
+	trie_policy \
+	gp_hash_table_map_ \
+	tree_policy \
+	binomial_heap_base_ \
+	resize_policy \
+	bin_search_tree_ \
+	binomial_heap_ \
+	thin_heap_ \
+	pat_trie_ \
+	cc_hash_table_map_ \
+	rc_binomial_heap_ \
+	left_child_next_sibling_heap_ \
+	unordered_iterator \
+	binary_heap_ \
+	ov_tree_map_ \
+	hash_fn \
+	eq_fn \
+	rb_tree_map_ \
+	list_update_policy
+
+.for D in ${PBHDRSDIRS}
+PHDRGRP$D:=	${PBHDRS:M$D/*:S;^;${SRCDIR}/include/ext/pb_ds/detail/;}
+PHDRGRP$DDIR=	${CXXINCLUDEDIR}/ext/pb_ds/detail/$D
+INCSGROUPS+=	PHDRGRP$D
+.endfor
+
+
+uppercase =	[ABCDEFGHIJKLMNOPQRSTUVWXYZ_]
+
+GENHDRS += unwind.h
+unwind.h: ${GCCDIR}/unwind-generic.h
+	cp ${.ALLSRC} ${.TARGET}
+
+DATESTAMP!=	cat ${GCCDIR}/DATESTAMP
+
+# Symbol versioning.
+
+VERSION_MAP=  	libstdc++.map
+
+${VERSION_MAP}: ${SRCDIR}/config/abi/pre/gnu.ver
+	ln -sf ${.ALLSRC} ${.TARGET}
+
+SRCDIRDEP= contrib/gcc contrib/gcclibs/include contrib/gcclibs/libiberty contrib/libstdc++/config/abi/pre contrib/libstdc++/config/cpu/generic/atomicity_mutex contrib/libstdc++/config/io contrib/libstdc++/config/locale/darwin contrib/libstdc++/config/locale/generic contrib/libstdc++/include/bits contrib/libstdc++/include/debug contrib/libstdc++/include/ext contrib/libstdc++/libmath contrib/libstdc++/libsupc++ contrib/libstdc++/src
+DIRDEP= gnu/lib/libstdc++/base gnu/lib/libstdc++/basex gnu/lib/libstdc++/bkw gnu/lib/libstdc++/march gnu/lib/libstdc++/std gnu/lib/libstdc++/target gnu/lib/libstdc++/thr gnu/usr.bin/cc/cc_tools/genheaders include include/machine lib/msun stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.lib.mk>

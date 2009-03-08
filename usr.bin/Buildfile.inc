@@ -1,0 +1,1 @@
+BINDIR = ${STAGEDIR}/usr/bin

@@ -1,0 +1,33 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/net80211
+COMMONDIR =
+
+INCS = \
+	_ieee80211.h \
+	ieee80211.h \
+	ieee80211_adhoc.h \
+	ieee80211_amrr.h \
+	ieee80211_crypto.h \
+	ieee80211_dfs.h \
+	ieee80211_freebsd.h \
+	ieee80211_hostap.h \
+	ieee80211_ht.h \
+	ieee80211_input.h \
+	ieee80211_ioctl.h \
+	ieee80211_monitor.h \
+	ieee80211_node.h \
+	ieee80211_phy.h \
+	ieee80211_power.h \
+	ieee80211_proto.h \
+	ieee80211_radiotap.h \
+	ieee80211_regdomain.h \
+	ieee80211_rssadapt.h \
+	ieee80211_scan.h \
+	ieee80211_sta.h \
+	ieee80211_tdma.h \
+	ieee80211_var.h \
+	ieee80211_wds.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

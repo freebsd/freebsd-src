@@ -1,0 +1,60 @@
+# $FreeBSD$
+
+SUBDIR = \
+	amd64 \
+	arm \
+	boot \
+	bsm \
+	cam \
+	cddl \
+	compat \
+	conf \
+	contrib \
+	crypto \
+	ddb \
+	dev \
+	fs \
+	gdb \
+	geom \
+	gnu \
+	i386 \
+	ia64 \
+	isa \
+	kern \
+	kgssapi \
+	legacy \
+	libkern \
+	mips \
+	modules \
+	net \
+	net80211 \
+	netatalk \
+	netgraph \
+	netinet \
+	netinet6 \
+	netipsec \
+	netipx \
+	netnatm \
+	netncp \
+	netsmb \
+	nfs \
+	nfs4client \
+	nfsclient \
+	nfsserver \
+	nlm \
+	opencrypto \
+	pc98 \
+	pci \
+	powerpc \
+	rpc \
+	security \
+	sparc64 \
+	sun4v \
+	sys \
+	tools \
+	ufs \
+	vm \
+	xdr \
+	xen
+
+.include <bsd.subdir.mk>

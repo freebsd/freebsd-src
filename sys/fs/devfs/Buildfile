@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/fs/devfs
+COMMONDIR =
+
+INCS = \
+	devfs.h \
+	devfs_int.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom
+COMMONDIR =
+
+INCS = \
+	geom.h \
+	geom_ctl.h \
+	geom_disk.h \
+	geom_int.h \
+	geom_slice.h \
+	geom_vfs.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

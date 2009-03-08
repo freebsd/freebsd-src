@@ -1,0 +1,62 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+
+LIB = edit
+
+SHLIB_MAJOR = 6
+
+OSRCS =	chared.c common.c el.c emacs.c fcns.c help.c hist.c key.c map.c \
+	parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c
+
+LDADD =	-lncurses
+
+# For speed and debugging
+#SRCS=   ${OSRCS} tokenizer.c history.c
+# For protection
+SRCS = \
+	editline.c \
+	tokenizer.c \
+	history.c
+
+GENHDRS += \
+	common.h \
+	emacs.h \
+	fcns.h \
+	help.h \
+	vi.h
+
+CFLAGS+= -I. -I${.CURDIR}
+#CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
+#CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
+
+AHDR=	vi.h emacs.h common.h
+ASRC=	${.CURDIR}/vi.c ${.CURDIR}/emacs.c ${.CURDIR}/common.c
+
+.for hdr in vi emacs common
+${hdr}.h: ${hdr}.c makelist
+	sh ${.CURDIR}/makelist -h ${.CURDIR}/${hdr}.c > ${.TARGET}
+.endfor
+
+fcns.h: ${AHDR} makelist
+	sh ${.CURDIR}/makelist -fh ${AHDR} > ${.TARGET}
+
+fcns.c: ${AHDR} fcns.h makelist
+	sh ${.CURDIR}/makelist -fc ${AHDR} > ${.TARGET}
+
+help.c: ${ASRC} makelist
+	sh ${.CURDIR}/makelist -bc ${ASRC} > ${.TARGET}
+
+help.h: ${ASRC} makelist
+	sh ${.CURDIR}/makelist -bh ${ASRC} > ${.TARGET}
+
+editline.c: ${OSRCS}
+	sh ${.CURDIR}/makelist -e ${.ALLSRC:T} > ${.TARGET}
+
+test.o: ${.CURDIR}/TEST/test.c
+
+test: test.o libedit.a ${DPADD} ${LIBTERMCAP}
+	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD}
+
+DIRDEP= include include/machine lib/ncurses/ncurses stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.lib.mk>

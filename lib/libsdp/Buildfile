@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = sdp
+
+SHLIB_MAJOR = 3
+
+SRCS = \
+	search.c \
+	service.c \
+	session.c \
+	util.c
+
+INCS = sdp.h
+
+WARNS ?= 2
+
+CFLAGS += -I${.CURDIR}
+
+DIRDEP= include include/arpa lib/libbluetooth stage sys/MACHINE_ARCH/include sys/netgraph/bluetooth/include sys/netinet sys/netinet6 sys/sys
+.include <bsd.lib.mk>

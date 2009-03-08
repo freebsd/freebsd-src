@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/dev/utopia
+COMMONDIR =
+
+INCS = \
+	idtphy.h \
+	suni.h \
+	utopia.h \
+	utopia_priv.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

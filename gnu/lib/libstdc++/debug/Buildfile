@@ -1,0 +1,35 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/contrib/libstdc++/include/debug
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/debug
+COMMONDIR =
+
+INCS = \
+	bitset \
+	debug.h \
+	deque \
+	formatter.h \
+	functions.h \
+	hash_map \
+	hash_map.h \
+	hash_multimap.h \
+	hash_multiset.h \
+	hash_set \
+	hash_set.h \
+	list \
+	macros.h \
+	map \
+	map.h \
+	multimap.h \
+	multiset.h \
+	safe_base.h \
+	safe_iterator.h \
+	safe_iterator.tcc \
+	safe_sequence.h \
+	set set.h \
+	string vector
+
+SRCDIRDEP= contrib/libstdc++/include/debug
+DIRDEP= stage
+.include <bsd.headers.mk>

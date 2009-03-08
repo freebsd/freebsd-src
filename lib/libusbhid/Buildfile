@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = usbhid
+
+SHLIB_MAJOR = 3
+
+SRCS = \
+	descr.c \
+	descr_compat.c \
+	parse.c \
+	usage.c \
+	data.c
+
+INCS = usbhid.h
+
+DIRDEP= include stage sys/MACHINE_ARCH/include sys/dev/usb sys/sys
+.include <bsd.lib.mk>

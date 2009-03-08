@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+PROG = bthidd
+
+SRCS = \
+	bthidd.c \
+	client.c \
+	hid.c \
+	kbd.c \
+	lexer.l \
+	parser.y \
+	server.c \
+	session.c
+
+WARNS ?= 6
+
+CFLAGS += -I${.CURDIR}
+
+DEBUG_FLAGS = -g
+
+LDADD += -lbluetooth -lusbhid
+
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/machine lib/csu/MACHINE_ARCH lib/libbluetooth lib/libc lib/libusbhid stage sys/MACHINE_ARCH/include sys/dev/usb sys/dev/vkbd sys/netgraph/bluetooth/include sys/sys
+.include <bsd.prog.mk>

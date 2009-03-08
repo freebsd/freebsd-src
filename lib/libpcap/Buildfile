@@ -1,0 +1,63 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+PCAP_DISTDIR ?= ${BSDSRCTOP}/contrib/libpcap
+
+.PATH:	${PCAP_DISTDIR}
+.PATH:	${PCAP_DISTDIR}/bpf/net
+
+LIB =	pcap
+
+SHLIB_MAJOR = 5
+
+SRCS = \
+	bpf_dump.c  \
+	bpf_filter.c  \
+	bpf_image.c  \
+	etherent.c  \
+	fad-getad.c  \
+	gencode.c  \
+	grammar.y  \
+	inet.c  \
+	nametoaddr.c  \
+	optimize.c  \
+	pcap-bpf.c  \
+	pcap.c  \
+	savefile.c  \
+	scanner.l  \
+	version.c
+
+INCS = \
+	pcap-bpf.h \
+	pcap-int.h \
+	pcap-namedb.h \
+	pcap.h
+
+YFLAGS += -p pcapyy
+LFLAGS += -Ppcapyy
+
+CFLAGS += -DHAVE_CONFIG_H -Dyylval=pcapyylval -I${.CURDIR} -I.
+CFLAGS += -D_U_="__attribute__((unused))"
+CFLAGS += -DHAVE_SNPRINTF -DHAVE_VSNPRINTF
+CFLAGS += -DINET6
+CFLAGS += -DHAVE_NET_PFVAR_H
+
+#
+# Magic to grab sources out of src/contrib
+#
+CFLAGS += -I${PCAP_DISTDIR}
+
+version.c: VERSION
+	sed 's/.*/char pcap_version[] = "&";/' ${.ALLSRC} > ${.TARGET}
+
+GENHDRS += version.h
+version.h: VERSION
+	sed 's/.*/char pcap_version_string[] = "libpcap version &";/' ${.ALLSRC} > ${.TARGET}
+
+GENHDRS += tokdefs.h
+tokdefs.h: grammar.h
+	cp grammar.h tokdefs.h
+
+SRCDIRDEP= contrib/libpcap contrib/libpcap/bpf/net
+DIRDEP= include include/arpa include/machine stage sys/MACHINE_ARCH/include sys/net sys/netinet sys/netinet6 sys/sys sys/vm
+.include <bsd.lib.mk>

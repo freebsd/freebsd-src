@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/crypto/sha2
+COMMONDIR =
+
+INCS = \
+	sha2.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

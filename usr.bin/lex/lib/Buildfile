@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/usr/lib
+
+LIB = l
+
+SRCS = \
+	libmain.c \
+	libyywrap.c
+
+NO_PIC =
+
+DIRDEP= stage
+.include <bsd.lib.mk>
+

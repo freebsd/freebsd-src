@@ -1,0 +1,77 @@
+# $FreeBSD$
+
+SRCDIR = ${BSDSRCTOP}/contrib/libstdc++
+
+.PATH: ${BSDSRCTOP}/contrib/libstdc++/include/bits
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/bits
+COMMONDIR =
+
+INCS = \
+	allocator.h \
+	basic_ios.h \
+	basic_ios.tcc \
+	basic_string.h \
+	basic_string.tcc \
+	boost_concept_check.h \
+	char_traits.h \
+	codecvt.h \
+	concept_check.h \
+	cpp_type_traits.h \
+	deque.tcc \
+	fstream.tcc \
+	functexcept.h \
+	gslice.h \
+	gslice_array.h \
+	indirect_array.h \
+	ios_base.h \
+	istream.tcc \
+	list.tcc \
+	locale_classes.h \
+	locale_facets.h \
+	locale_facets.tcc \
+	localefwd.h \
+	mask_array.h \
+	ostream.tcc \
+	ostream_insert.h \
+	postypes.h \
+	slice_array.h \
+	sstream.tcc \
+	stl_algo.h \
+	stl_algobase.h \
+	stl_bvector.h \
+	stl_construct.h \
+	stl_deque.h \
+	stl_function.h \
+	stl_heap.h \
+	stl_iterator.h \
+	stl_iterator_base_funcs.h \
+	stl_iterator_base_types.h \
+	stl_list.h \
+	stl_map.h \
+	stl_multimap.h \
+	stl_multiset.h \
+	stl_numeric.h \
+	stl_pair.h \
+	stl_queue.h \
+	stl_raw_storage_iter.h \
+	stl_relops.h \
+	stl_set.h \
+	stl_stack.h \
+	stl_tempbuf.h \
+	stl_tree.h \
+	stl_uninitialized.h \
+	stl_vector.h \
+	stream_iterator.h \
+	streambuf.tcc \
+	streambuf_iterator.h \
+	stringfwd.h \
+	valarray_after.h \
+	valarray_array.h \
+	valarray_array.tcc \
+	valarray_before.h \
+	vector.tcc
+
+SRCDIRDEP= contrib/libstdc++/include/bits gnu/lib/libstdc++
+DIRDEP= stage
+.include <bsd.headers.mk>

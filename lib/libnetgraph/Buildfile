@@ -1,0 +1,17 @@
+# $WFreeBSD$
+
+LIB = netgraph
+
+SHLIB_MAJOR = 3
+
+SRCS = \
+	debug.c \
+	msg.c \
+	sock.c
+
+INCS = netgraph.h
+
+WARNS ?= 3
+
+DIRDEP= include include/machine stage sys/MACHINE_ARCH/include sys/net sys/netgraph sys/netinet sys/netinet6 sys/sys
+.include <bsd.lib.mk>

@@ -1,0 +1,80 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/machine
+
+INCS = \
+	_bus.h \
+	_inttypes.h \
+	_limits.h \
+	_stdint.h \
+	_types.h \
+	armreg.h \
+	asm.h \
+	asmacros.h \
+	atomic.h \
+	blockio.h \
+	bootconfig.h \
+	bootinfo.h \
+	bus.h \
+	bus_dma.h \
+	clock.h \
+	cpu.h \
+	cpuconf.h \
+	cpufunc.h \
+	db_machdep.h \
+	disassem.h \
+	elf.h \
+	endian.h \
+	exec.h \
+	fiq.h \
+	float.h \
+	floatingpoint.h \
+	fp.h \
+	frame.h \
+	gdb_machdep.h \
+	ieee.h \
+	ieeefp.h \
+	in_cksum.h \
+	intr.h \
+	katelib.h \
+	kdb.h \
+	limits.h \
+	machdep.h \
+	md_var.h \
+	memdev.h \
+	metadata.h \
+	minidump.h \
+	mutex.h \
+	param.h \
+	pcb.h \
+	pcpu.h \
+	pmap.h \
+	pmc_mdep.h \
+	proc.h \
+	profile.h \
+	psl.h \
+	pte.h \
+	ptrace.h \
+	reg.h \
+	reloc.h \
+	resource.h \
+	runq.h \
+	setjmp.h \
+	sf_buf.h \
+	sigframe.h \
+	signal.h \
+	smp.h \
+	stack.h \
+	stdarg.h \
+	swi.h \
+	sysarch.h \
+	trap.h \
+	ucontext.h \
+	undefined.h \
+	utrap.h \
+	vmparam.h
+
+ONLY_MACHINE = arm
+
+DIRDEP= stage
+.include <bsd.headers.mk>

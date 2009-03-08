@@ -1,0 +1,97 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/machine
+COMMONDIR =
+
+INCS = \
+	_bus.h \
+	_bus_octeon.h \
+	_inttypes.h \
+	_limits.h \
+	_stdint.h \
+	_types.h \
+	archtype.h \
+	asm.h \
+	asmacros.h \
+	atomic.h \
+	bootinfo.h \
+	bswap.h \
+	bus.h \
+	bus_dma.h \
+	bus_octeon.h \
+	cache.h \
+	cache_mipsNN.h \
+	cache_r4k.h \
+	clock.h \
+	clockvar.h \
+	cpu.h \
+	cpufunc.h \
+	cpuinfo.h \
+	cpuregs.h \
+	cputypes.h \
+	db_machdep.h \
+	defs.h \
+	elf.h \
+	endian.h \
+	exec.h \
+	float.h \
+	floatingpoint.h \
+	fpu.h \
+	frame.h \
+	gdb_machdep.h \
+	hwfunc.h \
+	ieee.h \
+	ieeefp.h \
+	in_cksum.h \
+	intr.h \
+	intr_machdep.h \
+	iodev.h \
+	kdb.h \
+	limits.h \
+	locore.h \
+	md_var.h \
+	memdev.h \
+	metadata.h \
+	minidump.h \
+	mips_opcode.h \
+	mp_watchdog.h \
+	mutex.h \
+	param.h \
+	pcb.h \
+	pci_cfgreg.h \
+	pcpu.h \
+	pltfm.h \
+	pmap.h \
+	pmc_mdep.h \
+	ppireg.h \
+	proc.h \
+	profile.h \
+	psl.h \
+	pte.h \
+	ptrace.h \
+	queue.h \
+	reg.h \
+	regdef.h \
+	regnum.h \
+	reloc.h \
+	resource.h \
+	rm7000.h \
+	runq.h \
+	segments.h \
+	setjmp.h \
+	sf_buf.h \
+	sigframe.h \
+	signal.h \
+	smp.h \
+	stdarg.h \
+	sysarch.h \
+	timerreg.h \
+	trap.h \
+	ucontext.h \
+	varargs.h \
+	vmparam.h
+
+ONLY_MACHINE = mips
+
+DIRDEP= stage
+.include <bsd.headers.mk>

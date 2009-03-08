@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/journal
+COMMONDIR =
+
+INCS = \
+	g_journal.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

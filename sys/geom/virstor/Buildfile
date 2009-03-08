@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/virstor
+COMMONDIR =
+
+INCS = \
+	binstream.h \
+	g_virstor.h \
+	g_virstor_md.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

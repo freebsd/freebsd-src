@@ -1,0 +1,40 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include
+
+OPENBSMDIR = ${BSDSRCTOP}/contrib/openbsm
+LIBBSMDIR = ${OPENBSMDIR}/libbsm
+
+.PATH: ${LIBBSMDIR}
+.PATH: ${OPENBSMDIR}/bsm
+.PATH: ${OPENBSMDIR}/man
+
+LIB = bsm
+
+SHLIB_MAJOR = 2
+
+SRCS = \
+	bsm_audit.c \
+	bsm_class.c \
+	bsm_control.c \
+	bsm_domain.c \
+	bsm_errno.c \
+	bsm_event.c \
+	bsm_flags.c \
+	bsm_io.c \
+	bsm_mask.c \
+	bsm_notify.c \
+	bsm_socket_type.c \
+	bsm_token.c \
+	bsm_user.c \
+	bsm_wrappers.c
+
+INCS = \
+	audit_uevents.h \
+	libbsm.h
+
+CFLAGS += -I${OPENBSMDIR} -I${LIBBSMDIR}
+
+SRCDIRDEP= contrib/openbsm/bsm contrib/openbsm/config contrib/openbsm/libbsm
+DIRDEP= include include/arpa include/machine stage sys/MACHINE_ARCH/include sys/bsm sys/netinet sys/netinet6 sys/sys
+.include <bsd.lib.mk>

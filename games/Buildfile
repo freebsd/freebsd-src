@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+SUBDIR = \
+	bcd \
+	caesar \
+	factor \
+	fortune \
+	grdc \
+	morse \
+	number \
+	pom \
+	ppt \
+	primes \
+	random
+
+.include <bsd.subdir.mk>

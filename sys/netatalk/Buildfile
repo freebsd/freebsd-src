@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/netatalk
+COMMONDIR =
+
+INCS = \
+	aarp.h \
+	at.h \
+	at_extern.h \
+	at_var.h \
+	ddp.h \
+	ddp_pcb.h \
+	ddp_var.h \
+	endian.h \
+	phase2.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

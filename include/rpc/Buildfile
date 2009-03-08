@@ -1,0 +1,49 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/include/rpcsvc
+
+INCDIR = ${STAGEDIR}/usr/include/rpc
+COMMONDIR =
+
+INCS = \
+	auth.h \
+	auth_des.h \
+	auth_kerb.h \
+	auth_unix.h \
+	clnt.h \
+	clnt_soc.h \
+	clnt_stat.h \
+	des.h \
+	des_crypt.h \
+	nettype.h \
+	pmap_clnt.h \
+	pmap_prot.h \
+	pmap_rmt.h \
+	raw.h \
+	rpc.h \
+	rpc_com.h \
+	rpc_msg.h \
+	rpcb_clnt.h \
+	rpcent.h \
+	rpcsec_gss.h \
+	svc.h \
+	svc_auth.h \
+	svc_dg.h \
+	svc_soc.h \
+	xdr.h
+
+RPCCOM = ${RPCGEN} -C
+
+XSRCS = \
+	key_prot.x \
+	rpcb_prot.x
+
+.for _x in ${XSRCS}
+INCS +=  ${_x:R}.h
+${_x:R}.h: ${_x}
+	${RPCCOM} -h -DWANT_NFS3 ${.ALLSRC} -o ${.TARGET}
+.endfor
+
+SRCDIRDEP= include/rpcsvc
+DIRDEP= stage usr.bin/rpcgen_host
+.include <bsd.headers.mk>

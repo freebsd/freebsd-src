@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+SUBDIR = \
+	ggatec \
+	ggated \
+	ggatel
+
+.include <bsd.subdir.mk>

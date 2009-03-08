@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+.if defined(ENABLE_WIDEC)
+LIB_SUFFIX = w
+CFLAGS += -D_XOPEN_SOURCE_EXTENDED -DENABLE_WIDEC
+.else
+LIB_SUFFIX =
+.endif
+
+CFLAGS += -I${BSDSRCTOP}/lib/ncurses/ncurses${LIB_SUFFIX}
+

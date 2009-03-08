@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+NO_LINT =

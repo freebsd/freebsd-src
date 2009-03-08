@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/ufs/ffs
+COMMONDIR =
+
+INCS = \
+	ffs_extern.h \
+	fs.h \
+	softdep.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,73 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/netinet
+COMMONDIR =
+
+INCS = \
+	icmp6.h \
+	icmp_var.h \
+	if_atm.h \
+	if_ether.h \
+	igmp.h \
+	igmp_var.h \
+	in.h \
+	in_gif.h \
+	in_pcb.h \
+	in_systm.h \
+	in_var.h \
+	ip.h \
+	ip6.h \
+	ip_carp.h \
+	ip_divert.h \
+	ip_dummynet.h \
+	ip_ecn.h \
+	ip_encap.h \
+	ip_fw.h \
+	ip_gre.h \
+	ip_icmp.h \
+	ip_ipsec.h \
+	ip_mroute.h \
+	ip_options.h \
+	ip_var.h \
+	pim.h \
+	pim_var.h \
+	sctp.h \
+	sctp_asconf.h \
+	sctp_auth.h \
+	sctp_bsd_addr.h \
+	sctp_cc_functions.h \
+	sctp_constants.h \
+	sctp_crc32.h \
+	sctp_header.h \
+	sctp_indata.h \
+	sctp_input.h \
+	sctp_lock_bsd.h \
+	sctp_os.h \
+	sctp_os_bsd.h \
+	sctp_output.h \
+	sctp_pcb.h \
+	sctp_peeloff.h \
+	sctp_structs.h \
+	sctp_sysctl.h \
+	sctp_timer.h \
+	sctp_uio.h \
+	sctp_var.h \
+	sctputil.h \
+	tcp.h \
+	tcp_debug.h \
+	tcp_fsm.h \
+	tcp_hostcache.h \
+	tcp_lro.h \
+	tcp_offload.h \
+	tcp_seq.h \
+	tcp_syncache.h \
+	tcp_timer.h \
+	tcp_var.h \
+	tcpip.h \
+	toedev.h \
+	udp.h \
+	udp_var.h \
+	vinet.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

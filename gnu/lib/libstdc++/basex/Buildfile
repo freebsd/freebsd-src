@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+.PATH:	 ${BSDSRCTOP}/contrib/libstdc++/include/c_std
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/bits
+COMMONDIR =
+
+# Some of the different "C" header models need extra files.
+INCS = cmath.tcc
+
+SRCDIRDEP= contrib/libstdc++/include/c_std
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/bde
+COMMONDIR =
+
+INCS = \
+	g_bde.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

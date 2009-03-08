@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+SUBDIR = \
+	amd \
+	amq \
+	doc \
+	fixmount \
+	fsinfo \
+	hlfsd \
+	include \
+	libamu \
+	mk-amd-map \
+	pawd \
+	scripts \
+	wire-test
+
+.include <bsd.subdir.mk>

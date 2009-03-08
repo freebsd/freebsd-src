@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/contrib/libstdc++/include/std
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/bits
+
+MARCHHDRS = atomic_word.h cpu_defines.h cxxabi_tweaks.h
+
+SRCDIR = ${BSDSRCTOP}/contrib/libstdc++
+
+# MD headers location
+.if ${MACHINE_ARCH} == "sparc64"
+MARCHDIR = sparc
+.elif ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU} != 'i386'
+MARCHDIR = i486
+.elif ${MACHINE_ARCH} == "amd64"
+MARCHDIR = i486
+.else
+MARCHDIR = ${MACHINE_ARCH}
+.endif
+
+.for h in ${MARCHHDRS}
+.if exists(${SRCDIR}/config/cpu/${MARCHDIR}/${h})
+INCS += ${SRCDIR}/config/cpu/${MARCHDIR}/${h}
+.else
+INCS += ${SRCDIR}/config/cpu/generic/${h}
+.endif
+.endfor
+
+SRCDIRDEP= contrib/libstdc++/config/cpu/generic
+DIRDEP= stage
+.include <bsd.headers.mk>

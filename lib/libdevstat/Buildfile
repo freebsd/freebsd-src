@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+
+LIB = devstat
+
+# Bump DEVSTAT_USER_API_VER in devstat.h every time this is incremented.
+SHLIB_MAJOR = 6
+
+SRCS = devstat.c
+
+INCS = devstat.h
+
+LDADD += -lkvm
+
+CFLAGS += -I${.CURDIR}
+
+WARNS ?= 2
+
+DIRDEP= include include/machine lib/libkvm stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.lib.mk>

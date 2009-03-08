@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/raid3
+COMMONDIR =
+
+INCS = \
+	g_raid3.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

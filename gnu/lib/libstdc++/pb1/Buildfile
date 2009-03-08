@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/contrib/libstdc++/include/ext/pb_ds/detail
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/ext/pb_ds/detail
+COMMONDIR =
+
+INCS = \
+	basic_types.hpp \
+	cond_dealtor.hpp \
+	constructors_destructor_fn_imps.hpp \
+	container_base_dispatch.hpp \
+	map_debug_base.hpp \
+	priority_queue_base_dispatch.hpp \
+	standard_policies.hpp \
+	tree_trace_base.hpp \
+	type_utils.hpp \
+	types_traits.hpp
+
+SRCDIRDEP= contrib/libstdc++/include/ext/pb_ds/detail
+DIRDEP= stage
+.include <bsd.headers.mk>

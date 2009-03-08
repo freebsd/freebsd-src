@@ -1,0 +1,50 @@
+# $FreeBSD$
+
+.include "${BSDSRCTOP}/gnu/usr.bin/cc/Buildfile.tgt"
+
+#
+# The list of headers to go into tm.h
+#
+TARGET_INC+=	options.h
+.if ${TARGET_ARCH} == "amd64"
+TARGET_INC+=	i386/biarch64.h
+.endif
+.if ${TARGET_ARCH} != "arm"
+TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
+.endif
+.if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
+TARGET_INC+=	${GCC_CPU}/unix.h
+TARGET_INC+=	${GCC_CPU}/att.h
+.endif
+TARGET_INC+=	dbxelf.h
+TARGET_INC+=	elfos.h
+TARGET_INC+=	freebsd-native.h
+TARGET_INC+=	freebsd-spec.h
+TARGET_INC+=	freebsd.h
+.if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
+.if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
+TARGET_INC+=	${GCC_CPU}/sysv4.h
+.endif
+.endif
+.if ${TARGET_ARCH} == "amd64"
+TARGET_INC+=	${GCC_CPU}/x86-64.h
+TARGET_INC+=	${GCC_CPU}/freebsd.h
+TARGET_INC+=	${GCC_CPU}/freebsd64.h
+TARGET_INC+=	freebsd64-fix.h
+.elif ${TARGET_ARCH} == "arm"
+TARGET_INC+=	${GCC_CPU}/elf.h
+TARGET_INC+=	${GCC_CPU}/aout.h
+TARGET_INC+=	${GCC_CPU}/freebsd.h
+TARGET_INC+=	${GCC_CPU}/arm.h
+.else
+TARGET_INC+=	${GCC_CPU}/freebsd.h
+.endif
+TARGET_INC+=	defaults.h
+
+.for H in ${TARGET_INC}
+.for D in ${GCCDIR}/config ${GCCDIR} ${.CURDIR}/..
+.if exists($D/$H)
+TARGET_INC_FILES+=     $D/$H
+.endif
+.endfor
+.endfor

@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+CLASS =	journal
+
+SRCS += geom_journal_ufs.c
+
+LDADD = -lmd -lufs
+
+SRCDIRDEP= sbin/geom/core sbin/geom/misc
+DIRDEP= include include/machine lib/libgeom lib/libmd lib/libufs stage sys/MACHINE_ARCH/include sys/bsm sys/geom sys/geom/journal sys/sys sys/ufs/ffs sys/ufs/ufs
+.include <bsd.lib.mk>

@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+HOSTPROG =
+
+.include "${BSDSRCTOP}/usr.bin/rpcgen/Buildfile.common"
+
+SRCDIRDEP= usr.bin/rpcgen
+DIRDEP= include stage sys/rpc sys/sys
+.include <bsd.prog.mk>

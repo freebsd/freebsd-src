@@ -1,0 +1,82 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/machine
+
+INCS = \
+	_bus.h \
+	_inttypes.h \
+	_limits.h \
+	_stdint.h \
+	_types.h \
+	acpica_machdep.h \
+	apicreg.h \
+	apicvar.h \
+	asm.h \
+	asmacros.h \
+	atomic.h \
+	bus.h \
+	bus_dma.h \
+	clock.h \
+	cpu.h \
+	cpufunc.h \
+	cputypes.h \
+	db_machdep.h \
+	elf.h \
+	endian.h \
+	exec.h \
+	float.h \
+	floatingpoint.h \
+	fpu.h \
+	frame.h \
+	gdb_machdep.h \
+	ieeefp.h \
+	in_cksum.h \
+	intr_machdep.h \
+	iodev.h \
+	kdb.h \
+	legacyvar.h \
+	limits.h \
+	md_var.h \
+	memdev.h \
+	metadata.h \
+	minidump.h \
+	mp_watchdog.h \
+	mptable.h \
+	mutex.h \
+	nexusvar.h \
+	param.h \
+	pcb.h \
+	pci_cfgreg.h \
+	pcpu.h \
+	pmap.h \
+	pmc_mdep.h \
+	ppireg.h \
+	proc.h \
+	profile.h \
+	psl.h \
+	ptrace.h \
+	reg.h \
+	reloc.h \
+	resource.h \
+	runq.h \
+	segments.h \
+	setjmp.h \
+	sf_buf.h \
+	sigframe.h \
+	signal.h \
+	smp.h \
+	specialreg.h \
+	stack.h \
+	stdarg.h \
+	sysarch.h \
+	timerreg.h \
+	trap.h \
+	tss.h \
+	ucontext.h \
+	varargs.h \
+	vmparam.h
+
+ONLY_MACHINE = amd64
+
+DIRDEP= stage
+.include <bsd.headers.mk>

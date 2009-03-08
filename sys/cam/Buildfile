@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/cam
+COMMONDIR =
+
+INCS = \
+	cam.h \
+	cam_ccb.h \
+	cam_debug.h \
+	cam_periph.h \
+	cam_queue.h \
+	cam_sim.h \
+	cam_xpt.h \
+	cam_xpt_periph.h \
+	cam_xpt_sim.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+.PATH:	${.CURDIR}/../../sys/geom
+
+PROG = fdisk
+
+SRCS = \
+	fdisk.c \
+	geom_pc98_enc.c
+
+WARNS ?= 4
+
+LDADD += -lgeom
+
+ONLY_MACHINE = pc98
+
+.include <bsd.prog.mk>

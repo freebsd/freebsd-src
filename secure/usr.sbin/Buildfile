@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+SUBDIR = \
+	sshd
+
+.include <bsd.subdir.mk>

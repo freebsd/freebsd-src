@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+SCRDIR = ${BINDIR}
+
+SCRIPTS = \
+	adduser.sh \
+	rmuser.sh
+
+DIRDEP= stage
+.include <bsd.scripts.mk>

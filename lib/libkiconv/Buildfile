@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+
+LIB = kiconv
+
+SHLIB_MAJOR = 3
+
+SRCS = \
+	quirks.c \
+	xlat16_iconv.c  \
+	xlat16_sysctl.c
+
+DIRDEP= include stage sys/MACHINE_ARCH/include sys/sys
+.include <bsd.lib.mk>

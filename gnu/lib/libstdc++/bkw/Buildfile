@@ -1,0 +1,48 @@
+# $FreeBSD$
+
+.PATH:  ${BSDSRCTOP}/contrib/libstdc++/include/backward
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/backward
+COMMONDIR =
+
+INCS = \
+	algo.h \
+	algobase.h \
+	alloc.h \
+	backward_warning.h \
+	bvector.h \
+	complex.h \
+	defalloc.h \
+	deque.h \
+	fstream.h \
+	function.h \
+	hash_map.h \
+	hash_set.h \
+	hashtable.h \
+	heap.h \
+	iomanip.h \
+	iostream.h \
+	istream.h \
+	iterator.h \
+	list.h \
+	map.h \
+	multimap.h \
+	multiset.h \
+	new.h \
+	ostream.h \
+	pair.h \
+	queue.h \
+	rope.h \
+	set.h \
+	slist.h \
+	stack.h \
+	stream.h \
+	streambuf.h \
+	strstream \
+	tempbuf.h \
+	tree.h \
+	vector.h
+
+SRCDIRDEP= contrib/libstdc++/include/backward
+DIRDEP= stage
+.include <bsd.headers.mk>

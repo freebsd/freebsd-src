@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/netipsec
+COMMONDIR =
+
+INCS = \
+	ah.h \
+	ah_var.h \
+	esp.h \
+	esp_var.h \
+	ipcomp.h \
+	ipcomp_var.h \
+	ipip_var.h \
+	ipsec.h \
+	ipsec6.h \
+	key.h \
+	key_debug.h \
+	key_var.h \
+	keydb.h \
+	keysock.h \
+	vipsec.h \
+	xform.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/geom/multipath
+COMMONDIR =
+
+INCS = \
+	g_multipath.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

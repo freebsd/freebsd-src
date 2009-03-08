@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/sys/geom
+
+PROG = bsdlabel
+
+SRCS = \
+	bsdlabel.c \
+	geom_bsd_enc.c
+
+LDADD = -lgeom -lbsdxml -lsbuf
+
+SRCDIRDEP= sys/geom
+DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/machine lib/csu/MACHINE_ARCH lib/libc lib/libexpat lib/libgeom lib/libsbuf stage sys/MACHINE_ARCH/include sys/geom sys/sys
+.include <bsd.prog.mk>

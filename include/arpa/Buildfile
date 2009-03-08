@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/arpa
+COMMONDIR =
+
+INCS = \
+	ftp.h \
+	inet.h \
+	nameser.h \
+	nameser_compat.h \
+	telnet.h \
+	tftp.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

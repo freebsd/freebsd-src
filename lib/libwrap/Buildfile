@@ -1,0 +1,44 @@
+# $FreeBSD$
+
+.PATH:	${BSDSRCTOP}/contrib/tcp_wrappers
+
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = wrap
+
+SHLIB_MAJOR = 5
+
+SRCS = \
+	clean_exit.c \
+	diag.c \
+	eval.c \
+	fix_options.c \
+	fromhost.c \
+	hosts_access.c \
+	hosts_ctl.c \
+	libvars.c \
+	misc.c \
+	myvsyslog.c \
+	options.c \
+	percent_m.c \
+	percent_x.c \
+	refuse.c \
+	rfc931.c \
+	shell_cmd.c \
+	socket.c \
+	tli.c \
+	update.c \
+	workarounds.c
+
+INCS = tcpd.h
+
+CFLAGS += -DFACILITY=LOG_AUTH -DHOSTS_ACCESS -DNETGROUP -DDAEMON_UMASK=022
+CFLAGS += -DREAL_DAEMON_DIR=\"/usr/libexec\" -DPROCESS_OPTIONS
+CFLAGS += -DSEVERITY=LOG_INFO -DRFC931_TIMEOUT=10
+CFLAGS += -DHOSTS_DENY=\"/etc/hosts.deny\" -DHOSTS_ALLOW=\"/etc/hosts.allow\"
+CFLAGS += -DSYS_ERRLIST_DEFINED -DALWAYS_HOSTNAME -DUSE_STRSEP -DPROCESS_OPTIONS
+CFLAGS += -DINET6
+
+SRCDIRDEP= contrib/tcp_wrappers
+DIRDEP= include include/arpa include/machine stage sys/MACHINE_ARCH/include sys/netinet sys/netinet6 sys/sys
+.include <bsd.lib.mk>

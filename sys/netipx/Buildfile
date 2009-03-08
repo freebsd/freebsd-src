@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/netipx
+COMMONDIR =
+
+INCS = \
+	ipx.h \
+	ipx_if.h \
+	ipx_pcb.h \
+	ipx_var.h \
+	spx.h \
+	spx_debug.h \
+	spx_timer.h \
+	spx_var.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/ufs/ufs
+COMMONDIR =
+
+INCS = \
+	acl.h \
+	dinode.h \
+	dir.h \
+	dirhash.h \
+	extattr.h \
+	gjournal.h \
+	inode.h \
+	quota.h \
+	ufs_extern.h \
+	ufsmount.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

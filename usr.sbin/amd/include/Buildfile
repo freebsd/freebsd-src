@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/amd
+COMMONDIR =
+
+INCS = \
+	amu_autofs_prot.h \
+	amu_nfs_prot.h \
+	aux_conf.h \
+	build_version.h \
+	config.h \
+	config_local.h
+
+config_local.h: newvers.sh
+	@rm -f ${.TARGET}
+	sh ${.ALLSRC} ${BSDSRCTOP}/sys/conf/newvers.sh > ${.TARGET}
+
+localconfig.h:
+	@rm -f ${.TARGET}
+	@echo "/* NIS disabled by WITHOUT_NIS src.conf option */" >> ${.TARGET}
+	@echo "#undef HAVE_MAP_NIS" >> ${.TARGET}
+
+SRCDIRDEP= sys/conf
+DIRDEP= stage
+.include <bsd.headers.mk>

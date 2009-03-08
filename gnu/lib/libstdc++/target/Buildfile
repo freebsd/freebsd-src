@@ -1,0 +1,55 @@
+# $FreeBSD$
+
+SRCDIR =  ${BSDSRCTOP}/contrib/libstdc++
+
+.PATH:  ${SRCDIR}/config/abi \
+	${SRCDIR}/config/allocator \
+	${SRCDIR}/config/io \
+	${SRCDIR}/config/locale/generic \
+	${SRCDIR}/config/os/bsd/freebsd
+
+INCDIR = ${STAGEDIR}/usr/include/c++/4.2/bits
+COMMONDIR =
+
+INCS = \
+	basic_file.h \
+	c++allocator.h \
+	c++config.h \
+	c++io.h \
+	c++locale.h \
+	c++locale_internal.h \
+	compatibility.h \
+	ctype_base.h \
+	ctype_inline.h \
+	ctype_noninline.h \
+	messages_members.h \
+	os_defines.h \
+	time_members.h
+
+basic_file.h: basic_file_stdio.h
+	cp ${.ALLSRC} ${.TARGET}
+
+c++io.h: c_io_stdio.h
+	cp ${.ALLSRC} ${.TARGET}
+
+c++locale.h: c_locale.h
+	cp ${.ALLSRC} ${.TARGET}
+
+c++allocator.h: new_allocator_base.h
+	cp ${.ALLSRC} ${.TARGET}
+
+c++config.h: ${BSDSRCTOP}/gnu/lib/libstdc++/config.h ${SRCDIR}/include/bits/c++config
+	sed -e "s/\\(define __GLIBCXX__\\)/\1 ${DATESTAMP}/" \
+	    -e 's/\(define _GLIBCXX_HAVE_ATTRIBUTE_VISIBILITY\)/\1 1/' \
+	    -e 's/\(define _GLIBCXX_NAMESPACE_ASSOCIATION_VERSION\)/\1 0/' \
+	< ${SRCDIR}/include/bits/c++config > ${.TARGET} && \
+	    sed -e 's/HAVE_/_GLIBCXX_HAVE_/g' \
+	    -e 's/PACKAGE/_GLIBCXX_PACKAGE/g' \
+	    -e 's/VERSION/_GLIBCXX_VERSION/g' \
+	    -e 's/WORDS_/_GLIBCXX_WORDS_/g' \
+	< ${.CURDIR}/../config.h >> ${.TARGET} && \
+	echo "#endif // _CXXCONFIG_" >> ${.TARGET}
+
+SRCDIRDEP= contrib/libstdc++/config/abi contrib/libstdc++/config/allocator contrib/libstdc++/config/io contrib/libstdc++/config/locale/generic contrib/libstdc++/config/os/bsd/freebsd contrib/libstdc++/include/bits gnu/lib/libstdc++
+DIRDEP= stage
+.include <bsd.headers.mk>
