@@ -212,6 +212,9 @@ main(int argc, char **argv)
 		case OPTION_FORMAT: /* GNU tar, others */
 			bsdtar->create_format = bsdtar->optarg;
 			break;
+		case OPTION_FORMAT_OPTIONS:
+			bsdtar->option_format_options = bsdtar->optarg;
+			break;
 		case 'f': /* SUSv2 */
 			bsdtar->filename = bsdtar->optarg;
 			if (strcmp(bsdtar->filename, "-") == 0)
