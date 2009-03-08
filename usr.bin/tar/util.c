@@ -513,45 +513,72 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		}
 	}
 
-	/* Strip redundant leading '/' characters. */
-	while (name[0] == '/' && name[1] == '/')
-		name++;
-
 	/* By default, don't write or restore absolute pathnames. */
 	if (!bsdtar->option_absolute_paths) {
-		/* Strip Windows drive letters. */
-		if (((name[0] >= 'A' && name[0] <= 'Z')
-			|| (name[0] >= 'a' && name[0] <= 'z'))
-		    && name[1] == ':'
-		    && (name[2] == '/' || name[2] == '\\'))
+		const char *rp, *p = name;
+		int slashonly = 1;
+
+		/* Remove leading "//./" or "//?/" or "//?/UNC/"
+		 * (absolute path prefixes used by Windows API) */
+		if ((p[0] == '/' || p[0] == '\\') &&
+		    (p[1] == '/' || p[1] == '\\') &&
+		    (p[2] == '.' || p[2] == '?') &&
+		    (p[3] == '/' || p[3] == '\\'))
 		{
-			/* Generate a warning the first time this happens. */
-			if (!bsdtar->warned_lead_slash) {
-				bsdtar_warnc(bsdtar, 0,
-				    "Removing leading drive letter from member names");
-				bsdtar->warned_lead_slash = 1;
+			if (p[2] == '?' &&
+			    (p[4] == 'U' || p[4] == 'u') &&
+			    (p[5] == 'N' || p[5] == 'n') &&
+			    (p[6] == 'C' || p[6] == 'c') &&
+			    (p[7] == '/' || p[7] == '\\'))
+				p += 8;
+			else
+				p += 4;
+			slashonly = 0;
+		}
+		do {
+			rp = p;
+			/* Remove leading drive letter from archives created
+			 * on Windows. */
+			if (((p[0] >= 'a' && p[0] <= 'z') ||
+			     (p[0] >= 'A' && p[0] <= 'Z')) &&
+				 p[1] == ':') {
+				p += 2;
+				slashonly = 0;
 			}
-			name += 3;
-			while (*name == '/' || *name == '\\')
-				++name;
-			/* Special case: Stripping everything yields ".". */
-			if (*name == '\0')
-				name = ".";
+			/* Remove leading "/../", "//", etc. */
+			while (p[0] == '/' || p[0] == '\\') {
+				if (p[1] == '.' && p[2] == '.' &&
+					(p[3] == '/' || p[3] == '\\')) {
+					p += 3; /* Remove "/..", leave "/"
+							 * for next pass. */
+					slashonly = 0;
+				} else
+					p += 1; /* Remove "/". */
+			}
+		} while (rp != p);
+
+		if (p != name && !bsdtar->warned_lead_slash) {
+			/* Generate a warning the first time this happens. */
+			if (slashonly)
+				bsdtar_warnc(bsdtar, 0,
+				    "Removing leading '%c' from member names",
+				    name[0]);
+			else
+				bsdtar_warnc(bsdtar, 0,
+				    "Removing leading drive letter from "
+				    "member names");
+			bsdtar->warned_lead_slash = 1;
 		}
 
-		/* Strip leading '/'. */
-		if (name[0] == '/') {
-			/* Generate a warning the first time this happens. */
-			if (!bsdtar->warned_lead_slash) {
-				bsdtar_warnc(bsdtar, 0,
-				    "Removing leading '/' from member names");
-				bsdtar->warned_lead_slash = 1;
-			}
+		/* Special case: Stripping everything yields ".". */
+		if (*p == '\0')
+			name = ".";
+		else
+			name = p;
+	} else {
+		/* Strip redundant leading '/' characters. */
+		while (name[0] == '/' && name[1] == '/')
 			name++;
-			/* Special case: Stripping everything yields ".". */
-			if (*name == '\0')
-				name = ".";
-		}
 	}
 
 	/* Safely replace name in archive_entry. */
