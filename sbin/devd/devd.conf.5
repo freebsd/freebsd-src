@@ -120,7 +120,7 @@ Specifies PID file.
 .It Ic set Ar regexp-name Qq Ar (some|regexp) ;
 Creates a regular expression and assigns it to the variable
 .Ar regexp-name .
-The variable is avaiable throughout the rest of
+The variable is available throughout the rest of
 the configuration file.
 All regular expressions have an implicit
 .Ql ^$
@@ -208,7 +208,7 @@ The following sub-statements are supported within the
 statement.
 The
 .Dq Li notify
-variable is avaiable inside this statement and contains, a value, depending
+variable is available inside this statement and contains, a value, depending
 on which system and subsystem that delivered the event.
 .Bl -tag -width ".Ic directory"
 .It Ic action Qq Ar command ;
@@ -223,7 +223,7 @@ statements can exist within a
 statement;
 .Ar value
 can be either a fixed string or a regular expression.
-Below is a list of avaiable systems, subsystems, and types.
+Below is a list of available systems, subsystems, and types.
 .It Ic media-type Qq Ar string ;
 See above.
 .El
@@ -318,9 +318,9 @@ Carrier status changed to UP.
 .It Li LINK_DOWN
 Carrier status changed to DOWN.
 .It Li ATTACH
-The network inteface is attached to the system.
+The network interface is attached to the system.
 .It Li DETACH
-The network inteface is detached from the system.
+The network interface is detached from the system.
 .El
 .El
 .It Li DEVFS
@@ -483,6 +483,6 @@ The installed
 .Pa /etc/devd.conf
 has many additional examples.
 .Sh SEE ALSO
-.Xr devd 8 ,
+.Xr coretemp 4 ,
 .Xr devfs 5 ,
-.Xr coretemp 4
+.Xr devd 8
