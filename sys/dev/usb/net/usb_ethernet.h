@@ -111,6 +111,7 @@ void		*usb2_ether_getsc(struct usb2_ether *);
 int		usb2_ether_ifattach(struct usb2_ether *);
 void		usb2_ether_ifdetach(struct usb2_ether *);
 int		usb2_ether_ioctl(struct ifnet *, u_long, caddr_t);
+struct mbuf	*usb2_ether_newbuf(void);
 int		usb2_ether_rxmbuf(struct usb2_ether *, struct mbuf *, 
 		    unsigned int);
 int		usb2_ether_rxbuf(struct usb2_ether *,
