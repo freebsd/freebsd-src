@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_EXT2FS_EXT2_FS_H
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+/* This header exists but is broken on Cygwin. */
 #include <ext2fs/ext2_fs.h>
 #endif
 #ifdef HAVE_FCNTL_H
@@ -120,25 +121,10 @@ static int		 archive_names_from_file_helper(struct bsdtar *bsdtar,
 			     const char *line);
 static int		 copy_file_data(struct bsdtar *bsdtar,
 			     struct archive *a, struct archive *ina);
-static void		 create_cleanup(struct bsdtar *);
-static void		 free_cache(struct name_cache *cache);
-static const char *	 lookup_gname(struct bsdtar *bsdtar, gid_t gid);
-static int		 lookup_gname_helper(struct bsdtar *bsdtar,
-			     const char **name, id_t gid);
-static const char *	 lookup_uname(struct bsdtar *bsdtar, uid_t uid);
-static int		 lookup_uname_helper(struct bsdtar *bsdtar,
-			     const char **name, id_t uid);
 static int		 new_enough(struct bsdtar *, const char *path,
 			     const struct stat *);
-static void		 setup_acls(struct bsdtar *, struct archive_entry *,
-			     const char *path);
-static void		 setup_xattrs(struct bsdtar *, struct archive_entry *,
-			     const char *path);
 static void		 test_for_append(struct bsdtar *);
 static void		 write_archive(struct archive *, struct bsdtar *);
-static void		 write_entry(struct bsdtar *, struct archive *,
-			     const struct stat *, const char *pathname,
-			     const char *accpath);
 static void		 write_entry_backend(struct bsdtar *, struct archive *,
 			     struct archive_entry *);
 static int		 write_file_data(struct bsdtar *, struct archive *,
@@ -417,6 +403,9 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		bsdtar_errc(bsdtar, 1, 0, "cannot create link resolver");
 	archive_entry_linkresolver_set_strategy(bsdtar->resolver,
 	    archive_format(a));
+	if ((bsdtar->diskreader = archive_read_disk_new()) == NULL)
+		bsdtar_errc(bsdtar, 1, 0, "Cannot create read_disk object");
+	archive_read_disk_set_standard_lookup(bsdtar->diskreader);
 
 	if (bsdtar->names_from_file != NULL)
 		archive_names_from_file(bsdtar, a);
@@ -458,7 +447,6 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
 	}
 
-	create_cleanup(bsdtar);
 	if (archive_write_close(a)) {
 		bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 		bsdtar->return_value = 1;
@@ -467,6 +455,10 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 cleanup:
 	/* Free file data buffer. */
 	free(bsdtar->buff);
+	archive_entry_linkresolver_free(bsdtar->resolver);
+	bsdtar->resolver = NULL;
+	archive_read_finish(bsdtar->diskreader);
+	bsdtar->diskreader = NULL;
 
 	if (bsdtar->option_totals) {
 		fprintf(stderr, "Total bytes written: " BSDTAR_FILESIZE_PRINTF "\n",
@@ -636,6 +628,7 @@ copy_file_data(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 static void
 write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 {
+	struct archive_entry *entry = NULL, *spare_entry = NULL;
 	struct tree *tree;
 	char symlink_mode = bsdtar->symlink_mode;
 	dev_t first_dev = 0;
@@ -651,8 +644,10 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 	}
 
 	while ((tree_ret = tree_next(tree))) {
+		int r;
 		const char *name = tree_current_path(tree);
-		const struct stat *st = NULL, *lst = NULL;
+		const struct stat *st = NULL; /* info to use for this entry */
+		const struct stat *lst = NULL; /* lstat() information */
 		int descend;
 
 		if (tree_ret == TREE_ERROR_FATAL)
@@ -666,31 +661,56 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		}
 		if (tree_ret != TREE_REGULAR)
 			continue;
+
+		/*
+		 * If this file/dir is excluded by a filename
+		 * pattern, skip it.
+		 */
+		if (excluded(bsdtar, name))
+			continue;
+
+		/*
+		 * Get lstat() info from the tree library.
+		 */
 		lst = tree_current_lstat(tree);
 		if (lst == NULL) {
 			/* Couldn't lstat(); must not exist. */
 			bsdtar_warnc(bsdtar, errno, "%s: Cannot stat", name);
-
-			/*
-			 * Report an error via the exit code if the failed
-			 * path is a prefix of what the user provided via
-			 * the command line.  (Testing for string equality
-			 * here won't work due to trailing '/' characters.)
-			 */
-			if (memcmp(name, path, strlen(name)) == 0)
-				bsdtar->return_value = 1;
-
+			/* Return error if files disappear during traverse. */
+			bsdtar->return_value = 1;
 			continue;
 		}
-		if (S_ISLNK(lst->st_mode))
+
+		/*
+		 * Distinguish 'L'/'P'/'H' symlink following.
+		 */
+		switch(symlink_mode) {
+		case 'H':
+			/* 'H': After the first item, rest like 'P'. */
+			symlink_mode = 'P';
+			/* 'H': First item (from command line) like 'L'. */
+			/* FALLTHROUGH */
+		case 'L':
+			/* 'L': Do descend through a symlink to dir. */
+			descend = tree_current_is_dir(tree);
+			/* 'L': Follow symlinks to files. */
+			archive_read_disk_set_symlink_logical(bsdtar->diskreader);
+			/* 'L': Archive symlinks as targets, if we can. */
 			st = tree_current_stat(tree);
-		/* Default: descend into any dir or symlink to dir. */
-		/* We'll adjust this later on. */
-		descend = 0;
-		if ((st != NULL) && S_ISDIR(st->st_mode))
-			descend = 1;
-		if ((lst != NULL) && S_ISDIR(lst->st_mode))
-			descend = 1;
+			if (st != NULL)
+				break;
+			/* If stat fails, we have a broken symlink;
+			 * in that case, don't follow the link. */
+			/* FALLTHROUGH */
+		default:
+			/* 'P': Don't descend through a symlink to dir. */
+			descend = tree_current_is_physical_dir(tree);
+			/* 'P': Don't follow symlinks to files. */
+			archive_read_disk_set_symlink_physical(bsdtar->diskreader);
+			/* 'P': Archive symlinks as symlinks. */
+			st = lst;
+			break;
+		}
 
 		/*
 		 * If user has asked us not to cross mount points,
@@ -702,9 +722,39 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			dev_recorded = 1;
 		}
 		if (bsdtar->option_dont_traverse_mounts) {
-			if (lst != NULL && lst->st_dev != first_dev)
+			if (lst->st_dev != first_dev)
 				descend = 0;
 		}
+
+		/*
+		 * In -u mode, check that the file is newer than what's
+		 * already in the archive; in all modes, obey --newerXXX flags.
+		 */
+		if (!new_enough(bsdtar, name, st))
+			continue;
+
+		archive_entry_free(entry);
+		entry = archive_entry_new();
+
+		archive_entry_set_pathname(entry, name);
+		archive_entry_copy_sourcepath(entry,
+		    tree_current_access_path(tree));
+
+		/* Populate the archive_entry with metadata from the disk. */
+		/* XXX TODO: Arrange to open a regular file before
+		 * calling this so we can pass in an fd and shorten
+		 * the race to query metadata.  The linkify dance
+		 * makes this more complex than it might sound. */
+		r = archive_read_disk_entry_from_file(bsdtar->diskreader,
+		    entry, -1, st);
+		if (r != ARCHIVE_OK)
+			bsdtar_warnc(bsdtar, archive_errno(bsdtar->diskreader),
+			    archive_error_string(bsdtar->diskreader));
+		if (r < ARCHIVE_WARN)
+			continue;
+
+		/* XXX TODO: Just use flag data from entry; avoid the
+		 * duplicate check here. */
 
 		/*
 		 * If this file/dir is flagged "nodump" and we're
@@ -732,62 +782,55 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 #endif
 
 		/*
-		 * If this file/dir is excluded by a filename
-		 * pattern, skip it.
-		 */
-		if (excluded(bsdtar, name))
-			continue;
-
-		/*
 		 * If the user vetoes this file/directory, skip it.
+		 * We want this to be fairly late; if some other
+		 * check would veto this file, we shouldn't bother
+		 * the user with it.
 		 */
 		if (bsdtar->option_interactive &&
 		    !yes("add '%s'", name))
 			continue;
 
-		/*
-		 * If this is a dir, decide whether or not to recurse.
-		 */
-		if (bsdtar->option_no_subdirs)
-			descend = 0;
-
-		/*
-		 * Distinguish 'L'/'P'/'H' symlink following.
-		 */
-		switch(symlink_mode) {
-		case 'H':
-			/* 'H': After the first item, rest like 'P'. */
-			symlink_mode = 'P';
-			/* 'H': First item (from command line) like 'L'. */
-			/* FALLTHROUGH */
-		case 'L':
-			/* 'L': Do descend through a symlink to dir. */
-			/* 'L': Archive symlink to file as file. */
-			lst = tree_current_stat(tree);
-			/* If stat fails, we have a broken symlink;
-			 * in that case, archive the link as such. */
-			if (lst == NULL)
-				lst = tree_current_lstat(tree);
-			break;
-		default:
-			/* 'P': Don't descend through a symlink to dir. */
-			if (!S_ISDIR(lst->st_mode))
-				descend = 0;
-			/* 'P': Archive symlink to file as symlink. */
-			/* lst = tree_current_lstat(tree); */
-			break;
-		}
-
-		if (descend)
+		/* Note: if user vetoes, we won't descend. */
+		if (descend && !bsdtar->option_no_subdirs)
 			tree_descend(tree);
 
 		/*
-		 * Write the entry.  Note that write_entry() handles
-		 * pathname editing and newness testing.
+		 * Rewrite the pathname to be archived.  If rewrite
+		 * fails, skip the entry.
 		 */
-		write_entry(bsdtar, a, lst, name,
-		    tree_current_access_path(tree));
+		if (edit_pathname(bsdtar, entry))
+			continue;
+
+		/* Display entry as we process it.
+		 * This format is required by SUSv2. */
+		if (bsdtar->verbose)
+			safe_fprintf(stderr, "a %s",
+			    archive_entry_pathname(entry));
+
+		/* Non-regular files get archived with zero size. */
+		if (!S_ISREG(st->st_mode))
+			archive_entry_set_size(entry, 0);
+
+		/* Record what we're doing, for SIGINFO / SIGUSR1. */
+		siginfo_setinfo(bsdtar, "adding",
+		    archive_entry_pathname(entry), archive_entry_size(entry));
+		archive_entry_linkify(bsdtar->resolver, &entry, &spare_entry);
+
+		/* Handle SIGINFO / SIGUSR1 request if one was made. */
+		siginfo_printinfo(bsdtar, 0);
+
+		while (entry != NULL) {
+			write_entry_backend(bsdtar, a, entry);
+			archive_entry_free(entry);
+			entry = spare_entry;
+			spare_entry = NULL;
+		}
+
+		if (bsdtar->verbose)
+			fprintf(stderr, "\n");
 	}
+	archive_entry_free(entry);
 	tree_close(tree);
 }
 
@@ -846,117 +889,6 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 		close(fd);
 }
 
-/*
- * Add a single filesystem object to the archive.
- */
-static void
-write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
-    const char *pathname, const char *accpath)
-{
-	struct archive_entry	*entry, *sparse_entry;
-	static char		 linkbuffer[PATH_MAX+1];
-
-	entry = archive_entry_new();
-
-	archive_entry_set_pathname(entry, pathname);
-	archive_entry_copy_sourcepath(entry, accpath);
-
-	/*
-	 * Rewrite the pathname to be archived.  If rewrite
-	 * fails, skip the entry.
-	 */
-	if (edit_pathname(bsdtar, entry))
-		goto abort;
-
-	/*
-	 * In -u mode, check that the file is newer than what's
-	 * already in the archive; in all modes, obey --newerXXX flags.
-	 */
-	if (!new_enough(bsdtar, archive_entry_pathname(entry), st))
-		goto abort;
-
-	/* Display entry as we process it. This format is required by SUSv2. */
-	if (bsdtar->verbose)
-		safe_fprintf(stderr, "a %s", archive_entry_pathname(entry));
-
-	/* Read symbolic link information. */
-	if ((st->st_mode & S_IFMT) == S_IFLNK) {
-		int lnklen;
-
-		lnklen = readlink(accpath, linkbuffer, PATH_MAX);
-		if (lnklen < 0) {
-			if (!bsdtar->verbose)
-				bsdtar_warnc(bsdtar, errno,
-				    "%s: Couldn't read symbolic link",
-				    pathname);
-			else
-				safe_fprintf(stderr,
-				    ": Couldn't read symbolic link: %s",
-				    strerror(errno));
-			goto cleanup;
-		}
-		linkbuffer[lnklen] = 0;
-		archive_entry_set_symlink(entry, linkbuffer);
-	}
-
-	/* Look up username and group name. */
-	archive_entry_set_uname(entry, lookup_uname(bsdtar, st->st_uid));
-	archive_entry_set_gname(entry, lookup_gname(bsdtar, st->st_gid));
-
-#ifdef HAVE_STRUCT_STAT_ST_FLAGS
-	/* XXX TODO: archive_entry_copy_stat() should copy st_flags
-	 * on platforms that support it.  This should go away then. */
-	if (st->st_flags != 0)
-		archive_entry_set_fflags(entry, st->st_flags, 0);
-#endif
-
-#ifdef EXT2_IOC_GETFLAGS
-	/* XXX TODO: Find a way to merge this with the
-	 * flags fetch for nodump support earlier. */
-	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
-		int fd = open(accpath, O_RDONLY | O_NONBLOCK);
-		if (fd >= 0) {
-			unsigned long stflags;
-			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
-			close(fd);
-			if (r == 0 && stflags != 0)
-				archive_entry_set_fflags(entry, stflags, 0);
-		}
-	}
-#endif
-
-	archive_entry_copy_stat(entry, st);
-	setup_acls(bsdtar, entry, accpath);
-	setup_xattrs(bsdtar, entry, accpath);
-
-	/* Non-regular files get archived with zero size. */
-	if (!S_ISREG(st->st_mode))
-		archive_entry_set_size(entry, 0);
-
-	/* Record what we're doing, for the benefit of SIGINFO / SIGUSR1. */
-	siginfo_setinfo(bsdtar, "adding", archive_entry_pathname(entry),
-	    archive_entry_size(entry));
-	archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
-
-	/* Handle SIGINFO / SIGUSR1 request if one was made. */
-	siginfo_printinfo(bsdtar, 0);
-
-	while (entry != NULL) {
-		write_entry_backend(bsdtar, a, entry);
-		archive_entry_free(entry);
-		entry = sparse_entry;
-		sparse_entry = NULL;
-	}
-
-cleanup:
-	if (bsdtar->verbose)
-		fprintf(stderr, "\n");
-
-abort:
-	if (entry != NULL)
-		archive_entry_free(entry);
-}
-
 
 /* Helper function to copy file to archive. */
 static int
@@ -989,342 +921,6 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 		bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
 	}
 	return 0;
-}
-
-
-static void
-create_cleanup(struct bsdtar *bsdtar)
-{
-	free_cache(bsdtar->uname_cache);
-	bsdtar->uname_cache = NULL;
-	free_cache(bsdtar->gname_cache);
-	bsdtar->gname_cache = NULL;
-}
-
-#ifdef HAVE_POSIX_ACL
-static void		setup_acl(struct bsdtar *bsdtar,
-			     struct archive_entry *entry, const char *accpath,
-			     int acl_type, int archive_entry_acl_type);
-
-static void
-setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
-    const char *accpath)
-{
-	archive_entry_acl_clear(entry);
-
-	setup_acl(bsdtar, entry, accpath,
-	    ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
-	/* Only directories can have default ACLs. */
-	if (S_ISDIR(archive_entry_mode(entry)))
-		setup_acl(bsdtar, entry, accpath,
-		    ACL_TYPE_DEFAULT, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
-}
-
-static void
-setup_acl(struct bsdtar *bsdtar, struct archive_entry *entry,
-    const char *accpath, int acl_type, int archive_entry_acl_type)
-{
-	acl_t		 acl;
-	acl_tag_t	 acl_tag;
-	acl_entry_t	 acl_entry;
-	acl_permset_t	 acl_permset;
-	int		 s, ae_id, ae_tag, ae_perm;
-	const char	*ae_name;
-
-	/* Retrieve access ACL from file. */
-	acl = acl_get_file(accpath, acl_type);
-	if (acl != NULL) {
-		s = acl_get_entry(acl, ACL_FIRST_ENTRY, &acl_entry);
-		while (s == 1) {
-			ae_id = -1;
-			ae_name = NULL;
-
-			acl_get_tag_type(acl_entry, &acl_tag);
-			if (acl_tag == ACL_USER) {
-				ae_id = (int)*(uid_t *)acl_get_qualifier(acl_entry);
-				ae_name = lookup_uname(bsdtar, ae_id);
-				ae_tag = ARCHIVE_ENTRY_ACL_USER;
-			} else if (acl_tag == ACL_GROUP) {
-				ae_id = (int)*(gid_t *)acl_get_qualifier(acl_entry);
-				ae_name = lookup_gname(bsdtar, ae_id);
-				ae_tag = ARCHIVE_ENTRY_ACL_GROUP;
-			} else if (acl_tag == ACL_MASK) {
-				ae_tag = ARCHIVE_ENTRY_ACL_MASK;
-			} else if (acl_tag == ACL_USER_OBJ) {
-				ae_tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
-			} else if (acl_tag == ACL_GROUP_OBJ) {
-				ae_tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
-			} else if (acl_tag == ACL_OTHER) {
-				ae_tag = ARCHIVE_ENTRY_ACL_OTHER;
-			} else {
-				/* Skip types that libarchive can't support. */
-				continue;
-			}
-
-			acl_get_permset(acl_entry, &acl_permset);
-			ae_perm = 0;
-			/*
-			 * acl_get_perm() is spelled differently on different
-			 * platforms; see bsdtar_platform.h for details.
-			 */
-			if (ACL_GET_PERM(acl_permset, ACL_EXECUTE))
-				ae_perm |= ARCHIVE_ENTRY_ACL_EXECUTE;
-			if (ACL_GET_PERM(acl_permset, ACL_READ))
-				ae_perm |= ARCHIVE_ENTRY_ACL_READ;
-			if (ACL_GET_PERM(acl_permset, ACL_WRITE))
-				ae_perm |= ARCHIVE_ENTRY_ACL_WRITE;
-
-			archive_entry_acl_add_entry(entry,
-			    archive_entry_acl_type, ae_perm, ae_tag,
-			    ae_id, ae_name);
-
-			s = acl_get_entry(acl, ACL_NEXT_ENTRY, &acl_entry);
-		}
-		acl_free(acl);
-	}
-}
-#else
-static void
-setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
-    const char *accpath)
-{
-	(void)bsdtar;
-	(void)entry;
-	(void)accpath;
-}
-#endif
-
-#if HAVE_LISTXATTR && HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR
-
-static void
-setup_xattr(struct bsdtar *bsdtar, struct archive_entry *entry,
-    const char *accpath, const char *name)
-{
-	size_t size;
-	void *value = NULL;
-	char symlink_mode = bsdtar->symlink_mode;
-
-	if (symlink_mode == 'H')
-		size = getxattr(accpath, name, NULL, 0);
-	else
-		size = lgetxattr(accpath, name, NULL, 0);
-
-	if (size == -1) {
-		bsdtar_warnc(bsdtar, errno, "Couldn't get extended attribute");
-		return;
-	}
-
-	if (size > 0 && (value = malloc(size)) == NULL) {
-		bsdtar_errc(bsdtar, 1, errno, "Out of memory");
-		return;
-	}
-
-	if (symlink_mode == 'H')
-		size = getxattr(accpath, name, value, size);
-	else
-		size = lgetxattr(accpath, name, value, size);
-
-	if (size == -1) {
-		bsdtar_warnc(bsdtar, errno, "Couldn't get extended attribute");
-		return;
-	}
-
-	archive_entry_xattr_add_entry(entry, name, value, size);
-
-	free(value);
-}
-
-/*
- * Linux extended attribute support
- */
-static void
-setup_xattrs(struct bsdtar *bsdtar, struct archive_entry *entry,
-    const char *accpath)
-{
-	char *list, *p;
-	size_t list_size;
-	char symlink_mode = bsdtar->symlink_mode;
-
-	if (symlink_mode == 'H')
-		list_size = listxattr(accpath, NULL, 0);
-	else
-		list_size = llistxattr(accpath, NULL, 0);
-
-	if (list_size == -1) {
-		bsdtar_warnc(bsdtar, errno,
-			"Couldn't list extended attributes");
-		return;
-	} else if (list_size == 0)
-		return;
-
-	if ((list = malloc(list_size)) == NULL) {
-		bsdtar_errc(bsdtar, 1, errno, "Out of memory");
-		return;
-	}
-
-	if (symlink_mode == 'H')
-		list_size = listxattr(accpath, list, list_size);
-	else
-		list_size = llistxattr(accpath, list, list_size);
-
-	if (list_size == -1) {
-		bsdtar_warnc(bsdtar, errno,
-			"Couldn't list extended attributes");
-		free(list);
-		return;
-	}
-
-	for (p = list; (p - list) < list_size; p += strlen(p) + 1) {
-		if (strncmp(p, "system.", 7) == 0 ||
-				strncmp(p, "xfsroot.", 8) == 0)
-			continue;
-
-		setup_xattr(bsdtar, entry, accpath, p);
-	}
-
-	free(list);
-}
-
-#else
-
-/*
- * Generic (stub) extended attribute support.
- */
-static void
-setup_xattrs(struct bsdtar *bsdtar, struct archive_entry *entry,
-    const char *accpath)
-{
-	(void)bsdtar; /* UNUSED */
-	(void)entry; /* UNUSED */
-	(void)accpath; /* UNUSED */
-}
-
-#endif
-
-static void
-free_cache(struct name_cache *cache)
-{
-	size_t i;
-
-	if (cache != NULL) {
-		for (i = 0; i < cache->size; i++) {
-			if (cache->cache[i].name != NULL &&
-			    cache->cache[i].name != NO_NAME)
-				free((void *)(uintptr_t)cache->cache[i].name);
-		}
-		free(cache);
-	}
-}
-
-/*
- * Lookup uid/gid from uname/gname, return NULL if no match.
- */
-static const char *
-lookup_name(struct bsdtar *bsdtar, struct name_cache **name_cache_variable,
-    int (*lookup_fn)(struct bsdtar *, const char **, id_t), id_t id)
-{
-	struct name_cache	*cache;
-	const char *name;
-	int slot;
-
-
-	if (*name_cache_variable == NULL) {
-		*name_cache_variable = malloc(sizeof(struct name_cache));
-		if (*name_cache_variable == NULL)
-			bsdtar_errc(bsdtar, 1, ENOMEM, "No more memory");
-		memset(*name_cache_variable, 0, sizeof(struct name_cache));
-		(*name_cache_variable)->size = name_cache_size;
-	}
-
-	cache = *name_cache_variable;
-	cache->probes++;
-
-	slot = id % cache->size;
-	if (cache->cache[slot].name != NULL) {
-		if (cache->cache[slot].id == id) {
-			cache->hits++;
-			if (cache->cache[slot].name == NO_NAME)
-				return (NULL);
-			return (cache->cache[slot].name);
-		}
-		if (cache->cache[slot].name != NO_NAME)
-			free((void *)(uintptr_t)cache->cache[slot].name);
-		cache->cache[slot].name = NULL;
-	}
-
-	if (lookup_fn(bsdtar, &name, id) == 0) {
-		if (name == NULL || name[0] == '\0') {
-			/* Cache the negative response. */
-			cache->cache[slot].name = NO_NAME;
-			cache->cache[slot].id = id;
-		} else {
-			cache->cache[slot].name = strdup(name);
-			if (cache->cache[slot].name != NULL) {
-				cache->cache[slot].id = id;
-				return (cache->cache[slot].name);
-			}
-			/*
-			 * Conveniently, NULL marks an empty slot, so
-			 * if the strdup() fails, we've just failed to
-			 * cache it.  No recovery necessary.
-			 */
-		}
-	}
-	return (NULL);
-}
-
-static const char *
-lookup_uname(struct bsdtar *bsdtar, uid_t uid)
-{
-	return (lookup_name(bsdtar, &bsdtar->uname_cache,
-		    &lookup_uname_helper, (id_t)uid));
-}
-
-static int
-lookup_uname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
-{
-	struct passwd	*pwent;
-
-	(void)bsdtar; /* UNUSED */
-
-	errno = 0;
-	pwent = getpwuid((uid_t)id);
-	if (pwent == NULL) {
-		*name = NULL;
-		if (errno != 0)
-			bsdtar_warnc(bsdtar, errno, "getpwuid(%d) failed", id);
-		return (errno);
-	}
-
-	*name = pwent->pw_name;
-	return (0);
-}
-
-static const char *
-lookup_gname(struct bsdtar *bsdtar, gid_t gid)
-{
-	return (lookup_name(bsdtar, &bsdtar->gname_cache,
-		    &lookup_gname_helper, (id_t)gid));
-}
-
-static int
-lookup_gname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
-{
-	struct group	*grent;
-
-	(void)bsdtar; /* UNUSED */
-
-	errno = 0;
-	grent = getgrgid((gid_t)id);
-	if (grent == NULL) {
-		*name = NULL;
-		if (errno != 0)
-			bsdtar_warnc(bsdtar, errno, "getgrgid(%d) failed", id);
-		return (errno);
-	}
-
-	*name = grent->gr_name;
-	return (0);
 }
 
 /*
