@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2008-2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Samy Al Bahra
@@ -17,6 +17,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,6 +46,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -55,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -192,15 +197,22 @@ mac_cred_relabel(struct ucred *cred, struct label *newlabel)
 	MAC_PERFORM(cred_relabel, cred, newlabel);
 }
 
+MAC_CHECK_PROBE_DEFINE2(cred_check_relabel, "struct ucred *",
+    "struct label *");
+
 int
 mac_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
 	int error;
 
 	MAC_CHECK(cred_check_relabel, cred, newlabel);
+	MAC_CHECK_PROBE2(cred_check_relabel, error, cred, newlabel);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(cred_check_visible, "struct ucred *",
+    "struct ucred *");
 
 int
 mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
@@ -208,6 +220,7 @@ mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 	int error;
 
 	MAC_CHECK(cred_check_visible, cr1, cr2);
+	MAC_CHECK_PROBE2(cred_check_visible, error, cr1, cr2);
 
 	return (error);
 }

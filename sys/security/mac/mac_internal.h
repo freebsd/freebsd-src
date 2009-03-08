@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2006 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 nCircle Network Security, Inc.
@@ -20,6 +20,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,6 +61,72 @@
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_security_mac);
 #endif /* SYSCTL_DECL */
+
+/*
+ * MAC Framework SDT DTrace probe namespace, macros for declaring entry
+ * point probes, macros for invoking them.
+ */
+#ifdef SDT_PROVIDER_DECLARE
+SDT_PROVIDER_DECLARE(mac);		/* MAC Framework-level events. */
+SDT_PROVIDER_DECLARE(mac_framework);	/* Entry points to MAC. */
+
+#define	MAC_CHECK_PROBE_DEFINE4(name, arg0, arg1, arg2, arg3)		\
+	SDT_PROBE_DEFINE5(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0, arg1, arg2, arg3);				\
+	SDT_PROBE_DEFINE5(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0, arg1, arg2, arg3);
+
+#define	MAC_CHECK_PROBE_DEFINE3(name, arg0, arg1, arg2)			\
+	SDT_PROBE_DEFINE4(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0, arg1, arg2);					\
+	SDT_PROBE_DEFINE4(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0, arg1, arg2);
+
+#define	MAC_CHECK_PROBE_DEFINE2(name, arg0, arg1)			\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0, arg1);						\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0, arg1);
+
+#define	MAC_CHECK_PROBE_DEFINE1(name, arg0)				\
+	SDT_PROBE_DEFINE2(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0);						\
+	SDT_PROBE_DEFINE2(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0);
+
+#define	MAC_CHECK_PROBE4(name, error, arg0, arg1, arg2, arg3)	do {	\
+	if (error) {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_check_err,	\
+		    error, arg0, arg1, arg2, arg3);			\
+	} else {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_check_ok,	\
+		    0, arg0, arg1, arg2, arg3);				\
+	}								\
+} while (0)
+
+#define	MAC_CHECK_PROBE3(name, error, arg0, arg1, arg2)			\
+	MAC_CHECK_PROBE4(name, error, arg0, arg1, arg2, 0)
+#define	MAC_CHECK_PROBE2(name, error, arg0, arg1)			\
+	MAC_CHECK_PROBE3(name, error, arg0, arg1, 0)
+#define	MAC_CHECK_PROBE1(name, error, arg0)				\
+	MAC_CHECK_PROBE2(name, error, arg0, 0)
+#endif
+
+#define	MAC_GRANT_PROBE_DEFINE2(name, arg0, arg1)			\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_grant_err,	\
+	    "int", arg0, arg1);						\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_grant_ok,	\
+	    "INT", arg0, arg1);
+
+#define	MAC_GRANT_PROBE2(name, error, arg0, arg1)	do {		\
+	if (error) {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_grant_err,	\
+		    error, arg0, arg1, 0, 0);				\
+	} else {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_grant_ok,	\
+		    error, arg0, arg1, 0, 0);				\
+	}								\
+} while (0)
 
 /*
  * MAC Framework global types and typedefs.
