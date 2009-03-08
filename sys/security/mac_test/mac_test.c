@@ -2435,8 +2435,7 @@ test_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 COUNTER_DECL(vnode_check_getextattr);
 static int
 test_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -2642,8 +2641,7 @@ test_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 COUNTER_DECL(vnode_check_setextattr);
 static int
 test_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
