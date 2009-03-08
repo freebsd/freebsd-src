@@ -97,10 +97,8 @@ static void
 ixp425_pci_conf_reg_write(struct ixppcib_softc *sc, uint32_t reg,
     uint32_t data)
 {
-	PCI_CSR_WRITE_4(sc,
-	    PCI_CRP_AD_CBE, ((reg & ~3) | COMMAND_CRP_WRITE));
-	PCI_CSR_WRITE_4(sc,
-	    PCI_CRP_AD_WDATA, data);
+	PCI_CSR_WRITE_4(sc, PCI_CRP_AD_CBE, ((reg & ~3) | COMMAND_CRP_WRITE));
+	PCI_CSR_WRITE_4(sc, PCI_CRP_AD_WDATA, data);
 }
 
 static int
@@ -325,7 +323,8 @@ ixppcib_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r) 
 {
 
-	device_printf(bus, "%s called activate_resource\n", device_get_nameunit(child));
+	device_printf(bus, "%s called activate_resource (unexpected)\n",
+	    device_get_nameunit(child));
 	return (ENXIO);
 }
 
@@ -334,7 +333,8 @@ ixppcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r) 
 {
 
-	device_printf(bus, "%s called deactivate_resource\n", device_get_nameunit(child));
+	device_printf(bus, "%s called deactivate_resource (unexpected)\n",
+	    device_get_nameunit(child));
 	return (ENXIO);
 }
 
@@ -343,7 +343,8 @@ ixppcib_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
 
-	device_printf(bus, "%s called release_resource\n", device_get_nameunit(child));
+	device_printf(bus, "%s called release_resource (unexpected)\n",
+	    device_get_nameunit(child));
 	return (ENXIO);
 }
 
