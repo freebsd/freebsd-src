@@ -132,6 +132,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	    DEFAULT_BYTES_PER_BLOCK))
 		bsdtar_errc(bsdtar, 1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
+	if (bsdtar->option_format_options != NULL) {
+		r = archive_read_set_options(a, bsdtar->option_format_options);
+		if (r != ARCHIVE_OK)
+			bsdtar_errc(bsdtar, 1, 0, "Error archive options: %s",
+			    archive_error_string(a));
+	}
 
 	do_chdir(bsdtar);
 
