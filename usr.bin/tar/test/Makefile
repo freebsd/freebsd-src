@@ -16,6 +16,7 @@ TESTS=	\
 	test_help.c				\
 	test_option_T.c				\
 	test_option_q.c				\
+	test_option_s.c				\
 	test_patterns.c				\
 	test_stdio.c				\
 	test_strip_components.c			\
