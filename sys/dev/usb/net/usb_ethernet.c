@@ -512,6 +512,20 @@ static moduledata_t usb2_ether_mod = {
 	0
 };
 
+struct mbuf *
+usb2_ether_newbuf(void)
+{
+	struct mbuf *m_new;
+
+	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m_new == NULL)
+		return (NULL);
+	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+
+	m_adj(m_new, ETHER_ALIGN);
+	return (m_new);
+}
+
 int
 usb2_ether_rxmbuf(struct usb2_ether *ue, struct mbuf *m, 
     unsigned int len)
@@ -539,16 +553,15 @@ usb2_ether_rxbuf(struct usb2_ether *ue, struct usb2_page_cache *pc,
 
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
-	if (len < ETHER_HDR_LEN || len > MCLBYTES)
+	if (len < ETHER_HDR_LEN || len > MCLBYTES - ETHER_ALIGN)
 		return (1);
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = usb2_ether_newbuf();
 	if (m == NULL) {
 		ifp->if_ierrors++;
 		return (ENOMEM);
 	}
 
-	m_adj(m, ETHER_ALIGN);
 	usb2_copy_out(pc, offset, mtod(m, uint8_t *), len);
 
 	/* finalize mbuf */
