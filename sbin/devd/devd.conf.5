@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd October 25, 2006
+.Dd March 8, 2009
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -238,6 +238,10 @@ statement.
 .Ic Description
 .It Li bus
 Device name of parent bus.
+.It Li cdev
+Device node path if one is created by the
+.Xr devfs 5
+filesystem.
 .It Li cisproduct
 CIS-product.
 .It Li cisvendor
@@ -280,7 +284,7 @@ A partial list of systems, subsystems, and types used within the
 .Ic notify
 mechanism.
 .Pp
-.Bl -tag -width ".Li IFNET" -compact
+.Bl -tag -width ".Li coretemp" -compact
 .It Sy System
 .It Li ACPI
 Events related to the ACPI subsystem.
@@ -313,6 +317,55 @@ took place.
 Carrier status changed to UP.
 .It Li LINK_DOWN
 Carrier status changed to DOWN.
+.It Li ATTACH
+The network inteface is attached to the system.
+.It Li DETACH
+The network inteface is detached from the system.
+.El
+.El
+.It Li DEVFS
+Events related to the
+.Xr devfs 5
+filesystem.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li CDEV
+.Bl -tag -width ".Li DESTROY" -compact
+.It Sy Type
+.It Li CREATE
+The
+.Xr devfs 5
+node is created.
+.It Li DESTROY
+The
+.Xr devfs 5
+node is destroyed.
+.El
+.El
+.It Li coretemp
+Events related to the
+.Xr coretemp 4
+device.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li Thermal
+Notification that the CPU core has reached critical temperature.
+.Bl -tag -width ".Ar temperature" -compact
+.It Sy Type
+.It Ar temperature
+String containing the temperature of the core that has become too hot.
+.El
+.El
+.It Li kern
+Events related to the kernel.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li power
+Information about the state of the system.
+.Bl -tag -width ".li resume" -compact
+.It Sy Type
+.It Li resume
+Notification that the system has woken from the suspended state.
 .El
 .El
 .El
@@ -430,4 +483,6 @@ The installed
 .Pa /etc/devd.conf
 has many additional examples.
 .Sh SEE ALSO
-.Xr devd 8
+.Xr devd 8 ,
+.Xr devfs 5 ,
+.Xr coretemp 4
