@@ -97,7 +97,6 @@ struct sysctl_oid;
 struct sysctl_req;
 struct thread;
 struct ucred;
-struct uio;
 struct vattr;
 struct vnode;
 
@@ -557,7 +556,7 @@ typedef int	(*mpo_vnode_check_getacl_t)(struct ucred *cred,
 		    acl_type_t type);
 typedef int	(*mpo_vnode_check_getextattr_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel,
-		    int attrnamespace, const char *name, struct uio *uio);
+		    int attrnamespace, const char *name);
 typedef int	(*mpo_vnode_check_link_t)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dvplabel,
 		    struct vnode *vp, struct label *vplabel,
@@ -606,7 +605,7 @@ typedef int	(*mpo_vnode_check_setacl_t)(struct ucred *cred,
 		    struct acl *acl);
 typedef int	(*mpo_vnode_check_setextattr_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel,
-		    int attrnamespace, const char *name, struct uio *uio);
+		    int attrnamespace, const char *name);
 typedef int	(*mpo_vnode_check_setflags_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel, u_long flags);
 typedef int	(*mpo_vnode_check_setmode_t)(struct ucred *cred,

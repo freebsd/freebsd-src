@@ -195,7 +195,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 #ifdef MAC
 	error = mac_vnode_check_setextattr(td->td_ucred, vp, attrnamespace,
-	    attrname, &auio);
+	    attrname);
 	if (error)
 		goto done;
 #endif
@@ -373,7 +373,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 #ifdef MAC
 	error = mac_vnode_check_getextattr(td->td_ucred, vp, attrnamespace,
-	    attrname, &auio);
+	    attrname);
 	if (error)
 		goto done;
 #endif

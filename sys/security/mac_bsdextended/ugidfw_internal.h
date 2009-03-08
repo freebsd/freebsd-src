@@ -72,8 +72,7 @@ int	ugidfw_vnode_check_exec(struct ucred *cred, struct vnode *vp,
 int	ugidfw_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 	    struct label *vplabel, acl_type_t type);
 int	ugidfw_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-	    struct label *vplabel, int attrnamespace, const char *name,
-	    struct uio *uio);
+	    struct label *vplabel, int attrnamespace, const char *name);
 int	ugidfw_vnode_check_link(struct ucred *cred, struct vnode *dvp,
 	    struct label *dvplabel, struct vnode *vp, struct label *label,
 	    struct componentname *cnp);
@@ -98,8 +97,7 @@ int	ugidfw_vnode_check_revoke(struct ucred *cred, struct vnode *vp,
 int	ugidfw_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
 	    struct label *vplabel, acl_type_t type, struct acl *acl);
 int	ugidfw_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-	    struct label *vplabel, int attrnamespace, const char *name,
-	    struct uio *uio);
+	    struct label *vplabel, int attrnamespace, const char *name);
 int	ugidfw_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
 	    struct label *vplabel, u_long flags);
 int	ugidfw_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
