@@ -39,7 +39,7 @@
 #include PLATFORM_CONFIG_H
 #elif defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
-#include "../config.h"
+#include "config.h"
 #else
 /* Warn if bsdtar hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no built-in configuration in bsdtar_platform.h.
