@@ -17,6 +17,9 @@
  * This software was enhanced by SPARTA ISSO under SPAWAR contract 
  * N66001-04-C-6019 ("SEFOS").
  *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:

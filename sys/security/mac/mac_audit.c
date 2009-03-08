@@ -58,43 +58,43 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
 
-MAC_CHECK_PROBE_DEFINE2(proc_check_setaudit, "struct ucred *",
+MAC_CHECK_PROBE_DEFINE2(cred_check_setaudit, "struct ucred *",
     "struct auditinfo *");
 
 int
-mac_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
+mac_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
 {
 	int error;
 
-	MAC_CHECK(proc_check_setaudit, cred, ai);
-	MAC_CHECK_PROBE2(proc_check_setaudit, error, cred, ai);
+	MAC_CHECK(cred_check_setaudit, cred, ai);
+	MAC_CHECK_PROBE2(cred_check_setaudit, error, cred, ai);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(proc_check_setaudit_addr, "struct ucred *",
+MAC_CHECK_PROBE_DEFINE2(cred_check_setaudit_addr, "struct ucred *",
     "struct auditinfo_addr *");
 
 int
-mac_proc_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
+mac_cred_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
 {
 	int error;
 
-	MAC_CHECK(proc_check_setaudit_addr, cred, aia);
-	MAC_CHECK_PROBE2(proc_check_setaudit_addr, error, cred, aia);
+	MAC_CHECK(cred_check_setaudit_addr, cred, aia);
+	MAC_CHECK_PROBE2(cred_check_setaudit_addr, error, cred, aia);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(proc_check_setauid, "struct ucred *", "uid_t");
+MAC_CHECK_PROBE_DEFINE2(cred_check_setauid, "struct ucred *", "uid_t");
 
 int
-mac_proc_check_setauid(struct ucred *cred, uid_t auid)
+mac_cred_check_setauid(struct ucred *cred, uid_t auid)
 {
 	int error;
 
-	MAC_CHECK(proc_check_setauid, cred, auid);
-	MAC_CHECK_PROBE2(proc_check_setauid, error, cred, auid);
+	MAC_CHECK(cred_check_setauid, cred, auid);
+	MAC_CHECK_PROBE2(cred_check_setauid, error, cred, auid);
 
 	return (error);
 }

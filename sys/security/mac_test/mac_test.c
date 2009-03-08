@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -14,6 +14,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -216,6 +219,142 @@ test_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(newlabel, MAGIC_CRED);
 	COUNTER_INC(cred_check_relabel);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setaudit);
+static int
+test_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setaudit);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setaudit_addr);
+static int
+test_cred_check_setaudit_addr(struct ucred *cred,
+    struct auditinfo_addr *aia)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setaudit_addr);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setauid);
+static int
+test_cred_check_setauid(struct ucred *cred, uid_t auid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setauid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setegid);
+static int
+test_cred_check_setegid(struct ucred *cred, gid_t egid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setegid);
+
+	return (0);
+}
+
+COUNTER_DECL(proc_check_euid);
+static int
+test_cred_check_seteuid(struct ucred *cred, uid_t euid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(proc_check_euid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setregid);
+static int
+test_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setregid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setreuid);
+static int
+test_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setreuid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setgid);
+static int
+test_cred_check_setgid(struct ucred *cred, gid_t gid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setgid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setgroups);
+static int
+test_cred_check_setgroups(struct ucred *cred, int ngroups,
+	gid_t *gidset)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setgroups);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setresgid);
+static int
+test_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+	gid_t sgid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setresgid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setresuid);
+static int
+test_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+	uid_t suid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setresuid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setuid);
+static int
+test_cred_check_setuid(struct ucred *cred, uid_t uid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setuid);
 
 	return (0);
 }
@@ -1346,142 +1485,6 @@ test_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(p->p_ucred->cr_label, MAGIC_CRED);
 	COUNTER_INC(proc_check_signal);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setaudit);
-static int
-test_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setaudit);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setaudit_addr);
-static int
-test_proc_check_setaudit_addr(struct ucred *cred,
-    struct auditinfo_addr *aia)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setaudit_addr);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setauid);
-static int
-test_proc_check_setauid(struct ucred *cred, uid_t auid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setauid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setegid);
-static int
-test_proc_check_setegid(struct ucred *cred, gid_t egid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setegid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_euid);
-static int
-test_proc_check_seteuid(struct ucred *cred, uid_t euid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_euid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setregid);
-static int
-test_proc_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setregid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setreuid);
-static int
-test_proc_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setreuid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setgid);
-static int
-test_proc_check_setgid(struct ucred *cred, gid_t gid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setgid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setgroups);
-static int
-test_proc_check_setgroups(struct ucred *cred, int ngroups,
-	gid_t *gidset)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setgroups);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setresgid);
-static int
-test_proc_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
-	gid_t sgid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setresgid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setresuid);
-static int
-test_proc_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
-	uid_t suid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setresuid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setuid);
-static int
-test_proc_check_setuid(struct ucred *cred, uid_t uid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setuid);
 
 	return (0);
 }
@@ -2881,6 +2884,18 @@ static struct mac_policy_ops test_ops =
 	.mpo_bpfdesc_init_label = test_bpfdesc_init_label,
 
 	.mpo_cred_check_relabel = test_cred_check_relabel,
+	.mpo_cred_check_setaudit = test_cred_check_setaudit,
+	.mpo_cred_check_setaudit_addr = test_cred_check_setaudit_addr,
+	.mpo_cred_check_setauid = test_cred_check_setauid,
+	.mpo_cred_check_seteuid = test_cred_check_seteuid,
+	.mpo_cred_check_setegid = test_cred_check_setegid,
+	.mpo_cred_check_setgid = test_cred_check_setgid,
+	.mpo_cred_check_setgroups = test_cred_check_setgroups,
+	.mpo_cred_check_setregid = test_cred_check_setregid,
+	.mpo_cred_check_setresgid = test_cred_check_setresgid,
+	.mpo_cred_check_setresuid = test_cred_check_setresuid,
+	.mpo_cred_check_setreuid = test_cred_check_setreuid,
+	.mpo_cred_check_setuid = test_cred_check_setuid,
 	.mpo_cred_check_visible = test_cred_check_visible,
 	.mpo_cred_copy_label = test_cred_copy_label,
 	.mpo_cred_create_init = test_cred_create_init,
@@ -3010,18 +3025,6 @@ static struct mac_policy_ops test_ops =
 
 	.mpo_proc_check_debug = test_proc_check_debug,
 	.mpo_proc_check_sched = test_proc_check_sched,
-	.mpo_proc_check_setaudit = test_proc_check_setaudit,
-	.mpo_proc_check_setaudit_addr = test_proc_check_setaudit_addr,
-	.mpo_proc_check_setauid = test_proc_check_setauid,
-	.mpo_proc_check_seteuid = test_proc_check_seteuid,
-	.mpo_proc_check_setegid = test_proc_check_setegid,
-	.mpo_proc_check_setgid = test_proc_check_setgid,
-	.mpo_proc_check_setgroups = test_proc_check_setgroups,
-	.mpo_proc_check_setregid = test_proc_check_setregid,
-	.mpo_proc_check_setresgid = test_proc_check_setresgid,
-	.mpo_proc_check_setresuid = test_proc_check_setresuid,
-	.mpo_proc_check_setreuid = test_proc_check_setreuid,
-	.mpo_proc_check_setuid = test_proc_check_setuid,
 	.mpo_proc_check_signal = test_proc_check_signal,
 	.mpo_proc_check_wait = test_proc_check_wait,
 	.mpo_proc_destroy_label = test_proc_destroy_label,
