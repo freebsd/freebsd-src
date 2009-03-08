@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2008-2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Samy Al Bahra
@@ -17,6 +17,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,6 +46,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -55,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -373,6 +378,8 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 	vm_map_unlock(map);
 }
 
+MAC_CHECK_PROBE_DEFINE2(proc_check_debug, "struct ucred *", "struct proc *");
+
 int
 mac_proc_check_debug(struct ucred *cred, struct proc *p)
 {
@@ -381,9 +388,12 @@ mac_proc_check_debug(struct ucred *cred, struct proc *p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_debug, cred, p);
+	MAC_CHECK_PROBE2(proc_check_debug, error, cred, p);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_sched, "struct ucred *", "struct proc *");
 
 int
 mac_proc_check_sched(struct ucred *cred, struct proc *p)
@@ -393,9 +403,13 @@ mac_proc_check_sched(struct ucred *cred, struct proc *p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_sched, cred, p);
+	MAC_CHECK_PROBE2(proc_check_sched, error, cred, p);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(proc_check_signal, "struct ucred *", "struct proc *",
+    "int");
 
 int
 mac_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
@@ -405,9 +419,12 @@ mac_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_signal, cred, p, signum);
+	MAC_CHECK_PROBE3(proc_check_signal, error, cred, p, signum);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_setuid, "struct ucred *", "uid_t");
 
 int
 mac_proc_check_setuid(struct proc *p, struct ucred *cred, uid_t uid)
@@ -417,8 +434,12 @@ mac_proc_check_setuid(struct proc *p, struct ucred *cred, uid_t uid)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_setuid, cred, uid);
+	MAC_CHECK_PROBE2(proc_check_setuid, error, cred, uid);
+
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_seteuid, "struct ucred *", "uid_t");
 
 int
 mac_proc_check_seteuid(struct proc *p, struct ucred *cred, uid_t euid)
@@ -428,8 +449,12 @@ mac_proc_check_seteuid(struct proc *p, struct ucred *cred, uid_t euid)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_seteuid, cred, euid);
+	MAC_CHECK_PROBE2(proc_check_seteuid, error, cred, euid);
+
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_setgid, "struct ucred *", "gid_t");
 
 int
 mac_proc_check_setgid(struct proc *p, struct ucred *cred, gid_t gid)
@@ -439,9 +464,12 @@ mac_proc_check_setgid(struct proc *p, struct ucred *cred, gid_t gid)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_setgid, cred, gid);
+	MAC_CHECK_PROBE2(proc_check_setgid, error, cred, gid);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_setegid, "struct ucred *", "gid_t");
 
 int
 mac_proc_check_setegid(struct proc *p, struct ucred *cred, gid_t egid)
@@ -451,9 +479,13 @@ mac_proc_check_setegid(struct proc *p, struct ucred *cred, gid_t egid)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_setegid, cred, egid);
+	MAC_CHECK_PROBE2(proc_check_setegid, error, cred, egid);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(proc_check_setgroups, "struct ucred *", "int",
+    "gid_t *");
 
 int
 mac_proc_check_setgroups(struct proc *p, struct ucred *cred, int ngroups,
@@ -464,8 +496,13 @@ mac_proc_check_setgroups(struct proc *p, struct ucred *cred, int ngroups,
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_setgroups, cred, ngroups, gidset);
+	MAC_CHECK_PROBE3(proc_check_setgroups, error, cred, ngroups, gidset);
+
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(proc_check_setreuid, "struct ucred *", "uid_t",
+    "uid_t");
 
 int
 mac_proc_check_setreuid(struct proc *p, struct ucred *cred, uid_t ruid,
@@ -476,9 +513,13 @@ mac_proc_check_setreuid(struct proc *p, struct ucred *cred, uid_t ruid,
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_setreuid, cred, ruid, euid);
+	MAC_CHECK_PROBE3(proc_check_setreuid, error, cred, ruid, euid);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(proc_check_setregid, "struct ucred *", "gid_t",
+    "gid_t");
 
 int
 mac_proc_check_setregid(struct proc *proc, struct ucred *cred, gid_t rgid,
@@ -489,9 +530,13 @@ mac_proc_check_setregid(struct proc *proc, struct ucred *cred, gid_t rgid,
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
 	MAC_CHECK(proc_check_setregid, cred, rgid, egid);
+	MAC_CHECK_PROBE3(proc_check_setregid, error, cred, rgid, egid);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE4(proc_check_setresuid, "struct ucred *", "uid_t",
+    "uid_t", "uid_t");
 
 int
 mac_proc_check_setresuid(struct proc *p, struct ucred *cred, uid_t ruid,
@@ -502,8 +547,14 @@ mac_proc_check_setresuid(struct proc *p, struct ucred *cred, uid_t ruid,
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_setresuid, cred, ruid, euid, suid);
+	MAC_CHECK_PROBE4(proc_check_setresuid, error, cred, ruid, euid,
+	    suid);
+
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE4(proc_check_setresgid, "struct ucred *", "gid_t",
+    "gid_t", "gid_t");
 
 int
 mac_proc_check_setresgid(struct proc *p, struct ucred *cred, gid_t rgid,
@@ -514,9 +565,13 @@ mac_proc_check_setresgid(struct proc *p, struct ucred *cred, gid_t rgid,
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_setresgid, cred, rgid, egid, sgid);
+	MAC_CHECK_PROBE4(proc_check_setresgid, error, cred, rgid, egid,
+	    sgid);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_wait, "struct ucred *", "struct proc *");
 
 int
 mac_proc_check_wait(struct ucred *cred, struct proc *p)
@@ -526,6 +581,7 @@ mac_proc_check_wait(struct ucred *cred, struct proc *p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	MAC_CHECK(proc_check_wait, cred, p);
+	MAC_CHECK_PROBE2(proc_check_wait, error, cred, p);
 
 	return (error);
 }

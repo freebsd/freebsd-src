@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
@@ -14,6 +14,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,8 +43,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/queue.h>
+#include <sys/sdt.h>
 #include <sys/vnode.h>
 
 #include <security/audit/audit.h>
@@ -50,15 +58,22 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
 
+MAC_CHECK_PROBE_DEFINE2(proc_check_setaudit, "struct ucred *",
+    "struct auditinfo *");
+
 int
 mac_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
 {
 	int error;
 
 	MAC_CHECK(proc_check_setaudit, cred, ai);
+	MAC_CHECK_PROBE2(proc_check_setaudit, error, cred, ai);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_setaudit_addr, "struct ucred *",
+    "struct auditinfo_addr *");
 
 int
 mac_proc_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
@@ -66,9 +81,12 @@ mac_proc_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
 	int error;
 
 	MAC_CHECK(proc_check_setaudit_addr, cred, aia);
+	MAC_CHECK_PROBE2(proc_check_setaudit_addr, error, cred, aia);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(proc_check_setauid, "struct ucred *", "uid_t");
 
 int
 mac_proc_check_setauid(struct ucred *cred, uid_t auid)
@@ -76,9 +94,13 @@ mac_proc_check_setauid(struct ucred *cred, uid_t auid)
 	int error;
 
 	MAC_CHECK(proc_check_setauid, cred, auid);
+	MAC_CHECK_PROBE2(proc_check_setauid, error, cred, auid);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(system_check_audit, "struct ucred *", "void *",
+    "int");
 
 int
 mac_system_check_audit(struct ucred *cred, void *record, int length)
@@ -86,9 +108,13 @@ mac_system_check_audit(struct ucred *cred, void *record, int length)
 	int error;
 
 	MAC_CHECK(system_check_audit, cred, record, length);
+	MAC_CHECK_PROBE3(system_check_audit, error, cred, record, length);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(system_check_auditctl, "struct ucred *",
+    "struct vnode *");
 
 int
 mac_system_check_auditctl(struct ucred *cred, struct vnode *vp)
@@ -99,11 +125,13 @@ mac_system_check_auditctl(struct ucred *cred, struct vnode *vp)
 	ASSERT_VOP_LOCKED(vp, "mac_system_check_auditctl");
 
 	vl = (vp != NULL) ? vp->v_label : NULL;
-
 	MAC_CHECK(system_check_auditctl, cred, vp, vl);
+	MAC_CHECK_PROBE2(system_check_auditctl, error, cred, vp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(system_check_auditon, "struct ucred *", "int");
 
 int
 mac_system_check_auditon(struct ucred *cred, int cmd)
@@ -111,6 +139,7 @@ mac_system_check_auditon(struct ucred *cred, int cmd)
 	int error;
 
 	MAC_CHECK(system_check_auditon, cred, cmd);
+	MAC_CHECK_PROBE2(system_check_auditon, error, cred, cmd);
 
 	return (error);
 }
