@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -14,6 +14,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -193,6 +196,93 @@ stub_cred_associate_nfsd(struct ucred *cred)
 
 static int
 stub_cred_check_relabel(struct ucred *cred, struct label *newlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setauid(struct ucred *cred, uid_t auid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setegid(struct ucred *cred, gid_t egid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_seteuid(struct ucred *cred, uid_t euid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setgid(struct ucred *cred, gid_t gid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setgroups(struct ucred *cred, int ngroups,
+	gid_t *gidset)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+	gid_t sgid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+	uid_t suid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setuid(struct ucred *cred, uid_t uid)
 {
 
 	return (0);
@@ -695,93 +785,6 @@ stub_proc_check_debug(struct ucred *cred, struct proc *p)
 
 static int
 stub_proc_check_sched(struct ucred *cred, struct proc *p)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setauid(struct ucred *cred, uid_t auid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setegid(struct ucred *cred, gid_t egid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_seteuid(struct ucred *cred, uid_t euid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setgid(struct ucred *cred, gid_t gid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setgroups(struct ucred *cred, int ngroups,
-	gid_t *gidset)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
-	gid_t sgid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
-	uid_t suid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setuid(struct ucred *cred, uid_t uid)
 {
 
 	return (0);
@@ -1541,6 +1544,18 @@ static struct mac_policy_ops stub_ops =
 
 	.mpo_cred_associate_nfsd = stub_cred_associate_nfsd,
 	.mpo_cred_check_relabel = stub_cred_check_relabel,
+	.mpo_cred_check_setaudit = stub_cred_check_setaudit,
+	.mpo_cred_check_setaudit_addr = stub_cred_check_setaudit_addr,
+	.mpo_cred_check_setauid = stub_cred_check_setauid,
+	.mpo_cred_check_setegid = stub_cred_check_setegid,
+	.mpo_cred_check_seteuid = stub_cred_check_seteuid,
+	.mpo_cred_check_setgid = stub_cred_check_setgid,
+	.mpo_cred_check_setgroups = stub_cred_check_setgroups,
+	.mpo_cred_check_setregid = stub_cred_check_setregid,
+	.mpo_cred_check_setresgid = stub_cred_check_setresgid,
+	.mpo_cred_check_setresuid = stub_cred_check_setresuid,
+	.mpo_cred_check_setreuid = stub_cred_check_setreuid,
+	.mpo_cred_check_setuid = stub_cred_check_setuid,
 	.mpo_cred_check_visible = stub_cred_check_visible,
 	.mpo_cred_copy_label = stub_copy_label,
 	.mpo_cred_create_init = stub_cred_create_init,
@@ -1660,18 +1675,6 @@ static struct mac_policy_ops stub_ops =
 
 	.mpo_proc_check_debug = stub_proc_check_debug,
 	.mpo_proc_check_sched = stub_proc_check_sched,
-	.mpo_proc_check_setaudit = stub_proc_check_setaudit,
-	.mpo_proc_check_setaudit_addr = stub_proc_check_setaudit_addr,
-	.mpo_proc_check_setauid = stub_proc_check_setauid,
-	.mpo_proc_check_setegid = stub_proc_check_setegid,
-	.mpo_proc_check_seteuid = stub_proc_check_seteuid,
-	.mpo_proc_check_setgid = stub_proc_check_setgid,
-	.mpo_proc_check_setgroups = stub_proc_check_setgroups,
-	.mpo_proc_check_setregid = stub_proc_check_setregid,
-	.mpo_proc_check_setresgid = stub_proc_check_setresgid,
-	.mpo_proc_check_setresuid = stub_proc_check_setresuid,
-	.mpo_proc_check_setreuid = stub_proc_check_setreuid,
-	.mpo_proc_check_setuid = stub_proc_check_setuid,
 	.mpo_proc_check_signal = stub_proc_check_signal,
 	.mpo_proc_check_wait = stub_proc_check_wait,
 

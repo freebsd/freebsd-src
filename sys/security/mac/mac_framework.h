@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
@@ -13,6 +13,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -105,6 +108,22 @@ void	mac_bpfdesc_destroy(struct bpf_d *);
 void	mac_bpfdesc_init(struct bpf_d *);
 
 void	mac_cred_associate_nfsd(struct ucred *cred);
+int	mac_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai);
+int	mac_cred_check_setaudit_addr(struct ucred *cred,
+	    struct auditinfo_addr *aia);
+int	mac_cred_check_setauid(struct ucred *cred, uid_t auid);
+int	mac_cred_check_setegid(struct ucred *cred, gid_t egid);
+int	mac_cred_check_seteuid(struct ucred *cred, uid_t euid);
+int	mac_cred_check_setgid(struct ucred *cred, gid_t gid);
+int	mac_cred_check_setgroups(struct ucred *cred, int ngroups,
+	    gid_t *gidset);
+int	mac_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid);
+int	mac_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+	    gid_t sgid);
+int	mac_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+	    uid_t suid);
+int	mac_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid);
+int	mac_cred_check_setuid(struct ucred *cred, uid_t uid);
 int	mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2);
 void	mac_cred_copy(struct ucred *cr1, struct ucred *cr2);
 void	mac_cred_create_init(struct ucred *cred);
@@ -233,28 +252,6 @@ int	mac_priv_grant(struct ucred *cred, int priv);
 
 int	mac_proc_check_debug(struct ucred *cred, struct proc *p);
 int	mac_proc_check_sched(struct ucred *cred, struct proc *p);
-int	mac_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai);
-int	mac_proc_check_setaudit_addr(struct ucred *cred,
-	    struct auditinfo_addr *aia);
-int	mac_proc_check_setauid(struct ucred *cred, uid_t auid);
-int	mac_proc_check_setegid(struct proc *p, struct ucred *cred,
-	    gid_t egid);
-int	mac_proc_check_seteuid(struct proc *p, struct ucred *cred,
-	    uid_t euid);
-int	mac_proc_check_setgid(struct proc *p, struct ucred *cred,
-	    gid_t gid);
-int	mac_proc_check_setgroups(struct proc *p, struct ucred *cred,
-	    int ngroups, gid_t *gidset);
-int	mac_proc_check_setregid(struct proc *p, struct ucred *cred,
-	    gid_t rgid, gid_t egid);
-int	mac_proc_check_setresgid(struct proc *p, struct ucred *cred,
-	    gid_t rgid, gid_t egid, gid_t sgid);
-int	mac_proc_check_setresuid(struct proc *p, struct ucred *cred,
-	    uid_t ruid, uid_t euid, uid_t suid);
-int	mac_proc_check_setreuid(struct proc *p, struct ucred *cred,
-	    uid_t ruid, uid_t euid);
-int	mac_proc_check_setuid(struct proc *p,  struct ucred *cred,
-	    uid_t uid);
 int	mac_proc_check_signal(struct ucred *cred, struct proc *p,
 	    int signum);
 int	mac_proc_check_wait(struct ucred *cred, struct proc *p);
