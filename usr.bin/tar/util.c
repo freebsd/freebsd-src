@@ -517,18 +517,41 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	while (name[0] == '/' && name[1] == '/')
 		name++;
 
-	/* Strip leading '/' unless user has asked us not to. */
-	if (name[0] == '/' && !bsdtar->option_absolute_paths) {
-		/* Generate a warning the first time this happens. */
-		if (!bsdtar->warned_lead_slash) {
-			bsdtar_warnc(bsdtar, 0,
-			    "Removing leading '/' from member names");
-			bsdtar->warned_lead_slash = 1;
+	/* By default, don't write or restore absolute pathnames. */
+	if (!bsdtar->option_absolute_paths) {
+		/* Strip Windows drive letters. */
+		if (((name[0] >= 'A' && name[0] <= 'Z')
+			|| (name[0] >= 'a' && name[0] <= 'z'))
+		    && name[1] == ':'
+		    && (name[2] == '/' || name[2] == '\\'))
+		{
+			/* Generate a warning the first time this happens. */
+			if (!bsdtar->warned_lead_slash) {
+				bsdtar_warnc(bsdtar, 0,
+				    "Removing leading drive letter from member names");
+				bsdtar->warned_lead_slash = 1;
+			}
+			name += 3;
+			while (*name == '/' || *name == '\\')
+				++name;
+			/* Special case: Stripping everything yields ".". */
+			if (*name == '\0')
+				name = ".";
 		}
-		name++;
-		/* Special case: Stripping leading '/' from "/" yields ".". */
-		if (*name == '\0')
-			name = ".";
+
+		/* Strip leading '/'. */
+		if (name[0] == '/') {
+			/* Generate a warning the first time this happens. */
+			if (!bsdtar->warned_lead_slash) {
+				bsdtar_warnc(bsdtar, 0,
+				    "Removing leading '/' from member names");
+				bsdtar->warned_lead_slash = 1;
+			}
+			name++;
+			/* Special case: Stripping everything yields ".". */
+			if (*name == '\0')
+				name = ".";
+		}
 	}
 
 	/* Safely replace name in archive_entry. */

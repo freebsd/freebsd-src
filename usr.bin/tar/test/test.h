@@ -45,7 +45,13 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#ifndef _WIN32
 #include <dirent.h>
+#else
+#define dirent direct
+#include "../bsdtar_windows.h"
+#include <direct.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

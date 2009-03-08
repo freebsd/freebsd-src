@@ -504,6 +504,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 		    (ssize_t)sizeof(buff) : (ssize_t)st.st_size;
 		s = read(fd, buff, s);
 		hexdump(buff, NULL, s, 0);
+		close(fd);
 	}
 	report_failure(NULL);
 	return (0);
@@ -564,11 +565,16 @@ test_assert_equal_file(const char *f1, const char *f2pattern, ...)
 		n2 = read(fd2, buff2, sizeof(buff2));
 		if (n1 != n2)
 			break;
-		if (n1 == 0 && n2 == 0)
+		if (n1 == 0 && n2 == 0) {
+			close(fd1);
+			close(fd2);
 			return (1);
+		}
 		if (memcmp(buff1, buff2, n1) != 0)
 			break;
 	}
+	close(fd1);
+	close(fd2);
 	failures ++;
 	if (!verbose && previous_failures(test_filename, test_line))
 		return (0);
@@ -648,6 +654,7 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	}
 	contents = malloc(s * 2);
 	n = read(fd, contents, s * 2);
+	close(fd);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
 		return (1);
@@ -802,7 +809,11 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
+#ifdef _WIN32
+			systemf("rmdir /S /Q %s", tests[i].name);
+#else
 			systemf("rm -rf %s", tests[i].name);
+#endif
 		}
 	}
 	/* Return appropriate status. */
@@ -901,6 +912,9 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
+#ifdef _WIN32
+	char *testprg;
+#endif
 	const char *opt_arg, *progname, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
@@ -913,7 +927,8 @@ int main(int argc, char **argv)
 	 */
 	progname = p = argv[0];
 	while (*p != '\0') {
-		if (*p == '/')
+		/* Support \ or / dir separators for Windows compat. */
+		if (*p == '/' || *p == '\\')
 			progname = p + 1;
 		++p;
 	}
@@ -994,6 +1009,18 @@ int main(int argc, char **argv)
 #ifdef PROGRAM
 	if (testprog == NULL)
 		usage(progname);
+#endif
+#ifdef _WIN32
+	/*
+	 * command.com cannot accept the command used '/' with drive
+	 * name such as c:/xxx/command.exe when use '|' pipe handling.
+	 */
+	testprg = strdup(testprog);
+	for (i = 0; testprg[i] != '\0'; i++) {
+		if (testprg[i] == '/')
+			testprg[i] = '\\';
+	}
+	testprog = testprg;
 #endif
 
 	/*

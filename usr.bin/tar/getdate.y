@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 
+#ifdef _MSC_VER
+#define __STDC__	/* for a bug of bison 2.1 on Windows */
+#endif
+
 #define yyparse getdate_yyparse
 #define yylex getdate_yylex
 #define yyerror getdate_yyerror

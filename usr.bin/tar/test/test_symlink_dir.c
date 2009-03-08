@@ -47,7 +47,10 @@ mkfile(const char *name, int mode, const char *contents, ssize_t size)
 
 DEFINE_TEST(test_symlink_dir)
 {
-	struct stat st, st2;
+	struct stat st;
+#ifndef _WIN32
+	struct stat st2;
+#endif
 	int oldumask;
 
 	oldumask = umask(0);
@@ -75,18 +78,25 @@ DEFINE_TEST(test_symlink_dir)
 	assertEqualInt(0, mkdir("dest1", 0755));
 	/* "dir" is a symlink to an existing "real_dir" */
 	assertEqualInt(0, mkdir("dest1/real_dir", 0755));
+#ifndef _WIN32
 	assertEqualInt(0, symlink("real_dir", "dest1/dir"));
 	/* "dir2" is a symlink to a non-existing "real_dir2" */
 	assertEqualInt(0, symlink("real_dir2", "dest1/dir2"));
+#else
+	skipping("symlink does not work on this platform");
+#endif
 	/* "dir3" is a symlink to an existing "non_dir3" */
 	assertEqualInt(0, mkfile("dest1/non_dir3", 0755, "abcdef", 6));
 	assertEqualInt(0, symlink("non_dir3", "dest1/dir3"));
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest1/real_file", 0755, "abcdefg", 7));
 	assertEqualInt(0, symlink("real_file", "dest1/file"));
+#ifndef _WIN32
 	/* "file2" is a symlink to non-existing "real_file2" */
 	assertEqualInt(0, symlink("real_file2", "dest1/file2"));
-
+#else
+	skipping("symlink does not work on this platform");
+#endif
 	assertEqualInt(0, systemf("%s -xf test.tar -C dest1", testprog));
 
 	/* dest1/dir symlink should be removed */
@@ -116,23 +126,31 @@ DEFINE_TEST(test_symlink_dir)
 	assertEqualInt(0, mkdir("dest2", 0755));
 	/* "dir" is a symlink to existing "real_dir" */
 	assertEqualInt(0, mkdir("dest2/real_dir", 0755));
+#ifndef _WIN32
 	assertEqualInt(0, symlink("real_dir", "dest2/dir"));
 	/* "dir2" is a symlink to a non-existing "real_dir2" */
 	assertEqualInt(0, symlink("real_dir2", "dest2/dir2"));
+#else
+	skipping("symlink does not work on this platform");
+#endif
 	/* "dir3" is a symlink to an existing "non_dir3" */
 	assertEqualInt(0, mkfile("dest2/non_dir3", 0755, "abcdefgh", 8));
 	assertEqualInt(0, symlink("non_dir3", "dest2/dir3"));
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest2/real_file", 0755, "abcdefghi", 9));
 	assertEqualInt(0, symlink("real_file", "dest2/file"));
+#ifndef _WIN32
 	/* "file2" is a symlink to non-existing "real_file2" */
 	assertEqualInt(0, symlink("real_file2", "dest2/file2"));
-
+#else
+	skipping("symlink does not work on this platform");
+#endif
 	assertEqualInt(0, systemf("%s -xPf test.tar -C dest2", testprog));
 
 	/* dest2/dir symlink should be followed */
 	assertEqualInt(0, lstat("dest2/dir", &st));
 	failure("tar -xP removed symlink instead of following it");
+#ifndef _WIN32
 	if (assert(S_ISLNK(st.st_mode))) {
 		/* Only verify what the symlink points to if it
 		 * really is a symlink. */
@@ -146,6 +164,9 @@ DEFINE_TEST(test_symlink_dir)
 		failure("symlink should still point to the existing directory");
 		assertEqualInt(st.st_ino, st2.st_ino);
 	}
+#else
+	skipping("symlink does not work on this platform");
+#endif
 	/* Contents of 'dir' should be restored */
 	assertEqualInt(0, lstat("dest2/dir/d", &st));
 	assert(S_ISDIR(st.st_mode));

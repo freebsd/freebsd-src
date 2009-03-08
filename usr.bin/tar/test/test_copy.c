@@ -64,6 +64,7 @@ create_tree(void)
 		buff2[0] = 'm';
 		assertEqualInt(0, link(buff, buff2));
 
+#ifndef _WIN32
 		/* Create a symlink named "s/abcdef..." to the above. */
 		strcpy(buff2 + 3, buff);
 		buff[0] = 's';
@@ -71,7 +72,9 @@ create_tree(void)
 		buff2[1] = '.';
 		buff2[2] = '/';
 		assertEqualInt(0, symlink(buff2, buff));
-
+#else
+		skipping("create a symlink to the above");
+#endif
 		/* Create a dir named "d/abcdef...". */
 		buff[0] = 'd';
 		assertEqualInt(0, mkdir(buff, 0775));
@@ -153,6 +156,7 @@ verify_tree(int limit)
 			}
 		}
 
+#ifndef _WIN32
 		/*
 		 * Symlink text doesn't include the 'original/' prefix,
 		 * so the limit here is 100 characters.
@@ -174,7 +178,9 @@ verify_tree(int limit)
 				}
 			}
 		}
-
+#else
+		skipping("verify symlink");
+#endif
 		/* Verify dir "d/abcdef...". */
 		strcpy(name1, "d/");
 		strcat(name1, filename);

@@ -28,8 +28,8 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_patterns)
 {
 	int fd, r;
-	const char *reffile2 = "test_patterns_2.tgz";
-	const char *reffile3 = "test_patterns_3.tgz";
+	const char *reffile2 = "test_patterns_2.tar";
+	const char *reffile3 = "test_patterns_3.tar";
 	const char *p;
 
 	/*
@@ -45,9 +45,9 @@ DEFINE_TEST(test_patterns)
 	fd = open("foo", O_CREAT | O_WRONLY, 0644);
 	assert(fd >= 0);
 	close(fd);
-	r = systemf("%s zcfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
+	r = systemf("%s cfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
 	assertEqualInt(r, 0);
-	r = systemf("%s zxfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
+	r = systemf("%s xfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
 	failure("tar should return non-zero because a file was given on the command line that's not in the archive");
 	assert(r != 0);
 
@@ -59,7 +59,11 @@ DEFINE_TEST(test_patterns)
 	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
 	    testprog, reffile2);
 	assertEqualInt(r, 0);
+#ifndef _WIN32
 	p = "/tmp/foo/bar/\n/tmp/foo/bar/baz\n";
+#else
+	p = "/tmp/foo/bar/\r\n/tmp/foo/bar/baz\r\n";
+#endif
 	assertFileContents(p, strlen(p), "tar2a.out");
 	assertEmptyFile("tar2a.err");
 
