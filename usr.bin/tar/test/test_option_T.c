@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 static int
 touch(const char *fn)
 {
-	int fd = open(fn, O_RDWR | O_CREAT);
+	int fd = open(fn, O_RDWR | O_CREAT, 0644);
 	failure("Couldn't create file '%s', fd=%d, errno=%d (%s)\n",
 	    fn, fd, errno, strerror(errno));
 	if (!assert(fd > 0))
