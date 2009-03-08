@@ -147,6 +147,7 @@ readcmd(int argc __unused, char **argv __unused)
 		if (tcgetattr(0, &told) == 0) {
 			memcpy(&tnew, &told, sizeof(told));
 			cfmakeraw(&tnew);
+			tnew.c_iflag |= told.c_iflag & ICRNL;
 			tcsetattr(0, TCSANOW, &tnew);
 			tsaved = 1;
 		}
