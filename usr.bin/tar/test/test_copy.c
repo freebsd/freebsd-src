@@ -25,6 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#define	LOOP_MAX	170
+
 static void
 create_tree(void)
 {
@@ -41,7 +43,7 @@ create_tree(void)
 	assertEqualInt(0, mkdir("s", 0775));
 	assertEqualInt(0, mkdir("d", 0775));
 
-	for (i = 0; i < 200; i++) {
+	for (i = 0; i < LOOP_MAX; i++) {
 		buff[0] = 'f';
 		buff[1] = '/';
 		/* Create a file named "f/abcdef..." */
@@ -97,7 +99,7 @@ verify_tree(int limit)
 	struct dirent *de;
 
 	/* Generate the names we know should be there and verify them. */
-	for (i = 1; i < 200; i++) {
+	for (i = 1; i < LOOP_MAX; i++) {
 		/* Generate a base name of the correct length. */
 		for (j = 0; j < i; ++j)
 			filename[j] = 'a' + (j % 26);
@@ -219,7 +221,7 @@ verify_tree(int limit)
 				}
 				/* Our files have very particular filename patterns. */
 				if (p[0] != '.' || (p[1] != '.' && p[1] != '\0')) {
-					for (i = 0; p[i] != '\0' && i < 200; i++) {
+					for (i = 0; p[i] != '\0' && i < LOOP_MAX; i++) {
 						failure("i=%d, p[i]='%c' 'a'+(i%%26)='%c'", i, p[i], 'a' + (i % 26));
 						assertEqualInt(p[i], 'a' + (i % 26));
 					}
