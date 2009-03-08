@@ -515,12 +515,9 @@ CNAME(ppc_db_trap):
  */
 dbtrap:
 	/* Write the trap vector to SPRG3 by computing LR & 0xff00 */
-	mflr	%r1
-	andi.	%r1,%r1,0xff00
-	mtsprg3	%r1
-
-	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
+	mflr	%r31
+	andi.	%r31,%r31,0xff00
+	mtsprg3	%r31
 
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
