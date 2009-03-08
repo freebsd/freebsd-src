@@ -1,9 +1,13 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
  * Project under contract to nCircle Network Security, Inc.
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,10 +38,13 @@
 #include "sys/cdefs.h"
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/priv.h>
+#include <sys/sdt.h>
 #include <sys/module.h>
 
 #include <security/mac/mac_framework.h>
@@ -54,6 +61,8 @@ __FBSDID("$FreeBSD$");
  * composition.
  */
 
+MAC_CHECK_PROBE_DEFINE2(priv_check, "struct ucred *", "int");
+
 /*
  * Restrict access to a privilege for a credential.  Return failure if any
  * policy denies access.
@@ -64,9 +73,12 @@ mac_priv_check(struct ucred *cred, int priv)
 	int error;
 
 	MAC_CHECK(priv_check, cred, priv);
+	MAC_CHECK_PROBE2(priv_check, error, cred, priv);
 
 	return (error);
 }
+
+MAC_GRANT_PROBE_DEFINE2(priv_grant, "struct ucred *", "int");
 
 /*
  * Grant access to a privilege for a credential.  Return success if any
@@ -78,6 +90,7 @@ mac_priv_grant(struct ucred *cred, int priv)
 	int error;
 
 	MAC_GRANT(priv_grant, cred, priv);
+	MAC_GRANT_PROBE2(priv_grant, error, cred, priv);
 
 	return (error);
 }
