@@ -164,4 +164,10 @@
 #define	__LA_DEAD
 #endif
 
+#ifdef _WIN32
+#include "bsdtar_windows.h"
+#else
+#define bsdtar_is_privileged(bsdtar)	(bsdtar->user_uid == 0)
+#endif
+
 #endif /* !BSDTAR_PLATFORM_H_INCLUDED */

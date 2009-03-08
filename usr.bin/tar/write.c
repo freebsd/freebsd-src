@@ -440,7 +440,12 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 				    arg + 1) != 0)
 					break;
 			} else
+#ifdef _WIN32
+				write_hierarchy_win(bsdtar, a, arg,
+				    write_hierarchy);
+#else
 				write_hierarchy(bsdtar, a, arg);
+#endif
 		}
 		bsdtar->argv++;
 	}
