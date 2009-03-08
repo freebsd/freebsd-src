@@ -42,11 +42,22 @@ mkfile(const char *fn, const char *contents)
 
 DEFINE_TEST(test_option_s)
 {
+	struct stat st;
+
 	/* Create a sample file heirarchy. */
 	assertEqualInt(0, mkdir("in", 0755));
 	assertEqualInt(0, mkdir("in/d1", 0755));
 	assertEqualInt(0, mkfile("in/d1/foo", "foo"));
 	assertEqualInt(0, mkfile("in/d1/bar", "bar"));
+
+	/* Does bsdtar support -s option ? */
+	systemf("%s -cf - -s /foo/bar/ in/d1/foo > NUL 2> check.err",
+	    testprog);
+	assertEqualInt(0, stat("check.err", &st));
+	if (st.st_size != 0) {
+		skipping("bsdtar does not support -s option on this platform");
+		return;
+	}
 
 	/*
 	 * Test 1: Filename substitution when creating archives.
