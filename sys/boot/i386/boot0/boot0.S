@@ -22,6 +22,7 @@
 #endif
 
 #ifdef PXE		/* enable PXE/INT18 booting with F6 */
+#define SAVE_MORE_MEMORY
 #endif
 
 #ifdef CHECK_DRIVE	/* make sure we boot from a HD. */
@@ -274,10 +275,11 @@ read_entry:	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 	 * Scan the table of bootable ids, which starts at %di and has
 	 * length TLEN. On a match, %di points to the element following the
 	 * match; the corresponding offset to the description is $(TLEN-1)
-	 * bytes ahead. If we don't find a match, we hit the 'unknown' entry.
+	 * bytes ahead. We use a count of TLEN+1 so if we don't find a match
+	 * within the first TLEN entries, we hit the 'unknown' entry.
 	 */
 		movw $bootable_ids,%di		# Lookup tables
-		movb $(TLEN),%cl		# Number of entries
+		movb $(TLEN+1),%cl		# Number of entries
 		repne				# Locate
 		scasb				#  type
 	/*
@@ -324,7 +326,7 @@ print_drive:	addb $'0'|0x80,%al		# Save next
 		callw putx			#  item
 	/*
 	 * Menu is complete, display a prompt followed by current selection.
-	 * 'decw %si' makes the register point to the space after 'Default: '
+	 * 'decw %si' makes the register point to the space after 'Boot: '
 	 * so we do not see an extra CRLF on the screen.
 	 */
 print_prompt:	movw $prompt,%si		# Display
@@ -371,6 +373,7 @@ read_key:
 	 * Timed out or default selection
 	 */
 use_default:	movb _OPT(%bp),%al		# Load default
+		orb $NOUPDATE,_FLAGS(%bp) 	# Disable updates
 		jmp check_selection		# Join common code
 
 	/*
@@ -585,13 +588,12 @@ intx13:						# Prepare CHS parameters
  * Various menu strings. 'item' goes after 'prompt' to save space.
  * Also use shorter versions to make room for the PXE/INT18 code.
  */
+prompt:
 #ifdef PXE
-prompt:		.ascii "\nBoot:"
-item:		.ascii " ";	     .byte ' '|0x80
-#else
-prompt:		.ascii "\nDefault:"
-item:		.ascii "  ";	     .byte ' '|0x80
+		.ascii "\nF6 PXE\r"
 #endif
+		.ascii "\nBoot:"
+item:		.ascii " ";	     .byte ' '|0x80
 crlf:		.ascii "\r";	     .byte '\n'|0x80
 
 /* Partition type tables */
@@ -602,13 +604,13 @@ bootable_ids:
 	 * Corresponding descriptions are at desc_ofs:
 	 * Entries don't need to be sorted.
 	 */
-		.byte 0x1, 0x6, 0x7, 0xb, 0xc
-#ifndef SAVE_MEMORY
-		.byte 0xe
-#endif
-		.byte 0x83, 0xa5, 0xa6, 0xa9, 0x4
+		.byte 0x83, 0xa5, 0xa6, 0xa9, 0x06, 0x07, 0x0b
 #ifndef SAVE_MORE_MEMORY
-		.byte 0x5, 0xf
+		.byte 0x05	# extended partition
+#endif
+#ifndef SAVE_MEMORY	/* other DOS partitions */
+		.byte 0x01	# FAT12
+		.byte 0x04	# FAT16 < 32M
 #endif
 
 desc_ofs:
@@ -617,24 +619,21 @@ desc_ofs:
 	 * actual partition name. The last entry must point to os_misc,
 	 * which is used for non-matching names.
 	 */
-		.byte os_dos-.			#   1, FAT12 DOS
-		.byte os_dos-.			#   6, FAT16 <32M, DOS/WIN
-		.byte os_win-.			#   7, FAT16 >=32M Windows
-		.byte os_win-.			#  11, FAT32
-		.byte os_win-.			#  12, FAT32-LBA
-#ifndef SAVE_MEMORY
-		.byte os_win-.			#  14, FAT16-LBA
-#endif
 		.byte os_linux-.		# 131, Linux
 		.byte os_freebsd-.		# 165, FreeBSD
 		.byte os_bsd-.			# 166, OpenBSD
 		.byte os_bsd-.			# 169, NetBSD
-		.byte os_dos-.			#   4, FAT16 < 32M
+		.byte os_dos-.			#   6, FAT16 >= 32M
+		.byte os_win-.			#   7, NTFS
+		.byte os_win-.			#  11, FAT32
+
 #ifndef SAVE_MORE_MEMORY
 		.byte os_ext-.			#   5, DOS Ext
-		.byte os_ext-.			#  15, DOS Ext-LBA
 #endif
-
+#ifndef SAVE_MEMORY
+		.byte os_dos-.			#   1, FAT12 DOS
+		.byte os_dos-.			#   4, FAT16 <32M
+#endif
 		.byte os_misc-. 		# Unknown
 
 	/*
@@ -643,10 +642,10 @@ desc_ofs:
 	 */
 os_misc:	.byte '?'|0x80
 os_dos:
-#ifndef SAVE_MEMORY	/* DOS string only if room */
+#ifndef SAVE_MORE_MEMORY	/* 'DOS' remapped to 'WIN' if no room */
 		.ascii "DO";   .byte 'S'|0x80
 #endif
-os_win:		.ascii "WI";   .byte 'N'|0x80
+os_win:		.ascii "Wi";   .byte 'n'|0x80
 os_linux:	.ascii "Linu"; .byte 'x'|0x80
 os_freebsd:	.ascii "Free"
 os_bsd:		.ascii "BS";   .byte 'D'|0x80

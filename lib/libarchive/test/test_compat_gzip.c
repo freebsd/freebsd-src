@@ -55,6 +55,12 @@ verify(const char *name)
 	/* Read entries, match up names with list above. */
 	for (i = 0; i < 6; ++i) {
 		r = archive_read_next_header(a, &ae);
+		if (UnsupportedCompress(r, a)) {
+			skipping("Skipping GZIP compression check: "
+				"This version of libarchive was compiled "
+			    "without gzip support");
+			goto finish;
+		}
 		failure("Could not read file %d (%s) from %s", i, n[i], name);
 		assertEqualIntA(a, ARCHIVE_OK, r);
 		if (r != ARCHIVE_OK) {
@@ -69,9 +75,11 @@ verify(const char *name)
 
 	/* Verify that the format detection worked. */
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_GZIP);
+	assertEqualString(archive_compression_name(a), "gzip");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+finish:
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
 #else
@@ -85,7 +93,7 @@ DEFINE_TEST(test_compat_gzip)
 	/* This sample has been 'split', each piece compressed separately,
 	 * then concatenated.  Gunzip will emit the concatenated result. */
 	/* Not supported in libarchive 2.6 and earlier */
-	/* verify("test_compat_gzip_1.tgz"); */
+	verify("test_compat_gzip_1.tgz");
 	/* This sample has been compressed as a single stream, but then
 	 * some unrelated garbage text has been appended to the end. */
 	verify("test_compat_gzip_2.tgz");

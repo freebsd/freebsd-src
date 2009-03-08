@@ -3481,9 +3481,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	if (dst_addr != src_addr)
 		return;
 
-	if (!pmap_is_current(src_pmap))
-		return;
-
 	vm_page_lock_queues();
 	if (dst_pmap < src_pmap) {
 		PMAP_LOCK(dst_pmap);
@@ -3545,14 +3542,16 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 		}
 
-		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr & PG_FRAME);
+		srcptepaddr &= PG_FRAME;
+		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr);
 		KASSERT(srcmpte->wire_count > 0,
 		    ("pmap_copy: source page table page is unused"));
 
 		if (va_next > end_addr)
 			va_next = end_addr;
 
-		src_pte = vtopte(addr);
+		src_pte = (pt_entry_t *)PHYS_TO_DMAP(srcptepaddr);
+		src_pte = &src_pte[pmap_pte_index(addr)];
 		while (addr < va_next) {
 			pt_entry_t ptetemp;
 			ptetemp = *src_pte;
@@ -3802,7 +3801,9 @@ pmap_remove_pages(pmap_t pmap)
 				if ((tpte & PG_PS) != 0)
 					pte = pde;
 				else {
-					pte = vtopte(pv->pv_va);
+					pte = (pt_entry_t *)PHYS_TO_DMAP(tpte &
+					    PG_FRAME);
+					pte = &pte[pmap_pte_index(pv->pv_va)];
 					tpte = *pte & ~PG_PTE_PAT;
 				}
 
@@ -4495,7 +4496,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			if (!pmap_demote_pde(kernel_pmap, pde, tmpva))
 				return (ENOMEM);
 		}
-		pte = vtopte(tmpva);
+		pte = pmap_pde_to_pte(pde, tmpva);
 		if (*pte == 0)
 			return (EINVAL);
 		tmpva += PAGE_SIZE;
@@ -4571,7 +4572,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		} else {
 			if (cache_bits_pte < 0)
 				cache_bits_pte = pmap_cache_bits(mode, 0);
-			pte = vtopte(tmpva);
+			pte = pmap_pde_to_pte(pde, tmpva);
 			if ((*pte & PG_PTE_CACHE) != cache_bits_pte) {
 				pmap_pte_attr(pte, cache_bits_pte);
 				if (!changed)

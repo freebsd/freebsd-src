@@ -30,7 +30,7 @@ CFLAGS += ${OPTS}
 #		with the one in the boot sector.
 
 # Default boot flags:
-BOOT_BOOT0_FLAGS?=	0xcf
+BOOT_BOOT0_FLAGS?=	0x8f
 
 # The number of timer ticks to wait for a keypress before assuming the default
 # selection.  Since there are 18.2 ticks per second, the default value of

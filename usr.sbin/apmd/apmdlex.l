@@ -34,7 +34,11 @@
 #include <syslog.h>
 #include <bitstring.h>
 #include "apmd.h"
+#ifdef JBUILD
+#include "apmdparse.h"
+#else
 #include "y.tab.h"
+#endif
 
 int lineno;
 int first_time;

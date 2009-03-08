@@ -683,3 +683,64 @@ bad:
 	(void)m_free(m);
 	return (EINVAL);
 }
+
+/*
+ * Check for the presence of the IP Router Alert option [RFC2113]
+ * in the header of an IPv4 datagram.
+ *
+ * This call is not intended for use from the forwarding path; it is here
+ * so that protocol domains may check for the presence of the option.
+ * Given how FreeBSD's IPv4 stack is currently structured, the Router Alert
+ * option does not have much relevance to the implementation, though this
+ * may change in future.
+ * Router alert options SHOULD be passed if running in IPSTEALTH mode and
+ * we are not the endpoint.
+ * Length checks on individual options should already have been peformed
+ * by ip_dooptions() therefore they are folded under INVARIANTS here.
+ *
+ * Return zero if not present or options are invalid, non-zero if present.
+ */
+int
+ip_checkrouteralert(struct mbuf *m)
+{
+	struct ip *ip = mtod(m, struct ip *);
+	u_char *cp;
+	int opt, optlen, cnt, found_ra;
+
+	found_ra = 0;
+	cp = (u_char *)(ip + 1);
+	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	for (; cnt > 0; cnt -= optlen, cp += optlen) {
+		opt = cp[IPOPT_OPTVAL];
+		if (opt == IPOPT_EOL)
+			break;
+		if (opt == IPOPT_NOP)
+			optlen = 1;
+		else {
+#ifdef INVARIANTS
+			if (cnt < IPOPT_OLEN + sizeof(*cp))
+				break;
+#endif
+			optlen = cp[IPOPT_OLEN];
+#ifdef INVARIANTS
+			if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
+				break;
+#endif
+		}
+		switch (opt) {
+		case IPOPT_RA:
+#ifdef INVARIANTS
+			if (optlen != IPOPT_OFFSET + sizeof(uint16_t) ||
+			    (*((uint16_t *)&cp[IPOPT_OFFSET]) != 0))
+			    break;
+			else
+#endif
+			found_ra = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return (found_ra);
+}

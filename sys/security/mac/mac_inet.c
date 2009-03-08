@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
@@ -16,6 +16,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +45,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -50,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/file.h>
@@ -298,6 +303,9 @@ mac_ipq_update(struct mbuf *m, struct ipq *q)
 	MAC_PERFORM(ipq_update, m, label, q, q->ipq_label);
 }
 
+MAC_CHECK_PROBE_DEFINE2(inpcb_check_deliver, "struct inpcb *",
+    "struct mbuf *");
+
 int
 mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
 {
@@ -309,9 +317,13 @@ mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_CHECK(inpcb_check_deliver, inp, inp->inp_label, m, label);
+	MAC_CHECK_PROBE2(inpcb_check_deliver, error, inp, m);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(inpcb_check_visible, "struct ucred *",
+    "struct inpcb *");
 
 int
 mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp)
@@ -321,6 +333,7 @@ mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp)
 	INP_LOCK_ASSERT(inp);
 
 	MAC_CHECK(inpcb_check_visible, cred, inp, inp->inp_label);
+	MAC_CHECK_PROBE2(inpcb_check_visible, error, cred, inp);
 
 	return (error);
 }

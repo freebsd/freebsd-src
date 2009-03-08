@@ -1710,7 +1710,7 @@ static driver_t		ubt_driver =
 	.size =	   sizeof(struct ubt_softc),
 };
 
-DRIVER_MODULE(ng_ubt, ushub, ubt_driver, ubt_devclass, ubt_modevent, 0);
+DRIVER_MODULE(ng_ubt, uhub, ubt_driver, ubt_devclass, ubt_modevent, 0);
 MODULE_VERSION(ng_ubt, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 MODULE_DEPEND(ng_ubt, ng_hci, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION);

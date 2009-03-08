@@ -34,7 +34,11 @@
 #include <string.h>
 #include <syslog.h>
 #include "devd.h"
+#ifdef JBUILD
+#include "parse.h"
+#else
 #include "y.tab.h"
+#endif
 
 int lineno = 1;
 #define YY_NO_UNPUT

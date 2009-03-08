@@ -176,7 +176,7 @@ static driver_t cdce_driver = {
 
 static devclass_t cdce_devclass;
 
-DRIVER_MODULE(cdce, ushub, cdce_driver, cdce_devclass, NULL, 0);
+DRIVER_MODULE(cdce, uhub, cdce_driver, cdce_devclass, NULL, 0);
 MODULE_VERSION(cdce, 1);
 MODULE_DEPEND(cdce, uether, 1, 1, 1);
 MODULE_DEPEND(cdce, usb, 1, 1, 1);

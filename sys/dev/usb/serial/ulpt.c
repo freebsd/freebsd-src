@@ -636,9 +636,7 @@ ulpt_detach(device_t dev)
 	mtx_unlock(&sc->sc_mtx);
 
 	usb2_transfer_unsetup(sc->sc_xfer, ULPT_N_TRANSFER);
-
 	usb2_callout_drain(&sc->sc_watchdog);
-
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -719,6 +717,6 @@ static driver_t ulpt_driver = {
 	.size = sizeof(struct ulpt_softc),
 };
 
-DRIVER_MODULE(ulpt, ushub, ulpt_driver, ulpt_devclass, NULL, 0);
+DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, NULL, 0);
 MODULE_DEPEND(ulpt, usb, 1, 1, 1);
 MODULE_DEPEND(ulpt, ucom, 1, 1, 1);

@@ -52,11 +52,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <legacy/dev/usb/usb.h>
-#include <legacy/dev/usb/usbdi.h>
-#include <legacy/dev/usb/usbdi_util.h>
-#include <legacy/dev/usb/usbdivar.h>
-#include "usbdevs.h"
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_core.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -114,7 +111,7 @@ DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 static int
 ndisusb_devcompare(interface_type bustype, struct ndis_usb_type *t, device_t dev)
 {
-	struct usb_attach_arg *uaa;
+	struct usb2_attach_arg *uaa;
 
 	if (bustype != PNPBus)
 		return (FALSE);
@@ -122,8 +119,8 @@ ndisusb_devcompare(interface_type bustype, struct ndis_usb_type *t, device_t dev
 	uaa = device_get_ivars(dev);
 
 	while (t->ndis_name != NULL) {
-		if ((uaa->vendor == t->ndis_vid) &&
-		    (uaa->product == t->ndis_did)) {
+		if ((uaa->info.idVendor == t->ndis_vid) &&
+		    (uaa->info.idProduct == t->ndis_did)) {
 			device_set_desc(dev, t->ndis_name);
 			return (TRUE);
 		}
@@ -137,65 +134,57 @@ static int
 ndisusb_match(device_t self)
 {
 	struct drvdb_ent *db;
-	struct usb_attach_arg *uaa = device_get_ivars(self);
+	struct usb2_attach_arg *uaa = device_get_ivars(self);
+
+	if (uaa->usb2_mode != USB_MODE_HOST)
+		return (ENXIO);
+	if (uaa->info.bConfigIndex != NDISUSB_CONFIG_NO)
+		return (ENXIO);
+	if (uaa->info.bIfaceIndex != NDISUSB_IFACE_INDEX)
+		return (ENXIO);
 
 	if (windrv_lookup(0, "USB Bus") == NULL)
-		return (UMATCH_NONE);
-
-	if (uaa->iface != NULL)
-		return (UMATCH_NONE);
+		return (ENXIO);
 
 	db = windrv_match((matchfuncptr)ndisusb_devcompare, self);
 	if (db == NULL)
-		return (UMATCH_NONE);
+		return (ENXIO);
+	uaa->driver_info = db;
 
-	return (UMATCH_VENDOR_PRODUCT);
+	return (0);
 }
 
 static int
 ndisusb_attach(device_t self)
 {
-	struct drvdb_ent	*db;
+	const struct drvdb_ent	*db;
 	struct ndisusb_softc *dummy = device_get_softc(self);
-	struct usb_attach_arg *uaa = device_get_ivars(self);
+	struct usb2_attach_arg *uaa = device_get_ivars(self);
 	struct ndis_softc	*sc;
 	struct ndis_usb_type	*t;
 	driver_object		*drv;
 	int			devidx = 0;
-	usbd_status		status;
 
+	db = uaa->driver_info;
 	sc = (struct ndis_softc *)dummy;
-
-	if (uaa->device == NULL)
-		return ENXIO;
-
-	db = windrv_match((matchfuncptr)ndisusb_devcompare, self);
-	if (db == NULL)
-		return (ENXIO);
-
 	sc->ndis_dev = self;
 	sc->ndis_dobj = db->windrv_object;
 	sc->ndis_regvals = db->windrv_regvals;
 	sc->ndis_iftype = PNPBus;
+	sc->ndisusb_dev = uaa->device;
 
 	/* Create PDO for this device instance */
 
 	drv = windrv_lookup(0, "USB Bus");
 	windrv_create_pdo(drv, self);
 
-	status = usbd_set_config_no(uaa->device, NDISUSB_CONFIG_NO, 0);
-	if (status != USBD_NORMAL_COMPLETION) {
-		device_printf(self, "setting config no failed\n");
-		return (ENXIO);
-	}
-
 	/* Figure out exactly which device we matched. */
 
 	t = db->windrv_devlist;
 
 	while (t->ndis_name != NULL) {
-		if ((uaa->vendor == t->ndis_vid) &&
-		    (uaa->product == t->ndis_did)) {
+		if ((uaa->info.idVendor == t->ndis_vid) &&
+		    (uaa->info.idProduct == t->ndis_did)) {
 			sc->ndis_devidx = devidx;
 			break;
 		}
@@ -206,8 +195,6 @@ ndisusb_attach(device_t self)
 	if (ndis_attach(self) != 0)
 		return ENXIO;
 
-	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, uaa->device, self);
-
 	return 0;
 }
 
@@ -216,28 +203,16 @@ ndisusb_detach(device_t self)
 {
 	int i;
 	struct ndis_softc       *sc = device_get_softc(self);
-	struct usb_attach_arg *uaa = device_get_ivars(self);
+	struct ndisusb_ep	*ne;;
 
 	sc->ndisusb_status |= NDISUSB_STATUS_DETACH;
 
 	for (i = 0; i < NDISUSB_ENDPT_MAX; i++) {
-		if (sc->ndisusb_ep[i] == NULL)
-			continue;
-
-		usbd_abort_pipe(sc->ndisusb_ep[i]);
-		usbd_close_pipe(sc->ndisusb_ep[i]);
-		sc->ndisusb_ep[i] = NULL;
-	}
-
-	if (sc->ndisusb_iin_buf != NULL) {
-		free(sc->ndisusb_iin_buf, M_USBDEV);
-		sc->ndisusb_iin_buf = NULL;
+		ne = &sc->ndisusb_ep[i];
+		usb2_transfer_unsetup(ne->ne_xfer, 1);
 	}
 
 	ndis_pnpevent_nic(self, NDIS_PNP_EVENT_SURPRISE_REMOVED);
-	ndis_cancel_timerlist();
-
-	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, uaa->device, self);
 
 	return ndis_detach(self);
 }

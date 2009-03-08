@@ -911,6 +911,7 @@ product ATHEROS2 AR5523_3	0x0005	AR5523
 product ATHEROS2 AR5523_3_NF	0x0006	AR5523 (no firmware)
 
 /* Atmel Comp. products */
+product ATMEL STK541		0x2109	Zigbee Controller
 product ATMEL UHB124		0x3301	UHB124 hub
 product ATMEL DWL120		0x7603	DWL-120 Wireless Adapter
 product ATMEL BW002		0x7605	BW002 Wireless Adapter
@@ -1174,6 +1175,7 @@ product DRAYTEK VIGOR550	0x0550	Vigor550
 
 /* dresden elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
+product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
 
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
@@ -1766,6 +1768,9 @@ product MINOLTA E223		0x4017	Dimage E223
 product MITSUMI CDRRW		0x0000	CD-R/RW Drive
 product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
 product MITSUMI FDD		0x6901	USB FDD
+
+/* Mobile Action products */
+product MOBILEACTION MA620	0x0620	MA-620 Infrared Adapter
 
 /* Mobility products */
 product MOBILITY EA		0x0204	Ethernet

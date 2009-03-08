@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
  */
 DEFINE_TEST(test_pax_filename_encoding_1)
 {
-	static const char testname[] = "test_pax_filename_encoding.tar.gz";
+	static const char testname[] = "test_pax_filename_encoding.tar";
 	/*
 	 * \314\214 is a valid 2-byte UTF-8 sequence.
 	 * \374 is invalid in UTF-8.
@@ -105,9 +105,9 @@ DEFINE_TEST(test_pax_filename_encoding_2)
 	 * de_DE.UTF-8 seems to be commonly supported.
 	 */
 	/* If it doesn't exist, just warn and return. */
-	if (NULL == setlocale(LC_ALL, "de_DE.UTF-8")) {
+	if (NULL == setlocale(LC_ALL, LOCALE_DE)) {
 		skipping("invalid encoding tests require a suitable locale;"
-		    " de_DE.UTF-8 not available on this system");
+		    " %s not available on this system", LOCALE_DE);
 		return;
 	}
 
@@ -207,6 +207,20 @@ DEFINE_TEST(test_pax_filename_encoding_3)
 	if (NULL == setlocale(LC_ALL, "C")) {
 		skipping("Can't set \"C\" locale, so can't exercise "
 		    "certain character-conversion failures");
+		return;
+	}
+
+	/* If wctomb is broken, warn and return. */
+	if (wctomb(buff, 0x1234) > 0) {
+		skipping("Cannot test conversion failures because \"C\" "
+		    "locale on this system has no invalid characters.");
+		return;
+	}
+
+	/* If wctomb is broken, warn and return. */
+	if (wctomb(buff, 0x1234) > 0) {
+		skipping("Cannot test conversion failures because \"C\" "
+		    "locale on this system has no invalid characters.");
 		return;
 	}
 

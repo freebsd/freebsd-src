@@ -46,7 +46,11 @@
 #include <unistd.h>
 #include <errno.h>
 
+#ifdef JBUILD
+#include "policy_parse.h"
+#else
 #include "y.tab.h"
+#endif
 #define yylval __libipsecyylval	/* XXX */
 
 int yylex(void);

@@ -118,8 +118,15 @@ ofw_iicbus_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "reg", &addr, sizeof(addr)) == -1)
-			continue;
+		/*
+		 * Try to get the I2C address first from the i2c-address
+		 * property, then try the reg property. It moves around
+		 * on different systems.
+		 */
+
+		if (OF_getprop(child, "i2c-address", &addr, sizeof(addr)) == -1)
+			if (OF_getprop(child, "reg", &addr, sizeof(addr)) == -1)
+				continue;
 
 		/*
 		 * Now set up the I2C and OFW bus layer devinfo and add it

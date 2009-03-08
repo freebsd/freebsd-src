@@ -1072,16 +1072,12 @@ usb2_poll(struct cdev* dev, int events, struct thread* td)
 	struct usb2_cdev_privdata* cpd;
 	struct usb2_fifo *f;
 	struct usb2_mbuf *m;
-	int fflags;
-	int err, revents;
+	int fflags, revents;
 
-	err = devfs_get_cdevpriv((void **)&cpd);
-	if (err != 0)
-		return (err);
-
-	err = usb2_ref_device(cpd, 0 /* no uref */ );
-	if (err)
-		return (POLLHUP);
+	if (devfs_get_cdevpriv((void **)&cpd) != 0 ||
+	    usb2_ref_device(cpd, 0) != 0)
+		return (events &
+		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 
 	fflags = cpd->fflags;
 

@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_BCE_H_DEFINED
-#define _BCE_H_DEFINED
+#ifndef	_BCEREG_H_DEFINED
+#define _BCEREG_H_DEFINED
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
@@ -1285,7 +1285,7 @@ struct statistics_block {
 	u32 stat_EtherStatsFragments;
 	u32 stat_EtherStatsJabbers;
 	u32 stat_EtherStatsUndersizePkts;
-	u32 stat_EtherStatsOverrsizePkts;
+	u32 stat_EtherStatsOversizePkts;
 	u32 stat_EtherStatsPktsRx64Octets;
 	u32 stat_EtherStatsPktsRx65Octetsto127Octets;
 	u32 stat_EtherStatsPktsRx128Octetsto255Octets;
@@ -6177,6 +6177,7 @@ struct l2_fhdr {
 #define USABLE_TX_BD (USABLE_TX_BD_PER_PAGE * TX_PAGES)
 #define MAX_TX_BD (TOTAL_TX_BD - 1)
 
+/* Advance to the next tx_bd, skipping any next page pointers. */
 #define NEXT_TX_BD(x) (((x) & USABLE_TX_BD_PER_PAGE) ==	\
 		(USABLE_TX_BD_PER_PAGE - 1)) ?					  	\
 		(x) + 2 : (x) + 1
@@ -6197,6 +6198,7 @@ struct l2_fhdr {
 #define USABLE_RX_BD (USABLE_RX_BD_PER_PAGE * RX_PAGES)
 #define MAX_RX_BD (TOTAL_RX_BD - 1)
 
+/* Advance to the next rx_bd, skipping any next page pointers. */
 #define NEXT_RX_BD(x) (((x) & USABLE_RX_BD_PER_PAGE) ==	\
 		(USABLE_RX_BD_PER_PAGE - 1)) ?					\
 		(x) + 2 : (x) + 1
@@ -6218,6 +6220,7 @@ struct l2_fhdr {
 #define USABLE_PG_BD (USABLE_PG_BD_PER_PAGE * PG_PAGES)
 #define MAX_PG_BD (TOTAL_PG_BD - 1)
 
+/* Advance to the next pg_bd, skipping any next page pointers. */
 #define NEXT_PG_BD(x) (((x) & USABLE_PG_BD_PER_PAGE) ==	\
 		(USABLE_PG_BD_PER_PAGE - 1)) ?					\
 		(x) + 2 : (x) + 1
@@ -6452,7 +6455,7 @@ struct bce_softc
 	char *				bce_name;			/* Name string */
 
 	/* Tracks the version of bootcode firmware. */
-	u32					bce_fw_ver;
+	u32					bce_bc_ver;
 
 	/* Tracks the state of the firmware.  0 = Running while any     */
 	/* other value indicates that the firmware is not responding.   */
@@ -6633,7 +6636,7 @@ struct bce_softc
 	u32 stat_EtherStatsFragments;
 	u32 stat_EtherStatsJabbers;
 	u32 stat_EtherStatsUndersizePkts;
-	u32 stat_EtherStatsOverrsizePkts;
+	u32 stat_EtherStatsOversizePkts;
 	u32 stat_EtherStatsPktsRx64Octets;
 	u32 stat_EtherStatsPktsRx65Octetsto127Octets;
 	u32 stat_EtherStatsPktsRx128Octetsto255Octets;
@@ -6668,11 +6671,21 @@ struct bce_softc
 	/* Provides access to certain firmware statistics. */
 	u32 com_no_buffers;
 
-	/* Mbuf allocation failure counter. */
-	u32	mbuf_alloc_failed;
+	/* Recoverable failure counters. */
+	u32	mbuf_alloc_failed_count;
+	u32 fragmented_mbuf_count;
+	u32	unexpected_attention_count;
+	u32 l2fhdr_error_count;
+	u32 dma_map_addr_tx_failed_count;
+	u32 dma_map_addr_rx_failed_count;
 
-	/* TX DMA mapping failure counter. */
-	u32 tx_dma_map_failures;
+#ifdef BCE_DEBUG
+	/* Simulated recoverable failure counters. */
+	u32	mbuf_alloc_failed_sim_count;
+	u32 unexpected_attention_sim_count;
+	u32 l2fhdr_error_sim_count;
+	u32	dma_map_addr_failed_sim_count;
+#endif
 
 	u32	hc_command;
 
@@ -6705,13 +6718,6 @@ struct bce_softc
 
 	u32 tx_hi_watermark;			/* Greatest number of tx_bd's used. */
 	u32	tx_full_count;				/* Number of times the TX chain was full. */
-
-	/* Simulated mbuf allocation failure counter. */
-	u32	debug_mbuf_sim_alloc_failed;
-
-	u32 l2fhdr_status_errors;
-	u32 unexpected_attentions;
-	u32	lost_status_block_updates;
 
 	u32	requested_tso_frames;		/* Number of TSO frames enqueued. */
 #endif

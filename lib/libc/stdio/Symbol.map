@@ -111,8 +111,10 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	 dprintf;
 	 getdelim;
 	 getline;
+	 vdprintf;
 };
 
 FBSDprivate_1.0 {

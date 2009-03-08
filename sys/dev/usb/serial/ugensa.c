@@ -145,7 +145,7 @@ static driver_t ugensa_driver = {
 	.size = sizeof(struct ugensa_softc),
 };
 
-DRIVER_MODULE(ugensa, ushub, ugensa_driver, ugensa_devclass, NULL, 0);
+DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
 MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
 MODULE_DEPEND(ugensa, usb, 1, 1, 1);
 
@@ -221,8 +221,10 @@ ugensa_attach(device_t dev)
 			goto detach;
 		}
 		/* clear stall at first run */
+		mtx_lock(&sc->sc_mtx);
 		usb2_transfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
 		usb2_transfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_RD]);
+		mtx_unlock(&sc->sc_mtx);
 
 		/* initialize port number */
 		ssc->sc_usb2_com_ptr->sc_portno = sc->sc_niface;

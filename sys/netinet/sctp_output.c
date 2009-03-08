@@ -10036,7 +10036,7 @@ again_one_more_time:
 							SCTP_STAT_INCR_COUNTER64(sctps_fragusrmsgs);
 					}
 					if ((mtu == 0) || (r_mtu == 0) || (one_chunk)) {
-						if (one_chunk) {
+						if ((one_chunk) && (stcb->asoc.total_flight == 0)) {
 							data_list[0]->window_probe = 1;
 							net->window_probe = 1;
 						}

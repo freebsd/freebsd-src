@@ -113,10 +113,6 @@ ata_ali_chipinit(device_t dev)
 	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
 	    (ata_ahci_chipinit(dev) != ENXIO))
             return 0;
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	break;
 
     case ALI_NEW:

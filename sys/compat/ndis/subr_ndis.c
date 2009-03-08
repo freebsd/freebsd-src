@@ -95,8 +95,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <legacy/dev/usb/usb.h>
-#include <legacy/dev/usb/usbdi.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_core.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -116,7 +116,7 @@ __FBSDID("$FreeBSD$");
 static char ndis_filepath[MAXPATHLEN];
 
 SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
-        MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
+    MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
 
 static void NdisInitializeWrapper(ndis_handle *,
 	driver_object *, void *, void *);
@@ -276,7 +276,7 @@ static void NdisCloseFile(ndis_handle);
 static uint8_t NdisSystemProcessorCount(void);
 static void NdisMIndicateStatusComplete(ndis_handle);
 static void NdisMIndicateStatus(ndis_handle, ndis_status,
-        void *, uint32_t);
+    void *, uint32_t);
 static uint8_t ndis_intr(kinterrupt *, void *);
 static void ndis_intrhand(kdpc *, ndis_miniport_interrupt *, void *, void *);
 static funcptr ndis_findwrap(funcptr);
@@ -304,15 +304,6 @@ static void dummy(void);
  */
 #define NDIS_POOL_EXTRA		16
 
-struct ktimer_list {
-	ktimer			*kl_timer;
-	list_entry		kl_next;
-};
-
-static struct list_entry	ndis_timerlist;
-static kspin_lock		ndis_timerlock;
-static int			ndis_isusbdev;
-
 int
 ndis_libinit()
 {
@@ -327,9 +318,6 @@ ndis_libinit()
 		    patch->ipt_argcnt, patch->ipt_ftype);
 		patch++;
 	}
-
-	KeInitializeSpinLock(&ndis_timerlock);
-	InitializeListHead(&ndis_timerlist);
 
 	return(0);
 }
@@ -562,7 +550,7 @@ NdisOpenConfigurationKeyByIndex(status, cfg, idx, subkey, subhandle)
 static ndis_status
 ndis_encode_parm(block, oid, type, parm)
 	ndis_miniport_block	*block;
-        struct sysctl_oid	*oid;
+	struct sysctl_oid	*oid;
 	ndis_parm_type		type;
 	ndis_config_parm	**parm;
 {
@@ -639,7 +627,7 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 	char			*keystr = NULL;
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
-        struct sysctl_oid	*oidp;
+	struct sysctl_oid	*oidp;
 	struct sysctl_ctx_entry	*e;
 	ansi_string		as;
 
@@ -747,7 +735,7 @@ NdisWriteConfiguration(status, cfg, key, parm)
 	char			*keystr = NULL;
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
-        struct sysctl_oid	*oidp;
+	struct sysctl_oid	*oidp;
 	struct sysctl_ctx_entry	*e;
 	char			val[256];
 
@@ -806,8 +794,8 @@ NdisCloseConfiguration(cfg)
 	block = (ndis_miniport_block *)cfg;
 
 	while (!IsListEmpty(&block->nmb_parmlist)) {
-                e = RemoveHeadList(&block->nmb_parmlist);
-                pe = CONTAINING_RECORD(e, ndis_parmlist_entry, np_list);
+		e = RemoveHeadList(&block->nmb_parmlist);
+		pe = CONTAINING_RECORD(e, ndis_parmlist_entry, np_list);
 		p = &pe->np_parm;
 		if (p->ncp_type == ndis_parm_string)
 			RtlFreeUnicodeString(&p->ncp_parmdata.ncp_stringdata);
@@ -1224,14 +1212,10 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	void			*ctx;
 {
 	ndis_miniport_block	*block;
-	struct ktimer_list	*kl;
 	struct ndis_softc	*sc;
-	uint8_t			irql;
 
 	block = (ndis_miniport_block *)handle;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	if (sc->ndis_iftype == PNPBus && ndis_isusbdev == 0)
-		ndis_isusbdev = 1;
 
 	/* Save the driver's funcptr and context */
 
@@ -1249,39 +1233,6 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	KeInitializeDpc(&timer->nmt_kdpc,
 	    ndis_findwrap((funcptr)ndis_timercall), timer);
 	timer->nmt_ktimer.k_dpc = &timer->nmt_kdpc;
-
-	if (ndis_isusbdev == 1) {
-		kl = (struct ktimer_list *)malloc(sizeof(*kl), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
-		if (kl == NULL)
-			panic("out of memory");	/* no way to report errors  */
-
-		kl->kl_timer = &timer->nmt_ktimer;
-		KeAcquireSpinLock(&ndis_timerlock, &irql);
-		InsertHeadList((&ndis_timerlist), (&kl->kl_next));
-		KeReleaseSpinLock(&ndis_timerlock, irql);
-	}
-}
-
-void
-ndis_cancel_timerlist(void)
-{
-	list_entry		*l;
-	struct ktimer_list	*kl;
-	uint8_t			cancelled, irql;
-
-	KeAcquireSpinLock(&ndis_timerlock, &irql);
-
-	while(!IsListEmpty(&ndis_timerlist)) {
-		l = RemoveHeadList(&ndis_timerlist);
-		kl = CONTAINING_RECORD(l, struct ktimer_list, kl_next);
-		KeReleaseSpinLock(&ndis_timerlock, irql);
-		cancelled = KeCancelTimer(kl->kl_timer);
-		free(kl, M_DEVBUF);
-		KeAcquireSpinLock(&ndis_timerlock, &irql);
-	}
-
-	KeReleaseSpinLock(&ndis_timerlock, irql);
 }
 
 /*
@@ -1326,25 +1277,6 @@ NdisMCancelTimer(timer, cancelled)
 	ndis_timer		*timer;
 	uint8_t			*cancelled;
 {
-	list_entry		*l;
-	struct ktimer_list	*kl;
-	uint8_t			irql;
-
-	if (ndis_isusbdev == 1) {
-		KeAcquireSpinLock(&ndis_timerlock, &irql);
-		l = ndis_timerlist.nle_flink;
-		while(l != &ndis_timerlist) {
-			kl = CONTAINING_RECORD(l, struct ktimer_list, kl_next);
-			if (kl->kl_timer == &timer->nt_ktimer) {
-				RemoveEntryList((&kl->kl_next));
-				l = l->nle_flink;
-				free(kl, M_DEVBUF);
-				continue;
-			}
-			l = l->nle_flink;
-		}
-		KeReleaseSpinLock(&ndis_timerlock, irql);
-	}
 
 	*cancelled = KeCancelTimer(&timer->nt_ktimer);
 	return;
@@ -1726,7 +1658,7 @@ NdisMFreeSharedMemory(ndis_handle adapter, uint32_t len, uint8_t cached,
 		if (sh->ndis_saddr == vaddr)
 			break;
 		/*
-	 	 * Check the physaddr too, just in case the driver lied
+		 * Check the physaddr too, just in case the driver lied
 		 * about the virtual address.
 		 */
 		if (sh->ndis_paddr.np_quad == paddr.np_quad)
@@ -1874,7 +1806,7 @@ NdisAllocatePacketPool(status, pool, descnum, protrsvdlen)
 #ifdef NDIS_DEBUG_PACKETS 
 	p->np_dead = 0; 
 	KeInitializeSpinLock(&p->np_lock);
-        KeInitializeEvent(&p->np_event, EVENT_TYPE_NOTIFY, TRUE);
+	KeInitializeEvent(&p->np_event, EVENT_TYPE_NOTIFY, TRUE);
 #endif
 
 	*pool = p; 
@@ -1910,19 +1842,19 @@ NdisFreePacketPool(pool)
 {
 	ndis_packet_pool	*p;
 	int			usage;
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	uint8_t			irql;
 #endif
 
 	p = (ndis_packet_pool *)pool;
 
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	KeAcquireSpinLock(&p->np_lock, &irql);
 #endif
 
 	usage = NdisPacketPoolUsage(pool);
 
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	if (usage) {
 		p->np_dead = 1;
 		KeResetEvent(&p->np_event);
@@ -1946,13 +1878,13 @@ NdisAllocatePacket(status, packet, pool)
 {
 	ndis_packet_pool	*p;
 	ndis_packet		*pkt;
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	uint8_t			irql;
 #endif
 
 	p = (ndis_packet_pool *)pool;
 
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	KeAcquireSpinLock(&p->np_lock, &irql);
 	if (p->np_dead) {
 		KeReleaseSpinLock(&p->np_lock, irql);
@@ -1965,7 +1897,7 @@ NdisAllocatePacket(status, packet, pool)
 
 	pkt = (ndis_packet *)InterlockedPopEntrySList(&p->np_head);
 
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	KeReleaseSpinLock(&p->np_lock, irql);
 #endif
 
@@ -1987,7 +1919,7 @@ NdisAllocatePacket(status, packet, pool)
 	 * We must initialize the packet flags correctly in order
 	 * for the NDIS_SET_PACKET_MEDIA_SPECIFIC_INFO() and
 	 * NDIS_GET_PACKET_MEDIA_SPECIFIC_INFO() macros to work
-         * correctly.
+	 * correctly.
 	 */
 	pkt->np_private.npp_ndispktflags = NDIS_PACKET_ALLOCATED_BY_NDIS;
 	pkt->np_private.npp_validcounts = FALSE;
@@ -2004,19 +1936,19 @@ NdisFreePacket(packet)
 	ndis_packet		*packet;
 {
 	ndis_packet_pool	*p;
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	uint8_t			irql;
 #endif
 
 	p = (ndis_packet_pool *)packet->np_private.npp_pool;
 
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	KeAcquireSpinLock(&p->np_lock, &irql);
 #endif
 
 	InterlockedPushEntrySList(&p->np_head, (slist_entry *)packet);
 
-#ifdef NDIS_DEBUG_PACKETS 
+#ifdef NDIS_DEBUG_PACKETS
 	if (p->np_dead) {
 		if (ExQueryDepthSList(&p->np_head) == p->np_cnt)
 			KeSetEvent(&p->np_event, IO_NO_INCREMENT, FALSE);
@@ -2339,7 +2271,7 @@ NdisMPciAssignResources(adapter, slot, list)
 static uint8_t
 ndis_intr(iobj, arg)
 	kinterrupt		*iobj;
-        void                    *arg;
+	void			*arg;
 {
 	struct ndis_softc	*sc;
 	uint8_t			is_our_intr = FALSE;
@@ -2376,24 +2308,24 @@ ndis_intrhand(dpc, intr, sysarg1, sysarg2)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
-        ndis_handle             adapter;
+	ndis_handle             adapter;
 
 	block = intr->ni_block;
-        adapter = block->nmb_miniportadapterctx;
+	adapter = block->nmb_miniportadapterctx;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-        if (NDIS_SERIALIZED(sc->ndis_block))
-                KeAcquireSpinLockAtDpcLevel(&block->nmb_lock);
+	if (NDIS_SERIALIZED(sc->ndis_block))
+		KeAcquireSpinLockAtDpcLevel(&block->nmb_lock);
 
-        MSCALL1(intr->ni_dpcfunc, adapter);
+	MSCALL1(intr->ni_dpcfunc, adapter);
 
-        /* If there's a MiniportEnableInterrupt() routine, call it. */
+	/* If there's a MiniportEnableInterrupt() routine, call it. */
 
 	if (sc->ndis_chars->nmc_enable_interrupts_func != NULL)
 		MSCALL1(sc->ndis_chars->nmc_enable_interrupts_func, adapter);
 
-        if (NDIS_SERIALIZED(sc->ndis_block))
-                KeReleaseSpinLockFromDpcLevel(&block->nmb_lock);
+	if (NDIS_SERIALIZED(sc->ndis_block))
+		KeReleaseSpinLockFromDpcLevel(&block->nmb_lock);
 
 	/*
 	 * Set the completion event if we've drained all
@@ -2406,7 +2338,7 @@ ndis_intrhand(dpc, intr, sysarg1, sysarg2)
 		KeSetEvent(&intr->ni_dpcevt, IO_NO_INCREMENT, FALSE);
 	KeReleaseSpinLockFromDpcLevel(&intr->ni_dpccountlock);
 
-        return;
+	return;
 }
 
 static ndis_status
@@ -2436,10 +2368,10 @@ NdisMRegisterInterrupt(ndis_miniport_interrupt *intr, ndis_handle adapter,
 	intr->ni_isrfunc = ch->nmc_isr_func;
 	intr->ni_dpcfunc = ch->nmc_interrupt_func;
 
-        KeInitializeEvent(&intr->ni_dpcevt, EVENT_TYPE_NOTIFY, TRUE);
-        KeInitializeDpc(&intr->ni_dpc,
+	KeInitializeEvent(&intr->ni_dpcevt, EVENT_TYPE_NOTIFY, TRUE);
+	KeInitializeDpc(&intr->ni_dpc,
 	    ndis_findwrap((funcptr)ndis_intrhand), intr);
-        KeSetImportanceDpc(&intr->ni_dpc, KDPC_IMPORTANCE_LOW);
+	KeSetImportanceDpc(&intr->ni_dpc, KDPC_IMPORTANCE_LOW);
 
 	error = IoConnectInterrupt(&intr->ni_introbj,
 	    ndis_findwrap((funcptr)ndis_intr), sc, NULL,
@@ -2451,7 +2383,7 @@ NdisMRegisterInterrupt(ndis_miniport_interrupt *intr, ndis_handle adapter,
 	block->nmb_interrupt = intr;
 
 	return(NDIS_STATUS_SUCCESS);
-}	
+}
 
 static void
 NdisMDeregisterInterrupt(intr)
@@ -2729,7 +2661,7 @@ NdisGetSystemUpTime(tval)
 	uint32_t		*tval;
 {
 	struct timespec		ts;
- 
+
 	nanouptime(&ts);
 	*tval = ts.tv_nsec / 1000000 + ts.tv_sec * 1000;
 
@@ -3160,7 +3092,7 @@ NdisSystemProcessorCount()
 
 typedef void (*ndis_statusdone_handler)(ndis_handle);
 typedef void (*ndis_status_handler)(ndis_handle, ndis_status,
-        void *, uint32_t);
+    void *, uint32_t);
 
 static void
 NdisMIndicateStatusComplete(adapter)
@@ -3434,8 +3366,8 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisOpenConfigurationKeyByName, 4),
 	IMPORT_SFUNC(NdisOpenConfigurationKeyByIndex, 5),
 	IMPORT_SFUNC(NdisMRemoveMiniport, 1),
-	IMPORT_SFUNC(NdisInitializeString, 2),	
-	IMPORT_SFUNC(NdisFreeString, 1),	
+	IMPORT_SFUNC(NdisInitializeString, 2),
+	IMPORT_SFUNC(NdisFreeString, 1),
 	IMPORT_SFUNC(NdisGetCurrentSystemTime, 1),
 	IMPORT_SFUNC(NdisGetSystemUpTime, 1),
 	IMPORT_SFUNC(NdisMSynchronizeWithInterrupt, 3),

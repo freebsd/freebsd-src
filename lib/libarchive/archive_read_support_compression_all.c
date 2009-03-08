@@ -36,9 +36,8 @@ archive_read_support_compression_all(struct archive *a)
 #endif
 	/* The decompress code doesn't use an outside library. */
 	archive_read_support_compression_compress(a);
-#if HAVE_ZLIB_H
+	/* Gzip decompress falls back to "gunzip" command-line. */
 	archive_read_support_compression_gzip(a);
-#endif
 #if HAVE_LZMADEC_H
 	/* LZMA bidding is subject to false positives because
 	 * the LZMA file format has a very weak signature.  It

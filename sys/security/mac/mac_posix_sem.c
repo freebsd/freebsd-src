@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2006 SPARTA, Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -9,6 +10,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 #include "opt_posix.h"
 
@@ -43,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ksem.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -95,15 +101,22 @@ mac_posixsem_create(struct ucred *cred, struct ksem *ks)
 	MAC_PERFORM(posixsem_create, cred, ks, ks->ks_label);
 }
 
+MAC_CHECK_PROBE_DEFINE2(posixsem_check_open, "struct ucred *",
+    "struct ksem *");
+
 int
 mac_posixsem_check_open(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
 	MAC_CHECK(posixsem_check_open, cred, ks, ks->ks_label);
+	MAC_CHECK_PROBE2(posixsem_check_open, error, cred, ks);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixsem_check_getvalue, "struct ucred *",
+    "struct ucred *", "struct ksem *");
 
 int
 mac_posixsem_check_getvalue(struct ucred *active_cred, struct ucred *file_cred,
@@ -113,9 +126,14 @@ mac_posixsem_check_getvalue(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(posixsem_check_getvalue, active_cred, file_cred, ks,
 	    ks->ks_label);
+	MAC_CHECK_PROBE3(posixsem_check_getvalue, error, active_cred,
+	    file_cred, ks);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixsem_check_post, "struct ucred *",
+    "struct ucred *", "struct ksem *");
 
 int
 mac_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
@@ -125,9 +143,14 @@ mac_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(posixsem_check_post, active_cred, file_cred, ks,
 	    ks->ks_label);
+	MAC_CHECK_PROBE3(posixsem_check_post, error, active_cred, file_cred,
+	    ks);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixsem_check_stat, "struct ucred *",
+    "struct ucred *", "struct ksem *");
 
 int
 mac_posixsem_check_stat(struct ucred *active_cred, struct ucred *file_cred,
@@ -137,9 +160,14 @@ mac_posixsem_check_stat(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(posixsem_check_stat, active_cred, file_cred, ks,
 	    ks->ks_label);
+	MAC_CHECK_PROBE3(posixsem_check_stat, error, active_cred, file_cred,
+	    ks);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(posixsem_check_unlink, "struct ucred *",
+    "struct ksem *");
 
 int
 mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks)
@@ -147,9 +175,13 @@ mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks)
 	int error;
 
 	MAC_CHECK(posixsem_check_unlink, cred, ks, ks->ks_label);
+	MAC_CHECK_PROBE2(posixsem_check_unlink, error, cred, ks);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixsem_check_wait, "struct ucred *",
+    "struct ucred *", "struct ksem *");
 
 int
 mac_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
@@ -159,6 +191,8 @@ mac_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(posixsem_check_wait, active_cred, file_cred, ks,
 	    ks->ks_label);
+	MAC_CHECK_PROBE3(posixsem_check_wait, error, active_cred, file_cred,
+	    ks);
 
 	return (error);
 }

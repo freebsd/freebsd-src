@@ -255,6 +255,7 @@ struct ath_softc {
 				sc_wmetkipmic:1,/* can do WME+TKIP MIC */
 				sc_resume_up: 1,/* on resume, start all vaps */
 				sc_tdma	    : 1,/* TDMA in use */
+				sc_setcca   : 1,/* set/clr CCA with TDMA */
 				sc_resetcal : 1;/* reset cal state next trip */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */

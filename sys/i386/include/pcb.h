@@ -61,6 +61,7 @@ struct pcb {
 	int     pcb_dr7;
 
 	union	savefpu	pcb_save;
+	uint16_t pcb_initial_npxcw;
 	u_int	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 #define	PCB_DBREGS	0x02	/* process using debug registers */

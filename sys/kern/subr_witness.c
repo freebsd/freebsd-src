@@ -1511,12 +1511,6 @@ found:
 		    instance->li_line);
 		panic("share->uexcl");
 	}
-	if ((instance->li_flags & LI_NORELEASE) != 0 && witness_watch > 0) {
-		printf("forbidden unlock of (%s) %s @ %s:%d\n", class->lc_name,
-		    lock->lo_name, file, line);
-		panic("lock marked norelease");
-	}
-
 	/* If we are recursed, unrecurse. */
 	if ((instance->li_flags & LI_RECURSEMASK) > 0) {
 		CTR4(KTR_WITNESS, "%s: pid %d unrecursed on %s r=%d", __func__,
@@ -1524,6 +1518,12 @@ found:
 		    instance->li_flags);
 		instance->li_flags--;
 		return;
+	}
+	/* The lock is now being dropped, check for NORELEASE flag */
+	if ((instance->li_flags & LI_NORELEASE) != 0 && witness_watch > 0) {
+		printf("forbidden unlock of (%s) %s @ %s:%d\n", class->lc_name,
+		    lock->lo_name, file, line);
+		panic("lock marked norelease");
 	}
 
 	/* Otherwise, remove this item from the list. */

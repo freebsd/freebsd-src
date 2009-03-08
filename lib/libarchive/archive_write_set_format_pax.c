@@ -111,6 +111,7 @@ archive_write_set_format_pax(struct archive *_a)
 	a->format_data = pax;
 
 	a->pad_uncompressed = 1;
+	a->format_name = "pax";
 	a->format_write_header = archive_write_pax_header;
 	a->format_write_data = archive_write_pax_data;
 	a->format_finish = archive_write_pax_finish;
@@ -203,6 +204,16 @@ utf8_encode(const wchar_t *wval)
 	utf8len = 0;
 	for (wp = wval; *wp != L'\0'; ) {
 		wc = *wp++;
+
+		if (wc >= 0xd800 && wc <= 0xdbff
+		    && *wp >= 0xdc00 && *wp <= 0xdfff) {
+			/* This is a surrogate pair.  Combine into a
+			 * full Unicode value before encoding into
+			 * UTF-8. */
+			wc = (wc - 0xd800) << 10; /* High 10 bits */
+			wc += (*wp++ - 0xdc00); /* Low 10 bits */
+			wc += 0x10000; /* Skip BMP */
+		}
 		if (wc <= 0x7f)
 			utf8len++;
 		else if (wc <= 0x7ff)
@@ -226,6 +237,12 @@ utf8_encode(const wchar_t *wval)
 
 	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
 		wc = *wp++;
+		if (wc >= 0xd800 && wc <= 0xdbff
+		    && *wp >= 0xdc00 && *wp <= 0xdfff) {
+			/* Combine surrogate pair. */
+			wc = (wc - 0xd800) << 10;
+			wc += *wp++ - 0xdc00 + 0x10000;
+		}
 		if (wc <= 0x7f) {
 			*p++ = (char)wc;
 		} else if (wc <= 0x7ff) {

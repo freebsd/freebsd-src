@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 enum typeid {
 	T_UNUSED, TP_SHORT, T_INT, T_U_INT, TP_INT,
 	T_LONG, T_U_LONG, TP_LONG, T_LLONG, T_U_LLONG, TP_LLONG,
-	T_PTRDIFFT, TP_PTRDIFFT, T_SSIZET, T_SIZET, TP_SIZET,
+	T_PTRDIFFT, TP_PTRDIFFT, T_SSIZET, T_SIZET, TP_SSIZET,
 	T_INTMAXT, T_UINTMAXT, TP_INTMAXT, TP_VOID, TP_CHAR, TP_SCHAR,
 	T_DOUBLE, T_LONG_DOUBLE, T_WINT, TP_WCHAR
 };
@@ -374,7 +374,7 @@ reswitch:	switch (ch) {
 			else if (flags & PTRDIFFT)
 				error = addtype(&types, TP_PTRDIFFT);
 			else if (flags & SIZET)
-				error = addtype(&types, TP_SIZET);
+				error = addtype(&types, TP_SSIZET);
 			else if (flags & LLONGINT)
 				error = addtype(&types, TP_LLONG);
 			else if (flags & LONGINT)
@@ -565,7 +565,7 @@ reswitch:	switch (ch) {
 			else if (flags & PTRDIFFT)
 				error = addtype(&types, TP_PTRDIFFT);
 			else if (flags & SIZET)
-				error = addtype(&types, TP_SIZET);
+				error = addtype(&types, TP_SSIZET);
 			else if (flags & LLONGINT)
 				error = addtype(&types, TP_LLONG);
 			else if (flags & LONGINT)
@@ -719,8 +719,8 @@ build_arg_table(struct typetable *types, va_list ap, union arg **argtable)
 		    case T_SSIZET:
 			(*argtable) [n].sizearg = va_arg (ap, ssize_t);
 			break;
-		    case TP_SIZET:
-			(*argtable) [n].psizearg = va_arg (ap, size_t *);
+		    case TP_SSIZET:
+			(*argtable) [n].pssizearg = va_arg (ap, ssize_t *);
 			break;
 		    case T_INTMAXT:
 			(*argtable) [n].intmaxarg = va_arg (ap, intmax_t);

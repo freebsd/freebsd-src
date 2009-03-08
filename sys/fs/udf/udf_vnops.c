@@ -738,7 +738,7 @@ udf_getfid(struct udf_dirstream *ds)
 	 * Update the offset. Align on a 4 byte boundary because the
 	 * UDF spec says so.
 	 */
-	ds->this_off = ds->off;
+	ds->this_off = ds->offset + ds->off;
 	if (!ds->fid_fragment) {
 		ds->off += (total_fid_size + 3) & ~0x03;
 	} else {
@@ -859,11 +859,11 @@ udf_readdir(struct vop_readdir_args *a)
 		}
 		if (error)
 			break;
+		uio->uio_offset = ds->offset + ds->off;
 	}
 
 	/* tell the calling layer whether we need to be called again */
 	*a->a_eofflag = uiodir.eofflag;
-	uio->uio_offset = ds->offset + ds->off;
 
 	if (error < 0)
 		error = 0;
@@ -1018,10 +1018,6 @@ udf_strategy(struct vop_strategy_args *a)
 	node = VTON(vp);
 
 	if (bp->b_blkno == bp->b_lblkno) {
-		/*
-		 * Files that are embedded in the fentry don't translate well
-		 * to a block number.  Reject.
-		 */
 		offset = lblktosize(node->udfmp, bp->b_lblkno);
 		error = udf_bmap_internal(node, offset, &sector, &maxsize);
 		if (error) {

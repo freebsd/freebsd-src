@@ -135,10 +135,6 @@ ata_ahci_chipinit(device_t dev)
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
-    /* enable PCI interrupt */
-    pci_write_config(dev, PCIR_COMMAND,
-		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-
     /* announce we support the HW */
     version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
     device_printf(dev,
@@ -470,7 +466,7 @@ ata_ahci_issue_cmd(device_t dev, u_int16_t flags, int timeout)
     clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET);
 
     /* set PM port */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, (port << 8) | 0x00000001);
+    //ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, (port << 8) | 0x00000001);
 
     /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
@@ -683,8 +679,7 @@ ata_ahci_softreset(device_t dev, int port)
     ctp->cfis[1] = port & 0x0f;
     //ctp->cfis[7] = ATA_D_LBA | ATA_D_IBM;
     ctp->cfis[15] = ATA_A_4BIT;
-    if (ata_ahci_issue_cmd(dev, 0, 0))
-	return -1;
+    ata_ahci_issue_cmd(dev, 0, 1000);
 
     if (ata_ahci_wait_ready(dev, 1000)) {
 	device_printf(dev, "software reset clear timeout\n");

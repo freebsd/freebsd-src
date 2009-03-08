@@ -49,7 +49,11 @@
 #include <netdb.h>
 
 #include "vchar.h"
+#ifdef JBUILD
+#include "parse.h"
+#else
 #include "y.tab.h"
+#endif
 
 int lineno = 1;
 

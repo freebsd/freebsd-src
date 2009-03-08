@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Comm Class spec:  http://www.usb.org/developers/devclass_docs/usbccs10.pdf
  *                   http://www.usb.org/developers/devclass_docs/usbcdc11.pdf
+ *                   http://www.usb.org/developers/devclass_docs/cdc_wmc10.zip
  */
 
 /*
@@ -142,6 +143,7 @@ struct umodem_softc {
 
 	struct usb2_xfer *sc_xfer[UMODEM_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_line;
 
@@ -243,7 +245,7 @@ static driver_t umodem_driver = {
 	.size = sizeof(struct umodem_softc),
 };
 
-DRIVER_MODULE(umodem, ushub, umodem_driver, umodem_devclass, NULL, 0);
+DRIVER_MODULE(umodem, uhub, umodem_driver, umodem_devclass, NULL, 0);
 MODULE_DEPEND(umodem, ucom, 1, 1, 1);
 MODULE_DEPEND(umodem, usb, 1, 1, 1);
 MODULE_VERSION(umodem, UMODEM_MODVER);
@@ -252,8 +254,6 @@ static int
 umodem_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	uint8_t cm;
-	uint8_t acm;
 	int error;
 
 	DPRINTFN(11, "\n");
@@ -262,19 +262,6 @@ umodem_probe(device_t dev)
 		return (ENXIO);
 	}
 	error = usb2_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);
-	if (error) {
-		return (error);
-	}
-	if (uaa->driver_info == NULL) {
-		/* some modems do not have any capabilities */
-		return (error);
-	}
-	umodem_get_caps(uaa, &cm, &acm);
-	if (!(cm & USB_CDC_CM_DOES_CM) ||
-	    !(cm & USB_CDC_CM_OVER_DATA) ||
-	    !(acm & USB_CDC_ACM_HAS_LINE)) {
-		error = ENXIO;
-	}
 	return (error);
 }
 
@@ -284,10 +271,12 @@ umodem_attach(device_t dev)
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct umodem_softc *sc = device_get_softc(dev);
 	struct usb2_cdc_cm_descriptor *cmd;
+	struct usb2_cdc_union_descriptor *cud;
 	uint8_t i;
 	int error;
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "umodem", NULL, MTX_DEF);
 
 	sc->sc_ctrl_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index[1] = uaa->info.bIfaceIndex;
@@ -300,10 +289,20 @@ umodem_attach(device_t dev)
 	cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
 
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
-		device_printf(dev, "no CM descriptor!\n");
-		goto detach;
+
+		cud = usb2_find_descriptor(uaa->device, NULL,
+		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
+		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
+
+		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
+			device_printf(dev, "no CM or union descriptor!\n");
+			goto detach;
+		}
+
+		sc->sc_data_iface_no = cud->bSlaveInterface[0];
+	} else {
+		sc->sc_data_iface_no = cmd->bDataInterface;
 	}
-	sc->sc_data_iface_no = cmd->bDataInterface;
 
 	device_printf(dev, "data interface %d, has %sCM over "
 	    "data, has %sbreak\n",
@@ -348,17 +347,19 @@ umodem_attach(device_t dev)
 	error = usb2_transfer_setup(uaa->device,
 	    sc->sc_iface_index, sc->sc_xfer,
 	    umodem_config, UMODEM_N_TRANSFER,
-	    sc, &Giant);
+	    sc, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
 
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UMODEM_BULK_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UMODEM_BULK_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &umodem_callback, &Giant);
+	    &umodem_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -415,21 +416,19 @@ umodem_get_caps(struct usb2_attach_arg *uaa, uint8_t *cm, uint8_t *acm)
 	struct usb2_cdc_cm_descriptor *cmd;
 	struct usb2_cdc_acm_descriptor *cad;
 
-	*cm = *acm = 0;
-
 	cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
-		DPRINTF("no CM desc\n");
-		return;
-	}
-	*cm = cmd->bmCapabilities;
+		DPRINTF("no CM desc (faking one)\n");
+		*cm = USB_CDC_CM_DOES_CM | USB_CDC_CM_OVER_DATA;
+	} else
+		*cm = cmd->bmCapabilities;
 
 	cad = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_ACM);
 	if ((cad == NULL) || (cad->bLength < sizeof(*cad))) {
 		DPRINTF("no ACM desc\n");
-		return;
-	}
-	*acm = cad->bmCapabilities;
+		*acm = 0;
+	} else
+		*acm = cad->bmCapabilities;
 }
 
 static void
@@ -781,8 +780,8 @@ umodem_detach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UMODEM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

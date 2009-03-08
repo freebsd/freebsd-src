@@ -690,8 +690,11 @@ ata_promise_mio_command(struct ata_request *request)
 
     ATA_OUTL(ctlr->r_res2, (ch->unit + 1) << 2, 0x00000001);
 
-    /* set portmultiplier port */
-    ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), atadev->unit & 0x0f);
+    if ((ctlr->chip->cfg2 == PR_SATA2) ||
+        ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2))) {
+	/* set portmultiplier port */
+	ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), atadev->unit & 0x0f);
+    }
 
     /* XXX SOS add ATAPI commands support later */
     switch (request->u.ata.command) {

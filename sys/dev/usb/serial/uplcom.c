@@ -145,6 +145,7 @@ struct uplcom_softc {
 
 	struct usb2_xfer *sc_xfer[UPLCOM_N_TRANSFER];
 	struct usb2_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_line;
 
@@ -273,6 +274,9 @@ static const struct usb2_device_id uplcom_devs[] = {
 	{USB_UPL(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PHAROS, 0, 0xFFFF, TYPE_PL2303)},
 	/* Willcom W-SIM */
 	{USB_UPL(USB_VENDOR_PROLIFIC2, USB_PRODUCT_PROLIFIC2_WSIM, 0, 0xFFFF, TYPE_PL2303X)},
+	/* Mobile Action MA-620 Infrared Adapter */
+	{USB_UPL(USB_VENDOR_MOBILEACTION, USB_PRODUCT_MOBILEACTION_MA620, 0, 0xFFFF, TYPE_PL2303X)},
+
 };
 
 static device_method_t uplcom_methods[] = {
@@ -290,7 +294,7 @@ static driver_t uplcom_driver = {
 	.size = sizeof(struct uplcom_softc),
 };
 
-DRIVER_MODULE(uplcom, ushub, uplcom_driver, uplcom_devclass, NULL, 0);
+DRIVER_MODULE(uplcom, uhub, uplcom_driver, uplcom_devclass, NULL, 0);
 MODULE_DEPEND(uplcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uplcom, usb, 1, 1, 1);
 MODULE_VERSION(uplcom, UPLCOM_MODVER);
@@ -326,6 +330,7 @@ uplcom_attach(device_t dev)
 	DPRINTFN(11, "\n");
 
 	device_set_usb2_desc(dev);
+	mtx_init(&sc->sc_mtx, "uplcom", NULL, MTX_DEF);
 
 	DPRINTF("sc = %p\n", sc);
 
@@ -370,7 +375,7 @@ uplcom_attach(device_t dev)
 
 	error = usb2_transfer_setup(uaa->device,
 	    sc->sc_iface_index, sc->sc_xfer, uplcom_config_data,
-	    UPLCOM_N_TRANSFER, sc, &Giant);
+	    UPLCOM_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		DPRINTF("one or more missing USB endpoints, "
 		    "error=%s\n", usb2_errstr(error));
@@ -383,11 +388,13 @@ uplcom_attach(device_t dev)
 		goto detach;
 	}
 	/* clear stall at first run */
+	mtx_lock(&sc->sc_mtx);
 	usb2_transfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_WR]);
 	usb2_transfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &uplcom_callback, &Giant);
+	    &uplcom_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -416,8 +423,8 @@ uplcom_detach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
 	usb2_transfer_unsetup(sc->sc_xfer, UPLCOM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }

@@ -34,17 +34,36 @@ static unsigned char archive[] = {
 
 DEFINE_TEST(test_read_compress_program)
 {
+	int r;
+
 #if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("archive_read_support_compression_program()");
 #else
 	struct archive_entry *ae;
 	struct archive *a;
+	const char *extprog;
+
+	if ((extprog = external_gzip_program(1)) == NULL) {
+		skipping("There is no gzip uncompression "
+		    "program in this platform");
+		return;
+	}
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, 0, archive_read_support_compression_none(a));
-	assertEqualIntA(a, 0, archive_read_support_compression_program(a, "gunzip"));
-	assert(0 == archive_read_support_format_all(a));
-	assertEqualIntA(a, 0, archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_none(a));
+	r = archive_read_support_compression_program(a, extprog);
+	if (r == ARCHIVE_FATAL) {
+		skipping("archive_read_support_compression_program() "
+		    "unsupported on this platform");
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, r);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_PROGRAM);
 	assert(archive_format(a) == ARCHIVE_FORMAT_TAR_USTAR);
 	assert(0 == archive_read_close(a));

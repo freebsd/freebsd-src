@@ -1543,20 +1543,11 @@ ale_resume(device_t dev)
 	struct ale_softc *sc;
 	struct ifnet *ifp;
 	int pmc;
-	uint16_t cmd, pmstat;
+	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
 
 	ALE_LOCK(sc);
-	/*
-	 * Clear INTx emulation disable for hardwares that
-	 * is set in resume event. From Linux.
-	 */
-	cmd = pci_read_config(sc->ale_dev, PCIR_COMMAND, 2);
-	if ((cmd & 0x0400) != 0) {
-		cmd &= ~0x0400;
-		pci_write_config(sc->ale_dev, PCIR_COMMAND, cmd, 2);
-	}
 	if (pci_find_extcap(sc->ale_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->ale_dev,

@@ -1014,7 +1014,7 @@ devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw);
 	if (error)
-		return (error);
+		return (poll_no_poll(events));
 	error = dsw->d_poll(dev, events, td);
 	td->td_fpop = fpop;
 	dev_relthread(dev);

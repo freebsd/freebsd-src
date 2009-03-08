@@ -71,6 +71,7 @@
 /*
  * The instance structure
  */
+#undef libalias
 struct libalias;
 
 /*
