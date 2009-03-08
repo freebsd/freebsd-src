@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* External function to parse a date/time string (from getdate.y) */
-time_t get_date(const char *);
+time_t get_date(time_t, const char *);
 
 static void		 long_help(struct bsdtar *);
 static void		 only_mode(struct bsdtar *, const char *opt,
@@ -103,6 +103,7 @@ main(int argc, char **argv)
 	char			 option_o;
 	char			 possible_help_request;
 	char			 buff[16];
+	time_t			 now;
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -131,6 +132,8 @@ main(int argc, char **argv)
 		else
 			bsdtar->progname = *argv;
 	}
+
+	time(&now);
 
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
@@ -290,7 +293,7 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
-			bsdtar->newer_ctime_sec = get_date(bsdtar->optarg);
+			bsdtar->newer_ctime_sec = get_date(now, bsdtar->optarg);
 			break;
 		case OPTION_NEWER_CTIME_THAN:
 			{
@@ -304,7 +307,7 @@ main(int argc, char **argv)
 			}
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
-			bsdtar->newer_mtime_sec = get_date(bsdtar->optarg);
+			bsdtar->newer_mtime_sec = get_date(now, bsdtar->optarg);
 			break;
 		case OPTION_NEWER_MTIME_THAN:
 			{
