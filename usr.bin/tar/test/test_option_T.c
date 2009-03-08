@@ -41,6 +41,7 @@ DEFINE_TEST(test_option_T)
 {
 	FILE *f;
 	int r;
+	struct stat st;
 
 	/* Create a simple dir heirarchy; bail if anything fails. */
 	if (!assertEqualInt(0, mkdir("d1", 0755))) return;
@@ -127,19 +128,26 @@ DEFINE_TEST(test_option_T)
 	assertEqualInt(0, mkdir("test4/d1", 0755));
 	assertEqualInt(1, touch("test4/d1/foo"));
 
-	systemf("%s -cf - -s /foo/bar/ test4/d1/foo | %s -xf - -C test4_out",
-	    testprog, testprog);
-	assertEmptyFile("test4_out/test4/d1/bar");
-	systemf("%s -cf - -s /d1/d2/ test4/d1/foo | %s -xf - -C test4_out",
-	    testprog, testprog);
-	assertEmptyFile("test4_out/test4/d2/foo");
-	systemf("%s -cf - -s ,test4/d1/foo,, test4/d1/foo | %s -tvf - > test4.lst",
-	    testprog, testprog);
-	assertEmptyFile("test4.lst");
-	systemf("%s -cf - test4/d1/foo | %s -xf - -s /foo/bar/ -C test4_out2",
-	    testprog, testprog);
-	assertEmptyFile("test4_out2/test4/d1/bar");
-
+	/* Does bsdtar support -s option ? */
+	systemf("%s -cf - -s /foo/bar/ test4/d1/foo > NUL 2> check.err",
+	    testprog);
+	assertEqualInt(0, stat("check.err", &st));
+	if (st.st_size == 0) {
+		systemf("%s -cf - -s /foo/bar/ test4/d1/foo | %s -xf - -C test4_out",
+		    testprog, testprog);
+		assertEmptyFile("test4_out/test4/d1/bar");
+		systemf("%s -cf - -s /d1/d2/ test4/d1/foo | %s -xf - -C test4_out",
+		    testprog, testprog);
+		assertEmptyFile("test4_out/test4/d2/foo");
+		systemf("%s -cf - -s ,test4/d1/foo,, test4/d1/foo | %s -tvf - > test4.lst",
+		    testprog, testprog);
+		assertEmptyFile("test4.lst");
+		systemf("%s -cf - test4/d1/foo | %s -xf - -s /foo/bar/ -C test4_out2",
+		    testprog, testprog);
+		assertEmptyFile("test4_out2/test4/d1/bar");
+	} else {
+		skipping("bsdtar does not support -s option on this platform");
+	}
 	/* TODO: Include some use of -C directory-changing within the filelist. */
 	/* I'm pretty sure -C within the filelist is broken on extract. */
 }

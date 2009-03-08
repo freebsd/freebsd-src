@@ -73,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #ifdef __linux
 #define	_PATH_DEFTAPE "/dev/st0"
 #endif
+#ifdef _WIN32
+#define	_PATH_DEFTAPE "\\\\.\\tape0"
+#endif
 
 #ifndef _PATH_DEFTAPE
 #define	_PATH_DEFTAPE "/dev/tape"
@@ -109,12 +112,20 @@ main(int argc, char **argv)
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
+#ifdef _WIN32
+	/* open() function is always with a binary mode. */
+	_set_fmode(_O_BINARY);
+#endif
 
 	/* Need bsdtar->progname before calling bsdtar_warnc. */
 	if (*argv == NULL)
 		bsdtar->progname = "bsdtar";
 	else {
+#if _WIN32
+		bsdtar->progname = strrchr(*argv, '\\');
+#else
 		bsdtar->progname = strrchr(*argv, '/');
+#endif
 		if (bsdtar->progname != NULL)
 			bsdtar->progname++;
 		else
@@ -143,7 +154,7 @@ main(int argc, char **argv)
 	bsdtar->extract_flags |= SECURITY;
 
 	/* Defaults for root user: */
-	if (bsdtar->user_uid == 0) {
+	if (bsdtar_is_privileged(bsdtar)) {
 		/* --same-owner */
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 		/* -p */
@@ -152,6 +163,10 @@ main(int argc, char **argv)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	}
+#ifdef _WIN32
+	/* Windows cannot set UNIX like uid/gid. */
+	bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
+#endif
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
