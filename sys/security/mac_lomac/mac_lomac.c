@@ -2631,8 +2631,7 @@ lomac_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 
 static int
 lomac_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_lomac *subj, *obj;
 

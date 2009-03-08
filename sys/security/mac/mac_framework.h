@@ -85,7 +85,6 @@ struct pipepair;
 struct thread;
 struct timespec;
 struct ucred;
-struct uio;
 struct vattr;
 struct vnode;
 struct vop_setlabel_args;
@@ -377,7 +376,7 @@ int	mac_vnode_check_exec(struct ucred *cred, struct vnode *vp,
 int	mac_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
 int	mac_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-	    int attrnamespace, const char *name, struct uio *uio);
+	    int attrnamespace, const char *name);
 int	mac_vnode_check_link(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
 int	mac_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
@@ -404,7 +403,7 @@ int	mac_vnode_check_revoke(struct ucred *cred, struct vnode *vp);
 int	mac_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type, struct acl *acl);
 int	mac_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-	    int attrnamespace, const char *name, struct uio *uio);
+	    int attrnamespace, const char *name);
 int	mac_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
 	    u_long flags);
 int	mac_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
