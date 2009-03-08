@@ -57,19 +57,25 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_hid.h>
 
 static void hid_clear_local(struct hid_item *);
+static uint8_t hid_get_byte(struct hid_data *s, const uint16_t wSize);
 
-#define	MAXUSAGE 100
+#define	MAXUSAGE 64
+#define	MAXPUSH 4
 struct hid_data {
 	const uint8_t *start;
 	const uint8_t *end;
 	const uint8_t *p;
-	struct hid_item cur;
-	int32_t	usages[MAXUSAGE];
-	int	nu;
-	int	minset;
-	int	multi;
-	int	multimax;
+	struct hid_item cur[MAXPUSH];
+	int32_t	usages_min[MAXUSAGE];
+	int32_t	usages_max[MAXUSAGE];
 	int	kindset;
+	uint8_t	pushlevel;	/* current pushlevel */
+	uint8_t	ncount;		/* end usage item count */
+	uint8_t icount;		/* current usage item count */
+	uint8_t	nusage;		/* end "usages_min/max" index */
+	uint8_t	iusage;		/* current "usages_min/max" index */
+	uint8_t ousage;		/* current "usages_min/max" offset */
+	uint8_t	susage;		/* usage set flags */
 };
 
 /*------------------------------------------------------------------------*
@@ -79,6 +85,8 @@ static void
 hid_clear_local(struct hid_item *c)
 {
 
+	c->loc.count = 0;
+	c->loc.size = 0;
 	c->usage = 0;
 	c->usage_minimum = 0;
 	c->usage_maximum = 0;
@@ -99,6 +107,12 @@ hid_start_parse(const void *d, int len, int kindset)
 {
 	struct hid_data *s;
 
+	if ((kindset-1) & kindset) {
+		DPRINTFN(0, "Only one bit can be "
+		    "set in the kindset\n");
+		return (NULL);
+	}
+
 	s = malloc(sizeof *s, M_TEMP, M_WAITOK | M_ZERO);
 	s->start = s->p = d;
 	s->end = ((const uint8_t *)d) + len;
@@ -112,14 +126,40 @@ hid_start_parse(const void *d, int len, int kindset)
 void
 hid_end_parse(struct hid_data *s)
 {
+	if (s == NULL)
+		return;
 
-	while (s->cur.next != NULL) {
-		struct hid_item *hi = s->cur.next->next;
-
-		free(s->cur.next, M_TEMP);
-		s->cur.next = hi;
-	}
 	free(s, M_TEMP);
+}
+
+/*------------------------------------------------------------------------*
+ *	get byte from HID descriptor
+ *------------------------------------------------------------------------*/
+static uint8_t
+hid_get_byte(struct hid_data *s, const uint16_t wSize)
+{
+	const uint8_t *ptr;
+	uint8_t retval;
+
+	ptr = s->p;
+
+	/* check if end is reached */
+	if (ptr == s->end)
+		return (0);
+
+	/* read out a byte */
+	retval = *ptr;
+
+	/* check if data pointer can be advanced by "wSize" bytes */
+	if ((s->end - ptr) < wSize)
+		ptr = s->end;
+	else
+		ptr += wSize;
+
+	/* update pointer */
+	s->p = ptr;
+
+	return (retval);
 }
 
 /*------------------------------------------------------------------------*
@@ -128,44 +168,61 @@ hid_end_parse(struct hid_data *s)
 int
 hid_get_item(struct hid_data *s, struct hid_item *h)
 {
-	struct hid_item *c = &s->cur;
+	struct hid_item *c;
 	unsigned int bTag, bType, bSize;
 	uint32_t oldpos;
-	const uint8_t *data;
+	int32_t mask;
 	int32_t dval;
-	const uint8_t *p;
-	struct hid_item *hi;
-	int i;
 
-top:
-	if (s->multimax != 0) {
-		if (s->multi < s->multimax) {
-			c->usage = s->usages[MIN(s->multi, s->nu - 1)];
-			s->multi++;
-			*h = *c;
-			c->loc.pos += c->loc.size;
-			h->next = 0;
-			return (1);
+	if (s == NULL)
+		return (0);
+
+	c = &s->cur[s->pushlevel];
+
+ top:
+	/* check if there is an array of items */
+	if ((s->icount != s->ncount) &&
+	    (s->iusage != s->nusage)) {
+		dval = s->usages_min[s->iusage] + s->ousage;
+		c->usage = dval;
+		if (dval == s->usages_max[s->iusage]) {
+			s->iusage ++;
+			s->ousage = 0;
 		} else {
-			c->loc.count = s->multimax;
-			s->multimax = 0;
-			s->nu = 0;
-			hid_clear_local(c);
+			s->ousage ++;
+		}
+		s->icount ++;
+		/* 
+		 * Only copy HID item, increment position and return
+		 * if correct kindset!
+		 */
+		if (s->kindset & (1 << c->kind)) {
+			*h = *c;
+			DPRINTFN(1, "%u,%u,%u\n", h->loc.pos,
+			    h->loc.size, h->loc.count);
+			c->loc.pos += c->loc.size * c->loc.count;
+			return (1);
 		}
 	}
-	for (;;) {
-		p = s->p;
-		if ((p >= s->end) || (p < s->start))
-			return (0);
 
-		bSize = *p++;
+	/* reset state variables */
+	s->icount = 0;
+	s->ncount = 0;
+	s->iusage = 0;
+	s->nusage = 0;
+	s->susage = 0;
+	s->ousage = 0;
+	hid_clear_local(c);
+
+	/* get next item */
+	while (s->p != s->end) {
+
+		bSize = hid_get_byte(s, 1);
 		if (bSize == 0xfe) {
 			/* long item */
-			bSize = *p++;
-			bSize |= *p++ << 8;
-			bTag = *p++;
-			data = p;
-			p += bSize;
+			bSize = hid_get_byte(s, 1);
+			bSize |= hid_get_byte(s, 1) << 8;
+			bTag = hid_get_byte(s, 1);
 			bType = 0xff;	/* XXX what should it be */
 		} else {
 			/* short item */
@@ -174,30 +231,33 @@ top:
 			bSize &= 3;
 			if (bSize == 3)
 				bSize = 4;
-			data = p;
-			p += bSize;
 		}
-		s->p = p;
 		switch (bSize) {
 		case 0:
 			dval = 0;
+			mask = 0;
 			break;
 		case 1:
-			dval = (int8_t)*data++;
+			dval = (int8_t)hid_get_byte(s, 1);
+			mask = 0xFF;
 			break;
 		case 2:
-			dval = *data++;
-			dval |= *data++ << 8;
+			dval = hid_get_byte(s, 1);
+			dval |= hid_get_byte(s, 1) << 8;
 			dval = (int16_t)dval;
+			mask = 0xFFFF;
 			break;
 		case 4:
-			dval = *data++;
-			dval |= *data++ << 8;
-			dval |= *data++ << 16;
-			dval |= *data++ << 24;
+			dval = hid_get_byte(s, 1);
+			dval |= hid_get_byte(s, 1) << 8;
+			dval |= hid_get_byte(s, 1) << 16;
+			dval |= hid_get_byte(s, 1) << 24;
+			mask = 0xFFFFFFFF;
 			break;
 		default:
-			printf("BAD LENGTH %d\n", bSize);
+			dval = hid_get_byte(s, bSize);
+			DPRINTFN(0, "bad length %u (data=0x%02x)\n",
+			    bSize, dval);
 			continue;
 		}
 
@@ -205,44 +265,35 @@ top:
 		case 0:		/* Main */
 			switch (bTag) {
 			case 8:	/* Input */
-				if (!(s->kindset & (1 << hid_input))) {
-					if (s->nu > 0)
-						s->nu--;
-					continue;
-				}
 				c->kind = hid_input;
 				c->flags = dval;
 		ret:
 				if (c->flags & HIO_VARIABLE) {
-					s->multimax = c->loc.count;
-					s->multi = 0;
+					/* range check usage count */
+					if (c->loc.count > 255) {
+						DPRINTFN(0, "Number of "
+						    "items truncated to 255\n");
+						s->ncount = 255;
+					} else
+						s->ncount = c->loc.count;
+
+					/* 
+					 * The "top" loop will return
+					 * one and one item:
+					 */
 					c->loc.count = 1;
-					if (s->minset) {
-						for (i = c->usage_minimum;
-						    i <= c->usage_maximum;
-						    i++) {
-							s->usages[s->nu] = i;
-							if (s->nu < MAXUSAGE - 1)
-								s->nu++;
-						}
-						s->minset = 0;
-					}
-					goto top;
 				} else {
-					*h = *c;
-					h->next = 0;
-					c->loc.pos +=
-					    c->loc.size * c->loc.count;
-					hid_clear_local(c);
-					s->minset = 0;
-					return (1);
+					/* make sure we have a usage */
+					if (s->nusage == 0) {
+						s->usages_min[s->nusage] = 0;
+						s->usages_max[s->nusage] = 0;
+						s->nusage = 1;
+					}
+					s->ncount = 1;
 				}
+				goto top;
+
 			case 9:	/* Output */
-				if (!(s->kindset & (1 << hid_output))) {
-					if (s->nu > 0)
-						s->nu--;
-					continue;
-				}
 				c->kind = hid_output;
 				c->flags = dval;
 				goto ret;
@@ -251,27 +302,22 @@ top:
 				c->collection = dval;
 				c->collevel++;
 				*h = *c;
-				hid_clear_local(c);
-				s->nu = 0;
 				return (1);
 			case 11:	/* Feature */
-				if (!(s->kindset & (1 << hid_feature))) {
-					if (s->nu > 0)
-						s->nu--;
-					continue;
-				}
 				c->kind = hid_feature;
 				c->flags = dval;
 				goto ret;
 			case 12:	/* End collection */
 				c->kind = hid_endcollection;
+				if (c->collevel == 0) {
+					DPRINTFN(0, "invalid end collection\n");
+					return (0);
+				}
 				c->collevel--;
 				*h = *c;
-				hid_clear_local(c);
-				s->nu = 0;
 				return (1);
 			default:
-				printf("Main bTag=%d\n", bTag);
+				DPRINTFN(0, "Main bTag=%d\n", bTag);
 				break;
 			}
 			break;
@@ -303,53 +349,88 @@ top:
 				break;
 			case 8:
 				c->report_ID = dval;
+				/* new report - reset position */
+				c->loc.pos = 0;
 				break;
 			case 9:
 				c->loc.count = dval;
 				break;
 			case 10:	/* Push */
-				hi = malloc(sizeof *hi, M_TEMP, M_WAITOK);
-				*hi = s->cur;
-				c->next = hi;
+				s->pushlevel ++;
+				if (s->pushlevel < MAXPUSH) {
+					s->cur[s->pushlevel] = *c;
+					c = &s->cur[s->pushlevel];
+				} else {
+					DPRINTFN(0, "Cannot push "
+					    "item @ %d!\n", s->pushlevel);
+				}
 				break;
 			case 11:	/* Pop */
-				hi = c->next;
-				oldpos = c->loc.pos;
-				s->cur = *hi;
-				c->loc.pos = oldpos;
-				free(hi, M_TEMP);
+				s->pushlevel --;
+				if (s->pushlevel < MAXPUSH) {
+					/* preserve position */
+					oldpos = c->loc.pos;
+					c = &s->cur[s->pushlevel];
+					c->loc.pos = oldpos;
+				} else {
+					DPRINTFN(0, "Cannot pop "
+					    "item @ %d!\n", s->pushlevel);
+				}
 				break;
 			default:
-				printf("Global bTag=%d\n", bTag);
+				DPRINTFN(0, "Global bTag=%d\n", bTag);
 				break;
 			}
 			break;
 		case 2:		/* Local */
 			switch (bTag) {
 			case 0:
-				if (bSize == 1)
-					dval = c->_usage_page | (dval & 0xff);
-				else if (bSize == 2)
-					dval = c->_usage_page | (dval & 0xffff);
-				c->usage = dval;
-				if (s->nu < MAXUSAGE)
-					s->usages[s->nu++] = dval;
-				/* else XXX */
+				if (bSize != 4)
+					dval = (dval & mask) | c->_usage_page;
+
+				if (s->nusage < MAXUSAGE) {
+					s->usages_min[s->nusage] = dval;
+					s->usages_max[s->nusage] = dval;
+					s->nusage ++;
+				} else {
+					DPRINTFN(0, "max usage reached!\n");
+				}
+
+				/* clear any pending usage sets */
+				s->susage = 0;
 				break;
 			case 1:
-				s->minset = 1;
-				if (bSize == 1)
-					dval = c->_usage_page | (dval & 0xff);
-				else if (bSize == 2)
-					dval = c->_usage_page | (dval & 0xffff);
+				s->susage |= 1;
+
+				if (bSize != 4)
+					dval = (dval & mask) | c->_usage_page;
 				c->usage_minimum = dval;
-				break;
+
+				goto check_set;
 			case 2:
-				if (bSize == 1)
-					dval = c->_usage_page | (dval & 0xff);
-				else if (bSize == 2)
-					dval = c->_usage_page | (dval & 0xffff);
+				s->susage |= 2;
+
+				if (bSize != 4)
+					dval = (dval & mask) | c->_usage_page;
 				c->usage_maximum = dval;
+
+			check_set:
+				if (s->susage != 3)
+					break;
+
+				/* sanity check */
+				if ((s->nusage < MAXUSAGE) &&
+				    (c->usage_minimum < c->usage_maximum)) {
+					/* add usage range */
+					s->usages_min[s->nusage] = 
+					    c->usage_minimum;
+					s->usages_max[s->nusage] = 
+					    c->usage_maximum;
+					s->nusage ++;
+				} else {
+					DPRINTFN(0, "Usage set dropped!\n");
+				}
+				s->susage = 0;
 				break;
 			case 3:
 				c->designator_index = dval;
@@ -373,15 +454,16 @@ top:
 				c->set_delimiter = dval;
 				break;
 			default:
-				printf("Local bTag=%d\n", bTag);
+				DPRINTFN(0, "Local bTag=%d\n", bTag);
 				break;
 			}
 			break;
 		default:
-			printf("default bType=%d\n", bType);
+			DPRINTFN(0, "default bType=%d\n", bType);
 			break;
 		}
 	}
+	return (0);
 }
 
 /*------------------------------------------------------------------------*
