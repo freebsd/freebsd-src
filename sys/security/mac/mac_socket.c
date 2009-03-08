@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
@@ -16,6 +16,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +45,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -51,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mac.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/file.h>
@@ -276,6 +281,9 @@ mac_socket_create_mbuf(struct socket *so, struct mbuf *m)
 	MAC_PERFORM(socket_create_mbuf, so, so->so_label, m, label);
 }
 
+MAC_CHECK_PROBE_DEFINE2(socket_check_accept, "struct ucred *",
+    "struct socket *");
+
 int
 mac_socket_check_accept(struct ucred *cred, struct socket *so)
 {
@@ -284,9 +292,13 @@ mac_socket_check_accept(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_accept, cred, so, so->so_label);
+	MAC_CHECK_PROBE2(socket_check_accept, error, cred, so);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(socket_check_bind, "struct ucred *",
+    "struct socket *", "struct sockaddr *");
 
 int
 mac_socket_check_bind(struct ucred *ucred, struct socket *so,
@@ -297,9 +309,13 @@ mac_socket_check_bind(struct ucred *ucred, struct socket *so,
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_bind, ucred, so, so->so_label, sa);
+	MAC_CHECK_PROBE3(socket_check_bind, error, ucred, so, sa);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(socket_check_connect, "struct ucred *",
+    "struct socket *", "struct sockaddr *");
 
 int
 mac_socket_check_connect(struct ucred *cred, struct socket *so,
@@ -310,9 +326,13 @@ mac_socket_check_connect(struct ucred *cred, struct socket *so,
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_connect, cred, so, so->so_label, sa);
+	MAC_CHECK_PROBE3(socket_check_connect, error, cred, so, sa);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE4(socket_check_create, "struct ucred *", "int", "int",
+    "int");
 
 int
 mac_socket_check_create(struct ucred *cred, int domain, int type, int proto)
@@ -320,9 +340,14 @@ mac_socket_check_create(struct ucred *cred, int domain, int type, int proto)
 	int error;
 
 	MAC_CHECK(socket_check_create, cred, domain, type, proto);
+	MAC_CHECK_PROBE4(socket_check_create, error, cred, domain, type,
+	    proto);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(socket_check_deliver, "struct socket *",
+    "struct mbuf *");
 
 int
 mac_socket_check_deliver(struct socket *so, struct mbuf *m)
@@ -335,9 +360,13 @@ mac_socket_check_deliver(struct socket *so, struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_CHECK(socket_check_deliver, so, so->so_label, m, label);
+	MAC_CHECK_PROBE2(socket_check_deliver, error, so, m);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(socket_check_listen, "struct ucred *",
+    "struct socket *");
 
 int
 mac_socket_check_listen(struct ucred *cred, struct socket *so)
@@ -347,9 +376,13 @@ mac_socket_check_listen(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_listen, cred, so, so->so_label);
+	MAC_CHECK_PROBE2(socket_check_listen, error, cred, so);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(socket_check_poll, "struct ucred *",
+    "struct socket *");
 
 int
 mac_socket_check_poll(struct ucred *cred, struct socket *so)
@@ -359,9 +392,13 @@ mac_socket_check_poll(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_poll, cred, so, so->so_label);
+	MAC_CHECK_PROBE2(socket_check_poll, error, cred, so);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(socket_check_receive, "struct ucred *",
+    "struct socket *");
 
 int
 mac_socket_check_receive(struct ucred *cred, struct socket *so)
@@ -371,9 +408,13 @@ mac_socket_check_receive(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_receive, cred, so, so->so_label);
+	MAC_CHECK_PROBE2(socket_check_receive, error, cred, so);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(socket_check_relabel, "struct ucred *",
+    "struct socket *", "struct label *");
 
 static int
 mac_socket_check_relabel(struct ucred *cred, struct socket *so,
@@ -384,9 +425,13 @@ mac_socket_check_relabel(struct ucred *cred, struct socket *so,
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_relabel, cred, so, so->so_label, newlabel);
+	MAC_CHECK_PROBE3(socket_check_relabel, error, cred, so, newlabel);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(socket_check_send, "struct ucred *",
+    "struct socket *");
 
 int
 mac_socket_check_send(struct ucred *cred, struct socket *so)
@@ -396,9 +441,13 @@ mac_socket_check_send(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_send, cred, so, so->so_label);
+	MAC_CHECK_PROBE2(socket_check_send, error, cred, so);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(socket_check_stat, "struct ucred *",
+    "struct socket *");
 
 int
 mac_socket_check_stat(struct ucred *cred, struct socket *so)
@@ -408,9 +457,13 @@ mac_socket_check_stat(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_stat, cred, so, so->so_label);
+	MAC_CHECK_PROBE2(socket_check_stat, error, cred, so);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(socket_check_visible, "struct ucred *",
+    "struct socket *");
 
 int
 mac_socket_check_visible(struct ucred *cred, struct socket *so)
@@ -420,6 +473,7 @@ mac_socket_check_visible(struct ucred *cred, struct socket *so)
 	SOCK_LOCK_ASSERT(so);
 
 	MAC_CHECK(socket_check_visible, cred, so, so->so_label);
+	MAC_CHECK_PROBE2(socket_check_visible, error, cred, so);
 
 	return (error);
 }

@@ -85,9 +85,11 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_policy.h>
 
 /*
- * DTrace SDT provider for MAC.
+ * DTrace SDT providers for MAC.
  */
 SDT_PROVIDER_DEFINE(mac);
+SDT_PROVIDER_DEFINE(mac_framework);
+
 SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, "int",
     "struct mac_policy_conf *mpc");
 SDT_PROBE_DEFINE1(mac, kernel, policy, register, "struct mac_policy_conf *");
