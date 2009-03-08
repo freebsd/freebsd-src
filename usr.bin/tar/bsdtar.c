@@ -114,7 +114,7 @@ main(int argc, char **argv)
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
 #ifdef _WIN32
-	/* open() function is always with a binary mode. */
+	/* Make sure open() function will be used with a binary mode. */
 	_set_fmode(_O_BINARY);
 #endif
 
