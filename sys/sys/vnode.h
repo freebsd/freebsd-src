@@ -658,6 +658,7 @@ int	vop_stdadvlock(struct vop_advlock_args *ap);
 int	vop_stdadvlockasync(struct vop_advlockasync_args *ap);
 int	vop_stdpathconf(struct vop_pathconf_args *);
 int	vop_stdpoll(struct vop_poll_args *);
+int	vop_stdvptocnp(struct vop_vptocnp_args *ap);
 int	vop_stdvptofh(struct vop_vptofh_args *ap);
 int	vop_eopnotsupp(struct vop_generic_args *ap);
 int	vop_ebadf(struct vop_generic_args *ap);
