@@ -474,7 +474,7 @@ setauid(struct thread *td, struct setauid_args *uap)
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	error = mac_proc_check_setauid(oldcred, id);
+	error = mac_cred_check_setauid(oldcred, id);
 	if (error)
 		goto fail;
 #endif
@@ -539,7 +539,7 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	error = mac_proc_check_setaudit(oldcred, &ai);
+	error = mac_cred_check_setaudit(oldcred, &ai);
 	if (error)
 		goto fail;
 #endif
@@ -602,7 +602,7 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	error = mac_proc_check_setaudit_addr(oldcred, &aia);
+	error = mac_cred_check_setaudit_addr(oldcred, &aia);
 	if (error)
 		goto fail;
 #endif
