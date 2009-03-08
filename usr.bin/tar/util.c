@@ -453,8 +453,8 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	const char *name = archive_entry_pathname(entry);
 #if HAVE_REGEX_H
 	char *subst_name;
-#endif
 	int r;
+#endif
 
 #if HAVE_REGEX_H
 	r = apply_substitution(bsdtar, name, &subst_name, 0);
