@@ -118,13 +118,13 @@ extern "C" {
  *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
  * #endif
  */
-#define	ARCHIVE_VERSION_NUMBER 2005903
+#define	ARCHIVE_VERSION_NUMBER 2006901
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 2.5.903a"
+#define	ARCHIVE_VERSION_STRING "libarchive 2.6.901a"
 __LA_DECL const char *	archive_version_string(void);
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -231,6 +231,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_COMPRESS	3
 #define	ARCHIVE_COMPRESSION_PROGRAM	4
 #define	ARCHIVE_COMPRESSION_LZMA	5
+#define	ARCHIVE_COMPRESSION_XZ		6
 
 /*
  * Codes returned by archive_format.
