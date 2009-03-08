@@ -34,7 +34,11 @@
 #include <assert.h>
 #include <ctype.h>
 #include <string.h>
+#ifdef JBUILD
+#include "cconfig.h"
+#else
 #include "y.tab.h"
+#endif
 #include "config.h"
 
 #define YY_NO_UNPUT

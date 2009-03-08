@@ -46,7 +46,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <sys/param.h>
 #include "config.h"
+#ifdef JBUILD
+#include "cconfig.h"
+#else
 #include "y.tab.h"
+#endif
 
 static	struct users {
 	int	u_default;

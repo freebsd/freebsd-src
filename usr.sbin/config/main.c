@@ -56,7 +56,11 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 #include <dirent.h>
+#ifdef JBUILD
+#include "cconfig.h"
+#else
 #include "y.tab.h"
+#endif
 #include "config.h"
 #include "configvers.h"
 
