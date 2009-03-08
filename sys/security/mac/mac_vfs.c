@@ -506,14 +506,14 @@ MAC_CHECK_PROBE_DEFINE4(vnode_check_getextattr, "struct ucred *",
 
 int
 mac_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    int attrnamespace, const char *name, struct uio *uio)
+    int attrnamespace, const char *name)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_getextattr");
 
 	MAC_CHECK(vnode_check_getextattr, cred, vp, vp->v_label,
-	    attrnamespace, name, uio);
+	    attrnamespace, name);
 	MAC_CHECK_PROBE4(vnode_check_getextattr, error, cred, vp,
 	    attrnamespace, name);
 
@@ -798,14 +798,14 @@ MAC_CHECK_PROBE_DEFINE4(vnode_check_setextattr, "struct ucred *",
 
 int
 mac_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    int attrnamespace, const char *name, struct uio *uio)
+    int attrnamespace, const char *name)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_setextattr");
 
 	MAC_CHECK(vnode_check_setextattr, cred, vp, vp->v_label,
-	    attrnamespace, name, uio);
+	    attrnamespace, name);
 	MAC_CHECK_PROBE4(vnode_check_setextattr, error, cred, vp,
 	    attrnamespace, name);
 
