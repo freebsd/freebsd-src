@@ -301,15 +301,15 @@ MAC_CHECK_PROBE_DEFINE3(socket_check_bind, "struct ucred *",
     "struct socket *", "struct sockaddr *");
 
 int
-mac_socket_check_bind(struct ucred *ucred, struct socket *so,
+mac_socket_check_bind(struct ucred *cred, struct socket *so,
     struct sockaddr *sa)
 {
 	int error;
 
 	SOCK_LOCK_ASSERT(so);
 
-	MAC_CHECK(socket_check_bind, ucred, so, so->so_label, sa);
-	MAC_CHECK_PROBE3(socket_check_bind, error, ucred, so, sa);
+	MAC_CHECK(socket_check_bind, cred, so, so->so_label, sa);
+	MAC_CHECK_PROBE3(socket_check_bind, error, cred, so, sa);
 
 	return (error);
 }
