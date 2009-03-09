@@ -67,7 +67,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	update the library and dependencies (usbconfig, etc). Its advisable to
 	rebuild all ports which uses libusb. More specific directions are given
 	in the ports collection UPDATING file. Any /etc/libmap.conf entries for
-	libsub are no longer required and can be removed.
+	libusb are no longer required and can be removed.
 
 20090302:
 	A workaround is committed to allow the creation of System V shared
