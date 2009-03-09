@@ -492,6 +492,8 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 	au_id_t auid;
 
 	KASSERT(td->td_ar == NULL, ("audit_syscall_enter: td->td_ar != NULL"));
+	KASSERT((td->td_pflags & TDP_AUDITREC) == 0,
+	    ("audit_syscall_enter: TDP_AUDITREC set"));
 
 	/*
 	 * In FreeBSD, each ABI has its own system call table, and hence
@@ -542,9 +544,13 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 			panic("audit_failing_stop: thread continued");
 		}
 		td->td_ar = audit_new(event, td);
-	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0))
+		if (td->td_ar != NULL)
+			td->td_pflags |= TDP_AUDITREC;
+	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0)) {
 		td->td_ar = audit_new(event, td);
-	else
+		if (td->td_ar != NULL)
+			td->td_pflags |= TDP_AUDITREC;
+	} else
 		td->td_ar = NULL;
 }
 
@@ -572,6 +578,7 @@ audit_syscall_exit(int error, struct thread *td)
 
 	audit_commit(td->td_ar, error, retval);
 	td->td_ar = NULL;
+	td->td_pflags &= ~TDP_AUDITREC;
 }
 
 void
@@ -626,6 +633,8 @@ audit_thread_free(struct thread *td)
 {
 
 	KASSERT(td->td_ar == NULL, ("audit_thread_free: td_ar != NULL"));
+	KASSERT((td->td_pflags & TDP_AUDITREC) == 0,
+	    ("audit_thread_free: TDP_AUDITREC set"));
 }
 
 void
