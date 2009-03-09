@@ -184,6 +184,7 @@ static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
  */
 #define NCF_WHITE	1
 
+#ifdef DIAGNOSTIC
 /*
  * Grab an atomic snapshot of the name cache hash chain lengths
  */
@@ -268,6 +269,7 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
 	CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_nchash, "I",
 	"nchash chain lengths");
+#endif
 
 /*
  * cache_zap():
