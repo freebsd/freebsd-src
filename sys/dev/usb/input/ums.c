@@ -117,6 +117,12 @@ struct ums_softc {
 
 	uint8_t	sc_buttons;
 	uint8_t	sc_iid;
+	uint8_t	sc_iid_w;
+	uint8_t	sc_iid_x;
+	uint8_t	sc_iid_y;
+	uint8_t	sc_iid_z;
+	uint8_t	sc_iid_t;
+	uint8_t	sc_iid_btn[UMS_BUTTON_MAX];
 	uint8_t	sc_temp[64];
 };
 
@@ -168,6 +174,7 @@ ums_intr_callback(struct usb2_xfer *xfer)
 	int32_t dz;
 	int32_t dt;
 	uint8_t i;
+	uint8_t id;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -190,42 +197,14 @@ ums_intr_callback(struct usb2_xfer *xfer)
 		    (len > 4) ? buf[4] : 0, (len > 5) ? buf[5] : 0,
 		    (len > 6) ? buf[6] : 0, (len > 7) ? buf[7] : 0);
 
-		/*
-		 * The M$ Wireless Intellimouse 2.0 sends 1 extra
-		 * leading byte of data compared to most USB
-		 * mice. This byte frequently switches from 0x01
-		 * (usual state) to 0x02. I assume it is to allow
-		 * extra, non-standard, reporting (say battery-life).
-		 *
-		 * However at the same time it generates a left-click
-		 * message on the button byte which causes spurious
-		 * left-click's where there shouldn't be.  This should
-		 * sort that.  Currently it's the only user of
-		 * UMS_FLAG_T_AXIS so use it as an identifier.
-		 *
-		 *
-		 * UPDATE: This problem affects the M$ Wireless
-		 * Notebook Optical Mouse, too. However, the leading
-		 * byte for this mouse is normally 0x11, and the
-		 * phantom mouse click occurs when its 0x14.
-		 *
-		 * We probably should switch to some more official quirk.
-		 */
 		if (sc->sc_iid) {
-			if (sc->sc_flags & UMS_FLAG_T_AXIS) {
-				if (*buf == 0x02) {
-					goto tr_setup;
-				}
-			} else {
-				if (*buf != sc->sc_iid) {
-					goto tr_setup;
-				}
-			}
+			id = *buf;
 
 			len--;
 			buf++;
 
 		} else {
+			id = 0;
 			if (sc->sc_flags & UMS_FLAG_SBU) {
 				if ((*buf == 0x14) || (*buf == 0x15)) {
 					goto tr_setup;
@@ -233,25 +212,37 @@ ums_intr_callback(struct usb2_xfer *xfer)
 			}
 		}
 
-		dw = (sc->sc_flags & UMS_FLAG_W_AXIS) ?
-		    hid_get_data(buf, len, &sc->sc_loc_w) : 0;
+		if ((sc->sc_flags & UMS_FLAG_W_AXIS) && (id == sc->sc_iid_w))
+			dw = hid_get_data(buf, len, &sc->sc_loc_w);
+		else
+			dw = 0;
 
-		dx = (sc->sc_flags & UMS_FLAG_X_AXIS) ?
-		    hid_get_data(buf, len, &sc->sc_loc_x) : 0;
+		if ((sc->sc_flags & UMS_FLAG_X_AXIS) && (id == sc->sc_iid_x))
+			dx = hid_get_data(buf, len, &sc->sc_loc_x);
+		else
+			dx = 0;
 
-		dy = (sc->sc_flags & UMS_FLAG_Y_AXIS) ?
-		    -hid_get_data(buf, len, &sc->sc_loc_y) : 0;
+		if ((sc->sc_flags & UMS_FLAG_Y_AXIS) && (id == sc->sc_iid_y))
+			dy = -hid_get_data(buf, len, &sc->sc_loc_y);
+		else
+			dy = 0;
 
-		dz = (sc->sc_flags & UMS_FLAG_Z_AXIS) ?
-		    -hid_get_data(buf, len, &sc->sc_loc_z) : 0;
+		if ((sc->sc_flags & UMS_FLAG_Z_AXIS) && (id == sc->sc_iid_z))
+			dz = -hid_get_data(buf, len, &sc->sc_loc_z);
+		else
+			dz = 0;
 
-		if (sc->sc_flags & UMS_FLAG_REVZ) {
+		if (sc->sc_flags & UMS_FLAG_REVZ)
 			dz = -dz;
-		}
-		dt = (sc->sc_flags & UMS_FLAG_T_AXIS) ?
-		    -hid_get_data(buf, len, &sc->sc_loc_t): 0;
+
+		if ((sc->sc_flags & UMS_FLAG_T_AXIS) && (id == sc->sc_iid_t))
+			dt = -hid_get_data(buf, len, &sc->sc_loc_t);
+		else
+			dt = 0;
 
 		for (i = 0; i < sc->sc_buttons; i++) {
+			if (id != sc->sc_iid_btn[i])
+				continue;
 			if (hid_get_data(buf, len, &sc->sc_loc_btn[i])) {
 				buttons |= (1 << UMS_BUT(i));
 			}
@@ -413,14 +404,14 @@ ums_attach(device_t dev)
 		goto detach;
 	}
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-	    hid_input, &sc->sc_loc_x, &flags, &sc->sc_iid)) {
+	    hid_input, &sc->sc_loc_x, &flags, &sc->sc_iid_x)) {
 
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_X_AXIS;
 		}
 	}
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-	    hid_input, &sc->sc_loc_y, &flags, &sc->sc_iid)) {
+	    hid_input, &sc->sc_loc_y, &flags, &sc->sc_iid_y)) {
 
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_Y_AXIS;
@@ -428,9 +419,9 @@ ums_attach(device_t dev)
 	}
 	/* Try the wheel first as the Z activator since it's tradition. */
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_WHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid) ||
+	    HUG_WHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid_z) ||
 	    hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_TWHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid)) {
+	    HUG_TWHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid_z)) {
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_Z_AXIS;
 		}
@@ -439,14 +430,14 @@ ums_attach(device_t dev)
 		 * put the Z on the W coordinate.
 		 */
 		if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-		    HUG_Z), hid_input, &sc->sc_loc_w, &flags, &sc->sc_iid)) {
+		    HUG_Z), hid_input, &sc->sc_loc_w, &flags, &sc->sc_iid_w)) {
 
 			if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 				sc->sc_flags |= UMS_FLAG_W_AXIS;
 			}
 		}
 	} else if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_Z), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid)) {
+	    HUG_Z), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid_z)) {
 
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			sc->sc_flags |= UMS_FLAG_Z_AXIS;
@@ -460,7 +451,7 @@ ums_attach(device_t dev)
 	 * TWHEEL
 	 */
 	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_TWHEEL),
-	    hid_input, &sc->sc_loc_t, &flags, &sc->sc_iid)) {
+	    hid_input, &sc->sc_loc_t, &flags, &sc->sc_iid_t)) {
 
 		sc->sc_loc_t.pos += 8;
 
@@ -472,14 +463,14 @@ ums_attach(device_t dev)
 
 	for (i = 0; i < UMS_BUTTON_MAX; i++) {
 		if (!hid_locate(d_ptr, d_len, HID_USAGE2(HUP_BUTTON, (i + 1)),
-			hid_input, &sc->sc_loc_btn[i], NULL, &sc->sc_iid)) {
+			hid_input, &sc->sc_loc_btn[i], NULL, &sc->sc_iid_btn[i])) {
 			break;
 		}
 	}
 
 	sc->sc_buttons = i;
 
-	isize = hid_report_size(d_ptr, d_len, hid_input, NULL);
+	isize = hid_report_size(d_ptr, d_len, hid_input, &sc->sc_iid);
 
 	/*
 	 * The Microsoft Wireless Notebook Optical Mouse seems to be in worse
@@ -495,6 +486,12 @@ ums_attach(device_t dev)
 		sc->sc_buttons = 3;
 		isize = 5;
 		sc->sc_iid = 0;
+		sc->sc_iid_x = 0;
+		sc->sc_iid_y = 0;
+		sc->sc_iid_z = 0;
+		sc->sc_iid_btn[0] = 0;
+		sc->sc_iid_btn[1] = 0;
+		sc->sc_iid_btn[2] = 0;
 		/* 1st byte of descriptor report contains garbage */
 		sc->sc_loc_x.pos = 16;
 		sc->sc_loc_y.pos = 24;
@@ -544,15 +541,21 @@ ums_attach(device_t dev)
 
 #if USB_DEBUG
 	DPRINTF("sc=%p\n", sc);
-	DPRINTF("X\t%d/%d\n", sc->sc_loc_x.pos, sc->sc_loc_x.size);
-	DPRINTF("Y\t%d/%d\n", sc->sc_loc_y.pos, sc->sc_loc_y.size);
-	DPRINTF("Z\t%d/%d\n", sc->sc_loc_z.pos, sc->sc_loc_z.size);
-	DPRINTF("T\t%d/%d\n", sc->sc_loc_t.pos, sc->sc_loc_t.size);
-	DPRINTF("W\t%d/%d\n", sc->sc_loc_w.pos, sc->sc_loc_w.size);
+	DPRINTF("X\t%d/%d id=%d\n", sc->sc_loc_x.pos,
+	    sc->sc_loc_x.size, sc->sc_iid_x);
+	DPRINTF("Y\t%d/%d id=%d\n", sc->sc_loc_y.pos,
+	    sc->sc_loc_y.size, sc->sc_iid_y);
+	DPRINTF("Z\t%d/%d id=%d\n", sc->sc_loc_z.pos,
+	    sc->sc_loc_z.size, sc->sc_iid_z);
+	DPRINTF("T\t%d/%d id=%d\n", sc->sc_loc_t.pos,
+	    sc->sc_loc_t.size, sc->sc_iid_t);
+	DPRINTF("W\t%d/%d id=%d\n", sc->sc_loc_w.pos,
+	    sc->sc_loc_w.size, sc->sc_iid_w);
 
 	for (i = 0; i < sc->sc_buttons; i++) {
-		DPRINTF("B%d\t%d/%d\n",
-		    i + 1, sc->sc_loc_btn[i].pos, sc->sc_loc_btn[i].size);
+		DPRINTF("B%d\t%d/%d id=%d\n",
+		    i + 1, sc->sc_loc_btn[i].pos,
+		    sc->sc_loc_btn[i].size, sc->sc_iid_btn[i]);
 	}
 	DPRINTF("size=%d, id=%d\n", isize, sc->sc_iid);
 #endif
