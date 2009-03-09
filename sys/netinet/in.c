@@ -223,7 +223,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	int iaIsFirst;
 
 	ia = NULL;
-	ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
 	iaIsFirst = 0;
 	iaIsNew = 0;
 	allhosts_addr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
@@ -428,6 +427,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		if (error != 0 && iaIsNew)
 			break;
 		if (error == 0) {
+			ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
 			if (iaIsFirst &&
 			    (ifp->if_flags & IFF_MULTICAST) != 0) {
 				error = in_joingroup(ifp, &allhosts_addr,
@@ -478,6 +478,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		    (ifra->ifra_broadaddr.sin_family == AF_INET))
 			ia->ia_broadaddr = ifra->ifra_broadaddr;
 		if (error == 0) {
+			ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
 			if (iaIsFirst &&
 			    (ifp->if_flags & IFF_MULTICAST) != 0) {
 				error = in_joingroup(ifp, &allhosts_addr,
@@ -529,6 +530,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		oia = NULL;
 		IFP_TO_IA(ifp, oia);
 		if (oia == NULL) {
+			ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
 			IFF_LOCKGIANT(ifp);
 			IN_MULTI_LOCK();
 			if (ii->ii_allhosts) {
