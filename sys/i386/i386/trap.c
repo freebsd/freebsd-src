@@ -461,7 +461,6 @@ trap(struct trapframe *frame)
 			goto userout;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
-			/* XXX Giant */
 			if (isa_nmi(code) == 0) {
 #ifdef KDB
 				/*
@@ -658,7 +657,6 @@ trap(struct trapframe *frame)
 			 * in kernel space because that is useful when
 			 * debugging the kernel.
 			 */
-			/* XXX Giant */
 			if (user_dbreg_trap() && 
 			   !(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)) {
 				/*
@@ -692,7 +690,6 @@ trap(struct trapframe *frame)
 			}
 			goto out;
 #else /* !POWERFAIL_NMI */
-			/* XXX Giant */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
 #ifdef KDB
@@ -999,14 +996,10 @@ syscall(struct trapframe *frame)
 	orig_tf_eflags = frame->tf_eflags;
 
 	if (p->p_sysent->sv_prepsyscall) {
-		/*
-		 * The prep code is MP aware.
-		 */
 		(*p->p_sysent->sv_prepsyscall)(frame, args, &code, &params);
 	} else {
 		/*
 		 * Need to check if this is a 32 bit or 64 bit syscall.
-		 * fuword is MP aware.
 		 */
 		if (code == SYS_syscall) {
 			/*
@@ -1034,9 +1027,6 @@ syscall(struct trapframe *frame)
 
 	narg = callp->sy_narg;
 
-	/*
-	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
-	 */
 	if (params != NULL && narg != 0)
 		error = copyin(params, (caddr_t)args,
 		    (u_int)(narg * sizeof(int)));
