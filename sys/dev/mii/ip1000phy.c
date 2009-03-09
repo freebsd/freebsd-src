@@ -296,7 +296,7 @@ done:
 		 * Only retry autonegotiation every mii_anegticks seconds.
 		 */
 		if (sc->mii_ticks <= sc->mii_anegticks)
-			return (0);
+			break;
 
 		sc->mii_ticks = 0;
 		ip1000phy_mii_phy_auto(sc);
