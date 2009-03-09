@@ -581,6 +581,28 @@ ata_pcichannel_detach(device_t dev)
 
     return (0);
 }
+static int
+ata_pcichannel_suspend(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_suspend(dev);
+}
+
+static int
+ata_pcichannel_resume(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_resume(dev);
+}
+
 
 static int
 ata_pcichannel_locking(device_t dev, int mode)
@@ -629,8 +651,8 @@ static device_method_t ata_pcichannel_methods[] = {
     DEVMETHOD(device_attach,    ata_pcichannel_attach),
     DEVMETHOD(device_detach,    ata_pcichannel_detach),
     DEVMETHOD(device_shutdown,  bus_generic_shutdown),
-    DEVMETHOD(device_suspend,   ata_suspend),
-    DEVMETHOD(device_resume,    ata_resume),
+    DEVMETHOD(device_suspend,   ata_pcichannel_suspend),
+    DEVMETHOD(device_resume,    ata_pcichannel_resume),
 
     /* ATA methods */
     DEVMETHOD(ata_setmode,      ata_pcichannel_setmode),
