@@ -592,7 +592,6 @@ passin:
 		return;
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
-		struct in_multi *inm;
 		if (V_ip_mrouter) {
 			/*
 			 * If we are acting as a multicast router, all
@@ -619,17 +618,10 @@ passin:
 			V_ipstat.ips_forward++;
 		}
 		/*
-		 * See if we belong to the destination multicast group on the
-		 * arrival interface.
+		 * Assume the packet is for us, to avoid prematurely taking
+		 * a lock on the in_multi hash. Protocols must perform
+		 * their own filtering and update statistics accordingly.
 		 */
-		IN_MULTI_LOCK();
-		IN_LOOKUP_MULTI(ip->ip_dst, m->m_pkthdr.rcvif, inm);
-		IN_MULTI_UNLOCK();
-		if (inm == NULL) {
-			V_ipstat.ips_notmember++;
-			m_freem(m);
-			return;
-		}
 		goto ours;
 	}
 	if (ip->ip_dst.s_addr == (u_long)INADDR_BROADCAST)

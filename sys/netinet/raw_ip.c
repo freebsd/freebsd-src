@@ -251,6 +251,7 @@ void
 rip_input(struct mbuf *m, int off)
 {
 	INIT_VNET_INET(curvnet);
+	struct ifnet *ifp;
 	struct ip *ip = mtod(m, struct ip *);
 	int proto = ip->ip_p;
 	struct inpcb *inp, *last;
@@ -262,6 +263,9 @@ rip_input(struct mbuf *m, int off)
 	ripsrc.sin_family = AF_INET;
 	ripsrc.sin_addr = ip->ip_src;
 	last = NULL;
+
+	ifp = m->m_pkthdr.rcvif;
+
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
 	INP_INFO_RLOCK(&V_ripcbinfo);
@@ -277,8 +281,14 @@ rip_input(struct mbuf *m, int off)
 			continue;
 		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
-		if (prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
-			continue;
+		if (jailed(inp->inp_cred)) {
+			/*
+			 * XXX: If faddr was bound to multicast group,
+			 * jailed raw socket will drop datagram.
+			 */
+			if (prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
+				continue;
+		}
 		if (last != NULL) {
 			struct mbuf *n;
 
@@ -299,14 +309,46 @@ rip_input(struct mbuf *m, int off)
 		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 #endif
-		if (inp->inp_laddr.s_addr &&
-		    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+		if (!in_nullhost(inp->inp_laddr) &&
+		    !in_hosteq(inp->inp_laddr, ip->ip_dst))
 			continue;
-		if (inp->inp_faddr.s_addr &&
-		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+		if (!in_nullhost(inp->inp_faddr) &&
+		    !in_hosteq(inp->inp_faddr, ip->ip_src))
 			continue;
-		if (prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
-			continue;
+		if (jailed(inp->inp_cred)) {
+			/*
+			 * Allow raw socket in jail to receive multicast;
+			 * assume process had PRIV_NETINET_RAW at attach,
+			 * and fall through into normal filter path if so.
+			 */
+			if (!IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
+			    prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
+				continue;
+		}
+		/*
+		 * If this raw socket has multicast state, and we
+		 * have received a multicast, check if this socket
+		 * should receive it, as multicast filtering is now
+		 * the responsibility of the transport layer.
+		 */
+		if (inp->inp_moptions != NULL &&
+		    IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+			struct sockaddr_in group;
+			int blocked;
+
+			bzero(&group, sizeof(struct sockaddr_in));
+			group.sin_len = sizeof(struct sockaddr_in);
+			group.sin_family = AF_INET;
+			group.sin_addr = ip->ip_dst;
+
+			blocked = imo_multi_filter(inp->inp_moptions, ifp,
+			    (struct sockaddr *)&group,
+			    (struct sockaddr *)&ripsrc);
+			if (blocked != MCAST_PASS) {
+				V_ipstat.ips_notmember++;
+				continue;
+			}
+		}
 		if (last != NULL) {
 			struct mbuf *n;
 

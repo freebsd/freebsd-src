@@ -82,25 +82,6 @@ struct ipoption {
 };
 
 /*
- * Multicast source list entry.
- */
-struct in_msource {
-	TAILQ_ENTRY(in_msource) ims_next;	/* next source */
-	struct sockaddr_storage ims_addr;	/* address of this source */
-};
-
-/*
- * Multicast filter descriptor; there is one instance per group membership
- * on a socket, allocated as an expandable vector hung off ip_moptions.
- * struct in_multi contains separate IPv4-stack-wide state for IGMPv3.
- */
-struct in_mfilter {
-	uint16_t	imf_fmode;	/* filter mode for this socket/group */
-	uint16_t	imf_nsources;	/* # of sources for this socket/group */
-	TAILQ_HEAD(, in_msource) imf_sources;	/* source list */
-};
-
-/*
  * Structure attached to inpcb.ip_moptions and
  * passed to ip_output when IP multicast options are in use.
  * This structure is lazy-allocated.
