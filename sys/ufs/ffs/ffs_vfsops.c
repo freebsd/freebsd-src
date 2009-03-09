@@ -1915,7 +1915,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 					}
 				}
 				bp->b_runningbufspace = bp->b_bufsize;
-				atomic_add_int(&runningbufspace,
+				atomic_add_long(&runningbufspace,
 					       bp->b_runningbufspace);
 			} else {
 				error = ffs_copyonwrite(vp, bp);
