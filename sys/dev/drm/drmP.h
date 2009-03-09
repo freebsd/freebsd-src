@@ -720,10 +720,10 @@ static inline int drm_core_has_AGP(struct drm_device *dev)
 extern int	drm_debug_flag;
 
 /* Device setup support (drm_drv.c) */
-int	drm_probe(device_t nbdev, drm_pci_id_list_t *idlist);
-int	drm_attach(device_t nbdev, drm_pci_id_list_t *idlist);
+int	drm_probe(device_t kdev, drm_pci_id_list_t *idlist);
+int	drm_attach(device_t kdev, drm_pci_id_list_t *idlist);
 void	drm_close(void *data);
-int	drm_detach(device_t nbdev);
+int	drm_detach(device_t kdev);
 d_ioctl_t drm_ioctl;
 d_open_t drm_open;
 d_read_t drm_read;
