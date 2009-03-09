@@ -258,7 +258,7 @@ __fcntl(int fd, int cmd,...)
 #ifdef SYSCALL_COMPAT
 		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
 #else
-		ret = EOPNOTSUPP;
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
 #endif
 	}
 	va_end(ap);
