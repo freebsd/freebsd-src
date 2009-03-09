@@ -4,7 +4,7 @@
 # Makefile for the FreeBSD specific LibUSB 2.0
 #
 
-LIB=		usb20
+LIB=		usb
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
 SRCS=		libusb20.c
@@ -14,11 +14,12 @@ SRCS+=		libusb20_compat01.c
 SRCS+=		libusb20_compat10.c
 INCS+=		libusb20.h
 INCS+=		libusb20_desc.h
-INCS+=		libusb20_compat01.h
-INCS+=		libusb20_compat10.h
 MAN=		libusb20.3
 MKLINT=		no
 NOGCCERROR=
+
+# libusb 0.1 compat
+INCS+=		usb.h
 
 .include <bsd.lib.mk>
 
