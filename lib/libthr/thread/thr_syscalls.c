@@ -132,7 +132,9 @@ int	__aio_suspend(const struct aiocb * const iocbs[], int,
 int	__close(int);
 int	__connect(int, const struct sockaddr *, socklen_t);
 int	__fcntl(int, int,...);
+#ifdef SYSCALL_COMPAT
 extern int __fcntl_compat(int, int,...);
+#endif
 int	__fsync(int);
 int	__msync(void *, size_t, int);
 int	__nanosleep(const struct timespec *, struct timespec *);
@@ -253,7 +255,11 @@ __fcntl(int fd, int cmd,...)
 		ret = __sys_fcntl(fd, cmd);
 		break;
 	default:
+#ifdef SYSCALL_COMPAT
 		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
+#else
+		ret = EOPNOTSUPP;
+#endif
 	}
 	va_end(ap);
 
