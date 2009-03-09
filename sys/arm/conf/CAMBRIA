@@ -66,13 +66,17 @@ options 	VERBOSE_INIT_ARM
 device		pci
 device		uart
 
+device		ixpwdog		# watchdog timer
+device		cfi		# flash support
+device		cfid		# flash disk support
+device		geom_redboot	# redboot fis parser
+
 # I2C Bus
 device		iicbus
 device		iicbb
 device		iic
 
 device		ixpiic		# I2C bus glue
-device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
