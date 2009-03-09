@@ -3277,7 +3277,7 @@ next_code:
 			    sc_draw_cursor_image(scp);
 			}
 			tp = SC_DEV(sc, scp->index);
-			if (tty_opened(tp))
+			if (!kdb_active && tty_opened(tp))
 			    sctty_outwakeup(tp);
 #endif
 		    }
