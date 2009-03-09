@@ -365,7 +365,7 @@ agp_intel_set_aperture(device_t dev, u_int32_t aperture)
 }
 
 static int
-agp_intel_bind_page(device_t dev, int offset, vm_offset_t physical)
+agp_intel_bind_page(device_t dev, vm_offset_t offset, vm_offset_t physical)
 {
 	struct agp_intel_softc *sc;
 
@@ -379,7 +379,7 @@ agp_intel_bind_page(device_t dev, int offset, vm_offset_t physical)
 }
 
 static int
-agp_intel_unbind_page(device_t dev, int offset)
+agp_intel_unbind_page(device_t dev, vm_offset_t offset)
 {
 	struct agp_intel_softc *sc;
 
