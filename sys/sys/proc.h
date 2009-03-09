@@ -222,8 +222,6 @@ struct thread {
 	u_int		td_sticks;	/* (t) Statclock hits in system mode. */
 	u_int		td_iticks;	/* (t) Statclock hits in intr mode. */
 	u_int		td_uticks;	/* (t) Statclock hits in user mode. */
-	u_int		td_uuticks;	/* (k) Statclock hits (usr), for UTS. */
-	u_int		td_usticks;	/* (k) Statclock hits (sys), for UTS. */
 	int		td_intrval;	/* (t) Return value for sleepq. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
