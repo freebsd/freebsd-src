@@ -38,30 +38,16 @@
 #define	USB_USE_CONDVAR 0
 #endif
 
+#ifndef USB_HAVE_UGEN
+#define	USB_HAVE_UGEN 1
+#endif
+
 #ifndef USB_TD_GET_PROC
 #define	USB_TD_GET_PROC(td) (td)->td_proc
 #endif
 
 #ifndef USB_PROC_GET_GID
 #define	USB_PROC_GET_GID(td) (td)->p_pgid
-#endif
-
-#ifndef USB_VNOPS_FO_CLOSE
-#define	USB_VNOPS_FO_CLOSE(fp, td, perr) do {	\
-    (td)->td_fpop = (fp);			\
-    *(perr) = vnops.fo_close(fp, td);		\
-    (td)->td_fpop = NULL;			\
-} while (0)
-#endif
-
-#ifndef USB_VNOPS_FO_STAT
-#define	USB_VNOPS_FO_STAT(fp, sb, cred, td) \
-    vnops.fo_stat(fp, sb, cred, td)
-#endif
-
-#ifndef USB_VNOPS_FO_TRUNCATE
-#define	USB_VNOPS_FO_TRUNCATE(fp, length, cred, td) \
-    vnops.fo_truncate(fp, length, cred, td)
 #endif
 
 /* Include files */
