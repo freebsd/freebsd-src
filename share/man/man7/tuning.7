@@ -51,7 +51,9 @@ I usually create, in order, a 128M root, 1G swap, 128M
 and use any remaining space for
 .Pa /home .
 .Pp
-You should typically size your swap space to approximately 2x main memory.
+You should typically size your swap space to approximately 2x main memory
+for systems with less than 2GB of RAM, or approximately 1x main memory
+if you have more.
 If you do not have a lot of RAM, though, you will generally want a lot
 more swap.
 It is not recommended that you configure any less than
