@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090308: libusb.so.1 renamed
+OLD_LIBS+=usr/lib/libusb20.so.1
+OLD_FILES+=usr/include/libusb20_compat01.h
 # 20090226: libmp(3) functions renamed
 OLD_LIBS+=usr/lib/libmp.so.6
 # 20090223: changeover of USB stacks
