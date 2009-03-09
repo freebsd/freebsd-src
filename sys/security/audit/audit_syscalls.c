@@ -96,6 +96,7 @@ audit(struct thread *td, struct audit_args *uap)
 		td->td_ar = audit_new(AUE_NULL, td);
 		if (td->td_ar == NULL)
 			return (ENOTSUP);
+		td->td_pflags |= TDP_AUDITREC;
 		ar = td->td_ar;
 	}
 
