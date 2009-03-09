@@ -203,7 +203,6 @@ static driver_t ipw_driver = {
 static devclass_t ipw_devclass;
 
 DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, 0, 0);
-DRIVER_MODULE(ipw, cardbus, ipw_driver, ipw_devclass, 0, 0);
 
 static int
 ipw_probe(device_t dev)
