@@ -2109,7 +2109,6 @@ static driver_t emu_driver = {
 };
 
 DRIVER_MODULE(snd_emu10k1, pci, emu_driver, pcm_devclass, 0, 0);
-DRIVER_MODULE(snd_emu10k1, cardbus, emu_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_emu10k1, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_emu10k1, 1);
 MODULE_DEPEND(snd_emu10k1, midi, 1, 1, 1);
