@@ -74,7 +74,7 @@ struct cdevsw cfi_cdevsw = {
  * or the process stops writing. At that time we write the whole
  * sector to flash (see cfi_block_finish).
  */
-static int
+int
 cfi_block_start(struct cfi_softc *sc, u_int ofs)
 {
 	union {
@@ -124,7 +124,7 @@ cfi_block_start(struct cfi_softc *sc, u_int ofs)
  * Finish updating the current block/sector by writing the compound
  * set of changes to the flash.
  */
-static int
+int
 cfi_block_finish(struct cfi_softc *sc)
 {
 	int error;
