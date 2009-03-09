@@ -528,10 +528,6 @@ ata_ahci_chipinit(device_t dev)
     ctlr->allocate = ata_ahci_allocate;
     ctlr->setmode = ata_sata_setmode;
 
-    /* enable PCI interrupt */
-    pci_write_config(dev, PCIR_COMMAND,
-		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-
     /* announce we support the HW */
     version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
     device_printf(dev,
@@ -1100,10 +1096,6 @@ ata_ali_chipinit(device_t dev)
 	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
 	    (ata_ahci_chipinit(dev) != ENXIO))
             return 0;
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	break;
 
     case ALINEW:
@@ -1894,10 +1886,6 @@ ata_intel_chipinit(device_t dev)
 	    ctlr->setmode = ata_intel_sata_setmode;
 	else
 	    ctlr->setmode = ata_sata_setmode;
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     }
     return 0;
 }
@@ -2658,10 +2646,6 @@ ata_marvell_edma_chipinit(device_t dev)
     /* unmask host controller interrupts we want */
     ATA_OUTL(ctlr->r_res1, 0x01d64, 0x000000ff/*HC0*/ | 0x0001fe00/*HC1*/ |
 	     /*(1<<19) | (1<<20) | (1<<21) |*/(1<<22) | (1<<24) | (0x7f << 25));
-
-    /* enable PCI interrupt */
-    pci_write_config(dev, PCIR_COMMAND,
-		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     return 0;
 }
 
@@ -3201,11 +3185,6 @@ ata_nvidia_chipinit(device_t dev)
 		/* enable device and PHY state change interrupts */
 		ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
 	    }
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
-
 	}
 	ctlr->setmode = ata_sata_setmode;
     }
@@ -4604,10 +4583,6 @@ ata_sii_chipinit(device_t dev)
 	ATA_OUTL(ctlr->r_res1, 0x0040, 0x80000000);
 	DELAY(10000);
 	ATA_OUTL(ctlr->r_res1, 0x0040, 0x0000000f);
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	break;
 
     case SIIMEMIO:
@@ -5359,10 +5334,6 @@ ata_sis_chipinit(device_t dev)
 						   &ctlr->r_rid2, RF_ACTIVE))) {
 	    ctlr->allocate = ata_sis_allocate;
 	    ctlr->reset = ata_sis_reset;
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
@@ -5551,10 +5522,6 @@ ata_via_chipinit(device_t dev)
 						   &ctlr->r_rid2, RF_ACTIVE))) {
 	    ctlr->allocate = ata_via_allocate;
 	    ctlr->reset = ata_via_reset;
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
 
 	if (ctlr->chip->cfg2 & VIABAR) {
