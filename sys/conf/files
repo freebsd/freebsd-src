@@ -1802,6 +1802,7 @@ geom/geom_mbr.c			optional geom_mbr
 geom/geom_mbr_enc.c		optional geom_mbr
 geom/geom_pc98.c		optional geom_pc98
 geom/geom_pc98_enc.c		optional geom_pc98
+geom/geom_redboot.c		optional geom_redboot
 geom/geom_slice.c		standard
 geom/geom_subr.c		standard
 geom/geom_sunlabel.c		optional geom_sunlabel
