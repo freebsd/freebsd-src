@@ -295,7 +295,7 @@ agp_generic_detach(device_t dev)
  * Default AGP aperture size detection which simply returns the size of
  * the aperture's PCI resource.
  */
-int
+u_int32_t
 agp_generic_get_aperture(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
