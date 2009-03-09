@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2009
+.Dd March 9, 2009
 .Dt IP 4
 .Os
 .Sh NAME
@@ -466,12 +466,18 @@ setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 .Pp
 This option
 improves performance for applications that may have no more than one
-instance on a single host (such as a router daemon), by eliminating
+instance on a single host (such as a routing daemon), by eliminating
 the overhead of receiving their own transmissions.
 It should generally not
 be used by applications for which there may be more than one instance on a
 single host (such as a conferencing program) or for which the sender does
 not belong to the destination group (such as a time querying program).
+.Pp
+The sysctl setting
+.Va net.inet.ip.mcast.loop
+controls the default setting of the
+.Dv IP_MULTICAST_LOOP
+socket option for new sockets.
 .Pp
 A multicast datagram sent with an initial TTL greater than 1 may be delivered
 to the sending host on a different interface from that on which it was sent,
@@ -650,6 +656,13 @@ documented in RFC 3678.
 For management of source filter lists using this API,
 please refer to
 .Xr sourcefilter 3 .
+.Pp
+The sysctl settings
+.Va net.inet.ip.mcast.maxsocksrc
+and
+.Va net.inet.ip.mcast.maxgrpsrc
+are used to specify an upper limit on the number of per-socket and per-group
+source filter entries which the kernel may allocate.
 .\"-----------------------
 .Ss "Raw IP Sockets"
 .Pp
@@ -795,6 +808,7 @@ field was not equal to the length of the datagram written to the socket.
 .Xr send 2 ,
 .Xr byteorder 3 ,
 .Xr icmp 4 ,
+.Xr igmp 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr multicast 4 ,
