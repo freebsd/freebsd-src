@@ -57,7 +57,6 @@ static const HAL_PERCAL_DATA ar9160_adc_init_dc_cal = {
 	.calPostProc	= ar5416AdcDcCalibration
 };
 
-static void ar9160Detach(struct ath_hal *);
 static HAL_BOOL ar9160FillCapabilityInfo(struct ath_hal *ah);
 
 static void
@@ -116,7 +115,6 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 
 	/* XXX override with 9160 specific state */
 	/* override 5416 methods for our needs */
-	ah->ah_detach			= ar9160Detach;
 
 	AH5416(ah)->ah_cal.iqCalData.calData = &ar9160_iq_cal;
 	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9160_adc_gain_cal;
@@ -258,21 +256,10 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	return ah;
 bad:
 	if (ahp)
-		ar9160Detach((struct ath_hal *) ahp);
+		ar5416Detach((struct ath_hal *) ahp);
 	if (status)
 		*status = ecode;
 	return AH_NULL;
-}
-
-void
-ar9160Detach(struct ath_hal *ah)
-{
-	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s:\n", __func__);
-
-	HALASSERT(ah != AH_NULL);
-	HALASSERT(ah->ah_magic == AR5416_MAGIC);
-
-	ar5416Detach(ah);
 }
 
 /*
