@@ -223,7 +223,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	static struct sysctl_oid sysctl__##parent##_##name = {		 \
 		&sysctl_##parent##_children, { NULL }, nbr, kind,	 \
-		a1, a2, #name, handler, fmt, 0, __DESCR(descr) };        \
+		a1, a2, #name, handler, fmt, 0, __DESCR(descr) };     \
 	DATA_SET(sysctl_set, sysctl__##parent##_##name)
 
 #ifdef VIMAGE
@@ -755,8 +755,11 @@ SYSCTL_DECL(_vfs);
 SYSCTL_DECL(_net);
 SYSCTL_DECL(_debug);
 SYSCTL_DECL(_debug_sizeof);
+SYSCTL_DECL(_dev);
 SYSCTL_DECL(_hw);
 SYSCTL_DECL(_hw_bus);
+SYSCTL_DECL(_hw_bus_devices);
+SYSCTL_DECL(_hw_bus_info);
 SYSCTL_DECL(_machdep);
 SYSCTL_DECL(_user);
 SYSCTL_DECL(_compat);
