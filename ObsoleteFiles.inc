@@ -16,6 +16,9 @@
 
 # 20090308: libusb.so.1 renamed
 OLD_LIBS+=usr/lib/libusb20.so.1
+OLD_FILES+=usr/lib/libusb20.a
+OLD_FILES+=usr/lib/libusb20.so
+OLD_FILES+=usr/lib/libusb20_p.a
 OLD_FILES+=usr/include/libusb20_compat01.h
 # 20090226: libmp(3) functions renamed
 OLD_LIBS+=usr/lib/libmp.so.6
@@ -1769,9 +1772,6 @@ OLD_FILES+=usr/lib/libss.a
 OLD_FILES+=usr/lib/libss_p.a
 OLD_FILES+=usr/lib/libtelnet.a
 OLD_FILES+=usr/lib/libtelnet_p.a
-OLD_FILES+=usr/lib/libusb.a
-OLD_FILES+=usr/lib/libusb.so
-OLD_FILES+=usr/lib/libusb_p.a
 OLD_FILES+=usr/sbin/diskpart
 # 200202XX
 OLD_FILES+=usr/bin/gprof4
