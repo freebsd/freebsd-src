@@ -68,12 +68,14 @@ __FBSDID("$FreeBSD$");
 # define DEBUG(fmt, args...)
 #endif
 
+#ifdef LOADER_GPT_SUPPORT
 struct gpt_part {
     int		gp_index;
     uuid_t	gp_type;
     uint64_t	gp_start;
     uint64_t	gp_end;
 };
+#endif
 
 struct open_disk {
     int			od_dkunit;		/* disk unit number */
@@ -90,25 +92,31 @@ struct open_disk {
 #define BD_FLOPPY		0x0004
 #define BD_LABELOK		0x0008
 #define BD_PARTTABOK		0x0010
+#ifdef LOADER_GPT_SUPPORT
 #define	BD_GPTOK		0x0020
+#endif
     union {
 	struct {
 	    struct disklabel		mbr_disklabel;
 	    int				mbr_nslices;	/* slice count */
 	    struct dos_partition	mbr_slicetab[NEXTDOSPART];
 	} _mbr;
+#ifdef LOADER_GPT_SUPPORT
 	struct {
 	    int				gpt_nparts;		
 	    struct gpt_part		*gpt_partitions;
 	} _gpt;
+#endif
     } _data;
 };
 
 #define	od_disklabel		_data._mbr.mbr_disklabel
 #define	od_nslices		_data._mbr.mbr_nslices
 #define	od_slicetab		_data._mbr.mbr_slicetab
+#ifdef LOADER_GPT_SUPPORT
 #define	od_nparts		_data._gpt.gpt_nparts
 #define	od_partitions		_data._gpt.gpt_partitions
+#endif
 
 /*
  * List of BIOS devices, translation from disk unit number to
@@ -130,8 +138,10 @@ static int	bd_write(struct open_disk *od, daddr_t dblk, int blks,
 
 static int	bd_int13probe(struct bdinfo *bd);
 
+#ifdef LOADER_GPT_SUPPORT
 static void	bd_printgptpart(struct open_disk *od, struct gpt_part *gp,
 		    char *prefix, int verbose);
+#endif
 static void	bd_printslice(struct open_disk *od, struct dos_partition *dp,
 		    char *prefix, int verbose);
 static void	bd_printbsdslice(struct open_disk *od, daddr_t offset,
@@ -163,8 +173,10 @@ static void	bd_closedisk(struct open_disk *od);
 static int	bd_open_mbr(struct open_disk *od, struct i386_devdesc *dev);
 static int	bd_bestslice(struct open_disk *od);
 static void	bd_checkextended(struct open_disk *od, int slicenum);
+#ifdef LOADER_GPT_SUPPORT
 static int	bd_open_gpt(struct open_disk *od, struct i386_devdesc *dev);
 static struct gpt_part *bd_best_gptpart(struct open_disk *od);
+#endif
 
 /*
  * Translate between BIOS device numbers and our private unit numbers.
@@ -286,6 +298,7 @@ bd_print(int verbose)
 	
 	if (!bd_opendisk(&od, &dev)) {
 
+#ifdef LOADER_GPT_SUPPORT
 	    /* Do we have a GPT table? */
 	    if (od->od_flags & BD_GPTOK) {
 		for (j = 0; j < od->od_nparts; j++) {
@@ -293,9 +306,10 @@ bd_print(int verbose)
 			od->od_partitions[j].gp_index);
 		    bd_printgptpart(od, &od->od_partitions[j], line, verbose);
 		}
-
+	    } else
+#endif
 	    /* Do we have a partition table? */
-	    } else if (od->od_flags & BD_PARTTABOK) {
+	    if (od->od_flags & BD_PARTTABOK) {
 		dptr = &od->od_slicetab[0];
 
 		/* Check for a "dedicated" disk */
@@ -339,6 +353,7 @@ display_size(uint64_t size)
     return (buf);
 }
 
+#ifdef LOADER_GPT_SUPPORT
 static uuid_t efi = GPT_ENT_TYPE_EFI;
 static uuid_t freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
 static uuid_t freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
@@ -380,6 +395,7 @@ bd_printgptpart(struct open_disk *od, struct gpt_part *gp, char *prefix,
 	    stats);
     pager_output(line);
 }
+#endif
 
 /*
  * Print information about slices on a disk.  For the size calculations we
@@ -561,8 +577,10 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     }
 
     /* Determine disk layout. */
+#ifdef LOADER_GPT_SUPPORT
     error = bd_open_gpt(od, dev);
     if (error)
+#endif
 	error = bd_open_mbr(od, dev);
     
  out:
@@ -826,6 +844,7 @@ bd_bestslice(struct open_disk *od)
 	return (prefslice);
 }
 
+#ifdef LOADER_GPT_SUPPORT
 static int
 bd_open_gpt(struct open_disk *od, struct i386_devdesc *dev)
 {
@@ -1003,6 +1022,7 @@ bd_best_gptpart(struct open_disk *od)
     }
     return (prefpart);
 }
+#endif
 
 static int 
 bd_close(struct open_file *f)
@@ -1022,8 +1042,10 @@ bd_closedisk(struct open_disk *od)
     if (od->od_flags & BD_FLOPPY)
 	delay(3000000);
 #endif
+#ifdef LOADER_GPT_SUPPORT
     if (od->od_flags & BD_GPTOK)
 	free(od->od_partitions);
+#endif
     free(od);
 }
 
