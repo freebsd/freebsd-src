@@ -23,6 +23,45 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090309:
+	IGMPv3 and Source-Specific Multicast (SSM) have been merged
+	to the IPv4 stack. VIMAGE hooks are in but not yet used.
+
+	For kernel developers, the most important changes are that the
+	ip_output() and ip_input() paths no longer take the IN_MULTI_LOCK(),
+	and this lock has been downgraded to a non-recursive mutex.
+
+	Transport protocols (UDP, Raw IP) are now responsible for filtering
+	inbound multicast traffic according to group membership and source
+	filters. The imo_multicast_filter() KPI exists for this purpose.
+	Transports which do not use multicast (SCTP, TCP) already reject
+	multicast by default. Forwarding and receive performance may improve
+	as a mutex acquisition is no longer needed in the ip_input()
+	low-level input path.  in_addmulti() and in_delmulti() are shimmed
+	to new KPIs which exist to support SSM in-kernel.
+
+	For application developers, it is recommended that loopback of
+	multicast datagrams be disabled for best performance, as this
+	will still cause the lock to be taken for each looped-back
+	datagram transmission. The net.inet.ip.mcast.loop sysctl may
+	be tuned to 0 to disable loopback by default; it defaults to 1
+	to preserve the existing behaviour.
+
+	For systems administrators, to obtain best performance with
+	multicast reception and multiple groups, it is always recommended
+	that a card with a suitably precise hash filter is used. Hash
+	collisions will still result in the lock being taken within the
+	transport protocol input path to check group membership.
+
+	If deploying FreeBSD in an environment with IGMP snooping switches,
+	it is recommended that the net.inet.igmp.sendlocal sysctl remain
+	enabled; this forces 224.0.0.0/24 group membership to be announced
+	via IGMP.
+
+	The size of 'struct igmpstat' has changed; netstat needs to be
+	recompiled to reflect this.
+	Bump __FreeBSD_version to 800070.
+
+20090309:
 	libusb20.so.1 is now installed as libusb.so.1 and the ports system
 	updated to use it. This requires a buildworld/installworld in order to
 	update the library and dependencies (usbconfig, etc). Its advisable to
