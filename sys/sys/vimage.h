@@ -120,49 +120,49 @@ void	vnet_mod_register(const struct vnet_modinfo *);
 #ifdef __amd64__
 #define	SIZEOF_vnet_net		464
 #define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet	4352
 #define	SIZEOF_vnet_inet6	8800
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __arm__
 #define	SIZEOF_vnet_net		236
 #define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
-#define	SIZEOF_vnet_inet	2396
+#define	SIZEOF_vnet_inet	2580
 #define	SIZEOF_vnet_inet6	8536
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __i386__ /* incl. pc98 */
 #define	SIZEOF_vnet_net		236
 #define	SIZEOF_vnet_net_LINT	2576
-#define	SIZEOF_vnet_inet	2396
+#define	SIZEOF_vnet_inet	2576
 #define	SIZEOF_vnet_inet6	8528
 #define	SIZEOF_vnet_ipsec	31016
 #endif
 #ifdef __ia64__
 #define	SIZEOF_vnet_net		464
 #define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet	4352
 #define	SIZEOF_vnet_inet6	8800
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __mips__
 #define	SIZEOF_vnet_net		236
 #define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
-#define	SIZEOF_vnet_inet	2432
+#define	SIZEOF_vnet_inet	2624
 #define	SIZEOF_vnet_inet6	8552
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __powerpc__
 #define	SIZEOF_vnet_net		236
 #define	SIZEOF_vnet_net_LINT	2576
-#define	SIZEOF_vnet_inet	2432
+#define	SIZEOF_vnet_inet	2616
 #define	SIZEOF_vnet_inet6	8536
 #define	SIZEOF_vnet_ipsec	31048
 #endif
 #ifdef __sparc64__ /* incl. sun4v */
 #define	SIZEOF_vnet_net		464
 #define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4160
+#define	SIZEOF_vnet_inet	4352
 #define	SIZEOF_vnet_inet6	8800
 #define	SIZEOF_vnet_ipsec	31160
 #endif

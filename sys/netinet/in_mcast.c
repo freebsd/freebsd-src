@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Bruce M. Simpson.
+ * Copyright (c) 2007-2009 Bruce Simpson.
  * Copyright (c) 2005 Robert N. M. Watson.
  * All rights reserved.
  *
@@ -30,10 +30,6 @@
 
 /*
  * IPv4 multicast socket, group, and socket option processing module.
- * Until further notice, this file requires INET to compile.
- * TODO: Make this infrastructure independent of address family.
- * TODO: Teach netinet6 to use this code.
- * TODO: Hook up SSM logic to IGMPv3/MLDv2.
  */
 
 #include <sys/cdefs.h>
@@ -49,8 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/protosw.h>
 #include <sys/sysctl.h>
 #include <sys/vimage.h>
+#include <sys/ktr.h>
+#include <sys/tree.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -65,68 +64,163 @@ __FBSDID("$FreeBSD$");
 #include <netinet/igmp_var.h>
 #include <netinet/vinet.h>
 
+#ifndef KTR_IGMPV3
+#define KTR_IGMPV3 KTR_SUBSYS
+#endif
+
 #ifndef __SOCKUNION_DECLARED
 union sockunion {
 	struct sockaddr_storage	ss;
 	struct sockaddr		sa;
 	struct sockaddr_dl	sdl;
 	struct sockaddr_in	sin;
-#ifdef INET6
-	struct sockaddr_in6	sin6;
-#endif
 };
 typedef union sockunion sockunion_t;
 #define __SOCKUNION_DECLARED
 #endif /* __SOCKUNION_DECLARED */
 
+static MALLOC_DEFINE(M_INMFILTER, "in_mfilter",
+    "IPv4 multicast PCB-layer source filter");
 static MALLOC_DEFINE(M_IPMADDR, "in_multi", "IPv4 multicast group");
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "IPv4 multicast options");
-static MALLOC_DEFINE(M_IPMSOURCE, "in_msource", "IPv4 multicast source filter");
+static MALLOC_DEFINE(M_IPMSOURCE, "ip_msource",
+    "IPv4 multicast IGMP-layer source filter");
+
+#ifdef VIMAGE_GLOBALS
+struct in_multihead in_multihead;	/* XXX now unused; retain for ABI */
+#endif
 
 /*
- * The IPv4 multicast list (in_multihead and associated structures) are
- * protected by the global in_multi_mtx.  See in_var.h for more details.  For
- * now, in_multi_mtx is marked as recursible due to IGMP's calling back into
- * ip_output() to send IGMP packets while holding the lock; this probably is
- * not quite desirable.
+ * Locking:
+ * - Lock order is: Giant, INP_WLOCK, IN_MULTI_LOCK, IGMP_LOCK, IF_ADDR_LOCK.
+ * - The IF_ADDR_LOCK is implicitly taken by inm_lookup() earlier, however
+ *   it can be taken by code in net/if.c also.
+ * - ip_moptions and in_mfilter are covered by the INP_WLOCK.
+ *
+ * struct in_multi is covered by IN_MULTI_LOCK. There isn't strictly
+ * any need for in_multi itself to be virtualized -- it is bound to an ifp
+ * anyway no matter what happens.
  */
-#ifdef VIMAGE_GLOBALS
-struct in_multihead in_multihead;	/* XXX BSS initialization */
-#endif
 struct mtx in_multi_mtx;
-MTX_SYSINIT(in_multi_mtx, &in_multi_mtx, "in_multi_mtx", MTX_DEF | MTX_RECURSE);
+MTX_SYSINIT(in_multi_mtx, &in_multi_mtx, "in_multi_mtx", MTX_DEF);
 
 /*
  * Functions with non-static linkage defined in this file should be
  * declared in in_var.h:
- *  imo_match_group()
- *  imo_match_source()
+ *  imo_multi_filter()
  *  in_addmulti()
  *  in_delmulti()
- *  in_delmulti_locked()
+ *  in_joingroup()
+ *  in_joingroup_locked()
+ *  in_leavegroup()
+ *  in_leavegroup_locked()
  * and ip_var.h:
  *  inp_freemoptions()
  *  inp_getmoptions()
  *  inp_setmoptions()
+ *
+ * XXX: Both carp and pf need to use the legacy (*,G) KPIs in_addmulti()
+ * and in_delmulti().
  */
+static void	imf_commit(struct in_mfilter *);
+static int	imf_get_source(struct in_mfilter *imf,
+		    const struct sockaddr_in *psin,
+		    struct in_msource **);
+static struct in_msource *
+		imf_graft(struct in_mfilter *, const uint8_t,
+		    const struct sockaddr_in *);
+static void	imf_leave(struct in_mfilter *);
+static int	imf_prune(struct in_mfilter *, const struct sockaddr_in *);
+static void	imf_purge(struct in_mfilter *);
+static void	imf_rollback(struct in_mfilter *);
+static void	imf_reap(struct in_mfilter *);
 static int	imo_grow(struct ip_moptions *);
-static int	imo_join_source(struct ip_moptions *, size_t, sockunion_t *);
-static int	imo_leave_source(struct ip_moptions *, size_t, sockunion_t *);
-static int	inp_change_source_filter(struct inpcb *, struct sockopt *);
+static size_t	imo_match_group(const struct ip_moptions *,
+		    const struct ifnet *, const struct sockaddr *);
+static struct in_msource *
+		imo_match_source(const struct ip_moptions *, const size_t,
+		    const struct sockaddr *);
+static void	ims_merge(struct ip_msource *ims,
+		    const struct in_msource *lims, const int rollback);
+static int	in_getmulti(struct ifnet *, const struct in_addr *,
+		    struct in_multi **);
+static int	inm_get_source(struct in_multi *inm, const in_addr_t haddr,
+		    const int noalloc, struct ip_msource **pims);
+static int	inm_is_ifp_detached(const struct in_multi *);
+static int	inm_merge(struct in_multi *, /*const*/ struct in_mfilter *);
+static void	inm_purge(struct in_multi *);
+static void	inm_reap(struct in_multi *);
 static struct ip_moptions *
 		inp_findmoptions(struct inpcb *);
 static int	inp_get_source_filters(struct inpcb *, struct sockopt *);
 static int	inp_join_group(struct inpcb *, struct sockopt *);
 static int	inp_leave_group(struct inpcb *, struct sockopt *);
+static struct ifnet *
+		inp_lookup_mcast_ifp(const struct inpcb *,
+		    const struct sockaddr_in *, const struct in_addr);
+static int	inp_block_unblock_source(struct inpcb *, struct sockopt *);
 static int	inp_set_multicast_if(struct inpcb *, struct sockopt *);
 static int	inp_set_source_filters(struct inpcb *, struct sockopt *);
+static int	sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, mcast, CTLFLAG_RW, 0, "IPv4 multicast");
+
+static u_long in_mcast_maxgrpsrc = IP_MAX_GROUP_SRC_FILTER;
+SYSCTL_ULONG(_net_inet_ip_mcast, OID_AUTO, maxgrpsrc,
+    CTLFLAG_RW | CTLFLAG_TUN, &in_mcast_maxgrpsrc, 0,
+    "Max source filters per group");
+TUNABLE_ULONG("net.inet.ip.mcast.maxgrpsrc", &in_mcast_maxgrpsrc);
+
+static u_long in_mcast_maxsocksrc = IP_MAX_SOCK_SRC_FILTER;
+SYSCTL_ULONG(_net_inet_ip_mcast, OID_AUTO, maxsocksrc,
+    CTLFLAG_RW | CTLFLAG_TUN, &in_mcast_maxsocksrc, 0,
+    "Max source filters per socket");
+TUNABLE_ULONG("net.inet.ip.mcast.maxsocksrc", &in_mcast_maxsocksrc);
 
 int in_mcast_loop = IP_DEFAULT_MULTICAST_LOOP;
 SYSCTL_INT(_net_inet_ip_mcast, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
     &in_mcast_loop, 0, "Loopback multicast datagrams by default");
 TUNABLE_INT("net.inet.ip.mcast.loop", &in_mcast_loop);
+
+SYSCTL_NODE(_net_inet_ip_mcast, OID_AUTO, filters,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip_mcast_filters,
+    "Per-interface stack-wide source filters");
+
+/*
+ * Inline function which wraps assertions for a valid ifp.
+ * The ifnet layer will set the ifma's ifp pointer to NULL if the ifp
+ * is detached.
+ */
+static int __inline
+inm_is_ifp_detached(const struct in_multi *inm)
+{
+	struct ifnet *ifp;
+
+	KASSERT(inm->inm_ifma != NULL, ("%s: no ifma", __func__));
+	ifp = inm->inm_ifma->ifma_ifp;
+	if (ifp != NULL) {
+		/*
+		 * Sanity check that netinet's notion of ifp is the
+		 * same as net's.
+		 */
+		KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
+	}
+
+	return (ifp == NULL);
+}
+
+/*
+ * Initialize an in_mfilter structure to a known state at t0, t1
+ * with an empty source filter list.
+ */
+static __inline void
+imf_init(struct in_mfilter *imf, const int st0, const int st1)
+{
+	memset(imf, 0, sizeof(struct in_mfilter));
+	RB_INIT(&imf->imf_sources);
+	imf->imf_st[0] = st0;
+	imf->imf_st[1] = st1;
+}
 
 /*
  * Resize the ip_moptions vector to the next power-of-two minus 1.
@@ -154,13 +248,12 @@ imo_grow(struct ip_moptions *imo)
 		nmships = (struct in_multi **)realloc(omships,
 		    sizeof(struct in_multi *) * newmax, M_IPMOPTS, M_NOWAIT);
 		nmfilters = (struct in_mfilter *)realloc(omfilters,
-		    sizeof(struct in_mfilter) * newmax, M_IPMSOURCE, M_NOWAIT);
+		    sizeof(struct in_mfilter) * newmax, M_INMFILTER, M_NOWAIT);
 		if (nmships != NULL && nmfilters != NULL) {
 			/* Initialize newly allocated source filter heads. */
 			for (idx = oldmax; idx < newmax; idx++) {
-				nmfilters[idx].imf_fmode = MCAST_EXCLUDE;
-				nmfilters[idx].imf_nsources = 0;
-				TAILQ_INIT(&nmfilters[idx].imf_sources);
+				imf_init(&nmfilters[idx], MCAST_UNDEFINED,
+				    MCAST_EXCLUDE);
 			}
 			imo->imo_max_memberships = newmax;
 			imo->imo_membership = nmships;
@@ -172,69 +265,9 @@ imo_grow(struct ip_moptions *imo)
 		if (nmships != NULL)
 			free(nmships, M_IPMOPTS);
 		if (nmfilters != NULL)
-			free(nmfilters, M_IPMSOURCE);
+			free(nmfilters, M_INMFILTER);
 		return (ETOOMANYREFS);
 	}
-
-	return (0);
-}
-
-/*
- * Add a source to a multicast filter list.
- * Assumes the associated inpcb is locked.
- */
-static int
-imo_join_source(struct ip_moptions *imo, size_t gidx, sockunion_t *src)
-{
-	struct in_msource	*ims, *nims;
-	struct in_mfilter	*imf;
-
-	KASSERT(src->ss.ss_family == AF_INET, ("%s: !AF_INET", __func__));
-	KASSERT(imo->imo_mfilters != NULL,
-	    ("%s: imo_mfilters vector not allocated", __func__));
-
-	imf = &imo->imo_mfilters[gidx];
-	if (imf->imf_nsources == IP_MAX_SOURCE_FILTER)
-		return (ENOBUFS);
-
-	ims = imo_match_source(imo, gidx, &src->sa);
-	if (ims != NULL)
-		return (EADDRNOTAVAIL);
-
-	/* Do not sleep with inp lock held. */
-	nims = malloc(sizeof(struct in_msource),
-	    M_IPMSOURCE, M_NOWAIT | M_ZERO);
-	if (nims == NULL)
-		return (ENOBUFS);
-
-	nims->ims_addr = src->ss;
-	TAILQ_INSERT_TAIL(&imf->imf_sources, nims, ims_next);
-	imf->imf_nsources++;
-
-	return (0);
-}
-
-static int
-imo_leave_source(struct ip_moptions *imo, size_t gidx, sockunion_t *src)
-{
-	struct in_msource	*ims;
-	struct in_mfilter	*imf;
-
-	KASSERT(src->ss.ss_family == AF_INET, ("%s: !AF_INET", __func__));
-	KASSERT(imo->imo_mfilters != NULL,
-	    ("%s: imo_mfilters vector not allocated", __func__));
-
-	imf = &imo->imo_mfilters[gidx];
-	if (imf->imf_nsources == IP_MAX_SOURCE_FILTER)
-		return (ENOBUFS);
-
-	ims = imo_match_source(imo, gidx, &src->sa);
-	if (ims == NULL)
-		return (EADDRNOTAVAIL);
-
-	TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-	free(ims, M_IPMSOURCE);
-	imf->imf_nsources--;
 
 	return (0);
 }
@@ -244,16 +277,16 @@ imo_leave_source(struct ip_moptions *imo, size_t gidx, sockunion_t *src)
  * which matches the specified group, and optionally an interface.
  * Return its index into the array, or -1 if not found.
  */
-size_t
-imo_match_group(struct ip_moptions *imo, struct ifnet *ifp,
-    struct sockaddr *group)
+static size_t
+imo_match_group(const struct ip_moptions *imo, const struct ifnet *ifp,
+    const struct sockaddr *group)
 {
-	sockunion_t	 *gsa;
+	const struct sockaddr_in *gsin;
 	struct in_multi	**pinm;
 	int		  idx;
 	int		  nmships;
 
-	gsa = (sockunion_t *)group;
+	gsin = (const struct sockaddr_in *)group;
 
 	/* The imo_membership array may be lazy allocated. */
 	if (imo->imo_membership == NULL || imo->imo_num_memberships == 0)
@@ -264,14 +297,8 @@ imo_match_group(struct ip_moptions *imo, struct ifnet *ifp,
 	for (idx = 0; idx < nmships; idx++, pinm++) {
 		if (*pinm == NULL)
 			continue;
-#if 0
-		printf("%s: trying ifp = %p, inaddr = %s ", __func__,
-		    ifp, inet_ntoa(gsa->sin.sin_addr));
-		printf("against %p, %s\n",
-		    (*pinm)->inm_ifp, inet_ntoa((*pinm)->inm_addr));
-#endif
 		if ((ifp == NULL || ((*pinm)->inm_ifp == ifp)) &&
-		    (*pinm)->inm_addr.s_addr == gsa->sin.sin_addr.s_addr) {
+		    in_hosteq((*pinm)->inm_addr, gsin->sin_addr)) {
 			break;
 		}
 	}
@@ -282,14 +309,20 @@ imo_match_group(struct ip_moptions *imo, struct ifnet *ifp,
 }
 
 /*
- * Find a multicast source entry for this imo which matches
+ * Find an IPv4 multicast source entry for this imo which matches
  * the given group index for this socket, and source address.
+ *
+ * NOTE: This does not check if the entry is in-mode, merely if
+ * it exists, which may not be the desired behaviour.
  */
-struct in_msource *
-imo_match_source(struct ip_moptions *imo, size_t gidx, struct sockaddr *src)
+static struct in_msource *
+imo_match_source(const struct ip_moptions *imo, const size_t gidx,
+    const struct sockaddr *src)
 {
+	struct ip_msource	 find;
 	struct in_mfilter	*imf;
-	struct in_msource	*ims, *pims;
+	struct ip_msource	*ims;
+	const sockunion_t	*psa;
 
 	KASSERT(src->sa_family == AF_INET, ("%s: !AF_INET", __func__));
 	KASSERT(gidx != -1 && gidx < imo->imo_num_memberships,
@@ -298,41 +331,82 @@ imo_match_source(struct ip_moptions *imo, size_t gidx, struct sockaddr *src)
 	/* The imo_mfilters array may be lazy allocated. */
 	if (imo->imo_mfilters == NULL)
 		return (NULL);
-
-	pims = NULL;
 	imf = &imo->imo_mfilters[gidx];
-	TAILQ_FOREACH(ims, &imf->imf_sources, ims_next) {
-		/*
-		 * Perform bitwise comparison of two IPv4 addresses.
-		 * TODO: Do the same for IPv6.
-		 * Do not use sa_equal() for this as it is not aware of
-		 * deeper structure in sockaddr_in or sockaddr_in6.
-		 */
-		if (((struct sockaddr_in *)&ims->ims_addr)->sin_addr.s_addr ==
-		    ((struct sockaddr_in *)src)->sin_addr.s_addr) {
-			pims = ims;
-			break;
-		}
-	}
 
-	return (pims);
+	/* Source trees are keyed in host byte order. */
+	psa = (const sockunion_t *)src;
+	find.ims_haddr = ntohl(psa->sin.sin_addr.s_addr);
+	ims = RB_FIND(ip_msource_tree, &imf->imf_sources, &find);
+
+	return ((struct in_msource *)ims);
 }
 
 /*
- * Join an IPv4 multicast group.
+ * Perform filtering for multicast datagrams on a socket by group and source.
+ *
+ * Returns 0 if a datagram should be allowed through, or various error codes
+ * if the socket was not a member of the group, or the source was muted, etc.
  */
-struct in_multi *
-in_addmulti(struct in_addr *ap, struct ifnet *ifp)
+int
+imo_multi_filter(const struct ip_moptions *imo, const struct ifnet *ifp,
+    const struct sockaddr *group, const struct sockaddr *src)
+{
+	size_t gidx;
+	struct in_msource *ims;
+	int mode;
+
+	KASSERT(ifp != NULL, ("%s: null ifp", __func__));
+
+	gidx = imo_match_group(imo, ifp, group);
+	if (gidx == -1)
+		return (MCAST_NOTGMEMBER);
+
+	/*
+	 * Check if the source was included in an (S,G) join.
+	 * Allow reception on exclusive memberships by default,
+	 * reject reception on inclusive memberships by default.
+	 * Exclude source only if an in-mode exclude filter exists.
+	 * Include source only if an in-mode include filter exists.
+	 * NOTE: We are comparing group state here at IGMP t1 (now)
+	 * with socket-layer t0 (since last downcall).
+	 */
+	mode = imo->imo_mfilters[gidx].imf_st[1];
+	ims = imo_match_source(imo, gidx, src);
+
+	if ((ims == NULL && mode == MCAST_INCLUDE) ||
+	    (ims != NULL && ims->imsl_st[0] != mode))
+		return (MCAST_NOTSMEMBER);
+
+	return (MCAST_PASS);
+}
+
+/*
+ * Find and return a reference to an in_multi record for (ifp, group),
+ * and bump its reference count.
+ * If one does not exist, try to allocate it, and update link-layer multicast
+ * filters on ifp to listen for group.
+ * Assumes the IN_MULTI lock is held across the call.
+ * Return 0 if successful, otherwise return an appropriate error code.
+ */
+static int
+in_getmulti(struct ifnet *ifp, const struct in_addr *group,
+    struct in_multi **pinm)
 {
 	INIT_VNET_INET(ifp->if_vnet);
-	struct in_multi *inm;
+	struct sockaddr_in	 gsin;
+	struct ifmultiaddr	*ifma;
+	struct in_ifinfo	*ii;
+	struct in_multi		*inm;
+	int error;
 
-	inm = NULL;
+#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
+	IFF_ASSERTGIANT(ifp);
+#endif
+	IN_MULTI_LOCK_ASSERT();
 
-	IFF_LOCKGIANT(ifp);
-	IN_MULTI_LOCK();
+	ii = (struct in_ifinfo *)ifp->if_afdata[AF_INET];
 
-	IN_LOOKUP_MULTI(*ap, ifp, inm);
+	inm = inm_lookup(ifp, *group);
 	if (inm != NULL) {
 		/*
 		 * If we already joined this group, just bump the
@@ -341,141 +415,900 @@ in_addmulti(struct in_addr *ap, struct ifnet *ifp)
 		KASSERT(inm->inm_refcount >= 1,
 		    ("%s: bad refcount %d", __func__, inm->inm_refcount));
 		++inm->inm_refcount;
-	} else do {
-		sockunion_t		 gsa;
-		struct ifmultiaddr	*ifma;
-		struct in_multi		*ninm;
-		int			 error;
+		*pinm = inm;
+		return (0);
+	}
 
-		memset(&gsa, 0, sizeof(gsa));
-		gsa.sin.sin_family = AF_INET;
-		gsa.sin.sin_len = sizeof(struct sockaddr_in);
-		gsa.sin.sin_addr = *ap;
+	memset(&gsin, 0, sizeof(gsin));
+	gsin.sin_family = AF_INET;
+	gsin.sin_len = sizeof(struct sockaddr_in);
+	gsin.sin_addr = *group;
 
-		/*
-		 * Check if a link-layer group is already associated
-		 * with this network-layer group on the given ifnet.
-		 * If so, bump the refcount on the existing network-layer
-		 * group association and return it.
-		 */
-		error = if_addmulti(ifp, &gsa.sa, &ifma);
-		if (error)
-			break;
-		if (ifma->ifma_protospec != NULL) {
-			inm = (struct in_multi *)ifma->ifma_protospec;
+	/*
+	 * Check if a link-layer group is already associated
+	 * with this network-layer group on the given ifnet.
+	 */
+	error = if_addmulti(ifp, (struct sockaddr *)&gsin, &ifma);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * If something other than netinet is occupying the link-layer
+	 * group, print a meaningful error message and back out of
+	 * the allocation.
+	 * Otherwise, bump the refcount on the existing network-layer
+	 * group association and return it.
+	 */
+	if (ifma->ifma_protospec != NULL) {
+		inm = (struct in_multi *)ifma->ifma_protospec;
 #ifdef INVARIANTS
-			if (inm->inm_ifma != ifma || inm->inm_ifp != ifp ||
-			    inm->inm_addr.s_addr != ap->s_addr)
-				panic("%s: ifma is inconsistent", __func__);
+		KASSERT(ifma->ifma_addr != NULL, ("%s: no ifma_addr",
+		    __func__));
+		KASSERT(ifma->ifma_addr->sa_family == AF_INET,
+		    ("%s: ifma not AF_INET", __func__));
+		KASSERT(inm != NULL, ("%s: no ifma_protospec", __func__));
+		if (inm->inm_ifma != ifma || inm->inm_ifp != ifp ||
+		    !in_hosteq(inm->inm_addr, *group))
+			panic("%s: ifma %p is inconsistent with %p (%s)",
+			    __func__, ifma, inm, inet_ntoa(*group));
 #endif
-			++inm->inm_refcount;
-			break;
-		}
+		++inm->inm_refcount;
+		*pinm = inm;
+		return (0);
+	}
 
-		/*
-		 * A new membership is needed; construct it and
-		 * perform the IGMP join.
-		 */
-		ninm = malloc(sizeof(*ninm), M_IPMADDR, M_NOWAIT | M_ZERO);
-		if (ninm == NULL) {
-			if_delmulti_ifma(ifma);
-			break;
-		}
-		ninm->inm_addr = *ap;
-		ninm->inm_ifp = ifp;
-		ninm->inm_ifma = ifma;
-		ninm->inm_refcount = 1;
-		ifma->ifma_protospec = ninm;
-		LIST_INSERT_HEAD(&V_in_multihead, ninm, inm_link);
+	/*
+	 * A new in_multi record is needed; allocate and initialize it.
+	 * We DO NOT perform an IGMP join as the in_ layer may need to
+	 * push an initial source list down to IGMP to support SSM.
+	 *
+	 * The initial source filter state is INCLUDE, {} as per the RFC.
+	 */
+	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
+	if (inm == NULL) {
+		if_delmulti_ifma(ifma);
+		return (ENOMEM);
+	}
+	inm->inm_addr = *group;
+	inm->inm_ifp = ifp;
+	inm->inm_igi = ii->ii_igmp;
+	inm->inm_ifma = ifma;
+	inm->inm_refcount = 1;
+	inm->inm_state = IGMP_NOT_MEMBER;
 
-		igmp_joingroup(ninm);
+	/*
+	 * Pending state-changes per group are subject to a bounds check.
+	 */
+	IFQ_SET_MAXLEN(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
 
-		inm = ninm;
-	} while (0);
+	inm->inm_st[0].iss_fmode = MCAST_UNDEFINED;
+	inm->inm_st[1].iss_fmode = MCAST_UNDEFINED;
+	RB_INIT(&inm->inm_srcs);
 
-	IN_MULTI_UNLOCK();
-	IFF_UNLOCKGIANT(ifp);
+	ifma->ifma_protospec = inm;
 
-	return (inm);
+	*pinm = inm;
+
+	return (0);
 }
 
 /*
- * Leave an IPv4 multicast group.
- * It is OK to call this routine if the underlying ifnet went away.
+ * Drop a reference to an in_multi record.
  *
- * XXX: To deal with the ifp going away, we cheat; the link-layer code in net
- * will set ifma_ifp to NULL when the associated ifnet instance is detached
- * from the system.
+ * If the refcount drops to 0, free the in_multi record and
+ * delete the underlying link-layer membership.
+ */
+void
+inm_release_locked(struct in_multi *inm)
+{
+	struct ifmultiaddr *ifma;
+
+#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
+	if (!inm_is_ifp_detached(inm))
+		IFF_ASSERTGIANT(ifp);
+#endif
+
+	IN_MULTI_LOCK_ASSERT();
+
+	CTR2(KTR_IGMPV3, "%s: refcount is %d", __func__, inm->inm_refcount);
+
+	if (--inm->inm_refcount > 0) {
+		CTR2(KTR_IGMPV3, "%s: refcount is now %d", __func__,
+		    inm->inm_refcount);
+		return;
+	}
+
+	CTR2(KTR_IGMPV3, "%s: freeing inm %p", __func__, inm);
+
+	ifma = inm->inm_ifma;
+
+	CTR2(KTR_IGMPV3, "%s: purging ifma %p", __func__, ifma);
+	KASSERT(ifma->ifma_protospec == inm,
+	    ("%s: ifma_protospec != inm", __func__));
+	ifma->ifma_protospec = NULL;
+
+	inm_purge(inm);
+
+	free(inm, M_IPMADDR);
+
+	if_delmulti_ifma(ifma);
+}
+
+/*
+ * Clear recorded source entries for a group.
+ * Used by the IGMP code. Caller must hold the IN_MULTI lock.
+ * FIXME: Should reap.
+ */
+void
+inm_clear_recorded(struct in_multi *inm)
+{
+	struct ip_msource	*ims;
+
+	IN_MULTI_LOCK_ASSERT();
+
+	RB_FOREACH(ims, ip_msource_tree, &inm->inm_srcs) {
+		if (ims->ims_stp) {
+			ims->ims_stp = 0;
+			--inm->inm_st[1].iss_rec;
+		}
+	}
+	KASSERT(inm->inm_st[1].iss_rec == 0,
+	    ("%s: iss_rec %d not 0", __func__, inm->inm_st[1].iss_rec));
+}
+
+/*
+ * Record a source as pending for a Source-Group IGMPv3 query.
+ * This lives here as it modifies the shared tree.
  *
- * The only reason we need to violate layers and check ifma_ifp here at all
- * is because certain hardware drivers still require Giant to be held,
- * and it must always be taken before other locks.
+ * inm is the group descriptor.
+ * naddr is the address of the source to record in network-byte order.
+ *
+ * If the net.inet.igmp.sgalloc sysctl is non-zero, we will
+ * lazy-allocate a source node in response to an SG query.
+ * Otherwise, no allocation is performed. This saves some memory
+ * with the trade-off that the source will not be reported to the
+ * router if joined in the window between the query response and
+ * the group actually being joined on the local host.
+ *
+ * VIMAGE: XXX: Currently the igmp_sgalloc feature has been removed.
+ * This turns off the allocation of a recorded source entry if
+ * the group has not been joined.
+ *
+ * Return 0 if the source didn't exist or was already marked as recorded.
+ * Return 1 if the source was marked as recorded by this function.
+ * Return <0 if any error occured (negated errno code).
+ */
+int
+inm_record_source(struct in_multi *inm, const in_addr_t naddr)
+{
+	struct ip_msource	 find;
+	struct ip_msource	*ims, *nims;
+
+	IN_MULTI_LOCK_ASSERT();
+
+	find.ims_haddr = ntohl(naddr);
+	ims = RB_FIND(ip_msource_tree, &inm->inm_srcs, &find);
+	if (ims && ims->ims_stp)
+		return (0);
+	if (ims == NULL) {
+		if (inm->inm_nsrc == in_mcast_maxgrpsrc)
+			return (-ENOSPC);
+		nims = malloc(sizeof(struct ip_msource), M_IPMSOURCE,
+		    M_NOWAIT | M_ZERO);
+		if (nims == NULL)
+			return (-ENOMEM);
+		nims->ims_haddr = find.ims_haddr;
+		RB_INSERT(ip_msource_tree, &inm->inm_srcs, nims);
+		++inm->inm_nsrc;
+		ims = nims;
+	}
+
+	/*
+	 * Mark the source as recorded and update the recorded
+	 * source count.
+	 */
+	++ims->ims_stp;
+	++inm->inm_st[1].iss_rec;
+
+	return (1);
+}
+
+/*
+ * Return a pointer to an in_msource owned by an in_mfilter,
+ * given its source address.
+ * Lazy-allocate if needed. If this is a new entry its filter state is
+ * undefined at t0.
+ *
+ * imf is the filter set being modified.
+ * haddr is the source address in *host* byte-order.
+ *
+ * SMPng: May be called with locks held; malloc must not block.
+ */
+static int
+imf_get_source(struct in_mfilter *imf, const struct sockaddr_in *psin,
+    struct in_msource **plims)
+{
+	struct ip_msource	 find;
+	struct ip_msource	*ims, *nims;
+	struct in_msource	*lims;
+	int			 error;
+
+	error = 0;
+	ims = NULL;
+	lims = NULL;
+
+	/* key is host byte order */
+	find.ims_haddr = ntohl(psin->sin_addr.s_addr);
+	ims = RB_FIND(ip_msource_tree, &imf->imf_sources, &find);
+	lims = (struct in_msource *)ims;
+	if (lims == NULL) {
+		if (imf->imf_nsrc == in_mcast_maxsocksrc)
+			return (ENOSPC);
+		nims = malloc(sizeof(struct in_msource), M_INMFILTER,
+		    M_NOWAIT | M_ZERO);
+		if (nims == NULL)
+			return (ENOMEM);
+		lims = (struct in_msource *)nims;
+		lims->ims_haddr = find.ims_haddr;
+		lims->imsl_st[0] = MCAST_UNDEFINED;
+		RB_INSERT(ip_msource_tree, &imf->imf_sources, nims);
+		++imf->imf_nsrc;
+	}
+
+	*plims = lims;
+
+	return (error);
+}
+
+/*
+ * Graft a source entry into an existing socket-layer filter set,
+ * maintaining any required invariants and checking allocations.
+ *
+ * The source is marked as being in the new filter mode at t1.
+ *
+ * Return the pointer to the new node, otherwise return NULL.
+ */
+static struct in_msource *
+imf_graft(struct in_mfilter *imf, const uint8_t st1,
+    const struct sockaddr_in *psin)
+{
+	struct ip_msource	*nims;
+	struct in_msource	*lims;
+
+	nims = malloc(sizeof(struct in_msource), M_INMFILTER,
+	    M_NOWAIT | M_ZERO);
+	if (nims == NULL)
+		return (NULL);
+	lims = (struct in_msource *)nims;
+	lims->ims_haddr = ntohl(psin->sin_addr.s_addr);
+	lims->imsl_st[0] = MCAST_UNDEFINED;
+	lims->imsl_st[1] = st1;
+	RB_INSERT(ip_msource_tree, &imf->imf_sources, nims);
+	++imf->imf_nsrc;
+
+	return (lims);
+}
+
+/*
+ * Prune a source entry from an existing socket-layer filter set,
+ * maintaining any required invariants and checking allocations.
+ *
+ * The source is marked as being left at t1, it is not freed.
+ *
+ * Return 0 if no error occurred, otherwise return an errno value.
+ */
+static int
+imf_prune(struct in_mfilter *imf, const struct sockaddr_in *psin)
+{
+	struct ip_msource	 find;
+	struct ip_msource	*ims;
+	struct in_msource	*lims;
+
+	/* key is host byte order */
+	find.ims_haddr = ntohl(psin->sin_addr.s_addr);
+	ims = RB_FIND(ip_msource_tree, &imf->imf_sources, &find);
+	if (ims == NULL)
+		return (ENOENT);
+	lims = (struct in_msource *)ims;
+	lims->imsl_st[1] = MCAST_UNDEFINED;
+	return (0);
+}
+
+/*
+ * Revert socket-layer filter set deltas at t1 to t0 state.
+ */
+static void
+imf_rollback(struct in_mfilter *imf)
+{
+	struct ip_msource	*ims, *tims;
+	struct in_msource	*lims;
+
+	RB_FOREACH_SAFE(ims, ip_msource_tree, &imf->imf_sources, tims) {
+		lims = (struct in_msource *)ims;
+		if (lims->imsl_st[0] == lims->imsl_st[1]) {
+			/* no change at t1 */
+			continue;
+		} else if (lims->imsl_st[0] != MCAST_UNDEFINED) {
+			/* revert change to existing source at t1 */
+			lims->imsl_st[1] = lims->imsl_st[0];
+		} else {
+			/* revert source added t1 */
+			CTR2(KTR_IGMPV3, "%s: free ims %p", __func__, ims);
+			RB_REMOVE(ip_msource_tree, &imf->imf_sources, ims);
+			free(ims, M_INMFILTER);
+			imf->imf_nsrc--;
+		}
+	}
+	imf->imf_st[1] = imf->imf_st[0];
+}
+
+/*
+ * Mark socket-layer filter set as INCLUDE {} at t1.
+ */
+static void
+imf_leave(struct in_mfilter *imf)
+{
+	struct ip_msource	*ims;
+	struct in_msource	*lims;
+
+	RB_FOREACH(ims, ip_msource_tree, &imf->imf_sources) {
+		lims = (struct in_msource *)ims;
+		lims->imsl_st[1] = MCAST_UNDEFINED;
+	}
+	imf->imf_st[1] = MCAST_INCLUDE;
+}
+
+/*
+ * Mark socket-layer filter set deltas as committed.
+ */
+static void
+imf_commit(struct in_mfilter *imf)
+{
+	struct ip_msource	*ims;
+	struct in_msource	*lims;
+
+	RB_FOREACH(ims, ip_msource_tree, &imf->imf_sources) {
+		lims = (struct in_msource *)ims;
+		lims->imsl_st[0] = lims->imsl_st[1];
+	}
+	imf->imf_st[0] = imf->imf_st[1];
+}
+
+/*
+ * Reap unreferenced sources from socket-layer filter set.
+ */
+static void
+imf_reap(struct in_mfilter *imf)
+{
+	struct ip_msource	*ims, *tims;
+	struct in_msource	*lims;
+
+	RB_FOREACH_SAFE(ims, ip_msource_tree, &imf->imf_sources, tims) {
+		lims = (struct in_msource *)ims;
+		if ((lims->imsl_st[0] == MCAST_UNDEFINED) &&
+		    (lims->imsl_st[1] == MCAST_UNDEFINED)) {
+			CTR2(KTR_IGMPV3, "%s: free lims %p", __func__, ims);
+			RB_REMOVE(ip_msource_tree, &imf->imf_sources, ims);
+			free(ims, M_INMFILTER);
+			imf->imf_nsrc--;
+		}
+	}
+}
+
+/*
+ * Purge socket-layer filter set.
+ */
+static void
+imf_purge(struct in_mfilter *imf)
+{
+	struct ip_msource	*ims, *tims;
+
+	RB_FOREACH_SAFE(ims, ip_msource_tree, &imf->imf_sources, tims) {
+		CTR2(KTR_IGMPV3, "%s: free ims %p", __func__, ims);
+		RB_REMOVE(ip_msource_tree, &imf->imf_sources, ims);
+		free(ims, M_INMFILTER);
+		imf->imf_nsrc--;
+	}
+	imf->imf_st[0] = imf->imf_st[1] = MCAST_UNDEFINED;
+	KASSERT(RB_EMPTY(&imf->imf_sources),
+	    ("%s: imf_sources not empty", __func__));
+}
+
+/*
+ * Look up a source filter entry for a multicast group.
+ *
+ * inm is the group descriptor to work with.
+ * haddr is the host-byte-order IPv4 address to look up.
+ * noalloc may be non-zero to suppress allocation of sources.
+ * *pims will be set to the address of the retrieved or allocated source.
+ *
+ * SMPng: NOTE: may be called with locks held.
+ * Return 0 if successful, otherwise return a non-zero error code.
+ */
+static int
+inm_get_source(struct in_multi *inm, const in_addr_t haddr,
+    const int noalloc, struct ip_msource **pims)
+{
+	struct ip_msource	 find;
+	struct ip_msource	*ims, *nims;
+#ifdef KTR
+	struct in_addr ia;
+#endif
+
+	find.ims_haddr = haddr;
+	ims = RB_FIND(ip_msource_tree, &inm->inm_srcs, &find);
+	if (ims == NULL && !noalloc) {
+		if (inm->inm_nsrc == in_mcast_maxgrpsrc)
+			return (ENOSPC);
+		nims = malloc(sizeof(struct ip_msource), M_IPMSOURCE,
+		    M_NOWAIT | M_ZERO);
+		if (nims == NULL)
+			return (ENOMEM);
+		nims->ims_haddr = haddr;
+		RB_INSERT(ip_msource_tree, &inm->inm_srcs, nims);
+		++inm->inm_nsrc;
+		ims = nims;
+#ifdef KTR
+		ia.s_addr = htonl(haddr);
+		CTR3(KTR_IGMPV3, "%s: allocated %s as %p", __func__,
+		    inet_ntoa(ia), ims);
+#endif
+	}
+
+	*pims = ims;
+	return (0);
+}
+
+/*
+ * Merge socket-layer source into IGMP-layer source.
+ * If rollback is non-zero, perform the inverse of the merge.
+ */
+static void
+ims_merge(struct ip_msource *ims, const struct in_msource *lims,
+    const int rollback)
+{
+	int n = rollback ? -1 : 1;
+#ifdef KTR
+	struct in_addr ia;
+
+	ia.s_addr = htonl(ims->ims_haddr);
+#endif
+
+	if (lims->imsl_st[0] == MCAST_EXCLUDE) {
+		CTR3(KTR_IGMPV3, "%s: t1 ex -= %d on %s",
+		    __func__, n, inet_ntoa(ia));
+		ims->ims_st[1].ex -= n;
+	} else if (lims->imsl_st[0] == MCAST_INCLUDE) {
+		CTR3(KTR_IGMPV3, "%s: t1 in -= %d on %s",
+		    __func__, n, inet_ntoa(ia));
+		ims->ims_st[1].in -= n;
+	}
+
+	if (lims->imsl_st[1] == MCAST_EXCLUDE) {
+		CTR3(KTR_IGMPV3, "%s: t1 ex += %d on %s",
+		    __func__, n, inet_ntoa(ia));
+		ims->ims_st[1].ex += n;
+	} else if (lims->imsl_st[1] == MCAST_INCLUDE) {
+		CTR3(KTR_IGMPV3, "%s: t1 in += %d on %s",
+		    __func__, n, inet_ntoa(ia));
+		ims->ims_st[1].in += n;
+	}
+}
+
+/*
+ * Atomically update the global in_multi state, when a membership's
+ * filter list is being updated in any way.
+ *
+ * imf is the per-inpcb-membership group filter pointer.
+ * A fake imf may be passed for in-kernel consumers.
+ *
+ * XXX This is a candidate for a set-symmetric-difference style loop
+ * which would eliminate the repeated lookup from root of ims nodes,
+ * as they share the same key space.
+ *
+ * If any error occurred this function will back out of refcounts
+ * and return a non-zero value.
+ */
+static int
+inm_merge(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
+{
+	struct ip_msource	*ims, *nims;
+	struct in_msource	*lims;
+	int			 schanged, error;
+	int			 nsrc0, nsrc1;
+
+	schanged = 0;
+	error = 0;
+	nsrc1 = nsrc0 = 0;
+
+	/*
+	 * Update the source filters first, as this may fail.
+	 * Maintain count of in-mode filters at t0, t1. These are
+	 * used to work out if we transition into ASM mode or not.
+	 * Maintain a count of source filters whose state was
+	 * actually modified by this operation.
+	 */
+	RB_FOREACH(ims, ip_msource_tree, &imf->imf_sources) {
+		lims = (struct in_msource *)ims;
+		if (lims->imsl_st[0] == imf->imf_st[0]) nsrc0++;
+		if (lims->imsl_st[1] == imf->imf_st[1]) nsrc1++;
+		if (lims->imsl_st[0] == lims->imsl_st[1]) continue;
+		error = inm_get_source(inm, lims->ims_haddr, 0, &nims);
+		++schanged;
+		if (error)
+			break;
+		ims_merge(nims, lims, 0);
+	}
+	if (error) {
+		struct ip_msource *bims;
+
+		RB_FOREACH_REVERSE_FROM(ims, ip_msource_tree, nims) {
+			lims = (struct in_msource *)ims;
+			if (lims->imsl_st[0] == lims->imsl_st[1])
+				continue;
+			(void)inm_get_source(inm, lims->ims_haddr, 1, &bims);
+			if (bims == NULL)
+				continue;
+			ims_merge(bims, lims, 1);
+		}
+		goto out_reap;
+	}
+
+	CTR3(KTR_IGMPV3, "%s: imf filters in-mode: %d at t0, %d at t1",
+	    __func__, nsrc0, nsrc1);
+
+	/* Handle transition between INCLUDE {n} and INCLUDE {} on socket. */
+	if (imf->imf_st[0] == imf->imf_st[1] &&
+	    imf->imf_st[1] == MCAST_INCLUDE) {
+		if (nsrc1 == 0) {
+			CTR1(KTR_IGMPV3, "%s: --in on inm at t1", __func__);
+			--inm->inm_st[1].iss_in;
+		}
+	}
+
+	/* Handle filter mode transition on socket. */
+	if (imf->imf_st[0] != imf->imf_st[1]) {
+		CTR3(KTR_IGMPV3, "%s: imf transition %d to %d",
+		    __func__, imf->imf_st[0], imf->imf_st[1]);
+
+		if (imf->imf_st[0] == MCAST_EXCLUDE) {
+			CTR1(KTR_IGMPV3, "%s: --ex on inm at t1", __func__);
+			--inm->inm_st[1].iss_ex;
+		} else if (imf->imf_st[0] == MCAST_INCLUDE) {
+			CTR1(KTR_IGMPV3, "%s: --in on inm at t1", __func__);
+			--inm->inm_st[1].iss_in;
+		}
+
+		if (imf->imf_st[1] == MCAST_EXCLUDE) {
+			CTR1(KTR_IGMPV3, "%s: ex++ on inm at t1", __func__);
+			inm->inm_st[1].iss_ex++;
+		} else if (imf->imf_st[1] == MCAST_INCLUDE && nsrc1 > 0) {
+			CTR1(KTR_IGMPV3, "%s: in++ on inm at t1", __func__);
+			inm->inm_st[1].iss_in++;
+		}
+	}
+
+	/*
+	 * Track inm filter state in terms of listener counts.
+	 * If there are any exclusive listeners, stack-wide
+	 * membership is exclusive.
+	 * Otherwise, if only inclusive listeners, stack-wide is inclusive.
+	 * If no listeners remain, state is undefined at t1,
+	 * and the IGMP lifecycle for this group should finish.
+	 */
+	if (inm->inm_st[1].iss_ex > 0) {
+		CTR1(KTR_IGMPV3, "%s: transition to EX", __func__);
+		inm->inm_st[1].iss_fmode = MCAST_EXCLUDE;
+	} else if (inm->inm_st[1].iss_in > 0) {
+		CTR1(KTR_IGMPV3, "%s: transition to IN", __func__);
+		inm->inm_st[1].iss_fmode = MCAST_INCLUDE;
+	} else {
+		CTR1(KTR_IGMPV3, "%s: transition to UNDEF", __func__);
+		inm->inm_st[1].iss_fmode = MCAST_UNDEFINED;
+	}
+
+	/* Decrement ASM listener count on transition out of ASM mode. */
+	if (imf->imf_st[0] == MCAST_EXCLUDE && nsrc0 == 0) {
+		if ((imf->imf_st[1] != MCAST_EXCLUDE) ||
+		    (imf->imf_st[1] == MCAST_EXCLUDE && nsrc1 > 0))
+			CTR1(KTR_IGMPV3, "%s: --asm on inm at t1", __func__);
+			--inm->inm_st[1].iss_asm;
+	}
+
+	/* Increment ASM listener count on transition to ASM mode. */
+	if (imf->imf_st[1] == MCAST_EXCLUDE && nsrc1 == 0) {
+		CTR1(KTR_IGMPV3, "%s: asm++ on inm at t1", __func__);
+		inm->inm_st[1].iss_asm++;
+	}
+
+	CTR3(KTR_IGMPV3, "%s: merged imf %p to inm %p", __func__, imf, inm);
+	inm_print(inm);
+
+out_reap:
+	if (schanged > 0) {
+		CTR1(KTR_IGMPV3, "%s: sources changed; reaping", __func__);
+		inm_reap(inm);
+	}
+	return (error);
+}
+
+/*
+ * Mark an in_multi's filter set deltas as committed.
+ * Called by IGMP after a state change has been enqueued.
+ */
+void
+inm_commit(struct in_multi *inm)
+{
+	struct ip_msource	*ims;
+
+	CTR2(KTR_IGMPV3, "%s: commit inm %p", __func__, inm);
+	CTR1(KTR_IGMPV3, "%s: pre commit:", __func__);
+	inm_print(inm);
+
+	RB_FOREACH(ims, ip_msource_tree, &inm->inm_srcs) {
+		ims->ims_st[0] = ims->ims_st[1];
+	}
+	inm->inm_st[0] = inm->inm_st[1];
+}
+
+/*
+ * Reap unreferenced nodes from an in_multi's filter set.
+ */
+static void
+inm_reap(struct in_multi *inm)
+{
+	struct ip_msource	*ims, *tims;
+
+	RB_FOREACH_SAFE(ims, ip_msource_tree, &inm->inm_srcs, tims) {
+		if (ims->ims_st[0].ex > 0 || ims->ims_st[0].in > 0 ||
+		    ims->ims_st[1].ex > 0 || ims->ims_st[1].in > 0 ||
+		    ims->ims_stp != 0)
+			continue;
+		CTR2(KTR_IGMPV3, "%s: free ims %p", __func__, ims);
+		RB_REMOVE(ip_msource_tree, &inm->inm_srcs, ims);
+		free(ims, M_IPMSOURCE);
+		inm->inm_nsrc--;
+	}
+}
+
+/*
+ * Purge all source nodes from an in_multi's filter set.
+ */
+static void
+inm_purge(struct in_multi *inm)
+{
+	struct ip_msource	*ims, *tims;
+
+	RB_FOREACH_SAFE(ims, ip_msource_tree, &inm->inm_srcs, tims) {
+		CTR2(KTR_IGMPV3, "%s: free ims %p", __func__, ims);
+		RB_REMOVE(ip_msource_tree, &inm->inm_srcs, ims);
+		free(ims, M_IPMSOURCE);
+		inm->inm_nsrc--;
+	}
+}
+
+/*
+ * Join a multicast group; unlocked entry point.
+ *
+ * SMPng: XXX: in_joingroup() is called from in_control() when Giant
+ * is not held. Fortunately, ifp is unlikely to have been detached
+ * at this point, so we assume it's OK to recurse.
+ */
+int
+in_joingroup(struct ifnet *ifp, const struct in_addr *gina,
+    /*const*/ struct in_mfilter *imf, struct in_multi **pinm)
+{
+	int error;
+
+	IFF_LOCKGIANT(ifp);
+	IN_MULTI_LOCK();
+	error = in_joingroup_locked(ifp, gina, imf, pinm);
+	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
+
+	return (error);
+}
+
+/*
+ * Join a multicast group; real entry point.
+ *
+ * Only preserves atomicity at inm level.
+ * NOTE: imf argument cannot be const due to sys/tree.h limitations.
+ *
+ * If the IGMP downcall fails, the group is not joined, and an error
+ * code is returned.
+ */
+int
+in_joingroup_locked(struct ifnet *ifp, const struct in_addr *gina,
+    /*const*/ struct in_mfilter *imf, struct in_multi **pinm)
+{
+	struct in_mfilter	 timf;
+	struct in_multi		*inm;
+	int			 error;
+
+	IN_MULTI_LOCK_ASSERT();
+
+	CTR4(KTR_IGMPV3, "%s: join %s on %p(%s))", __func__,
+	    inet_ntoa(*gina), ifp, ifp->if_xname);
+
+	error = 0;
+	inm = NULL;
+
+	/*
+	 * If no imf was specified (i.e. kernel consumer),
+	 * fake one up and assume it is an ASM join.
+	 */
+	if (imf == NULL) {
+		imf_init(&timf, MCAST_UNDEFINED, MCAST_EXCLUDE);
+		imf = &timf;
+	}
+
+	error = in_getmulti(ifp, gina, &inm);
+	if (error) {
+		CTR1(KTR_IGMPV3, "%s: in_getmulti() failure", __func__);
+		return (error);
+	}
+
+	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+	error = inm_merge(inm, imf);
+	if (error) {
+		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
+		goto out_inm_release;
+	}
+
+	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
+	error = igmp_change_state(inm);
+	if (error) {
+		CTR1(KTR_IGMPV3, "%s: failed to update source", __func__);
+		goto out_inm_release;
+	}
+
+out_inm_release:
+	if (error) {
+		CTR2(KTR_IGMPV3, "%s: dropping ref on %p", __func__, inm);
+		inm_release_locked(inm);
+	} else {
+		*pinm = inm;
+	}
+
+	return (error);
+}
+
+/*
+ * Leave a multicast group; unlocked entry point.
+ */
+int
+in_leavegroup(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
+{
+	struct ifnet *ifp;
+	int detached, error;
+
+	detached = inm_is_ifp_detached(inm);
+	ifp = inm->inm_ifp;
+	if (!detached)
+		IFF_LOCKGIANT(ifp);
+
+	IN_MULTI_LOCK();
+	error = in_leavegroup_locked(inm, imf);
+	IN_MULTI_UNLOCK();
+
+	if (!detached)
+		IFF_UNLOCKGIANT(ifp);
+
+	return (error);
+}
+
+/*
+ * Leave a multicast group; real entry point.
+ * All source filters will be expunged.
+ *
+ * Only preserves atomicity at inm level.
+ *
+ * Holding the write lock for the INP which contains imf
+ * is highly advisable. We can't assert for it as imf does not
+ * contain a back-pointer to the owning inp.
+ *
+ * Note: This is not the same as inm_release(*) as this function also
+ * makes a state change downcall into IGMP.
+ */
+int
+in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
+{
+	struct in_mfilter	 timf;
+	int			 error;
+
+	error = 0;
+
+#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
+	if (!inm_is_ifp_detached(inm))
+		IFF_ASSERTGIANT(inm->inm_ifp);
+#endif
+
+	IN_MULTI_LOCK_ASSERT();
+
+	CTR5(KTR_IGMPV3, "%s: leave inm %p, %s/%s, imf %p", __func__,
+	    inm, inet_ntoa(inm->inm_addr),
+	    (inm_is_ifp_detached(inm) ? "null" : inm->inm_ifp->if_xname),
+	    imf);
+
+	/*
+	 * If no imf was specified (i.e. kernel consumer),
+	 * fake one up and assume it is an ASM join.
+	 */
+	if (imf == NULL) {
+		imf_init(&timf, MCAST_EXCLUDE, MCAST_UNDEFINED);
+		imf = &timf;
+	}
+
+	/*
+	 * Begin state merge transaction at IGMP layer.
+	 *
+	 * As this particular invocation should not cause any memory
+	 * to be allocated, and there is no opportunity to roll back
+	 * the transaction, it MUST NOT fail.
+	 */
+	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+	error = inm_merge(inm, imf);
+	KASSERT(error == 0, ("%s: failed to merge inm state", __func__));
+
+	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
+	error = igmp_change_state(inm);
+	if (error)
+		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
+
+	CTR2(KTR_IGMPV3, "%s: dropping ref on %p", __func__, inm);
+	inm_release_locked(inm);
+
+	return (error);
+}
+
+/*#ifndef BURN_BRIDGES*/
+/*
+ * Join an IPv4 multicast group in (*,G) exclusive mode.
+ * The group must be a 224.0.0.0/24 link-scope group.
+ * This KPI is for legacy kernel consumers only.
+ */
+struct in_multi *
+in_addmulti(struct in_addr *ap, struct ifnet *ifp)
+{
+	struct in_multi *pinm;
+	int error;
+
+	KASSERT(IN_LOCAL_GROUP(ntohl(ap->s_addr)),
+	    ("%s: %s not in 224.0.0.0/24", __func__, inet_ntoa(*ap)));
+
+	error = in_joingroup(ifp, ap, NULL, &pinm);
+	if (error != 0)
+		pinm = NULL;
+
+	return (pinm);
+}
+
+/*
+ * Leave an IPv4 multicast group, assumed to be in exclusive (*,G) mode.
+ * This KPI is for legacy kernel consumers only.
  */
 void
 in_delmulti(struct in_multi *inm)
 {
-	struct ifnet *ifp;
 
-	KASSERT(inm != NULL, ("%s: inm is NULL", __func__));
-	KASSERT(inm->inm_ifma != NULL, ("%s: no ifma", __func__));
-	ifp = inm->inm_ifma->ifma_ifp;
-
-	if (ifp != NULL) {
-		/*
-		 * Sanity check that netinet's notion of ifp is the
-		 * same as net's.
-		 */
-		KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
-		IFF_LOCKGIANT(ifp);
-	}
-
-	IN_MULTI_LOCK();
-	in_delmulti_locked(inm);
-	IN_MULTI_UNLOCK();
-
-	if (ifp != NULL)
-		IFF_UNLOCKGIANT(ifp);
+	(void)in_leavegroup(inm, NULL);
 }
+/*#endif*/
 
 /*
- * Delete a multicast address record, with locks held.
+ * Block or unblock an ASM multicast source on an inpcb.
+ * This implements the delta-based API described in RFC 3678.
  *
- * It is OK to call this routine if the ifp went away.
- * Assumes that caller holds the IN_MULTI lock, and that
- * Giant was taken before other locks if required by the hardware.
- */
-void
-in_delmulti_locked(struct in_multi *inm)
-{
-	struct ifmultiaddr *ifma;
-
-	IN_MULTI_LOCK_ASSERT();
-	KASSERT(inm->inm_refcount >= 1, ("%s: freeing freed inm", __func__));
-
-	if (--inm->inm_refcount == 0) {
-		igmp_leavegroup(inm);
-
-		ifma = inm->inm_ifma;
-#ifdef DIAGNOSTIC
-		if (bootverbose)
-			printf("%s: purging ifma %p\n", __func__, ifma);
-#endif
-		KASSERT(ifma->ifma_protospec == inm,
-		    ("%s: ifma_protospec != inm", __func__));
-		ifma->ifma_protospec = NULL;
-
-		LIST_REMOVE(inm, inm_link);
-		free(inm, M_IPMADDR);
-
-		if_delmulti_ifma(ifma);
-	}
-}
-
-/*
- * Block or unblock an ASM/SSM multicast source on an inpcb.
+ * The delta-based API applies only to exclusive-mode memberships.
+ * An IGMP downcall will be performed.
+ *
+ * SMPng: NOTE: Must take Giant as a join may create a new ifma.
+ *
+ * Return 0 if successful, otherwise return an appropriate error code.
  */
 static int
-inp_change_source_filter(struct inpcb *inp, struct sockopt *sopt)
+inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET(curvnet);
@@ -485,13 +1318,14 @@ inp_change_source_filter(struct inpcb *inp, struct sockopt *sopt)
 	struct in_mfilter		*imf;
 	struct ip_moptions		*imo;
 	struct in_msource		*ims;
+	struct in_multi			*inm;
 	size_t				 idx;
-	int				 error;
-	int				 block;
+	uint16_t			 fmode;
+	int				 error, doblock;
 
 	ifp = NULL;
 	error = 0;
-	block = 0;
+	doblock = 0;
 
 	memset(&gsr, 0, sizeof(struct group_source_req));
 	gsa = (sockunion_t *)&gsr.gsr_group;
@@ -516,18 +1350,14 @@ inp_change_source_filter(struct inpcb *inp, struct sockopt *sopt)
 		ssa->sin.sin_len = sizeof(struct sockaddr_in);
 		ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 
-		if (mreqs.imr_interface.s_addr != INADDR_ANY)
+		if (!in_nullhost(mreqs.imr_interface))
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
 
 		if (sopt->sopt_name == IP_BLOCK_SOURCE)
-			block = 1;
+			doblock = 1;
 
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: imr_interface = %s, ifp = %p\n",
-			    __func__, inet_ntoa(mreqs.imr_interface), ifp);
-		}
-#endif
+		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
+		    __func__, inet_ntoa(mreqs.imr_interface), ifp);
 		break;
 	    }
 
@@ -553,23 +1383,20 @@ inp_change_source_filter(struct inpcb *inp, struct sockopt *sopt)
 		ifp = ifnet_byindex(gsr.gsr_interface);
 
 		if (sopt->sopt_name == MCAST_BLOCK_SOURCE)
-			block = 1;
+			doblock = 1;
 		break;
 
 	default:
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: unknown sopt_name %d\n", __func__,
-			    sopt->sopt_name);
-		}
-#endif
+		CTR2(KTR_IGMPV3, "%s: unknown sopt_name %d",
+		    __func__, sopt->sopt_name);
 		return (EOPNOTSUPP);
 		break;
 	}
 
-	/* XXX INET6 */
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
+
+	IFF_LOCKGIANT(ifp);
 
 	/*
 	 * Check if we are actually a member of this group.
@@ -578,103 +1405,97 @@ inp_change_source_filter(struct inpcb *inp, struct sockopt *sopt)
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1 || imo->imo_mfilters == NULL) {
 		error = EADDRNOTAVAIL;
-		goto out_locked;
+		goto out_inp_locked;
 	}
 
 	KASSERT(imo->imo_mfilters != NULL,
 	    ("%s: imo_mfilters not allocated", __func__));
 	imf = &imo->imo_mfilters[idx];
+	inm = imo->imo_membership[idx];
 
 	/*
-	 * SSM multicast truth table for block/unblock operations.
-	 *
-	 * Operation   Filter Mode  Entry exists?   Action
-	 *
-	 * block       exclude      no              add source to filter
-	 * unblock     include      no              add source to filter
-	 * block       include      no              EINVAL
-	 * unblock     exclude      no              EINVAL
-	 * block       exclude      yes             EADDRNOTAVAIL
-	 * unblock     include      yes             EADDRNOTAVAIL
-	 * block       include      yes             remove source from filter
-	 * unblock     exclude      yes             remove source from filter
-	 *
-	 * FreeBSD does not explicitly distinguish between ASM and SSM
-	 * mode sockets; all sockets are assumed to have a filter list.
+	 * Attempting to use the delta-based API on an
+	 * non exclusive-mode membership is an error.
 	 */
-#ifdef DIAGNOSTIC
-	if (bootverbose) {
-		printf("%s: imf_fmode is %s\n", __func__,
-		    imf->imf_fmode == MCAST_INCLUDE ? "include" : "exclude");
-	}
-#endif
-	ims = imo_match_source(imo, idx, &ssa->sa);
-	if (ims == NULL) {
-		if ((block == 1 && imf->imf_fmode == MCAST_EXCLUDE) ||
-		    (block == 0 && imf->imf_fmode == MCAST_INCLUDE)) {
-#ifdef DIAGNOSTIC
-			if (bootverbose) {
-				printf("%s: adding %s to filter list\n",
-				    __func__, inet_ntoa(ssa->sin.sin_addr));
-			}
-#endif
-			error = imo_join_source(imo, idx, ssa);
-		}
-		if ((block == 1 && imf->imf_fmode == MCAST_INCLUDE) ||
-		    (block == 0 && imf->imf_fmode == MCAST_EXCLUDE)) {
-			/*
-			 * If the socket is in inclusive mode:
-			 *  the source is already blocked as it has no entry.
-			 * If the socket is in exclusive mode:
-			 *  the source is already unblocked as it has no entry.
-			 */
-#ifdef DIAGNOSTIC
-			if (bootverbose) {
-				printf("%s: ims %p; %s already [un]blocked\n",
-				    __func__, ims,
-				    inet_ntoa(ssa->sin.sin_addr));
-			}
-#endif
-			error = EINVAL;
-		}
-	} else {
-		if ((block == 1 && imf->imf_fmode == MCAST_EXCLUDE) ||
-		    (block == 0 && imf->imf_fmode == MCAST_INCLUDE)) {
-			/*
-			 * If the socket is in exclusive mode:
-			 *  the source is already blocked as it has an entry.
-			 * If the socket is in inclusive mode:
-			 *  the source is already unblocked as it has an entry.
-			 */
-#ifdef DIAGNOSTIC
-			if (bootverbose) {
-				printf("%s: ims %p; %s already [un]blocked\n",
-				    __func__, ims,
-				    inet_ntoa(ssa->sin.sin_addr));
-			}
-#endif
-			error = EADDRNOTAVAIL;
-		}
-		if ((block == 1 && imf->imf_fmode == MCAST_INCLUDE) ||
-		    (block == 0 && imf->imf_fmode == MCAST_EXCLUDE)) {
-#ifdef DIAGNOSTIC
-			if (bootverbose) {
-				printf("%s: removing %s from filter list\n",
-				    __func__, inet_ntoa(ssa->sin.sin_addr));
-			}
-#endif
-			error = imo_leave_source(imo, idx, ssa);
-		}
+	fmode = imf->imf_st[0];
+	if (fmode != MCAST_EXCLUDE) {
+		error = EINVAL;
+		goto out_inp_locked;
 	}
 
-out_locked:
+	/*
+	 * Deal with error cases up-front:
+	 *  Asked to block, but already blocked; or
+	 *  Asked to unblock, but nothing to unblock.
+	 * If adding a new block entry, allocate it.
+	 */
+	ims = imo_match_source(imo, idx, &ssa->sa);
+	if ((ims != NULL && doblock) || (ims == NULL && !doblock)) {
+		CTR3(KTR_IGMPV3, "%s: source %s %spresent", __func__,
+		    inet_ntoa(ssa->sin.sin_addr), doblock ? "" : "not ");
+		error = EADDRNOTAVAIL;
+		goto out_inp_locked;
+	}
+
+	INP_WLOCK_ASSERT(inp);
+
+	/*
+	 * Begin state merge transaction at socket layer.
+	 */
+	if (doblock) {
+		CTR2(KTR_IGMPV3, "%s: %s source", __func__, "block");
+		ims = imf_graft(imf, fmode, &ssa->sin);
+		if (ims == NULL)
+			error = ENOMEM;
+	} else {
+		CTR2(KTR_IGMPV3, "%s: %s source", __func__, "allow");
+		error = imf_prune(imf, &ssa->sin);
+	}
+
+	if (error) {
+		CTR1(KTR_IGMPV3, "%s: merge imf state failed", __func__);
+		goto out_imf_rollback;
+	}
+
+	/*
+	 * Begin state merge transaction at IGMP layer.
+	 */
+	IN_MULTI_LOCK();
+
+	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+	error = inm_merge(inm, imf);
+	if (error) {
+		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
+		goto out_imf_rollback;
+	}
+
+	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
+	error = igmp_change_state(inm);
+	if (error)
+		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
+
+	IN_MULTI_UNLOCK();
+
+out_imf_rollback:
+	if (error)
+		imf_rollback(imf);
+	else
+		imf_commit(imf);
+
+	imf_reap(imf);
+
+out_inp_locked:
 	INP_WUNLOCK(inp);
+	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
 /*
  * Given an inpcb, return its multicast options structure pointer.  Accepts
  * an unlocked inpcb pointer, but will return it locked.  May sleep.
+ *
+ * SMPng: NOTE: Potentially calls malloc(M_WAITOK) with Giant held.
+ * SMPng: NOTE: Returns with the INP write lock held.
  */
 static struct ip_moptions *
 inp_findmoptions(struct inpcb *inp)
@@ -690,13 +1511,11 @@ inp_findmoptions(struct inpcb *inp)
 
 	INP_WUNLOCK(inp);
 
-	imo = (struct ip_moptions *)malloc(sizeof(*imo), M_IPMOPTS,
-	    M_WAITOK);
-	immp = (struct in_multi **)malloc(sizeof(*immp) * IP_MIN_MEMBERSHIPS,
-	    M_IPMOPTS, M_WAITOK | M_ZERO);
-	imfp = (struct in_mfilter *)malloc(
-	    sizeof(struct in_mfilter) * IP_MIN_MEMBERSHIPS,
-	    M_IPMSOURCE, M_WAITOK);
+	imo = malloc(sizeof(*imo), M_IPMOPTS, M_WAITOK);
+	immp = malloc(sizeof(*immp) * IP_MIN_MEMBERSHIPS, M_IPMOPTS,
+	    M_WAITOK | M_ZERO);
+	imfp = malloc(sizeof(struct in_mfilter) * IP_MIN_MEMBERSHIPS,
+	    M_INMFILTER, M_WAITOK);
 
 	imo->imo_multicast_ifp = NULL;
 	imo->imo_multicast_addr.s_addr = INADDR_ANY;
@@ -708,16 +1527,13 @@ inp_findmoptions(struct inpcb *inp)
 	imo->imo_membership = immp;
 
 	/* Initialize per-group source filters. */
-	for (idx = 0; idx < IP_MIN_MEMBERSHIPS; idx++) {
-		imfp[idx].imf_fmode = MCAST_EXCLUDE;
-		imfp[idx].imf_nsources = 0;
-		TAILQ_INIT(&imfp[idx].imf_sources);
-	}
+	for (idx = 0; idx < IP_MIN_MEMBERSHIPS; idx++)
+		imf_init(&imfp[idx], MCAST_UNDEFINED, MCAST_EXCLUDE);
 	imo->imo_mfilters = imfp;
 
 	INP_WLOCK(inp);
 	if (inp->inp_moptions != NULL) {
-		free(imfp, M_IPMSOURCE);
+		free(imfp, M_INMFILTER);
 		free(immp, M_IPMOPTS);
 		free(imo, M_IPMOPTS);
 		return (inp->inp_moptions);
@@ -728,35 +1544,29 @@ inp_findmoptions(struct inpcb *inp)
 
 /*
  * Discard the IP multicast options (and source filters).
+ *
+ * SMPng: NOTE: assumes INP write lock is held.
  */
 void
 inp_freemoptions(struct ip_moptions *imo)
 {
 	struct in_mfilter	*imf;
-	struct in_msource	*ims, *tims;
 	size_t			 idx, nmships;
 
 	KASSERT(imo != NULL, ("%s: ip_moptions is NULL", __func__));
 
 	nmships = imo->imo_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
-		in_delmulti(imo->imo_membership[idx]);
-
-		if (imo->imo_mfilters != NULL) {
-			imf = &imo->imo_mfilters[idx];
-			TAILQ_FOREACH_SAFE(ims, &imf->imf_sources,
-			    ims_next, tims) {
-				TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-				free(ims, M_IPMSOURCE);
-				imf->imf_nsources--;
-			}
-			KASSERT(imf->imf_nsources == 0,
-			    ("%s: did not free all imf_nsources", __func__));
-		}
+		imf = imo->imo_mfilters ? &imo->imo_mfilters[idx] : NULL;
+		if (imf)
+			imf_leave(imf);
+		(void)in_leavegroup(imo->imo_membership[idx], imf);
+		if (imf)
+			imf_purge(imf);
 	}
 
-	if (imo->imo_mfilters != NULL)
-		free(imo->imo_mfilters, M_IPMSOURCE);
+	if (imo->imo_mfilters)
+		free(imo->imo_mfilters, M_INMFILTER);
 	free(imo->imo_membership, M_IPMOPTS);
 	free(imo, M_IPMOPTS);
 }
@@ -774,11 +1584,13 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	struct ifnet		*ifp;
 	struct ip_moptions	*imo;
 	struct in_mfilter	*imf;
-	struct in_msource	*ims;
+	struct ip_msource	*ims;
+	struct in_msource	*lims;
+	struct sockaddr_in	*psin;
 	struct sockaddr_storage	*ptss;
 	struct sockaddr_storage	*tss;
 	int			 error;
-	size_t			 idx;
+	size_t			 idx, nsrcs, ncsrcs;
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -810,36 +1622,52 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		INP_WUNLOCK(inp);
 		return (EADDRNOTAVAIL);
 	}
-
 	imf = &imo->imo_mfilters[idx];
-	msfr.msfr_fmode = imf->imf_fmode;
-	msfr.msfr_nsrcs = imf->imf_nsources;
+
+	/*
+	 * Ignore memberships which are in limbo.
+	 */
+	if (imf->imf_st[1] == MCAST_UNDEFINED) {
+		INP_WUNLOCK(inp);
+		return (EAGAIN);
+	}
+	msfr.msfr_fmode = imf->imf_st[1];
 
 	/*
 	 * If the user specified a buffer, copy out the source filter
 	 * entries to userland gracefully.
-	 * msfr.msfr_nsrcs is always set to the total number of filter
-	 * entries which the kernel currently has for this group.
+	 * We only copy out the number of entries which userland
+	 * has asked for, but we always tell userland how big the
+	 * buffer really needs to be.
 	 */
 	tss = NULL;
 	if (msfr.msfr_srcs != NULL && msfr.msfr_nsrcs > 0) {
-		/*
-		 * Make a copy of the source vector so that we do not
-		 * thrash the inpcb lock whilst copying it out.
-		 * We only copy out the number of entries which userland
-		 * has asked for, but we always tell userland how big the
-		 * buffer really needs to be.
-		 */
 		tss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
-		    M_TEMP, M_NOWAIT);
+		    M_TEMP, M_NOWAIT | M_ZERO);
 		if (tss == NULL) {
-			error = ENOBUFS;
-		} else {
-			ptss = tss;
-			TAILQ_FOREACH(ims, &imf->imf_sources, ims_next) {
-				memcpy(ptss++, &ims->ims_addr,
-				    sizeof(struct sockaddr_storage));
-			}
+			INP_WUNLOCK(inp);
+			return (ENOBUFS);
+		}
+	}
+
+	/*
+	 * Count number of sources in-mode at t0.
+	 * If buffer space exists and remains, copy out source entries.
+	 */
+	nsrcs = msfr.msfr_nsrcs;
+	ncsrcs = 0;
+	ptss = tss;
+	RB_FOREACH(ims, ip_msource_tree, &imf->imf_sources) {
+		lims = (struct in_msource *)ims;
+		if (lims->imsl_st[0] == MCAST_UNDEFINED ||
+		    lims->imsl_st[0] != imf->imf_st[0])
+			continue;
+		++ncsrcs;
+		if (tss != NULL && nsrcs-- > 0) {
+			psin = (struct sockaddr_in *)ptss++;
+			psin->sin_family = AF_INET;
+			psin->sin_len = sizeof(struct sockaddr_in);
+			psin->sin_addr.s_addr = htonl(lims->ims_haddr);
 		}
 	}
 
@@ -849,11 +1677,11 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		error = copyout(tss, msfr.msfr_srcs,
 		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
 		free(tss, M_TEMP);
+		if (error)
+			return (error);
 	}
 
-	if (error)
-		return (error);
-
+	msfr.msfr_nsrcs = ncsrcs;
 	error = sooptcopyout(sopt, &msfr, sizeof(struct __msfilterreq));
 
 	return (error);
@@ -901,7 +1729,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 		memset(&mreqn, 0, sizeof(struct ip_mreqn));
 		if (imo != NULL) {
 			ifp = imo->imo_multicast_ifp;
-			if (imo->imo_multicast_addr.s_addr != INADDR_ANY) {
+			if (!in_nullhost(imo->imo_multicast_addr)) {
 				mreqn.imr_address = imo->imo_multicast_addr;
 			} else if (ifp != NULL) {
 				mreqn.imr_ifindex = ifp->if_index;
@@ -967,6 +1795,73 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 }
 
 /*
+ * Look up the ifnet to use for a multicast group membership,
+ * given the IPv4 address of an interface, and the IPv4 group address.
+ *
+ * This routine exists to support legacy multicast applications
+ * which do not understand that multicast memberships are scoped to
+ * specific physical links in the networking stack, or which need
+ * to join link-scope groups before IPv4 addresses are configured.
+ *
+ * If inp is non-NULL, use this socket's current FIB number for any
+ * required FIB lookup.
+ * If ina is INADDR_ANY, look up the group address in the unicast FIB,
+ * and use its ifp; usually, this points to the default next-hop.
+ *
+ * If the FIB lookup fails, attempt to use the first non-loopback
+ * interface with multicast capability in the system as a
+ * last resort. The legacy IPv4 ASM API requires that we do
+ * this in order to allow groups to be joined when the routing
+ * table has not yet been populated during boot.
+ *
+ * Returns NULL if no ifp could be found.
+ *
+ * SMPng: TODO: Acquire the appropriate locks for INADDR_TO_IFP.
+ * FUTURE: Implement IPv4 source-address selection.
+ */
+static struct ifnet *
+inp_lookup_mcast_ifp(const struct inpcb *inp,
+    const struct sockaddr_in *gsin, const struct in_addr ina)
+{
+	struct ifnet *ifp;
+
+	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
+	KASSERT(IN_MULTICAST(ntohl(gsin->sin_addr.s_addr)),
+	    ("%s: not multicast", __func__));
+
+	ifp = NULL;
+	if (!in_nullhost(ina)) {
+		INADDR_TO_IFP(ina, ifp);
+	} else {
+		struct route ro;
+
+		ro.ro_rt = NULL;
+		memcpy(&ro.ro_dst, gsin, sizeof(struct sockaddr_in));
+		in_rtalloc_ign(&ro, 0, inp ? inp->inp_inc.inc_fibnum : 0);
+		if (ro.ro_rt != NULL) {
+			ifp = ro.ro_rt->rt_ifp;
+			KASSERT(ifp != NULL, ("%s: null ifp", __func__));
+			RTFREE(ro.ro_rt);
+		} else {
+			struct in_ifaddr *ia;
+			struct ifnet *mifp;
+
+			mifp = NULL;
+			TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+				mifp = ia->ia_ifp;
+				if (!(mifp->if_flags & IFF_LOOPBACK) &&
+				     (mifp->if_flags & IFF_MULTICAST)) {
+					ifp = mifp;
+					break;
+				}
+			}
+		}
+	}
+
+	return (ifp);
+}
+
+/*
  * Join an IPv4 multicast group, possibly with a source.
  */
 static int
@@ -980,11 +1875,14 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	struct in_mfilter		*imf;
 	struct ip_moptions		*imo;
 	struct in_multi			*inm;
+	struct in_msource		*lims;
 	size_t				 idx;
-	int				 error;
+	int				 error, is_new;
 
 	ifp = NULL;
+	imf = NULL;
 	error = 0;
+	is_new = 0;
 
 	memset(&gsr, 0, sizeof(struct group_source_req));
 	gsa = (sockunion_t *)&gsr.gsr_group;
@@ -1025,52 +1923,10 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 		}
 
-		/*
-		 * Obtain ifp. If no interface address was provided,
-		 * use the interface of the route in the unicast FIB for
-		 * the given multicast destination; usually, this is the
-		 * default route.
-		 * If this lookup fails, attempt to use the first non-loopback
-		 * interface with multicast capability in the system as a
-		 * last resort. The legacy IPv4 ASM API requires that we do
-		 * this in order to allow groups to be joined when the routing
-		 * table has not yet been populated during boot.
-		 * If all of these conditions fail, return EADDRNOTAVAIL, and
-		 * reject the IPv4 multicast join.
-		 */
-		if (mreqs.imr_interface.s_addr != INADDR_ANY) {
-			INADDR_TO_IFP(mreqs.imr_interface, ifp);
-		} else {
-			struct route ro;
-
-			ro.ro_rt = NULL;
-			*(struct sockaddr_in *)&ro.ro_dst = gsa->sin;
-			in_rtalloc_ign(&ro, 0,
-			   inp->inp_inc.inc_fibnum);
-			if (ro.ro_rt != NULL) {
-				ifp = ro.ro_rt->rt_ifp;
-				KASSERT(ifp != NULL, ("%s: null ifp",
-				    __func__));
-				RTFREE(ro.ro_rt);
-			} else {
-				struct in_ifaddr *ia;
-				struct ifnet *mfp = NULL;
-				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-					mfp = ia->ia_ifp;
-					if (!(mfp->if_flags & IFF_LOOPBACK) &&
-					     (mfp->if_flags & IFF_MULTICAST)) {
-						ifp = mfp;
-						break;
-					}
-				}
-			}
-		}
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: imr_interface = %s, ifp = %p\n",
-			    __func__, inet_ntoa(mreqs.imr_interface), ifp);
-		}
-#endif
+		ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
+		    mreqs.imr_interface);
+		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
+		    __func__, inet_ntoa(mreqs.imr_interface), ifp);
 		break;
 	}
 
@@ -1095,7 +1951,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		/*
 		 * Overwrite the port field if present, as the sockaddr
 		 * being copied in may be matched with a binary comparison.
-		 * XXX INET6
 		 */
 		gsa->sin.sin_port = 0;
 		if (sopt->sopt_name == MCAST_JOIN_SOURCE_GROUP) {
@@ -1105,22 +1960,14 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			ssa->sin.sin_port = 0;
 		}
 
-		/*
-		 * Obtain the ifp.
-		 */
 		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
 			return (EADDRNOTAVAIL);
 		ifp = ifnet_byindex(gsr.gsr_interface);
-
 		break;
 
 	default:
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: unknown sopt_name %d\n", __func__,
-			    sopt->sopt_name);
-		}
-#endif
+		CTR2(KTR_IGMPV3, "%s: unknown sopt_name %d",
+		    __func__, sopt->sopt_name);
 		return (EOPNOTSUPP);
 		break;
 	}
@@ -1131,96 +1978,131 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
 
+	IFF_LOCKGIANT(ifp);
+
 	/*
-	 * Check if we already hold membership of this group for this inpcb.
-	 * If so, we do not need to perform the initial join.
+	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
+	 * On an existing inclusive membership, it just adds the
+	 * source to the filter list.
 	 */
 	imo = inp_findmoptions(inp);
 	idx = imo_match_group(imo, ifp, &gsa->sa);
-	if (idx != -1) {
-		if (ssa->ss.ss_family != AF_UNSPEC) {
-			/*
-			 * Attempting to join an ASM group (when already
-			 * an ASM or SSM member) is an error.
-			 */
-			error = EADDRNOTAVAIL;
-		} else {
-			imf = &imo->imo_mfilters[idx];
-			if (imf->imf_nsources == 0) {
-				/*
-				 * Attempting to join an SSM group (when
-				 * already an ASM member) is an error.
-				 */
-				error = EINVAL;
-			} else {
-				/*
-				 * Attempting to join an SSM group (when
-				 * already an SSM member) means "add this
-				 * source to the inclusive filter list".
-				 */
-				error = imo_join_source(imo, idx, ssa);
-			}
+	if (idx == -1) {
+		is_new = 1;
+	} else {
+		inm = imo->imo_membership[idx];
+		imf = &imo->imo_mfilters[idx];
+		if (ssa->ss.ss_family != AF_UNSPEC &&
+		    imf->imf_st[1] != MCAST_INCLUDE) {
+			error = EINVAL;
+			goto out_inp_locked;
 		}
-		goto out_locked;
+		lims = imo_match_source(imo, idx, &ssa->sa);
+		if (lims != NULL) {
+			error = EADDRNOTAVAIL;
+			goto out_inp_locked;
+		}
 	}
 
 	/*
-	 * Call imo_grow() to reallocate the membership and source filter
-	 * vectors if they are full. If the size would exceed the hard limit,
-	 * then we know we've really run out of entries. We keep the INP
-	 * lock held to avoid introducing a race condition.
+	 * Begin state merge transaction at socket layer.
 	 */
-	if (imo->imo_num_memberships == imo->imo_max_memberships) {
-		error = imo_grow(imo);
-		if (error)
-			goto out_locked;
+	INP_WLOCK_ASSERT(inp);
+
+	if (is_new) {
+		if (imo->imo_num_memberships == imo->imo_max_memberships) {
+			error = imo_grow(imo);
+			if (error)
+				goto out_inp_locked;
+		}
+		/*
+		 * Allocate the new slot upfront so we can deal with
+		 * grafting the new source filter in same code path
+		 * as for join-source on existing membership.
+		 */
+		idx = imo->imo_num_memberships;
+		imo->imo_membership[idx] = NULL;
+		imo->imo_num_memberships++;
+		KASSERT(imo->imo_mfilters != NULL,
+		    ("%s: imf_mfilters vector was not allocated", __func__));
+		imf = &imo->imo_mfilters[idx];
+		KASSERT(RB_EMPTY(&imf->imf_sources),
+		    ("%s: imf_sources not empty", __func__));
 	}
 
 	/*
-	 * So far, so good: perform the layer 3 join, layer 2 join,
-	 * and make an IGMP announcement if needed.
-	 */
-	inm = in_addmulti(&gsa->sin.sin_addr, ifp);
-	if (inm == NULL) {
-		error = ENOBUFS;
-		goto out_locked;
-	}
-	idx = imo->imo_num_memberships;
-	imo->imo_membership[idx] = inm;
-	imo->imo_num_memberships++;
-
-	KASSERT(imo->imo_mfilters != NULL,
-	    ("%s: imf_mfilters vector was not allocated", __func__));
-	imf = &imo->imo_mfilters[idx];
-	KASSERT(TAILQ_EMPTY(&imf->imf_sources),
-	    ("%s: imf_sources not empty", __func__));
-
-	/*
-	 * If this is a new SSM group join (i.e. a source was specified
-	 * with this group), add this source to the filter list.
+	 * Graft new source into filter list for this inpcb's
+	 * membership of the group. The in_multi may not have
+	 * been allocated yet if this is a new membership.
 	 */
 	if (ssa->ss.ss_family != AF_UNSPEC) {
-		/*
-		 * An initial SSM join implies that this socket's membership
-		 * of the multicast group is now in inclusive mode.
-		 */
-		imf->imf_fmode = MCAST_INCLUDE;
-
-		error = imo_join_source(imo, idx, ssa);
-		if (error) {
-			/*
-			 * Drop inp lock before calling in_delmulti(),
-			 * to prevent a lock order reversal.
-			 */
-			--imo->imo_num_memberships;
-			INP_WUNLOCK(inp);
-			in_delmulti(inm);
-			return (error);
+		/* Membership starts in IN mode */
+		if (is_new) {
+			CTR1(KTR_IGMPV3, "%s: new join w/source", __func__);
+			imf_init(imf, MCAST_UNDEFINED, MCAST_INCLUDE);
+		} else {
+			CTR2(KTR_IGMPV3, "%s: %s source", __func__, "allow");
+		}
+		lims = imf_graft(imf, MCAST_INCLUDE, &ssa->sin);
+		if (lims == NULL) {
+			CTR1(KTR_IGMPV3, "%s: merge imf state failed",
+			    __func__);
+			error = ENOMEM;
+			goto out_imo_free;
 		}
 	}
 
-out_locked:
+	/*
+	 * Begin state merge transaction at IGMP layer.
+	 */
+	IN_MULTI_LOCK();
+
+	if (is_new) {
+		error = in_joingroup_locked(ifp, &gsa->sin.sin_addr, imf,
+		    &inm);
+		if (error)
+			goto out_imo_free;
+		imo->imo_membership[idx] = inm;
+	} else {
+		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+		error = inm_merge(inm, imf);
+		if (error) {
+			CTR1(KTR_IGMPV3, "%s: failed to merge inm state",
+			    __func__);
+			goto out_imf_rollback;
+		}
+		CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
+		error = igmp_change_state(inm);
+		if (error) {
+			CTR1(KTR_IGMPV3, "%s: failed igmp downcall",
+			    __func__);
+			goto out_imf_rollback;
+		}
+	}
+
+	IN_MULTI_UNLOCK();
+
+out_imf_rollback:
+	INP_WLOCK_ASSERT(inp);
+	if (error) {
+		imf_rollback(imf);
+		if (is_new)
+			imf_purge(imf);
+		else
+			imf_reap(imf);
+	} else {
+		imf_commit(imf);
+	}
+
+out_imo_free:
+	if (error && is_new) {
+		imo->imo_membership[idx] = NULL;
+		--imo->imo_num_memberships;
+	}
+
+out_inp_locked:
 	INP_WUNLOCK(inp);
+	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -1238,13 +2120,14 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	struct ifnet			*ifp;
 	struct in_mfilter		*imf;
 	struct ip_moptions		*imo;
-	struct in_msource		*ims, *tims;
+	struct in_msource		*ims;
 	struct in_multi			*inm;
 	size_t				 idx;
-	int				 error;
+	int				 error, is_final;
 
 	ifp = NULL;
 	error = 0;
+	is_final = 1;
 
 	memset(&gsr, 0, sizeof(struct group_source_req));
 	gsa = (sockunion_t *)&gsr.gsr_group;
@@ -1284,15 +2167,12 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 			ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 		}
 
-		if (gsa->sin.sin_addr.s_addr != INADDR_ANY)
+		if (!in_nullhost(gsa->sin.sin_addr))
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
 
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: imr_interface = %s, ifp = %p\n",
-			    __func__, inet_ntoa(mreqs.imr_interface), ifp);
-		}
-#endif
+		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
+		    __func__, inet_ntoa(mreqs.imr_interface), ifp);
+
 		break;
 
 	case MCAST_LEAVE_GROUP:
@@ -1326,18 +2206,17 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		break;
 
 	default:
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: unknown sopt_name %d\n", __func__,
-			    sopt->sopt_name);
-		}
-#endif
+		CTR2(KTR_IGMPV3, "%s: unknown sopt_name %d",
+		    __func__, sopt->sopt_name);
 		return (EOPNOTSUPP);
 		break;
 	}
 
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
+
+	if (ifp)
+		IFF_LOCKGIANT(ifp);
 
 	/*
 	 * Find the membership in the membership array.
@@ -1346,66 +2225,95 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
 		error = EADDRNOTAVAIL;
-		goto out_locked;
+		goto out_inp_locked;
 	}
+	inm = imo->imo_membership[idx];
 	imf = &imo->imo_mfilters[idx];
+
+	if (ssa->ss.ss_family != AF_UNSPEC)
+		is_final = 0;
+
+	/*
+	 * Begin state merge transaction at socket layer.
+	 */
+	INP_WLOCK_ASSERT(inp);
 
 	/*
 	 * If we were instructed only to leave a given source, do so.
+	 * MCAST_LEAVE_SOURCE_GROUP is only valid for inclusive memberships.
 	 */
-	if (ssa->ss.ss_family != AF_UNSPEC) {
-		if (imf->imf_nsources == 0 ||
-		    imf->imf_fmode == MCAST_EXCLUDE) {
-			/*
-			 * Attempting to SSM leave an ASM group
-			 * is an error; should use *_BLOCK_SOURCE instead.
-			 * Attempting to SSM leave a source in a group when
-			 * the socket is in 'exclude mode' is also an error.
-			 */
-			error = EINVAL;
-		} else {
-			error = imo_leave_source(imo, idx, ssa);
+	if (is_final) {
+		imf_leave(imf);
+	} else {
+		if (imf->imf_st[0] == MCAST_EXCLUDE) {
+			error = EADDRNOTAVAIL;
+			goto out_inp_locked;
 		}
+		ims = imo_match_source(imo, idx, &ssa->sa);
+		if (ims == NULL) {
+			CTR3(KTR_IGMPV3, "%s: source %s %spresent", __func__,
+			    inet_ntoa(ssa->sin.sin_addr), "not ");
+			error = EADDRNOTAVAIL;
+			goto out_inp_locked;
+		}
+		CTR2(KTR_IGMPV3, "%s: %s source", __func__, "block");
+		error = imf_prune(imf, &ssa->sin);
+		if (error) {
+			CTR1(KTR_IGMPV3, "%s: merge imf state failed",
+			    __func__);
+			goto out_inp_locked;
+		}
+	}
+
+	/*
+	 * Begin state merge transaction at IGMP layer.
+	 */
+	IN_MULTI_LOCK();
+
+	if (is_final) {
 		/*
-		 * If an error occurred, or this source is not the last
-		 * source in the group, do not leave the whole group.
+		 * Give up the multicast address record to which
+		 * the membership points.
 		 */
-		if (error || imf->imf_nsources > 0)
-			goto out_locked;
-	}
-
-	/*
-	 * Give up the multicast address record to which the membership points.
-	 */
-	inm = imo->imo_membership[idx];
-	in_delmulti(inm);
-
-	/*
-	 * Free any source filters for this group if they exist.
-	 * Revert inpcb to the default MCAST_EXCLUDE state.
-	 */
-	if (imo->imo_mfilters != NULL) {
-		TAILQ_FOREACH_SAFE(ims, &imf->imf_sources, ims_next, tims) {
-			TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-			free(ims, M_IPMSOURCE);
-			imf->imf_nsources--;
+		(void)in_leavegroup_locked(inm, imf);
+	} else {
+		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+		error = inm_merge(inm, imf);
+		if (error) {
+			CTR1(KTR_IGMPV3, "%s: failed to merge inm state",
+			    __func__);
+			goto out_imf_rollback;
 		}
-		KASSERT(imf->imf_nsources == 0,
-		    ("%s: imf_nsources not 0", __func__));
-		KASSERT(TAILQ_EMPTY(&imf->imf_sources),
-		    ("%s: imf_sources not empty", __func__));
-		imf->imf_fmode = MCAST_EXCLUDE;
+
+		CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
+		error = igmp_change_state(inm);
+		if (error) {
+			CTR1(KTR_IGMPV3, "%s: failed igmp downcall",
+			    __func__);
+		}
 	}
 
-	/*
-	 * Remove the gap in the membership array.
-	 */
-	for (++idx; idx < imo->imo_num_memberships; ++idx)
-		imo->imo_membership[idx-1] = imo->imo_membership[idx];
-	imo->imo_num_memberships--;
+	IN_MULTI_UNLOCK();
 
-out_locked:
+out_imf_rollback:
+	if (error)
+		imf_rollback(imf);
+	else
+		imf_commit(imf);
+
+	imf_reap(imf);
+
+	if (is_final) {
+		/* Remove the gap in the membership array. */
+		for (++idx; idx < imo->imo_num_memberships; ++idx)
+			imo->imo_membership[idx-1] = imo->imo_membership[idx];
+		imo->imo_num_memberships--;
+	}
+
+out_inp_locked:
 	INP_WUNLOCK(inp);
+	if (ifp)
+		IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -1456,19 +2364,15 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		    sizeof(struct in_addr));
 		if (error)
 			return (error);
-		if (addr.s_addr == INADDR_ANY) {
+		if (in_nullhost(addr)) {
 			ifp = NULL;
 		} else {
 			INADDR_TO_IFP(addr, ifp);
 			if (ifp == NULL)
 				return (EADDRNOTAVAIL);
 		}
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: ifp = %p, addr = %s\n",
-			    __func__, ifp, inet_ntoa(addr)); /* XXX INET6 */
-		}
-#endif
+		CTR3(KTR_IGMPV3, "%s: ifp = %p, addr = %s", __func__, ifp,
+		    inet_ntoa(addr));
 	}
 
 	/* Reject interfaces which do not support multicast. */
@@ -1485,6 +2389,8 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 
 /*
  * Atomically set source filters on a socket for an IPv4 multicast group.
+ *
+ * SMPng: NOTE: Potentially calls malloc(M_WAITOK) with Giant held.
  */
 static int
 inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
@@ -1495,7 +2401,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	struct ifnet		*ifp;
 	struct in_mfilter	*imf;
 	struct ip_moptions	*imo;
-	struct in_msource	*ims, *tims;
+	struct in_multi		*inm;
 	size_t			 idx;
 	int			 error;
 
@@ -1504,7 +2410,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	if (msfr.msfr_nsrcs > IP_MAX_SOURCE_FILTER ||
+	if (msfr.msfr_nsrcs > in_mcast_maxsocksrc ||
 	    (msfr.msfr_fmode != MCAST_EXCLUDE &&
 	     msfr.msfr_fmode != MCAST_INCLUDE))
 		return (EINVAL);
@@ -1526,62 +2432,44 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
 
+	IFF_LOCKGIANT(ifp);
+
 	/*
-	 * Take the INP lock.
+	 * Take the INP write lock.
 	 * Check if this socket is a member of this group.
 	 */
 	imo = inp_findmoptions(inp);
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1 || imo->imo_mfilters == NULL) {
 		error = EADDRNOTAVAIL;
-		goto out_locked;
+		goto out_inp_locked;
 	}
+	inm = imo->imo_membership[idx];
 	imf = &imo->imo_mfilters[idx];
 
-#ifdef DIAGNOSTIC
-	if (bootverbose)
-		printf("%s: clearing source list\n", __func__);
-#endif
-
 	/*
-	 * Remove any existing source filters.
+	 * Begin state merge transaction at socket layer.
 	 */
-	TAILQ_FOREACH_SAFE(ims, &imf->imf_sources, ims_next, tims) {
-		TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-		free(ims, M_IPMSOURCE);
-		imf->imf_nsources--;
-	}
-	KASSERT(imf->imf_nsources == 0,
-	    ("%s: source list not cleared", __func__));
+	INP_WLOCK_ASSERT(inp);
+
+	imf->imf_st[1] = msfr.msfr_fmode;
 
 	/*
 	 * Apply any new source filters, if present.
+	 * Make a copy of the user-space source vector so
+	 * that we may copy them with a single copyin. This
+	 * allows us to deal with page faults up-front.
 	 */
 	if (msfr.msfr_nsrcs > 0) {
-		struct in_msource	**pnims;
-		struct in_msource	*nims;
-		struct sockaddr_storage	*kss;
-		struct sockaddr_storage	*pkss;
-		sockunion_t		*psu;
-		int			 i, j;
+		struct in_msource	*lims;
+		struct sockaddr_in	*psin;
+		struct sockaddr_storage	*kss, *pkss;
+		int			 i;
 
-		/*
-		 * Drop the inp lock so we may sleep if we need to
-		 * in order to satisfy a malloc request.
-		 * We will re-take it before changing socket state.
-		 */
 		INP_WUNLOCK(inp);
-#ifdef DIAGNOSTIC
-		if (bootverbose) {
-			printf("%s: loading %lu source list entries\n",
-			    __func__, (unsigned long)msfr.msfr_nsrcs);
-		}
-#endif
-		/*
-		 * Make a copy of the user-space source vector so
-		 * that we may copy them with a single copyin. This
-		 * allows us to deal with page faults up-front.
-		 */
+ 
+		CTR2(KTR_IGMPV3, "%s: loading %lu source list entries",
+		    __func__, (unsigned long)msfr.msfr_nsrcs);
 		kss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
 		    M_TEMP, M_WAITOK);
 		error = copyin(msfr.msfr_srcs, kss,
@@ -1591,103 +2479,79 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 			return (error);
 		}
 
+		INP_WLOCK(inp);
+
 		/*
-		 * Perform argument checking on every sockaddr_storage
-		 * structure in the vector provided to us. Overwrite
-		 * fields which should not apply to source entries.
-		 * TODO: Check for duplicate sources on this pass.
+		 * Mark all source filters as UNDEFINED at t1.
+		 * Restore new group filter mode, as imf_leave()
+		 * will set it to INCLUDE.
 		 */
-		psu = (sockunion_t *)kss;
-		for (i = 0; i < msfr.msfr_nsrcs; i++, psu++) {
-			switch (psu->ss.ss_family) {
-			case AF_INET:
-				if (psu->sin.sin_len !=
-				    sizeof(struct sockaddr_in)) {
-					error = EINVAL;
-				} else {
-					psu->sin.sin_port = 0;
-				}
-				break;
-#ifdef notyet
-			case AF_INET6;
-				if (psu->sin6.sin6_len !=
-				    sizeof(struct sockaddr_in6)) {
-					error = EINVAL;
-				} else {
-					psu->sin6.sin6_port = 0;
-					psu->sin6.sin6_flowinfo = 0;
-				}
-				break;
-#endif
-			default:
+		imf_leave(imf);
+		imf->imf_st[1] = msfr.msfr_fmode;
+
+		/*
+		 * Update socket layer filters at t1, lazy-allocating
+		 * new entries. This saves a bunch of memory at the
+		 * cost of one RB_FIND() per source entry; duplicate
+		 * entries in the msfr_nsrcs vector are ignored.
+		 * If we encounter an error, rollback transaction.
+		 *
+		 * XXX This too could be replaced with a set-symmetric
+		 * difference like loop to avoid walking from root
+		 * every time, as the key space is common.
+		 */
+		for (i = 0, pkss = kss; i < msfr.msfr_nsrcs; i++, pkss++) {
+			psin = (struct sockaddr_in *)pkss;
+			if (psin->sin_family != AF_INET) {
 				error = EAFNOSUPPORT;
 				break;
 			}
+			if (psin->sin_len != sizeof(struct sockaddr_in)) {
+				error = EINVAL;
+				break;
+			}
+			error = imf_get_source(imf, psin, &lims);
 			if (error)
 				break;
+			lims->imsl_st[1] = imf->imf_st[1];
 		}
-		if (error) {
-			free(kss, M_TEMP);
-			return (error);
-		}
-
-		/*
-		 * Allocate a block to track all the in_msource
-		 * entries we are about to allocate, in case we
-		 * abruptly need to free them.
-		 */
-		pnims = malloc(sizeof(struct in_msource *) * msfr.msfr_nsrcs,
-		    M_TEMP, M_WAITOK | M_ZERO);
-
-		/*
-		 * Allocate up to nsrcs individual chunks.
-		 * If we encounter an error, backtrack out of
-		 * all allocations cleanly; updates must be atomic.
-		 */
-		pkss = kss;
-		nims = NULL;
-		for (i = 0; i < msfr.msfr_nsrcs; i++, pkss++) {
-			nims = malloc(sizeof(struct in_msource) *
-			    msfr.msfr_nsrcs, M_IPMSOURCE, M_WAITOK | M_ZERO);
-			pnims[i] = nims;
-		}
-		if (i < msfr.msfr_nsrcs) {
-			for (j = 0; j < i; j++) {
-				if (pnims[j] != NULL)
-					free(pnims[j], M_IPMSOURCE);
-			}
-			free(pnims, M_TEMP);
-			free(kss, M_TEMP);
-			return (ENOBUFS);
-		}
-
-		INP_UNLOCK_ASSERT(inp);
-
-		/*
-		 * Finally, apply the filters to the socket.
-		 * Re-take the inp lock; we are changing socket state.
-		 */
-		pkss = kss;
-		INP_WLOCK(inp);
-		for (i = 0; i < msfr.msfr_nsrcs; i++, pkss++) {
-			memcpy(&(pnims[i]->ims_addr), pkss,
-			    sizeof(struct sockaddr_storage));
-			TAILQ_INSERT_TAIL(&imf->imf_sources, pnims[i],
-			    ims_next);
-			imf->imf_nsources++;
-		}
-		free(pnims, M_TEMP);
 		free(kss, M_TEMP);
 	}
 
-	/*
-	 * Update the filter mode on the socket before releasing the inpcb.
-	 */
-	INP_WLOCK_ASSERT(inp);
-	imf->imf_fmode = msfr.msfr_fmode;
+	if (error)
+		goto out_imf_rollback;
 
-out_locked:
+	INP_WLOCK_ASSERT(inp);
+	IN_MULTI_LOCK();
+
+	/*
+	 * Begin state merge transaction at IGMP layer.
+	 */
+	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+	error = inm_merge(inm, imf);
+	if (error) {
+		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
+		goto out_imf_rollback;
+	}
+
+	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
+	error = igmp_change_state(inm);
+	if (error)
+		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
+
+	IN_MULTI_UNLOCK();
+
+out_imf_rollback:
+	if (error)
+		imf_rollback(imf);
+	else
+		imf_commit(imf);
+
+	imf_reap(imf);
+
+out_inp_locked:
 	INP_WUNLOCK(inp);
+	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -1699,6 +2563,10 @@ out_locked:
  * it is not possible to merge the duplicate code, because the idempotence
  * of the IPv4 multicast part of the BSD Sockets API must be preserved;
  * the effects of these options must be treated as separate and distinct.
+ *
+ * SMPng: XXX: Unlocked read of inp_socket believed OK.
+ * FUTURE: The IP_MULTICAST_VIF option may be eliminated if MROUTING
+ * is refactored to no longer use vifs.
  */
 int
 inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
@@ -1711,11 +2579,10 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
 	 * or is a divert socket, reject it.
-	 * XXX Unlocked read of inp_socket believed OK.
 	 */
 	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
 	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
-	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM))
+	     inp->inp_socket->so_proto->pr_type != SOCK_DGRAM))
 		return (EOPNOTSUPP);
 
 	switch (sopt->sopt_name) {
@@ -1826,7 +2693,7 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 	case IP_UNBLOCK_SOURCE:
 	case MCAST_BLOCK_SOURCE:
 	case MCAST_UNBLOCK_SOURCE:
-		error = inp_change_source_filter(inp, sopt);
+		error = inp_block_unblock_source(inp, sopt);
 		break;
 
 	case IP_MSFILTER:
@@ -1842,3 +2709,183 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	return (error);
 }
+
+/*
+ * Expose IGMP's multicast filter mode and source list(s) to userland,
+ * keyed by (ifindex, group).
+ * The filter mode is written out as a uint32_t, followed by
+ * 0..n of struct in_addr.
+ * For use by ifmcstat(8).
+ * SMPng: NOTE: unlocked read of ifindex space.
+ */
+static int
+sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
+{
+	INIT_VNET_NET(curvnet);
+	struct in_addr			 src, group;
+	struct ifnet			*ifp;
+	struct ifmultiaddr		*ifma;
+	struct in_multi			*inm;
+	struct ip_msource		*ims;
+	int				*name;
+	int				 retval;
+	u_int				 namelen;
+	uint32_t			 fmode, ifindex;
+
+	name = (int *)arg1;
+	namelen = arg2;
+
+	if (req->newptr != NULL)
+		return (EPERM);
+
+	if (namelen != 2)
+		return (EINVAL);
+
+	ifindex = name[0];
+	if (ifindex <= 0 || ifindex > V_if_index) {
+		CTR2(KTR_IGMPV3, "%s: ifindex %u out of range",
+		    __func__, ifindex);
+		return (ENOENT);
+	}
+
+	group.s_addr = name[1];
+	if (!IN_MULTICAST(ntohl(group.s_addr))) {
+		CTR2(KTR_IGMPV3, "%s: group %s is not multicast",
+		    __func__, inet_ntoa(group));
+		return (EINVAL);
+	}
+
+	ifp = ifnet_byindex(ifindex);
+	if (ifp == NULL) {
+		CTR2(KTR_IGMPV3, "%s: no ifp for ifindex %u",
+		    __func__, ifindex);
+		return (ENOENT);
+	}
+
+	retval = sysctl_wire_old_buffer(req,
+	    sizeof(uint32_t) + (in_mcast_maxgrpsrc * sizeof(struct in_addr)));
+	if (retval)
+		return (retval);
+
+	IN_MULTI_LOCK();
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_INET ||
+		    ifma->ifma_protospec == NULL)
+			continue;
+		inm = (struct in_multi *)ifma->ifma_protospec;
+		if (!in_hosteq(inm->inm_addr, group))
+			continue;
+		fmode = inm->inm_st[1].iss_fmode;
+		retval = SYSCTL_OUT(req, &fmode, sizeof(uint32_t));
+		if (retval != 0)
+			break;
+		RB_FOREACH(ims, ip_msource_tree, &inm->inm_srcs) {
+#ifdef KTR
+			struct in_addr ina;
+			ina.s_addr = htonl(ims->ims_haddr);
+			CTR2(KTR_IGMPV3, "%s: visit node %s", __func__,
+			    inet_ntoa(ina));
+#endif
+			/*
+			 * Only copy-out sources which are in-mode.
+			 */
+			if (fmode != ims_get_mode(inm, ims, 1)) {
+				CTR1(KTR_IGMPV3, "%s: skip non-in-mode",
+				    __func__);
+				continue;
+			}
+			src.s_addr = htonl(ims->ims_haddr);
+			retval = SYSCTL_OUT(req, &src, sizeof(struct in_addr));
+			if (retval != 0)
+				break;
+		}
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+	IN_MULTI_UNLOCK();
+
+	return (retval);
+}
+
+#ifdef KTR
+
+static const char *inm_modestrs[] = { "un", "in", "ex" };
+
+static const char *
+inm_mode_str(const int mode)
+{
+
+	if (mode >= MCAST_UNDEFINED && mode <= MCAST_EXCLUDE)
+		return (inm_modestrs[mode]);
+	return ("??");
+}
+
+static const char *inm_statestrs[] = {
+	"not-member",
+	"silent",
+	"idle",
+	"lazy",
+	"sleeping",
+	"awakening",
+	"query-pending",
+	"sg-query-pending",
+	"leaving"
+};
+
+static const char *
+inm_state_str(const int state)
+{
+
+	if (state >= IGMP_NOT_MEMBER && state <= IGMP_LEAVING_MEMBER)
+		return (inm_statestrs[state]);
+	return ("??");
+}
+
+/*
+ * Dump an in_multi structure to the console.
+ */
+void
+inm_print(const struct in_multi *inm)
+{
+	int t;
+
+	printf("%s: --- begin inm %p ---\n", __func__, inm);
+	printf("addr %s ifp %p(%s) ifma %p\n",
+	    inet_ntoa(inm->inm_addr),
+	    inm->inm_ifp,
+	    inm->inm_ifp->if_xname,
+	    inm->inm_ifma);
+	printf("timer %u state %s refcount %u scq.len %u\n",
+	    inm->inm_timer,
+	    inm_state_str(inm->inm_state),
+	    inm->inm_refcount,
+	    inm->inm_scq.ifq_len);
+	printf("igi %p nsrc %lu sctimer %u scrv %u\n",
+	    inm->inm_igi,
+	    inm->inm_nsrc,
+	    inm->inm_sctimer,
+	    inm->inm_scrv);
+	for (t = 0; t < 2; t++) {
+		printf("t%d: fmode %s asm %u ex %u in %u rec %u\n", t,
+		    inm_mode_str(inm->inm_st[t].iss_fmode),
+		    inm->inm_st[t].iss_asm,
+		    inm->inm_st[t].iss_ex,
+		    inm->inm_st[t].iss_in,
+		    inm->inm_st[t].iss_rec);
+	}
+	printf("%s: --- end inm %p ---\n", __func__, inm);
+}
+
+#else /* !KTR */
+
+void
+inm_print(const struct in_multi *inm)
+{
+
+}
+
+#endif /* KTR */
+
+RB_GENERATE(ip_msource_tree, ip_msource, ims_link, ip_msource_cmp);
