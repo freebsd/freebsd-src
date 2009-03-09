@@ -66,31 +66,31 @@ static void savage_configure(struct drm_device *dev)
 }
 
 static int
-savage_probe(device_t dev)
+savage_probe(device_t kdev)
 {
-	return drm_probe(dev, savage_pciidlist);
+	return drm_probe(kdev, savage_pciidlist);
 }
 
 static int
-savage_attach(device_t nbdev)
+savage_attach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 
 	dev->driver = malloc(sizeof(struct drm_driver_info), DRM_MEM_DRIVER,
 	    M_WAITOK | M_ZERO);
 
 	savage_configure(dev);
 
-	return drm_attach(nbdev, savage_pciidlist);
+	return drm_attach(kdev, savage_pciidlist);
 }
 
 static int
-savage_detach(device_t nbdev)
+savage_detach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 	int ret;
 
-	ret = drm_detach(nbdev);
+	ret = drm_detach(kdev);
 
 	free(dev->driver, DRM_MEM_DRIVER);
 
