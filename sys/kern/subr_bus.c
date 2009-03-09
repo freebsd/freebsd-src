@@ -82,6 +82,8 @@ struct devclass {
 	char		*name;
 	device_t	*devices;	/* array of devices indexed by unit */
 	int		maxunit;	/* size of devices array */
+	int		flags;
+#define DC_HAS_CHILDREN		1
 
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
@@ -813,6 +815,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	if (parentname && dc && !dc->parent &&
 	    strcmp(classname, parentname) != 0) {
 		dc->parent = devclass_find_internal(parentname, NULL, FALSE);
+		dc->parent->flags |= DC_HAS_CHILDREN;
 	}
 
 	return (dc);
@@ -846,6 +849,52 @@ devclass_find(const char *classname)
 	return (devclass_find_internal(classname, NULL, FALSE));
 }
 
+	
+/**
+ * @brief Register that a device driver has been added to a devclass
+ *
+ * Register that a device driver has been added to a devclass.  This
+ * is called by devclass_add_driver to accomplish the recursive
+ * notification of all the children classes of dc, as well as dc.
+ * Each layer will have BUS_DRIVER_ADDED() called for all instances of
+ * the devclass.  We do a full search here of the devclass list at
+ * each iteration level to save storing children-lists in the devclass
+ * structure.  If we ever move beyond a few dozen devices doing this,
+ * we may need to reevaluate...
+ *
+ * @param dc		the devclass to edit
+ * @param driver	the driver that was just added
+ */
+static void
+devclass_driver_added(devclass_t dc, driver_t *driver)
+{
+	int i;
+	devclass_t parent;
+
+	/*
+	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
+	 */
+	for (i = 0; i < dc->maxunit; i++)
+		if (dc->devices[i])
+			BUS_DRIVER_ADDED(dc->devices[i], driver);
+
+	/*
+	 * Walk through the children classes.  Since we only keep a
+	 * single parent pointer around, we walk the entire list of
+	 * devclasses looking for children.  We set the
+	 * DC_HAS_CHILDREN flag when a child devclass is created on
+	 * the parent, so we only walk thoe list for those devclasses
+	 * that have children.
+	 */
+	if (!(dc->flags & DC_HAS_CHILDREN))
+		return;
+	parent = dc;
+	TAILQ_FOREACH(dc, &devclasses, link) {
+		if (dc->parent == parent)
+			devclass_driver_added(dc, driver);
+	}
+}
+
 /**
  * @brief Add a device driver to a device class
  *
@@ -861,7 +910,6 @@ int
 devclass_add_driver(devclass_t dc, driver_t *driver)
 {
 	driverlink_t dl;
-	int i;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
 
@@ -886,13 +934,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
 	driver->refs++;		/* XXX: kobj_mtx */
 
-	/*
-	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
-	 */
-	for (i = 0; i < dc->maxunit; i++)
-		if (dc->devices[i])
-			BUS_DRIVER_ADDED(dc->devices[i], driver);
-
+	devclass_driver_added(dc, driver);
 	bus_data_generation_update();
 	return (0);
 }
@@ -1758,7 +1800,9 @@ device_probe_child(device_t dev, device_t child)
 			device_set_driver(child, dl->driver);
 			if (!hasclass) {
 				if (device_set_devclass(child, dl->driver->name)) {
-					PDEBUG(("Unable to set device class"));
+					printf("driver bug: Unable to set devclass (devname: %s)\n",
+					    (child ? device_get_name(child) :
+						"no device"));
 					device_set_driver(child, NULL);
 					continue;
 				}
