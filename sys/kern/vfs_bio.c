@@ -112,26 +112,26 @@ static void bremfreel(struct buf *bp);
 int vmiodirenable = TRUE;
 SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
     "Use the VM system for directory writes");
-int runningbufspace;
-SYSCTL_INT(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
+long runningbufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
     "Amount of presently outstanding async buffer io");
-static int bufspace;
-SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
+static long bufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
     "KVA memory used for bufs");
-static int maxbufspace;
-SYSCTL_INT(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
+static long maxbufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
     "Maximum allowed value of bufspace (including buf_daemon)");
-static int bufmallocspace;
-SYSCTL_INT(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD, &bufmallocspace, 0,
+static long bufmallocspace;
+SYSCTL_LONG(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD, &bufmallocspace, 0,
     "Amount of malloced memory for buffers");
-static int maxbufmallocspace;
-SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW, &maxbufmallocspace, 0,
+static long maxbufmallocspace;
+SYSCTL_LONG(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW, &maxbufmallocspace, 0,
     "Maximum amount of malloced memory for buffers");
-static int lobufspace;
-SYSCTL_INT(_vfs, OID_AUTO, lobufspace, CTLFLAG_RD, &lobufspace, 0,
+static long lobufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, lobufspace, CTLFLAG_RD, &lobufspace, 0,
     "Minimum amount of buffers we want to have");
-int hibufspace;
-SYSCTL_INT(_vfs, OID_AUTO, hibufspace, CTLFLAG_RD, &hibufspace, 0,
+long hibufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, hibufspace, CTLFLAG_RD, &hibufspace, 0,
     "Maximum allowed value of bufspace (excluding buf_daemon)");
 static int bufreusecnt;
 SYSCTL_INT(_vfs, OID_AUTO, bufreusecnt, CTLFLAG_RW, &bufreusecnt, 0,
@@ -142,11 +142,11 @@ SYSCTL_INT(_vfs, OID_AUTO, buffreekvacnt, CTLFLAG_RW, &buffreekvacnt, 0,
 static int bufdefragcnt;
 SYSCTL_INT(_vfs, OID_AUTO, bufdefragcnt, CTLFLAG_RW, &bufdefragcnt, 0,
     "Number of times we have had to repeat buffer allocation to defragment");
-static int lorunningspace;
-SYSCTL_INT(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
+static long lorunningspace;
+SYSCTL_LONG(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
     "Minimum preferred space used for in-progress I/O");
-static int hirunningspace;
-SYSCTL_INT(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
+static long hirunningspace;
+SYSCTL_LONG(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
     "Maximum amount of space to use for in-progress I/O");
 int dirtybufferflushes;
 SYSCTL_INT(_vfs, OID_AUTO, dirtybufferflushes, CTLFLAG_RW, &dirtybufferflushes,
@@ -324,7 +324,7 @@ runningbufwakeup(struct buf *bp)
 {
 
 	if (bp->b_runningbufspace) {
-		atomic_subtract_int(&runningbufspace, bp->b_runningbufspace);
+		atomic_subtract_long(&runningbufspace, bp->b_runningbufspace);
 		bp->b_runningbufspace = 0;
 		mtx_lock(&rbreqlock);
 		if (runningbufreq && runningbufspace <= lorunningspace) {
@@ -444,7 +444,8 @@ bd_speedup(void)
 caddr_t
 kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 {
-	int maxbuf;
+	int tuned_nbuf;
+	long maxbuf;
 
 	/*
 	 * physmem_est is in pages.  Convert it to kilobytes (assumes
@@ -474,11 +475,17 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 
 		if (maxbcache && nbuf > maxbcache / BKVASIZE)
 			nbuf = maxbcache / BKVASIZE;
+		tuned_nbuf = 1;
+	} else
+		tuned_nbuf = 0;
 
-		/* XXX Avoid integer overflows later on with maxbufspace. */
-		maxbuf = (INT_MAX / 3) / BKVASIZE;
-		if (nbuf > maxbuf)
-			nbuf = maxbuf;
+	/* XXX Avoid unsigned long overflows later on with maxbufspace. */
+	maxbuf = (LONG_MAX / 3) / BKVASIZE;
+	if (nbuf > maxbuf) {
+		if (!tuned_nbuf)
+			printf("Warning: nbufs lowered from %d to %ld\n", nbuf,
+			    maxbuf);
+		nbuf = maxbuf;
 	}
 
 	/*
@@ -548,8 +555,8 @@ bufinit(void)
 	 * this may result in KVM fragmentation which is not handled optimally
 	 * by the system.
 	 */
-	maxbufspace = nbuf * BKVASIZE;
-	hibufspace = imax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
+	maxbufspace = (long)nbuf * BKVASIZE;
+	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
 	lobufspace = hibufspace - MAXBSIZE;
 
 	lorunningspace = 512 * 1024;
@@ -577,7 +584,7 @@ bufinit(void)
  * be met.  We try to size hidirtybuffers to 3/4 our buffer space assuming
  * BKVASIZE'd (8K) buffers.
  */
-	while (hidirtybuffers * BKVASIZE > 3 * hibufspace / 4) {
+	while ((long)hidirtybuffers * BKVASIZE > 3 * hibufspace / 4) {
 		hidirtybuffers >>= 1;
 	}
 	lodirtybuffers = hidirtybuffers / 2;
@@ -613,7 +620,7 @@ bfreekva(struct buf *bp)
 
 	if (bp->b_kvasize) {
 		atomic_add_int(&buffreekvacnt, 1);
-		atomic_subtract_int(&bufspace, bp->b_kvasize);
+		atomic_subtract_long(&bufspace, bp->b_kvasize);
 		vm_map_remove(buffer_map, (vm_offset_t) bp->b_kvabase,
 		    (vm_offset_t) bp->b_kvabase + bp->b_kvasize);
 		bp->b_kvasize = 0;
@@ -837,7 +844,7 @@ bufwrite(struct buf *bp)
 	 * Normal bwrites pipeline writes
 	 */
 	bp->b_runningbufspace = bp->b_bufsize;
-	atomic_add_int(&runningbufspace, bp->b_runningbufspace);
+	atomic_add_long(&runningbufspace, bp->b_runningbufspace);
 
 	if (!TD_IS_IDLETHREAD(curthread))
 		curthread->td_ru.ru_oublock++;
@@ -1983,7 +1990,7 @@ restart:
 
 				bp->b_kvabase = (caddr_t) addr;
 				bp->b_kvasize = maxsize;
-				atomic_add_int(&bufspace, bp->b_kvasize);
+				atomic_add_long(&bufspace, bp->b_kvasize);
 				atomic_add_int(&bufreusecnt, 1);
 			}
 			vm_map_unlock(buffer_map);
@@ -2707,7 +2714,7 @@ allocbuf(struct buf *bp, int size)
 				} else {
 					free(bp->b_data, M_BIOBUF);
 					if (bp->b_bufsize) {
-						atomic_subtract_int(
+						atomic_subtract_long(
 						    &bufmallocspace,
 						    bp->b_bufsize);
 						bufspacewakeup();
@@ -2744,7 +2751,7 @@ allocbuf(struct buf *bp, int size)
 				bp->b_bufsize = mbsize;
 				bp->b_bcount = size;
 				bp->b_flags |= B_MALLOC;
-				atomic_add_int(&bufmallocspace, mbsize);
+				atomic_add_long(&bufmallocspace, mbsize);
 				return 1;
 			}
 			origbuf = NULL;
@@ -2758,7 +2765,7 @@ allocbuf(struct buf *bp, int size)
 				origbufsize = bp->b_bufsize;
 				bp->b_data = bp->b_kvabase;
 				if (bp->b_bufsize) {
-					atomic_subtract_int(&bufmallocspace,
+					atomic_subtract_long(&bufmallocspace,
 					    bp->b_bufsize);
 					bufspacewakeup();
 					bp->b_bufsize = 0;
