@@ -65,7 +65,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	libusb20.so.1 is now installed as libusb.so.1 and the ports system
 	updated to use it. This requires a buildworld/installworld in order to
 	update the library and dependencies (usbconfig, etc). Its advisable to
-	update your ports as the affected programs have had a revision bump.
+	rebuid all ports which uses libusb. More specific directions are given
+	in the ports collection UPDATING file.
 
 20090302:
 	A workaround is committed to allow the creation of System V shared
