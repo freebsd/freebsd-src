@@ -268,6 +268,7 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 	entry = (struct g_part_pc98_entry *)baseentry;
 	if (entry == NULL) {
 		/* confxml: scheme information */
+		return;
 	}
 
 	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
