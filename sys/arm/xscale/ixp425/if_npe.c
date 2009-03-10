@@ -363,6 +363,9 @@ npe_attach(device_t dev)
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_STATS;
+	/* device supports oversided vlan frames */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
