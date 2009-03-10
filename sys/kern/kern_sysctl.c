@@ -1200,14 +1200,6 @@ kernel_sysctlbyname(struct thread *td, char *name, void *old, size_t *oldlenp,
 	oid[1] = 3;		/* name2oid */
 	oidlen = sizeof(oid);
 
-	/*
-	 * XXX: Prone to a possible race condition between lookup and
-	 * execution? Maybe put locking around it?
-	 *
-	 * Userland is just as racy, so I think the current implementation
-	 * is fine.
-	 */
-
 	error = kernel_sysctl(td, oid, 2, oid, &oidlen,
 	    (void *)name, strlen(name), &plen, flags);
 	if (error)
@@ -1520,10 +1512,10 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	}
 
 	CURVNET_RESTORE();
-	SYSCTL_XUNLOCK();
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
 		vsunlock(req.oldptr, req.validlen);
+	SYSCTL_XUNLOCK();
 
 	if (error && error != ENOMEM)
 		return (error);
