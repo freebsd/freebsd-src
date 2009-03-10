@@ -221,7 +221,6 @@ cardbus_detach_card(device_t cbdev)
 
 	if (device_get_children(cbdev, &devlist, &numdevs) != 0)
 		return (ENOENT);
-
 	if (numdevs == 0) {
 		free(devlist, M_TEMP);
 		return (ENOENT);
@@ -269,13 +268,16 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 	}
 	if (i > 0 && i == numdevs)
 		POWER_ENABLE_SOCKET(device_get_parent(cbdev), cbdev);
-	/* XXX Should I wait for power to become good? */
 	for (i = 0; i < numdevs; i++) {
 		dev = devlist[i];
 		if (device_get_state(dev) != DS_NOTPRESENT)
 			continue;
 		dinfo = device_get_ivars(dev);
 		pci_print_verbose(&dinfo->pci);
+		if (bootverbose)
+			printf("pci%d:%d:%d:%d: reprobing on driver added\n",
+			    dinfo->pci.cfg.domain, dinfo->pci.cfg.bus,
+			    dinfo->pci.cfg.slot, dinfo->pci.cfg.func);
 		pci_cfg_restore(dinfo->pci.cfg.dev, &dinfo->pci);
 		if (device_probe_and_attach(dev) != 0)
 			pci_cfg_save(dev, &dinfo->pci, 1);
@@ -287,6 +289,7 @@ static void
 cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 {
 	struct resource_list_entry *rle;
+	device_t dev;
 
 	/* Free all allocated resources */
 	STAILQ_FOREACH(rle, &dinfo->pci.resources, link) {
@@ -294,15 +297,14 @@ cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 			BUS_RELEASE_RESOURCE(device_get_parent(cbdev),
 			    cbdev, rle->type, rle->rid, rle->res);
 			rle->res = NULL;
-			/*
-			 * zero out config so the card won't acknowledge
-			 * access to the space anymore. XXX doesn't handle
-			 * 64-bit bars.
-			 */
-			pci_write_config(dinfo->pci.cfg.dev, rle->rid, 0, 4);
 		}
 	}
 	resource_list_free(&dinfo->pci.resources);
+	/* turn off the card's decoding now that the resources are done */
+	dev = dinfo->pci.cfg.dev;
+	pci_write_config(dev, PCIR_COMMAND,
+	    pci_read_config(dev, PCIR_COMMAND, 2) &
+	    ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
 }
 
 /************************************************************************/
@@ -336,12 +338,6 @@ cardbus_read_ivar(device_t cbdev, device_t child, int which, uintptr_t *result)
 	return 0;
 }
 
-static int
-cardbus_write_ivar(device_t cbdev, device_t child, int which, uintptr_t value)
-{
-	return(pci_write_ivar(cbdev, child, which, value));
-}
-
 static device_method_t cardbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		cardbus_probe),
@@ -352,7 +348,7 @@ static device_method_t cardbus_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
-	DEVMETHOD(bus_write_ivar,	cardbus_write_ivar),
+	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
 	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
 
 	/* Card Interface */
