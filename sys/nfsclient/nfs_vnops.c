@@ -923,14 +923,12 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
 		    vattr.va_mtime.tv_sec == np->n_dmtime) {
 			nfsstats.lookupcache_hits++;
-			if ((cnp->cn_nameiop == CREATE ||
-			    cnp->cn_nameiop == RENAME) &&
-			    (flags & ISLASTCN))
-				cnp->cn_flags |= SAVENAME;
 			return (ENOENT);
 		}
 		cache_purge_negative(dvp);
+		mtx_lock(&np->n_mtx);
 		np->n_dmtime = 0;
+		mtx_unlock(&np->n_mtx);
 	}
 	error = 0;
 	newvp = NULLVP;
@@ -1041,8 +1039,10 @@ nfsmout:
 			 * name cache entry for this directory was
 			 * added.
 			 */
+			mtx_lock(&np->n_mtx);
 			if (np->n_dmtime == 0)
 				np->n_dmtime = np->n_vattr.va_mtime.tv_sec;
+			mtx_unlock(&np->n_mtx);
 			cache_enter(dvp, NULL, cnp);
 		}
 		return (ENOENT);
