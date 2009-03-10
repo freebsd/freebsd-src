@@ -276,12 +276,10 @@ static struct resource *
 ixppcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	bus_space_tag_t tag;
 	struct ixppcib_softc *sc = device_get_softc(bus);
 	struct rman *rmanp;
 	struct resource *rv;
 
-	tag = NULL; /* shut up stupid gcc */
 	rv = NULL;
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -290,28 +288,25 @@ ixppcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	case SYS_RES_IOPORT:
 		rmanp = &sc->sc_io_rman;
-		tag = &sc->sc_pci_iot;
 		break;
 
 	case SYS_RES_MEMORY:
 		rmanp = &sc->sc_mem_rman;
-		tag = &sc->sc_pci_memt;
 		break;
 
 	default:
 		return (rv);
 	}
 
-	rv = rman_reserve_resource(rmanp, start, end, count, flags, child);
-	if (rv != NULL) {
-		rman_set_rid(rv, *rid);
-		if (type == SYS_RES_IOPORT) {
-			rman_set_bustag(rv, tag);
-			rman_set_bushandle(rv, rman_get_start(rv));
-		} else if (type == SYS_RES_MEMORY) {
-			rman_set_bustag(rv, tag);
-			rman_set_bushandle(rv, rman_get_bushandle(sc->sc_mem) +
-			    (rman_get_start(rv) - IXP425_PCI_MEM_HWBASE));
+	rv = rman_reserve_resource(rmanp, start, end, count, flags & ~RF_ACTIVE,
+	    child);
+	if (rv == NULL)
+		return (NULL);
+	rman_set_rid(rv, *rid);
+	if (flags & RF_ACTIVE) {
+		if (bus_activate_resource(child, type, *rid, rv)) {
+			rman_release_resource(rv);
+			return (NULL);
 		}
 	}
 
@@ -323,9 +318,21 @@ ixppcib_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r) 
 {
 
-	device_printf(bus, "%s called activate_resource (unexpected)\n",
-	    device_get_nameunit(child));
-	return (ENXIO);
+	struct ixppcib_softc *sc = device_get_softc(bus);
+  
+	switch (type) {
+	case SYS_RES_IOPORT:
+		rman_set_bustag(r, &sc->sc_pci_iot);
+		rman_set_bushandle(r, rman_get_start(r));
+		break;
+	case SYS_RES_MEMORY:
+		rman_set_bustag(r, &sc->sc_pci_memt);
+		rman_set_bushandle(r, rman_get_bushandle(sc->sc_mem) +
+		    (rman_get_start(r) - IXP425_PCI_MEM_HWBASE));
+		break;
+	}
+		
+	return (rman_activate_resource(r));
 }
 
 static int
