@@ -3464,7 +3464,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 */
 	pci_write_config(child, *rid, map, 4);
 	if (maprange == 64)
-		pci_write_config(child, *rid + 4, map, 4);
+		pci_write_config(child, *rid + 4, map >> 32, 4);
 	pci_write_config(child, PCIR_COMMAND, cmd, 2);
 
 	/* Ignore a BAR with a base of 0. */
