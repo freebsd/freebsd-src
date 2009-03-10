@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -95,22 +97,61 @@ bus_dma_get_range_nb(void)
 	return (0);
 }
 
+static const uint8_t int2gpio[32] __attribute__ ((aligned(32))) = {
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#0 -> INT#5 */
+	0x00, 0x01,				/* GPIO#0 -> GPIO#1 */
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#8 -> INT#13 */
+	0xff, 0xff, 0xff, 0xff, 0xff,		/* INT#14 -> INT#18 */
+	0x02, 0x03, 0x04, 0x05, 0x06, 0x07,	/* GPIO#2 -> GPIO#7 */
+	0x08, 0x09, 0x0a, 0x0b, 0x0c,		/* GPIO#8 -> GPIO#12 */
+	0xff, 0xff				/* INT#30 -> INT#31 */
+};
+
 static __inline u_int32_t
 ixp425_irq2gpio_bit(int irq)
 {
-
-	static const uint8_t int2gpio[32] __attribute__ ((aligned(32))) = {
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#0 -> INT#5 */
-		0x00, 0x01,				/* GPIO#0 -> GPIO#1 */
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#8 -> INT#13 */
-		0xff, 0xff, 0xff, 0xff, 0xff,		/* INT#14 -> INT#18 */
-		0x02, 0x03, 0x04, 0x05, 0x06, 0x07,	/* GPIO#2 -> GPIO#7 */
-		0x08, 0x09, 0x0a, 0x0b, 0x0c,		/* GPIO#8 -> GPIO#12 */
-		0xff, 0xff				/* INT#30 -> INT#31 */
-	};
-
 	return (1U << int2gpio[irq]);
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(gpio, db_show_gpio)
+{
+	static const char *itype[8] = {
+		[GPIO_TYPE_ACT_HIGH]	= "act-high",
+		[GPIO_TYPE_ACT_LOW]	= "act-low",
+		[GPIO_TYPE_EDG_RISING]	= "edge-rising",
+		[GPIO_TYPE_EDG_FALLING]	= "edge-falling",
+		[GPIO_TYPE_TRANSITIONAL]= "transitional",
+		[5] = "type-5", [6] = "type-6", [7] = "type-7"
+	};
+	uint32_t gpoutr = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPOUTR);
+	uint32_t gpoer = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPOER);
+	uint32_t gpinr = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPINR);
+	uint32_t gpit1r = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPIT1R);
+	uint32_t gpit2r = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPIT2R);
+	int i, j;
+
+	db_printf("GPOUTR %08x GPOER  %08x GPINR  %08x GPISR %08x\n",
+	   gpoutr, gpoer, gpinr,
+	   GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPISR));
+	db_printf("GPIT1R %08x GPIT2R %08x GPCLKR %08x\n",
+	   gpit1r, gpit2r, GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPCLKR));
+	for (i = 0; i < 16; i++) {
+		db_printf("[%2d] out %u in %u %-3s", i,
+		    (gpoutr>>i)&1, (gpinr>>i)&1, (gpoer>>i)&1 ? "in" : "out");
+		for (j = 0; j < 32; j++)
+			if (int2gpio[j] == i) {
+				db_printf(" irq %2u %s", j, itype[
+				    (((i & 8) ? gpit2r : gpit1r) >> (3*(i&7)))
+					& 7]);
+				break;
+			}
+		db_printf("\n");
+	}
+}
+#endif
 
 void
 arm_mask_irq(uintptr_t nb)
