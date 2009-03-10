@@ -178,15 +178,15 @@ static struct filterops pipe_wfiltops =
 #define MINPIPESIZE (PIPE_SIZE/3)
 #define MAXPIPESIZE (2*PIPE_SIZE/3)
 
-static int amountpipekva;
+static long amountpipekva;
 static int pipefragretry;
 static int pipeallocfail;
 static int piperesizefail;
 static int piperesizeallowed = 1;
 
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
+SYSCTL_LONG(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
 	   &maxpipekva, 0, "Pipe KVA limit");
-SYSCTL_INT(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
+SYSCTL_LONG(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
 	   &amountpipekva, 0, "Pipe KVA usage");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipefragretry, CTLFLAG_RD,
 	  &pipefragretry, 0, "Pipe allocation retries due to fragmentation");
@@ -463,7 +463,7 @@ retry:
 	cpipe->pipe_buffer.in = cnt;
 	cpipe->pipe_buffer.out = 0;
 	cpipe->pipe_buffer.cnt = cnt;
-	atomic_add_int(&amountpipekva, cpipe->pipe_buffer.size);
+	atomic_add_long(&amountpipekva, cpipe->pipe_buffer.size);
 	return (0);
 }
 
@@ -1457,7 +1457,7 @@ pipe_free_kmem(cpipe)
 	    ("pipe_free_kmem: pipe mutex locked"));
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
-		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
+		atomic_subtract_long(&amountpipekva, cpipe->pipe_buffer.size);
 		vm_map_remove(pipe_map,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer + cpipe->pipe_buffer.size);
