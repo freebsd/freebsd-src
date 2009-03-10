@@ -742,5 +742,6 @@ struct vop_vector null_vnodeops = {
 	.vop_setattr =		null_setattr,
 	.vop_strategy =		VOP_EOPNOTSUPP,
 	.vop_unlock =		null_unlock,
+	.vop_vptocnp =		vop_stdvptocnp,
 	.vop_vptofh =		null_vptofh,
 };
