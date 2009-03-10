@@ -816,7 +816,11 @@ usb_reset(usb_dev_handle * dev)
 	if (err)
 		return (-1);
 
-	return (0);
+	/*
+	 * Be compatible with LibUSB from sourceforge and close the
+	 * handle after reset!
+	 */
+	return (usb_close(dev));
 }
 
 const char *
