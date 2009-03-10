@@ -315,43 +315,82 @@ ixp425_read_ivar(device_t bus, device_t child, int which, u_char *result)
 }
 
 /*
- * NB: This table handles P->V translations for regions mapped
- * through bus_alloc_resource.  Anything done with bus_space_map
- * is handled elsewhere and does not require an entry here.
+ * NB: This table handles P->V translations for regions setup with
+ * static mappings in initarm.  This is used solely for calls to
+ * bus_alloc_resource_any; anything done with bus_space_map is
+ * handled elsewhere and does not require an entry here.
  *
- * XXX getvbase is also used by uart_cpu_getdev (hence public)
+ * XXX this table is also used by uart_cpu_getdev via getvbase
+ *    (hence the public api)
  */
-static const struct {
+struct hwvtrans {
 	uint32_t	hwbase;
 	uint32_t	size;
 	uint32_t	vbase;
-} hwvtrans[] = {
-	{ IXP425_IO_HWBASE,	IXP425_IO_SIZE,		IXP425_IO_VBASE },
-	{ IXP425_PCI_HWBASE,	IXP425_PCI_SIZE,	IXP425_PCI_VBASE },
-	{ IXP425_PCI_MEM_HWBASE,IXP425_PCI_MEM_SIZE,	IXP425_PCI_MEM_VBASE },
-	{ IXP425_EXP_BUS_CS0_HWBASE, IXP425_EXP_BUS_CS0_SIZE,
-	  IXP425_EXP_BUS_CS0_VBASE },
-	/* NB: needed only for uart_cpu_getdev */
-	{ IXP425_UART0_HWBASE,	IXP425_REG_SIZE,	IXP425_UART0_VBASE },
-	{ IXP425_UART1_HWBASE,	IXP425_REG_SIZE,	IXP425_UART1_VBASE },
-	/* NB: need for ixp435 ehci controllers */
-	{ IXP435_USB1_HWBASE,	IXP435_USB1_SIZE,	IXP435_USB1_VBASE },
-	{ IXP435_USB2_HWBASE,	IXP435_USB2_SIZE,	IXP435_USB2_VBASE },
+	int		isa4x;	/* XXX needs special bus space tag */
 };
 
-int
-getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
+static const struct hwvtrans *
+gethwvtrans(uint32_t hwbase, uint32_t size)
 {
+	static const struct hwvtrans hwvtrans[] = {
+	    /* NB: needed only for uart_cpu_getdev */
+	    { .hwbase	= IXP425_UART0_HWBASE,
+	      .size 	= IXP425_REG_SIZE,
+	      .vbase	= IXP425_UART0_VBASE,
+	      .isa4x	= 1 },
+	    { .hwbase	= IXP425_UART1_HWBASE,
+	      .size 	= IXP425_REG_SIZE,
+	      .vbase	= IXP425_UART1_VBASE,
+	      .isa4x	= 1 },
+	    { .hwbase	= IXP425_PCI_HWBASE,
+	      .size 	= IXP425_PCI_SIZE,
+	      .vbase	= IXP425_PCI_VBASE },
+	    { .hwbase	= IXP425_PCI_MEM_HWBASE,
+	      .size 	= IXP425_PCI_MEM_SIZE,
+	      .vbase	= IXP425_PCI_MEM_VBASE },
+	    { .hwbase	= IXP425_EXP_BUS_CS0_HWBASE,
+	      .size 	= IXP425_EXP_BUS_CS0_SIZE,
+	      .vbase	= IXP425_EXP_BUS_CS0_VBASE },
+	    /* NB: needed for ixp435 ehci controllers */
+	    { .hwbase	= IXP435_USB1_HWBASE,
+	      .size 	= IXP435_USB1_SIZE,
+	      .vbase	= IXP435_USB1_VBASE },
+	    { .hwbase	= IXP435_USB2_HWBASE,
+	      .size 	= IXP435_USB2_SIZE,
+	      .vbase	= IXP435_USB2_VBASE },
+#ifdef CAMBRIA_GPS_VBASE
+	    { .hwbase	= CAMBRIA_GPS_HWBASE,
+	      .size 	= CAMBRIA_GPS_SIZE,
+	      .vbase	= CAMBRIA_GPS_VBASE },
+#endif
+#ifdef CAMBRIA_RS485_VBASE
+	    { .hwbase	= CAMBRIA_RS485_HWBASE,
+	      .size 	= CAMBRIA_RS485_SIZE,
+	      .vbase	= CAMBRIA_RS485_VBASE },
+#endif
+	};
 	int i;
 
 	for (i = 0; i < sizeof hwvtrans / sizeof *hwvtrans; i++) {
 		if (hwbase >= hwvtrans[i].hwbase &&
-		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size) {
-			*vbase = hwbase - hwvtrans[i].hwbase + hwvtrans[i].vbase;
-			return (0);
-		}
+		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size)
+			return &hwvtrans[i];
 	}
-	return (ENOENT);
+	return NULL;
+}
+
+/* XXX for uart_cpu_getdev */
+int
+getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
+{
+	const struct hwvtrans *hw;
+
+	hw = gethwvtrans(hwbase, size);
+	if (hw == NULL)
+		return (ENOENT);
+	*vbase = hwbase - hw->hwbase + hw->vbase;
+	return (0);
 }
 
 static struct resource *
@@ -359,9 +398,10 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct ixp425_softc *sc = device_get_softc(dev);
+	const struct hwvtrans *vtrans;
 	struct rman *rmanp;
 	struct resource *rv;
-	uint32_t vbase, addr;
+	uint32_t addr;
 	int needactivate = flags & RF_ACTIVE;
 	int irq;
 
@@ -383,16 +423,31 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		/* override per hints */
 		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_ADDR, &addr) == 0) {
 			start = addr;
-			end = start + 0x1000;	/* XXX */
-			count = end - start;
-		}
-		if (getvbase(start, end - start, &vbase) != 0) {
+			/* XXX use nominal window to check for mapping */
+			vtrans = gethwvtrans(start, 0x1000);
+			if (vtrans != NULL) {
+				/*
+				 * Assign the entire mapped region; this may
+				 * not be correct but without more info from
+				 * the caller we cannot tell.
+				 */
+				end = start + vtrans->size -
+				    (start - vtrans->hwbase);
+				if (bootverbose)
+					device_printf(child,
+					    "%s: assign 0x%lx:0x%lx%s\n",
+					    __func__, start, end - start,
+					    vtrans->isa4x ? " A4X" : "");
+			}
+		} else
+			vtrans = gethwvtrans(start, end - start);
+		if (vtrans == NULL) {
 			/* likely means above table needs to be updated */
-			device_printf(dev, "%s: no mapping for 0x%lx:0x%lx\n",
+			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
 			    __func__, start, end-start);
 			return NULL;
 		}
-		rv = rman_reserve_resource(rmanp, start, end, count,
+		rv = rman_reserve_resource(rmanp, start, end, end - start,
 			flags, child);
 		if (rv != NULL)
 			rman_set_rid(rv, *rid);
@@ -415,18 +470,17 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	struct ixp425_softc *sc = device_get_softc(dev);
-	int error;
-	uint32_t vbase;
+	const struct hwvtrans *vtrans;
 
 	if (type == SYS_RES_MEMORY) {
-		error = getvbase(rman_get_start(r), rman_get_size(r), &vbase);
-		if (error)
-			return (error);
-		if (strcmp(device_get_name(child), "uart") == 0)
+		vtrans = gethwvtrans(rman_get_start(r), rman_get_size(r));
+		if (vtrans == NULL)		/* NB: should not happen */
+			return (ENOENT);
+		if (vtrans->isa4x)
 			rman_set_bustag(r, &ixp425_a4x_bs_tag);
 		else
 			rman_set_bustag(r, sc->sc_iot);
-		rman_set_bushandle(r, vbase);		
+		rman_set_bushandle(r, vtrans->vbase);
 	}
 	return (rman_activate_resource(r));
 }
