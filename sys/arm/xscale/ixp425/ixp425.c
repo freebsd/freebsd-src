@@ -362,8 +362,10 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct rman *rmanp;
 	struct resource *rv;
 	uint32_t vbase, addr;
+	int needactivate = flags & RF_ACTIVE;
 	int irq;
 
+	flags &= ~RF_ACTIVE;
 	switch (type) {
 	case SYS_RES_IRQ:
 		rmanp = &sc->sc_irq_rman;
@@ -382,6 +384,7 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_ADDR, &addr) == 0) {
 			start = addr;
 			end = start + 0x1000;	/* XXX */
+			count = end - start;
 		}
 		if (getvbase(start, end - start, &vbase) != 0) {
 			/* likely means above table needs to be updated */
@@ -391,20 +394,41 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		rv = rman_reserve_resource(rmanp, start, end, count,
 			flags, child);
-		if (rv != NULL) {
+		if (rv != NULL)
 			rman_set_rid(rv, *rid);
-			if (strcmp(device_get_name(child), "uart") == 0)
-				rman_set_bustag(rv, &ixp425_a4x_bs_tag);
-			else
-				rman_set_bustag(rv, sc->sc_iot);
-			rman_set_bushandle(rv, vbase);
-		}
 		break;
 	default:
 		rv = NULL;
 		break;
 	}
-	return rv;
+	if (rv != NULL && needactivate) {
+		if (bus_activate_resource(child, type, *rid, rv)) {
+			rman_release_resource(rv);
+			return (NULL);
+		}
+	}
+	return (rv);
+}
+
+static int
+ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct ixp425_softc *sc = device_get_softc(dev);
+	int error;
+	uint32_t vbase;
+
+	if (type == SYS_RES_MEMORY) {
+		error = getvbase(rman_get_start(r), rman_get_size(r), &vbase);
+		if (error)
+			return (error);
+		if (strcmp(device_get_name(child), "uart") == 0)
+			rman_set_bustag(r, &ixp425_a4x_bs_tag);
+		else
+			rman_set_bustag(r, sc->sc_iot);
+		rman_set_bushandle(r, vbase);		
+	}
+	return (rman_activate_resource(r));
 }
 
 static __inline void
@@ -472,6 +496,7 @@ static device_method_t ixp425_methods[] = {
 	DEVMETHOD(bus_read_ivar, ixp425_read_ivar),
 
 	DEVMETHOD(bus_alloc_resource, ixp425_alloc_resource),
+	DEVMETHOD(bus_activate_resource, ixp425_activate_resource),
 	DEVMETHOD(bus_setup_intr, ixp425_setup_intr),
 	DEVMETHOD(bus_teardown_intr, ixp425_teardown_intr),
 
