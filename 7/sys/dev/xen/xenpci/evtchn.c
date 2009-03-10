@@ -387,7 +387,7 @@ irq_resume(void)
 
 	BUS_SETUP_INTR(device_get_parent(xenpci_device),
 	    xenpci_device, scp->res_irq, INTR_TYPE_MISC,
-	    evtchn_interrupt, NULL, &scp->intr_cookie);
+	    NULL, evtchn_interrupt, NULL, &scp->intr_cookie);
 }
 
 int
@@ -407,8 +407,8 @@ xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 	}
 
 	error = BUS_SETUP_INTR(device_get_parent(device), device,
-	    scp->res_irq, INTR_MPSAFE|INTR_TYPE_MISC, evtchn_interrupt, NULL,
-	    &scp->intr_cookie);
+	    scp->res_irq, INTR_MPSAFE|INTR_TYPE_MISC, NULL, evtchn_interrupt,
+	    NULL, &scp->intr_cookie);
 	if (error)
 		return (error);
 
