@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include "opt_compat.h"
 #include "opt_directio.h"
 #include "opt_swap.h"
 
@@ -108,6 +109,10 @@ static int vfs_bio_clcheck(struct vnode *vp, int size,
 static int flushbufqueues(int, int);
 static void buf_daemon(void);
 static void bremfreel(struct buf *bp);
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+static int sysctl_bufspace(SYSCTL_HANDLER_ARGS);
+#endif
 
 int vmiodirenable = TRUE;
 SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
@@ -116,8 +121,14 @@ long runningbufspace;
 SYSCTL_LONG(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
     "Amount of presently outstanding async buffer io");
 static long bufspace;
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+SYSCTL_PROC(_vfs, OID_AUTO, bufspace, CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RD,
+    &bufspace, 0, sysctl_bufspace, "L", "KVA memory used for bufs");
+#else
 SYSCTL_LONG(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
     "KVA memory used for bufs");
+#endif
 static long maxbufspace;
 SYSCTL_LONG(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
     "Maximum allowed value of bufspace (including buf_daemon)");
@@ -264,6 +275,22 @@ const char *buf_wmesg = BUF_WMESG;
 #define VFS_BIO_NEED_DIRTYFLUSH	0x02	/* waiting for dirty buffer flush */
 #define VFS_BIO_NEED_FREE	0x04	/* wait for free bufs, hi hysteresis */
 #define VFS_BIO_NEED_BUFSPACE	0x08	/* wait for buf space, lo hysteresis */
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+static int
+sysctl_bufspace(SYSCTL_HANDLER_ARGS)
+{
+	long lvalue;
+	int ivalue;
+
+	if (sizeof(int) == sizeof(long) || req->oldlen == sizeof(long))
+		return (sysctl_handle_long(oidp, arg1, arg2, req));
+	lvalue = *(long *)arg1;
+	ivalue = lvalue > INT_MAX ? INT_MAX : lvalue;
+	return (sysctl_handle_int(oidp, &ivalue, 0, req));
+}
+#endif
 
 #ifdef DIRECTIO
 extern void ffs_rawread_setup(void);
