@@ -91,7 +91,7 @@ int	nbuf;
 int	nswbuf;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
-u_long	maxpipekva;			/* Limit on pipe KVA */
+long	maxpipekva;			/* Limit on pipe KVA */
 int 	vm_guest;			/* Running as virtual machine guest? */
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
@@ -282,7 +282,7 @@ init_param3(long kmempages)
 	maxpipekva = (kmempages / 20) * PAGE_SIZE;
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
-	TUNABLE_ULONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
+	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
 
 /*
