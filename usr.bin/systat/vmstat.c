@@ -115,7 +115,7 @@ static struct Info {
 	struct	nchstats nchstats;
 	long	nchcount;
 	long	*intrcnt;
-	int	bufspace;
+	long	bufspace;
 	int	desiredvnodes;
 	long	numvnodes;
 	long	freevnodes;
