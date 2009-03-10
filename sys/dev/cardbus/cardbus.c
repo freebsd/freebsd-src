@@ -82,6 +82,7 @@ static int	cardbus_read_ivar(device_t cbdev, device_t child, int which,
 		    uintptr_t *result);
 static void	cardbus_release_all_resources(device_t cbdev,
 		    struct cardbus_devinfo *dinfo);
+
 /************************************************************************/
 /* Probe/Attach								*/
 /************************************************************************/
