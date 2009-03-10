@@ -287,7 +287,10 @@ sysctl_bufspace(SYSCTL_HANDLER_ARGS)
 	if (sizeof(int) == sizeof(long) || req->oldlen == sizeof(long))
 		return (sysctl_handle_long(oidp, arg1, arg2, req));
 	lvalue = *(long *)arg1;
-	ivalue = lvalue > INT_MAX ? INT_MAX : lvalue;
+	if (lvalue > INT_MAX)
+		/* On overflow, still write out a long to trigger ENOMEM. */
+		return (sysctl_handle_long(oidp, &lvalue, 0, req));
+	ivalue = lvalue;
 	return (sysctl_handle_int(oidp, &ivalue, 0, req));
 }
 #endif
