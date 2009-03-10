@@ -14,9 +14,12 @@ SRCS+=		libusb20_compat01.c
 SRCS+=		libusb20_compat10.c
 INCS+=		libusb20.h
 INCS+=		libusb20_desc.h
-MAN=		libusb20.3
+MAN=		libusb.3
 MKLINT=		no
 NOGCCERROR=
+
+MLINKS+=	libusb.3 usb.3 \
+		libusb.3 libusb20.3
 
 # libusb 0.1 compat
 INCS+=		usb.h
