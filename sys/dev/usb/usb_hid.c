@@ -283,13 +283,14 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					 */
 					c->loc.count = 1;
 				} else {
-					/* make sure we have a usage */
-					if (s->nusage == 0) {
-						s->usages_min[s->nusage] = 0;
-						s->usages_max[s->nusage] = 0;
-						s->nusage = 1;
-					}
 					s->ncount = 1;
+				}
+				/* make sure we have a usage */
+				if (s->nusage == 0) {
+					/* use the undefined HID PAGE */
+					s->usages_min[s->nusage] = 0x0000;
+					s->usages_max[s->nusage] = 0xFFFF;
+					s->nusage = s->ncount;
 				}
 				goto top;
 
