@@ -67,6 +67,8 @@ device		pci
 device		uart
 
 device		ixpwdog		# watchdog timer
+
+options		IXP4XX_FLASH_SIZE=0x02000000	# stock 2358 comes w/ 32M
 device		cfi		# flash support
 device		cfid		# flash disk support
 device		geom_redboot	# redboot fis parser
