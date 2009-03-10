@@ -27,6 +27,10 @@ hint.npe.0.phy=1
 #hint.npe.1.mii="C"
 #hint.npe.1.phy=2
 
+# FLASH
+hint.cfi.0.at="ixp0"
+hint.cfi.0.addr=0x50000000
+
 # CF IDE controller
 hint.ata_avila.0.at="ixp0"
 
