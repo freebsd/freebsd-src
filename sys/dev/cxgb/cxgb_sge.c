@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -3460,8 +3460,11 @@ t3_add_configured_sysctls(adapter_t *sc)
 
 		for (j = 0; j < pi->nqsets; j++) {
 			struct sge_qset *qs = &sc->sge.qs[pi->first_qset + j];
-			struct sysctl_oid *qspoid, *rspqpoid, *txqpoid, *ctrlqpoid, *lropoid;
-			struct sysctl_oid_list *qspoidlist, *rspqpoidlist, *txqpoidlist, *ctrlqpoidlist, *lropoidlist;
+			struct sysctl_oid *qspoid, *rspqpoid, *txqpoid,
+					  *ctrlqpoid, *lropoid;
+			struct sysctl_oid_list *qspoidlist, *rspqpoidlist,
+					       *txqpoidlist, *ctrlqpoidlist,
+					       *lropoidlist;
 			struct sge_txq *txq = &qs->txq[TXQ_ETH];
 			
 			snprintf(qs->namebuf, QS_NAME_LEN, "qs%d", j);
@@ -3469,7 +3472,14 @@ t3_add_configured_sysctls(adapter_t *sc)
 			qspoid = SYSCTL_ADD_NODE(ctx, poidlist, OID_AUTO, 
 			    qs->namebuf, CTLFLAG_RD, NULL, "qset statistics");
 			qspoidlist = SYSCTL_CHILDREN(qspoid);
-			
+
+			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "fl0_empty",
+					CTLFLAG_RD, &qs->fl[0].empty, 0,
+					"freelist #0 empty");
+			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "fl1_empty",
+					CTLFLAG_RD, &qs->fl[1].empty, 0,
+					"freelist #1 empty");
+
 			rspqpoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
 			    rspq_name, CTLFLAG_RD, NULL, "rspq statistics");
 			rspqpoidlist = SYSCTL_CHILDREN(rspqpoid);

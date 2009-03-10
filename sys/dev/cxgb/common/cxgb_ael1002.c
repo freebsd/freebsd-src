@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,17 @@ enum {
 enum { edc_none, edc_sr, edc_twinax };
 
 /* PHY module I2C device address */
-#define MODULE_DEV_ADDR 0xa0
+enum {
+	MODULE_DEV_ADDR	= 0xa0,
+	SFF_DEV_ADDR	= 0xa2,
+};
+
+/* PHY transceiver type */
+enum {
+	phy_transtype_unknown = 0,
+	phy_transtype_sfp     = 3,
+	phy_transtype_xfp     = 6,
+};		
 
 #define AEL2005_MODDET_IRQ 4
 
@@ -71,73 +81,7 @@ struct reg_val {
 	unsigned short set_bits;
 };
 
-static int ael2005_i2c_rd(struct cphy *phy, int dev_addr, int word_addr);
-
-static int get_module_type (struct cphy *phy, int hint)
-{
-	int v;
-
-	v = hint ? hint : ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 0);
-	if (v < 0)
-		return v;
-
-	if (v == 0x3) {
-		/* SFP: see SFF-8472 for below */
-		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 3);
-		if (v < 0)
-			return v;
-
-		if (v == 0x1)
-			return phy_modtype_twinax;
-		if (v == 0x10)
-			return phy_modtype_sr;
-		if (v == 0x20)
-			return phy_modtype_lr;
-		if (v == 0x40)
-			return phy_modtype_lrm;
-
-		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 6);
-		if (v < 0)
-			return v;
-		if (v != 4)
-			return phy_modtype_unknown;
-
-		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 10);
-		if (v < 0)
-			return v;
-
-		if (v & 0x80) {
-			v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 0x12);
-			if (v < 0)
-				return v;
-			return v > 10 ? phy_modtype_twinax_long :
-			    phy_modtype_twinax;
-		}
-	} else if (v == 0x6) {
-		/* XFP: See INF-8077i for details. */
-
-		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 127);
-		if (v < 0)
-			return v;
-
-		if (v != 1) {
-			/* XXX: set page select to table 1 yourself */
-			return phy_modtype_unknown;
-		}
-
-		v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 131);
-		if (v < 0)
-			return v;
-		if (v == 0x10)
-			return phy_modtype_lrm;
-		if (v == 0x40)
-			return phy_modtype_lr;
-		if (v == 0x80)
-			return phy_modtype_sr;
-	}
-
-	return phy_modtype_unknown;
-}
+static int get_module_type(struct cphy *phy);
 
 static int set_phy_regs(struct cphy *phy, const struct reg_val *rv)
 {
@@ -164,6 +108,110 @@ static void ael100x_txon(struct cphy *phy)
 	msleep(30);
 }
 
+static int ael_i2c_rd(struct cphy *phy, int dev_addr, int word_addr)
+{
+	int i, err;
+	unsigned int stat, data;
+
+	err = mdio_write(phy, MDIO_DEV_PMA_PMD, AEL_I2C_CTRL,
+			 (dev_addr << 8) | (1 << 8) | word_addr);
+	if (err)
+		return err;
+
+	for (i = 0; i < 200; i++) {
+		msleep(1);
+		err = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL_I2C_STAT, &stat);
+		if (err)
+			return err;
+		if ((stat & 3) == 1) {
+			err = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL_I2C_DATA,
+					&data);
+			if (err)
+				return err;
+			return data >> 8;
+		}
+	}
+	CH_WARN(phy->adapter, "PHY %u I2C read of addr %u timed out\n",
+		phy->addr, word_addr);
+	return -ETIMEDOUT;
+}
+
+static int ael_i2c_wr(struct cphy *phy, int dev_addr, int word_addr, int data)
+{
+	int i, err;
+	unsigned int stat;
+
+	err = mdio_write(phy, MDIO_DEV_PMA_PMD, AEL_I2C_DATA, data);
+	if (err)
+		return err;
+
+	err = mdio_write(phy, MDIO_DEV_PMA_PMD, AEL_I2C_CTRL,
+			 (dev_addr << 8) | word_addr);
+	if (err)
+		return err;
+
+	for (i = 0; i < 200; i++) {
+		msleep(1);
+		err = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL_I2C_STAT, &stat);
+		if (err)
+			return err;
+		if ((stat & 3) == 1)
+			return 0;
+	}
+	CH_WARN(phy->adapter, "PHY %u I2C Write of addr %u timed out\n",
+		phy->addr, word_addr);
+	return -ETIMEDOUT;
+}
+
+static int get_phytrans_type(struct cphy *phy)
+{
+	int v;
+
+	v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 0);
+	if (v < 0)
+		return phy_transtype_unknown;
+
+	return v;
+}
+
+static int ael_laser_down(struct cphy *phy, int enable)
+{
+	int v, dev_addr;
+
+	v = get_phytrans_type(phy);
+	if (v < 0)
+		return v;
+
+	if (v == phy_transtype_sfp) {
+		/* Check SFF Soft TX disable is supported */
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 93);
+		if (v < 0)
+			return v;
+
+		v &= 0x40;
+		if (!v)
+			return v;
+
+		dev_addr = SFF_DEV_ADDR;	
+	} else if (v == phy_transtype_xfp)
+		dev_addr = MODULE_DEV_ADDR;
+	else
+		return v;
+
+	v = ael_i2c_rd(phy, dev_addr, 110);
+	if (v < 0)
+		return v;
+
+	if (enable)
+		v |= 0x40;
+	else
+		v &= ~0x40;
+
+	v = ael_i2c_wr(phy, dev_addr, 110, v);
+
+	return v;
+}
+
 static int ael1002_power_down(struct cphy *phy, int enable)
 {
 	int err;
@@ -182,9 +230,9 @@ static int ael1002_get_module_type(struct cphy *phy, int delay_ms)
 	if (delay_ms)
 		msleep(delay_ms);
 
-	v = ael2005_i2c_rd(phy, MODULE_DEV_ADDR, 0);
+	v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 0);
 
-	return v == -ETIMEDOUT ? phy_modtype_none : get_module_type(phy, v);
+	return v == -ETIMEDOUT ? phy_modtype_none : get_module_type(phy);
 }
 
 static int ael1002_reset(struct cphy *phy, int wait)
@@ -273,6 +321,7 @@ int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
 		  "10GBASE-R");
 	ael100x_txon(phy);
+	ael_laser_down(phy, 0);
 
 	err = ael1002_get_module_type(phy, 0);
 	if (err >= 0)
@@ -283,31 +332,38 @@ int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 
 static int ael1006_reset(struct cphy *phy, int wait)
 {
-	u32 gpio_out;
-	t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
-	/* Hack to reset the phy correctly */
-	/* Read out the current value */
-	gpio_out = t3_read_reg(phy->adapter, A_T3DBG_GPIO_EN);
-	/* Reset the phy */
-	gpio_out &= ~F_GPIO6_OUT_VAL;
-	t3_write_reg(phy->adapter, A_T3DBG_GPIO_EN, gpio_out); 
-	msleep(125);
-	/* Take the phy out of reset */
-	gpio_out |= F_GPIO6_OUT_VAL;
-	t3_write_reg(phy->adapter, A_T3DBG_GPIO_EN, gpio_out);
-	msleep(125);
-	t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	int err;
 
-       /* Phy loopback work around for ael1006 */
-       /* Soft reset phy by toggling loopback  */
-       msleep(125);
-       /* Put phy into local loopback */
-       t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 0, 1);
-       msleep(125);
-       /* Take phy out of local loopback */
-       t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 1, 0);
+	err = t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	if (err)
+		return err;
 
-	return 0;
+	t3_set_reg_field(phy->adapter, A_T3DBG_GPIO_EN, 
+			 F_GPIO6_OUT_VAL, 0);
+
+	msleep(125);
+
+	t3_set_reg_field(phy->adapter, A_T3DBG_GPIO_EN, 
+			 F_GPIO6_OUT_VAL, F_GPIO6_OUT_VAL);
+
+	msleep(125);
+
+	err = t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	if (err)
+		return err;
+
+	msleep(125);
+
+	err = t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 1, 1);
+	if (err)
+		return err;
+	
+	msleep(125);
+
+	err = t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 1, 0);
+
+	return err;
+	   
 }
 
 static int ael1006_power_down(struct cphy *phy, int enable)
@@ -1047,52 +1103,70 @@ static int ael2005_setup_twinax_edc(struct cphy *phy, int modtype)
 	return err;
 }
 
-static int ael2005_i2c_rd(struct cphy *phy, int dev_addr, int word_addr)
-{
-	int i, err;
-	unsigned int stat, data;
-
-	err = mdio_write(phy, MDIO_DEV_PMA_PMD, AEL_I2C_CTRL,
-			 (dev_addr << 8) | (1 << 8) | word_addr);
-	if (err)
-		return err;
-
-	for (i = 0; i < 5; i++) {
-		msleep(1);
-		err = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL_I2C_STAT, &stat);
-		if (err)
-			return err;
-		if ((stat & 3) == 1) {
-			err = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL_I2C_DATA,
-					&data);
-			if (err)
-				return err;
-			return data >> 8;
-		}
-	}
-	CH_WARN(phy->adapter, "PHY %u I2C read of addr %u timed out\n",
-		phy->addr, word_addr);
-	return -ETIMEDOUT;
-}
-
-static int ael2005_get_module_type(struct cphy *phy, int delay_ms)
+static int get_module_type(struct cphy *phy)
 {
 	int v;
-	unsigned int stat;
 
-	v = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL2005_GPIO_CTRL, &stat);
-	if (v)
-		return v;
+	v = get_phytrans_type(phy);
+	if (v == phy_transtype_sfp) {
+		/* SFP: see SFF-8472 for below */
 
-	if (stat & (1 << 8))			/* module absent */
-		return phy_modtype_none;
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 3);
+		if (v < 0)
+			return v;
 
-	if (delay_ms)
-		msleep(delay_ms);
+		if (v == 0x1)
+			return phy_modtype_twinax;
+		if (v == 0x10)
+			return phy_modtype_sr;
+		if (v == 0x20)
+			return phy_modtype_lr;
+		if (v == 0x40)
+			return phy_modtype_lrm;
 
-	return get_module_type(phy, 0);
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 6);
+		if (v < 0)
+			return v;
+		if (v != 4)
+			return phy_modtype_unknown;
 
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 10);
+		if (v < 0)
+			return v;
+
+		if (v & 0x80) {
+			v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 0x12);
+			if (v < 0)
+				return v;
+			return v > 10 ? phy_modtype_twinax_long :
+			    phy_modtype_twinax;
+		}
+	} else if (v == phy_transtype_xfp) {
+		/* XFP: See INF-8077i for details. */
+
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 127);
+		if (v < 0)
+			return v;
+
+		if (v != 1) {
+			/* XXX: set page select to table 1 yourself */
+			return phy_modtype_unknown;
+		}
+
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 131);
+		if (v < 0)
+			return v;
+		if (v == 0x10)
+			return phy_modtype_lrm;
+		if (v == 0x40)
+			return phy_modtype_lr;
+		if (v == 0x80)
+			return phy_modtype_sr;
+	}
+
+	return phy_modtype_unknown;
 }
+
 
 static int ael2005_intr_enable(struct cphy *phy)
 {
@@ -1110,6 +1184,24 @@ static int ael2005_intr_clear(struct cphy *phy)
 {
 	int err = mdio_write(phy, MDIO_DEV_PMA_PMD, AEL2005_GPIO_CTRL, 0xd00);
 	return err ? err : t3_phy_lasi_intr_clear(phy);
+}
+
+static int ael2005_get_module_type(struct cphy *phy, int delay_ms)
+{
+	int v;
+	unsigned int stat;
+
+	v = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL2005_GPIO_CTRL, &stat);
+	if (v)
+		return v;
+
+	if (stat & (1 << 8))			/* module absent */
+		return phy_modtype_none;
+
+	if (delay_ms)
+		msleep(delay_ms);
+
+	return get_module_type(phy);
 }
 
 static int ael2005_reset(struct cphy *phy, int wait)
@@ -1207,7 +1299,13 @@ static int ael2005_intr_handler(struct cphy *phy)
 	}
 
 	ret = t3_phy_lasi_intr_handler(phy);
-	return ret < 0 ? ret : ret + cause;
+	if (ret < 0)
+		return ret;
+
+	ret |= cause;
+	if (!ret)
+		ret |= cphy_cause_link_change;
+	return ret;
 }
 
 #ifdef C99_NOT_SUPPORTED
@@ -1245,6 +1343,7 @@ int t3_ael2005_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE |
 		  SUPPORTED_IRQ, "10GBASE-R");
 	msleep(125);
+	ael_laser_down(phy, 0);
 
 	err = ael2005_get_module_type(phy, 0);
 	if (err >= 0)
@@ -1335,7 +1434,7 @@ static int xaui_direct_get_link_status(struct cphy *phy, int *link_ok,
 {
 	if (link_ok) {
 		unsigned int status;
-		
+
 		status = t3_read_reg(phy->adapter,
 				     XGM_REG(A_XGM_SERDES_STAT0, phy->addr)) |
 			 t3_read_reg(phy->adapter,
