@@ -440,7 +440,6 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct ixp425_softc *sc = device_get_softc(dev);
 	const struct hwvtrans *vtrans;
-	struct rman *rmanp;
 	struct resource *rv;
 	uint32_t addr;
 	int needactivate = flags & RF_ACTIVE;
@@ -449,18 +448,16 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	flags &= ~RF_ACTIVE;
 	switch (type) {
 	case SYS_RES_IRQ:
-		rmanp = &sc->sc_irq_rman;
 		/* override per hints */
 		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_IRQ, &irq) == 0)
 			start = end = irq;
-		rv = rman_reserve_resource(rmanp, start, end, count,
-			flags, child);
+		rv = rman_reserve_resource(&sc->sc_irq_rman, start, end, count,
+		    flags, child);
 		if (rv != NULL)
 			rman_set_rid(rv, *rid);
 		break;
 
 	case SYS_RES_MEMORY:
-		rmanp = &sc->sc_mem_rman;
 		/* override per hints */
 		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_ADDR, &addr) == 0) {
 			start = addr;
@@ -485,13 +482,17 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		if (vtrans == NULL) {
 			/* likely means above table needs to be updated */
 			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
-			    __func__, start, end-start);
+			    __func__, start, end - start);
 			return NULL;
 		}
-		rv = rman_reserve_resource(rmanp, start, end, end - start,
-			flags, child);
-		if (rv != NULL)
-			rman_set_rid(rv, *rid);
+		rv = rman_reserve_resource(&sc->sc_mem_rman, start, end,
+		    end - start, flags, child);
+		if (rv == NULL) {
+			device_printf(child, "%s: cannot reserve 0x%lx:0x%lx\n",
+			    __func__, start, end - start);
+			return NULL;
+		}
+		rman_set_rid(rv, *rid);
 		break;
 	default:
 		rv = NULL;
@@ -507,6 +508,14 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
+ixp425_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	/* NB: no private resources, just release */
+	return rman_release_resource(r);
+}
+
+static int
 ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
@@ -515,8 +524,11 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 
 	if (type == SYS_RES_MEMORY) {
 		vtrans = gethwvtrans(rman_get_start(r), rman_get_size(r));
-		if (vtrans == NULL)		/* NB: should not happen */
+		if (vtrans == NULL) {		/* NB: should not happen */
+			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			    __func__, rman_get_start(r), rman_get_size(r));
 			return (ENOENT);
+		}
 		if (vtrans->isa4x)
 			rman_set_bustag(r, &ixp425_a4x_bs_tag);
 		else
@@ -524,6 +536,14 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 		rman_set_bushandle(r, vtrans->vbase);
 	}
 	return (rman_activate_resource(r));
+}
+
+static int
+ixp425_deactivate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r) 
+{
+	/* NB: no private resources, just deactive */
+	return (rman_deactivate_resource(r));
 }
 
 static __inline void
@@ -581,19 +601,21 @@ ixp425_teardown_intr(device_t dev, device_t child, struct resource *res,
 
 static device_method_t ixp425_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe, ixp425_probe),
-	DEVMETHOD(device_attach, ixp425_attach),
-	DEVMETHOD(device_identify, ixp425_identify),
+	DEVMETHOD(device_probe,			ixp425_probe),
+	DEVMETHOD(device_attach,		ixp425_attach),
+	DEVMETHOD(device_identify,		ixp425_identify),
 
 	/* Bus interface */
-	DEVMETHOD(bus_add_child, ixp425_add_child),
-	DEVMETHOD(bus_hinted_child, ixp425_hinted_child),
-	DEVMETHOD(bus_read_ivar, ixp425_read_ivar),
+	DEVMETHOD(bus_add_child,		ixp425_add_child),
+	DEVMETHOD(bus_hinted_child,		ixp425_hinted_child),
+	DEVMETHOD(bus_read_ivar,		ixp425_read_ivar),
 
-	DEVMETHOD(bus_alloc_resource, ixp425_alloc_resource),
-	DEVMETHOD(bus_activate_resource, ixp425_activate_resource),
-	DEVMETHOD(bus_setup_intr, ixp425_setup_intr),
-	DEVMETHOD(bus_teardown_intr, ixp425_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,		ixp425_alloc_resource),
+	DEVMETHOD(bus_release_resource,		ixp425_release_resource),
+	DEVMETHOD(bus_activate_resource,	ixp425_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	ixp425_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,		ixp425_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		ixp425_teardown_intr),
 
 	{0, 0},
 };
