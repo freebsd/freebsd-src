@@ -456,9 +456,6 @@ struct txp_tcpseg_desc {
 #define	TXP_RXFILT_PROMISC	0x0008	/* promiscuous mode */
 #define	TXP_RXFILT_HASHMULTI	0x0010	/* use multicast filter */
 
-/* multicast polynomial */
-#define	TXP_POLYNOMIAL		0x04c11db7
-
 /*
  * boot record (pointers to rings)
  */
