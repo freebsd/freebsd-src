@@ -294,8 +294,8 @@ for ( ret = 0 ; !ret && !(condition) ; ) {			\
 	DRM_UNLOCK();						\
 	mtx_lock(&dev->irq_lock);				\
 	if (!(condition))					\
-	   ret = -mtx_sleep(&(queue), &dev->irq_lock, 		\
-			 PZERO | PCATCH, "drmwtq", (timeout));	\
+	    ret = -mtx_sleep(&(queue), &dev->irq_lock, 		\
+		PCATCH, "drmwtq", (timeout));			\
 	mtx_unlock(&dev->irq_lock);				\
 	DRM_LOCK();						\
 }
