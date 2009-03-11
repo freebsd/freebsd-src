@@ -186,6 +186,7 @@ vendor DUAL			0x890f	Dual
 vendor EDIMAX			0x890f	Edimax Technology Inc.
 vendor ADAPTEC2			0x9005	Adaptec
 vendor CONTEC			0xc001	Contec
+vendor TJ			0xc00a	TJ
 vendor MACNICA			0xc00b	MACNICA
 vendor ROLAND			0xc00c	Roland
 vendor COREGA2			0xc00f	Corega K.K.
@@ -589,6 +590,7 @@ product SYMBOL LA4100		0x0001	Symbol Spectrum24 LA4100 Series WLAN
 
 /* TDK Products */
 product TDK LAK_CD011WL		0x0000 TDK LAK-CD011WL
+product TDK LAK_CD011		0x0100 TDK LAK-CD011
 product TDK CFE_10		0x010a Xircom CompactCard CFE-10
 product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
 product TDK LAK_CF010		0x0900 TDK LAC-CF010
@@ -602,6 +604,12 @@ product TDK DFL5610WS		0xea15 TDK DFL5610WS Ethernet/Modem
 /* Telecom Device */
 product TELECOMDEVICE LM5LT	0x0101 Billionton LM5LT-10B Ethernet/Modem
 product TELECOMDEVICE TCD_HPC100	0x0202 Telecom Device TCD-HPC100
+
+/* TJ Products */
+product TJ PTJ_LAN_T		0x0001  TJ Ethernet PTJ-LAN/T PC-NIC ENCC 990010759-001A
+
+/* Toshiba products */
+product TOSHIBA2 LANCT00A	0x0042 Toshiba LANCT00A Ethernet
 
 /* US Robotics Products */
 product USROBOTICS WORLDPORT144	0x3330 US Robotics WorldPort 14.4 Modem
