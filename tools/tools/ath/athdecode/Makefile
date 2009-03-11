@@ -3,8 +3,7 @@
 
 PROG=	athdecode
 
-.PATH.c: ${.CURDIR}/../athregs
-CFLAGS+=-I${.CURDIR}/../athregs
+.PATH.c: ${.CURDIR}/../common
 
 SRCS=	main.c
 SRCS+=	dumpregs_5210.c
