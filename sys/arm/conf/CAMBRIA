@@ -142,15 +142,14 @@ device		ath_rf5413
 #device		ath_ar9285
 
 # NB: 2 USB 2.0 ports standard
-makeoptions	WITH_LEGACY
-device		ousb
+device		usb
 options		USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
 #options		USB_DEBUG
-device		oehci
-device		oumass
+device		ehci
+device		umass
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
 
-#device		oural
-#device		ozyd
+#device		ural
+#device		zyd
 #device		wlan_amrr
