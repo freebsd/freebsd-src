@@ -29,37 +29,63 @@
 #define dynirq_to_irq(_x) ((_x) + DYNIRQ_BASE)
 #define irq_to_dynirq(_x) ((_x) - DYNIRQ_BASE)
 
-/* Dynamic binding of event channels and VIRQ sources to Linux IRQ space. */
-extern void unbind_from_irq(int irq);
+/* 
+ * Dynamic binding of event channels and VIRQ sources to guest IRQ space.
+ */
 
+/*
+ * Bind a caller port event channel to an interrupt handler. If
+ * successful, the guest IRQ number is returned in *irqp. Return zero
+ * on success or errno otherwise.
+ */
 extern int bind_caller_port_to_irqhandler(unsigned int caller_port,
 	const char *devname, driver_intr_t handler, void *arg,
 	unsigned long irqflags, unsigned int *irqp);
+
+/*
+ * Bind a listening port to an interrupt handler. If successful, the
+ * guest IRQ number is returned in *irqp. Return zero on success or
+ * errno otherwise.
+ */
 extern int bind_listening_port_to_irqhandler(unsigned int remote_domain,
-	const char *devname, driver_intr_t handler, void *arg, unsigned long irqflags,
-	unsigned int *irqp);
+	const char *devname, driver_intr_t handler, void *arg,
+	unsigned long irqflags, unsigned int *irqp);
+
+/*
+ * Bind a VIRQ to an interrupt handler. If successful, the guest IRQ
+ * number is returned in *irqp. Return zero on success or errno
+ * otherwise.
+ */
 extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 	const char *devname, driver_filter_t filter, driver_intr_t handler,
 	void *arg, unsigned long irqflags,	unsigned int *irqp);
-extern int bind_ipi_to_irqhandler(unsigned int ipi,
-	unsigned int cpu,
-	const char *devname,
-	driver_filter_t handler,
-	unsigned long irqflags,
-	unsigned int *irqp);
 
+/*
+ * Bind an IPI to an interrupt handler. If successful, the guest
+ * IRQ number is returned in *irqp. Return zero on success or errno
+ * otherwise.
+ */
+extern int bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
+	const char *devname, driver_filter_t filter,
+	unsigned long irqflags, unsigned int *irqp);
+
+/*
+ * Bind an interdomain event channel to an interrupt handler. If
+ * successful, the guest IRQ number is returned in *irqp. Return zero
+ * on success or errno otherwise.
+ */
 extern int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
-	                                             unsigned int remote_port,
-	                                             const char *devname,
-	                                             driver_filter_t filter,
-	                                             driver_intr_t handler,
-	                                             unsigned long irqflags,
-	                                             unsigned int *irqp);
+	unsigned int remote_port, const char *devname,
+	driver_filter_t filter, driver_intr_t handler,
+	unsigned long irqflags, unsigned int *irqp);
 
+/*
+ * Unbind an interrupt handler using the guest IRQ number returned
+ * when it was bound.
+ */
+extern void unbind_from_irqhandler(unsigned int irq);
 
-
-extern void unbind_from_irqhandler(unsigned int evtchn);
-static __inline__ int irq_cannonicalize(int irq)
+static __inline__ int irq_cannonicalize(unsigned int irq)
 {
     return (irq == 2) ? 9 : irq;
 }
