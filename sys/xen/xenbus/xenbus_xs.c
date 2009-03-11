@@ -142,21 +142,17 @@ xs_read_reply(enum xsd_sockmsg_type *type, unsigned int *len, void **result)
 	mtx_lock(&xs_state.reply_lock);
 
 	while (TAILQ_EMPTY(&xs_state.reply_list)) {
-			while (TAILQ_EMPTY(&xs_state.reply_list)) {
-				error = mtx_sleep(&xs_state.reply_waitq,
-				    &xs_state.reply_lock,
-				    PCATCH, "xswait", hz/10);
-				if (error && error != EWOULDBLOCK) {
-					mtx_unlock(&xs_state.reply_lock);
-					return (error);
-				}
-				
+		while (TAILQ_EMPTY(&xs_state.reply_list)) {
+			error = mtx_sleep(&xs_state.reply_waitq,
+			    &xs_state.reply_lock,
+			    PCATCH, "xswait", hz/10);
+			if (error && error != EWOULDBLOCK) {
+				mtx_unlock(&xs_state.reply_lock);
+				return (error);
 			}
-				
-			
 		}
+	}
 
-		
 	msg = TAILQ_FIRST(&xs_state.reply_list);
 	TAILQ_REMOVE(&xs_state.reply_list, msg, list);
 
@@ -202,7 +198,8 @@ xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void **result)
 
 	sx_xlock(&xs_state.request_mutex);
 
-	error = xb_write(msg, sizeof(*msg) + msg->len, &xs_state.request_mutex.lock_object);
+	error = xb_write(msg, sizeof(*msg) + msg->len,
+	    &xs_state.request_mutex.lock_object);
 	if (error) {
 		msg->type = XS_ERROR;
 	} else {
@@ -243,7 +240,8 @@ xs_talkv(struct xenbus_transaction t, enum xsd_sockmsg_type type,
 
 	sx_xlock(&xs_state.request_mutex);
 
-	error = xb_write(&msg, sizeof(msg), &xs_state.request_mutex.lock_object);
+	error = xb_write(&msg, sizeof(msg),
+	    &xs_state.request_mutex.lock_object);
 	if (error) {
 		sx_xunlock(&xs_state.request_mutex);
 		printf("xs_talkv failed %d\n", error);
@@ -251,7 +249,8 @@ xs_talkv(struct xenbus_transaction t, enum xsd_sockmsg_type type,
 	}
 
 	for (i = 0; i < num_vecs; i++) {
-		error = xb_write(iovec[i].iov_base, iovec[i].iov_len, &xs_state.request_mutex.lock_object);
+		error = xb_write(iovec[i].iov_base, iovec[i].iov_len,
+		    &xs_state.request_mutex.lock_object);
 		if (error) {		
 			sx_xunlock(&xs_state.request_mutex);
 			printf("xs_talkv failed %d\n", error);
@@ -791,7 +790,8 @@ xs_process_msg(enum xsd_sockmsg_type *type)
 		
 	msg = malloc(sizeof(*msg), M_DEVBUF, M_WAITOK);
 	mtx_lock(&xs_state.reply_lock);
-	error = xb_read(&msg->hdr, sizeof(msg->hdr), &xs_state.reply_lock.lock_object);
+	error = xb_read(&msg->hdr, sizeof(msg->hdr),
+	    &xs_state.reply_lock.lock_object);
 	mtx_unlock(&xs_state.reply_lock);
 	if (error) {
 		free(msg, M_DEVBUF);
@@ -800,7 +800,8 @@ xs_process_msg(enum xsd_sockmsg_type *type)
 
 	body = malloc(msg->hdr.len + 1, M_DEVBUF, M_WAITOK);
 	mtx_lock(&xs_state.reply_lock);
-	error = xb_read(body, msg->hdr.len, &xs_state.reply_lock.lock_object); 
+	error = xb_read(body, msg->hdr.len,
+	    &xs_state.reply_lock.lock_object); 
 	mtx_unlock(&xs_state.reply_lock);
 	if (error) {
 		free(body, M_DEVBUF);

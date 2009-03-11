@@ -1494,6 +1494,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
+#ifdef XENHVM
+	if (inw(0x10) == 0x49d2) {
+		if (bootverbose)
+			printf("Xen detected: disabling emulated block and network devices\n");
+		outw(0x10, 3);
+	}
+#endif
+
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
 }

@@ -28,13 +28,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * $FreeBSD$
  */
+
 
 #ifndef _XEN_XENPMAP_H_
 #define _XEN_XENPMAP_H_
+
+#include <machine/xen/features.h>
+
 void _xen_queue_pt_update(vm_paddr_t, vm_paddr_t, char *, int);
 void xen_pt_switch(vm_paddr_t);
 void xen_set_ldt(vm_paddr_t, unsigned long);
@@ -44,18 +45,16 @@ void xen_pgd_unpin(vm_paddr_t);
 void xen_pt_pin(vm_paddr_t);
 void xen_pt_unpin(vm_paddr_t);
 void xen_flush_queue(void);
-void pmap_ref(pt_entry_t *pte, vm_paddr_t ma);
 void xen_check_queue(void);
+#if 0
+void pmap_ref(pt_entry_t *pte, vm_paddr_t ma);
+#endif
 
 #ifdef INVARIANTS
 #define xen_queue_pt_update(a, b) _xen_queue_pt_update((a), (b), __FILE__, __LINE__)
 #else
 #define xen_queue_pt_update(a, b) _xen_queue_pt_update((a), (b), NULL, 0)
 #endif	
-
-
-#include <sys/param.h>
-#include <sys/pcpu.h>
 
 #ifdef PMAP_DEBUG
 #define PMAP_REF pmap_ref
@@ -222,11 +221,7 @@ set_phys_to_machine(unsigned long pfn, unsigned long mfn)
         xen_phys_machine[pfn] = mfn;
 }
 
-static __inline int
-phys_to_machine_mapping_valid(unsigned long pfn)
-{
-	return xen_phys_machine[pfn] != INVALID_P2M_ENTRY;
-}
+
 
 
 #endif /* _XEN_XENPMAP_H_ */

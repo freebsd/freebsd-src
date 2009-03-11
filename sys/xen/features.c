@@ -1,10 +1,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+
 #include <machine/xen/xen-os.h>
 #include <xen/hypervisor.h>
-#include <machine/xen/features.h>
+#include <xen/features.h>
 
 uint8_t xen_features[XENFEAT_NR_SUBMAPS * 32] /* __read_mostly */;
 
