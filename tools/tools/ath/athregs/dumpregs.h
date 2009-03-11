@@ -36,6 +36,7 @@
 struct dumpreg {
 	uint32_t	addr;
 	const char	*name;
+	const char	*bits;
 	int		type;
 	u_int		srevMin, srevMax;
 	u_int		phyMin, phyMax;
@@ -60,6 +61,30 @@ enum {
 	DUMP_PUBLIC	= 0x0061,	/* public = BASIC+QCU+DCU */
 	DUMP_ALL	= 0xffff
 };
+
+#define	_DEFREG(_addr, _name, _type) \
+    { .addr = _addr, .name = _name, .type = _type }
+#define	_DEFREGx(_addr, _name, _type, _srevmin, _srevmax) \
+    { .addr = _addr, .name = _name, .type = _type, \
+     .srevMin = _srevmin, .srevMax = _srevmax }
+#define	_DEFREGfmt(_addr, _name, _type, _fmt) \
+    { .addr = _addr, .name = _name, .type = _type, .bits = _fmt }
+#define	DEFVOID(_addr, _name)	_DEFREG(_addr, _name, 0)
+#define	DEFVOIDx(_addr, _name, _smin, _smax) \
+	__DEFREGx(_addr, _name, _smin, _smax, 0)
+#define	DEFVOIDfmt(_addr, _name, _fmt) \
+	_DEFREGfmt(_addr, _name, 0, _fmt)
+#define	DEFBASIC(_addr, _name)	_DEFREG(_addr, _name, DUMP_BASIC)
+#define	DEFBASICfmt(_addr, _name, _fmt) \
+	_DEFREGfmt(_addr, _name, DUMP_BASIC, _fmt)
+#define	DEFBASICx(_addr, _name, _smin, _smax) \
+	_DEFREGx(_addr, _name, DUMP_BASIC, _smin, _smax)
+#define	DEFBB(_addr, _name)	_DEFREG(_addr, _name, DUMP_BASEBAND)
+#define	DEFINT(_addr, _name)	_DEFREG(_addr, _name, DUMP_INTERRUPT)
+#define	DEFINTfmt(_addr, _name, _fmt) \
+	_DEFREGfmt(_addr, _name, DUMP_INTERRUPT, _fmt)
+#define	DEFQCU(_addr, _name)	_DEFREG(_addr, _name, DUMP_QCU)
+#define	DEFDCU(_addr, _name)	_DEFREG(_addr, _name, DUMP_DCU)
 
 void	register_regs(struct dumpreg *_regs, u_int _nregs,
 	    int def_srev_min, int def_srev_max,
