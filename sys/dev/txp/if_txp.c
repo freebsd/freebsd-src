@@ -136,12 +136,12 @@ static void txp_rxring_empty(struct txp_softc *);
 static void txp_set_filter(struct txp_softc *);
 
 static int txp_cmd_desc_numfree(struct txp_softc *);
-static int txp_command(struct txp_softc *, u_int16_t, u_int16_t, u_int32_t,
-    u_int32_t, u_int16_t *, u_int32_t *, u_int32_t *, int);
-static int txp_command2(struct txp_softc *, u_int16_t, u_int16_t,
-    u_int32_t, u_int32_t, struct txp_ext_desc *, u_int8_t,
+static int txp_command(struct txp_softc *, uint16_t, uint16_t, uint32_t,
+    uint32_t, uint16_t *, uint32_t *, uint32_t *, int);
+static int txp_command2(struct txp_softc *, uint16_t, uint16_t,
+    uint32_t, uint32_t, struct txp_ext_desc *, uint8_t,
     struct txp_rsp_desc **, int);
-static int txp_response(struct txp_softc *, u_int32_t, u_int16_t, u_int16_t,
+static int txp_response(struct txp_softc *, uint32_t, uint16_t, uint16_t,
     struct txp_rsp_desc **);
 static void txp_rsp_fixup(struct txp_softc *, struct txp_rsp_desc *,
     struct txp_rsp_desc *);
@@ -209,8 +209,8 @@ txp_attach(device_t dev)
 {
 	struct txp_softc *sc;
 	struct ifnet *ifp;
-	u_int16_t p1;
-	u_int32_t p2;
+	uint16_t p1;
+	uint32_t p2;
 	int error = 0, rid;
 	u_char eaddr[6];
 
@@ -296,12 +296,12 @@ txp_attach(device_t dev)
 		goto fail;
 	}
 
-	eaddr[0] = ((u_int8_t *)&p1)[1];
-	eaddr[1] = ((u_int8_t *)&p1)[0];
-	eaddr[2] = ((u_int8_t *)&p2)[3];
-	eaddr[3] = ((u_int8_t *)&p2)[2];
-	eaddr[4] = ((u_int8_t *)&p2)[1];
-	eaddr[5] = ((u_int8_t *)&p2)[0];
+	eaddr[0] = ((uint8_t *)&p1)[1];
+	eaddr[1] = ((uint8_t *)&p1)[0];
+	eaddr[2] = ((uint8_t *)&p2)[3];
+	eaddr[3] = ((uint8_t *)&p2)[2];
+	eaddr[4] = ((uint8_t *)&p2)[1];
+	eaddr[5] = ((uint8_t *)&p2)[0];
 
 	sc->sc_cold = 0;
 
@@ -451,7 +451,7 @@ txp_chip_init(struct txp_softc *sc)
 static int
 txp_reset_adapter(struct txp_softc *sc)
 {
-	u_int32_t r;
+	uint32_t r;
 	int i;
 
 	r = 0;
@@ -481,7 +481,7 @@ txp_download_fw(struct txp_softc *sc)
 	struct txp_fw_file_header *fileheader;
 	struct txp_fw_section_header *secthead;
 	int error, sect;
-	u_int32_t r, i, ier, imr;
+	uint32_t r, i, ier, imr;
 
 	r = 0;
 	error = 0;
@@ -528,7 +528,7 @@ txp_download_fw(struct txp_softc *sc)
 		goto fail;
 	}
 
-	secthead = (struct txp_fw_section_header *)(((u_int8_t *)tc990image) +
+	secthead = (struct txp_fw_section_header *)(((uint8_t *)tc990image) +
 	    sizeof(struct txp_fw_file_header));
 
 	for (sect = 0; sect < fileheader->nsections; sect++) {
@@ -538,7 +538,7 @@ txp_download_fw(struct txp_softc *sc)
 			goto fail;
 		}
 		secthead = (struct txp_fw_section_header *)
-		    (((u_int8_t *)secthead) + secthead->nbytes +
+		    (((uint8_t *)secthead) + secthead->nbytes +
 		    sizeof(*secthead));
 	}
 
@@ -566,7 +566,7 @@ fail:
 static int
 txp_download_fw_wait(struct txp_softc *sc)
 {
-	u_int32_t i, r;
+	uint32_t i, r;
 
 	r = 0;
 	for (i = 0; i < 10000; i++) {
@@ -598,14 +598,14 @@ txp_download_fw_section(struct txp_softc *sc,
 	vm_offset_t dma;
 	int rseg, err = 0;
 	struct mbuf m;
-	u_int16_t csum;
+	uint16_t csum;
 
 	/* Skip zero length sections */
 	if (sect->nbytes == 0)
 		return (0);
 
 	/* Make sure we aren't past the end of the image */
-	rseg = ((u_int8_t *)sect) - ((u_int8_t *)tc990image);
+	rseg = ((uint8_t *)sect) - ((uint8_t *)tc990image);
 	if (rseg >= sizeof(tc990image)) {
 		device_printf(sc->sc_dev, "fw invalid section address, "
 		    "section %d\n", sectnum);
@@ -620,7 +620,7 @@ txp_download_fw_section(struct txp_softc *sc,
 		return (-1);
 	}
 
-	bcopy(((u_int8_t *)sect) + sizeof(*sect), sc->sc_fwbuf, sect->nbytes);
+	bcopy(((uint8_t *)sect) + sizeof(*sect), sc->sc_fwbuf, sect->nbytes);
 	dma = vtophys(sc->sc_fwbuf);
 
 	/*
@@ -662,7 +662,7 @@ txp_intr(void *vsc)
 {
 	struct txp_softc *sc = vsc;
 	struct txp_hostvar *hv = sc->sc_hostvar;
-	u_int32_t isr;
+	uint32_t isr;
 
 	/* mask all interrupts */
 	TXP_LOCK(sc);
@@ -709,7 +709,7 @@ txp_rx_reclaim(struct txp_softc *sc, struct txp_rx_ring *r)
 	struct txp_rx_desc *rxd;
 	struct mbuf *m;
 	struct txp_swdesc *sd = NULL;
-	u_int32_t roff, woff;
+	uint32_t roff, woff;
 
 	TXP_LOCK_ASSERT(sc);
 	roff = *r->r_roff;
@@ -797,7 +797,7 @@ txp_rxbuf_reclaim(struct txp_softc *sc)
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_rxbuf_desc *rbd;
 	struct txp_swdesc *sd;
-	u_int32_t i;
+	uint32_t i;
 
 	TXP_LOCK_ASSERT(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
@@ -840,8 +840,8 @@ static void
 txp_tx_reclaim(struct txp_softc *sc, struct txp_tx_ring *r)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	u_int32_t idx = TXP_OFFSET2IDX(*(r->r_off));
-	u_int32_t cons = r->r_cons, cnt = r->r_cnt;
+	uint32_t idx = TXP_OFFSET2IDX(*(r->r_off));
+	uint32_t cons = r->r_cons, cnt = r->r_cnt;
 	struct txp_tx_desc *txd = r->r_desc + cons;
 	struct txp_swdesc *sd = sc->sc_txd + cons;
 	struct mbuf *m;
@@ -909,7 +909,7 @@ txp_alloc_rings(struct txp_softc *sc)
 {
 	struct txp_boot_record *boot;
 	struct txp_ldata *ld;
-	u_int32_t r;
+	uint32_t r;
 	int i;
 
 	r = 0;
@@ -997,7 +997,7 @@ txp_alloc_rings(struct txp_softc *sc)
 	sc->sc_rxbufprod = 0;
 
 	/* zero dma */
-	bzero(&ld->txp_zero, sizeof(u_int32_t));
+	bzero(&ld->txp_zero, sizeof(uint32_t));
 	boot->br_zero_lo = vtophys(&ld->txp_zero);
 	boot->br_zero_hi = 0;
 
@@ -1148,8 +1148,8 @@ static void
 txp_init_locked(struct txp_softc *sc)
 {
 	struct ifnet *ifp;
-	u_int16_t p1;
-	u_int32_t p2;
+	uint16_t p1;
+	uint32_t p2;
 
 	TXP_LOCK_ASSERT(sc);
 	ifp = sc->sc_ifp;
@@ -1163,12 +1163,12 @@ txp_init_locked(struct txp_softc *sc)
 	    NULL, NULL, NULL, 1);
 
 	/* Set station address. */
-	((u_int8_t *)&p1)[1] = IF_LLADDR(sc->sc_ifp)[0];
-	((u_int8_t *)&p1)[0] = IF_LLADDR(sc->sc_ifp)[1];
-	((u_int8_t *)&p2)[3] = IF_LLADDR(sc->sc_ifp)[2];
-	((u_int8_t *)&p2)[2] = IF_LLADDR(sc->sc_ifp)[3];
-	((u_int8_t *)&p2)[1] = IF_LLADDR(sc->sc_ifp)[4];
-	((u_int8_t *)&p2)[0] = IF_LLADDR(sc->sc_ifp)[5];
+	((uint8_t *)&p1)[1] = IF_LLADDR(sc->sc_ifp)[0];
+	((uint8_t *)&p1)[0] = IF_LLADDR(sc->sc_ifp)[1];
+	((uint8_t *)&p2)[3] = IF_LLADDR(sc->sc_ifp)[2];
+	((uint8_t *)&p2)[2] = IF_LLADDR(sc->sc_ifp)[3];
+	((uint8_t *)&p2)[1] = IF_LLADDR(sc->sc_ifp)[4];
+	((uint8_t *)&p2)[0] = IF_LLADDR(sc->sc_ifp)[5];
 	txp_command(sc, TXP_CMD_STATION_ADDRESS_WRITE, p1, p2, 0,
 	    NULL, NULL, NULL, 1);
 
@@ -1250,7 +1250,7 @@ txp_start_locked(struct ifnet *ifp)
 	struct txp_frag_desc *fxd;
 	struct mbuf *m, *m0;
 	struct txp_swdesc *sd;
-	u_int32_t firstprod, firstcnt, prod, cnt;
+	uint32_t firstprod, firstcnt, prod, cnt;
 
 	TXP_LOCK_ASSERT(sc);
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
@@ -1349,8 +1349,8 @@ oactive:
  * Handle simple commands sent to the typhoon
  */
 static int
-txp_command(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
-    u_int32_t in3, u_int16_t *out1, u_int32_t *out2, u_int32_t *out3, int wait)
+txp_command(struct txp_softc *sc, uint16_t id, uint16_t in1, uint32_t in2,
+    uint32_t in3, uint16_t *out1, uint32_t *out2, uint32_t *out3, int wait)
 {
 	struct txp_rsp_desc *rsp = NULL;
 
@@ -1371,15 +1371,15 @@ txp_command(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
 }
 
 static int
-txp_command2(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
-    u_int32_t in3, struct txp_ext_desc *in_extp, u_int8_t in_extn,
+txp_command2(struct txp_softc *sc, uint16_t id, uint16_t in1, uint32_t in2,
+    uint32_t in3, struct txp_ext_desc *in_extp, uint8_t in_extn,
     struct txp_rsp_desc **rspp, int wait)
 {
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_cmd_desc *cmd;
 	struct txp_ext_desc *ext;
-	u_int32_t idx, i;
-	u_int16_t seq;
+	uint32_t idx, i;
+	uint16_t seq;
 
 	if (txp_cmd_desc_numfree(sc) < (in_extn + 1)) {
 		device_printf(sc->sc_dev, "no free cmd descriptors\n");
@@ -1387,7 +1387,7 @@ txp_command2(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
 	}
 
 	idx = sc->sc_cmdring.lastwrite;
-	cmd = (struct txp_cmd_desc *)(((u_int8_t *)sc->sc_cmdring.base) + idx);
+	cmd = (struct txp_cmd_desc *)(((uint8_t *)sc->sc_cmdring.base) + idx);
 	bzero(cmd, sizeof(*cmd));
 
 	cmd->cmd_numdesc = in_extn;
@@ -1404,7 +1404,7 @@ txp_command2(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
 		idx = 0;
 
 	for (i = 0; i < in_extn; i++) {
-		ext = (struct txp_ext_desc *)(((u_int8_t *)sc->sc_cmdring.base) + idx);
+		ext = (struct txp_ext_desc *)(((uint8_t *)sc->sc_cmdring.base) + idx);
 		bcopy(in_extp, ext, sizeof(struct txp_ext_desc));
 		in_extp++;
 		idx += sizeof(struct txp_cmd_desc);
@@ -1439,14 +1439,14 @@ txp_command2(struct txp_softc *sc, u_int16_t id, u_int16_t in1, u_int32_t in2,
 }
 
 static int
-txp_response(struct txp_softc *sc, u_int32_t ridx, u_int16_t id, u_int16_t seq,
+txp_response(struct txp_softc *sc, uint32_t ridx, uint16_t id, uint16_t seq,
     struct txp_rsp_desc **rspp)
 {
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_rsp_desc *rsp;
 
 	while (ridx != hv->hv_resp_write_idx) {
-		rsp = (struct txp_rsp_desc *)(((u_int8_t *)sc->sc_rspring.base) + ridx);
+		rsp = (struct txp_rsp_desc *)(((uint8_t *)sc->sc_rspring.base) + ridx);
 
 		if (id == rsp->rsp_id && rsp->rsp_seq == seq) {
 			*rspp = (struct txp_rsp_desc *)malloc(
@@ -1491,7 +1491,7 @@ txp_rsp_fixup(struct txp_softc *sc, struct txp_rsp_desc *rsp,
 {
 	struct txp_rsp_desc *src = rsp;
 	struct txp_hostvar *hv = sc->sc_hostvar;
-	u_int32_t i, ridx;
+	uint32_t i, ridx;
 
 	ridx = hv->hv_resp_read_idx;
 
@@ -1515,7 +1515,7 @@ txp_cmd_desc_numfree(struct txp_softc *sc)
 {
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_boot_record *br = sc->sc_boot;
-	u_int32_t widx, ridx, nfree;
+	uint32_t widx, ridx, nfree;
 
 	widx = sc->sc_cmdring.lastwrite;
 	ridx = hv->hv_cmd_read_idx;
@@ -1563,7 +1563,7 @@ txp_ifmedia_upd(struct ifnet *ifp)
 {
 	struct txp_softc *sc = ifp->if_softc;
 	struct ifmedia *ifm = &sc->sc_ifmedia;
-	u_int16_t new_xcvr;
+	uint16_t new_xcvr;
 
 	TXP_LOCK(sc);
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER) {
@@ -1607,7 +1607,7 @@ txp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct txp_softc *sc = ifp->if_softc;
 	struct ifmedia *ifm = &sc->sc_ifmedia;
-	u_int16_t bmsr, bmcr, anar, anlpar;
+	uint16_t bmsr, bmcr, anar, anlpar;
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
@@ -1722,9 +1722,9 @@ static void
 txp_set_filter(struct txp_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	u_int32_t crc, carry, hashbit, hash[2];
-	u_int16_t filter;
-	u_int8_t octet;
+	uint32_t crc, carry, hashbit, hash[2];
+	uint16_t filter;
+	uint8_t octet;
 	int i, j, mcnt = 0;
 	struct ifmultiaddr *ifma;
 	char *enm;
@@ -1765,7 +1765,7 @@ txp_set_filter(struct txp_softc *sc)
 						    carry;
 				}
 			}
-			hashbit = (u_int16_t)(crc & (64 - 1));
+			hashbit = (uint16_t)(crc & (64 - 1));
 			hash[hashbit / 32] |= (1 << hashbit % 32);
 		}
 		IF_ADDR_UNLOCK(ifp);
