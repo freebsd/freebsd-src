@@ -2758,21 +2758,24 @@ gnu/fs/xfs/xfs_iomap.c		optional xfs \
 gnu/fs/xfs/xfs_behavior.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 
-xen/gnttab.c                   optional xen
-xen/features.c                 optional xen
-xen/evtchn/evtchn.c            optional xen
-xen/evtchn/evtchn_dev.c                optional xen
-xen/xenbus/xenbus_client.c     optional xen
-xen/xenbus/xenbus_comms.c      optional xen
-xen/xenbus/xenbus_dev.c                optional xen
-xen/xenbus/xenbus_if.m		optional xen
-xen/xenbus/xenbus_probe.c      optional xen
-#xen/xenbus/xenbus_probe_backend.c      optional xen
-xen/xenbus/xenbus_xs.c         optional xen
-dev/xen/console/console.c      optional xen
-dev/xen/console/xencons_ring.c optional xen
-dev/xen/blkfront/blkfront.c    optional xen
-dev/xen/netfront/netfront.c    optional xen
-#dev/xen/xenpci/xenpci.c        optional xen
-#xen/xenbus/xenbus_newbus.c	optional xenhvm
+xen/gnttab.c			optional xen | xenhvm
+xen/features.c			optional xen | xenhvm
+xen/evtchn/evtchn.c		optional xen
+xen/evtchn/evtchn_dev.c		optional xen | xenhvm
+xen/reboot.c			optional xen
+xen/xenbus/xenbus_client.c	optional xen | xenhvm
+xen/xenbus/xenbus_comms.c	optional xen | xenhvm
+xen/xenbus/xenbus_dev.c		optional xen | xenhvm
+xen/xenbus/xenbus_if.m		optional xen | xenhvm
+xen/xenbus/xenbus_probe.c	optional xen | xenhvm
+#xen/xenbus/xenbus_probe_backend.c	optional xen
+xen/xenbus/xenbus_xs.c		optional xen | xenhvm
+dev/xen/balloon/balloon.c	optional xen | xenhvm
+dev/xen/console/console.c	optional xen
+dev/xen/console/xencons_ring.c	optional xen
+dev/xen/blkfront/blkfront.c	optional xen | xenhvm
+dev/xen/netfront/netfront.c	optional xen | xenhvm
+dev/xen/xenpci/xenpci.c		optional xenpci
+dev/xen/xenpci/evtchn.c         optional xenpci
+dev/xen/xenpci/machine_reboot.c optional xenpci
 
