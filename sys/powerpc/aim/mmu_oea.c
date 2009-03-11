@@ -1081,8 +1081,11 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/* XXX change the pvo head for fake pages */
-	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS)
+	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
+		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea_pvo_kunmanaged;
+		zone = moea_upvo_zone;
+	}
 
 	/*
 	 * If this is a managed page, and it's the first reference to the page,
