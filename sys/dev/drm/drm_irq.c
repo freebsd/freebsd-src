@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
 
-static void drm_locked_task(void *context, int pending __unused);
-
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
 {
@@ -198,7 +196,6 @@ int drm_irq_install(struct drm_device *dev)
 	dev->driver->irq_postinstall(dev);
 	DRM_UNLOCK();
 
-	TASK_INIT(&dev->locked_task, 0, drm_locked_task, dev);
 	return 0;
 err:
 	DRM_LOCK();
@@ -507,46 +504,3 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	drm_vbl_send_signals(dev, crtc);
 }
 
-static void drm_locked_task(void *context, int pending __unused)
-{
-	struct drm_device *dev = context;
-
-	DRM_SPINLOCK(&dev->tsk_lock);
-
-	DRM_LOCK(); /* XXX drm_lock_take() should do it's own locking */
-	if (dev->locked_task_call == NULL ||
-	    drm_lock_take(&dev->lock, DRM_KERNEL_CONTEXT) == 0) {
-		DRM_UNLOCK();
-		DRM_SPINUNLOCK(&dev->tsk_lock);
-		return;
-	}
-
-	dev->lock.file_priv = NULL; /* kernel owned */
-	dev->lock.lock_time = jiffies;
-	atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
-
-	DRM_UNLOCK();
-
-	dev->locked_task_call(dev);
-
-	drm_lock_free(&dev->lock, DRM_KERNEL_CONTEXT);
-
-	dev->locked_task_call = NULL;
-
-	DRM_SPINUNLOCK(&dev->tsk_lock);
-}
-
-void
-drm_locked_tasklet(struct drm_device *dev,
-		   void (*tasklet)(struct drm_device *dev))
-{
-	DRM_SPINLOCK(&dev->tsk_lock);
-	if (dev->locked_task_call != NULL) {
-		DRM_SPINUNLOCK(&dev->tsk_lock);
-		return;
-	}
-
-	dev->locked_task_call = tasklet;
-	DRM_SPINUNLOCK(&dev->tsk_lock);
-	taskqueue_enqueue(taskqueue_swi, &dev->locked_task);
-}
