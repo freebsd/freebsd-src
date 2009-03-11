@@ -32,7 +32,9 @@
 .Nd recover data from hard disk or optical media
 .Sh SYNOPSIS
 .Nm
+.Op Fl b Ar bigsize
 .Op Fl r Ar rlist
+.Op Fl s Ar snapshot
 .Op Fl w Ar wlist
 .Ar special
 .Op Ar file
@@ -46,15 +48,24 @@ It starts reading in multiples of the sector size.
 Whenever a block fails, it is put to the end of the working queue and will be
 read again, possibly with a smaller read size.
 .Pp
-It uses block sizes of roughly 1 MB, 64kB, and the native sector size (usually
-512 bytes).
+By default it uses block sizes of roughly 1 MB, 32kB, and the native
+sector size (usually 512 bytes).
 These figures are adjusted slightly, for devices whose sectorsize is not a
 power of 2, e.g., audio CDs with a sector size of 2352 bytes.
 .Pp
+.Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl b Ar bigsize
+The size of reads attempted first.
+The middle pass is roughly the logarithmic average of the bigsize and
+the sectorsize.
 .It Fl r Ar rlist
 Read the list of blocks and block sizes to read from the specified file.
+.It Fl s Ar snapshot
+How often we should update the worklist file while things go OK.
+The default is 60 and the units is "progress messages" so if things
+go well, this is the same as once per minute.
 .It Fl w Ar wlist
 Write the list of remaining blocks to read to the specified file if
 .Nm
@@ -106,6 +117,10 @@ recoverdisk -r worklist -w worklist /dev/acd0 /data/cd.iso
 
 # recover a single file from the unreadable media
 touch file.avi; recoverdisk /cdrom/file.avi file.avi
+
+# If the disk hangs the system on read-errors try:
+recoverdisk -b 0 /dev/ad3 /somewhere
+
 .Ed
 .Sh SEE ALSO
 .Xr dd 1
