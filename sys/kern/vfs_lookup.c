@@ -385,7 +385,7 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 	 * Lookup requests outside of open() that specify LOCKSHARED
 	 * only need a shared lock on the leaf vnode.
 	 */
-	return (1);
+	return (0);
 }
 
 /*
