@@ -794,6 +794,7 @@ void	drm_handle_vblank(struct drm_device *dev, int crtc);
 u32	drm_vblank_count(struct drm_device *dev, int crtc);
 int	drm_vblank_get(struct drm_device *dev, int crtc);
 void	drm_vblank_put(struct drm_device *dev, int crtc);
+void	drm_vblank_cleanup(struct drm_device *dev);
 int	drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
 int	drm_vblank_init(struct drm_device *dev, int num_crtcs);
 void	drm_vbl_send_signals(struct drm_device *dev, int crtc);

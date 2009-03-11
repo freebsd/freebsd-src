@@ -523,6 +523,8 @@ static void drm_unload(struct drm_device *dev)
 		DRM_DEBUG("mtrr_del = %d", retcode);
 	}
 
+	drm_vblank_cleanup(dev);
+
 	DRM_LOCK();
 	drm_lastclose(dev);
 	DRM_UNLOCK();
