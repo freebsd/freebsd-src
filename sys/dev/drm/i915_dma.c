@@ -868,6 +868,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ret = drm_addmap(dev, base, size, _DRM_REGISTERS,
 	    _DRM_KERNEL | _DRM_DRIVER, &dev_priv->mmio_map);
+
+	if (IS_GM45(dev))
+		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+	else
+		dev->driver->get_vblank_counter = i915_get_vblank_counter;
+
 #ifdef I915_HAVE_GEM
 	i915_gem_load(dev);
 #endif
