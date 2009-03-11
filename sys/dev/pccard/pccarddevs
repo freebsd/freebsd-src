@@ -75,6 +75,7 @@ $FreeBSD$
  * publication 106 reserves the top bit for parity.
  */
 vendor FUJITSU			0x0004	Fujitsu Corporation
+vendor HITACHI			0x0007	Hitachi
 vendor INTERSIL			0x000b	Intersil
 vendor PANASONIC		0x0032	Matsushita Electric Industrial Co.
 vendor SANDISK			0x0045	Sandisk Corporation
@@ -346,6 +347,9 @@ product GLOBALVILLAGE LANMODEM	0x0105 GlobalVillage Ethernet + Modem
 /* Grey Cell Systems, Ltd */
 product GREY_CELL TDK3000	0x3341 TDK 3000/3400/5670 Fast Ethernet/Modem
 product GREY_CELL DMF650TX	0xc0ab D-Link DMF-650TX
+
+/* Hitachi */
+product	HITACHI HT_4840		0x000b Hitachi HT-4840-11 Ethernet Card
 
 /* Home Wireless Networks */
 product HWN AIRWAY80211		0x0002 HWN Airway Wireless PCMCIA Card
