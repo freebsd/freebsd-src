@@ -192,16 +192,16 @@ txp_probe(device_t dev)
 
 	t = txp_devs;
 
-	while(t->txp_name != NULL) {
+	while (t->txp_name != NULL) {
 		if ((pci_get_vendor(dev) == t->txp_vid) &&
 		    (pci_get_device(dev) == t->txp_did)) {
 			device_set_desc(dev, t->txp_name);
-			return(BUS_PROBE_DEFAULT);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -352,12 +352,12 @@ txp_attach(device_t dev)
 		goto fail;
 	}
 
-	return(0);
+	return (0);
 
 fail:
 	txp_release_resources(sc);
 	mtx_destroy(&sc->sc_mtx);
-	return(error);
+	return (error);
 }
 
 static int
@@ -385,7 +385,7 @@ txp_detach(device_t dev)
 	txp_release_resources(sc);
 
 	mtx_destroy(&sc->sc_mtx);
-	return(0);
+	return (0);
 }
 
 static void
@@ -901,7 +901,7 @@ txp_shutdown(device_t dev)
 	txp_command(sc, TXP_CMD_HALT, 0, 0, 0, NULL, NULL, NULL, 0);
 	TXP_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -990,7 +990,7 @@ txp_alloc_rings(struct txp_softc *sc)
 		sc->sc_rxbufs[i].rb_sd = malloc(sizeof(struct txp_swdesc),
 		    M_DEVBUF, M_NOWAIT);
 		if (sc->sc_rxbufs[i].rb_sd == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 		sd = sc->sc_rxbufs[i].rb_sd;
 		sd->sd_mbuf = NULL;
 	}
@@ -1011,7 +1011,7 @@ txp_alloc_rings(struct txp_softc *sc)
 
 	if (r != STAT_WAITING_FOR_BOOT) {
 		device_printf(sc->sc_dev, "not waiting for boot\n");
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	WRITE_REG(sc, TXP_H2A_2, 0);
@@ -1027,7 +1027,7 @@ txp_alloc_rings(struct txp_softc *sc)
 	}
 	if (r != STAT_RUNNING) {
 		device_printf(sc->sc_dev, "fw not running\n");
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	/* Clear TX and CMD ring write registers */
@@ -1046,7 +1046,7 @@ txp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
-	switch(command) {
+	switch (command) {
 	case SIOCSIFFLAGS:
 		TXP_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
@@ -1077,7 +1077,7 @@ txp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	return(error);
+	return (error);
 }
 
 static int
@@ -1094,7 +1094,7 @@ txp_rxring_fill(struct txp_softc *sc)
 		sd = sc->sc_rxbufs[i].rb_sd;
 		sd->sd_mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (sd->sd_mbuf == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 
 		sd->sd_mbuf->m_pkthdr.len = sd->sd_mbuf->m_len = MCLBYTES;
 		sd->sd_mbuf->m_pkthdr.rcvif = ifp;
@@ -1107,7 +1107,7 @@ txp_rxring_fill(struct txp_softc *sc)
 	sc->sc_hostvar->hv_rx_buf_write_idx = (RXBUF_ENTRIES - 1) *
 	    sizeof(struct txp_rxbuf_desc);
 
-	return(0);
+	return (0);
 }
 
 static void
