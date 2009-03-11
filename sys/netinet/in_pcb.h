@@ -406,6 +406,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_DONTFRAG		0x800	/* don't fragment packet */
 #define	INP_NONLOCALOK		0x1000	/* Allow bind to spoof any address */
 					/* - requires options IP_NONLOCALBIND */
+#define	INP_INHASHLIST		0x2000	/* in_pcbinshash() has been called */
 
 #define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
 
