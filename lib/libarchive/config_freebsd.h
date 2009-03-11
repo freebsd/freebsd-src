@@ -34,8 +34,12 @@
 #define	HAVE_ACL_SET_FD_NP 1
 #define	HAVE_ACL_SET_FILE 1
 #define	HAVE_ACL_USER 1
+#if 0
+/* XXX Temporarily disable support for reading extended attributes from
+ * disk, as it seems to be badly broken on ZFS. XXX */
 #define	HAVE_EXTATTR_GET_FILE 1
 #define	HAVE_EXTATTR_LIST_FILE 1
+#endif
 #define	HAVE_EXTATTR_SET_FD 1
 #define	HAVE_EXTATTR_SET_FILE 1
 #define	HAVE_SYS_ACL_H 1
