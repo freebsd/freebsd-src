@@ -1087,7 +1087,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 #ifdef I915_HAVE_GEM
 	i915_gem_load(dev);
 #endif
-	DRM_SPININIT(&dev_priv->swaps_lock, "swap");
 	DRM_SPININIT(&dev_priv->user_irq_lock, "userirq");
 
 #ifdef __linux__
@@ -1117,7 +1116,6 @@ int i915_driver_unload(struct drm_device *dev)
 
     	drm_rmmap(dev, dev_priv->mmio_map);
 
-	DRM_SPINUNINIT(&dev_priv->swaps_lock);
 	DRM_SPINUNINIT(&dev_priv->user_irq_lock);
 
 #ifdef __linux__
