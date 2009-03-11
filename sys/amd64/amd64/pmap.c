@@ -3538,6 +3538,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 
 		src_pte = (pt_entry_t *)PHYS_TO_DMAP(srcptepaddr);
 		src_pte = &src_pte[pmap_pte_index(addr)];
+		dstmpte = NULL;
 		while (addr < va_next) {
 			pt_entry_t ptetemp;
 			ptetemp = *src_pte;
@@ -3545,9 +3546,11 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			 * we only virtual copy managed pages
 			 */
 			if ((ptetemp & PG_MANAGED) != 0) {
-				dstmpte = pmap_allocpte(dst_pmap, addr,
-				    M_NOWAIT);
-				if (dstmpte == NULL)
+				if (dstmpte != NULL &&
+				    dstmpte->pindex == pmap_pde_pindex(addr))
+					dstmpte->wire_count++;
+				else if ((dstmpte = pmap_allocpte(dst_pmap,
+				    addr, M_NOWAIT)) == NULL)
 					break;
 				dst_pte = (pt_entry_t *)
 				    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
