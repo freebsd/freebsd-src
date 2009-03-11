@@ -409,8 +409,6 @@ txp_release_resources(struct txp_softc *sc)
 
 	if (sc->sc_ifp)
 		if_free(sc->sc_ifp);
-
-	return;
 }
 
 static int
@@ -702,8 +700,6 @@ txp_intr(void *vsc)
 
 	txp_start_locked(sc->sc_ifp);
 	TXP_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -792,8 +788,6 @@ next:
 	}
 
 	*r->r_roff = woff;
-
-	return;
 }
 
 static void
@@ -837,8 +831,6 @@ txp_rxbuf_reclaim(struct txp_softc *sc)
 	}
 
 	sc->sc_rxbufprod = i;
-
-	return;
 }
 
 /*
@@ -1139,8 +1131,6 @@ txp_rxring_empty(struct txp_softc *sc)
 			sd->sd_mbuf = NULL;
 		}
 	}
-
-	return;
 }
 
 static void
@@ -1238,8 +1228,6 @@ out:
 		free(rsp, M_DEVBUF);
 
 	callout_reset(&sc->sc_tick, hz, txp_tick, sc);
-
-	return;
 }
 
 static void
@@ -1355,7 +1343,6 @@ oactive:
 	r->r_prod = firstprod;
 	r->r_cnt = firstcnt;
 	IF_PREPEND(&ifp->if_snd, m);
-	return;
 }
 
 /*
@@ -1563,14 +1550,12 @@ txp_stop(struct txp_softc *sc)
 	txp_command(sc, TXP_CMD_RX_DISABLE, 0, 0, 0, NULL, NULL, NULL, 1);
 
 	txp_rxring_empty(sc);
-
-	return;
 }
 
 static void
 txp_watchdog(struct ifnet *ifp)
 {
-	return;
+
 }
 
 static int
@@ -1796,8 +1781,6 @@ setit:
 
 	txp_command(sc, TXP_CMD_RX_FILTER_WRITE, filter, 0, 0,
 	    NULL, NULL, NULL, 1);
-
-	return;
 }
 
 static void
@@ -1864,6 +1847,4 @@ txp_capabilities(struct txp_softc *sc)
 out:
 	if (rsp != NULL)
 		free(rsp, M_DEVBUF);
-
-	return;
 }
