@@ -849,7 +849,6 @@ devclass_find(const char *classname)
 	return (devclass_find_internal(classname, NULL, FALSE));
 }
 
-	
 /**
  * @brief Register that a device driver has been added to a devclass
  *
@@ -868,8 +867,8 @@ devclass_find(const char *classname)
 static void
 devclass_driver_added(devclass_t dc, driver_t *driver)
 {
-	int i;
 	devclass_t parent;
+	int i;
 
 	/*
 	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
@@ -883,7 +882,7 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
 	 * single parent pointer around, we walk the entire list of
 	 * devclasses looking for children.  We set the
 	 * DC_HAS_CHILDREN flag when a child devclass is created on
-	 * the parent, so we only walk thoe list for those devclasses
+	 * the parent, so we only walk the list for those devclasses
 	 * that have children.
 	 */
 	if (!(dc->flags & DC_HAS_CHILDREN))
