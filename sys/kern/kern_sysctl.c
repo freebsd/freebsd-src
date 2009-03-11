@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_ktrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -54,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 #include <sys/vimage.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <security/mac/mac_framework.h>
 
@@ -758,7 +762,7 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD, sysctl_sysctl_next, "");
 
 static int
-name2oid (char *name, int *oid, int *len, struct sysctl_oid **oidpp)
+name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 {
 	int i;
 	struct sysctl_oid *oidp;
@@ -1499,6 +1503,11 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.newfunc = sysctl_new_user;
 	req.lock = REQ_LOCKED;
 
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_SYSCTL))
+		ktrsysctl(name, namelen);
+#endif
+	
 	SYSCTL_XLOCK();
 	CURVNET_SET(TD_TO_VNET(curthread));
 
