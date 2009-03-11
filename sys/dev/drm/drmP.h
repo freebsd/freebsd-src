@@ -319,6 +319,12 @@ typedef struct drm_pci_id_list
 	char *name;
 } drm_pci_id_list_t;
 
+struct drm_msi_blacklist_entry
+{
+	int vendor;
+	int device;
+};
+
 #define DRM_AUTH	0x1
 #define DRM_MASTER	0x2
 #define DRM_ROOT_ONLY	0x4
