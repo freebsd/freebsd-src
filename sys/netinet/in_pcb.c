@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.
- * Copyright (c) 2007-2008 Robert N. M. Watson
+ * Copyright (c) 2007-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1032,7 +1032,7 @@ in_pcbdrop(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 
 	inp->inp_vflag |= INP_DROPPED;
-	if (inp->inp_lport) {
+	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
 		LIST_REMOVE(inp, inp_hash);
@@ -1041,7 +1041,7 @@ in_pcbdrop(struct inpcb *inp)
 			LIST_REMOVE(phd, phd_hash);
 			free(phd, M_PCB);
 		}
-		inp->inp_lport = 0;
+		inp->inp_flags &= ~INP_INHASHLIST;
 	}
 }
 
@@ -1421,6 +1421,8 @@ in_pcbinshash(struct inpcb *inp)
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	KASSERT((inp->inp_flags & INP_INHASHLIST) == 0,
+	    ("in_pcbinshash: INP_INHASHLIST"));
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
@@ -1457,6 +1459,7 @@ in_pcbinshash(struct inpcb *inp)
 	inp->inp_phd = phd;
 	LIST_INSERT_HEAD(&phd->phd_pcblist, inp, inp_portlist);
 	LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
+	inp->inp_flags |= INP_INHASHLIST;
 	return (0);
 }
 
@@ -1475,6 +1478,8 @@ in_pcbrehash(struct inpcb *inp)
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	KASSERT(inp->inp_flags & INP_INHASHLIST,
+	    ("in_pcbrehash: !INP_INHASHLIST"));
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
@@ -1502,7 +1507,7 @@ in_pcbremlists(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
-	if (inp->inp_lport) {
+	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
 		LIST_REMOVE(inp, inp_hash);
@@ -1511,6 +1516,7 @@ in_pcbremlists(struct inpcb *inp)
 			LIST_REMOVE(phd, phd_hash);
 			free(phd, M_PCB);
 		}
+		inp->inp_flags &= ~INP_INHASHLIST;
 	}
 	LIST_REMOVE(inp, inp_list);
 	pcbinfo->ipi_count--;
