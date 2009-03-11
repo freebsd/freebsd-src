@@ -186,8 +186,7 @@ MODULE_DEPEND(txp, pci, 1, 1, 1);
 MODULE_DEPEND(txp, ether, 1, 1, 1);
 
 static int
-txp_probe(dev)
-	device_t dev;
+txp_probe(device_t dev)
 {
 	struct txp_type *t;
 
@@ -206,8 +205,7 @@ txp_probe(dev)
 }
 
 static int
-txp_attach(dev)
-	device_t dev;
+txp_attach(device_t dev)
 {
 	struct txp_softc *sc;
 	struct ifnet *ifp;
@@ -363,8 +361,7 @@ fail:
 }
 
 static int
-txp_detach(dev)
-	device_t dev;
+txp_detach(device_t dev)
 {
 	struct txp_softc *sc;
 	struct ifnet *ifp;
@@ -392,8 +389,7 @@ txp_detach(dev)
 }
 
 static void
-txp_release_resources(sc)
-	struct txp_softc *sc;
+txp_release_resources(struct txp_softc *sc)
 {
 	device_t dev;
 
@@ -418,8 +414,7 @@ txp_release_resources(sc)
 }
 
 static int
-txp_chip_init(sc)
-	struct txp_softc *sc;
+txp_chip_init(struct txp_softc *sc)
 {
 	/* disable interrupts */
 	WRITE_REG(sc, TXP_IER, 0);
@@ -456,8 +451,7 @@ txp_chip_init(sc)
 }
 
 static int
-txp_reset_adapter(sc)
-	struct txp_softc *sc;
+txp_reset_adapter(struct txp_softc *sc)
 {
 	u_int32_t r;
 	int i;
@@ -484,8 +478,7 @@ txp_reset_adapter(sc)
 }
 
 static int
-txp_download_fw(sc)
-	struct txp_softc *sc;
+txp_download_fw(struct txp_softc *sc)
 {
 	struct txp_fw_file_header *fileheader;
 	struct txp_fw_section_header *secthead;
@@ -573,8 +566,7 @@ fail:
 }
 
 static int
-txp_download_fw_wait(sc)
-	struct txp_softc *sc;
+txp_download_fw_wait(struct txp_softc *sc)
 {
 	u_int32_t i, r;
 
@@ -602,10 +594,8 @@ txp_download_fw_wait(sc)
 }
 
 static int
-txp_download_fw_section(sc, sect, sectnum)
-	struct txp_softc *sc;
-	struct txp_fw_section_header *sect;
-	int sectnum;
+txp_download_fw_section(struct txp_softc *sc,
+    struct txp_fw_section_header *sect, int sectnum)
 {
 	vm_offset_t dma;
 	int rseg, err = 0;
@@ -670,8 +660,7 @@ bail:
 }
 
 static void 
-txp_intr(vsc)
-	void *vsc;
+txp_intr(void *vsc)
 {
 	struct txp_softc *sc = vsc;
 	struct txp_hostvar *hv = sc->sc_hostvar;
@@ -718,9 +707,7 @@ txp_intr(vsc)
 }
 
 static void
-txp_rx_reclaim(sc, r)
-	struct txp_softc *sc;
-	struct txp_rx_ring *r;
+txp_rx_reclaim(struct txp_softc *sc, struct txp_rx_ring *r)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_rx_desc *rxd;
@@ -810,8 +797,7 @@ next:
 }
 
 static void
-txp_rxbuf_reclaim(sc)
-	struct txp_softc *sc;
+txp_rxbuf_reclaim(struct txp_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_hostvar *hv = sc->sc_hostvar;
@@ -859,9 +845,7 @@ txp_rxbuf_reclaim(sc)
  * Reclaim mbufs and entries from a transmit ring.
  */
 static void
-txp_tx_reclaim(sc, r)
-	struct txp_softc *sc;
-	struct txp_tx_ring *r;
+txp_tx_reclaim(struct txp_softc *sc, struct txp_tx_ring *r)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t idx = TXP_OFFSET2IDX(*(r->r_off));
@@ -906,8 +890,7 @@ txp_tx_reclaim(sc, r)
 }
 
 static int
-txp_shutdown(dev)
-	device_t dev;
+txp_shutdown(device_t dev)
 {
 	struct txp_softc *sc;
 
@@ -930,8 +913,7 @@ txp_shutdown(dev)
 }
 
 static int
-txp_alloc_rings(sc)
-	struct txp_softc *sc;
+txp_alloc_rings(struct txp_softc *sc)
 {
 	struct txp_boot_record *boot;
 	struct txp_ldata *ld;
@@ -1066,10 +1048,7 @@ txp_alloc_rings(sc)
 }
 
 static int
-txp_ioctl(ifp, command, data)
-	struct ifnet *ifp;
-	u_long command;
-	caddr_t data;
+txp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct txp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -1110,8 +1089,7 @@ txp_ioctl(ifp, command, data)
 }
 
 static int
-txp_rxring_fill(sc)
-	struct txp_softc *sc;
+txp_rxring_fill(struct txp_softc *sc)
 {
 	int i;
 	struct ifnet *ifp;
@@ -1141,8 +1119,7 @@ txp_rxring_fill(sc)
 }
 
 static void
-txp_rxring_empty(sc)
-	struct txp_softc *sc;
+txp_rxring_empty(struct txp_softc *sc)
 {
 	int i;
 	struct txp_swdesc *sd;
@@ -1167,8 +1144,7 @@ txp_rxring_empty(sc)
 }
 
 static void
-txp_init(xsc)
-	void *xsc;
+txp_init(void *xsc)
 {
 	struct txp_softc *sc;
 
@@ -1179,8 +1155,7 @@ txp_init(xsc)
 }
 
 static void
-txp_init_locked(sc)
-	struct txp_softc *sc;
+txp_init_locked(struct txp_softc *sc)
 {
 	struct ifnet *ifp;
 	u_int16_t p1;
@@ -1229,8 +1204,7 @@ txp_init_locked(sc)
 }
 
 static void
-txp_tick(vsc)
-	void *vsc;
+txp_tick(void *vsc)
 {
 	struct txp_softc *sc = vsc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -1269,8 +1243,7 @@ out:
 }
 
 static void
-txp_start(ifp)
-	struct ifnet *ifp;
+txp_start(struct ifnet *ifp)
 {
 	struct txp_softc *sc;
 
@@ -1281,8 +1254,7 @@ txp_start(ifp)
 }
 
 static void
-txp_start_locked(ifp)
-	struct ifnet *ifp;
+txp_start_locked(struct ifnet *ifp)
 {
 	struct txp_softc *sc = ifp->if_softc;
 	struct txp_tx_ring *r = &sc->sc_txhir;
@@ -1527,9 +1499,8 @@ txp_response(struct txp_softc *sc, u_int32_t ridx, u_int16_t id, u_int16_t seq,
 }
 
 static void
-txp_rsp_fixup(sc, rsp, dst)
-	struct txp_softc *sc;
-	struct txp_rsp_desc *rsp, *dst;
+txp_rsp_fixup(struct txp_softc *sc, struct txp_rsp_desc *rsp,
+    struct txp_rsp_desc *dst)
 {
 	struct txp_rsp_desc *src = rsp;
 	struct txp_hostvar *hv = sc->sc_hostvar;
@@ -1553,8 +1524,7 @@ txp_rsp_fixup(sc, rsp, dst)
 }
 
 static int
-txp_cmd_desc_numfree(sc)
-	struct txp_softc *sc;
+txp_cmd_desc_numfree(struct txp_softc *sc)
 {
 	struct txp_hostvar *hv = sc->sc_hostvar;
 	struct txp_boot_record *br = sc->sc_boot;
@@ -1578,8 +1548,7 @@ txp_cmd_desc_numfree(sc)
 }
 
 static void
-txp_stop(sc)
-	struct txp_softc *sc;
+txp_stop(struct txp_softc *sc)
 {
 	struct ifnet *ifp;
 
@@ -1599,15 +1568,13 @@ txp_stop(sc)
 }
 
 static void
-txp_watchdog(ifp)
-	struct ifnet *ifp;
+txp_watchdog(struct ifnet *ifp)
 {
 	return;
 }
 
 static int
-txp_ifmedia_upd(ifp)
-	struct ifnet *ifp;
+txp_ifmedia_upd(struct ifnet *ifp)
 {
 	struct txp_softc *sc = ifp->if_softc;
 	struct ifmedia *ifm = &sc->sc_ifmedia;
@@ -1651,9 +1618,7 @@ txp_ifmedia_upd(ifp)
 }
 
 static void
-txp_ifmedia_sts(ifp, ifmr)
-	struct ifnet *ifp;
-	struct ifmediareq *ifmr;
+txp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct txp_softc *sc = ifp->if_softc;
 	struct ifmedia *ifm = &sc->sc_ifmedia;
@@ -1726,8 +1691,7 @@ bail:
 
 #ifdef TXP_DEBUG
 static void
-txp_show_descriptor(d)
-	void *d;
+txp_show_descriptor(void *d)
 {
 	struct txp_cmd_desc *cmd = d;
 	struct txp_rsp_desc *rsp = d;
@@ -1770,8 +1734,7 @@ txp_show_descriptor(d)
 #endif
 
 static void
-txp_set_filter(sc)
-	struct txp_softc *sc;
+txp_set_filter(struct txp_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t crc, carry, hashbit, hash[2];
@@ -1838,8 +1801,7 @@ setit:
 }
 
 static void
-txp_capabilities(sc)
-	struct txp_softc *sc;
+txp_capabilities(struct txp_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_rsp_desc *rsp = NULL;
