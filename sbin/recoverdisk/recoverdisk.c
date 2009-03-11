@@ -226,7 +226,7 @@ main(int argc, char * const argv[])
 
 	buf = malloc(bigsize);
 	if (buf == NULL)
-		err(1, "Cannot allocate %jd bytes buffer", (intmax_t)bigsize);
+		err(1, "Cannot allocate %zu bytes buffer", bigsize);
 
 	if (argc > 1) {
 		fdw = open(argv[1], flags, DEFFILEMODE);
