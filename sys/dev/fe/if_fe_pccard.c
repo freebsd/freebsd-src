@@ -64,6 +64,7 @@ static const struct fe_pccard_product {
 	int mpp_flags;
 #define MPP_MBH10302 1
 #define MPP_ANYFUNC 2
+#define MPP_SKIP_TO_CFE_10 4
 } fe_pccard_products[] = {
 	/* These need to be first */
 	{ PCMCIA_CARD(FUJITSU2, FMV_J181), MPP_MBH10302 },
@@ -80,6 +81,7 @@ static const struct fe_pccard_product {
 	{ PCMCIA_CARD(FUJITSU, LA501), 0 },
 	{ PCMCIA_CARD(FUJITSU, LA10S), 0 },
 	{ PCMCIA_CARD(FUJITSU, NE200T), MPP_MBH10302 },/* Sold by Eagle */
+	{ PCMCIA_CARD(HITACHI, HT_4840), MPP_MBH10302 | MPP_SKIP_TO_CFE_10},
 	{ PCMCIA_CARD(RATOC, REX_R280), 0 },
 	{ PCMCIA_CARD(XIRCOM, CE), MPP_ANYFUNC },
         { { NULL } }
@@ -91,6 +93,7 @@ fe_pccard_probe(device_t dev)
 	int		error;
 	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
         const struct fe_pccard_product *pp;
+	int i;
 
         if ((pp = (const struct fe_pccard_product *)pccard_product_lookup(dev,
 	    (const struct pccard_product *)fe_pccard_products,
@@ -105,6 +108,16 @@ fe_pccard_probe(device_t dev)
 			return (error);
 		if (fcn != PCCARD_FUNCTION_NETWORK)
 			return (ENXIO);
+		if (pp->mpp_flags & MPP_SKIP_TO_CFE_10) {
+			for (i = 10; i < 27; i++) {
+				if (pccard_select_cfe(dev, i) == 0)
+					goto good;
+			}
+			device_printf(dev,
+			    "Hitachi HT-4840-11 workaround failed\n");
+			return ENXIO;
+		}
+	good:;
 		return (0);
         }
         return (ENXIO);
@@ -126,6 +139,7 @@ static driver_t fe_pccard_driver = {
 };
 
 DRIVER_MODULE(fe, pccard, fe_pccard_driver, fe_devclass, 0, 0);
+MODULE_DEPEND(fe, pccard, 1, 1, 1);
 
 static int fe_probe_mbh(device_t, const struct fe_pccard_product *);
 static int fe_probe_tdk(device_t, const struct fe_pccard_product *);
