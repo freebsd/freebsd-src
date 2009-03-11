@@ -221,7 +221,7 @@ main(int argc, char * const argv[])
 	medsize = bigsize >> (ch / 2);
 	medsize = (medsize / minsize) * minsize;
 
-	fprintf(stderr, "Bigsize = %u, medsize = %u, minsize = %u\n",
+	fprintf(stderr, "Bigsize = %zu, medsize = %zu, minsize = %zu\n",
 	    bigsize, medsize, minsize);
 
 	buf = malloc(bigsize);
