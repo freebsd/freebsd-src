@@ -301,6 +301,7 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 	DRM_SPINLOCK_IRQSAVE(&dev->vbl_lock, irqflags);
 	/* Going from 0->1 means we have to enable interrupts again */
 	atomic_add_acq_int(&dev->vblank[crtc].refcount, 1);
+	DRM_DEBUG("vblank refcount = %d\n", dev->vblank[crtc].refcount);
 	if (dev->vblank[crtc].refcount == 1 &&
 	    !dev->vblank[crtc].enabled) {
 		ret = dev->driver->enable_vblank(dev, crtc);
@@ -323,6 +324,7 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 	DRM_SPINLOCK_IRQSAVE(&dev->vbl_lock, irqflags);
 	/* Last user schedules interrupt disable */
 	atomic_subtract_acq_int(&dev->vblank[crtc].refcount, 1);
+	DRM_DEBUG("vblank refcount = %d\n", dev->vblank[crtc].refcount);
 	if (dev->vblank[crtc].refcount == 0)
 	    callout_reset(&dev->vblank_disable_timer, 5 * DRM_HZ,
 		(timeout_t *)vblank_disable_fn, (void *)dev);
@@ -385,8 +387,8 @@ out:
 int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	union drm_wait_vblank *vblwait = data;
+	unsigned int flags, seq, crtc;
 	int ret = 0;
-	int flags, seq, crtc;
 
 	if (!dev->irq_enabled)
 		return EINVAL;
@@ -406,8 +408,10 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 		return EINVAL;
 
 	ret = drm_vblank_get(dev, crtc);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("failed to acquire vblank counter, %d\n", ret);
 		return ret;
+	}
 	seq = drm_vblank_count(dev, crtc);
 
 	switch (vblwait->request.type & _DRM_VBLANK_TYPES_MASK) {
@@ -446,14 +450,20 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 #endif
 		ret = EINVAL;
 	} else {
-		DRM_LOCK();
-		/* shared code returns -errno */
+		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
+		    vblwait->request.sequence, crtc);
+		for ( ret = 0 ; !ret && !((drm_vblank_count(dev, crtc) -
+		    vblwait->request.sequence) <= (1 << 23)) ; ) {
+			mtx_lock(&dev->irq_lock);
+			if (!((drm_vblank_count(dev, crtc) -
+			    vblwait->request.sequence) <= (1 << 23)))
+				ret = mtx_sleep(&dev->vblank[crtc].queue,
+				    &dev->irq_lock, PCATCH, "vblwtq",
+				    3 * DRM_HZ);
+			mtx_unlock(&dev->irq_lock);
+		}
 
-		DRM_WAIT_ON(ret, dev->vblank[crtc].queue, 3 * DRM_HZ,
-		    ((drm_vblank_count(dev, crtc)
-		      - vblwait->request.sequence) <= (1 << 23)));
-		DRM_UNLOCK();
-
+		DRM_DEBUG("return = %d\n", ret);
 		if (ret != EINTR) {
 			struct timeval now;
 
@@ -461,6 +471,10 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 			vblwait->reply.tval_sec = now.tv_sec;
 			vblwait->reply.tval_usec = now.tv_usec;
 			vblwait->reply.sequence = drm_vblank_count(dev, crtc);
+			DRM_DEBUG("returning %d to client\n",
+			    vblwait->reply.sequence);
+		} else {
+			DRM_DEBUG("vblank wait interrupted by signal\n");
 		}
 	}
 
