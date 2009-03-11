@@ -534,7 +534,7 @@ txp_download_fw(struct txp_softc *sc)
 	    sizeof(struct txp_fw_file_header));
 
 	for (sect = 0; sect < fileheader->nsections; sect++) {
-		
+
 		if (txp_download_fw_section(sc, secthead, sect)) {
 			error = -1;
 			goto fail;
@@ -659,7 +659,7 @@ bail:
 	return (err);
 }
 
-static void 
+static void
 txp_intr(void *vsc)
 {
 	struct txp_softc *sc = vsc;
@@ -1519,7 +1519,7 @@ txp_rsp_fixup(struct txp_softc *sc, struct txp_rsp_desc *rsp,
 			src++;
 		sc->sc_rspring.lastwrite = hv->hv_resp_read_idx = ridx;
 	}
-	
+
 	hv->hv_resp_read_idx = ridx;
 }
 
