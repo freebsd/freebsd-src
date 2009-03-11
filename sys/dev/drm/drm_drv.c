@@ -131,7 +131,7 @@ static struct cdevsw drm_cdevsw = {
 	.d_poll =	drm_poll,
 	.d_mmap =	drm_mmap,
 	.d_name =	"drm",
-	.d_flags =	D_TRACKCLOSE | D_NEEDGIANT
+	.d_flags =	D_TRACKCLOSE
 };
 
 static struct drm_msi_blacklist_entry drm_msi_blacklist[] = {
