@@ -63,7 +63,6 @@ struct drm_file;
 #include <sys/signalvar.h>
 #include <sys/poll.h>
 #include <sys/tree.h>
-#include <sys/taskqueue.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -628,7 +627,6 @@ struct drm_device {
 	struct mtx	  irq_lock;	/* protects irq condition checks */
 	struct mtx	  dev_lock;	/* protects everything else */
 	DRM_SPINTYPE	  drw_lock;
-	DRM_SPINTYPE	  tsk_lock;
 
 				/* Usage Counters */
 	int		  open_count;	/* Outstanding files open	   */
@@ -695,9 +693,6 @@ struct drm_device {
 	struct unrhdr	  *drw_unrhdr;
 	/* RB tree of drawable infos */
 	RB_HEAD(drawable_tree, bsd_drm_drawable_info) drw_head;
-
-	struct task	  locked_task;
-	void		  (*locked_task_call)(struct drm_device *dev);
 };
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
@@ -918,8 +913,6 @@ int	drm_control(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
 int	drm_wait_vblank(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-void	drm_locked_tasklet(struct drm_device *dev,
-			   void (*tasklet)(struct drm_device *dev));
 
 /* AGP/GART support (drm_agpsupport.c) */
 int	drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
