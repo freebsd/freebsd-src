@@ -134,6 +134,9 @@ static struct cdevsw drm_cdevsw = {
 	.d_flags =	D_TRACKCLOSE
 };
 
+int drm_msi = 1;	/* Enable by default. */
+TUNABLE_INT("hw.drm.msi", &drm_msi);
+
 static struct drm_msi_blacklist_entry drm_msi_blacklist[] = {
 	{0x8086, 0x2772}, /* Intel i945G	*/ \
 	{0x8086, 0x27A2}, /* Intel i945GM	*/ \
@@ -222,7 +225,8 @@ int drm_attach(device_t nbdev, drm_pci_id_list_t *idlist)
 	dev->pci_vendor = pci_get_vendor(dev->device);
 	dev->pci_device = pci_get_device(dev->device);
 
-	if (!drm_msi_is_blacklisted(dev->pci_vendor, dev->pci_device)) {
+	if (drm_msi &&
+	    !drm_msi_is_blacklisted(dev->pci_vendor, dev->pci_device)) {
 		msicount = pci_msi_count(dev->device);
 		DRM_DEBUG("MSI count = %d\n", msicount);
 		if (msicount > 1)
