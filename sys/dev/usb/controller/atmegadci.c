@@ -27,8 +27,9 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * This file contains the driver for the ATMEGA series USB Device
- * Controller
+ * This file contains the driver for the ATMEGA series USB OTG
+ * Controller. This driver currently only supports the DCI mode of the
+ * USB hardware.
  */
 
 /*
@@ -225,8 +226,6 @@ atmegadci_set_address(struct atmegadci_softc *sc, uint8_t addr)
 {
 	DPRINTFN(5, "addr=%d\n", addr);
 
-	ATMEGA_WRITE_1(sc, ATMEGA_UDADDR, addr);
-
 	addr |= ATMEGA_UDADDR_ADDEN;
 
 	ATMEGA_WRITE_1(sc, ATMEGA_UDADDR, addr);
@@ -295,6 +294,8 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 	if ((req.bmRequestType == UT_WRITE_DEVICE) &&
 	    (req.bRequest == UR_SET_ADDRESS)) {
 		sc->sc_dv_addr = req.wValue[0] & 0x7F;
+		/* must write address before ZLP */
+		ATMEGA_WRITE_1(sc, ATMEGA_UDADDR, sc->sc_dv_addr);
 	} else {
 		sc->sc_dv_addr = 0xFF;
 	}
@@ -651,6 +652,8 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	/* clear all set interrupts */
 	ATMEGA_WRITE_1(sc, ATMEGA_UDINT, ~status);
 
+	DPRINTFN(14, "UDINT=0x%02x\n", status);
+
 	/* check for any bus state change interrupts */
 	if (status & ATMEGA_UDINT_EORSTI) {
 
@@ -722,6 +725,8 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	if (status & ATMEGA_USBINT_VBUSTI) {
 		uint8_t temp;
 
+		DPRINTFN(5, "USBINT=0x%02x\n", status);
+
 		temp = ATMEGA_READ_1(sc, ATMEGA_USBSTA);
 		atmegadci_vbus_interrupt(sc, temp & ATMEGA_USBSTA_VBUS);
 	}
@@ -733,7 +738,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 
 	if (status) {
 
-		DPRINTFN(5, "real endpoint interrupt 0x%02x\n", status);
+		DPRINTFN(5, "real endpoint interrupt UEINT=0x%02x\n", status);
 
 		atmegadci_interrupt_poll(sc);
 	}
@@ -1085,7 +1090,7 @@ atmegadci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
+	DPRINTFN(9, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
 
 	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
@@ -1163,15 +1168,7 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 	    ATMEGA_UECONX_EPEN |
 	    ATMEGA_UECONX_STALLRQC);
 
-	if (ep_type == UE_CONTROL) {
-		/* one bank, 64-bytes wMaxPacket */
-		ATMEGA_WRITE_1(sc, ATMEGA_UECFG0X,
-		    ATMEGA_UECFG0X_EPTYPE0);
-		ATMEGA_WRITE_1(sc, ATMEGA_UECFG1X,
-		    ATMEGA_UECFG1X_ALLOC |
-		    ATMEGA_UECFG1X_EPBK0 |
-		    ATMEGA_UECFG1X_EPSIZE(7));
-	} else {
+	do {
 		temp = 0;
 		if (ep_type == UE_BULK) {
 			temp |= ATMEGA_UECFG0X_EPTYPE2;
@@ -1188,13 +1185,13 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 		ATMEGA_WRITE_1(sc, ATMEGA_UECFG1X,
 		    ATMEGA_UECFG1X_ALLOC |
 		    ATMEGA_UECFG1X_EPBK1 |
-		    ATMEGA_UECFG1X_EPSIZE(7));
+		    ATMEGA_UECFG1X_EPSIZE(3));
 
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
 		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
 			DPRINTFN(0, "Chip rejected configuration\n");
 		}
-	}
+	} while (0);
 }
 
 static void
@@ -1237,16 +1234,21 @@ atmegadci_init(struct atmegadci_softc *sc)
 	sc->sc_bus.methods = &atmegadci_bus_methods;
 
 	USB_BUS_LOCK(&sc->sc_bus);
+#if 0
+	/* XXX TODO - currently done by boot strap */
 
 	/* enable USB PAD regulator */
 	ATMEGA_WRITE_1(sc, ATMEGA_UHWCON,
-	    ATMEGA_UHWCON_UVREGE);
-
+	    ATMEGA_UHWCON_UVREGE | ATMEGA_UHWCON_UIMOD);
+#endif
 	/* turn on clocks */
 	(sc->sc_clocks_on) (&sc->sc_bus);
 
+	/* make sure device is re-enumerated */
+	ATMEGA_WRITE_1(sc, ATMEGA_UDCON, ATMEGA_UDCON_DETACH);
+
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 20);
 
 	/* enable interrupts */
 	ATMEGA_WRITE_1(sc, ATMEGA_UDIEN,
@@ -1261,7 +1263,7 @@ atmegadci_init(struct atmegadci_softc *sc)
 	ATMEGA_WRITE_1(sc, ATMEGA_UERST, 0);
 
 	/* disable all endpoints */
-	for (n = 1; n != ATMEGA_EP_MAX; n++) {
+	for (n = 0; n != ATMEGA_EP_MAX; n++) {
 
 		/* select endpoint */
 		ATMEGA_WRITE_1(sc, ATMEGA_UENUM, n);
@@ -1276,6 +1278,11 @@ atmegadci_init(struct atmegadci_softc *sc)
 	/* turn off clocks */
 
 	atmegadci_clocks_off(sc);
+
+	/* read initial VBUS state */
+
+	n = ATMEGA_READ_1(sc, ATMEGA_USBSTA);
+	atmegadci_vbus_interrupt(sc, n & ATMEGA_USBSTA_VBUS);
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
 
@@ -1688,6 +1695,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	uint16_t value;
 	uint16_t index;
+	uint8_t temp;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -1976,7 +1984,38 @@ tr_handle_clear_port_feature:
 		atmegadci_clocks_off(sc);
 		break;
 	case UHF_C_PORT_CONNECTION:
+		/* clear connect change flag */
 		sc->sc_flags.change_connect = 0;
+
+		/* configure the control endpoint */
+
+		/* select endpoint number */
+		ATMEGA_WRITE_1(sc, ATMEGA_UENUM, 0);
+
+		/* set endpoint reset */
+		ATMEGA_WRITE_1(sc, ATMEGA_UERST, ATMEGA_UERST_MASK(0));
+
+		/* clear endpoint reset */
+		ATMEGA_WRITE_1(sc, ATMEGA_UERST, 0);
+
+		/* enable and stall endpoint */
+		ATMEGA_WRITE_1(sc, ATMEGA_UECONX,
+		    ATMEGA_UECONX_EPEN |
+		    ATMEGA_UECONX_STALLRQ);
+
+		/* one bank, 64-bytes wMaxPacket */
+		ATMEGA_WRITE_1(sc, ATMEGA_UECFG0X,
+		    ATMEGA_UECFG0X_EPTYPE0);
+		ATMEGA_WRITE_1(sc, ATMEGA_UECFG1X,
+		    ATMEGA_UECFG1X_ALLOC |
+		    ATMEGA_UECFG1X_EPBK0 |
+		    ATMEGA_UECFG1X_EPSIZE(3));
+
+		/* check valid config */
+		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
+		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
+			DPRINTFN(0, "Chip rejected EP0 configuration\n");
+		}
 		break;
 	case UHF_C_PORT_SUSPEND:
 		sc->sc_flags.change_suspend = 0;
@@ -2252,10 +2291,10 @@ atmegadci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(udev->bus);
 
-	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
+	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d,%d)\n",
 	    pipe, udev->address,
 	    edesc->bEndpointAddress, udev->flags.usb2_mode,
-	    sc->sc_rt_addr);
+	    sc->sc_rt_addr, udev->device_index);
 
 	if (udev->device_index == sc->sc_rt_addr) {
 

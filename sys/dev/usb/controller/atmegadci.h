@@ -155,6 +155,9 @@
 
 #define	ATMEGA_UHWCON 0xD7
 #define	ATMEGA_UHWCON_UVREGE (1 << 0)
+#define	ATMEGA_UHWCON_UVCONE (1 << 4)
+#define	ATMEGA_UHWCON_UIDE (1 << 6)
+#define	ATMEGA_UHWCON_UIMOD (1 << 7)
 
 #define	ATMEGA_READ_1(sc, reg) \
   bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
