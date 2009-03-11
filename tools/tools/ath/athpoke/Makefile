@@ -2,8 +2,7 @@
 
 PROG=	athpoke
 
-.PATH.c: ${.CURDIR}/../athregs
-CFLAGS+=-I${.CURDIR}/../athregs
+.PATH.c: ${.CURDIR}/../common
 
 SRCS=	athpoke.c
 SRCS+=	dumpregs_5210.c
