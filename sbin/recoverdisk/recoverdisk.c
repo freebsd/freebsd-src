@@ -26,7 +26,7 @@
 
 volatile sig_atomic_t aborting = 0;
 static size_t bigsize = 1024 * 1024;
-static size_t medsize = 64 * 1024;
+static size_t medsize;
 static size_t minsize = 512;
 
 struct lump {
@@ -76,6 +76,7 @@ static void
 save_worklist(void)
 {
 	FILE *file;
+	struct lump *llp;
 
 	if (wworklist != NULL) {
 		(void)fprintf(stderr, "\nSaving worklist ...");
@@ -85,14 +86,11 @@ save_worklist(void)
 		if (file == NULL)
 			err(1, "Error opening file %s", wworklist);
 
-		for (;;) {
-			lp = TAILQ_FIRST(&lumps);
-			if (lp == NULL)
-				break;
+		TAILQ_FOREACH(llp, &lumps, list) 
 			fprintf(file, "%jd %jd %d\n",
-			    (intmax_t)lp->start, (intmax_t)lp->len, lp->state);
-			TAILQ_REMOVE(&lumps, lp, list);
-		}
+			    (intmax_t)llp->start, (intmax_t)llp->len,
+			    llp->state);
+		fclose(file);
 		(void)fprintf(stderr, " done.\n");
 	}
 }
@@ -160,13 +158,20 @@ main(int argc, char * const argv[])
 	u_int sectorsize;
 	time_t t1, t2;
 	struct stat sb;
+	u_int n, snapshot = 60;
 
-	while ((ch = getopt(argc, argv, "r:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:r:w:s:")) != -1) {
 		switch (ch) {
+		case 'b':
+			bigsize = strtoul(optarg, NULL, 0);
+			break;
 		case 'r':
 			rworklist = strdup(optarg);
 			if (rworklist == NULL)
 				err(1, "Cannot allocate enough memory");
+			break;
+		case 's':
+			snapshot = strtoul(optarg, NULL, 0);
 			break;
 		case 'w':
 			wworklist = strdup(optarg);
@@ -197,15 +202,8 @@ main(int argc, char * const argv[])
 		if (error < 0)
 			err(1, "DIOCGSECTORSIZE failed");
 
-		/*
-		 * Make medsize roughly 64kB, depending on native sector
-		 * size. bigsize has to be a multiple of medsize.
-		 * For media with 2352 sectors, this will
-		 * result in 2352, 63504, and 1016064 bytes.
-		 */
 		minsize = sectorsize;
-		medsize = (medsize / sectorsize) * sectorsize;
-		bigsize = medsize * 16;
+		bigsize = (bigsize / sectorsize) * sectorsize;
 
 		error = ioctl(fdr, DIOCGMEDIASIZE, &t);
 		if (error < 0)
@@ -214,6 +212,17 @@ main(int argc, char * const argv[])
 		t = sb.st_size;
 		flags |= O_CREAT | O_TRUNC;
 	}
+
+	if (bigsize < minsize)
+		bigsize = minsize;
+
+	for (ch = 0; (bigsize >> ch) > minsize; ch++)
+		continue;
+	medsize = bigsize >> (ch / 2);
+	medsize = (medsize / minsize) * minsize;
+
+	fprintf(stderr, "Bigsize = %u, medsize = %u, minsize = %u\n",
+	    bigsize, medsize, minsize);
 
 	buf = malloc(bigsize);
 	if (buf == NULL)
@@ -238,6 +247,7 @@ main(int argc, char * const argv[])
 	t1 = 0;
 	start = len = i = state = 0;
 	PRINT_HEADER;
+	n = 0;
 	for (;;) {
 		lp = TAILQ_FIRST(&lumps);
 		if (lp == NULL)
@@ -257,6 +267,10 @@ main(int argc, char * const argv[])
 			if (t1 != t2 || lp->len < (off_t)bigsize) {
 				PRINT_STATUS(start, i, len, state, d, t);
 				t1 = t2;
+				if (++n == snapshot) {
+					save_worklist();
+					n = 0;
+				}
 			}
 			if (i == 0) {
 				errx(1, "BOGUS i %10jd", (intmax_t)i);
