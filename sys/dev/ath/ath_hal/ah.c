@@ -844,6 +844,7 @@ ath_hal_ini_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 {
 	int r;
 
+	HALASSERT(col < ia->cols);
 	for (r = 0; r < ia->rows; r++) {
 		OS_REG_WRITE(ah, HAL_INI_VAL(ia, r, 0),
 		    HAL_INI_VAL(ia, r, col));
@@ -857,6 +858,7 @@ ath_hal_ini_bank_setup(uint32_t data[], const HAL_INI_ARRAY *ia, int col)
 {
 	int r;
 
+	HALASSERT(col < ia->cols);
 	for (r = 0; r < ia->rows; r++)
 		data[r] = HAL_INI_VAL(ia, r, col);
 }
