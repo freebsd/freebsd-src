@@ -9,6 +9,19 @@ Items affecting the ports and packages system can be found in
 portupgrade.
 
 20090312:
+	A workaround is committed to allow the creation of System V shared
+	memory segment of size > 2 GB on the 64-bit architectures.
+	Due to a limitation of the existing ABI, the shm_segsz member
+	of the struct shmid_ds, returned by shmctl(IPC_STAT) call is
+	wrong for large segments. Note that limits must be explicitely
+	raised to allow such segments to be created.
+
+	The management interface that is used by ipcs(1) has to be changed
+	in incompatible way. Rebuild the ipcs(1) utility with the new
+	headers after the update. Buildworld/installworld takes care
+	of this issue automatically.
+
+20090312:
 	The open-source Atheros HAL has been merged from HEAD
 	to STABLE.
 	The kernel compile-time option AH_SUPPORT_AR5416 has been
