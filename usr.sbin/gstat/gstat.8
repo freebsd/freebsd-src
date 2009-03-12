@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2006
+.Dd March 12, 2009
 .Dt GSTAT 8
 .Os
 .Sh NAME
@@ -47,7 +47,9 @@ The options are as follows:
 .It Fl a
 Only display providers that are at least 0.1% busy.
 .It Fl b
-Batch mode. Collect numbers, print and exit.
+Batch mode.
+Collect numbers, print and exit.
+Default if stdout is not a tty.
 .It Fl c
 Enable display of
 .Xr geom 4
