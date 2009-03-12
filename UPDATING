@@ -8,6 +8,16 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090312:
+	The open-source Atheros HAL has been merged from HEAD
+	to STABLE.
+	The kernel compile-time option AH_SUPPORT_AR5416 has been
+	added to support certain newer Atheros parts, particularly
+	PCI-Express chipsets.
+	The following modules are no longer available, and should be
+	removed from MODULES_OVERRIDE and/or loader.conf:-
+	 ath_hal ath_rate_amrr ath_rate_onoe ath_rate_sample
+
 20090207:
 	ZFS users on amd64 machines with 4GB or more of RAM should
 	reevaluate their need for setting vm.kmem_size_max and
