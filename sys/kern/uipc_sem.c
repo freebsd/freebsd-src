@@ -548,6 +548,8 @@ int
 ksem_open(struct thread *td, struct ksem_open_args *uap)
 {
 
+	DP((">>> ksem_open start, pid=%d\n", (int)td->td_proc->p_pid));
+
 	if ((uap->oflag & ~(O_CREAT | O_EXCL)) != 0)
 		return (EINVAL);
 	return (ksem_create(td, uap->name, uap->idp, uap->mode, uap->value,
@@ -708,12 +710,14 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 	struct ksem *ks;
 	int error;
 
-	DP((">>> kern_sem_wait entered!\n"));
+	DP((">>> kern_sem_wait entered! pid=%d\n", (int)td->td_proc->p_pid));
 	error = ksem_get(td, id, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
 	mtx_lock(&sem_lock);
+	DP((">>> kern_sem_wait critical section entered! pid=%d\n",
+	    (int)td->td_proc->p_pid));
 #ifdef MAC
 	error = mac_posixsem_check_wait(td->td_ucred, fp->f_cred, ks);
 	if (error) {
@@ -750,11 +754,13 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 			goto err;
 	}
 	ks->ks_value--;
+	DP(("kern_sem_wait value post-decrement = %d\n", ks->ks_value));
 	error = 0;
 err:
 	mtx_unlock(&sem_lock);
 	fdrop(fp, td);
-	DP(("<<< kern_sem_wait leaving, error = %d\n", error));
+	DP(("<<< kern_sem_wait leaving, pid=%d, error = %d\n",
+	    (int)td->td_proc->p_pid, error));
 	return (error);
 }
 
