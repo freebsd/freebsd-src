@@ -68,7 +68,10 @@ struct hid_data {
 	struct hid_item cur[MAXPUSH];
 	int32_t	usages_min[MAXUSAGE];
 	int32_t	usages_max[MAXUSAGE];
-	int	kindset;
+	int32_t usage_last;	/* last seen usage */
+	uint32_t loc_size;	/* last seen size */
+	uint32_t loc_count;	/* last seen count */
+	uint8_t	kindset;	/* we have 5 kinds so 8 bits are enough */
 	uint8_t	pushlevel;	/* current pushlevel */
 	uint8_t	ncount;		/* end usage item count */
 	uint8_t icount;		/* current usage item count */
@@ -181,15 +184,21 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 
  top:
 	/* check if there is an array of items */
-	if ((s->icount != s->ncount) &&
-	    (s->iusage != s->nusage)) {
-		dval = s->usages_min[s->iusage] + s->ousage;
-		c->usage = dval;
-		if (dval == s->usages_max[s->iusage]) {
-			s->iusage ++;
-			s->ousage = 0;
+	if (s->icount < s->ncount) {
+		/* get current usage */
+		if (s->iusage < s->nusage) {
+			dval = s->usages_min[s->iusage] + s->ousage;
+			c->usage = dval;
+			s->usage_last = dval;
+			if (dval == s->usages_max[s->iusage]) {
+				s->iusage ++;
+				s->ousage = 0;
+			} else {
+				s->ousage ++;
+			}
 		} else {
-			s->ousage ++;
+			DPRINTFN(1, "Using last usage\n");
+			dval = s->usage_last;
 		}
 		s->icount ++;
 		/* 
@@ -268,6 +277,9 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->kind = hid_input;
 				c->flags = dval;
 		ret:
+				c->loc.count = s->loc_count;
+				c->loc.size = s->loc_size;
+
 				if (c->flags & HIO_VARIABLE) {
 					/* range check usage count */
 					if (c->loc.count > 255) {
@@ -285,13 +297,9 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				} else {
 					s->ncount = 1;
 				}
-				/* make sure we have a usage */
-				if (s->nusage == 0) {
-					/* use the undefined HID PAGE */
-					s->usages_min[s->nusage] = 0x0000;
-					s->usages_max[s->nusage] = 0xFFFF;
-					s->nusage = s->ncount;
-				}
+				/* set default usage */
+				/* use the undefined HID PAGE */
+				s->usage_last = 0;
 				goto top;
 
 			case 9:	/* Output */
@@ -346,7 +354,8 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->unit = dval;
 				break;
 			case 7:
-				c->loc.size = dval;
+				/* mask because value is unsigned */
+				s->loc_size = dval & mask;
 				break;
 			case 8:
 				c->report_ID = dval;
@@ -354,12 +363,17 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->loc.pos = 0;
 				break;
 			case 9:
-				c->loc.count = dval;
+				/* mask because value is unsigned */
+				s->loc_count = dval & mask;
 				break;
 			case 10:	/* Push */
 				s->pushlevel ++;
 				if (s->pushlevel < MAXPUSH) {
 					s->cur[s->pushlevel] = *c;
+					/* store size and count */
+					c->loc.size = s->loc_size;
+					c->loc.count = s->loc_count;
+					/* update current item pointer */
 					c = &s->cur[s->pushlevel];
 				} else {
 					DPRINTFN(0, "Cannot push "
@@ -372,7 +386,13 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					/* preserve position */
 					oldpos = c->loc.pos;
 					c = &s->cur[s->pushlevel];
+					/* restore size and count */
+					s->loc_size = c->loc.size;
+					s->loc_count = c->loc.count;
+					/* set default item location */
 					c->loc.pos = oldpos;
+					c->loc.size = 0;
+					c->loc.count = 0;
 				} else {
 					DPRINTFN(0, "Cannot pop "
 					    "item @ %d!\n", s->pushlevel);
