@@ -107,9 +107,9 @@ SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
     "Number of buffer-cache I/O buffers");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
     "Number of swap buffers");
-SYSCTL_INT(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
+SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "max swmeta KVA storage");
-SYSCTL_INT(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
+SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
     "max buffer cache KVA storage");
 SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RDTUN, &maxtsiz, 0,
     "max text size");
