@@ -1216,7 +1216,7 @@ const struct key	*get_lkey(const struct path *p_s_chk_path,
 			    const struct reiserfs_sb_info *p_s_sbi);
 const struct key	*get_rkey(const struct path *p_s_chk_path,
 			    const struct reiserfs_sb_info *p_s_sbi);
-inline int	bin_search(const void * p_v_key, const void * p_v_base,
+int	bin_search(const void * p_v_key, const void * p_v_base,
 		    int p_n_num, int p_n_width, int * p_n_pos);
 
 void	pathrelse(struct path *p_s_search_path);

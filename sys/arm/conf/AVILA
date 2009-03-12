@@ -66,13 +66,17 @@ options 	BOOTP_COMPAT
 device		pci
 device		uart
 
+device		ixpwdog		# watchdog timer
+device		cfi		# flash support
+device		cfid		# flash disk support
+device		geom_redboot	# redboot fis parser
+
 # I2C Bus
 device		iicbus
 device		iicbb
 device		iic
 
 device		ixpiic		# I2C bus glue
-device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
@@ -86,7 +90,7 @@ device		npe		# Network Processing Engine
 device		npe_fw
 device		firmware
 device		qmgr		# Q Manager (required by npe)
-device		miibus		# NB: required by npe
+device		mii		# NB: required by npe
 device		ether
 device		bpf
 
@@ -100,12 +104,14 @@ device          random          # Entropy device
 # Wireless NIC cards
 device		wlan		# 802.11 support
 options		IEEE80211_DEBUG
+options		IEEE80211_SUPPORT_TDMA
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_xauth
 
 device		ath		# Atheros pci/cardbus NIC's
+options		ATH_SUPPORT_TDMA
 options 	ATH_DEBUG
 options		ATH_DIAGAPI
 #options		ATH_TX99_DIAG
@@ -127,15 +133,15 @@ device		ath_ar5416
 options		AH_SUPPORT_AR5416
 device		ath_ar9160
 
-device		usb
+makeoptions	WITH_LEGACY
+device		ousb
 #options 	USB_DEBUG
-device		ohci
-device		ehci
-device		ugen
-#device		umass
-#device		scbus		# SCSI bus (required for SCSI)
-#device		da		# Direct Access (disks)
+device		oohci
+device		oehci
+device		oumass
+device		scbus		# SCSI bus (required for SCSI)
+device		da		# Direct Access (disks)
 
-#device		ural
-#device		zyd
+#device		oural
+#device		ozyd
 #device		wlan_amrr

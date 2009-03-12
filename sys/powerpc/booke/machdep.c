@@ -806,14 +806,10 @@ int
 ptrace_single_step(struct thread *td)
 {
 	struct trapframe *tf;
-	u_int reg;
-
-	reg = mfspr(SPR_DBCR0);
-	reg |= DBCR0_IC | DBCR0_IDM;
-	mtspr(SPR_DBCR0, reg);
 
 	tf = td->td_frame;
 	tf->srr1 |= PSL_DE;
+	tf->cpu.booke.dbcr0 |= (DBCR0_IDM | DBCR0_IC);
 	return (0);
 }
 
@@ -824,6 +820,7 @@ ptrace_clear_single_step(struct thread *td)
 
 	tf = td->td_frame;
 	tf->srr1 &= ~PSL_DE;
+	tf->cpu.booke.dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
 	return (0);
 }
 

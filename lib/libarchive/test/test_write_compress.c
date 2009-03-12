@@ -88,7 +88,7 @@ DEFINE_TEST(test_write_compress)
 		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
 			break;
 		assertEqualString(path, archive_entry_pathname(ae));
-		assertEqualInt(datasize, archive_entry_size(ae));
+		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
 	assert(0 == archive_read_close(a));
 #if ARCHIVE_VERSION_NUMBER < 2000000

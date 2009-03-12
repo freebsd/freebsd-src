@@ -309,10 +309,12 @@ static long readcnt, readpercg, fullcnt, inobufsize, partialcnt, partialsize;
 static caddr_t inodebuf;
 
 union dinode *
-getnextinode(ino_t inumber)
+getnextinode(ino_t inumber, int rebuildcg)
 {
+	int j;
 	long size;
-	ufs2_daddr_t dblk;
+	mode_t mode;
+	ufs2_daddr_t ndb, dblk;
 	union dinode *dp;
 	static caddr_t nextinop;
 
@@ -336,6 +338,54 @@ getnextinode(ino_t inumber)
 		nextinop = inodebuf;
 	}
 	dp = (union dinode *)nextinop;
+	if (rebuildcg && nextinop == inodebuf) {
+		/*
+		 * Try to determine if we have reached the end of the
+		 * allocated inodes.
+		 */
+		mode = DIP(dp, di_mode) & IFMT;
+		if (mode == 0) {
+			if (memcmp(dp->dp2.di_db, ufs2_zino.di_db,
+				NDADDR * sizeof(ufs2_daddr_t)) ||
+			      memcmp(dp->dp2.di_ib, ufs2_zino.di_ib,
+				NIADDR * sizeof(ufs2_daddr_t)) ||
+			      dp->dp2.di_mode || dp->dp2.di_size)
+				return (NULL);
+			goto inodegood;
+		}
+		if (!ftypeok(dp))
+			return (NULL);
+		ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
+		if (ndb < 0)
+			return (NULL);
+		if (mode == IFBLK || mode == IFCHR)
+			ndb++;
+		if (mode == IFLNK) {
+			/*
+			 * Fake ndb value so direct/indirect block checks below
+			 * will detect any garbage after symlink string.
+			 */
+			if (DIP(dp, di_size) < (off_t)sblock.fs_maxsymlinklen) {
+				ndb = howmany(DIP(dp, di_size),
+				    sizeof(ufs2_daddr_t));
+				if (ndb > NDADDR) {
+					j = ndb - NDADDR;
+					for (ndb = 1; j > 1; j--)
+						ndb *= NINDIR(&sblock);
+					ndb += NDADDR;
+				}
+			}
+		}
+		for (j = ndb; ndb < NDADDR && j < NDADDR; j++)
+			if (DIP(dp, di_db[j]) != 0)
+				return (NULL);
+		for (j = 0, ndb -= NDADDR; ndb > 0; j++)
+			ndb /= NINDIR(&sblock);
+		for (; j < NIADDR; j++)
+			if (DIP(dp, di_ib[j]) != 0)
+				return (NULL);
+	}
+inodegood:
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		nextinop += sizeof(struct ufs1_dinode);
 	else
@@ -617,7 +667,8 @@ allocino(ino_t request, int type)
 		return (0);
 	cg = ino_to_cg(&sblock, ino);
 	getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
-	check_cgmagic(cg, cgp);
+	if (!check_cgmagic(cg, cgp))
+		return (0);
 	setbit(cg_inosused(cgp), ino % sblock.fs_ipg);
 	cgp->cg_cs.cs_nifree--;
 	switch (type & IFMT) {

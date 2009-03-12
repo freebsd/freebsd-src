@@ -343,9 +343,8 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
 static void
 write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 {
-    int fd, p;
+    int fd;
     ssize_t n;
-    char *s;
     const char *errmsg;
     char *pname;
     struct gctl_req *grq;
@@ -359,6 +358,13 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 	return;
     }
 
+    /*
+     * If we're called to write to a backup file, don't try to
+     * write through GEOM. It only generates additional errors.
+     */
+    if (flags != 0)
+	return;
+
     /* Try open it read only. */
     fd = open(fname, O_RDONLY);
     if (fd == -1) {
@@ -370,39 +376,28 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 	warn("error getting providername for %s", fname);
 	return;
     }
-    if (flags != 0)
-	err(1, "%s", fname);
+    grq = gctl_get_handle();
+    gctl_ro_param(grq, "class", -1, "PART");
+    gctl_ro_param(grq, "geom", -1, pname);
+    gctl_ro_param(grq, "verb", -1, "bootcode");
+    gctl_ro_param(grq, "bootcode", mbr_size, mbr);
+    gctl_ro_param(grq, "flags", -1, "C");
+    errmsg = gctl_issue(grq);
+    if (errmsg == NULL)
+	goto out;
+
     grq = gctl_get_handle();
     gctl_ro_param(grq, "verb", -1, "write MBR");
     gctl_ro_param(grq, "class", -1, "MBR");
     gctl_ro_param(grq, "geom", -1, pname);
     gctl_ro_param(grq, "data", mbr_size, mbr);
     errmsg = gctl_issue(grq);
-    if (errmsg == NULL) {
-    	free(pname);
-	return;
-    }
-    warnx("%s: %s", fname, pname);
+    if (errmsg != NULL)
+	err(1, "write_mbr: %s", fname);
+
+out:
     free(pname);
     gctl_free(grq);
-
-#ifdef DIOCSMBR
-    for (p = 1; p < 5; p++) {
-	asprintf(&s, "%ss%d", fname, p);
-	fd = open(s, O_RDONLY);
-	if (fd < 0) {
-	    free(s);
-	    continue;
-	}
-	n = ioctl(fd, DIOCSMBR, (mbr));
-	if (n != 0)
-	   err(1, "%s: ioctl DIOCSMBR", fname);
-	close(fd);
-	free(s);
-	return;
-    }
-#endif
-    err(1, "write_mbr: %s", fname);
 }
 
 /*

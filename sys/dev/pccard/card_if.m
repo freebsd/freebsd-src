@@ -93,21 +93,12 @@ METHOD int detach_card {
 #
 # Find "dev" in the passed table of devices.  Return it or NULL.
 #
-METHOD struct pccard_product * do_product_lookup {
+METHOD const struct pccard_product * do_product_lookup {
 	device_t bus;
 	device_t dev;
 	const struct pccard_product *tab;
 	size_t ent_size;
 	pccard_product_match_fn matchfn;
-}
-
-#
-# Helper method for the above.  When a compatibility driver is converted,
-# one must write a match routine.  This routine is unused on OLDCARD but
-# is used as a discriminator for NEWCARD.
-#
-METHOD int compat_match {
-	device_t dev;
 }
 
 #

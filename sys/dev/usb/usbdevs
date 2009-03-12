@@ -613,7 +613,7 @@ vendor GIGASET		0x1690	Gigaset
 vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
 vendor JABLOTRON	0x16d6	Jablotron
-vendor CMOTECH		0x16d8	CMOTECH Co., Ltd.
+vendor CMOTECH		0x16d8	C-motech
 vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
@@ -623,6 +623,7 @@ vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
 vendor ERICSSON		0x2282	Ericsson
@@ -910,6 +911,7 @@ product ATHEROS2 AR5523_3	0x0005	AR5523
 product ATHEROS2 AR5523_3_NF	0x0006	AR5523 (no firmware)
 
 /* Atmel Comp. products */
+product ATMEL STK541		0x2109	Zigbee Controller
 product ATMEL UHB124		0x3301	UHB124 hub
 product ATMEL DWL120		0x7603	DWL-120 Wireless Adapter
 product ATMEL BW002		0x7605	BW002 Wireless Adapter
@@ -1029,9 +1031,11 @@ product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
 
 /* CMOTECH products */
-product CMOTECH CNU510		0x5141	CMOTECH CDMA Technologies USB modem
+product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
-product CMOTECH CDMA_MODEM1	0x6280	CMOTECH CDMA Technologies USB modem
+product CMOTECH CGU628		0x6006	CGU-628
+product CMOTECH CDMA_MODEM1	0x6280	CDMA Technologies USB modem
+product CMOTECH DISK		0xf000	disk mode
 
 /* Compaq products */
 product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
@@ -1168,6 +1172,10 @@ product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
 
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
+
+/* dresden elektronik products */
+product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
+product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
 
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
@@ -1504,6 +1512,7 @@ product IOMEGA ZIP250		0x0030	Zip 250
 
 /* Ituner networks products */
 product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
+product ITUNERNET USBLCD4X20	0xc001	USB-LCD 4x20
 
 /* Jablotron products */
 product JABLOTRON PC60B		0x0001	PC-60B
@@ -1676,6 +1685,7 @@ product MELCO PCOPRS1		0x00b3	PC-OP-RS1 RemoteStation
 product MELCO SG54HP		0x00d8	WLI-U2-SG54HP
 product MELCO G54HP		0x00d9	WLI-U2-G54HP
 product MELCO KG54L		0x00da	WLI-U2-KG54L
+product MELCO SG54HG		0x00f4	WLI-U2-SG54HG
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
@@ -1759,6 +1769,9 @@ product MITSUMI CDRRW		0x0000	CD-R/RW Drive
 product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
 product MITSUMI FDD		0x6901	USB FDD
 
+/* Mobile Action products */
+product MOBILEACTION MA620	0x0620	MA-620 Infrared Adapter
+
 /* Mobility products */
 product MOBILITY EA		0x0204	Ethernet
 product MOBILITY EASIDOCK	0x0304	EasiDock Ethernet
@@ -1796,6 +1809,7 @@ product MSYSTEMS DISKONKEY2	0x0011	DiskOnKey
 
 /* Myson products */
 product MYSON HEDEN		0x8818	USB-IDE
+product MYSON STARREADER	0x9920	USB flash card adapter
 
 /* National Semiconductor */
 product NATIONAL BEARPAW1200	0x1000	BearPaw 1200
@@ -1826,6 +1840,7 @@ product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 product NETGEAR WG111V2_2	0x4240	PrismGT USB 2.0 WLAN
 product NETGEAR WG111U		0x4300	WG111U
 product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
+product NETGEAR WG111V2		0x6a00	WG111V2
 product NETGEAR2 MA101		0x4100	MA101
 product NETGEAR2 MA101B		0x4102	MA101 Rev B
 product NETGEAR3 WG111T		0x4250	WG111T
@@ -1858,6 +1873,8 @@ product NOVATEL U720		0x2110	Merlin U720
 product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
+product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
+product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
@@ -2040,6 +2057,7 @@ product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
+product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
 
 /* Ricoh products */
 product RICOH VGPVCC2		0x1830	VGP-VCC2 Camera
@@ -2179,6 +2197,7 @@ product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
 /* SI Labs */
 product SILABS	POLOLU		0x803b	Pololu Serial
+product SILABS	SAEL		0x8053	SA-EL USB
 product SILABS	ARGUSISP	0x8066	Argussoft ISP
 product SILABS	CRUMB128	0x807a	Crumb128 board
 product SILABS	DEGREE		0x80ca	Degree Controls Inc

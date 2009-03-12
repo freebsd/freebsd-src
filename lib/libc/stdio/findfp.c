@@ -53,10 +53,15 @@ int	__sdidinit;
 
 #define	NDYNAMIC 10		/* add ten more whenever necessary */
 
-#define	std(flags, file) \
-  	{0,0,0,flags,file,{0},0,__sF+file,__sclose,__sread,__sseek,__swrite}
-  /*	 p r w flags file _bf z  cookie      close    read    seek    write */
-
+#define	std(flags, file) {		\
+	._flags = (flags),		\
+	._file = (file),		\
+	._cookie = __sF + (file),	\
+	._close = __sclose,		\
+	._read = __sread,		\
+	._seek = __sseek,		\
+	._write = __swrite,		\
+}
 				/* the usual - (stdin + stdout + stderr) */
 static FILE usual[FOPEN_MAX - 3];
 static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };

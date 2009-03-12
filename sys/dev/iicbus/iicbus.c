@@ -55,7 +55,7 @@ iicbus_probe(device_t dev)
 	device_set_desc(dev, "Philips I2C bus");
 
 	/* Allow other subclasses to override this driver. */
-	return (-1000);
+	return (BUS_PROBE_GENERIC);
 }
 
 #if SCAN_IICBUS
@@ -173,7 +173,7 @@ iicbus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 }
 
 static int
-iicbus_read_ivar(device_t bus, device_t child, int which, u_char *result)
+iicbus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct iicbus_ivar *devi = IICBUS_IVAR(child);
 

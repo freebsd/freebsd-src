@@ -850,7 +850,6 @@ smbfs_strategy (ap)
 	struct buf *bp=ap->a_bp;
 	struct ucred *cr;
 	struct thread *td;
-	int error = 0;
 
 	SMBVDEBUG("\n");
 	if (bp->b_flags & B_ASYNC)
@@ -863,7 +862,7 @@ smbfs_strategy (ap)
 		cr = bp->b_wcred;
 
 	if ((bp->b_flags & B_ASYNC) == 0 )
-		error = smbfs_doio(ap->a_vp, bp, cr, td);
+		(void)smbfs_doio(ap->a_vp, bp, cr, td);
 	return (0);
 }
 

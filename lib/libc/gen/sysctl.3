@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2008
+.Dd January 28, 2009
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -440,10 +440,8 @@ attempts to comply.
 .It Li KERN_PROC
 Return selected information about specific running processes.
 .Pp
-For the following names, an array of pairs of
-.Va struct proc
-followed by corresponding
-.Va struct eproc
+For the following names, an array of
+.Va struct kinfo_proc
 structures is returned,
 whose size depends on the current number of such objects in the system.
 .Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent

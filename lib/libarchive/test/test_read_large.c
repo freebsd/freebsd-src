@@ -34,7 +34,7 @@ DEFINE_TEST(test_read_large)
 {
 	unsigned int i;
 	int tmpfilefd;
-	char tmpfilename[] = "/tmp/test-read_large.XXXXXX";
+	char tmpfilename[] = "test-read_large.XXXXXX";
 	size_t used;
 	struct archive *a;
 	struct archive_entry *entry;
@@ -77,7 +77,7 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
-	assert(0 < (tmpfilefd = mkstemp(tmpfilename)));
+	assert(0 < (tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT | O_BINARY, 0755)));
 	assertA(0 == archive_read_data_into_fd(a, tmpfilefd));
 	close(tmpfilefd);
 #if ARCHIVE_VERSION_NUMBER < 2000000

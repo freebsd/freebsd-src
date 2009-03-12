@@ -22,6 +22,124 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090309:
+	IGMPv3 and Source-Specific Multicast (SSM) have been merged
+	to the IPv4 stack. VIMAGE hooks are in but not yet used.
+
+	For kernel developers, the most important changes are that the
+	ip_output() and ip_input() paths no longer take the IN_MULTI_LOCK(),
+	and this lock has been downgraded to a non-recursive mutex.
+
+	Transport protocols (UDP, Raw IP) are now responsible for filtering
+	inbound multicast traffic according to group membership and source
+	filters. The imo_multicast_filter() KPI exists for this purpose.
+	Transports which do not use multicast (SCTP, TCP) already reject
+	multicast by default. Forwarding and receive performance may improve
+	as a mutex acquisition is no longer needed in the ip_input()
+	low-level input path.  in_addmulti() and in_delmulti() are shimmed
+	to new KPIs which exist to support SSM in-kernel.
+
+	For application developers, it is recommended that loopback of
+	multicast datagrams be disabled for best performance, as this
+	will still cause the lock to be taken for each looped-back
+	datagram transmission. The net.inet.ip.mcast.loop sysctl may
+	be tuned to 0 to disable loopback by default; it defaults to 1
+	to preserve the existing behaviour.
+
+	For systems administrators, to obtain best performance with
+	multicast reception and multiple groups, it is always recommended
+	that a card with a suitably precise hash filter is used. Hash
+	collisions will still result in the lock being taken within the
+	transport protocol input path to check group membership.
+
+	If deploying FreeBSD in an environment with IGMP snooping switches,
+	it is recommended that the net.inet.igmp.sendlocal sysctl remain
+	enabled; this forces 224.0.0.0/24 group membership to be announced
+	via IGMP.
+
+	The size of 'struct igmpstat' has changed; netstat needs to be
+	recompiled to reflect this.
+	Bump __FreeBSD_version to 800070.
+
+20090309:
+	libusb20.so.1 is now installed as libusb.so.1 and the ports system
+	updated to use it. This requires a buildworld/installworld in order to
+	update the library and dependencies (usbconfig, etc). Its advisable to
+	rebuild all ports which uses libusb. More specific directions are given
+	in the ports collection UPDATING file. Any /etc/libmap.conf entries for
+	libusb are no longer required and can be removed.
+
+20090302:
+	A workaround is committed to allow the creation of System V shared
+	memory segment of size > 2 GB on the 64-bit architectures.
+	Due to a limitation of the existing ABI, the shm_segsz member
+	of the struct shmid_ds, returned by shmctl(IPC_STAT) call is
+	wrong for large segments. Note that limits must be explicitely
+	raised to allow such segments to be created.
+
+20090301:
+	The layout of struct ifnet has changed, requiring a rebuild of all
+	network device driver modules.
+
+20090227:
+	The /dev handling for the new USB stack has changed, a
+	buildworld/installworld is required for libusb20.
+
+20090223:
+	The new USB2 stack has now been permanently moved in and all kernel and
+	module names reverted to their previous values (eg, usb, ehci, ohci,
+	ums, ...).  The old usb stack can be compiled in by prefixing the name
+	with the letter 'o', the old usb modules have been removed.
+	Updating entry 20090216 for xorg and 20090215 for libmap may still
+	apply.
+
+20090217:
+	The rc.conf(5) option if_up_delay has been renamed to
+	defaultroute_delay to better reflect its purpose. If you have
+	customized this setting in /etc/rc.conf you need to update it to
+	use the new name.
+
+20090216:
+	xorg 7.4 wants to configure its input devices via hald which does not
+	yet work with USB2. If the keyboard/mouse does not work in xorg then
+	add
+		Option "AllowEmptyInput" "off"
+	to your ServerLayout section.  This will cause X to use the configured
+	kbd and mouse sections from your xorg.conf.
+
+20090215:
+	The GENERIC kernels for all architectures now default to the new USB2
+	stack. No kernel config options or code have been removed so if a
+	problem arises please report it and optionally revert to the old USB
+	stack. If you are loading USB kernel modules or have a custom kernel
+	that includes GENERIC then ensure that usb names are also changed over,
+	eg uftdi -> usb2_serial_ftdi.
+
+	Older programs linked against the ports libusb 0.1 need to be
+	redirected to the new stack's libusb20.  /etc/libmap.conf can
+	be used for this:
+		# Map old usb library to new one for usb2 stack
+		libusb-0.1.so.8	libusb20.so.1
+
+20090203:
+	The ichsmb(4) driver has been changed to require SMBus slave
+	addresses be left-justified (xxxxxxx0b) rather than right-justified.
+	All of the other SMBus controller drivers require left-justified
+	slave addresses, so this change makes all the drivers provide the
+	same interface.
+
+20090201:
+	INET6 statistics (struct ip6stat) was updated.
+	netstat(1) needs to be recompiled.
+
+20090119:
+	NTFS has been removed from GENERIC kernel on amd64 to match
+	GENERIC on i386. Should not cause any issues since mount_ntfs(8)
+	will load ntfs.ko module automatically when NTFS support is
+	actually needed, unless ntfs.ko is not installed or security
+	level prohibits loading kernel modules. If either is the case,
+	"options NTFS" has to be added into kernel config.
+
 20090115:
 	TCP Appropriate Byte Counting (RFC 3465) support added to kernel.
 	New field in struct tcpcb breaks ABI, so bump __FreeBSD_version to
@@ -39,13 +157,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	the base system (it was a port).
 
 20081216:
-	The afdata and ifnet locks have been changed from mutexes to 
+	The afdata and ifnet locks have been changed from mutexes to
 	rwlocks, network modules will need to be re-compiled.
 
 20081214:
 	__FreeBSD_version 800059 incorporates the new arp-v2 rewrite.
 	RTF_CLONING, RTF_LLINFO and RTF_WASCLONED flags are eliminated.
-	The new code reduced struct rtentry{} by 16 bytes on 32-bit 
+	The new code reduced struct rtentry{} by 16 bytes on 32-bit
 	architecture and 40 bytes on 64-bit architecture. The userland
 	applications "arp" and "ndp" have been updated accordingly.
 	The output from "netstat -r" shows only routing entries and

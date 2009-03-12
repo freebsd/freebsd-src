@@ -239,6 +239,7 @@ struct mca_pcidev_reg {
 #ifdef _KERNEL
 
 void ia64_mca_init(void);
+void ia64_mca_populate(void);
 void ia64_mca_save_state(int);
 
 #endif /* _KERNEL */

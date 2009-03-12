@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define TODO			panic("%s: not implemented", __func__);
-#define memmove(d, s, l)	bcopy(s, d, l)
 
 #include "opt_sched.h"
 #ifndef SCHED_4BSD

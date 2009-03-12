@@ -140,7 +140,7 @@ _dtom(const char *msg, const char *s)
  * Compute the greatest common divisor of mp1 and mp2; result goes in rmp.
  */
 void
-gcd(const MINT *mp1, const MINT *mp2, MINT *rmp)
+mp_gcd(const MINT *mp1, const MINT *mp2, MINT *rmp)
 {
 	BIGNUM b;
 	BN_CTX *c;
@@ -173,7 +173,7 @@ _itom(const char *msg, short n)
 }
 
 MINT *
-itom(short n)
+mp_itom(short n)
 {
 
 	return (_itom("itom", n));
@@ -194,7 +194,7 @@ _madd(const char *msg, const MINT *mp1, const MINT *mp2, MINT *rmp)
 }
 
 void
-madd(const MINT *mp1, const MINT *mp2, MINT *rmp)
+mp_madd(const MINT *mp1, const MINT *mp2, MINT *rmp)
 {
 
 	_madd("madd", mp1, mp2, rmp);
@@ -204,7 +204,7 @@ madd(const MINT *mp1, const MINT *mp2, MINT *rmp)
  * Return -1, 0, or 1 if mp1<mp2, mp1==mp2, or mp1>mp2, respectivley.
  */
 int
-mcmp(const MINT *mp1, const MINT *mp2)
+mp_mcmp(const MINT *mp1, const MINT *mp2)
 {
 
 	return (BN_cmp(mp1->bn, mp2->bn));
@@ -239,7 +239,7 @@ _mdiv(const char *msg, const MINT *nmp, const MINT *dmp, MINT *qmp, MINT *rmp,
 }
 
 void
-mdiv(const MINT *nmp, const MINT *dmp, MINT *qmp, MINT *rmp)
+mp_mdiv(const MINT *nmp, const MINT *dmp, MINT *qmp, MINT *rmp)
 {
 	BN_CTX *c;
 
@@ -263,7 +263,7 @@ _mfree(const char *msg __unused, MINT *mp)
 }
 
 void
-mfree(MINT *mp)
+mp_mfree(MINT *mp)
 {
 
 	_mfree("mfree", mp);
@@ -277,7 +277,7 @@ mfree(MINT *mp)
  * exported.)
  */
 void
-min(MINT *mp)
+mp_min(MINT *mp)
 {
 	MINT *rmp;
 	char *line, *nline;
@@ -302,7 +302,7 @@ min(MINT *mp)
  * above min() for why this is so useless.
  */
 void
-mout(const MINT *mp)
+mp_mout(const MINT *mp)
 {
 	char *s;
 
@@ -315,7 +315,7 @@ mout(const MINT *mp)
  * Set the value of tmp to the value of smp (i.e., tmp=smp).
  */
 void
-move(const MINT *smp, MINT *tmp)
+mp_move(const MINT *smp, MINT *tmp)
 {
 
 	_movem("move", smp, tmp);
@@ -357,7 +357,7 @@ _movem(const char *msg, const MINT *smp, MINT *tmp)
  * although suboptimal, works, too; this is that is used below.
  */
 void
-msqrt(const MINT *nmp, MINT *xmp, MINT *rmp)
+mp_msqrt(const MINT *nmp, MINT *xmp, MINT *rmp)
 {
 	BN_CTX *c;
 	MINT *tolerance;
@@ -409,7 +409,7 @@ _msub(const char *msg, const MINT *mp1, const MINT *mp2, MINT *rmp)
 }
 
 void
-msub(const MINT *mp1, const MINT *mp2, MINT *rmp)
+mp_msub(const MINT *mp1, const MINT *mp2, MINT *rmp)
 {
 
 	_msub("msub", mp1, mp2, rmp);
@@ -467,7 +467,7 @@ _mtox(const char *msg, const MINT *mp)
 }
 
 char *
-mtox(const MINT *mp)
+mp_mtox(const MINT *mp)
 {
 
 	return (_mtox("mtox", mp));
@@ -488,7 +488,7 @@ _mult(const char *msg, const MINT *mp1, const MINT *mp2, MINT *rmp, BN_CTX *c)
 }
 
 void
-mult(const MINT *mp1, const MINT *mp2, MINT *rmp)
+mp_mult(const MINT *mp1, const MINT *mp2, MINT *rmp)
 {
 	BN_CTX *c;
 
@@ -504,7 +504,7 @@ mult(const MINT *mp1, const MINT *mp2, MINT *rmp)
  * means 'raise to power', not 'bitwise XOR'.)
  */
 void
-pow(const MINT *bmp, const MINT *emp, const MINT *mmp, MINT *rmp)
+mp_pow(const MINT *bmp, const MINT *emp, const MINT *mmp, MINT *rmp)
 {
 	BIGNUM b;
 	BN_CTX *c;
@@ -523,7 +523,7 @@ pow(const MINT *bmp, const MINT *emp, const MINT *mmp, MINT *rmp)
  * Compute rmp=bmp^e.  (See note above pow().)
  */
 void
-rpow(const MINT *bmp, short e, MINT *rmp)
+mp_rpow(const MINT *bmp, short e, MINT *rmp)
 {
 	MINT *emp;
 	BIGNUM b;
@@ -572,7 +572,7 @@ _sdiv(const char *msg, const MINT *nmp, short d, MINT *qmp, short *ro,
 }
 
 void
-sdiv(const MINT *nmp, short d, MINT *qmp, short *ro)
+mp_sdiv(const MINT *nmp, short d, MINT *qmp, short *ro)
 {
 	BN_CTX *c;
 
@@ -602,7 +602,7 @@ _xtom(const char *msg, const char *s)
 }
 
 MINT *
-xtom(const char *s)
+mp_xtom(const char *s)
 {
 
 	return (_xtom("xtom", s));

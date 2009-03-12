@@ -152,16 +152,6 @@ static void usage(void);
 
 ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */
 
-/*
- * need to replace the library's bwrite so that sbwrite uses this one
- */
-ssize_t
-bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
-{
-	return pwrite(disk->d_fd, data, size,
-		(off_t)((part_ofs + blockno) * disk->d_bsize));
-}
-
 int
 main(int argc, char *argv[])
 {

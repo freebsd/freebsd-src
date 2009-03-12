@@ -285,7 +285,6 @@ struct vattr {
  */
 #define	VA_UTIMES_NULL	0x01		/* utimes argument was NULL */
 #define	VA_EXCLUSIVE	0x02		/* exclusive create request */
-#define	VA_MARK_ATIME	0x04		/* setting atime for execve/mmap */
 
 /*
  * Flags for ioflag. (high 16 bits used to ask for read-ahead and
@@ -563,6 +562,7 @@ void	cache_enter(struct vnode *dvp, struct vnode *vp,
 int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp);
 void	cache_purge(struct vnode *vp);
+void	cache_purge_negative(struct vnode *vp);
 void	cache_purgevfs(struct mount *mp);
 int	change_dir(struct vnode *vp, struct thread *td);
 int	change_root(struct vnode *vp, struct thread *td);
@@ -636,6 +636,9 @@ int	vn_extattr_set(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, int buflen, char *buf, struct thread *td);
 int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
+int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
+	    struct vnode **rvp);
+
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp);
@@ -655,6 +658,7 @@ int	vop_stdadvlock(struct vop_advlock_args *ap);
 int	vop_stdadvlockasync(struct vop_advlockasync_args *ap);
 int	vop_stdpathconf(struct vop_pathconf_args *);
 int	vop_stdpoll(struct vop_poll_args *);
+int	vop_stdvptocnp(struct vop_vptocnp_args *ap);
 int	vop_stdvptofh(struct vop_vptofh_args *ap);
 int	vop_eopnotsupp(struct vop_generic_args *ap);
 int	vop_ebadf(struct vop_generic_args *ap);

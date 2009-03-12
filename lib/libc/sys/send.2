@@ -28,7 +28,7 @@
 .\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2006
+.Dd February 5, 2009
 .Dt SEND 2
 .Os
 .Sh NAME
@@ -190,7 +190,7 @@ receiver is not listening on the remote port.
 The remote host was down.
 .It Bq Er ENETDOWN
 The remote network was down.
-.It Bq Er EPERM
+.It Bq Er EADDRNOTAVAIL
 The process using a
 .Dv SOCK_RAW
 socket was jailed and the source

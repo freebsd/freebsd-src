@@ -25,7 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#if ARCHIVE_VERSION_NUMBER >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000 && !defined(_WIN32)
 
 #define UMASK 022
 
@@ -125,7 +125,7 @@ defaultgid(void)
 
 DEFINE_TEST(test_write_disk_perms)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000 || defined(_WIN32)
 	skipping("archive_write_disk interface");
 #else
 	struct archive *a;

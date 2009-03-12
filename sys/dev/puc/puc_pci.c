@@ -144,4 +144,3 @@ static driver_t puc_pci_driver = {
 };
 
 DRIVER_MODULE(puc, pci, puc_pci_driver, puc_devclass, 0, 0);
-DRIVER_MODULE(puc, cardbus, puc_pci_driver, puc_devclass, 0, 0);

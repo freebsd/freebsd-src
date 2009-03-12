@@ -182,7 +182,7 @@ ichsmb_quick(device_t dev, u_char slave, int how)
 		mtx_lock(&sc->mutex);
 		sc->ich_cmd = ICH_HST_CNT_SMB_CMD_QUICK;
 		bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-		    (slave << 1) | (how == SMB_QREAD ?
+		    slave | (how == SMB_QREAD ?
 	    		ICH_XMIT_SLVA_READ : ICH_XMIT_SLVA_WRITE));
 		bus_write_1(sc->io_res, ICH_HST_CNT,
 		    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
@@ -208,7 +208,7 @@ ichsmb_sendb(device_t dev, u_char slave, char byte)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
+	    slave | ICH_XMIT_SLVA_WRITE);
 	bus_write_1(sc->io_res, ICH_HST_CMD, byte);
 	bus_write_1(sc->io_res, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
@@ -230,7 +230,7 @@ ichsmb_recvb(device_t dev, u_char slave, char *byte)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_READ);
+	    slave | ICH_XMIT_SLVA_READ);
 	bus_write_1(sc->io_res, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR)
@@ -253,7 +253,7 @@ ichsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE_DATA;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
+	    slave | ICH_XMIT_SLVA_WRITE);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
 	bus_write_1(sc->io_res, ICH_D0, byte);
 	bus_write_1(sc->io_res, ICH_HST_CNT,
@@ -277,7 +277,7 @@ ichsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_WORD_DATA;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
+	    slave | ICH_XMIT_SLVA_WRITE);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
 	bus_write_1(sc->io_res, ICH_D0, word & 0xff);
 	bus_write_1(sc->io_res, ICH_D1, word >> 8);
@@ -301,7 +301,7 @@ ichsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE_DATA;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_READ);
+	    slave | ICH_XMIT_SLVA_READ);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
 	bus_write_1(sc->io_res, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
@@ -324,7 +324,7 @@ ichsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_WORD_DATA;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_READ);
+	    slave | ICH_XMIT_SLVA_READ);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
 	bus_write_1(sc->io_res, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
@@ -352,7 +352,7 @@ ichsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_PROC_CALL;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
+	    slave | ICH_XMIT_SLVA_WRITE);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
 	bus_write_1(sc->io_res, ICH_D0, sdata & 0xff);
 	bus_write_1(sc->io_res, ICH_D1, sdata >> 8);
@@ -403,7 +403,7 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
+	    slave | ICH_XMIT_SLVA_WRITE);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
 	bus_write_1(sc->io_res, ICH_D0, count);
 	bus_write_1(sc->io_res, ICH_BLOCK_DB, buf[0]);
@@ -434,7 +434,7 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
-	    (slave << 1) | ICH_XMIT_SLVA_READ);
+	    slave | ICH_XMIT_SLVA_READ);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
 	bus_write_1(sc->io_res, ICH_D0, *count); /* XXX? */
 	bus_write_1(sc->io_res, ICH_HST_CNT,

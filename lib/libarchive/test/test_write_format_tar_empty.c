@@ -83,7 +83,7 @@ DEFINE_TEST(test_write_format_tar_empty)
 	/* Earlier versions wrote 0-length files for empty tar archives. */
 	skipping("empty tar archive size");
 #else
-	assertEqualInt(used, 1024);
+	assertEqualInt((int)used, 1024);
 #endif
 	for (i = 0; i < used; i++) {
 		failure("Empty tar archive should be all nulls.");

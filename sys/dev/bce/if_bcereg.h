@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2008 Broadcom Corporation
+ * Copyright (c) 2006-2009 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_BCE_H_DEFINED
-#define _BCE_H_DEFINED
+#ifndef	_BCEREG_H_DEFINED
+#define _BCEREG_H_DEFINED
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
@@ -1285,7 +1285,7 @@ struct statistics_block {
 	u32 stat_EtherStatsFragments;
 	u32 stat_EtherStatsJabbers;
 	u32 stat_EtherStatsUndersizePkts;
-	u32 stat_EtherStatsOverrsizePkts;
+	u32 stat_EtherStatsOversizePkts;
 	u32 stat_EtherStatsPktsRx64Octets;
 	u32 stat_EtherStatsPktsRx65Octetsto127Octets;
 	u32 stat_EtherStatsPktsRx128Octetsto255Octets;
@@ -6177,6 +6177,7 @@ struct l2_fhdr {
 #define USABLE_TX_BD (USABLE_TX_BD_PER_PAGE * TX_PAGES)
 #define MAX_TX_BD (TOTAL_TX_BD - 1)
 
+/* Advance to the next tx_bd, skipping any next page pointers. */
 #define NEXT_TX_BD(x) (((x) & USABLE_TX_BD_PER_PAGE) ==	\
 		(USABLE_TX_BD_PER_PAGE - 1)) ?					  	\
 		(x) + 2 : (x) + 1
@@ -6197,6 +6198,7 @@ struct l2_fhdr {
 #define USABLE_RX_BD (USABLE_RX_BD_PER_PAGE * RX_PAGES)
 #define MAX_RX_BD (TOTAL_RX_BD - 1)
 
+/* Advance to the next rx_bd, skipping any next page pointers. */
 #define NEXT_RX_BD(x) (((x) & USABLE_RX_BD_PER_PAGE) ==	\
 		(USABLE_RX_BD_PER_PAGE - 1)) ?					\
 		(x) + 2 : (x) + 1
@@ -6206,6 +6208,7 @@ struct l2_fhdr {
 #define RX_PAGE(x) (((x) & ~USABLE_RX_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & USABLE_RX_BD_PER_PAGE)
 
+#ifdef ZERO_COPY_SOCKETS
 /*
  * To accomodate jumbo frames, the page chain should
  * be 4 times larger than the receive chain.
@@ -6217,6 +6220,7 @@ struct l2_fhdr {
 #define USABLE_PG_BD (USABLE_PG_BD_PER_PAGE * PG_PAGES)
 #define MAX_PG_BD (TOTAL_PG_BD - 1)
 
+/* Advance to the next pg_bd, skipping any next page pointers. */
 #define NEXT_PG_BD(x) (((x) & USABLE_PG_BD_PER_PAGE) ==	\
 		(USABLE_PG_BD_PER_PAGE - 1)) ?					\
 		(x) + 2 : (x) + 1
@@ -6225,6 +6229,8 @@ struct l2_fhdr {
 
 #define PG_PAGE(x) (((x) & ~USABLE_PG_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define PG_IDX(x) ((x) & USABLE_PG_BD_PER_PAGE)
+
+#endif /* ZERO_COPY_SOCKETS */
 
 /* Context size. */
 #define CTX_SHIFT                   7
@@ -6449,7 +6455,7 @@ struct bce_softc
 	char *				bce_name;			/* Name string */
 
 	/* Tracks the version of bootcode firmware. */
-	u32					bce_fw_ver;
+	u32					bce_bc_ver;
 
 	/* Tracks the state of the firmware.  0 = Running while any     */
 	/* other value indicates that the firmware is not responding.   */
@@ -6499,8 +6505,11 @@ struct bce_softc
 	u16					tx_prod;
 	u16					tx_cons;
 	u32					tx_prod_bseq;	/* Counts the bytes used.  */
+
+#ifdef ZERO_COPY_SOCKETS
 	u16					pg_prod;
 	u16					pg_cons;
+#endif
 
 	int					bce_link;
 	struct callout		bce_tick_callout;
@@ -6513,7 +6522,10 @@ struct bce_softc
 	int					rx_bd_mbuf_alloc_size;
 	int					rx_bd_mbuf_data_len;
 	int					rx_bd_mbuf_align_pad;
+
+#ifdef ZERO_COPY_SOCKETS
 	int					pg_bd_mbuf_alloc_size;
+#endif
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
 	u32					rx_mode;
@@ -6533,11 +6545,13 @@ struct bce_softc
 	struct rx_bd		*rx_bd_chain[RX_PAGES];
 	bus_addr_t			rx_bd_chain_paddr[RX_PAGES];
 
+#ifdef ZERO_COPY_SOCKETS
 	/* H/W maintained page buffer descriptor chain structure. */
 	bus_dma_tag_t		pg_bd_chain_tag;
 	bus_dmamap_t		pg_bd_chain_map[PG_PAGES];
 	struct rx_bd		*pg_bd_chain[PG_PAGES];
 	bus_addr_t			pg_bd_chain_paddr[PG_PAGES];
+#endif
 
 	/* H/W maintained status block. */
 	bus_dma_tag_t		status_tag;
@@ -6567,7 +6581,10 @@ struct bce_softc
 	/* Bus tag for RX/TX mbufs. */
 	bus_dma_tag_t		rx_mbuf_tag;
 	bus_dma_tag_t		tx_mbuf_tag;
+
+#ifdef ZERO_COPY_SOCKETS
 	bus_dma_tag_t		pg_mbuf_tag;
+#endif
 
 	/* S/W maintained mbuf TX chain structure. */
 	bus_dmamap_t		tx_mbuf_map[TOTAL_TX_BD];
@@ -6577,17 +6594,22 @@ struct bce_softc
 	bus_dmamap_t		rx_mbuf_map[TOTAL_RX_BD];
 	struct mbuf			*rx_mbuf_ptr[TOTAL_RX_BD];
 
+#ifdef ZERO_COPY_SOCKETS
 	/* S/W maintained mbuf page chain structure. */
 	bus_dmamap_t		pg_mbuf_map[TOTAL_PG_BD];
 	struct mbuf			*pg_mbuf_ptr[TOTAL_PG_BD];
+#endif
 
 	/* Track the number of buffer descriptors in use. */
 	u16 free_rx_bd;
 	u16 max_rx_bd;
 	u16 used_tx_bd;
 	u16 max_tx_bd;
+
+#ifdef ZERO_COPY_SOCKETS
 	u16 free_pg_bd;
 	u16 max_pg_bd;
+#endif
 
 	/* Provides access to hardware statistics through sysctl. */
 	u64 stat_IfHCInOctets;
@@ -6614,7 +6636,7 @@ struct bce_softc
 	u32 stat_EtherStatsFragments;
 	u32 stat_EtherStatsJabbers;
 	u32 stat_EtherStatsUndersizePkts;
-	u32 stat_EtherStatsOverrsizePkts;
+	u32 stat_EtherStatsOversizePkts;
 	u32 stat_EtherStatsPktsRx64Octets;
 	u32 stat_EtherStatsPktsRx65Octetsto127Octets;
 	u32 stat_EtherStatsPktsRx128Octetsto255Octets;
@@ -6649,11 +6671,21 @@ struct bce_softc
 	/* Provides access to certain firmware statistics. */
 	u32 com_no_buffers;
 
-	/* Mbuf allocation failure counter. */
-	u32	mbuf_alloc_failed;
+	/* Recoverable failure counters. */
+	u32	mbuf_alloc_failed_count;
+	u32 fragmented_mbuf_count;
+	u32	unexpected_attention_count;
+	u32 l2fhdr_error_count;
+	u32 dma_map_addr_tx_failed_count;
+	u32 dma_map_addr_rx_failed_count;
 
-	/* TX DMA mapping failure counter. */
-	u32 tx_dma_map_failures;
+#ifdef BCE_DEBUG
+	/* Simulated recoverable failure counters. */
+	u32	mbuf_alloc_failed_sim_count;
+	u32 unexpected_attention_sim_count;
+	u32 l2fhdr_error_sim_count;
+	u32	dma_map_addr_failed_sim_count;
+#endif
 
 	u32	hc_command;
 
@@ -6661,7 +6693,10 @@ struct bce_softc
 	/* Track the number of enqueued mbufs. */
 	int	debug_tx_mbuf_alloc;
 	int debug_rx_mbuf_alloc;
+
+#ifdef ZERO_COPY_SOCKETS
 	int debug_pg_mbuf_alloc;
+#endif
 
 	/* Track how many and what type of interrupts are generated. */
 	u32 interrupts_generated;
@@ -6676,22 +6711,17 @@ struct bce_softc
 	u32	rx_low_watermark;			/* Lowest number of rx_bd's free. */
 	u32 rx_empty_count;				/* Number of times the RX chain was empty. */
 
+#ifdef ZERO_COPY_SOCKETS
 	u32	pg_low_watermark;			/* Lowest number of pages free. */
 	u32 pg_empty_count; 			/* Number of times the page chain was empty. */
+#endif
 
 	u32 tx_hi_watermark;			/* Greatest number of tx_bd's used. */
 	u32	tx_full_count;				/* Number of times the TX chain was full. */
-
-	/* Simulated mbuf allocation failure counter. */
-	u32	debug_mbuf_sim_alloc_failed;
-
-	u32 l2fhdr_status_errors;
-	u32 unexpected_attentions;
-	u32	lost_status_block_updates;
 
 	u32	requested_tso_frames;		/* Number of TSO frames enqueued. */
 #endif
 };
 
-#endif /* #ifndef _BCE_H_DEFINED */
+#endif /* __BCEREG_H_DEFINED */
 

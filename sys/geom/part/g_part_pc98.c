@@ -45,14 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include "g_part_if.h"
 
-#define	PC98_MID_BOOTABLE	0x80
-#define	PC98_MID_MASK		0x7f
-#define	PC98_MID_386BSD		0x14
-
-#define	PC98_SID_ACTIVE		0x80
-#define	PC98_SID_MASK		0x7f
-#define	PC98_SID_386BSD		0x44
-
 #define	SECSIZE		512
 
 struct g_part_pc98_table {
@@ -71,12 +63,12 @@ static int g_part_pc98_add(struct g_part_table *, struct g_part_entry *,
 static int g_part_pc98_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_destroy(struct g_part_table *, struct g_part_parms *);
-static int g_part_pc98_dumpconf(struct g_part_table *, struct g_part_entry *,
+static void g_part_pc98_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_pc98_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_pc98_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
-static char *g_part_pc98_name(struct g_part_table *, struct g_part_entry *,
+static const char *g_part_pc98_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_pc98_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_pc98_read(struct g_part_table *, struct g_consumer *);
@@ -257,7 +249,7 @@ g_part_pc98_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	return (0);
 }
 
-static int
+static void
 g_part_pc98_dumpconf(struct g_part_table *table,
     struct g_part_entry *baseentry, struct sbuf *sb, const char *indent)
 {
@@ -268,7 +260,7 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 	entry = (struct g_part_pc98_entry *)baseentry;
 	if (entry == NULL) {
 		/* confxml: scheme information */
-		return (0);
+		return;
 	}
 
 	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
@@ -288,7 +280,6 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent,
 		    type & 0x7f7f);
 	}
-	return (0);
 }
 
 static int
@@ -318,7 +309,7 @@ g_part_pc98_modify(struct g_part_table *basetable,
 	return (0);
 }
 
-static char *
+static const char *
 g_part_pc98_name(struct g_part_table *table, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {

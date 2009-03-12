@@ -66,7 +66,7 @@ METHOD int enabled {
 } DEFAULT default_enabled;
 
 # iclear()
-METHOD void iclear {
+METHOD int iclear {
 	struct scc_softc *this;
 	struct scc_chan *chan;
 };

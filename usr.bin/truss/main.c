@@ -99,6 +99,11 @@ struct ex_types {
 #ifdef __sparc64__
 	{ "FreeBSD ELF64", sparc64_syscall_entry, sparc64_syscall_exit },
 #endif
+#ifdef __mips__
+	{ "FreeBSD ELF", mips_syscall_entry, mips_syscall_exit },
+	{ "FreeBSD ELF32", mips_syscall_entry, mips_syscall_exit },
+	{ "FreeBSD ELF64", mips_syscall_entry, mips_syscall_exit }, // XXX
+#endif
 	{ 0, 0, 0 },
 };
 

@@ -92,7 +92,7 @@ void		        agp_free_gatt(struct agp_gatt *gatt);
 void			agp_free_res(device_t dev);
 int			agp_generic_attach(device_t dev);
 int			agp_generic_detach(device_t dev);
-int			agp_generic_get_aperture(device_t dev);
+u_int32_t		agp_generic_get_aperture(device_t dev);
 int			agp_generic_set_aperture(device_t dev,
 						 u_int32_t aperture);
 int			agp_generic_enable(device_t dev, u_int32_t mode);

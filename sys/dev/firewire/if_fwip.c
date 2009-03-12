@@ -427,7 +427,7 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef DEVICE_POLLING
 	    {
 		struct ifreq *ifr = (struct ifreq *) data;
-		struct firewire_comm *fc = fc = fwip->fd.fc;
+		struct firewire_comm *fc = fwip->fd.fc;
 
 		if (ifr->ifr_reqcap & IFCAP_POLLING &&
 		    !(ifp->if_capenable & IFCAP_POLLING)) {

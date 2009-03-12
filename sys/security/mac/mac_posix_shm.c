@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2006 SPARTA, Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -8,7 +9,10 @@
  * as part of the DARPA CHATS research program.
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
- * N66001-04-C-6019 ("SEFOS").
+ * N66001-04-C-6019 ("SEFOS"). *
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -42,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -94,6 +100,9 @@ mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd)
 	MAC_PERFORM(posixshm_create, cred, shmfd, shmfd->shm_label);
 }
 
+MAC_CHECK_PROBE_DEFINE4(posixshm_check_mmap, "struct ucred *",
+    "struct shmfd *", "int", "int");
+
 int
 mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd, int prot,
     int flags)
@@ -102,9 +111,14 @@ mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd, int prot,
 
 	MAC_CHECK(posixshm_check_mmap, cred, shmfd, shmfd->shm_label, prot,
 	    flags);
+	MAC_CHECK_PROBE4(posixshm_check_mmap, error, cred, shmfd, prot,
+	    flags);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(posixshm_check_open, "struct ucred *",
+    "struct shmfd *");
 
 int
 mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd)
@@ -112,9 +126,13 @@ mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd)
 	int error;
 
 	MAC_CHECK(posixshm_check_open, cred, shmfd, shmfd->shm_label);
+	MAC_CHECK_PROBE2(posixshm_check_open, error, cred, shmfd);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_stat, "struct ucred *",
+    "struct ucred *", "struct shmfd *");
 
 int
 mac_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
@@ -124,9 +142,14 @@ mac_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(posixshm_check_stat, active_cred, file_cred, shmfd,
 	    shmfd->shm_label);
+	MAC_CHECK_PROBE3(posixshm_check_stat, error, active_cred, file_cred,
+	    shmfd);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_truncate, "struct ucred *",
+    "struct ucred *", "struct shmfd *");
 
 int
 mac_posixshm_check_truncate(struct ucred *active_cred, struct ucred *file_cred,
@@ -136,9 +159,14 @@ mac_posixshm_check_truncate(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(posixshm_check_truncate, active_cred, file_cred, shmfd,
 	    shmfd->shm_label);
+	MAC_CHECK_PROBE3(posixshm_check_truncate, error, active_cred,
+	    file_cred, shmfd);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(posixshm_check_unlink, "struct ucred *",
+    "struct shmfd *");
 
 int
 mac_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd)
@@ -146,6 +174,7 @@ mac_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd)
 	int error;
 
 	MAC_CHECK(posixshm_check_unlink, cred, shmfd, shmfd->shm_label);
+	MAC_CHECK_PROBE2(posixshm_check_unlink, error, cred, shmfd);
 
 	return (error);
 }

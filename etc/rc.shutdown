@@ -98,7 +98,7 @@ done
 # Terminate the background watchdog timer (if it is running)
 #
 if [ -n "$_rcshutdown_watchdog" ]; then
-	kill -TERM $_rcshutdown_watchdog >/dev/null 2>&1
+	pkill -TERM -P $_rcshutdown_watchdog >/dev/null 2>&1
 fi
 
 # Insert other shutdown procedures here

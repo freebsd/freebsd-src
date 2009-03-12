@@ -38,6 +38,7 @@
 #define	IOCTL_INTERNAL_USB_SUBMIT_URB			0x00220003
 
 #define	URB_FUNCTION_SELECT_CONFIGURATION		0x0000
+#define	URB_FUNCTION_ABORT_PIPE				0x0002
 #define	URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER		0x0009
 #define	URB_FUNCTION_GET_DESCRIPTOR_FROM_DEVICE		0x000B
 #define	URB_FUNCTION_VENDOR_DEVICE			0x0017
@@ -119,15 +120,20 @@ struct usbd_interface_information {
 
 struct usbd_urb_select_interface {
 	struct usbd_urb_header	usi_hdr;
-        void			*usi_handle;
-        struct usbd_interface_information uusi_intf;
+	void			*usi_handle;
+	struct usbd_interface_information uusi_intf;
 };
 
 struct usbd_urb_select_configuration {
 	struct usbd_urb_header	usc_hdr;
-        usb_config_descriptor_t *usc_conf;
-        void			*usc_handle;
-        struct usbd_interface_information usc_intf;
+	usb_config_descriptor_t *usc_conf;
+	void			*usc_handle;
+	struct usbd_interface_information usc_intf;
+};
+
+struct usbd_urb_pipe_request {
+	struct usbd_urb_header		upr_hdr;
+	usb_endpoint_descriptor_t	*upr_handle;
 };
 
 struct usbd_hcd_area {
@@ -136,47 +142,47 @@ struct usbd_hcd_area {
 
 struct usbd_urb_bulk_or_intr_transfer {
 	struct usbd_urb_header	ubi_hdr;
-        usb_endpoint_descriptor_t *ubi_epdesc;
-        uint32_t		ubi_trans_flags;
+	usb_endpoint_descriptor_t *ubi_epdesc;
+	uint32_t		ubi_trans_flags;
 #define	USBD_SHORT_TRANSFER_OK		0x00000002
-        uint32_t		ubi_trans_buflen;
-        void			*ubi_trans_buf;
-        struct mdl		*ubi_mdl;
-        union usbd_urb		*ubi_urblink;
-        struct usbd_hcd_area	ubi_hca;
+	uint32_t		ubi_trans_buflen;
+	void			*ubi_trans_buf;
+	struct mdl		*ubi_mdl;
+	union usbd_urb		*ubi_urblink;
+	struct usbd_hcd_area	ubi_hca;
 };
 
 struct usbd_urb_control_descriptor_request {
 	struct usbd_urb_header	ucd_hdr;
-        void			*ucd_reserved0;
-        uint32_t		ucd_reserved1;
-        uint32_t		ucd_trans_buflen;
-        void			*ucd_trans_buf;
-        struct mdl		*ucd_mdl;
-        union nt_urb		*ucd_urblink;
-        struct usbd_hcd_area	ucd_hca;
-        uint16_t		ucd_reserved2;
-        uint8_t			ucd_idx;
-        uint8_t			ucd_desctype;
-        uint16_t		ucd_langid;
-        uint16_t		ucd_reserved3;
+	void			*ucd_reserved0;
+	uint32_t		ucd_reserved1;
+	uint32_t		ucd_trans_buflen;
+	void			*ucd_trans_buf;
+	struct mdl		*ucd_mdl;
+	union nt_urb		*ucd_urblink;
+	struct usbd_hcd_area	ucd_hca;
+	uint16_t		ucd_reserved2;
+	uint8_t			ucd_idx;
+	uint8_t			ucd_desctype;
+	uint16_t		ucd_langid;
+	uint16_t		ucd_reserved3;
 };
 
 struct usbd_urb_vendor_or_class_request {
 	struct usbd_urb_header	uvc_hdr;
-        void			*uvc_reserved0;
-        uint32_t		uvc_trans_flags;
+	void			*uvc_reserved0;
+	uint32_t		uvc_trans_flags;
 #define	USBD_TRANSFER_DIRECTION_IN	1
-        uint32_t		uvc_trans_buflen;
-        void			*uvc_trans_buf;
-        struct mdl		*uvc_mdl;
-        union nt_urb		*uvc_urblink;
+	uint32_t		uvc_trans_buflen;
+	void			*uvc_trans_buf;
+	struct mdl		*uvc_mdl;
+	union nt_urb		*uvc_urblink;
 	struct usbd_hcd_area	uvc_hca;
-        uint8_t			uvc_reserved1;
-        uint8_t			uvc_req;
-        uint16_t		uvc_value;
-        uint16_t		uvc_idx;
-        uint16_t		uvc_reserved2;
+	uint8_t			uvc_reserved1;
+	uint8_t			uvc_req;
+	uint16_t		uvc_value;
+	uint16_t		uvc_idx;
+	uint16_t		uvc_reserved2;
 };
 
 struct usbd_interface_list_entry {
@@ -186,10 +192,11 @@ struct usbd_interface_list_entry {
 
 union usbd_urb {
 	struct usbd_urb_header			uu_hdr;
-        struct usbd_urb_select_configuration	uu_selconf;
-        struct usbd_urb_bulk_or_intr_transfer	uu_bulkintr;
-        struct usbd_urb_control_descriptor_request	uu_ctldesc;
-        struct usbd_urb_vendor_or_class_request	uu_vcreq;
+	struct usbd_urb_select_configuration	uu_selconf;
+	struct usbd_urb_bulk_or_intr_transfer	uu_bulkintr;
+	struct usbd_urb_control_descriptor_request	uu_ctldesc;
+	struct usbd_urb_vendor_or_class_request	uu_vcreq;
+	struct usbd_urb_pipe_request		uu_pipe;
 };
 
 #define	USBD_URB_STATUS(urb)	((urb)->uu_hdr.uuh_status)
@@ -204,13 +211,6 @@ struct usbd_version_info {
 };
 
 typedef struct usbd_version_info usbd_version_info;
-
-/* used for IRP cancel.  */
-struct ndisusb_cancel {
-	device_t		dev;
-	usbd_xfer_handle	xfer;
-	struct usb_task		task;
-};
 
 extern image_patch_table usbd_functbl[];
 

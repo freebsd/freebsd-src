@@ -68,15 +68,15 @@ struct icmp {
 		u_char ih_pptr;			/* ICMP_PARAMPROB */
 		struct in_addr ih_gwaddr;	/* ICMP_REDIRECT */
 		struct ih_idseq {
-			n_short	icd_id;
-			n_short	icd_seq;
+			uint16_t	icd_id;	/* network format */
+			uint16_t	icd_seq; /* network format */
 		} ih_idseq;
 		int ih_void;
 
 		/* ICMP_UNREACH_NEEDFRAG -- Path MTU Discovery (RFC1191) */
 		struct ih_pmtu {
-			n_short ipm_void;
-			n_short ipm_nextmtu;
+			uint16_t ipm_void;	/* network format */
+			uint16_t ipm_nextmtu;	/* network format */
 		} ih_pmtu;
 
 		struct ih_rtradv {
@@ -97,9 +97,13 @@ struct icmp {
 #define	icmp_lifetime	icmp_hun.ih_rtradv.irt_lifetime
 	union {
 		struct id_ts {			/* ICMP Timestamp */
-			n_time its_otime;	/* Originate */
-			n_time its_rtime;	/* Receive */
-			n_time its_ttime;	/* Transmit */
+			/*
+			 * The next 3 fields are in network format,
+			 * milliseconds since 00:00 GMT
+			 */
+			uint32_t its_otime;	/* Originate */
+			uint32_t its_rtime;	/* Receive */
+			uint32_t its_ttime;	/* Transmit */
 		} id_ts;
 		struct id_ip  {
 			struct ip idi_ip;
@@ -127,7 +131,7 @@ struct icmp {
  * ip header length.
  */
 #define	ICMP_MINLEN	8				/* abs minimum */
-#define	ICMP_TSLEN	(8 + 3 * sizeof (n_time))	/* timestamp */
+#define	ICMP_TSLEN	(8 + 3 * sizeof (uint32_t))	/* timestamp */
 #define	ICMP_MASKLEN	12				/* address mask */
 #define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
 #define	ICMP_ADVLEN(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8)
@@ -202,7 +206,7 @@ struct icmp {
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 
 #ifdef _KERNEL
-void	icmp_error(struct mbuf *, int, int, n_long, int);
+void	icmp_error(struct mbuf *, int, int, uint32_t, int);
 void	icmp_input(struct mbuf *, int);
 void	icmp_init(void);
 int	ip_next_mtu(int, int);

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_route.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -250,6 +251,7 @@ void
 rip_input(struct mbuf *m, int off)
 {
 	INIT_VNET_INET(curvnet);
+	struct ifnet *ifp;
 	struct ip *ip = mtod(m, struct ip *);
 	int proto = ip->ip_p;
 	struct inpcb *inp, *last;
@@ -261,6 +263,9 @@ rip_input(struct mbuf *m, int off)
 	ripsrc.sin_family = AF_INET;
 	ripsrc.sin_addr = ip->ip_src;
 	last = NULL;
+
+	ifp = m->m_pkthdr.rcvif;
+
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
 	INP_INFO_RLOCK(&V_ripcbinfo);
@@ -277,7 +282,11 @@ rip_input(struct mbuf *m, int off)
 		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
 		if (jailed(inp->inp_cred)) {
-			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
+			/*
+			 * XXX: If faddr was bound to multicast group,
+			 * jailed raw socket will drop datagram.
+			 */
+			if (prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
 				continue;
 		}
 		if (last != NULL) {
@@ -300,15 +309,45 @@ rip_input(struct mbuf *m, int off)
 		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 #endif
-		if (inp->inp_laddr.s_addr &&
-		    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+		if (!in_nullhost(inp->inp_laddr) &&
+		    !in_hosteq(inp->inp_laddr, ip->ip_dst))
 			continue;
-		if (inp->inp_faddr.s_addr &&
-		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+		if (!in_nullhost(inp->inp_faddr) &&
+		    !in_hosteq(inp->inp_faddr, ip->ip_src))
 			continue;
 		if (jailed(inp->inp_cred)) {
-			if (!prison_check_ip4(inp->inp_cred, &ip->ip_dst))
+			/*
+			 * Allow raw socket in jail to receive multicast;
+			 * assume process had PRIV_NETINET_RAW at attach,
+			 * and fall through into normal filter path if so.
+			 */
+			if (!IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
+			    prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
 				continue;
+		}
+		/*
+		 * If this raw socket has multicast state, and we
+		 * have received a multicast, check if this socket
+		 * should receive it, as multicast filtering is now
+		 * the responsibility of the transport layer.
+		 */
+		if (inp->inp_moptions != NULL &&
+		    IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+			struct sockaddr_in group;
+			int blocked;
+
+			bzero(&group, sizeof(struct sockaddr_in));
+			group.sin_len = sizeof(struct sockaddr_in);
+			group.sin_family = AF_INET;
+			group.sin_addr = ip->ip_dst;
+
+			blocked = imo_multi_filter(inp->inp_moptions, ifp,
+			    (struct sockaddr *)&group,
+			    (struct sockaddr *)&ripsrc);
+			if (blocked != MCAST_PASS) {
+				V_ipstat.ips_notmember++;
+				continue;
+			}
 		}
 		if (last != NULL) {
 			struct mbuf *n;
@@ -370,14 +409,12 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			ip->ip_off = 0;
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
-		if (jailed(inp->inp_cred)) {
-			if (prison_getip4(inp->inp_cred, &ip->ip_src)) {
-				INP_RUNLOCK(inp);
-				m_freem(m);
-				return (EPERM);
-			}
-		} else {
-			ip->ip_src = inp->inp_laddr;
+		ip->ip_src = inp->inp_laddr;
+		error = prison_get_ip4(inp->inp_cred, &ip->ip_src);
+		if (error != 0) {
+			INP_RUNLOCK(inp);
+			m_freem(m);
+			return (error);
 		}
 		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = inp->inp_ip_ttl;
@@ -388,10 +425,11 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		}
 		INP_RLOCK(inp);
 		ip = mtod(m, struct ip *);
-		if (!prison_check_ip4(inp->inp_cred, &ip->ip_src)) {
+		error = prison_check_ip4(inp->inp_cred, &ip->ip_src);
+		if (error != 0) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
-			return (EPERM);
+			return (error);
 		}
 
 		/*
@@ -803,12 +841,14 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INIT_VNET_INET(so->so_vnet);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
 	struct inpcb *inp;
+	int error;
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
 
-	if (!prison_check_ip4(td->td_ucred, &addr->sin_addr))
-		return (EADDRNOTAVAIL);
+	error = prison_check_ip4(td->td_ucred, &addr->sin_addr);
+	if (error != 0)
+		return (error);
 
 	if (TAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||

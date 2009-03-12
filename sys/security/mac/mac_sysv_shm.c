@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -10,6 +11,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -49,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/file.h>
 #include <sys/namei.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/shm.h>
 
@@ -108,6 +114,9 @@ mac_sysvshm_cleanup(struct shmid_kernel *shmsegptr)
 	MAC_PERFORM(sysvshm_cleanup, shmsegptr->label);
 }
 
+MAC_CHECK_PROBE_DEFINE3(sysvshm_check_shmat, "struct ucred *",
+    "struct shmid_kernel *", "int");
+
 int
 mac_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
     int shmflg)
@@ -116,9 +125,14 @@ mac_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 	MAC_CHECK(sysvshm_check_shmat, cred, shmsegptr, shmsegptr->label,
 	    shmflg);
+	MAC_CHECK_PROBE3(sysvshm_check_shmat, error, cred, shmsegptr,
+	    shmflg);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(sysvshm_check_shmctl, "struct ucred *",
+    "struct shmid_kernel *", "int");
 
 int
 mac_sysvshm_check_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
@@ -128,9 +142,13 @@ mac_sysvshm_check_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 	MAC_CHECK(sysvshm_check_shmctl, cred, shmsegptr, shmsegptr->label,
 	    cmd);
+	MAC_CHECK_PROBE3(sysvshm_check_shmctl, error, cred, shmsegptr, cmd);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(sysvshm_check_shmdt, "struct ucred *",
+    "struct shmid *");
 
 int
 mac_sysvshm_check_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr)
@@ -138,9 +156,13 @@ mac_sysvshm_check_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr)
 	int error;
 
 	MAC_CHECK(sysvshm_check_shmdt, cred, shmsegptr, shmsegptr->label);
+	MAC_CHECK_PROBE2(sysvshm_check_shmdt, error, cred, shmsegptr);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(sysvshm_check_shmget, "struct ucred *",
+    "struct shmid_kernel *", "int");
 
 int
 mac_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
@@ -149,6 +171,8 @@ mac_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
 	int error;
 
 	MAC_CHECK(sysvshm_check_shmget, cred, shmsegptr, shmsegptr->label,
+	    shmflg);
+	MAC_CHECK_PROBE3(sysvshm_check_shmget, error, cred, shmsegptr,
 	    shmflg);
 
 	return (error);

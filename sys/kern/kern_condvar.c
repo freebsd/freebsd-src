@@ -214,11 +214,9 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
 	struct thread *td;
-	struct proc *p;
 	int lock_state, rval;
 
 	td = curthread;
-	p = td->td_proc;
 	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -285,7 +283,6 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 	int lock_state, rval;
 
 	td = curthread;
-	rval = 0;
 	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -350,12 +347,9 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
 	struct thread *td;
-	struct proc *p;
 	int lock_state, rval;
 
 	td = curthread;
-	p = td->td_proc;
-	rval = 0;
 	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))

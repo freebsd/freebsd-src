@@ -51,6 +51,17 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+#ifndef _OFF_T_DECLARED
+#define	_OFF_T_DECLARED
+typedef	__off_t		off_t;
+#endif
+#ifndef _SSIZE_T_DECLARED
+#define	_SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#endif
+#endif
+
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #ifndef _VA_LIST_DECLARED
 typedef	__va_list	va_list;
@@ -330,6 +341,51 @@ int	 putw(int, FILE *);
 char	*tempnam(const char *, const char *);
 #endif
 
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+ssize_t	 getdelim(char ** __restrict, size_t * __restrict, int,
+	    FILE * __restrict);
+int	 renameat(int, const char *, int, const char *);
+int	 vdprintf(int, const char * __restrict, __va_list);
+
+/*
+ * Every programmer and his dog wrote functions called getline() and dprintf()
+ * before POSIX.1-2008 came along and decided to usurp the names, so we
+ * don't prototype them by default unless one of the following is true:
+ *   a) the app has requested them specifically by defining _WITH_GETLINE or
+ *      _WITH_DPRINTF, respectively
+ *   b) the app has requested a POSIX.1-2008 environment via _POSIX_C_SOURCE
+ *   c) the app defines a GNUism such as _BSD_SOURCE or _GNU_SOURCE
+ */
+#ifndef _WITH_GETLINE
+#if defined(_BSD_SOURCE) || defined(_GNU_SOURCE)
+#define	_WITH_GETLINE
+#elif defined(_POSIX_C_SOURCE)
+#if _POSIX_C_SOURCE > 200809
+#define	_WITH_GETLINE
+#endif
+#endif
+#endif
+
+#ifdef _WITH_GETLINE
+ssize_t	 getline(char ** __restrict, size_t * __restrict, FILE * __restrict);
+#endif
+
+#ifndef _WITH_DPRINTF
+#if defined(_BSD_SOURCE) || defined(_GNU_SOURCE)
+#define	_WITH_DPRINTF
+#elif defined(_POSIX_C_SOURCE)
+#if _POSIX_C_SOURCE > 200809
+#define	_WITH_DPRINTF
+#endif
+#endif
+#endif
+
+#ifdef _WITH_DPRINTF
+int	 dprintf(int, const char * __restrict, ...);
+#endif
+
+#endif /* __BSD_VISIBLE || __POSIX_VISIBLE >= 200809 */
+
 /*
  * Routines that are purely local.
  */
@@ -340,7 +396,6 @@ void	 fcloseall(void);
 char	*fgetln(FILE *, size_t *);
 __const char *fmtcheck(const char *, const char *) __format_arg(2);
 int	 fpurge(FILE *);
-int	 renameat(int, const char *, int, const char *);
 void	 setbuffer(FILE *, char *, int);
 int	 setlinebuf(FILE *);
 int	 vasprintf(char **, const char *, __va_list)

@@ -466,6 +466,11 @@ configfile_filebased(struct sbuf *sb)
 	struct cfgfile *cf;
 	int i;
 
+	/*
+	 * Try to read all configuration files. Since those will be present as
+	 * C string in the macro, we have to slash their ends then the line
+	 * wraps.
+	 */
 	STAILQ_FOREACH(cf, &cfgfiles, cfg_next) {
 		cff = fopen(cf->cfg_path, "r");
 		if (cff == NULL) {
@@ -500,11 +505,6 @@ configfile(void)
 	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
 	assert(sb != NULL);
 	sbuf_clear(sb);
-	/*
-	 * Try to read all configuration files. Since those will be present as
-	 * C string in the macro, we have to slash their ends then the line
-	 * wraps.
-	 */
 	if (filebased) {
 		/* Is needed, can be used for backward compatibility. */
 		configfile_filebased(sb);
@@ -565,9 +565,6 @@ moveifchanged(const char *from_name, const char *to_name)
 
 	if (!changed) {
 		p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
-#ifndef MAP_FAILED
-#define MAP_FAILED ((caddr_t) -1)
-#endif
 		if (p == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", from_name);
 		q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
@@ -669,7 +666,7 @@ kernconfdump(const char *file)
 	struct stat st;
 	FILE *fp, *pp;
 	int error, len, osz, r;
-	unsigned int off, size;
+	unsigned int i, off, size;
 	char *cmd, *o;
 
 	r = open(file, O_RDONLY);
@@ -707,7 +704,18 @@ kernconfdump(const char *file)
 	r = fseek(fp, off, SEEK_CUR);
 	if (r != 0)
 		errx(EXIT_FAILURE, "fseek() failed");
-	while ((r = fgetc(fp)) != EOF && size-- > 0)
+	for (i = 0; i < size - 1; i++) {
+		r = fgetc(fp);
+		if (r == EOF)
+			break;
+		/* 
+		 * If '\0' is present in the middle of the configuration
+		 * string, this means something very weird is happening.
+		 * Make such case very visible.
+		 */
+		assert(r != '\0' && ("Char present in the configuration "
+		    "string mustn't be equal to 0"));
 		fputc(r, stdout);
+	}
 	fclose(fp);
 }

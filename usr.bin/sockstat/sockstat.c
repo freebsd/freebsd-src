@@ -351,8 +351,8 @@ gather_inet(int proto)
 				continue;
 #undef __IN_IS_ADDR_LOOPBACK
 		} else if (inp->inp_vflag & INP_IPV6) {
-			if ((inp->in6p_fport == 0 && !opt_l) ||
-			    (inp->in6p_fport != 0 && !opt_c))
+			if ((inp->inp_fport == 0 && !opt_l) ||
+			    (inp->inp_fport != 0 && !opt_c))
 				continue;
 			if (opt_L &&
 			    (IN6_IS_ADDR_LOOPBACK(&inp->in6p_faddr) ||
@@ -376,9 +376,9 @@ gather_inet(int proto)
 		} else if (inp->inp_vflag & INP_IPV6) {
 			sock->family = AF_INET6;
 			sockaddr(&sock->laddr, sock->family,
-			    &inp->in6p_laddr, inp->in6p_lport);
+			    &inp->in6p_laddr, inp->inp_lport);
 			sockaddr(&sock->faddr, sock->family,
-			    &inp->in6p_faddr, inp->in6p_fport);
+			    &inp->in6p_faddr, inp->inp_fport);
 		}
 		sock->vflag = inp->inp_vflag;
 		sock->protoname = protoname;
@@ -596,25 +596,25 @@ display(void)
 			continue;
 		pos = 0;
 		if ((pwd = getpwuid(xf->xf_uid)) == NULL)
-			pos += xprintf("%lu", (u_long)xf->xf_uid);
+			pos += xprintf("%lu ", (u_long)xf->xf_uid);
 		else
-			pos += xprintf("%s", pwd->pw_name);
+			pos += xprintf("%s ", pwd->pw_name);
 		while (pos < 9)
 			pos += xprintf(" ");
 		pos += xprintf("%.10s", getprocname(xf->xf_pid));
 		while (pos < 20)
 			pos += xprintf(" ");
-		pos += xprintf("%lu", (u_long)xf->xf_pid);
+		pos += xprintf("%lu ", (u_long)xf->xf_pid);
 		while (pos < 26)
 			pos += xprintf(" ");
-		pos += xprintf("%d", xf->xf_fd);
+		pos += xprintf("%d ", xf->xf_fd);
 		while (pos < 29)
 			pos += xprintf(" ");
 		pos += xprintf("%s", s->protoname);
 		if (s->vflag & INP_IPV4)
-			pos += xprintf("4");
+			pos += xprintf("4 ");
 		if (s->vflag & INP_IPV6)
-			pos += xprintf("6");
+			pos += xprintf("6 ");
 		while (pos < 36)
 			pos += xprintf(" ");
 		switch (s->family) {

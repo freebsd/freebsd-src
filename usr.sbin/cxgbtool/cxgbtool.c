@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -92,6 +92,8 @@ static void __attribute__((noreturn)) usage(FILE *fp)
 	    	"\tclearstats                          clear MAC statistics\n"
 		"\tcontext <type> <id>                 show an SGE context\n"
 		"\tdesc <qset> <queue> <idx> [<cnt>]   dump SGE descriptors\n"
+		"\tioqs                                dump uP IOQs\n"
+		"\tla                                  dump uP logic analyzer info\n"
 		"\tloadboot <boot image>               download boot image\n"
 		"\tloadfw <FW image>                   download firmware\n"
 		"\tmdio <phy_addr> <mmd_addr>\n"
@@ -673,7 +675,7 @@ static void show_fl_cntxt(uint32_t data[])
 	printf("queue size:   %u\n", (data[2] >> 4) & 0xffff);
 	printf("generation:   %u\n", (data[2] >> 20) & 1);
 	printf("entry size:   %u\n",
-	       ((data[2] >> 21) & 0x7ff) | (data[3] & 0x1fffff));
+	       (data[2] >> 21) | (data[3] & 0x1fffff) << 11);
 	printf("congest thr:  %u\n", (data[3] >> 21) & 0x3ff);
 	printf("GTS:          %u\n", (data[3] >> 31) & 1);
 }
@@ -958,7 +960,7 @@ static int dump_mc7(int argc, char *argv[], int start_arg,
 #endif
 
 /* Max FW size is 32K including version, +4 bytes for the checksum. */
-#define MAX_FW_IMAGE_SIZE (32768 + 4)
+#define MAX_FW_IMAGE_SIZE (64 * 1024)
 
 static int load_fw(int argc, char *argv[], int start_arg, const char *iff_name)
 {
@@ -1330,11 +1332,78 @@ static int pktsched(int argc, char *argv[], int start_arg, const char *iff_name)
 
 	return 0;
 }
+
 static int clear_stats(int argc, char *argv[], int start_arg,
 		       const char *iff_name)
 {
 	if (doit(iff_name, CHELSIO_CLEAR_STATS, NULL) < 0)
 		 err(1, "clearstats");
+
+	return 0;
+}
+
+static int get_up_la(int argc, char *argv[], int start_arg, const char *iff_name)
+{
+	struct ch_up_la la;
+	int i, idx, max_idx, entries;
+
+	la.stopped = 0;
+	la.idx = -1;
+	la.bufsize = LA_BUFSIZE;
+	la.data = malloc(la.bufsize);
+	if (!la.data)
+		err(1, "uP_LA malloc");
+
+	if (doit(iff_name, CHELSIO_GET_UP_LA, &la) < 0)
+		 err(1, "uP_LA");
+
+	if (la.stopped)
+		printf("LA is not running\n");
+
+	entries = la.bufsize / 4;
+	idx = (int)la.idx;
+	max_idx = (entries / 4) - 1;
+	for (i = 0; i < max_idx; i++) {
+		printf("%04x %08x %08x\n",
+		       la.data[idx], la.data[idx+2], la.data[idx+1]);
+		idx = (idx + 4) & (entries - 1);
+	}
+
+	return 0;
+}
+
+static int get_up_ioqs(int argc, char *argv[], int start_arg, const char *iff_name)
+{
+	struct ch_up_ioqs ioqs;
+	int i, entries;
+
+	bzero(&ioqs, sizeof(ioqs));
+	ioqs.bufsize = IOQS_BUFSIZE;
+	ioqs.data = malloc(IOQS_BUFSIZE);
+	if (!ioqs.data)
+		err(1, "uP_IOQs malloc");
+
+	if (doit(iff_name, CHELSIO_GET_UP_IOQS, &ioqs) < 0)
+		 err(1, "uP_IOQs");
+
+	printf("ioq_rx_enable   : 0x%08x\n", ioqs.ioq_rx_enable);
+	printf("ioq_tx_enable   : 0x%08x\n", ioqs.ioq_tx_enable);
+	printf("ioq_rx_status   : 0x%08x\n", ioqs.ioq_rx_status);
+	printf("ioq_tx_status   : 0x%08x\n", ioqs.ioq_tx_status);
+	
+	entries = ioqs.bufsize / sizeof(struct t3_ioq_entry);
+	for (i = 0; i < entries; i++) {
+		printf("\nioq[%d].cp       : 0x%08x\n", i,
+		       ioqs.data[i].ioq_cp);
+		printf("ioq[%d].pp       : 0x%08x\n", i,
+		       ioqs.data[i].ioq_pp);
+		printf("ioq[%d].alen     : 0x%08x\n", i,
+		       ioqs.data[i].ioq_alen);
+		printf("ioq[%d].stats    : 0x%08x\n", i,
+		       ioqs.data[i].ioq_stats);
+		printf("  sop %u\n", ioqs.data[i].ioq_stats >> 16);
+		printf("  eop %u\n", ioqs.data[i].ioq_stats  & 0xFFFF);
+	}
 
 	return 0;
 }
@@ -1397,6 +1466,10 @@ int main(int argc, char *argv[])
 		r = get_tcb2(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "clearstats"))
 		r = clear_stats(argc, argv, 3, iff_name);
+	else if (!strcmp(argv[2], "la"))
+		r = get_up_la(argc, argv, 3, iff_name);
+	else if (!strcmp(argv[2], "ioqs"))
+		r = get_up_ioqs(argc, argv, 3, iff_name);
 
 	if (r == -1)
 		usage(stderr);

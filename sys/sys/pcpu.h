@@ -54,7 +54,7 @@ struct rm_queue {
 	struct rm_queue* volatile rmq_prev;
 };
 
-#define	PCPU_NAME_LEN (sizeof("CPU ") + sizeof(__STRING(MAXCPU) + 1))
+#define	PCPU_NAME_LEN (sizeof("CPU ") + sizeof(__XSTRING(MAXCPU) + 1))
 
 
 /*

@@ -79,24 +79,9 @@ __FBSDID("$FreeBSD$");
 
 #define CT_LOCK_NAME	"ctX"
 
-static	int	ct_mpsafenet = 1;
-TUNABLE_INT("debug.ctau.mpsafenet", &ct_mpsafenet);
-SYSCTL_NODE(_debug, OID_AUTO, ctau, CTLFLAG_RD, 0, "Cronyx Tau-ISA Adapters");
-SYSCTL_INT(_debug_ctau, OID_AUTO, mpsafenet, CTLFLAG_RD, &ct_mpsafenet, 0,
-	"Enable/disable MPSAFE network support for Cronyx Tau-ISA Adapters");
-
-#define CT_LOCK(_bd)		do { \
-				    if (ct_mpsafenet) \
-					mtx_lock (&(_bd)->ct_mtx); \
-				} while (0)
-#define CT_UNLOCK(_bd)		do { \
-				    if (ct_mpsafenet) \
-					mtx_unlock (&(_bd)->ct_mtx); \
-				} while (0)
-#define CT_LOCK_ASSERT(_bd)	do { \
-				    if (ct_mpsafenet) \
-					mtx_assert (&(_bd)->ct_mtx, MA_OWNED); \
-				} while (0)
+#define CT_LOCK(_bd)		mtx_lock (&(_bd)->ct_mtx)
+#define CT_UNLOCK(_bd)		mtx_unlock (&(_bd)->ct_mtx)
+#define CT_LOCK_ASSERT(_bd)	mtx_assert (&(_bd)->ct_mtx, MA_OWNED)
 
 static void ct_identify		__P((driver_t *, device_t));
 static int ct_probe		__P((device_t));
@@ -195,7 +180,6 @@ static struct cdevsw ct_cdevsw = {
 	.d_close    = ct_close,
 	.d_ioctl    = ct_ioctl,
 	.d_name     = "ct",
-	.d_flags    = D_NEEDGIANT,
 };
 
 /*
@@ -678,10 +662,10 @@ static int ct_attach (device_t dev)
  		return ENXIO;
 	}
 	
-	callout_init (&led_timo[unit], ct_mpsafenet ? CALLOUT_MPSAFE : 0);
+	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
 	s = splimp ();
 	if (bus_setup_intr (dev, bd->irq_res,
-			   INTR_TYPE_NET|(ct_mpsafenet?INTR_MPSAFE:0),
+			   INTR_TYPE_NET|INTR_MPSAFE,
 			   NULL, ct_intr, bd, &bd->intrhand)) {
 		printf ("ct%d: Can't setup irq %ld\n", unit, irq);
 		bd->board = 0;
@@ -741,8 +725,7 @@ static int ct_attach (device_t dev)
 		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
 		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "ct_queue_hi", NULL, MTX_DEF);		
-		callout_init (&d->timeout_handle,
-			     ct_mpsafenet ? CALLOUT_MPSAFE : 0);
+		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
 #else /*NETGRAPH*/
 		d->ifp = if_alloc(IFT_PPP);
 		if (d->ifp == NULL) {
@@ -757,8 +740,6 @@ static int ct_attach (device_t dev)
 		if_initname (d->ifp, "ct", b->num * NCHAN + c->num);
 		d->ifp->if_mtu		= PP_MTU;
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
-		if (!ct_mpsafenet)
-			d->ifp->if_flags |= IFF_NEEDSGIANT;
 		d->ifp->if_ioctl	= ct_sioctl;
 		d->ifp->if_start	= ct_ifstart;
 		d->ifp->if_watchdog	= ct_ifwatchdog;
@@ -2211,9 +2192,6 @@ static int ct_modevent (module_t mod, int type, void *unused)
 {
 	static int load_count = 0;
 
-	if (ct_mpsafenet)
-		ct_cdevsw.d_flags &= ~D_NEEDGIANT;
-
 	switch (type) {
 	case MOD_LOAD:
 #ifdef NETGRAPH
@@ -2221,7 +2199,7 @@ static int ct_modevent (module_t mod, int type, void *unused)
 			printf ("Failed to register ng_ct\n");
 #endif
 		++load_count;
-		callout_init (&timeout_handle, ct_mpsafenet?CALLOUT_MPSAFE:0);
+		callout_init (&timeout_handle, CALLOUT_MPSAFE);
 		callout_reset (&timeout_handle, hz*5, ct_timeout, 0);
 		break;
 	case MOD_UNLOAD:

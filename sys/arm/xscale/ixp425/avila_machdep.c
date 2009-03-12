@@ -154,6 +154,10 @@ static const struct pmap_devmap ixp425_devmap[] = {
     { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
+	/* CFI Flash on the Expansion Bus */
+    { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
+      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
 	/* IXP425 PCI Configuration */
     { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
@@ -170,23 +174,6 @@ static const struct pmap_devmap ixp425_devmap[] = {
     { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
-	/* NPE-A Memory Space */
-    { IXP425_NPE_A_VBASE, IXP425_NPE_A_HWBASE, IXP425_NPE_A_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-	/* NPE-B Memory Space */
-    { IXP425_NPE_B_VBASE, IXP425_NPE_B_HWBASE, IXP425_NPE_B_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-	/* NPE-C Memory Space */
-    { IXP425_NPE_C_VBASE, IXP425_NPE_C_HWBASE, IXP425_NPE_C_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-
-	/* MAC-B Memory Space */
-    { IXP425_MAC_B_VBASE, IXP425_MAC_B_HWBASE, IXP425_MAC_B_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-	/* MAC-C Memory Space */
-    { IXP425_MAC_C_VBASE, IXP425_MAC_C_HWBASE, IXP425_MAC_C_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-
     { 0 },
 };
 
@@ -199,6 +186,10 @@ static const struct pmap_devmap ixp435_devmap[] = {
 	/* Expansion Bus */
     { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* CFI Flash on the Expansion Bus */
+    { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
+      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
 	/* IXP425 PCI Configuration */
     { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
@@ -214,23 +205,6 @@ static const struct pmap_devmap ixp435_devmap[] = {
 
 	/* Q-Mgr Memory Space */
     { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-
-	/* NPE-A Memory Space */
-    { IXP425_NPE_A_VBASE, IXP425_NPE_A_HWBASE, IXP425_NPE_A_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-	/* NPE-C Memory Space */
-    { IXP425_NPE_C_VBASE, IXP425_NPE_C_HWBASE, IXP425_NPE_C_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-
-	/* MAC-C Memory Space */
-    { IXP425_MAC_C_VBASE, IXP425_MAC_C_HWBASE, IXP425_MAC_C_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-	/* MAC-B Memory Space */
-    { IXP425_MAC_B_VBASE, IXP425_MAC_B_HWBASE, IXP425_MAC_B_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-	/* MAC-A Memory Space */
-    { IXP435_MAC_A_VBASE, IXP435_MAC_A_HWBASE, IXP435_MAC_A_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
 	/* USB1 Memory Space */
@@ -330,17 +304,20 @@ initarm(void *arg, void *arg2)
 	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
 #ifdef ARM_USE_SMALL_ALLOC
-#error "I am broken"		/* XXX save people grief */
 	freemempos -= PAGE_SIZE;
 	freemem_pt = trunc_page(freemem_pt);
-	freemem_after = freemempos - ((freemem_pt - 0x10100000) /
+	freemem_after = freemempos - ((freemem_pt - (PHYSADDR + 0x100000)) /
 	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)
-	    , (void *)0xc0100000, freemem_pt - 0x10100000, 1);
-	freemem_after -= ((freemem_after - 0x10001000) / PAGE_SIZE) *
+	arm_add_smallalloc_pages(
+	    (void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)),
+	    (void *)0xc0100000,
+	    freemem_pt - (PHYSADDR + 0x100000), 1);
+	freemem_after -= ((freemem_after - (PHYSADDR + 0x1000)) / PAGE_SIZE) *
 	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + (KEYVIRTADDR - KERNPHYSADDR))
-	, (void *)0xc0001000, trunc_page(freemem_after) - 0x10001000, 0);
+	arm_add_smallalloc_pages(
+	    (void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)),
+	    (void *)0xc0001000,
+	    trunc_page(freemem_after) - (PHYSADDR + 0x1000), 0);
 	freemempos = trunc_page(freemem_after);
 	freemempos -= PAGE_SIZE;
 #endif

@@ -222,7 +222,11 @@ set_phys_to_machine(unsigned long pfn, unsigned long mfn)
         xen_phys_machine[pfn] = mfn;
 }
 
-
+static __inline int
+phys_to_machine_mapping_valid(unsigned long pfn)
+{
+	return xen_phys_machine[pfn] != INVALID_P2M_ENTRY;
+}
 
 
 #endif /* _XEN_XENPMAP_H_ */

@@ -521,12 +521,6 @@ proto_xchgcoll(struct config *config)
 		coll->co_filefilter = globtree_and(fileaccept,
 		    globtree_not(filerefuse));
 
-		/* At this point we don't need the pattern lists anymore. */
-		pattlist_free(coll->co_accepts);
-		pattlist_free(coll->co_refusals);
-		coll->co_accepts = NULL;
-		coll->co_refusals = NULL;
-
 		/* Set up a mask of file attributes that we don't want to sync
 		   with the server. */
 		if (!(coll->co_options & CO_SETOWNER))

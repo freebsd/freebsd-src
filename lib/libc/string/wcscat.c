@@ -37,9 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 wchar_t *
-wcscat(s1, s2)
-	wchar_t * __restrict s1;
-	const wchar_t * __restrict s2;
+wcscat(wchar_t * __restrict s1, const wchar_t * __restrict s2)
 {
 	wchar_t *cp;
 

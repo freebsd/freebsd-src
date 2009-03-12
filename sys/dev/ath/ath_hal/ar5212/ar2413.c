@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar2413.c,v 1.8 2008/11/15 22:15:46 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -75,29 +75,29 @@ ar2413WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
  * ASSUMES: Writes enabled to analog bus
  */
 static HAL_BOOL
-ar2413SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
+ar2413SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
+	uint16_t freq = ath_hal_gethwchannel(ah, chan);
 	uint32_t channelSel  = 0;
 	uint32_t bModeSynth  = 0;
 	uint32_t aModeRefSel = 0;
 	uint32_t reg32       = 0;
-	uint16_t freq;
 
-	OS_MARK(ah, AH_MARK_SETCHANNEL, chan->channel);
+	OS_MARK(ah, AH_MARK_SETCHANNEL, freq);
 
-	if (chan->channel < 4800) {
+	if (freq < 4800) {
 		uint32_t txctl;
 
-		if (((chan->channel - 2192) % 5) == 0) {
-			channelSel = ((chan->channel - 672) * 2 - 3040)/10;
+		if (((freq - 2192) % 5) == 0) {
+			channelSel = ((freq - 672) * 2 - 3040)/10;
 			bModeSynth = 0;
-		} else if (((chan->channel - 2224) % 5) == 0) {
-			channelSel = ((chan->channel - 704) * 2 - 3040) / 10;
+		} else if (((freq - 2224) % 5) == 0) {
+			channelSel = ((freq - 704) * 2 - 3040) / 10;
 			bModeSynth = 1;
 		} else {
 			HALDEBUG(ah, HAL_DEBUG_ANY,
 			    "%s: invalid channel %u MHz\n",
-			    __func__, chan->channel);
+			    __func__, freq);
 			return AH_FALSE;
 		}
 
@@ -105,7 +105,7 @@ ar2413SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
 		channelSel = ath_hal_reverseBits(channelSel, 8);
 
 		txctl = OS_REG_READ(ah, AR_PHY_CCK_TX_CTRL);
-		if (chan->channel == 2484) {
+		if (freq == 2484) {
 			/* Enable channel spreading for channel 14 */
 			OS_REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
 				txctl | AR_PHY_CCK_TX_CTRL_JAPAN);
@@ -113,26 +113,26 @@ ar2413SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
 			OS_REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
 				txctl &~ AR_PHY_CCK_TX_CTRL_JAPAN);
 		}
-	} else if (((chan->channel % 5) == 2) && (chan->channel <= 5435)) {
-		freq = chan->channel - 2; /* Align to even 5MHz raster */
+	} else if (((freq % 5) == 2) && (freq <= 5435)) {
+		freq = freq - 2; /* Align to even 5MHz raster */
 		channelSel = ath_hal_reverseBits(
 			(uint32_t)(((freq - 4800)*10)/25 + 1), 8);
             	aModeRefSel = ath_hal_reverseBits(0, 2);
-	} else if ((chan->channel % 20) == 0 && chan->channel >= 5120) {
+	} else if ((freq % 20) == 0 && freq >= 5120) {
 		channelSel = ath_hal_reverseBits(
-			((chan->channel - 4800) / 20 << 2), 8);
+			((freq - 4800) / 20 << 2), 8);
 		aModeRefSel = ath_hal_reverseBits(3, 2);
-	} else if ((chan->channel % 10) == 0) {
+	} else if ((freq % 10) == 0) {
 		channelSel = ath_hal_reverseBits(
-			((chan->channel - 4800) / 10 << 1), 8);
+			((freq - 4800) / 10 << 1), 8);
 		aModeRefSel = ath_hal_reverseBits(2, 2);
-	} else if ((chan->channel % 5) == 0) {
+	} else if ((freq % 5) == 0) {
 		channelSel = ath_hal_reverseBits(
-			(chan->channel - 4800) / 5, 8);
+			(freq - 4800) / 5, 8);
 		aModeRefSel = ath_hal_reverseBits(1, 2);
 	} else {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel %u MHz\n",
-		    __func__, chan->channel);
+		    __func__, freq);
 		return AH_FALSE;
 	}
 
@@ -155,7 +155,9 @@ ar2413SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
  * REQUIRES: Access to the analog rf device
  */
 static HAL_BOOL
-ar2413SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, uint16_t modesIndex, uint16_t *rfXpdGain)
+ar2413SetRfRegs(struct ath_hal *ah,
+	const struct ieee80211_channel *chan,
+	uint16_t modesIndex, uint16_t *rfXpdGain)
 {
 #define	RF_BANK_SETUP(_priv, _ix, _col) do {				    \
 	int i;								    \
@@ -168,27 +170,18 @@ ar2413SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, uint16_t modesIn
 	struct ar2413State *priv = AR2413(ah);
 	int regWrites = 0;
 
-	HALDEBUG(ah, HAL_DEBUG_RFPARAM,
-	    "%s: chan 0x%x flag 0x%x modesIndex 0x%x\n",
-	    __func__, chan->channel, chan->channelFlags, modesIndex);
+	HALDEBUG(ah, HAL_DEBUG_RFPARAM, "%s: chan %u/0x%x modesIndex %u\n",
+	    __func__, chan->ic_freq, chan->ic_flags, modesIndex);
 
 	HALASSERT(priv);
 
 	/* Setup rf parameters */
-	switch (chan->channelFlags & CHANNEL_ALL) {
-	case CHANNEL_B:
+	if (IEEE80211_IS_CHAN_B(chan)) {
 		ob2GHz = ee->ee_obFor24;
 		db2GHz = ee->ee_dbFor24;
-		break;
-	case CHANNEL_G:
-	case CHANNEL_108G:
+	} else {
 		ob2GHz = ee->ee_obFor24g;
 		db2GHz = ee->ee_dbFor24g;
-		break;
-	default:
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
-		return AH_FALSE;
 	}
 
 	/* Bank 1 Write */
@@ -501,9 +494,11 @@ ar2413getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 
 static HAL_BOOL
 ar2413SetPowerTable(struct ath_hal *ah,
-	int16_t *minPower, int16_t *maxPower, HAL_CHANNEL_INTERNAL *chan, 
+	int16_t *minPower, int16_t *maxPower,
+	const struct ieee80211_channel *chan, 
 	uint16_t *rfXpdGain)
 {
+	uint16_t freq = ath_hal_gethwchannel(ah, chan);
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	const HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 	const RAW_DATA_STRUCT_2413 *pRawDataset = AH_NULL;
@@ -518,11 +513,11 @@ ar2413SetPowerTable(struct ath_hal *ah,
 #endif
 
 	HALDEBUG(ah, HAL_DEBUG_RFPARAM, "%s: chan 0x%x flag 0x%x\n",
-	    __func__, chan->channel,chan->channelFlags);
+	    __func__, freq, chan->ic_flags);
 
-	if (IS_CHAN_G(chan) || IS_CHAN_108G(chan))
+	if (IEEE80211_IS_CHAN_G(chan) || IEEE80211_IS_CHAN_108G(chan))
 		pRawDataset = &ee->ee_rawDataset2413[headerInfo11G];
-	else if (IS_CHAN_B(chan))
+	else if (IEEE80211_IS_CHAN_B(chan))
 		pRawDataset = &ee->ee_rawDataset2413[headerInfo11B];
 	else {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: illegal mode\n", __func__);
@@ -533,7 +528,7 @@ ar2413SetPowerTable(struct ath_hal *ah,
 					  AR_PHY_TPCRG5_PD_GAIN_OVERLAP);
     
 	numPdGainsUsed = ar2413getGainBoundariesAndPdadcsForPowers(ah,
-		chan->channel, pRawDataset, pdGainOverlap_t2,
+		freq, pRawDataset, pdGainOverlap_t2,
 		&minCalPower2413_t2,gainBoundaries, rfXpdGain, pdadcValues);
 	HALASSERT(1 <= numPdGainsUsed && numPdGainsUsed <= 3);
 
@@ -640,9 +635,11 @@ ar2413GetMaxPower(struct ath_hal *ah, const RAW_DATA_PER_CHANNEL_2413 *data)
 }
 
 static HAL_BOOL
-ar2413GetChannelMaxMinPower(struct ath_hal *ah, HAL_CHANNEL *chan,
+ar2413GetChannelMaxMinPower(struct ath_hal *ah,
+	const struct ieee80211_channel *chan,
 	int16_t *maxPow, int16_t *minPow)
 {
+	uint16_t freq = chan->ic_freq;		/* NB: never mapped */
 	const HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 	const RAW_DATA_STRUCT_2413 *pRawDataset = AH_NULL;
 	const RAW_DATA_PER_CHANNEL_2413 *data = AH_NULL;
@@ -651,9 +648,9 @@ ar2413GetChannelMaxMinPower(struct ath_hal *ah, HAL_CHANNEL *chan,
 
 	*maxPow = 0;
 
-	if (IS_CHAN_G(chan) || IS_CHAN_108G(chan))
+	if (IEEE80211_IS_CHAN_G(chan) || IEEE80211_IS_CHAN_108G(chan))
 		pRawDataset = &ee->ee_rawDataset2413[headerInfo11G];
-	else if (IS_CHAN_B(chan))
+	else if (IEEE80211_IS_CHAN_B(chan))
 		pRawDataset = &ee->ee_rawDataset2413[headerInfo11B];
 	else
 		return(AH_FALSE);
@@ -667,9 +664,9 @@ ar2413GetChannelMaxMinPower(struct ath_hal *ah, HAL_CHANNEL *chan,
 	if (numChannels < 1)
 		return(AH_FALSE);
 
-	if ((chan->channel < data[0].channelValue) ||
-	    (chan->channel > data[numChannels-1].channelValue)) {
-		if (chan->channel < data[0].channelValue) {
+	if ((freq < data[0].channelValue) ||
+	    (freq > data[numChannels-1].channelValue)) {
+		if (freq < data[0].channelValue) {
 			*maxPow = ar2413GetMaxPower(ah, &data[0]);
 			*minPow = ar2413GetMinPower(ah, &data[0]);
 			return(AH_TRUE);
@@ -681,19 +678,19 @@ ar2413GetChannelMaxMinPower(struct ath_hal *ah, HAL_CHANNEL *chan,
 	}
 
 	/* Linearly interpolate the power value now */
-	for (last=0,i=0; (i<numChannels) && (chan->channel > data[i].channelValue);
+	for (last=0,i=0; (i<numChannels) && (freq > data[i].channelValue);
 	     last = i++);
 	totalD = data[i].channelValue - data[last].channelValue;
 	if (totalD > 0) {
 		totalF = ar2413GetMaxPower(ah, &data[i]) - ar2413GetMaxPower(ah, &data[last]);
-		*maxPow = (int8_t) ((totalF*(chan->channel-data[last].channelValue) + 
+		*maxPow = (int8_t) ((totalF*(freq-data[last].channelValue) + 
 				     ar2413GetMaxPower(ah, &data[last])*totalD)/totalD);
 		totalMin = ar2413GetMinPower(ah, &data[i]) - ar2413GetMinPower(ah, &data[last]);
-		*minPow = (int8_t) ((totalMin*(chan->channel-data[last].channelValue) +
+		*minPow = (int8_t) ((totalMin*(freq-data[last].channelValue) +
 				     ar2413GetMinPower(ah, &data[last])*totalD)/totalD);
 		return(AH_TRUE);
 	} else {
-		if (chan->channel == data[i].channelValue) {
+		if (freq == data[i].channelValue) {
 			*maxPow = ar2413GetMaxPower(ah, &data[i]);
 			*minPow = ar2413GetMinPower(ah, &data[i]);
 			return(AH_TRUE);

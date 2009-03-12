@@ -185,7 +185,6 @@ device		bpf		# Berkeley packet filter
 #device		ohci		# OHCI PCI->USB interface
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
 #device		ukbd		# Keyboard
 device		ulpt		# Printer

@@ -367,7 +367,6 @@ static driver_t malo_pci_driver = {
 
 static	devclass_t malo_devclass;
 DRIVER_MODULE(if_malo, pci, malo_pci_driver, malo_devclass, 0, 0);
-DRIVER_MODULE(if_malo, cardbus, malo_pci_driver, malo_devclass, 0, 0);
 MODULE_VERSION(if_malo, 1);
 MODULE_DEPEND(if_malo, wlan, 1, 1, 1);		/* 802.11 media layer */
 MODULE_DEPEND(if_malo, malofw_fw, 1, 1, 1);

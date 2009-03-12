@@ -46,6 +46,7 @@ static char rcsid[] =
 #endif
 #include <paths.h>
 #include <signal.h>
+#include <stdio.h>
 
 /*
  * Set up the environment of this process to run in window 'wp'.

@@ -50,7 +50,7 @@ DEFINE_TEST(test_write_open_memory)
 		assert((a = archive_write_new()) != NULL);
 		assertA(0 == archive_write_set_format_ustar(a));
 		assertA(0 == archive_write_set_bytes_in_last_block(a, 1));
-		assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
+		assertA(0 == archive_write_set_bytes_per_block(a, (int)blocksize));
 		buff[i] = 0xAE;
 		assertA(0 == archive_write_open_memory(a, buff, i, &s));
 		/* If buffer is smaller than a tar header, this should fail. */

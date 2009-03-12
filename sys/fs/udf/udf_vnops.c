@@ -48,6 +48,7 @@
 
 #include <vm/uma.h>
 
+#include <fs/fifofs/fifo.h>
 #include <fs/udf/ecma167-udf.h>
 #include <fs/udf/osta.h>
 #include <fs/udf/udf.h>
@@ -60,9 +61,11 @@ static vop_getattr_t	udf_getattr;
 static vop_open_t	udf_open;
 static vop_ioctl_t	udf_ioctl;
 static vop_pathconf_t	udf_pathconf;
+static vop_print_t	udf_print;
 static vop_read_t	udf_read;
 static vop_readdir_t	udf_readdir;
 static vop_readlink_t	udf_readlink;
+static vop_setattr_t	udf_setattr;
 static vop_strategy_t	udf_strategy;
 static vop_bmap_t	udf_bmap;
 static vop_cachedlookup_t	udf_lookup;
@@ -84,11 +87,23 @@ static struct vop_vector udf_vnodeops = {
 	.vop_lookup =		vfs_cache_lookup,
 	.vop_open =		udf_open,
 	.vop_pathconf =		udf_pathconf,
+	.vop_print =		udf_print,
 	.vop_read =		udf_read,
 	.vop_readdir =		udf_readdir,
 	.vop_readlink =		udf_readlink,
 	.vop_reclaim =		udf_reclaim,
+	.vop_setattr =		udf_setattr,
 	.vop_strategy =		udf_strategy,
+	.vop_vptofh =		udf_vptofh,
+};
+
+struct vop_vector udf_fifoops = {
+	.vop_default =		&fifo_specops,
+	.vop_access =		udf_access,
+	.vop_getattr =		udf_getattr,
+	.vop_print =		udf_print,
+	.vop_reclaim =		udf_reclaim,
+	.vop_setattr =		udf_setattr,
 	.vop_vptofh =		udf_vptofh,
 };
 
@@ -318,6 +333,38 @@ udf_getattr(struct vop_getattr_args *a)
 	return (0);
 }
 
+static int
+udf_setattr(struct vop_setattr_args *a)
+{
+	struct vnode *vp;
+	struct vattr *vap;
+
+	vp = a->a_vp;
+	vap = a->a_vap;
+	if (vap->va_flags != (u_long)VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
+	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
+		return (EROFS);
+	if (vap->va_size != (u_quad_t)VNOVAL) {
+		switch (vp->v_type) {
+		case VDIR:
+			return (EISDIR);
+		case VLNK:
+		case VREG:
+			return (EROFS);
+		case VCHR:
+		case VBLK:
+		case VSOCK:
+		case VFIFO:
+		case VNON:
+		case VBAD:
+		case VMARKER:
+			return (0);
+		}
+	}
+	return (0);
+}
+
 /*
  * File specific ioctls.
  */
@@ -354,9 +401,31 @@ udf_pathconf(struct vop_pathconf_args *a)
 	}
 }
 
+static int
+udf_print(struct vop_print_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct udf_node *node = VTON(vp);
+
+	printf("    ino %lu, on dev %s", (u_long)node->hash_id,
+	    devtoname(node->udfmp->im_dev));
+	if (vp->v_type == VFIFO)
+		fifo_printinfo(vp);
+	printf("\n");
+	return (0);
+}
+
 #define lblkno(udfmp, loc)	((loc) >> (udfmp)->bshift)
 #define blkoff(udfmp, loc)	((loc) & (udfmp)->bmask)
-#define lblktosize(imp, blk)	((blk) << (udfmp)->bshift)
+#define lblktosize(udfmp, blk)	((blk) << (udfmp)->bshift)
+
+static inline int
+is_data_in_fentry(const struct udf_node *node)
+{
+	const struct file_entry *fentry = node->fentry;
+
+	return ((le16toh(fentry->icbtag.flags) & 0x7) == 3);
+}
 
 static int
 udf_read(struct vop_read_args *ap)
@@ -365,7 +434,9 @@ udf_read(struct vop_read_args *ap)
 	struct uio *uio = ap->a_uio;
 	struct udf_node *node = VTON(vp);
 	struct udf_mnt *udfmp;
+	struct file_entry *fentry;
 	struct buf *bp;
+	uint8_t *data;
 	daddr_t lbn, rablock;
 	off_t diff, fsize;
 	int error = 0;
@@ -375,6 +446,22 @@ udf_read(struct vop_read_args *ap)
 		return (0);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
+
+	if (is_data_in_fentry(node)) {
+		fentry = node->fentry;
+		data = &fentry->data[le32toh(fentry->l_ea)];
+		fsize = le32toh(fentry->l_ad);
+
+		n = uio->uio_resid;
+		diff = fsize - uio->uio_offset;
+		if (diff <= 0)
+			return (0);
+		if (diff < n)
+			n = diff;
+		error = uiomove(data + uio->uio_offset, (int)n, uio);
+		return (error);
+	}
+
 	fsize = le64toh(node->fentry->inf_len);
 	udfmp = node->udfmp;
 	do {
@@ -651,7 +738,7 @@ udf_getfid(struct udf_dirstream *ds)
 	 * Update the offset. Align on a 4 byte boundary because the
 	 * UDF spec says so.
 	 */
-	ds->this_off = ds->off;
+	ds->this_off = ds->offset + ds->off;
 	if (!ds->fid_fragment) {
 		ds->off += (total_fid_size + 3) & ~0x03;
 	} else {
@@ -770,17 +857,16 @@ udf_readdir(struct vop_readdir_args *a)
 			error = udf_uiodir(&uiodir, dir.d_reclen, uio,
 			    ds->this_off);
 		}
-		if (error) {
-			printf("uiomove returned %d\n", error);
+		if (error)
 			break;
-		}
-
+		uio->uio_offset = ds->offset + ds->off;
 	}
 
 	/* tell the calling layer whether we need to be called again */
 	*a->a_eofflag = uiodir.eofflag;
-	uio->uio_offset = ds->offset + ds->off;
 
+	if (error < 0)
+		error = 0;
 	if (!error)
 		error = ds->error;
 
@@ -798,12 +884,121 @@ udf_readdir(struct vop_readdir_args *a)
 	return (error);
 }
 
-/* Are there any implementations out there that do soft-links? */
 static int
 udf_readlink(struct vop_readlink_args *ap)
 {
-	printf("%s called\n", __func__);
-	return (EOPNOTSUPP);
+	struct path_component *pc, *end;
+	struct vnode *vp;
+	struct uio uio;
+	struct iovec iov[1];
+	struct udf_node *node;
+	void *buf;
+	char *cp;
+	int error, len, root;
+
+	/*
+	 * A symbolic link in UDF is a list of variable-length path
+	 * component structures.  We build a pathname in the caller's
+	 * uio by traversing this list.
+	 */
+	vp = ap->a_vp;
+	node = VTON(vp);
+	len = le64toh(node->fentry->inf_len);
+	buf = malloc(iov[0].iov_len, M_DEVBUF, M_WAITOK);
+	iov[0].iov_base = buf;
+	iov[0].iov_len = len;
+	uio.uio_iov = iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = iov[0].iov_len;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = curthread;
+	error = VOP_READ(vp, &uio, 0, ap->a_cred);
+	if (error)
+		goto error;
+
+	pc = buf;
+	end = (void *)((char *)buf + len);
+	root = 0;
+	while (pc < end) {
+		switch (pc->type) {
+		case UDF_PATH_ROOT:
+			/* Only allow this at the beginning of a path. */
+			if ((void *)pc != buf) {
+				error = EINVAL;
+				goto error;
+			}
+			cp = "/";
+			len = 1;
+			root = 1;
+			break;
+		case UDF_PATH_DOT:
+			cp = ".";
+			len = 1;
+			break;
+		case UDF_PATH_DOTDOT:
+			cp = "..";
+			len = 2;
+			break;
+		case UDF_PATH_PATH:
+			if (pc->length == 0) {
+				error = EINVAL;
+				goto error;
+			}
+			/*
+			 * XXX: We only support CS8 which appears to map
+			 * to ASCII directly.
+			 */
+			switch (pc->identifier[0]) {
+			case 8:
+				cp = pc->identifier + 1;
+				len = pc->length - 1;
+				break;
+			default:
+				error = EOPNOTSUPP;
+				goto error;
+			}
+			break;
+		default:
+			error = EINVAL;
+			goto error;
+		}
+
+		/*
+		 * If this is not the first component, insert a path
+		 * separator.
+		 */
+		if (pc != buf) {
+			/* If we started with root we already have a "/". */
+			if (root)
+				goto skipslash;
+			root = 0;
+			if (ap->a_uio->uio_resid < 1) {
+				error = ENAMETOOLONG;
+				goto error;
+			}
+			error = uiomove("/", 1, ap->a_uio);
+			if (error)
+				break;
+		}
+	skipslash:
+
+		/* Append string at 'cp' of length 'len' to our path. */
+		if (len > ap->a_uio->uio_resid) {
+			error = ENAMETOOLONG;
+			goto error;
+		}
+		error = uiomove(cp, len, ap->a_uio);
+		if (error)
+			break;
+
+		/* Advance to next component. */
+		pc = (void *)((char *)pc + 4 + pc->length);
+	}
+error:
+	free(buf, M_DEVBUF);
+	return (error);
 }
 
 static int
@@ -812,34 +1007,27 @@ udf_strategy(struct vop_strategy_args *a)
 	struct buf *bp;
 	struct vnode *vp;
 	struct udf_node *node;
-	int maxsize;
-	daddr_t sector;
 	struct bufobj *bo;
-	int multiplier;
+	off_t offset;
+	uint32_t maxsize;
+	daddr_t sector;
+	int error;
 
 	bp = a->a_bp;
 	vp = a->a_vp;
 	node = VTON(vp);
 
 	if (bp->b_blkno == bp->b_lblkno) {
-		/*
-		 * Files that are embedded in the fentry don't translate well
-		 * to a block number.  Reject.
-		 */
-		if (udf_bmap_internal(node, bp->b_lblkno * node->udfmp->bsize,
-		    &sector, &maxsize)) {
+		offset = lblktosize(node->udfmp, bp->b_lblkno);
+		error = udf_bmap_internal(node, offset, &sector, &maxsize);
+		if (error) {
 			clrbuf(bp);
 			bp->b_blkno = -1;
+			bufdone(bp);
+			return (0);
 		}
-
 		/* bmap gives sector numbers, bio works with device blocks */
-		multiplier = node->udfmp->bsize / DEV_BSIZE;
-		bp->b_blkno = sector * multiplier;
-
-	}
-	if ((long)bp->b_blkno == -1) {
-		bufdone(bp);
-		return (0);
+		bp->b_blkno = sector << (node->udfmp->bshift - DEV_BSHIFT);
 	}
 	bo = node->udfmp->im_bo;
 	bp->b_iooffset = dbtob(bp->b_blkno);
@@ -853,6 +1041,7 @@ udf_bmap(struct vop_bmap_args *a)
 	struct udf_node *node;
 	uint32_t max_size;
 	daddr_t lsector;
+	int nblk;
 	int error;
 
 	node = VTON(a->a_vp);
@@ -864,17 +1053,42 @@ udf_bmap(struct vop_bmap_args *a)
 	if (a->a_runb)
 		*a->a_runb = 0;
 
-	error = udf_bmap_internal(node, a->a_bn * node->udfmp->bsize, &lsector,
-	    &max_size);
+	/*
+	 * UDF_INVALID_BMAP means data embedded into fentry, this is an internal
+	 * error that should not be propagated to calling code.
+	 * Most obvious mapping for this error is EOPNOTSUPP as we can not truly
+	 * translate block numbers in this case.
+	 * Incidentally, this return code will make vnode pager to use VOP_READ
+	 * to get data for mmap-ed pages and udf_read knows how to do the right
+	 * thing for this kind of files.
+	 */
+	error = udf_bmap_internal(node, a->a_bn << node->udfmp->bshift,
+	    &lsector, &max_size);
+	if (error == UDF_INVALID_BMAP)
+		return (EOPNOTSUPP);
 	if (error)
 		return (error);
 
 	/* Translate logical to physical sector number */
 	*a->a_bnp = lsector << (node->udfmp->bshift - DEV_BSHIFT);
 
-	/* Punt on read-ahead for now */
-	if (a->a_runp)
-		*a->a_runp = 0;
+	/*
+	 * Determine maximum number of readahead blocks following the
+	 * requested block.
+	 */
+	if (a->a_runp) {
+		nblk = (max_size >> node->udfmp->bshift) - 1;
+		if (nblk <= 0)
+			*a->a_runp = 0;
+		else if (nblk >= (MAXBSIZE >> node->udfmp->bshift))
+			*a->a_runp = (MAXBSIZE >> node->udfmp->bshift) - 1;
+		else
+			*a->a_runp = nblk;
+	}
+
+	if (a->a_runb) {
+		*a->a_runb = 0;
+	}
 
 	return (0);
 }
@@ -892,24 +1106,23 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	struct udf_mnt *udfmp;
 	struct fileid_desc *fid = NULL;
 	struct udf_dirstream *ds;
-	struct thread *td;
 	u_long nameiop;
 	u_long flags;
 	char *nameptr;
 	long namelen;
 	ino_t id = 0;
 	int offset, error = 0;
-	int numdirpasses, fsize;
+	int fsize, lkflags, ltype, numdirpasses;
 
 	dvp = a->a_dvp;
 	node = VTON(dvp);
 	udfmp = node->udfmp;
 	nameiop = a->a_cnp->cn_nameiop;
 	flags = a->a_cnp->cn_flags;
+	lkflags = a->a_cnp->cn_lkflags;
 	nameptr = a->a_cnp->cn_nameptr;
 	namelen = a->a_cnp->cn_namelen;
 	fsize = le64toh(node->fentry->inf_len);
-	td = a->a_cnp->cn_thread;
 
 	/*
 	 * If this is a LOOKUP and we've already partially searched through
@@ -967,20 +1180,35 @@ lookloop:
 
 	/* Did we have a match? */
 	if (id) {
-		if (flags & ISDOTDOT)
-			VOP_UNLOCK(dvp, 0);
-		error = udf_vget(udfmp->im_mountp, id, LK_EXCLUSIVE, &tdp);
-		if (flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY);
-		if (!error) {
+		/*
+		 * Remember where this entry was if it's the final
+		 * component.
+		 */
+		if ((flags & ISLASTCN) && nameiop == LOOKUP)
+			node->diroff = ds->offset + ds->off;
+		if (numdirpasses == 2)
+			nchstats.ncs_pass2++;
+		udf_closedir(ds);
+
+		if (flags & ISDOTDOT) {
+			error = vn_vget_ino(dvp, id, lkflags, &tdp);
+		} else if (node->hash_id == id) {
+			VREF(dvp);	/* we want ourself, ie "." */
 			/*
-			 * Remember where this entry was if it's the final
-			 * component.
+			 * When we lookup "." we still can be asked to lock it
+			 * differently.
 			 */
-			if ((flags & ISLASTCN) && nameiop == LOOKUP)
-				node->diroff = ds->offset + ds->off;
-			if (numdirpasses == 2)
-				nchstats.ncs_pass2++;
+			ltype = lkflags & LK_TYPE_MASK;
+			if (ltype != VOP_ISLOCKED(dvp)) {
+				if (ltype == LK_EXCLUSIVE)
+					vn_lock(dvp, LK_UPGRADE | LK_RETRY);
+				else /* if (ltype == LK_SHARED) */
+					vn_lock(dvp, LK_DOWNGRADE | LK_RETRY);
+			}
+			tdp = dvp;
+		} else
+			error = udf_vget(udfmp->im_mountp, id, lkflags, &tdp);
+		if (!error) {
 			*vpp = tdp;
 			/* Put this entry in the cache */
 			if (flags & MAKEENTRY)
@@ -994,6 +1222,7 @@ lookloop:
 			udf_closedir(ds);
 			goto lookloop;
 		}
+		udf_closedir(ds);
 
 		/* Enter name into cache as non-existant */
 		if (flags & MAKEENTRY)
@@ -1007,7 +1236,6 @@ lookloop:
 		}
 	}
 
-	udf_closedir(ds);
 	return (error);
 }
 
@@ -1064,16 +1292,20 @@ static int
 udf_readatoffset(struct udf_node *node, int *size, off_t offset,
     struct buf **bp, uint8_t **data)
 {
-	struct udf_mnt *udfmp;
-	struct file_entry *fentry = NULL;
+	struct udf_mnt *udfmp = node->udfmp;
+	struct vnode *vp = node->i_vnode;
+	struct file_entry *fentry;
 	struct buf *bp1;
 	uint32_t max_size;
 	daddr_t sector;
+	off_t off;
+	int adj_size;
 	int error;
 
-	udfmp = node->udfmp;
-
-	*bp = NULL;
+	/*
+	 * This call is made *not* only to detect UDF_INVALID_BMAP case,
+	 * max_size is used as an ad-hoc read-ahead hint for "normal" case.
+	 */
 	error = udf_bmap_internal(node, offset, &sector, &max_size);
 	if (error == UDF_INVALID_BMAP) {
 		/*
@@ -1083,6 +1315,12 @@ udf_readatoffset(struct udf_node *node, int *size, off_t offset,
 		fentry = node->fentry;
 		*data = &fentry->data[le32toh(fentry->l_ea)];
 		*size = le32toh(fentry->l_ad);
+		if (offset >= *size)
+			*size = 0;
+		else {
+			*data += offset;
+			*size -= offset;
+		}
 		return (0);
 	} else if (error != 0) {
 		return (error);
@@ -1091,9 +1329,18 @@ udf_readatoffset(struct udf_node *node, int *size, off_t offset,
 	/* Adjust the size so that it is within range */
 	if (*size == 0 || *size > max_size)
 		*size = max_size;
-	*size = min(*size, MAXBSIZE);
 
-	if ((error = udf_readlblks(udfmp, sector, *size + (offset & udfmp->bmask), bp))) {
+	/*
+	 * Because we will read starting at block boundary, we need to adjust
+	 * how much we need to read so that all promised data is in.
+	 * Also, we can't promise to read more than MAXBSIZE bytes starting
+	 * from block boundary, so adjust what we promise too.
+	 */
+	off = blkoff(udfmp, offset);
+	*size = min(*size, MAXBSIZE - off);
+	adj_size = (*size + off + udfmp->bmask) & ~udfmp->bmask;
+	*bp = NULL;
+	if ((error = bread(vp, lblkno(udfmp, offset), adj_size, NOCRED, bp))) {
 		printf("warning: udf_readlblks returned error %d\n", error);
 		/* note: *bp may be non-NULL */
 		return (error);

@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_ppb_1284.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 
@@ -92,8 +94,10 @@ ppb_1284_reset_error(device_t bus, int state)
 int
 ppb_1284_get_state(device_t bus)
 {
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
-	return (DEVTOSOFTC(bus)->state);
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	return (ppb->state);
 }
 
 /*
@@ -108,6 +112,7 @@ ppb_1284_set_state(device_t bus, int state)
 
 	/* call ppb_1284_reset_error() if you absolutly want to change
 	 * the state from PPB_ERROR to another */
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	if ((ppb->state != PPB_ERROR) &&
 			(ppb->error == PPB_NO_ERROR)) {
 		ppb->state = state;

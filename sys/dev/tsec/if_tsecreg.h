@@ -1,8 +1,7 @@
 /*-
- * Copyright (C) 2006-2007 Semihalf
+ * Copyright (C) 2008-2009 Semihalf, Piotr Ziecik
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski
  * All rights reserved.
- *
- * Written by: Piotr Kruszynski <ppk@semihalf.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -192,13 +189,15 @@
 #define TSEC_REG_GADDR5		0x894 /* Group address register 5 */
 #define TSEC_REG_GADDR6		0x898 /* Group address register 6 */
 #define TSEC_REG_GADDR7		0x89c /* Group address register 7 */
+#define	TSEC_REG_IADDR(n)	(TSEC_REG_IADDR0 + (n << 2))
+#define	TSEC_REG_GADDR(n)	(TSEC_REG_GADDR0 + (n << 2))
 
 /* TSEC attribute registers */
 #define TSEC_REG_ATTR		0xbf8 /* Attributes Register */
 #define TSEC_REG_ATTRELI	0xbfc /* Attributes EL & EI register */
 
 /* Size of TSEC registers area */
-#define TSEC_IO_SIZE       0x1000
+#define TSEC_IO_SIZE		0x1000
 
 /* reg bits */
 #define TSEC_FIFO_PAUSE_CTRL_EN		0x0002
@@ -210,9 +209,24 @@
 #define DMACTRL_WWR			0x00000002 /* Write with response */
 #define DMACTRL_WOP			0x00000001 /* Wait or poll */
 
+#define	TSEC_RCTRL_VLEX			0x00002000 /* Enable automatic VLAN tag
+						    * extraction and deletion
+						    * from Ethernet frames */
+#define	TSEC_RCTRL_IPCSEN		0x00000200 /* IP Checksum verification enable */
+#define	TSEC_RCTRL_TUCSEN		0x00000100 /* TCP or UDP Checksum verification enable */
+#define	TSEC_RCTRL_PRSDEP		0x000000C0 /* Parser control */
+#define	TSEC_RCRTL_PRSFM		0x00000020 /* FIFO-mode parsing */
 #define TSEC_RCTRL_BC_REJ		0x00000010 /* Broadcast frame reject */
 #define TSEC_RCTRL_PROM			0x00000008 /* Promiscuous mode */
 #define TSEC_RCTRL_RSF			0x00000004 /* Receive short frame mode */
+
+#define	TSEC_RCTRL_PRSDEP_PARSER_OFF	0x00000000 /* Parser Disabled */
+#define	TSEC_RCTRL_PRSDEP_PARSE_L2	0x00000040 /* Parse L2 */
+#define	TSEC_RCTRL_PRSDEP_PARSE_L23	0x00000080 /* Parse L2 and L3 */
+#define	TSEC_RCTRL_PRSDEP_PARSE_L234	0x000000C0 /* Parse L2, L3 and L4 */
+
+#define	TSEC_TCTRL_IPCSEN		0x00004000 /* IP header checksum generation enable */
+#define	TSEC_TCTRL_TUCSEN		0x00002000 /* TCP/UDP header checksum generation enable */
 
 #define TSEC_TSTAT_THLT			0x80000000 /* Transmit halt */
 #define TSEC_RSTAT_QHLT			0x00800000 /* RxBD queue is halted */
@@ -325,6 +339,7 @@
 #define TSEC_TXBD_HFE		0x0080 /* Huge frame enable (written by user) */
 #define TSEC_TXBD_LC		0x0080 /* Late collision (written by TSEC) */
 #define TSEC_TXBD_RL		0x0040 /* Retransmission Limit */
+#define TSEC_TXBD_TOE		0x0002 /* TCP/IP Offload Enable */
 #define TSEC_TXBD_UN		0x0002 /* Underrun */
 #define TSEC_TXBD_TXTRUNC	0x0001 /* TX truncation */
 
@@ -351,5 +366,25 @@
 
 #define TSEC_TXBUFFER_ALIGNMENT		64
 #define TSEC_RXBUFFER_ALIGNMENT		64
-#define TSEC_DEFAULT_MAX_RX_BUFFER_SIZE	0x0600
-#define TSEC_DEFAULT_MIN_RX_BUFFER_SIZE	0x0040
+
+/* Transmit Path Off-Load Frame Control Block flags */
+#define TSEC_TX_FCB_VLAN		0x8000 /* VLAN control word valid */
+#define TSEC_TX_FCB_L3_IS_IP		0x4000 /* Layer 3 header is an IP header */
+#define TSEC_TX_FCB_L3_IS_IP6		0x2000 /* IP header is IP version 6 */
+#define TSEC_TX_FCB_L4_IS_TCP_UDP	0x1000 /* Layer 4 header is a TCP or UDP header */
+#define TSEC_TX_FCB_L4_IS_UDP		0x0800 /* UDP protocol at layer 4 */
+#define TSEC_TX_FCB_CSUM_IP		0x0400 /* Checksum IP header enable */
+#define TSEC_TX_FCB_CSUM_TCP_UDP	0x0200 /* Checksum TCP or UDP header enable */
+#define TSEC_TX_FCB_FLAG_NO_PH_CSUM	0x0100 /* Disable pseudo-header checksum */
+#define TSEC_TX_FCB_FLAG_PTP		0x0001 /* This is a PTP packet */
+
+/* Receive Path Off-Load Frame Control Block flags */
+#define	TSEC_RX_FCB_VLAN		0x8000 /* VLAN tag recognized */
+#define	TSEC_RX_FCB_IP_FOUND		0x4000 /* IP header found at layer 3 */
+#define	TSEC_RX_FCB_IP6_FOUND		0x2000 /* IP version 6 header found at layer 3 */
+#define	TSEC_RX_FCB_TCP_UDP_FOUND	0x1000 /* TCP or UDP header found at layer 4 */
+#define	TSEC_RX_FCB_IP_CSUM		0x0800 /* IPv4 header checksum checked */
+#define	TSEC_RX_FCB_TCP_UDP_CSUM	0x0400 /* TCP or UDP header checksum checked */
+#define	TSEC_RX_FCB_IP_CSUM_ERROR	0x0200 /* IPv4 header checksum verification error */
+#define	TSEC_RX_FCB_TCP_UDP_CSUM_ERROR	0x0100 /* TCP or UDP header checksum verification error */
+#define	TSEC_RX_FCB_PARSE_ERROR		0x000C /* Parse error */

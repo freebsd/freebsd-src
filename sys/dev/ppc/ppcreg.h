@@ -29,6 +29,9 @@
 #ifndef __PPCREG_H
 #define __PPCREG_H
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+
 /*
  * Parallel Port Chipset type.
  */
@@ -108,9 +111,15 @@ struct ppc_data {
 
 	void *intr_cookie;
 
-	struct intr_event *ppc_intr_event;
-	int ppc_child_handlers;
+	ppc_intr_handler ppc_intr_hook;
+	void *ppc_intr_arg;
+
+	struct mtx ppc_lock;
 };
+
+#define	PPC_LOCK(data)		mtx_lock(&(data)->ppc_lock)
+#define	PPC_UNLOCK(data)	mtx_unlock(&(data)->ppc_lock)
+#define	PPC_ASSERT_LOCKED(data)	mtx_assert(&(data)->ppc_lock, MA_OWNED)
 
 /*
  * Parallel Port Chipset registers.

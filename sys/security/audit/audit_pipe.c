@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Robert N. M. Watson
- * Copyright (c) 2008 Apple, Inc.
+ * Copyright (c) 2008-2009 Apple, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -76,7 +76,7 @@ static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_presel",
  * Audit pipe buffer parameters.
  */
 #define	AUDIT_PIPE_QLIMIT_DEFAULT	(128)
-#define	AUDIT_PIPE_QLIMIT_MIN		(0)
+#define	AUDIT_PIPE_QLIMIT_MIN		(1)
 #define	AUDIT_PIPE_QLIMIT_MAX		(1024)
 
 /*
@@ -1077,18 +1077,13 @@ audit_pipe_kqfilter(struct cdev *dev, struct knote *kn)
 static int
 audit_pipe_kqread(struct knote *kn, long hint)
 {
-	struct audit_pipe_entry *ape;
 	struct audit_pipe *ap;
 
 	ap = (struct audit_pipe *)kn->kn_hook;
 	KASSERT(ap != NULL, ("audit_pipe_kqread: ap == NULL"));
-
 	AUDIT_PIPE_LOCK_ASSERT(ap);
 
 	if (ap->ap_qlen != 0) {
-		ape = TAILQ_FIRST(&ap->ap_queue);
-		KASSERT(ape != NULL, ("audit_pipe_kqread: ape == NULL"));
-
 		kn->kn_data = ap->ap_qbyteslen - ap->ap_qoffset;
 		return (1);
 	} else {

@@ -20,7 +20,7 @@
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHERIN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
  */
@@ -278,7 +278,7 @@ static struct cfg_info cfg_table[] = {
 		"Envy24 audio (M Audio Delta Dio 2496)",
 		0x1412, 0xd631,
 		0x10, 0x80, 0xf0, 0x03,
-		0xff, 0x00, 0x00,
+		0x02, 0xc0, 0xfd,
 		0x10, 0x20, 0x40, 0x00, 0x00,
 		0x00,
 		&delta_codec,
@@ -301,6 +301,51 @@ static struct cfg_info cfg_table[] = {
 		0x00,
  		&delta_codec,
  	},
+        {
+                "Envy24 audio (M Audio Delta 66)",
+                0x1412, 0xd632,
+                0x15, 0x80, 0xf0, 0x03,
+                0x02, 0xc0, 0xfd,
+                0x10, 0x20, 0x40, 0x00, 0x00,
+                0x00,
+                &delta_codec,
+        },
+        {
+                "Envy24 audio (M Audio Delta 44)",
+                0x1412, 0xd633,
+                0x15, 0x80, 0xf0, 0x00,
+                0x02, 0xc0, 0xfd,
+                0x10, 0x20, 0x40, 0x00, 0x00,
+                0x00,
+                &delta_codec,
+        },
+        {
+                "Envy24 audio (M Audio Delta 1010)",
+                0x1412, 0xd630,
+                0x1f, 0x80, 0xf0, 0x03,
+                0x22, 0xd0, 0xdd,
+                0x10, 0x20, 0x40, 0x00, 0x00,
+                0x00,
+                &delta_codec,
+        },
+        {
+                "Envy24 audio (M Audio Delta 1010LT)",
+                0x1412, 0xd63b,
+                0x1f, 0x80, 0x72, 0x03,
+                0x04, 0x7e, 0xfb,
+                0x08, 0x02, 0x70, 0x00, 0x00,
+                0x00,
+                &delta_codec,
+        },
+        {
+                "Envy24 audio (Terratec EWX 2496)",
+                0x153b, 0x1130,
+                0x10, 0x80, 0xf0, 0x03,
+                0xc0, 0x3f, 0x3f,
+                0x10, 0x20, 0x01, 0x01, 0x00,
+                0x00,
+                &delta_codec,
+        },
 	{
 		"Envy24 audio (Generic)",
 		0, 0,

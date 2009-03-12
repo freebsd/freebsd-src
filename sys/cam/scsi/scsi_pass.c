@@ -298,8 +298,6 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	struct pass_softc *softc;
 	int error;
 
-	error = 0; /* default to no error */
-
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);

@@ -115,7 +115,7 @@ static volatile int smp_rv_ncpus;
 static void (*volatile smp_rv_setup_func)(void *arg);
 static void (*volatile smp_rv_action_func)(void *arg);
 static void (*volatile smp_rv_teardown_func)(void *arg);
-static void * volatile smp_rv_func_arg;
+static void *volatile smp_rv_func_arg;
 static volatile int smp_rv_waiters[3];
 
 /* 
@@ -362,9 +362,11 @@ smp_rendezvous_cpus(cpumask_t map,
 		return;
 	}
 
-	for (i = 0; i < mp_maxid; i++)
+	for (i = 0; i <= mp_maxid; i++)
 		if (((1 << i) & map) != 0 && !CPU_ABSENT(i))
 			ncpus++;
+	if (ncpus == 0)
+		panic("ncpus is 0 with map=0x%x", map);
 
 	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);

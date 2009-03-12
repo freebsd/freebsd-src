@@ -84,7 +84,7 @@ static	int safe_attach(device_t);
 static	int safe_detach(device_t);
 static	int safe_suspend(device_t);
 static	int safe_resume(device_t);
-static	void safe_shutdown(device_t);
+static	int safe_shutdown(device_t);
 
 static	int safe_newsession(device_t, u_int32_t *, struct cryptoini *);
 static	int safe_freesession(device_t, u_int64_t);
@@ -503,12 +503,13 @@ safe_detach(device_t dev)
  * Stop all chip i/o so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 safe_shutdown(device_t dev)
 {
 #ifdef notyet
 	safe_stop(device_get_softc(dev));
 #endif
+	return (0);
 }
 
 /*

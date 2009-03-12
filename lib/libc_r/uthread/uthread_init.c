@@ -95,6 +95,7 @@ static void *references[] = {
 	&_getsockopt,
 	&_ioctl,
 	&_kevent,
+	&_kqueue,
 	&_listen,
 	&_nanosleep,
 	&_open,

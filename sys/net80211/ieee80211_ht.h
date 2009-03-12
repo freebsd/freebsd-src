@@ -71,6 +71,9 @@ struct ieee80211_tx_ampdu {
 	(((tap)->txa_flags & \
 	 (IEEE80211_AGGR_RUNNING|IEEE80211_AGGR_XCHGPEND|IEEE80211_AGGR_NAK)) != 0)
 
+#define	IEEE80211_AGGR_BITS \
+	"\20\1IMMEDIATE\2XCHGPEND\3RUNNING\4SETUP\5NAK"
+
 /*
  * Traffic estimator support.  We estimate packets/sec for
  * each AC that is setup for AMPDU or will potentially be

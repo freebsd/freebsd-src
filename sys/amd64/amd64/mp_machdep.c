@@ -92,6 +92,7 @@ void *bootstacks[MAXCPU];
 
 /* Temporary holder for double fault stack */
 char *doublefault_stack;
+char *nmi_stack;
 
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
@@ -150,8 +151,10 @@ struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
 	int	cpu_disabled:1;
+	int	cpu_hyperthread:1;
 } static cpu_info[MAX_APIC_ID + 1];
 int cpu_apic_ids[MAXCPU];
+int apic_cpuids[MAX_APIC_ID + 1];
 
 /* Holds pending bitmap based IPIs per CPU */
 static volatile u_int cpu_ipi_pending[MAXCPU];
@@ -349,11 +352,7 @@ cpu_mp_start(void)
 		KASSERT(boot_cpu_id == PCPU_GET(apic_id),
 		    ("BSP's APIC ID doesn't match boot_cpu_id"));
 	cpu_apic_ids[0] = boot_cpu_id;
-
-	assign_cpu_ids();
-
-	/* Start each Application Processor */
-	start_all_aps();
+	apic_cpuids[boot_cpu_id] = 0;
 
 	/* Setup the initial logical CPUs info. */
 	logical_cpus = logical_cpus_mask = 0;
@@ -401,6 +400,11 @@ cpu_mp_start(void)
 			hyperthreading_cpus = logical_cpus;
 	}
 
+	assign_cpu_ids();
+
+	/* Start each Application Processor */
+	start_all_aps();
+
 	set_interrupt_apic_ids();
 }
 
@@ -412,18 +416,26 @@ void
 cpu_mp_announce(void)
 {
 	int i, x;
+	const char *hyperthread;
 
 	/* List CPUs */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
 	for (i = 1, x = 0; x <= MAX_APIC_ID; x++) {
 		if (!cpu_info[x].cpu_present || cpu_info[x].cpu_bsp)
 			continue;
+		if (cpu_info[x].cpu_hyperthread) {
+			hyperthread = "/HT";
+		} else {
+			hyperthread = "";
+		}
 		if (cpu_info[x].cpu_disabled)
-			printf("  cpu (AP): APIC ID: %2d (disabled)\n", x);
+			printf("  cpu (AP%s): APIC ID: %2d (disabled)\n",
+			    hyperthread, x);
 		else {
 			KASSERT(i < mp_ncpus,
 			    ("mp_ncpus and actual cpus are out of whack"));
-			printf(" cpu%d (AP): APIC ID: %2d\n", i++, x);
+			printf(" cpu%d (AP%s): APIC ID: %2d\n", i++,
+			    hyperthread, x);
 		}
 	}
 }
@@ -435,6 +447,7 @@ void
 init_secondary(void)
 {
 	struct pcpu *pc;
+	struct nmi_pcpu *np;
 	u_int64_t msr, cr0;
 	int cpu, gsel_tss, x;
 	struct region_descriptor ap_gdt;
@@ -447,6 +460,10 @@ init_secondary(void)
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
+
+	/* The NMI stack runs on IST2. */
+	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
+	common_tss[cpu].tss_ist2 = (long) np;
 
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
@@ -471,6 +488,9 @@ init_secondary(void)
 	pc->pc_tssp = &common_tss[cpu];
 	pc->pc_rsp0 = 0;
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
+
+	/* Save the per-cpu pointer for use by the NMI handler. */
+	np->np_pcpu = (register_t) pc;
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
@@ -631,10 +651,27 @@ assign_cpu_ids(void)
 {
 	u_int i;
 
+	TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
+	    &hyperthreading_allowed);
+
 	/* Check for explicitly disabled CPUs. */
 	for (i = 0; i <= MAX_APIC_ID; i++) {
 		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp)
 			continue;
+
+		if (hyperthreading_cpus > 1 && i % hyperthreading_cpus != 0) {
+			cpu_info[i].cpu_hyperthread = 1;
+#if defined(SCHED_ULE)
+			/*
+			 * Don't use HT CPU if it has been disabled by a
+			 * tunable.
+			 */
+			if (hyperthreading_allowed == 0) {
+				cpu_info[i].cpu_disabled = 1;
+				continue;
+			}
+#endif
+		}
 
 		/* Don't use this CPU if it has been disabled by a tunable. */
 		if (resource_disabled("lapic", i)) {
@@ -656,6 +693,7 @@ assign_cpu_ids(void)
 
 		if (mp_ncpus < MAXCPU) {
 			cpu_apic_ids[mp_ncpus] = i;
+			apic_cpuids[i] = mp_ncpus;
 			mp_ncpus++;
 		} else
 			cpu_info[i].cpu_disabled = 1;
@@ -722,6 +760,7 @@ start_all_aps(void)
 		/* allocate and set up an idle stack data page */
 		bootstacks[cpu] = (void *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
 		doublefault_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
+		nmi_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
 
 		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
 		bootAP = cpu;
@@ -1185,6 +1224,16 @@ sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+#ifdef SCHED_ULE
+	/*
+	 * SCHED_ULE doesn't allow enabling/disabling HT cores at
+	 * run-time.
+	 */
+	if (allowed != hyperthreading_allowed)
+		return (ENOTSUP);
+	return (error);
+#endif
+
 	if (allowed)
 		hlt_cpus_mask &= ~hyperthreading_cpus_mask;
 	else
@@ -1229,8 +1278,6 @@ cpu_hlt_setup(void *dummy __unused)
 		 * of hlt_logical_cpus.
 		 */
 		if (hyperthreading_cpus_mask) {
-			TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
-			    &hyperthreading_allowed);
 			SYSCTL_ADD_PROC(&logical_cpu_clist,
 			    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
 			    "hyperthreading_allowed", CTLTYPE_INT|CTLFLAG_RW,

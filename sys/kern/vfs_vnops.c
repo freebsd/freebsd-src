@@ -188,6 +188,8 @@ restart:
 		ndp->ni_cnd.cn_flags = ISOPEN |
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
 		    LOCKLEAF | MPSAFE | AUDITVNODE1;
+		if (!(fmode & FWRITE))
+			ndp->ni_cnd.cn_flags |= LOCKSHARED;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (!mpsafe)
@@ -240,7 +242,7 @@ restart:
 	if (fmode & FWRITE)
 		vp->v_writecount++;
 	*flagp = fmode;
-	ASSERT_VOP_ELOCKED(vp, "vn_open_cred");
+	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
 	if (!mpsafe)
 		VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
@@ -285,12 +287,18 @@ vn_close(vp, flags, file_cred, td)
 	struct thread *td;
 {
 	struct mount *mp;
-	int error;
+	int error, lock_flags;
+
+	if (!(flags & FWRITE) && vp->v_mount != NULL &&
+	    vp->v_mount->mnt_kern_flag & MNTK_EXTENDED_SHARED)
+		lock_flags = LK_SHARED;
+	else
+		lock_flags = LK_EXCLUSIVE;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
 	vn_start_write(vp, &mp, V_WAIT);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, lock_flags | LK_RETRY);
 	if (flags & FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
@@ -1284,5 +1292,37 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 		VOP_UNLOCK(vp, 0);
 	}
 
+	return (error);
+}
+
+int
+vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
+{
+	struct mount *mp;
+	int ltype, error;
+
+	mp = vp->v_mount;
+	ltype = VOP_ISLOCKED(vp);
+	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
+	    ("vn_vget_ino: vp not locked"));
+	for (;;) {
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error == 0)
+			break;
+		VOP_UNLOCK(vp, 0);
+		pause("vn_vget", 1);
+		vn_lock(vp, ltype | LK_RETRY);
+		if (vp->v_iflag & VI_DOOMED)
+			return (ENOENT);
+	}
+	VOP_UNLOCK(vp, 0);
+	error = VFS_VGET(mp, ino, lkflags, rvp);
+	vfs_unbusy(mp);
+	vn_lock(vp, ltype | LK_RETRY);
+	if (vp->v_iflag & VI_DOOMED) {
+		if (error == 0)
+			vput(*rvp);
+		error = ENOENT;
+	}
 	return (error);
 }

@@ -514,6 +514,7 @@ Suff_AddTransform(char *line)
 	Suff	*s;	/* source suffix */
 	Suff	*t;	/* target suffix */
 
+	s = t = NULL;	/* silence gcc */
 	gn = SuffTransFind(line);
 	if (gn == NULL) {
 		/*

@@ -17,6 +17,9 @@
 
 /* Written by David MacKenzie <djm@gnu.ai.mit.edu>. */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #if HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -137,10 +140,10 @@ savedir (const char *dir, off_t name_size, struct exclude *included_patterns,
 	      && !isdir1 (dir, dp->d_name))
 	    {
 	      if (included_patterns
-		  && !excluded_filename (included_patterns, dp->d_name, 0))
+		  && !excluded_filename (included_patterns, path, 0))
 		continue;
 	      if (excluded_patterns
-		  && excluded_filename (excluded_patterns, dp->d_name, 0))
+		  && excluded_filename (excluded_patterns, path, 0))
 		continue;
 	    }
 

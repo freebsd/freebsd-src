@@ -53,10 +53,8 @@ __FBSDID("$FreeBSD$");
 #include "recno.h"
 
 DB *
-__rec_open(fname, flags, mode, openinfo, dflags)
-	const char *fname;
-	int flags, mode, dflags;
-	const RECNOINFO *openinfo;
+__rec_open(const char *fname, int flags, int mode, const RECNOINFO *openinfo,
+    int dflags)
 {
 	BTREE *t;
 	BTREEINFO btopeninfo;
@@ -205,7 +203,7 @@ slow:			if ((t->bt_rfp = fdopen(rfd, "r")) == NULL)
 	if (openinfo && openinfo->flags & R_SNAPSHOT &&
 	    !F_ISSET(t, R_EOF | R_INMEM) &&
 	    t->bt_irec(t, MAX_REC_NUMBER) == RET_ERROR)
-                goto err;
+		goto err;
 	return (dbp);
 
 einval:	errno = EINVAL;
@@ -219,8 +217,7 @@ err:	sverrno = errno;
 }
 
 int
-__rec_fd(dbp)
-	const DB *dbp;
+__rec_fd(const DB *dbp)
 {
 	BTREE *t;
 

@@ -39,9 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 int
-wcsncmp(s1, s2, n)
-	const wchar_t *s1, *s2;
-	size_t n;
+wcsncmp(const wchar_t *s1, const wchar_t *s2, size_t n)
 {
 
 	if (n == 0)

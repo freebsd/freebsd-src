@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_attach.c,v 1.27 2008/11/27 22:30:07 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -27,6 +27,8 @@
 #include "ar5416/ar5416phy.h"
 
 #include "ar5416/ar5416.ini"
+
+static void ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
 
 static void
 ar5416AniSetup(struct ath_hal *ah)
@@ -76,6 +78,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_reset			= ar5416Reset;
 	ah->ah_phyDisable		= ar5416PhyDisable;
 	ah->ah_disable			= ar5416Disable;
+	ah->ah_configPCIE		= ar5416ConfigPCIE;
 	ah->ah_perCalibration		= ar5416PerCalibration;
 	ah->ah_perCalibrationN		= ar5416PerCalibrationN,
 	ah->ah_resetCalValid		= ar5416ResetCalValid,
@@ -147,11 +150,6 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 #ifdef AH_SUPPORT_WRITE_EEPROM
 	ahp->ah_priv.ah_eepromWrite	= ar5416EepromWrite;
 #endif
-	ahp->ah_priv.ah_gpioCfgOutput	= ar5416GpioCfgOutput;
-	ahp->ah_priv.ah_gpioCfgInput	= ar5416GpioCfgInput;
-	ahp->ah_priv.ah_gpioGet		= ar5416GpioGet;
-	ahp->ah_priv.ah_gpioSet		= ar5416GpioSet;
-	ahp->ah_priv.ah_gpioSetIntr	= ar5416GpioSetIntr;
 	ahp->ah_priv.ah_getChipPowerLimits = ar5416GetChipPowerLimits;
 
 	/*
@@ -161,10 +159,25 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
 }
 
+uint32_t
+ar5416GetRadioRev(struct ath_hal *ah)
+{
+	uint32_t val;
+	int i;
+
+	/* Read Radio Chip Rev Extract */
+	OS_REG_WRITE(ah, AR_PHY(0x36), 0x00007058);
+	for (i = 0; i < 8; i++)
+		OS_REG_WRITE(ah, AR_PHY(0x20), 0x00010000);
+	val = (OS_REG_READ(ah, AR_PHY(256)) >> 24) & 0xff;
+	val = ((val & 0xf0) >> 4) | ((val & 0x0f) << 4);
+	return ath_hal_reverseBits(val, 8);
+}
+
 /*
  * Attach for an AR5416 part.
  */
-struct ath_hal *
+static struct ath_hal *
 ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
 {
@@ -209,6 +222,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	val = OS_REG_READ(ah, AR_SREV) & AR_SREV_ID;
 	AH_PRIVATE(ah)->ah_macVersion = val >> AR_SREV_ID_S;
 	AH_PRIVATE(ah)->ah_macRev = val & AR_SREV_REVISION;
+	AH_PRIVATE(ah)->ah_ispcie = (devid == AR5416_DEVID_PCIE);
 
 	/* setup common ini data; rf backends handle remainder */
 	HAL_INI_INIT(&ahp->ah_ini_modes, ar5416Modes, 6);
@@ -233,6 +247,13 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 		AH5416(ah)->ah_ini_addac.data = (uint32_t *) &AH5416(ah)[1];
 		HAL_INI_VAL((struct ini *)&AH5416(ah)->ah_ini_addac, 31, 1) = 0;
 	}
+
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_pcieserdes, ar5416PciePhy, 2);
+	ar5416AttachPCIE(ah);
+
+	ecode = ath_hal_v14EepromAttach(ah);
+	if (ecode != HAL_OK)
+		goto bad;
 
 	if (!ar5416ChipReset(ah, AH_NULL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n",
@@ -287,10 +308,6 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 #endif
 	}
 
-	ecode = ath_hal_v14EepromAttach(ah);
-	if (ecode != HAL_OK)
-		goto bad;
-
 	/*
 	 * Got everything we need now to setup the capabilities.
 	 */
@@ -319,8 +336,6 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	if (ahp->ah_miscMode != 0)
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 
-	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: Attaching AR2133 radio\n",
-	    __func__);
 	rfStatus = ar2133RfAttach(ah, &ecode);
 	if (!rfStatus) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: RF setup failed, status %u\n",
@@ -356,6 +371,26 @@ ar5416Detach(struct ath_hal *ah)
 	ar5416SetPowerMode(ah, HAL_PM_FULL_SLEEP, AH_TRUE);
 	ath_hal_eepromDetach(ah);
 	ath_hal_free(ah);
+}
+
+void
+ar5416AttachPCIE(struct ath_hal *ah)
+{
+	if (AH_PRIVATE(ah)->ah_ispcie)
+		ath_hal_configPCIE(ah, AH_FALSE);
+	else
+		ath_hal_disablePCIE(ah);
+}
+
+static void
+ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+{
+	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
+		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
+		OS_DELAY(1000);
+		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+		OS_REG_WRITE(ah, AR_WA, AR_WA_DEFAULT);
+	}
 }
 
 /*

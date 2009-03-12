@@ -68,7 +68,7 @@ int radeon_enable_vblank(struct drm_device *dev, int crtc)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {	
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600) {	
 		switch (crtc) {
 		case 0:
 			r500_vbl_irq_set_state(dev, R500_D1MODE_INT_MASK, 1);
@@ -103,7 +103,7 @@ void radeon_disable_vblank(struct drm_device *dev, int crtc)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {	
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600) {	
 		switch (crtc) {
 		case 0:
 			r500_vbl_irq_set_state(dev, R500_D1MODE_INT_MASK, 0);
@@ -138,7 +138,7 @@ static __inline__ u32 radeon_acknowledge_irqs(drm_radeon_private_t * dev_priv, u
 	u32 irq_mask = RADEON_SW_INT_TEST;
 
 	*r500_disp_int = 0;
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600) {
 		/* vbl interrupts in a different place */
 
 		if (irqs & R500_DISPLAY_INT_STATUS) {
@@ -192,6 +192,7 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 	    (drm_radeon_private_t *) dev->dev_private;
 	u32 stat;
 	u32 r500_disp_int;
+	u32 tmp;
 
 	/* Only consider the bits we're interested in - others could be used
 	 * outside the DRM
@@ -207,7 +208,7 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 		DRM_WAKEUP(&dev_priv->swi_queue);
 
 	/* VBLANK interrupt */
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600) {
 		if (r500_disp_int & R500_D1_VBLANK_INTERRUPT)
 			drm_handle_vblank(dev, 0);
 		if (r500_disp_int & R500_D2_VBLANK_INTERRUPT)
@@ -217,6 +218,33 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 			drm_handle_vblank(dev, 0);
 		if (stat & RADEON_CRTC2_VBLANK_STAT)
 			drm_handle_vblank(dev, 1);
+	}
+	if (dev->msi_enabled) {
+		switch(dev_priv->flags & RADEON_FAMILY_MASK) {
+			case CHIP_RS400:
+			case CHIP_RS480:
+				tmp = RADEON_READ(RADEON_AIC_CNTL) &
+				    ~RS400_MSI_REARM;
+				RADEON_WRITE(RADEON_AIC_CNTL, tmp);
+				RADEON_WRITE(RADEON_AIC_CNTL,
+				    tmp | RS400_MSI_REARM);
+				break;
+			case CHIP_RS690:
+			case CHIP_RS740:
+				tmp = RADEON_READ(RADEON_BUS_CNTL) &
+				    ~RS600_MSI_REARM;
+				RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+				RADEON_WRITE(RADEON_BUS_CNTL, tmp |
+				    RS600_MSI_REARM);
+				break;
+			 default:
+				tmp = RADEON_READ(RADEON_MSI_REARM_EN) &
+				    ~RV370_MSI_REARM_EN;
+				RADEON_WRITE(RADEON_MSI_REARM_EN, tmp);
+				RADEON_WRITE(RADEON_MSI_REARM_EN,
+				    tmp | RV370_MSI_REARM_EN);
+				break;
+		}
 	}
 	return IRQ_HANDLED;
 }
@@ -270,7 +298,7 @@ u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc)
 		return -EINVAL;
 	}
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690) {
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600) {
 		if (crtc == 0)
 			return RADEON_READ(R500_D1CRTC_FRAME_COUNT);
 		else
@@ -332,7 +360,7 @@ void radeon_driver_irq_preinstall(struct drm_device * dev)
 	u32 dummy;
 
 	/* Disable *all* interrupts */
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690)
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)
 		RADEON_WRITE(R500_DxMODE_INT_MASK, 0);
 	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
 
@@ -344,14 +372,9 @@ int radeon_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
-	int ret;
 
 	atomic_set(&dev_priv->swi_emitted, 0);
 	DRM_INIT_WAITQUEUE(&dev_priv->swi_queue);
-
-	ret = drm_vblank_init(dev, 2);
-	if (ret)
-		return ret;
 
 	dev->max_vblank_count = 0x001fffff;
 
@@ -369,7 +392,7 @@ void radeon_driver_irq_uninstall(struct drm_device * dev)
 
 	dev_priv->irq_enabled = 0;
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690)
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)
 		RADEON_WRITE(R500_DxMODE_INT_MASK, 0);
 	/* Disable *all* interrupts */
 	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);

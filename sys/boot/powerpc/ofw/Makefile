@@ -1,8 +1,7 @@
 # $FreeBSD$
 
-WITHOUT_SSP=
-
 .include <bsd.own.mk>
+MK_SSP=		no
 
 PROG=		loader
 NEWVERSWHAT=	"Open Firmware loader" ${MACHINE_ARCH}
