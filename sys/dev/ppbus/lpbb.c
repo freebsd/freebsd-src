@@ -93,7 +93,7 @@ lpbb_attach(device_t dev)
 }
 
 static int
-lpbb_callback(device_t dev, int index, caddr_t *data)
+lpbb_callback(device_t dev, int index, caddr_t data)
 {
 	device_t ppbus = device_get_parent(dev);
 	int error = 0;
@@ -165,7 +165,7 @@ lpbb_getsda(device_t dev)
 }
 
 static void
-lpbb_setsda(device_t dev, char val)
+lpbb_setsda(device_t dev, int val)
 {
 	device_t ppbus = device_get_parent(dev);
 
@@ -178,7 +178,7 @@ lpbb_setsda(device_t dev, char val)
 }
 
 static void
-lpbb_setscl(device_t dev, unsigned char val)
+lpbb_setscl(device_t dev, int val)
 {
 	device_t ppbus = device_get_parent(dev);
 
