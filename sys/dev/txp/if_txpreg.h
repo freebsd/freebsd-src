@@ -32,9 +32,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define	TXP_PCI_LOMEM			PCIR_BAR(1)	/* memory map BAR */
-#define	TXP_PCI_LOIO			PCIR_BAR(0)	/* IO map BAR */
-
 /*
  * Typhoon registers.
  */
@@ -78,6 +75,14 @@
 #define	TXP_INT_LATCH		0x00000001	/* interrupt latch */
 
 /*
+ * Controller periodically generates TXP_INT_A2H_3 interrupt so
+ * we don't want to see them in interrupt handler.
+ */
+#define	TXP_INTRS		0xFFFFFFEF
+#define	TXP_INTR_ALL		0xFFFFFFFF
+#define	TXP_INTR_NONE		0x00000000
+
+/*
  * soft reset register (SRR)
  */
 #define	TXP_SRR_ALL		0x0000007f	/* full reset */
@@ -86,6 +91,7 @@
  * Typhoon boot commands.
  */
 #define	TXP_BOOTCMD_NULL			0x00
+#define	TXP_BOOTCMD_WAKEUP			0xfa
 #define	TXP_BOOTCMD_DOWNLOAD_COMPLETE		0xfb
 #define	TXP_BOOTCMD_SEGMENT_AVAILABLE		0xfc
 #define	TXP_BOOTCMD_RUNTIME_IMAGE		0xfd
@@ -158,6 +164,7 @@
 #define	TXP_CMD_FILTER_TABLE_MODE_WRITE		0x3d
 #define	TXP_CMD_FILTER_TCL_WRITE		0x3e
 #define	TXP_CMD_FILTER_TBL_READ			0x3f
+#define	TXP_CMD_READ_VERSION			0x43
 #define	TXP_CMD_FILTER_DEFINE			0x45
 #define	TXP_CMD_ADD_WAKEUP_PKT			0x46
 #define	TXP_CMD_ADD_SLEEP_PKT			0x47
@@ -225,12 +232,12 @@
 #define	TXP_STAT_UDPCKSUMGOOD	0x0200
 
 struct txp_tx_desc {
-	volatile uint8_t	tx_flags;	/* type/descriptor flags */
-	volatile uint8_t	tx_numdesc;	/* number of descriptors */
-	volatile uint16_t	tx_totlen;	/* total packet length */
-	volatile uint32_t	tx_addrlo;	/* virt addr low word */
-	volatile uint32_t	tx_addrhi;	/* virt addr high word */
-	volatile uint32_t	tx_pflags;	/* processing flags */
+	uint8_t			tx_flags;	/* type/descriptor flags */
+	uint8_t			tx_numdesc;	/* number of descriptors */
+	uint16_t		tx_totlen;	/* total packet length */
+	uint32_t		tx_addrlo;	/* virt addr low word */
+	uint32_t		tx_addrhi;	/* virt addr high word */
+	uint32_t		tx_pflags;	/* processing flags */
 };
 #define	TX_FLAGS_TYPE_M		0x07		/* type mask */
 #define	TX_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -256,24 +263,16 @@ struct txp_tx_desc {
 #define	TX_PFLAGS_VLANTAG_S	12		/* amount to shift tag */
 
 struct txp_rx_desc {
-	volatile uint8_t	rx_flags;	/* type/descriptor flags */
-	volatile uint8_t	rx_numdesc;	/* number of descriptors */
-	volatile uint16_t	rx_len;		/* frame length */
-#ifdef notdef
-	volatile uint32_t	rx_vaddrlo;	/* virtual address, lo word */
-	volatile uint32_t	rx_vaddrhi;	/* virtual address, hi word */
-#endif
-	union {
-		struct txp_swdesc	*rx_sd;
-		uint64_t		rx_dummy;
-	} txp_rx_u;
-	volatile uint32_t	rx_stat;	/* status */
-	volatile uint16_t	rx_filter;	/* filter status */
-	volatile uint16_t	rx_hash;	/* hash status */
-	volatile uint32_t	rx_vlan;	/* vlan tag/priority */
+	uint8_t			rx_flags;	/* type/descriptor flags */
+	uint8_t			rx_numdesc;	/* number of descriptors */
+	uint16_t		rx_len;		/* frame length */
+	uint32_t		rx_vaddrlo;	/* virtual address, lo word */
+	uint32_t		rx_vaddrhi;	/* virtual address, hi word */
+	uint32_t		rx_stat;	/* status */
+	uint16_t		rx_filter;	/* filter status */
+	uint16_t		rx_hash;	/* hash status */
+	uint32_t		rx_vlan;	/* vlan tag/priority */
 };
-
-#define rx_sd	txp_rx_u.rx_sd
 
 /* txp_rx_desc.rx_flags */
 #define	RX_FLAGS_TYPE_M		0x07		/* type mask */
@@ -297,6 +296,7 @@ struct txp_rx_desc {
 #define	RX_ERROR_OVERSIZE	0x00000005	/* oversized packet */
 #define	RX_ERROR_ALIGN		0x00000006	/* alignment error */
 #define	RX_ERROR_DRIBBLE	0x00000007	/* dribble bit */
+#define	RX_ERROR_MASK		0x07
 
 /* txp_rx_desc.rx_stat (if rx_flags & RX_FLAGS_ERROR not bit set) */
 #define	RX_STAT_PROTO_M		0x00000003	/* protocol mask */
@@ -316,36 +316,28 @@ struct txp_rx_desc {
 
 
 struct txp_rxbuf_desc {
-	volatile uint32_t	rb_paddrlo;
-	volatile uint32_t	rb_paddrhi;
-#ifdef notdef
-	volatile uint32_t	rb_vaddrlo;
-	volatile uint32_t	rb_vaddrhi;
-#endif
-	union {
-		struct txp_swdesc	*rb_sd;
-		uint64_t		rb_dummy;
-	} txp_rb_u;
+	uint32_t		rb_paddrlo;
+	uint32_t		rb_paddrhi;
+	uint32_t		rb_vaddrlo;
+	uint32_t		rb_vaddrhi;
 };
-
-#define rb_sd	txp_rb_u.rb_sd
 
 /* Extension descriptor */
 struct txp_ext_desc {
-	volatile uint32_t	ext_1;
-	volatile uint32_t	ext_2;
-	volatile uint32_t	ext_3;
-	volatile uint32_t	ext_4;
+	uint32_t		ext_1;
+	uint32_t		ext_2;
+	uint32_t		ext_3;
+	uint32_t		ext_4;
 };
 
 struct txp_cmd_desc {
-	volatile uint8_t	cmd_flags;
-	volatile uint8_t	cmd_numdesc;
-	volatile uint16_t	cmd_id;
-	volatile uint16_t	cmd_seq;
-	volatile uint16_t	cmd_par1;
-	volatile uint32_t	cmd_par2;
-	volatile uint32_t	cmd_par3;
+	uint8_t			cmd_flags;
+	uint8_t			cmd_numdesc;
+	uint16_t		cmd_id;
+	uint16_t		cmd_seq;
+	uint16_t		cmd_par1;
+	uint32_t		cmd_par2;
+	uint32_t		cmd_par3;
 };
 #define	CMD_FLAGS_TYPE_M	0x07		/* type mask */
 #define	CMD_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -358,13 +350,13 @@ struct txp_cmd_desc {
 #define	CMD_FLAGS_VALID		0x80		/* valid descriptor */
 
 struct txp_rsp_desc {
-	volatile uint8_t	rsp_flags;
-	volatile uint8_t	rsp_numdesc;
-	volatile uint16_t	rsp_id;
-	volatile uint16_t	rsp_seq;
-	volatile uint16_t	rsp_par1;
-	volatile uint32_t	rsp_par2;
-	volatile uint32_t	rsp_par3;
+	uint8_t			rsp_flags;
+	uint8_t			rsp_numdesc;
+	uint16_t		rsp_id;
+	uint16_t		rsp_seq;
+	uint16_t		rsp_par1;
+	uint32_t		rsp_par2;
+	uint32_t		rsp_par3;
 };
 #define	RSP_FLAGS_TYPE_M	0x07		/* type mask */
 #define	RSP_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -376,12 +368,12 @@ struct txp_rsp_desc {
 #define	RSP_FLAGS_ERROR		0x40		/* response error */
 
 struct txp_frag_desc {
-	volatile uint8_t	frag_flags;	/* type/descriptor flags */
-	volatile uint8_t	frag_rsvd1;
-	volatile uint16_t	frag_len;	/* bytes in this fragment */
-	volatile uint32_t	frag_addrlo;	/* phys addr low word */
-	volatile uint32_t	frag_addrhi;	/* phys addr high word */
-	volatile uint32_t	frag_rsvd2;
+	uint8_t			frag_flags;	/* type/descriptor flags */
+	uint8_t			frag_rsvd1;
+	uint16_t		frag_len;	/* bytes in this fragment */
+	uint32_t		frag_addrlo;	/* phys addr low word */
+	uint32_t		frag_addrhi;	/* phys addr high word */
+	uint32_t		frag_rsvd2;
 };
 #define	FRAG_FLAGS_TYPE_M	0x07		/* type mask */
 #define	FRAG_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -418,19 +410,25 @@ struct txp_ipsec_desc {
 };
 
 struct txp_tcpseg_desc {
-	uint8_t			tcpseg_desctype:3,
-				tcpseg_rsvd:1,
-				tcpseg_type:4;
-
+	uint8_t			tcpseg_type;
 	uint8_t			tcpseg_num;
-
-	uint16_t		tcpseg_mss:12,
-				tcpseg_misc:4;
-
+	uint16_t		tcpseg_mss;
 	uint32_t		tcpseg_respaddr;
 	uint32_t		tcpseg_txbytes;
 	uint32_t		tcpseg_lss;
 };
+#define	TCPSEG_DESC_TYPE_M	0x07		/* type mask */
+#define	TCPSEG_DESC_TYPE_FRAG	0x00		/* type: fragment */
+#define	TCPSEG_DESC_TYPE_DATA	0x01		/* type: data frame */
+#define	TCPSEG_DESC_TYPE_CMD	0x02		/* type: command frame */
+#define	TCPSEG_DESC_TYPE_OPT	0x03		/* type: options */
+#define	TCPSEG_DESC_TYPE_RX	0x04		/* type: command */
+#define	TCPSEG_DESC_TYPE_RESP	0x05		/* type: response */
+#define	TCPSEG_OPT_IPSEC	0x00
+#define	TCPSEG_OPT_TSO		0x10
+#define	TCPSEG_MSS_MASK		0x0FFF
+#define	TCPSEG_MSS_FIRST	0x1000
+#define	TCPSEG_MSS_LAST		0x2000
 
 /*
  * Transceiver types
@@ -460,48 +458,48 @@ struct txp_tcpseg_desc {
  * boot record (pointers to rings)
  */
 struct txp_boot_record {
-	volatile uint32_t	br_hostvar_lo;		/* host ring pointer */
-	volatile uint32_t	br_hostvar_hi;
-	volatile uint32_t	br_txlopri_lo;		/* tx low pri ring */
-	volatile uint32_t	br_txlopri_hi;
-	volatile uint32_t	br_txlopri_siz;
-	volatile uint32_t	br_txhipri_lo;		/* tx high pri ring */
-	volatile uint32_t	br_txhipri_hi;
-	volatile uint32_t	br_txhipri_siz;
-	volatile uint32_t	br_rxlopri_lo;		/* rx low pri ring */
-	volatile uint32_t	br_rxlopri_hi;
-	volatile uint32_t	br_rxlopri_siz;
-	volatile uint32_t	br_rxbuf_lo;		/* rx buffer ring */
-	volatile uint32_t	br_rxbuf_hi;
-	volatile uint32_t	br_rxbuf_siz;
-	volatile uint32_t	br_cmd_lo;		/* command ring */
-	volatile uint32_t	br_cmd_hi;
-	volatile uint32_t	br_cmd_siz;
-	volatile uint32_t	br_resp_lo;		/* response ring */
-	volatile uint32_t	br_resp_hi;
-	volatile uint32_t	br_resp_siz;
-	volatile uint32_t	br_zero_lo;		/* zero word */
-	volatile uint32_t	br_zero_hi;
-	volatile uint32_t	br_rxhipri_lo;		/* rx high pri ring */
-	volatile uint32_t	br_rxhipri_hi;
-	volatile uint32_t	br_rxhipri_siz;
+	uint32_t		br_hostvar_lo;		/* host ring pointer */
+	uint32_t		br_hostvar_hi;
+	uint32_t		br_txlopri_lo;		/* tx low pri ring */
+	uint32_t		br_txlopri_hi;
+	uint32_t		br_txlopri_siz;
+	uint32_t		br_txhipri_lo;		/* tx high pri ring */
+	uint32_t		br_txhipri_hi;
+	uint32_t		br_txhipri_siz;
+	uint32_t		br_rxlopri_lo;		/* rx low pri ring */
+	uint32_t		br_rxlopri_hi;
+	uint32_t		br_rxlopri_siz;
+	uint32_t		br_rxbuf_lo;		/* rx buffer ring */
+	uint32_t		br_rxbuf_hi;
+	uint32_t		br_rxbuf_siz;
+	uint32_t		br_cmd_lo;		/* command ring */
+	uint32_t		br_cmd_hi;
+	uint32_t		br_cmd_siz;
+	uint32_t		br_resp_lo;		/* response ring */
+	uint32_t		br_resp_hi;
+	uint32_t		br_resp_siz;
+	uint32_t		br_zero_lo;		/* zero word */
+	uint32_t		br_zero_hi;
+	uint32_t		br_rxhipri_lo;		/* rx high pri ring */
+	uint32_t		br_rxhipri_hi;
+	uint32_t		br_rxhipri_siz;
 };
 
 /*
  * hostvar structure (shared with typhoon)
  */
 struct txp_hostvar {
-	volatile uint32_t	hv_rx_hi_read_idx;	/* host->arm */
-	volatile uint32_t	hv_rx_lo_read_idx;	/* host->arm */
-	volatile uint32_t	hv_rx_buf_write_idx;	/* host->arm */
-	volatile uint32_t	hv_resp_read_idx;	/* host->arm */
-	volatile uint32_t	hv_tx_lo_desc_read_idx;	/* arm->host */
-	volatile uint32_t	hv_tx_hi_desc_read_idx;	/* arm->host */
-	volatile uint32_t	hv_rx_lo_write_idx;	/* arm->host */
-	volatile uint32_t	hv_rx_buf_read_idx;	/* arm->host */
-	volatile uint32_t	hv_cmd_read_idx;	/* arm->host */
-	volatile uint32_t	hv_resp_write_idx;	/* arm->host */
-	volatile uint32_t	hv_rx_hi_write_idx;	/* arm->host */
+	uint32_t		hv_rx_hi_read_idx;	/* host->arm */
+	uint32_t		hv_rx_lo_read_idx;	/* host->arm */
+	uint32_t		hv_rx_buf_write_idx;	/* host->arm */
+	uint32_t		hv_resp_read_idx;	/* host->arm */
+	uint32_t		hv_tx_lo_desc_read_idx;	/* arm->host */
+	uint32_t		hv_tx_hi_desc_read_idx;	/* arm->host */
+	uint32_t		hv_rx_lo_write_idx;	/* arm->host */
+	uint32_t		hv_rx_buf_read_idx;	/* arm->host */
+	uint32_t		hv_cmd_read_idx;	/* arm->host */
+	uint32_t		hv_resp_write_idx;	/* arm->host */
+	uint32_t		hv_rx_hi_write_idx;	/* arm->host */
 };
 
 /*
@@ -555,35 +553,105 @@ struct txp_rsp_ring {
 
 struct txp_tx_ring {
 	struct txp_tx_desc	*r_desc;	/* base address of descs */
+	bus_dma_tag_t		r_tag;
+	bus_dmamap_t		r_map;
 	uint32_t		r_reg;		/* register to activate */
 	uint32_t		r_prod;		/* producer */
 	uint32_t		r_cons;		/* consumer */
 	uint32_t		r_cnt;		/* # descs in use */
-	volatile uint32_t	*r_off;		/* hostvar index pointer */
+	uint32_t		*r_off;		/* hostvar index pointer */
 };
 
 struct txp_swdesc {
-	struct mbuf *		sd_mbuf;
+	struct mbuf 		*sd_mbuf;
+	bus_dmamap_t		sd_map;
+};
+
+struct txp_rx_swdesc {
+	TAILQ_ENTRY(txp_rx_swdesc)	sd_next;
+	struct mbuf 		*sd_mbuf;
 	bus_dmamap_t		sd_map;
 };
 
 struct txp_rx_ring {
 	struct txp_rx_desc	*r_desc;	/* base address of descs */
-	volatile uint32_t	*r_roff;	/* hv read offset ptr */
-	volatile uint32_t	*r_woff;	/* hv write offset ptr */
+	bus_dma_tag_t		r_tag;
+	bus_dmamap_t		r_map;
+	uint32_t		*r_roff;	/* hv read offset ptr */
+	uint32_t		*r_woff;	/* hv write offset ptr */
 };
 
 struct txp_ldata {
-	struct txp_boot_record	txp_boot;
-	struct txp_hostvar	txp_hostvar;
-	struct txp_tx_desc	txp_txhiring[TX_ENTRIES];
-	struct txp_tx_desc	txp_txloring[TX_ENTRIES];
-	struct txp_rxbuf_desc	txp_rxbufs[RXBUF_ENTRIES];
-	struct txp_rx_desc	txp_rxhiring[RX_ENTRIES];
-	struct txp_rx_desc	txp_rxloring[RX_ENTRIES];
-	struct txp_cmd_desc	txp_cmdring[CMD_ENTRIES];
-	struct txp_rsp_desc	txp_rspring[RSP_ENTRIES];
-	uint32_t		txp_zero;
+	struct txp_boot_record	*txp_boot;
+	bus_addr_t		txp_boot_paddr;
+	struct txp_hostvar	*txp_hostvar;
+	bus_addr_t		txp_hostvar_paddr;
+	struct txp_tx_desc	*txp_txhiring;
+	bus_addr_t		txp_txhiring_paddr;
+	struct txp_tx_desc	*txp_txloring;
+	bus_addr_t		txp_txloring_paddr;
+	struct txp_rxbuf_desc	*txp_rxbufs;
+	bus_addr_t		txp_rxbufs_paddr;
+	struct txp_rx_desc	*txp_rxhiring;
+	bus_addr_t		txp_rxhiring_paddr;
+	struct txp_rx_desc	*txp_rxloring;
+	bus_addr_t		txp_rxloring_paddr;
+	struct txp_cmd_desc	*txp_cmdring;
+	bus_addr_t		txp_cmdring_paddr;
+	struct txp_rsp_desc	*txp_rspring;
+	bus_addr_t		txp_rspring_paddr;
+	uint32_t		*txp_zero;
+	bus_addr_t		txp_zero_paddr;
+};
+
+struct txp_chain_data {
+	bus_dma_tag_t		txp_parent_tag;
+	bus_dma_tag_t		txp_boot_tag;
+	bus_dmamap_t		txp_boot_map;
+	bus_dma_tag_t		txp_hostvar_tag;
+	bus_dmamap_t		txp_hostvar_map;
+	bus_dma_tag_t		txp_txhiring_tag;
+	bus_dmamap_t		txp_txhiring_map;
+	bus_dma_tag_t		txp_txloring_tag;
+	bus_dmamap_t		txp_txloring_map;
+	bus_dma_tag_t		txp_tx_tag;
+	bus_dma_tag_t		txp_rx_tag;
+	bus_dma_tag_t		txp_rxbufs_tag;
+	bus_dmamap_t		txp_rxbufs_map;
+	bus_dma_tag_t		txp_rxhiring_tag;
+	bus_dmamap_t		txp_rxhiring_map;
+	bus_dma_tag_t		txp_rxloring_tag;
+	bus_dmamap_t		txp_rxloring_map;
+	bus_dma_tag_t		txp_cmdring_tag;
+	bus_dmamap_t		txp_cmdring_map;
+	bus_dma_tag_t		txp_rspring_tag;
+	bus_dmamap_t		txp_rspring_map;
+	bus_dma_tag_t		txp_zero_tag;
+	bus_dmamap_t		txp_zero_map;
+};
+
+struct txp_hw_stats {
+	uint32_t		tx_frames;
+	uint64_t		tx_bytes;
+	uint32_t		tx_deferred;
+	uint32_t		tx_late_colls;
+	uint32_t		tx_colls;
+	uint32_t		tx_carrier_lost;
+	uint32_t		tx_multi_colls;
+	uint32_t		tx_excess_colls;
+	uint32_t		tx_fifo_underruns;
+	uint32_t		tx_mcast_oflows;
+	uint32_t		tx_filtered;
+	uint32_t		rx_frames;
+	uint64_t		rx_bytes;
+	uint32_t		rx_fifo_oflows;
+	uint32_t		rx_badssd;
+	uint32_t		rx_crcerrs;
+	uint32_t		rx_lenerrs;
+	uint32_t		rx_bcast_frames;
+	uint32_t		rx_mcast_frames;
+	uint32_t		rx_oflows;
+	uint32_t		rx_filtered;
 };
 
 struct txp_softc {
@@ -591,27 +659,37 @@ struct txp_softc {
 	device_t		sc_dev;
 	struct txp_hostvar	*sc_hostvar;
 	struct txp_boot_record	*sc_boot;
-	bus_space_handle_t	sc_bh;		/* bus handle (regs) */
-	bus_space_tag_t		sc_bt;		/* bus tag (regs) */
 	struct resource		*sc_res;
+	int			sc_res_id;
+	int			sc_res_type;
 	struct resource		*sc_irq;
 	void			*sc_intrhand;
-	struct mtx		sc_mtx;
-	struct txp_ldata	*sc_ldata;
-	void			*sc_fwbuf;
+	struct txp_chain_data	sc_cdata;
+	struct txp_ldata	sc_ldata;
 	int			sc_rxbufprod;
+	int			sc_process_limit;
 	struct txp_cmd_ring	sc_cmdring;
 	struct txp_rsp_ring	sc_rspring;
-	struct txp_swdesc	sc_txd[TX_ENTRIES];
 	struct callout		sc_tick;
 	struct ifmedia		sc_ifmedia;
+	struct txp_hw_stats	sc_ostats;
+	struct txp_hw_stats	sc_stats;
 	struct txp_tx_ring	sc_txhir, sc_txlor;
+	struct txp_swdesc	sc_txd[TX_ENTRIES];
 	struct txp_rxbuf_desc	*sc_rxbufs;
 	struct txp_rx_ring	sc_rxhir, sc_rxlor;
 	uint16_t		sc_xcvr;
 	uint16_t		sc_seq;
-	int			sc_cold;
-	uint32_t		sc_rx_capability, sc_tx_capability;
+	int			sc_watchdog_timer;
+	int			sc_if_flags;
+	int			sc_flags;
+#define	TXP_FLAG_DETACH		0x4000
+#define	TXP_FLAG_LINK		0x8000
+	TAILQ_HEAD(, txp_rx_swdesc)	sc_free_list;
+	TAILQ_HEAD(, txp_rx_swdesc)	sc_busy_list;
+	struct task		sc_int_task;
+	struct taskqueue	*sc_tq;
+	struct mtx		sc_mtx;
 };
 
 struct txp_fw_file_header {
@@ -630,16 +708,25 @@ struct txp_fw_section_header {
 };
 
 #define	TXP_MAX_SEGLEN	0xffff
-#define	TXP_MAX_PKTLEN	0x0800
+#define	TXP_MAX_PKTLEN	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN)
 
-#define	WRITE_REG(sc,reg,val) \
-    bus_space_write_4((sc)->sc_bt, (sc)->sc_bh, reg, val)
-#define	READ_REG(sc,reg) \
-    bus_space_read_4((sc)->sc_bt, (sc)->sc_bh, reg)
+#define	WRITE_REG(sc, reg, val)		bus_write_4((sc)->sc_res, reg, val)
+#define	READ_REG(sc, reg)		bus_read_4((sc)->sc_res, reg)
+#define	TXP_BARRIER(sc, o, l, f)	bus_barrier((sc)->sc_res, (o), (l), (f))
 
 #define	TXP_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
 #define	TXP_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
 #define	TXP_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+
+#define	TXP_MAXTXSEGS		16
+#define	TXP_RXBUF_ALIGN		(sizeof(uint32_t))
+
+#define	TXP_PROC_MIN		16
+#define	TXP_PROC_MAX		RX_ENTRIES
+#define	TXP_PROC_DEFAULT	(RX_ENTRIES / 2)
+
+#define	TXP_ADDR_HI(x)		((uint64_t)(x) >> 32)
+#define	TXP_ADDR_LO(x)		((uint64_t)(x) & 0xffffffff)
 
 /*
  * 3Com PCI vendor ID.
@@ -661,3 +748,21 @@ struct txp_type {
 	uint16_t		txp_did;
 	char			*txp_name;
 };
+
+#define	TXP_TIMEOUT	10000
+#define	TXP_CMD_NOWAIT	0
+#define	TXP_CMD_WAIT	1
+#define	TXP_TX_TIMEOUT	5
+
+/*
+ * Each frame requires one frame descriptor and one or more
+ * fragment descriptors. If TSO is used frame descriptor block
+ * requires one or two option frame descriptors depending on
+ * number of framents. Therefore we will consume three
+ * additional descriptors at most to use TSO for a frame and
+ * one reserved descriptor in order not to full Tx descriptor
+ * ring.
+ */
+#define	TXP_TXD_RESERVED	4
+
+#define	TXP_DESC_INC(x, y)	((x) = ((x) + 1) % (y))
