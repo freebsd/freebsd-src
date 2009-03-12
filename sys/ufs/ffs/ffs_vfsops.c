@@ -1451,6 +1451,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_fs = fs;
 	ip->i_dev = dev;
 	ip->i_number = ino;
+	ip->i_ea_refs = 0;
 #ifdef QUOTA
 	{
 		int i;
