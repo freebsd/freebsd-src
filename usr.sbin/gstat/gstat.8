@@ -32,7 +32,7 @@
 .Nd print statistics about GEOM disks
 .Sh SYNOPSIS
 .Nm
-.Op Fl acd
+.Op Fl abcd
 .Op Fl f Ar filter
 .Op Fl I Ar interval
 .Sh DESCRIPTION
@@ -92,15 +92,3 @@ A
 .Nm
 utility appeared in
 .Fx 5.0 .
-.Sh BUGS
-The
-.Nm
-utility only works interactively.
-It should probably detect when it is run non-interactively and produce
-simple
-.Tn ASCII
-text output.
-Otherwise, this utility should probably be folded into
-.Xr systat 1
-which only works interactively and is the obvious utility to run for
-various other forms of system statistics.
