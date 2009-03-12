@@ -108,6 +108,7 @@ struct shminfo {
 struct shmid_kernel {
 	struct shmid_ds u;
 	struct label *label;	/* MAC label */
+	size_t shm_bsegsz;
 };
 
 extern struct shminfo	shminfo;
