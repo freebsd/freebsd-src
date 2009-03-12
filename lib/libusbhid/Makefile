@@ -15,7 +15,7 @@ MLINKS=	usbhid.3 libusbhid.3 usbhid.3 hid_get_report_desc.3 \
 	usbhid.3 hid_init.3 \
 	usbhid.3 hid_get_data.3 usbhid.3 hid_set_data.3
 
-SRCS=	descr.c parse.c usage.c data.c
+SRCS=	descr.c descr_compat.c parse.c usage.c data.c
 
 INCS=	usbhid.h
 

@@ -202,8 +202,8 @@ out:
 	return (error);
 }
 
-SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules, CTLFLAG_RW,
-    sysctl_rule, "BSD extended MAC rules");
+SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules,
+    CTLFLAG_MPSAFE | CTLFLAG_RW, sysctl_rule, "BSD extended MAC rules");
 
 static void
 ugidfw_init(struct mac_policy_conf *mpc)

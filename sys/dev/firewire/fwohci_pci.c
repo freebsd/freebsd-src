@@ -334,14 +334,11 @@ fwohci_pci_attach(device_t self)
 		return ENXIO;
 	}
 
-
 	err = bus_setup_intr(self, sc->irq_res,
-			INTR_TYPE_NET | INTR_MPSAFE,
-#if FWOHCI_INTFILT
-		     fwohci_filt, NULL, sc, &sc->ih);
-#else
-		     NULL, (driver_intr_t *) fwohci_intr, sc, &sc->ih);
-#endif
+				INTR_TYPE_NET | INTR_MPSAFE,
+				NULL, (driver_intr_t *) fwohci_intr,
+				sc, &sc->ih);
+
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 	/* XXX splcam() should mask this irq for sbp.c*/
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_CAM,
@@ -556,4 +553,3 @@ static devclass_t fwohci_devclass;
 MODULE_DEPEND(fwohci, firewire, 1, 1, 1);
 #endif
 DRIVER_MODULE(fwohci, pci, fwohci_driver, fwohci_devclass, 0, 0);
-DRIVER_MODULE(fwohci, cardbus, fwohci_driver, fwohci_devclass, 0, 0);

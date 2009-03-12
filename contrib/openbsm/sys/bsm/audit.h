@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#4 $
+ * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#5 $
  */
 
 #ifndef _BSM_AUDIT_H
@@ -65,8 +65,9 @@
 #define	AUDIT_TRIGGER_CLOSE_AND_DIE	4	/* Terminate audit. */
 #define	AUDIT_TRIGGER_NO_SPACE		5	/* Below min free space. */
 #define	AUDIT_TRIGGER_ROTATE_USER	6	/* User requests rotate. */
-#define	AUDIT_TRIGGER_INITIALIZE	7	/* Initialize audit. */
-#define	AUDIT_TRIGGER_MAX		7
+#define	AUDIT_TRIGGER_INITIALIZE	7	/* User initialize of auditd. */
+#define	AUDIT_TRIGGER_EXPIRE_TRAILS	8	/* User expiration of trails. */
+#define	AUDIT_TRIGGER_MAX		8
 
 /*
  * The special device filename (FreeBSD).

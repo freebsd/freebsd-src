@@ -97,10 +97,8 @@ static void
 ixp425_pci_conf_reg_write(struct ixppcib_softc *sc, uint32_t reg,
     uint32_t data)
 {
-	PCI_CSR_WRITE_4(sc,
-	    PCI_CRP_AD_CBE, ((reg & ~3) | COMMAND_CRP_WRITE));
-	PCI_CSR_WRITE_4(sc,
-	    PCI_CRP_AD_WDATA, data);
+	PCI_CSR_WRITE_4(sc, PCI_CRP_AD_CBE, ((reg & ~3) | COMMAND_CRP_WRITE));
+	PCI_CSR_WRITE_4(sc, PCI_CRP_AD_WDATA, data);
 }
 
 static int
@@ -278,12 +276,10 @@ static struct resource *
 ixppcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	bus_space_tag_t tag;
 	struct ixppcib_softc *sc = device_get_softc(bus);
 	struct rman *rmanp;
 	struct resource *rv;
 
-	tag = NULL; /* shut up stupid gcc */
 	rv = NULL;
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -292,28 +288,25 @@ ixppcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	case SYS_RES_IOPORT:
 		rmanp = &sc->sc_io_rman;
-		tag = &sc->sc_pci_iot;
 		break;
 
 	case SYS_RES_MEMORY:
 		rmanp = &sc->sc_mem_rman;
-		tag = &sc->sc_pci_memt;
 		break;
 
 	default:
 		return (rv);
 	}
 
-	rv = rman_reserve_resource(rmanp, start, end, count, flags, child);
-	if (rv != NULL) {
-		rman_set_rid(rv, *rid);
-		if (type == SYS_RES_IOPORT) {
-			rman_set_bustag(rv, tag);
-			rman_set_bushandle(rv, rman_get_start(rv));
-		} else if (type == SYS_RES_MEMORY) {
-			rman_set_bustag(rv, tag);
-			rman_set_bushandle(rv, rman_get_bushandle(sc->sc_mem) +
-			    (rman_get_start(rv) - IXP425_PCI_MEM_HWBASE));
+	rv = rman_reserve_resource(rmanp, start, end, count, flags & ~RF_ACTIVE,
+	    child);
+	if (rv == NULL)
+		return (NULL);
+	rman_set_rid(rv, *rid);
+	if (flags & RF_ACTIVE) {
+		if (bus_activate_resource(child, type, *rid, rv)) {
+			rman_release_resource(rv);
+			return (NULL);
 		}
 	}
 
@@ -325,8 +318,21 @@ ixppcib_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r) 
 {
 
-	device_printf(bus, "%s called activate_resource\n", device_get_nameunit(child));
-	return (ENXIO);
+	struct ixppcib_softc *sc = device_get_softc(bus);
+  
+	switch (type) {
+	case SYS_RES_IOPORT:
+		rman_set_bustag(r, &sc->sc_pci_iot);
+		rman_set_bushandle(r, rman_get_start(r));
+		break;
+	case SYS_RES_MEMORY:
+		rman_set_bustag(r, &sc->sc_pci_memt);
+		rman_set_bushandle(r, rman_get_bushandle(sc->sc_mem) +
+		    (rman_get_start(r) - IXP425_PCI_MEM_HWBASE));
+		break;
+	}
+		
+	return (rman_activate_resource(r));
 }
 
 static int
@@ -334,7 +340,8 @@ ixppcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r) 
 {
 
-	device_printf(bus, "%s called deactivate_resource\n", device_get_nameunit(child));
+	device_printf(bus, "%s called deactivate_resource (unexpected)\n",
+	    device_get_nameunit(child));
 	return (ENXIO);
 }
 
@@ -343,7 +350,8 @@ ixppcib_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
 
-	device_printf(bus, "%s called release_resource\n", device_get_nameunit(child));
+	device_printf(bus, "%s called release_resource (unexpected)\n",
+	    device_get_nameunit(child));
 	return (ENXIO);
 }
 
@@ -352,21 +360,15 @@ ixppcib_conf_setup(struct ixppcib_softc *sc, int bus, int slot, int func,
     int reg)
 {
 	if (bus == 0) {
-		if (slot == 0 && func == 0) {
-			PCI_CSR_WRITE_4(sc, PCI_NP_AD, (reg & ~3));
-		} else {
-			bus &= 0xff;
-			slot &= 0x1f;
-			func &= 0x07;
-			/* configuration type 0 */
-			PCI_CSR_WRITE_4(sc, PCI_NP_AD, (1U << (32 - slot)) |
-				(func << 8) | (reg & ~3));
-		}
-	} else {
-			/* configuration type 1 */
+		/* configuration type 0 */
 		PCI_CSR_WRITE_4(sc, PCI_NP_AD,
-			(bus << 16) | (slot << 11) |
-			(func << 8) | (reg & ~3) | 1);
+		    (1U << (32 - (slot & 0x1f))) |
+		    ((func & 0x7) << 8) | (reg & ~3));
+	} else {
+		/* configuration type 1 */
+		PCI_CSR_WRITE_4(sc, PCI_NP_AD,
+		    (bus << 16) | (slot << 11) |
+		    (func << 8) | (reg & ~3) | 1);
 	}
 
 }
@@ -392,9 +394,9 @@ ixppcib_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	ret >>= (reg & 3) * 8;
 	ret &= 0xffffffff >> ((4 - bytes) * 8);
 #if 0
-	device_printf(dev, "read config: %u:%u:%u %#x(%d) = %#x\n", bus, slot, func, reg, bytes, ret);
+	device_printf(dev, "%s: %u:%u:%u %#x(%d) = %#x\n",
+	    __func__, bus, slot, func, reg, bytes, ret);
 #endif
-
 	/* check & clear PCI abort */
 	data = PCI_CSR_READ_4(sc, PCI_ISR);
 	if (data & ISR_PFE) {
@@ -414,9 +416,9 @@ ixppcib_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	u_int32_t data;
 
 #if 0
-	device_printf(dev, "write config: %u:%u:%u %#x(%d) = %#x\n", bus, slot, func, reg, bytes, val);
+	device_printf(dev, "%s: %u:%u:%u %#x(%d) = %#x\n",
+	    __func__, bus, slot, func, reg, bytes, val);
 #endif
-
 	ixppcib_conf_setup(sc, bus, slot, func, reg & ~3);
 
 	/* Byte enables are active low, so not them first */

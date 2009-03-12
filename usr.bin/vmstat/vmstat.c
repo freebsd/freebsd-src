@@ -346,10 +346,8 @@ getdrivedata(char **argv)
 	if ((num_devices = devstat_getnumdevs(NULL)) < 0)
 		errx(1, "%s", devstat_errbuf);
 
-	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	bzero(cur.dinfo, sizeof(struct devinfo));
-	bzero(last.dinfo, sizeof(struct devinfo));
+	cur.dinfo = (struct devinfo *)calloc(1, sizeof(struct devinfo));
+	last.dinfo = (struct devinfo *)calloc(1, sizeof(struct devinfo));
 
 	if (devstat_getdevs(NULL, &cur) == -1)
 		errx(1, "%s", devstat_errbuf);
@@ -616,10 +614,8 @@ dovmstat(unsigned int interval, int reps)
 	if (Pflag) {
 		ncpus = getcpuinfo(&cpumask, &maxid);
 		size_cp_times = sizeof(long) * (maxid + 1) * CPUSTATES;
-		cur_cp_times = malloc(size_cp_times);
-		last_cp_times = malloc(size_cp_times);
-		bzero(cur_cp_times, size_cp_times);
-		bzero(last_cp_times, size_cp_times);
+		cur_cp_times = calloc(1, size_cp_times);
+		last_cp_times = calloc(1, size_cp_times);
 	}
 	for (hdrcnt = 1;;) {
 		if (!--hdrcnt)

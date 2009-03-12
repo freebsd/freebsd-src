@@ -1,15 +1,19 @@
-.\" Copyright (c) 2007 Bruce M. Simpson. All rights reserved.
+.\" Copyright (c) 2007-2009 Bruce Simpson.
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
 .\" 1. Redistributions of source code must retain the above copyright
 .\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY Bruce M. Simpson ``AS IS'' AND
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bruce M. Simpson BE LIABLE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 .\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 .\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -20,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2007
+.Dd February 13, 2009
 .Dt SOURCEFILTER 3
 .Os
 .Sh NAME
@@ -78,25 +82,34 @@ retrieve the multicast source address filters associated with a socket
 and a multicast
 .Fa group .
 .Pp
-The protocol-independent functions
-.Fn getsourcefilter
+The functions
+.Fn getipv4sourcefilter
 and
-.Fn setsourcefilter
-allow an application to join a multicast group on an interface by
-passing its index for the
-.Fa interface
-argument.
+.Fn getsourcefilter
+allow an application to discover the filter mode, and
+source filter entries,
+for an existing group membership.
+.Pp
+The kernel will always return the number of source filter
+entries on the socket for that group in
+.Fa *numsrc .
+If the
+.Fa *numsrc
+argument is non-zero, the kernel will attempt to return up to
+.Fa *numsrc
+filter entries in the array pointed to by
+.Fa slist .
 The
-argument.
-.Fa grouplen
-argument specifies the size of the structure pointed to by
-.Fa group .
+.Fa *numsrc
+argument may be set to 0, in which case the
+.Fa slist
+argument will be ignored.
 .Pp
 For the
 .Fn setipv4sourcefilter
 and
 .Fn setsourcefilter
-functions.
+functions,
 the
 .Fa fmode
 argument may be used to place the socket into inclusive or exclusive
@@ -110,14 +123,57 @@ The
 argument specifies the number of source entries in the
 .Fa slist
 array.
-A value of 0 will remove all source filters from the socket.
-The changes will be communicated to IGMPv3 and/or MLDv2 routers
+If the
+.Fa numsrc
+argument has a value of 0,
+all source filters will be removed from the socket.
+Removing all source filters from a membership which is in the
+.Dv MCAST_INCLUDE
+filter mode will cause the group to be left on that socket.
+.Pp
+The protocol-independent function
+.Fn setsourcefilter
+allows an application to join a multicast group on an interface
+which may not have an assigned protocol address,
+by passing its index for the
+.Fa interface
+argument.
+.Pp
+Any changes made by these functions
+will be communicated to IGMPv3 and/or MLDv2 routers
 on the local network as appropriate.
+If no IGMPv3 or MLDv2 routers are present, changes in the source filter
+lists made by these functions will not cause
+state changes to be transmitted, with the exception of any
+change which causes a group to be joined or left.
+The kernel will continue to maintain the source filter state
+regardless of the IGMP or MLD version in use on the link.
 .Sh IMPLEMENTATION NOTES
 The IPv4 specific versions of these functions are implemented in terms
 of the protocol-independent functions.
 Application writers are encouraged to use the protocol-independent functions
-for efficiency, and upwards compatibility with IPv6 networks.
+for efficiency, and forwards compatibility with IPv6 networks.
+.Pp
+For the protocol-independent functions
+.Fn getsourcefilter
+and
+.Fn setsourcefilter ,
+the argument
+.Fa grouplen
+argument specifies the size of the structure pointed to by
+.Fa group .
+This is required in order to differentiate between different
+address families.
+.Pp
+Currently
+.Fx
+does not support source address selection for the IPv4
+protocol family, therefore the use of multicast APIs with
+an unnumbered IPv4 interface is
+.Em not recommended.
+In all cases, the first assigned IPv4 address on the interface
+will be used as the source address of IGMP control traffic.
+If this address is removed or changed, the results are undefined.
 .Sh RETURN VALUES
 .Rv -std getsourcefilter getipv4sourcefilter setsourcefilter setipv4sourcefilter
 .Sh ERRORS
@@ -164,7 +220,8 @@ operation.
 .Sh SEE ALSO
 .Xr ip 4 ,
 .Xr ip6 4 ,
-.Xr multicast 4
+.Xr multicast 4, 
+.Xr ifmcstat 8
 .Rs
 .%A D. Thaler
 .%A B. Fenner

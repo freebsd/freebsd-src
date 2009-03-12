@@ -33,19 +33,25 @@
  */
 #if defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
-#include "../../config.h"
+#include "config.h"
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
-#include "../config_freebsd.h"
+#include "config_freebsd.h"
 #elif defined(_WIN32)
 /* Win32 can't run the 'configure' script. */
-#include "../config_windows.h"
+#include "config_windows.h"
 #else
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#ifndef _WIN32
 #include <dirent.h>
+#else
+#define dirent direct
+#include "../bsdtar_windows.h"
+#include <direct.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -151,4 +157,4 @@ void extract_reference_file(const char *);
  */
 
 /* Pathname of exe to be tested. */
-char *testprog;
+const char *testprog;

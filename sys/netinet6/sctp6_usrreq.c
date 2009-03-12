@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_input.h>
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_bsd_addr.h>
+#include <netinet/sctp_crc32.h>
 #include <netinet/udp.h>
 
 #ifdef IPSEC
@@ -75,7 +76,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	uint32_t vrf_id = 0;
 	struct inpcb *in6p_ip;
 	struct sctp_chunkhdr *ch;
-	int length, mlen, offset, iphlen;
+	int length, offset, iphlen;
 	uint8_t ecn_bits;
 	struct sctp_tcb *stcb = NULL;
 	int pkt_len = 0;
@@ -126,16 +127,28 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	/* destination port of 0 is illegal, based on RFC2960. */
 	if (sh->dest_port == 0)
 		goto bad;
+
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	    "sctp_input(): Packet of length %d received on %s with csum_flags 0x%x.\n",
+	    m->m_pkthdr.len,
+	    if_name(m->m_pkthdr.rcvif),
+	    m->m_pkthdr.csum_flags);
+	if (m->m_pkthdr.csum_flags & CSUM_SCTP_VALID) {
+		SCTP_STAT_INCR(sctps_recvhwcrc);
+		goto sctp_skip_csum;
+	}
 	check = sh->checksum;	/* save incoming checksum */
 	if ((check == 0) && (SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback)) &&
 	    (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &ip6->ip6_dst))) {
+		SCTP_STAT_INCR(sctps_recvnocrc);
 		goto sctp_skip_csum;
 	}
 	sh->checksum = 0;	/* prepare for calc */
-	calc_check = sctp_calculate_sum(m, &mlen, iphlen);
+	calc_check = sctp_calculate_cksum(m, iphlen);
+	SCTP_STAT_INCR(sctps_recvswcrc);
 	if (calc_check != check) {
-		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
-		    calc_check, check, m, mlen, iphlen);
+		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p phlen:%d\n",
+		    calc_check, check, m, iphlen);
 		stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
 		    sh, ch, &in6p, &net, vrf_id);
 		if ((net) && (port)) {

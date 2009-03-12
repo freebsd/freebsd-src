@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_attach.c,v 1.18 2008/11/19 22:10:42 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -29,10 +29,12 @@
 #define AH_5212_COMMON
 #include "ar5212/ar5212.ini"
 
+static void ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5212DisablePCIE(struct ath_hal *ah);
+
 static const struct ath_hal_private ar5212hal = {{
 	.ah_magic			= AR5212_MAGIC,
 	.ah_abi				= HAL_ABI_VERSION,
-	.ah_countryCode			= CTRY_DEFAULT,
 
 	.ah_getRateTable		= ar5212GetRateTable,
 	.ah_detach			= ar5212Detach,
@@ -41,6 +43,8 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_reset			= ar5212Reset,
 	.ah_phyDisable			= ar5212PhyDisable,
 	.ah_disable			= ar5212Disable,
+	.ah_configPCIE			= ar5212ConfigPCIE,
+	.ah_disablePCIE			= ar5212DisablePCIE,
 	.ah_setPCUConfig		= ar5212SetPCUConfig,
 	.ah_perCalibration		= ar5212PerCalibration,
 	.ah_perCalibrationN		= ar5212PerCalibrationN,
@@ -152,43 +156,8 @@ static const struct ath_hal_private ar5212hal = {{
 #ifdef AH_SUPPORT_WRITE_EEPROM
 	.ah_eepromWrite			= ar5212EepromWrite,
 #endif
-	.ah_gpioCfgOutput		= ar5212GpioCfgOutput,
-	.ah_gpioCfgInput		= ar5212GpioCfgInput,
-	.ah_gpioGet			= ar5212GpioGet,
-	.ah_gpioSet			= ar5212GpioSet,
-	.ah_gpioSetIntr			= ar5212GpioSetIntr,
 	.ah_getChipPowerLimits		= ar5212GetChipPowerLimits,
 };
-
-/*
- * Disable PLL when in L0s as well as receiver clock when in L1.
- * This power saving option must be enabled through the Serdes.
- *
- * Programming the Serdes must go through the same 288 bit serial shift
- * register as the other analog registers.  Hence the 9 writes.
- *
- * XXX Clean up the magic numbers.
- */
-static void
-configurePciePowerSave(struct ath_hal *ah)
-{
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
-
-	/* RX shut off when elecidle is asserted */
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x28000039);
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x53160824);
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980579);
-                                                                                           
-	/* Shut off PLL and CLKREQ active in L1 */
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x001defff);
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
-	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x000e3007);
-                                                                                           
-	/* Load the new settings */
-	OS_REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
-}
 
 uint32_t
 ar5212GetRadioRev(struct ath_hal *ah)
@@ -326,7 +295,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
 {
 #define	AH_EEPROM_PROTECT(ah) \
-	(IS_PCIE(ah) ? AR_EEPROM_PROTECT_PCIE : AR_EEPROM_PROTECT)
+	(AH_PRIVATE(ah)->ah_ispcie)? AR_EEPROM_PROTECT_PCIE : AR_EEPROM_PROTECT)
 	struct ath_hal_5212 *ahp;
 	struct ath_hal *ah;
 	struct ath_hal_rf *rf;
@@ -358,6 +327,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 	val = OS_REG_READ(ah, AR_SREV) & AR_SREV_ID;
 	AH_PRIVATE(ah)->ah_macVersion = val >> AR_SREV_ID_S;
 	AH_PRIVATE(ah)->ah_macRev = val & AR_SREV_REVISION;
+	AH_PRIVATE(ah)->ah_ispcie = IS_5424(ah) || IS_2425(ah);
 
 	if (!ar5212IsMacSupported(AH_PRIVATE(ah)->ah_macVersion, AH_PRIVATE(ah)->ah_macRev)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
@@ -380,9 +350,9 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 
 	AH_PRIVATE(ah)->ah_phyRev = OS_REG_READ(ah, AR_PHY_CHIP_ID);
 
-	if (IS_PCIE(ah)) {
+	if (AH_PRIVATE(ah)->ah_ispcie) {
 		/* XXX: build flag to disable this? */
-		configurePciePowerSave(ah);
+		ath_hal_configPCIE(ah, AH_FALSE);
 	}
 
 	if (!ar5212ChipTest(ah)) {
@@ -472,7 +442,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 	val = OS_REG_READ(ah, AR_PCICFG);
 	val = MS(val, AR_PCICFG_EEPROM_SIZE);
 	if (val == 0) {
-		if (!IS_PCIE(ah)) {
+		if (!AH_PRIVATE(ah)->ah_ispcie) {
 			HALDEBUG(ah, HAL_DEBUG_ANY,
 			    "%s: unsupported EEPROM size %u (0x%x) found\n",
 			    __func__, val, val);
@@ -653,12 +623,12 @@ HAL_BOOL
 ar5212GetChannelEdges(struct ath_hal *ah,
 	uint16_t flags, uint16_t *low, uint16_t *high)
 {
-	if (flags & CHANNEL_5GHZ) {
+	if (flags & IEEE80211_CHAN_5GHZ) {
 		*low = 4915;
 		*high = 6100;
 		return AH_TRUE;
 	}
-	if ((flags & CHANNEL_2GHZ) &&
+	if ((flags & IEEE80211_CHAN_2GHZ) &&
 	    (ath_hal_eepromGetFlag(ah, AR_EEP_BMODE) ||
 	     ath_hal_eepromGetFlag(ah, AR_EEP_GMODE))) {
 		*low = 2312;
@@ -666,6 +636,42 @@ ar5212GetChannelEdges(struct ath_hal *ah,
 		return AH_TRUE;
 	}
 	return AH_FALSE;
+}
+
+/*
+ * Disable PLL when in L0s as well as receiver clock when in L1.
+ * This power saving option must be enabled through the Serdes.
+ *
+ * Programming the Serdes must go through the same 288 bit serial shift
+ * register as the other analog registers.  Hence the 9 writes.
+ *
+ * XXX Clean up the magic numbers.
+ */
+static void
+ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+{
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
+
+	/* RX shut off when elecidle is asserted */
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x28000039);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x53160824);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980579);
+                                                                                           
+	/* Shut off PLL and CLKREQ active in L1 */
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x001defff);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x000e3007);
+                                                                                           
+	/* Load the new settings */
+	OS_REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
+}
+
+static void
+ar5212DisablePCIE(struct ath_hal *ah)
+{
+	/* NB: fill in for 9100 */
 }
 
 /*

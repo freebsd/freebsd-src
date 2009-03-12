@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2007
+.Dd March 2, 2009
 .Dt VFS_GETOPT 9
 .Os
 .Sh NAME
@@ -35,7 +35,10 @@
 .Nm vfs_flagopt ,
 .Nm vfs_scanopt ,
 .Nm vfs_copyopt ,
-.Nm vfs_filteropt
+.Nm vfs_filteropt ,
+.Nm vfs_setopt ,
+.Nm vfs_setopt_part ,
+.Nm vfs_setopts
 .Nd "manipulate mount options and their values"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -61,6 +64,18 @@
 .Ft int
 .Fo vfs_filteropt
 .Fa "struct vfsoptlist *opts" "const char **legal"
+.Fc
+.Ft int
+.Fo vfs_setopt
+.Fa "struct vfsoptlist *opts" "const char *name" "void *value" "int len"
+.Fc
+.Ft int
+.Fo vfs_setopt_part
+.Fa "struct vfsoptlist *opts" "const char *name" "void *value" "int len"
+.Fc
+.Ft int
+.Fo vfs_setopts
+.Fa "struct vfsoptlist *opts" "const char *name" "const char *value"
 .Fc
 .Sh DESCRIPTION
 The
@@ -111,7 +126,7 @@ The
 .Fn vfs_scanopt
 function performs a
 .Xr vsscanf 3
-with the options value, using the given format,
+with the option's value, using the given format,
 into the specified variable arguments.
 The value must be a string (i.e.,
 .Dv NUL
@@ -119,10 +134,10 @@ terminated).
 .Pp
 The
 .Fn vfs_copyopt
-function creates a copy of the options value.
+function creates a copy of the option's value.
 The
 .Fa len
-argument must match the length of the options value exactly
+argument must match the length of the option's value exactly
 (i.e., a larger buffer will still cause
 .Fn vfs_copyout
 to fail with
@@ -134,6 +149,28 @@ function ensures that no unknown options were specified.
 A option is valid if its name matches one of the names in the
 list of legal names.
 An option may be prefixed with 'no', and still be considered valid.
+.Pp
+The
+.Fn vfs_setopt
+and
+.Fn vfs_setopt_part
+functions copy new data into the option's value.
+In
+.Fn vfs_setopt ,
+the
+.Fa len
+argument must match the length of the option's value exactly
+(i.e., a larger buffer will still cause
+.Fn vfs_copyout
+to fail with
+.Er EINVAL ) .
+.Pp
+The
+.Fn vfs_setopts
+function copies a new string into the option's value.
+The string, including
+.Dv NUL
+byte, must be no longer than the option's length.
 .Sh RETURN VALUES
 The
 .Fn vfs_getopt
@@ -179,7 +216,9 @@ not always mean the option does not exist, or is not a valid string.
 .Pp
 The
 .Fn vfs_copyopt
-function returns 0 if the copy was successful,
+and
+.Fn vfs_setopt
+functions return 0 if the copy was successful,
 .Er EINVAL
 if the option was found but the lengths did not match, and
 .Er ENOENT
@@ -190,6 +229,14 @@ The
 function returns 0 if all of the options are legal; otherwise,
 .Er EINVAL
 is returned.
+.Pp
+The
+.Fn vfs_setopts
+function returns 0 if the copy was successful,
+.Er EINVAL
+if the option was found but the string was too long, and
+.Er ENOENT
+if the option was not found.
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by

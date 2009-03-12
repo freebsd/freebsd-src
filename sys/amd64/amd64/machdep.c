@@ -716,7 +716,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
 
 /*
- * Clear registers on exec
+ * Reset registers to default values on exec.
  */
 void
 exec_setregs(td, entry, stack, ps_strings)
@@ -743,6 +743,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_es = _udatasel;
 	pcb->pcb_fs = _udatasel;
 	pcb->pcb_gs = _udatasel;
+	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
@@ -808,6 +809,9 @@ static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 
 static char dblfault_stack[PAGE_SIZE] __aligned(16);
+
+static char nmi0_stack[PAGE_SIZE] __aligned(16);
+CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
 struct amd64tss common_tss[MAXCPU];
 
@@ -1291,6 +1295,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	caddr_t kmdp;
 	int gsel_tss, x;
 	struct pcpu *pc;
+	struct nmi_pcpu *np;
 	u_int64_t msr;
 	char *env;
 
@@ -1365,7 +1370,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		setidt(x, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IDT_DE, &IDTVEC(div),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IDT_DB, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 1);
+	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 2);
  	setidt(IDT_BP, &IDTVEC(bpt),  SDT_SYSIGT, SEL_UPL, 0);
 	setidt(IDT_OF, &IDTVEC(ofl),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IDT_BR, &IDTVEC(bnd),  SDT_SYSIGT, SEL_KPL, 0);
@@ -1438,6 +1443,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* doublefault stack space, runs on ist1 */
 	common_tss[0].tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
 
+	/*
+	 * NMI stack, runs on ist2.  The pcpu pointer is stored just
+	 * above the start of the ist2 stack.
+	 */
+	np = ((struct nmi_pcpu *) &nmi0_stack[sizeof(nmi0_stack)]) - 1;
+	np->np_pcpu = (register_t) pc;
+	common_tss[0].tss_ist2 = (long) np;
+
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
 	common_tss[0].tss_iobase = sizeof(struct amd64tss);
 
@@ -1480,6 +1493,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
         env = getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
+
+#ifdef XENHVM
+	if (inw(0x10) == 0x49d2) {
+		if (bootverbose)
+			printf("Xen detected: disabling emulated block and network devices\n");
+		outw(0x10, 3);
+	}
+#endif
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);

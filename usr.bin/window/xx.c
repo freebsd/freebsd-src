@@ -44,6 +44,7 @@ static char rcsid[] =
 #include "xx.h"
 #include "tt.h"
 #include <stdlib.h>
+#include <strings.h>
 
 xxinit()
 {

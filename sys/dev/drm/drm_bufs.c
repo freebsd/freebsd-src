@@ -880,8 +880,7 @@ int drm_addbufs_pci(struct drm_device *dev, struct drm_buf_desc *request)
 	return ret;
 }
 
-int drm_addbufs_ioctl(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv)
+int drm_addbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_buf_desc *request = data;
 	int err;
@@ -1053,11 +1052,12 @@ int drm_mapbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	vaddr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
 #if __FreeBSD_version >= 600023
 	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED, OBJT_DEVICE, dev->devnode, foff);
+	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
+	    dev->devnode, foff);
 #else
 	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED, SLIST_FIRST(&dev->devnode->si_hlist),
-	    foff);
+	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC,
+	    SLIST_FIRST(&dev->devnode->si_hlist), foff);
 #endif
 	if (retcode)
 		goto done;

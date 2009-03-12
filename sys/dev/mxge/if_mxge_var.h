@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-Copyright (c) 2006-2007, Myricom Inc.
+Copyright (c) 2006-2009, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -263,7 +263,10 @@ struct mxge_softc {
 #define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
 #define MXGE_PCI_DEVICE_Z8E 	0x0008
 #define MXGE_PCI_DEVICE_Z8E_9 	0x0009
+#define MXGE_PCI_REV_Z8E	0
+#define MXGE_PCI_REV_Z8ES	1
 #define MXGE_XFP_COMPLIANCE_BYTE	131
+#define MXGE_SFP_COMPLIANCE_BYTE	  3
 
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)

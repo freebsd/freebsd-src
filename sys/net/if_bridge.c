@@ -220,6 +220,7 @@ struct bridge_softc {
 	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
 	struct bstp_state	sc_stp;		/* STP state */
 	uint32_t		sc_brtexceeded;	/* # of cache drops */
+	struct ifnet		*sc_ifaddr;	/* member mac copied from */
 	u_char			sc_defaddr[6];	/* Default MAC address */
 };
 
@@ -930,15 +931,16 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	 * the mac address of the bridge to the address of the next member, or
 	 * to its default address if no members are left.
 	 */
-	if (bridge_inherit_mac &&
-	    !memcmp(IF_LLADDR(sc->sc_ifp), IF_LLADDR(ifs), ETHER_ADDR_LEN)) {
-		if (LIST_EMPTY(&sc->sc_iflist))
+	if (bridge_inherit_mac && sc->sc_ifaddr == ifs) {
+		if (LIST_EMPTY(&sc->sc_iflist)) {
 			bcopy(sc->sc_defaddr,
 			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
-		else {
+			sc->sc_ifaddr = NULL;
+		} else {
 			fif = LIST_FIRST(&sc->sc_iflist)->bif_ifp;
 			bcopy(IF_LLADDR(fif),
 			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+			sc->sc_ifaddr = fif;
 		}
 	}
 
@@ -1039,8 +1041,10 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	 * the default randomly generated one.
 	 */
 	if (bridge_inherit_mac && LIST_EMPTY(&sc->sc_iflist) &&
-	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN))
+	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN)) {
 		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+		sc->sc_ifaddr = ifs;
+	}
 
 	ifs->if_bridge = sc;
 	bstp_create(&sc->sc_stp, &bif->bif_stp, bif->bif_ifp);

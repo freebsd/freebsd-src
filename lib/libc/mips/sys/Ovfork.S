@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 	ASMSTR("$NetBSD: compat_Ovfork.S,v 1.1 2005/09/17 11:49:39 tsutsui Exp $")
 #endif /* LIBC_SCCS and not lint */
 
-WARN_REFERENCES(vfork, \
-    "warning: reference to compatibility vfork(); include <unistd.h> for correct reference")
-
 /*
  * pid = vfork();
  *

@@ -2183,17 +2183,173 @@ Redirect and LSNAT support follow closely the syntax used in
 See Section
 .Sx EXAMPLES
 for some examples on how to do redirect and lsnat.
+.Sh SCTP NAT SUPPORT
+Sctp nat can be configured in a simillar manner to TCP through the
+ipfw command line tool
+.Xr ipfw 8
+, the main difference is that 
+.Nm sctp nat 
+does not do port
+translation. Since the local and global side ports will be the same,
+there is no need to specify both. Ports are redirected as follows:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat 
+.Ar nat_number 
+.Cm config if
+.Ar nic
+.Cm redirect_port sctp
+.Ar ip_address [,addr_list] {[port | port-port] [,ports]}
+.Ek
+.Ed
+.Pp
+.
+Most
+.B sctp nat
+configuration can be done in real-time through the
+.B sysctl(8)
+interface. All may be changed dynamically, though the hash_table size will only
+change for new 
+.Nm nat 
+instances. See 
+.Sx SYSCTL VARIABLES 
+for more info.
 .Sh SYSCTL VARIABLES
 A set of
 .Xr sysctl 8
 variables controls the behaviour of the firewall and
 associated modules
-.Pq Nm dummynet , bridge .
+.Pq Nm dummynet , bridge , sctp nat .
 These are shown below together with their default value
 (but always check with the
 .Xr sysctl 8
 command what value is actually in use) and meaning:
 .Bl -tag -width indent
+.It Va net.inet.ip.alias.sctp.accept_global_ootb_addip: No 0
+Defines how the 
+.Nm nat 
+responds to receipt of global OOTB ASCONF-AddIP:
+.Bl -tag -width indent
+.It Cm 0
+No response (unless a partially matching association exists -
+ports and vtags match but global address does not)
+.It Cm 1
+.Nm nat 
+will accept and process all OOTB global AddIP messages.
+.El
+.Pp
+Option 1 should never be selected as this forms a security risk. An attacker can
+establish multiple fake associations by sending AddIP messages.
+.It Va net.inet.ip.alias.sctp.chunk_proc_limit: No 5
+Defines the maximum number of chunks in an SCTP packet that will be parsed for a
+packet that matches an existing association. This value is enforced to be greater or equal
+than 
+.Cm net.inet.ip.alias.sctp.initialising_chunk_proc_limit . 
+A high value is
+a DoS risk yet setting too low a value may result in important control chunks in
+the packet not being located and parsed.
+.It Va net.inet.ip.alias.sctp.error_on_ootb: No 1
+Defines when the 
+.Nm nat 
+responds to any Out-of-the-Blue (OOTB) packets with ErrorM
+packets. An OOTB packet is a packet that arrives with no existing association
+registered in the 
+.Nm nat 
+and is not an INIT or ASCONF-AddIP packet:
+.Bl -tag -width indent
+.It Cm 0
+ErrorM is never sent in response to OOTB packets.
+.It Cm 1
+ErrorM is only sent to OOTB packets received on the local side.
+.It Cm 2
+ErrorM is sent to the local side and on the global side ONLY if there is a
+partial match (ports and vtags match but the source global IP does not). This
+value is only useful if the 
+.Nm nat 
+is tracking global IP addresses.
+.It Cm 3
+ErrorM is sent in response to all OOTB packets on both the local and global side
+(DoS risk).
+.El
+.Pp
+At the moment the default is 0, since the ErrorM packet is not yet
+supported by most SCTP stacks. When it is supported, and if not tracking
+global addresses, we recommend setting this value to 1 to allow
+multi-homed local hosts to function with the 
+.Nm nat .
+To track global addresses, we recommend setting this value to 2 to
+allow global hosts to be informed when they need to (re)send an
+ASCONF-AddIP. Value 3 should never be chosen (except for debugging) as
+the
+.Nm nat 
+will respond to all OOTB global packets (a DoS risk).
+.It Va net.inet.ip.alias.sctp.hashtable_size: No 2003
+Size of hash tables used for 
+.Nm nat 
+lookups (100 < prime_number > 1000001)
+This value sets the 
+.Nm hash table 
+size for any future created 
+.Nm nat
+instance and therefore must be set prior to creating a 
+.Nm nat 
+instance.
+The table sizes my be changed to suit specific needs. If there will be few
+concurrent associations, and memory is scarce, you may make these smaller.  If
+there will be many thousands (or millions) of concurrent associations, you
+should make these larger. A prime number is best for the table size. The sysctl
+update function will adjust your input value to the next highest prime number.
+.It Va net.inet.ip.alias.sctp.holddown_time:  No 0
+Hold association in table for this many seconds after receiving a
+SHUTDOWN-COMPLETE.  This allows endpoints to correct shutdown gracefully if a
+shutdown_complete is lost and retransmissions are required.
+.It Va net.inet.ip.alias.sctp.init_timer: No 15
+Timeout value while waiting for (INIT-ACK|AddIP-ACK).
+This value cannot be 0.
+.It Va net.inet.ip.alias.sctp.initialising_chunk_proc_limit: No 2
+Defines the maximum number of chunks in an SCTP packet that will be parsed when
+no existing association exists that matches that packet. Ideally this packet
+will only be an INIT or ASCONF-AddIP packet. A higher value may become a DoS
+risk as malformed packets can consume processing resources.
+.It Va net.inet.ip.alias.sctp.param_proc_limit: No 25
+Defines the maximum number of parameters within a chunk that will be parsed in a
+packet. As for other similar sysctl variables, larger values pose a DoS risk.
+.It Va net.inet.ip.alias.sctp.log_level: No 0 
+Level of detail in the system log messages (0 \- minimal, 1 \- event,
+2 \- info, 3 \- detail, 4 \- debug, 5 \- max debug). May be a good
+option in high loss environments.
+.It Va net.inet.ip.alias.sctp.shutdown_time: No 15
+Timeout value while waiting for SHUTDOWN-COMPLETE.
+This value cannot be 0.
+.It Va net.inet.ip.alias.sctp.track_global_addresses: No 0
+Enables/disables global IP address tracking within the 
+.Nm nat 
+and places an
+upper limit on the number of addresses tracked for each association:
+.Bl -tag -width indent
+.It Cm 0
+Global tracking is disabled
+.It Cm >1
+Enables tracking, the maximum number of addresses tracked for each
+association is limited to this value
+.El
+.Pp
+This variable is fully dynamic, the new value will be adopted for all newly
+arriving associations, existing association are treated as they were previously.
+Global tracking will decrease the number of collisions within the 
+.Nm nat 
+at a cost
+of increased processing load, memory usage, complexity, and possible 
+.Nm nat 
+state
+problems in complex networks with multiple 
+.Nm nats . 
+We recommend not tracking
+global IP addresses, this will still result in a fully functional 
+.Nm nat .
+.It Va net.inet.ip.alias.sctp.up_timer: No 300
+Timeout value to keep an association up with no traffic.
+This value cannot be 0.
 .It Va net.inet.ip.dummynet.expire : No 1
 Lazily delete dynamic pipes/queue once they have no pending traffic.
 You can disable this by setting the variable to 0, in which case
@@ -2718,6 +2874,15 @@ as part of a Summer of Code 2005 project.
 Work on
 .Nm dummynet
 traffic shaper supported by Akamba Corp.
+.Pp
+Sctp
+.Nm nat
+support has been developed by
+.An The Centre for Advanced Internet Architectures (CAIA) Aq http://www.caia.swin.edu.au .
+The primary developers and maintainers are David Hayes and Jason But.
+For further information visit:
+.Aq http://www.caia.swin.edu.au/urp/SONATA
+.
 .Sh BUGS
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes

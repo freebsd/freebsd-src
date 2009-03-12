@@ -43,4 +43,6 @@ struct at91_ivar {
 	struct resource_list resources;
 };
 
+extern uint32_t at91_master_clock;
+
 #endif /* _AT91VAR_H_ */

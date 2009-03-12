@@ -222,6 +222,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(TDK, DFL5610WS), 0},
 	{ PCMCIA_CARD(TELECOMDEVICE, LM5LT), 0 },
 	{ PCMCIA_CARD(TELECOMDEVICE, TCD_HPC100), NE2000DVF_AX88X90},
+	{ PCMCIA_CARD(TJ, PTJ_LAN_T), 0 },
 	{ PCMCIA_CARD(ZONET, ZEN), 0},
 	{ { NULL } }
 };
@@ -1017,7 +1018,7 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	return (failed ? 0 : val);
 }
 
-static void
+static int
 ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ed_softc *sc;
@@ -1028,7 +1029,7 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	 * 0x11 through 0x1f.
 	 */
 	if (phy >= 0x11)
-		return;
+		return (0);
 
 	sc = device_get_softc(dev);
 	(*sc->mii_writebits)(sc, 0xffffffff, 32);
@@ -1039,6 +1040,7 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	(*sc->mii_writebits)(sc, ED_MII_TURNAROUND, ED_MII_TURNAROUND_BITS);
 	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
+	return (0);
 }
 
 static int

@@ -400,10 +400,15 @@ ng_pred1_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		return (ENOMEM);
 	}
 
+	/* We must own the mbuf chain exclusively to modify it. */
+	m = m_unshare(m, M_DONTWAIT);
+	if (m == NULL) {
+		priv->stats.Errors++;
+		return (ENOMEM);
+	}
+
 	/* Work with contiguous regions of memory. */
 	m_copydata(m, 0, inlen, (caddr_t)(priv->inbuf + 2));
-
-	NG_FREE_M(m);
 
 	lenn = htons(inlen & 0x7FFF);
 
@@ -437,12 +442,14 @@ ng_pred1_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	outlen += 2;
 
 	/* Return packet in an mbuf. */
-	*resultp = m_devget((caddr_t)out, outlen, 0, NULL, NULL);
-	if (*resultp == NULL) {
-	    priv->stats.Errors++;
-	    return (ENOMEM);
-	};
-
+	m_copyback(m, 0, outlen, (caddr_t)out);
+	if (m->m_pkthdr.len < outlen) {
+		m_freem(m);
+		priv->stats.Errors++;
+		return (ENOMEM);
+	} else if (outlen < m->m_pkthdr.len)
+		m_adj(m, outlen - m->m_pkthdr.len);
+	*resultp = m;
 	priv->stats.OutOctets += outlen;
 
 	return (0);
@@ -471,6 +478,13 @@ ng_pred1_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		return (ENOMEM);
 	}
 
+	/* We must own the mbuf chain exclusively to modify it. */
+	m = m_unshare(m, M_DONTWAIT);
+	if (m == NULL) {
+		priv->stats.Errors++;
+		return (ENOMEM);
+	}
+
 	/* Work with contiguous regions of memory. */
 	m_copydata(m, 0, inlen, (caddr_t)priv->inbuf);
 
@@ -485,13 +499,12 @@ ng_pred1_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 
 	/* Is data compressed or not really? */
 	if (cf) {
-		NG_FREE_M(m);
-
 		priv->stats.FramesComp++;
 		len1 = Pred1Decompress(node, priv->inbuf + 2, priv->outbuf,
 		    inlen - 4, PRED1_BUF_SIZE);
 		if (len != len1) {
 			/* Error is detected. Send reset request */
+			m_freem(m);
 			priv->stats.Errors++;
 			log(LOG_NOTICE, "ng_pred1: Comp length error (%d) "
 			    "--> len (%d)\n", len, len1);
@@ -510,17 +523,21 @@ ng_pred1_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		fcs = Crc16(fcs, priv->inbuf + inlen - 2, 2);
 
 		if (fcs != PPP_GOODFCS) {
+			m_freem(m);
 			priv->stats.Errors++;
 	    		log(LOG_NOTICE, "ng_pred1: Pred1: Bad CRC-16\n");
 			return (EIO);
 		}
 
 		/* Return packet in an mbuf. */
-		*resultp = m_devget((caddr_t)priv->outbuf, len, 0, NULL, NULL);
-		if (*resultp == NULL) {
+		m_copyback(m, 0, len, (caddr_t)priv->outbuf);
+		if (m->m_pkthdr.len < len) {
+			m_freem(m);
 			priv->stats.Errors++;
 			return (ENOMEM);
-		};
+		} else if (len < m->m_pkthdr.len)
+			m_adj(m, len - m->m_pkthdr.len);
+		*resultp = m;
 
 	} else {
 		priv->stats.FramesUncomp++;

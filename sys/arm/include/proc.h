@@ -51,6 +51,8 @@ struct mdthread {
 	int md_ptrace_instr;
 	int md_ptrace_addr;
 	void *md_tp;
+	void *md_ras_start;
+	void *md_ras_end;
 };
 
 struct mdproc {

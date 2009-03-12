@@ -413,12 +413,6 @@ udp_input(struct mbuf *m, int off)
 			if (inp->inp_faddr.s_addr != INADDR_ANY &&
 			    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 				continue;
-			/*
-			 * XXX: Do not check source port of incoming datagram
-			 * unless inp_connect() has been called to bind the
-			 * fport part of the 4-tuple; the source could be
-			 * trying to talk to us with an ephemeral port.
-			 */
 			if (inp->inp_fport != 0 &&
 			    inp->inp_fport != uh->uh_sport)
 				continue;
@@ -432,54 +426,23 @@ udp_input(struct mbuf *m, int off)
 			imo = inp->inp_moptions;
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 			    imo != NULL) {
-				struct sockaddr_in	 sin;
-				struct in_msource	*ims;
-				int			 blocked, mode;
-				size_t			 idx;
+				struct sockaddr_in	 group;
+				int			 blocked;
 
-				bzero(&sin, sizeof(struct sockaddr_in));
-				sin.sin_len = sizeof(struct sockaddr_in);
-				sin.sin_family = AF_INET;
-				sin.sin_addr = ip->ip_dst;
+				bzero(&group, sizeof(struct sockaddr_in));
+				group.sin_len = sizeof(struct sockaddr_in);
+				group.sin_family = AF_INET;
+				group.sin_addr = ip->ip_dst;
 
-				blocked = 0;
-				idx = imo_match_group(imo, ifp,
-				    (struct sockaddr *)&sin);
-				if (idx == -1) {
-					/*
-					 * No group membership for this socket.
-					 * Do not bump udps_noportbcast, as
-					 * this will happen further down.
-					 */
-					blocked++;
-				} else {
-					/*
-					 * Check for a multicast source filter
-					 * entry on this socket for this group.
-					 * MCAST_EXCLUDE is the default
-					 * behaviour.  It means default accept;
-					 * entries, if present, denote sources
-					 * to be excluded from delivery.
-					 */
-					ims = imo_match_source(imo, idx,
-					    (struct sockaddr *)&udp_in);
-					mode = imo->imo_mfilters[idx].imf_fmode;
-					if ((ims != NULL &&
-					     mode == MCAST_EXCLUDE) ||
-					    (ims == NULL &&
-					     mode == MCAST_INCLUDE)) {
-#ifdef DIAGNOSTIC
-						if (bootverbose) {
-							printf("%s: blocked by"
-							    " source filter\n",
-							    __func__);
-						}
-#endif
+				blocked = imo_multi_filter(imo, ifp,
+					(struct sockaddr *)&group,
+					(struct sockaddr *)&udp_in);
+				if (blocked != MCAST_PASS) {
+					if (blocked == MCAST_NOTGMEMBER)
+						V_ipstat.ips_notmember++;
+					if (blocked == MCAST_NOTSMEMBER ||
+					    blocked == MCAST_MUTED)
 						V_udpstat.udps_filtermcast++;
-						blocked++;
-					}
-				}
-				if (blocked != 0) {
 					INP_RUNLOCK(inp);
 					continue;
 				}
@@ -982,10 +945,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * Jail may rewrite the destination address, so let it do
 		 * that before we use it.
 		 */
-		if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
-			error = EINVAL;
+		error = prison_remote_ip4(td->td_ucred, &sin->sin_addr);
+		if (error)
 			goto release;
-		}
 
 		/*
 		 * If a local address or port hasn't yet been selected, or if
@@ -1271,10 +1233,11 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EISCONN);
 	}
 	sin = (struct sockaddr_in *)nam;
-	if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
+	error = prison_remote_ip4(td->td_ucred, &sin->sin_addr);
+	if (error != 0) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_udbinfo);
-		return (EAFNOSUPPORT);
+		return (error);
 	}
 	error = in_pcbconnect(inp, nam, td->td_ucred);
 	if (error == 0)

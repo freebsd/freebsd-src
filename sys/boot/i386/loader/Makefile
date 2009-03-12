@@ -1,8 +1,7 @@
 # $FreeBSD$
 
-WITHOUT_SSP=
-
 .include <bsd.own.mk>
+MK_SSP=		no
 
 PROG=		loader.sym
 INTERNALPROG=
@@ -51,6 +50,9 @@ CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .endif
 .if !defined(LOADER_NO_GZIP_SUPPORT)
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
+.endif
+.if !defined(LOADER_NO_GPT_SUPPORT)
+CFLAGS+=	-DLOADER_GPT_SUPPORT
 .endif
 
 # Always add MI sources 

@@ -32,7 +32,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#60 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#61 $
  */
 
 #include <sys/types.h>
@@ -193,7 +193,7 @@ print_mem(FILE *fp, u_char *data, size_t len)
 	if (len > 0) {
 		fprintf(fp, "0x");
 		for (i = 0; i < len; i++)
-			fprintf(fp, "%x", data[i]);
+			fprintf(fp, "%02x", data[i]);
 	}
 }
 

@@ -96,6 +96,8 @@ ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
+ASSYM(MD_RAS_START, offsetof(struct mdthread, md_ras_start));
+ASSYM(MD_RAS_END, offsetof(struct mdthread, md_ras_end));
 
 ASSYM(TF_R0, offsetof(struct trapframe, tf_r0));
 ASSYM(TF_R1, offsetof(struct trapframe, tf_r1));

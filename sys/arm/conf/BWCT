@@ -108,7 +108,6 @@ device		bpf		# Berkeley packet filter
 #options USB_DEBUG
 #device		ohci
 #device		usb
-#device		ugen
 #device		umass		# Disks/Mass storage - Requires scbus and da
 
 #device		at91_qdmmc

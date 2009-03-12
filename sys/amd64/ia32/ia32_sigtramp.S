@@ -45,8 +45,8 @@ ia32_sigcode:
 	calll	*IA32_SIGF_HANDLER(%esp)
 	leal	IA32_SIGF_UC(%esp),%eax	/* get ucontext */
 	pushl	%eax
-	movl	IA32_UC_ES(%eax),%es	/* restore %es */
-	movl	IA32_UC_DS(%eax),%ds	/* restore %ds */
+	mov	IA32_UC_ES(%eax),%es	/* restore %es */
+	mov	IA32_UC_DS(%eax),%ds	/* restore %ds */
 	movl	$SYS_sigreturn,%eax
 	pushl	%eax			/* junk to fake return addr. */
 	int	$0x80			/* enter kernel with args */
@@ -60,8 +60,8 @@ freebsd4_ia32_sigcode:
 	calll	*IA32_SIGF_HANDLER(%esp)
 	leal	IA32_SIGF_UC4(%esp),%eax/* get ucontext */
 	pushl	%eax
-	movl	IA32_UC4_ES(%eax),%es	/* restore %es */
-	movl	IA32_UC4_DS(%eax),%ds	/* restore %ds */
+	mov	IA32_UC4_ES(%eax),%es	/* restore %es */
+	mov	IA32_UC4_DS(%eax),%ds	/* restore %ds */
 	movl	$344,%eax		/* 4.x SYS_sigreturn */
 	pushl	%eax			/* junk to fake return addr. */
 	int	$0x80			/* enter kernel with args */

@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2009 Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -186,6 +186,12 @@ static int t3b2_mac_reset(struct cmac *mac)
 	else
 		t3_set_reg_field(adap, A_MPS_CFG, F_PORT1ACTIVE, 0);
 
+	/* This will reduce the number of TXTOGGLES */
+	/* Clear: to stop the NIC traffic */
+	t3_set_reg_field(adap, A_MPS_CFG, F_ENFORCEPKT, 0);
+	/* Ensure TX drains */
+	t3_set_reg_field(adap, A_XGM_TX_CFG + oft, F_TXPAUSEEN, 0);
+
 	/* PCS in reset */
 	t3_write_reg(adap, A_XGM_RESET_CTRL + oft, F_MAC_RESET_);
 	(void) t3_read_reg(adap, A_XGM_RESET_CTRL + oft);    /* flush */
@@ -238,6 +244,9 @@ static int t3b2_mac_reset(struct cmac *mac)
 		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT0ACTIVE);
 	else
 		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT1ACTIVE);
+
+	/*  Set: re-enable NIC traffic */
+	t3_set_reg_field(adap, A_MPS_CFG, F_ENFORCEPKT, 1);
 
 	return 0;
 }
@@ -297,7 +306,7 @@ int t3_mac_set_num_ucast(struct cmac *mac, unsigned char n)
 	return 0;
 }
 
-static void disable_exact_filters(struct cmac *mac)
+void t3_mac_disable_exact_filters(struct cmac *mac)
 {
 	unsigned int i, reg = mac->offset + A_XGM_RX_EXACT_MATCH_LOW_1;
 
@@ -308,7 +317,7 @@ static void disable_exact_filters(struct cmac *mac)
 	t3_read_reg(mac->adapter, A_XGM_RX_EXACT_MATCH_LOW_1); /* flush */
 }
 
-static void enable_exact_filters(struct cmac *mac)
+void t3_mac_enable_exact_filters(struct cmac *mac)
 {
 	unsigned int i, reg = mac->offset + A_XGM_RX_EXACT_MATCH_HIGH_1;
 
@@ -415,7 +424,7 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 
 	if (adap->params.rev >= T3_REV_B2 &&
 	    (t3_read_reg(adap, A_XGM_RX_CTRL + mac->offset) & F_RXEN)) {
-		disable_exact_filters(mac);
+		t3_mac_disable_exact_filters(mac);
 		v = t3_read_reg(adap, A_XGM_RX_CFG + mac->offset);
 		t3_set_reg_field(adap, A_XGM_RX_CFG + mac->offset,
 				 F_ENHASHMCAST | F_COPYALLFRAMES, F_DISBCAST);
@@ -427,14 +436,14 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 		if (t3_wait_op_done(adap, reg + mac->offset,
 				    F_RXFIFO_EMPTY, 1, 20, 5)) {
 			t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
-			enable_exact_filters(mac);
+			t3_mac_enable_exact_filters(mac);
 			return -EIO;
 		}
 		t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset,
 				 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),
 				 V_RXMAXPKTSIZE(mtu));
 		t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
-		enable_exact_filters(mac);
+		t3_mac_enable_exact_filters(mac);
 	} else
 		t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset,
 				 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),
@@ -632,28 +641,26 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 	unsigned int tx_tcnt, tx_xcnt;
 	adapter_t *adap = mac->adapter;
 	struct mac_stats *s = &mac->stats;
-	unsigned int tx_mcnt = (unsigned int)s->tx_frames;
+	u64 tx_mcnt = s->tx_frames;
 
-	if (mac->multiport) {
-	  tx_mcnt = t3_read_reg(adap, A_XGM_STAT_TX_FRAME_LOW);
-	} else {
-	  tx_mcnt = (unsigned int)s->tx_frames;
-	}
+	if (mac->multiport)
+		tx_mcnt = t3_read_reg(adap, A_XGM_STAT_TX_FRAME_LOW);
+
 	status = 0;
 	tx_xcnt = 1; /* By default tx_xcnt is making progress*/
 	tx_tcnt = mac->tx_tcnt; /* If tx_mcnt is progressing ignore tx_tcnt*/
 	if (tx_mcnt == mac->tx_mcnt && mac->rx_pause == s->rx_pause) {
 		tx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
-						A_XGM_TX_SPI4_SOP_EOP_CNT +
-					       	mac->offset)));
+						      A_XGM_TX_SPI4_SOP_EOP_CNT +
+						      mac->offset)));
 		if (tx_xcnt == 0) {
 			t3_write_reg(adap, A_TP_PIO_ADDR,
 			     	A_TP_TX_DROP_CNT_CH0 + macidx(mac));
 			tx_tcnt = (G_TXDROPCNTCH0RCVD(t3_read_reg(adap,
 			      	A_TP_PIO_DATA)));
-		} else {
+		} else
 			goto out;
-		}
+
 	} else {
 		mac->toggle_cnt = 0;
 		goto out;

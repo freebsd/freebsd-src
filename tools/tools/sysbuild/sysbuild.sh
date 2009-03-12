@@ -420,7 +420,8 @@ log_it Installworld
 	> /mnt/_.iw 2>&1
 
 log_it distribution
-(cd /usr/src/etc && make distribution DESTDIR=/mnt ${SRCCONF} ) \
+(cd /usr/src/etc && make -m /usr/src/share/mk distribution \
+	DESTDIR=/mnt ${SRCCONF} ) \
 	> /mnt/_.dist 2>&1
 
 log_it Installkernel

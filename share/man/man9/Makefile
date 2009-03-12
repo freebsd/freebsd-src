@@ -575,7 +575,9 @@ MLINKS+=devstat.9 devicestat.9 \
 	devstat.9 devstat_end_transaction.9 \
 	devstat.9 devstat_remove_entry.9 \
 	devstat.9 devstat_start_transaction.9
-MLINKS+=disk.9 disk_create.9 \
+MLINKS+=disk.9 disk_alloc.9 \
+	disk.9 disk_create.9 \
+	disk.9 disk_gone.9 \
 	disk.9 disk_destroy.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 net_add_domain.9 \
@@ -1241,7 +1243,10 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_filteropt.9 \
 	vfs_getopt.9 vfs_flagopt.9 \
 	vfs_getopt.9 vfs_getopts.9 \
-	vfs_getopt.9 vfs_scanopt.9
+	vfs_getopt.9 vfs_scanopt.9 \
+	vfs_getopt.9 vfs_setopt.9 \
+	vfs_getopt.9 vfs_setopt_part.9 \
+	vfs_getopt.9 vfs_setopts.9
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9 \

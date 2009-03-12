@@ -255,19 +255,18 @@ struct ath_softc {
 				sc_wmetkipmic:1,/* can do WME+TKIP MIC */
 				sc_resume_up: 1,/* on resume, start all vaps */
 				sc_tdma	    : 1,/* TDMA in use */
+				sc_setcca   : 1,/* set/clr CCA with TDMA */
 				sc_resetcal : 1;/* reset cal state next trip */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
-#define	IEEE80211_MODE_HALF	(IEEE80211_MODE_MAX+0)
-#define	IEEE80211_MODE_QUARTER	(IEEE80211_MODE_MAX+1)
-	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX+2];
+	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
 	HAL_OPMODE		sc_opmode;	/* current operating mode */
 	u_int16_t		sc_curtxpow;	/* current tx power limit */
 	u_int16_t		sc_curaid;	/* current association id */
-	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
+	struct ieee80211_channel *sc_curchan;	/* current installed channel */
 	u_int8_t		sc_curbssid[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
 	struct {
@@ -322,6 +321,8 @@ struct ath_softc {
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
+	int			sc_wd_timer;	/* count down for wd timer */
+	struct callout		sc_wd_ch;	/* tx watchdog timer */
 
 	struct ath_descdma	sc_bdma;	/* beacon descriptors */
 	ath_bufhead		sc_bbuf;	/* beacon buffers */
@@ -702,8 +703,8 @@ void	ath_intr(void *);
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
 
-#define ath_hal_gpioCfgOutput(_ah, _gpio) \
-        ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio)))
+#define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
+        ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))
 #define ath_hal_gpioset(_ah, _gpio, _b) \
         ((*(_ah)->ah_gpioSet)((_ah), (_gpio), (_b)))
 #define ath_hal_gpioget(_ah, _gpio) \

@@ -59,10 +59,7 @@ static int rec_rdelete(BTREE *, recno_t);
  *	RET_ERROR, RET_SUCCESS and RET_SPECIAL if the key not found.
  */
 int
-__rec_delete(dbp, key, flags)
-	const DB *dbp;
-	const DBT *key;
-	u_int flags;
+__rec_delete(const DB *dbp, const DBT *key, u_int flags)
 {
 	BTREE *t;
 	recno_t nrec;
@@ -115,9 +112,7 @@ einval:		errno = EINVAL;
  *	RET_ERROR, RET_SUCCESS and RET_SPECIAL if the key not found.
  */
 static int
-rec_rdelete(t, nrec)
-	BTREE *t;
-	recno_t nrec;
+rec_rdelete(BTREE *t, recno_t nrec)
 {
 	EPG *e;
 	PAGE *h;
@@ -143,16 +138,13 @@ rec_rdelete(t, nrec)
  *
  * Parameters:
  *	t:	tree
- *	index:	index on current page to delete
+ *	idx:	index on current page to delete
  *
  * Returns:
  *	RET_SUCCESS, RET_ERROR.
  */
 int
-__rec_dleaf(t, h, index)
-	BTREE *t;
-	PAGE *h;
-	u_int32_t index;
+__rec_dleaf(BTREE *t, PAGE *h, u_int32_t idx)
 {
 	RLEAF *rl;
 	indx_t *ip, cnt, offset;
@@ -170,7 +162,7 @@ __rec_dleaf(t, h, index)
 	 * down, overwriting the deleted record and its index.  If the record
 	 * uses overflow pages, make them available for reuse.
 	 */
-	to = rl = GETRLEAF(h, index);
+	to = rl = GETRLEAF(h, idx);
 	if (rl->flags & P_BIGDATA && __ovfl_delete(t, rl->bytes) == RET_ERROR)
 		return (RET_ERROR);
 	nbytes = NRLEAF(rl);
@@ -183,8 +175,8 @@ __rec_dleaf(t, h, index)
 	memmove(from + nbytes, from, (char *)to - from);
 	h->upper += nbytes;
 
-	offset = h->linp[index];
-	for (cnt = &h->linp[index] - (ip = &h->linp[0]); cnt--; ++ip)
+	offset = h->linp[idx];
+	for (cnt = &h->linp[idx] - (ip = &h->linp[0]); cnt--; ++ip)
 		if (ip[0] < offset)
 			ip[0] += nbytes;
 	for (cnt = &h->linp[NEXTINDEX(h)] - ip; --cnt; ++ip)

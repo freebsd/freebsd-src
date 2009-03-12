@@ -92,6 +92,7 @@ archive_write_set_format_cpio(struct archive *_a)
 	a->format_data = cpio;
 
 	a->pad_uncompressed = 1;
+	a->format_name = "cpio";
 	a->format_write_header = archive_write_cpio_header;
 	a->format_write_data = archive_write_cpio_data;
 	a->format_finish_entry = archive_write_cpio_finish_entry;

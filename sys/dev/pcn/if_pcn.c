@@ -144,7 +144,7 @@ static void pcn_init(void *);
 static void pcn_init_locked(struct pcn_softc *);
 static void pcn_stop(struct pcn_softc *);
 static void pcn_watchdog(struct ifnet *);
-static void pcn_shutdown(device_t);
+static int pcn_shutdown(device_t);
 static int pcn_ifmedia_upd(struct ifnet *);
 static void pcn_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -1458,8 +1458,7 @@ pcn_watchdog(ifp)
  * RX and TX lists.
  */
 static void
-pcn_stop(sc)
-	struct pcn_softc	*sc;
+pcn_stop(struct pcn_softc *sc)
 {
 	register int		i;
 	struct ifnet		*ifp;
@@ -1510,9 +1509,8 @@ pcn_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
-pcn_shutdown(dev)
-	device_t		dev;
+static int
+pcn_shutdown(device_t dev)
 {
 	struct pcn_softc	*sc;
 
@@ -1523,5 +1521,5 @@ pcn_shutdown(dev)
 	pcn_stop(sc);
 	PCN_UNLOCK(sc);
 
-	return;
+	return 0;
 }

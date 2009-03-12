@@ -34,7 +34,6 @@ FBSD_1.0 {
 	vfork;
 	brk;
 	cerror;		/* XXX - Should this be .cerror (see sys/cerror.S)? */
-	fork;
 	sbrk;
 };
 
@@ -57,12 +56,9 @@ FBSDprivate_1.0 {
 	__siglongjmp;
 	__sys_vfork;
 	_vfork;
-	_brk;
 	end;		/* XXX - Should this be _end (see sys/brk.S)? */
 	curbrk;
 	minbrk;
 	_brk;
-	__sys_fork;
-	_fork;
 	_sbrk;
 };

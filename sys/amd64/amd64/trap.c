@@ -386,7 +386,6 @@ trap(struct trapframe *frame)
 #ifdef DEV_ISA
 		case T_NMI:
 			/* machine/parity/power fail/"kitchen sink" faults */
-			/* XXX Giant */
 			if (isa_nmi(code) == 0) {
 #ifdef KDB
 				/*
@@ -416,13 +415,8 @@ trap(struct trapframe *frame)
 
 		case T_DNA:
 			/* transparent fault (due to context switch "late") */
-			if (fpudna())
-				goto userout;
-			printf("pid %d killed due to lack of floating point\n",
-				p->p_pid);
-			i = SIGKILL;
-			ucode = 0;
-			break;
+			fpudna();
+			goto userout;
 
 		case T_FPOPFLT:		/* FPU operand fetch fault */
 			ucode = ILL_COPROC;
@@ -450,11 +444,9 @@ trap(struct trapframe *frame)
 			 * XXX this should be fatal unless the kernel has
 			 * registered such use.
 			 */
-			if (fpudna()) {
-				printf("fpudna in kernel mode!\n");
-				goto out;
-			}
-			break;
+			fpudna();
+			printf("fpudna in kernel mode!\n");
+			goto out;
 
 		case T_STKFLT:		/* stack fault */
 			break;
@@ -537,7 +529,6 @@ trap(struct trapframe *frame)
 
 #ifdef DEV_ISA
 		case T_NMI:
-			/* XXX Giant */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
 #ifdef KDB
@@ -827,9 +818,6 @@ syscall(struct trapframe *frame)
 	orig_tf_rflags = frame->tf_rflags;
 
 	if (p->p_sysent->sv_prepsyscall) {
-		/*
-		 * The prep code is MP aware.
-		 */
 		(*p->p_sysent->sv_prepsyscall)(frame, (int *)args, &code, &params);
 	} else {
 		if (code == SYS_syscall || code == SYS___syscall) {
@@ -848,10 +836,6 @@ syscall(struct trapframe *frame)
  		callp = &p->p_sysent->sv_table[code];
 
 	narg = callp->sy_narg;
-
-	/*
-	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
-	 */
 	KASSERT(narg <= sizeof(args) / sizeof(args[0]),
 	    ("Too many syscall arguments!"));
 	error = 0;

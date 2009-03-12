@@ -585,8 +585,6 @@ abort2(struct thread *td, struct abort2_args *uap)
 	void *uargs[16];
 	int error, i, sig;
 
-	error = 0;	/* satisfy compiler */
-
 	/*
 	 * Do it right now so we can log either proper call of abort2(), or
 	 * note, that invalid argument was passed. 512 is big enough to

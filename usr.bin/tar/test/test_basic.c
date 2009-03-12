@@ -27,16 +27,23 @@ __FBSDID("$FreeBSD$");
 
 
 static void
-basic_tar(const char *target, const char *pack_options, const char *unpack_options)
+basic_tar(const char *target, const char *pack_options,
+    const char *unpack_options, const char *flist)
 {
 	struct stat st, st2;
+#ifndef _WIN32
 	char buff[128];
+#endif
 	int r;
 
 	assertEqualInt(0, mkdir(target, 0775));
 
 	/* Use the tar program to create an archive. */
-	r = systemf("%s cf - %s `cat filelist` >%s/archive 2>%s/pack.err", testprog, pack_options, target, target);
+#ifndef _WIN32
+	r = systemf("%s cf - %s `cat %s` >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
+#else
+	r = systemf("%s cf - %s %s >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
+#endif
 	failure("Error invoking %s cf -", testprog, pack_options);
 	assertEqualInt(r, 0);
 
@@ -65,7 +72,11 @@ basic_tar(const char *target, const char *pack_options, const char *unpack_optio
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
+#ifndef _WIN32
 		assertEqualInt(0644, st.st_mode & 0777);
+#else
+		assertEqualInt(0600, st.st_mode & 0700);
+#endif
 		assertEqualInt(10, st.st_size);
 		failure("file %s/file", target);
 		assertEqualInt(2, st.st_nlink);
@@ -77,7 +88,11 @@ basic_tar(const char *target, const char *pack_options, const char *unpack_optio
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
+#ifndef _WIN32
 		assertEqualInt(0644, st2.st_mode & 0777);
+#else
+		assertEqualInt(0600, st2.st_mode & 0700);
+#endif
 		assertEqualInt(10, st2.st_size);
 		failure("file %s/linkfile", target);
 		assertEqualInt(2, st2.st_nlink);
@@ -87,6 +102,7 @@ basic_tar(const char *target, const char *pack_options, const char *unpack_optio
 		assertEqualInt(st.st_ino, st2.st_ino);
 	}
 
+#ifndef _WIN32
 	/* Symlink */
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", target, errno);
@@ -102,13 +118,18 @@ basic_tar(const char *target, const char *pack_options, const char *unpack_optio
 			assertEqualString(buff, "file");
 		}
 	}
+#endif
 
 	/* dir */
 	r = lstat("dir", &st);
 	if (r == 0) {
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
+#ifndef _WIN32
 		assertEqualInt(0775, st.st_mode & 0777);
+#else
+		assertEqualInt(0700, st.st_mode & 0700);
+#endif
 	}
 
 	chdir("..");
@@ -119,6 +140,7 @@ DEFINE_TEST(test_basic)
 	int fd;
 	int filelist;
 	int oldumask;
+	const char *flist;
 
 	oldumask = umask(0);
 
@@ -148,11 +170,16 @@ DEFINE_TEST(test_basic)
 	/* All done. */
 	close(filelist);
 
+#ifndef _WIN32
+	flist = "filelist";
+#else
+	flist = "file linkfile symlink dir";
+#endif
 	/* Archive/dearchive with a variety of options. */
-	basic_tar("copy", "", "");
+	basic_tar("copy", "", "", flist);
 	/* tar doesn't handle cpio symlinks correctly */
 	/* basic_tar("copy_odc", "--format=odc", ""); */
-	basic_tar("copy_ustar", "--format=ustar", "");
+	basic_tar("copy_ustar", "--format=ustar", "", flist);
 
 	umask(oldumask);
 }

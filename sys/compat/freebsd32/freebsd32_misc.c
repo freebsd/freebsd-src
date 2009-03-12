@@ -2639,8 +2639,7 @@ freebsd32_nmount(struct thread *td,
     } */ *uap)
 {
 	struct uio *auio;
-	struct iovec *iov;
-	int error, k;
+	int error;
 
 	AUDIT_ARG(fflags, uap->flags);
 
@@ -2662,14 +2661,8 @@ freebsd32_nmount(struct thread *td,
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	for (iov = auio->uio_iov, k = 0; k < uap->iovcnt; ++k, ++iov) {
-		if (iov->iov_len > MMAXOPTIONLEN) {
-			free(auio, M_IOV);
-			return (EINVAL);
-		}
-	}
-
 	error = vfs_donmount(td, uap->flags, auio);
+
 	free(auio, M_IOV);
 	return error;
 }

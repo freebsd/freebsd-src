@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
  *
- * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#12
+ * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#17
  */
 
 #include <sys/cdefs.h>
@@ -496,7 +496,7 @@ static const struct bsm_errno bsm_errnos[] = {
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	ES("Malfored Macho file") },
+	ES("Malformed Macho file") },
 	{ BSM_ERRNO_EPOLICY,
 #ifdef EPOLICY
 	EPOLICY,

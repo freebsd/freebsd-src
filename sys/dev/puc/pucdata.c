@@ -530,6 +530,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_8S, 0x18, 0, 8,
 	},
 
+	{   0x1393, 0x1682, 0xffff, 0,
+	    "Moxa Technologies, CP-168EL/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x18, 0, 8,
+	},
+
 	{   0x13a8, 0x0158, 0xffff, 0,
 	    "Cronyx Omega2-PCI",
 	    DEFAULT_RCLK * 8,
@@ -577,6 +583,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Lava Computers Octo B",
 	    DEFAULT_RCLK,
 	    PUC_PORT_4S, 0x10, 4, 0,
+	},
+
+	{   0x1409, 0x7268, 0xffff, 0,
+	    "Sunix SUN1888",
+	    0,
+	    PUC_PORT_2P, 0x10, 0, 8,
 	},
 
 	{   0x1409, 0x7168, 0xffff, 0,
@@ -748,6 +760,18 @@ const struct puc_cfg puc_pci_devices[] = {
 	    0,
 	    PUC_PORT_2P, 0x10, 8, 0,
 	}, 
+
+	/*
+	 * This is more specific than the generic NM9835 entry that follows, and
+	 * is placed here to _prevent_ puc from claiming this single port card.
+	 *
+	 * uart(4) will claim this device.
+	 */
+	{   0x9710, 0x9835, 0x1000, 1,
+	    "NetMos NM9835 based 1-port serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_1S, 0x10, 4, 0,
+	},
 
 	{   0x9710, 0x9835, 0xffff, 0,
 	    "NetMos NM9835 Dual UART and 1284 Printer port",

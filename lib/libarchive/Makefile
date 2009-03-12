@@ -25,6 +25,9 @@ SRCS=	archive_check_magic.c				\
 	archive_entry_link_resolver.c			\
 	archive_read.c					\
 	archive_read_data_into_fd.c			\
+	archive_read_disk.c				\
+	archive_read_disk_entry_from_file.c		\
+	archive_read_disk_set_standard_lookup.c		\
 	archive_read_extract.c				\
 	archive_read_open_fd.c				\
 	archive_read_open_file.c			\

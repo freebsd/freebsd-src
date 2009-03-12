@@ -459,6 +459,13 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		return (ENOMEM);
 	}
 
+	/* We must own the mbuf chain exclusively to modify it. */
+	m = m_unshare(m, M_DONTWAIT);
+	if (m == NULL) {
+		priv->stats.Errors++;
+		return (ENOMEM);
+	}
+
 	/* Work with contiguous regions of memory. */
 	m_copydata(m, 0, inlen, (caddr_t)priv->inbuf);
 	outlen = DEFLATE_BUF_SIZE;
@@ -497,19 +504,19 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		priv->stats.FramesUncomp++;
 		priv->stats.OutOctets+=inlen;
 	} else {
-		NG_FREE_M(m);
-
 		/* Install header. */
 		((u_int16_t *)priv->outbuf)[0] = htons(PROT_COMPD);
 		((u_int16_t *)priv->outbuf)[1] = htons(priv->seqnum);
 
 		/* Return packet in an mbuf. */
-		*resultp = m_devget((caddr_t)priv->outbuf, outlen, 0, NULL,
-		    NULL);
-		if (*resultp == NULL) {
+		m_copyback(m, 0, outlen, (caddr_t)priv->outbuf);
+		if (m->m_pkthdr.len < outlen) {
+			m_freem(m);
 			priv->stats.Errors++;
 			return (ENOMEM);
-		};
+		} else if (outlen < m->m_pkthdr.len)
+			m_adj(m, outlen - m->m_pkthdr.len);
+		*resultp = m;
 		priv->stats.FramesComp++;
 		priv->stats.OutOctets+=outlen;
 	}
@@ -543,6 +550,13 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		priv->stats.Errors++;
 		NG_FREE_M(m);
 		priv->seqnum = 0;
+		return (ENOMEM);
+	}
+
+	/* We must own the mbuf chain exclusively to modify it. */
+	m = m_unshare(m, M_DONTWAIT);
+	if (m == NULL) {
+		priv->stats.Errors++;
 		return (ENOMEM);
 	}
 
@@ -610,25 +624,24 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		/* Calculate resulting size. */
 		outlen -= priv->cx.avail_out;
 
-		NG_FREE_M(m);
-
 		/* Decompress protocol. */
 		if ((priv->outbuf[1] & 0x01) != 0) {
 			priv->outbuf[0] = 0;
 			/* Return packet in an mbuf. */
-			*resultp = m_devget((caddr_t)priv->outbuf, outlen, 0,
-			    NULL, NULL);
+			m_copyback(m, 0, outlen, (caddr_t)priv->outbuf);
 		} else {
 			outlen--;
 			/* Return packet in an mbuf. */
-			*resultp = m_devget((caddr_t)(priv->outbuf + 1),
-			    outlen, 0, NULL, NULL);
+			m_copyback(m, 0, outlen, (caddr_t)(priv->outbuf + 1));
 		}
-		if (*resultp == NULL) {
+		if (m->m_pkthdr.len < outlen) {
+			m_freem(m);
 			priv->stats.Errors++;
 			priv->seqnum = 0;
 			return (ENOMEM);
-		};
+		} else if (outlen < m->m_pkthdr.len)
+			m_adj(m, outlen - m->m_pkthdr.len);
+		*resultp = m;
 		priv->stats.FramesPlain++;
 		priv->stats.OutOctets+=outlen;
 

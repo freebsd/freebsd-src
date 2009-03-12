@@ -154,10 +154,10 @@ smbios_t38_proc_info(uint8_t *p, char **table, struct ipmi_get_info *info)
 	case SSIF_MODE:
 		if ((s->base_address & 0xffffffffffffff00) != 0) {
 			printf("SMBIOS: Invalid SSIF SMBus address, using BMC I2C slave address instead\n");
-			info->address = s->i2c_slave_address >> 1;
+			info->address = s->i2c_slave_address;
 			break;
 		}
-		info->address = IPMI_BAR_ADDR(s->base_address) >> 1;
+		info->address = IPMI_BAR_ADDR(s->base_address);
 		break;
 	default:
 		return;

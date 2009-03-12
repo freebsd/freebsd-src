@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -77,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/syslog.h>
 #include <sys/ucred.h>
 #include <sys/vimage.h>
 
@@ -442,40 +444,23 @@ skip_ipsec2:;
 		struct ip6_rthdr *rh =
 			(struct ip6_rthdr *)(mtod(exthdrs.ip6e_rthdr,
 						  struct ip6_rthdr *));
-		struct ip6_rthdr0 *rh0;
-		struct in6_addr *addr;
-		struct sockaddr_in6 sa;
 
+		/*
+		 * While this switch may look gratuitous, leave it in
+		 * in favour of RH2 implementations, etc.
+		 */
 		switch (rh->ip6r_type) {
+#ifndef BURN_BRIDGES
 		case IPV6_RTHDR_TYPE_0:
-			 rh0 = (struct ip6_rthdr0 *)rh;
-			 addr = (struct in6_addr *)(rh0 + 1);
-
-			 /*
-			  * construct a sockaddr_in6 form of
-			  * the first hop.
-			  *
-			  * XXX: we may not have enough
-			  * information about its scope zone;
-			  * there is no standard API to pass
-			  * the information from the
-			  * application.
-			  */
-			 bzero(&sa, sizeof(sa));
-			 sa.sin6_family = AF_INET6;
-			 sa.sin6_len = sizeof(sa);
-			 sa.sin6_addr = addr[0];
-			 if ((error = sa6_embedscope(&sa,
-			     V_ip6_use_defzone)) != 0) {
-				 goto bad;
-			 }
-			 ip6->ip6_dst = sa.sin6_addr;
-			 bcopy(&addr[1], &addr[0], sizeof(struct in6_addr)
-			     * (rh0->ip6r0_segleft - 1));
-			 addr[rh0->ip6r0_segleft - 1] = finaldst;
-			 /* XXX */
-			 in6_clearscope(addr + rh0->ip6r0_segleft - 1);
-			 break;
+			/*
+			 * According to RFC 5095 we should not implement
+			 * it in any way but we may want to give the user
+			 * a hint for now.
+			 */
+			log(LOG_INFO, "[%s:%d] IPv6 Type 0 Routing Headers are "
+			    "deprecated.\n", __func__, __LINE__);
+			/* FALLTHROUGH */
+#endif
 		default:	/* is it possible? */
 			 error = EINVAL;
 			 goto bad;
@@ -1799,7 +1784,7 @@ do { \
 				if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 					break;
 				req = mtod(m, caddr_t);
-				error = ipsec6_set_policy(in6p, optname, req,
+				error = ipsec_set_policy(in6p, optname, req,
 				    m->m_len, (sopt->sopt_td != NULL) ?
 				    sopt->sopt_td->td_ucred : NULL);
 				m_freem(m);
@@ -2024,7 +2009,7 @@ do { \
 					req = mtod(m, caddr_t);
 					len = m->m_len;
 				}
-				error = ipsec6_get_policy(in6p, req, len, mp);
+				error = ipsec_get_policy(in6p, req, len, mp);
 				if (error == 0)
 					error = soopt_mcopyout(sopt, m); /* XXX */
 				if (error == 0 && m)

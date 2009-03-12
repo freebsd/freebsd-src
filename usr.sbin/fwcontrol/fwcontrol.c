@@ -537,13 +537,12 @@ show_topology_map(int fd)
 			printf("%02d sequel packet\n", sid.p0.phy_id);
 			continue;
 		}
-		printf("%02d   %2d      %2d  %4s     %d    %d   %3s"
+		printf("%02d   %2d      %2d  %4s     %d   %3s"
 				"     %s     %s     %s   %d    %d\n",
 			sid.p0.phy_id,
 			sid.p0.link_active,
 			sid.p0.gap_count,
 			speed[sid.p0.phy_speed],
-			sid.p0.phy_delay,
 			sid.p0.contender,
 			pwr_class[sid.p0.power_class],
 			port_status[sid.p0.port0],

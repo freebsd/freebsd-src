@@ -81,8 +81,8 @@ main(int argc, char *argv[])
 
 	sync();
 	skipclean = 1;
-	catastrophicflag = 0;
-	while ((ch = getopt(argc, argv, "b:Bc:CdfFm:npy")) != -1) {
+	inoopt = 0;
+	while ((ch = getopt(argc, argv, "b:Bc:CdfFm:npry")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -106,10 +106,6 @@ main(int argc, char *argv[])
 			debug++;
 			break;
 
-		case 'C':
-			catastrophicflag = 1;
-			/* FALLTHROUGH */
-
 		case 'f':
 			skipclean = 0;
 			break;
@@ -132,6 +128,14 @@ main(int argc, char *argv[])
 
 		case 'p':
 			preen++;
+			/*FALLTHROUGH*/
+
+		case 'C':
+			ckclean++;
+			break;
+
+		case 'r':
+			inoopt++;
 			break;
 
 		case 'y':
@@ -151,7 +155,7 @@ main(int argc, char *argv[])
 
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
 		(void)signal(SIGINT, catch);
-	if (preen)
+	if (ckclean)
 		(void)signal(SIGQUIT, catchquit);
 	signal(SIGINFO, infohandler);
 	if (bkgrdflag) {
@@ -215,7 +219,7 @@ checkfilesys(char *filesys)
 	errmsg[0] = '\0';
 
 	cdevname = filesys;
-	if (debug && preen)
+	if (debug && ckclean)
 		pwarn("starting\n");
 	/*
 	 * Make best effort to get the disk name. Check first to see
@@ -250,7 +254,7 @@ checkfilesys(char *filesys)
 			exit(7);	/* Filesystem clean, report it now */
 		exit(0);
 	}
-	if (preen && skipclean) {
+	if (ckclean && skipclean) {
 		/*
 		 * If file system is gjournaled, check it here.
 		 */
@@ -301,7 +305,7 @@ checkfilesys(char *filesys)
 					    "CANNOT RUN IN BACKGROUND\n");
 				}
 				if ((sblock.fs_flags & FS_UNCLEAN) == 0 &&
-				    skipclean && preen) {
+				    skipclean && ckclean) {
 					/*
 					 * file system is clean;
 					 * skip snapshot and report it clean
@@ -602,7 +606,7 @@ static void
 usage(void)
 {
         (void) fprintf(stderr,
-            "usage: %s [-BCFpfny] [-b block] [-c level] [-m mode] "
+            "usage: %s [-BFprfny] [-b block] [-c level] [-m mode] "
                         "filesystem ...\n",
             getprogname());
         exit(1);

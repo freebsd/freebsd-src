@@ -32,12 +32,16 @@ DEFINE_TEST(test_read_extract)
 {
 	struct archive_entry *ae;
 	struct archive *a;
+#ifndef _WIN32
 	struct stat st;
+#endif
 	size_t used;
 	int i;
 	char *buff, *file_buff;
+#ifndef _WIN32
 	int fd;
 	ssize_t bytes_read;
+#endif
 
 	buff = malloc(BUFF_SIZE);
 	file_buff = malloc(FILE_BUFF_SIZE);
@@ -134,6 +138,7 @@ DEFINE_TEST(test_read_extract)
 	assert(0 == archive_read_finish(a));
 #endif
 
+#ifndef _WIN32
 	/* Test the entries on disk. */
 	/* This first entry was extracted with ARCHIVE_EXTRACT_PERM,
 	 * so the permissions should have been restored exactly,
@@ -153,6 +158,7 @@ DEFINE_TEST(test_read_extract)
 	failure("The file on disk could not be opened.");
 	assert(fd != 0);
 	bytes_read = read(fd, buff, FILE_BUFF_SIZE);
+	close(fd);
 	failure("The file contents read from disk are the wrong size");
 	assert(bytes_read == FILE_BUFF_SIZE);
 	failure("The file contents on disk do not match the file contents that were put into the archive.");
@@ -187,6 +193,7 @@ DEFINE_TEST(test_read_extract)
 #endif
 	assert(0 == stat("symlink", &st));
 	assert(st.st_mode == (S_IFREG | 0755));
+#endif
 
 	free(buff);
 	free(file_buff);

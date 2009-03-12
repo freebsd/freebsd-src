@@ -1376,6 +1376,9 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 		remainder -= payload;
 		off += payload;
 	} while (remainder != 0);
+
+	/* set the last fragment */
+	m->m_flags |= M_LASTFRAG;
 	whf->i_fc[1] &= ~IEEE80211_FC1_MORE_FRAG;
 
 	/* strip first mbuf now that everything has been copied */

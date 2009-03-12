@@ -121,7 +121,8 @@ static sy_call_t *shmcalls[] = {
 #define	SHMSEG_ALLOCATED	0x0800
 #define	SHMSEG_WANTED		0x1000
 
-static int shm_last_free, shm_nused, shm_committed, shmalloced;
+static int shm_last_free, shm_nused, shmalloced;
+vm_size_t shm_committed;
 static struct shmid_kernel	*shmsegs;
 
 struct shmmap_state {
@@ -244,13 +245,13 @@ static void
 shm_deallocate_segment(shmseg)
 	struct shmid_kernel *shmseg;
 {
-	size_t size;
+	vm_size_t size;
 
 	GIANT_REQUIRED;
 
 	vm_object_deallocate(shmseg->u.shm_internal);
 	shmseg->u.shm_internal = NULL;
-	size = round_page(shmseg->u.shm_segsz);
+	size = round_page(shmseg->shm_bsegsz);
 	shm_committed -= btoc(size);
 	shm_nused--;
 	shmseg->u.shm_perm.mode = SHMSEG_FREE;
@@ -264,13 +265,13 @@ shm_delete_mapping(struct vmspace *vm, struct shmmap_state *shmmap_s)
 {
 	struct shmid_kernel *shmseg;
 	int segnum, result;
-	size_t size;
+	vm_size_t size;
 
 	GIANT_REQUIRED;
 
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
-	size = round_page(shmseg->u.shm_segsz);
+	size = round_page(shmseg->shm_bsegsz);
 	result = vm_map_remove(&vm->vm_map, shmmap_s->va, shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
 		return (EINVAL);
@@ -361,8 +362,8 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	mtx_lock(&Giant);
 	shmmap_s = p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
-		size = shminfo.shmseg * sizeof(struct shmmap_state);
-		shmmap_s = malloc(size, M_SHM, M_WAITOK);
+		shmmap_s = malloc(shminfo.shmseg * sizeof(struct shmmap_state),
+		    M_SHM, M_WAITOK);
 		for (i = 0; i < shminfo.shmseg; i++)
 			shmmap_s[i].shmid = -1;
 		p->p_vmspace->vm_shm = shmmap_s;
@@ -390,7 +391,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		error = EMFILE;
 		goto done2;
 	}
-	size = round_page(shmseg->u.shm_segsz);
+	size = round_page(shmseg->shm_bsegsz);
 #ifdef VM_PROT_READ_IS_EXEC
 	prot = VM_PROT_READ | VM_PROT_EXECUTE;
 #else
@@ -422,7 +423,8 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 
 	vm_object_reference(shmseg->u.shm_internal);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->u.shm_internal,
-		0, &attach_va, size, (flags & MAP_FIXED)?0:1, prot, prot, 0);
+	    0, &attach_va, size, (flags & MAP_FIXED) ? VMFS_NO_SPACE :
+	    VMFS_ANY_SPACE, prot, prot, 0);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(shmseg->u.shm_internal);
 		error = ENOMEM;
@@ -720,7 +722,7 @@ shmget_existing(td, uap, mode, segnum)
 	if (error != 0)
 		return (error);
 #endif
-	if (uap->size && uap->size > shmseg->u.shm_segsz)
+	if (uap->size != 0 && uap->size > shmseg->shm_bsegsz)
 		return (EINVAL);
 	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->u.shm_perm);
 	return (0);
@@ -732,7 +734,8 @@ shmget_allocate_segment(td, uap, mode)
 	struct shmget_args *uap;
 	int mode;
 {
-	int i, segnum, shmid, size;
+	int i, segnum, shmid;
+	size_t size;
 	struct ucred *cred = td->td_ucred;
 	struct shmid_kernel *shmseg;
 	vm_object_t shm_object;
@@ -790,6 +793,7 @@ shmget_allocate_segment(td, uap, mode)
 	shmseg->u.shm_perm.mode = (shmseg->u.shm_perm.mode & SHMSEG_WANTED) |
 	    (mode & ACCESSPERMS) | SHMSEG_ALLOCATED;
 	shmseg->u.shm_segsz = uap->size;
+	shmseg->shm_bsegsz = uap->size;
 	shmseg->u.shm_cpid = td->td_proc->p_pid;
 	shmseg->u.shm_lpid = shmseg->u.shm_nattch = 0;
 	shmseg->u.shm_atime = shmseg->u.shm_dtime = 0;

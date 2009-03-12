@@ -82,6 +82,8 @@ struct devclass {
 	char		*name;
 	device_t	*devices;	/* array of devices indexed by unit */
 	int		maxunit;	/* size of devices array */
+	int		flags;
+#define DC_HAS_CHILDREN		1
 
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
@@ -220,7 +222,7 @@ devclass_sysctl_init(devclass_t dc)
 	sysctl_ctx_init(&dc->sysctl_ctx);
 	dc->sysctl_tree = SYSCTL_ADD_NODE(&dc->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_dev), OID_AUTO, dc->name,
-	    CTLFLAG_RD, 0, "");
+	    CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&dc->sysctl_ctx, SYSCTL_CHILDREN(dc->sysctl_tree),
 	    OID_AUTO, "%parent", CTLFLAG_RD,
 	    dc, DEVCLASS_SYSCTL_PARENT, devclass_sysctl_handler, "A",
@@ -283,7 +285,7 @@ device_sysctl_init(device_t dev)
 	dev->sysctl_tree = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
 	    SYSCTL_CHILDREN(dc->sysctl_tree), OID_AUTO,
 	    dev->nameunit + strlen(dc->name),
-	    CTLFLAG_RD, 0, "");
+	    CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
 	    OID_AUTO, "%desc", CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_DESC, device_sysctl_handler, "A",
@@ -349,8 +351,8 @@ device_sysctl_fini(device_t dev)
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
 static int devctl_disable = 0;
 TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
-    sysctl_devctl_disable, "I", "devctl disable");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
+    0, sysctl_devctl_disable, "I", "devctl disable");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -741,11 +743,11 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 
 /* End of /dev/devctl code */
 
-TAILQ_HEAD(,device)	bus_data_devices;
+static TAILQ_HEAD(,device)	bus_data_devices;
 static int bus_data_generation = 1;
 
-kobj_method_t null_methods[] = {
-	{ 0, 0 }
+static kobj_method_t null_methods[] = {
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(null, null_methods, 0);
@@ -813,6 +815,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	if (parentname && dc && !dc->parent &&
 	    strcmp(classname, parentname) != 0) {
 		dc->parent = devclass_find_internal(parentname, NULL, FALSE);
+		dc->parent->flags |= DC_HAS_CHILDREN;
 	}
 
 	return (dc);
@@ -847,6 +850,51 @@ devclass_find(const char *classname)
 }
 
 /**
+ * @brief Register that a device driver has been added to a devclass
+ *
+ * Register that a device driver has been added to a devclass.  This
+ * is called by devclass_add_driver to accomplish the recursive
+ * notification of all the children classes of dc, as well as dc.
+ * Each layer will have BUS_DRIVER_ADDED() called for all instances of
+ * the devclass.  We do a full search here of the devclass list at
+ * each iteration level to save storing children-lists in the devclass
+ * structure.  If we ever move beyond a few dozen devices doing this,
+ * we may need to reevaluate...
+ *
+ * @param dc		the devclass to edit
+ * @param driver	the driver that was just added
+ */
+static void
+devclass_driver_added(devclass_t dc, driver_t *driver)
+{
+	devclass_t parent;
+	int i;
+
+	/*
+	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
+	 */
+	for (i = 0; i < dc->maxunit; i++)
+		if (dc->devices[i])
+			BUS_DRIVER_ADDED(dc->devices[i], driver);
+
+	/*
+	 * Walk through the children classes.  Since we only keep a
+	 * single parent pointer around, we walk the entire list of
+	 * devclasses looking for children.  We set the
+	 * DC_HAS_CHILDREN flag when a child devclass is created on
+	 * the parent, so we only walk the list for those devclasses
+	 * that have children.
+	 */
+	if (!(dc->flags & DC_HAS_CHILDREN))
+		return;
+	parent = dc;
+	TAILQ_FOREACH(dc, &devclasses, link) {
+		if (dc->parent == parent)
+			devclass_driver_added(dc, driver);
+	}
+}
+
+/**
  * @brief Add a device driver to a device class
  *
  * Add a device driver to a devclass. This is normally called
@@ -861,7 +909,6 @@ int
 devclass_add_driver(devclass_t dc, driver_t *driver)
 {
 	driverlink_t dl;
-	int i;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
 
@@ -886,13 +933,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
 	driver->refs++;		/* XXX: kobj_mtx */
 
-	/*
-	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
-	 */
-	for (i = 0; i < dc->maxunit; i++)
-		if (dc->devices[i])
-			BUS_DRIVER_ADDED(dc->devices[i], driver);
-
+	devclass_driver_added(dc, driver);
 	bus_data_generation_update();
 	return (0);
 }
@@ -1735,7 +1776,7 @@ device_probe_child(device_t dev, device_t child)
 	driverlink_t best = NULL;
 	driverlink_t dl;
 	int result, pri = 0;
-	int hasclass = (child->devclass != 0);
+	int hasclass = (child->devclass != NULL);
 
 	GIANT_REQUIRED;
 
@@ -1756,8 +1797,15 @@ device_probe_child(device_t dev, device_t child)
 		     dl = next_matching_driver(dc, child, dl)) {
 			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
 			device_set_driver(child, dl->driver);
-			if (!hasclass)
-				device_set_devclass(child, dl->driver->name);
+			if (!hasclass) {
+				if (device_set_devclass(child, dl->driver->name)) {
+					printf("driver bug: Unable to set devclass (devname: %s)\n",
+					    (child ? device_get_name(child) :
+						"no device"));
+					device_set_driver(child, NULL);
+					continue;
+				}
+			}
 
 			/* Fetch any flags for the device before probing. */
 			resource_int_value(dl->driver->name, child->unit,
@@ -1843,8 +1891,11 @@ device_probe_child(device_t dev, device_t child)
 				return (result);
 
 		/* Set the winning driver, devclass, and flags. */
-		if (!child->devclass)
-			device_set_devclass(child, best->driver->name);
+		if (!child->devclass) {
+			result = device_set_devclass(child, best->driver->name);
+			if (result != 0)
+				return (result);
+		}
 		device_set_driver(child, best->driver);
 		resource_int_value(best->driver->name, child->unit,
 		    "flags", &child->devflags);
@@ -2014,7 +2065,7 @@ device_print_prettyname(device_t dev)
 {
 	const char *name = device_get_name(dev);
 
-	if (name == 0)
+	if (name == NULL)
 		return (printf("unknown: "));
 	return (printf("%s%d: ", name, device_get_unit(dev)));
 }
@@ -3766,8 +3817,8 @@ root_print_child(device_t dev, device_t child)
 }
 
 static int
-root_setup_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg,
-    void **cookiep)
+root_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
+    driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	/*
 	 * If an interrupt mapping gets to here something bad has happened.
@@ -3801,7 +3852,7 @@ static kobj_method_t root_methods[] = {
 	KOBJMETHOD(bus_setup_intr,	root_setup_intr),
 	KOBJMETHOD(bus_child_present,	root_child_present),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t root_driver = {
@@ -3842,7 +3893,7 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 static moduledata_t root_bus_mod = {
 	"rootbus",
 	root_bus_module_handler,
-	0
+	NULL
 };
 DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 

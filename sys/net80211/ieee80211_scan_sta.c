@@ -395,27 +395,32 @@ find11gchannel(struct ieee80211com *ic, int i, int freq)
 	 */
 	for (j = i+1; j < ic->ic_nchans; j++) {
 		c = &ic->ic_channels[j];
-		if (c->ic_freq == freq && IEEE80211_IS_CHAN_ANYG(c))
+		if (c->ic_freq == freq && IEEE80211_IS_CHAN_G(c))
 			return c;
 	}
 	for (j = 0; j < i; j++) {
 		c = &ic->ic_channels[j];
-		if (c->ic_freq == freq && IEEE80211_IS_CHAN_ANYG(c))
+		if (c->ic_freq == freq && IEEE80211_IS_CHAN_G(c))
 			return c;
 	}
 	return NULL;
 }
+
 static const u_int chanflags[IEEE80211_MODE_MAX] = {
-	IEEE80211_CHAN_B,	/* IEEE80211_MODE_AUTO */
-	IEEE80211_CHAN_A,	/* IEEE80211_MODE_11A */
-	IEEE80211_CHAN_B,	/* IEEE80211_MODE_11B */
-	IEEE80211_CHAN_G,	/* IEEE80211_MODE_11G */
-	IEEE80211_CHAN_FHSS,	/* IEEE80211_MODE_FH */
-	IEEE80211_CHAN_A,	/* IEEE80211_MODE_TURBO_A (check base channel)*/
-	IEEE80211_CHAN_G,	/* IEEE80211_MODE_TURBO_G */
-	IEEE80211_CHAN_ST,	/* IEEE80211_MODE_STURBO_A */
-	IEEE80211_CHAN_A,	/* IEEE80211_MODE_11NA (check legacy) */
-	IEEE80211_CHAN_G,	/* IEEE80211_MODE_11NG (check legacy) */
+	[IEEE80211_MODE_AUTO]	  = IEEE80211_CHAN_B,
+	[IEEE80211_MODE_11A]	  = IEEE80211_CHAN_A,
+	[IEEE80211_MODE_11B]	  = IEEE80211_CHAN_B,
+	[IEEE80211_MODE_11G]	  = IEEE80211_CHAN_G,
+	[IEEE80211_MODE_FH]	  = IEEE80211_CHAN_FHSS,
+	/* check base channel */
+	[IEEE80211_MODE_TURBO_A]  = IEEE80211_CHAN_A,
+	[IEEE80211_MODE_TURBO_G]  = IEEE80211_CHAN_G,
+	[IEEE80211_MODE_STURBO_A] = IEEE80211_CHAN_ST,
+	[IEEE80211_MODE_HALF]	  = IEEE80211_CHAN_HALF,
+	[IEEE80211_MODE_QUARTER]  = IEEE80211_CHAN_QUARTER,
+	/* check legacy */
+	[IEEE80211_MODE_11NA]	  = IEEE80211_CHAN_A,
+	[IEEE80211_MODE_11NG]	  = IEEE80211_CHAN_G,
 };
 
 static void
@@ -471,6 +476,18 @@ checktable(const struct scanlist *scan, const struct ieee80211_channel *c)
 	return 0;
 }
 
+static int
+onscanlist(const struct ieee80211_scan_state *ss,
+	const struct ieee80211_channel *c)
+{
+	int i;
+
+	for (i = 0; i < ss->ss_last; i++)
+		if (ss->ss_chans[i] == c)
+			return 1;
+	return 0;
+}
+
 static void
 sweepchannels(struct ieee80211_scan_state *ss, struct ieee80211vap *vap,
 	const struct scanlist table[])
@@ -519,6 +536,21 @@ sweepchannels(struct ieee80211_scan_state *ss, struct ieee80211vap *vap,
 		/* Add channel to scanning list. */
 		ss->ss_chans[ss->ss_last++] = c;
 	}
+	/*
+	 * Explicitly add any desired channel if:
+	 * - not already on the scan list
+	 * - allowed by any desired mode constraint
+	 * - there is space in the scan list
+	 * This allows the channel to be used when the filtering
+	 * mechanisms would otherwise elide it (e.g HT, turbo).
+	 */
+	c = vap->iv_des_chan;
+	if (c != IEEE80211_CHAN_ANYC &&
+	    !onscanlist(ss, c) &&
+	    (vap->iv_des_mode == IEEE80211_MODE_AUTO ||
+	     vap->iv_des_mode == ieee80211_chan2mode(c)) &&
+	    ss->ss_last < IEEE80211_SCAN_MAX)
+		ss->ss_chans[ss->ss_last++] = c;
 }
 
 static void

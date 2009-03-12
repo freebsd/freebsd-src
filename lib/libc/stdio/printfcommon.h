@@ -54,10 +54,8 @@ static int exponent(CHAR *, int, CHAR);
 
 #endif /* !NO_FLOATING_POINT */
 
-static CHAR	*__ujtoa(uintmax_t, CHAR *, int, int, const char *, int, char,
-		    const char *);
-static CHAR	*__ultoa(u_long, CHAR *, int, int, const char *, int, char,
-		    const char *);
+static CHAR	*__ujtoa(uintmax_t, CHAR *, int, int, const char *);
+static CHAR	*__ultoa(u_long, CHAR *, int, int, const char *);
 
 #define NIOV 8
 struct io_state {
@@ -158,12 +156,10 @@ io_flush(struct io_state *iop)
  * use the given digits.
  */
 static CHAR *
-__ultoa(u_long val, CHAR *endp, int base, int octzero, const char *xdigs,
-	int needgrp, char thousep, const char *grp)
+__ultoa(u_long val, CHAR *endp, int base, int octzero, const char *xdigs)
 {
 	CHAR *cp = endp;
 	long sval;
-	int ndig;
 
 	/*
 	 * Handle the three cases separately, in the hope of getting
@@ -175,7 +171,6 @@ __ultoa(u_long val, CHAR *endp, int base, int octzero, const char *xdigs,
 			*--cp = to_char(val);
 			return (cp);
 		}
-		ndig = 0;
 		/*
 		 * On many machines, unsigned arithmetic is harder than
 		 * signed arithmetic, so we do at most one unsigned mod and
@@ -184,29 +179,11 @@ __ultoa(u_long val, CHAR *endp, int base, int octzero, const char *xdigs,
 		 */
 		if (val > LONG_MAX) {
 			*--cp = to_char(val % 10);
-			ndig++;
 			sval = val / 10;
 		} else
 			sval = val;
 		do {
 			*--cp = to_char(sval % 10);
-			ndig++;
-			/*
-			 * If (*grp == CHAR_MAX) then no more grouping
-			 * should be performed.
-			 */
-			if (needgrp && ndig == *grp && *grp != CHAR_MAX
-					&& sval > 9) {
-				*--cp = thousep;
-				ndig = 0;
-				/*
-				 * If (*(grp+1) == '\0') then we have to
-				 * use *grp character (last grouping rule)
-				 * for all next cases
-				 */
-				if (*(grp+1) != '\0')
-					grp++;
-			}
 			sval /= 10;
 		} while (sval != 0);
 		break;
@@ -235,50 +212,28 @@ __ultoa(u_long val, CHAR *endp, int base, int octzero, const char *xdigs,
 
 /* Identical to __ultoa, but for intmax_t. */
 static CHAR *
-__ujtoa(uintmax_t val, CHAR *endp, int base, int octzero, const char *xdigs,
-	int needgrp, char thousep, const char *grp)
+__ujtoa(uintmax_t val, CHAR *endp, int base, int octzero, const char *xdigs)
 {
 	CHAR *cp = endp;
 	intmax_t sval;
-	int ndig;
 
 	/* quick test for small values; __ultoa is typically much faster */
 	/* (perhaps instead we should run until small, then call __ultoa?) */
 	if (val <= ULONG_MAX)
-		return (__ultoa((u_long)val, endp, base, octzero, xdigs,
-		    needgrp, thousep, grp));
+		return (__ultoa((u_long)val, endp, base, octzero, xdigs));
 	switch (base) {
 	case 10:
 		if (val < 10) {
 			*--cp = to_char(val % 10);
 			return (cp);
 		}
-		ndig = 0;
 		if (val > INTMAX_MAX) {
 			*--cp = to_char(val % 10);
-			ndig++;
 			sval = val / 10;
 		} else
 			sval = val;
 		do {
 			*--cp = to_char(sval % 10);
-			ndig++;
-			/*
-			 * If (*grp == CHAR_MAX) then no more grouping
-			 * should be performed.
-			 */
-			if (needgrp && *grp != CHAR_MAX && ndig == *grp
-					&& sval > 9) {
-				*--cp = thousep;
-				ndig = 0;
-				/*
-				 * If (*(grp+1) == '\0') then we have to
-				 * use *grp character (last grouping rule)
-				 * for all next cases
-				 */
-				if (*(grp+1) != '\0')
-					grp++;
-			}
 			sval /= 10;
 		} while (sval != 0);
 		break;

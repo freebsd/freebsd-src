@@ -318,9 +318,10 @@ dump_getfstab(void)
 		return;
 	}
 	while ((fs = getfsent()) != NULL) {
-		if (strcmp(fs->fs_type, FSTAB_RW) &&
+		if ((strcmp(fs->fs_type, FSTAB_RW) &&
 		    strcmp(fs->fs_type, FSTAB_RO) &&
-		    strcmp(fs->fs_type, FSTAB_RQ))
+		    strcmp(fs->fs_type, FSTAB_RQ)) ||
+		    strcmp(fs->fs_vfstype, "ufs"))
 			continue;
 		fs = allocfsent(fs);
 		if ((pf = (struct pfstab *)malloc(sizeof (*pf))) == NULL)

@@ -417,7 +417,7 @@ pe_relocate(imgbase)
 				    relhdr->ibr_vaddr + IMR_RELOFFSET(rel));
 				*qloc = pe_translate_addr(imgbase,
 				    (*qloc - base));
-                                break;
+				break;
 
 			default:
 				printf ("[%d]reloc type: %d\n",i,
@@ -446,7 +446,7 @@ pe_get_import_descriptor(imgbase, desc, module)
 	vm_offset_t		imgbase;
 	image_import_descriptor	*desc;
 	char			*module;
-{	
+{
 	vm_offset_t		offset;
 	image_import_descriptor	*imp_desc;
 	char			*modname;

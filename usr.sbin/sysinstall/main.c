@@ -129,16 +129,6 @@ main(int argc, char **argv)
 	pvariable_set("modulesInitialize=1");
     }
 
-    /* Initialize PC Card, if we haven't already done so. */
-#ifdef PCCARD_ARCH
-    if (!variable_cmp(VAR_SKIP_PCCARD, "YES") &&
-      variable_get(VAR_SKIP_PCCARD)!=1 &&
-       !pvariable_get("pccardInitialize")) {
-	pccardInitialize();
-	pvariable_set("pccardInitialize=1");
-    }
-#endif
-
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 

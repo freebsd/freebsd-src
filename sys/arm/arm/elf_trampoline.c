@@ -404,11 +404,11 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	int symtabindex = -1;
 	int symstrindex = -1;
 	vm_offset_t lastaddr = 0;
-	Elf_Addr ssym = 0, esym = 0;
+	Elf_Addr ssym = 0;
 	Elf_Dyn *dp;
 	
 	eh = (Elf32_Ehdr *)kstart;
-	ssym = esym = 0;
+	ssym = 0;
 	entry_point = (void*)eh->e_entry;
 	memcpy(phdr, (void *)(kstart + eh->e_phoff ),
 	    eh->e_phnum * sizeof(phdr[0]));

@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cfi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -72,7 +74,7 @@ struct cdevsw cfi_cdevsw = {
  * or the process stops writing. At that time we write the whole
  * sector to flash (see cfi_block_finish).
  */
-static int
+int
 cfi_block_start(struct cfi_softc *sc, u_int ofs)
 {
 	union {
@@ -122,7 +124,7 @@ cfi_block_start(struct cfi_softc *sc, u_int ofs)
  * Finish updating the current block/sector by writing the compound
  * set of changes to the flash.
  */
-static int
+int
 cfi_block_finish(struct cfi_softc *sc)
 {
 	int error;
@@ -252,26 +254,47 @@ cfi_devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	int error;
 	u_char val;
 
-	if (cmd != CFIOCQRY)
-		return (ENOIOCTL);
-
 	sc = dev->si_drv1;
+	error = 0;
 
-	error = (sc->sc_writing) ? cfi_block_finish(sc) : 0;
-	if (error)
-		return (error);
+	switch (cmd) {
+	case CFIOCQRY:
+		if (sc->sc_writing) {
+			error = cfi_block_finish(sc);
+			if (error)
+				break;
+		}
+		rq = (struct cfiocqry *)data;
+		if (rq->offset >= sc->sc_size / sc->sc_width)
+			return (ESPIPE);
+		if (rq->offset + rq->count > sc->sc_size / sc->sc_width)
+			return (ENOSPC);
 
-	rq = (struct cfiocqry *)data;
-
-	if (rq->offset >= sc->sc_size / sc->sc_width)
-		return (ESPIPE);
-	if (rq->offset + rq->count > sc->sc_size / sc->sc_width)
-		return (ENOSPC);
-
-	while (!error && rq->count--) {
-		val = cfi_read_qry(sc, rq->offset++);
-		error = copyout(&val, rq->buffer++, 1);
+		while (!error && rq->count--) {
+			val = cfi_read_qry(sc, rq->offset++);
+			error = copyout(&val, rq->buffer++, 1);
+		}
+		break;
+#ifdef CFI_SUPPORT_STRATAFLASH
+	case CFIOCGFACTORYPR:
+		error = cfi_intel_get_factory_pr(sc, (uint64_t *)data);
+		break;
+	case CFIOCGOEMPR:
+		error = cfi_intel_get_oem_pr(sc, (uint64_t *)data);
+		break;
+	case CFIOCSOEMPR:
+		error = cfi_intel_set_oem_pr(sc, *(uint64_t *)data);
+		break;
+	case CFIOCGPLR:
+		error = cfi_intel_get_plr(sc, (uint32_t *)data);
+		break;
+	case CFIOCSPLR:
+		error = cfi_intel_set_plr(sc);
+		break;
+#endif /* CFI_SUPPORT_STRATAFLASH */
+	default:
+		error = ENOIOCTL;
+		break;
 	}
-
 	return (error);
 }

@@ -1160,7 +1160,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	mp = vp->v_mount;
 	cred = td->td_ucred;
 	vfslocked = VFS_LOCK_GIANT(mp);
-	if ((error = vget(vp, LK_EXCLUSIVE, td)) != 0) {
+	if ((error = vget(vp, LK_SHARED, td)) != 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
@@ -1177,7 +1177,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		if (obj->handle != vp) {
 			vput(vp);
 			vp = (struct vnode*)obj->handle;
-			vget(vp, LK_EXCLUSIVE, td);
+			vget(vp, LK_SHARED, td);
 		}
 		type = OBJT_VNODE;
 		handle = vp;

@@ -97,6 +97,7 @@ struct mmc_command {
 #define	MMC_ERR_FAILED	4
 #define	MMC_ERR_INVALID	5
 #define	MMC_ERR_NO_MEMORY 6
+#define MMC_ERR_MAX	6
 	struct mmc_data	*data;		/* Data segment with cmd */
 	struct mmc_request *mrq;	/* backpointer to request */
 };
@@ -287,7 +288,6 @@ struct mmc_request {
 /*
  * EXT_CSD fields
  */
-
 #define EXT_CSD_ERASE_GRP_DEF	175	/* R/W */
 #define EXT_CSD_BUS_WIDTH	183	/* R/W */
 #define EXT_CSD_HS_TIMING	185	/* R/W */
@@ -300,7 +300,6 @@ struct mmc_request {
 /*
  * EXT_CSD field definitions
  */
-
 #define EXT_CSD_CMD_SET_NORMAL		1
 #define EXT_CSD_CMD_SET_SECURE		2
 #define EXT_CSD_CMD_SET_CPSECURE	4
@@ -312,11 +311,26 @@ struct mmc_request {
 #define EXT_CSD_BUS_WIDTH_4	1
 #define EXT_CSD_BUS_WIDTH_8	2
 
+#define MMC_TYPE_26_MAX_HS	26000000
+#define MMC_TYPE_52_MAX_HS	52000000
+
 /*
  * SD bus widths
  */
 #define SD_BUS_WIDTH_1		0
 #define SD_BUS_WIDTH_4		2
+
+/*
+ * SD Switch
+ */
+#define SD_SWITCH_MODE_CHECK	0
+#define SD_SWITCH_MODE_SET	1
+#define SD_SWITCH_GROUP1	0
+#define SD_SWITCH_NORMAL_MODE	0
+#define SD_SWITCH_HS_MODE	1
+#define SD_SWITCH_NOCHANGE	0xF
+
+#define	SD_MAX_HS		50000000
 
 /* OCR bits */
 

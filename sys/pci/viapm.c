@@ -484,7 +484,7 @@ viapm_pro_detach(device_t dev)
 }
 
 static int
-viabb_callback(device_t dev, int index, caddr_t *data)
+viabb_callback(device_t dev, int index, caddr_t data)
 {
 	return 0;
 }
@@ -641,7 +641,7 @@ viapm_wait(struct viapm_softc *viapm)
 }
 
 static int
-viasmb_callback(device_t dev, int index, caddr_t *data)
+viasmb_callback(device_t dev, int index, void *data)
 {
 	int error = 0;
 

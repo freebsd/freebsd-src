@@ -78,8 +78,8 @@ struct ofw_iicbus_devinfo {
 
 static devclass_t ofwiicbus_devclass;
 
-DEFINE_CLASS_1(iicbus, ofw_iicbus_driver, ofw_iicbus_methods, 1 /* no softc */,
-    iicbus_driver);
+DEFINE_CLASS_1(iicbus, ofw_iicbus_driver, ofw_iicbus_methods,
+    sizeof(struct iicbus_softc), iicbus_driver);
 DRIVER_MODULE(ofw_iicbus, iichb, ofw_iicbus_driver, ofwiicbus_devclass, 0, 0);
 MODULE_VERSION(ofw_iicbus, 1);
 MODULE_DEPEND(ofw_iicbus, iicbus, 1, 1, 1);
@@ -118,8 +118,15 @@ ofw_iicbus_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "reg", &addr, sizeof(addr)) == -1)
-			continue;
+		/*
+		 * Try to get the I2C address first from the i2c-address
+		 * property, then try the reg property. It moves around
+		 * on different systems.
+		 */
+
+		if (OF_getprop(child, "i2c-address", &addr, sizeof(addr)) == -1)
+			if (OF_getprop(child, "reg", &addr, sizeof(addr)) == -1)
+				continue;
 
 		/*
 		 * Now set up the I2C and OFW bus layer devinfo and add it
