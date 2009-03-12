@@ -60,7 +60,7 @@ static int fe_pccard_attach(device_t);
 static int fe_pccard_detach(device_t);
 
 static const struct fe_pccard_product {
-        struct pccard_product mpp_product;
+	struct pccard_product mpp_product;
 	int mpp_flags;
 #define MPP_MBH10302 1
 #define MPP_ANYFUNC 2
@@ -72,19 +72,19 @@ static const struct fe_pccard_product {
 	{ PCMCIA_CARD(FUJITSU2, FMV_J182A), 0 },
 	{ PCMCIA_CARD(FUJITSU2, ITCFJ182A), 0 },
 	/* These need to be second */
-        { PCMCIA_CARD(TDK, LAK_CD021BX), 0 }, 
-        { PCMCIA_CARD(TDK, LAK_CF010), 0 }, 
+	{ PCMCIA_CARD(TDK, LAK_CD021BX), 0 }, 
+	{ PCMCIA_CARD(TDK, LAK_CF010), 0 }, 
 #if 0 /* XXX 86960-based? */
-        { PCMCIA_CARD(TDK, LAK_DFL9610), 0 }, 
+	{ PCMCIA_CARD(TDK, LAK_DFL9610), 0 }, 
 #endif
-        { PCMCIA_CARD(CONTEC, CNETPC), 0 },
+	{ PCMCIA_CARD(CONTEC, CNETPC), 0 },
 	{ PCMCIA_CARD(FUJITSU, LA501), 0 },
 	{ PCMCIA_CARD(FUJITSU, LA10S), 0 },
 	{ PCMCIA_CARD(FUJITSU, NE200T), MPP_MBH10302 },/* Sold by Eagle */
 	{ PCMCIA_CARD(HITACHI, HT_4840), MPP_MBH10302 | MPP_SKIP_TO_CFE_10},
 	{ PCMCIA_CARD(RATOC, REX_R280), 0 },
 	{ PCMCIA_CARD(XIRCOM, CE), MPP_ANYFUNC },
-        { { NULL } }
+	{ { NULL } }
 };
 
 static int
@@ -92,12 +92,12 @@ fe_pccard_probe(device_t dev)
 {
 	int		error;
 	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
-        const struct fe_pccard_product *pp;
+	const struct fe_pccard_product *pp;
 	int i;
 
-        if ((pp = (const struct fe_pccard_product *)pccard_product_lookup(dev,
-	    (const struct pccard_product *)fe_pccard_products,
-            sizeof(fe_pccard_products[0]), NULL)) != NULL) {
+	if ((pp = (const struct fe_pccard_product *)pccard_product_lookup(dev,
+		 (const struct pccard_product *)fe_pccard_products,
+		 sizeof(fe_pccard_products[0]), NULL)) != NULL) {
 		if (pp->mpp_product.pp_name != NULL)
 			device_set_desc(dev, pp->mpp_product.pp_name);
 		if (pp->mpp_flags & MPP_ANYFUNC)
@@ -119,15 +119,15 @@ fe_pccard_probe(device_t dev)
 		}
 	good:;
 		return (0);
-        }
-        return (ENXIO);
+	}
+	return (ENXIO);
 }
 
 static device_method_t fe_pccard_methods[] = {
-        /* Device interface */
-        DEVMETHOD(device_probe,         fe_pccard_probe),
-        DEVMETHOD(device_attach,        fe_pccard_attach),
-        DEVMETHOD(device_detach,        fe_pccard_detach),
+	/* Device interface */
+	DEVMETHOD(device_probe,		fe_pccard_probe),
+	DEVMETHOD(device_attach,	fe_pccard_attach),
+	DEVMETHOD(device_detach,	fe_pccard_detach),
 
 	{ 0, 0 }
 };
@@ -143,23 +143,21 @@ MODULE_DEPEND(fe, pccard, 1, 1, 1);
 
 static int fe_probe_mbh(device_t, const struct fe_pccard_product *);
 static int fe_probe_tdk(device_t, const struct fe_pccard_product *);
-/*
- *      Initialize the device - called from Slot manager.
- */
+
 static int
 fe_pccard_attach(device_t dev)
 {
 	struct fe_softc *sc;
-        const struct fe_pccard_product *pp;
+	const struct fe_pccard_product *pp;
 	int error;
 
 	/* Prepare for the device probe process.  */
 	sc = device_get_softc(dev);
 	sc->sc_unit = device_get_unit(dev);
 
-        pp = (const struct fe_pccard_product *) pccard_product_lookup(dev,
+	pp = (const struct fe_pccard_product *) pccard_product_lookup(dev,
 	    (const struct pccard_product *)fe_pccard_products,
-            sizeof(fe_pccard_products[0]), NULL);
+	    sizeof(fe_pccard_products[0]), NULL);
 	if (pp == NULL)
 		return (ENXIO);
 
@@ -269,7 +267,7 @@ fe_probe_mbh(device_t dev, const struct fe_pccard_product *pp)
 }
 
 static int
-sn_pccard_xircom_mac(const struct pccard_tuple *tuple, void *argp)
+fe_pccard_xircom_mac(const struct pccard_tuple *tuple, void *argp)
 {
 	uint8_t *enaddr = argp;
 	int i;
@@ -317,41 +315,41 @@ fe_probe_tdk (device_t dev, const struct fe_pccard_product *pp)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 
-        static struct fe_simple_probe_struct probe_table [] = {
-                { FE_DLCR2, 0x10, 0x00 },
-                { FE_DLCR4, 0x08, 0x00 },
-            /*  { FE_DLCR5, 0x80, 0x00 },       Does not work well.  */
-                { 0 }
-        };
+	static struct fe_simple_probe_struct probe_table [] = {
+		{ FE_DLCR2, 0x10, 0x00 },
+		{ FE_DLCR4, 0x08, 0x00 },
+/*		{ FE_DLCR5, 0x80, 0x00 },	Does not work well.  */
+		{ 0 }
+	};
 
 
-        /* C-NET(PC)C occupies 16 I/O addresses. */
+	/* C-NET(PC)C occupies 16 I/O addresses. */
 	if (fe_alloc_port(dev, 16))
 		return ENXIO;
 
 	/* Fill the softc struct with default values.  */
 	fe_softc_defaults(sc);
 
-        /*
-         * See if C-NET(PC)C is on its address.
-         */
-        if (!fe_simple_probe(sc, probe_table))
+	/*
+	 * See if C-NET(PC)C is on its address.
+	 */
+	if (!fe_simple_probe(sc, probe_table))
 		return ENXIO;
 
-        /* Determine the card type.  */
+	/* Determine the card type.  */
 	sc->type = FE_TYPE_TDK;
-        sc->typestr = "Generic MB8696x/78Q837x Ethernet (PCMCIA)";
+	sc->typestr = "Generic MB8696x/78Q837x Ethernet (PCMCIA)";
 
 	pccard_get_ether(dev, sc->enaddr);
 
-        /* Make sure we got a valid station address.  */
-        if (!fe_valid_Ether_p(sc->enaddr, 0)) {
-	        pccard_cis_scan(dev, sn_pccard_xircom_mac, sc->enaddr);
+	/* Make sure we got a valid station address.  */
+	if (!fe_valid_Ether_p(sc->enaddr, 0)) {
+		pccard_cis_scan(dev, fe_pccard_xircom_mac, sc->enaddr);
 	}
 
-        /* Make sure we got a valid station address.  */
-        if (!fe_valid_Ether_p(sc->enaddr, 0))
+	/* Make sure we got a valid station address.  */
+	if (!fe_valid_Ether_p(sc->enaddr, 0))
 		return ENXIO;
 
-        return 0;
+	return 0;
 }
