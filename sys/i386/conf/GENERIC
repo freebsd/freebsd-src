@@ -275,7 +275,7 @@ device		ath_hal		# pci/cardbus chip support
 options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ral		# Ralink Technology RT2500 wireless NICs.
-#device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
+device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices.
@@ -300,7 +300,6 @@ device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface (USB 2.0)
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
 device		ulpt		# Printer
@@ -312,7 +311,6 @@ device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
 device		uscanner	# Scanners
 # USB Serial devices
-device		ucom		# Generic com ttys
 device		u3g		# USB-based 3G modems (Option, Huawei, Sierra)
 device		uark		# Technologies ARK3116 based serial adapters
 device		ubsa		# Belkin F5U103 and compatible serial adapters

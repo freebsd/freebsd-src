@@ -732,7 +732,6 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p unrecursing", __func__, rw);
 		return;
 	}
-	v = rw->rw_lock;
 
 	KASSERT(rw->rw_lock & (RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS),
 	    ("%s: neither of the waiter flags are set", __func__));

@@ -173,7 +173,6 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	}
 	catch = priority & PCATCH;
 	pri = priority & PRIMASK;
-	rval = 0;
 
 	/*
 	 * If we are already on a sleep queue, then remove us from that

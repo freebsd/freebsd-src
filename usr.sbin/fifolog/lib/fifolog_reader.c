@@ -155,6 +155,7 @@ fifolog_reader_seek(const struct fifolog_reader *fr, time_t t0)
 		retval = fifolog_int_findend(fr->ff, &s);
 		if (retval != NULL)
 			err(1, "%s", retval);
+		s++;
 		e = fifolog_reader_findsync(fr->ff, &s);
 		if (e == 0)
 			return (0);		/* empty fifolog */

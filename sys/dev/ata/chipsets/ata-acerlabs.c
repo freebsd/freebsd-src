@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_ali_chipinit(device_t dev);
-static int ata_ali_allocate(device_t dev);
-static int ata_ali_sata_allocate(device_t dev);
+static int ata_ali_ch_attach(device_t dev);
+static int ata_ali_sata_ch_attach(device_t dev);
 static void ata_ali_reset(device_t dev);
 static void ata_ali_setmode(device_t dev, int mode);
 
@@ -105,17 +105,14 @@ ata_ali_chipinit(device_t dev)
     switch (ctlr->chip->cfg2) {
     case ALI_SATA:
 	ctlr->channels = ctlr->chip->cfg1;
-	ctlr->allocate = ata_ali_sata_allocate;
+	ctlr->ch_attach = ata_ali_sata_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_sata_setmode;
 
 	/* AHCI mode is correctly supported only on the ALi 5288. */
 	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
 	    (ata_ahci_chipinit(dev) != ENXIO))
             return 0;
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	break;
 
     case ALI_NEW:
@@ -133,7 +130,8 @@ ata_ali_chipinit(device_t dev)
 	    device_printf(dev,
 			  "using PIO transfers above 137GB as workaround for "
 			  "48bit DMA access bug, expect reduced performance\n");
-	ctlr->allocate = ata_ali_allocate;
+	ctlr->ch_attach = ata_ali_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->reset = ata_ali_reset;
 	ctlr->setmode = ata_ali_setmode;
 	break;
@@ -148,13 +146,13 @@ ata_ali_chipinit(device_t dev)
 }
 
 static int
-ata_ali_allocate(device_t dev)
+ata_ali_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
     /* setup the usual register normal pci style */
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     /* older chips can't do 48bit DMA transfers */
@@ -165,7 +163,7 @@ ata_ali_allocate(device_t dev)
 }
 
 static int
-ata_ali_sata_allocate(device_t dev)
+ata_ali_sata_ch_attach(device_t dev)
 {
     device_t parent = device_get_parent(dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);

@@ -120,7 +120,7 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 	KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
 	if (qs->qs_flags & QS_EXITING) {
 		m_freem(m);
-		return (ENXIO);
+		return (ENETDOWN);
 	}
 	txq = &qs->txq[TXQ_ETH];
 	err = buf_ring_enqueue(txq->txq_mr, m);
@@ -301,13 +301,13 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	
  retry:	
 	if (!pi->link_config.link_ok)
-		initerr = ENXIO;
+		initerr = ENETDOWN;
 	else if (qs->qs_flags & QS_EXITING)
-		initerr = ENXIO;
+		initerr = ENETDOWN;
 	else if ((pi->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		initerr = ENXIO;
+		initerr = ENETDOWN;
 	else if ((pi->ifp->if_flags & IFF_UP) == 0)
-		initerr = ENXIO;
+		initerr = ENETDOWN;
 	else if (immpkt) {
 
 		if (!buf_ring_empty(txq->txq_mr)

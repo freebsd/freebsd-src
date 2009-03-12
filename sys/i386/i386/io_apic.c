@@ -327,38 +327,55 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = (struct ioapic *)isrc->is_pic;
+	u_int old_vector;
+	u_int old_id;
 
+	/*
+	 * keep 1st core as the destination for NMI
+	 */
+	if (intpin->io_irq == IRQ_NMI)
+		apic_id = 0;
+
+	/*
+	 * Set us up to free the old irq.
+	 */
+	old_vector = intpin->io_vector;
+	old_id = intpin->io_cpu;
+	if (old_vector && apic_id == old_id)
+		return;
+
+	/*
+	 * Allocate an APIC vector for this interrupt pin.  Once
+	 * we have a vector we program the interrupt pin.
+	 */
 	intpin->io_cpu = apic_id;
+	intpin->io_vector = apic_alloc_vector(apic_id, intpin->io_irq);
 	if (bootverbose) {
-		printf("ioapic%u: Assigning ", io->io_id);
+		printf("ioapic%u: routing intpin %u (", io->io_id,
+		    intpin->io_intpin);
 		ioapic_print_irq(intpin);
-		printf(" to local APIC %u\n", intpin->io_cpu);
+		printf(") to lapic %u vector %u\n", intpin->io_cpu,
+		    intpin->io_vector);
 	}
 	ioapic_program_intpin(intpin);
+	/*
+	 * Free the old vector after the new one is established.  This is done
+	 * to prevent races where we could miss an interrupt.
+	 */
+	if (old_vector)
+		apic_free_vector(old_id, old_vector, intpin->io_irq);
 }
 
 static void
 ioapic_enable_intr(struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = (struct ioapic *)isrc->is_pic;
 
-	if (intpin->io_vector == 0) {
-		/*
-		 * Allocate an APIC vector for this interrupt pin.  Once
-		 * we have a vector we program the interrupt pin.
-		 */
-		intpin->io_vector = apic_alloc_vector(intpin->io_irq);
-		if (bootverbose) {
-			printf("ioapic%u: routing intpin %u (", io->io_id,
-			    intpin->io_intpin);
-			ioapic_print_irq(intpin);
-			printf(") to vector %u\n", intpin->io_vector);
-		}
-		ioapic_program_intpin(intpin);
-		apic_enable_vector(intpin->io_vector);
-	}
+	if (intpin->io_vector == 0)
+		ioapic_assign_cpu(isrc, pcpu_find(0)->pc_apic_id);
+	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 }
+
 
 static void
 ioapic_disable_intr(struct intsrc *isrc)
@@ -369,11 +386,11 @@ ioapic_disable_intr(struct intsrc *isrc)
 	if (intpin->io_vector != 0) {
 		/* Mask this interrupt pin and free its APIC vector. */
 		vector = intpin->io_vector;
-		apic_disable_vector(vector);
+		apic_disable_vector(intpin->io_cpu, vector);
 		intpin->io_masked = 1;
 		intpin->io_vector = 0;
 		ioapic_program_intpin(intpin);
-		apic_free_vector(vector, intpin->io_irq);
+		apic_free_vector(intpin->io_cpu, vector, intpin->io_irq);
 	}
 }
 

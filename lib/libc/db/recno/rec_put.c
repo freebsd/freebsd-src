@@ -57,11 +57,7 @@ __FBSDID("$FreeBSD$");
  *	already in the tree and R_NOOVERWRITE specified.
  */
 int
-__rec_put(dbp, key, data, flags)
-	const DB *dbp;
-	DBT *key;
-	const DBT *data;
-	u_int flags;
+__rec_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
 {
 	BTREE *t;
 	DBT fdata, tdata;
@@ -173,7 +169,7 @@ einval:		errno = EINVAL;
 		t->bt_cursor.rcursor = nrec;
 		break;
 	}
-	
+
 	F_SET(t, R_MODIFIED);
 	return (__rec_ret(t, NULL, nrec, key, NULL));
 }
@@ -190,16 +186,12 @@ einval:		errno = EINVAL;
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__rec_iput(t, nrec, data, flags)
-	BTREE *t;
-	recno_t nrec;
-	const DBT *data;
-	u_int flags;
+__rec_iput(BTREE *t, recno_t nrec, const DBT *data, u_int flags)
 {
 	DBT tdata;
 	EPG *e;
 	PAGE *h;
-	indx_t index, nxtindex;
+	indx_t idx, nxtindex;
 	pgno_t pg;
 	u_int32_t nbytes;
 	int dflags, status;
@@ -230,7 +222,7 @@ __rec_iput(t, nrec, data, flags)
 		return (RET_ERROR);
 
 	h = e->page;
-	index = e->index;
+	idx = e->index;
 
 	/*
 	 * Add the specified key/data pair to the tree.  The R_IAFTER and
@@ -240,13 +232,13 @@ __rec_iput(t, nrec, data, flags)
 	 */
 	switch (flags) {
 	case R_IAFTER:
-		++index;
+		++idx;
 		break;
 	case R_IBEFORE:
 		break;
 	default:
 		if (nrec < t->bt_nrecs &&
-		    __rec_dleaf(t, h, index) == RET_ERROR) {
+		    __rec_dleaf(t, h, idx) == RET_ERROR) {
 			mpool_put(t->bt_mp, h, 0);
 			return (RET_ERROR);
 		}
@@ -260,18 +252,18 @@ __rec_iput(t, nrec, data, flags)
 	 */
 	nbytes = NRLEAFDBT(data->size);
 	if (h->upper - h->lower < nbytes + sizeof(indx_t)) {
-		status = __bt_split(t, h, NULL, data, dflags, nbytes, index);
+		status = __bt_split(t, h, NULL, data, dflags, nbytes, idx);
 		if (status == RET_SUCCESS)
 			++t->bt_nrecs;
 		return (status);
 	}
 
-	if (index < (nxtindex = NEXTINDEX(h)))
-		memmove(h->linp + index + 1, h->linp + index,
-		    (nxtindex - index) * sizeof(indx_t));
+	if (idx < (nxtindex = NEXTINDEX(h)))
+		memmove(h->linp + idx + 1, h->linp + idx,
+		    (nxtindex - idx) * sizeof(indx_t));
 	h->lower += sizeof(indx_t);
 
-	h->linp[index] = h->upper -= nbytes;
+	h->linp[idx] = h->upper -= nbytes;
 	dest = (char *)h + h->upper;
 	WR_RLEAF(dest, data, dflags);
 

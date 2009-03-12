@@ -53,8 +53,7 @@ static device_method_t ppc_pci_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
-	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
+	DEVMETHOD(bus_write_ivar,	ppc_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	ppc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	ppc_release_resource),
 
@@ -85,6 +84,7 @@ struct pci_id {
 static struct pci_id pci_ids[] = {
 	{ 0x1020131f, "SIIG Cyber Parallel PCI (10x family)", 0x18 },
 	{ 0x2020131f, "SIIG Cyber Parallel PCI (20x family)", 0x10 },
+	{ 0x05111407, "Lava SP BIDIR Parallel PCI", 0x10 },
 	{ 0x80001407, "Lava Computers 2SP-PCI parallel port", 0x10 },
 	{ 0x84031415, "Oxford Semiconductor OX12PCI840 Parallel port", 0x10 },
 	{ 0x95131415, "Oxford Semiconductor OX16PCI954 Parallel port", 0x10 },

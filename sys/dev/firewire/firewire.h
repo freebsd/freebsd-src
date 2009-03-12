@@ -99,9 +99,16 @@ struct fw_reg_req_t {
 #define FWRCODE_ER_TYPE		6
 #define FWRCODE_ER_ADDR		7
 
+/*
+ * Defined 1394a-2000
+ * Table 5B-1
+ */
 #define FWSPD_S100	0
 #define FWSPD_S200	1
 #define FWSPD_S400	2
+#define FWSPD_S800	3
+#define FWSPD_S1600	4
+#define FWSPD_S3200	5
 
 #define	FWP_TL_VALID (1 << 7)
 
@@ -277,10 +284,18 @@ struct fw_devlstreq {
 	struct fw_devinfo dev[FW_MAX_DEVLST];
 };
 
+/*
+ * Defined in IEEE 1394a-2000
+ * 4.3.4.1
+ */
 #define FW_SELF_ID_PORT_CONNECTED_TO_CHILD 3
 #define FW_SELF_ID_PORT_CONNECTED_TO_PARENT 2
 #define FW_SELF_ID_PORT_NOT_CONNECTED 1
 #define FW_SELF_ID_PORT_NOT_EXISTS 0
+
+#define FW_SELF_ID_PAGE0 0
+#define FW_SELF_ID_PAGE1 1
+
 #if BYTE_ORDER == BIG_ENDIAN
 union fw_self_id {
 	struct {
@@ -290,7 +305,7 @@ union fw_self_id {
 			  link_active:1,
 			  gap_count:6,
 			  phy_speed:2,
-			  phy_delay:2,
+			  reserved:2,
 			  contender:1,
 			  power_class:3,
 			  port0:2,
@@ -305,18 +320,32 @@ union fw_self_id {
 			  phy_id:6,
 			  sequel:1,
 			  sequence_num:3,
-			  :2,
-			  porta:2,
-			  portb:2,
-			  portc:2,
-			  portd:2,
-			  porte:2,
-			  portf:2,
-			  portg:2,
-			  porth:2,
-			  :1,
+			  reserved2:2,
+			  port3:2,
+			  port4:2,
+			  port5:2,
+			  port6:2,
+			  port7:2,
+			  port8:2,
+			  port9:2,
+			  port10:2,
+			  reserved1:1,
 			  more_packets:1;
 	} p1;
+	struct {
+		uint32_t
+			  id:2,
+			  phy_id:6,
+			  sequel:1,
+			  sequence_num:3,
+			  :2,
+			  port11:2,
+			  port12:2,
+			  port13:2,
+			  port14:2,
+			  port15:2,
+			  :8;
+	} p2;
 };
 #else
 union fw_self_id {
@@ -328,7 +357,7 @@ union fw_self_id {
 			  port0:2,
 			  power_class:3,
 			  contender:1,
-			  phy_delay:2,
+			  reserved:2,
 			  phy_speed:2,
 			  gap_count:6,
 			  link_active:1,
@@ -339,20 +368,34 @@ union fw_self_id {
 	struct {
 		uint32_t  more_packets:1,
 			  reserved1:1,
-			  porth:2,
-			  portg:2,
-			  portf:2,
-			  porte:2,
-			  portd:2,
-			  portc:2,
-			  portb:2,
-			  porta:2,
+			  port10:2,
+			  port9:2,
+			  port8:2,
+			  port7:2,
+			  port6:2,
+			  port5:2,
+			  port4:2,
+			  port3:2,
 			  reserved2:2,
 			  sequence_num:3,
 			  sequel:1,
 			  phy_id:6,
 			  id:2;
 	} p1;
+	struct {
+		uint32_t
+			  reserved3:8,
+			  port15:2,
+			  port14:2,
+			  port13:2,
+			  port12:2,
+			  port11:2,
+			  reserved4:2,
+			  sequence_num:3,
+			  sequel:1,
+			  phy_id:6,
+			  id:2;
+	} p2;
 };
 #endif
 

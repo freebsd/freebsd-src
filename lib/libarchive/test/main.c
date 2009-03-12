@@ -33,6 +33,11 @@
 #include <locale.h>
 #include <stdarg.h>
 #include <time.h>
+#ifdef _WIN32
+#include <crtdbg.h>
+#include <windows.h>
+#include <winbase.h>
+#endif
 
 /*
  * This same file is used pretty much verbatim for all test harnesses.
@@ -44,7 +49,7 @@
 #define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version()
-#define KNOWNREF	"test_compat_gtar_1.tgz.uu"
+#define KNOWNREF	"test_compat_gtar_1.tar.uu"
 __FBSDID("$FreeBSD$");
 
 /*
@@ -57,7 +62,11 @@ __FBSDID("$FreeBSD$");
  */
 #undef DEFINE_TEST
 #define	DEFINE_TEST(name) void name(void);
+#ifdef LIST_H
+#include LIST_H
+#else
 #include "list.h"
+#endif
 
 /* Interix doesn't define these in a standard header. */
 #if __INTERIX__
@@ -81,7 +90,20 @@ static int skips = 0;
 static int assertions = 0;
 
 /* Directory where uuencoded reference files can be found. */
-static char *refdir;
+static const char *refdir;
+
+
+#ifdef _WIN32
+
+static void
+invalid_parameter_handler(const wchar_t * expression,
+    const wchar_t * function, const wchar_t * file,
+    unsigned int line, uintptr_t pReserved)
+{
+	/* nop */
+}
+
+#endif
 
 /*
  * My own implementation of the standard assert() macro emits the
@@ -325,10 +347,10 @@ test_assert_equal_string(const char *file, int line,
 	    file, line);
 	fprintf(stderr, "      %s = ", e1);
 	strdump(v1);
-	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : strlen(v1));
+	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : (int)strlen(v1));
 	fprintf(stderr, "      %s = ", e2);
 	strdump(v2);
-	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : strlen(v2));
+	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : (int)strlen(v2));
 	report_failure(extra);
 	return (0);
 }
@@ -403,7 +425,7 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 	char sep;
 
 	for(i=0; i < l; i+=16) {
-		fprintf(stderr, "%04x", i + offset);
+		fprintf(stderr, "%04x", (unsigned)(i + offset));
 		sep = ' ';
 		for (j = 0; j < 16 && i + j < l; j++) {
 			if (ref != NULL && p[i + j] != ref[i + j])
@@ -700,8 +722,29 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 #undef DEFINE_TEST
 #define	DEFINE_TEST(n) { n, #n },
 struct { void (*func)(void); const char *name; } tests[] = {
+#ifdef LIST_H
+	#include LIST_H
+#else
 	#include "list.h"
+#endif
 };
+
+static void
+close_descriptors(int warn)
+{
+	int i;
+	int left_open = 0;
+
+	for (i = 3; i < 100; ++i) {
+		if (close(i) == 0)
+			++left_open;
+	}
+	if (warn && left_open > 0) {
+		fprintf(stderr, " ** %d descriptors unclosed\n", left_open);
+		failures += left_open;
+		report_failure(NULL);
+	}
+}
 
 /*
  * Each test is run in a private work dir.  Those work dirs
@@ -744,14 +787,22 @@ static int test_run(int i, const char *tmpdir)
 	}
 	/* Explicitly reset the locale before each test. */
 	setlocale(LC_ALL, "C");
+	/* Make sure there are no stray descriptors going into the test. */
+	close_descriptors(0);
 	/* Run the actual test. */
 	(*tests[i].func)();
+	/* Close stray descriptors, record as errors against this test. */
+	close_descriptors(1);
 	/* Summarize the results of this test. */
 	summarize();
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
+#ifndef _WIN32
 			systemf("rm -rf %s", tests[i].name);
+#else
+			systemf("rmdir /S /Q %s", tests[i].name);
+#endif
 		}
 	}
 	/* Return appropriate status. */
@@ -843,20 +894,44 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+#ifdef _WIN32
+#define DEV_NULL "NUL"
+#else
+#define DEV_NULL "/dev/null"
+#endif
+
+const char *
+external_gzip_program(int un)
+{
+	const char *extprog;
+
+	if (un) {
+		extprog = "gunzip";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+		extprog = "gzip -d";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+	} else {
+		extprog = "gzip";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+	}
+	return (NULL);
+}
+
 static char *
-get_refdir(const char *tmpdir)
+get_refdir(void)
 {
 	char tried[512] = { '\0' };
 	char buff[128];
 	char *pwd, *p;
 
 	/* Get the current dir. */
-	systemf("/bin/pwd > %s/refdir", tmpdir);
-	pwd = slurpfile(NULL, "%s/refdir", tmpdir);
+	pwd = getcwd(NULL, 0);
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 	printf("PWD: %s\n", pwd);
-	systemf("rm %s/refdir", tmpdir);
 
 	/* Look for a known file. */
 	snprintf(buff, sizeof(buff), "%s", pwd);
@@ -891,6 +966,9 @@ get_refdir(const char *tmpdir)
 		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 	}
 
+#if defined(_WIN32) && defined(_DEBUG)
+	DebugBreak();
+#endif
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
 	printf("  Checked following directories:\n%s\n", tried);
 	exit(1);
@@ -904,24 +982,24 @@ success:
 int main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i, tests_run = 0, tests_failed = 0, opt;
+	int i, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
-	char *progname, *p;
-	const char *tmp;
+	const char *progname = LIBRARY "_test";
+	const char *tmp, *option_arg, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
-	/*
-	 * Name of this program, used to build root of our temp directory
-	 * tree.
-	 */
-	progname = p = argv[0];
-	while (*p != '\0') {
-		if (*p == '/')
-			progname = p + 1;
-		++p;
-	}
+	(void)argc; /* UNUSED */
+
+#ifdef _WIN32
+	/* To stop to run the default invalid parameter handler. */
+	_set_invalid_parameter_handler(invalid_parameter_handler);
+	/* for open() to a binary mode. */
+	_set_fmode(_O_BINARY);
+	/* Disable annoying assertion message box. */
+	_CrtSetReportMode(_CRT_ASSERT, 0);
+#endif
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
@@ -947,39 +1025,61 @@ int main(int argc, char **argv)
 	refdir = getenv(ENVBASE "_TEST_FILES");
 
 	/*
-	 * Parse options.
+	 * Parse options, without using getopt(), which isn't available
+	 * on all platforms.
 	 */
-	while ((opt = getopt(argc, argv, "dkp:qr:v")) != -1) {
-		switch (opt) {
-		case 'd':
-			dump_on_failure = 1;
+	++argv; /* Skip program name */
+	while (*argv != NULL) {
+		if (**argv != '-')
 			break;
-		case 'k':
-			keep_temp_files = 1;
-			break;
-		case 'p':
+		p = *argv++;
+		++p; /* Skip '-' */
+		while (*p != '\0') {
+			option = *p++;
+			option_arg = NULL;
+			/* If 'opt' takes an argument, parse that. */
+			if (option == 'p' || option == 'r') {
+				if (*p != '\0')
+					option_arg = p;
+				else if (*argv == NULL) {
+					fprintf(stderr,
+					    "Option -%c requires argument.\n",
+					    option);
+					usage(progname);
+				} else
+					option_arg = *argv++;
+				p = ""; /* End of this option word. */
+			}
+
+			/* Now, handle the option. */
+			switch (option) {
+			case 'd':
+				dump_on_failure = 1;
+				break;
+			case 'k':
+				keep_temp_files = 1;
+				break;
+			case 'p':
 #ifdef PROGRAM
-			testprog = optarg;
+				testprog = option_arg;
 #else
-			usage(progname);
+				usage(progname);
 #endif
-			break;
-		case 'q':
-			quiet_flag++;
-			break;
-		case 'r':
-			refdir = optarg;
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case '?':
-		default:
-			usage(progname);
+				break;
+			case 'q':
+				quiet_flag++;
+				break;
+			case 'r':
+				refdir = option_arg;
+				break;
+			case 'v':
+				verbose = 1;
+				break;
+			default:
+				usage(progname);
+			}
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
 	/*
 	 * Sanity-check that our options make sense.
@@ -1016,7 +1116,7 @@ int main(int argc, char **argv)
 	 * the "usual places."
 	 */
 	if (refdir == NULL)
-		refdir = refdir_alloc = get_refdir(tmpdir);
+		refdir = refdir_alloc = get_refdir();
 
 	/*
 	 * Banner with basic information.
@@ -1035,7 +1135,7 @@ int main(int argc, char **argv)
 	/*
 	 * Run some or all of the individual tests.
 	 */
-	if (argc == 0) {
+	if (*argv == NULL) {
 		/* Default: Run all tests. */
 		for (i = 0; i < limit; i++) {
 			if (test_run(i, tmpdir))
@@ -1047,6 +1147,7 @@ int main(int argc, char **argv)
 			i = atoi(*argv);
 			if (**argv < '0' || **argv > '9' || i < 0 || i >= limit) {
 				printf("*** INVALID Test %s\n", *argv);
+				free(refdir_alloc);
 				usage(progname);
 			} else {
 				if (test_run(i, tmpdir))
@@ -1066,7 +1167,7 @@ int main(int argc, char **argv)
 		    tests_failed, tests_run);
 		printf(" Total of %d assertions checked.\n", assertions);
 		printf(" Total of %d assertions failed.\n", failures);
-		printf(" Total of %d assertions skipped.\n", skips);
+		printf(" Total of %d reported skips.\n", skips);
 	}
 
 	free(refdir_alloc);

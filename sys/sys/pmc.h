@@ -83,7 +83,8 @@
 	__PMC_CPU(INTEL_CORE,	0x87,	"Intel Core Solo/Duo")	\
 	__PMC_CPU(INTEL_CORE2,	0x88,	"Intel Core2")		\
 	__PMC_CPU(INTEL_CORE2EXTREME,	0x89,	"Intel Core2 Extreme")	\
-	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom")
+	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom") \
+	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7")
 
 enum pmc_cputype {
 #undef	__PMC_CPU
@@ -92,7 +93,7 @@ enum pmc_cputype {
 };
 
 #define	PMC_CPU_FIRST	PMC_CPU_AMD_K7
-#define	PMC_CPU_LAST	PMC_CPU_INTEL_ATOM
+#define	PMC_CPU_LAST	PMC_CPU_INTEL_COREI7
 
 /*
  * Classes of PMCs

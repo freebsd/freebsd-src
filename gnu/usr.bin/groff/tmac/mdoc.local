@@ -73,6 +73,10 @@
 .ds doc-operating-system-FreeBSD-7.1    7.1
 .ds doc-operating-system-FreeBSD-8.0    8.0
 .
+.\" Definitions not (yet) in doc-syms
+.ds doc-str-St--p1003.1-2008   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2008
+.as doc-str-St--p1003.1-2008   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.
 .ec
 .
 .\" Locale support

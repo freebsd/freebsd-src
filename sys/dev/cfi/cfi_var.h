@@ -65,6 +65,7 @@ struct cfi_softc {
 
 extern char cfi_driver_name[];
 extern devclass_t cfi_devclass;
+extern devclass_t cfi_diskclass;
 
 int cfi_probe(device_t);
 int cfi_attach(device_t);
@@ -73,5 +74,14 @@ int cfi_detach(device_t);
 uint32_t cfi_read(struct cfi_softc *, u_int);
 uint8_t cfi_read_qry(struct cfi_softc *, u_int);
 int cfi_write_block(struct cfi_softc *);
+int cfi_block_start(struct cfi_softc *, u_int);
+int cfi_block_finish(struct cfi_softc *);
 
+#ifdef CFI_SUPPORT_STRATAFLASH
+int	cfi_intel_get_factory_pr(struct cfi_softc *sc, uint64_t *);
+int	cfi_intel_get_oem_pr(struct cfi_softc *sc, uint64_t *);
+int	cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t);
+int	cfi_intel_get_plr(struct cfi_softc *sc, uint32_t *);
+int	cfi_intel_set_plr(struct cfi_softc *sc);
+#endif /* CFI_SUPPORT_STRATAFLASH */
 #endif /* _DEV_CFI_VAR_H_ */

@@ -75,11 +75,9 @@ static struct ifqueue atintrq1, atintrq2, aarpintrq;
 static int
 ddp_attach(struct socket *so, int proto, struct thread *td)
 {
-	struct ddpcb *ddp;
 	int error = 0;
 	
-	ddp = sotoddpcb(so);
-	KASSERT(ddp == NULL, ("ddp_attach: ddp != NULL"));
+	KASSERT(sotoddpcb(so) == NULL, ("ddp_attach: ddp != NULL"));
 
 	/*
 	 * Allocate socket buffer space first so that it's present
@@ -175,10 +173,8 @@ ddp_disconnect(struct socket *so)
 static int
 ddp_shutdown(struct socket *so)
 {
-	struct ddpcb	*ddp;
 
-	ddp = sotoddpcb(so);
-	KASSERT(ddp != NULL, ("ddp_shutdown: ddp == NULL"));
+	KASSERT(sotoddpcb(so) != NULL, ("ddp_shutdown: ddp == NULL"));
 
 	socantsendmore(so);
 	return (0);

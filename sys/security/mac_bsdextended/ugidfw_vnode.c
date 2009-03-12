@@ -127,8 +127,7 @@ ugidfw_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 
 int
 ugidfw_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	return (ugidfw_check_vp(cred, vp, MBI_READ));
@@ -236,8 +235,7 @@ ugidfw_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
 
 int
 ugidfw_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	return (ugidfw_check_vp(cred, vp, MBI_WRITE));

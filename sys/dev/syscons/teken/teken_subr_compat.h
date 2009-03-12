@@ -33,8 +33,8 @@ teken_subr_cons25_set_cursor_type(teken_t *t, unsigned int type)
 	teken_funcs_param(t, TP_SHOWCURSOR, type != 1);
 }
 
-static teken_color_t cons25_colors[8] = { TC_BLACK, TC_BLUE, TC_GREEN,
-    TC_CYAN, TC_RED, TC_MAGENTA, TC_BROWN, TC_WHITE };
+static const teken_color_t cons25_colors[8] = { TC_BLACK, TC_BLUE,
+    TC_GREEN, TC_CYAN, TC_RED, TC_MAGENTA, TC_BROWN, TC_WHITE };
 
 static void
 teken_subr_cons25_set_adapter_background(teken_t *t, unsigned int c)

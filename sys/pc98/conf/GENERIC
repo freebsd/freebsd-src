@@ -256,7 +256,6 @@ device		bpf		# Berkeley packet filter
 #device		ehci		# EHCI PCI->USB interface (USB 2.0)
 #device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-#device		ugen		# Generic
 #device		uhid		# "Human Interface Devices"
 #device		ukbd		# Keyboard
 #device		ulpt		# Printer
@@ -268,7 +267,6 @@ device		bpf		# Berkeley packet filter
 #device		urio		# Diamond Rio 500 MP3 player
 #device		uscanner	# Scanners
 # USB Serial devices
-#device		ucom		# Generic com ttys
 #device		uark		# Technologies ARK3116 based serial adapters
 #device		ubsa		# Belkin F5U103 and compatible serial adapters
 #device		ubser		# BWCT console serial adapters

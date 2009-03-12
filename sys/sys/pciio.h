@@ -108,9 +108,18 @@ struct pci_io {
 	u_int32_t	pi_data;	/* data to write or result of read */
 };
 
+struct pci_bar_io {
+	struct pcisel	pbi_sel;	/* device to operate on */
+	int		pbi_reg;	/* starting address of BAR */
+	int		pbi_enabled;	/* decoding enabled */
+	uint64_t	pbi_base;	/* current value of BAR */
+	uint64_t	pbi_length;	/* length of BAR */
+};
+
 #define	PCIOCGETCONF	_IOWR('p', 5, struct pci_conf_io)
 #define	PCIOCREAD	_IOWR('p', 2, struct pci_io)
 #define	PCIOCWRITE	_IOWR('p', 3, struct pci_io)
 #define	PCIOCATTACHED	_IOWR('p', 4, struct pci_io)
+#define	PCIOCGETBAR	_IOWR('p', 6, struct pci_bar_io)
 
 #endif /* !_SYS_PCIIO_H_ */

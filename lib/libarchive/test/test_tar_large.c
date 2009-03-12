@@ -100,7 +100,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 	if ((const char *)filedata <= (const char *)buff
 	    && (const char *)buff < (const char *)filedata + filedatasize) {
 		/* We don't need to store a block of file data. */
-		private->last->filebytes += size;
+		private->last->filebytes += (off_t)size;
 	} else {
 		/* Yes, we're assuming the very first write is metadata. */
 		/* It's header or metadata, copy and save it. */
@@ -117,7 +117,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 		}
 		block->next = NULL;
 	}
-	return (size);
+	return ((long)size);
 }
 
 static ssize_t
@@ -141,7 +141,7 @@ memory_read(struct archive *a, void *_private, const void **buff)
 		 * passing blocks from the template data.
 		 */
 		if (private->filebytes > (off_t)filedatasize)
-			size = filedatasize;
+			size = (ssize_t)filedatasize;
 		else
 			size = (ssize_t)private->filebytes;
 		private->filebytes -= size;
@@ -152,7 +152,7 @@ memory_read(struct archive *a, void *_private, const void **buff)
 		 */
 		block = private->first;
 		private->first = block->next;
-		size = block->size;
+		size = (ssize_t)block->size;
 		if (block->buff != NULL) {
 			private->buff = block->buff;
 			*buff = block->buff;
@@ -220,7 +220,7 @@ DEFINE_TEST(test_tar_large)
 	struct archive *a;
 	off_t  filesize, writesize;
 
-	filedatasize = 1 * MB;
+	filedatasize = (size_t)(1 * MB);
 	filedata = malloc(filedatasize);
 	memset(filedata, 0xAA, filedatasize);
 	memset(&memdata, 0, sizeof(memdata));
@@ -236,7 +236,7 @@ DEFINE_TEST(test_tar_large)
 	/*
 	 * Write a series of large files to it.
 	 */
-	for (i = 0; tests[i] > 0; i++) {
+	for (i = 0; tests[i] != 0; i++) {
 		assert((ae = archive_entry_new()) != NULL);
 		sprintf(namebuff, "file_%d", i);
 		archive_entry_copy_pathname(ae, namebuff);
@@ -244,6 +244,7 @@ DEFINE_TEST(test_tar_large)
 		filesize = tests[i];
 
 		if (filesize < 0) {
+			archive_entry_free(ae);
 			skipping("32-bit off_t doesn't permit testing of very large files.");
 			return;
 		}
@@ -256,7 +257,7 @@ DEFINE_TEST(test_tar_large)
 		 * Write the actual data to the archive.
 		 */
 		while (filesize > 0) {
-			writesize = filedatasize;
+			writesize = (off_t)filedatasize;
 			if (writesize > filesize)
 				writesize = filesize;
 			assertA(writesize == archive_write_data(a, filedata, writesize));

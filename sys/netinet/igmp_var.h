@@ -46,105 +46,166 @@
  * MULTICAST Revision: 3.5.1.3
  */
 
-struct igmpstat {
-	u_int	igps_rcv_total;		/* total IGMP messages received */
-	u_int	igps_rcv_tooshort;	/* received with too few bytes */
-	u_int	igps_rcv_badsum;	/* received with bad checksum */
-	u_int	igps_rcv_queries;	/* received membership queries */
-	u_int	igps_rcv_badqueries;	/* received invalid queries */
-	u_int	igps_rcv_reports;	/* received membership reports */
-	u_int	igps_rcv_badreports;	/* received invalid reports */
-	u_int	igps_rcv_ourreports;	/* received reports for our groups */
-	u_int	igps_snd_reports;	/* sent membership reports */
-	u_int	igps_rcv_toolong;	/* received with too many bytes */
+#ifndef BURN_BRIDGES
+/*
+ * Pre-IGMPV3 igmpstat structure.
+ */
+struct oigmpstat {
+	u_int igps_rcv_total;		/* total IGMP messages received */
+	u_int igps_rcv_tooshort;	/* received with too few bytes */
+	u_int igps_rcv_badsum;		/* received with bad checksum */
+	u_int igps_rcv_queries;		/* received membership queries */
+	u_int igps_rcv_badqueries;	/* received invalid queries */
+	u_int igps_rcv_reports;		/* received membership reports */
+	u_int igps_rcv_badreports;	/* received invalid reports */
+	u_int igps_rcv_ourreports;	/* received reports for our groups */
+	u_int igps_snd_reports;		/* sent membership reports */
+	u_int igps_rcv_toolong;		/* received with too many bytes */
 };
+#endif
+
+/*
+ * IGMPv3 protocol statistics.
+ */
+struct igmpstat {
+	/*
+	 * Structure header (to insulate ABI changes).
+	 */
+	uint32_t igps_version;		/* version of this structure */
+	uint32_t igps_len;		/* length of this structure */
+	/*
+	 * Message statistics.
+	 */
+	uint64_t igps_rcv_total;	/* total IGMP messages received */
+	uint64_t igps_rcv_tooshort;	/* received with too few bytes */
+	uint64_t igps_rcv_badttl;	/* received with ttl other than 1 */
+	uint64_t igps_rcv_badsum;	/* received with bad checksum */
+	/*
+	 * Query statistics.
+	 */
+	uint64_t igps_rcv_v1v2_queries;	/* received IGMPv1/IGMPv2 queries */
+	uint64_t igps_rcv_v3_queries;	/* received IGMPv3 queries */
+	uint64_t igps_rcv_badqueries;	/* received invalid queries */
+	uint64_t igps_rcv_gen_queries;	/* received general queries */
+	uint64_t igps_rcv_group_queries;/* received group queries */
+	uint64_t igps_rcv_gsr_queries;	/* received group-source queries */
+	uint64_t igps_drop_gsr_queries;	/* dropped group-source queries */
+	/*
+	 * Report statistics.
+	 */
+	uint64_t igps_rcv_reports;	/* received membership reports */
+	uint64_t igps_rcv_badreports;	/* received invalid reports */
+	uint64_t igps_rcv_ourreports;	/* received reports for our groups */
+	uint64_t igps_rcv_nora;		/* received w/o Router Alert option */
+	uint64_t igps_snd_reports;	/* sent membership reports */
+	/*
+	 * Padding for future additions.
+	 */
+	uint64_t __igps_pad[4];
+};
+#define IGPS_VERSION_3	3		/* as of FreeBSD 8.x */
+#define IGPS_VERSION3_LEN		168
+
+#ifdef CTASSERT
+CTASSERT(sizeof(struct igmpstat) == 168);
+#endif
 
 #ifdef _KERNEL
 #define IGMP_RANDOM_DELAY(X) (random() % (X) + 1)
 
-/*
- * States for IGMPv2's leave processing
- */
-#define IGMP_OTHERMEMBER			0
-#define IGMP_IREPORTEDLAST			1
+#define IGMP_MAX_STATE_CHANGES		24 /* Max pending changes per group */
 
 /*
- * State masks for IGMPv3
+ * IGMP per-group states.
  */
-#define IGMP_V3_NONEXISTENT			0x01
-#define IGMP_V3_OTHERMEMBER			0x02
-#define IGMP_V3_IREPORTEDLAST			0x04
+#define IGMP_NOT_MEMBER			0 /* Can garbage collect in_multi */
+#define IGMP_SILENT_MEMBER		1 /* Do not perform IGMP for group */
+#define IGMP_REPORTING_MEMBER		2 /* IGMPv1/2/3 we are reporter */
+#define IGMP_IDLE_MEMBER		3 /* IGMPv1/2 we reported last */
+#define IGMP_LAZY_MEMBER		4 /* IGMPv1/2 other member reporting */
+#define IGMP_SLEEPING_MEMBER		5 /* IGMPv1/2 start query response */
+#define IGMP_AWAKENING_MEMBER		6 /* IGMPv1/2 group timer will start */
+#define IGMP_G_QUERY_PENDING_MEMBER	7 /* IGMPv3 group query pending */
+#define IGMP_SG_QUERY_PENDING_MEMBER	8 /* IGMPv3 source query pending */
+#define IGMP_LEAVING_MEMBER		9 /* IGMPv3 dying gasp (pending last */
+					  /* retransmission of INCLUDE {}) */
 
 /*
- * We must remember what version the subnet's querier is.
- * We conveniently use the IGMP message type for the proper
- * membership report to keep this state.
+ * IGMP version tag.
  */
-#define IGMP_V1_ROUTER				IGMP_V1_MEMBERSHIP_REPORT
-#define IGMP_V2_ROUTER				IGMP_V2_MEMBERSHIP_REPORT
-#define IGMP_V3_ROUTER				IGMP_V3_MEMBERSHIP_REPORT
+#define IGMP_VERSION_NONE		0 /* Invalid */
+#define IGMP_VERSION_1			1
+#define IGMP_VERSION_2			2
+#define IGMP_VERSION_3			3 /* Default */
 
 /*
- * Revert to new router if we haven't heard from an old router in
- * this amount of time.
+ * IGMPv3 protocol control variables.
  */
-#define IGMP_AGE_THRESHOLD			540
+#define IGMP_RV_INIT		2	/* Robustness Variable */
+#define IGMP_RV_MIN		1
+#define IGMP_RV_MAX		7
+
+#define IGMP_QI_INIT		125	/* Query Interval (s) */
+#define IGMP_QI_MIN		1
+#define IGMP_QI_MAX		255
+
+#define IGMP_QRI_INIT		10	/* Query Response Interval (s) */
+#define IGMP_QRI_MIN		1
+#define IGMP_QRI_MAX		255
+
+#define IGMP_URI_INIT		3	/* Unsolicited Report Interval (s) */
+#define IGMP_URI_MIN		0
+#define IGMP_URI_MAX		10
+
+#define IGMP_MAX_G_GS_PACKETS		8 /* # of packets to answer G/GS */
+#define IGMP_MAX_STATE_CHANGE_PACKETS	8 /* # of packets per state change */
+#define IGMP_MAX_RESPONSE_PACKETS	16 /* # of packets for general query */
+#define IGMP_MAX_RESPONSE_BURST		4 /* # of responses to send at once */
+#define IGMP_RESPONSE_BURST_INTERVAL	(PR_FASTHZ / 2)	/* 500ms */
 
 /*
- * IGMPv3 protocol defaults
+ * IGMP-specific mbuf flags.
  */
-#define IGMP_INIT_ROBVAR	2	/* Robustness */
-#define IGMP_MAX_ROBVAR		7
-#define IGMP_INIT_QRYINT	125	/* Querier's Query interval */
-#define IGMP_MAX_QRYINT		255
-#define IGMP_INIT_QRYRSP	10	/* Query Response interval */
-#define IGMP_DEF_QRYMRT		10
-#define IGMP_UNSOL_INT		1	/* Unsolicited Report interval */
+#define M_IGMPV2	M_PROTO1	/* Packet is IGMPv2 */
+#define M_IGMPV3_HDR	M_PROTO2	/* Packet has IGMPv3 headers */
+#define M_GROUPREC	M_PROTO3	/* mbuf chain is a group record */
+#define M_IGMP_LOOP	M_PROTO4	/* transmit on loif, not real ifp */
 
 /*
- * IGMPv3 report types
+ * Default amount of leading space for IGMPv3 to allocate at the
+ * beginning of its mbuf packet chains, to avoid fragmentation and
+ * unnecessary allocation of leading mbufs.
  */
-#define IGMP_REPORT_MODE_IN	1	/* mode-is-include */
-#define IGMP_REPORT_MODE_EX	2	/* mode-is-exclude */
-#define IGMP_REPORT_TO_IN	3	/* change-to-include */
-#define IGMP_REPORT_TO_EX	4	/* change-to-exclude */
-#define IGMP_REPORT_ALLOW_NEW	5	/* allow-new-sources */
-#define IGMP_REPORT_BLOCK_OLD	6	/* block-old-sources */
+#define RAOPT_LEN	4		/* Length of IP Router Alert option */
+#define	IGMP_LEADINGSPACE		\
+	(sizeof(struct ip) + RAOPT_LEN + sizeof(struct igmp_report))
 
 /*
- * Report types
+ * Subsystem lock macros.
+ * The IGMP lock is only taken with IGMP. Currently it is system-wide.
+ * VIMAGE: The lock could be pushed to per-VIMAGE granularity in future.
  */
-#define IGMP_MASK_CUR_STATE	0x01	/* Report current-state */
-#define IGMP_MASK_ALLOW_NEW	0x02	/* Report source as allow-new */
-#define IGMP_MASK_BLOCK_OLD	0x04	/* Report source as block-old */
-#define IGMP_MASK_TO_IN		0x08	/* Report source as to_in */
-#define IGMP_MASK_TO_EX		0x10	/* Report source as to_ex */
-#define IGMP_MASK_STATE_T1	0x20	/* State at T1 */
-#define IGMP_MASK_STATE_T2	0x40	/* State at T2 */
-#define IGMP_MASK_IF_STATE	0x80	/* Report current-state per interface */
+#define	IGMP_LOCK_INIT()	mtx_init(&igmp_mtx, "igmp_mtx", NULL, MTX_DEF)
+#define	IGMP_LOCK_DESTROY()	mtx_destroy(&igmp_mtx)
+#define	IGMP_LOCK()		mtx_lock(&igmp_mtx)
+#define	IGMP_LOCK_ASSERT()	mtx_assert(&igmp_mtx, MA_OWNED)
+#define	IGMP_UNLOCK()		mtx_unlock(&igmp_mtx)
+#define	IGMP_UNLOCK_ASSERT()	mtx_assert(&igmp_mtx, MA_NOTOWNED)
 
-#define IGMP_MASK_STATE_TX	(IGMP_MASK_STATE_T1 | IGMP_MASK_STATE_T2)
-#define IGMP_MASK_PENDING	(IGMP_MASK_CUR_STATE |			\
-				 IGMP_MASK_ALLOW_NEW |			\
-				 IGMP_MASK_BLOCK_OLD)
+struct igmp_ifinfo;
 
-/*
- * List identifiers
- */
-#define IGMP_EXCLUDE_LIST	1	/* exclude list used to tag report */
-#define IGMP_INCLUDE_LIST	2	/* include list used to tag report */
-#define IGMP_RECORDED_LIST	3	/* recorded list used to tag report */
-
-void	igmp_init(void);
-void	igmp_input(struct mbuf *, int);
-void	igmp_joingroup(struct in_multi *);
-void	igmp_leavegroup(struct in_multi *);
+int	igmp_change_state(struct in_multi *);
 void	igmp_fasttimo(void);
+struct igmp_ifinfo *
+	igmp_domifattach(struct ifnet *);
+void	igmp_domifdetach(struct ifnet *);
+void	igmp_ifdetach(struct ifnet *);
+void	igmp_input(struct mbuf *, int);
 void	igmp_slowtimo(void);
 
 SYSCTL_DECL(_net_inet_igmp);
 
-#endif
+#endif /* _KERNEL */
 
 /*
  * Names for IGMP sysctl objects

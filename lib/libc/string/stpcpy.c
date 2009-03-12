@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 char *
-stpcpy(char * to, const char * from)
+stpcpy(char * __restrict to, const char * __restrict from)
 {
 
 	for (; (*to = *from); ++from, ++to);

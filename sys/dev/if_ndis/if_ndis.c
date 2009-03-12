@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -102,7 +102,7 @@ SYSCTL_INT(_hw_ndisusb, OID_AUTO, halt, CTLFLAG_RW, &ndisusb_halt, 0,
     "Halt NDIS USB driver when it's attached");
 
 /* 0 - 30 dBm to mW conversion table */
-const uint16_t dBm2mW[] = {
+static const uint16_t dBm2mW[] = {
 	1, 1, 1, 1, 2, 2, 2, 2, 3, 3,
 	3, 4, 4, 4, 5, 6, 6, 7, 8, 9,
 	10, 11, 13, 14, 16, 18, 20, 22, 25, 28,
@@ -557,9 +557,11 @@ ndis_attach(dev)
 	mtx_init(&sc->ndis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	KeInitializeSpinLock(&sc->ndis_rxlock);
-	KeInitializeSpinLock(&sc->ndisusb_xferlock);
+	KeInitializeSpinLock(&sc->ndisusb_tasklock);
+	KeInitializeSpinLock(&sc->ndisusb_xferdonelock);
 	InitializeListHead(&sc->ndis_shlist);
-	InitializeListHead(&sc->ndisusb_xferlist);
+	InitializeListHead(&sc->ndisusb_tasklist);
+	InitializeListHead(&sc->ndisusb_xferdonelist);
 	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
 
 	if (sc->ndis_iftype == PCMCIABus) {
@@ -623,7 +625,10 @@ ndis_attach(dev)
 	sc->ndis_startitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndis_resetitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndis_inputitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
-	sc->ndisusb_xferitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndisusb_xferdoneitem =
+	    IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndisusb_taskitem =
+	    IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
 
 	/* Call driver's init routine. */
@@ -718,8 +723,6 @@ ndis_attach(dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	if (sc->ndis_iftype == PNPBus)
-		ifp->if_flags |= IFF_NEEDSGIANT;
 	ifp->if_ioctl = ndis_ioctl;
 	ifp->if_start = ndis_start;
 	ifp->if_init = ndis_init;
@@ -750,7 +753,7 @@ ndis_attach(dev)
 		ic->ic_ifp = ifp;
 		ic->ic_opmode = IEEE80211_M_STA;
 	        ic->ic_phytype = IEEE80211_T_DS;
-		ic->ic_caps = IEEE80211_C_STA | IEEE80211_C_IBSS | IEEE80211_C_TXPMGT;
+		ic->ic_caps = IEEE80211_C_STA | IEEE80211_C_IBSS;
 		setbit(ic->ic_modecaps, IEEE80211_MODE_AUTO);
 		len = 0;
 		r = ndis_get_info(sc, OID_802_11_NETWORK_TYPES_SUPPORTED,
@@ -929,6 +932,11 @@ got_crypto:
 		r = ndis_get_info(sc, OID_802_11_POWER_MODE, &arg, &i);
 		if (r == 0)
 			ic->ic_caps |= IEEE80211_C_PMGT;
+
+		r = ndis_get_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &i);
+		if (r == 0)
+			ic->ic_caps |= IEEE80211_C_TXPMGT;
+
 		bcopy(eaddr, &ic->ic_myaddr, sizeof(eaddr));
 		ieee80211_ifattach(ic);
 		ic->ic_raw_xmit = ndis_raw_xmit;
@@ -966,8 +974,10 @@ fail:
 	if (sc->ndis_iftype == PNPBus && ndisusb_halt == 0)
 		return (error);
 
+	DPRINTF(("attach done.\n"));
 	/* We're done talking to the NIC for now; halt it. */
 	ndis_halt_nic(sc);
+	DPRINTF(("halting done.\n"));
 
 	return(error);
 }
@@ -1058,8 +1068,10 @@ ndis_detach(dev)
 		IoFreeWorkItem(sc->ndis_resetitem);
 	if (sc->ndis_inputitem != NULL)
 		IoFreeWorkItem(sc->ndis_inputitem);
-	if (sc->ndisusb_xferitem != NULL)
-		IoFreeWorkItem(sc->ndisusb_xferitem);
+	if (sc->ndisusb_xferdoneitem != NULL)
+		IoFreeWorkItem(sc->ndisusb_xferdoneitem);
+	if (sc->ndisusb_taskitem != NULL)
+		IoFreeWorkItem(sc->ndisusb_taskitem);
 
 	bus_generic_detach(dev);
 	ndis_unload_driver(sc);
@@ -1569,7 +1581,7 @@ ndis_txeof(adapter, packet, status)
 	ndis_free_packet(packet);
 	m_freem(m);
 
-	NDISMTX_LOCK(sc);
+	NDIS_LOCK(sc);
 	sc->ndis_txarray[idx] = NULL;
 	sc->ndis_txpending++;
 
@@ -1581,7 +1593,7 @@ ndis_txeof(adapter, packet, status)
 	sc->ndis_tx_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	NDISMTX_UNLOCK(sc);
+	NDIS_UNLOCK(sc);
 
 	IoQueueWorkItem(sc->ndis_startitem,
 	    (io_workitem_func)ndis_starttask_wrap,
@@ -1606,9 +1618,9 @@ ndis_linksts(adapter, status, sbuf, slen)
 
 	/* Event list is all full up, drop this one. */
 
-	NDISMTX_LOCK(sc);
+	NDIS_LOCK(sc);
 	if (sc->ndis_evt[sc->ndis_evtpidx].ne_sts) {
-		NDISMTX_UNLOCK(sc);
+		NDIS_UNLOCK(sc);
 		return;
 	}
 
@@ -1618,7 +1630,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 		sc->ndis_evt[sc->ndis_evtpidx].ne_buf = malloc(slen,
 		    M_TEMP, M_NOWAIT);
 		if (sc->ndis_evt[sc->ndis_evtpidx].ne_buf == NULL) {
-			NDISMTX_UNLOCK(sc);
+			NDIS_UNLOCK(sc);
 			return;
 		}
 		bcopy((char *)sbuf,
@@ -1627,7 +1639,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 	sc->ndis_evt[sc->ndis_evtpidx].ne_sts = status;
 	sc->ndis_evt[sc->ndis_evtpidx].ne_len = slen;
 	NDIS_EVTINC(sc->ndis_evtpidx);
-	NDISMTX_UNLOCK(sc);
+	NDIS_UNLOCK(sc);
 
 	return;
 }
@@ -2324,9 +2336,10 @@ ndis_setstate_80211(sc)
 	ndis_set_info(sc, OID_802_11_POWER_MODE, &arg, &len);
 
 	/* Set TX power */
-	if (ic->ic_txpowlimit < sizeof(dBm2mW)) {
-		len = sizeof(arg);
+	if ((ic->ic_caps & IEEE80211_C_TXPMGT) &&
+	    ic->ic_txpowlimit < (sizeof(dBm2mW) / sizeof(dBm2mW[0]))) {
 		arg = dBm2mW[ic->ic_txpowlimit];
+		len = sizeof(arg);
 		ndis_set_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &len);
 	}
 
@@ -2797,11 +2810,10 @@ ndis_getstate_80211(sc)
 	}
 
 	/* Get TX power */
-	len = sizeof(arg);
-	rval = ndis_get_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &len);
-
-	if (!rval) {
-		for (i = 0; i < sizeof(dBm2mW); i++)
+	if (ic->ic_caps & IEEE80211_C_TXPMGT) {
+		len = sizeof(arg);
+		ndis_get_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &len);
+		for (i = 0; i < (sizeof(dBm2mW) / sizeof(dBm2mW[0])); i++)
 			if (dBm2mW[i] >= arg)
 				break;
 		ic->ic_txpowlimit = i;
@@ -3230,8 +3242,10 @@ ndis_stop(sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	NDIS_UNLOCK(sc);
 
-	if (!(sc->ndis_iftype == PNPBus && ndisusb_halt == 0) ||
-	    sc->ndisusb_status & NDISUSB_STATUS_DETACH)
+	if (sc->ndis_iftype != PNPBus ||
+	    (sc->ndis_iftype == PNPBus &&
+	     !(sc->ndisusb_status & NDISUSB_STATUS_DETACH) &&
+	     ndisusb_halt != 0))
 		ndis_halt_nic(sc);
 
 	NDIS_LOCK(sc);

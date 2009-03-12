@@ -176,15 +176,30 @@ dump_iface(struct libusb20_device *pdev,
 }
 
 void
-dump_device_info(struct libusb20_device *pdev)
+dump_device_info(struct libusb20_device *pdev, uint8_t show_ifdrv)
 {
+	char buf[128];
+	uint8_t n;
+
 	printf("%s, cfg=%u md=%s spd=%s pwr=%s\n",
 	    libusb20_dev_get_desc(pdev),
 	    libusb20_dev_get_config_index(pdev),
 	    dump_mode(libusb20_dev_get_mode(pdev)),
 	    dump_speed(libusb20_dev_get_speed(pdev)),
 	    dump_power_mode(libusb20_dev_get_power_mode(pdev)));
-	return;
+
+	if (!show_ifdrv)
+		return;
+
+	for (n = 0; n != 255; n++) {
+		if (libusb20_dev_get_iface_desc(pdev, n, buf, sizeof(buf)))
+			break;
+		if (buf[0] == 0)
+			continue;
+		printf("ugen%u.%u.%u: %s\n",
+		    libusb20_dev_get_bus_number(pdev),
+		    libusb20_dev_get_address(pdev), n, buf);
+	}
 }
 
 void
@@ -245,106 +260,6 @@ dump_be_dev_quirks(struct libusb20_backend *pbe)
 	}
 	printf("\n");
 	return;
-}
-
-void
-dump_be_access(struct libusb20_backend *pbe)
-{
-	struct group *gr;
-	struct passwd *pw;
-	const char *owner;
-	const char *group;
-	uid_t uid;
-	gid_t gid;
-	mode_t mode;
-
-	if (libusb20_be_get_owner(pbe, &uid, &gid)) {
-		err(1, "could not get owner");
-	}
-	if (libusb20_be_get_perm(pbe, &mode)) {
-		err(1, "could not get permission");
-	}
-	owner = (pw = getpwuid(uid)) ? pw->pw_name : "UNKNOWN";
-	group = (gr = getgrgid(gid)) ? gr->gr_name : "UNKNOWN";
-
-	if (mode || 1) {
-		printf("Global Access: %s:%s 0%o\n", owner, group, mode);
-	} else {
-		printf("Global Access: <not set>\n");
-	}
-	return;
-}
-
-void
-dump_device_access(struct libusb20_device *pdev, uint8_t iface)
-{
-	struct group *gr;
-	struct passwd *pw;
-	const char *owner;
-	const char *group;
-	uid_t uid;
-	gid_t gid;
-	mode_t mode;
-
-	if (libusb20_dev_get_owner(pdev, &uid, &gid)) {
-		err(1, "could not get owner");
-	}
-	if (libusb20_dev_get_perm(pdev, &mode)) {
-		err(1, "could not get permission");
-	}
-	if (mode) {
-		owner = (pw = getpwuid(uid)) ? pw->pw_name : "UNKNOWN";
-		group = (gr = getgrgid(gid)) ? gr->gr_name : "UNKNOWN";
-
-		printf("  " "Device Access: %s:%s 0%o\n", owner, group, mode);
-
-	} else {
-		printf("  " "Device Access: <not set>\n");
-	}
-
-	if (iface == 0xFF) {
-		for (iface = 0; iface != 0xFF; iface++) {
-			if (dump_device_iface_access(pdev, iface)) {
-				break;
-			}
-		}
-	} else {
-		if (dump_device_iface_access(pdev, iface)) {
-			err(1, "could not get interface access info");
-		}
-	}
-	return;
-}
-
-int
-dump_device_iface_access(struct libusb20_device *pdev, uint8_t iface)
-{
-	struct group *gr;
-	struct passwd *pw;
-	const char *owner;
-	const char *group;
-	uid_t uid;
-	gid_t gid;
-	mode_t mode;
-	int error;
-
-	if ((error = libusb20_dev_get_iface_owner(pdev, iface, &uid, &gid))) {
-		return (error);
-	}
-	if ((error = libusb20_dev_get_iface_perm(pdev, iface, &mode))) {
-		return (error);
-	}
-	if (mode) {
-
-		owner = (pw = getpwuid(uid)) ? pw->pw_name : "UNKNOWN";
-		group = (gr = getgrgid(gid)) ? gr->gr_name : "UNKNOWN";
-
-		printf("    " "Interface %u Access: %s:%s 0%o\n", iface, owner, group, mode);
-	} else {
-		printf("    " "Interface %u Access: <not set>\n", iface);
-	}
-
-	return (0);
 }
 
 void

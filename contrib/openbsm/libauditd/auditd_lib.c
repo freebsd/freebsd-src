@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008 Apple Inc.
+ * Copyright (c) 2008-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libauditd/auditd_lib.c#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libauditd/auditd_lib.c#7 $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@
 #include <bsm/auditd_lib.h>
 #include <bsm/libbsm.h>
 
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -77,6 +78,11 @@
 #define	AUDIT_HARD_LIMIT_FREE_BLOCKS	4
 #endif
 
+/*
+ * Number of seconds to January 1, 2000
+ */
+#define	JAN_01_2000	946598400
+
 struct dir_ent {
 	char			*dirname;
 	uint8_t			 softlim;
@@ -85,7 +91,19 @@ struct dir_ent {
 };
 
 static TAILQ_HEAD(, dir_ent)	dir_q;
-static int minval = -1;
+
+struct audit_trail {
+	time_t			 at_time;
+	char			*at_path;
+	off_t			 at_size;
+
+	TAILQ_ENTRY(audit_trail) at_trls;
+};
+
+static int auditd_minval = -1;
+
+static char auditd_host[MAXHOSTNAMELEN];
+static int auditd_hostlen = -1;
 
 static char *auditd_errmsg[] = {
 	"no error",					/* ADE_NOERR 	( 0) */
@@ -107,6 +125,7 @@ static char *auditd_errmsg[] = {
 	"invalid argument",				/* ADE_INVAL	(16) */
 	"could not resolve hostname to address",	/* ADE_GETADDR	(17) */
 	"address family not supported",			/* ADE_ADDRFAM	(18) */
+	"error expiring audit trail files",		/* ADE_EXPIRE	(19) */
 };
 
 #define MAXERRCODE (sizeof(auditd_errmsg) / sizeof(auditd_errmsg[0]))
@@ -165,7 +184,13 @@ affixdir(char *name, struct dir_ent *dirent)
                 return (NULL);
 	}
 
-	asprintf(&fn, "%s/%s", dirent->dirname, name);
+	/*
+	 * If the host is set then also add the hostname to the filename.
+	 */
+	if (auditd_hostlen != -1)
+		asprintf(&fn, "%s/%s.%s", dirent->dirname, name, auditd_host);
+	else
+		asprintf(&fn, "%s/%s", dirent->dirname, name);
 	return (fn);
 }
 
@@ -204,16 +229,14 @@ insert_orderly(struct dir_ent *denew)
 int
 auditd_set_host(void)
 {
-	char hoststr[MAXHOSTNAMELEN];
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in *sin;
 	struct addrinfo *res;
 	struct auditinfo_addr aia;
 	int error, ret = ADE_NOERR;
 
-	if (getachost(hoststr, MAXHOSTNAMELEN) != 0) {
-
-		ret = ADE_PARSE;
+	if (getachost(auditd_host, sizeof(auditd_host)) != 0) {
+		ret = ADE_PARSE;	
 	
 		/*
 		 * To maintain reverse compatability with older audit_control
@@ -229,7 +252,8 @@ auditd_set_host(void)
 			ret = ADE_AUDITON;
 		return (ret);
 	}
-	error = getaddrinfo(hoststr, NULL, NULL, &res);
+	auditd_hostlen = strlen(auditd_host);
+	error = getaddrinfo(auditd_host, NULL, NULL, &res);
 	if (error)
 		return (ADE_GETADDR);
 	switch (res->ai_family) {
@@ -271,14 +295,14 @@ auditd_set_minfree(void)
 {
 	au_qctrl_t qctrl;
 
-	if (getacmin(&minval) != 0)
+	if (getacmin(&auditd_minval) != 0)
 		return (ADE_PARSE);
 	
 	if (auditon(A_GETQCTRL, &qctrl, sizeof(qctrl)) != 0)
 		return (ADE_AUDITON);
 
-	if (qctrl.aq_minfree != minval) {
-		qctrl.aq_minfree = minval;
+	if (qctrl.aq_minfree != auditd_minval) {
+		qctrl.aq_minfree = auditd_minval;
 		if (auditon(A_SETQCTRL, &qctrl, sizeof(qctrl)) != 0)
 			return (ADE_AUDITON);
 	}
@@ -287,9 +311,259 @@ auditd_set_minfree(void)
 }
 
 /*
+ * Convert a trailname into a timestamp (seconds).  Return 0 if the conversion
+ * was successful.
+ */
+static int
+trailname_to_tstamp(char *fn, time_t *tstamp)
+{
+	struct tm tm;
+	char ts[TIMESTAMP_LEN];
+	char *p;
+
+	*tstamp = 0;
+
+	/*
+	 * Get the ending time stamp.
+	 */
+	if ((p = strchr(fn, '.')) == NULL)
+		return (1);
+	strlcpy(ts, ++p, TIMESTAMP_LEN);
+	if (strlen(ts) != POSTFIX_LEN)
+		return (1);
+
+	bzero(&tm, sizeof(tm));
+
+	/* seconds (0-60) */
+	p = ts + POSTFIX_LEN - 2;
+	tm.tm_sec = atol(p);
+	if (tm.tm_sec < 0 || tm.tm_sec > 60)
+		return (1);
+
+	/* minutes (0-59) */ 
+	*p = '\0'; p -= 2;
+	tm.tm_min = atol(p);
+	if (tm.tm_min < 0 || tm.tm_min > 59)
+		return (1);
+
+	/* hours (0 - 23) */
+	*p = '\0'; p -= 2;
+	tm.tm_hour = atol(p);
+	if (tm.tm_hour < 0 || tm.tm_hour > 23)
+		return (1);
+
+	/* day of month (1-31) */
+	*p = '\0'; p -= 2;
+	tm.tm_mday = atol(p);
+	if (tm.tm_mday < 1 || tm.tm_mday > 31)
+		return (1);
+
+	/* month (0 - 11) */
+	*p = '\0'; p -= 2;
+	tm.tm_mon = atol(p) - 1;
+	if (tm.tm_mon < 0 || tm.tm_mon > 11)
+		return (1);
+
+	/* year (year - 1900) */
+	*p = '\0'; p -= 4;
+	tm.tm_year = atol(p) - 1900;
+	if (tm.tm_year < 0)
+		return (1);
+
+	*tstamp = timegm(&tm);
+
+	return (0);
+}
+
+/*
+ * Remove audit trails files according to the expiration conditions.  Returns:
+ * 	ADE_NOERR	on success or there is nothing to do.
+ * 	ADE_PARSE	if error parsing audit_control(5).
+ * 	ADE_NOMEM	if could not allocate memory.
+ * 	ADE_EXPIRE	if there was an unespected error.
+ */
+int
+auditd_expire_trails(int (*warn_expired)(char *))
+{
+	int andflg, ret = ADE_NOERR;
+	size_t expire_size, total_size = 0L;
+	time_t expire_age, oldest_time, current_time = time(NULL);
+	struct dir_ent *traildir;
+	struct audit_trail *at;
+	char *afnp, *pn;
+	TAILQ_HEAD(au_trls_head, audit_trail) head =
+	    TAILQ_HEAD_INITIALIZER(head);
+	struct stat stbuf;
+	char activefn[MAXPATHLEN];
+
+	/*
+	 * Read the expiration conditions.  If no conditions then return no
+	 * error.
+	 */
+	if (getacexpire(&andflg, &expire_age, &expire_size) < 0)
+		return (ADE_PARSE);
+	if (!expire_age && !expire_size)
+		return (ADE_NOERR);
+
+	/*
+	 * Read the 'current' trail file name.  Trim off directory path.
+	 */
+	activefn[0] = '\0';
+	readlink(AUDIT_CURRENT_LINK, activefn, MAXPATHLEN - 1);
+	if ((afnp = strrchr(activefn, '/')) != NULL) 
+		afnp++;
+
+
+	/*
+	 * Build tail queue of the trail files.
+	 */
+	TAILQ_FOREACH(traildir, &dir_q, dirs) {
+		DIR *dirp;
+		struct dirent *dp;
+
+		dirp = opendir(traildir->dirname);
+		while ((dp = readdir(dirp)) != NULL) {
+			time_t tstamp = 0;
+			struct audit_trail *new;
+
+			/*
+			 * Quickly filter non-trail files.
+			 */
+			if (dp->d_namlen != (FILENAME_LEN - 1) ||
+#ifdef DT_REG
+			    dp->d_type != DT_REG || 
+#endif
+			    dp->d_name[POSTFIX_LEN] != '.')
+				continue;
+
+			if (asprintf(&pn, "%s/%s", traildir->dirname,
+				dp->d_name) < 0) {
+				ret = ADE_NOMEM;
+				break;
+			}
+
+			if (stat(pn, &stbuf) < 0 || !S_ISREG(stbuf.st_mode)) {
+				free(pn);
+				continue;
+			}
+
+			total_size += stbuf.st_size;
+
+			/*
+			 * If this is the 'current' audit trail then
+			 * don't add it to the tail queue.
+			 */
+			if (NULL != afnp &&
+			    strncmp(dp->d_name, afnp, FILENAME_LEN) == 0) {
+				free(pn);
+				continue;
+			}
+
+			/*
+			 * Get the ending time stamp encoded in the trail
+			 * name.  If we can't read it or if it is older
+			 * than Jan 1, 2000 then use the mtime.
+			 */
+			if (trailname_to_tstamp(dp->d_name, &tstamp) != 0 ||
+			    tstamp < JAN_01_2000)
+				tstamp = stbuf.st_mtime;
+
+			/*
+			 * If the time stamp is older than Jan 1, 2000 then
+			 * update the mtime of the trail file to the current
+			 * time. This is so we don't prematurely remove a trail
+			 * file that was created while the system clock reset
+			 * to the * "beginning of time" but later the system
+			 * clock is set to the correct current time.
+			 */
+			if (current_time >= JAN_01_2000 &&
+			    tstamp < JAN_01_2000) {
+				struct timeval tv[2];
+
+				tstamp = stbuf.st_mtime = current_time;
+				TIMESPEC_TO_TIMEVAL(&tv[0], 
+				    &stbuf.st_atimespec);
+				TIMESPEC_TO_TIMEVAL(&tv[1], 
+				    &stbuf.st_mtimespec);
+				utimes(pn, tv);
+			}
+
+			/*
+			 * Allocate and populate the new entry.
+			 */
+			new = malloc(sizeof(*new));
+			if (NULL == new) {
+				free(pn);
+				ret = ADE_NOMEM;
+				break;
+			}
+			new->at_time = tstamp;
+			new->at_size = stbuf.st_size;
+			new->at_path = pn;
+
+			/*
+			 * Check to see if we have a new head.  Otherwise,
+			 * walk the tailq from the tail first and do a simple
+			 * insertion sort.
+			 */
+			if (TAILQ_EMPTY(&head) ||
+			    (new->at_time <= TAILQ_FIRST(&head)->at_time)) {
+				TAILQ_INSERT_HEAD(&head, new, at_trls);
+				continue;
+			}
+
+			TAILQ_FOREACH_REVERSE(at, &head, au_trls_head, at_trls)
+				if (new->at_time >= at->at_time) {
+					TAILQ_INSERT_AFTER(&head, at, new,
+					    at_trls);
+					break;
+				}
+
+		}
+	}
+
+	oldest_time = current_time - expire_age;
+
+	/* 
+	 * Expire trail files, oldest (mtime) first, if the given
+	 * conditions are met.
+	 */
+	at = TAILQ_FIRST(&head);
+	while (NULL != at) {
+		struct audit_trail *at_next = TAILQ_NEXT(at, at_trls);
+
+		if (andflg) {
+			if ((expire_size && total_size > expire_size) &&
+			    (expire_age && at->at_time < oldest_time)) {
+				if (warn_expired)
+				    (*warn_expired)(at->at_path);
+				if (unlink(at->at_path) < 0)
+					ret = ADE_EXPIRE;
+				total_size -= at->at_size;
+			}
+		} else {
+			if ((expire_size && total_size > expire_size) ||
+			    (expire_age && at->at_time < oldest_time)) {
+				if (warn_expired)
+				    (*warn_expired)(at->at_path);
+				if (unlink(at->at_path) < 0)
+					ret = ADE_EXPIRE;
+				total_size -= at->at_size;
+			}
+		}
+
+		free(at->at_path);
+		free(at);
+		at = at_next;
+	}
+
+	return (ret);
+}
+
+/*
  * Parses the "dir" entry in audit_control(5) into an ordered list.  Also, will
- * set the minfree value if not already set.  Arguments include function
- * pointers to audit_warn functions for soft and hard limits. Returns:
+ * set the minfree and host values if not already set.  Arguments include
+ * function pointers to audit_warn functions for soft and hard limits. Returns:
  *	ADE_NOERR	on success,
  *	ADE_PARSE	error parsing audit_control(5),
  *	ADE_AUDITON	error getting/setting auditon(2) value,
@@ -309,8 +583,11 @@ auditd_read_dirs(int (*warn_soft)(char *), int (*warn_hard)(char *))
 	int scnt = 0;
 	int hcnt = 0;
 
-	if (minval == -1 && (err = auditd_set_minfree()) != 0)
+	if (auditd_minval == -1 && (err = auditd_set_minfree()) != 0)
 		return (err);
+
+	if (auditd_hostlen == -1)
+		auditd_set_host();
 
         /*
          * Init directory q.  Force a re-read of the file the next time.
@@ -329,7 +606,8 @@ auditd_read_dirs(int (*warn_soft)(char *), int (*warn_hard)(char *))
 	while (getacdir(cur_dir, MAXNAMLEN) >= 0) {
 		if (statfs(cur_dir, &sfs) < 0)
 			continue;  /* XXX should warn */
-		soft = (sfs.f_bfree < (sfs.f_blocks / (100 / minval))) ? 1 : 0;
+		soft = (sfs.f_bfree < (sfs.f_blocks / (100 / auditd_minval))) ?
+		    1 : 0;
 		hard = (sfs.f_bfree < AUDIT_HARD_LIMIT_FREE_BLOCKS) ? 1 : 0;
 		if (soft) {
 			if (warn_soft) 
@@ -367,7 +645,8 @@ void
 auditd_close_dirs(void)
 {
 	free_dir_q();
-	minval = -1;
+	auditd_minval = -1;
+	auditd_hostlen = -1;
 }
 
 
@@ -549,7 +828,7 @@ auditd_swap_trail(char *TS, char **newfile, gid_t gid,
 	}
                 
 	/* Try until we succeed. */
-	while ((dirent = TAILQ_FIRST(&dir_q))) {
+	TAILQ_FOREACH(dirent, &dir_q, dirs) {
 		if (dirent->hardlim) 
 			continue;
 		if ((fn = affixdir(timestr, dirent)) == NULL)
@@ -606,6 +885,28 @@ auditd_swap_trail(char *TS, char **newfile, gid_t gid,
  *	ADE_NOERR	on success,
  *	ADE_SETAUDIT	if setaudit(2) fails.
  */
+#ifdef __APPLE__
+int
+auditd_prevent_audit(void)
+{
+	auditinfo_addr_t aia;
+
+	/* 
+	 * To prevent event feedback cycles and avoid audit becoming stalled if
+	 * auditing is suspended we mask this processes events from being
+	 * audited.  We allow the uid, tid, and mask fields to be implicitly
+	 * set to zero, but do set the audit session ID to the PID. 
+	 *
+	 * XXXRW: Is there more to it than this?
+	 */
+	bzero(&aia, sizeof(aia));
+	aia.ai_asid = AU_ASSIGN_ASID;
+	aia.ai_termid.at_type = AU_IPv4;
+	if (setaudit_addr(&aia, sizeof(aia)) != 0)
+		return (ADE_SETAUDIT); 
+	return (ADE_NOERR);
+}
+#else
 int
 auditd_prevent_audit(void)
 {
@@ -625,6 +926,7 @@ auditd_prevent_audit(void)
 		return (ADE_SETAUDIT); 
 	return (ADE_NOERR);
 }
+#endif /* __APPLE__ */
 
 /*
  * Generate and submit audit record for audit startup or shutdown.  The event
@@ -713,7 +1015,7 @@ auditd_new_curlink(char *curfile)
 			strlcpy(newname, recoveredname, MAXPATHLEN);
 
 			if ((ptr = strstr(newname, NOT_TERMINATED)) != NULL) {
-				strlcpy(ptr, CRASH_RECOVERY, TIMESTAMP_LEN);
+				memcpy(ptr, CRASH_RECOVERY, POSTFIX_LEN);
 				if (rename(recoveredname, newname) != 0)
 					return (ADE_RENAME);
 			} else
@@ -750,9 +1052,10 @@ int
 audit_quick_start(void)
 {
 	int err;
-	char *newfile;
+	char *newfile = NULL;
 	time_t tt;
 	char TS[TIMESTAMP_LEN];
+	int ret = 0;
 
 	/* 
 	 * Mask auditing of this process.
@@ -773,20 +1076,26 @@ audit_quick_start(void)
 	if (getTSstr(tt, TS, TIMESTAMP_LEN) != 0)
 		return (-1);
 	err = auditd_swap_trail(TS, &newfile, getgid(), NULL);
-	if (err != ADE_NOERR && err != ADE_ACTL)
-		return (-1);
+	if (err != ADE_NOERR && err != ADE_ACTL) {
+		ret = -1;
+		goto out;
+	}
 
 	/*
 	 * Add the current symlink and recover from crash, if needed. 
 	 */
-	if (auditd_new_curlink(newfile) != 0)
-		return(-1);
+	if (auditd_new_curlink(newfile) != 0) {
+		ret = -1;
+		goto out;
+	}
 
 	/*
 	 * At this point auditing has started so generate audit start-up record.
 	 */
-	if (auditd_gen_record(AUE_audit_startup, NULL) != 0)
-		return (-1);
+	if (auditd_gen_record(AUE_audit_startup, NULL) != 0) {
+		ret = -1;
+		goto out;
+	}
 
 	/*
 	 *  Configure the audit controls.
@@ -798,7 +1107,11 @@ audit_quick_start(void)
 	(void) auditd_set_minfree();
 	(void) auditd_set_host();
 
-	return (0);
+out:
+	if (newfile != NULL)
+		free(newfile);
+
+	return (ret);
 }
 
 /*
@@ -855,7 +1168,7 @@ audit_quick_stop(void)
 	strlcpy(newname, oldname, len);
 
 	if ((ptr = strstr(newname, NOT_TERMINATED)) != NULL) {
-		strlcpy(ptr, TS, TIMESTAMP_LEN);
+		memcpy(ptr, TS, POSTFIX_LEN);
 		if (rename(oldname, newname) != 0)
 			return (-1);
 	} else

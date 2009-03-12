@@ -239,9 +239,11 @@ static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 
 static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m, vm_prot_t prot);
+static void	pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va);
 static void	pmap_invalidate_all(pmap_t pmap);
 static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
 		    vm_offset_t va, pv_entry_t pv, int freepte);
+static int	pmap_remove_vhpt(vm_offset_t va);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m);
 
@@ -799,11 +801,23 @@ retry:
 				PMAP_LOCK(pmap);
 			else if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
 				continue;
+			pmap->pm_stats.resident_count--;
 			oldpmap = pmap_switch(pmap);
 			pte = pmap_find_vhpt(va);
 			KASSERT(pte != NULL, ("pte"));
-			pmap_remove_pte(pmap, pte, va, pv, 1);
+			pmap_remove_vhpt(va);
+			pmap_invalidate_page(pmap, va);
 			pmap_switch(oldpmap);
+			if (pmap_accessed(pte))
+				vm_page_flag_set(m, PG_REFERENCED);
+			if (pmap_dirty(pte))
+				vm_page_dirty(m);
+			pmap_free_pte(pte, va);
+			TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+			m->md.pv_list_count--;
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+			if (TAILQ_EMPTY(&m->md.pv_list))
+				vm_page_flag_clear(m, PG_WRITEABLE);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
 			if (allocated_pv == NULL)

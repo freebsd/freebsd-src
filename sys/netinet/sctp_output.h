@@ -101,6 +101,11 @@ void
 sctp_send_heartbeat_ack(struct sctp_tcb *, struct mbuf *, int, int,
     struct sctp_nets *);
 
+void
+sctp_remove_from_wheel(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
+    struct sctp_stream_out *strq, int holds_lock);
+
 
 void sctp_send_shutdown(struct sctp_tcb *, struct sctp_nets *);
 
@@ -192,10 +197,14 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
 
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
-    int number_entries, uint16_t * list,
-    uint8_t send_out_req, uint32_t resp_seq,
+    int number_entries,
+    uint16_t * list,
+    uint8_t send_out_req,
+    uint32_t resp_seq,
     uint8_t send_in_req,
-    uint8_t send_tsn_req);
+    uint8_t send_tsn_req,
+    uint8_t add_str,
+    uint16_t adding);
 
 
 void

@@ -2,6 +2,7 @@
  * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -11,6 +12,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,6 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -45,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -163,17 +169,24 @@ mac_sysvmsq_cleanup(struct msqid_kernel *msqkptr)
 	MAC_PERFORM(sysvmsq_cleanup, msqkptr->label);
 }
 
+MAC_CHECK_PROBE_DEFINE3(sysvmsq_check_msgmsq, "struct ucred *",
+    "struct msg *", "struct msqid_kernel *");
+
 int
 mac_sysvmsq_check_msgmsq(struct ucred *cred, struct msg *msgptr,
 	struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msgmsq, cred,  msgptr, msgptr->label,
+	MAC_CHECK(sysvmsq_check_msgmsq, cred, msgptr, msgptr->label,
 	    msqkptr, msqkptr->label);
+	MAC_CHECK_PROBE3(sysvmsq_check_msgmsq, error, cred, msgptr, msqkptr);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(sysvmsq_check_msgrcv, "struct ucred *",
+    "struct msg *");
 
 int
 mac_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr)
@@ -181,19 +194,27 @@ mac_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr)
 	int error;
 
 	MAC_CHECK(sysvmsq_check_msgrcv, cred, msgptr, msgptr->label);
+	MAC_CHECK_PROBE2(sysvmsq_check_msgrcv, error, cred, msgptr);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(sysvmsq_check_msgrmid, "struct ucred *",
+    "struct msg *");
 
 int
 mac_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr)
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msgrmid, cred,  msgptr, msgptr->label);
+	MAC_CHECK(sysvmsq_check_msgrmid, cred, msgptr, msgptr->label);
+	MAC_CHECK_PROBE2(sysvmsq_check_msgrmid, error, cred, msgptr);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(sysvmsq_check_msqget, "struct ucred *",
+    "struct msqid_kernel *");
 
 int
 mac_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr)
@@ -201,9 +222,13 @@ mac_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr)
 	int error;
 
 	MAC_CHECK(sysvmsq_check_msqget, cred, msqkptr, msqkptr->label);
+	MAC_CHECK_PROBE2(sysvmsq_check_msqget, error, cred, msqkptr);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(sysvmsq_check_msqsnd, "struct ucred *",
+    "struct msqid_kernel *");
 
 int
 mac_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr)
@@ -211,9 +236,13 @@ mac_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr)
 	int error;
 
 	MAC_CHECK(sysvmsq_check_msqsnd, cred, msqkptr, msqkptr->label);
+	MAC_CHECK_PROBE2(sysvmsq_check_msqsnd, error, cred, msqkptr);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(sysvmsq_check_msqrcv, "struct ucred *",
+    "struct msqid_kernel *");
 
 int
 mac_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr)
@@ -221,9 +250,13 @@ mac_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr)
 	int error;
 
 	MAC_CHECK(sysvmsq_check_msqrcv, cred, msqkptr, msqkptr->label);
+	MAC_CHECK_PROBE2(sysvmsq_check_msqrcv, error, cred, msqkptr);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(sysvmsq_check_msqctl, "struct ucred *",
+    "struct msqid_kernel *", "int");
 
 int
 mac_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
@@ -232,6 +265,7 @@ mac_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
 	int error;
 
 	MAC_CHECK(sysvmsq_check_msqctl, cred, msqkptr, msqkptr->label, cmd);
+	MAC_CHECK_PROBE3(sysvmsq_check_msqctl, error, cred, msqkptr, cmd);
 
 	return (error);
 }

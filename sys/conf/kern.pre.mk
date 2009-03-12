@@ -53,7 +53,11 @@ C_DIALECT= -std=c99
 NOSTDINC= -nostdinc
 .endif
 
-INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
+.if defined(WITH_LEGACY)
+LEGACY_INC= -I$S/legacy
+.endif
+
+INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. ${LEGACY_INC} -I$S
 
 # This hack lets us use the OpenBSD altq code without spamming a new
 # include path into contrib'ed source files.

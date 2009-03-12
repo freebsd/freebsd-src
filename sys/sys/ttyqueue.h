@@ -43,29 +43,29 @@ struct uio;
 
 /* Data input queue. */
 struct ttyinq {
-	TAILQ_HEAD(ttyinq_bhead, ttyinq_block) ti_list;
-	struct ttyinq_block		*ti_startblock;
-	struct ttyinq_block		*ti_reprintblock;
-	struct ttyinq_block		*ti_lastblock;
-	unsigned int			ti_begin;
-	unsigned int			ti_linestart;
-	unsigned int			ti_reprint;
-	unsigned int			ti_end;
-	unsigned int			ti_nblocks;
-	unsigned int			ti_quota;
+	struct ttyinq_block	*ti_firstblock;
+	struct ttyinq_block	*ti_startblock;
+	struct ttyinq_block	*ti_reprintblock;
+	struct ttyinq_block	*ti_lastblock;
+	unsigned int		ti_begin;
+	unsigned int		ti_linestart;
+	unsigned int		ti_reprint;
+	unsigned int		ti_end;
+	unsigned int		ti_nblocks;
+	unsigned int		ti_quota;
 };
 #define TTYINQ_DATASIZE 128
 
 /* Data output queue. */
 struct ttyoutq {
-	STAILQ_HEAD(, ttyoutq_block)	to_list;
-	struct ttyoutq_block		*to_lastblock;
-	unsigned int			to_begin;
-	unsigned int			to_end;
-	unsigned int			to_nblocks;
-	unsigned int			to_quota;
+	struct ttyoutq_block	*to_firstblock;
+	struct ttyoutq_block	*to_lastblock;
+	unsigned int		to_begin;
+	unsigned int		to_end;
+	unsigned int		to_nblocks;
+	unsigned int		to_quota;
 };
-#define TTYOUTQ_DATASIZE (256 - sizeof(STAILQ_ENTRY(ttyoutq_block)))
+#define TTYOUTQ_DATASIZE (256 - sizeof(struct ttyoutq_block *))
 
 #ifdef _KERNEL
 /* Input queue handling routines. */
@@ -85,13 +85,6 @@ int	ttyinq_peekchar(struct ttyinq *ti, char *c, int *quote);
 void	ttyinq_unputchar(struct ttyinq *ti);
 void	ttyinq_reprintpos_set(struct ttyinq *ti);
 void	ttyinq_reprintpos_reset(struct ttyinq *ti);
-
-static __inline void
-ttyinq_init(struct ttyinq *ti)
-{
-
-	TAILQ_INIT(&ti->ti_list);
-}
 
 static __inline size_t
 ttyinq_getsize(struct ttyinq *ti)
@@ -142,13 +135,6 @@ size_t	ttyoutq_read(struct ttyoutq *to, void *buf, size_t len);
 int	ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio);
 size_t	ttyoutq_write(struct ttyoutq *to, const void *buf, size_t len);
 int	ttyoutq_write_nofrag(struct ttyoutq *to, const void *buf, size_t len);
-
-static __inline void
-ttyoutq_init(struct ttyoutq *to)
-{
-
-	STAILQ_INIT(&to->to_list);
-}
 
 static __inline size_t
 ttyoutq_getsize(struct ttyoutq *to)

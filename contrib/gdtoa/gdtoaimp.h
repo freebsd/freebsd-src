@@ -128,8 +128,10 @@ THIS SOFTWARE.
  *	conversions of IEEE doubles in single-threaded executions with
  *	8-byte pointers, PRIVATE_MEM >= 7400 appears to suffice; with
  *	4-byte pointers, PRIVATE_MEM >= 7112 appears adequate.
- * #define INFNAN_CHECK on IEEE systems to cause strtod to check for
- *	Infinity and NaN (case insensitively).
+ * #define NO_INFNAN_CHECK if you do not wish to have INFNAN_CHECK
+ *	#defined automatically on IEEE systems.  On such systems,
+ *	when INFNAN_CHECK is #defined, strtod checks
+ *	for Infinity and NaN (case insensitively).
  *	When INFNAN_CHECK is #defined and No_Hex_NaN is not #defined,
  *	strtodg also accepts (case insensitively) strings of the form
  *	NaN(x), where x is a string of hexadecimal digits (optionally
@@ -177,6 +179,9 @@ THIS SOFTWARE.
 
 #include "gdtoa.h"
 #include "gd_qnan.h"
+#ifdef Honor_FLT_ROUNDS
+#include <fenv.h>
+#endif
 
 #ifdef DEBUG
 #include "stdio.h"
@@ -206,6 +211,7 @@ extern Char *MALLOC ANSI((size_t));
 
 #define INFNAN_CHECK
 #define USE_LOCALE
+#define NO_LOCALE_CACHE
 #define Honor_FLT_ROUNDS
 #define Trust_FLT_ROUNDS
 
@@ -608,7 +614,7 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern void freedtoa ANSI((char*));
  extern char *gdtoa ANSI((FPI *fpi, int be, ULong *bits, int *kindp,
 			  int mode, int ndigits, int *decpt, char **rve));
- extern char *g__fmt ANSI((char*, char*, char*, int, ULong));
+ extern char *g__fmt ANSI((char*, char*, char*, int, ULong, size_t));
  extern int gethex ANSI((CONST char**, FPI*, Long*, Bigint**, int));
  extern void hexdig_init_D2A(Void);
  extern int hexnan ANSI((CONST char**, FPI*, ULong*));
@@ -626,7 +632,7 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern double ratio ANSI((Bigint*, Bigint*));
  extern void rshift ANSI((Bigint*, int));
  extern char *rv_alloc ANSI((int));
- extern Bigint *s2b ANSI((CONST char*, int, int, ULong));
+ extern Bigint *s2b ANSI((CONST char*, int, int, ULong, int));
  extern Bigint *set_ones ANSI((Bigint*, int));
  extern char *strcp ANSI((char*, const char*));
  extern int strtodg ANSI((CONST char*, char**, FPI*, Long*, ULong*));
@@ -668,6 +674,10 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  * (On HP Series 700/800 machines, -DNAN_WORD0=0x7ff40000 works.)
  */
 #ifdef IEEE_Arith
+#ifndef NO_INFNAN_CHECK
+#undef INFNAN_CHECK
+#define INFNAN_CHECK
+#endif
 #ifdef IEEE_MC68k
 #define _0 0
 #define _1 1

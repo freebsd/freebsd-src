@@ -46,6 +46,7 @@ static char rcsid[] =
 #include "value.h"
 #include "lcmd.h"
 #include "var.h"
+#include <stdio.h>
 
 struct lcmd_arg arg_window[] = {
 	{ "row",	1,	ARG_NUM },

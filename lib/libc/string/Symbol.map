@@ -81,7 +81,14 @@ FBSD_1.1 {
 	ffsll;
 	flsll;
 	memrchr;
+	stpncpy;
 	strndup;
+	strnlen;
+	wcpcpy;
+	wcpncpy;
+	wcscasecmp;
+	wcsncasecmp;
+	wcsnlen;
 };
 
 FBSDprivate_1.0 {

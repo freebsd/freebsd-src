@@ -74,6 +74,103 @@ static wchar_t	*__mbsconv(char *, int);
 #define	CHAR	wchar_t
 #include "printfcommon.h"
 
+struct grouping_state {
+	wchar_t thousands_sep;	/* locale-specific thousands separator */
+	const char *grouping;	/* locale-specific numeric grouping rules */
+	int lead;		/* sig figs before decimal or group sep */
+	int nseps;		/* number of group separators with ' */
+	int nrepeats;		/* number of repeats of the last group */
+};
+
+static const mbstate_t initial_mbs;
+
+static inline wchar_t
+get_decpt(void)
+{
+	mbstate_t mbs;
+	wchar_t decpt;
+	int nconv;
+
+	mbs = initial_mbs;
+	nconv = mbrtowc(&decpt, localeconv()->decimal_point, MB_CUR_MAX, &mbs);
+	if (nconv == (size_t)-1 || nconv == (size_t)-2)
+		decpt = '.';    /* failsafe */
+	return (decpt);
+}
+
+static inline wchar_t
+get_thousep(void)
+{
+	mbstate_t mbs;
+	wchar_t thousep;
+	int nconv;
+
+	mbs = initial_mbs;
+	nconv = mbrtowc(&thousep, localeconv()->thousands_sep,
+	    MB_CUR_MAX, &mbs);
+	if (nconv == (size_t)-1 || nconv == (size_t)-2)
+		thousep = '\0';    /* failsafe */
+	return (thousep);
+}
+
+/*
+ * Initialize the thousands' grouping state in preparation to print a
+ * number with ndigits digits. This routine returns the total number
+ * of wide characters that will be printed.
+ */
+static int
+grouping_init(struct grouping_state *gs, int ndigits)
+{
+
+	gs->grouping = localeconv()->grouping;
+	gs->thousands_sep = get_thousep();
+
+	gs->nseps = gs->nrepeats = 0;
+	gs->lead = ndigits;
+	while (*gs->grouping != CHAR_MAX) {
+		if (gs->lead <= *gs->grouping)
+			break;
+		gs->lead -= *gs->grouping;
+		if (*(gs->grouping+1)) {
+			gs->nseps++;
+			gs->grouping++;
+		} else
+			gs->nrepeats++;
+	}
+	return (gs->nseps + gs->nrepeats);
+}
+
+/*
+ * Print a number with thousands' separators.
+ */
+static int
+grouping_print(struct grouping_state *gs, struct io_state *iop,
+	       const CHAR *cp, const CHAR *ep)
+{
+	const CHAR *cp0 = cp;
+
+	if (io_printandpad(iop, cp, ep, gs->lead, zeroes))
+		return (-1);
+	cp += gs->lead;
+	while (gs->nseps > 0 || gs->nrepeats > 0) {
+		if (gs->nrepeats > 0)
+			gs->nrepeats--;
+		else {
+			gs->grouping--;
+			gs->nseps--;
+		}
+		if (io_print(iop, &gs->thousands_sep, 1))
+			return (-1);
+		if (io_printandpad(iop, cp, ep, *gs->grouping, zeroes))
+			return (-1);
+		cp += *gs->grouping;
+	}
+	if (cp > ep)
+		cp = ep;
+	return (cp - cp0);
+}
+
+
 /*
  * Flush out all the vectors defined by the given uio,
  * then reset it so that it can be reused.
@@ -147,7 +244,6 @@ __sbprintf(FILE *fp, const wchar_t *fmt, va_list ap)
 static wint_t
 __xfputwc(wchar_t wc, FILE *fp)
 {
-	static const mbstate_t initial;
 	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	struct __suio uio;
@@ -157,7 +253,7 @@ __xfputwc(wchar_t wc, FILE *fp)
 	if ((fp->_flags & __SSTR) == 0)
 		return (__fputwc(wc, fp));
 
-	mbs = initial;
+	mbs = initial_mbs;
 	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
@@ -179,7 +275,6 @@ __xfputwc(wchar_t wc, FILE *fp)
 static wchar_t *
 __mbsconv(char *mbsarg, int prec)
 {
-	static const mbstate_t initial;
 	mbstate_t mbs;
 	wchar_t *convbuf, *wcp;
 	const char *p;
@@ -199,7 +294,7 @@ __mbsconv(char *mbsarg, int prec)
 		 */
 		p = mbsarg;
 		insize = nchars = 0;
-		mbs = initial;
+		mbs = initial_mbs;
 		while (nchars != (size_t)prec) {
 			nconv = mbrlen(p, MB_CUR_MAX, &mbs);
 			if (nconv == 0 || nconv == (size_t)-1 ||
@@ -226,7 +321,7 @@ __mbsconv(char *mbsarg, int prec)
 		return (NULL);
 	wcp = convbuf;
 	p = mbsarg;
-	mbs = initial;
+	mbs = initial_mbs;
 	while (insize != 0) {
 		nconv = mbrtowc(wcp, p, insize, &mbs);
 		if (nconv == 0 || nconv == (size_t)-1 || nconv == (size_t)-2)
@@ -266,12 +361,14 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
 
 /*
  * The size of the buffer we use as scratch space for integer
- * conversions, among other things.  Technically, we would need the
- * most space for base 10 conversions with thousands' grouping
- * characters between each pair of digits.  100 bytes is a
- * conservative overestimate even for a 128-bit uintmax_t.
+ * conversions, among other things.  We need enough space to
+ * write a uintmax_t in octal (plus one byte).
  */
-#define	BUF	100
+#if UINTMAX_MAX <= UINT64_MAX
+#define	BUF	32
+#else
+#error "BUF must be large enough to format a uintmax_t"
+#endif
 
 /*
  * Non-MT-safe version
@@ -288,8 +385,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format; <0 for N/A */
 	wchar_t sign;		/* sign prefix (' ', '+', '-', or \0) */
-	wchar_t thousands_sep;	/* locale specific thousands separator */
-	const char *grouping;	/* locale specific numeric grouping rules */
+	struct grouping_state gs; /* thousands' grouping info */
 #ifndef NO_FLOATING_POINT
 	/*
 	 * We can decompose the printed representation of floating
@@ -305,7 +401,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	 * D:	expchar holds this character; '\0' if no exponent, e.g. %f
 	 * F:	at least two digits for decimal, at least one digit for hex
 	 */
-	char *decimal_point;	/* locale specific decimal point */
+	wchar_t decimal_point;	/* locale specific decimal point */
 	int signflag;		/* true if float is negative */
 	union {			/* floating point arguments %[aAeEfFgG] */
 		double dbl;
@@ -315,12 +411,9 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	char expchar;		/* exponent character: [eEpP\0] */
 	char *dtoaend;		/* pointer to end of converted digits */
 	int expsize;		/* character count for expstr */
-	int lead;		/* sig figs before decimal or group sep */
 	int ndig;		/* actual number of digits returned by dtoa */
 	wchar_t expstr[MAXEXPDIG+2];	/* buffer for exponent string: e+ZZZ */
 	char *dtoaresult;	/* buffer allocated by dtoa */
-	int nseps;		/* number of group separators with ' */
-	int nrepeats;		/* number of repeats of the last group */
 #endif
 	u_long	ulval;		/* integer arguments %[diouxX] */
 	uintmax_t ujval;	/* %j, %ll, %q, %t, %z integers */
@@ -386,7 +479,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 #define	INTMAX_SIZE	(INTMAXT|SIZET|PTRDIFFT|LLONGINT)
 #define SJARG() \
 	(flags&INTMAXT ? GETARG(intmax_t) : \
-	    flags&SIZET ? (intmax_t)GETARG(size_t) : \
+	    flags&SIZET ? (intmax_t)GETARG(ssize_t) : \
 	    flags&PTRDIFFT ? (intmax_t)GETARG(ptrdiff_t) : \
 	    (intmax_t)GETARG(long long))
 #define	UJARG() \
@@ -428,8 +521,6 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	if (prepwrite(fp) != 0)
 		return (EOF);
 
-	thousands_sep = '\0';
-	grouping = NULL;
 	convbuf = NULL;
 	fmt = (wchar_t *)fmt0;
 	argtable = NULL;
@@ -438,7 +529,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	io_init(&io, fp);
 	ret = 0;
 #ifndef NO_FLOATING_POINT
-	decimal_point = localeconv()->decimal_point;
+	decimal_point = get_decpt();
 #endif
 
 	/*
@@ -463,6 +554,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 		dprec = 0;
 		width = 0;
 		prec = -1;
+		gs.grouping = NULL;
 		sign = '\0';
 		ox[1] = '\0';
 
@@ -500,8 +592,6 @@ reswitch:	switch (ch) {
 			goto rflag;
 		case '\'':
 			flags |= GROUPING;
-			thousands_sep = *(localeconv()->thousands_sep);
-			grouping = localeconv()->grouping;
 			goto rflag;
 		case '.':
 			if ((ch = *fmt++) == '*') {
@@ -725,23 +815,8 @@ fp_common:
 				/* space for decimal pt and following digits */
 				if (prec || flags & ALT)
 					size += prec + 1;
-				if (grouping && expt > 0) {
-					/* space for thousands' grouping */
-					nseps = nrepeats = 0;
-					lead = expt;
-					while (*grouping != CHAR_MAX) {
-						if (lead <= *grouping)
-							break;
-						lead -= *grouping;
-						if (*(grouping+1)) {
-							nseps++;
-							grouping++;
-						} else
-							nrepeats++;
-					}
-					size += nseps + nrepeats;
-				} else
-					lead = expt;
+				if ((flags & GROUPING) && expt > 0)
+					size += grouping_init(&gs, expt);
 			}
 			break;
 #endif /* !NO_FLOATING_POINT */
@@ -815,23 +890,7 @@ fp_common:
 					cp = convbuf;
 				}
 			}
-
-			if (prec >= 0) {
-				/*
-				 * can't use wcslen; can only look for the
-				 * NUL in the first `prec' characters, and
-				 * wcslen() will go further.
-				 */
-				wchar_t *p = wmemchr(cp, 0, (size_t)prec);
-
-				if (p != NULL) {
-					size = p - cp;
-					if (size > prec)
-						size = prec;
-				} else
-					size = prec;
-			} else
-				size = wcslen(cp);
+			size = (prec >= 0) ? wcsnlen(cp, prec) : wcslen(cp);
 			sign = '\0';
 			break;
 		case 'U':
@@ -885,20 +944,18 @@ number:			if ((dprec = prec) >= 0)
 				if (ujval != 0 || prec != 0 ||
 				    (flags & ALT && base == 8))
 					cp = __ujtoa(ujval, cp, base,
-					    flags & ALT, xdigs,
-					    flags & GROUPING, thousands_sep,
-					    grouping);
+					    flags & ALT, xdigs);
 			} else {
 				if (ulval != 0 || prec != 0 ||
 				    (flags & ALT && base == 8))
 					cp = __ultoa(ulval, cp, base,
-					    flags & ALT, xdigs,
-					    flags & GROUPING, thousands_sep,
-					    grouping);
+					    flags & ALT, xdigs);
 			}
 			size = buf + BUF - cp;
 			if (size > BUF)	/* should never happen */
 				abort();
+			if ((flags & GROUPING) && size != 0)
+				size += grouping_init(&gs, size);
 			break;
 		default:	/* "%?" prints ?, unless ? is NUL */
 			if (ch == '\0')
@@ -954,55 +1011,48 @@ number:			if ((dprec = prec) >= 0)
 		if ((flags & (LADJUST|ZEROPAD)) == ZEROPAD)
 			PAD(width - realsz, zeroes);
 
-		/* leading zeroes from decimal precision */
-		PAD(dprec - size, zeroes);
-
 		/* the string or number proper */
 #ifndef NO_FLOATING_POINT
 		if ((flags & FPT) == 0) {
-			PRINT(cp, size);
+#endif
+			/* leading zeroes from decimal precision */
+			PAD(dprec - size, zeroes);
+			if (gs.grouping) {
+				if (grouping_print(&gs, &io, cp, buf+BUF) < 0)
+					goto error;
+			} else {
+				PRINT(cp, size);
+			}
+#ifndef NO_FLOATING_POINT
 		} else {	/* glue together f_p fragments */
 			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
 				if (expt <= 0) {
 					PRINT(zeroes, 1);
-					if (prec || flags & ALT) {
-						buf[0] = *decimal_point;
-						PRINT(buf, 1);
-					}
+					if (prec || flags & ALT)
+						PRINT(&decimal_point, 1);
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
 				} else {
-					PRINTANDPAD(cp, convbuf + ndig, lead, zeroes);
-					cp += lead;
-					if (grouping) {
-						while (nseps>0 || nrepeats>0) {
-							if (nrepeats > 0)
-								nrepeats--;
-							else {
-								grouping--;
-								nseps--;
-							}
-							PRINT(&thousands_sep,
-							    1);
-							PRINTANDPAD(cp,
-							    convbuf + ndig,
-							    *grouping, zeroes);
-							cp += *grouping;
-						}
-						if (cp > convbuf + ndig)
-							cp = convbuf + ndig;
+					if (gs.grouping) {
+						n = grouping_print(&gs, &io,
+						    cp, convbuf + ndig);
+						if (n < 0)
+							goto error;
+						cp += n;
+					} else {
+						PRINTANDPAD(cp, convbuf + ndig,
+						    expt, zeroes);
+						cp += expt;
 					}
-					if (prec || flags & ALT) {
-						buf[0] = *decimal_point;
-						PRINT(buf, 1);
-					}
+					if (prec || flags & ALT)
+						PRINT(&decimal_point, 1);
 				}
 				PRINTANDPAD(cp, convbuf + ndig, prec, zeroes);
 			} else {	/* %[eE] or sufficiently long %[gG] */
 				if (prec > 1 || flags & ALT) {
 					buf[0] = *cp++;
-					buf[1] = *decimal_point;
+					buf[1] = decimal_point;
 					PRINT(buf, 2);
 					PRINT(cp, ndig-1);
 					PAD(prec - ndig, zeroes);
@@ -1011,8 +1061,6 @@ number:			if ((dprec = prec) >= 0)
 				PRINT(expstr, expsize);
 			}
 		}
-#else
-		PRINT(cp, size);
 #endif
 		/* left-adjusting padding (always blank) */
 		if (flags & LADJUST)

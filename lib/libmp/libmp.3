@@ -70,47 +70,47 @@ stored using the defined type
 Pointers to
 .Vt MINT
 are initialized using
-.Fn itom
+.Fn mp_itom
 or
-.Fn xtom ,
+.Fn mp_xtom ,
 and must be recycled with
-.Fn mfree
+.Fn mp_mfree
 when they are no longer needed.
 Routines which store a result in one of their arguments expect that
 the latter has also been initialized prior to being passed to it.
 The following routines are defined and implemented:
 .Pp
 .Ft "MINT *" Ns
-.Fn itom "short n" ;
+.Fn mp_itom "short n" ;
 .Pp
 .Ft "MINT *" Ns
-.Fn xtom "const char *s" ;
+.Fn mp_xtom "const char *s" ;
 .Pp
 .Ft "char *" Ns
-.Fn mtox "const MINT *mp" ;
+.Fn mp_mtox "const MINT *mp" ;
 .Pp
 .Ft void
-.Fn mfree "MINT *mp" ;
+.Fn mp_mfree "MINT *mp" ;
 .Bd -ragged -offset indent
-.Fn itom
+.Fn mp_itom
 returns an
 .Vt MINT
 with the value of
 .Fa n .
-.Fn xtom
+.Fn mp_xtom
 returns an
 .Vt MINT
 with the value of
 .Fa s ,
 which is treated to be in hexadecimal.
 The return values from
-.Fn itom
+.Fn mp_itom
 and
-.Fn xtom
+.Fn mp_xtom
 must be released with
-.Fn mfree
+.Fn mp_mfree
 when they are no longer needed.
-.Fn mtox
+.Fn mp_mtox
 returns a null-terminated hexadecimal string having the value of
 .Fa mp ;
 its return value must be released with
@@ -120,18 +120,18 @@ when it is no longer needed.
 .Ed
 .Pp
 .Ft void
-.Fn madd "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Fn mp_madd "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
 .Pp
 .Ft void
-.Fn msub "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Fn mp_msub "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
 .Pp
 .Ft void
-.Fn mult "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Fn mp_mult "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
 .Bd -ragged -offset indent
-.Fn madd ,
-.Fn msub ,
+.Fn mp_madd ,
+.Fn mp_msub ,
 and
-.Fn mult
+.Fn mp_mult
 store the sum, difference, or product, respectively, of
 .Fa mp1
 and
@@ -141,12 +141,12 @@ in
 .Ed
 .Pp
 .Ft void
-.Fn mdiv "const MINT *nmp" "const MINT *dmp" "MINT *qmp" "MINT *rmp" ;
+.Fn mp_mdiv "const MINT *nmp" "const MINT *dmp" "MINT *qmp" "MINT *rmp" ;
 .Pp
 .Ft void
-.Fn sdiv "const MINT *nmp" "short d" "MINT *qmp" "short *ro" ;
+.Fn mp_sdiv "const MINT *nmp" "short d" "MINT *qmp" "short *ro" ;
 .Bd -ragged -offset indent
-.Fn mdiv
+.Fn mp_mdiv
 computes the quotient and remainder of
 .Fa nmp
 and
@@ -156,9 +156,9 @@ and stores the result in
 and
 .Fa rmp ,
 respectively.
-.Fn sdiv
+.Fn mp_sdiv
 is similar to
-.Fn mdiv
+.Fn mp_mdiv
 except the divisor
 .Fa ( dmp
 or
@@ -171,12 +171,12 @@ are ordinary integers.
 .Ed
 .Pp
 .Ft void
-.Fn pow "const MINT *bmp" "const MINT *emp" "const MINT *mmp" "MINT *rmp" ;
+.Fn mp_pow "const MINT *bmp" "const MINT *emp" "const MINT *mmp" "MINT *rmp" ;
 .Pp
 .Ft void
-.Fn rpow "const MINT *bmp" "short e" "MINT *rmp" ;
+.Fn mp_rpow "const MINT *bmp" "short e" "MINT *rmp" ;
 .Bd -ragged -offset indent
-.Fn rpow
+.Fn mp_rpow
 computes the result of
 .Fa bmp
 raised to the
@@ -185,7 +185,7 @@ power and reduced modulo
 .Fa mmp ;
 the result is stored in
 .Fa rmp .
-.Fn pow
+.Fn mp_pow
 computes the result of
 .Fa bmp
 raised to the
@@ -195,25 +195,25 @@ power and stores the result in
 .Ed
 .Pp
 .Ft void
-.Fn min "MINT *mp" ;
+.Fn mp_min "MINT *mp" ;
 .Pp
 .Ft void
-.Fn mout "const MINT *mp" ;
+.Fn mp_mout "const MINT *mp" ;
 .Bd -ragged -offset indent
-.Fn min
+.Fn mp_min
 reads a line from standard input, tries to interpret it as a decimal
 number, and if successful, stores the result in
 .Fa mp .
-.Fn mout
+.Fn mp_mout
 prints the value, in decimal, of
 .Fa mp
 to standard output (without a trailing newline).
 .Ed
 .Pp
 .Ft void
-.Fn gcd "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Fn mp_gcd "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
 .Bd -ragged -offset indent
-.Fn gcd
+.Fn mp_gcd
 computes the greatest common divisor of
 .Fa mp1
 and
@@ -223,7 +223,7 @@ and stores the result in
 .Ed
 .Pp
 .Ft int
-.Fn mcmp "const MINT *mp1" "const MINT *mp2" ;
+.Fn mp_mcmp "const MINT *mp1" "const MINT *mp2" ;
 .Bd -ragged -offset indent
 .Fa mcmp
 compares the values of
@@ -243,9 +243,9 @@ is greater than
 .Ed
 .Pp
 .Ft void
-.Fn move "const MINT *smp" "MINT *tmp" ;
+.Fn mp_move "const MINT *smp" "MINT *tmp" ;
 .Bd -ragged -offset indent
-.Fn move
+.Fn mp_move
 copies the value of
 .Fa smp
 to
@@ -254,9 +254,9 @@ to
 .Ed
 .Pp
 .Ft void
-.Fn msqrt "const MINT *nmp" "MINT *xmp" "MINT *rmp" ;
+.Fn mp_msqrt "const MINT *nmp" "MINT *xmp" "MINT *rmp" ;
 .Bd -ragged -offset indent
-.Fn msqrt
+.Fn mp_msqrt
 computes the square root and remainder of
 .Fa nmp
 and stores them in
@@ -296,24 +296,16 @@ implemented in terms of
 This implementation appeared in
 .Fx 5.0 .
 .Sh BUGS
-The
-.Fn pow
-routine exists in both
-.Nm libmp
-and
-.Nm libm
-with incompatible semantics.
-.Pp
 Errors are reported via output to standard error and abnormal
 program termination instead of via return values.
 The application cannot control this behavior.
 .Pp
 It is not clear whether the string returned by
-.Fn mtox
+.Fn mp_mtox
 may be written to by the caller.
 This implementation allows it, but others may not.
 Ideally,
-.Fn mtox
+.Fn mp_mtox
 would take a pointer to a buffer to fill in.
 .Pp
 It is not clear whether using the same variable as both source and

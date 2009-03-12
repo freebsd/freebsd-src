@@ -43,6 +43,8 @@ static char rcsid[] =
 #include "ww.h"
 #include "tt.h"
 #include <errno.h>
+#include <strings.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 /*

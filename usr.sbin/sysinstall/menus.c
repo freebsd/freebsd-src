@@ -1168,14 +1168,6 @@ DMenu MenuStartup = {
       { " APM",		"Auto-power management services (typically laptops)",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "apm_enable=YES" },
 #endif
-#ifdef PCCARD_ARCH
-      { " pccard",	"Enable PCCARD (AKA PCMCIA) services (also laptops)",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "pccard_enable=YES" },
-      { " pccard mem",	"Set PCCARD memory address (if enabled)",
-	dmenuVarCheck, dmenuISetVariable, NULL, "pccard_mem" },
-      { " pccard ifconfig",	"List of PCCARD ethernet devices to configure",
-	dmenuVarCheck, dmenuISetVariable, NULL, "pccard_ifconfig" },
-#endif
       { " ",		" -- ", NULL,	NULL, NULL, NULL, ' ', ' ', ' ' },
       { " Startup dirs",	"Set the list of dirs to look for startup scripts",
 	dmenuVarCheck, dmenuISetVariable, NULL, "local_startup" },

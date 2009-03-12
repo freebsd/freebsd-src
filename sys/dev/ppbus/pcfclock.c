@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 struct pcfclock_data {
 	device_t dev;
 	struct cdev *cdev;
-	int	count;
 };
 
 static devclass_t pcfclock_devclass;
@@ -65,7 +64,6 @@ static	d_read_t		pcfclock_read;
 
 static struct cdevsw pcfclock_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	pcfclock_open,
 	.d_close =	pcfclock_close,
 	.d_read =	pcfclock_read,
@@ -159,13 +157,11 @@ pcfclock_open(struct cdev *dev, int flag, int fms, struct thread *td)
 	if (!sc)
 		return (ENXIO);
 
-	if ((res = ppb_request_bus(ppbus, pcfclockdev,
-		(flag & O_NONBLOCK) ? PPB_DONTWAIT : PPB_WAIT)))
-		return (res);
-
-	sc->count++;
-
-	return (0);
+	ppb_lock(ppbus);
+	res = ppb_request_bus(ppbus, pcfclockdev,
+	    (flag & O_NONBLOCK) ? PPB_DONTWAIT : PPB_WAIT);
+	ppb_unlock(ppbus);
+	return (res);
 }
 
 static int
@@ -175,9 +171,9 @@ pcfclock_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 	device_t pcfclockdev = sc->dev;
 	device_t ppbus = device_get_parent(pcfclockdev);
 
-	sc->count--;
-	if (sc->count == 0)
-		ppb_release_bus(ppbus, pcfclockdev);
+	ppb_lock(ppbus);
+	ppb_release_bus(ppbus, pcfclockdev);
+	ppb_unlock(ppbus);
 
 	return (0);
 }
@@ -240,7 +236,7 @@ pcfclock_read_data(struct cdev *dev, char *buf, ssize_t bits)
 	waitfor = 100;
 	for (i = 0; i <= bits; i++) {
 		/* wait for clock, maximum (waitfor*100) usec */
-		while(!CLOCK_OK && --waitfor > 0)
+		while (!CLOCK_OK && --waitfor > 0)
 			DELAY(100);
 
 		/* timed out? */
@@ -297,13 +293,17 @@ static int
 pcfclock_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct pcfclock_data *sc = dev->si_drv1;
+	device_t ppbus;
 	char buf[18];
 	int error = 0;
 
 	if (uio->uio_resid < 18)
 		return (ERANGE);
 
+	ppbus = device_get_parent(sc->dev);
+	ppb_lock(ppbus);
 	error = pcfclock_read_dev(dev, buf, PCFCLOCK_MAX_RETRIES);
+	ppb_unlock(ppbus);
 
 	if (error) {
 		device_printf(sc->dev, "no PCF found\n");

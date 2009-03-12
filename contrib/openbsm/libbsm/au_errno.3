@@ -26,7 +26,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE. 
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_errno.3#3 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_errno.3#4 $
 .\"
 .Dd December 8, 2008
 .Dt AU_BSM_TO_ERRNO 3
@@ -64,6 +64,7 @@ This call will fail if the BSM error cannot be mapped into a local error
 number, which may occur if the return token was generated on another
 operating system.
 .Pp
+The
 .Fn au_errno_to_bsm
 function accepts a local
 .Xr errno 2
@@ -73,7 +74,7 @@ a later decoder that the error could not be encoded.
 .Pp
 The
 .Fn au_strerror
-converts a BSM error value to a string, generally by converting first to a
+function converts a BSM error value to a string, generally by converting first to a
 local error number and using the local
 .Xr strerror 3
 function, but will also work for errors that are not locally defined.

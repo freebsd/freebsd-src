@@ -28,7 +28,7 @@ ident		GENERIC
 # through getenv() (or kenv(1) in userland). The format of the file
 # is 'variable=value', see kenv(1)
 #
-# env          "GENERIC.env"
+# env		"GENERIC.env"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
@@ -47,7 +47,6 @@ options 	NFSCLIENT		# Network Filesystem Client
 options 	NFSSERVER		# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
-options 	NTFS			# NT File System
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
@@ -69,8 +68,8 @@ options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
+options  	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
-options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 
@@ -138,6 +137,8 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 # RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID
 device		arcmsr		# Areca SATA II RAID
+#XXX it is not 64-bit clean, -scottl
+#device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
 device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		hptmv		# Highpoint RocketRAID 182x
@@ -230,6 +231,7 @@ device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
 device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vge		# VIA VT612x gigabit Ethernet
@@ -249,8 +251,8 @@ device		xe		# Xircom pccard Ethernet
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
-options		IEEE80211_DEBUG	# enable debug msgs
-options		IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
+options 	IEEE80211_DEBUG	# enable debug msgs
+options 	IEEE80211_AMPDU_AGE # age frames in AMPDU reorder q's
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
@@ -285,7 +287,6 @@ device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface (USB 2.0)
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
 device		ulpt		# Printer
@@ -296,7 +297,6 @@ device		rum		# Ralink Technology RT2501USB wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
 device		uscanner	# Scanners
 # USB Serial devices
-device		ucom		# Generic com ttys
 device		uark		# Technologies ARK3116 based serial adapters
 device		ubsa		# Belkin F5U103 and compatible serial adapters
 device		uftdi		# For FTDI usb serial adapters

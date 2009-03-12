@@ -44,10 +44,7 @@ __FBSDID("$FreeBSD$");
  * Returns wcslen(src); if retval >= siz, truncation occurred.
  */
 size_t
-wcslcpy(dst, src, siz)
-	wchar_t *dst;
-	const wchar_t *src;
-	size_t siz;
+wcslcpy(wchar_t *dst, const wchar_t *src, size_t siz)
 {
 	wchar_t *d = dst;
 	const wchar_t *s = src;

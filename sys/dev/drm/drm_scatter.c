@@ -92,7 +92,7 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	}
 
 	ret = bus_dmamem_alloc(dmah->tag, &dmah->vaddr,
-	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_NOCACHE, &dmah->map);
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &dmah->map);
 	if (ret != 0) {
 		bus_dma_tag_destroy(dmah->tag);
 		free(dmah, DRM_MEM_DMA);
@@ -102,7 +102,8 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	}
 
 	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr,
-	    request->size, drm_sg_alloc_cb, entry, 0);
+	    request->size, drm_sg_alloc_cb, entry,
+	    BUS_DMA_NOWAIT | BUS_DMA_NOCACHE);
 	if (ret != 0) {
 		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 		bus_dma_tag_destroy(dmah->tag);

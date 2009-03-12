@@ -171,13 +171,6 @@ struct archive_contents {
 	{ NULL, NULL }
 };
 
-/*
- * A tricky piece of code that verifies the contents of a sparse
- * archive entry against a description as defined at the top of this
- * source file.
- */
-#define min(a,b) ((a) < (b) ? (a) : (b))
-
 static void
 verify_archive_file(const char *name, struct archive_contents *ac)
 {
@@ -251,7 +244,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 		failure("%s: should be end of entry", name);
 		assertEqualIntA(a, err, ARCHIVE_EOF);
 		failure("%s: Size returned at EOF must be zero", name);
-		assertEqualInt(actual.s, 0);
+		assertEqualInt((int)actual.s, 0);
 #if ARCHIVE_VERSION_NUMBER < 1009000
 		/* libarchive < 1.9 doesn't get this right */
 		skipping("offset of final sparse chunk");
@@ -278,8 +271,8 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 DEFINE_TEST(test_read_format_gtar_sparse)
 {
 	/* Two archives that use the "GNU tar sparse format". */
-	verify_archive_file("test_read_format_gtar_sparse_1_13.tgz", files);
-	verify_archive_file("test_read_format_gtar_sparse_1_17.tgz", files);
+	verify_archive_file("test_read_format_gtar_sparse_1_13.tar", files);
+	verify_archive_file("test_read_format_gtar_sparse_1_17.tar", files);
 
 	/*
 	 * libarchive < 1.9 doesn't support the newer --posix sparse formats
@@ -292,19 +285,19 @@ DEFINE_TEST(test_read_format_gtar_sparse)
 	 * An archive created by GNU tar 1.17 using --posix --sparse-format=0.1
 	 */
 	verify_archive_file(
-		"test_read_format_gtar_sparse_1_17_posix00.tgz",
+		"test_read_format_gtar_sparse_1_17_posix00.tar",
 		files);
 	/*
 	 * An archive created by GNU tar 1.17 using --posix --sparse-format=0.1
 	 */
 	verify_archive_file(
-		"test_read_format_gtar_sparse_1_17_posix01.tgz",
+		"test_read_format_gtar_sparse_1_17_posix01.tar",
 		files);
 	/*
 	 * An archive created by GNU tar 1.17 using --posix --sparse-format=1.0
 	 */
 	verify_archive_file(
-		"test_read_format_gtar_sparse_1_17_posix10.tgz",
+		"test_read_format_gtar_sparse_1_17_posix10.tar",
 		files);
 	/*
 	 * The last test archive here is a little odd.  First, it's

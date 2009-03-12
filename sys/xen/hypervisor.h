@@ -8,10 +8,18 @@
  * $FreeBSD$
  */
 
-#ifndef __HYPERVISOR_H__
-#define __HYPERVISOR_H__
+#ifndef __XEN_HYPERVISOR_H__
+#define __XEN_HYPERVISOR_H__
+
+#ifdef XENHVM
+
+#define is_running_on_xen()	(HYPERVISOR_shared_info != NULL)
+
+#else
 
 #define is_running_on_xen() 1
+
+#endif
 
 #ifdef PAE
 #ifndef CONFIG_X86_PAE
@@ -27,6 +35,7 @@
 #include <xen/interface/physdev.h>
 #include <xen/interface/sched.h>
 #include <xen/interface/callback.h>
+#include <xen/interface/memory.h>
 #include <machine/xen/hypercall.h>
 
 #if defined(__amd64__)
@@ -131,7 +140,7 @@ MULTI_update_va_mapping(
     mcl->op = __HYPERVISOR_update_va_mapping;
     mcl->args[0] = va;
 #if defined(__amd64__)
-    mcl->args[1] = new_val.pte;
+    mcl->args[1] = new_val;
 #elif defined(PAE)
     mcl->args[1] = (uint32_t)(new_val & 0xffffffff) ;
     mcl->args[2] = (uint32_t)(new_val >> 32);
@@ -142,4 +151,4 @@ MULTI_update_va_mapping(
     mcl->args[MULTI_UVMFLAGS_INDEX] = flags;
 }
 
-#endif /* __HYPERVISOR_H__ */
+#endif /* __XEN_HYPERVISOR_H__ */

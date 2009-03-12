@@ -141,6 +141,11 @@ crc32(const void *buf, size_t size)
 	return (crc ^ ~0U);
 }
 
+uint32_t
+calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, 
+        unsigned int length);
+
+
 LIBKERN_INLINE void *memset(void *, int, size_t);
 #ifdef LIBKERN_BODY
 LIBKERN_INLINE void *

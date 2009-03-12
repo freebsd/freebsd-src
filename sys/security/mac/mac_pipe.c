@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -10,6 +11,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -45,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/pipe.h>
@@ -135,6 +141,9 @@ mac_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 	MAC_PERFORM(pipe_relabel, cred, pp, pp->pp_label, newlabel);
 }
 
+MAC_CHECK_PROBE_DEFINE4(pipe_check_ioctl, "struct ucred *",
+    "struct pipepair *", "unsigned long", "void *");
+
 int
 mac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
     unsigned long cmd, void *data)
@@ -144,9 +153,13 @@ mac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	MAC_CHECK(pipe_check_ioctl, cred, pp, pp->pp_label, cmd, data);
+	MAC_CHECK_PROBE4(pipe_check_ioctl, error, cred, pp, cmd, data);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_poll, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_poll(struct ucred *cred, struct pipepair *pp)
@@ -156,9 +169,13 @@ mac_pipe_check_poll(struct ucred *cred, struct pipepair *pp)
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	MAC_CHECK(pipe_check_poll, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_poll, error, cred, pp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_read, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_read(struct ucred *cred, struct pipepair *pp)
@@ -168,9 +185,13 @@ mac_pipe_check_read(struct ucred *cred, struct pipepair *pp)
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	MAC_CHECK(pipe_check_read, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_read, error, cred, pp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(pipe_check_relabel, "struct ucred *",
+    "struct pipepair *", "struct label *");
 
 static int
 mac_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
@@ -181,9 +202,13 @@ mac_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	MAC_CHECK(pipe_check_relabel, cred, pp, pp->pp_label, newlabel);
+	MAC_CHECK_PROBE3(pipe_check_relabel, error, cred, pp, newlabel);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_stat, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_stat(struct ucred *cred, struct pipepair *pp)
@@ -193,9 +218,13 @@ mac_pipe_check_stat(struct ucred *cred, struct pipepair *pp)
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	MAC_CHECK(pipe_check_stat, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_stat, error, cred, pp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_write, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_write(struct ucred *cred, struct pipepair *pp)
@@ -205,6 +234,7 @@ mac_pipe_check_write(struct ucred *cred, struct pipepair *pp)
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
 	MAC_CHECK(pipe_check_write, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_write, error, cred, pp);
 
 	return (error);
 }

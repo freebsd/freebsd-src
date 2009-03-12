@@ -2362,7 +2362,7 @@ Job_Init(int maxproc)
 	makeErrors = 0;
 
 	lastNode = NULL;
-	if ((maxJobs == 1 && fifoFd < 0) || is_posix || beQuiet) {
+	if ((maxJobs == 1 && fifoFd < 0) || !beVerbose || is_posix || beQuiet) {
 		/*
 		 * If only one job can run at a time, there's no need for a
 		 * banner, no is there?

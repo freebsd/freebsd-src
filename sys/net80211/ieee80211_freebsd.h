@@ -207,8 +207,6 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 #define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
 #define time_before_eq(a,b)	time_after_eq(b,a)
 
-#define	memmove(dst, src, n)	ovbcopy(src, dst, n)
-
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
 /* tx path usage */
@@ -221,7 +219,8 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
 #define	M_80211_TX \
-	(M_ENCAP|M_WDS|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB|M_AMPDU_MPDU)
+	(M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_ENCAP|M_WDS|M_EAPOL|M_PWR_SAV|\
+	 M_MORE_DATA|M_FF|M_TXCB|M_AMPDU_MPDU)
 
 /* rx path usage */
 #define	M_AMPDU		M_PROTO1		/* A-MPDU subframe */

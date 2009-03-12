@@ -214,19 +214,12 @@ struct inpcb {
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
 #define	in6p_hops	inp_depend6.inp6_hops	/* default hop limit */
-#define	in6p_ip6_nxt	inp_ip_p
 #define	in6p_flowinfo	inp_flow
-#define	in6p_vflag	inp_vflag
 #define	in6p_options	inp_depend6.inp6_options
 #define	in6p_outputopts	inp_depend6.inp6_outputopts
 #define	in6p_moptions	inp_depend6.inp6_moptions
 #define	in6p_icmp6filt	inp_depend6.inp6_icmp6filt
 #define	in6p_cksum	inp_depend6.inp6_cksum
-#define	in6p_flags	inp_flags  /* for KAME src sync over BSD*'s */
-#define	in6p_socket	inp_socket  /* for KAME src sync over BSD*'s */
-#define	in6p_lport	inp_lport  /* for KAME src sync over BSD*'s */
-#define	in6p_fport	inp_fport  /* for KAME src sync over BSD*'s */
-#define	in6p_ppcb	inp_ppcb  /* for KAME src sync over BSD*'s */
 
 /*
  * The range of the generation count, as used in this implementation, is 9e19.
@@ -413,6 +406,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_DONTFRAG		0x800	/* don't fragment packet */
 #define	INP_NONLOCALOK		0x1000	/* Allow bind to spoof any address */
 					/* - requires options IP_NONLOCALBIND */
+#define	INP_INHASHLIST		0x2000	/* in_pcbinshash() has been called */
 
 #define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
 
@@ -433,21 +427,6 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
 				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL|IN6P_RFC2292|\
 				 IN6P_MTU)
-#define	INP_UNMAPPABLEOPTS	(IN6P_HOPOPTS|IN6P_DSTOPTS|IN6P_RTHDR|\
-				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL)
-
- /* for KAME src sync over BSD*'s */
-#define	IN6P_HIGHPORT		INP_HIGHPORT
-#define	IN6P_LOWPORT		INP_LOWPORT
-#define	IN6P_ANONPORT		INP_ANONPORT
-#define	IN6P_RECVIF		INP_RECVIF
-#define	IN6P_MTUDISC		INP_MTUDISC
-#define	IN6P_FAITH		INP_FAITH
-#define	IN6P_CONTROLOPTS	INP_CONTROLOPTS
-	/*
-	 * socket AF version is {newer than,or include}
-	 * actual datagram AF version
-	 */
 
 #define	INPLOOKUP_WILDCARD	1
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)

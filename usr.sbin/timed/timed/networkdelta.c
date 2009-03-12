@@ -152,11 +152,11 @@ networkdelta()
  *	in <<Numerical Recipes>>.
  */
 static long
-median(a, eps_ptr, x, xlim, gnuf)
-	float a;			/* initial guess for the median */
-	float *eps_ptr;			/* spacing near the median */
-	long *x, *xlim;			/* the data */
-	unsigned int gnuf;		/* good enough estimate */
+median(float a, float *eps_ptr, long *x, long *xlim, unsigned int gnuf)
+	/* float a; */			/* initial guess for the median */
+	/* float *eps_ptr; */		/* spacing near the median */
+	/* long *x, *xlim; */		/* the data */
+	/* unsigned int gnuf; */	/* good enough estimate */
 {
 	long *xptr;
 	float ap = LONG_MAX;		/* bounds on the median */

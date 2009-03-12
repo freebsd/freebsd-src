@@ -130,6 +130,10 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_ATOM;
 			nclasses = 3;
 			break;
+		case 0x1A:
+			cputype = PMC_CPU_INTEL_COREI7;
+			nclasses = 3;
+			break;
 		}
 		break;
 #if	defined(__i386__) || defined(__amd64__)
@@ -169,6 +173,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
+	case PMC_CPU_INTEL_COREI7:
 		error = pmc_core_initialize(pmc_mdep, ncpus);
 		break;
 

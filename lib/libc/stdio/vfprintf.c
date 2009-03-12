@@ -72,6 +72,75 @@ static char	*__wcsconv(wchar_t *, int);
 #define	CHAR	char
 #include "printfcommon.h"
 
+struct grouping_state {
+	char *thousands_sep;	/* locale-specific thousands separator */
+	int thousep_len;	/* length of thousands_sep */
+	const char *grouping;	/* locale-specific numeric grouping rules */
+	int lead;		/* sig figs before decimal or group sep */
+	int nseps;		/* number of group separators with ' */
+	int nrepeats;		/* number of repeats of the last group */
+};
+
+/*
+ * Initialize the thousands' grouping state in preparation to print a
+ * number with ndigits digits. This routine returns the total number
+ * of bytes that will be needed.
+ */
+static int
+grouping_init(struct grouping_state *gs, int ndigits)
+{
+	struct lconv *locale;
+
+	locale = localeconv();
+	gs->grouping = locale->grouping;
+	gs->thousands_sep = locale->thousands_sep;
+	gs->thousep_len = strlen(gs->thousands_sep);
+
+	gs->nseps = gs->nrepeats = 0;
+	gs->lead = ndigits;
+	while (*gs->grouping != CHAR_MAX) {
+		if (gs->lead <= *gs->grouping)
+			break;
+		gs->lead -= *gs->grouping;
+		if (*(gs->grouping+1)) {
+			gs->nseps++;
+			gs->grouping++;
+		} else
+			gs->nrepeats++;
+	}
+	return ((gs->nseps + gs->nrepeats) * gs->thousep_len);
+}
+
+/*
+ * Print a number with thousands' separators.
+ */
+static int
+grouping_print(struct grouping_state *gs, struct io_state *iop,
+	       const CHAR *cp, const CHAR *ep)
+{
+	const CHAR *cp0 = cp;
+
+	if (io_printandpad(iop, cp, ep, gs->lead, zeroes))
+		return (-1);
+	cp += gs->lead;
+	while (gs->nseps > 0 || gs->nrepeats > 0) {
+		if (gs->nrepeats > 0)
+			gs->nrepeats--;
+		else {
+			gs->grouping--;
+			gs->nseps--;
+		}
+		if (io_print(iop, gs->thousands_sep, gs->thousep_len))
+			return (-1);
+		if (io_printandpad(iop, cp, ep, *gs->grouping, zeroes))
+			return (-1);
+		cp += *gs->grouping;
+	}
+	if (cp > ep)
+		cp = ep;
+	return (cp - cp0);
+}
+
 /*
  * Flush out all the vectors defined by the given uio,
  * then reset it so that it can be reused.
@@ -210,12 +279,14 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 
 /*
  * The size of the buffer we use as scratch space for integer
- * conversions, among other things.  Technically, we would need the
- * most space for base 10 conversions with thousands' grouping
- * characters between each pair of digits.  100 bytes is a
- * conservative overestimate even for a 128-bit uintmax_t.
+ * conversions, among other things.  We need enough space to
+ * write a uintmax_t in octal (plus one byte).
  */
-#define	BUF	100
+#if UINTMAX_MAX <= UINT64_MAX
+#define	BUF	32
+#else
+#error "BUF must be large enough to format a uintmax_t"
+#endif
 
 /*
  * Non-MT-safe version
@@ -232,8 +303,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format; <0 for N/A */
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
-	char thousands_sep;	/* locale specific thousands separator */
-	const char *grouping;	/* locale specific numeric grouping rules */
+	struct grouping_state gs; /* thousands' grouping info */
 
 #ifndef NO_FLOATING_POINT
 	/*
@@ -251,6 +321,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	 * F:	at least two digits for decimal, at least one digit for hex
 	 */
 	char *decimal_point;	/* locale specific decimal point */
+	int decpt_len;		/* length of decimal_point */
 	int signflag;		/* true if float is negative */
 	union {			/* floating point arguments %[aAeEfFgG] */
 		double dbl;
@@ -260,12 +331,9 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	char expchar;		/* exponent character: [eEpP\0] */
 	char *dtoaend;		/* pointer to end of converted digits */
 	int expsize;		/* character count for expstr */
-	int lead;		/* sig figs before decimal or group sep */
 	int ndig;		/* actual number of digits returned by dtoa */
 	char expstr[MAXEXPDIG+2];	/* buffer for exponent string: e+ZZZ */
 	char *dtoaresult;	/* buffer allocated by dtoa */
-	int nseps;		/* number of group separators with ' */
-	int nrepeats;		/* number of repeats of the last group */
 #endif
 	u_long	ulval;		/* integer arguments %[diouxX] */
 	uintmax_t ujval;	/* %j, %ll, %q, %t, %z integers */
@@ -331,7 +399,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 #define	INTMAX_SIZE	(INTMAXT|SIZET|PTRDIFFT|LLONGINT)
 #define SJARG() \
 	(flags&INTMAXT ? GETARG(intmax_t) : \
-	    flags&SIZET ? (intmax_t)GETARG(size_t) : \
+	    flags&SIZET ? (intmax_t)GETARG(ssize_t) : \
 	    flags&PTRDIFFT ? (intmax_t)GETARG(ptrdiff_t) : \
 	    (intmax_t)GETARG(long long))
 #define	UJARG() \
@@ -377,8 +445,6 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	if (prepwrite(fp) != 0)
 		return (EOF);
 
-	thousands_sep = '\0';
-	grouping = NULL;
 	convbuf = NULL;
 	fmt = (char *)fmt0;
 	argtable = NULL;
@@ -389,6 +455,8 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 #ifndef NO_FLOATING_POINT
 	dtoaresult = NULL;
 	decimal_point = localeconv()->decimal_point;
+	/* The overwhelmingly common case is decpt_len == 1. */
+	decpt_len = (decimal_point[1] == '\0' ? 1 : strlen(decimal_point));
 #endif
 
 	/*
@@ -413,6 +481,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 		dprec = 0;
 		width = 0;
 		prec = -1;
+		gs.grouping = NULL;
 		sign = '\0';
 		ox[1] = '\0';
 
@@ -450,8 +519,6 @@ reswitch:	switch (ch) {
 			goto rflag;
 		case '\'':
 			flags |= GROUPING;
-			thousands_sep = *(localeconv()->thousands_sep);
-			grouping = localeconv()->grouping;
 			goto rflag;
 		case '.':
 			if ((ch = *fmt++) == '*') {
@@ -672,7 +739,7 @@ fp_common:
 				expsize = exponent(expstr, expt - 1, expchar);
 				size = expsize + prec;
 				if (prec > 1 || flags & ALT)
-					++size;
+					size += decpt_len;
 			} else {
 				/* space for digits before decimal point */
 				if (expt > 0)
@@ -681,24 +748,9 @@ fp_common:
 					size = 1;
 				/* space for decimal pt and following digits */
 				if (prec || flags & ALT)
-					size += prec + 1;
-				if (grouping && expt > 0) {
-					/* space for thousands' grouping */
-					nseps = nrepeats = 0;
-					lead = expt;
-					while (*grouping != CHAR_MAX) {
-						if (lead <= *grouping)
-							break;
-						lead -= *grouping;
-						if (*(grouping+1)) {
-							nseps++;
-							grouping++;
-						} else
-							nrepeats++;
-					}
-					size += nseps + nrepeats;
-				} else
-					lead = expt;
+					size += prec + decpt_len;
+				if ((flags & GROUPING) && expt > 0)
+					size += grouping_init(&gs, expt);
 			}
 			break;
 #endif /* !NO_FLOATING_POINT */
@@ -770,22 +822,7 @@ fp_common:
 				}
 			} else if ((cp = GETARG(char *)) == NULL)
 				cp = "(null)";
-			if (prec >= 0) {
-				/*
-				 * can't use strlen; can only look for the
-				 * NUL in the first `prec' characters, and
-				 * strlen() will go further.
-				 */
-				char *p = memchr(cp, 0, (size_t)prec);
-
-				if (p != NULL) {
-					size = p - cp;
-					if (size > prec)
-						size = prec;
-				} else
-					size = prec;
-			} else
-				size = strlen(cp);
+			size = (prec >= 0) ? strnlen(cp, prec) : strlen(cp);
 			sign = '\0';
 			break;
 		case 'U':
@@ -839,20 +876,18 @@ number:			if ((dprec = prec) >= 0)
 				if (ujval != 0 || prec != 0 ||
 				    (flags & ALT && base == 8))
 					cp = __ujtoa(ujval, cp, base,
-					    flags & ALT, xdigs,
-					    flags & GROUPING, thousands_sep,
-					    grouping);
+					    flags & ALT, xdigs);
 			} else {
 				if (ulval != 0 || prec != 0 ||
 				    (flags & ALT && base == 8))
 					cp = __ultoa(ulval, cp, base,
-					    flags & ALT, xdigs,
-					    flags & GROUPING, thousands_sep,
-					    grouping);
+					    flags & ALT, xdigs);
 			}
 			size = buf + BUF - cp;
 			if (size > BUF)	/* should never happen */
 				abort();
+			if ((flags & GROUPING) && size != 0)
+				size += grouping_init(&gs, size);
 			break;
 		default:	/* "%?" prints ?, unless ? is NUL */
 			if (ch == '\0')
@@ -908,51 +943,48 @@ number:			if ((dprec = prec) >= 0)
 		if ((flags & (LADJUST|ZEROPAD)) == ZEROPAD)
 			PAD(width - realsz, zeroes);
 
-		/* leading zeroes from decimal precision */
-		PAD(dprec - size, zeroes);
-
 		/* the string or number proper */
 #ifndef NO_FLOATING_POINT
 		if ((flags & FPT) == 0) {
-			PRINT(cp, size);
+#endif
+			/* leading zeroes from decimal precision */
+			PAD(dprec - size, zeroes);
+			if (gs.grouping) {
+				if (grouping_print(&gs, &io, cp, buf+BUF) < 0)
+					goto error;
+			} else {
+				PRINT(cp, size);
+			}
+#ifndef NO_FLOATING_POINT
 		} else {	/* glue together f_p fragments */
 			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
 				if (expt <= 0) {
 					PRINT(zeroes, 1);
 					if (prec || flags & ALT)
-						PRINT(decimal_point, 1);
+						PRINT(decimal_point,decpt_len);
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
 				} else {
-					PRINTANDPAD(cp, dtoaend, lead, zeroes);
-					cp += lead;
-					if (grouping) {
-						while (nseps>0 || nrepeats>0) {
-							if (nrepeats > 0)
-								nrepeats--;
-							else {
-								grouping--;
-								nseps--;
-							}
-							PRINT(&thousands_sep,
-							    1);
-							PRINTANDPAD(cp,dtoaend,
-							    *grouping, zeroes);
-							cp += *grouping;
-						}
-						if (cp > dtoaend)
-							cp = dtoaend;
+					if (gs.grouping) {
+						n = grouping_print(&gs, &io,
+						    cp, dtoaend);
+						if (n < 0)
+							goto error;
+						cp += n;
+					} else {
+						PRINTANDPAD(cp, dtoaend,
+						    expt, zeroes);
+						cp += expt;
 					}
 					if (prec || flags & ALT)
-						PRINT(decimal_point,1);
+						PRINT(decimal_point,decpt_len);
 				}
 				PRINTANDPAD(cp, dtoaend, prec, zeroes);
 			} else {	/* %[eE] or sufficiently long %[gG] */
 				if (prec > 1 || flags & ALT) {
-					buf[0] = *cp++;
-					buf[1] = *decimal_point;
-					PRINT(buf, 2);
+					PRINT(cp++, 1);
+					PRINT(decimal_point, decpt_len);
 					PRINT(cp, ndig-1);
 					PAD(prec - ndig, zeroes);
 				} else	/* XeYYY */
@@ -960,8 +992,6 @@ number:			if ((dprec = prec) >= 0)
 				PRINT(expstr, expsize);
 			}
 		}
-#else
-		PRINT(cp, size);
 #endif
 		/* left-adjusting padding (always blank) */
 		if (flags & LADJUST)

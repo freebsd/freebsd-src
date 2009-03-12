@@ -63,4 +63,8 @@ extern long powerpc_syscall_exit(struct trussinfo *, int);
 extern void sparc64_syscall_entry(struct trussinfo *, int);
 extern long sparc64_syscall_exit(struct trussinfo *, int);
 #endif
+#ifdef __mips__
+extern void mips_syscall_entry(struct trussinfo *, int);
+extern long mips_syscall_exit(struct trussinfo *, int);
+#endif
 

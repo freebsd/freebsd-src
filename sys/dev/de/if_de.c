@@ -4561,7 +4561,7 @@ tulip_busdma_cleanup(tulip_softc_t * const sc)
 	sc->tulip_setup_dma_addr = 0;
     }
     if (sc->tulip_setupbuf != NULL) {
-	bus_dmamem_free(sc->tulip_setup_tag, sc->tulip_setupdata,
+	bus_dmamem_free(sc->tulip_setup_tag, sc->tulip_setupbuf,
 	    sc->tulip_setup_map);
 	sc->tulip_setup_map = NULL;
 	sc->tulip_setupbuf = NULL;

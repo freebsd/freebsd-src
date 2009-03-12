@@ -57,6 +57,10 @@
 
 /* XXX: LibAliasSetTarget() uses this constant. */
 #define	INADDR_NONE	0xffffffff
+
+#include <netinet/libalias/alias_sctp.h>
+#else
+#include "alias_sctp.h"
 #endif
 
 /* Sizes of input and output link tables */
@@ -147,7 +151,29 @@ struct libalias {
 
 	struct in_addr	true_addr;	/* in network byte order. */
 	u_short		true_port;	/* in host byte order. */
+
+	/*
+	 * sctp code support
+	 */
+
+	/* counts associations that have progressed to UP and not yet removed */
+	int		sctpLinkCount;
 #ifdef  _KERNEL
+	/* timing queue for keeping track of association timeouts */
+	struct sctp_nat_timer sctpNatTimer;
+	
+	/* size of hash table used in this instance */
+	u_int sctpNatTableSize;
+	
+/* 
+ * local look up table sorted by l_vtag/l_port 
+ */
+	LIST_HEAD(sctpNatTableL, sctp_nat_assoc) *sctpTableLocal;
+/* 
+ * global look up table sorted by g_vtag/g_port 
+ */
+	LIST_HEAD(sctpNatTableG, sctp_nat_assoc) *sctpTableGlobal;
+	
 	/* 
 	 * avoid races in libalias: every public function has to use it.
 	 */
@@ -197,6 +223,14 @@ struct libalias {
 
 
 /* Prototypes */
+
+/*
+ * SctpFunction prototypes
+ * 
+ */
+void AliasSctpInit(struct libalias *la);
+void AliasSctpTerm(struct libalias *la);
+int SctpAlias(struct libalias *la, struct ip *ip, int direction);
 
 /*
  * We do not calculate TCP checksums when libalias is a kernel
@@ -264,6 +298,8 @@ struct in_addr
 		FindOriginalAddress(struct libalias *la, struct in_addr _alias_addr);
 struct in_addr
 		FindAliasAddress(struct libalias *la, struct in_addr _original_addr);
+struct in_addr 
+FindSctpRedirectAddress(struct libalias *la,  struct sctp_nat_msg *sm);
 
 /* External data access/modification */
 int

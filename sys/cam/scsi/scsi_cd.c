@@ -401,11 +401,6 @@ cdcleanup(struct cam_periph *periph)
 
 	xpt_print(periph->path, "removing device entry\n");
 
-	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
-	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
-		xpt_print(periph->path, "can't remove sysctl context\n");
-	}
-
 	/*
 	 * In the queued, non-active case, the device in question
 	 * has already been removed from the changer run queue.  Since this
@@ -474,9 +469,14 @@ cdcleanup(struct cam_periph *periph)
 		free(softc->changer, M_DEVBUF);
 	}
 	cam_periph_unlock(periph);
+	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
+	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+		xpt_print(periph->path, "can't remove sysctl context\n");
+	}
+
 	disk_destroy(softc->disk);
-	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
+	cam_periph_lock(periph);
 }
 
 static void
@@ -555,8 +555,6 @@ cdsysctlinit(void *context, int pending)
 	snprintf(tmpstr, sizeof(tmpstr), "CAM CD unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
-	mtx_lock(&Giant);
-
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= CD_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
@@ -565,7 +563,6 @@ cdsysctlinit(void *context, int pending)
 
 	if (softc->sysctl_tree == NULL) {
 		printf("cdsysctlinit: unable to allocate sysctl tree\n");
-		mtx_unlock(&Giant);
 		cam_periph_release(periph);
 		return;
 	}
@@ -579,7 +576,6 @@ cdsysctlinit(void *context, int pending)
 		&softc->minimum_command_size, 0, cdcmdsizesysctl, "I",
 		"Minimum CDB size");
 
-	mtx_unlock(&Giant);
 	cam_periph_release(periph);
 }
 

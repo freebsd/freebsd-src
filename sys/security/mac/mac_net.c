@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
@@ -16,6 +16,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +45,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -52,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/priv.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/file.h>
@@ -324,6 +329,9 @@ mac_ifnet_create_mbuf(struct ifnet *ifp, struct mbuf *m)
 	MAC_IFNET_UNLOCK(ifp);
 }
 
+MAC_CHECK_PROBE_DEFINE2(bpfdesc_check_receive, "struct bpf_d *",
+    "struct ifnet *");
+
 int
 mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp)
 {
@@ -333,10 +341,14 @@ mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp)
 
 	MAC_IFNET_LOCK(ifp);
 	MAC_CHECK(bpfdesc_check_receive, d, d->bd_label, ifp, ifp->if_label);
+	MAC_CHECK_PROBE2(bpfdesc_check_receive, error, d, ifp);
 	MAC_IFNET_UNLOCK(ifp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(ifnet_check_transmit, "struct ifnet *",
+    "struct mbuf *");
 
 int
 mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m)
@@ -350,6 +362,7 @@ mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	MAC_IFNET_LOCK(ifp);
 	MAC_CHECK(ifnet_check_transmit, ifp, ifp->if_label, m, label);
+	MAC_CHECK_PROBE2(ifnet_check_transmit, error, ifp, m);
 	MAC_IFNET_UNLOCK(ifp);
 
 	return (error);

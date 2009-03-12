@@ -107,6 +107,9 @@ struct vnet_ipsec {
 	LIST_HEAD(, secspacq)	_spacqtree;
 };
 
+/* Size guard. See sys/vimage.h. */
+VIMAGE_CTASSERT(SIZEOF_vnet_ipsec, sizeof(struct vnet_ipsec));
+
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
 extern struct vnet_ipsec vnet_ipsec_0;

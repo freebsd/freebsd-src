@@ -97,10 +97,6 @@ extern "C" {
 #define	P2SAMEHIGHBIT_TYPED(x, y, type) \
 	(((type)(x) ^ (type)(y)) < ((type)(x) & (type)(y)))
 
-#ifdef _KERNEL
-#define	memmove(dst, src, size)	bcopy((src), (dst), (size))
-#endif
-
 /*
  * Find highest one bit set.
  *      Returns bit number + 1 of highest bit that is set, otherwise returns 0.

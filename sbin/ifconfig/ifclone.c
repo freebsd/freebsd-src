@@ -32,6 +32,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -88,14 +89,24 @@ list_cloners(void)
 	free(buf);
 }
 
-static clone_callback_func *clone_cb = NULL;
+struct clone_defcb {
+	char ifprefix[IFNAMSIZ];
+	clone_callback_func *clone_cb;
+	SLIST_ENTRY(clone_defcb) next;
+};
+
+static SLIST_HEAD(, clone_defcb) clone_defcbh =
+   SLIST_HEAD_INITIALIZER(clone_defcbh);
 
 void
-clone_setcallback(clone_callback_func *p)
+clone_setdefcallback(const char *ifprefix, clone_callback_func *p)
 {
-	if (clone_cb != NULL && clone_cb != p)
-		errx(1, "conflicting device create parameters");
-	clone_cb = p;
+	struct clone_defcb *dcp;
+
+	dcp = malloc(sizeof(*dcp));
+	strlcpy(dcp->ifprefix, ifprefix, IFNAMSIZ-1);
+	dcp->clone_cb = p;
+	SLIST_INSERT_HEAD(&clone_defcbh, dcp, next);
 }
 
 /*
@@ -108,9 +119,22 @@ static void
 ifclonecreate(int s, void *arg)
 {
 	struct ifreq ifr;
+	struct clone_defcb *dcp;
+	clone_callback_func *clone_cb = NULL;
 
 	memset(&ifr, 0, sizeof(ifr));
 	(void) strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+
+	if (clone_cb == NULL) {
+		/* Try to find a default callback */
+		SLIST_FOREACH(dcp, &clone_defcbh, next) {
+			if (strncmp(dcp->ifprefix, ifr.ifr_name,
+			    strlen(dcp->ifprefix)) == 0) {
+				clone_cb = dcp->clone_cb;
+				break;
+			}
+		}
+	}
 	if (clone_cb == NULL) {
 		/* NB: no parameters */
 		if (ioctl(s, SIOCIFCREATE2, &ifr) < 0)

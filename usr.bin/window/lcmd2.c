@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "var.h"
 #include "lcmd.h"
 #include "alias.h"
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/resource.h>
 

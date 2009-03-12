@@ -62,7 +62,7 @@ for a particular build via the
 .Fl D
 option of
 .Xr make 1
-or in environment; see
+or in its environment; see
 .Xr environ 7 .
 .Pp
 The values of variables are ignored regardless of their setting;
@@ -463,13 +463,10 @@ On amd64, set to not build 32-bit library set and a
 runtime linker.
 .It Va WITHOUT_LIBPTHREAD
 .\" from FreeBSD: head/tools/build/options/WITHOUT_LIBPTHREAD 172498 2007-10-09 17:53:33Z obrien
-Set to not build either of the
+Set to not build the
 .Nm libpthread
-providing libraries
-.Nm ( libthr
-(1:1) &
-.Nm libkse
-(M:N)).
+providing library,
+.Nm libthr .
 When set, it also enforces the following options:
 .Pp
 .Bl -item -compact

@@ -36,9 +36,7 @@ __FBSDID("$FreeBSD$");
  */
 
 void *
-memmem(l, l_len, s, s_len)
-	const void *l; size_t l_len;
-	const void *s; size_t s_len;
+memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 {
 	register char *cur, *last;
 	const char *cl = (const char *)l;

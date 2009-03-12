@@ -133,7 +133,6 @@ device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface
 device		usb		# USB Bus (required)
-device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
 options         KBD_INSTALL_CDEV # install a CDEV entry in /dev
@@ -161,6 +160,10 @@ device		powermac_nvram	# Open Firmware configuration NVRAM
 device		adb
 device		cuda
 device		pmu
+
+# Powermac I2C support
+device		iicbus		# I2C bus code
+device		kiic		# Keywest I2C
 
 options 	KTR
 options 	KTR_COMPILE=0xffffffff

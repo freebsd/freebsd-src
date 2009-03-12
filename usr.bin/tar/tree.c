@@ -83,6 +83,9 @@ struct tree_entry {
 	dev_t dev;
 	ino_t ino;
 	int fd;
+#ifdef _WIN32
+	char *fullpath;
+#endif
 	int flags;
 };
 
@@ -100,6 +103,9 @@ struct tree {
 	struct tree_entry	*current;
 	DIR	*d;
 	int	 initialDirFd;
+#ifdef _WIN32
+	char	*initialDir;
+#endif
 	int	 flags;
 	int	 visit_type;
 	int	 tree_errno; /* Error code from last failed operation. */
@@ -164,6 +170,9 @@ tree_push(struct tree *t, const char *path)
 	te->next = t->stack;
 	t->stack = te;
 	te->fd = -1;
+#ifdef _WIN32
+	te->fullpath = NULL;
+#endif
 	te->name = strdup(path);
 	te->flags = needsPreVisit | needsPostVisit;
 	te->dirname_length = t->dirname_length;
@@ -214,6 +223,10 @@ tree_open(const char *path)
 	memset(t, 0, sizeof(*t));
 	tree_append(t, path, strlen(path));
 	t->initialDirFd = open(".", O_RDONLY);
+#ifdef _WIN32
+	if (t->initialDirFd >= 0)
+		t->initialDir = getcwd(NULL, 0);
+#endif
 	/*
 	 * During most of the traversal, items are set up and then
 	 * returned immediately from tree_next().  That doesn't work
@@ -236,10 +249,20 @@ tree_ascend(struct tree *t)
 	te = t->stack;
 	t->depth--;
 	if (te->flags & isDirLink) {
+#ifdef HAVE_FCHDIR
 		if (fchdir(te->fd) != 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
 		}
+#endif
+#ifdef _WIN32
+		if (te->fullpath != NULL && chdir(te->fullpath) != 0) {
+			t->tree_errno = errno;
+			r = TREE_ERROR_FATAL;
+		}
+		free(te->fullpath);
+		te->fullpath = NULL;
+#endif
 		close(te->fd);
 		t->openCount--;
 	} else {
@@ -332,6 +355,9 @@ tree_next(struct tree *t)
 			/* If it is a link, set up fd for the ascent. */
 			if (t->stack->flags & isDirLink) {
 				t->stack->fd = open(".", O_RDONLY);
+#ifdef _WIN32
+				t->stack->fullpath = getcwd(NULL, 0);
+#endif
 				t->openCount++;
 				if (t->openCount > t->maxOpenCount)
 					t->maxOpenCount = t->openCount;
@@ -555,7 +581,14 @@ tree_close(struct tree *t)
 		free(t->buff);
 	/* chdir() back to where we started. */
 	if (t->initialDirFd >= 0) {
+#ifdef HAVE_FCHDIR
 		fchdir(t->initialDirFd);
+#endif
+#ifdef _WIN32
+		chdir(t->initialDir);
+		free(t->initialDir);
+		t->initialDir = NULL;
+#endif
 		close(t->initialDirFd);
 		t->initialDirFd = -1;
 	}

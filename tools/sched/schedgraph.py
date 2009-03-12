@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 
-# Copyright (c) 2002-2003, Jeffrey Roberson <jeff@freebsd.org>
+# Copyright (c) 2002-2003, 2009, Jeffrey Roberson <jeff@freebsd.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ eventcolors = [
 	("lock contest", "purple"),
 	("failed lock try", "red"),
 	("lock release", "grey"),
-	("tick",	"black"),
+	("statclock",	"black"),
 	("prio",	"black"),
 	("lend prio",	"black"),
 	("wokeup",	"black")
@@ -125,6 +125,12 @@ clockfreq = None
 sources = []
 lineno = -1
 
+Y_BORDER = 10
+X_BORDER = 10
+Y_COUNTER = 80
+Y_EVENTSOURCE = 10
+XY_POINT = 4
+
 class Colormap:
 	def __init__(self, table):
 		self.table = table
@@ -143,34 +149,49 @@ class Colormap:
 		return (color)
 
 def ticks2sec(ticks):
-	us = ticksps / 1000000
-	ticks /= us
+	ticks = float(ticks)
+	ns = float(ticksps) / 1000000000
+	ticks /= ns
 	if (ticks < 1000):
-		return (str(ticks) + "us")
+		return ("%.2fns" % ticks)
 	ticks /= 1000
 	if (ticks < 1000):
-		return (str(ticks) + "ms")
+		return ("%.2fus" % ticks)
 	ticks /= 1000
-	return (str(ticks) + "s")
+	if (ticks < 1000):
+		return ("%.2fms" % ticks)
+	ticks /= 1000
+	return ("%.2fs" % ticks)
 
 class Scaler(Frame):
 	def __init__(self, master, target):
 		Frame.__init__(self, master)
-		self.scale = Scale(self, command=self.scaleset,
-		    from_=1000, to_=10000000, orient=HORIZONTAL,
-		    resolution=1000)
+		self.scale = None
+		self.target = target
 		self.label = Label(self, text="Ticks per pixel")
 		self.label.pack(side=LEFT)
-		self.scale.pack(fill="both", expand=1)
-		self.target = target
-		self.scale.set(target.scaleget())
-		self.initialized = 1
+		self.resolution = 100
+		self.setmax(10000)
 
 	def scaleset(self, value):
 		self.target.scaleset(int(value))
 
 	def set(self, value):
 		self.scale.set(value)
+
+	def setmax(self, value):
+		#
+		# We can't reconfigure the to_ value so we delete the old
+		# window and make a new one when we resize.
+		#
+		if (self.scale != None):
+			self.scale.pack_forget()
+			self.scale.destroy()
+		self.scale = Scale(self, command=self.scaleset,
+		    from_=100, to_=value, orient=HORIZONTAL,
+		    resolution=self.resolution)
+		self.scale.pack(fill="both", expand=1)
+		self.scale.set(self.target.scaleget())
 
 class Status(Frame):
 	def __init__(self, master):
@@ -426,7 +447,7 @@ class SourceStats(Toplevel):
 		self.resizable(0, 0)
 		self.title(source.name + " statistics")
 		self.evframe = LabelFrame(self,
-		    text="Event Frequency and Duration")
+		    text="Event Count, Duration, Avg Duration")
 		self.evframe.grid(row=0, column=0, sticky=E+W)
 		eventtypes={}
 		for event in self.source.events:
@@ -449,15 +470,22 @@ class SourceStats(Toplevel):
 		ypos = 0
 		for event in events:
 			(name, c, d) = event
-			l = Label(self.evframe, text=name, bd=1, 
-			    relief=SUNKEN, anchor=W, width=30)
-			m = Label(self.evframe, text=str(c), bd=1,
-			    relief=SUNKEN, anchor=W, width=10)
-			r = Label(self.evframe, text=ticks2sec(d),
-			    bd=1, relief=SUNKEN, width=10)
-			l.grid(row=ypos, column=0, sticky=E+W)
-			m.grid(row=ypos, column=1, sticky=E+W)
-			r.grid(row=ypos, column=2, sticky=E+W)
+			Label(self.evframe, text=name, bd=1, 
+			    relief=SUNKEN, anchor=W, width=30).grid(
+			    row=ypos, column=0, sticky=W+E)
+			Label(self.evframe, text=str(c), bd=1,
+			    relief=SUNKEN, anchor=W, width=10).grid(
+			    row=ypos, column=1, sticky=W+E)
+			Label(self.evframe, text=ticks2sec(d),
+			    bd=1, relief=SUNKEN, width=10).grid(
+			    row=ypos, column=2, sticky=W+E)
+			if (d and c):
+				d /= c
+			else:
+				d = 0
+			Label(self.evframe, text=ticks2sec(d),
+			    bd=1, relief=SUNKEN, width=10).grid(
+			    row=ypos, column=3, sticky=W+E)
 			ypos += 1
 
 
@@ -674,9 +702,10 @@ class PointEvent(Event):
 
 	def draw(self, canvas, xpos, ypos):
 		color = colormap.lookup(self.name)
-		l = canvas.create_oval(xpos - 6, ypos + 1, xpos + 6, ypos - 11,
+		l = canvas.create_oval(xpos - XY_POINT, ypos,
+		    xpos + XY_POINT, ypos - (XY_POINT * 2),
 		    fill=color, width=0,
-		    tags=("all", "point", "event", self.name, self.source.tag))
+		    tags=("event", self.type, self.name, self.source.tag))
 		Event.draw(self, canvas, xpos, ypos, l)
 
 		return xpos
@@ -701,7 +730,7 @@ class StateEvent(Event):
 		delta = duration / canvas.ratio
 		l = canvas.create_rectangle(xpos, ypos,
 		    xpos + delta, ypos - 10, fill=color, width=0,
-		    tags=("all", "state", "event", self.name, self.source.tag))
+		    tags=("event", self.type, self.name, self.source.tag))
 		Event.draw(self, canvas, xpos, ypos, l)
 
 		return (xpos + delta)
@@ -719,13 +748,18 @@ class CountEvent(Event):
 			return (xpos)
 		color = colormap.lookup("count")
 		self.duration = duration = next.timestamp - self.timestamp
+		if (duration < 0):
+			duration = 0
+			print "Unsynchronized timestamp"
+			print self.cpu, self.timestamp
+			print next.cpu, next.timestamp
 		self.attrs.insert(0, ("count", self.count))
 		self.attrs.insert(1, ("duration", ticks2sec(duration)))
 		delta = duration / canvas.ratio
 		yhight = self.source.yscale() * self.count
 		l = canvas.create_rectangle(xpos, ypos - yhight,
 		    xpos + delta, ypos, fill=color, width=0,
-		    tags=("all", "count", "event", self.name, self.source.tag))
+		    tags=("event", self.type, self.name, self.source.tag))
 		Event.draw(self, canvas, xpos, ypos, l)
 		return (xpos + delta)
 
@@ -797,7 +831,8 @@ class EventSource:
 	def drawname(self, canvas, ypos):
 		self.y = ypos
 		ypos = ypos - (self.ysize() / 2)
-		self.item = canvas.create_text(10, ypos, anchor="w", text=self.name)
+		self.item = canvas.create_text(X_BORDER, ypos, anchor="w",
+		    text=self.name)
 		return (self.item)
 
 	def drawcpu(self, canvas, cpu, fromx, tox, ypos):
@@ -807,7 +842,7 @@ class EventSource:
 		l = canvas.create_rectangle(fromx,
 		    ypos - self.ysize() - canvas.bdheight,
 		    tox, ypos + canvas.bdheight, fill=color, width=0,
-		    tags=("all", "cpuinfo", cpu, self.tag), state="hidden")
+		    tags=("cpubg", cpu, self.tag), state="hidden")
 		self.cpuitems.append(l)
 
 	def move(self, canvas, xpos, ypos):
@@ -818,7 +853,7 @@ class EventSource:
 		canvas.move(self.item, xpos, ypos)
 
 	def ysize(self):
-		return (10)
+		return (Y_EVENTSOURCE)
 
 	def eventat(self, i):
 		if (i >= len(self.events)):
@@ -858,7 +893,7 @@ class Counter(EventSource):
 		return (Counter.groups[self.group])
 
 	def ysize(self):
-		return (80)
+		return (Y_COUNTER)
 
 	def yscale(self):
 		return (self.ysize() / self.ymax())
@@ -873,16 +908,23 @@ class KTRFile:
 		self.load = {}
 		self.crit = {}
 		self.stathz = 0
+		self.eventcnt = 0
+		self.taghash = {}
 
 		self.parse(file)
 		self.fixup()
 		global ticksps
 		ticksps = self.ticksps()
-		timespan = self.timespan()
-		print "first tick", self.timestamp_f,
-		print "last tick", self.timestamp_l
-		print "Ticks per second", ticksps
-		print "time span", timespan, "ticks", ticks2sec(timespan)
+		span = self.timespan()
+		ghz = float(ticksps) / 1000000000.0
+		#
+		# Update the title with some stats from the file
+		#
+		titlestr = "SchedGraph: "
+		titlestr += ticks2sec(span) + " at %.3f ghz, " % ghz
+		titlestr += str(len(sources)) + " event sources, "
+		titlestr += str(self.eventcnt) + " events"
+		root.title(titlestr)
 
 	def parse(self, file):
 		try:
@@ -942,7 +984,8 @@ class KTRFile:
 			if (dat == None):
 				dat = dat1
 			if (self.checkstamp(timestamp) == 0):
-				print "Bad timestamp at", lineno, ":", line, 
+				print "Bad timestamp at", lineno, ":",
+				print cpu, timestamp 
 				continue
 			#
 			# Build the table of optional attributes
@@ -990,6 +1033,7 @@ class KTRFile:
 		elif (type == "point"):
 			e = PointEvent(source, *args)
 		if (e != None):
+			self.eventcnt += 1
 			source.addevent(e);
 		return e
 
@@ -1006,20 +1050,22 @@ class KTRFile:
 		timestamp = int(timestamp)
 		if (self.timestamp_f == None):
 			self.timestamp_f = timestamp;
-		if (self.timestamp_l != None and timestamp > self.timestamp_l):
+		if (self.timestamp_l != None and
+		    timestamp -2048> self.timestamp_l):
 			return (0)
 		self.timestamp_l = timestamp;
 		return (1)
 
 	def makeid(self, group, id, type):
-		for source in sources:
-			if (source.name == id and source.group == group):
-				return source
+		tag = group + id
+		if (self.taghash.has_key(tag)):
+			return self.taghash[tag]
 		if (type == "counter"):
 			source = Counter(group, id)
 		else:
 			source = EventSource(group, id)
 		sources.append(source)
+		self.taghash[tag] = source
 		return (source)
 
 	def findid(self, id):
@@ -1038,7 +1084,7 @@ class KTRFile:
 			return int(clockfreq * oneghz)
 
 		# Check for a discovered clock
-		if (self.stathz != None):
+		if (self.stathz != 0):
 			return (self.timespan() / self.ticks[0]) * int(self.stathz)
 		# Pretend we have a 1ns clock
 		print "WARNING: No clock discovered and no frequency ",
@@ -1132,13 +1178,10 @@ class SchedDisplay(Canvas):
 			ypos += source.ysize()
 			source.draw(self, ypos)
 			ypos += self.bdheight
-			try:
-				self.tag_raise("point", "state")
-				self.tag_lower("cpuinfo", "all")
-			except:
-				pass
+		self.tag_raise("point", "state")
+		self.tag_lower("cpubg", ALL)
 		self.create_line(0, ypos, xsize, ypos,
-		    width=1, fill="black", tags=("all",))
+		    width=1, fill="black", tags=("lines",))
 		self.tag_bind("event", "<Enter>", self.mouseenter)
 		self.tag_bind("event", "<Leave>", self.mouseexit)
 		self.bind("<Button-1>", self.mousepress)
@@ -1187,7 +1230,7 @@ class SchedDisplay(Canvas):
 		self.parent.display_yview("scroll", -1, "units")
 
 	def xsize(self):
-		return ((ktrfile.timespan() / self.ratio) + 20)
+		return ((ktrfile.timespan() / self.ratio) + (X_BORDER * 2))
 
 	def ysize(self):
 		ysize = 0
@@ -1206,7 +1249,7 @@ class SchedDisplay(Canvas):
 
 		self.ratio = ratio
 		self.updatescroll()
-		self.scale("all", 0, 0, float(oldratio) / ratio, 1)
+		self.scale(ALL, 0, 0, float(oldratio) / ratio, 1)
 
 		xstart, xend = self.xview()
 		xsize = (xend - xstart) / 2
@@ -1261,7 +1304,7 @@ class SchedGraph(Frame):
 		self.display = None
 		self.scale = None
 		self.status = None
-		self.bdheight = 10 
+		self.bdheight = Y_BORDER
 		self.clicksource = None
 		self.lastsource = None
 		self.pack(expand=1, fill="both")
@@ -1301,8 +1344,16 @@ class SchedGraph(Frame):
 		self.names.draw()
 		self.display.draw()
 		self.status.startup("")
-		self.scale.set(250000)
+		#
+		# Configure scale related values
+		#
+		scalemax = ktrfile.timespan() / int(self.display["width"])
+		width = int(root.geometry().split('x')[0])
+		self.constwidth = width - int(self.display["width"])
+		self.scale.setmax(scalemax)
+		self.scale.set(scalemax)
 		self.display.xview_moveto(0)
+		self.bind("<Configure>", self.resize)
 
 	def mousepress(self, event):
 		self.clicksource = self.sourceat(event.y)
@@ -1440,8 +1491,7 @@ class SchedGraph(Frame):
 			source.hidden = 0
 			size += sz
 			idx += 1
-		self.names.updatescroll()
-		self.display.updatescroll()
+		self.updatescroll()
 		self.status.set("")
 
 	#
@@ -1484,8 +1534,7 @@ class SchedGraph(Frame):
 				if (nstart >= stop):
 					break;
 				self.sourceshift(source, -size)
-		self.names.updatescroll()
-		self.display.updatescroll()
+		self.updatescroll()
 		self.status.set("")
 
 	def sourcehide(self, source):
@@ -1518,8 +1567,7 @@ class SchedGraph(Frame):
 			if (nstart < start):
 				continue;
 			self.sourceshift(source, off)
-		self.names.updatescroll()
-		self.display.updatescroll()
+		self.updatescroll()
 		self.status.set("")
 
 	def sourceat(self, ypos):
@@ -1538,6 +1586,15 @@ class SchedGraph(Frame):
 	def display_yview(self, *args):
 		self.names.yview(*args)
 		self.display.yview(*args)
+
+	def resize(self, *args):
+		width = int(root.geometry().split('x')[0])
+		scalemax = ktrfile.timespan() / (width - self.constwidth)
+		self.scale.setmax(scalemax)
+
+	def updatescroll(self):
+		self.names.updatescroll()
+		self.display.updatescroll()
 
 	def setcolor(self, tag, color):
 		self.display.setcolor(tag, color)
@@ -1559,7 +1616,7 @@ if (len(sys.argv) > 2):
 	clockfreq = float(sys.argv[2])
 
 root = Tk()
-root.title("Scheduler Graph")
+root.title("SchedGraph")
 colormap = Colormap(eventcolors)
 cpucolormap = Colormap(cpucolors)
 graph = SchedGraph(root)

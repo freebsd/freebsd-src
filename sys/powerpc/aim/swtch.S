@@ -106,8 +106,16 @@ ENTRY(cpu_switch)
 	andi.	%r6, %r6, PCB_FPU
 	beq	.L1
 	bl	save_fpu
-	mr	%r3,%r14		/* restore old thread ptr */
+
 .L1:
+	lwz	%r6,PCB_FLAGS(%r5)
+	/* Save Altivec context if needed */
+	andi.	%r6, %r6, PCB_VEC
+	beq	.L2
+	bl	save_vec
+	
+.L2:
+	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
 cpu_switchin:
@@ -122,12 +130,20 @@ cpu_switchin:
 	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore FPU context if needed */
 	andi.	%r6, %r6, PCB_FPU
-	beq	.L2
+	beq	.L3
 	mr	%r3,%r15		/* Pass curthread to enable_fpu */
 	bl	enable_fpu
 
+.L3:
+	lwz	%r6, PCB_FLAGS(%r17)
+	/* Restore Altivec context if needed */
+	andi.	%r6, %r6, PCB_VEC
+	beq	.L4
+	mr	%r3,%r15		/* Pass curthread to enable_vec */
+	bl	enable_vec
+
 	/* thread to restore is in r3 */
-.L2:
+.L4:
 	mr	%r3,%r17		/* Recover PCB ptr */
 	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
 	mr	%r2,%r12

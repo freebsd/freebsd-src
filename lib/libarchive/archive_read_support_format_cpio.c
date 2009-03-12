@@ -150,7 +150,9 @@ archive_read_support_format_cpio(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    cpio,
+	    "cpio",
 	    archive_read_format_cpio_bid,
+	    NULL,
 	    archive_read_format_cpio_read_header,
 	    archive_read_format_cpio_read_data,
 	    NULL,
@@ -329,7 +331,8 @@ find_newc_header(struct archive_read *a)
 {
 	const void *h;
 	const char *p, *q;
-	size_t skip, bytes, skipped = 0;
+	size_t skip, skipped = 0;
+	ssize_t bytes;
 
 	for (;;) {
 		h = __archive_read_ahead(a, sizeof(struct cpio_newc_header), &bytes);
@@ -463,7 +466,8 @@ find_odc_header(struct archive_read *a)
 {
 	const void *h;
 	const char *p, *q;
-	size_t skip, bytes, skipped = 0;
+	size_t skip, skipped = 0;
+	ssize_t bytes;
 
 	for (;;) {
 		h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), &bytes);
