@@ -168,6 +168,7 @@ ndisusb_attach(device_t self)
 	db = uaa->driver_info;
 	sc = (struct ndis_softc *)dummy;
 	sc->ndis_dev = self;
+	mtx_init(&sc->ndisusb_mtx, "NDIS USB", MTX_NETWORK_LOCK, MTX_DEF);
 	sc->ndis_dobj = db->windrv_object;
 	sc->ndis_regvals = db->windrv_regvals;
 	sc->ndis_iftype = PNPBus;
@@ -207,14 +208,17 @@ ndisusb_detach(device_t self)
 
 	sc->ndisusb_status |= NDISUSB_STATUS_DETACH;
 
+	ndis_pnpevent_nic(self, NDIS_PNP_EVENT_SURPRISE_REMOVED);
+
 	for (i = 0; i < NDISUSB_ENDPT_MAX; i++) {
 		ne = &sc->ndisusb_ep[i];
 		usb2_transfer_unsetup(ne->ne_xfer, 1);
 	}
 
-	ndis_pnpevent_nic(self, NDIS_PNP_EVENT_SURPRISE_REMOVED);
+	(void)ndis_detach(self);
 
-	return ndis_detach(self);
+	mtx_destroy(&sc->ndisusb_mtx);
+	return (0);
 }
 
 static struct resource_list *
