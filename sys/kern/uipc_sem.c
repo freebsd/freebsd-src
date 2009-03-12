@@ -727,7 +727,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 #endif
 	DP(("kern_sem_wait value = %d, tryflag %d\n", ks->ks_value, tryflag));
 	vfs_timestamp(&ks->ks_atime);
-	if (ks->ks_value == 0) {
+	while (ks->ks_value == 0) {
 		ks->ks_waiters++;
 		if (tryflag != 0)
 			error = EAGAIN;
