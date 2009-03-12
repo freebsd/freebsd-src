@@ -48,7 +48,6 @@ extern image_patch_table hal_functbl[];
 __BEGIN_DECLS
 extern int hal_libinit(void);
 extern int hal_libfini(void);
-extern struct mtx *hal_getdisplock(void);
 extern uint8_t KfAcquireSpinLock(kspin_lock *);
 extern void KfReleaseSpinLock(kspin_lock *, uint8_t);
 extern uint8_t KfRaiseIrql(uint8_t);

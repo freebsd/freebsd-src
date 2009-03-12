@@ -142,6 +142,14 @@ struct ndisusb_xferdone {
 	list_entry		nd_donelist;
 };
 
+struct ndisusb_task {
+	unsigned		nt_type;
+#define	NDISUSB_TASK_TSTART	0
+#define	NDISUSB_TASK_IRPCANCEL	1
+	void			*nt_ctx;
+	list_entry		nt_tasklist;
+};
+
 struct ndis_softc {
 	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;	/* media info */
@@ -220,6 +228,7 @@ struct ndis_softc {
 	int			ndis_hang_timer;
 
 	struct usb2_device	*ndisusb_dev;
+	struct mtx		ndisusb_mtx;
 #define	NDISUSB_GET_ENDPT(addr) \
 	((UE_GET_DIR(addr) >> 7) | (UE_GET_ADDR(addr) << 1))
 #define	NDISUSB_ENDPT_MAX	((UE_ADDR + 1) * 2)
@@ -227,6 +236,9 @@ struct ndis_softc {
 	io_workitem		*ndisusb_xferdoneitem;
 	list_entry		ndisusb_xferdonelist;
 	kspin_lock		ndisusb_xferdonelock;
+	io_workitem		*ndisusb_taskitem;
+	list_entry		ndisusb_tasklist;
+	kspin_lock		ndisusb_tasklock;
 	int			ndisusb_status;
 #define NDISUSB_STATUS_DETACH	0x1
 };
@@ -234,3 +246,7 @@ struct ndis_softc {
 #define	NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
 #define	NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
 #define	NDIS_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->ndis_mtx, t)
+#define	NDISUSB_LOCK(_sc)	mtx_lock(&(_sc)->ndisusb_mtx)
+#define	NDISUSB_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndisusb_mtx)
+#define	NDISUSB_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->ndisusb_mtx, t)
+
