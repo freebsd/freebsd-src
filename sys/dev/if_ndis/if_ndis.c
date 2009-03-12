@@ -557,8 +557,10 @@ ndis_attach(dev)
 	mtx_init(&sc->ndis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	KeInitializeSpinLock(&sc->ndis_rxlock);
+	KeInitializeSpinLock(&sc->ndisusb_tasklock);
 	KeInitializeSpinLock(&sc->ndisusb_xferdonelock);
 	InitializeListHead(&sc->ndis_shlist);
+	InitializeListHead(&sc->ndisusb_tasklist);
 	InitializeListHead(&sc->ndisusb_xferdonelist);
 	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
 
@@ -624,6 +626,8 @@ ndis_attach(dev)
 	sc->ndis_resetitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndis_inputitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	sc->ndisusb_xferdoneitem =
+	    IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndisusb_taskitem =
 	    IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
 	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
 
@@ -1066,6 +1070,8 @@ ndis_detach(dev)
 		IoFreeWorkItem(sc->ndis_inputitem);
 	if (sc->ndisusb_xferdoneitem != NULL)
 		IoFreeWorkItem(sc->ndisusb_xferdoneitem);
+	if (sc->ndisusb_taskitem != NULL)
+		IoFreeWorkItem(sc->ndisusb_taskitem);
 
 	bus_generic_detach(dev);
 	ndis_unload_driver(sc);
@@ -3236,8 +3242,10 @@ ndis_stop(sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	NDIS_UNLOCK(sc);
 
-	if (!(sc->ndis_iftype == PNPBus && ndisusb_halt == 0) ||
-	    sc->ndisusb_status & NDISUSB_STATUS_DETACH)
+	if (sc->ndis_iftype != PNPBus ||
+	    (sc->ndis_iftype == PNPBus &&
+	     !(sc->ndisusb_status & NDISUSB_STATUS_DETACH) &&
+	     ndisusb_halt != 0))
 		ndis_halt_nic(sc);
 
 	NDIS_LOCK(sc);
