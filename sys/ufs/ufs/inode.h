@@ -94,6 +94,7 @@ struct inode {
 	u_char	  *i_ea_area;	/* Pointer to malloced copy of EA area */
 	unsigned  i_ea_len;	/* Length of i_ea_area */
 	int	  i_ea_error;	/* First errno in transaction */
+	int	  i_ea_refs;	/* Number of users of EA area */
 
 	/*
 	 * Copies from the on-disk dinode itself.
@@ -125,6 +126,8 @@ struct inode {
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
 #define	IN_LAZYACCESS	0x0100		/* Process IN_ACCESS after the
 					   suspension finished */
+#define	IN_EA_LOCKED	0x0200
+#define	IN_EA_LOCKWAIT	0x0400
 
 #define i_devvp i_ump->um_devvp
 #define i_umbufobj i_ump->um_bo
