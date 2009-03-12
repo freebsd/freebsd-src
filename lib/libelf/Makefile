@@ -148,7 +148,7 @@ VERSION_MAP=		${.CURDIR}/Version.map
 
 LIBELF_TEST_HOOKS?=	1
 .if defined(LIBELF_TEST_HOOKS) && (${LIBELF_TEST_HOOKS} > 0)
-CFLAGS+=	-DLIBELF_TEST_HOOKS=1
+CFLAGS+= -DLIBELF_TEST_HOOKS
 .endif
 
 libelf_convert.c:	elf_types.m4 libelf_convert.m4
