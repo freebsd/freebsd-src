@@ -45,6 +45,8 @@ typedef struct {
 #define	AR5416_CCA_MAX_HIGH_VALUE	-62
 #define	AR5416_CCA_MIN_BAD_VALUE	-140
 
+#define AR5416_SPUR_RSSI_THRESH		40
+
 struct ath_hal_5416 {
 	struct ath_hal_5212 ah_5212;
 
@@ -58,6 +60,11 @@ struct ath_hal_5416 {
 	HAL_INI_ARRAY	ah_ini_bank7;
 	HAL_INI_ARRAY	ah_ini_addac;
 	HAL_INI_ARRAY	ah_ini_pcieserdes;
+
+	void		(*ah_writeIni)(struct ath_hal *,
+			    const struct ieee80211_channel *);
+	void		(*ah_spurMitigate)(struct ath_hal *,
+			    const struct ieee80211_channel *);
 
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
 	u_int		ah_gpioMask;
