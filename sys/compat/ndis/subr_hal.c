@@ -124,13 +124,6 @@ hal_libfini()
 	return(0);
 }
 
-struct mtx *
-hal_getdisplock()
-{
-
-	return &disp_lock[curthread->td_oncpu];
-}
-
 static void
 KeStallExecutionProcessor(usecs)
 	uint32_t		usecs;

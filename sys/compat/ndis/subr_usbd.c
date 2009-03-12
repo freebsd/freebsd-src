@@ -93,6 +93,8 @@ static int32_t		 usbd_power(device_object *, irp *);
 static void		 usbd_irpcancel(device_object *, irp *);
 static int32_t		 usbd_submit_urb(irp *);
 static int32_t		 usbd_urb2nt(int32_t);
+static void		 usbd_task(device_object *, void *);
+static int32_t		 usbd_taskadd(irp *, unsigned);
 static void		 usbd_xfertask(device_object *, void *);
 static void		 dummy(void);
 
@@ -118,6 +120,7 @@ static funcptr usbd_ioinvalid_wrap;
 static funcptr usbd_pnp_wrap;
 static funcptr usbd_power_wrap;
 static funcptr usbd_irpcancel_wrap;
+static funcptr usbd_task_wrap;
 static funcptr usbd_xfertask_wrap;
 
 int
@@ -144,6 +147,8 @@ usbd_libinit(void)
 	    (funcptr *)&usbd_power_wrap, 2, WINDRV_WRAP_STDCALL);
 	windrv_wrap((funcptr)usbd_irpcancel,
 	    (funcptr *)&usbd_irpcancel_wrap, 2, WINDRV_WRAP_STDCALL);
+	windrv_wrap((funcptr)usbd_task,
+	    (funcptr *)&usbd_task_wrap, 2, WINDRV_WRAP_STDCALL);
 	windrv_wrap((funcptr)usbd_xfertask,
 	    (funcptr *)&usbd_xfertask_wrap, 2, WINDRV_WRAP_STDCALL);
 
@@ -184,6 +189,7 @@ usbd_libfini(void)
 	windrv_unwrap(usbd_pnp_wrap);
 	windrv_unwrap(usbd_power_wrap);
 	windrv_unwrap(usbd_irpcancel_wrap);
+	windrv_unwrap(usbd_task_wrap);
 	windrv_unwrap(usbd_xfertask_wrap);
 
 	free(usbd_driver.dro_drivername.us_buf, M_DEVBUF);
@@ -417,7 +423,6 @@ usbd_func_getdesc(ip)
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
 	struct usbd_urb_control_descriptor_request *ctldesc;
-	uint8_t irql;
 	uint16_t actlen;
 	uint32_t len;
 	union usbd_urb *urb;
@@ -450,13 +455,13 @@ usbd_func_getdesc(ip)
 		actlen = len;
 		status = USB_ERR_NORMAL_COMPLETION;
 	} else {
-		KeRaiseIrql(DISPATCH_LEVEL, &irql);
-		status = usb2_req_get_desc(sc->ndisusb_dev, hal_getdisplock(),
+		NDISUSB_LOCK(sc);
+		status = usb2_req_get_desc(sc->ndisusb_dev, &sc->ndisusb_mtx,
 		    &actlen, ctldesc->ucd_trans_buf, 2,
 		    ctldesc->ucd_trans_buflen, ctldesc->ucd_langid,
 		    ctldesc->ucd_desctype, ctldesc->ucd_idx,
 		    NDISUSB_GETDESC_MAXRETRIES);
-		KeLowerIrql(irql);
+		NDISUSB_UNLOCK(sc);
 	}
 exit:
 	if (status != USB_ERR_NORMAL_COMPLETION) {
@@ -496,11 +501,6 @@ usbd_func_selconf(ip)
 		device_printf(dev, "select configuration is NULL\n");
 		return usbd_usb2urb(USB_ERR_NORMAL_COMPLETION);
 	}
-
-	if (conf->bConfigurationValue > NDISUSB_CONFIG_NO)
-		device_printf(dev,
-		    "warning: config_no is larger than default (%#x/%#x)\n",
-		    conf->bConfigurationValue, NDISUSB_CONFIG_NO);
 
 	intf = &selconf->usc_intf;
 	for (i = 0; i < conf->bNumInterface && intf->uii_len > 0; i++) {
@@ -594,7 +594,7 @@ usbd_setup_endpoint(ip, ifidx, ep)
 		cfg.mh.flags.short_xfer_ok = 1;
 
 	status = usb2_transfer_setup(sc->ndisusb_dev, &ifidx, ne->ne_xfer,
-	    &cfg, 1, sc, hal_getdisplock());
+	    &cfg, 1, sc, &sc->ndisusb_mtx);
 	if (status != USB_ERR_NORMAL_COMPLETION) {
 		device_printf(dev, "couldn't setup xfer: %s\n",
 		    usb2_errstr(status));
@@ -618,8 +618,9 @@ static int32_t
 usbd_func_abort_pipe(ip)
 	irp			*ip;
 {
+	device_t dev = IRP_NDIS_DEV(ip);
+	struct ndis_softc *sc = device_get_softc(dev);
 	struct ndisusb_ep *ne;
-	uint8_t irql;
 	union usbd_urb *urb;
 
 	urb = usbd_geturb(ip);
@@ -629,10 +630,10 @@ usbd_func_abort_pipe(ip)
 		return (USBD_STATUS_INVALID_PIPE_HANDLE);
 	}
 
-	KeRaiseIrql(DISPATCH_LEVEL, &irql);
+	NDISUSB_LOCK(sc);
 	usb2_transfer_stop(ne->ne_xfer[0]);
 	usb2_transfer_start(ne->ne_xfer[0]);
-	KeLowerIrql(irql);
+	NDISUSB_UNLOCK(sc);
 
 	return (USBD_STATUS_SUCCESS);
 }
@@ -644,7 +645,7 @@ usbd_func_vendorclass(ip)
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
 	struct usbd_urb_vendor_or_class_request *vcreq;
-	uint8_t irql, type = 0;
+	uint8_t type = 0;
 	union usbd_urb *urb;
 	struct usb2_device_request req;
 	usb2_error_t status;
@@ -692,10 +693,10 @@ usbd_func_vendorclass(ip)
 	USETW(req.wValue, vcreq->uvc_value);
 	USETW(req.wLength, vcreq->uvc_trans_buflen);
 
-	KeRaiseIrql(DISPATCH_LEVEL, &irql);
-	status = usb2_do_request(sc->ndisusb_dev, hal_getdisplock(), &req,
+	NDISUSB_LOCK(sc);
+	status = usb2_do_request(sc->ndisusb_dev, &sc->ndisusb_mtx, &req,
 	    vcreq->uvc_trans_buf);
-	KeLowerIrql(irql);
+	NDISUSB_UNLOCK(sc);
 
 	return usbd_usb2urb(status);
 }
@@ -755,19 +756,18 @@ static struct ndisusb_xfer *
 usbd_aq_getfirst(struct ndis_softc *sc, struct ndisusb_ep *ne)
 {
 	struct ndisusb_xfer *nx;
-	uint8_t irql;
 
-	KeAcquireSpinLock(&ne->ne_lock, &irql);
+	KeAcquireSpinLockAtDpcLevel(&ne->ne_lock);
 	if (IsListEmpty(&ne->ne_active)) {
 		device_printf(sc->ndis_dev,
 		    "%s: the active queue can't be empty.\n", __func__);
-		KeReleaseSpinLock(&ne->ne_lock, irql);
+		KeReleaseSpinLockFromDpcLevel(&ne->ne_lock);
 		return (NULL);
 	}
 	nx = CONTAINING_RECORD(ne->ne_active.nle_flink, struct ndisusb_xfer,
 	    nx_next);
 	RemoveEntryList(&nx->nx_next);
-	KeReleaseSpinLock(&ne->ne_lock, irql);
+	KeReleaseSpinLockFromDpcLevel(&ne->ne_lock);
 
 	return (nx);
 }
@@ -881,10 +881,8 @@ usbd_get_ndisep(ip, ep)
 
 	ne = &sc->ndisusb_ep[NDISUSB_GET_ENDPT(ep->bEndpointAddress)];
 
-	IoAcquireCancelSpinLock(&ip->irp_cancelirql);
 	IRP_NDISUSB_EP(ip) = ne;
 	ip->irp_cancelfunc = (cancel_func)usbd_irpcancel_wrap;
-	IoReleaseCancelSpinLock(ip->irp_cancelirql);
 
 	return (ne);
 }
@@ -902,7 +900,6 @@ usbd_xfertask(dobj, arg)
 	struct ndisusb_xferdone *nd;
 	struct ndisusb_xfer *nq;
 	struct usbd_urb_bulk_or_intr_transfer *ubi;
-	uint8_t irql;
 	union usbd_urb *urb;
 	usb2_error_t status;
 	void *priv;
@@ -912,7 +909,7 @@ usbd_xfertask(dobj, arg)
 	if (IsListEmpty(&sc->ndisusb_xferdonelist))
 		return;
 
-	KeAcquireSpinLock(&sc->ndisusb_xferdonelock, &irql);
+	KeAcquireSpinLockAtDpcLevel(&sc->ndisusb_xferdonelock);
 	l = sc->ndisusb_xferdonelist.nle_flink;
 	while (l != &sc->ndisusb_xferdonelist) {
 		nd = CONTAINING_RECORD(l, struct ndisusb_xferdone, nd_donelist);
@@ -927,8 +924,6 @@ usbd_xfertask(dobj, arg)
 		    URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER,
 		    ("function(%d) isn't for bulk or interrupt",
 			urb->uu_hdr.uuh_func));
-
-		IoAcquireCancelSpinLock(&ip->irp_cancelirql);
 
 		ip->irp_cancelfunc = NULL;
 		IRP_NDISUSB_EP(ip) = NULL;
@@ -954,28 +949,114 @@ usbd_xfertask(dobj, arg)
 			break;
 		}
 
-		IoReleaseCancelSpinLock(ip->irp_cancelirql);
-
 		l = l->nle_flink;
 		RemoveEntryList(&nd->nd_donelist);
 		free(nq, M_USBDEV);
 		free(nd, M_USBDEV);
 		if (error)
 			continue;
+		KeReleaseSpinLockFromDpcLevel(&sc->ndisusb_xferdonelock);
 		/* NB: call after cleaning  */
 		IoCompleteRequest(ip, IO_NO_INCREMENT);
+		KeAcquireSpinLockAtDpcLevel(&sc->ndisusb_xferdonelock);
 	}
-	KeReleaseSpinLock(&sc->ndisusb_xferdonelock, irql);
+	KeReleaseSpinLockFromDpcLevel(&sc->ndisusb_xferdonelock);
+}
+
+/*
+ * this function is for mainly deferring a task to the another thread because
+ * we don't want to be in the scope of HAL lock.
+ */
+static int32_t
+usbd_taskadd(ip, type)
+	irp			*ip;
+	unsigned		 type;
+{
+	device_t dev = IRP_NDIS_DEV(ip);
+	struct ndis_softc *sc = device_get_softc(dev);
+	struct ndisusb_task *nt;
+
+	nt = malloc(sizeof(struct ndisusb_task), M_USBDEV, M_NOWAIT | M_ZERO);
+	if (nt == NULL)
+		return (USBD_STATUS_NO_MEMORY);
+	nt->nt_type = type;
+	nt->nt_ctx = ip;
+
+	KeAcquireSpinLockAtDpcLevel(&sc->ndisusb_tasklock);
+	InsertTailList((&sc->ndisusb_tasklist), (&nt->nt_tasklist));
+	KeReleaseSpinLockFromDpcLevel(&sc->ndisusb_tasklock);
+
+	IoQueueWorkItem(sc->ndisusb_taskitem,
+	    (io_workitem_func)usbd_task_wrap, WORKQUEUE_CRITICAL, sc);
+
+	return (USBD_STATUS_SUCCESS);
+}
+
+static void
+usbd_task(dobj, arg)
+	device_object		*dobj;
+	void			*arg;
+{
+	irp *ip;
+	list_entry *l;
+	struct ndis_softc *sc = arg;
+	struct ndisusb_ep *ne;
+	struct ndisusb_task *nt;
+	union usbd_urb *urb;
+
+	if (IsListEmpty(&sc->ndisusb_tasklist))
+		return;
+
+	KeAcquireSpinLockAtDpcLevel(&sc->ndisusb_tasklock);
+	l = sc->ndisusb_tasklist.nle_flink;
+	while (l != &sc->ndisusb_tasklist) {
+		nt = CONTAINING_RECORD(l, struct ndisusb_task, nt_tasklist);
+
+		ip = nt->nt_ctx;
+		urb = usbd_geturb(ip);
+
+		KeReleaseSpinLockFromDpcLevel(&sc->ndisusb_tasklock);
+		NDISUSB_LOCK(sc);
+		switch (nt->nt_type) {
+		case NDISUSB_TASK_TSTART:
+			ne = usbd_get_ndisep(ip, urb->uu_bulkintr.ubi_epdesc);
+			if (ne == NULL)
+				goto exit;
+			usb2_transfer_start(ne->ne_xfer[0]);
+			break;
+		case NDISUSB_TASK_IRPCANCEL:
+			ne = usbd_get_ndisep(ip,
+			    (nt->nt_type == NDISUSB_TASK_IRPCANCEL) ?
+			    urb->uu_bulkintr.ubi_epdesc :
+			    urb->uu_pipe.upr_handle);
+			if (ne == NULL)
+				goto exit;
+			
+			usb2_transfer_stop(ne->ne_xfer[0]);
+			usb2_transfer_start(ne->ne_xfer[0]);
+			break;
+		default:
+			break;
+		}
+exit:
+		NDISUSB_UNLOCK(sc);
+		KeAcquireSpinLockAtDpcLevel(&sc->ndisusb_tasklock);
+
+		l = l->nle_flink;
+		RemoveEntryList(&nt->nt_tasklist);
+		free(nt, M_USBDEV);
+	}
+	KeReleaseSpinLockFromDpcLevel(&sc->ndisusb_tasklock);
 }
 
 static int32_t
 usbd_func_bulkintr(ip)
 	irp			*ip;
 {
+	int32_t error;
 	struct ndisusb_ep *ne;
 	struct ndisusb_xfer *nx;
 	struct usbd_urb_bulk_or_intr_transfer *ubi;
-	uint8_t irql;
 	union usbd_urb *urb;
 	usb_endpoint_descriptor_t *ep;
 
@@ -998,9 +1079,9 @@ usbd_func_bulkintr(ip)
 	}
 	nx->nx_ep = ne;
 	nx->nx_priv = ip;
-	KeAcquireSpinLock(&ne->ne_lock, &irql);
+	KeAcquireSpinLockAtDpcLevel(&ne->ne_lock);
 	InsertTailList((&ne->ne_pending), (&nx->nx_next));
-	KeReleaseSpinLock(&ne->ne_lock, irql);
+	KeReleaseSpinLockFromDpcLevel(&ne->ne_lock);
 
 	/* we've done to setup xfer.  Let's transfer it.  */
 	ip->irp_iostat.isb_status = STATUS_PENDING;
@@ -1008,9 +1089,9 @@ usbd_func_bulkintr(ip)
 	USBD_URB_STATUS(urb) = USBD_STATUS_PENDING;
 	IoMarkIrpPending(ip);
 
-	KeRaiseIrql(DISPATCH_LEVEL, &irql);
-	usb2_transfer_start(ne->ne_xfer[0]);
-	KeLowerIrql(irql);
+	error = usbd_taskadd(ip, NDISUSB_TASK_TSTART);
+	if (error != USBD_STATUS_SUCCESS)
+		return (error);
 
 	return (USBD_STATUS_PENDING);
 }
