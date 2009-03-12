@@ -289,6 +289,11 @@ cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 	struct resource_list_entry *rle;
 	device_t dev;
 
+	/* Turn off access to resources we're about to free */
+	dev = dinfo->pci.cfg.dev;
+	pci_write_config(dev, PCIR_COMMAND,
+	    pci_read_config(dev, PCIR_COMMAND, 2) &
+	    ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
 	/* Free all allocated resources */
 	STAILQ_FOREACH(rle, &dinfo->pci.resources, link) {
 		if (rle->res) {
@@ -298,11 +303,6 @@ cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 		}
 	}
 	resource_list_free(&dinfo->pci.resources);
-	/* turn off the card's decoding now that the resources are done */
-	dev = dinfo->pci.cfg.dev;
-	pci_write_config(dev, PCIR_COMMAND,
-	    pci_read_config(dev, PCIR_COMMAND, 2) &
-	    ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
 }
 
 /************************************************************************/
