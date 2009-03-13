@@ -614,14 +614,6 @@ null_unlock(struct vop_unlock_args *ap)
 	return (error);
 }
 
-static int
-null_islocked(struct vop_islocked_args *ap)
-{
-	struct vnode *vp = ap->a_vp;
-
-	return (lockstatus(vp->v_vnlock));
-}
-
 /*
  * There is no way to tell that someone issued remove/rmdir operation
  * on the underlying filesystem. For now we just have to release lowervp
@@ -732,7 +724,6 @@ struct vop_vector null_vnodeops = {
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
-	.vop_islocked =		null_islocked,
 	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,
 	.vop_open =		null_open,
