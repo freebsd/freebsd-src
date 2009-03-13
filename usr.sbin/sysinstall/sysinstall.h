@@ -191,6 +191,7 @@
 #define VAR_HOME_SIZE			"homeSize"
 #define VAR_TERM			"TERM"
 #define VAR_CONSTERM                    "_consterm"
+#define VAR_KEEPRCCONF			"keeprcconf"
 
 #ifdef PC98
 #define DEFAULT_COUNTRY		"jp"
@@ -433,6 +434,7 @@ extern DMenu		MenuIndex;		/* Index menu					*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
 extern DMenu		MenuKLD;		/* Prototype KLD menu				*/
+extern DMenu		MenuConfig;		/* Prototype config menu				*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
 #ifdef WITH_MICE
 extern DMenu		MenuMouse;		/* Mouse type menu				*/
@@ -577,8 +579,10 @@ extern int	diskGetSelectCount(Device ***devs);
 /* dispatch.c */
 extern int	dispatchCommand(char *command);
 extern int	dispatch_load_floppy(dialogMenuItem *self);
+extern int	dispatch_load_cdrom(dialogMenuItem *self);
 extern int	dispatch_load_file_int(int);
 extern int	dispatch_load_file(dialogMenuItem *self);
+extern int	dispatch_load_menu(dialogMenuItem *self);
 
 
 /* dist.c */
