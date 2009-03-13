@@ -321,6 +321,8 @@ int uminor(dev_t dev);
 int umajor(dev_t dev);
 const char *devtoname(struct cdev *cdev);
 
+int poll_no_poll(int events);
+
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);
 
