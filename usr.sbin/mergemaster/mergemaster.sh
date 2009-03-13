@@ -15,8 +15,8 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahipCP] [-m /path]'
-  echo '         [-t /path] [-d] [-u N] [-w N] [-D /path]'
+  echo 'Usage: mergemaster [-scrvahipCPU]'
+  echo '    [-m /path] [-t /path] [-d] [-u N] [-w N] [-A arch] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
   echo "  -c  Use context diff instead of unified diff"
@@ -28,6 +28,8 @@ display_usage () {
   echo '  -p  Pre-buildworld mode, only compares crucial files'
   echo '  -C  Compare local rc.conf variables to the defaults'
   echo '  -P  Preserve files that are overwritten'
+  echo "  -U  Attempt to auto upgrade files that have not been user modified"
+  echo ''
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
   echo "  -d  Add date and time to directory name (e.g., /var/tmp/temproot.`date +%m%d.%H.%M`)"
@@ -35,7 +37,6 @@ display_usage () {
   echo "  -w N  Specify a screen width in columns to sdiff"
   echo "  -A architecture  Alternative architecture name to pass to make"
   echo '  -D /path/directory  Specify the destination directory to install files to'
-  echo "  -U Attempt to auto upgrade files that have not been user modified."
   echo ''
 }
 
@@ -1032,7 +1033,7 @@ for COMPFILE in `find . -type f -size +0`; do
       esac # Auto run test
     fi # Yes, the files are different
   fi # Yes, the file still remains to be checked
-done # This is for the do way up there at the beginning of the comparison
+done # This is for the for way up there at the beginning of the comparison
 
 echo ''
 echo "*** Comparison complete"
