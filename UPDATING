@@ -23,6 +23,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090313:
+	POSIX.1 Native Language Support (NLS) has been enabled in libc and
+	a bunch of new language catalog files have also been added.
+	This means that some common libc messages are now localized and
+	they depend on the LC_MESSAGES environmental variable.
+
+20090313:
 	The k8temp(4) driver has been renamed to amdtemp(4) since
 	support for K10 and K11 CPU families was added.
 
