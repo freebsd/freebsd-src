@@ -499,7 +499,7 @@ clone_down()
 #
 childif_create()
 {
-	local cfg child child_wlans create_args ifn i
+	local cfg child child_wlans create_args debug_flags ifn i
 	cfg=1
 
 	ifn=$1
@@ -509,10 +509,18 @@ childif_create()
 
 	for child in ${child_wlans}; do
 		create_args="wlandev $ifn `get_if_var $child create_args_IF`"
+		debug_flags="`get_if_var $child wlandebug_IF`"
+
 		if expr $child : 'wlan[0-9][0-9]*$' >/dev/null 2>&1; then
 			ifconfig $child create ${create_args} && cfg=0
+			if [ -n "${debug_flags}" ]; then
+				wlandebug -i $child ${debug_flags}
+			fi
 		else
 			i=`ifconfig wlan create ${create_args}`
+			if [ -n "${debug_flags}" ]; then
+				wlandebug -i $i ${debug_flags}
+			fi
 			ifconfig $i name $child && cfg=0
 		fi
 		if autoif $child; then
