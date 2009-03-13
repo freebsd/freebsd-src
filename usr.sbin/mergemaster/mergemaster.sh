@@ -671,7 +671,7 @@ find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
 # Build the mtree database in a temporary location.
 MTREENEW=`mktemp -t mergemaster.mtree`
 case "${PRE_WORLD}" in
-'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${DESTDIR}${MTREENEW} 2>/dev/null
+'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
     ;;
 *) # We don't want to mess with the mtree database on a pre-world run.
    ;;
@@ -1037,10 +1037,10 @@ done # This is for the do way up there at the beginning of the comparison
 echo ''
 echo "*** Comparison complete"
 
-if [ -f "${DESTDIR}${MTREENEW}" ]; then
+if [ -f "${MTREENEW}" ]; then
   echo "*** Saving mtree database for future upgrades"
-  test -e "${MTREEFILE}" && unlink ${MTREEFILE}
-  mv ${DESTDIR}${MTREENEW} ${DESTDIR}${MTREEFILE}
+  test -e "${DESTDIR}${MTREEFILE}" && unlink ${DESTDIR}${MTREEFILE}
+  mv ${MTREENEW} ${DESTDIR}${MTREEFILE}
 fi
 
 echo ''
