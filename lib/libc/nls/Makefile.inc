@@ -31,7 +31,7 @@ NLS+=	ru_RU.KOI8-R
 NLS+=	sk_SK.ISO8859-2
 NLS+=	sv_SE.ISO8859-1
 
-beforeinstall:
+.BEGIN:
 .for c in ${NLS}
 	mkdir -p ${CANONICALOBJDIR}/../../lib32/usr/share/nls/${c}
 	mkdir -p ${CANONICALOBJDIR}/../../tmp/usr/share/nls/${c}
