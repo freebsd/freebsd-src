@@ -1169,6 +1169,15 @@ One or more
 .Xr wlan 4
 devices must be created for each wireless devices as of
 .Fx 8.0 .
+Debugging flags for
+.Xr wlan 4
+devices as set by
+.Xr wlandebug 8
+may be specified with an
+.Va wlandebug_ Ns Aq Ar interface
+variable.
+The contents of this variable will be passed directly to
+.Xr wlandebug 8 .
 .Pp
 If the
 .Va ifconfig_ Ns Aq Ar interface
@@ -4065,6 +4074,7 @@ Default
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr wlandebug 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
 .Xr ypserv 8 ,
