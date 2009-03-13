@@ -26,39 +26,47 @@
 .\" $FreeBSD$
 .\"
 .Dd April 8, 2008
-.Dt K8TEMP 4
+.Dt AMDTEMP 4
 .Os
 .Sh NAME
-.Nm k8temp
-.Nd device driver for AMD K8 on-die digital thermal sensor
+.Nm amdtemp
+.Nd device driver for AMD K8, K10 and K11 on-die digital thermal sensor
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device k8temp"
+.Cd "device amdtemp"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-k8temp_load="YES"
+amdtemp_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the on-die digital thermal sensor present
-in AMD K8 processors.
+in AMD K8, K10 and K11 processors.
 .Pp
-The
+For the K8 family, the
 .Nm
 driver reports each cores' temperature through a sysctl node in the
 corresponding CPU devices's sysctl tree, named
-.Va dev.k8temp.%d.sensor{0,1}.core{0,1} .
+.Va dev.amdtemp.%d.sensor{0,1}.core{0,1} .
+The driver also creates
 .Va dev.cpu.%d.temperature
-is also created and it displays the maximum temperature of the two sensors
+displaying the maximum temperature of the two sensors 
 located in each CPU core.
+.Pp
+For the K10 and K11 families, the driver creates
+.Va dev.cpu.%d.temperature
+with the temperature of each core.
+.Sh BUGS
+AMD K9 is not supported because temperature reporting has been replaced
+by Maltese.
 .Sh SEE ALSO
 .Xr sysctl 8
 .Sh HISTORY
@@ -69,3 +77,4 @@ driver first appeared in
 .Sh AUTHORS
 .An
 .An Rui Paulo Aq rpaulo@FreeBSD.org
+.An Norikatsu Shigemura Aq nork@FreeBSD.org
