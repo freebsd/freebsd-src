@@ -128,6 +128,7 @@ dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
 dev/aic/aic_isa.c		optional aic isa
+dev/amdtemp/amdtemp.c		optional amdtemp
 dev/arcmsr/arcmsr.c		optional arcmsr pci
 dev/ar/if_ar.c			optional ar
 dev/ar/if_ar_isa.c		optional ar isa
@@ -198,7 +199,6 @@ dev/ipmi/ipmi_smbus.c		optional ipmi smbus
 dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
-dev/k8temp/k8temp.c		optional k8temp
 dev/kbd/kbd.c			optional atkbd | sc | ukbd | usb2_input_kbd
 dev/le/if_le_isa.c		optional le isa
 dev/mem/memutil.c		optional mem
