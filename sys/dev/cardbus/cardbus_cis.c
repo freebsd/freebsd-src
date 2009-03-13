@@ -451,8 +451,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	space = *start & PCIM_CIS_ASI_MASK;
 	switch (space) {
 	case PCIM_CIS_ASI_CONFIG:
-		if (cardbus_cis_debug)
-			device_printf(cbdev, "CIS in PCI config space\n");
+		DEVPRINTF((cbdev, "CIS in PCI config space\n"));
 		/* CIS in PCI config space need no initialization */
 		return (CIS_CONFIG_SPACE);
 	case PCIM_CIS_ASI_BAR0:
@@ -462,13 +461,11 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	case PCIM_CIS_ASI_BAR4:
 	case PCIM_CIS_ASI_BAR5:
 		*rid = PCIR_BAR(space - PCIM_CIS_ASI_BAR0);
-		if (cardbus_cis_debug)
-			device_printf(cbdev, "CIS in BAR %#x\n", *rid);
+		DEVPRINTF((cbdev, "CIS in BAR %#x\n", *rid));
 		break;
 	case PCIM_CIS_ASI_ROM:
 		*rid = PCIR_BIOS;
-		if (cardbus_cis_debug)
-			device_printf(cbdev, "CIS in option rom\n");
+		DEVPRINTF((cbdev, "CIS in option rom\n"));
 		break;
 	default:
 		device_printf(cbdev, "Unable to read CIS: Unknown space: %d\n",
@@ -484,6 +481,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		    "to read CIS.\n");
 		return (NULL);
 	}
+	DEVPRINTF((cbdev, "CIS Mapped to %#lx\n", rman_get_start(res)));
 	if (*rid == PCIR_BIOS)
 		pci_write_config(child, *rid,
 		    rman_get_start(res) | PCIM_BIOS_ENABLE, 4);
@@ -558,8 +556,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	} else {
 		*start = *start & PCIM_CIS_ADDR_MASK;
 	}
-	if (cardbus_cis_debug)
-		device_printf(cbdev, "CIS offset is %#x\n", *start);
+	DEVPRINTF((cbdev, "CIS offset is %#x\n", *start));
 
 	return (res);
 }
@@ -598,13 +595,10 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	bzero(tupledata, MAXTUPLESIZE);
 	expect_linktarget = TRUE;
 	if ((start = pci_read_config(child, PCIR_CIS, 4)) == 0) {
-		if (cardbus_cis_debug)
-			device_printf(cbdev,
-			    "Warning: CIS pointer 0 (no CIS present)\n");
+		DEVPRINTF((cbdev, "Warning: CIS pointer is 0: (no CIS)\n"));
 		return (ENXIO);
 	}
-	if (cardbus_cis_debug)
-		device_printf(cbdev, "CIS pointer is %#x\n", start);
+	DEVPRINTF((cbdev, "CIS pointer is %#x\n", start));
 	off = 0;
 	res = cardbus_read_tuple_init(cbdev, child, &start, &rid);
 	if (res == NULL) {
