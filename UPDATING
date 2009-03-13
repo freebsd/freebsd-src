@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090313:
+	The k8temp(4) driver has been renamed to amdtemp(4) since
+	support for K10 and K11 CPU families was added.
+
 20090309:
 	IGMPv3 and Source-Specific Multicast (SSM) have been merged
 	to the IPv4 stack. VIMAGE hooks are in but not yet used.
