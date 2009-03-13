@@ -27,7 +27,7 @@
 
 /*
  * Driver for the AMD K8/K10/K11 thermal sensors. Initially based on the
- * amdtemp Linux driver.
+ * k8temp Linux driver.
  */
 
 #include <sys/cdefs.h>
