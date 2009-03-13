@@ -48,6 +48,35 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+struct k8temp_softc {
+	device_t	sc_dev;
+	int		sc_temps[4];
+	int		sc_ntemps;
+	struct sysctl_oid *sc_oid;
+	struct sysctl_oid *sc_sysctl_cpu[2];
+	struct intr_config_hook sc_ich;
+};
+
+#define VENDORID_AMD		0x1022
+#define DEVICEID_AMD_MISC	0x1103
+
+static struct k8temp_product {
+	uint16_t	k8temp_vendorid;
+	uint16_t	k8temp_deviceid;
+} k8temp_products[] = {
+	{ VENDORID_AMD,	DEVICEID_AMD_MISC },
+	{ 0, 0 }
+};
+
+/*
+ * Register control
+ */
+#define	K8TEMP_REG		0xe4
+#define	K8TEMP_REG_SELSENSOR	0x40
+#define	K8TEMP_REG_SELCORE	0x04
+
+#define K8TEMP_MINTEMP		49	/* -49 C is the mininum temperature */
+
 typedef enum {
 	SENSOR0_CORE0,
 	SENSOR0_CORE1,
@@ -56,46 +85,6 @@ typedef enum {
 	CORE0,
 	CORE1
 } k8sensor_t;
-
-struct k8temp_softc {
-	device_t	sc_dev;
-	int		sc_temps[4];
-	int		sc_ntemps;
-	struct sysctl_oid *sc_oid;
-	struct sysctl_oid *sc_sysctl_cpu[2];
-	struct intr_config_hook sc_ich;
-	int32_t (*sc_gettemp)(device_t, k8sensor_t);
-};
-
-#define VENDORID_AMD		0x1022
-#define DEVICEID_AMD_MISC0F	0x1103
-#define DEVICEID_AMD_MISC10	0x1203
-#define DEVICEID_AMD_MISC11	0x1303
-
-static struct k8temp_product {
-	uint16_t	k8temp_vendorid;
-	uint16_t	k8temp_deviceid;
-} k8temp_products[] = {
-	{ VENDORID_AMD,	DEVICEID_AMD_MISC0F },
-	{ VENDORID_AMD,	DEVICEID_AMD_MISC10 },
-	{ VENDORID_AMD,	DEVICEID_AMD_MISC11 },
-	{ 0, 0 }
-};
-
-/*
- * Register control
- */
-#define	K8TEMP_REG0F		0xe4
-#define	K8TEMP_REG_SELSENSOR	0x40
-#define	K8TEMP_REG_SELCORE	0x04
-
-#define	K8TEMP_REG		0xa4
-
-#define	TZ_ZEROC		2732
-
-					/* -49 C is the mininum temperature */
-#define	K8TEMP_OFFSET0F		(TZ_ZEROC-490)
-#define	K8TEMP_OFFSET		(TZ_ZEROC)
 
 /*
  * Device methods.
@@ -106,7 +95,6 @@ static int	k8temp_attach(device_t dev);
 static void	k8temp_intrhook(void *arg);
 static int	k8temp_detach(device_t dev);
 static int 	k8temp_match(device_t dev);
-static int32_t	k8temp_gettemp0f(device_t dev, k8sensor_t sensor);
 static int32_t	k8temp_gettemp(device_t dev, k8sensor_t sensor);
 static int	k8temp_sysctl(SYSCTL_HANDLER_ARGS);
 
@@ -205,13 +193,6 @@ k8temp_attach(device_t dev)
 		return (ENXIO);
 	}
 	
-	if (pci_get_device(dev) == DEVICEID_AMD_MISC0F)
-		sc->sc_gettemp = k8temp_gettemp0f;
-	else {
-		sc->sc_gettemp = k8temp_gettemp;
-		return (0);
-	}
-
 	/*
 	 * dev.k8temp.N tree.
 	 */
@@ -223,13 +204,13 @@ k8temp_attach(device_t dev)
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
 	    OID_AUTO, "core0", CTLTYPE_INT | CTLFLAG_RD,
-	    dev, SENSOR0_CORE0, k8temp_sysctl, "IK",
+	    dev, SENSOR0_CORE0, k8temp_sysctl, "I",
 	    "Sensor 0 / Core 0 temperature");
 	
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
 	    OID_AUTO, "core1", CTLTYPE_INT | CTLFLAG_RD,
-	    dev, SENSOR0_CORE1, k8temp_sysctl, "IK",
+	    dev, SENSOR0_CORE1, k8temp_sysctl, "I",
 	    "Sensor 0 / Core 1 temperature");
 	
 	sysctlnode = SYSCTL_ADD_NODE(sysctlctx,
@@ -239,13 +220,13 @@ k8temp_attach(device_t dev)
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
 	    OID_AUTO, "core0", CTLTYPE_INT | CTLFLAG_RD,
-	    dev, SENSOR1_CORE0, k8temp_sysctl, "IK",
+	    dev, SENSOR1_CORE0, k8temp_sysctl, "I",
 	    "Sensor 1 / Core 0 temperature");
 	
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
 	    OID_AUTO, "core1", CTLTYPE_INT | CTLFLAG_RD,
-	    dev, SENSOR1_CORE1, k8temp_sysctl, "IK",
+	    dev, SENSOR1_CORE1, k8temp_sysctl, "I",
 	    "Sensor 1 / Core 1 temperature");
 
 	return (0);
@@ -277,7 +258,7 @@ k8temp_intrhook(void *arg)
 			sc->sc_sysctl_cpu[i] = SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(cpu)),
 			    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
-			    dev, CORE0, k8temp_sysctl, "IK",
+			    dev, CORE0, k8temp_sysctl, "I",
 			    "Max of sensor 0 / 1");
 		}
 	}
@@ -304,23 +285,22 @@ static int
 k8temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t) arg1;
-	struct k8temp_softc *sc = device_get_softc(dev);
 	int error;
 	int32_t temp, auxtemp[2];
 
 	switch (arg2) {
 	case CORE0:
-		auxtemp[0] = sc->sc_gettemp(dev, SENSOR0_CORE0);
-		auxtemp[1] = sc->sc_gettemp(dev, SENSOR1_CORE0);
+		auxtemp[0] = k8temp_gettemp(dev, SENSOR0_CORE0);
+		auxtemp[1] = k8temp_gettemp(dev, SENSOR1_CORE0);
 		temp = imax(auxtemp[0], auxtemp[1]);
 		break;
 	case CORE1:
-		auxtemp[0] = sc->sc_gettemp(dev, SENSOR0_CORE1);
-		auxtemp[1] = sc->sc_gettemp(dev, SENSOR1_CORE1);
+		auxtemp[0] = k8temp_gettemp(dev, SENSOR0_CORE1);
+		auxtemp[1] = k8temp_gettemp(dev, SENSOR1_CORE1);
 		temp = imax(auxtemp[0], auxtemp[1]);
 		break;
 	default:
-		temp = sc->sc_gettemp(dev, arg2);
+		temp = k8temp_gettemp(dev, arg2);
 		break;
 	}
 	error = sysctl_handle_int(oidp, &temp, 0, req);
@@ -329,12 +309,12 @@ k8temp_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int32_t
-k8temp_gettemp0f(device_t dev, k8sensor_t sensor)
+k8temp_gettemp(device_t dev, k8sensor_t sensor)
 {
 	uint8_t cfg;
 	uint32_t temp;
 	
-	cfg = pci_read_config(dev, K8TEMP_REG0F, 1);
+	cfg = pci_read_config(dev, K8TEMP_REG, 1);
 	switch (sensor) {
 	case SENSOR0_CORE0:
 		cfg &= ~(K8TEMP_REG_SELSENSOR | K8TEMP_REG_SELCORE);
@@ -354,20 +334,9 @@ k8temp_gettemp0f(device_t dev, k8sensor_t sensor)
 		cfg = 0;
 		break;
 	}
-	pci_write_config(dev, K8TEMP_REG0F, cfg, 1);
-	temp = pci_read_config(dev, K8TEMP_REG0F, 4);
-	temp = ((temp >> 16) & 0xff) * 10 + K8TEMP_OFFSET0F;
-	
-	return (temp);
-}
-
-static int32_t
-k8temp_gettemp(device_t dev, k8sensor_t sensor)
-{
-	uint32_t temp;
-
+	pci_write_config(dev, K8TEMP_REG, cfg, 1);
 	temp = pci_read_config(dev, K8TEMP_REG, 4);
-	temp = ((temp >> 21) & 0x3ff) * 10 / 8 + K8TEMP_OFFSET;
-
+	temp = ((temp >> 16) & 0xff) - K8TEMP_MINTEMP;
+	
 	return (temp);
 }
