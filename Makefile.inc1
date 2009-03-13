@@ -612,8 +612,12 @@ installcheck_UGID:
 #
 # Required install tools to be saved in a scratch dir for safety.
 #
+.if ${MK_INFO} != "no"
+_install-info=	install-info
+.endif
+
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
-	date echo egrep find grep install-info \
+	date echo egrep find grep ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	test true uname wc zic
 
