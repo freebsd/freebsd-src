@@ -8,3 +8,31 @@ SRCS+=	msgcat.c
 SYM_MAPS+=${.CURDIR}/nls/Symbol.map
 
 MAN+=	catclose.3 catgets.3 catopen.3
+
+# NOTE: C.msg should not be processed here, it's used as a template
+#       for translators.
+
+NLSNAME=	libc
+NLS+=	ca_ES.ISO8859-1
+NLS+=	de_DE.ISO8859-1
+NLS+=	el_GR.ISO8859-7
+NLS+=	es_ES.ISO8859-1
+NLS+=	fi_FI.ISO8859-1
+NLS+=	fr_FR.ISO8859-1
+NLS+=	hu_HU.ISO8859-2
+NLS+=	it_IT.ISO8859-15
+NLS+=	ko_KR.UTF-8
+NLS+=	ko_KR.eucKR
+NLS+=	mn_MN.UTF-8
+NLS+=	nl_NL.ISO8859-1
+NLS+=	no_NO.ISO8859-1
+NLS+=	pl_PL.ISO8859-2
+NLS+=	ru_RU.KOI8-R
+NLS+=	sk_SK.ISO8859-2
+NLS+=	sv_SE.ISO8859-1
+
+beforeinstall:
+.for c in ${NLS}
+	mkdir -p ${CANONICALOBJDIR}/../../lib32/usr/share/nls/${c}
+	mkdir -p ${CANONICALOBJDIR}/../../tmp/usr/share/nls/${c}
+.endfor
