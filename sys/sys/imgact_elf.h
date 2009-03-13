@@ -55,6 +55,13 @@ typedef struct {
 } __ElfN(Auxargs);
 
 typedef struct {
+	Elf_Note	hdr;
+	const char *	vendor;
+	int		flags;
+#define	BN_CAN_FETCH_OSREL	0x0001
+} Elf_Brandnote;
+
+typedef struct {
 	int brand;
 	int machine;
 	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
@@ -62,6 +69,7 @@ typedef struct {
 	const char *interp_path;
 	struct sysentvec *sysvec;
 	const char *interp_newpath;
+	Elf_Brandnote *brand_note;
 	int flags;
 #define	BI_CAN_EXEC_DYN	0x0001
 } __ElfN(Brandinfo);
@@ -81,7 +89,7 @@ int	__elfN(coredump)(struct thread *, struct vnode *, off_t);
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);
 
 extern int __elfN(fallback_brand);
-
+extern Elf_Brandnote __elfN(freebsd_brandnote);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_IMGACT_ELF_H_ */
