@@ -204,6 +204,7 @@ Elf32_Brandinfo svr4_brand = {
 	.interp_path	= "/lib/libc.so.1",
 	.sysvec		= &svr4_sysvec,
 	.interp_newpath	= NULL,
+	.brand_note	= NULL,
 	.flags		= 0
 };
 
