@@ -1328,3 +1328,89 @@ check-old: check-old-files check-old-libs check-old-dirs
 #
 showconfig:
 	@${MAKE} -n -f bsd.own.mk -V dummy -dg1 | grep ^MK_ | sort
+
+
+###############
+
+.if defined(XDEV) && defined(XDEV_ARCH)
+
+NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
+	-DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_PROFILE \
+	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS
+
+XDDIR=${XDEV}-freebsd
+XDTP=/usr/${XDDIR}
+CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
+	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH}
+CDENV= ${CDBENV} \
+	_SHLIBDIRPREFIX=${XDTP} \
+	TOOLS_PREFIX=${XDTP}
+CD2ENV=${CDENV} \
+	MACHINE=${XDEV} MACHINE_ARCH=${XDEV_ARCH}
+
+CDTMP=	${MAKEOBJDIRPREFIX}/${XDEV}/${.CURDIR}/tmp
+CDMAKE=${CDENV} ${MAKE} ${NOFUN}
+CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDTP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
+XDDESTDIR=${DESTDIR}${XDTP}
+
+.ORDER: xdev-build xdev-install
+xdev: xdev-build xdev-install
+
+.ORDER: _xb-build-tools _xb-cross-tools
+xdev-build: _xb-build-tools _xb-cross-tools
+
+_xb-build-tools:
+	${_+_}cd ${.CURDIR}; \
+	${CDBENV} ${MAKE} -f Makefile.inc1 ${NOFUN} build-tools
+
+_xb-cross-tools:
+.for _tool in \
+    gnu/usr.bin/binutils \
+    gnu/usr.bin/cc
+	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
+	cd ${.CURDIR}/${_tool}; \
+	${CDMAKE} DIRPRFX=${_tool}/ obj; \
+	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	${CDMAKE} DIRPRFX=${_tool}/ all
+.endfor
+
+_xi-mtree:
+	${_+_}@${ECHODIR} "mtree populating ${XDDESTDIR}"
+	mkdir -p ${XDDESTDIR}
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.root.dist \
+	    -p ${XDDESTDIR} >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${XDDESTDIR}/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${XDDESTDIR}/usr/include >/dev/null
+
+.ORDER: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+xdev-install: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+
+_xi-cross-tools:
+	@echo "_xi-cross-tools"
+.for _tool in \
+    gnu/usr.bin/binutils \
+    gnu/usr.bin/cc
+	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
+	cd ${.CURDIR}/${_tool}; \
+	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
+.endfor
+
+_xi-includes:
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 par-includes \
+		DESTDIR=${XDDESTDIR}
+
+_xi-libraries:
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 libraries \
+		DESTDIR=${XDDESTDIR}
+
+_xi-links:
+	${_+_}cd ${XDDESTDIR}/usr/bin; \
+		for i in *; do \
+			ln -sf ../../${XDTP}/usr/bin/$$i \
+			    ../../../../usr/bin/${XDDIR}-$$i; \
+			ln -sf ../../${XDTP}/usr/bin/$$i \
+			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
+		done
+.endif
