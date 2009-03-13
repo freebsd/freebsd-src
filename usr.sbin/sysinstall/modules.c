@@ -132,17 +132,13 @@ kldBrowser(dialogMenuItem *self)
     err = NULL;
     
     if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
-	msgConfirm("Unable to set media device to floppy.");
-	what |= DITEM_FAILURE;
-	mediaClose();
-	return what;
+	err = "Unable to set media device to floppy.";
+	goto errout;
     }
 
     if (!DEVICE_INIT(mediaDevice)) {
-	msgConfirm("Unable to mount floppy filesystem.");
-	what |= DITEM_FAILURE;
-	mediaClose();
-	return what;
+	err = "Unable to mount floppy filesystem.";
+	goto errout;
     }
 
     msize = sizeof(DMenu) + (sizeof(dialogMenuItem) * 2);
@@ -191,11 +187,10 @@ kldBrowser(dialogMenuItem *self)
     
     dmenuOpenSimple(menu, FALSE);
     
-    mediaClose();
-
     deviceRescan();
     
   errout:    
+    mediaClose();
     for (i = 0; i < count; i++)
 	free(menu->items[i].prompt);
     
