@@ -533,7 +533,7 @@ if_free_type(struct ifnet *ifp, u_char type)
 
 	IF_ADDR_LOCK_DESTROY(ifp);
 	free(ifp, M_IFNET);
-};
+}
 
 void
 ifq_attach(struct ifaltq *ifq, struct ifnet *ifp)
