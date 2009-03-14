@@ -686,7 +686,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				lk->lk_recurse--;
 				break;
 			}
-			lock_profile_release_lock(&lk->lock_object);
+			if (tid != LK_KERNPROC)
+				lock_profile_release_lock(&lk->lock_object);
 
 			if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid,
 			    LK_UNLOCKED))
@@ -874,6 +875,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	 */
 	if (LK_HOLDER(lk->lk_lock) != tid)
 		return;
+	lock_profile_release_lock(&lk->lock_object);
 	LOCK_LOG_LOCK("XDISOWN", &lk->lock_object, 0, 0, file, line);
 	WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
 	TD_LOCKS_DEC(curthread);
