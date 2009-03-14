@@ -21,6 +21,7 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 02110-1301, USA.  */
 
 /* $FreeBSD$ */
+/* Merged C99 inline changes from gcc trunk 122565 2007-03-05 */
 
 #include "config.h"
 #include "system.h"
@@ -1008,11 +1009,12 @@ c_common_post_options (const char **pfilename)
   if (flag_inline_functions)
     flag_inline_trees = 2;
 
-  /* We recognize -fgnu89-inline in preparation for 4.3 where the
-     option will be meaningful.  Here we just reject
-     -fno-gnu89-inline, since we don't support it.  */
-  if (!flag_gnu89_inline)
-    error ("-fno-gnu89-inline is not supported");
+  /* By default we use C99 inline semantics in GNU99 or C99 mode.  C99
+     inline semantics are not supported in GNU89 or C89 mode.  */
+  if (flag_gnu89_inline == -1)
+    flag_gnu89_inline = !flag_isoc99;
+  else if (!flag_gnu89_inline && !flag_isoc99)
+    error ("-fno-gnu89-inline is only supported in GNU99 or C99 mode");
 
   /* If we are given more than one input file, we must use
      unit-at-a-time mode.  */
