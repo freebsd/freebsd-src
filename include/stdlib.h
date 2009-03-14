@@ -196,7 +196,7 @@ long	 jrand48(unsigned short[3]);
 char	*l64a(long);
 void	 lcong48(unsigned short[7]);
 long	 lrand48(void);
-#if !defined(_MKTEMP_DECLARED) && __XSI_VISIBLE <= 600
+#if !defined(_MKTEMP_DECLARED) && (__BSD_VISIBLE || __XSI_VISIBLE <= 600)
 char	*mktemp(char *);
 #define	_MKTEMP_DECLARED
 #endif
