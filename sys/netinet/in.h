@@ -120,7 +120,7 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 
-#ifndef _KERNEL
+#if !defined(_KERNEL) && __BSD_VISIBLE
 
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
@@ -140,7 +140,7 @@ __END_DECLS
 #define	ntohs(x)	__ntohs(x)
 #endif
 
-#endif /* !_KERNEL */
+#endif /* !_KERNEL && __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200112
 #define	IPPROTO_RAW		255		/* raw IP packet */
