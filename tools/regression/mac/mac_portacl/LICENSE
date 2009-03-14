@@ -1,6 +1,6 @@
 $FreeBSD$
 
-License for all regression tests available with fstest:
+License for all mac_portacl regression tests:
 
 Copyright (c) 2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 All rights reserved.
