@@ -1324,9 +1324,13 @@ usb2_bus_port_set_device(struct usb2_bus *bus, struct usb2_port *up,
 	 * Make relationships to our new device
 	 */
 	if (device_index != 0) {
+#if USB_HAVE_UGEN
 		mtx_lock(&usb2_ref_lock);
+#endif
 		bus->devices[device_index] = udev;
+#if USB_HAVE_UGEN
 		mtx_unlock(&usb2_ref_lock);
+#endif
 	}
 	/*
 	 * Debug print

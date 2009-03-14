@@ -45,14 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include "g_part_if.h"
 
-#define	PC98_MID_BOOTABLE	0x80
-#define	PC98_MID_MASK		0x7f
-#define	PC98_MID_386BSD		0x14
-
-#define	PC98_SID_ACTIVE		0x80
-#define	PC98_SID_MASK		0x7f
-#define	PC98_SID_386BSD		0x44
-
 #define	SECSIZE		512
 
 struct g_part_pc98_table {
@@ -268,6 +260,7 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 	entry = (struct g_part_pc98_entry *)baseentry;
 	if (entry == NULL) {
 		/* confxml: scheme information */
+		return;
 	}
 
 	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);

@@ -564,6 +564,8 @@
 #define	  SVR_MPC8533E		  0x8034
 #define	  SVR_MPC8541		  0x8072
 #define	  SVR_MPC8541E		  0x807a
+#define	  SVR_MPC8548		  0x8031
+#define	  SVR_MPC8548E		  0x8039
 #define	  SVR_MPC8555		  0x8071
 #define	  SVR_MPC8555E		  0x8079
 #define	  SVR_MPC8572		  0x80e0

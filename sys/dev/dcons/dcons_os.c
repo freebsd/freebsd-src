@@ -360,6 +360,7 @@ dcons_attach_port(int port, char *name, int flags)
 	tp = tty_alloc(&dcons_ttydevsw, dc, NULL);
 	dc->flags = flags;
 	dc->tty   = tp;
+	tty_init_console(tp, 0);
 	tty_makedev(tp, NULL, "%s", name);
 	return(0);
 }

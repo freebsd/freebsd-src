@@ -318,7 +318,7 @@ axe_miibus_writereg(device_t dev, int phy, int reg, int val)
 	struct axe_softc *sc = device_get_softc(dev);
 	int locked;
 
-	val = htole16(val);
+	val = htole32(val);
 
 	if (sc->sc_phyno != phy)
 		return (0);

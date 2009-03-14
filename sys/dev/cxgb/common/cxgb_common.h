@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -92,9 +92,19 @@ enum {
 	    (((x) >> S_TP_VERSION_MICRO) & M_TP_VERSION_MICRO)
 
 enum {
-	FW_VERSION_MAJOR = 5,
-	FW_VERSION_MINOR = 0,
+	FW_VERSION_MAJOR = 7,
+	FW_VERSION_MINOR = 1,
 	FW_VERSION_MICRO = 0
+};
+
+enum {
+	LA_CTRL = 0x80,
+	LA_DATA = 0x84,
+	LA_ENTRIES = 512
+};
+
+enum {
+	IOQ_ENTRIES = 7
 };
 
 enum {
@@ -143,8 +153,6 @@ struct adapter_info {
 	unsigned char          nports0;        /* # of ports on channel 0 */
 	unsigned char          nports1;        /* # of ports on channel 1 */
 	unsigned char          phy_base_addr;  /* MDIO PHY base address */
-	unsigned char          mdien:1;
-	unsigned char          mdiinv:1;
 	unsigned int           gpio_out;       /* GPIO output settings */
 	unsigned char gpio_intr[MAX_PHYINTRS]; /* GPIO PHY IRQ pins */
 	unsigned long          caps;           /* adapter capabilities */
@@ -231,6 +239,8 @@ struct mac_stats {
 
 	unsigned long num_toggled; /* # times toggled TxEn due to stuck TX */
 	unsigned long num_resets;  /* # times reset due to stuck TX */
+
+	unsigned long link_faults;  /* # detected link faults */
 };
 
 struct tp_mib_stats {
@@ -344,6 +354,14 @@ struct vpd_params {
 	u8 port_type[MAX_NPORTS];
 	unsigned short xauicfg[2];
 };
+
+struct generic_vpd {
+	u32 offset;
+	u32 len;
+	u8 *data;
+};
+
+enum { MAX_VPD_BYTES = 32000 };
 
 struct pci_params {
 	unsigned int   vpd_cap_addr;
@@ -674,6 +692,8 @@ int t3_phy_lasi_intr_handler(struct cphy *phy);
 void t3_intr_enable(adapter_t *adapter);
 void t3_intr_disable(adapter_t *adapter);
 void t3_intr_clear(adapter_t *adapter);
+void t3_xgm_intr_enable(adapter_t *adapter, int idx);
+void t3_xgm_intr_disable(adapter_t *adapter, int idx);
 void t3_port_intr_enable(adapter_t *adapter, int idx);
 void t3_port_intr_disable(adapter_t *adapter, int idx);
 void t3_port_intr_clear(adapter_t *adapter, int idx);
@@ -681,29 +701,34 @@ int t3_slow_intr_handler(adapter_t *adapter);
 int t3_phy_intr_handler(adapter_t *adapter);
 
 void t3_link_changed(adapter_t *adapter, int port_id);
+void t3_link_fault(adapter_t *adapter, int port_id);
 int t3_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
 const struct adapter_info *t3_get_adapter_info(unsigned int board_id);
 int t3_seeprom_read(adapter_t *adapter, u32 addr, u32 *data);
 int t3_seeprom_write(adapter_t *adapter, u32 addr, u32 data);
 int t3_seeprom_wp(adapter_t *adapter, int enable);
+int t3_get_vpd_len(adapter_t *adapter, struct generic_vpd *vpd);
+int t3_read_vpd(adapter_t *adapter, struct generic_vpd *vpd);
 int t3_read_flash(adapter_t *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented);
 int t3_get_tp_version(adapter_t *adapter, u32 *vers);
-int t3_check_tpsram_version(adapter_t *adapter, int *must_load);
+int t3_check_tpsram_version(adapter_t *adapter);
 int t3_check_tpsram(adapter_t *adapter, const u8 *tp_ram, unsigned int size);
 int t3_load_fw(adapter_t *adapter, const u8 *fw_data, unsigned int size);
 int t3_get_fw_version(adapter_t *adapter, u32 *vers);
-int t3_check_fw_version(adapter_t *adapter, int *must_load);
+int t3_check_fw_version(adapter_t *adapter);
 int t3_load_boot(adapter_t *adapter, u8 *fw_data, unsigned int size);
 int t3_init_hw(adapter_t *adapter, u32 fw_params);
 void mac_prep(struct cmac *mac, adapter_t *adapter, int index);
 void early_hw_init(adapter_t *adapter, const struct adapter_info *ai);
+int t3_reset_adapter(adapter_t *adapter);
 int t3_prep_adapter(adapter_t *adapter, const struct adapter_info *ai, int reset);
 int t3_reinit_adapter(adapter_t *adap);
 void t3_led_ready(adapter_t *adapter);
 void t3_fatal_err(adapter_t *adapter);
 void t3_set_vlan_accel(adapter_t *adapter, unsigned int ports, int on);
 void t3_enable_filters(adapter_t *adap);
+void t3_disable_filters(adapter_t *adap);
 void t3_tp_set_offload_mode(adapter_t *adap, int enable);
 void t3_config_rss(adapter_t *adapter, unsigned int rss_config, const u8 *cpus,
 		   const u16 *rspq);
@@ -720,6 +745,8 @@ int t3_mc7_bd_read(struct mc7 *mc7, unsigned int start, unsigned int n,
 
 int t3_mac_reset(struct cmac *mac);
 void t3b_pcs_reset(struct cmac *mac);
+void t3_mac_disable_exact_filters(struct cmac *mac);
+void t3_mac_enable_exact_filters(struct cmac *mac);
 int t3_mac_enable(struct cmac *mac, int which);
 int t3_mac_disable(struct cmac *mac, int which);
 int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu);
@@ -750,6 +777,8 @@ void t3_get_cong_cntl_tab(adapter_t *adap,
 			  unsigned short incr[NMTUS][NCCTRL_WIN]);
 void t3_config_trace_filter(adapter_t *adapter, const struct trace_params *tp,
 			    int filter_index, int invert, int enable);
+void t3_query_trace_filter(adapter_t *adapter, struct trace_params *tp,
+			   int filter_index, int *inverted, int *enabled);
 int t3_config_sched(adapter_t *adap, unsigned int kbps, int sched);
 int t3_set_sched_ipg(adapter_t *adap, int sched, unsigned int ipg);
 void t3_get_tx_sched(adapter_t *adap, unsigned int sched, unsigned int *kbps,
@@ -758,6 +787,10 @@ void t3_read_pace_tbl(adapter_t *adap, unsigned int pace_vals[NTX_SCHED]);
 void t3_set_pace_tbl(adapter_t *adap, unsigned int *pace_vals,
 		     unsigned int start, unsigned int n);
 #endif
+
+int t3_get_up_la(adapter_t *adapter, u32 *stopped, u32 *index,
+		 u32 *size, void *data);
+int t3_get_up_ioqs(adapter_t *adapter, u32 *size, void *data);
 
 void t3_sge_prep(adapter_t *adap, struct sge_params *p);
 void t3_sge_init(adapter_t *adap, struct sge_params *p);
@@ -794,6 +827,11 @@ int t3_vsc7323_set_addr(adapter_t *adap, u8 addr[6], int port);
 int t3_vsc7323_enable(adapter_t *adap, int port, int which);
 int t3_vsc7323_disable(adapter_t *adap, int port, int which);
 const struct mac_stats *t3_vsc7323_update_stats(struct cmac *mac);
+
+int t3_mi1_read(adapter_t *adapter, int phy_addr, int mmd_addr, int reg_addr,
+		unsigned int *valp);
+int t3_mi1_write(adapter_t *adapter, int phy_addr, int mmd_addr, int reg_addr,
+		 unsigned int val);
 
 int t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			  const struct mdio_ops *mdio_ops);

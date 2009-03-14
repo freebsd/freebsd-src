@@ -100,7 +100,7 @@ void
 mac_cred_label_free(struct label *label)
 {
 
-	MAC_PERFORM(cred_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(cred_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -127,7 +127,7 @@ void
 mac_cred_associate_nfsd(struct ucred *cred)
 {
 
-	MAC_PERFORM(cred_associate_nfsd, cred);
+	MAC_PERFORM_NOSLEEP(cred_associate_nfsd, cred);
 }
 
 /*
@@ -138,7 +138,7 @@ void
 mac_cred_create_swapper(struct ucred *cred)
 {
 
-	MAC_PERFORM(cred_create_swapper, cred);
+	MAC_PERFORM_NOSLEEP(cred_create_swapper, cred);
 }
 
 /*
@@ -149,7 +149,7 @@ void
 mac_cred_create_init(struct ucred *cred)
 {
 
-	MAC_PERFORM(cred_create_init, cred);
+	MAC_PERFORM_NOSLEEP(cred_create_init, cred);
 }
 
 int
@@ -182,7 +182,7 @@ void
 mac_cred_copy(struct ucred *src, struct ucred *dest)
 {
 
-	MAC_PERFORM(cred_copy_label, src->cr_label, dest->cr_label);
+	MAC_PERFORM_NOSLEEP(cred_copy_label, src->cr_label, dest->cr_label);
 }
 
 /*
@@ -194,7 +194,7 @@ void
 mac_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 
-	MAC_PERFORM(cred_relabel, cred, newlabel);
+	MAC_PERFORM_NOSLEEP(cred_relabel, cred, newlabel);
 }
 
 MAC_CHECK_PROBE_DEFINE2(cred_check_relabel, "struct ucred *",
@@ -205,8 +205,134 @@ mac_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
 	int error;
 
-	MAC_CHECK(cred_check_relabel, cred, newlabel);
+	MAC_CHECK_NOSLEEP(cred_check_relabel, cred, newlabel);
 	MAC_CHECK_PROBE2(cred_check_relabel, error, cred, newlabel);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE2(cred_check_setuid, "struct ucred *", "uid_t");
+
+int
+mac_cred_check_setuid(struct ucred *cred, uid_t uid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setuid, cred, uid);
+	MAC_CHECK_PROBE2(cred_check_setuid, error, cred, uid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE2(cred_check_seteuid, "struct ucred *", "uid_t");
+
+int
+mac_cred_check_seteuid(struct ucred *cred, uid_t euid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_seteuid, cred, euid);
+	MAC_CHECK_PROBE2(cred_check_seteuid, error, cred, euid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE2(cred_check_setgid, "struct ucred *", "gid_t");
+
+int
+mac_cred_check_setgid(struct ucred *cred, gid_t gid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setgid, cred, gid);
+	MAC_CHECK_PROBE2(cred_check_setgid, error, cred, gid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE2(cred_check_setegid, "struct ucred *", "gid_t");
+
+int
+mac_cred_check_setegid(struct ucred *cred, gid_t egid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setegid, cred, egid);
+	MAC_CHECK_PROBE2(cred_check_setegid, error, cred, egid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE3(cred_check_setgroups, "struct ucred *", "int",
+    "gid_t *");
+
+int
+mac_cred_check_setgroups(struct ucred *cred, int ngroups, gid_t *gidset)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setgroups, cred, ngroups, gidset);
+	MAC_CHECK_PROBE3(cred_check_setgroups, error, cred, ngroups, gidset);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE3(cred_check_setreuid, "struct ucred *", "uid_t",
+    "uid_t");
+
+int
+mac_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setreuid, cred, ruid, euid);
+	MAC_CHECK_PROBE3(cred_check_setreuid, error, cred, ruid, euid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE3(cred_check_setregid, "struct ucred *", "gid_t",
+    "gid_t");
+
+int
+mac_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setregid, cred, rgid, egid);
+	MAC_CHECK_PROBE3(cred_check_setregid, error, cred, rgid, egid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE4(cred_check_setresuid, "struct ucred *", "uid_t",
+    "uid_t", "uid_t");
+
+int
+mac_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+    uid_t suid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setresuid, cred, ruid, euid, suid);
+	MAC_CHECK_PROBE4(cred_check_setresuid, error, cred, ruid, euid,
+	    suid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE4(cred_check_setresgid, "struct ucred *", "gid_t",
+    "gid_t", "gid_t");
+
+int
+mac_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+    gid_t sgid)
+{
+	int error;
+
+	MAC_CHECK_NOSLEEP(cred_check_setresgid, cred, rgid, egid, sgid);
+	MAC_CHECK_PROBE4(cred_check_setresgid, error, cred, rgid, egid,
+	    sgid);
 
 	return (error);
 }
@@ -219,7 +345,7 @@ mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	int error;
 
-	MAC_CHECK(cred_check_visible, cr1, cr2);
+	MAC_CHECK_NOSLEEP(cred_check_visible, cr1, cr2);
 	MAC_CHECK_PROBE2(cred_check_visible, error, cr1, cr2);
 
 	return (error);

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2009
+.Dd February 28, 2009
 .Dt IFMCSTAT 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Fl i Ar interface
 .Op Fl f Ar address-family
 .Op Fl v
+.Op Fl K
 .Op Fl M Ar core
 .Op Fl N Ar system
 .\"
@@ -66,6 +67,13 @@ specifies that link-layer memberships should be printed;
 they are suppressed by default.
 It may not be specified for
 .Fl f Ar link .
+Source lists for each group will also be printed.
+.Pp
+If specified twice, and
+.Xr kvm 3
+is in use, the IGMP timers for each interface
+and the IGMP source list counters for each group
+will also be printed.
 .El
 .Pp
 The following options are only available if
@@ -73,6 +81,10 @@ The following options are only available if
 has been built with support for
 .Xr kvm 3 :
 .Bl -tag -width Fl
+.It Fl K
+forces the use of
+.Xr kvm 3
+to be disabled.
 .It Fl M Ar core
 extracts values associated with the name list from the specified core,
 instead of the default
@@ -106,10 +118,14 @@ support, the information displayed by
 is more limited.
 This support is recommended for debugging purposes.
 It requires super-user privilege if used to inspect a running kernel.
+.Pp
+The
 .Xr kvm 3
-will be used by default if
+back-end will be used by default if
 .Nm
-is run with super-user privileges.
+is run with super-user privileges, unless the
+.Fl K
+option is specified.
 .Sh SEE ALSO
 .Xr getifaddrs 3 ,
 .Xr getifmaddrs 3 ,

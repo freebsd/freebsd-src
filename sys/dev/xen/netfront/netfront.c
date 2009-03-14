@@ -24,11 +24,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/sx.h>
 
@@ -47,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#if __FreeBSD_version >= 700000
+#include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -63,22 +67,41 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 
 #include <machine/xen/xen-os.h>
+#include <machine/xen/xenfunc.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/interface/memory.h>
-#include <dev/xen/netfront/mbufq.h>
-#include <machine/xen/features.h>
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
 
+#include <dev/xen/netfront/mbufq.h>
+
 #include "xenbus_if.h"
+
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP | CSUM_TSO)
 
 #define GRANT_INVALID_REF	0
 
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
+
+#if __FreeBSD_version >= 700000
+/*
+ * Should the driver do LRO on the RX end
+ *  this can be toggled on the fly, but the
+ *  interface must be reset (down/up) for it
+ *  to take effect.
+ */
+static int xn_enable_lro = 1;
+TUNABLE_INT("hw.xn.enable_lro", &xn_enable_lro);
+#else
+
+#define IFCAP_TSO4	0
+#define CSUM_TSO	0
+
+#endif
 
 #ifdef CONFIG_XEN
 static int MODPARM_rx_copy = 0;
@@ -92,6 +115,7 @@ static const int MODPARM_rx_copy = 1;
 static const int MODPARM_rx_flip = 0;
 #endif
 
+#define MAX_SKB_FRAGS	(65536/PAGE_SIZE + 2)
 #define RX_COPY_THRESHOLD 256
 
 #define net_ratelimit() 0
@@ -192,6 +216,9 @@ struct net_device_stats
 struct netfront_info {
 		
 	struct ifnet *xn_ifp;
+#if __FreeBSD_version >= 700000
+	struct lro_ctrl xn_lro;
+#endif
 
 	struct net_device_stats stats;
 	u_int tx_full;
@@ -329,31 +356,12 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
     printf("[XEN] " fmt, ##args)
 #define WPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
+#if 0
 #define DPRINTK(fmt, args...) \
     printf("[XEN] %s: " fmt, __func__, ##args)
-
-
-static __inline struct mbuf* 
-makembuf (struct mbuf *buf)
-{
-	struct mbuf *m = NULL;
-	
-        MGETHDR (m, M_DONTWAIT, MT_DATA);
-	
-        if (! m)
-		return 0;
-		
-	M_MOVE_PKTHDR(m, buf);
-
-	m_cljget(m, M_DONTWAIT, MJUMPAGESIZE);
-        m->m_pkthdr.len = buf->m_pkthdr.len;
-        m->m_len = buf->m_len;
-	m_copydata(buf, 0, buf->m_pkthdr.len, mtod(m,caddr_t) );
-
-		m->m_ext.ext_arg1 = (caddr_t *)(uintptr_t)(vtophys(mtod(m,caddr_t)) >> PAGE_SHIFT);
-
-       	return m;
-}
+#else
+#define DPRINTK(fmt, args...)
+#endif
 
 /**
  * Read the 'mac' node at the given device's node in the store, and parse that
@@ -413,6 +421,13 @@ netfront_attach(device_t dev)
 		xenbus_dev_fatal(dev, err, "creating netdev");
 		return err;
 	}
+
+#if __FreeBSD_version >= 700000
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "enable_lro", CTLTYPE_INT|CTLFLAG_RW,
+	    &xn_enable_lro, 0, "Large Receive Offload");
+#endif
 
 	return 0;
 }
@@ -489,17 +504,12 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		message = "writing feature-rx-notify";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "feature-no-csum-offload", "%d", 1);
-	if (err) {
-		message = "writing feature-no-csum-offload";
-		goto abort_transaction;
-	}
 	err = xenbus_printf(xbt, node, "feature-sg", "%d", 1);
 	if (err) {
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
-#ifdef HAVE_TSO
+#if __FreeBSD_version >= 700000
 	err = xenbus_printf(xbt, node, "feature-gso-tcpv4", "%d", 1);
 	if (err) {
 		message = "writing feature-gso-tcpv4";
@@ -569,7 +579,7 @@ setup_device(device_t dev, struct netfront_info *info)
 		goto fail;
 
 	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-	         "xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
+	    "xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
 
 	if (error) {
 		xenbus_dev_fatal(dev, error,
@@ -584,6 +594,24 @@ setup_device(device_t dev, struct netfront_info *info)
  fail:
 	netif_free(info);
 	return (error);
+}
+
+/**
+ * If this interface has an ipv4 address, send an arp for it. This
+ * helps to get the network going again after migrating hosts.
+ */
+static void
+netfront_send_fake_arp(device_t dev, struct netfront_info *info)
+{
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
+	
+	ifp = info->xn_ifp;
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			arp_ifinit(ifp, ifa);
+		}
+	}
 }
 
 /**
@@ -611,9 +639,7 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
-#ifdef notyet		
-		(void)send_fake_arp(netdev);
-#endif		
+		netfront_send_fake_arp(dev, sc);
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
@@ -851,6 +877,10 @@ static void
 xn_rxeof(struct netfront_info *np)
 {
 	struct ifnet *ifp;
+#if __FreeBSD_version >= 700000
+	struct lro_ctrl *lro = &np->xn_lro;
+	struct lro_entry *queued;
+#endif
 	struct netfront_rx_info rinfo;
 	struct netif_rx_response *rx = &rinfo.rx;
 	struct netif_extra_info *extras = rinfo.extras;
@@ -945,12 +975,34 @@ xn_rxeof(struct netfront_info *np)
 			 * Do we really need to drop the rx lock?
 			 */
 			XN_RX_UNLOCK(np);
-			/* Pass it up. */
+#if __FreeBSD_version >= 700000
+			/* Use LRO if possible */
+			if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
+			    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
+				/*
+				 * If LRO fails, pass up to the stack
+				 * directly.
+				 */
+				(*ifp->if_input)(ifp, m);
+			}
+#else
 			(*ifp->if_input)(ifp, m);
+#endif
 			XN_RX_LOCK(np);
 		}
 	
 		np->rx.rsp_cons = i;
+
+#if __FreeBSD_version >= 700000
+		/*
+		 * Flush any outstanding LRO work
+		 */
+		while (!SLIST_EMPTY(&lro->lro_active)) {
+			queued = SLIST_FIRST(&lro->lro_active);
+			SLIST_REMOVE_HEAD(&lro->lro_active, next);
+			tcp_lro_flush(lro, queued);
+		}
+#endif
 
 #if 0
 		/* If we get a callback with very few responses, reduce fill target. */
@@ -972,6 +1024,7 @@ xn_txeof(struct netfront_info *np)
 	RING_IDX i, prod;
 	unsigned short id;
 	struct ifnet *ifp;
+	netif_tx_response_t *txr;
 	struct mbuf *m;
 	
 	XN_TX_LOCK_ASSERT(np);
@@ -987,10 +1040,19 @@ xn_txeof(struct netfront_info *np)
 		rmb(); /* Ensure we see responses up to 'rp'. */
 		
 		for (i = np->tx.rsp_cons; i != prod; i++) {
-			id = RING_GET_RESPONSE(&np->tx, i)->id;
+			txr = RING_GET_RESPONSE(&np->tx, i);
+			if (txr->status == NETIF_RSP_NULL)
+				continue;
+
+			id = txr->id;
 			m = np->xn_cdata.xn_tx_chain[id]; 
 			
-			ifp->if_opackets++;
+			/*
+			 * Increment packet count if this is the last
+			 * mbuf of the chain.
+			 */
+			if (!m->m_next)
+				ifp->if_opackets++;
 			KASSERT(m != NULL, ("mbuf not found in xn_tx_chain"));
 			M_ASSERTVALID(m);
 			if (unlikely(gnttab_query_foreign_access(
@@ -1008,7 +1070,7 @@ xn_txeof(struct netfront_info *np)
 			
 			np->xn_cdata.xn_tx_chain[id] = NULL;
 			add_id_to_freelist(np->xn_cdata.xn_tx_chain, id);
-			m_freem(m);
+			m_free(m);
 		}
 		np->tx.rsp_cons = prod;
 		
@@ -1235,12 +1297,11 @@ xennet_get_responses(struct netfront_info *np,
 		gnttab_release_grant_reference(&np->gref_rx_head, ref);
 
 next:
-		if (m == NULL)
-			break;
-		
-		m->m_len = rx->status;
-		m->m_data += rx->offset;
-		m0->m_pkthdr.len += rx->status;
+		if (m != NULL) {
+				m->m_len = rx->status;
+				m->m_data += rx->offset;
+				m0->m_pkthdr.len += rx->status;
+		}
 		
 		if (!(rx->flags & NETRXF_more_data))
 			break;
@@ -1304,13 +1365,14 @@ xn_start_locked(struct ifnet *ifp)
 {
 	int otherend_id;
 	unsigned short id;
-	struct mbuf *m_head, *new_m;
+	struct mbuf *m_head, *m;
 	struct netfront_info *sc;
 	netif_tx_request_t *tx;
+	netif_extra_info_t *extra;
 	RING_IDX i;
 	grant_ref_t ref;
 	u_long mfn, tx_bytes;
-	int notify;
+	int notify, nfrags;
 
 	sc = ifp->if_softc;
 	otherend_id = xenbus_get_otherend_id(sc->xbdev);
@@ -1330,36 +1392,96 @@ xn_start_locked(struct ifnet *ifp)
 			break;
 		}
 		
-		id = get_id_from_freelist(sc->xn_cdata.xn_tx_chain);
+
+		/*
+		 * Defragment the mbuf if necessary.
+		 */
+		for (m = m_head, nfrags = 0; m; m = m->m_next)
+			nfrags++;
+		if (nfrags > MAX_SKB_FRAGS) {
+			m = m_defrag(m_head, M_DONTWAIT);
+			if (!m) {
+				m_freem(m_head);
+				break;
+			}
+			m_head = m;
+		}
 
 		/*
 		 * Start packing the mbufs in this chain into
 		 * the fragment pointers. Stop when we run out
 		 * of fragments or hit the end of the mbuf chain.
 		 */
-		new_m = makembuf(m_head);
-		tx = RING_GET_REQUEST(&sc->tx, i);
-		tx->id = id;
-		ref = gnttab_claim_grant_reference(&sc->gref_tx_head);
-		KASSERT((short)ref >= 0, ("Negative ref"));
-		mfn = virt_to_mfn(mtod(new_m, vm_offset_t));
-		gnttab_grant_foreign_access_ref(ref, otherend_id,
-		    mfn, GNTMAP_readonly);
-		tx->gref = sc->grant_tx_ref[id] = ref;
-		tx->size = new_m->m_pkthdr.len;
-#if 0
-		tx->flags = (skb->ip_summed == CHECKSUM_HW) ? NETTXF_csum_blank : 0;
+		m = m_head;
+		extra = NULL;
+		for (m = m_head; m; m = m->m_next) {
+			tx = RING_GET_REQUEST(&sc->tx, i);
+			id = get_id_from_freelist(sc->xn_cdata.xn_tx_chain);
+			sc->xn_cdata.xn_tx_chain[id] = m;
+			tx->id = id;
+			ref = gnttab_claim_grant_reference(&sc->gref_tx_head);
+			KASSERT((short)ref >= 0, ("Negative ref"));
+			mfn = virt_to_mfn(mtod(m, vm_offset_t));
+			gnttab_grant_foreign_access_ref(ref, otherend_id,
+			    mfn, GNTMAP_readonly);
+			tx->gref = sc->grant_tx_ref[id] = ref;
+			tx->offset = mtod(m, vm_offset_t) & (PAGE_SIZE - 1);
+			tx->flags = 0;
+			if (m == m_head) {
+				/*
+				 * The first fragment has the entire packet
+				 * size, subsequent fragments have just the
+				 * fragment size. The backend works out the
+				 * true size of the first fragment by
+				 * subtracting the sizes of the other
+				 * fragments.
+				 */
+				tx->size = m->m_pkthdr.len;
+
+				/*
+				 * The first fragment contains the
+				 * checksum flags and is optionally
+				 * followed by extra data for TSO etc.
+				 */
+				if (m->m_pkthdr.csum_flags
+				    & CSUM_DELAY_DATA) {
+					tx->flags |= (NETTXF_csum_blank
+					    | NETTXF_data_validated);
+				}
+#if __FreeBSD_version >= 700000
+				if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+					struct netif_extra_info *gso =
+						(struct netif_extra_info *)
+						RING_GET_REQUEST(&sc->tx, ++i);
+
+					if (extra)
+						extra->flags |= XEN_NETIF_EXTRA_FLAG_MORE;
+					else
+						tx->flags |= NETTXF_extra_info;
+
+					gso->u.gso.size = m->m_pkthdr.tso_segsz;
+					gso->u.gso.type =
+						XEN_NETIF_GSO_TYPE_TCPV4;
+					gso->u.gso.pad = 0;
+					gso->u.gso.features = 0;
+
+					gso->type = XEN_NETIF_EXTRA_TYPE_GSO;
+					gso->flags = 0;
+					extra = gso;
+				}
 #endif
-		tx->flags = 0;
-		new_m->m_next = NULL;
-		new_m->m_nextpkt = NULL;
+			} else {
+				tx->size = m->m_len;
+			}
+			if (m->m_next) {
+				tx->flags |= NETTXF_more_data;
+				i++;
+			}
+		}
 
-		m_freem(m_head);
+		BPF_MTAP(ifp, m_head);
 
-		sc->xn_cdata.xn_tx_chain[id] = new_m;
-		BPF_MTAP(ifp, new_m);
-
-		sc->stats.tx_bytes += new_m->m_pkthdr.len;
+		sc->stats.tx_bytes += m_head->m_pkthdr.len;
 		sc->stats.tx_packets++;
 	}
 
@@ -1445,9 +1567,9 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) 
 				xn_ifinit_locked(sc);
 			arp_ifinit(ifp, ifa);
-			XN_UNLOCK(sc);
+			XN_UNLOCK(sc);	
 		} else {
-			XN_UNLOCK(sc);
+			XN_UNLOCK(sc);	
 			error = ether_ioctl(ifp, cmd, data);
 		}
 		break;
@@ -1501,12 +1623,39 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable)
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
-			else
-				ifp->if_capenable |= IFCAP_HWCSUM;
+		if (mask & IFCAP_TXCSUM) {
+			if (IFCAP_TXCSUM & ifp->if_capenable) {
+				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
+				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
+				    | CSUM_IP | CSUM_TSO);
+			} else {
+				ifp->if_capenable |= IFCAP_TXCSUM;
+				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP
+				    | CSUM_IP);
+			}
 		}
+		if (mask & IFCAP_RXCSUM) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		}
+#if __FreeBSD_version >= 700000
+		if (mask & IFCAP_TSO4) {
+			if (IFCAP_TSO4 & ifp->if_capenable) {
+				ifp->if_capenable &= ~IFCAP_TSO4;
+				ifp->if_hwassist &= ~CSUM_TSO;
+			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
+				ifp->if_capenable |= IFCAP_TSO4;
+				ifp->if_hwassist |= CSUM_TSO;
+			} else {
+				DPRINTK("Xen requires tx checksum offload"
+				    " be enabled to use TSO\n");
+				error = EINVAL;
+			}
+		}
+		if (mask & IFCAP_LRO) {
+			ifp->if_capenable ^= IFCAP_LRO;
+			
+		}
+#endif
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -1715,11 +1864,21 @@ create_netdev(device_t dev)
     	ifp->if_mtu = ETHERMTU;
     	ifp->if_snd.ifq_maxlen = NET_TX_RING_SIZE - 1;
 	
-#ifdef notyet
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
+#if __FreeBSD_version >= 700000
+	ifp->if_capabilities |= IFCAP_TSO4;
+	if (xn_enable_lro) {
+		int err = tcp_lro_init(&np->xn_lro);
+		if (err) {
+			device_printf(dev, "LRO initialization failed\n");
+			goto exit;
+		}
+		np->xn_lro.ifp = ifp;
+		ifp->if_capabilities |= IFCAP_LRO;
+	}
+#endif
     	ifp->if_capenable = ifp->if_capabilities;
-#endif    
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);

@@ -509,6 +509,7 @@ __END_DECLS
  */
 #define	IP_MAX_GROUP_SRC_FILTER		512	/* sources per group */
 #define	IP_MAX_SOCK_SRC_FILTER		128	/* sources per socket/group */
+#define	IP_MAX_SOCK_MUTE_FILTER		128	/* XXX no longer used */
 
 /*
  * Argument structure for IP_ADD_MEMBERSHIP and IP_DROP_MEMBERSHIP.

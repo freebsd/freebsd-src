@@ -66,13 +66,19 @@ options 	VERBOSE_INIT_ARM
 device		pci
 device		uart
 
+device		ixpwdog		# watchdog timer
+
+options		IXP4XX_FLASH_SIZE=0x02000000	# stock 2358 comes w/ 32M
+device		cfi		# flash support
+device		cfid		# flash disk support
+device		geom_redboot	# redboot fis parser
+
 # I2C Bus
 device		iicbus
 device		iicbb
 device		iic
 
 device		ixpiic		# I2C bus glue
-device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
@@ -136,15 +142,14 @@ device		ath_rf5413
 #device		ath_ar9285
 
 # NB: 2 USB 2.0 ports standard
-makeoptions	WITH_LEGACY
-device		ousb
+device		usb
 options		USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
 #options		USB_DEBUG
-device		oehci
-device		oumass
+device		ehci
+device		umass
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
 
-#device		oural
-#device		ozyd
+#device		ural
+#device		zyd
 #device		wlan_amrr

@@ -5,6 +5,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/consio.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/tty.h>
@@ -18,7 +19,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <sys/cons.h>
-#include <sys/priv.h>
+#include <sys/kdb.h>
 #include <sys/proc.h>
 
 #include <dev/xen/console/xencons_ring.h>
@@ -125,12 +126,17 @@ xccngetc(struct consdev *dev)
 	    	return 0;
 	do {
 		if ((c = xccncheckc(dev)) == -1) {
-			/* polling without sleeping in Xen doesn't work well. 
-			 * Sleeping gives other things like clock a chance to 
-			 * run
-			 */
-			tsleep(&cn_mtx, PWAIT | PCATCH, "console sleep", 
-			       XC_POLLTIME);
+#ifdef KDB
+			if (!kdb_active)
+#endif
+				/*
+				 * Polling without sleeping in Xen
+				 * doesn't work well.  Sleeping gives
+				 * other things like clock a chance to
+				 * run
+				 */
+				tsleep(&cn_mtx, PWAIT | PCATCH,
+				    "console sleep", XC_POLLTIME);
 		}
 	} while(c == -1);
 	return c;
@@ -140,11 +146,13 @@ int
 xccncheckc(struct consdev *dev)
 {
 	int ret = (xc_mute ? 0 : -1);
-	if (xencons_has_input()) 
-			xencons_handle_input(NULL);
+
+	if (xencons_has_input())
+		xencons_handle_input(NULL);
 	
 	CN_LOCK(cn_mtx);
 	if ((rp - rc)) {
+		if (kdb_active) printf("%s:%d\n", __func__, __LINE__);
 		/* we need to return only one char */
 		ret = (int)rbuf[RBUF_MASK(rc)];
 		rc++;
@@ -235,16 +243,15 @@ xc_attach(device_t dev)
     
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 			error = bind_virq_to_irqhandler(
-					VIRQ_CONSOLE,
-						0,
-						"console",
-						NULL,
-						xencons_priv_interrupt,
-						sc, INTR_TYPE_TTY, NULL);
+				 VIRQ_CONSOLE,
+				 0,
+				 "console",
+				 NULL,
+				 xencons_priv_interrupt,
+				 INTR_TYPE_TTY, NULL);
 		
 				KASSERT(error >= 0, ("can't register console interrupt"));
 	}
-
 
 	/* register handler to flush console on shutdown */
 	if ((EVENTHANDLER_REGISTER(shutdown_post_sync, xc_shutdown,
@@ -270,7 +277,11 @@ xencons_rx(char *buf, unsigned len)
 	int           i;
 	struct tty *tp = xccons;
 
-	if (xen_console_up) {
+	if (xen_console_up
+#ifdef DDB
+	    && !kdb_active
+#endif
+		) {
 		tty_lock(tp);
 		for (i = 0; i < len; i++)
 			ttydisc_rint(tp, buf[i], 0);
@@ -423,12 +434,3 @@ xcons_force_flush(void)
 }
 
 DRIVER_MODULE(xc, nexus, xc_driver, xc_devclass, 0, 0);
-/*
- * Local variables:
- * mode: C
- * c-set-style: "BSD"
- * c-basic-offset: 8
- * tab-width: 4
- * indent-tabs-mode: t
- * End:
- */

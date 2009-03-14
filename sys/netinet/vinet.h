@@ -54,7 +54,7 @@ struct vnet_inet {
 	struct	in_ifaddrhashhead *_in_ifaddrhashtbl;
 	struct	in_ifaddrhead _in_ifaddrhead;
 	u_long	_in_ifaddrhmask;
-	struct	in_multihead _in_multihead;
+	struct	in_multihead _in_multihead;	/* XXX unused */
 
 	int	_arpt_keep;
 	int	_arp_maxtries;
@@ -157,9 +157,21 @@ struct vnet_inet {
 
 	struct	icmpstat _icmpstat;
 	struct	ipstat _ipstat;
-	struct	igmpstat _igmpstat;
 
-	SLIST_HEAD(, router_info) _router_info_head;
+	LIST_HEAD(, igmp_ifinfo)	 _igi_head;
+	struct igmpstat	 _igmpstat;
+	int		 _interface_timers_running;
+	int		 _state_change_timers_running;
+	int		 _current_state_timers_running;
+	int		 _igmp_recvifkludge;
+	int		 _igmp_sendra;
+	int		 _igmp_sendlocal;
+	int		 _igmp_v1enable;
+	int		 _igmp_v2enable;
+	int		 _igmp_legacysupp;
+	int		 _igmp_sgalloc;
+	int		 _igmp_default_version;
+	struct timeval	 _igmp_gsrdelay;
 
 	int	_rtq_timeout;
 	int	_rtq_reallyold;
@@ -231,7 +243,23 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_icmpmaskfake		VNET_INET(icmpmaskfake)
 #define	V_icmpmaskrepl		VNET_INET(icmpmaskrepl)
 #define	V_icmpstat		VNET_INET(icmpstat)
+#define	V_igi_head		VNET_INET(igi_head)
 #define	V_igmpstat		VNET_INET(igmpstat)
+#define V_interface_timers_running \
+				VNET_INET(interface_timers_running)
+#define V_state_change_timers_running \
+				VNET_INET(state_change_timers_running)
+#define V_current_state_timers_running \
+				VNET_INET(current_state_timers_running)
+#define V_igmp_recvifkludge	VNET_INET(igmp_recvifkludge)
+#define V_igmp_sendra		VNET_INET(igmp_sendra)
+#define V_igmp_sendlocal	VNET_INET(igmp_sendlocal)
+#define V_igmp_v1enable		VNET_INET(igmp_v1enable)
+#define V_igmp_v2enable		VNET_INET(igmp_v2enable)
+#define V_igmp_legacysupp	VNET_INET(igmp_legacysupp)
+#define V_igmp_sgalloc		VNET_INET(igmp_sgalloc)
+#define V_igmp_default_version	VNET_INET(igmp_default_version)
+#define V_igmp_gsrdelay		VNET_INET(igmp_gsrdelay)
 #define	V_in_ifaddrhashtbl	VNET_INET(in_ifaddrhashtbl)
 #define	V_in_ifaddrhead		VNET_INET(in_ifaddrhead)
 #define	V_in_ifaddrhmask	VNET_INET(in_ifaddrhmask)

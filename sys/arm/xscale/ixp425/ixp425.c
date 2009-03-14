@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -95,22 +97,61 @@ bus_dma_get_range_nb(void)
 	return (0);
 }
 
+static const uint8_t int2gpio[32] __attribute__ ((aligned(32))) = {
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#0 -> INT#5 */
+	0x00, 0x01,				/* GPIO#0 -> GPIO#1 */
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#8 -> INT#13 */
+	0xff, 0xff, 0xff, 0xff, 0xff,		/* INT#14 -> INT#18 */
+	0x02, 0x03, 0x04, 0x05, 0x06, 0x07,	/* GPIO#2 -> GPIO#7 */
+	0x08, 0x09, 0x0a, 0x0b, 0x0c,		/* GPIO#8 -> GPIO#12 */
+	0xff, 0xff				/* INT#30 -> INT#31 */
+};
+
 static __inline u_int32_t
 ixp425_irq2gpio_bit(int irq)
 {
-
-	static const uint8_t int2gpio[32] __attribute__ ((aligned(32))) = {
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#0 -> INT#5 */
-		0x00, 0x01,				/* GPIO#0 -> GPIO#1 */
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,	/* INT#8 -> INT#13 */
-		0xff, 0xff, 0xff, 0xff, 0xff,		/* INT#14 -> INT#18 */
-		0x02, 0x03, 0x04, 0x05, 0x06, 0x07,	/* GPIO#2 -> GPIO#7 */
-		0x08, 0x09, 0x0a, 0x0b, 0x0c,		/* GPIO#8 -> GPIO#12 */
-		0xff, 0xff				/* INT#30 -> INT#31 */
-	};
-
 	return (1U << int2gpio[irq]);
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(gpio, db_show_gpio)
+{
+	static const char *itype[8] = {
+		[GPIO_TYPE_ACT_HIGH]	= "act-high",
+		[GPIO_TYPE_ACT_LOW]	= "act-low",
+		[GPIO_TYPE_EDG_RISING]	= "edge-rising",
+		[GPIO_TYPE_EDG_FALLING]	= "edge-falling",
+		[GPIO_TYPE_TRANSITIONAL]= "transitional",
+		[5] = "type-5", [6] = "type-6", [7] = "type-7"
+	};
+	uint32_t gpoutr = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPOUTR);
+	uint32_t gpoer = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPOER);
+	uint32_t gpinr = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPINR);
+	uint32_t gpit1r = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPIT1R);
+	uint32_t gpit2r = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPIT2R);
+	int i, j;
+
+	db_printf("GPOUTR %08x GPOER  %08x GPINR  %08x GPISR %08x\n",
+	   gpoutr, gpoer, gpinr,
+	   GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPISR));
+	db_printf("GPIT1R %08x GPIT2R %08x GPCLKR %08x\n",
+	   gpit1r, gpit2r, GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPCLKR));
+	for (i = 0; i < 16; i++) {
+		db_printf("[%2d] out %u in %u %-3s", i,
+		    (gpoutr>>i)&1, (gpinr>>i)&1, (gpoer>>i)&1 ? "in" : "out");
+		for (j = 0; j < 32; j++)
+			if (int2gpio[j] == i) {
+				db_printf(" irq %2u %s", j, itype[
+				    (((i & 8) ? gpit2r : gpit1r) >> (3*(i&7)))
+					& 7]);
+				break;
+			}
+		db_printf("\n");
+	}
+}
+#endif
 
 void
 arm_mask_irq(uintptr_t nb)
@@ -315,43 +356,82 @@ ixp425_read_ivar(device_t bus, device_t child, int which, u_char *result)
 }
 
 /*
- * NB: This table handles P->V translations for regions mapped
- * through bus_alloc_resource.  Anything done with bus_space_map
- * is handled elsewhere and does not require an entry here.
+ * NB: This table handles P->V translations for regions setup with
+ * static mappings in initarm.  This is used solely for calls to
+ * bus_alloc_resource_any; anything done with bus_space_map is
+ * handled elsewhere and does not require an entry here.
  *
- * XXX getvbase is also used by uart_cpu_getdev (hence public)
+ * XXX this table is also used by uart_cpu_getdev via getvbase
+ *    (hence the public api)
  */
-static const struct {
+struct hwvtrans {
 	uint32_t	hwbase;
 	uint32_t	size;
 	uint32_t	vbase;
-} hwvtrans[] = {
-	{ IXP425_IO_HWBASE,	IXP425_IO_SIZE,		IXP425_IO_VBASE },
-	{ IXP425_PCI_HWBASE,	IXP425_PCI_SIZE,	IXP425_PCI_VBASE },
-	{ IXP425_PCI_MEM_HWBASE,IXP425_PCI_MEM_SIZE,	IXP425_PCI_MEM_VBASE },
-	{ IXP425_EXP_BUS_CS0_HWBASE, IXP425_EXP_BUS_CS0_SIZE,
-	  IXP425_EXP_BUS_CS0_VBASE },
-	/* NB: needed only for uart_cpu_getdev */
-	{ IXP425_UART0_HWBASE,	IXP425_REG_SIZE,	IXP425_UART0_VBASE },
-	{ IXP425_UART1_HWBASE,	IXP425_REG_SIZE,	IXP425_UART1_VBASE },
-	/* NB: need for ixp435 ehci controllers */
-	{ IXP435_USB1_HWBASE,	IXP435_USB1_SIZE,	IXP435_USB1_VBASE },
-	{ IXP435_USB2_HWBASE,	IXP435_USB2_SIZE,	IXP435_USB2_VBASE },
+	int		isa4x;	/* XXX needs special bus space tag */
 };
 
-int
-getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
+static const struct hwvtrans *
+gethwvtrans(uint32_t hwbase, uint32_t size)
 {
+	static const struct hwvtrans hwvtrans[] = {
+	    /* NB: needed only for uart_cpu_getdev */
+	    { .hwbase	= IXP425_UART0_HWBASE,
+	      .size 	= IXP425_REG_SIZE,
+	      .vbase	= IXP425_UART0_VBASE,
+	      .isa4x	= 1 },
+	    { .hwbase	= IXP425_UART1_HWBASE,
+	      .size 	= IXP425_REG_SIZE,
+	      .vbase	= IXP425_UART1_VBASE,
+	      .isa4x	= 1 },
+	    { .hwbase	= IXP425_PCI_HWBASE,
+	      .size 	= IXP425_PCI_SIZE,
+	      .vbase	= IXP425_PCI_VBASE },
+	    { .hwbase	= IXP425_PCI_MEM_HWBASE,
+	      .size 	= IXP425_PCI_MEM_SIZE,
+	      .vbase	= IXP425_PCI_MEM_VBASE },
+	    { .hwbase	= IXP425_EXP_BUS_CS0_HWBASE,
+	      .size 	= IXP425_EXP_BUS_CS0_SIZE,
+	      .vbase	= IXP425_EXP_BUS_CS0_VBASE },
+	    /* NB: needed for ixp435 ehci controllers */
+	    { .hwbase	= IXP435_USB1_HWBASE,
+	      .size 	= IXP435_USB1_SIZE,
+	      .vbase	= IXP435_USB1_VBASE },
+	    { .hwbase	= IXP435_USB2_HWBASE,
+	      .size 	= IXP435_USB2_SIZE,
+	      .vbase	= IXP435_USB2_VBASE },
+#ifdef CAMBRIA_GPS_VBASE
+	    { .hwbase	= CAMBRIA_GPS_HWBASE,
+	      .size 	= CAMBRIA_GPS_SIZE,
+	      .vbase	= CAMBRIA_GPS_VBASE },
+#endif
+#ifdef CAMBRIA_RS485_VBASE
+	    { .hwbase	= CAMBRIA_RS485_HWBASE,
+	      .size 	= CAMBRIA_RS485_SIZE,
+	      .vbase	= CAMBRIA_RS485_VBASE },
+#endif
+	};
 	int i;
 
 	for (i = 0; i < sizeof hwvtrans / sizeof *hwvtrans; i++) {
 		if (hwbase >= hwvtrans[i].hwbase &&
-		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size) {
-			*vbase = hwbase - hwvtrans[i].hwbase + hwvtrans[i].vbase;
-			return (0);
-		}
+		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size)
+			return &hwvtrans[i];
 	}
-	return (ENOENT);
+	return NULL;
+}
+
+/* XXX for uart_cpu_getdev */
+int
+getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
+{
+	const struct hwvtrans *hw;
+
+	hw = gethwvtrans(hwbase, size);
+	if (hw == NULL)
+		return (ENOENT);
+	*vbase = hwbase - hw->hwbase + hw->vbase;
+	return (0);
 }
 
 static struct resource *
@@ -359,52 +439,111 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct ixp425_softc *sc = device_get_softc(dev);
-	struct rman *rmanp;
+	const struct hwvtrans *vtrans;
 	struct resource *rv;
-	uint32_t vbase, addr;
+	uint32_t addr;
+	int needactivate = flags & RF_ACTIVE;
 	int irq;
 
+	flags &= ~RF_ACTIVE;
 	switch (type) {
 	case SYS_RES_IRQ:
-		rmanp = &sc->sc_irq_rman;
 		/* override per hints */
 		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_IRQ, &irq) == 0)
 			start = end = irq;
-		rv = rman_reserve_resource(rmanp, start, end, count,
-			flags, child);
+		rv = rman_reserve_resource(&sc->sc_irq_rman, start, end, count,
+		    flags, child);
 		if (rv != NULL)
 			rman_set_rid(rv, *rid);
 		break;
 
 	case SYS_RES_MEMORY:
-		rmanp = &sc->sc_mem_rman;
 		/* override per hints */
 		if (BUS_READ_IVAR(dev, child, IXP425_IVAR_ADDR, &addr) == 0) {
 			start = addr;
-			end = start + 0x1000;	/* XXX */
-		}
-		if (getvbase(start, end - start, &vbase) != 0) {
+			/* XXX use nominal window to check for mapping */
+			vtrans = gethwvtrans(start, 0x1000);
+			if (vtrans != NULL) {
+				/*
+				 * Assign the entire mapped region; this may
+				 * not be correct but without more info from
+				 * the caller we cannot tell.
+				 */
+				end = start + vtrans->size -
+				    (start - vtrans->hwbase);
+				if (bootverbose)
+					device_printf(child,
+					    "%s: assign 0x%lx:0x%lx%s\n",
+					    __func__, start, end - start,
+					    vtrans->isa4x ? " A4X" : "");
+			}
+		} else
+			vtrans = gethwvtrans(start, end - start);
+		if (vtrans == NULL) {
 			/* likely means above table needs to be updated */
-			device_printf(dev, "%s: no mapping for 0x%lx:0x%lx\n",
-			    __func__, start, end-start);
+			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			    __func__, start, end - start);
 			return NULL;
 		}
-		rv = rman_reserve_resource(rmanp, start, end, count,
-			flags, child);
-		if (rv != NULL) {
-			rman_set_rid(rv, *rid);
-			if (strcmp(device_get_name(child), "uart") == 0)
-				rman_set_bustag(rv, &ixp425_a4x_bs_tag);
-			else
-				rman_set_bustag(rv, sc->sc_iot);
-			rman_set_bushandle(rv, vbase);
+		rv = rman_reserve_resource(&sc->sc_mem_rman, start, end,
+		    end - start, flags, child);
+		if (rv == NULL) {
+			device_printf(child, "%s: cannot reserve 0x%lx:0x%lx\n",
+			    __func__, start, end - start);
+			return NULL;
 		}
+		rman_set_rid(rv, *rid);
 		break;
 	default:
 		rv = NULL;
 		break;
 	}
-	return rv;
+	if (rv != NULL && needactivate) {
+		if (bus_activate_resource(child, type, *rid, rv)) {
+			rman_release_resource(rv);
+			return (NULL);
+		}
+	}
+	return (rv);
+}
+
+static int
+ixp425_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	/* NB: no private resources, just release */
+	return rman_release_resource(r);
+}
+
+static int
+ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct ixp425_softc *sc = device_get_softc(dev);
+	const struct hwvtrans *vtrans;
+
+	if (type == SYS_RES_MEMORY) {
+		vtrans = gethwvtrans(rman_get_start(r), rman_get_size(r));
+		if (vtrans == NULL) {		/* NB: should not happen */
+			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			    __func__, rman_get_start(r), rman_get_size(r));
+			return (ENOENT);
+		}
+		if (vtrans->isa4x)
+			rman_set_bustag(r, &ixp425_a4x_bs_tag);
+		else
+			rman_set_bustag(r, sc->sc_iot);
+		rman_set_bushandle(r, vtrans->vbase);
+	}
+	return (rman_activate_resource(r));
+}
+
+static int
+ixp425_deactivate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r) 
+{
+	/* NB: no private resources, just deactive */
+	return (rman_deactivate_resource(r));
 }
 
 static __inline void
@@ -462,18 +601,21 @@ ixp425_teardown_intr(device_t dev, device_t child, struct resource *res,
 
 static device_method_t ixp425_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe, ixp425_probe),
-	DEVMETHOD(device_attach, ixp425_attach),
-	DEVMETHOD(device_identify, ixp425_identify),
+	DEVMETHOD(device_probe,			ixp425_probe),
+	DEVMETHOD(device_attach,		ixp425_attach),
+	DEVMETHOD(device_identify,		ixp425_identify),
 
 	/* Bus interface */
-	DEVMETHOD(bus_add_child, ixp425_add_child),
-	DEVMETHOD(bus_hinted_child, ixp425_hinted_child),
-	DEVMETHOD(bus_read_ivar, ixp425_read_ivar),
+	DEVMETHOD(bus_add_child,		ixp425_add_child),
+	DEVMETHOD(bus_hinted_child,		ixp425_hinted_child),
+	DEVMETHOD(bus_read_ivar,		ixp425_read_ivar),
 
-	DEVMETHOD(bus_alloc_resource, ixp425_alloc_resource),
-	DEVMETHOD(bus_setup_intr, ixp425_setup_intr),
-	DEVMETHOD(bus_teardown_intr, ixp425_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,		ixp425_alloc_resource),
+	DEVMETHOD(bus_release_resource,		ixp425_release_resource),
+	DEVMETHOD(bus_activate_resource,	ixp425_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	ixp425_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,		ixp425_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		ixp425_teardown_intr),
 
 	{0, 0},
 };

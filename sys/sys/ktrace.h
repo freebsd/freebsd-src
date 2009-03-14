@@ -158,6 +158,12 @@ struct sockaddr;
 struct stat;
 
 /*
+ * KTR_SYSCTL - name of a sysctl MIB
+ */
+#define	KTR_SYSCTL	9
+	/* record contains null-terminated MIB name */
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -175,6 +181,8 @@ struct stat;
 #define KTRFAC_CSW	(1<<KTR_CSW)
 #define KTRFAC_USER	(1<<KTR_USER)
 #define KTRFAC_STRUCT	(1<<KTR_STRUCT)
+#define KTRFAC_SYSCTL	(1<<KTR_SYSCTL)
+
 /*
  * trace flags (also in p_traceflags)
  */
@@ -190,6 +198,7 @@ void	ktrcsw(int, int);
 void	ktrpsig(int, sig_t, sigset_t *, int);
 void	ktrgenio(int, enum uio_rw, struct uio *, int);
 void	ktrsyscall(int, int narg, register_t args[]);
+void	ktrsysctl(int *name, u_int namelen);
 void	ktrsysret(int, int, register_t);
 void	ktrprocexit(struct thread *);
 void	ktruserret(struct thread *);

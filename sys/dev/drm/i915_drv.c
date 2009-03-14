@@ -43,9 +43,9 @@ static drm_pci_id_list_t i915_pciidlist[] = {
 	i915_PCI_IDS
 };
 
-static int i915_suspend(device_t nbdev)
+static int i915_suspend(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (!dev || !dev_priv) {
@@ -57,16 +57,16 @@ static int i915_suspend(device_t nbdev)
 
 	i915_save_state(dev);
 
-	return (bus_generic_suspend(nbdev));
+	return (bus_generic_suspend(kdev));
 }
 
-static int i915_resume(device_t nbdev)
+static int i915_resume(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 
 	i915_restore_state(dev);
 
-	return (bus_generic_resume(nbdev));
+	return (bus_generic_resume(kdev));
 }
 
 static void i915_configure(struct drm_device *dev)
@@ -100,31 +100,31 @@ static void i915_configure(struct drm_device *dev)
 }
 
 static int
-i915_probe(device_t dev)
+i915_probe(device_t kdev)
 {
-	return drm_probe(dev, i915_pciidlist);
+	return drm_probe(kdev, i915_pciidlist);
 }
 
 static int
-i915_attach(device_t nbdev)
+i915_attach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 
 	dev->driver = malloc(sizeof(struct drm_driver_info), DRM_MEM_DRIVER,
 	    M_WAITOK | M_ZERO);
 
 	i915_configure(dev);
 
-	return drm_attach(nbdev, i915_pciidlist);
+	return drm_attach(kdev, i915_pciidlist);
 }
 
 static int
-i915_detach(device_t nbdev)
+i915_detach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 	int ret;
 
-	ret = drm_detach(nbdev);
+	ret = drm_detach(kdev);
 
 	free(dev->driver, DRM_MEM_DRIVER);
 

@@ -358,7 +358,7 @@ agp_via_set_aperture(device_t dev, u_int32_t aperture)
 }
 
 static int
-agp_via_bind_page(device_t dev, int offset, vm_offset_t physical)
+agp_via_bind_page(device_t dev, vm_offset_t offset, vm_offset_t physical)
 {
 	struct agp_via_softc *sc = device_get_softc(dev);
 
@@ -370,7 +370,7 @@ agp_via_bind_page(device_t dev, int offset, vm_offset_t physical)
 }
 
 static int
-agp_via_unbind_page(device_t dev, int offset)
+agp_via_unbind_page(device_t dev, vm_offset_t offset)
 {
 	struct agp_via_softc *sc = device_get_softc(dev);
 

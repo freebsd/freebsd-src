@@ -70,8 +70,6 @@ struct hid_item {
 	uint32_t flags;
 	/* Location */
 	struct hid_location loc;
-	/* */
-	struct hid_item *next;
 };
 
 /* prototypes from "usb2_hid.c" */

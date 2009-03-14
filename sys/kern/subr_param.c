@@ -89,9 +89,9 @@ int	maxfilesperproc;		/* per-proc open files limit */
 int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	nswbuf;
-int	maxswzone;			/* max swmeta KVA storage */
-int	maxbcache;			/* max buffer cache KVA storage */
-int	maxpipekva;			/* Limit on pipe KVA */
+long	maxswzone;			/* max swmeta KVA storage */
+long	maxbcache;			/* max buffer cache KVA storage */
+long	maxpipekva;			/* Limit on pipe KVA */
 int 	vm_guest;			/* Running as virtual machine guest? */
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
@@ -101,9 +101,15 @@ u_long	maxssiz;			/* max stack size */
 u_long	sgrowsiz;			/* amount to grow stack */
 
 SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN, &hz, 0, "ticks/second");
-SYSCTL_INT(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
+SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
+    "Number of pre-allocated timer events");
+SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
+    "Number of buffer-cache I/O buffers");
+SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
+    "Number of swap buffers");
+SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "max swmeta KVA storage");
-SYSCTL_INT(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
+SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
     "max buffer cache KVA storage");
 SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RDTUN, &maxtsiz, 0,
     "max text size");
@@ -203,11 +209,11 @@ init_param1(void)
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
 #endif
-	TUNABLE_INT_FETCH("kern.maxswzone", &maxswzone);
+	TUNABLE_LONG_FETCH("kern.maxswzone", &maxswzone);
 #ifdef VM_BCACHE_SIZE_MAX
 	maxbcache = VM_BCACHE_SIZE_MAX;
 #endif
-	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
+	TUNABLE_LONG_FETCH("kern.maxbcache", &maxbcache);
 
 	maxtsiz = MAXTSIZ;
 	TUNABLE_ULONG_FETCH("kern.maxtsiz", &maxtsiz);
@@ -282,7 +288,7 @@ init_param3(long kmempages)
 	maxpipekva = (kmempages / 20) * PAGE_SIZE;
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
-	TUNABLE_INT_FETCH("kern.ipc.maxpipekva", &maxpipekva);
+	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
 
 /*

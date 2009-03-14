@@ -148,6 +148,7 @@ static Elf32_Brandinfo ia32_brand_info = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &ia32_freebsd_sysvec,
 	.interp_newpath	= "/libexec/ld-elf32.so.1",
+	.brand_note	= &elf32_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN
 };
 
@@ -163,7 +164,8 @@ static Elf32_Brandinfo ia32_brand_oinfo = {
 	.interp_path	= "/usr/libexec/ld-elf.so.1",
 	.sysvec		= &ia32_freebsd_sysvec,
 	.interp_newpath	= "/libexec/ld-elf32.so.1",
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &elf32_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN
 };
 
 SYSINIT(oia32, SI_SUB_EXEC, SI_ORDER_ANY,

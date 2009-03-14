@@ -997,32 +997,30 @@ icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	}
 }
 
+#ifndef BURN_BRIDGES
 /*
- * Dump IGMP statistics structure.
+ * Dump IGMP statistics structure (pre 8.x kernel).
  */
-void
-igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
+static void
+igmp_stats_live_old(u_long off, const char *name)
 {
-	struct igmpstat igmpstat, zerostat;
-	size_t len = sizeof igmpstat;
+	struct oigmpstat oigmpstat, zerostat;
+	size_t len = sizeof(oigmpstat);
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.igmp.stats");
-			return;
-		}
-	} else
-		kread(off, &igmpstat, len);
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.igmp.stats", &oigmpstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+		warn("sysctl: net.inet.igmp.stats");
+		return;
+	}
 
 	printf("%s:\n", name);
 
-#define	p(f, m) if (igmpstat.f || sflag <= 1) \
-    printf(m, igmpstat.f, plural(igmpstat.f))
-#define	py(f, m) if (igmpstat.f || sflag <= 1) \
-    printf(m, igmpstat.f, igmpstat.f != 1 ? "ies" : "y")
+#define	p(f, m) if (oigmpstat.f || sflag <= 1) \
+    printf(m, oigmpstat.f, plural(oigmpstat.f))
+#define	py(f, m) if (oigmpstat.f || sflag <= 1) \
+    printf(m, oigmpstat.f, oigmpstat.f != 1 ? "ies" : "y")
 	p(igps_rcv_total, "\t%u message%s received\n");
 	p(igps_rcv_tooshort, "\t%u message%s received with too few bytes\n");
 	p(igps_rcv_badsum, "\t%u message%s received with bad checksum\n");
@@ -1037,6 +1035,89 @@ igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
         p(igps_snd_reports, "\t%u membership report%s sent\n");
 #undef p
 #undef py
+}
+#endif /* !BURN_BRIDGES */
+
+/*
+ * Dump IGMP statistics structure.
+ */
+void
+igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
+{
+	struct igmpstat igmpstat, zerostat;
+	size_t len;
+
+#ifndef BURN_BRIDGES
+	if (live) {
+		/*
+		 * Detect if we are being run against a pre-IGMPv3 kernel.
+		 * We cannot do this for a core file as the legacy
+		 * struct igmpstat has no size field, nor does it
+		 * export it in any readily-available symbols.
+		 */
+		len = 0;
+		if (sysctlbyname("net.inet.igmp.stats", NULL, &len, NULL,
+		    0) < 0) {
+			warn("sysctl: net.inet.igmp.stats");
+			return;
+		}
+		if (len < sizeof(igmpstat)) {
+			igmp_stats_live_old(off, name);
+			return;
+		}
+	}
+#endif /* !BURN_BRIDGES */
+
+	len = sizeof(igmpstat);
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.igmp.stats");
+			return;
+		}
+	} else {
+		len = sizeof(igmpstat);
+		kread(off, &igmpstat, len);
+	}
+
+	if (igmpstat.igps_version != IGPS_VERSION_3) {
+		warnx("%s: version mismatch (%d != %d)", __func__,
+		    igmpstat.igps_version, IGPS_VERSION_3);
+	}
+	if (igmpstat.igps_len != IGPS_VERSION3_LEN) {
+		warnx("%s: size mismatch (%d != %d)", __func__,
+		    igmpstat.igps_len, IGPS_VERSION3_LEN);
+	}
+
+	printf("%s:\n", name);
+
+#define	p64(f, m) if (igmpstat.f || sflag <= 1) \
+    printf(m, (uintmax_t) igmpstat.f, plural(igmpstat.f))
+#define	py64(f, m) if (igmpstat.f || sflag <= 1) \
+    printf(m, (uintmax_t) igmpstat.f, pluralies(igmpstat.f))
+	p64(igps_rcv_total, "\t%ju message%s received\n");
+	p64(igps_rcv_tooshort, "\t%ju message%s received with too few bytes\n");
+	p64(igps_rcv_badttl, "\t%ju message%s received with wrong TTL\n");
+	p64(igps_rcv_badsum, "\t%ju message%s received with bad checksum\n");
+	py64(igps_rcv_v1v2_queries, "\t%ju V1/V2 membership quer%s received\n");
+	py64(igps_rcv_v3_queries, "\t%ju V3 membership quer%s received\n");
+	py64(igps_rcv_badqueries,
+	    "\t%ju membership quer%s received with invalid field(s)\n");
+	py64(igps_rcv_gen_queries, "\t%ju general quer%s received\n");
+	py64(igps_rcv_group_queries, "\t%ju group quer%s received\n");
+	py64(igps_rcv_gsr_queries, "\t%ju group-source quer%s received\n");
+	py64(igps_drop_gsr_queries, "\t%ju group-source quer%s dropped\n");
+	p64(igps_rcv_reports, "\t%ju membership report%s received\n");
+	p64(igps_rcv_badreports,
+	    "\t%ju membership report%s received with invalid field(s)\n");
+	p64(igps_rcv_ourreports,
+"\t%ju membership report%s received for groups to which we belong\n");
+        p64(igps_rcv_nora, "\t%ju V3 report%s received without Router Alert\n");
+        p64(igps_snd_reports, "\t%ju membership report%s sent\n");
+#undef p64
+#undef py64
 }
 
 /*

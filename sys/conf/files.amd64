@@ -136,6 +136,7 @@ dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
 dev/agp/agp_intel.c		optional	agp
 dev/agp/agp_via.c		optional	agp
+dev/amdtemp/amdtemp.c		optional	amdtemp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/asmc/asmc.c			optional	asmc isa
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
@@ -187,7 +188,6 @@ dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
-dev/k8temp/k8temp.c		optional	k8temp
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
 dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -28,8 +29,9 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_patterns)
 {
 	int fd, r;
-	const char *reffile2 = "test_patterns_2.tgz";
-	const char *reffile3 = "test_patterns_3.tgz";
+	const char *reffile2 = "test_patterns_2.tar";
+	const char *reffile3 = "test_patterns_3.tar";
+	const char *reffile4 = "test_patterns_4.tar";
 	const char *p;
 
 	/*
@@ -45,9 +47,9 @@ DEFINE_TEST(test_patterns)
 	fd = open("foo", O_CREAT | O_WRONLY, 0644);
 	assert(fd >= 0);
 	close(fd);
-	r = systemf("%s zcfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
+	r = systemf("%s cfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
 	assertEqualInt(r, 0);
-	r = systemf("%s zxfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
+	r = systemf("%s xfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
 	failure("tar should return non-zero because a file was given on the command line that's not in the archive");
 	assert(r != 0);
 
@@ -59,7 +61,11 @@ DEFINE_TEST(test_patterns)
 	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
 	    testprog, reffile2);
 	assertEqualInt(r, 0);
+#ifndef _WIN32
 	p = "/tmp/foo/bar/\n/tmp/foo/bar/baz\n";
+#else
+	p = "/tmp/foo/bar/\r\n/tmp/foo/bar/baz\r\n";
+#endif
 	assertFileContents(p, strlen(p), "tar2a.out");
 	assertEmptyFile("tar2a.err");
 
@@ -97,4 +103,81 @@ DEFINE_TEST(test_patterns)
 	assertEmptyFile("tar3d.out");
 	assertEmptyFile("tar3d.err");
 	assertEqualInt(0, access("tmp/foo/baz/bar", F_OK));
+
+	/*
+	 * Test 4 archive has some entries starting with windows drive letters
+	 * such as 'c:\', '//./c:/' or '//?/c:/'.
+	 */
+	extract_reference_file(reffile4);
+
+	r = systemf("%s xf %s -C tmp > tar4.out 2> tar4.err",
+	    testprog, reffile4);
+	assert(r != 0);
+	assertEmptyFile("tar4.out");
+	assertNonEmptyFile("tar4.err");
+
+	for (r = 1; r <= 54; r++) {
+		char file_a[] = "tmp/fileXX";
+		char file_b1[] = "tmp/server/share/fileXX";
+		char file_b2[] = "tmp/server\\share\\fileXX";
+		char file_c[] = "tmp/../fileXX";
+		char *filex;
+		int xsize;
+
+		switch (r) {
+		case 15: case 18:
+			/*
+			 * Including server and share names.
+			 * //?/UNC/server/share/file15
+			 * //?/unc/server/share/file18
+			 */
+			filex = file_b1;
+			xsize = sizeof(file_b1);
+			break;
+		case 35: case 38: case 52:
+			/*
+			 * Including server and share names.
+			 * \\?\UNC\server\share\file35
+			 * \\?\unc\server\share\file38
+			 * \/?/uNc/server\share\file52
+			 */
+			filex = file_b2;
+			xsize = sizeof(file_b2);
+			break;
+		default:
+			filex = file_a;
+			xsize = sizeof(file_a);
+			break;
+		}
+		filex[xsize-3] = '0' + r / 10;
+		filex[xsize-2] = '0' + r % 10;
+		switch (r) {
+		case 5: case 6: case 17: case 20: case 25:
+		case 26: case 37: case 40: case 43: case 54:
+			/*
+			 * Not extracted patterns.
+			 * D:../file05
+			 * c:../../file06
+			 * //?/UNC/../file17
+			 * //?/unc/../file20
+			 * z:..\file25
+			 * c:..\..\file26
+			 * \\?\UNC\..\file37
+			 * \\?\unc\..\file40
+			 * c:../..\file43
+			 * \/?\UnC\../file54
+			 */
+			assertEqualInt(-1, access(filex, F_OK));
+			filex = file_c;
+			xsize = sizeof(file_c);
+			filex[xsize-3] = '0' + r / 10;
+			filex[xsize-2] = '0' + r % 10;
+			assertEqualInt(-1, access(filex, F_OK));
+			break;
+		default:
+			/* Extracted patterns. */
+			assertEqualInt(0, access(filex, F_OK));
+			break;
+		}
+	}
 }

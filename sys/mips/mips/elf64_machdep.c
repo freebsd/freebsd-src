@@ -88,6 +88,7 @@ static Elf64_Brandinfo freebsd_brand_gnutools_info64 = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_path	= "/libexec/ld-elf.so.1",
+	.brand_note	= &elf64_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN
 };
 
@@ -103,6 +104,7 @@ static Elf64_Brandinfo freebsd_brand_info64 = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
+	.brand_note	= &elf64_freebsd_brandnote,
 	.flags		= 0
 };
 

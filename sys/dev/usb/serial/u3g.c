@@ -299,6 +299,7 @@ u3g_sael_m460_init(struct usb2_device *udev)
 	};
 
 	struct usb2_device_request req;
+	usb2_error_t err;
 	uint16_t len;
 	uint8_t buf[0x300];
 	uint8_t n;
@@ -320,25 +321,28 @@ u3g_sael_m460_init(struct usb2_device *udev)
 				DPRINTFN(0, "too small buffer\n");
 				continue;
 			}
-			if (usb2_do_request(udev, NULL, &req, buf)) {
-				DPRINTFN(0, "request %u failed\n",
-				    (unsigned int)n);
-				break;
-			}
+			err = usb2_do_request(udev, NULL, &req, buf);
 		} else {
 			if (len > (sizeof(setup[0]) - 8)) {
 				DPRINTFN(0, "too small buffer\n");
 				continue;
 			}
-			if (usb2_do_request(udev, NULL, &req, 
-			    __DECONST(uint8_t *, &setup[n][8]))) {
-				DPRINTFN(0, "request %u failed\n",
-				    (unsigned int)n);
+			err = usb2_do_request(udev, NULL, &req, 
+			    __DECONST(uint8_t *, &setup[n][8]));
+		}
+		if (err) {
+			DPRINTFN(1, "request %u failed\n",
+			    (unsigned int)n);
+			/*
+			 * Some of the requests will fail. Stop doing
+			 * requests when we are getting timeouts so
+			 * that we don't block the explore/attach
+			 * thread forever.
+			 */
+			if (err == USB_ERR_TIMEOUT)
 				break;
-			}
 		}
 	}
-	return;
 }
 
 static int

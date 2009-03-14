@@ -93,6 +93,8 @@
         ..
         bktr
         ..
+        dcons
+        ..
         firewire
         ..
         hwpmc

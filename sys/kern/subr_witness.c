@@ -522,6 +522,8 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * UNIX Domain Sockets
 	 */
+	{ "unp_global_rwlock", &lock_class_rw },
+	{ "unp_list_lock", &lock_class_mtx_sleep },
 	{ "unp", &lock_class_mtx_sleep },
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },

@@ -1047,6 +1047,16 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32
 };
 
+static char GNULINUX_ABI_VENDOR[] = "GNU";
+
+static Elf_Brandnote linux32_brandnote = {
+	.hdr.n_namesz	= sizeof(GNULINUX_ABI_VENDOR),
+	.hdr.n_descsz	= 16,
+	.hdr.n_type	= 1,
+	.vendor		= GNULINUX_ABI_VENDOR,
+	.flags		= 0
+};
+
 static Elf32_Brandinfo linux_brand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_386,
@@ -1055,7 +1065,8 @@ static Elf32_Brandinfo linux_brand = {
 	.interp_path	= "/lib/ld-linux.so.1",
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &linux32_brandnote,
+	.flags		= BI_CAN_EXEC_DYN
 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
@@ -1066,7 +1077,8 @@ static Elf32_Brandinfo linux_glibc2brand = {
 	.interp_path	= "/lib/ld-linux.so.2",
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &linux32_brandnote,
+	.flags		= BI_CAN_EXEC_DYN
 };
 
 Elf32_Brandinfo *linux_brandlist[] = {

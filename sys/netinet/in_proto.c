@@ -206,7 +206,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		igmp_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		igmp_init,
 	.pr_fasttimo =		igmp_fasttimo,
 	.pr_slowtimo =		igmp_slowtimo,
 	.pr_usrreqs =		&rip_usrreqs

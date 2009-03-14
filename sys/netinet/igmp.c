@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2007-2009 Bruce Simpson.
  * Copyright (c) 1988 Stephen Deering.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,11 +36,13 @@
 
 /*
  * Internet Group Management Protocol (IGMP) routines.
+ * [RFC1112, RFC2236, RFC3376]
  *
  * Written by Steve Deering, Stanford, May 1988.
  * Modified by Rosen Sharma, Stanford, Aug 1994.
  * Modified by Bill Fenner, Xerox PARC, Feb 1995.
  * Modified to fully comply to IGMPv2 by Bill Fenner, Oct 1995.
+ * Significantly rewritten for IGMPv3, VIMAGE, and SMP by Bruce Simpson.
  *
  * MULTICAST Revision: 3.5.1.4
  */
@@ -52,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -59,8 +63,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/vimage.h>
+#include <sys/ktr.h>
+#include <sys/condvar.h>
 
 #include <net/if.h>
+#include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -78,125 +85,1349 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
-
-static struct router_info	*find_rti(struct ifnet *ifp);
-static void	igmp_sendpkt(struct in_multi *, int, unsigned long);
-
-#ifdef VIMAGE_GLOBALS
-static struct igmpstat igmpstat;
+#ifndef KTR_IGMPV3
+#define KTR_IGMPV3 KTR_SUBSYS
 #endif
 
-SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_igmp, IGMPCTL_STATS,
-    stats, CTLFLAG_RW, igmpstat, igmpstat, "");
-
-/*
- * igmp_mtx protects all mutable global variables in igmp.c, as well as the
- * data fields in struct router_info.  In general, a router_info structure
- * will be valid as long as the referencing struct in_multi is valid, so no
- * reference counting is used.  We allow unlocked reads of router_info data
- * when accessed via an in_multi read-only.
- */
-#ifdef VIMAGE_GLOBALS
-static SLIST_HEAD(, router_info) router_info_head;
+static struct igmp_ifinfo *
+		igi_alloc_locked(struct ifnet *);
+static void	igi_delete_locked(const struct ifnet *);
+static void	igmp_dispatch_queue(struct ifqueue *, int, const int);
+static void	igmp_fasttimo_vnet(void);
+static void	igmp_final_leave(struct in_multi *, struct igmp_ifinfo *);
+static int	igmp_handle_state_change(struct in_multi *,
+		    struct igmp_ifinfo *);
+static int	igmp_initial_join(struct in_multi *, struct igmp_ifinfo *);
+static int	igmp_input_v1_query(struct ifnet *, const struct ip *);
+static int	igmp_input_v2_query(struct ifnet *, const struct ip *,
+		    const struct igmp *);
+static int	igmp_input_v3_query(struct ifnet *, const struct ip *,
+		    /*const*/ struct igmpv3 *);
+static int	igmp_input_v3_group_query(struct in_multi *,
+		    struct igmp_ifinfo *, int, /*const*/ struct igmpv3 *);
+static int	igmp_input_v1_report(struct ifnet *, /*const*/ struct ip *,
+		    /*const*/ struct igmp *);
+static int	igmp_input_v2_report(struct ifnet *, /*const*/ struct ip *,
+		    /*const*/ struct igmp *);
+static void	igmp_intr(struct mbuf *);
+static int	igmp_isgroupreported(const struct in_addr);
+static struct mbuf *
+		igmp_ra_alloc(void);
+#ifdef KTR
+static char *	igmp_rec_type_to_str(const int);
 #endif
-static struct mtx igmp_mtx;
-static int igmp_timers_are_running;
+static void	igmp_set_version(struct igmp_ifinfo *, const int);
+static void	igmp_slowtimo_vnet(void);
+static void	igmp_sysinit(void);
+static int	igmp_v1v2_queue_report(struct in_multi *, const int);
+static void	igmp_v1v2_process_group_timer(struct in_multi *, const int);
+static void	igmp_v1v2_process_querier_timers(struct igmp_ifinfo *);
+static void	igmp_v2_update_group(struct in_multi *, const int);
+static void	igmp_v3_cancel_link_timers(struct igmp_ifinfo *);
+static void	igmp_v3_dispatch_general_query(struct igmp_ifinfo *);
+static struct mbuf *
+		igmp_v3_encap_report(struct ifnet *, struct mbuf *);
+static int	igmp_v3_enqueue_group_record(struct ifqueue *,
+		    struct in_multi *, const int, const int, const int);
+static int	igmp_v3_enqueue_filter_change(struct ifqueue *,
+		    struct in_multi *);
+static void	igmp_v3_process_group_timers(struct igmp_ifinfo *,
+		    struct ifqueue *, struct ifqueue *, struct in_multi *,
+		    const int);
+static int	igmp_v3_merge_state_changes(struct in_multi *,
+		    struct ifqueue *);
+static void	igmp_v3_suppress_group_record(struct in_multi *);
+static int	sysctl_igmp_default_version(SYSCTL_HANDLER_ARGS);
+static int	sysctl_igmp_gsr(SYSCTL_HANDLER_ARGS);
+static int	sysctl_igmp_ifinfo(SYSCTL_HANDLER_ARGS);
 
-/*
- * XXXRW: can we define these such that these can be made const?  In any
- * case, these shouldn't be changed after igmp_init() and therefore don't
- * need locking.
- */
-static u_long igmp_all_hosts_group;
-static u_long igmp_all_rtrs_group;
-
-static struct mbuf *router_alert;
-static struct route igmprt;
-
-#ifdef IGMP_DEBUG
-#define	IGMP_PRINTF(x)	printf(x)
+#ifdef VIMAGE
+static vnet_attach_fn	vnet_igmp_iattach;
+static vnet_detach_fn	vnet_igmp_idetach;
 #else
-#define	IGMP_PRINTF(x)
-#endif
+static int	vnet_igmp_iattach(const void *);
+static int	vnet_igmp_idetach(const void *);
+#endif /* VIMAGE */
 
-void
-igmp_init(void)
+/*
+ * System-wide globals.
+ *
+ * Unlocked access to these is OK, except for the global IGMP output
+ * queue. The IGMP subsystem lock ends up being system-wide for the moment,
+ * because all VIMAGEs have to share a global output queue, as netisrs
+ * themselves are not virtualized.
+ *
+ * Locking:
+ *  * The permitted lock order is: IN_MULTI_LOCK, IGMP_LOCK, IF_ADDR_LOCK.
+ *    Any may be taken independently; if any are held at the same
+ *    time, the above lock order must be followed.
+ *  * All output is delegated to the netisr to handle IFF_NEEDSGIANT.
+ *    Most of the time, direct dispatch will be fine.
+ *  * IN_MULTI_LOCK covers in_multi.
+ *  * IGMP_LOCK covers igmp_ifinfo and any global variables in this file,
+ *    including the output queue.
+ *  * IF_ADDR_LOCK covers if_multiaddrs, which is used for a variety of
+ *    per-link state iterators.
+ *  * igmp_ifinfo is valid as long as PF_INET is attached to the interface,
+ *    therefore it is not refcounted.
+ *    We allow unlocked reads of igmp_ifinfo when accessed via in_multi.
+ *
+ * Reference counting
+ *  * IGMP acquires its own reference every time an in_multi is passed to
+ *    it and the group is being joined for the first time.
+ *  * IGMP releases its reference(s) on in_multi in a deferred way,
+ *    because the operations which process the release run as part of
+ *    a loop whose control variables are directly affected by the release
+ *    (that, and not recursing on the IF_ADDR_LOCK).
+ *
+ * VIMAGE: Each in_multi corresponds to an ifp, and each ifp corresponds
+ * to a vnet in ifp->if_vnet.
+ *
+ */
+struct mtx		 igmp_mtx;
+int			 mpsafe_igmp = 0;
+SYSCTL_INT(_debug, OID_AUTO, mpsafe_igmp, CTLFLAG_RDTUN, &mpsafe_igmp, 0,
+    "Enable SMP-safe IGMPv3");
+
+struct mbuf		*m_raopt;		 /* Router Alert option */
+MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
+
+/*
+ * Global netisr output queue.
+ * This is only used as a last resort if we cannot directly dispatch.
+ * As IN_MULTI_LOCK is no longer in the bottom half of IP, we can do
+ * this, providing mpsafe_igmp is set. If it is not, we take Giant,
+ * and queueing is forced.
+ */
+struct ifqueue		 igmpoq;
+
+/*
+ * VIMAGE-wide globals.
+ *
+ * The IGMPv3 timers themselves need to run per-image, however,
+ * protosw timers run globally (see tcp).
+ * An ifnet can only be in one vimage at a time, and the loopback
+ * ifnet, loif, is itself virtualized.
+ * It would otherwise be possible to seriously hose IGMP state,
+ * and create inconsistencies in upstream multicast routing, if you have
+ * multiple VIMAGEs running on the same link joining different multicast
+ * groups, UNLESS the "primary IP address" is different. This is because
+ * IGMP for IPv4 does not force link-local addresses to be used for each
+ * node, unlike MLD for IPv6.
+ * Obviously the IGMPv3 per-interface state has per-vimage granularity
+ * also as a result.
+ *
+ * FUTURE: Stop using IFP_TO_IA/INADDR_ANY, and use source address selection
+ * policy to control the address used by IGMP on the link.
+ */
+#ifdef VIMAGE_GLOBALS
+int	 interface_timers_running;	 /* IGMPv3 general query response */
+int	 state_change_timers_running;	 /* IGMPv3 state-change retransmit */
+int	 current_state_timers_running;	 /* IGMPv1/v2 host report;
+					  * IGMPv3 g/sg query response */
+
+LIST_HEAD(, igmp_ifinfo)	 igi_head;
+struct igmpstat			 igmpstat;
+struct timeval			 igmp_gsrdelay;
+
+int	 igmp_recvifkludge;
+int	 igmp_sendra;
+int	 igmp_sendlocal;
+int	 igmp_v1enable;
+int	 igmp_v2enable;
+int	 igmp_legacysupp;
+int	 igmp_default_version;
+#endif /* VIMAGE_GLOBALS */
+
+/*
+ * Virtualized sysctls.
+ */
+SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_igmp, IGMPCTL_STATS, stats,
+    CTLFLAG_RW, igmpstat, igmpstat, "");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_igmp, OID_AUTO, recvifkludge,
+    CTLFLAG_RW, igmp_recvifkludge, 0,
+    "Rewrite IGMPv1/v2 reports from 0.0.0.0 to contain subnet address");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_igmp, OID_AUTO, sendra,
+    CTLFLAG_RW, igmp_sendra, 0,
+    "Send IP Router Alert option in IGMPv2/v3 messages");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_igmp, OID_AUTO, sendlocal,
+    CTLFLAG_RW, igmp_sendlocal, 0,
+    "Send IGMP membership reports for 224.0.0.0/24 groups");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_igmp, OID_AUTO, v1enable,
+    CTLFLAG_RW, igmp_v1enable, 0,
+    "Enable backwards compatibility with IGMPv1");
+SYSCTL_V_INT(V_NET, vnet_inet,  _net_inet_igmp, OID_AUTO, v2enable,
+    CTLFLAG_RW, igmp_v2enable, 0,
+    "Enable backwards compatibility with IGMPv2");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_igmp, OID_AUTO, legacysupp,
+    CTLFLAG_RW, igmp_legacysupp, 0,
+    "Allow v1/v2 reports to suppress v3 group responses");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_igmp, OID_AUTO, default_version,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, igmp_default_version, 0,
+    sysctl_igmp_default_version, "I",
+    "Default version of IGMP to run on each interface");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_igmp, OID_AUTO, gsrdelay,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, igmp_gsrdelay.tv_sec, 0,
+    sysctl_igmp_gsr, "I",
+    "Rate limit for IGMPv3 Group-and-Source queries in seconds");
+
+/*
+ * Non-virtualized sysctls.
+ */
+SYSCTL_NODE(_net_inet_igmp, OID_AUTO, ifinfo, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    sysctl_igmp_ifinfo, "Per-interface IGMPv3 state");
+
+static __inline void
+igmp_save_context(struct mbuf *m, struct ifnet *ifp)
 {
-	INIT_VNET_INET(curvnet);
-	struct ipoption *ra;
 
-	/*
-	 * To avoid byte-swapping the same value over and over again.
-	 */
-	igmp_all_hosts_group = htonl(INADDR_ALLHOSTS_GROUP);
-	igmp_all_rtrs_group = htonl(INADDR_ALLRTRS_GROUP);
-
-	igmp_timers_are_running = 0;
-
-	/*
-	 * Construct a Router Alert option to use in outgoing packets.
-	 */
-	MGET(router_alert, M_DONTWAIT, MT_DATA);
-	ra = mtod(router_alert, struct ipoption *);
-	ra->ipopt_dst.s_addr = 0;
-	ra->ipopt_list[0] = IPOPT_RA;	/* Router Alert Option */
-	ra->ipopt_list[1] = 0x04;	/* 4 bytes long */
-	ra->ipopt_list[2] = 0x00;
-	ra->ipopt_list[3] = 0x00;
-	router_alert->m_len = sizeof(ra->ipopt_dst) + ra->ipopt_list[1];
-
-	mtx_init(&igmp_mtx, "igmp_mtx", NULL, MTX_DEF);
-	SLIST_INIT(&V_router_info_head);
+#ifdef VIMAGE
+	m->m_pkthdr.header = ifp->if_vnet;
+#endif /* VIMAGE */
+	m->m_pkthdr.flowid = ifp->if_index;
 }
 
-static struct router_info *
-find_rti(struct ifnet *ifp)
+static __inline void
+igmp_scrub_context(struct mbuf *m)
 {
-	INIT_VNET_INET(ifp->if_vnet);
-	struct router_info *rti;
 
-	mtx_assert(&igmp_mtx, MA_OWNED);
-	IGMP_PRINTF("[igmp.c, _find_rti] --> entering \n");
-	SLIST_FOREACH(rti, &V_router_info_head, rti_list) {
-		if (rti->rti_ifp == ifp) {
-			IGMP_PRINTF(
-			    "[igmp.c, _find_rti] --> found old entry \n");
-			return (rti);
+	m->m_pkthdr.header = NULL;
+	m->m_pkthdr.flowid = 0;
+}
+
+#ifdef KTR
+static __inline char *
+inet_ntoa_haddr(in_addr_t haddr)
+{
+	struct in_addr ia;
+
+	ia.s_addr = htonl(haddr);
+	return (inet_ntoa(ia));
+}
+#endif
+
+/*
+ * Restore context from a queued IGMP output chain.
+ * Return saved ifindex.
+ *
+ * VIMAGE: The assertion is there to make sure that we
+ * actually called CURVNET_SET() with what's in the mbuf chain.
+ */
+static __inline uint32_t
+igmp_restore_context(struct mbuf *m)
+{
+
+#ifdef notyet
+#if defined(VIMAGE) && defined(INVARIANTS)
+	KASSERT(curvnet == (m->m_pkthdr.header),
+	    ("%s: called when curvnet was not restored", __func__));
+#endif
+#endif
+	return (m->m_pkthdr.flowid);
+}
+
+/*
+ * Retrieve or set default IGMP version.
+ *
+ * VIMAGE: Assume curvnet set by caller.
+ * SMPng: NOTE: Serialized by IGMP lock.
+ */
+static int
+sysctl_igmp_default_version(SYSCTL_HANDLER_ARGS)
+{
+	int	 error;
+	int	 new;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error)
+		return (error);
+
+	IGMP_LOCK();
+
+	new = V_igmp_default_version;
+
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error || !req->newptr)
+		goto out_locked;
+
+	if (new < IGMP_VERSION_1 || new > IGMP_VERSION_3) {
+		error = EINVAL;
+		goto out_locked;
+	}
+
+	CTR2(KTR_IGMPV3, "change igmp_default_version from %d to %d",
+	     V_igmp_default_version, new);
+
+	V_igmp_default_version = new;
+
+out_locked:
+	IGMP_UNLOCK();
+	return (error);
+}
+
+/*
+ * Retrieve or set threshold between group-source queries in seconds.
+ *
+ * VIMAGE: Assume curvnet set by caller.
+ * SMPng: NOTE: Serialized by IGMP lock.
+ */
+static int
+sysctl_igmp_gsr(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int i;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error)
+		return (error);
+
+	IGMP_LOCK();
+
+	i = V_igmp_gsrdelay.tv_sec;
+
+	error = sysctl_handle_int(oidp, &i, 0, req);
+	if (error || !req->newptr)
+		goto out_locked;
+
+	if (i < -1 || i >= 60) {
+		error = EINVAL;
+		goto out_locked;
+	}
+
+	CTR2(KTR_IGMPV3, "change igmp_gsrdelay from %d to %d",
+	     V_igmp_gsrdelay.tv_sec, i);
+	V_igmp_gsrdelay.tv_sec = i;
+
+out_locked:
+	IGMP_UNLOCK();
+	return (error);
+}
+
+/*
+ * Expose struct igmp_ifinfo to userland, keyed by ifindex.
+ * For use by ifmcstat(8).
+ *
+ * SMPng: NOTE: Does an unlocked ifindex space read.
+ * VIMAGE: Assume curvnet set by caller. The node handler itself
+ * is not directly virtualized.
+ */
+static int
+sysctl_igmp_ifinfo(SYSCTL_HANDLER_ARGS)
+{
+	INIT_VNET_NET(curvnet);
+	int			*name;
+	int			 error;
+	u_int			 namelen;
+	struct ifnet		*ifp;
+	struct igmp_ifinfo	*igi;
+
+	name = (int *)arg1;
+	namelen = arg2;
+
+	if (req->newptr != NULL)
+		return (EPERM);
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	error = sysctl_wire_old_buffer(req, sizeof(struct igmp_ifinfo));
+	if (error)
+		return (error);
+
+	IN_MULTI_LOCK();
+	IGMP_LOCK();
+
+	if (name[0] <= 0 || name[0] > V_if_index) {
+		error = ENOENT;
+		goto out_locked;
+	}
+
+	error = ENOENT;
+
+	ifp = ifnet_byindex(name[0]);
+	if (ifp == NULL)
+		goto out_locked;
+
+	LIST_FOREACH(igi, &V_igi_head, igi_link) {
+		if (ifp == igi->igi_ifp) {
+			error = SYSCTL_OUT(req, igi,
+			    sizeof(struct igmp_ifinfo));
+			break;
 		}
 	}
-	rti = malloc(sizeof *rti, M_IGMP, M_NOWAIT);
-	if (rti == NULL) {
-		IGMP_PRINTF("[igmp.c, _find_rti] --> no memory for entry\n");
-		return (NULL);
+
+out_locked:
+	IGMP_UNLOCK();
+	IN_MULTI_UNLOCK();
+	return (error);
+}
+
+/*
+ * Dispatch an entire queue of pending packet chains
+ * using the netisr.
+ * VIMAGE: Assumes the vnet pointer has been set.
+ */
+static void
+igmp_dispatch_queue(struct ifqueue *ifq, int limit, const int loop)
+{
+	struct mbuf *m;
+
+	for (;;) {
+		_IF_DEQUEUE(ifq, m);
+		if (m == NULL)
+			break;
+		CTR3(KTR_IGMPV3, "%s: dispatch %p from %p", __func__, ifq, m);
+		if (loop)
+			m->m_flags |= M_IGMP_LOOP;
+		netisr_dispatch(NETISR_IGMP, m);
+		if (--limit == 0)
+			break;
 	}
-	rti->rti_ifp = ifp;
-	rti->rti_type = IGMP_V2_ROUTER;
-	rti->rti_time = 0;
-	SLIST_INSERT_HEAD(&V_router_info_head, rti, rti_list);
-	IGMP_PRINTF("[igmp.c, _find_rti] --> created an entry \n");
-	return (rti);
+}
+
+/*
+ * Filter outgoing IGMP report state by group.
+ *
+ * Reports are ALWAYS suppressed for ALL-HOSTS (224.0.0.1).
+ * If the net.inet.igmp.sendlocal sysctl is 0, then IGMP reports are
+ * disabled for all groups in the 224.0.0.0/24 link-local scope. However,
+ * this may break certain IGMP snooping switches which rely on the old
+ * report behaviour.
+ *
+ * Return zero if the given group is one for which IGMP reports
+ * should be suppressed, or non-zero if reports should be issued.
+ */
+static __inline int
+igmp_isgroupreported(const struct in_addr addr)
+{
+
+	if (in_allhosts(addr) ||
+	    ((!V_igmp_sendlocal && IN_LOCAL_GROUP(ntohl(addr.s_addr)))))
+		return (0);
+
+	return (1);
+}
+
+/*
+ * Construct a Router Alert option to use in outgoing packets.
+ */
+static struct mbuf *
+igmp_ra_alloc(void)
+{
+	struct mbuf	*m;
+	struct ipoption	*p;
+
+	MGET(m, M_DONTWAIT, MT_DATA);
+	p = mtod(m, struct ipoption *);
+	p->ipopt_dst.s_addr = INADDR_ANY;
+	p->ipopt_list[0] = IPOPT_RA;	/* Router Alert Option */
+	p->ipopt_list[1] = 0x04;	/* 4 bytes long */
+	p->ipopt_list[2] = IPOPT_EOL;	/* End of IP option list */
+	p->ipopt_list[3] = 0x00;	/* pad byte */
+	m->m_len = sizeof(p->ipopt_dst) + p->ipopt_list[1];
+
+	return (m);
+}
+
+/*
+ * Attach IGMP when PF_INET is attached to an interface.
+ *
+ * VIMAGE: Currently we set the vnet pointer, although it is
+ * likely that it was already set by our caller.
+ */
+struct igmp_ifinfo *
+igmp_domifattach(struct ifnet *ifp)
+{
+	struct igmp_ifinfo *igi;
+
+	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)",
+	    __func__, ifp, ifp->if_xname);
+
+	CURVNET_SET(ifp->if_vnet);
+	IGMP_LOCK();
+
+	igi = igi_alloc_locked(ifp);
+	if (!(ifp->if_flags & IFF_MULTICAST))
+		igi->igi_flags |= IGIF_SILENT;
+
+	IGMP_UNLOCK();
+	CURVNET_RESTORE();
+
+	return (igi);
+}
+
+/*
+ * VIMAGE: assume curvnet set by caller.
+ */
+static struct igmp_ifinfo *
+igi_alloc_locked(/*const*/ struct ifnet *ifp)
+{
+	struct igmp_ifinfo *igi;
+
+	IGMP_LOCK_ASSERT();
+
+	igi = malloc(sizeof(struct igmp_ifinfo), M_IGMP, M_NOWAIT|M_ZERO);
+	if (igi == NULL)
+		goto out;
+
+	igi->igi_ifp = ifp;
+	igi->igi_version = V_igmp_default_version;
+	igi->igi_flags = 0;
+	igi->igi_rv = IGMP_RV_INIT;
+	igi->igi_qi = IGMP_QI_INIT;
+	igi->igi_qri = IGMP_QRI_INIT;
+	igi->igi_uri = IGMP_URI_INIT;
+
+	SLIST_INIT(&igi->igi_relinmhead);
+
+	/*
+	 * Responses to general queries are subject to bounds.
+	 */
+	IFQ_SET_MAXLEN(&igi->igi_gq, IGMP_MAX_RESPONSE_PACKETS);
+
+	LIST_INSERT_HEAD(&V_igi_head, igi, igi_link);
+
+	CTR2(KTR_IGMPV3, "allocate igmp_ifinfo for ifp %p(%s)",
+	     ifp, ifp->if_xname);
+
+out:
+	return (igi);
+}
+
+/*
+ * Hook for ifdetach.
+ *
+ * NOTE: Some finalization tasks need to run before the protocol domain
+ * is detached, but also before the link layer does its cleanup.
+ *
+ * SMPNG: igmp_ifdetach() needs to take IF_ADDR_LOCK().
+ *
+ * VIMAGE: curvnet should have been set by caller, but let's not assume
+ * that for now.
+ */
+void
+igmp_ifdetach(struct ifnet *ifp)
+{
+	struct igmp_ifinfo	*igi;
+	struct ifmultiaddr	*ifma;
+	struct in_multi		*inm, *tinm;
+
+	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)", __func__, ifp,
+	    ifp->if_xname);
+
+	CURVNET_SET(ifp->if_vnet);
+
+	IGMP_LOCK();
+
+	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	if (igi->igi_version == IGMP_VERSION_3) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_INET)
+				continue;
+			inm = (struct in_multi *)ifma->ifma_protospec;
+			if (inm->inm_state == IGMP_LEAVING_MEMBER) {
+				SLIST_INSERT_HEAD(&igi->igi_relinmhead,
+				    inm, inm_nrele);
+			}
+			inm_clear_recorded(inm);
+		}
+		IF_ADDR_UNLOCK(ifp);
+		/*
+		 * Free the in_multi reference(s) for this IGMP lifecycle.
+		 */
+		SLIST_FOREACH_SAFE(inm, &igi->igi_relinmhead, inm_nrele,
+		    tinm) {
+			SLIST_REMOVE_HEAD(&igi->igi_relinmhead, inm_nrele);
+			inm_release_locked(inm);
+		}
+	}
+
+	IGMP_UNLOCK();
+
+#ifdef VIMAGE
+	/*
+	 * Plug the potential race which may occur when a VIMAGE
+	 * is detached and we are forced to queue pending IGMP output for
+	 * output netisr processing due to !mpsafe_igmp. In this case it
+	 * is possible that igmp_intr() is about to see mbuf chains with
+	 * invalid cached curvnet pointers.
+	 * This is a rare condition, so just blow them all away.
+	 * FUTURE: This may in fact not be needed, because IFF_NEEDSGIANT
+	 * is being removed in 8.x and the netisr may then be eliminated;
+	 * it is needed only if VIMAGE and IFF_NEEDSGIANT need to co-exist
+	 */
+	if (!mpsafe_igmp) {
+		int drops;
+
+		IF_LOCK(&igmpoq);
+		drops = igmpoq.ifq_len;
+		_IF_DRAIN(&igmpoq);
+		IF_UNLOCK(&igmpoq);
+		if (bootverbose && drops) {
+			printf("%s: dropped %d pending IGMP output packets\n",
+			    __func__, drops);
+		}
+	}
+#endif /* VIMAGE */
+
+	CURVNET_RESTORE();
+}
+
+/*
+ * Hook for domifdetach.
+ *
+ * VIMAGE: curvnet should have been set by caller, but let's not assume
+ * that for now.
+ */
+void
+igmp_domifdetach(struct ifnet *ifp)
+{
+	struct igmp_ifinfo *igi;
+
+	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)",
+	    __func__, ifp, ifp->if_xname);
+
+	CURVNET_SET(ifp->if_vnet);
+	IGMP_LOCK();
+
+	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	igi_delete_locked(ifp);
+
+	IGMP_UNLOCK();
+	CURVNET_RESTORE();
+}
+
+static void
+igi_delete_locked(const struct ifnet *ifp)
+{
+	struct igmp_ifinfo *igi, *tigi;
+
+	CTR3(KTR_IGMPV3, "%s: freeing igmp_ifinfo for ifp %p(%s)",
+	    __func__, ifp, ifp->if_xname);
+
+	IGMP_LOCK_ASSERT();
+
+	LIST_FOREACH_SAFE(igi, &V_igi_head, igi_link, tigi) {
+		if (igi->igi_ifp == ifp) {
+			/*
+			 * Free deferred General Query responses.
+			 */
+			_IF_DRAIN(&igi->igi_gq);
+
+			LIST_REMOVE(igi, igi_link);
+
+			KASSERT(SLIST_EMPTY(&igi->igi_relinmhead),
+			    ("%s: there are dangling in_multi references",
+			    __func__));
+
+			free(igi, M_IGMP);
+			return;
+		}
+	}
+
+#ifdef INVARIANTS
+	panic("%s: igmp_ifinfo not found for ifp %p\n", __func__,  ifp);
+#endif
+}
+
+/*
+ * Process a received IGMPv1 query.
+ * Return non-zero if the message should be dropped.
+ *
+ * VIMAGE: The curvnet pointer is derived from the input ifp.
+ */
+static int
+igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip)
+{
+	INIT_VNET_INET(ifp->if_vnet);
+	struct ifmultiaddr	*ifma;
+	struct igmp_ifinfo	*igi;
+	struct in_multi		*inm;
+
+	/*
+	 * IGMPv1 General Queries SHOULD always addressed to 224.0.0.1.
+	 * igmp_group is always ignored. Do not drop it as a userland
+	 * daemon may wish to see it.
+	 */
+	if (!in_allhosts(ip->ip_dst)) {
+		++V_igmpstat.igps_rcv_badqueries;
+		return (0);
+	}
+
+	++V_igmpstat.igps_rcv_gen_queries;
+
+	/*
+	 * Switch to IGMPv1 host compatibility mode.
+	 */
+	IN_MULTI_LOCK();
+	IGMP_LOCK();
+
+	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	KASSERT(igi != NULL, ("%s: no igmp_ifinfo for ifp %p", __func__, ifp));
+
+	if (igi->igi_flags & IGIF_LOOPBACK) {
+		CTR2(KTR_IGMPV3, "ignore v1 query on IGIF_LOOPBACK ifp %p(%s)",
+		    ifp, ifp->if_xname);
+		goto out_locked;
+	}
+
+	igmp_set_version(igi, IGMP_VERSION_1);
+
+	CTR2(KTR_IGMPV3, "process v1 query on ifp %p(%s)", ifp, ifp->if_xname);
+
+	/*
+	 * Start the timers in all of our group records
+	 * for the interface on which the query arrived,
+	 * except those which are already running.
+	 */
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_INET)
+			continue;
+		inm = (struct in_multi *)ifma->ifma_protospec;
+		if (inm->inm_timer != 0)
+			continue;
+		switch (inm->inm_state) {
+		case IGMP_NOT_MEMBER:
+		case IGMP_SILENT_MEMBER:
+			break;
+		case IGMP_G_QUERY_PENDING_MEMBER:
+		case IGMP_SG_QUERY_PENDING_MEMBER:
+		case IGMP_REPORTING_MEMBER:
+		case IGMP_IDLE_MEMBER:
+		case IGMP_LAZY_MEMBER:
+		case IGMP_SLEEPING_MEMBER:
+		case IGMP_AWAKENING_MEMBER:
+			inm->inm_state = IGMP_REPORTING_MEMBER;
+			inm->inm_timer = IGMP_RANDOM_DELAY(
+			    IGMP_V1V2_MAX_RI * PR_FASTHZ);
+			V_current_state_timers_running = 1;
+			break;
+		case IGMP_LEAVING_MEMBER:
+			break;
+		}
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+out_locked:
+	IGMP_UNLOCK();
+	IN_MULTI_UNLOCK();
+
+	return (0);
+}
+
+/*
+ * Process a received IGMPv2 general or group-specific query.
+ */
+static int
+igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
+    const struct igmp *igmp)
+{
+	struct ifmultiaddr	*ifma;
+	struct igmp_ifinfo	*igi;
+	struct in_multi		*inm;
+	uint16_t		 timer;
+
+	/*
+	 * Perform lazy allocation of IGMP link info if required,
+	 * and switch to IGMPv2 host compatibility mode.
+	 */
+	IN_MULTI_LOCK();
+	IGMP_LOCK();
+
+	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	KASSERT(igi != NULL, ("%s: no igmp_ifinfo for ifp %p", __func__, ifp));
+
+	if (igi->igi_flags & IGIF_LOOPBACK) {
+		CTR2(KTR_IGMPV3, "ignore v2 query on IGIF_LOOPBACK ifp %p(%s)",
+		    ifp, ifp->if_xname);
+		goto out_locked;
+	}
+
+	igmp_set_version(igi, IGMP_VERSION_2);
+
+	timer = igmp->igmp_code * PR_FASTHZ / IGMP_TIMER_SCALE;
+	if (timer == 0)
+		timer = 1;
+
+	if (!in_nullhost(igmp->igmp_group)) {
+		/*
+		 * IGMPv2 Group-Specific Query.
+		 * If this is a group-specific IGMPv2 query, we need only
+		 * look up the single group to process it.
+		 */
+		inm = inm_lookup(ifp, igmp->igmp_group);
+		if (inm != NULL) {
+			CTR3(KTR_IGMPV3, "process v2 query %s on ifp %p(%s)",
+			    inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
+			igmp_v2_update_group(inm, timer);
+		}
+		++V_igmpstat.igps_rcv_group_queries;
+	} else {
+		/*
+		 * IGMPv2 General Query.
+		 * If this was not sent to the all-hosts group, ignore it.
+		 */
+		if (in_allhosts(ip->ip_dst)) {
+			/*
+			 * For each reporting group joined on this
+			 * interface, kick the report timer.
+			 */
+			CTR2(KTR_IGMPV3,
+			    "process v2 general query on ifp %p(%s)",
+			    ifp, ifp->if_xname);
+
+			IF_ADDR_LOCK(ifp);
+			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+				if (ifma->ifma_addr->sa_family != AF_INET)
+					continue;
+				inm = (struct in_multi *)ifma->ifma_protospec;
+				igmp_v2_update_group(inm, timer);
+			}
+			IF_ADDR_UNLOCK(ifp);
+		}
+		++V_igmpstat.igps_rcv_gen_queries;
+	}
+
+out_locked:
+	IGMP_UNLOCK();
+	IN_MULTI_UNLOCK();
+
+	return (0);
+}
+
+/*
+ * Update the report timer on a group in response to an IGMPv2 query.
+ *
+ * If we are becoming the reporting member for this group, start the timer.
+ * If we already are the reporting member for this group, and timer is
+ * below the threshold, reset it.
+ *
+ * We may be updating the group for the first time since we switched
+ * to IGMPv3. If we are, then we must clear any recorded source lists,
+ * and transition to REPORTING state; the group timer is overloaded
+ * for group and group-source query responses. 
+ *
+ * Unlike IGMPv3, the delay per group should be jittered
+ * to avoid bursts of IGMPv2 reports.
+ */
+static void
+igmp_v2_update_group(struct in_multi *inm, const int timer)
+{
+
+	CTR4(KTR_IGMPV3, "%s: %s/%s timer=%d", __func__,
+	    inet_ntoa(inm->inm_addr), inm->inm_ifp->if_xname, timer);
+
+	IN_MULTI_LOCK_ASSERT();
+
+	switch (inm->inm_state) {
+	case IGMP_NOT_MEMBER:
+	case IGMP_SILENT_MEMBER:
+		break;
+	case IGMP_REPORTING_MEMBER:
+		if (inm->inm_timer != 0 &&
+		    inm->inm_timer <= timer) {
+			CTR1(KTR_IGMPV3, "%s: REPORTING and timer running, "
+			    "skipping.", __func__);
+			break;
+		}
+		/* FALLTHROUGH */
+	case IGMP_SG_QUERY_PENDING_MEMBER:
+	case IGMP_G_QUERY_PENDING_MEMBER:
+	case IGMP_IDLE_MEMBER:
+	case IGMP_LAZY_MEMBER:
+	case IGMP_AWAKENING_MEMBER:
+		CTR1(KTR_IGMPV3, "%s: ->REPORTING", __func__);
+		inm->inm_state = IGMP_REPORTING_MEMBER;
+		inm->inm_timer = IGMP_RANDOM_DELAY(timer);
+		V_current_state_timers_running = 1;
+		break;
+	case IGMP_SLEEPING_MEMBER:
+		CTR1(KTR_IGMPV3, "%s: ->AWAKENING", __func__);
+		inm->inm_state = IGMP_AWAKENING_MEMBER;
+		break;
+	case IGMP_LEAVING_MEMBER:
+		break;
+	}
+}
+
+/*
+ * Process a received IGMPv3 general, group-specific or
+ * group-and-source-specific query.
+ * Assumes m has already been pulled up to the full IGMP message length.
+ * Return 0 if successful, otherwise an appropriate error code is returned.
+ */
+static int
+igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
+    /*const*/ struct igmpv3 *igmpv3)
+{
+	struct igmp_ifinfo	*igi;
+	struct in_multi		*inm;
+	uint32_t		 maxresp, nsrc, qqi;
+	uint16_t		 timer;
+	uint8_t			 qrv;
+
+	CTR2(KTR_IGMPV3, "process v3 query on ifp %p(%s)", ifp, ifp->if_xname);
+
+	maxresp = igmpv3->igmp_code;	/* in 1/10ths of a second */
+	if (maxresp >= 128) {
+		maxresp = IGMP_MANT(igmpv3->igmp_code) <<
+			  (IGMP_EXP(igmpv3->igmp_code) + 3);
+	}
+
+	/*
+	 * Robustness must never be less than 2 for on-wire IGMPv3.
+	 * FIXME: Check if ifp has IGIF_LOOPBACK set, as we make
+	 * an exception for interfaces whose IGMPv3 state changes
+	 * are redirected to loopback (e.g. MANET).
+	 */
+	qrv = IGMP_QRV(igmpv3->igmp_misc);
+	if (qrv < 2) {
+		CTR3(KTR_IGMPV3, "%s: clamping qrv %d to %d", __func__,
+		    qrv, IGMP_RV_INIT);
+		qrv = IGMP_RV_INIT;
+	}
+
+	qqi = igmpv3->igmp_qqi;
+	if (qqi >= 128) {
+		maxresp = IGMP_MANT(igmpv3->igmp_qqi) <<
+			  (IGMP_EXP(igmpv3->igmp_qqi) + 3);
+	}
+
+	timer = maxresp * PR_FASTHZ / IGMP_TIMER_SCALE;
+	if (timer == 0)
+		timer = 1;
+
+	nsrc = ntohs(igmpv3->igmp_numsrc);
+
+	IN_MULTI_LOCK();
+	IGMP_LOCK();
+
+	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	KASSERT(igi != NULL, ("%s: no igmp_ifinfo for ifp %p", __func__, ifp));
+
+	if (igi->igi_flags & IGIF_LOOPBACK) {
+		CTR2(KTR_IGMPV3, "ignore v3 query on IGIF_LOOPBACK ifp %p(%s)",
+		    ifp, ifp->if_xname);
+		goto out_locked;
+	}
+
+	igmp_set_version(igi, IGMP_VERSION_3);
+
+	igi->igi_rv = qrv;
+	igi->igi_qi = qqi;
+	igi->igi_qri = maxresp;
+
+	CTR4(KTR_IGMPV3, "%s: qrv %d qi %d qri %d", __func__, qrv, qqi,
+	    maxresp);
+
+	if (in_nullhost(igmpv3->igmp_group)) {
+		/*
+		 * IGMPv3 General Query.
+		 * Schedule a current-state report on this ifp for
+		 * all groups, possibly containing source lists.
+		 */
+		++V_igmpstat.igps_rcv_gen_queries;
+
+		if (!in_allhosts(ip->ip_dst) || nsrc > 0) {
+			/*
+			 * General Queries SHOULD be directed to 224.0.0.1.
+			 * A general query with a source list has undefined
+			 * behaviour; discard it.
+			 */
+			++V_igmpstat.igps_rcv_badqueries;
+			goto out_locked;
+		}
+
+		CTR2(KTR_IGMPV3, "process v3 general query on ifp %p(%s)",
+		    ifp, ifp->if_xname);
+
+		/*
+		 * If there is a pending General Query response
+		 * scheduled earlier than the selected delay, do
+		 * not schedule any other reports.
+		 * Otherwise, reset the interface timer.
+		 */
+		if (igi->igi_v3_timer == 0 || igi->igi_v3_timer >= timer) {
+			igi->igi_v3_timer = IGMP_RANDOM_DELAY(timer);
+			V_interface_timers_running = 1;
+		}
+	} else {
+		/*
+		 * IGMPv3 Group-specific or Group-and-source-specific Query.
+		 *
+		 * Group-source-specific queries are throttled on
+		 * a per-group basis to defeat denial-of-service attempts.
+		 * Queries for groups we are not a member of on this
+		 * link are simply ignored.
+		 */
+		inm = inm_lookup(ifp, igmpv3->igmp_group);
+		if (inm == NULL)
+			goto out_locked;
+		if (nsrc > 0) {
+			++V_igmpstat.igps_rcv_gsr_queries;
+			if (!ratecheck(&inm->inm_lastgsrtv,
+			    &V_igmp_gsrdelay)) {
+				CTR1(KTR_IGMPV3, "%s: GS query throttled.",
+				    __func__);
+				++V_igmpstat.igps_drop_gsr_queries;
+				goto out_locked;
+			}
+		} else {
+			++V_igmpstat.igps_rcv_group_queries;
+		}
+		CTR3(KTR_IGMPV3, "process v3 %s query on ifp %p(%s)",
+		     inet_ntoa(igmpv3->igmp_group), ifp, ifp->if_xname);
+		/*
+		 * If there is a pending General Query response
+		 * scheduled sooner than the selected delay, no
+		 * further report need be scheduled.
+		 * Otherwise, prepare to respond to the
+		 * group-specific or group-and-source query.
+		 */
+		if (igi->igi_v3_timer == 0 || igi->igi_v3_timer >= timer)
+			igmp_input_v3_group_query(inm, igi, timer, igmpv3);
+	}
+
+out_locked:
+	IGMP_UNLOCK();
+	IN_MULTI_UNLOCK();
+
+	return (0);
+}
+
+/*
+ * Process a recieved IGMPv3 group-specific or group-and-source-specific
+ * query.
+ * Return <0 if any error occured. Currently this is ignored.
+ */
+static int
+igmp_input_v3_group_query(struct in_multi *inm, struct igmp_ifinfo *igi,
+    int timer, /*const*/ struct igmpv3 *igmpv3)
+{
+	int			 retval;
+	uint16_t		 nsrc;
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	retval = 0;
+
+	switch (inm->inm_state) {
+	case IGMP_NOT_MEMBER:
+	case IGMP_SILENT_MEMBER:
+	case IGMP_SLEEPING_MEMBER:
+	case IGMP_LAZY_MEMBER:
+	case IGMP_AWAKENING_MEMBER:
+	case IGMP_IDLE_MEMBER:
+	case IGMP_LEAVING_MEMBER:
+		return (retval);
+		break;
+	case IGMP_REPORTING_MEMBER:
+	case IGMP_G_QUERY_PENDING_MEMBER:
+	case IGMP_SG_QUERY_PENDING_MEMBER:
+		break;
+	}
+
+	nsrc = ntohs(igmpv3->igmp_numsrc);
+
+	/*
+	 * Deal with group-specific queries upfront.
+	 * If any group query is already pending, purge any recorded
+	 * source-list state if it exists, and schedule a query response
+	 * for this group-specific query.
+	 */
+	if (nsrc == 0) {
+		if (inm->inm_state == IGMP_G_QUERY_PENDING_MEMBER ||
+		    inm->inm_state == IGMP_SG_QUERY_PENDING_MEMBER) {
+			inm_clear_recorded(inm);
+			timer = min(inm->inm_timer, timer);
+		}
+		inm->inm_state = IGMP_G_QUERY_PENDING_MEMBER;
+		inm->inm_timer = IGMP_RANDOM_DELAY(timer);
+		V_current_state_timers_running = 1;
+		return (retval);
+	}
+
+	/*
+	 * Deal with the case where a group-and-source-specific query has
+	 * been received but a group-specific query is already pending.
+	 */
+	if (inm->inm_state == IGMP_G_QUERY_PENDING_MEMBER) {
+		timer = min(inm->inm_timer, timer);
+		inm->inm_timer = IGMP_RANDOM_DELAY(timer);
+		V_current_state_timers_running = 1;
+		return (retval);
+	}
+
+	/*
+	 * Finally, deal with the case where a group-and-source-specific
+	 * query has been received, where a response to a previous g-s-r
+	 * query exists, or none exists.
+	 * In this case, we need to parse the source-list which the Querier
+	 * has provided us with and check if we have any source list filter
+	 * entries at T1 for these sources. If we do not, there is no need
+	 * schedule a report and the query may be dropped.
+	 * If we do, we must record them and schedule a current-state
+	 * report for those sources.
+	 * FIXME: Handling source lists larger than 1 mbuf requires that
+	 * we pass the mbuf chain pointer down to this function, and use
+	 * m_getptr() to walk the chain.
+	 */
+	if (inm->inm_nsrc > 0) {
+		const struct in_addr	*ap;
+		int			 i, nrecorded;
+
+		ap = (const struct in_addr *)(igmpv3 + 1);
+		nrecorded = 0;
+		for (i = 0; i < nsrc; i++, ap++) {
+			retval = inm_record_source(inm, ap->s_addr);
+			if (retval < 0)
+				break;
+			nrecorded += retval;
+		}
+		if (nrecorded > 0) {
+			CTR1(KTR_IGMPV3,
+			    "%s: schedule response to SG query", __func__);
+			inm->inm_state = IGMP_SG_QUERY_PENDING_MEMBER;
+			inm->inm_timer = IGMP_RANDOM_DELAY(timer);
+			V_current_state_timers_running = 1;
+		}
+	}
+
+	return (retval);
+}
+
+/*
+ * Process a received IGMPv1 host membership report.
+ *
+ * NOTE: 0.0.0.0 workaround breaks const correctness.
+ */
+static int
+igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
+    /*const*/ struct igmp *igmp)
+{
+	struct in_ifaddr *ia;
+	struct in_multi *inm;
+
+	++V_igmpstat.igps_rcv_reports;
+
+	if (ifp->if_flags & IFF_LOOPBACK)
+		return (0);
+
+	if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr) ||
+	    !in_hosteq(igmp->igmp_group, ip->ip_dst))) {
+		++V_igmpstat.igps_rcv_badreports;
+		return (EINVAL);
+	}
+
+	/*
+	 * RFC 3376, Section 4.2.13, 9.2, 9.3:
+	 * Booting clients may use the source address 0.0.0.0. Some
+	 * IGMP daemons may not know how to use IP_RECVIF to determine
+	 * the interface upon which this message was received.
+	 * Replace 0.0.0.0 with the subnet address if told to do so.
+	 */
+	if (V_igmp_recvifkludge && in_nullhost(ip->ip_src)) {
+		IFP_TO_IA(ifp, ia);
+		if (ia != NULL)
+			ip->ip_src.s_addr = htonl(ia->ia_subnet);
+	}
+
+	CTR3(KTR_IGMPV3, "process v1 report %s on ifp %p(%s)",
+	     inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
+
+	/*
+	 * IGMPv1 report suppression.
+	 * If we are a member of this group, and our membership should be
+	 * reported, stop our group timer and transition to the 'lazy' state.
+	 */
+	IN_MULTI_LOCK();
+	inm = inm_lookup(ifp, igmp->igmp_group);
+	if (inm != NULL) {
+		struct igmp_ifinfo *igi;
+
+		igi = inm->inm_igi;
+		if (igi == NULL) {
+			KASSERT(igi != NULL,
+			    ("%s: no igi for ifp %p", __func__, ifp));
+			goto out_locked;
+		}
+
+		++V_igmpstat.igps_rcv_ourreports;
+
+		/*
+		 * If we are in IGMPv3 host mode, do not allow the
+		 * other host's IGMPv1 report to suppress our reports
+		 * unless explicitly configured to do so.
+		 */
+		if (igi->igi_version == IGMP_VERSION_3) {
+			if (V_igmp_legacysupp)
+				igmp_v3_suppress_group_record(inm);
+			goto out_locked;
+		}
+
+		inm->inm_timer = 0;
+
+		switch (inm->inm_state) {
+		case IGMP_NOT_MEMBER:
+		case IGMP_SILENT_MEMBER:
+			break;
+		case IGMP_IDLE_MEMBER:
+		case IGMP_LAZY_MEMBER:
+		case IGMP_AWAKENING_MEMBER:
+			CTR3(KTR_IGMPV3,
+			    "report suppressed for %s on ifp %p(%s)",
+			    inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
+		case IGMP_SLEEPING_MEMBER:
+			inm->inm_state = IGMP_SLEEPING_MEMBER;
+			break;
+		case IGMP_REPORTING_MEMBER:
+			CTR3(KTR_IGMPV3,
+			    "report suppressed for %s on ifp %p(%s)",
+			    inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
+			if (igi->igi_version == IGMP_VERSION_1)
+				inm->inm_state = IGMP_LAZY_MEMBER;
+			else if (igi->igi_version == IGMP_VERSION_2)
+				inm->inm_state = IGMP_SLEEPING_MEMBER;
+			break;
+		case IGMP_G_QUERY_PENDING_MEMBER:
+		case IGMP_SG_QUERY_PENDING_MEMBER:
+		case IGMP_LEAVING_MEMBER:
+			break;
+		}
+	}
+
+out_locked:
+	IN_MULTI_UNLOCK();
+
+	return (0);
+}
+
+/*
+ * Process a received IGMPv2 host membership report.
+ *
+ * NOTE: 0.0.0.0 workaround breaks const correctness.
+ */
+static int
+igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
+    /*const*/ struct igmp *igmp)
+{
+	struct in_ifaddr *ia;
+	struct in_multi *inm;
+
+	/*
+	 * Make sure we don't hear our own membership report.  Fast
+	 * leave requires knowing that we are the only member of a
+	 * group.
+	 */
+	IFP_TO_IA(ifp, ia);
+	if (ia != NULL && in_hosteq(ip->ip_src, IA_SIN(ia)->sin_addr))
+		return (0);
+
+	++V_igmpstat.igps_rcv_reports;
+
+	if (ifp->if_flags & IFF_LOOPBACK)
+		return (0);
+
+	if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
+	    !in_hosteq(igmp->igmp_group, ip->ip_dst)) {
+		++V_igmpstat.igps_rcv_badreports;
+		return (EINVAL);
+	}
+
+	/*
+	 * RFC 3376, Section 4.2.13, 9.2, 9.3:
+	 * Booting clients may use the source address 0.0.0.0. Some
+	 * IGMP daemons may not know how to use IP_RECVIF to determine
+	 * the interface upon which this message was received.
+	 * Replace 0.0.0.0 with the subnet address if told to do so.
+	 */
+	if (V_igmp_recvifkludge && in_nullhost(ip->ip_src)) {
+		if (ia != NULL)
+			ip->ip_src.s_addr = htonl(ia->ia_subnet);
+	}
+
+	CTR3(KTR_IGMPV3, "process v2 report %s on ifp %p(%s)",
+	     inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
+
+	/*
+	 * IGMPv2 report suppression.
+	 * If we are a member of this group, and our membership should be
+	 * reported, and our group timer is pending or about to be reset,
+	 * stop our group timer by transitioning to the 'lazy' state.
+	 */
+	IN_MULTI_LOCK();
+	inm = inm_lookup(ifp, igmp->igmp_group);
+	if (inm != NULL) {
+		struct igmp_ifinfo *igi;
+
+		igi = inm->inm_igi;
+		KASSERT(igi != NULL, ("%s: no igi for ifp %p", __func__, ifp));
+
+		++V_igmpstat.igps_rcv_ourreports;
+
+		/*
+		 * If we are in IGMPv3 host mode, do not allow the
+		 * other host's IGMPv1 report to suppress our reports
+		 * unless explicitly configured to do so.
+		 */
+		if (igi->igi_version == IGMP_VERSION_3) {
+			if (V_igmp_legacysupp)
+				igmp_v3_suppress_group_record(inm);
+			goto out_locked;
+		}
+
+		inm->inm_timer = 0;
+
+		switch (inm->inm_state) {
+		case IGMP_NOT_MEMBER:
+		case IGMP_SILENT_MEMBER:
+		case IGMP_SLEEPING_MEMBER:
+			break;
+		case IGMP_REPORTING_MEMBER:
+		case IGMP_IDLE_MEMBER:
+		case IGMP_AWAKENING_MEMBER:
+			CTR3(KTR_IGMPV3,
+			    "report suppressed for %s on ifp %p(%s)",
+			    inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
+		case IGMP_LAZY_MEMBER:
+			inm->inm_state = IGMP_LAZY_MEMBER;
+			break;
+		case IGMP_G_QUERY_PENDING_MEMBER:
+		case IGMP_SG_QUERY_PENDING_MEMBER:
+		case IGMP_LEAVING_MEMBER:
+			break;
+		}
+	}
+
+out_locked:
+	IN_MULTI_UNLOCK();
+
+	return (0);
 }
 
 void
-igmp_input(register struct mbuf *m, int off)
+igmp_input(struct mbuf *m, int off)
 {
-	register int iphlen = off;
-	register struct igmp *igmp;
-	register struct ip *ip;
-	register int igmplen;
-	register struct ifnet *ifp = m->m_pkthdr.rcvif;
-	register int minlen;
-	register struct in_multi *inm;
-	register struct in_ifaddr *ia;
-	struct in_multistep step;
-	struct router_info *rti;
-	int timer; /** timer value in the igmp query header **/
+	int iphlen;
+	struct ifnet *ifp;
+	struct igmp *igmp;
+	struct ip *ip;
+	int igmplen;
+	int minlen;
+	int queryver;
+
+	CTR3(KTR_IGMPV3, "%s: called w/mbuf (%p,%d)", __func__, m, off);
+
+	ifp = m->m_pkthdr.rcvif;
 	INIT_VNET_INET(ifp->if_vnet);
 
 	++V_igmpstat.igps_rcv_total;
 
 	ip = mtod(m, struct ip *);
+	iphlen = off;
 	igmplen = ip->ip_len;
 
 	/*
@@ -207,10 +1438,26 @@ igmp_input(register struct mbuf *m, int off)
 		m_freem(m);
 		return;
 	}
-	minlen = iphlen + IGMP_MINLEN;
+
+	/*
+	 * Always pullup to the minimum size for v1/v2 or v3
+	 * to amortize calls to m_pullup().
+	 */
+	minlen = iphlen;
+	if (igmplen >= IGMP_V3_QUERY_MINLEN)
+		minlen += IGMP_V3_QUERY_MINLEN;
+	else
+		minlen += IGMP_MINLEN;
 	if ((m->m_flags & M_EXT || m->m_len < minlen) &&
 	    (m = m_pullup(m, minlen)) == 0) {
 		++V_igmpstat.igps_rcv_tooshort;
+		return;
+	}
+	ip = mtod(m, struct ip *);
+
+	if (ip->ip_ttl != 1) {
+		++V_igmpstat.igps_rcv_badttl;
+		m_freem(m);
 		return;
 	}
 
@@ -228,147 +1475,112 @@ igmp_input(register struct mbuf *m, int off)
 	m->m_data -= iphlen;
 	m->m_len += iphlen;
 
-	ip = mtod(m, struct ip *);
-	timer = igmp->igmp_code * PR_FASTHZ / IGMP_TIMER_SCALE;
-	if (timer == 0)
-		timer = 1;
-
-	/*
-	 * In the IGMPv2 specification, there are 3 states and a flag.
-	 *
-	 * In Non-Member state, we simply don't have a membership record.
-	 * In Delaying Member state, our timer is running (inm->inm_timer).
-	 * In Idle Member state, our timer is not running (inm->inm_timer==0).
-	 *
-	 * The flag is inm->inm_state, it is set to IGMP_OTHERMEMBER if we
-	 * have heard a report from another member, or IGMP_IREPORTEDLAST if
-	 * I sent the last report.
-	 */
 	switch (igmp->igmp_type) {
-	case IGMP_MEMBERSHIP_QUERY:
-		++V_igmpstat.igps_rcv_queries;
-
-		if (ifp->if_flags & IFF_LOOPBACK)
-			break;
-
-		if (igmp->igmp_code == 0) {
-			/*
-			 * Old router.  Remember that the querier on this
-			 * interface is old, and set the timer to the value
-			 * in RFC 1112.
-			 */
-
-			mtx_lock(&igmp_mtx);
-			rti = find_rti(ifp);
-			if (rti == NULL) {
-				mtx_unlock(&igmp_mtx);
-				m_freem(m);
-				return;
-			}
-			rti->rti_type = IGMP_V1_ROUTER;
-			rti->rti_time = 0;
-			mtx_unlock(&igmp_mtx);
-
-			timer = IGMP_MAX_HOST_REPORT_DELAY * PR_FASTHZ;
-
-			if (ip->ip_dst.s_addr != igmp_all_hosts_group ||
-			    igmp->igmp_group.s_addr != 0) {
-				++V_igmpstat.igps_rcv_badqueries;
-				m_freem(m);
-				return;
-			}
+	case IGMP_HOST_MEMBERSHIP_QUERY:
+		if (igmplen == IGMP_MINLEN) {
+			if (igmp->igmp_code == 0)
+				queryver = IGMP_VERSION_1;
+			else
+				queryver = IGMP_VERSION_2;
+		} else if (igmplen >= IGMP_V3_QUERY_MINLEN) {
+			queryver = IGMP_VERSION_3;
 		} else {
-			/*
-			 * New router.  Simply do the new validity check.
-			 */
-			
-			if (igmp->igmp_group.s_addr != 0 &&
-			    !IN_MULTICAST(ntohl(igmp->igmp_group.s_addr))) {
-				++V_igmpstat.igps_rcv_badqueries;
-				m_freem(m);
-				return;
-			}
-		}
-
-		/*
-		 * - Start the timers in all of our membership records that
-		 *   the query applies to for the interface on which the
-		 *   query arrived excl. those that belong to the "all-hosts"
-		 *   group (224.0.0.1).
-		 * - Restart any timer that is already running but has a
-		 *   value longer than the requested timeout.
-		 * - Use the value specified in the query message as the
-		 *   maximum timeout.
-		 */
-		IN_MULTI_LOCK();
-		IN_FIRST_MULTI(step, inm);
-		while (inm != NULL) {
-			if (inm->inm_ifp == ifp &&
-			    inm->inm_addr.s_addr != igmp_all_hosts_group &&
-			    (igmp->igmp_group.s_addr == 0 ||
-			     igmp->igmp_group.s_addr == inm->inm_addr.s_addr)) {
-				if (inm->inm_timer == 0 ||
-				    inm->inm_timer > timer) {
-					inm->inm_timer =
-						IGMP_RANDOM_DELAY(timer);
-					igmp_timers_are_running = 1;
-				}
-			}
-			IN_NEXT_MULTI(step, inm);
-		}
-		IN_MULTI_UNLOCK();
-		break;
-
-	case IGMP_V1_MEMBERSHIP_REPORT:
-	case IGMP_V2_MEMBERSHIP_REPORT:
-		/*
-		 * For fast leave to work, we have to know that we are the
-		 * last person to send a report for this group.  Reports can
-		 * potentially get looped back if we are a multicast router,
-		 * so discard reports sourced by me.
-		 */
-		IFP_TO_IA(ifp, ia);
-		if (ia != NULL &&
-		    ip->ip_src.s_addr == IA_SIN(ia)->sin_addr.s_addr)
-			break;
-
-		++V_igmpstat.igps_rcv_reports;
-
-		if (ifp->if_flags & IFF_LOOPBACK)
-			break;
-
-		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr))) {
-			++V_igmpstat.igps_rcv_badreports;
+			++V_igmpstat.igps_rcv_tooshort;
 			m_freem(m);
 			return;
 		}
 
-		/*
-		 * KLUDGE: if the IP source address of the report has an
-		 * unspecified (i.e., zero) subnet number, as is allowed for
-		 * a booting host, replace it with the correct subnet number
-		 * so that a process-level multicast routing daemon can
-		 * determine which subnet it arrived from.  This is necessary
-		 * to compensate for the lack of any way for a process to
-		 * determine the arrival interface of an incoming packet.
-		 */
-		if ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) == 0) {
-			if (ia != NULL)
-				ip->ip_src.s_addr = htonl(ia->ia_subnet);
-		}
+		switch (queryver) {
+		case IGMP_VERSION_1:
+			++V_igmpstat.igps_rcv_v1v2_queries;
+			if (!V_igmp_v1enable)
+				break;
+			if (igmp_input_v1_query(ifp, ip) != 0) {
+				m_freem(m);
+				return;
+			}
+			break;
 
-		/*
-		 * If we belong to the group being reported, stop our timer
-		 * for that group.
-		 */
-		IN_MULTI_LOCK();
-		IN_LOOKUP_MULTI(igmp->igmp_group, ifp, inm);
-		if (inm != NULL) {
-			inm->inm_timer = 0;
-			++V_igmpstat.igps_rcv_ourreports;
-			inm->inm_state = IGMP_OTHERMEMBER;
+		case IGMP_VERSION_2:
+			++V_igmpstat.igps_rcv_v1v2_queries;
+			if (!V_igmp_v2enable)
+				break;
+			if (igmp_input_v2_query(ifp, ip, igmp) != 0) {
+				m_freem(m);
+				return;
+			}
+			break;
+
+		case IGMP_VERSION_3: {
+				struct igmpv3 *igmpv3;
+				uint16_t igmpv3len;
+				uint16_t srclen;
+				int nsrc;
+
+				++V_igmpstat.igps_rcv_v3_queries;
+				igmpv3 = (struct igmpv3 *)igmp;
+				/*
+				 * Validate length based on source count.
+				 */
+				nsrc = ntohs(igmpv3->igmp_numsrc);
+				srclen = sizeof(struct in_addr) * nsrc;
+				if (nsrc * sizeof(in_addr_t) > srclen) {
+					++V_igmpstat.igps_rcv_tooshort;
+					return;
+				}
+				/*
+				 * m_pullup() may modify m, so pullup in
+				 * this scope.
+				 */
+				igmpv3len = iphlen + IGMP_V3_QUERY_MINLEN +
+				    srclen;
+				if ((m->m_flags & M_EXT ||
+				     m->m_len < igmpv3len) &&
+				    (m = m_pullup(m, igmpv3len)) == NULL) {
+					++V_igmpstat.igps_rcv_tooshort;
+					return;
+				}
+				igmpv3 = (struct igmpv3 *)(mtod(m, uint8_t *)
+				    + iphlen);
+				if (igmp_input_v3_query(ifp, ip, igmpv3) != 0) {
+					m_freem(m);
+					return;
+				}
+			}
+			break;
 		}
-		IN_MULTI_UNLOCK();
+		break;
+
+	case IGMP_v1_HOST_MEMBERSHIP_REPORT:
+		if (!V_igmp_v1enable)
+			break;
+		if (igmp_input_v1_report(ifp, ip, igmp) != 0) {
+			m_freem(m);
+			return;
+		}
+		break;
+
+	case IGMP_v2_HOST_MEMBERSHIP_REPORT:
+		if (!V_igmp_v2enable)
+			break;
+		if (!ip_checkrouteralert(m))
+			++V_igmpstat.igps_rcv_nora;
+		if (igmp_input_v2_report(ifp, ip, igmp) != 0) {
+			m_freem(m);
+			return;
+		}
+		break;
+
+	case IGMP_v3_HOST_MEMBERSHIP_REPORT:
+		/*
+		 * Hosts do not need to process IGMPv3 membership reports,
+		 * as report suppression is no longer required.
+		 */
+		if (!ip_checkrouteralert(m))
+			++V_igmpstat.igps_rcv_nora;
+		break;
+
+	default:
 		break;
 	}
 
@@ -379,163 +1591,2102 @@ igmp_input(register struct mbuf *m, int off)
 	rip_input(m, off);
 }
 
-void
-igmp_joingroup(struct in_multi *inm)
-{
 
-	IN_MULTI_LOCK_ASSERT();
-
-	if (inm->inm_addr.s_addr == igmp_all_hosts_group
-	    || inm->inm_ifp->if_flags & IFF_LOOPBACK) {
-		inm->inm_timer = 0;
-		inm->inm_state = IGMP_OTHERMEMBER;
-	} else {
-		mtx_lock(&igmp_mtx);
-		inm->inm_rti = find_rti(inm->inm_ifp);
-		mtx_unlock(&igmp_mtx);
-		if (inm->inm_rti != NULL) {
-			igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
-			inm->inm_timer = IGMP_RANDOM_DELAY(
-					IGMP_MAX_HOST_REPORT_DELAY*PR_FASTHZ);
-			inm->inm_state = IGMP_IREPORTEDLAST;
-			igmp_timers_are_running = 1;
-		}
-		/* XXX handling of failure case? */
-	}
-}
-
-void
-igmp_leavegroup(struct in_multi *inm)
-{
-
-	IN_MULTI_LOCK_ASSERT();
-
-	if (inm->inm_state == IGMP_IREPORTEDLAST &&
-	    inm->inm_addr.s_addr != igmp_all_hosts_group &&
-	    !(inm->inm_ifp->if_flags & IFF_LOOPBACK) &&
-	    inm->inm_rti->rti_type != IGMP_V1_ROUTER)
-		igmp_sendpkt(inm, IGMP_V2_LEAVE_GROUP, igmp_all_rtrs_group);
-}
-
+/*
+ * Fast timeout handler (global).
+ * VIMAGE: Timeout handlers are expected to service all vimages.
+ */
 void
 igmp_fasttimo(void)
 {
+#ifdef VIMAGE
 	VNET_ITERATOR_DECL(vnet_iter);
-	register struct in_multi *inm;
-	struct in_multistep step;
+
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET(vnet_iter);
+		igmp_fasttimo_vnet();
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
+#else /* !VIMAGE */
+
+	igmp_fasttimo_vnet();
+#endif /* VIMAGE */
+}
+
+/*
+ * Fast timeout handler (per-vnet).
+ * Sends are shuffled off to a netisr to deal with Giant.
+ *
+ * VIMAGE: Assume caller has set up our curvnet.
+ */
+static void
+igmp_fasttimo_vnet(void)
+{
+	struct ifqueue		 scq;	/* State-change packets */
+	struct ifqueue		 qrq;	/* Query response packets */
+	struct ifnet		*ifp;
+	struct igmp_ifinfo	*igi;
+	struct ifmultiaddr	*ifma, *tifma;
+	struct in_multi		*inm;
+	int			 loop, uri_fasthz;
+
+	loop = 0;
+	uri_fasthz = 0;
 
 	/*
 	 * Quick check to see if any work needs to be done, in order to
 	 * minimize the overhead of fasttimo processing.
+	 * SMPng: XXX Unlocked reads.
 	 */
-
-	if (!igmp_timers_are_running)
+	if (!V_current_state_timers_running &&
+	    !V_interface_timers_running &&
+	    !V_state_change_timers_running)
 		return;
 
+	if (!mpsafe_igmp)
+		mtx_lock(&Giant);
+
 	IN_MULTI_LOCK();
-	igmp_timers_are_running = 0;
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		INIT_VNET_INET(vnet_iter);
-		IN_FIRST_MULTI(step, inm);
-		while (inm != NULL) {
-			if (inm->inm_timer == 0) {
-				/* do nothing */
-			} else if (--inm->inm_timer == 0) {
-				igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
-				inm->inm_state = IGMP_IREPORTEDLAST;
+	IGMP_LOCK();
+
+	/*
+	 * IGMPv3 General Query response timer processing.
+	 */
+	if (V_interface_timers_running) {
+		CTR1(KTR_IGMPV3, "%s: interface timers running", __func__);
+
+		V_interface_timers_running = 0;
+		LIST_FOREACH(igi, &V_igi_head, igi_link) {
+			if (igi->igi_v3_timer == 0) {
+				/* Do nothing. */
+			} else if (--igi->igi_v3_timer == 0) {
+				igmp_v3_dispatch_general_query(igi);
 			} else {
-				igmp_timers_are_running = 1;
+				V_interface_timers_running = 1;
 			}
-			IN_NEXT_MULTI(step, inm);
 		}
-		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+
+	if (!V_current_state_timers_running &&
+	    !V_state_change_timers_running)
+		goto out_locked;
+
+	V_current_state_timers_running = 0;
+	V_state_change_timers_running = 0;
+
+	CTR1(KTR_IGMPV3, "%s: state change timers running", __func__);
+
+	/*
+	 * IGMPv1/v2/v3 host report and state-change timer processing.
+	 * Note: Processing a v3 group timer may remove a node.
+	 */
+	LIST_FOREACH(igi, &V_igi_head, igi_link) {
+		ifp = igi->igi_ifp;
+
+		if (igi->igi_version == IGMP_VERSION_3) {
+			loop = (igi->igi_flags & IGIF_LOOPBACK) ? 1 : 0;
+			uri_fasthz = IGMP_RANDOM_DELAY(igi->igi_uri *
+			    PR_FASTHZ);
+
+			memset(&qrq, 0, sizeof(struct ifqueue));
+			IFQ_SET_MAXLEN(&qrq, IGMP_MAX_G_GS_PACKETS);
+
+			memset(&scq, 0, sizeof(struct ifqueue));
+			IFQ_SET_MAXLEN(&scq, IGMP_MAX_STATE_CHANGE_PACKETS);
+		}
+
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link,
+		    tifma) {
+			if (ifma->ifma_addr->sa_family != AF_INET)
+				continue;
+			inm = (struct in_multi *)ifma->ifma_protospec;
+			switch (igi->igi_version) {
+			case IGMP_VERSION_1:
+			case IGMP_VERSION_2:
+				igmp_v1v2_process_group_timer(inm,
+				    igi->igi_version);
+				break;
+			case IGMP_VERSION_3:
+				igmp_v3_process_group_timers(igi, &qrq,
+				    &scq, inm, uri_fasthz);
+				break;
+			}
+		}
+		IF_ADDR_UNLOCK(ifp);
+
+		if (igi->igi_version == IGMP_VERSION_3) {
+			struct in_multi		*tinm;
+
+			igmp_dispatch_queue(&qrq, 0, loop);
+			igmp_dispatch_queue(&scq, 0, loop);
+
+			/*
+			 * Free the in_multi reference(s) for this
+			 * IGMP lifecycle.
+			 */
+			SLIST_FOREACH_SAFE(inm, &igi->igi_relinmhead,
+			    inm_nrele, tinm) {
+				SLIST_REMOVE_HEAD(&igi->igi_relinmhead,
+				    inm_nrele);
+				inm_release_locked(inm);
+			}
+		}
+	}
+
+out_locked:
+	IGMP_UNLOCK();
 	IN_MULTI_UNLOCK();
+	if (!mpsafe_igmp)
+		mtx_unlock(&Giant);
 }
 
-void
-igmp_slowtimo(void)
+/*
+ * Update host report group timer for IGMPv1/v2.
+ * Will update the global pending timer flags.
+ */
+static void
+igmp_v1v2_process_group_timer(struct in_multi *inm, const int version)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct router_info *rti;
+	int report_timer_expired;
 
-	IGMP_PRINTF("[igmp.c,_slowtimo] -- > entering \n");
-	mtx_lock(&igmp_mtx);
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		INIT_VNET_INET(vnet_iter);
-		SLIST_FOREACH(rti, &V_router_info_head, rti_list) {
-			if (rti->rti_type == IGMP_V1_ROUTER) {
-				rti->rti_time++;
-				if (rti->rti_time >= IGMP_AGE_THRESHOLD)
-					rti->rti_type = IGMP_V2_ROUTER;
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	if (inm->inm_timer == 0) {
+		report_timer_expired = 0;
+	} else if (--inm->inm_timer == 0) {
+		report_timer_expired = 1;
+	} else {
+		V_current_state_timers_running = 1;
+		return;
+	}
+
+	switch (inm->inm_state) {
+	case IGMP_NOT_MEMBER:
+	case IGMP_SILENT_MEMBER:
+	case IGMP_IDLE_MEMBER:
+	case IGMP_LAZY_MEMBER:
+	case IGMP_SLEEPING_MEMBER:
+	case IGMP_AWAKENING_MEMBER:
+		break;
+	case IGMP_REPORTING_MEMBER:
+		if (report_timer_expired) {
+			inm->inm_state = IGMP_IDLE_MEMBER;
+			(void)igmp_v1v2_queue_report(inm,
+			    (version == IGMP_VERSION_2) ?
+			     IGMP_v2_HOST_MEMBERSHIP_REPORT :
+			     IGMP_v1_HOST_MEMBERSHIP_REPORT);
+		}
+		break;
+	case IGMP_G_QUERY_PENDING_MEMBER:
+	case IGMP_SG_QUERY_PENDING_MEMBER:
+	case IGMP_LEAVING_MEMBER:
+		break;
+	}
+}
+
+/*
+ * Update a group's timers for IGMPv3.
+ * Will update the global pending timer flags.
+ * Note: Unlocked read from igi.
+ */
+static void
+igmp_v3_process_group_timers(struct igmp_ifinfo *igi,
+    struct ifqueue *qrq, struct ifqueue *scq,
+    struct in_multi *inm, const int uri_fasthz)
+{
+	int query_response_timer_expired;
+	int state_change_retransmit_timer_expired;
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	query_response_timer_expired = 0;
+	state_change_retransmit_timer_expired = 0;
+
+	/*
+	 * During a transition from v1/v2 compatibility mode back to v3,
+	 * a group record in REPORTING state may still have its group
+	 * timer active. This is a no-op in this function; it is easier
+	 * to deal with it here than to complicate the slow-timeout path.
+	 */
+	if (inm->inm_timer == 0) {
+		query_response_timer_expired = 0;
+	} else if (--inm->inm_timer == 0) {
+		query_response_timer_expired = 1;
+	} else {
+		V_current_state_timers_running = 1;
+	}
+
+	if (inm->inm_sctimer == 0) {
+		state_change_retransmit_timer_expired = 0;
+	} else if (--inm->inm_sctimer == 0) {
+		state_change_retransmit_timer_expired = 1;
+	} else {
+		V_state_change_timers_running = 1;
+	}
+
+	/* We are in fasttimo, so be quick about it. */
+	if (!state_change_retransmit_timer_expired &&
+	    !query_response_timer_expired)
+		return;
+
+	switch (inm->inm_state) {
+	case IGMP_NOT_MEMBER:
+	case IGMP_SILENT_MEMBER:
+	case IGMP_SLEEPING_MEMBER:
+	case IGMP_LAZY_MEMBER:
+	case IGMP_AWAKENING_MEMBER:
+	case IGMP_IDLE_MEMBER:
+		break;
+	case IGMP_G_QUERY_PENDING_MEMBER:
+	case IGMP_SG_QUERY_PENDING_MEMBER:
+		/*
+		 * Respond to a previously pending Group-Specific
+		 * or Group-and-Source-Specific query by enqueueing
+		 * the appropriate Current-State report for
+		 * immediate transmission.
+		 */
+		if (query_response_timer_expired) {
+			int retval;
+
+			retval = igmp_v3_enqueue_group_record(qrq, inm, 0, 1,
+			    (inm->inm_state == IGMP_SG_QUERY_PENDING_MEMBER));
+			CTR2(KTR_IGMPV3, "%s: enqueue record = %d",
+			    __func__, retval);
+			inm->inm_state = IGMP_REPORTING_MEMBER;
+			/* XXX Clear recorded sources for next time. */
+			inm_clear_recorded(inm);
+		}
+		/* FALLTHROUGH */
+	case IGMP_REPORTING_MEMBER:
+	case IGMP_LEAVING_MEMBER:
+		if (state_change_retransmit_timer_expired) {
+			/*
+			 * State-change retransmission timer fired.
+			 * If there are any further pending retransmissions,
+			 * set the global pending state-change flag, and
+			 * reset the timer.
+			 */
+			if (--inm->inm_scrv > 0) {
+				inm->inm_sctimer = uri_fasthz;
+				V_state_change_timers_running = 1;
+			}
+			/*
+			 * Retransmit the previously computed state-change
+			 * report. If there are no further pending
+			 * retransmissions, the mbuf queue will be consumed.
+			 * Update T0 state to T1 as we have now sent
+			 * a state-change.
+			 */
+			(void)igmp_v3_merge_state_changes(inm, scq);
+
+			inm_commit(inm);
+			CTR3(KTR_IGMPV3, "%s: T1 -> T0 for %s/%s", __func__,
+			    inet_ntoa(inm->inm_addr), inm->inm_ifp->if_xname);
+
+			/*
+			 * If we are leaving the group for good, make sure
+			 * we release IGMP's reference to it.
+			 * This release must be deferred using a SLIST,
+			 * as we are called from a loop which traverses
+			 * the in_ifmultiaddr TAILQ.
+			 */
+			if (inm->inm_state == IGMP_LEAVING_MEMBER &&
+			    inm->inm_scrv == 0) {
+				inm->inm_state = IGMP_NOT_MEMBER;
+				SLIST_INSERT_HEAD(&igi->igi_relinmhead,
+				    inm, inm_nrele);
 			}
 		}
-		CURVNET_RESTORE();
+		break;
 	}
-	VNET_LIST_RUNLOCK();
-	mtx_unlock(&igmp_mtx);
-	IGMP_PRINTF("[igmp.c,_slowtimo] -- > exiting \n");
 }
 
+
+/*
+ * Suppress a group's pending response to a group or source/group query.
+ *
+ * Do NOT suppress state changes. This leads to IGMPv3 inconsistency.
+ * Do NOT update ST1/ST0 as this operation merely suppresses
+ * the currently pending group record.
+ * Do NOT suppress the response to a general query. It is possible but
+ * it would require adding another state or flag.
+ */
 static void
-igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
+igmp_v3_suppress_group_record(struct in_multi *inm)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
-	struct mbuf *m;
-	struct igmp *igmp;
-	struct ip *ip;
-	struct ip_moptions imo;
 
 	IN_MULTI_LOCK_ASSERT();
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL)
+	KASSERT(inm->inm_igi->igi_version == IGMP_VERSION_3,
+		("%s: not IGMPv3 mode on link", __func__));
+
+	if (inm->inm_state != IGMP_G_QUERY_PENDING_MEMBER ||
+	    inm->inm_state != IGMP_SG_QUERY_PENDING_MEMBER)
 		return;
 
-	m->m_pkthdr.rcvif = V_loif;
-#ifdef MAC
-	mac_netinet_igmp_send(inm->inm_ifp, m);
-#endif
-	m->m_pkthdr.len = sizeof(struct ip) + IGMP_MINLEN;
-	MH_ALIGN(m, IGMP_MINLEN + sizeof(struct ip));
+	if (inm->inm_state == IGMP_SG_QUERY_PENDING_MEMBER)
+		inm_clear_recorded(inm);
+
+	inm->inm_timer = 0;
+	inm->inm_state = IGMP_REPORTING_MEMBER;
+}
+
+/*
+ * Switch to a different IGMP version on the given interface,
+ * as per Section 7.2.1.
+ */
+static void
+igmp_set_version(struct igmp_ifinfo *igi, const int version)
+{
+
+	IGMP_LOCK_ASSERT();
+
+	CTR4(KTR_IGMPV3, "%s: switching to v%d on ifp %p(%s)", __func__,
+	    version, igi->igi_ifp, igi->igi_ifp->if_xname);
+
+	if (version == IGMP_VERSION_1 || version == IGMP_VERSION_2) {
+		int old_version_timer;
+		/*
+		 * Compute the "Older Version Querier Present" timer as per
+		 * Section 8.12.
+		 */
+		old_version_timer = igi->igi_rv * igi->igi_qi + igi->igi_qri;
+		old_version_timer *= PR_SLOWHZ;
+
+		if (version == IGMP_VERSION_1) {
+			igi->igi_v1_timer = old_version_timer;
+			igi->igi_v2_timer = 0;
+		} else if (version == IGMP_VERSION_2) {
+			igi->igi_v1_timer = 0;
+			igi->igi_v2_timer = old_version_timer;
+		}
+	}
+
+	if (igi->igi_v1_timer == 0 && igi->igi_v2_timer > 0) {
+		if (igi->igi_version != IGMP_VERSION_2) {
+			igi->igi_version = IGMP_VERSION_2;
+			igmp_v3_cancel_link_timers(igi);
+		}
+	} else if (igi->igi_v1_timer > 0) {
+		if (igi->igi_version != IGMP_VERSION_1) {
+			igi->igi_version = IGMP_VERSION_1;
+			igmp_v3_cancel_link_timers(igi);
+		}
+	}
+}
+
+/*
+ * Cancel pending IGMPv3 timers for the given link and all groups
+ * joined on it; state-change, general-query, and group-query timers.
+ */
+static void
+igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
+{
+	struct ifmultiaddr	*ifma;
+	struct ifnet		*ifp;
+	struct in_multi		*inm;
+
+	CTR3(KTR_IGMPV3, "%s: cancel v3 timers on ifp %p(%s)", __func__,
+	    igi->igi_ifp, igi->igi_ifp->if_xname);
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	/*
+	 * Fast-track this potentially expensive operation
+	 * by checking all the global 'timer pending' flags.
+	 */
+	if (!V_interface_timers_running &&
+	    !V_state_change_timers_running &&
+	    !V_current_state_timers_running)
+		return;
+
+	igi->igi_v3_timer = 0;
+
+	ifp = igi->igi_ifp;
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_INET)
+			continue;
+		inm = (struct in_multi *)ifma->ifma_protospec;
+		switch (inm->inm_state) {
+		case IGMP_NOT_MEMBER:
+		case IGMP_SILENT_MEMBER:
+		case IGMP_IDLE_MEMBER:
+		case IGMP_LAZY_MEMBER:
+		case IGMP_SLEEPING_MEMBER:
+		case IGMP_AWAKENING_MEMBER:
+			break;
+		case IGMP_LEAVING_MEMBER:
+			/*
+			 * If we are leaving the group and switching
+			 * IGMP version, we need to release the final
+			 * reference held for issuing the INCLUDE {}.
+			 *
+			 * SMPNG: Must drop and re-acquire IF_ADDR_LOCK
+			 * around inm_release_locked(), as it is not
+			 * a recursive mutex.
+			 */
+			IF_ADDR_UNLOCK(ifp);
+			inm_release_locked(inm);
+			IF_ADDR_LOCK(ifp);
+			/* FALLTHROUGH */
+		case IGMP_G_QUERY_PENDING_MEMBER:
+		case IGMP_SG_QUERY_PENDING_MEMBER:
+			inm_clear_recorded(inm);
+			/* FALLTHROUGH */
+		case IGMP_REPORTING_MEMBER:
+			inm->inm_sctimer = 0;
+			inm->inm_timer = 0;
+			inm->inm_state = IGMP_REPORTING_MEMBER;
+			/*
+			 * Free any pending IGMPv3 state-change records.
+			 */
+			_IF_DRAIN(&inm->inm_scq);
+			break;
+		}
+	}
+	IF_ADDR_UNLOCK(ifp);
+}
+
+/*
+ * Update the Older Version Querier Present timers for a link.
+ * See Section 7.2.1 of RFC 3376.
+ */
+static void
+igmp_v1v2_process_querier_timers(struct igmp_ifinfo *igi)
+{
+
+	IGMP_LOCK_ASSERT();
+
+	if (igi->igi_v1_timer == 0 && igi->igi_v2_timer == 0) {
+		/*
+		 * IGMPv1 and IGMPv2 Querier Present timers expired.
+		 *
+		 * Revert to IGMPv3.
+		 */
+		if (igi->igi_version != IGMP_VERSION_3) {
+			CTR5(KTR_IGMPV3,
+			    "%s: transition from v%d -> v%d on %p(%s)",
+			    __func__, igi->igi_version, IGMP_VERSION_3,
+			    igi->igi_ifp, igi->igi_ifp->if_xname);
+			igi->igi_version = IGMP_VERSION_3;
+		}
+	} else if (igi->igi_v1_timer == 0 && igi->igi_v2_timer > 0) {
+		/*
+		 * IGMPv1 Querier Present timer expired,
+		 * IGMPv2 Querier Present timer running.
+		 * If IGMPv2 was disabled since last timeout,
+		 * revert to IGMPv3.
+		 * If IGMPv2 is enabled, revert to IGMPv2.
+		 */
+		if (!V_igmp_v2enable) {
+			CTR5(KTR_IGMPV3,
+			    "%s: transition from v%d -> v%d on %p(%s)",
+			    __func__, igi->igi_version, IGMP_VERSION_3,
+			    igi->igi_ifp, igi->igi_ifp->if_xname);
+			igi->igi_v2_timer = 0;
+			igi->igi_version = IGMP_VERSION_3;
+		} else {
+			--igi->igi_v2_timer;
+			if (igi->igi_version != IGMP_VERSION_2) {
+				CTR5(KTR_IGMPV3,
+				    "%s: transition from v%d -> v%d on %p(%s)",
+				    __func__, igi->igi_version, IGMP_VERSION_2,
+				    igi->igi_ifp, igi->igi_ifp->if_xname);
+				igi->igi_version = IGMP_VERSION_2;
+			}
+		}
+	} else if (igi->igi_v1_timer > 0) {
+		/*
+		 * IGMPv1 Querier Present timer running.
+		 * Stop IGMPv2 timer if running.
+		 *
+		 * If IGMPv1 was disabled since last timeout,
+		 * revert to IGMPv3.
+		 * If IGMPv1 is enabled, reset IGMPv2 timer if running.
+		 */
+		if (!V_igmp_v1enable) {
+			CTR5(KTR_IGMPV3,
+			    "%s: transition from v%d -> v%d on %p(%s)",
+			    __func__, igi->igi_version, IGMP_VERSION_3,
+			    igi->igi_ifp, igi->igi_ifp->if_xname);
+			igi->igi_v1_timer = 0;
+			igi->igi_version = IGMP_VERSION_3;
+		} else {
+			--igi->igi_v1_timer;
+		}
+		if (igi->igi_v2_timer > 0) {
+			CTR3(KTR_IGMPV3,
+			    "%s: cancel v2 timer on %p(%s)",
+			    __func__, igi->igi_ifp, igi->igi_ifp->if_xname);
+			igi->igi_v2_timer = 0;
+		}
+	}
+}
+
+/*
+ * Global slowtimo handler.
+ * VIMAGE: Timeout handlers are expected to service all vimages.
+ */
+void
+igmp_slowtimo(void)
+{
+#ifdef VIMAGE
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET(vnet_iter);
+		igmp_slowtimo_vnet();
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
+#else /* !VIMAGE */
+	igmp_slowtimo_vnet();
+#endif /* VIMAGE */
+}
+
+/*
+ * Per-vnet slowtimo handler.
+ */
+static void
+igmp_slowtimo_vnet(void)
+{
+	struct igmp_ifinfo *igi;
+
+	IGMP_LOCK();
+
+	LIST_FOREACH(igi, &V_igi_head, igi_link) {
+		igmp_v1v2_process_querier_timers(igi);
+	}
+
+	IGMP_UNLOCK();
+}
+
+/*
+ * Dispatch an IGMPv1/v2 host report or leave message.
+ * These are always small enough to fit inside a single mbuf.
+ */
+static int
+igmp_v1v2_queue_report(struct in_multi *inm, const int type)
+{
+	struct ifnet		*ifp;
+	struct igmp		*igmp;
+	struct ip		*ip;
+	struct mbuf		*m;
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	ifp = inm->inm_ifp;
+	/* XXX are these needed ? */
+	INIT_VNET_NET(ifp->if_vnet);
+	INIT_VNET_INET(ifp->if_vnet);
+
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (m == NULL)
+		return (ENOMEM);
+	MH_ALIGN(m, sizeof(struct ip) + sizeof(struct igmp));
+
+	m->m_pkthdr.len = sizeof(struct ip) + sizeof(struct igmp);
+
 	m->m_data += sizeof(struct ip);
-	m->m_len = IGMP_MINLEN;
+	m->m_len = sizeof(struct igmp);
+
 	igmp = mtod(m, struct igmp *);
 	igmp->igmp_type = type;
 	igmp->igmp_code = 0;
 	igmp->igmp_group = inm->inm_addr;
 	igmp->igmp_cksum = 0;
-	igmp->igmp_cksum = in_cksum(m, IGMP_MINLEN);
+	igmp->igmp_cksum = in_cksum(m, sizeof(struct igmp));
 
 	m->m_data -= sizeof(struct ip);
 	m->m_len += sizeof(struct ip);
+
 	ip = mtod(m, struct ip *);
 	ip->ip_tos = 0;
-	ip->ip_len = sizeof(struct ip) + IGMP_MINLEN;
+	ip->ip_len = sizeof(struct ip) + sizeof(struct igmp);
 	ip->ip_off = 0;
 	ip->ip_p = IPPROTO_IGMP;
 	ip->ip_src.s_addr = INADDR_ANY;
-	ip->ip_dst.s_addr = addr ? addr : igmp->igmp_group.s_addr;
 
-	imo.imo_multicast_ifp  = inm->inm_ifp;
+	if (type == IGMP_HOST_LEAVE_MESSAGE)
+		ip->ip_dst.s_addr = htonl(INADDR_ALLRTRS_GROUP);
+	else
+		ip->ip_dst = inm->inm_addr;
+
+	igmp_save_context(m, ifp);
+
+	m->m_flags |= M_IGMPV2;
+	if (inm->inm_igi->igi_flags & IGIF_LOOPBACK)
+		m->m_flags |= M_IGMP_LOOP;
+
+	CTR2(KTR_IGMPV3, "%s: netisr_dispatch(NETISR_IGMP, %p)", __func__, m);
+	netisr_dispatch(NETISR_IGMP, m);
+
+	return (0);
+}
+
+/*
+ * Process a state change from the upper layer for the given IPv4 group.
+ *
+ * Each socket holds a reference on the in_multi in its own ip_moptions.
+ * The socket layer will have made the necessary updates to.the group
+ * state, it is now up to IGMP to issue a state change report if there
+ * has been any change between T0 (when the last state-change was issued)
+ * and T1 (now).
+ *
+ * We use the IGMPv3 state machine at group level. The IGMP module
+ * however makes the decision as to which IGMP protocol version to speak.
+ * A state change *from* INCLUDE {} always means an initial join.
+ * A state change *to* INCLUDE {} always means a final leave.
+ *
+ * FUTURE: If IGIF_V3LITE is enabled for this interface, then we can
+ * save ourselves a bunch of work; any exclusive mode groups need not
+ * compute source filter lists.
+ *
+ * VIMAGE: curvnet should have been set by caller, as this routine
+ * is called from the socket option handlers.
+ */
+int
+igmp_change_state(struct in_multi *inm)
+{
+	struct igmp_ifinfo *igi;
+	struct ifnet *ifp;
+	int error;
+
+	IN_MULTI_LOCK_ASSERT();
+
+	error = 0;
+
+	/*
+	 * Try to detect if the upper layer just asked us to change state
+	 * for an interface which has now gone away.
+	 */
+	KASSERT(inm->inm_ifma != NULL, ("%s: no ifma", __func__));
+	ifp = inm->inm_ifma->ifma_ifp;
+	if (ifp != NULL) {
+		/*
+		 * Sanity check that netinet's notion of ifp is the
+		 * same as net's.
+		 */
+		KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
+	}
+
+	IGMP_LOCK();
+
+	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
+	KASSERT(igi != NULL, ("%s: no igmp_ifinfo for ifp %p", __func__, ifp));
+
+	/*
+	 * If we detect a state transition to or from MCAST_UNDEFINED
+	 * for this group, then we are starting or finishing an IGMP
+	 * life cycle for this group.
+	 */
+	if (inm->inm_st[1].iss_fmode != inm->inm_st[0].iss_fmode) {
+		CTR3(KTR_IGMPV3, "%s: inm transition %d -> %d", __func__,
+		    inm->inm_st[0].iss_fmode, inm->inm_st[1].iss_fmode);
+		if (inm->inm_st[0].iss_fmode == MCAST_UNDEFINED) {
+			CTR1(KTR_IGMPV3, "%s: initial join", __func__);
+			error = igmp_initial_join(inm, igi);
+			goto out_locked;
+		} else if (inm->inm_st[1].iss_fmode == MCAST_UNDEFINED) {
+			CTR1(KTR_IGMPV3, "%s: final leave", __func__);
+			igmp_final_leave(inm, igi);
+			goto out_locked;
+		}
+	} else {
+		CTR1(KTR_IGMPV3, "%s: filter set change", __func__);
+	}
+
+	error = igmp_handle_state_change(inm, igi);
+
+out_locked:
+	IGMP_UNLOCK();
+	return (error);
+}
+
+/*
+ * Perform the initial join for an IGMP group.
+ *
+ * When joining a group:
+ *  If the group should have its IGMP traffic suppressed, do nothing.
+ *  IGMPv1 starts sending IGMPv1 host membership reports.
+ *  IGMPv2 starts sending IGMPv2 host membership reports.
+ *  IGMPv3 will schedule an IGMPv3 state-change report containing the
+ *  initial state of the membership.
+ */
+static int
+igmp_initial_join(struct in_multi *inm, struct igmp_ifinfo *igi)
+{
+	struct ifnet		*ifp;
+	struct ifqueue		*ifq;
+	int			 error, retval, syncstates;
+
+	CTR4(KTR_IGMPV3, "%s: initial join %s on ifp %p(%s)",
+	    __func__, inet_ntoa(inm->inm_addr), inm->inm_ifp,
+	    inm->inm_ifp->if_xname);
+
+	error = 0;
+	syncstates = 1;
+
+	ifp = inm->inm_ifp;
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	KASSERT(igi && igi->igi_ifp == ifp, ("%s: inconsistent ifp", __func__));
+
+	/*
+	 * Groups joined on loopback or marked as 'not reported',
+	 * e.g. 224.0.0.1, enter the IGMP_SILENT_MEMBER state and
+	 * are never reported in any IGMP protocol exchanges.
+	 * All other groups enter the appropriate IGMP state machine
+	 * for the version in use on this link.
+	 * A link marked as IGIF_SILENT causes IGMP to be completely
+	 * disabled for the link.
+	 */
+	if ((ifp->if_flags & IFF_LOOPBACK) ||
+	    (igi->igi_flags & IGIF_SILENT) ||
+	    !igmp_isgroupreported(inm->inm_addr)) {
+		CTR1(KTR_IGMPV3,
+"%s: not kicking state machine for silent group", __func__);
+		inm->inm_state = IGMP_SILENT_MEMBER;
+		inm->inm_timer = 0;
+	} else {
+		/*
+		 * Deal with overlapping in_multi lifecycle.
+		 * If this group was LEAVING, then make sure
+		 * we drop the reference we picked up to keep the
+		 * group around for the final INCLUDE {} enqueue.
+		 */
+		if (igi->igi_version == IGMP_VERSION_3 &&
+		    inm->inm_state == IGMP_LEAVING_MEMBER)
+			inm_release_locked(inm);
+
+		inm->inm_state = IGMP_REPORTING_MEMBER;
+
+		switch (igi->igi_version) {
+		case IGMP_VERSION_1:
+		case IGMP_VERSION_2:
+			inm->inm_state = IGMP_IDLE_MEMBER;
+			error = igmp_v1v2_queue_report(inm,
+			    (igi->igi_version == IGMP_VERSION_2) ?
+			     IGMP_v2_HOST_MEMBERSHIP_REPORT :
+			     IGMP_v1_HOST_MEMBERSHIP_REPORT);
+			if (error == 0) {
+				inm->inm_timer = IGMP_RANDOM_DELAY(
+				    IGMP_V1V2_MAX_RI * PR_FASTHZ);
+				V_current_state_timers_running = 1;
+			}
+			break;
+
+		case IGMP_VERSION_3:
+			/*
+			 * Defer update of T0 to T1, until the first copy
+			 * of the state change has been transmitted.
+			 */
+			syncstates = 0;
+
+			/*
+			 * Immediately enqueue a State-Change Report for
+			 * this interface, freeing any previous reports.
+			 * Don't kick the timers if there is nothing to do,
+			 * or if an error occurred.
+			 */
+			ifq = &inm->inm_scq;
+			_IF_DRAIN(ifq);
+			retval = igmp_v3_enqueue_group_record(ifq, inm, 1,
+			    0, 0);
+			CTR2(KTR_IGMPV3, "%s: enqueue record = %d",
+			    __func__, retval);
+			if (retval <= 0) {
+				error = retval * -1;
+				break;
+			}
+
+			/*
+			 * Schedule transmission of pending state-change
+			 * report up to RV times for this link. The timer
+			 * will fire at the next igmp_fasttimo (~200ms),
+			 * giving us an opportunity to merge the reports.
+			 */
+			if (igi->igi_flags & IGIF_LOOPBACK) {
+				inm->inm_scrv = 1;
+			} else {
+				KASSERT(igi->igi_rv > 1,
+				   ("%s: invalid robustness %d", __func__,
+				    igi->igi_rv));
+				inm->inm_scrv = igi->igi_rv;
+			}
+			inm->inm_sctimer = 1;
+			V_state_change_timers_running = 1;
+
+			error = 0;
+			break;
+		}
+	}
+
+	/*
+	 * Only update the T0 state if state change is atomic,
+	 * i.e. we don't need to wait for a timer to fire before we
+	 * can consider the state change to have been communicated.
+	 */
+	if (syncstates) {
+		inm_commit(inm);
+		CTR3(KTR_IGMPV3, "%s: T1 -> T0 for %s/%s", __func__,
+		    inet_ntoa(inm->inm_addr), inm->inm_ifp->if_xname);
+	}
+
+	return (error);
+}
+
+/*
+ * Issue an intermediate state change during the IGMP life-cycle.
+ */
+static int
+igmp_handle_state_change(struct in_multi *inm, struct igmp_ifinfo *igi)
+{
+	struct ifnet		*ifp;
+	int			 retval;
+
+	CTR4(KTR_IGMPV3, "%s: state change for %s on ifp %p(%s)",
+	    __func__, inet_ntoa(inm->inm_addr), inm->inm_ifp,
+	    inm->inm_ifp->if_xname);
+
+	ifp = inm->inm_ifp;
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	KASSERT(igi && igi->igi_ifp == ifp, ("%s: inconsistent ifp", __func__));
+
+	if ((ifp->if_flags & IFF_LOOPBACK) ||
+	    (igi->igi_flags & IGIF_SILENT) ||
+	    !igmp_isgroupreported(inm->inm_addr) ||
+	    (igi->igi_version != IGMP_VERSION_3)) {
+		if (!igmp_isgroupreported(inm->inm_addr)) {
+			CTR1(KTR_IGMPV3,
+"%s: not kicking state machine for silent group", __func__);
+		}
+		CTR1(KTR_IGMPV3, "%s: nothing to do", __func__);
+		inm_commit(inm);
+		CTR3(KTR_IGMPV3, "%s: T1 -> T0 for %s/%s", __func__,
+		    inet_ntoa(inm->inm_addr), inm->inm_ifp->if_xname);
+		return (0);
+	}
+
+	_IF_DRAIN(&inm->inm_scq);
+
+	retval = igmp_v3_enqueue_group_record(&inm->inm_scq, inm, 1, 0, 0);
+	CTR2(KTR_IGMPV3, "%s: enqueue record = %d", __func__, retval);
+	if (retval <= 0)
+		return (-retval);
+
+	/*
+	 * If record(s) were enqueued, start the state-change
+	 * report timer for this group.
+	 */
+	inm->inm_scrv = ((igi->igi_flags & IGIF_LOOPBACK) ? 1 : igi->igi_rv);
+	inm->inm_sctimer = 1;
+	V_state_change_timers_running = 1;
+
+	return (0);
+}
+
+/*
+ * Perform the final leave for an IGMP group.
+ *
+ * When leaving a group:
+ *  IGMPv1 does nothing.
+ *  IGMPv2 sends a host leave message, if and only if we are the reporter.
+ *  IGMPv3 enqueues a state-change report containing a transition
+ *  to INCLUDE {} for immediate transmission.
+ */
+static void
+igmp_final_leave(struct in_multi *inm, struct igmp_ifinfo *igi)
+{
+	int syncstates;
+
+	syncstates = 1;
+
+	CTR4(KTR_IGMPV3, "%s: final leave %s on ifp %p(%s)",
+	    __func__, inet_ntoa(inm->inm_addr), inm->inm_ifp,
+	    inm->inm_ifp->if_xname);
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	switch (inm->inm_state) {
+	case IGMP_NOT_MEMBER:
+	case IGMP_SILENT_MEMBER:
+	case IGMP_LEAVING_MEMBER:
+		/* Already leaving or left; do nothing. */
+		CTR1(KTR_IGMPV3,
+"%s: not kicking state machine for silent group", __func__);
+		break;
+	case IGMP_REPORTING_MEMBER:
+	case IGMP_IDLE_MEMBER:
+	case IGMP_G_QUERY_PENDING_MEMBER:
+	case IGMP_SG_QUERY_PENDING_MEMBER:
+		if (igi->igi_version == IGMP_VERSION_2) {
+#ifdef INVARIANTS
+			if (inm->inm_state == IGMP_G_QUERY_PENDING_MEMBER ||
+			    inm->inm_state == IGMP_SG_QUERY_PENDING_MEMBER)
+			panic("%s: IGMPv3 state reached, not IGMPv3 mode",
+			     __func__);
+#endif
+			igmp_v1v2_queue_report(inm, IGMP_HOST_LEAVE_MESSAGE);
+			inm->inm_state = IGMP_NOT_MEMBER;
+		} else if (igi->igi_version == IGMP_VERSION_3) {
+			/*
+			 * Stop group timer and all pending reports.
+			 * Immediately enqueue a state-change report
+			 * TO_IN {} to be sent on the next fast timeout,
+			 * giving us an opportunity to merge reports.
+			 */
+			_IF_DRAIN(&inm->inm_scq);
+			inm->inm_timer = 0;
+			if (igi->igi_flags & IGIF_LOOPBACK) {
+				inm->inm_scrv = 1;
+			} else {
+				inm->inm_scrv = igi->igi_rv;
+			}
+			CTR4(KTR_IGMPV3, "%s: Leaving %s/%s with %d "
+			    "pending retransmissions.", __func__,
+			    inet_ntoa(inm->inm_addr),
+			    inm->inm_ifp->if_xname, inm->inm_scrv);
+			if (inm->inm_scrv == 0) {
+				inm->inm_state = IGMP_NOT_MEMBER;
+				inm->inm_sctimer = 0;
+			} else {
+				int retval;
+
+				inm_acquire_locked(inm);
+
+				retval = igmp_v3_enqueue_group_record(
+				    &inm->inm_scq, inm, 1, 0, 0);
+				KASSERT(retval != 0,
+				    ("%s: enqueue record = %d", __func__,
+				     retval));
+
+				inm->inm_state = IGMP_LEAVING_MEMBER;
+				inm->inm_sctimer = 1;
+				V_state_change_timers_running = 1;
+				syncstates = 0;
+			}
+			break;
+		}
+		break;
+	case IGMP_LAZY_MEMBER:
+	case IGMP_SLEEPING_MEMBER:
+	case IGMP_AWAKENING_MEMBER:
+		/* Our reports are suppressed; do nothing. */
+		break;
+	}
+
+	if (syncstates) {
+		inm_commit(inm);
+		CTR3(KTR_IGMPV3, "%s: T1 -> T0 for %s/%s", __func__,
+		    inet_ntoa(inm->inm_addr), inm->inm_ifp->if_xname);
+		inm->inm_st[1].iss_fmode = MCAST_UNDEFINED;
+		CTR3(KTR_IGMPV3, "%s: T1 now MCAST_UNDEFINED for %s/%s",
+		    __func__, inet_ntoa(inm->inm_addr), inm->inm_ifp->if_xname);
+	}
+}
+
+/*
+ * Enqueue an IGMPv3 group record to the given output queue.
+ *
+ * XXX This function could do with having the allocation code
+ * split out, and the multiple-tree-walks coalesced into a single
+ * routine as has been done in igmp_v3_enqueue_filter_change().
+ *
+ * If is_state_change is zero, a current-state record is appended.
+ * If is_state_change is non-zero, a state-change report is appended.
+ *
+ * If is_group_query is non-zero, an mbuf packet chain is allocated.
+ * If is_group_query is zero, and if there is a packet with free space
+ * at the tail of the queue, it will be appended to providing there
+ * is enough free space.
+ * Otherwise a new mbuf packet chain is allocated.
+ *
+ * If is_source_query is non-zero, each source is checked to see if
+ * it was recorded for a Group-Source query, and will be omitted if
+ * it is not both in-mode and recorded.
+ *
+ * The function will attempt to allocate leading space in the packet
+ * for the IP/IGMP header to be prepended without fragmenting the chain.
+ *
+ * If successful the size of all data appended to the queue is returned,
+ * otherwise an error code less than zero is returned, or zero if
+ * no record(s) were appended.
+ */
+static int
+igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
+    const int is_state_change, const int is_group_query,
+    const int is_source_query)
+{
+	struct igmp_grouprec	 ig;
+	struct igmp_grouprec	*pig;
+	struct ifnet		*ifp;
+	struct ip_msource	*ims, *nims;
+	struct mbuf		*m0, *m, *md;
+	int			 error, is_filter_list_change;
+	int			 minrec0len, m0srcs, msrcs, nbytes, off;
+	int			 record_has_sources;
+	int			 now;
+	int			 type;
+	in_addr_t		 naddr;
+	uint8_t			 mode;
+
+	IN_MULTI_LOCK_ASSERT();
+
+	error = 0;
+	ifp = inm->inm_ifp;
+	is_filter_list_change = 0;
+	m = NULL;
+	m0 = NULL;
+	m0srcs = 0;
+	msrcs = 0;
+	nbytes = 0;
+	nims = NULL;
+	record_has_sources = 1;
+	pig = NULL;
+	type = IGMP_DO_NOTHING;
+	mode = inm->inm_st[1].iss_fmode;
+
+	/*
+	 * If we did not transition out of ASM mode during t0->t1,
+	 * and there are no source nodes to process, we can skip
+	 * the generation of source records.
+	 */
+	if (inm->inm_st[0].iss_asm > 0 && inm->inm_st[1].iss_asm > 0 &&
+	    inm->inm_nsrc == 0)
+		record_has_sources = 0;
+
+	if (is_state_change) {
+		/*
+		 * Queue a state change record.
+		 * If the mode did not change, and there are non-ASM
+		 * listeners or source filters present,
+		 * we potentially need to issue two records for the group.
+		 * If we are transitioning to MCAST_UNDEFINED, we need
+		 * not send any sources.
+		 * If there are ASM listeners, and there was no filter
+		 * mode transition of any kind, do nothing.
+		 */
+		if (mode != inm->inm_st[0].iss_fmode) {
+			if (mode == MCAST_EXCLUDE) {
+				CTR1(KTR_IGMPV3, "%s: change to EXCLUDE",
+				    __func__);
+				type = IGMP_CHANGE_TO_EXCLUDE_MODE;
+			} else {
+				CTR1(KTR_IGMPV3, "%s: change to INCLUDE",
+				    __func__);
+				type = IGMP_CHANGE_TO_INCLUDE_MODE;
+				if (mode == MCAST_UNDEFINED)
+					record_has_sources = 0;
+			}
+		} else {
+			if (record_has_sources) {
+				is_filter_list_change = 1;
+			} else {
+				type = IGMP_DO_NOTHING;
+			}
+		}
+	} else {
+		/*
+		 * Queue a current state record.
+		 */
+		if (mode == MCAST_EXCLUDE) {
+			type = IGMP_MODE_IS_EXCLUDE;
+		} else if (mode == MCAST_INCLUDE) {
+			type = IGMP_MODE_IS_INCLUDE;
+			KASSERT(inm->inm_st[1].iss_asm == 0,
+			    ("%s: inm %p is INCLUDE but ASM count is %d",
+			     __func__, inm, inm->inm_st[1].iss_asm));
+		}
+	}
+
+	/*
+	 * Generate the filter list changes using a separate function.
+	 */
+	if (is_filter_list_change)
+		return (igmp_v3_enqueue_filter_change(ifq, inm));
+
+	if (type == IGMP_DO_NOTHING) {
+		CTR3(KTR_IGMPV3, "%s: nothing to do for %s/%s",
+		    __func__, inet_ntoa(inm->inm_addr),
+		    inm->inm_ifp->if_xname);
+		return (0);
+	}
+
+	/*
+	 * If any sources are present, we must be able to fit at least
+	 * one in the trailing space of the tail packet's mbuf,
+	 * ideally more.
+	 */
+	minrec0len = sizeof(struct igmp_grouprec);
+	if (record_has_sources)
+		minrec0len += sizeof(in_addr_t);
+
+	CTR4(KTR_IGMPV3, "%s: queueing %s for %s/%s", __func__,
+	    igmp_rec_type_to_str(type), inet_ntoa(inm->inm_addr),
+	    inm->inm_ifp->if_xname);
+
+	/*
+	 * Check if we have a packet in the tail of the queue for this
+	 * group into which the first group record for this group will fit.
+	 * Otherwise allocate a new packet.
+	 * Always allocate leading space for IP+RA_OPT+IGMP+REPORT.
+	 * Note: Group records for G/GSR query responses MUST be sent
+	 * in their own packet.
+	 */
+	m0 = ifq->ifq_tail;
+	if (!is_group_query &&
+	    m0 != NULL &&
+	    (m0->m_pkthdr.PH_vt.vt_nrecs + 1 <= IGMP_V3_REPORT_MAXRECS) &&
+	    (m0->m_pkthdr.len + minrec0len) <
+	     (ifp->if_mtu - IGMP_LEADINGSPACE)) {
+		m0srcs = (ifp->if_mtu - m0->m_pkthdr.len -
+			    sizeof(struct igmp_grouprec)) / sizeof(in_addr_t);
+		m = m0;
+		CTR1(KTR_IGMPV3, "%s: use existing packet", __func__);
+	} else {
+		if (_IF_QFULL(ifq)) {
+			CTR1(KTR_IGMPV3, "%s: outbound queue full", __func__);
+			return (-ENOMEM);
+		}
+		m = NULL;
+		m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
+		    sizeof(struct igmp_grouprec)) / sizeof(in_addr_t);
+		if (!is_state_change && !is_group_query)
+			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m == NULL) {
+			m = m_gethdr(M_DONTWAIT, MT_DATA);
+			if (m)
+				MH_ALIGN(m, IGMP_LEADINGSPACE);
+		}
+		if (m == NULL)
+			return (-ENOMEM);
+		m->m_data += IGMP_LEADINGSPACE;
+
+		igmp_save_context(m, ifp);
+
+		CTR1(KTR_IGMPV3, "%s: allocated first packet", __func__);
+	}
+
+	/*
+	 * Append group record.
+	 * If we have sources, we don't know how many yet.
+	 */
+	ig.ig_type = type;
+	ig.ig_datalen = 0;
+	ig.ig_numsrc = 0;
+	ig.ig_group = inm->inm_addr;
+	if (!m_append(m, sizeof(struct igmp_grouprec), (void *)&ig)) {
+		if (m != m0)
+			m_freem(m);
+		CTR1(KTR_IGMPV3, "%s: m_append() failed.", __func__);
+		return (-ENOMEM);
+	}
+	nbytes += sizeof(struct igmp_grouprec);
+
+	/*
+	 * Append as many sources as will fit in the first packet.
+	 * If we are appending to a new packet, the chain allocation
+	 * may potentially use clusters; use m_getptr() in this case.
+	 * If we are appending to an existing packet, we need to obtain
+	 * a pointer to the group record after m_append(), in case a new
+	 * mbuf was allocated.
+	 * Only append sources which are in-mode at t1. If we are
+	 * transitioning to MCAST_UNDEFINED state on the group, do not
+	 * include source entries.
+	 * Only report recorded sources in our filter set when responding
+	 * to a group-source query.
+	 */
+	if (record_has_sources) {
+		if (m == m0) {
+			md = m_last(m);
+			pig = (struct igmp_grouprec *)(mtod(md, uint8_t *) +
+			    md->m_len - nbytes);
+		} else {
+			md = m_getptr(m, 0, &off);
+			pig = (struct igmp_grouprec *)(mtod(md, uint8_t *) +
+			    off);
+		}
+		msrcs = 0;
+		RB_FOREACH_SAFE(ims, ip_msource_tree, &inm->inm_srcs, nims) {
+			CTR2(KTR_IGMPV3, "%s: visit node %s", __func__,
+			    inet_ntoa_haddr(ims->ims_haddr));
+			now = ims_get_mode(inm, ims, 1);
+			CTR2(KTR_IGMPV3, "%s: node is %d", __func__, now);
+			if ((now != mode) ||
+			    (now == mode && mode == MCAST_UNDEFINED)) {
+				CTR1(KTR_IGMPV3, "%s: skip node", __func__);
+				continue;
+			}
+			if (is_source_query && ims->ims_stp == 0) {
+				CTR1(KTR_IGMPV3, "%s: skip unrecorded node",
+				    __func__);
+				continue;
+			}
+			CTR1(KTR_IGMPV3, "%s: append node", __func__);
+			naddr = htonl(ims->ims_haddr);
+			if (!m_append(m, sizeof(in_addr_t), (void *)&naddr)) {
+				if (m != m0)
+					m_freem(m);
+				CTR1(KTR_IGMPV3, "%s: m_append() failed.",
+				    __func__);
+				return (-ENOMEM);
+			}
+			nbytes += sizeof(in_addr_t);
+			++msrcs;
+			if (msrcs == m0srcs)
+				break;
+		}
+		CTR2(KTR_IGMPV3, "%s: msrcs is %d this packet", __func__,
+		    msrcs);
+		pig->ig_numsrc = htons(msrcs);
+		nbytes += (msrcs * sizeof(in_addr_t));
+	}
+
+	if (is_source_query && msrcs == 0) {
+		CTR1(KTR_IGMPV3, "%s: no recorded sources to report", __func__);
+		if (m != m0)
+			m_freem(m);
+		return (0);
+	}
+
+	/*
+	 * We are good to go with first packet.
+	 */
+	if (m != m0) {
+		CTR1(KTR_IGMPV3, "%s: enqueueing first packet", __func__);
+		m->m_pkthdr.PH_vt.vt_nrecs = 1;
+		_IF_ENQUEUE(ifq, m);
+	} else
+		m->m_pkthdr.PH_vt.vt_nrecs++;
+
+	/*
+	 * No further work needed if no source list in packet(s).
+	 */
+	if (!record_has_sources)
+		return (nbytes);
+
+	/*
+	 * Whilst sources remain to be announced, we need to allocate
+	 * a new packet and fill out as many sources as will fit.
+	 * Always try for a cluster first.
+	 */
+	while (nims != NULL) {
+		if (_IF_QFULL(ifq)) {
+			CTR1(KTR_IGMPV3, "%s: outbound queue full", __func__);
+			return (-ENOMEM);
+		}
+		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m == NULL) {
+			m = m_gethdr(M_DONTWAIT, MT_DATA);
+			if (m)
+				MH_ALIGN(m, IGMP_LEADINGSPACE);
+		}
+		if (m == NULL)
+			return (-ENOMEM);
+		igmp_save_context(m, ifp);
+		m->m_data += IGMP_LEADINGSPACE;
+		md = m_getptr(m, 0, &off);
+		pig = (struct igmp_grouprec *)(mtod(md, uint8_t *) + off);
+		CTR1(KTR_IGMPV3, "%s: allocated next packet", __func__);
+
+		if (!m_append(m, sizeof(struct igmp_grouprec), (void *)&ig)) {
+			if (m != m0)
+				m_freem(m);
+			CTR1(KTR_IGMPV3, "%s: m_append() failed.", __func__);
+			return (-ENOMEM);
+		}
+		m->m_pkthdr.PH_vt.vt_nrecs = 1;
+		nbytes += sizeof(struct igmp_grouprec);
+
+		m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
+		    sizeof(struct igmp_grouprec)) / sizeof(in_addr_t);
+
+		msrcs = 0;
+		RB_FOREACH_FROM(ims, ip_msource_tree, nims) {
+			CTR2(KTR_IGMPV3, "%s: visit node %s", __func__,
+			    inet_ntoa_haddr(ims->ims_haddr));
+			now = ims_get_mode(inm, ims, 1);
+			if ((now != mode) ||
+			    (now == mode && mode == MCAST_UNDEFINED)) {
+				CTR1(KTR_IGMPV3, "%s: skip node", __func__);
+				continue;
+			}
+			if (is_source_query && ims->ims_stp == 0) {
+				CTR1(KTR_IGMPV3, "%s: skip unrecorded node",
+				    __func__);
+				continue;
+			}
+			CTR1(KTR_IGMPV3, "%s: append node", __func__);
+			naddr = htonl(ims->ims_haddr);
+			if (!m_append(m, sizeof(in_addr_t), (void *)&naddr)) {
+				if (m != m0)
+					m_freem(m);
+				CTR1(KTR_IGMPV3, "%s: m_append() failed.",
+				    __func__);
+				return (-ENOMEM);
+			}
+			++msrcs;
+			if (msrcs == m0srcs)
+				break;
+		}
+		pig->ig_numsrc = htons(msrcs);
+		nbytes += (msrcs * sizeof(in_addr_t));
+
+		CTR1(KTR_IGMPV3, "%s: enqueueing next packet", __func__);
+		_IF_ENQUEUE(ifq, m);
+	}
+
+	return (nbytes);
+}
+
+/*
+ * Type used to mark record pass completion.
+ * We exploit the fact we can cast to this easily from the
+ * current filter modes on each ip_msource node.
+ */
+typedef enum {
+	REC_NONE = 0x00,	/* MCAST_UNDEFINED */
+	REC_ALLOW = 0x01,	/* MCAST_INCLUDE */
+	REC_BLOCK = 0x02,	/* MCAST_EXCLUDE */
+	REC_FULL = REC_ALLOW | REC_BLOCK
+} rectype_t;
+
+/*
+ * Enqueue an IGMPv3 filter list change to the given output queue.
+ *
+ * Source list filter state is held in an RB-tree. When the filter list
+ * for a group is changed without changing its mode, we need to compute
+ * the deltas between T0 and T1 for each source in the filter set,
+ * and enqueue the appropriate ALLOW_NEW/BLOCK_OLD records.
+ *
+ * As we may potentially queue two record types, and the entire R-B tree
+ * needs to be walked at once, we break this out into its own function
+ * so we can generate a tightly packed queue of packets.
+ *
+ * XXX This could be written to only use one tree walk, although that makes
+ * serializing into the mbuf chains a bit harder. For now we do two walks
+ * which makes things easier on us, and it may or may not be harder on
+ * the L2 cache.
+ *
+ * If successful the size of all data appended to the queue is returned,
+ * otherwise an error code less than zero is returned, or zero if
+ * no record(s) were appended.
+ */
+static int
+igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
+{
+	static const int MINRECLEN =
+	    sizeof(struct igmp_grouprec) + sizeof(in_addr_t);
+	struct ifnet		*ifp;
+	struct igmp_grouprec	 ig;
+	struct igmp_grouprec	*pig;
+	struct ip_msource	*ims, *nims;
+	struct mbuf		*m, *m0, *md;
+	in_addr_t		 naddr;
+	int			 m0srcs, nbytes, off, rsrcs, schanged;
+	int			 nallow, nblock;
+	uint8_t			 mode, now, then;
+	rectype_t		 crt, drt, nrt;
+
+	IN_MULTI_LOCK_ASSERT();
+
+	if (inm->inm_nsrc == 0 ||
+	    (inm->inm_st[0].iss_asm > 0 && inm->inm_st[1].iss_asm > 0))
+		return (0);
+
+	ifp = inm->inm_ifp;			/* interface */
+	mode = inm->inm_st[1].iss_fmode;	/* filter mode at t1 */
+	crt = REC_NONE;	/* current group record type */
+	drt = REC_NONE;	/* mask of completed group record types */
+	nrt = REC_NONE;	/* record type for current node */
+	m0srcs = 0;	/* # source which will fit in current mbuf chain */
+	nbytes = 0;	/* # of bytes appended to group's state-change queue */
+	rsrcs = 0;	/* # sources encoded in current record */
+	schanged = 0;	/* # nodes encoded in overall filter change */
+	nallow = 0;	/* # of source entries in ALLOW_NEW */
+	nblock = 0;	/* # of source entries in BLOCK_OLD */
+	nims = NULL;	/* next tree node pointer */
+
+	/*
+	 * For each possible filter record mode.
+	 * The first kind of source we encounter tells us which
+	 * is the first kind of record we start appending.
+	 * If a node transitioned to UNDEFINED at t1, its mode is treated
+	 * as the inverse of the group's filter mode.
+	 */
+	while (drt != REC_FULL) {
+		do {
+			m0 = ifq->ifq_tail;
+			if (m0 != NULL &&
+			    (m0->m_pkthdr.PH_vt.vt_nrecs + 1 <=
+			     IGMP_V3_REPORT_MAXRECS) &&
+			    (m0->m_pkthdr.len + MINRECLEN) <
+			     (ifp->if_mtu - IGMP_LEADINGSPACE)) {
+				m = m0;
+				m0srcs = (ifp->if_mtu - m0->m_pkthdr.len -
+					    sizeof(struct igmp_grouprec)) /
+				    sizeof(in_addr_t);
+				CTR1(KTR_IGMPV3,
+				    "%s: use previous packet", __func__);
+			} else {
+				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				if (m == NULL) {
+					m = m_gethdr(M_DONTWAIT, MT_DATA);
+					if (m)
+						MH_ALIGN(m, IGMP_LEADINGSPACE);
+				}
+				if (m == NULL) {
+					CTR1(KTR_IGMPV3,
+					    "%s: m_get*() failed", __func__);
+					return (-ENOMEM);
+				}
+				m->m_pkthdr.PH_vt.vt_nrecs = 0;
+				igmp_save_context(m, ifp);
+				m->m_data += IGMP_LEADINGSPACE;
+				m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
+				    sizeof(struct igmp_grouprec)) /
+				    sizeof(in_addr_t);
+				CTR1(KTR_IGMPV3,
+				    "%s: allocated new packet", __func__);
+			}
+			/*
+			 * Append the IGMP group record header to the
+			 * current packet's data area.
+			 * Recalculate pointer to free space for next
+			 * group record, in case m_append() allocated
+			 * a new mbuf or cluster.
+			 */
+			memset(&ig, 0, sizeof(ig));
+			ig.ig_group = inm->inm_addr;
+			if (!m_append(m, sizeof(ig), (void *)&ig)) {
+				if (m != m0)
+					m_freem(m);
+				CTR1(KTR_IGMPV3,
+				    "%s: m_append() failed", __func__);
+				return (-ENOMEM);
+			}
+			nbytes += sizeof(struct igmp_grouprec);
+			if (m == m0) {
+				md = m_last(m);
+				pig = (struct igmp_grouprec *)(mtod(md,
+				    uint8_t *) + md->m_len - nbytes);
+			} else {
+				md = m_getptr(m, 0, &off);
+				pig = (struct igmp_grouprec *)(mtod(md,
+				    uint8_t *) + off);
+			}
+			/*
+			 * Begin walking the tree for this record type
+			 * pass, or continue from where we left off
+			 * previously if we had to allocate a new packet.
+			 * Only report deltas in-mode at t1.
+			 * We need not report included sources as allowed
+			 * if we are in inclusive mode on the group,
+			 * however the converse is not true.
+			 */
+			rsrcs = 0;
+			if (nims == NULL)
+				nims = RB_MIN(ip_msource_tree, &inm->inm_srcs);
+			RB_FOREACH_FROM(ims, ip_msource_tree, nims) {
+				CTR2(KTR_IGMPV3, "%s: visit node %s",
+				    __func__, inet_ntoa_haddr(ims->ims_haddr));
+				now = ims_get_mode(inm, ims, 1);
+				then = ims_get_mode(inm, ims, 0);
+				CTR3(KTR_IGMPV3, "%s: mode: t0 %d, t1 %d",
+				    __func__, then, now);
+				if (now == then) {
+					CTR1(KTR_IGMPV3,
+					    "%s: skip unchanged", __func__);
+					continue;
+				}
+				if (mode == MCAST_EXCLUDE &&
+				    now == MCAST_INCLUDE) {
+					CTR1(KTR_IGMPV3,
+					    "%s: skip IN src on EX group",
+					    __func__);
+					continue;
+				}
+				nrt = (rectype_t)now;
+				if (nrt == REC_NONE)
+					nrt = (rectype_t)(~mode & REC_FULL);
+				if (schanged++ == 0) {
+					crt = nrt;
+				} else if (crt != nrt)
+					continue;
+				naddr = htonl(ims->ims_haddr);
+				if (!m_append(m, sizeof(in_addr_t),
+				    (void *)&naddr)) {
+					if (m != m0)
+						m_freem(m);
+					CTR1(KTR_IGMPV3,
+					    "%s: m_append() failed", __func__);
+					return (-ENOMEM);
+				}
+				nallow += !!(crt == REC_ALLOW);
+				nblock += !!(crt == REC_BLOCK);
+				if (++rsrcs == m0srcs)
+					break;
+			}
+			/*
+			 * If we did not append any tree nodes on this
+			 * pass, back out of allocations.
+			 */
+			if (rsrcs == 0) {
+				nbytes -= sizeof(struct igmp_grouprec);
+				if (m != m0) {
+					CTR1(KTR_IGMPV3,
+					    "%s: m_free(m)", __func__);
+					m_freem(m);
+				} else {
+					CTR1(KTR_IGMPV3,
+					    "%s: m_adj(m, -ig)", __func__);
+					m_adj(m, -((int)sizeof(
+					    struct igmp_grouprec)));
+				}
+				continue;
+			}
+			nbytes += (rsrcs * sizeof(in_addr_t));
+			if (crt == REC_ALLOW)
+				pig->ig_type = IGMP_ALLOW_NEW_SOURCES;
+			else if (crt == REC_BLOCK)
+				pig->ig_type = IGMP_BLOCK_OLD_SOURCES;
+			pig->ig_numsrc = htons(rsrcs);
+			/*
+			 * Count the new group record, and enqueue this
+			 * packet if it wasn't already queued.
+			 */
+			m->m_pkthdr.PH_vt.vt_nrecs++;
+			if (m != m0)
+				_IF_ENQUEUE(ifq, m);
+		} while (nims != NULL);
+		drt |= crt;
+		crt = (~crt & REC_FULL);
+	}
+
+	CTR3(KTR_IGMPV3, "%s: queued %d ALLOW_NEW, %d BLOCK_OLD", __func__,
+	    nallow, nblock);
+
+	return (nbytes);
+}
+
+static int
+igmp_v3_merge_state_changes(struct in_multi *inm, struct ifqueue *ifscq)
+{
+	struct ifqueue	*gq;
+	struct mbuf	*m;		/* pending state-change */
+	struct mbuf	*m0;		/* copy of pending state-change */
+	struct mbuf	*mt;		/* last state-change in packet */
+	int		 docopy, domerge;
+	u_int		 recslen;
+
+	docopy = 0;
+	domerge = 0;
+	recslen = 0;
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	/*
+	 * If there are further pending retransmissions, make a writable
+	 * copy of each queued state-change message before merging.
+	 */
+	if (inm->inm_scrv > 0)
+		docopy = 1;
+
+	gq = &inm->inm_scq;
+#ifdef KTR
+	if (gq->ifq_head == NULL) {
+		CTR2(KTR_IGMPV3, "%s: WARNING: queue for inm %p is empty",
+		    __func__, inm);
+	}
+#endif
+
+	m = gq->ifq_head;
+	while (m != NULL) {
+		/*
+		 * Only merge the report into the current packet if
+		 * there is sufficient space to do so; an IGMPv3 report
+		 * packet may only contain 65,535 group records.
+		 * Always use a simple mbuf chain concatentation to do this,
+		 * as large state changes for single groups may have
+		 * allocated clusters.
+		 */
+		domerge = 0;
+		mt = ifscq->ifq_tail;
+		if (mt != NULL) {
+			recslen = m_length(m, NULL);
+
+			if ((mt->m_pkthdr.PH_vt.vt_nrecs +
+			    m->m_pkthdr.PH_vt.vt_nrecs <=
+			    IGMP_V3_REPORT_MAXRECS) &&
+			    (mt->m_pkthdr.len + recslen <=
+			    (inm->inm_ifp->if_mtu - IGMP_LEADINGSPACE)))
+				domerge = 1;
+		}
+
+		if (!domerge && _IF_QFULL(gq)) {
+			CTR2(KTR_IGMPV3,
+			    "%s: outbound queue full, skipping whole packet %p",
+			    __func__, m);
+			mt = m->m_nextpkt;
+			if (!docopy)
+				m_freem(m);
+			m = mt;
+			continue;
+		}
+
+		if (!docopy) {
+			CTR2(KTR_IGMPV3, "%s: dequeueing %p", __func__, m);
+			_IF_DEQUEUE(gq, m0);
+			m = m0->m_nextpkt;
+		} else {
+			CTR2(KTR_IGMPV3, "%s: copying %p", __func__, m);
+			m0 = m_dup(m, M_NOWAIT);
+			if (m0 == NULL)
+				return (ENOMEM);
+			m0->m_nextpkt = NULL;
+			m = m->m_nextpkt;
+		}
+
+		if (!domerge) {
+			CTR3(KTR_IGMPV3, "%s: queueing %p to ifscq %p)",
+			    __func__, m0, ifscq);
+			_IF_ENQUEUE(ifscq, m0);
+		} else {
+			struct mbuf *mtl;	/* last mbuf of packet mt */
+
+			CTR3(KTR_IGMPV3, "%s: merging %p with ifscq tail %p)",
+			    __func__, m0, mt);
+
+			mtl = m_last(mt);
+			m0->m_flags &= ~M_PKTHDR;
+			mt->m_pkthdr.len += recslen;
+			mt->m_pkthdr.PH_vt.vt_nrecs +=
+			    m0->m_pkthdr.PH_vt.vt_nrecs;
+
+			mtl->m_next = m0;
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Respond to a pending IGMPv3 General Query.
+ */
+static void
+igmp_v3_dispatch_general_query(struct igmp_ifinfo *igi)
+{
+	struct ifmultiaddr	*ifma, *tifma;
+	struct ifnet		*ifp;
+	struct in_multi		*inm;
+	int			 retval, loop;
+
+	IN_MULTI_LOCK_ASSERT();
+	IGMP_LOCK_ASSERT();
+
+	KASSERT(igi->igi_version == IGMP_VERSION_3,
+	    ("%s: called when version %d", __func__, igi->igi_version));
+
+	ifp = igi->igi_ifp;
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, tifma) {
+		if (ifma->ifma_addr->sa_family != AF_INET)
+			continue;
+
+		inm = (struct in_multi *)ifma->ifma_protospec;
+		KASSERT(ifp == inm->inm_ifp,
+		    ("%s: inconsistent ifp", __func__));
+
+		switch (inm->inm_state) {
+		case IGMP_NOT_MEMBER:
+		case IGMP_SILENT_MEMBER:
+			break;
+		case IGMP_REPORTING_MEMBER:
+		case IGMP_IDLE_MEMBER:
+		case IGMP_LAZY_MEMBER:
+		case IGMP_SLEEPING_MEMBER:
+		case IGMP_AWAKENING_MEMBER:
+			inm->inm_state = IGMP_REPORTING_MEMBER;
+			retval = igmp_v3_enqueue_group_record(&igi->igi_gq,
+			    inm, 0, 0, 0);
+			CTR2(KTR_IGMPV3, "%s: enqueue record = %d",
+			    __func__, retval);
+			break;
+		case IGMP_G_QUERY_PENDING_MEMBER:
+		case IGMP_SG_QUERY_PENDING_MEMBER:
+		case IGMP_LEAVING_MEMBER:
+			break;
+		}
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+	loop = (igi->igi_flags & IGIF_LOOPBACK) ? 1 : 0;
+	igmp_dispatch_queue(&igi->igi_gq, IGMP_MAX_RESPONSE_BURST, loop);
+
+	/*
+	 * Slew transmission of bursts over 500ms intervals.
+	 */
+	if (igi->igi_gq.ifq_head != NULL) {
+		igi->igi_v3_timer = 1 + IGMP_RANDOM_DELAY(
+		    IGMP_RESPONSE_BURST_INTERVAL);
+		V_interface_timers_running = 1;
+	}
+}
+
+/*
+ * Transmit the next pending IGMP message in the output queue.
+ *
+ * We get called from netisr_processqueue(). A mutex private to igmpoq
+ * will be acquired and released around this routine.
+ *
+ * VIMAGE: Needs to store/restore vnet pointer on a per-mbuf-chain basis.
+ * MRT: Nothing needs to be done, as IGMP traffic is always local to
+ * a link and uses a link-scope multicast address.
+ */
+static void
+igmp_intr(struct mbuf *m)
+{
+	struct ip_moptions	 imo;
+	struct ifnet		*ifp;
+	struct mbuf		*ipopts, *m0;
+	int			 error;
+	uint32_t		 ifindex;
+
+	CTR2(KTR_IGMPV3, "%s: transmit %p", __func__, m);
+
+	/*
+	 * Restore VNET image pointer from enqueued mbuf chain
+	 * before doing anything else. Whilst we use interface
+	 * indexes to guard against interface detach, they are
+	 * unique to each VIMAGE and must be retrieved.
+	 */
+	CURVNET_SET(m->m_pkthdr.header);
+	ifindex = igmp_restore_context(m);
+
+	/*
+	 * Check if the ifnet still exists. This limits the scope of
+	 * any race in the absence of a global ifp lock for low cost
+	 * (an array lookup).
+	 */
+	ifp = ifnet_byindex(ifindex);
+	if (ifp == NULL) {
+		CTR3(KTR_IGMPV3, "%s: dropped %p as ifindex %u went away.",
+		    __func__, m, ifindex);
+		m_freem(m);
+		V_ipstat.ips_noroute++;
+		goto out;
+	}
+
+	ipopts = V_igmp_sendra ? m_raopt : NULL;
+
 	imo.imo_multicast_ttl  = 1;
 	imo.imo_multicast_vif  = -1;
-	/*
-	 * Request loopback of the report if we are acting as a multicast
-	 * router, so that the process-level routing daemon can hear it.
-	 */
 	imo.imo_multicast_loop = (V_ip_mrouter != NULL);
 
 	/*
-	 * XXX: Do we have to worry about reentrancy here?  Don't think so.
+	 * If the user requested that IGMP traffic be explicitly
+	 * redirected to the loopback interface (e.g. they are running a
+	 * MANET interface and the routing protocol needs to see the
+	 * updates), handle this now.
 	 */
-	ip_output(m, router_alert, &igmprt, 0, &imo, NULL);
+	if (m->m_flags & M_IGMP_LOOP)
+		imo.imo_multicast_ifp = V_loif;
+	else
+		imo.imo_multicast_ifp = ifp;
+
+	if (m->m_flags & M_IGMPV2) {
+		m0 = m;
+	} else {
+		m0 = igmp_v3_encap_report(ifp, m);
+		if (m0 == NULL) {
+			CTR2(KTR_IGMPV3, "%s: dropped %p", __func__, m);
+			m_freem(m);
+			V_ipstat.ips_odropped++;
+			goto out;
+		}
+	}
+
+	igmp_scrub_context(m0);
+	m->m_flags &= ~(M_PROTOFLAGS);
+	m0->m_pkthdr.rcvif = V_loif;
+#ifdef MAC
+	mac_netinet_igmp_send(ifp, m0);
+#endif
+	error = ip_output(m0, ipopts, NULL, 0, &imo, NULL);
+	if (error) {
+		CTR3(KTR_IGMPV3, "%s: ip_output(%p) = %d", __func__, m0, error);
+		m_freem(m0);
+		goto out;
+	}
 
 	++V_igmpstat.igps_snd_reports;
+
+out:
+	/*
+	 * We must restore the existing vnet pointer before
+	 * continuing as we are run from netisr context.
+	 */
+	CURVNET_RESTORE();
 }
+
+/*
+ * Encapsulate an IGMPv3 report.
+ *
+ * The internal mbuf flag M_IGMPV3_HDR is used to indicate that the mbuf
+ * chain has already had its IP/IGMPv3 header prepended. In this case
+ * the function will not attempt to prepend; the lengths and checksums
+ * will however be re-computed.
+ *
+ * Returns a pointer to the new mbuf chain head, or NULL if the
+ * allocation failed.
+ */
+static struct mbuf *
+igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
+{
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
+	struct igmp_report	*igmp;
+	struct ip		*ip;
+	int			 hdrlen, igmpreclen;
+
+	KASSERT((m->m_flags & M_PKTHDR),
+	    ("%s: mbuf chain %p is !M_PKTHDR", __func__, m));
+
+	igmpreclen = m_length(m, NULL);
+	hdrlen = sizeof(struct ip) + sizeof(struct igmp_report);
+
+	if (m->m_flags & M_IGMPV3_HDR) {
+		igmpreclen -= hdrlen;
+	} else {
+		M_PREPEND(m, hdrlen, M_DONTWAIT);
+		if (m == NULL)
+			return (NULL);
+		m->m_flags |= M_IGMPV3_HDR;
+	}
+
+	CTR2(KTR_IGMPV3, "%s: igmpreclen is %d", __func__, igmpreclen);
+
+	m->m_data += sizeof(struct ip);
+	m->m_len -= sizeof(struct ip);
+
+	igmp = mtod(m, struct igmp_report *);
+	igmp->ir_type = IGMP_v3_HOST_MEMBERSHIP_REPORT;
+	igmp->ir_rsv1 = 0;
+	igmp->ir_rsv2 = 0;
+	igmp->ir_numgrps = htons(m->m_pkthdr.PH_vt.vt_nrecs);
+	igmp->ir_cksum = 0;
+	igmp->ir_cksum = in_cksum(m, sizeof(struct igmp_report) + igmpreclen);
+	m->m_pkthdr.PH_vt.vt_nrecs = 0;
+
+	m->m_data -= sizeof(struct ip);
+	m->m_len += sizeof(struct ip);
+
+	ip = mtod(m, struct ip *);
+	ip->ip_tos = IPTOS_PREC_INTERNETCONTROL;
+	ip->ip_len = hdrlen + igmpreclen;
+	ip->ip_off = IP_DF;
+	ip->ip_p = IPPROTO_IGMP;
+	ip->ip_sum = 0;
+
+	ip->ip_src.s_addr = INADDR_ANY;
+
+	if (m->m_flags & M_IGMP_LOOP) {
+		struct in_ifaddr *ia;
+
+		IFP_TO_IA(ifp, ia);
+		if (ia != NULL)
+			ip->ip_src = ia->ia_addr.sin_addr;
+	}
+
+	ip->ip_dst.s_addr = htonl(INADDR_ALLRPTS_GROUP);
+
+	return (m);
+}
+
+#ifdef KTR
+static char *
+igmp_rec_type_to_str(const int type)
+{
+
+	switch (type) {
+		case IGMP_CHANGE_TO_EXCLUDE_MODE:
+			return "TO_EX";
+			break;
+		case IGMP_CHANGE_TO_INCLUDE_MODE:
+			return "TO_IN";
+			break;
+		case IGMP_MODE_IS_EXCLUDE:
+			return "MODE_EX";
+			break;
+		case IGMP_MODE_IS_INCLUDE:
+			return "MODE_IN";
+			break;
+		case IGMP_ALLOW_NEW_SOURCES:
+			return "ALLOW_NEW";
+			break;
+		case IGMP_BLOCK_OLD_SOURCES:
+			return "BLOCK_OLD";
+			break;
+		default:
+			break;
+	}
+	return "unknown";
+}
+#endif
+
+static void
+igmp_sysinit(void)
+{
+
+	CTR1(KTR_IGMPV3, "%s: initializing", __func__);
+
+	IGMP_LOCK_INIT();
+	TUNABLE_INT_FETCH("debug.mpsafeigmp", &mpsafe_igmp);
+
+	mtx_init(&igmpoq.ifq_mtx, "igmpoq_mtx", NULL, MTX_DEF);
+	IFQ_SET_MAXLEN(&igmpoq, IFQ_MAXLEN);
+
+	m_raopt = igmp_ra_alloc();
+
+#if __FreeBSD_version < 800000
+	netisr_register(NETISR_IGMP, igmp_intr, &igmpoq,
+	    mpsafe_igmp ? NETISR_MPSAFE : 0);
+#else
+	netisr_register(NETISR_IGMP, igmp_intr, &igmpoq,
+	    mpsafe_igmp ? 0 : NETISR_FORCEQUEUE);
+#endif
+}
+
+static void
+igmp_sysuninit(void)
+{
+
+	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
+
+	netisr_unregister(NETISR_IGMP);
+	mtx_destroy(&igmpoq.ifq_mtx);
+
+	m_free(m_raopt);
+	m_raopt = NULL;
+
+	IGMP_LOCK_DESTROY();
+}
+
+/*
+ * Initialize an IGMPv3 instance.
+ * VIMAGE: Assumes curvnet set by caller and called per vimage.
+ */
+static int
+vnet_igmp_iattach(const void *unused __unused)
+{
+	INIT_VNET_INET(curvnet);
+
+	CTR1(KTR_IGMPV3, "%s: initializing", __func__);
+
+	LIST_INIT(&V_igi_head);
+
+	V_current_state_timers_running = 0;
+	V_state_change_timers_running = 0;
+	V_interface_timers_running = 0;
+
+	/*
+	 * Initialize sysctls to default values.
+	 */
+	V_igmp_recvifkludge = 1;
+	V_igmp_sendra = 1;
+	V_igmp_sendlocal = 1;
+	V_igmp_v1enable = 1;
+	V_igmp_v2enable = 1;
+	V_igmp_legacysupp = 0;
+	V_igmp_default_version = IGMP_VERSION_3;
+	V_igmp_gsrdelay.tv_sec = 10;
+	V_igmp_gsrdelay.tv_usec = 0;
+
+	memset(&V_igmpstat, 0, sizeof(struct igmpstat));
+	V_igmpstat.igps_version = IGPS_VERSION_3;
+	V_igmpstat.igps_len = sizeof(struct igmpstat);
+
+	return (0);
+}
+
+static int
+vnet_igmp_idetach(const void *unused __unused)
+{
+	INIT_VNET_INET(curvnet);
+
+	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
+
+	KASSERT(LIST_EMPTY(&V_igi_head),
+	    ("%s: igi list not empty; ifnets not detached?", __func__));
+
+	return (0);
+}
+
+#ifdef VIMAGE
+static struct vnet_symmap vnet_igmp_symmap[] = {
+	VNET_SYMMAP(igmp, igi_head),
+	VNET_SYMMAP(igmp, igmpstat),
+	VNET_SYMMAP_END
+};
+VNET_MOD_DECLARE(IGMP, igmp, vnet_igmp_iattach, vnet_igmp_idetach,
+    vnet_igmp_symmap);
+#endif /* VIMAGE */
+
+static int
+igmp_modevent(module_t mod, int type, void *unused __unused)
+{
+
+    switch (type) {
+    case MOD_LOAD:
+	igmp_sysinit();
+#ifdef VIMAGE
+	vnet_mod_register(&vnet_igmp_modinfo);
+#else
+	(void)vnet_igmp_iattach(NULL);
+#endif /* VIMAGE */
+	break;
+    case MOD_UNLOAD:
+#ifdef VIMAGE
+	/*
+	 * TODO: Allow module unload if any VIMAGE instances
+	 * are using this module.
+	 */
+	return (EBUSY);
+#else
+	(void)vnet_igmp_idetach(NULL);
+#endif /* VIMAGE */
+	igmp_sysuninit();
+	break;
+    default:
+	return (EOPNOTSUPP);
+    }
+    return (0);
+}
+
+static moduledata_t igmp_mod = {
+    "igmp",
+    igmp_modevent,
+    0
+};
+DECLARE_MODULE(igmp, igmp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

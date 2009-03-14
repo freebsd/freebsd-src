@@ -883,7 +883,8 @@ ffs_mountfs(devvp, mp, td)
 	 * Initialize filesystem stat information in mount struct.
 	 */
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED;
+	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
+	    MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1440,10 +1441,9 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		return (error);
 	}
 	/*
-	 * FFS supports recursive and shared locking.
+	 * FFS supports recursive locking.
 	 */
 	VN_LOCK_AREC(vp);
-	VN_LOCK_ASHARE(vp);
 	vp->v_data = ip;
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
@@ -1451,6 +1451,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_fs = fs;
 	ip->i_dev = dev;
 	ip->i_number = ino;
+	ip->i_ea_refs = 0;
 #ifdef QUOTA
 	{
 		int i;
@@ -1464,7 +1465,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0) {
-		uma_zfree(uma_inode, ip);
 		*vpp = NULL;
 		return (error);
 	}
@@ -1516,6 +1516,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	/*
 	 * Finish inode initialization.
 	 */
+	if (vp->v_type != VFIFO) {
+		/* FFS supports shared locking for all files except fifos. */
+		VN_LOCK_ASHARE(vp);
+	}
 
 	/*
 	 * Set up a generation number for this inode if it does not
@@ -1915,7 +1919,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 					}
 				}
 				bp->b_runningbufspace = bp->b_bufsize;
-				atomic_add_int(&runningbufspace,
+				atomic_add_long(&runningbufspace,
 					       bp->b_runningbufspace);
 			} else {
 				error = ffs_copyonwrite(vp, bp);

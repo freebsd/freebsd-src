@@ -73,11 +73,14 @@ static void	usb2_check_strings(struct usb2_device *);
 static usb2_error_t usb2_fill_iface_data(struct usb2_device *, uint8_t,
 		    uint8_t);
 static void	usb2_notify_addq(const char *type, struct usb2_device *);
+
+#if USB_HAVE_UGEN
 static void	usb2_fifo_free_wrap(struct usb2_device *, uint8_t, uint8_t);
 static struct cdev *usb2_make_dev(struct usb2_device *, int, int);
 static void	usb2_cdev_create(struct usb2_device *);
 static void	usb2_cdev_free(struct usb2_device *);
 static void	usb2_cdev_cleanup(void *);
+#endif
 
 /* This variable is global to allow easy access to it: */
 
@@ -543,11 +546,13 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 	/* detach all interface drivers */
 	usb2_detach_device(udev, USB_IFACE_INDEX_ANY, 1);
 
+#if USB_HAVE_UGEN
 	/* free all FIFOs except control endpoint FIFOs */
 	usb2_fifo_free_wrap(udev, USB_IFACE_INDEX_ANY, 0);
 
 	/* free all configuration data structures */
 	usb2_cdev_free(udev);
+#endif
 	usb2_free_iface_data(udev);
 
 	if (index == USB_UNCONFIG_INDEX) {
@@ -657,13 +662,17 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 			goto done;
 		}
 	}
+#if USB_HAVE_UGEN
 	/* create device nodes for each endpoint */
 	usb2_cdev_create(udev);
+#endif
 
 done:
 	DPRINTF("error=%s\n", usb2_errstr(err));
 	if (err) {
+#if USB_HAVE_UGEN
 		usb2_cdev_free(udev);
+#endif
 		usb2_free_iface_data(udev);
 	}
 	if (do_unlock) {
@@ -717,11 +726,13 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 			goto done;
 		}
 	}
+#if USB_HAVE_UGEN
 	/*
 	 * Free all generic FIFOs for this interface, except control
 	 * endpoint FIFOs:
 	 */
 	usb2_fifo_free_wrap(udev, iface_index, 0);
+#endif
 
 	err = usb2_fill_iface_data(udev, iface_index, alt_index);
 	if (err) {
@@ -1433,13 +1444,17 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	/* set device index */
 	udev->device_index = device_index;
 
-	/* Create the control endpoint device */
-	udev->default_dev = usb2_make_dev(udev, 0, FREAD|FWRITE);
-	/* Create a link from /dev/ugenX.X to the default endpoint */
+	/* Create ugen name */
 	snprintf(udev->ugen_name, sizeof(udev->ugen_name),
 	    USB_GENERIC_NAME "%u.%u", device_get_unit(bus->bdev),
 	    device_index);
+#if USB_HAVE_UGEN
+	/* Create the control endpoint device */
+	udev->default_dev = usb2_make_dev(udev, 0, FREAD|FWRITE);
+
+	/* Create a link from /dev/ugenX.X to the default endpoint */
 	make_dev_alias(udev->default_dev, udev->ugen_name);
+#endif
 
 	if (udev->flags.usb2_mode == USB_MODE_HOST) {
 
@@ -1692,7 +1707,9 @@ repeat_set_config:
 	    parent_hub->hub->ports + port_index : NULL, udev, device_index);
 
 	/* Link and announce the ugen device name */
+#if USB_HAVE_UGEN
 	udev->ugen_symlink = usb2_alloc_symlink(udev->ugen_name);
+#endif
 	printf("%s: <%s> at %s\n", udev->ugen_name, udev->manufacturer,
 	    device_get_nameunit(udev->bus->bdev));
 
@@ -1706,6 +1723,7 @@ done:
 	return (udev);
 }
 
+#if USB_HAVE_UGEN
 static struct cdev *
 usb2_make_dev(struct usb2_device *udev, int ep, int mode)
 {
@@ -1812,6 +1830,7 @@ usb2_cdev_cleanup(void* arg)
 {
 	free(arg, M_USBDEV);
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_free_device
@@ -1832,7 +1851,9 @@ usb2_free_device(struct usb2_device *udev)
 
 	/* Destroy UGEN symlink, if any */
 	if (udev->ugen_symlink) {
+#if USB_HAVE_UGEN
 		usb2_free_symlink(udev->ugen_symlink);
+#endif
 		udev->ugen_symlink = NULL;
 	}
 	/*
@@ -1843,6 +1864,7 @@ usb2_free_device(struct usb2_device *udev)
 	    udev->parent_hub->hub->ports + udev->port_index : NULL,
 	    NULL, USB_ROOT_HUB_ADDR);
 
+#if USB_HAVE_UGEN
 	/* wait for all pending references to go away: */
 
 	mtx_lock(&usb2_ref_lock);
@@ -1851,11 +1873,13 @@ usb2_free_device(struct usb2_device *udev)
 		usb2_cv_wait(udev->default_cv + 1, &usb2_ref_lock);
 	}
 	mtx_unlock(&usb2_ref_lock);
+#endif
 
 	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
 		/* stop receiving any control transfers (Device Side Mode) */
 		usb2_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
 	}
+#if USB_HAVE_UGEN
 	/* free all FIFOs */
 	usb2_fifo_free_wrap(udev, USB_IFACE_INDEX_ANY, 1);
 
@@ -1863,9 +1887,12 @@ usb2_free_device(struct usb2_device *udev)
 	 * Free all interface related data and FIFOs, if any.
 	 */
 	usb2_cdev_free(udev);
+#endif
 	usb2_free_iface_data(udev);
+#if USB_HAVE_UGEN
 	destroy_dev_sched_cb(udev->default_dev, usb2_cdev_cleanup,
 	    udev->default_dev->si_drv1);
+#endif
 
 	/* unsetup any leftover default USB transfers */
 	usb2_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
@@ -2263,6 +2290,7 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 	devctl_queue_data(data);
 }
 
+#if USB_HAVE_UGEN
 /*------------------------------------------------------------------------*
  *	usb2_fifo_free_wrap
  *
@@ -2319,6 +2347,7 @@ usb2_fifo_free_wrap(struct usb2_device *udev,
 		usb2_fifo_free(f);
 	}
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_peer_can_wakeup

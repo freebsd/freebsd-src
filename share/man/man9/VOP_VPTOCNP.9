@@ -57,7 +57,13 @@ The remaining size of the buffer.
 .Pp
 The default implementation of
 .Nm
-simply returns ENOENT.
+scans through
+.Fa vp Ns 's
+parent directory looking for a dirent with a matching file number.  If
+.Fa vp
+is not a directory, then
+.Nm
+returns ENOENT.
 .Sh LOCKS
 The vnode should be locked on entry and will still be locked on exit.  The
 parent directory vnode will be unlocked on a successful exit.  However, it

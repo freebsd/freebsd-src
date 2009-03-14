@@ -36,7 +36,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
-#include <dev/usb/controller/mus2_otg.h>
+#include <dev/usb/controller/musb_otg.h>
 
 #include <sys/rman.h>
 
