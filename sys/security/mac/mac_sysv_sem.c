@@ -86,7 +86,7 @@ static void
 mac_sysv_sem_label_free(struct label *label)
 {
 
-	MAC_PERFORM(sysvsem_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(sysvsem_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -104,14 +104,14 @@ void
 mac_sysvsem_create(struct ucred *cred, struct semid_kernel *semakptr)
 {
 
-	MAC_PERFORM(sysvsem_create, cred, semakptr, semakptr->label);
+	MAC_PERFORM_NOSLEEP(sysvsem_create, cred, semakptr, semakptr->label);
 }
 
 void
 mac_sysvsem_cleanup(struct semid_kernel *semakptr)
 {
 
-	MAC_PERFORM(sysvsem_cleanup, semakptr->label);
+	MAC_PERFORM_NOSLEEP(sysvsem_cleanup, semakptr->label);
 }
 
 MAC_CHECK_PROBE_DEFINE3(sysvsem_check_semctl, "struct ucred *",
@@ -123,8 +123,8 @@ mac_sysvsem_check_semctl(struct ucred *cred, struct semid_kernel *semakptr,
 {
 	int error;
 
-	MAC_CHECK(sysvsem_check_semctl, cred, semakptr, semakptr->label,
-	    cmd);
+	MAC_CHECK_NOSLEEP(sysvsem_check_semctl, cred, semakptr,
+	    semakptr->label, cmd);
 	MAC_CHECK_PROBE3(sysvsem_check_semctl, error, cred, semakptr, cmd);
 
 	return (error);
@@ -138,7 +138,8 @@ mac_sysvsem_check_semget(struct ucred *cred, struct semid_kernel *semakptr)
 {
 	int error;
 
-	MAC_CHECK(sysvsem_check_semget, cred, semakptr, semakptr->label);
+	MAC_CHECK_NOSLEEP(sysvsem_check_semget, cred, semakptr,
+	    semakptr->label);
 
 	return (error);
 }
@@ -152,8 +153,8 @@ mac_sysvsem_check_semop(struct ucred *cred, struct semid_kernel *semakptr,
 {
 	int error;
 
-	MAC_CHECK(sysvsem_check_semop, cred, semakptr, semakptr->label,
-	    accesstype);
+	MAC_CHECK_NOSLEEP(sysvsem_check_semop, cred, semakptr,
+	    semakptr->label, accesstype);
 	MAC_CHECK_PROBE3(sysvsem_check_semop, error, cred, semakptr,
 	    accesstype);
 
