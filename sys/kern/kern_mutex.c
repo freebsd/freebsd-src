@@ -765,6 +765,7 @@ mtx_destroy(struct mtx *m)
 		else
 			curthread->td_locks--;
 
+		lock_profile_release_lock(&m->lock_object);
 		/* Tell witness this isn't locked to make it happy. */
 		WITNESS_UNLOCK(&m->lock_object, LOP_EXCLUSIVE, __FILE__,
 		    __LINE__);
