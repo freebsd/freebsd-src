@@ -66,7 +66,7 @@ mac_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
 {
 	int error;
 
-	MAC_CHECK(cred_check_setaudit, cred, ai);
+	MAC_CHECK_NOSLEEP(cred_check_setaudit, cred, ai);
 	MAC_CHECK_PROBE2(cred_check_setaudit, error, cred, ai);
 
 	return (error);
@@ -80,7 +80,7 @@ mac_cred_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
 {
 	int error;
 
-	MAC_CHECK(cred_check_setaudit_addr, cred, aia);
+	MAC_CHECK_NOSLEEP(cred_check_setaudit_addr, cred, aia);
 	MAC_CHECK_PROBE2(cred_check_setaudit_addr, error, cred, aia);
 
 	return (error);
@@ -93,7 +93,7 @@ mac_cred_check_setauid(struct ucred *cred, uid_t auid)
 {
 	int error;
 
-	MAC_CHECK(cred_check_setauid, cred, auid);
+	MAC_CHECK_NOSLEEP(cred_check_setauid, cred, auid);
 	MAC_CHECK_PROBE2(cred_check_setauid, error, cred, auid);
 
 	return (error);
@@ -107,7 +107,7 @@ mac_system_check_audit(struct ucred *cred, void *record, int length)
 {
 	int error;
 
-	MAC_CHECK(system_check_audit, cred, record, length);
+	MAC_CHECK_NOSLEEP(system_check_audit, cred, record, length);
 	MAC_CHECK_PROBE3(system_check_audit, error, cred, record, length);
 
 	return (error);
@@ -138,7 +138,7 @@ mac_system_check_auditon(struct ucred *cred, int cmd)
 {
 	int error;
 
-	MAC_CHECK(system_check_auditon, cred, cmd);
+	MAC_CHECK_NOSLEEP(system_check_auditon, cred, cmd);
 	MAC_CHECK_PROBE2(system_check_auditon, error, cred, cmd);
 
 	return (error);

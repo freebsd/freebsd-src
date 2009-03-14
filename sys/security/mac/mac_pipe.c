@@ -84,7 +84,7 @@ void
 mac_pipe_label_free(struct label *label)
 {
 
-	MAC_PERFORM(pipe_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(pipe_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -102,7 +102,7 @@ void
 mac_pipe_copy_label(struct label *src, struct label *dest)
 {
 
-	MAC_PERFORM(pipe_copy_label, src, dest);
+	MAC_PERFORM_NOSLEEP(pipe_copy_label, src, dest);
 }
 
 int
@@ -130,7 +130,7 @@ void
 mac_pipe_create(struct ucred *cred, struct pipepair *pp)
 {
 
-	MAC_PERFORM(pipe_create, cred, pp, pp->pp_label);
+	MAC_PERFORM_NOSLEEP(pipe_create, cred, pp, pp->pp_label);
 }
 
 static void
@@ -138,7 +138,7 @@ mac_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *newlabel)
 {
 
-	MAC_PERFORM(pipe_relabel, cred, pp, pp->pp_label, newlabel);
+	MAC_PERFORM_NOSLEEP(pipe_relabel, cred, pp, pp->pp_label, newlabel);
 }
 
 MAC_CHECK_PROBE_DEFINE4(pipe_check_ioctl, "struct ucred *",
@@ -152,7 +152,8 @@ mac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_ioctl, cred, pp, pp->pp_label, cmd, data);
+	MAC_CHECK_NOSLEEP(pipe_check_ioctl, cred, pp, pp->pp_label, cmd,
+	    data);
 	MAC_CHECK_PROBE4(pipe_check_ioctl, error, cred, pp, cmd, data);
 
 	return (error);
@@ -168,7 +169,7 @@ mac_pipe_check_poll(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_poll, cred, pp, pp->pp_label);
+	MAC_CHECK_NOSLEEP(pipe_check_poll, cred, pp, pp->pp_label);
 	MAC_CHECK_PROBE2(pipe_check_poll, error, cred, pp);
 
 	return (error);
@@ -184,7 +185,7 @@ mac_pipe_check_read(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_read, cred, pp, pp->pp_label);
+	MAC_CHECK_NOSLEEP(pipe_check_read, cred, pp, pp->pp_label);
 	MAC_CHECK_PROBE2(pipe_check_read, error, cred, pp);
 
 	return (error);
@@ -201,7 +202,8 @@ mac_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_relabel, cred, pp, pp->pp_label, newlabel);
+	MAC_CHECK_NOSLEEP(pipe_check_relabel, cred, pp, pp->pp_label,
+	    newlabel);
 	MAC_CHECK_PROBE3(pipe_check_relabel, error, cred, pp, newlabel);
 
 	return (error);
@@ -217,7 +219,7 @@ mac_pipe_check_stat(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_stat, cred, pp, pp->pp_label);
+	MAC_CHECK_NOSLEEP(pipe_check_stat, cred, pp, pp->pp_label);
 	MAC_CHECK_PROBE2(pipe_check_stat, error, cred, pp);
 
 	return (error);
@@ -233,7 +235,7 @@ mac_pipe_check_write(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_write, cred, pp, pp->pp_label);
+	MAC_CHECK_NOSLEEP(pipe_check_write, cred, pp, pp->pp_label);
 	MAC_CHECK_PROBE2(pipe_check_write, error, cred, pp);
 
 	return (error);

@@ -78,7 +78,7 @@ mac_kenv_check_dump(struct ucred *cred)
 {
 	int error;
 
-	MAC_CHECK(kenv_check_dump, cred);
+	MAC_CHECK_NOSLEEP(kenv_check_dump, cred);
 	MAC_CHECK_PROBE1(kenv_check_dump, error, cred);
 
 	return (error);
@@ -91,7 +91,7 @@ mac_kenv_check_get(struct ucred *cred, char *name)
 {
 	int error;
 
-	MAC_CHECK(kenv_check_get, cred, name);
+	MAC_CHECK_NOSLEEP(kenv_check_get, cred, name);
 	MAC_CHECK_PROBE2(kenv_check_get, error, cred, name);
 
 	return (error);
@@ -105,7 +105,7 @@ mac_kenv_check_set(struct ucred *cred, char *name, char *value)
 {
 	int error;
 
-	MAC_CHECK(kenv_check_set, cred, name, value);
+	MAC_CHECK_NOSLEEP(kenv_check_set, cred, name, value);
 	MAC_CHECK_PROBE3(kenv_check_set, error, cred, name, value);
 
 	return (error);
@@ -118,7 +118,7 @@ mac_kenv_check_unset(struct ucred *cred, char *name)
 {
 	int error;
 
-	MAC_CHECK(kenv_check_unset, cred, name);
+	MAC_CHECK_NOSLEEP(kenv_check_unset, cred, name);
 	MAC_CHECK_PROBE2(kenv_check_unset, error, cred, name);
 
 	return (error);
@@ -146,7 +146,7 @@ mac_kld_check_stat(struct ucred *cred)
 {
 	int error;
 
-	MAC_CHECK(kld_check_stat, cred);
+	MAC_CHECK_NOSLEEP(kld_check_stat, cred);
 	MAC_CHECK_PROBE1(kld_check_stat, error, cred);
 
 	return (error);
@@ -178,7 +178,7 @@ mac_system_check_reboot(struct ucred *cred, int howto)
 {
 	int error;
 
-	MAC_CHECK(system_check_reboot, cred, howto);
+	MAC_CHECK_NOSLEEP(system_check_reboot, cred, howto);
 	MAC_CHECK_PROBE2(system_check_reboot, error, cred, howto);
 
 	return (error);
@@ -229,7 +229,7 @@ mac_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 	 * XXXMAC: We would very much like to assert the SYSCTL_LOCK here,
 	 * but since it's not exported from kern_sysctl.c, we can't.
 	 */
-	MAC_CHECK(system_check_sysctl, cred, oidp, arg1, arg2, req);
+	MAC_CHECK_NOSLEEP(system_check_sysctl, cred, oidp, arg1, arg2, req);
 	MAC_CHECK_PROBE3(system_check_sysctl, error, cred, oidp, req);
 
 	return (error);
