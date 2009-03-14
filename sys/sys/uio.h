@@ -106,8 +106,10 @@ int	uiomoveco(void *cp, int n, struct uio *uio, int disposable);
 __BEGIN_DECLS
 ssize_t	readv(int, const struct iovec *, int);
 ssize_t	writev(int, const struct iovec *, int);
+#if __BSD_VISIBLE
 ssize_t	preadv(int, const struct iovec *, int, off_t);
 ssize_t	pwritev(int, const struct iovec *, int, off_t);
+#endif
 __END_DECLS
 
 #endif /* _KERNEL */
