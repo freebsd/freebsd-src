@@ -24,4 +24,6 @@ CFLAGS+=-I${WPA_DISTDIR}/src/utils
 CFLAGS+= -DCONFIG_CTRL_IFACE
 CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
 
+CSTD=	gnu89	# XXX
+
 .include <bsd.own.mk>
