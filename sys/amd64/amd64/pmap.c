@@ -1442,8 +1442,6 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 	 * it isn't already there.
 	 */
 
-	pmap->pm_stats.resident_count++;
-
 	if (ptepindex >= (NUPDE + NUPDPE)) {
 		pml4_entry_t *pml4;
 		vm_pindex_t pml4index;
@@ -1469,7 +1467,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 			if (_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index,
 			    flags) == NULL) {
 				--m->wire_count;
-				vm_page_free(m);
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+				vm_page_free_zero(m);
 				return (NULL);
 			}
 		} else {
@@ -1501,7 +1500,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 			if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 			    flags) == NULL) {
 				--m->wire_count;
-				vm_page_free(m);
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+				vm_page_free_zero(m);
 				return (NULL);
 			}
 			pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
@@ -1514,7 +1514,9 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 				if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 				    flags) == NULL) {
 					--m->wire_count;
-					vm_page_free(m);
+					atomic_subtract_int(&cnt.v_wire_count,
+					    1);
+					vm_page_free_zero(m);
 					return (NULL);
 				}
 			} else {
@@ -1529,6 +1531,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 		pd = &pd[ptepindex & ((1ul << NPDEPGSHIFT) - 1)];
 		*pd = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V | PG_A | PG_M;
 	}
+
+	pmap->pm_stats.resident_count++;
 
 	return m;
 }
