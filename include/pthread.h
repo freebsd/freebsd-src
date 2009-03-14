@@ -205,7 +205,6 @@ int		pthread_join(pthread_t, void **);
 int		pthread_key_create(pthread_key_t *,
 			void (*) (void *));
 int		pthread_key_delete(pthread_key_t);
-int		pthread_kill(pthread_t, int);
 int		pthread_mutexattr_init(pthread_mutexattr_t *);
 int		pthread_mutexattr_destroy(pthread_mutexattr_t *);
 int		pthread_mutexattr_getpshared(const pthread_mutexattr_t *,
@@ -241,7 +240,6 @@ int		pthread_rwlockattr_setpshared(pthread_rwlockattr_t *, int);
 int		pthread_rwlockattr_destroy(pthread_rwlockattr_t *);
 pthread_t	pthread_self(void);
 int		pthread_setspecific(pthread_key_t, const void *);
-int		pthread_sigmask(int, const __sigset_t *, __sigset_t *);
 
 int		pthread_spin_init(pthread_spinlock_t *, int);
 int		pthread_spin_destroy(pthread_spinlock_t *);
@@ -253,9 +251,11 @@ int		pthread_setcancelstate(int, int *);
 int		pthread_setcanceltype(int, int *);
 void		pthread_testcancel(void);
 
+#if __BSD_VISIBLE
 int		pthread_getprio(pthread_t);
 int		pthread_setprio(pthread_t, int);
 void		pthread_yield(void);
+#endif
 
 int		pthread_mutexattr_getprioceiling(pthread_mutexattr_t *,
 			int *);
@@ -281,8 +281,10 @@ int		pthread_getschedparam(pthread_t pthread, int *,
 			struct sched_param *);
 int		pthread_setschedparam(pthread_t, int,
 			const struct sched_param *);
+#if __XSI_VISIBLE
 int		pthread_getconcurrency(void);
 int		pthread_setconcurrency(int);
+#endif
 
 void		__pthread_cleanup_push_imp(void (*)(void *), void *,
 			struct _pthread_cleanup_info *);
