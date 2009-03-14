@@ -39,6 +39,4 @@ CFLAGS += -DHOSTS_DENY=\"/etc/hosts.deny\" -DHOSTS_ALLOW=\"/etc/hosts.allow\"
 CFLAGS += -DSYS_ERRLIST_DEFINED -DALWAYS_HOSTNAME -DUSE_STRSEP -DPROCESS_OPTIONS
 CFLAGS += -DINET6
 
-SRCDIRDEP= contrib/tcp_wrappers
-DIRDEP= include include/arpa include/machine stage sys/MACHINE_ARCH/include sys/netinet sys/netinet6 sys/sys
 .include <bsd.lib.mk>

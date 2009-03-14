@@ -44,6 +44,4 @@ ${_x:R}.h: ${_x}
 	${RPCCOM} -h -DWANT_NFS3 ${.ALLSRC} -o ${.TARGET}
 .endfor
 
-SRCDIRDEP= include/rpcsvc
-DIRDEP= stage usr.bin/rpcgen_host
 .include <bsd.headers.mk>

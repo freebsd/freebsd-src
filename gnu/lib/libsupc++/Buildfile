@@ -58,6 +58,4 @@ GENHDRS += unwind.h
 unwind.h: ${GCCDIR}/unwind-generic.h
 	cp ${.ALLSRC} ${.TARGET}
 
-SRCDIRDEP= contrib/gcc contrib/gcclibs/include contrib/gcclibs/libiberty contrib/libstdc++/libsupc++ gnu/lib/libstdc++
-DIRDEP= gnu/lib/libstdc++/base gnu/lib/libstdc++/bits gnu/lib/libstdc++/ext gnu/lib/libstdc++/march gnu/lib/libstdc++/target gnu/lib/libstdc++/thr include include/machine stage sys/MACHINE_ARCH/include sys/sys
 .include <bsd.lib.mk>

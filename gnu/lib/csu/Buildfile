@@ -72,6 +72,4 @@ crtendS.o: ${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
-SRCDIRDEP= contrib/gcc contrib/gcc/config contrib/gcc/config/i386 contrib/gcclibs/include gnu/usr.bin/cc/cc_tools
-DIRDEP= gnu/usr.bin/cc/cc_tools/genheaders include include/machine stage sys/MACHINE_ARCH/include sys/sys
 .include <bsd.objs.mk>

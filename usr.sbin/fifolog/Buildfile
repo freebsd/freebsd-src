@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+SUBDIR = \
+	fifolog_create \
+	fifolog_reader \
+	fifolog_writer \
+	lib
+
+.include <bsd.subdir.mk>

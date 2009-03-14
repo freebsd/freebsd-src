@@ -1,0 +1,27 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/dev/ic
+COMMONDIR =
+
+INCS = \
+	cd1400.h \
+	cd180.h \
+	esp.h \
+	hd64570.h \
+	i8237.h \
+	i8251.h \
+	i8253reg.h \
+	i8255.h \
+	i82586.h \
+	i8259.h \
+	nec765.h \
+	ns16550.h \
+	quicc.h \
+	rsa.h \
+	sab82532.h \
+	via6522reg.h \
+	wd33c93reg.h \
+	z8530.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

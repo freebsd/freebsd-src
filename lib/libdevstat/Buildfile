@@ -17,5 +17,4 @@ CFLAGS += -I${.CURDIR}
 
 WARNS ?= 2
 
-DIRDEP= include include/machine lib/libkvm stage sys/MACHINE_ARCH/include sys/sys
 .include <bsd.lib.mk>

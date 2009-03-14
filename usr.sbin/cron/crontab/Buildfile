@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+BINDIR = ${STAGEDIR}/usr/bin
+
+PROG = crontab
+
+WARNS ?= 3
+
+CFLAGS += -I${BSDSRCTOP}/usr.sbin/cron/cron
+
+LDADD += -lcron -lmd -lutil
+
+.include <bsd.prog.mk>

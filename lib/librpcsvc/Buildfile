@@ -44,8 +44,6 @@ SRCS += ${GENSRCS} ${OTHERSRCS} ${SECRPCSRCS}
 
 WARNS ?= 1
 
-SRCDIRDEP= include/rpcsvc
-DIRDEP= include include/rpc include/rpcsvc stage sys/MACHINE_ARCH/include sys/netinet sys/netinet6 sys/rpc sys/sys usr.bin/rpcgen_host
 .include <bsd.lib.mk>
 
 .SUFFIXES: .x _xdr.c

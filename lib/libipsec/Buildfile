@@ -46,5 +46,4 @@ CFLAGS += -DIPSEC_DEBUG -DIPSEC -DINET6
 YFLAGS += -d -p __libipsecyy
 LFLAGS += -P__libipsecyy
 
-DIRDEP= include include/arpa stage sys/MACHINE_ARCH/include sys/net sys/netinet sys/netinet6 sys/netipsec sys/sys
 .include <bsd.lib.mk>

@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/dev/firewire
+COMMONDIR =
+
+INCS = \
+	firewire.h \
+	firewire_phy.h \
+	firewirereg.h \
+	fwdma.h \
+	fwmem.h \
+	fwohcireg.h \
+	fwohcivar.h \
+	fwphyreg.h \
+	iec13213.h \
+	iec68113.h \
+	if_fwevar.h \
+	if_fwipvar.h \
+	sbp.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

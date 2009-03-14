@@ -20,6 +20,4 @@ localconfig.h:
 	@echo "/* NIS disabled by WITHOUT_NIS src.conf option */" >> ${.TARGET}
 	@echo "#undef HAVE_MAP_NIS" >> ${.TARGET}
 
-SRCDIRDEP= sys/conf
-DIRDEP= stage
 .include <bsd.headers.mk>

@@ -29,6 +29,4 @@ YFLAGS =
 
 LDADD += -lm -lmd
 
-SRCDIRDEP= contrib/pf/pfctl sys/contrib/pf/net
-DIRDEP= gnu/lib/csu gnu/lib/libgcc include include/arpa include/machine lib/csu/MACHINE_ARCH lib/libc lib/libmd lib/msun stage sys/MACHINE_ARCH/include sys/altq sys/bsm sys/net sys/netinet sys/netinet6 sys/sys sys/vm
 .include <bsd.prog.mk>

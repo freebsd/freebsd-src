@@ -22,5 +22,4 @@ CFLAGS += -D_LIBUFS_DEBUGGING
 .endif
 CFLAGS += -I${.CURDIR}
 
-DIRDEP= include stage sys/MACHINE_ARCH/include sys/bsm sys/sys sys/ufs/ffs sys/ufs/ufs
 .include <bsd.lib.mk>

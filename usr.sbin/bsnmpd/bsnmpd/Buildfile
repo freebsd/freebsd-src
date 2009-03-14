@@ -1,0 +1,67 @@
+# $FreeBSD$
+#
+# Author: Harti Brandt <harti@freebsd.org>
+
+CONTRIB = ${BSDSRCTOP}/contrib/bsnmp
+
+.PATH: ${CONTRIB}/snmpd
+
+PROG = bsnmpd
+
+SRCS = \
+	action.c \
+	config.c \
+	export.c \
+	main.c \
+	trans_lsock.c \
+	trans_udp.c \
+	trap.c \
+	tree.c
+
+XSYM = \
+	authenticationFailure \
+	begemotSnmpd \
+	begemotSnmpdLocalPortTable \
+	begemotSnmpdModuleTable \
+	begemotSnmpdTransLsock \
+	begemotSnmpdTransUdp \
+	begemotTrapSinkTable \
+	coldStart \
+	freeBSDVersion \
+	snmpMIB \
+	snmpTrapOID \
+	sysUpTime
+
+WARNS ?= 6
+
+NO_WERROR =
+
+CFLAGS += -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I. -DUSE_LIBBEGEMOT
+CFLAGS += -DUSE_TCPWRAPPERS -DQUADFMT='"llu"' -DQUADXFMT='"llx"'
+CFLAGS += -DHAVE_STDINT_H -DHAVE_INTTYPES_H -DHAVE_ERR_H -DHAVE_STRLCPY
+
+LDADD += -lbegemot -lbsnmp -lwrap
+
+LDFLAGS = -export-dynamic
+
+FILESGROUPS = BMIBS DEFS
+
+BMIBS =	FOKUS-MIB.txt BEGEMOT-MIB.txt BEGEMOT-SNMPD.txt
+BMIBSDIR = ${SHAREDIR}/snmp/mibs
+DEFS =	tree.def
+DEFSDIR = ${SHAREDIR}/snmp/defs
+
+GENHDRS += oid.h
+oid.h: tree.def Makefile
+	gensnmptree -e ${XSYM} < ${.ALLSRC:M*.def} > ${.TARGET}
+
+tree.c : tree.h
+
+tree.h: tree.def
+	gensnmptree -l < ${.ALLSRC}
+
+MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\
+		    -e 's%@DEFPATH@%${DEFSDIR}/%g'		\
+		    -e 's%@MIBSPATH@%${BMIBSDIR}/%g'
+
+.include <bsd.prog.mk>

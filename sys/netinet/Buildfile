@@ -69,5 +69,4 @@ INCS = \
 	udp_var.h \
 	vinet.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

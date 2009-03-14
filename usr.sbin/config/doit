@@ -1,0 +1,3887 @@
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/entries /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/entries
+4,6c4,6
+< 189503
+< svn+ssh://svn.freebsd.org/base/projects/jbuild/usr.sbin/config
+< svn+ssh://svn.freebsd.org/base
+---
+> 7462
+> svn+ssh://localhost/c/cvs2svn/svn/repos/junos-2008/branches/jbuild/src/bsd/usr.sbin/config
+> svn+ssh://localhost/c/cvs2svn/svn/repos
+10,12c10,12
+< 2009-02-28T18:03:28.087785Z
+< 189192
+< jb
+---
+> 2009-01-08T22:24:40.273900Z
+> 4280
+> jbirrell
+27c27
+< ccf9f872-aa2e-dd11-9fc8-001c23d0bc1f
+---
+> 0963096f-dda6-dd11-84b5-001b21243054
+29c29
+< kernconf.tmpl
+---
+> Buildfile
+35,40c35,40
+< 2009-02-28T16:38:46.000000Z
+< c9ab2fa9535c074907d558bcb97271fe
+< 2007-05-16T16:08:04.000000Z
+< 169604
+< wkoszek
+< has-props
+---
+> 2009-01-08T06:33:37.000000Z
+> ee9ea0c1df03d553d45a5660d4c08dd2
+> 2009-01-08T22:24:40.273900Z
+> 4280
+> jbirrell
+> 
+61c61,64
+< 463
+---
+> 471
+> 
+> SMM.doc
+> dir
+65,75d67
+< 189535
+< 
+< 
+< 
+< 2009-03-08T16:15:22.000000Z
+< e3889b1e03cc164d5c2d8e798b9407df
+< 2009-03-08T16:16:55.856254Z
+< 189535
+< jb
+< has-props
+< 
+79a72,76
+> 2008-12-15T04:11:44.000000Z
+> 6bd45c90d36c3aebc70ef5827b15e64f
+> 2008-11-11T22:11:55.883774Z
+> 665
+> jbirrell
+95,110d91
+< 2275
+< 
+< mkmakefile.c
+< file
+< 189535
+< 
+< 
+< 
+< 2009-03-08T16:15:00.000000Z
+< 55fa8766367b02c4eff03cc6ec1a4fa6
+< 2009-03-08T16:16:55.856254Z
+< 189535
+< jb
+< has-props
+< 
+< 
+117,129c98
+< 
+< 
+< 
+< 
+< 
+< 
+< 
+< 
+< 
+< 
+< 
+< 
+< 17651
+---
+> 2596
+131c100
+< config.h
+---
+> mkoptions.c
+137,142c106,110
+< 2009-02-28T16:38:46.000000Z
+< fcdc14926a9db99b3ab1e451bfcb9f18
+< 2008-11-22T21:12:47.875343Z
+< 185186
+< thompsa
+< has-props
+---
+> 2008-12-15T04:11:44.000000Z
+> 22ecd6c67c675cbadee9b118c7c16f55
+> 2008-11-11T22:11:55.883774Z
+> 665
+> jbirrell
+163c131,132
+< 5550
+---
+> 
+> 8708
+165c134
+< configvers.h
+---
+> Buildfile.dirdep
+171,176c140,145
+< 2009-02-28T16:38:46.000000Z
+< 7e24e1217273eba5c7f70cf6dc8335eb
+< 2008-11-22T21:12:47.875343Z
+< 185186
+< thompsa
+< has-props
+---
+> 2009-01-16T02:12:55.000000Z
+> 9273d2cd708afd812e945ff0f4cee7fc
+> 2009-01-08T22:24:40.273900Z
+> 4280
+> jbirrell
+> 
+197c166
+< 2247
+---
+> 937
+199c168
+< Buildfile
+---
+> main.c
+201d169
+< 189535
+205,209d172
+< 2009-03-08T16:15:52.000000Z
+< 83d469b46132c04df409e0b5e0ee842d
+< 2009-03-08T16:16:55.856254Z
+< 189535
+< jb
+210a174,178
+> 2008-12-15T04:11:44.000000Z
+> 9b6f4556f212a45e90153e4e20d61351
+> 2008-11-14T22:40:36.128735Z
+> 921
+> jbirrell
+231,234c199,200
+< 493
+< 
+< SMM.doc
+< dir
+---
+> 
+> 11551
+236c202
+< mkoptions.c
+---
+> mkmakefile.c
+238d203
+< 189535
+242,247c207,212
+< 2009-03-08T16:15:42.000000Z
+< 1e2199ea7d7240b33b45b53946bc8289
+< 2009-03-08T16:16:55.856254Z
+< 189535
+< jb
+< has-props
+---
+> 
+> 2008-12-15T04:11:44.000000Z
+> a5dba8605a062cfb1f3d5ef004443ed8
+> 2008-11-14T22:40:36.128735Z
+> 921
+> jbirrell
+268c233,234
+< 8442
+---
+> 
+> 18434
+270c236
+< main.c
+---
+> config.8
+272d237
+< 189535
+276,281c241,246
+< 2009-03-08T16:14:10.000000Z
+< af03efe394a9cd411d58bcd9b0c9a968
+< 2009-03-08T16:16:55.856254Z
+< 189535
+< jb
+< has-props
+---
+> 
+> 2008-12-15T04:11:44.000000Z
+> aee197d56bed92c9d62a675578401e01
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+302c267,268
+< 16503
+---
+> 
+> 7206
+304c270
+< Buildfile.dirdep
+---
+> config.h
+306d271
+< 189535
+310,314c275,280
+< 2009-03-08T16:15:52.000000Z
+< beb01f9657cc9869097a0b906bba92f8
+< 2009-03-08T16:16:55.856254Z
+< 189535
+< jb
+---
+> 
+> 2008-12-15T04:11:44.000000Z
+> 45defb16a31778a93f6c694530d4517c
+> 2008-11-14T22:40:36.128735Z
+> 921
+> jbirrell
+336c302
+< 4875
+---
+> 5022
+338c304
+< config.5
+---
+> configvers.h
+344,349c310,315
+< 2009-02-28T16:38:46.000000Z
+< 94bc74c4a705f95a3a88fb1a34cffcfd
+< 2008-11-22T21:12:47.875343Z
+< 185186
+< thompsa
+< has-props
+---
+> 2008-12-15T04:11:44.000000Z
+> dd38e9a28bf566170c6511f77a73753c
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+370c336
+< 10792
+---
+> 427
+372c338
+< config.8
+---
+> lang.l
+378,383c344,348
+< 2009-02-28T17:48:50.000000Z
+< a1c19b9d807a8385f87a763246baa899
+< 2009-02-28T18:03:28.087785Z
+< 189192
+< jb
+< has-props
+---
+> 2008-12-15T04:11:44.000000Z
+> 54ea8d88d3e0fca9fca4c80ddfe51b1b
+> 2008-11-11T22:11:55.883774Z
+> 665
+> jbirrell
+404c369,370
+< 6997
+---
+> 
+> 6382
+406c372
+< lang.l
+---
+> config.y
+408d373
+< 189535
+412,417c377,382
+< 2009-03-08T16:14:35.000000Z
+< 79cf17aceb7b0d6a3d8efef1bb0d9eb5
+< 2009-03-08T16:16:55.856254Z
+< 189535
+< jb
+< has-props
+---
+> 
+> 2008-12-15T04:11:44.000000Z
+> cbae87c33689955f3dc4d714d60a3a4f
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+438c403,404
+< 6889
+---
+> 
+> 8228
+440c406
+< config.y
+---
+> Makefile
+446,451c412,417
+< 2009-02-28T16:38:46.000000Z
+< b229c10d34c707276f3f783227ac1af1
+< 2008-11-22T21:12:47.875343Z
+< 185186
+< thompsa
+< has-props
+---
+> 2008-12-15T04:11:44.000000Z
+> 19509fc5f527b3708fbd61d8e1d71f1d
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+472c438
+< 8911
+---
+> 459
+474c440
+< Makefile
+---
+> makefile
+480,485c446,451
+< 2009-02-28T16:38:46.000000Z
+< 3ad2c6c44069133b39934031151fb14f
+< 2008-06-06T00:01:22.997339Z
+< 179587
+< peter
+< has-props
+---
+> 2008-12-15T04:11:44.000000Z
+> a9087fa3ed4b173f64393a3b274c96d5
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+506c472
+< 441
+---
+> 80
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: Makefile.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: config.5.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: config.8.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: config.h.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: config.y.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: configvers.h.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: kernconf.tmpl.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: lang.l.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: main.c.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: mkheaders.c.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: mkmakefile.c.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/prop-base: mkoptions.c.svn-base
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/Buildfile.dirdep.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/Buildfile.dirdep.svn-base
+3,43c3
+< # DIRDEP= gnu/lib/csu gnu/lib/libgcc include lib/csu/MACHINE_ARCH lib/libc lib/libsbuf stage sys/MACHINE_ARCH/include sys/sys usr.bin/lex/lib
+< .if empty(D_INC_DONE:Mgnu/lib/csu)
+< D_INC_DONE+= gnu/lib/csu
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/gnu/lib/csu/Buildfile.dirdep)
+< .include "${.SRCTOP}/gnu/lib/csu/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Mgnu/lib/libgcc)
+< D_INC_DONE+= gnu/lib/libgcc
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/gnu/lib/libgcc/Buildfile.dirdep)
+< .include "${.SRCTOP}/gnu/lib/libgcc/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Minclude)
+< D_INC_DONE+= include
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/include/Buildfile.dirdep)
+< .include "${.SRCTOP}/include/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Mlib/libc)
+< D_INC_DONE+= lib/libc
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/lib/libc/Buildfile.dirdep)
+< .include "${.SRCTOP}/lib/libc/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Mlib/libsbuf)
+< D_INC_DONE+= lib/libsbuf
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/lib/libsbuf/Buildfile.dirdep)
+< .include "${.SRCTOP}/lib/libsbuf/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+---
+> # DIRDEP= stage
+52,89d11
+< .if empty(D_INC_DONE:Msys/sys)
+< D_INC_DONE+= sys/sys
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/sys/sys/Buildfile.dirdep)
+< .include "${.SRCTOP}/sys/sys/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Musr.bin/lex/lib)
+< D_INC_DONE+= usr.bin/lex/lib
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/usr.bin/lex/lib/Buildfile.dirdep)
+< .include "${.SRCTOP}/usr.bin/lex/lib/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .for t in ${MACHINE_LIST}
+< _d=lib/csu/MACHINE_ARCH
+< .if empty(D_INC_DONE:M${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g})
+< D_INC_DONE+= ${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< .include "${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .endfor
+< .for t in ${MACHINE_LIST}
+< _d=sys/MACHINE_ARCH/include
+< .if empty(D_INC_DONE:M${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g})
+< D_INC_DONE+= ${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< .include "${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .endfor
+92c14
+< .for t in ${MACHINE_LIST}
+---
+> .for t in ${JUNOS_MACHINE_LIST}
+97,132c19
+< _MACHINE_LIST:= ${MACHINE_LIST}
+< .if exists(${.SRCTOP}/gnu/lib/csu/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/gnu/lib/csu/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/gnu/lib/libgcc/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/gnu/lib/libgcc/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/include/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/include/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/lib/libc/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/lib/libc/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/lib/libsbuf/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/lib/libsbuf/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+---
+> _JUNOS_MACHINE_LIST:= ${JUNOS_MACHINE_LIST}
+134c21
+< .for _t in ${_MACHINE_LIST}
+---
+> .for _t in ${_JUNOS_MACHINE_LIST}
+140,169d26
+< .if exists(${.SRCTOP}/sys/sys/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/sys/sys/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/usr.bin/lex/lib/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/usr.bin/lex/lib/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .for t in ${_MACHINE_LIST}
+< _d=lib/csu/MACHINE_ARCH
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< D_TGTS_${t}+= ${.OBJROOT}/${t}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/all
+< D_TGTS_${t}:= ${D_TGTS_${t}}
+< .endif
+< 
+< .endfor
+< .for t in ${_MACHINE_LIST}
+< _d=sys/MACHINE_ARCH/include
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< D_TGTS_${t}+= ${.OBJROOT}/${t}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/all
+< D_TGTS_${t}:= ${D_TGTS_${t}}
+< .endif
+< 
+< .endfor
+172,175c29,30
+< .for t in ${MACHINE_LIST}
+< ${.OBJROOT}/${t}/usr.sbin/config/all : ${D_TGTS_${t}} .PHONY
+< 	echo Checking ${.OBJROOT}/${t}/usr.sbin/config
+< 	cd ${.SRCTOP}/usr.sbin/config && MACHINE=${t} ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all
+---
+> .for t in ${JUNOS_MACHINE_LIST:Nhost}
+> ${.OBJROOT}/${t}/bsd/usr.sbin/config/all : ${.OBJROOT}/host/bsd/usr.sbin/config/all .PHONY
+176a32,34
+> ${.OBJROOT}/host/bsd/usr.sbin/config/all : ${D_TGTS_host} .PHONY
+> 	echo Checking ${.OBJROOT}/host/bsd/usr.sbin/config
+> 	cd ${.SRCTOP}/bsd/usr.sbin/config && MACHINE=host ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/Buildfile.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/Buildfile.svn-base
+1c1,2
+< # $FreeBSD$
+---
+> # 	@(#)Makefile	8.1 (Berkeley) 6/6/93
+> # $FreeBSD: src/usr.bsd//config/Makefile,v 1.34 2004/05/11 15:42:44 cognet Exp $
+3c4,9
+< PROG = config
+---
+> HOSTPROG= yes
+> BINDIR=	${HOSTTOOL_STAGEDIR}/buildtools
+> PROG=	config
+> MAN=	config.8
+> SRCS=	cconfig.y main.c lang.l mkmakefile.c mkheaders.c \
+> 	mkoptions.c
+5,12c11
+< SRCS = \
+< 	cconfig.y \
+< 	main.c \
+< 	lang.l \
+< 	mkmakefile.c \
+< 	mkheaders.c \
+< 	mkoptions.c \
+< 	kernconf.c
+---
+> WARNS?=	6
+14c13,14
+< WARNS ?= 6
+---
+> CFLAGS = -I. -I${.CURDIR}
+> CFLAGS+= -Wall -Wunused -Wmissing-prototypes -Wredundant-decls
+16,18c16
+< CFLAGS+= -I. -I${.CURDIR}
+< 
+< LDADD += -ll -lsbuf
+---
+> LDADD=	-lln
+23,26c21
+< kernconf.c: kernconf.tmpl
+< 	file2c 'char kernconfstr[] = {' ',0};' < ${.ALLSRC} > ${.TARGET}
+< 
+< DIRDEP= gnu/lib/csu gnu/lib/libgcc include lib/csu/MACHINE_ARCH lib/libc lib/libsbuf stage sys/MACHINE_ARCH/include sys/sys usr.bin/lex/lib
+---
+> DIRDEP= stage
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/Makefile.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/Makefile.svn-base
+2c2
+< # $FreeBSD$
+---
+> # $FreeBSD: src/usr.sbin/config/Makefile,v 1.34 2004/05/11 15:42:44 cognet Exp $
+5c5
+< MAN=	config.5 config.8
+---
+> MAN=	config.8
+7,10c7
+< 	mkoptions.c y.tab.h kernconf.c
+< 
+< kernconf.c: kernconf.tmpl
+< 	file2c 'char kernconfstr[] = {' ',0};' < ${.CURDIR}/kernconf.tmpl > kernconf.c
+---
+> 	mkoptions.c y.tab.h
+15,18c12,13
+< DPADD=	${LIBL} ${LIBSBUF}
+< LDADD=	-ll -lsbuf
+< 
+< CLEANFILES+=	kernconf.c
+---
+> #DPADD=	${LIBL}
+> #LDADD=	-ll
+22a18,23
+> 
+> CFLAGS = -I. -I${.CURDIR}
+> CFLAGS+= -Wall -Wunused -Wmissing-prototypes -Wredundant-decls
+> CC = ${HOSTCC}
+> 
+> LDADD=	-ll
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base: config.5.svn-base
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/config.8.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/config.8.svn-base
+29c29
+< .\" $FreeBSD$
+---
+> .\" $FreeBSD: src/usr.sbin/config/config.8,v 1.43.2.1 2005/10/28 19:04:03 jhb Exp $
+31c31
+< .Dd May 8, 2007
+---
+> .Dd December 16, 2004
+39c39
+< .Op Fl CVgp
+---
+> .Op Fl Vgp
+40a41
+> .Op Fl s Ar srcdir
+42,43d42
+< .Nm
+< .Op Fl x Ar kernel
+44a44,57
+> This is the old version of the
+> .Nm
+> utility.
+> It understands the old autoconfiguration scheme
+> used on the HP300, i386, DECstation, and derivative platforms.
+> The new version of
+> .Nm
+> is used with the
+> SPARC platform.
+> Only the version of
+> .Nm
+> applicable to the architecture that you are running
+> will be installed on your machine.
+> .Pp
+67,71d79
+< .It Fl C
+< If the INCLUDE_CONFIG_FILE is present in a configuration file,
+< kernel image will contain full configuration files included
+< literally (preserving comments).
+< This flag is kept for backward compatibility.
+80a89,98
+> .It Fl s Ar srcdir
+> Use
+> .Ar srcdir
+> as the path to the top of the kernel source tree, instead of the
+> default one. If
+> .Ar srcdir
+> is a relative path, a set of .PATH directives is added to the 
+> .Pa Makefile
+> to force use of relative paths
+> in finding source files.
+83,88d100
+< .It Fl x Ar kernel
+< Print kernel configuration file embedded into a kernel
+< file.
+< This option makes sense only if 
+< .Cd "options INCLUDE_CONFIG_FILE"
+< entry was present in your configuration file.
+152a165,175
+> .Pp
+> If the
+> .Cd "options INCLUDE_CONFIG_FILE"
+> is used in the configuration file the
+> entire input file is embedded in the new kernel.
+> This means that
+> .Xr strings 1
+> can be used to extract it from a kernel:
+> to extract the configuration information, use the command
+> .Pp
+> .Dl "strings -n 3 kernel | sed -n 's/^___//p'"
+245,258d267
+< .Pp
+< Before support for 
+< .Fl x
+< was introduced,
+< .Cd "options INCLUDE_CONFIG_FILE"
+< included entire configuration file that used to be embedded in
+< the new kernel.
+< This meant that
+< .Xr strings 1
+< could be used to extract it from a kernel:
+< to extract the configuration information, you had to use 
+< the command:
+< .Pp
+< .Dl "strings -n 3 kernel | sed -n 's/^___//p'"
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/config.h.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/config.h.svn-base
+30c30
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/config.h,v 1.56.2.1 2005/10/28 19:04:03 jhb Exp $
+41,46d40
+< struct cfgfile {
+< 	STAILQ_ENTRY(cfgfile)	cfg_next;
+< 	char	*cfg_path;
+< };
+< STAILQ_HEAD(, cfgfile) cfgfiles;
+< 
+54a49
+> 	char	*f_needs;
+66a62
+> #define	INVISIBLE	2
+78a75
+> #define ISDUP		8
+101a99,102
+> #define	MACHINE_I386	1
+> #define MACHINE_PC98	2
+> #define MACHINE_ALPHA	3
+> #define MACHINE_MIPS    4
+124d124
+< 	SLIST_ENTRY(opt) op_append;
+127c127
+< SLIST_HEAD(opt_head, opt) opt, mkopt, rmopts;
+---
+> SLIST_HEAD(opt_head, opt) opt, mkopt;
+137,156d136
+< struct hint {
+< 	char	*hint_name;
+< 	STAILQ_ENTRY(hint) hint_next;
+< };
+< 
+< STAILQ_HEAD(hint_head, hint) hints;
+< 
+< /*
+<  * Tag present in the kernelconf.tmlp template file. It's mandatory for those
+<  * two strings to be the same. Otherwise you'll get into trouble.
+<  */
+< #define	KERNCONFTAG	"%%KERNCONFFILE%%"
+< 
+< /*
+<  * Faked option to note, that the configuration file has been taken from the
+<  * kernel file and inclusion of DEFAULTS etc.. isn't nessesery, because we
+<  * already have a list of all required devices.
+<  */
+< #define OPT_AUTOGEN	"CONFIG_AUTOGENERATED"
+< 
+159c139
+< extern char	kernconfstr[];
+---
+> extern char	*hints;
+163d142
+< extern int	incignore;
+175,176d153
+< void	makeenv(void);
+< void	makehints(void);
+178,179d154
+< void	cfgfile_add(const char *);
+< void	cfgfile_removeall(void);
+192a168
+> extern int	f_build;
+198a175
+> extern char bldfile[];		/* Target buildfile name. */
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/config.y.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/config.y.svn-base
+16d15
+< %token	PLUSEQUALS
+18a18
+> %token	INCLUDE
+72c72
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/config.y,v 1.66.2.2 2005/12/01 17:43:09 ru Exp $
+75d74
+< #include <assert.h>
+82a82,93
+> #ifndef SLIST_FOREACH_SAFE
+> /* 
+>  * JUNOS: FreeBSD 4.10 build servers don't have this define in sys/queue.h, 
+>  * since config is a host utility, for compilation of config on 
+>  * FreeBSD 4.10 build servers, we have to define this here 
+>  */
+> #define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
+> 	for ((var) = SLIST_FIRST((head));				\
+> 	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);		\
+> 	    (var) = (tvar))
+> #endif
+> 
+86a98
+> char	*hints;
+100,105d111
+< static void newdev(char *name);
+< static void newfile(char *name);
+< static void rmdev_schedule(struct device_head *dh, char *name);
+< static void newopt(struct opt_head *list, char *name, char *value, int append);
+< static void rmopt_schedule(struct opt_head *list, char *name);
+< 
+133,141c139,143
+< 	INCLUDE PATH SEMICOLON {
+< 		if (incignore == 0)
+< 			include($2, 0);
+< 		};
+< 		|
+< 	INCLUDE ID SEMICOLON {
+< 	          if (incignore == 0)
+< 		  	include($2, 0);
+< 		};
+---
+> 	INCLUDE PATH SEMICOLON
+> 	      = { include($2, 0); };
+> 		|
+> 	INCLUDE ID SEMICOLON
+> 	      = { include($2, 0); };
+143c145,146
+< 	FILES ID SEMICOLON { newfile($2); };
+---
+> 	FILES ID SEMICOLON
+> 	      = { newfile($2); };
+151,152c154,156
+< 	ARCH Save_id {
+< 		if (machinename != NULL && !eq($2, machinename))
+---
+> 	ARCH Save_id
+> 	    = {
+> 		if (machinename != NULL)
+158,160c162,164
+< 	ARCH Save_id Save_id {
+< 		if (machinename != NULL &&
+< 		    !(eq($2, machinename) && eq($3, machinearch)))
+---
+> 	ARCH Save_id Save_id
+> 	    = {
+> 		if (machinename != NULL)
+166c170,171
+< 	CPU Save_id {
+---
+> 	CPU Save_id
+> 	      = {
+168c173,174
+< 		    (struct cputype *)calloc(1, sizeof (struct cputype));
+---
+> 		    (struct cputype *)malloc(sizeof (struct cputype));
+> 		memset(cp, 0, sizeof(*cp));
+172c178,179
+< 	NOCPU Save_id {
+---
+> 	NOCPU Save_id
+> 	      = {
+175,178c182,186
+< 			if (eq(cp->cpu_name, $2)) {
+< 				SLIST_REMOVE(&cputype, cp, cputype, cpu_next);
+< 				free(cp);
+< 			}
+---
+> 			if (strcmp(cp->cpu_name, $2) != 0)
+> 				continue;
+> 			SLIST_REMOVE(&cputype, cp, cputype, cpu_next);
+> 			free(cp);
+> 			break;
+183c191,192
+< 	NOOPTION Save_id { rmopt_schedule(&opt, $2); } |
+---
+> 	NOOPTION Save_id
+> 	      = { rmopt(&opt, $2); } |
+186,187c195,198
+< 	NOMAKEOPTION Save_id { rmopt_schedule(&mkopt, $2); } |
+< 	IDENT ID { ident = $2; } |
+---
+> 	NOMAKEOPTION Save_id
+> 	      = { rmopt(&mkopt, $2); } |
+> 	IDENT ID
+> 	      = { ident = $2; } |
+190,194c201,208
+< 	MAXUSERS NUMBER { maxusers = $2; } |
+< 	PROFILE NUMBER { profiling = $2; } |
+< 	ENV ID {
+< 		env = $2;
+< 		envmode = 1;
+---
+> 	MAXUSERS NUMBER
+> 	      = { maxusers = $2; } |
+> 	PROFILE NUMBER
+> 	      = { profiling = $2; } |
+> 	ENV ID
+> 	      = {
+> 		      env = $2;
+> 		      envmode = 1;
+196,202c210,213
+< 	HINTS ID {
+< 		struct hint *hint;
+< 
+< 		hint = (struct hint *)calloc(1, sizeof (struct hint));
+< 		hint->hint_name = $2;
+< 		STAILQ_INSERT_TAIL(&hints, hint, hint_next);
+< 		hintmode = 1;
+---
+> 	HINTS ID
+> 	      = {
+> 		      hints = $2;
+> 		      hintmode = 1;
+206,209c217,219
+< 	CONFIG System_id System_parameter_list {
+< 		errx(1, "%s:%d: root/dump/swap specifications obsolete",
+< 		      yyfile, yyline);
+< 		}
+---
+> 	CONFIG System_id System_parameter_list
+> 	  = { errx(1, "%s:%d: root/dump/swap specifications obsolete",
+> 	      yyfile, yyline);}
+215c225,226
+< 	Save_id { newopt(&mkopt, ns("KERNEL"), $1, 0); };
+---
+> 	Save_id
+> 	      = { newopt(&mkopt, ns("KERNEL"), $1); };
+229,231c240,245
+< 	Save_id {
+< 		newopt(&opt, $1, NULL, 0);
+< 		if (strchr($1, '=') != NULL)
+---
+> 	Save_id
+> 	      = {
+> 		char *s;
+> 
+> 		newopt(&opt, $1, NULL);
+> 		if ((s = strchr($1, '=')))
+235,236c249,251
+< 	Save_id EQUALS Opt_value {
+< 		newopt(&opt, $1, $3, 0);
+---
+> 	Save_id EQUALS Opt_value
+> 	      = {
+> 		newopt(&opt, $1, $3);
+240,241c255,258
+< 	ID { $$ = $1; } |
+< 	NUMBER {
+---
+> 	ID
+> 		= { $$ = $1; } |
+> 	NUMBER
+> 		= {
+249c266,267
+< 	ID { $$ = $1; }
+---
+> 	ID
+> 	      = { $$ = $1; }
+259,261c277,280
+< 	Save_id { newopt(&mkopt, $1, ns(""), 0); } |
+< 	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0); } |
+< 	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1); } ;
+---
+> 	Save_id
+> 	      = { newopt(&mkopt, $1, ns("")); } |
+> 	Save_id EQUALS Opt_value
+> 	      = { newopt(&mkopt, $1, $3); } ;
+264c283,284
+< 	ID { $$ = $1; }
+---
+> 	ID
+> 	      = { $$ = $1; }
+286,287c306,308
+< 	Dev {
+< 		newopt(&opt, devopt($1), ns("1"), 0);
+---
+> 	Dev
+> 	      = {
+> 		newopt(&opt, devopt($1), ns("1"));
+293c314,315
+< 	Dev {
+---
+> 	Dev
+> 	      = {
+296c318
+< 		rmopt_schedule(&opt, s);
+---
+> 		rmopt(&opt, s);
+299c321
+< 		rmdev_schedule(&dtab, $1);
+---
+> 		rmdev($1);
+313a336
+> 
+333c356,357
+< 	nl = (struct files_name *) calloc(1, sizeof *nl);
+---
+> 	nl = (struct files_name *) malloc(sizeof *nl);
+> 	bzero(nl, sizeof *nl);
+339,354c363
+<  * Find a device in the list of devices.
+<  */
+< static struct device *
+< finddev(struct device_head *dlist, char *name)
+< {
+< 	struct device *dp;
+< 
+< 	STAILQ_FOREACH(dp, dlist, d_next)
+< 		if (eq(dp->d_name, name))
+< 			return (dp);
+< 
+< 	return (NULL);
+< }
+< 	
+< /*
+<  * Add a device to the list of devices.
+---
+>  * add a device to the list of devices
+361,366c370,371
+< 	if (finddev(&dtab, name)) {
+< 		printf("WARNING: duplicate device `%s' encountered.\n", name);
+< 		return;
+< 	}
+< 
+< 	np = (struct device *) calloc(1, sizeof *np);
+---
+> 	np = (struct device *) malloc(sizeof *np);
+> 	memset(np, 0, sizeof(*np));
+372c377
+<  * Schedule a device to removal.
+---
+>  * remove a device from the list of devices
+375c380
+< rmdev_schedule(struct device_head *dh, char *name)
+---
+> rmdev(char *name)
+377c382
+< 	struct device *dp;
+---
+> 	struct device *dp, *rmdp;
+379,383c384,393
+< 	dp = finddev(dh, name);
+< 	if (dp != NULL) {
+< 		STAILQ_REMOVE(dh, dp, device, d_next);
+< 		free(dp->d_name);
+< 		free(dp);
+---
+> 	STAILQ_FOREACH(dp, &dtab, d_next) {
+> 		if (eq(dp->d_name, name)) {
+> 			rmdp = dp;
+> 			dp = STAILQ_NEXT(dp, d_next);
+> 			STAILQ_REMOVE(&dtab, rmdp, device, d_next);
+> 			free(rmdp->d_name);
+> 			free(rmdp);
+> 			if (dp == NULL)
+> 				break;
+> 		}
+387,404d396
+< /*
+<  * Find an option in the list of options.
+<  */
+< static struct opt *
+< findopt(struct opt_head *list, char *name)
+< {
+< 	struct opt *op;
+< 
+< 	SLIST_FOREACH(op, list, op_next)
+< 		if (eq(op->op_name, name))
+< 			return (op);
+< 
+< 	return (NULL);
+< }
+< 
+< /*
+<  * Add an option to the list of options.
+<  */
+406c398
+< newopt(struct opt_head *list, char *name, char *value, int append)
+---
+> newopt(struct opt_head *list, char *name, char *value)
+408,422c400
+< 	struct opt *op, *op2;
+< 
+< 	/*
+< 	 * Ignore inclusions listed explicitly for configuration files.
+< 	 */
+< 	if (eq(name, OPT_AUTOGEN)) {
+< 		incignore = 1;
+< 		return;
+< 	}
+< 
+< 	op2 = findopt(list, name);
+< 	if (op2 != NULL && !append) {
+< 		printf("WARNING: duplicate option `%s' encountered.\n", name);
+< 		return;
+< 	}
+---
+> 	struct opt *op;
+424c402,403
+< 	op = (struct opt *)calloc(1, sizeof (struct opt));
+---
+> 	op = (struct opt *)malloc(sizeof (struct opt));
+> 	memset(op, 0, sizeof(*op));
+428,433c407
+< 	if (op2 != NULL) {
+< 		while (SLIST_NEXT(op2, op_append) != NULL)
+< 			op2 = SLIST_NEXT(op2, op_append);
+< 		SLIST_NEXT(op2, op_append) = op;
+< 	} else
+< 		SLIST_INSERT_HEAD(list, op, op_next);
+---
+> 	SLIST_INSERT_HEAD(list, op, op_next);
+436,438d409
+< /*
+<  * Remove an option from the list of options.
+<  */
+440c411
+< rmopt_schedule(struct opt_head *list, char *name)
+---
+> rmopt(struct opt_head *list, char *name)
+442c413
+< 	struct opt *op;
+---
+> 	struct opt *op, *rmop;
+444,448c415,426
+< 	op = findopt(list, name);
+< 	if (op != NULL) {
+< 		SLIST_REMOVE(list, op, opt, op_next);
+< 		free(op->op_name);
+< 		free(op);
+---
+> 	SLIST_FOREACH(op, list, op_next) {
+> 		if (eq(op->op_name, name)) {
+> 			rmop = op;
+> 			op = SLIST_NEXT(op, op_next);
+> 			SLIST_REMOVE(list, rmop, opt, op_next);
+> 			free(rmop->op_name);
+> 			if (rmop->op_value != NULL)
+> 				free(rmop->op_value);
+> 			free(rmop);
+> 			if (op == NULL)
+> 				break;
+> 		}
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/configvers.h.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/configvers.h.svn-base
+1,6d0
+< /*-
+<  * This file is in the public domain
+<  *
+<  * $FreeBSD$
+<  */
+< 
+8,37c2,4
+<  * 6 digits of version.  The most significant are branch indicators at the
+<  * time when the last incompatible change was made (which is why it is
+<  * presently 6 on 7-current).  The least significant digits are incremented
+<  * as described below.  The format is similar to the __FreeBSD_version, but
+<  * not tied to it.
+<  *
+<  * DO NOT CASUALLY BUMP THIS NUMBER!  The rules are not the same as shared
+<  * libs or param.h/osreldate.
+<  *
+<  * It is the version number of the protocol between config(8) and the
+<  * sys/conf/ Makefiles (the kernel build system).
+<  *
+<  * It is now also used to trap certain problems that the syntax parser cannot
+<  * detect.
+<  *
+<  * Unfortunately, there is no version number for user supplied config files.
+<  *
+<  * Once, config(8) used to silently report errors and continue anyway.  This
+<  * was a huge problem for 'make buildkernel' which was run with the installed
+<  * /usr/sbin/config, not a cross built one.  We started bumping the version
+<  * number as a way to trap cases where the previous installworld was not
+<  * compatable with the new buildkernel.  The buildtools phase and much more
+<  * comprehensive error code returns solved this original problem.
+<  *
+<  * Most end-users will use buildkernel and the build tools from buildworld.
+<  * The people that are inconvenienced by gratuitous bumps are developers
+<  * who run config by hand.  However, developers shouldn't gratuitously be
+<  * inconvenienced.
+<  *
+<  * One should bump the CONFIGVERS in the following ways:
+---
+>  * 6 digits of version.  The most significant are branch indicators
+>  * (eg: RELENG_2_2 = 22, -current presently = 60 etc). The least
+>  * significant digits are incremented for each incompatible change.
+39,48c6,7
+<  * (1) If you change config such that it won't read old config files,
+<  *     then bump the major number.  You shouldn't be doing this unless
+<  *     you are overhauling config.  Do not casually bump this number
+<  *     and by implication do not make changes that would force a bump
+<  *     of this number casually.  You should limit major bumps to once
+<  *     per branch.
+<  * (2) For each new feature added, bump the minor version of this file.
+<  *     When a new feature is actually used by the build system, update the
+<  *     %VERSREQ field in the Makefile.$ARCH of all the affected makefiles
+<  *     (typically all of them).
+---
+>  * The numbering scheme is inspired by the sys/conf/newvers.sh RELDATE
+>  * and <osreldate.h> system.
+50c9
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/configvers.h,v 1.35.2.1 2005/10/28 19:04:03 jhb Exp $
+52,53c11
+< #define	CONFIGVERS	600007
+< #define	MAJOR_VERS(x)	((x) / 100000)
+---
+> #define	CONFIGVERS	600003
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base: kernconf.tmpl.svn-base
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/lang.l.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/lang.l.svn-base
+31c31
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/lang.l,v 1.41.2.1 2005/12/01 17:43:09 ru Exp $
+78d77
+< 	{ "makeoption",	MAKEOPTIONS },
+163d161
+< "+="		{	BEGIN TOEOL; return PLUSEQUALS;	}
+221,244d218
+< void
+< cfgfile_add(const char *fname)
+< {
+< 	struct cfgfile *cf;
+< 
+< 	cf = calloc(1, sizeof(*cf));
+< 	assert(cf != NULL);
+< 	asprintf(&cf->cfg_path, "%s", fname);
+< 	STAILQ_INSERT_TAIL(&cfgfiles, cf, cfg_next);
+< }
+< 
+< void
+< cfgfile_removeall(void)
+< {
+< 	struct cfgfile *cf;
+< 
+< 	while (!STAILQ_EMPTY(&cfgfiles)) {
+< 		cf = STAILQ_FIRST(&cfgfiles);
+< 		STAILQ_REMOVE_HEAD(&cfgfiles, cfg_next);
+< 		if (cf->cfg_path != NULL)
+< 			free(cf->cfg_path);
+< 		free(cf);
+< 	}
+< }
+260d233
+< 	fnamebuf = NULL;
+273d245
+< 	cfgfile_add(fnamebuf == NULL ? fname : fnamebuf);
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/main.c.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/main.c.svn-base
+41c41
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/main.c,v 1.64.2.1 2005/10/28 19:04:03 jhb Exp $";
+46d45
+< #include <sys/sbuf.h>
+50,51d48
+< 
+< #include <assert.h>
+55d51
+< #include <string.h>
+79a76
+> char 	bldfile[MAXPATHLEN];
+81a79
+> int	f_build = 0;
+84,90d81
+< int	incignore;
+< 
+< /*
+<  * Preserve old behaviour in INCLUDE_CONFIG_FILE handling (files are included
+<  * literally).
+<  */
+< int	filebased = 0;
+96d86
+< static void kernconfdump(const char *);
+115d104
+< 	char *kernfile;
+117,118c106
+< 	kernfile = NULL;
+< 	while ((ch = getopt(argc, argv, "Cd:gpVx:")) != -1)
+---
+> 	while ((ch = getopt(argc, argv, "b:d:gpVs:")) != -1)
+120,121c108,113
+< 		case 'C':
+< 			filebased = 1;
+---
+> 		case 'V':
+> 			printf("%d\n", CONFIGVERS);
+> 			exit(0);
+> 		case 'b':
+> 			f_build = 1;
+> 			strncpy(bldfile, optarg, sizeof(bldfile));
+125c117
+< 				strlcpy(destdir, optarg, sizeof(destdir));
+---
+> 				strncpy(destdir, optarg, sizeof(destdir));
+135,139c127,132
+< 		case 'V':
+< 			printf("%d\n", CONFIGVERS);
+< 			exit(0);
+< 		case 'x':
+< 			kernfile = optarg;
+---
+> 		case 's': 
+> 			/* JUNOS addition */
+> 			if (*srcdir == '\0')
+> 				strncpy(srcdir, optarg, sizeof(srcdir));
+> 			else
+> 				errx(2, "directory already set");
+148,152d140
+< 	if (kernfile != NULL) {
+< 		kernconfdump(kernfile);
+< 		exit(EXIT_SUCCESS);
+< 	}
+< 
+157,158d144
+< 	if (stat(PREFIX, &buf) != 0 || !S_ISREG(buf.st_mode))
+< 		err(2, "%s", PREFIX);
+166a153
+> 
+171c158,159
+< 		get_srcdir();
+---
+> 		if (*srcdir == '\0')
+> 			get_srcdir();
+173,174c161,162
+< 		strlcpy(destdir, CDIR, sizeof(destdir));
+< 		strlcat(destdir, PREFIX, sizeof(destdir));
+---
+> 		strncpy(destdir, CDIR, sizeof(destdir));
+> 		strncat(destdir, PREFIX, sizeof(destdir));
+181c169,170
+< 	} else if (!S_ISDIR(buf.st_mode))
+---
+> 	}
+> 	else if ((buf.st_mode & S_IFMT) != S_IFDIR)
+184,188d172
+< 	SLIST_INIT(&cputype);
+< 	SLIST_INIT(&mkopt);
+< 	SLIST_INIT(&opt);
+< 	SLIST_INIT(&rmopts);
+< 	STAILQ_INIT(&cfgfiles);
+190a175
+> 	SLIST_INIT(&cputype);
+192d176
+< 	STAILQ_INIT(&hints);
+195,198d178
+< 
+< 	/*
+< 	 * Ensure that required elements (machine, cpu, ident) are present.
+< 	 */
+203,211d182
+< 	if (ident == NULL) {
+< 		printf("no ident line specified\n");
+< 		exit(1);
+< 	}
+< 	if (SLIST_EMPTY(&cputype)) {
+< 		printf("cpu type must be specified\n");
+< 		exit(1);
+< 	}
+< 
+238d208
+< 	configfile();			/* put config file into kernel*/
+241,242d210
+< 	makeenv();			/* build env.c */
+< 	makehints();			/* build hints.c */
+243a212
+> 	configfile();			/* put config file into kernel*/
+245,246c214,217
+< 	printf("Kernel build directory is %s\n", p);
+< 	printf("Don't forget to do ``make cleandepend && make depend''\n");
+---
+> 	if (!f_build) {
+> 		printf("Kernel build directory is %s\n", p);
+> 		printf("Don't forget to do ``make cleandepend; make depend''\n");
+> 	}
+258,260d228
+< 	struct stat lg, phy;
+< 	char *p, *pwd;
+< 	int i;
+264,278d231
+< 	if ((pwd = getenv("PWD")) != NULL && *pwd == '/' &&
+< 	    (pwd = strdup(pwd)) != NULL) {
+< 		/* Remove the last two path components. */
+< 		for (i = 0; i < 2; i++) {
+< 			if ((p = strrchr(pwd, '/')) == NULL) {
+< 				free(pwd);
+< 				return;
+< 			}
+< 			*p = '\0';
+< 		}
+< 		if (stat(pwd, &lg) != -1 && stat(srcdir, &phy) != -1 &&
+< 		    lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino)
+< 			strlcpy(srcdir, pwd, MAXPATHLEN);
+< 		free(pwd);
+< 	}
+285,287c238,239
+< 	fprintf(stderr, "usage: config [-CgpV] [-d destdir] sysname\n");
+< 	fprintf(stderr, "       config -x kernel\n");
+< 	exit(EX_USAGE);
+---
+> 	fprintf(stderr, "usage: config [-Vgp] [-b bldfile] [-d destdir] sysname\n");
+> 	exit(1);
+413,495d364
+< /*
+<  * Generate configuration file based on actual settings. With this mode, user
+<  * will be able to obtain and build conifguration file with one command.
+<  */
+< static void
+< configfile_dynamic(struct sbuf *sb)
+< {
+< 	struct cputype *cput;
+< 	struct device *d;
+< 	struct opt *ol;
+< 	char *lend;
+< 	unsigned int i;
+< 
+< 	asprintf(&lend, "\\n\\\n");
+< 	assert(lend != NULL);
+< 	sbuf_printf(sb, "options\t%s%s", OPT_AUTOGEN, lend);
+< 	sbuf_printf(sb, "ident\t%s%s", ident, lend);
+< 	sbuf_printf(sb, "machine\t%s%s", machinename, lend);
+< 	SLIST_FOREACH(cput, &cputype, cpu_next)
+< 		sbuf_printf(sb, "cpu\t%s%s", cput->cpu_name, lend);
+< 	SLIST_FOREACH(ol, &mkopt, op_next)
+< 		sbuf_printf(sb, "makeoptions\t%s=%s%s", ol->op_name,
+< 		    ol->op_value, lend);
+< 	SLIST_FOREACH(ol, &opt, op_next) {
+< 		if (strncmp(ol->op_name, "DEV_", 4) == 0)
+< 			continue;
+< 		sbuf_printf(sb, "options\t%s", ol->op_name);
+< 		if (ol->op_value != NULL) {
+< 			sbuf_putc(sb, '=');
+< 			for (i = 0; i < strlen(ol->op_value); i++) {
+< 				if (ol->op_value[i] == '"')
+< 					sbuf_printf(sb, "\\%c",
+< 					    ol->op_value[i]);
+< 				else
+< 					sbuf_printf(sb, "%c",
+< 					    ol->op_value[i]);
+< 			}
+< 			sbuf_printf(sb, "%s", lend);
+< 		} else {
+< 			sbuf_printf(sb, "%s", lend);
+< 		}
+< 	}
+< 	/*
+< 	 * Mark this file as containing everything we need.
+< 	 */
+< 	STAILQ_FOREACH(d, &dtab, d_next)
+< 		sbuf_printf(sb, "device\t%s%s", d->d_name, lend);
+< 	free(lend);
+< }
+< 
+< /*
+<  * Generate file from the configuration files.
+<  */
+< static void
+< configfile_filebased(struct sbuf *sb)
+< {
+< 	FILE *cff;
+< 	struct cfgfile *cf;
+< 	int i;
+< 
+< 	/*
+< 	 * Try to read all configuration files. Since those will be present as
+< 	 * C string in the macro, we have to slash their ends then the line
+< 	 * wraps.
+< 	 */
+< 	STAILQ_FOREACH(cf, &cfgfiles, cfg_next) {
+< 		cff = fopen(cf->cfg_path, "r");
+< 		if (cff == NULL) {
+< 			warn("Couldn't open file %s", cf->cfg_path);
+< 			continue;
+< 		}
+< 		while ((i = getc(cff)) != EOF) {
+< 			if (i == '\n')
+< 				sbuf_printf(sb, "\\n\\\n");
+< 			else if (i == '"' || i == '\'')
+< 				sbuf_printf(sb, "\\%c", i);
+< 			else
+< 				sbuf_putc(sb, i);
+< 		}
+< 		fclose(cff);
+< 	}
+< }
+< 
+499,500c368
+< 	FILE *fo;
+< 	struct sbuf *sb;
+---
+> 	FILE *fi, *fo;
+502,506c370,375
+< 
+< 	/* Add main configuration file to the list of files to be included */
+< 	cfgfile_add(PREFIX);
+< 	p = path("config.c.new");
+< 	fo = fopen(p, "w");
+---
+> 	int i;
+> 	
+> 	fi = fopen(PREFIX, "r");
+> 	if (!fi)
+> 		err(2, "%s", PREFIX);
+> 	fo = fopen(p=path("config.c.new"), "w");
+509,516c378,391
+< 	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
+< 	assert(sb != NULL);
+< 	sbuf_clear(sb);
+< 	if (filebased) {
+< 		/* Is needed, can be used for backward compatibility. */
+< 		configfile_filebased(sb);
+< 	} else {
+< 		configfile_dynamic(sb);
+---
+> 	fprintf(fo, "#include \"opt_config.h\"\n");
+> 	fprintf(fo, "#ifdef INCLUDE_CONFIG_FILE \n");
+> 	fprintf(fo, "const char config[] = \"\\\n");
+> 	fprintf(fo, "START CONFIG FILE %s\\n\\\n___", PREFIX);
+> 	while (EOF != (i=getc(fi))) {
+> 		if (i == '\n') {
+> 			fprintf(fo, "\\n\\\n___");
+> 		} else if (i == '\"') {
+> 			fprintf(fo, "\\\"");
+> 		} else if (i == '\\') {
+> 			fprintf(fo, "\\\\");
+> 		} else {
+> 			putc(i, fo);
+> 		}
+518,532c393,396
+< 	sbuf_finish(sb);
+< 	/* 
+< 	 * We print first part of the tamplate, replace our tag with
+< 	 * configuration files content and later continue writing our
+< 	 * template.
+< 	 */
+< 	p = strstr(kernconfstr, KERNCONFTAG);
+< 	if (p == NULL)
+< 		errx(EXIT_FAILURE, "Something went terribly wrong!");
+< 	*p = '\0';
+< 	fprintf(fo, "%s", kernconfstr);
+< 	fprintf(fo, "%s", sbuf_data(sb));
+< 	p += strlen(KERNCONFTAG);
+< 	fprintf(fo, "%s", p);
+< 	sbuf_delete(sb);
+---
+> 	fprintf(fo, "\\n\\\nEND CONFIG FILE %s\\n\\\n", PREFIX);
+> 	fprintf(fo, "\";\n");
+> 	fprintf(fo, "\n#endif /* INCLUDE_CONFIG_FILE */\n");
+> 	fclose(fi);
+535d398
+< 	cfgfile_removeall();
+571a435,437
+> #ifndef MAP_FAILED
+> #define MAP_FAILED ((caddr_t) -1)
+> #endif
+622c488
+< 			if (eq(dp->d_name, hl->h_name)) {
+---
+> 			if (strcmp(dp->d_name, hl->h_name) == 0) {
+651c517
+< 		if (eq(s, hl->h_name)) {
+---
+> 		if (strcmp(s, hl->h_name) == 0) {
+656c522,523
+< 	hl = calloc(1, sizeof(*hl));
+---
+> 	hl = malloc(sizeof(*hl));
+> 	bzero(hl, sizeof(*hl));
+661,725d527
+< 
+< /*
+<  * This one is quick hack. Will be probably moved to elf(3) interface.
+<  * It takes kernel configuration file name, passes it as an argument to
+<  * elfdump -a, which output is parsed by some UNIX tools...
+<  */
+< static void
+< kernconfdump(const char *file)
+< {
+< 	struct stat st;
+< 	FILE *fp, *pp;
+< 	int error, len, osz, r;
+< 	unsigned int i, off, size;
+< 	char *cmd, *o;
+< 
+< 	r = open(file, O_RDONLY);
+< 	if (r == -1)
+< 		errx(EXIT_FAILURE, "Couldn't open file '%s'", file);
+< 	error = fstat(r, &st);
+< 	if (error == -1)
+< 		errx(EXIT_FAILURE, "fstat() failed");
+< 	if (S_ISDIR(st.st_mode))
+< 		errx(EXIT_FAILURE, "'%s' is a directory", file);
+< 	fp = fdopen(r, "r");
+< 	if (fp == NULL)
+< 		errx(EXIT_FAILURE, "fdopen() failed");
+< 	osz = 1024;
+< 	o = calloc(1, osz);
+< 	if (o == NULL)
+< 		errx(EXIT_FAILURE, "Couldn't allocate memory");
+< 	/* ELF note section header. */
+< 	asprintf(&cmd, "/usr/bin/elfdump -c %s | grep -A 5 kern_conf"
+< 	    "| tail -2 | cut -d ' ' -f 2 | paste - - -", file);
+< 	if (cmd == NULL)
+< 		errx(EXIT_FAILURE, "asprintf() failed");
+< 	pp = popen(cmd, "r");
+< 	if (pp == NULL)
+< 		errx(EXIT_FAILURE, "popen() failed");
+< 	free(cmd);
+< 	len = fread(o, osz, 1, pp);
+< 	pclose(pp);
+< 	r = sscanf(o, "%d\t%d", &off, &size);
+< 	free(o);
+< 	if (r != 2)
+< 		errx(EXIT_FAILURE, "File %s doesn't contain configuration "
+< 		    "file. Either unsupported, or not compiled with "
+< 		    "INCLUDE_CONFIG_FILE", file);
+< 	r = fseek(fp, off, SEEK_CUR);
+< 	if (r != 0)
+< 		errx(EXIT_FAILURE, "fseek() failed");
+< 	for (i = 0; i < size - 1; i++) {
+< 		r = fgetc(fp);
+< 		if (r == EOF)
+< 			break;
+< 		/* 
+< 		 * If '\0' is present in the middle of the configuration
+< 		 * string, this means something very weird is happening.
+< 		 * Make such case very visible.
+< 		 */
+< 		assert(r != '\0' && ("Char present in the configuration "
+< 		    "string mustn't be equal to 0"));
+< 		fputc(r, stdout);
+< 	}
+< 	fclose(fp);
+< }
+Only in /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base: makefile.svn-base
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/mkheaders.c.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/mkheaders.c.svn-base
+35c35
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/mkheaders.c,v 1.30 2004/08/30 23:03:56 peter Exp $";
+56a57
+> 	struct file_list *fl;
+57a59
+> 	int match;
+60a63,73
+> 	STAILQ_FOREACH(fl, &ftab, f_next) {
+> 		if (fl->f_needs != 0) {
+> 			match = 0;
+> 			STAILQ_FOREACH(dp, &dtab, d_next) {
+> 				if (eq(dp->d_name, fl->f_needs)) {
+> 					match++;
+> 					dp->d_done |= DEVDONE;
+> 				}
+> 			}
+> 		}
+> 	}
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/mkmakefile.c.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/mkmakefile.c.svn-base
+35c35
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/mkmakefile.c,v 1.81 2004/08/30 23:03:56 peter Exp $";
+104c104,105
+< 	fp = (struct file_list *) calloc(1, sizeof *fp);
+---
+> 	fp = (struct file_list *) malloc(sizeof *fp);
+> 	bzero(fp, sizeof *fp);
+117c118
+< 	struct opt *op, *t;
+---
+> 	struct opt *op;
+118a120
+> 	char *s;
+121c123,126
+< 	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
+---
+> 	if (f_build)
+> 		snprintf(line, sizeof(line), "../../conf/Buildfile.%s", machinename);
+> 	else
+> 		snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
+129a135,140
+> 	/* XXX this check seems to be misplaced. */
+> 	if (SLIST_EMPTY(&cputype)) {
+> 		printf("cpu type must be specified\n");
+> 		exit(1);
+> 	}
+> 
+134,139c145,146
+< 	SLIST_FOREACH_SAFE(op, &mkopt, op_next, t) {
+< 		fprintf(ofp, "%s=%s", op->op_name, op->op_value);
+< 		while ((op = SLIST_NEXT(op, op_append)) != NULL)
+< 			fprintf(ofp, " %s", op->op_value);
+< 		fprintf(ofp, "\n");
+< 	}
+---
+> 	SLIST_FOREACH(op, &mkopt, op_next)
+> 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
+144c151,152
+< 	if (*srcdir != '\0')
+---
+> 	/* begin JUNOS */
+> 	if (*srcdir != '\0') {
+145a154,159
+> 		if (*srcdir == '.') {
+> 			fprintf(ofp, 
+> 	"\n# Force files to be found via relative path by clearing .PATH and adding '.'\n# (and '.DOTLAST' for makes that use it.)\n.PATH:\n.PATH: . .DOTLAST\n\n");
+> 		}
+> 	}
+> 	/* end JUNOS */
+163,164c177
+< 			if (MAJOR_VERS(versreq) != MAJOR_VERS(CONFIGVERS) ||
+< 			    versreq > CONFIGVERS) {
+---
+> 			if (versreq != CONFIGVERS) {
+184,197c197,209
+< 	moveifchanged(path("Makefile.new"), path("Makefile"));
+< }
+< 
+< /*
+<  * Build hints.c from the skeleton
+<  */
+< void
+< makehints(void)
+< {
+< 	FILE *ifp, *ofp;
+< 	char line[BUFSIZ];
+< 	char *s;
+< 	struct hint *hint;
+< 
+---
+> 	if (f_build)
+> 		moveifchanged(path("Makefile.new"), path(bldfile));
+> 	else
+> 		moveifchanged(path("Makefile.new"), path("Makefile"));
+> 
+> 	/* XXX makefile() should make the Makefile, not hints.c. */
+> 	if (hints) {
+> 		ifp = fopen(hints, "r");
+> 		if (ifp == NULL)
+> 			err(1, "%s", hints);
+> 	} else {
+> 		ifp = NULL;
+> 	}
+206,209c218
+< 	STAILQ_FOREACH(hint, &hints, hint_next) {
+< 		ifp = fopen(hint->hint_name, "r");
+< 		if (ifp == NULL)
+< 			err(1, "%s", hint->hint_name);
+---
+> 	if (ifp) {
+239d247
+< 		fclose(ifp);
+241a250,251
+> 	if (ifp)
+> 		fclose(ifp);
+244,254d253
+< }
+< 
+< /*
+<  * Build env.c from the skeleton
+<  */
+< void
+< makeenv(void)
+< {
+< 	FILE *ifp, *ofp;
+< 	char line[BUFSIZ];
+< 	char *s;
+255a255
+> 	/* XXX makefile() should make the Makefile, not env.c. */
+312d311
+< 	char ifname[MAXPATHLEN];
+314c313
+< 	struct file_list *tp;
+---
+> 	struct file_list *tp, *pf;
+317,318c316,317
+< 	char *wd, *this, *compilewith, *depends, *clean, *warning;
+< 	int compile, match, nreqs, std, filetype,
+---
+> 	char *wd, *this, *needs, *compilewith, *depends, *clean, *warning;
+> 	int nreqs, isdup, std, filetype,
+326d324
+< 	 * include "filename"
+328c326
+< 	 *	[ dev* [ | dev* ... ] | profiling-routine ] [ no-obj ]
+---
+> 	 *	[ dev* | profiling-routine ] [ no-obj ]
+346,357d343
+< 	if (eq(wd, "include")) {
+< 		next_quoted_word(fp, wd);
+< 		if (wd == 0) {
+< 			printf("%s: missing include filename.\n", fname);
+< 			exit(1);
+< 		}
+< 		(void) snprintf(ifname, sizeof(ifname), "../../%s", wd);
+< 		read_file(ifname);
+< 		while (((wd = get_word(fp)) != (char *)EOF) && wd)
+< 			;
+< 		goto next;
+< 	}
+365,367c351,355
+< 	tp = fl_lookup(this);
+< 	compile = 0;
+< 	match = 1;
+---
+> 	if ((pf = fl_lookup(this)) && (pf->f_type != INVISIBLE || pf->f_flags))
+> 		isdup = ISDUP;
+> 	else
+> 		isdup = 0;
+> 	tp = 0;
+372a361
+> 	needs = 0;
+396,410c385,387
+< 		compile += match;
+< 		if (compile && tp == NULL)
+< 			goto doneparam;
+< 		goto next;
+< 	}
+< 	if (eq(wd, "|")) {
+< 		if (nreqs == 0) {
+< 			printf("%s: syntax error describing %s\n",
+< 			    fname, this);
+< 			exit(1);
+< 		}
+< 		compile += match;
+< 		match = 1;
+< 		nreqs = 0;
+< 		goto nextparam;
+---
+> 		if (isdup)
+> 			goto next;
+> 		goto doneparam;
+485a463,466
+> 	if (needs == 0 && nreqs == 1)
+> 		needs = ns(wd);
+> 	if (isdup)
+> 		goto invis;
+487,488c468
+< 		if (eq(dp->d_name, wd)) {
+< 			dp->d_done |= DEVDONE;
+---
+> 		if (eq(dp->d_name, wd))
+490d469
+< 		}
+502c481,485
+< 		if (op->op_value == 0 && opteq(op->op_name, wd))
+---
+> 		if (op->op_value == 0 && opteq(op->op_name, wd)) {
+> 			if (nreqs == 1) {
+> 				free(needs);
+> 				needs = 0;
+> 			}
+504,505c487,501
+< 	match = 0;
+< 	goto nextparam;
+---
+> 		}
+> invis:
+> 	while ((wd = get_word(fp)) != 0)
+> 		;
+> 	if (tp == 0)
+> 		tp = new_fent();
+> 	tp->f_fn = this;
+> 	tp->f_type = INVISIBLE;
+> 	tp->f_needs = needs;
+> 	tp->f_flags |= isdup;
+> 	tp->f_compilewith = compilewith;
+> 	tp->f_depends = depends;
+> 	tp->f_clean = clean;
+> 	tp->f_warn = warning;
+> 	goto next;
+521c517,518
+< 	tp = new_fent();
+---
+> 	if (tp == 0)
+> 		tp = new_fent();
+523a521
+> 	tp->f_flags &= ~ISDUP;
+531a530
+> 	tp->f_needs = needs;
+535a535,536
+> 	if (pf && pf->f_type == INVISIBLE)
+> 		pf->f_flags |= ISDUP;		/* mark as duplicate */
+549c550,557
+< 	(void) snprintf(fname, sizeof(fname), "../../conf/files");
+---
+> 	if (ident == NULL) {
+> 		printf("no ident line specified\n");
+> 		exit(1);
+> 	}
+> 	if (f_build)
+> 		(void) snprintf(fname, sizeof(fname), "../../conf/files.bld");
+> 	else
+> 		(void) snprintf(fname, sizeof(fname), "../../conf/files");
+551,552c559,564
+< 	(void) snprintf(fname, sizeof(fname),
+< 		       	"../../conf/files.%s", machinename);
+---
+> 	if (f_build)
+> 		(void) snprintf(fname, sizeof(fname),
+> 				"../../conf/files.%s.bld", machinename);
+> 	else
+> 		(void) snprintf(fname, sizeof(fname),
+> 				"../../conf/files.%s", machinename);
+594c606
+< 			if (tp->f_flags & NO_IMPLCT_RULE)
+---
+> 			if (tp->f_flags & NO_IMPLCT_RULE || '$' == *tp->f_fn)
+614c626
+< 		if (tp->f_flags & NO_OBJ)
+---
+> 		if (tp->f_type == INVISIBLE || tp->f_flags & NO_OBJ)
+650c662
+< 		if (tp->f_type != NODEPEND) {
+---
+> 		if (tp->f_type != INVISIBLE && tp->f_type != NODEPEND) {
+660c672
+< 			if (tp->f_type != LOCAL)
+---
+> 			if (tp->f_type != LOCAL && *tp->f_fn != '$')
+688c700
+< 	char *cp, *np, och;
+---
+> 	char *cp, *np, och, *tp;
+690a703
+> 	char *prefix;
+692a706,707
+> 		if (ftp->f_type == INVISIBLE)
+> 			continue;
+696a712
+> 		prefix = ('$' == *np) ? "" : "$S/";
+706,707c722,723
+< 				fprintf(f, "%so:\n\t-cp $S/%so .\n\n",
+< 					tail(np), np);
+---
+> 				fprintf(f, "%so:\n\t-cp %s%so .\n\n",
+> 					tail(np), prefix, np);
+711c727,728
+< 				fprintf(f, "%sln: $S/%s%c %s\n", tail(np),
+---
+> 				fprintf(f, "%sln: %s%s%c %s\n", tail(np),
+> 					prefix,
+714c731,732
+< 				fprintf(f, "%so: $S/%s%c %s\n", tail(np),
+---
+> 				fprintf(f, "%so: %s%s%c %s\n", tail(np),
+> 					prefix,
+718c736,737
+< 				fprintf(f, "%sln: $S/%s%c\n", tail(np),
+---
+> 				fprintf(f, "%sln: %s%s%c\n", tail(np),
+> 					prefix,
+721c740,741
+< 				fprintf(f, "%so: $S/%s%c\n", tail(np),
+---
+> 				fprintf(f, "%so: %s%s%c\n", tail(np),
+> 					prefix,
+724a745
+> 		tp = tail(np);
+746c767
+< 			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n.if defined(NORMAL_CTFCONVERT) && !empty(NORMAL_CTFCONVERT)\n\t${NORMAL_CTFCONVERT}\n.endif", ftype,
+---
+> 			snprintf(cmd, sizeof(cmd), "${%s_%c%s}", ftype,
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/text-base/mkoptions.c.svn-base /c/jbirrell/test/src/bsd/usr.sbin/config/.svn/text-base/mkoptions.c.svn-base
+36c36
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/mkoptions.c,v 1.32 2004/08/07 04:19:37 imp Exp $";
+76c76,77
+< 		op = (struct opt *)calloc(1, sizeof(*op));
+---
+> 		op = (struct opt *)malloc(sizeof(*op));
+> 		memset(op, 0, sizeof(*op));
+90c91,92
+< 	op = (struct opt *)calloc(1, sizeof(*op));
+---
+> 	op = (struct opt *)malloc(sizeof(*op));
+> 	memset(op, 0, sizeof(*op));
+205c207,208
+< 			op = (struct opt *) calloc(1, sizeof *op);
+---
+> 			op = (struct opt *) malloc(sizeof *op);
+> 			bzero(op, sizeof(*op));
+231c234,235
+< 		op = (struct opt *) calloc(1, sizeof *op);
+---
+> 		op = (struct opt *) malloc(sizeof *op);
+> 		bzero(op, sizeof(*op));
+266c270
+< 	(void) strlcpy(nbuf, "options.h", sizeof(nbuf));
+---
+> 	(void) strncpy(nbuf, "options.h", sizeof(nbuf));
+270c274
+< 			strlcpy(nbuf, po->o_file, sizeof(nbuf));
+---
+> 			strncpy(nbuf, po->o_file, sizeof(nbuf));
+275c279
+< 	(void) strlcpy(hbuf, path(nbuf), sizeof(hbuf));
+---
+> 	(void) strncpy(hbuf, path(nbuf), sizeof(hbuf));
+292a297,300
+> 	if (ident == NULL) {
+> 		printf("no ident line specified\n");
+> 		exit(1);
+> 	}
+342c350,351
+< 	po = (struct opt_list *) calloc(1, sizeof *po);
+---
+> 	po = (struct opt_list *) malloc(sizeof *po);
+> 	bzero(po, sizeof(*po));
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/tmp: tempfile.2.tmp
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/tmp: tempfile.4.tmp
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/tmp: tempfile.5.tmp
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/.svn/tmp: tempfile.tmp
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/Buildfile /c/jbirrell/test/src/bsd/usr.sbin/config/Buildfile
+1c1,2
+< # $FreeBSD$
+---
+> # 	@(#)Makefile	8.1 (Berkeley) 6/6/93
+> # $FreeBSD: src/usr.bsd//config/Makefile,v 1.34 2004/05/11 15:42:44 cognet Exp $
+3c4,9
+< PROG = config
+---
+> HOSTPROG= yes
+> BINDIR=	${HOSTTOOL_STAGEDIR}/buildtools
+> PROG=	config
+> MAN=	config.8
+> SRCS=	cconfig.y main.c lang.l mkmakefile.c mkheaders.c \
+> 	mkoptions.c
+5,12c11
+< SRCS = \
+< 	cconfig.y \
+< 	main.c \
+< 	lang.l \
+< 	mkmakefile.c \
+< 	mkheaders.c \
+< 	mkoptions.c \
+< 	kernconf.c
+---
+> WARNS?=	6
+14c13,14
+< WARNS ?= 6
+---
+> CFLAGS = -I. -I${.CURDIR}
+> CFLAGS+= -Wall -Wunused -Wmissing-prototypes -Wredundant-decls
+16,18c16
+< CFLAGS+= -I. -I${.CURDIR}
+< 
+< LDADD += -ll -lsbuf
+---
+> LDADD=	-lln
+23,26c21
+< kernconf.c: kernconf.tmpl
+< 	file2c 'char kernconfstr[] = {' ',0};' < ${.ALLSRC} > ${.TARGET}
+< 
+< DIRDEP= gnu/lib/csu gnu/lib/libgcc include lib/csu/MACHINE_ARCH lib/libc lib/libsbuf stage sys/MACHINE_ARCH/include sys/sys usr.bin/lex/lib
+---
+> DIRDEP= stage
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/Buildfile.dirdep /c/jbirrell/test/src/bsd/usr.sbin/config/Buildfile.dirdep
+3,43c3
+< # DIRDEP= gnu/lib/csu gnu/lib/libgcc include lib/csu/MACHINE_ARCH lib/libc lib/libsbuf stage sys/MACHINE_ARCH/include sys/sys usr.bin/lex/lib
+< .if empty(D_INC_DONE:Mgnu/lib/csu)
+< D_INC_DONE+= gnu/lib/csu
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/gnu/lib/csu/Buildfile.dirdep)
+< .include "${.SRCTOP}/gnu/lib/csu/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Mgnu/lib/libgcc)
+< D_INC_DONE+= gnu/lib/libgcc
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/gnu/lib/libgcc/Buildfile.dirdep)
+< .include "${.SRCTOP}/gnu/lib/libgcc/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Minclude)
+< D_INC_DONE+= include
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/include/Buildfile.dirdep)
+< .include "${.SRCTOP}/include/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Mlib/libc)
+< D_INC_DONE+= lib/libc
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/lib/libc/Buildfile.dirdep)
+< .include "${.SRCTOP}/lib/libc/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Mlib/libsbuf)
+< D_INC_DONE+= lib/libsbuf
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/lib/libsbuf/Buildfile.dirdep)
+< .include "${.SRCTOP}/lib/libsbuf/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+---
+> # DIRDEP= stage
+52,89d11
+< .if empty(D_INC_DONE:Msys/sys)
+< D_INC_DONE+= sys/sys
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/sys/sys/Buildfile.dirdep)
+< .include "${.SRCTOP}/sys/sys/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .if empty(D_INC_DONE:Musr.bin/lex/lib)
+< D_INC_DONE+= usr.bin/lex/lib
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/usr.bin/lex/lib/Buildfile.dirdep)
+< .include "${.SRCTOP}/usr.bin/lex/lib/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .for t in ${MACHINE_LIST}
+< _d=lib/csu/MACHINE_ARCH
+< .if empty(D_INC_DONE:M${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g})
+< D_INC_DONE+= ${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< .include "${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .endfor
+< .for t in ${MACHINE_LIST}
+< _d=sys/MACHINE_ARCH/include
+< .if empty(D_INC_DONE:M${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g})
+< D_INC_DONE+= ${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}
+< D_INC_DONE:= ${D_INC_DONE}
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< .include "${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep"
+< .endif
+< .endif
+< 
+< .endfor
+92c14
+< .for t in ${MACHINE_LIST}
+---
+> .for t in ${JUNOS_MACHINE_LIST}
+97,132c19
+< _MACHINE_LIST:= ${MACHINE_LIST}
+< .if exists(${.SRCTOP}/gnu/lib/csu/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/gnu/lib/csu/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/gnu/lib/libgcc/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/gnu/lib/libgcc/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/include/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/include/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/lib/libc/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/lib/libc/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/lib/libsbuf/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/lib/libsbuf/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+---
+> _JUNOS_MACHINE_LIST:= ${JUNOS_MACHINE_LIST}
+134c21
+< .for _t in ${_MACHINE_LIST}
+---
+> .for _t in ${_JUNOS_MACHINE_LIST}
+140,169d26
+< .if exists(${.SRCTOP}/sys/sys/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/sys/sys/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .if exists(${.SRCTOP}/usr.bin/lex/lib/Buildfile.dirdep)
+< .for _t in ${_MACHINE_LIST}
+< D_TGTS_${_t}+= ${.OBJROOT}/${_t}/usr.bin/lex/lib/all
+< D_TGTS_${_t}:= ${D_TGTS_${_t}}
+< .endfor
+< .endif
+< 
+< .for t in ${_MACHINE_LIST}
+< _d=lib/csu/MACHINE_ARCH
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< D_TGTS_${t}+= ${.OBJROOT}/${t}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/all
+< D_TGTS_${t}:= ${D_TGTS_${t}}
+< .endif
+< 
+< .endfor
+< .for t in ${_MACHINE_LIST}
+< _d=sys/MACHINE_ARCH/include
+< .if exists(${.SRCTOP}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/Buildfile.dirdep)
+< D_TGTS_${t}+= ${.OBJROOT}/${t}/${_d:S,MACHINE_ARCH,${MACHINE_ARCH.${t}},g}/all
+< D_TGTS_${t}:= ${D_TGTS_${t}}
+< .endif
+< 
+< .endfor
+172,175c29,30
+< .for t in ${MACHINE_LIST}
+< ${.OBJROOT}/${t}/usr.sbin/config/all : ${D_TGTS_${t}} .PHONY
+< 	echo Checking ${.OBJROOT}/${t}/usr.sbin/config
+< 	cd ${.SRCTOP}/usr.sbin/config && MACHINE=${t} ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all
+---
+> .for t in ${JUNOS_MACHINE_LIST:Nhost}
+> ${.OBJROOT}/${t}/bsd/usr.sbin/config/all : ${.OBJROOT}/host/bsd/usr.sbin/config/all .PHONY
+176a32,34
+> ${.OBJROOT}/host/bsd/usr.sbin/config/all : ${D_TGTS_host} .PHONY
+> 	echo Checking ${.OBJROOT}/host/bsd/usr.sbin/config
+> 	cd ${.SRCTOP}/bsd/usr.sbin/config && MACHINE=host ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/Makefile /c/jbirrell/test/src/bsd/usr.sbin/config/Makefile
+2c2
+< # $FreeBSD$
+---
+> # $FreeBSD: src/usr.sbin/config/Makefile,v 1.34 2004/05/11 15:42:44 cognet Exp $
+5c5
+< MAN=	config.5 config.8
+---
+> MAN=	config.8
+7,10c7
+< 	mkoptions.c y.tab.h kernconf.c
+< 
+< kernconf.c: kernconf.tmpl
+< 	file2c 'char kernconfstr[] = {' ',0};' < ${.CURDIR}/kernconf.tmpl > kernconf.c
+---
+> 	mkoptions.c y.tab.h
+15,18c12,13
+< DPADD=	${LIBL} ${LIBSBUF}
+< LDADD=	-ll -lsbuf
+< 
+< CLEANFILES+=	kernconf.c
+---
+> #DPADD=	${LIBL}
+> #LDADD=	-ll
+22a18,23
+> 
+> CFLAGS = -I. -I${.CURDIR}
+> CFLAGS+= -Wall -Wunused -Wmissing-prototypes -Wredundant-decls
+> CC = ${HOSTCC}
+> 
+> LDADD=	-ll
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/entries /c/jbirrell/test/src/bsd/usr.sbin/config/SMM.doc/.svn/entries
+4,6c4,6
+< 189503
+< svn+ssh://svn.freebsd.org/base/projects/jbuild/usr.sbin/config/SMM.doc
+< svn+ssh://svn.freebsd.org/base
+---
+> 7462
+> svn+ssh://localhost/c/cvs2svn/svn/repos/junos-2008/branches/jbuild/src/bsd/usr.sbin/config/SMM.doc
+> svn+ssh://localhost/c/cvs2svn/svn/repos
+10,12c10,12
+< 2003-02-01T20:34:04.000000Z
+< 110203
+< trhodes
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+27c27
+< ccf9f872-aa2e-dd11-9fc8-001c23d0bc1f
+---
+> 0963096f-dda6-dd11-84b5-001b21243054
+35c35
+< 2009-02-28T16:38:45.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+37,40c37,40
+< 1994-05-26T05:23:31.000000Z
+< 1554
+< rgrimes
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+69c69
+< 2009-02-28T16:38:45.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+71,74c71,74
+< 1994-05-26T05:23:31.000000Z
+< 1554
+< rgrimes
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+103c103
+< 2009-02-28T16:38:45.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+105,108c105,108
+< 1994-05-26T05:23:31.000000Z
+< 1554
+< rgrimes
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+137c137
+< 2009-02-28T16:38:45.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+139,142c139,142
+< 1994-05-26T05:23:31.000000Z
+< 1554
+< rgrimes
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+171c171
+< 2009-02-28T16:38:45.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+173,176c173,176
+< 1994-08-05T09:14:37.000000Z
+< 1856
+< dg
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+205c205
+< 2009-02-28T16:38:45.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+207,210c207,210
+< 1994-08-05T09:14:37.000000Z
+< 1856
+< dg
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+239c239
+< 2009-02-28T16:38:46.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+241,244c241,244
+< 1994-08-05T09:14:37.000000Z
+< 1856
+< dg
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+273c273
+< 2009-02-28T16:38:46.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+275,278c275,278
+< 1994-08-05T09:14:37.000000Z
+< 1856
+< dg
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+307c307
+< 2009-02-28T16:38:46.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+309,312c309,312
+< 1994-05-26T05:23:31.000000Z
+< 1554
+< rgrimes
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+341c341
+< 2009-02-28T16:38:46.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+343,346c343,346
+< 1994-08-05T09:14:37.000000Z
+< 1856
+< dg
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+375c375
+< 2009-02-28T16:38:46.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+377,380c377,380
+< 1994-05-26T05:23:31.000000Z
+< 1554
+< rgrimes
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+409c409
+< 2009-02-28T16:38:46.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+411,414c411,414
+< 1994-05-26T05:23:31.000000Z
+< 1554
+< rgrimes
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+443c443
+< 2009-02-28T16:38:46.000000Z
+---
+> 2008-12-15T04:11:44.000000Z
+445,448c445,448
+< 1994-08-05T09:14:37.000000Z
+< 1856
+< dg
+< has-props
+---
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+470a471,504
+> Makefile
+> file
+> 
+> 
+> 
+> 
+> 2008-12-15T04:11:44.000000Z
+> cebd2c7d3bb73817acb86f5a524b5c3b
+> 2008-10-31T00:06:56.815598Z
+> 1
+> rodrigc
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 207
+> 
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: 0.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: 1.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: 2.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: 3.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: 4.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: 5.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: 6.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: a.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: b.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: c.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: d.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: e.t.svn-base
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/SMM.doc/.svn/prop-base: spell.ok.svn-base
+Only in /c/jbirrell/test/src/bsd/usr.sbin/config/SMM.doc/.svn/text-base: Makefile.svn-base
+Only in /c/jbirrell/test/src/bsd/usr.sbin/config/SMM.doc: Makefile
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config: config.5
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/config.8 /c/jbirrell/test/src/bsd/usr.sbin/config/config.8
+29c29
+< .\" $FreeBSD$
+---
+> .\" $FreeBSD: src/usr.sbin/config/config.8,v 1.43.2.1 2005/10/28 19:04:03 jhb Exp $
+31c31
+< .Dd May 8, 2007
+---
+> .Dd December 16, 2004
+39c39
+< .Op Fl CVgp
+---
+> .Op Fl Vgp
+40a41
+> .Op Fl s Ar srcdir
+42,43d42
+< .Nm
+< .Op Fl x Ar kernel
+44a44,57
+> This is the old version of the
+> .Nm
+> utility.
+> It understands the old autoconfiguration scheme
+> used on the HP300, i386, DECstation, and derivative platforms.
+> The new version of
+> .Nm
+> is used with the
+> SPARC platform.
+> Only the version of
+> .Nm
+> applicable to the architecture that you are running
+> will be installed on your machine.
+> .Pp
+67,71d79
+< .It Fl C
+< If the INCLUDE_CONFIG_FILE is present in a configuration file,
+< kernel image will contain full configuration files included
+< literally (preserving comments).
+< This flag is kept for backward compatibility.
+80a89,98
+> .It Fl s Ar srcdir
+> Use
+> .Ar srcdir
+> as the path to the top of the kernel source tree, instead of the
+> default one. If
+> .Ar srcdir
+> is a relative path, a set of .PATH directives is added to the 
+> .Pa Makefile
+> to force use of relative paths
+> in finding source files.
+83,88d100
+< .It Fl x Ar kernel
+< Print kernel configuration file embedded into a kernel
+< file.
+< This option makes sense only if 
+< .Cd "options INCLUDE_CONFIG_FILE"
+< entry was present in your configuration file.
+152a165,175
+> .Pp
+> If the
+> .Cd "options INCLUDE_CONFIG_FILE"
+> is used in the configuration file the
+> entire input file is embedded in the new kernel.
+> This means that
+> .Xr strings 1
+> can be used to extract it from a kernel:
+> to extract the configuration information, use the command
+> .Pp
+> .Dl "strings -n 3 kernel | sed -n 's/^___//p'"
+245,258d267
+< .Pp
+< Before support for 
+< .Fl x
+< was introduced,
+< .Cd "options INCLUDE_CONFIG_FILE"
+< included entire configuration file that used to be embedded in
+< the new kernel.
+< This meant that
+< .Xr strings 1
+< could be used to extract it from a kernel:
+< to extract the configuration information, you had to use 
+< the command:
+< .Pp
+< .Dl "strings -n 3 kernel | sed -n 's/^___//p'"
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/config.h /c/jbirrell/test/src/bsd/usr.sbin/config/config.h
+30c30
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/config.h,v 1.56.2.1 2005/10/28 19:04:03 jhb Exp $
+41,46d40
+< struct cfgfile {
+< 	STAILQ_ENTRY(cfgfile)	cfg_next;
+< 	char	*cfg_path;
+< };
+< STAILQ_HEAD(, cfgfile) cfgfiles;
+< 
+54a49
+> 	char	*f_needs;
+66a62
+> #define	INVISIBLE	2
+78a75
+> #define ISDUP		8
+101a99,102
+> #define	MACHINE_I386	1
+> #define MACHINE_PC98	2
+> #define MACHINE_ALPHA	3
+> #define MACHINE_MIPS    4
+124d124
+< 	SLIST_ENTRY(opt) op_append;
+127c127
+< SLIST_HEAD(opt_head, opt) opt, mkopt, rmopts;
+---
+> SLIST_HEAD(opt_head, opt) opt, mkopt;
+137,156d136
+< struct hint {
+< 	char	*hint_name;
+< 	STAILQ_ENTRY(hint) hint_next;
+< };
+< 
+< STAILQ_HEAD(hint_head, hint) hints;
+< 
+< /*
+<  * Tag present in the kernelconf.tmlp template file. It's mandatory for those
+<  * two strings to be the same. Otherwise you'll get into trouble.
+<  */
+< #define	KERNCONFTAG	"%%KERNCONFFILE%%"
+< 
+< /*
+<  * Faked option to note, that the configuration file has been taken from the
+<  * kernel file and inclusion of DEFAULTS etc.. isn't nessesery, because we
+<  * already have a list of all required devices.
+<  */
+< #define OPT_AUTOGEN	"CONFIG_AUTOGENERATED"
+< 
+159c139
+< extern char	kernconfstr[];
+---
+> extern char	*hints;
+163d142
+< extern int	incignore;
+175,176d153
+< void	makeenv(void);
+< void	makehints(void);
+178,179d154
+< void	cfgfile_add(const char *);
+< void	cfgfile_removeall(void);
+192a168
+> extern int	f_build;
+198a175
+> extern char bldfile[];		/* Target buildfile name. */
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/config.y /c/jbirrell/test/src/bsd/usr.sbin/config/config.y
+16d15
+< %token	PLUSEQUALS
+18a18
+> %token	INCLUDE
+72c72
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/config.y,v 1.66.2.2 2005/12/01 17:43:09 ru Exp $
+75d74
+< #include <assert.h>
+82a82,93
+> #ifndef SLIST_FOREACH_SAFE
+> /* 
+>  * JUNOS: FreeBSD 4.10 build servers don't have this define in sys/queue.h, 
+>  * since config is a host utility, for compilation of config on 
+>  * FreeBSD 4.10 build servers, we have to define this here 
+>  */
+> #define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
+> 	for ((var) = SLIST_FIRST((head));				\
+> 	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);		\
+> 	    (var) = (tvar))
+> #endif
+> 
+86a98
+> char	*hints;
+100,105d111
+< static void newdev(char *name);
+< static void newfile(char *name);
+< static void rmdev_schedule(struct device_head *dh, char *name);
+< static void newopt(struct opt_head *list, char *name, char *value, int append);
+< static void rmopt_schedule(struct opt_head *list, char *name);
+< 
+133,141c139,143
+< 	INCLUDE PATH SEMICOLON {
+< 		if (incignore == 0)
+< 			include($2, 0);
+< 		};
+< 		|
+< 	INCLUDE ID SEMICOLON {
+< 	          if (incignore == 0)
+< 		  	include($2, 0);
+< 		};
+---
+> 	INCLUDE PATH SEMICOLON
+> 	      = { include($2, 0); };
+> 		|
+> 	INCLUDE ID SEMICOLON
+> 	      = { include($2, 0); };
+143c145,146
+< 	FILES ID SEMICOLON { newfile($2); };
+---
+> 	FILES ID SEMICOLON
+> 	      = { newfile($2); };
+151,152c154,156
+< 	ARCH Save_id {
+< 		if (machinename != NULL && !eq($2, machinename))
+---
+> 	ARCH Save_id
+> 	    = {
+> 		if (machinename != NULL)
+158,160c162,164
+< 	ARCH Save_id Save_id {
+< 		if (machinename != NULL &&
+< 		    !(eq($2, machinename) && eq($3, machinearch)))
+---
+> 	ARCH Save_id Save_id
+> 	    = {
+> 		if (machinename != NULL)
+166c170,171
+< 	CPU Save_id {
+---
+> 	CPU Save_id
+> 	      = {
+168c173,174
+< 		    (struct cputype *)calloc(1, sizeof (struct cputype));
+---
+> 		    (struct cputype *)malloc(sizeof (struct cputype));
+> 		memset(cp, 0, sizeof(*cp));
+172c178,179
+< 	NOCPU Save_id {
+---
+> 	NOCPU Save_id
+> 	      = {
+175,178c182,186
+< 			if (eq(cp->cpu_name, $2)) {
+< 				SLIST_REMOVE(&cputype, cp, cputype, cpu_next);
+< 				free(cp);
+< 			}
+---
+> 			if (strcmp(cp->cpu_name, $2) != 0)
+> 				continue;
+> 			SLIST_REMOVE(&cputype, cp, cputype, cpu_next);
+> 			free(cp);
+> 			break;
+183c191,192
+< 	NOOPTION Save_id { rmopt_schedule(&opt, $2); } |
+---
+> 	NOOPTION Save_id
+> 	      = { rmopt(&opt, $2); } |
+186,187c195,198
+< 	NOMAKEOPTION Save_id { rmopt_schedule(&mkopt, $2); } |
+< 	IDENT ID { ident = $2; } |
+---
+> 	NOMAKEOPTION Save_id
+> 	      = { rmopt(&mkopt, $2); } |
+> 	IDENT ID
+> 	      = { ident = $2; } |
+190,194c201,208
+< 	MAXUSERS NUMBER { maxusers = $2; } |
+< 	PROFILE NUMBER { profiling = $2; } |
+< 	ENV ID {
+< 		env = $2;
+< 		envmode = 1;
+---
+> 	MAXUSERS NUMBER
+> 	      = { maxusers = $2; } |
+> 	PROFILE NUMBER
+> 	      = { profiling = $2; } |
+> 	ENV ID
+> 	      = {
+> 		      env = $2;
+> 		      envmode = 1;
+196,202c210,213
+< 	HINTS ID {
+< 		struct hint *hint;
+< 
+< 		hint = (struct hint *)calloc(1, sizeof (struct hint));
+< 		hint->hint_name = $2;
+< 		STAILQ_INSERT_TAIL(&hints, hint, hint_next);
+< 		hintmode = 1;
+---
+> 	HINTS ID
+> 	      = {
+> 		      hints = $2;
+> 		      hintmode = 1;
+206,209c217,219
+< 	CONFIG System_id System_parameter_list {
+< 		errx(1, "%s:%d: root/dump/swap specifications obsolete",
+< 		      yyfile, yyline);
+< 		}
+---
+> 	CONFIG System_id System_parameter_list
+> 	  = { errx(1, "%s:%d: root/dump/swap specifications obsolete",
+> 	      yyfile, yyline);}
+215c225,226
+< 	Save_id { newopt(&mkopt, ns("KERNEL"), $1, 0); };
+---
+> 	Save_id
+> 	      = { newopt(&mkopt, ns("KERNEL"), $1); };
+229,231c240,245
+< 	Save_id {
+< 		newopt(&opt, $1, NULL, 0);
+< 		if (strchr($1, '=') != NULL)
+---
+> 	Save_id
+> 	      = {
+> 		char *s;
+> 
+> 		newopt(&opt, $1, NULL);
+> 		if ((s = strchr($1, '=')))
+235,236c249,251
+< 	Save_id EQUALS Opt_value {
+< 		newopt(&opt, $1, $3, 0);
+---
+> 	Save_id EQUALS Opt_value
+> 	      = {
+> 		newopt(&opt, $1, $3);
+240,241c255,258
+< 	ID { $$ = $1; } |
+< 	NUMBER {
+---
+> 	ID
+> 		= { $$ = $1; } |
+> 	NUMBER
+> 		= {
+249c266,267
+< 	ID { $$ = $1; }
+---
+> 	ID
+> 	      = { $$ = $1; }
+259,261c277,280
+< 	Save_id { newopt(&mkopt, $1, ns(""), 0); } |
+< 	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0); } |
+< 	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1); } ;
+---
+> 	Save_id
+> 	      = { newopt(&mkopt, $1, ns("")); } |
+> 	Save_id EQUALS Opt_value
+> 	      = { newopt(&mkopt, $1, $3); } ;
+264c283,284
+< 	ID { $$ = $1; }
+---
+> 	ID
+> 	      = { $$ = $1; }
+286,287c306,308
+< 	Dev {
+< 		newopt(&opt, devopt($1), ns("1"), 0);
+---
+> 	Dev
+> 	      = {
+> 		newopt(&opt, devopt($1), ns("1"));
+293c314,315
+< 	Dev {
+---
+> 	Dev
+> 	      = {
+296c318
+< 		rmopt_schedule(&opt, s);
+---
+> 		rmopt(&opt, s);
+299c321
+< 		rmdev_schedule(&dtab, $1);
+---
+> 		rmdev($1);
+313a336
+> 
+333c356,357
+< 	nl = (struct files_name *) calloc(1, sizeof *nl);
+---
+> 	nl = (struct files_name *) malloc(sizeof *nl);
+> 	bzero(nl, sizeof *nl);
+339,354c363
+<  * Find a device in the list of devices.
+<  */
+< static struct device *
+< finddev(struct device_head *dlist, char *name)
+< {
+< 	struct device *dp;
+< 
+< 	STAILQ_FOREACH(dp, dlist, d_next)
+< 		if (eq(dp->d_name, name))
+< 			return (dp);
+< 
+< 	return (NULL);
+< }
+< 	
+< /*
+<  * Add a device to the list of devices.
+---
+>  * add a device to the list of devices
+361,366c370,371
+< 	if (finddev(&dtab, name)) {
+< 		printf("WARNING: duplicate device `%s' encountered.\n", name);
+< 		return;
+< 	}
+< 
+< 	np = (struct device *) calloc(1, sizeof *np);
+---
+> 	np = (struct device *) malloc(sizeof *np);
+> 	memset(np, 0, sizeof(*np));
+372c377
+<  * Schedule a device to removal.
+---
+>  * remove a device from the list of devices
+375c380
+< rmdev_schedule(struct device_head *dh, char *name)
+---
+> rmdev(char *name)
+377c382
+< 	struct device *dp;
+---
+> 	struct device *dp, *rmdp;
+379,383c384,393
+< 	dp = finddev(dh, name);
+< 	if (dp != NULL) {
+< 		STAILQ_REMOVE(dh, dp, device, d_next);
+< 		free(dp->d_name);
+< 		free(dp);
+---
+> 	STAILQ_FOREACH(dp, &dtab, d_next) {
+> 		if (eq(dp->d_name, name)) {
+> 			rmdp = dp;
+> 			dp = STAILQ_NEXT(dp, d_next);
+> 			STAILQ_REMOVE(&dtab, rmdp, device, d_next);
+> 			free(rmdp->d_name);
+> 			free(rmdp);
+> 			if (dp == NULL)
+> 				break;
+> 		}
+387,404d396
+< /*
+<  * Find an option in the list of options.
+<  */
+< static struct opt *
+< findopt(struct opt_head *list, char *name)
+< {
+< 	struct opt *op;
+< 
+< 	SLIST_FOREACH(op, list, op_next)
+< 		if (eq(op->op_name, name))
+< 			return (op);
+< 
+< 	return (NULL);
+< }
+< 
+< /*
+<  * Add an option to the list of options.
+<  */
+406c398
+< newopt(struct opt_head *list, char *name, char *value, int append)
+---
+> newopt(struct opt_head *list, char *name, char *value)
+408,422c400
+< 	struct opt *op, *op2;
+< 
+< 	/*
+< 	 * Ignore inclusions listed explicitly for configuration files.
+< 	 */
+< 	if (eq(name, OPT_AUTOGEN)) {
+< 		incignore = 1;
+< 		return;
+< 	}
+< 
+< 	op2 = findopt(list, name);
+< 	if (op2 != NULL && !append) {
+< 		printf("WARNING: duplicate option `%s' encountered.\n", name);
+< 		return;
+< 	}
+---
+> 	struct opt *op;
+424c402,403
+< 	op = (struct opt *)calloc(1, sizeof (struct opt));
+---
+> 	op = (struct opt *)malloc(sizeof (struct opt));
+> 	memset(op, 0, sizeof(*op));
+428,433c407
+< 	if (op2 != NULL) {
+< 		while (SLIST_NEXT(op2, op_append) != NULL)
+< 			op2 = SLIST_NEXT(op2, op_append);
+< 		SLIST_NEXT(op2, op_append) = op;
+< 	} else
+< 		SLIST_INSERT_HEAD(list, op, op_next);
+---
+> 	SLIST_INSERT_HEAD(list, op, op_next);
+436,438d409
+< /*
+<  * Remove an option from the list of options.
+<  */
+440c411
+< rmopt_schedule(struct opt_head *list, char *name)
+---
+> rmopt(struct opt_head *list, char *name)
+442c413
+< 	struct opt *op;
+---
+> 	struct opt *op, *rmop;
+444,448c415,426
+< 	op = findopt(list, name);
+< 	if (op != NULL) {
+< 		SLIST_REMOVE(list, op, opt, op_next);
+< 		free(op->op_name);
+< 		free(op);
+---
+> 	SLIST_FOREACH(op, list, op_next) {
+> 		if (eq(op->op_name, name)) {
+> 			rmop = op;
+> 			op = SLIST_NEXT(op, op_next);
+> 			SLIST_REMOVE(list, rmop, opt, op_next);
+> 			free(rmop->op_name);
+> 			if (rmop->op_value != NULL)
+> 				free(rmop->op_value);
+> 			free(rmop);
+> 			if (op == NULL)
+> 				break;
+> 		}
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/configvers.h /c/jbirrell/test/src/bsd/usr.sbin/config/configvers.h
+1,6d0
+< /*-
+<  * This file is in the public domain
+<  *
+<  * $FreeBSD$
+<  */
+< 
+8,37c2,4
+<  * 6 digits of version.  The most significant are branch indicators at the
+<  * time when the last incompatible change was made (which is why it is
+<  * presently 6 on 7-current).  The least significant digits are incremented
+<  * as described below.  The format is similar to the __FreeBSD_version, but
+<  * not tied to it.
+<  *
+<  * DO NOT CASUALLY BUMP THIS NUMBER!  The rules are not the same as shared
+<  * libs or param.h/osreldate.
+<  *
+<  * It is the version number of the protocol between config(8) and the
+<  * sys/conf/ Makefiles (the kernel build system).
+<  *
+<  * It is now also used to trap certain problems that the syntax parser cannot
+<  * detect.
+<  *
+<  * Unfortunately, there is no version number for user supplied config files.
+<  *
+<  * Once, config(8) used to silently report errors and continue anyway.  This
+<  * was a huge problem for 'make buildkernel' which was run with the installed
+<  * /usr/sbin/config, not a cross built one.  We started bumping the version
+<  * number as a way to trap cases where the previous installworld was not
+<  * compatable with the new buildkernel.  The buildtools phase and much more
+<  * comprehensive error code returns solved this original problem.
+<  *
+<  * Most end-users will use buildkernel and the build tools from buildworld.
+<  * The people that are inconvenienced by gratuitous bumps are developers
+<  * who run config by hand.  However, developers shouldn't gratuitously be
+<  * inconvenienced.
+<  *
+<  * One should bump the CONFIGVERS in the following ways:
+---
+>  * 6 digits of version.  The most significant are branch indicators
+>  * (eg: RELENG_2_2 = 22, -current presently = 60 etc). The least
+>  * significant digits are incremented for each incompatible change.
+39,48c6,7
+<  * (1) If you change config such that it won't read old config files,
+<  *     then bump the major number.  You shouldn't be doing this unless
+<  *     you are overhauling config.  Do not casually bump this number
+<  *     and by implication do not make changes that would force a bump
+<  *     of this number casually.  You should limit major bumps to once
+<  *     per branch.
+<  * (2) For each new feature added, bump the minor version of this file.
+<  *     When a new feature is actually used by the build system, update the
+<  *     %VERSREQ field in the Makefile.$ARCH of all the affected makefiles
+<  *     (typically all of them).
+---
+>  * The numbering scheme is inspired by the sys/conf/newvers.sh RELDATE
+>  * and <osreldate.h> system.
+50c9
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/configvers.h,v 1.35.2.1 2005/10/28 19:04:03 jhb Exp $
+52,53c11
+< #define	CONFIGVERS	600007
+< #define	MAJOR_VERS(x)	((x) / 100000)
+---
+> #define	CONFIGVERS	600003
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config: doit
+Only in /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config: kernconf.tmpl
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/lang.l /c/jbirrell/test/src/bsd/usr.sbin/config/lang.l
+31c31
+<  * $FreeBSD$
+---
+>  * $FreeBSD: src/usr.sbin/config/lang.l,v 1.41.2.1 2005/12/01 17:43:09 ru Exp $
+78d77
+< 	{ "makeoption",	MAKEOPTIONS },
+163d161
+< "+="		{	BEGIN TOEOL; return PLUSEQUALS;	}
+221,244d218
+< void
+< cfgfile_add(const char *fname)
+< {
+< 	struct cfgfile *cf;
+< 
+< 	cf = calloc(1, sizeof(*cf));
+< 	assert(cf != NULL);
+< 	asprintf(&cf->cfg_path, "%s", fname);
+< 	STAILQ_INSERT_TAIL(&cfgfiles, cf, cfg_next);
+< }
+< 
+< void
+< cfgfile_removeall(void)
+< {
+< 	struct cfgfile *cf;
+< 
+< 	while (!STAILQ_EMPTY(&cfgfiles)) {
+< 		cf = STAILQ_FIRST(&cfgfiles);
+< 		STAILQ_REMOVE_HEAD(&cfgfiles, cfg_next);
+< 		if (cf->cfg_path != NULL)
+< 			free(cf->cfg_path);
+< 		free(cf);
+< 	}
+< }
+260d233
+< 	fnamebuf = NULL;
+273d245
+< 	cfgfile_add(fnamebuf == NULL ? fname : fnamebuf);
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/main.c /c/jbirrell/test/src/bsd/usr.sbin/config/main.c
+41c41
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/main.c,v 1.64.2.1 2005/10/28 19:04:03 jhb Exp $";
+46d45
+< #include <sys/sbuf.h>
+50,51d48
+< 
+< #include <assert.h>
+55d51
+< #include <string.h>
+79a76
+> char 	bldfile[MAXPATHLEN];
+81a79
+> int	f_build = 0;
+84,90d81
+< int	incignore;
+< 
+< /*
+<  * Preserve old behaviour in INCLUDE_CONFIG_FILE handling (files are included
+<  * literally).
+<  */
+< int	filebased = 0;
+96d86
+< static void kernconfdump(const char *);
+115d104
+< 	char *kernfile;
+117,118c106
+< 	kernfile = NULL;
+< 	while ((ch = getopt(argc, argv, "Cd:gpVx:")) != -1)
+---
+> 	while ((ch = getopt(argc, argv, "b:d:gpVs:")) != -1)
+120,121c108,113
+< 		case 'C':
+< 			filebased = 1;
+---
+> 		case 'V':
+> 			printf("%d\n", CONFIGVERS);
+> 			exit(0);
+> 		case 'b':
+> 			f_build = 1;
+> 			strncpy(bldfile, optarg, sizeof(bldfile));
+125c117
+< 				strlcpy(destdir, optarg, sizeof(destdir));
+---
+> 				strncpy(destdir, optarg, sizeof(destdir));
+135,139c127,132
+< 		case 'V':
+< 			printf("%d\n", CONFIGVERS);
+< 			exit(0);
+< 		case 'x':
+< 			kernfile = optarg;
+---
+> 		case 's': 
+> 			/* JUNOS addition */
+> 			if (*srcdir == '\0')
+> 				strncpy(srcdir, optarg, sizeof(srcdir));
+> 			else
+> 				errx(2, "directory already set");
+148,152d140
+< 	if (kernfile != NULL) {
+< 		kernconfdump(kernfile);
+< 		exit(EXIT_SUCCESS);
+< 	}
+< 
+157,158d144
+< 	if (stat(PREFIX, &buf) != 0 || !S_ISREG(buf.st_mode))
+< 		err(2, "%s", PREFIX);
+166a153
+> 
+171c158,159
+< 		get_srcdir();
+---
+> 		if (*srcdir == '\0')
+> 			get_srcdir();
+173,174c161,162
+< 		strlcpy(destdir, CDIR, sizeof(destdir));
+< 		strlcat(destdir, PREFIX, sizeof(destdir));
+---
+> 		strncpy(destdir, CDIR, sizeof(destdir));
+> 		strncat(destdir, PREFIX, sizeof(destdir));
+181c169,170
+< 	} else if (!S_ISDIR(buf.st_mode))
+---
+> 	}
+> 	else if ((buf.st_mode & S_IFMT) != S_IFDIR)
+184,188d172
+< 	SLIST_INIT(&cputype);
+< 	SLIST_INIT(&mkopt);
+< 	SLIST_INIT(&opt);
+< 	SLIST_INIT(&rmopts);
+< 	STAILQ_INIT(&cfgfiles);
+190a175
+> 	SLIST_INIT(&cputype);
+192d176
+< 	STAILQ_INIT(&hints);
+195,198d178
+< 
+< 	/*
+< 	 * Ensure that required elements (machine, cpu, ident) are present.
+< 	 */
+203,211d182
+< 	if (ident == NULL) {
+< 		printf("no ident line specified\n");
+< 		exit(1);
+< 	}
+< 	if (SLIST_EMPTY(&cputype)) {
+< 		printf("cpu type must be specified\n");
+< 		exit(1);
+< 	}
+< 
+238d208
+< 	configfile();			/* put config file into kernel*/
+241,242d210
+< 	makeenv();			/* build env.c */
+< 	makehints();			/* build hints.c */
+243a212
+> 	configfile();			/* put config file into kernel*/
+245,246c214,217
+< 	printf("Kernel build directory is %s\n", p);
+< 	printf("Don't forget to do ``make cleandepend && make depend''\n");
+---
+> 	if (!f_build) {
+> 		printf("Kernel build directory is %s\n", p);
+> 		printf("Don't forget to do ``make cleandepend; make depend''\n");
+> 	}
+258,260d228
+< 	struct stat lg, phy;
+< 	char *p, *pwd;
+< 	int i;
+264,278d231
+< 	if ((pwd = getenv("PWD")) != NULL && *pwd == '/' &&
+< 	    (pwd = strdup(pwd)) != NULL) {
+< 		/* Remove the last two path components. */
+< 		for (i = 0; i < 2; i++) {
+< 			if ((p = strrchr(pwd, '/')) == NULL) {
+< 				free(pwd);
+< 				return;
+< 			}
+< 			*p = '\0';
+< 		}
+< 		if (stat(pwd, &lg) != -1 && stat(srcdir, &phy) != -1 &&
+< 		    lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino)
+< 			strlcpy(srcdir, pwd, MAXPATHLEN);
+< 		free(pwd);
+< 	}
+285,287c238,239
+< 	fprintf(stderr, "usage: config [-CgpV] [-d destdir] sysname\n");
+< 	fprintf(stderr, "       config -x kernel\n");
+< 	exit(EX_USAGE);
+---
+> 	fprintf(stderr, "usage: config [-Vgp] [-b bldfile] [-d destdir] sysname\n");
+> 	exit(1);
+413,495d364
+< /*
+<  * Generate configuration file based on actual settings. With this mode, user
+<  * will be able to obtain and build conifguration file with one command.
+<  */
+< static void
+< configfile_dynamic(struct sbuf *sb)
+< {
+< 	struct cputype *cput;
+< 	struct device *d;
+< 	struct opt *ol;
+< 	char *lend;
+< 	unsigned int i;
+< 
+< 	asprintf(&lend, "\\n\\\n");
+< 	assert(lend != NULL);
+< 	sbuf_printf(sb, "options\t%s%s", OPT_AUTOGEN, lend);
+< 	sbuf_printf(sb, "ident\t%s%s", ident, lend);
+< 	sbuf_printf(sb, "machine\t%s%s", machinename, lend);
+< 	SLIST_FOREACH(cput, &cputype, cpu_next)
+< 		sbuf_printf(sb, "cpu\t%s%s", cput->cpu_name, lend);
+< 	SLIST_FOREACH(ol, &mkopt, op_next)
+< 		sbuf_printf(sb, "makeoptions\t%s=%s%s", ol->op_name,
+< 		    ol->op_value, lend);
+< 	SLIST_FOREACH(ol, &opt, op_next) {
+< 		if (strncmp(ol->op_name, "DEV_", 4) == 0)
+< 			continue;
+< 		sbuf_printf(sb, "options\t%s", ol->op_name);
+< 		if (ol->op_value != NULL) {
+< 			sbuf_putc(sb, '=');
+< 			for (i = 0; i < strlen(ol->op_value); i++) {
+< 				if (ol->op_value[i] == '"')
+< 					sbuf_printf(sb, "\\%c",
+< 					    ol->op_value[i]);
+< 				else
+< 					sbuf_printf(sb, "%c",
+< 					    ol->op_value[i]);
+< 			}
+< 			sbuf_printf(sb, "%s", lend);
+< 		} else {
+< 			sbuf_printf(sb, "%s", lend);
+< 		}
+< 	}
+< 	/*
+< 	 * Mark this file as containing everything we need.
+< 	 */
+< 	STAILQ_FOREACH(d, &dtab, d_next)
+< 		sbuf_printf(sb, "device\t%s%s", d->d_name, lend);
+< 	free(lend);
+< }
+< 
+< /*
+<  * Generate file from the configuration files.
+<  */
+< static void
+< configfile_filebased(struct sbuf *sb)
+< {
+< 	FILE *cff;
+< 	struct cfgfile *cf;
+< 	int i;
+< 
+< 	/*
+< 	 * Try to read all configuration files. Since those will be present as
+< 	 * C string in the macro, we have to slash their ends then the line
+< 	 * wraps.
+< 	 */
+< 	STAILQ_FOREACH(cf, &cfgfiles, cfg_next) {
+< 		cff = fopen(cf->cfg_path, "r");
+< 		if (cff == NULL) {
+< 			warn("Couldn't open file %s", cf->cfg_path);
+< 			continue;
+< 		}
+< 		while ((i = getc(cff)) != EOF) {
+< 			if (i == '\n')
+< 				sbuf_printf(sb, "\\n\\\n");
+< 			else if (i == '"' || i == '\'')
+< 				sbuf_printf(sb, "\\%c", i);
+< 			else
+< 				sbuf_putc(sb, i);
+< 		}
+< 		fclose(cff);
+< 	}
+< }
+< 
+499,500c368
+< 	FILE *fo;
+< 	struct sbuf *sb;
+---
+> 	FILE *fi, *fo;
+502,506c370,375
+< 
+< 	/* Add main configuration file to the list of files to be included */
+< 	cfgfile_add(PREFIX);
+< 	p = path("config.c.new");
+< 	fo = fopen(p, "w");
+---
+> 	int i;
+> 	
+> 	fi = fopen(PREFIX, "r");
+> 	if (!fi)
+> 		err(2, "%s", PREFIX);
+> 	fo = fopen(p=path("config.c.new"), "w");
+509,516c378,391
+< 	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
+< 	assert(sb != NULL);
+< 	sbuf_clear(sb);
+< 	if (filebased) {
+< 		/* Is needed, can be used for backward compatibility. */
+< 		configfile_filebased(sb);
+< 	} else {
+< 		configfile_dynamic(sb);
+---
+> 	fprintf(fo, "#include \"opt_config.h\"\n");
+> 	fprintf(fo, "#ifdef INCLUDE_CONFIG_FILE \n");
+> 	fprintf(fo, "const char config[] = \"\\\n");
+> 	fprintf(fo, "START CONFIG FILE %s\\n\\\n___", PREFIX);
+> 	while (EOF != (i=getc(fi))) {
+> 		if (i == '\n') {
+> 			fprintf(fo, "\\n\\\n___");
+> 		} else if (i == '\"') {
+> 			fprintf(fo, "\\\"");
+> 		} else if (i == '\\') {
+> 			fprintf(fo, "\\\\");
+> 		} else {
+> 			putc(i, fo);
+> 		}
+518,532c393,396
+< 	sbuf_finish(sb);
+< 	/* 
+< 	 * We print first part of the tamplate, replace our tag with
+< 	 * configuration files content and later continue writing our
+< 	 * template.
+< 	 */
+< 	p = strstr(kernconfstr, KERNCONFTAG);
+< 	if (p == NULL)
+< 		errx(EXIT_FAILURE, "Something went terribly wrong!");
+< 	*p = '\0';
+< 	fprintf(fo, "%s", kernconfstr);
+< 	fprintf(fo, "%s", sbuf_data(sb));
+< 	p += strlen(KERNCONFTAG);
+< 	fprintf(fo, "%s", p);
+< 	sbuf_delete(sb);
+---
+> 	fprintf(fo, "\\n\\\nEND CONFIG FILE %s\\n\\\n", PREFIX);
+> 	fprintf(fo, "\";\n");
+> 	fprintf(fo, "\n#endif /* INCLUDE_CONFIG_FILE */\n");
+> 	fclose(fi);
+535d398
+< 	cfgfile_removeall();
+571a435,437
+> #ifndef MAP_FAILED
+> #define MAP_FAILED ((caddr_t) -1)
+> #endif
+622c488
+< 			if (eq(dp->d_name, hl->h_name)) {
+---
+> 			if (strcmp(dp->d_name, hl->h_name) == 0) {
+651c517
+< 		if (eq(s, hl->h_name)) {
+---
+> 		if (strcmp(s, hl->h_name) == 0) {
+656c522,523
+< 	hl = calloc(1, sizeof(*hl));
+---
+> 	hl = malloc(sizeof(*hl));
+> 	bzero(hl, sizeof(*hl));
+661,725d527
+< 
+< /*
+<  * This one is quick hack. Will be probably moved to elf(3) interface.
+<  * It takes kernel configuration file name, passes it as an argument to
+<  * elfdump -a, which output is parsed by some UNIX tools...
+<  */
+< static void
+< kernconfdump(const char *file)
+< {
+< 	struct stat st;
+< 	FILE *fp, *pp;
+< 	int error, len, osz, r;
+< 	unsigned int i, off, size;
+< 	char *cmd, *o;
+< 
+< 	r = open(file, O_RDONLY);
+< 	if (r == -1)
+< 		errx(EXIT_FAILURE, "Couldn't open file '%s'", file);
+< 	error = fstat(r, &st);
+< 	if (error == -1)
+< 		errx(EXIT_FAILURE, "fstat() failed");
+< 	if (S_ISDIR(st.st_mode))
+< 		errx(EXIT_FAILURE, "'%s' is a directory", file);
+< 	fp = fdopen(r, "r");
+< 	if (fp == NULL)
+< 		errx(EXIT_FAILURE, "fdopen() failed");
+< 	osz = 1024;
+< 	o = calloc(1, osz);
+< 	if (o == NULL)
+< 		errx(EXIT_FAILURE, "Couldn't allocate memory");
+< 	/* ELF note section header. */
+< 	asprintf(&cmd, "/usr/bin/elfdump -c %s | grep -A 5 kern_conf"
+< 	    "| tail -2 | cut -d ' ' -f 2 | paste - - -", file);
+< 	if (cmd == NULL)
+< 		errx(EXIT_FAILURE, "asprintf() failed");
+< 	pp = popen(cmd, "r");
+< 	if (pp == NULL)
+< 		errx(EXIT_FAILURE, "popen() failed");
+< 	free(cmd);
+< 	len = fread(o, osz, 1, pp);
+< 	pclose(pp);
+< 	r = sscanf(o, "%d\t%d", &off, &size);
+< 	free(o);
+< 	if (r != 2)
+< 		errx(EXIT_FAILURE, "File %s doesn't contain configuration "
+< 		    "file. Either unsupported, or not compiled with "
+< 		    "INCLUDE_CONFIG_FILE", file);
+< 	r = fseek(fp, off, SEEK_CUR);
+< 	if (r != 0)
+< 		errx(EXIT_FAILURE, "fseek() failed");
+< 	for (i = 0; i < size - 1; i++) {
+< 		r = fgetc(fp);
+< 		if (r == EOF)
+< 			break;
+< 		/* 
+< 		 * If '\0' is present in the middle of the configuration
+< 		 * string, this means something very weird is happening.
+< 		 * Make such case very visible.
+< 		 */
+< 		assert(r != '\0' && ("Char present in the configuration "
+< 		    "string mustn't be equal to 0"));
+< 		fputc(r, stdout);
+< 	}
+< 	fclose(fp);
+< }
+Only in /c/jbirrell/test/src/bsd/usr.sbin/config: makefile
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/mkheaders.c /c/jbirrell/test/src/bsd/usr.sbin/config/mkheaders.c
+35c35
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/mkheaders.c,v 1.30 2004/08/30 23:03:56 peter Exp $";
+56a57
+> 	struct file_list *fl;
+57a59
+> 	int match;
+60a63,73
+> 	STAILQ_FOREACH(fl, &ftab, f_next) {
+> 		if (fl->f_needs != 0) {
+> 			match = 0;
+> 			STAILQ_FOREACH(dp, &dtab, d_next) {
+> 				if (eq(dp->d_name, fl->f_needs)) {
+> 					match++;
+> 					dp->d_done |= DEVDONE;
+> 				}
+> 			}
+> 		}
+> 	}
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/mkmakefile.c /c/jbirrell/test/src/bsd/usr.sbin/config/mkmakefile.c
+35c35
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/mkmakefile.c,v 1.81 2004/08/30 23:03:56 peter Exp $";
+104c104,105
+< 	fp = (struct file_list *) calloc(1, sizeof *fp);
+---
+> 	fp = (struct file_list *) malloc(sizeof *fp);
+> 	bzero(fp, sizeof *fp);
+117c118
+< 	struct opt *op, *t;
+---
+> 	struct opt *op;
+118a120
+> 	char *s;
+121c123,126
+< 	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
+---
+> 	if (f_build)
+> 		snprintf(line, sizeof(line), "../../conf/Buildfile.%s", machinename);
+> 	else
+> 		snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
+129a135,140
+> 	/* XXX this check seems to be misplaced. */
+> 	if (SLIST_EMPTY(&cputype)) {
+> 		printf("cpu type must be specified\n");
+> 		exit(1);
+> 	}
+> 
+134,139c145,146
+< 	SLIST_FOREACH_SAFE(op, &mkopt, op_next, t) {
+< 		fprintf(ofp, "%s=%s", op->op_name, op->op_value);
+< 		while ((op = SLIST_NEXT(op, op_append)) != NULL)
+< 			fprintf(ofp, " %s", op->op_value);
+< 		fprintf(ofp, "\n");
+< 	}
+---
+> 	SLIST_FOREACH(op, &mkopt, op_next)
+> 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
+144c151,152
+< 	if (*srcdir != '\0')
+---
+> 	/* begin JUNOS */
+> 	if (*srcdir != '\0') {
+145a154,159
+> 		if (*srcdir == '.') {
+> 			fprintf(ofp, 
+> 	"\n# Force files to be found via relative path by clearing .PATH and adding '.'\n# (and '.DOTLAST' for makes that use it.)\n.PATH:\n.PATH: . .DOTLAST\n\n");
+> 		}
+> 	}
+> 	/* end JUNOS */
+163,164c177
+< 			if (MAJOR_VERS(versreq) != MAJOR_VERS(CONFIGVERS) ||
+< 			    versreq > CONFIGVERS) {
+---
+> 			if (versreq != CONFIGVERS) {
+184,197c197,209
+< 	moveifchanged(path("Makefile.new"), path("Makefile"));
+< }
+< 
+< /*
+<  * Build hints.c from the skeleton
+<  */
+< void
+< makehints(void)
+< {
+< 	FILE *ifp, *ofp;
+< 	char line[BUFSIZ];
+< 	char *s;
+< 	struct hint *hint;
+< 
+---
+> 	if (f_build)
+> 		moveifchanged(path("Makefile.new"), path(bldfile));
+> 	else
+> 		moveifchanged(path("Makefile.new"), path("Makefile"));
+> 
+> 	/* XXX makefile() should make the Makefile, not hints.c. */
+> 	if (hints) {
+> 		ifp = fopen(hints, "r");
+> 		if (ifp == NULL)
+> 			err(1, "%s", hints);
+> 	} else {
+> 		ifp = NULL;
+> 	}
+206,209c218
+< 	STAILQ_FOREACH(hint, &hints, hint_next) {
+< 		ifp = fopen(hint->hint_name, "r");
+< 		if (ifp == NULL)
+< 			err(1, "%s", hint->hint_name);
+---
+> 	if (ifp) {
+239d247
+< 		fclose(ifp);
+241a250,251
+> 	if (ifp)
+> 		fclose(ifp);
+244,254d253
+< }
+< 
+< /*
+<  * Build env.c from the skeleton
+<  */
+< void
+< makeenv(void)
+< {
+< 	FILE *ifp, *ofp;
+< 	char line[BUFSIZ];
+< 	char *s;
+255a255
+> 	/* XXX makefile() should make the Makefile, not env.c. */
+312d311
+< 	char ifname[MAXPATHLEN];
+314c313
+< 	struct file_list *tp;
+---
+> 	struct file_list *tp, *pf;
+317,318c316,317
+< 	char *wd, *this, *compilewith, *depends, *clean, *warning;
+< 	int compile, match, nreqs, std, filetype,
+---
+> 	char *wd, *this, *needs, *compilewith, *depends, *clean, *warning;
+> 	int nreqs, isdup, std, filetype,
+326d324
+< 	 * include "filename"
+328c326
+< 	 *	[ dev* [ | dev* ... ] | profiling-routine ] [ no-obj ]
+---
+> 	 *	[ dev* | profiling-routine ] [ no-obj ]
+346,357d343
+< 	if (eq(wd, "include")) {
+< 		next_quoted_word(fp, wd);
+< 		if (wd == 0) {
+< 			printf("%s: missing include filename.\n", fname);
+< 			exit(1);
+< 		}
+< 		(void) snprintf(ifname, sizeof(ifname), "../../%s", wd);
+< 		read_file(ifname);
+< 		while (((wd = get_word(fp)) != (char *)EOF) && wd)
+< 			;
+< 		goto next;
+< 	}
+365,367c351,355
+< 	tp = fl_lookup(this);
+< 	compile = 0;
+< 	match = 1;
+---
+> 	if ((pf = fl_lookup(this)) && (pf->f_type != INVISIBLE || pf->f_flags))
+> 		isdup = ISDUP;
+> 	else
+> 		isdup = 0;
+> 	tp = 0;
+372a361
+> 	needs = 0;
+396,410c385,387
+< 		compile += match;
+< 		if (compile && tp == NULL)
+< 			goto doneparam;
+< 		goto next;
+< 	}
+< 	if (eq(wd, "|")) {
+< 		if (nreqs == 0) {
+< 			printf("%s: syntax error describing %s\n",
+< 			    fname, this);
+< 			exit(1);
+< 		}
+< 		compile += match;
+< 		match = 1;
+< 		nreqs = 0;
+< 		goto nextparam;
+---
+> 		if (isdup)
+> 			goto next;
+> 		goto doneparam;
+485a463,466
+> 	if (needs == 0 && nreqs == 1)
+> 		needs = ns(wd);
+> 	if (isdup)
+> 		goto invis;
+487,488c468
+< 		if (eq(dp->d_name, wd)) {
+< 			dp->d_done |= DEVDONE;
+---
+> 		if (eq(dp->d_name, wd))
+490d469
+< 		}
+502c481,485
+< 		if (op->op_value == 0 && opteq(op->op_name, wd))
+---
+> 		if (op->op_value == 0 && opteq(op->op_name, wd)) {
+> 			if (nreqs == 1) {
+> 				free(needs);
+> 				needs = 0;
+> 			}
+504,505c487,501
+< 	match = 0;
+< 	goto nextparam;
+---
+> 		}
+> invis:
+> 	while ((wd = get_word(fp)) != 0)
+> 		;
+> 	if (tp == 0)
+> 		tp = new_fent();
+> 	tp->f_fn = this;
+> 	tp->f_type = INVISIBLE;
+> 	tp->f_needs = needs;
+> 	tp->f_flags |= isdup;
+> 	tp->f_compilewith = compilewith;
+> 	tp->f_depends = depends;
+> 	tp->f_clean = clean;
+> 	tp->f_warn = warning;
+> 	goto next;
+521c517,518
+< 	tp = new_fent();
+---
+> 	if (tp == 0)
+> 		tp = new_fent();
+523a521
+> 	tp->f_flags &= ~ISDUP;
+531a530
+> 	tp->f_needs = needs;
+535a535,536
+> 	if (pf && pf->f_type == INVISIBLE)
+> 		pf->f_flags |= ISDUP;		/* mark as duplicate */
+549c550,557
+< 	(void) snprintf(fname, sizeof(fname), "../../conf/files");
+---
+> 	if (ident == NULL) {
+> 		printf("no ident line specified\n");
+> 		exit(1);
+> 	}
+> 	if (f_build)
+> 		(void) snprintf(fname, sizeof(fname), "../../conf/files.bld");
+> 	else
+> 		(void) snprintf(fname, sizeof(fname), "../../conf/files");
+551,552c559,564
+< 	(void) snprintf(fname, sizeof(fname),
+< 		       	"../../conf/files.%s", machinename);
+---
+> 	if (f_build)
+> 		(void) snprintf(fname, sizeof(fname),
+> 				"../../conf/files.%s.bld", machinename);
+> 	else
+> 		(void) snprintf(fname, sizeof(fname),
+> 				"../../conf/files.%s", machinename);
+594c606
+< 			if (tp->f_flags & NO_IMPLCT_RULE)
+---
+> 			if (tp->f_flags & NO_IMPLCT_RULE || '$' == *tp->f_fn)
+614c626
+< 		if (tp->f_flags & NO_OBJ)
+---
+> 		if (tp->f_type == INVISIBLE || tp->f_flags & NO_OBJ)
+650c662
+< 		if (tp->f_type != NODEPEND) {
+---
+> 		if (tp->f_type != INVISIBLE && tp->f_type != NODEPEND) {
+660c672
+< 			if (tp->f_type != LOCAL)
+---
+> 			if (tp->f_type != LOCAL && *tp->f_fn != '$')
+688c700
+< 	char *cp, *np, och;
+---
+> 	char *cp, *np, och, *tp;
+690a703
+> 	char *prefix;
+692a706,707
+> 		if (ftp->f_type == INVISIBLE)
+> 			continue;
+696a712
+> 		prefix = ('$' == *np) ? "" : "$S/";
+706,707c722,723
+< 				fprintf(f, "%so:\n\t-cp $S/%so .\n\n",
+< 					tail(np), np);
+---
+> 				fprintf(f, "%so:\n\t-cp %s%so .\n\n",
+> 					tail(np), prefix, np);
+711c727,728
+< 				fprintf(f, "%sln: $S/%s%c %s\n", tail(np),
+---
+> 				fprintf(f, "%sln: %s%s%c %s\n", tail(np),
+> 					prefix,
+714c731,732
+< 				fprintf(f, "%so: $S/%s%c %s\n", tail(np),
+---
+> 				fprintf(f, "%so: %s%s%c %s\n", tail(np),
+> 					prefix,
+718c736,737
+< 				fprintf(f, "%sln: $S/%s%c\n", tail(np),
+---
+> 				fprintf(f, "%sln: %s%s%c\n", tail(np),
+> 					prefix,
+721c740,741
+< 				fprintf(f, "%so: $S/%s%c\n", tail(np),
+---
+> 				fprintf(f, "%so: %s%s%c\n", tail(np),
+> 					prefix,
+724a745
+> 		tp = tail(np);
+746c767
+< 			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n.if defined(NORMAL_CTFCONVERT) && !empty(NORMAL_CTFCONVERT)\n\t${NORMAL_CTFCONVERT}\n.endif", ftype,
+---
+> 			snprintf(cmd, sizeof(cmd), "${%s_%c%s}", ftype,
+diff -r /c/jbirrell/freebsd/head/jbuild/src/usr.sbin/config/mkoptions.c /c/jbirrell/test/src/bsd/usr.sbin/config/mkoptions.c
+36c36
+<   "$FreeBSD$";
+---
+>   "$FreeBSD: src/usr.sbin/config/mkoptions.c,v 1.32 2004/08/07 04:19:37 imp Exp $";
+76c76,77
+< 		op = (struct opt *)calloc(1, sizeof(*op));
+---
+> 		op = (struct opt *)malloc(sizeof(*op));
+> 		memset(op, 0, sizeof(*op));
+90c91,92
+< 	op = (struct opt *)calloc(1, sizeof(*op));
+---
+> 	op = (struct opt *)malloc(sizeof(*op));
+> 	memset(op, 0, sizeof(*op));
+205c207,208
+< 			op = (struct opt *) calloc(1, sizeof *op);
+---
+> 			op = (struct opt *) malloc(sizeof *op);
+> 			bzero(op, sizeof(*op));
+231c234,235
+< 		op = (struct opt *) calloc(1, sizeof *op);
+---
+> 		op = (struct opt *) malloc(sizeof *op);
+> 		bzero(op, sizeof(*op));
+266c270
+< 	(void) strlcpy(nbuf, "options.h", sizeof(nbuf));
+---
+> 	(void) strncpy(nbuf, "options.h", sizeof(nbuf));
+270c274
+< 			strlcpy(nbuf, po->o_file, sizeof(nbuf));
+---
+> 			strncpy(nbuf, po->o_file, sizeof(nbuf));
+275c279
+< 	(void) strlcpy(hbuf, path(nbuf), sizeof(hbuf));
+---
+> 	(void) strncpy(hbuf, path(nbuf), sizeof(hbuf));
+292a297,300
+> 	if (ident == NULL) {
+> 		printf("no ident line specified\n");
+> 		exit(1);
+> 	}
+342c350,351
+< 	po = (struct opt_list *) calloc(1, sizeof *po);
+---
+> 	po = (struct opt_list *) malloc(sizeof *po);
+> 	bzero(po, sizeof(*po));

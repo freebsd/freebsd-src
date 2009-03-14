@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/usr.sbin/ctm/ctm_rmail
+
+PROG = ctm_dequeue
+
+SRCS = \
+	ctm_dequeue.c \
+	error.c
+
+CFLAGS += -I${BSDSRCTOP}/usr.sbin/ctm/ctm_rmail
+
+.include <bsd.prog.mk>

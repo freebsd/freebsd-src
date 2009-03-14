@@ -37,5 +37,4 @@ test: example minigzip
 	(export LD_LIBRARY_PATH=. ; \
 		echo hello world | ./minigzip | ./minigzip -d )
 
-DIRDEP= include include/machine stage sys/MACHINE_ARCH/include sys/sys
 .include <bsd.lib.mk>

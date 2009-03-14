@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = devinfo
+
+WARNS ?= 2
+
+LDADD += -ldevinfo
+
+.include <bsd.prog.mk>

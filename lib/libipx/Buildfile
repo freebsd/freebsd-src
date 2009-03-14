@@ -8,5 +8,4 @@ SRCS = \
 	ipx_addr.c \
 	ipx_ntoa.c
 
-DIRDEP= include include/arpa stage sys/MACHINE_ARCH/include sys/netipx sys/sys
 .include <bsd.lib.mk>

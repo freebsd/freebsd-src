@@ -13,6 +13,4 @@ BUILTFILES += names.c
 names.c:
 	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKnames.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > ${.TARGET}
 
-SRCDIRDEP= contrib/ncurses/include contrib/ncurses/ncurses contrib/ncurses/ncurses/tinfo
-DIRDEP= include lib/ncurses/include stage sys/sys
 .include <bsd.prog.mk>

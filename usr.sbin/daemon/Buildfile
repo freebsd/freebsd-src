@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = daemon
+
+WARNS ?= 2
+
+LDADD += -lutil
+
+.include <bsd.prog.mk>

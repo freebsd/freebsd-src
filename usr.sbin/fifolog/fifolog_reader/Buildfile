@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = fifolog_reader
+
+CFLAGS += -I${BSDSRCTOP}/usr.sbin/fifolog/lib
+
+LDADD += -lfifolog -lutil -lz
+
+.include <bsd.prog.mk>

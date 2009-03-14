@@ -21,6 +21,4 @@ CFLAGS += -I${.CURDIR}
 
 LDADD =  -lsbuf
 
-SRCDIRDEP= sys/cam sys/cam/scsi
-DIRDEP= include include/machine stage sys/MACHINE_ARCH/include sys/cam sys/cam/scsi sys/sys
 .include <bsd.lib.mk>

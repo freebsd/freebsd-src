@@ -24,5 +24,4 @@ SRCS += kvm_minidump_${MACHINE_ARCH}.c
 
 INCS = kvm.h
 
-DIRDEP= include include/machine stage sys/MACHINE_ARCH/include sys/bsm sys/sys sys/vm
 .include <bsd.lib.mk>

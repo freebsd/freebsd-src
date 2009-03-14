@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+SUBDIR = \
+	bsnmpd \
+	gensnmptree \
+	modules
+
+.include <bsd.subdir.mk>

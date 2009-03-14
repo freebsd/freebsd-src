@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+PROG = dconschat
+
+LDADD += -lkvm
+
+.include <bsd.prog.mk>

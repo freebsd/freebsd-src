@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+
+LIBBEGEMOT_DIR = ${BSDSRCTOP}/contrib/libbegemot
+
+.PATH: ${LIBBEGEMOT_DIR}
+
+LIB = begemot
+
+SHLIB_MAJOR = 3
+
+SRCS = rpoll.c
+
+INCS = rpoll.h
+
+CFLAGS += -DUSE_SELECT -DQUADFMT='"ll"'
+
+.include <bsd.lib.mk>

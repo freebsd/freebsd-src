@@ -38,6 +38,4 @@ bsdxml.h: expat.h
 bsdxml_external.h: expat_external.h
 	cp ${.ALLSRC} ${.TARGET}
 
-SRCDIRDEP= contrib/expat/lib
-DIRDEP= include stage sys/MACHINE_ARCH/include sys/sys
 .include <bsd.lib.mk>

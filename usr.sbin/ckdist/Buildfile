@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/usr.bin/cksum
+
+PROG = ckdist
+
+SRCS = \
+	ckdist.c \
+	crc.c
+
+LDADD += -lmd
+
+.include <bsd.prog.mk>

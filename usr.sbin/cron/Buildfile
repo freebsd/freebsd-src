@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+SUBDIR = \
+	cron \
+	crontab \
+	doc \
+	lib
+
+.include <bsd.subdir.mk>

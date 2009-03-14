@@ -38,5 +38,4 @@ INCS = \
 	usb_util.h \
 	usbhid.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

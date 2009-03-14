@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/lib
+INCDIR = ${STAGEDIR}/usr/include
+
+LIB = devinfo
+
+SRCS = devinfo.c
+
+INCS = devinfo.h
+
+.include <bsd.lib.mk>

@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+PROG = cxgbtool
+
+CFLAGS += -I${BSDSRCTOP}/sys/dev/cxgb -I.
+CFLAGS += -DCONFIG_T3_REGS -DCHELSIO_INTERNAL
+
+.include <bsd.prog.mk>

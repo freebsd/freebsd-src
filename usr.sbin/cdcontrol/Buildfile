@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = cdcontrol
+
+WARNS ?= 2
+
+LDADD += -ledit -lncurses
+
+.include <bsd.prog.mk>

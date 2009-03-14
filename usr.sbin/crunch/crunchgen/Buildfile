@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+PROG = crunchgen
+
+SRCS = \
+	crunchgen.c \
+	crunched_skel.c
+
+crunched_skel.c: crunched_main.c
+	sh -e ${.CURDIR}/mkskel.sh ${.ALLSRC} > ${.TARGET}
+
+.include <bsd.prog.mk>

@@ -15,5 +15,4 @@ SRCS = \
 
 INCS = usbhid.h
 
-DIRDEP= include stage sys/MACHINE_ARCH/include sys/dev/usb sys/sys
 .include <bsd.lib.mk>

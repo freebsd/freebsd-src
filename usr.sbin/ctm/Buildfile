@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+SUBDIR = \
+	ctm \
+	ctm_dequeue \
+	ctm_rmail \
+	ctm_smail \
+	mkCTM
+
+.include <bsd.subdir.mk>

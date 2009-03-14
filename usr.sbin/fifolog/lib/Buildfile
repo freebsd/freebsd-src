@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+LIBDIR = ${STAGEDIR}/usr/lib
+
+LIB = fifolog
+
+INTERNALLIB =
+
+SRCS = \
+	fifolog_create.c \
+	fifolog_int.c \
+	fifolog_reader.c \
+	fifolog_write_poll.c \
+	getdate.y
+
+CFLAGS += -I${.CURDIR}
+
+.include <bsd.lib.mk>

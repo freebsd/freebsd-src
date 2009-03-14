@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/usr.sbin/ofwdump
+
+PROG = eeprom
+
+SRCS = \
+	eeprom.c \
+	ofw_options.c \
+	ofw_util.c
+
+WARNS ?= 6
+
+CFLAGS += -I${BSDSRCTOP}/usr.sbin/ofwdump
+
+.include <bsd.prog.mk>

@@ -187,6 +187,4 @@ test:	md2.ref md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref
 	@${ECHO} SHA-256 passed test
 	-rm -f shadriver
 
-SRCDIRDEP= lib/libmd/i386
-DIRDEP= include stage sys/MACHINE_ARCH/include sys/sys
 .include <bsd.lib.mk>

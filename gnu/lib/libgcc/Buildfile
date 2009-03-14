@@ -314,8 +314,6 @@ _LIBS += lib${LIB}_eh_p.a
 
 _libinstall: _lib-eh-install
 
-SRCDIRDEP= contrib/gcc contrib/gcc/config contrib/gcc/config/i386 contrib/gcclibs/include
-DIRDEP= gnu/usr.bin/cc/cc_tools/genheaders include include/machine stage sys/MACHINE_ARCH/include sys/sys
 .include <bsd.lib.mk>
 
 .SUFFIXES: .vis .vo

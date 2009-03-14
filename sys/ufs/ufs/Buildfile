@@ -15,5 +15,4 @@ INCS = \
 	ufs_extern.h \
 	ufsmount.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

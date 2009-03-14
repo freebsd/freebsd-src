@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+PROG = ypset
+
+.include <bsd.prog.mk>

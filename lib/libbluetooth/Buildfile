@@ -14,5 +14,4 @@ WARNS ?= 2
 
 CFLAGS += -I${.CURDIR}
 
-DIRDEP= include stage sys/MACHINE_ARCH/include sys/netgraph sys/netgraph/bluetooth/include sys/sys
 .include <bsd.lib.mk>

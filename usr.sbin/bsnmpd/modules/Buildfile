@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+SUBDIR = \
+	snmp_atm \
+	snmp_bridge \
+	snmp_hostres \
+	snmp_mibII \
+	snmp_netgraph \
+	snmp_pf
+
+.include <bsd.subdir.mk>

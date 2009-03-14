@@ -106,6 +106,4 @@ INCS = \
 	wctype.h \
 	wordexp.h
 
-SRCDIRDEP= sys/sys
-DIRDEP= stage
 .include <bsd.headers.mk>

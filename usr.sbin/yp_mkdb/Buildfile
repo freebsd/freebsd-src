@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+.PATH:  ${.CURDIR}/../../libexec/ypxfr ${.CURDIR}/../ypserv
+
+PROG = yp_mkdb
+
+SRCS = \
+	yp_dblookup.c \
+	yp_dbwrite.c \
+	yp_mkdb.c
+
+CFLAGS +=  -Dyp_error=warnx
+CFLAGS +=  -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.sbin/ypserv
+
+.include <bsd.prog.mk>

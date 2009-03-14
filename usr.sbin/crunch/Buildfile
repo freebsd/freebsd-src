@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+SUBDIR = \
+	crunchgen \
+	crunchide \
+	examples
+
+.include <bsd.subdir.mk>

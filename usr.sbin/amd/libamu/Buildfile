@@ -49,6 +49,4 @@ XDRDEFS!= grep 'ifndef.*HAVE_XDR' ${.CURDIR}/../../../contrib/amd/libamu/xdr_fun
 xdr_func_%undef.c: xdr_func.c
 	-unifdef ${XDRDEFS} < ${.ALLSRC} > ${.TARGET}
 
-SRCDIRDEP= contrib/amd/conf/mtab contrib/amd/conf/nfs_prot contrib/amd/conf/transp contrib/amd/conf/umount contrib/amd/include contrib/amd/libamu
-DIRDEP= include include/arpa include/machine include/rpc include/rpcsvc lib/libwrap stage sys/MACHINE_ARCH/include sys/altq sys/bsm sys/fs/cd9660 sys/fs/msdosfs sys/net sys/netinet sys/netinet6 sys/nfs sys/nfsclient sys/rpc sys/sys sys/ufs/ufs usr.bin/rpcgen_host usr.sbin/amd/include
 .include <bsd.lib.mk>

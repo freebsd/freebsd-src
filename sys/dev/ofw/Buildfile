@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+INCDIR = ${STAGEDIR}/usr/include/dev/ofw
+COMMONDIR =
+
+INCS = \
+	ofw_bus.h \
+	ofw_bus_subr.h \
+	ofw_pci.h \
+	ofwvar.h \
+	openfirm.h \
+	openfirmio.h \
+	openpromio.h
+
+DIRDEP= stage
+.include <bsd.headers.mk>

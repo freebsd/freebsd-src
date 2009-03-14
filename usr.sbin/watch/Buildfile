@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = watch
+
+WARNS ?= 2
+
+LDADD += -lncurses
+
+.include <bsd.prog.mk>

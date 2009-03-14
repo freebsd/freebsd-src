@@ -1,0 +1,34 @@
+# $FreeBSD$
+
+PROG = bootparamd
+
+SRCS = \
+	bootparamd.c \
+	main.c
+
+GENSRCS = \
+	bootparam_prot_svc.c \
+	bootparam_prot_xdr.c
+
+SRCS += ${GENSRCS}
+
+GENHDRS = bootparam_prot.h
+
+CFLAGS += -DTFTP_DIR=\"/tftpboot\" -I. -DYP
+
+.if exists(${COMMONSTAGEDIR}/usr/include/rpcsvc/bootparam_prot.x)
+RPCSRC = ${COMMONSTAGEDIR}/usr/include/rpcsvc/bootparam_prot.x
+.else
+RPCSRC = ${COMMONSHAREDSTAGEDIR}/usr/include/rpcsvc/bootparam_prot.x
+.endif
+
+bootparam_prot_svc.c: ${RPCSRC}
+	${RPCGEN} -C -m -o ${.TARGET} ${RPCSRC}
+
+bootparam_prot_xdr.c: ${RPCSRC}
+	${RPCGEN} -C -c -o ${.TARGET} ${RPCSRC}
+
+bootparam_prot.h: ${RPCSRC}
+	${RPCGEN} -C -h -o ${.TARGET} ${RPCSRC}
+
+.include <bsd.prog.mk>

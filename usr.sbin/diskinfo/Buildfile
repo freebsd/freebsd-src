@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = diskinfo
+
+WARNS ?= 5
+
+LDADD += -lutil
+
+.include <bsd.prog.mk>

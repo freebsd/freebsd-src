@@ -256,5 +256,4 @@ INCS = \
 	wait.h \
 	watchdog.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

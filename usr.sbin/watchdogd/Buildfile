@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = watchdogd
+
+WARNS ?= 6
+
+LDADD += -lm -lutil
+
+.include <bsd.prog.mk>

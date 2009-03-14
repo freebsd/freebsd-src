@@ -18,6 +18,4 @@ osreldate.h : ${BSDSRCTOP}/sys/sys/param.h
 	echo "#endif"; } >> ${.TARGET}
 	rm -f version vers.c
 
-SRCDIRDEP= sys/sys
-DIRDEP= stage
 .include <bsd.headers.mk>

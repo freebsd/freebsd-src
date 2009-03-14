@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+SHLIB_MAJOR = 5
+WARNS ?= 6

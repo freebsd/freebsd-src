@@ -102,6 +102,4 @@ SRCS = \
 	var.c \
 	verbose.c
 
-SRCDIRDEP= contrib/ipfilter contrib/ipfilter/lib sys/contrib/ipfilter/netinet sys/net sys/netinet sys/netinet6 sys/sys
-DIRDEP= include include/arpa include/machine lib/libkvm stage sys/MACHINE_ARCH/include sys/altq
 .include <bsd.lib.mk>

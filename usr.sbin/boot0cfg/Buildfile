@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = boot0cfg
+
+WARNS ?= 2
+
+LDADD += -lgeom -lbsdxml -lsbuf
+
+.include <bsd.prog.mk>

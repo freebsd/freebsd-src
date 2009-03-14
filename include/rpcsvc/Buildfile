@@ -45,5 +45,4 @@ ${_x:R}.h: ${_x}
 
 INCS += ${XSRCS}
 
-DIRDEP= stage usr.bin/rpcgen_host
 .include <bsd.headers.mk>

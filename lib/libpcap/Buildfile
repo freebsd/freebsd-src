@@ -58,6 +58,4 @@ GENHDRS += tokdefs.h
 tokdefs.h: grammar.h
 	cp grammar.h tokdefs.h
 
-SRCDIRDEP= contrib/libpcap contrib/libpcap/bpf/net
-DIRDEP= include include/arpa include/machine stage sys/MACHINE_ARCH/include sys/net sys/netinet sys/netinet6 sys/sys sys/vm
 .include <bsd.lib.mk>

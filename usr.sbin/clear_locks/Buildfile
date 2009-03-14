@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+PROG = clear_locks
+
+WARNS ?= 6
+
+LDADD += -lrpcsvc
+
+.include <bsd.prog.mk>
