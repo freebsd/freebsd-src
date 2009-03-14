@@ -80,7 +80,7 @@ static void
 mac_posixsem_label_free(struct label *label)
 {
 
-	MAC_PERFORM(posixsem_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(posixsem_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -98,7 +98,7 @@ void
 mac_posixsem_create(struct ucred *cred, struct ksem *ks)
 {
 
-	MAC_PERFORM(posixsem_create, cred, ks, ks->ks_label);
+	MAC_PERFORM_NOSLEEP(posixsem_create, cred, ks, ks->ks_label);
 }
 
 MAC_CHECK_PROBE_DEFINE2(posixsem_check_open, "struct ucred *",
@@ -109,7 +109,7 @@ mac_posixsem_check_open(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_open, cred, ks, ks->ks_label);
+	MAC_CHECK_NOSLEEP(posixsem_check_open, cred, ks, ks->ks_label);
 	MAC_CHECK_PROBE2(posixsem_check_open, error, cred, ks);
 
 	return (error);
@@ -124,8 +124,8 @@ mac_posixsem_check_getvalue(struct ucred *active_cred, struct ucred *file_cred,
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_getvalue, active_cred, file_cred, ks,
-	    ks->ks_label);
+	MAC_CHECK_NOSLEEP(posixsem_check_getvalue, active_cred, file_cred,
+	    ks, ks->ks_label);
 	MAC_CHECK_PROBE3(posixsem_check_getvalue, error, active_cred,
 	    file_cred, ks);
 
@@ -141,7 +141,7 @@ mac_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_post, active_cred, file_cred, ks,
+	MAC_CHECK_NOSLEEP(posixsem_check_post, active_cred, file_cred, ks,
 	    ks->ks_label);
 	MAC_CHECK_PROBE3(posixsem_check_post, error, active_cred, file_cred,
 	    ks);
@@ -158,7 +158,7 @@ mac_posixsem_check_stat(struct ucred *active_cred, struct ucred *file_cred,
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_stat, active_cred, file_cred, ks,
+	MAC_CHECK_NOSLEEP(posixsem_check_stat, active_cred, file_cred, ks,
 	    ks->ks_label);
 	MAC_CHECK_PROBE3(posixsem_check_stat, error, active_cred, file_cred,
 	    ks);
@@ -174,7 +174,7 @@ mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_unlink, cred, ks, ks->ks_label);
+	MAC_CHECK_NOSLEEP(posixsem_check_unlink, cred, ks, ks->ks_label);
 	MAC_CHECK_PROBE2(posixsem_check_unlink, error, cred, ks);
 
 	return (error);
@@ -189,7 +189,7 @@ mac_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_wait, active_cred, file_cred, ks,
+	MAC_CHECK_NOSLEEP(posixsem_check_wait, active_cred, file_cred, ks,
 	    ks->ks_label);
 	MAC_CHECK_PROBE3(posixsem_check_wait, error, active_cred, file_cred,
 	    ks);

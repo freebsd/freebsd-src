@@ -112,7 +112,7 @@ static void
 mac_proc_label_free(struct label *label)
 {
 
-	MAC_PERFORM(proc_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(proc_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -386,7 +386,7 @@ mac_proc_check_debug(struct ucred *cred, struct proc *p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(proc_check_debug, cred, p);
+	MAC_CHECK_NOSLEEP(proc_check_debug, cred, p);
 	MAC_CHECK_PROBE2(proc_check_debug, error, cred, p);
 
 	return (error);
@@ -401,7 +401,7 @@ mac_proc_check_sched(struct ucred *cred, struct proc *p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(proc_check_sched, cred, p);
+	MAC_CHECK_NOSLEEP(proc_check_sched, cred, p);
 	MAC_CHECK_PROBE2(proc_check_sched, error, cred, p);
 
 	return (error);
@@ -417,7 +417,7 @@ mac_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(proc_check_signal, cred, p, signum);
+	MAC_CHECK_NOSLEEP(proc_check_signal, cred, p, signum);
 	MAC_CHECK_PROBE3(proc_check_signal, error, cred, p, signum);
 
 	return (error);
@@ -432,7 +432,7 @@ mac_proc_check_wait(struct ucred *cred, struct proc *p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	MAC_CHECK(proc_check_wait, cred, p);
+	MAC_CHECK_NOSLEEP(proc_check_wait, cred, p);
 	MAC_CHECK_PROBE2(proc_check_wait, error, cred, p);
 
 	return (error);
