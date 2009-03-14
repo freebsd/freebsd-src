@@ -413,12 +413,12 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			}
 		} else {
 			ok = 1;
-#if 1
-			if (start < sc->iobase && end > sc->iolimit) {
-				start = sc->iobase;
-				end = sc->iolimit;
-			}
-#endif			
+			/*
+			 * If we overlap with the subtractive range, then
+			 * pick the upper range to use.
+			 */
+			if (start < sc->iolimit && end > sc->iobase)
+				start = sc->iolimit + 1;
 		}
 		if (end < start) {
 			device_printf(dev, "ioport: end (%lx) < start (%lx)\n",
@@ -479,16 +479,12 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		} else if (!ok) {
 			ok = 1;	/* subtractive bridge: always ok */
 			if (pcib_is_nonprefetch_open(sc)) {
-				if (start < sc->membase && end > sc->memlimit) {
-					start = sc->membase;
-					end = sc->memlimit;
-				}
+				if (start < sc->memlimit && end > sc->membase)
+					start = sc->memlimit + 1;
 			}
 			if (pcib_is_prefetch_open(sc)) {
-				if (start < sc->pmembase && end > sc->pmemlimit) {
-					start = sc->pmembase;
-					end = sc->pmemlimit;
-				}
+				if (start < sc->pmemlimit && end > sc->pmembase)
+					start = sc->pmemlimit + 1;
 			}
 		}
 		if (end < start) {
@@ -536,13 +532,13 @@ pcib_maxslots(device_t dev)
  * Since we are a child of a PCI bus, its parent must support the pcib interface.
  */
 uint32_t
-pcib_read_config(device_t dev, int b, int s, int f, int reg, int width)
+pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 {
     return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, width));
 }
 
 void
-pcib_write_config(device_t dev, int b, int s, int f, int reg, uint32_t val, int width)
+pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, uint32_t val, int width)
 {
     PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, val, width);
 }
