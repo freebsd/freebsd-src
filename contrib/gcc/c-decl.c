@@ -1,6 +1,6 @@
 /* Process declarations and variables for C compiler.
    Copyright (C) 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,6 +20,9 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 02110-1301, USA.  */
 
 /* $FreeBSD$ */
+/* Merged C99 inline changes from gcc trunk 122565 2007-03-05 */
+/* Fixed problems with compiling inline-25.c and inline-26.c */
+/* XXX still fails inline-29.c, inline-31.c, and inline-32.c */
 
 /* Process declarations and symbol lookup for C front end.
    Also constructs types; the standard scalar types at initialization,
@@ -155,10 +158,6 @@ int current_function_returns_abnormally;
    whose return type is defaulted, if warnings for this are desired.  */
 
 static int warn_about_return_type;
-
-/* Nonzero when starting a function declared `extern inline'.  */
-
-static int current_extern_inline;
 
 /* Nonzero when the current toplevel function contains a declaration
    of a nested function which is never defined.  */
@@ -804,6 +803,15 @@ pop_scope (void)
 	      error ("nested function %q+D declared but never defined", p);
 	      undef_nested_function = true;
 	    }
+	  /* C99 6.7.4p6: "a function with external linkage... declared
+	     with an inline function specifier ... shall also be defined in the
+	     same translation unit."  */
+	  else if (DECL_DECLARED_INLINE_P (p)
+		   && TREE_PUBLIC (p)
+		   && !DECL_INITIAL (p)
+		   && !flag_gnu89_inline)
+	    pedwarn ("inline function %q+D declared but never defined", p);
+
 	  goto common_symbol;
 
 	case VAR_DECL:
@@ -1294,10 +1302,11 @@ diagnose_mismatched_decls (tree newdecl, tree olddecl,
 
   /* Function declarations can either be 'static' or 'extern' (no
      qualifier is equivalent to 'extern' - C99 6.2.2p5) and therefore
-     can never conflict with each other on account of linkage (6.2.2p4).
-     Multiple definitions are not allowed (6.9p3,5) but GCC permits
-     two definitions if one is 'extern inline' and one is not.  The non-
-     extern-inline definition supersedes the extern-inline definition.  */
+     can never conflict with each other on account of linkage
+     (6.2.2p4).  Multiple definitions are not allowed (6.9p3,5) but
+     gnu89 mode permits two definitions if one is 'extern inline' and
+     one is not.  The non- extern-inline definition supersedes the
+     extern-inline definition.  */
 
   else if (TREE_CODE (newdecl) == FUNCTION_DECL)
     {
@@ -1323,16 +1332,18 @@ diagnose_mismatched_decls (tree newdecl, tree olddecl,
 	    {
 	      /* If both decls are in the same TU and the new declaration
 		 isn't overriding an extern inline reject the new decl.
-		 When we handle c99 style inline rules we'll want to reject
-		 the following:
-
-		 DECL_EXTERN_INLINE (olddecl)
-		 && !DECL_EXTERN_INLINE (newdecl)
-
-		 if they're in the same translation unit. Until we implement
-		 the full semantics we accept the construct.  */
-	      if (!(DECL_EXTERN_INLINE (olddecl)
-		    && !DECL_EXTERN_INLINE (newdecl))
+		 In c99, no overriding is allowed in the same translation
+		 unit.  */
+	      if ((!DECL_EXTERN_INLINE (olddecl)
+		   || DECL_EXTERN_INLINE (newdecl)
+		   || (!flag_gnu89_inline
+		       && (!DECL_DECLARED_INLINE_P (olddecl)
+			   || !lookup_attribute ("gnu_inline",
+						 DECL_ATTRIBUTES (olddecl)))
+		       && (!DECL_DECLARED_INLINE_P (newdecl)
+			   || !lookup_attribute ("gnu_inline",
+						 DECL_ATTRIBUTES (newdecl))))
+		  )
 		  && same_translation_unit_p (newdecl, olddecl))
 		{
 		  error ("redefinition of %q+D", newdecl);
@@ -1390,6 +1401,23 @@ diagnose_mismatched_decls (tree newdecl, tree olddecl,
 	      warning (OPT_Wtraditional, "non-static declaration of %q+D "
 		       "follows static declaration", newdecl);
 	      warned = true;
+	    }
+	}
+
+      /* Make sure gnu_inline attribute is either not present, or
+	 present on all inline decls.  */
+      if (DECL_DECLARED_INLINE_P (olddecl)
+	  && DECL_DECLARED_INLINE_P (newdecl))
+	{
+	  bool newa = lookup_attribute ("gnu_inline",
+					DECL_ATTRIBUTES (newdecl)) != NULL;
+	  bool olda = lookup_attribute ("gnu_inline",
+					DECL_ATTRIBUTES (olddecl)) != NULL;
+	  if (newa != olda)
+	    {
+	      error ("%<gnu_inline%> attribute present on %q+D",
+		     newa ? newdecl : olddecl);
+	      error ("%Jbut not here", newa ? olddecl : newdecl);
 	    }
 	}
     }
@@ -1523,9 +1551,13 @@ diagnose_mismatched_decls (tree newdecl, tree olddecl,
 	 ??? Should we still warn about this now we have unit-at-a-time
 	 mode and can get it right?
 	 Definitely don't complain if the decls are in different translation
-	 units.  */
+	 units.
+	 C99 permits this, so don't warn in that case.  (The function
+	 may not be inlined everywhere in function-at-a-time mode, but
+	 we still shouldn't warn.)  */
       if (DECL_DECLARED_INLINE_P (newdecl) && !DECL_DECLARED_INLINE_P (olddecl)
-	  && same_translation_unit_p (olddecl, newdecl))
+	  && same_translation_unit_p (olddecl, newdecl)
+	  && flag_gnu89_inline)
 	{
 	  if (TREE_USED (olddecl))
 	    {
@@ -1602,12 +1634,13 @@ diagnose_mismatched_decls (tree newdecl, tree olddecl,
 static void
 merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
 {
-  int new_is_definition = (TREE_CODE (newdecl) == FUNCTION_DECL
-			   && DECL_INITIAL (newdecl) != 0);
-  int new_is_prototype = (TREE_CODE (newdecl) == FUNCTION_DECL
-			  && TYPE_ARG_TYPES (TREE_TYPE (newdecl)) != 0);
-  int old_is_prototype = (TREE_CODE (olddecl) == FUNCTION_DECL
-			  && TYPE_ARG_TYPES (TREE_TYPE (olddecl)) != 0);
+  bool new_is_definition = (TREE_CODE (newdecl) == FUNCTION_DECL
+			    && DECL_INITIAL (newdecl) != 0);
+  bool new_is_prototype = (TREE_CODE (newdecl) == FUNCTION_DECL
+			   && TYPE_ARG_TYPES (TREE_TYPE (newdecl)) != 0);
+  bool old_is_prototype = (TREE_CODE (olddecl) == FUNCTION_DECL
+			   && TYPE_ARG_TYPES (TREE_TYPE (olddecl)) != 0);
+  bool extern_changed = false;
 
   /* For real parm decl following a forward decl, rechain the old decl
      in its new location and clear TREE_ASM_WRITTEN (it's not a
@@ -1750,6 +1783,20 @@ merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
 	}
     }
 
+  /* In c99, 'extern' declaration before (or after) 'inline' means this
+     function is not DECL_EXTERNAL, unless 'gnu_inline' attribute
+     is present.  */
+  if (TREE_CODE (newdecl) == FUNCTION_DECL
+      && !flag_gnu89_inline
+      && (DECL_DECLARED_INLINE_P (newdecl)
+	  || DECL_DECLARED_INLINE_P (olddecl))
+      && (!DECL_DECLARED_INLINE_P (newdecl)
+	  || !DECL_DECLARED_INLINE_P (olddecl)
+	  || !DECL_EXTERNAL (olddecl))
+      && DECL_EXTERNAL (newdecl)
+      && !lookup_attribute ("gnu_inline", DECL_ATTRIBUTES (newdecl)))
+    DECL_EXTERNAL (newdecl) = 0;
+
   if (DECL_EXTERNAL (newdecl))
     {
       TREE_STATIC (newdecl) = TREE_STATIC (olddecl);
@@ -1842,6 +1889,8 @@ merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
 	}
     }
 
+   extern_changed = DECL_EXTERNAL (olddecl) && !DECL_EXTERNAL (newdecl);
+
   /* Copy most of the decl-specific fields of NEWDECL into OLDDECL.
      But preserve OLDDECL's DECL_UID and DECL_CONTEXT.  */
   {
@@ -1884,6 +1933,13 @@ merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
 	  || (TREE_CODE (olddecl) == VAR_DECL
 	      && TREE_STATIC (olddecl))))
     make_decl_rtl (olddecl);
+
+  /* If we changed a function from DECL_EXTERNAL to !DECL_EXTERNAL,
+     and the definition is coming from the old version, cgraph needs
+     to be called again.  */
+  if (extern_changed && !new_is_definition 
+      && TREE_CODE (olddecl) == FUNCTION_DECL && DECL_INITIAL (olddecl))
+    cgraph_finalize_function (olddecl, false);
 }
 
 /* Handle when a new declaration NEWDECL has the same name as an old
@@ -3274,6 +3330,18 @@ start_decl (struct c_declarator *declarator, struct c_declspecs *declspecs,
   /* Set attributes here so if duplicate decl, will have proper attributes.  */
   decl_attributes (&decl, attributes, 0);
 
+  /* Handle gnu_inline attribute.  */
+  if (declspecs->inline_p
+      && !flag_gnu89_inline
+      && TREE_CODE (decl) == FUNCTION_DECL
+      && lookup_attribute ("gnu_inline", DECL_ATTRIBUTES (decl)))
+    {
+      if (declspecs->storage_class == csc_auto && current_scope != file_scope)
+	;
+      else if (declspecs->storage_class != csc_static)
+	DECL_EXTERNAL (decl) = !DECL_EXTERNAL (decl);
+    }
+
   if (TREE_CODE (decl) == FUNCTION_DECL
       && targetm.calls.promote_prototypes (TREE_TYPE (decl)))
     {
@@ -3300,6 +3368,18 @@ start_decl (struct c_declarator *declarator, struct c_declspecs *declspecs,
       && lookup_attribute ("noinline", DECL_ATTRIBUTES (decl)))
     warning (OPT_Wattributes, "inline function %q+D given attribute noinline",
 	     decl);
+
+  /* C99 6.7.4p3: An inline definition of a function with external
+     linkage shall not contain a definition of a modifiable object
+     with static storage duration...  */
+  if (TREE_CODE (decl) == VAR_DECL
+      && current_scope != file_scope
+      && TREE_STATIC (decl)
+      && !TREE_READONLY (decl)
+      && DECL_DECLARED_INLINE_P (current_function_decl)
+      && DECL_EXTERNAL (current_function_decl))
+    pedwarn ("%q+D is static but declared in inline function %qD "
+	     "which is not static", decl, current_function_decl);
 
   /* Add this decl to the current scope.
      TEM may equal DECL or it may be a previous decl of the same name.  */
@@ -4755,8 +4835,16 @@ grokdeclarator (const struct c_declarator *declarator,
 	   GCC to signify a forward declaration of a nested function.  */
 	if (storage_class == csc_auto && current_scope != file_scope)
 	  DECL_EXTERNAL (decl) = 0;
+	/* In C99, a function which is declared 'inline' with 'extern'
+	   is not an external reference (which is confusing).  It
+	   means that the later definition of the function must be output
+	   in this file, C99 6.7.4p6.  In GNU C89, a function declared
+	   'extern inline' is an external reference.  */
+	else if (declspecs->inline_p && storage_class != csc_static)
+	  DECL_EXTERNAL (decl) = ((storage_class == csc_extern)
+				  == flag_gnu89_inline);
 	else
-	  DECL_EXTERNAL (decl) = 1;
+	  DECL_EXTERNAL (decl) = !initialized;
 
 	/* Record absence of global scope for `static' or `auto'.  */
 	TREE_PUBLIC (decl)
@@ -4786,11 +4874,7 @@ grokdeclarator (const struct c_declarator *declarator,
 	       the abstract origin pointing between the declarations,
 	       which will confuse dwarf2out.  */
 	    if (initialized)
-	      {
-		DECL_INLINE (decl) = 1;
-		if (storage_class == csc_extern)
-		  current_extern_inline = 1;
-	      }
+	      DECL_INLINE (decl) = 1;
 	  }
 	/* If -finline-functions, assume it can be inlined.  This does
 	   two things: let the function be deferred until it is actually
@@ -5288,12 +5372,15 @@ start_struct (enum tree_code code, tree name)
 	    error ("nested redefinition of %<union %E%>", name);
 	  else
 	    error ("nested redefinition of %<struct %E%>", name);
+	  /* Don't create structures that contain themselves.  */
+	  ref = NULL_TREE;
 	}
     }
-  else
-    {
-      /* Otherwise create a forward-reference just so the tag is in scope.  */
 
+  /* Otherwise create a forward-reference just so the tag is in scope.  */
+
+  if (ref == NULL_TREE || TREE_CODE (ref) != code)
+    {
       ref = make_node (code);
       pushtag (name, ref);
     }
@@ -5985,7 +6072,6 @@ start_function (struct c_declspecs *declspecs, struct c_declarator *declarator,
   current_function_returns_null = 0;
   current_function_returns_abnormally = 0;
   warn_about_return_type = 0;
-  current_extern_inline = 0;
   c_switch_stack = NULL;
 
   nstack_se = XOBNEW (&parser_obstack, struct c_label_context_se);
@@ -6024,6 +6110,16 @@ start_function (struct c_declspecs *declspecs, struct c_declarator *declarator,
       && lookup_attribute ("noinline", DECL_ATTRIBUTES (decl1)))
     warning (OPT_Wattributes, "inline function %q+D given attribute noinline",
 	     decl1);
+
+  /* Handle gnu_inline attribute.  */
+  if (declspecs->inline_p
+      && !flag_gnu89_inline
+      && TREE_CODE (decl1) == FUNCTION_DECL
+      && lookup_attribute ("gnu_inline", DECL_ATTRIBUTES (decl1)))
+    {
+      if (declspecs->storage_class != csc_static)
+	DECL_EXTERNAL (decl1) = !DECL_EXTERNAL (decl1);
+    }
 
   announce_function (decl1);
 
@@ -6136,36 +6232,6 @@ start_function (struct c_declspecs *declspecs, struct c_declarator *declarator,
 	   && C_DECL_IMPLICIT (old_decl))
     warning (OPT_Wmissing_declarations,
 	     "%q+D was used with no declaration before its definition", decl1);
-
-  /* This is a definition, not a reference.
-     So normally clear DECL_EXTERNAL.
-     However, `extern inline' acts like a declaration
-     except for defining how to inline.  So set DECL_EXTERNAL in that case.  */
-  DECL_EXTERNAL (decl1) = current_extern_inline;
-
-  /* C99 specified different behaviour for non-static inline
-     functions, compared with the traditional GNU behaviour.  We don't
-     support the C99 behaviour, but we do warn about non-static inline
-     functions here.  The warning can be disabled via an explicit use
-     of -fgnu89-inline, or by using the gnu_inline attribute.  */
-  if (DECL_DECLARED_INLINE_P (decl1)
-      && TREE_PUBLIC (decl1)
-      && flag_isoc99
-      && flag_gnu89_inline != 1
-      && !lookup_attribute ("gnu_inline", DECL_ATTRIBUTES (decl1))
-      && diagnostic_report_warnings_p ())
-    {
-      static bool info = false;
-
-      warning (0, "C99 inline functions are not supported; using GNU89");
-      if (!info)
-	{
-	  warning (0,
-		   "to disable this warning use -fgnu89-inline or "
-		   "the gnu_inline function attribute");
-	  info = true;
-	}
-    }
 
   /* This function exists in static storage.
      (This does not mean `static' in the C sense!)  */
@@ -6942,7 +7008,6 @@ c_push_function_context (struct function *f)
   p->returns_null = current_function_returns_null;
   p->returns_abnormally = current_function_returns_abnormally;
   p->warn_about_return_type = warn_about_return_type;
-  p->extern_inline = current_extern_inline;
 }
 
 /* Restore the variables used during compilation of a C function.  */
@@ -6971,7 +7036,6 @@ c_pop_function_context (struct function *f)
   current_function_returns_null = p->returns_null;
   current_function_returns_abnormally = p->returns_abnormally;
   warn_about_return_type = p->warn_about_return_type;
-  current_extern_inline = p->extern_inline;
 
   f->language = NULL;
 }
