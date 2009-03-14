@@ -217,55 +217,22 @@ struct addrinfo {
 __BEGIN_DECLS
 void		endhostent(void);
 void		endnetent(void);
-void		endnetgrent(void);
 void		endprotoent(void);
 void		endservent(void);
-void		freehostent(struct hostent *);
+#if __BSD_VISIBLE || (__POSIX_VISIBLE && __POSIX_VISIBLE <= 200112)
 struct hostent	*gethostbyaddr(const void *, socklen_t, int);
-int		gethostbyaddr_r(const void *, socklen_t, int, struct hostent *,
-    char *, size_t, struct hostent **, int *);
 struct hostent	*gethostbyname(const char *);
-int		gethostbyname_r(const char *, struct hostent *, char *, size_t,
-    struct hostent **, int *);
-struct hostent	*gethostbyname2(const char *, int);
-int		gethostbyname2_r(const char *, int, struct hostent *, char *,
-    size_t, struct hostent **, int *);
+#endif
 struct hostent	*gethostent(void);
-int		gethostent_r(struct hostent *, char *, size_t,
-    struct hostent **, int *);
-struct hostent	*getipnodebyaddr(const void *, size_t, int, int *);
-struct hostent	*getipnodebyname(const char *, int, int, int *);
 struct netent	*getnetbyaddr(uint32_t, int);
-int		getnetbyaddr_r(uint32_t, int, struct netent *, char *, size_t,
-    struct netent**, int *);
 struct netent	*getnetbyname(const char *);
-int		getnetbyname_r(const char *, struct netent *, char *, size_t,
-    struct netent **, int *);
 struct netent	*getnetent(void);
-int		getnetent_r(struct netent *, char *, size_t, struct netent **,
-    int *);
-int		getnetgrent(char **, char **, char **);
 struct protoent	*getprotobyname(const char *);
-int		getprotobyname_r(const char *, struct protoent *, char *,
-    size_t, struct protoent **);
 struct protoent	*getprotobynumber(int);
-int		getprotobynumber_r(int, struct protoent *, char *, size_t,
-    struct protoent **);
 struct protoent	*getprotoent(void);
-int		getprotoent_r(struct protoent *, char *, size_t,
-    struct protoent **);
 struct servent	*getservbyname(const char *, const char *);
-int		getservbyname_r(const char *, const char *, struct servent *,
-    char *, size_t, struct servent **);
 struct servent	*getservbyport(int, const char *);
-int		getservbyport_r(int, const char *, struct servent *, char *,
-    size_t, struct servent **);
 struct servent	*getservent(void);
-int		getservent_r(struct servent *, char *, size_t,
-    struct servent **);
-void		herror(const char *);
-__const char	*hstrerror(int);
-int		innetgr(const char *, const char *, const char *, const char *);
 void		sethostent(int);
 /* void		sethostfile(const char *); */
 void		setnetent(int);
@@ -276,8 +243,47 @@ int		getnameinfo(const struct sockaddr *, socklen_t, char *,
 			    size_t, char *, size_t, int);
 void		freeaddrinfo(struct addrinfo *);
 const char	*gai_strerror(int);
-void		setnetgrent(const char *);
 void		setservent(int);
+
+#if __BSD_VISIBLE
+void		endnetgrent(void);
+void		freehostent(struct hostent *);
+int		gethostbyaddr_r(const void *, socklen_t, int, struct hostent *,
+    char *, size_t, struct hostent **, int *);
+int		gethostbyname_r(const char *, struct hostent *, char *, size_t,
+    struct hostent **, int *);
+struct hostent	*gethostbyname2(const char *, int);
+int		gethostbyname2_r(const char *, int, struct hostent *, char *,
+    size_t, struct hostent **, int *);
+int		gethostent_r(struct hostent *, char *, size_t,
+    struct hostent **, int *);
+struct hostent	*getipnodebyaddr(const void *, size_t, int, int *);
+struct hostent	*getipnodebyname(const char *, int, int, int *);
+int		getnetbyaddr_r(uint32_t, int, struct netent *, char *, size_t,
+    struct netent**, int *);
+int		getnetbyname_r(const char *, struct netent *, char *, size_t,
+    struct netent **, int *);
+int		getnetent_r(struct netent *, char *, size_t, struct netent **,
+    int *);
+int		getnetgrent(char **, char **, char **);
+int		getprotobyname_r(const char *, struct protoent *, char *,
+    size_t, struct protoent **);
+int		getprotobynumber_r(int, struct protoent *, char *, size_t,
+    struct protoent **);
+int		getprotoent_r(struct protoent *, char *, size_t,
+    struct protoent **);
+int		getservbyname_r(const char *, const char *, struct servent *,
+    char *, size_t, struct servent **);
+int		getservbyport_r(int, const char *, struct servent *, char *,
+    size_t, struct servent **);
+int		getservent_r(struct servent *, char *, size_t,
+    struct servent **);
+void		herror(const char *);
+__const char	*hstrerror(int);
+int		innetgr(const char *, const char *, const char *, const char *);
+void		setnetgrent(const char *);
+#endif
+
 
 /*
  * PRIVATE functions specific to the FreeBSD implementation
