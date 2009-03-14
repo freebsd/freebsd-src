@@ -1337,11 +1337,11 @@ sched_initticks(void *dummy)
 	 */
 	balance_interval = realstathz;
 	/*
-	 * Set steal thresh to log2(mp_ncpu) but no greater than 4.  This
-	 * prevents excess thrashing on large machines and excess idle on
-	 * smaller machines.
+	 * Set steal thresh to roughly log2(mp_ncpu) but no greater than 4. 
+	 * This prevents excess thrashing on large machines and excess idle 
+	 * on smaller machines.
 	 */
-	steal_thresh = min(ffs(mp_ncpus) - 1, 3);
+	steal_thresh = min(fls(mp_ncpus) - 1, 3);
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 }
@@ -2417,6 +2417,11 @@ sched_affinity(struct thread *td)
 	ts = td->td_sched;
 	if (THREAD_CAN_SCHED(td, ts->ts_cpu))
 		return;
+	if (TD_ON_RUNQ(td)) {
+		sched_rem(td);
+		sched_add(td, SRQ_BORING);
+		return;
+	}
 	if (!TD_IS_RUNNING(td))
 		return;
 	td->td_flags |= TDF_NEEDRESCHED;
