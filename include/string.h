@@ -55,11 +55,13 @@ typedef	__size_t	size_t;
 #endif
 
 __BEGIN_DECLS
-#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __XSI_VISIBLE >= 600
 void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
 #endif
 void	*memchr(const void *, int, size_t) __pure;
+#if __BSD_VISIBLE
 void	*memrchr(const void *, int, size_t) __pure;
+#endif
 int	 memcmp(const void *, const void *, size_t) __pure;
 void	*memcpy(void * __restrict, const void * __restrict, size_t);
 #if __BSD_VISIBLE
