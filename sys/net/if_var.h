@@ -181,7 +181,6 @@ struct ifnet {
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
 	struct	rwlock if_afdata_lock;
-	struct	task if_starttask;	/* task for IFF_NEEDSGIANT */
 	struct	task if_linktask;	/* task for link change events */
 	struct	mtx if_addr_mtx;	/* mutex to protect address lists */
 
@@ -378,16 +377,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 
 #define	IF_AFDATA_LOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_LOCKED)
 #define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
-
-#define	IFF_LOCKGIANT(ifp) do {						\
-	if ((ifp)->if_flags & IFF_NEEDSGIANT)				\
-		mtx_lock(&Giant);					\
-} while (0)
-
-#define	IFF_UNLOCKGIANT(ifp) do {					\
-	if ((ifp)->if_flags & IFF_NEEDSGIANT)				\
-		mtx_unlock(&Giant);					\
-} while (0)
 
 int	if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp,
 	    int adjust);

@@ -551,9 +551,7 @@ poll_switch(SYSCTL_HANDLER_ARGS)
 			else
 				ifr.ifr_reqcap =
 				    ifp->if_capenable & ~IFCAP_POLLING;
-			IFF_LOCKGIANT(ifp);	/* LOR here */
 			(void) (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
-			IFF_UNLOCKGIANT(ifp);
 		}
 	}
 	IFNET_RUNLOCK();

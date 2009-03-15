@@ -85,8 +85,6 @@ dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
 dev/aic/aic_cbus.c		optional aic isa
-dev/ar/if_ar.c			optional ar
-dev/ar/if_ar_pci.c		optional ar pci
 dev/ce/ceddk.c			optional ce
 dev/ce/if_ce.c			optional ce
 dev/ce/tau32-ddk.c		optional ce

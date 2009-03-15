@@ -550,7 +550,6 @@ in6_addmulti(struct in6_addr *maddr6, struct ifnet *ifp,
 	*errorp = 0;
 	in6m = NULL;
 
-	IFF_LOCKGIANT(ifp);
 	/*IN6_MULTI_LOCK();*/
 
 	IN6_LOOKUP_MULTI(*maddr6, ifp, in6m);
@@ -622,7 +621,6 @@ in6_addmulti(struct in6_addr *maddr6, struct ifnet *ifp,
 	} while (0);
 
 	/*IN6_MULTI_UNLOCK();*/
-	IFF_UNLOCKGIANT(ifp);
 
 	return (in6m);
 }

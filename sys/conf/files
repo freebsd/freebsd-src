@@ -1306,7 +1306,6 @@ dev/random/probe.c		optional random
 dev/random/randomdev.c		optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
-dev/ray/if_ray.c		optional ray pccard
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rndtest/rndtest.c		optional rndtest
@@ -1424,8 +1423,6 @@ dev/sound/midi/synth_if.m	optional sound
 dev/spibus/spibus.c		optional spibus				\
 	dependency	"spibus_if.h"
 dev/spibus/spibus_if.m		optional spibus
-dev/sr/if_sr.c			optional sr
-dev/sr/if_sr_pci.c		optional sr pci
 dev/ste/if_ste.c		optional ste pci
 dev/stg/tmc18c30.c		optional stg
 dev/stg/tmc18c30_isa.c		optional stg isa
@@ -1502,15 +1499,6 @@ legacy/dev/usb/ehci_ddb.c	optional oehci
 legacy/dev/usb/ehci_pci.c	optional oehci pci
 legacy/dev/usb/hid.c		optional ousb
 legacy/dev/usb/if_aue.c		optional oaue
-legacy/dev/usb/if_axe.c		optional oaxe
-legacy/dev/usb/if_cdce.c	optional ocdce
-legacy/dev/usb/if_cue.c		optional ocue
-legacy/dev/usb/if_kue.c		optional okue
-legacy/dev/usb/if_ural.c	optional oural
-legacy/dev/usb/if_rue.c		optional orue
-legacy/dev/usb/if_rum.c		optional orum
-legacy/dev/usb/if_udav.c	optional oudav
-legacy/dev/usb/if_zyd.c		optional ozyd
 legacy/dev/usb/ohci.c		optional oohci
 legacy/dev/usb/ohci_pci.c	optional oohci pci
 legacy/dev/usb/sl811hs.c	optional oslhci
@@ -2160,7 +2148,6 @@ net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
-net/bsd_comp.c			optional ppp_bsdcomp
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
@@ -2184,8 +2171,6 @@ net/if_loop.c			optional loop
 net/if_llatbl.c			standard
 net/if_media.c			standard
 net/if_mib.c			standard
-net/if_ppp.c			optional ppp
-net/if_sl.c			optional sl
 net/if_spppfr.c			optional sppp | netgraph_sppp
 net/if_spppsubr.c		optional sppp | netgraph_sppp
 net/if_stf.c			optional stf
@@ -2195,8 +2180,6 @@ net/if_vlan.c			optional vlan
 net/mppcc.c			optional netgraph_mppc_compression
 net/mppcd.c			optional netgraph_mppc_compression
 net/netisr.c			standard
-net/ppp_deflate.c		optional ppp_deflate
-net/ppp_tty.c			optional ppp
 net/pfil.c			optional ether | inet
 net/radix.c			standard
 net/radix_mpath.c		standard
@@ -2204,10 +2187,10 @@ net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
 net/rtsock.c			standard
-net/slcompress.c		optional netgraph_vjc | ppp | sl | sppp | \
+net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
-					 mxge | ppp_deflate | netgraph_deflate | \
+					 mxge | netgraph_deflate | \
 					 ddb_ctf
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan_acl

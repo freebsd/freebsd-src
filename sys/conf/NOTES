@@ -765,10 +765,6 @@ device		arcnet
 #  of synchronous PPP links (like `cx', `ar').
 device		sppp
 
-#  The `sl' device implements the Serial Line IP (SLIP) service.
-#  The `ppp' device implements the Point-to-Point Protocol.
-
-
 #  The `bpf' device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
@@ -835,15 +831,6 @@ device		enc
 
 # Link aggregation interface.
 device		lagg
-
-#
-# The PPP_BSDCOMP option enables support for compress(1) style entire
-# packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
-# PPP_FILTER enables code for filtering the ppp data stream and selecting
-# events for resetting the demand dial activity timer - requires bpf.
-# See pppd(8) for more details.
-#
-
 
 #
 # Internet family options:
@@ -2678,7 +2665,6 @@ options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging
 
 options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
-options 	SLIP_IFF_OPTS
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
