@@ -265,17 +265,17 @@ tcp_twstart(struct tcpcb *tp)
 	if (acknow)
 		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = tw;
-	inp->inp_vflag |= INP_TIMEWAIT;
+	inp->inp_flags |= INP_TIMEWAIT;
 	tcp_tw_2msl_reset(tw, 0);
 
 	/*
 	 * If the inpcb owns the sole reference to the socket, then we can
 	 * detach and free the socket as it is not needed in time wait.
 	 */
-	if (inp->inp_vflag & INP_SOCKREF) {
+	if (inp->inp_flags & INP_SOCKREF) {
 		KASSERT(so->so_state & SS_PROTOREF,
 		    ("tcp_twstart: !SS_PROTOREF"));
-		inp->inp_vflag &= ~INP_SOCKREF;
+		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
@@ -435,7 +435,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	 *     notify the socket layer.
 	 */
 	inp = tw->tw_inpcb;
-	KASSERT((inp->inp_vflag & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
+	KASSERT((inp->inp_flags & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
 	KASSERT(intotw(inp) == tw, ("tcp_twclose: inp_ppcb != tw"));
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);	/* tcp_tw_2msl_stop(). */
 	INP_WLOCK_ASSERT(inp);
@@ -453,8 +453,8 @@ tcp_twclose(struct tcptw *tw, int reuse)
 		 * in which case another reference exists (XXXRW: think
 		 * about this more), and we don't need to take action.
 		 */
-		if (inp->inp_vflag & INP_SOCKREF) {
-			inp->inp_vflag &= ~INP_SOCKREF;
+		if (inp->inp_flags & INP_SOCKREF) {
+			inp->inp_flags &= ~INP_SOCKREF;
 			INP_WUNLOCK(inp);
 			ACCEPT_LOCK();
 			SOCK_LOCK(so);
