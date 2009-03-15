@@ -1338,6 +1338,9 @@ CDTMP=	${MAKEOBJDIRPREFIX}/${XDEV}/${.CURDIR}/tmp
 CDMAKE=${CDENV} ${MAKE} ${NOFUN}
 CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDTP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 XDDESTDIR=${DESTDIR}${XDTP}
+.if !defined(OSREL)
+OSREL!= uname -r | sed -e 's/[-(].*//'
+.endif
 
 .ORDER: xdev-build xdev-install
 xdev: xdev-build xdev-install
