@@ -77,22 +77,22 @@ static void mach64_configure(struct drm_device *dev)
 }
 
 static int
-mach64_probe(device_t dev)
+mach64_probe(device_t kdev)
 {
-	return drm_probe(dev, mach64_pciidlist);
+	return drm_probe(kdev, mach64_pciidlist);
 }
 
 static int
-mach64_attach(device_t nbdev)
+mach64_attach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 
 	dev->driver = malloc(sizeof(struct drm_driver_info), DRM_MEM_DRIVER,
 	    M_WAITOK | M_ZERO);
 
 	mach64_configure(dev);
 
-	return drm_attach(nbdev, mach64_pciidlist);
+	return drm_attach(kdev, mach64_pciidlist);
 }
 
 int
@@ -102,12 +102,12 @@ mach64_driver_load(struct drm_device * dev, unsigned long flags)
 }
 
 static int
-mach64_detach(device_t nbdev)
+mach64_detach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 	int ret;
 
-	ret = drm_detach(nbdev);
+	ret = drm_detach(kdev);
 
 	free(dev->driver, DRM_MEM_DRIVER);
 

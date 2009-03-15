@@ -60,31 +60,31 @@ static void sis_configure(struct drm_device *dev)
 }
 
 static int
-sis_probe(device_t dev)
+sis_probe(device_t kdev)
 {
-	return drm_probe(dev, sis_pciidlist);
+	return drm_probe(kdev, sis_pciidlist);
 }
 
 static int
-sis_attach(device_t nbdev)
+sis_attach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 
 	dev->driver = malloc(sizeof(struct drm_driver_info), DRM_MEM_DRIVER,
 	    M_WAITOK | M_ZERO);
 
 	sis_configure(dev);
 
-	return drm_attach(nbdev, sis_pciidlist);
+	return drm_attach(kdev, sis_pciidlist);
 }
 
 static int
-sis_detach(device_t nbdev)
+sis_detach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 	int ret;
 
-	ret = drm_detach(nbdev);
+	ret = drm_detach(kdev);
 
 	free(dev->driver, DRM_MEM_DRIVER);
 
