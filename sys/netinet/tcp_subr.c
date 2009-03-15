@@ -881,10 +881,10 @@ tcp_close(struct tcpcb *tp)
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
-	if (inp->inp_vflag & INP_SOCKREF) {
+	if (inp->inp_flags & INP_SOCKREF) {
 		KASSERT(so->so_state & SS_PROTOREF,
 		    ("tcp_close: !SS_PROTOREF"));
-		inp->inp_vflag &= ~INP_SOCKREF;
+		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
@@ -921,7 +921,7 @@ tcp_drain(void)
 	 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
-			if (inpb->inp_vflag & INP_TIMEWAIT)
+			if (inpb->inp_flags & INP_TIMEWAIT)
 				continue;
 			INP_WLOCK(inpb);
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
@@ -962,8 +962,8 @@ tcp_notify(struct inpcb *inp, int error)
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -1063,7 +1063,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			 * TCP state changes, is not quite right, but for
 			 * now, better than nothing.
 			 */
-			if (inp->inp_vflag & INP_TIMEWAIT) {
+			if (inp->inp_flags & INP_TIMEWAIT) {
 				if (intotw(inp) != NULL)
 					error = cr_cansee(req->td->td_ucred,
 					    intotw(inp)->tw_cred);
@@ -1094,7 +1094,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			inp_ppcb = inp->inp_ppcb;
 			if (inp_ppcb == NULL)
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
-			else if (inp->inp_vflag & INP_TIMEWAIT) {
+			else if (inp->inp_flags & INP_TIMEWAIT) {
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
 				xt.xt_tp.t_state = TCPS_TIME_WAIT;
 			} else
@@ -1293,8 +1293,8 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		    ip->ip_src, th->th_sport, 0, NULL);
 		if (inp != NULL)  {
 			INP_WLOCK(inp);
-			if (!(inp->inp_vflag & INP_TIMEWAIT) &&
-			    !(inp->inp_vflag & INP_DROPPED) &&
+			if (!(inp->inp_flags & INP_TIMEWAIT) &&
+			    !(inp->inp_flags & INP_DROPPED) &&
 			    !(inp->inp_socket == NULL)) {
 				icmp_tcp_seq = htonl(th->th_seq);
 				tp = intotcpcb(inp);
@@ -1581,8 +1581,8 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -1610,8 +1610,8 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	struct socket *so;
 
 	INP_WLOCK_ASSERT(inp);
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -2185,7 +2185,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	}
 	if (inp != NULL) {
 		INP_WLOCK(inp);
-		if (inp->inp_vflag & INP_TIMEWAIT) {
+		if (inp->inp_flags & INP_TIMEWAIT) {
 			/*
 			 * XXXRW: There currently exists a state where an
 			 * inpcb is present, but its timewait state has been
@@ -2197,7 +2197,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 				tcp_twclose(tw, 0);
 			else
 				INP_WUNLOCK(inp);
-		} else if (!(inp->inp_vflag & INP_DROPPED) &&
+		} else if (!(inp->inp_flags & INP_DROPPED) &&
 			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
 			tp = intotcpcb(inp);
 			tp = tcp_drop(tp, ECONNABORTED);
