@@ -24,7 +24,6 @@ SUBDIR=	${_3dfx} \
 	${_an} \
 	${_aout} \
 	${_apm} \
-	${_ar} \
 	${_arcmsr} \
 	${_arcnet} \
 	${_asmc} \
@@ -219,7 +218,6 @@ SUBDIR=	${_3dfx} \
 	puc \
 	ral \
 	${_random} \
-	${_ray} \
 	rc4 \
 	${_rdma} \
 	re \
@@ -244,7 +242,6 @@ SUBDIR=	${_3dfx} \
 	${_speaker} \
 	${_splash} \
 	${_sppp} \
-	${_sr} \
 	ste \
 	${_stg} \
 	stge \
@@ -332,7 +329,6 @@ _amd=		amd
 _an=		an
 _aout=		aout
 _apm=		apm
-_ar=		ar
 _arcnet=	arcnet
 _bktr=		bktr
 _cardbus=	cardbus
@@ -385,7 +381,6 @@ _opensolaris=	opensolaris
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pst=		pst
-_ray=		ray
 _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
@@ -395,7 +390,6 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_sr=		sr
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
