@@ -276,13 +276,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		FUTEX_SYSTEM_UNLOCK;
 		break;
 
-	case LINUX_FUTEX_FD:
-#ifdef DEBUG
-		printf("linux_sys_futex: unimplemented op %d\n",
-		    args->op);
-#endif
-		return (ENOSYS);
-
 	case LINUX_FUTEX_WAKE_OP:
 		FUTEX_SYSTEM_LOCK;
 #ifdef DEBUG
