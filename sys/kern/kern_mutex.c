@@ -254,8 +254,11 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 int
 _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 {
-	int rval, contested = 0;
+#ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
+	int contested = 0;
+#endif
+	int rval;
 
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
@@ -296,15 +299,17 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
 	struct turnstile *ts;
+	uintptr_t v;
 #ifdef ADAPTIVE_MUTEXES
 	volatile struct thread *owner;
 #endif
 #ifdef KTR
 	int cont_logged = 0;
 #endif
+#ifdef LOCK_PROFILING
 	int contested = 0;
 	uint64_t waittime = 0;
-	uintptr_t v;
+#endif
 
 	if (mtx_owned(m)) {
 		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
@@ -448,8 +453,11 @@ void
 _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
-	int i = 0, contested = 0;
+	int i = 0;
+#ifdef LOCK_PROFILING
+	int contested = 0;
 	uint64_t waittime = 0;
+#endif
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
@@ -486,11 +494,13 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 {
 	struct mtx *m;
 	uintptr_t tid;
-	int i, contested;
-	uint64_t waittime;
+	int i;
+#ifdef LOCK_PROFILING
+	int contested = 0;
+	uint64_t waittime = 0;
+#endif
 
-	contested = i = 0;
-	waittime = 0;
+	i = 0;
 	tid = (uintptr_t)curthread;
 	for (;;) {
 retry:
