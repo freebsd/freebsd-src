@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090315:
+	Support for the IFF_NEEDSGIANT network interface flag has been
+	removed, which means that non-MPSAFE network device drivers are no
+	longer supported.  In particular, if_ar, if_sr, and network device
+	drivers from the old (legacy) USB stack can no longer be built or
+	used.
+
 20090313:
 	POSIX.1 Native Language Support (NLS) has been enabled in libc and
 	a bunch of new language catalog files have also been added.
