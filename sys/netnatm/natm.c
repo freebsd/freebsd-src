@@ -221,13 +221,9 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
 	op.param.traffic = ATMIO_TRAFFIC_UBR;
 	NATM_UNLOCK();
 
-	IFF_LOCKGIANT(ifp);
 	if (ifp->if_ioctl == NULL || 
-	    ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0) {
-		IFF_UNLOCKGIANT(ifp);
+	    ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0)
 		return (EIO);
-	}
-	IFF_UNLOCKGIANT(ifp);
 	soisconnected(so);
 	return (error);
 }
@@ -259,11 +255,8 @@ natm_usr_disconnect(struct socket *so)
 	cl.vpi = npcb->npcb_vpi;
 	cl.vci = npcb->npcb_vci;
 	NATM_UNLOCK();
-	if (ifp->if_ioctl != NULL) {
-		IFF_LOCKGIANT(ifp);
+	if (ifp->if_ioctl != NULL)
 		ifp->if_ioctl(ifp, SIOCATMCLOSEVCC, (caddr_t)&cl);
-		IFF_UNLOCKGIANT(ifp);
-	}
 	soisdisconnected(so);
 	return (error);
 }
@@ -342,17 +335,13 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
 	struct ifnet *ifp, d_thread_t *p)
 {
 	struct natmpcb *npcb;
-	int error;
 
 	npcb = (struct natmpcb *)so->so_pcb;
 	KASSERT(npcb != NULL, ("natm_usr_control: npcb == NULL"));
 
 	if (ifp == NULL || ifp->if_ioctl == NULL)
 		return (EOPNOTSUPP);
-	IFF_LOCKGIANT(ifp);
-	error = ((*ifp->if_ioctl)(ifp, cmd, arg));
-	IFF_UNLOCKGIANT(ifp);
-	return (error);
+	return ((*ifp->if_ioctl)(ifp, cmd, arg));
 }
 
 static void

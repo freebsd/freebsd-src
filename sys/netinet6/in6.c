@@ -1516,9 +1516,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	ia->ia_addr = *sin6;
 
 	if (ifacount <= 1 && ifp->if_ioctl) {
-		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		IFF_UNLOCKGIANT(ifp);
 		if (error) {
 			splx(s);
 			return (error);
