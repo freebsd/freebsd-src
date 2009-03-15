@@ -344,30 +344,13 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
-    usr/bin usr/games usr/include/sys usr/lib \
-    usr/libexec usr/sbin usr/share/dict \
-    usr/share/groff_font/devX100 \
-    usr/share/groff_font/devX100-12 \
-    usr/share/groff_font/devX75 \
-    usr/share/groff_font/devX75-12 \
-    usr/share/groff_font/devascii \
-    usr/share/groff_font/devcp1047 \
-    usr/share/groff_font/devdvi \
-    usr/share/groff_font/devhtml \
-    usr/share/groff_font/devkoi8-r \
-    usr/share/groff_font/devlatin1 \
-    usr/share/groff_font/devlbp \
-    usr/share/groff_font/devlj4 \
-    usr/share/groff_font/devps \
-    usr/share/groff_font/devutf8 \
-    usr/share/tmac/mdoc usr/share/tmac/mm
-	mkdir -p ${WORLDTMP}/legacy/${_dir}
-.endfor
-.for _dir in \
-    lib usr/bin usr/include usr/lib/compat/aout usr/libdata/ldscripts \
-    usr/libexec usr/sbin usr/share/misc
+    lib usr legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${WORLDTMP}/legacy/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${WORLDTMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
@@ -448,10 +431,9 @@ build32:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
 	@echo "--------------------------------------------------------------"
-.for _dir in \
-    usr/include usr/lib32 usr/share/misc
-	mkdir -p ${LIB32TMP}/${_dir}
-.endfor
+	mkdir -p ${LIB32TMP}/usr/lib32
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
