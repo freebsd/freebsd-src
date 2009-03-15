@@ -413,12 +413,14 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			}
 		} else {
 			ok = 1;
+#if 0
 			/*
 			 * If we overlap with the subtractive range, then
 			 * pick the upper range to use.
 			 */
 			if (start < sc->iolimit && end > sc->iobase)
 				start = sc->iolimit + 1;
+#endif
 		}
 		if (end < start) {
 			device_printf(dev, "ioport: end (%lx) < start (%lx)\n",
@@ -478,6 +480,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			}
 		} else if (!ok) {
 			ok = 1;	/* subtractive bridge: always ok */
+#if 0
 			if (pcib_is_nonprefetch_open(sc)) {
 				if (start < sc->memlimit && end > sc->membase)
 					start = sc->memlimit + 1;
@@ -486,6 +489,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				if (start < sc->pmemlimit && end > sc->pmembase)
 					start = sc->pmemlimit + 1;
 			}
+#endif
 		}
 		if (end < start) {
 			device_printf(dev, "memory: end (%lx) < start (%lx)\n",
