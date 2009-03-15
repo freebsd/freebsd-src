@@ -384,7 +384,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	 * This entire block sorely needs a rewrite.
 	 */
 				if (t &&
-				    ((t->inp_vflag & INP_TIMEWAIT) == 0) &&
+				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
@@ -397,7 +397,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, wild, cred);
-			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
+			if (t && (t->inp_flags & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
 				 * state recycled, we treat the address as
@@ -1031,7 +1031,7 @@ in_pcbdrop(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	inp->inp_vflag |= INP_DROPPED;
+	inp->inp_flags |= INP_DROPPED;
 	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
@@ -1818,6 +1818,22 @@ db_print_inpflags(int inp_flags)
 		db_printf("%sIN6P_AUTOFLOWLABEL", comma ? ", " : "");
 		comma = 1;
 	}
+	if (inp_flags & INP_TIMEWAIT) {
+		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_ONESBCAST) {
+		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_DROPPED) {
+		db_printf("%sINP_DROPPED", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_SOCKREF) {
+		db_printf("%sINP_SOCKREF", comma ? ", " : "");
+		comma  = 1;
+	}
 	if (inp_flags & IN6P_RFC2292) {
 		db_printf("%sIN6P_RFC2292", comma ? ", " : "");
 		comma = 1;
@@ -1844,22 +1860,6 @@ db_print_inpvflag(u_char inp_vflag)
 	}
 	if (inp_vflag & INP_IPV6PROTO) {
 		db_printf("%sINP_IPV6PROTO", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_TIMEWAIT) {
-		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_ONESBCAST) {
-		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_DROPPED) {
-		db_printf("%sINP_DROPPED", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_SOCKREF) {
-		db_printf("%sINP_SOCKREF", comma ? ", " : "");
 		comma  = 1;
 	}
 }
