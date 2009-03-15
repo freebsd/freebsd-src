@@ -62,9 +62,10 @@ static int fe_pccard_detach(device_t);
 static const struct fe_pccard_product {
 	struct pccard_product mpp_product;
 	int mpp_flags;
+	int mpp_cfe;
 #define MPP_MBH10302 1
 #define MPP_ANYFUNC 2
-#define MPP_SKIP_TO_CFE_10 4
+#define MPP_SKIP_TO_CFE 4
 } fe_pccard_products[] = {
 	/* These need to be first */
 	{ PCMCIA_CARD(FUJITSU2, FMV_J181), MPP_MBH10302 },
@@ -77,11 +78,11 @@ static const struct fe_pccard_product {
 #if 0 /* XXX 86960-based? */
 	{ PCMCIA_CARD(TDK, LAK_DFL9610), 0 }, 
 #endif
-	{ PCMCIA_CARD(CONTEC, CNETPC), 0 },
+	{ PCMCIA_CARD(CONTEC, CNETPC), MPP_SKIP_TO_CFE, 2 },
 	{ PCMCIA_CARD(FUJITSU, LA501), 0 },
 	{ PCMCIA_CARD(FUJITSU, LA10S), 0 },
 	{ PCMCIA_CARD(FUJITSU, NE200T), MPP_MBH10302 },/* Sold by Eagle */
-	{ PCMCIA_CARD(HITACHI, HT_4840), MPP_MBH10302 | MPP_SKIP_TO_CFE_10},
+	{ PCMCIA_CARD(HITACHI, HT_4840), MPP_MBH10302 | MPP_SKIP_TO_CFE, 10 },
 	{ PCMCIA_CARD(RATOC, REX_R280), 0 },
 	{ PCMCIA_CARD(XIRCOM, CE), MPP_ANYFUNC },
 	{ { NULL } }
@@ -108,13 +109,13 @@ fe_pccard_probe(device_t dev)
 			return (error);
 		if (fcn != PCCARD_FUNCTION_NETWORK)
 			return (ENXIO);
-		if (pp->mpp_flags & MPP_SKIP_TO_CFE_10) {
-			for (i = 10; i < 27; i++) {
+		if (pp->mpp_flags & MPP_SKIP_TO_CFE) {
+			for (i = pp->mpp_cfe; i < 32; i++) {
 				if (pccard_select_cfe(dev, i) == 0)
 					goto good;
 			}
 			device_printf(dev,
-			    "Hitachi HT-4840-11 workaround failed\n");
+			    "Failed to map CFE %d or higher\n", pp->mpp_cfe);
 			return ENXIO;
 		}
 	good:;
