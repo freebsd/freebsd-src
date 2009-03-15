@@ -130,9 +130,6 @@ dev/agp/agp_via.c		optional agp
 dev/aic/aic_isa.c		optional aic isa
 dev/amdtemp/amdtemp.c		optional amdtemp
 dev/arcmsr/arcmsr.c		optional arcmsr pci
-dev/ar/if_ar.c			optional ar
-dev/ar/if_ar_isa.c		optional ar isa
-dev/ar/if_ar_pci.c		optional ar pci
 dev/asmc/asmc.c			optional asmc isa
 dev/atkbdc/atkbd.c		optional atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional atkbd atkbdc
@@ -218,7 +215,6 @@ dev/sio/sio_pccard.c		optional sio pccard
 dev/sio/sio_pci.c		optional sio pci
 dev/sio/sio_puc.c		optional sio puc
 dev/speaker/spkr.c		optional speaker
-dev/sr/if_sr_isa.c		optional sr isa
 dev/syscons/apm/apm_saver.c	optional apm_saver apm
 dev/syscons/scterm-teken.c	optional sc
 dev/syscons/scvesactl.c		optional sc vga vesa
