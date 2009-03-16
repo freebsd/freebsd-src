@@ -301,7 +301,7 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 			err = rtrequest(RTM_DELETE,
 					(struct sockaddr *)rt_key(rt),
 					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags, 0);
+					rt->rt_flags|RTF_RNH_LOCKED, 0);
 			if (err) {
 				log(LOG_WARNING, "in6_rtqkill: error %d", err);
 			} else {
