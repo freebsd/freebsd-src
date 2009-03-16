@@ -443,6 +443,7 @@ buf_countdeps(struct buf *bp, int i)
  */
 #define	GB_LOCK_NOWAIT	0x0001		/* Fail if we block on a buf lock. */
 #define	GB_NOCREAT	0x0002		/* Don't create a buf if not found. */
+#define	GB_NOWAIT_BD	0x0004		/* Do not wait for bufdaemon */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
@@ -487,7 +488,7 @@ struct buf *     getpbuf(int *);
 struct buf *incore(struct bufobj *, daddr_t);
 struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
-struct buf *geteblk(int);
+struct buf *geteblk(int, int);
 int	bufwait(struct buf *);
 int	bufwrite(struct buf *);
 void	bufdone(struct buf *);
