@@ -379,6 +379,7 @@ do {									\
 #define	TDP_WAKEUP	0x00080000 /* Don't sleep in umtx cond_wait */
 #define	TDP_INBDFLUSH	0x00100000 /* Already in BO_BDFLUSH, do not recurse */
 #define	TDP_IGNSUSP	0x00800000 /* Permission to ignore the MNTK_SUSPEND* */
+#define	TDP_AUDITREC	0x01000000 /* Audit record pending on thread */
 
 /*
  * Reasons that the current thread can not be run yet.
