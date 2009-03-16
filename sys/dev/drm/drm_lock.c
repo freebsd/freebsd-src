@@ -82,7 +82,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 		/* Contention */
 		ret = mtx_sleep((void *)&dev->lock.lock_queue, &dev->dev_lock,
-		    PZERO | PCATCH, "drmlk2", 0);
+		    PCATCH, "drmlk2", 0);
 		if (ret != 0)
 			break;
 	}
