@@ -811,6 +811,9 @@ static struct linktype_map {
 	/* IPMB */
 	{ DLT_IPMB,		LINKTYPE_IPMB },
 
+	/* enc0 device */
+	{ DLT_ENC, LINKTYPE_ENC },
+
 	{ -1,			-1 }
 };
 
