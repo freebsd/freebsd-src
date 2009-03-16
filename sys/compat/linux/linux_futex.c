@@ -40,18 +40,17 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include "opt_compat.h"
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/imgact.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
-#include <sys/malloc.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
