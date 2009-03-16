@@ -566,10 +566,13 @@ int
 gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
     off_t length, int type, caddr_t data)
 {
+	struct gv_softc *sc;
 	struct bio *bp;
 
 	KASSERT(from != NULL, ("NULL from"));
 	KASSERT(to != NULL, ("NULL to"));
+	sc = from->vinumconf;
+	KASSERT(sc != NULL, ("NULL sc"));
 
 	bp = g_new_bio();
 	if (bp == NULL) {
@@ -581,6 +584,7 @@ gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
 	bp->bio_done = gv_done;
 	bp->bio_cflags |= GV_BIO_SYNCREQ;
 	bp->bio_offset = offset;
+	bp->bio_caller1 = from;		
 	bp->bio_caller2 = to;
 	bp->bio_cmd = type;
 	if (data == NULL)
@@ -589,7 +593,10 @@ gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
 	bp->bio_data = data;
 
 	/* Send down next. */
-	gv_plex_start(from, bp);
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	mtx_unlock(&sc->queue_mtx);
+	//gv_plex_start(from, bp);
 	return (0);
 }
 
@@ -681,9 +688,13 @@ int
 gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
     caddr_t data)
 {
+	struct gv_softc *sc;
 	struct bio *bp;
 
 	KASSERT(p != NULL, ("gv_grow_request: NULL p"));
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_grow_request: NULL sc"));
+
 	bp = g_new_bio();
 	if (bp == NULL) {
 		G_VINUM_DEBUG(0, "grow of %s failed creating bio: "
@@ -694,6 +705,7 @@ gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
 	bp->bio_cmd = type;
 	bp->bio_done = gv_done;
 	bp->bio_error = 0;
+	bp->bio_caller1 = p;
 	bp->bio_offset = offset;
 	bp->bio_length = length;
 	bp->bio_pflags |= GV_BIO_SYNCREQ; /* XXX: misuse of pflags AND syncreq.*/
@@ -702,8 +714,10 @@ gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
 	bp->bio_cflags |= GV_BIO_MALLOC;
 	bp->bio_data = data;
 
-	/* Send down. */
-	gv_plex_start(p, bp);
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	mtx_unlock(&sc->queue_mtx);
+	//gv_plex_start(p, bp);
 	return (0);
 }
 
@@ -887,9 +901,12 @@ gv_init_complete(struct gv_plex *p, struct bio *bp)
 void
 gv_parity_request(struct gv_plex *p, int flags, off_t offset)
 {
+	struct gv_softc *sc;
 	struct bio *bp;
 
 	KASSERT(p != NULL, ("gv_parity_request: NULL p"));
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_parity_request: NULL sc"));
 
 	bp = g_new_bio();
 	if (bp == NULL) {
@@ -902,6 +919,7 @@ gv_parity_request(struct gv_plex *p, int flags, off_t offset)
 	bp->bio_done = gv_done;
 	bp->bio_error = 0;
 	bp->bio_length = p->stripesize;
+	bp->bio_caller1 = p;
 
 	/*
 	 * Check if it's a rebuild of a degraded plex or a user request of
@@ -921,8 +939,10 @@ gv_parity_request(struct gv_plex *p, int flags, off_t offset)
 
 	/* We still have more parity to build. */
 	bp->bio_offset = offset;
-
-	gv_plex_start(p, bp); /* Send it down to the plex. */
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	mtx_unlock(&sc->queue_mtx);
+	//gv_plex_start(p, bp); /* Send it down to the plex. */
 }
 
 /*
