@@ -7923,9 +7923,9 @@ hdac_pcm_attach(device_t dev)
 		device_printf(dev, "+--------------------------------------+\n");
 		hdac_dump_pcmchannels(pdevinfo);
 		device_printf(dev, "\n");
-		device_printf(dev, "+--------------------------------+\n");
-		device_printf(dev, "| DUMPING Playback/Record Pathes |\n");
-		device_printf(dev, "+--------------------------------+\n");
+		device_printf(dev, "+-------------------------------+\n");
+		device_printf(dev, "| DUMPING Playback/Record Paths |\n");
+		device_printf(dev, "+-------------------------------+\n");
 		hdac_dump_dac(pdevinfo);
 		hdac_dump_adc(pdevinfo);
 		hdac_dump_mix(pdevinfo);
