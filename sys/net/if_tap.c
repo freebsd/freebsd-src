@@ -600,6 +600,7 @@ static int
 tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct tap_softc	*tp = ifp->if_softc;
+	struct ifreq		*ifr = (struct ifreq *)data;
 	struct ifstat		*ifs = NULL;
 	int			 s, dummy;
 
@@ -607,6 +608,12 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCSIFFLAGS: /* XXX -- just like vmnet does */
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
+			break;
+
+		case SIOCSIFMTU:
+			s = splimp();
+			ifp->if_mtu = ifr->ifr_mtu;
+			splx(s);
 			break;
 
 		case SIOCGIFSTATUS:
