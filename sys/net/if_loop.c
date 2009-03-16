@@ -138,8 +138,8 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_ioctl = loioctl;
 	ifp->if_output = looutput;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	ifp->if_hwassist = ifp->if_capabilities = ifp->if_capenable =
-	    IFCAP_HWCSUM;
+	ifp->if_capabilities = ifp->if_capenable = IFCAP_HWCSUM;
+	ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	if (V_loif == NULL)
