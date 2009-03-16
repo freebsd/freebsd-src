@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_error.h>
+#include <dev/usb/usb_parse.h>
 #include <dev/usb/usb_request.h>
 
 #include <compat/ndis/pe_var.h>
@@ -1206,12 +1207,11 @@ USBD_ParseConfigurationDescriptorEx(conf, start, intfnum,
 	int32_t intfsubclass;
 	int32_t intfproto;
 {
-	char *pos;
+	struct usb2_descriptor *next = NULL;
 	usb_interface_descriptor_t *desc;
 
-	for (pos = start; pos < ((char *)conf + UGETW(conf->wTotalLength));
-	     pos += desc->bLength) {
-		desc = (usb_interface_descriptor_t *)pos;
+	while ((next = usb2_desc_foreach(conf, next)) != NULL) {
+		desc = (usb_interface_descriptor_t *)next;
 		if (desc->bDescriptorType != UDESC_INTERFACE)
 			continue;
 		if (!(intfnum == -1 || desc->bInterfaceNumber == intfnum))
