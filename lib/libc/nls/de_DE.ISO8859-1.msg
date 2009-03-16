@@ -24,13 +24,13 @@ $ ENOEXEC
 $ EBADF
 9 Ungültiger Dateideskriptor
 $ ECHILD
-10 Kein Kindprozess
+10 Keine Kindprozesse
 $ EDEADLK
 11 Ein Deadlock wurde vermieden
 $ ENOMEM
 12 Kann nicht genug Speicher belegen
 $ EACCES
-13 Zugriff verboten
+13 Zugriff verweigert
 $ EFAULT
 14 Ungültige Adresse
 $ ENOTBLK
@@ -50,13 +50,13 @@ $ EISDIR
 $ EINVAL
 22 Ungültiges Argument
 $ ENFILE
-23 Zu viele offene Dateien im gesamten System
+23 Zu viele offene Dateien im System
 $ EMFILE
 24 Zu viele offene Dateien
 $ ENOTTY
-25 Ungültiger Ioctl für dieses Gerät
+25 Ungültiger IOCTL für dieses Gerät
 $ ETXTBSY
-26 Ausführbare Datei wird benutzt
+26 Text-Datei ist belegt
 $ EFBIG
 27 Datei zu groß
 $ ENOSPC
@@ -70,13 +70,13 @@ $ EMLINK
 $ EPIPE
 32 Unterbrochene Pipe
 $ EDOM
-33 Numerisches Argument ausserhalb des Wertebereichs
+33 Numerisches Argument außerhalb des Wertebereichs
 $ ERANGE
-34 Ergebnis zu groß oder zu klein
+34 Ergebnis zu groß
 $ EAGAIN, EWOULDBLOCK
 35 Ressource vorübergehend nicht verfügbar
 $ EINPROGRESS
-36 Operation wird jetzt fortgesetzt
+36 Operation wird jetzt ausgeführt
 $ EALREADY
 37 Operation wird bereits ausgeführt
 $ ENOTSOCK
@@ -98,7 +98,7 @@ $ EOPNOTSUPP
 $ EPFNOSUPPORT
 46 Protokollfamilie nicht unterstützt
 $ EAFNOSUPPORT
-47 Addressart wird von der Protokollfamilie nicht unterstützt
+47 Adressfamilie wird von der Protokollfamilie nicht unterstützt
 $ EADDRINUSE
 48 Adresse wird bereits benutzt
 $ EADDRNOTAVAIL
@@ -142,7 +142,7 @@ $ EPROCLIM
 $ EUSERS
 68 Zu viele Benutzer
 $ EDQUOT
-69 Plattenplatzlimit erschöpft
+69 Platzlimit überschritten
 $ ESTALE
 70 Verwaister NFS-Dateideskriptor
 $ EREMOTE
@@ -150,7 +150,7 @@ $ EREMOTE
 $ EBADRPC
 72 RPC-Struktur ist ungültig
 $ ERPCMISMATCH
-73 RPC-Version stimmt nicht
+73 RPC-Version ist falsch
 $ EPROGUNAVAIL
 74 RPC-Programm nicht verfügbar
 $ EPROGMISMATCH
@@ -164,7 +164,7 @@ $ ENOSYS
 $ EFTYPE
 79 Ungültiger Dateityp oder Dateiformat
 $ EAUTH
-80 Authentikationsfehler
+80 Authentifikationsfehler
 $ ENEEDAUTH
 81 Authentikator benötigt
 $ EIDRM
@@ -173,30 +173,14 @@ $ ENOMSG
 83 Keine Nachricht vom gewünschten Typ
 $ EOVERFLOW
 84 Wert zu groß, um in Datentyp zu speichern
-$ EILSEQ
-85 Illegale Byte-Sequenz
-$ ENOTSUP
-86 Operation nicht unterstützt
 $ ECANCELED
-87 Operation abgebrochen
-$ EBADMSG
-88 Ungültige Nachricht
-$ ENODATA
-89 Keine Nachricht verfügbar
-$ ENOSR
-90 Keine STREAM-Ressourcen verfügbar
-$ ENOSTR
-91 Kein STREAM
-$ ETIME
-92 Zeitüberschreitung bei STREAM Ioctl
+85 Operation abgebrochen
+$ EILSEQ
+86 Ungültige Byte-Sequenz
 $ ENOATTR
-93 Attribut nicht gefunden
-$ EMULTIHOP
-94 Multihopversuch
-$ ENOLINK
-95 Verbindung wurde getrennt
-$ EPROTO
-96 Protokollfehler
+87 Attribut nicht gefunden
+$ EDOOFUS
+88 Programmierfehler
 $
 $ strsignal() support catalog
 $
@@ -224,7 +208,7 @@ $ SIGBUS
 $ SIGSEGV
 11 Illegaler Speicherzugriff
 $ SIGSYS
-12 Ungültiger Systemaufruf
+12 Ungültiger Speicherzugriff
 $ SIGPIPE
 13 Unterbrochene Pipe
 $ SIGALRM
@@ -246,22 +230,20 @@ $ SIGTTIN
 $ SIGTTOU
 22 Gestoppt (Ausgabe)
 $ SIGIO
-23 Ein/Ausgabe ist möglich
+23 Ein/Ausgabe möglich
 $ SIGXCPU
-24 CPU-Zeitlimit erschöpft
+24 CPU-Zeitlimit überschritten
 $ SIGXFSZ
-25 Dateigröße hat das Limit erreicht
+25 Dateigrößenlimit überschritten
 $ SIGVTALRM
 26 Virtueller Wecker abgelaufen
 $ SIGPROF
 27 Profil-Wecker abgelaufen
 $ SIGWINCH
-28 Fenstergröße hat sich geändert
+28 Fenstergröße hat sich verändert
 $ SIGINFO
 29 Informationsanforderung
 $ SIGUSR1
 30 Benutzerdefiniertes Signal 1
 $ SIGUSR2
 31 Benutzerdefiniertes Signal 2
-$ SIGPWR
-32 Statusänderung der Energieversorgung
