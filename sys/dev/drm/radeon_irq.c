@@ -229,6 +229,7 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 				RADEON_WRITE(RADEON_AIC_CNTL,
 				    tmp | RS400_MSI_REARM);
 				break;
+			case CHIP_RS600:
 			case CHIP_RS690:
 			case CHIP_RS740:
 				tmp = RADEON_READ(RADEON_BUS_CNTL) &
