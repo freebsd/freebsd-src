@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 
-static int	gv_sync(struct gv_volume *);
-static int	gv_rebuild_plex(struct gv_plex *);
-static int	gv_init_plex(struct gv_plex *);
-static int	gv_grow_plex(struct gv_plex *);
+static int		 gv_sync(struct gv_volume *);
+static int		 gv_rebuild_plex(struct gv_plex *);
+static int		 gv_init_plex(struct gv_plex *);
+static int		 gv_grow_plex(struct gv_plex *);
+static int		 gv_sync_plex(struct gv_plex *, struct gv_plex *);
+static struct gv_plex	*gv_find_good_plex(struct gv_volume *);
 
 void
 gv_start_obj(struct g_geom *gp, struct gctl_req *req)
@@ -99,6 +101,7 @@ int
 gv_start_plex(struct gv_plex *p)
 {
 	struct gv_volume *v;
+	struct gv_plex *up;
 	struct gv_sd *s;
 	int error, grow;
 
@@ -106,17 +109,9 @@ gv_start_plex(struct gv_plex *p)
 
 	error = 0;
 	v = p->vol_sc;
-	if (p->org == GV_PLEX_STRIPED) {
-		grow = 0;
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
-			if (s->flags & GV_SD_GROW) {
-				grow = 1;
-				break;
-			}
-		}
-		if (grow)
-			error = gv_grow_plex(p);
-	} else if (p->org == GV_PLEX_RAID5) {
+
+	/* RAID5 plexes can either be init, rebuilt or grown. */
+	if (p->org == GV_PLEX_RAID5) {
 		if (p->state > GV_PLEX_DEGRADED) {
 			LIST_FOREACH(s, &p->subdisks, in_plex) {
 				if (s->flags & GV_SD_GROW) {
@@ -128,8 +123,43 @@ gv_start_plex(struct gv_plex *p)
 			error = gv_rebuild_plex(p);
 		} else
 			error = gv_init_plex(p);
+	} else {
+		/* We want to sync from the other plex if we're down. */
+		if (p->state == GV_PLEX_DOWN && v->plexcount > 1) {
+			up = gv_find_good_plex(v);
+			if (up == NULL) {
+				G_VINUM_DEBUG(1, "unable to find a good plex");
+				return (ENXIO);
+			}
+			g_topology_lock();
+			error = gv_access(v->provider, 1, 1, 0);
+			if (error) {
+				g_topology_unlock();
+				G_VINUM_DEBUG(0, "sync from '%s' failed to "
+				    "access volume: %d", up->name, error);
+				return (error);
+			}
+			g_topology_unlock();
+			error = gv_sync_plex(p, up);
+			if (error)
+				return (error);
+		/*
+		 * In case we have a stripe that is up, check whether it can be
+		 * grown.
+		 */
+		} else if (p->org == GV_PLEX_STRIPED &&
+		    p->state != GV_PLEX_DOWN) {
+			grow = 0;
+			LIST_FOREACH(s, &p->subdisks, in_plex) {
+				if (s->flags & GV_SD_GROW) {
+					grow = 1;
+					break;
+				}
+			}
+			if (grow)
+				error = gv_grow_plex(p);
+		}
 	}
-
 	return (error);
 }
 
@@ -156,6 +186,49 @@ gv_start_vol(struct gv_volume *v)
 	return (error);
 }
 
+/* Sync a plex p from the plex up.  */
+static int
+gv_sync_plex(struct gv_plex *p, struct gv_plex *up)
+{
+	int error;
+
+	KASSERT(p != NULL, ("%s: NULL p", __func__));
+	KASSERT(up != NULL, ("%s: NULL up", __func__));
+	if ((p == up) || (p->state == GV_PLEX_UP))
+		return (0);
+	/* XXX: Should we check if rebuilding too? */
+	if (p->flags & GV_PLEX_SYNCING) {
+		return (EINPROGRESS);
+	}
+	p->synced = 0;
+	p->flags |= GV_PLEX_SYNCING;
+	G_VINUM_DEBUG(1, "starting sync of plex %s", p->name);
+	error = gv_sync_request(up, p, p->synced, 
+	    MIN(GV_DFLT_SYNCSIZE, up->size - p->synced), 
+	    BIO_READ, NULL);
+	if (error) {
+		G_VINUM_DEBUG(0, "error syncing plex %s", p->name);
+		return (error);
+	}
+	return (0);
+}
+
+/* Return a good plex from volume v. */
+static struct gv_plex *
+gv_find_good_plex(struct gv_volume *v)
+{
+	struct gv_plex *up;
+
+	/* Find the plex that's up. */
+	up = NULL;
+	LIST_FOREACH(up, &v->plexes, in_volume) {
+		if (up->state == GV_PLEX_UP)
+			break;
+	}
+	/* Didn't find a good plex. */
+	return (up);
+}
+
 static int
 gv_sync(struct gv_volume *v)
 {
@@ -167,17 +240,10 @@ gv_sync(struct gv_volume *v)
 	sc = v->vinumconf;
 	KASSERT(sc != NULL, ("gv_sync: NULL sc on %s", v->name));
 
-	/* Find the plex that's up. */
-	up = NULL;
-	LIST_FOREACH(up, &v->plexes, in_volume) {
-		if (up->state == GV_PLEX_UP)
-			break;
-	}
 
-	/* Didn't find a good plex. */
+	up = gv_find_good_plex(v);
 	if (up == NULL)
 		return (ENXIO);
-
 	g_topology_lock();
 	error = gv_access(v->provider, 1, 1, 0);
 	if (error) {
@@ -190,24 +256,10 @@ gv_sync(struct gv_volume *v)
 
 	/* Go through the good plex, and issue BIO's to all other plexes. */
 	LIST_FOREACH(p, &v->plexes, in_volume) {
-		if ((p == up) || (p->state == GV_PLEX_UP))
-			continue;
-		/* XXX: Should we check if rebuilding too? */
-		if (p->flags & GV_PLEX_SYNCING) {
-			return (EINPROGRESS);
-		}
-		p->synced = 0;
-		p->flags |= GV_PLEX_SYNCING;
-		G_VINUM_DEBUG(1, "starting sync of plex %s", p->name);
-		error = gv_sync_request(up, p, p->synced, 
-		    MIN(GV_DFLT_SYNCSIZE, up->size - p->synced), 
-		    BIO_READ, NULL);
-		if (error) {
-			G_VINUM_DEBUG(0, "error syncing plex %s", p->name);
+		error = gv_sync_plex(p, up);
+		if (error)
 			break;
-		}
 	}
-
 	return (0);
 }
 
