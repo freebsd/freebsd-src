@@ -1296,7 +1296,6 @@ vlan_trunk_capabilities(struct ifnet *ifp)
 static int
 vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ifaddr *ifa;
 	struct ifnet *p;
 	struct ifreq *ifr;
 	struct ifvlan *ifv;
@@ -1304,7 +1303,6 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int error = 0;
 
 	ifr = (struct ifreq *)data;
-	ifa = (struct ifaddr *)data;
 	ifv = ifp->if_softc;
 
 	switch (cmd) {
