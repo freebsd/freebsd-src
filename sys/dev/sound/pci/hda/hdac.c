@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090226_0129"
+#define HDA_DRV_TEST_REV	"20090316_0130"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -247,6 +247,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ACER_A4715_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x0133)
 #define ACER_3681WXM_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x0110)
 #define ACER_T6292_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x011b)
+#define ACER_T5320_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x011f)
 #define ACER_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0xffff)
 
 /* Asus */
@@ -2452,13 +2453,14 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			patch = "seq=15 device=Headphones";
 			break;
 		}
-	} else if (id == HDA_CODEC_ALC268 &&
-	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, sc->pci_subvendor)) {
+	} else if (id == HDA_CODEC_ALC268) {
+	    if (sc->pci_subvendor == ACER_T5320_SUBVENDOR) {
 		switch (nid) {
-		case 28:
-			patch = "device=CD conn=fixed";
+		case 20: /* Headphones Jack */
+			patch = "as=1 seq=15";
 			break;
 		}
+	    }
 	}
 
 	if (patch != NULL)
