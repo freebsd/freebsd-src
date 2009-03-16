@@ -106,7 +106,8 @@ static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
-static int flushbufqueues(int, int);
+static int buf_do_flush(struct vnode *vp);
+static int flushbufqueues(struct vnode *, int, int);
 static void buf_daemon(void);
 static void bremfreel(struct buf *bp);
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
@@ -198,6 +199,9 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW, &getnewbufcalls, 0,
 static int getnewbufrestarts;
 SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
     "Number of times getnewbuf has had to restart a buffer aquisition");
+static int flushbufqtarget = 100;
+SYSCTL_INT(_vfs, OID_AUTO, flushbufqtarget, CTLFLAG_RW, &flushbufqtarget, 0,
+    "Amount of work to do in flushbufqueues when helping bufdaemon");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -258,6 +262,7 @@ static struct mtx nblock;
 #define QUEUE_DIRTY_GIANT 3	/* B_DELWRI buffers that need giant */
 #define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
 #define QUEUE_EMPTY	5	/* empty buffer headers */
+#define QUEUE_SENTINEL	1024	/* not an queue index, but mark for sentinel */
 
 /* Queues for free buffers with various properties */
 static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES] = { { 0 } };
@@ -1710,21 +1715,23 @@ vfs_bio_awrite(struct buf *bp)
  */
 
 static struct buf *
-getnewbuf(int slpflag, int slptimeo, int size, int maxsize)
+getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int size, int maxsize,
+    int gbflags)
 {
+	struct thread *td;
 	struct buf *bp;
 	struct buf *nbp;
 	int defrag = 0;
 	int nqindex;
 	static int flushingbufs;
 
+	td = curthread;
 	/*
 	 * We can't afford to block since we might be holding a vnode lock,
 	 * which may prevent system daemons from running.  We deal with
 	 * low-memory situations by proactively returning memory and running
 	 * async I/O rather then sync I/O.
 	 */
-
 	atomic_add_int(&getnewbufcalls, 1);
 	atomic_subtract_int(&getnewbufrestarts, 1);
 restart:
@@ -1956,8 +1963,9 @@ restart:
 	 */
 
 	if (bp == NULL) {
-		int flags;
+		int flags, norunbuf;
 		char *waitmsg;
+		int fl;
 
 		if (defrag) {
 			flags = VFS_BIO_NEED_BUFSPACE;
@@ -1975,9 +1983,35 @@ restart:
 		mtx_unlock(&bqlock);
 
 		bd_speedup();	/* heeeelp */
+		if (gbflags & GB_NOWAIT_BD)
+			return (NULL);
 
 		mtx_lock(&nblock);
 		while (needsbuffer & flags) {
+			if (vp != NULL && (td->td_pflags & TDP_BUFNEED) == 0) {
+				mtx_unlock(&nblock);
+				/*
+				 * getblk() is called with a vnode
+				 * locked, and some majority of the
+				 * dirty buffers may as well belong to
+				 * the vnode. Flushing the buffers
+				 * there would make a progress that
+				 * cannot be achieved by the
+				 * buf_daemon, that cannot lock the
+				 * vnode.
+				 */
+				norunbuf = ~(TDP_BUFNEED | TDP_NORUNNINGBUF) |
+				    (td->td_pflags & TDP_NORUNNINGBUF);
+				/* play bufdaemon */
+				td->td_pflags |= TDP_BUFNEED | TDP_NORUNNINGBUF;
+				fl = buf_do_flush(vp);
+				td->td_pflags &= norunbuf;
+				mtx_lock(&nblock);
+				if (fl != 0)
+					continue;
+				if ((needsbuffer & flags) == 0)
+					break;
+			}
 			if (msleep(&needsbuffer, &nblock,
 			    (PRIBIO + 4) | slpflag, waitmsg, slptimeo)) {
 				mtx_unlock(&nblock);
@@ -2046,6 +2080,35 @@ static struct kproc_desc buf_kp = {
 };
 SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start, &buf_kp);
 
+static int
+buf_do_flush(struct vnode *vp)
+{
+	int flushed;
+
+	flushed = flushbufqueues(vp, QUEUE_DIRTY, 0);
+	/* The list empty check here is slightly racy */
+	if (!TAILQ_EMPTY(&bufqueues[QUEUE_DIRTY_GIANT])) {
+		mtx_lock(&Giant);
+		flushed += flushbufqueues(vp, QUEUE_DIRTY_GIANT, 0);
+		mtx_unlock(&Giant);
+	}
+	if (flushed == 0) {
+		/*
+		 * Could not find any buffers without rollback
+		 * dependencies, so just write the first one
+		 * in the hopes of eventually making progress.
+		 */
+		flushbufqueues(vp, QUEUE_DIRTY, 1);
+		if (!TAILQ_EMPTY(
+			    &bufqueues[QUEUE_DIRTY_GIANT])) {
+			mtx_lock(&Giant);
+			flushbufqueues(vp, QUEUE_DIRTY_GIANT, 1);
+			mtx_unlock(&Giant);
+		}
+	}
+	return (flushed);
+}
+
 static void
 buf_daemon()
 {
@@ -2059,7 +2122,7 @@ buf_daemon()
 	/*
 	 * This process is allowed to take the buffer cache to the limit
 	 */
-	curthread->td_pflags |= TDP_NORUNNINGBUF;
+	curthread->td_pflags |= TDP_NORUNNINGBUF | TDP_BUFNEED;
 	mtx_lock(&bdlock);
 	for (;;) {
 		bd_request = 0;
@@ -2074,30 +2137,8 @@ buf_daemon()
 		 * normally would so they can run in parallel with our drain.
 		 */
 		while (numdirtybuffers > lodirtybuffers) {
-			int flushed;
-
-			flushed = flushbufqueues(QUEUE_DIRTY, 0);
-			/* The list empty check here is slightly racy */
-			if (!TAILQ_EMPTY(&bufqueues[QUEUE_DIRTY_GIANT])) {
-				mtx_lock(&Giant);
-				flushed += flushbufqueues(QUEUE_DIRTY_GIANT, 0);
-				mtx_unlock(&Giant);
-			}
-			if (flushed == 0) {
-				/*
-				 * Could not find any buffers without rollback
-				 * dependencies, so just write the first one
-				 * in the hopes of eventually making progress.
-				 */
-				flushbufqueues(QUEUE_DIRTY, 1);
-				if (!TAILQ_EMPTY(
-				    &bufqueues[QUEUE_DIRTY_GIANT])) {
-					mtx_lock(&Giant);
-					flushbufqueues(QUEUE_DIRTY_GIANT, 1);
-					mtx_unlock(&Giant);
-				}
+			if (buf_do_flush(NULL) == 0)
 				break;
-			}
 			uio_yield();
 		}
 
@@ -2143,7 +2184,7 @@ SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
     0, "Number of buffers flushed with dependecies that require rollbacks");
 
 static int
-flushbufqueues(int queue, int flushdeps)
+flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 {
 	struct buf sentinel;
 	struct vnode *vp;
@@ -2153,20 +2194,37 @@ flushbufqueues(int queue, int flushdeps)
 	int flushed;
 	int target;
 
-	target = numdirtybuffers - lodirtybuffers;
-	if (flushdeps && target > 2)
-		target /= 2;
+	if (lvp == NULL) {
+		target = numdirtybuffers - lodirtybuffers;
+		if (flushdeps && target > 2)
+			target /= 2;
+	} else
+		target = flushbufqtarget;
 	flushed = 0;
 	bp = NULL;
+	sentinel.b_qindex = QUEUE_SENTINEL;
 	mtx_lock(&bqlock);
-	TAILQ_INSERT_TAIL(&bufqueues[queue], &sentinel, b_freelist);
+	TAILQ_INSERT_HEAD(&bufqueues[queue], &sentinel, b_freelist);
 	while (flushed != target) {
-		bp = TAILQ_FIRST(&bufqueues[queue]);
-		if (bp == &sentinel)
+		bp = TAILQ_NEXT(&sentinel, b_freelist);
+		if (bp != NULL) {
+			TAILQ_REMOVE(&bufqueues[queue], &sentinel, b_freelist);
+			TAILQ_INSERT_AFTER(&bufqueues[queue], bp, &sentinel,
+			    b_freelist);
+		} else
 			break;
-		TAILQ_REMOVE(&bufqueues[queue], bp, b_freelist);
-		TAILQ_INSERT_TAIL(&bufqueues[queue], bp, b_freelist);
-
+		/*
+		 * Skip sentinels inserted by other invocations of the
+		 * flushbufqueues(), taking care to not reorder them.
+		 */
+		if (bp->b_qindex == QUEUE_SENTINEL)
+			continue;
+		/*
+		 * Only flush the buffers that belong to the
+		 * vnode locked by the curthread.
+		 */
+		if (lvp != NULL && bp->b_vp != lvp)
+			continue;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 			continue;
 		if (bp->b_pin_count > 0) {
@@ -2214,16 +2272,27 @@ flushbufqueues(int queue, int flushdeps)
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
+		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_CANRECURSE) == 0) {
 			mtx_unlock(&bqlock);
 			CTR3(KTR_BUF, "flushbufqueue(%p) vp %p flags %X",
 			    bp, bp->b_vp, bp->b_flags);
-			vfs_bio_awrite(bp);
+			if (curproc == bufdaemonproc)
+				vfs_bio_awrite(bp);
+			else {
+				bremfree(bp);
+				bwrite(bp);
+			}
 			vn_finished_write(mp);
 			VOP_UNLOCK(vp, 0);
 			flushwithdeps += hasdeps;
 			flushed++;
-			waitrunningbufspace();
+
+			/*
+			 * Sleeping on runningbufspace while holding
+			 * vnode lock leads to deadlock.
+			 */
+			if (curproc == bufdaemonproc)
+				waitrunningbufspace();
 			numdirtywakeup((lodirtybuffers + hidirtybuffers) / 2);
 			mtx_lock(&bqlock);
 			continue;
@@ -2605,7 +2674,7 @@ loop:
 		maxsize = vmio ? size + (offset & PAGE_MASK) : size;
 		maxsize = imax(maxsize, bsize);
 
-		bp = getnewbuf(slpflag, slptimeo, size, maxsize);
+		bp = getnewbuf(vp, slpflag, slptimeo, size, maxsize, flags);
 		if (bp == NULL) {
 			if (slpflag || slptimeo)
 				return NULL;
@@ -2680,14 +2749,17 @@ loop:
  * set to B_INVAL.
  */
 struct buf *
-geteblk(int size)
+geteblk(int size, int flags)
 {
 	struct buf *bp;
 	int maxsize;
 
 	maxsize = (size + BKVAMASK) & ~BKVAMASK;
-	while ((bp = getnewbuf(0, 0, size, maxsize)) == 0)
-		continue;
+	while ((bp = getnewbuf(NULL, 0, 0, size, maxsize, flags)) == NULL) {
+		if ((flags & GB_NOWAIT_BD) &&
+		    (curthread->td_pflags & TDP_BUFNEED) != 0)
+			return (NULL);
+	}
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;	/* b_dep cleared by getnewbuf() */
 	BUF_ASSERT_HELD(bp);
