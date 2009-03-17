@@ -611,9 +611,7 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 
 		case SIOCSIFMTU:
-			s = splimp();
 			ifp->if_mtu = ifr->ifr_mtu;
-			splx(s);
 			break;
 
 		case SIOCGIFSTATUS:
