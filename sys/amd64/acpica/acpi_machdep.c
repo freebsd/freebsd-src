@@ -31,24 +31,49 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 
 #include <machine/nexusvar.h>
 
+SYSCTL_DECL(_debug_acpi);
+
+uint32_t acpi_resume_beep;
+TUNABLE_INT("debug.acpi.resume_beep", &acpi_resume_beep);
+SYSCTL_UINT(_debug_acpi, OID_AUTO, resume_beep, CTLFLAG_RW, &acpi_resume_beep,
+    0, "Beep the PC speaker when resuming");
+uint32_t acpi_reset_video;
+TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);
+
 static int intr_model = ACPI_INTR_PIC;
+static struct apm_clone_data acpi_clone;
 
 int
 acpi_machdep_init(device_t dev)
 {
-	struct	acpi_softc *sc;
+	struct acpi_softc	*sc;
 
 	sc = devclass_get_softc(devclass_find("acpi"), 0);
+
+	/* Create a fake clone for /dev/acpi. */
+	STAILQ_INIT(&sc->apm_cdevs);
+	acpi_clone.cdev = sc->acpi_dev_t;
+	acpi_clone.acpi_sc = sc;
+	ACPI_LOCK(acpi);
+	STAILQ_INSERT_TAIL(&sc->apm_cdevs, &acpi_clone, entries);
+	ACPI_UNLOCK(acpi);
+	sc->acpi_clone = &acpi_clone;
 	acpi_install_wakeup_handler(sc);
 
 	if (intr_model != ACPI_INTR_PIC)
 		acpi_SetIntrModel(intr_model);
+
+	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO,
+	    "reset_video", CTLFLAG_RW, &acpi_reset_video, 0,
+	    "Call the VESA reset BIOS vector on the resume path");
 
 	return (0);
 }

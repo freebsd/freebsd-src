@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/apicreg.h>
 #include <machine/cputypes.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -103,6 +104,7 @@ extern pt_entry_t *SMPpt;
 extern int  _udatasel;
 
 struct pcb stoppcbs[MAXCPU];
+struct xpcb *stopxpcbs = NULL;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -343,6 +345,9 @@ cpu_mp_start(void)
 
 	/* Install an inter-CPU IPI for CPU stop/restart */
 	setidt(IPI_STOP, IDTVEC(cpustop), SDT_SYSIGT, SEL_KPL, 0);
+
+	/* Install an inter-CPU IPI for CPU suspend/resume */
+	setidt(IPI_SUSPEND, IDTVEC(cpususpend), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
@@ -1142,6 +1147,41 @@ cpustop_handler(void)
 		cpustop_restartfunc();
 		cpustop_restartfunc = NULL;
 	}
+}
+
+/*
+ * Handle an IPI_SUSPEND by saving our current context and spinning until we
+ * are resumed.
+ */
+void
+cpususpend_handler(void)
+{
+	struct savefpu *stopfpu;
+	register_t cr3, rf;
+	int cpu = PCPU_GET(cpuid);
+	int cpumask = PCPU_GET(cpumask);
+
+	rf = intr_disable();
+	cr3 = rcr3();
+	stopfpu = &stopxpcbs[cpu].xpcb_pcb.pcb_save;
+	if (savectx2(&stopxpcbs[cpu])) {
+		fpugetregs(curthread, stopfpu);
+		wbinvd();
+		atomic_set_int(&stopped_cpus, cpumask);
+	} else
+		fpusetregs(curthread, stopfpu);
+
+	/* Wait for resume */
+	while (!(started_cpus & cpumask))
+		ia32_pause();
+
+	atomic_clear_int(&started_cpus, cpumask);
+	atomic_clear_int(&stopped_cpus, cpumask);
+
+	/* Restore CR3 and enable interrupts */
+	load_cr3(cr3);
+	lapic_setup(0);
+	intr_restore(rf);
 }
 
 /*
