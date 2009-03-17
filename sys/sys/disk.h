@@ -98,4 +98,10 @@ void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 	 * - ident is optional and applications can't relay on its presence.
 	 */
 
+#define	DIOCGPROVIDERALIAS _IOR('d', 139, char[MAXPATHLEN])
+	/*-
+	 * Store the provider alias, if present, in a buffer. The buffer must
+	 * be at least MAXPATHLEN bytes long.
+	 */
+
 #endif /* _SYS_DISK_H_ */

@@ -63,17 +63,19 @@ static int g_part_pc98_add(struct g_part_table *, struct g_part_entry *,
 static int g_part_pc98_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_destroy(struct g_part_table *, struct g_part_parms *);
-static int g_part_pc98_dumpconf(struct g_part_table *, struct g_part_entry *,
+static void g_part_pc98_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_pc98_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_pc98_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
-static char *g_part_pc98_name(struct g_part_table *, struct g_part_entry *,
+static const char *g_part_pc98_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_pc98_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_pc98_read(struct g_part_table *, struct g_consumer *);
-static const char *g_part_pc98_type(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static int g_part_pc98_setunset(struct g_part_table *, struct g_part_entry *,
+    const char *, unsigned int);
+static const char *g_part_pc98_type(struct g_part_table *,
+    struct g_part_entry *, char *, size_t);
 static int g_part_pc98_write(struct g_part_table *, struct g_consumer *);
 
 static kobj_method_t g_part_pc98_methods[] = {
@@ -87,6 +89,7 @@ static kobj_method_t g_part_pc98_methods[] = {
 	KOBJMETHOD(g_part_name,		g_part_pc98_name),
 	KOBJMETHOD(g_part_probe,	g_part_pc98_probe),
 	KOBJMETHOD(g_part_read,		g_part_pc98_read),
+	KOBJMETHOD(g_part_setunset,	g_part_pc98_setunset),
 	KOBJMETHOD(g_part_type,		g_part_pc98_type),
 	KOBJMETHOD(g_part_write,	g_part_pc98_write),
 	{ 0, 0 }
@@ -115,14 +118,17 @@ pc98_parse_type(const char *type, u_char *dp_mid, u_char *dp_sid)
 		if (type[1] == '\0' || *endp != '\0' || lt <= 0 ||
 		    lt >= 65536)
 			return (EINVAL);
-		*dp_mid = (u_char)lt;
-		*dp_sid = (u_char)(lt >> 8);
+		/* Make sure the active and bootable flags aren't set. */
+		if (lt & ((PC98_SID_ACTIVE << 8) | PC98_MID_BOOTABLE))
+			return (ENOATTR);
+		*dp_mid = (*dp_mid & PC98_MID_BOOTABLE) | (u_char)lt;
+		*dp_sid = (*dp_sid & PC98_SID_ACTIVE) | (u_char)(lt >> 8);
 		return (0);
 	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
 	if (!strcasecmp(type, alias)) {
-		*dp_mid = (u_char)DOSMID_386BSD;
-		*dp_sid = (u_char)DOSSID_386BSD;
+		*dp_mid = (*dp_mid & PC98_MID_BOOTABLE) | PC98_MID_386BSD;
+		*dp_sid = (*dp_sid & PC98_SID_ACTIVE) | PC98_SID_386BSD;
 		return (0);
 	}
 	return (EINVAL);
@@ -176,6 +182,8 @@ g_part_pc98_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
+	else
+		entry->ent.dp_mid = entry->ent.dp_sid = 0;
 
 	KASSERT(baseentry->gpe_start <= start, (__func__));
 	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
@@ -193,9 +201,14 @@ static int
 g_part_pc98_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_pc98_table *table;
+	size_t codesz;
 
+	codesz = DOSMAGICOFFSET;
 	table = (struct g_part_pc98_table *)basetable;
-	bcopy(gpp->gpp_codeptr, table->boot, DOSMAGICOFFSET);
+	bzero(table->boot, codesz);
+	codesz = MIN(codesz, gpp->gpp_codesize);
+	if (codesz > 0)
+		bcopy(gpp->gpp_codeptr, table->boot, codesz);
 	return (0);
 }
 
@@ -236,26 +249,37 @@ g_part_pc98_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	return (0);
 }
 
-static int
+static void
 g_part_pc98_dumpconf(struct g_part_table *table,
     struct g_part_entry *baseentry, struct sbuf *sb, const char *indent)
 {
 	struct g_part_pc98_entry *entry;
+	char name[sizeof(entry->ent.dp_name) + 1];
 	u_int type;
 
 	entry = (struct g_part_pc98_entry *)baseentry;
+	if (entry == NULL) {
+		/* confxml: scheme information */
+		return;
+	}
+
+	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
+	strncpy(name, entry->ent.dp_name, sizeof(name) - 1);
+	name[sizeof(name) - 1] = '\0';
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
-		type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
-		sbuf_printf(sb, " xs PC98 xt %u", type);
-	} else if (entry != NULL) {
-		/* confxml: partition entry information */
-		type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
-		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent, type);
+		sbuf_printf(sb, " xs PC98 xt %u sn %s", type, name);
 	} else {
-		/* confxml: scheme information */
+		/* confxml: partition entry information */
+		sbuf_printf(sb, "%s<label>%s</label>\n", indent, name);
+		if (entry->ent.dp_mid & PC98_MID_BOOTABLE)
+			sbuf_printf(sb, "%s<attrib>bootable</attrib>\n",
+			    indent);
+		if (entry->ent.dp_sid & PC98_SID_ACTIVE)
+			sbuf_printf(sb, "%s<attrib>active</attrib>\n", indent);
+		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent,
+		    type & 0x7f7f);
 	}
-	return (0);
 }
 
 static int
@@ -265,8 +289,8 @@ g_part_pc98_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 
 	/* Allow dumping to a FreeBSD partition only. */
 	entry = (struct g_part_pc98_entry *)baseentry;
-	return ((entry->ent.dp_mid == DOSMID_386BSD &&
-	    entry->ent.dp_sid == DOSSID_386BSD) ? 1 : 0);
+	return (((entry->ent.dp_mid & PC98_MID_MASK) == PC98_MID_386BSD &&
+	    (entry->ent.dp_sid & PC98_SID_MASK) == PC98_SID_386BSD) ? 1 : 0);
 }
 
 static int
@@ -285,7 +309,7 @@ g_part_pc98_modify(struct g_part_table *basetable,
 	return (0);
 }
 
-static char *
+static const char *
 g_part_pc98_name(struct g_part_table *table, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
@@ -300,7 +324,7 @@ g_part_pc98_probe(struct g_part_table *table, struct g_consumer *cp)
 	struct g_provider *pp;
 	u_char *buf, *p;
 	int error, index, res, sum;
-	uint16_t magic;
+	uint16_t magic, ecyl, scyl;
 
 	pp = cp->provider;
 
@@ -332,11 +356,15 @@ g_part_pc98_probe(struct g_part_table *table, struct g_consumer *cp)
 
 	for (index = 0; index < NDOSPART; index++) {
 		p = buf + SECSIZE + index * DOSPARTSIZE;
-		if (p[2] != 0 || p[3] != 0)
-			goto out;
-		if (p[1] == 0)
+		if (p[0] == 0 || p[1] == 0)	/* !dp_mid || !dp_sid */
 			continue;
-		if (le16dec(p + 10) == 0)
+		scyl = le16dec(p + 10);
+		ecyl = le16dec(p + 14);
+		if (scyl == 0 || ecyl == 0)
+			goto out;
+		if (p[8] == p[12] &&		/* dp_ssect == dp_esect */
+		    p[9] == p[13] &&		/* dp_shd == dp_ehd */
+		    scyl == ecyl)
 			goto out;
 	}
 
@@ -406,6 +434,54 @@ g_part_pc98_read(struct g_part_table *basetable, struct g_consumer *cp)
 	return (0);
 }
 
+static int
+g_part_pc98_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
+    const char *attrib, unsigned int set)
+{
+	struct g_part_entry *iter;
+	struct g_part_pc98_entry *entry;
+	int changed, mid, sid;
+
+	mid = sid = 0;
+	if (strcasecmp(attrib, "active") == 0)
+		sid = 1;
+	else if (strcasecmp(attrib, "bootable") == 0)
+		mid = 1;
+	if (mid == 0 && sid == 0)
+		return (EINVAL);
+
+	LIST_FOREACH(iter, &table->gpt_entry, gpe_entry) {
+		if (iter->gpe_deleted)
+			continue;
+		if (iter != baseentry)
+			continue;
+		changed = 0;
+		entry = (struct g_part_pc98_entry *)iter;
+		if (set) {
+			if (mid && !(entry->ent.dp_mid & PC98_MID_BOOTABLE)) {
+				entry->ent.dp_mid |= PC98_MID_BOOTABLE;
+				changed = 1;
+			}
+			if (sid && !(entry->ent.dp_sid & PC98_SID_ACTIVE)) {
+				entry->ent.dp_sid |= PC98_SID_ACTIVE;
+				changed = 1;
+			}
+		} else {
+			if (mid && (entry->ent.dp_mid & PC98_MID_BOOTABLE)) {
+				entry->ent.dp_mid &= ~PC98_MID_BOOTABLE;
+				changed = 1;
+			}
+			if (sid && (entry->ent.dp_sid & PC98_SID_ACTIVE)) {
+				entry->ent.dp_sid &= ~PC98_SID_ACTIVE;
+				changed = 1;
+			}
+		}
+		if (changed && !iter->gpe_created)
+			iter->gpe_modified = 1;
+	}
+	return (0);
+}
+
 static const char *
 g_part_pc98_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
     char *buf, size_t bufsz)
@@ -414,8 +490,9 @@ g_part_pc98_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	u_int type;
 
 	entry = (struct g_part_pc98_entry *)baseentry;
-	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
-	if (type == DOSPTYP_386BSD)
+	type = (entry->ent.dp_mid & PC98_MID_MASK) |
+	    ((entry->ent.dp_sid & PC98_SID_MASK) << 8);
+	if (type == (PC98_MID_386BSD | (PC98_SID_386BSD << 8)))
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
 	snprintf(buf, bufsz, "!%d", type);
 	return (buf);
