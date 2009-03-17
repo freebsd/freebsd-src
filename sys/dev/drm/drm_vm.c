@@ -87,10 +87,11 @@ int drm_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr,
 
 	if (map == NULL) {
 		DRM_DEBUG("Can't find map, requested offset = %016lx\n",
-		    offset);
+		    (unsigned long)offset);
 		TAILQ_FOREACH(map, &dev->maplist, link) {
 			DRM_DEBUG("map offset = %016lx, handle = %016lx\n",
-			map->offset, (unsigned long)map->handle);
+			    (unsigned long)map->offset,
+			    (unsigned long)map->handle);
 		}
 		DRM_UNLOCK();
 		return -1;
