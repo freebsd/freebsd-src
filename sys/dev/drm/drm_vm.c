@@ -86,8 +86,13 @@ int drm_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr,
 	}
 
 	if (map == NULL) {
+		DRM_DEBUG("Can't find map, requested offset = %016lx\n",
+		    offset);
+		TAILQ_FOREACH(map, &dev->maplist, link) {
+			DRM_DEBUG("map offset = %016lx, handle = %016lx\n",
+			map->offset, (unsigned long)map->handle);
+		}
 		DRM_UNLOCK();
-		DRM_DEBUG("can't find map\n");
 		return -1;
 	}
 	if (((map->flags&_DRM_RESTRICTED) && !DRM_SUSER(DRM_CURPROC))) {
