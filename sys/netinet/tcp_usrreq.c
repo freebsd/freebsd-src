@@ -712,7 +712,8 @@ tcp_usr_shutdown(struct socket *so)
 	TCPDEBUG1();
 	socantsendmore(so);
 	tcp_usrclosed(tp);
-	error = tcp_output_disconnect(tp);
+	if (!(inp->inp_vflag & INP_DROPPED))
+		error = tcp_output_disconnect(tp);
 
 out:
 	TCPDEBUG2(PRU_SHUTDOWN);
@@ -844,7 +845,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			INP_INFO_WUNLOCK(&tcbinfo);
 			headlocked = 0;
 		}
-		if (tp != NULL) {
+		if (!(inp->inp_vflag & INP_DROPPED)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
 			error = tcp_output_send(tp);
