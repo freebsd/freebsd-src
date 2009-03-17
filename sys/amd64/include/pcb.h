@@ -82,11 +82,25 @@ struct pcb {
 	struct user_segment_descriptor	pcb_gs32sd;
 };
 
+struct xpcb {
+	struct pcb	xpcb_pcb;
+	register_t	xpcb_cr0;
+	register_t	xpcb_cr2;
+	register_t	xpcb_cr4;
+	register_t	xpcb_kgsbase;
+	uint32_t	xpcb_ss;
+	struct region_descriptor xpcb_gdt;
+	struct region_descriptor xpcb_idt;
+	struct region_descriptor xpcb_ldt;
+	uint16_t	xpcb_tr;
+};
+
 #ifdef _KERNEL
 struct trapframe;
 
 void	makectx(struct trapframe *, struct pcb *);
 void	savectx(struct pcb *);
+int	savectx2(struct xpcb *);
 #endif
 
 #endif /* _AMD64_PCB_H_ */
