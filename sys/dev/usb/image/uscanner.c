@@ -149,7 +149,7 @@ static const struct usb2_config uscanner_config[USCANNER_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.mh.bufsize = USCANNER_BSIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,.proxy_buffer = 1,.force_short_xfer = 1,},
+		.mh.flags = {.pipe_bof = 1,.proxy_buffer = 1,},
 		.mh.callback = &uscanner_write_callback,
 	},
 

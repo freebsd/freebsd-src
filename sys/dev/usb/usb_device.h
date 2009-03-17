@@ -127,8 +127,6 @@ struct usb2_device {
 
 	uint32_t plugtime;		/* copy of "ticks" */
 
-	uint16_t ep_rd_opened;		/* bitmask of endpoints opened */
-	uint16_t ep_wr_opened;		/*  from the device nodes. */
 	uint16_t refcount;
 #define	USB_DEV_REF_MAX 0xffff
 
