@@ -609,7 +609,7 @@ static const struct umass_devdescr umass_devdescr[] = {
 	},
 	{USB_VENDOR_MYSON, USB_PRODUCT_MYSON_HEDEN, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-		NO_INQUIRY | IGNORE_RESIDUE
+		NO_INQUIRY | IGNORE_RESIDUE | NO_SYNCHRONIZE_CACHE
 	},
 	{USB_VENDOR_MYSON, USB_PRODUCT_MYSON_STARREADER, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
@@ -846,6 +846,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 	{USB_VENDOR_SONY, USB_PRODUCT_SONY_PORTABLE_HDD_V2, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_QUIRKS
+	},
+	{USB_VENDOR_SUPERTOP, USB_PRODUCT_SUPERTOP_IDE, RID_WILDCARD,
+		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+		IGNORE_RESIDUE | NO_SYNCHRONIZE_CACHE
 	},
 	{USB_VENDOR_TAUGA, USB_PRODUCT_TAUGA_CAMERAMATE, RID_WILDCARD,
 		UMASS_PROTO_SCSI,
@@ -2022,7 +2026,7 @@ umass_t_bbb_status_callback(struct usb2_xfer *xfer)
 
 		residue = UGETDW(sc->csw.dCSWDataResidue);
 
-		if (!residue) {
+		if ((!residue) || (sc->sc_quirks & IGNORE_RESIDUE)) {
 			residue = (sc->sc_transfer.data_len -
 			    sc->sc_transfer.actlen);
 		}
