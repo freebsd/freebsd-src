@@ -48,11 +48,13 @@ inthand_t
 	IDTVEC(invlcache),	/* Write back and invalidate cache */
 	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
+	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
 	IDTVEC(rendezvous);	/* handle CPU rendezvous */
 
 /* functions in mp_machdep.c */
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
+void	cpususpend_handler(void);
 void	init_secondary(void);
 void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all_but_self(u_int ipi);

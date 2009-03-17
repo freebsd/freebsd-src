@@ -155,6 +155,19 @@ ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 
+ASSYM(XPCB_PCB, offsetof(struct xpcb, xpcb_pcb));
+ASSYM(XPCB_CR0, offsetof(struct xpcb, xpcb_cr0));
+ASSYM(XPCB_CR2, offsetof(struct xpcb, xpcb_cr2));
+ASSYM(XPCB_CR4, offsetof(struct xpcb, xpcb_cr4));
+ASSYM(XPCB_KGSBASE, offsetof(struct xpcb, xpcb_kgsbase));
+ASSYM(XPCB_SS, offsetof(struct xpcb, xpcb_ss));
+ASSYM(XPCB_GDT, offsetof(struct xpcb, xpcb_gdt));
+ASSYM(XPCB_IDT, offsetof(struct xpcb, xpcb_idt));
+ASSYM(XPCB_LDT, offsetof(struct xpcb, xpcb_ldt));
+ASSYM(XPCB_TR, offsetof(struct xpcb, xpcb_tr));
+
+ASSYM(XPCB_SIZE, sizeof(struct xpcb));
+
 ASSYM(COMMON_TSS_RSP0, offsetof(struct amd64tss, tss_rsp0));
 
 ASSYM(TF_R15, offsetof(struct trapframe, tf_r15));
