@@ -93,12 +93,12 @@ struct usb2_cdev_privdata {
 	int			bus_index;	/* bus index */
 	int			dev_index;	/* device index */
 	int			ep_addr;	/* endpoint address */
+	int			fflags;
 	uint8_t			fifo_index;	/* FIFO index */
 	uint8_t			is_read;	/* location has read access */
 	uint8_t			is_write;	/* location has write access */
 	uint8_t			is_uref;	/* USB refcount decr. needed */
 	uint8_t			is_usbfs;	/* USB-FS is active */
-	int			fflags;
 };
 
 struct usb2_fs_privdata {
@@ -130,7 +130,8 @@ struct usb2_fifo {
 	struct usb2_xfer *xfer[2];
 	struct usb2_xfer **fs_xfer;
 	struct mtx *priv_mtx;		/* client data */
-	int    opened;			/* set if FIFO is opened by a FILE */
+	/* set if FIFO is opened by a FILE: */
+	struct usb2_cdev_privdata *curr_cpd;
 	void   *priv_sc0;		/* client data */
 	void   *priv_sc1;		/* client data */
 	void   *queue_data;
@@ -194,5 +195,6 @@ struct usb2_symlink *usb2_alloc_symlink(const char *target);
 void	usb2_free_symlink(struct usb2_symlink *ps);
 int	usb2_read_symlink(uint8_t *user_ptr, uint32_t startentry,
 	    uint32_t user_len);
+void	usb2_fifo_set_close_zlp(struct usb2_fifo *, uint8_t);
 
 #endif					/* _USB2_DEV_H_ */
