@@ -183,6 +183,11 @@ static int	vnet_igmp_idetach(const void *);
  * VIMAGE: Each in_multi corresponds to an ifp, and each ifp corresponds
  * to a vnet in ifp->if_vnet.
  *
+ * SMPng: XXX We may potentially race operations on ifma_protospec.
+ * The problem is that we currently lack a clean way of taking the
+ * IF_ADDR_LOCK() between the ifnet and in layers w/o recursing,
+ * as anything which modifies ifma needs to be covered by that lock.
+ * So check for ifma_protospec being NULL before proceeding.
  */
 struct mtx		 igmp_mtx;
 int			 mpsafe_igmp = 0;
@@ -601,6 +606,7 @@ out:
  * is detached, but also before the link layer does its cleanup.
  *
  * SMPNG: igmp_ifdetach() needs to take IF_ADDR_LOCK().
+ * XXX This is also bitten by unlocked ifma_protospec access.
  *
  * VIMAGE: curvnet should have been set by caller, but let's not assume
  * that for now.
@@ -623,8 +629,13 @@ igmp_ifdetach(struct ifnet *ifp)
 	if (igi->igi_version == IGMP_VERSION_3) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_INET)
+			if (ifma->ifma_addr->sa_family != AF_INET ||
+			    ifma->ifma_protospec == NULL)
 				continue;
+#if 0
+			KASSERT(ifma->ifma_protospec != NULL,
+			    ("%s: ifma_protospec is NULL", __func__));
+#endif
 			inm = (struct in_multi *)ifma->ifma_protospec;
 			if (inm->inm_state == IGMP_LEAVING_MEMBER) {
 				SLIST_INSERT_HEAD(&igi->igi_relinmhead,
@@ -783,7 +794,8 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip)
 	 */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_INET)
+		if (ifma->ifma_addr->sa_family != AF_INET ||
+		    ifma->ifma_protospec == NULL)
 			continue;
 		inm = (struct in_multi *)ifma->ifma_protospec;
 		if (inm->inm_timer != 0)
@@ -880,7 +892,8 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 
 			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				if (ifma->ifma_addr->sa_family != AF_INET)
+				if (ifma->ifma_addr->sa_family != AF_INET ||
+				    ifma->ifma_protospec == NULL)
 					continue;
 				inm = (struct in_multi *)ifma->ifma_protospec;
 				igmp_v2_update_group(inm, timer);
@@ -1701,7 +1714,8 @@ igmp_fasttimo_vnet(void)
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link,
 		    tifma) {
-			if (ifma->ifma_addr->sa_family != AF_INET)
+			if (ifma->ifma_addr->sa_family != AF_INET ||
+			    ifma->ifma_protospec == NULL)
 				continue;
 			inm = (struct in_multi *)ifma->ifma_protospec;
 			switch (igi->igi_version) {
@@ -3311,7 +3325,8 @@ igmp_v3_dispatch_general_query(struct igmp_ifinfo *igi)
 
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, tifma) {
-		if (ifma->ifma_addr->sa_family != AF_INET)
+		if (ifma->ifma_addr->sa_family != AF_INET ||
+		    ifma->ifma_protospec == NULL)
 			continue;
 
 		inm = (struct in_multi *)ifma->ifma_protospec;

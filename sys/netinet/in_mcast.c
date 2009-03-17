@@ -432,6 +432,9 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	if (error != 0)
 		return (error);
 
+	/* XXX ifma_protospec must be covered by IF_ADDR_LOCK */
+	IF_ADDR_LOCK(ifp);
+
 	/*
 	 * If something other than netinet is occupying the link-layer
 	 * group, print a meaningful error message and back out of
@@ -454,8 +457,11 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 #endif
 		++inm->inm_refcount;
 		*pinm = inm;
+		IF_ADDR_UNLOCK(ifp);
 		return (0);
 	}
+
+	IF_ADDR_LOCK_ASSERT(ifp);
 
 	/*
 	 * A new in_multi record is needed; allocate and initialize it.
@@ -467,6 +473,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
 		if_delmulti_ifma(ifma);
+		IF_ADDR_UNLOCK(ifp);
 		return (ENOMEM);
 	}
 	inm->inm_addr = *group;
@@ -489,6 +496,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 
 	*pinm = inm;
 
+	IF_ADDR_UNLOCK(ifp);
 	return (0);
 }
 
@@ -522,6 +530,7 @@ inm_release_locked(struct in_multi *inm)
 
 	ifma = inm->inm_ifma;
 
+	/* XXX this access is not covered by IF_ADDR_LOCK */
 	CTR2(KTR_IGMPV3, "%s: purging ifma %p", __func__, ifma);
 	KASSERT(ifma->ifma_protospec == inm,
 	    ("%s: ifma_protospec != inm", __func__));
