@@ -1330,14 +1330,14 @@ __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
     int32_t *osrel)
 {
 	const Elf_Note *note, *note_end;
-	const Elf32_Phdr *phdr, *pnote;
-	const Elf32_Ehdr *hdr;
+	const Elf_Phdr *phdr, *pnote;
+	const Elf_Ehdr *hdr;
 	const char *note_name;
 	int i;
 
 	pnote = NULL;
-	hdr = (const Elf32_Ehdr *)imgp->image_header;
-	phdr = (const Elf32_Phdr *)(imgp->image_header + hdr->e_phoff);
+	hdr = (const Elf_Ehdr *)imgp->image_header;
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_NOTE) {
