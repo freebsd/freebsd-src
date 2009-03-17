@@ -1011,6 +1011,8 @@ in_ifdetach(struct ifnet *ifp)
  * Delete all IPv4 multicast address records, and associated link-layer
  * multicast address records, associated with ifp.
  * XXX It looks like domifdetach runs AFTER the link layer cleanup.
+ * XXX This should not race with ifma_protospec being set during
+ * a new allocation, if it does, we have bigger problems.
  */
 static void
 in_purgemaddrs(struct ifnet *ifp)
@@ -1031,8 +1033,13 @@ in_purgemaddrs(struct ifnet *ifp)
 	 */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_INET)
+		if (ifma->ifma_addr->sa_family != AF_INET ||
+		    ifma->ifma_protospec == NULL)
 			continue;
+#if 0
+		KASSERT(ifma->ifma_protospec != NULL,
+		    ("%s: ifma_protospec is NULL", __func__));
+#endif
 		inm = (struct in_multi *)ifma->ifma_protospec;
 		LIST_INSERT_HEAD(&purgeinms, inm, inm_link);
 	}
