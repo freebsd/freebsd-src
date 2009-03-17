@@ -707,8 +707,9 @@ usbd_irpcancel(dobj, ip)
 	device_object		*dobj;
 	irp			*ip;
 {
+	device_t dev = IRP_NDIS_DEV(ip);
+	struct ndis_softc *sc = device_get_softc(dev);
 	struct ndisusb_ep *ne = IRP_NDISUSB_EP(ip);
-	uint8_t irql;
 
 	if (ne == NULL) {
 		ip->irp_cancel = TRUE;
@@ -720,10 +721,10 @@ usbd_irpcancel(dobj, ip)
 	 * Make sure that the current USB transfer proxy is
 	 * cancelled and then restarted.
 	 */
-	KeRaiseIrql(DISPATCH_LEVEL, &irql);
+	NDISUSB_LOCK(sc);
 	usb2_transfer_stop(ne->ne_xfer[0]);
 	usb2_transfer_start(ne->ne_xfer[0]);
-	KeLowerIrql(irql);
+	NDISUSB_UNLOCK(sc);
 
 	ip->irp_cancel = TRUE;
 	IoReleaseCancelSpinLock(ip->irp_cancelirql);
