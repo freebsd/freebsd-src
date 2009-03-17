@@ -501,7 +501,6 @@ main(int argc, char **argv)
 {
 	struct libusb20_backend *pbe;
 	struct options *opt = &options;
-	char *cp;
 	int n;
 	int t;
 
