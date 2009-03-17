@@ -316,6 +316,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		    strcmp(name, "Xtimerint") == 0 ||
 		    strcmp(name, "Xipi_intr_bitmap_handler") == 0 ||
 		    strcmp(name, "Xcpustop") == 0 ||
+		    strcmp(name, "Xcpususpend") == 0 ||
 		    strcmp(name, "Xrendezvous") == 0)
 			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xfast_syscall") == 0)
@@ -327,6 +328,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		/* XXX: These are interrupts with trap frames. */
 		else if (strcmp(name, "Xtimerint") == 0 ||
 		    strcmp(name, "Xcpustop") == 0 ||
+		    strcmp(name, "Xcpususpend") == 0 ||
 		    strcmp(name, "Xrendezvous") == 0 ||
 		    strcmp(name, "Xipi_intr_bitmap_handler") == 0)
 			frame_type = TRAP_INTERRUPT;

@@ -325,9 +325,8 @@ load_dr:
 	movq	%r11,%dr6
 	movq	%rax,%dr7
 	jmp	done_load_dr
-
 END(cpu_switch)
-	
+
 /*
  * savectx(pcb)
  * Update pcb, saving current processor state.
@@ -386,3 +385,74 @@ ENTRY(savectx)
 
 	ret
 END(savectx)
+
+/*
+ * savectx2(xpcb)
+ * Update xpcb, saving current processor state.
+ */
+ENTRY(savectx2)
+	/* Fetch XPCB. */
+	movq	%rdi,%r8
+
+	/* Save caller's return address. */
+	movq	(%rsp),%rax
+	movq	%rax,PCB_RIP(%r8)
+
+	mov	%ds,PCB_DS(%r8)
+	mov	%es,PCB_ES(%r8)
+	mov	%ss,XPCB_SS(%r8)
+	mov	%fs,PCB_FS(%r8)
+	mov	%gs,PCB_GS(%r8)
+
+	movq	%rbx,PCB_RBX(%r8)
+	movq	%rsp,PCB_RSP(%r8)
+	movq	%rbp,PCB_RBP(%r8)
+	movq	%r12,PCB_R12(%r8)
+	movq	%r13,PCB_R13(%r8)
+	movq	%r14,PCB_R14(%r8)
+	movq	%r15,PCB_R15(%r8)
+
+	movq	%cr0,%rax
+	movq	%rax,XPCB_CR0(%r8)
+	movq	%cr2,%rax
+	movq	%rax,XPCB_CR2(%r8)
+	movq	%cr4,%rax
+	movq	%rax,XPCB_CR4(%r8)
+
+	movq	%dr0,%rax
+	movq	%rax,PCB_DR0(%r8)
+	movq	%dr1,%rax
+	movq	%rax,PCB_DR1(%r8)
+	movq	%dr2,%rax
+	movq	%rax,PCB_DR2(%r8)
+	movq	%dr3,%rax
+	movq	%rax,PCB_DR3(%r8)
+	movq	%dr6,%rax
+	movq	%rax,PCB_DR6(%r8)
+	movq	%dr7,%rax
+	movq	%rax,PCB_DR7(%r8)
+
+	sgdt	XPCB_GDT(%r8)
+	sidt	XPCB_IDT(%r8)
+	sldt	XPCB_LDT(%r8)
+	str	XPCB_TR(%r8)
+
+	movl	$MSR_FSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%rax
+	movq	%rax,PCB_FSBASE(%r8)
+	movl	$MSR_GSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%rax
+	movq	%rax,PCB_GSBASE(%r8)
+	movl	$MSR_KGSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%rax
+	movq	%rax,XPCB_KGSBASE(%r8)
+
+	movl	$1, %eax
+	ret
+END(savectx2)

@@ -46,7 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/power.h>
 #include <sys/sbuf.h>
+#ifdef SMP
+#include <sys/sched.h>
+#endif
 #include <sys/smp.h>
+#include <sys/timetc.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/pci_cfgreg.h>
@@ -2274,6 +2278,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     return (acpi_EnterSleepState(sc, state));
 }
 
+#if defined(__amd64__) || defined(__i386__)
 static void
 acpi_sleep_force(void *arg)
 {
@@ -2284,6 +2289,7 @@ acpi_sleep_force(void *arg)
     if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
 	printf("acpi: force sleep state S%d failed\n", sc->acpi_next_sstate);
 }
+#endif
 
 /*
  * Request that the system enter the given suspend state.  All /dev/apm
@@ -2294,7 +2300,9 @@ acpi_sleep_force(void *arg)
 int
 acpi_ReqSleepState(struct acpi_softc *sc, int state)
 {
+#if defined(__i386__)
     struct apm_clone_data *clone;
+#endif
 
     if (state < ACPI_STATE_S1 || state > ACPI_STATE_S5)
 	return (EINVAL);
@@ -2307,11 +2315,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	    return (ENXIO);
     }
 
-#if !defined(__i386__)
-    /* This platform does not support acpi suspend/resume. */
-    return (EOPNOTSUPP);
-#endif
-
+#if defined(__amd64__) || defined(__i386__)
     /* If a suspend request is already in progress, just return. */
     ACPI_LOCK(acpi);
     if (sc->acpi_next_sstate != 0) {
@@ -2321,6 +2325,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 
     /* Record the pending state and notify all apm devices. */
     sc->acpi_next_sstate = state;
+#if defined(__i386__)
     STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
 	clone->notify_status = APM_EV_NONE;
 	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
@@ -2328,6 +2333,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	    KNOTE_UNLOCKED(&clone->sel_read.si_note, 0);
 	}
     }
+#endif
 
     /* If devd(8) is not running, immediately enter the sleep state. */
     if (devctl_process_running() == FALSE) {
@@ -2352,6 +2358,10 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     callout_reset(&sc->susp_force_to, 10 * hz, acpi_sleep_force, sc);
     ACPI_UNLOCK(acpi);
     return (0);
+#else
+    /* This platform does not support acpi suspend/resume. */
+    return (EOPNOTSUPP);
+#endif
 }
 
 /*
@@ -2364,13 +2374,9 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 int
 acpi_AckSleepState(struct apm_clone_data *clone, int error)
 {
+#if defined(__amd64__) || defined(__i386__)
     struct acpi_softc *sc;
     int ret, sleeping;
-
-#if !defined(__i386__)
-    /* This platform does not support acpi suspend/resume. */
-    return (EOPNOTSUPP);
-#endif
 
     /* If no pending sleep state, return an error. */
     ACPI_LOCK(acpi);
@@ -2395,8 +2401,9 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
      * all devices, seeing if they agree yet.  We only count devices that
      * are writable since read-only devices couldn't ack the request.
      */
-    clone->notify_status = APM_EV_ACKED;
     sleeping = TRUE;
+#if defined(__i386__)
+    clone->notify_status = APM_EV_ACKED;
     STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
 	if ((clone->flags & ACPI_EVF_WRITE) != 0 &&
 	    clone->notify_status != APM_EV_ACKED) {
@@ -2404,6 +2411,7 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
 	    break;
 	}
     }
+#endif
 
     /* If all devices have voted "yes", we will suspend now. */
     if (sleeping)
@@ -2414,8 +2422,11 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
 	if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
 		ret = ENODEV;
     }
-
     return (ret);
+#else
+    /* This platform does not support acpi suspend/resume. */
+    return (EOPNOTSUPP);
+#endif
 }
 
 static void
@@ -2459,11 +2470,18 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     sc->acpi_sleep_disabled = 1;
     ACPI_UNLOCK(acpi);
 
+#ifdef SMP
+    thread_lock(curthread);
+    sched_bind(curthread, 0);
+    thread_unlock(curthread);
+#endif
+
     /*
      * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
      * drivers need this.
      */
     mtx_lock(&Giant);
+
     slp_state = ACPI_SS_NONE;
     switch (state) {
     case ACPI_STATE_S1:
@@ -2570,6 +2588,17 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     acpi_UserNotify("Resume", ACPI_ROOT_OBJECT, state);
 
     mtx_unlock(&Giant);
+
+    /* Warm up timecounter again */
+    (void)timecounter->tc_get_timecount(timecounter);
+    (void)timecounter->tc_get_timecount(timecounter);
+
+#ifdef SMP
+    thread_lock(curthread);
+    sched_unbind(curthread);
+    thread_unlock(curthread);
+#endif
+
     return_ACPI_STATUS (status);
 }
 

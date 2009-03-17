@@ -224,6 +224,22 @@ IDTVEC(cpustop)
 	iretq
 
 /*
+ * Executed by a CPU when it receives an IPI_SUSPEND from another CPU.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(cpususpend)
+	PUSH_FRAME
+
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+
+	call	cpususpend_handler
+
+	POP_FRAME
+	iretq
+
+/*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
  *
  * - Calls the generic rendezvous action function.

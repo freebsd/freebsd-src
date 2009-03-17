@@ -69,6 +69,19 @@ hptrr_lib.o			optional	hptrr			\
 #
 amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
+amd64/acpica/acpi_switch.S	optional	acpi
+acpi_wakecode.h			optional acpi		\
+	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
+#
+acpi_wakedata.h			optional acpi		\
+	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakedata.h acpi_wakecode.o acpi_wakecode.bin"
+#
 amd64/acpica/acpi_wakeup.c	optional	acpi
 amd64/acpica/madt.c		optional	acpi
 amd64/amd64/amd64_mem.c		optional	mem
