@@ -1369,9 +1369,23 @@ brelse(struct buf *bp)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
 
+	/*
+	 * If the buffer has junk contents signal it and eventually
+	 * clean up B_DELWRI and diassociate the vnode so that gbincore()
+	 * doesn't find it.
+	 */
+	if (bp->b_bufsize == 0 || (bp->b_ioflags & BIO_ERROR) != 0 ||
+	    (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF)) != 0)
+		bp->b_flags |= B_INVAL;
+	if (bp->b_flags & B_INVAL) {
+		if (bp->b_flags & B_DELWRI)
+			bundirty(bp);
+		if (bp->b_vp)
+			brelvp(bp);
+	}
+
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
-		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 1");
@@ -1384,7 +1398,6 @@ brelse(struct buf *bp)
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
 	    (bp->b_ioflags & BIO_ERROR)) {
-		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 2");
@@ -1405,19 +1418,6 @@ brelse(struct buf *bp)
 			TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
 	}
 	mtx_unlock(&bqlock);
-
-	/*
-	 * If B_INVAL and B_DELWRI is set, clear B_DELWRI.  We have already
-	 * placed the buffer on the correct queue.  We must also disassociate
-	 * the device and vnode for a B_INVAL buffer so gbincore() doesn't
-	 * find it.
-	 */
-	if (bp->b_flags & B_INVAL) {
-		if (bp->b_flags & B_DELWRI)
-			bundirty(bp);
-		if (bp->b_vp)
-			brelvp(bp);
-	}
 
 	/*
 	 * Fixup numfreebuffers count.  The bp is on an appropriate queue
