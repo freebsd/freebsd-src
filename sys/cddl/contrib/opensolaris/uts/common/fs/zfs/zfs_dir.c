@@ -940,6 +940,8 @@ top:
 		/* NB: we already did dmu_tx_wait() if necessary */
 		goto top;
 	}
+	if (error == 0)
+		VOP_UNLOCK(*xvpp, 0);
 
 	return (error);
 }
