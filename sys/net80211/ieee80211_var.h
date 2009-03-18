@@ -229,7 +229,7 @@ struct ieee80211com {
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
 	/* TDMA update notification */
 	void			(*ic_tdma_update)(struct ieee80211_node *,
-				    const struct ieee80211_tdma_param *);
+				    const struct ieee80211_tdma_param *, int);
 	/* node state management */
 	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211vap *,
 				    const uint8_t [IEEE80211_ADDR_LEN]);
