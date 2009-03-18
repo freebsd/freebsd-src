@@ -131,9 +131,9 @@ printgroup(const char *groupname)
 	int			 len, cnt = 0;
 	int			 s;
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
+	s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	if (s == -1)
-		err(1, "socket(AF_INET,SOCK_DGRAM)");
+		err(1, "socket(AF_LOCAL,SOCK_DGRAM)");
 	bzero(&ifgr, sizeof(ifgr));
 	strlcpy(ifgr.ifgr_name, groupname, sizeof(ifgr.ifgr_name));
 	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1) {
