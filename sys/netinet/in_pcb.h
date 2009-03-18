@@ -106,6 +106,12 @@ struct in_conninfo {
 	/* protocol dependent part */
 	struct	in_endpoints inc_ie;
 };
+
+/*
+ * Flags for inc_flags.
+ */
+#define	INC_ISIPV6	0x01
+
 #define inc_isipv6	inc_flags	/* temp compatability */
 #define	inc_fport	inc_ie.ie_fport
 #define	inc_lport	inc_ie.ie_lport

@@ -538,7 +538,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
-	inp->inp_inc.inc_isipv6 = 1;
+	inp->inp_inc.inc_flags |= INC_ISIPV6;
 	if ((error = prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr)) != 0)
 		goto out;
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
