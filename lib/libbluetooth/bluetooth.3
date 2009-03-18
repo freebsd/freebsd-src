@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" Copyright (c) 2003-2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" $Id: bluetooth.3,v 1.5 2003/05/20 23:04:30 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2008
+.Dd February 13, 2009
 .Dt BLUETOOTH 3
 .Os
 .Sh NAME
@@ -73,6 +73,16 @@
 .Fn bt_aton "const char *str" "bdaddr_t *ba"
 .Ft const char *
 .Fn bt_ntoa "const bdaddr_t *ba" "char *str"
+.Ft int
+.Fn bt_devaddr "const char *devname" "bdaddr_t *addr"
+.Ft int
+.Fn bt_devname "char *devname" "const bdaddr_t *addr"
+.Ft int
+.Fn (bt_devenum_cb_t) "int s" "struct bt_devinfo const *di" "void *arg"
+.Ft int
+.Fn bt_devinfo "struct bt_devinfo *di"
+.Ft int
+.Fn bt_devenum "bt_devenum_cb_t *cb" "void *arg"
 .Ft int
 .Fn bdaddr_same "const bdaddr_t *a" "const bdaddr_t *b"
 .Ft int
@@ -197,6 +207,110 @@ It is up to the caller to ensure that provided buffer has enough space.
 If no buffer was provided then internal static buffer will be used.
 .Pp
 The
+.Fn bt_devaddr
+function interprets the specified
+.Fa devname
+string as the address or device name of a Bluetooth device on the local system,
+and places the device address in the provided
+.Fa bdaddr ,
+if any.
+The function returns 1 if the string was successfully interpreted,
+or 0 if the string did not match any local device.
+The
+.Fn bt_devname
+function takes a Bluetooth device address and copies the local device
+name associated with that address into the buffer provided,
+if any.
+Caller must ensure that provided buffer is at least
+.Dv HCI_DEVNAME_SIZE
+characters in size.
+The function returns 1 when the device was found,
+otherwise 0.
+.Pp
+The
+.Fn bt_devinfo
+function populates prodivded
+.Vt bt_devinfo
+structure with the information about given Bluetooth device.
+The caller is expected to pass Bluetooth device name in the
+.Fa devname
+field of the passed
+.Vt bt_devinfo
+structure.
+The function returns 0 when successful,
+otherwise -1.
+The
+.Vt bt_devinfo
+structure is defined as follows
+.Bd -literal -offset indent
+struct bt_devinfo
+{
+        char            devname[HCI_DEVNAME_SIZE];
+
+        uint32_t        state;
+
+        bdaddr_t        bdaddr;
+        uint16_t        _reserved0;
+
+        uint8_t         features[HCI_DEVFEATURES_SIZE];
+
+        /* buffer info */
+        uint16_t        _reserved1;
+        uint16_t        cmd_free;
+        uint16_t        sco_size;
+        uint16_t        sco_pkts;
+        uint16_t        sco_free;
+        uint16_t        acl_size;
+        uint16_t        acl_pkts;
+        uint16_t        acl_free;
+
+        /* stats */
+        uint32_t        cmd_sent;
+        uint32_t        evnt_recv;
+        uint32_t        acl_recv;
+        uint32_t        acl_sent;
+        uint32_t        sco_recv;
+        uint32_t        sco_sent;
+        uint32_t        bytes_recv;
+        uint32_t        bytes_sent;
+
+        /* misc/specific */
+        uint16_t        link_policy_info;
+        uint16_t        packet_type_info;
+        uint16_t        role_switch_info;
+        uint16_t        debug;
+
+        uint8_t         _padding[20];
+};
+.Ed
+.Pp
+The
+.Fn bt_devenum
+function enumerates Bluetooth devices present in the system.
+For every device found,
+the function will call provided
+.Fa cb
+callback function which should be of
+.Vt bt_devenum_cb_t
+type.
+The callback function is passed a
+.Dv HCI
+socket
+.Fa s ,
+fully populated
+.Vt bt_devinfo
+structure
+.Fa di
+and
+.Fa arg
+argument provided to the
+.Fn bt_devenum .
+The callback function can stop enumeration by returning a value
+that is greater than zero.
+The function returns number of successfully enumerated devices,
+or -1 if an error occurred.
+.Pp
+The
 .Fn bdaddr_same ,
 .Fn bdaddr_any
 and
@@ -287,7 +401,8 @@ on EOF or error.
 .Xr getprotobynumber 3 ,
 .Xr herror 3 ,
 .Xr inet_aton 3 ,
-.Xr inet_ntoa 3
+.Xr inet_ntoa 3 ,
+.Xr ng_hci 4
 .Sh CAVEAT
 The
 .Fn bt_gethostent
@@ -312,6 +427,20 @@ The
 function opens and/or rewinds the
 .Pa /etc/bluetooth/protocols
 file.
+.Pp
+The
+.Fn bt_devenum
+function enumerates up to
+.Dv HCI_DEVMAX
+Bluetooth devices.
+During enumeration the
+.Fn bt_devenum
+function uses the same
+.Dv HCI
+socket.
+The function guarantees that the socket,
+passed to the callback function,
+will be bound and connected to the Bluetooth device being enumerated.
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
 .Sh BUGS
