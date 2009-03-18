@@ -1056,13 +1056,14 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	long namelen;
 	ino_t id = 0;
 	int offset, error = 0;
-	int numdirpasses, fsize;
+	int fsize, lkflags, ltype, numdirpasses;
 
 	dvp = a->a_dvp;
 	node = VTON(dvp);
 	udfmp = node->udfmp;
 	nameiop = a->a_cnp->cn_nameiop;
 	flags = a->a_cnp->cn_flags;
+	lkflags = a->a_cnp->cn_lkflags;
 	nameptr = a->a_cnp->cn_nameptr;
 	namelen = a->a_cnp->cn_namelen;
 	fsize = le64toh(node->fentry->inf_len);
@@ -1124,20 +1125,36 @@ lookloop:
 
 	/* Did we have a match? */
 	if (id) {
-		if (flags & ISDOTDOT)
-			VOP_UNLOCK(dvp, 0, a->a_cnp->cn_thread);
-		error = udf_vget(udfmp->im_mountp, id, LK_EXCLUSIVE, &tdp);
-		if (flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, a->a_cnp->cn_thread);
-		if (!error) {
+		/*
+		 * Remember where this entry was if it's the final
+		 * component.
+		 */
+		if ((flags & ISLASTCN) && nameiop == LOOKUP)
+			node->diroff = ds->offset + ds->off;
+		if (numdirpasses == 2)
+			nchstats.ncs_pass2++;
+		udf_closedir(ds);
+
+		if (flags & ISDOTDOT) {
+			error = vn_vget_ino(dvp, id, lkflags, &tdp);
+		} else if (node->hash_id == id) {
+			VREF(dvp);	/* we want ourself, ie "." */
 			/*
-			 * Remember where this entry was if it's the final
-			 * component.
+			 * When we lookup "." we still can be asked to lock it
+			 * differently.
 			 */
-			if ((flags & ISLASTCN) && nameiop == LOOKUP)
-				node->diroff = ds->offset + ds->off;
-			if (numdirpasses == 2)
-				nchstats.ncs_pass2++;
+			ltype = lkflags & LK_TYPE_MASK;
+			if (ltype != VOP_ISLOCKED(dvp, td)) {
+				if (ltype == LK_EXCLUSIVE)
+					vn_lock(dvp, LK_UPGRADE | LK_RETRY, td);
+				else /* if (ltype == LK_SHARED) */
+					vn_lock(dvp, LK_DOWNGRADE | LK_RETRY,
+					    td);
+			}
+			tdp = dvp;
+		} else
+			error = udf_vget(udfmp->im_mountp, id, lkflags, &tdp);
+		if (!error) {
 			*vpp = tdp;
 			/* Put this entry in the cache */
 			if (flags & MAKEENTRY)
@@ -1151,6 +1168,7 @@ lookloop:
 			udf_closedir(ds);
 			goto lookloop;
 		}
+		udf_closedir(ds);
 
 		/* Enter name into cache as non-existant */
 		if (flags & MAKEENTRY)
@@ -1164,7 +1182,6 @@ lookloop:
 		}
 	}
 
-	udf_closedir(ds);
 	return (error);
 }
 
