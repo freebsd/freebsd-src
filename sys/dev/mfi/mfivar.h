@@ -133,6 +133,7 @@ struct mfi_softc {
 #define MFI_FLAGS_STOP		(1<<3)
 #define MFI_FLAGS_1064R		(1<<4)
 #define MFI_FLAGS_1078		(1<<5)
+#define MFI_FLAGS_GEN2		(1<<6)
 
 	struct mfi_hwcomms		*mfi_comms;
 	TAILQ_HEAD(,mfi_command)	mfi_free;
