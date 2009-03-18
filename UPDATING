@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090318:
+	Change IPv6 ephemeral port allocation from sequential to
+	random allocation, like IPv4 has done for more than four years.
+ 	The implementation shares infrastructure with IPv4. This
+	means that there is only one set of sysctls to control both
+	IPv4 and IPv6. See ip(4) man page for details.
+
 20090312:
 	A workaround is committed to allow the creation of System V shared
 	memory segment of size > 2 GB on the 64-bit architectures.
