@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090313: k8temp(4) renamed to amdtemp(4)
+OLD_FILES+=usr/share/man/man4/k8temp.4.gz
 # 20090308: libusb.so.1 renamed
 OLD_LIBS+=usr/lib/libusb20.so.1
 OLD_FILES+=usr/lib/libusb20.a
