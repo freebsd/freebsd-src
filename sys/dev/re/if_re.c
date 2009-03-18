@@ -1149,7 +1149,8 @@ re_attach(device_t dev)
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);
 	}
-	if (msic == RL_MSI_MESSAGES  && msi_disable == 0) {
+	if (msic > 0 && msi_disable == 0) {
+		msic = 1;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI messages\n",
