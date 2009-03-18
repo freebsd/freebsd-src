@@ -317,14 +317,39 @@ void mpt2host_sge_simple_union(SGE_SIMPLE_UNION *);
 void mpt2host_iocfacts_reply(MSG_IOC_FACTS_REPLY *);
 void mpt2host_portfacts_reply(MSG_PORT_FACTS_REPLY *);
 void mpt2host_config_page_ioc2(CONFIG_PAGE_IOC_2 *);
+void mpt2host_config_page_ioc3(CONFIG_PAGE_IOC_3 *);
+void mpt2host_config_page_scsi_port_0(CONFIG_PAGE_SCSI_PORT_0 *);
+void mpt2host_config_page_scsi_port_1(CONFIG_PAGE_SCSI_PORT_1 *);
+void host2mpt_config_page_scsi_port_1(CONFIG_PAGE_SCSI_PORT_1 *);
+void mpt2host_config_page_scsi_port_2(CONFIG_PAGE_SCSI_PORT_2 *);
+void mpt2host_config_page_scsi_device_0(CONFIG_PAGE_SCSI_DEVICE_0 *);
+void mpt2host_config_page_scsi_device_1(CONFIG_PAGE_SCSI_DEVICE_1 *);
+void host2mpt_config_page_scsi_device_1(CONFIG_PAGE_SCSI_DEVICE_1 *);
+void mpt2host_config_page_fc_port_0(CONFIG_PAGE_FC_PORT_0 *);
+void mpt2host_config_page_fc_port_1(CONFIG_PAGE_FC_PORT_1 *);
+void host2mpt_config_page_fc_port_1(CONFIG_PAGE_FC_PORT_1 *);
 void mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *);
+void mpt2host_config_page_raid_phys_disk_0(CONFIG_PAGE_RAID_PHYS_DISK_0 *);
 void mpt2host_mpi_raid_vol_indicator(MPI_RAID_VOL_INDICATOR *);
 #else
 #define	mpt2host_sge_simple_union(x)		do { ; } while (0)
 #define	mpt2host_iocfacts_reply(x)		do { ; } while (0)
 #define	mpt2host_portfacts_reply(x)		do { ; } while (0)
 #define	mpt2host_config_page_ioc2(x)		do { ; } while (0)
+#define	mpt2host_config_page_ioc3(x)		do { ; } while (0)
+#define	mpt2host_config_page_scsi_port_0(x)	do { ; } while (0)
+#define	mpt2host_config_page_scsi_port_1(x)	do { ; } while (0)
+#define	host2mpt_config_page_scsi_port_1(x)	do { ; } while (0)
+#define	mpt2host_config_page_scsi_port_2(x)	do { ; } while (0)
+#define	mpt2host_config_page_scsi_device_0(x)	do { ; } while (0)
+#define	mpt2host_config_page_scsi_device_1(x)	do { ; } while (0)
+#define	host2mpt_config_page_scsi_device_1(x)	do { ; } while (0)
+#define	mpt2host_config_page_fc_port_0(x)	do { ; } while (0)
+#define	mpt2host_config_page_fc_port_1(x)	do { ; } while (0)
+#define	host2mpt_config_page_fc_port_1(x)	do { ; } while (0)
 #define	mpt2host_config_page_raid_vol_0(x)	do { ; } while (0)
+#define	mpt2host_config_page_raid_phys_disk_0(x)			\
+	do { ; } while (0)
 #define	mpt2host_mpi_raid_vol_indicator(x)	do { ; } while (0)
 #endif
 
