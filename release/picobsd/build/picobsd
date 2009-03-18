@@ -284,6 +284,9 @@ build_image() {
     if [ -f ${MY_TREE}/config ] ; then
 	. ${MY_TREE}/config
     fi
+    if [ -f ${o_additional_config} ] ; then
+	. ${o_additional_config}
+    fi
 
     # location of the object directory
     PICO_OBJ=${l_objtree}/picobsd/${THETYPE}
@@ -529,6 +532,32 @@ populate_floppy_fs() {		# OK
     ) || true
 }
 
+# Copy the specified files to the destination filesystem.
+# Each file is specified as a pair "src dst", dst is assumed to be
+# a directory (and created with mkdir -p) if it has a trailing /
+# Be careful to escape metacharacters.
+# You can use ${CROSS} to point to the root of the cross build
+# (remember that it might be incomplete)
+
+do_copyfiles() {	# rootdir varname
+	log Copy files to $1
+	local root=$1
+	local srcs dst
+	local CROSS=${_SHLIBDIRPREFIX}
+	eval set "\${${2}}"
+        srcs=""
+	for dst in $* ; do
+		[ x"$srcs" = x ] && srcs=$dst && continue
+		eval srcs="$srcs"	# expand wildcard and vars
+		case x"$dst" in
+		*/ )	mkdir -p ${root}/${dst} ;;
+		# * )	mkdir -p `dirname ${root}/${dst}` ;;
+		esac
+		cp -p ${srcs} ${root}/${dst} || true
+		srcs=""
+        done
+}
+
 # Populate the memory filesystem with binaries and non-variable
 # configuration files.
 # First do an mtree pass, then create directory links and device entries,
@@ -537,7 +566,7 @@ populate_floppy_fs() {		# OK
 # Finally, if required, make a copy of the floppy.tree onto /fd
 
 populate_mfs_tree() {
-    local a dst MFS_TREE
+    local i j a dst MFS_TREE
 
     log "populate_mfs_tree()"
     dst=${BUILDDIR}/mfs.tree
@@ -552,12 +581,15 @@ populate_mfs_tree() {
     log "Running mtree using $a..."
     mtree -deU -f $a -p ${dst} > /dev/null || fail $? mtree
 
-    # XXX create links
+    # Create symlinks using relative pathnames, so it is possible
+    # to follow them also when building the image.
+    # Note that names in STAND_LINKS should not have a leading /
     for i in ${STAND_LINKS}; do
-	ln -s /stand ${dst}/$i
+	j=`echo $i | sed -E 's:^[^/]+::;s:/[^/]+:../:g'`
+	ln -s ${j}stand ${dst}/$i
     done
-    ln -s /dev/null ${dst}/var/run/log
-    ln -s /etc/termcap ${dst}/usr/share/misc/termcap
+    ln -s ../../dev/null ${dst}/var/run/log
+    ln -s ../../../etc/termcap ${dst}/usr/share/misc/termcap
 
     ### now build the crunched binaries ###
     (
@@ -629,6 +661,13 @@ populate_mfs_tree() {
 	(cd ${dst}; chown -R root . )
     fi
 
+    if [ -n "${copy_files}" ] ; then
+	do_copyfiles ${dst} copy_files
+    fi
+
+    # The 'import_files' mechanism is deprecated, as it requires
+    # root permissions to follow the symlinks, and also does
+    # not let you rename the entries.
     if [ -n "${import_files}" ] ; then
 	log "importing ${import_files} into mfs"
 	# We do it in a chroot environment on the target so
@@ -641,6 +680,7 @@ populate_mfs_tree() {
 	rm -rf ${dst}/rescue
     fi
 
+    # final step -- build the mfs image
     (cd ${BUILDDIR}
 	# override the owner
 	echo "/set uid=0 gid=0" > mtree.out
@@ -914,6 +954,11 @@ while [ true ]; do
 
     --iso) # generate iso image
 	generate_iso="YES"
+	;;
+
+    --cfg) # read additional config from this file
+	o_additional_config=`realpath $2`
+	shift
 	;;
 
     *)
