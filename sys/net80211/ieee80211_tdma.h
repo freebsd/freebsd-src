@@ -33,11 +33,11 @@
  */
 struct ieee80211_tdma_state {
 	u_int	tdma_slotlen;		/* bss slot length (us) */
+	uint8_t	tdma_version;		/* protocol version to use */
 	uint8_t	tdma_slotcnt;		/* bss slot count */
 	uint8_t	tdma_bintval;		/* beacon interval (slots) */
 	uint8_t	tdma_slot;		/* station slot # */
 	uint8_t	tdma_inuse[1];		/* mask of slots in use */
-#define	IEEE80211_TDMA_MAXSLOTS	8
 	void	*tdma_peer;		/* peer station cookie */
 	uint8_t	tdma_active[1];		/* mask of active slots */
 	int	tdma_count;		/* active/inuse countdown */
@@ -49,6 +49,11 @@ struct ieee80211_tdma_state {
 		    struct mbuf *, int, int, int, uint32_t);
 	void	(*tdma_opdetach)(struct ieee80211vap *);
 };
+ 
+#define	TDMA_UPDATE_SLOT	0x0001	/* tdma_slot changed */
+#define	TDMA_UPDATE_SLOTCNT	0x0002	/* tdma_slotcnt changed */
+#define	TDMA_UPDATE_SLOTLEN	0x0004	/* tdma_slotlen changed */
+#define	TDMA_UPDATE_BINTVAL	0x0008	/* tdma_bintval changed */
 
 void	ieee80211_tdma_vattach(struct ieee80211vap *);
 
