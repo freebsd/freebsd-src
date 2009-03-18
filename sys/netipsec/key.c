@@ -2687,7 +2687,10 @@ key_delsah(sah)
 			if (sav->refcnt == 0) {
 				/* sanity check */
 				KEY_CHKSASTATE(state, sav->state, __func__);
-				KEY_FREESAV(&sav);
+				/* do NOT call KEY_FREESAV here: it will only delete the sav if refcnt == 1,
+				 * where we already know that refcnt == 0
+				 */
+				key_delsav(sav);
 			} else {
 				/* give up to delete this sa */
 				zombie++;
@@ -4131,6 +4134,8 @@ key_flush_sad(time_t now)
 
 		/* if LARVAL entry doesn't become MATURE, delete it. */
 		LIST_FOREACH_SAFE(sav, &sah->savtree[SADB_SASTATE_LARVAL], chain, nextsav) {
+			/* Need to also check refcnt for a larval SA ???
+			 */
 			if (now - sav->created > V_key_larval_lifetime)
 				KEY_FREESAV(&sav);
 		}
