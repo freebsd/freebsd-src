@@ -98,7 +98,7 @@ ieee80211_input_all(struct ieee80211com *ic,
 }
 
 /*
- * This function reassemble fragments.
+ * This function reassembles fragments.
  *
  * XXX should handle 3 concurrent reassemblies per-spec.
  */
