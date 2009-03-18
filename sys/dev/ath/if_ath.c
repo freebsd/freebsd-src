@@ -225,7 +225,7 @@ static void	ath_tdma_bintvalsetup(struct ath_softc *sc,
 		    const struct ieee80211_tdma_state *tdma);
 static void	ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap);
 static void	ath_tdma_update(struct ieee80211_node *ni,
-		    const struct ieee80211_tdma_param *tdma);
+		    const struct ieee80211_tdma_param *tdma, int);
 static void	ath_tdma_beacon_send(struct ath_softc *sc,
 		    struct ieee80211vap *vap);
 
@@ -7477,7 +7477,7 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
  */
 static void
 ath_tdma_update(struct ieee80211_node *ni,
-	const struct ieee80211_tdma_param *tdma)
+	const struct ieee80211_tdma_param *tdma, int changed)
 {
 #define	TSF_TO_TU(_h,_l) \
 	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
@@ -7498,7 +7498,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 	/*
 	 * Check for and adopt configuration changes.
 	 */
-	if (isset(ATH_VAP(vap)->av_boff.bo_flags, IEEE80211_BEACON_TDMA)) {
+	if (changed != 0) {
 		const struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 		ath_tdma_bintvalsetup(sc, ts);
