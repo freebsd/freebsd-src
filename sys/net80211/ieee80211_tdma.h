@@ -38,9 +38,11 @@ struct ieee80211_tdma_state {
 	uint8_t	tdma_bintval;		/* beacon interval (slots) */
 	uint8_t	tdma_slot;		/* station slot # */
 	uint8_t	tdma_inuse[1];		/* mask of slots in use */
-	void	*tdma_peer;		/* peer station cookie */
 	uint8_t	tdma_active[1];		/* mask of active slots */
 	int	tdma_count;		/* active/inuse countdown */
+	void	*tdma_peer;		/* peer station cookie */
+	struct timeval tdma_lastprint;	/* time of last rate-limited printf */
+	int	tdma_fails;		/* fail count for rate-limiting */
 
 	/* parent method pointers */
 	int	(*tdma_newstate)(struct ieee80211vap *, enum ieee80211_state,
