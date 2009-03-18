@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahipCPU]'
+  echo 'Usage: mergemaster [-scrvahipFCPU]'
   echo '    [-m /path] [-t /path] [-d] [-u N] [-w N] [-A arch] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -26,6 +26,7 @@ display_usage () {
   echo "  -h  Display more complete help"
   echo '  -i  Automatically install files that do not exist in destination directory'
   echo '  -p  Pre-buildworld mode, only compares crucial files'
+  echo '  -F  Install files that differ only by revision control Id ($FreeBSD$)'
   echo '  -C  Compare local rc.conf variables to the defaults'
   echo '  -P  Preserve files that are overwritten'
   echo "  -U  Attempt to auto upgrade files that have not been user modified"
@@ -264,10 +265,13 @@ MTREEFILE="${MTREEDB}/mergemaster.mtree"
 
 # Check the command line options
 #
-while getopts ":ascrvhipCPm:t:du:w:D:A:U" COMMAND_LINE_ARGUMENT ; do
+while getopts ":ascrvhipCPm:t:du:w:D:A:FU" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
   A)
     ARCHSTRING='TARGET_ARCH='${OPTARG}
+    ;;
+  F)
+    FREEBSD_ID=yes
     ;;
   U)
     AUTO_UPGRADE=yes
@@ -1021,6 +1025,19 @@ for COMPFILE in `find . -type f -size +0`; do
       # Use more if not.
       # Use unified diffs by default.  Context diffs give me a headache. :)
       #
+      # If the user chose the -F option, test for that before proceeding
+      #
+      if [ -n "$FREEBSD_ID" ]; then
+        if diff -q -I'[$]FreeBSD:.*$' "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > \
+            /dev/null 2>&1; then
+          if mm_install "${COMPFILE}"; then
+            echo "*** Updated revision control Id for ${DESTDIR}${COMPFILE#.}"
+          else
+            echo "*** Problem installing ${COMPFILE}, it will remain to merge by hand later"
+          fi
+          continue
+        fi
+      fi
       case "${AUTO_RUN}" in
       '')
         # prompt user to install/delete/merge changes
