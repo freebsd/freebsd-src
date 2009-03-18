@@ -1510,7 +1510,7 @@ coda_readdir(struct vop_readdir_args *ap)
 	 */
 	CODADEBUG(CODA_READDIR, myprintf(("indirect readdir: fid = %s, "
 	    "refcnt = %d\n", coda_f2s(&cp->c_fid), vp->v_usecount)););
-	vn_lock(cp->c_ovp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(cp->c_ovp, LK_SHARED | LK_RETRY, td);
 	error = VOP_READDIR(cp->c_ovp, uiop, cred, eofflag, ncookies,
 	    cookies);
 	VOP_UNLOCK(cp->c_ovp, 0, td);

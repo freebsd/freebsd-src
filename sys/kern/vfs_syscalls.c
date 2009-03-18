@@ -3665,7 +3665,7 @@ unionread:
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_resid = uap->count;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
 	error = mac_check_vnode_readdir(td->td_ucred, vp);
@@ -3824,8 +3824,7 @@ unionread:
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_resid = count;
-	/* vn_lock(vp, LK_SHARED | LK_RETRY, td); */
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
