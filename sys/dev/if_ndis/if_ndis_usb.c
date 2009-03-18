@@ -210,6 +210,10 @@ ndisusb_detach(device_t self)
 
 	ndis_pnpevent_nic(self, NDIS_PNP_EVENT_SURPRISE_REMOVED);
 
+	if (sc->ndisusb_status & NDISUSB_STATUS_SETUP_EP) {
+		usb2_transfer_unsetup(sc->ndisusb_dread_ep.ne_xfer, 1);
+		usb2_transfer_unsetup(sc->ndisusb_dwrite_ep.ne_xfer, 1);
+	}
 	for (i = 0; i < NDISUSB_ENDPT_MAX; i++) {
 		ne = &sc->ndisusb_ep[i];
 		usb2_transfer_unsetup(ne->ne_xfer, 1);
