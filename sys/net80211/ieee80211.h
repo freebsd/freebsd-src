@@ -1077,15 +1077,27 @@ struct ieee80211_duration {
 #define	ATH_FF_SNAP_ORGCODE_1	0x03
 #define	ATH_FF_SNAP_ORGCODE_2	0x7f
 
+/* NB: Atheros allocated the OUI for this purpose ~2005 but beware ... */
+#define	TDMA_OUI		ATH_OUI
+#define	TDMA_OUI_TYPE		0x02
+#define	TDMA_VERSION_V2		2
+#define	TDMA_VERSION		TDMA_VERSION_V2
+
+/* NB: we only support 2 right now but protocol handles up to 8 */
+#define	TDMA_MAXSLOTS		2	/* max slots/sta's */
+
+#define	TDMA_PARAM_LEN_V2	sizeof(struct ieee80211_tdma_param)
+
 struct ieee80211_tdma_param {
 	u_int8_t	tdma_id;	/* IEEE80211_ELEMID_VENDOR */
 	u_int8_t	tdma_len;
 	u_int8_t	tdma_oui[3];	/* 0x00, 0x03, 0x7f */
 	u_int8_t	tdma_type;	/* OUI type */
 	u_int8_t	tdma_subtype;	/* OUI subtype */
+#define	TDMA_SUBTYPE_PARAM	0x01
 	u_int8_t	tdma_version;	/* spec revision */
-	u_int8_t	tdma_slot;	/* station slot # */
-	u_int8_t	tdma_slotcnt;	/* bss slot count */
+	u_int8_t	tdma_slot;	/* station slot # [0..7] */
+	u_int8_t	tdma_slotcnt;	/* bss slot count [1..8] */
 	u_int16_t	tdma_slotlen;	/* bss slot len (100us) */
 	u_int8_t	tdma_bintval;	/* beacon interval (superframes) */
 	u_int8_t	tdma_inuse[1];	/* slot occupancy map */
@@ -1093,10 +1105,14 @@ struct ieee80211_tdma_param {
 	u_int8_t	tdma_tstamp[8];	/* timestamp from last beacon */
 } __packed;
 
-/* NB: Atheros allocated the OUI for this purpose ~3 years ago but beware ... */
-#define	TDMA_OUI		ATH_OUI
-#define	TDMA_OUI_TYPE		0x02
-#define	TDMA_SUBTYPE_PARAM	0x01
-#define	TDMA_VERSION		2
+#define	TDMA_VERSION_VALID(_version) \
+	(TDMA_VERSION_V2 <= (_version) && (_version) <= TDMA_VERSION)
+#define	TDMA_SLOTCNT_VALID(_slotcnt) \
+	(2 <= (_slotcnt) && (_slotcnt) <= TDMA_MAXSLOTS)
+/* XXX magic constants */
+#define	TDMA_SLOTLEN_VALID(_slotlen) \
+	(2*100 <= (_slotlen) && (unsigned)(_slotlen) <= 0xfffff)
+/* XXX probably should set a max */
+#define	TDMA_BINTVAL_VALID(_bintval)	(1 <= (_bintval))
 
 #endif /* _NET80211_IEEE80211_H_ */

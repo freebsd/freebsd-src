@@ -142,6 +142,7 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 		return;
 	}
 	/* NB: default configuration is passive so no beacons */
+	ts->tdma_version = TDMA_VERSION;
 	ts->tdma_slotlen = TDMA_SLOTLEN_DEFAULT;
 	ts->tdma_slotcnt = TDMA_SLOTCNT_DEFAULT;
 	ts->tdma_bintval = TDMA_BINTVAL_DEFAULT;
@@ -371,71 +372,90 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
  * a TDMA information element.  The sender's identity
  * is provided so we can track who our peer is.  If pickslot
  * is non-zero we scan the slot allocation state in the ie
- * locate a free slot for our use.
+ * to locate a free slot for our use.
  */
 static int
 tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	struct ieee80211_node *ni, int pickslot)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
-	int slotlen, slotcnt, slot, bintval;
+	int slot, slotlen, update;
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
 	     ("not a tdma vap, caps 0x%x", vap->iv_caps));
 
-	slotlen = le16toh(tdma->tdma_slotlen);
-	slotcnt = tdma->tdma_slotcnt;
-	bintval = tdma->tdma_bintval;
-
-	/* XXX rate-limit printf's */
-	if (!(2 <= slotcnt && slotcnt <= IEEE80211_TDMA_MAXSLOTS)) {
-		printf("%s: bogus slot cnt %u\n", __func__, slotcnt);
-		return 0;
-	}
-	/* XXX magic constants */
-	if (slotlen < 2 || slotlen > (0xfffff/100)) {
-		printf("%s: bogus slot len %u\n", __func__, slotlen);
-		return 0;
-	}
-	if (bintval < 1) {
-		printf("%s: bogus beacon interval %u\n", __func__, bintval);
-		return 0;
-	}
+	update = 0;
+	if (tdma->tdma_slotcnt != ts->tdma_slotcnt) {
+		if (!TDMA_SLOTCNT_VALID(tdma->tdma_slotcnt)) {
+			printf("%s: bad slot cnt %u\n",
+			    __func__, tdma->tdma_slotcnt);
+			return 0;
+		}
+		update |= TDMA_UPDATE_SLOTCNT;
+ 	}
+	slotlen = le16toh(tdma->tdma_slotlen) * 100;
+	if (slotlen != ts->tdma_slotlen) {
+		if (!TDMA_SLOTLEN_VALID(slotlen)) {
+			printf("%s: bad slot len %u\n",
+			    __func__, slotlen);
+			return 0;
+		}
+		update |= TDMA_UPDATE_SLOTLEN;
+ 	}
+	if (tdma->tdma_bintval != ts->tdma_bintval) {
+		if (!TDMA_BINTVAL_VALID(tdma->tdma_bintval)) {
+			printf("%s: bad beacon interval %u\n",
+			    __func__, tdma->tdma_bintval);
+			return 0;
+		}
+		update |= TDMA_UPDATE_BINTVAL;
+ 	}
+	slot = ts->tdma_slot;
 	if (pickslot) {
 		/*
 		 * Pick unoccupied slot.  Note we never choose slot 0.
 		 */
-		for (slot = slotcnt-1; slot > 0; slot--)
+		for (slot = tdma->tdma_slotcnt-1; slot > 0; slot--)
 			if (isclr(tdma->tdma_inuse, slot))
 				break;
 		if (slot <= 0) {
 			printf("%s: no free slot, slotcnt %u inuse: 0x%x\n",
-				__func__, slotcnt, tdma->tdma_inuse[0]);
+				__func__, tdma->tdma_slotcnt,
+				tdma->tdma_inuse[0]);
 			/* XXX need to do something better */
 			return 0;
 		}
-	} else
-		slot = ts->tdma_slot;
+		if (slot != ts->tdma_slot)
+			update |= TDMA_UPDATE_SLOT;
+	}
+	if (ni != ts->tdma_peer) {
+		/* update everything */
+		update = TDMA_UPDATE_SLOT
+		       | TDMA_UPDATE_SLOTCNT
+		       | TDMA_UPDATE_SLOTLEN
+		       | TDMA_UPDATE_BINTVAL;
+	}
 
-	if (slotcnt != ts->tdma_slotcnt ||
-	    100*slotlen != ts->tdma_slotlen ||
-	    bintval != ts->tdma_bintval ||
-	    slot != ts->tdma_slot ||
-	    ts->tdma_peer != ni) {
+	if (update) {
 		/*
 		 * New/changed parameters; update runtime state.
 		 */
 		/* XXX overwrites user parameters */
-		ts->tdma_slotcnt = slotcnt;
-		ts->tdma_slotlen = 100*slotlen;
-		ts->tdma_slot = slot;
-		ts->tdma_bintval = bintval;
+		if (update & TDMA_UPDATE_SLOTCNT)
+			ts->tdma_slotcnt = tdma->tdma_slotcnt;
+		if (update & TDMA_UPDATE_SLOTLEN)
+			ts->tdma_slotlen = slotlen;
+		if (update & TDMA_UPDATE_SLOT)
+			ts->tdma_slot = slot;
+		if (update & TDMA_UPDATE_BINTVAL)
+			ts->tdma_bintval = tdma->tdma_bintval;
 		/* mark beacon to be updated before next xmit */
 		ieee80211_beacon_notify(vap, IEEE80211_BEACON_TDMA);
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_TDMA,
 		    "%s: slot %u slotcnt %u slotlen %u us bintval %u\n",
-		    __func__, slot, slotcnt, 100*slotlen, tdma->tdma_bintval);
+		    __func__, ts->tdma_slot, ts->tdma_slotcnt,
+		    100*ts->tdma_slotlen, ts->tdma_bintval);
 	}
 	/*
 	 * Notify driver.  Note we can be called before
@@ -445,7 +465,7 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	 * has been setup.  The next beacon will dtrt.
 	 */
 	if (vap->iv_state == IEEE80211_S_RUN)
-		vap->iv_ic->ic_tdma_update(ni, tdma);
+		vap->iv_ic->ic_tdma_update(ni, tdma, update);
 	/*
 	 * Dispatch join event on first beacon from new master.
 	 */
@@ -481,10 +501,23 @@ tdma_process_params(struct ieee80211_node *ni,
 		    wh, "tdma", "too short, len %u", len);
 		return IEEE80211_REASON_IE_INVALID;
 	}
-	if (tdma->tdma_version != TDMA_VERSION) {
+	if (tdma->tdma_version != ts->tdma_version) {
 		IEEE80211_DISCARD_IE(vap,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA,
-		    wh, "tdma", "bad version %u", tdma->tdma_version);
+		    wh, "tdma", "bad version %u (ours %u)",
+		    tdma->tdma_version, ts->tdma_version);
+		return IEEE80211_REASON_IE_INVALID;
+	}
+ 	/*
+	 * NB: ideally we'd check against tdma_slotcnt, but that
+	 * would require extra effort so do this easy check that
+	 * covers the work below; more stringent checks are done
+	 * before we make more extensive use of the ie contents.
+	 */
+	if (tdma->tdma_slot >= TDMA_MAXSLOTS) {
+		IEEE80211_DISCARD_IE(vap,
+		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA,
+		    wh, "tdma", "invalid slot %u", tdma->tdma_slot);
 		return IEEE80211_REASON_IE_INVALID;
 	}
 	/*
@@ -612,7 +645,7 @@ ieee80211_add_tdma(uint8_t *frm, struct ieee80211vap *vap)
 		.tdma_subtype	= TDMA_SUBTYPE_PARAM,
 		.tdma_version	= TDMA_VERSION,
 	};
-	const struct ieee80211_tdma_state *tdma = vap->iv_tdma;
+	const struct ieee80211_tdma_state *ts = vap->iv_tdma;
 	uint16_t slotlen;
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
@@ -620,13 +653,13 @@ ieee80211_add_tdma(uint8_t *frm, struct ieee80211vap *vap)
 
 	memcpy(frm, &param, sizeof(param));
 	frm += __offsetof(struct ieee80211_tdma_param, tdma_slot);
-	*frm++ = tdma->tdma_slot;
-	*frm++ = tdma->tdma_slotcnt;
+	*frm++ = ts->tdma_slot;
+	*frm++ = ts->tdma_slotcnt;
 	/* NB: convert units to fit in 16-bits */
-	slotlen = tdma->tdma_slotlen / 100;	/* 100us units */
+	slotlen = ts->tdma_slotlen / 100;	/* 100us units */
 	ADDSHORT(frm, slotlen);
-	*frm++ = tdma->tdma_bintval;
-	*frm++ = tdma->tdma_inuse[0];
+	*frm++ = ts->tdma_bintval;
+	*frm++ = ts->tdma_inuse[0];
 	frm += 10;				/* pad+timestamp */
 	return frm; 
 #undef ADDSHORT
@@ -717,8 +750,7 @@ ieee80211_tdma_ioctl_set80211(struct ieee80211vap *vap,
 		}
 		break;
 	case IEEE80211_IOC_TDMA_SLOTCNT:
-		if (!(2 <= ireq->i_val &&
-		      ireq->i_val <= IEEE80211_TDMA_MAXSLOTS))
+		if (!TDMA_SLOTCNT_VALID(ireq->i_val))
 			return EINVAL;
 		if (ireq->i_val != ts->tdma_slotcnt) {
 			ts->tdma_slotcnt = ireq->i_val;
@@ -732,7 +764,7 @@ ieee80211_tdma_ioctl_set80211(struct ieee80211vap *vap,
 		 * 0xfffff is the max duration for bursting
 		 * (implict by way of 16-bit data type for i_val)
 		 */
-		if (ireq->i_val < 150)
+		if (!TDMA_SLOTLEN_VALID(ireq->i_val))
 			return EINVAL;
 		if (ireq->i_val != ts->tdma_slotlen) {
 			ts->tdma_slotlen = ireq->i_val;
@@ -740,7 +772,7 @@ ieee80211_tdma_ioctl_set80211(struct ieee80211vap *vap,
 		}
 		break;
 	case IEEE80211_IOC_TDMA_BINTERVAL:
-		if (ireq->i_val < 1)
+		if (!TDMA_BINTVAL_VALID(ireq->i_val))
 			return EINVAL;
 		if (ireq->i_val != ts->tdma_bintval) {
 			ts->tdma_bintval = ireq->i_val;
