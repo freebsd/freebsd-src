@@ -387,8 +387,9 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	update = 0;
 	if (tdma->tdma_slotcnt != ts->tdma_slotcnt) {
 		if (!TDMA_SLOTCNT_VALID(tdma->tdma_slotcnt)) {
-			printf("%s: bad slot cnt %u\n",
-			    __func__, tdma->tdma_slotcnt);
+			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
+				printf("%s: bad slot cnt %u\n",
+				    __func__, tdma->tdma_slotcnt);
 			return 0;
 		}
 		update |= TDMA_UPDATE_SLOTCNT;
@@ -396,16 +397,18 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	slotlen = le16toh(tdma->tdma_slotlen) * 100;
 	if (slotlen != ts->tdma_slotlen) {
 		if (!TDMA_SLOTLEN_VALID(slotlen)) {
-			printf("%s: bad slot len %u\n",
-			    __func__, slotlen);
+			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
+				printf("%s: bad slot len %u\n",
+				    __func__, slotlen);
 			return 0;
 		}
 		update |= TDMA_UPDATE_SLOTLEN;
  	}
 	if (tdma->tdma_bintval != ts->tdma_bintval) {
 		if (!TDMA_BINTVAL_VALID(tdma->tdma_bintval)) {
-			printf("%s: bad beacon interval %u\n",
-			    __func__, tdma->tdma_bintval);
+			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
+				printf("%s: bad beacon interval %u\n",
+				    __func__, tdma->tdma_bintval);
 			return 0;
 		}
 		update |= TDMA_UPDATE_BINTVAL;
