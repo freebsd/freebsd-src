@@ -118,7 +118,6 @@ ip1000phy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = ip1000phy_service;
 	sc->mii_pdata = mii;
-	sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 	sc->mii_flags |= MIIF_NOISOLATE;
 
 	mii->mii_instance++;
@@ -126,37 +125,14 @@ ip1000phy_attach(device_t dev)
 	isc->model = MII_MODEL(ma->mii_id2);
 	isc->revision = MII_REV(ma->mii_id2);
 
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
 
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst),
-	    IP1000PHY_BMCR_10);
-	printf("10baseT, ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
-	    IP1000PHY_BMCR_10 | IP1000PHY_BMCR_FDX);
-	printf("10baseT-FDX, ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst),
-	    IP1000PHY_BMCR_100);
-	printf("100baseTX, ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
-	    IP1000PHY_BMCR_100 | IP1000PHY_BMCR_FDX);
-	printf("100baseTX-FDX, ");
-	/* 1000baseT half-duplex, really supported? */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0, sc->mii_inst),
-	    IP1000PHY_BMCR_1000);
-	printf("1000baseTX, ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX, sc->mii_inst),
-	    IP1000PHY_BMCR_1000 | IP1000PHY_BMCR_FDX);
-	printf("1000baseTX-FDX, ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
-	printf("auto\n");
-#undef ADD
-
 	ip1000phy_reset(sc);
+	mii_phy_add_media(sc);
+	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return(0);
