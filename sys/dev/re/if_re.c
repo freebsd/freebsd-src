@@ -158,6 +158,8 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 /* Tunables. */
 static int msi_disable = 0;
 TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+static int prefer_iomap = 0;
+TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 
 #define RE_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
 
@@ -1118,25 +1120,35 @@ re_attach(device_t dev)
 	pci_enable_busmaster(dev);
 
 	devid = pci_get_device(dev);
-	/* Prefer memory space register mapping over IO space. */
-	sc->rl_res_id = PCIR_BAR(1);
-	sc->rl_res_type = SYS_RES_MEMORY;
-	/* RTL8168/8101E seems to use different BARs. */
-	if (devid == RT_DEVICEID_8168 || devid == RT_DEVICEID_8101E)
-		sc->rl_res_id = PCIR_BAR(2);
+	/*
+	 * Prefer memory space register mapping over IO space.
+	 * Because RTL8169SC does not seem to work when memory mapping
+	 * is used always activate io mapping. 
+	 */
+	if (devid == RT_DEVICEID_8169SC)
+		prefer_iomap = 1;
+	if (prefer_iomap == 0) {
+		sc->rl_res_id = PCIR_BAR(1);
+		sc->rl_res_type = SYS_RES_MEMORY;
+		/* RTL8168/8101E seems to use different BARs. */
+		if (devid == RT_DEVICEID_8168 || devid == RT_DEVICEID_8101E)
+			sc->rl_res_id = PCIR_BAR(2);
+	} else {
+		sc->rl_res_id = PCIR_BAR(0);
+		sc->rl_res_type = SYS_RES_IOPORT;
+	}
 	sc->rl_res = bus_alloc_resource_any(dev, sc->rl_res_type,
 	    &sc->rl_res_id, RF_ACTIVE);
-
-	if (sc->rl_res == NULL) {
+	if (sc->rl_res == NULL && prefer_iomap == 0) {
 		sc->rl_res_id = PCIR_BAR(0);
 		sc->rl_res_type = SYS_RES_IOPORT;
 		sc->rl_res = bus_alloc_resource_any(dev, sc->rl_res_type,
 		    &sc->rl_res_id, RF_ACTIVE);
-		if (sc->rl_res == NULL) {
-			device_printf(dev, "couldn't map ports/memory\n");
-			error = ENXIO;
-			goto fail;
-		}
+	}
+	if (sc->rl_res == NULL) {
+		device_printf(dev, "couldn't map ports/memory\n");
+		error = ENXIO;
+		goto fail;
 	}
 
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
