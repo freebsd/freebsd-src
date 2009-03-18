@@ -353,6 +353,9 @@ ip1000phy_status(struct mii_softc *sc)
 		case IP1000PHY_LSR_SPEED_1000:
 			mii->mii_media_active |= IFM_1000_T;
 			break;
+		default:
+			mii->mii_media_active |= IFM_NONE;
+			return;
 		}
 		if ((stat & IP1000PHY_LSR_FULL_DUPLEX) != 0)
 			mii->mii_media_active |= IFM_FDX;
@@ -373,6 +376,9 @@ ip1000phy_status(struct mii_softc *sc)
 		case PC_LinkSpeed_1000:
 			mii->mii_media_active |= IFM_1000_T;
 			break;
+		default:
+			mii->mii_media_active |= IFM_NONE;
+			return;
 		}
 		if ((stat & PC_PhyDuplexStatus) != 0)
 			mii->mii_media_active |= IFM_FDX;
