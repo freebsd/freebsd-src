@@ -70,7 +70,7 @@ $ EMLINK
 $ EPIPE
 32 pipe quebrado
 $ EDOM
-33 Arqumento numérico fora do domínio
+33 Argumento numérico fora do domínio
 $ ERANGE
 34 Resultado muito grande
 $ EAGAIN, EWOULDBLOCK
