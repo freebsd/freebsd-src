@@ -380,8 +380,10 @@ ae_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0) {
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 		sc->flags |= AE_FLAG_PMG;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1329,6 +1331,7 @@ ae_pm_init(ae_softc_t *sc)
 	struct ifnet *ifp;
 	uint32_t val;
 	uint16_t pmstat;
+	struct mii_data *mii;
 	int pmc;
 
 	AE_LOCK_ASSERT(sc);
@@ -1340,7 +1343,40 @@ ae_pm_init(ae_softc_t *sc)
 		return;
 	}
 
-	ae_powersave_enable(sc);
+	/*
+	 * Configure WOL if enabled.
+	 */
+	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+		mii = device_get_softc(sc->miibus);
+		mii_pollstat(mii);
+		if ((mii->mii_media_status & IFM_AVALID) != 0 &&
+		    (mii->mii_media_status & IFM_ACTIVE) != 0) {
+			AE_WRITE_4(sc, AE_WOL_REG, AE_WOL_MAGIC | \
+			    AE_WOL_MAGIC_PME);
+
+			/*
+			 * Configure MAC.
+			 */
+			val = AE_MAC_RX_EN | AE_MAC_CLK_PHY | \
+			    AE_MAC_TX_CRC_EN | AE_MAC_TX_AUTOPAD | \
+			    ((AE_HALFBUF_DEFAULT << AE_HALFBUF_SHIFT) & \
+			    AE_HALFBUF_MASK) | \
+			    ((AE_MAC_PREAMBLE_DEFAULT << \
+			    AE_MAC_PREAMBLE_SHIFT) & AE_MAC_PREAMBLE_MASK) | \
+			    AE_MAC_BCAST_EN | AE_MAC_MCAST_EN;
+			if ((IFM_OPTIONS(mii->mii_media_active) & \
+			    IFM_FDX) != 0)
+				val |= AE_MAC_FULL_DUPLEX;
+			AE_WRITE_4(sc, AE_MAC_REG, val);
+			    
+		} else {	/* No link. */
+			AE_WRITE_4(sc, AE_WOL_REG, AE_WOL_LNKCHG | \
+			    AE_WOL_LNKCHG_PME);
+			AE_WRITE_4(sc, AE_MAC_REG, 0);
+		}
+	} else {
+		ae_powersave_enable(sc);
+	}
 
 	/*
 	 * PCIE hacks. Magic numbers.
@@ -1358,6 +1394,8 @@ ae_pm_init(ae_softc_t *sc)
 	pci_find_extcap(sc->dev, PCIY_PMG, &pmc);
 	pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 	pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 }
 
