@@ -255,6 +255,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_impl = VER_IMPL(rdpr(ver));
 
 	/*
+	 * Do CPU-specific Initialization.
+	 */
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+		cheetah_init();
+
+	/*
 	 * Clear (S)TICK timer (including NPT).
 	 */
 	tick_clear();

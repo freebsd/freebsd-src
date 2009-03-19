@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder.
+ * Copyright (c) 2005, 2008 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,9 +40,60 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/cache.h>
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/dcr.h>
+#include <machine/lsu.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
+#include <machine/ver.h>
+#include <machine/vmparam.h>
+
+/* A FLUSH is required after changing LSU_IC (the address is ignored). */
+#define	CHEETAH_FLUSH_LSU_IC()	__asm __volatile("flush %%g0" : :)
+
+#define	CHEETAH_ICACHE_TAG_LOWER	0x30
+
+/*
+ * CPU-specific initialization
+ */
+void
+cheetah_init(void)
+{
+	register_t s;
+
+	/*
+	 * Disable interrupts for safety, this shouldn't be actually
+	 * necessary though.
+	 */
+	s = intr_disable();
+
+	/*
+	 * Ensure DCR_IFPOE is disabled as long as we haven't implemented
+	 * support for it (if ever) as most if not all firmware versions
+	 * apparently turn it on.  Not making use of DCR_IFPOE should also
+	 * avoid Cheetah erratum #109.
+	 */
+	wr(asr18, rd(asr18) & ~DCR_IFPOE, 0);
+
+	/* Ensure the TSB Extension Registers hold 0 as TSB_Base. */
+
+	stxa(AA_DMMU_TSB_PEXT_REG, ASI_DMMU, 0);
+	stxa(AA_IMMU_TSB_PEXT_REG, ASI_IMMU, 0);
+	membar(Sync);
+
+	stxa(AA_DMMU_TSB_SEXT_REG, ASI_DMMU, 0);
+	/*
+	 * NB: the secondary context was removed from the iMMU.
+	 */
+	membar(Sync);
+
+	stxa(AA_DMMU_TSB_NEXT_REG, ASI_DMMU, 0);
+	stxa(AA_IMMU_TSB_NEXT_REG, ASI_IMMU, 0);
+	membar(Sync);
+
+	intr_restore(s);
+}
 
 /*
  * Enable level 1 caches.
@@ -49,7 +101,15 @@ __FBSDID("$FreeBSD$");
 void
 cheetah_cache_enable(void)
 {
+	u_long lsu;
 
+	lsu = ldxa(0, ASI_LSU_CTL_REG);
+	if (cpu_impl == CPU_IMPL_ULTRASPARCIII) {
+		/* Disable P$ due to Cheetah erratum #18. */
+		lsu &= ~LSU_PE;
+	}
+	stxa(0, ASI_LSU_CTL_REG, lsu | LSU_IC | LSU_DC);
+	CHEETAH_FLUSH_LSU_IC();
 }
 
 /*
@@ -58,7 +118,22 @@ cheetah_cache_enable(void)
 void
 cheetah_cache_flush(void)
 {
+	u_long addr, lsu;
 
+	for (addr = 0; addr < PCPU_GET(cache.dc_size);
+	    addr += PCPU_GET(cache.dc_linesize))
+		stxa_sync(addr, ASI_DCACHE_TAG, 0);
+
+	/* The I$ must be disabled when flushing it so ensure it's off. */
+	lsu = ldxa(0, ASI_LSU_CTL_REG);
+	stxa(0, ASI_LSU_CTL_REG, lsu & ~(LSU_IC));
+	CHEETAH_FLUSH_LSU_IC();
+	for (addr = CHEETAH_ICACHE_TAG_LOWER;
+	    addr < PCPU_GET(cache.ic_size) * 2;
+	    addr += PCPU_GET(cache.ic_linesize) * 2)
+		stxa_sync(addr, ASI_ICACHE_TAG, 0);
+	stxa(0, ASI_LSU_CTL_REG, lsu);
+	CHEETAH_FLUSH_LSU_IC();
 }
 
 /*
@@ -87,6 +162,12 @@ cheetah_icache_page_inval(vm_paddr_t pa)
 
 }
 
+#define	cheetah_dmap_all() do {						\
+	stxa(TLB_DEMAP_ALL, ASI_DMMU_DEMAP, 0);				\
+	stxa(TLB_DEMAP_ALL, ASI_IMMU_DEMAP, 0);				\
+	flush(KERNBASE);						\
+} while (0)
+
 /*
  * Flush all non-locked mappings from the TLB.
  */
@@ -94,15 +175,20 @@ void
 cheetah_tlb_flush_nonlocked(void)
 {
 
-	panic("cheetah_tlb_flush_nonlocked");
+	cheetah_dmap_all();
 }
 
 /*
  * Flush all user mappings from the TLB.
  */
 void
-cheetah_tlb_flush_user(void)
+cheetah_tlb_flush_user()
 {
 
-	panic("cheetah_tlb_flush_user");
+	/*
+	 * Just use cheetah_dmap_all() and accept somes TLB misses
+	 * rather than searching all 1040 D-TLB and 144 I-TLB slots
+	 * for non-kernel mappings.
+	 */
+	cheetah_dmap_all();
 }
