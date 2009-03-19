@@ -111,6 +111,7 @@ static struct mtx intrcnt_lock;
 static int assign_cpu;
 
 static void intr_assign_next_cpu(struct intr_vector *iv);
+static void intr_shuffle_irqs(void *arg __unused);
 #endif
 
 static int intr_assign_cpu(void *arg, u_char cpu);
@@ -520,7 +521,7 @@ intr_add_cpu(u_int cpu)
 
 /*
  * Distribute all the interrupt sources among the available CPUs once the
- * AP's have been launched.
+ * APs have been launched.
  */
 static void
 intr_shuffle_irqs(void *arg __unused)
@@ -533,7 +534,6 @@ intr_shuffle_irqs(void *arg __unused)
 	if (mp_ncpus == 1)
 		return;
 
-	/* Round-robin assign a CPU to each enabled source. */
 	sx_xlock(&intr_table_lock);
 	assign_cpu = 1;
 	for (i = 0; i < IV_MAX; i++) {
