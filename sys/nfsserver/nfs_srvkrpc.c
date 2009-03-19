@@ -397,6 +397,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #endif
 #endif
 			    inet_ntoa(sin->sin_addr), port);
+			m_freem(mreq);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			return;
@@ -405,6 +406,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 
 	if (proc != nfsrv_null) {
 		if (!svc_getcred(rqst, &nd.nd_cr, &nd.nd_credflavor)) {
+			m_freem(mreq);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			return;
