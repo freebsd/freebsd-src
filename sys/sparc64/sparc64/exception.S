@@ -2738,6 +2738,10 @@ ENTRY(tl1_ret)
 	cmp	%l1, %l5
 	bl,a,pt	%xcc, 1f
 	 nop
+	set	VM_MAX_PROM_ADDRESS, %l5
+	cmp	%l1, %l5
+	bg,a,pt	%xcc, 1f
+	 nop
 
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
