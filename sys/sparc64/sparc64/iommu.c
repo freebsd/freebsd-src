@@ -119,8 +119,7 @@ __FBSDID("$FreeBSD$");
  * - When running out of DVMA space, return EINPROGRESS in the non-
  *   BUS_DMA_NOWAIT case and delay the callback until sufficient space
  *   becomes available.
- * - Use the streaming cache unless BUS_DMA_COHERENT is specified; do not
- *   flush the streaming cache when coherent mappings are synced.
+ * - Use the streaming cache unless BUS_DMA_COHERENT is specified.
  */
 
 #include "opt_iommu.h"
@@ -150,12 +149,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/iommuvar.h>
 
 /*
- * Tuning constants.
+ * Tuning constants
  */
 #define	IOMMU_MAX_PRE		(32 * 1024)
 #define	IOMMU_MAX_PRE_SEG	3
 
-/* Threshold for using the streaming buffer. */
+/* Threshold for using the streaming buffer */
 #define	IOMMU_STREAM_THRESH	128
 
 MALLOC_DEFINE(M_IOMMU, "dvmamem", "IOMMU DVMA Buffers");
@@ -309,9 +308,10 @@ iommu_init(const char *name, struct iommu_state *is, int tsbsize,
 		is->is_dvmabase = IOTSB_VSTART(is->is_tsbsize);
 
 	size = IOTSB_BASESZ << is->is_tsbsize;
-	printf("%s: DVMA map: %#lx to %#lx\n", name,
+	printf("%s: DVMA map: %#lx to %#lx%s\n", name,
 	    is->is_dvmabase, is->is_dvmabase +
-	    (size << (IO_PAGE_SHIFT - IOTTE_SHIFT)) - 1);
+	    (size << (IO_PAGE_SHIFT - IOTTE_SHIFT)) - 1,
+	    IOMMU_HAS_SB(is) ? ", streaming buffer" : "");
 
 	/*
 	 * Set up resource mamangement.
@@ -376,11 +376,13 @@ iommu_reset(struct iommu_state *is)
 
 	for (i = 0; i < 2; i++) {
 		if (is->is_sb[i] != 0) {
-			/* Enable diagnostics mode? */
-			IOMMU_WRITE8(is, is_sb[i], ISR_CTL, STRBUF_EN);
+			IOMMU_WRITE8(is, is_sb[i], ISR_CTL, STRBUF_EN |
+			    ((is->is_flags & IOMMU_RERUN_DISABLE) != 0 ?
+			    STRBUF_RR_DIS : 0));
 
-			/* No streaming buffers? Disable them */
-			if (IOMMU_READ8(is, is_sb[i], ISR_CTL) == 0)
+			/* No streaming buffers?  Disable them. */
+			if ((IOMMU_READ8(is, is_sb[i], ISR_CTL) &
+			    STRBUF_EN) == 0)
 				is->is_sb[i] = 0;
 		}
 	}
@@ -585,7 +587,7 @@ iommu_dvmamap_vunload(struct iommu_state *is, bus_dmamap_t map)
 	struct bus_dmamap_res *r;
 	int streamed = 0;
 
-	IS_LOCK_ASSERT(is);	/* for iommu_strbuf_sync() below. */
+	IS_LOCK_ASSERT(is);	/* for iommu_strbuf_sync() below */
 	SLIST_FOREACH(r, &map->dm_reslist, dr_link) {
 		streamed |= iommu_remove(is, BDR_START(r), r->dr_used);
 		r->dr_used = 0;
@@ -820,7 +822,7 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
 }
 
 /*
- * IOMMU DVMA operations, common to PCI and SBus.
+ * IOMMU DVMA operations, common to PCI and SBus
  */
 static int
 iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
@@ -831,8 +833,8 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 	bus_size_t sgsize, esize;
 	vm_offset_t vaddr, voffs;
 	vm_paddr_t curaddr;
-	int error, sgcnt, firstpg, stream;
 	pmap_t pmap = NULL;
+	int error, firstpg, sgcnt;
 
 	KASSERT(buflen != 0, ("%s: buflen == 0!", __func__));
 	if (buflen > dt->dt_maxsize)
@@ -853,7 +855,9 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 
 	sgcnt = *segp;
 	firstpg = 1;
-	stream = iommu_use_streaming(is, map, buflen);
+	map->dm_flags &= ~DMF_STREAMED;
+	map->dm_flags |= iommu_use_streaming(is, map, buflen) != 0 ?
+	    DMF_STREAMED : 0;
 	for (; buflen > 0; ) {
 		/*
 		 * Get the physical address for this page.
@@ -874,7 +878,7 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 		vaddr += sgsize;
 
 		iommu_enter(is, trunc_io_page(dvmaddr), trunc_io_page(curaddr),
-		    stream, flags);
+		    (map->dm_flags & DMF_STREAMED) != 0, flags);
 
 		/*
 		 * Chop the chunk up into segments of at most maxsegsz, but try
@@ -1139,7 +1143,7 @@ iommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	/* XXX This is probably bogus. */
 	if ((op & BUS_DMASYNC_PREREAD) != 0)
 		membar(Sync);
-	if (IOMMU_HAS_SB(is) &&
+	if ((map->dm_flags & DMF_STREAMED) != 0 &&
 	    ((op & BUS_DMASYNC_POSTREAD) != 0 ||
 	    (op & BUS_DMASYNC_PREWRITE) != 0)) {
 		IS_LOCK(is);
