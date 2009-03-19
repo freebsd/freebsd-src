@@ -462,16 +462,10 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setChannel)((_ah), (_chan)))
 #define	ath_hal_calibrate(_ah, _chan, _iqcal) \
 	((*(_ah)->ah_perCalibration)((_ah), (_chan), (_iqcal)))
-#if HAL_ABI_VERSION >= 0x08111000
 #define	ath_hal_calibrateN(_ah, _chan, _lcal, _isdone) \
 	((*(_ah)->ah_perCalibrationN)((_ah), (_chan), 0x1, (_lcal), (_isdone)))
 #define	ath_hal_calreset(_ah, _chan) \
 	((*(_ah)->ah_resetCalValid)((_ah), (_chan)))
-#else
-#define	ath_hal_calibrateN(_ah, _chan, _lcal, _isdone) \
-	ath_hal_calibrate(_ah, _chan, _isdone)
-#define	ath_hal_calreset(_ah, _chan)	(0)
-#endif
 #define	ath_hal_setledstate(_ah, _state) \
 	((*(_ah)->ah_setLedState)((_ah), (_state)))
 #define	ath_hal_beaconinit(_ah, _nextb, _bperiod) \
@@ -545,19 +539,8 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_CIPHER, _cipher, NULL) == HAL_OK)
 #define	ath_hal_getregdomain(_ah, _prd) \
 	(ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd)) == HAL_OK)
-#if HAL_ABI_VERSION < 0x08090100
-/* XXX wrong for anything but amd64 and i386 */
-#if defined(__LP64__)
-#define	ath_hal_setregdomain(_ah, _rd) \
-	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 176) = (_rd))
-#else
-#define	ath_hal_setregdomain(_ah, _rd) \
-	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 128) = (_rd))
-#endif
-#else
 #define	ath_hal_setregdomain(_ah, _rd) \
 	ath_hal_setcapability(_ah, HAL_CAP_REG_DMN, 0, _rd, NULL)
-#endif
 #define	ath_hal_getcountrycode(_ah, _pcc) \
 	(*(_pcc) = (_ah)->ah_countryCode)
 #define	ath_hal_gettkipmic(_ah) \
@@ -656,31 +639,6 @@ void	ath_intr(void *);
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, 1, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
-#if HAL_ABI_VERSION < 0x05122200
-#define	HAL_TXQ_TXOKINT_ENABLE	TXQ_FLAG_TXOKINT_ENABLE
-#define	HAL_TXQ_TXERRINT_ENABLE	TXQ_FLAG_TXERRINT_ENABLE
-#define	HAL_TXQ_TXDESCINT_ENABLE TXQ_FLAG_TXDESCINT_ENABLE
-#define	HAL_TXQ_TXEOLINT_ENABLE	TXQ_FLAG_TXEOLINT_ENABLE
-#define	HAL_TXQ_TXURNINT_ENABLE	TXQ_FLAG_TXURNINT_ENABLE
-#endif
-#if HAL_ABI_VERSION < 0x06102501
-#define	ath_hal_ispublicsafetysku(ah) \
-	(((ah)->ah_regdomain == 0 && (ah)->ah_countryCode == 842) || \
-	 (ah)->ah_regdomain == 0x12)
-#endif
-#if HAL_ABI_VERSION < 0x06122400
-/* XXX yech, can't get to regdomain so just hack a compat shim */
-#define	ath_hal_isgsmsku(ah) \
-	((ah)->ah_countryCode == 843)
-#endif
-#if HAL_ABI_VERSION < 0x07050400
-/* compat shims so code compilers--it won't work though */
-#define	CHANNEL_HT20		0x10000
-#define	CHANNEL_HT40PLUS 	0x20000
-#define	CHANNEL_HT40MINUS 	0x40000
-#define	HAL_MODE_11NG_HT20	0x008000
-#define HAL_MODE_11NA_HT20  	0x010000
-#endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
