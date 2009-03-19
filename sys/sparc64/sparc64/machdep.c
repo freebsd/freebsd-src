@@ -279,6 +279,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	phandle_t child;
 	phandle_t root;
 	u_int clock;
+	uint32_t portid;
 
 	end = 0;
 	kmdp = NULL;
@@ -314,12 +315,40 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	init_param1();
 
+	/*
+	 * Prime our per-CPU data page for use.  Note, we are using it for
+	 * our stack, so don't pass the real size (PAGE_SIZE) to pcpu_init
+	 * or it'll zero it out from under us.
+	 */
+	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	pc->pc_addr = (vm_offset_t)pcpu0;
+	pc->pc_mid = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
+	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
+	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
+	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
+
+	/*
+	 * Determine the OFW node (and ensure the
+	 * BSP is in the device tree in the first place).
+	 */
+	pc->pc_node = 0;
 	root = OF_peer(0);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		OF_getprop(child, "device_type", type, sizeof(type));
-		if (strcmp(type, "cpu") == 0)
+		if (OF_getprop(child, "device_type", type, sizeof(type)) <= 0)
+			continue;
+		if (strcmp(type, "cpu") != 0)
+			continue;
+		if (OF_getprop(child, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		    "upa-portid" : "portid", &portid, sizeof(portid)) <= 0)
+			continue;
+		if (portid == pc->pc_mid) {
+			pc->pc_node = child;
 			break;
+		}
 	}
+	if (pc->pc_node == 0)
+		OF_exit();
 
 	/*
 	 * Initialize the tick counter.  Must be before the console is inited
@@ -353,8 +382,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		end = (vm_offset_t)_end;
 	}
 
-	cache_init(child);
-	uma_set_align(cache.dc_linesize - 1);
+	cache_init(pc);
+	uma_set_align(pc->pc_cache.dc_linesize - 1);
 
 	cpu_block_copy = bcopy;
 	cpu_block_zero = bzero;
@@ -397,7 +426,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	intr_init1();
 
 	/*
-	 * Initialize proc0 stuff (p_contested needs to be done early).
+	 * Initialize proc0, set kstack0, frame0, curthread and curpcb.
 	 */
 	proc_linkup0(&proc0, &thread0);
 	proc0.p_md.md_sigtramp = NULL;
@@ -407,22 +436,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;
 	thread0.td_frame = &frame0;
-
-	/*
-	 * Prime our per-cpu data page for use.  Note, we are using it for our
-	 * stack, so don't pass the real size (PAGE_SIZE) to pcpu_init or
-	 * it'll zero it out from under us.
-	 */
-	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
-	pc->pc_mid = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
-	pc->pc_addr = (vm_offset_t)pcpu0;
-	pc->pc_node = child;
-	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
-	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
-	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
 
 	/*
 	 * Initialize global registers.

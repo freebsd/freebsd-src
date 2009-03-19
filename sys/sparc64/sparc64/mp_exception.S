@@ -57,9 +57,8 @@ ENTRY(tl_ipi_spitfire_dcache_page_inval)
 	ldx	[%g5 + ICA_PA], %g6
 	srlx	%g6, PAGE_SHIFT - DC_TAG_SHIFT, %g6
 
-	SET(cache, %g3, %g2)
-	lduw	[%g2 + DC_SIZE], %g3
-	lduw	[%g2 + DC_LINESIZE], %g4
+	lduw	[PCPU(CACHE) + DC_SIZE], %g3
+	lduw	[PCPU(CACHE) + DC_LINESIZE], %g4
 	sub	%g3, %g4, %g2
 
 1:	ldxa	[%g2] ASI_DCACHE_TAG, %g1
@@ -98,9 +97,8 @@ ENTRY(tl_ipi_spitfire_icache_page_inval)
 	ldx	[%g5 + ICA_PA], %g6
 	srlx	%g6, PAGE_SHIFT - IC_TAG_SHIFT, %g6
 
-	SET(cache, %g3, %g2)
-	lduw	[%g2 + IC_SIZE], %g3
-	lduw	[%g2 + IC_LINESIZE], %g4
+	lduw	[PCPU(CACHE) + IC_SIZE], %g3
+	lduw	[PCPU(CACHE) + IC_LINESIZE], %g4
 	sub	%g3, %g4, %g2
 
 1:	ldda	[%g2] ASI_ICACHE_TAG, %g0 /*, %g1 */
@@ -140,8 +138,7 @@ ENTRY(tl_ipi_cheetah_dcache_page_inval)
 	set	PAGE_SIZE, %g2
 	add	%g1, %g2, %g3
 
-	SET(cache, %g4, %g2)
-	lduw	[%g2 + DC_LINESIZE], %g2
+	lduw	[PCPU(CACHE) + DC_LINESIZE], %g2
 
 1:	stxa	%g0, [%g1] ASI_DCACHE_INVALIDATE
 	membar	#Sync

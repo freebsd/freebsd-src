@@ -72,7 +72,7 @@ cheetah_dcache_page_inval(vm_paddr_t spa)
 
 	KASSERT((spa & PAGE_MASK) == 0, ("%s: pa not page aligned", __func__));
 	cookie = ipi_dcache_page_inval(tl_ipi_cheetah_dcache_page_inval, spa);
-	for (pa = spa; pa < spa + PAGE_SIZE; pa += cache.dc_linesize)
+	for (pa = spa; pa < spa + PAGE_SIZE; pa += PCPU_GET(cache.dc_linesize))
 		stxa_sync(pa, ASI_DCACHE_INVALIDATE, 0);
 	ipi_wait(cookie);
 }
