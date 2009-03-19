@@ -63,10 +63,11 @@ static char index_param[] = "index";
 static char partcode_param[] = "partcode";
 
 static void gpart_bootcode(struct gctl_req *, unsigned int);
+static void gpart_issue(struct gctl_req *, unsigned int);
 static void gpart_show(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
-	{ "add", 0, NULL, {
+	{ "add", 0, gpart_issue, {
 		{ 'b', "start", NULL, G_TYPE_STRING },
 		{ 's', "size", NULL, G_TYPE_STRING },
 		{ 't', "type", NULL, G_TYPE_STRING },
@@ -84,25 +85,25 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "commit", 0, NULL, G_NULL_OPTS, "geom", NULL },
-	{ "create", 0, NULL, {
+	{ "commit", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
+	{ "create", 0, gpart_issue, {
 		{ 's', "scheme", NULL, G_TYPE_STRING },
 		{ 'n', "entries", optional, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "provider", NULL
 	},
-	{ "delete", 0, NULL, {
+	{ "delete", 0, gpart_issue, {
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "destroy", 0, NULL, {
+	{ "destroy", 0, gpart_issue, {
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL },
-	{ "modify", 0, NULL, {
+	{ "modify", 0, gpart_issue, {
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'l', "label", optional, G_TYPE_STRING },
 		{ 't', "type", optional, G_TYPE_STRING },
@@ -110,7 +111,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "set", 0, NULL, {
+	{ "set", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -123,8 +124,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  NULL, "[-lr] [geom ...]"
 	},
-	{ "undo", 0, NULL, G_NULL_OPTS, "geom", NULL },
-	{ "unset", 0, NULL, {
+	{ "undo", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
+	{ "unset", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -186,17 +187,23 @@ static struct gprovider *
 find_provider(struct ggeom *gp, unsigned long long minsector)
 {
 	struct gprovider *pp, *bestpp;
-	unsigned long long offset;
+	const char *s;
 	unsigned long long sector, bestsector;
 
 	bestpp = NULL;
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
-		offset = atoll(find_provcfg(pp, "offset"));
-		sector = offset / pp->lg_sectorsize;
+		s = find_provcfg(pp, "start");
+		if (s == NULL) {
+			s = find_provcfg(pp, "offset");
+			sector = atoll(s) / pp->lg_sectorsize;
+		} else
+			sector = atoll(s);
+
 		if (sector < minsector)
 			continue;
 		if (bestpp != NULL && sector >= bestsector)
 			continue;
+
 		bestpp = pp;
 		bestsector = sector;
 	}
@@ -216,13 +223,20 @@ fmtsize(int64_t rawsz)
 static const char *
 fmtattrib(struct gprovider *pp)
 {
-	static char buf[64];
-	const char *val;
+	static char buf[128];
+	struct gconfig *gc;
+	u_int idx;
 
-	val = find_provcfg(pp, "attrib");
-	if (val == NULL)
-		return ("");
-	snprintf(buf, sizeof(buf), " [%s] ", val);
+	buf[0] = '\0';
+	idx = 0;
+	LIST_FOREACH(gc, &pp->lg_config, lg_config) {
+		if (strcmp(gc->lg_name, "attrib") != 0)
+			continue;
+		idx += snprintf(buf + idx, sizeof(buf) - idx, "%s%s",
+		    (idx == 0) ? " [" : ",", gc->lg_val);
+	}
+	if (idx > 0)
+		snprintf(buf + idx, sizeof(buf) - idx, "] ");
 	return (buf);
 }
 
@@ -232,7 +246,7 @@ gpart_show_geom(struct ggeom *gp, const char *element)
 	struct gprovider *pp;
 	const char *s, *scheme;
 	unsigned long long first, last, sector, end;
-	unsigned long long offset, length, secsz;
+	unsigned long long length, secsz;
 	int idx, wblocks, wname;
 
 	scheme = find_geomcfg(gp, "scheme");
@@ -250,14 +264,24 @@ gpart_show_geom(struct ggeom *gp, const char *element)
 	    scheme, fmtsize(pp->lg_mediasize));
 
 	while ((pp = find_provider(gp, first)) != NULL) {
-		s = find_provcfg(pp, "offset");
-		offset = atoll(s);
-		sector = offset / secsz;
-		s = find_provcfg(pp, "length");
-		length = atoll(s);
+		s = find_provcfg(pp, "start");
+		if (s == NULL) {
+			s = find_provcfg(pp, "offset");
+			sector = atoll(s) / secsz;
+		} else
+			sector = atoll(s);
+
+		s = find_provcfg(pp, "end");
+		if (s == NULL) {
+			s = find_provcfg(pp, "length");
+			length = atoll(s) / secsz;
+			end = sector + length - 1;
+		} else {
+			end = atoll(s);
+			length = end - sector + 1;
+		}
 		s = find_provcfg(pp, "index");
 		idx = atoi(s);
-		end = sector + length / secsz;
 		if (first < sector) {
 			printf("  %*llu  %*llu  %*s  - free -  (%s)\n",
 			    wblocks, first, wblocks, sector - first,
@@ -265,16 +289,17 @@ gpart_show_geom(struct ggeom *gp, const char *element)
 			    fmtsize((sector - first) * secsz));
 		}
 		printf("  %*llu  %*llu  %*d  %s %s (%s)\n",
-		    wblocks, sector, wblocks, end - sector,
+		    wblocks, sector, wblocks, length,
 		    wname, idx, find_provcfg(pp, element),
 		    fmtattrib(pp), fmtsize(pp->lg_mediasize));
-		first = end;
+		first = end + 1;
 	}
 	if (first <= last) {
+		length = last - first + 1;
 		printf("  %*llu  %*llu  %*s  - free -  (%s)\n",
-		    wblocks, first, wblocks, last - first + 1,
+		    wblocks, first, wblocks, length,
 		    wname, "",
-		    fmtsize((last - first + 1) * secsz));
+		    fmtsize(length * secsz));
 	}
 	printf("\n");
 }
@@ -439,7 +464,7 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 }
 
 static void
-gpart_bootcode(struct gctl_req *req, unsigned int fl __unused)
+gpart_bootcode(struct gctl_req *req, unsigned int fl)
 {
 	const char *s;
 	char *sp;
@@ -494,9 +519,42 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl __unused)
 			errx(EXIT_FAILURE, "no -b nor -p");
 	}
 
-	if (bootcode != NULL) {
-		s = gctl_issue(req);
-		if (s != NULL)
-			errx(EXIT_FAILURE, "%s", s);
+	if (bootcode != NULL)
+		gpart_issue(req, fl);
+}
+
+static void
+gpart_issue(struct gctl_req *req, unsigned int fl __unused)
+{
+	char buf[4096];
+	char *errmsg;
+	const char *errstr;
+	int error, status;
+
+	bzero(buf, sizeof(buf));
+	gctl_rw_param(req, "output", sizeof(buf), buf);
+	errstr = gctl_issue(req);
+	if (errstr == NULL || errstr[0] == '\0') {
+		if (buf[0] != '\0')
+			printf("%s", buf);
+		status = EXIT_SUCCESS;
+		goto done;
 	}
+
+	error = strtol(errstr, &errmsg, 0);
+	if (errmsg != errstr) {
+		while (errmsg[0] == ' ')
+			errmsg++;
+		if (errmsg[0] != '\0')
+			warnc(error, "%s", errmsg);
+		else
+			warnc(error, NULL);
+	} else
+		warnx("%s", errmsg);
+
+	status = EXIT_FAILURE;
+
+ done:
+	gctl_free(req);
+	exit(status);
 }
