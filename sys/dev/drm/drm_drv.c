@@ -666,7 +666,7 @@ void drm_close(void *data)
 			}
 			/* Contention */
 			retcode = mtx_sleep((void *)&dev->lock.lock_queue,
-			    &dev->dev_lock, PZERO | PCATCH, "drmlk2", 0);
+			    &dev->dev_lock, PCATCH, "drmlk2", 0);
 			if (retcode)
 				break;
 		}
