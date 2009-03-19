@@ -81,7 +81,6 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/pcb.h>
 #include <machine/smp.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>
@@ -119,7 +118,7 @@ extern char fas_nofault_end[];
 
 extern char *syscallnames[];
 
-const char *trap_msg[] = {
+const char *const trap_msg[] = {
 	"reserved",
 	"instruction access exception",
 	"instruction access error",
@@ -390,21 +389,17 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 		    ("trap: kernel trap isn't - trap: %ld:%s: 0x%lx at 0x%lx on cpu=%d\n", 
 		     trapno, trap_msg[trapno], data, tf->tf_tpc, curcpu));
 
-#ifdef KDB
 		if (kdb_active) {
 			kdb_reenter();
 			return;
 		}
-#endif
 
 		switch (trapno) {
-#ifdef KDB
 		case T_BREAKPOINT:
 		case T_KSTACK_FAULT:
 			error = (kdb_trap(trapno, 0, tf) == 0);
 			TF_DONE(tf);
 			break;
-#endif
 		case T_DATA_MISS:
 		case T_DATA_PROTECTION:
 		case T_INSTRUCTION_MISS:
@@ -460,7 +455,6 @@ static int
 trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data)
 {
 	struct vmspace *vm;
-	struct pcb *pcb;
 	struct proc *p;
 	vm_offset_t va;
 	vm_prot_t prot;
@@ -475,7 +469,6 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 
 	rv = KERN_SUCCESS;
 	ctx = TLB_TAR_CTX(data);
-	pcb = td->td_pcb;
 	type = type & ~T_KERNEL;
 	va = TLB_TAR_VA(data);
 
@@ -603,11 +596,6 @@ syscall(struct trapframe *tf)
 
 	PCPU_INC(cnt.v_syscall);
 
-	narg = 0;
-	error = 0;
-	reg = 0;
-	regcnt = REG_MAXARGS;
-
 	td->td_pticks = 0;
 	td->td_frame = tf;
 	if (td->td_ucred != p->p_ucred)
@@ -621,6 +609,8 @@ syscall(struct trapframe *tf)
 	tpc = tf->tf_tpc;
 	TF_DONE(tf);
 
+	reg = 0;
+	regcnt = REG_MAXARGS;
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
 		 * The prep code is MP aware.
