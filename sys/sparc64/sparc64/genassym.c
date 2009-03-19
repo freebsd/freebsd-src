@@ -83,10 +83,11 @@ ASSYM(PAGE_SIZE_4M, PAGE_SIZE_4M);
 ASSYM(CSA_PCPU, offsetof(struct cpu_start_args, csa_pcpu));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
 #ifdef SUN4U
-ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
-ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
+ASSYM(CSA_STICK, offsetof(struct cpu_start_args, csa_stick));
+ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
+ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 #endif
 #ifdef SUN4V
 ASSYM(CSA_CPUID, offsetof(struct cpu_start_args, csa_cpuid));

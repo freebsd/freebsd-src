@@ -174,6 +174,15 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
 } while (0)
 
 /*
+ * Trick GAS/GCC into compiling access to STICK/STICK_COMPARE independently
+ * of the selected instruction set.
+ */
+#define	rdstick()		rd(asr24)
+#define	rdstickcmpr()		rd(asr25)
+#define	wrstick(val, xor)	wr(asr24, (val), (xor))
+#define	wrstickcmpr(val, xor)	wr(asr25, (val), (xor))
+
+/*
  * Macro intended to be used instead of wr(asr23, val, xor) for writing to
  * the TICK_COMPARE register in order to avoid a bug in BlackBird CPUs that
  * can cause these writes to fail under certain condidtions which in turn

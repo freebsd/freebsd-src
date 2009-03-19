@@ -550,7 +550,7 @@ END(tl0_sfsr_trap)
 	tl ## traplvl ## _intr	level, 1 << level
 
 #define	TICK(traplvl) \
-	tl ## traplvl ## _intr	PIL_TICK, 1
+	tl ## traplvl ## _intr	PIL_TICK, 0x10001
 
 #define	INTR_LEVEL(tl)							\
 	INTR(1, tl) ;							\

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pstate.h>
 #include <machine/smp.h>
 #include <machine/upa.h>
+#include <machine/ver.h>
 
 #include "assym.s"
 
@@ -92,7 +93,7 @@ ENTRY(mp_startup)
 
 	SET(cpu_start_args, %l1, %l0)
 
-	mov	CPU_CLKSYNC, %l1
+	mov	CPU_TICKSYNC, %l1
 	membar	#StoreLoad
 	stw	%l1, [%l0 + CSA_STATE]
 
@@ -101,7 +102,25 @@ ENTRY(mp_startup)
 	 nop
 	wrpr	%l1, 0, %tick
 
-	UPA_GET_MID(%o0)
+	rdpr	%ver, %l1
+	stx	%l1, [%l0 + CSA_VER]
+
+	srlx	%l1, VER_IMPL_SHIFT, %l1
+	sll	%l1, VER_IMPL_SIZE, %l1
+	srl	%l1, VER_IMPL_SIZE, %l1
+	cmp	%l1, CPU_IMPL_ULTRASPARCIII
+	bl	%icc, 3f
+	 nop
+	mov	CPU_STICKSYNC, %l1
+	membar	#StoreLoad
+	stw	%l1, [%l0 + CSA_STATE]
+
+2:	ldx	[%l0 + CSA_STICK], %l1
+	brz	%l1, 2b
+	 nop
+	wr	%l1, 0, %asr24
+
+3:	UPA_GET_MID(%o0)
 
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP, "mp_start: CPU %d entered kernel"
@@ -109,9 +128,6 @@ ENTRY(mp_startup)
 	stx	%o0, [%g1 + KTR_PARM1]
 9:
 #endif
-
-	rdpr	%ver, %l1
-	stx	%l1, [%l0 + CSA_VER]
 
 	/*
 	 * Inform the boot processor we have inited.
@@ -123,9 +139,9 @@ ENTRY(mp_startup)
 	/*
 	 * Wait till its our turn to bootstrap.
 	 */
-2:	lduw	[%l0 + CSA_MID], %l1
+4:	lduw	[%l0 + CSA_MID], %l1
 	cmp	%l1, %o0
-	bne	%xcc, 2b
+	bne	%xcc, 4b
 	 nop
 
 #if KTR_COMPILE & KTR_SMP
@@ -141,7 +157,7 @@ ENTRY(mp_startup)
 	/*
 	 * Map the per-CPU pages.
 	 */
-3:	sllx	%l2, TTE_SHIFT, %l3
+5:	sllx	%l2, TTE_SHIFT, %l3
 	add	%l1, %l3, %l3
 
 	ldx	[%l3 + TTE_VPN], %l4
@@ -156,7 +172,7 @@ ENTRY(mp_startup)
 
 	add	%l2, 1, %l2
 	cmp	%l2, PCPU_PAGES
-	bne	%xcc, 3b
+	bne	%xcc, 5b
 	 nop
 
 	/*
