@@ -125,11 +125,6 @@ static void i915_save_vga(struct drm_device *dev)
 
 	/* VGA color palette registers */
 	dev_priv->saveDACMASK = I915_READ8(VGA_DACMASK);
-	/* DACCRX automatically increments during read */
-	I915_WRITE8(VGA_DACRX, 0);
-	/* Read 3 bytes of color data from each index */
-	for (i = 0; i < 256 * 3; i++)
-		dev_priv->saveDACDATA[i] = I915_READ8(VGA_DACDATA);
 
 	/* MSR bits */
 	dev_priv->saveMSR = I915_READ8(VGA_MSR_READ);
@@ -231,12 +226,6 @@ static void i915_restore_vga(struct drm_device *dev)
 
 	/* VGA color palette registers */
 	I915_WRITE8(VGA_DACMASK, dev_priv->saveDACMASK);
-	/* DACCRX automatically increments during read */
-	I915_WRITE8(VGA_DACWX, 0);
-	/* Read 3 bytes of color data from each index */
-	for (i = 0; i < 256 * 3; i++)
-		I915_WRITE8(VGA_DACDATA, dev_priv->saveDACDATA[i]);
-
 }
 
 int i915_save_state(struct drm_device *dev)
@@ -249,6 +238,13 @@ int i915_save_state(struct drm_device *dev)
 #else
 	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
 #endif
+
+	/* Render Standby */
+	if (IS_I965G(dev) && IS_MOBILE(dev))
+		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
+
+	/* Hardware status page */
+	dev_priv->saveHWS = I915_READ(HWS_PGA);
 
 	/* Display arbitration control */
 	dev_priv->saveDSPARB = I915_READ(DSPARB);
@@ -379,6 +375,14 @@ int i915_restore_state(struct drm_device *dev)
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
 #endif
 
+	/* Render Standby */
+	if (IS_I965G(dev) && IS_MOBILE(dev))
+		I915_WRITE(MCHBAR_RENDER_STANDBY, dev_priv->saveRENDERSTANDBY);
+
+	/* Hardware status page */
+	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
+
+	/* Display arbitration */
 	I915_WRITE(DSPARB, dev_priv->saveDSPARB);
 
 	/* Pipe & plane A info */
