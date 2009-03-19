@@ -282,6 +282,9 @@ static int radeon_wait_irq(struct drm_device * dev, int swi_nr)
 	DRM_WAIT_ON(ret, dev_priv->swi_queue, 3 * DRM_HZ,
 		    RADEON_READ(RADEON_LAST_SWI_REG) >= swi_nr);
 
+	if (ret == -ERESTART)
+		DRM_DEBUG("restarting syscall");
+
 	return ret;
 }
 
