@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2008
+.Dd February 7, 2009
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -606,10 +606,10 @@ To delete previously applied tag, use the
 keyword.
 .Pp
 Note: since tags are kept with the packet everywhere in kernelspace,
-they can be set and unset anywhere in kernel network subsystem
-(using
+they can be set and unset anywhere in the kernel network subsystem
+(using the
 .Xr mbuf_tags 9
-facility), not only by means of
+facility), not only by means of the
 .Xr ipfw 4
 .Cm tag
 and
@@ -862,8 +862,8 @@ actions.
 .It Cm setfib Ar fibnum
 The packet is tagged so as to use the FIB (routing table)
 .Ar fibnum
-in any subsequent forwarding decisions. Initially this is
-limited to the values  0 through 15. See 
+in any subsequent forwarding decisions.
+Initially this is limited to the values 0 through 15, see
 .Xr setfib 8 .
 Processing continues at the next rule.
 .El
@@ -1166,7 +1166,7 @@ Destination options
 .Pq Cm dstopt ,
 IPSec authentication headers
 .Pq Cm ah ,
-and IPSec encapsulated security payload headers
+and IPsec encapsulated security payload headers
 .Pq Cm esp .
 .It Cm fib Ar fibnum
 Matches a packet that has been tagged to use
@@ -1835,13 +1835,12 @@ A pipe emulates a link with given bandwidth, propagation delay,
 queue size and packet loss rate.
 Packets are queued in front of the pipe as they come out from the classifier,
 and then transferred to the pipe according to the pipe's parameters.
-.Pp
 .It Em queue
 A queue
 is an abstraction used to implement the WF2Q+
 (Worst-case Fair Weighted Fair Queueing) policy, which is
 an efficient variant of the WFQ policy.
-.br
+.Pp
 The queue associates a
 .Em weight
 and a reference pipe to each flow, and then all backlogged (i.e.,
@@ -1850,8 +1849,8 @@ bandwidth proportionally to their weights.
 Note that weights are not priorities; a flow with a lower weight
 is still guaranteed to get its fraction of the bandwidth even if a
 flow with a higher weight is permanently backlogged.
-.Pp
 .El
+.Pp
 In practice,
 .Em pipes
 can be used to set hard limits to the bandwidth that a flow can use, whereas
@@ -2101,7 +2100,7 @@ If you are logged in over a network, loading the
 version of
 .Nm
 is probably not as straightforward as you would think.
-I recommend the following command line:
+The following command line is recommended:
 .Bd -literal -offset indent
 kldload ipfw && \e
 ipfw add 32000 allow ip from any to any
@@ -2141,14 +2140,13 @@ The nat configuration command is the following:
 .Ek
 .Ed
 .Pp
-.
 The following parameters can be configured:
 .Bl -tag -width indent
 .It Cm ip Ar ip_address
 Define an ip address to use for aliasing.
 .It Cm if Ar nic
-Use ip addres of NIC for aliasing, dynamically changing
-it if NIC's ip address change.
+Use ip address of NIC for aliasing, dynamically changing
+it if NIC's ip address changes.
 .It Cm log
 Enable logging on this nat instance.
 .It Cm deny_in
@@ -2171,27 +2169,26 @@ To let the packet continue after being (de)aliased, set the sysctl variable
 .Va net.inet.ip.fw.one_pass 
 to 0.
 For more information about aliasing modes, refer to
-.Xr libalias 3
-.
+.Xr libalias 3 .
 See Section
 .Sx EXAMPLES
 for some examples about nat usage.
 .Sh REDIRECT AND LSNAT SUPPORT IN IPFW
 Redirect and LSNAT support follow closely the syntax used in
-.Xr natd 8
-. 
+.Xr natd 8 . 
 See Section
 .Sx EXAMPLES
 for some examples on how to do redirect and lsnat.
 .Sh SCTP NAT SUPPORT
-Sctp nat can be configured in a simillar manner to TCP through the
-ipfw command line tool
-.Xr ipfw 8
-, the main difference is that 
+SCTP nat can be configured in a similar manner to TCP through the
+.Nm
+command line tool.
+The main difference is that 
 .Nm sctp nat 
-does not do port
-translation. Since the local and global side ports will be the same,
-there is no need to specify both. Ports are redirected as follows:
+does not do port translation.
+Since the local and global side ports will be the same,
+there is no need to specify both.
+Ports are redirected as follows:
 .Bd -ragged -offset indent
 .Bk -words
 .Cm nat 
@@ -2203,15 +2200,16 @@ there is no need to specify both. Ports are redirected as follows:
 .Ek
 .Ed
 .Pp
-.
 Most
-.B sctp nat
+.Nm sctp nat
 configuration can be done in real-time through the
-.B sysctl(8)
-interface. All may be changed dynamically, though the hash_table size will only
-change for new 
-.Nm nat 
-instances. See 
+.Xr sysctl 8
+interface.
+All may be changed dynamically, though the hash_table size will only
+change for new
+.Nm nat
+instances.
+See
 .Sx SYSCTL VARIABLES 
 for more info.
 .Sh SYSCTL VARIABLES
@@ -2238,22 +2236,23 @@ ports and vtags match but global address does not)
 will accept and process all OOTB global AddIP messages.
 .El
 .Pp
-Option 1 should never be selected as this forms a security risk. An attacker can
+Option 1 should never be selected as this forms a security risk.
+An attacker can
 establish multiple fake associations by sending AddIP messages.
 .It Va net.inet.ip.alias.sctp.chunk_proc_limit: No 5
 Defines the maximum number of chunks in an SCTP packet that will be parsed for a
-packet that matches an existing association. This value is enforced to be greater or equal
-than 
+packet that matches an existing association.
+This value is enforced to be greater or equal than 
 .Cm net.inet.ip.alias.sctp.initialising_chunk_proc_limit . 
 A high value is
 a DoS risk yet setting too low a value may result in important control chunks in
 the packet not being located and parsed.
 .It Va net.inet.ip.alias.sctp.error_on_ootb: No 1
-Defines when the 
+Defines when the
 .Nm nat 
-responds to any Out-of-the-Blue (OOTB) packets with ErrorM
-packets. An OOTB packet is a packet that arrives with no existing association
-registered in the 
+responds to any Out-of-the-Blue (OOTB) packets with ErrorM packets.
+An OOTB packet is a packet that arrives with no existing association
+registered in the
 .Nm nat 
 and is not an INIT or ASCONF-AddIP packet:
 .Bl -tag -width indent
@@ -2263,8 +2262,8 @@ ErrorM is never sent in response to OOTB packets.
 ErrorM is only sent to OOTB packets received on the local side.
 .It Cm 2
 ErrorM is sent to the local side and on the global side ONLY if there is a
-partial match (ports and vtags match but the source global IP does not). This
-value is only useful if the 
+partial match (ports and vtags match but the source global IP does not).
+This value is only useful if the 
 .Nm nat 
 is tracking global IP addresses.
 .It Cm 3
@@ -2273,20 +2272,21 @@ ErrorM is sent in response to all OOTB packets on both the local and global side
 .El
 .Pp
 At the moment the default is 0, since the ErrorM packet is not yet
-supported by most SCTP stacks. When it is supported, and if not tracking
+supported by most SCTP stacks.
+When it is supported, and if not tracking
 global addresses, we recommend setting this value to 1 to allow
 multi-homed local hosts to function with the 
 .Nm nat .
 To track global addresses, we recommend setting this value to 2 to
 allow global hosts to be informed when they need to (re)send an
-ASCONF-AddIP. Value 3 should never be chosen (except for debugging) as
-the
+ASCONF-AddIP.
+Value 3 should never be chosen (except for debugging) as the
 .Nm nat 
 will respond to all OOTB global packets (a DoS risk).
 .It Va net.inet.ip.alias.sctp.hashtable_size: No 2003
 Size of hash tables used for 
 .Nm nat 
-lookups (100 < prime_number > 1000001)
+lookups (100 < prime_number > 1000001).
 This value sets the 
 .Nm hash table 
 size for any future created 
@@ -2294,26 +2294,33 @@ size for any future created
 instance and therefore must be set prior to creating a 
 .Nm nat 
 instance.
-The table sizes my be changed to suit specific needs. If there will be few
-concurrent associations, and memory is scarce, you may make these smaller.  If
-there will be many thousands (or millions) of concurrent associations, you
-should make these larger. A prime number is best for the table size. The sysctl
+The table sizes may be changed to suit specific needs.
+If there will be few
+concurrent associations, and memory is scarce, you may make these smaller.
+If there will be many thousands (or millions) of concurrent associations, you
+should make these larger.
+A prime number is best for the table size.
+The sysctl
 update function will adjust your input value to the next highest prime number.
 .It Va net.inet.ip.alias.sctp.holddown_time:  No 0
 Hold association in table for this many seconds after receiving a
-SHUTDOWN-COMPLETE.  This allows endpoints to correct shutdown gracefully if a
+SHUTDOWN-COMPLETE.
+This allows endpoints to correct shutdown gracefully if a
 shutdown_complete is lost and retransmissions are required.
 .It Va net.inet.ip.alias.sctp.init_timer: No 15
 Timeout value while waiting for (INIT-ACK|AddIP-ACK).
 This value cannot be 0.
 .It Va net.inet.ip.alias.sctp.initialising_chunk_proc_limit: No 2
 Defines the maximum number of chunks in an SCTP packet that will be parsed when
-no existing association exists that matches that packet. Ideally this packet
-will only be an INIT or ASCONF-AddIP packet. A higher value may become a DoS
+no existing association exists that matches that packet.
+Ideally this packet
+will only be an INIT or ASCONF-AddIP packet.
+A higher value may become a DoS
 risk as malformed packets can consume processing resources.
 .It Va net.inet.ip.alias.sctp.param_proc_limit: No 25
 Defines the maximum number of parameters within a chunk that will be parsed in a
-packet. As for other similar sysctl variables, larger values pose a DoS risk.
+packet.
+As for other similar sysctl variables, larger values pose a DoS risk.
 .It Va net.inet.ip.alias.sctp.log_level: No 0 
 Level of detail in the system log messages (0 \- minimal, 1 \- event,
 2 \- info, 3 \- detail, 4 \- debug, 5 \- max debug). May be a good
@@ -2335,7 +2342,7 @@ association is limited to this value
 .El
 .Pp
 This variable is fully dynamic, the new value will be adopted for all newly
-arriving associations, existing association are treated as they were previously.
+arriving associations, existing associations are treated as they were previously.
 Global tracking will decrease the number of collisions within the 
 .Nm nat 
 at a cost
@@ -2552,10 +2559,10 @@ by adding the following to the top of a ruleset:
 This rule drops all incoming packets that appear to be coming from another
 directly connected system but on the wrong interface.
 For example, a packet with a source address of
-.Li 192.168.0.0/24
-, configured on
-.Li fxp0
-, but coming in on
+.Li 192.168.0.0/24 ,
+configured on
+.Li fxp0 ,
+but coming in on
 .Li fxp1
 would be dropped.
 .Ss DYNAMIC RULES
@@ -2875,14 +2882,13 @@ Work on
 .Nm dummynet
 traffic shaper supported by Akamba Corp.
 .Pp
-Sctp
+SCTP
 .Nm nat
 support has been developed by
 .An The Centre for Advanced Internet Architectures (CAIA) Aq http://www.caia.swin.edu.au .
 The primary developers and maintainers are David Hayes and Jason But.
 For further information visit:
 .Aq http://www.caia.swin.edu.au/urp/SONATA
-.
 .Sh BUGS
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes
@@ -2933,8 +2939,8 @@ or quoted appropriately.
 .Pp
 Due to the architecture of 
 .Xr libalias 3 , 
-ipfw nat is not compatible with the tcp segmentation offloading
-(TSO). Thus, to reliably nat your network traffic, please disable TSO
+ipfw nat is not compatible with the TCP segmentation offloading (TSO).
+Thus, to reliably nat your network traffic, please disable TSO
 on your NICs using
 .Xr ifconfig 8 .
 .Pp
