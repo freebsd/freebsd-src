@@ -295,7 +295,6 @@ device		ums		# Mouse
 device		ural		# Ralink Technology RT2500USB wireless NICs
 device		rum		# Ralink Technology RT2501USB wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
-device		uscanner	# Scanners
 # USB Serial devices
 device		uark		# Technologies ARK3116 based serial adapters
 device		ubsa		# Belkin F5U103 and compatible serial adapters
