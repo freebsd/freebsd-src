@@ -37,11 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/malloc.h>
 
-#if defined(__i386__) && defined(PC98)
-#include <pc98/cbus/cbus.h>
-#else
-#include <isa/isareg.h>
-#endif
 #include <isa/isavar.h>
 
 #include <dev/ppbus/ppbconf.h>
