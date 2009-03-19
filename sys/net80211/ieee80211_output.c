@@ -205,7 +205,6 @@ ieee80211_start(struct ifnet *ifp)
 			m_freem(m);
 			continue;
 		}
-		/* XXX AUTH'd */
 		if (ni->ni_associd == 0 &&
 		    (ni->ni_flags & IEEE80211_NODE_ASSOCID)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
