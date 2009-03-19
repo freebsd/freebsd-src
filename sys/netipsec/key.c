@@ -4161,7 +4161,8 @@ key_flush_sad(time_t now)
 			if (sav->lft_s->addtime != 0 &&
 			    now - sav->created > sav->lft_s->addtime) {
 				key_sa_chgstate(sav, SADB_SASTATE_DYING);
-				/* Actually, only send expire message if SA has been used, as it
+				/* 
+				 * Actually, only send expire message if SA has been used, as it
 				 * was done before, but should we always send such message, and let IKE
 				 * daemon decide if it should be renegociated or not ?
 				 * XXX expire message will actually NOT be sent if SA is only used
