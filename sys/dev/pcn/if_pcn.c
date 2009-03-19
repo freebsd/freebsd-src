@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 
 #define PCN_USEIOSPACE
 
-#include <pci/if_pcnreg.h>
+#include <dev/pcn/if_pcnreg.h>
 
 MODULE_DEPEND(pcn, pci, 1, 1, 1);
 MODULE_DEPEND(pcn, ether, 1, 1, 1);
