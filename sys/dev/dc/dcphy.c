@@ -154,13 +154,12 @@ dcphy_attach(device_t dev)
 	sc->mii_service = dcphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
+	/*
+	 * Apparently, we can neither isolate nor do loopback.
+	 */
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
+
 	mii->mii_instance++;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
 
 	/*dcphy_reset(sc);*/
 	dc_sc = mii->mii_ifp->if_softc;
@@ -186,9 +185,8 @@ dcphy_attach(device_t dev)
 
 	sc->mii_capabilities &= ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
-#undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
