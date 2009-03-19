@@ -87,7 +87,12 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			break;
 	}
 	DRM_UNLOCK();
-	DRM_DEBUG("%d %s\n", lock->context, ret ? "interrupted" : "has lock");
+
+	if (ret == ERESTART)
+		DRM_DEBUG("restarting syscall\n");
+	else
+		DRM_DEBUG("%d %s\n", lock->context,
+		    ret ? "interrupted" : "has lock");
 
 	if (ret != 0)
 		return ret;
