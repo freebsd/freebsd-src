@@ -108,7 +108,7 @@ struct igmp_report {
 #define IGMP_HOST_MEMBERSHIP_QUERY	0x11	/* membership query         */
 #define IGMP_v1_HOST_MEMBERSHIP_REPORT	0x12	/* Ver. 1 membership report */
 #define IGMP_DVMRP			0x13	/* DVMRP routing message    */
-#define IGMP_PIM			0x14	/* PIM routing message     */
+#define IGMP_PIM			0x14	/* PIMv1 message (historic) */
 #define IGMP_v2_HOST_MEMBERSHIP_REPORT	0x16	/* Ver. 2 membership report */
 #define IGMP_HOST_LEAVE_MESSAGE		0x17	/* Leave-group message     */
 #define IGMP_MTRACE_REPLY		0x1e	/* mtrace(8) reply */
