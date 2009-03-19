@@ -625,9 +625,9 @@ bd_bestslice(struct open_disk *od)
 
 	dp = &od->od_slicetab[0];
 	for (i = 0; i < od->od_nslices; i++, dp++) {
-		switch(dp->dp_mid & 0x7f) {
-		case DOSMID_386BSD & 0x7f:		/* FreeBSD */
-			if ((dp->dp_mid & 0x80) &&
+		switch(dp->dp_mid & PC98_MID_MASK) {
+		case PC98_MID_386BSD:		/* FreeBSD */
+			if ((dp->dp_mid & PC98_MID_BOOTABLE) &&
 			    (preflevel > PREF_FBSD_ACT)) {
 				pref = i;
 				preflevel = PREF_FBSD_ACT;
@@ -643,7 +643,7 @@ bd_bestslice(struct open_disk *od)
 		case 0x22:
 		case 0x23:
 		case 0x63:
-			if ((dp->dp_mid & 0x80) &&
+			if ((dp->dp_mid & PC98_MID_BOOTABLE) &&
 			    (preflevel > PREF_DOS_ACT)) {
 				pref = i;
 				preflevel = PREF_DOS_ACT;
