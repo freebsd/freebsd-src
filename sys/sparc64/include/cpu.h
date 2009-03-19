@@ -52,6 +52,7 @@
 extern	char btext[];
 extern	char etext[];
 
+void	cheetah_init(void);
 void	cpu_halt(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);
