@@ -1446,7 +1446,7 @@ pcn_watchdog(ifp)
 	pcn_init_locked(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
-		pcn_start(ifp);
+		pcn_start_locked(ifp);
 
 	PCN_UNLOCK(sc);
 
