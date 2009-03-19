@@ -293,7 +293,7 @@ mroutepr(u_long pmfchashtbl, u_long pmfctablesize, u_long pviftbl)
 			len -= sizeof(*m);
 		}
 		if (len != 0)
-			warnx("print_mfc: %d trailing bytes", len);
+			warnx("print_mfc: %lu trailing bytes", (u_long)len);
 
 		free(mfctable);
 	} else {
