@@ -104,7 +104,6 @@ device          umass           # Disks/Mass storage - Requires scbus and da
 device          ural            # Ralink Technology RT2500USB wireless NICs
 device          rum             # Ralink Technology RT2501USB wireless NICs
 device          urio            # Diamond Rio 500 MP3 player
-device          uscanner        # Scanners
 # USB Ethernet, requires miibus
 device		miibus
 device          aue             # ADMtek USB Ethernet
