@@ -144,7 +144,7 @@ static device_method_t upa_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ NULL, NULL }
+	KOBJMETHOD_END
 };
 
 static devclass_t upa_devclass;
@@ -241,7 +241,7 @@ upa_attach(device_t dev)
 				    "pci108e,8001") == 0 &&
 				    ((bus_get_resource_start(children[j],
 				    SYS_RES_MEMORY, 0) >> 20) & 1) == 1) {
-				    	schizo = children[j];
+					schizo = children[j];
 					break;
 				}
 			}
@@ -287,9 +287,10 @@ upa_attach(device_t dev)
 		goto fail;
 	}
 
- 	/*
+	/*
 	 * Hunt through all the interrupt mapping regs and register our
 	 * interrupt controller for the corresponding interrupt vectors.
+	 * We do this early in order to be able to catch stray interrupts.
 	 */
 	for (i = UPA_INO_BASE; i <= UPA_INO_MAX; i++) {
 		imr = 0;
@@ -312,10 +313,11 @@ upa_attach(device_t dev)
 		device_printf(dev, "intr map (INO %d) IMR%d: %#lx\n",
 		    i, imr, (u_long)UPA_READ(sc, imr, 0x0));
 #endif
-		if (intr_controller_register(INTMAP_VEC(sc->sc_ign, i),
-		    &upa_ic, uica) != 0)
-			panic("%s: could not register interrupt controller "
-			    "for INO %d", __func__, i);
+		j = intr_controller_register(INTMAP_VEC(sc->sc_ign, i),
+		    &upa_ic, uica);
+		if (j != 0)
+			device_printf(dev, "could not register interrupt "
+			    "controller for INO %d (%d)\n", i, j);
 	}
 
 	/* Make sure the power level is appropriate for normal operation. */
@@ -345,13 +347,13 @@ upa_attach(device_t dev)
 			device_printf(dev,
 			    "could not determine upa-portid of child 0x%lx\n",
 			    (unsigned long)child);
-		    	continue;
+			continue;
 		}
 		if (portid > 1) {
 			device_printf(dev,
 			    "upa-portid %d of child 0x%lx invalid\n", portid,
 			    (unsigned long)child);
-		    	continue;
+			continue;
 		}
 		if ((udi = upa_setup_dinfo(dev, sc, child, portid)) == NULL)
 			continue;
@@ -493,12 +495,12 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	/*
 	 * Make sure the vector is fully specified and we registered
 	 * our interrupt controller for it.
- 	 */
+	 */
 	vec = rman_get_start(ires);
 	if (INTIGN(vec) != sc->sc_ign || intr_vectors[vec].iv_ic != &upa_ic) {
 		device_printf(dev, "invalid interrupt vector 0x%lx\n", vec);
- 		return (EINVAL);
- 	}
+		return (EINVAL);
+	}
 	return (bus_generic_setup_intr(dev, child, ires, flags, filt, func,
 	    arg, cookiep));
 }
