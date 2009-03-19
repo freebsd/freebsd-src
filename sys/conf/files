@@ -1656,10 +1656,6 @@ dev/usb/template/usb_template_cdce.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
 #
-# USB image drivers
-#
-dev/usb/image/uscanner.c	optional uscanner
-#
 # USB END
 #
 dev/utopia/idtphy.c		optional utopia

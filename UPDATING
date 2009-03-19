@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090319:
+	The uscanner(4) driver has been removed from the kernel. This follows
+	Linux removing theirs in 2.6 and making libusb the default interface
+	(supported by sane).
+
+20090319:
 	The multicast forwarding code has been cleaned up. netstat(1)
 	only relies on KVM now for printing bandwidth upcall meters.
 	The IPv4 and IPv6 modules are split into ip_mroute_mod and
