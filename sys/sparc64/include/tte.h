@@ -36,21 +36,24 @@
 
 #define	TD_SIZE_SHIFT	(61)
 #define	TD_SOFT2_SHIFT	(50)
-#define	TD_DIAG_SHIFT	(41)
+#define	TD_DIAG_SF_SHIFT	(41)
+#define	TD_RSVD_CH_SHIFT	(43)
 #define	TD_PA_SHIFT	(13)
 #define	TD_SOFT_SHIFT	(7)
 
 #define	TD_SIZE_BITS	(2)
 #define	TD_SOFT2_BITS	(9)
-#define	TD_DIAG_BITS	(9)
+#define	TD_DIAG_SF_BITS	(9)
+#define	TD_RSVD_CH_BITS	(7)
 #define	TD_PA_CH_BITS	(30)
 #define	TD_PA_SF_BITS	(28)
-#define	TD_PA_BITS	TD_PA_SF_BITS
+#define	TD_PA_BITS	TD_PA_CH_BITS
 #define	TD_SOFT_BITS	(6)
 
 #define	TD_SIZE_MASK	((1UL << TD_SIZE_BITS) - 1)
 #define	TD_SOFT2_MASK	((1UL << TD_SOFT2_BITS) - 1)
-#define	TD_DIAG_MASK	((1UL << TD_DIAG_BITS) - 1)
+#define	TD_DIAG_SF_MASK	((1UL << TD_DIAG_SF_BITS) - 1)
+#define	TD_RSVD_CH_MASK	((1UL << TD_RSVD_CH_BITS) - 1)
 #define	TD_PA_CH_MASK	((1UL << TD_PA_CH_BITS) - 1)
 #define	TD_PA_SF_MASK	((1UL << TD_PA_SF_BITS) - 1)
 #define	TD_PA_MASK	((1UL << TD_PA_BITS) - 1)
