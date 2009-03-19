@@ -598,8 +598,6 @@ struct ieee80211_channel;
  */
 struct ath_hal {
 	uint32_t	ah_magic;	/* consistency check magic number */
-	uint32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x08112800	/* YYMMDDnn */
 	uint16_t	ah_devid;	/* PCI device ID */
 	uint16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
