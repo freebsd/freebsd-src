@@ -78,7 +78,7 @@ static device_method_t jbusppm_methods[] = {
 	DEVMETHOD(device_probe,		jbusppm_probe),
 	DEVMETHOD(device_attach,	jbusppm_attach),
 
-	{ NULL, NULL }
+	KOBJMETHOD_END
 };
 
 static devclass_t jbusppm_devclass;
