@@ -812,10 +812,7 @@ read_dsfield(m, pktattr)
 }
 
 void
-write_dsfield(m, pktattr, dsfield)
-	struct mbuf *m;
-	struct altq_pktattr *pktattr;
-	u_int8_t dsfield;
+write_dsfield(struct mbuf *m, struct altq_pktattr *pktattr, u_int8_t dsfield)
 {
 	struct mbuf *m0;
 
