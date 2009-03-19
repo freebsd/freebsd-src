@@ -38,7 +38,6 @@ static void ar5211DisablePCIE(struct ath_hal *ah);
 
 static const struct ath_hal_private ar5211hal = {{
 	.ah_magic			= AR5211_MAGIC,
-	.ah_abi				= HAL_ABI_VERSION,
 
 	.ah_getRateTable		= ar5211GetRateTable,
 	.ah_detach			= ar5211Detach,
