@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/upa.h>
 #include <machine/ver.h>
+#include <machine/vmparam.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
@@ -356,7 +357,7 @@ __elfN(exec)(struct preloaded_file *fp)
 		return (error);
 
 	printf("jumping to kernel entry at %#lx.\n", e->e_entry);
-#if LOADER_DEBUG
+#ifdef LOADER_DEBUG
 	pmap_print_tlb_sun4u();
 #endif
 
@@ -461,7 +462,7 @@ itlb_enter_sun4u(u_long vpn, u_long data)
 	stxa(AA_IMMU_TAR, ASI_IMMU,
 	     TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
 	stxa(0, ASI_ITLB_DATA_IN_REG, data);
-	membar(Sync);
+	flush(PROMBASE);
 	wrpr(pstate, reg, 0);
 }
 
@@ -726,7 +727,7 @@ exit(int code)
 }
 
 #ifdef LOADER_DEBUG
-static const char *page_sizes[] = {
+static const char *const page_sizes[] = {
 	"  8k", " 64k", "512k", "  4m"
 };
 
