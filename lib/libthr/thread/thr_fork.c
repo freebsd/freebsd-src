@@ -173,8 +173,11 @@ _fork(void)
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);
 
-		if (unlock_malloc)
+		if (unlock_malloc) {
+			__isthreaded = 1;
 			_malloc_postfork();
+			__isthreaded = 0;
+		}
 
 		/* Run down atfork child handlers. */
 		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {
