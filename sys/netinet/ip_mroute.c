@@ -59,7 +59,6 @@
  * domain attachment (if_afdata) so we can track consumers of that service.
  * TODO: Deprecate routing socket path for SIOCGETSGCNT and SIOCGETVIFCNT,
  * move it to socket options.
- * TODO: Rototile log_debug to use KTR.
  * TODO: Cleanup LSRR removal further.
  * TODO: Push RSVP stubs into raw_ip.c.
  * TODO: Use bitstring.h for vif set.
@@ -79,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/ktr.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
@@ -117,14 +117,9 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#define		DEBUG_MFC	0x02
-#define		DEBUG_FORWARD	0x04
-#define		DEBUG_EXPIRE	0x08
-#define		DEBUG_XMIT	0x10
-#define		DEBUG_PIM	0x20
-static u_int	mrtdebug;
-SYSCTL_INT(_debug, OID_AUTO, mrtdebug, CTLFLAG_RW, &mrtdebug, 0,
-    "Enable/disable IPv4 multicast forwarding debugging flags");
+#ifndef KTR_IPMF
+#define KTR_IPMF KTR_SUBSYS
+#endif
 
 #define		VIFI_INVALID	((vifi_t) -1)
 #define		M_HASCL(m)	((m)->m_flags & M_EXT)
@@ -658,9 +653,8 @@ ip_mrouter_init(struct socket *so, int version)
 {
     INIT_VNET_INET(curvnet);
 
-    if (mrtdebug)
-	log(LOG_DEBUG, "ip_mrouter_init: so_type = %d, pr_protocol = %d\n",
-	    so->so_type, so->so_proto->pr_protocol);
+    CTR3(KTR_IPMF, "%s: so_type %d, pr_protocol %d", __func__,
+        so->so_type, so->so_proto->pr_protocol);
 
     if (so->so_type != SOCK_RAW || so->so_proto->pr_protocol != IPPROTO_IGMP)
 	return EOPNOTSUPP;
@@ -694,8 +688,7 @@ ip_mrouter_init(struct socket *so, int version)
 
     MROUTER_UNLOCK();
 
-    if (mrtdebug)
-	log(LOG_DEBUG, "ip_mrouter_init\n");
+    CTR1(KTR_IPMF, "%s: done", __func__);
 
     return 0;
 }
@@ -782,8 +775,7 @@ X_ip_mrouter_done(void)
 
     MROUTER_UNLOCK();
 
-    if (mrtdebug)
-	log(LOG_DEBUG, "ip_mrouter_done\n");
+    CTR1(KTR_IPMF, "%s: done", __func__);
 
     return 0;
 }
@@ -894,14 +886,12 @@ add_vif(struct vifctl *vifcp)
     }
 
     if ((vifcp->vifc_flags & VIFF_TUNNEL) != 0) {
-	log(LOG_ERR, "tunnels are no longer supported\n");
+	CTR1(KTR_IPMF, "%s: tunnels are no longer supported", __func__);
 	VIF_UNLOCK();
 	return EOPNOTSUPP;
     } else if (vifcp->vifc_flags & VIFF_REGISTER) {
 	ifp = &multicast_register_if;
-	if (mrtdebug)
-	    log(LOG_DEBUG, "Adding a register vif, ifp: %p\n",
-		    (void *)&multicast_register_if);
+	CTR2(KTR_IPMF, "%s: add register vif for ifp %p", __func__, ifp);
 	if (reg_vif_num == VIFI_INVALID) {
 	    if_initname(&multicast_register_if, "register_vif", 0);
 	    multicast_register_if.if_flags = IFF_LOOPBACK;
@@ -939,13 +929,9 @@ add_vif(struct vifctl *vifcp)
 
     VIF_UNLOCK();
 
-    if (mrtdebug)
-	log(LOG_DEBUG, "add_vif #%d, lcladdr %lx, %s %lx, thresh %x\n",
-	    vifcp->vifc_vifi,
-	    (u_long)ntohl(vifcp->vifc_lcl_addr.s_addr),
-	    (vifcp->vifc_flags & VIFF_TUNNEL) ? "rmtaddr" : "mask",
-	    (u_long)ntohl(vifcp->vifc_rmt_addr.s_addr),
-	    vifcp->vifc_threshold);
+    CTR4(KTR_IPMF, "%s: add vif %d laddr %s thresh %x", __func__,
+	(int)vifcp->vifc_vifi, inet_ntoa(&vifcp->vifc_lcl_addr),
+	(int)vifcp->vifc_threshold);
 
     return 0;
 }
@@ -976,8 +962,7 @@ del_vif_locked(vifi_t vifi)
 
     bzero((caddr_t)vifp, sizeof (*vifp));
 
-    if (mrtdebug)
-	log(LOG_DEBUG, "del_vif %d, numvifs %d\n", vifi, numvifs);
+    CTR2(KTR_IPMF, "%s: delete vif %d", __func__, (int)vifi);
 
     /* Adjust numvifs down */
     for (vifi = numvifs; vifi > 0; vifi--)
@@ -1074,12 +1059,10 @@ add_mfc(struct mfcctl2 *mfccp)
 
     /* If an entry already exists, just update the fields */
     if (rt) {
-	if (mrtdebug & DEBUG_MFC)
-	    log(LOG_DEBUG,"add_mfc update o %lx g %lx p %x\n",
-		(u_long)ntohl(mfccp->mfcc_origin.s_addr),
-		(u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
-		mfccp->mfcc_parent);
-
+	CTR4(KTR_IPMF, "%s: update mfc orig %s group %lx parent %x",
+	    __func__, inet_ntoa(&mfccp->mfcc_origin),
+	    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
+	    mfccp->mfcc_parent);
 	update_mfc_params(rt, mfccp);
 	MFC_UNLOCK();
 	VIF_UNLOCK();
@@ -1095,22 +1078,14 @@ add_mfc(struct mfcctl2 *mfccp)
 	if (in_hosteq(rt->mfc_origin, mfccp->mfcc_origin) &&
 	    in_hosteq(rt->mfc_mcastgrp, mfccp->mfcc_mcastgrp) &&
 	    !TAILQ_EMPTY(&rt->mfc_stall)) {
-		if (nstl++) {
-			log(LOG_ERR, "add_mfc %s o %lx g %lx p %x dbx %p\n",
-			    "multiple kernel entries",
-			    (u_long)ntohl(mfccp->mfcc_origin.s_addr),
-			    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
-			    mfccp->mfcc_parent,
-			    (void *)TAILQ_FIRST(&rt->mfc_stall));
-		}
-
-		if (mrtdebug & DEBUG_MFC) {
-			log(LOG_DEBUG,"add_mfc o %lx g %lx p %x dbg %p\n",
-			    (u_long)ntohl(mfccp->mfcc_origin.s_addr),
-			    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
-			    mfccp->mfcc_parent,
-			    (void *)TAILQ_FIRST(&rt->mfc_stall));
-		}
+		CTR5(KTR_IPMF,
+		    "%s: add mfc orig %s group %lx parent %x qh %p",
+		    __func__, inet_ntoa(&mfccp->mfcc_origin),
+		    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
+		    mfccp->mfcc_parent,
+		    TAILQ_FIRST(&rt->mfc_stall));
+		if (nstl++)
+			CTR1(KTR_IPMF, "%s: multiple matches", __func__);
 
 		init_mfc_params(rt, mfccp);
 		rt->mfc_expire = 0;	/* Don't clean this guy up */
@@ -1132,15 +1107,7 @@ add_mfc(struct mfcctl2 *mfccp)
      * It is possible that an entry is being inserted without an upcall
      */
     if (nstl == 0) {
-	/*
-	 * No mfc; make a new one
-	 */
-	if (mrtdebug & DEBUG_MFC)
-	    log(LOG_DEBUG,"add_mfc no upcall h %lu o %lx g %lx p %x\n",
-		hash, (u_long)ntohl(mfccp->mfcc_origin.s_addr),
-		(u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
-		mfccp->mfcc_parent);
-
+	CTR1(KTR_IPMF, "%s: adding mfc w/o upcall", __func__);
 	LIST_FOREACH(rt, &mfchashtbl[hash], mfc_hash) {
 		if (in_hosteq(rt->mfc_origin, mfccp->mfcc_origin) &&
 		    in_hosteq(rt->mfc_mcastgrp, mfccp->mfcc_mcastgrp)) {
@@ -1191,11 +1158,8 @@ del_mfc(struct mfcctl2 *mfccp)
     origin = mfccp->mfcc_origin;
     mcastgrp = mfccp->mfcc_mcastgrp;
 
-    if (mrtdebug & DEBUG_MFC) {
-	log(LOG_DEBUG,"del_mfc orig %lx mcastgrp %lx\n",
-	    (u_long)ntohl(origin.s_addr),
-	    (u_long)ntohl(mcastgrp.s_addr));
-    }
+    CTR3(KTR_IPMF, "%s: delete mfc orig %s group %lx", __func__,
+	inet_ntoa(origin), (u_long)ntohl(mcastgrp.s_addr));
 
     MFC_LOCK();
 
@@ -1260,10 +1224,8 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
     int error;
     vifi_t vifi;
 
-    if (mrtdebug & DEBUG_FORWARD)
-	log(LOG_DEBUG, "ip_mforward: src %lx, dst %lx, ifp %p\n",
-	    (u_long)ntohl(ip->ip_src.s_addr), (u_long)ntohl(ip->ip_dst.s_addr),
-	    (void *)ifp);
+    CTR3(KTR_IPMF, "ip_mforward: delete mfc orig %s group %lx ifp %p",
+	inet_ntoa(ip->ip_src), (u_long)ntohl(mcastgrp.s_addr), ifp);
 
     if (ip->ip_hl < (sizeof(struct ip) + TUNNEL_LEN) >> 2 ||
 		((u_char *)(ip + 1))[1] != IPOPT_LSRR ) {
@@ -1276,14 +1238,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	 * Packet arrived through a source-route tunnel.
 	 * Source-route tunnels are no longer supported.
 	 */
-	static int last_log;
-	if (last_log != time_uptime) {
-	    last_log = time_uptime;
-	    log(LOG_ERR,
-		"ip_mforward: received source-routed packet from %lx\n",
-		(u_long)ntohl(ip->ip_src.s_addr));
-	}
-	return 1;
+	return (1);
     }
 
     VIF_LOCK();
@@ -1333,10 +1288,8 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	++mrtstat.mrts_mfc_misses;
 
 	mrtstat.mrts_no_route++;
-	if (mrtdebug & (DEBUG_FORWARD | DEBUG_MFC))
-	    log(LOG_DEBUG, "ip_mforward: no rte s %lx g %lx\n",
-		(u_long)ntohl(ip->ip_src.s_addr),
-		(u_long)ntohl(ip->ip_dst.s_addr));
+	CTR2(KTR_IPMF, "ip_mforward: no mfc for (%s,%lx)",
+	    inet_ntoa(ip->ip_src), (u_long)ntohl(ip->ip_dst.s_addr));
 
 	/*
 	 * Allocate mbufs early so that we don't do extra work if we are
@@ -1390,6 +1343,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	    rt = (struct mfc *)malloc(sizeof(*rt), M_MRTABLE, M_NOWAIT);
 	    if (rt == NULL)
 		goto fail;
+
 	    /* Make a copy of the header to send to the user level process */
 	    mm = m_copy(mb0, 0, hlen);
 	    if (mm == NULL)
@@ -1409,7 +1363,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 
 	    k_igmpsrc.sin_addr = ip->ip_src;
 	    if (socket_send(V_ip_mrouter, mm, &k_igmpsrc) < 0) {
-		log(LOG_WARNING, "ip_mforward: ip_mrouter socket queue full\n");
+		CTR0(KTR_IPMF, "ip_mforward: socket queue full");
 		++mrtstat.mrts_upq_sockfull;
 fail1:
 		free(rt, M_MRTABLE);
@@ -1502,11 +1456,9 @@ expire_upcalls(void *unused)
 		}
 
 		++mrtstat.mrts_cache_cleanups;
-		if (mrtdebug & DEBUG_EXPIRE) {
-		    log(LOG_DEBUG, "expire_upcalls: expiring (%lx %lx)\n",
-			(u_long)ntohl(rt->mfc_origin.s_addr),
-			(u_long)ntohl(rt->mfc_mcastgrp.s_addr));
-		}
+		CTR3(KTR_IPMF, "%s: expire (%lx, %lx)", __func__,
+		    (u_long)ntohl(rt->mfc_origin.s_addr),
+		    (u_long)ntohl(rt->mfc_mcastgrp.s_addr));
 
 		expire_mfc(rt);
 	    }
@@ -1548,10 +1500,8 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
      */
     vifi = rt->mfc_parent;
     if ((vifi >= numvifs) || (viftable[vifi].v_ifp != ifp)) {
-	/* came in the wrong interface */
-	if (mrtdebug & DEBUG_FORWARD)
-	    log(LOG_DEBUG, "wrong if: ifp %p vifi %d vififp %p\n",
-		(void *)ifp, vifi, (void *)viftable[vifi].v_ifp);
+	CTR4(KTR_IPMF, "%s: rx on wrong ifp %p (vifi %d, v_ifp %p)",
+	    __func__, ifp, (int)vifi, viftable[vifi].v_ifp);
 	++mrtstat.mrts_wrong_if;
 	++rt->mfc_wrong_if;
 	/*
@@ -1596,8 +1546,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 
 		k_igmpsrc.sin_addr = im->im_src;
 		if (socket_send(V_ip_mrouter, mm, &k_igmpsrc) < 0) {
-		    log(LOG_WARNING,
-			"ip_mforward: ip_mrouter socket queue full\n");
+		    CTR1(KTR_IPMF, "%s: socket queue full", __func__);
 		    ++mrtstat.mrts_upq_sockfull;
 		    return ENOBUFS;
 		}
@@ -1736,10 +1685,8 @@ send_packet(struct vif *vifp, struct mbuf *m)
 	 * the loopback interface, thus preventing looping.
 	 */
 	error = ip_output(m, NULL, &vifp->v_route, IP_FORWARDING, &imo, NULL);
-	if (mrtdebug & DEBUG_XMIT) {
-	    log(LOG_DEBUG, "phyint_send on vif %td err %d\n",
-		vifp - viftable, error);
-	}
+	CTR3(KTR_IPMF, "%s: vif %td err %d", __func__,
+	    (ptrdiff_t)(vifp - viftable), error);
 }
 
 /*
@@ -2362,9 +2309,6 @@ pim_register_send(struct ip *ip, struct vif *vifp, struct mbuf *m,
 {
     struct mbuf *mb_copy, *mm;
 
-    if (mrtdebug & DEBUG_PIM)
-	log(LOG_DEBUG, "pim_register_send: ");
-
     /*
      * Do not send IGMP_WHOLEPKT notifications to userland, if the
      * rendezvous point was unspecified, and we were told not to.
@@ -2490,9 +2434,7 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
     mrtstat.mrts_upcalls++;
 
     if (socket_send(V_ip_mrouter, mb_first, &k_igmpsrc) < 0) {
-	if (mrtdebug & DEBUG_PIM)
-	    log(LOG_WARNING,
-		"mcast: pim_register_send_upcall: ip_mrouter socket queue full");
+	CTR1(KTR_IPMF, "%s: socket queue full", __func__);
 	++mrtstat.mrts_upq_sockfull;
 	return ENOBUFS;
     }
@@ -2620,8 +2562,8 @@ pim_input(struct mbuf *m, int off)
      */
     if (datalen < PIM_MINLEN) {
 	pimstat.pims_rcv_tooshort++;
-	log(LOG_ERR, "pim_input: packet size too small %d from %lx\n",
-	    datalen, (u_long)ip->ip_src.s_addr);
+	CTR3(KTR_IPMF, "%s: short packet (%d) from %s",
+	    __func__, datalen, inet_ntoa(&ip->ip_src));
 	m_freem(m);
 	return;
     }
@@ -2641,9 +2583,10 @@ pim_input(struct mbuf *m, int off)
      */
     if ((m->m_flags & M_EXT || m->m_len < minlen) &&
 	(m = m_pullup(m, minlen)) == 0) {
-	log(LOG_ERR, "pim_input: m_pullup failure\n");
+	CTR1(KTR_IPMF, "%s: m_pullup() failed", __func__);
 	return;
     }
+
     /* m_pullup() may have given us a new mbuf so reset ip. */
     ip = mtod(m, struct ip *);
     ip_tos = ip->ip_tos;
@@ -2664,8 +2607,7 @@ pim_input(struct mbuf *m, int off)
 	/* do nothing, checksum okay */
     } else if (in_cksum(m, datalen)) {
 	pimstat.pims_rcv_badsum++;
-	if (mrtdebug & DEBUG_PIM)
-	    log(LOG_DEBUG, "pim_input: invalid checksum");
+	CTR1(KTR_IPMF, "%s: invalid checksum", __func__);
 	m_freem(m);
 	return;
     }
@@ -2673,8 +2615,8 @@ pim_input(struct mbuf *m, int off)
     /* PIM version check */
     if (PIM_VT_V(pim->pim_vt) < PIM_VERSION) {
 	pimstat.pims_rcv_badversion++;
-	log(LOG_ERR, "pim_input: incorrect version %d, expecting %d\n",
-	    PIM_VT_V(pim->pim_vt), PIM_VERSION);
+	CTR3(KTR_IPMF, "%s: bad version %d expect %d", __func__,
+	    (int)PIM_VT_V(pim->pim_vt), PIM_VERSION);
 	m_freem(m);
 	return;
     }
@@ -2698,9 +2640,8 @@ pim_input(struct mbuf *m, int off)
 	VIF_LOCK();
 	if ((reg_vif_num >= numvifs) || (reg_vif_num == VIFI_INVALID)) {
 	    VIF_UNLOCK();
-	    if (mrtdebug & DEBUG_PIM)
-		log(LOG_DEBUG,
-		    "pim_input: register vif not set: %d\n", reg_vif_num);
+	    CTR2(KTR_IPMF, "%s: register vif not set: %d", __func__,
+		(int)reg_vif_num);
 	    m_freem(m);
 	    return;
 	}
@@ -2714,9 +2655,7 @@ pim_input(struct mbuf *m, int off)
 	if (datalen < PIM_REG_MINLEN) {
 	    pimstat.pims_rcv_tooshort++;
 	    pimstat.pims_rcv_badregisters++;
-	    log(LOG_ERR,
-		"pim_input: register packet size too small %d from %lx\n",
-		datalen, (u_long)ip->ip_src.s_addr);
+	    CTR1(KTR_IPMF, "%s: register packet size too small", __func__);
 	    m_freem(m);
 	    return;
 	}
@@ -2724,21 +2663,13 @@ pim_input(struct mbuf *m, int off)
 	reghdr = (u_int32_t *)(pim + 1);
 	encap_ip = (struct ip *)(reghdr + 1);
 
-	if (mrtdebug & DEBUG_PIM) {
-	    log(LOG_DEBUG,
-		"pim_input[register], encap_ip: %lx -> %lx, encap_ip len %d\n",
-		(u_long)ntohl(encap_ip->ip_src.s_addr),
-		(u_long)ntohl(encap_ip->ip_dst.s_addr),
-		ntohs(encap_ip->ip_len));
-	}
+	CTR3(KTR_IPMF, "%s: register: encap ip src %s len %d",
+	    __func__, inet_ntoa(encap_ip->ip_src), ntohs(encap_ip->ip_len));
 
 	/* verify the version number of the inner packet */
 	if (encap_ip->ip_v != IPVERSION) {
 	    pimstat.pims_rcv_badregisters++;
-	    if (mrtdebug & DEBUG_PIM) {
-		log(LOG_DEBUG, "pim_input: invalid IP version (%d) "
-		    "of the inner packet\n", encap_ip->ip_v);
-	    }
+	    CTR1(KTR_IPMF, "%s: bad encap ip version", __func__);
 	    m_freem(m);
 	    return;
 	}
@@ -2746,11 +2677,8 @@ pim_input(struct mbuf *m, int off)
 	/* verify the inner packet is destined to a mcast group */
 	if (!IN_MULTICAST(ntohl(encap_ip->ip_dst.s_addr))) {
 	    pimstat.pims_rcv_badregisters++;
-	    if (mrtdebug & DEBUG_PIM)
-		log(LOG_DEBUG,
-		    "pim_input: inner packet of register is not "
-		    "multicast %lx\n",
-		    (u_long)ntohl(encap_ip->ip_dst.s_addr));
+	    CTR2(KTR_IPMF, "%s: bad encap ip dest %s", __func__,
+		inet_ntoa(encap_ip->ip_dst));
 	    m_freem(m);
 	    return;
 	}
@@ -2789,8 +2717,7 @@ pim_input(struct mbuf *m, int off)
 	 */
 	mcp = m_copy(m, 0, iphlen + PIM_REG_MINLEN);
 	if (mcp == NULL) {
-	    log(LOG_ERR,
-		"pim_input: pim register: could not copy register head\n");
+	    CTR1(KTR_IPMF, "%s: m_copy() failed", __func__);
 	    m_freem(m);
 	    return;
 	}
@@ -2805,14 +2732,13 @@ pim_input(struct mbuf *m, int off)
 	 */
 	m_adj(m, iphlen + PIM_MINLEN);
 
-	if (mrtdebug & DEBUG_PIM) {
-	    log(LOG_DEBUG,
-		"pim_input: forwarding decapsulated register: "
-		"src %lx, dst %lx, vif %d\n",
-		(u_long)ntohl(encap_ip->ip_src.s_addr),
-		(u_long)ntohl(encap_ip->ip_dst.s_addr),
-		reg_vif_num);
-	}
+	CTR4(KTR_IPMF,
+	    "%s: forward decap'd REGISTER: src %lx dst %lx vif %d",
+	    __func__,
+	    (u_long)ntohl(encap_ip->ip_src.s_addr),
+	    (u_long)ntohl(encap_ip->ip_dst.s_addr),
+	    (int)reg_vif_num);
+
 	/* NB: vifp was collected above; can it change on us? */
 	if_simloop(vifp, m, dst.sin_family, 0);
 
