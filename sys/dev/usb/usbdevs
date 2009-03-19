@@ -2310,9 +2310,11 @@ product SUNTAC AS64LX		0x000b	SUNTAC U-Cable type A3
 product SUNTAC AS144L4		0x0011	SUNTAC U-Cable type A4
 
 /* Sun Microsystems products */
-product SUN KEYBOARD		0x0005	Type 6 USB keyboard
+product SUN KEYBOARD_TYPE_6	0x0005	Type 6 USB keyboard
+product SUN KEYBOARD_TYPE_7	0x00a2	Type 7 USB keyboard
 /* XXX The above is a North American PC style keyboard possibly */
 product SUN MOUSE		0x0100	Type 6 USB mouse
+product SUN KBD_HUB		0x100e	Kbd Hub
 
 /* Super Top products */
 product	SUPERTOP IDE		0x6600	USB-IDE
