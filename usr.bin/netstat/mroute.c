@@ -67,124 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include "netstat.h"
 
-static void print_bw_meter(struct bw_meter *bw_meter, int *banner_printed);
 
-void
-mroutepr(u_long mfcaddr, u_long vifaddr)
-{
-	struct mfc *mfctable[MFCTBLSIZ];
-	struct vif viftable[MAXVIFS];
-	struct mfc mfc, *m;
-	struct vif *v;
-	vifi_t vifi;
-	int i;
-	int banner_printed;
-	int saved_numeric_addr;
-	vifi_t maxvif = 0;
-	size_t len;
-
-	len = sizeof(mfctable);
-	if (live) {
-		if (sysctlbyname("net.inet.ip.mfctable", mfctable, &len, NULL,
-		    0) < 0) {
-			warn("sysctl: net.inet.ip.mfctable");
-			return;
-		}
-	} else
-		kread(mfcaddr, (char *)mfctable, sizeof(mfctable));
-
-	len = sizeof(viftable);
-	if (live) {
-		if (sysctlbyname("net.inet.ip.viftable", viftable, &len, NULL,
-		    0) < 0) {
-			warn("sysctl: net.inet.ip.viftable");
-			return;
-		}
-	} else
-		kread(vifaddr, (char *)viftable, sizeof(viftable));
-
-	saved_numeric_addr = numeric_addr;
-	numeric_addr = 1;
-
-	banner_printed = 0;
-	for (vifi = 0, v = viftable; vifi < MAXVIFS; ++vifi, ++v) {
-		if (v->v_lcl_addr.s_addr == 0)
-			continue;
-
-		maxvif = vifi;
-		if (!banner_printed) {
-			printf("\nIPv4 Virtual Interface Table\n"
-			       " Vif   Thresh   Rate   Local-Address   "
-			       "Remote-Address    Pkts-In   Pkts-Out\n");
-			banner_printed = 1;
-		}
-
-		printf(" %2u    %6u   %4d   %-15.15s",
-					/* opposite math of add_vif() */
-		    vifi, v->v_threshold, v->v_rate_limit * 1000 / 1024,
-		    routename(v->v_lcl_addr.s_addr));
-		printf(" %-15.15s", (v->v_flags & VIFF_TUNNEL) ?
-		    routename(v->v_rmt_addr.s_addr) : "");
-
-		printf(" %9lu  %9lu\n", v->v_pkt_in, v->v_pkt_out);
-	}
-	if (!banner_printed)
-		printf("\nIPv4 Virtual Interface Table is empty\n");
-
-	banner_printed = 0;
-	for (i = 0; i < MFCTBLSIZ; ++i) {
-		m = mfctable[i];
-		while(m) {
-			/* XXX KVM */
-			kread((u_long)m, (char *)&mfc, sizeof mfc);
-
-			if (!banner_printed) {
-				printf("\nIPv4 Multicast Forwarding Table\n"
-				       " Origin          Group            "
-				       " Packets In-Vif  Out-Vifs:Ttls\n");
-				banner_printed = 1;
-			}
-
-			printf(" %-15.15s", routename(mfc.mfc_origin.s_addr));
-			printf(" %-15.15s", routename(mfc.mfc_mcastgrp.s_addr));
-			printf(" %9lu", mfc.mfc_pkt_cnt);
-			printf("  %3d   ", mfc.mfc_parent);
-			for (vifi = 0; vifi <= maxvif; vifi++) {
-				if (mfc.mfc_ttls[vifi] > 0)
-					printf(" %u:%u", vifi,
-					       mfc.mfc_ttls[vifi]);
-			}
-			printf("\n");
-
-			/* Print the bw meter information */
-			{
-				struct bw_meter bw_meter, *bwm;
-				int banner_printed2 = 0;
-
-				bwm = mfc.mfc_bw_meter;
-				while (bwm) {
-				    /* XXX KVM */
-				    kread((u_long)bwm, (char *)&bw_meter,
-						sizeof bw_meter);
-				    print_bw_meter(&bw_meter,
-						&banner_printed2);
-				    bwm = bw_meter.bm_mfc_next;
-				}
-#if 0	/* Don't ever print it? */
-				if (! banner_printed2)
-				    printf("\n  No Bandwidth Meters\n");
-#endif
-			}
-
-			m = mfc.mfc_next;
-		}
-	}
-	if (!banner_printed)
-		printf("\nIPv4 Multicast Forwarding Table is empty\n");
-
-	printf("\n");
-	numeric_addr = saved_numeric_addr;
-}
+static void	print_bw_meter(struct bw_meter *, int *);
+static void	print_mfc(struct mfc *, int, int *);
 
 static void
 print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
@@ -260,6 +145,193 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 	printf(" %s", s3);
 
 	printf("\n");
+}
+
+static void
+print_mfc(struct mfc *m, int maxvif, int *banner_printed)
+{
+	struct bw_meter bw_meter, *bwm;
+	int bw_banner_printed;
+	int error;
+	vifi_t vifi;
+
+	bw_banner_printed = 0;
+
+	if (! *banner_printed) {
+		printf("\nIPv4 Multicast Forwarding Table\n"
+		       " Origin          Group            "
+		       " Packets In-Vif  Out-Vifs:Ttls\n");
+		*banner_printed = 1;
+	}
+
+	printf(" %-15.15s", routename(m->mfc_origin.s_addr));
+	printf(" %-15.15s", routename(m->mfc_mcastgrp.s_addr));
+	printf(" %9lu", m->mfc_pkt_cnt);
+	printf("  %3d   ", m->mfc_parent);
+	for (vifi = 0; vifi <= maxvif; vifi++) {
+		if (m->mfc_ttls[vifi] > 0)
+			printf(" %u:%u", vifi, m->mfc_ttls[vifi]);
+	}
+	printf("\n");
+
+	/*
+	 * XXX We break the rules and try to use KVM to read the
+	 * bandwidth meters, they are not retrievable via sysctl yet.
+	 */
+	bwm = m->mfc_bw_meter;
+	while (bwm != NULL) {
+		error = kread((u_long)bwm, (char *)&bw_meter,
+		    sizeof(bw_meter));
+		if (error)
+			break;
+		print_bw_meter(&bw_meter, &bw_banner_printed);
+		bwm = bw_meter.bm_mfc_next;
+	}
+}
+
+void
+mroutepr(u_long pmfchashtbl, u_long pmfctablesize, u_long pviftbl)
+{
+	struct vif viftable[MAXVIFS];
+	struct vif *v;
+	struct mfc *m;
+	int banner_printed;
+	int saved_numeric_addr;
+	size_t len;
+	vifi_t vifi, maxvif;
+
+	saved_numeric_addr = numeric_addr;
+	numeric_addr = 1;
+
+	/*
+	 * TODO:
+	 * The VIF table will move to hanging off the struct if_info for
+	 * each IPv4 configured interface. Currently it is statically
+	 * allocated, and retrieved either using KVM or an opaque SYSCTL.
+	 *
+	 * This can't happen until the API documented in multicast(4)
+	 * is itself refactored. The historical reason why VIFs use
+	 * a separate ifindex space is entirely due to the legacy
+	 * capability of the MROUTING code to create IPIP tunnels on
+	 * the fly to support DVMRP. When gif(4) became available, this
+	 * functionality was deprecated, as PIM does not use it.
+	 */
+	maxvif = 0;
+
+	len = sizeof(viftable);
+	if (live) {
+		if (sysctlbyname("net.inet.ip.viftable", viftable, &len, NULL,
+		    0) < 0) {
+			warn("sysctl: net.inet.ip.viftable");
+			return;
+		}
+	} else
+		kread(pviftbl, (char *)viftable, sizeof(viftable));
+
+	banner_printed = 0;
+	for (vifi = 0, v = viftable; vifi < MAXVIFS; ++vifi, ++v) {
+		if (v->v_lcl_addr.s_addr == 0)
+			continue;
+
+		maxvif = vifi;
+		if (!banner_printed) {
+			printf("\nIPv4 Virtual Interface Table\n"
+			       " Vif   Thresh   Local-Address   "
+			       "Remote-Address    Pkts-In   Pkts-Out\n");
+			banner_printed = 1;
+		}
+
+		printf(" %2u    %6u   %-15.15s",
+					/* opposite math of add_vif() */
+		    vifi, v->v_threshold,
+		    routename(v->v_lcl_addr.s_addr));
+		printf(" %-15.15s", (v->v_flags & VIFF_TUNNEL) ?
+		    routename(v->v_rmt_addr.s_addr) : "");
+
+		printf(" %9lu  %9lu\n", v->v_pkt_in, v->v_pkt_out);
+	}
+	if (!banner_printed)
+		printf("\nIPv4 Virtual Interface Table is empty\n");
+
+	banner_printed = 0;
+
+	/*
+	 * TODO:
+	 * The MFC table will move into the AF_INET radix trie in future.
+	 * In 8.x, it becomes a dynamically allocated structure referenced
+	 * by a hashed LIST, allowing more than 256 entries w/o kernel tuning.
+	 *
+	 * If retrieved via opaque SYSCTL, the kernel will coalesce it into
+	 * a static table for us.
+	 * If retrieved via KVM, the hash list pointers must be followed.
+	 */
+	if (live) {
+		struct mfc *mfctable;
+
+		len = 0;
+		if (sysctlbyname("net.inet.ip.mfctable", NULL, &len, NULL,
+		    0) < 0) {
+			warn("sysctl: net.inet.ip.mfctable");
+			return;
+		}
+
+		mfctable = malloc(len);
+		if (mfctable == NULL) {
+			warnx("malloc %lu bytes", (u_long)len);
+			return;
+		}
+		if (sysctlbyname("net.inet.ip.mfctable", mfctable, &len, NULL,
+		    0) < 0) {
+			free(mfctable);
+			warn("sysctl: net.inet.ip.mfctable");
+			return;
+		}
+
+		m = mfctable;
+		while (len >= sizeof(*m)) {
+			print_mfc(m++, maxvif, &banner_printed);
+			len -= sizeof(*m);
+		}
+		if (len != 0)
+			warnx("print_mfc: %d trailing bytes", len);
+
+		free(mfctable);
+	} else {
+		LIST_HEAD(, mfc) *mfchashtbl;
+		u_long i, mfctablesize;
+		struct mfc mfc;
+		int error;
+
+		error = kread(pmfctablesize, (char *)&mfctablesize,
+		    sizeof(u_long));
+		if (error) {
+			warn("kread: mfctablesize");
+			return;
+		}
+
+		len = sizeof(*mfchashtbl) * mfctablesize;
+		mfchashtbl = malloc(len);
+		if (mfchashtbl == NULL) {
+			warnx("malloc %lu bytes", (u_long)len);
+			return;
+		}
+		kread(pmfchashtbl, (char *)&mfchashtbl, len);
+
+		for (i = 0; i < mfctablesize; i++) {
+			LIST_FOREACH(m, &mfchashtbl[i], mfc_hash) {
+				kread((u_long)m, (char *)&mfc, sizeof(mfc));
+				print_mfc(m, maxvif, &banner_printed);
+			}
+		}
+
+		free(mfchashtbl);
+	}
+
+	if (!banner_printed)
+		printf("\nIPv4 Multicast Forwarding Table is empty\n");
+
+	printf("\n");
+	numeric_addr = saved_numeric_addr;
 }
 
 void
