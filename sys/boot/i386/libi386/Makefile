@@ -26,6 +26,10 @@ CFLAGS+= -DDISK_DEBUG
 CFLAGS+= -DSMBIOS_SERIAL_NUMBERS
 .endif
 
+.if !defined(LOADER_NO_GPT_SUPPORT)
+CFLAGS+=	-DLOADER_GPT_SUPPORT
+.endif
+
 # Include simple terminal emulation (cons25-compatible)
 CFLAGS+= -DTERM_EMU
 

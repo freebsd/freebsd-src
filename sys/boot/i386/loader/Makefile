@@ -31,6 +31,9 @@ CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .if !defined(LOADER_NO_GZIP_SUPPORT)
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
 .endif
+.if !defined(LOADER_NO_GPT_SUPPORT)
+CFLAGS+=	-DLOADER_GPT_SUPPORT
+.endif
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
