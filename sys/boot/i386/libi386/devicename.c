@@ -150,6 +150,8 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 		    cp++;
 		}
 	    }
+	} else {
+		cp = np;
 	}
 	if (*cp && (*cp != ':')) {
 	    err = EINVAL;
@@ -173,6 +175,8 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 		err = EUNIT;
 		goto fail;
 	    }
+	} else {
+		cp = np;
 	}
 	if (*cp && (*cp != ':')) {
 	    err = EINVAL;
