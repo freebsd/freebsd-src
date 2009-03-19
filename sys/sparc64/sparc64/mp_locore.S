@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002 Jake Burkholder.
+ * Copyright (c) 2008 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,12 +43,78 @@ __FBSDID("$FreeBSD$");
 
 	.text
 	_ALIGN_TEXT
-1:	rd	%pc, %l0
-	ldx	[%l0 + (4f-1b)], %l1
-	add	%l0, (6f-1b), %l2
+	/*
+	 * Initialize misc. state to known values: interrupts disabled,
+	 * normal globals, no clean windows, PIL 0, and floating point
+	 * disabled.
+	 */
+1:	wrpr	%g0, PSTATE_NORMAL, %pstate
+	wrpr	%g0, 0, %cleanwin
+	wrpr	%g0, 0, %pil
+	wr	%g0, 0, %fprs
+
+	rdpr	%ver, %l7
+	srlx	%l7, VER_IMPL_SHIFT, %l7
+	sll	%l7, VER_IMPL_SIZE, %l7
+	srl	%l7, VER_IMPL_SIZE, %l7
+	cmp	%l7, CPU_IMPL_ULTRASPARCIIIp
+	bne	%icc, 3f
+	 nop
+
+	/*
+	 * Relocate the locked entry in it16 slot 0 (if existent)
+	 * as part of working around Cheetah+ erratum 34.
+	 */
+
+	setx	TD_V | TD_L, %l1, %l0
+	/*
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * around errata of USIII and beyond.
+	 */
+	ldxa	[%g0] ASI_ITLB_DATA_ACCESS_REG, %g0
+	ldxa	[%g0] ASI_ITLB_DATA_ACCESS_REG, %l6
+	and	%l6, %l0, %l1
+	cmp	%l0, %l1
+	bne	%xcc, 3f
+	 nop
+
+	/* Flush the mapping of slot 0. */
+	ldxa	[%g0] ASI_ITLB_TAG_READ_REG, %l5
+	srlx	%l5, TAR_VPN_SHIFT, %l0
+	sllx	%l0, TAR_VPN_SHIFT, %l0
+	or	%l0, TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE, %l0
+	stxa	%g0, [%l0] ASI_IMMU_DEMAP
+	/* The USIII-family ignores the address. */
+	flush	%g0
+
+	/*
+	 * Search a replacement slot != 0 and enter the data and tag
+	 * that formerly were in slot 0.
+	 */
+	mov	(1 << TLB_DAR_SLOT_SHIFT), %l4
+	setx	TD_V, %l1, %l0
+	/*
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * around errata of USIII and beyond.
+	 */
+2:	ldxa	[%l4] ASI_ITLB_DATA_ACCESS_REG, %g0
+	ldxa	[%l4] ASI_ITLB_DATA_ACCESS_REG, %l1
+	and	%l1, %l0, %l1
+	cmp	%l0, %l1
+	be,a	%xcc, 2b
+	 add	%l4, (1 << TLB_DAR_SLOT_SHIFT), %l4
+	wr	%g0, ASI_IMMU, %asi
+	stxa	%l5, [%g0 + AA_IMMU_TAR] %asi
+	stxa	%l6, [%l4] ASI_ITLB_DATA_ACCESS_REG
+	/* The USIII-family ignores the address. */
+	flush	%g0
+
+3:	rd	%pc, %l6
+	ldx	[%l6 + (9f-3b)], %l1
+	add	%l6, (11f-3b), %l2
 	clr	%l3
-2:	cmp	%l3, %l1
-	be	%xcc, 3f
+4:	cmp	%l3, %l1
+	be	%xcc, 8f
 	 nop
 	ldx	[%l2 + TTE_VPN], %l4
 	ldx	[%l2 + TTE_DATA], %l5
@@ -56,41 +123,64 @@ __FBSDID("$FreeBSD$");
 	wr	%g0, ASI_DMMU, %asi
 	stxa	%l4, [%g0 + AA_DMMU_TAR] %asi
 	stxa	%l5, [%g0] ASI_DTLB_DATA_IN_REG
-	wr	%g0, ASI_IMMU, %asi
+	membar	#Sync
+
+	cmp	%l7, CPU_IMPL_ULTRASPARCIIIp
+	bne	%icc, 6f
+	 wr	%g0, ASI_IMMU, %asi
+
+	/*
+	 * Search an unused slot != 0 and explicitly enter the data
+	 * and tag there in order to avoid Cheetah+ erratum 34.
+	 */
+	mov	(1 << TLB_DAR_SLOT_SHIFT), %l0
+	setx	TD_V, %o1, %o0
+	/*
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * around errata of USIII and beyond.
+	 */
+5:	ldxa	[%l0] ASI_ITLB_DATA_ACCESS_REG, %g0
+	ldxa	[%l0] ASI_ITLB_DATA_ACCESS_REG, %o1
+	and	%o1, %o0, %o1
+	cmp	%o0, %o1
+	be,a	%xcc, 5b
+	 add	%l0, (1 << TLB_DAR_SLOT_SHIFT), %l0
+	sethi	%hi(KERNBASE), %o0
+	stxa	%l4, [%g0 + AA_IMMU_TAR] %asi
+	stxa	%l5, [%l0] ASI_ITLB_DATA_ACCESS_REG
+	flush	%o0
+	ba	%xcc, 7f
+	 nop
+
+6:	sethi	%hi(KERNBASE), %l0
 	stxa	%l4, [%g0 + AA_IMMU_TAR] %asi
 	stxa	%l5, [%g0] ASI_ITLB_DATA_IN_REG
-	membar	#Sync
-	flush	%l4
-	add	%l2, 1 << TTE_SHIFT, %l2
+	flush	%l0
+7:	add	%l2, 1 << TTE_SHIFT, %l2
 	add	%l3, 1, %l3
-	ba	%xcc, 2b
+	ba	%xcc, 4b
 	 nop
-3:	ldx	[%l0 + (5f-1b)], %l1
+8:	ldx	[%l6 + (10f-3b)], %l1
 	jmpl	%l1, %g0
 	 nop
 	_ALIGN_DATA
-4:	.xword	0x0
-5:	.xword	0x0
-6:
+9:	.xword	0x0
+10:	.xword	0x0
+11:
 
 DATA(mp_tramp_code)
 	.xword	1b
 DATA(mp_tramp_code_len)
-	.xword	6b-1b
+	.xword	11b-1b
 DATA(mp_tramp_tlb_slots)
-	.xword	4b-1b
+	.xword	9b-1b
 DATA(mp_tramp_func)
-	.xword	5b-1b
+	.xword	10b-1b
 
 /*
  * void mp_startup(void)
  */
 ENTRY(mp_startup)
-	wrpr	%g0, PSTATE_NORMAL, %pstate
-	wrpr	%g0, 0, %cleanwin
-	wrpr	%g0, 0, %pil
-	wr	%g0, 0, %fprs
-
 	SET(cpu_start_args, %l1, %l0)
 
 	mov	CPU_TICKSYNC, %l1
