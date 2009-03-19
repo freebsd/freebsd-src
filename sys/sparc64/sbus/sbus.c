@@ -190,7 +190,7 @@ static bus_deactivate_resource_t sbus_deactivate_resource;
 static bus_get_dma_tag_t sbus_get_dma_tag;
 static ofw_bus_get_devinfo_t sbus_get_devinfo;
 
-static int sbus_inlist(const char *, const char **);
+static int sbus_inlist(const char *, const char *const *);
 static struct sbus_devinfo * sbus_setup_dinfo(device_t, struct sbus_softc *,
     phandle_t);
 static void sbus_destroy_dinfo(struct sbus_devinfo *);
@@ -217,16 +217,15 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(bus_print_child,	sbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	sbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	sbus_read_ivar),
-	DEVMETHOD(bus_setup_intr, 	sbus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	sbus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	sbus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	sbus_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	sbus_release_resource),
-	DEVMETHOD(bus_get_resource_list, sbus_get_resource_list),
+	DEVMETHOD(bus_setup_intr, 	sbus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_get_resource_list, sbus_get_resource_list),
 	DEVMETHOD(bus_get_dma_tag,	sbus_get_dma_tag),
-	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	sbus_get_devinfo),
@@ -236,7 +235,7 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t sbus_driver = {
@@ -266,14 +265,14 @@ struct sbus_icarg {
 	bus_addr_t		sica_clr;
 };
 
-static const char *sbus_order_first[] = {
+static const char *const sbus_order_first[] = {
 	"auxio",
 	"dma",
 	NULL
 };
 
 static int
-sbus_inlist(const char *name, const char **list)
+sbus_inlist(const char *name, const char *const *list)
 {
 	int i;
 
@@ -313,32 +312,33 @@ sbus_attach(device_t dev)
 	bus_size_t size;
 	u_long vec;
 	phandle_t child, node;
-	int clock, i, intr, rid;
+	uint32_t prop;
+	int i, j;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	rid = 0;
-	sc->sc_sysio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	i = 0;
+	sc->sc_sysio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i,
 	    RF_ACTIVE);
 	if (sc->sc_sysio_res == NULL)
 		panic("%s: cannot allocate device memory", __func__);
 
-	if (OF_getprop(node, "interrupts", &intr, sizeof(intr)) == -1)
+	if (OF_getprop(node, "interrupts", &prop, sizeof(prop)) == -1)
 		panic("%s: cannot get IGN", __func__);
-	sc->sc_ign = INTIGN(intr);
+	sc->sc_ign = INTIGN(prop);
 	sc->sc_cbustag = sbus_alloc_bustag(sc);
 
 	/*
 	 * Record clock frequency for synchronous SCSI.
 	 * IS THIS THE CORRECT DEFAULT??
 	 */
-	if (OF_getprop(node, "clock-frequency", &clock, sizeof(clock)) == -1)
-		clock = 25000000;
-	sc->sc_clockfreq = clock;
-	clock /= 1000;
-	device_printf(dev, "clock %d.%03d MHz\n", clock / 1000, clock % 1000);
+	if (OF_getprop(node, "clock-frequency", &prop, sizeof(prop)) == -1)
+		prop = 25000000;
+	sc->sc_clockfreq = prop;
+	prop /= 1000;
+	device_printf(dev, "clock %d.%03d MHz\n", prop / 1000, prop % 1000);
 
 	/*
 	 * Collect address translations from the OBP.
@@ -362,9 +362,9 @@ sbus_attach(device_t dev)
 		sc->sc_rd[i].rd_slot = range[i].cspace;
 		sc->sc_rd[i].rd_coffset = range[i].coffset;
 		sc->sc_rd[i].rd_cend = sc->sc_rd[i].rd_coffset + size;
-		rid = resource_list_add_next(rl, SYS_RES_MEMORY, phys,
+		j = resource_list_add_next(rl, SYS_RES_MEMORY, phys,
 		    phys + size - 1, size);
-		if ((res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+		if ((res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &j,
 		    RF_ACTIVE)) == NULL)
 			panic("%s: cannot allocate decoded range", __func__);
 		sc->sc_rd[i].rd_bushandle = rman_get_bushandle(res);
@@ -381,11 +381,12 @@ sbus_attach(device_t dev)
 
 	/*
 	 * Get the SBus burst transfer size if burst transfers are supported.
-	 * XXX: is the default correct?
 	 */
-	if (OF_getprop(node, "burst-sizes", &sc->sc_burst,
+	if (OF_getprop(node, "up-burst-sizes", &sc->sc_burst,
 	    sizeof(sc->sc_burst)) == -1 || sc->sc_burst == 0)
-		sc->sc_burst = SBUS_BURST_DEF;
+		sc->sc_burst =
+		    (SBUS_BURST64_DEF << SBUS_BURST64_SHIFT) | SBUS_BURST_DEF;
+
 
 	/* initalise the IOMMU */
 
@@ -421,6 +422,7 @@ sbus_attach(device_t dev)
  	/*
 	 * Hunt through all the interrupt mapping regs and register our
 	 * interrupt controller for the corresponding interrupt vectors.
+	 * We do this early in order to be able to catch stray interrupts.
 	 */
 	for (i = 0; i <= SBUS_MAX_INO; i++) {
 		if (sbus_find_intrmap(sc, i, &intrmap, &intrclr) == 0)
@@ -439,31 +441,32 @@ sbus_attach(device_t dev)
 		    (u_long)intrmap, (u_long)SYSIO_READ8(sc, intrmap),
 		    (u_long)intrclr);
 #endif
-		if (intr_controller_register(INTMAP_VEC(sc->sc_ign, i),
-		    &sbus_ic, sica) != 0)
-			panic("%s: could not register interrupt controller "
-			    "for INO %d", __func__, i);
+		j = intr_controller_register(INTMAP_VEC(sc->sc_ign, i),
+		    &sbus_ic, sica);
+		if (j != 0)
+			device_printf(dev, "could not register interrupt "
+			    "controller for INO %d (%d)\n", i, j);
 	}
 
 	/* Enable the over-temperature and power-fail interrupts. */
-	rid = 4;
-	sc->sc_ot_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	i = 4;
+	sc->sc_ot_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE);
 	if (sc->sc_ot_ires == NULL ||
 	    INTIGN(vec = rman_get_start(sc->sc_ot_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_THERM_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC,
+	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
 	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
-	rid = 3;
-	sc->sc_pf_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	i = 3;
+	sc->sc_pf_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE);
 	if (sc->sc_pf_ires == NULL ||
 	    INTIGN(vec = rman_get_start(sc->sc_pf_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_POWER_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC,
+	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
 	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 
@@ -849,8 +852,8 @@ sbus_activate_resource(device_t bus, device_t child, int type, int rid,
 	}
 	if (type == SYS_RES_MEMORY) {
 		/*
-		 * Need to memory-map the device space, as some drivers depend
-		 * on the virtual address being set and useable.
+		 * Need to memory-map the device space, as some drivers
+		 * depend on the virtual address being set and usable.
 		 */
 		error = sparc64_bus_mem_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
