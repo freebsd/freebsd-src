@@ -780,8 +780,9 @@ ENTRY(openfirmware_exit)
 	sub	%l0, SPOFF, %fp			! setup a stack in a locked page
 	sub	%l0, SPOFF + CCFSZ, %sp
 	mov	AA_DMMU_PCXR, %l3		! force primary DMMU context 0
+	sethi	%hi(KERNBASE), %l5
 	stxa	%g0, [%l3] ASI_DMMU
-	membar	#Sync
+	flush	%l5
 	wrpr	%g0, 0, %tl			! force trap level 0
 	call	%l6
 	 mov	%i0, %o0
