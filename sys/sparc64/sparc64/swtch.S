@@ -236,7 +236,11 @@ ENTRY(cpu_switch)
 	stxa	%i4, [%i5] ASI_DMMU
 	mov	AA_IMMU_TSB, %i5
 	stxa	%i4, [%i5] ASI_IMMU
+	setx	TLB_PCXR_PGSZ_MASK, %i5, %i4
 	mov	AA_DMMU_PCXR, %i5
+	ldxa	[%i5] ASI_DMMU, %i2
+	and	%i2, %i4, %i2
+	or	%i3, %i2, %i3
 	sethi	%hi(KERNBASE), %i4
 	stxa	%i3, [%i5] ASI_DMMU
 	flush	%i4

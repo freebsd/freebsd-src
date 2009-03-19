@@ -92,6 +92,26 @@ cheetah_init(void)
 	stxa(AA_IMMU_TSB_NEXT_REG, ASI_IMMU, 0);
 	membar(Sync);
 
+	/*
+	 * Ensure that the dt512_0 is set to hold 8k pages for all three
+	 * contexts and configure the dt512_1 to hold 4MB pages for them
+	 * (e.g. for direct mappings).
+	 * NB: according to documentation, this requires a contex demap
+	 * _before_ changing the corresponding page size, but we hardly
+	 * can flush our locked pages here, so we use a demap all instead.
+	 */
+	stxa(TLB_DEMAP_ALL, ASI_DMMU_DEMAP, 0);
+	membar(Sync);
+	stxa(AA_DMMU_PCXR, ASI_DMMU,
+	    (TS_8K << TLB_PCXR_N_PGSZ0_SHIFT) |
+	    (TS_4M << TLB_PCXR_N_PGSZ1_SHIFT) |
+	    (TS_8K << TLB_PCXR_P_PGSZ0_SHIFT) |
+	    (TS_4M << TLB_PCXR_P_PGSZ1_SHIFT));
+	stxa(AA_DMMU_SCXR, ASI_DMMU,
+	    (TS_8K << TLB_SCXR_S_PGSZ0_SHIFT) |
+	    (TS_4M << TLB_SCXR_S_PGSZ1_SHIFT));
+	flush(KERNBASE);
+
 	intr_restore(s);
 }
 
