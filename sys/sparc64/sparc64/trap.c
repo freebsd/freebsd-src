@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <security/audit/audit.h>
 
+#include <dev/ofw/openfirm.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -226,6 +228,28 @@ CTASSERT(sizeof(struct trapframe) == 256);
 int debugger_on_signal = 0;
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_signal, CTLFLAG_RW,
     &debugger_on_signal, 0, "");
+
+/*
+ * SUNW,set-trap-table allows to take over %tba from the PROM, which
+ * will turn off interrupts and handle outstanding ones while doing so,
+ * in a safe way.
+ */
+void
+sun4u_set_traptable(void *tba_addr)
+{
+	static struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+		cell_t tba_addr;
+	} args = {
+		(cell_t)"SUNW,set-trap-table",
+		2,
+	};
+
+	args.tba_addr = (cell_t)tba_addr;
+	openfirmware(&args);
+}
 
 void
 trap(struct trapframe *tf)
