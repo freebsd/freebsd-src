@@ -29,7 +29,7 @@ SUBDIR = usb
 #SUBDIR += ubt bluetooth_ng ubtfw
 SUBDIR += ehci musb ohci uhci uss820dci ${_at91dci} ${_atmegadci}
 SUBDIR += rum ural zyd
-SUBDIR += uhid ukbd ums udbp ufm uscanner
+SUBDIR += uhid ukbd ums udbp ufm
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umodem umoscom uplcom uslcom uvisor uvscom
 SUBDIR += uether aue axe cdce cue kue rue udav

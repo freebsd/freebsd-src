@@ -2413,8 +2413,6 @@ device		umodem
 device		ums
 # Diamond Rio 500 MP3 player
 device		urio
-# USB scanners
-device		uscanner
 #
 # USB serial support
 device		ucom
