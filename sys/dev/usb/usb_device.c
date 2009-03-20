@@ -1397,7 +1397,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->depth = depth;
 	udev->bus = bus;
 	udev->address = USB_START_ADDR;	/* default value */
-	udev->plugtime = (uint32_t)ticks;
+	udev->plugtime = (usb2_ticks_t)ticks;
 	/*
 	 * We need to force the power mode to "on" because there are plenty
 	 * of USB devices out there that do not work very well with

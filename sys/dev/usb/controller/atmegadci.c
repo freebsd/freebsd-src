@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #define	ATMEGA_BUS2SC(bus) \
    ((struct atmegadci_softc *)(((uint8_t *)(bus)) - \
-   USB_P2U(&(((struct atmegadci_softc *)0)->sc_bus))))
+    ((uint8_t *)&(((struct atmegadci_softc *)0)->sc_bus))))
 
 #define	ATMEGA_PC2SC(pc) \
    ATMEGA_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
