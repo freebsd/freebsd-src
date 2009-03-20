@@ -48,8 +48,6 @@ static int i915_suspend(device_t kdev)
 	struct drm_device *dev = device_get_softc(kdev);
 
 	if (!dev || !dev->dev_private) {
-		DRM_ERROR("dev: 0x%lx, dev_priv: 0x%lx\n",
-			(unsigned long) dev, (unsigned long) dev_priv);
 		DRM_ERROR("DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
