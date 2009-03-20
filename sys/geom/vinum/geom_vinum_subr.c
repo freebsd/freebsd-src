@@ -441,11 +441,11 @@ gv_plex_size(struct gv_plex *p)
 		break;
 	case GV_PLEX_STRIPED:
 		s = LIST_FIRST(&p->subdisks);
-		size = sdcount * s->size;
+		size = ((s != NULL) ? (sdcount * s->size) : 0);
 		break;
 	case GV_PLEX_RAID5:
 		s = LIST_FIRST(&p->subdisks);
-		size = (sdcount - 1) * s->size;
+		size = ((s != NULL) ? ((sdcount - 1) * s->size) : 0);
 		break;
 	}
 
