@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/stddef.h>
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
@@ -930,7 +931,7 @@ add_vif(struct vifctl *vifcp)
     VIF_UNLOCK();
 
     CTR4(KTR_IPMF, "%s: add vif %d laddr %s thresh %x", __func__,
-	(int)vifcp->vifc_vifi, inet_ntoa(&vifcp->vifc_lcl_addr),
+	(int)vifcp->vifc_vifi, inet_ntoa(vifcp->vifc_lcl_addr),
 	(int)vifcp->vifc_threshold);
 
     return 0;
@@ -1060,7 +1061,7 @@ add_mfc(struct mfcctl2 *mfccp)
     /* If an entry already exists, just update the fields */
     if (rt) {
 	CTR4(KTR_IPMF, "%s: update mfc orig %s group %lx parent %x",
-	    __func__, inet_ntoa(&mfccp->mfcc_origin),
+	    __func__, inet_ntoa(mfccp->mfcc_origin),
 	    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 	    mfccp->mfcc_parent);
 	update_mfc_params(rt, mfccp);
@@ -1080,7 +1081,7 @@ add_mfc(struct mfcctl2 *mfccp)
 	    !TAILQ_EMPTY(&rt->mfc_stall)) {
 		CTR5(KTR_IPMF,
 		    "%s: add mfc orig %s group %lx parent %x qh %p",
-		    __func__, inet_ntoa(&mfccp->mfcc_origin),
+		    __func__, inet_ntoa(mfccp->mfcc_origin),
 		    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		    mfccp->mfcc_parent,
 		    TAILQ_FIRST(&rt->mfc_stall));
@@ -1225,7 +1226,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
     vifi_t vifi;
 
     CTR3(KTR_IPMF, "ip_mforward: delete mfc orig %s group %lx ifp %p",
-	inet_ntoa(ip->ip_src), (u_long)ntohl(mcastgrp.s_addr), ifp);
+	inet_ntoa(ip->ip_src), (u_long)ntohl(ip->ip_dst.s_addr), ifp);
 
     if (ip->ip_hl < (sizeof(struct ip) + TUNNEL_LEN) >> 2 ||
 		((u_char *)(ip + 1))[1] != IPOPT_LSRR ) {
@@ -2563,7 +2564,7 @@ pim_input(struct mbuf *m, int off)
     if (datalen < PIM_MINLEN) {
 	pimstat.pims_rcv_tooshort++;
 	CTR3(KTR_IPMF, "%s: short packet (%d) from %s",
-	    __func__, datalen, inet_ntoa(&ip->ip_src));
+	    __func__, datalen, inet_ntoa(ip->ip_src));
 	m_freem(m);
 	return;
     }
