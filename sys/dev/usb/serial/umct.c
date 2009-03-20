@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb_cdc.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR usb2_debug
 

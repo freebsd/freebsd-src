@@ -30,7 +30,6 @@
  * USB spec: http://www.usb.org/developers/docs/usbspec.zip
  */
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
