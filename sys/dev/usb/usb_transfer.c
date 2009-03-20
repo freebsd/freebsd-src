@@ -113,7 +113,6 @@ static const struct usb2_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
 		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
 		.mh.callback = &usb2_do_clear_stall_callback,
 		.mh.timeout = 1000,	/* 1 second */
 		.mh.interval = 50,	/* 50ms */
@@ -1251,6 +1250,20 @@ usb2_start_hardware_sub(struct usb2_xfer *xfer)
 		/* no longer active */
 		xfer->flags_int.control_act = 0;
 	}
+
+	/* Check for invalid number of frames */
+	if (xfer->nframes > 2) {
+		/*
+		 * If you need to split a control transfer, you
+		 * have to do one part at a time. Only with
+		 * non-control transfers you can do multiple
+		 * parts a time.
+		 */
+		DPRINTFN(0, "Too many frames: %u\n",
+		    (unsigned int)xfer->nframes);
+		goto error;
+	}
+
 	/*
          * Check if there is a control
          * transfer in progress:
@@ -1495,23 +1508,28 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	 */
 	if (USB_GET_DATA_ISREAD(xfer)) {
 
-		if (xfer->flags_int.control_xfr) {
+		if (xfer->flags.short_frames_ok) {
+			xfer->flags_int.short_xfer_ok = 1;
+			xfer->flags_int.short_frames_ok = 1;
+		} else if (xfer->flags.short_xfer_ok) {
+			xfer->flags_int.short_xfer_ok = 1;
 
-			/*
-			 * Control transfers do not support reception
-			 * of multiple short USB frames !
-			 */
-
-			if (xfer->flags.short_xfer_ok) {
-				xfer->flags_int.short_xfer_ok = 1;
-			}
-		} else {
-
-			if (xfer->flags.short_frames_ok) {
-				xfer->flags_int.short_xfer_ok = 1;
+			/* check for control transfer */
+			if (xfer->flags_int.control_xfr) {
+				/*
+				 * 1) Control transfers do not support
+				 * reception of multiple short USB
+				 * frames in host mode and device side
+				 * mode, with exception of:
+				 *
+				 * 2) Due to sometimes buggy device
+				 * side firmware we need to do a
+				 * STATUS stage in case of short
+				 * control transfers in USB host mode.
+				 * The STATUS stage then becomes the
+				 * "alt_next" to the DATA stage.
+				 */
 				xfer->flags_int.short_frames_ok = 1;
-			} else if (xfer->flags.short_xfer_ok) {
-				xfer->flags_int.short_xfer_ok = 1;
 			}
 		}
 	}
@@ -2652,7 +2670,6 @@ usb2_clear_data_toggle(struct usb2_device *udev, struct usb2_pipe *pipe)
  *	.interval = 50, //50 milliseconds
  *	.bufsize = sizeof(struct usb2_device_request),
  *	.mh.timeout = 1000, //1.000 seconds
- *	.mh.flags = { },
  *	.mh.callback = &my_clear_stall_callback, // **
  * };
  *
