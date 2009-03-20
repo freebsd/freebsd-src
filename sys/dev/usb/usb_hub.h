@@ -56,7 +56,7 @@ struct usb2_hub {
 	struct usb2_device *hubudev;	/* the HUB device */
 	usb2_error_t (*explore) (struct usb2_device *hub);
 	void   *hubsoftc;
-	uint32_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
+	usb2_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
 	uint16_t portpower;		/* mA per USB port */
 	uint8_t	isoc_last_time;
 	uint8_t	nports;

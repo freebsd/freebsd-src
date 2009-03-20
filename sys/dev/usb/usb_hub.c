@@ -1030,9 +1030,9 @@ done:
  *   The best Transaction Translation slot for an interrupt endpoint.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_intr_find_best_slot(uint32_t *ptr, uint8_t start, uint8_t end)
+usb2_intr_find_best_slot(usb2_size_t *ptr, uint8_t start, uint8_t end)
 {
-	uint32_t max = 0xffffffff;
+	usb2_size_t max = 0 - 1;
 	uint8_t x;
 	uint8_t y;
 
@@ -1422,7 +1422,7 @@ usb2_bus_power_update(struct usb2_bus *bus)
 void
 usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 {
-	static const uint32_t power_mask[4] = {
+	static const usb2_power_mask_t power_mask[4] = {
 		[UE_CONTROL] = USB_HW_POWER_CONTROL,
 		[UE_BULK] = USB_HW_POWER_BULK,
 		[UE_INTERRUPT] = USB_HW_POWER_INTERRUPT,
@@ -1501,10 +1501,10 @@ void
 usb2_bus_powerd(struct usb2_bus *bus)
 {
 	struct usb2_device *udev;
-	unsigned int temp;
-	unsigned int limit;
-	unsigned int mintime;
-	uint32_t type_refs[5];
+	usb2_ticks_t temp;
+	usb2_ticks_t limit;
+	usb2_ticks_t mintime;
+	usb2_size_t type_refs[5];
 	uint8_t x;
 	uint8_t rem_wakeup;
 
@@ -1727,7 +1727,6 @@ usb2_dev_suspend_peer(struct usb2_device *udev)
 {
 	struct usb2_device *hub;
 	struct usb2_device *child;
-	uint32_t temp;
 	int err;
 	uint8_t x;
 	uint8_t nports;
@@ -1800,6 +1799,7 @@ repeat:
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (udev->bus->methods->device_suspend != NULL) {
+		usb2_timeout_t temp;
 
 		/* suspend device on the USB controller */
 		(udev->bus->methods->device_suspend) (udev);

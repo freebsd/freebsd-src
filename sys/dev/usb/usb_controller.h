@@ -45,7 +45,7 @@ struct usb2_endpoint_descriptor;
 
 /* typedefs */
 
-typedef void (usb2_bus_mem_sub_cb_t)(struct usb2_bus *bus, struct usb2_page_cache *pc, struct usb2_page *pg, uint32_t size, uint32_t align);
+typedef void (usb2_bus_mem_sub_cb_t)(struct usb2_bus *bus, struct usb2_page_cache *pc, struct usb2_page *pg, usb2_size_t size, usb2_size_t align);
 typedef void (usb2_bus_mem_cb_t)(struct usb2_bus *bus, usb2_bus_mem_sub_cb_t *scb);
 
 /*
@@ -175,7 +175,7 @@ struct usb2_hw_ep_scratch {
  */
 struct usb2_temp_setup {
 	void   *buf;
-	uint32_t size;
+	usb2_size_t size;
 	uint8_t	usb2_speed;
 	uint8_t	self_powered;
 	uint8_t	bNumEndpoints;

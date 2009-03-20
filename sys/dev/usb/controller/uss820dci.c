@@ -55,7 +55,7 @@
 
 #define	USS820_DCI_BUS2SC(bus) \
    ((struct uss820dci_softc *)(((uint8_t *)(bus)) - \
-   USB_P2U(&(((struct uss820dci_softc *)0)->sc_bus))))
+    ((uint8_t *)&(((struct uss820dci_softc *)0)->sc_bus))))
 
 #define	USS820_DCI_PC2SC(pc) \
    USS820_DCI_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
