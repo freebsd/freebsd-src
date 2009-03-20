@@ -32,6 +32,8 @@
 #ifndef _USB2_CORE_H_
 #define	_USB2_CORE_H_
 
+#define	USB_STACK_VERSION 2000		/* 2.0 */
+
 /* Allow defines in "opt_usb.h" to override configuration */
 
 #include "opt_usb.h"
@@ -140,28 +142,53 @@
 #include <sys/malloc.h>
 #include <sys/priv.h>
 
-#include <dev/usb/usb_mfunc.h>
+#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_revision.h>
 
 #include "usb_if.h"
 
-#define	USB_STACK_VERSION 2000		/* 2.0 */
-
+#ifndef USB_HOST_ALIGN
 #define	USB_HOST_ALIGN    8		/* bytes, must be power of two */
+#endif
 
-#define	USB_ISOC_TIME_MAX 128		/* ms */
+#ifndef USB_FS_ISOC_UFRAME_MAX
 #define	USB_FS_ISOC_UFRAME_MAX 4	/* exclusive unit */
+#endif
 
 #if (USB_FS_ISOC_UFRAME_MAX > 6)
 #error "USB_FS_ISOC_UFRAME_MAX cannot be set higher than 6"
 #endif
 
+#ifndef USB_BUS_MAX
+#define	USB_BUS_MAX 256			/* units */
+#endif
+
+#ifndef USB_MAX_DEVICES
+#define	USB_MAX_DEVICES 128		/* units */
+#endif
+
+#if (USB_MAX_DEVICES < USB_MIN_DEVICES)
+#error "Minimum number of devices is greater than maximum number of devices."
+#endif
+
+#ifndef USB_IFACE_MAX
+#define	USB_IFACE_MAX 32		/* units */
+#endif
+
+#ifndef USB_FIFO_MAX
+#define	USB_FIFO_MAX 128		/* units */
+#endif
+
+#if (USB_FIFO_MAX & 1)
+#error "Number of FIFOs must be odd."
+#endif
+
 #define	USB_MAX_FS_ISOC_FRAMES_PER_XFER (120)	/* units */
 #define	USB_MAX_HS_ISOC_FRAMES_PER_XFER (8*120)	/* units */
 
-#define	USB_MAX_IPACKET		8	/* maximum size of the initial USB
-					 * data packet */
-#define	USB_HUB_MAX_DEPTH 5
+#ifndef USB_HUB_MAX_DEPTH
+#define	USB_HUB_MAX_DEPTH	5
+#endif
 
 #ifndef USB_EP0_BUFSIZE
 #define	USB_EP0_BUFSIZE		1024	/* bytes */
