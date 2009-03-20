@@ -889,7 +889,7 @@ udp6_detach(struct socket *so)
 
 	INP_INFO_WLOCK(&udbinfo);
 	INP_WLOCK(inp);
-	in6_pcbdetach(inp);
+	in_pcbdetach(inp);
 	in6_pcbfree(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 }
