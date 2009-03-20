@@ -416,6 +416,8 @@ ugen_default_read_callback(struct usb2_xfer *xfer)
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
+			/* send a zero length packet to userland */
+			usb2_fifo_put_data(f, xfer->frbuffers, 0, 0, 1);
 			f->flag_stall = 1;
 			f->fifo_zlp = 0;
 			usb2_transfer_start(f->xfer[1]);
@@ -1616,8 +1618,8 @@ ugen_set_buffer_size(struct usb2_fifo *f, void *addr)
 {
 	usb2_frlength_t t;
 
-	if (*(int *)addr < 1024)
-		t = 1024;
+	if (*(int *)addr < 0)
+		t = 0;		/* use "wMaxPacketSize" */
 	else if (*(int *)addr < (256 * 1024))
 		t = *(int *)addr;
 	else
