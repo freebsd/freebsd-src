@@ -319,11 +319,11 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 			v86.ctl = V86_FLAGS;
 			v86.addr = 0x1b;
 			v86.eax = 0x0600 | (biosdev & 0x7f);
-			v86.ebx = blks * BIOSCD_SECSIZE;
+			v86.ebx = x * BIOSCD_SECSIZE;
 			v86.ecx = dblk & 0xffff;
 			v86.edx = (dblk >> 16) & 0xffff;
-			v86.ebp = VTOPOFF(dest);
-			v86.es = VTOPSEG(dest);
+			v86.ebp = VTOPOFF(xp);
+			v86.es = VTOPSEG(xp);
 			v86int();
 			result = (v86.efl & PSL_C);
 			if (result == 0)
