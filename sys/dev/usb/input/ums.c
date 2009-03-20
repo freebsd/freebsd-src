@@ -338,7 +338,7 @@ ums_probe(device_t dev)
 	    (id->bInterfaceClass != UICLASS_HID))
 		return (ENXIO);
 
-	error = usb2_req_get_hid_desc(uaa->device, &Giant,
+	error = usb2_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
 
 	if (error)
@@ -395,8 +395,7 @@ ums_attach(device_t dev)
 		DPRINTF("error=%s\n", usb2_errstr(err));
 		goto detach;
 	}
-	err = usb2_req_get_hid_desc
-	    (uaa->device, &Giant, &d_ptr,
+	err = usb2_req_get_hid_desc(uaa->device, NULL, &d_ptr,
 	    &d_len, M_TEMP, uaa->info.bIfaceIndex);
 
 	if (err) {

@@ -222,8 +222,7 @@ ucycom_attach(device_t dev)
 
 	/* get report descriptor */
 
-	error = usb2_req_get_hid_desc
-	    (uaa->device, &Giant,
+	error = usb2_req_get_hid_desc(uaa->device, NULL,
 	    &urd_ptr, &urd_len, M_USBDEV,
 	    UCYCOM_IFACE_INDEX);
 
