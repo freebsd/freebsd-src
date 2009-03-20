@@ -47,6 +47,8 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 
+#if USB_HAVE_UGEN
+
 /* defines */
 
 #define	UGEN_BULK_FS_BUFFER_SIZE	(64*32)	/* bytes */
@@ -799,12 +801,14 @@ usb2_gen_fill_deviceinfo(struct usb2_fifo *f, struct usb2_device_info *di)
 	di->udi_bus = device_get_unit(udev->bus->bdev);
 	di->udi_addr = udev->address;
 	di->udi_index = udev->device_index;
+#if USB_HAVE_STRINGS
 	strlcpy(di->udi_serial, udev->serial,
 	    sizeof(di->udi_serial));
 	strlcpy(di->udi_vendor, udev->manufacturer,
 	    sizeof(di->udi_vendor));
 	strlcpy(di->udi_product, udev->product,
 	    sizeof(di->udi_product));
+#endif
 	usb2_printBCD(di->udi_release, sizeof(di->udi_release),
 	    UGETW(udev->ddesc.bcdDevice));
 	di->udi_vendorNo = UGETW(udev->ddesc.idVendor);
@@ -2183,3 +2187,4 @@ ugen_default_fs_callback(struct usb2_xfer *xfer)
 		break;
 	}
 }
+#endif	/* USB_HAVE_UGEN */

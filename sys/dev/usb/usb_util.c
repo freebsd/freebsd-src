@@ -167,7 +167,6 @@ usb2_pause_mtx(struct mtx *mtx, int _ticks)
  * pointed to by "p" having a maximum length of "p_len" bytes
  * including the terminating zero.
  *------------------------------------------------------------------------*/
-#if USB_HAVE_STRINGS
 void
 usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 {
@@ -175,7 +174,6 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 		/* ignore any errors */
 	}
 }
-#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_trim_spaces
