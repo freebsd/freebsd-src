@@ -29,7 +29,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: vendor/tcpdump/dist/contrib/tcpdump/rpc_msg.h 147899 2005-07-11 03:54:22Z sam $
  */
 
 /*
