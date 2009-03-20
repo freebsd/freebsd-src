@@ -35,7 +35,7 @@ void	usb2_pause_mtx(struct mtx *mtx, int _ticks);
 void	usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd);
 void	usb2_trim_spaces(char *p);
 
-#if (USB_USE_CONDVAR == 0)
+#if (USB_HAVE_CONDVAR == 0)
 void	usb2_cv_init(struct cv *cv, const char *desc);
 void	usb2_cv_destroy(struct cv *cv);
 void	usb2_cv_wait(struct cv *cv, struct mtx *mtx);

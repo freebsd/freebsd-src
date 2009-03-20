@@ -264,6 +264,10 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	if (actlen) {
 		*actlen = 0;
 	}
+#if (USB_HAVE_USER_IO == 0)
+	if (flags & USB_USER_DATA_PTR)
+		return (USB_ERR_INVAL);
+#endif
 	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
 		DPRINTF("USB device mode\n");
 		(usb2_temp_get_desc_p) (udev, req, &desc, &temp);
@@ -277,13 +281,14 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 			*actlen = length;
 		}
 		if (length > 0) {
+#if USB_HAVE_USER_IO
 			if (flags & USB_USER_DATA_PTR) {
 				if (copyout(desc, data, length)) {
 					return (USB_ERR_INVAL);
 				}
-			} else {
+			} else
+#endif
 				bcopy(desc, data, length);
-			}
 		}
 		return (0);		/* success */
 	}
@@ -339,6 +344,7 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 
 		if (temp > 0) {
 			if (!(req->bmRequestType & UT_READ)) {
+#if USB_HAVE_USER_IO
 				if (flags & USB_USER_DATA_PTR) {
 					USB_XFER_UNLOCK(xfer);
 					err = usb2_copy_in_user(xfer->frbuffers + 1,
@@ -348,9 +354,10 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 						err = USB_ERR_INVAL;
 						break;
 					}
-				} else {
-					usb2_copy_in(xfer->frbuffers + 1, 0, data, temp);
-				}
+				} else
+#endif
+					usb2_copy_in(xfer->frbuffers + 1,
+					    0, data, temp);
 			}
 			xfer->nframes = 2;
 		} else {
@@ -408,6 +415,7 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 		}
 		if (temp > 0) {
 			if (req->bmRequestType & UT_READ) {
+#if USB_HAVE_USER_IO
 				if (flags & USB_USER_DATA_PTR) {
 					USB_XFER_UNLOCK(xfer);
 					err = usb2_copy_out_user(xfer->frbuffers + 1,
@@ -417,10 +425,10 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 						err = USB_ERR_INVAL;
 						break;
 					}
-				} else {
+				} else
+#endif
 					usb2_copy_out(xfer->frbuffers + 1,
 					    0, data, temp);
-				}
 			}
 		}
 		/*

@@ -63,7 +63,7 @@
    USB_P2U(&(((struct musbotg_softc *)0)->sc_bus))))
 
 #define	MUSBOTG_PC2SC(pc) \
-   MUSBOTG_BUS2SC((pc)->tag_parent->info->bus)
+   MUSBOTG_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
 #if USB_DEBUG
 static int musbotgdebug = 0;

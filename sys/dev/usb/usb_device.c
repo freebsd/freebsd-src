@@ -44,9 +44,11 @@
 #include <dev/usb/usb_hub.h>
 #include <dev/usb/usb_util.h>
 #include <dev/usb/usb_mbuf.h>
-#include <dev/usb/usb_dev.h>
 #include <dev/usb/usb_msctest.h>
+#if USB_HAVE_UGEN
+#include <dev/usb/usb_dev.h>
 #include <dev/usb/usb_generic.h>
+#endif
 
 #include <dev/usb/quirk/usb_quirk.h>
 
@@ -68,7 +70,9 @@ static void	usb2_init_attach_arg(struct usb2_device *,
 static void	usb2_suspend_resume_sub(struct usb2_device *, device_t,
 		    uint8_t);
 static void	usb2_clear_stall_proc(struct usb2_proc_msg *_pm);
+#if USB_HAVE_STRINGS
 static void	usb2_check_strings(struct usb2_device *);
+#endif
 static usb2_error_t usb2_fill_iface_data(struct usb2_device *, uint8_t,
 		    uint8_t);
 static void	usb2_notify_addq(const char *type, struct usb2_device *);
@@ -482,11 +486,13 @@ usb2_free_iface_data(struct usb2_device *udev)
 
 	/* mtx_assert() */
 
+#if USB_HAVE_COMPAT_LINUX
 	/* free Linux compat device, if any */
 	if (udev->linux_dev) {
 		usb_linux_free_device(udev->linux_dev);
 		udev->linux_dev = NULL;
 	}
+#endif
 	/* free all pipes, if any */
 	usb2_free_pipe_data(udev, 0, 0);
 
@@ -1584,6 +1590,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	/* assume 100mA bus powered for now. Changed when configured. */
 	udev->power = USB_MIN_POWER;
 
+#if USB_HAVE_STRINGS
 	/* get serial number string */
 	err = usb2_req_get_string_any
 	    (udev, NULL, (char *)scratch_ptr,
@@ -1607,6 +1614,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 
 	/* finish up all the strings */
 	usb2_check_strings(udev);
+#endif
 
 	if (udev->flags.usb2_mode == USB_MODE_HOST) {
 		uint8_t config_index;
@@ -2032,6 +2040,7 @@ usb2_devinfo(struct usb2_device *udev, char *dst_ptr, uint16_t dst_len)
 	}
 }
 
+#if USB_HAVE_STRINGS
 #if USB_VERBOSE
 /*
  * Descriptions of of known vendors and devices ("products").
@@ -2128,6 +2137,7 @@ usb2_check_strings(struct usb2_device *udev)
 		    sizeof(udev->product), "product 0x%04x", product_id);
 	}
 }
+#endif
 
 /*
  * Returns:

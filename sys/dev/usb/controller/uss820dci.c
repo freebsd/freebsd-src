@@ -58,7 +58,7 @@
    USB_P2U(&(((struct uss820dci_softc *)0)->sc_bus))))
 
 #define	USS820_DCI_PC2SC(pc) \
-   USS820_DCI_BUS2SC((pc)->tag_parent->info->bus)
+   USS820_DCI_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
 #if USB_DEBUG
 static int uss820dcidebug = 0;

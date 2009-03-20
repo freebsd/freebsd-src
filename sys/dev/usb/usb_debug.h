@@ -35,11 +35,6 @@ SYSCTL_DECL(_hw_usb2);
 /* Declare global USB debug variable. */
 extern int usb2_debug;
 
-/* Force debugging until further */
-#ifndef USB_DEBUG
-#define	USB_DEBUG 1
-#endif
-
 /* Check if USB debugging is enabled. */
 #ifdef USB_DEBUG_VAR
 #if (USB_DEBUG != 0)

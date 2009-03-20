@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
    USB_P2U(&(((struct at91dci_softc *)0)->sc_bus))))
 
 #define	AT9100_DCI_PC2SC(pc) \
-   AT9100_DCI_BUS2SC((pc)->tag_parent->info->bus)
+   AT9100_DCI_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
 #if USB_DEBUG
 static int at91dcidebug = 0;

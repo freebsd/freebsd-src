@@ -32,14 +32,82 @@
 #ifndef _USB2_CORE_H_
 #define	_USB2_CORE_H_
 
+/* Allow defines in "opt_usb.h" to override configuration */
+
+#include "opt_usb.h"
+#include "opt_bus.h"
+
 /* Default USB configuration */
 
-#ifndef USB_USE_CONDVAR
-#define	USB_USE_CONDVAR 0
+/*
+ * The following macro defines if the code shall use cv_xxx() instead
+ * of msleep() and wakeup().
+ */
+#ifndef USB_HAVE_CONDVAR
+#define	USB_HAVE_CONDVAR 0
 #endif
 
+/*
+ * The following macro defines if the code shall support
+ * /dev/usb/x.y.z.
+ */
 #ifndef USB_HAVE_UGEN
 #define	USB_HAVE_UGEN 1
+#endif
+
+/*
+ * The following macro defines if the code shall support any forms of
+ * ASCII strings.
+ */
+#ifndef USB_HAVE_STRINGS
+#define	USB_HAVE_STRINGS 1
+#endif
+
+/*
+ * The following macro defines if the code shall support BUS-DMA.
+ */
+#ifndef USB_HAVE_BUSDMA
+#define	USB_HAVE_BUSDMA 1
+#endif
+
+/*
+ * The following macro defines if the code shall support the Linux
+ * compatibility layer.
+ */
+#ifndef USB_HAVE_COMPAT_LINUX
+#define	USB_HAVE_COMPAT_LINUX 1
+#endif
+
+/*
+ * The following macro defines if the code shall support
+ * userland data transfer via copyin() and copyout()
+ */
+#ifndef USB_HAVE_USER_IO
+#define	USB_HAVE_USER_IO 1
+#endif
+
+/*
+ * The following macro defines if the code shall support copy in via
+ * bsd-mbufs to USB.
+ */
+#ifndef USB_HAVE_MBUF
+#define	USB_HAVE_MBUF 1
+#endif
+
+/*
+ * The following macro defines if the code shall compile a table
+ * describing USB vendor and product IDs.
+ */
+#ifndef USB_VERBOSE
+#define	USB_VERBOSE 1
+#endif
+
+/*
+ * The following macro defines if USB debugging support shall be
+ * compiled for the USB core and all drivers.
+ */
+#ifndef USB_DEBUG
+#define	USB_DEBUG 1
 #endif
 
 #ifndef USB_TD_GET_PROC
@@ -76,8 +144,6 @@
 #include <dev/usb/usb_revision.h>
 
 #include "usb_if.h"
-#include "opt_usb.h"
-#include "opt_bus.h"
 
 #define	USB_STACK_VERSION 2000		/* 2.0 */
 
@@ -95,10 +161,6 @@
 
 #define	USB_MAX_IPACKET		8	/* maximum size of the initial USB
 					 * data packet */
-#ifndef USB_VERBOSE
-#define	USB_VERBOSE 1
-#endif
-
 #define	USB_HUB_MAX_DEPTH 5
 
 /* USB transfer states */
@@ -256,12 +318,14 @@ struct usb2_xfer_flags_int {
 
 	uint8_t	short_frames_ok:1;	/* filtered version */
 	uint8_t	short_xfer_ok:1;	/* filtered version */
+#if USB_HAVE_BUSDMA
 	uint8_t	bdma_enable:1;		/* filtered version (only set if
 					 * hardware supports DMA) */
 	uint8_t	bdma_no_post_sync:1;	/* set if the USB callback wrapper
 					 * should not do the BUS-DMA post sync
 					 * operation */
 	uint8_t	bdma_setup:1;		/* set if BUS-DMA has been setup */
+#endif
 	uint8_t	isochronous_xfr:1;	/* set if isochronous transfer */
 	uint8_t	usb2_mode:1;		/* shadow copy of "udev->usb2_mode" */
 	uint8_t	curr_dma_set:1;		/* used by USB HC/DC driver */
