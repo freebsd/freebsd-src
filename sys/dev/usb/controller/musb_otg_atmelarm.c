@@ -130,10 +130,10 @@ musbotg_attach(device_t dev)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    NULL, (driver_intr_t *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    (driver_intr_t *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_otg.sc_intr_hdl = NULL;

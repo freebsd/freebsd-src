@@ -113,7 +113,7 @@ atmegadci_attach(device_t dev)
 	device_set_ivars(sc->sc_otg.sc_bus.bdev, &sc->sc_otg.sc_bus);
 
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)atmegadci_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    NULL, (driver_intr_t *)atmegadci_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 	if (err) {
 		sc->sc_otg.sc_intr_hdl = NULL;
 		goto error;

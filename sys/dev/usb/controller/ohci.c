@@ -115,7 +115,7 @@ struct ohci_std_temp {
 	uint16_t max_frame_size;
 	uint8_t	shortpkt;
 	uint8_t	setup_alt_next;
-	uint8_t	short_frames_ok;
+	uint8_t last_frame;
 };
 
 static struct ohci_hcca *
@@ -1020,6 +1020,23 @@ ohci_check_transfer_sub(struct usb2_xfer *xfer)
 		usb2_pc_cpu_flush(ed->page_cache);
 
 		DPRINTFN(13, "xfer=%p following alt next\n", xfer);
+
+		/*
+		 * Make sure that the OHCI re-scans the schedule by
+		 * writing the BLF and CLF bits:
+		 */
+
+		if (xfer->xroot->udev->pwr_save.suspended) {
+			/* nothing to do */
+		} else if (xfer->pipe->methods == &ohci_device_bulk_methods) {
+			ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
+
+			OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
+		} else if (xfer->pipe->methods == &ohci_device_ctrl_methods) {
+			ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
+
+			OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
+		}
 	}
 }
 
@@ -1034,7 +1051,6 @@ static uint8_t
 ohci_check_transfer(struct usb2_xfer *xfer)
 {
 	ohci_ed_t *ed;
-	uint32_t ed_flags;
 	uint32_t ed_headp;
 	uint32_t ed_tailp;
 
@@ -1043,12 +1059,10 @@ ohci_check_transfer(struct usb2_xfer *xfer)
 	ed = xfer->qh_start[xfer->flags_int.curr_dma_set];
 
 	usb2_pc_cpu_invalidate(ed->page_cache);
-	ed_flags = le32toh(ed->ed_flags);
 	ed_headp = le32toh(ed->ed_headp);
 	ed_tailp = le32toh(ed->ed_tailp);
 
-	if ((ed_flags & OHCI_ED_SKIP) ||
-	    (ed_headp & OHCI_HALTED) ||
+	if ((ed_headp & OHCI_HALTED) ||
 	    (((ed_headp ^ ed_tailp) & (~0xF)) == 0)) {
 		if (xfer->pipe->methods == &ohci_device_isoc_methods) {
 			/* isochronous transfer */
@@ -1379,10 +1393,9 @@ restart:
 		precompute = 0;
 
 		/* setup alt next pointer, if any */
-		if (temp->short_frames_ok) {
-			if (temp->setup_alt_next) {
-				td_alt_next = td_next;
-			}
+		if (temp->last_frame) {
+			/* no alternate next */
+			td_alt_next = NULL;
 		} else {
 			/* we use this field internally */
 			td_alt_next = td_next;
@@ -1425,8 +1438,8 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 
 	temp.td = NULL;
 	temp.td_next = td;
+	temp.last_frame = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
-	temp.short_frames_ok = xfer->flags_int.short_frames_ok;
 
 	methods = xfer->pipe->methods;
 
@@ -1441,7 +1454,14 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 			temp.len = xfer->frlengths[0];
 			temp.pc = xfer->frbuffers + 0;
 			temp.shortpkt = temp.len ? 1 : 0;
-
+			/* check for last frame */
+			if (xfer->nframes == 1) {
+				/* no STATUS stage yet, SETUP is last */
+				if (xfer->flags_int.control_act) {
+					temp.last_frame = 1;
+					temp.setup_alt_next = 0;
+				}
+			}
 			ohci_setup_standard_chain_sub(&temp);
 
 			/*
@@ -1482,7 +1502,16 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 		x++;
 
 		if (x == xfer->nframes) {
-			temp.setup_alt_next = 0;
+			if (xfer->flags_int.control_xfr) {
+				/* no STATUS stage yet, DATA is last */
+				if (xfer->flags_int.control_act) {
+					temp.last_frame = 1;
+					temp.setup_alt_next = 0;
+				}
+			} else {
+				temp.last_frame = 1;
+				temp.setup_alt_next = 0;
+			}
 		}
 		if (temp.len == 0) {
 
@@ -1523,11 +1552,14 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 		temp.len = 0;
 		temp.pc = NULL;
 		temp.shortpkt = 0;
+		temp.last_frame = 1;
+		temp.setup_alt_next = 0;
 
 		ohci_setup_standard_chain_sub(&temp);
 	}
 	td = temp.td;
 
+	/* Ensure that last TD is terminating: */
 	td->td_next = htole32(OHCI_TD_NEXT_END);
 	td->td_flags &= ~htole32(OHCI_TD_INTR_MASK);
 	td->td_flags |= htole32(OHCI_TD_SET_DI(1));
