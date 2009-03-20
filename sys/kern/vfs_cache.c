@@ -956,7 +956,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	if (vp->v_type != VDIR) {
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (ncp != NULL) {
-			for (i = ncp->nc_nlen - 1; i >= 0 && bp > buf; i--)
+			buflen -= ncp->nc_nlen;
+			for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
 				*--bp = ncp->nc_name[i];
 			if (bp == buf) {
 				numfullpathfail4++;
