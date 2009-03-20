@@ -75,9 +75,10 @@ struct usb2_bus {
 	device_t parent;
 	device_t bdev;			/* filled by HC driver */
 
+#if USB_HAVE_BUSDMA
 	struct usb2_dma_parent_tag dma_parent_tag[1];
 	struct usb2_dma_tag dma_tags[USB_BUS_DMA_TAG_MAX];
-
+#endif
 	struct usb2_bus_methods *methods;	/* filled by HC driver */
 	struct usb2_device **devices;
 
