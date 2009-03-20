@@ -39,7 +39,7 @@
 #include <dev/usb/usb_bus.h>
 
 /* function prototypes */
-#if (USB_USE_CONDVAR == 0)
+#if (USB_HAVE_CONDVAR == 0)
 static int usb2_msleep(void *chan, struct mtx *mtx, int priority, const char *wmesg, int timo);
 
 #endif
@@ -47,6 +47,7 @@ static int usb2_msleep(void *chan, struct mtx *mtx, int priority, const char *wm
 /*------------------------------------------------------------------------*
  * device_delete_all_children - delete all children of a device
  *------------------------------------------------------------------------*/
+#ifndef device_delete_all_children
 int
 device_delete_all_children(device_t dev)
 {
@@ -66,6 +67,7 @@ device_delete_all_children(device_t dev)
 	}
 	return (error);
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	device_set_usb2_desc
@@ -76,6 +78,7 @@ device_delete_all_children(device_t dev)
 void
 device_set_usb2_desc(device_t dev)
 {
+#if USB_HAVE_STRINGS
 	struct usb2_attach_arg *uaa;
 	struct usb2_device *udev;
 	struct usb2_interface *iface;
@@ -118,6 +121,7 @@ device_set_usb2_desc(device_t dev)
 	device_set_desc_copy(dev, temp_p);
 	device_printf(dev, "<%s> on %s\n", temp_p,
 	    device_get_nameunit(udev->bus->bdev));
+#endif
 }
 
 /*------------------------------------------------------------------------*
@@ -163,6 +167,7 @@ usb2_pause_mtx(struct mtx *mtx, int _ticks)
  * pointed to by "p" having a maximum length of "p_len" bytes
  * including the terminating zero.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_STRINGS
 void
 usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 {
@@ -170,6 +175,7 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 		/* ignore any errors */
 	}
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_trim_spaces
@@ -177,6 +183,7 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
  * This function removes spaces at the beginning and the end of the string
  * pointed to by the "p" argument.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_STRINGS
 void
 usb2_trim_spaces(char *p)
 {
@@ -193,6 +200,7 @@ usb2_trim_spaces(char *p)
 			e = p;
 	*e = 0;				/* kill trailing spaces */
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_get_devid
@@ -246,7 +254,7 @@ usb2_make_str_desc(void *ptr, uint16_t max_len, const char *s)
 	return (totlen);
 }
 
-#if (USB_USE_CONDVAR == 0)
+#if (USB_HAVE_CONDVAR == 0)
 
 /*------------------------------------------------------------------------*
  *	usb2_cv_init - wrapper function
