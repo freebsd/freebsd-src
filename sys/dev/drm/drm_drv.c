@@ -182,7 +182,10 @@ int drm_probe(device_t kdev, drm_pci_id_list_t *idlist)
 
 	id_entry = drm_find_description(vendor, device, idlist);
 	if (id_entry != NULL) {
-		device_set_desc(kdev, id_entry->name);
+		if (!device_get_desc(kdev)) {
+			DRM_DEBUG("desc : %s\n", device_get_desc(kdev));
+			device_set_desc(kdev, id_entry->name);
+		}
 		return 0;
 	}
 
@@ -290,7 +293,8 @@ drm_pci_id_list_t *drm_find_description(int vendor, int device,
 	
 	for (i = 0; idlist[i].vendor != 0; i++) {
 		if ((idlist[i].vendor == vendor) &&
-		    (idlist[i].device == device)) {
+		    ((idlist[i].device == device) ||
+		    (idlist[i].device == 0))) {
 			return &idlist[i];
 		}
 	}
