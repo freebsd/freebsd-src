@@ -87,10 +87,10 @@ struct usb2_device_flags {
  * in this structure is protected by the USB BUS lock.
  */
 struct usb2_power_save {
-	int	last_xfer_time;		/* copy of "ticks" */
-	uint32_t type_refs[4];		/* transfer reference count */
-	uint32_t read_refs;		/* data read references */
-	uint32_t write_refs;		/* data write references */
+	usb2_ticks_t last_xfer_time;	/* copy of "ticks" */
+	usb2_size_t type_refs[4];	/* transfer reference count */
+	usb2_size_t read_refs;		/* data read references */
+	usb2_size_t write_refs;		/* data write references */
 	uint8_t	suspended;		/* set if USB device is suspended */
 };
 
@@ -128,7 +128,7 @@ struct usb2_device {
 
 	LIST_HEAD(,usb2_fs_privdata) pd_list;
 
-	uint32_t plugtime;		/* copy of "ticks" */
+	usb2_ticks_t plugtime;		/* copy of "ticks" */
 
 	uint16_t refcount;
 #define	USB_DEV_REF_MAX 0xffff

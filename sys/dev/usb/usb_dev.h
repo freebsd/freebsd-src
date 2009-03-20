@@ -135,9 +135,9 @@ struct usb2_fifo {
 	void   *priv_sc0;		/* client data */
 	void   *priv_sc1;		/* client data */
 	void   *queue_data;
-	uint32_t timeout;		/* timeout in milliseconds */
-	uint32_t bufsize;		/* BULK and INTERRUPT buffer size */
-	uint16_t nframes;		/* for isochronous mode */
+	usb2_timeout_t timeout;		/* timeout in milliseconds */
+	usb2_frlength_t bufsize;		/* BULK and INTERRUPT buffer size */
+	usb2_frcount_t nframes;		/* for isochronous mode */
 	uint16_t dev_ep_index;		/* our device endpoint index */
 	uint8_t	flag_sleeping;		/* set if FIFO is sleeping */
 	uint8_t	flag_iscomplete;	/* set if a USB transfer is complete */
@@ -175,17 +175,18 @@ int	usb2_fifo_attach(struct usb2_device *udev, void *priv_sc,
 void	usb2_fifo_detach(struct usb2_fifo_sc *f_sc);
 uint32_t usb2_fifo_put_bytes_max(struct usb2_fifo *fifo);
 void	usb2_fifo_put_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc,
-	    uint32_t offset, uint32_t len, uint8_t what);
+	    usb2_frlength_t offset, usb2_frlength_t len, uint8_t what);
 void	usb2_fifo_put_data_linear(struct usb2_fifo *fifo, void *ptr,
-	    uint32_t len, uint8_t what);
-uint8_t	usb2_fifo_put_data_buffer(struct usb2_fifo *f, void *ptr, uint32_t len);
+	    usb2_size_t len, uint8_t what);
+uint8_t	usb2_fifo_put_data_buffer(struct usb2_fifo *f, void *ptr, usb2_size_t len);
 void	usb2_fifo_put_data_error(struct usb2_fifo *fifo);
 uint8_t	usb2_fifo_get_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc,
-	    uint32_t offset, uint32_t len, uint32_t *actlen, uint8_t what);
+	    usb2_frlength_t offset, usb2_frlength_t len, usb2_frlength_t *actlen,
+	    uint8_t what);
 uint8_t	usb2_fifo_get_data_linear(struct usb2_fifo *fifo, void *ptr,
-	    uint32_t len, uint32_t *actlen, uint8_t what);
+	    usb2_size_t len, usb2_size_t *actlen, uint8_t what);
 uint8_t	usb2_fifo_get_data_buffer(struct usb2_fifo *f, void **pptr,
-	    uint32_t *plen);
+	    usb2_size_t *plen);
 void	usb2_fifo_get_data_error(struct usb2_fifo *fifo);
 uint8_t	usb2_fifo_opened(struct usb2_fifo *fifo);
 void	usb2_fifo_free(struct usb2_fifo *f);

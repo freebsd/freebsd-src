@@ -66,8 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
 
-#define	EHCI_BUS2SC(bus) ((ehci_softc_t *)(((uint8_t *)(bus)) - \
-   USB_P2U(&(((ehci_softc_t *)0)->sc_bus))))
+#define	EHCI_BUS2SC(bus) \
+   ((ehci_softc_t *)(((uint8_t *)(bus)) - \
+    ((uint8_t *)&(((ehci_softc_t *)0)->sc_bus))))
 
 #if USB_DEBUG
 static int ehcidebug = 0;
@@ -1729,7 +1730,7 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 	    xfer->address, UE_GET_ADDR(xfer->endpoint),
 	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
-	temp.average = xfer->max_usb2_frame_size;
+	temp.average = xfer->max_hc_frame_size;
 	temp.max_frame_size = xfer->max_frame_size;
 	temp.sc = EHCI_BUS2SC(xfer->xroot->bus);
 
@@ -3563,7 +3564,7 @@ ehci_xfer_setup(struct usb2_setup_params *parm)
 
 		nqh = 1;
 		nqtd = ((2 * xfer->nframes) + 1	/* STATUS */
-		    + (xfer->max_data_length / xfer->max_usb2_frame_size));
+		    + (xfer->max_data_length / xfer->max_hc_frame_size));
 
 	} else if (parm->methods == &ehci_device_bulk_methods) {
 
@@ -3576,7 +3577,7 @@ ehci_xfer_setup(struct usb2_setup_params *parm)
 
 		nqh = 1;
 		nqtd = ((2 * xfer->nframes)
-		    + (xfer->max_data_length / xfer->max_usb2_frame_size));
+		    + (xfer->max_data_length / xfer->max_hc_frame_size));
 
 	} else if (parm->methods == &ehci_device_intr_methods) {
 
@@ -3598,7 +3599,7 @@ ehci_xfer_setup(struct usb2_setup_params *parm)
 
 		nqh = 1;
 		nqtd = ((2 * xfer->nframes)
-		    + (xfer->max_data_length / xfer->max_usb2_frame_size));
+		    + (xfer->max_data_length / xfer->max_hc_frame_size));
 
 	} else if (parm->methods == &ehci_device_isoc_fs_methods) {
 

@@ -109,10 +109,10 @@ struct bbb_transfer {
 
 	uint8_t *data_ptr;
 
-	uint32_t data_len;		/* bytes */
-	uint32_t data_rem;		/* bytes */
-	uint32_t data_timeout;		/* ms */
-	uint32_t actlen;		/* bytes */
+	usb2_size_t data_len;		/* bytes */
+	usb2_size_t data_rem;		/* bytes */
+	usb2_timeout_t data_timeout;	/* ms */
+	usb2_frlength_t actlen;		/* bytes */
 
 	uint8_t	cmd_len;		/* bytes */
 	uint8_t	dir;
@@ -265,7 +265,7 @@ bbb_command_callback(struct usb2_xfer *xfer)
 		tag = UGETDW(sc->cbw.dCBWTag) + 1;
 		USETDW(sc->cbw.dCBWSignature, CBWSIGNATURE);
 		USETDW(sc->cbw.dCBWTag, tag);
-		USETDW(sc->cbw.dCBWDataTransferLength, sc->data_len);
+		USETDW(sc->cbw.dCBWDataTransferLength, (uint32_t)sc->data_len);
 		sc->cbw.bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
 		sc->cbw.bCBWLUN = sc->lun;
 		sc->cbw.bCDBLength = sc->cmd_len;
@@ -289,7 +289,7 @@ static void
 bbb_data_read_callback(struct usb2_xfer *xfer)
 {
 	struct bbb_transfer *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	usb2_frlength_t max_bulk = xfer->max_data_length;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -340,7 +340,7 @@ static void
 bbb_data_write_callback(struct usb2_xfer *xfer)
 {
 	struct bbb_transfer *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	usb2_frlength_t max_bulk = xfer->max_data_length;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -438,8 +438,8 @@ bbb_status_callback(struct usb2_xfer *xfer)
  *------------------------------------------------------------------------*/
 static uint8_t
 bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
-    void *data_ptr, uint32_t data_len, uint8_t cmd_len,
-    uint32_t data_timeout)
+    void *data_ptr, usb2_size_t data_len, uint8_t cmd_len,
+    usb2_timeout_t data_timeout)
 {
 	sc->lun = lun;
 	sc->dir = data_len ? dir : DIR_NONE;

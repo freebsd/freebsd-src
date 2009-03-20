@@ -228,15 +228,15 @@ tr_setup:
  *------------------------------------------------------------------------*/
 usb2_error_t
 usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
-    struct usb2_device_request *req, void *data, uint32_t flags,
-    uint16_t *actlen, uint32_t timeout)
+    struct usb2_device_request *req, void *data, uint16_t flags,
+    uint16_t *actlen, usb2_timeout_t timeout)
 {
 	struct usb2_xfer *xfer;
 	const void *desc;
 	int err = 0;
-	uint32_t start_ticks;
-	uint32_t delta_ticks;
-	uint32_t max_ticks;
+	usb2_ticks_t start_ticks;
+	usb2_ticks_t delta_ticks;
+	usb2_ticks_t max_ticks;
 	uint16_t length;
 	uint16_t temp;
 
@@ -487,8 +487,8 @@ done:
  *------------------------------------------------------------------------*/
 usb2_error_t
 usb2_do_request_proc(struct usb2_device *udev, struct usb2_process *pproc,
-    struct usb2_device_request *req, void *data, uint32_t flags,
-    uint16_t *actlen, uint32_t timeout)
+    struct usb2_device_request *req, void *data, uint16_t flags,
+    uint16_t *actlen, usb2_timeout_t timeout)
 {
 	usb2_error_t err;
 	uint16_t len;
