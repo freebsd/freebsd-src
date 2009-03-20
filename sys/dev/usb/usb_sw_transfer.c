@@ -62,7 +62,7 @@ usb2_sw_transfer(struct usb2_sw_transfer *std,
     usb2_sw_transfer_func_t *func)
 {
 	struct usb2_xfer *xfer;
-	uint32_t len;
+	usb2_frlength_t len;
 	uint8_t shortpkt = 0;
 
 	xfer = std->xfer;

@@ -114,9 +114,9 @@ struct usb2_device_id {
   (((const uint8_t *)((did)->driver_info)) - ((const uint8_t *)0))
 
 const struct usb2_device_id *usb2_lookup_id_by_info(
-	    const struct usb2_device_id *id, uint32_t sizeof_id,
+	    const struct usb2_device_id *id, usb2_size_t sizeof_id,
 	    const struct usb2_lookup_info *info);
 int	usb2_lookup_id_by_uaa(const struct usb2_device_id *id,
-	    uint32_t sizeof_id, struct usb2_attach_arg *uaa);
+	    usb2_size_t sizeof_id, struct usb2_attach_arg *uaa);
 
 #endif					/* _USB2_LOOKUP_H_ */

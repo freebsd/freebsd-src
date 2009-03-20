@@ -39,8 +39,7 @@ struct usb2_done_msg {
 #define	USB_DMATAG_TO_XROOT(dpt)				\
   ((struct usb2_xfer_root *)(					\
    ((uint8_t *)(dpt)) -						\
-   ((uint8_t *)&((struct usb2_xfer_root *)0)->dma_parent_tag) +	\
-   ((uint8_t *)0)))
+   ((uint8_t *)&((struct usb2_xfer_root *)0)->dma_parent_tag)))
 
 /*
  * The following structure is used to keep information about memory
@@ -68,14 +67,15 @@ struct usb2_xfer_root {
 	struct usb2_bus *bus;		/* pointer to USB bus (cached) */
 	struct usb2_device *udev;	/* pointer to USB device */
 
-	uint32_t memory_size;
-	uint32_t setup_refcount;
-	uint32_t page_size;
-	uint32_t dma_nframes;		/* number of page caches to load */
-	uint32_t dma_currframe;		/* currect page cache number */
-	uint32_t dma_frlength_0;	/* length of page cache zero */
+	usb2_size_t memory_size;
+	usb2_size_t setup_refcount;
+#if USB_HAVE_BUSDMA
+	usb2_frcount_t dma_nframes;	/* number of page caches to load */
+	usb2_frcount_t dma_currframe;	/* currect page cache number */
+	usb2_frlength_t dma_frlength_0;	/* length of page cache zero */
 	uint8_t	dma_error;		/* set if virtual memory could not be
 					 * loaded */
+#endif
 	uint8_t	done_sleep;		/* set if done thread is sleeping */
 };
 
@@ -96,13 +96,13 @@ struct usb2_setup_params {
 	const struct usb2_config_sub *curr_setup_sub;
 	const struct usb2_pipe_methods *methods;
 	void   *buf;
-	uint32_t *xfer_length_ptr;
+	usb2_frlength_t *xfer_length_ptr;
 
-	uint32_t size[7];
-	uint32_t bufsize;
-	uint32_t bufsize_max;
-	uint32_t hc_max_frame_size;
+	usb2_size_t size[7];
+	usb2_frlength_t bufsize;
+	usb2_frlength_t bufsize_max;
 
+	uint16_t hc_max_frame_size;
 	uint16_t hc_max_packet_size;
 	uint8_t	hc_max_packet_count;
 	uint8_t	speed;
@@ -113,8 +113,8 @@ struct usb2_setup_params {
 /* function prototypes */
 
 uint8_t	usb2_transfer_setup_sub_malloc(struct usb2_setup_params *parm,
-	    struct usb2_page_cache **ppc, uint32_t size, uint32_t align,
-	    uint32_t count);
+	    struct usb2_page_cache **ppc, usb2_size_t size, usb2_size_t align,
+	    usb2_size_t count);
 void	usb2_command_wrapper(struct usb2_xfer_queue *pq,
 	    struct usb2_xfer *xfer);
 void	usb2_pipe_enter(struct usb2_xfer *xfer);
@@ -132,8 +132,8 @@ usb2_callback_t usb2_do_request_callback;
 usb2_callback_t usb2_handle_request_callback;
 usb2_callback_t usb2_do_clear_stall_callback;
 void	usb2_transfer_timeout_ms(struct usb2_xfer *xfer,
-	    void (*cb) (void *arg), uint32_t ms);
-uint32_t usb2_get_dma_delay(struct usb2_bus *bus);
+	    void (*cb) (void *arg), usb2_timeout_t ms);
+usb2_timeout_t usb2_get_dma_delay(struct usb2_bus *bus);
 void	usb2_transfer_power_ref(struct usb2_xfer *xfer, int val);
 
 #endif					/* _USB2_TRANSFER_H_ */

@@ -59,8 +59,11 @@ SYSCTL_INT(_hw_usb2_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
 
 /* Define some limits */
 
-#define	USTORAGE_FS_BULK_SIZE (1UL << 17)
-#define	USTORAGE_FS_MAX_LUN 8
+#ifndef USTORAGE_FS_BULK_SIZE 
+#define	USTORAGE_FS_BULK_SIZE (1UL << 17)	/* bytes */
+#endif
+
+#define	USTORAGE_FS_MAX_LUN 8	/* units */
 
 /*
  * The SCSI ID string must be exactly 28 characters long
@@ -136,7 +139,7 @@ typedef struct {
 
 struct ustorage_fs_lun {
 
-	void   *memory_image;
+	uint8_t	*memory_image;
 
 	uint32_t num_sectors;
 	uint32_t sense_data;
@@ -1370,8 +1373,7 @@ ustorage_fs_read(struct ustorage_fs_softc *sc)
 	file_offset = lba;
 	file_offset <<= 9;
 
-	sc->sc_transfer.data_ptr =
-	    USB_ADD_BYTES(currlun->memory_image, (uint32_t)file_offset);
+	sc->sc_transfer.data_ptr = currlun->memory_image + file_offset;
 
 	return (0);
 }
@@ -1435,8 +1437,7 @@ ustorage_fs_write(struct ustorage_fs_softc *sc)
 	file_offset = lba;
 	file_offset <<= 9;
 
-	sc->sc_transfer.data_ptr =
-	    USB_ADD_BYTES(currlun->memory_image, (uint32_t)file_offset);
+	sc->sc_transfer.data_ptr = currlun->memory_image + file_offset;
 
 	return (0);
 }

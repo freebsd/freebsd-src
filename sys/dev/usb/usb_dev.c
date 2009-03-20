@@ -1688,7 +1688,7 @@ usb2_fifo_attach(struct usb2_device *udev, void *priv_sc,
  * Else failure
  *------------------------------------------------------------------------*/
 int
-usb2_fifo_alloc_buffer(struct usb2_fifo *f, uint32_t bufsize,
+usb2_fifo_alloc_buffer(struct usb2_fifo *f, usb2_size_t bufsize,
     uint16_t nbuf)
 {
 	usb2_fifo_free_buffer(f);
@@ -1753,11 +1753,11 @@ usb2_fifo_detach(struct usb2_fifo_sc *f_sc)
 	DPRINTFN(2, "detached %p\n", f_sc);
 }
 
-uint32_t
+usb2_size_t
 usb2_fifo_put_bytes_max(struct usb2_fifo *f)
 {
 	struct usb2_mbuf *m;
-	uint32_t len;
+	usb2_size_t len;
 
 	USB_IF_POLL(&f->free_q, m);
 
@@ -1778,10 +1778,10 @@ usb2_fifo_put_bytes_max(struct usb2_fifo *f)
  *------------------------------------------------------------------------*/
 void
 usb2_fifo_put_data(struct usb2_fifo *f, struct usb2_page_cache *pc,
-    uint32_t offset, uint32_t len, uint8_t what)
+    usb2_frlength_t offset, usb2_frlength_t len, uint8_t what)
 {
 	struct usb2_mbuf *m;
-	uint32_t io_len;
+	usb2_frlength_t io_len;
 
 	while (len || (what == 1)) {
 
@@ -1816,10 +1816,10 @@ usb2_fifo_put_data(struct usb2_fifo *f, struct usb2_page_cache *pc,
 
 void
 usb2_fifo_put_data_linear(struct usb2_fifo *f, void *ptr,
-    uint32_t len, uint8_t what)
+    usb2_size_t len, uint8_t what)
 {
 	struct usb2_mbuf *m;
-	uint32_t io_len;
+	usb2_size_t io_len;
 
 	while (len || (what == 1)) {
 
@@ -1853,7 +1853,7 @@ usb2_fifo_put_data_linear(struct usb2_fifo *f, void *ptr,
 }
 
 uint8_t
-usb2_fifo_put_data_buffer(struct usb2_fifo *f, void *ptr, uint32_t len)
+usb2_fifo_put_data_buffer(struct usb2_fifo *f, void *ptr, usb2_size_t len)
 {
 	struct usb2_mbuf *m;
 
@@ -1889,11 +1889,11 @@ usb2_fifo_put_data_error(struct usb2_fifo *f)
  *------------------------------------------------------------------------*/
 uint8_t
 usb2_fifo_get_data(struct usb2_fifo *f, struct usb2_page_cache *pc,
-    uint32_t offset, uint32_t len, uint32_t *actlen,
+    usb2_frlength_t offset, usb2_frlength_t len, usb2_frlength_t *actlen,
     uint8_t what)
 {
 	struct usb2_mbuf *m;
-	uint32_t io_len;
+	usb2_frlength_t io_len;
 	uint8_t tr_data = 0;
 
 	actlen[0] = 0;
@@ -1955,10 +1955,10 @@ usb2_fifo_get_data(struct usb2_fifo *f, struct usb2_page_cache *pc,
 
 uint8_t
 usb2_fifo_get_data_linear(struct usb2_fifo *f, void *ptr,
-    uint32_t len, uint32_t *actlen, uint8_t what)
+    usb2_size_t len, usb2_size_t *actlen, uint8_t what)
 {
 	struct usb2_mbuf *m;
-	uint32_t io_len;
+	usb2_size_t io_len;
 	uint8_t tr_data = 0;
 
 	actlen[0] = 0;
@@ -2019,7 +2019,7 @@ usb2_fifo_get_data_linear(struct usb2_fifo *f, void *ptr,
 }
 
 uint8_t
-usb2_fifo_get_data_buffer(struct usb2_fifo *f, void **pptr, uint32_t *plen)
+usb2_fifo_get_data_buffer(struct usb2_fifo *f, void **pptr, usb2_size_t *plen)
 {
 	struct usb2_mbuf *m;
 

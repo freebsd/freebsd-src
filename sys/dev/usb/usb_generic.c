@@ -428,7 +428,7 @@ static void
 ugen_default_write_callback(struct usb2_xfer *xfer)
 {
 	struct usb2_fifo *f = xfer->priv_sc;
-	uint32_t actlen;
+	usb2_frlength_t actlen;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -500,8 +500,8 @@ static void
 ugen_isoc_read_callback(struct usb2_xfer *xfer)
 {
 	struct usb2_fifo *f = xfer->priv_sc;
-	uint32_t offset;
-	uint16_t n;
+	usb2_frlength_t offset;
+	usb2_frcount_t n;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -539,9 +539,9 @@ static void
 ugen_isoc_write_callback(struct usb2_xfer *xfer)
 {
 	struct usb2_fifo *f = xfer->priv_sc;
-	uint32_t actlen;
-	uint32_t offset;
-	uint16_t n;
+	usb2_frlength_t actlen;
+	usb2_frlength_t offset;
+	usb2_frcount_t n;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -1020,10 +1020,10 @@ ugen_fs_copy_in(struct usb2_fifo *f, uint8_t ep_index)
 	struct usb2_fs_endpoint fs_ep;
 	void *uaddr;			/* userland pointer */
 	void *kaddr;
-	uint32_t offset;
+	usb2_frlength_t offset;
+	usb2_frlength_t rem;
+	usb2_frcount_t n;
 	uint32_t length;
-	uint32_t n;
-	uint32_t rem;
 	int error;
 	uint8_t isread;
 
@@ -1197,21 +1197,21 @@ ugen_fs_copy_out(struct usb2_fifo *f, uint8_t ep_index)
 	struct usb2_fs_endpoint *fs_ep_uptr;	/* userland ptr */
 	void *uaddr;			/* userland ptr */
 	void *kaddr;
-	uint32_t offset;
+	usb2_frlength_t offset;
+	usb2_frlength_t rem;
+	usb2_frcount_t n;
 	uint32_t length;
 	uint32_t temp;
-	uint32_t n;
-	uint32_t rem;
 	int error;
 	uint8_t isread;
 
-	if (ep_index >= f->fs_ep_max) {
+	if (ep_index >= f->fs_ep_max)
 		return (EINVAL);
-	}
+
 	xfer = f->fs_xfer[ep_index];
-	if (xfer == NULL) {
+	if (xfer == NULL)
 		return (EINVAL);
-	}
+
 	mtx_lock(f->priv_mtx);
 	if (usb2_transfer_pending(xfer)) {
 		mtx_unlock(f->priv_mtx);
@@ -1614,7 +1614,7 @@ ugen_get_frame_size(struct usb2_fifo *f, void *addr)
 static int
 ugen_set_buffer_size(struct usb2_fifo *f, void *addr)
 {
-	uint32_t t;
+	usb2_frlength_t t;
 
 	if (*(int *)addr < 1024)
 		t = 1024;
