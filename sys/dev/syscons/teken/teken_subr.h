@@ -38,7 +38,7 @@ teken_tab_isset(teken_t *t, unsigned int col)
 	unsigned int b, o;
 
 	if (col >= T_NUMCOL)
-		return ((col & 0x7) == 0);
+		return ((col % 8) == 0);
 
 	b = col / (sizeof(unsigned int) * 8);
 	o = col % (sizeof(unsigned int) * 8);
