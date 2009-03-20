@@ -54,7 +54,7 @@ int drm_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr,
 	if (file_priv && !file_priv->authenticated)
 		return EACCES;
 
-	if (dev->dma && offset >= 0 && offset < ptoa(dev->dma->page_count)) {
+	if (dev->dma && offset < ptoa(dev->dma->page_count)) {
 		drm_device_dma_t *dma = dev->dma;
 
 		DRM_SPINLOCK(&dev->dma_lock);
