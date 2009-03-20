@@ -1468,8 +1468,6 @@
 
       &hwlist.umct;
 
-      &hwlist.uscanner;
-
       &hwlist.umass;
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Audio Devices
