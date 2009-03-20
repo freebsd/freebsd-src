@@ -162,7 +162,6 @@ umodem	i386,pc98,amd64
 uplcom	i386,pc98,amd64
 ural	i386,amd64
 urio	i386,pc98,amd64,powerpc
-uscanner	i386,pc98,amd64,powerpc
 uvisor	i386,pc98,amd64
 uvscom	i386,pc98,amd64
 vge	i386,pc98,amd64
