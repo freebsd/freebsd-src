@@ -38,7 +38,7 @@
 #ifndef _EHCI_H_
 #define	_EHCI_H_
 
-#define	EHCI_MAX_DEVICES USB_MAX_DEVICES
+#define	EHCI_MAX_DEVICES MIN(USB_MAX_DEVICES, 128)
 
 /* PCI config registers */
 #define	PCI_CBMEM		0x10	/* configuration base MEM */

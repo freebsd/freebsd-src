@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR ohcidebug
 
@@ -2256,7 +2255,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 		USETW(sc->sc_hub_desc.stat.wStatus, 0);
 		break;
 	case C(UR_SET_ADDRESS, UT_WRITE_DEVICE):
-		if (value >= USB_MAX_DEVICES) {
+		if (value >= OHCI_MAX_DEVICES) {
 			std->err = USB_ERR_IOERROR;
 			goto done;
 		}
