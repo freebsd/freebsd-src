@@ -46,9 +46,8 @@ static drm_pci_id_list_t i915_pciidlist[] = {
 static int i915_suspend(device_t kdev)
 {
 	struct drm_device *dev = device_get_softc(kdev);
-	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!dev || !dev_priv) {
+	if (!dev || !dev->dev_private) {
 		DRM_ERROR("dev: 0x%lx, dev_priv: 0x%lx\n",
 			(unsigned long) dev, (unsigned long) dev_priv);
 		DRM_ERROR("DRM not initialized, aborting suspend.\n");
