@@ -37,7 +37,8 @@ teken_tab_isset(teken_t *t, unsigned int col)
 {
 	unsigned int b, o;
 
-	teken_assert(col <= T_NUMCOL);
+	if (col >= T_NUMCOL)
+		return ((col & 0x7) == 0);
 
 	b = col / (sizeof(unsigned int) * 8);
 	o = col % (sizeof(unsigned int) * 8);
@@ -50,7 +51,8 @@ teken_tab_clear(teken_t *t, unsigned int col)
 {
 	unsigned int b, o;
 
-	teken_assert(col <= T_NUMCOL);
+	if (col >= T_NUMCOL)
+		return;
 
 	b = col / (sizeof(unsigned int) * 8);
 	o = col % (sizeof(unsigned int) * 8);
@@ -63,7 +65,8 @@ teken_tab_set(teken_t *t, unsigned int col)
 {
 	unsigned int b, o;
 
-	teken_assert(col <= T_NUMCOL);
+	if (col >= T_NUMCOL)
+		return;
 
 	b = col / (sizeof(unsigned int) * 8);
 	o = col % (sizeof(unsigned int) * 8);
