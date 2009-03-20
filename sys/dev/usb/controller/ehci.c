@@ -117,7 +117,7 @@ struct ehci_std_temp {
 	uint8_t	shortpkt;
 	uint8_t	auto_data_toggle;
 	uint8_t	setup_alt_next;
-	uint8_t	short_frames_ok;
+	uint8_t	last_frame;
 };
 
 void
@@ -1546,10 +1546,12 @@ ehci_setup_standard_chain_sub(struct ehci_std_temp *temp)
 	uint32_t buf_offset;
 	uint32_t average;
 	uint32_t len_old;
+	uint32_t terminate;
 	uint8_t shortpkt_old;
 	uint8_t precompute;
 
-	qtd_altnext = htohc32(temp->sc, EHCI_LINK_TERMINATE);
+	terminate = htohc32(temp->sc, EHCI_LINK_TERMINATE);
+	qtd_altnext = terminate;
 	td_alt_next = NULL;
 	buf_offset = 0;
 	shortpkt_old = temp->shortpkt;
@@ -1696,14 +1698,17 @@ restart:
 		precompute = 0;
 
 		/* setup alt next pointer, if any */
-		if (temp->short_frames_ok) {
-			if (temp->setup_alt_next) {
-				td_alt_next = td_next;
-				qtd_altnext = td_next->qtd_self;
-			}
+		if (temp->last_frame) {
+			td_alt_next = NULL;
+			qtd_altnext = terminate;
 		} else {
 			/* we use this field internally */
 			td_alt_next = td_next;
+			if (temp->setup_alt_next) {
+				qtd_altnext = td_next->qtd_self;
+			} else {
+				qtd_altnext = terminate;
+			}
 		}
 
 		/* restore */
@@ -1746,8 +1751,8 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 	temp.td = NULL;
 	temp.td_next = td;
 	temp.qtd_status = 0;
+	temp.last_frame = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
-	temp.short_frames_ok = xfer->flags_int.short_frames_ok;
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->pipe->toggle_next) {
@@ -1780,7 +1785,14 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 			temp.len = xfer->frlengths[0];
 			temp.pc = xfer->frbuffers + 0;
 			temp.shortpkt = temp.len ? 1 : 0;
-
+			/* check for last frame */
+			if (xfer->nframes == 1) {
+				/* no STATUS stage yet, SETUP is last */
+				if (xfer->flags_int.control_act) {
+					temp.last_frame = 1;
+					temp.setup_alt_next = 0;
+				}
+			}
 			ehci_setup_standard_chain_sub(&temp);
 		}
 		x = 1;
@@ -1798,7 +1810,16 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 		x++;
 
 		if (x == xfer->nframes) {
-			temp.setup_alt_next = 0;
+			if (xfer->flags_int.control_xfr) {
+				/* no STATUS stage yet, DATA is last */
+				if (xfer->flags_int.control_act) {
+					temp.last_frame = 1;
+					temp.setup_alt_next = 0;
+				}
+			} else {
+				temp.last_frame = 1;
+				temp.setup_alt_next = 0;
+			}
 		}
 		/* keep previous data toggle and error count */
 
@@ -1855,6 +1876,8 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 		temp.len = 0;
 		temp.pc = NULL;
 		temp.shortpkt = 0;
+		temp.last_frame = 1;
+		temp.setup_alt_next = 0;
 
 		ehci_setup_standard_chain_sub(&temp);
 	}

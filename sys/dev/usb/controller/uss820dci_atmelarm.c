@@ -170,10 +170,10 @@ uss820_atmelarm_attach(device_t dev)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
+	    (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_intr_hdl = NULL;
