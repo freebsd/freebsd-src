@@ -957,9 +957,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			vp = ncp->nc_dvp;
 		} else {
 			error = vn_vptocnp(&vp, &bp, buf, &buflen);
-			if (error) {
+			if (error)
 				return (error);
-			}
 		}
 		*--bp = '/';
 		buflen--;
@@ -1022,9 +1021,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			numfullpathfail4++;
 			CACHE_RUNLOCK();
 			return (ENOMEM);
-		} else {
+		} else
 			*--bp = '/';
-		}
 	}
 	numfullpathfound++;
 	CACHE_RUNLOCK();
