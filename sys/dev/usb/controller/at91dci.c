@@ -887,8 +887,8 @@ at91dci_setup_standard_chain(struct usb2_xfer *xfer)
 
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 	temp.offset = 0;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 
 	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
@@ -902,6 +902,12 @@ at91dci_setup_standard_chain(struct usb2_xfer *xfer)
 			temp.len = xfer->frlengths[0];
 			temp.pc = xfer->frbuffers + 0;
 			temp.short_pkt = temp.len ? 1 : 0;
+			/* check for last frame */
+			if (xfer->nframes == 1) {
+				/* no STATUS stage yet, SETUP is last */
+				if (xfer->flags_int.control_act)
+					temp.setup_alt_next = 0;
+			}
 
 			at91dci_setup_standard_chain_sub(&temp);
 		}
@@ -933,7 +939,13 @@ at91dci_setup_standard_chain(struct usb2_xfer *xfer)
 		x++;
 
 		if (x == xfer->nframes) {
-			temp.setup_alt_next = 0;
+			if (xfer->flags_int.control_xfr) {
+				if (xfer->flags_int.control_act) {
+					temp.setup_alt_next = 0;
+				}
+			} else {
+				temp.setup_alt_next = 0;
+			}
 		}
 		if (temp.len == 0) {
 
@@ -958,47 +970,46 @@ at91dci_setup_standard_chain(struct usb2_xfer *xfer)
 		}
 	}
 
-	/* always setup a valid "pc" pointer for status and sync */
-	temp.pc = xfer->frbuffers + 0;
+	/* check for control transfer */
+	if (xfer->flags_int.control_xfr) {
 
-	/* check if we need to sync */
-	if (need_sync && xfer->flags_int.control_xfr) {
-
-		/* we need a SYNC point after TX */
-		temp.func = &at91dci_data_tx_sync;
+		/* always setup a valid "pc" pointer for status and sync */
+		temp.pc = xfer->frbuffers + 0;
 		temp.len = 0;
 		temp.short_pkt = 0;
+		temp.setup_alt_next = 0;
 
-		at91dci_setup_standard_chain_sub(&temp);
-	}
-	/* check if we should append a status stage */
-	if (xfer->flags_int.control_xfr &&
-	    !xfer->flags_int.control_act) {
-
-		/*
-		 * Send a DATA1 message and invert the current
-		 * endpoint direction.
-		 */
-		if (xfer->endpoint & UE_DIR_IN) {
-			temp.func = &at91dci_data_rx;
-			need_sync = 0;
-		} else {
-			temp.func = &at91dci_data_tx;
-			need_sync = 1;
-		}
-		temp.len = 0;
-		temp.short_pkt = 0;
-
-		at91dci_setup_standard_chain_sub(&temp);
+		/* check if we need to sync */
 		if (need_sync) {
 			/* we need a SYNC point after TX */
 			temp.func = &at91dci_data_tx_sync;
-			temp.len = 0;
-			temp.short_pkt = 0;
-
 			at91dci_setup_standard_chain_sub(&temp);
 		}
+
+		/* check if we should append a status stage */
+		if (!xfer->flags_int.control_act) {
+
+			/*
+			 * Send a DATA1 message and invert the current
+			 * endpoint direction.
+			 */
+			if (xfer->endpoint & UE_DIR_IN) {
+				temp.func = &at91dci_data_rx;
+				need_sync = 0;
+			} else {
+				temp.func = &at91dci_data_tx;
+				need_sync = 1;
+			}
+
+			at91dci_setup_standard_chain_sub(&temp);
+			if (need_sync) {
+				/* we need a SYNC point after TX */
+				temp.func = &at91dci_data_tx_sync;
+				at91dci_setup_standard_chain_sub(&temp);
+			}
+		}
 	}
+
 	/* must have at least one frame! */
 	td = temp.td;
 	xfer->td_transfer_last = td;
