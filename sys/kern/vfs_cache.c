@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
@@ -50,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/uma.h>
 
@@ -807,6 +812,10 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 			bcopy(bp, buf, strlen(bp) + 1);
 		else
 			error = copyout(bp, buf, strlen(bp) + 1);
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_NAMEI))
+		ktrnamei(bp);
+#endif
 	}
 	free(tmpbuf, M_TEMP);
 	return (error);
