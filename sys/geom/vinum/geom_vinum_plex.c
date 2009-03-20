@@ -966,21 +966,21 @@ gv_parity_complete(struct gv_plex *p, struct bio *bp)
 		g_free(bp->bio_data);
 	g_destroy_bio(bp);
 
-	if (error) {
+	if (error == EAGAIN) {
+		G_VINUM_DEBUG(0, "parity incorrect at offset 0x%jx",
+		    (intmax_t)p->synced);
+	}
+
+	/* Any error is fatal, except EAGAIN when we're rebuilding. */
+	if (error && !(error == EAGAIN && (flags & GV_BIO_PARITY))) {
 		/* Make sure we don't have the lock. */
 		g_topology_assert_not();
 		g_topology_lock();
 		gv_access(p->vol_sc->provider, -1, -1, 0);
 		g_topology_unlock();
-
-		if (error == EAGAIN) {
-			G_VINUM_DEBUG(0, "parity incorrect at offset 0x%jx",
-			    (intmax_t)p->synced);
-			if (!(flags & GV_BIO_PARITY))
-				return;
-		}
-		G_VINUM_DEBUG(0, "parity check on %s failed at 0x%jx errno %d",
-		    p->name, (intmax_t)p->synced, error);
+		G_VINUM_DEBUG(0, "parity check on %s failed at 0x%jx "
+		    "errno %d", p->name, (intmax_t)p->synced, error);
+		return;
 	} else {
 		p->synced += p->stripesize;
 	}
@@ -991,7 +991,6 @@ gv_parity_complete(struct gv_plex *p, struct bio *bp)
 		g_topology_lock();
 		gv_access(p->vol_sc->provider, -1, -1, 0);
 		g_topology_unlock();
-
 		/* We're finished. */
 		G_VINUM_DEBUG(1, "parity operation on %s finished", p->name);
 		p->synced = 0;
