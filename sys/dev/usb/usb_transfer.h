@@ -36,23 +36,33 @@ struct usb2_done_msg {
 	struct usb2_xfer_root *xroot;
 };
 
+#define	USB_DMATAG_TO_XROOT(dpt)				\
+  ((struct usb2_xfer_root *)(					\
+   ((uint8_t *)(dpt)) -						\
+   ((uint8_t *)&((struct usb2_xfer_root *)0)->dma_parent_tag) +	\
+   ((uint8_t *)0)))
+
 /*
  * The following structure is used to keep information about memory
  * that should be automatically freed at the moment all USB transfers
  * have been freed.
  */
 struct usb2_xfer_root {
+	struct usb2_dma_parent_tag dma_parent_tag;
+#if USB_HAVE_BUSDMA
 	struct usb2_xfer_queue dma_q;
+#endif
 	struct usb2_xfer_queue done_q;
 	struct usb2_done_msg done_m[2];
 	struct cv cv_drain;
-	struct usb2_dma_parent_tag dma_parent_tag;
 
 	struct usb2_process *done_p;	/* pointer to callback process */
 	void   *memory_base;
 	struct mtx *xfer_mtx;	/* cannot be changed during operation */
+#if USB_HAVE_BUSDMA
 	struct usb2_page_cache *dma_page_cache_start;
 	struct usb2_page_cache *dma_page_cache_end;
+#endif
 	struct usb2_page_cache *xfer_page_cache_start;
 	struct usb2_page_cache *xfer_page_cache_end;
 	struct usb2_bus *bus;		/* pointer to USB bus (cached) */

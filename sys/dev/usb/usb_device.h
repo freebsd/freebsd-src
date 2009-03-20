@@ -28,6 +28,7 @@
 #define	_USB2_DEVICE_H_
 
 struct usb2_symlink;
+struct usb_device;		/* linux compat */
 
 #define	USB_DEFAULT_XFER_MAX 2
 
@@ -114,7 +115,9 @@ struct usb2_device {
 	struct usb2_device *parent_hub;
 	struct usb2_config_descriptor *cdesc;	/* full config descr */
 	struct usb2_hub *hub;		/* only if this is a hub */
+#if USB_HAVE_COMPAT_LINUX
 	struct usb_device *linux_dev;
+#endif
 	struct usb2_xfer *default_xfer[USB_DEFAULT_XFER_MAX];
 	struct usb2_temp_data *usb2_template_ptr;
 	struct usb2_pipe *pipe_curr;	/* current clear stall pipe */
