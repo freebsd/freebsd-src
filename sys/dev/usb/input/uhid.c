@@ -668,8 +668,8 @@ uhid_attach(device_t dev)
 			 * feature report ID 2 before it'll start
 			 * returning digitizer data.
 			 */
-			error = usb2_req_set_report
-			    (uaa->device, &Giant, reportbuf, sizeof(reportbuf),
+			error = usb2_req_set_report(uaa->device, NULL,
+			    reportbuf, sizeof(reportbuf),
 			    uaa->info.bIfaceIndex, UHID_FEATURE_REPORT, 2);
 
 			if (error) {
@@ -691,16 +691,16 @@ uhid_attach(device_t dev)
 	}
 	if (sc->sc_repdesc_ptr == NULL) {
 
-		error = usb2_req_get_hid_desc
-		    (uaa->device, &Giant, &sc->sc_repdesc_ptr,
-		    &sc->sc_repdesc_size, M_USBDEV, uaa->info.bIfaceIndex);
+		error = usb2_req_get_hid_desc(uaa->device, NULL,
+		    &sc->sc_repdesc_ptr, &sc->sc_repdesc_size,
+		    M_USBDEV, uaa->info.bIfaceIndex);
 
 		if (error) {
 			device_printf(dev, "no report descriptor\n");
 			goto detach;
 		}
 	}
-	error = usb2_req_set_idle(uaa->device, &Giant,
+	error = usb2_req_set_idle(uaa->device, NULL,
 	    uaa->info.bIfaceIndex, 0, 0);
 
 	if (error) {
