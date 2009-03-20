@@ -22,6 +22,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090320:
+	GEOM_PART has become the default partition slicer for storage devices,
+	replacing GEOM_MBR, GEOM_BSD, GEOM_PC98 and GEOM_GPT slicers. It
+	introduces some changes: the devices created from MSDOS extended
+	partition entries (EBR) can be named differently than with GEOM_MBR
+	and are now symlinks to	devices with offset-based names, and kernel
+	dumps are now not allowed to be written to devices whose partition
+	types indicate they are meant to be used for file systems.
+
 20090319:
 	The uscanner(4) driver has been removed from the kernel. This follows
 	Linux removing theirs in 2.6 and making libusb the default interface
