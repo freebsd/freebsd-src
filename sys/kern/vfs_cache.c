@@ -1010,9 +1010,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			vp = ncp->nc_dvp;
 		} else {
 			error = vn_vptocnp(&vp, &bp, buf, &buflen);
-			if (error) {
+			if (error)
 				break;
-			}
 		}
 		*--bp = '/';
 		buflen--;
