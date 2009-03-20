@@ -49,15 +49,6 @@ static device_detach_t usb2_detach;
 
 static void	usb2_attach_sub(device_t, struct usb2_bus *);
 static void	usb2_post_init(void *);
-static void	usb2_bus_mem_flush_all_cb(struct usb2_bus *,
-		    struct usb2_page_cache *, struct usb2_page *, uint32_t,
-		    uint32_t);
-static void	usb2_bus_mem_alloc_all_cb(struct usb2_bus *,
-		    struct usb2_page_cache *, struct usb2_page *, uint32_t,
-		    uint32_t);
-static void	usb2_bus_mem_free_all_cb(struct usb2_bus *,
-		    struct usb2_page_cache *, struct usb2_page *, uint32_t,
-		    uint32_t);
 static void	usb2_bus_roothub(struct usb2_proc_msg *pm);
 
 /* static variables */
@@ -487,16 +478,19 @@ SYSUNINIT(usb2_bus_unload, SI_SUB_KLD, SI_ORDER_ANY, usb2_bus_unload, NULL);
 /*------------------------------------------------------------------------*
  *	usb2_bus_mem_flush_all_cb
  *------------------------------------------------------------------------*/
+#if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_flush_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
     struct usb2_page *pg, uint32_t size, uint32_t align)
 {
 	usb2_pc_cpu_flush(pc);
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_mem_flush_all - factored out code
  *------------------------------------------------------------------------*/
+#if USB_HAVE_BUSDMA
 void
 usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 {
@@ -504,10 +498,12 @@ usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 		cb(bus, &usb2_bus_mem_flush_all_cb);
 	}
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_mem_alloc_all_cb
  *------------------------------------------------------------------------*/
+#if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_alloc_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
     struct usb2_page *pg, uint32_t size, uint32_t align)
@@ -519,6 +515,7 @@ usb2_bus_mem_alloc_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
 		bus->alloc_failed = 1;
 	}
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_mem_alloc_all - factored out code
@@ -541,9 +538,10 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 
 	TAILQ_INIT(&bus->intr_q.head);
 
+#if USB_HAVE_BUSDMA
 	usb2_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,
-	    dmat, &bus->bus_mtx, NULL, NULL, 32, USB_BUS_DMA_TAG_MAX);
-
+	    dmat, &bus->bus_mtx, NULL, 32, USB_BUS_DMA_TAG_MAX);
+#endif
 	if ((bus->devices_max > USB_MAX_DEVICES) ||
 	    (bus->devices_max < USB_MIN_DEVICES) ||
 	    (bus->devices == NULL)) {
@@ -551,9 +549,11 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 		    "initialised properly!\n");
 		bus->alloc_failed = 1;		/* failure */
 	}
+#if USB_HAVE_BUSDMA
 	if (cb) {
 		cb(bus, &usb2_bus_mem_alloc_all_cb);
 	}
+#endif
 	if (bus->alloc_failed) {
 		usb2_bus_mem_free_all(bus, cb);
 	}
@@ -563,12 +563,14 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 /*------------------------------------------------------------------------*
  *	usb2_bus_mem_free_all_cb
  *------------------------------------------------------------------------*/
+#if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_free_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
     struct usb2_page *pg, uint32_t size, uint32_t align)
 {
 	usb2_pc_free_mem(pc);
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_mem_free_all - factored out code
@@ -576,10 +578,12 @@ usb2_bus_mem_free_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
 void
 usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 {
+#if USB_HAVE_BUSDMA
 	if (cb) {
 		cb(bus, &usb2_bus_mem_free_all_cb);
 	}
 	usb2_dma_tag_unsetup(bus->dma_parent_tag);
+#endif
 
 	mtx_destroy(&bus->bus_mtx);
 }

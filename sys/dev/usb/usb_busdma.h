@@ -60,8 +60,10 @@ typedef void (usb2_dma_callback_t)(struct usb2_dma_parent_tag *udpt);
  * address of a memory page having size USB_PAGE_SIZE.
  */
 struct usb2_page {
+#if USB_HAVE_BUSDMA
 	bus_size_t physaddr;
 	void   *buffer;			/* non Kernel Virtual Address */
+#endif
 };
 
 /*
@@ -71,7 +73,9 @@ struct usb2_page {
  */
 struct usb2_page_search {
 	void   *buffer;
+#if USB_HAVE_BUSDMA
 	bus_size_t physaddr;
+#endif
 	uint32_t length;
 };
 
@@ -81,62 +85,67 @@ struct usb2_page_search {
  */
 struct usb2_page_cache {
 
-#ifdef __FreeBSD__
+#if USB_HAVE_BUSDMA && defined(__FreeBSD__)
 	bus_dma_tag_t tag;
 	bus_dmamap_t map;
 #endif
-#ifdef __NetBSD__
+#if USB_HAVE_BUSDMA && defined(__NetBSD__)
 	bus_dma_tag_t tag;
 	bus_dmamap_t map;
 	bus_dma_segment_t *p_seg;
 #endif
+#if USB_HAVE_BUSDMA
 	struct usb2_page *page_start;
+#endif
 	struct usb2_dma_parent_tag *tag_parent;	/* always set */
 	void   *buffer;			/* virtual buffer pointer */
-#ifdef __NetBSD__
+#if USB_HAVE_BUSDMA && defined(_NetBSD__)
 	int	n_seg;
 #endif
+#if USB_HAVE_BUSDMA
 	uint32_t page_offset_buf;
 	uint32_t page_offset_end;
 	uint8_t	isread:1;		/* set if we are currently reading
 					 * from the memory. Else write. */
 	uint8_t	ismultiseg:1;		/* set if we can have multiple
 					 * segments */
+#endif
 };
 
 /*
  * The following structure describes the parent USB DMA tag.
  */
 struct usb2_dma_parent_tag {
-#ifdef __FreeBSD__
+#if USB_HAVE_BUSDMA && defined(__FreeBSD__)
 	struct cv cv[1];		/* internal condition variable */
 #endif
-
+#if USB_HAVE_BUSDMA
 	bus_dma_tag_t tag;		/* always set */
 
 	struct mtx *mtx;		/* private mutex, always set */
-	struct usb2_xfer_root *info;	/* used by the callback function */
 	usb2_dma_callback_t *func;	/* load complete callback function */
 	struct usb2_dma_tag *utag_first;/* pointer to first USB DMA tag */
-
 	uint8_t	dma_error;		/* set if DMA load operation failed */
 	uint8_t	dma_bits;		/* number of DMA address lines */
 	uint8_t	utag_max;		/* number of USB DMA tags */
+#endif
 };
 
 /*
  * The following structure describes an USB DMA tag.
  */
 struct usb2_dma_tag {
-#ifdef __NetBSD__
+#if USB_HAVE_BUSDMA && defined(__NetBSD__)
 	bus_dma_segment_t *p_seg;
 #endif
+#if USB_HAVE_BUSDMA
 	struct usb2_dma_parent_tag *tag_parent;
 	bus_dma_tag_t tag;
 
 	uint32_t align;
 	uint32_t size;
-#ifdef __NetBSD__
+#endif
+#if USB_HAVE_BUSDMA && defined(__NetBSD__)
 	uint32_t n_seg;
 #endif
 };
@@ -168,8 +177,7 @@ int	usb2_copy_out_user(struct usb2_page_cache *cache, uint32_t offset,
 	    void *ptr, uint32_t len);
 void	usb2_dma_tag_setup(struct usb2_dma_parent_tag *udpt,
 	    struct usb2_dma_tag *udt, bus_dma_tag_t dmat, struct mtx *mtx,
-	    usb2_dma_callback_t *func, struct usb2_xfer_root *info,
-	    uint8_t ndmabits, uint8_t nudt);
+	    usb2_dma_callback_t *func, uint8_t ndmabits, uint8_t nudt);
 void	usb2_dma_tag_unsetup(struct usb2_dma_parent_tag *udpt);
 void	usb2_get_page(struct usb2_page_cache *pc, uint32_t offset,
 	    struct usb2_page_search *res);
