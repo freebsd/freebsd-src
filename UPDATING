@@ -25,11 +25,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 20090320:
 	GEOM_PART has become the default partition slicer for storage devices,
 	replacing GEOM_MBR, GEOM_BSD, GEOM_PC98 and GEOM_GPT slicers. It
-	introduces some changes: the devices created from MSDOS extended
-	partition entries (EBR) can be named differently than with GEOM_MBR
-	and are now symlinks to	devices with offset-based names, and kernel
-	dumps are now not allowed to be written to devices whose partition
-	types indicate they are meant to be used for file systems.
+	introduces some changes:
+	
+	MSDOS/EBR: the devices created from MSDOS extended partition entries
+	(EBR) can be named differently than with GEOM_MBR and are now symlinks
+	to devices with offset-based names. fstabs may need to be modified.
+
+	BSD: the "geometry does not match label" warning is harmless in most
+	cases but it points to problems in file system misalignment with
+	disk geometry. The "c" partition is now implicit, covers the whole
+	top-level drive and cannot be (mis)used by users.
+	
+	General: Kernel dumps are now not allowed to be written to devices
+	whose partition types indicate they are meant to be used for file
+	systems (or, in case of MSDOS partitions, as something else than
+	the "386BSD" type).
+
+	Most of these changes date approximately from 200812.
 
 20090319:
 	The uscanner(4) driver has been removed from the kernel. This follows
