@@ -270,11 +270,11 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_misses, CTLFLAG_RD,
 
 static int
 nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
-    struct ucred *cred)
+    struct ucred *cred, uint32_t *retmode)
 {
 	const int v3 = 1;
 	u_int32_t *tl;
-	int error = 0, attrflag;
+	int error = 0, attrflag, i, lrupos;
 
 	struct mbuf *mreq, *mrep, *md, *mb;
 	caddr_t bpos, dpos;
@@ -291,13 +291,28 @@ nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
 	nfsm_request(vp, NFSPROC_ACCESS, td, cred);
 	nfsm_postop_attr(vp, attrflag);
 	if (!error) {
+		lrupos = 0;
 		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		rmode = fxdr_unsigned(u_int32_t, *tl);
 		mtx_lock(&np->n_mtx);
-		np->n_mode = rmode;
-		np->n_modeuid = cred->cr_uid;
-		np->n_modestamp = time_second;
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++) {
+			if (np->n_accesscache[i].uid == cred->cr_uid) {
+				np->n_accesscache[i].mode = rmode;
+				np->n_accesscache[i].stamp = time_second;
+				break;
+			}
+			if (i > 0 && np->n_accesscache[i].stamp <
+			    np->n_accesscache[lrupos].stamp)
+				lrupos = i;
+		}
+		if (i == NFS_ACCESSCACHESIZE) {
+			np->n_accesscache[lrupos].uid = cred->cr_uid;
+			np->n_accesscache[lrupos].mode = rmode;
+			np->n_accesscache[lrupos].stamp = time_second;
+		}
 		mtx_unlock(&np->n_mtx);
+		if (retmode != NULL)
+			*retmode = rmode;
 	}
 	m_freem(mrep);
 nfsmout:
@@ -314,8 +329,8 @@ static int
 nfs_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int error = 0;
-	u_int32_t mode, wmode;
+	int error = 0, i, gotahit;
+	u_int32_t mode, rmode, wmode;
 	int v3 = NFS_ISV3(vp);
 	struct nfsnode *np = VTONFS(vp);
 
@@ -372,26 +387,32 @@ nfs_access(struct vop_access_args *ap)
 		 * Does our cached result allow us to give a definite yes to
 		 * this request?
 		 */
+		gotahit = 0;
 		mtx_lock(&np->n_mtx);
-		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
-		    (ap->a_cred->cr_uid == np->n_modeuid) &&
-		    ((np->n_mode & mode) == mode)) {
-			nfsstats.accesscache_hits++;
-		} else {
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++) {
+			if (ap->a_cred->cr_uid == np->n_accesscache[i].uid) {
+				if (time_second < (np->n_accesscache[i].stamp +
+				    nfsaccess_cache_timeout) &&
+				    (np->n_accesscache[i].mode & mode) == mode) {
+					nfsstats.accesscache_hits++;
+					gotahit = 1;
+				}
+				break;
+			}
+		}
+		mtx_unlock(&np->n_mtx);
+		if (gotahit == 0) {
 			/*
 			 * Either a no, or a don't know.  Go to the wire.
 			 */
 			nfsstats.accesscache_misses++;
-			mtx_unlock(&np->n_mtx);
-		        error = nfs3_access_otw(vp, wmode, ap->a_td,ap->a_cred);
-			mtx_lock(&np->n_mtx);
+		        error = nfs3_access_otw(vp, wmode, ap->a_td, ap->a_cred,
+			    &rmode);
 			if (!error) {
-				if ((np->n_mode & mode) != mode) {
+				if ((rmode & mode) != mode)
 					error = EACCES;
-				}
 			}
 		}
-		mtx_unlock(&np->n_mtx);
 		return (error);
 	} else {
 		if ((error = nfsspec_access(ap)) != 0) {
@@ -651,7 +672,7 @@ nfs_getattr(struct vop_getattr_args *ap)
 		goto nfsmout;
 	if (v3 && nfs_prime_access_cache && nfsaccess_cache_timeout > 0) {
 		nfsstats.accesscache_misses++;
-		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred);
+		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred, NULL);
 		if (nfs_getattrcache(vp, &vattr) == 0)
 			goto nfsmout;
 	}
@@ -810,7 +831,7 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred)
 	struct nfsnode *np = VTONFS(vp);
 	caddr_t bpos, dpos;
 	u_int32_t *tl;
-	int error = 0, wccflag = NFSV3_WCCRATTR;
+	int error = 0, i, wccflag = NFSV3_WCCRATTR;
 	struct mbuf *mreq, *mrep, *md, *mb;
 	int v3 = NFS_ISV3(vp);
 
@@ -843,7 +864,10 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred)
 	}
 	nfsm_request(vp, NFSPROC_SETATTR, curthread, cred);
 	if (v3) {
-		np->n_modestamp = 0;
+		mtx_lock(&np->n_mtx);
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++)
+			np->n_accesscache[i].stamp = 0;
+		mtx_unlock(&np->n_mtx);
 		nfsm_wcc_data(vp, wccflag);
 	} else
 		nfsm_loadattr(vp, NULL);

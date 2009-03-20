@@ -68,6 +68,9 @@
 #ifndef NFS_MAXDIRATTRTIMO
 #define	NFS_MAXDIRATTRTIMO 60
 #endif
+#ifndef	NFS_ACCESSCACHESIZE
+#define	NFS_ACCESSCACHESIZE 8		/* Per-node access cache entries */
+#endif
 #define	NFS_WSIZE	8192		/* Def. write data size <= 8192 */
 #define	NFS_RSIZE	8192		/* Def. read data size <= 8192 */
 #define NFS_READDIRSIZE	8192		/* Def. readdir size */
