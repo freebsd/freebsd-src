@@ -32,7 +32,6 @@
  * mass storage quirks for not supported SCSI commands!
  */
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>

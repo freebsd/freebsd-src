@@ -34,7 +34,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR u3g_debug
 

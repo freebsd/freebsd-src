@@ -27,21 +27,15 @@
 #ifndef _USB2_DEFS_H_
 #define	_USB2_DEFS_H_
 
-/* Definition of some USB constants */
+/* Definition of some hardcoded USB constants. */
 
-#define	USB_BUS_MAX 256			/* units */
-#define	USB_DEV_MAX 128			/* units */
-#define	USB_IFACE_MAX 32		/* units */
+#define	USB_MAX_IPACKET		8	/* initial USB packet size */
+
 #define	USB_EP_MAX (2*16)		/* hardcoded */
-#define	USB_FIFO_MAX (4 * USB_EP_MAX)
 
 #define	USB_ROOT_HUB_ADDR 1		/* index */
 
 #define	USB_MIN_DEVICES 2		/* unused + root HUB */
-
-#define	USB_MAX_DEVICES USB_DEV_MAX	/* including virtual root HUB and
-					 * address zero */
-#define	USB_MAX_ENDPOINTS USB_EP_MAX	/* 2 directions on 16 endpoints */
 
 #define	USB_UNCONFIG_INDEX 0xFF		/* internal use only */
 #define	USB_IFACE_INDEX_ANY 0xFF	/* internal use only */
@@ -57,20 +51,10 @@
 #define	USB_FS_BYTES_PER_HS_UFRAME 188	/* bytes */
 #define	USB_HS_MICRO_FRAMES_MAX 8	/* units */
 
+#define	USB_ISOC_TIME_MAX 128		/* ms */
+
 /* sanity checks */
 
-#if (USB_FIFO_MAX < USB_EP_MAX)
-#error "There cannot be less FIFOs than USB endpoints."
-#endif
-#if (USB_FIFO_MAX & 1)
-#error "Number of FIFOs must be odd."
-#endif
-#if (USB_EP_MAX < (2*16))
-#error "Number of hardware USB endpoints cannot be less than 32."
-#endif
-#if (USB_MAX_DEVICES < USB_MIN_DEVICES)
-#error "Minimum number of devices is greater than maximum number of devices."
-#endif
 #if (USB_ROOT_HUB_ADDR >= USB_MIN_DEVICES)
 #error "The root hub address must be less than USB_MIN_DEVICES."
 #endif
