@@ -252,7 +252,6 @@ static const struct usb2_config
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
 		.mh.bufsize = (sizeof(struct usb2_device_request) + 1),
-		.mh.flags = {},
 		.mh.callback = &ufoma_ctrl_write_callback,
 		.mh.timeout = 1000,	/* 1 second */
 	},
