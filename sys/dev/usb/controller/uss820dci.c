@@ -36,7 +36,6 @@
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_revision.h>
 #include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR uss820dcidebug
 

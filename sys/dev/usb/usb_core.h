@@ -157,9 +157,39 @@ struct usb2_xfer_root;
 
 /* typedefs */
 
-typedef uint8_t usb2_error_t;
-
 typedef void (usb2_callback_t)(struct usb2_xfer *);
+
+#ifndef USB_HAVE_USB_ERROR_T
+typedef uint8_t usb2_error_t;		/* see "USB_ERR_XXX" */
+#endif
+
+#ifndef USB_HAVE_TIMEOUT_T
+typedef uint32_t usb2_timeout_t;	/* milliseconds */
+#endif
+
+#ifndef USB_HAVE_LENGTH_T
+typedef uint32_t usb2_length_t;		/* bytes */
+#endif
+
+#ifndef USB_HAVE_FRAMES_T
+typedef uint32_t usb2_frames_t;		/* units */
+#endif
+
+#ifndef USB_HAVE_INTERVAL_T
+typedef uint32_t usb2_interval_t;	/* milliseconds */
+#endif
+
+#ifndef USB_HAVE_SIZE_T
+typedef uint32_t usb2_size_t;		/* bytes */
+#endif
+
+#ifndef USB_HAVE_REFS_T
+typedef uint32_t usb2_refs_t;		/* units */
+#endif
+
+#ifndef USB_HAVE_TICKS_T
+typedef uint32_t usb2_ticks_t;		/* system defined */
+#endif
 
 /* structures */
 
