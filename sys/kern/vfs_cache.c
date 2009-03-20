@@ -970,13 +970,13 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			if (error)
 				return (error);
 		}
-		*--bp = '/';
-		buflen--;
-		if (buflen < 0) {
+		if (buflen <= 0) {
 			numfullpathfail4++;
 			CACHE_RUNLOCK();
 			return (ENOMEM);
 		}
+		*--bp = '/';
+		buflen--;
 		slash_prefixed = 1;
 	}
 	while (vp != rdir && vp != rootvnode) {
@@ -1013,14 +1013,14 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			if (error)
 				break;
 		}
-		*--bp = '/';
-		buflen--;
-		if (buflen < 0) {
+		if (buflen <= 0) {
 			numfullpathfail4++;
 			CACHE_RUNLOCK();
 			error = ENOMEM;
 			break;
 		}
+		*--bp = '/';
+		buflen--;
 		slash_prefixed = 1;
 	}
 	if (error)
