@@ -48,6 +48,7 @@
 
 struct usb2_xfer_root;
 struct usb2_dma_parent_tag;
+struct usb2_dma_tag;
 
 /*
  * The following typedef defines the USB DMA load done callback.
@@ -115,11 +116,11 @@ struct usb2_page_cache {
 /*
  * The following structure describes the parent USB DMA tag.
  */
+#if USB_HAVE_BUSDMA
 struct usb2_dma_parent_tag {
-#if USB_HAVE_BUSDMA && defined(__FreeBSD__)
+#if defined(__FreeBSD__)
 	struct cv cv[1];		/* internal condition variable */
 #endif
-#if USB_HAVE_BUSDMA
 	bus_dma_tag_t tag;		/* always set */
 
 	struct mtx *mtx;		/* private mutex, always set */
@@ -128,27 +129,31 @@ struct usb2_dma_parent_tag {
 	uint8_t	dma_error;		/* set if DMA load operation failed */
 	uint8_t	dma_bits;		/* number of DMA address lines */
 	uint8_t	utag_max;		/* number of USB DMA tags */
-#endif
 };
+#else
+struct usb2_dma_parent_tag {};		/* empty struct */
+#endif
 
 /*
  * The following structure describes an USB DMA tag.
  */
+#if USB_HAVE_BUSDMA
 struct usb2_dma_tag {
-#if USB_HAVE_BUSDMA && defined(__NetBSD__)
+#if defined(__NetBSD__)
 	bus_dma_segment_t *p_seg;
 #endif
-#if USB_HAVE_BUSDMA
 	struct usb2_dma_parent_tag *tag_parent;
 	bus_dma_tag_t tag;
 
 	usb2_size_t align;
 	usb2_size_t size;
-#endif
-#if USB_HAVE_BUSDMA && defined(__NetBSD__)
+#if defined(__NetBSD__)
 	usb2_size_t n_seg;
 #endif
 };
+#else
+struct usb2_dma_tag {};			/* empty struct */
+#endif
 
 /* function prototypes */
 

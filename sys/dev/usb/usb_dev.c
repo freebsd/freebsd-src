@@ -54,6 +54,8 @@
 
 #include <machine/stdarg.h>
 
+#if USB_HAVE_UGEN
+
 #if USB_DEBUG
 static int usb2_fifo_debug = 0;
 
@@ -2195,3 +2197,4 @@ usb2_fifo_set_close_zlp(struct usb2_fifo *f, uint8_t onoff)
 	/* send a Zero Length Packet, ZLP, before close */
 	f->flag_short = onoff;
 }
+#endif	/* USB_HAVE_UGEN */

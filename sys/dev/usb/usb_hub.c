@@ -978,7 +978,11 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
+#if USB_HAVE_STRINGS
 		    res.udev->serial,
+#else
+		    "",
+#endif
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);
 	} else {
