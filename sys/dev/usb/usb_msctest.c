@@ -138,7 +138,6 @@ static const struct usb2_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.mh.bufsize = sizeof(struct bbb_cbw),
-		.mh.flags = {},
 		.mh.callback = &bbb_command_callback,
 		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -158,7 +157,6 @@ static const struct usb2_config bbb_config[ST_MAX] = {
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
 		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
 		.mh.callback = &bbb_data_rd_cs_callback,
 		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
@@ -178,7 +176,6 @@ static const struct usb2_config bbb_config[ST_MAX] = {
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
 		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
 		.mh.callback = &bbb_data_wr_cs_callback,
 		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
