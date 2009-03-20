@@ -4164,7 +4164,7 @@ key_flush_sad(time_t now)
 				/* 
 				 * Actually, only send expire message if SA has been used, as it
 				 * was done before, but should we always send such message, and let IKE
-				 * daemon decide if it should be renegociated or not ?
+				 * daemon decide if it should be renegotiated or not ?
 				 * XXX expire message will actually NOT be sent if SA is only used
 				 * after soft lifetime has been reached, see below (DYING state)
 				 */
