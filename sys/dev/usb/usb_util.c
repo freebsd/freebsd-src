@@ -203,20 +203,6 @@ usb2_trim_spaces(char *p)
 #endif
 
 /*------------------------------------------------------------------------*
- *	usb2_get_devid
- *
- * This function returns the USB Vendor and Product ID like a 32-bit
- * unsigned integer.
- *------------------------------------------------------------------------*/
-uint32_t
-usb2_get_devid(device_t dev)
-{
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-
-	return ((uaa->info.idVendor << 16) | (uaa->info.idProduct));
-}
-
-/*------------------------------------------------------------------------*
  *	usb2_make_str_desc - convert an ASCII string into a UNICODE string
  *------------------------------------------------------------------------*/
 uint8_t
