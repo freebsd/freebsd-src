@@ -269,17 +269,8 @@ bd_print(int verbose)
 
 		/* Check for a "dedicated" disk */
 		for (j = 0; j < od->od_nslices; j++) {
-		    switch(dptr[j].dp_mid) {
-		    case DOSMID_386BSD:
-		        sprintf(line, "      disk%ds%d", i, j + 1);
-			bd_printbsdslice(od,
-			    dptr[j].dp_scyl * od->od_hds * od->od_sec +
-			    dptr[j].dp_shd * od->od_sec + dptr[j].dp_ssect,
-			    line, verbose);
-			break;
-		    default:
-			break;
-		    }
+		    sprintf(line, "      disk%ds%d", i, j + 1);
+		    bd_printslice(od, &dptr[j], line, verbose);
 		}
 	    }
 	    bd_closedisk(od);
@@ -308,6 +299,52 @@ display_size(uint64_t size)
     }
     sprintf(buf, "%.6ld%cB", (long)size, unit);
     return (buf);
+}
+
+/*
+ * Print information about slices on a disk.  For the size calculations we
+ * assume a 512 byte sector.
+ */
+static void
+bd_printslice(struct open_disk *od, struct pc98_partition *dp, char *prefix,
+	int verbose)
+{
+	int cylsecs, start, size;
+	char stats[80];
+	char line[80];
+
+	cylsecs = od->od_hds * od->od_sec;
+	start = dp->dp_scyl * cylsecs + dp->dp_shd * od->od_sec + dp->dp_ssect;
+	size = (dp->dp_ecyl - dp->dp_scyl + 1) * cylsecs;
+
+	if (verbose)
+		sprintf(stats, " %s (%d - %d)", display_size(size),
+		    start, start + size);
+	else
+		stats[0] = '\0';
+
+	switch(dp->dp_mid & PC98_MID_MASK) {
+	case PC98_MID_386BSD:
+		bd_printbsdslice(od, start, prefix, verbose);
+		return;
+	case 0x00:				/* unused partition */
+		return;
+	case 0x01:
+		sprintf(line, "%s: FAT-12%s\n", prefix, stats);
+		break;
+	case 0x11:
+	case 0x20:
+	case 0x21:
+	case 0x22:
+	case 0x23:
+	case 0x24:
+		sprintf(line, "%s: FAT-16%s\n", prefix, stats);
+		break;
+	default:
+		sprintf(line, "%s: Unknown fs: 0x%x %s\n", prefix, dp->dp_mid,
+		    stats);
+	}
+	pager_output(line);
 }
 
 /*
@@ -349,7 +386,7 @@ bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
 
 	    /* Only print out statistics in verbose mode */
 	    if (verbose)
-		sprintf(line, "  %s%c: %s %s (%d - %d)\n", prefix, 'a' + i,
+	        sprintf(line, "  %s%c: %s %s (%d - %d)\n", prefix, 'a' + i,
 		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap " : 
 		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" :
 		    "FFS  ",
