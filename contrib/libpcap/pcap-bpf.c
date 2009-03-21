@@ -93,10 +93,6 @@ static int odmlockid = 0;
 
 #endif /* _AIX */
 
-#ifdef BIOCSETBUFMODE
-#include <machine/atomic.h>
-#endif
-
 #include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
@@ -1893,9 +1889,6 @@ pcap_activate_bpf(pcap_t *p)
 			goto bad;
 		}
 	}
-#ifdef BIOCSETBUFMODE
-	p->timeout = to_ms;
-#endif
 
 #ifdef _AIX
 #ifdef	BIOCIMMEDIATE
