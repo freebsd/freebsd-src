@@ -193,7 +193,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			} else
 #endif /* IPSEC */
 			if (n) {
-				if (last->inp_flags & IN6P_CONTROLOPTS ||
+				if (last->inp_flags & INP_CONTROLOPTS ||
 				    last->inp_socket->so_options & SO_TIMESTAMP)
 					ip6_savecontrol(last, n, &opts);
 				/* strip intermediate headers */
@@ -227,7 +227,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	} else
 #endif /* IPSEC */
 	if (last) {
-		if (last->inp_flags & IN6P_CONTROLOPTS ||
+		if (last->inp_flags & INP_CONTROLOPTS ||
 		    last->inp_socket->so_options & SO_TIMESTAMP)
 			ip6_savecontrol(last, m, &opts);
 		/* Strip intermediate headers. */

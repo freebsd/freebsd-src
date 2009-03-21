@@ -1952,7 +1952,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			}
 			if (n != NULL ||
 			    (n = m_copy(m, 0, (int)M_COPYALL)) != NULL) {
-				if (last->inp_flags & IN6P_CONTROLOPTS)
+				if (last->inp_flags & INP_CONTROLOPTS)
 					ip6_savecontrol(last, n, &opts);
 				/* strip intermediate headers */
 				m_adj(n, off);
@@ -1978,7 +1978,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	}
 	INP_INFO_RUNLOCK(&ripcbinfo);
 	if (last) {
-		if (last->inp_flags & IN6P_CONTROLOPTS)
+		if (last->inp_flags & INP_CONTROLOPTS)
 			ip6_savecontrol(last, m, &opts);
 		/* strip intermediate headers */
 		m_adj(m, off);
