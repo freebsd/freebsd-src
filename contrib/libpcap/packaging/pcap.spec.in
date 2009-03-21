@@ -15,7 +15,7 @@ URL: http://www.tcpdump.org
 Packet-capture library LIBPCAP @VERSION@
 Now maintained by "The Tcpdump Group"
 See http://www.tcpdump.org
-Please send inquiries/comments/reports to tcpdump-workers@tcpdump.org
+Please send inquiries/comments/reports to tcpdump-workers@lists.tcpdump.org
 
 %prep
 %setup
@@ -29,10 +29,6 @@ make
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/usr/{lib,include}
-mkdir -p $RPM_BUILD_ROOT/usr/share/man
-mkdir -p $RPM_BUILD_ROOT/usr/include/net
-mkdir -p $RPM_BUILD_ROOT/usr/man/man3
 make install DESTDIR=$RPM_BUILD_ROOT mandir=/usr/share/man
 cd $RPM_BUILD_ROOT/usr/lib
 V1=`echo @VERSION@ | sed 's/\\.[^\.]*$//g'`
@@ -45,12 +41,6 @@ else
     ln -sf libpcap.so.$V1 libpcap.so
 fi
 
-#install -m 755 -o root libpcap.a $RPM_BUILD_ROOT/usr/lib
-#install -m 644 -o root pcap.3 $RPM_BUILD_ROOT/usr/man/man3
-#install -m 644 -o root pcap.h $RPM_BUILD_ROOT/usr/include
-#install -m 644 -o root pcap-bpf.h $RPM_BUILD_ROOT/usr/include/net
-#install -m 644 -o root pcap-namedb.h $RPM_BUILD_ROOT/usr/include
-
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -59,7 +49,10 @@ rm -rf $RPM_BUILD_ROOT
 %doc LICENSE CHANGES INSTALL.txt README.linux TODO VERSION CREDITS packaging/pcap.spec
 /usr/lib/libpcap.a
 /usr/share/man/man3/*
+/usr/share/man/man5/*
+/usr/share/man/man7/*
 /usr/include/pcap.h
+/usr/include/pcap/*.h
 /usr/include/pcap-bpf.h
 /usr/include/pcap-namedb.h
 /usr/lib/libpcap.so*
