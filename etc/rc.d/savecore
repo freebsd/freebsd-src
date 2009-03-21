@@ -54,6 +54,9 @@ savecore_start()
 {
 	echo "Checking for core dump on ${dumpdev}..."
 	savecore ${savecore_flags} ${dumpdir} ${dumpdev}
+	if checkyesno crashinfo_enable; then
+		${crashinfo_program} -d ${dumpdir}
+	fi
 }
 
 load_rc_config $name
