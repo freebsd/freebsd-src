@@ -748,8 +748,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			goto abort;
 		}
 		/* Override flowlabel from in6_pcbconnect. */
-		inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
-		inp->in6p_flowinfo |= sc->sc_flowlabel;
+		inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
+		inp->inp_flow |= sc->sc_flowlabel;
 	} else
 #endif
 	{
@@ -1044,7 +1044,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 
 #ifdef INET6
 	if ((inc->inc_flags & INC_ISIPV6) &&
-	    (inp->in6p_flags & IN6P_AUTOFLOWLABEL))
+	    (inp->inp_flags & IN6P_AUTOFLOWLABEL))
 		autoflowlabel = 1;
 #endif
 	ip_ttl = inp->inp_ip_ttl;
@@ -1693,7 +1693,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 
 #ifdef INET6
 	if (inc->inc_flags & INC_ISIPV6) {
-		if (sotoinpcb(so)->in6p_flags & IN6P_AUTOFLOWLABEL)
+		if (sotoinpcb(so)->inp_flags & IN6P_AUTOFLOWLABEL)
 			sc->sc_flowlabel = md5_buffer[1] & IPV6_FLOWLABEL_MASK;
 	} else
 #endif
