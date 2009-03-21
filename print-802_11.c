@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.31.2.15 2007/07/22 23:14:14 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.47.2.2 2007-12-29 23:25:28 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -264,7 +264,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset)
 
 			if (pbody->tim.length <= 3)
 				break;
-			if (pbody->tim.length - 3 > sizeof pbody->tim.bitmap)
+			if (pbody->tim.length - 3 > (int)sizeof pbody->tim.bitmap)
 				return;
 			if (!TTEST2(*(p + offset), pbody->tim.length - 3))
 				return;
@@ -1209,6 +1209,11 @@ ieee802_11_avs_radio_print(const u_char *p, u_int length, u_int caplen)
 {
 	u_int32_t caphdr_len;
 
+	if (caplen < 8) {
+		printf("[|802.11]");
+		return caplen;
+	}
+
 	caphdr_len = EXTRACT_32BITS(p + 4);
 	if (caphdr_len < 8) {
 		/*
@@ -1231,32 +1236,38 @@ ieee802_11_avs_radio_print(const u_char *p, u_int length, u_int caplen)
 
 #define PRISM_HDR_LEN		144
 
+#define WLANCAP_MAGIC_COOKIE_BASE 0x80211000
 #define WLANCAP_MAGIC_COOKIE_V1	0x80211001
+#define WLANCAP_MAGIC_COOKIE_V2	0x80211002
 
 /*
  * For DLT_PRISM_HEADER; like DLT_IEEE802_11, but with an extra header,
  * containing information such as radio information, which we
  * currently ignore.
  *
- * If, however, the packet begins with WLANCAP_MAGIC_COOKIE_V1, it's
- * really DLT_IEEE802_11_RADIO (currently, on Linux, there's no
- * ARPHRD_ type for DLT_IEEE802_11_RADIO, as there is a
- * ARPHRD_IEEE80211_PRISM for DLT_PRISM_HEADER, so
- * ARPHRD_IEEE80211_PRISM is used for DLT_IEEE802_11_RADIO, and
- * the first 4 bytes of the header are used to indicate which it is).
+ * If, however, the packet begins with WLANCAP_MAGIC_COOKIE_V1 or
+ * WLANCAP_MAGIC_COOKIE_V2, it's really DLT_IEEE802_11_RADIO_AVS
+ * (currently, on Linux, there's no ARPHRD_ type for
+ * DLT_IEEE802_11_RADIO_AVS, as there is a ARPHRD_IEEE80211_PRISM
+ * for DLT_PRISM_HEADER, so ARPHRD_IEEE80211_PRISM is used for
+ * the AVS header, and the first 4 bytes of the header are used to
+ * indicate whether it's a Prism header or an AVS header).
  */
 u_int
 prism_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
+	u_int32_t msgcode;
 
 	if (caplen < 4) {
 		printf("[|802.11]");
 		return caplen;
 	}
 
-	if (EXTRACT_32BITS(p) == WLANCAP_MAGIC_COOKIE_V1)
+	msgcode = EXTRACT_32BITS(p);
+	if (msgcode == WLANCAP_MAGIC_COOKIE_V1 ||
+	    msgcode == WLANCAP_MAGIC_COOKIE_V2)
 		return ieee802_11_avs_radio_print(p, length, caplen);
 
 	if (caplen < PRISM_HDR_LEN) {
@@ -1270,19 +1281,21 @@ prism_if_print(const struct pcap_pkthdr *h, const u_char *p)
 
 /*
  * For DLT_IEEE802_11_RADIO; like DLT_IEEE802_11, but with an extra
- * header, containing information such as radio information, which we
- * currently ignore.
+ * header, containing information such as radio information.
  */
 u_int
 ieee802_11_radio_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
-	u_int caplen = h->caplen;
-	u_int length = h->len;
+	return ieee802_11_radio_print(p, h->len, h->caplen);
+}
 
-	if (caplen < 8) {
-		printf("[|802.11]");
-		return caplen;
-	}
-
-	return ieee802_11_radio_print(p, length, caplen);
+/*
+ * For DLT_IEEE802_11_RADIO_AVS; like DLT_IEEE802_11, but with an
+ * extra header, containing information such as radio information,
+ * which we currently ignore.
+ */
+u_int
+ieee802_11_radio_avs_if_print(const struct pcap_pkthdr *h, const u_char *p)
+{
+	return ieee802_11_avs_radio_print(p, h->len, h->caplen);
 }

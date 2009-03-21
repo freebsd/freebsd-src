@@ -1,6 +1,6 @@
-/* $FreeBSD: vendor/tcpdump/dist/contrib/tcpdump/ieee802_11_radio.h 172683 2007-10-16 02:20:42Z mlaier $ */
-/* $NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp $ */
-/* $Header: /tcpdump/master/tcpdump/ieee802_11_radio.h,v 1.1.2.1 2006/06/13 22:24:45 guy Exp $ */
+/* $FreeBSD: src/sys/net80211/ieee80211_radiotap.h,v 1.5 2005/01/22 20:12:05 sam Exp $ */
+/* NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp  */
+/* $Header: /tcpdump/master/tcpdump/ieee802_11_radio.h,v 1.3 2007-08-29 02:31:44 mcr Exp $ */
 
 /*-
  * Copyright (c) 2003, 2004 David Young.  All rights reserved.

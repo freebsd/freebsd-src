@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95.2.6 2006/02/20 18:15:03 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.105.2.1 2008-02-06 10:49:22 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -65,14 +65,19 @@ const struct tok ethertype_values[] = {
     { ETHERTYPE_AARP,           "Appletalk ARP" },
     { ETHERTYPE_IPX,            "IPX" },
     { ETHERTYPE_PPP,            "PPP" },
+    { ETHERTYPE_MPCP,           "MPCP" },
     { ETHERTYPE_SLOW,           "Slow Protocols" },
     { ETHERTYPE_PPPOED,         "PPPoE D" },
     { ETHERTYPE_PPPOES,         "PPPoE S" },
     { ETHERTYPE_EAPOL,          "EAPOL" },
+    { ETHERTYPE_RRCP,           "RRCP" },
     { ETHERTYPE_JUMBO,          "Jumbo" },
     { ETHERTYPE_LOOPBACK,       "Loopback" },
     { ETHERTYPE_ISO,            "OSI" },
     { ETHERTYPE_GRE_ISO,        "GRE-OSI" },
+    { ETHERTYPE_CFM_OLD,        "CFM (old)" },
+    { ETHERTYPE_CFM,            "CFM" },
+    { ETHERTYPE_LLDP,           "LLDP" },
     { 0, NULL}
 };
 
@@ -291,6 +296,10 @@ ether_encap_print(u_short ether_type, const u_char *p,
 	        eap_print(gndo, p, length);
 		return (1);
 
+	case ETHERTYPE_RRCP:
+	        rrcp_print(gndo, p - 14 , length + 14);
+		return (1);
+
 	case ETHERTYPE_PPP:
 		if (length) {
 			printf(": ");
@@ -298,8 +307,21 @@ ether_encap_print(u_short ether_type, const u_char *p,
 		}
 		return (1);
 
+	case ETHERTYPE_MPCP:
+	        mpcp_print(p, length);
+		return (1);
+
 	case ETHERTYPE_SLOW:
 	        slow_print(p, length);
+		return (1);
+
+	case ETHERTYPE_CFM:
+	case ETHERTYPE_CFM_OLD:
+	        cfm_print(p, length);
+		return (1);
+
+	case ETHERTYPE_LLDP:
+	        lldp_print(p, length);
 		return (1);
 
         case ETHERTYPE_LOOPBACK:

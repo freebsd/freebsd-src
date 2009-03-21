@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.106.2.7 2005/11/08 03:00:52 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.113.2.3 2008-09-25 21:50:04 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.
@@ -259,7 +259,7 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 		    AC_MSG_ERROR(see the INSTALL doc for more info)
 	    fi
 	    dnl
-	    dnl Good old Red Hat Linux puts "pcap.h" in
+	    dnl Some versions of Red Hat Linux put "pcap.h" in
 	    dnl "/usr/include/pcap"; had the LBL folks done so,
 	    dnl that would have been a good idea, but for
 	    dnl the Red Hat folks to do so just breaks source
@@ -272,6 +272,10 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 	    dnl find it in either of those directories, we check to
 	    dnl see if it's in a "pcap" subdirectory of them and,
 	    dnl if so, add that subdirectory to the "-I" list.
+	    dnl
+	    dnl (We now also put pcap.h in /usr/include/pcap, but we
+	    dnl leave behind a /usr/include/pcap.h that includes it,
+	    dnl so you can still just include <pcap.h>.)
 	    dnl
 	    AC_MSG_CHECKING(for extraneous pcap header directories)
 	    if test \( ! -r /usr/local/include/pcap.h \) -a \
@@ -664,7 +668,7 @@ AC_DEFUN(AC_LBL_UNALIGNED_ACCESS,
 	# know it does work, and have the script just fail on other
 	# cpu types and update it when such a failure occurs.
 	#
-	alpha*|arm*|hp*|mips*|sh*|sparc*|ia64|nv1)
+	alpha*|arm*|bfin*|hp*|mips*|sh*|sparc*|ia64|nv1)
 		ac_cv_lbl_unaligned_fail=yes
 		;;
 
@@ -1253,4 +1257,31 @@ else
   V_DEFS="$V_DEFS -D_U_=\"\""
 fi
 AC_MSG_RESULT($ac_cv___attribute__)
+])
+
+AC_DEFUN(AC_LBL_SSLEAY,
+    [
+	#
+	# XXX - is there a better way to check if a given library is
+	# in a given directory than checking each of the possible
+	# shared library suffixes?
+	#
+	# Are there any other suffixes we need to look for?  Do we
+	# have to worry about ".so.{version}"?
+	#
+	# Or should we just look for "libcrypto.*"?
+	#
+	if test -d "$1/lib" -a \( -f "$1/lib/libcrypto.a" -o \
+		          	    -f "$1/lib/libcrypto.so" -o \
+		          	    -f "$1/lib/libcrypto.sl" -o \
+			  	    -f "$1/lib/libcrypto.dylib" \); then
+		ac_cv_ssleay_path="$1"
+	fi
+
+	#
+	# Make sure we have the headers as well.
+	#
+	if test -d "$1/include/openssl" -a -f "$1/include/openssl/des.h"; then
+		incdir="-I$1/include"
+	fi
 ])

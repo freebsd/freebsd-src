@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.106.2.4 2007/06/15 23:17:40 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.110.2.1 2007-12-22 03:08:45 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -49,7 +49,7 @@ static const char rcsid[] _U_ =
 #include "rpc_msg.h"
 
 static void nfs_printfh(const u_int32_t *, const u_int);
-static void xid_map_enter(const struct sunrpc_msg *, const u_char *);
+static int xid_map_enter(const struct sunrpc_msg *, const u_char *);
 static int32_t xid_map_find(const struct sunrpc_msg *, const u_char *,
 			    u_int32_t *, u_int32_t *);
 static void interp_reply(const struct sunrpc_msg *, u_int32_t, u_int32_t, int);
@@ -297,6 +297,7 @@ nfsreply_print(register const u_char *bp, u_int length,
 	nfserr = 0;		/* assume no error */
 	rp = (const struct sunrpc_msg *)bp;
 
+	TCHECK(rp->rm_xid);
 	if (!nflag) {
 		strlcpy(srcid, "nfs", sizeof(srcid));
 		snprintf(dstid, sizeof(dstid), "%u",
@@ -307,6 +308,7 @@ nfsreply_print(register const u_char *bp, u_int length,
 		    EXTRACT_32BITS(&rp->rm_xid));
 	}
 	print_nfsaddr(bp2, srcid, dstid);
+	TCHECK(rp->rm_reply.rp_stat);
 	reply_stat = EXTRACT_32BITS(&rp->rm_reply.rp_stat);
 	switch (reply_stat) {
 
@@ -318,10 +320,12 @@ nfsreply_print(register const u_char *bp, u_int length,
 
 	case SUNRPC_MSG_DENIED:
 		(void)printf("reply ERR %u: ", length);
+		TCHECK(rp->rm_reply.rp_reject.rj_stat);
 		rstat = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_stat);
 		switch (rstat) {
 
 		case SUNRPC_RPC_MISMATCH:
+			TCHECK(rp->rm_reply.rp_reject.rj_vers.high);
 			rlow = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_vers.low);
 			rhigh = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_vers.high);
 			(void)printf("RPC Version mismatch (%u-%u)",
@@ -329,6 +333,7 @@ nfsreply_print(register const u_char *bp, u_int length,
 			break;
 
 		case SUNRPC_AUTH_ERROR:
+			TCHECK(rp->rm_reply.rp_reject.rj_why);
 			rwhy = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_why);
 			(void)printf("Auth ");
 			switch (rwhy) {
@@ -384,6 +389,11 @@ nfsreply_print(register const u_char *bp, u_int length,
 		    reply_stat, length);
 		break;
 	}
+	return;
+
+trunc:
+	if (!nfserr)
+		fputs(" [|nfs]", stdout);
 }
 
 /*
@@ -503,6 +513,8 @@ nfsreq_print(register const u_char *bp, u_int length,
 
 	nfserr = 0;		/* assume no error */
 	rp = (const struct sunrpc_msg *)bp;
+
+	TCHECK(rp->rm_xid);
 	if (!nflag) {
 		snprintf(srcid, sizeof(srcid), "%u",
 		    EXTRACT_32BITS(&rp->rm_xid));
@@ -515,7 +527,8 @@ nfsreq_print(register const u_char *bp, u_int length,
 	print_nfsaddr(bp2, srcid, dstid);
 	(void)printf("%d", length);
 
-	xid_map_enter(rp, bp2);	/* record proc number for later on */
+	if (!xid_map_enter(rp, bp2))	/* record proc number for later on */
+		goto trunc;
 
 	v3 = (EXTRACT_32BITS(&rp->rm_call.cb_vers) == NFS_VER3);
 	proc = EXTRACT_32BITS(&rp->rm_call.cb_proc);
@@ -886,7 +899,7 @@ struct xid_map_entry xid_map[XIDMAPSIZE];
 int	xid_map_next = 0;
 int	xid_map_hint = 0;
 
-static void
+static int
 xid_map_enter(const struct sunrpc_msg *rp, const u_char *bp)
 {
 	struct ip *ip = NULL;
@@ -895,6 +908,8 @@ xid_map_enter(const struct sunrpc_msg *rp, const u_char *bp)
 #endif
 	struct xid_map_entry *xmep;
 
+	if (!TTEST(rp->rm_call.cb_vers))
+		return (0);
 	switch (IP_V((struct ip *)bp)) {
 	case 4:
 		ip = (struct ip *)bp;
@@ -905,7 +920,7 @@ xid_map_enter(const struct sunrpc_msg *rp, const u_char *bp)
 		break;
 #endif
 	default:
-		return;
+		return (1);
 	}
 
 	xmep = &xid_map[xid_map_next];
@@ -928,6 +943,7 @@ xid_map_enter(const struct sunrpc_msg *rp, const u_char *bp)
 #endif
 	xmep->proc = EXTRACT_32BITS(&rp->rm_call.cb_proc);
 	xmep->vers = EXTRACT_32BITS(&rp->rm_call.cb_vers);
+	return (1);
 }
 
 /*
