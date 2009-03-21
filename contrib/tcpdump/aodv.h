@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/aodv.h,v 1.3 2003/09/13 01:34:42 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/aodv.h,v 1.3 2003-09-13 01:34:42 guy Exp $ (LBL) */
 /*
  * Copyright (c) 2003 Bruce M. Simpson <bms@spc.org>
  * All rights reserved.
