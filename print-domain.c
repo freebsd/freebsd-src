@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-domain.c,v 1.89.2.8 2007/02/13 19:19:27 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-domain.c,v 1.97.2.1 2007-12-09 01:51:12 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -387,13 +387,22 @@ ns_rprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 			printf(" (Cache flush)");
 	}
 
-	/* ignore ttl */
-	cp += 2;
-	/* if T_OPT, save opt_flags */
-	if (typ == T_OPT)
+	if (typ == T_OPT) {
+		/* get opt flags */
+		cp += 2;
 		opt_flags = EXTRACT_16BITS(cp);
-	/* ignore rest of ttl */
-	cp += 2;
+		/* ignore rest of ttl field */
+		cp += 2;
+	} else if (vflag > 2) {
+		/* print ttl */
+		printf(" [");
+		relts_print(EXTRACT_32BITS(cp));
+		printf("]");
+		cp += 4;
+	} else {
+		/* ignore ttl */
+		cp += 4;
+	}
 
 	len = EXTRACT_16BITS(cp);
 	cp += 2;
@@ -408,7 +417,7 @@ ns_rprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 	case T_A:
 		if (!TTEST2(*cp, sizeof(struct in_addr)))
 			return(NULL);
-		printf(" %s", ipaddr_string(cp));
+		printf(" %s", intoa(htonl(EXTRACT_32BITS(cp))));
 		break;
 
 	case T_NS:
@@ -475,15 +484,24 @@ ns_rprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 
 #ifdef INET6
 	case T_AAAA:
+	    {
+		struct in6_addr addr;
+		char ntop_buf[INET6_ADDRSTRLEN];
+
 		if (!TTEST2(*cp, sizeof(struct in6_addr)))
 			return(NULL);
-		printf(" %s", ip6addr_string(cp));
+		memcpy(&addr, cp, sizeof(struct in6_addr));
+		printf(" %s",
+		    inet_ntop(AF_INET6, &addr, ntop_buf, sizeof(ntop_buf)));
+
 		break;
+	    }
 
 	case T_A6:
 	    {
 		struct in6_addr a;
 		int pbit, pbyte;
+		char ntop_buf[INET6_ADDRSTRLEN];
 
 		if (!TTEST2(*cp, 1))
 			return(NULL);
@@ -497,7 +515,8 @@ ns_rprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 				return(NULL);
 			memset(&a, 0, sizeof(a));
 			memcpy(&a.s6_addr[pbyte], cp + 1, sizeof(a) - pbyte);
-			printf(" %u %s", pbit, ip6addr_string(&a));
+			printf(" %u %s", pbit,
+			    inet_ntop(AF_INET6, &a, ntop_buf, sizeof(ntop_buf)));
 		}
 		if (pbit > 0) {
 			putchar(' ');

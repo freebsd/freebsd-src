@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.61.2.10 2007/02/08 07:07:51 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.75 2007-04-13 09:43:11 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -105,6 +105,8 @@ static const struct tok cisco_values[] = {
 	{ PID_CISCO_CDP, "CDP" },
 	{ PID_CISCO_VTP, "VTP" },
 	{ PID_CISCO_DTP, "DTP" },
+	{ PID_CISCO_UDLD, "UDLD" },
+	{ PID_CISCO_PVST, "PVST" },
 	{ 0,             NULL }
 };
 
@@ -441,11 +443,25 @@ snap_print(const u_char *p, u_int length, u_int caplen,
 		break;
 
 	case OUI_CISCO:
-		if (et == PID_CISCO_CDP) {
-			cdp_print(p, length, caplen);
-			return (1);
-		}
-		break;
+                switch (et) {
+                case PID_CISCO_CDP:
+                        cdp_print(p, length, caplen);
+                        return (1);
+                case PID_CISCO_DTP:
+                        dtp_print(p, length); 
+                        return (1);
+                case PID_CISCO_UDLD:
+                        udld_print(p, length);
+                        return (1);
+                case PID_CISCO_VTP:
+                        vtp_print(p, length);
+                        return (1);
+                case PID_CISCO_PVST:
+                        stp_print(p, length);
+                        return (1);
+                default:
+                        break;
+                }
 
 	case OUI_RFC2684:
 		switch (et) {
