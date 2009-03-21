@@ -493,11 +493,8 @@ tryagain:
 		error = EACCES;
 	}
 	md = mrep;
-	if (error) {
-		m_freem(mreq);
-		AUTH_DESTROY(auth);
-		return (error);
-	}
+	if (error)
+		goto nfsmout;
 
 	KASSERT(mrep != NULL, ("mrep shouldn't be NULL if no error\n"));
 
@@ -535,9 +532,7 @@ tryagain:
 			error |= NFSERR_RETERR;
 		} else
 			m_freem(mrep);
-		m_freem(mreq);
-		AUTH_DESTROY(auth);
-		return (error);
+		goto nfsmout;
 	}
 
 	m_freem(mreq);
