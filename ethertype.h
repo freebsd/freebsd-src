@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.24.2.1 2005/07/10 14:51:10 hannes Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.29.2.1 2008-02-06 10:49:22 guy Exp $ (LBL)
  */
 
 /*
@@ -109,6 +109,9 @@
 #ifndef ETHERTYPE_PPP
 #define	ETHERTYPE_PPP		0x880b
 #endif
+#ifndef ETHERTYPE_MPCP
+#define	ETHERTYPE_MPCP		0x8808
+#endif
 #ifndef ETHERTYPE_SLOW
 #define	ETHERTYPE_SLOW		0x8809
 #endif
@@ -127,14 +130,26 @@
 #ifndef ETHERTYPE_JUMBO
 #define ETHERTYPE_JUMBO         0x8870
 #endif
+#ifndef ETHERTYPE_LLDP
+#define ETHERTYPE_LLDP          0x88cc
+#endif
 #ifndef ETHERTYPE_EAPOL
 #define ETHERTYPE_EAPOL  	0x888e
+#endif
+#ifndef ETHERTYPE_RRCP
+#define ETHERTYPE_RRCP  	0x8899
 #endif
 #ifndef	ETHERTYPE_LOOPBACK
 #define	ETHERTYPE_LOOPBACK	0x9000
 #endif
 #ifndef	ETHERTYPE_VMAN
 #define	ETHERTYPE_VMAN	        0x9100 /* Extreme VMAN Protocol */ 
+#endif
+#ifndef	ETHERTYPE_CFM_OLD
+#define	ETHERTYPE_CFM_OLD       0xabcd /* 802.1ag depreciated */
+#endif
+#ifndef	ETHERTYPE_CFM
+#define	ETHERTYPE_CFM           0x8902 /* 802.1ag */
 #endif
 #ifndef	ETHERTYPE_ISO
 #define	ETHERTYPE_ISO           0xfefe  /* nonstandard - used in Cisco HDLC encapsulation */

@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.188.2.8 2007/09/12 19:48:50 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.196.2.6 2008-09-25 21:50:04 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,7 +6,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.188.2.8 $)
+AC_REVISION($Revision: 1.196.2.6 $)
 AC_PREREQ(2.50)
 AC_INIT(tcpdump.c)
 
@@ -19,7 +19,7 @@ AC_CHECK_HEADERS(fcntl.h rpc/rpcent.h netdnet/dnetdb.h)
 AC_CHECK_HEADERS(net/pfvar.h, , , [#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>])
-if test "$ac_cv_header_net_pfvar_h" == yes; then
+if test "$ac_cv_header_net_pfvar_h" = yes; then
 	LOCALSRC="print-pflog.c $LOCALSRC"
 fi
 AC_CHECK_HEADERS(netinet/if_ether.h, , , [#include <sys/types.h>
@@ -696,6 +696,9 @@ don't.])
 	fi
 fi
 
+# libdlpi is needed for Solaris 11 and later.
+AC_CHECK_LIB(dlpi, dlpi_walk, LIBS="$LIBS -ldlpi" LDFLAGS="-L/lib $LDFLAGS", ,-L/lib)
+
 dnl portability macros for getaddrinfo/getnameinfo
 dnl
 dnl Check for sa_len
@@ -704,15 +707,20 @@ if test "$ac_cv_sockaddr_has_sa_len" = no; then
 	missing_includes=yes
 fi
 
+#
+# Do we have the new open API?  Check for pcap_create, and assume that,
+# if we do, we also have pcap_activate() and the other new routines.
+AC_CHECK_FUNCS(pcap_create)
+
 AC_CHECK_FUNCS(pcap_findalldevs pcap_dump_flush pcap_lib_version)
 if test $ac_cv_func_pcap_findalldevs = "yes" ; then
 dnl Check for Mac OS X, which may ship pcap.h from 0.6 but libpcap may
 dnl be 0.8; this means that lib has pcap_findalldevs but header doesn't
 dnl have pcap_if_t.
-    savedcflags="$CFLAGS"
-    CFLAGS="$CFLAGS $V_INCLS"
+    savedppflags="$CPPLAGS"
+    CPPFLAGS="$CPPFLAGS $V_INCLS"
     AC_CHECK_TYPES(pcap_if_t, , , [#include <pcap.h>])
-    CFLAGS="$savedcflags"
+    CPPFLAGS="$savedcppflags"
 fi
 
 if test $ac_cv_func_pcap_lib_version = "no" ; then
@@ -794,6 +802,15 @@ esac
 if test -f /dev/bpf0 ; then
 	V_GROUP=bpf
 fi
+
+#
+# Check for some headers introduced in later versions of libpcap
+# and used by some printers.
+#
+savedcppflags="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $V_INCLS"
+AC_CHECK_HEADERS(pcap/bluetooth.h)
+CPPFLAGS="$savedcppflags"
 
 AC_CHECK_HEADERS(sys/bitypes.h)
 
@@ -900,6 +917,8 @@ if test "$ac_lbl_inttypes_h_defines_formats" = no; then
     ])
 fi
 
+AC_PROG_RANLIB
+
 AC_LBL_DEVEL(V_CCOPT)
 
 AC_LBL_SOCKADDR_SA_LEN
@@ -908,65 +927,89 @@ AC_LBL_UNALIGNED_ACCESS
 
 AC_VAR_H_ERRNO
 
-AC_ARG_WITH(crypto, [  --without-crypto        disable crypto support],
-	[], [
-AC_MSG_CHECKING(for SSLeay)
-ac_cv_ssleay_path=no
-incdir=no
-
-#
-# If Xprefix is set in the environment, use that value.
-# XXX - this should arguably be done by having --with-crypto take an
-# optional argument, and have that argument be used to set Xprefix
-# if present.
-#
-if test -z "$Xprefix"; then
-	Xprefix=`eval echo $prefix`
-fi
-
-for dir in $Xprefix /usr/${host_alias} /usr /usr/local /usr/local/ssl /usr/pkg; do
-	#
-	# XXX - is there a better way to check if a given library is
-	# in a given directory than checking each of the possible
-	# shared library suffixes?
-	#
-	# Are there any other suffixes we need to look for?  Do we have to
-	# worry about ".so.{version}"?
-	#
-	# Or should we just look for "libcrypto.*"?
-	#
-	if test -d $dir/lib -a \( -f $dir/lib/libcrypto.a -o \
-			          -f $dir/lib/libcrypto.so -o \
-			          -f $dir/lib/libcrypto.sl -o \
-				  -f $dir/lib/libcrypto.dylib \); then
-		ac_cv_ssleay_path=$dir
-	fi
-	if test -d $dir/include/openssl -a -f $dir/include/openssl/des.h; then
-		incdir="-I$dir/include"
-	fi
-	if test "$ac_cv_ssleay_path" != "no" -a "$incdir" != "no"; then
-		break;
+# Check for SSLeay
+AC_MSG_CHECKING(whether to use SSLeay libcrypto)
+# Specify location for both includes and libraries.
+want_libcrypto=youmama
+AC_ARG_WITH(crypto,
+    AS_HELP_STRING([--with-crypto@<:@=PATH@:>@],
+		   [use SSLeay libcrypto (located in directory PATH, if supplied).  @<:@default=yes, if available@:>@]),
+[
+	if test $withval = no
+	then
+		want_libcrypto=no
+		AC_MSG_RESULT(no)
+	elif test $withval = yes
+	then
+		want_libcrypto=yes
+		AC_MSG_RESULT(yes)
 	else
-		ac_cv_ssleay_path=no
-		incdir=no
+		want_libcrypto=yes
+		AC_MSG_RESULT(yes)
+		crypto_dir=$withval
 	fi
-done
-AC_MSG_RESULT($ac_cv_ssleay_path)
-if test "$ac_cv_ssleay_path" != no; then
-	V_INCLS="$V_INCLS $incdir"
-	LDFLAGS="-L$dir/lib $LDFLAGS"
-	if test -f $ac_cv_ssleay_path/lib/libRSAglue.a; then
-		LIBS="$LIBS -lRSAglue"
-	fi
-	if test -f $ac_cv_ssleay_path/lib/librsaref.a; then
-		LIBS="$LIBS -lrsaref"
-	fi
-	AC_CHECK_LIB(crypto, DES_cbc_encrypt)
-
-	CPPFLAGS="$CPPFLAGS $V_INCLS"
-	AC_CHECK_HEADERS(openssl/evp.h)
-fi
+],[
+	#
+	# Use libcrypto if it's present, otherwise don't.
+	#
+	want_libcrypto=ifavailable
+	AC_MSG_RESULT([yes, if available])
 ])
+if test "$want_libcrypto" != "no"; then
+	ac_cv_ssleay_path=no
+	incdir=no
+	if test "x$crypto_dir" = x; then
+		#
+		# Location not specified; check the default locations.
+		#
+		AC_MSG_CHECKING(where SSLeay is located)
+		dirs="/usr /usr/local /usr/local/ssl /usr/pkg"
+		if test "x${host_alias}" != x; then
+			dirs="/usr/${host_alias} $dirs"
+		fi
+		for dir in $dirs; do
+			AC_LBL_SSLEAY($dir)
+
+			if test "$ac_cv_ssleay_path" != "no" -a "$incdir" != "no"; then
+				break;
+			else
+				ac_cv_ssleay_path=no
+				incdir=no
+			fi
+		done
+		if test "$ac_cv_ssleay_path" != no; then
+			AC_MSG_RESULT($ac_cv_ssleay_path)
+		fi
+	else
+		AC_MSG_CHECKING(for SSLeay in $crypto_dir)
+		AC_LBL_SSLEAY($crypto_dir)
+		if test "$ac_cv_ssleay_path" != no; then
+			AC_MSG_RESULT(found)
+		fi
+	fi
+	if test "$ac_cv_ssleay_path" != no; then
+		V_INCLS="$V_INCLS $incdir"
+		LDFLAGS="-L$dir/lib $LDFLAGS"
+		if test -f $ac_cv_ssleay_path/lib/libRSAglue.a; then
+			LIBS="$LIBS -lRSAglue"
+		fi
+		if test -f $ac_cv_ssleay_path/lib/librsaref.a; then
+			LIBS="$LIBS -lrsaref"
+		fi
+		AC_CHECK_LIB(crypto, DES_cbc_encrypt)
+
+		CPPFLAGS="$CPPFLAGS $V_INCLS"
+		AC_CHECK_HEADERS(openssl/evp.h)
+	else
+		#
+		# Not found.  Did the user explicitly ask for it?
+		#
+		AC_MSG_RESULT(not found)
+		if test "$want_libcrypto" = yes; then
+			AC_MSG_ERROR(SSLeay not found)
+		fi
+	fi
+fi
 
 dnl
 dnl set additional include path if necessary
