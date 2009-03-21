@@ -97,7 +97,7 @@ int	in6_getpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in6_getsockaddr __P((struct socket *so, struct sockaddr **nam));
 int	in6_mapped_sockaddr __P((struct socket *so, struct sockaddr **nam));
 int	in6_mapped_peeraddr __P((struct socket *so, struct sockaddr **nam));
-int	in6_selecthlim __P((struct in6pcb *, struct ifnet *));
+int	in6_selecthlim __P((struct inpcb *, struct ifnet *));
 int	in6_pcbsetport __P((struct in6_addr *, struct inpcb *, struct ucred *));
 void	init_sin6 __P((struct sockaddr_in6 *sin6, struct mbuf *m));
 #endif /* _KERNEL */
