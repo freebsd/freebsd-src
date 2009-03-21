@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2009
+.Dd March 18, 2009
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -32,14 +32,14 @@
 .Nd merge configuration files, et al during an upgrade
 .Sh SYNOPSIS
 .Nm
-.Op Fl achiprsvCPU
-.Op Fl A Ar Target architecture
-.Op Fl D Ar /destdir/path
+.Op Fl scrvahipFCPU
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
 .Op Fl u Ar N
 .Op Fl w Ar N
+.Op Fl A Ar Target architecture
+.Op Fl D Ar /destdir/path
 .Sh DESCRIPTION
 The
 .Nm
@@ -82,15 +82,23 @@ merge by hand later.
 By default it creates the temporary root in
 .Pa /var/tmp/temproot
 and compares the
-.Xr cvs 1
-version $Id/$FreeBSD strings for files that have them, deleting
+Version Control System (VCS) Id strings ($FreeBSD$)
+for files that have them, deleting
 the temporary file if the strings match.
 If there is
-no $Id string, or if the strings are different it
+no Id string, or if the strings are different it
 compares the files themselves.
 You can
-also specify that the script ignore the $Id strings and
-compare every file.
+also specify that the script ignore the Id strings and
+compare every file with the
+.Op Fl s
+option.
+Using the
+.Op Fl F
+option
+.Nm
+will install the new file for you if they differ only by
+VCS strings.
 .Pp
 The merge menu option is designed to let you easily combine your
 customizations from the old version of a file into the new one.
@@ -117,11 +125,13 @@ After
 installing an updated version of this file you should
 probably run
 .Xr pwd_mkdb 8
-with the -p option to rebuild your password databases
+with the
+.Op Fl p
+option to rebuild your password databases
 and recreate
 .Pa /etc/passwd .
 .Pp
-The script uses the owner and group id's
+The script uses the owner and group ids
 that the files are created with by
 .Pa /usr/src/etc/Makefile ,
 and file permissions as specified by the umask.
@@ -158,9 +168,9 @@ and therefore can override both files.
 The options are as follows:
 .Bl -tag -width Fl
 .It Fl s
-Perform a strict comparison, diff'ing every pair of files.
+Perform a strict comparison, diffing every pair of files.
 This comparison is performed line by line,
-without regard to CVS $Id's.
+without regard to VCS Ids.
 .It Fl c
 Use context diffs instead of unified diffs.
 .It Fl r
@@ -189,8 +199,11 @@ directory exists, it creates a new one in a previously
 non-existent directory.
 This option unsets the verbose flag,
 but is compatible with all other options.
-Setting -a makes
--w superfluous.
+Setting
+.Op Fl a
+makes
+.Op Fl w
+superfluous.
 .It Fl h
 Display usage and help information.
 .It Fl i
@@ -202,6 +215,9 @@ Compares only files known to be essential to the success of
 {build|install}world,
 including
 .Pa /etc/make.conf .
+.It Fl F
+If the files differ only by VCS Id ($FreeBSD$)
+install the new file.
 .It Fl C
 After a standard
 .Nm
@@ -213,6 +229,8 @@ Preserve files that you replace in
 or another directory you specify in your
 .Nm
 rc file.
+.It Fl U
+Attempt to auto upgrade files that have not been user modified.
 .It Fl m Ar /path/to/sources
 Specify the path to the directory where you want to do the
 .Xr make 1 .
@@ -234,7 +252,9 @@ instead of the default
 .It Fl d
 Add the date and time to the name of the temporary
 root directory.
-If -t is specified, this option must
+If
+.Op Fl t
+is specified, this option must
 follow it if you want the date added too.
 .It Fl u Ar N
 Specify a numeric umask.
@@ -250,8 +270,6 @@ Specify an alternative
 architecture name.
 .It Fl D Ar /path
 Specify the destination directory for the installed files.
-.It Fl U
-Attempt to auto upgrade files that have not been user modified.
 .El
 .Sh ENVIRONMENT
 The
@@ -314,11 +332,14 @@ with all values commented out:
 # Specify the destination directory for the installed files
 #DESTDIR=
 #
-# Strict comparison bypasses the CVS $Id tests and compares every file
+# Strict comparison skips the VCS Id test and compares every file
 #STRICT=no
 #
 # Type of diff, such as unified, context, etc.
 #DIFF_FLAG='-u'
+#
+# Install the new file if it differs only by VCS Id ($FreeBSD$)
+#FREEBSD_ID=
 #
 # Verbose mode includes more details and additional checks
 #VERBOSE=
@@ -345,7 +366,7 @@ with all values commented out:
 #IGNORE_FILES='/etc/motd /etc/printcap foo bar'
 #
 # Additional options for diff.  This will get unset when using -s.
-#DIFF_OPTIONS='-I$\&FreeBSD:.*[$]'	# Ignores CVS Id tags
+#DIFF_OPTIONS='-Bb'	# Ignore changes in whitespace
 #
 # Location to store the list of mtree values for AUTO_UPGRADE purposes
 #MTREEDB='/var/db'
@@ -382,7 +403,7 @@ Typically all you will need to do is type
 .Nm
 at the prompt and the script will do all the work for you.
 .Pp
-To use context diff's and have
+To use context diffs and have
 .Nm
 explain more things as it goes along, use:
 .Pp
@@ -401,7 +422,6 @@ comparison, use:
 .Pp
 .Dl # mergemaster -sw 110
 .Sh SEE ALSO
-.Xr cvs 1 ,
 .Xr diff 1 ,
 .Xr make 1 ,
 .Xr more 1 ,
