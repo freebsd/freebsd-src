@@ -17,11 +17,6 @@ stop_cmd=":"
 
 savecore_prestart()
 {
-	#	${DUMPDIR} should be a directory or a symbolic link
-	#	to the crash directory if core dumps are to be saved.
-	#
-	DUMPDIR="${dumpdir:-/var/crash}"
-
 	# Quit if we have no dump device
 	case ${dumpdev} in
 	[Nn][Oo] | '')
@@ -58,7 +53,7 @@ savecore_prestart()
 savecore_start()
 {
 	echo "Checking for core dump on ${dumpdev}..."
-	savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
+	savecore ${savecore_flags} ${dumpdir} ${dumpdev}
 }
 
 load_rc_config $name
