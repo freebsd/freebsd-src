@@ -420,8 +420,7 @@ log_it Installworld
 	> /mnt/_.iw 2>&1
 
 log_it distribution
-(cd /usr/src/etc && make -m /usr/src/share/mk distribution \
-	DESTDIR=/mnt ${SRCCONF} ) \
+(cd /usr/src/etc && make -m /usr/src/share/mk distribution DESTDIR=/mnt ${SRCCONF} ) \
 	> /mnt/_.dist 2>&1
 
 log_it Installkernel
@@ -512,6 +511,12 @@ if [ "x$SERCONS" != "xfalse" ] ; then
 fi
 
 log_it move config files
+(
+	cd /mnt
+	mkdir root/configfiles_dist
+	find ${CONFIGFILES} -print | cpio -dumpv root/configfiles_dist
+)
+
 (cd / && find ${CONFIGFILES} -print | cpio -dumpv /mnt)
 
 log_it final_root
