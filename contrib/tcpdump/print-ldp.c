@@ -16,7 +16,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.8.2.10 2007/02/26 13:31:33 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.20 2006-06-23 02:03:09 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,9 +33,9 @@ static const char rcsid[] _U_ =
 #include "decode_prefix.h"
 #include "extract.h"
 #include "addrtoname.h"
-#include "af.h"
 
 #include "l2vpn.h"
+#include "af.h"
 
 /*
  * ldp common header
@@ -131,6 +131,7 @@ static const struct tok ldp_msg_values[] = {
 
 #define	LDP_TLV_FEC                  0x0100
 #define	LDP_TLV_ADDRESS_LIST         0x0101
+#define LDP_TLV_ADDRESS_LIST_AFNUM_LEN 2
 #define	LDP_TLV_HOP_COUNT            0x0103
 #define	LDP_TLV_PATH_VECTOR          0x0104
 #define	LDP_TLV_GENERIC_LABEL        0x0200
@@ -149,6 +150,7 @@ static const struct tok ldp_msg_values[] = {
 #define	LDP_TLV_FR_SESSION_PARM      0x0502
 #define LDP_TLV_FT_SESSION	     0x0503
 #define	LDP_TLV_LABEL_REQUEST_MSG_ID 0x0600
+#define LDP_TLV_MTU                  0x0601 /* rfc 3988 */
 
 static const struct tok ldp_tlv_values[] = {
     { LDP_TLV_FEC,	             "FEC" },
@@ -171,6 +173,7 @@ static const struct tok ldp_tlv_values[] = {
     { LDP_TLV_FR_SESSION_PARM,       "Frame-Relay Session Parameters" },
     { LDP_TLV_FT_SESSION,            "Fault-Tolerant Session Parameters" },
     { LDP_TLV_LABEL_REQUEST_MSG_ID,  "Label Request Message ID" },
+    { LDP_TLV_MTU,                   "MTU" },
     { 0, NULL}
 };
 
@@ -214,8 +217,6 @@ static const struct tok ldp_fec_martini_ifparm_vccv_cv_values[] = {
     { 0x04, "BFD" },
     { 0, NULL}
 };
-
-#define AFNUM_LEN       2 
 
 int ldp_msg_print(register const u_char *);
 int ldp_tlv_print(register const u_char *);
@@ -292,27 +293,31 @@ ldp_tlv_print(register const u_char *tptr) {
 
     case LDP_TLV_ADDRESS_LIST:
 	af = EXTRACT_16BITS(tptr);
-	tptr+=AFNUM_LEN;
-        tlv_tlen -= AFNUM_LEN;
-	printf("\n\t      Address Family: ");
-	if (af == AFNUM_INET) {
-	    printf("IPv4, addresses:");
+	tptr+=LDP_TLV_ADDRESS_LIST_AFNUM_LEN;
+        tlv_tlen -= LDP_TLV_ADDRESS_LIST_AFNUM_LEN;
+	printf("\n\t      Address Family: %s, addresses",
+               tok2str(af_values, "Unknown (%u)", af));
+        switch (af) {
+        case AFNUM_INET:
 	    while(tlv_tlen >= sizeof(struct in_addr)) {
 		printf(" %s",ipaddr_string(tptr));
 		tlv_tlen-=sizeof(struct in_addr);
 		tptr+=sizeof(struct in_addr);                
 	    }
-	}
+            break;
 #ifdef INET6
-	else if (af == AFNUM_INET6) {
-	    printf("IPv6, addresses:");
+        case AFNUM_INET6:
 	    while(tlv_tlen >= sizeof(struct in6_addr)) {
 		printf(" %s",ip6addr_string(tptr));
 		tlv_tlen-=sizeof(struct in6_addr);
 		tptr+=sizeof(struct in6_addr);                
 	    }
-	}
+            break;
 #endif
+        default:
+            /* unknown AF */
+            break;
+        }
 	break;
 
     case LDP_TLV_COMMON_SESSION:
@@ -448,6 +453,10 @@ ldp_tlv_print(register const u_char *tptr) {
 	ui = EXTRACT_32BITS(tptr);
 	if (ui)
 	    printf(", Recovery Time: %ums", ui);
+	break;
+
+    case LDP_TLV_MTU:
+	printf("\n\t      MTU: %u", EXTRACT_16BITS(tptr));
 	break;
 
 
