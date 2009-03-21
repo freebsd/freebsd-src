@@ -1912,6 +1912,7 @@ cxgb_init_locked(struct port_info *p)
 	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
 	t3_port_intr_enable(sc, p->port_id);
 
+ 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 	t3_sge_reset_adapter(sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
