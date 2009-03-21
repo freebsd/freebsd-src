@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ap1394.c,v 1.3.2.1 2005/07/07 01:24:33 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ap1394.c,v 1.5 2006-02-11 22:12:06 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -60,8 +60,8 @@ ap1394_hdr_print(register const u_char *bp, u_int length)
 	fp = (const struct firewire_header *)bp;
 
 	(void)printf("%s > %s",
-		     linkaddr_string(fp->firewire_dhost, FIREWIRE_EUI64_LEN),
-		     linkaddr_string(fp->firewire_shost, FIREWIRE_EUI64_LEN));
+		     linkaddr_string(fp->firewire_dhost, LINKADDR_IEEE1394, FIREWIRE_EUI64_LEN),
+		     linkaddr_string(fp->firewire_shost, LINKADDR_IEEE1394, FIREWIRE_EUI64_LEN));
 
 	if (!qflag) {
 		(void)printf(", ethertype %s (0x%04x)",

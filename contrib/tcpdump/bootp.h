@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/bootp.h,v 1.15.4.3 2007/08/21 22:02:08 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/bootp.h,v 1.18 2007-08-21 21:59:11 guy Exp $ (LBL) */
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1048.
  *

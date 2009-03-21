@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-enc.c,v 1.4 2005/04/06 21:32:39 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-enc.c,v 1.4.4.1 2008-02-06 10:34:15 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -70,8 +70,17 @@ enc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 	printf("SPI 0x%08x: ", (u_int32_t)ntohl(hdr->spi));
 
 	length -= ENC_HDRLEN;
-	/* XXX - use the address family */
-	ip_print(gndo, p + ENC_HDRLEN, length);
+	caplen -= ENC_HDRLEN;
+	p += ENC_HDRLEN;
+	
+	switch (hdr->af) {
+	case AF_INET:
+		ip_print(gndo, p, length);
+		break;
+	case AF_INET6:
+		ip6_print(p, length);
+		break;
+	}
 
 out:
 	return (ENC_HDRLEN);

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.95.2.6 2006/02/08 01:40:09 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.109 2007-01-29 09:59:42 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -43,6 +43,8 @@ static const char rcsid[] _U_ =
 #include <string.h>
 
 #include "interface.h"
+
+char * ts_format(register int, register int);
 
 /*
  * Print out a null-terminated filename (or other ascii string).
@@ -139,6 +141,19 @@ fn_printzp(register const u_char *s, register u_int n,
 }
 
 /*
+ * Format the timestamp
+ */
+char *
+ts_format(register int sec, register int usec)
+{
+        static char buf[sizeof("00:00:00.000000")];
+        (void)snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%06u",
+               sec / 3600, (sec % 3600) / 60, sec % 60, usec);
+
+        return buf;
+}
+
+/*
  * Print the timestamp
  */
 void
@@ -149,14 +164,14 @@ ts_print(register const struct timeval *tvp)
 	time_t Time;
 	static unsigned b_sec;
 	static unsigned b_usec;
+	int d_usec;
+	int d_sec;
 
 	switch (tflag) {
 
 	case 0: /* Default */
 		s = (tvp->tv_sec + thiszone) % 86400;
-		(void)printf("%02d:%02d:%02d.%06u ",
-			     s / 3600, (s % 3600) / 60, s % 60,
-			     (unsigned)tvp->tv_usec);
+                (void)printf("%s ", ts_format(s, tvp->tv_usec));
 		break;
 
 	case 1: /* No time stamp */
@@ -169,22 +184,27 @@ ts_print(register const struct timeval *tvp)
 		break;
 
 	case 3: /* Microseconds since previous packet */
+        case 5: /* Microseconds since first packet */
 		if (b_sec == 0) {
-			printf("000000 ");
-		} else {
-			int d_usec = tvp->tv_usec - b_usec;
-			int d_sec = tvp->tv_sec - b_sec;
+                        /* init timestamp for first packet */
+                        b_usec = tvp->tv_usec;
+                        b_sec = tvp->tv_sec;                        
+                }
 
-			while (d_usec < 0) {
-				d_usec += 1000000;
-				d_sec--;
-			}
-			if (d_sec)
-				printf("%d. ", d_sec);
-			printf("%06d ", d_usec);
-		}
-		b_sec = tvp->tv_sec;
-		b_usec = tvp->tv_usec;
+                d_usec = tvp->tv_usec - b_usec;
+                d_sec = tvp->tv_sec - b_sec;
+                
+                while (d_usec < 0) {
+                    d_usec += 1000000;
+                    d_sec--;
+                }
+
+                (void)printf("%s ", ts_format(d_sec, d_usec));
+
+                if (tflag == 3) { /* set timestamp for last packet */
+                    b_sec = tvp->tv_sec;
+                    b_usec = tvp->tv_usec;
+                }
 		break;
 
 	case 4: /* Default + Date*/
@@ -194,10 +214,9 @@ ts_print(register const struct timeval *tvp)
 		if (!tm)
 			printf("Date fail  ");
 		else
-			printf("%04d-%02d-%02d ",
-				   tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday);
-		printf("%02d:%02d:%02d.%06u ",
-			   s / 3600, (s % 3600) / 60, s % 60, (unsigned)tvp->tv_usec);
+			printf("%04d-%02d-%02d %s ",
+                               tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                               ts_format(s, tvp->tv_usec));
 		break;
 	}
 }
@@ -297,11 +316,12 @@ tok2str(register const struct tok *lp, register const char *fmt,
 
 /*
  * Convert a bit token value to a string; use "fmt" if not found.
- * this is useful for parsing bitfields, the output strings are comma seperated
+ * this is useful for parsing bitfields, the output strings are seperated
+ * if the s field is positive.
  */
-char *
-bittok2str(register const struct tok *lp, register const char *fmt,
-	   register int v)
+static char *
+bittok2str_internal(register const struct tok *lp, register const char *fmt,
+	   register int v, register int sep)
 {
         static char buf[256]; /* our stringbuffer */
         int buflen=0;
@@ -318,13 +338,19 @@ bittok2str(register const struct tok *lp, register const char *fmt,
                  */
 		if (tokval == (v&rotbit)) {
                     /* ok we have found something */
-                    buflen+=snprintf(buf+buflen, sizeof(buf)-buflen, "%s, ",lp->s);
+                    buflen+=snprintf(buf+buflen, sizeof(buf)-buflen, "%s%s",
+                                     lp->s, sep ? ", " : "");
                     break;
                 }
                 rotbit=rotbit<<1; /* no match - lets shift and try again */
             }
             lp++;
 	}
+
+        /* user didn't want string seperation - no need to cut off trailing seperators */
+        if (!sep) {
+            return (buf);
+        }
 
         if (buflen != 0) { /* did we find anything */
             /* yep, set the the trailing zero 2 bytes before to eliminate the last comma & whitespace */
@@ -338,6 +364,28 @@ bittok2str(register const struct tok *lp, register const char *fmt,
             (void)snprintf(buf, sizeof(buf), fmt, v);
             return (buf);
         }
+}
+
+/*
+ * Convert a bit token value to a string; use "fmt" if not found.
+ * this is useful for parsing bitfields, the output strings are not seperated.
+ */
+char *
+bittok2str_nosep(register const struct tok *lp, register const char *fmt,
+	   register int v)
+{
+    return (bittok2str_internal(lp, fmt, v, 0));
+}
+
+/*
+ * Convert a bit token value to a string; use "fmt" if not found.
+ * this is useful for parsing bitfields, the output strings are comma seperated.
+ */
+char *
+bittok2str(register const struct tok *lp, register const char *fmt,
+	   register int v)
+{
+    return (bittok2str_internal(lp, fmt, v, 1));
 }
 
 /*
@@ -509,7 +557,8 @@ read_infile(char *fname)
 void
 safeputs(const char *s, int maxlen)
 {
-    int idx = 0;
+	int idx = 0;
+
 	while (*s && idx < maxlen) {
 		safeputchar(*s);
                 idx++;
@@ -526,5 +575,5 @@ safeputchar(int c)
 	if (ch < 0x80 && isprint(ch))
 		printf("%c", ch);
 	else
-		printf("\\%03o", ch);
+		printf("\\0x%02x", ch);
 }
