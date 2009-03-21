@@ -1,3 +1,8 @@
+	--- 9.4.3-P2 released ---
+
+2579.	[bug]		DNSSEC lookaside validation failed to handle unknown
+			algorithms. [RT #19479]
+
 	--- 9.4.3-P1 released ---
 
 2522.	[security]	Handle -1 from DSA_do_verify().
