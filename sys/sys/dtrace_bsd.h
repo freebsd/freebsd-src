@@ -32,6 +32,7 @@
 #define	_SYS_DTRACE_BSD_H
 
 /* Forward definitions: */
+struct mbuf;
 struct trapframe;
 struct thread;
 
@@ -92,6 +93,17 @@ typedef	void (*dtrace_malloc_probe_func_t)(u_int32_t, uintptr_t arg0,
     uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, uintptr_t arg4);
 
 extern dtrace_malloc_probe_func_t   dtrace_malloc_probe;
+
+/* The dtnfsclient provider hooks into the NFS[23] client. */
+typedef void (*dtrace_nfsclient_nfs23_start_probe_func_t)(u_int32_t,
+    struct vnode *, struct mbuf *, struct ucred *, int);
+typedef void (*dtrace_nfsclient_nfs23_done_probe_func_t)(u_int32_t,
+    struct vnode *, struct mbuf *, struct ucred *, int, int);
+
+extern dtrace_nfsclient_nfs23_start_probe_func_t
+    dtrace_nfsclient_nfs23_start_probe;
+extern dtrace_nfsclient_nfs23_done_probe_func_t
+    dtrace_nfsclient_nfs23_done_probe;
 
 /*
  * Functions which allow the dtrace module to check that the kernel 
