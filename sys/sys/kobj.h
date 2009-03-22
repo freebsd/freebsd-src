@@ -120,7 +120,7 @@ struct kobj_class classvar = {				\
 /*
  * Define a class inheriting a single base class. Use like this:
  *
- * DEFINE_CLASS1(foo, foo_class, foo_methods, sizeof(foo_softc),
+ * DEFINE_CLASS_1(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar);
  */
 #define DEFINE_CLASS_1(name, classvar, methods, size,	\
@@ -135,7 +135,7 @@ struct kobj_class classvar = {				\
 /*
  * Define a class inheriting two base classes. Use like this:
  *
- * DEFINE_CLASS2(foo, foo_class, foo_methods, sizeof(foo_softc),
+ * DEFINE_CLASS_2(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz);
  */
 #define DEFINE_CLASS_2(name, methods, size,		\
@@ -151,7 +151,7 @@ struct kobj_class name ## _class = {			\
 /*
  * Define a class inheriting three base classes. Use like this:
  *
- * DEFINE_CLASS3(foo, foo_class, foo_methods, sizeof(foo_softc),
+ * DEFINE_CLASS_3(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz, foobar);
  */
 #define DEFINE_CLASS_3(name, methods, size,		\
