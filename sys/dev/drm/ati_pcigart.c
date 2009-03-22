@@ -82,8 +82,11 @@ drm_ati_alloc_pcigart_table(struct drm_device *dev,
 		return ENOMEM;
 	}
 
-	ret = bus_dmamem_alloc(dmah->tag, &dmah->vaddr,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &dmah->map);
+	flags = BUS_DMA_WAITOK | BUS_DMA_ZERO;
+	if (gart_info->gart_reg_if == DRM_ATI_GART_IGP)
+	    flags |= BUS_DMA_NOCACHE;
+	
+	ret = bus_dmamem_alloc(dmah->tag, &dmah->vaddr, flags, &dmah->map);
 	if (ret != 0) {
 		bus_dma_tag_destroy(dmah->tag);
 		free(dmah, DRM_MEM_DMA);
@@ -91,12 +94,9 @@ drm_ati_alloc_pcigart_table(struct drm_device *dev,
 	}
 	DRM_LOCK();
 
-	flags = BUS_DMA_NOWAIT;
-	if (gart_info->gart_reg_if == DRM_ATI_GART_IGP)
-	    flags |= BUS_DMA_NOCACHE;
-	
 	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr,
-	    gart_info->table_size, drm_ati_alloc_pcigart_table_cb, dmah, flags);
+	    gart_info->table_size, drm_ati_alloc_pcigart_table_cb, dmah,
+	    BUS_DMA_NOWAIT);
 	if (ret != 0) {
 		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 		bus_dma_tag_destroy(dmah->tag);
