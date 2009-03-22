@@ -147,7 +147,7 @@ readcmd(int argc __unused, char **argv __unused)
 	if (*(ap = argptr) == NULL)
 		error("arg count");
 	if ((ifs = bltinlookup("IFS", 1)) == NULL)
-		ifs = nullstr;
+		ifs = " \t\n";
 
 	if (tv.tv_sec >= 0) {
 		/*
