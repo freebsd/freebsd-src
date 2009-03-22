@@ -561,15 +561,6 @@ Are as follows:
 .It Dv BUS_DMA_NOWAIT
 The load should not be deferred in case of insufficient mapping resources,
 and instead should return immediately with an appropriate error.
-.It Dv BUS_DMA_NOCACHE
-The allocated memory will not be cached in the processor caches.
-All memory accesses appear on the bus and are executed
-without reordering.
-On the amd64 and i386 architectures this flag results in the
-Strong Uncacheable PAT to be set for the allocated virtual address range.
-The
-.Dv BUS_DMA_NOCACHE
-flag is currently implemented on amd64, i386 and sparc64.
 .El
 .El
 .Pp
@@ -785,6 +776,15 @@ the
 flag is currently implemented on arm and sparc64.
 .It Dv BUS_DMA_ZERO
 Causes the allocated memory to be set to all zeros.
+.It Dv BUS_DMA_NOCACHE
+The allocated memory will not be cached in the processor caches.
+All memory accesses appear on the bus and are executed
+without reordering.
+On the amd64 and i386 architectures this flag results in the
+Strong Uncacheable PAT to be set for the allocated virtual address range.
+The
+.Dv BUS_DMA_NOCACHE
+flag is currently implemented on amd64, i386 and sparc64.
 .El
 .It Fa mapp
 Pointer to a
