@@ -1726,7 +1726,10 @@ g_part_start(struct bio *bp)
 			 * used.
 			 */
 			if (!G_PART_DUMPTO(table, entry)) {
-				g_io_deliver(bp, ENXIO);
+				g_io_deliver(bp, ENODEV);
+				printf("GEOM_PART: Partition '%s' not suitable"
+				    " for kernel dumps (wrong type?)\n",
+				    pp->name);
 				return;
 			}
 			gkd = (struct g_kerneldump *)bp->bio_data;
