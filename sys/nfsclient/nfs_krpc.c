@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet6.h"
+#include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 
 #include <sys/param.h>
@@ -72,6 +73,25 @@ __FBSDID("$FreeBSD$");
 #include <nfs4client/nfs4.h>
 
 #ifndef NFS_LEGACYRPC
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+dtrace_nfsclient_nfs23_start_probe_func_t
+    dtrace_nfsclient_nfs23_start_probe;
+
+dtrace_nfsclient_nfs23_done_probe_func_t
+    dtrace_nfsclient_nfs23_done_probe;
+
+/*
+ * Registered probes by RPC type.
+ */
+uint32_t	nfsclient_nfs2_start_probes[NFS_NPROCS];
+uint32_t	nfsclient_nfs2_done_probes[NFS_NPROCS];
+
+uint32_t	nfsclient_nfs3_start_probes[NFS_NPROCS];
+uint32_t	nfsclient_nfs3_done_probes[NFS_NPROCS];
+#endif
 
 static int	nfs_realign_test;
 static int	nfs_realign_count;
@@ -468,6 +488,25 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 		ext.rc_timers = NULL;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_nfsclient_nfs23_start_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nmp->nm_flag & NFSMNT_NFSV3) {
+			probe_id = nfsclient_nfs3_start_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfsclient_nfs2_start_probes[procnum];
+			probe_procnum = (nmp->nm_flag & NFSMNT_NFSV3) ?
+			    procnum : nfsv2_procid[procnum];
+		}
+		if (probe_id != 0)
+			(dtrace_nfsclient_nfs23_start_probe)(probe_id, vp,
+			    mreq, cred, probe_procnum);
+	}
+#endif
+
 	nfsstats.rpcrequests++;
 tryagain:
 	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
@@ -535,6 +574,24 @@ tryagain:
 		goto nfsmout;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_nfsclient_nfs23_done_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nmp->nm_flag & NFSMNT_NFSV3) {
+			probe_id = nfsclient_nfs3_done_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfsclient_nfs2_done_probes[procnum];
+			probe_procnum = (nmp->nm_flag & NFSMNT_NFSV3) ?
+			    procnum : nfsv2_procid[procnum];
+		}
+		if (probe_id != 0)
+			(dtrace_nfsclient_nfs23_done_probe)(probe_id, vp,
+			    mreq, cred, probe_procnum, 0);
+	}
+#endif
 	m_freem(mreq);
 	*mrp = mrep;
 	*mdp = md;
@@ -543,6 +600,24 @@ tryagain:
 	return (0);
 
 nfsmout:
+#ifdef KDTRACE_HOOKS
+	if (dtrace_nfsclient_nfs23_done_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nmp->nm_flag & NFSMNT_NFSV3) {
+			probe_id = nfsclient_nfs3_done_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfsclient_nfs2_done_probes[procnum];
+			probe_procnum = (nmp->nm_flag & NFSMNT_NFSV3) ?
+			    procnum : nfsv2_procid[procnum];
+		}
+		if (probe_id != 0)
+			(dtrace_nfsclient_nfs23_done_probe)(probe_id, vp,
+			    mreq, cred, probe_procnum, error);
+	}
+#endif
 	m_freem(mreq);
 	if (auth)
 		AUTH_DESTROY(auth);
