@@ -81,7 +81,7 @@ MLINKS=	pcap_datalink_val_to_name.3 pcap_datalink_val_to_description.3 \
 	pcap_open_offline.3 pcap_fopen_offline.3 \
 	pcap_setnonblock.3 pcap_getnonblock.3
 
-# Our man pages are a special copy from the distdir. See bellow.
+# Our man pages are a special copy from the distdir. See below.
 CLEANFILES+=${MAN}
 CLEANFILES+=tokdefs.h version.h version.c
 
