@@ -619,6 +619,7 @@ UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
+U3G_DEBUG		opt_u3g.h
 
 # Embedded system options
 INIT_PATH
