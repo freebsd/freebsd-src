@@ -203,8 +203,13 @@ aliascmd(int argc, char **argv)
 		for (i = 0; i < ATABSIZE; i++)
 			for (ap = atab[i]; ap; ap = ap->next) {
 				if (*ap->name != '\0') {
-					out1fmt("alias %s=", ap->name);
+					out1fmt("%s=", ap->name);
+					/* Don't print the space added
+					 * above. */
+					v = ap->val + strlen(ap->val) - 1;
+					*v = '\0';
 					out1qstr(ap->val);
+					*v = ' ';
 					out1c('\n');
 				}
 			}
