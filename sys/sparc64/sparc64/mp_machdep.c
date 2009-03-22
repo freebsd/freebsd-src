@@ -92,6 +92,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/tte.h>
 #include <machine/ver.h>
 
+#define	SUNW_STARTCPU		"SUNW,start-cpu"
+#define	SUNW_STOPSELF		"SUNW,stop-self"
+
 static ih_func_t cpu_ipi_ast;
 static ih_func_t cpu_ipi_preempt;
 static ih_func_t cpu_ipi_stop;
@@ -119,7 +122,6 @@ static volatile u_int shutdown_cpus;
 static void cpu_mp_unleash(void *v);
 static void spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 static void sun4u_startcpu(phandle_t cpu, void *func, u_long arg);
-static void sun4u_stopself(void);
 
 static cpu_ipi_selected_t cheetah_ipi_selected;
 static cpu_ipi_selected_t spitfire_ipi_selected;
@@ -203,7 +205,7 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 		cell_t	func;
 		cell_t	arg;
 	} args = {
-		(cell_t)"SUNW,start-cpu",
+		(cell_t)SUNW_STARTCPU,
 		3,
 	};
 
@@ -211,24 +213,6 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 	args.func = (cell_t)func;
 	args.arg = (cell_t)arg;
 	openfirmware(&args);
-}
-
-/*
- * Stop the calling CPU.
- */
-static void
-sun4u_stopself(void)
-{
-	static struct {
-		cell_t	name;
-		cell_t	nargs;
-		cell_t	nreturns;
-	} args = {
-		(cell_t)"SUNW,stop-self",
-	};
-
-	openfirmware_exit(&args);
-	panic("%s: failed.", __func__);
 }
 
 /*
@@ -422,8 +406,6 @@ cpu_mp_shutdown(void)
 			break;
 		}
 	}
-	/* XXX: delay a bit to allow the CPUs to actually enter the PROM. */
-	DELAY(100000);
 	critical_exit();
 }
 
@@ -443,7 +425,9 @@ cpu_ipi_stop(struct trapframe *tf)
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
 		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {
 			atomic_clear_int(&shutdown_cpus, PCPU_GET(cpumask));
-			sun4u_stopself();
+			(void)intr_disable();
+			for (;;)
+				;
 		}
 	}
 	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
@@ -519,15 +503,12 @@ spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		 */
 		DELAY(2);
 	}
-	if (
-#ifdef KDB
-	    kdb_active ||
-#endif
-	    panicstr != NULL)
+	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI to module 0x%u\n",
 		    __func__, mid);
 	else
-		panic("%s: couldn't send IPI", __func__);
+		panic("%s: couldn't send IPI to module 0x%u",
+		    __func__, mid);
 }
 
 static void
@@ -581,40 +562,23 @@ cheetah_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 			}
 		}
 		/*
+		 * On at least Fire V880 we may receive IDR_NACKs for
+		 * CPUs we actually haven't tried to send an IPI to,
+		 * but which apparently can be safely ignored.
+		 */
+		if (cpus == 0)
+			return;
+		/*
 		 * Leave interrupts enabled for a bit before retrying
 		 * in order to avoid deadlocks if the other CPUs are
 		 * also trying to send IPIs.
 		 */
-		DELAY(2 * bnp);
+		DELAY(2 * mp_ncpus);
 	}
-	if (
-#ifdef KDB
-	    kdb_active ||
-#endif
-	    panicstr != NULL)
+	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI (cpus=0x%u ids=0x%lu)\n",
 		    __func__, cpus, ids);
 	else
-		panic("%s: couldn't send IPI", __func__);
-}
-
-void
-ipi_selected(u_int cpus, u_int ipi)
-{
-
-	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
-}
-
-void
-ipi_all(u_int ipi)
-{
-
-	panic("%s", __func__);
-}
-
-void
-ipi_all_but_self(u_int ipi)
-{
-
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)tl_ipi_level, ipi);
+		panic("%s: couldn't send IPI (cpus=0x%u ids=0x%lu)",
+		    __func__, cpus, ids);
 }
