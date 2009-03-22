@@ -1878,6 +1878,7 @@ unp_gc(__unused void *arg, int pending)
 {
 	struct file *fp, *nextfp;
 	struct socket *so;
+	struct socket *soa;
 	struct file **extra_ref, **fpp;
 	int nunref, i;
 	int nfiles_snap;
@@ -1982,6 +1983,20 @@ unp_gc(__unused void *arg, int pending)
 			SOCKBUF_LOCK(&so->so_rcv);
 			unp_scan(so->so_rcv.sb_mb, unp_mark);
 			SOCKBUF_UNLOCK(&so->so_rcv);
+
+			/*
+			 * If socket is in listening state, then sockets
+			 * in its accept queue are accessible, and so
+			 * are any descriptors in those sockets' receive
+			 * queues.
+			 */
+			ACCEPT_LOCK();
+			TAILQ_FOREACH(soa, &so->so_comp, so_list) {
+			    SOCKBUF_LOCK(&soa->so_rcv);
+			    unp_scan(soa->so_rcv.sb_mb, unp_mark);
+			    SOCKBUF_UNLOCK(&soa->so_rcv);
+			}
+			ACCEPT_UNLOCK();
 
 			/*
 			 * Wake up any threads waiting in fdrop().
