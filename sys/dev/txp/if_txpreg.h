@@ -225,12 +225,12 @@
 #define	TXP_STAT_UDPCKSUMGOOD	0x0200
 
 struct txp_tx_desc {
-	volatile u_int8_t	tx_flags;	/* type/descriptor flags */
-	volatile u_int8_t	tx_numdesc;	/* number of descriptors */
-	volatile u_int16_t	tx_totlen;	/* total packet length */
-	volatile u_int32_t	tx_addrlo;	/* virt addr low word */
-	volatile u_int32_t	tx_addrhi;	/* virt addr high word */
-	volatile u_int32_t	tx_pflags;	/* processing flags */
+	volatile uint8_t	tx_flags;	/* type/descriptor flags */
+	volatile uint8_t	tx_numdesc;	/* number of descriptors */
+	volatile uint16_t	tx_totlen;	/* total packet length */
+	volatile uint32_t	tx_addrlo;	/* virt addr low word */
+	volatile uint32_t	tx_addrhi;	/* virt addr high word */
+	volatile uint32_t	tx_pflags;	/* processing flags */
 };
 #define	TX_FLAGS_TYPE_M		0x07		/* type mask */
 #define	TX_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -256,21 +256,21 @@ struct txp_tx_desc {
 #define	TX_PFLAGS_VLANTAG_S	12		/* amount to shift tag */
 
 struct txp_rx_desc {
-	volatile u_int8_t	rx_flags;	/* type/descriptor flags */
-	volatile u_int8_t	rx_numdesc;	/* number of descriptors */
-	volatile u_int16_t	rx_len;		/* frame length */
+	volatile uint8_t	rx_flags;	/* type/descriptor flags */
+	volatile uint8_t	rx_numdesc;	/* number of descriptors */
+	volatile uint16_t	rx_len;		/* frame length */
 #ifdef notdef
-	volatile u_int32_t	rx_vaddrlo;	/* virtual address, lo word */
-	volatile u_int32_t	rx_vaddrhi;	/* virtual address, hi word */
+	volatile uint32_t	rx_vaddrlo;	/* virtual address, lo word */
+	volatile uint32_t	rx_vaddrhi;	/* virtual address, hi word */
 #endif
 	union {
 		struct txp_swdesc	*rx_sd;
-		u_int64_t		rx_dummy;
+		uint64_t		rx_dummy;
 	} txp_rx_u;
-	volatile u_int32_t	rx_stat;	/* status */
-	volatile u_int16_t	rx_filter;	/* filter status */
-	volatile u_int16_t	rx_hash;	/* hash status */
-	volatile u_int32_t	rx_vlan;	/* vlan tag/priority */
+	volatile uint32_t	rx_stat;	/* status */
+	volatile uint16_t	rx_filter;	/* filter status */
+	volatile uint16_t	rx_hash;	/* hash status */
+	volatile uint32_t	rx_vlan;	/* vlan tag/priority */
 };
 
 #define rx_sd	txp_rx_u.rx_sd
@@ -316,15 +316,15 @@ struct txp_rx_desc {
 
 
 struct txp_rxbuf_desc {
-	volatile u_int32_t	rb_paddrlo;
-	volatile u_int32_t	rb_paddrhi;
+	volatile uint32_t	rb_paddrlo;
+	volatile uint32_t	rb_paddrhi;
 #ifdef notdef
-	volatile u_int32_t	rb_vaddrlo;
-	volatile u_int32_t	rb_vaddrhi;
+	volatile uint32_t	rb_vaddrlo;
+	volatile uint32_t	rb_vaddrhi;
 #endif
 	union {
 		struct txp_swdesc	*rb_sd;
-		u_int64_t		rb_dummy;
+		uint64_t		rb_dummy;
 	} txp_rb_u;
 };
 
@@ -332,20 +332,20 @@ struct txp_rxbuf_desc {
 
 /* Extension descriptor */
 struct txp_ext_desc {
-	volatile u_int32_t	ext_1;
-	volatile u_int32_t	ext_2;
-	volatile u_int32_t	ext_3;
-	volatile u_int32_t	ext_4;
+	volatile uint32_t	ext_1;
+	volatile uint32_t	ext_2;
+	volatile uint32_t	ext_3;
+	volatile uint32_t	ext_4;
 };
 
 struct txp_cmd_desc {
-	volatile u_int8_t	cmd_flags;
-	volatile u_int8_t	cmd_numdesc;
-	volatile u_int16_t	cmd_id;
-	volatile u_int16_t	cmd_seq;
-	volatile u_int16_t	cmd_par1;
-	volatile u_int32_t	cmd_par2;
-	volatile u_int32_t	cmd_par3;
+	volatile uint8_t	cmd_flags;
+	volatile uint8_t	cmd_numdesc;
+	volatile uint16_t	cmd_id;
+	volatile uint16_t	cmd_seq;
+	volatile uint16_t	cmd_par1;
+	volatile uint32_t	cmd_par2;
+	volatile uint32_t	cmd_par3;
 };
 #define	CMD_FLAGS_TYPE_M	0x07		/* type mask */
 #define	CMD_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -358,13 +358,13 @@ struct txp_cmd_desc {
 #define	CMD_FLAGS_VALID		0x80		/* valid descriptor */
 
 struct txp_rsp_desc {
-	volatile u_int8_t	rsp_flags;
-	volatile u_int8_t	rsp_numdesc;
-	volatile u_int16_t	rsp_id;
-	volatile u_int16_t	rsp_seq;
-	volatile u_int16_t	rsp_par1;
-	volatile u_int32_t	rsp_par2;
-	volatile u_int32_t	rsp_par3;
+	volatile uint8_t	rsp_flags;
+	volatile uint8_t	rsp_numdesc;
+	volatile uint16_t	rsp_id;
+	volatile uint16_t	rsp_seq;
+	volatile uint16_t	rsp_par1;
+	volatile uint32_t	rsp_par2;
+	volatile uint32_t	rsp_par3;
 };
 #define	RSP_FLAGS_TYPE_M	0x07		/* type mask */
 #define	RSP_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -376,12 +376,12 @@ struct txp_rsp_desc {
 #define	RSP_FLAGS_ERROR		0x40		/* response error */
 
 struct txp_frag_desc {
-	volatile u_int8_t	frag_flags;	/* type/descriptor flags */
-	volatile u_int8_t	frag_rsvd1;
-	volatile u_int16_t	frag_len;	/* bytes in this fragment */
-	volatile u_int32_t	frag_addrlo;	/* phys addr low word */
-	volatile u_int32_t	frag_addrhi;	/* phys addr high word */
-	volatile u_int32_t	frag_rsvd2;
+	volatile uint8_t	frag_flags;	/* type/descriptor flags */
+	volatile uint8_t	frag_rsvd1;
+	volatile uint16_t	frag_len;	/* bytes in this fragment */
+	volatile uint32_t	frag_addrlo;	/* phys addr low word */
+	volatile uint32_t	frag_addrhi;	/* phys addr high word */
+	volatile uint32_t	frag_rsvd2;
 };
 #define	FRAG_FLAGS_TYPE_M	0x07		/* type mask */
 #define	FRAG_FLAGS_TYPE_FRAG	0x00		/* type: fragment */
@@ -392,44 +392,44 @@ struct txp_frag_desc {
 #define	FRAG_FLAGS_TYPE_RESP	0x05		/* type: response */
 
 struct txp_opt_desc {
-	u_int8_t		opt_desctype:3,
+	uint8_t			opt_desctype:3,
 				opt_rsvd:1,
 				opt_type:4;
 
-	u_int8_t		opt_num;
-	u_int16_t		opt_dep1;
-	u_int32_t		opt_dep2;
-	u_int32_t		opt_dep3;
-	u_int32_t		opt_dep4;
+	uint8_t			opt_num;
+	uint16_t		opt_dep1;
+	uint32_t		opt_dep2;
+	uint32_t		opt_dep3;
+	uint32_t		opt_dep4;
 };
 
 struct txp_ipsec_desc {
-	u_int8_t		ipsec_desctpe:3,
+	uint8_t			ipsec_desctpe:3,
 				ipsec_rsvd:1,
 				ipsec_type:4;
 
-	u_int8_t		ipsec_num;
-	u_int16_t		ipsec_flags;
-	u_int16_t		ipsec_ah1;
-	u_int16_t		ipsec_esp1;
-	u_int16_t		ipsec_ah2;
-	u_int16_t		ipsec_esp2;
-	u_int32_t		ipsec_rsvd1;
+	uint8_t			ipsec_num;
+	uint16_t		ipsec_flags;
+	uint16_t		ipsec_ah1;
+	uint16_t		ipsec_esp1;
+	uint16_t		ipsec_ah2;
+	uint16_t		ipsec_esp2;
+	uint32_t		ipsec_rsvd1;
 };
 
 struct txp_tcpseg_desc {
-	u_int8_t		tcpseg_desctype:3,
+	uint8_t			tcpseg_desctype:3,
 				tcpseg_rsvd:1,
 				tcpseg_type:4;
 
-	u_int8_t		tcpseg_num;
+	uint8_t			tcpseg_num;
 
-	u_int16_t		tcpseg_mss:12,
+	uint16_t		tcpseg_mss:12,
 				tcpseg_misc:4;
 
-	u_int32_t		tcpseg_respaddr;
-	u_int32_t		tcpseg_txbytes;
-	u_int32_t		tcpseg_lss;
+	uint32_t		tcpseg_respaddr;
+	uint32_t		tcpseg_txbytes;
+	uint32_t		tcpseg_lss;
 };
 
 /*
@@ -463,48 +463,48 @@ struct txp_tcpseg_desc {
  * boot record (pointers to rings)
  */
 struct txp_boot_record {
-	volatile u_int32_t	br_hostvar_lo;		/* host ring pointer */
-	volatile u_int32_t	br_hostvar_hi;
-	volatile u_int32_t	br_txlopri_lo;		/* tx low pri ring */
-	volatile u_int32_t	br_txlopri_hi;
-	volatile u_int32_t	br_txlopri_siz;
-	volatile u_int32_t	br_txhipri_lo;		/* tx high pri ring */
-	volatile u_int32_t	br_txhipri_hi;
-	volatile u_int32_t	br_txhipri_siz;
-	volatile u_int32_t	br_rxlopri_lo;		/* rx low pri ring */
-	volatile u_int32_t	br_rxlopri_hi;
-	volatile u_int32_t	br_rxlopri_siz;
-	volatile u_int32_t	br_rxbuf_lo;		/* rx buffer ring */
-	volatile u_int32_t	br_rxbuf_hi;
-	volatile u_int32_t	br_rxbuf_siz;
-	volatile u_int32_t	br_cmd_lo;		/* command ring */
-	volatile u_int32_t	br_cmd_hi;
-	volatile u_int32_t	br_cmd_siz;
-	volatile u_int32_t	br_resp_lo;		/* response ring */
-	volatile u_int32_t	br_resp_hi;
-	volatile u_int32_t	br_resp_siz;
-	volatile u_int32_t	br_zero_lo;		/* zero word */
-	volatile u_int32_t	br_zero_hi;
-	volatile u_int32_t	br_rxhipri_lo;		/* rx high pri ring */
-	volatile u_int32_t	br_rxhipri_hi;
-	volatile u_int32_t	br_rxhipri_siz;
+	volatile uint32_t	br_hostvar_lo;		/* host ring pointer */
+	volatile uint32_t	br_hostvar_hi;
+	volatile uint32_t	br_txlopri_lo;		/* tx low pri ring */
+	volatile uint32_t	br_txlopri_hi;
+	volatile uint32_t	br_txlopri_siz;
+	volatile uint32_t	br_txhipri_lo;		/* tx high pri ring */
+	volatile uint32_t	br_txhipri_hi;
+	volatile uint32_t	br_txhipri_siz;
+	volatile uint32_t	br_rxlopri_lo;		/* rx low pri ring */
+	volatile uint32_t	br_rxlopri_hi;
+	volatile uint32_t	br_rxlopri_siz;
+	volatile uint32_t	br_rxbuf_lo;		/* rx buffer ring */
+	volatile uint32_t	br_rxbuf_hi;
+	volatile uint32_t	br_rxbuf_siz;
+	volatile uint32_t	br_cmd_lo;		/* command ring */
+	volatile uint32_t	br_cmd_hi;
+	volatile uint32_t	br_cmd_siz;
+	volatile uint32_t	br_resp_lo;		/* response ring */
+	volatile uint32_t	br_resp_hi;
+	volatile uint32_t	br_resp_siz;
+	volatile uint32_t	br_zero_lo;		/* zero word */
+	volatile uint32_t	br_zero_hi;
+	volatile uint32_t	br_rxhipri_lo;		/* rx high pri ring */
+	volatile uint32_t	br_rxhipri_hi;
+	volatile uint32_t	br_rxhipri_siz;
 };
 
 /*
  * hostvar structure (shared with typhoon)
  */
 struct txp_hostvar {
-	volatile u_int32_t	hv_rx_hi_read_idx;	/* host->arm */
-	volatile u_int32_t	hv_rx_lo_read_idx;	/* host->arm */
-	volatile u_int32_t	hv_rx_buf_write_idx;	/* host->arm */
-	volatile u_int32_t	hv_resp_read_idx;	/* host->arm */
-	volatile u_int32_t	hv_tx_lo_desc_read_idx;	/* arm->host */
-	volatile u_int32_t	hv_tx_hi_desc_read_idx;	/* arm->host */
-	volatile u_int32_t	hv_rx_lo_write_idx;	/* arm->host */
-	volatile u_int32_t	hv_rx_buf_read_idx;	/* arm->host */
-	volatile u_int32_t	hv_cmd_read_idx;	/* arm->host */
-	volatile u_int32_t	hv_resp_write_idx;	/* arm->host */
-	volatile u_int32_t	hv_rx_hi_write_idx;	/* arm->host */
+	volatile uint32_t	hv_rx_hi_read_idx;	/* host->arm */
+	volatile uint32_t	hv_rx_lo_read_idx;	/* host->arm */
+	volatile uint32_t	hv_rx_buf_write_idx;	/* host->arm */
+	volatile uint32_t	hv_resp_read_idx;	/* host->arm */
+	volatile uint32_t	hv_tx_lo_desc_read_idx;	/* arm->host */
+	volatile uint32_t	hv_tx_hi_desc_read_idx;	/* arm->host */
+	volatile uint32_t	hv_rx_lo_write_idx;	/* arm->host */
+	volatile uint32_t	hv_rx_buf_read_idx;	/* arm->host */
+	volatile uint32_t	hv_cmd_read_idx;	/* arm->host */
+	volatile uint32_t	hv_resp_write_idx;	/* arm->host */
+	volatile uint32_t	hv_rx_hi_write_idx;	/* arm->host */
 };
 
 /*
@@ -546,23 +546,23 @@ struct txp_hostvar {
 
 struct txp_cmd_ring {
 	struct txp_cmd_desc	*base;
-	u_int32_t		lastwrite;
-	u_int32_t		size;
+	uint32_t		lastwrite;
+	uint32_t		size;
 };
 
 struct txp_rsp_ring {
 	struct txp_rsp_desc	*base;
-	u_int32_t		lastwrite;
-	u_int32_t		size;
+	uint32_t		lastwrite;
+	uint32_t		size;
 };
 
 struct txp_tx_ring {
 	struct txp_tx_desc	*r_desc;	/* base address of descs */
-	u_int32_t		r_reg;		/* register to activate */
-	u_int32_t		r_prod;		/* producer */
-	u_int32_t		r_cons;		/* consumer */
-	u_int32_t		r_cnt;		/* # descs in use */
-	volatile u_int32_t	*r_off;		/* hostvar index pointer */
+	uint32_t		r_reg;		/* register to activate */
+	uint32_t		r_prod;		/* producer */
+	uint32_t		r_cons;		/* consumer */
+	uint32_t		r_cnt;		/* # descs in use */
+	volatile uint32_t	*r_off;		/* hostvar index pointer */
 };
 
 struct txp_swdesc {
@@ -572,8 +572,8 @@ struct txp_swdesc {
 
 struct txp_rx_ring {
 	struct txp_rx_desc	*r_desc;	/* base address of descs */
-	volatile u_int32_t	*r_roff;	/* hv read offset ptr */
-	volatile u_int32_t	*r_woff;	/* hv write offset ptr */
+	volatile uint32_t	*r_roff;	/* hv read offset ptr */
+	volatile uint32_t	*r_woff;	/* hv write offset ptr */
 };
 
 struct txp_ldata {
@@ -586,7 +586,7 @@ struct txp_ldata {
 	struct txp_rx_desc	txp_rxloring[RX_ENTRIES];
 	struct txp_cmd_desc	txp_cmdring[CMD_ENTRIES];
 	struct txp_rsp_desc	txp_rspring[RSP_ENTRIES];
-	u_int32_t		txp_zero;
+	uint32_t		txp_zero;
 };
 
 struct txp_softc {
@@ -611,25 +611,25 @@ struct txp_softc {
 	struct txp_tx_ring	sc_txhir, sc_txlor;
 	struct txp_rxbuf_desc	*sc_rxbufs;
 	struct txp_rx_ring	sc_rxhir, sc_rxlor;
-	u_int16_t		sc_xcvr;
-	u_int16_t		sc_seq;
+	uint16_t		sc_xcvr;
+	uint16_t		sc_seq;
 	int			sc_cold;
-	u_int32_t		sc_rx_capability, sc_tx_capability;
+	uint32_t		sc_rx_capability, sc_tx_capability;
 };
 
 struct txp_fw_file_header {
-	u_int8_t	magicid[8];	/* TYPHOON\0 */
-	u_int32_t	version;
-	u_int32_t	nsections;
-	u_int32_t	addr;
-	u_int32_t	hmac[5];
+	uint8_t		magicid[8];	/* TYPHOON\0 */
+	uint32_t	version;
+	uint32_t	nsections;
+	uint32_t	addr;
+	uint32_t	hmac[5];
 };
 
 struct txp_fw_section_header {
-	u_int32_t	nbytes;
-	u_int16_t	cksum;
-	u_int16_t	reserved;
-	u_int32_t	addr;
+	uint32_t	nbytes;
+	uint16_t	cksum;
+	uint16_t	reserved;
+	uint32_t	addr;
 };
 
 #define	TXP_MAX_SEGLEN	0xffff
@@ -660,7 +660,7 @@ struct txp_fw_section_header {
 #define TXP_DEVICEID_3CR990B_SRV	0x990A
 
 struct txp_type {
-	u_int16_t		txp_vid;
-	u_int16_t		txp_did;
+	uint16_t		txp_vid;
+	uint16_t		txp_did;
 	char			*txp_name;
 };
