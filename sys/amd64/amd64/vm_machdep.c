@@ -287,7 +287,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-	pcb2->pcb_cr3 = vtophys(vmspace_pmap(td->td_proc->p_vmspace)->pm_pml4);
 	pcb2->pcb_r12 = (register_t)fork_return;	    /* trampoline arg */
 	pcb2->pcb_rbp = 0;
 	pcb2->pcb_rsp = (register_t)td->td_frame - sizeof(void *);	/* trampoline arg */
@@ -295,6 +294,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_rip = (register_t)fork_trampoline;
 	/*
 	 * If we didn't copy the pcb, we'd need to do the following registers:
+	 * pcb2->pcb_cr3:	cloned above.
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
