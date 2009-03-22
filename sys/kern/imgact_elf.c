@@ -1331,7 +1331,7 @@ static boolean_t
 __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
     int32_t *osrel)
 {
-	const Elf_Note *note, *note_end;
+	const Elf_Note *note, *note0, *note_end;
 	const Elf_Phdr *phdr, *pnote;
 	const Elf_Ehdr *hdr;
 	const char *note_name;
@@ -1352,12 +1352,12 @@ __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
 	    pnote->p_offset + pnote->p_filesz >= PAGE_SIZE)
 		return (FALSE);
 
-	note = (const Elf_Note *)(imgp->image_header + pnote->p_offset);
-	if (!aligned(note, Elf32_Addr))
-		return (FALSE);
+	note = note0 = (const Elf_Note *)(imgp->image_header + pnote->p_offset);
 	note_end = (const Elf_Note *)(imgp->image_header +
 	    pnote->p_offset + pnote->p_filesz);
-	while (note < note_end) {
+	for (i = 0; i < 100 && note >= note0 && note < note_end; i++) {
+		if (!aligned(note, Elf32_Addr))
+			return (FALSE);
 		if (note->n_namesz != checknote->hdr.n_namesz ||
 		    note->n_descsz != checknote->hdr.n_descsz ||
 		    note->n_type != checknote->hdr.n_type)
