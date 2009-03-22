@@ -821,7 +821,7 @@ usb2_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	struct usb2_cdev_privdata *cpd;
 	int err, ep;
 
-	DPRINTFN(2, "fflags=0x%08x\n", fflags);
+	DPRINTFN(2, "%s fflags=0x%08x\n", dev->si_name, fflags);
 
 	KASSERT(fflags & (FREAD|FWRITE), ("invalid open flags"));
 	if (((fflags & FREAD) && !(pd->mode & FREAD)) ||
@@ -990,6 +990,7 @@ usb2_ioctl_f_sub(struct usb2_fifo *f, u_long cmd, void *addr,
 	default:
 		return (ENOIOCTL);
 	}
+	DPRINTFN(3, "cmd 0x%lx = %d\n", cmd, error);
 	return (error);
 }
 
@@ -1003,6 +1004,8 @@ usb2_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread*
 	struct usb2_fifo *f;
 	int fflags;
 	int err;
+
+	DPRINTFN(2, "cmd=0x%lx\n", cmd);
 
 	err = devfs_get_cdevpriv((void **)&cpd);
 	if (err != 0)
@@ -1019,8 +1022,6 @@ usb2_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread*
 	}
 	fflags = cpd->fflags;
 
-	DPRINTFN(2, "fflags=%u, cmd=0x%lx\n", fflags, cmd);
-
 	f = NULL;			/* set default value */
 	err = ENOIOCTL;			/* set default value */
 
@@ -1035,12 +1036,14 @@ usb2_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread*
 	KASSERT(f != NULL, ("fifo not found"));
 	if (err == ENOIOCTL) {
 		err = (f->methods->f_ioctl) (f, cmd, addr, fflags);
+		DPRINTFN(2, "f_ioctl cmd 0x%lx = %d\n", cmd, err);
 		if (err == ENOIOCTL) {
 			if (usb2_uref_location(cpd)) {
 				err = ENXIO;
 				goto done;
 			}
 			err = (f->methods->f_ioctl_post) (f, cmd, addr, fflags);
+			DPRINTFN(2, "f_ioctl_post cmd 0x%lx = %d\n", cmd, err);
 		}
 	}
 	if (err == ENOIOCTL) {
