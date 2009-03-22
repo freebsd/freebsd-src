@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/pcb.h>
 #include <machine/smp.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>
@@ -113,7 +112,7 @@ extern char fas_nofault_end[];
 
 extern char *syscallnames[];
 
-const char *trap_msg[] = {
+const char *const trap_msg[] = {
 	"reserved",
 	"instruction access exception",
 	"instruction access error",
@@ -328,15 +327,12 @@ trap(struct trapframe *tf)
 		KASSERT((tf->tf_type & T_KERNEL) != 0,
 		    ("trap: kernel trap isn't"));
 
-#ifdef KDB
 		if (kdb_active) {
 			kdb_reenter();
 			return;
 		}
-#endif
 
 		switch (tf->tf_type & ~T_KERNEL) {
-#ifdef KDB
 		case T_BREAKPOINT:
 		case T_KSTACK_FAULT:
 			error = (kdb_trap(tf->tf_type, 0, tf) == 0);
@@ -347,7 +343,6 @@ trap(struct trapframe *tf)
 		case T_VA_WATCHPOINT:
 			error = db_watch_trap(tf);
 			break;
-#endif
 #endif
 		case T_DATA_MISS:
 		case T_DATA_PROTECTION:
@@ -408,7 +403,6 @@ static int
 trap_pfault(struct thread *td, struct trapframe *tf)
 {
 	struct vmspace *vm;
-	struct pcb *pcb;
 	struct proc *p;
 	vm_offset_t va;
 	vm_prot_t prot;
@@ -428,7 +422,6 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 
 	rv = KERN_SUCCESS;
 	ctx = TLB_TAR_CTX(tf->tf_tar);
-	pcb = td->td_pcb;
 	type = tf->tf_type & ~T_KERNEL;
 	va = TLB_TAR_VA(tf->tf_tar);
 
@@ -558,11 +551,6 @@ syscall(struct trapframe *tf)
 
 	PCPU_INC(cnt.v_syscall);
 
-	narg = 0;
-	error = 0;
-	reg = 0;
-	regcnt = REG_MAXARGS;
-
 	td->td_pticks = 0;
 	td->td_frame = tf;
 	if (td->td_ucred != p->p_ucred)
@@ -580,6 +568,8 @@ syscall(struct trapframe *tf)
 	tpc = tf->tf_tpc;
 	TF_DONE(tf);
 
+	reg = 0;
+	regcnt = REG_MAXARGS;
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
 		 * The prep code is MP aware.
