@@ -73,6 +73,16 @@ int ulimitcmd(int, char **);
  * ordinary characters.
  *
  * This uses unbuffered input, which may be avoidable in some cases.
+ *
+ * Note that if IFS=' :' then read x y should work so that:
+ * 'a b'	x='a', y='b'
+ * ' a b '	x='a', y='b'
+ * ':b'		x='',  y='b'
+ * ':'		x='',  y=''
+ * '::'		x='',  y=''
+ * ': :'	x='',  y=''
+ * ':::'	x='',  y='::'
+ * ':b c:'	x='',  y='b c:'
  */
 
 int
@@ -88,6 +98,8 @@ readcmd(int argc __unused, char **argv __unused)
 	int startword;
 	int status;
 	int i;
+	int is_ifs;
+	int saveall = 0;
 	struct timeval tv;
 	char *tvptr;
 	fd_set ifds;
@@ -167,7 +179,7 @@ readcmd(int argc __unused, char **argv __unused)
 	}
 
 	status = 0;
-	startword = 1;
+	startword = 2;
 	backslash = 0;
 	STARTSTACKSTR(p);
 	for (;;) {
@@ -189,22 +201,68 @@ readcmd(int argc __unused, char **argv __unused)
 		}
 		if (c == '\n')
 			break;
-		if (startword && *ifs == ' ' && strchr(ifs, c)) {
+		if (strchr(ifs, c))
+			is_ifs = strchr(" \t\n", c) ? 1 : 2;
+		else
+			is_ifs = 0;
+
+		if (startword != 0) {
+			if (is_ifs == 1) {
+				/* Ignore leading IFS whitespace */
+				if (saveall)
+					STPUTC(c, p);
+				continue;
+			}
+			if (is_ifs == 2 && startword == 1) {
+				/* Only one non-whitespace IFS per word */
+				startword = 2;
+				if (saveall)
+					STPUTC(c, p);
+				continue;
+			}
+		}
+
+		if (is_ifs == 0) {
+			/* append this character to the current variable */
+			startword = 0;
+			if (saveall)
+				/* Not just a spare terminator */
+				saveall++;
+			STPUTC(c, p);
 			continue;
 		}
-		startword = 0;
-		if (ap[1] != NULL && strchr(ifs, c) != NULL) {
-			STACKSTRNUL(p);
-			setvar(*ap, stackblock(), 0);
-			ap++;
-			startword = 1;
-			STARTSTACKSTR(p);
-		} else {
+
+		/* end of variable... */
+		startword = is_ifs;
+
+		if (ap[1] == NULL) {
+			/* Last variable needs all IFS chars */
+			saveall++;
 			STPUTC(c, p);
+			continue;
 		}
+
+		STACKSTRNUL(p);
+		setvar(*ap, stackblock(), 0);
+		ap++;
+		STARTSTACKSTR(p);
 	}
 	STACKSTRNUL(p);
+
+	/* Remove trailing IFS chars */
+	for (; stackblock() <= --p; *p = 0) {
+		if (!strchr(ifs, *p))
+			break;
+		if (strchr(" \t\n", *p))
+			/* Always remove whitespace */
+			continue;
+		if (saveall > 1)
+			/* Don't remove non-whitespace unless it was naked */
+			break;
+	}
 	setvar(*ap, stackblock(), 0);
+
+	/* Set any remaining args to "" */
 	while (*++ap != NULL)
 		setvar(*ap, nullstr, 0);
 	return status;
