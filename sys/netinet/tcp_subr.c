@@ -2114,7 +2114,6 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	struct sockaddr_in *fin, *lin;
 #ifdef INET6
 	struct sockaddr_in6 *fin6, *lin6;
-	struct in6_addr f6, l6;
 #endif
 	int error;
 
@@ -2174,8 +2173,9 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	switch (addrs[0].ss_family) {
 #ifdef INET6
 	case AF_INET6:
-		inp = in6_pcblookup_hash(&V_tcbinfo, &f6, fin6->sin6_port,
-		    &l6, lin6->sin6_port, 0, NULL);
+		inp = in6_pcblookup_hash(&V_tcbinfo, &fin6->sin6_addr,
+		    fin6->sin6_port, &lin6->sin6_addr, lin6->sin6_port, 0,
+		    NULL);
 		break;
 #endif
 	case AF_INET:
