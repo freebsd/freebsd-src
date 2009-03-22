@@ -1610,6 +1610,7 @@ usb2_fifo_attach(struct usb2_device *udev, void *priv_sc,
 	/* initialise FIFO structures */
 
 	f_tx->fifo_index = n + USB_FIFO_TX;
+	f_tx->dev_ep_index = -1;
 	f_tx->priv_mtx = priv_mtx;
 	f_tx->priv_sc0 = priv_sc;
 	f_tx->methods = pm;
@@ -1617,6 +1618,7 @@ usb2_fifo_attach(struct usb2_device *udev, void *priv_sc,
 	f_tx->udev = udev;
 
 	f_rx->fifo_index = n + USB_FIFO_RX;
+	f_rx->dev_ep_index = -1;
 	f_rx->priv_mtx = priv_mtx;
 	f_rx->priv_sc0 = priv_sc;
 	f_rx->methods = pm;
