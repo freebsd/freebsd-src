@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #define ATABSIZE 39
 
 STATIC struct alias *atab[ATABSIZE];
+STATIC int aliases;
 
 STATIC void setalias(char *, char *);
 STATIC int unalias(const char *);
@@ -106,6 +107,7 @@ setalias(char *name, char *val)
 	ap->flag = 0;
 	ap->next = *app;
 	*app = ap;
+	aliases++;
 	INTON;
 }
 
@@ -135,6 +137,7 @@ unalias(const char *name)
 				ckfree(ap);
 				INTON;
 			}
+			aliases--;
 			return (0);
 		}
 	}
@@ -168,6 +171,7 @@ rmaliases(void)
 			ckfree(tmp);
 		}
 	}
+	aliases = 0;
 	INTON;
 }
 
@@ -187,9 +191,47 @@ lookupalias(char *name, int check)
 	return (NULL);
 }
 
-/*
- * TODO - sort output
- */
+static int
+comparealiases(const void *p1, const void *p2)
+{
+	const struct alias *const *a1 = p1;
+	const struct alias *const *a2 = p2;
+
+	return strcmp((*a1)->name, (*a2)->name);
+}
+
+static void
+printalias(const struct alias *a)
+{
+	char *p;
+
+	out1fmt("%s=", a->name);
+	/* Don't print the space added above. */
+	p = a->val + strlen(a->val) - 1;
+	*p = '\0';
+	out1qstr(a->val);
+	*p = ' ';
+	out1c('\n');
+}
+
+static void
+printaliases(void)
+{
+	int i, j;
+	struct alias **sorted, *ap;
+
+	sorted = ckmalloc(aliases * sizeof(*sorted));
+	j = 0;
+	for (i = 0; i < ATABSIZE; i++)
+		for (ap = atab[i]; ap; ap = ap->next)
+			if (*ap->name != '\0')
+				sorted[j++] = ap;
+	qsort(sorted, aliases, sizeof(*sorted), comparealiases);
+	for (i = 0; i < aliases; i++)
+		printalias(sorted[i]);
+	ckfree(sorted);
+}
+
 int
 aliascmd(int argc, char **argv)
 {
@@ -198,21 +240,7 @@ aliascmd(int argc, char **argv)
 	struct alias *ap;
 
 	if (argc == 1) {
-		int i;
-
-		for (i = 0; i < ATABSIZE; i++)
-			for (ap = atab[i]; ap; ap = ap->next) {
-				if (*ap->name != '\0') {
-					out1fmt("%s=", ap->name);
-					/* Don't print the space added
-					 * above. */
-					v = ap->val + strlen(ap->val) - 1;
-					*v = '\0';
-					out1qstr(ap->val);
-					*v = ' ';
-					out1c('\n');
-				}
-			}
+		printaliases();
 		return (0);
 	}
 	while ((n = *++argv) != NULL) {
@@ -220,11 +248,8 @@ aliascmd(int argc, char **argv)
 			if ((ap = lookupalias(n, 0)) == NULL) {
 				outfmt(out2, "alias: %s not found\n", n);
 				ret = 1;
-			} else {
-				out1fmt("alias %s=", n);
-				out1qstr(ap->val);
-				out1c('\n');
-			}
+			} else
+				printalias(ap);
 		else {
 			*v++ = '\0';
 			setalias(n, v);
