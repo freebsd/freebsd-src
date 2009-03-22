@@ -1721,60 +1721,44 @@ txp_show_descriptor(void *d)
 static void
 txp_set_filter(struct txp_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	uint32_t crc, carry, hashbit, hash[2];
+	struct ifnet *ifp;
+	uint32_t crc, mchash[2];
 	uint16_t filter;
-	uint8_t octet;
-	int i, j, mcnt = 0;
 	struct ifmultiaddr *ifma;
-	char *enm;
+	int mcnt;
 
-	if (ifp->if_flags & IFF_PROMISC) {
-		filter = TXP_RXFILT_PROMISC;
+	TXP_LOCK_ASSERT(sc);
+
+	ifp = sc->sc_ifp;
+	filter = TXP_RXFILT_DIRECT;
+	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+		filter |= TXP_RXFILT_BROADCAST;
+	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+		if ((ifp->if_flags & IFF_ALLMULTI) != 0)
+			filter |= TXP_RXFILT_ALLMULTI;
+		if ((ifp->if_flags & IFF_PROMISC) != 0)
+			filter = TXP_RXFILT_PROMISC;
 		goto setit;
 	}
 
-	filter = TXP_RXFILT_DIRECT;
+	mchash[0] = mchash[1] = 0;
+	mcnt = 0;
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN);
+		crc &= 0x3f;
+		mchash[crc >> 5] |= 1 << (crc & 0x1f);
+		mcnt++;
+	}
+	IF_ADDR_UNLOCK(ifp);
 
-	if (ifp->if_flags & IFF_BROADCAST)
-		filter |= TXP_RXFILT_BROADCAST;
-
-	if (ifp->if_flags & IFF_ALLMULTI)
-		filter |= TXP_RXFILT_ALLMULTI;
-	else {
-		hash[0] = hash[1] = 0;
-
-		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-
-			enm = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-			mcnt++;
-			crc = 0xffffffff;
-
-			for (i = 0; i < ETHER_ADDR_LEN; i++) {
-				octet = enm[i];
-				for (j = 0; j < 8; j++) {
-					carry = ((crc & 0x80000000) ? 1 : 0) ^
-					    (octet & 1);
-					crc <<= 1;
-					octet >>= 1;
-					if (carry)
-						crc = (crc ^ TXP_POLYNOMIAL) |
-						    carry;
-				}
-			}
-			hashbit = (uint16_t)(crc & (64 - 1));
-			hash[hashbit / 32] |= (1 << hashbit % 32);
-		}
-		IF_ADDR_UNLOCK(ifp);
-
-		if (mcnt > 0) {
-			filter |= TXP_RXFILT_HASHMULTI;
-			txp_command(sc, TXP_CMD_MCAST_HASH_MASK_WRITE,
-			    2, hash[0], hash[1], NULL, NULL, NULL, 0);
-		}
+	if (mcnt > 0) {
+		filter |= TXP_RXFILT_HASHMULTI;
+		txp_command(sc, TXP_CMD_MCAST_HASH_MASK_WRITE, 2, mchash[0],
+		    mchash[1], NULL, NULL, NULL, 0);
 	}
 
 setit:
