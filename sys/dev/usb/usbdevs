@@ -608,7 +608,7 @@ vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
 vendor JABLOTRON	0x16d6	Jablotron
 vendor CMOTECH		0x16d8	CMOTECH Co., Ltd.
-vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
+vendor AXESSTEL		0x1726	Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
 vendor METAGEEK		0x1781	MetaGeek
@@ -910,7 +910,7 @@ product ATMEL AT76C505A		0x7614	AT76c505a Wireless Adapter
 product AVISION 1200U		0x0268	1200U scanner
 
 /* Axesstel products */
-product AXESSTEL DATAMODEM	0x1000  Data Modem
+product AXESSTEL DATAMODEM	0x1000	Data Modem
 
 /* Baltech products */
 product BALTECH CARDREADER	0x9999	Card reader
@@ -1015,11 +1015,11 @@ product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
 
 /* CMOTECH products */
-product CMOTECH XSSTICKDISK	0xf000	XSStick (disk mode)
 product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
-product CMOTECH XSSTICKW12	0x6006	4G Systems XSStick W12
+product CMOTECH CGU628		0x6006	CGU-628
 product CMOTECH CDMA_MODEM1	0x6280	CDMA Technologies USB modem
+product CMOTECH DISK		0xf000	disk mode
 
 /* Compaq products */
 product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
@@ -1222,8 +1222,8 @@ product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
 product EPSON 4800		0x0819	CX4800 MP scanner
 product EPSON 4200		0x0820	CX4200 MP scanner
-product EPSON 5000		0x082b  DX-50x0 MFP scanner
-product EPSON 6000		0x082e  DX-60x0 MFP scanner
+product EPSON 5000		0x082b	DX-50x0 MFP scanner
+product EPSON 6000		0x082e	DX-60x0 MFP scanner
 product EPSON DX7400		0x0838	DX7400/CX7300 scanner
 product EPSON DX8400		0x0839	DX8400 scanner
 
@@ -1392,13 +1392,14 @@ product HP 2200C		0x0605	ScanJet 2200C
 product HP 5300C		0x0701	Scanjet 5300C
 product HP 4400C		0x0705	Scanjet 4400C
 product HP 82x0C		0x0b01	Scanjet 82x0C
-product HP 2300D 		0x0b17	Laserjet 2300d
+product HP 2300D		0x0b17	Laserjet 2300d
 product HP 970CSE		0x1004	Deskjet 970Cse
 product HP 5400C		0x1005	Scanjet 5400C
 product HP 2215			0x1016	iPAQ 22xx/Jornada 548
 product HP 568J			0x1116	Jornada 568
 product HP 930C			0x1204	DeskJet 930c
 product HP P2000U		0x1801	Inkjet P-2000U
+product HP HS2300		0x1e1d  HS2300 HSDPA (aka MC8775)
 product HP 640C			0x2004	DeskJet 640c
 product HP 4670V		0x3005	ScanJet 4670v
 product HP P1100		0x3102	Photosmart P1100
@@ -1795,7 +1796,10 @@ product NETGEAR3 WPN111_NF	0x5f01	WPN111 (no firmware)
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
-product NIKON D300		0x041a  Digital Camera D300
+product NIKON D300		0x041a	Digital Camera D300
+
+/* Nokia products */
+product NOKIA N958GB		0x0070	Nokia N95 8GBc
 
 /* NovaTech Products */
 product NOVATECH NV902		0x9020	NovaTech NV-902W
@@ -2035,7 +2039,7 @@ product SANDISK SDCZ4_128	0x7112	Cruzer Micro 128MB
 product SANDISK SDCZ4_256	0x7113	Cruzer Micro 256MB
 
 /* Sanyo Electric products */
-product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
+product SANYO SCP4900		0x0701	Sanyo SCP-4900 USB Phone
 
 /* ScanLogic products */
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
@@ -2076,7 +2080,7 @@ product SHUTTLE EUSBORCA	0x0325	eUSB ORCA Quad Reader
 product SIEMENS SPEEDSTREAM	0x1001	SpeedStream
 product SIEMENS SPEEDSTREAM22	0x1022	SpeedStream 1022
 product SIEMENS2 WLL013		0x001b	WLL013
-product SIEMENS2 ES75		0x0034  GSM module MC35
+product SIEMENS2 ES75		0x0034	GSM module MC35
 product SIEMENS2 WL54G		0x3c06	54g USB Network Adapter
 product SIEMENS3 SX1		0x0001	SX1
 product SIEMENS3 X65		0x0003	X65
