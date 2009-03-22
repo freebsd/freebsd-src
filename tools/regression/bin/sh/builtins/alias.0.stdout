@@ -1,3 +1,4 @@
-foo=bar
 bar=''
+foo=bar
 quux='1 2 3'
+foo=bar
