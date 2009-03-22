@@ -257,6 +257,8 @@
     ..
     openssl
     ..
+    pcap
+    ..
     protocols
     ..
     readline
