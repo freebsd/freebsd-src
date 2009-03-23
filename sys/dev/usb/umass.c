@@ -1872,6 +1872,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 {
 	struct umass_softc *sc = (struct umass_softc *) priv;
 	usbd_xfer_handle next_xfer;
+	int Residue;
 
 	KASSERT(sc->proto & UMASS_PROTO_BBB,
 		("%s: umass_bbb_state: wrong sc->proto 0x%02x\n",
@@ -2056,10 +2057,8 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 				USETDW(sc->csw.dCSWSignature, CSWSIGNATURE);
 		}
 
-		int Residue;
 		Residue = UGETDW(sc->csw.dCSWDataResidue);
-		if (Residue == 0 &&
-		    sc->transfer_datalen - sc->transfer_actlen != 0)
+		if (Residue == 0 || (sc->quirks & IGNORE_RESIDUE))
 			Residue = sc->transfer_datalen - sc->transfer_actlen;
 
 		/* Check CSW and handle any error */
