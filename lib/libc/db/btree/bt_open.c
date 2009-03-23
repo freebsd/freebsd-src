@@ -96,7 +96,7 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 	DB *dbp;
 	pgno_t ncache;
 	ssize_t nr;
-	int machine_lorder;
+	int machine_lorder, saved_errno;
 
 	t = NULL;
 
@@ -327,13 +327,15 @@ einval:	errno = EINVAL;
 eftype:	errno = EFTYPE;
 	goto err;
 
-err:	if (t) {
+err:	saved_errno = errno;
+	if (t) {
 		if (t->bt_dbp)
 			free(t->bt_dbp);
 		if (t->bt_fd != -1)
 			(void)_close(t->bt_fd);
 		free(t);
 	}
+	errno = saved_errno;
 	return (NULL);
 }
 
