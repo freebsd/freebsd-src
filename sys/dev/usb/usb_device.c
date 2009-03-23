@@ -628,7 +628,7 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 	DPRINTF("udev=%p cdesc=%p (addr %d) cno=%d attr=0x%02x, "
 	    "selfpowered=%d, power=%d\n",
 	    udev, cdp,
-	    cdp->bConfigurationValue, udev->address, cdp->bmAttributes,
+	    udev->address, cdp->bConfigurationValue, cdp->bmAttributes,
 	    selfpowered, cdp->bMaxPower * 2);
 
 	/* Check if we have enough power. */
