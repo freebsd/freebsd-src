@@ -26,7 +26,7 @@ display_usage () {
   echo "  -h  Display more complete help"
   echo '  -i  Automatically install files that do not exist in destination directory'
   echo '  -p  Pre-buildworld mode, only compares crucial files'
-  echo '  -F  Install files that differ only by revision control Id ($FreeBSD$)'
+  echo '  -F  Install files that differ only by revision control Id ($FreeBSD)'
   echo '  -C  Compare local rc.conf variables to the defaults'
   echo '  -P  Preserve files that are overwritten'
   echo "  -U  Attempt to auto upgrade files that have not been user modified"
