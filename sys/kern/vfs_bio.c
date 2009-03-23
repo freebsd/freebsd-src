@@ -125,10 +125,10 @@ static long bufspace;
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 SYSCTL_PROC(_vfs, OID_AUTO, bufspace, CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RD,
-    &bufspace, 0, sysctl_bufspace, "L", "KVA memory used for bufs");
+    &bufspace, 0, sysctl_bufspace, "L", "Virtual memory used for buffers");
 #else
 SYSCTL_LONG(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
-    "KVA memory used for bufs");
+    "Virtual memory used for buffers");
 #endif
 static long maxbufspace;
 SYSCTL_LONG(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
