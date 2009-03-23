@@ -365,8 +365,8 @@ cxgb_controller_probe(device_t dev)
 }
 
 #define FW_FNAME "cxgb_t3fw"
-#define TPEEPROM_NAME "t3%c_tp_eeprom"
-#define TPSRAM_NAME "t3%c_protocol_sram"
+#define TPEEPROM_NAME "cxgb_t3%c_tp_eeprom"
+#define TPSRAM_NAME "cxgb_t3%c_protocol_sram"
 
 static int
 upgrade_fw(adapter_t *sc)
@@ -1292,10 +1292,8 @@ void t3_os_link_fault_handler(struct adapter *sc, int port_id)
 {
 	struct port_info *pi = &sc->port[port_id];
 
-	ADAPTER_LOCK(sc);
 	pi->link_fault = 1;
 	taskqueue_enqueue(sc->tq, &pi->link_fault_task);
-	ADAPTER_UNLOCK(sc);
 }
 
 void
@@ -1595,8 +1593,9 @@ update_tpeeprom(struct adapter *adap)
 
 	tpeeprom = firmware_get(name);
 	if (tpeeprom == NULL) {
-		device_printf(adap->dev, "could not load TP EEPROM: unable to load %s\n",
-		    TPEEPROM_NAME);
+		device_printf(adap->dev,
+			      "could not load TP EEPROM: unable to load %s\n",
+			      name);
 		return;
 	}
 
@@ -1607,7 +1606,9 @@ update_tpeeprom(struct adapter *adap)
 		goto release_tpeeprom;
 
 	if (len != TP_SRAM_LEN) {
-		device_printf(adap->dev, "%s length is wrong len=%d expected=%d\n", TPEEPROM_NAME, len, TP_SRAM_LEN);
+		device_printf(adap->dev,
+			      "%s length is wrong len=%d expected=%d\n", name,
+			      len, TP_SRAM_LEN);
 		return;
 	}
 	
@@ -1619,7 +1620,8 @@ update_tpeeprom(struct adapter *adap)
 			"Protocol SRAM image updated in EEPROM to %d.%d.%d\n",
 			 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
 	} else 
-		device_printf(adap->dev, "Protocol SRAM image update in EEPROM failed\n");
+		device_printf(adap->dev,
+			      "Protocol SRAM image update in EEPROM failed\n");
 
 release_tpeeprom:
 	firmware_put(tpeeprom, FIRMWARE_UNLOAD);
@@ -2571,7 +2573,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			mmd = mid->phy_id >> 8;
 			if (!mmd)
 				mmd = MDIO_DEV_PCS;
-			else if (mmd > MDIO_DEV_XGXS)
+			else if (mmd > MDIO_DEV_VEND2)
 				return (EINVAL);
 
 			error = phy->mdio_read(sc, mid->phy_id & 0x1f, mmd,
@@ -2593,7 +2595,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			mmd = mid->phy_id >> 8;
 			if (!mmd)
 				mmd = MDIO_DEV_PCS;
-			else if (mmd > MDIO_DEV_XGXS)
+			else if (mmd > MDIO_DEV_VEND2)
 				return (EINVAL);
 			
 			error = phy->mdio_write(sc, mid->phy_id & 0x1f,
