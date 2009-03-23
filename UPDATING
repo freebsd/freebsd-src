@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090323:	p4	FreeBSD-SA-09:06.ktimer, FreeBSD-EN-09:01.kenv
+	Correctly sanity-check timer IDs. [SA-09:06]
+
+	Limit the size of malloced buffer when dumping environment
+	variables. [EN-09:01]
+
 20090216:	p3	FreeBSD-SA-09:05.telnetd
 	Correctly scrub telnetd's environment.
 
