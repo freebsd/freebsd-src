@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,12 +66,14 @@ wakeup_start:
 	mov	%ax, %ds		/* are offsets rather than selectors */
 	mov	%ax, %ss
 	movw	$PAGE_SIZE - 8, %sp
-	pushw	$0
+	xorw	%ax, %ax
+	pushw	%ax
 	popfw
 
 	/* To debug resume hangs, beep the speaker if the user requested. */
-	cmpw	$0, resume_beep - wakeup_start
-	je	1f
+	testb	$~0, resume_beep - wakeup_start
+	jz	1f
+	movb	$0, resume_beep - wakeup_start
 	movb	$0xc0, %al
 	outb	%al, $0x42
 	movb	$0x04, %al
@@ -79,22 +81,16 @@ wakeup_start:
 	inb	$0x61, %al
 	orb	$0x3, %al
 	outb	%al, $0x61
-	movw	$0, resume_beep - wakeup_start
 1:
 
 	/* Re-initialize video BIOS if the reset_video tunable is set. */
-	cmpw	$0, reset_video - wakeup_start
-	je	1f
+	testb	$~0, reset_video - wakeup_start
+	jz	1f
+	movb	$0, reset_video - wakeup_start
 	lcall	$0xc000, $3
-	movw	$0, reset_video - wakeup_start
 
-	/*
-	 * Set up segment registers for real mode again in case the
-	 * previous BIOS call clobbers them.
-	 */
-	mov	%cs, %ax
-	mov	%ax, %ds
-	mov	%ax, %ss
+	/* Re-start in case the previous BIOS call clobbers them. */
+	jmp	wakeup_start
 1:
 
 	/*
@@ -204,6 +200,7 @@ wakeup_sw64:
 	 * space. Remember that jmp is relative and that we've been relocated,
 	 * so use an indirect jump.
 	 */
+	ALIGN_TEXT
 	.code64
 wakeup_64:
 	mov	$bootdata64 - bootgdt, %eax
@@ -214,6 +211,13 @@ wakeup_64:
 	movq	wakeup_kpml4 - wakeup_start(%rbx), %rsi
 	movq	wakeup_retaddr - wakeup_start(%rbx), %rax
 	jmp	*%rax
+
+	.data
+
+resume_beep:
+	.byte	0
+reset_video:
+	.byte	0
 
 	ALIGN_DATA
 bootgdt:
@@ -245,10 +249,6 @@ bootgdtdesc:
 	.long	bootgdt - wakeup_start	/* Offset plus %ds << 4 */
 
 	ALIGN_DATA
-resume_beep:
-	.long	0
-reset_video:
-	.long	0
 wakeup_retaddr:
 	.quad	0
 wakeup_kpml4:

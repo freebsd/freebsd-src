@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/smp.h>
-#include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <vm/vm.h>
@@ -67,8 +66,8 @@ CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-extern uint32_t		acpi_resume_beep;
-extern uint32_t		acpi_reset_video;
+extern int		acpi_resume_beep;
+extern int		acpi_reset_video;
 
 #ifdef SMP
 extern struct xpcb	*stopxpcbs;
@@ -280,8 +279,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		}
 #endif
 
-		WAKECODE_FIXUP(resume_beep, uint32_t, acpi_resume_beep);
-		WAKECODE_FIXUP(reset_video, uint32_t, acpi_reset_video);
+		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
+		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 		WAKECODE_FIXUP(wakeup_xpcb, struct xpcb *, &stopxpcbs[0]);
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t,
@@ -309,13 +308,11 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			ia32_pause();
 	} else {
 		fpusetregs(curthread, stopfpu);
-
-		WAKECODE_FIXUP(resume_beep, uint32_t, 0);
-		WAKECODE_FIXUP(reset_video, uint32_t, 0);
 #ifdef SMP
 		if (wakeup_cpus != 0)
 			acpi_wakeup_cpus(sc, wakeup_cpus);
 #endif
+		acpi_resync_clock(sc);
 		ret = 0;
 	}
 
