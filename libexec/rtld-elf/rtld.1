@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2008
+.Dd March 23, 2009
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -115,6 +115,11 @@ If set, disables the use of
 .Xr libmap.conf 5
 and
 .Ev LD_LIBMAP .
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_ELF_HINTS_PATH
+This variable will override the default location of
+.Dq hints
+file.
 This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
