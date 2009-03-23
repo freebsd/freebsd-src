@@ -1085,7 +1085,8 @@ itimer_find(struct proc *p, int timerid)
 	struct itimer *it;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_itimers == NULL) || (timerid >= TIMER_MAX) ||
+	if ((p->p_itimers == NULL) ||
+	    (timerid < 0) || (timerid >= TIMER_MAX) ||
 	    (it = p->p_itimers->its_timers[timerid]) == NULL) {
 		return (NULL);
 	}
