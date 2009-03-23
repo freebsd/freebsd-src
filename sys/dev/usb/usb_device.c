@@ -2265,35 +2265,34 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 		return;
 
 	/* String it all together. */
-	if (udev->parent_hub) {
-		snprintf(data, 1024,
-		    "%s"
-		    "%s "
-		    "vendor=0x%04x "
-		    "product=0x%04x "
-		    "devclass=0x%02x "
-		    "devsubclass=0x%02x "
-		    "sernum=\"%s\" "
-		    "at "
-		    "port=%u "
-		    "on "
-		    "%s\n",
-		    type,
-		    udev->ugen_name,
-		    UGETW(udev->ddesc.idVendor),
-		    UGETW(udev->ddesc.idProduct),
-		    udev->ddesc.bDeviceClass,
-		    udev->ddesc.bDeviceSubClass,
+	snprintf(data, 1024,
+	    "%s"
+	    "%s "
+	    "vendor=0x%04x "
+	    "product=0x%04x "
+	    "devclass=0x%02x "
+	    "devsubclass=0x%02x "
+	    "sernum=\"%s\" "
+	    "at "
+	    "port=%u "
+	    "on "
+	    "%s\n",
+	    type,
+	    udev->ugen_name,
+	    UGETW(udev->ddesc.idVendor),
+	    UGETW(udev->ddesc.idProduct),
+	    udev->ddesc.bDeviceClass,
+	    udev->ddesc.bDeviceSubClass,
 #if USB_HAVE_STRINGS
-		    udev->serial,
+	    udev->serial,
 #else
-		    "",
+	    "",
 #endif
-		    udev->port_no,
-		    udev->parent_hub != NULL ?
-		        udev->parent_hub->ugen_name :
-		        device_get_nameunit(device_get_parent(udev->bus->bdev)));
-	}
+	    udev->port_no,
+	    udev->parent_hub != NULL ?
+		udev->parent_hub->ugen_name :
+		device_get_nameunit(device_get_parent(udev->bus->bdev)));
+
 	devctl_queue_data(data);
 }
 
