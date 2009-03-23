@@ -404,6 +404,9 @@
 #ifndef PCIM_CMD_MWIEN
 #define	PCIM_CMD_MWIEN			0x0010
 #endif
+#ifndef PCIM_CMD_INTxDIS
+#define	PCIM_CMD_INTxDIS		0x0400
+#endif
 
 /*
  * High priority mailbox registers
