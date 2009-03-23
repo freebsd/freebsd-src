@@ -254,6 +254,12 @@ TUNABLE_INT("debug.acpi.do_powerstate", &acpi_do_powerstate);
 SYSCTL_INT(_debug_acpi, OID_AUTO, do_powerstate, CTLFLAG_RW,
     &acpi_do_powerstate, 1, "Turn off devices when suspending.");
 
+/* Reset system clock while resuming.  XXX Remove once tested. */
+static int acpi_reset_clock = 1;
+TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
+SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
+    &acpi_reset_clock, 1, "Reset system clock while resuming.");
+
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
 
@@ -2596,10 +2602,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 
     mtx_unlock(&Giant);
 
-    /* Warm up timecounter again */
-    (void)timecounter->tc_get_timecount(timecounter);
-    (void)timecounter->tc_get_timecount(timecounter);
-
 #ifdef SMP
     thread_lock(curthread);
     sched_unbind(curthread);
@@ -2615,6 +2617,21 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	acpi_UserNotify("Resume", ACPI_ROOT_OBJECT, state);
 
     return_ACPI_STATUS (status);
+}
+
+void
+acpi_resync_clock(struct acpi_softc *sc)
+{
+
+    if (!acpi_reset_clock)
+	return;
+
+    /*
+     * Warm up timecounter again and reset system clock.
+     */
+    (void)timecounter->tc_get_timecount(timecounter);
+    (void)timecounter->tc_get_timecount(timecounter);
+    inittodr(time_second + sc->acpi_sleep_delay);
 }
 
 /* Initialize a device's wake GPE. */
