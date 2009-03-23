@@ -162,6 +162,7 @@ static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
 				   load first */
+static char *ld_elf_hints_path;	/* Environment variable for alternative hints path */
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
@@ -370,16 +371,22 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
         unsetenv(LD_ "LIBRARY_PATH");
         unsetenv(LD_ "LIBMAP_DISABLE");
         unsetenv(LD_ "DEBUG");
+        unsetenv(LD_ "ELF_HINTS_PATH");
     }
     ld_debug = getenv(LD_ "DEBUG");
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
     libmap_override = getenv(LD_ "LIBMAP");
     ld_library_path = getenv(LD_ "LIBRARY_PATH");
     ld_preload = getenv(LD_ "PRELOAD");
+    ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
-	(ld_library_path != NULL) || (ld_preload != NULL);
+	(ld_library_path != NULL) || (ld_preload != NULL) ||
+	(ld_elf_hints_path != NULL);
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
     ld_utrace = getenv(LD_ "UTRACE");
+
+    if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
+	ld_elf_hints_path = _PATH_ELF_HINTS;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -1240,7 +1247,7 @@ gethints(void)
 	/* Keep from trying again in case the hints file is bad. */
 	hints = "";
 
-	if ((fd = open(_PATH_ELF_HINTS, O_RDONLY)) == -1)
+	if ((fd = open(ld_elf_hints_path, O_RDONLY)) == -1)
 	    return NULL;
 	if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
 	  hdr.magic != ELFHINTS_MAGIC ||
