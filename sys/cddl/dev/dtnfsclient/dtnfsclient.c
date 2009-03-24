@@ -44,11 +44,13 @@ __FBSDID("$FreeBSD$");
 
 /*
  * dtnfsclient is a DTrace provider that tracks the intent to perform RPCs
- * in the NFS client.  This is not quite the same as RPCs, because NFS may
+ * in the NFS client, as well as acess to and maintenance of the access and
+ * attribute caches.  This is not quite the same as RPCs, because NFS may
  * issue multiple RPC transactions in the event that authentication fails,
- * there's a jukebox error, etc.  However, it cleanly represents the logical
- * layer between RPC transmission and vnode/vfs operations, providing access
- * to state linking the two.
+ * there's a jukebox error, or none at all if the access or attribute cache
+ * hits.  However, it cleanly represents the logical layer between RPC
+ * transmission and vnode/vfs operations, providing access to state linking
+ * the two.
  */
 
 static int	dtnfsclient_unload(void);
@@ -68,6 +70,9 @@ static dtrace_pattr_t dtnfsclient_attr = {
 { DTRACE_STABILITY_STABLE, DTRACE_STABILITY_STABLE, DTRACE_CLASS_COMMON },
 };
 
+/*
+ * Descrition of NFSv3 and (optional) NFSv2 probes for a procedure.
+ */
 struct dtnfsclient_rpc {
 	char		*nr_v3_name;
 	char		*nr_v2_name;	/* Or NULL if none. */
@@ -109,11 +114,28 @@ static struct dtnfsclient_rpc	dtnfsclient_rpcs[NFS_NPROCS] = {
 	{ "noop" },
 };
 
-static char	*dtnfsclient_v2modulename = "nfs2";
-static char	*dtnfsclient_v3modulename = "nfs3";
+/*
+ * Module name strings.
+ */
+static char	*dtnfsclient_accesscache_str = "accesscache";
+static char	*dtnfsclient_attrcache_str = "attrcache";
+static char	*dtnfsclient_nfs2_str = "nfs2";
+static char	*dtnfsclient_nfs3_str = "nfs3";
 
-static char	*dtnfsclient_start = "start";
-static char	*dtnfsclient_done = "done";
+/*
+ * Function name strings.
+ */
+static char	*dtnfsclient_flush_str = "flush";
+static char	*dtnfsclient_load_str = "load";
+static char	*dtnfsclient_get_str = "get";
+
+/*
+ * Name strings.
+ */
+static char	*dtnfsclient_done_str = "done";
+static char	*dtnfsclient_hit_str = "hit";
+static char	*dtnfsclient_miss_str = "miss";
+static char	*dtnfsclient_start_str = "start";
 
 static dtrace_pops_t dtnfsclient_pops = {
 	dtnfsclient_provide,
@@ -131,7 +153,22 @@ static dtrace_pops_t dtnfsclient_pops = {
 static dtrace_provider_id_t	dtnfsclient_id;
 
 /*
- * When tracing on a procedure is enabled, the DTrace ID for the event is
+ * Most probes are generated from the above RPC table, but for access and
+ * attribute caches, we have specific IDs we recognize and handle specially
+ * in various spots.
+ */
+extern uint32_t	nfsclient_accesscache_flush_done_id;
+extern uint32_t	nfsclient_accesscache_get_hit_id;
+extern uint32_t	nfsclient_accesscache_get_miss_id;
+extern uint32_t	nfsclient_accesscache_load_done_id;
+
+extern uint32_t	nfsclient_attrcache_flush_done_id;
+extern uint32_t	nfsclient_attrcache_get_hit_id;
+extern uint32_t	nfsclient_attrcache_get_miss_id;
+extern uint32_t	nfsclient_attrcache_load_done_id;
+
+/*
+ * When tracing on a procedure is enabled, the DTrace ID for an RPC event is
  * stored in one of these two NFS client-allocated arrays; 0 indicates that
  * the event is not being traced so probes should not be called.
  *
@@ -167,28 +204,102 @@ dtnfsclient_getargdesc(void *arg, dtrace_id_t id, void *parg,
 {
 	const char *p = NULL;
 
-	switch (desc->dtargd_ndx) {
-	case 0:
-		p = "struct vnode *";
-		break;
-	case 1:
-		p = "struct mbuf *";
-		break;
-	case 2:
-		p = "struct ucred *";
-		break;
-	case 3:
-		p = "int";
-		break;
-	case 4:
-		if (dtnfs23_isdoneprobe(id)) {
-			p = "int";
+	if (id == nfsclient_accesscache_flush_done_id ||
+	    id == nfsclient_attrcache_flush_done_id ||
+	    id == nfsclient_attrcache_get_miss_id) {
+		switch (desc->dtargd_ndx) {
+		case 0:
+			p = "struct vnode *";
+			break;
+		default:
+			desc->dtargd_ndx = DTRACE_ARGNONE;
 			break;
 		}
-		/* FALLSTHROUGH */
-	default:
-		desc->dtargd_ndx = DTRACE_ARGNONE;
-		break;
+	} else if (id == nfsclient_accesscache_get_hit_id ||
+	    id == nfsclient_accesscache_get_miss_id) {
+		switch (desc->dtargd_ndx) {
+		case 0:
+			p = "struct vnode *";
+			break;
+		case 1:
+			p = "uid_t";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		default:
+			desc->dtargd_ndx = DTRACE_ARGNONE;
+			break;
+		}
+	} else if (id == nfsclient_accesscache_load_done_id) {
+		switch (desc->dtargd_ndx) {
+		case 0:
+			p = "struct vnode *";
+			break;
+		case 1:
+			p = "uid_t";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			desc->dtargd_ndx = DTRACE_ARGNONE;
+			break;
+		}
+	} else if (id == nfsclient_attrcache_get_hit_id) {
+		switch (desc->dtargd_ndx) {
+		case 0:
+			p = "struct vnode *";
+			break;
+		case 1:
+			p = "struct vattr *";
+			break;
+		default:
+			desc->dtargd_ndx = DTRACE_ARGNONE;
+			break;
+		}
+	} else if (id == nfsclient_attrcache_load_done_id) {
+		switch (desc->dtargd_ndx) {
+		case 0:
+			p = "struct vnode *";
+			break;
+		case 1:
+			p = "struct vattr *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			desc->dtargd_ndx = DTRACE_ARGNONE;
+			break;
+		}
+	} else {
+		switch (desc->dtargd_ndx) {
+		case 0:
+			p = "struct vnode *";
+			break;
+		case 1:
+			p = "struct mbuf *";
+			break;
+		case 2:
+			p = "struct ucred *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			if (dtnfs23_isdoneprobe(id)) {
+				p = "int";
+				break;
+			}
+			/* FALLSTHROUGH */
+		default:
+			desc->dtargd_ndx = DTRACE_ARGNONE;
+			break;
+		}
 	}
 	if (p != NULL)
 		strlcpy(desc->dtargd_native, p, sizeof(desc->dtargd_native));
@@ -203,56 +314,112 @@ dtnfsclient_provide(void *arg, dtrace_probedesc_t *desc)
 		return;
 
 	/*
-	 * First, register NFSv2 RPC procedures; note sparseness check for
-	 * each slot in the NFSv3 procnum-indexed array.
+	 * Register access cache probes.
+	 */
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_accesscache_str,
+	    dtnfsclient_flush_str, dtnfsclient_done_str) == 0) {
+		nfsclient_accesscache_flush_done_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_accesscache_str,
+		    dtnfsclient_flush_str, dtnfsclient_done_str, 0, NULL);
+	}
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_accesscache_str,
+	    dtnfsclient_get_str, dtnfsclient_hit_str) == 0) {
+		nfsclient_accesscache_get_hit_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_accesscache_str,
+		    dtnfsclient_get_str, dtnfsclient_hit_str, 0, NULL);
+	}
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_accesscache_str,
+	    dtnfsclient_get_str, dtnfsclient_miss_str) == 0) {
+		nfsclient_accesscache_get_miss_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_accesscache_str,
+		    dtnfsclient_get_str, dtnfsclient_miss_str, 0, NULL);
+	}
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_accesscache_str,
+	    dtnfsclient_load_str, dtnfsclient_done_str) == 0) {
+		nfsclient_accesscache_load_done_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_accesscache_str,
+		    dtnfsclient_load_str, dtnfsclient_done_str, 0, NULL);
+	}
+
+	/*
+	 * Register attribute cache probes.
+	 */
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_attrcache_str,
+	    dtnfsclient_flush_str, dtnfsclient_done_str) == 0) {
+		nfsclient_attrcache_flush_done_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_attrcache_str,
+		    dtnfsclient_flush_str, dtnfsclient_done_str, 0, NULL);
+	}
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_attrcache_str,
+	    dtnfsclient_get_str, dtnfsclient_hit_str) == 0) {
+		nfsclient_attrcache_get_hit_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_attrcache_str,
+		    dtnfsclient_get_str, dtnfsclient_hit_str, 0, NULL);
+	}
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_attrcache_str,
+	    dtnfsclient_get_str, dtnfsclient_miss_str) == 0) {
+		nfsclient_attrcache_get_miss_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_attrcache_str,
+		    dtnfsclient_get_str, dtnfsclient_miss_str, 0, NULL);
+	}
+	if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_attrcache_str,
+	    dtnfsclient_load_str, dtnfsclient_done_str) == 0) {
+		nfsclient_attrcache_load_done_id = dtrace_probe_create(
+		    dtnfsclient_id, dtnfsclient_attrcache_str,
+		    dtnfsclient_load_str, dtnfsclient_done_str, 0, NULL);
+	}
+
+	/*
+	 * Register NFSv2 RPC procedures; note sparseness check for each slot
+	 * in the NFSv3 procnum-indexed array.
 	 */
 	for (i = 0; i < NFS_NPROCS; i++) {
 		if (dtnfsclient_rpcs[i].nr_v2_name != NULL &&
-		    dtrace_probe_lookup(dtnfsclient_id,
-		    dtnfsclient_v2modulename, dtnfsclient_rpcs[i].nr_v2_name,
-		    dtnfsclient_start) == 0) {
+		    dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs2_str,
+		    dtnfsclient_rpcs[i].nr_v2_name, dtnfsclient_start_str) ==
+		    0) {
 			dtnfsclient_rpcs[i].nr_v2_id_start =
 			    dtrace_probe_create(dtnfsclient_id,
-			    dtnfsclient_v2modulename,
+			    dtnfsclient_nfs2_str,
 			    dtnfsclient_rpcs[i].nr_v2_name,
-			    dtnfsclient_start, 0,
+			    dtnfsclient_start_str, 0,
 			    &nfsclient_nfs2_start_probes[i]);
 		}
 		if (dtnfsclient_rpcs[i].nr_v2_name != NULL &&
-		    dtrace_probe_lookup(dtnfsclient_id,
-		    dtnfsclient_v2modulename, dtnfsclient_rpcs[i].nr_v2_name,
-		    dtnfsclient_done) == 0) {
+		    dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs2_str,
+		    dtnfsclient_rpcs[i].nr_v2_name, dtnfsclient_done_str) ==
+		    0) {
 			dtnfsclient_rpcs[i].nr_v2_id_done = 
 			    dtrace_probe_create(dtnfsclient_id,
-			    dtnfsclient_v2modulename,
+			    dtnfsclient_nfs2_str,
 			    dtnfsclient_rpcs[i].nr_v2_name,
-			    dtnfsclient_done, 0,
+			    dtnfsclient_done_str, 0,
 			    &nfsclient_nfs2_done_probes[i]);
 		}
 	}
 
 	/*
-	 * Now, register NFSv3 RPC procedures.
+	 * Register NFSv3 RPC procedures.
 	 */
 	for (i = 0; i < NFS_NPROCS; i++) {
-		if (dtrace_probe_lookup(dtnfsclient_id,
-		    dtnfsclient_v3modulename, dtnfsclient_rpcs[i].nr_v3_name,
-		    dtnfsclient_start) == 0) {
+		if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs3_str,
+		    dtnfsclient_rpcs[i].nr_v3_name, dtnfsclient_start_str) ==
+		    0) {
 			dtnfsclient_rpcs[i].nr_v3_id_start =
 			    dtrace_probe_create(dtnfsclient_id,
-			    dtnfsclient_v3modulename,
+			    dtnfsclient_nfs3_str,
 			    dtnfsclient_rpcs[i].nr_v3_name,
-			    dtnfsclient_start, 0,
+			    dtnfsclient_start_str, 0,
 			    &nfsclient_nfs3_start_probes[i]);
 		}
-		if (dtrace_probe_lookup(dtnfsclient_id,
-		    dtnfsclient_v3modulename, dtnfsclient_rpcs[i].nr_v3_name,
-		    dtnfsclient_done) == 0) {
+		if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs3_str,
+		    dtnfsclient_rpcs[i].nr_v3_name, dtnfsclient_done_str) ==
+		    0) {
 			dtnfsclient_rpcs[i].nr_v3_id_done = 
 			    dtrace_probe_create(dtnfsclient_id,
-			    dtnfsclient_v3modulename,
+			    dtnfsclient_nfs3_str,
 			    dtnfsclient_rpcs[i].nr_v3_name,
-			    dtnfsclient_done, 0,
+			    dtnfsclient_done_str, 0,
 			    &nfsclient_nfs3_done_probes[i]);
 		}
 	}
@@ -267,8 +434,26 @@ static void
 dtnfsclient_enable(void *arg, dtrace_id_t id, void *parg)
 {
 	uint32_t *p = parg;
+	void *f = dtrace_probe;
 
-	*p = id;
+	if (id == nfsclient_accesscache_flush_done_id)
+		dtrace_nfsclient_accesscache_flush_done_probe = f;
+	else if (id == nfsclient_accesscache_get_hit_id)
+		dtrace_nfsclient_accesscache_get_hit_probe = f;
+	else if (id == nfsclient_accesscache_get_miss_id)
+		dtrace_nfsclient_accesscache_get_miss_probe = f;
+	else if (id == nfsclient_accesscache_load_done_id)
+		dtrace_nfsclient_accesscache_load_done_probe = f;
+	else if (id == nfsclient_attrcache_flush_done_id)
+		dtrace_nfsclient_attrcache_flush_done_probe = f;
+	else if (id == nfsclient_attrcache_get_hit_id)
+		dtrace_nfsclient_attrcache_get_hit_probe = f;
+	else if (id == nfsclient_attrcache_get_miss_id)
+		dtrace_nfsclient_attrcache_get_miss_probe = f;
+	else if (id == nfsclient_attrcache_load_done_id)
+		dtrace_nfsclient_attrcache_load_done_probe = f;
+	else
+		*p = id;
 }
 
 static void
@@ -276,7 +461,24 @@ dtnfsclient_disable(void *arg, dtrace_id_t id, void *parg)
 {
 	uint32_t *p = parg;
 
-	*p = 0;
+	if (id == nfsclient_accesscache_flush_done_id)
+		dtrace_nfsclient_accesscache_flush_done_probe = NULL;
+	else if (id == nfsclient_accesscache_get_hit_id)
+		dtrace_nfsclient_accesscache_get_hit_probe = NULL;
+	else if (id == nfsclient_accesscache_get_miss_id)
+		dtrace_nfsclient_accesscache_get_miss_probe = NULL;
+	else if (id == nfsclient_accesscache_load_done_id)
+		dtrace_nfsclient_accesscache_load_done_probe = NULL;
+	else if (id == nfsclient_attrcache_flush_done_id)
+		dtrace_nfsclient_attrcache_flush_done_probe = NULL;
+	else if (id == nfsclient_attrcache_get_hit_id)
+		dtrace_nfsclient_attrcache_get_hit_probe = NULL;
+	else if (id == nfsclient_attrcache_get_miss_id)
+		dtrace_nfsclient_attrcache_get_miss_probe = NULL;
+	else if (id == nfsclient_attrcache_load_done_id)
+		dtrace_nfsclient_attrcache_load_done_probe = NULL;
+	else
+		*p = 0;
 }
 
 static void
