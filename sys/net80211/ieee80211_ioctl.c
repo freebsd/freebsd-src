@@ -63,9 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_input.h>
-#ifdef IEEE80211_SUPPORT_TDMA
-#include <net80211/ieee80211_tdma.h>
-#endif
 
 #define	IS_UP_AUTO(_vap) \
 	(IFNET_IS_UP_RUNNING(vap->iv_ifp) && \
@@ -752,6 +749,30 @@ ieee80211_ioctl_getstavlan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 }
 
 /*
+ * Dummy ioctl get handler so the linker set is defined.
+ */
+static int
+dummy_ioctl_get(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	return ENOSYS;
+}
+IEEE80211_IOCTL_GET(dummy, dummy_ioctl_get);
+
+static int
+ieee80211_ioctl_getdefault(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	ieee80211_ioctl_getfunc * const *get;
+	int error;
+
+	SET_FOREACH(get, ieee80211_ioctl_getset) {
+		error = (*get)(vap, ireq);
+		if (error != ENOSYS)
+			return error;
+	}
+	return EINVAL;
+}
+
+/*
  * When building the kernel with -O2 on the i386 architecture, gcc
  * seems to want to inline this function into ieee80211_ioctl()
  * (which is the only routine that calls it). When this happens,
@@ -1104,16 +1125,8 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			ireq->i_val =
 			    (vap->iv_flags_ext & IEEE80211_FEXT_RIFS) != 0;
 		break;
-#ifdef IEEE80211_SUPPORT_TDMA
-	case IEEE80211_IOC_TDMA_SLOT:
-	case IEEE80211_IOC_TDMA_SLOTCNT:
-	case IEEE80211_IOC_TDMA_SLOTLEN:
-	case IEEE80211_IOC_TDMA_BINTERVAL:
-		error = ieee80211_tdma_ioctl_get80211(vap, ireq);
-		break;
-#endif
 	default:
-		error = EINVAL;
+		error = ieee80211_ioctl_getdefault(vap, ireq);
 		break;
 	}
 	return error;
@@ -2476,6 +2489,30 @@ isvapht(const struct ieee80211vap *vap)
 	    IEEE80211_IS_CHAN_HT(bss->ni_chan);
 }
 
+/*
+ * Dummy ioctl set handler so the linker set is defined.
+ */
+static int
+dummy_ioctl_set(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	return ENOSYS;
+}
+IEEE80211_IOCTL_SET(dummy, dummy_ioctl_set);
+
+static int
+ieee80211_ioctl_setdefault(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	ieee80211_ioctl_setfunc * const *set;
+	int error;
+
+	SET_FOREACH(set, ieee80211_ioctl_setset) {
+		error = (*set)(vap, ireq);
+		if (error != ENOSYS)
+			return error;
+	}
+	return EINVAL;
+}
+
 static __noinline int
 ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211req *ireq)
 {
@@ -3131,16 +3168,8 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (isvapht(vap))
 			error = ERESTART;
 		break;
-#ifdef IEEE80211_SUPPORT_TDMA
-	case IEEE80211_IOC_TDMA_SLOT:
-	case IEEE80211_IOC_TDMA_SLOTCNT:
-	case IEEE80211_IOC_TDMA_SLOTLEN:
-	case IEEE80211_IOC_TDMA_BINTERVAL:
-		error = ieee80211_tdma_ioctl_set80211(vap, ireq);
-		break;
-#endif
 	default:
-		error = EINVAL;
+		error = ieee80211_ioctl_setdefault(vap, ireq);
 		break;
 	}
 	/*
