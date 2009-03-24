@@ -126,13 +126,16 @@ Boolean		is_posix;	/* .POSIX target seen */
 Boolean		mfAutoDeps;	/* .MAKEFILEDEPS target seen */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
+Boolean		beQuiet;	/* -Q flag */
 Boolean		compatMake;	/* -B argument */
 int		debug;		/* -d flag */
 Boolean		ignoreErrors;	/* -i flag */
 int		jobLimit;	/* -j argument */
+int		makeErrors;	/* Number of targets not remade due to errors */
 Boolean		jobsRunning;	/* TRUE if the jobs might be running */
 Boolean		keepgoing;	/* -k flag */
 Boolean		noExecute;	/* -n flag */
+Boolean		printGraphOnly;	/* -p flag */
 Boolean		queryFlag;	/* -q flag */
 Boolean		touchFlag;	/* -t flag */
 Boolean		usePipes;	/* !-P flag */
@@ -150,7 +153,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: make [-BPSXeiknqrstv] [-C directory] [-D variable]\n"
+	    "usage: make [-BPSXeiknpqrstv] [-C directory] [-D variable]\n"
 	    "\t[-d flags] [-E variable] [-f makefile] [-I directory]\n"
 	    "\t[-j max_jobs] [-m directory] [-V variable]\n"
 	    "\t[variable=value] [target ...]\n");
@@ -368,7 +371,7 @@ MainParseArgs(int argc, char **argv)
 rearg:
 	optind = 1;	/* since we're called more than once */
 	optreset = 1;
-#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nqrstvx:"
+#define OPTFLAGS "ABC:D:d:E:ef:I:ij:km:nPpQqrSstV:vXx:"
 	for (;;) {
 		if ((optind < argc) && strcmp(argv[optind], "--") == 0) {
 			found_dd = TRUE;
@@ -382,6 +385,11 @@ rearg:
 			arch_fatal = FALSE;
 			MFLAGS_append("-A", NULL);
 			break;
+		case 'B':
+			compatMake = TRUE;
+			MFLAGS_append("-B", NULL);
+			unsetenv("MAKE_JOBS_FIFO");
+			break;
 		case 'C':
 			if (chdir(optarg) == -1)
 				err(1, "chdir %s", optarg);
@@ -389,30 +397,6 @@ rearg:
 		case 'D':
 			Var_SetGlobal(optarg, "1");
 			MFLAGS_append("-D", optarg);
-			break;
-		case 'I':
-			Parse_AddIncludeDir(optarg);
-			MFLAGS_append("-I", optarg);
-			break;
-		case 'V':
-			Lst_AtEnd(&variables, estrdup(optarg));
-			MFLAGS_append("-V", optarg);
-			break;
-		case 'X':
-			expandVars = FALSE;
-			break;
-		case 'B':
-			compatMake = TRUE;
-			MFLAGS_append("-B", NULL);
-			unsetenv("MAKE_JOBS_FIFO");
-			break;
-		case 'P':
-			usePipes = FALSE;
-			MFLAGS_append("-P", NULL);
-			break;
-		case 'S':
-			keepgoing = FALSE;
-			MFLAGS_append("-S", NULL);
 			break;
 		case 'd': {
 			char *modules = optarg;
@@ -481,6 +465,10 @@ rearg:
 		case 'f':
 			Lst_AtEnd(&makefiles, estrdup(optarg));
 			break;
+		case 'I':
+			Parse_AddIncludeDir(optarg);
+			MFLAGS_append("-I", optarg);
+			break;
 		case 'i':
 			ignoreErrors = TRUE;
 			MFLAGS_append("-i", NULL);
@@ -510,6 +498,19 @@ rearg:
 			noExecute = TRUE;
 			MFLAGS_append("-n", NULL);
 			break;
+		case 'P':
+			usePipes = FALSE;
+			MFLAGS_append("-P", NULL);
+			break;
+		case 'p':
+			printGraphOnly = TRUE;
+			debug |= DEBUG_GRAPH1;
+			break;
+		case 'Q':
+			beQuiet = TRUE;
+			beVerbose = FALSE;
+			MFLAGS_append("-Q", NULL);
+			break;
 		case 'q':
 			queryFlag = TRUE;
 			/* Kind of nonsensical, wot? */
@@ -519,6 +520,10 @@ rearg:
 			noBuiltins = TRUE;
 			MFLAGS_append("-r", NULL);
 			break;
+		case 'S':
+			keepgoing = FALSE;
+			MFLAGS_append("-S", NULL);
+			break;
 		case 's':
 			beSilent = TRUE;
 			MFLAGS_append("-s", NULL);
@@ -527,9 +532,17 @@ rearg:
 			touchFlag = TRUE;
 			MFLAGS_append("-t", NULL);
 			break;
+		case 'V':
+			Lst_AtEnd(&variables, estrdup(optarg));
+			MFLAGS_append("-V", optarg);
+			break;
 		case 'v':
 			beVerbose = TRUE;
+			beQuiet = FALSE;
 			MFLAGS_append("-v", NULL);
+			break;
+		case 'X':
+			expandVars = FALSE;
 			break;
 		case 'x':
 			if (Main_ParseWarn(optarg, 1) != -1)
@@ -903,6 +916,7 @@ main(int argc, char **argv)
 	beSilent = FALSE;		/* Print commands as executed */
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
 	noExecute = FALSE;		/* Execute all commands */
+	printGraphOnly = FALSE;		/* Don't stop after printing graph */
 	keepgoing = FALSE;		/* Stop on error */
 	allPrecious = FALSE;		/* Remove targets when interrupted */
 	queryFlag = FALSE;		/* This is not just a check-run */
@@ -933,14 +947,13 @@ main(int argc, char **argv)
 #endif
 
 	/*
-	 * FreeBSD/pc98 kernel used to set the utsname.machine to
-	 * "i386", and MACHINE was defined as "i386", so it could
-	 * not be distinguished from FreeBSD/i386.  Therefore, we
-	 * had to check machine.ispc98 and adjust the MACHINE
-	 * variable.
-	 * NOTE: The code is still here to be able to compile new
-	 * make binary on old FreeBSD/pc98 systems, and have the
-	 * MACHINE variable set properly.
+	 * Prior to 7.0, FreeBSD/pc98 kernel used to set the
+	 * utsname.machine to "i386", and MACHINE was defined as
+	 * "i386", so it could not be distinguished from FreeBSD/i386.
+	 * Therefore, we had to check machine.ispc98 and adjust the
+	 * MACHINE variable.  NOTE: The code is still here to be able
+	 * to compile new make binary on old FreeBSD/pc98 systems, and
+	 * have the MACHINE variable set properly.
 	 */
 	if ((machine = getenv("MACHINE")) == NULL) {
 		int	ispc98;
@@ -1023,6 +1036,16 @@ main(int argc, char **argv)
 #ifdef MAKE_VERSION
 	Var_SetGlobal("MAKE_VERSION", MAKE_VERSION);
 #endif
+	Var_SetGlobal(".newline", "\n");	/* handy for :@ loops */
+	{
+		char tmp[64];
+
+		snprintf(tmp, sizeof(tmp), "%u", getpid());
+		Var_SetGlobal(".MAKE.PID", tmp);
+		snprintf(tmp, sizeof(tmp), "%u", getppid());
+		Var_SetGlobal(".MAKE.PPID", tmp);
+	}
+	Job_SetPrefix();
 
 	/*
 	 * First snag things out of the MAKEFLAGS environment
@@ -1243,7 +1266,7 @@ main(int argc, char **argv)
 		Targ_PrintGraph(1);
 
 	/* print the values of any variables requested by the user */
-	if (Lst_IsEmpty(&variables)) {
+	if (Lst_IsEmpty(&variables) && !printGraphOnly) {
 		/*
 		 * Since the user has not requested that any variables
 		 * be printed, we can build targets.
@@ -1306,9 +1329,11 @@ main(int argc, char **argv)
 	if (DEBUG(GRAPH2))
 		Targ_PrintGraph(2);
 
-	if (queryFlag && outOfDate)
-		return (1);
-	else
-		return (0);
-}
+	if (queryFlag)
+		return (outOfDate);
 
+	if (makeErrors != 0)
+		Finish(makeErrors);
+
+	return (0);
+}
