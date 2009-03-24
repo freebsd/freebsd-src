@@ -2134,7 +2134,6 @@ iwn_start_locked(struct ifnet *ifp)
 		if (iwn_tx_data(sc, m, ni, txq) != 0) {
 			ifp->if_oerrors++;
 			ieee80211_free_node(ni);
-			IWN_UNLOCK(sc);
 			break;
 		}
 	}
