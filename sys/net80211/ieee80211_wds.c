@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 static void wds_vattach(struct ieee80211vap *);
 static int wds_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -728,32 +731,13 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) &&
-#define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
-		    m->m_pkthdr.len >= 3*FF_LLC_SIZE) {
-			struct llc *llc;
-
-			/*
-			 * Check for fast-frame tunnel encapsulation.
-			 */
-			if (m->m_len < FF_LLC_SIZE &&
-			    (m = m_pullup(m, FF_LLC_SIZE)) == NULL) {
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-				    ni->ni_macaddr, "fast-frame",
-				    "%s", "m_pullup(llc) failed");
-				vap->iv_stats.is_rx_tooshort++;
+		} else {
+#ifdef IEEE80211_SUPPORT_SUPERG
+			m = ieee80211_decap_fastframe(vap, ni, m);
+			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-			}
-			llc = (struct llc *)(mtod(m, uint8_t *) + 
-				sizeof(struct ether_header));
-			if (llc->llc_snap.ether_type == htons(ATH_FF_ETH_TYPE)) {
-				m_adj(m, FF_LLC_SIZE);
-				m = ieee80211_decap_fastframe(ni, m);
-				if (m == NULL)
-					return IEEE80211_FC0_TYPE_DATA;
-			}
+#endif
 		}
-#undef FF_LLC_SIZE
 		ieee80211_deliver_data(vap, ni, m);
 		return IEEE80211_FC0_TYPE_DATA;
 
