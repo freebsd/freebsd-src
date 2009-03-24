@@ -602,7 +602,7 @@ dirloop:
 			if ((dp->v_vflag & VV_ROOT) == 0)
 				break;
 			if (dp->v_iflag & VI_DOOMED) {	/* forced unmount */
-				error = EBADF;
+				error = ENOENT;
 				goto bad;
 			}
 			tdp = dp;
@@ -764,9 +764,11 @@ unionlookup:
 	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
 		if (dp->v_iflag & VI_DOOMED) {
-			/* We can't know whether the directory was mounted with
-			 * NOSYMFOLLOW, so we can't follow safely. */
-			error = EBADF;
+			/*
+			 * We can't know whether the directory was mounted with
+			 * NOSYMFOLLOW, so we can't follow safely.
+			 */
+			error = ENOENT;
 			goto bad2;
 		}
 		if (dp->v_mount->mnt_flag & MNT_NOSYMFOLLOW) {
