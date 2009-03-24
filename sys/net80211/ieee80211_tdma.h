@@ -65,9 +65,4 @@ uint8_t *ieee80211_add_tdma(uint8_t *frm, struct ieee80211vap *vap);
 struct ieee80211_beacon_offsets;
 void	ieee80211_tdma_update_beacon(struct ieee80211vap *vap,
 	    struct ieee80211_beacon_offsets *bo);
-struct ieee80211req;
-int	ieee80211_tdma_ioctl_get80211(struct ieee80211vap *vap,
-	    struct ieee80211req *ireq);
-int	ieee80211_tdma_ioctl_set80211(struct ieee80211vap *vap,
-	    struct ieee80211req *ireq);
 #endif /* !_NET80211_IEEE80211_TDMA_H_ */

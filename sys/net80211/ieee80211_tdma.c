@@ -705,9 +705,8 @@ ieee80211_tdma_update_beacon(struct ieee80211vap *vap,
 		ts->tdma_count--;
 }
 
-int
-ieee80211_tdma_ioctl_get80211(struct ieee80211vap *vap,
-	struct ieee80211req *ireq)
+static int
+tdma_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
@@ -728,14 +727,14 @@ ieee80211_tdma_ioctl_get80211(struct ieee80211vap *vap,
 		ireq->i_val = ts->tdma_bintval;
 		break;
 	default:
-		return EINVAL;
+		return ENOSYS;
 	}
 	return 0;
 }
+IEEE80211_IOCTL_GET(tdma, tdma_ioctl_get80211);
 
-int
-ieee80211_tdma_ioctl_set80211(struct ieee80211vap *vap,
-	struct ieee80211req *ireq)
+static int
+tdma_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
@@ -782,7 +781,8 @@ ieee80211_tdma_ioctl_set80211(struct ieee80211vap *vap,
 		}
 		break;
 	default:
-		return EINVAL;
+		return ENOSYS;
 	}
 	return 0;
 }
+IEEE80211_IOCTL_SET(tdma, tdma_ioctl_set80211);
