@@ -271,6 +271,7 @@ int	bkgrdflag;		/* use a snapshot to run on an active system */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
 char	damagedflag;		/* run in damaged mode */
+char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
 int	bkgrdcheck;		/* determine if background check is possible */
 int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
