@@ -3451,7 +3451,6 @@ igmp_intr(struct mbuf *m)
 	error = ip_output(m0, ipopts, NULL, 0, &imo, NULL);
 	if (error) {
 		CTR3(KTR_IGMPV3, "%s: ip_output(%p) = %d", __func__, m0, error);
-		m_freem(m0);
 		goto out;
 	}
 
