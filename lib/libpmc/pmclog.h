@@ -33,6 +33,7 @@
 #ifndef	_PMCLOG_H_
 #define	_PMCLOG_H_
 
+#include <sys/cdefs.h>
 #include <sys/pmclog.h>
 
 enum pmclog_state {
@@ -158,10 +159,12 @@ struct pmclog_ev {
 
 #define	PMCLOG_FD_NONE				(-1)
 
+__BEGIN_DECLS
 void	*pmclog_open(int _fd);
 int	pmclog_feed(void *_cookie, char *_data, int _len);
 int	pmclog_read(void *_cookie, struct pmclog_ev *_ev);
 void	pmclog_close(void *_cookie);
+__END_DECLS
 
 #endif
 
