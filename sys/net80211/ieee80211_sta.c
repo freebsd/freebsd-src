@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_sta.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -129,6 +132,7 @@ sta_beacon_miss(struct ieee80211vap *vap)
 	vap->iv_bmiss_count = 0;
 	vap->iv_stats.is_beacon_miss++;
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
+#ifdef IEEE80211_SUPPORT_SUPERG
 		/*
 		 * If we receive a beacon miss interrupt when using
 		 * dynamic turbo, attempt to switch modes before
@@ -137,6 +141,7 @@ sta_beacon_miss(struct ieee80211vap *vap)
 		if (IEEE80211_ATH_CAP(vap, vap->iv_bss, IEEE80211_NODE_TURBOP))
 			ieee80211_dturbo_switch(vap,
 			    ic->ic_bsschan->ic_flags ^ IEEE80211_CHAN_TURBO);
+#endif
 		/*
 		 * Try to reassociate before scanning for a new ap.
 		 */
@@ -795,32 +800,13 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) &&
-#define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
-		    m->m_pkthdr.len >= 3*FF_LLC_SIZE) {
-			struct llc *llc;
-
-			/*
-			 * Check for fast-frame tunnel encapsulation.
-			 */
-			if (m->m_len < FF_LLC_SIZE &&
-			    (m = m_pullup(m, FF_LLC_SIZE)) == NULL) {
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-				    ni->ni_macaddr, "fast-frame",
-				    "%s", "m_pullup(llc) failed");
-				vap->iv_stats.is_rx_tooshort++;
+		} else {
+#ifdef IEEE80211_SUPPORT_SUPERG
+			m = ieee80211_decap_fastframe(vap, ni, m);
+			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-			}
-			llc = (struct llc *)(mtod(m, uint8_t *) + 
-				sizeof(struct ether_header));
-			if (llc->llc_snap.ether_type == htons(ATH_FF_ETH_TYPE)) {
-				m_adj(m, FF_LLC_SIZE);
-				m = ieee80211_decap_fastframe(ni, m);
-				if (m == NULL)
-					return IEEE80211_FC0_TYPE_DATA;
-			}
+#endif
 		}
-#undef FF_LLC_SIZE
 		ieee80211_deliver_data(vap, ni, m);
 		return IEEE80211_FC0_TYPE_DATA;
 
@@ -1094,51 +1080,6 @@ ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 #undef MS
 }
 
-static int
-ieee80211_parse_athparams(struct ieee80211_node *ni, uint8_t *frm,
-	const struct ieee80211_frame *wh)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	const struct ieee80211_ath_ie *ath;
-	u_int len = frm[1];
-	int capschanged;
-	uint16_t defkeyix;
-
-	if (len < sizeof(struct ieee80211_ath_ie)-2) {
-		IEEE80211_DISCARD_IE(vap,
-		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_SUPERG,
-		    wh, "Atheros", "too short, len %u", len);
-		return -1;
-	}
-	ath = (const struct ieee80211_ath_ie *)frm;
-	capschanged = (ni->ni_ath_flags != ath->ath_capability);
-	defkeyix = LE_READ_2(ath->ath_defkeyix);
-	if (capschanged || defkeyix != ni->ni_ath_defkeyix) {
-		ni->ni_ath_flags = ath->ath_capability;
-		ni->ni_ath_defkeyix = defkeyix;
-		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
-		    "ath ie change: new caps 0x%x defkeyix 0x%x",
-		    ni->ni_ath_flags, ni->ni_ath_defkeyix);
-	}
-	if (IEEE80211_ATH_CAP(vap, ni, ATHEROS_CAP_TURBO_PRIME)) {
-		uint16_t curflags, newflags;
-
-		/*
-		 * Check for turbo mode switch.  Calculate flags
-		 * for the new mode and effect the switch.
-		 */
-		newflags = curflags = vap->iv_ic->ic_bsschan->ic_flags;
-		/* NB: BOOST is not in ic_flags, so get it from the ie */
-		if (ath->ath_capability & ATHEROS_CAP_BOOST) 
-			newflags |= IEEE80211_CHAN_TURBO;
-		else
-			newflags &= ~IEEE80211_CHAN_TURBO;
-		if (newflags != curflags)
-			ieee80211_dturbo_switch(vap, newflags);
-	}
-	return capschanged;
-}
-
 /*
  * Return non-zero if a background scan may be continued:
  * o bg scan is active
@@ -1176,7 +1117,9 @@ startbgscan(struct ieee80211vap *vap)
 
 	return ((vap->iv_flags & IEEE80211_F_BGSCAN) &&
 	    (ic->ic_flags & IEEE80211_F_CSAPENDING) == 0 &&
+#ifdef IEEE80211_SUPPORT_SUPERG
 	    !IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
+#endif
 	    time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
 	    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
@@ -1271,8 +1214,10 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			    (ni->ni_flags & IEEE80211_NODE_QOS) &&
 			    ieee80211_parse_wmeparams(vap, scan.wme, wh) > 0)
 				ieee80211_wme_updateparams(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
 			if (scan.ath != NULL)
 				ieee80211_parse_athparams(ni, scan.ath, wh);
+#endif
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
 			    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
 				ieee80211_ht_updateparams(ni,
