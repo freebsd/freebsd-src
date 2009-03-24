@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	sync();
 	skipclean = 1;
 	damagedflag = 0;
-	while ((ch = getopt(argc, argv, "b:Bc:CdDfFm:npy")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:dDfFm:npy")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -132,10 +132,6 @@ main(int argc, char *argv[])
 
 		case 'p':
 			preen++;
-			/*FALLTHROUGH*/
-
-		case 'C':
-			ckclean++;
 			break;
 
 		case 'y':
@@ -155,7 +151,7 @@ main(int argc, char *argv[])
 
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
 		(void)signal(SIGINT, catch);
-	if (ckclean)
+	if (preen)
 		(void)signal(SIGQUIT, catchquit);
 	signal(SIGINFO, infohandler);
 	if (bkgrdflag) {
@@ -220,7 +216,7 @@ checkfilesys(char *filesys)
 	errmsg[0] = '\0';
 
 	cdevname = filesys;
-	if (debug && ckclean)
+	if (debug && preen)
 		pwarn("starting\n");
 	/*
 	 * Make best effort to get the disk name. Check first to see
@@ -255,7 +251,7 @@ checkfilesys(char *filesys)
 			exit(7);	/* Filesystem clean, report it now */
 		exit(0);
 	}
-	if (ckclean && skipclean) {
+	if (preen && skipclean) {
 		/*
 		 * If file system is gjournaled, check it here.
 		 */
@@ -306,7 +302,7 @@ checkfilesys(char *filesys)
 					    "CANNOT RUN IN BACKGROUND\n");
 				}
 				if ((sblock.fs_flags & FS_UNCLEAN) == 0 &&
-				    skipclean && ckclean) {
+				    skipclean && preen) {
 					/*
 					 * file system is clean;
 					 * skip snapshot and report it clean
