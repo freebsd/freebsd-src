@@ -755,12 +755,16 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 				vaper->va_mtime = np->n_mtim;
 		}
 	}
+
+#ifdef KDTRACE_HOOKS
+	if (np->n_attrstamp != 0)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, &np->n_vattr, 0);
+#endif
 	mtx_unlock(&np->n_mtx);
 out:
-#ifdef KDRACE_HOOKS
-	if (np != NULL)
-		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, error == 0 ? &np->n_vattr
-		    : NULL, error);
+#ifdef KDTRACE_HOOKS
+	if (error)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, NULL, error);
 #endif
 	return (error);
 }

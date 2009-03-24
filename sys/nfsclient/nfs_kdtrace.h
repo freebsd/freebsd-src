@@ -64,8 +64,7 @@ extern uint32_t nfsclient_accesscache_load_done_id;
 } while (0)
 
 #define	KDTRACE_NFS_ACCESSCACHE_LOAD_DONE(vp, uid, rmode, error) do {	\
-	if (error && dtrace_nfsclient_accesscache_load_done_probe !=	\
-	    NULL)							\
+	if (dtrace_nfsclient_accesscache_load_done_probe != NULL)	\
 		(dtrace_nfsclient_accesscache_load_done_probe)(		\
 		    nfsclient_accesscache_load_done_id, (vp), (uid),	\
 		    (rmode), (error));					\
