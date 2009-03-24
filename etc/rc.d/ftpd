@@ -5,6 +5,7 @@
 
 # PROVIDE: ftpd
 # REQUIRE: LOGIN cleanvar
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

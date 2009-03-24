@@ -6,6 +6,7 @@
 # PROVIDE: lpd
 # REQUIRE: DAEMON
 # BEFORE:  LOGIN
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
