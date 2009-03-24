@@ -38,6 +38,23 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 
 void
+gv_volume_flush(struct gv_volume *v)
+{
+	struct gv_softc *sc;
+	struct bio *bp;
+
+	KASSERT(v != NULL, ("NULL v"));
+	sc = v->vinumconf;
+	KASSERT(sc != NULL, ("NULL sc"));
+
+	bp = bioq_takefirst(v->wqueue);
+	while (bp != NULL) {
+		gv_volume_start(sc, bp);
+		bp = bioq_takefirst(v->wqueue);
+	}
+}
+
+void
 gv_volume_start(struct gv_softc *sc, struct bio *bp)
 {
 	struct g_geom *gp;

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004, 2007 Lukas Ertl
- * Copyright (c) 2007 Ulf Lilleengen
+ * Copyright (c) 2007, 2009 Ulf Lilleengen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ gv_start_obj(struct g_geom *gp, struct gctl_req *req)
 
 		case GV_TYPE_SD:
 		case GV_TYPE_DRIVE:
-			/* XXX not yet */
+			/* XXX Not implemented, but what is the use? */
 			gctl_error(req, "cannot start '%s' - not yet supported",
 			    argv);
 			return;
@@ -196,8 +196,9 @@ gv_sync_plex(struct gv_plex *p, struct gv_plex *up)
 	KASSERT(up != NULL, ("%s: NULL up", __func__));
 	if ((p == up) || (p->state == GV_PLEX_UP))
 		return (0);
-	/* XXX: Should we check if rebuilding too? */
-	if (p->flags & GV_PLEX_SYNCING) {
+	if (p->flags & GV_PLEX_SYNCING ||
+	    p->flags & GV_PLEX_REBUILDING ||
+	    p->flags & GV_PLEX_GROWING) {
 		return (EINPROGRESS);
 	}
 	p->synced = 0;
@@ -270,10 +271,6 @@ gv_rebuild_plex(struct gv_plex *p)
 	struct gv_sd *s;
 	int error;
 
-/* XXX: Is this safe? (Allows for mounted rebuild)*/
-/*	if (gv_provider_is_open(p->vol_sc->provider))
-		return (EBUSY);*/
-
 	if (p->flags & GV_PLEX_SYNCING ||
 	    p->flags & GV_PLEX_REBUILDING ||
 	    p->flags & GV_PLEX_GROWING)
@@ -327,7 +324,7 @@ gv_grow_plex(struct gv_plex *p)
 	g_topology_unlock();
 	if (error) {
 		G_VINUM_DEBUG(0, "unable to access provider");
-		return (GV_ERR_ISBUSY); /*XXX: wrong errorcode */
+		return (error);
 	}
 
 	/* XXX: This routine with finding origsize is used two other places as
@@ -374,7 +371,7 @@ gv_init_plex(struct gv_plex *p)
 			G_VINUM_DEBUG(0, "subdisk %s has no drive yet", s->name);
 			break;
 		}
-		/* 
+		/*
 		 * Take the lock here since we need to avoid a race in
 		 * gv_init_request if the BIO is completed before the lock is
 		 * released.

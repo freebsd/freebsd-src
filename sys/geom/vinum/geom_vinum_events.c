@@ -136,8 +136,6 @@ gv_drive_tasted(struct gv_softc *sc, struct g_provider *pp)
 	gv_setup_objects(sc);
 	gv_set_drive_state(d, GV_DRIVE_UP, 0);
 
-	/* XXX continue here! */
-
 	return;
 
 failed:

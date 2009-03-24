@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007 Lukas Ertl
- * Copyright (c) 2007 Ulf Lilleengen
+ * Copyright (c) 2007, 2009 Ulf Lilleengen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
+
+#define DEFAULT_STRIPESIZE	262144
 
 /*
  * Create a new drive object, either by user request, during taste of the drive
@@ -269,13 +271,6 @@ gv_create_sd(struct gv_softc *sc, struct gv_sd *s)
 		return (GV_ERR_CREATE);
 	}
 
-/*	if (p->org == GV_PLEX_RAID5 && p->state == GV_PLEX_DEGRADED) {
-		printf("VINUM: can't add subdisk to %s, rebuild plex before "
-		    " adding subdisks\n", p->name);
-		g_free(s);
-		return (0);
-	}*/
-
 	/*
 	 * First we give the subdisk to the drive, to handle autosized
 	 * values ...
@@ -290,7 +285,7 @@ gv_create_sd(struct gv_softc *sc, struct gv_sd *s)
 	 * given values are correct and maybe adjust them.
 	 */
 	if (gv_sd_to_plex(s, p) != 0) {
-		G_VINUM_DEBUG(0, "couldn't give sd '%s' to plex '%s'",
+		G_VINUM_DEBUG(0, "unable to give sd '%s' to plex '%s'",
 		    s->name, p->name);
 		if (s->drive_sc && !(s->drive_sc->flags & GV_DRIVE_REFERENCED))
 			LIST_REMOVE(s, from_drive);
@@ -331,7 +326,7 @@ gv_concat(struct g_geom *gp, struct gctl_req *req)
 	dcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume's not given");	
+		gctl_error(req, "volume names not given");	
 		return;
 	}
 
@@ -339,7 +334,7 @@ gv_concat(struct g_geom *gp, struct gctl_req *req)
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
 	if (drives == NULL) { 
-		gctl_error(req, "drives not given");
+		gctl_error(req, "drive names not given");
 		return;
 	}
 
@@ -413,7 +408,8 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 
 	/* We must have an even number of drives. */
 	if (*drives % 2 != 0) {
-		gctl_error(req, "must have an even number of drives");
+		gctl_error(req, "mirror organization must have an even number "
+		    "of drives");
 		return;
 	}
 	if (*flags & GV_FLAG_S && *drives < 4) {
@@ -435,25 +431,27 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 		strlcpy(p->volume, v->name, sizeof(p->volume));
 		if (*flags & GV_FLAG_S) {
 			p->org = GV_PLEX_STRIPED;
-			p->stripesize = 262144; /*XXX: DFLT_STRIPESIZE? */
+			p->stripesize = DEFAULT_STRIPESIZE;
 		} else {
 			p->org = GV_PLEX_CONCAT;
 			p->stripesize = -1;
 		}
 		gv_post_event(sc, GV_EVENT_CREATE_PLEX, p, NULL, 0, 0);
 
-		/* We just gives each even drive to plex one, and each odd to
-		 * plex two. */
+		/*
+		 * We just gives each even drive to plex one, and each odd to
+		 * plex two.
+		 */
 		scount = 0;
 		for (dcount = pcount; dcount < *drives; dcount += 2) {
 			snprintf(buf, sizeof(buf), "drive%d", dcount);
 			drive = gctl_get_param(req, buf, NULL);
 			d = gv_find_drive(sc, drive);
 			if (d == NULL) {
-				gctl_error(req, "No such drive '%s'", drive);
-				/* XXX: Should we fail instead? */
+				gctl_error(req, "No such drive '%s', aborting",
+				    drive);
 				scount++;
-				continue;
+				break;
 			}
 			s = g_malloc(sizeof(*s), M_WAITOK | M_ZERO);
 			snprintf(s->name, sizeof(s->name), "%s.s%d", p->name,

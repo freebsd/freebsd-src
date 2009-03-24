@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004, 2007 Lukas Ertl
- * Copyright (c) 2007 Ulf Lilleengen
+ * Copyright (c) 2007, 2009 Ulf Lilleengen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,6 @@ gv_plex_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
 			}
 			i++;
 		}
-		/* Subdisk not found. */
 		if (s == NULL || s->drive_sc == NULL)
 			return (GV_ERR_NOTFOUND);
 
@@ -163,29 +162,19 @@ gv_plex_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
 		/* Take growing subdisks into account when calculating. */
 		sdcount = gv_sdcount(p, (boff >= p->synced));
 
-		/* Only take p->synced into calculation if we're growing. */
 		if (!(boff + bcount <= p->synced) &&
 		    (p->flags & GV_PLEX_GROWING) &&
 		    !growing)
 			return (GV_ERR_ISBUSY);
-		/* The number of the subdisk where the stripe resides. */
 		*sdno = stripeno % sdcount;
 
 		KASSERT(sdno >= 0, ("gv_plex_offset: sdno < 0"));
-
-		/* The offset of the stripe from the start of the subdisk. */ 
 		stripestart = (stripeno / sdcount) *
 		    p->stripesize;
 		KASSERT(stripestart >= 0, ("gv_plex_offset: stripestart < 0"));
-
-		/* The offset at the end of the stripe. */
 		stripeend = stripestart + p->stripesize;
-
-		/* The offset of the request on this subdisk. */
 		*real_off = boff - (stripeno * p->stripesize) +
 		    stripestart;
-
-		/* The length left in this stripe. */
 		len_left = stripeend - *real_off;
 		KASSERT(len_left >= 0, ("gv_plex_offset: len_left < 0"));
 
@@ -297,10 +286,8 @@ bad:
 		if (bp->bio_cflags & GV_BIO_MALLOC)
 			g_free(bp->bio_data);
 		g_destroy_bio(bp);
-		/* Reset flags. */
-		p->flags &= ~GV_PLEX_SYNCING;
-		p->flags &= ~GV_PLEX_REBUILDING;
-		p->flags &= ~GV_PLEX_GROWING;
+		p->flags &= ~(GV_PLEX_SYNCING | GV_PLEX_REBUILDING |
+		    GV_PLEX_GROWING);
 		return (-1);
 	}
 	g_io_deliver(bp, err);
@@ -548,6 +535,7 @@ gv_normal_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 	return (finished);
 }
 
+/* Flush the queue with delayed requests. */
 static void
 gv_plex_flush(struct gv_plex *p)
 {
@@ -671,13 +659,7 @@ gv_sync_complete(struct gv_plex *to, struct bio *bp)
 	gv_access(v->provider, -1, -1, 0);
 	g_topology_unlock();
 	G_VINUM_DEBUG(1, "plex sync completed");
-
-	/* Issue all delayed requests. */
-	bp = bioq_takefirst(v->wqueue);
-	while (bp != NULL) {
-		gv_volume_start(sc, bp);
-		bp = bioq_takefirst(v->wqueue);
-	}
+	gv_volume_flush(v);
 	return (0);
 }
 

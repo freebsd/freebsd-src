@@ -125,9 +125,8 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 				g_free(cbp->bio_data);
 			g_destroy_bio(bp);
 			/* Reset flags. */
-			p->flags &= ~GV_PLEX_SYNCING;
-			p->flags &= ~GV_PLEX_REBUILDING;
-			p->flags &= ~GV_PLEX_GROWING;
+			p->flags &= ~(GV_PLEX_SYNCING | GV_PLEX_REBUILDING |
+			    GV_PLEX_GROWING);
 			return (NULL);
 		}
 		g_io_deliver(bp, err);

@@ -1,6 +1,6 @@
 /*-
  *  Copyright (c) 2004, 2007 Lukas Ertl
- *  Copyright (c) 2007 Ulf Lilleengen
+ *  Copyright (c) 2007, 2009 Ulf Lilleengen
  *  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
+#include <geom/vinum/geom_vinum_raid5.h>
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, vinum, CTLFLAG_RW, 0, "GEOM_VINUM stuff");
@@ -259,10 +260,6 @@ gv_attach(struct gv_softc *sc, struct gctl_req *req)
 			return;
 		}
 		p = gv_find_plex(sc, parent);
-/*		if (p->org == GV_PLEX_CONCAT) {
-			gctl_error(req, "attach on concat plex not allowed");
-			break;
-		}*/
 		s = gv_find_sd(sc, child);
 		gv_post_event(sc, GV_EVENT_ATTACH_SD, s, p, *offset, *rename);
 		break;

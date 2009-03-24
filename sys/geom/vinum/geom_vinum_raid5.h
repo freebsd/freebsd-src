@@ -50,5 +50,6 @@ struct gv_raid5_packet {
 
 struct gv_raid5_packet * gv_raid5_start(struct gv_plex *, struct bio *,
 		caddr_t, off_t, off_t);
+int	gv_stripe_active(struct gv_plex *, struct bio *);
 
 #endif /* !_GEOM_VINUM_RAID5_H_ */

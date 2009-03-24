@@ -195,17 +195,15 @@ gv_rm_vol(struct gv_softc *sc, struct gv_volume *v)
 	struct gv_plex *p, *p2;
 
 	KASSERT(v != NULL, ("gv_rm_vol: NULL v"));
-
-	/* XXX gp = v->geom; */
 	pp = v->provider;
+	KASSERT(pp != NULL, ("gv_rm_vol: NULL pp"));
 
 	/* Check if any of our consumers is open. */
-/* XXX
-	if (gp != NULL && gv_is_open(gp)) {
-		gctl_error(req, "volume '%s' is busy", v->name);
-		return (-1);
+	if (gv_provider_is_open(pp)) {
+		G_VINUM_DEBUG(0, "Unable to remove %s: volume still in use",
+		    v->name);
+		return;
 	}
-*/
 
 	/* Remove the plexes our volume has. */
 	LIST_FOREACH_SAFE(p, &v->plexes, in_volume, p2)
@@ -232,16 +230,14 @@ gv_rm_plex(struct gv_softc *sc, struct gv_plex *p)
 	struct gv_sd *s, *s2;
 
 	KASSERT(p != NULL, ("gv_rm_plex: NULL p"));
-
-	/* XXX gp = p->geom; */
+	v = p->vol_sc;
 
 	/* Check if any of our consumers is open. */
-/* XXX
-	if (gp != NULL && gv_is_open(gp)) {
-		gctl_error(req, "plex '%s' is busy", p->name);
-		return (-1);
+	if (v != NULL && gv_provider_is_open(v->provider) && v->plexcount < 2) {
+		G_VINUM_DEBUG(0, "Unable to remove %s: volume still in use",
+		    p->name);
+		return;
 	}
-*/
 
 	/* Remove the subdisks our plex has. */
 	LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2)

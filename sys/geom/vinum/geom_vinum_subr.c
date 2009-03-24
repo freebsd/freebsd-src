@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004, 2007 Lukas Ertl
- * Copyright (c) 2007 Ulf Lilleengen
+ * Copyright (c) 2007, 2009 Ulf Lilleengen
  * Copyright (c) 1997, 1998, 1999
  *      Nan Yang Computer Services Limited.  All rights reserved.
  *
@@ -574,7 +574,6 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 	fl2 = NULL;
 
 	/* Shortcut for "referenced" drives. */
-	/* XXX - insert into d->subdisks? */
 	if (d->flags & GV_DRIVE_REFERENCED) {
 		s->drive_sc = d;
 		return (0);
