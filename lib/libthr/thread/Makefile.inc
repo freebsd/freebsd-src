@@ -4,6 +4,7 @@
 .PATH: ${.CURDIR}/thread
 
 SRCS+= \
+	thr_affinity.c \
 	thr_attr.c \
 	thr_barrier.c \
 	thr_barrierattr.c \
@@ -19,6 +20,7 @@ SRCS+= \
 	thr_exit.c \
 	thr_fork.c \
 	thr_getprio.c \
+	thr_getcpuclockid.c \
 	thr_getschedparam.c \
 	thr_info.c \
 	thr_init.c \

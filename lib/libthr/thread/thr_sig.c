@@ -52,8 +52,14 @@ int	___pause(void);
 int	_raise(int);
 int	__sigtimedwait(const sigset_t *set, siginfo_t *info,
 	const struct timespec * timeout);
+int	_sigtimedwait(const sigset_t *set, siginfo_t *info,
+	const struct timespec * timeout);
 int	__sigwaitinfo(const sigset_t *set, siginfo_t *info);
+int	_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	__sigwait(const sigset_t *set, int *sig);
+int	_sigwait(const sigset_t *set, int *sig);
+int	__sigsuspend(const sigset_t *sigmask);
+
 
 static void
 sigcancel_handler(int sig __unused,
@@ -83,8 +89,11 @@ _thr_ast(struct pthread *curthread)
 void
 _thr_suspend_check(struct pthread *curthread)
 {
-	long cycle;
+	uint32_t cycle;
 	int err;
+
+	if (curthread->force_exit)
+		return;
 
 	err = errno;
 	/* 
@@ -105,7 +114,7 @@ _thr_suspend_check(struct pthread *curthread)
 		cycle = curthread->cycle;
 
 		/* Wake the thread suspending us. */
-		_thr_umtx_wake(&curthread->cycle, INT_MAX);
+		_thr_umtx_wake(&curthread->cycle, INT_MAX, 0);
 
 		/*
 		 * if we are from pthread_exit, we don't want to
@@ -115,7 +124,7 @@ _thr_suspend_check(struct pthread *curthread)
 			break;
 		curthread->flags |= THR_FLAGS_SUSPENDED;
 		THR_UMUTEX_UNLOCK(curthread, &(curthread)->lock);
-		_thr_umtx_wait(&curthread->cycle, cycle, NULL);
+		_thr_umtx_wait_uint(&curthread->cycle, cycle, NULL, 0);
 		THR_UMUTEX_LOCK(curthread, &(curthread)->lock);
 		curthread->flags &= ~THR_FLAGS_SUSPENDED;
 	}

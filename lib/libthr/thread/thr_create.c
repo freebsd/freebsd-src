@@ -36,6 +36,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include "un-namespace.h"
 
 #include "thr_private.h"
@@ -55,6 +56,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	struct rtprio rtp;
 	int ret = 0, locked, create_suspended;
 	sigset_t set, oset;
+	cpuset_t *cpusetp = NULL;
+	int cpusetsize = 0;
 
 	_thr_check_init();
 
@@ -73,8 +76,13 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (attr == NULL || *attr == NULL)
 		/* Use the default thread attributes: */
 		new_thread->attr = _pthread_attr_default;
-	else
+	else {
 		new_thread->attr = *(*attr);
+		cpusetp = new_thread->attr.cpuset;
+		cpusetsize = new_thread->attr.cpusetsize;
+		new_thread->attr.cpuset = NULL;
+		new_thread->attr.cpusetsize = 0;
+	}
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED) {
 		/* inherit scheduling contention scope */
 		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
@@ -129,7 +137,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	_thr_link(curthread, new_thread);
 	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
-	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE)) {
+	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpusetp != NULL) {
 		THR_THREAD_LOCK(curthread, new_thread);
 		locked = 1;
 	} else
@@ -147,7 +155,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		param.flags |= THR_SYSTEM_SCOPE;
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
 		param.rtp = NULL;
-	else {
+	else { 	 
 		sched_param.sched_priority = new_thread->attr.prio;
 		_schedparam_to_rtp(new_thread->attr.sched_policy,
 			&sched_param, &rtp);
@@ -160,6 +168,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		SIGDELSET(set, SIGTRAP);
 		__sys_sigprocmask(SIG_SETMASK, &set, &oset);
 		new_thread->sigmask = oset;
+		SIGDELSET(new_thread->sigmask, SIGCANCEL);
 	}
 
 	ret = thr_new(&param, sizeof(param));
@@ -183,7 +192,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->tid = TID_TERMINATED;
 		if (new_thread->flags & THR_FLAGS_NEED_SUSPEND) {
 			new_thread->cycle++;
-			_thr_umtx_wake(&new_thread->cycle, INT_MAX);
+			_thr_umtx_wake(&new_thread->cycle, INT_MAX, 0);
 		}
 		THR_THREAD_UNLOCK(curthread, new_thread);
 		THREAD_LIST_LOCK(curthread);
@@ -191,11 +200,31 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->tlflags |= TLFLAGS_DETACHED;
 		_thr_ref_delete_unlocked(curthread, new_thread);
 		THREAD_LIST_UNLOCK(curthread);
-		(*thread) = 0;
 	} else if (locked) {
+		if (cpusetp != NULL) {
+			if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
+				TID(new_thread), cpusetsize, cpusetp)) {
+				ret = errno;
+				/* kill the new thread */
+				new_thread->force_exit = 1;
+				THR_THREAD_UNLOCK(curthread, new_thread);
+				goto out;
+			}
+		}
+
 		_thr_report_creation(curthread, new_thread);
 		THR_THREAD_UNLOCK(curthread, new_thread);
+out:
+		if (ret) {
+			THREAD_LIST_LOCK(curthread);
+			new_thread->tlflags |= TLFLAGS_DETACHED;
+			THR_GCLIST_ADD(new_thread);
+			THREAD_LIST_UNLOCK(curthread);
+		}
 	}
+
+	if (ret)
+		(*thread) = 0;
 	return (ret);
 }
 
@@ -230,6 +259,9 @@ thread_start(struct pthread *curthread)
 	 */
 	THR_LOCK(curthread);
 	THR_UNLOCK(curthread);
+
+	if (curthread->force_exit)
+		_pthread_exit(PTHREAD_CANCELED);
 
 	if (curthread->unblock_sigcancel) {
 		sigset_t set1;

@@ -206,6 +206,8 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &_rtld_allocate_tls,
     (func_ptr_type) &_rtld_free_tls,
     (func_ptr_type) &dl_iterate_phdr,
+    (func_ptr_type) &_rtld_atfork_pre,
+    (func_ptr_type) &_rtld_atfork_post,
     NULL
 };
 

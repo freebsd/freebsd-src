@@ -40,8 +40,6 @@
 extern int errno;
 
 #define CACHE_LINE_SIZE		64
-#define WAFLAG			0x1
-#define RC_INCR			0x2
 
 static int	_thr_rtld_clr_flag(int);
 static void	*_thr_rtld_lock_create(void);
@@ -52,43 +50,42 @@ static int	_thr_rtld_set_flag(int);
 static void	_thr_rtld_wlock_acquire(void *);
 
 struct rtld_lock {
-	volatile int		lock;
-	volatile int		rd_waiters;
-	volatile int		wr_waiters;
-	volatile long		rd_cv;
-	volatile long		wr_cv;
-	void			*base;
+	struct	urwlock	lock;
+	char		_pad[CACHE_LINE_SIZE - sizeof(struct urwlock)];
 };
+
+static struct rtld_lock lock_place[MAX_RTLD_LOCKS] __aligned(CACHE_LINE_SIZE);
+static int busy_places;
 
 static void *
 _thr_rtld_lock_create(void)
 {
-	void			*base;
-	char			*p;
-	uintptr_t		r;
-	struct rtld_lock	*l;
+	int locki;
+	struct rtld_lock *l;
+	static const char fail[] = "_thr_rtld_lock_create failed\n";
 
-	THR_ASSERT(sizeof(struct rtld_lock) <= CACHE_LINE_SIZE,
-		"rtld_lock too large");
-	base = calloc(1, CACHE_LINE_SIZE);
-	p = (char *)base;
-	if ((uintptr_t)p % CACHE_LINE_SIZE != 0) {
-		free(base);
-		base = calloc(1, 2 * CACHE_LINE_SIZE);
-		p = (char *)base;
-		if ((r = (uintptr_t)p % CACHE_LINE_SIZE) != 0)
-			p += CACHE_LINE_SIZE - r;
+	for (locki = 0; locki < MAX_RTLD_LOCKS; locki++) {
+		if ((busy_places & (1 << locki)) == 0)
+			break;
 	}
-	l = (struct rtld_lock *)p;
-	l->base = base;
+	if (locki == MAX_RTLD_LOCKS) {
+		write(2, fail, sizeof(fail) - 1);
+		return (NULL);
+	}
+	busy_places |= (1 << locki);
+
+	l = &lock_place[locki];
+	l->lock.rw_flags = URWLOCK_PREFER_READER;
 	return (l);
 }
 
 static void
 _thr_rtld_lock_destroy(void *lock)
 {
-	struct rtld_lock *l = (struct rtld_lock *)lock;
-	free(l->base);
+	int locki;
+
+	locki = (struct rtld_lock *)lock - &lock_place[0];
+	busy_places &= ~(1 << locki);
 }
 
 #define SAVE_ERRNO()	{			\
@@ -110,7 +107,6 @@ _thr_rtld_rlock_acquire(void *lock)
 {
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
-	long			v;
 	int			errsave;
 
 	curthread = _get_curthread();
@@ -118,18 +114,8 @@ _thr_rtld_rlock_acquire(void *lock)
 	l = (struct rtld_lock *)lock;
 
 	THR_CRITICAL_ENTER(curthread);
-	atomic_add_acq_int(&l->lock, RC_INCR);
-	if (!(l->lock & WAFLAG)) {
-		RESTORE_ERRNO();
-		return;
-	}
-	v = l->rd_cv;
-	atomic_add_int(&l->rd_waiters, 1);
-	while (l->lock & WAFLAG) {
-		_thr_umtx_wait(&l->rd_cv, v, NULL);
-		v = l->rd_cv;
-	}
-	atomic_add_int(&l->rd_waiters, -1);
+	while (_thr_rwlock_rdlock(&l->lock, 0, NULL) != 0)
+		;
 	RESTORE_ERRNO();
 }
 
@@ -138,7 +124,6 @@ _thr_rtld_wlock_acquire(void *lock)
 {
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
-	long			v;
 	int			errsave;
 
 	curthread = _get_curthread();
@@ -146,19 +131,9 @@ _thr_rtld_wlock_acquire(void *lock)
 	l = (struct rtld_lock *)lock;
 
 	_thr_signal_block(curthread);
-	for (;;) {
-		if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG)) {
-			RESTORE_ERRNO();
-			return;
-		}
-		v = l->wr_cv;
-		atomic_add_int(&l->wr_waiters, 1);
-		while (l->lock != 0) {
-			_thr_umtx_wait(&l->wr_cv, v, NULL);
-			v = l->wr_cv;
-		}
-		atomic_add_int(&l->wr_waiters, -1);
-	}
+	while (_thr_rwlock_wrlock(&l->lock, NULL) != 0)
+		;
+	RESTORE_ERRNO();
 }
 
 static void
@@ -166,29 +141,20 @@ _thr_rtld_lock_release(void *lock)
 {
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
+	int32_t			state;
 	int			errsave;
 
 	curthread = _get_curthread();
 	SAVE_ERRNO();
 	l = (struct rtld_lock *)lock;
 	
-	if ((l->lock & WAFLAG) == 0) {
-		atomic_add_rel_int(&l->lock, -RC_INCR);
-		if (l->lock == 0 && l->wr_waiters) {
-			atomic_add_long(&l->wr_cv, 1);
-			_thr_umtx_wake(&l->wr_cv, l->wr_waiters);
+	state = l->lock.rw_state;
+	if (_thr_rwlock_unlock(&l->lock) == 0) {
+		if ((state & URWLOCK_WRITE_OWNER) == 0) {
+			THR_CRITICAL_LEAVE(curthread);
+		} else {
+			_thr_signal_unblock(curthread);
 		}
-		THR_CRITICAL_LEAVE(curthread);
-	} else {
-		atomic_add_rel_int(&l->lock, -WAFLAG);
-		if (l->lock == 0 && l->wr_waiters) {
-			atomic_add_long(&l->wr_cv, 1);
-			_thr_umtx_wake(&l->wr_cv, l->wr_waiters);
-		} else if (l->rd_waiters) {
-			atomic_add_long(&l->rd_cv, 1);
-			_thr_umtx_wake(&l->rd_cv, l->rd_waiters);
-		}
-		_thr_signal_unblock(curthread);
 	}
 	RESTORE_ERRNO();
 }
