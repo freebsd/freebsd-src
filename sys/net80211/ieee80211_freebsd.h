@@ -391,7 +391,6 @@ alg##_modevent(int type)						\
 	/* XXX nothing to do until the rate control framework arrives */\
 }									\
 TEXT_SET(rate##_set, alg##_modevent)
-#endif /* _KERNEL */
 
 struct ieee80211req;
 typedef int ieee80211_ioctl_getfunc(struct ieee80211vap *,
@@ -403,6 +402,7 @@ typedef int ieee80211_ioctl_setfunc(struct ieee80211vap *,
     struct ieee80211req *);
 SET_DECLARE(ieee80211_ioctl_setset, ieee80211_ioctl_setfunc);
 #define	IEEE80211_IOCTL_SET(_name, _set) TEXT_SET(ieee80211_ioctl_setset, _set)
+#endif /* _KERNEL */
 
 /* XXX this stuff belongs elsewhere */
 /*
