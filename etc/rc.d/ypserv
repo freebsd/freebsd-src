@@ -5,6 +5,7 @@
 
 # PROVIDE: ypserv
 # REQUIRE: rpcbind
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

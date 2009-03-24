@@ -5,7 +5,7 @@
 
 # PROVIDE: nfsd
 # REQUIRE: mountd
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

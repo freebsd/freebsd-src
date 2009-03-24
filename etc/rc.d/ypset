@@ -5,6 +5,7 @@
 
 # PROVIDE: ypset
 # REQUIRE: ypbind
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

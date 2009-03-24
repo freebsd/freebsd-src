@@ -6,7 +6,7 @@
 # PROVIDE: amd
 # REQUIRE: rpcbind ypbind nfsclient cleanvar ldconfig
 # BEFORE: DAEMON
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
