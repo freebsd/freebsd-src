@@ -1347,7 +1347,17 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 		allownumeric = 1;
 		break;
 	case ANY:
-		allownumeric = 0;
+		switch (ai->ai_family) {
+		case AF_INET:
+#ifdef AF_INET6
+		case AF_INET6:
+#endif
+			allownumeric = 1;
+			break;
+		default:
+			allownumeric = 0;
+			break;
+		}
 		break;
 	default:
 		return EAI_SOCKTYPE;
