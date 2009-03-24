@@ -254,7 +254,7 @@ For_Run(int lineno)
 
 	LST_FOREACH(ln, &values) {
 		val = Lst_Datum(ln);
-		Var_Set(var, val, VAR_GLOBAL);
+		Var_SetGlobal(var, val);
 
 		DEBUGF(FOR, ("--- %s = %s\n", var, val));
 		str = Buf_Peel(Var_SubstOnly(var, Buf_Data(buf), FALSE));

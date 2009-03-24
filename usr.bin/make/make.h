@@ -49,6 +49,8 @@
 
 #include "util.h"
 
+#define	MAKE_JOB_PREFIX	".MAKE.JOB.PREFIX"
+
 struct GNode;
 struct Lst;
 struct Buffer;
