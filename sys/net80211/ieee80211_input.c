@@ -358,73 +358,6 @@ ieee80211_decap1(struct mbuf *m, int *framelen)
 }
 
 /*
- * Decap the encapsulated frame pair and dispatch the first
- * for delivery.  The second frame is returned for delivery
- * via the normal path.
- */
-struct mbuf *
-ieee80211_decap_fastframe(struct ieee80211_node *ni, struct mbuf *m)
-{
-#define	MS(x,f)	(((x) & f) >> f##_S)
-	struct ieee80211vap *vap = ni->ni_vap;
-	uint32_t ath;
-	struct mbuf *n;
-	int framelen;
-
-	m_copydata(m, 0, sizeof(uint32_t), (caddr_t) &ath);
-	if (MS(ath, ATH_FF_PROTO) != ATH_FF_PROTO_L2TUNNEL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame",
-		    "unsupport tunnel protocol, header 0x%x", ath);
-		vap->iv_stats.is_ff_badhdr++;
-		m_freem(m);
-		return NULL;
-	}
-	/* NB: skip header and alignment padding */
-	m_adj(m, roundup(sizeof(uint32_t) - 2, 4) + 2);
-
-	vap->iv_stats.is_ff_decap++;
-
-	/*
-	 * Decap the first frame, bust it apart from the
-	 * second and deliver; then decap the second frame
-	 * and return it to the caller for normal delivery.
-	 */
-	m = ieee80211_decap1(m, &framelen);
-	if (m == NULL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame", "%s", "first decap failed");
-		vap->iv_stats.is_ff_tooshort++;
-		return NULL;
-	}
-	n = m_split(m, framelen, M_NOWAIT);
-	if (n == NULL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame",
-		    "%s", "unable to split encapsulated frames");
-		vap->iv_stats.is_ff_split++;
-		m_freem(m);			/* NB: must reclaim */
-		return NULL;
-	}
-	/* XXX not right for WDS */
-	vap->iv_deliver_data(vap, ni, m);	/* 1st of pair */
-
-	/*
-	 * Decap second frame.
-	 */
-	m_adj(n, roundup2(framelen, 4) - framelen);	/* padding */
-	n = ieee80211_decap1(n, &framelen);
-	if (n == NULL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame", "%s", "second decap failed");
-		vap->iv_stats.is_ff_tooshort++;
-	}
-	/* XXX verify framelen against mbuf contents */
-	return n;				/* 2nd delivered by caller */
-#undef MS
-}
-
-/*
  * Install received rate set information in the node's state block.
  */
 int
@@ -508,16 +441,6 @@ ieee80211_alloc_challenge(struct ieee80211_node *ni)
 		/* XXX statistic */
 	}
 	return (ni->ni_challenge != NULL);
-}
-
-void
-ieee80211_parse_ath(struct ieee80211_node *ni, uint8_t *ie)
-{
-	const struct ieee80211_ath_ie *ath =
-		(const struct ieee80211_ath_ie *) ie;
-
-	ni->ni_ath_flags = ath->ath_capability;
-	ni->ni_ath_defkeyix = LE_READ_2(&ath->ath_defkeyix);
 }
 
 /*
@@ -633,8 +556,10 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 				scan->wpa = frm;
 			else if (iswmeparam(frm) || iswmeinfo(frm))
 				scan->wme = frm;
+#ifdef IEEE80211_SUPPORT_SUPERG
 			else if (isatherosoui(frm))
 				scan->ath = frm;
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 			else if (istdmaoui(frm))
 				scan->tdma = frm;

@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
@@ -754,8 +757,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 
 	if (ieee80211_ies_init(&ni->ni_ies, se->se_ies.data, se->se_ies.len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
+#ifdef IEEE80211_SUPPORT_SUPERG
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
+#endif
 		if (ni->ni_ies.htcap_ie != NULL)
 			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
 		if (ni->ni_ies.htinfo_ie != NULL)
@@ -875,8 +880,10 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 				ies->wpa_ie = ie;
 			else if (iswmeoui(ie))
 				ies->wme_ie = ie;
+#ifdef IEEE80211_SUPPORT_SUPERG
 			else if (isatherosoui(ie))
 				ies->ath_ie = ie;
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 			else if (istdmaoui(ie))
 				ies->tdma_ie = ie;
@@ -1173,8 +1180,10 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 		 */
 		if (vap->iv_flags & IEEE80211_F_WME)
 			ni->ni_flags |= IEEE80211_NODE_QOS;
+#ifdef IEEE80211_SUPPORT_SUPERG
 		if (vap->iv_flags & IEEE80211_F_FF)
 			ni->ni_flags |= IEEE80211_NODE_FF;
+#endif
 		if ((ic->ic_htcaps & IEEE80211_HTC_HT) &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
 			/*
@@ -1331,8 +1340,10 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 			 */
 			if (vap->iv_flags & IEEE80211_F_WME)
 				ni->ni_flags |= IEEE80211_NODE_QOS;
+#ifdef IEEE80211_SUPPORT_SUPERG
 			if (vap->iv_flags & IEEE80211_F_FF)
 				ni->ni_flags |= IEEE80211_NODE_FF;
+#endif
 		}
 		node_setuptxparms(ni);
 		if (ic->ic_newassoc != NULL)
@@ -1366,8 +1377,10 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 			ni->ni_flags |= IEEE80211_NODE_QOS;
 		else
 			ni->ni_flags &= ~IEEE80211_NODE_QOS;
+#ifdef IEEE80211_SUPPORT_SUPERG
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
+#endif
 	}
 
 	/* NB: must be after ni_chan is setup */
