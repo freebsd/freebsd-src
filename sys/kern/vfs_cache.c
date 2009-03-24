@@ -320,7 +320,7 @@ cache_zap(ncp)
  * (negative cacheing), a status of ENOENT is returned. If the lookup
  * fails, a status of zero is returned.  If the directory vnode is
  * recycled out from under us due to a forced unmount, a status of
- * EBADF is returned.
+ * ENOENT is returned.
  *
  * vpp is locked and ref'd on return.  If we're looking up DOTDOT, dvp is
  * unlocked.  If we're looking up . an extra ref is taken, but the lock is
@@ -472,7 +472,7 @@ success:
 					/* forced unmount */
 					vrele(*vpp);
 					*vpp = NULL;
-					return (EBADF);
+					return (ENOENT);
 				}
 			} else
 				vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
@@ -983,7 +983,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		if (vp->v_vflag & VV_ROOT) {
 			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				CACHE_RUNLOCK();
-				error = EBADF;
+				error = ENOENT;
 				break;
 			}
 			vp = vp->v_mount->mnt_vnodecovered;
