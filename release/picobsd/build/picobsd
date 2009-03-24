@@ -548,6 +548,52 @@ do_copyfiles() {	# rootdir varname
         done
 }
 
+# find_progs is a helper function to locate the named programs
+# or libraries in ${o_objdir} and return the full pathnames.
+# Sets ${u_progs} to the list of programs, and ${u_libs}
+# to the list of shared libraries used.
+# If the first argument is - does not set u_libs
+#
+# You can use it e.g. in a local configuration file by writing
+#
+#  do_copyfiles_user() {
+#	local dst=$1
+#	find_progs nvi sed less grep
+#	cp -p ${u_progs} ${dst}/bin
+#	cp -p ${u_libs} ${dst}/lib
+#	mkdir -p ${dst}/libexec
+#	find_progs ld-elf.so.1
+#	cp -p ${u_progs} ${dst}/libexec
+#  }
+
+find_progs() {	# programs
+	local i
+	u_progs="`find_progs_helper $*`"
+	[ -z "${u_progs}" ] && return 1	# not found, error
+	i="`ldd ${u_progs} | grep -v '^/' | awk '{print $1}' | sort | uniq`"
+	u_libs="`find_progs_helper $i`"
+	return 0
+}
+
+find_progs_helper() {	# programs
+	local progs="$*"
+	local i o places names
+	local subdirs="bin sbin usr.bin usr.sbin libexec lib \
+		gnu/usr.bin gnu/lib \
+		secure/usr.bin secure/usr.sbin secure/libexec secure/lib"
+	names=""	# files to search
+	o=""
+	for i in $progs ; do
+		names="${names} ${o} -name $i"
+		o="-o"
+	done
+	places=""				# places to search
+	for i in $subdirs ; do
+		places="${places} ${o_objdir}/${i}"
+	done
+	find ${places} -type f \( ${names} \)
+}
+		
 # Populate the memory filesystem with binaries and non-variable
 # configuration files.
 # First do an mtree pass, then create directory links and device entries,
@@ -863,7 +909,6 @@ fill_floppy_image() {
 # needs to be done once).
 
 set_build_parameters() {
-    log "set_build_parameters() SRC is ${SRC}"
     if [ "${SRC}" = "/usr/src" ] ; then
 	l_usrtree=${USR:-/usr}
     else
@@ -890,6 +935,19 @@ set_build_parameters() {
 	CONFIG=${l_usrtree}/sbin/config
 	export CONFIG
     fi
+
+    # if we have o_objdir, find where bin/ is
+    if [ ! -z "${o_objdir}" ] ; then
+	if [ -d ${o_objdir}/bin ] ; then
+	    # fine
+	elif [ -d "${o_objdir}${SRC}/bin" ] ; then
+	    o_objdir="${o_objdir}${SRC}"
+	    log "Changing objdir to ${o_objdir}"
+	else
+	    log "Cannot find objdir in ${o_objdir}, sorry"
+	    o_objdir=""
+	fi
+    fi
 }
 
 #-------------------------------------------------------------------
@@ -898,9 +956,10 @@ set_build_parameters() {
 
 set_defaults
 while [ true ]; do
+    log "Parsing $1"
     case $1 in
     --src)	# set the source path instead of /usr/src
-	SRC=`(cd $2; pwd)`
+	SRC=`realpath $2`
 	shift
 	;;
     --init)
@@ -949,6 +1008,12 @@ while [ true ]; do
 
     --cfg) # read additional config from this file
 	o_additional_config=`realpath $2`
+	shift
+	;;
+
+    --objdir)	# Place with results of a previous buildworld
+		# useful if you want to copy shared binaries and libs
+	o_objdir=`realpath $2`
 	shift
 	;;
 
