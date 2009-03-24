@@ -1322,6 +1322,7 @@ ip_ctloutput_pcbinfo(so, sopt, pcbinfo)
 
 			INP_INFO_WLOCK(pcbinfo);
 			if (so->so_pcb == NULL) {
+				INP_INFO_WUNLOCK(pcbinfo);
 				error = EINVAL;
 				break;
 			}
@@ -1368,7 +1369,9 @@ ip_ctloutput_pcbinfo(so, sopt, pcbinfo)
 			req = mtod(m, caddr_t);
 			len = m->m_len;
 			optname = sopt->sopt_name;
+			INP_INFO_WLOCK(pcbinfo);
 			if (so->so_pcb == NULL) {
+				INP_INFO_WUNLOCK(pcbinfo);
 				m_free(m);
 				error = EINVAL;
 				break;
