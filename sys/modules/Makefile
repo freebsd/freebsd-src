@@ -76,7 +76,6 @@ SUBDIR=	${_3dfx} \
 	${_em} \
 	en \
 	${_ep} \
-	esp \
 	${_et} \
 	${_ex} \
 	${_exca} \
