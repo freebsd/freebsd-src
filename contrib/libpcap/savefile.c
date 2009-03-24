@@ -908,7 +908,7 @@ static struct linktype_map {
 	{ DLT_IPMB,		LINKTYPE_IPMB },
 
 	/* enc0 device */
-	{ DLT_ENC, LINKTYPE_ENC },
+	{ DLT_ENC,		LINKTYPE_ENC },
 
         /* Juniper Secure Tunnel */
         { DLT_JUNIPER_ST,       LINKTYPE_JUNIPER_ST },
