@@ -48,7 +48,6 @@ char *estrdup(const char *);
 #define	CHECK_DEBUG	0x0004
 #define	CHECK_BACKGRD	0x0008
 #define	DO_BACKGRD	0x0010
-#define	CHECK_CLEAN	0x0020
 
 struct fstab;
 int checkfstab(int, int (*)(struct fstab *), 
