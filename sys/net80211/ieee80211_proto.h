@@ -74,6 +74,8 @@ int	ieee80211_output(struct ifnet *, struct mbuf *,
 void	ieee80211_start(struct ifnet *);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);
+struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,
+	struct ieee80211_key *, struct mbuf *);
 struct mbuf *ieee80211_encap(struct ieee80211_node *, struct mbuf *);
 int	ieee80211_send_mgmt(struct ieee80211_node *, int, int);
 struct ieee80211_appie;

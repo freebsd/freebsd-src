@@ -584,21 +584,6 @@ ieee80211_ioctl_getmaccmd(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return (acl == NULL ? EINVAL : acl->iac_getioctl(vap, ireq));
 }
 
-/*
- * Return the current ``state'' of an Atheros capbility.
- * If associated in station mode report the negotiated
- * setting. Otherwise report the current setting.
- */
-static int
-getathcap(struct ieee80211vap *vap, int cap)
-{
-	if (vap->iv_opmode == IEEE80211_M_STA &&
-	    vap->iv_state == IEEE80211_S_RUN)
-		return IEEE80211_ATH_CAP(vap, vap->iv_bss, cap) != 0;
-	else
-		return (vap->iv_flags & cap) != 0;
-}
-
 static __noinline int
 ieee80211_ioctl_getcurchan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
@@ -973,12 +958,6 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_PUREG:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_PUREG) != 0;
-		break;
-	case IEEE80211_IOC_FF:
-		ireq->i_val = getathcap(vap, IEEE80211_F_FF);
-		break;
-	case IEEE80211_IOC_TURBOP:
-		ireq->i_val = getathcap(vap, IEEE80211_F_TURBOP);
 		break;
 	case IEEE80211_IOC_BGSCAN:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_BGSCAN) != 0;
@@ -2888,24 +2867,6 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		/* NB: reset only if we're operating on an 11g channel */
 		if (isvap11g(vap))
 			error = ENETRESET;
-		break;
-	case IEEE80211_IOC_FF:
-		if (ireq->i_val) {
-			if ((vap->iv_caps & IEEE80211_C_FF) == 0)
-				return EOPNOTSUPP;
-			vap->iv_flags |= IEEE80211_F_FF;
-		} else
-			vap->iv_flags &= ~IEEE80211_F_FF;
-		error = ERESTART;
-		break;
-	case IEEE80211_IOC_TURBOP:
-		if (ireq->i_val) {
-			if ((vap->iv_caps & IEEE80211_C_TURBOP) == 0)
-				return EOPNOTSUPP;
-			vap->iv_flags |= IEEE80211_F_TURBOP;
-		} else
-			vap->iv_flags &= ~IEEE80211_F_TURBOP;
-		error = ENETRESET;
 		break;
 	case IEEE80211_IOC_BGSCAN:
 		if (ireq->i_val) {
