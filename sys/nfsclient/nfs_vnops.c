@@ -339,7 +339,12 @@ nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
 	}
 	m_freem(mrep);
 nfsmout:
-	KDTRACE_NFS_ACCESSCACHE_LOAD_DONE(vp, cred->cr_uid, 0, error);
+#ifdef KDTRACE_HOOKS
+	if (error) {
+		KDTRACE_NFS_ACCESSCACHE_LOAD_DONE(vp, cred->cr_uid, 0,
+		    error);
+	}
+#endif
 	return (error);
 }
 
