@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
  * copy data between mbuf chains and uio lists.
  */
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -69,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
+#include <nfsclient/nfs_kdtrace.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
@@ -80,6 +83,24 @@ __FBSDID("$FreeBSD$");
  * ANSI and traditional C compilers.
  */
 #include <machine/stdarg.h>
+
+#ifdef KDTRACE_HOOKS
+dtrace_nfsclient_attrcache_flush_probe_func_t
+    dtrace_nfsclient_attrcache_flush_done_probe;
+uint32_t nfsclient_attrcache_flush_done_id;
+
+dtrace_nfsclient_attrcache_get_hit_probe_func_t
+    dtrace_nfsclient_attrcache_get_hit_probe;
+uint32_t nfsclient_attrcache_get_hit_id;
+
+dtrace_nfsclient_attrcache_get_miss_probe_func_t
+    dtrace_nfsclient_attrcache_get_miss_probe;
+uint32_t nfsclient_attrcache_get_miss_id;
+
+dtrace_nfsclient_attrcache_load_probe_func_t
+    dtrace_nfsclient_attrcache_load_done_probe;
+uint32_t nfsclient_attrcache_load_done_id;
+#endif /* !KDTRACE_HOOKS */
 
 /*
  * Data items converted to xdr at startup, since they are constant
@@ -556,7 +577,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct vnode *vp = *vpp;
 	struct vattr *vap;
 	struct nfs_fattr *fp;
-	struct nfsnode *np;
+	struct nfsnode *np = NULL;
 	int32_t t1;
 	caddr_t cp2;
 	int rdev;
@@ -566,12 +587,15 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct timespec mtime, mtime_save;
 	int v3 = NFS_ISV3(vp);
 	struct thread *td = curthread;
+	int error = 0;
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
 	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAIT);
-	if (cp2 == NULL)
-		return EBADRPC;
+	if (cp2 == NULL) {
+		error = EBADRPC;
+		goto out;
+	}
 	fp = (struct nfs_fattr *)cp2;
 	if (v3) {
 		vtyp = nfsv3tov_type(fp->fa_type);
@@ -684,6 +708,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 				 */
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
+				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -716,9 +741,11 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	 * We detect this by for the mtime moving back. We invalidate the 
 	 * attrcache when this happens.
 	 */
-	if (timespeccmp(&mtime_save, &vap->va_mtime, >))
+	if (timespeccmp(&mtime_save, &vap->va_mtime, >)) {
 		/* Size changed or mtime went backwards */
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	}
 	if (vaper != NULL) {
 		bcopy((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
@@ -729,7 +756,13 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 		}
 	}
 	mtx_unlock(&np->n_mtx);
-	return (0);
+out:
+#ifdef KDRACE_HOOKS
+	if (np != NULL)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, error == 0 ? &np->n_vattr
+		    : NULL, error);
+#endif
+	return (error);
 }
 
 #ifdef NFS_ACDEBUG
@@ -794,7 +827,8 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 	if ((time_second - np->n_attrstamp) >= timeo) {
 		nfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
-		return( ENOENT);
+		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
+		return (ENOENT);
 	}
 	nfsstats.attrcache_hits++;
 	if (vap->va_size != np->n_size) {
@@ -823,6 +857,7 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 #ifdef NFS_ACDEBUG
 	mtx_unlock(&Giant);	/* nfs_printf() */
 #endif
+	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }
 
