@@ -104,7 +104,7 @@ _pthread_spin_lock(pthread_spinlock_t *lock)
 		count = SPIN_COUNT;
 		while ((ret = THR_UMUTEX_TRYLOCK(curthread, &lck->s_lock)) != 0) {
 			while (lck->s_lock.m_owner) {
-				if (_thr_is_smp) {
+				if (!_thr_is_smp) {
 					_pthread_yield();
 				} else {
 					CPU_SPINWAIT;

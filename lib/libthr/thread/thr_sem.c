@@ -172,6 +172,16 @@ _sem_trywait(sem_t *sem)
 	return (-1);
 }
 
+static void
+sem_cancel_handler(void *arg)
+{
+	sem_t *sem = arg;
+
+	atomic_add_int(&(*sem)->nwaiters, -1);
+	if ((*sem)->nwaiters && (*sem)->count)
+		_thr_umtx_wake(&(*sem)->count, 1, 0);
+}
+
 int
 _sem_wait(sem_t *sem)
 {
@@ -195,9 +205,13 @@ _sem_wait(sem_t *sem)
 			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
 				return (0);
 		}
+		atomic_add_int(&(*sem)->nwaiters, 1);
+		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		_thr_cancel_enter(curthread);
-		retval = _thr_umtx_wait((long *)&(*sem)->count, 0, NULL);
+		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, NULL, 0);
 		_thr_cancel_leave(curthread);
+		THR_CLEANUP_POP(curthread, 0);
+		atomic_add_int(&(*sem)->nwaiters, -1);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);
@@ -238,18 +252,27 @@ _sem_timedwait(sem_t * __restrict sem,
 		}
 		clock_gettime(CLOCK_REALTIME, &ts);
 		TIMESPEC_SUB(&ts2, abstime, &ts);
+		atomic_add_int(&(*sem)->nwaiters, 1);
+		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		_thr_cancel_enter(curthread);
-		retval = _thr_umtx_wait((long *)&(*sem)->count, 0, &ts2);
+		retval = _thr_umtx_wait_uint((uint32_t*)&(*sem)->count, 0, &ts2, 0);
 		_thr_cancel_leave(curthread);
+		THR_CLEANUP_POP(curthread, 0);
+		atomic_add_int(&(*sem)->nwaiters, -1);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);
 }
 
+/*
+ * sem_post() is required to be safe to call from within
+ * signal handlers, these code should work as that.
+ */
+
 int
 _sem_post(sem_t *sem)
 {
-	int val, retval;
+	int retval = 0;
 	
 	if (sem_check_validity(sem) != 0)
 		return (-1);
@@ -257,15 +280,12 @@ _sem_post(sem_t *sem)
 	if ((*sem)->syssem != 0)
 		return (ksem_post((*sem)->semid));
 
-	/*
-	 * sem_post() is required to be safe to call from within
-	 * signal handlers, these code should work as that.
-	 */
-	do {
-		val = (*sem)->count;
-	} while (!atomic_cmpset_acq_int(&(*sem)->count, val, val + 1));
-	retval = _thr_umtx_wake((long *)&(*sem)->count, val + 1);
-	if (retval > 0)
-		retval = 0;
+	atomic_add_rel_int(&(*sem)->count, 1);
+
+	if ((*sem)->nwaiters) {
+		retval = _thr_umtx_wake(&(*sem)->count, 1, 0);
+		if (retval != 0)
+			retval = -1;
+	}
 	return (retval);
 }

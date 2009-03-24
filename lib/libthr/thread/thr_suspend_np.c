@@ -130,7 +130,7 @@ suspend_common(struct pthread *curthread, struct pthread *thread,
 		THR_THREAD_UNLOCK(curthread, thread);
 		_thr_send_sig(thread, SIGCANCEL);
 		if (waitok) {
-			_thr_umtx_wait(&thread->cycle, tmp, NULL);
+			_thr_umtx_wait_uint(&thread->cycle, tmp, NULL, 0);
 			THR_THREAD_LOCK(curthread, thread);
 		} else {
 			THR_THREAD_LOCK(curthread, thread);

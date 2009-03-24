@@ -9,6 +9,7 @@
 # system call stubs.
 
 .include <bsd.own.mk>
+MK_SSP=	no
 
 .if (${DEFAULT_THREAD_LIB} == "libthr" || ${MK_LIBKSE} == "no") && \
     ${SHLIBDIR} == "/usr/lib"
@@ -17,7 +18,7 @@ SHLIBDIR= /lib
 
 LIB=thr
 SHLIB_MAJOR= 3
-WARNS?= 2
+WARNS?=	3
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
@@ -28,9 +29,8 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
 
-# CFLAGS+=-DSYSTEM_SCOPE_ONLY
-
-VERSION_MAP=${.CURDIR}/pthread.map
+VERSION_DEF=${.CURDIR}/../libc/Versions.def
+SYMBOL_MAPS=${.CURDIR}/pthread.map
 
 MAN=	libthr.3
 
@@ -52,6 +52,10 @@ SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 .if ${MK_PROFILE} != "no"
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
+.endif
+
+.if !defined(WITHOUT_SYSCALL_COMPAT)
+CFLAGS+=-DSYSCALL_COMPAT
 .endif
 
 .include <bsd.lib.mk>

@@ -6,7 +6,6 @@
  * Use the same naming scheme as libc.
  */
 FBSD_1.0 {
-global:
 	__error;
 	accept;
 	aio_suspend;
@@ -118,8 +117,8 @@ global:
 	pthread_rwlockattr_getpshared;
 	pthread_rwlockattr_init;
 	pthread_rwlockattr_setpshared;
-	pthread_self;
 	pthread_set_name_np;
+	pthread_self;
 	pthread_setcancelstate;
 	pthread_setcanceltype;
 	pthread_setconcurrency;
@@ -165,15 +164,12 @@ global:
 	system;
 	tcdrain;
 	usleep;
-	vfork;
 	wait;
 	wait3;
 	wait4;
 	waitpid;
 	write;
 	writev;
-local:
-	*;
 };
 
 /*
@@ -181,7 +177,6 @@ local:
  * These are not part of our application ABI.
  */
 FBSDprivate_1.0 {
-global:
 	___creat;
 	___pause;
 	___pselect;
@@ -233,6 +228,7 @@ global:
 	_pthread_barrierattr_setpshared;
 	_pthread_attr_destroy;
 	_pthread_attr_get_np;
+	_pthread_attr_getaffinity_np;
 	_pthread_attr_getdetachstate;
 	_pthread_attr_getguardsize;
 	_pthread_attr_getinheritsched;
@@ -243,6 +239,7 @@ global:
 	_pthread_attr_getstackaddr;
 	_pthread_attr_getstacksize;
 	_pthread_attr_init;
+	_pthread_attr_setaffinity_np;
 	_pthread_attr_setcreatesuspend_np;
 	_pthread_attr_setdetachstate;
 	_pthread_attr_setguardsize;
@@ -272,7 +269,9 @@ global:
 	_pthread_detach;
 	_pthread_equal;
 	_pthread_exit;
+	_pthread_getaffinity_np;
 	_pthread_getconcurrency;
+	_pthread_getcpuclockid;
 	_pthread_getprio;
 	_pthread_getschedparam;
 	_pthread_getspecific;
@@ -284,10 +283,15 @@ global:
 	_pthread_multi_np;
 	_pthread_mutex_destroy;
 	_pthread_mutex_getprioceiling;
+	_pthread_mutex_getspinloops_np;
+	_pthread_mutex_getyieldloops_np;
 	_pthread_mutex_init;
 	_pthread_mutex_init_calloc_cb;
+	_pthread_mutex_isowned_np;
 	_pthread_mutex_lock;
 	_pthread_mutex_setprioceiling;
+	_pthread_mutex_setspinloops_np;
+	_pthread_mutex_setyieldloops_np;
 	_pthread_mutex_timedlock;
 	_pthread_mutex_trylock;
 	_pthread_mutex_unlock;
@@ -321,6 +325,7 @@ global:
 	_pthread_rwlockattr_setpshared;
 	_pthread_self;
 	_pthread_set_name_np;
+	_pthread_setaffinity_np;
 	_pthread_setcancelstate;
 	_pthread_setcanceltype;
 	_pthread_setconcurrency;
@@ -358,7 +363,6 @@ global:
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
-	_vfork;
 
 	/* Debugger needs these. */
 	_libthr_debug;
@@ -386,6 +390,19 @@ global:
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
-local:
-	*;
+};
+
+FBSD_1.1 {
+	__pthread_cleanup_pop_imp;
+	__pthread_cleanup_push_imp;
+	pthread_attr_getaffinity_np;
+	pthread_attr_setaffinity_np;
+	pthread_getaffinity_np;
+	pthread_getcpuclockid;
+	pthread_setaffinity_np;
+	pthread_mutex_getspinloops_np;
+	pthread_mutex_getyieldloops_np;
+	pthread_mutex_isowned_np;
+	pthread_mutex_setspinloops_np;
+	pthread_mutex_setyieldloops_np;
 };

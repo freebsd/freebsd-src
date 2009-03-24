@@ -132,7 +132,9 @@ int	__aio_suspend(const struct aiocb * const iocbs[], int,
 int	__close(int);
 int	__connect(int, const struct sockaddr *, socklen_t);
 int	__fcntl(int, int,...);
+#ifdef SYSCALL_COMPAT
 extern int __fcntl_compat(int, int,...);
+#endif
 int	__fsync(int);
 int	__msync(void *, size_t, int);
 int	__nanosleep(const struct timespec *, struct timespec *);
@@ -150,7 +152,6 @@ pid_t	__wait3(int *, int, struct rusage *);
 pid_t	__wait4(pid_t, int *, int, struct rusage *);
 ssize_t	__write(int, const void *, size_t);
 ssize_t	__writev(int, const struct iovec *, int);
-int	_vfork(void);
 
 __weak_reference(__accept, accept);
 
@@ -254,7 +255,11 @@ __fcntl(int fd, int cmd,...)
 		ret = __sys_fcntl(fd, cmd);
 		break;
 	default:
+#ifdef SYSCALL_COMPAT
 		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
+#else
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
+#endif
 	}
 	va_end(ap);
 
@@ -528,14 +533,6 @@ ___usleep(useconds_t useconds)
 	_thr_cancel_leave(curthread);
 	
 	return (ret);
-}
-
-__weak_reference(_vfork, vfork);
-
-int
-_vfork(void)
-{
-	return (fork());
 }
 
 __weak_reference(___wait, wait);

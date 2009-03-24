@@ -75,20 +75,21 @@ struct pthread_prio	_thr_priorities[3] = {
 
 struct pthread_attr _pthread_attr_default = {
 	.sched_policy = SCHED_OTHER,
-	.sched_inherit = 0,
+	.sched_inherit = PTHREAD_INHERIT_SCHED,
 	.prio = 0,
 	.suspend = THR_CREATE_RUNNING,
 	.flags = PTHREAD_SCOPE_SYSTEM,
 	.stackaddr_attr = NULL,
 	.stacksize_attr = THR_STACK_DEFAULT,
-	.guardsize_attr = 0
+	.guardsize_attr = 0,
+	.cpusetsize = 0,
+	.cpuset = NULL
 };
 
 struct pthread_mutex_attr _pthread_mutexattr_default = {
 	.m_type = PTHREAD_MUTEX_DEFAULT,
 	.m_protocol = PTHREAD_PRIO_NONE,
-	.m_ceiling = 0,
-	.m_flags = 0
+	.m_ceiling = 0
 };
 
 /* Default condition variable attributes: */
@@ -158,7 +159,6 @@ STATIC_LIB_REQUIRE(_spinlock);
 STATIC_LIB_REQUIRE(_spinlock_debug);
 STATIC_LIB_REQUIRE(_spinunlock);
 STATIC_LIB_REQUIRE(_thread_init_hack);
-STATIC_LIB_REQUIRE(_vfork);
 
 /*
  * These are needed when linking statically.  All references within

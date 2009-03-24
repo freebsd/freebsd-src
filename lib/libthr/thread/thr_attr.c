@@ -99,6 +99,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread_np.h>
+#include <sys/sysctl.h>
 #include "un-namespace.h"
 
 #include "thr_private.h"
@@ -148,7 +149,9 @@ _pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 		attr.flags |= PTHREAD_DETACHED;
 	_thr_ref_delete(curthread, pid);
 	memcpy(*dst, &attr, sizeof(struct pthread_attr));
-
+	/* XXX */
+	(*dst)->cpuset = NULL;
+	(*dst)->cpusetsize = 0;
 	return (0);
 }
 
@@ -542,4 +545,93 @@ _pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 		ret = 0;
 	}
 	return(ret);
+}
+
+static size_t
+_get_kern_cpuset_size(void)
+{
+	static int kern_cpuset_size = 0;
+
+	if (kern_cpuset_size == 0) {
+		size_t len;
+
+		len = sizeof(kern_cpuset_size);
+		if (sysctlbyname("kern.smp.maxcpus", &kern_cpuset_size,
+		    &len, NULL, 0))
+			PANIC("failed to get sysctl kern.smp.maxcpus");
+
+		kern_cpuset_size = (kern_cpuset_size + 7) / 8;
+	}
+
+	return (kern_cpuset_size);
+}
+
+__weak_reference(_pthread_attr_setaffinity_np, pthread_attr_setaffinity_np);
+int
+_pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
+	const cpuset_t *cpusetp)
+{
+	pthread_attr_t attr;
+	int ret;
+
+	if (pattr == NULL || (attr = (*pattr)) == NULL)
+		ret = EINVAL;
+	else {
+		if (cpusetsize == 0 || cpusetp == NULL) {
+			if (attr->cpuset != NULL) {
+				free(attr->cpuset);
+				attr->cpuset = NULL;
+				attr->cpusetsize = 0;
+			}
+			return (0);
+		}
+			
+		if (cpusetsize > attr->cpusetsize) {
+			size_t kern_size = _get_kern_cpuset_size();
+			if (cpusetsize > kern_size) {
+				size_t i;
+				for (i = kern_size; i < cpusetsize; ++i) {
+					if (((char *)cpusetp)[i])
+						return (EINVAL);
+				}
+			}
+			void *newset = realloc(attr->cpuset, cpusetsize);
+       			if (newset == NULL)
+		            return (ENOMEM);
+			attr->cpuset = newset;
+			attr->cpusetsize = cpusetsize;
+		} else {
+			memset(((char *)attr->cpuset) + cpusetsize, 0,
+				attr->cpusetsize - cpusetsize);
+			attr->cpusetsize = cpusetsize;
+		}
+		memcpy(attr->cpuset, cpusetp, cpusetsize);
+		ret = 0;
+	}
+	return (ret);
+}
+
+__weak_reference(_pthread_attr_getaffinity_np, pthread_attr_getaffinity_np);
+int
+_pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
+	cpuset_t *cpusetp)
+{
+	pthread_attr_t attr;
+	int ret = 0;
+
+	if (pattr == NULL || (attr = (*pattr)) == NULL)
+		ret = EINVAL;
+	else if (attr->cpuset != NULL) {
+		memcpy(cpusetp, attr->cpuset, MIN(cpusetsize, attr->cpusetsize));
+		if (cpusetsize > attr->cpusetsize)
+			memset(((char *)cpusetp) + attr->cpusetsize, 0, 
+				cpusetsize - attr->cpusetsize);
+	} else {
+		size_t kern_size = _get_kern_cpuset_size();
+		memset(cpusetp, -1, MIN(cpusetsize, kern_size));
+		if (cpusetsize > kern_size)
+			memset(((char *)cpusetp) + kern_size, 0,
+				cpusetsize - kern_size);
+	}
+	return (ret);
 }
