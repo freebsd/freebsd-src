@@ -3250,8 +3250,10 @@ ndis_stop(sc)
 
 	NDIS_LOCK(sc);
 	for (i = 0; i < NDIS_EVENTS; i++) {
-		if (sc->ndis_evt[i].ne_sts && sc->ndis_evt[i].ne_buf != NULL)
+		if (sc->ndis_evt[i].ne_sts && sc->ndis_evt[i].ne_buf != NULL) {
 			free(sc->ndis_evt[i].ne_buf, M_TEMP);
+			sc->ndis_evt[i].ne_buf = NULL;
+		}
 		sc->ndis_evt[i].ne_sts = 0;
 		sc->ndis_evt[i].ne_len = 0;
 	}
