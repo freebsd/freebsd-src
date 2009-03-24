@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_wlan.h"
 
-#ifdef IEEE80211_SUPPORT_TDMA
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/mbuf.h>   
@@ -787,4 +786,3 @@ ieee80211_tdma_ioctl_set80211(struct ieee80211vap *vap,
 	}
 	return 0;
 }
-#endif /* IEEE80211_SUPPORT_TDMA */
