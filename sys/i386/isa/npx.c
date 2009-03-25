@@ -181,7 +181,7 @@ SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
 static	volatile u_int		npx_intrs_while_probing;
 static	volatile u_int		npx_traps_while_probing;
 
-static	union savefpu		npx_cleanstate;
+static	union savefpu		npx_initialstate;
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
 static	bool_t			npx_irq13;
@@ -423,24 +423,24 @@ npx_attach(dev)
 
 	s = intr_disable();
 	stop_emulating();
-	fpusave(&npx_cleanstate);
+	fpusave(&npx_initialstate);
 	start_emulating();
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
-		if (npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask)
+		if (npx_initialstate.sv_xmm.sv_env.en_mxcsr_mask)
 			cpu_mxcsr_mask = 
-			    npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask;
+			    npx_initialstate.sv_xmm.sv_env.en_mxcsr_mask;
 		else
 			cpu_mxcsr_mask = 0xFFBF;
-		bzero(npx_cleanstate.sv_xmm.sv_fp,
-		    sizeof(npx_cleanstate.sv_xmm.sv_fp));
-		bzero(npx_cleanstate.sv_xmm.sv_xmm,
-		    sizeof(npx_cleanstate.sv_xmm.sv_xmm));
+		bzero(npx_initialstate.sv_xmm.sv_fp,
+		    sizeof(npx_initialstate.sv_xmm.sv_fp));
+		bzero(npx_initialstate.sv_xmm.sv_xmm,
+		    sizeof(npx_initialstate.sv_xmm.sv_xmm));
 		/* XXX might need even more zeroing. */
 	} else
 #endif
-		bzero(npx_cleanstate.sv_87.sv_ac,
-		    sizeof(npx_cleanstate.sv_87.sv_ac));
+		bzero(npx_initialstate.sv_87.sv_ac,
+		    sizeof(npx_initialstate.sv_87.sv_ac));
 	intr_restore(s);
 #ifdef I586_CPU_XXX
 	if (cpu_class == CPUCLASS_586 && npx_ex16 &&
@@ -798,9 +798,9 @@ npxdna(void)
 		/*
 		 * This is the first time this thread has used the FPU or
 		 * the PCB doesn't contain a clean FPU state.  Explicitly
-		 * load sanitized registers.
+		 * load an initial state.
 		 */
-		fpurstor(&npx_cleanstate);
+		fpurstor(&npx_initialstate);
 		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
 			fldcw(&pcb->pcb_initial_npxcw);
 		pcb->pcb_flags |= PCB_NPXINITDONE;
@@ -900,7 +900,7 @@ npxgetregs(td, addr)
 		return (_MC_FPOWNED_NONE);
 
 	if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
-		bcopy(&npx_cleanstate, addr, sizeof(npx_cleanstate));
+		bcopy(&npx_initialstate, addr, sizeof(npx_initialstate));
 		SET_FPU_CW(addr, td->td_pcb->pcb_initial_npxcw);
 		return (_MC_FPOWNED_NONE);
 	}
