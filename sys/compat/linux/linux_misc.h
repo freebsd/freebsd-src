@@ -45,4 +45,9 @@
 #define	LINUX_MREMAP_MAYMOVE	1
 #define	LINUX_MREMAP_FIXED	2
 
+/* Linux sets the i387 to extended precision. */
+#if defined(__i386__) || defined(__amd64__)
+#define	__LINUX_NPXCW__		0x37f
+#endif
+
 #endif	/* _LINUX_MISC_H_ */
