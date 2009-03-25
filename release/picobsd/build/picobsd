@@ -160,8 +160,9 @@ set_defaults() {	# no arguments
     trap fail 15
 }
 
-# use the new build infrastructure
-create_includes_and_libraries2() {
+# use the new build infrastructure to create libraries
+# and also to build a specific target
+create_includes_and_libraries2() { # opt_dir opt_target
     local no
     log "create_includes_and_libraries2() for ${SRC}"
     if [ ${OSVERSION} -ge 600000 ] ; then
@@ -173,7 +174,11 @@ create_includes_and_libraries2() {
     export MAKEOBJDIRPREFIX
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
-    make _+_= $no toolchain _includes _libraries
+    if [ -d "$1" ] ; then
+	cd $1 ; make $2	# specific target, e.g. ld-elf.so
+    else
+	make _+_= $no toolchain _includes _libraries
+    fi
     )
 }
 
@@ -253,7 +258,7 @@ set_type() {	# the_type the_site
 
 clean_tree() {
     log "clean_tree()"
-    if [ "${name}" = "" ] ; then
+    if [ -z "${name}" ] ; then
 	echo "---> Wrong floppy type"
 	exit 3
     fi
@@ -282,7 +287,7 @@ build_iso_image() {
 # Main build procedure.
 build_image() {
     log "build_image() <${name}>"
-    [ "${name}" != "" ] || fail $? bad_type
+    [ -n "${name}" ] || fail $? bad_type
     clear
     set_msgs
     printf "${MSG}---> We'll use the sources living in ${SRC}\n\n"
@@ -292,12 +297,8 @@ build_image() {
     # variables.
     # 
     . ${PICO_TREE}/build/config
-    if [ -f ${MY_TREE}/config ] ; then
-	. ${MY_TREE}/config
-    fi
-    if [ -f ${o_additional_config} ] ; then
-	. ${o_additional_config}
-    fi
+    [ -f "${MY_TREE}/config" ]		&& . ${MY_TREE}/config
+    [ -f "${o_additional_config}" ]	&& . ${o_additional_config}
 
     # location of the object directory
     PICO_OBJ=${l_objtree}/picobsd/${THETYPE}
@@ -329,7 +330,7 @@ main_dialog() {
   local ans i l
 
   log "main_dialog()"
-  while [ true ] ; do
+  while true ; do
     set_msgs
     rm ${c_reply}
     dialog --menu "PicoBSD build menu -- (29 sep 2001)" 19 70 12 \
@@ -537,7 +538,7 @@ do_copyfiles() {	# rootdir varname
 	eval set "\${${2}}"
         srcs=""
 	for dst in $* ; do
-		[ x"$srcs" = x ] && srcs=$dst && continue
+		[ -z "$srcs" ] && srcs=$dst && continue
 		eval srcs="$srcs"	# expand wildcard and vars
 		case x"$dst" in
 		*/ )	mkdir -p ${root}/${dst} ;;
@@ -548,11 +549,34 @@ do_copyfiles() {	# rootdir varname
         done
 }
 
+# do_links is a helper function to create links between programs
+# in stand/
+# This is done reading the names and destination from variable
+# links in a config file, in the format
+#	: dst names
+
+do_links() {	# rootdir varname
+	local root=$1
+	local l i dst
+	eval l="\${${2}}"
+        dst=""
+	log "Create links for ${l}"
+	(cd ${root}/stand
+	for i in $l ; do
+	    if [ "$dst" = ":" -o "$i" = ":" ] ; then
+		dst=$i
+	    elif [ -n "${dst}" ] ; then
+		ln -s ${dst} ${i}
+	    fi
+	done
+	)
+}
+
 # find_progs is a helper function to locate the named programs
-# or libraries in ${o_objdir} and return the full pathnames.
+# or libraries in ${o_objdir} or ${_SHLIBDIRPREFIX},
+# and return the full pathnames.
 # Sets ${u_progs} to the list of programs, and ${u_libs}
 # to the list of shared libraries used.
-# If the first argument is - does not set u_libs
 #
 # You can use it e.g. in a local configuration file by writing
 #
@@ -569,6 +593,7 @@ do_copyfiles() {	# rootdir varname
 find_progs() {	# programs
 	local i
 	u_progs="`find_progs_helper $*`"
+	local o=${o_objdir:-${_SHLIBDIRPREFIX}}
 	[ -z "${u_progs}" ] && return 1	# not found, error
 	i="`ldd ${u_progs} | grep -v '^/' | awk '{print $1}' | sort | uniq`"
 	u_libs="`find_progs_helper $i`"
@@ -584,16 +609,20 @@ find_progs_helper() {	# programs
 	names=""	# files to search
 	o=""
 	for i in $progs ; do
+		# plain programs come out verbatim
+		[ -f "$i" ] && echo $i && continue
 		names="${names} ${o} -name $i"
 		o="-o"
 	done
+	[ -z "${names}" ] && return 0
 	places=""				# places to search
+	o=${o_objdir:-${_SHLIBDIRPREFIX}/..}
 	for i in $subdirs ; do
-		places="${places} ${o_objdir}/${i}"
+		[ -d "${o}/${i}" ] && places="${places} ${o}/${i}"
 	done
 	find ${places} -type f \( ${names} \)
 }
-		
+
 # Populate the memory filesystem with binaries and non-variable
 # configuration files.
 # First do an mtree pass, then create directory links and device entries,
@@ -683,7 +712,7 @@ populate_mfs_tree() {
     fi
 
     # 4.x compatibility - create device nodes
-    if [ "${o_no_devfs}" != "" ] ; then
+    if [ -n "${o_no_devfs}" ] ; then
 	# create device entries using MAKEDEV
 	(cd ${dst}/dev
 	ln -s ${SRC}/etc/MAKEDEV ; chmod 555 MAKEDEV
@@ -697,10 +726,20 @@ populate_mfs_tree() {
 	(cd ${dst}; chown -R root . )
     fi
 
-    if [ -n "${copy_files}" ] ; then
-	do_copyfiles ${dst} copy_files
+    # If we are building a shared 'crunch', take the libraries
+    # and the dynamic loader as well
+    find_progs ${dst}/stand/crunch
+    if [ -n "${u_libs}" ] ; then
+	mkdir -p ${dst}/lib && cp -p ${u_libs} ${dst}/lib
+	mkdir -p ${dst}/libexec
+        create_includes_and_libraries2 libexec/rtld-elf
+        find_progs ld-elf.so.1 && cp -p ${u_progs} ${dst}/libexec
     fi
+
+    [ -n "${copy_files}" ] && do_copyfiles ${dst} copy_files
     do_copyfiles_user ${dst} || true
+    [ -n "${links}" ] && do_links ${dst} links
+    strip ${dst}/libexec/* ${dst}/lib/* ${dst}/stand/* 2> /dev/null || true
 
     # The 'import_files' mechanism is deprecated, as it requires
     # root permissions to follow the symlinks, and also does
