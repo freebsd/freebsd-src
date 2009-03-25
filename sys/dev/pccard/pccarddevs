@@ -181,6 +181,7 @@ vendor RALINK			0x1814	Ralink Technology
  * with '0xc' look coherent enough that maybe somebody other than PCMCIA is
  * assigning numbers in that range.  Maybe JEITA?
  */
+vendor RIOS			0x492f	RIOS Systems Co
 vendor AIRVAST			0x50c2	AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
@@ -544,6 +545,9 @@ product RAYTHEON WLAN		0x0000 WLAN Adapter
 
 /* RELIA Technologies Corporation */
 product RELIA COMBO		0x2452 Reliable Combo-L/M-56K
+
+/* RIOS Systems Co */
+product RIOS PCCARD3		0x0000 PC Card Ethernet
 
 /* Roland */
 product ROLAND SCP55		0x0001 Roland SCP-55
