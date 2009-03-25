@@ -86,6 +86,8 @@ gv_volume_start(struct gv_softc *sc, struct bio *bp)
 		if (lp == NULL)
 			lp = LIST_FIRST(&v->plexes);
 		p = LIST_NEXT(lp, in_volume);
+		if (p == NULL)
+			p = LIST_FIRST(&v->plexes);
 		do {
 			if (p == NULL) {
 				p = lp;
@@ -96,6 +98,8 @@ gv_volume_start(struct gv_softc *sc, struct bio *bp)
 			    p->org == GV_PLEX_RAID5))
 				break;
 			p = LIST_NEXT(p, in_volume);
+			if (p == NULL)
+				p = LIST_FIRST(&v->plexes);
 		} while (p != lp);
 
 		if ((p == NULL) ||
