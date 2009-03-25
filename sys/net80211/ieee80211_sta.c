@@ -105,9 +105,7 @@ sta_vattach(struct ieee80211vap *vap)
 static void
 sta_beacon_miss(struct ieee80211vap *vap)
 {
-	struct ieee80211com *ic = vap->iv_ic;
-
-	KASSERT((ic->ic_flags & IEEE80211_F_SCAN) == 0, ("scanning"));
+	KASSERT((vap->iv_ic->ic_flags & IEEE80211_F_SCAN) == 0, ("scanning"));
 	KASSERT(vap->iv_state == IEEE80211_S_RUN,
 	    ("wrong state %d", vap->iv_state));
 
@@ -133,6 +131,8 @@ sta_beacon_miss(struct ieee80211vap *vap)
 	vap->iv_stats.is_beacon_miss++;
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
 #ifdef IEEE80211_SUPPORT_SUPERG
+		struct ieee80211com *ic = vap->iv_ic;
+
 		/*
 		 * If we receive a beacon miss interrupt when using
 		 * dynamic turbo, attempt to switch modes before
