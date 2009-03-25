@@ -14,7 +14,7 @@ $ ESRCH
 $ EINTR
 4 Interrupt innerhalb eines Systemaufrufs
 $ EIO
-5 Ein/Ausgabefehler
+5 Ein-/Ausgabefehler
 $ ENXIO
 6 Gerät ist nicht konfiguriert
 $ E2BIG
@@ -56,7 +56,7 @@ $ EMFILE
 $ ENOTTY
 25 Ungültiger IOCTL für dieses Gerät
 $ ETXTBSY
-26 Text-Datei ist belegt
+26 Datei wird benutzt
 $ EFBIG
 27 Datei zu groß
 $ ENOSPC
@@ -72,11 +72,11 @@ $ EPIPE
 $ EDOM
 33 Numerisches Argument außerhalb des Wertebereichs
 $ ERANGE
-34 Ergebnis zu groß
+34 Ergebnis außerhalb des Wertebereichs
 $ EAGAIN, EWOULDBLOCK
 35 Ressource vorübergehend nicht verfügbar
 $ EINPROGRESS
-36 Operation wird jetzt ausgeführt
+36 Operation wird gerade ausgeführt
 $ EALREADY
 37 Operation wird bereits ausgeführt
 $ ENOTSOCK
@@ -164,7 +164,7 @@ $ ENOSYS
 $ EFTYPE
 79 Ungültiger Dateityp oder Dateiformat
 $ EAUTH
-80 Authentifikationsfehler
+80 Authentifizierungsfehler
 $ ENEEDAUTH
 81 Authentikator benötigt
 $ EIDRM
@@ -208,7 +208,7 @@ $ SIGBUS
 $ SIGSEGV
 11 Illegaler Speicherzugriff
 $ SIGSYS
-12 Ungültiger Speicherzugriff
+12 Ungültiger Systemaufruf
 $ SIGPIPE
 13 Unterbrochene Pipe
 $ SIGALRM
