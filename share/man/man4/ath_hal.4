@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+.\" Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
 .\" All rights reserved.
 .\""
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd November 30, 2008
+.Dd March 25, 2009
 .Dt ATH_HAL 4
 .Os
 .Sh NAME
@@ -52,10 +52,13 @@ or
 .\".Cd "device ath_rf2136"
 .\".Cd "device ath_rf2137"
 .Cd "device ath_ar9160"
+.Cd "device ath_ar9280"
 .Cd "options AH_SUPPORT_AR5416"
 .Sh DESCRIPTION
 The hal provides hardware support for wireless network adapters based on
-the Atheros AR5210, AR5211, AR5212, AR5416, and AR9160 chips.
+the Atheros AR5210, AR5211, AR5212, AR5213, AR2413, AR2417, AR2425,
+AR5413, AR5416, AR5418, AR5424, AR9160, and AR9280 chips (and companion
+RF/baseband parts).
 This code is part of the
 .Xr ath 4
 driver but configured separately to allow fine-grained control
@@ -63,7 +66,8 @@ over the set of chips supported.
 Selecting
 .Nm
 enables support for all PCI and Cardbus devices.
-Note this includes AR5416 devices and must be accompanied by the
+Note this includes AR5416, AR9160, and AR9280 devices and
+must be accompanied by the
 AH_SUPPORT_AR5416
 option to enable the extended hardware descriptor format used by
 AR5416 and later devices.
