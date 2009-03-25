@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../cddl/dev/dtnfsclient
+.PATH: ${.CURDIR}/../../../nfsclient
 
 KMOD=		dtnfsclient
-SRCS=		dtnfsclient.c
+SRCS=		nfs_kdtrace.c
 SRCS+=		vnode_if.h
 
 CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris \
