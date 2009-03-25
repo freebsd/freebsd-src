@@ -794,6 +794,11 @@ npxdna(void)
 	PCPU_SET(fpcurthread, curthread);
 	pcb = PCPU_GET(curpcb);
 
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
+		fpu_clean_state();
+#endif
+
 	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
 		/*
 		 * This is the first time this thread has used the FPU or
@@ -976,10 +981,10 @@ fpusave(addr)
  * In order to avoid leaking this information across processes, we clean
  * these values by performing a dummy load before executing fxrstor().
  */
-static	double	dummy_variable = 0.0;
 static void
 fpu_clean_state(void)
 {
+	static float dummy_variable = 0.0;
 	u_short status;
 
 	/*
@@ -1005,10 +1010,9 @@ fpurstor(addr)
 {
 
 #ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr) {
-		fpu_clean_state();
+	if (cpu_fxsr)
 		fxrstor(addr);
-	} else
+	else
 #endif
 		frstor(addr);
 }

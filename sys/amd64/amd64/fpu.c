@@ -480,7 +480,6 @@ fpusetregs(struct thread *td, struct savefpu *addr)
 
 	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
-		fpu_clean_state();
 		fxrstor(addr);
 		intr_restore(s);
 	} else {
@@ -499,10 +498,10 @@ fpusetregs(struct thread *td, struct savefpu *addr)
  * In order to avoid leaking this information across processes, we clean
  * these values by performing a dummy load before executing fxrstor().
  */
-static	double	dummy_variable = 0.0;
 static void
 fpu_clean_state(void)
 {
+	static float dummy_variable = 0.0;
 	u_short status;
 
 	/*
