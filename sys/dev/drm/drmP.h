@@ -480,9 +480,7 @@ typedef struct drm_sg_mem {
 	void			 *virtual;
 	int			  pages;
 	dma_addr_t		 *busaddr;
-	struct drm_dma_handle	 *sg_dmah;	/* Handle for sg_pages   */
 	struct drm_dma_handle	 *dmah;		/* Handle to PCI memory  */
-						/* for ATI PCIGART table */
 } drm_sg_mem_t;
 
 typedef TAILQ_HEAD(drm_map_list, drm_local_map) drm_map_list_t;
@@ -543,6 +541,7 @@ struct drm_ati_pcigart_info {
 	struct drm_dma_handle *table_handle;
 	drm_local_map_t mapping;
 	int table_size;
+	struct drm_dma_handle *dmah; /* handle for ATI PCIGART table */
 };
 
 #ifndef DMA_BIT_MASK
