@@ -260,7 +260,7 @@ struct hpt_iop_ioctl_param {
 	unsigned long    lpOutBuffer;           /* output data buffer */
 	u_int32_t        nOutBufferSize;        /* size of output data buffer */
 	unsigned long    lpBytesReturned;       /* count of HPT_U8s returned */
-} __attribute__((packed));
+} __packed;
 
 #define HPT_IOCTL_FLAG_OPEN 1
 #define HPT_CTL_CODE_BSD_TO_IOP(x) ((x)-0xff00)
