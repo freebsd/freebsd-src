@@ -4170,7 +4170,7 @@ msk_sysctl_node(struct msk_if_softc *sc_if)
 	    child, rx_pkts_too_long, "frames too long");
 	MSK_SYSCTL_STAT32(sc_if, ctx, "jabbers",
 	    child, rx_pkts_jabbers, "Jabber errors");
-	MSK_SYSCTL_STAT32(sc_if, ctx, "jabbers",
+	MSK_SYSCTL_STAT32(sc_if, ctx, "overflows",
 	    child, rx_fifo_oflows, "FIFO overflows");
 
 	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx", CTLFLAG_RD,
