@@ -381,7 +381,7 @@ ssize_t	 getline(char ** __restrict, size_t * __restrict, FILE * __restrict);
 #endif
 
 #ifdef _WITH_DPRINTF
-int	 dprintf(int, const char * __restrict, ...);
+int	 (dprintf)(int, const char * __restrict, ...);
 #endif
 
 #endif /* __BSD_VISIBLE || __POSIX_VISIBLE >= 200809 */
