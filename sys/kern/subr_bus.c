@@ -820,7 +820,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	 */
 	if (parentname && dc && !dc->parent &&
 	    strcmp(classname, parentname) != 0) {
-		dc->parent = devclass_find_internal(parentname, NULL, FALSE);
+		dc->parent = devclass_find_internal(parentname, NULL, TRUE);
 		dc->parent->flags |= DC_HAS_CHILDREN;
 	}
 
