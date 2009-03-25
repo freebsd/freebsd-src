@@ -586,7 +586,7 @@ cpu_idle(void)
 void (*cpu_idle_hook)(void) = cpu_idle_default;
 
 /*
- * Clear registers on exec
+ * Reset registers to default values on exec.
  */
 void
 exec_setregs(td, entry, stack, ps_strings)
@@ -613,6 +613,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_es = _udatasel;
 	pcb->pcb_fs = _udatasel;
 	pcb->pcb_gs = _udatasel;
+	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
