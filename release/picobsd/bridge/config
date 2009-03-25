@@ -3,4 +3,4 @@
 # it should only contain variable definitions -- it is sourced
 # by the shell much like rc.conf* files
 
-fd_size="2880"
+fd_size="4096"
