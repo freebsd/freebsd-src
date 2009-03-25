@@ -3,8 +3,8 @@
 #
 # Line starting with #PicoBSD contains PicoBSD build parameters
 #marker         def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD	3200	init	8192		32768
-options MD_ROOT_SIZE=3200      # same as def_sz
+#PicoBSD	8000	init	8192		32768
+options MD_ROOT_SIZE=8000      # same as def_sz
 
 hints	"PICOBSD.hints"
 
@@ -45,6 +45,7 @@ options		DUMMYNET
 device		if_bridge
 options		HZ=1000
 
+device		random			# used by ssh
 device		pci
 
 # Floppy drives
@@ -64,7 +65,6 @@ device		atkbd
 device		vga			# VGA screen
 
 # syscons is the default console driver, resembling an SCO console
-
 device		sc
 
 # Serial (COM) ports
@@ -88,14 +88,9 @@ device		uart
 # The following Ethernet NICs are all PCI devices.
 #
 device	miibus 
-#device		de		# DEC/Intel DC21x4x (``Tulip'')
-#device		lnc
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-#device		xl		# 3Com
 device		rl		# RealTek 8129/8139
 device		sis		# National/SiS
-#device		vx		# 3Com 3c590, 3c595 (``Vortex'')
-#device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		dc		# DEC/Intel 21143 and various workalikes
 device		ed
 
@@ -108,8 +103,6 @@ device		md		# Memory "disks"
 #device		gif	4	# IPv6 and IPv4 tunneling
 #device		faith	1	# IPv6-to-IPv4 relaying (translation)
 device		tap
-
-#options		DEVICE_POLLING
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
