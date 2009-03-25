@@ -73,6 +73,7 @@ static const struct fe_pccard_product {
 	{ PCMCIA_CARD(FUJITSU2, FMV_J182A), 0 },
 	{ PCMCIA_CARD(FUJITSU2, ITCFJ182A), 0 },
 	/* These need to be second */
+	{ PCMCIA_CARD(TDK, LAK_CD011), 0 }, 
 	{ PCMCIA_CARD(TDK, LAK_CD021BX), 0 }, 
 	{ PCMCIA_CARD(TDK, LAK_CF010), 0 }, 
 #if 0 /* XXX 86960-based? */
