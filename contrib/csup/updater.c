@@ -1661,6 +1661,7 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 		else
 			lprintf(1, " Touch %s", fup->coname);
 		/* Install new attributes. */
+		fattr_umask(sr->sr_serverattr, coll->co_umask);
 		fattr_install(sr->sr_serverattr, fup->destpath, NULL);
 		if (fup->attic)
 			lprintf(1, " -> Attic");
