@@ -165,18 +165,24 @@ struct explore {
 
 static const struct explore explore[] = {
 #if 0
-	{ PF_LOCAL, 0, ANY, ANY, NULL, 0x01 },
+	{ PF_LOCAL, ANY, ANY, NULL, 0x01 },
 #endif
 #ifdef INET6
 	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
 	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
+	{ PF_INET6, SOCK_STREAM, IPPROTO_SCTP, "sctp", 0x03 },
+	{ PF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP, "sctp", 0x07 },
 	{ PF_INET6, SOCK_RAW, ANY, NULL, 0x05 },
 #endif
 	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
 	{ PF_INET, SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
+	{ PF_INET, SOCK_STREAM, IPPROTO_SCTP, "sctp", 0x03 },
+	{ PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP, "sctp", 0x07 },
 	{ PF_INET, SOCK_RAW, ANY, NULL, 0x05 },
 	{ PF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
 	{ PF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
+	{ PF_UNSPEC, SOCK_STREAM, IPPROTO_SCTP, "sctp", 0x03 },
+	{ PF_UNSPEC, SOCK_SEQPACKET, IPPROTO_SCTP, "sctp", 0x07 },
 	{ PF_UNSPEC, SOCK_RAW, ANY, NULL, 0x05 },
 	{ -1, 0, 0, NULL, 0 },
 };
@@ -417,10 +423,12 @@ getaddrinfo(const char *hostname, const char *servname,
 				if (ex->e_protocol == ANY)
 					continue;
 				if (pai->ai_socktype == ex->e_socktype &&
-				    pai->ai_protocol != ex->e_protocol) {
-					ERR(EAI_BADHINTS);
-				}
+				    pai->ai_protocol == ex->e_protocol)
+					break;
 			}
+
+			if (ex->e_af < 0)
+				ERR(EAI_BADHINTS);
 		}
 	}
 
@@ -1344,6 +1352,7 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 		return EAI_SERVICE;
 	case SOCK_DGRAM:
 	case SOCK_STREAM:
+	case SOCK_SEQPACKET:
 		allownumeric = 1;
 		break;
 	case ANY:
@@ -1373,12 +1382,16 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 	} else {
 		if (ai->ai_flags & AI_NUMERICSERV)
 			return EAI_NONAME;
-		switch (ai->ai_socktype) {
-		case SOCK_DGRAM:
+
+		switch (ai->ai_protocol) {
+		case IPPROTO_UDP:
 			proto = "udp";
 			break;
-		case SOCK_STREAM:
+		case IPPROTO_TCP:
 			proto = "tcp";
+			break;
+		case IPPROTO_SCTP:
+			proto = "sctp";
 			break;
 		default:
 			proto = NULL;
