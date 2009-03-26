@@ -511,7 +511,7 @@ findpcb:
 	 * was a legitimate new connection attempt the old INPCB gets
 	 * removed and we can try again to find a listening socket.
 	 */
-	if (inp->inp_vflag & INP_TIMEWAIT) {
+	if (inp->inp_flags & INP_TIMEWAIT) {
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
 		/*
