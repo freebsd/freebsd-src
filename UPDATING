@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090326:
+	Following bug-fixes to TCP connection state flags, netstat, systat,
+	and sockstat will need to be rebuilt in order to properly print
+	connections in the TIMEWAIT state.
+
 20090318:
 	Change IPv6 ephemeral port allocation from sequential to
 	random allocation, like IPv4 has done for more than four years.

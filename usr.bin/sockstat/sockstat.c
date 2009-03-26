@@ -343,8 +343,8 @@ gather_inet(int proto)
 			    (inp->inp_fport != 0 && !opt_c))
 				continue;
 		} else if (inp->inp_vflag & INP_IPV6) {
-			if ((inp->in6p_fport == 0 && !opt_l) ||
-			    (inp->in6p_fport != 0 && !opt_c))
+			if ((inp->inp_fport == 0 && !opt_l) ||
+			    (inp->inp_fport != 0 && !opt_c))
 				continue;
 		} else {
 			if (opt_v)
@@ -364,9 +364,9 @@ gather_inet(int proto)
 		} else if (inp->inp_vflag & INP_IPV6) {
 			sock->family = AF_INET6;
 			sockaddr(&sock->laddr, sock->family,
-			    &inp->in6p_laddr, inp->in6p_lport);
+			    &inp->in6p_laddr, inp->inp_lport);
 			sockaddr(&sock->faddr, sock->family,
-			    &inp->in6p_faddr, inp->in6p_fport);
+			    &inp->in6p_faddr, inp->inp_fport);
 		}
 		sock->vflag = inp->inp_vflag;
 		sock->protoname = protoname;
