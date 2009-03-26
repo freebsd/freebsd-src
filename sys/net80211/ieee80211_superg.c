@@ -81,7 +81,7 @@ ieee80211_superg_vdetach(struct ieee80211vap *vap)
  * Add a WME information element to a frame.
  */
 uint8_t *
-ieee80211_add_ath(uint8_t *frm, uint8_t caps, uint16_t defkeyix)
+ieee80211_add_ath(uint8_t *frm, uint8_t caps, ieee80211_keyix defkeyix)
 {
 	static const struct ieee80211_ath_ie info = {
 		.ath_id		= IEEE80211_ELEMID_VENDOR,
@@ -95,11 +95,28 @@ ieee80211_add_ath(uint8_t *frm, uint8_t caps, uint16_t defkeyix)
 
 	memcpy(frm, &info, sizeof(info));
 	ath->ath_capability = caps;
-	ath->ath_defkeyix[0] = (defkeyix & 0xff);
-	ath->ath_defkeyix[1] = ((defkeyix >> 8) & 0xff);
+	if (defkeyix != IEEE80211_KEYIX_NONE) {
+		ath->ath_defkeyix[0] = (defkeyix & 0xff);
+		ath->ath_defkeyix[1] = ((defkeyix >> 8) & 0xff);
+	} else {
+		ath->ath_defkeyix[0] = 0xff;
+		ath->ath_defkeyix[1] = 0x7f;
+	}
 	return frm + sizeof(info); 
 }
 #undef ATH_OUI_BYTES
+
+uint8_t *
+ieee80211_add_athcaps(uint8_t *frm, const struct ieee80211_node *bss)
+{
+	const struct ieee80211vap *vap = bss->ni_vap;
+
+	return ieee80211_add_ath(frm,
+	    vap->iv_flags & IEEE80211_F_ATHEROS,
+	    ((vap->iv_flags & IEEE80211_F_WPA) == 0 &&
+	    bss->ni_authmode != IEEE80211_AUTH_8021X) ?
+	    vap->iv_def_txkey : IEEE80211_KEYIX_NONE);
+}
 
 void
 ieee80211_parse_ath(struct ieee80211_node *ni, uint8_t *ie)
