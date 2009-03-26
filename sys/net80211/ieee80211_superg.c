@@ -65,7 +65,9 @@ ieee80211_superg_vattach(struct ieee80211vap *vap)
 {
 	if (vap->iv_caps & IEEE80211_C_FF)
 		vap->iv_flags |= IEEE80211_F_FF;
-	if (vap->iv_caps & IEEE80211_C_TURBOP)
+	/* NB: we only implement sta mode */
+	if (vap->iv_opmode == IEEE80211_M_STA &&
+	    (vap->iv_caps & IEEE80211_C_TURBOP))
 		vap->iv_flags |= IEEE80211_F_TURBOP;
 }
 
