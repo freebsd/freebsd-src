@@ -440,8 +440,9 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (pcbinfo != &udbinfo)
 			ipport_tcpallocs++;
 		/*
-		 * Simple check to ensure all ports are not used up causing
-		 * a deadlock here.
+		 * Instead of having two loops further down counting up or down
+		 * make sure that first is always <= last and go with only one
+		 * code path implementing all logic.
 		 *
 		 * We split the two cases (up and down) so that the direction
 		 * is not being tested on each round of the loop.
