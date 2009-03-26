@@ -47,6 +47,35 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_superg.h>
 
+/*
+ * Atheros fast-frame encapsulation format.
+ * FF max payload:
+ * 802.2 + FFHDR + HPAD + 802.3 + 802.2 + 1500 + SPAD + 802.3 + 802.2 + 1500:
+ *   8   +   4   +  4   +   14  +   8   + 1500 +  6   +   14  +   8   + 1500
+ * = 3066
+ */
+/* fast frame header is 32-bits */
+#define	ATH_FF_PROTO	0x0000003f	/* protocol */
+#define	ATH_FF_PROTO_S	0
+#define	ATH_FF_FTYPE	0x000000c0	/* frame type */
+#define	ATH_FF_FTYPE_S	6
+#define	ATH_FF_HLEN32	0x00000300	/* optional hdr length */
+#define	ATH_FF_HLEN32_S	8
+#define	ATH_FF_SEQNUM	0x001ffc00	/* sequence number */
+#define	ATH_FF_SEQNUM_S	10
+#define	ATH_FF_OFFSET	0xffe00000	/* offset to 2nd payload */
+#define	ATH_FF_OFFSET_S	21
+
+#define	ATH_FF_MAX_HDR_PAD	4
+#define	ATH_FF_MAX_SEP_PAD	6
+#define	ATH_FF_MAX_HDR		30
+
+#define	ATH_FF_PROTO_L2TUNNEL	0	/* L2 tunnel protocol */
+#define	ATH_FF_ETH_TYPE		0x88bd	/* Ether type for encapsulated frames */
+#define	ATH_FF_SNAP_ORGCODE_0	0x00
+#define	ATH_FF_SNAP_ORGCODE_1	0x03
+#define	ATH_FF_SNAP_ORGCODE_2	0x7f
+
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
