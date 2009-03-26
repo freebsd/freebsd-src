@@ -2666,6 +2666,9 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_tim_trailer += adjust;
 				bo->bo_erp += adjust;
 				bo->bo_htinfo += adjust;
+#ifdef IEEE80211_TDMA_SUPPORT
+				bo->bo_tdma += adjust;
+#endif
 				bo->bo_appie += adjust;
 				bo->bo_wme += adjust;
 				bo->bo_csa += adjust;
@@ -2710,6 +2713,9 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				memmove(&csa[1], csa, bo->bo_csa_trailer_len);
 				bo->bo_erp += sizeof(*csa);
 				bo->bo_wme += sizeof(*csa);
+#ifdef IEEE80211_TDMA_SUPPORT
+				bo->bo_tdma += sizeof(*csa);
+#endif
 				bo->bo_appie += sizeof(*csa);
 				bo->bo_csa_trailer_len += sizeof(*csa);
 				bo->bo_tim_trailer_len += sizeof(*csa);
