@@ -420,7 +420,7 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 			goto out;
 	}
 
-	res = G_PART_PROBE_PRI_HIGH;
+	res = G_PART_PROBE_PRI_NORM;
 
  out:
 	g_free(buf);
