@@ -31,6 +31,32 @@
  * Atheros' 802.11 SuperG protocol support.
  */
 
+/*
+ * Atheros advanced capability information element.
+ */
+struct ieee80211_ath_ie {
+	uint8_t		ath_id;			/* IEEE80211_ELEMID_VENDOR */
+	uint8_t		ath_len;		/* length in bytes */
+	uint8_t		ath_oui[3];		/* ATH_OUI */
+	uint8_t		ath_oui_type;		/* ATH_OUI_TYPE */
+	uint8_t		ath_oui_subtype;	/* ATH_OUI_SUBTYPE */
+	uint8_t		ath_version;		/* spec revision */
+	uint8_t		ath_capability;		/* capability info */
+#define	ATHEROS_CAP_TURBO_PRIME		0x01	/* dynamic turbo--aka Turbo' */
+#define	ATHEROS_CAP_COMPRESSION		0x02	/* data compression */
+#define	ATHEROS_CAP_FAST_FRAME		0x04	/* fast (jumbo) frames */
+#define	ATHEROS_CAP_XR			0x08	/* Xtended Range support */
+#define	ATHEROS_CAP_AR			0x10	/* Advanded Radar support */
+#define	ATHEROS_CAP_BURST		0x20	/* Bursting - not negotiated */
+#define	ATHEROS_CAP_WME			0x40	/* CWMin tuning */
+#define	ATHEROS_CAP_BOOST		0x80	/* use turbo/!turbo mode */
+	uint8_t		ath_defkeyix[2];
+} __packed;
+
+#define	ATH_OUI_VERSION		0x00
+#define	ATH_OUI_SUBTYPE		0x01
+
+#ifdef _KERNEL
 void	ieee80211_superg_attach(struct ieee80211com *);
 void	ieee80211_superg_detach(struct ieee80211com *);
 void	ieee80211_superg_vattach(struct ieee80211vap *);
@@ -54,4 +80,5 @@ ieee80211_decap_fastframe(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	return IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) ?
 	    ieee80211_ff_decap(ni, m) : m;
 }
+#endif /* _KERNEL */
 #endif /* _NET80211_IEEE80211_SUPERG_H_ */

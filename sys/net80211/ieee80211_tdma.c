@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
  * IEEE 802.11 TDMA mode support.
  */
 #include "opt_inet.h"
+#include "opt_tdma.h"
 #include "opt_wlan.h"
 
 #include <sys/param.h>
@@ -59,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_tdma.h>
 #include <net80211/ieee80211_input.h>
 
-#include "opt_tdma.h"
 #ifndef TDMA_SLOTLEN_DEFAULT
 #define	TDMA_SLOTLEN_DEFAULT	10*1000		/* 10ms */
 #endif
@@ -93,6 +93,16 @@ __FBSDID("$FreeBSD$");
 #ifndef TDMA_TXRATE_11NG_DEFAULT
 #define	TDMA_TXRATE_11NG_DEFAULT	(4 | IEEE80211_RATE_MCS)
 #endif
+
+#define	TDMA_VERSION_VALID(_version) \
+	(TDMA_VERSION_V2 <= (_version) && (_version) <= TDMA_VERSION)
+#define	TDMA_SLOTCNT_VALID(_slotcnt) \
+	(2 <= (_slotcnt) && (_slotcnt) <= TDMA_MAXSLOTS)
+/* XXX magic constants */
+#define	TDMA_SLOTLEN_VALID(_slotlen) \
+	(2*100 <= (_slotlen) && (unsigned)(_slotlen) <= 0xfffff)
+/* XXX probably should set a max */
+#define	TDMA_BINTVAL_VALID(_bintval)	(1 <= (_bintval))
 
 static void tdma_vdetach(struct ieee80211vap *vap);
 static int tdma_newstate(struct ieee80211vap *, enum ieee80211_state, int);

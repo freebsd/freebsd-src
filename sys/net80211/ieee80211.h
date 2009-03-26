@@ -733,28 +733,6 @@ struct ieee80211_csa_ie {
 	uint8_t		csa_count;		/* Channel Switch Count */
 } __packed;
 
-/*
- * Atheros advanced capability information element.
- */
-struct ieee80211_ath_ie {
-	uint8_t		ath_id;			/* IEEE80211_ELEMID_VENDOR */
-	uint8_t		ath_len;		/* length in bytes */
-	uint8_t		ath_oui[3];		/* 0x00, 0x03, 0x7f */
-	uint8_t		ath_oui_type;		/* OUI type */
-	uint8_t		ath_oui_subtype;	/* OUI subtype */
-	uint8_t		ath_version;		/* spec revision */
-	uint8_t		ath_capability;		/* capability info */
-#define	ATHEROS_CAP_TURBO_PRIME		0x01	/* dynamic turbo--aka Turbo' */
-#define	ATHEROS_CAP_COMPRESSION		0x02	/* data compression */
-#define	ATHEROS_CAP_FAST_FRAME		0x04	/* fast (jumbo) frames */
-#define	ATHEROS_CAP_XR			0x08	/* Xtended Range support */
-#define	ATHEROS_CAP_AR			0x10	/* Advanded Radar support */
-#define	ATHEROS_CAP_BURST		0x20	/* Bursting - not negotiated */
-#define	ATHEROS_CAP_WME			0x40	/* CWMin tuning */
-#define	ATHEROS_CAP_BOOST		0x80	/* use turbo/!turbo mode */
-	uint8_t		ath_defkeyix[2];
-} __packed;
-
 /* rate set entries are in .5 Mb/s units, and potentially marked as basic */
 #define	IEEE80211_RATE_BASIC		0x80
 #define	IEEE80211_RATE_VAL		0x7f
@@ -768,9 +746,11 @@ struct ieee80211_ath_ie {
 	"\20\1NON_ERP_PRESENT\2USE_PROTECTION\3LONG_PREAMBLE"
 
 #define	ATH_OUI			0x7f0300	/* Atheros OUI */
-#define	ATH_OUI_TYPE		0x01
-#define	ATH_OUI_SUBTYPE		0x01
-#define	ATH_OUI_VERSION		0x00
+#define	ATH_OUI_TYPE		0x01		/* Atheros protocol ie */
+
+/* NB: Atheros allocated the OUI for this purpose ~2005 but beware ... */
+#define	TDMA_OUI		ATH_OUI
+#define	TDMA_OUI_TYPE		0x02		/* TDMA protocol ie */
 
 #define	BCM_OUI			0x4c9000	/* Broadcom OUI */
 #define	BCM_OUI_HTCAP		51		/* pre-draft HTCAP ie */
@@ -1047,72 +1027,5 @@ struct ieee80211_duration {
 				 IEEE80211_DUR_DS_LONG_PREAMBLE + \
 				 IEEE80211_DUR_DS_SLOW_PLCPHDR + \
 				 IEEE80211_DUR_DIFS)
-
-/*
- * Atheros fast-frame encapsulation format.
- * FF max payload:
- * 802.2 + FFHDR + HPAD + 802.3 + 802.2 + 1500 + SPAD + 802.3 + 802.2 + 1500:
- *   8   +   4   +  4   +   14  +   8   + 1500 +  6   +   14  +   8   + 1500
- * = 3066
- */
-/* fast frame header is 32-bits */
-#define	ATH_FF_PROTO	0x0000003f	/* protocol */
-#define	ATH_FF_PROTO_S	0
-#define	ATH_FF_FTYPE	0x000000c0	/* frame type */
-#define	ATH_FF_FTYPE_S	6
-#define	ATH_FF_HLEN32	0x00000300	/* optional hdr length */
-#define	ATH_FF_HLEN32_S	8
-#define	ATH_FF_SEQNUM	0x001ffc00	/* sequence number */
-#define	ATH_FF_SEQNUM_S	10
-#define	ATH_FF_OFFSET	0xffe00000	/* offset to 2nd payload */
-#define	ATH_FF_OFFSET_S	21
-
-#define	ATH_FF_MAX_HDR_PAD	4
-#define	ATH_FF_MAX_SEP_PAD	6
-#define	ATH_FF_MAX_HDR		30
-
-#define	ATH_FF_PROTO_L2TUNNEL	0	/* L2 tunnel protocol */
-#define	ATH_FF_ETH_TYPE		0x88bd	/* Ether type for encapsulated frames */
-#define	ATH_FF_SNAP_ORGCODE_0	0x00
-#define	ATH_FF_SNAP_ORGCODE_1	0x03
-#define	ATH_FF_SNAP_ORGCODE_2	0x7f
-
-/* NB: Atheros allocated the OUI for this purpose ~2005 but beware ... */
-#define	TDMA_OUI		ATH_OUI
-#define	TDMA_OUI_TYPE		0x02
-#define	TDMA_VERSION_V2		2
-#define	TDMA_VERSION		TDMA_VERSION_V2
-
-/* NB: we only support 2 right now but protocol handles up to 8 */
-#define	TDMA_MAXSLOTS		2	/* max slots/sta's */
-
-#define	TDMA_PARAM_LEN_V2	sizeof(struct ieee80211_tdma_param)
-
-struct ieee80211_tdma_param {
-	u_int8_t	tdma_id;	/* IEEE80211_ELEMID_VENDOR */
-	u_int8_t	tdma_len;
-	u_int8_t	tdma_oui[3];	/* 0x00, 0x03, 0x7f */
-	u_int8_t	tdma_type;	/* OUI type */
-	u_int8_t	tdma_subtype;	/* OUI subtype */
-#define	TDMA_SUBTYPE_PARAM	0x01
-	u_int8_t	tdma_version;	/* spec revision */
-	u_int8_t	tdma_slot;	/* station slot # [0..7] */
-	u_int8_t	tdma_slotcnt;	/* bss slot count [1..8] */
-	u_int16_t	tdma_slotlen;	/* bss slot len (100us) */
-	u_int8_t	tdma_bintval;	/* beacon interval (superframes) */
-	u_int8_t	tdma_inuse[1];	/* slot occupancy map */
-	u_int8_t	tdma_pad[2];
-	u_int8_t	tdma_tstamp[8];	/* timestamp from last beacon */
-} __packed;
-
-#define	TDMA_VERSION_VALID(_version) \
-	(TDMA_VERSION_V2 <= (_version) && (_version) <= TDMA_VERSION)
-#define	TDMA_SLOTCNT_VALID(_slotcnt) \
-	(2 <= (_slotcnt) && (_slotcnt) <= TDMA_MAXSLOTS)
-/* XXX magic constants */
-#define	TDMA_SLOTLEN_VALID(_slotlen) \
-	(2*100 <= (_slotlen) && (unsigned)(_slotlen) <= 0xfffff)
-/* XXX probably should set a max */
-#define	TDMA_BINTVAL_VALID(_bintval)	(1 <= (_bintval))
 
 #endif /* _NET80211_IEEE80211_H_ */

@@ -31,6 +31,39 @@
 /*
  * TDMA-mode implementation definitions.
  */
+
+#define	TDMA_SUBTYPE_PARAM	0x01
+#define	TDMA_VERSION_V2		2
+#define	TDMA_VERSION		TDMA_VERSION_V2
+
+/* NB: we only support 2 right now but protocol handles up to 8 */
+#define	TDMA_MAXSLOTS		2	/* max slots/sta's */
+
+#define	TDMA_PARAM_LEN_V2	sizeof(struct ieee80211_tdma_param)
+
+/*
+ * TDMA information element.
+ */
+struct ieee80211_tdma_param {
+	u_int8_t	tdma_id;	/* IEEE80211_ELEMID_VENDOR */
+	u_int8_t	tdma_len;
+	u_int8_t	tdma_oui[3];	/* TDMA_OUI */
+	u_int8_t	tdma_type;	/* TDMA_OUI_TYPE */
+	u_int8_t	tdma_subtype;	/* TDMA_SUBTYPE_PARAM */
+	u_int8_t	tdma_version;	/* spec revision */
+	u_int8_t	tdma_slot;	/* station slot # [0..7] */
+	u_int8_t	tdma_slotcnt;	/* bss slot count [1..8] */
+	u_int16_t	tdma_slotlen;	/* bss slot len (100us) */
+	u_int8_t	tdma_bintval;	/* beacon interval (superframes) */
+	u_int8_t	tdma_inuse[1];	/* slot occupancy map */
+	u_int8_t	tdma_pad[2];
+	u_int8_t	tdma_tstamp[8];	/* timestamp from last beacon */
+} __packed;
+
+#ifdef _KERNEL
+/*
+ * Implementation state.
+ */
 struct ieee80211_tdma_state {
 	u_int	tdma_slotlen;		/* bss slot length (us) */
 	uint8_t	tdma_version;		/* protocol version to use */
@@ -65,4 +98,5 @@ uint8_t *ieee80211_add_tdma(uint8_t *frm, struct ieee80211vap *vap);
 struct ieee80211_beacon_offsets;
 void	ieee80211_tdma_update_beacon(struct ieee80211vap *vap,
 	    struct ieee80211_beacon_offsets *bo);
+#endif /* _KERNEL */
 #endif /* !_NET80211_IEEE80211_TDMA_H_ */
