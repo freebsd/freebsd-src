@@ -818,87 +818,86 @@ struct amd64tss common_tss[MAXCPU];
 /* software prototypes -- in more palatable form */
 struct soft_segment_descriptor gdt_segs[] = {
 /* GNULL_SEL	0 Null Descriptor */
-{	0x0,			/* segment base address  */
-	0x0,			/* length */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0,			/* long */
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0x0,
+	.ssd_type = 0,
+	.ssd_dpl = 0,
+	.ssd_p = 0,
+	.ssd_long = 0,
+	.ssd_def32 = 0,
+	.ssd_gran = 0		},
 /* GCODE_SEL	1 Code Descriptor for kernel */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMERA,		/* segment type */
-	SEL_KPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	1,			/* long */
-	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMERA,
+	.ssd_dpl = SEL_KPL,
+	.ssd_p = 1,
+	.ssd_long = 1,
+	.ssd_def32 = 0,
+	.ssd_gran = 1		},
 /* GDATA_SEL	2 Data Descriptor for kernel */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMRWA,		/* segment type */
-	SEL_KPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	1,			/* long */
-	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMRWA,
+	.ssd_dpl = SEL_KPL,
+	.ssd_p = 1,
+	.ssd_long = 1,
+	.ssd_def32 = 0,
+	.ssd_gran = 1		},
 /* GUCODE32_SEL	3 32 bit Code Descriptor for user */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMERA,		/* segment type */
-	SEL_UPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0,			/* long */
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMERA,
+	.ssd_dpl = SEL_UPL,
+	.ssd_p = 1,
+	.ssd_long = 0,
+	.ssd_def32 = 1,
+	.ssd_gran = 1		},
 /* GUDATA_SEL	4 32/64 bit Data Descriptor for user */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMRWA,		/* segment type */
-	SEL_UPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0,			/* long */
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMRWA,
+	.ssd_dpl = SEL_UPL,
+	.ssd_p = 1,
+	.ssd_long = 0,
+	.ssd_def32 = 1,
+	.ssd_gran = 1		},
 /* GUCODE_SEL	5 64 bit Code Descriptor for user */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMERA,		/* segment type */
-	SEL_UPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	1,			/* long */
-	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMERA,
+	.ssd_dpl = SEL_UPL,
+	.ssd_p = 1,
+	.ssd_long = 1,
+	.ssd_def32 = 0,
+	.ssd_gran = 1		},
 /* GPROC0_SEL	6 Proc 0 Tss Descriptor */
-{
-	0x0,			/* segment base address */
-	sizeof(struct amd64tss)-1,/* length */
-	SDT_SYSTSS,		/* segment type */
-	SEL_KPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0,			/* long */
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = sizeof(struct amd64tss)-1,
+	.ssd_type = SDT_SYSTSS,
+	.ssd_dpl = SEL_KPL,
+	.ssd_p = 1,
+	.ssd_long = 0,
+	.ssd_def32 = 0,
+	.ssd_gran = 0		},
 /* Actually, the TSS is a system descriptor which is double size */
-{	0x0,			/* segment base address  */
-	0x0,			/* length */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0,			/* long */
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0x0,
+	.ssd_type = 0,
+	.ssd_dpl = 0,
+	.ssd_p = 0,
+	.ssd_long = 0,
+	.ssd_def32 = 0,
+	.ssd_gran = 0		},
 /* GUGS32_SEL	8 32 bit GS Descriptor for user */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMRWA,		/* segment type */
-	SEL_UPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0,			/* long */
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMRWA,
+	.ssd_dpl = SEL_UPL,
+	.ssd_p = 1,
+	.ssd_long = 0,
+	.ssd_def32 = 1,
+	.ssd_gran = 1		},
 };
 
 void
