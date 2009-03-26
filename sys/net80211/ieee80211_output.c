@@ -1852,13 +1852,13 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_VENDOR)
 			frm = ieee80211_add_htcap_vendor(frm, ni);
 #ifdef IEEE80211_SUPPORT_SUPERG
-		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS))
-			frm = ieee80211_add_ath(frm,
+		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS)) {
+			frm = ieee80211_add_ath(frm, 
 				IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS),
-				(vap->iv_flags & IEEE80211_F_WPA) == 0 &&
-				ni->ni_authmode != IEEE80211_AUTH_8021X &&
-				vap->iv_def_txkey != IEEE80211_KEYIX_NONE ?
-				vap->iv_def_txkey : 0x7fff);
+				((vap->iv_flags & IEEE80211_F_WPA) == 0 &&
+				 ni->ni_authmode != IEEE80211_AUTH_8021X) ?
+				vap->iv_def_txkey : IEEE80211_KEYIX_NONE);
+		}
 #endif /* IEEE80211_SUPPORT_SUPERG */
 		if (vap->iv_appie_assocreq != NULL)
 			frm = add_appie(frm, vap->iv_appie_assocreq);
@@ -1934,9 +1934,11 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		}
 #ifdef IEEE80211_SUPPORT_SUPERG
 		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS))
-			frm = ieee80211_add_ath(frm,
+			frm = ieee80211_add_ath(frm, 
 				IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS),
-				ni->ni_ath_defkeyix);
+				((vap->iv_flags & IEEE80211_F_WPA) == 0 &&
+				 ni->ni_authmode != IEEE80211_AUTH_8021X) ?
+				vap->iv_def_txkey : IEEE80211_KEYIX_NONE);
 #endif /* IEEE80211_SUPPORT_SUPERG */
 		if (vap->iv_appie_assocresp != NULL)
 			frm = add_appie(frm, vap->iv_appie_assocresp);
@@ -2124,9 +2126,9 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 		frm = ieee80211_add_htinfo_vendor(frm, bss);
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
-	if (bss->ni_ies.ath_ie != NULL && legacy != IEEE80211_SEND_LEGACY_11B)
-		frm = ieee80211_add_ath(frm, bss->ni_ath_flags,
-			bss->ni_ath_defkeyix);
+	if ((vap->iv_flags & IEEE80211_F_ATHEROS) &&
+	    legacy != IEEE80211_SEND_LEGACY_11B)
+		frm = ieee80211_add_athcaps(frm, bss);
 #endif
 	if (vap->iv_appie_proberesp != NULL)
 		frm = add_appie(frm, vap->iv_appie_proberesp);
@@ -2320,6 +2322,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	 *	[tlv] WME parameters
 	 *	[tlv] Vendor OUI HT capabilities (optional)
 	 *	[tlv] Vendor OUI HT information (optional)
+	 *	[tlv] Atheros capabilities (optional)
 	 *	[tlv] TDMA parameters (optional)
 	 *	[tlv] application data (optional)
 	 */
@@ -2410,6 +2413,12 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_htcap_vendor(frm, ni);
 		frm = ieee80211_add_htinfo_vendor(frm, ni);
 	}
+#ifdef IEEE80211_SUPPORT_SUPERG
+	if (vap->iv_flags & IEEE80211_F_ATHEROS) {
+		bo->bo_ath = frm;
+		frm = ieee80211_add_athcaps(frm, ni);
+	}
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (vap->iv_caps & IEEE80211_C_TDMA) {
 		bo->bo_tdma = frm;
@@ -2489,6 +2498,9 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		 + 4+2*sizeof(struct ieee80211_ie_htinfo)/* HT info */
 		 + (vap->iv_caps & IEEE80211_C_WME ?	/* WME */
 			sizeof(struct ieee80211_wme_param) : 0)
+#ifdef IEEE80211_SUPPORT_SUPERG
+		 + sizeof(struct ieee80211_ath_ie)	/* ATH */
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 		 + (vap->iv_caps & IEEE80211_C_TDMA ?	/* TDMA */
 			sizeof(struct ieee80211_tdma_param) : 0)
@@ -2666,6 +2678,9 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_tim_trailer += adjust;
 				bo->bo_erp += adjust;
 				bo->bo_htinfo += adjust;
+#ifdef IEEE80211_SUPERG_SUPPORT
+				bo->bo_ath += adjust;
+#endif
 #ifdef IEEE80211_TDMA_SUPPORT
 				bo->bo_tdma += adjust;
 #endif
@@ -2714,6 +2729,9 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_erp += sizeof(*csa);
 				bo->bo_htinfo += sizeof(*csa);
 				bo->bo_wme += sizeof(*csa);
+#ifdef IEEE80211_SUPERG_SUPPORT
+				bo->bo_ath += sizeof(*csa);
+#endif
 #ifdef IEEE80211_TDMA_SUPPORT
 				bo->bo_tdma += sizeof(*csa);
 #endif
@@ -2736,6 +2754,12 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 			(void) ieee80211_add_erp(bo->bo_erp, ic);
 			clrbit(bo->bo_flags, IEEE80211_BEACON_ERP);
 		}
+#ifdef IEEE80211_SUPPORT_SUPERG
+		if (isset(bo->bo_flags,  IEEE80211_BEACON_ATH)) {
+			ieee80211_add_athcaps(bo->bo_ath, ni);
+			clrbit(bo->bo_flags, IEEE80211_BEACON_ATH);
+		}
+#endif
 	}
 	if (isset(bo->bo_flags, IEEE80211_BEACON_APPIE)) {
 		const struct ieee80211_appie *aie = vap->iv_appie_beacon;
