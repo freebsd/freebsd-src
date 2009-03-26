@@ -36,7 +36,8 @@ void	ieee80211_superg_detach(struct ieee80211com *);
 void	ieee80211_superg_vattach(struct ieee80211vap *);
 void	ieee80211_superg_vdetach(struct ieee80211vap *);
 
-uint8_t *ieee80211_add_ath(uint8_t *frm, uint8_t caps, uint16_t defkeyix);
+uint8_t *ieee80211_add_ath(uint8_t *, uint8_t, ieee80211_keyix);
+uint8_t *ieee80211_add_athcaps(uint8_t *, const struct ieee80211_node *);
 void	ieee80211_parse_ath(struct ieee80211_node *, uint8_t *);
 int	ieee80211_parse_athparams(struct ieee80211_node *, uint8_t *,
 	    const struct ieee80211_frame *);
