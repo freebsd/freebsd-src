@@ -2712,6 +2712,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 			if (vap->iv_csa_count == 0) {
 				memmove(&csa[1], csa, bo->bo_csa_trailer_len);
 				bo->bo_erp += sizeof(*csa);
+				bo->bo_htinfo += sizeof(*csa);
 				bo->bo_wme += sizeof(*csa);
 #ifdef IEEE80211_TDMA_SUPPORT
 				bo->bo_tdma += sizeof(*csa);
