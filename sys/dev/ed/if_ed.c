@@ -389,7 +389,8 @@ ed_detach(device_t dev)
 		callout_drain(&sc->tick_ch);
 		ether_ifdetach(ifp);
 	}
-	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	if (sc->irq_res != NULL && sc->irq_handle)
+		bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
 	ED_LOCK_DESTROY(sc);
 	bus_generic_detach(dev);
