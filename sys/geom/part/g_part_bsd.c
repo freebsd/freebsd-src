@@ -192,8 +192,7 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	struct g_part_bsd_entry *entry;
 	struct g_part_bsd_table *table;
 	u_char *ptr;
-	uint64_t msize;
-	uint32_t ncyls, secpercyl;
+	uint32_t msize, ncyls, secpercyl;
 
 	pp = gpp->gpp_provider;
 	cp = LIST_FIRST(&pp->consumers);
@@ -203,7 +202,7 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (BBSIZE % pp->sectorsize)
 		return (ENOTBLK);
 
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
 	secpercyl = basetable->gpt_sectors * basetable->gpt_heads;
 	ncyls = msize / secpercyl;
 
