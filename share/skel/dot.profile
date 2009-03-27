@@ -21,4 +21,4 @@ PAGER=more;  	export PAGER
 # set ENV to a file invoked each time sh is started for interactive use.
 ENV=$HOME/.shrc; export ENV
 
-[ -x /usr/games/fortune ] && /usr/games/fortune freebsd-tips
+if [ -x /usr/games/fortune ] ; then /usr/games/fortune freebsd-tips ; fi
