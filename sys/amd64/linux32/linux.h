@@ -79,7 +79,7 @@ typedef l_ulong		l_ino_t;
 typedef l_int		l_key_t;
 typedef l_longlong	l_loff_t;
 typedef l_ushort	l_mode_t;
-typedef l_ulong		l_off_t;
+typedef l_long		l_off_t;
 typedef l_int		l_pid_t;
 typedef l_uint		l_size_t;
 typedef l_long		l_suseconds_t;
@@ -179,8 +179,8 @@ struct l_mmap_argv {
 	l_int		prot;
 	l_int		flags;
 	l_int		fd;
-	l_off_t		pgoff;
-} __packed;
+	l_ulong		pgoff;
+};
 
 /*
  * stat family of syscalls
