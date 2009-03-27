@@ -1587,7 +1587,7 @@ wpi_tx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	 */
 	wn->amn.amn_txcnt++;
 	if (stat->ntries > 0) {
-		DPRINTFN(3, ("%d retries\n", stat->ntries));
+		DPRINTFN(WPI_DEBUG_TX, ("%d retries\n", stat->ntries));
 		wn->amn.amn_retrycnt++;
 	}
 
