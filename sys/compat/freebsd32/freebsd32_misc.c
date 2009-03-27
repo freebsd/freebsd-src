@@ -2043,8 +2043,9 @@ freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 	error = copyin(uap->jail, &version, sizeof(uint32_t));
 	if (error)
 		return (error);
+
 	switch (version) {
-	case 0:	
+	case 0:
 	{
 		/* FreeBSD single IPv4 jails. */
 		struct jail32_v0 j32_v0;
