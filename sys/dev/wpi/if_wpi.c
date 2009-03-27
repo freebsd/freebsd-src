@@ -1473,6 +1473,20 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	    le16toh(head->len), (int8_t)stat->rssi, head->rate, head->chan,
 	    (uintmax_t)le64toh(tail->tstamp)));
 
+	/* discard Rx frames with bad CRC early */
+	if ((le32toh(tail->flags) & WPI_RX_NOERROR) != WPI_RX_NOERROR) {
+		DPRINTFN(WPI_DEBUG_RX, ("%s: rx flags error %x\n", __func__,
+		    le32toh(tail->flags)));
+		ifp->if_ierrors++;
+		return;
+	}
+	if (le16toh(head->len) < sizeof (struct ieee80211_frame)) {
+		DPRINTFN(WPI_DEBUG_RX, ("%s: frame too short: %d\n", __func__,
+		    le16toh(head->len)));
+		ifp->if_ierrors++;
+		return;
+	}
+
 	/* XXX don't need mbuf, just dma buffer */
 	mnew = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 	if (mnew == NULL) {
@@ -2029,7 +2043,7 @@ wpi_start_locked(struct ifnet *ifp)
 		return;
 
 	for (;;) {
-		IFQ_POLL(&ifp->if_snd, m);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
 		/* no QoS encapsulation for EAPOL frames */
@@ -2040,7 +2054,6 @@ wpi_start_locked(struct ifnet *ifp)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		m = ieee80211_encap(ni, m);
 		if (m == NULL) {
