@@ -1350,9 +1350,12 @@ restart:
 		temp->td_flags &= ~htole32(OHCI_TD_TOGGLE_MASK);
 
 		if (average == 0) {
-
+			/*
+			 * The buffer start and end phys addresses should be
+			 * 0x0 for a zero length packet.
+			 */
 			td->td_cbp = 0;
-			td->td_be = ~0;
+			td->td_be = 0;
 			td->len = 0;
 
 		} else {
