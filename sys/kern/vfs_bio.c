@@ -117,7 +117,7 @@ SYSCTL_INT(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
     "Amount of presently outstanding async buffer io");
 static int bufspace;
 SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
-    "KVA memory used for bufs");
+    "Virtual memory used for buffers");
 static int maxbufspace;
 SYSCTL_INT(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
     "Maximum allowed value of bufspace (including buf_daemon)");
