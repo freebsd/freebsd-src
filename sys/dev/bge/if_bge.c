@@ -1278,8 +1278,7 @@ bge_stop_fw(sc)
 }
 
 /*
- * Do endian, PCI and DMA initialization. Also check the on-board ROM
- * self-test results.
+ * Do endian, PCI and DMA initialization.
  */
 static int
 bge_chipinit(struct bge_softc *sc)
@@ -1387,9 +1386,11 @@ bge_chipinit(struct bge_softc *sc)
 
 	/*
 	 * Disable memory write invalidate.  Apparently it is not supported
-	 * properly by these devices.
+	 * properly by these devices.  Also ensure that INTx isn't disabled,
+	 * as these chips need it even when using MSI.
 	 */
-	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD, PCIM_CMD_MWIEN, 4);
+	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD,
+	    PCIM_CMD_INTxDIS | PCIM_CMD_MWIEN, 4);
 
 #ifdef __brokenalpha__
 	/*
