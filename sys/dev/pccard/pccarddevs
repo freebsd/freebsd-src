@@ -146,8 +146,8 @@ vendor ARTEM			0x0268	ARtem
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor BROMAX			0x0274	Bromax communications, Inc
-vendor IODATA2			0x028a	I-O DATA
 vendor NECINFORTIA		0x0288	NEC Inforntia
+vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
 vendor UNGERMANN		0x02c0	Ungermann Bass
