@@ -266,6 +266,7 @@ product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
 
 /* Bromax Communications, Inc (Linksys OEM) */
 product BROMAX IPORT		0x1103 iPort 10/100 Ethernet
+product BROMAX AXNET		0x1106 AXNET based 10/100 Ethernet
 product BROMAX IPORT2		0x1121 iPort 10Mbps Ethernet
 product BROMAX IWN		0x1612 Instant Wireless Network PC Card
 product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, V3
