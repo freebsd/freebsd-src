@@ -1,5 +1,5 @@
 /*-
- *  Copyright (c) 2004 Lukas Ertl
+ *  Copyright (c) 2004, 2007 Lukas Ertl
  *  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -30,20 +30,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/libkern.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
-#include <geom/vinum/geom_vinum_share.h>
-
-static int	gv_rm_drive(struct gv_softc *, struct gctl_req *,
-		    struct gv_drive *, int);
-static int	gv_rm_plex(struct gv_softc *, struct gctl_req *,
-		    struct gv_plex *, int);
-static int	gv_rm_vol(struct gv_softc *, struct gctl_req *,
-		    struct gv_volume *, int);
 
 /* General 'remove' routine. */
 void
@@ -56,7 +47,7 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 	struct gv_drive *d;
 	int *argc, *flags;
 	char *argv, buf[20];
-	int i, type, err;
+	int i, type;
 
 	argc = gctl_get_paraml(req, "argc", sizeof(*argc));
 
@@ -73,6 +64,8 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 
 	sc = gp->softc;
 
+	/* XXX config locking */
+
 	for (i = 0; i < *argc; i++) {
 		snprintf(buf, sizeof(buf), "argv%d", i);
 		argv = gctl_get_param(req, buf, NULL);
@@ -82,184 +75,173 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 		switch (type) {
 		case GV_TYPE_VOL:
 			v = gv_find_vol(sc, argv);
-			if (v == NULL) {
-				gctl_error(req, "unknown volume '%s'", argv);
+
+			/*
+			 * If this volume has plexes, we want a recursive
+			 * removal.
+			 */
+			if (!LIST_EMPTY(&v->plexes) && !(*flags & GV_FLAG_R)) {
+				gctl_error(req, "volume '%s' has attached "
+				    "plexes - need recursive removal", v->name);
 				return;
 			}
-			err = gv_rm_vol(sc, req, v, *flags);
-			if (err)
-				return;
+
+			gv_post_event(sc, GV_EVENT_RM_VOLUME, v, NULL, 0, 0);
 			break;
+
 		case GV_TYPE_PLEX:
 			p = gv_find_plex(sc, argv);
-			if (p == NULL) {
-				gctl_error(req, "unknown plex '%s'", argv);
+
+			/*
+			 * If this plex has subdisks, we want a recursive
+			 * removal.
+			 */
+			if (!LIST_EMPTY(&p->subdisks) &&
+			    !(*flags & GV_FLAG_R)) {
+				gctl_error(req, "plex '%s' has attached "
+				    "subdisks - need recursive removal",
+				    p->name);
 				return;
 			}
-			err = gv_rm_plex(sc, req, p, *flags);
-			if (err)
+
+			/* Don't allow removal of the only plex of a volume. */
+			if (p->vol_sc != NULL && p->vol_sc->plexcount == 1) {
+				gctl_error(req, "plex '%s' is still attached "
+				    "to volume '%s'", p->name, p->volume);
 				return;
+			}
+
+			gv_post_event(sc, GV_EVENT_RM_PLEX, p, NULL, 0, 0);
 			break;
+
 		case GV_TYPE_SD:
 			s = gv_find_sd(sc, argv);
-			if (s == NULL) {
-				gctl_error(req, "unknown subdisk '%s'", argv);
+
+			/* Don't allow removal if attached to a plex. */
+			if (s->plex_sc != NULL) {
+				gctl_error(req, "subdisk '%s' is still attached"
+				    " to plex '%s'", s->name, s->plex_sc->name);
 				return;
 			}
-			err = gv_rm_sd(sc, req, s, *flags);
-			if (err)
-				return;
+
+			gv_post_event(sc, GV_EVENT_RM_SD, s, NULL, 0, 0);
 			break;
+
 		case GV_TYPE_DRIVE:
 			d = gv_find_drive(sc, argv);
-			if (d == NULL) {
-				gctl_error(req, "unknown drive '%s'", argv);
+			/* We don't allow to remove open drives. */
+			if (gv_consumer_is_open(d->consumer) &&
+			    !(*flags & GV_FLAG_F)) {
+				gctl_error(req, "drive '%s' is open", d->name);
 				return;
 			}
-			err = gv_rm_drive(sc, req, d, *flags);
-			if (err)
+
+			/* A drive with subdisks needs a recursive removal. */
+/*			if (!LIST_EMPTY(&d->subdisks) &&
+			    !(*flags & GV_FLAG_R)) {
+				gctl_error(req, "drive '%s' still has subdisks"
+				    " - need recursive removal", d->name);
 				return;
+			}*/
+
+			gv_post_event(sc, GV_EVENT_RM_DRIVE, d, NULL, *flags,
+			    0);
 			break;
+
 		default:
 			gctl_error(req, "unknown object '%s'", argv);
 			return;
 		}
 	}
 
-	gv_save_config_all(sc);
+	gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 }
 
 /* Resets configuration */
 int
-gv_resetconfig(struct g_geom *gp, struct gctl_req *req)
+gv_resetconfig(struct gv_softc *sc)
 {
-	struct gv_softc *sc;
 	struct gv_drive *d, *d2;
 	struct gv_volume *v, *v2;
 	struct gv_plex *p, *p2;
 	struct gv_sd *s, *s2;
-	int flags;
 
-	d = NULL;
-	d2 = NULL;
-	p = NULL;
-	p2 = NULL;
-	s = NULL;
-	s2 = NULL;
-	flags = GV_FLAG_R;
-	sc = gp->softc;
-	/* First loop through to make sure no volumes are up */
-        LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2) {
-		if (gv_is_open(v->geom)) {
-			gctl_error(req, "volume '%s' is busy", v->name);
-			return (-1);
+	/* First make sure nothing is open. */
+        LIST_FOREACH_SAFE(d, &sc->drives, drive, d2) {
+		if (gv_consumer_is_open(d->consumer)) {
+			return (GV_ERR_ISBUSY);
 		}
 	}
 	/* Then if not, we remove everything. */
-	LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2)
-		gv_rm_vol(sc, req, v, flags);
-	LIST_FOREACH_SAFE(p, &sc->plexes, plex, p2)
-		gv_rm_plex(sc, req, p, flags);
 	LIST_FOREACH_SAFE(s, &sc->subdisks, sd, s2)
-		gv_rm_sd(sc, req, s, flags);
+		gv_rm_sd(sc, s);
 	LIST_FOREACH_SAFE(d, &sc->drives, drive, d2)
-		gv_rm_drive(sc, req, d, flags);
-	gv_save_config_all(sc);
+		gv_rm_drive(sc, d, 0);
+	LIST_FOREACH_SAFE(p, &sc->plexes, plex, p2)
+		gv_rm_plex(sc, p);
+	LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2)
+		gv_rm_vol(sc, v);
+
+	gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
+
 	return (0);
 }
 
 /* Remove a volume. */
-static int
-gv_rm_vol(struct gv_softc *sc, struct gctl_req *req, struct gv_volume *v, int flags)
+void
+gv_rm_vol(struct gv_softc *sc, struct gv_volume *v)
 {
-	struct g_geom *gp;
+	struct g_provider *pp;
 	struct gv_plex *p, *p2;
-	int err;
 
-	g_topology_assert();
 	KASSERT(v != NULL, ("gv_rm_vol: NULL v"));
-
-	/* If this volume has plexes, we want a recursive removal. */
-	if (!LIST_EMPTY(&v->plexes) && !(flags & GV_FLAG_R)) {
-		gctl_error(req, "volume '%s' has attached plexes", v->name);
-		return (-1);
-	}
-
-	gp = v->geom;
+	pp = v->provider;
+	KASSERT(pp != NULL, ("gv_rm_vol: NULL pp"));
 
 	/* Check if any of our consumers is open. */
-	if (gp != NULL && gv_is_open(gp)) {
-		gctl_error(req, "volume '%s' is busy", v->name);
-		return (-1);
+	if (gv_provider_is_open(pp)) {
+		G_VINUM_DEBUG(0, "Unable to remove %s: volume still in use",
+		    v->name);
+		return;
 	}
 
 	/* Remove the plexes our volume has. */
-	LIST_FOREACH_SAFE(p, &v->plexes, in_volume, p2) {
-		v->plexcount--;
-		LIST_REMOVE(p, in_volume);
-		p->vol_sc = NULL;
+	LIST_FOREACH_SAFE(p, &v->plexes, in_volume, p2)
+		gv_rm_plex(sc, p);
 
-		err = gv_rm_plex(sc, req, p, flags);
-		if (err)
-			return (err);
-	}
-
-	/* Clean up and let our geom fade away. */
+	/* Clean up. */
 	LIST_REMOVE(v, volume);
-	gv_kill_vol_thread(v);
 	g_free(v);
-	if (gp != NULL) {
-		gp->softc = NULL;
-		g_wither_geom(gp, ENXIO);
-	}
 
-	return (0);
+	/* Get rid of the volume's provider. */
+	if (pp != NULL) {
+		g_topology_lock();
+		pp->flags |= G_PF_WITHER;
+		g_orphan_provider(pp, ENXIO);
+		g_topology_unlock();
+	}
 }
 
 /* Remove a plex. */
-static int
-gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int flags)
+void
+gv_rm_plex(struct gv_softc *sc, struct gv_plex *p)
 {
-	struct g_geom *gp;
 	struct gv_volume *v;
 	struct gv_sd *s, *s2;
-	int err;
-
-	g_topology_assert();
 
 	KASSERT(p != NULL, ("gv_rm_plex: NULL p"));
-
-	/* If this plex has subdisks, we want a recursive removal. */
-	if (!LIST_EMPTY(&p->subdisks) && !(flags & GV_FLAG_R)) {
-		gctl_error(req, "plex '%s' has attached subdisks", p->name);
-		return (-1);
-	}
-
-	if (p->vol_sc != NULL && p->vol_sc->plexcount == 1) {
-		gctl_error(req, "plex '%s' is still attached to volume '%s'",
-		    p->name, p->volume);
-		return (-1);
-	}
-
-	gp = p->geom;
+	v = p->vol_sc;
 
 	/* Check if any of our consumers is open. */
-	if (gp != NULL && gv_is_open(gp)) {
-		gctl_error(req, "plex '%s' is busy", p->name);
-		return (-1);
+	if (v != NULL && gv_provider_is_open(v->provider) && v->plexcount < 2) {
+		G_VINUM_DEBUG(0, "Unable to remove %s: volume still in use",
+		    p->name);
+		return;
 	}
 
 	/* Remove the subdisks our plex has. */
-	LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2) {
-#if 0
-		LIST_REMOVE(s, in_plex);
-		s->plex_sc = NULL;
-#endif
-
-		err = gv_rm_sd(sc, req, s, flags);
-		if (err)
-			return (err);
-	}
+	LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2)
+		gv_rm_sd(sc, s);
 
 	v = p->vol_sc;
 	/* Clean up and let our geom fade away. */
@@ -272,35 +254,25 @@ gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int fla
 		gv_update_vol_size(v, gv_vol_size(v));
 	}
 
-	gv_kill_plex_thread(p);
 	g_free(p);
-
-	if (gp != NULL) {
-		gp->softc = NULL;
-		g_wither_geom(gp, ENXIO);
-	}
-
-	return (0);
 }
 
 /* Remove a subdisk. */
-int
-gv_rm_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, int flags)
+void
+gv_rm_sd(struct gv_softc *sc, struct gv_sd *s)
 {
-	struct g_provider *pp;
 	struct gv_plex *p;
 	struct gv_volume *v;
 
 	KASSERT(s != NULL, ("gv_rm_sd: NULL s"));
 
-	pp = s->provider;
 	p = s->plex_sc;
 	v = NULL;
 
 	/* Clean up. */
 	if (p != NULL) {
 		LIST_REMOVE(s, in_plex);
-
+		s->plex_sc = NULL;
 		p->sdcount--;
 		/* Update the plexsize. */
 		p->size = gv_plex_size(p);
@@ -310,77 +282,64 @@ gv_rm_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, int flags)
 			gv_update_vol_size(v, gv_vol_size(v));
 		}
 	}
-	if (s->drive_sc)
+	if (s->drive_sc && !(s->drive_sc->flags & GV_DRIVE_REFERENCED))
 		LIST_REMOVE(s, from_drive);
 	LIST_REMOVE(s, sd);
 	gv_free_sd(s);
 	g_free(s);
-
-	/* If the subdisk has a provider we need to clean up this one too. */
-	if (pp != NULL) {
-		pp->flags |= G_PF_WITHER;
-		g_orphan_provider(pp, ENXIO);
-	}
-
-	return (0);
 }
 
 /* Remove a drive. */
-static int
-gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int flags)
+void
+gv_rm_drive(struct gv_softc *sc, struct gv_drive *d, int flags)
 {
-	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct gv_freelist *fl, *fl2;
 	struct gv_plex *p;
 	struct gv_sd *s, *s2;
 	struct gv_volume *v;
+	struct gv_drive *d2;
 	int err;
 
 	KASSERT(d != NULL, ("gv_rm_drive: NULL d"));
-	gp = d->geom;
-	KASSERT(gp != NULL, ("gv_rm_drive: NULL gp"));
 
-	/* We don't allow to remove open drives. */
-	if (gv_is_open(gp)) {
-		gctl_error(req, "drive '%s' is open", d->name);
-		return (-1);
-	}
+	cp = d->consumer;
 
-	/* A drive with subdisks needs a recursive removal. */
-	if (!LIST_EMPTY(&d->subdisks) && !(flags & GV_FLAG_R)) {
-		gctl_error(req, "drive '%s' still has subdisks", d->name);
-		return (-1);
-	}
+	if (cp != NULL) {
+		g_topology_lock();
+		err = g_access(cp, 0, 1, 0);
+		g_topology_unlock();
 
-	cp = LIST_FIRST(&gp->consumer);
-	err = g_access(cp, 0, 1, 0);
-	if (err) {
-		G_VINUM_DEBUG(0, "%s: unable to access '%s', errno: "
-		    "%d", __func__, cp->provider->name, err);
-		return (err);
-	}
+		if (err) {
+			G_VINUM_DEBUG(0, "%s: couldn't access '%s', "
+			    "errno: %d", __func__, cp->provider->name, err);
+			return;
+		}
 
-	/* Clear the Vinum Magic. */
-	d->hdr->magic = GV_NOMAGIC;
-	g_topology_unlock();
-	err = gv_write_header(cp, d->hdr);
-	if (err) {
-		G_VINUM_DEBUG(0, "%s: unable to write header to '%s'"
-		    ", errno: %d", __func__, cp->provider->name, err);
-		d->hdr->magic = GV_MAGIC;
+		/* Clear the Vinum Magic. */
+		d->hdr->magic = GV_NOMAGIC;
+		err = gv_write_header(cp, d->hdr);
+		if (err)
+			G_VINUM_DEBUG(0, "gv_rm_drive: couldn't write header to"
+			    " '%s', errno: %d", cp->provider->name, err);
+
+		g_topology_lock();
+		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		g_topology_unlock();
 	}
-	g_topology_lock();
-	g_access(cp, 0, -1, 0);
 
 	/* Remove all associated subdisks, plexes, volumes. */
-	if (!LIST_EMPTY(&d->subdisks)) {
-		LIST_FOREACH_SAFE(s, &d->subdisks, from_drive, s2) {
-			p = s->plex_sc;
-			if (p != NULL) {
-				v = p->vol_sc;
-				if (v != NULL)
-					gv_rm_vol(sc, req, v, flags);
+	if (flags & GV_FLAG_R) {
+		if (!LIST_EMPTY(&d->subdisks)) {
+			LIST_FOREACH_SAFE(s, &d->subdisks, from_drive, s2) {
+				p = s->plex_sc;
+				if (p != NULL) {
+					v = p->vol_sc;
+					if (v != NULL)
+						gv_rm_vol(sc, v);
+				}
 			}
 		}
 	}
@@ -390,15 +349,33 @@ gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int f
 		LIST_REMOVE(fl, freelist);
 		g_free(fl);
 	}
+
 	LIST_REMOVE(d, drive);
-
-	gv_kill_drive_thread(d);
-	gp = d->geom;
-	d->geom = NULL;
 	g_free(d->hdr);
-	g_free(d);
-	gv_save_config_all(sc);
-	g_wither_geom(gp, ENXIO);
 
-	return (err);
+	/* Put ourself into referenced state if we have subdisks. */
+	if (d->sdcount > 0) {
+		d->consumer = NULL;
+		d->hdr = NULL;
+		d->flags |= GV_DRIVE_REFERENCED;
+		snprintf(d->device, sizeof(d->device), "???");
+		d->size = 0;
+		d->avail = 0;
+		d->freelist_entries = 0;
+		LIST_FOREACH(s, &d->subdisks, from_drive) {
+			s->flags |= GV_SD_TASTED;
+			gv_set_sd_state(s, GV_SD_DOWN, GV_SETSTATE_FORCE);
+		}
+		/* Shuffle around so we keep gv_is_newer happy. */
+		LIST_REMOVE(d, drive);
+		d2 = LIST_FIRST(&sc->drives);
+		if (d2 == NULL)
+			LIST_INSERT_HEAD(&sc->drives, d, drive);
+		else
+			LIST_INSERT_AFTER(d2, d, drive);
+		return;
+	}
+	g_free(d);
+
+	gv_save_config(sc);
 }

@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2004 Lukas Ertl
+ * Copyright (c) 2004, 2007 Lukas Ertl
+ * Copyright (c) 2007, 2009 Ulf Lilleengen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +30,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bio.h>
-#include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
-#include <sys/mutex.h>
 #include <sys/systm.h>
 
 #include <geom/geom.h>
@@ -43,329 +39,422 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum_raid5.h>
 #include <geom/vinum/geom_vinum.h>
 
-static void gv_plex_completed_request(struct gv_plex *, struct bio *);
-static void gv_plex_normal_request(struct gv_plex *, struct bio *);
-static void gv_plex_worker(void *);
-static int gv_check_parity(struct gv_plex *, struct bio *,
-    struct gv_raid5_packet *);
-static int gv_normal_parity(struct gv_plex *, struct bio *,
-    struct gv_raid5_packet *);
-
-/* XXX: is this the place to catch dying subdisks? */
-static void
-gv_plex_orphan(struct g_consumer *cp)
-{
-	struct g_geom *gp;
-	struct gv_plex *p;
-	int error;
-
-	g_topology_assert();
-	gp = cp->geom;
-	g_trace(G_T_TOPOLOGY, "gv_plex_orphan(%s)", gp->name);
-
-	if (cp->acr != 0 || cp->acw != 0 || cp->ace != 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-	error = cp->provider->error;
-	if (error == 0)
-		error = ENXIO;
-	g_detach(cp);
-	g_destroy_consumer(cp);	
-	if (!LIST_EMPTY(&gp->consumer))
-		return;
-
-	p = gp->softc;
-	if (p != NULL) {
-		gv_kill_plex_thread(p);
-		p->geom = NULL;
-		p->provider = NULL;
-		p->consumer = NULL;
-	}
-	gp->softc = NULL;
-	g_wither_geom(gp, error);
-}
-
+static int	gv_check_parity(struct gv_plex *, struct bio *,
+		    struct gv_raid5_packet *);
+static int	gv_normal_parity(struct gv_plex *, struct bio *,
+		    struct gv_raid5_packet *);
+static void	gv_plex_flush(struct gv_plex *);
+static int	gv_plex_offset(struct gv_plex *, off_t, off_t, off_t *, off_t *,
+		    int *, int);
+static int 	gv_plex_normal_request(struct gv_plex *, struct bio *, off_t,
+		    off_t,  caddr_t);
 void
-gv_plex_done(struct bio *bp)
+gv_plex_start(struct gv_plex *p, struct bio *bp)
 {
-	struct gv_plex *p;
-
-	p = bp->bio_from->geom->softc;
-	bp->bio_cflags |= GV_BIO_DONE;
-	mtx_lock(&p->bqueue_mtx);
-	bioq_insert_tail(p->bqueue, bp);
-	wakeup(p);
-	mtx_unlock(&p->bqueue_mtx);
-}
-
-/* Find the correct subdisk to send the bio to and build a bio to send. */
-static int
-gv_plexbuffer(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff, off_t bcount)
-{
-	struct g_geom *gp;
+	struct bio *cbp;
 	struct gv_sd *s;
-	struct bio *cbp, *pbp;
-	int i, sdno;
-	off_t len_left, real_len, real_off;
-	off_t stripeend, stripeno, stripestart;
+	struct gv_raid5_packet *wp;
+	caddr_t addr;
+	off_t bcount, boff, len;
 
-	if (p == NULL || LIST_EMPTY(&p->subdisks))
-		return (ENXIO);
+	bcount = bp->bio_length;
+	addr = bp->bio_data;
+	boff = bp->bio_offset;
 
-	s = NULL;
-	gp = bp->bio_to->geom;
+	/* Walk over the whole length of the request, we might split it up. */
+	while (bcount > 0) {
+		wp = NULL;
+
+ 		/*
+		 * RAID5 plexes need special treatment, as a single request
+		 * might involve several read/write sub-requests.
+ 		 */
+		if (p->org == GV_PLEX_RAID5) {
+			wp = gv_raid5_start(p, bp, addr, boff, bcount);
+ 			if (wp == NULL)
+ 				return;
+ 
+			len = wp->length;
+
+			if (TAILQ_EMPTY(&wp->bits))
+				g_free(wp);
+			else if (wp->lockbase != -1)
+				TAILQ_INSERT_TAIL(&p->packets, wp, list);
+
+		/*
+		 * Requests to concatenated and striped plexes go straight
+		 * through.
+		 */
+		} else {
+			len = gv_plex_normal_request(p, bp, boff, bcount, addr);
+		}
+		if (len < 0)
+			return;
+			
+		bcount -= len;
+		addr += len;
+		boff += len;
+	}
 
 	/*
-	 * We only handle concatenated and striped plexes here.  RAID5 plexes
-	 * are handled in build_raid5_request().
+	 * Fire off all sub-requests.  We get the correct consumer (== drive)
+	 * to send each request to via the subdisk that was stored in
+	 * cbp->bio_caller1.
 	 */
+	cbp = bioq_takefirst(p->bqueue);
+	while (cbp != NULL) {
+		/*
+		 * RAID5 sub-requests need to come in correct order, otherwise
+		 * we trip over the parity, as it might be overwritten by
+		 * another sub-request.  We abuse cbp->bio_caller2 to mark
+		 * potential overlap situations. 
+		 */
+		if (cbp->bio_caller2 != NULL && gv_stripe_active(p, cbp)) {
+			/* Park the bio on the waiting queue. */
+			cbp->bio_cflags |= GV_BIO_ONHOLD;
+			bioq_disksort(p->wqueue, cbp);
+		} else {
+			s = cbp->bio_caller1;
+			g_io_request(cbp, s->drive_sc->consumer);
+		}
+		cbp = bioq_takefirst(p->bqueue);
+	}
+}
+
+static int
+gv_plex_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
+    off_t *real_len, int *sdno, int growing)
+{
+	struct gv_sd *s;
+	int i, sdcount;
+	off_t len_left, stripeend, stripeno, stripestart;
+
 	switch (p->org) {
 	case GV_PLEX_CONCAT:
 		/*
 		 * Find the subdisk where this request starts.  The subdisks in
 		 * this list must be ordered by plex_offset.
 		 */
+		i = 0;
 		LIST_FOREACH(s, &p->subdisks, in_plex) {
 			if (s->plex_offset <= boff &&
-			    s->plex_offset + s->size > boff)
+			    s->plex_offset + s->size > boff) {
+				*sdno = i;
 				break;
+			}
+			i++;
 		}
-		/* Subdisk not found. */
-		if (s == NULL)
-			return (ENXIO);
+		if (s == NULL || s->drive_sc == NULL)
+			return (GV_ERR_NOTFOUND);
 
 		/* Calculate corresponding offsets on disk. */
-		real_off = boff - s->plex_offset;
-		len_left = s->size - real_off;
-		real_len = (bcount > len_left) ? len_left : bcount;
+		*real_off = boff - s->plex_offset;
+		len_left = s->size - (*real_off);
+		KASSERT(len_left >= 0, ("gv_plex_offset: len_left < 0"));
+		*real_len = (bcount > len_left) ? len_left : bcount;
 		break;
 
 	case GV_PLEX_STRIPED:
 		/* The number of the stripe where the request starts. */
 		stripeno = boff / p->stripesize;
+		KASSERT(stripeno >= 0, ("gv_plex_offset: stripeno < 0"));
 
-		/* The number of the subdisk where the stripe resides. */
-		sdno = stripeno % p->sdcount;
+		/* Take growing subdisks into account when calculating. */
+		sdcount = gv_sdcount(p, (boff >= p->synced));
 
-		/* Find the right subdisk. */
-		i = 0;
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
-			if (i == sdno)
-				break;
-			i++;
-		}
+		if (!(boff + bcount <= p->synced) &&
+		    (p->flags & GV_PLEX_GROWING) &&
+		    !growing)
+			return (GV_ERR_ISBUSY);
+		*sdno = stripeno % sdcount;
 
-		/* Subdisk not found. */
-		if (s == NULL)
-			return (ENXIO);
-
-		/* The offset of the stripe from the start of the subdisk. */ 
-		stripestart = (stripeno / p->sdcount) *
+		KASSERT(sdno >= 0, ("gv_plex_offset: sdno < 0"));
+		stripestart = (stripeno / sdcount) *
 		    p->stripesize;
-
-		/* The offset at the end of the stripe. */
+		KASSERT(stripestart >= 0, ("gv_plex_offset: stripestart < 0"));
 		stripeend = stripestart + p->stripesize;
-
-		/* The offset of the request on this subdisk. */
-		real_off = boff - (stripeno * p->stripesize) +
+		*real_off = boff - (stripeno * p->stripesize) +
 		    stripestart;
+		len_left = stripeend - *real_off;
+		KASSERT(len_left >= 0, ("gv_plex_offset: len_left < 0"));
 
-		/* The length left in this stripe. */
-		len_left = stripeend - real_off;
-
-		real_len = (bcount <= len_left) ? bcount : len_left;
+		*real_len = (bcount <= len_left) ? bcount : len_left;
 		break;
 
 	default:
-		return (EINVAL);
+		return (GV_ERR_PLEXORG);
 	}
+	return (0);
+}
+
+/*
+ * Prepare a normal plex request.
+ */
+static int 
+gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
+    off_t bcount,  caddr_t addr)
+{
+	struct gv_sd *s;
+	struct bio *cbp;
+	off_t real_len, real_off;
+	int i, err, sdno;
+
+	s = NULL;
+	sdno = -1;
+	real_len = real_off = 0;
+
+	err = ENXIO;
+
+	if (p == NULL || LIST_EMPTY(&p->subdisks)) 
+		goto bad;
+
+	err = gv_plex_offset(p, boff, bcount, &real_off,
+	    &real_len, &sdno, (bp->bio_pflags & GV_BIO_SYNCREQ));
+	/* If the request was blocked, put it into wait. */
+	if (err == GV_ERR_ISBUSY) {
+		bioq_disksort(p->rqueue, bp);
+		return (-1); /* "Fail", and delay request. */
+	}
+	if (err) {
+		err = ENXIO;
+		goto bad;
+	}
+	err = ENXIO;
+
+	/* Find the right subdisk. */
+	i = 0;
+	LIST_FOREACH(s, &p->subdisks, in_plex) {
+		if (i == sdno)
+			break;
+		i++;
+	}
+
+	/* Subdisk not found. */
+	if (s == NULL || s->drive_sc == NULL)
+		goto bad;
 
 	/* Now check if we can handle the request on this subdisk. */
 	switch (s->state) {
 	case GV_SD_UP:
 		/* If the subdisk is up, just continue. */
 		break;
-
+	case GV_SD_DOWN:
+		if (bp->bio_cflags & GV_BIO_INTERNAL)
+			G_VINUM_DEBUG(0, "subdisk must be in the stale state in"
+			    " order to perform administrative requests");
+		goto bad;
 	case GV_SD_STALE:
-		if (!(bp->bio_cflags & GV_BIO_SYNCREQ))
-			return (ENXIO);
+		if (!(bp->bio_cflags & GV_BIO_SYNCREQ)) {
+			G_VINUM_DEBUG(0, "subdisk stale, unable to perform "
+			    "regular requests");
+			goto bad;
+		}
 
 		G_VINUM_DEBUG(1, "sd %s is initializing", s->name);
 		gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE);
 		break;
-
 	case GV_SD_INITIALIZING:
 		if (bp->bio_cmd == BIO_READ)
-			return (ENXIO);
+			goto bad;
 		break;
-
 	default:
 		/* All other subdisk states mean it's not accessible. */
-		return (ENXIO);
+		goto bad;
 	}
 
 	/* Clone the bio and adjust the offsets and sizes. */
 	cbp = g_clone_bio(bp);
-	if (cbp == NULL)
-		return (ENOMEM);
-	cbp->bio_offset = real_off;
+	if (cbp == NULL) {
+		err = ENOMEM;
+		goto bad;
+	}
+	cbp->bio_offset = real_off + s->drive_offset;
 	cbp->bio_length = real_len;
 	cbp->bio_data = addr;
-	cbp->bio_done = g_std_done;
-	cbp->bio_caller2 = s->consumer;
-	if ((bp->bio_cflags & GV_BIO_SYNCREQ)) {
+	cbp->bio_done = gv_done;
+	cbp->bio_caller1 = s;
+	if ((bp->bio_cflags & GV_BIO_SYNCREQ))
 		cbp->bio_cflags |= GV_BIO_SYNCREQ;
-		cbp->bio_done = gv_plex_done;
-	}
 
-	if (bp->bio_driver1 == NULL) {
-		bp->bio_driver1 = cbp;
-	} else {
-		pbp = bp->bio_driver1;
-		while (pbp->bio_caller1 != NULL)
-			pbp = pbp->bio_caller1;
-		pbp->bio_caller1 = cbp;
+	/* Store the sub-requests now and let others issue them. */
+	bioq_insert_tail(p->bqueue, cbp); 
+	return (real_len);
+bad:
+	G_VINUM_LOGREQ(0, bp, "plex request failed.");
+	/* Building the sub-request failed. If internal BIO, do not deliver. */
+	if (bp->bio_cflags & GV_BIO_INTERNAL) {
+		if (bp->bio_cflags & GV_BIO_MALLOC)
+			g_free(bp->bio_data);
+		g_destroy_bio(bp);
+		p->flags &= ~(GV_PLEX_SYNCING | GV_PLEX_REBUILDING |
+		    GV_PLEX_GROWING);
+		return (-1);
 	}
-
-	return (0);
+	g_io_deliver(bp, err);
+	return (-1);
 }
 
-static void
-gv_plex_start(struct bio *bp)
+/*
+ * Handle a completed request to a striped or concatenated plex.
+ */
+void
+gv_plex_normal_done(struct gv_plex *p, struct bio *bp)
 {
-	struct gv_plex *p;
+	struct bio *pbp;
 
-	switch(bp->bio_cmd) {
+	pbp = bp->bio_parent;
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+	g_destroy_bio(bp);
+	pbp->bio_inbed++;
+	if (pbp->bio_children == pbp->bio_inbed) {
+		/* Just set it to length since multiple plexes will
+		 * screw things up. */
+		pbp->bio_completed = pbp->bio_length;
+		if (pbp->bio_cflags & GV_BIO_SYNCREQ)
+			gv_sync_complete(p, pbp);
+		else if (pbp->bio_pflags & GV_BIO_SYNCREQ)
+			gv_grow_complete(p, pbp);
+		else
+			g_io_deliver(pbp, pbp->bio_error);
+	}
+}
+
+/*
+ * Handle a completed request to a RAID-5 plex.
+ */
+void
+gv_plex_raid5_done(struct gv_plex *p, struct bio *bp)
+{
+	struct gv_softc *sc;
+	struct bio *cbp, *pbp;
+	struct gv_bioq *bq, *bq2;
+	struct gv_raid5_packet *wp;
+	off_t completed;
+	int i;
+
+	completed = 0;
+	sc = p->vinumconf;
+	wp = bp->bio_caller2;
+
+	switch (bp->bio_parent->bio_cmd) {
 	case BIO_READ:
-	case BIO_WRITE:
-	case BIO_DELETE:
-		break;
-	case BIO_GETATTR:
-	default:
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
-	}
-
-	/*
-	 * We cannot handle this request if too many of our subdisks are
-	 * inaccessible.
-	 */
-	p = bp->bio_to->geom->softc;
-	if ((p->state < GV_PLEX_DEGRADED) &&
-	    !(bp->bio_cflags & GV_BIO_SYNCREQ)) {
-		g_io_deliver(bp, ENXIO);
-		return;
-	}
-
-	mtx_lock(&p->bqueue_mtx);
-	bioq_disksort(p->bqueue, bp);
-	wakeup(p);
-	mtx_unlock(&p->bqueue_mtx);
-}
-
-static void
-gv_plex_worker(void *arg)
-{
-	struct bio *bp;
-	struct gv_plex *p;
-	struct gv_sd *s;
-
-	p = arg;
-	KASSERT(p != NULL, ("NULL p"));
-
-	mtx_lock(&p->bqueue_mtx);
-	for (;;) {
-		/* We were signaled to exit. */
-		if (p->flags & GV_PLEX_THREAD_DIE)
+		if (wp == NULL) {
+			completed = bp->bio_completed;
 			break;
-
-		/* Take the first BIO from our queue. */
-		bp = bioq_takefirst(p->bqueue);
-		if (bp == NULL) {
-			msleep(p, &p->bqueue_mtx, PRIBIO, "-", hz/10);
-			continue;
 		}
-		mtx_unlock(&p->bqueue_mtx);
 
-		/* A completed request. */
-		if (bp->bio_cflags & GV_BIO_DONE) {
-			if (bp->bio_cflags & GV_BIO_SYNCREQ ||
-			    bp->bio_cflags & GV_BIO_REBUILD) {
-				s = bp->bio_to->private;
-				if (bp->bio_error == 0)
-					s->initialized += bp->bio_length;
-				if (s->initialized >= s->size) {
-					g_topology_lock();
-					gv_set_sd_state(s, GV_SD_UP,
-					    GV_SETSTATE_CONFIG);
-					g_topology_unlock();
-					s->initialized = 0;
+		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
+			if (bq->bp != bp)
+				continue;
+			TAILQ_REMOVE(&wp->bits, bq, queue);
+			g_free(bq);
+			for (i = 0; i < wp->length; i++)
+				wp->data[i] ^= bp->bio_data[i];
+			break;
+		}
+		if (TAILQ_EMPTY(&wp->bits)) {
+			completed = wp->length;
+			if (wp->lockbase != -1) {
+				TAILQ_REMOVE(&p->packets, wp, list);
+				/* Bring the waiting bios back into the game. */
+				pbp = bioq_takefirst(p->wqueue);
+				while (pbp != NULL) {
+					mtx_lock(&sc->queue_mtx);
+					bioq_disksort(sc->bqueue, pbp);
+					mtx_unlock(&sc->queue_mtx);
+					pbp = bioq_takefirst(p->wqueue);
 				}
 			}
+			g_free(wp);
+		}
 
-			if (bp->bio_cflags & GV_BIO_SYNCREQ)
-				g_std_done(bp);
-			else
-				gv_plex_completed_request(p, bp);
-		/*
-		 * A sub-request that was hold back because it interfered with
-		 * another sub-request.
-		 */
-		} else if (bp->bio_cflags & GV_BIO_ONHOLD) {
-			/* Is it still locked out? */
-			if (gv_stripe_active(p, bp)) {
-				/* Park the bio on the waiting queue. */
-				mtx_lock(&p->bqueue_mtx);
-				bioq_disksort(p->wqueue, bp);
-				mtx_unlock(&p->bqueue_mtx);
-			} else {
-				bp->bio_cflags &= ~GV_BIO_ONHOLD;
-				g_io_request(bp, bp->bio_caller2);
+		break;
+
+ 	case BIO_WRITE:
+		/* XXX can this ever happen? */
+		if (wp == NULL) {
+			completed = bp->bio_completed;
+			break;
+		}
+
+		/* Check if we need to handle parity data. */
+		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
+			if (bq->bp != bp)
+				continue;
+			TAILQ_REMOVE(&wp->bits, bq, queue);
+			g_free(bq);
+			cbp = wp->parity;
+			if (cbp != NULL) {
+				for (i = 0; i < wp->length; i++)
+					cbp->bio_data[i] ^= bp->bio_data[i];
 			}
+			break;
+		}
 
-		/* A normal request to this plex. */
-		} else
-			gv_plex_normal_request(p, bp);
+		/* Handle parity data. */
+		if (TAILQ_EMPTY(&wp->bits)) {
+			if (bp->bio_parent->bio_cflags & GV_BIO_CHECK)
+				i = gv_check_parity(p, bp, wp);
+			else
+				i = gv_normal_parity(p, bp, wp);
 
-		mtx_lock(&p->bqueue_mtx);
-	}
-	mtx_unlock(&p->bqueue_mtx);
-	p->flags |= GV_PLEX_THREAD_DEAD;
-	wakeup(p);
+			/* All of our sub-requests have finished. */
+			if (i) {
+				completed = wp->length;
+				TAILQ_REMOVE(&p->packets, wp, list);
+				/* Bring the waiting bios back into the game. */
+				pbp = bioq_takefirst(p->wqueue);
+				while (pbp != NULL) {
+					mtx_lock(&sc->queue_mtx);
+					bioq_disksort(sc->bqueue, pbp);
+					mtx_unlock(&sc->queue_mtx);
+					pbp = bioq_takefirst(p->wqueue);
+				}
+				g_free(wp);
+			}
+		}
 
-	kproc_exit(ENXIO);
-}
-
-static int
-gv_normal_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
-{
-	struct bio *cbp, *pbp;
-	int finished, i;
-
-	finished = 1;
-
-	if (wp->waiting != NULL) {
-		pbp = wp->waiting;
-		wp->waiting = NULL;
-		cbp = wp->parity;
-		for (i = 0; i < wp->length; i++)
-			cbp->bio_data[i] ^= pbp->bio_data[i];
-		g_io_request(pbp, pbp->bio_caller2);
-		finished = 0;
-
-	} else if (wp->parity != NULL) {
-		cbp = wp->parity;
-		wp->parity = NULL;
-		g_io_request(cbp, cbp->bio_caller2);
-		finished = 0;
+		break;
 	}
 
-	return (finished);
+	pbp = bp->bio_parent;
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+	pbp->bio_completed += completed;
+
+	/* When the original request is finished, we deliver it. */
+	pbp->bio_inbed++;
+	if (pbp->bio_inbed == pbp->bio_children) {
+		/* Hand it over for checking or delivery. */
+		if (pbp->bio_cmd == BIO_WRITE &&
+		    (pbp->bio_cflags & GV_BIO_CHECK)) {
+			gv_parity_complete(p, pbp);
+		} else if (pbp->bio_cmd == BIO_WRITE &&
+		    (pbp->bio_cflags & GV_BIO_REBUILD)) {
+			gv_rebuild_complete(p, pbp);
+		} else if (pbp->bio_cflags & GV_BIO_INIT) {
+			gv_init_complete(p, pbp);
+		} else if (pbp->bio_cflags & GV_BIO_SYNCREQ) {
+			gv_sync_complete(p, pbp);
+		} else if (pbp->bio_pflags & GV_BIO_SYNCREQ) {
+			gv_grow_complete(p, pbp);
+		} else {
+			g_io_deliver(pbp, pbp->bio_error);
+		}
+	}
+
+	/* Clean up what we allocated. */
+	if (bp->bio_cflags & GV_BIO_MALLOC)
+		g_free(bp->bio_data);
+	g_destroy_bio(bp);
 }
 
 static int
 gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 {
 	struct bio *pbp;
+	struct gv_sd *s;
 	int err, finished, i;
 
 	err = 0;
@@ -374,7 +463,8 @@ gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 	if (wp->waiting != NULL) {
 		pbp = wp->waiting;
 		wp->waiting = NULL;
-		g_io_request(pbp, pbp->bio_caller2);
+		s = pbp->bio_caller1;
+		g_io_request(pbp, s->drive_sc->consumer);
 		finished = 0;
 
 	} else if (wp->parity != NULL) {
@@ -395,7 +485,8 @@ gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 
 			/* ... but we rebuild it. */
 			if (bp->bio_parent->bio_cflags & GV_BIO_PARITY) {
-				g_io_request(pbp, pbp->bio_caller2);
+				s = pbp->bio_caller1;
+				g_io_request(pbp, s->drive_sc->consumer);
 				finished = 0;
 			}
 		}
@@ -414,454 +505,542 @@ gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 	return (finished);
 }
 
-void
-gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
+static int
+gv_normal_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 {
 	struct bio *cbp, *pbp;
-	struct gv_bioq *bq, *bq2;
-	struct gv_raid5_packet *wp;
-	int i;
+	struct gv_sd *s;
+	int finished, i;
 
-	wp = bp->bio_driver1;
+	finished = 1;
 
-	switch (bp->bio_parent->bio_cmd) {
-	case BIO_READ:
-		if (wp == NULL)
-			break;
+	if (wp->waiting != NULL) {
+		pbp = wp->waiting;
+		wp->waiting = NULL;
+		cbp = wp->parity;
+		for (i = 0; i < wp->length; i++)
+			cbp->bio_data[i] ^= pbp->bio_data[i];
+		s = pbp->bio_caller1;
+		g_io_request(pbp, s->drive_sc->consumer);
+		finished = 0;
 
-		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
-			if (bq->bp == bp) {
-				TAILQ_REMOVE(&wp->bits, bq, queue);
-				g_free(bq);
-				for (i = 0; i < wp->length; i++)
-					wp->data[i] ^= bp->bio_data[i];
-				break;
-			}
-		}
-		if (TAILQ_EMPTY(&wp->bits)) {
-			bp->bio_parent->bio_completed += wp->length;
-			if (wp->lockbase != -1) {
-				TAILQ_REMOVE(&p->packets, wp, list);
-				/* Bring the waiting bios back into the game. */
-				mtx_lock(&p->bqueue_mtx);
-				pbp = bioq_takefirst(p->wqueue);
-				while (pbp != NULL) {
-					bioq_disksort(p->bqueue, pbp);
-					pbp = bioq_takefirst(p->wqueue);
-				}
-				mtx_unlock(&p->bqueue_mtx);
-			}
-			g_free(wp);
-		}
-
-		break;
-
- 	case BIO_WRITE:
-		if (wp == NULL)
-			break;
-
-		/* Check if we need to handle parity data. */
-		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
-			if (bq->bp == bp) {
-				TAILQ_REMOVE(&wp->bits, bq, queue);
-				g_free(bq);
-				cbp = wp->parity;
-				if (cbp != NULL) {
-					for (i = 0; i < wp->length; i++)
-						cbp->bio_data[i] ^=
-						    bp->bio_data[i];
-				}
-				break;
-			}
-		}
-
-		/* Handle parity data. */
-		if (TAILQ_EMPTY(&wp->bits)) {
-			if (bp->bio_parent->bio_cflags & GV_BIO_CHECK)
-				i = gv_check_parity(p, bp, wp);
-			else
-				i = gv_normal_parity(p, bp, wp);
-
-			/* All of our sub-requests have finished. */
-			if (i) {
-				bp->bio_parent->bio_completed += wp->length;
-				TAILQ_REMOVE(&p->packets, wp, list);
-				/* Bring the waiting bios back into the game. */
-				mtx_lock(&p->bqueue_mtx);
-				pbp = bioq_takefirst(p->wqueue);
-				while (pbp != NULL) {
-					bioq_disksort(p->bqueue, pbp);
-					pbp = bioq_takefirst(p->wqueue);
-				}
-				mtx_unlock(&p->bqueue_mtx);
-				g_free(wp);
-			}
-		}
-
-		break;
+	} else if (wp->parity != NULL) {
+		cbp = wp->parity;
+		wp->parity = NULL;
+		s = cbp->bio_caller1;
+		g_io_request(cbp, s->drive_sc->consumer);
+		finished = 0;
 	}
 
-	pbp = bp->bio_parent;
-	if (pbp->bio_error == 0)
-		pbp->bio_error = bp->bio_error;
+	return (finished);
+}
 
-	/* When the original request is finished, we deliver it. */
-	pbp->bio_inbed++;
-	if (pbp->bio_inbed == pbp->bio_children)
-		g_io_deliver(pbp, pbp->bio_error);
+/* Flush the queue with delayed requests. */
+static void
+gv_plex_flush(struct gv_plex *p)
+{
+	struct gv_softc *sc;
+	struct bio *bp;
+
+	sc = p->vinumconf;
+	bp = bioq_takefirst(p->rqueue);
+	while (bp != NULL) {
+		gv_plex_start(p, bp);
+		bp = bioq_takefirst(p->rqueue);
+	}
+}
+
+int
+gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
+    off_t length, int type, caddr_t data)
+{
+	struct gv_softc *sc;
+	struct bio *bp;
+
+	KASSERT(from != NULL, ("NULL from"));
+	KASSERT(to != NULL, ("NULL to"));
+	sc = from->vinumconf;
+	KASSERT(sc != NULL, ("NULL sc"));
+
+	bp = g_new_bio();
+	if (bp == NULL) {
+		G_VINUM_DEBUG(0, "sync from '%s' failed at offset "
+		    " %jd; out of memory", from->name, offset);
+		return (ENOMEM);
+	}
+	bp->bio_length = length;
+	bp->bio_done = gv_done;
+	bp->bio_cflags |= GV_BIO_SYNCREQ;
+	bp->bio_offset = offset;
+	bp->bio_caller1 = from;		
+	bp->bio_caller2 = to;
+	bp->bio_cmd = type;
+	if (data == NULL)
+		data = g_malloc(length, M_WAITOK);
+	bp->bio_cflags |= GV_BIO_MALLOC; /* Free on the next run. */
+	bp->bio_data = data;
+
+	/* Send down next. */
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	mtx_unlock(&sc->queue_mtx);
+	//gv_plex_start(from, bp);
+	return (0);
+}
+
+/*
+ * Handle a finished plex sync bio.
+ */
+int
+gv_sync_complete(struct gv_plex *to, struct bio *bp)
+{
+	struct gv_plex *from, *p;
+	struct gv_sd *s;
+	struct gv_volume *v;
+	struct gv_softc *sc;
+	off_t offset;
+	int err;
+
+	g_topology_assert_not();
+
+	err = 0;
+	KASSERT(to != NULL, ("NULL to"));
+	KASSERT(bp != NULL, ("NULL bp"));
+	from = bp->bio_caller2;
+	KASSERT(from != NULL, ("NULL from"));
+	v = to->vol_sc;
+	KASSERT(v != NULL, ("NULL v"));
+	sc = v->vinumconf;
+	KASSERT(sc != NULL, ("NULL sc"));
+
+	/* If it was a read, write it. */
+	if (bp->bio_cmd == BIO_READ) {
+		err = gv_sync_request(from, to, bp->bio_offset, bp->bio_length,
+	    	    BIO_WRITE, bp->bio_data);
+	/* If it was a write, read the next one. */
+	} else if (bp->bio_cmd == BIO_WRITE) {
+		if (bp->bio_cflags & GV_BIO_MALLOC)
+			g_free(bp->bio_data);
+		to->synced += bp->bio_length;
+		/* If we're finished, clean up. */
+		if (bp->bio_offset + bp->bio_length >= from->size) {
+			G_VINUM_DEBUG(1, "syncing of %s from %s completed",
+			    to->name, from->name);
+			/* Update our state. */
+			LIST_FOREACH(s, &to->subdisks, in_plex)
+				gv_set_sd_state(s, GV_SD_UP, 0);
+			gv_update_plex_state(to);
+			to->flags &= ~GV_PLEX_SYNCING;
+			to->synced = 0;
+			gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
+		} else {
+			offset = bp->bio_offset + bp->bio_length;
+			err = gv_sync_request(from, to, offset,
+			    MIN(bp->bio_length, from->size - offset),
+			    BIO_READ, NULL);
+		}
+	}
+	g_destroy_bio(bp);
+	/* Clean up if there was an error. */
+	if (err) {
+		to->flags &= ~GV_PLEX_SYNCING;
+		G_VINUM_DEBUG(0, "error syncing plexes: error code %d", err);
+	}
+
+	/* Check if all plexes are synced, and lower refcounts. */
+	g_topology_lock();
+	LIST_FOREACH(p, &v->plexes, in_volume) {
+		if (p->flags & GV_PLEX_SYNCING) {
+			g_topology_unlock();
+			return (-1);
+		}
+	}
+	/* If we came here, all plexes are synced, and we're free. */
+	gv_access(v->provider, -1, -1, 0);
+	g_topology_unlock();
+	G_VINUM_DEBUG(1, "plex sync completed");
+	gv_volume_flush(v);
+	return (0);
+}
+
+/*
+ * Create a new bio struct for the next grow request.
+ */
+int
+gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
+    caddr_t data)
+{
+	struct gv_softc *sc;
+	struct bio *bp;
+
+	KASSERT(p != NULL, ("gv_grow_request: NULL p"));
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_grow_request: NULL sc"));
+
+	bp = g_new_bio();
+	if (bp == NULL) {
+		G_VINUM_DEBUG(0, "grow of %s failed creating bio: "
+		    "out of memory", p->name);
+		return (ENOMEM);
+	}
+
+	bp->bio_cmd = type;
+	bp->bio_done = gv_done;
+	bp->bio_error = 0;
+	bp->bio_caller1 = p;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	bp->bio_pflags |= GV_BIO_SYNCREQ; /* XXX: misuse of pflags AND syncreq.*/
+	if (data == NULL)
+		data = g_malloc(length, M_WAITOK);
+	bp->bio_cflags |= GV_BIO_MALLOC;
+	bp->bio_data = data;
+
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	mtx_unlock(&sc->queue_mtx);
+	//gv_plex_start(p, bp);
+	return (0);
+}
+
+/*
+ * Finish handling of a bio to a growing plex.
+ */
+void
+gv_grow_complete(struct gv_plex *p, struct bio *bp)
+{
+	struct gv_softc *sc;
+	struct gv_sd *s;
+	struct gv_volume *v;
+	off_t origsize, offset;
+	int sdcount, err;
+
+	v = p->vol_sc;
+	KASSERT(v != NULL, ("gv_grow_complete: NULL v"));
+	sc = v->vinumconf;
+	KASSERT(sc != NULL, ("gv_grow_complete: NULL sc"));
+	err = 0;
+
+	/* If it was a read, write it. */
+	if (bp->bio_cmd == BIO_READ) {
+		p->synced += bp->bio_length;
+		err = gv_grow_request(p, bp->bio_offset, bp->bio_length,
+		    BIO_WRITE, bp->bio_data);
+	/* If it was a write, read next. */
+	} else if (bp->bio_cmd == BIO_WRITE) {
+		if (bp->bio_cflags & GV_BIO_MALLOC)
+			g_free(bp->bio_data);
+
+		/* Find the real size of the plex. */
+		sdcount = gv_sdcount(p, 1);
+		s = LIST_FIRST(&p->subdisks);
+		KASSERT(s != NULL, ("NULL s"));
+		origsize = (s->size * (sdcount - 1));
+		if (bp->bio_offset + bp->bio_length >= origsize) {
+			G_VINUM_DEBUG(1, "growing of %s completed", p->name);
+			p->flags &= ~GV_PLEX_GROWING;
+			LIST_FOREACH(s, &p->subdisks, in_plex) {
+				s->flags &= ~GV_SD_GROW;
+				gv_set_sd_state(s, GV_SD_UP, 0);
+			}
+			p->size = gv_plex_size(p);
+			gv_update_vol_size(v, gv_vol_size(v));
+			gv_set_plex_state(p, GV_PLEX_UP, 0);
+			g_topology_lock();
+			gv_access(v->provider, -1, -1, 0);
+			g_topology_unlock();
+			p->synced = 0;
+			gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
+			/* Issue delayed requests. */
+			gv_plex_flush(p);
+		} else {
+			offset = bp->bio_offset + bp->bio_length;
+			err = gv_grow_request(p, offset,
+			   MIN(bp->bio_length, origsize - offset),
+			   BIO_READ, NULL);
+		}
+	}
+	g_destroy_bio(bp);
+
+	if (err) {
+		p->flags &= ~GV_PLEX_GROWING;
+		G_VINUM_DEBUG(0, "error growing plex: error code %d", err);
+	}
+}
+
+
+/*
+ * Create an initialization BIO and send it off to the consumer. Assume that
+ * we're given initialization data as parameter.
+ */
+void
+gv_init_request(struct gv_sd *s, off_t start, caddr_t data, off_t length)
+{
+	struct gv_drive *d;
+	struct g_consumer *cp;
+	struct bio *bp, *cbp;
+
+	KASSERT(s != NULL, ("gv_init_request: NULL s"));
+	d = s->drive_sc;
+	KASSERT(d != NULL, ("gv_init_request: NULL d"));
+	cp = d->consumer;
+	KASSERT(cp != NULL, ("gv_init_request: NULL cp"));
+
+	bp = g_new_bio();
+	if (bp == NULL) {
+		G_VINUM_DEBUG(0, "subdisk '%s' init: write failed at offset %jd"
+		    " (drive offset %jd); out of memory", s->name,
+		    (intmax_t)s->initialized, (intmax_t)start);
+		return; /* XXX: Error codes. */
+	}
+	bp->bio_cmd = BIO_WRITE;
+	bp->bio_data = data;
+	bp->bio_done = gv_done;
+	bp->bio_error = 0;
+	bp->bio_length = length;
+	bp->bio_cflags |= GV_BIO_INIT;
+	bp->bio_offset = start;
+	bp->bio_caller1 = s;
+
+	/* Then ofcourse, we have to clone it. */
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		G_VINUM_DEBUG(0, "subdisk '%s' init: write failed at offset %jd"
+		    " (drive offset %jd); out of memory", s->name,
+		    (intmax_t)s->initialized, (intmax_t)start);
+		return; /* XXX: Error codes. */
+	}
+	cbp->bio_done = gv_done;
+	cbp->bio_caller1 = s;
+	/* Send it off to the consumer. */
+	g_io_request(cbp, cp);
+}
+
+/*
+ * Handle a finished initialization BIO.
+ */
+void
+gv_init_complete(struct gv_plex *p, struct bio *bp)
+{
+	struct gv_softc *sc;
+	struct gv_drive *d;
+	struct g_consumer *cp;
+	struct gv_sd *s;
+	off_t start, length;
+	caddr_t data;
+	int error;
+
+	s = bp->bio_caller1;
+	start = bp->bio_offset;
+	length = bp->bio_length;
+	error = bp->bio_error;
+	data = bp->bio_data;
+
+	KASSERT(s != NULL, ("gv_init_complete: NULL s"));
+	d = s->drive_sc;
+	KASSERT(d != NULL, ("gv_init_complete: NULL d"));
+	cp = d->consumer;
+	KASSERT(cp != NULL, ("gv_init_complete: NULL cp"));
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_init_complete: NULL sc"));
+
+	g_destroy_bio(bp);
+
+	/*
+	 * First we need to find out if it was okay, and abort if it's not.
+	 * Then we need to free previous buffers, find out the correct subdisk,
+	 * as well as getting the correct starting point and length of the BIO.
+	 */
+	if (start >= s->drive_offset + s->size) {
+		/* Free the data we initialized. */
+		if (data != NULL)
+			g_free(data);
+		g_topology_assert_not();
+		g_topology_lock();
+		g_access(cp, 0, -1, 0);
+		g_topology_unlock();
+		if (error) {
+			gv_set_sd_state(s, GV_SD_STALE, GV_SETSTATE_FORCE |
+			    GV_SETSTATE_CONFIG);
+		} else {
+			gv_set_sd_state(s, GV_SD_UP, GV_SETSTATE_CONFIG);
+			s->initialized = 0;
+			gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
+			G_VINUM_DEBUG(1, "subdisk '%s' init: finished "
+			    "successfully", s->name);
+		}
+		return;
+	}
+	s->initialized += length;
+	start += length;
+	gv_init_request(s, start, data, length);
+}
+
+/*
+ * Create a new bio struct for the next parity rebuild. Used both by internal
+ * rebuild of degraded plexes as well as user initiated rebuilds/checks.
+ */
+void
+gv_parity_request(struct gv_plex *p, int flags, off_t offset)
+{
+	struct gv_softc *sc;
+	struct bio *bp;
+
+	KASSERT(p != NULL, ("gv_parity_request: NULL p"));
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_parity_request: NULL sc"));
+
+	bp = g_new_bio();
+	if (bp == NULL) {
+		G_VINUM_DEBUG(0, "rebuild of %s failed creating bio: "
+		    "out of memory", p->name);
+		return;
+	}
+
+	bp->bio_cmd = BIO_WRITE;
+	bp->bio_done = gv_done;
+	bp->bio_error = 0;
+	bp->bio_length = p->stripesize;
+	bp->bio_caller1 = p;
+
+	/*
+	 * Check if it's a rebuild of a degraded plex or a user request of
+	 * parity rebuild.
+	 */
+	if (flags & GV_BIO_REBUILD)
+		bp->bio_data = g_malloc(GV_DFLT_SYNCSIZE, M_WAITOK);
+	else if (flags & GV_BIO_CHECK)
+		bp->bio_data = g_malloc(p->stripesize, M_WAITOK | M_ZERO);
+	else {
+		G_VINUM_DEBUG(0, "invalid flags given in rebuild");
+		return;
+	}
+
+	bp->bio_cflags = flags;
+	bp->bio_cflags |= GV_BIO_MALLOC;
+
+	/* We still have more parity to build. */
+	bp->bio_offset = offset;
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	mtx_unlock(&sc->queue_mtx);
+	//gv_plex_start(p, bp); /* Send it down to the plex. */
+}
+
+/*
+ * Handle a finished parity write.
+ */
+void
+gv_parity_complete(struct gv_plex *p, struct bio *bp)
+{
+	struct gv_softc *sc;
+	int error, flags;
+
+	error = bp->bio_error;
+	flags = bp->bio_cflags;
+	flags &= ~GV_BIO_MALLOC;
+
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_parity_complete: NULL sc"));
 
 	/* Clean up what we allocated. */
 	if (bp->bio_cflags & GV_BIO_MALLOC)
 		g_free(bp->bio_data);
 	g_destroy_bio(bp);
-}
 
-void
-gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
-{
-	struct bio *cbp, *pbp;
-	struct gv_bioq *bq, *bq2;
-	struct gv_raid5_packet *wp, *wp2;
-	caddr_t addr;
-	off_t bcount, boff;
-	int err;
-
-	bcount = bp->bio_length;
-	addr = bp->bio_data;
-	boff = bp->bio_offset;
-
-	/* Walk over the whole length of the request, we might split it up. */
-	while (bcount > 0) {
-		wp = NULL;
-
- 		/*
-		 * RAID5 plexes need special treatment, as a single write
-		 * request involves several read/write sub-requests.
- 		 */
-		if (p->org == GV_PLEX_RAID5) {
-			wp = g_malloc(sizeof(*wp), M_WAITOK | M_ZERO);
-			wp->bio = bp;
-			TAILQ_INIT(&wp->bits);
-
-			if (bp->bio_cflags & GV_BIO_REBUILD)
-				err = gv_rebuild_raid5(p, wp, bp, addr,
-				    boff, bcount);
-			else if (bp->bio_cflags & GV_BIO_CHECK)
-				err = gv_check_raid5(p, wp, bp, addr,
-				    boff, bcount);
-			else
-				err = gv_build_raid5_req(p, wp, bp, addr,
-				    boff, bcount);
-
- 			/*
-			 * Building the sub-request failed, we probably need to
-			 * clean up a lot.
- 			 */
- 			if (err) {
-				G_VINUM_LOGREQ(0, bp, "plex request failed.");
-				TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
-					TAILQ_REMOVE(&wp->bits, bq, queue);
-					g_free(bq);
-				}
-				if (wp->waiting != NULL) {
-					if (wp->waiting->bio_cflags &
-					    GV_BIO_MALLOC)
-						g_free(wp->waiting->bio_data);
-					g_destroy_bio(wp->waiting);
-				}
-				if (wp->parity != NULL) {
-					if (wp->parity->bio_cflags &
-					    GV_BIO_MALLOC)
-						g_free(wp->parity->bio_data);
-					g_destroy_bio(wp->parity);
-				}
-				g_free(wp);
-
-				TAILQ_FOREACH_SAFE(wp, &p->packets, list, wp2) {
-					if (wp->bio == bp) {
-						TAILQ_REMOVE(&p->packets, wp,
-						    list);
-						TAILQ_FOREACH_SAFE(bq,
-						    &wp->bits, queue, bq2) {
-							TAILQ_REMOVE(&wp->bits,
-							    bq, queue);
-							g_free(bq);
-						}
-						g_free(wp);
-					}
-				}
-
-				cbp = bp->bio_driver1;
-				while (cbp != NULL) {
-					pbp = cbp->bio_caller1;
-					if (cbp->bio_cflags & GV_BIO_MALLOC)
-						g_free(cbp->bio_data);
-					g_destroy_bio(cbp);
-					cbp = pbp;
-				}
-
-				g_io_deliver(bp, err);
- 				return;
- 			}
- 
-			if (TAILQ_EMPTY(&wp->bits))
-				g_free(wp);
-			else if (wp->lockbase != -1)
-				TAILQ_INSERT_TAIL(&p->packets, wp, list);
-
-		/*
-		 * Requests to concatenated and striped plexes go straight
-		 * through.
-		 */
-		} else {
-			err = gv_plexbuffer(p, bp, addr, boff, bcount);
-
-			/* Building the sub-request failed. */
-			if (err) {
-				G_VINUM_LOGREQ(0, bp, "plex request failed.");
-				cbp = bp->bio_driver1;
-				while (cbp != NULL) {
-					pbp = cbp->bio_caller1;
-					g_destroy_bio(cbp);
-					cbp = pbp;
-				}
-				g_io_deliver(bp, err);
-				return;
-			}
-		}
- 
-		/* Abuse bio_caller1 as linked list. */
-		pbp = bp->bio_driver1;
-		while (pbp->bio_caller1 != NULL)
-			pbp = pbp->bio_caller1;
-		bcount -= pbp->bio_length;
-		addr += pbp->bio_length;
-		boff += pbp->bio_length;
+	if (error == EAGAIN) {
+		G_VINUM_DEBUG(0, "parity incorrect at offset 0x%jx",
+		    (intmax_t)p->synced);
 	}
 
-	/* Fire off all sub-requests. */
-	pbp = bp->bio_driver1;
-	while (pbp != NULL) {
-		/*
-		 * RAID5 sub-requests need to come in correct order, otherwise
-		 * we trip over the parity, as it might be overwritten by
-		 * another sub-request.
-		 */
-		if (pbp->bio_driver1 != NULL &&
-		    gv_stripe_active(p, pbp)) {
-			/* Park the bio on the waiting queue. */
-			pbp->bio_cflags |= GV_BIO_ONHOLD;
-			mtx_lock(&p->bqueue_mtx);
-			bioq_disksort(p->wqueue, pbp);
-			mtx_unlock(&p->bqueue_mtx);
-		} else
-			g_io_request(pbp, pbp->bio_caller2);
-		pbp = pbp->bio_caller1;
-	}
-}
-
-static int
-gv_plex_access(struct g_provider *pp, int dr, int dw, int de)
-{
-	struct gv_plex *p;
-	struct g_geom *gp;
-	struct g_consumer *cp, *cp2;
-	int error;
-
-	gp = pp->geom;
-	p = gp->softc;
-	KASSERT(p != NULL, ("NULL p"));
-
-	if (p->org == GV_PLEX_RAID5) {
-		if (dw > 0 && dr == 0)
-			dr = 1;
-		else if (dw < 0 && dr == 0)
-			dr = -1;
-	}
-
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
-		error = g_access(cp, dr, dw, de);
-		if (error) {
-			LIST_FOREACH(cp2, &gp->consumer, consumer) {
-				if (cp == cp2)
-					break;
-				g_access(cp2, -dr, -dw, -de);
-			}
-			return (error);
-		}
-	}
-	return (0);
-}
-
-static struct g_geom *
-gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
-{
-	struct g_geom *gp;
-	struct g_consumer *cp, *cp2;
-	struct g_provider *pp2;
-	struct gv_plex *p;
-	struct gv_sd *s;
-	struct gv_softc *sc;
-	int error;
-
-	g_trace(G_T_TOPOLOGY, "gv_plex_taste(%s, %s)", mp->name, pp->name);
-	g_topology_assert();
-
-	/* We only want to attach to subdisks. */
-	if (strcmp(pp->geom->class->name, "VINUMDRIVE"))
-		return (NULL);
-
-	/* Find the VINUM class and its associated geom. */
-	gp = find_vinum_geom();
-	if (gp == NULL)
-		return (NULL);
-	sc = gp->softc;
-	KASSERT(sc != NULL, ("gv_plex_taste: NULL sc"));
-
-	/* Find out which subdisk the offered provider corresponds to. */
-	s = pp->private;
-	KASSERT(s != NULL, ("gv_plex_taste: NULL s"));
-
-	/* Now find the correct plex where this subdisk belongs to. */
-	p = gv_find_plex(sc, s->plex);
-	if (p == NULL) {
-		G_VINUM_DEBUG(0, "%s: NULL p for '%s'", __func__, s->name);
-		return (NULL);
-	}
-
-	/*
-	 * Add this subdisk to this plex.  Since we trust the on-disk
-	 * configuration, we don't check the given value (should we?).
-	 * XXX: shouldn't be done here
-	 */
-	gv_sd_to_plex(p, s, 0);
-
-	/* Now check if there's already a geom for this plex. */
-	gp = p->geom;
-
-	/* Yes, there is already a geom, so we just add the consumer. */
-	if (gp != NULL) {
-		cp2 = LIST_FIRST(&gp->consumer);
-		/* Need to attach a new consumer to this subdisk. */
-		cp = g_new_consumer(gp);
-		error = g_attach(cp, pp);
-		if (error) {
-			G_VINUM_DEBUG(0, "unable to attach consumer to %s",
-			    pp->name);
-			g_destroy_consumer(cp);
-			return (NULL);
-		}
-		/* Adjust the access counts of the new consumer. */
-		if ((cp2 != NULL) && (cp2->acr || cp2->acw || cp2->ace)) {
-			error = g_access(cp, cp2->acr, cp2->acw, cp2->ace);
-			if (error) {
-				G_VINUM_DEBUG(0, "unable to set access counts"
-				    " for consumer on %s", pp->name);
-				g_detach(cp);
-				g_destroy_consumer(cp);
-				return (NULL);
-			}
-		}
-		s->consumer = cp;
-
-		/* Adjust the size of the providers this plex has. */
-		LIST_FOREACH(pp2, &gp->provider, provider)
-			pp2->mediasize = p->size;
-
-		/* Update the size of the volume this plex is attached to. */
-		if (p->vol_sc != NULL)
-			gv_update_vol_size(p->vol_sc, p->size);
-
-		/*
-		 * If necessary, create bio queues, queue mutex and a worker
-		 * thread.
-		 */
-		if (p->bqueue == NULL) {
-			p->bqueue = g_malloc(sizeof(struct bio_queue_head),
-			    M_WAITOK | M_ZERO);
-			bioq_init(p->bqueue);
-		}
-		if (p->wqueue == NULL) {
-			p->wqueue = g_malloc(sizeof(struct bio_queue_head),
-			    M_WAITOK | M_ZERO);
-			bioq_init(p->wqueue);
-		}
-		if (mtx_initialized(&p->bqueue_mtx) == 0)
-			mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
-		if (!(p->flags & GV_PLEX_THREAD_ACTIVE)) {
-			kproc_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
-			    p->name);
-			p->flags |= GV_PLEX_THREAD_ACTIVE;
-		}
-
-		return (NULL);
-
-	/* We need to create a new geom. */
+	/* Any error is fatal, except EAGAIN when we're rebuilding. */
+	if (error && !(error == EAGAIN && (flags & GV_BIO_PARITY))) {
+		/* Make sure we don't have the lock. */
+		g_topology_assert_not();
+		g_topology_lock();
+		gv_access(p->vol_sc->provider, -1, -1, 0);
+		g_topology_unlock();
+		G_VINUM_DEBUG(0, "parity check on %s failed at 0x%jx "
+		    "errno %d", p->name, (intmax_t)p->synced, error);
+		return;
 	} else {
-		gp = g_new_geomf(mp, "%s", p->name);
-		gp->start = gv_plex_start;
-		gp->orphan = gv_plex_orphan;
-		gp->access = gv_plex_access;
-		gp->softc = p;
-		p->geom = gp;
-
-		TAILQ_INIT(&p->packets);
-		p->bqueue = g_malloc(sizeof(struct bio_queue_head),
-		    M_WAITOK | M_ZERO);
-		bioq_init(p->bqueue);
-		p->wqueue = g_malloc(sizeof(struct bio_queue_head),
-		    M_WAITOK | M_ZERO);
-		bioq_init(p->wqueue);
-		mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
-		kproc_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
-		    p->name);
-		p->flags |= GV_PLEX_THREAD_ACTIVE;
-
-		/* Attach a consumer to this provider. */
-		cp = g_new_consumer(gp);
-		g_attach(cp, pp);
-		s->consumer = cp;
-
-		/* Create a provider for the outside world. */
-		pp2 = g_new_providerf(gp, "gvinum/plex/%s", p->name);
-		pp2->mediasize = p->size;
-		pp2->sectorsize = pp->sectorsize;
-		p->provider = pp2;
-		g_error_provider(pp2, 0);
-		return (gp);
+		p->synced += p->stripesize;
 	}
+
+	if (p->synced >= p->size) {
+		/* Make sure we don't have the lock. */
+		g_topology_assert_not();
+		g_topology_lock();
+		gv_access(p->vol_sc->provider, -1, -1, 0);
+		g_topology_unlock();
+		/* We're finished. */
+		G_VINUM_DEBUG(1, "parity operation on %s finished", p->name);
+		p->synced = 0;
+		gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
+		return;
+	}
+
+	/* Send down next. It will determine if we need to itself. */
+	gv_parity_request(p, flags, p->synced);
 }
 
-static int
-gv_plex_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp)
+/*
+ * Handle a finished plex rebuild bio.
+ */
+void
+gv_rebuild_complete(struct gv_plex *p, struct bio *bp)
 {
-	struct gv_plex *p;
+	struct gv_softc *sc;
+	struct gv_sd *s;
+	int error, flags;
+	off_t offset;
 
-	g_trace(G_T_TOPOLOGY, "gv_plex_destroy_geom: %s", gp->name);
-	g_topology_assert();
+	error = bp->bio_error;
+	flags = bp->bio_cflags;
+	offset = bp->bio_offset;
+	flags &= ~GV_BIO_MALLOC;
+	sc = p->vinumconf;
+	KASSERT(sc != NULL, ("gv_rebuild_complete: NULL sc"));
 
-	p = gp->softc;
+	/* Clean up what we allocated. */
+	if (bp->bio_cflags & GV_BIO_MALLOC)
+		g_free(bp->bio_data);
+	g_destroy_bio(bp);
 
-	KASSERT(p != NULL, ("gv_plex_destroy_geom: null p of '%s'", gp->name));
+	if (error) {
+		g_topology_assert_not();
+		g_topology_lock();
+		gv_access(p->vol_sc->provider, -1, -1, 0);
+		g_topology_unlock();
+	
+		G_VINUM_DEBUG(0, "rebuild of %s failed at offset %jd errno: %d",
+		    p->name, (intmax_t)offset, error);
+		p->flags &= ~GV_PLEX_REBUILDING;
+		p->synced = 0;
+		gv_plex_flush(p); /* Flush out remaining rebuild BIOs. */
+		return;
+	}
 
-	/*
-	 * If this is a RAID5 plex, check if its worker thread is still active
-	 * and signal it to self destruct.
-	 */
-	gv_kill_plex_thread(p);
-	/* g_free(sc); */
-	g_wither_geom(gp, ENXIO);
-	return (0);
+	offset += (p->stripesize * (gv_sdcount(p, 1) - 1));
+	if (offset >= p->size) {
+		/* We're finished. */
+		g_topology_assert_not();
+		g_topology_lock();
+		gv_access(p->vol_sc->provider, -1, -1, 0);
+		g_topology_unlock();
+	
+		G_VINUM_DEBUG(1, "rebuild of %s finished", p->name);
+		gv_save_config(p->vinumconf);
+		p->flags &= ~GV_PLEX_REBUILDING;
+		p->synced = 0;
+		/* Try to up all subdisks. */
+		LIST_FOREACH(s, &p->subdisks, in_plex)
+			gv_update_sd_state(s);
+		gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
+		gv_plex_flush(p); /* Flush out remaining rebuild BIOs. */
+		return;
+	}
+
+	/* Send down next. It will determine if we need to itself. */
+	gv_parity_request(p, flags, offset);
 }
-
-#define	VINUMPLEX_CLASS_NAME "VINUMPLEX"
-
-static struct g_class g_vinum_plex_class = {
-	.name = VINUMPLEX_CLASS_NAME,
-	.version = G_VERSION,
-	.taste = gv_plex_taste,
-	.destroy_geom = gv_plex_destroy_geom,
-};
-
-DECLARE_GEOM_CLASS(g_vinum_plex_class, g_vinum_plex);
