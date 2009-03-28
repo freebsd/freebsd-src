@@ -520,8 +520,7 @@ __get_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_disk,
 		page = BUCKET_TO_PAGE(bucket);
 	else
 		page = OADDR_TO_PAGE(bucket);
-	if ((lseek(fd, (off_t)page << hashp->BSHIFT, SEEK_SET) == -1) ||
-	    ((rsize = _read(fd, p, size)) == -1))
+	if ((rsize = pread(fd, p, size, (off_t)page << hashp->BSHIFT)) == -1)
 		return (-1);
 	bp = (u_int16_t *)p;
 	if (!rsize)
@@ -587,8 +586,7 @@ __put_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_bitmap)
 		page = BUCKET_TO_PAGE(bucket);
 	else
 		page = OADDR_TO_PAGE(bucket);
-	if ((lseek(fd, (off_t)page << hashp->BSHIFT, SEEK_SET) == -1) ||
-	    ((wsize = _write(fd, p, size)) == -1))
+	if ((wsize = pwrite(fd, p, size, (off_t)page << hashp->BSHIFT)) == -1)
 		/* Errno is set */
 		return (-1);
 	if (wsize != size) {
