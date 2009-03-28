@@ -1311,7 +1311,7 @@ ed_shmem_readmem16(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
     uint16_t amount)
 {
 	bus_space_read_region_2(sc->mem_bst, sc->mem_bsh, src, (uint16_t *)dst,
-	    amount + 1 / 2);
+	    (amount + 1) / 2);
 }
 
 /*
