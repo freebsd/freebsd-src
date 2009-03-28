@@ -163,7 +163,6 @@ __hash_open(const char *file, int flags, int mode,
 		 */
 		nsegs = (hashp->MAX_BUCKET + 1 + hashp->SGSIZE - 1) /
 			 hashp->SGSIZE;
-		hashp->nsegs = 0;
 		if (alloc_segs(hashp, nsegs))
 			/*
 			 * If alloc_segs fails, table will have been destroyed
@@ -417,6 +416,10 @@ hdestroy(HTAB *hashp)
 	for (i = 0; i < hashp->nmaps; i++)
 		if (hashp->mapp[i])
 			free(hashp->mapp[i]);
+	if (hashp->tmp_key)
+		free(hashp->tmp_key);
+	if (hashp->tmp_buf)
+		free(hashp->tmp_buf);
 
 	if (hashp->fp != -1)
 		(void)_close(hashp->fp);
@@ -762,6 +765,8 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 		if (__big_keydata(hashp, bufp, key, data, 1))
 			return (ERROR);
 	} else {
+		if (hashp->cpage == 0)
+			return (ERROR);
 		key->data = (u_char *)hashp->cpage->page + bp[ndx];
 		key->size = (ndx > 1 ? bp[ndx - 1] : hashp->BSIZE) - bp[ndx];
 		data->data = (u_char *)hashp->cpage->page + bp[ndx + 1];
@@ -877,15 +882,18 @@ alloc_segs(HTAB *hashp, int nsegs)
 		errno = save_errno;
 		return (-1);
 	}
+	hashp->nsegs = nsegs;
+	if (nsegs == 0)
+		return (0);
 	/* Allocate segments */
-	if ((store =
-	    (SEGMENT)calloc(nsegs << hashp->SSHIFT, sizeof(SEGMENT))) == NULL) {
+	if ((store = (SEGMENT)calloc(nsegs << hashp->SSHIFT,
+	    sizeof(SEGMENT))) == NULL) {
 		save_errno = errno;
 		(void)hdestroy(hashp);
 		errno = save_errno;
 		return (-1);
 	}
-	for (i = 0; i < nsegs; i++, hashp->nsegs++)
+	for (i = 0; i < nsegs; i++)
 		hashp->dir[i] = &store[i << hashp->SSHIFT];
 	return (0);
 }
