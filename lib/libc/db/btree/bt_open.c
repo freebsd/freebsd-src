@@ -383,14 +383,18 @@ static int
 tmp(void)
 {
 	sigset_t set, oset;
-	int fd;
+	int fd, len;
 	char *envtmp = NULL;
 	char path[MAXPATHLEN];
 
 	if (issetugid() == 0)
 		envtmp = getenv("TMPDIR");
-	(void)snprintf(path,
+	len = snprintf(path,
 	    sizeof(path), "%s/bt.XXXXXXXXXX", envtmp ? envtmp : "/tmp");
+	if (len < 0 || len >= (int)sizeof(path)) {
+		errno = ENAMETOOLONG;
+		return(-1);
+	}
 
 	(void)sigfillset(&set);
 	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
