@@ -404,17 +404,22 @@ __addel(HTAB *hashp, BUFHEAD *bufp, const DBT *key, const DBT *val)
 			if (!bufp)
 				return (-1);
 			bp = (u_int16_t *)bufp->page;
-		} else
+		} else if (bp[bp[0]] != OVFLPAGE) {
+			/* Short key/data pairs, no more pages */
+			break;
+		} else {
 			/* Try to squeeze key on this page */
-			if (FREESPACE(bp) > PAIRSIZE(key, val)) {
+			if (bp[2] >= REAL_KEY &&
+			    FREESPACE(bp) >= PAIRSIZE(key, val)) {
 				squeeze_key(bp, key, val);
-				return (0);
+				goto stats;
 			} else {
 				bufp = __get_buf(hashp, bp[bp[0] - 1], bufp, 0);
 				if (!bufp)
 					return (-1);
 				bp = (u_int16_t *)bufp->page;
 			}
+		}
 
 	if (PAIRFITS(bp, key, val))
 		putpair(bufp->page, key, val);
@@ -431,6 +436,7 @@ __addel(HTAB *hashp, BUFHEAD *bufp, const DBT *key, const DBT *val)
 			if (__big_insert(hashp, bufp, key, val))
 				return (-1);
 	}
+stats:
 	bufp->flags |= BUF_MOD;
 	/*
 	 * If the average number of keys per bucket exceeds the fill factor,
