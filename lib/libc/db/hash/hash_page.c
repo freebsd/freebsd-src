@@ -124,9 +124,8 @@ putpair(char *p, const DBT *key, const DBT *val)
 int
 __delpair(HTAB *hashp, BUFHEAD *bufp, int ndx)
 {
-	u_int16_t *bp, newoff;
+	u_int16_t *bp, newoff, pairlen;
 	int n;
-	u_int16_t pairlen;
 
 	bp = (u_int16_t *)bufp->page;
 	n = bp[0];
@@ -453,8 +452,7 @@ __addel(HTAB *hashp, BUFHEAD *bufp, const DBT *key, const DBT *val)
 BUFHEAD *
 __add_ovflpage(HTAB *hashp, BUFHEAD *bufp)
 {
-	u_int16_t *sp;
-	u_int16_t ndx, ovfl_num;
+	u_int16_t *sp, ndx, ovfl_num;
 #ifdef DEBUG1
 	int tmp1, tmp2;
 #endif
@@ -505,8 +503,7 @@ int
 __get_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_disk,
     int is_bitmap)
 {
-	int fd, page, size;
-	int rsize;
+	int fd, page, size, rsize;
 	u_int16_t *bp;
 
 	fd = hashp->fp;
@@ -560,8 +557,7 @@ __get_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_disk,
 int
 __put_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_bitmap)
 {
-	int fd, page, size;
-	int wsize;
+	int fd, page, size, wsize;
 
 	size = hashp->BSIZE;
 	if ((hashp->fp == -1) && open_temp(hashp))
@@ -569,8 +565,7 @@ __put_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_bitmap)
 	fd = hashp->fp;
 
 	if (hashp->LORDER != BYTE_ORDER) {
-		int i;
-		int max;
+		int i, max;
 
 		if (is_bitmap) {
 			max = hashp->BSIZE >> 2;	/* divide by 4 */
