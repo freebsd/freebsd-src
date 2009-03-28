@@ -854,7 +854,7 @@ open_temp(HTAB *hashp)
 		envtmp = getenv("TMPDIR");
 	len = snprintf(path,
 	    sizeof(path), "%s/_hash.XXXXXX", envtmp ? envtmp : "/tmp");
-	if (len < 0 || len >= sizeof(path)) {
+	if (len < 0 || len >= (int)sizeof(path)) {
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
