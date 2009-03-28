@@ -103,7 +103,7 @@ gv_start_plex(struct gv_plex *p)
 	struct gv_volume *v;
 	struct gv_plex *up;
 	struct gv_sd *s;
-	int error, grow;
+	int error;
 
 	KASSERT(p != NULL, ("gv_start_plex: NULL p"));
 
@@ -149,15 +149,12 @@ gv_start_plex(struct gv_plex *p)
 		 */
 		} else if (p->org == GV_PLEX_STRIPED &&
 		    p->state != GV_PLEX_DOWN) {
-			grow = 0;
 			LIST_FOREACH(s, &p->subdisks, in_plex) {
 				if (s->flags & GV_SD_GROW) {
-					grow = 1;
+					error = gv_grow_plex(p);
 					break;
 				}
 			}
-			if (grow)
-				error = gv_grow_plex(p);
 		}
 	}
 	return (error);
