@@ -217,7 +217,7 @@ mpool_get(MPOOL *mp, pgno_t pgno,
 
 	/* Read in the contents. */
 	off = mp->pagesize * pgno;
-	if ((nr = pread(mp->fd, bp->page, mp->pagesize, off)) != mp->pagesize) {
+	if ((nr = pread(mp->fd, bp->page, mp->pagesize, off)) != (ssize_t)mp->pagesize) {
 		switch (nr) {
 		case -1:
 			/* errno is set for us by pread(). */
@@ -404,7 +404,7 @@ mpool_write(MPOOL *mp, BKT *bp)
 		(mp->pgout)(mp->pgcookie, bp->pgno, bp->page);
 
 	off = mp->pagesize * bp->pgno;
-	if (pwrite(mp->fd, bp->page, mp->pagesize, off) != mp->pagesize)
+	if (pwrite(mp->fd, bp->page, mp->pagesize, off) != (ssize_t)mp->pagesize)
 		return (RET_ERROR);
 
 	/*
