@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Lukas Ertl
+ * Copyright (c) 2004, 2007 Lukas Ertl
  * Copyright (c) 1997, 1998, 1999
  *      Nan Yang Computer Services Limited.  All rights reserved.
  *
@@ -45,10 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #ifdef _KERNEL
-#include <sys/bio.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 
@@ -63,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #define	g_free	free
 #endif /* _KERNEL */
 
-#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
 
@@ -237,6 +232,8 @@ gv_sdstatei(char *buf)
 		return (GV_SD_UP);
 	else if (!strcmp(buf, "reviving"))
 		return (GV_SD_REVIVING);
+	else if (!strcmp(buf, "initializing"))
+		return (GV_SD_INITIALIZING);
 	else if (!strcmp(buf, "stale"))
 		return (GV_SD_STALE);
 	else
@@ -273,6 +270,8 @@ gv_plexstatei(char *buf)
 		return (GV_PLEX_INITIALIZING);
 	else if (!strcmp(buf, "degraded"))
 		return (GV_PLEX_DEGRADED);
+	else if (!strcmp(buf, "growable"))
+		return (GV_PLEX_GROWABLE);
 	else
 		return (GV_PLEX_DOWN);
 }
@@ -288,6 +287,8 @@ gv_plexstate(int state)
 		return "initializing";
 	case GV_PLEX_DEGRADED:
 		return "degraded";
+	case GV_PLEX_GROWABLE:
+		return "growable";
 	case GV_PLEX_UP:
 		return "up";
 	default:
@@ -378,14 +379,13 @@ gv_new_drive(int max, char *token[])
 		return (NULL);
 
 #ifdef _KERNEL
-	d = g_malloc(sizeof(struct gv_drive), M_WAITOK | M_ZERO);
-
+	d = g_malloc(sizeof(struct gv_drive), M_NOWAIT);
 #else
 	d = malloc(sizeof(struct gv_drive));
+#endif
 	if (d == NULL)
 		return (NULL);
 	bzero(d, sizeof(struct gv_drive));
-#endif
 
 	errors = 0;
 	for (j = 1; j < max; j++) {
@@ -406,10 +406,10 @@ gv_new_drive(int max, char *token[])
 
 			if (strncmp(ptr, "/dev/", 5) == 0)
 				ptr += 5;
-			strncpy(d->device, ptr, GV_MAXDRIVENAME);
+			strlcpy(d->device, ptr, sizeof(d->device));
 		} else {
 			/* We assume this is the drive name. */
-			strncpy(d->name, token[j], GV_MAXDRIVENAME);
+			strlcpy(d->name, token[j], sizeof(d->name));
 		}
 	}
 
@@ -435,14 +435,13 @@ gv_new_volume(int max, char *token[])
 		return (NULL);
 
 #ifdef _KERNEL
-	v = g_malloc(sizeof(struct gv_volume), M_WAITOK | M_ZERO);
-
+	v = g_malloc(sizeof(struct gv_volume), M_NOWAIT);
 #else
 	v = malloc(sizeof(struct gv_volume));
+#endif
 	if (v == NULL)
 		return (NULL);
 	bzero(v, sizeof(struct gv_volume));
-#endif
 
 	errors = 0;
 	for (j = 1; j < max; j++) {
@@ -455,7 +454,7 @@ gv_new_volume(int max, char *token[])
 			v->state = gv_volstatei(token[j]);
 		} else {
 			/* We assume this is the volume name. */
-			strncpy(v->name, token[j], GV_MAXVOLNAME);
+			strlcpy(v->name, token[j], sizeof(v->name));
 		}
 	}
 
@@ -481,13 +480,13 @@ gv_new_plex(int max, char *token[])
 		return (NULL);
 
 #ifdef _KERNEL
-	p = g_malloc(sizeof(struct gv_plex), M_WAITOK | M_ZERO);
+	p = g_malloc(sizeof(struct gv_plex), M_NOWAIT);
 #else
 	p = malloc(sizeof(struct gv_plex));
+#endif
 	if (p == NULL)
 		return (NULL);
 	bzero(p, sizeof(struct gv_plex));
-#endif
 
 	errors = 0;
 	for (j = 1; j < max; j++) {
@@ -497,7 +496,7 @@ gv_new_plex(int max, char *token[])
 				errors++;
 				break;
 			}
-			strncpy(p->name, token[j], GV_MAXPLEXNAME);
+			strlcpy(p->name, token[j], sizeof(p->name));
 		} else if (!strcmp(token[j], "org")) {
 			j++;
 			if (j >= max) {
@@ -532,7 +531,7 @@ gv_new_plex(int max, char *token[])
 				errors++;
 				break;
 			}
-			strncpy(p->volume, token[j], GV_MAXVOLNAME);
+			strlcpy(p->volume, token[j], sizeof(p->volume));
 		} else {
 			errors++;
 			break;
@@ -555,16 +554,16 @@ gv_new_sd(int max, char *token[])
 	int j, errors;
 
 	if (token[1] == NULL || *token[1] == '\0')
-		return NULL;
+		return (NULL);
 
 #ifdef _KERNEL
-	s = g_malloc(sizeof(struct gv_sd), M_WAITOK | M_ZERO);
+	s = g_malloc(sizeof(struct gv_sd), M_NOWAIT);
 #else
 	s = malloc(sizeof(struct gv_sd));
-	if (s == NULL)
-		return NULL;
-	bzero(s, sizeof(struct gv_sd));
 #endif
+	if (s == NULL)
+		return (NULL);
+	bzero(s, sizeof(struct gv_sd));
 
 	s->plex_offset = -1;
 	s->size = -1;
@@ -577,21 +576,21 @@ gv_new_sd(int max, char *token[])
 				errors++;
 				break;
 			}
-			strncpy(s->name, token[j], GV_MAXSDNAME);
+			strlcpy(s->name, token[j], sizeof(s->name));
 		} else if (!strcmp(token[j], "drive")) {
 			j++;
 			if (j >= max) {
 				errors++;
 				break;
 			}
-			strncpy(s->drive, token[j], GV_MAXDRIVENAME);
+			strlcpy(s->drive, token[j], sizeof(s->drive));
 		} else if (!strcmp(token[j], "plex")) {
 			j++;
 			if (j >= max) {
 				errors++;
 				break;
 			}
-			strncpy(s->plex, token[j], GV_MAXPLEXNAME);
+			strlcpy(s->plex, token[j], sizeof(s->plex));
 		} else if (!strcmp(token[j], "state")) {
 			j++;
 			if (j >= max) {
