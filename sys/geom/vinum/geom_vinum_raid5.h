@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Lukas Ertl
+ * Copyright (c) 2004, 2007 Lukas Ertl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,26 +35,10 @@
  * transaction (read or write).
  */
 
-#define	GV_ENQUEUE(bp, cbp, pbp)				\
-	do { 							\
-		if (bp->bio_driver1 == NULL) {			\
-			bp->bio_driver1 = cbp;			\
-		} else {					\
-			pbp = bp->bio_driver1;			\
-			while (pbp->bio_caller1 != NULL)	\
-				pbp = pbp->bio_caller1;		\
-			pbp->bio_caller1 = cbp;			\
-		}						\
-	} while (0)
-
 struct gv_raid5_packet {
 	caddr_t	data;		/* Data buffer of this sub-request- */
 	off_t	length;		/* Size of data buffer. */
 	off_t	lockbase;	/* Deny access to our plex offset. */
-	off_t	offset;		/* The drive offset of the subdisk. */
-	int	bufmalloc;	/* Flag if data buffer was malloced. */
-	int	active;		/* Count of active subrequests. */
-	int	rqcount;	/* Count of subrequests. */
 
 	struct bio	*bio;	/* Pointer to the original bio. */
 	struct bio	*parity;  /* The bio containing the parity data. */
@@ -64,14 +48,8 @@ struct gv_raid5_packet {
 	TAILQ_ENTRY(gv_raid5_packet)	list; /* Entry in plex's packet list. */
 };
 
+struct gv_raid5_packet * gv_raid5_start(struct gv_plex *, struct bio *,
+		caddr_t, off_t, off_t);
 int	gv_stripe_active(struct gv_plex *, struct bio *);
-int	gv_build_raid5_req(struct gv_plex *, struct gv_raid5_packet *,
-	    struct bio *, caddr_t, off_t, off_t);
-int	gv_check_raid5(struct gv_plex *, struct gv_raid5_packet *,
-	    struct bio *, caddr_t, off_t, off_t);
-int	gv_rebuild_raid5(struct gv_plex *, struct gv_raid5_packet *,
-	    struct bio *, caddr_t, off_t, off_t);
-void	gv_raid5_worker(void *);
-void	gv_plex_done(struct bio *);
 
 #endif /* !_GEOM_VINUM_RAID5_H_ */
