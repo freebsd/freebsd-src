@@ -205,7 +205,7 @@ __bt_split(BTREE *t, PAGE *sp, const DBT *key, const DBT *data, int flags,
 		}
 
 		/* Split the parent page if necessary or shift the indices. */
-		if (h->upper - h->lower < nbytes + sizeof(indx_t)) {
+		if ((u_int32_t)(h->upper - h->lower) < nbytes + sizeof(indx_t)) {
 			sp = h;
 			h = h->pgno == P_ROOT ?
 			    bt_root(t, h, &l, &r, &skip, nbytes) :
