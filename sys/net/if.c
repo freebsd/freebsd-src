@@ -2749,6 +2749,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_BRIDGE:
 	case IFT_ARCNET:
 	case IFT_IEEE8023ADLAG:
+	case IFT_IEEE80211:
 		bcopy(lladdr, LLADDR(sdl), len);
 		break;
 	default:
