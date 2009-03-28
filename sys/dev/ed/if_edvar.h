@@ -267,6 +267,11 @@ extern devclass_t ed_devclass;
 #define ED_FLAGS_FORCE_PIO		0x0010
 
 /*
+ * This forces a PC Card, and disables ISA memory range checks
+ */
+#define ED_FLAGS_PCCARD			0x0020
+
+/*
  * These are flags describing the chip type.
  */
 #define ED_FLAGS_TOSH_ETHER		0x10000
