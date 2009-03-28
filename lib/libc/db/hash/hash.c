@@ -347,8 +347,7 @@ init_hash(HTAB *hashp, const char *file, const HASHINFO *info)
 static int
 init_htab(HTAB *hashp, int nelem)
 {
-	int nbuckets, nsegs;
-	int l2;
+	int nbuckets, nsegs, l2;
 
 	/*
 	 * Divide number of elements by the fill factor and determine a
