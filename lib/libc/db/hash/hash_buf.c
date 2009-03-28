@@ -282,7 +282,7 @@ newbuf(HTAB *hashp, u_int32_t addr, BUFHEAD *prev_bp)
 		 */
 #ifdef DEBUG1
 		(void)fprintf(stderr, "NEWBUF2: %d->ovfl was %d is now %d\n",
-		    prev_bp->addr, (prev_bp->ovfl ? bp->ovfl->addr : 0),
+		    prev_bp->addr, (prev_bp->ovfl ? prev_bp->ovfl->addr : 0),
 		    (bp ? bp->addr : 0));
 #endif
 		prev_bp->ovfl = bp;
