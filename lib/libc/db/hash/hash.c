@@ -495,8 +495,7 @@ flush_meta(HTAB *hashp)
 	whdrp = &whdr;
 	swap_header_copy(&hashp->hdr, whdrp);
 #endif
-	if ((lseek(fp, (off_t)0, SEEK_SET) == -1) ||
-	    ((wsize = _write(fp, whdrp, sizeof(HASHHDR))) == -1))
+	if ((wsize = pwrite(fp, whdrp, sizeof(HASHHDR), (off_t)0)) == -1)
 		return (-1);
 	else
 		if (wsize != sizeof(HASHHDR)) {
