@@ -1007,7 +1007,8 @@ gv_worker(void *arg)
 				g_io_request(bp, s->drive_sc->consumer);
 			}
 		/* A special request requireing special handling. */
-		} else if (bp->bio_cflags & GV_BIO_INTERNAL) {
+		} else if (bp->bio_cflags & GV_BIO_INTERNAL ||
+		    bp->bio_pflags & GV_BIO_INTERNAL) {
 			p = bp->bio_caller1;
 			gv_plex_start(p, bp);
 		/* A fresh bio, scheduled it down. */
