@@ -164,11 +164,31 @@ newbuf(HTAB *hashp, u_int32_t addr, BUFHEAD *prev_bp)
 
 	oaddr = 0;
 	bp = LRU;
+
+        /* It is bad to overwrite the page under the cursor. */
+        if (bp == hashp->cpage) {
+                BUF_REMOVE(bp);
+                MRU_INSERT(bp);
+                bp = LRU;
+        }
+
+	/* If prev_bp is part of bp overflow, create a new buffer. */
+	if (hashp->nbufs == 0 && prev_bp && bp->ovfl) {
+		BUFHEAD *ovfl;
+
+		for (ovfl = bp->ovfl; ovfl ; ovfl = ovfl->ovfl) {
+			if (ovfl == prev_bp) {
+				hashp->nbufs++;
+				break;
+			}
+		}
+	}
+
 	/*
 	 * If LRU buffer is pinned, the buffer pool is too small. We need to
 	 * allocate more buffers.
 	 */
-	if (hashp->nbufs || (bp->flags & BUF_PIN)) {
+	if (hashp->nbufs || (bp->flags & BUF_PIN) || bp == hashp->cpage) {
 		/* Allocate a new one */
 		if ((bp = (BUFHEAD *)calloc(1, sizeof(BUFHEAD))) == NULL)
 			return (NULL);
