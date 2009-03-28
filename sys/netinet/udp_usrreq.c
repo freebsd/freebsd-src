@@ -131,7 +131,7 @@ u_long	udp_recvspace = 40 * (1024 +
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
-static int udp_soreceive_dgram;
+static int udp_soreceive_dgram = 1;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, soreceive_dgram_enabled,
     CTLFLAG_RD | CTLFLAG_TUN, &udp_soreceive_dgram, 0,
     "Use experimental optimized datagram receive");
