@@ -687,6 +687,7 @@ overflow_page(HTAB *hashp)
 	if (offset > SPLITMASK) {
 		if (++splitnum >= NCACHED) {
 			(void)_write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+			errno = EFBIG;
 			return (0);
 		}
 		hashp->OVFL_POINT = splitnum;
@@ -700,6 +701,7 @@ overflow_page(HTAB *hashp)
 		free_page++;
 		if (free_page >= NCACHED) {
 			(void)_write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+			errno = EFBIG;
 			return (0);
 		}
 		/*
@@ -725,6 +727,7 @@ overflow_page(HTAB *hashp)
 			if (++splitnum >= NCACHED) {
 				(void)_write(STDERR_FILENO, OVMSG,
 				    sizeof(OVMSG) - 1);
+				errno = EFBIG;
 				return (0);
 			}
 			hashp->OVFL_POINT = splitnum;
@@ -768,8 +771,11 @@ found:
 	/* Calculate the split number for this page */
 	for (i = 0; (i < splitnum) && (bit > hashp->SPARES[i]); i++);
 	offset = (i ? bit - hashp->SPARES[i - 1] : bit);
-	if (offset >= SPLITMASK)
+	if (offset >= SPLITMASK) {
+		(void)_write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+		errno = EFBIG;
 		return (0);	/* Out of overflow pages */
+	}
 	addr = OADDR_OF(i, offset);
 #ifdef DEBUG2
 	(void)fprintf(stderr, "OVERFLOW_PAGE: ADDR: %d BIT: %d PAGE %d\n",
