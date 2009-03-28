@@ -120,25 +120,15 @@ __hash_open(const char *file, int flags, int mode,
 	 */
 	hashp->flags = flags;
 
-	new_table = 0;
-	if (!file || (flags & O_TRUNC) ||
-	    (stat(file, &statbuf) && (errno == ENOENT))) {
-		if (errno == ENOENT)
-			errno = 0; /* Just in case someone looks at errno */
-		new_table = 1;
-	}
 	if (file) {
 		if ((hashp->fp = _open(file, flags, mode)) == -1)
 			RETURN_ERROR(errno, error0);
-
-		/* if the .db file is empty, and we had permission to create
-		   a new .db file, then reinitialize the database */
-		if ((flags & O_CREAT) &&
-		     _fstat(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
-			new_table = 1;
-
 		(void)_fcntl(hashp->fp, F_SETFD, 1);
-	}
+		new_table = _fstat(hashp->fp, &statbuf) == 0 &&
+		    statbuf.st_size == 0 && (flags & O_ACCMODE) != O_RDONLY;
+	} else
+		new_table = 1;
+
 	if (new_table) {
 		if (!(hashp = init_hash(hashp, file, info)))
 			RETURN_ERROR(errno, error1);
