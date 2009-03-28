@@ -1125,7 +1125,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	      xname);
 	    return NULL;
 	}
-	if (refobj->z_origin)
+	if (refobj != NULL && refobj->z_origin)
 	    return origin_subst(xname, refobj->origin_path);
 	else
 	    return xstrdup(xname);
