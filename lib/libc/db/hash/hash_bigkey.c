@@ -86,7 +86,8 @@ int
 __big_insert(HTAB *hashp, BUFHEAD *bufp, const DBT *key, const DBT *val)
 {
 	u_int16_t *p;
-	int key_size, n, val_size;
+	int key_size, n;
+	unsigned int val_size;
 	u_int16_t space, move_bytes, off;
 	char *cp, *key_data, *val_data;
 

@@ -164,7 +164,7 @@ __hash_open(const char *file, int flags, int mode,
 		if (hashp->VERSION != HASHVERSION &&
 		    hashp->VERSION != OLDHASHVERSION)
 			RETURN_ERROR(EFTYPE, error1);
-		if (hashp->hash(CHARKEY, sizeof(CHARKEY)) != hashp->H_CHARKEY)
+		if ((int32_t)hashp->hash(CHARKEY, sizeof(CHARKEY)) != hashp->H_CHARKEY)
 			RETURN_ERROR(EFTYPE, error1);
 		/*
 		 * Figure out how many segments we need.  Max_Bucket is the
@@ -736,7 +736,7 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 					break;
 			}
 			hashp->cbucket = bucket;
-			if (hashp->cbucket > hashp->MAX_BUCKET) {
+			if ((u_int32_t)hashp->cbucket > hashp->MAX_BUCKET) {
 				hashp->cbucket = -1;
 				return (ABNORMAL);
 			}
@@ -858,7 +858,7 @@ hash_realloc(SEGMENT **p_ptr, int oldsize, int newsize)
 u_int32_t
 __call_hash(HTAB *hashp, char *k, int len)
 {
-	int n, bucket;
+	unsigned int n, bucket;
 
 	n = hashp->hash(k, len);
 	bucket = n & hashp->HIGH_MASK;
