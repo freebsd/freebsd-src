@@ -3,4 +3,4 @@
 
 .PATH: ${.CURDIR}/db/mpool
 
-SRCS+=	mpool.c
+SRCS+=	mpool.c mpool-compat.c
