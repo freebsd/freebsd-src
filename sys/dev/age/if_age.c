@@ -106,8 +106,6 @@ static int age_miibus_writereg(device_t, int, int, int);
 static void age_miibus_statchg(device_t);
 static void age_mediastatus(struct ifnet *, struct ifmediareq *);
 static int age_mediachange(struct ifnet *);
-static int age_read_vpd_word(struct age_softc *, uint32_t, uint32_t,
-    uint32_t *);
 static int age_probe(device_t);
 static void age_get_macaddr(struct age_softc *);
 static void age_phy_reset(struct age_softc *);
@@ -321,29 +319,6 @@ age_mediachange(struct ifnet *ifp)
 }
 
 static int
-age_read_vpd_word(struct age_softc *sc, uint32_t vpdc, uint32_t offset,
-    uint32_t *word)
-{
-	int i;
-
-	pci_write_config(sc->age_dev, vpdc + PCIR_VPD_ADDR, offset, 2);
-	for (i = AGE_TIMEOUT; i > 0; i--) {
-		DELAY(10);
-		if ((pci_read_config(sc->age_dev, vpdc + PCIR_VPD_ADDR, 2) &
-		    0x8000) == 0x8000)
-			break;
-	}
-	if (i == 0) {
-		device_printf(sc->age_dev, "VPD read timeout!\n");
-		*word = 0;
-		return (ETIMEDOUT);
-	}
-
-	*word = pci_read_config(sc->age_dev, vpdc + PCIR_VPD_DATA, 4);
-	return (0);
-}
-
-static int
 age_probe(device_t dev)
 {
 	struct age_dev *sp;
@@ -368,8 +343,8 @@ age_probe(device_t dev)
 static void
 age_get_macaddr(struct age_softc *sc)
 {
-	uint32_t ea[2], off, reg, word;
-	int vpd_error, match, vpdc;
+	uint32_t ea[2], reg;
+	int i, vpdc;
 
 	reg = CSR_READ_4(sc, AGE_SPI_CTRL);
 	if ((reg & SPI_VPD_ENB) != 0) {
@@ -378,123 +353,114 @@ age_get_macaddr(struct age_softc *sc)
 		CSR_WRITE_4(sc, AGE_SPI_CTRL, reg);
 	}
 
-	vpd_error = 0;
-	ea[0] = ea[1] = 0;
-	if ((vpd_error = pci_find_extcap(sc->age_dev, PCIY_VPD, &vpdc)) == 0) {
+	if (pci_find_extcap(sc->age_dev, PCIY_VPD, &vpdc) == 0) {
 		/*
-		 * PCI VPD capability exists, but it seems that it's
-		 * not in the standard form as stated in PCI VPD
-		 * specification such that driver could not use
-		 * pci_get_vpd_readonly(9) with keyword 'NA'.
-		 * Search VPD data starting at address 0x0100. The data
-		 * should be used as initializers to set AGE_PAR0,
-		 * AGE_PAR1 register including other PCI configuration
-		 * registers.
+		 * PCI VPD capability found, let TWSI reload EEPROM.
+		 * This will set ethernet address of controller.
 		 */
-		word = 0;
-		match = 0;
-		reg = 0;
-		for (off = AGE_VPD_REG_CONF_START; off < AGE_VPD_REG_CONF_END;
-		    off += sizeof(uint32_t)) {
-			vpd_error = age_read_vpd_word(sc, vpdc, off, &word);
-			if (vpd_error != 0)
-				break;
-			if (match != 0) {
-				switch (reg) {
-				case AGE_PAR0:
-					ea[0] = word;
-					break;
-				case AGE_PAR1:
-					ea[1] = word;
-					break;
-				default:
-					break;
-				}
-				match = 0;
-			} else if ((word & 0xFF) == AGE_VPD_REG_CONF_SIG) {
-				match = 1;
-				reg = word >> 16;
-			} else
+		CSR_WRITE_4(sc, AGE_TWSI_CTRL, CSR_READ_4(sc, AGE_TWSI_CTRL) |
+		    TWSI_CTRL_SW_LD_START);
+		for (i = 100; i > 0; i--) {
+			DELAY(1000);
+			reg = CSR_READ_4(sc, AGE_TWSI_CTRL);
+			if ((reg & TWSI_CTRL_SW_LD_START) == 0)
 				break;
 		}
-		if (off >= AGE_VPD_REG_CONF_END)
-			vpd_error = ENOENT;
-		if (vpd_error == 0) {
-			/*
-			 * Don't blindly trust ethernet address obtained
-			 * from VPD. Check whether ethernet address is
-			 * valid one. Otherwise fall-back to reading
-			 * PAR register.
-			 */
-			ea[1] &= 0xFFFF;
-			if ((ea[0] == 0 && ea[1] == 0) ||
-			    (ea[0] == 0xFFFFFFFF && ea[1] == 0xFFFF)) {
-				if (bootverbose)
-					device_printf(sc->age_dev,
-					    "invalid ethernet address "
-					    "returned from VPD.\n");
-				vpd_error = EINVAL;
-			}
-		}
-		if (vpd_error != 0 && (bootverbose))
-			device_printf(sc->age_dev, "VPD access failure!\n");
+		if (i == 0)
+			device_printf(sc->age_dev,
+			    "reloading EEPROM timeout!\n");
 	} else {
 		if (bootverbose)
 			device_printf(sc->age_dev,
 			    "PCI VPD capability not found!\n");
 	}
 
-	/*
-	 * It seems that L1 also provides a way to extract ethernet
-	 * address via SPI flash interface. Because SPI flash memory
-	 * device of different vendors vary in their instruction
-	 * codes for read ID instruction, it's very hard to get
-	 * instructions codes without detailed information for the
-	 * flash memory device used on ethernet controller. To simplify
-	 * code, just read AGE_PAR0/AGE_PAR1 register to get ethernet
-	 * address which is supposed to be set by hardware during
-	 * power on reset.
-	 */
-	if (vpd_error != 0) {
-		/*
-		 * VPD is mapped to SPI flash memory or BIOS set it.
-		 */
-		ea[0] = CSR_READ_4(sc, AGE_PAR0);
-		ea[1] = CSR_READ_4(sc, AGE_PAR1);
-	}
-
-	ea[1] &= 0xFFFF;
-	if ((ea[0] == 0 && ea[1]  == 0) ||
-	    (ea[0] == 0xFFFFFFFF && ea[1] == 0xFFFF)) {
-		device_printf(sc->age_dev,
-		    "generating fake ethernet address.\n");
-		ea[0] = arc4random();
-		/* Set OUI to ASUSTek COMPUTER INC. */
-		sc->age_eaddr[0] = 0x00;
-		sc->age_eaddr[1] = 0x1B;
-		sc->age_eaddr[2] = 0xFC;
-		sc->age_eaddr[3] = (ea[0] >> 16) & 0xFF;
-		sc->age_eaddr[4] = (ea[0] >> 8) & 0xFF;
-		sc->age_eaddr[5] = (ea[0] >> 0) & 0xFF;
-	} else {
-		sc->age_eaddr[0] = (ea[1] >> 8) & 0xFF;
-		sc->age_eaddr[1] = (ea[1] >> 0) & 0xFF;
-		sc->age_eaddr[2] = (ea[0] >> 24) & 0xFF;
-		sc->age_eaddr[3] = (ea[0] >> 16) & 0xFF;
-		sc->age_eaddr[4] = (ea[0] >> 8) & 0xFF;
-		sc->age_eaddr[5] = (ea[0] >> 0) & 0xFF;
-	}
+	ea[0] = CSR_READ_4(sc, AGE_PAR0);
+	ea[1] = CSR_READ_4(sc, AGE_PAR1);
+	sc->age_eaddr[0] = (ea[1] >> 8) & 0xFF;
+	sc->age_eaddr[1] = (ea[1] >> 0) & 0xFF;
+	sc->age_eaddr[2] = (ea[0] >> 24) & 0xFF;
+	sc->age_eaddr[3] = (ea[0] >> 16) & 0xFF;
+	sc->age_eaddr[4] = (ea[0] >> 8) & 0xFF;
+	sc->age_eaddr[5] = (ea[0] >> 0) & 0xFF;
 }
 
 static void
 age_phy_reset(struct age_softc *sc)
 {
+	uint16_t reg, pn;
+	int i, linkup;
 
 	/* Reset PHY. */
 	CSR_WRITE_4(sc, AGE_GPHY_CTRL, GPHY_CTRL_RST);
-	DELAY(1000);
+	DELAY(2000);
 	CSR_WRITE_4(sc, AGE_GPHY_CTRL, GPHY_CTRL_CLR);
-	DELAY(1000);
+	DELAY(2000);
+
+#define	ATPHY_DBG_ADDR		0x1D
+#define	ATPHY_DBG_DATA		0x1E
+#define	ATPHY_CDTC		0x16
+#define	PHY_CDTC_ENB		0x0001
+#define	PHY_CDTC_POFF		8
+#define	ATPHY_CDTS		0x1C
+#define	PHY_CDTS_STAT_OK	0x0000
+#define	PHY_CDTS_STAT_SHORT	0x0100
+#define	PHY_CDTS_STAT_OPEN	0x0200
+#define	PHY_CDTS_STAT_INVAL	0x0300
+#define	PHY_CDTS_STAT_MASK	0x0300
+
+	/* Check power saving mode. Magic from Linux. */
+	age_miibus_writereg(sc->age_dev, sc->age_phyaddr, MII_BMCR, BMCR_RESET);
+	for (linkup = 0, pn = 0; pn < 4; pn++) {
+		age_miibus_writereg(sc->age_dev, sc->age_phyaddr, ATPHY_CDTC,
+		    (pn << PHY_CDTC_POFF) | PHY_CDTC_ENB);
+		for (i = 200; i > 0; i--) {
+			DELAY(1000);
+			reg = age_miibus_readreg(sc->age_dev, sc->age_phyaddr,
+			    ATPHY_CDTC);
+			if ((reg & PHY_CDTC_ENB) == 0)
+				break;
+		}
+		DELAY(1000);
+		reg = age_miibus_readreg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_CDTS);
+		if ((reg & PHY_CDTS_STAT_MASK) != PHY_CDTS_STAT_OPEN) {
+			linkup++;
+			break;
+		}
+	}
+	age_miibus_writereg(sc->age_dev, sc->age_phyaddr, MII_BMCR,
+	    BMCR_RESET | BMCR_AUTOEN | BMCR_STARTNEG);
+	if (linkup == 0) {
+		age_miibus_writereg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_DBG_ADDR, 0);
+		age_miibus_writereg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_DBG_DATA, 0x124E);
+		age_miibus_writereg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_DBG_ADDR, 1);
+		reg = age_miibus_readreg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_DBG_DATA);
+		age_miibus_writereg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_DBG_DATA, reg | 0x03);
+		/* XXX */
+		DELAY(1500 * 1000);
+		age_miibus_writereg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_DBG_ADDR, 0);
+		age_miibus_writereg(sc->age_dev, sc->age_phyaddr,
+		    ATPHY_DBG_DATA, 0x024E);
+    }
+
+#undef	ATPHY_DBG_ADDR
+#undef	ATPHY_DBG_DATA
+#undef	ATPHY_CDTC
+#undef	PHY_CDTC_ENB
+#undef	PHY_CDTC_POFF
+#undef	ATPHY_CDTS
+#undef	PHY_CDTS_STAT_OK
+#undef	PHY_CDTS_STAT_SHORT
+#undef	PHY_CDTS_STAT_OPEN
+#undef	PHY_CDTS_STAT_INVAL
+#undef	PHY_CDTS_STAT_MASK
 }
 
 static int
@@ -539,7 +505,8 @@ age_attach(device_t dev)
 	sc->age_chip_rev = CSR_READ_4(sc, AGE_MASTER_CFG) >>
 	    MASTER_CHIP_REV_SHIFT;
 	if (bootverbose) {
-		device_printf(dev, "PCI device revision : 0x%04x\n", sc->age_rev);
+		device_printf(dev, "PCI device revision : 0x%04x\n",
+		    sc->age_rev);
 		device_printf(dev, "Chip id/revision : 0x%04x\n",
 		    sc->age_chip_rev);
 	}
@@ -1524,6 +1491,9 @@ age_resume(device_t dev)
 		cmd &= ~0x0400;
 		pci_write_config(sc->age_dev, PCIR_COMMAND, cmd, 2);
 	}
+	AGE_UNLOCK(sc);
+	age_phy_reset(sc);
+	AGE_LOCK(sc);
 	ifp = sc->age_ifp;
 	if ((ifp->if_flags & IFF_UP) != 0)
 		age_init_locked(sc);
@@ -2544,14 +2514,8 @@ age_reset(struct age_softc *sc)
 	int i;
 
 	CSR_WRITE_4(sc, AGE_MASTER_CFG, MASTER_RESET);
-	for (i = AGE_RESET_TIMEOUT; i > 0; i--) {
-		DELAY(1);
-		if ((CSR_READ_4(sc, AGE_MASTER_CFG) & MASTER_RESET) == 0)
-			break;
-	}
-	if (i == 0)
-		device_printf(sc->age_dev, "master reset timeout!\n");
-
+	CSR_READ_4(sc, AGE_MASTER_CFG);
+	DELAY(1000);
 	for (i = AGE_RESET_TIMEOUT; i > 0; i--) {
 		if ((reg = CSR_READ_4(sc, AGE_IDLE_STATUS)) == 0)
 			break;
