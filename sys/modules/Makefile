@@ -624,6 +624,9 @@ _auxio=		auxio
 _em=		em
 _i2c=		i2c
 _igb=		igb
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
