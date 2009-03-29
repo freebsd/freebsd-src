@@ -396,7 +396,6 @@ zyd_attach_post(struct usb2_proc_msg *pm)
 	ic->ic_ifp = ifp;
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_bssid);
 
 	/* set device capabilities */
 	ic->ic_caps =
@@ -413,7 +412,7 @@ zyd_attach_post(struct usb2_proc_msg *pm)
 	setbit(&bands, IEEE80211_MODE_11G);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, sc->sc_bssid);
 	ic->ic_newassoc = zyd_newassoc;
 	ic->ic_raw_xmit = zyd_raw_xmit;
 	ic->ic_node_alloc = zyd_node_alloc;
@@ -2859,10 +2858,9 @@ zyd_init_task(struct usb2_proc_msg *pm)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		zyd_stop_task(pm);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	DPRINTF(sc, ZYD_DEBUG_INIT, "setting MAC address to %s\n",
-	    ether_sprintf(ic->ic_myaddr));
-	error = zyd_set_macaddr(sc, ic->ic_myaddr);
+	DPRINTF(sc, ZYD_DEBUG_INIT, "setting MAC address to %6D\n",
+	    IF_LLADDR(ifp), ":");
+	error = zyd_set_macaddr(sc, IF_LLADDR(ifp));
 	if (error != 0)
 		return;
 

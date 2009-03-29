@@ -231,6 +231,7 @@ ipw_attach(device_t dev)
 	struct ieee80211_channel *c;
 	uint16_t val;
 	int error, i;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
@@ -315,14 +316,14 @@ ipw_attach(device_t dev)
 
 	/* read MAC address from EEPROM */
 	val = ipw_read_prom_word(sc, IPW_EEPROM_MAC + 0);
-	ic->ic_myaddr[0] = val >> 8;
-	ic->ic_myaddr[1] = val & 0xff;
+	macaddr[0] = val >> 8;
+	macaddr[1] = val & 0xff;
 	val = ipw_read_prom_word(sc, IPW_EEPROM_MAC + 1);
-	ic->ic_myaddr[2] = val >> 8;
-	ic->ic_myaddr[3] = val & 0xff;
+	macaddr[2] = val >> 8;
+	macaddr[3] = val & 0xff;
 	val = ipw_read_prom_word(sc, IPW_EEPROM_MAC + 2);
-	ic->ic_myaddr[4] = val >> 8;
-	ic->ic_myaddr[5] = val & 0xff;
+	macaddr[4] = val >> 8;
+	macaddr[5] = val & 0xff;
 
 	/* set supported .11b channels (read from EEPROM) */
 	if ((val = ipw_read_prom_word(sc, IPW_EEPROM_CHANNEL_LIST)) == 0)
@@ -341,7 +342,7 @@ ipw_attach(device_t dev)
 	if (!(ipw_read_prom_word(sc, IPW_EEPROM_RADIO) & 8))
 		sc->flags |= IPW_FLAG_HAS_RADIO_SWITCH;
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_scan_start = ipw_scan_start;
 	ic->ic_scan_end = ipw_scan_end;
 	ic->ic_set_channel = ipw_set_channel;
