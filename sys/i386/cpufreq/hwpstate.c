@@ -8,7 +8,7 @@
  * Copyright (c) 2008-2009 Gen Otsuji
  *
  * This code is depending on kern_cpu.c, est.c, powernow.c, p4tcc.c, smist.c
- * in various parts. The authors of these files are
+ * in various parts. The authors of these files are Nate Lawson,
  * Colin Percival, Bruno Durcot, and FUKUDA Nobuhiko.
  * This code contains patches by Michael Reifenberger and Norikatsu Shigemura.
  * Thank you.
