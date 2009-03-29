@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2007
+.Dd March 29, 2009
 .Dt LAGG 4
 .Os
 .Sh NAME
@@ -142,10 +142,14 @@ Whenever the wired master interface is unplugged, the wireless failover
 device will be used:
 .Bd -literal -offset indent
 # ifconfig em0 up
-# ifconfig ath0 nwid my_net up
-# ifconfig lagg0 laggproto failover laggport em0 laggport ath0 \e
+# ifconfig ath0 ether 00:11:22:33:44:55
+# ifconfig create wlan0 wlandev ath0 nwid my_net up
+# ifconfig lagg0 laggproto failover laggport em0 laggport wlan0 \e
 	192.168.1.1 netmask 255.255.255.0
 .Ed
+.Pp
+(Note the mac addresss of the wireless device is forced to match the wired
+device as a workaround.)
 .Sh SEE ALSO
 .Xr ng_fec 4 ,
 .Xr ng_one2many 4 ,
@@ -172,6 +176,3 @@ There is no way to configure LACP administrative variables, including system
 and port priorities.
 The current implementation always performs active-mode LACP and uses 0x8000 as
 system and port priorities.
-.Pp
-WPA security does not currently work correctly with a wireless interface added
-to the lagg port.
