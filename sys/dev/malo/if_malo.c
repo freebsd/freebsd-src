@@ -175,16 +175,10 @@ malo_bar0_write4(struct malo_softc *sc, bus_size_t off, uint32_t val)
 	bus_space_write_4(sc->malo_io0t, sc->malo_io0h, off, val);
 }
 
-static uint8_t
-malo_bar1_read1(struct malo_softc *sc, bus_size_t off)
-{
-	return bus_space_read_1(sc->malo_io1t, sc->malo_io1h, off);
-}
-
 int
 malo_attach(uint16_t devid, struct malo_softc *sc)
 {
-	int error, i;
+	int error;
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	struct malo_hal *mh;
@@ -202,16 +196,6 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->malo_dev),
 	    device_get_unit(sc->malo_dev));
-
-	/*
-	 * NB: get mac address from hardware directly here before we set DMAs
-	 * for HAL because we don't want to disturb operations of HAL at BAR 1.
-	 */
-	for (i = 0; i < IEEE80211_ADDR_LEN; i++) {
-		/* XXX remove a magic number but we don't have documents.  */
-		ic->ic_myaddr[i] = malo_bar1_read1(sc, 0xa528 + i);
-		DELAY(1000);
-	}
 
 	mh = malo_hal_attach(sc->malo_dev, devid,
 	    sc->malo_io1h, sc->malo_io1t, sc->malo_dmat);
@@ -319,11 +303,8 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	ic->ic_headroom = sizeof(struct malo_txrec) -
 		sizeof(struct ieee80211_frame);
 
-	/* get mac address from hardware */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->malo_hwspecs.macaddr);
-
 	/* call MI attach routine. */
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, sc->malo_hwspecs.macaddr);
 	/* override default methods */
 	ic->ic_vap_create = malo_vap_create;
 	ic->ic_vap_delete = malo_vap_delete;
@@ -1634,14 +1615,6 @@ malo_mode_init(struct malo_softc *sc)
 	struct ifnet *ifp = sc->malo_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct malo_hal *mh = sc->malo_mh;
-
-	/*
-	 * Handle any link-level address change.  Note that we only
-	 * need to force ic_myaddr; any other addresses are handled
-	 * as a byproduct of the ifnet code marking the interface
-	 * down then up.
-	 */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 
 	/*
 	 * NB: Ignore promisc in hostap mode; it's set by the

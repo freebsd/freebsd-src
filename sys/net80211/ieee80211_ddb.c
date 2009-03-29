@@ -445,7 +445,6 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf(" opmode %s", ieee80211_opmode_name[ic->ic_opmode]);
 	db_printf("\n");
 	db_printf("\tmedia %p", &ic->ic_media);
-	db_printf(" myaddr %s", ether_sprintf(ic->ic_myaddr));
 	db_printf(" inact %p", &ic->ic_inact);
 	db_printf("\n");
 

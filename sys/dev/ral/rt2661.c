@@ -155,7 +155,7 @@ static int		rt2661_wme_update(struct ieee80211com *) __unused;
 static void		rt2661_update_slot(struct ifnet *);
 static const char	*rt2661_get_rf(int);
 static void		rt2661_read_eeprom(struct rt2661_softc *,
-			    struct ieee80211com *);
+			    uint8_t macaddr[IEEE80211_ADDR_LEN]);
 static int		rt2661_bbp_init(struct rt2661_softc *);
 static void		rt2661_init_locked(struct rt2661_softc *);
 static void		rt2661_init(void *);
@@ -204,6 +204,7 @@ rt2661_attach(device_t dev, int id)
 	uint32_t val;
 	int error, ac, ntries;
 	uint8_t bands;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_id = id;
 	sc->sc_dev = dev;
@@ -234,7 +235,7 @@ rt2661_attach(device_t dev, int id)
 	}
 
 	/* retrieve RF rev. no and various other things from EEPROM */
-	rt2661_read_eeprom(sc, ic);
+	rt2661_read_eeprom(sc, macaddr);
 
 	device_printf(dev, "MAC/BBP RT%X, RF %s\n", val,
 	    rt2661_get_rf(sc->rf_rev));
@@ -303,7 +304,7 @@ rt2661_attach(device_t dev, int id)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_newassoc = rt2661_newassoc;
 	ic->ic_node_alloc = rt2661_node_alloc;
 #if 0
@@ -2219,23 +2220,23 @@ rt2661_get_rf(int rev)
 }
 
 static void
-rt2661_read_eeprom(struct rt2661_softc *sc, struct ieee80211com *ic)
+rt2661_read_eeprom(struct rt2661_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	uint16_t val;
 	int i;
 
 	/* read MAC address */
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_MAC01);
-	ic->ic_myaddr[0] = val & 0xff;
-	ic->ic_myaddr[1] = val >> 8;
+	macaddr[0] = val & 0xff;
+	macaddr[1] = val >> 8;
 
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_MAC23);
-	ic->ic_myaddr[2] = val & 0xff;
-	ic->ic_myaddr[3] = val >> 8;
+	macaddr[2] = val & 0xff;
+	macaddr[3] = val >> 8;
 
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_MAC45);
-	ic->ic_myaddr[4] = val & 0xff;
-	ic->ic_myaddr[5] = val >> 8;
+	macaddr[4] = val & 0xff;
+	macaddr[5] = val >> 8;
 
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_ANTENNA);
 	/* XXX: test if different from 0xffff? */
@@ -2413,8 +2414,7 @@ rt2661_init_locked(struct rt2661_softc *sc)
 	for (i = 0; i < N(rt2661_def_mac); i++)
 		RAL_WRITE(sc, rt2661_def_mac[i].reg, rt2661_def_mac[i].val);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	rt2661_set_macaddr(sc, ic->ic_myaddr);
+	rt2661_set_macaddr(sc, IF_LLADDR(ifp));
 
 	/* set host ready */
 	RAL_WRITE(sc, RT2661_MAC_CSR1, 3);

@@ -485,7 +485,6 @@ ural_attach_post(struct usb2_proc_msg *pm)
 
 	ic->ic_ifp = ifp;
 	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_bssid);
 
 	/* set device capabilities */
 	ic->ic_caps =
@@ -507,7 +506,7 @@ ural_attach_post(struct usb2_proc_msg *pm)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, sc->sc_bssid);
 	ic->ic_update_promisc = ural_update_promisc;
 	ic->ic_newassoc = ural_newassoc;
 	ic->ic_raw_xmit = ural_raw_xmit;
@@ -2216,8 +2215,7 @@ ural_init_task(struct usb2_proc_msg *pm)
 	ural_set_txantenna(sc, sc->tx_ant);
 	ural_set_rxantenna(sc, sc->rx_ant);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	ural_set_macaddr(sc, ic->ic_myaddr);
+	ural_set_macaddr(sc, IF_LLADDR(ifp));
 
 	/*
 	 * Allocate Tx and Rx xfer queues.

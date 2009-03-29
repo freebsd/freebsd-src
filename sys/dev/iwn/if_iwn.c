@@ -132,7 +132,8 @@ void		iwn_cmd_intr(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn_bmiss(void *, int);
 void		iwn_notif_intr(struct iwn_softc *);
 void		iwn_intr(void *);
-void		iwn_read_eeprom(struct iwn_softc *);
+void		iwn_read_eeprom(struct iwn_softc *,
+		    uint8_t macaddr[IEEE80211_ADDR_LEN]);
 static void	iwn_read_eeprom_channels(struct iwn_softc *);
 void		iwn_print_power_group(struct iwn_softc *, int);
 uint8_t		iwn_plcp_signal(int);
@@ -254,6 +255,7 @@ iwn_attach(device_t dev)
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	int i, error, result;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
@@ -410,7 +412,7 @@ iwn_attach(device_t dev)
 		;
 #endif
 	/* read supported channels and MAC address from EEPROM */
-	iwn_read_eeprom(sc);
+	iwn_read_eeprom(sc, macaddr);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_softc = sc;
@@ -422,7 +424,7 @@ iwn_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_vap_create = iwn_vap_create;
 	ic->ic_vap_delete = iwn_vap_delete;
 	ic->ic_raw_xmit = iwn_raw_xmit;
@@ -2409,10 +2411,8 @@ iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 void
-iwn_read_eeprom(struct iwn_softc *sc)
+iwn_read_eeprom(struct iwn_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	char domain[4];
 	uint16_t val;
 	int i, error;
@@ -2427,8 +2427,8 @@ iwn_read_eeprom(struct iwn_softc *sc)
 	device_printf(sc->sc_dev,"Reg Domain: %.4s", domain);
 
 	/* read and print MAC address */
-	iwn_read_prom_data(sc, IWN_EEPROM_MAC, ic->ic_myaddr, 6);
-	printf(", address %s\n", ether_sprintf(ic->ic_myaddr));
+	iwn_read_prom_data(sc, IWN_EEPROM_MAC, macaddr, 6);
+	printf(", address %6D\n", macaddr, ":");
 
 	/* read the list of authorized channels */
 	iwn_read_eeprom_channels(sc);
@@ -3754,7 +3754,7 @@ iwn_scan(struct iwn_softc *sc)
 	    IEEE80211_FC0_SUBTYPE_PROBE_REQ;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
-	IEEE80211_ADDR_COPY(wh->i_addr2, ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(wh->i_addr2, IF_LLADDR(ifp));
 	IEEE80211_ADDR_COPY(wh->i_addr3, ifp->if_broadcastaddr);
 	*(u_int16_t *)&wh->i_dur[0] = 0;	/* filled by h/w */
 	*(u_int16_t *)&wh->i_seq[0] = 0;	/* filled by h/w */
@@ -3892,8 +3892,8 @@ iwn_config(struct iwn_softc *sc)
 
 	/* configure adapter */
 	memset(&sc->config, 0, sizeof (struct iwn_config));
-	IEEE80211_ADDR_COPY(sc->config.myaddr, ic->ic_myaddr);
-	IEEE80211_ADDR_COPY(sc->config.wlap, ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(sc->config.myaddr, IF_LLADDR(ifp));
+	IEEE80211_ADDR_COPY(sc->config.wlap, IF_LLADDR(ifp));
 	/* set default channel */
 	sc->config.chan = htole16(ieee80211_chan2ieee(ic, ic->ic_curchan));
 	sc->config.flags = htole32(IWN_CONFIG_TSF);

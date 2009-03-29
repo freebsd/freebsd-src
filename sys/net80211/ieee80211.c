@@ -239,7 +239,8 @@ null_input(struct ifnet *ifp, struct mbuf *m)
  * the driver on attach to prior to creating any vap's.
  */
 void
-ieee80211_ifattach(struct ieee80211com *ic)
+ieee80211_ifattach(struct ieee80211com *ic,
+	const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct sockaddr_dl *sdl;
@@ -290,7 +291,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;		/* XXX IFT_IEEE80211? */
 	sdl->sdl_alen = IEEE80211_ADDR_LEN;
-	IEEE80211_ADDR_COPY(LLADDR(sdl), ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(LLADDR(sdl), macaddr);
 }
 
 /*

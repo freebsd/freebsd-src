@@ -245,6 +245,7 @@ wi_attach(device_t dev)
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 	int error;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
@@ -312,12 +313,12 @@ wi_attach(device_t dev)
 	 * the probe to fail.
 	 */
 	buflen = IEEE80211_ADDR_LEN;
-	error = wi_read_rid(sc, WI_RID_MAC_NODE, ic->ic_myaddr, &buflen);
+	error = wi_read_rid(sc, WI_RID_MAC_NODE, macaddr, &buflen);
 	if (error != 0) {
 		buflen = IEEE80211_ADDR_LEN;
-		error = wi_read_rid(sc, WI_RID_MAC_NODE, ic->ic_myaddr, &buflen);
+		error = wi_read_rid(sc, WI_RID_MAC_NODE, macaddr, &buflen);
 	}
-	if (error || IEEE80211_ADDR_EQ(ic->ic_myaddr, empty_macaddr)) {
+	if (error || IEEE80211_ADDR_EQ(macaddr, empty_macaddr)) {
 		if (error != 0)
 			device_printf(dev, "mac read failed %d\n", error);
 		else {
@@ -451,7 +452,7 @@ wi_attach(device_t dev)
 	sc->sc_portnum = WI_DEFAULT_PORT;
 	TASK_INIT(&sc->sc_oor_task, 0, wi_status_oor, ic);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_raw_xmit = wi_raw_xmit;
 	ic->ic_scan_start = wi_scan_start;
 	ic->ic_scan_end = wi_scan_end;
@@ -690,7 +691,6 @@ static void
 wi_init_locked(struct wi_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	int wasenabled;
 
 	WI_LOCK_ASSERT(sc);
@@ -699,8 +699,7 @@ wi_init_locked(struct wi_softc *sc)
 	if (wasenabled)
 		wi_stop_locked(sc, 1);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	if (wi_setup_locked(sc, sc->sc_porttype, 3, ic->ic_myaddr) != 0) {
+	if (wi_setup_locked(sc, sc->sc_porttype, 3, IF_LLADDR(ifp)) != 0) {
 		if_printf(ifp, "interface not running\n");
 		wi_stop_locked(sc, 1);
 		return;
