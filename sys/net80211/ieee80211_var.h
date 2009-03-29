@@ -47,6 +47,7 @@
 #include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_dfs.h>
 #include <net80211/ieee80211_ioctl.h>		/* for ieee80211_stats */
+#include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_power.h>
 #include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_proto.h>
@@ -161,6 +162,7 @@ struct ieee80211com {
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];
 	struct ieee80211_channel *ic_curchan;	/* current channel */
+	const struct ieee80211_rate_table *ic_rt; /* table for ic_curchan */
 	struct ieee80211_channel *ic_bsschan;	/* bss channel */
 	struct ieee80211_channel *ic_prevchan;	/* previous channel */
 	struct ieee80211_regdomain ic_regdomain;/* regulatory data */

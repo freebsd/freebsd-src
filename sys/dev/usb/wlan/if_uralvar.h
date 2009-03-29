@@ -106,8 +106,6 @@ struct ural_softc {
 	struct usb2_device		*sc_udev;
 	struct usb2_process		sc_tq;
 
-	const struct ieee80211_rate_table *sc_rates;
-
 	uint32_t			asic_rev;
 	uint8_t				rf_rev;
 

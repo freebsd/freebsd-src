@@ -627,6 +627,7 @@ ieee80211_sync_curchan(struct ieee80211com *ic)
 	if (c != ic->ic_curchan) {
 		ic->ic_curchan = c;
 		ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
+		ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 		ic->ic_set_channel(ic);
 	}
 }
@@ -651,6 +652,7 @@ ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 	}
 	ic->ic_bsschan = ic->ic_curchan = c;
 	ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
+	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 	ic->ic_set_channel(ic);
 }
 
