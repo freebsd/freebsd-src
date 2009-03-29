@@ -204,7 +204,7 @@ ofw_std_interpret(ofw_t ofw, const char *cmd, int nreturns,
 	}
 	status = args.slot[i++];
 	while (i < 1 + nreturns)
-		returns[j] = args.slot[i++];
+		returns[j++] = args.slot[i++];
 	return (status);
 }
 
