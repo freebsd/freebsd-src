@@ -353,6 +353,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	HAL_STATUS status;
 	int error = 0, i;
 	u_int wmodes;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
 
@@ -681,14 +682,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasveol = ath_hal_hasveol(ah);
 
 	/* get mac address from hardware */
-	ath_hal_getmac(ah, ic->ic_myaddr);
+	ath_hal_getmac(ah, macaddr);
 	if (sc->sc_hasbmask)
 		ath_hal_getbssidmask(ah, sc->sc_hwbssidmask);
 
 	/* NB: used to size node table key mapping array */
 	ic->ic_max_keyix = sc->sc_keymax;
 	/* call MI attach routine. */
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_setregdomain = ath_setregdomain;
 	ic->ic_getradiocaps = ath_getradiocaps;
 	sc->sc_opmode = HAL_M_STA;
@@ -2755,7 +2756,6 @@ static void
 ath_mode_init(struct ath_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int32_t rfilt;
 
@@ -2766,16 +2766,8 @@ ath_mode_init(struct ath_softc *sc)
 	/* configure operational mode */
 	ath_hal_setopmode(ah);
 
-	/*
-	 * Handle any link-level address change.  Note that we only
-	 * need to force ic_myaddr; any other addresses are handled
-	 * as a byproduct of the ifnet code marking the interface
-	 * down then up.
-	 *
-	 * XXX should get from lladdr instead of arpcom but that's more work
-	 */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	ath_hal_setmac(ah, ic->ic_myaddr);
+	/* handle any link-level address change */
+	ath_hal_setmac(ah, IF_LLADDR(ifp));
 
 	/* calculate and install multicast filter */
 	ath_update_mcast(ifp);

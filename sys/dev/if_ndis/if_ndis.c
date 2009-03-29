@@ -937,8 +937,7 @@ got_crypto:
 		if (r == 0)
 			ic->ic_caps |= IEEE80211_C_TXPMGT;
 
-		bcopy(eaddr, &ic->ic_myaddr, sizeof(eaddr));
-		ieee80211_ifattach(ic);
+		ieee80211_ifattach(ic, eaddr);
 		ic->ic_raw_xmit = ndis_raw_xmit;
 		ic->ic_scan_start = ndis_scan_start;
 		ic->ic_scan_end = ndis_scan_end;
@@ -2408,7 +2407,7 @@ ndis_setstate_80211(sc)
 
 	/* Set the BSSID to our value so the driver doesn't associate */
 	len = IEEE80211_ADDR_LEN;
-	bcopy(ic->ic_myaddr, bssid, len);
+	bcopy(IF_LLADDR(ifp), bssid, len);
 	DPRINTF(("Setting BSSID to %6D\n", (uint8_t *)&bssid, ":"));
 	rval = ndis_set_info(sc, OID_802_11_BSSID, &bssid, &len);
 	if (rval)
