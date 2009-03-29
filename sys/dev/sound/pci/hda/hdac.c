@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090316_0130"
+#define HDA_DRV_TEST_REV	"20090329_0131"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -5280,7 +5280,7 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		    sizeof(struct hdac_chan) * cnt,
 		    M_HDAC, M_ZERO | M_NOWAIT);
 		if (sc->chans == NULL) {
-			device_printf(devinfo->codec->sc->dev,
+			device_printf(sc->dev,
 			    "Channels memory allocation failed!\n");
 			return;
 		}
@@ -5290,17 +5290,20 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		    M_HDAC, M_ZERO | M_NOWAIT);
 		if (sc->chans == NULL) {
 			sc->num_chans = 0;
-			device_printf(devinfo->codec->sc->dev,
+			device_printf(sc->dev,
 			    "Channels memory allocation failed!\n");
 			return;
 		}
+		/* Fixup relative pointers after realloc */
+		for (j = 0; j < sc->num_chans; j++)
+			sc->chans[j].caps.fmtlist = sc->chans[j].fmtlist;
 	}
 	free = sc->num_chans;
 	sc->num_chans += cnt;
 
 	for (j = free; j < free + cnt; j++) {
-		devinfo->codec->sc->chans[j].devinfo = devinfo;
-		devinfo->codec->sc->chans[j].as = -1;
+		sc->chans[j].devinfo = devinfo;
+		sc->chans[j].as = -1;
 	}
 
 	/* Assign associations in order of their numbers, */
@@ -5309,10 +5312,10 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 			continue;
 		
 		as[j].chan = free;
-		devinfo->codec->sc->chans[free].as = j;
-		devinfo->codec->sc->chans[free].dir =
+		sc->chans[free].as = j;
+		sc->chans[free].dir =
 		    (as[j].dir == HDA_CTL_IN) ? PCMDIR_REC : PCMDIR_PLAY;
-		hdac_pcmchannel_setup(&devinfo->codec->sc->chans[free]);
+		hdac_pcmchannel_setup(&sc->chans[free]);
 		free++;
 	}
 }
