@@ -196,7 +196,6 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	mac_create_inpcb_from_socket(so, inp);
 	SOCK_UNLOCK(so);
 #endif
-
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
 	if (error != 0) {
@@ -222,7 +221,6 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #endif
 	INP_WLOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
-
 #if defined(IPSEC) || defined(MAC)
 out:
 	if (error != 0) {
