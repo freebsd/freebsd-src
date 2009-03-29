@@ -537,7 +537,7 @@ superg_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			vap->iv_flags |= IEEE80211_F_FF;
 		} else
 			vap->iv_flags &= ~IEEE80211_F_FF;
-		return ERESTART;
+		return ENETRESET;
 	case IEEE80211_IOC_TURBOP:
 		if (ireq->i_val) {
 			if ((vap->iv_caps & IEEE80211_C_TURBOP) == 0)
