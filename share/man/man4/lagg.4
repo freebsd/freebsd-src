@@ -143,7 +143,7 @@ device will be used:
 .Bd -literal -offset indent
 # ifconfig em0 up
 # ifconfig ath0 ether 00:11:22:33:44:55
-# ifconfig create wlan0 wlandev ath0 nwid my_net up
+# ifconfig create wlan0 wlandev ath0 ssid my_net up
 # ifconfig lagg0 laggproto failover laggport em0 laggport wlan0 \e
 	192.168.1.1 netmask 255.255.255.0
 .Ed
