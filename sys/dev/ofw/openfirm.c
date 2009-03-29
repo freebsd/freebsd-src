@@ -164,9 +164,11 @@ OF_interpret(const char *cmd, int nreturns, ...)
 	int status;
 
 	status = OFW_INTERPRET(ofw_obj, cmd, nreturns, slots);
+	if (status == -1)
+		return (status);
 
 	va_start(ap, nreturns);
-	while (i < 1 + nreturns)
+	while (i < nreturns)
 		*va_arg(ap, cell_t *) = slots[i++];
 	va_end(ap);
 
