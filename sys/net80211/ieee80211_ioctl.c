@@ -1871,6 +1871,7 @@ setcurchan(struct ieee80211vap *vap, struct ieee80211_channel *c)
 			vap->iv_bss->ni_chan = ic->ic_curchan;
 		} else
 			ic->ic_curchan = vap->iv_des_chan;
+			ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 	} else {
 		/*
 		 * Need to go through the state machine in case we
@@ -1886,6 +1887,7 @@ setcurchan(struct ieee80211vap *vap, struct ieee80211_channel *c)
 			 * there is immediate feedback; e.g. via ifconfig.
 			 */
 			ic->ic_curchan = vap->iv_des_chan;
+			ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 		}
 	}
 	return error;
