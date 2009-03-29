@@ -135,7 +135,7 @@ struct vnode {
 	 */
 	LIST_HEAD(, namecache) v_cache_src;	/* c Cache entries from us */
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* c Cache entries to us */
-	struct	vnode *v_dd;			/* c .. vnode */
+	struct namecache *v_cache_dd;		/* c Cache entry for .. vnode */
 
 	/*
 	 * clustering stuff
