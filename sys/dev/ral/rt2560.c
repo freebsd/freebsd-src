@@ -202,6 +202,7 @@ rt2560_attach(device_t dev, int id)
 	struct ifnet *ifp;
 	int error;
 	uint8_t bands;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
@@ -260,7 +261,7 @@ rt2560_attach(device_t dev, int id)
 	ic = ifp->if_l2com;
 
 	/* retrieve MAC address */
-	rt2560_get_macaddr(sc, ic->ic_myaddr);
+	rt2560_get_macaddr(sc, macaddr);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -300,7 +301,7 @@ rt2560_attach(device_t dev, int id)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_newassoc = rt2560_newassoc;
 	ic->ic_raw_xmit = rt2560_raw_xmit;
 	ic->ic_updateslot = rt2560_update_slot;
@@ -2683,8 +2684,7 @@ rt2560_init_locked(struct rt2560_softc *sc)
 	for (i = 0; i < N(rt2560_def_mac); i++)
 		RAL_WRITE(sc, rt2560_def_mac[i].reg, rt2560_def_mac[i].val);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	rt2560_set_macaddr(sc, ic->ic_myaddr);
+	rt2560_set_macaddr(sc, IF_LLADDR(ifp));
 
 	/* set basic rate set (will be updated later) */
 	RAL_WRITE(sc, RT2560_ARSP_PLCP_1, 0x153);

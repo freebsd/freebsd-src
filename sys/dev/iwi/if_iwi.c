@@ -280,6 +280,7 @@ iwi_attach(device_t dev)
 	uint16_t val;
 	int i, error;
 	uint8_t bands;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
@@ -403,14 +404,14 @@ iwi_attach(device_t dev)
 
 	/* read MAC address from EEPROM */
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 0);
-	ic->ic_myaddr[0] = val & 0xff;
-	ic->ic_myaddr[1] = val >> 8;
+	macaddr[0] = val & 0xff;
+	macaddr[1] = val >> 8;
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 1);
-	ic->ic_myaddr[2] = val & 0xff;
-	ic->ic_myaddr[3] = val >> 8;
+	macaddr[2] = val & 0xff;
+	macaddr[3] = val >> 8;
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 2);
-	ic->ic_myaddr[4] = val & 0xff;
-	ic->ic_myaddr[5] = val >> 8;
+	macaddr[4] = val & 0xff;
+	macaddr[5] = val >> 8;
 	
 	bands = 0;
 	setbit(&bands, IEEE80211_MODE_11B);
@@ -419,7 +420,7 @@ iwi_attach(device_t dev)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	/* override default methods */
 	ic->ic_node_alloc = iwi_node_alloc;
 	sc->sc_node_free = ic->ic_node_free;
@@ -2568,9 +2569,8 @@ iwi_config(struct iwi_softc *sc)
 
 	IWI_LOCK_ASSERT(sc);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	DPRINTF(("Setting MAC address to %6D\n", ic->ic_myaddr, ":"));
-	error = iwi_cmd(sc, IWI_CMD_SET_MAC_ADDRESS, ic->ic_myaddr,
+	DPRINTF(("Setting MAC address to %6D\n", IF_LLADDR(ifp), ":"));
+	error = iwi_cmd(sc, IWI_CMD_SET_MAC_ADDRESS, IF_LLADDR(ifp),
 	    IEEE80211_ADDR_LEN);
 	if (error != 0)
 		return error;

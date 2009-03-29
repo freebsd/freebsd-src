@@ -494,7 +494,6 @@ rum_attach_post(struct usb2_proc_msg *pm)
 
 	ic->ic_ifp = ifp;
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_bssid);
 
 	/* set device capabilities */
 	ic->ic_caps =
@@ -516,7 +515,7 @@ rum_attach_post(struct usb2_proc_msg *pm)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, sc->sc_bssid);
 	ic->ic_update_promisc = rum_update_promisc;
 	ic->ic_newassoc = rum_newassoc;
 	ic->ic_raw_xmit = rum_raw_xmit;
@@ -2064,8 +2063,7 @@ rum_init_task(struct usb2_proc_msg *pm)
 	/* clear STA registers */
 	rum_read_multi(sc, RT2573_STA_CSR0, sc->sta, sizeof sc->sta);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	rum_set_macaddr(sc, ic->ic_myaddr);
+	rum_set_macaddr(sc, IF_LLADDR(ifp));
 
 	/* initialize ASIC */
 	rum_write(sc, RT2573_MAC_CSR1, 4);

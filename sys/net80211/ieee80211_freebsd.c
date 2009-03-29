@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_clone.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -137,7 +138,7 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	vap = ic->ic_vap_create(ic, ifc->ifc_name, unit,
 			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
-			    cp.icp_macaddr : ic->ic_myaddr);
+			    cp.icp_macaddr : (const uint8_t *)IF_LLADDR(ifp));
 	return (vap == NULL ? EIO : 0);
 }
 
