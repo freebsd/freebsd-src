@@ -490,6 +490,7 @@ ieee80211_dturbo_switch(struct ieee80211vap *vap, int newflags)
 	ic->ic_bsschan = chan;
 	ic->ic_prevchan = ic->ic_curchan;
 	ic->ic_curchan = chan;
+	ic->ic_rt = ieee80211_get_ratetable(chan);
 	ic->ic_set_channel(ic);
 	/* NB: do not need to reset ERP state 'cuz we're in sta mode */
 }
