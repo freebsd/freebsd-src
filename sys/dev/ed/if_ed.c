@@ -392,6 +392,8 @@ ed_detach(device_t dev)
 	if (sc->irq_res != NULL && sc->irq_handle)
 		bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
+	if (sc->miibus)
+		device_delete_child(dev, sc->miibus);
 	ED_LOCK_DESTROY(sc);
 	bus_generic_detach(dev);
 	return (0);
@@ -428,14 +430,16 @@ ed_stop_hw(struct ed_softc *sc)
 	 * 'n' (about 5ms). It shouldn't even take 5us on modern DS8390's, but
 	 * just in case it's an old one.
 	 *
-	 * The AX88190 and AX88190A chips have a problem with this, it seems,
-	 * but there's no evidence that I've found for excluding the check.
-	 * This may be due to the cryptic references to the ISR register being
-	 * fixed in the AX88790.
+	 * The AX88x90 chips don't seem to implement this behavor.  The
+	 * datasheets say it is only turned on when the chip enters a RESET
+	 * state and is silent about behavior for the stopped state we just
+	 * entered.
 	 */
-	if (sc->chip_type != ED_CHIP_TYPE_AX88190)
-		while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RST) == 0) && --n)
-			continue;
+	if (sc->chip_type == ED_CHIP_TYPE_AX88190 ||
+	    sc->chip_type == ED_CHIP_TYPE_AX88790)
+		return;
+	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RST) == 0) && --n)
+		continue;
 	if (n <= 0)
 		device_printf(sc->dev, "ed_stop_hw RST never set\n");
 }
