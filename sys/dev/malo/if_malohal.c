@@ -128,7 +128,7 @@ malo_hal_attach(device_t dev, uint16_t devid,
 		       NULL,			/* lockarg */
 		       &mh->mh_dmat);
 	if (error != 0) {
-		device_printf(dev, "unable to allocate memory for cmd buffer, "
+		device_printf(dev, "unable to allocate memory for cmd tag, "
 			"error %u\n", error);
 		goto fail;
 	}
