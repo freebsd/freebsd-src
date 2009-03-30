@@ -937,6 +937,8 @@ digest_dynamic(Obj_Entry *obj, int early)
 			/* XXX */;
 		if (dynp->d_un.d_val & DF_1_BIND_NOW)
 		    obj->bind_now = true;
+		if (dynp->d_un.d_val & DF_1_NODELETE)
+		    obj->z_nodelete = true;
 	    break;
 
 	default:
@@ -1422,15 +1424,21 @@ is_exported(const Elf_Sym *def)
 static int
 load_needed_objects(Obj_Entry *first)
 {
-    Obj_Entry *obj;
+    Obj_Entry *obj, *obj1;
 
     for (obj = first;  obj != NULL;  obj = obj->next) {
 	Needed_Entry *needed;
 
 	for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	    needed->obj = load_object(obj->strtab + needed->name, obj);
-	    if (needed->obj == NULL && !ld_tracing)
+	    obj1 = needed->obj = load_object(obj->strtab + needed->name, obj);
+	    if (obj1 == NULL && !ld_tracing)
 		return -1;
+	    if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
+		dbg("obj %s nodelete", obj1->path);
+		init_dag(obj1);
+		ref_dag(obj1);
+		obj1->ref_nodel = true;
+	    }
 	}
     }
 
@@ -1976,12 +1984,13 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    int result, lockstate;
+    int result, lockstate, nodelete;
 
     LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
 	environ = (char **)*get_program_var_addr("environ");
+    nodelete = mode & RTLD_NODELETE;
 
     objlist_init(&initlist);
 
@@ -2028,6 +2037,11 @@ dlopen(const char *name, int mode)
 
 	    if (ld_tracing)
 		goto trace;
+	}
+	if (obj != NULL && (nodelete || obj->z_nodelete) && !obj->ref_nodel) {
+	    dbg("obj %s nodelete", obj->path);
+	    ref_dag(obj);
+	    obj->z_nodelete = obj->ref_nodel = true;
 	}
     }
 
