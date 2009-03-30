@@ -201,6 +201,7 @@ MAN=	accept_filter.9 \
 	random.9 \
 	random_harvest.9 \
 	redzone.9 \
+	refcount.9 \
 	resettodr.9 \
 	resource_int_value.9 \
 	rijndael.9 \
@@ -920,6 +921,9 @@ MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
 	random.9 read_random.9 \
 	random.9 srandom.9
+MLINKS+=refcount.9 refcount_acquire.9 \
+	refcount.9 refcount_init.9 \
+	refcount.9 refcount_release.9
 MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
