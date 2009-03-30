@@ -1391,6 +1391,8 @@ static void
 root_mount_prepare(void)
 {
 	struct root_hold_token *h;
+	struct timeval lastfail;
+	int curfail = 0;
 
 	for (;;) {
 		DROP_GIANT();
@@ -1401,10 +1403,12 @@ root_mount_prepare(void)
 			mtx_unlock(&mountlist_mtx);
 			break;
 		}
-		printf("Root mount waiting for:");
-		LIST_FOREACH(h, &root_holds, list)
-			printf(" %s", h->who);
-		printf("\n");
+		if (ppsratecheck(&lastfail, &curfail, 1)) {
+			printf("Root mount waiting for:");
+			LIST_FOREACH(h, &root_holds, list)
+				printf(" %s", h->who);
+			printf("\n");
+		}
 		msleep(&root_holds, &mountlist_mtx, PZERO | PDROP, "roothold",
 		    hz);
 	}
