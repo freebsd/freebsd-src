@@ -469,6 +469,7 @@ typedef struct {
 /* Values for DT_FLAGS_1 */
 #define	DF_1_BIND_NOW	0x00000001	/* Same as DF_BIND_NOW */
 #define	DF_1_GLOBAL	0x00000002	/* Set the RTLD_GLOBAL for object */
+#define	DF_1_NODELETE	0x00000008	/* Set the RTLD_NODELETE for object */
 #define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
 
 /* Values for n_type.  Used in core files. */
