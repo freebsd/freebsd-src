@@ -66,37 +66,6 @@ the vnodes locked on return.
 .Sh RETURN VALUES
 Zero is returned if the file was linked successfully, otherwise an
 error is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
-{
-    int error = 0;
-
-    if (vp->v_mount != dvp->v_mount)
-	return (EXDEV);
-
-    if (vp would have too many links)
-	return (EMLINK);
-
-    if (vp is immutable)
-	return (EPERM);
-
-    /*
-     * Increment link count of vp and write back the on-disc version of it.
-     */
-    ...;
-
-    if (!error) {
-	/*
-	 * Add the new name to the directory.
-	 */
-	...;
-    }
-
-    return error;
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EMLINK
