@@ -217,6 +217,7 @@ ieee80211_start(struct ifnet *ifp)
 			ieee80211_free_node(ni);
 			continue;
 		}
+
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    (m->m_flags & M_PWR_SAV) == 0) {
 			/*
@@ -241,23 +242,26 @@ ieee80211_start(struct ifnet *ifp)
 			continue;
 		}
 
-		BPF_MTAP(ifp, m);		/* 802.11 tx path */
-
+		BPF_MTAP(ifp, m);		/* 802.3 tx */
+ 
+#ifdef IEEE80211_SUPPORT_SUPERG
+		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
+			m = ieee80211_ff_check(ni, m);
+			if (m == NULL) {
+				/* NB: any ni ref held on stageq */
+				continue;
+			}
+		}
+#endif /* IEEE80211_SUPPORT_SUPERG */
 		/*
-		 * XXX When ni is associated with a WDS link then
-		 * the vap will be the WDS vap but ni_vap will point
-		 * to the ap vap the station associated to.  Once
-		 * we handoff the packet to the driver the callback
-		 * to ieee80211_encap won't be able to tell if the
-		 * packet should be encapsulated for WDS or not (e.g.
-		 * multicast frames will not be handled correctly).
-		 * We hack this by marking the mbuf so ieee80211_encap
-		 * can do the right thing.
+		 * Encapsulate the packet in prep for transmission.
 		 */
-		if (vap->iv_opmode == IEEE80211_M_WDS)
-			m->m_flags |= M_WDS;
-		else
-			m->m_flags &= ~M_WDS;
+		m = ieee80211_encap(vap, ni, m);
+		if (m == NULL) {
+			/* NB: stat+msg handled in ieee80211_encap */
+			ieee80211_free_node(ni);
+			continue;
+		}
 
 		/*
 		 * Stash the node pointer and hand the frame off to
@@ -267,7 +271,6 @@ ieee80211_start(struct ifnet *ifp)
 		 */
 		m->m_pkthdr.rcvif = (void *)ni;
 
-		/* XXX defer if_start calls? */
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
@@ -852,10 +855,10 @@ ieee80211_crypto_getmcastkey(struct ieee80211vap *vap,
  *     marked EAPOL frames w/ M_EAPOL.
  */
 struct mbuf *
-ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
+ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
+    struct mbuf *m)
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)(wh))
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ether_header eh;
 	struct ieee80211_frame *wh;
@@ -955,6 +958,9 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 		llc->llc_snap.ether_type = eh.ether_type;
 	} else {
 #ifdef IEEE80211_SUPPORT_SUPERG
+		/*
+		 * Aggregated frame.
+		 */
 		m = ieee80211_ff_encap(vap, m, hdrspace, key);
 		if (m == NULL)
 #endif

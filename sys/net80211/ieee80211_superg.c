@@ -76,12 +76,21 @@ __FBSDID("$FreeBSD$");
 #define	ATH_FF_SNAP_ORGCODE_1	0x03
 #define	ATH_FF_SNAP_ORGCODE_2	0x7f
 
+#define	ATH_FF_TXQMIN	2		/* min txq depth for staging */
+#define	ATH_FF_TXQMAX	50		/* maximum # of queued frames allowed */
+#define	ATH_FF_STAGEMAX	5		/* max waiting period for staged frame*/
+
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
+
+/* XXX public for sysctl hookup */
+int	ieee80211_ffppsmin = 2;		/* pps threshold for ff aggregation */
+int	ieee80211_ffagemax = -1;	/* max time frames held on stage q */
 
 void
 ieee80211_superg_attach(struct ieee80211com *ic)
 {
+	ieee80211_ffagemax = msecs_to_ticks(150);
 }
 
 void
@@ -354,10 +363,10 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	}
 	m1->m_nextpkt = NULL;
 	/*
-	 * Include fast frame headers in adjusting header
-	 * layout; this allocates space according to what
-	 * ff_encap will do.
+	 * Include fast frame headers in adjusting header layout.
 	 */
+	KASSERT(m1->m_len >= sizeof(eh1), ("no ethernet header!"));
+	ETHER_HEADER_COPY(&eh1, mtod(m1, caddr_t));
 	m1 = ieee80211_mbuf_adjust(vap,
 		hdrspace + sizeof(struct llc) + sizeof(uint32_t) + 2 +
 		    sizeof(struct ether_header),
@@ -459,6 +468,314 @@ bad:
 	if (m2 != NULL)
 		m_freem(m2);
 	return NULL;
+}
+
+static void
+ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	int error;
+
+	/* encap and xmit */
+	m = ieee80211_encap(vap, ni, m);
+	if (m != NULL) {
+		struct ifnet *ifp = vap->iv_ifp;
+		struct ifnet *parent = ni->ni_ic->ic_ifp;
+
+		error = parent->if_transmit(parent, m);
+		if (error != 0) {
+			/* NB: IFQ_HANDOFF reclaims mbuf */
+			ieee80211_free_node(ni);
+		} else {
+			ifp->if_opackets++;
+		}
+	} else
+		ieee80211_free_node(ni);
+}
+
+/*
+ * Flush frames to device; note we re-use the linked list
+ * the frames were stored on and use the sentinel (unchanged)
+ * which may be non-NULL.
+ */
+static void
+ff_flush(struct mbuf *head, struct mbuf *last)
+{
+	struct mbuf *m, *next;
+	struct ieee80211_node *ni;
+	struct ieee80211vap *vap;
+
+	for (m = head; m != last; m = next) {
+		next = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+
+		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+		vap = ni->ni_vap;
+
+		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
+		    "%s: flush frame, age %u", __func__, M_AGE_GET(m));
+		vap->iv_stats.is_ff_flush++;
+
+		ff_transmit(ni, m);
+	}
+}
+
+/*
+ * Age frames on the staging queue.
+ */
+void
+ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq, int quanta)
+{
+	struct mbuf *m, *head;
+	struct ieee80211_node *ni;
+	struct ieee80211_tx_ampdu *tap;
+
+	KASSERT(sq->head != NULL, ("stageq empty"));
+
+	IEEE80211_LOCK(ic);
+	head = sq->head;
+	while ((m = sq->head) != NULL && M_AGE_GET(m) < quanta) {
+		/* clear tap ref to frame */
+		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+		tap = &ni->ni_tx_ampdu[M_WME_GETAC(m)];
+		KASSERT(tap->txa_private == m, ("staging queue empty"));
+		tap->txa_private = NULL;
+
+		sq->head = m->m_nextpkt;
+		sq->depth--;
+		ic->ic_stageqdepth--;
+	}
+	if (m == NULL)
+		sq->tail = NULL;
+	else
+		M_AGE_SUB(m, quanta);
+	IEEE80211_UNLOCK(ic);
+
+	ff_flush(head, m);
+}
+
+static void
+stageq_add(struct ieee80211_stageq *sq, struct mbuf *m)
+{
+	int age = ieee80211_ffagemax;
+	if (sq->tail != NULL) {
+		sq->tail->m_nextpkt = m;
+		age -= M_AGE_GET(sq->head);
+	} else
+		sq->head = m;
+	KASSERT(age >= 0, ("age %d", age));
+	M_AGE_SET(m, age);
+	m->m_nextpkt = NULL;
+	sq->tail = m;
+	sq->depth++;
+}
+
+static void
+stageq_remove(struct ieee80211_stageq *sq, struct mbuf *mstaged)
+{
+	struct mbuf *m, *mprev;
+
+	mprev = NULL;
+	for (m = sq->head; m != NULL; m = m->m_nextpkt) {
+		if (m == mstaged) {
+			if (mprev == NULL)
+				sq->head = m->m_nextpkt;
+			else
+				mprev->m_nextpkt = m->m_nextpkt;
+			if (sq->tail == m)
+				sq->tail = mprev;
+			sq->depth--;
+			return;
+		}
+		mprev = m;
+	}
+	printf("%s: packet not found\n", __func__);
+}
+
+static uint32_t
+ff_approx_txtime(struct ieee80211_node *ni,
+	const struct mbuf *m1, const struct mbuf *m2)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
+	uint32_t framelen;
+
+	/*
+	 * Approximate the frame length to be transmitted. A swag to add
+	 * the following maximal values to the skb payload:
+	 *   - 32: 802.11 encap + CRC
+	 *   - 24: encryption overhead (if wep bit)
+	 *   - 4 + 6: fast-frame header and padding
+	 *   - 16: 2 LLC FF tunnel headers
+	 *   - 14: 1 802.3 FF tunnel header (mbuf already accounts for 2nd)
+	 */
+	framelen = m1->m_pkthdr.len + 32 +
+	    ATH_FF_MAX_HDR_PAD + ATH_FF_MAX_SEP_PAD + ATH_FF_MAX_HDR;
+	if (vap->iv_flags & IEEE80211_F_PRIVACY)
+		framelen += 24;
+	if (m2 != NULL)
+		framelen += m2->m_pkthdr.len;
+	return ieee80211_compute_duration(ic->ic_rt, framelen, ni->ni_txrate, 0);
+}
+
+/*
+ * Check if the supplied frame can be partnered with an existing
+ * or pending frame.  Return a reference to any frame that should be
+ * sent on return; otherwise return NULL.
+ */
+struct mbuf *
+ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
+	const int pri = M_WME_GETAC(m);
+	struct ieee80211_stageq *sq;
+	struct ieee80211_tx_ampdu *tap;
+	struct mbuf *mstaged;
+	uint32_t txtime, limit;
+
+	/*
+	 * Check if the supplied frame can be aggregated.
+	 *
+	 * NB: we allow EAPOL frames to be aggregated with other ucast traffic.
+	 *     Do 802.1x EAPOL frames proceed in the clear? Then they couldn't
+	 *     be aggregated with other types of frames when encryption is on?
+	 */
+	IEEE80211_LOCK(ic);
+	tap = &ni->ni_tx_ampdu[pri];
+	mstaged = tap->txa_private;		/* NB: we reuse AMPDU state */
+	ieee80211_txampdu_count_packet(tap);
+
+	/*
+	 * When not in station mode never aggregate a multicast
+	 * frame; this insures, for example, that a combined frame
+	 * does not require multiple encryption keys.
+	 */
+	if (vap->iv_opmode != IEEE80211_M_STA &&
+	    ETHER_IS_MULTICAST(mtod(m, struct ether_header *)->ether_dhost)) {
+		/* XXX flush staged frame? */
+		IEEE80211_UNLOCK(ic);
+		return m;
+	}
+	/*
+	 * If there is no frame to combine with and the pps is
+	 * too low; then do not attempt to aggregate this frame.
+	 */
+	if (mstaged == NULL &&
+	    ieee80211_txampdu_getpps(tap) < ieee80211_ffppsmin) {
+		IEEE80211_UNLOCK(ic);
+		return m;
+	}
+	sq = &ic->ic_ff_stageq[pri];
+	/*
+	 * Check the txop limit to insure the aggregate fits.
+	 */
+	limit = IEEE80211_TXOP_TO_US(
+		ic->ic_wme.wme_chanParams.cap_wmeParams[pri].wmep_txopLimit);
+	if (limit != 0 &&
+	    (txtime = ff_approx_txtime(ni, m, mstaged)) > limit) {
+		/*
+		 * Aggregate too long, return to the caller for direct
+		 * transmission.  In addition, flush any pending frame
+		 * before sending this one.
+		 */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
+		    "%s: txtime %u exceeds txop limit %u\n",
+		    __func__, txtime, limit);
+
+		tap->txa_private = NULL;
+		if (mstaged != NULL)
+			stageq_remove(sq, mstaged);
+		IEEE80211_UNLOCK(ic);
+
+		if (mstaged != NULL) {
+			IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
+			    "%s: flush staged frame", __func__);
+			/* encap and xmit */
+			ff_transmit(ni, mstaged);
+		}
+		return m;		/* NB: original frame */
+	}
+	/*
+	 * An aggregation candidate.  If there's a frame to partner
+	 * with then combine and return for processing.  Otherwise
+	 * save this frame and wait for a partner to show up (or
+	 * the frame to be flushed).  Note that staged frames also
+	 * hold their node reference.
+	 */
+	if (mstaged != NULL) {
+		tap->txa_private = NULL;
+		stageq_remove(sq, mstaged);
+		IEEE80211_UNLOCK(ic);
+
+		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
+		    "%s: aggregate fast-frame", __func__);
+		/*
+		 * Release the node reference; we only need
+		 * the one already in mstaged.
+		 */
+		KASSERT(mstaged->m_pkthdr.rcvif == (void *)ni,
+		    ("rcvif %p ni %p", mstaged->m_pkthdr.rcvif, ni));
+		ieee80211_free_node(ni);
+
+		m->m_nextpkt = NULL;
+		mstaged->m_nextpkt = m;
+		mstaged->m_flags |= M_FF; /* NB: mark for encap work */
+	} else {
+		m->m_pkthdr.rcvif = (void *)ni;	/* NB: hold node reference */
+
+		KASSERT(tap->txa_private == NULL,
+		    ("txa_private %p", tap->txa_private));
+		tap->txa_private = m;
+
+		stageq_add(sq, m);
+		ic->ic_stageqdepth++;
+		IEEE80211_UNLOCK(ic);
+
+		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
+		    "%s: stage frame, %u queued", __func__, sq->depth);
+		/* NB: mstaged is NULL */
+	}
+	return mstaged;
+}
+
+void
+ieee80211_ff_node_init(struct ieee80211_node *ni)
+{
+	/*
+	 * Clean FF state on re-associate.  This handles the case
+	 * where a station leaves w/o notifying us and then returns
+	 * before node is reaped for inactivity.
+	 */
+	ieee80211_ff_node_cleanup(ni);
+}
+
+void
+ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_tx_ampdu *tap;
+	struct mbuf *m, *head;
+	int ac;
+
+	IEEE80211_LOCK(ic);
+	head = NULL;
+	for (ac = 0; ac < WME_NUM_AC; ac++) {
+		tap = &ni->ni_tx_ampdu[ac];
+		m = tap->txa_private;
+		if (m != NULL) {
+			tap->txa_private = NULL;
+			stageq_remove(&ic->ic_ff_stageq[ac], m);
+			m->m_nextpkt = head;
+			head = m;
+		}
+	}
+	IEEE80211_UNLOCK(ic);
+
+	for (m = head; m != NULL; m = m->m_nextpkt) {
+		m_freem(m);
+		ieee80211_free_node(ni);
+	}
 }
 
 /*

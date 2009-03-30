@@ -71,10 +71,6 @@
 #define	ATH_KEYMAX	128		/* max key cache size we handle */
 #define	ATH_KEYBYTES	(ATH_KEYMAX/NBBY)	/* storage space in bytes */
 
-#define	ATH_FF_TXQMIN	2		/* min txq depth for staging */
-#define	ATH_FF_TXQMAX	50		/* maximum # of queued frames allowed */
-#define	ATH_FF_STAGEMAX	5		/* max waiting period for staged frame*/
-
 struct taskqueue;
 struct kthread;
 struct ath_buf;
@@ -106,8 +102,6 @@ struct ath_node {
 
 struct ath_buf {
 	STAILQ_ENTRY(ath_buf)	bf_list;
-	TAILQ_ENTRY(ath_buf)	bf_stagelist;	/* stage queue list */
-	u_int32_t		bf_age;		/* age when placed on stageq */
 	int			bf_nseg;
 	uint16_t		bf_txflags;	/* tx descriptor flags */
 	uint16_t		bf_flags;	/* status flags (below) */
@@ -151,6 +145,7 @@ struct ath_descdma {
 struct ath_txq {
 	u_int			axq_qnum;	/* hardware q number */
 #define	ATH_TXQ_SWQ	(HAL_NUM_TX_QUEUES+1)	/* qnum for s/w only queue */
+	u_int			axq_ac;		/* WME AC */
 	u_int			axq_flags;
 #define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
@@ -159,13 +154,6 @@ struct ath_txq {
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
-	/*
-	 * Fast-frame state.  The staging queue holds awaiting
-	 * a fast-frame pairing.  Buffers on this queue are
-	 * assigned an ``age'' and flushed when they wait too long.
-	 */
-	TAILQ_HEAD(axq_headtype, ath_buf) axq_stageq;
-	u_int32_t		axq_curage;	/* queue age */
 };
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
@@ -181,7 +169,6 @@ struct ath_txq {
 #define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
 	STAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
-	(_tq)->axq_curage++; \
 } while (0)
 #define ATH_TXQ_REMOVE_HEAD(_tq, _field) do { \
 	STAILQ_REMOVE_HEAD(&(_tq)->axq_q, _field); \

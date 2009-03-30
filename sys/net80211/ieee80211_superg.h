@@ -68,6 +68,26 @@ void	ieee80211_parse_ath(struct ieee80211_node *, uint8_t *);
 int	ieee80211_parse_athparams(struct ieee80211_node *, uint8_t *,
 	    const struct ieee80211_frame *);
 
+void	ieee80211_ff_node_init(struct ieee80211_node *);
+void	ieee80211_ff_node_cleanup(struct ieee80211_node *);
+
+struct mbuf *ieee80211_ff_check(struct ieee80211_node *, struct mbuf *);
+void	ieee80211_ff_age(struct ieee80211com *, struct ieee80211_stageq *, int);
+
+static __inline void
+ieee80211_flush_stageq(struct ieee80211com *ic, int ac)
+{
+	if (ic->ic_ff_stageq[ac].depth)
+		ieee80211_ff_age(ic, &ic->ic_ff_stageq[ac], 0x7fffffff);
+}
+
+static __inline void
+ieee80211_age_stageq(struct ieee80211com *ic, int ac, int quanta)
+{
+	if (ic->ic_ff_stageq[ac].depth)
+		ieee80211_ff_age(ic, &ic->ic_ff_stageq[ac], quanta);
+}
+
 struct mbuf *ieee80211_ff_encap(struct ieee80211vap *, struct mbuf *,
 	    int, struct ieee80211_key *);
 
