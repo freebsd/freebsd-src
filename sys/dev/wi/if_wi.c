@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
+#include <net/if_llc.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 
@@ -978,6 +979,7 @@ wi_start_locked(struct ifnet *ifp)
 	struct mbuf *m0;
 	struct ieee80211_key *k;
 	struct wi_frame frmhdr;
+	const struct llc *llc;
 	int cur;
 
 	WI_LOCK_ASSERT(sc);
@@ -996,19 +998,33 @@ wi_start_locked(struct ifnet *ifp)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		/* NB: copy before 802.11 header is prepended */
-		m_copydata(m0, 0, ETHER_HDR_LEN, 
-		    (caddr_t)&frmhdr.wi_ehdr);
-
 		ni = (struct ieee80211_node *) m0->m_pkthdr.rcvif;
-		m0 = ieee80211_encap(ni, m0);
-		if (m0 == NULL) {
-			ifp->if_oerrors++;
-			ieee80211_free_node(ni);
-			continue;
-		}
 
+		/* reconstruct 802.3 header */
 		wh = mtod(m0, struct ieee80211_frame *);
+		switch (wh->i_fc[1]) {
+		case IEEE80211_FC1_DIR_TODS:
+			IEEE80211_ADDR_COPY(frmhdr.wi_ehdr.ether_shost,
+			    wh->i_addr2);
+			IEEE80211_ADDR_COPY(frmhdr.wi_ehdr.ether_dhost,
+			    wh->i_addr3);
+			break;
+		case IEEE80211_FC1_DIR_NODS:
+			IEEE80211_ADDR_COPY(frmhdr.wi_ehdr.ether_shost,
+			    wh->i_addr2);
+			IEEE80211_ADDR_COPY(frmhdr.wi_ehdr.ether_dhost,
+			    wh->i_addr1);
+			break;
+		case IEEE80211_FC1_DIR_FROMDS:
+			IEEE80211_ADDR_COPY(frmhdr.wi_ehdr.ether_shost,
+			    wh->i_addr3);
+			IEEE80211_ADDR_COPY(frmhdr.wi_ehdr.ether_dhost,
+			    wh->i_addr1);
+			break;
+		}
+		llc = (const struct llc *)(
+		    mtod(m0, const uint8_t *) + ieee80211_hdrsize(wh));
+		frmhdr.wi_ehdr.ether_type = llc->llc_snap.ether_type;
 		frmhdr.wi_tx_ctl = htole16(WI_ENC_TX_802_11|WI_TXCNTL_TX_EX);
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
 			k = ieee80211_crypto_encap(ni, m0);

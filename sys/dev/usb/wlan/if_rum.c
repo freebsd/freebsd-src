@@ -1354,12 +1354,6 @@ rum_start(struct ifnet *ifp)
 			break;
 		}
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
-			continue;
-		}
 		if (rum_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
