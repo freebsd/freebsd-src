@@ -691,7 +691,7 @@ tw_cli_init_connection(struct tw_cli_ctlr_context *ctlr,
 	init_connect->message_credits = TW_CL_SWAP16(message_credits);
 	init_connect->features = TW_CL_SWAP32(set_features);
 	if (ctlr->flags & TW_CL_64BIT_ADDRESSES)
-		init_connect->features |= TWA_64BIT_SG_ADDRESSES;
+		init_connect->features |= TW_CL_SWAP32(TWA_64BIT_SG_ADDRESSES);
 	if (set_features & TWA_EXTENDED_INIT_CONNECT) {
 		/*
 		 * Fill in the extra fields needed for an extended
