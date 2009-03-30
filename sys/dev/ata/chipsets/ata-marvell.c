@@ -503,7 +503,7 @@ ata_marvell_edma_reset(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x0200c + ATA_MV_EDMA_BASE(ch), ~0x0);
 
     /* enable channel and test for devices */
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 
     /* enable EDMA machinery */

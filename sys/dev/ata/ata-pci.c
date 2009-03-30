@@ -584,21 +584,34 @@ ata_pcichannel_detach(device_t dev)
 static int
 ata_pcichannel_suspend(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    int error;
 
     if (!ch->attached)
 	return (0);
 
-    return ata_suspend(dev);
+    if ((error = ata_suspend(dev)))
+	return (error);
+
+    if (ctlr->ch_suspend != NULL && (error = ctlr->ch_suspend(dev)))
+	return (error);
+
+    return (0);
 }
 
 static int
 ata_pcichannel_resume(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    int error;
 
     if (!ch->attached)
 	return (0);
+
+    if (ctlr->ch_resume != NULL && (error = ctlr->ch_resume(dev)))
+	return (error);
 
     return ata_resume(dev);
 }
