@@ -1503,6 +1503,7 @@ wi_status_connected(void *arg, int pending)
 	struct ieee80211com *ic = vap->iv_ic;
 
 	IEEE80211_LOCK(ic);
+	vap->iv_bss->ni_associd = 1 | 0xc000;	/* NB: anything will do */
 	WI_VAP(vap)->wv_newstate(vap, IEEE80211_S_RUN, 0);
 	if (vap->iv_newstate_cb != NULL)
 		vap->iv_newstate_cb(vap, IEEE80211_S_RUN, 0);
@@ -1515,6 +1516,7 @@ wi_status_disconnected(void *arg, int pending)
 	struct ieee80211vap *vap = arg;
 
 	if (vap->iv_state == IEEE80211_S_RUN) {
+		vap->iv_bss->ni_associd = 0;
 		vap->iv_stats.is_rx_deauth++;
 		ieee80211_new_state(vap, IEEE80211_S_SCAN, 0);
 	}
