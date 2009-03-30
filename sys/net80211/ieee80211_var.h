@@ -107,6 +107,13 @@ struct ieee80211_appie {
 };
 
 struct ieee80211_tdma_param;
+struct ieee80211_rate_table;
+
+struct ieee80211_stageq {
+	struct mbuf		*head;		/* frames linked w/ m_nextpkt */
+	struct mbuf		*tail;		/* last frame in queue */
+	int			depth;		/* # items on head */
+};
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
@@ -196,6 +203,10 @@ struct ieee80211com {
 	enum ieee80211_protmode	ic_htprotmode;	/* HT protection mode */
 	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
 	int			ic_lastnonht;	/* last time non-HT sta noted */
+
+	/* fast-frames staging q */
+	struct ieee80211_stageq	ic_ff_stageq[WME_NUM_AC];
+	int			ic_stageqdepth;	/* cumulative depth */
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,

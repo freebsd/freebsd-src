@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
@@ -1293,7 +1296,17 @@ ath_intr(void *arg)
 					sc->sc_tdmaswba--;
 			} else
 #endif
+			{
 				ath_beacon_proc(sc, 0);
+#ifdef IEEE80211_SUPPORT_SUPERG
+				/*
+				 * Schedule the rx taskq in case there's no
+				 * traffic so any frames held on the staging
+				 * queue are aged and potentially flushed.
+				 */
+				taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+#endif
+			}
 		}
 		if (status & HAL_INT_RXEOL) {
 			/*
@@ -1662,320 +1675,6 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 	return ath_reset(ifp);
 }
 
-static int 
-ath_ff_always(struct ath_txq *txq, struct ath_buf *bf)
-{
-	return 0;
-}
-
-#if 0
-static int 
-ath_ff_ageflushtestdone(struct ath_txq *txq, struct ath_buf *bf)
-{
-	return (txq->axq_curage - bf->bf_age) < ATH_FF_STAGEMAX;
-}
-#endif
-
-/*
- * Flush FF staging queue.
- */
-static void
-ath_ff_stageq_flush(struct ath_softc *sc, struct ath_txq *txq,
-	int (*ath_ff_flushdonetest)(struct ath_txq *txq, struct ath_buf *bf))
-{
-	struct ath_buf *bf;
-	struct ieee80211_node *ni;
-	int pktlen, pri;
-	
-	for (;;) {
-		ATH_TXQ_LOCK(txq);
-		/*
-		 * Go from the back (oldest) to front so we can
-		 * stop early based on the age of the entry.
-		 */
-		bf = TAILQ_LAST(&txq->axq_stageq, axq_headtype);
-		if (bf == NULL || ath_ff_flushdonetest(txq, bf)) {
-			ATH_TXQ_UNLOCK(txq);
-			break;
-		}
-
-		ni = bf->bf_node;
-		pri = M_WME_GETAC(bf->bf_m);
-		KASSERT(ATH_NODE(ni)->an_ff_buf[pri],
-			("no bf on staging queue %p", bf));
-		ATH_NODE(ni)->an_ff_buf[pri] = NULL;
-		TAILQ_REMOVE(&txq->axq_stageq, bf, bf_stagelist);
-		
-		ATH_TXQ_UNLOCK(txq);
-
-		DPRINTF(sc, ATH_DEBUG_FF, "%s: flush frame, age %u\n",
-			__func__, bf->bf_age);
-
-		sc->sc_stats.ast_ff_flush++;
-		
-		/* encap and xmit */
-		bf->bf_m = ieee80211_encap(ni, bf->bf_m);
-		if (bf->bf_m == NULL) {
-			DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_FF,
-				"%s: discard, encapsulation failure\n",
-				__func__);
-			sc->sc_stats.ast_tx_encap++;
-			goto bad;
-		}
-		pktlen = bf->bf_m->m_pkthdr.len; /* NB: don't reference below */
-		if (ath_tx_start(sc, ni, bf, bf->bf_m) == 0) {
-#if 0 /*XXX*/
-			ifp->if_opackets++;
-#endif
-			continue;
-		}
-	bad:
-		if (ni != NULL)
-			ieee80211_free_node(ni);
-		bf->bf_node = NULL;
-		if (bf->bf_m != NULL) {
-			m_freem(bf->bf_m);
-			bf->bf_m = NULL;
-		}
-
-		ATH_TXBUF_LOCK(sc);
-		STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
-		ATH_TXBUF_UNLOCK(sc);
-	}
-}
-
-static __inline u_int32_t
-ath_ff_approx_txtime(struct ath_softc *sc, struct ath_node *an, struct mbuf *m)
-{
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	u_int32_t framelen;
-	struct ath_buf *bf;
-
-	/*
-	 * Approximate the frame length to be transmitted. A swag to add
-	 * the following maximal values to the skb payload:
-	 *   - 32: 802.11 encap + CRC
-	 *   - 24: encryption overhead (if wep bit)
-	 *   - 4 + 6: fast-frame header and padding
-	 *   - 16: 2 LLC FF tunnel headers
-	 *   - 14: 1 802.3 FF tunnel header (skb already accounts for 2nd)
-	 */
-	framelen = m->m_pkthdr.len + 32 + 4 + 6 + 16 + 14;
-	if (ic->ic_flags & IEEE80211_F_PRIVACY)
-		framelen += 24;
-	bf = an->an_ff_buf[M_WME_GETAC(m)];
-	if (bf != NULL)
-		framelen += bf->bf_m->m_pkthdr.len;
-	return ath_hal_computetxtime(sc->sc_ah, sc->sc_currates, framelen,
-			sc->sc_lastdatarix, AH_FALSE);
-}
-
-/*
- * Determine if a data frame may be aggregated via ff tunnelling.
- * Note the caller is responsible for checking if the destination
- * supports fast frames.
- *
- *  NB: allowing EAPOL frames to be aggregated with other unicast traffic.
- *      Do 802.1x EAPOL frames proceed in the clear? Then they couldn't
- *      be aggregated with other types of frames when encryption is on?
- *
- *  NB: assumes lock on an_ff_buf effectively held by txq lock mechanism.
- */
-static __inline int 
-ath_ff_can_aggregate(struct ath_softc *sc,
-	struct ath_node *an, struct mbuf *m, int *flushq)
-{
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	struct ath_txq *txq;
-	u_int32_t txoplimit;
-	u_int pri;
-
-	*flushq = 0;
-
-	/*
-	 * If there is no frame to combine with and the txq has
-	 * fewer frames than the minimum required; then do not
-	 * attempt to aggregate this frame.
-	 */
-	pri = M_WME_GETAC(m);
-	txq = sc->sc_ac2q[pri];
-	if (an->an_ff_buf[pri] == NULL && txq->axq_depth < sc->sc_fftxqmin)
-		return 0;
-	/*
-	 * When not in station mode never aggregate a multicast
-	 * frame; this insures, for example, that a combined frame
-	 * does not require multiple encryption keys when using
-	 * 802.1x/WPA.
-	 */
-	if (ic->ic_opmode != IEEE80211_M_STA &&
-	    ETHER_IS_MULTICAST(mtod(m, struct ether_header *)->ether_dhost))
-		return 0;		
-	/*
-	 * Consult the max bursting interval to insure a combined
-	 * frame fits within the TxOp window.
-	 */
-	txoplimit = IEEE80211_TXOP_TO_US(
-		ic->ic_wme.wme_chanParams.cap_wmeParams[pri].wmep_txopLimit);
-	if (txoplimit != 0 && ath_ff_approx_txtime(sc, an, m) > txoplimit) {
-		DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_FF,
-			"%s: FF TxOp violation\n", __func__);
-		if (an->an_ff_buf[pri] != NULL)
-			*flushq = 1;
-		return 0;
-	}
-	return 1;		/* try to aggregate */
-}
-
-/*
- * Check if the supplied frame can be partnered with an existing
- * or pending frame.  Return a reference to any frame that should be
- * sent on return; otherwise return NULL.
- */
-static struct mbuf *
-ath_ff_check(struct ath_softc *sc, struct ath_txq *txq,
-	struct ath_buf *bf, struct mbuf *m, struct ieee80211_node *ni)
-{
-	struct ath_node *an = ATH_NODE(ni);
-	struct ath_buf *bfstaged;
-	int ff_flush, pri;
-
-	/*
-	 * Check if the supplied frame can be aggregated.
-	 *
-	 * NB: we use the txq lock to protect references to
-	 *     an->an_ff_txbuf in ath_ff_can_aggregate().
-	 */
-	ATH_TXQ_LOCK(txq);
-	pri = M_WME_GETAC(m);
-	if (ath_ff_can_aggregate(sc, an, m, &ff_flush)) {
-		struct ath_buf *bfstaged = an->an_ff_buf[pri];
-		if (bfstaged != NULL) {
-			/*
-			 * A frame is available for partnering; remove
-			 * it, chain it to this one, and encapsulate.
-			 */
-			an->an_ff_buf[pri] = NULL;
-			TAILQ_REMOVE(&txq->axq_stageq, bfstaged, bf_stagelist);
-			ATH_TXQ_UNLOCK(txq);
-
-			/* 
-			 * Chain mbufs and add FF magic.
-			 */
-			DPRINTF(sc, ATH_DEBUG_FF,
-				"[%s] aggregate fast-frame, age %u\n",
-				ether_sprintf(ni->ni_macaddr), txq->axq_curage);
-			m->m_nextpkt = NULL;
-			bfstaged->bf_m->m_nextpkt = m;
-			m = bfstaged->bf_m;
-			bfstaged->bf_m = NULL;
-			m->m_flags |= M_FF;
-			/*
-			 * Release the node reference held while
-			 * the packet sat on an_ff_buf[]
-			 */
-			bfstaged->bf_node = NULL;
-			ieee80211_free_node(ni);
-
-			/*
-			 * Return bfstaged to the free list.
-			 */
-			ATH_TXBUF_LOCK(sc);
-			STAILQ_INSERT_HEAD(&sc->sc_txbuf, bfstaged, bf_list);
-			ATH_TXBUF_UNLOCK(sc);
-
-			return m;		/* ready to go */
-		} else {
-			/*
-			 * No frame available, queue this frame to wait
-			 * for a partner.  Note that we hold the buffer
-			 * and a reference to the node; we need the
-			 * buffer in particular so we're certain we
-			 * can flush the frame at a later time.
-			 */
-			DPRINTF(sc, ATH_DEBUG_FF,
-				"[%s] stage fast-frame, age %u\n",
-				ether_sprintf(ni->ni_macaddr), txq->axq_curage);
-
-			bf->bf_m = m;
-			bf->bf_node = ni;	/* NB: held reference */
-			bf->bf_age = txq->axq_curage;
-			an->an_ff_buf[pri] = bf;
-			TAILQ_INSERT_HEAD(&txq->axq_stageq, bf, bf_stagelist);
-			ATH_TXQ_UNLOCK(txq);
-
-			return NULL;		/* consumed */
-		}
-	}
-	/*
-	 * Frame could not be aggregated, it needs to be returned
-	 * to the caller for immediate transmission.  In addition
-	 * we check if we should first flush a frame from the
-	 * staging queue before sending this one.
-	 *
-	 * NB: ath_ff_can_aggregate only marks ff_flush if a frame
-	 *     is present to flush.
-	 */
-	if (ff_flush) {
-		int pktlen;
-
-		bfstaged = an->an_ff_buf[pri];
-		an->an_ff_buf[pri] = NULL;
-		TAILQ_REMOVE(&txq->axq_stageq, bfstaged, bf_stagelist);
-		ATH_TXQ_UNLOCK(txq);
-
-		DPRINTF(sc, ATH_DEBUG_FF, "[%s] flush staged frame\n",
-			ether_sprintf(an->an_node.ni_macaddr));
-
-		/* encap and xmit */
-		bfstaged->bf_m = ieee80211_encap(ni, bfstaged->bf_m);
-		if (bfstaged->bf_m == NULL) {
-			DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_FF,
-				"%s: discard, encap failure\n", __func__);
-			sc->sc_stats.ast_tx_encap++;
-			goto ff_flushbad;
-		}
-		pktlen = bfstaged->bf_m->m_pkthdr.len;
-		if (ath_tx_start(sc, ni, bfstaged, bfstaged->bf_m)) {
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-				"%s: discard, xmit failure\n", __func__);
-	ff_flushbad:
-			/*
-			 * Unable to transmit frame that was on the staging
-			 * queue.  Reclaim the node reference and other
-			 * resources.
-			 */
-			if (ni != NULL)
-				ieee80211_free_node(ni);
-			bfstaged->bf_node = NULL;
-			if (bfstaged->bf_m != NULL) {
-				m_freem(bfstaged->bf_m);
-				bfstaged->bf_m = NULL;
-			}
-
-			ATH_TXBUF_LOCK(sc);
-			STAILQ_INSERT_HEAD(&sc->sc_txbuf, bfstaged, bf_list);
-			ATH_TXBUF_UNLOCK(sc);
-		} else {
-#if 0
-			ifp->if_opackets++;
-#endif
-		}
-	} else {
-		if (an->an_ff_buf[pri] != NULL) {
-			/* 
-			 * XXX: out-of-order condition only occurs for AP
-			 * mode and multicast.  There may be no valid way
-			 * to get this condition.
-			 */
-			DPRINTF(sc, ATH_DEBUG_FF, "[%s] out-of-order frame\n",
-				ether_sprintf(an->an_node.ni_macaddr));
-			/* XXX stat */
-		}
-		ATH_TXQ_UNLOCK(txq);
-	}
-	return m;
-}
-
 static struct ath_buf *
 _ath_getbuf_locked(struct ath_softc *sc)
 {
@@ -2070,9 +1769,7 @@ ath_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
-	struct ath_txq *txq;
 	ath_bufhead frags;
-	int pri;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
@@ -2091,47 +1788,14 @@ ath_start(struct ifnet *ifp)
 			ATH_TXBUF_UNLOCK(sc);
 			break;
 		}
-		STAILQ_INIT(&frags);
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		pri = M_WME_GETAC(m);
-		txq = sc->sc_ac2q[pri];
-		if (IEEE80211_ATH_CAP(ni->ni_vap, ni, IEEE80211_NODE_FF)) {
-			/*
-			 * Check queue length; if too deep drop this
-			 * frame (tail drop considered good).
-			 */
-			if (txq->axq_depth >= sc->sc_fftxqmax) {
-				DPRINTF(sc, ATH_DEBUG_FF,
-				    "[%s] tail drop on q %u depth %u\n",
-				    ether_sprintf(ni->ni_macaddr),
-				    txq->axq_qnum, txq->axq_depth);
-				sc->sc_stats.ast_tx_qfull++;
-				m_freem(m);
-				goto reclaim;
-			}
-			m = ath_ff_check(sc, txq, bf, m, ni);
-			if (m == NULL) {
-				/* NB: ni ref & bf held on stageq */
-				continue;
-			}
-		}
-		ifp->if_opackets++;
-		/*
-		 * Encapsulate the packet in prep for transmission.
-		 */
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: encapsulation failure\n", __func__);
-			sc->sc_stats.ast_tx_encap++;
-			goto bad;
-		}
 		/*
 		 * Check for fragmentation.  If this frame
 		 * has been broken up verify we have enough
 		 * buffers to send all the fragments so all
 		 * go out or none...
 		 */
+		STAILQ_INIT(&frags);
 		if ((m->m_flags & M_FRAG) && 
 		    !ath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, ATH_DEBUG_XMIT,
@@ -2140,6 +1804,7 @@ ath_start(struct ifnet *ifp)
 			ath_freetx(m);
 			goto bad;
 		}
+		ifp->if_opackets++;
 	nextfrag:
 		/*
 		 * Pass the frame to the h/w for transmission.
@@ -2189,13 +1854,6 @@ ath_start(struct ifnet *ifp)
 		}
 
 		sc->sc_wd_timer = 5;
-#if 0
-		/*
-		 * Flush stale frames from the fast-frame staging queue.
-		 */
-		if (ic->ic_opmode != IEEE80211_M_STA)
-			ath_ff_stageq_flush(sc, txq, ath_ff_ageflushtestdone);
-#endif
 	}
 }
 
@@ -4335,10 +3993,18 @@ rx_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
-	    !IFQ_IS_EMPTY(&ifp->if_snd))
-		ath_start(ifp);
-
+	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+#ifdef IEEE80211_SUPPORT_SUPERG
+		if (ic->ic_stageqdepth) {
+			ieee80211_age_stageq(ic, WME_AC_VO, 100);
+			ieee80211_age_stageq(ic, WME_AC_VI, 100);
+			ieee80211_age_stageq(ic, WME_AC_BE, 100);
+			ieee80211_age_stageq(ic, WME_AC_BK, 100);
+		}
+#endif
+		if (!IFQ_IS_EMPTY(&ifp->if_snd))
+			ath_start(ifp);
+	}
 #undef PA2DESC
 }
 
@@ -4346,13 +4012,12 @@ static void
 ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 {
 	txq->axq_qnum = qnum;
+	txq->axq_ac = 0;
 	txq->axq_depth = 0;
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
 	STAILQ_INIT(&txq->axq_q);
 	ATH_TXQ_LOCK_INIT(sc, txq);
-	TAILQ_INIT(&txq->axq_stageq);
-	txq->axq_curage = 0;
 }
 
 /*
@@ -4429,6 +4094,7 @@ ath_tx_setup(struct ath_softc *sc, int ac, int haltype)
 	}
 	txq = ath_txq_setup(sc, HAL_TX_QUEUE_DATA, haltype);
 	if (txq != NULL) {
+		txq->axq_ac = ac;
 		sc->sc_ac2q[ac] = txq;
 		return 1;
 	} else
@@ -5292,13 +4958,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				ieee80211_process_callback(ni, bf->bf_m,
 				    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0 ?
 				        ts->ts_status : HAL_TXERR_XRETRY);
-			/*
-			 * Reclaim reference to node.
-			 *
-			 * NB: the node may be reclaimed here if, for example
-			 *     this is a DEAUTH message that was sent and the
-			 *     node was timed out due to inactivity.
-			 */
 			ieee80211_free_node(ni);
 		}
 		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
@@ -5316,11 +4975,13 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 	}
+#ifdef IEEE80211_SUPPORT_SUPERG
 	/*
 	 * Flush fast-frame staging queue when traffic slows.
 	 */
 	if (txq->axq_depth <= 1)
-		ath_ff_stageq_flush(sc, txq, ath_ff_always);
+		ieee80211_flush_stageq(ic, txq->axq_ac);
+#endif
 	return nacked;
 }
 
@@ -6919,16 +6580,6 @@ ath_sysctlattach(struct ath_softc *sc)
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"tpcts", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_tpcts, "I", "tx power for cts frames");
-	}
-	if (ath_hal_hasfastframes(sc->sc_ah)) {
-		sc->sc_fftxqmin = ATH_FF_TXQMIN;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"fftxqmin", CTLFLAG_RW, &sc->sc_fftxqmin, 0,
-			"min frames before fast-frame staging");
-		sc->sc_fftxqmax = ATH_FF_TXQMAX;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"fftxqmax", CTLFLAG_RW, &sc->sc_fftxqmax, 0,
-			"max queued frames before tail drop");
 	}
 	if (ath_hal_hasrfsilent(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,

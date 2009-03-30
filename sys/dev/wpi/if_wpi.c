@@ -2048,7 +2048,6 @@ wpi_start_locked(struct ifnet *ifp)
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		/* no QoS encapsulation for EAPOL frames */
 		ac = M_WME_GETAC(m);
 		if (sc->txq[ac].queued > sc->txq[ac].count - 8) {
 			/* there is no place left in this ring */
@@ -2057,12 +2056,6 @@ wpi_start_locked(struct ifnet *ifp)
 			break;
 		}
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
-			continue;
-		}
 		if (wpi_tx_data(sc, m, ni, ac) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;

@@ -929,6 +929,10 @@ node_cleanup(struct ieee80211_node *ni)
 	 */
 	if (ni->ni_flags & IEEE80211_NODE_HT)
 		ieee80211_ht_node_cleanup(ni);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	else if (ni->ni_ath_flags & IEEE80211_NODE_ATH)
+		ieee80211_ff_node_cleanup(ni);
+#endif
 	/*
 	 * Clear AREF flag that marks the authorization refcnt bump
 	 * has happened.  This is probably not needed as the node

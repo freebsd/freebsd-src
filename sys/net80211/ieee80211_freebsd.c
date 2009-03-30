@@ -189,6 +189,15 @@ SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLFLAG_RW,
 extern int ieee80211_addba_maxtries;
 SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
 	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
+#ifdef IEEE80211_SUPPORT_SUPERG
+extern int ieee80211_ffppsmin;
+SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLFLAG_RW,
+	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
+extern int ieee80211_ffagemax;
+SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLFLAG_RW,
+	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"max hold time for fast-frame staging (ms)");
+#endif /* IEEE80211_SUPPORT_SUPERG */
 
 static int
 ieee80211_sysctl_inact(SYSCTL_HANDLER_ARGS)
