@@ -163,8 +163,6 @@ malo_hal_attach(device_t dev, uint16_t devid,
 	return (mh);
 
 fail:
-	free(mh, M_DEVBUF);
-
 	if (mh->mh_dmamap != NULL) {
 		bus_dmamap_unload(mh->mh_dmat, mh->mh_dmamap);
 		if (mh->mh_cmdbuf != NULL)
@@ -174,6 +172,7 @@ fail:
 	}
 	if (mh->mh_dmat)
 		bus_dma_tag_destroy(mh->mh_dmat);
+	free(mh, M_DEVBUF);
 
 	return (NULL);
 }
