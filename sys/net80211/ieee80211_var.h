@@ -704,7 +704,7 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 #define	IEEE80211_MSG_DOT1XSM	0x00010000	/* 802.1x state machine */
 #define	IEEE80211_MSG_RADIUS	0x00008000	/* 802.1x radius client */
 #define	IEEE80211_MSG_RADDUMP	0x00004000	/* dump 802.1x radius packets */
-#define	IEEE80211_MSG_RADKEYS	0x00002000	/* dump 802.1x keys */
+#define	IEEE80211_MSG_MESH	0x00002000	/* mesh networking */
 #define	IEEE80211_MSG_WPA	0x00001000	/* WPA/RSN protocol */
 #define	IEEE80211_MSG_ACL	0x00000800	/* ACL handling */
 #define	IEEE80211_MSG_WME	0x00000400	/* WME protocol */
