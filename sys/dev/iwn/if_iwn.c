@@ -2122,12 +2122,6 @@ iwn_start_locked(struct ifnet *ifp)
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		pri = M_WME_GETAC(m);
 		txq = &sc->txq[pri];
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ifp->if_oerrors++;
-			ieee80211_free_node(ni);
-			continue;
-		}
 		if (txq->queued >= IWN_TX_RING_COUNT - 8) {
 			/* XXX not right */
 			/* ring is nearly full, stop flow */
