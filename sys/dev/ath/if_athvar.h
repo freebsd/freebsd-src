@@ -345,7 +345,6 @@ struct ath_softc {
 	int			sc_lastlongcal;	/* last long cal completed */
 	int			sc_lastcalreset;/* last cal reset done */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
-#ifdef ATH_SUPPORT_TDMA
 	u_int			sc_tdmadbaprep;	/* TDMA DBA prep time */
 	u_int			sc_tdmaswbaprep;/* TDMA SWBA prep time */
 	u_int			sc_tdmaswba;	/* TDMA SWBA counter */
@@ -356,7 +355,6 @@ struct ath_softc {
 	struct ath_rx_status	*sc_tdmars;	/* TDMA status of last rx */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
-#endif
 };
 
 #define	ATH_LOCK_INIT(_sc) \
