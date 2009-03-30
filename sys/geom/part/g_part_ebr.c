@@ -237,7 +237,7 @@ g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	char psn[8];
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	uint64_t msize;
+	uint32_t msize;
 	int error;
 
 	pp = gpp->gpp_provider;
@@ -257,10 +257,11 @@ g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (strcmp(psn, "MBR"))
 		return (ENXIO);
 
-	msize = pp->mediasize / pp->sectorsize;
-	basetable->gpt_entries = msize / basetable->gpt_sectors;
+	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
+	msize -= msize % basetable->gpt_sectors;
 	basetable->gpt_first = 0;
-	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	basetable->gpt_last = msize - 1;
+	basetable->gpt_entries = msize / basetable->gpt_sectors;
 	return (0);
 }
 
