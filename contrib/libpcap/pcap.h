@@ -53,10 +53,6 @@
 
 #include <stdio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define PCAP_VERSION_MAJOR 2
 #define PCAP_VERSION_MINOR 4
 
