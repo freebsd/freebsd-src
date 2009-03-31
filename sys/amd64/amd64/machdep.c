@@ -231,7 +231,8 @@ cpu_startup(dummy)
 	if (sysenv != NULL) {
 		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10);
 		freeenv(sysenv);
-	}
+	} else
+		memsize = 0;
 	if (memsize > 0)
 		printf("real memory  = %ju (%ju MB)\n", memsize << 10,
 		    memsize >> 10);
