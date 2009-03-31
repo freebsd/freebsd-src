@@ -1098,6 +1098,10 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	 * Also, PHYs above 16 appear to be phantoms on some cards, but not
 	 * others.  Registers read for this are often the same as prior values
 	 * read.  Filter all register requests to 17-31.
+	 *
+	 * I can't explain it, since I don't have the DL100xx data sheets, but
+	 * the DL100xx chips do 13-bits before the 'ACK' but, but the AX88x90
+	 * chips have 14.  The linux pcnet and axnet drivers confirm this.
 	 */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88790) {
 		if (phy > 0x10)
