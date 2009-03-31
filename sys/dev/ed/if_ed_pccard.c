@@ -751,6 +751,7 @@ ed_probe_ax88x90_generic(device_t dev, int flags)
 	char    test_buffer[32];
 
 	ed_pccard_ax88x90_reset(sc);
+	DELAY(10*1000);
 
 	/* Make sure that we really have an 8390 based board */
 	if (!ed_probe_generic8390(sc))
@@ -807,6 +808,29 @@ static int
 ed_pccard_ax88x90_enaddr(struct ed_softc *sc)
 {
 	int i, j;
+	struct {
+		unsigned char offset, value;
+	} pg_seq[] = {
+						/* Select Page0 */
+		{ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0},
+		{ED_P0_DCR, ED_DCR_WTS},	/* Word access to SRAM */
+		{ED_P0_RBCR0, 0x00},		/* Clear the count regs. */
+		{ED_P0_RBCR1, 0x00},
+		{ED_P0_IMR, 0x00},		/* Mask completion irq. */
+		{ED_P0_ISR, 0xff},		/* ACK them all */
+		{ED_P0_RCR, ED_RCR_MON | ED_RCR_INTT}, /* Set To Monitor */
+		{ED_P0_TCR, ED_TCR_LB0},        /* loopback mode. */
+		{ED_P0_RBCR0, 0x20},		/* 32byte DMA */
+		{ED_P0_RBCR1, 0x00},
+		{ED_P0_RSAR0, 0x00},		/* Read address is 0x0400 */
+		{ED_P0_RSAR1, 0x04},		/* for MAC ADDR */
+		{ED_P0_CR, ED_CR_RD0 | ED_CR_STA | ED_CR_PAGE_0},
+	};
+
+	/* Card Settings */
+	for (i = 0; i < sizeof(pg_seq) / sizeof(pg_seq[0]); i++)
+		ed_nic_outb(sc, pg_seq[i].offset, pg_seq[i].value);
+
 	/* Get MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
 		j = ed_asic_inw(sc, 0);
