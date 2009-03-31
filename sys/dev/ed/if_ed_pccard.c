@@ -1115,7 +1115,9 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	(*sc->mii_writebits)(sc, ED_MII_READOP, ED_MII_OP_BITS);
 	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
 	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
-	(*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
+	if (sc->chip_type == ED_CHIP_TYPE_AX88790 ||
+	    sc->chip_type == ED_CHIP_TYPE_AX88190)
+		(*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
 	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
 	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
