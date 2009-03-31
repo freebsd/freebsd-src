@@ -1101,8 +1101,14 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	 * the internal PHY, a bit has to be set, when accessing the external
 	 * PHYs, it must be clear.  See Errata 1, page 51, in the AX88790
 	 * datasheet for more details.
+	 *
+	 * Also, PHYs above 16 appear to be phantoms on some cards, but not
+	 * others.  Registers read for this are often the same as prior values
+	 * read.  Filter all register requests to 17-31.
 	 */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88790) {
+		if (phy > 0x10)
+			return (0);
 		if (phy == 0x10)
 			ed_asic_outb(sc, ED_AX88X90_GPIO,
 			    ED_AX88X90_GPIO_INT_PHY);
@@ -1130,15 +1136,10 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 	struct ed_softc *sc;
 
 	sc = device_get_softc(dev);
-	/*
-	 * The AX88790 has an interesting quirk.  It has an internal phy that
-	 * needs a special bit set to access, but can also have additional
-	 * external PHYs set for things like HomeNET media.  When accessing
-	 * the internal PHY, a bit has to be set, when accessing the external
-	 * PHYs, it must be clear.  See Errata 1, page 51, in the AX88790
-	 * datasheet for more details.
-	 */
+	/* See ed_miibus_readreg for details */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88790) {
+		if (phy > 0x10)
+			return (0);
 		if (phy == 0x10)
 			ed_asic_outb(sc, ED_AX88X90_GPIO,
 			    ED_AX88X90_GPIO_INT_PHY);
