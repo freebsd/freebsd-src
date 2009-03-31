@@ -196,6 +196,7 @@ static void
 cpu_startup(dummy)
 	void *dummy;
 {
+	uintmax_t memsize;
 	char *sysenv;
 
 	/*
@@ -226,8 +227,17 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("usable memory = %ju (%ju MB)\n", ptoa((uintmax_t)physmem),
-	    ptoa((uintmax_t)physmem) / 1048576);
+	sysenv = getenv("smbios.memory.enabled");
+	if (sysenv != NULL) {
+		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10);
+		freeenv(sysenv);
+	}
+	if (memsize > 0)
+		printf("real memory  = %ju (%ju MB)\n", memsize << 10,
+		    memsize >> 10);
+	else
+		printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
+		    ptoa((uintmax_t)Maxmem) / 1048576);
 	realmem = Maxmem;
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -250,7 +260,7 @@ cpu_startup(dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory  = %ju (%ju MB)\n",
+	printf("avail memory = %ju (%ju MB)\n",
 	    ptoa((uintmax_t)cnt.v_free_count),
 	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
 
