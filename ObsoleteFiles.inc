@@ -14,8 +14,6 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
-# 20090401: fla.4 was removed
-OLD_FILES+=usr/share/man/man4/fla.4.gz
 # 20090319: uscanner(4) has been removed
 OLD_FILES+=usr/share/man/man4/uscanner.4.gz
 # 20090313: k8temp(4) renamed to amdtemp(4)
@@ -1442,6 +1440,8 @@ OLD_FILES+=lib/geom/geom_concat.so.1
 OLD_FILES+=lib/geom/geom_label.so.1
 OLD_FILES+=lib/geom/geom_nop.so.1
 OLD_FILES+=lib/geom/geom_stripe.so.1
+# 20040713: fla(4) removed.
+OLD_FILES+=usr/share/man/man4/fla.4.gz
 # 200407XX
 OLD_FILES+=usr/sbin/kernbb
 OLD_FILES+=usr/sbin/ntp-genkeys
