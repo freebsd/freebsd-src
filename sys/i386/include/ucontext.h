@@ -72,10 +72,15 @@ typedef struct __mcontext {
 	 * See <machine/npx.h> for the internals of mc_fpstate[].
 	 */
 	int	mc_fpstate[128] __aligned(16);
-	int	mc_spare2[8];
+
+	__register_t mc_fsbase;
+	__register_t mc_gsbase;
+
+	int	mc_spare2[6];
 } mcontext_t;
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
+
 struct mcontext4 {
 	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
 	__register_t	mc_gs;		/* machine state (struct trapframe) */
