@@ -298,7 +298,7 @@
 162	AUE_NULL	OBSOL	getdomainname
 163	AUE_NULL	OBSOL	setdomainname
 164	AUE_NULL	OBSOL	uname
-165	AUE_SYSARCH	NOPROTO	{ int sysarch(int op, char *parms); }
+165	AUE_SYSARCH	STD	{ int freebsd32_sysarch(int op, char *parms); }
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
 				    struct rtprio *rtp); }
 167	AUE_NULL	UNIMPL	nosys
