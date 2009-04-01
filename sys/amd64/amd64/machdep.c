@@ -826,7 +826,12 @@ CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
 struct amd64tss common_tss[MAXCPU];
 
-/* software prototypes -- in more palatable form */
+/*
+ * Software prototypes -- in more palatable form.
+ *
+ * Keep GUFS32, GUGS32, GUCODE32 and GUDATA at the same
+ * slots as corresponding segments for i386 kernel.
+ */
 struct soft_segment_descriptor gdt_segs[] = {
 /* GNULL_SEL	0 Null Descriptor */
 {	.ssd_base = 0x0,
@@ -837,34 +842,16 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-/* GCODE_SEL	1 Code Descriptor for kernel */
+/* GNULL2_SEL	1 Null Descriptor */
 {	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
-	.ssd_type = SDT_MEMERA,
-	.ssd_dpl = SEL_KPL,
-	.ssd_p = 1,
-	.ssd_long = 1,
-	.ssd_def32 = 0,
-	.ssd_gran = 1		},
-/* GDATA_SEL	2 Data Descriptor for kernel */
-{	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
-	.ssd_type = SDT_MEMRWA,
-	.ssd_dpl = SEL_KPL,
-	.ssd_p = 1,
-	.ssd_long = 1,
-	.ssd_def32 = 0,
-	.ssd_gran = 1		},
-/* GUCODE32_SEL	3 32 bit Code Descriptor for user */
-{	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
-	.ssd_type = SDT_MEMERA,
-	.ssd_dpl = SEL_UPL,
-	.ssd_p = 1,
+	.ssd_limit = 0x0,
+	.ssd_type = 0,
+	.ssd_dpl = 0,
+	.ssd_p = 0,
 	.ssd_long = 0,
-	.ssd_def32 = 1,
-	.ssd_gran = 1		},
-/* GUDATA_SEL	4 32/64 bit Data Descriptor for user */
+	.ssd_def32 = 0,
+	.ssd_gran = 0		},
+/* GUFS32_SEL	2 32 bit %gs Descriptor for user */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
@@ -873,7 +860,52 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 1,
 	.ssd_gran = 1		},
-/* GUCODE_SEL	5 64 bit Code Descriptor for user */
+/* GUGS32_SEL	3 32 bit %fs Descriptor for user */
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMRWA,
+	.ssd_dpl = SEL_UPL,
+	.ssd_p = 1,
+	.ssd_long = 0,
+	.ssd_def32 = 1,
+	.ssd_gran = 1		},
+/* GCODE_SEL	4 Code Descriptor for kernel */
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMERA,
+	.ssd_dpl = SEL_KPL,
+	.ssd_p = 1,
+	.ssd_long = 1,
+	.ssd_def32 = 0,
+	.ssd_gran = 1		},
+/* GDATA_SEL	5 Data Descriptor for kernel */
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMRWA,
+	.ssd_dpl = SEL_KPL,
+	.ssd_p = 1,
+	.ssd_long = 1,
+	.ssd_def32 = 0,
+	.ssd_gran = 1		},
+/* GUCODE32_SEL	6 32 bit Code Descriptor for user */
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMERA,
+	.ssd_dpl = SEL_UPL,
+	.ssd_p = 1,
+	.ssd_long = 0,
+	.ssd_def32 = 1,
+	.ssd_gran = 1		},
+/* GUDATA_SEL	7 32/64 bit Data Descriptor for user */
+{	.ssd_base = 0x0,
+	.ssd_limit = 0xfffff,
+	.ssd_type = SDT_MEMRWA,
+	.ssd_dpl = SEL_UPL,
+	.ssd_p = 1,
+	.ssd_long = 0,
+	.ssd_def32 = 1,
+	.ssd_gran = 1		},
+/* GUCODE_SEL	8 64 bit Code Descriptor for user */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMERA,
@@ -882,9 +914,9 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 1,
 	.ssd_def32 = 0,
 	.ssd_gran = 1		},
-/* GPROC0_SEL	6 Proc 0 Tss Descriptor */
+/* GPROC0_SEL	9 Proc 0 Tss Descriptor */
 {	.ssd_base = 0x0,
-	.ssd_limit = sizeof(struct amd64tss)-1,
+	.ssd_limit = sizeof(struct amd64tss) + IOPAGES * PAGE_SIZE - 1,
 	.ssd_type = SDT_SYSTSS,
 	.ssd_dpl = SEL_KPL,
 	.ssd_p = 1,
@@ -900,15 +932,24 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-/* GUGS32_SEL	8 32 bit GS Descriptor for user */
+/* GUSERLDT_SEL	11 LDT Descriptor */
 {	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
-	.ssd_type = SDT_MEMRWA,
-	.ssd_dpl = SEL_UPL,
-	.ssd_p = 1,
+	.ssd_limit = 0x0,
+	.ssd_type = 0,
+	.ssd_dpl = 0,
+	.ssd_p = 0,
 	.ssd_long = 0,
-	.ssd_def32 = 1,
-	.ssd_gran = 1		},
+	.ssd_def32 = 0,
+	.ssd_gran = 0		},
+/* GUSERLDT_SEL	12 LDT Descriptor, double size */
+{	.ssd_base = 0x0,
+	.ssd_limit = 0x0,
+	.ssd_type = 0,
+	.ssd_dpl = 0,
+	.ssd_p = 0,
+	.ssd_long = 0,
+	.ssd_def32 = 0,
+	.ssd_gran = 0		},
 };
 
 void

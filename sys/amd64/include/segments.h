@@ -212,15 +212,19 @@ struct region_descriptor {
  * Entries in the Global Descriptor Table (GDT)
  */
 #define	GNULL_SEL	0	/* Null Descriptor */
-#define	GCODE_SEL	1	/* Kernel Code Descriptor */
-#define	GDATA_SEL	2	/* Kernel Data Descriptor */
-#define	GUCODE32_SEL	3	/* User 32 bit code Descriptor */
-#define	GUDATA_SEL	4	/* User 32/64 bit Data Descriptor */
-#define	GUCODE_SEL	5	/* User 64 bit Code Descriptor */
-#define	GPROC0_SEL	6	/* TSS for entering kernel etc */
-/* slot 7 is second half of GPROC0_SEL */
-#define	GUGS32_SEL	8	/* User 32 bit GS Descriptor */
-#define	NGDT 		9
+#define	GNULL2_SEL	1	/* Null Descriptor */
+#define	GUFS32_SEL	2	/* User 32 bit %fs Descriptor */
+#define	GUGS32_SEL	3	/* User 32 bit %gs Descriptor */
+#define	GCODE_SEL	4	/* Kernel Code Descriptor */
+#define	GDATA_SEL	5	/* Kernel Data Descriptor */
+#define	GUCODE32_SEL	6	/* User 32 bit code Descriptor */
+#define	GUDATA_SEL	7	/* User 32/64 bit Data Descriptor */
+#define	GUCODE_SEL	8	/* User 64 bit Code Descriptor */
+#define	GPROC0_SEL	9	/* TSS for entering kernel etc */
+/* slot 10 is second half of GPROC0_SEL */
+#define	GUSERLDT_SEL	11	/* LDT */
+/* slot 11 is second half of GUSERLDT_SEL */
+#define	NGDT 		13
 
 #ifdef _KERNEL
 extern struct user_segment_descriptor gdt[];
