@@ -139,7 +139,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_FORWARD_IP,		/* fwd sockaddr			*/
 	O_FORWARD_MAC,		/* fwd mac			*/
 	O_NAT,                  /* nope                         */
-
+	O_REASS,                /* none                         */
+	
 	/*
 	 * More opcodes.
 	 */
@@ -574,6 +575,7 @@ enum {
 	IP_FW_NETGRAPH,
 	IP_FW_NGTEE,
 	IP_FW_NAT,
+	IP_FW_REASS,
 };
 
 /* flags for divert mtag */

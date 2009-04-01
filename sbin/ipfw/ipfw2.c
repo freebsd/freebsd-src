@@ -211,6 +211,7 @@ static struct _s_x rule_actions[] = {
 	{ "check-state",	TOK_CHECKSTATE },
 	{ "//",			TOK_COMMENT },
 	{ "nat",                TOK_NAT },
+	{ "reass",		TOK_REASS },
 	{ "setfib",		TOK_SETFIB },
 	{ NULL, 0 }	/* terminator */
 };
@@ -1089,6 +1090,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
  			break;
+
+		case O_REASS:
+			printf("reass");
+			break;
 			
 		default:
 			printf("** unrecognized action %d len %d ",
@@ -2781,6 +2786,10 @@ chkarg:
  		ac--; av++;
  		break;
 	    }
+
+	case TOK_REASS:
+		action->opcode = O_REASS;
+		break;
 		
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
