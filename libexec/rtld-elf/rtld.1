@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2009
+.Dd April 1, 2009
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -57,6 +57,25 @@ A mechanism is provided for initialization routines
 to be called on a per-object basis, giving a shared object an opportunity
 to perform any extra set-up before execution of the program proper begins.
 This is useful for C++ libraries that contain static constructors.
+.Pp
+When resolving dependencies for the loaded objects,
+.Nm
+may be allowed to translate dynamic token strings in rpath and soname
+by setting
+.Fl "z origin"
+option of the static linker
+.Xr ld 1 .
+The following strings are recognized now:
+.Bl -tag -width ".Pa $PLATFORM"
+.It Pa $ORIGIN
+Translated to the full path of the loaded object.
+.It Pa $OSNAME
+Translated to the name of the operating system implementation.
+.It Pa $OSREL
+Translated to the release level of the operating system.
+.It Pa $PLATFORM
+Translated to the machine hardware platform.
+.El
 .Pp
 The
 .Nm
