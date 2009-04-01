@@ -101,8 +101,6 @@ extern pt_entry_t *KPTphys;
 /* SMP page table page */
 extern pt_entry_t *SMPpt;
 
-extern int  _udatasel;
-
 struct pcb stoppcbs[MAXCPU];
 struct xpcb *stopxpcbs = NULL;
 
@@ -463,7 +461,8 @@ init_secondary(void)
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
-	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
+	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
+	    IOPAGES * PAGE_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	/* The NMI stack runs on IST2. */
@@ -472,12 +471,13 @@ init_secondary(void)
 
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
-	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	   (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
 	for (x = 0; x < NGDT; x++) {
-		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
+		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1))
 			ssdtosd(&gdt_segs[x], &gdt[NGDT * cpu + x]);
 	}
+	ssdtosyssd(&gdt_segs[GPROC0_SEL],
+	    (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
 	ap_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	ap_gdt.rd_base =  (long) &gdt[NGDT * cpu];
 	lgdt(&ap_gdt);			/* does magic intra-segment return */
@@ -491,8 +491,14 @@ init_secondary(void)
 	pc->pc_prvspace = pc;
 	pc->pc_curthread = 0;
 	pc->pc_tssp = &common_tss[cpu];
+	pc->pc_commontssp = &common_tss[cpu];
 	pc->pc_rsp0 = 0;
+	pc->pc_tss = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
+	    GPROC0_SEL];
+	pc->pc_fs32p = &gdt[NGDT * cpu + GUFS32_SEL];
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
+	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
+	    GUSERLDT_SEL];
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
 	np->np_pcpu = (register_t) pc;
@@ -601,7 +607,7 @@ init_secondary(void)
 	load_cr4(rcr4() | CR4_PGE);
 	load_ds(_udatasel);
 	load_es(_udatasel);
-	load_fs(_udatasel);
+	load_fs(_ufssel);
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
