@@ -239,6 +239,9 @@ void	ssdtosd(struct soft_segment_descriptor *ssdp,
 	    struct user_segment_descriptor *sdp);
 void	ssdtosyssd(struct soft_segment_descriptor *ssdp,
 	    struct system_segment_descriptor *sdp);
+void	update_gdt_gsbase(struct thread *td, uint32_t base);
+void	update_gdt_fsbase(struct thread *td, uint32_t base);
+
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_SEGMENTS_H_ */

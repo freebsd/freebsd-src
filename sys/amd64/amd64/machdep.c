@@ -159,7 +159,7 @@ extern vm_offset_t ksym_start, ksym_end;
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
 
-int	_udatasel, _ucodesel, _ucode32sel;
+int	_udatasel, _ucodesel, _ucode32sel, _ufssel, _ugssel;
 
 int cold = 1;
 
@@ -191,6 +191,8 @@ struct pcpu __pcpu[MAXCPU];
 struct mtx icu_lock;
 
 struct mem_range_softc mem_range_softc;
+
+struct mtx dt_lock;	/* lock for GDT and LDT */
 
 static void
 cpu_startup(dummy)
@@ -278,7 +280,7 @@ cpu_startup(dummy)
  * Send an interrupt to process.
  *
  * Stack is set up to allow sigcode stored
- * at top to call routine, followed by kcall
+ * at top to call routine, followed by call
  * to sigreturn routine below.  After sigreturn
  * resets the signal mask, the stack, and the
  * frame pointer, it returns to the user
@@ -316,6 +318,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
+	sf.sf_uc.uc_mcontext.mc_fsbase = td->td_pcb->pcb_fsbase;
+	sf.sf_uc.uc_mcontext.mc_gsbase = td->td_pcb->pcb_gsbase;
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -370,6 +374,11 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -401,9 +410,16 @@ sigreturn(td, uap)
 	ksiginfo_t ksi;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
-	if (error != 0)
+	if (error != 0) {
+		printf("sigreturn (pid %d): copyin failed\n", p->p_pid);
 		return (error);
+	}
 	ucp = &uc;
+	if ((ucp->uc_mcontext.mc_flags & ~_MC_FLAG_MASK) != 0) {
+		printf("sigreturn (pid %d): mc_flags %x\n", p->p_pid,
+		    ucp->uc_mcontext.mc_flags);
+		return (EINVAL);
+	}
 	regs = td->td_frame;
 	rflags = ucp->uc_mcontext.mc_rflags;
 	/*
@@ -420,7 +436,8 @@ sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("sigreturn: rflags = 0x%lx\n", rflags);
+		printf("sigreturn (pid %d): rflags = 0x%lx\n", p->p_pid,
+		    rflags);
 		return (EINVAL);
 	}
 
@@ -431,7 +448,7 @@ sigreturn(td, uap)
 	 */
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
-		printf("sigreturn: cs = 0x%x\n", cs);
+		printf("sigreturn (pid %d): cs = 0x%x\n", p->p_pid, cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;
@@ -442,9 +459,13 @@ sigreturn(td, uap)
 	}
 
 	ret = set_fpcontext(td, &ucp->uc_mcontext);
-	if (ret != 0)
+	if (ret != 0) {
+		printf("sigreturn (pid %d): set_fpcontext\n", p->p_pid);
 		return (ret);
+	}
 	bcopy(&ucp->uc_mcontext.mc_rdi, regs, sizeof(*regs));
+	td->td_pcb->pcb_fsbase = ucp->uc_mcontext.mc_fsbase;
+	td->td_pcb->pcb_gsbase = ucp->uc_mcontext.mc_gsbase;
 
 	PROC_LOCK(p);
 #if defined(COMPAT_43)
@@ -738,22 +759,16 @@ exec_setregs(td, entry, stack, ps_strings)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
+
+	mtx_lock(&dt_lock);
+	if (td->td_proc->p_md.md_ldt != NULL)
+		user_ldt_free(td);
+	else
+		mtx_unlock(&dt_lock);
 	
-	critical_enter();
-	wrmsr(MSR_FSBASE, 0);
-	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
-	critical_exit();
 	pcb->pcb_flags &= ~(PCB_32BIT | PCB_GS32BIT);
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_udatasel);
-	load_gs(_udatasel);
-	pcb->pcb_ds = _udatasel;
-	pcb->pcb_es = _udatasel;
-	pcb->pcb_fs = _udatasel;
-	pcb->pcb_gs = _udatasel;
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
@@ -763,6 +778,11 @@ exec_setregs(td, entry, stack, ps_strings)
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucodesel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
 
 	/*
 	 * Reset the hardware debug registers if they were in use.
@@ -1380,12 +1400,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/*
 	 * make gdt memory segments
 	 */
-	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&common_tss[0];
-
 	for (x = 0; x < NGDT; x++) {
-		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
+		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL) + 1)
 			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
+	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&common_tss[0];
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
 
@@ -1403,6 +1423,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
 	PCPU_SET(tssp, &common_tss[0]);
+	PCPU_SET(commontssp, &common_tss[0]);
+	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+	PCPU_SET(ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
+	PCPU_SET(fs32p, &gdt[GUFS32_SEL]);
 	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
 
 	/*
@@ -1415,6 +1439,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	mutex_init();
 	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
+	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_DEF);
 
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)
@@ -1503,7 +1528,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	common_tss[0].tss_ist2 = (long) np;
 
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
-	common_tss[0].tss_iobase = sizeof(struct amd64tss);
+	common_tss[0].tss_iobase = sizeof(struct amd64tss) +
+	    IOPAGES * PAGE_SIZE;
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
@@ -1531,10 +1557,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 	_ucode32sel = GSEL(GUCODE32_SEL, SEL_UPL);
+	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
+	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
 
 	load_ds(_udatasel);
 	load_es(_udatasel);
-	load_fs(_udatasel);
+	load_fs(_ufssel);
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
@@ -1656,6 +1684,17 @@ fill_regs(struct thread *td, struct reg *regs)
 	regs->r_rflags = tp->tf_rflags;
 	regs->r_rsp = tp->tf_rsp;
 	regs->r_ss = tp->tf_ss;
+	if (tp->tf_flags & TF_HASSEGS) {
+		regs->r_ds = tp->tf_ds;
+		regs->r_es = tp->tf_es;
+		regs->r_fs = tp->tf_fs;
+		regs->r_gs = tp->tf_gs;
+	} else {
+		regs->r_ds = 0;
+		regs->r_es = 0;
+		regs->r_fs = 0;
+		regs->r_gs = 0;
+	}
 	return (0);
 }
 
@@ -1689,6 +1728,13 @@ set_regs(struct thread *td, struct reg *regs)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = regs->r_rsp;
 	tp->tf_ss = regs->r_ss;
+	if (0) {	/* XXXKIB */
+		tp->tf_ds = regs->r_ds;
+		tp->tf_es = regs->r_es;
+		tp->tf_fs = regs->r_fs;
+		tp->tf_gs = regs->r_gs;
+		tp->tf_flags = TF_HASSEGS;
+	}
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }
@@ -1808,8 +1854,15 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_cs = tp->tf_cs;
 	mcp->mc_rsp = tp->tf_rsp;
 	mcp->mc_ss = tp->tf_ss;
+	mcp->mc_ds = tp->tf_ds;
+	mcp->mc_es = tp->tf_es;
+	mcp->mc_fs = tp->tf_fs;
+	mcp->mc_gs = tp->tf_gs;
+	mcp->mc_flags = tp->tf_flags;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp);
+	mcp->mc_fsbase = td->td_pcb->pcb_fsbase;
+	mcp->mc_gsbase = td->td_pcb->pcb_gsbase;
 	return (0);
 }
 
@@ -1827,7 +1880,8 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	int ret;
 
 	tp = td->td_frame;
-	if (mcp->mc_len != sizeof(*mcp))
+	if (mcp->mc_len != sizeof(*mcp) ||
+	    (mcp->mc_flags & ~_MC_FLAG_MASK) != 0)
 		return (EINVAL);
 	rflags = (mcp->mc_rflags & PSL_USERCHANGE) |
 	    (tp->tf_rflags & ~PSL_USERCHANGE);
@@ -1853,6 +1907,17 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = mcp->mc_rsp;
 	tp->tf_ss = mcp->mc_ss;
+	tp->tf_flags = mcp->mc_flags;
+	if (tp->tf_flags & TF_HASSEGS) {
+		tp->tf_ds = mcp->mc_ds;
+		tp->tf_es = mcp->mc_es;
+		tp->tf_fs = mcp->mc_fs;
+		tp->tf_gs = mcp->mc_gs;
+	}
+	if (mcp->mc_flags & _MC_HASBASES) {
+		td->td_pcb->pcb_fsbase = mcp->mc_fsbase;
+		td->td_pcb->pcb_gsbase = mcp->mc_gsbase;
+	}
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }

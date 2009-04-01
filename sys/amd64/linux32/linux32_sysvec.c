@@ -290,7 +290,6 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	return 0;
 }
 
-extern int _ucodesel, _ucode32sel, _udatasel;
 extern unsigned long linux_sznonrtsigcode;
 
 static void
@@ -360,13 +359,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
-	frame.sf_sc.uc_mcontext.sc_mask	= frame.sf_sc.uc_sigmask.__bits[0];
-	frame.sf_sc.uc_mcontext.sc_gs     = rgs();
-	frame.sf_sc.uc_mcontext.sc_fs     = rfs();
-	__asm __volatile("mov %%es,%0" :
-	    "=rm" (frame.sf_sc.uc_mcontext.sc_es));
-	__asm __volatile("mov %%ds,%0" :
-	    "=rm" (frame.sf_sc.uc_mcontext.sc_ds));
+	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__bits[0];
 	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.uc_mcontext.sc_ebp    = regs->tf_rbp;
@@ -376,6 +369,10 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.uc_mcontext.sc_eax    = regs->tf_rax;
 	frame.sf_sc.uc_mcontext.sc_eip    = regs->tf_rip;
 	frame.sf_sc.uc_mcontext.sc_cs     = regs->tf_cs;
+	frame.sf_sc.uc_mcontext.sc_gs     = regs->tf_gs;
+	frame.sf_sc.uc_mcontext.sc_fs     = regs->tf_fs;
+	frame.sf_sc.uc_mcontext.sc_es     = regs->tf_es;
+	frame.sf_sc.uc_mcontext.sc_ds     = regs->tf_ds;
 	frame.sf_sc.uc_mcontext.sc_eflags = regs->tf_rflags;
 	frame.sf_sc.uc_mcontext.sc_esp_at_signal = regs->tf_rsp;
 	frame.sf_sc.uc_mcontext.sc_ss     = regs->tf_ss;
@@ -413,11 +410,11 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
-	load_ds(_udatasel);
-	td->td_pcb->pcb_ds = _udatasel;
-	load_es(_udatasel);
-	td->td_pcb->pcb_es = _udatasel;
-	/* leave user %fs and %gs untouched */
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -495,10 +492,10 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build the signal context to be used by sigreturn.
 	 */
 	frame.sf_sc.sc_mask   = lmask.__bits[0];
-	frame.sf_sc.sc_gs     = rgs();
-	frame.sf_sc.sc_fs     = rfs();
-	__asm __volatile("mov %%es,%0" : "=rm" (frame.sf_sc.sc_es));
-	__asm __volatile("mov %%ds,%0" : "=rm" (frame.sf_sc.sc_ds));
+	frame.sf_sc.sc_gs     = regs->tf_gs;
+	frame.sf_sc.sc_fs     = regs->tf_fs;
+	frame.sf_sc.sc_es     = regs->tf_es;
+	frame.sf_sc.sc_ds     = regs->tf_ds;
 	frame.sf_sc.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.sc_ebp    = regs->tf_rbp;
@@ -535,11 +532,11 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
-	load_ds(_udatasel);
-	td->td_pcb->pcb_ds = _udatasel;
-	load_es(_udatasel);
-	td->td_pcb->pcb_es = _udatasel;
-	/* leave user %fs and %gs untouched */
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -624,7 +621,6 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	/*
 	 * Restore signal context.
 	 */
-	/* Selectors were restored by the trampoline. */
 	regs->tf_rdi    = frame.sf_sc.sc_edi;
 	regs->tf_rsi    = frame.sf_sc.sc_esi;
 	regs->tf_rbp    = frame.sf_sc.sc_ebp;
@@ -634,6 +630,10 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	regs->tf_rax    = frame.sf_sc.sc_eax;
 	regs->tf_rip    = frame.sf_sc.sc_eip;
 	regs->tf_cs     = frame.sf_sc.sc_cs;
+	regs->tf_ds     = frame.sf_sc.sc_ds;
+	regs->tf_es     = frame.sf_sc.sc_es;
+	regs->tf_fs     = frame.sf_sc.sc_fs;
+	regs->tf_gs     = frame.sf_sc.sc_gs;
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = frame.sf_sc.sc_esp_at_signal;
 	regs->tf_ss     = frame.sf_sc.sc_ss;
@@ -722,7 +722,10 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	/*
 	 * Restore signal context
 	 */
-	/* Selectors were restored by the trampoline. */
+	regs->tf_gs	= context->sc_gs;
+	regs->tf_fs	= context->sc_fs;
+	regs->tf_es	= context->sc_es;
+	regs->tf_ds	= context->sc_ds;
 	regs->tf_rdi    = context->sc_edi;
 	regs->tf_rsi    = context->sc_esi;
 	regs->tf_rbp    = context->sc_ebp;
@@ -827,27 +830,30 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
+	mtx_lock(&dt_lock);
+	if (td->td_proc->p_md.md_ldt != NULL)
+		user_ldt_free(td);
+	else
+		mtx_unlock(&dt_lock);
+
 	critical_enter();
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
 	critical_exit();
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_udatasel);
-	load_gs(_udatasel);
-	pcb->pcb_ds = _udatasel;
-	pcb->pcb_es = _udatasel;
-	pcb->pcb_fs = _udatasel;
-	pcb->pcb_gs = _udatasel;
 	pcb->pcb_initial_fpucw = __LINUX_NPXCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
 	regs->tf_rsp = stack;
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_gs = _ugssel;
+	regs->tf_fs = _ufssel;
+	regs->tf_es = _udatasel;
+	regs->tf_ds = _udatasel;
 	regs->tf_ss = _udatasel;
+	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = ps_strings;
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
