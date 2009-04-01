@@ -89,6 +89,8 @@ start_info_t *xen_start_info;
 shared_info_t *HYPERVISOR_shared_info;
 xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
+xen_pfn_t *xen_pfn_to_mfn_frame_list[16];
+xen_pfn_t *xen_pfn_to_mfn_frame_list_list;
 int preemptable, init_first;
 extern unsigned int avail_space;
 
@@ -810,6 +812,39 @@ shift_phys_machine(unsigned long *phys_machine, int nr_pages)
 }
 #endif /* ADD_ISA_HOLE */
 
+/*
+ * Build a directory of the pages that make up our Physical to Machine
+ * mapping table. The Xen suspend/restore code uses this to find our
+ * mapping table.
+ */
+static void
+init_frame_list_list(void *arg)
+{
+	unsigned long nr_pages = xen_start_info->nr_pages;
+#define FPP	(PAGE_SIZE/sizeof(xen_pfn_t))
+	int i, j, k;
+
+	xen_pfn_to_mfn_frame_list_list = malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK);
+	for (i = 0, j = 0, k = -1; i < nr_pages;
+	     i += FPP, j++) {
+		if ((j & (FPP - 1)) == 0) {
+			k++;
+			xen_pfn_to_mfn_frame_list[k] =
+				malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK);
+			xen_pfn_to_mfn_frame_list_list[k] =
+				VTOMFN(xen_pfn_to_mfn_frame_list[k]);
+			j = 0;
+		}
+		xen_pfn_to_mfn_frame_list[k][j] = 
+			VTOMFN(&xen_phys_machine[i]);
+	}
+
+	HYPERVISOR_shared_info->arch.max_pfn = nr_pages;
+	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list
+		= VTOMFN(xen_pfn_to_mfn_frame_list_list);
+}	
+SYSINIT(init_fll, SI_SUB_DEVFS, SI_ORDER_ANY, init_frame_list_list, NULL);
+
 extern unsigned long physfree;
 
 int pdir, curoffset;
@@ -1081,7 +1116,6 @@ initvalues(start_info_t *startinfo)
 	PT_SET_MA(console_page, console_page_ma | PG_KERNEL);
 
 	printk("#5\n");
-	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = (unsigned long)xen_phys_machine;
 
 	set_iopl.iopl = 1;
 	PANIC_IF(HYPERVISOR_physdev_op(PHYSDEVOP_SET_IOPL, &set_iopl));
