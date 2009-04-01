@@ -219,9 +219,7 @@ IDTVEC(cpustop)
 	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 
 	call	cpustop_handler
-
-	POP_FRAME
-	iretq
+	jmp	doreti
 
 /*
  * Executed by a CPU when it receives an IPI_SUSPEND from another CPU.
@@ -251,6 +249,5 @@ IDTVEC(rendezvous)
 	call	smp_rendezvous_action
 	movq	lapic, %rax
 	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-	POP_FRAME			/* Why not doreti? */
-	iretq
+	jmp	doreti
 #endif /* SMP */

@@ -75,8 +75,6 @@ ENTRY(cpu_throw)
 1:
 	movq	TD_PCB(%rdi),%r8		/* Old pcb */
 	movl	PCPU(CPUID), %eax
-	movq	PCB_FSBASE(%r8),%r9
-	movq	PCB_GSBASE(%r8),%r10
 	/* release bit from old pm_active */
 	movq	TD_PROC(%rdi), %rdx		/* oldtd->td_proc */
 	movq	P_VMSPACE(%rdx), %rdx		/* proc->p_vmspace */
@@ -109,28 +107,6 @@ ENTRY(cpu_switch)
 	movq	%rsp,PCB_RSP(%r8)
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rax,PCB_RIP(%r8)
-
-	/*
-	 * Reread fs and gs bases. Explicit fs segment register load
-	 * by the usermode code may change actual fs base without
-	 * updating pcb_{fs,gs}base.
-	 *
-	 * %rdx still contains the mtx, save %rdx around rdmsr.
-	 */
-	movq	%rdx,%r11
-	movl	$MSR_FSBASE,%ecx
-	rdmsr
-	shlq	$32,%rdx
-	leaq	(%rax,%rdx),%r9
-	movl	$MSR_KGSBASE,%ecx
-	rdmsr
-	shlq	$32,%rdx
-	leaq	(%rax,%rdx),%r10
-	movq	%r11,%rdx
-
-	testl	$PCB_32BIT,PCB_FLAGS(%r8)
-	jnz	store_seg
-done_store_seg:
 
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	store_dr			/* static predict not taken */
@@ -192,36 +168,47 @@ sw1:
 	testl	$TDP_KTHREAD,TD_PFLAGS(%rsi)
 	jnz	do_kthread
 
-	testl	$PCB_32BIT,PCB_FLAGS(%r8)
-	jnz	load_seg
-done_load_seg:
+	/*
+	 * Load ldt register
+	 */
+	movq	TD_PROC(%rsi),%rcx
+	cmpq	$0, P_MD+MD_LDT(%rcx)
+	jne	do_ldt
+	xorl	%eax,%eax
+ld_ldt:	lldt	%ax
 
-	cmpq	PCB_FSBASE(%r8),%r9
-	jz	1f
-	/* Restore userland %fs */
-restore_fsbase:
-	movl	$MSR_FSBASE,%ecx
+	/* Restore fs base in GDT */
 	movl	PCB_FSBASE(%r8),%eax
-	movl	PCB_FSBASE+4(%r8),%edx
-	wrmsr
-1:
-	cmpq	PCB_GSBASE(%r8),%r10
-	jz	2f
-	/* Restore userland %gs */
-	movl	$MSR_KGSBASE,%ecx
-	movl	PCB_GSBASE(%r8),%eax
-	movl	PCB_GSBASE+4(%r8),%edx
-	wrmsr
-2:
+	movq	PCPU(FS32P),%rdx
+	movw	%ax,2(%rdx)
+	shrl	$16,%eax
+	movb	%al,4(%rdx)
+	shrl	$8,%eax
+	movb	%al,7(%rdx)
 
-do_tss:
+	/* Restore gs base in GDT */
+	movl	PCB_GSBASE(%r8),%eax
+	movq	PCPU(GS32P),%rdx
+	movw	%ax,2(%rdx)
+	shrl	$16,%eax
+	movb	%al,4(%rdx)
+	shrl	$8,%eax
+	movb	%al,7(%rdx)
+
+do_kthread:
+	/* Do we need to reload tss ? */
+	movq	PCPU(TSSP),%rax
+	movq	PCB_TSSP(%r8),%rdx
+	testq	%rdx,%rdx
+	cmovzq	PCPU(COMMONTSSP),%rdx
+	cmpq	%rax,%rdx
+	jne	do_tss
+done_tss:
+	movq	%r8,PCPU(RSP0)
+	movq	%r8,PCPU(CURPCB)
 	/* Update the TSS_RSP0 pointer for the next interrupt */
-	movq	PCPU(TSSP), %rax
-	movq	%r8, PCPU(RSP0)
-	movq	%r8, PCPU(CURPCB)
-	addq	$COMMON_TSS_RSP0, %rax
-	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
-	movq	%r8, (%rax)
+	movq	%r8,COMMON_TSS_RSP0(%rdx)
+	movq	%rsi,PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -249,45 +236,6 @@ done_load_dr:
 	 * So, to make it work on both forms of cpu we do the detour.
 	 * We use jumps rather than call in order to avoid the stack.
 	 */
-
-do_kthread:
-	/*
-	 * Copy old fs/gsbase to new kthread pcb for future switches
-	 * This maintains curpcb->pcb_[fg]sbase as caches of the MSR
-	 */
-	movq	%r9,PCB_FSBASE(%r8)
-	movq	%r10,PCB_GSBASE(%r8)
-	jmp	do_tss
-
-store_seg:
-	mov	%gs,PCB_GS(%r8)
-	testl	$PCB_GS32BIT,PCB_FLAGS(%r8)
-	jnz	2f
-1:	mov	%ds,PCB_DS(%r8)
-	mov	%es,PCB_ES(%r8)
-	mov	%fs,PCB_FS(%r8)
-	jmp	done_store_seg
-2:	movq	PCPU(GS32P),%rax
-	movq	(%rax),%rax
-	movq	%rax,PCB_GS32SD(%r8)
-	jmp	1b
-
-load_seg:
-	testl	$PCB_GS32BIT,PCB_FLAGS(%r8)
-	jnz	2f
-1:	movl	$MSR_GSBASE,%ecx
-	rdmsr
-	mov	PCB_GS(%r8),%gs
-	wrmsr
-	mov	PCB_DS(%r8),%ds
-	mov	PCB_ES(%r8),%es
-	mov	PCB_FS(%r8),%fs
-	jmp	restore_fsbase
-	/* Restore userland %gs while preserving kernel gsbase */
-2:	movq	PCPU(GS32P),%rax
-	movq	PCB_GS32SD(%r8),%rcx
-	movq	%rcx,(%rax)
-	jmp	1b
 
 store_dr:
 	movq	%dr7,%rax			/* yes, do the save */
@@ -325,6 +273,29 @@ load_dr:
 	movq	%r11,%dr6
 	movq	%rax,%dr7
 	jmp	done_load_dr
+
+do_tss:	movq	%rdx,PCPU(TSSP)
+	movq	%rdx,%rcx
+	movq	PCPU(TSS),%rax
+	movw	%rcx,2(%rax)
+	shrq	$16,%rcx
+	movb	%cl,4(%rax)
+	shrq	$8,%rcx
+	movb	%cl,7(%rax)
+	shrq	$8,%rcx
+	movl	%ecx,8(%rax)
+	movb	$0x89,5(%rax)	/* unset busy */
+	movl	$TSSSEL,%eax
+	ltr	%ax
+	jmp	done_tss
+
+do_ldt:	movq	PCPU(LDT),%rax
+	movq	P_MD+MD_LDT_SD(%rcx),%rdx
+	movq	%rdx,(%rax)
+	movq	P_MD+MD_LDT_SD+8(%rcx),%rdx
+	movq	%rdx,8(%rax)
+	movl	$LDTSEL,%eax
+	jmp	ld_ldt
 END(cpu_switch)
 
 /*
@@ -397,12 +368,6 @@ ENTRY(savectx2)
 	/* Save caller's return address. */
 	movq	(%rsp),%rax
 	movq	%rax,PCB_RIP(%r8)
-
-	mov	%ds,PCB_DS(%r8)
-	mov	%es,PCB_ES(%r8)
-	mov	%ss,XPCB_SS(%r8)
-	mov	%fs,PCB_FS(%r8)
-	mov	%gs,PCB_GS(%r8)
 
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rsp,PCB_RSP(%r8)

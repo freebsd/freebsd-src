@@ -64,12 +64,17 @@ ENTRY(acpi_restorecpu)
 	/* Fetch PCB. */
 	movq	WAKEUP_CTX(xpcb), %r11
 
-	/* Restore segment registers. */
-	mov	WAKEUP_PCB(DS), %ds
-	mov	WAKEUP_PCB(ES), %es
-	mov	WAKEUP_XPCB(SS), %ss
-	mov	WAKEUP_PCB(FS), %fs
-	mov	WAKEUP_PCB(GS), %gs
+	/* Force kernel segment registers. */
+	movl	$KDSEL, %eax
+	movw	%ax, %ds
+	movl	$KDSEL, %eax
+	movw	%ax, %es
+	movl	$KDSEL, %eax
+	movw	%ax, %ss
+	movl	$KUF32SEL, %eax
+	movw	%ax, %fs
+	movl	$KUG32SEL, %eax
+	movw	%ax, %gs
 
 	movl	$MSR_FSBASE, %ecx
 	movl	WAKEUP_PCB(FSBASE), %eax

@@ -33,6 +33,13 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
+#include <machine/segments.h>
+
+struct proc_ldt {
+	caddr_t ldt_base;
+	int     ldt_refcnt;
+};
+
 /*
  * Machine-dependent part of the proc structure for AMD64.
  */
@@ -42,6 +49,8 @@ struct mdthread {
 };
 
 struct mdproc {
+	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
+	struct system_segment_descriptor md_ldt_sd;
 };
 
 #ifdef	_KERNEL
@@ -54,6 +63,18 @@ struct mdproc {
 	    td->td_kstack_pages * PAGE_SIZE -				\
 	    (char *)&td;						\
 } while (0)
+
+void set_user_ldt(struct mdproc *);
+struct proc_ldt *user_ldt_alloc(struct proc *, int);
+void user_ldt_free(struct thread *);
+void user_ldt_deref(struct proc_ldt *);
+struct sysarch_args;
+int sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space);
+int amd64_set_ldt_data(struct thread *td, int start, int num,
+    struct user_segment_descriptor *descs);
+
+extern struct mtx dt_lock;
+extern int max_ldt_segment;
 
 #endif  /* _KERNEL */
 
