@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/proc.h>
-#include <machine/specialreg.h>
 #include <machine/segments.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
@@ -245,8 +244,6 @@ ASSYM(KUG32SEL, GSEL(GUGS32_SEL, SEL_UPL));
 ASSYM(TSSSEL, GSEL(GPROC0_SEL, SEL_KPL));
 ASSYM(LDTSEL, GSEL(GUSERLDT_SEL, SEL_KPL));
 ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
-
-ASSYM(MSR_GSBASE, MSR_GSBASE);
 
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
