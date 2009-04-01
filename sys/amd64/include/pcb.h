@@ -86,7 +86,6 @@ struct xpcb {
 	register_t	xpcb_cr2;
 	register_t	xpcb_cr4;
 	register_t	xpcb_kgsbase;
-	uint32_t	xpcb_ss;
 	struct region_descriptor xpcb_gdt;
 	struct region_descriptor xpcb_idt;
 	struct region_descriptor xpcb_ldt;

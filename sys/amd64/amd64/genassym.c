@@ -161,7 +161,6 @@ ASSYM(XPCB_CR0, offsetof(struct xpcb, xpcb_cr0));
 ASSYM(XPCB_CR2, offsetof(struct xpcb, xpcb_cr2));
 ASSYM(XPCB_CR4, offsetof(struct xpcb, xpcb_cr4));
 ASSYM(XPCB_KGSBASE, offsetof(struct xpcb, xpcb_kgsbase));
-ASSYM(XPCB_SS, offsetof(struct xpcb, xpcb_ss));
 ASSYM(XPCB_GDT, offsetof(struct xpcb, xpcb_gdt));
 ASSYM(XPCB_IDT, offsetof(struct xpcb, xpcb_idt));
 ASSYM(XPCB_LDT, offsetof(struct xpcb, xpcb_ldt));
