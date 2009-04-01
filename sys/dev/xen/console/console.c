@@ -225,7 +225,6 @@ static int
 xc_attach(device_t dev) 
 {
 	int error;
-	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
 
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 		xc_consdev.cn_putc = xccnputc_dom0;
@@ -247,7 +246,7 @@ xc_attach(device_t dev)
 				 0,
 				 "console",
 				 NULL,
-				 xencons_priv_interrupt,
+				 xencons_priv_interrupt, NULL,
 				 INTR_TYPE_TTY, NULL);
 		
 				KASSERT(error >= 0, ("can't register console interrupt"));
