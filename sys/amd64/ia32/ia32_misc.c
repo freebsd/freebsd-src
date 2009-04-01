@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm
+ * Copyright (c) 2009 Konstantin Belousov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,51 +22,50 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <machine/asmacros.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include "assym.s"
+#include "opt_compat.h"
 
-	.text
-/*
- * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
- *
- * This is a SDT_SYSIDT entry point (unlike the i386 port) so that we
- * can do a swapgs before enabling interrupts.  This is critical because
- * if we took an interrupt before swapgs, the interrupt code would see
- * that it originated in supervisor mode and skip the swapgs.
- */
-	SUPERALIGN_TEXT
-IDTVEC(int0x80_syscall)
-	swapgs
-	sti
-	pushq	$2			/* sizeof "int 0x80" */
-	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
-	movq	%rdi,TF_RDI(%rsp)
-	movq	%rsi,TF_RSI(%rsp)
-	movq	%rdx,TF_RDX(%rsp)
-	movq	%rcx,TF_RCX(%rsp)
-	movq	%r8,TF_R8(%rsp)
-	movq	%r9,TF_R9(%rsp)
-	movq	%rax,TF_RAX(%rsp)
-	movq	%rbx,TF_RBX(%rsp)
-	movq	%rbp,TF_RBP(%rsp)
-	movq	%r10,TF_R10(%rsp)
-	movq	%r11,TF_R11(%rsp)
-	movq	%r12,TF_R12(%rsp)
-	movq	%r13,TF_R13(%rsp)
-	movq	%r14,TF_R14(%rsp)
-	movq	%r15,TF_R15(%rsp)
-	movw	%fs,TF_FS(%rsp)
-	movw	%gs,TF_GS(%rsp)
-	movw	%es,TF_ES(%rsp)
-	movw	%ds,TF_DS(%rsp)
-	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
-	FAKE_MCOUNT(TF_RIP(%rsp))
-	movq	%rsp, %rdi
-	call	ia32_syscall
-	MEXITCOUNT
-	jmp	doreti
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
+
+#include <machine/cpu.h>
+#include <machine/sysarch.h>
+
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+
+int
+freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
+{
+	struct sysarch_args uap1;
+	struct i386_ldt_args uapl;
+	struct i386_ldt_args32 uapl32;
+	int error;
+
+	if (uap->op == I386_SET_LDT || uap->op == I386_GET_LDT) {
+		if ((error = copyin(uap->parms, &uapl32, sizeof(uapl32))) != 0)
+			return (error);
+		uap1.op = uap->op;
+		uap1.parms = (char *)&uapl;
+		uapl.start = uapl32.start;
+		uapl.descs = (struct user_segment_descriptor *)(uintptr_t)
+		    uapl32.descs;
+		uapl.num = uapl32.num;
+		return (sysarch_ldt(td, &uap1, UIO_SYSSPACE));
+	} else {
+		uap1.op = uap->op;
+		uap1.parms = uap->parms;
+		return (sysarch(td, &uap1));
+	}
+}

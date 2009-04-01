@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
+#include <machine/tss.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -102,12 +103,24 @@ cpu_fork(td1, p2, td2, flags)
 {
 	register struct proc *p1;
 	struct pcb *pcb2;
-	struct mdproc *mdp2;
+	struct mdproc *mdp1, *mdp2;
+	struct proc_ldt *pldt;
 	pmap_t pmap2;
 
 	p1 = td1->td_proc;
-	if ((flags & RFPROC) == 0)
+	if ((flags & RFPROC) == 0) {
+		if ((flags & RFMEM) == 0) {
+			/* unshare user LDT */
+			mdp1 = &p1->p_md;
+			mtx_lock(&dt_lock);
+			if ((pldt = mdp1->md_ldt) != NULL &&
+			    pldt->ldt_refcnt > 1 &&
+			    user_ldt_alloc(p1, 1) == NULL)
+				panic("could not copy LDT");
+			mtx_unlock(&dt_lock);
+		}
 		return;
+	}
 
 	/* Ensure that p1's pcb is up to date. */
 	fpuexit(td1);
@@ -170,6 +183,32 @@ cpu_fork(td1, p2, td2, flags)
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
 
+	/* As an i386, do not copy io permission bitmap. */
+	pcb2->pcb_tssp = NULL;
+
+	/* Copy the LDT, if necessary. */
+	mdp1 = &td1->td_proc->p_md;
+	mdp2 = &p2->p_md;
+	mtx_lock(&dt_lock);
+	if (mdp1->md_ldt != NULL) {
+		if (flags & RFMEM) {
+			mdp1->md_ldt->ldt_refcnt++;
+			mdp2->md_ldt = mdp1->md_ldt;
+			bcopy(&mdp1->md_ldt_sd, &mdp2->md_ldt_sd, sizeof(struct
+			    system_segment_descriptor));
+		} else {
+			mdp2->md_ldt = NULL;
+			mdp2->md_ldt = user_ldt_alloc(p2, 0);
+			if (mdp2->md_ldt == NULL)
+				panic("could not copy LDT");
+			amd64_set_ldt_data(td2, 0, max_ldt_segment,
+			    (struct user_segment_descriptor *)
+			    mdp1->md_ldt->ldt_base);
+		}
+	} else
+		mdp2->md_ldt = NULL;
+	mtx_unlock(&dt_lock);
+
 	/*
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_rsp is loaded pointing to the cpu_switch() stack frame
@@ -204,25 +243,49 @@ cpu_set_fork_handler(td, func, arg)
 void
 cpu_exit(struct thread *td)
 {
+
+	/*
+	 * If this process has a custom LDT, release it.
+	 */
+	mtx_lock(&dt_lock);
+	if (td->td_proc->p_md.md_ldt != 0)
+		user_ldt_free(td);
+	else
+		mtx_unlock(&dt_lock);
 }
 
 void
 cpu_thread_exit(struct thread *td)
 {
+	struct pcb *pcb;
 
 	if (td == PCPU_GET(fpcurthread))
 		fpudrop();
 
+	pcb = td->td_pcb;
+
 	/* Disable any hardware breakpoints. */
-	if (td->td_pcb->pcb_flags & PCB_DBREGS) {
+	if (pcb->pcb_flags & PCB_DBREGS) {
 		reset_dbregs();
-		td->td_pcb->pcb_flags &= ~PCB_DBREGS;
+		pcb->pcb_flags &= ~PCB_DBREGS;
 	}
 }
 
 void
 cpu_thread_clean(struct thread *td)
 {
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+
+	/*
+	 * Clean TSS/iomap
+	 */
+	if (pcb->pcb_tssp != NULL) {
+		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_tssp,
+		    ctob(IOPAGES + 1));
+		pcb->pcb_tssp = NULL;
+	}
 }
 
 void
@@ -247,6 +310,8 @@ cpu_thread_alloc(struct thread *td)
 void
 cpu_thread_free(struct thread *td)
 {
+
+	cpu_thread_clean(td);
 }
 
 /*
@@ -358,6 +423,11 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	    ((register_t)stack->ss_sp + stack->ss_size) & ~0x0f;
 	td->td_frame->tf_rsp -= 8;
 	td->td_frame->tf_rip = (register_t)entry;
+	td->td_frame->tf_ds = _udatasel;
+	td->td_frame->tf_es = _udatasel;
+	td->td_frame->tf_fs = _ufssel;
+	td->td_frame->tf_gs = _ugssel;
+	td->td_frame->tf_flags = TF_HASSEGS;
 
 	/*
 	 * Pass the address of the mailbox for this kse to the uts
@@ -375,25 +445,11 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 #ifdef COMPAT_IA32
 	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
-		if (td == curthread) {
-			critical_enter();
-			td->td_pcb->pcb_gsbase = (register_t)tls_base;
-			wrmsr(MSR_KGSBASE, td->td_pcb->pcb_gsbase);
-			critical_exit();
-		} else {
-			td->td_pcb->pcb_gsbase = (register_t)tls_base;
-		}
+		td->td_pcb->pcb_gsbase = (register_t)tls_base;
 		return (0);
 	}
 #endif
-	if (td == curthread) {
-		critical_enter();
-		td->td_pcb->pcb_fsbase = (register_t)tls_base;
-		wrmsr(MSR_FSBASE, td->td_pcb->pcb_fsbase);
-		critical_exit();
-	} else {
-		td->td_pcb->pcb_fsbase = (register_t)tls_base;
-	}
+	td->td_pcb->pcb_fsbase = (register_t)tls_base;
 	return (0);
 }
 

@@ -85,9 +85,17 @@ fill_regs32(struct thread *td, struct reg32 *regs)
 
 	tp = td->td_frame;
 	pcb = td->td_pcb;
-	regs->r_fs = pcb->pcb_fs;
-	regs->r_es = pcb->pcb_es;
-	regs->r_ds = pcb->pcb_ds;
+	if (tp->tf_flags & TF_HASSEGS) {
+		regs->r_gs = tp->tf_gs;
+		regs->r_fs = tp->tf_fs;
+		regs->r_es = tp->tf_es;
+		regs->r_ds = tp->tf_ds;
+	} else {
+		regs->r_gs = _ugssel;
+		regs->r_fs = _ufssel;
+		regs->r_es = _udatasel;
+		regs->r_ds = _udatasel;
+	}
 	regs->r_edi = tp->tf_rdi;
 	regs->r_esi = tp->tf_rsi;
 	regs->r_ebp = tp->tf_rbp;
@@ -100,7 +108,6 @@ fill_regs32(struct thread *td, struct reg32 *regs)
 	regs->r_eflags = tp->tf_rflags;
 	regs->r_esp = tp->tf_rsp;
 	regs->r_ss = tp->tf_ss;
-	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
 
@@ -114,14 +121,11 @@ set_regs32(struct thread *td, struct reg32 *regs)
 	if (!EFL_SECURE(regs->r_eflags, tp->tf_rflags) || !CS_SECURE(regs->r_cs))
 		return (EINVAL);
 	pcb = td->td_pcb;
-#if 0
-	load_fs(regs->r_fs);
-	pcb->pcb_fs = regs->r_fs;
-	load_es(regs->r_es);
-	pcb->pcb_es = regs->r_es;
-	load_ds(regs->r_ds);
-	pcb->pcb_ds = regs->r_ds;
-#endif
+	tp->tf_gs = regs->r_gs;
+	tp->tf_fs = regs->r_fs;
+	tp->tf_es = regs->r_es;
+	tp->tf_ds = regs->r_ds;
+	tp->tf_flags = TF_HASSEGS;
 	tp->tf_rdi = regs->r_edi;
 	tp->tf_rsi = regs->r_esi;
 	tp->tf_rbp = regs->r_ebp;
@@ -134,10 +138,6 @@ set_regs32(struct thread *td, struct reg32 *regs)
 	tp->tf_rflags = regs->r_eflags;
 	tp->tf_rsp = regs->r_esp;
 	tp->tf_ss = regs->r_ss;
-#if 0
-	load_gs(regs->r_gs);
-	pcb->pcb_gs = regs->r_gs;
-#endif
 	return (0);
 }
 
@@ -166,7 +166,8 @@ fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 	penv_87->en_fcs = td->td_frame->tf_cs;
 	penv_87->en_opcode = penv_xmm->en_opcode;
 	penv_87->en_foo = penv_xmm->en_rdp;
-	penv_87->en_fos = td->td_pcb->pcb_ds;
+	/* Entry into the kernel always sets TF_HASSEGS */
+	penv_87->en_fos = td->td_frame->tf_ds;
 
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)

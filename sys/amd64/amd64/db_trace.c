@@ -69,12 +69,10 @@ static db_varfcn_t db_ss;
 #define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
 	{ "cs",		DB_OFFSET(tf_cs),	db_frame },
-#if 0
 	{ "ds",		DB_OFFSET(tf_ds),	db_frame },
 	{ "es",		DB_OFFSET(tf_es),	db_frame },
 	{ "fs",		DB_OFFSET(tf_fs),	db_frame },
 	{ "gs",		DB_OFFSET(tf_gs),	db_frame },
-#endif
 	{ "ss",		NULL,			db_ss },
 	{ "rax",	DB_OFFSET(tf_rax),	db_frame },
 	{ "rcx",        DB_OFFSET(tf_rcx),	db_frame },
@@ -94,7 +92,7 @@ struct db_variable db_regs[] = {
 	{ "r15",	DB_OFFSET(tf_r15),	db_frame },
 	{ "rip",	DB_OFFSET(tf_rip),	db_frame },
 	{ "rflags",	DB_OFFSET(tf_rflags),	db_frame },
-#define	DB_N_SHOW_REGS	20	/* Don't show registers after here. */
+#define	DB_N_SHOW_REGS	24	/* Don't show registers after here. */
 	{ "dr0",	NULL,			db_dr0 },
 	{ "dr1",	NULL,			db_dr1 },
 	{ "dr2",	NULL,			db_dr2 },
@@ -357,7 +355,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		rbp = tf->tf_rbp;
 		switch (frame_type) {
 		case TRAP:
-			db_printf("--- trap %#lr", tf->tf_trapno);
+			db_printf("--- trap %#r", tf->tf_trapno);
 			break;
 		case SYSCALL:
 			db_printf("--- syscall");
