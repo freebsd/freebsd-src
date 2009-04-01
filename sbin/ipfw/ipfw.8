@@ -866,6 +866,13 @@ in any subsequent forwarding decisions.
 Initially this is limited to the values 0 through 15, see
 .Xr setfib 8 .
 Processing continues at the next rule.
+.It Cm reass
+Queue and reassemble ip fragments.
+If the packet is not fragmented, counters are updated and processing continues with the next rule.
+If the packet is the last logical fragment, the packet is reassembled and, if
+.Va net.inet.ip.fw.one_pass
+is set to 0, processing continues with the next rule, else packet is allowed to pass and search terminates.
+If the packet is a fragment in the middle, it is consumed and processing stops immediately.
 .El
 .Ss RULE BODY
 The body of a rule contains zero or more patterns (such as

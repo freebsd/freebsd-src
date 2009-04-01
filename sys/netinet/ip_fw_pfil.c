@@ -200,6 +200,9 @@ again:
 	case IP_FW_NAT:
 		goto again;		/* continue with packet */
 
+	case IP_FW_REASS:
+		goto again;
+
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
@@ -329,6 +332,9 @@ again:
 	case IP_FW_NAT:
 		goto again;		/* continue with packet */
 		
+	case IP_FW_REASS:
+		goto again;	
+	
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
