@@ -45,6 +45,8 @@ void xen_pt_pin(vm_paddr_t);
 void xen_pt_unpin(vm_paddr_t);
 void xen_flush_queue(void);
 void pmap_ref(pt_entry_t *pte, vm_paddr_t ma);
+void pmap_suspend(void);
+void pmap_resume(void);
 void xen_check_queue(void);
 
 #ifdef INVARIANTS
