@@ -95,6 +95,7 @@ enum tokens {
 	TOK_UNREACH,
 	TOK_CHECKSTATE,
 	TOK_NAT,
+	TOK_REASS,
 
 	TOK_ALTQ,
 	TOK_LOG,
