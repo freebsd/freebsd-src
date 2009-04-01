@@ -42,19 +42,6 @@ struct vnode;
 
 #ifdef _KERNEL
 
-#ifdef TYPEDEF_FOR_UAP
-int getpagesize(struct thread *, void *, int *);
-int madvise(struct thread *, void *, int *);
-int mincore(struct thread *, void *, int *);
-int mprotect(struct thread *, void *, int *);
-int msync(struct thread *, void *, int *);
-int munmap(struct thread *, void *, int *);
-int obreak(struct thread *, void *, int *);
-int sbrk(struct thread *, void *, int *);
-int sstk(struct thread *, void *, int *);
-int swapon(struct thread *, void *, int *);
-#endif			/* TYPEDEF_FOR_UAP */
-
 int kernacc(void *, int, int);
 vm_offset_t kmem_alloc(vm_map_t, vm_size_t);
 vm_offset_t kmem_alloc_nofault(vm_map_t, vm_size_t);
