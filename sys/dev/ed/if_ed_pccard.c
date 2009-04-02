@@ -1113,7 +1113,7 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
 	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-	printf("Reading phy %d reg %#x returning %#x (valid %d)\n", phy, reg, val, !failed);
+/*	printf("Reading phy %d reg %#x returning %#x (valid %d)\n", phy, reg, val, !failed); */
 	return (failed ? 0 : val);
 }
 
@@ -1122,7 +1122,7 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ed_softc *sc;
 
-	printf("Writing phy %d reg %#x data %#x\n", phy, reg, data);
+/*	printf("Writing phy %d reg %#x data %#x\n", phy, reg, data); */
 	sc = device_get_softc(dev);
 	/* See ed_miibus_readreg for details */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88790) {
