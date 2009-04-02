@@ -223,8 +223,6 @@ FBSD_1.0 {
 	posix_madvise;
 	popen;
 	pclose;
-	shm_open;
-	shm_unlink;
 	pselect;
 	psignal;
 	raise;
