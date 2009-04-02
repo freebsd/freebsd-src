@@ -382,6 +382,26 @@ ed_pccard_add_modem(device_t dev)
 }
 
 static int
+ed_pccard_kick_phy(struct ed_softc *sc)
+{
+	struct mii_softc *miisc;
+	struct mii_data *mii;
+
+	/*
+	 * Many of the PHYs that wind up on PC Cards are weird in
+	 * this way.  Generally, we don't need to worry so much about
+	 * the Isolation protocol since there's only one PHY in
+	 * these designs, so this workaround is reasonable.
+	 */
+	mii = device_get_softc(sc->miibus);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+		miisc->mii_flags |= MIIF_FORCEANEG;
+		mii_phy_reset(miisc);
+	}
+	return (mii_mediachg(mii));
+}
+
+static int
 ed_pccard_media_ioctl(struct ed_softc *sc, struct ifreq *ifr, u_long command)
 {
 	struct mii_data *mii;
@@ -584,6 +604,7 @@ ed_pccard_attach(device_t dev)
 		sc->sc_tick = ed_pccard_tick;
 		sc->sc_mediachg = ed_pccard_mediachg;
 		sc->sc_media_ioctl = ed_pccard_media_ioctl;
+		ed_pccard_kick_phy(sc);
 	}
 	if (sc->modem_rid != -1)
 		ed_pccard_add_modem(dev);
@@ -963,6 +984,7 @@ ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits)
 			val++;
 		ed_asic_outb(sc, ED_AX88X90_MIIBUS, mdio | ED_AX88X90_MII_CLK);
 	}
+	printf("AX88x90 %#x+%#x Reading %d bits: %x\n", (unsigned int)sc->port_bsh, sc->asic_offset, nbits, val);
 	return val;
 }
 
@@ -1062,6 +1084,7 @@ ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits)
 	u_int val = 0;
 	uint8_t cr;
 
+	printf("Reading %d bits\n", nbits);
 	cr = ed_nic_inb(sc, ED_P0_CR);
 	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
 
@@ -1124,6 +1147,7 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
 	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
 	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
+	printf("Reading phy %d reg %#x returning %#x (valid %d)\n", phy, reg, val, !failed);
 	return (failed ? 0 : val);
 }
 
@@ -1132,6 +1156,7 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ed_softc *sc;
 
+	printf("Writing phy %d reg %#x data %#x\n", phy, reg, data);
 	sc = device_get_softc(dev);
 	/* See ed_miibus_readreg for details */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88790) {
@@ -1158,14 +1183,15 @@ static int
 ed_ifmedia_upd(struct ifnet *ifp)
 {
 	struct ed_softc *sc;
-	struct mii_data *mii;
+	int error;
 
 	sc = ifp->if_softc;
 	if (sc->miibus == NULL)
 		return (ENXIO);
-	
-	mii = device_get_softc(sc->miibus);
-	return mii_mediachg(mii);
+	ED_LOCK(sc);
+	error = ed_pccard_kick_phy(sc);
+	ED_UNLOCK(sc);
+	return (error);
 }
 
 static void
