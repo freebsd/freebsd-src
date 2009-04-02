@@ -104,7 +104,7 @@ drm_ati_alloc_pcigart_table(struct drm_device *dev,
 		return ENOMEM;
 	}
 
-	dev->sg->dmah = dmah;
+	gart_info->dmah = dmah;
 
 	return 0;
 }
@@ -113,12 +113,12 @@ static void
 drm_ati_free_pcigart_table(struct drm_device *dev,
 			   struct drm_ati_pcigart_info *gart_info)
 {
-	struct drm_dma_handle *dmah = dev->sg->dmah;
+	struct drm_dma_handle *dmah = gart_info->dmah;
 
 	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 	bus_dma_tag_destroy(dmah->tag);
 	free(dmah, DRM_MEM_DMA);
-	dev->sg->dmah = NULL;
+	gart_info->dmah = NULL;
 }
 
 int
@@ -134,7 +134,7 @@ drm_ati_pcigart_cleanup(struct drm_device *dev,
 	if (gart_info->bus_addr) {
 		if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
 			gart_info->bus_addr = 0;
-			if (dev->sg->dmah)
+			if (gart_info->dmah)
 				drm_ati_free_pcigart_table(dev, gart_info);
 		}
 	}
@@ -169,8 +169,8 @@ drm_ati_pcigart_init(struct drm_device *dev,
 			goto done;
 		}
 
-		address = (void *)dev->sg->dmah->vaddr;
-		bus_address = dev->sg->dmah->busaddr;
+		address = (void *)gart_info->dmah->vaddr;
+		bus_address = gart_info->dmah->busaddr;
 	} else {
 		address = gart_info->addr;
 		bus_address = gart_info->bus_addr;
