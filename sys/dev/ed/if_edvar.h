@@ -276,8 +276,6 @@ extern devclass_t ed_devclass;
  */
 #define ED_FLAGS_TOSH_ETHER		0x10000
 #define ED_FLAGS_GWETHER		0x20000
-#define ED_FLAGS_AX88190		0x30000
-#define ED_FLAGS_LINKSYS		0x80000
 
 #define ED_FLAGS_GETTYPE(flg)		((flg) & 0xff0000)
 
