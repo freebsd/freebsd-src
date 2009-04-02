@@ -319,10 +319,8 @@ __rpc_setconf(nettype)
 	case _RPC_NETPATH:
 	case _RPC_CIRCUIT_N:
 	case _RPC_DATAGRAM_N:
-		if (!(handle->nhandle = setnetpath())) {
-			free(handle);
-			return (NULL);
-		}
+		if (!(handle->nhandle = setnetpath()))
+			goto failed;
 		handle->nflag = TRUE;
 		break;
 	case _RPC_VISIBLE:
@@ -332,16 +330,19 @@ __rpc_setconf(nettype)
 	case _RPC_UDP:
 		if (!(handle->nhandle = setnetconfig())) {
 		        syslog (LOG_ERR, "rpc: failed to open " NETCONFIG);
-			free(handle);
-			return (NULL);
+			goto failed;
 		}
 		handle->nflag = FALSE;
 		break;
 	default:
-		return (NULL);
+		goto failed;
 	}
 
 	return (handle);
+
+failed:
+	free(handle);
+	return (NULL);
 }
 
 /*
