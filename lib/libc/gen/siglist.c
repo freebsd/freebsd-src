@@ -37,7 +37,6 @@ static char sccsid[] = "@(#)siglist.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/cdefs.h>
 #include <signal.h>
 
 const char *const sys_signame[NSIG] = {
