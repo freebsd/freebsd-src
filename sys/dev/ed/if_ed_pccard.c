@@ -788,11 +788,9 @@ ed_probe_ax88x90_generic(device_t dev, int flags)
 	 * bytes in word mode and verify we can read them back.  If we can't
 	 * then we don't have an AX88x90 chip here.
 	 */
-	ed_nic_outb(sc, ED_P0_RCR, ED_RCR_MON);
 	sc->isa16bit = 1;
+	ed_nic_outb(sc, ED_P0_RCR, ED_RCR_MON);
 	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
-	ed_nic_outb(sc, ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
-	ed_nic_outb(sc, ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
 	ed_pio_writemem(sc, test_pattern, 16384, sizeof(test_pattern));
 	ed_pio_readmem(sc, 16384, test_buffer, sizeof(test_pattern));
 	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) != 0)
@@ -800,64 +798,48 @@ ed_probe_ax88x90_generic(device_t dev, int flags)
 
 	/*
 	 * Hard code values based on the datasheet.  We're NE-2000 compatible
-	 * NIC with 16kb of packet memory starting at 16k offset.  We assume
-	 * that the writes to ED_P0_START and ED_P0_STOP reflect the values
-	 * below.
+	 * NIC with 16kb of packet memory starting at 16k offset.
 	 */
 	sc->type = ED_TYPE_NE2000;
+	memsize = sc->mem_size = 16*1024;
+	sc->mem_start = 16 * 1024;
 	if (ed_asic_inb(sc, ED_AX88X90_TEST) != 0)
 		sc->chip_type = ED_CHIP_TYPE_AX88790;
-	else
+	else {
 		sc->chip_type = ED_CHIP_TYPE_AX88190;
-	memsize = 16 * 1024;
-	sc->mem_size = memsize;
-	sc->mem_start = 16 * 1024;
+		/*
+		 * The AX88190 (not A) has external 64k SRAM.  Probe for this
+		 * here.  Most of the cards I have either use the AX88190A
+		 * part, or have only 32k SRAM for some reason, so I don't
+		 * know if this works or not.
+		 */
+		ed_pio_writemem(sc, test_pattern, 32768, sizeof(test_pattern));
+		ed_pio_readmem(sc, 32768, test_buffer, sizeof(test_pattern));
+		if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
+			sc->mem_start = 2*1024;
+			memsize = sc->mem_size = 62 * 1024;
+		}
+	}
 	sc->mem_end = sc->mem_start + memsize;
 	sc->tx_page_start = memsize / ED_PAGE_SIZE;
-	sc->txb_cnt = 2;
+	if (sc->mem_size > 16 * 1024)
+		sc->txb_cnt = 3;
+	else
+		sc->txb_cnt = 2;
 	sc->rec_page_start = sc->tx_page_start + sc->txb_cnt * ED_TXBUF_SIZE;
 	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
 
 	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+
+	ed_nic_outb(sc, ED_P0_PSTART, sc->mem_start / ED_PAGE_SIZE);
+	ed_nic_outb(sc, ED_P0_PSTOP, sc->mem_end / ED_PAGE_SIZE);
+
+	/* Get the mac before we go -- It's just at 0x400 in "SRAM" */
+	ed_pio_readmem(sc, 0x400, sc->enaddr, ETHER_ADDR_LEN);
+
 	/* clear any pending interrupts that might have occurred above */
 	ed_nic_outb(sc, ED_P0_ISR, 0xff);
 	sc->sc_write_mbufs = ed_pio_write_mbufs;
-	return (0);
-}
-
-static int
-ed_pccard_ax88x90_enaddr(struct ed_softc *sc)
-{
-	int i, j;
-	struct {
-		unsigned char offset, value;
-	} pg_seq[] = {
-						/* Select Page0 */
-		{ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0},
-		{ED_P0_DCR, ED_DCR_WTS},	/* Word access to SRAM */
-		{ED_P0_RBCR0, 0x00},		/* Clear the count regs. */
-		{ED_P0_RBCR1, 0x00},
-		{ED_P0_IMR, 0x00},		/* Mask completion irq. */
-		{ED_P0_ISR, 0xff},		/* ACK them all */
-		{ED_P0_RCR, ED_RCR_MON | ED_RCR_INTT}, /* Set To Monitor */
-		{ED_P0_TCR, ED_TCR_LB0},        /* loopback mode. */
-		{ED_P0_RBCR0, 0x20},		/* 32byte DMA */
-		{ED_P0_RBCR1, 0x00},
-		{ED_P0_RSAR0, 0x00},		/* Read address is 0x0400 */
-		{ED_P0_RSAR1, 0x04},		/* for MAC ADDR */
-		{ED_P0_CR, ED_CR_RD0 | ED_CR_STA | ED_CR_PAGE_0},
-	};
-
-	/* Card Settings */
-	for (i = 0; i < sizeof(pg_seq) / sizeof(pg_seq[0]); i++)
-		ed_nic_outb(sc, pg_seq[i].offset, pg_seq[i].value);
-
-	/* Get MAC address */
-	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
-		j = ed_asic_inw(sc, 0);
-		sc->enaddr[i] = j & 0xff;
-		sc->enaddr[i + 1] = (j >> 8) & 0xff;
-	}
 	return (0);
 }
 
@@ -938,9 +920,6 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 			    error);
 		goto fail;
 	}
-	error = ed_pccard_ax88x90_enaddr(sc);
-	if (error)
-		goto fail;
 	error = ed_pccard_ax88x90_check_mii(dev, sc);
 	if (error)
 		goto fail;
