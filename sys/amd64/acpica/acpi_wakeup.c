@@ -78,7 +78,6 @@ static struct xpcb	*stopxpcbs;
 int			acpi_restorecpu(struct xpcb *, vm_offset_t);
 int			acpi_savecpu(struct xpcb *);
 
-static void		acpi_reset_tss(int cpu);
 static void		acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
 
@@ -115,8 +114,6 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
 	    stopxpcbs[cpu].xpcb_gdt.rd_base);
 	WAKECODE_FIXUP(wakeup_cpu, int, cpu);
-
-	acpi_reset_tss(cpu);
 
 	/* do an INIT IPI: assert RESET */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
@@ -220,19 +217,6 @@ acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
 }
 #endif
 
-static void
-acpi_reset_tss(int cpu)
-{
-	uint32_t	*tss;
-
-	/*
-	 * We have to clear "task busy" bit in TSS to restore
-	 * task register later.  Otherwise, ltr causes GPF.
-	 */
-	tss = (uint32_t *)&gdt[NGDT * cpu + GPROC0_SEL] + 1;
-	*tss &= ~((SDT_SYSBSY ^ SDT_SYSTSS) << 8);
-}
-
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
@@ -288,8 +272,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
 		    stopxpcbs[0].xpcb_gdt.rd_base);
 		WAKECODE_FIXUP(wakeup_cpu, int, 0);
-
-		acpi_reset_tss(0);
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
