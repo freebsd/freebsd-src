@@ -29,15 +29,15 @@
 
 /* Dlink chipset used on some Netgear and Dlink PCMCIA cards */
 #define ED_DL100XX_MIIBUS	0x0c	/* MII bus register on ASIC */
-#define ED_DL100XX_DIAG		0x0d
-#define ED_DL100XX_COLLISON_DIS	    4	/* Disable collision detection */
+#define ED_DL10022_DIAG		0x0d
+#define ED_DL10022_COLLISON_DIS	    4	/* Disable collision detection */
 
-#define ED_DL100XX_MII_RESET1	0x04
-#define ED_DL100XX_MII_RESET2	0x08
+#define ED_DL10022_MII_RESET1	0x04
+#define ED_DL10022_MII_RESET2	0x08
 
 #define ED_DL100XX_MII_DATAIN	0x10
-#define ED_DL100XX_MII_DIROUT_22	0x20
-#define ED_DL100XX_MII_DIROUT_19	0x10
-#define ED_DL100XX_MII_DIROUT	0x30
+#define ED_DL10022_MII_DIROUT	0x20
+#define ED_DL10019_MII_DIROUT	0x10
+#define ED_DL100XX_MII_DIROUT	(ED_DL10022_MII_DIROUT | ED_DL10019_MII_DIROUT)
 #define ED_DL100XX_MII_DATAOUT	0x40
 #define ED_DL100XX_MII_CLK	0x80
