@@ -701,21 +701,14 @@ ed_pccard_dl100xx_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
 {
 	int i;
 
-	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
-		DL100XX_MIISET(sc, ED_DL100XX_MII_DIROUT_22);
-	else
-		DL100XX_MIISET(sc, ED_DL100XX_MII_DIROUT_19);
-
+	DL100XX_MIISET(sc, ED_DL100XX_MII_DIROUT);
 	for (i = nbits - 1; i >= 0; i--) {
 		if ((val >> i) & 1)
 			DL100XX_MIISET(sc, ED_DL100XX_MII_DATAOUT);
 		else
 			DL100XX_MIICLR(sc, ED_DL100XX_MII_DATAOUT);
-		DELAY(10);
 		DL100XX_MIISET(sc, ED_DL100XX_MII_CLK);
-		DELAY(10);
 		DL100XX_MIICLR(sc, ED_DL100XX_MII_CLK);
-		DELAY(10);
 	}
 }
 
@@ -725,19 +718,13 @@ ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits)
 	int i;
 	u_int val = 0;
 
-	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
-		DL100XX_MIICLR(sc, ED_DL100XX_MII_DIROUT_22);
-	else
-		DL100XX_MIICLR(sc, ED_DL100XX_MII_DIROUT_19);
-
+	DL100XX_MIICLR(sc, ED_DL100XX_MII_DIROUT);
 	for (i = nbits - 1; i >= 0; i--) {
 		DL100XX_MIISET(sc, ED_DL100XX_MII_CLK);
-		DELAY(10);
 		val <<= 1;
 		if (ed_asic_inb(sc, ED_DL100XX_MIIBUS) & ED_DL100XX_MII_DATAIN)
 			val++;
 		DL100XX_MIICLR(sc, ED_DL100XX_MII_CLK);
-		DELAY(10);
 	}
 	return val;
 }
