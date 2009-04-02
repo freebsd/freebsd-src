@@ -439,9 +439,9 @@ ed_pccard_tick(void *arg)
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    media != mii->mii_media_status && 0 &&
 		    sc->chip_type == ED_CHIP_TYPE_DL10022) {
-			ed_asic_outb(sc, ED_DL100XX_DIAG,
+			ed_asic_outb(sc, ED_DL10022_DIAG,
 			    (mii->mii_media_active & IFM_FDX) ?
-			    ED_DL100XX_COLLISON_DIS : 0);
+			    ED_DL10022_COLLISON_DIS : 0);
 		}
 		
 	}
@@ -683,15 +683,15 @@ ed_pccard_dl100xx_mii_reset(struct ed_softc *sc)
 	if (sc->chip_type != ED_CHIP_TYPE_DL10022)
 		return;
 
-	ed_asic_outb(sc, ED_DL100XX_MIIBUS, ED_DL100XX_MII_RESET2);
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS, ED_DL10022_MII_RESET2);
 	DELAY(10);
 	ed_asic_outb(sc, ED_DL100XX_MIIBUS,
-	    ED_DL100XX_MII_RESET2 | ED_DL100XX_MII_RESET1);
+	    ED_DL10022_MII_RESET2 | ED_DL10022_MII_RESET1);
 	DELAY(10);
-	ed_asic_outb(sc, ED_DL100XX_MIIBUS, ED_DL100XX_MII_RESET2);
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS, ED_DL10022_MII_RESET2);
 	DELAY(10);
 	ed_asic_outb(sc, ED_DL100XX_MIIBUS,
-	    ED_DL100XX_MII_RESET2 | ED_DL100XX_MII_RESET1);
+	    ED_DL10022_MII_RESET2 | ED_DL10022_MII_RESET1);
 	DELAY(10);
 	ed_asic_outb(sc, ED_DL100XX_MIIBUS, 0);
 }
