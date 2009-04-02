@@ -67,9 +67,7 @@ ENTRY(acpi_restorecpu)
 	/* Force kernel segment registers. */
 	movl	$KDSEL, %eax
 	movw	%ax, %ds
-	movl	$KDSEL, %eax
 	movw	%ax, %es
-	movl	$KDSEL, %eax
 	movw	%ax, %ss
 	movl	$KUF32SEL, %eax
 	movw	%ax, %fs
@@ -132,7 +130,7 @@ ENTRY(acpi_restorecpu)
 #define	SDT_SYSTSS	9
 #define	SDT_SYSBSY	11
 
-	/* Reset task busy bit and reload TR. */
+	/* Clear "task busy" bit and reload TR. */
 	movq	PCPU(TSS), %rax
 	andb	$(~SDT_SYSBSY | SDT_SYSTSS), 5(%rax)
 	movw	WAKEUP_XPCB(TR), %ax
