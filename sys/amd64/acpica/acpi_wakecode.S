@@ -223,6 +223,12 @@ reset_video:
 bootgdt:
 	.long	0x00000000
 	.long	0x00000000
+	.long	0x00000000
+	.long	0x00000000
+	.long	0x00000000
+	.long	0x00000000
+	.long	0x00000000
+	.long	0x00000000
 
 bootcode64:
 	.long	0x0000ffff
@@ -261,6 +267,8 @@ wakeup_xpcb:
 wakeup_gdt:
 	.word	0
 	.quad	0
+
+	ALIGN_DATA
 wakeup_efer:
 	.quad	0
 wakeup_pat:

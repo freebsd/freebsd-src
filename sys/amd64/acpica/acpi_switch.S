@@ -128,8 +128,18 @@ ENTRY(acpi_restorecpu)
 	/* Restore descriptor tables. */
 	lidt	WAKEUP_XPCB(IDT)
 	lldt	WAKEUP_XPCB(LDT)
+
+#define	SDT_SYSTSS	9
+#define	SDT_SYSBSY	11
+
+	/* Reset task busy bit and reload TR. */
+	movq	PCPU(TSS), %rax
+	andb	$(~SDT_SYSBSY | SDT_SYSTSS), 5(%rax)
 	movw	WAKEUP_XPCB(TR), %ax
 	ltr	%ax
+
+#undef	SDT_SYSTSS
+#undef	SDT_SYSBSY
 
 	/* Restore other callee saved registers. */
 	movq	WAKEUP_PCB(R15), %r15
