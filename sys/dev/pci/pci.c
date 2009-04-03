@@ -1030,9 +1030,10 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 }
 
 /*
- * Return the offset in configuration space of the requested extended
- * capability entry or 0 if the specified capability was not found.
- */
+ * Find the requested extended capability and return the offset in
+ * configuration space via the pointer provided. The function returns
+ * 0 on success and error code otherwise.
+*/
 int
 pci_find_extcap_method(device_t dev, device_t child, int capability,
     int *capreg)
