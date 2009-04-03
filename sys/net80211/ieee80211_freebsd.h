@@ -211,7 +211,6 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
 /* tx path usage */
 #define	M_ENCAP		M_PROTO1		/* 802.11 encap done */
-#define	M_WDS		M_PROTO2		/* WDS frame */
 #define	M_EAPOL		M_PROTO3		/* PAE/EAPOL frame */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
@@ -219,7 +218,7 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
 #define	M_80211_TX \
-	(M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_ENCAP|M_WDS|M_EAPOL|M_PWR_SAV|\
+	(M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_ENCAP|M_EAPOL|M_PWR_SAV|\
 	 M_MORE_DATA|M_FF|M_TXCB|M_AMPDU_MPDU)
 
 /* rx path usage */

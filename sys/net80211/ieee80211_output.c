@@ -919,12 +919,11 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		hdrsize = sizeof(struct ieee80211_frame);
 	/*
 	 * 4-address frames need to be generated for:
-	 * o packets sent through a WDS vap (M_WDS || IEEE80211_M_WDS)
+	 * o packets sent through a WDS vap (IEEE80211_M_WDS)
 	 * o packets relayed by a station operating with dynamic WDS
 	 *   (IEEE80211_M_STA+IEEE80211_F_DWDS and src address)
 	 */
-	is4addr = (m->m_flags & M_WDS) ||
-	    vap->iv_opmode == IEEE80211_M_WDS ||	/* XXX redundant? */
+	is4addr = vap->iv_opmode == IEEE80211_M_WDS ||
 	    (vap->iv_opmode == IEEE80211_M_STA &&
 	     (vap->iv_flags & IEEE80211_F_DWDS) &&
 	     !IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr));
