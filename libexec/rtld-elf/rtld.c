@@ -200,6 +200,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlerror,
     (func_ptr_type) &dlopen,
     (func_ptr_type) &dlsym,
+    (func_ptr_type) &dlfunc,
     (func_ptr_type) &dlvsym,
     (func_ptr_type) &dladdr,
     (func_ptr_type) &dllockinit,
@@ -2168,6 +2169,19 @@ dlsym(void *handle, const char *name)
 {
 	return do_dlsym(handle, name, __builtin_return_address(0), NULL,
 	    SYMLOOK_DLSYM);
+}
+
+dlfunc_t
+dlfunc(void *handle, const char *name)
+{
+	union {
+		void *d;
+		dlfunc_t f;
+	} rv;
+
+	rv.d = do_dlsym(handle, name, __builtin_return_address(0), NULL,
+	    SYMLOOK_DLSYM);
+	return (rv.f);
 }
 
 void *
