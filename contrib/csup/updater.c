@@ -1385,8 +1385,11 @@ updater_addfile(struct updater *up, struct file_update *fup, char *attr,
 	do {
 		nread = stream_read(up->rd, buf, (BUFSIZE > remains ?
 		    remains : BUFSIZE));
+		if (nread == -1)
+			return (UPDATER_ERR_PROTO);
 		remains -= nread;
-		stream_write(to, buf, nread);
+		if (stream_write(to, buf, nread) == -1)
+			goto bad;
 	} while (remains > 0);
 	stream_close(to);
 	line = stream_getln(up->rd, NULL);
@@ -1411,9 +1414,11 @@ updater_addfile(struct updater *up, struct file_update *fup, char *attr,
 	    FA_MODTIME | FA_MASK);
 	error = updater_updatefile(up, fup, md5, isfixup);
 	fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
-	if (error)
-		return (error);
-	return (0);
+	return (error);
+bad:
+	xasprintf(&up->errmsg, "%s: Cannot write: %s", fup->temppath,
+	    strerror(errno));
+	return (UPDATER_ERR_MSG);
 }
 
 static int
@@ -1469,7 +1474,9 @@ updater_checkout(struct updater *up, struct file_update *fup, int isfixup)
 			if (nbytes == -1)
 				goto bad;
 		}
-		stream_write(to, line, size);
+		nbytes = stream_write(to, line, size);
+		if (nbytes == -1)
+			goto bad;
 		line = stream_getln(up->rd, &size);
 		first = 0;
 	}
@@ -1682,8 +1689,11 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 	error = rcsfile_write(rf, dest);
 	stream_close(dest);
 	rcsfile_free(rf);
-	if (error)
-		lprintf(-1, "Error writing %s\n", name);
+	if (error) {
+		xasprintf(&up->errmsg, "%s: Cannot write: %s", fup->temppath,
+		    strerror(errno));
+		return (UPDATER_ERR_MSG);
+	}
 
 finish:
 	sr->sr_clientattr = fattr_frompath(path, FATTR_NOFOLLOW);
@@ -1768,7 +1778,9 @@ updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 						size--;
 						logline++;
 					}
-					rcsdelta_appendlog(d, logline, size);
+					if (rcsdelta_appendlog(d, logline, size)
+					    < 0)
+						return (-1);
 					logline = stream_getln(rd, &size);
 				}
 			break;
@@ -1799,7 +1811,9 @@ updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 						size--;
 						textline++;
 					}
-					rcsdelta_appendtext(d, textline, size);
+					if (rcsdelta_appendtext(d, textline,
+					    size) < 0)
+						return (-1);
 					textline = stream_getln(rd, &size);
 				}
 			break;
@@ -1839,8 +1853,15 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 
 	stream_filter_start(to, STREAM_FILTER_MD5, md5);
 	/* First write the existing content. */
-	while ((nread = read(fd, buf, BUFSIZE)) > 0)
-		stream_write(to, buf, nread);
+	while ((nread = read(fd, buf, BUFSIZE)) > 0) {
+		if (stream_write(to, buf, nread) == -1)
+			goto bad;
+	}
+	if (nread == -1) {
+		xasprintf(&up->errmsg, "%s: Error reading: %s",
+		    strerror(errno));
+		return (UPDATER_ERR_MSG);
+	}
 	close(fd);
 
 	bytes = fattr_filesize(fa) - pos;
@@ -1848,8 +1869,11 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 	do {
 		nread = stream_read(up->rd, buf,
 		    (BUFSIZE > bytes) ? bytes : BUFSIZE);
+		if (nread == -1)
+			return (UPDATER_ERR_PROTO);
 		bytes -= nread;
-		stream_write(to, buf, nread);
+		if (stream_write(to, buf, nread) == -1)
+			goto bad;
 	} while (bytes > 0);
 	stream_close(to);
 
@@ -1875,9 +1899,11 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 	    FA_MODTIME | FA_MASK);
 	error = updater_updatefile(up, fup, md5, 0);
 	fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
-	if (error)
-		return (error);
-	return (0);
+	return (error);
+bad:
+	xasprintf(&up->errmsg, "%s: Cannot write: %s", fup->temppath,
+	    strerror(errno));
+	return (UPDATER_ERR_MSG);
 }
 
 /*
