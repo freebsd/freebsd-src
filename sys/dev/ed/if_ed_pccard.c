@@ -950,7 +950,6 @@ ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits)
 			val++;
 		ed_asic_outb(sc, ED_AX88X90_MIIBUS, mdio | ED_AX88X90_MII_CLK);
 	}
-	printf("AX88x90 %#x+%#x Reading %d bits: %x\n", (unsigned int)sc->port_bsh, sc->asic_offset, nbits, val);
 	return val;
 }
 
@@ -1050,7 +1049,6 @@ ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits)
 	u_int val = 0;
 	uint8_t cr;
 
-	printf("Reading %d bits\n", nbits);
 	cr = ed_nic_inb(sc, ED_P0_CR);
 	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
 
