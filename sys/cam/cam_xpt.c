@@ -5139,6 +5139,7 @@ xpt_find_device(struct cam_et *target, lun_id_t lun_id)
 typedef struct {
 	union	ccb *request_ccb;
 	struct 	ccb_pathinq *cpi;
+	struct	root_hold_token	*roothold;
 	int	counter;
 } xpt_scan_bus_info;
 
@@ -5201,6 +5202,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		}
 		scan_info->request_ccb = request_ccb;
 		scan_info->cpi = &work_ccb->cpi;
+		scan_info->roothold = root_mount_hold("CAM", M_NOWAIT);
 
 		/* Cache on our stack so we can work asynchronously */
 		max_target = scan_info->cpi->max_target;
@@ -5232,6 +5234,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				printf("xpt_scan_bus: xpt_create_path failed"
 				       " with status %#x, bus scan halted\n",
 				       status);
+				root_mount_rel(scan_info->roothold);
 				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = status;
 				xpt_free_ccb(work_ccb);
@@ -5240,6 +5243,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			}
 			work_ccb = xpt_alloc_ccb_nowait();
 			if (work_ccb == NULL) {
+				root_mount_rel(scan_info->roothold);
 				free(scan_info, M_CAMXPT);
 				xpt_free_path(path);
 				request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
@@ -5353,6 +5357,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
+				root_mount_rel(scan_info->roothold);
 				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = CAM_REQ_CMP;
 				xpt_done(request_ccb);
@@ -5372,6 +5377,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
+				root_mount_rel(scan_info->roothold);
 				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = status;
 				xpt_done(request_ccb);
