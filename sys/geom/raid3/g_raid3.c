@@ -3193,7 +3193,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	G_RAID3_DEBUG(1, "Device %s created (%u components, id=%u).",
 	    sc->sc_name, sc->sc_ndisks, sc->sc_id);
 
-	sc->sc_rootmount = root_mount_hold("GRAID3");
+	sc->sc_rootmount = root_mount_hold("GRAID3", M_WAITOK);
 	G_RAID3_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
 
 	/*
