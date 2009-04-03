@@ -1009,7 +1009,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	case IEEE80211_M_WDS:		/* NB: is4addr should always be true */
 		goto bad;
 	}
-		if (m->m_flags & M_MORE_DATA)
+	if (m->m_flags & M_MORE_DATA)
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
 	if (addqos) {
 		uint8_t *qos;
