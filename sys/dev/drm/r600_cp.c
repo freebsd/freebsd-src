@@ -286,20 +286,6 @@ static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 	const u32 *pfp;
 	int i;
 
-	r600_do_cp_stop(dev_priv);
-
-	RADEON_WRITE(R600_CP_RB_CNTL,
-		     R600_RB_NO_UPDATE |
-		     R600_RB_BLKSZ(15) |
-		     R600_RB_BUFSZ(3));
-
-	RADEON_WRITE(R600_GRBM_SOFT_RESET, R600_SOFT_RESET_CP);
-	RADEON_READ(R600_GRBM_SOFT_RESET);
-	DRM_UDELAY(15000);
-	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
-
-	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-
 	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
 	case CHIP_R600:
 		DRM_INFO("Loading R600 Microcode\n");
@@ -337,19 +323,32 @@ static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 		pfp = RS780_pfp_microcode;
 		break;
 	default:
-		goto no_microcode;
+		return;
 	}
 
-	for (i = 0; i != PM4_UCODE_SIZE; i++) {
+	r600_do_cp_stop(dev_priv);
+
+	RADEON_WRITE(R600_CP_RB_CNTL,
+		     R600_RB_NO_UPDATE |
+		     R600_RB_BLKSZ(15) |
+		     R600_RB_BUFSZ(3));
+
+	RADEON_WRITE(R600_GRBM_SOFT_RESET, R600_SOFT_RESET_CP);
+	RADEON_READ(R600_GRBM_SOFT_RESET);
+	DRM_UDELAY(15000);
+	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
+
+	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
+
+	for (i = 0; i < PM4_UCODE_SIZE; i++) {
 		RADEON_WRITE(R600_CP_ME_RAM_DATA, cp[i][0]);
 		RADEON_WRITE(R600_CP_ME_RAM_DATA, cp[i][1]);
 		RADEON_WRITE(R600_CP_ME_RAM_DATA, cp[i][2]);
 	}
 
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-	for (i = 0; i != PFP_UCODE_SIZE; i++)
+	for (i = 0; i < PFP_UCODE_SIZE; i++)
 		RADEON_WRITE(R600_CP_PFP_UCODE_DATA, pfp[i]);
-no_microcode:;
 
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
@@ -415,21 +414,9 @@ static void r700_cp_load_microcode(drm_radeon_private_t *dev_priv)
 	const u32 *cp;
 	int i;
 
-	r600_do_cp_stop(dev_priv);
-
-	RADEON_WRITE(R600_CP_RB_CNTL,
-		     R600_RB_NO_UPDATE |
-		     (15 << 8) |
-		     (3 << 0));
-
-	RADEON_WRITE(R600_GRBM_SOFT_RESET, R600_SOFT_RESET_CP);
-	RADEON_READ(R600_GRBM_SOFT_RESET);
-	DRM_UDELAY(15000);
-	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
-
 	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
 	case CHIP_RV770:
-		DRM_INFO("Loading RV770 Microcode\n");
+		DRM_INFO("Loading RV770/RV790 Microcode\n");
 		pfp = RV770_pfp_microcode;
 		cp  = RV770_cp_microcode;
 		break;
@@ -444,19 +431,30 @@ static void r700_cp_load_microcode(drm_radeon_private_t *dev_priv)
 		cp  = RV710_cp_microcode;
 		break;
 	default:
-		goto no_microcode;
+		return;
 	}
 
+	r600_do_cp_stop(dev_priv);
+
+	RADEON_WRITE(R600_CP_RB_CNTL,
+		     R600_RB_NO_UPDATE |
+		     (15 << 8) |
+		     (3 << 0));
+
+	RADEON_WRITE(R600_GRBM_SOFT_RESET, R600_SOFT_RESET_CP);
+	RADEON_READ(R600_GRBM_SOFT_RESET);
+	DRM_UDELAY(15000);
+	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
+
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-	for (i = 0; i != R700_PFP_UCODE_SIZE; i++)
+	for (i = 0; i < R700_PFP_UCODE_SIZE; i++)
 		RADEON_WRITE(R600_CP_PFP_UCODE_DATA, pfp[i]);
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-	for (i = 0; i != R700_PM4_UCODE_SIZE; i++)
+	for (i = 0; i < R700_PM4_UCODE_SIZE; i++)
 		RADEON_WRITE(R600_CP_ME_RAM_DATA, cp[i]);
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-no_microcode:;
 
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
