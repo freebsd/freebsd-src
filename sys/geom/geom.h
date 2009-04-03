@@ -193,6 +193,8 @@ struct g_provider {
 	/* Two fields for the implementing class to use */
 	void			*private;
 	u_int			index;
+
+	struct root_hold_token	*roothold;
 };
 
 /* geom_dev.c */
