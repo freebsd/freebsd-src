@@ -2310,7 +2310,7 @@ g_journal_create(struct g_class *mp, struct g_provider *pp,
 		sc->sc_inactive.jj_queue = NULL;
 		sc->sc_active.jj_queue = NULL;
 
-		sc->sc_rootmount = root_mount_hold("GJOURNAL");
+		sc->sc_rootmount = root_mount_hold("GJOURNAL", M_WAITOK);
 		GJ_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
 
 		callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
