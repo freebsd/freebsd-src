@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 
-#include <machine/bat.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
@@ -250,8 +249,10 @@ cpudep_ap_bootstrap(void)
 	mtmsr(msr);
 	isync();
 
-	reg = l3_enable();
-	reg = l2_enable();
+	if (l3cr_config != 0)
+		reg = l3_enable();
+	if (l2cr_config != 0)
+		reg = l2_enable();
 	reg = l1d_enable();
 	reg = l1i_enable();
 

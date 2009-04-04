@@ -43,6 +43,44 @@
 	( { register_t val;						\
 	  __asm __volatile("mfspr %0,%1" : "=r"(val) : "K"(reg));	\
 	  val; } )
+
+/* The following routines allow manipulation of the full 64-bit width 
+ * of SPRs on 64 bit CPUs in bridge mode */
+
+#define mtspr64(reg,valhi,vallo,scratch)				\
+	__asm __volatile("						\
+		mfmsr %0; 						\
+		insrdi %0,1,1,0; 					\
+		mtmsrd %0; 						\
+		isync; 							\
+									\
+		sld %1,%1,%4;						\
+		or %1,%1,%2;						\
+		mtspr %3,%1;						\
+		srd %1,%1,%4;						\
+									\
+		clrldi %0,%0,1; 					\
+		mtmsrd %0; 						\
+		isync;"							\
+	: "=r"(scratch), "=r"(valhi) : "r"(vallo), "K"(reg), "r"(32))
+
+#define mfspr64upper(reg,scratch)					\
+	( { register_t val;						\
+	    __asm __volatile("						\
+		mfmsr %0; 						\
+		insrdi %0,1,1,0; 					\
+		mtmsrd %0; 						\
+		isync; 							\
+									\
+		mfspr %1,%2;						\
+		srd %1,%1,%3;						\
+									\
+		clrldi %0,%0,1; 					\
+		mtmsrd %0; 						\
+		isync;" 						\
+	    : "=r"(scratch), "=r"(val) : "K"(reg), "r"(32)); 			\
+	    val; } )
+
 #endif /* _LOCORE */
 
 /*
@@ -112,7 +150,11 @@
 #define	  IBM401E2		  0x0025
 #define	  IBM401F2		  0x0026
 #define	  IBM401G2		  0x0027
+#define	  IBM970		  0x0039
+#define	  IBM970FX		  0x003c
 #define	  IBMPOWER3		  0x0041
+#define	  IBM970MP		  0x0044
+#define	  IBM970GX		  0x0045
 #define	  MPC860		  0x0050
 #define	  MPC8240		  0x0081
 #define	  IBM405GP		  0x4011
