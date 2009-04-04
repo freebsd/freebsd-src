@@ -465,6 +465,30 @@ pmap_page_executable(vm_page_t pg)
 	return (MMU_PAGE_EXECUTABLE(mmu_obj, pg));
 }
 
+vm_offset_t
+pmap_dumpsys_map(struct pmap_md *md, vm_size_t ofs, vm_size_t *sz)
+{
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, md, ofs, *sz);
+	return (MMU_DUMPSYS_MAP(mmu_obj, md, ofs, sz));
+}
+
+void
+pmap_dumpsys_unmap(struct pmap_md *md, vm_size_t ofs, vm_offset_t va)
+{
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, md, ofs, va);
+	return (MMU_DUMPSYS_UNMAP(mmu_obj, md, ofs, va));
+}
+
+struct pmap_md *
+pmap_scan_md(struct pmap_md *prev)
+{
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, prev);
+	return (MMU_SCAN_MD(mmu_obj, prev));
+}
+
 /*
  * MMU install routines. Highest priority wins, equal priority also
  * overrides allowing last-set to win.
