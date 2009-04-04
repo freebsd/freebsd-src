@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 
 #include <machine/mmuvar.h>
+#include <machine/smp.h>
 
 #include "mmu_if.h"
 
@@ -404,6 +405,16 @@ pmap_bootstrap(vm_offset_t start, vm_offset_t end)
 	kobj_init((kobj_t)mmu_obj, mmu_def_impl);
 
 	MMU_BOOTSTRAP(mmu_obj, start, end);
+}
+
+void
+pmap_cpu_bootstrap(int ap)
+{
+	/*
+	 * No KTR here because our console probably doesn't work yet
+	 */
+
+	return (MMU_CPU_BOOTSTRAP(mmu_obj, ap));
 }
 
 void *

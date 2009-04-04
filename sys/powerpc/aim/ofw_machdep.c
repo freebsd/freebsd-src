@@ -62,6 +62,12 @@ __FBSDID("$FreeBSD$");
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
 static struct mem_region OFfree[OFMEM_REGIONS + 3];
 
+struct mem_region64 {
+        vm_offset_t     mr_start_hi;
+        vm_offset_t     mr_start_lo;
+        vm_size_t       mr_size;
+};	
+
 extern register_t ofmsr[5];
 extern struct	pmap ofw_pmap;
 static int	(*ofwcall)(void *);
@@ -141,24 +147,86 @@ void
 mem_regions(struct mem_region **memp, int *memsz,
 		struct mem_region **availp, int *availsz)
 {
-	int phandle;
+	phandle_t phandle;
 	int asz, msz, fsz;
 	int i, j;
 	int still_merging;
+	cell_t address_cells;
+
+	asz = msz = 0;
+
+	/*
+	 * Get #address-cells from root node, defaulting to 1 if it cannot
+	 * be found.
+	 */
+	phandle = OF_finddevice("/");
+	if (OF_getprop(phandle, "#address-cells", &address_cells, 
+	    sizeof(address_cells)) < sizeof(address_cells))
+		address_cells = 1;
 	
 	/*
 	 * Get memory.
 	 */
 	if ((phandle = OF_finddevice("/memory")) == -1
-	    || (msz = OF_getprop(phandle, "reg",
-			  OFmem, sizeof OFmem[0] * OFMEM_REGIONS))
-	       <= 0
 	    || (asz = OF_getprop(phandle, "available",
-			  OFavail, sizeof OFavail[0] * OFMEM_REGIONS))
-	       <= 0)
-		panic("no memory?");
+		  OFavail, sizeof OFavail[0] * OFMEM_REGIONS)) <= 0)
+	{
+		if (ofw_real_mode) {
+			/* XXX MAMBO */
+			printf("Physical memory unknown -- guessing 128 MB\n");
+
+			/* Leave the first 0xA000000 bytes for the kernel */
+			OFavail[0].mr_start = 0xA00000;
+			OFavail[0].mr_size = 0x75FFFFF;
+			asz = sizeof(OFavail[0]);
+		} else {
+			panic("no memory?");
+		}
+	}
+
+	if (address_cells == 2) {
+	    struct mem_region64 OFmem64[OFMEM_REGIONS + 1];
+	    if ((phandle == -1) || (msz = OF_getprop(phandle, "reg",
+			  OFmem64, sizeof OFmem64[0] * OFMEM_REGIONS)) <= 0) {
+		if (ofw_real_mode) {
+			/* XXX MAMBO */
+			OFmem64[0].mr_start_hi = 0;
+			OFmem64[0].mr_start_lo = 0x0;
+			OFmem64[0].mr_size = 0x7FFFFFF;
+			msz = sizeof(OFmem64[0]);
+		} else {
+			panic("Physical memory map not found");
+		}
+	    }
+
+	    for (i = 0, j = 0; i < msz/sizeof(OFmem64[0]); i++) {
+		if (OFmem64[i].mr_start_hi == 0) {
+			OFmem[i].mr_start = OFmem64[i].mr_start_lo;
+			OFmem[i].mr_size = OFmem64[i].mr_size;
+
+			/*
+			 * Check for memory regions extending above 32-bit
+			 * memory space, and restrict them to stay there.
+			 */
+			if (((uint64_t)OFmem[i].mr_start +
+			    (uint64_t)OFmem[i].mr_size) >
+			    BUS_SPACE_MAXADDR_32BIT) {
+				OFmem[i].mr_size = BUS_SPACE_MAXADDR_32BIT -
+				    OFmem[i].mr_start;
+			}
+			j++;
+		}
+	    }
+	    msz = j*sizeof(OFmem[0]);
+	} else {
+	    if ((msz = OF_getprop(phandle, "reg",
+			  OFmem, sizeof OFmem[0] * OFMEM_REGIONS)) <= 0)
+		panic("Physical memory map not found");
+	}
+
 	*memp = OFmem;
 	*memsz = msz / sizeof(struct mem_region);
+	
 
 	/*
 	 * OFavail may have overlapping regions - collapse these
@@ -268,8 +336,10 @@ openfirmware(void *args)
 		/*
 		 * Clear battable[] translations
 		 */
-		__asm __volatile("mtdbatu 2, %0\n"
-				 "mtdbatu 3, %0" : : "r" (0));
+		if (!ppc64) {
+			__asm __volatile("mtdbatu 2, %0\n"
+					 "mtdbatu 3, %0" : : "r" (0));
+		}
 		isync();
 	}
 
@@ -469,3 +539,4 @@ mem_valid(vm_offset_t addr, int len)
 
 	return (EFAULT);
 }
+
