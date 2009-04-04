@@ -971,7 +971,6 @@ vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen)
 	vdrop(*vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
-		CACHE_RLOCK();
 		numfullpathfail2++;
 		return (error);
 	}
@@ -980,6 +979,7 @@ vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen)
 	CACHE_RLOCK();
 	if ((*vp)->v_iflag & VI_DOOMED) {
 		/* forced unmount */
+		CACHE_RUNLOCK();
 		vdrop(*vp);
 		return (ENOENT);
 	}
