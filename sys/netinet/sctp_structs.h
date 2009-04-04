@@ -196,6 +196,7 @@ struct sctp_nets {
 	/* smoothed average things for RTT and RTO itself */
 	int lastsa;
 	int lastsv;
+	int rtt;		/* last measured rtt value in ms */
 	unsigned int RTO;
 
 	/* This is used for SHUTDOWN/SHUTDOWN-ACK/SEND or INIT timers */
@@ -677,7 +678,7 @@ struct sctp_association {
 	/* primary destination to use */
 	struct sctp_nets *primary_destination;
 	/* For CMT */
-	struct sctp_nets *last_net_data_came_from;
+	struct sctp_nets *last_net_cmt_send_started;
 	/* last place I got a data chunk from */
 	struct sctp_nets *last_data_chunk_from;
 	/* last place I got a control from */

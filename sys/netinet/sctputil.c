@@ -970,7 +970,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->sent_queue_retran_cnt = 0;
 
 	/* for CMT */
-	asoc->last_net_data_came_from = NULL;
+	asoc->last_net_cmt_send_started = NULL;
 
 	/* This will need to be adjusted */
 	asoc->last_cwr_tsn = asoc->init_seq_number - 1;
@@ -1222,32 +1222,24 @@ sctp_expand_mapping_array(struct sctp_association *asoc, uint32_t needed)
 	SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 	asoc->mapping_array = new_array;
 	asoc->mapping_array_size = new_size;
-	return (0);
-}
-
-/* EY - nr_sack version of the above method */
-int
-sctp_expand_nr_mapping_array(struct sctp_association *asoc, uint32_t needed)
-{
-	/* nr mapping array needs to grow */
-	uint8_t *new_array;
-	uint32_t new_size;
-
-	new_size = asoc->nr_mapping_array_size + ((needed + 7) / 8 + SCTP_NR_MAPPING_ARRAY_INCR);
-	SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
-	if (new_array == NULL) {
-		/* can't get more, forget it */
-		SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n",
-		    new_size);
-		return (-1);
+	if (asoc->peer_supports_nr_sack) {
+		new_size = asoc->nr_mapping_array_size + ((needed + 7) / 8 + SCTP_NR_MAPPING_ARRAY_INCR);
+		SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
+		if (new_array == NULL) {
+			/* can't get more, forget it */
+			SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n",
+			    new_size);
+			return (-1);
+		}
+		memset(new_array, 0, new_size);
+		memcpy(new_array, asoc->nr_mapping_array, asoc->nr_mapping_array_size);
+		SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+		asoc->nr_mapping_array = new_array;
+		asoc->nr_mapping_array_size = new_size;
 	}
-	memset(new_array, 0, new_size);
-	memcpy(new_array, asoc->nr_mapping_array, asoc->nr_mapping_array_size);
-	SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
-	asoc->nr_mapping_array = new_array;
-	asoc->nr_mapping_array_size = new_size;
 	return (0);
 }
+
 
 #if defined(SCTP_USE_THREAD_BASED_ITERATOR)
 static void
@@ -2589,7 +2581,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/***************************/
 	/* 2. update RTTVAR & SRTT */
 	/***************************/
-	o_calctime = calc_time;
+	net->rtt = o_calctime = calc_time;
 	/* this is Van Jacobson's integer version */
 	if (net->RTO_measured) {
 		calc_time -= (net->lastsa >> SCTP_RTT_SHIFT);	/* take away 1/8th when
@@ -4650,18 +4642,12 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 	seq = tp1->rec.data.stream_seq;
 	do {
 		ret_sz += tp1->book_size;
-		tp1->sent = SCTP_FORWARD_TSN_SKIP;
 		if (tp1->data != NULL) {
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			struct socket *so;
-
-#endif
-			printf("Release PR-SCTP chunk tsn:%u flags:%x\n",
-			    tp1->rec.data.TSN_seq,
-			    (unsigned int)tp1->rec.data.rcv_flags);
+			if (tp1->sent < SCTP_DATAGRAM_RESEND) {
+				sctp_flight_size_decrease(tp1);
+				sctp_total_flight_decrease(stcb, tp1);
+			}
 			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
-			sctp_flight_size_decrease(tp1);
-			sctp_total_flight_decrease(stcb, tp1);
 			stcb->asoc.peers_rwnd += tp1->send_size;
 			stcb->asoc.peers_rwnd += SCTP_BASE_SYSCTL(sctp_peer_chunk_oh);
 			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
@@ -4672,6 +4658,7 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 				stcb->asoc.sent_queue_cnt_removeable--;
 			}
 		}
+		tp1->sent = SCTP_FORWARD_TSN_SKIP;
 		if ((tp1->rec.data.rcv_flags & SCTP_DATA_NOT_FRAG) ==
 		    SCTP_DATA_NOT_FRAG) {
 			/* not frag'ed we ae done   */
@@ -4715,6 +4702,8 @@ next_on_sent:
 			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
 			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
 			sctp_m_freem(tp1->data);
+			/* No flight involved here book the size to 0 */
+			tp1->book_size = 0;
 			tp1->data = NULL;
 			if (tp1->rec.data.rcv_flags & SCTP_DATA_LAST_FRAG) {
 				foundeom = 1;
@@ -4780,6 +4769,7 @@ next_on_sent:
 					chk->pr_sctp_on = 1;
 					TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, chk, sctp_next);
 					stcb->asoc.sent_queue_cnt++;
+					stcb->asoc.pr_sctp_cnt++;
 				} else {
 					chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
 				}
@@ -4810,6 +4800,8 @@ next_on_sent:
 	}
 	if (do_wakeup_routine) {
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		struct socket *so;
+
 		so = SCTP_INP_SO(stcb->sctp_ep);
 		if (!so_locked) {
 			atomic_add_int(&stcb->asoc.refcnt, 1);
