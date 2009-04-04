@@ -2784,8 +2784,11 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 		m = NULL;
 		m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
 		    sizeof(struct igmp_grouprec)) / sizeof(in_addr_t);
-		if (!is_state_change && !is_group_query)
+		if (!is_state_change && !is_group_query) {
 			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			if (m)
+				m->m_data += IGMP_LEADINGSPACE;
+		}
 		if (m == NULL) {
 			m = m_gethdr(M_DONTWAIT, MT_DATA);
 			if (m)
@@ -2793,7 +2796,6 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 		}
 		if (m == NULL)
 			return (-ENOMEM);
-		m->m_data += IGMP_LEADINGSPACE;
 
 		igmp_save_context(m, ifp);
 
@@ -2909,6 +2911,8 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 			return (-ENOMEM);
 		}
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m)
+			m->m_data += IGMP_LEADINGSPACE;
 		if (m == NULL) {
 			m = m_gethdr(M_DONTWAIT, MT_DATA);
 			if (m)
@@ -2917,7 +2921,6 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 		if (m == NULL)
 			return (-ENOMEM);
 		igmp_save_context(m, ifp);
-		m->m_data += IGMP_LEADINGSPACE;
 		md = m_getptr(m, 0, &off);
 		pig = (struct igmp_grouprec *)(mtod(md, uint8_t *) + off);
 		CTR1(KTR_IGMPV3, "%s: allocated next packet", __func__);
@@ -3063,6 +3066,8 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 				    "%s: use previous packet", __func__);
 			} else {
 				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				if (m)
+					m->m_data += IGMP_LEADINGSPACE;
 				if (m == NULL) {
 					m = m_gethdr(M_DONTWAIT, MT_DATA);
 					if (m)
@@ -3075,7 +3080,6 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 				}
 				m->m_pkthdr.PH_vt.vt_nrecs = 0;
 				igmp_save_context(m, ifp);
-				m->m_data += IGMP_LEADINGSPACE;
 				m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
 				    sizeof(struct igmp_grouprec)) /
 				    sizeof(in_addr_t);
