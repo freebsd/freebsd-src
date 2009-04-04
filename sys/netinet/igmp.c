@@ -1004,8 +1004,8 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 
 	qqi = igmpv3->igmp_qqi;
 	if (qqi >= 128) {
-		maxresp = IGMP_MANT(igmpv3->igmp_qqi) <<
-			  (IGMP_EXP(igmpv3->igmp_qqi) + 3);
+		qqi = IGMP_MANT(igmpv3->igmp_qqi) <<
+		     (IGMP_EXP(igmpv3->igmp_qqi) + 3);
 	}
 
 	timer = maxresp * PR_FASTHZ / IGMP_TIMER_SCALE;
