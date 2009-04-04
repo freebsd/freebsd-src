@@ -680,15 +680,6 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
 
-#if defined(__powerpc__)
-void
-dumpsys(struct dumperinfo *di __unused)
-{
-
-	printf("Kernel dumps not implemented on this architecture\n");
-}
-#endif
-
 void
 mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
     uint64_t dumplen, uint32_t blksz)
