@@ -3309,7 +3309,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * the number of freefile and freeblks structures.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if (num_dirrem > max_softdeps / 2)
+	if (!(ip->i_flags & SF_SNAPSHOT) && num_dirrem > max_softdeps / 2)
 		(void) request_cleanup(ITOV(dp)->v_mount, FLUSH_REMOVE);
 	num_dirrem += 1;
 	FREE_LOCK(&lk);
