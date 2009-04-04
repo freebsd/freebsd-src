@@ -76,13 +76,13 @@ powerpc/aim/interrupt.c		optional	aim
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/machdep.c		optional	aim
 powerpc/aim/mmu_oea.c		optional	aim
+powerpc/aim/mmu_oea64.c		optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
 powerpc/aim/ofw_machdep.c	optional	aim
 powerpc/aim/ofwmagic.S		optional	aim
 powerpc/aim/swtch.S		optional	aim
 powerpc/aim/trap.c		optional	aim
-powerpc/aim/uio_machdep.c	optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
 powerpc/aim/vm_machdep.c	optional	aim
 powerpc/booke/clock.c		optional	e500
@@ -93,7 +93,6 @@ powerpc/booke/machdep.c		optional	e500
 powerpc/booke/pmap.c		optional	e500
 powerpc/booke/swtch.S		optional	e500
 powerpc/booke/trap.c		optional	e500
-powerpc/booke/uio_machdep.c	optional	e500
 powerpc/booke/vm_machdep.c	optional	e500
 powerpc/fpu/fpu_add.c		optional	fpu_emu
 powerpc/fpu/fpu_compare.c	optional	fpu_emu
@@ -127,6 +126,7 @@ powerpc/powermac/uninorth.c	optional	powermac pci
 powerpc/powermac/cuda.c		optional	powermac cuda
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/macgpio.c	optional	powermac pci 
+powerpc/powermac/cpcht.c	optional	powermac pci
 powerpc/powerpc/altivec.c	optional	aim
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
@@ -158,6 +158,7 @@ powerpc/powerpc/stack_machdep.c	optional	ddb | stack
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
+powerpc/powerpc/uio_machdep.c	standard
 powerpc/psim/iobus.c 		optional	psim
 powerpc/psim/ata_iobus.c	optional	ata psim
 powerpc/psim/openpic_iobus.c	optional	psim
