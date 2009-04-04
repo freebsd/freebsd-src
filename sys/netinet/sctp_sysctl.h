@@ -74,7 +74,7 @@ struct sctp_sysctl {
 	uint32_t sctp_nr_outgoing_streams_default;
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_cmt_use_dac;
-/* EY 5/5/08 - nr_sack flag variable */
+	/* EY 5/5/08 - nr_sack flag variable */
 	uint32_t sctp_nr_sack_on_off;
 	uint32_t sctp_cmt_pf;
 	uint32_t sctp_use_cwnd_based_maxburst;
