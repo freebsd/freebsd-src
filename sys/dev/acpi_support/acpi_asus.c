@@ -176,16 +176,39 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_set	= "SDSP"
 	},
 	{
+		.name           = "A3E",
+		.mled_set       = "MLED",
+		.wled_set       = "WLED",
+		.lcd_get        = "\\_SB.PCI0.SBRG.EC0.RPIN(0x67)",
+		.lcd_set        = "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get        = "GPLV",
+		.brn_set        = "SPLV",
+		.disp_get       = "\\_SB.PCI0.P0P2.VGA.GETD",
+		.disp_set       = "SDSP"
+	},
+	{
+		.name           = "A3F",
+		.mled_set       = "MLED",
+		.wled_set       = "WLED",
+		.bled_set       = "BLED",
+		.lcd_get        = "\\_SB.PCI0.SBRG.EC0.RPIN(0x11)",
+		.lcd_set        = "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get        = "GPLV",
+		.brn_set        = "SPLV",
+		.disp_get       = "\\SSTE",
+		.disp_set       = "SDSP"
+	},
+	{
 		.name           = "A3N",
 		.mled_set       = "MLED",
 		.bled_set       = "BLED",
 		.wled_set       = "WLED",
-		.lcd_get        = NULL,
+		.lcd_get        = "\\BKLT",
 		.lcd_set        = "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get        = "GPLV",
 		.brn_set        = "SPLV",
-		.brn_get        = "SDSP",
-		.disp_set       = "SDSP",
-		.disp_get       = "\\_SB.PCI0.P0P3.VGA.GETD"
+		.disp_get       = "\\_SB.PCI0.P0P3.VGA.GETD",
+		.disp_set       = "SDSP"
 	},
 	{
 		.name		= "A4D",
@@ -577,7 +600,7 @@ acpi_asus_probe(device_t dev)
 			return (0);
 		}
 
-		/* if EeePC */
+		/* EeePC */
 		if (strncmp("ASUS010", rstr, 7) == 0) {
 			sc->model = &acpi_eeepc_models[0];
 			device_set_desc(dev, "ASUS EeePC");
@@ -626,6 +649,9 @@ good:
 			goto good;
 		else if (strncmp(model->name, "A2x", 3) == 0 &&
 		    strncmp(Obj->String.Pointer, "A2", 2) == 0)
+			goto good;
+		else if (strncmp(model->name, "A3F", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "A6F", 3) == 0)
 			goto good;
 		else if (strncmp(model->name, "D1x", 3) == 0 &&
 		    strncmp(Obj->String.Pointer, "D1", 2) == 0)
