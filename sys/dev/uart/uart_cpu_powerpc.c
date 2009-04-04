@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 
@@ -53,8 +55,7 @@ bus_space_tag_t uart_bus_space_mem = &bs_le_tag;
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
-
-	return ((b1->bsh == b2->bsh) ? 1 : 0);
+	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
 }
 
 #ifdef MPC85XX
@@ -116,7 +117,16 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 	if (OF_getprop(input, "name", buf, sizeof(buf)) == -1)
 		return (ENXIO);
-	if (strcmp(buf, "ch-a"))
+
+	if (strcmp(buf, "ch-a") == 0) {
+		class = &uart_z8530_class;
+		di->bas.regshft = 4;
+		di->bas.chan = 1;
+	} else if (strcmp(buf,"serial") == 0) {
+		class = &uart_ns8250_class;
+		di->bas.regshft = 0;
+		di->bas.chan = 0;
+	} else
 		return (ENXIO);
 
 	error = OF_decode_addr(input, 0, &di->bas.bst, &di->bas.bsh);
@@ -125,11 +135,13 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	di->ops = uart_getops(class);
 
-	di->bas.rclk = 230400;
-	di->bas.chan = 1;
-	di->bas.regshft = 4;
+	if (OF_getprop(input, "clock-frequency", &di->bas.rclk, 
+	    sizeof(di->bas.rclk)) == -1)
+		di->bas.rclk = 230400;
+	if (OF_getprop(input, "current-speed", &di->baudrate, 
+	    sizeof(di->baudrate)) == -1)
+		di->baudrate = 0;
 
-	di->baudrate = 0;
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;

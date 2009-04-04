@@ -697,6 +697,18 @@ METHOD void bootstrap {
 	vm_offset_t	_end;
 };
 
+/**
+ * @brief Set up the MMU on the current CPU. Only called by the PMAP layer
+ * for alternate CPUs on SMP systems.
+ *
+ * @param _ap		Set to 1 if the CPU being set up is an AP
+ *
+ */
+METHOD void cpu_bootstrap {
+	mmu_t		_mmu;
+	int		_ap;
+};
+
 
 /**
  * @brief Create a kernel mapping for a given physical address range.

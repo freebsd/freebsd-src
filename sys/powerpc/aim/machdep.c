@@ -130,6 +130,8 @@ extern vm_offset_t ksym_start, ksym_end;
 
 int cold = 1;
 int cacheline_size = 32;
+int ppc64 = 0;
+int hw_direct_map = 1;
 
 struct pcpu __pcpu[MAXCPU];
 
@@ -230,10 +232,13 @@ cpu_startup(void *dummy)
 
 extern char	kernel_text[], _end[];
 
+extern void	*testppc64, *testppc64size;
+extern void	*restorebridge, *restorebridgesize;
+extern void	*rfid_patch, *rfi_patch1, *rfi_patch2;
 #ifdef SMP
 extern void	*rstcode, *rstsize;
 #endif
-extern void	*trapcode, *trapsize;
+extern void	*trapcode, *trapcode64, *trapsize;
 extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
@@ -245,11 +250,16 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 {
 	struct		pcpu *pc;
 	vm_offset_t	end;
+	void		*generictrap;
+	size_t		trap_offset;
 	void		*kmdp;
         char		*env;
+	int		vers;
+	uint32_t	msr, scratch;
 
 	end = 0;
 	kmdp = NULL;
+	trap_offset = 0;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
@@ -315,6 +325,26 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		printf("powerpc_init: no loader metadata.\n");
 	}
 
+	/*
+	 * Set cacheline_size based on the CPU model.
+	 */
+
+	vers = mfpvr() >> 16;
+	switch (vers) {
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+		case IBM970GX:
+			cacheline_size = 128;
+			break;
+		default:
+			cacheline_size = 32;
+	}
+
+	/*
+	 * Init KDB
+	 */
+
 	kdb_init();
 
 	/*
@@ -322,47 +352,110 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 *      Disable translation in case the vector area
 	 *      hasn't been mapped (G5)
 	 */
-	mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
+	msr = mfmsr();
+	mtmsr(msr & ~(PSL_IR | PSL_DR));
 	isync();
+
+	/*
+	 * Figure out whether we need to use the 64 bit PMAP. This works by
+	 * executing an instruction that is only legal on 64-bit PPC (mtmsrd),
+	 * and setting ppc64 = 0 if that causes a trap.
+	 */
+
+	ppc64 = 1;
+
+	bcopy(&testppc64, (void *)EXC_PGM,  (size_t)&testppc64size);
+	__syncicache((void *)EXC_PGM, (size_t)&testppc64size);
+
+	__asm __volatile("\
+		mfmsr %0;	\
+		mtsprg2 %1;	\
+				\
+		mtmsrd %0;	\
+		mfsprg2 %1;"
+	    : "=r"(scratch), "=r"(ppc64));
+
+	/*
+	 * Now copy restorebridge into all the handlers, if necessary,
+	 * and set up the trap tables.
+	 */
+
+	if (ppc64) {
+		/* Patch the two instances of rfi -> rfid */
+		bcopy(&rfid_patch,&rfi_patch1,4);
+		bcopy(&rfid_patch,&rfi_patch2,4);
+
+		/*
+		 * Copy a code snippet to restore 32-bit bridge mode
+		 * to the top of every non-generic trap handler
+		 */
+
+		trap_offset += (size_t)&restorebridgesize;
+		bcopy(&restorebridge, (void *)EXC_RST, trap_offset); 
+		bcopy(&restorebridge, (void *)EXC_DSI, trap_offset); 
+		bcopy(&restorebridge, (void *)EXC_ALI, trap_offset); 
+		bcopy(&restorebridge, (void *)EXC_PGM, trap_offset); 
+		bcopy(&restorebridge, (void *)EXC_MCHK, trap_offset); 
+		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset); 
+		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset); 
+
+		/*
+		 * Set the common trap entry point to the one that
+		 * knows to restore 32-bit operation on execution.
+		 */
+
+		generictrap = &trapcode64;
+	} else {
+		generictrap = &trapcode;
+	}
+
 #ifdef SMP
-	bcopy(&rstcode,  (void *)EXC_RST,  (size_t)&rstsize);
+	bcopy(&rstcode, (void *)(EXC_RST + trap_offset),  (size_t)&rstsize);
 #else
-	bcopy(&trapcode, (void *)EXC_RST,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_RST,  (size_t)&trapsize);
 #endif
-	bcopy(&trapcode, (void *)EXC_MCHK, (size_t)&trapsize);
-	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
-	bcopy(&trapcode, (void *)EXC_ISI,  (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_EXI,  (size_t)&trapsize);
-	bcopy(&alitrap,  (void *)EXC_ALI,  (size_t)&alisize);
-	bcopy(&trapcode, (void *)EXC_PGM,  (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_FPU,  (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_DECR, (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_TRC,  (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_FPA,  (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_VEC,  (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_VECAST, (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_THRM, (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_BPT,  (size_t)&trapsize);
+
 #ifdef KDB
-	bcopy(&dblow,   (void *)EXC_MCHK, (size_t)&dbsize);
-	bcopy(&dblow,   (void *)EXC_PGM,  (size_t)&dbsize);
-	bcopy(&dblow,   (void *)EXC_TRC,  (size_t)&dbsize);
-	bcopy(&dblow,   (void *)EXC_BPT,  (size_t)&dbsize);
+	bcopy(&dblow,	(void *)(EXC_MCHK + trap_offset), (size_t)&dbsize);
+	bcopy(&dblow,   (void *)(EXC_PGM + trap_offset),  (size_t)&dbsize);
+	bcopy(&dblow,   (void *)(EXC_TRC + trap_offset),  (size_t)&dbsize);
+	bcopy(&dblow,   (void *)(EXC_BPT + trap_offset),  (size_t)&dbsize);
+#else
+	bcopy(generictrap, (void *)EXC_MCHK, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_PGM,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_TRC,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_BPT,  (size_t)&trapsize);
 #endif
+	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsisize);
+	bcopy(&alitrap,  (void *)(EXC_ALI + trap_offset),  (size_t)&alisize);
+	bcopy(generictrap, (void *)EXC_ISI,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_EXI,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_FPU,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_DECR, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_SC,   (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_FPA,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_THRM, (size_t)&trapsize);
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
-	 * Make sure translation has been enabled
+	 * Restore MSR
 	 */
-	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
+	mtmsr(msr);
 	isync();
 
 	/*
 	 * Initialise virtual memory.
 	 */
-	pmap_mmu_install(MMU_TYPE_OEA, 0);		/* XXX temporary */
+	if (ppc64)
+		pmap_mmu_install(MMU_TYPE_G5, 0);
+	else
+		pmap_mmu_install(MMU_TYPE_OEA, 0);
+
 	pmap_bootstrap(startkernel, endkernel);
+	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
+	isync();
 
 	/*
 	 * Initialize params/tunables that are derived from memsize
