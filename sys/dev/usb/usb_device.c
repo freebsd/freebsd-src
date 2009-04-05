@@ -105,7 +105,7 @@ struct usb2_pipe *
 usb2_get_pipe_by_addr(struct usb2_device *udev, uint8_t ea_val)
 {
 	struct usb2_pipe *pipe = udev->pipes;
-	struct usb2_pipe *pipe_end = udev->pipes + USB_EP_MAX;
+	struct usb2_pipe *pipe_end = udev->pipes + udev->pipes_max;
 	enum {
 		EA_MASK = (UE_DIR_IN | UE_DIR_OUT | UE_ADDR),
 	};
@@ -160,7 +160,7 @@ usb2_get_pipe(struct usb2_device *udev, uint8_t iface_index,
     const struct usb2_config *setup)
 {
 	struct usb2_pipe *pipe = udev->pipes;
-	struct usb2_pipe *pipe_end = udev->pipes + USB_EP_MAX;
+	struct usb2_pipe *pipe_end = udev->pipes + udev->pipes_max;
 	uint8_t index = setup->ep_index;
 	uint8_t ea_mask;
 	uint8_t ea_val;
@@ -320,7 +320,7 @@ usb2_init_pipe(struct usb2_device *udev, uint8_t iface_index,
 struct usb2_pipe *
 usb2_pipe_foreach(struct usb2_device *udev, struct usb2_pipe *pipe)
 {
-	struct usb2_pipe *pipe_end = udev->pipes + USB_EP_MAX;
+	struct usb2_pipe *pipe_end = udev->pipes + udev->pipes_max;
 
 	/* be NULL safe */
 	if (udev == NULL)
@@ -924,7 +924,7 @@ usb2_reset_iface_endpoints(struct usb2_device *udev, uint8_t iface_index)
 	usb2_error_t err;
 
 	pipe = udev->pipes;
-	pipe_end = udev->pipes + USB_EP_MAX;
+	pipe_end = udev->pipes + udev->pipes_max;
 
 	for (; pipe != pipe_end; pipe++) {
 
