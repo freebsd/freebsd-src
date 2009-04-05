@@ -13,12 +13,10 @@ arm/at91/at91_spi.c		optional	at91_spi		\
 	dependency	"spibus_if.h"
 arm/at91/at91_tc.c		optional	at91_tc
 arm/at91/at91_twi.c		optional	at91_twi
-arm/at91/at91_udp.c		optional	at91_udp
 arm/at91/if_ate.c		optional	ate
 arm/at91/uart_bus_at91usart.c	optional	uart
 arm/at91/uart_cpu_at91rm9200usart.c	optional	uart
 arm/at91/uart_dev_at91usart.c	optional	uart
-dev/usb/controller/ohci_atmelarm.c	optional	ohci
 #
 # All the boards we support
 #
