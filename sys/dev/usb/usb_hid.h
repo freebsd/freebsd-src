@@ -80,7 +80,7 @@ int	hid_get_item(struct hid_data *s, struct hid_item *h);
 int	hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k,
 	    uint8_t *id);
 int	hid_locate(const void *desc, usb2_size_t size, uint32_t usage,
-	    enum hid_kind kind, struct hid_location *loc,
+	    enum hid_kind kind, uint8_t index, struct hid_location *loc,
 	    uint32_t *flags, uint8_t *id);
 uint32_t hid_get_data(const uint8_t *buf, usb2_size_t len,
 	    struct hid_location *loc);
