@@ -277,7 +277,7 @@ usb2_power_wdog(void *arg)
 
 	usb2_bus_power_update(bus);
 
-	return;
+	USB_BUS_LOCK(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -356,11 +356,8 @@ usb2_bus_attach(struct usb2_proc_msg *pm)
 	/* set softc - we are ready */
 	device_set_softc(dev, bus);
 
-	/* start watchdog - this function will unlock the BUS lock ! */
+	/* start watchdog */
 	usb2_power_wdog(bus);
-
-	/* need to return locked */
-	USB_BUS_LOCK(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -534,7 +531,7 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 	    NULL, MTX_DEF | MTX_RECURSE);
 
 	usb2_callout_init_mtx(&bus->power_wdog,
-	    &bus->bus_mtx, CALLOUT_RETURNUNLOCKED);
+	    &bus->bus_mtx, 0);
 
 	TAILQ_INIT(&bus->intr_q.head);
 
