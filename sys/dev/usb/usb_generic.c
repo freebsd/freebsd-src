@@ -222,28 +222,29 @@ ugen_open_pipe_write(struct usb2_fifo *f)
 	usb2_config[1].type = UE_CONTROL;
 	usb2_config[1].endpoint = 0;
 	usb2_config[1].direction = UE_DIR_ANY;
-	usb2_config[1].mh.timeout = 1000;	/* 1 second */
-	usb2_config[1].mh.interval = 50;/* 50 milliseconds */
-	usb2_config[1].mh.bufsize = sizeof(struct usb2_device_request);
-	usb2_config[1].mh.callback = &ugen_write_clear_stall_callback;
+	usb2_config[1].timeout = 1000;	/* 1 second */
+	usb2_config[1].interval = 50;/* 50 milliseconds */
+	usb2_config[1].bufsize = sizeof(struct usb2_device_request);
+	usb2_config[1].callback = &ugen_write_clear_stall_callback;
+	usb2_config[1].usb_mode = USB_MODE_HOST;
 
 	usb2_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 	usb2_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
-	usb2_config[0].direction = ed->bEndpointAddress & (UE_DIR_OUT | UE_DIR_IN);
-	usb2_config[0].mh.interval = USB_DEFAULT_INTERVAL;
-	usb2_config[0].mh.flags.proxy_buffer = 1;
+	usb2_config[0].direction = UE_DIR_TX;
+	usb2_config[0].interval = USB_DEFAULT_INTERVAL;
+	usb2_config[0].flags.proxy_buffer = 1;
+	usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
 
 	switch (ed->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
 	case UE_BULK:
 		if (f->flag_short) {
-			usb2_config[0].mh.flags.force_short_xfer = 1;
+			usb2_config[0].flags.force_short_xfer = 1;
 		}
-		usb2_config[0].mh.callback = &ugen_default_write_callback;
-		usb2_config[0].mh.timeout = f->timeout;
-		usb2_config[0].mh.frames = 1;
-		usb2_config[0].mh.bufsize = f->bufsize;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].callback = &ugen_default_write_callback;
+		usb2_config[0].timeout = f->timeout;
+		usb2_config[0].frames = 1;
+		usb2_config[0].bufsize = f->bufsize;
 		if (ugen_transfer_setup(f, usb2_config, 2)) {
 			return (EIO);
 		}
@@ -252,12 +253,11 @@ ugen_open_pipe_write(struct usb2_fifo *f)
 		break;
 
 	case UE_ISOCHRONOUS:
-		usb2_config[0].mh.flags.short_xfer_ok = 1;
-		usb2_config[0].mh.bufsize = 0;	/* use default */
-		usb2_config[0].mh.frames = f->nframes;
-		usb2_config[0].mh.callback = &ugen_isoc_write_callback;
-		usb2_config[0].mh.timeout = 0;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].flags.short_xfer_ok = 1;
+		usb2_config[0].bufsize = 0;	/* use default */
+		usb2_config[0].frames = f->nframes;
+		usb2_config[0].callback = &ugen_isoc_write_callback;
+		usb2_config[0].timeout = 0;
 
 		/* clone configuration */
 		usb2_config[1] = usb2_config[0];
@@ -290,28 +290,29 @@ ugen_open_pipe_read(struct usb2_fifo *f)
 	usb2_config[1].type = UE_CONTROL;
 	usb2_config[1].endpoint = 0;
 	usb2_config[1].direction = UE_DIR_ANY;
-	usb2_config[1].mh.timeout = 1000;	/* 1 second */
-	usb2_config[1].mh.interval = 50;/* 50 milliseconds */
-	usb2_config[1].mh.bufsize = sizeof(struct usb2_device_request);
-	usb2_config[1].mh.callback = &ugen_read_clear_stall_callback;
+	usb2_config[1].timeout = 1000;	/* 1 second */
+	usb2_config[1].interval = 50;/* 50 milliseconds */
+	usb2_config[1].bufsize = sizeof(struct usb2_device_request);
+	usb2_config[1].callback = &ugen_read_clear_stall_callback;
+	usb2_config[1].usb_mode = USB_MODE_HOST;
 
 	usb2_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 	usb2_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
-	usb2_config[0].direction = UE_DIR_IN;
-	usb2_config[0].mh.interval = USB_DEFAULT_INTERVAL;
-	usb2_config[0].mh.flags.proxy_buffer = 1;
+	usb2_config[0].direction = UE_DIR_RX;
+	usb2_config[0].interval = USB_DEFAULT_INTERVAL;
+	usb2_config[0].flags.proxy_buffer = 1;
+	usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
 
 	switch (ed->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
 	case UE_BULK:
 		if (f->flag_short) {
-			usb2_config[0].mh.flags.short_xfer_ok = 1;
+			usb2_config[0].flags.short_xfer_ok = 1;
 		}
-		usb2_config[0].mh.timeout = f->timeout;
-		usb2_config[0].mh.frames = 1;
-		usb2_config[0].mh.callback = &ugen_default_read_callback;
-		usb2_config[0].mh.bufsize = f->bufsize;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].timeout = f->timeout;
+		usb2_config[0].frames = 1;
+		usb2_config[0].callback = &ugen_default_read_callback;
+		usb2_config[0].bufsize = f->bufsize;
 
 		if (ugen_transfer_setup(f, usb2_config, 2)) {
 			return (EIO);
@@ -321,12 +322,11 @@ ugen_open_pipe_read(struct usb2_fifo *f)
 		break;
 
 	case UE_ISOCHRONOUS:
-		usb2_config[0].mh.flags.short_xfer_ok = 1;
-		usb2_config[0].mh.bufsize = 0;	/* use default */
-		usb2_config[0].mh.frames = f->nframes;
-		usb2_config[0].mh.callback = &ugen_isoc_read_callback;
-		usb2_config[0].mh.timeout = 0;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].flags.short_xfer_ok = 1;
+		usb2_config[0].bufsize = 0;	/* use default */
+		usb2_config[0].frames = f->nframes;
+		usb2_config[0].callback = &ugen_isoc_read_callback;
+		usb2_config[0].timeout = 0;
 
 		/* clone configuration */
 		usb2_config[1] = usb2_config[0];
@@ -1463,13 +1463,13 @@ ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 		usb2_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 		usb2_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
 		usb2_config[0].direction = ed->bEndpointAddress & (UE_DIR_OUT | UE_DIR_IN);
-		usb2_config[0].mh.interval = USB_DEFAULT_INTERVAL;
-		usb2_config[0].mh.flags.proxy_buffer = 1;
-		usb2_config[0].mh.callback = &ugen_default_fs_callback;
-		usb2_config[0].mh.timeout = 0;	/* no timeout */
-		usb2_config[0].mh.frames = u.popen->max_frames;
-		usb2_config[0].mh.bufsize = u.popen->max_bufsize;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].interval = USB_DEFAULT_INTERVAL;
+		usb2_config[0].flags.proxy_buffer = 1;
+		usb2_config[0].callback = &ugen_default_fs_callback;
+		usb2_config[0].timeout = 0;	/* no timeout */
+		usb2_config[0].frames = u.popen->max_frames;
+		usb2_config[0].bufsize = u.popen->max_bufsize;
+		usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
 
 		if (usb2_config[0].type == UE_CONTROL) {
 			if (f->udev->flags.usb2_mode != USB_MODE_HOST) {

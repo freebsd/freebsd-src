@@ -156,18 +156,18 @@ static const struct usb2_config ubser_config[UBSER_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &ubser_write_callback,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &ubser_write_callback,
 	},
 
 	[UBSER_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &ubser_read_callback,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &ubser_read_callback,
 	},
 };
 

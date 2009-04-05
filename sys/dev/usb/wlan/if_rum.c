@@ -363,18 +363,18 @@ static const struct usb2_config rum_config[RUM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = (MCLBYTES + RT2573_TX_DESC_SIZE + 8),
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = rum_bulk_write_callback,
-		.mh.timeout = 5000,	/* ms */
+		.bufsize = (MCLBYTES + RT2573_TX_DESC_SIZE + 8),
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = rum_bulk_write_callback,
+		.timeout = 5000,	/* ms */
 	},
 	[RUM_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + RT2573_RX_DESC_SIZE),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = rum_bulk_read_callback,
+		.bufsize = (MCLBYTES + RT2573_RX_DESC_SIZE),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = rum_bulk_read_callback,
 	},
 };
 

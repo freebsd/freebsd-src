@@ -316,27 +316,27 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = UHID_BSIZE,
-		.mh.callback = &uhid_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = UHID_BSIZE,
+		.callback = &uhid_intr_callback,
 	},
 
 	[UHID_CTRL_DT_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
-		.mh.callback = &uhid_write_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
+		.callback = &uhid_write_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 
 	[UHID_CTRL_DT_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
-		.mh.callback = &uhid_read_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
+		.callback = &uhid_read_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 };
 

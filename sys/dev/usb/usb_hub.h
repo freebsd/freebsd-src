@@ -52,7 +52,9 @@ struct usb2_fs_isoc_schedule {
  * The following structure defines an USB HUB.
  */
 struct usb2_hub {
+#if USB_HAVE_TT_SUPPORT
 	struct usb2_fs_isoc_schedule fs_isoc_schedule[USB_ISOC_TIME_MAX];
+#endif
 	struct usb2_device *hubudev;	/* the HUB device */
 	usb2_error_t (*explore) (struct usb2_device *hub);
 	void   *hubsoftc;

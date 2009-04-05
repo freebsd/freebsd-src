@@ -338,27 +338,27 @@ static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = ULPT_BSIZE,
-		.mh.flags = {.pipe_bof = 1,.proxy_buffer = 1},
-		.mh.callback = &ulpt_write_callback,
+		.bufsize = ULPT_BSIZE,
+		.flags = {.pipe_bof = 1,.proxy_buffer = 1},
+		.callback = &ulpt_write_callback,
 	},
 
 	[ULPT_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = ULPT_BSIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.proxy_buffer = 1},
-		.mh.callback = &ulpt_read_callback,
+		.bufsize = ULPT_BSIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.proxy_buffer = 1},
+		.callback = &ulpt_read_callback,
 	},
 
 	[ULPT_INTR_DT_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request) + 1,
-		.mh.callback = &ulpt_status_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct usb2_device_request) + 1,
+		.callback = &ulpt_status_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 };
 

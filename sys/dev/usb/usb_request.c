@@ -319,11 +319,15 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	}
 	USB_XFER_LOCK(xfer);
 
-	if (flags & USB_DELAY_STATUS_STAGE) {
+	if (flags & USB_DELAY_STATUS_STAGE)
 		xfer->flags.manual_status = 1;
-	} else {
+	else
 		xfer->flags.manual_status = 0;
-	}
+
+	if (flags & USB_SHORT_XFER_OK)
+		xfer->flags.short_xfer_ok = 1;
+	else
+		xfer->flags.short_xfer_ok = 0;
 
 	xfer->timeout = timeout;
 
@@ -409,9 +413,6 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 
 		if (temp > xfer->actlen) {
 			temp = xfer->actlen;
-			if (!(flags & USB_SHORT_XFER_OK)) {
-				err = USB_ERR_SHORT_XFER;
-			}
 			length = temp;
 		}
 		if (temp > 0) {

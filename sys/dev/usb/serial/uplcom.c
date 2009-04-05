@@ -187,9 +187,9 @@ static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UPLCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uplcom_write_callback,
+		.bufsize = UPLCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uplcom_write_callback,
 		.if_index = 0,
 	},
 
@@ -197,9 +197,9 @@ static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UPLCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uplcom_read_callback,
+		.bufsize = UPLCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uplcom_read_callback,
 		.if_index = 0,
 	},
 
@@ -207,9 +207,9 @@ static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &uplcom_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &uplcom_intr_callback,
 		.if_index = 1,
 	},
 };

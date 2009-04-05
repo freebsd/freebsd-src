@@ -137,57 +137,57 @@ static const struct usb2_config bbb_config[ST_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = sizeof(struct bbb_cbw),
-		.mh.callback = &bbb_command_callback,
-		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
+		.bufsize = sizeof(struct bbb_cbw),
+		.callback = &bbb_command_callback,
+		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
 
 	[ST_DATA_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
-		.mh.callback = &bbb_data_read_callback,
-		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
+		.bufsize = BULK_SIZE,
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.callback = &bbb_data_read_callback,
+		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
 
 	[ST_DATA_RD_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &bbb_data_rd_cs_callback,
-		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &bbb_data_rd_cs_callback,
+		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
 
 	[ST_DATA_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,},
-		.mh.callback = &bbb_data_write_callback,
-		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
+		.bufsize = BULK_SIZE,
+		.flags = {.proxy_buffer = 1,},
+		.callback = &bbb_data_write_callback,
+		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
 
 	[ST_DATA_WR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &bbb_data_wr_cs_callback,
-		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &bbb_data_wr_cs_callback,
+		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
 
 	[ST_STATUS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = sizeof(struct bbb_csw),
-		.mh.flags = {.short_xfer_ok = 1,},
-		.mh.callback = &bbb_status_callback,
-		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
+		.bufsize = sizeof(struct bbb_csw),
+		.flags = {.short_xfer_ok = 1,},
+		.callback = &bbb_status_callback,
+		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
 };
 

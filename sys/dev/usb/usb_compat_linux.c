@@ -770,10 +770,10 @@ usb_setup_endpoint(struct usb_device *dev,
 		cfg[0].type = type;
 		cfg[0].endpoint = addr & UE_ADDR;
 		cfg[0].direction = addr & (UE_DIR_OUT | UE_DIR_IN);
-		cfg[0].mh.callback = &usb_linux_isoc_callback;
-		cfg[0].mh.bufsize = 0;	/* use wMaxPacketSize */
-		cfg[0].mh.frames = usb_max_isoc_frames(dev);
-		cfg[0].mh.flags.proxy_buffer = 1;
+		cfg[0].callback = &usb_linux_isoc_callback;
+		cfg[0].bufsize = 0;	/* use wMaxPacketSize */
+		cfg[0].frames = usb_max_isoc_frames(dev);
+		cfg[0].flags.proxy_buffer = 1;
 #if 0
 		/*
 		 * The Linux USB API allows non back-to-back
@@ -782,9 +782,9 @@ usb_setup_endpoint(struct usb_device *dev,
 		 * do a copy, and then we need a buffer for
 		 * that. Enable this at your own risk.
 		 */
-		cfg[0].mh.flags.ext_buffer = 1;
+		cfg[0].flags.ext_buffer = 1;
 #endif
-		cfg[0].mh.flags.short_xfer_ok = 1;
+		cfg[0].flags.short_xfer_ok = 1;
 
 		bcopy(cfg, cfg + 1, sizeof(*cfg));
 
@@ -804,11 +804,11 @@ usb_setup_endpoint(struct usb_device *dev,
 		cfg[0].type = type;
 		cfg[0].endpoint = addr & UE_ADDR;
 		cfg[0].direction = addr & (UE_DIR_OUT | UE_DIR_IN);
-		cfg[0].mh.callback = &usb_linux_non_isoc_callback;
-		cfg[0].mh.bufsize = bufsize;
-		cfg[0].mh.flags.ext_buffer = 1;	/* enable zero-copy */
-		cfg[0].mh.flags.proxy_buffer = 1;
-		cfg[0].mh.flags.short_xfer_ok = 1;
+		cfg[0].callback = &usb_linux_non_isoc_callback;
+		cfg[0].bufsize = bufsize;
+		cfg[0].flags.ext_buffer = 1;	/* enable zero-copy */
+		cfg[0].flags.proxy_buffer = 1;
+		cfg[0].flags.short_xfer_ok = 1;
 
 		if (usb2_transfer_setup(dev->bsd_udev, &uhe->bsd_iface_index,
 		    uhe->bsd_xfer, cfg, 1, uhe, &Giant)) {

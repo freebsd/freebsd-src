@@ -276,9 +276,9 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	UE_ADDR_ANY,
 		.direction =	UE_DIR_OUT,
 		.if_index = 	0,
-		.mh.bufsize =	UBT_BULK_WRITE_BUFFER_SIZE,
-		.mh.flags =	{ .pipe_bof = 1, .force_short_xfer = 1, },
-		.mh.callback =	&ubt_bulk_write_callback,
+		.bufsize =	UBT_BULK_WRITE_BUFFER_SIZE,
+		.flags =	{ .pipe_bof = 1, .force_short_xfer = 1, },
+		.callback =	&ubt_bulk_write_callback,
 	},
 	/* Incoming bulk transfer - ACL packets */
 	[UBT_IF_0_BULK_DT_RD] = {
@@ -286,9 +286,9 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	UE_ADDR_ANY,
 		.direction =	UE_DIR_IN,
 		.if_index = 	0,
-		.mh.bufsize =	UBT_BULK_READ_BUFFER_SIZE,
-		.mh.flags =	{ .pipe_bof = 1, .short_xfer_ok = 1, },
-		.mh.callback =	&ubt_bulk_read_callback,
+		.bufsize =	UBT_BULK_READ_BUFFER_SIZE,
+		.flags =	{ .pipe_bof = 1, .short_xfer_ok = 1, },
+		.callback =	&ubt_bulk_read_callback,
 	},
 	/* Incoming interrupt transfer - HCI events */
 	[UBT_IF_0_INTR_DT_RD] = {
@@ -296,9 +296,9 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	UE_ADDR_ANY,
 		.direction =	UE_DIR_IN,
 		.if_index = 	0,
-		.mh.flags =	{ .pipe_bof = 1, .short_xfer_ok = 1, },
-		.mh.bufsize =	UBT_INTR_BUFFER_SIZE,
-		.mh.callback =	&ubt_intr_read_callback,
+		.flags =	{ .pipe_bof = 1, .short_xfer_ok = 1, },
+		.bufsize =	UBT_INTR_BUFFER_SIZE,
+		.callback =	&ubt_intr_read_callback,
 	},
 	/* Outgoing control transfer - HCI commands */
 	[UBT_IF_0_CTRL_DT_WR] = {
@@ -306,9 +306,9 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	0x00,	/* control pipe */
 		.direction =	UE_DIR_ANY,
 		.if_index = 	0,
-		.mh.bufsize =	UBT_CTRL_BUFFER_SIZE,
-		.mh.callback =	&ubt_ctrl_write_callback,
-		.mh.timeout =	5000,	/* 5 seconds */
+		.bufsize =	UBT_CTRL_BUFFER_SIZE,
+		.callback =	&ubt_ctrl_write_callback,
+		.timeout =	5000,	/* 5 seconds */
 	},
 
 	/*
@@ -321,10 +321,10 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	UE_ADDR_ANY,
 		.direction =	UE_DIR_IN,
 		.if_index = 	1,
-		.mh.bufsize =	0,	/* use "wMaxPacketSize * frames" */
-		.mh.frames =	UBT_ISOC_NFRAMES,
-		.mh.flags =	{ .short_xfer_ok = 1, },
-		.mh.callback =	&ubt_isoc_read_callback,
+		.bufsize =	0,	/* use "wMaxPacketSize * frames" */
+		.frames =	UBT_ISOC_NFRAMES,
+		.flags =	{ .short_xfer_ok = 1, },
+		.callback =	&ubt_isoc_read_callback,
 	},
 	/* Incoming isochronous transfer #2 - SCO packets */
 	[UBT_IF_1_ISOC_DT_RD2] = {
@@ -332,10 +332,10 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	UE_ADDR_ANY,
 		.direction =	UE_DIR_IN,
 		.if_index = 	1,
-		.mh.bufsize =	0,	/* use "wMaxPacketSize * frames" */
-		.mh.frames =	UBT_ISOC_NFRAMES,
-		.mh.flags =	{ .short_xfer_ok = 1, },
-		.mh.callback =	&ubt_isoc_read_callback,
+		.bufsize =	0,	/* use "wMaxPacketSize * frames" */
+		.frames =	UBT_ISOC_NFRAMES,
+		.flags =	{ .short_xfer_ok = 1, },
+		.callback =	&ubt_isoc_read_callback,
 	},
 	/* Outgoing isochronous transfer #1 - SCO packets */
 	[UBT_IF_1_ISOC_DT_WR1] = {
@@ -343,10 +343,10 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	UE_ADDR_ANY,
 		.direction =	UE_DIR_OUT,
 		.if_index = 	1,
-		.mh.bufsize =	0,	/* use "wMaxPacketSize * frames" */
-		.mh.frames =	UBT_ISOC_NFRAMES,
-		.mh.flags =	{ .short_xfer_ok = 1, },
-		.mh.callback =	&ubt_isoc_write_callback,
+		.bufsize =	0,	/* use "wMaxPacketSize * frames" */
+		.frames =	UBT_ISOC_NFRAMES,
+		.flags =	{ .short_xfer_ok = 1, },
+		.callback =	&ubt_isoc_write_callback,
 	},
 	/* Outgoing isochronous transfer #2 - SCO packets */
 	[UBT_IF_1_ISOC_DT_WR2] = {
@@ -354,10 +354,10 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
 		.endpoint =	UE_ADDR_ANY,
 		.direction =	UE_DIR_OUT,
 		.if_index = 	1,
-		.mh.bufsize =	0,	/* use "wMaxPacketSize * frames" */
-		.mh.frames =	UBT_ISOC_NFRAMES,
-		.mh.flags =	{ .short_xfer_ok = 1, },
-		.mh.callback =	&ubt_isoc_write_callback,
+		.bufsize =	0,	/* use "wMaxPacketSize * frames" */
+		.frames =	UBT_ISOC_NFRAMES,
+		.flags =	{ .short_xfer_ok = 1, },
+		.callback =	&ubt_isoc_write_callback,
 	},
 };
 
