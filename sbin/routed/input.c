@@ -980,7 +980,7 @@ ck_passwd(struct interface *aifp,
 					       "unknown MD5 RIPv2 auth len %#x"
 					       " instead of %#x from %s",
 					       NA->au.a_md5.md5_auth_len,
-					       RIP_AUTH_MD5_HASH_LEN,
+					       (unsigned)RIP_AUTH_MD5_HASH_LEN,
 					       naddr_ntoa(from));
 				if (na2->a_family != RIP_AF_AUTH)
 					msglim(use_authp, from,
