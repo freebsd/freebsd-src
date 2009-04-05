@@ -60,12 +60,10 @@ SYSCTL_INT(_hw_usb2_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
 /* Define some limits */
 
 #ifndef USTORAGE_FS_BULK_SIZE 
-#define	USTORAGE_FS_BULK_SIZE (1 << 17)	/* bytes */
+#define	USTORAGE_FS_BULK_SIZE (1UL << 17)	/* bytes */
 #endif
 
 #define	USTORAGE_FS_MAX_LUN 8	/* units */
-#define	USTORAGE_FS_RELEASE 0x0101
-#define	USTORAGE_FS_RAM_SECT (1 << 13)
 
 /*
  * The SCSI ID string must be exactly 28 characters long
@@ -976,8 +974,6 @@ static uint8_t
 ustorage_fs_inquiry(struct ustorage_fs_softc *sc)
 {
 	uint8_t *buf = sc->sc_transfer.data_ptr;
-	static const char vendor_id[] = "FreeBSD ";
-	static const char product_id[] = "File-Stor Gadget";
 
 	struct ustorage_fs_lun *currlun = sc->sc_transfer.currlun;
 
@@ -999,12 +995,9 @@ ustorage_fs_inquiry(struct ustorage_fs_softc *sc)
 	buf[4] = 31;
 	/* Additional length */
 	/* No special options */
-	/*
-	 * NOTE: We are writing an extra zero here, that is not
-	 * transferred to the peer:
-	 */
-	snprintf(buf + 8, 28 + 1, "%-8s%-16s%04x", vendor_id, product_id,
-	    USTORAGE_FS_RELEASE);
+	/* Copy in ID string */
+	memcpy(buf + 8, USTORAGE_FS_ID_STRING, 28);
+
 	return (ustorage_fs_min_len(sc, 36, 0 - 1));
 }
 
@@ -1353,7 +1346,7 @@ ustorage_fs_read(struct ustorage_fs_softc *sc)
 	 * too big
 	 */
 	if (sc->sc_transfer.cmd_data[0] == SC_READ_6) {
-		lba = (sc->sc_transfer.cmd_data[1] << 16) |
+		lba = (((uint32_t)sc->sc_transfer.cmd_data[1]) << 16) |
 		    get_be16(&sc->sc_transfer.cmd_data[2]);
 	} else {
 		lba = get_be32(&sc->sc_transfer.cmd_data[2]);
@@ -1411,7 +1404,7 @@ ustorage_fs_write(struct ustorage_fs_softc *sc)
 	 * too big.
 	 */
 	if (sc->sc_transfer.cmd_data[0] == SC_WRITE_6)
-		lba = (sc->sc_transfer.cmd_data[1] << 16) |
+		lba = (((uint32_t)sc->sc_transfer.cmd_data[1]) << 16) |
 		    get_be16(&sc->sc_transfer.cmd_data[2]);
 	else {
 		lba = get_be32(&sc->sc_transfer.cmd_data[2]);
@@ -1558,7 +1551,7 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
 	 * non-zero.
 	 */
 	for (i = 0; i != min_cmd_size; i++) {
-		if (sc->sc_transfer.cmd_data[i] && !(mask & (1 << i))) {
+		if (sc->sc_transfer.cmd_data[i] && !(mask & (1UL << i))) {
 			if (currlun) {
 				currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			}
@@ -1589,6 +1582,8 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 {
 	uint8_t error = 1;
 	uint8_t i;
+	uint32_t temp;
+	const uint32_t mask9 = (0xFFFFFFFFUL >> 9) << 9;
 
 	/* set default data transfer pointer */
 	sc->sc_transfer.data_ptr = sc->sc_qdata;
@@ -1604,7 +1599,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 4) | 1, 0);
+		    (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1619,7 +1614,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 1) | (1 << 4) | 1, 0);
+		    (1UL << 1) | (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1635,7 +1630,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (3 << 7) | 1, 0);
+		    (1UL << 1) | (3UL << 7) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1650,7 +1645,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 1) | (1 << 2) | (1 << 4) | 1, 0);
+		    (1UL << 1) | (1UL << 2) | (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1666,7 +1661,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (1 << 2) | (3 << 7) | 1, 0);
+		    (1UL << 1) | (1UL << 2) | (3UL << 7) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1680,7 +1675,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 4) | 1, 0);
+		    (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1691,13 +1686,13 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_READ_6:
 		i = sc->sc_transfer.cmd_data[4];
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc,
-		    ((i == 0) ? 256 : i) << 9, 0 - (1 << 9));
+		temp = ((i == 0) ? 256UL : i);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (7 << 1) | (1 << 4) | 1, 1);
+		    (7UL << 1) | (1UL << 4) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1707,13 +1702,13 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_READ_10:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_transfer.cmd_data[7]) << 9, 0 - (1 << 9));
+		temp = get_be16(&sc->sc_transfer.cmd_data[7]);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (0xf << 2) | (3 << 7) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1723,13 +1718,19 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_READ_12:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc,
-		    get_be32(&sc->sc_transfer.cmd_data[6]) << 9, 0 - (1 << 9));
+		temp = get_be32(&sc->sc_transfer.cmd_data[6]);
+		if (temp >= (1UL << (32 - 9))) {
+			/* numerical overflow */
+			sc->sc_csw.bCSWStatus = CSWSTATUS_FAILED;
+			error = 1;
+			break;
+		}
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 12,
-		    (1 << 1) | (0xf << 2) | (0xf << 6) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (0xfUL << 6) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1740,7 +1741,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_READ_CAPACITY:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (0xf << 2) | (1 << 8) | 1, 1);
+		    (0xfUL << 2) | (1UL << 8) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1756,7 +1757,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (3 << 7) | 1, 1);
+		    (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1771,7 +1772,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 4) | 1, 0);
+		    (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1785,7 +1786,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 1) | (1 << 4) | 1, 0);
+		    (1UL << 1) | (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1799,7 +1800,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (0xf << 2) | (3 << 7) | 1, 1);
+		    (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1826,7 +1827,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (0xf << 2) | (3 << 7) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1837,13 +1838,13 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_WRITE_6:
 		i = sc->sc_transfer.cmd_data[4];
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc,
-		    ((i == 0) ? 256 : i) << 9, 0 - (1 << 9));
+		temp = ((i == 0) ? 256UL : i);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (7 << 1) | (1 << 4) | 1, 1);
+		    (7UL << 1) | (1UL << 4) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1853,13 +1854,13 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_WRITE_10:
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_transfer.cmd_data[7]) << 9, 0 - (1 << 9));
+		temp = get_be16(&sc->sc_transfer.cmd_data[7]);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (0xf << 2) | (3 << 7) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1869,13 +1870,19 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_WRITE_12:
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc,
-		    get_be32(&sc->sc_transfer.cmd_data[6]) << 9, 0 - (1 << 9));
+		temp = get_be32(&sc->sc_transfer.cmd_data[6]);
+		if (temp > (mask9 >> 9)) {
+			/* numerical overflow */
+			sc->sc_csw.bCSWStatus = CSWSTATUS_FAILED;
+			error = 1;
+			break;
+		}
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 12,
-		    (1 << 1) | (0xf << 2) | (0xf << 6) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (0xfUL << 6) | 1, 1);
 		if (error) {
 			break;
 		}
