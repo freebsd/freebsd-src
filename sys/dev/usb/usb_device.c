@@ -504,8 +504,9 @@ usb2_free_iface_data(struct usb2_device *udev)
 	}
 
 	/* free "cdesc" after "ifaces", if any */
-	if (udev->cdesc) {
-		free(udev->cdesc, M_USB);
+	if (udev->cdesc != NULL) {
+		if (udev->flags.usb2_mode != USB_MODE_DEVICE)
+			free(udev->cdesc, M_USB);
 		udev->cdesc = NULL;
 	}
 	/* set unconfigured state */
@@ -569,8 +570,14 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 		goto done;
 	}
 	/* get the full config descriptor */
-	err = usb2_req_get_config_desc_full(udev,
-	    NULL, &cdp, M_USB, index);
+	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
+		/* save some memory */
+		err = usb2_req_get_config_desc_ptr(udev, &cdp, index);
+	} else {
+		/* normal request */
+		err = usb2_req_get_config_desc_full(udev,
+		    NULL, &cdp, M_USB, index);
+	}
 	if (err) {
 		goto done;
 	}
@@ -1713,10 +1720,9 @@ repeat_set_config:
 	udev->ugen_symlink = usb2_alloc_symlink(udev->ugen_name);
 
 	/* Announce device */
-#if USB_HAVE_STRINGS
 	printf("%s: <%s> at %s\n", udev->ugen_name, udev->manufacturer,
 	    device_get_nameunit(udev->bus->bdev));
-#endif
+
 	usb2_notify_addq("+", udev);
 #endif
 done:
@@ -1851,10 +1857,8 @@ usb2_free_device(struct usb2_device *udev)
 #if USB_HAVE_UGEN
 	usb2_notify_addq("-", udev);
 
-#if USB_HAVE_STRINGS
 	printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
 	    udev->manufacturer, device_get_nameunit(bus->bdev));
-#endif
 
 	/* Destroy UGEN symlink, if any */
 	if (udev->ugen_symlink) {
