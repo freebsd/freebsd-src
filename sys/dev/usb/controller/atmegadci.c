@@ -250,16 +250,10 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 	DPRINTFN(5, "UEINTX=0x%02x\n", temp);
 
 	if (!(temp & ATMEGA_UEINTX_RXSTPI)) {
-		/* abort any ongoing transfer */
-		if (!td->did_stall) {
-			DPRINTFN(5, "stalling\n");
-			ATMEGA_WRITE_1(sc, ATMEGA_UECONX,
-			    ATMEGA_UECONX_EPEN |
-			    ATMEGA_UECONX_STALLRQ);
-			td->did_stall = 1;
-		}
 		goto not_complete;
 	}
+	/* clear did stall */
+	td->did_stall = 0;
 	/* get the packet byte count */
 	count =
 	    (ATMEGA_READ_1(sc, ATMEGA_UEBCHX) << 8) |
@@ -304,6 +298,15 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 	return (0);			/* complete */
 
 not_complete:
+	/* abort any ongoing transfer */
+	if (!td->did_stall) {
+		DPRINTFN(5, "stalling\n");
+		ATMEGA_WRITE_1(sc, ATMEGA_UECONX,
+		    ATMEGA_UECONX_EPEN |
+		    ATMEGA_UECONX_STALLRQ);
+		td->did_stall = 1;
+	}
+
 	/* we only want to know if there is a SETUP packet */
 	ATMEGA_WRITE_1(sc, ATMEGA_UEIENX, ATMEGA_UEIENX_RXSTPE);
 	return (1);			/* not complete */

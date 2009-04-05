@@ -248,19 +248,11 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 	DPRINTFN(5, "rx_stat=0x%02x rem=%u\n", rx_stat, td->remainder);
 
 	if (!(rx_stat & USS820_RXSTAT_RXSETUP)) {
-		/* abort any ongoing transfer */
-		if (!td->did_stall) {
-			DPRINTFN(5, "stalling\n");
-
-			/* set stall */
-
-			uss820dci_update_shared_1(sc, USS820_EPCON, 0xFF,
-			    (USS820_EPCON_TXSTL | USS820_EPCON_RXSTL));
-
-			td->did_stall = 1;
-		}
 		goto not_complete;
 	}
+	/* clear did stall */
+	td->did_stall = 0;
+
 	/* clear stall and all I/O */
 	uss820dci_update_shared_1(sc, USS820_EPCON,
 	    0xFF ^ (USS820_EPCON_TXSTL |
@@ -332,6 +324,18 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 	return (0);			/* complete */
 
 not_complete:
+	/* abort any ongoing transfer */
+	if (!td->did_stall) {
+		DPRINTFN(5, "stalling\n");
+
+		/* set stall */
+
+		uss820dci_update_shared_1(sc, USS820_EPCON, 0xFF,
+		    (USS820_EPCON_TXSTL | USS820_EPCON_RXSTL));
+
+		td->did_stall = 1;
+	}
+
 	/* clear end overwrite flag, if any */
 	if (rx_stat & USS820_RXSTAT_RXSETUP) {
 		uss820dci_update_shared_1(sc, USS820_RXSTAT,

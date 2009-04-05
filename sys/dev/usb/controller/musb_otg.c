@@ -255,6 +255,8 @@ musbotg_setup_rx(struct musbotg_td *td)
 	 * callback, hence the status stage is not complete.
 	 */
 	if (csr & MUSB2_MASK_CSR0L_DATAEND) {
+		/* do not stall at this point */
+		td->did_stall = 1;
 		/* wait for interrupt */
 		goto not_complete;
 	}
@@ -276,18 +278,13 @@ musbotg_setup_rx(struct musbotg_td *td)
 		sc->sc_ep0_busy = 0;
 	}
 	if (sc->sc_ep0_busy) {
-		/* abort any ongoing transfer */
-		if (!td->did_stall) {
-			DPRINTFN(4, "stalling\n");
-			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
-			    MUSB2_MASK_CSR0L_SENDSTALL);
-			td->did_stall = 1;
-		}
 		goto not_complete;
 	}
 	if (!(csr & MUSB2_MASK_CSR0L_RXPKTRDY)) {
 		goto not_complete;
 	}
+	/* clear did stall flag */
+	td->did_stall = 0;
 	/* get the packet byte count */
 	count = MUSB2_READ_2(sc, MUSB2_REG_RXCOUNT);
 
@@ -328,6 +325,13 @@ musbotg_setup_rx(struct musbotg_td *td)
 	return (0);			/* complete */
 
 not_complete:
+	/* abort any ongoing transfer */
+	if (!td->did_stall) {
+		DPRINTFN(4, "stalling\n");
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		    MUSB2_MASK_CSR0L_SENDSTALL);
+		td->did_stall = 1;
+	}
 	return (1);			/* not complete */
 }
 
