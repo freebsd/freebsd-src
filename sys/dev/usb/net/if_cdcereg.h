@@ -39,9 +39,10 @@
 #define	CDCE_IND_SIZE_MAX 32            /* bytes */
 
 enum {
-	CDCE_BULK_A,
-	CDCE_BULK_B,
-	CDCE_INTR,
+	CDCE_BULK_RX,
+	CDCE_BULK_TX,
+	CDCE_INTR_RX,
+	CDCE_INTR_TX,
 	CDCE_N_TRANSFER,
 };
 

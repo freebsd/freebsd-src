@@ -209,7 +209,6 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
 		 * First update the USB power state!
 		 */
 		usb2_bus_powerd(bus);
-
 		/*
 		 * Explore the Root USB HUB. This call can sleep,
 		 * exiting Giant, which is actually Giant.
@@ -327,6 +326,20 @@ usb2_bus_attach(struct usb2_proc_msg *pm)
 
 	USB_BUS_UNLOCK(bus);
 	mtx_lock(&Giant);		/* XXX not required by USB */
+
+	/* default power_mask value */
+	bus->hw_power_state =
+	  USB_HW_POWER_CONTROL |
+	  USB_HW_POWER_BULK |
+	  USB_HW_POWER_INTERRUPT |
+	  USB_HW_POWER_ISOC |
+	  USB_HW_POWER_NON_ROOT_HUB;
+
+	/* make sure power is set at least once */
+
+	if (bus->methods->set_hw_power != NULL) {
+		(bus->methods->set_hw_power) (bus);
+	}
 
 	/* Allocate the Root USB device */
 

@@ -172,6 +172,14 @@ usb2_get_pipe(struct usb2_device *udev, uint8_t iface_index,
 	    udev, iface_index, setup->endpoint,
 	    setup->type, setup->direction, setup->ep_index);
 
+	/* check USB mode */
+
+	if ((setup->usb_mode != USB_MODE_MAX) &&
+	    (udev->flags.usb2_mode != setup->usb_mode)) {
+		/* wrong mode - no pipe */
+		return (NULL);
+	}
+
 	/* setup expected endpoint direction mask and value */
 
 	if (setup->direction == UE_DIR_RX) {
@@ -1481,7 +1489,6 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	 */
 	udev->power_mode = USB_POWER_MODE_ON;
 	udev->pwr_save.last_xfer_time = ticks;
-
 	/* we are not ready yet */
 	udev->refcount = 1;
 

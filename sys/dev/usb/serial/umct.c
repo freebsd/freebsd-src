@@ -137,18 +137,18 @@ static const struct usb2_config umct_config[UMCT_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &umct_write_callback,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &umct_write_callback,
 	},
 
 	[UMCT_BULK_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umct_read_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umct_read_callback,
 		.ep_index = 0,		/* first interrupt endpoint */
 	},
 
@@ -156,9 +156,9 @@ static const struct usb2_config umct_config[UMCT_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umct_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umct_intr_callback,
 		.ep_index = 1,		/* second interrupt endpoint */
 	},
 };

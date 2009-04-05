@@ -188,27 +188,27 @@ static const struct usb2_config ubsa_config[UBSA_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UBSA_BSIZE,	/* bytes */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &ubsa_write_callback,
+		.bufsize = UBSA_BSIZE,	/* bytes */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &ubsa_write_callback,
 	},
 
 	[UBSA_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UBSA_BSIZE,	/* bytes */
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &ubsa_read_callback,
+		.bufsize = UBSA_BSIZE,	/* bytes */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &ubsa_read_callback,
 	},
 
 	[UBSA_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &ubsa_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &ubsa_intr_callback,
 	},
 };
 
