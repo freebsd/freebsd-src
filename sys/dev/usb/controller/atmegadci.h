@@ -34,10 +34,6 @@
 
 #define	ATMEGA_MAX_DEVICES (USB_MIN_DEVICES + 1)
 
-#ifndef ATMEGA_HAVE_BUS_SPACE
-#define	ATMEGA_HAVE_BUS_SPACE 1
-#endif
-
 #define	ATMEGA_UEINT 0xF4
 #define	ATMEGA_UEINT_MASK(n) (1 << (n))	/* endpoint interrupt mask */
 
@@ -241,8 +237,6 @@ struct atmegadci_softc {
 	struct usb2_bus sc_bus;
 	union atmegadci_hub_temp sc_hub_temp;
 	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
 	/* must be set by by the bus interface layer */
 	atmegadci_clocks_t *sc_clocks_on;
@@ -251,11 +245,10 @@ struct atmegadci_softc {
 	struct usb2_device *sc_devices[ATMEGA_MAX_DEVICES];
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
-#if (ATMEGA_HAVE_BUS_SPACE != 0)
 	struct resource *sc_io_res;
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
-#endif
+
 	uint8_t	sc_rt_addr;		/* root hub address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root hub config */

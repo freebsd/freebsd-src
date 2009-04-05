@@ -846,7 +846,7 @@ usb2_transfer_setup(struct usb2_device *udev,
 			pipe = usb2_get_pipe(udev,
 			    ifaces[setup->if_index], setup);
 
-			if (!pipe) {
+			if ((pipe == NULL) || (pipe->methods == NULL)) {
 				if (setup->flags.no_pipe_ok)
 					continue;
 				if ((setup->usb_mode != USB_MODE_MAX) &&
@@ -2547,6 +2547,9 @@ usb2_default_transfer_setup(struct usb2_device *udev)
 	uint8_t no_resetup;
 	uint8_t iface_index;
 
+	/* check for root HUB */
+	if (udev->parent_hub == NULL)
+		return;
 repeat:
 
 	xfer = udev->default_xfer[0];

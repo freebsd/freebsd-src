@@ -457,8 +457,6 @@ typedef struct ehci_softc {
 	struct usb2_bus sc_bus;		/* base device */
 	struct usb2_callout sc_tmo_pcd;
 	union ehci_hub_desc sc_hub_desc;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
 	struct usb2_device *sc_devices[EHCI_MAX_DEVICES];
 	struct resource *sc_io_res;
