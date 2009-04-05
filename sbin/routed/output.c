@@ -139,7 +139,8 @@ output(enum output_type type,
 		flags = MSG_DONTROUTE;
 		break;
 	case OUT_MULTICAST:
-		if (ifp->int_if_flags & IFF_POINTOPOINT) {
+		if (ifp->int_if_flags & (IFF_POINTOPOINT|IFF_MULTICAST) ==
+		    IFF_POINTOPOINT) {
 			msg = "Send pt-to-pt";
 		} else if (ifp->int_state & IS_DUP) {
 			trace_act("abort multicast output via %s"
@@ -859,7 +860,13 @@ rip_bcast(int flash)
 		} else if (ifp->int_if_flags & IFF_POINTOPOINT) {
 			/* point-to-point hardware interface */
 			dst.sin_addr.s_addr = ifp->int_dstaddr;
-			type = OUT_UNICAST;
+			if (vers == RIPv2 &&
+			    ifp->int_if_flags & IFF_MULTICAST &&
+			    !(ifp->int_state  & IS_NO_RIP_MCAST)) {
+				type = OUT_MULTICAST;
+			} else {
+				type = OUT_UNICAST;
+			}
 
 		} else if (ifp->int_state & IS_REMOTE) {
 			/* remote interface */
