@@ -97,7 +97,7 @@ usb2_do_clear_stall_callback(struct usb2_xfer *xfer)
 	struct usb2_pipe *pipe;
 	struct usb2_pipe *pipe_end;
 	struct usb2_pipe *pipe_first;
-	uint8_t to = USB_EP_MAX;
+	uint8_t to;
 
 	udev = xfer->xroot->udev;
 
@@ -106,8 +106,9 @@ usb2_do_clear_stall_callback(struct usb2_xfer *xfer)
 	/* round robin pipe clear stall */
 
 	pipe = udev->pipe_curr;
-	pipe_end = udev->pipes + USB_EP_MAX;
+	pipe_end = udev->pipes + udev->pipes_max;
 	pipe_first = udev->pipes;
+	to = udev->pipes_max;
 	if (pipe == NULL) {
 		pipe = pipe_first;
 	}
@@ -854,7 +855,7 @@ usb2_req_get_config_desc_ptr(struct usb2_device *udev,
 	if (udev->flags.usb2_mode != USB_MODE_DEVICE)
 		return (USB_ERR_INVAL);
 
-	req.bmRequestType = UT_READ_CLASS_DEVICE;
+	req.bmRequestType = UT_READ_DEVICE;
 	req.bRequest = UR_GET_DESCRIPTOR;
 	USETW2(req.wValue, UDESC_CONFIG, config_index);
 	USETW(req.wIndex, 0);
