@@ -189,9 +189,9 @@ static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.if_index = 0,
-		.mh.bufsize = UMODEM_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &umodem_write_callback,
+		.bufsize = UMODEM_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &umodem_write_callback,
 	},
 
 	[UMODEM_BULK_RD] = {
@@ -199,9 +199,9 @@ static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.if_index = 0,
-		.mh.bufsize = UMODEM_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &umodem_read_callback,
+		.bufsize = UMODEM_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &umodem_read_callback,
 	},
 
 	[UMODEM_INTR_RD] = {
@@ -209,9 +209,9 @@ static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.if_index = 1,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.no_pipe_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umodem_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.no_pipe_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umodem_intr_callback,
 	},
 };
 

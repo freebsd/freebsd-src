@@ -116,18 +116,18 @@ static const struct usb2_config u3g_config[U3G_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = U3G_BSIZE,/* bytes */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &u3g_write_callback,
+		.bufsize = U3G_BSIZE,/* bytes */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &u3g_write_callback,
 	},
 
 	[U3G_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = U3G_BSIZE,/* bytes */
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &u3g_read_callback,
+		.bufsize = U3G_BSIZE,/* bytes */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &u3g_read_callback,
 	},
 };
 

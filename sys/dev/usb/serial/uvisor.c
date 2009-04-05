@@ -196,18 +196,18 @@ static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UVISOR_BUFSIZE,	/* bytes */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uvisor_write_callback,
+		.bufsize = UVISOR_BUFSIZE,	/* bytes */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uvisor_write_callback,
 	},
 
 	[UVISOR_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UVISOR_BUFSIZE,	/* bytes */
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uvisor_read_callback,
+		.bufsize = UVISOR_BUFSIZE,	/* bytes */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uvisor_read_callback,
 	},
 };
 

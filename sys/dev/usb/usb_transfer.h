@@ -93,7 +93,6 @@ struct usb2_setup_params {
 	struct usb2_device *udev;
 	struct usb2_xfer *curr_xfer;
 	const struct usb2_config *curr_setup;
-	const struct usb2_config_sub *curr_setup_sub;
 	const struct usb2_pipe_methods *methods;
 	void   *buf;
 	usb2_frlength_t *xfer_length_ptr;
