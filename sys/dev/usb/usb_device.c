@@ -1505,10 +1505,6 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->speed = speed;
 	udev->flags.usb2_mode = usb2_mode;
 
-	/* speed combination should be checked by the parent HUB */
-
-	hub = udev->parent_hub;
-
 	/* search for our High Speed USB HUB, if any */
 
 	adev = udev;
@@ -1564,7 +1560,8 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 		 */
 		if (err) {
 			DPRINTFN(0, "set address %d failed "
-			    "(ignored)\n", udev->address);
+			    "(%s, ignored)\n", udev->address, 
+			    usb2_errstr(err));
 		}
 		/* allow device time to set new address */
 		usb2_pause_mtx(NULL, 
@@ -1600,7 +1597,8 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
-		    "at addr %d failed!\n", udev->address);
+		    "at addr %d failed, %s!\n", udev->address,
+		    usb2_errstr(err));
 		/* XXX try to re-enumerate the device */
 		err = usb2_req_re_enumerate(udev, NULL);
 		if (err) {
