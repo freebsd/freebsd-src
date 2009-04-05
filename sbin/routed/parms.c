@@ -350,7 +350,7 @@ gwkludge(void)
 	/* After all of the parameter lines have been read,
 	 * apply them to any remote interfaces.
 	 */
-	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		get_parms(ifp);
 
 		tot_interfaces++;
