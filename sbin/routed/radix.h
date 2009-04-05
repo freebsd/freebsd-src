@@ -132,7 +132,6 @@ struct radix_node_head {
 };
 
 
-#define Bcmp(a, b, n) memcmp(((void *)(a)), ((void *)(b)), (n))
 #define Bcopy(a, b, n) memmove(((void *)(b)), ((void *)(a)), (size_t)(n))
 #define Bzero(p, n) memset((void *)(p), 0, (size_t)(n));
 #define Free(p) free((void *)p);

@@ -60,6 +60,7 @@
  * years have been simplified and integrated.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <netdb.h>
 #include <stdlib.h>

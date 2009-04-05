@@ -107,6 +107,7 @@ output(enum output_type type,
 	int soc;
 	int serrno;
 
+	assert(ifp != NULL);
 	osin = *dst;
 	if (osin.sin_port == 0)
 		osin.sin_port = htons(RIP_PORT);
@@ -672,6 +673,7 @@ supply(struct sockaddr_in *dst,
 	struct rt_entry *rt;
 	int def_metric;
 
+	assert(ifp != NULL);
 
 	ws.state = 0;
 	ws.gen_limit = 1024;

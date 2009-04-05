@@ -437,9 +437,7 @@ parse_ts(time_t *tp,
 	 u_int bufsize)
 {
 	struct tm tm;
-#if defined(sgi) || defined(__NetBSD__)
 	char *ptr;
-#endif
 
 	if (0 > parse_quote(valp, "| ,\n\r", delimp,
 			    buf,bufsize)
@@ -450,25 +448,11 @@ parse_ts(time_t *tp,
 	}
 	strcat(buf,"\n");
 	memset(&tm, 0, sizeof(tm));
-#if defined(sgi) || defined(__NetBSD__)
 	ptr = strptime(buf, "%y/%m/%d@%H:%M\n", &tm);
 	if (ptr == NULL || *ptr != '\0') {
 		sprintf(buf,"bad timestamp %.25s", val0);
 		return buf;
 	}
-#else
-	if (5 != sscanf(buf, "%u/%u/%u@%u:%u\n",
-			&tm.tm_year, &tm.tm_mon, &tm.tm_mday,
-			&tm.tm_hour, &tm.tm_min)
-	    || tm.tm_mon < 1 || tm.tm_mon > 12
-	    || tm.tm_mday < 1 || tm.tm_mday > 31) {
-		sprintf(buf,"bad timestamp %.25s", val0);
-		return buf;
-	}
-	tm.tm_mon--;
-	if (tm.tm_year <= 37)		/* assume small years are in the */
-		tm.tm_year += 100;	/* 3rd millenium */
-#endif
 
 	if ((*tp = mktime(&tm)) == -1) {
 		sprintf(buf,"bad timestamp %.25s", val0);
@@ -495,7 +479,7 @@ get_passwd(char *tgt,
 	int i;
 	u_long l;
 
-
+	assert(val != NULL);
 	if (!safe)
 		return "ignore unsafe password";
 
@@ -658,6 +642,8 @@ parse_parms(char *line,
 			if (0 > parse_quote(&line, " #,\n\r",&delim,
 					    buf,sizeof(buf)))
 				return bad_str(tgt);
+		} else {
+			val0 = NULL;
 		}
 		if (delim != '\0') {
 			for (;;) {
