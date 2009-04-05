@@ -42,6 +42,7 @@ __RCSID("$Revision: 2.27 $");
 #endif
 
 struct ifhead ifnet = LIST_HEAD_INITIALIZER(ifnet);	/* all interfaces */
+struct ifhead remote_if = LIST_HEAD_INITIALIZER(ifnet);	/* remote interfaces */
 
 /* hash table for all interfaces, big enough to tolerate ridiculous
  * numbers of IP aliases.  Crazy numbers of aliases such as 7000
@@ -56,7 +57,6 @@ struct interface *ahash_tbl[AHASH_LEN];
 #define BHASH(a) &bhash_tbl[(a)%BHASH_LEN]
 struct interface *bhash_tbl[BHASH_LEN];
 
-struct interface *remote_if;		/* remote interfaces */
 
 /* hash for physical interface names.
  * Assume there are never more 100 or 200 real interfaces, and that
@@ -117,13 +117,8 @@ if_link(struct interface *ifp)
 		*hifp = ifp;
 	}
 
-	if (ifp->int_state & IS_REMOTE) {
-		ifp->int_rlink_prev = &remote_if;
-		ifp->int_rlink = remote_if;
-		if (remote_if != 0)
-			remote_if->int_rlink_prev = &ifp->int_rlink;
-		remote_if = ifp;
-	}
+	if (ifp->int_state & IS_REMOTE)
+		LIST_INSERT_HEAD(&remote_if, ifp, remote_list);
 
 	hifp = nhash(ifp->int_name);
 	if (ifp->int_state & IS_ALIAS) {
@@ -467,11 +462,8 @@ ifdel(struct interface *ifp)
 		if (ifp->int_bhash != 0)
 			ifp->int_bhash->int_bhash_prev = ifp->int_bhash_prev;
 	}
-	if (ifp->int_state & IS_REMOTE) {
-		*ifp->int_rlink_prev = ifp->int_rlink;
-		if (ifp->int_rlink != 0)
-			ifp->int_rlink->int_rlink_prev = ifp->int_rlink_prev;
-	}
+	if (ifp->int_state & IS_REMOTE)
+		LIST_REMOVE(ifp, remote_list);
 
 	if (!(ifp->int_state & IS_ALIAS)) {
 		/* delete aliases when the main interface dies
