@@ -297,8 +297,9 @@ repeat:
 	/* detach any existing devices */
 
 	if (child) {
-		usb2_detach_device(child, USB_IFACE_INDEX_ANY, 1);
-		usb2_free_device(child);
+		usb2_free_device(child,
+		    USB_UNCFG_FLAG_FREE_SUBDEV |
+		    USB_UNCFG_FLAG_FREE_EP0);
 		child = NULL;
 	}
 	/* get fresh status */
@@ -417,8 +418,9 @@ repeat:
 
 error:
 	if (child) {
-		usb2_detach_device(child, USB_IFACE_INDEX_ANY, 1);
-		usb2_free_device(child);
+		usb2_free_device(child,
+		    USB_UNCFG_FLAG_FREE_SUBDEV |
+		    USB_UNCFG_FLAG_FREE_EP0);
 		child = NULL;
 	}
 	if (err == 0) {
@@ -852,9 +854,8 @@ uhub_detach(device_t dev)
 		 * Subdevices are not freed, because the caller of
 		 * uhub_detach() will do that.
 		 */
-		usb2_detach_device(child, USB_IFACE_INDEX_ANY, 0);
-		usb2_free_device(child);
-		child = NULL;
+		usb2_free_device(child,
+		    USB_UNCFG_FLAG_FREE_EP0);
 	}
 
 	usb2_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
