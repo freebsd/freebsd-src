@@ -2210,8 +2210,6 @@ struct usb2_pipe_methods ehci_device_bulk_methods =
 	.close = ehci_device_bulk_close,
 	.enter = ehci_device_bulk_enter,
 	.start = ehci_device_bulk_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -2253,8 +2251,6 @@ struct usb2_pipe_methods ehci_device_ctrl_methods =
 	.close = ehci_device_ctrl_close,
 	.enter = ehci_device_ctrl_enter,
 	.start = ehci_device_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -2351,8 +2347,6 @@ struct usb2_pipe_methods ehci_device_intr_methods =
 	.close = ehci_device_intr_close,
 	.enter = ehci_device_intr_enter,
 	.start = ehci_device_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -2636,8 +2630,6 @@ struct usb2_pipe_methods ehci_device_isoc_fs_methods =
 	.close = ehci_device_isoc_fs_close,
 	.enter = ehci_device_isoc_fs_enter,
 	.start = ehci_device_isoc_fs_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -2904,8 +2896,6 @@ struct usb2_pipe_methods ehci_device_isoc_hs_methods =
 	.close = ehci_device_isoc_hs_close,
 	.enter = ehci_device_isoc_hs_enter,
 	.start = ehci_device_isoc_hs_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*

@@ -1542,8 +1542,6 @@ struct usb2_pipe_methods uss820dci_device_bulk_methods =
 	.close = uss820dci_device_bulk_close,
 	.enter = uss820dci_device_bulk_enter,
 	.start = uss820dci_device_bulk_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1581,8 +1579,6 @@ struct usb2_pipe_methods uss820dci_device_ctrl_methods =
 	.close = uss820dci_device_ctrl_close,
 	.enter = uss820dci_device_ctrl_enter,
 	.start = uss820dci_device_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1620,8 +1616,6 @@ struct usb2_pipe_methods uss820dci_device_intr_methods =
 	.close = uss820dci_device_intr_close,
 	.enter = uss820dci_device_intr_enter,
 	.start = uss820dci_device_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1704,8 +1698,6 @@ struct usb2_pipe_methods uss820dci_device_isoc_fs_methods =
 	.close = uss820dci_device_isoc_fs_close,
 	.enter = uss820dci_device_isoc_fs_enter,
 	.start = uss820dci_device_isoc_fs_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
