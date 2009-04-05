@@ -431,7 +431,6 @@ usb2_error_t
 usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 {
 	struct usb2_status ds;
-	struct usb2_hub_descriptor hd;
 	struct usb2_config_descriptor *cdp;
 	uint16_t power;
 	uint16_t max_power;
@@ -484,38 +483,16 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 		/* May be self powered. */
 		if (cdp->bmAttributes & UC_BUS_POWERED) {
 			/* Must ask device. */
-			if (udev->flags.uq_power_claim) {
-				/*
-				 * HUB claims to be self powered, but isn't.
-				 * It seems that the power status can be
-				 * determined by the HUB characteristics.
-				 */
-				err = usb2_req_get_hub_descriptor
-				    (udev, NULL, &hd, 1);
-				if (err) {
-					DPRINTFN(0, "could not read "
-					    "HUB descriptor: %s\n",
-					    usb2_errstr(err));
-
-				} else if (UGETW(hd.wHubCharacteristics) &
-				    UHD_PWR_INDIVIDUAL) {
-					selfpowered = 1;
-				}
-				DPRINTF("characteristics=0x%04x\n",
-				    UGETW(hd.wHubCharacteristics));
-			} else {
-				err = usb2_req_get_device_status
-				    (udev, NULL, &ds);
-				if (err) {
-					DPRINTFN(0, "could not read "
-					    "device status: %s\n",
-					    usb2_errstr(err));
-				} else if (UGETW(ds.wStatus) & UDS_SELF_POWERED) {
-					selfpowered = 1;
-				}
-				DPRINTF("status=0x%04x \n",
-				    UGETW(ds.wStatus));
+			err = usb2_req_get_device_status(udev, NULL, &ds);
+			if (err) {
+				DPRINTFN(0, "could not read "
+				    "device status: %s\n",
+				    usb2_errstr(err));
+			} else if (UGETW(ds.wStatus) & UDS_SELF_POWERED) {
+				selfpowered = 1;
 			}
+			DPRINTF("status=0x%04x \n",
+				UGETW(ds.wStatus));
 		} else
 			selfpowered = 1;
 	}
@@ -1630,9 +1607,6 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 
 	if (usb2_test_quirk(&uaa, UQ_BUS_POWERED)) {
 		udev->flags.uq_bus_powered = 1;
-	}
-	if (usb2_test_quirk(&uaa, UQ_POWER_CLAIM)) {
-		udev->flags.uq_power_claim = 1;
 	}
 	if (usb2_test_quirk(&uaa, UQ_NO_STRINGS)) {
 		udev->flags.no_strings = 1;
