@@ -88,7 +88,7 @@ static struct timeval flush_kern_timer;
 static fd_set fdbits;
 static int sock_max;
 int	rip_sock = -1;			/* RIP socket */
-struct interface *rip_sock_mcast;	/* current multicast interface */
+const struct interface *rip_sock_mcast;	/* current multicast interface */
 int	rt_sock;			/* routing socket */
 int	rt_sock_seqno;
 
