@@ -305,14 +305,11 @@ at91dci_setup_rx(struct at91dci_td *td)
 	    AT91_UDP_CSR_TXCOMP);
 
 	if (!(csr & AT91_UDP_CSR_RXSETUP)) {
-		/* abort any ongoing transfer */
-		if (!td->did_stall) {
-			DPRINTFN(5, "stalling\n");
-			temp |= AT91_UDP_CSR_FORCESTALL;
-			td->did_stall = 1;
-		}
 		goto not_complete;
 	}
+	/* clear did stall */
+	td->did_stall = 0;
+
 	/* get the packet byte count */
 	count = (csr & AT91_UDP_CSR_RXBYTECNT) >> 16;
 
@@ -362,6 +359,13 @@ at91dci_setup_rx(struct at91dci_td *td)
 	return (0);			/* complete */
 
 not_complete:
+	/* abort any ongoing transfer */
+	if (!td->did_stall) {
+		DPRINTFN(5, "stalling\n");
+		temp |= AT91_UDP_CSR_FORCESTALL;
+		td->did_stall = 1;
+	}
+
 	/* clear interrupts, if any */
 	if (temp) {
 		DPRINTFN(5, "clearing 0x%08x\n", temp);
