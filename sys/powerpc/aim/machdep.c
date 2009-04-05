@@ -383,7 +383,10 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	if (ppc64) {
 		/* Patch the two instances of rfi -> rfid */
 		bcopy(&rfid_patch,&rfi_patch1,4);
+	#ifdef KDB
+		/* rfi_patch2 is at the end of dbleave */
 		bcopy(&rfid_patch,&rfi_patch2,4);
+	#endif
 
 		/*
 		 * Copy a code snippet to restore 32-bit bridge mode
