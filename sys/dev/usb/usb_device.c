@@ -1647,9 +1647,7 @@ repeat_set_config:
 		DPRINTF("setting config %u\n", config_index);
 
 		/* get the USB device configured */
-		sx_xlock(udev->default_sx + 1);
 		err = usb2_set_config_index(udev, config_index);
-		sx_unlock(udev->default_sx + 1);
 		if (err) {
 			if (udev->ddesc.bNumConfigurations != 0) {
 				if (!set_config_failed) {
