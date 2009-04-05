@@ -46,7 +46,7 @@ u_int update_seqno;
 
 /* walk the tree of routes with this for output
  */
-struct {
+static struct {
 	struct sockaddr_in to;
 	naddr	to_mask;
 	naddr	to_net;
@@ -69,11 +69,11 @@ struct {
 
 /* A buffer for what can be heard by both RIPv1 and RIPv2 listeners */
 struct ws_buf v12buf;
-union pkt_buf ripv12_buf;
+static union pkt_buf ripv12_buf;
 
 /* Another for only RIPv2 listeners */
-struct ws_buf v2buf;
-union pkt_buf rip_v2_buf;
+static struct ws_buf v2buf;
+static union pkt_buf rip_v2_buf;
 
 
 

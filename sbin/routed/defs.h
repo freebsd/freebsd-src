@@ -150,12 +150,10 @@
 #define	MaxMaxAdvertiseInterval		1800
 #define	MinMaxAdvertiseInterval		4
 #define	DefMaxAdvertiseInterval		600
-#define DEF_PreferenceLevel		0
 #define MIN_PreferenceLevel		0x80000000
 
 #define	MAX_INITIAL_ADVERT_INTERVAL	16
 #define	MAX_INITIAL_ADVERTS		3
-#define	MAX_RESPONSE_DELAY		2
 
 #define	MAX_SOLICITATION_DELAY		1
 #define	SOLICITATION_INTERVAL		3
@@ -392,7 +390,7 @@ struct ag_info {
 
 
 /* parameters for interfaces */
-extern struct parm {
+struct parm {
 	struct parm *parm_next;
 	char	parm_name[IF_NAME_LEN+1];
 	naddr	parm_net;
@@ -405,7 +403,7 @@ extern struct parm {
 	int	parm_rdisc_pref;	/* signed IRDP preference */
 	int	parm_rdisc_int;		/* IRDP advertising interval */
 	struct auth parm_auth[MAX_AUTH_KEYS];
-} *parms;
+};
 
 /* authority for internal networks */
 extern struct intnet {
@@ -444,24 +442,21 @@ extern struct ws_buf {
 	struct netinfo	*base;
 	struct netinfo	*lim;
 	enum output_type type;
-} v12buf, v2buf;
+} v12buf;
 
 extern pid_t	mypid;
 extern naddr	myaddr;			/* main address of this system */
 
 extern int	stopint;		/* !=0 to stop */
 
-extern int	sock_max;
 extern int	rip_sock;		/* RIP socket */
 extern struct interface *rip_sock_mcast;    /* current multicast interface */
 extern int	rt_sock;		/* routing socket */
 extern int	rt_sock_seqno;
 extern int	rdisc_sock;		/* router-discovery raw socket */
 
-extern int	seqno;			/* sequence number for messages */
 extern int	supplier;		/* process should supply updates */
 extern int	supplier_set;		/* -s or -q requested */
-extern int	lookforinterfaces;	/* 1=probe for new up interfaces */
 extern int	ridhosts;		/* 1=reduce host routes */
 extern int	mhome;			/* 1=want multi-homed host route */
 extern int	advertise_mhome;	/* 1=must continue advertising it */
@@ -474,7 +469,6 @@ extern time_t	now_stale;
 extern time_t	now_expire;
 extern time_t	now_garbage;
 
-extern struct timeval next_bcast;	/* next general broadcast */
 extern struct timeval age_timer;	/* next check of old routes */
 extern struct timeval no_flash;		/* inhibit flash update until then */
 extern struct timeval rdisc_timer;	/* next advert. or solicitation */
@@ -488,7 +482,6 @@ extern int	rip_interfaces;		/* # of interfaces doing RIP */
 extern struct ifhead ifnet;		/* all interfaces */
 extern struct ifhead remote_if;		/* remote interfaces */
 extern int	have_ripv1_out;		/* have a RIPv1 interface */
-extern int	have_ripv1_in;
 extern int	need_flash;		/* flash update needed */
 extern struct timeval need_kern;	/* need to update kernel table */
 extern u_int	update_seqno;		/* a route has changed */
@@ -510,21 +503,21 @@ extern struct radix_node_head *rhead;
 #define	dup2(x,y)		BSDdup2(x,y)
 #endif /* sgi */
 
-extern void fix_sock(int, const char *);
-extern void fix_select(void);
-extern void rip_off(void);
-extern void rip_on(struct interface *);
+void fix_sock(int, const char *);
+void fix_select(void);
+void rip_off(void);
+void rip_on(struct interface *);
 
-extern void bufinit(void);
-extern int  output(enum output_type, struct sockaddr_in *,
+void bufinit(void);
+int  output(enum output_type, struct sockaddr_in *,
 		   struct interface *, struct rip *, int);
-extern void clr_ws_buf(struct ws_buf *, struct auth *);
-extern void rip_query(void);
-extern void rip_bcast(int);
-extern void supply(struct sockaddr_in *, struct interface *,
+void clr_ws_buf(struct ws_buf *, struct auth *);
+void rip_query(void);
+void rip_bcast(int);
+void supply(struct sockaddr_in *, struct interface *,
 		   enum output_type, int, int, int);
 
-extern void	msglog(const char *, ...) PATTRIB(1,2);
+void	msglog(const char *, ...) PATTRIB(1,2);
 struct msg_limit {
     time_t	reuse;
     struct msg_sub {
@@ -533,118 +526,110 @@ struct msg_limit {
 #   define MSG_SUBJECT_N 8
     } subs[MSG_SUBJECT_N];
 };
-extern void	msglim(struct msg_limit *, naddr,
+void	msglim(struct msg_limit *, naddr,
 		       const char *, ...) PATTRIB(3,4);
 #define	LOGERR(msg) msglog(msg ": %s", strerror(errno))
-extern void	logbad(int, const char *, ...) PATTRIB(2,3);
+void	logbad(int, const char *, ...) PATTRIB(2,3);
 #define	BADERR(dump,msg) logbad(dump,msg ": %s", strerror(errno))
 #ifdef DEBUG
 #define	DBGERR(dump,msg) BADERR(dump,msg)
 #else
 #define	DBGERR(dump,msg) LOGERR(msg)
 #endif
-extern	char	*naddr_ntoa(naddr);
-extern const char *saddr_ntoa(struct sockaddr *);
+char	*naddr_ntoa(naddr);
+const char *saddr_ntoa(struct sockaddr *);
 
-extern void	*rtmalloc(size_t, const char *);
-extern void	timevaladd(struct timeval *, struct timeval *);
-extern void	intvl_random(struct timeval *, u_long, u_long);
-extern int	getnet(char *, naddr *, naddr *);
-extern int	gethost(char *, naddr *);
-extern void	gwkludge(void);
-extern const char *parse_parms(char *, int);
-extern const char *check_parms(struct parm *);
-extern void	get_parms(struct interface *);
+void	*rtmalloc(size_t, const char *);
+void	timevaladd(struct timeval *, struct timeval *);
+void	intvl_random(struct timeval *, u_long, u_long);
+int	getnet(char *, naddr *, naddr *);
+int	gethost(char *, naddr *);
+void	gwkludge(void);
+const char *parse_parms(char *, int);
+const char *check_parms(struct parm *);
+void	get_parms(struct interface *);
 
-extern void	lastlog(void);
-extern void	trace_close(int);
-extern void	set_tracefile(const char *, const char *, int);
-extern void	tracelevel_msg(const char *, int);
-extern void	trace_off(const char*, ...) PATTRIB(1,2);
-extern void	set_tracelevel(void);
-extern void	trace_flush(void);
-extern void	trace_misc(const char *, ...) PATTRIB(1,2);
-extern void	trace_act(const char *, ...) PATTRIB(1,2);
-extern void	trace_pkt(const char *, ...) PATTRIB(1,2);
-extern void	trace_add_del(const char *, struct rt_entry *);
-extern void	trace_change(struct rt_entry *, u_int, struct rt_spare *,
+void	lastlog(void);
+void	trace_close(int);
+void	set_tracefile(const char *, const char *, int);
+void	tracelevel_msg(const char *, int);
+void	trace_off(const char*, ...) PATTRIB(1,2);
+void	set_tracelevel(void);
+void	trace_flush(void);
+void	trace_misc(const char *, ...) PATTRIB(1,2);
+void	trace_act(const char *, ...) PATTRIB(1,2);
+void	trace_pkt(const char *, ...) PATTRIB(1,2);
+void	trace_add_del(const char *, struct rt_entry *);
+void	trace_change(struct rt_entry *, u_int, struct rt_spare *,
 			     const char *);
-extern void	trace_if(const char *, struct interface *);
-extern void	trace_upslot(struct rt_entry *, struct rt_spare *,
+void	trace_if(const char *, struct interface *);
+void	trace_upslot(struct rt_entry *, struct rt_spare *,
 			     struct rt_spare *);
-extern void	trace_rip(const char*, const char*, struct sockaddr_in *,
+void	trace_rip(const char*, const char*, struct sockaddr_in *,
 			  struct interface *, struct rip *, int);
-extern char	*addrname(naddr, naddr, int);
-extern char	*rtname(naddr, naddr, naddr);
+char	*addrname(naddr, naddr, int);
+char	*rtname(naddr, naddr, naddr);
 
-extern void	rdisc_age(naddr);
-extern void	set_rdisc_mg(struct interface *, int);
-extern void	set_supplier(void);
-extern void	if_bad_rdisc(struct interface *);
-extern void	if_ok_rdisc(struct interface *);
-extern void	read_rip(int, struct interface *);
-extern void	read_rt(void);
-extern void	read_d(void);
-extern void	rdisc_adv(void);
-extern void	rdisc_sol(void);
+void	rdisc_age(naddr);
+void	set_rdisc_mg(struct interface *, int);
+void	set_supplier(void);
+void	if_bad_rdisc(struct interface *);
+void	if_ok_rdisc(struct interface *);
+void	read_rip(int, struct interface *);
+void	read_rt(void);
+void	read_d(void);
+void	rdisc_adv(void);
+void	rdisc_sol(void);
 
-extern void	sigalrm(int);
-extern void	sigterm(int);
+void	sigtrace_on(int);
+void	sigtrace_off(int);
 
-extern void	sigtrace_on(int);
-extern void	sigtrace_off(int);
+void	flush_kern(void);
+void	age(naddr);
 
-extern void	flush_kern(void);
-extern void	age(naddr);
-
-extern void	ag_flush(naddr, naddr, void (*)(struct ag_info *));
-extern void	ag_check(naddr, naddr, naddr, naddr, char, char, u_int,
+void	ag_flush(naddr, naddr, void (*)(struct ag_info *));
+void	ag_check(naddr, naddr, naddr, naddr, char, char, u_int,
 			 u_short, u_short, void (*)(struct ag_info *));
-extern void	del_static(naddr, naddr, naddr, int);
-extern void	del_redirects(naddr, time_t);
-extern struct rt_entry *rtget(naddr, naddr);
-extern struct rt_entry *rtfind(naddr);
-extern void	rtinit(void);
-extern void	rtadd(naddr, naddr, u_int, struct rt_spare *);
-extern void	rtchange(struct rt_entry *, u_int, struct rt_spare *, char *);
-extern void	rtdelete(struct rt_entry *);
-extern void	rts_delete(struct rt_entry *, struct rt_spare *);
-extern void	rtbad_sub(struct rt_entry *);
-extern void	rtswitch(struct rt_entry *, struct rt_spare *);
-extern void	rtbad(struct rt_entry *);
+void	del_static(naddr, naddr, naddr, int);
+void	del_redirects(naddr, time_t);
+struct rt_entry *rtget(naddr, naddr);
+struct rt_entry *rtfind(naddr);
+void	rtinit(void);
+void	rtadd(naddr, naddr, u_int, struct rt_spare *);
+void	rtchange(struct rt_entry *, u_int, struct rt_spare *, char *);
+void	rtdelete(struct rt_entry *);
+void	rts_delete(struct rt_entry *, struct rt_spare *);
+void	rtbad_sub(struct rt_entry *);
+void	rtswitch(struct rt_entry *, struct rt_spare *);
 
 #define S_ADDR(x)	(((struct sockaddr_in *)(x))->sin_addr.s_addr)
 #define INFO_DST(I)	((I)->rti_info[RTAX_DST])
 #define INFO_GATE(I)	((I)->rti_info[RTAX_GATEWAY])
 #define INFO_MASK(I)	((I)->rti_info[RTAX_NETMASK])
 #define INFO_IFA(I)	((I)->rti_info[RTAX_IFA])
-#define INFO_IFP(I)	((I)->rti_info[RTAX_IFP])
 #define INFO_AUTHOR(I)	((I)->rti_info[RTAX_AUTHOR])
 #define INFO_BRD(I)	((I)->rti_info[RTAX_BRD])
 void rt_xaddrs(struct rt_addrinfo *, struct sockaddr *, struct sockaddr *,
 	       int);
 
-extern naddr	std_mask(naddr);
-extern naddr	ripv1_mask_net(naddr, struct interface *);
-extern naddr	ripv1_mask_host(naddr,struct interface *);
+naddr	std_mask(naddr);
+naddr	ripv1_mask_net(naddr, struct interface *);
+naddr	ripv1_mask_host(naddr,struct interface *);
 #define		on_net(a,net,mask) (((ntohl(a) ^ (net)) & (mask)) == 0)
-extern int	check_dst(naddr);
-extern struct interface *check_dup(naddr, naddr, naddr, int);
-extern int	check_remote(struct interface *);
-extern int	addrouteforif(struct interface *);
-extern void	ifinit(void);
-extern int	walk_bad(struct radix_node *, struct walkarg *);
-extern int	if_ok(struct interface *, const char *);
-extern void	if_sick(struct interface *);
-extern void	if_bad(struct interface *);
-extern void	if_link(struct interface *);
-extern struct interface *ifwithaddr(naddr, int, int);
-extern struct interface *ifwithname(char *, naddr);
-extern struct interface *ifwithindex(u_short, int);
-extern struct interface *iflookup(naddr);
+int	check_dst(naddr);
+struct interface *check_dup(naddr, naddr, naddr, int);
+int	check_remote(struct interface *);
+void	ifinit(void);
+int	walk_bad(struct radix_node *, struct walkarg *);
+int	if_ok(struct interface *, const char *);
+void	if_sick(struct interface *);
+void	if_link(struct interface *);
+struct interface *ifwithaddr(naddr addr, int bcast, int remote);
+struct interface *ifwithindex(u_short, int);
+struct interface *iflookup(naddr);
 
-extern struct auth *find_auth(struct interface *);
-extern void end_md5_auth(struct ws_buf *, struct auth *);
+struct auth *find_auth(struct interface *);
+void end_md5_auth(struct ws_buf *, struct auth *);
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <md5.h>
@@ -655,7 +640,7 @@ typedef struct {
 	u_int32_t count[2];		/* # of bits, modulo 2^64 (LSB 1st) */
 	unsigned char buffer[64];	/* input buffer */
 } MD5_CTX;
-extern void MD5Init(MD5_CTX*);
-extern void MD5Update(MD5_CTX*, u_char*, u_int);
-extern void MD5Final(u_char[MD5_DIGEST_LEN], MD5_CTX*);
+void MD5Init(MD5_CTX*);
+void MD5Update(MD5_CTX*, u_char*, u_int);
+void MD5Final(u_char[MD5_DIGEST_LEN], MD5_CTX*);
 #endif

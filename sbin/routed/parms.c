@@ -43,7 +43,7 @@ __RCSID("$Revision: 2.26 $");
 #endif
 
 
-struct parm *parms;
+static struct parm *parms;
 struct intnet *intnets;
 struct r1net *r1nets;
 struct tgate *tgates;

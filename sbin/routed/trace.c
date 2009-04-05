@@ -58,7 +58,7 @@ FILE	*ftrace;			/* output trace file */
 static const char *sigtrace_pat = "%s";
 static char savetracename[PATH_MAX];
 char	inittracename[PATH_MAX];
-int	file_trace;			/* 1=tracing to file, not stdout */
+static int file_trace;			/* 1=tracing to file, not stdout */
 
 static void trace_dump(void);
 static void tmsg(const char *, ...) PATTRIB(1,2);
