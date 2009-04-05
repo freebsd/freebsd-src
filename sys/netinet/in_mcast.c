@@ -2838,7 +2838,7 @@ inm_print(const struct in_multi *inm)
 {
 	int t;
 
-	if ((KTR_COMPILE & KTR_IGMPV3) == 0)
+	if ((ktr_mask & KTR_IGMPV3) == 0)
 		return;
 
 	printf("%s: --- begin inm %p ---\n", __func__, inm);
