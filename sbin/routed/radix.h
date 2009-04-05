@@ -138,7 +138,7 @@ struct radix_node_head {
 #define Free(p) free((void *)p);
 
 void	 rn_init(void);
-int	 rn_inithead(void **, int);
+int	 rn_inithead(struct radix_node_head **head, int off);
 int	 rn_refines(void *, void *);
 int	 rn_walktree(struct radix_node_head *,
 		     int (*)(struct radix_node *, struct walkarg *),
