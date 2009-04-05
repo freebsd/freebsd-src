@@ -1487,7 +1487,8 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 retry:
 	err = usb2_req_reset_port(parent_hub, mtx, udev->port_no);
 	if (err) {
-		DPRINTFN(0, "addr=%d, port reset failed\n", old_addr);
+		DPRINTFN(0, "addr=%d, port reset failed, %s\n", 
+		    old_addr, usb2_errstr(err));
 		goto done;
 	}
 	/*
@@ -1505,8 +1506,8 @@ retry:
 	err = usb2_req_set_address(udev, mtx, old_addr);
 	if (err) {
 		/* XXX ignore any errors! */
-		DPRINTFN(0, "addr=%d, set address failed! (ignored)\n",
-		    old_addr);
+		DPRINTFN(0, "addr=%d, set address failed! (%s, ignored)\n",
+		    old_addr, usb2_errstr(err));
 	}
 	/* restore device address */
 	udev->address = old_addr;
@@ -1519,14 +1520,16 @@ retry:
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
-		    "at addr %d failed!\n", udev->address);
+		    "at addr %d failed, %s!\n", udev->address,
+		    usb2_errstr(err));
 		goto done;
 	}
 	/* get the full device descriptor */
 	err = usb2_req_get_device_desc(udev, mtx, &udev->ddesc);
 	if (err) {
 		DPRINTFN(0, "addr=%d, getting device "
-		    "descriptor failed!\n", old_addr);
+		    "descriptor failed, %s!\n", old_addr, 
+		    usb2_errstr(err));
 		goto done;
 	}
 done:
