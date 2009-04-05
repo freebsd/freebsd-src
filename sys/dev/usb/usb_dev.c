@@ -89,7 +89,7 @@ static void	usb2_loc_fill(struct usb2_fs_privdata *,
 		    struct usb2_cdev_privdata *);
 static void	usb2_close(void *);
 static usb2_error_t usb2_ref_device(struct usb2_cdev_privdata *, int);
-static usb2_error_t usb2_usb_ref_location(struct usb2_cdev_privdata *);
+static usb2_error_t usb2_usb_ref_device(struct usb2_cdev_privdata *);
 static void	usb2_unref_device(struct usb2_cdev_privdata *);
 
 static d_open_t usb2_open;
@@ -180,6 +180,22 @@ usb2_ref_device(struct usb2_cdev_privdata* cpd, int need_uref)
 		DPRINTFN(2, "no dev ref\n");
 		goto error;
 	}
+	if (need_uref) {
+		DPRINTFN(2, "ref udev - needed\n");
+		cpd->udev->refcount++;
+		cpd->is_uref = 1;
+
+		mtx_unlock(&usb2_ref_lock);
+
+		/*
+		 * We need to grab the sx-lock before grabbing the
+		 * FIFO refs to avoid deadlock at detach!
+		 */
+		sx_xlock(cpd->udev->default_sx + 1);
+
+		mtx_lock(&usb2_ref_lock);
+	}
+
 	/* check if we are doing an open */
 	if (cpd->fflags == 0) {
 		/* set defaults */
@@ -240,31 +256,28 @@ usb2_ref_device(struct usb2_cdev_privdata* cpd, int need_uref)
 		DPRINTFN(2, "ref read\n");
 		cpd->rxfifo->refcount++;
 	}
-	if (need_uref) {
-		DPRINTFN(2, "ref udev - needed\n");
-		cpd->udev->refcount++;
-		cpd->is_uref = 1;
-	}
 	mtx_unlock(&usb2_ref_lock);
 
 	if (cpd->is_uref) {
-		/*
-		 * We are about to alter the bus-state. Apply the
-		 * required locks.
-		 */
-		sx_xlock(cpd->udev->default_sx + 1);
 		mtx_lock(&Giant);	/* XXX */
 	}
 	return (0);
 
 error:
+	if (cpd->is_uref) {
+		sx_unlock(cpd->udev->default_sx + 1);
+		if (--(cpd->udev->refcount) == 0) {
+			usb2_cv_signal(cpd->udev->default_cv + 1);
+		}
+		cpd->is_uref = 0;
+	}
 	mtx_unlock(&usb2_ref_lock);
 	DPRINTFN(2, "fail\n");
 	return (USB_ERR_INVAL);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_usb_ref_location
+ *	usb2_usb_ref_device
  *
  * This function is used to upgrade an USB reference to include the
  * USB device reference on a USB location.
@@ -274,46 +287,21 @@ error:
  *  Else: Failure.
  *------------------------------------------------------------------------*/
 static usb2_error_t
-usb2_usb_ref_location(struct usb2_cdev_privdata *cpd)
+usb2_usb_ref_device(struct usb2_cdev_privdata *cpd)
 {
 	/*
 	 * Check if we already got an USB reference on this location:
 	 */
-	if (cpd->is_uref) {
+	if (cpd->is_uref)
 		return (0);		/* success */
-	}
-	mtx_lock(&usb2_ref_lock);
-	if (cpd->bus != devclass_get_softc(usb2_devclass_ptr, cpd->bus_index)) {
-		DPRINTFN(2, "bus changed at %u\n", cpd->bus_index);
-		goto error;
-	}
-	if (cpd->udev != cpd->bus->devices[cpd->dev_index]) {
-		DPRINTFN(2, "device changed at %u\n", cpd->dev_index);
-		goto error;
-	}
-	if (cpd->udev->refcount == USB_DEV_REF_MAX) {
-		DPRINTFN(2, "no dev ref\n");
-		goto error;
-	}
-	DPRINTFN(2, "ref udev\n");
-	cpd->udev->refcount++;
-	mtx_unlock(&usb2_ref_lock);
-
-	/* set "uref" */
-	cpd->is_uref = 1;
 
 	/*
-	 * We are about to alter the bus-state. Apply the
-	 * required locks.
+	 * To avoid deadlock at detach we need to drop the FIFO ref
+	 * and re-acquire a new ref!
 	 */
-	sx_xlock(cpd->udev->default_sx + 1);
-	mtx_lock(&Giant);		/* XXX */
-	return (0);
+	usb2_unref_device(cpd);
 
-error:
-	mtx_unlock(&usb2_ref_lock);
-	DPRINTFN(2, "fail\n");
-	return (USB_ERR_INVAL);
+	return (usb2_ref_device(cpd, 1 /* need uref */));
 }
 
 /*------------------------------------------------------------------------*
@@ -1038,7 +1026,7 @@ usb2_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread*
 		err = (f->methods->f_ioctl) (f, cmd, addr, fflags);
 		DPRINTFN(2, "f_ioctl cmd 0x%lx = %d\n", cmd, err);
 		if (err == ENOIOCTL) {
-			if (usb2_usb_ref_location(cpd)) {
+			if (usb2_usb_ref_device(cpd)) {
 				err = ENXIO;
 				goto done;
 			}
