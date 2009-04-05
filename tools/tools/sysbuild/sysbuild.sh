@@ -214,6 +214,7 @@ ports_build() (
 ports_prefetch() (
 	(
 	set +x
+	true > /tmp/_.plist
 	ports_recurse $PORTS_WE_WANT
 
 	# Now checksump/fetch them
