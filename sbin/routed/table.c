@@ -48,6 +48,7 @@ static void masktrim(struct sockaddr_in *ap);
 #else
 static void masktrim(struct sockaddr_in_new *ap);
 #endif
+static void rtbad(struct rt_entry *);
 
 
 struct radix_node_head *rhead;		/* root of the radix tree */
@@ -66,7 +67,7 @@ int	stopint;
 int	total_routes;
 
 /* zap any old routes through this gateway */
-naddr	age_bad_gate;
+static naddr age_bad_gate;
 
 
 /* It is desirable to "aggregate" routes, to combine differing routes of
@@ -93,7 +94,7 @@ naddr	age_bad_gate;
  * sorted first by address, with the smallest address first.
  */
 
-struct ag_info ag_slots[NUM_AG_SLOTS], *ag_avail, *ag_corsest, *ag_finest;
+static struct ag_info ag_slots[NUM_AG_SLOTS], *ag_avail, *ag_corsest, *ag_finest;
 
 /* #define DEBUG_AG */
 #ifdef DEBUG_AG
@@ -611,7 +612,7 @@ ag_check(naddr	dst,
 static const char *
 rtm_type_name(u_char type)
 {
-	static const char *rtm_types[] = {
+	static const char * const rtm_types[] = {
 		"RTM_ADD",
 		"RTM_DELETE",
 		"RTM_CHANGE",
@@ -1886,7 +1887,7 @@ rts_delete(struct rt_entry *rt,
 
 /* Get rid of a bad route, and try to switch to a replacement.
  */
-void
+static void
 rtbad(struct rt_entry *rt)
 {
 	struct rt_spare new;

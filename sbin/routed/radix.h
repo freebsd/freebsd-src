@@ -80,7 +80,7 @@ struct radix_node {
  * Annotations to tree concerning potential routes applying to subtrees.
  */
 
-extern struct radix_mask {
+struct radix_mask {
 	short	rm_b;			/* bit offset; -1-index(netmask) */
 	char	rm_unused;		/* cf. rn_bmask */
 	u_char	rm_flags;		/* cf. rn_flags */
@@ -90,7 +90,7 @@ extern struct radix_mask {
 		struct	radix_node *rmu_leaf;	/* for normal routes */
 	}	rm_rmu;
 	int	rm_refs;		/* # of references to this struct */
-} *rn_mkfreelist;
+};
 
 #define rm_mask rm_rmu.rmu_mask
 #define rm_leaf rm_rmu.rmu_leaf		/* extra field would make 32 bytes */
@@ -139,23 +139,8 @@ struct radix_node_head {
 
 void	 rn_init(void);
 int	 rn_inithead(struct radix_node_head **head, int off);
-int	 rn_refines(void *, void *);
 int	 rn_walktree(struct radix_node_head *,
 		     int (*)(struct radix_node *, struct walkarg *),
 		     struct walkarg *);
-
-struct radix_node
-	 *rn_addmask(void *, int, int),
-	 *rn_addroute(void *, void *, struct radix_node_head *,
-			struct radix_node [2]),
-	 *rn_delete(void *, void *, struct radix_node_head *),
-	 *rn_insert(void *, struct radix_node_head *, int *,
-			struct radix_node [2]),
-	 *rn_match(void *, struct radix_node_head *),
-	 *rn_newpair(void *, int, struct radix_node[2]),
-	 *rn_search(void *, struct radix_node *),
-	 *rn_search_m(void *, struct radix_node *, void *);
-
-struct radix_node *rn_lookup(void *, void *, struct radix_node_head *);
 
 #endif /* __RADIX_H_ */
