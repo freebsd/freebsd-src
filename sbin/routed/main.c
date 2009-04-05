@@ -529,7 +529,9 @@ usage:
 			n--;
 		}
 
-		for (ifp = ifnet; n > 0 && 0 != ifp; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
+			if (n <= 0)
+				break;
 			if (ifp->int_rip_sock >= 0
 			    && FD_ISSET(ifp->int_rip_sock, &ibits)) {
 				read_rip(ifp->int_rip_sock, ifp);
@@ -578,7 +580,7 @@ fix_select(void)
 		if (sock_max <= rip_sock)
 			sock_max = rip_sock+1;
 	}
-	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (ifp->int_rip_sock >= 0) {
 			FD_SET(ifp->int_rip_sock, &fdbits);
 			if (sock_max <= ifp->int_rip_sock)
@@ -690,7 +692,7 @@ rip_off(void)
 
 		/* get non-broadcast sockets to listen to queries.
 		 */
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			if (ifp->int_state & IS_REMOTE)
 				continue;
 			if (ifp->int_rip_sock < 0) {
@@ -761,7 +763,7 @@ rip_on(struct interface *ifp)
 		 * since that would let two daemons bind to the broadcast
 		 * socket.
 		 */
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			if (ifp->int_rip_sock >= 0) {
 				(void)close(ifp->int_rip_sock);
 				ifp->int_rip_sock = -1;
@@ -776,7 +778,7 @@ rip_on(struct interface *ifp)
 		if (next_bcast.tv_sec < now.tv_sec+MIN_WAITTIME)
 			next_bcast.tv_sec = now.tv_sec+MIN_WAITTIME;
 
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			ifp->int_query_time = NEVER;
 			rip_mcast_on(ifp);
 		}

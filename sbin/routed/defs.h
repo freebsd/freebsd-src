@@ -80,6 +80,7 @@
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 #ifdef sgi
 #define _USER_ROUTE_TREE
 #include <net/radix.h>
@@ -262,7 +263,7 @@ struct rt_entry {
  * handles "logical" or "IS_REMOTE" interfaces (remote gateways).
  */
 struct interface {
-	struct interface *int_next, **int_prev;
+	LIST_ENTRY(interface)		int_list;
 	struct interface *int_ahash, **int_ahash_prev;
 	struct interface *int_bhash, **int_bhash_prev;
 	struct interface *int_rlink, **int_rlink_prev;
@@ -353,6 +354,7 @@ struct interface {
 
 #define iff_up(f) ((f) & IFF_UP)
 
+LIST_HEAD(ifhead, interface);
 
 /* Information for aggregating routes */
 #define NUM_AG_SLOTS	32
@@ -483,7 +485,7 @@ extern struct timeval ifinit_timer;	/* time to check interfaces */
 extern naddr	loopaddr;		/* our address on loopback */
 extern int	tot_interfaces;		/* # of remote and local interfaces */
 extern int	rip_interfaces;		/* # of interfaces doing RIP */
-extern struct interface *ifnet;		/* all interfaces */
+extern struct ifhead ifnet;		/* all interfaces */
 extern struct interface *remote_if;	/* remote interfaces */
 extern int	have_ripv1_out;		/* have a RIPv1 interface */
 extern int	have_ripv1_in;

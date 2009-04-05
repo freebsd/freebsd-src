@@ -1918,7 +1918,7 @@ rtbad_sub(struct rt_entry *rt)
 		 * If so, see if it is used by any other interfaces, such
 		 * as a point-to-point interface with the same local address.
 		 */
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			/* Retain it if another interface needs it.
 			 */
 			if (ifp->int_addr == rt->rt_ifp->int_addr) {
@@ -1935,7 +1935,7 @@ rtbad_sub(struct rt_entry *rt)
 		 * interface that justifies it.
 		 */
 		if (rt->rt_state & RS_NET_SYN) {
-			for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+			LIST_FOREACH(ifp, &ifnet, int_list) {
 				if ((ifp->int_state & IS_NEED_NET_SYN)
 				    && rt->rt_mask == ifp->int_std_mask
 				    && rt->rt_dst == ifp->int_std_addr) {
@@ -2105,7 +2105,7 @@ age(naddr bad_gate)
 	/* Check for dead IS_REMOTE interfaces by timing their
 	 * transmissions.
 	 */
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (!(ifp->int_state & IS_REMOTE))
 			continue;
 

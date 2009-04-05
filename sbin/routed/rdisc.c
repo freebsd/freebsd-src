@@ -278,7 +278,7 @@ set_supplier(void)
 	/* Switch router discovery multicast groups from soliciting
 	 * to advertising.
 	 */
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (ifp->int_state & IS_BROKE)
 			continue;
 		ifp->int_rdisc_cnt = 0;
@@ -817,7 +817,7 @@ rdisc_adv(void)
 
 	rdisc_timer.tv_sec = now.tv_sec + NEVER;
 
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (0 != (ifp->int_state & (IS_NO_ADV_OUT | IS_BROKE)))
 			continue;
 
@@ -859,7 +859,7 @@ rdisc_sol(void)
 
 	rdisc_timer.tv_sec = now.tv_sec + NEVER;
 
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (0 != (ifp->int_state & (IS_NO_SOL_OUT | IS_BROKE))
 		    || ifp->int_rdisc_cnt >= MAX_SOLICITATIONS)
 			continue;
