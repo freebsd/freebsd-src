@@ -292,11 +292,15 @@ musbotg_setup_rx(struct musbotg_td *td)
 	if (count != td->remainder) {
 		DPRINTFN(0, "Invalid SETUP packet "
 		    "length, %d bytes\n", count);
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		      MUSB2_MASK_CSR0L_RXPKTRDY_CLR);
 		goto not_complete;
 	}
 	if (count != sizeof(req)) {
 		DPRINTFN(0, "Unsupported SETUP packet "
 		    "length, %d bytes\n", count);
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		      MUSB2_MASK_CSR0L_RXPKTRDY_CLR);
 		goto not_complete;
 	}
 	/* receive data */

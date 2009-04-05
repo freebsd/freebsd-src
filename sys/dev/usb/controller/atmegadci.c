@@ -306,7 +306,10 @@ not_complete:
 		    ATMEGA_UECONX_STALLRQ);
 		td->did_stall = 1;
 	}
-
+	if (temp & ATMEGA_UEINTX_RXSTPI) {
+		/* clear SETUP packet interrupt */
+		ATMEGA_WRITE_1(sc, ATMEGA_UEINTX, ~ATMEGA_UEINTX_RXSTPI);
+	}
 	/* we only want to know if there is a SETUP packet */
 	ATMEGA_WRITE_1(sc, ATMEGA_UEIENX, ATMEGA_UEIENX_RXSTPE);
 	return (1);			/* not complete */

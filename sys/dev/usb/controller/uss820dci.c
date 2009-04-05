@@ -275,12 +275,12 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 	if (count != td->remainder) {
 		DPRINTFN(0, "Invalid SETUP packet "
 		    "length, %d bytes\n", count);
-		goto not_complete;
+		goto setup_not_complete;
 	}
 	if (count != sizeof(req)) {
 		DPRINTFN(0, "Unsupported SETUP packet "
 		    "length, %d bytes\n", count);
-		goto not_complete;
+		goto setup_not_complete;
 	}
 	/* receive data */
 	bus_space_read_multi_1(td->io_tag, td->io_hdl,
@@ -323,13 +323,22 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 	}
 	return (0);			/* complete */
 
+setup_not_complete:
+
+	/* set RXFFRC bit */
+	temp = bus_space_read_1(td->io_tag, td->io_hdl,
+	    td->rx_cntl_reg);
+	temp |= USS820_RXCON_RXFFRC;
+	bus_space_write_1(td->io_tag, td->io_hdl,
+	    td->rx_cntl_reg, temp);
+
+	/* FALLTHROUGH */
+
 not_complete:
 	/* abort any ongoing transfer */
 	if (!td->did_stall) {
 		DPRINTFN(5, "stalling\n");
-
 		/* set stall */
-
 		uss820dci_update_shared_1(sc, USS820_EPCON, 0xFF,
 		    (USS820_EPCON_TXSTL | USS820_EPCON_RXSTL));
 
