@@ -51,8 +51,6 @@ __RCSID("$Revision: 2.27 $");
 #define stat	stat64
 #endif
 
-#define	NRECORDS	50		/* size of circular trace buffer */
-
 int	tracelevel, new_tracelevel;
 FILE	*ftrace;			/* output trace file */
 static const char *sigtrace_pat = "%s";
@@ -255,13 +253,13 @@ void
 tracelevel_msg(const char *pat,
 	       int dump)		/* -1=no dump, 0=default, 1=force */
 {
-	static const char *off_msgs[MAX_TRACELEVEL] = {
+	static const char * const off_msgs[MAX_TRACELEVEL] = {
 		"Tracing actions stopped",
 		"Tracing packets stopped",
 		"Tracing packet contents stopped",
 		"Tracing kernel changes stopped",
 	};
-	static const char *on_msgs[MAX_TRACELEVEL] = {
+	static const char * const on_msgs[MAX_TRACELEVEL] = {
 		"Tracing actions started",
 		"Tracing packets started",
 		"Tracing packet contents started",
@@ -473,13 +471,13 @@ struct bits {
 	const char *bits_name;
 };
 
-static struct bits if_bits[] = {
+static const struct bits if_bits[] = {
 	{ IFF_LOOPBACK,		0,		"LOOPBACK" },
 	{ IFF_POINTOPOINT,	0,		"PT-TO-PT" },
 	{ 0,			0,		0}
 };
 
-static struct bits is_bits[] = {
+static const struct bits is_bits[] = {
 	{ IS_ALIAS,		0,		"ALIAS" },
 	{ IS_SUBNET,		0,		"" },
 	{ IS_REMOTE,		(IS_NO_RDISC
@@ -523,7 +521,7 @@ static struct bits is_bits[] = {
 	{ 0,			0,		"%#x"}
 };
 
-static struct bits rs_bits[] = {
+static const struct bits rs_bits[] = {
 	{ RS_IF,		0,		"IF" },
 	{ RS_NET_INT,		RS_NET_SYN,	"NET_INT" },
 	{ RS_NET_SYN,		0,		"NET_SYN" },
