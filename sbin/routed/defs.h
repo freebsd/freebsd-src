@@ -264,9 +264,9 @@ struct rt_entry {
  */
 struct interface {
 	LIST_ENTRY(interface)		int_list;
+	LIST_ENTRY(interface)		remote_list;
 	struct interface *int_ahash, **int_ahash_prev;
 	struct interface *int_bhash, **int_bhash_prev;
-	struct interface *int_rlink, **int_rlink_prev;
 	struct interface *int_nhash, **int_nhash_prev;
 	char	int_name[IF_NAME_LEN+1];
 	u_short	int_index;
@@ -486,7 +486,7 @@ extern naddr	loopaddr;		/* our address on loopback */
 extern int	tot_interfaces;		/* # of remote and local interfaces */
 extern int	rip_interfaces;		/* # of interfaces doing RIP */
 extern struct ifhead ifnet;		/* all interfaces */
-extern struct interface *remote_if;	/* remote interfaces */
+extern struct ifhead remote_if;		/* remote interfaces */
 extern int	have_ripv1_out;		/* have a RIPv1 interface */
 extern int	have_ripv1_in;
 extern int	need_flash;		/* flash update needed */

@@ -96,7 +96,7 @@ read_rip(int sock,
 			       cc+sizeof(inbuf.ifname));
 
 		/* check the remote interfaces first */
-		for (aifp = remote_if; aifp; aifp = aifp->int_rlink) {
+		LIST_FOREACH(aifp, &remote_if, remote_list) {
 			if (aifp->int_addr == from.sin_addr.s_addr)
 				break;
 		}
