@@ -649,7 +649,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	status = ATMEGA_READ_1(sc, ATMEGA_UDINT);
 
 	/* clear all set interrupts */
-	ATMEGA_WRITE_1(sc, ATMEGA_UDINT, ~status);
+	ATMEGA_WRITE_1(sc, ATMEGA_UDINT, (~status) & 0x7D);
 
 	DPRINTFN(14, "UDINT=0x%02x\n", status);
 
@@ -719,7 +719,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	status = ATMEGA_READ_1(sc, ATMEGA_USBINT);
 
 	/* clear all set interrupts */
-	ATMEGA_WRITE_1(sc, ATMEGA_USBINT, ~status);
+	ATMEGA_WRITE_1(sc, ATMEGA_USBINT, (~status) & 0x03);
 
 	if (status & ATMEGA_USBINT_VBUSTI) {
 		uint8_t temp;
@@ -731,10 +731,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	}
 	/* check for any endpoint interrupts */
 	status = ATMEGA_READ_1(sc, ATMEGA_UEINT);
-
-	/* clear all set interrupts */
-	ATMEGA_WRITE_1(sc, ATMEGA_UEINT, ~status);
-
+	/* the hardware will clear the UEINT bits automatically */
 	if (status) {
 
 		DPRINTFN(5, "real endpoint interrupt UEINT=0x%02x\n", status);
@@ -1249,6 +1246,12 @@ atmegadci_init(struct atmegadci_softc *sc)
 	ATMEGA_WRITE_1(sc, ATMEGA_UHWCON,
 	    ATMEGA_UHWCON_UVREGE | ATMEGA_UHWCON_UIMOD);
 #endif
+	/* make sure USB is enabled */
+	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
+	    ATMEGA_USBCON_USBE |
+	    ATMEGA_USBCON_OTGPADE |
+	    ATMEGA_USBCON_VBUSTE);
+
 	/* turn on clocks */
 	(sc->sc_clocks_on) (&sc->sc_bus);
 
