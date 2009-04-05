@@ -119,7 +119,6 @@ struct usb2_device {
 	struct usb2_pipe default_pipe;	/* Control Endpoint 0 */
 	struct usb2_pipe *pipes;
 	struct usb2_power_save pwr_save;/* power save data */
-
 	struct usb2_bus *bus;		/* our USB BUS */
 	device_t parent_dev;		/* parent device */
 	struct usb2_device *parent_hub;

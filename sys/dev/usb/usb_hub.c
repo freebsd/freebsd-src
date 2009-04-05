@@ -109,11 +109,11 @@ static const struct usb2_config uhub_config[UHUB_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_ANY,
-		.mh.timeout = 0,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &uhub_intr_callback,
-		.mh.interval = UHUB_INTR_INTERVAL,
+		.timeout = 0,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &uhub_intr_callback,
+		.interval = UHUB_INTR_INTERVAL,
 	},
 };
 
@@ -712,9 +712,10 @@ uhub_attach(device_t dev)
 	}
 	udev->hub = hub;
 
+#if USB_HAVE_TT_SUPPORT
 	/* init FULL-speed ISOCHRONOUS schedule */
 	usb2_fs_isoc_schedule_init_all(hub->fs_isoc_schedule);
-
+#endif
 	/* initialize HUB structure */
 	hub->hubsoftc = sc;
 	hub->explore = &uhub_explore;
@@ -1115,6 +1116,7 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
  * This function initialises an USB FULL speed isochronous schedule
  * entry.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 static void
 usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
 {
@@ -1123,6 +1125,7 @@ usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
 	fss->frame_bytes = (USB_FS_BYTES_PER_HS_UFRAME);
 	fss->frame_slot = 0;
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_fs_isoc_schedule_init_all
@@ -1130,6 +1133,7 @@ usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
  * This function will reset the complete USB FULL speed isochronous
  * bandwidth schedule.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 void
 usb2_fs_isoc_schedule_init_all(struct usb2_fs_isoc_schedule *fss)
 {
@@ -1140,6 +1144,7 @@ usb2_fs_isoc_schedule_init_all(struct usb2_fs_isoc_schedule *fss)
 		fss++;
 	}
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_isoc_time_expand
@@ -1187,6 +1192,7 @@ usb2_isoc_time_expand(struct usb2_bus *bus, uint16_t isoc_time_curr)
  * NOTE: This function depends on being called regularly with
  * intervals less than "USB_ISOC_TIME_MAX".
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 uint16_t
 usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
     struct usb2_fs_isoc_schedule **pp_start,
@@ -1233,6 +1239,7 @@ usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
 	}
 	return (isoc_time);
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_fs_isoc_schedule_alloc
@@ -1247,6 +1254,7 @@ usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
  *    0: Success
  * Else: Error
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 uint8_t
 usb2_fs_isoc_schedule_alloc(struct usb2_fs_isoc_schedule *fss,
     uint8_t *pstart, uint16_t len)
@@ -1279,6 +1287,7 @@ usb2_fs_isoc_schedule_alloc(struct usb2_fs_isoc_schedule *fss,
 	*pstart = slot;
 	return (0);			/* success */
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_port_get_device
@@ -1411,11 +1420,13 @@ usb2_needs_explore_all(void)
  * properly suspended or resumed according to the device transfer
  * state.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_POWERD
 void
 usb2_bus_power_update(struct usb2_bus *bus)
 {
 	usb2_needs_explore(bus, 0 /* no probe */ );
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_transfer_power_ref
@@ -1424,6 +1435,7 @@ usb2_bus_power_update(struct usb2_bus *bus)
  * wakeup the USB device associated with the given USB transfer, if
  * needed.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_POWERD
 void
 usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 {
@@ -1493,8 +1505,8 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 			(udev->bus->methods->set_hw_power) (udev->bus);
 		}
 	}
-	return;
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_powerd
@@ -1502,6 +1514,7 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
  * This function implements the USB power daemon and is called
  * regularly from the USB explore thread.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_POWERD
 void
 usb2_bus_powerd(struct usb2_bus *bus)
 {
@@ -1625,6 +1638,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 	}
 	return;
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_dev_resume_peer
@@ -1684,6 +1698,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 	USB_BUS_LOCK(bus);
 	/* set that this device is now resumed */
 	udev->pwr_save.suspended = 0;
+#if USB_HAVE_POWERD
 	/* make sure that we don't go into suspend right away */
 	udev->pwr_save.last_xfer_time = ticks;
 
@@ -1696,6 +1711,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 		bus->hw_power_state |= USB_HW_POWER_INTERRUPT;
 	if (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0)
 		bus->hw_power_state |= USB_HW_POWER_ISOC;
+#endif
 	USB_BUS_UNLOCK(bus);
 
 	if (bus->methods->set_hw_power != NULL) {
@@ -1844,7 +1860,7 @@ usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode)
 	}
 	udev->power_mode = power_mode;	/* update copy of power mode */
 
+#if USB_HAVE_POWERD
 	usb2_bus_power_update(udev->bus);
-
-	return;
+#endif
 }

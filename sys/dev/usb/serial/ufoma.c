@@ -232,28 +232,28 @@ static const struct usb2_config
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = sizeof(struct usb2_cdc_notification),
-		.mh.callback = &ufoma_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = sizeof(struct usb2_cdc_notification),
+		.callback = &ufoma_intr_callback,
 	},
 
 	[UFOMA_CTRL_ENDPT_READ] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = (sizeof(struct usb2_device_request) + UFOMA_CMD_BUF_SIZE),
-		.mh.flags = {.short_xfer_ok = 1,},
-		.mh.callback = &ufoma_ctrl_read_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = (sizeof(struct usb2_device_request) + UFOMA_CMD_BUF_SIZE),
+		.flags = {.short_xfer_ok = 1,},
+		.callback = &ufoma_ctrl_read_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 
 	[UFOMA_CTRL_ENDPT_WRITE] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = (sizeof(struct usb2_device_request) + 1),
-		.mh.callback = &ufoma_ctrl_write_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = (sizeof(struct usb2_device_request) + 1),
+		.callback = &ufoma_ctrl_write_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 };
 
@@ -264,18 +264,18 @@ static const struct usb2_config
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UFOMA_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &ufoma_bulk_write_callback,
+		.bufsize = UFOMA_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &ufoma_bulk_write_callback,
 	},
 
 	[UFOMA_BULK_ENDPT_READ] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UFOMA_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &ufoma_bulk_read_callback,
+		.bufsize = UFOMA_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &ufoma_bulk_read_callback,
 	},
 };
 

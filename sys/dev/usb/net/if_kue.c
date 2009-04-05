@@ -163,20 +163,20 @@ static const struct usb2_config kue_config[KUE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = (MCLBYTES + 2 + 64),
-		.mh.flags = {.pipe_bof = 1,},
-		.mh.callback = kue_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = (MCLBYTES + 2 + 64),
+		.flags = {.pipe_bof = 1,},
+		.callback = kue_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[KUE_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + 2),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = kue_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = (MCLBYTES + 2),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = kue_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 };
 

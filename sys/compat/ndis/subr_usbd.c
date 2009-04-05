@@ -93,20 +93,20 @@ static struct usb2_config usbd_default_epconfig[USBD_CTRL_MAX_PIPE] = {
 		.endpoint =	0x00,	/* control pipe */
 		.direction =	UE_DIR_ANY,
 		.if_index =	0,
-		.mh.bufsize =	USBD_CTRL_READ_BUFFER_SIZE,
-		.mh.flags =	{ .short_xfer_ok = 1, },
-		.mh.callback =	&usbd_ctrl_callback,
-		.mh.timeout =	5000,	/* 5 seconds */
+		.bufsize =	USBD_CTRL_READ_BUFFER_SIZE,
+		.flags =	{ .short_xfer_ok = 1, },
+		.callback =	&usbd_ctrl_callback,
+		.timeout =	5000,	/* 5 seconds */
 	},
 	[USBD_CTRL_WRITE_PIPE] = {
 		.type =		UE_CONTROL,
 		.endpoint =	0x00,	/* control pipe */
 		.direction =	UE_DIR_ANY,
 		.if_index =	0,
-		.mh.bufsize =	USBD_CTRL_WRITE_BUFFER_SIZE,
-		.mh.flags =	{ .proxy_buffer = 1, },
-		.mh.callback =	&usbd_ctrl_callback,
-		.mh.timeout =	5000,	/* 5 seconds */
+		.bufsize =	USBD_CTRL_WRITE_BUFFER_SIZE,
+		.flags =	{ .proxy_buffer = 1, },
+		.callback =	&usbd_ctrl_callback,
+		.timeout =	5000,	/* 5 seconds */
 	}
 };
 
@@ -674,11 +674,11 @@ usbd_setup_endpoint(ip, ifidx, ep)
 	cfg.type	= UE_GET_XFERTYPE(ep->bmAttributes);
 	cfg.endpoint	= UE_GET_ADDR(ep->bEndpointAddress);
 	cfg.direction	= UE_GET_DIR(ep->bEndpointAddress);
-	cfg.mh.callback	= &usbd_non_isoc_callback;
-	cfg.mh.bufsize	= UGETW(ep->wMaxPacketSize);
-	cfg.mh.flags.proxy_buffer = 1;
+	cfg.callback	= &usbd_non_isoc_callback;
+	cfg.bufsize	= UGETW(ep->wMaxPacketSize);
+	cfg.flags.proxy_buffer = 1;
 	if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN)
-		cfg.mh.flags.short_xfer_ok = 1;
+		cfg.flags.short_xfer_ok = 1;
 
 	status = usb2_transfer_setup(sc->ndisusb_dev, &ifidx, ne->ne_xfer,
 	    &cfg, 1, sc, &sc->ndisusb_mtx);

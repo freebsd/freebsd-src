@@ -339,18 +339,18 @@ static const struct usb2_config ural_config[URAL_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE + 4),
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = ural_bulk_write_callback,
-		.mh.timeout = 5000,	/* ms */
+		.bufsize = (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE + 4),
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = ural_bulk_write_callback,
+		.timeout = 5000,	/* ms */
 	},
 	[URAL_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (RAL_FRAME_SIZE + RAL_RX_DESC_SIZE),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = ural_bulk_read_callback,
+		.bufsize = (RAL_FRAME_SIZE + RAL_RX_DESC_SIZE),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = ural_bulk_read_callback,
 	},
 };
 

@@ -232,38 +232,38 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = ZYD_MAX_TXBUFSZ,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = zyd_bulk_write_callback,
+		.bufsize = ZYD_MAX_TXBUFSZ,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = zyd_bulk_write_callback,
 		.ep_index = 0,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.timeout = 10000,	/* 10 seconds */
 	},
 	[ZYD_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = ZYX_MAX_RXBUFSZ,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = zyd_bulk_read_callback,
+		.bufsize = ZYX_MAX_RXBUFSZ,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = zyd_bulk_read_callback,
 		.ep_index = 0,
 	},
 	[ZYD_INTR_WR] = {
 		.type = UE_BULK_INTR,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = sizeof(struct zyd_cmd),
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = zyd_intr_write_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct zyd_cmd),
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = zyd_intr_write_callback,
+		.timeout = 1000,	/* 1 second */
 		.ep_index = 1,
 	},
 	[ZYD_INTR_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = sizeof(struct zyd_cmd),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = zyd_intr_read_callback,
+		.bufsize = sizeof(struct zyd_cmd),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = zyd_intr_read_callback,
 	},
 };
 #define zyd_read16_m(sc, val, data)	do {				\
