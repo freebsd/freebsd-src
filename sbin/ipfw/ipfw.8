@@ -873,6 +873,31 @@ If the packet is the last logical fragment, the packet is reassembled and, if
 .Va net.inet.ip.fw.one_pass
 is set to 0, processing continues with the next rule, else packet is allowed to pass and search terminates.
 If the packet is a fragment in the middle, it is consumed and processing stops immediately.
+.Pp
+Fragments handling can be tuned via
+.Va net.inet.ip.maxfragpackets
+and
+.Va net.inet.ip.maxfragsperpacket
+which limit, respectively, the maximum number of processable fragments (default: 800) and
+the maximum number of fragments per packet (default: 16).
+.Pp
+NOTA BENE: since fragments don't contain port numbers, beware not to use them whe issuing a
+.Nm reass
+rule. Alternatively, direction-based (like 
+.Nm in
+/
+.Nm out
+) and source-based (like
+.Nm via
+) match patterns can be used to select fragments.
+.Pp
+Usually a simple rule like:
+.Bd -literal -offset indent
+# reassemble incoming fragments
+ipfw add reass all from any to any in
+.Ed
+.Pp
+is all you need at the beginning of your ruleset.
 .El
 .Ss RULE BODY
 The body of a rule contains zero or more patterns (such as
