@@ -833,7 +833,7 @@ rip_bcast(int flash)
 		  flash ? "dynamic update" : "all routes",
 		  rtime.tv_sec + ((float)rtime.tv_usec)/1000000.0);
 
-	for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		/* Skip interfaces not doing RIP.
 		 * Do try broken interfaces to see if they have healed.
 		 */
@@ -907,7 +907,7 @@ rip_query(void)
 
 	memset(&buf, 0, sizeof(buf));
 
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		/* Skip interfaces those already queried.
 		 * Do not ask via interfaces through which we don't
 		 * accept input.  Do not ask via interfaces that cannot
