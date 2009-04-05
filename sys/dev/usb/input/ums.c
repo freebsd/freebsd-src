@@ -84,27 +84,20 @@ SYSCTL_INT(_hw_usb2_ums, OID_AUTO, debug, CTLFLAG_RW,
 #define	UMS_IFQ_MAXLEN   50		/* units */
 #define	UMS_BUTTON_MAX   31		/* exclusive, must be less than 32 */
 #define	UMS_BUT(i) ((i) < 3 ? (((i) + 2) % 3) : (i))
+#define	UMS_INFO_MAX	  2		/* maximum number of HID sets */
 
 enum {
 	UMS_INTR_DT,
 	UMS_N_TRANSFER,
 };
 
-struct ums_softc {
-	struct usb2_fifo_sc sc_fifo;
-	struct mtx sc_mtx;
-	struct usb2_callout sc_callout;
+struct ums_info {
 	struct hid_location sc_loc_w;
 	struct hid_location sc_loc_x;
 	struct hid_location sc_loc_y;
 	struct hid_location sc_loc_z;
 	struct hid_location sc_loc_t;
 	struct hid_location sc_loc_btn[UMS_BUTTON_MAX];
-	mousehw_t sc_hw;
-	mousemode_t sc_mode;
-	mousestatus_t sc_status;
-
-	struct usb2_xfer *sc_xfer[UMS_N_TRANSFER];
 
 	uint32_t sc_flags;
 #define	UMS_FLAG_X_AXIS     0x0001
@@ -115,14 +108,29 @@ struct ums_softc {
 #define	UMS_FLAG_REVZ	    0x0020	/* Z-axis is reversed */
 #define	UMS_FLAG_W_AXIS     0x0040
 
-	uint8_t	sc_buttons;
-	uint8_t	sc_iid;
 	uint8_t	sc_iid_w;
 	uint8_t	sc_iid_x;
 	uint8_t	sc_iid_y;
 	uint8_t	sc_iid_z;
 	uint8_t	sc_iid_t;
 	uint8_t	sc_iid_btn[UMS_BUTTON_MAX];
+	uint8_t	sc_buttons;
+};
+
+struct ums_softc {
+	struct usb2_fifo_sc sc_fifo;
+	struct mtx sc_mtx;
+	struct usb2_callout sc_callout;
+	struct ums_info sc_info[UMS_INFO_MAX];
+
+	mousehw_t sc_hw;
+	mousemode_t sc_mode;
+	mousestatus_t sc_status;
+
+	struct usb2_xfer *sc_xfer[UMS_N_TRANSFER];
+
+	uint8_t	sc_buttons;
+	uint8_t	sc_iid;
 	uint8_t	sc_temp[64];
 };
 
@@ -165,14 +173,15 @@ static void
 ums_intr_callback(struct usb2_xfer *xfer)
 {
 	struct ums_softc *sc = xfer->priv_sc;
+	struct ums_info *info = &sc->sc_info[0];
 	uint8_t *buf = sc->sc_temp;
 	uint16_t len = xfer->actlen;
 	int32_t buttons = 0;
-	int32_t dw;
-	int32_t dx;
-	int32_t dy;
-	int32_t dz;
-	int32_t dt;
+	int32_t dw = 0;
+	int32_t dx = 0;
+	int32_t dy = 0;
+	int32_t dz = 0;
+	int32_t dt = 0;
 	uint8_t i;
 	uint8_t id;
 
@@ -205,48 +214,49 @@ ums_intr_callback(struct usb2_xfer *xfer)
 
 		} else {
 			id = 0;
-			if (sc->sc_flags & UMS_FLAG_SBU) {
+			if (sc->sc_info[0].sc_flags & UMS_FLAG_SBU) {
 				if ((*buf == 0x14) || (*buf == 0x15)) {
 					goto tr_setup;
 				}
 			}
 		}
 
-		if ((sc->sc_flags & UMS_FLAG_W_AXIS) && (id == sc->sc_iid_w))
-			dw = hid_get_data(buf, len, &sc->sc_loc_w);
-		else
-			dw = 0;
+	repeat:
+		if ((info->sc_flags & UMS_FLAG_W_AXIS) &&
+		    (id == info->sc_iid_w))
+			dw += hid_get_data(buf, len, &info->sc_loc_w);
 
-		if ((sc->sc_flags & UMS_FLAG_X_AXIS) && (id == sc->sc_iid_x))
-			dx = hid_get_data(buf, len, &sc->sc_loc_x);
-		else
-			dx = 0;
+		if ((info->sc_flags & UMS_FLAG_X_AXIS) && 
+		    (id == info->sc_iid_x))
+			dx += hid_get_data(buf, len, &info->sc_loc_x);
 
-		if ((sc->sc_flags & UMS_FLAG_Y_AXIS) && (id == sc->sc_iid_y))
-			dy = -hid_get_data(buf, len, &sc->sc_loc_y);
-		else
-			dy = 0;
+		if ((info->sc_flags & UMS_FLAG_Y_AXIS) &&
+		    (id == info->sc_iid_y))
+			dy = -hid_get_data(buf, len, &info->sc_loc_y);
 
-		if ((sc->sc_flags & UMS_FLAG_Z_AXIS) && (id == sc->sc_iid_z))
-			dz = -hid_get_data(buf, len, &sc->sc_loc_z);
-		else
-			dz = 0;
+		if ((info->sc_flags & UMS_FLAG_Z_AXIS) &&
+		    (id == info->sc_iid_z)) {
+			int32_t temp;
+			temp = hid_get_data(buf, len, &info->sc_loc_z);
+			if (info->sc_flags & UMS_FLAG_REVZ)
+				temp = -temp;
+			dz -= temp;
+		}
 
-		if (sc->sc_flags & UMS_FLAG_REVZ)
-			dz = -dz;
+		if ((info->sc_flags & UMS_FLAG_T_AXIS) &&
+		    (id == info->sc_iid_t))
+			dt -= hid_get_data(buf, len, &info->sc_loc_t);
 
-		if ((sc->sc_flags & UMS_FLAG_T_AXIS) && (id == sc->sc_iid_t))
-			dt = -hid_get_data(buf, len, &sc->sc_loc_t);
-		else
-			dt = 0;
-
-		for (i = 0; i < sc->sc_buttons; i++) {
-			if (id != sc->sc_iid_btn[i])
+		for (i = 0; i < info->sc_buttons; i++) {
+			if (id != info->sc_iid_btn[i])
 				continue;
-			if (hid_get_data(buf, len, &sc->sc_loc_btn[i])) {
+			if (hid_get_data(buf, len, &info->sc_loc_btn[i])) {
 				buttons |= (1 << UMS_BUT(i));
 			}
 		}
+
+		if (++info != &sc->sc_info[UMS_INFO_MAX])
+			goto repeat;
 
 		if (dx || dy || dz || dt || dw ||
 		    (buttons != sc->sc_status.button)) {
@@ -273,7 +283,7 @@ ums_intr_callback(struct usb2_xfer *xfer)
 		         * to the queue.  In any other case we delete
 		         * the timeout event.
 		         */
-			if ((sc->sc_flags & UMS_FLAG_SBU) &&
+			if ((sc->sc_info[0].sc_flags & UMS_FLAG_SBU) &&
 			    (dx == 0) && (dy == 0) && (dz == 0) && (dt == 0) &&
 			    (dw == 0) && (buttons == 0)) {
 
@@ -357,19 +367,115 @@ ums_probe(device_t dev)
 	return (error);
 }
 
+static void
+ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
+    uint16_t len, uint8_t index)
+{
+	struct ums_info *info = &sc->sc_info[index];
+	uint32_t flags;
+	uint8_t i;
+
+	if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
+	    hid_input, index, &info->sc_loc_x, &flags, &info->sc_iid_x)) {
+
+		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
+			info->sc_flags |= UMS_FLAG_X_AXIS;
+		}
+	}
+	if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
+	    hid_input, index, &info->sc_loc_y, &flags, &info->sc_iid_y)) {
+
+		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
+			info->sc_flags |= UMS_FLAG_Y_AXIS;
+		}
+	}
+	/* Try the wheel first as the Z activator since it's tradition. */
+	if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP,
+	    HUG_WHEEL), hid_input, index, &info->sc_loc_z, &flags,
+	    &info->sc_iid_z) ||
+	    hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP,
+	    HUG_TWHEEL), hid_input, index, &info->sc_loc_z, &flags,
+	    &info->sc_iid_z)) {
+		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
+			info->sc_flags |= UMS_FLAG_Z_AXIS;
+		}
+		/*
+		 * We might have both a wheel and Z direction, if so put
+		 * put the Z on the W coordinate.
+		 */
+		if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP,
+		    HUG_Z), hid_input, index, &info->sc_loc_w, &flags,
+		    &info->sc_iid_w)) {
+
+			if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
+				info->sc_flags |= UMS_FLAG_W_AXIS;
+			}
+		}
+	} else if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP,
+	    HUG_Z), hid_input, index, &info->sc_loc_z, &flags, 
+	    &info->sc_iid_z)) {
+
+		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
+			info->sc_flags |= UMS_FLAG_Z_AXIS;
+		}
+	}
+	/*
+	 * The Microsoft Wireless Intellimouse 2.0 reports it's wheel
+	 * using 0x0048, which is HUG_TWHEEL, and seems to expect you
+	 * to know that the byte after the wheel is the tilt axis.
+	 * There are no other HID axis descriptors other than X,Y and
+	 * TWHEEL
+	 */
+	if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP,
+	    HUG_TWHEEL), hid_input, index, &info->sc_loc_t, 
+	    &flags, &info->sc_iid_t)) {
+
+		info->sc_loc_t.pos += 8;
+
+		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
+			info->sc_flags |= UMS_FLAG_T_AXIS;
+		}
+	}
+	/* figure out the number of buttons */
+
+	for (i = 0; i < UMS_BUTTON_MAX; i++) {
+		if (!hid_locate(buf, len, HID_USAGE2(HUP_BUTTON, (i + 1)),
+		    hid_input, index, &info->sc_loc_btn[i], NULL, 
+		    &info->sc_iid_btn[i])) {
+			break;
+		}
+	}
+	info->sc_buttons = i;
+
+	if (i > sc->sc_buttons)
+		sc->sc_buttons = i;
+
+	if (info->sc_flags == 0)
+		return;
+
+	/* announce information about the mouse */
+	device_printf(dev, "%d buttons and [%s%s%s%s%s] coordinates ID=%u\n",
+	    (info->sc_buttons),
+	    (info->sc_flags & UMS_FLAG_X_AXIS) ? "X" : "",
+	    (info->sc_flags & UMS_FLAG_Y_AXIS) ? "Y" : "",
+	    (info->sc_flags & UMS_FLAG_Z_AXIS) ? "Z" : "",
+	    (info->sc_flags & UMS_FLAG_T_AXIS) ? "T" : "",
+	    (info->sc_flags & UMS_FLAG_W_AXIS) ? "W" : "",
+	    info->sc_iid_x);
+}
+
 static int
 ums_attach(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct ums_softc *sc = device_get_softc(dev);
+	struct ums_info *info;
 	void *d_ptr = NULL;
-	int unit = device_get_unit(dev);
 	int isize;
-	int isizebits;
 	int err;
-	uint32_t flags;
 	uint16_t d_len;
 	uint8_t i;
+	uint8_t j;
 
 	DPRINTFN(11, "sc=%p\n", sc);
 
@@ -385,7 +491,8 @@ ums_attach(device_t dev)
          * Mice without boot protocol support may choose not to implement
          * Set_Protocol at all; Ignore any error.
          */
-	err = usb2_req_set_protocol(uaa->device, NULL, uaa->info.bIfaceIndex, 1);
+	err = usb2_req_set_protocol(uaa->device, NULL,
+	    uaa->info.bIfaceIndex, 1);
 
 	err = usb2_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ums_config,
@@ -402,72 +509,6 @@ ums_attach(device_t dev)
 		device_printf(dev, "error reading report description\n");
 		goto detach;
 	}
-	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-	    hid_input, &sc->sc_loc_x, &flags, &sc->sc_iid_x)) {
-
-		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
-			sc->sc_flags |= UMS_FLAG_X_AXIS;
-		}
-	}
-	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-	    hid_input, &sc->sc_loc_y, &flags, &sc->sc_iid_y)) {
-
-		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
-			sc->sc_flags |= UMS_FLAG_Y_AXIS;
-		}
-	}
-	/* Try the wheel first as the Z activator since it's tradition. */
-	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_WHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid_z) ||
-	    hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_TWHEEL), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid_z)) {
-		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
-			sc->sc_flags |= UMS_FLAG_Z_AXIS;
-		}
-		/*
-		 * We might have both a wheel and Z direction, if so put
-		 * put the Z on the W coordinate.
-		 */
-		if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-		    HUG_Z), hid_input, &sc->sc_loc_w, &flags, &sc->sc_iid_w)) {
-
-			if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
-				sc->sc_flags |= UMS_FLAG_W_AXIS;
-			}
-		}
-	} else if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_Z), hid_input, &sc->sc_loc_z, &flags, &sc->sc_iid_z)) {
-
-		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
-			sc->sc_flags |= UMS_FLAG_Z_AXIS;
-		}
-	}
-	/*
-	 * The Microsoft Wireless Intellimouse 2.0 reports it's wheel
-	 * using 0x0048, which is HUG_TWHEEL, and seems to expect you
-	 * to know that the byte after the wheel is the tilt axis.
-	 * There are no other HID axis descriptors other than X,Y and
-	 * TWHEEL
-	 */
-	if (hid_locate(d_ptr, d_len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_TWHEEL),
-	    hid_input, &sc->sc_loc_t, &flags, &sc->sc_iid_t)) {
-
-		sc->sc_loc_t.pos += 8;
-
-		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
-			sc->sc_flags |= UMS_FLAG_T_AXIS;
-		}
-	}
-	/* figure out the number of buttons */
-
-	for (i = 0; i < UMS_BUTTON_MAX; i++) {
-		if (!hid_locate(d_ptr, d_len, HID_USAGE2(HUP_BUTTON, (i + 1)),
-			hid_input, &sc->sc_loc_btn[i], NULL, &sc->sc_iid_btn[i])) {
-			break;
-		}
-	}
-
-	sc->sc_buttons = i;
 
 	isize = hid_report_size(d_ptr, d_len, hid_input, &sc->sc_iid);
 
@@ -478,83 +519,66 @@ ums_attach(device_t dev)
 	 * it has two addional buttons and a tilt wheel.
 	 */
 	if (usb2_test_quirk(uaa, UQ_MS_BAD_CLASS)) {
-		sc->sc_flags = (UMS_FLAG_X_AXIS |
+		info = &sc->sc_info[0];
+		info->sc_flags = (UMS_FLAG_X_AXIS |
 		    UMS_FLAG_Y_AXIS |
 		    UMS_FLAG_Z_AXIS |
 		    UMS_FLAG_SBU);
-		sc->sc_buttons = 3;
+		info->sc_buttons = 3;
 		isize = 5;
-		sc->sc_iid = 0;
-		sc->sc_iid_x = 0;
-		sc->sc_iid_y = 0;
-		sc->sc_iid_z = 0;
-		sc->sc_iid_btn[0] = 0;
-		sc->sc_iid_btn[1] = 0;
-		sc->sc_iid_btn[2] = 0;
 		/* 1st byte of descriptor report contains garbage */
-		sc->sc_loc_x.pos = 16;
-		sc->sc_loc_y.pos = 24;
-		sc->sc_loc_z.pos = 32;
-		sc->sc_loc_btn[0].pos = 8;
-		sc->sc_loc_btn[1].pos = 9;
-		sc->sc_loc_btn[2].pos = 10;
-	}
+		info->sc_loc_x.pos = 16;
+		info->sc_loc_y.pos = 24;
+		info->sc_loc_z.pos = 32;
+		info->sc_loc_btn[0].pos = 8;
+		info->sc_loc_btn[1].pos = 9;
+		info->sc_loc_btn[2].pos = 10;
 
-	/*
-	 * Some Microsoft devices have incorrectly high location
-	 * positions. Correct this:
-	 */
-	isizebits = isize * 8;
-	if ((sc->sc_iid != 0) && (isizebits > 8)) {
-		isizebits -= 8;	/* remove size of report ID */
-		sc->sc_loc_w.pos %= isizebits;
-		sc->sc_loc_x.pos %= isizebits;
-		sc->sc_loc_y.pos %= isizebits;
-		sc->sc_loc_z.pos %= isizebits;
-		sc->sc_loc_t.pos %= isizebits;
-		for (i = 0; i != UMS_BUTTON_MAX; i++)
-			sc->sc_loc_btn[i].pos %= isizebits;
+		/* Announce device */
+		device_printf(dev, "3 buttons and [XYZ] "
+		    "coordinates ID=0\n");
+
+	} else {
+		/* Search the HID descriptor and announce device */
+		for (i = 0; i < UMS_INFO_MAX; i++) {
+			ums_hid_parse(sc, dev, d_ptr, d_len, i);
+		}
 	}
 
 	if (usb2_test_quirk(uaa, UQ_MS_REVZ)) {
+		info = &sc->sc_info[0];
 		/* Some wheels need the Z axis reversed. */
-		sc->sc_flags |= UMS_FLAG_REVZ;
+		info->sc_flags |= UMS_FLAG_REVZ;
 	}
 	if (isize > sc->sc_xfer[UMS_INTR_DT]->max_frame_size) {
 		DPRINTF("WARNING: report size, %d bytes, is larger "
 		    "than interrupt size, %d bytes!\n",
 		    isize, sc->sc_xfer[UMS_INTR_DT]->max_frame_size);
 	}
-	/* announce information about the mouse */
-
-	device_printf(dev, "%d buttons and [%s%s%s%s%s] coordinates\n",
-	    (sc->sc_buttons),
-	    (sc->sc_flags & UMS_FLAG_X_AXIS) ? "X" : "",
-	    (sc->sc_flags & UMS_FLAG_Y_AXIS) ? "Y" : "",
-	    (sc->sc_flags & UMS_FLAG_Z_AXIS) ? "Z" : "",
-	    (sc->sc_flags & UMS_FLAG_T_AXIS) ? "T" : "",
-	    (sc->sc_flags & UMS_FLAG_W_AXIS) ? "W" : "");
-
 	free(d_ptr, M_TEMP);
 	d_ptr = NULL;
 
 #if USB_DEBUG
-	DPRINTF("sc=%p\n", sc);
-	DPRINTF("X\t%d/%d id=%d\n", sc->sc_loc_x.pos,
-	    sc->sc_loc_x.size, sc->sc_iid_x);
-	DPRINTF("Y\t%d/%d id=%d\n", sc->sc_loc_y.pos,
-	    sc->sc_loc_y.size, sc->sc_iid_y);
-	DPRINTF("Z\t%d/%d id=%d\n", sc->sc_loc_z.pos,
-	    sc->sc_loc_z.size, sc->sc_iid_z);
-	DPRINTF("T\t%d/%d id=%d\n", sc->sc_loc_t.pos,
-	    sc->sc_loc_t.size, sc->sc_iid_t);
-	DPRINTF("W\t%d/%d id=%d\n", sc->sc_loc_w.pos,
-	    sc->sc_loc_w.size, sc->sc_iid_w);
+	for (j = 0; j < UMS_INFO_MAX; j++) {
+		info = &sc->sc_info[j];
 
-	for (i = 0; i < sc->sc_buttons; i++) {
-		DPRINTF("B%d\t%d/%d id=%d\n",
-		    i + 1, sc->sc_loc_btn[i].pos,
-		    sc->sc_loc_btn[i].size, sc->sc_iid_btn[i]);
+		DPRINTF("sc=%p, index=%d\n", sc, j);
+		DPRINTF("X\t%d/%d id=%d\n", info->sc_loc_x.pos,
+		    info->sc_loc_x.size, info->sc_iid_x);
+		DPRINTF("Y\t%d/%d id=%d\n", info->sc_loc_y.pos,
+		    info->sc_loc_y.size, info->sc_iid_y);
+		DPRINTF("Z\t%d/%d id=%d\n", info->sc_loc_z.pos,
+		    info->sc_loc_z.size, info->sc_iid_z);
+		DPRINTF("T\t%d/%d id=%d\n", info->sc_loc_t.pos,
+		    info->sc_loc_t.size, info->sc_iid_t);
+		DPRINTF("W\t%d/%d id=%d\n", info->sc_loc_w.pos,
+		    info->sc_loc_w.size, info->sc_iid_w);
+
+		for (i = 0; i < info->sc_buttons; i++) {
+			DPRINTF("B%d\t%d/%d id=%d\n",
+			    i + 1, info->sc_loc_btn[i].pos,
+			    info->sc_loc_btn[i].size, info->sc_iid_btn[i]);
+		}
 	}
 	DPRINTF("size=%d, id=%d\n", isize, sc->sc_iid);
 #endif
@@ -578,16 +602,9 @@ ums_attach(device_t dev)
 	sc->sc_mode.syncmask[0] = MOUSE_MSC_SYNCMASK;
 	sc->sc_mode.syncmask[1] = MOUSE_MSC_SYNC;
 
-	sc->sc_status.flags = 0;
-	sc->sc_status.button = 0;
-	sc->sc_status.obutton = 0;
-	sc->sc_status.dx = 0;
-	sc->sc_status.dy = 0;
-	sc->sc_status.dz = 0;
-
 	err = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ums_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
   	    UID_ROOT, GID_OPERATOR, 0644);
 	if (err) {
 		goto detach;
