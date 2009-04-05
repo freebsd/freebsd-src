@@ -931,7 +931,7 @@ ck_passwd(struct interface *aifp,
 	u_char hash[RIP_AUTH_PW_LEN];
 	int i, len;
 
-
+	assert(aifp != NULL);
 	if ((void *)NA >= lim || NA->a_family != RIP_AF_AUTH) {
 		msglim(use_authp, from, "missing password from %s",
 		       naddr_ntoa(from));

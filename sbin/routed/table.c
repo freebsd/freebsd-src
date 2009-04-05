@@ -607,8 +607,6 @@ ag_check(naddr	dst,
 	CHECK_AG();
 }
 
-
-#define	NAME0_LEN 14
 static const char *
 rtm_type_name(u_char type)
 {
