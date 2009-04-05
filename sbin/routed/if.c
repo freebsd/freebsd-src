@@ -51,11 +51,11 @@ struct ifhead remote_if = LIST_HEAD_INITIALIZER(ifnet);	/* remote interfaces */
  */
 #define AHASH_LEN 211			/* must be prime */
 #define AHASH(a) &ahash_tbl[(a)%AHASH_LEN]
-struct interface *ahash_tbl[AHASH_LEN];
+static struct interface *ahash_tbl[AHASH_LEN];
 
 #define BHASH_LEN 211			/* must be prime */
 #define BHASH(a) &bhash_tbl[(a)%BHASH_LEN]
-struct interface *bhash_tbl[BHASH_LEN];
+static struct interface *bhash_tbl[BHASH_LEN];
 
 
 /* hash for physical interface names.
@@ -63,13 +63,13 @@ struct interface *bhash_tbl[BHASH_LEN];
  * aliases are put on the end of the hash chains.
  */
 #define NHASH_LEN 97
-struct interface *nhash_tbl[NHASH_LEN];
+static struct interface *nhash_tbl[NHASH_LEN];
 
 int	tot_interfaces;			/* # of remote and local interfaces */
 int	rip_interfaces;			/* # of interfaces doing RIP */
-int	foundloopback;			/* valid flag for loopaddr */
+static int foundloopback;			/* valid flag for loopaddr */
 naddr	loopaddr;			/* our address on loopback */
-struct	rt_spare loop_rts;
+static struct rt_spare loop_rts;
 
 struct timeval ifinit_timer;
 static struct timeval last_ifinit;
@@ -78,8 +78,11 @@ static struct timeval last_ifinit;
 			   && timercmp(&ifinit_timer, &now, >))
 
 int	have_ripv1_out;			/* have a RIPv1 interface */
-int	have_ripv1_in;
+static int have_ripv1_in;
 
+
+static void if_bad(struct interface *);
+static int addrouteforif(struct interface *);
 
 static struct interface**
 nhash(char *p)
@@ -173,7 +176,7 @@ ifwithaddr(naddr addr,
 
 /* find the interface with a name
  */
-struct interface *
+static struct interface *
 ifwithname(char *name,			/* "ec0" or whatever */
 	   naddr addr)			/* 0 or network address */
 {
@@ -535,7 +538,7 @@ if_sick(struct interface *ifp)
 
 /* Mark an interface dead.
  */
-void
+static void
 if_bad(struct interface *ifp)
 {
 	struct interface *ifp1;
@@ -1309,7 +1312,7 @@ check_net_syn(struct interface *ifp)
  * Create route to other end if a point-to-point link,
  * otherwise a route to this (sub)network.
  */
-int					/* 0=bad interface */
+static int					/* 0=bad interface */
 addrouteforif(struct interface *ifp)
 {
 	struct rt_entry *rt;

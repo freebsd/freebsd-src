@@ -73,14 +73,14 @@ union ad_u {
 
 
 int	rdisc_sock = -1;		/* router-discovery raw socket */
-struct interface *rdisc_sock_mcast;	/* current multicast interface */
+static struct interface *rdisc_sock_mcast; /* current multicast interface */
 
 struct timeval rdisc_timer;
 int rdisc_ok;				/* using solicited route */
 
 
 #define MAX_ADS 16			/* at least one per interface */
-struct dr {				/* accumulated advertisements */
+static struct dr {				/* accumulated advertisements */
     struct interface *dr_ifp;
     naddr   dr_gate;			/* gateway */
     time_t  dr_ts;			/* when received */
