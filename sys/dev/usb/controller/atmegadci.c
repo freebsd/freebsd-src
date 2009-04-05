@@ -1376,8 +1376,6 @@ struct usb2_pipe_methods atmegadci_device_non_isoc_methods =
 	.close = atmegadci_device_non_isoc_close,
 	.enter = atmegadci_device_non_isoc_enter,
 	.start = atmegadci_device_non_isoc_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1464,8 +1462,6 @@ struct usb2_pipe_methods atmegadci_device_isoc_fs_methods =
 	.close = atmegadci_device_isoc_fs_close,
 	.enter = atmegadci_device_isoc_fs_enter,
 	.start = atmegadci_device_isoc_fs_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
