@@ -450,7 +450,7 @@ extern naddr	myaddr;			/* main address of this system */
 extern int	stopint;		/* !=0 to stop */
 
 extern int	rip_sock;		/* RIP socket */
-extern struct interface *rip_sock_mcast;    /* current multicast interface */
+extern const struct interface *rip_sock_mcast; /* current multicast interface */
 extern int	rt_sock;		/* routing socket */
 extern int	rt_sock_seqno;
 extern int	rdisc_sock;		/* router-discovery raw socket */

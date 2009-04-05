@@ -73,21 +73,23 @@ union ad_u {
 
 
 int	rdisc_sock = -1;		/* router-discovery raw socket */
-static struct interface *rdisc_sock_mcast; /* current multicast interface */
+static const struct interface *rdisc_sock_mcast; /* current multicast interface */
 
 struct timeval rdisc_timer;
 int rdisc_ok;				/* using solicited route */
 
 
 #define MAX_ADS 16			/* at least one per interface */
-static struct dr {				/* accumulated advertisements */
+struct dr {				/* accumulated advertisements */
     struct interface *dr_ifp;
     naddr   dr_gate;			/* gateway */
     time_t  dr_ts;			/* when received */
     time_t  dr_life;			/* lifetime in host byte order */
     n_long  dr_recv_pref;		/* received but biased preference */
     n_long  dr_pref;			/* preference adjusted by metric */
-} *cur_drp, drs[MAX_ADS];
+};
+static const struct dr *cur_drp;
+static struct dr drs[MAX_ADS];
 
 /* convert between signed, balanced around zero,
  * and unsigned zero-based preferences */
