@@ -93,17 +93,12 @@ extern struct usb2_pipe_methods ehci_device_ctrl_methods;
 extern struct usb2_pipe_methods ehci_device_intr_methods;
 extern struct usb2_pipe_methods ehci_device_isoc_fs_methods;
 extern struct usb2_pipe_methods ehci_device_isoc_hs_methods;
-extern struct usb2_pipe_methods ehci_root_ctrl_methods;
-extern struct usb2_pipe_methods ehci_root_intr_methods;
 
 static void ehci_do_poll(struct usb2_bus *bus);
-static void ehci_root_ctrl_poll(ehci_softc_t *sc);
 static void ehci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
 static uint8_t ehci_check_transfer(struct usb2_xfer *xfer);
 static void ehci_timeout(void *arg);
-
-static usb2_sw_transfer_func_t ehci_root_intr_done;
-static usb2_sw_transfer_func_t ehci_root_ctrl_done;
+static void ehci_root_intr(ehci_softc_t *sc);
 
 struct ehci_std_temp {
 	ehci_softc_t *sc;
@@ -1415,8 +1410,7 @@ ehci_pcd_enable(ehci_softc_t *sc)
 	/* acknowledge any PCD interrupt */
 	EOWRITE4(sc, EHCI_USBSTS, EHCI_STS_PCD);
 
-	usb2_sw_transfer(&sc->sc_root_intr,
-	    &ehci_root_intr_done);
+	ehci_root_intr(sc);
 }
 
 static void
@@ -1486,8 +1480,7 @@ ehci_interrupt(ehci_softc_t *sc)
 		sc->sc_eintrs &= ~EHCI_STS_PCD;
 		EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
 
-		usb2_sw_transfer(&sc->sc_root_intr,
-		    &ehci_root_intr_done);
+		ehci_root_intr(sc);
 
 		/* do not allow RHSC interrupts > 1 per second */
 		usb2_callout_reset(&sc->sc_tmo_pcd, hz,
@@ -1531,7 +1524,6 @@ ehci_do_poll(struct usb2_bus *bus)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 	ehci_interrupt_poll(sc);
-	ehci_root_ctrl_poll(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -1979,28 +1971,15 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 }
 
 static void
-ehci_root_intr_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
+ehci_root_intr(ehci_softc_t *sc)
 {
-	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 	uint16_t i;
 	uint16_t m;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_PRE_DATA) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			ehci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
-	/* setup buffer */
-	std->ptr = sc->sc_hub_idata;
-	std->len = sizeof(sc->sc_hub_idata);
-
 	/* clear any old interrupt data */
-	bzero(sc->sc_hub_idata, sizeof(sc->sc_hub_idata));
+	memset(sc->sc_hub_idata, 0, sizeof(sc->sc_hub_idata));
 
 	/* set bits */
 	m = (sc->sc_noport + 1);
@@ -2014,8 +1993,8 @@ ehci_root_intr_done(struct usb2_xfer *xfer,
 			DPRINTF("port %d changed\n", i);
 		}
 	}
-done:
-	return;
+	uhub_root_intr(&sc->sc_bus, sc->sc_hub_idata,
+	    sizeof(sc->sc_hub_idata));
 }
 
 static void
@@ -2932,30 +2911,8 @@ struct usb2_pipe_methods ehci_device_isoc_hs_methods =
 /*------------------------------------------------------------------------*
  * ehci root control support
  *------------------------------------------------------------------------*
- * simulate a hardware hub by handling
- * all the necessary requests
+ * Simulate a hardware hub by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-
-static void
-ehci_root_ctrl_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-ehci_root_ctrl_close(struct usb2_xfer *xfer)
-{
-	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_ctrl.xfer == xfer) {
-		sc->sc_root_ctrl.xfer = NULL;
-	}
-	ehci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-/* data structures and routines
- * to emulate the root hub:
- */
 
 static const
 struct usb2_device_descriptor ehci_devd =
@@ -2997,7 +2954,6 @@ static const struct ehci_config_desc ehci_confd = {
 		.bmAttributes = UC_SELF_POWERED,
 		.bMaxPower = 0		/* max power */
 	},
-
 	.ifcd = {
 		.bLength = sizeof(struct usb2_interface_descriptor),
 		.bDescriptorType = UDESC_INTERFACE,
@@ -3007,7 +2963,6 @@ static const struct ehci_config_desc ehci_confd = {
 		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
 		0
 	},
-
 	.endpd = {
 		.bLength = sizeof(struct usb2_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
@@ -3044,34 +2999,10 @@ ehci_disown(ehci_softc_t *sc, uint16_t index, uint8_t lowspeed)
 }
 
 static void
-ehci_root_ctrl_enter(struct usb2_xfer *xfer)
+ehci_roothub_exec(struct usb2_bus *bus)
 {
-	return;
-}
-
-static void
-ehci_root_ctrl_start(struct usb2_xfer *xfer)
-{
-	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-
-	DPRINTF("\n");
-
-	sc->sc_root_ctrl.xfer = xfer;
-
-	usb2_bus_roothub_exec(xfer->xroot->bus);
-}
-
-static void
-ehci_root_ctrl_task(struct usb2_bus *bus)
-{
-	ehci_root_ctrl_poll(EHCI_BUS2SC(bus));
-}
-
-static void
-ehci_root_ctrl_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
-{
-	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
+	ehci_softc_t *sc = EHCI_BUS2SC(bus);
+	struct usb2_sw_transfer *std = &sc->sc_bus.roothub_req;
 	char *ptr;
 	uint32_t port;
 	uint32_t v;
@@ -3082,13 +3013,6 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_SETUP) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			ehci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
 	/* buffer reset */
 	std->ptr = sc->sc_hub_desc.temp;
 	std->len = 0;
@@ -3462,67 +3386,6 @@ done:
 }
 
 static void
-ehci_root_ctrl_poll(ehci_softc_t *sc)
-{
-	usb2_sw_transfer(&sc->sc_root_ctrl,
-	    &ehci_root_ctrl_done);
-}
-
-struct usb2_pipe_methods ehci_root_ctrl_methods =
-{
-	.open = ehci_root_ctrl_open,
-	.close = ehci_root_ctrl_close,
-	.enter = ehci_root_ctrl_enter,
-	.start = ehci_root_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 0,
-};
-
-/*------------------------------------------------------------------------*
- * ehci root interrupt support
- *------------------------------------------------------------------------*/
-static void
-ehci_root_intr_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-ehci_root_intr_close(struct usb2_xfer *xfer)
-{
-	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_intr.xfer == xfer) {
-		sc->sc_root_intr.xfer = NULL;
-	}
-	ehci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-ehci_root_intr_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-ehci_root_intr_start(struct usb2_xfer *xfer)
-{
-	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_intr.xfer = xfer;
-}
-
-struct usb2_pipe_methods ehci_root_intr_methods =
-{
-	.open = ehci_root_intr_open,
-	.close = ehci_root_intr_close,
-	.enter = ehci_root_intr_enter,
-	.start = ehci_root_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
-
-static void
 ehci_xfer_setup(struct usb2_setup_params *parm)
 {
 	struct usb2_page_search page_info;
@@ -3794,19 +3657,8 @@ ehci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
 		/* not supported */
 		return;
 	}
-	if (udev->device_index == sc->sc_addr) {
-		switch (edesc->bEndpointAddress) {
-		case USB_CONTROL_ENDPOINT:
-			pipe->methods = &ehci_root_ctrl_methods;
-			break;
-		case UE_DIR_IN | EHCI_INTR_ENDPT:
-			pipe->methods = &ehci_root_intr_methods;
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
-	} else {
+	if (udev->device_index != sc->sc_addr) {
+
 		if ((udev->speed != USB_SPEED_HIGH) &&
 		    ((udev->hs_hub_addr == 0) ||
 		    (udev->hs_port_no == 0) ||
@@ -3964,5 +3816,5 @@ struct usb2_bus_methods ehci_bus_methods =
 	.device_resume = ehci_device_resume,
 	.device_suspend = ehci_device_suspend,
 	.set_hw_power = ehci_set_hw_power,
-	.roothub_exec = ehci_root_ctrl_task,
+	.roothub_exec = ehci_roothub_exec,
 };

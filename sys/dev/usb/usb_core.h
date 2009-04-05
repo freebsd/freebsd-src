@@ -114,7 +114,7 @@
 
 /*
  * The following macro defines if USB transaction translator support
- * shall be compiled for the USB HUB and USB controller drivers.
+ * shall be supported for the USB HUB and USB controller drivers.
  */
 #ifndef	USB_HAVE_TT_SUPPORT
 #define	USB_HAVE_TT_SUPPORT 1
@@ -122,10 +122,18 @@
 
 /*
  * The following macro defines if the USB power daemon shall
- * be compiled for the USB core.
+ * be supported in the USB core.
  */
 #ifndef	USB_HAVE_POWERD
 #define	USB_HAVE_POWERD 1
+#endif
+
+/*
+ * The following macro defines if the USB autoinstall detection shall
+ * be supported in the USB core.
+ */
+#ifndef USB_HAVE_MSCTEST
+#define	USB_HAVE_MSCTEST 1
 #endif
 
 #ifndef USB_TD_GET_PROC

@@ -77,8 +77,6 @@ struct usb2_pipe_methods uss820dci_device_bulk_methods;
 struct usb2_pipe_methods uss820dci_device_ctrl_methods;
 struct usb2_pipe_methods uss820dci_device_intr_methods;
 struct usb2_pipe_methods uss820dci_device_isoc_fs_methods;
-struct usb2_pipe_methods uss820dci_root_ctrl_methods;
-struct usb2_pipe_methods uss820dci_root_intr_methods;
 
 static uss820dci_cmd_t uss820dci_setup_rx;
 static uss820dci_cmd_t uss820dci_data_rx;
@@ -86,14 +84,11 @@ static uss820dci_cmd_t uss820dci_data_tx;
 static uss820dci_cmd_t uss820dci_data_tx_sync;
 static void	uss820dci_device_done(struct usb2_xfer *, usb2_error_t);
 static void	uss820dci_do_poll(struct usb2_bus *);
-static void	uss820dci_root_ctrl_poll(struct uss820dci_softc *);
 static void	uss820dci_standard_done(struct usb2_xfer *);
 static void	uss820dci_intr_set(struct usb2_xfer *, uint8_t);
 static void	uss820dci_update_shared_1(struct uss820dci_softc *, uint8_t,
 		    uint8_t, uint8_t);
-
-static usb2_sw_transfer_func_t uss820dci_root_intr_done;
-static usb2_sw_transfer_func_t uss820dci_root_ctrl_done;
+static void	uss820dci_root_intr(struct uss820dci_softc *);
 
 /*
  * Here is a list of what the USS820D chip can support. The main
@@ -786,9 +781,7 @@ uss820dci_interrupt(struct uss820dci_softc *sc)
 			DPRINTF("real bus interrupt 0x%02x\n", ssr);
 
 			/* complete root HUB interrupt endpoint */
-
-			usb2_sw_transfer(&sc->sc_root_intr,
-			    &uss820dci_root_intr_done);
+			uss820dci_root_intr(sc);
 		}
 	}
 	/* acknowledge all SBI interrupts */
@@ -1047,31 +1040,17 @@ uss820dci_start_standard_chain(struct usb2_xfer *xfer)
 }
 
 static void
-uss820dci_root_intr_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
+uss820dci_root_intr(struct uss820dci_softc *sc)
 {
-	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-
 	DPRINTFN(9, "\n");
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_PRE_DATA) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			uss820dci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
-	/* setup buffer */
-	std->ptr = sc->sc_hub_idata;
-	std->len = sizeof(sc->sc_hub_idata);
-
 	/* set port bit */
 	sc->sc_hub_idata[0] = 0x02;	/* we only have one port */
 
-done:
-	return;
+	uhub_root_intr(&sc->sc_bus, sc->sc_hub_idata,
+	    sizeof(sc->sc_hub_idata));
 }
 
 static usb2_error_t
@@ -1525,7 +1504,6 @@ uss820dci_do_poll(struct usb2_bus *bus)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 	uss820dci_interrupt_poll(sc);
-	uss820dci_root_ctrl_poll(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -1733,30 +1711,8 @@ struct usb2_pipe_methods uss820dci_device_isoc_fs_methods =
 /*------------------------------------------------------------------------*
  * at91dci root control support
  *------------------------------------------------------------------------*
- * simulate a hardware HUB by handling
- * all the necessary requests
+ * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-
-static void
-uss820dci_root_ctrl_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-uss820dci_root_ctrl_close(struct usb2_xfer *xfer)
-{
-	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_ctrl.xfer == xfer) {
-		sc->sc_root_ctrl.xfer = NULL;
-	}
-	uss820dci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-/*
- * USB descriptors for the virtual Root HUB:
- */
 
 static const struct usb2_device_descriptor uss820dci_devd = {
 	.bLength = sizeof(struct usb2_device_descriptor),
@@ -1842,44 +1798,15 @@ USB_MAKE_STRING_DESC(STRING_VENDOR, uss820dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, uss820dci_product);
 
 static void
-uss820dci_root_ctrl_enter(struct usb2_xfer *xfer)
+uss820dci_roothub_exec(struct usb2_bus *bus)
 {
-	return;
-}
-
-static void
-uss820dci_root_ctrl_start(struct usb2_xfer *xfer)
-{
-	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_ctrl.xfer = xfer;
-
-	usb2_bus_roothub_exec(xfer->xroot->bus);
-}
-
-static void
-uss820dci_root_ctrl_task(struct usb2_bus *bus)
-{
-	uss820dci_root_ctrl_poll(USS820_DCI_BUS2SC(bus));
-}
-
-static void
-uss820dci_root_ctrl_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
-{
-	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
+	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(bus);
+	struct usb2_sw_transfer *std = &sc->sc_bus.roothub_req;
 	uint16_t value;
 	uint16_t index;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_SETUP) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			uss820dci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
 	/* buffer reset */
 	std->ptr = USB_ADD_BYTES(&sc->sc_hub_temp, 0);
 	std->len = 0;
@@ -2253,67 +2180,6 @@ done:
 }
 
 static void
-uss820dci_root_ctrl_poll(struct uss820dci_softc *sc)
-{
-	usb2_sw_transfer(&sc->sc_root_ctrl,
-	    &uss820dci_root_ctrl_done);
-}
-
-struct usb2_pipe_methods uss820dci_root_ctrl_methods =
-{
-	.open = uss820dci_root_ctrl_open,
-	.close = uss820dci_root_ctrl_close,
-	.enter = uss820dci_root_ctrl_enter,
-	.start = uss820dci_root_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 0,
-};
-
-/*------------------------------------------------------------------------*
- * at91dci root interrupt support
- *------------------------------------------------------------------------*/
-static void
-uss820dci_root_intr_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-uss820dci_root_intr_close(struct usb2_xfer *xfer)
-{
-	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_intr.xfer == xfer) {
-		sc->sc_root_intr.xfer = NULL;
-	}
-	uss820dci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-uss820dci_root_intr_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-uss820dci_root_intr_start(struct usb2_xfer *xfer)
-{
-	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_intr.xfer = xfer;
-}
-
-struct usb2_pipe_methods uss820dci_root_intr_methods =
-{
-	.open = uss820dci_root_intr_open,
-	.close = uss820dci_root_intr_close,
-	.enter = uss820dci_root_intr_enter,
-	.start = uss820dci_root_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
-
-static void
 uss820dci_xfer_setup(struct usb2_setup_params *parm)
 {
 	const struct usb2_hw_ep_profile *pf;
@@ -2452,24 +2318,7 @@ uss820dci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 	    edesc->bEndpointAddress, udev->flags.usb2_mode,
 	    sc->sc_rt_addr);
 
-	if (udev->device_index == sc->sc_rt_addr) {
-
-		if (udev->flags.usb2_mode != USB_MODE_HOST) {
-			/* not supported */
-			return;
-		}
-		switch (edesc->bEndpointAddress) {
-		case USB_CONTROL_ENDPOINT:
-			pipe->methods = &uss820dci_root_ctrl_methods;
-			break;
-		case UE_DIR_IN | USS820_DCI_INTR_ENDPT:
-			pipe->methods = &uss820dci_root_intr_methods;
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
-	} else {
+	if (udev->device_index != sc->sc_rt_addr) {
 
 		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
 			/* not supported */
@@ -2507,5 +2356,5 @@ struct usb2_bus_methods uss820dci_bus_methods =
 	.get_hw_ep_profile = &uss820dci_get_hw_ep_profile,
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,
-	.roothub_exec = &uss820dci_root_ctrl_task,
+	.roothub_exec = &uss820dci_roothub_exec,
 };

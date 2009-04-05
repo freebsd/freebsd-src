@@ -27,36 +27,4 @@
 #ifndef _USB2_SW_TRANSFER_H_
 #define	_USB2_SW_TRANSFER_H_
 
-/* Software transfer function state argument values */
-
-enum {
-	USB_SW_TR_SETUP,
-	USB_SW_TR_STATUS,
-	USB_SW_TR_PRE_DATA,
-	USB_SW_TR_POST_DATA,
-	USB_SW_TR_PRE_CALLBACK,
-};
-
-struct usb2_sw_transfer;
-
-typedef void (usb2_sw_transfer_func_t)(struct usb2_xfer *, struct usb2_sw_transfer *);
-
-/*
- * The following structure is used to keep the state of a standard
- * root transfer.
- */
-struct usb2_sw_transfer {
-	struct usb2_device_request req;
-	struct usb2_xfer *xfer;
-	uint8_t *ptr;
-	uint16_t len;
-	uint8_t	state;
-	usb2_error_t err;
-};
-
-/* prototypes */
-
-void	usb2_sw_transfer(struct usb2_sw_transfer *std,
-	    usb2_sw_transfer_func_t *func);
-
 #endif					/* _USB2_SW_TRANSFER_H_ */

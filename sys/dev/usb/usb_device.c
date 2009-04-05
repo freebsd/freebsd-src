@@ -305,15 +305,15 @@ usb2_init_pipe(struct usb2_device *udev, uint8_t iface_index,
 
 	(methods->pipe_init) (udev, edesc, pipe);
 
-	/* check for invalid pipe */
-	if (pipe->methods == NULL)
-		return;
-
 	/* initialise USB pipe structure */
 	pipe->edesc = edesc;
 	pipe->iface_index = iface_index;
 	TAILQ_INIT(&pipe->pipe_q.head);
 	pipe->pipe_q.command = &usb2_pipe_start;
+
+	/* the pipe is not supported by the hardware */
+ 	if (pipe->methods == NULL)
+		return;
 
 	/* clear stall, if any */
 	if (methods->clear_stall != NULL) {
