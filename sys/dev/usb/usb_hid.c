@@ -544,13 +544,15 @@ hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k, uint8_t *id)
  *------------------------------------------------------------------------*/
 int
 hid_locate(const void *desc, usb2_size_t size, uint32_t u, enum hid_kind k,
-    struct hid_location *loc, uint32_t *flags, uint8_t *id)
+    uint8_t index, struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
 
 	for (d = hid_start_parse(desc, size, 1 << k); hid_get_item(d, &h);) {
 		if (h.kind == k && !(h.flags & HIO_CONST) && h.usage == u) {
+			if (index--)
+				continue;
 			if (loc != NULL)
 				*loc = h.loc;
 			if (flags != NULL)
