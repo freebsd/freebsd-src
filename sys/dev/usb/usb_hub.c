@@ -62,10 +62,12 @@ SYSCTL_INT(_hw_usb2_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
     "Debug level");
 #endif
 
+#if USB_HAVE_POWERD
 static int usb2_power_timeout = 30;	/* seconds */
 
 SYSCTL_INT(_hw_usb2, OID_AUTO, power_timeout, CTLFLAG_RW,
     &usb2_power_timeout, 0, "USB power timeout");
+#endif
 
 struct uhub_current_state {
 	uint16_t port_change;
@@ -123,23 +125,24 @@ static const struct usb2_config uhub_config[UHUB_N_TRANSFER] = {
  */
 static devclass_t uhub_devclass;
 
-static driver_t uhub_driver =
-{
+static device_method_t uhub_methods[] = {
+	DEVMETHOD(device_probe, uhub_probe),
+	DEVMETHOD(device_attach, uhub_attach),
+	DEVMETHOD(device_detach, uhub_detach),
+
+	DEVMETHOD(device_suspend, uhub_suspend),
+	DEVMETHOD(device_resume, uhub_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+
+	DEVMETHOD(bus_child_location_str, uhub_child_location_string),
+	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
+	DEVMETHOD(bus_driver_added, uhub_driver_added),
+	{0, 0}
+};
+
+static driver_t uhub_driver = {
 	.name = "uhub",
-	.methods = (device_method_t[]){
-		DEVMETHOD(device_probe, uhub_probe),
-		DEVMETHOD(device_attach, uhub_attach),
-		DEVMETHOD(device_detach, uhub_detach),
-
-		DEVMETHOD(device_suspend, uhub_suspend),
-		DEVMETHOD(device_resume, uhub_resume),
-		DEVMETHOD(device_shutdown, bus_generic_shutdown),
-
-		DEVMETHOD(bus_child_location_str, uhub_child_location_string),
-		DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
-		DEVMETHOD(bus_driver_added, uhub_driver_added),
-		{0, 0}
-	},
+	.methods = uhub_methods,
 	.size = sizeof(struct uhub_softc)
 };
 
@@ -501,6 +504,21 @@ done:
 }
 
 /*------------------------------------------------------------------------*
+ *	uhub_root_interrupt
+ *
+ * This function is called when a Root HUB interrupt has
+ * happened. "ptr" and "len" makes up the Root HUB interrupt
+ * packet. This function is called having the "bus_mtx" locked.
+ *------------------------------------------------------------------------*/
+void
+uhub_root_intr(struct usb2_bus *bus, const uint8_t *ptr, uint8_t len)
+{
+	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
+
+	usb2_needs_explore(bus, 0);
+}
+
+/*------------------------------------------------------------------------*
  *	uhub_explore
  *
  * Returns:
@@ -731,8 +749,14 @@ uhub_attach(device_t dev)
 
 	/* set up interrupt pipe */
 	iface_index = 0;
-	err = usb2_transfer_setup(udev, &iface_index, sc->sc_xfer,
-	    uhub_config, UHUB_N_TRANSFER, sc, &Giant);
+	if (udev->parent_hub == NULL) {
+		/* root HUB is special */
+		err = 0;
+	} else {
+		/* normal HUB */
+		err = usb2_transfer_setup(udev, &iface_index, sc->sc_xfer,
+		    uhub_config, UHUB_N_TRANSFER, sc, &Giant);
+	}
 	if (err) {
 		DPRINTFN(0, "cannot setup interrupt transfer, "
 		    "errstr=%s!\n", usb2_errstr(err));
@@ -804,11 +828,13 @@ uhub_attach(device_t dev)
 	    "removable, %s powered\n", nports, (nports != 1) ? "s" : "",
 	    removable, udev->flags.self_powered ? "self" : "bus");
 
-	/* start the interrupt endpoint */
+	/* Start the interrupt endpoint, if any */
 
-	USB_XFER_LOCK(sc->sc_xfer[0]);
-	usb2_transfer_start(sc->sc_xfer[0]);
-	USB_XFER_UNLOCK(sc->sc_xfer[0]);
+	if (sc->sc_xfer[0] != NULL) {
+		USB_XFER_LOCK(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[0]);
+		USB_XFER_UNLOCK(sc->sc_xfer[0]);
+	}
 
 	/* Enable automatic power save on all USB HUBs */
 
@@ -1359,13 +1385,25 @@ usb2_bus_port_set_device(struct usb2_bus *bus, struct usb2_port *up,
 void
 usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe)
 {
+	uint8_t do_unlock;
+
 	DPRINTF("\n");
 
 	if (bus == NULL) {
 		DPRINTF("No bus pointer!\n");
 		return;
 	}
-	USB_BUS_LOCK(bus);
+	if ((bus->devices == NULL) ||
+	    (bus->devices[USB_ROOT_HUB_ADDR] == NULL)) {
+		DPRINTF("No root HUB\n");
+		return;
+	}
+	if (mtx_owned(&bus->bus_mtx)) {
+		do_unlock = 0;
+	} else {
+		USB_BUS_LOCK(bus);
+		do_unlock = 1;
+	}
 	if (do_probe) {
 		bus->do_probe = 1;
 	}
@@ -1373,7 +1411,9 @@ usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe)
 	    &bus->explore_msg[0], &bus->explore_msg[1])) {
 		/* ignore */
 	}
-	USB_BUS_UNLOCK(bus);
+	if (do_unlock) {
+		USB_BUS_UNLOCK(bus);
+	}
 }
 
 /*------------------------------------------------------------------------*

@@ -271,19 +271,19 @@ typedef struct uhci_softc {
 	struct uhci_hw_softc sc_hw;
 	struct usb2_bus sc_bus;		/* base device */
 	union uhci_hub_desc sc_hub_desc;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
+	struct usb2_callout sc_root_intr;
 
 	struct usb2_device *sc_devices[UHCI_MAX_DEVICES];
-	struct uhci_td *sc_isoc_p_last[UHCI_VFRAMELIST_COUNT];	/* pointer to last TD
-								 * for isochronous */
-	struct uhci_qh *sc_intr_p_last[UHCI_IFRAMELIST_COUNT];	/* pointer to last QH
-								 * for interrupt */
-	struct uhci_qh *sc_ls_ctl_p_last;	/* pointer to last QH for low
-						 * speed control */
-	struct uhci_qh *sc_fs_ctl_p_last;	/* pointer to last QH for full
-						 * speed control */
-	struct uhci_qh *sc_bulk_p_last;	/* pointer to last QH for bulk */
+	/* pointer to last TD for isochronous */
+	struct uhci_td *sc_isoc_p_last[UHCI_VFRAMELIST_COUNT];
+	/* pointer to last QH for interrupt */
+	struct uhci_qh *sc_intr_p_last[UHCI_IFRAMELIST_COUNT];
+	/* pointer to last QH for low speed control */
+	struct uhci_qh *sc_ls_ctl_p_last;
+	/* pointer to last QH for full speed control */
+	struct uhci_qh *sc_fs_ctl_p_last;
+	/* pointer to last QH for bulk */
+	struct uhci_qh *sc_bulk_p_last;
 	struct uhci_qh *sc_reclaim_qh_p;
 	struct uhci_qh *sc_last_qh_p;
 	struct uhci_td *sc_last_td_p;

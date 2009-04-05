@@ -49,7 +49,6 @@ static device_detach_t usb2_detach;
 
 static void	usb2_attach_sub(device_t, struct usb2_bus *);
 static void	usb2_post_init(void *);
-static void	usb2_bus_roothub(struct usb2_proc_msg *pm);
 
 /* static variables */
 
@@ -165,10 +164,6 @@ usb2_detach(device_t dev)
 
 	usb2_proc_free(&bus->giant_callback_proc);
 	usb2_proc_free(&bus->non_giant_callback_proc);
-
-	/* Get rid of USB roothub process */
-
-	usb2_proc_free(&bus->roothub_proc);
 
 	/* Get rid of USB explore process */
 
@@ -403,12 +398,7 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 	bus->attach_msg[1].hdr.pm_callback = &usb2_bus_attach;
 	bus->attach_msg[1].bus = bus;
 
-	bus->roothub_msg[0].hdr.pm_callback = &usb2_bus_roothub;
-	bus->roothub_msg[0].bus = bus;
-	bus->roothub_msg[1].hdr.pm_callback = &usb2_bus_roothub;
-	bus->roothub_msg[1].bus = bus;
-
-	/* Create USB explore, roothub and callback processes */
+	/* Create USB explore and callback processes */
 
 	if (usb2_proc_create(&bus->giant_callback_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
@@ -418,10 +408,6 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 	    &bus->bus_mtx, pname, USB_PRI_HIGH)) {
 		printf("WARNING: Creation of USB non-Giant "
 		    "callback process failed.\n");
-	} else if (usb2_proc_create(&bus->roothub_proc,
-	    &bus->bus_mtx, pname, USB_PRI_HIGH)) {
-		printf("WARNING: Creation of USB roothub "
-		    "process failed.\n");
 	} else if (usb2_proc_create(&bus->explore_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
 		printf("WARNING: Creation of USB explore "
@@ -596,39 +582,4 @@ usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 #endif
 
 	mtx_destroy(&bus->bus_mtx);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_bus_roothub
- *
- * This function is used to execute roothub control requests on the
- * roothub and is called from the roothub process.
- *------------------------------------------------------------------------*/
-static void
-usb2_bus_roothub(struct usb2_proc_msg *pm)
-{
-	struct usb2_bus *bus;
-
-	bus = ((struct usb2_bus_msg *)pm)->bus;
-
-	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
-
-	(bus->methods->roothub_exec) (bus);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_bus_roothub_exec
- *
- * This function is used to schedule the "roothub_done" bus callback
- * method. The bus lock must be locked when calling this function.
- *------------------------------------------------------------------------*/
-void
-usb2_bus_roothub_exec(struct usb2_bus *bus)
-{
-	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
-
-	if (usb2_proc_msignal(&bus->roothub_proc,
-	    &bus->roothub_msg[0], &bus->roothub_msg[1])) {
-		/* ignore */
-	}
 }
