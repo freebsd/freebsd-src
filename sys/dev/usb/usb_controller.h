@@ -108,20 +108,15 @@ struct usb2_pipe_methods {
 
 	/* Mandatory USB Device and Host mode callbacks: */
 
-	void    (*open) (struct usb2_xfer *xfer);
-	void    (*close) (struct usb2_xfer *xfer);
+	usb2_callback_t *open;
+	usb2_callback_t *close;
 
-	void    (*enter) (struct usb2_xfer *xfer);
-	void    (*start) (struct usb2_xfer *xfer);
+	usb2_callback_t *enter;
+	usb2_callback_t *start;
 
 	/* Optional */
 
 	void   *info;
-
-	/* Flags */
-
-	uint8_t	enter_is_cancelable:1;
-	uint8_t	start_is_cancelable:1;
 };
 
 /*

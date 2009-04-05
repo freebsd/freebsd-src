@@ -1499,8 +1499,6 @@ struct usb2_pipe_methods at91dci_device_bulk_methods =
 	.close = at91dci_device_bulk_close,
 	.enter = at91dci_device_bulk_enter,
 	.start = at91dci_device_bulk_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1538,8 +1536,6 @@ struct usb2_pipe_methods at91dci_device_ctrl_methods =
 	.close = at91dci_device_ctrl_close,
 	.enter = at91dci_device_ctrl_enter,
 	.start = at91dci_device_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1577,8 +1573,6 @@ struct usb2_pipe_methods at91dci_device_intr_methods =
 	.close = at91dci_device_intr_close,
 	.enter = at91dci_device_intr_enter,
 	.start = at91dci_device_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1661,8 +1655,6 @@ struct usb2_pipe_methods at91dci_device_isoc_fs_methods =
 	.close = at91dci_device_isoc_fs_close,
 	.enter = at91dci_device_isoc_fs_enter,
 	.start = at91dci_device_isoc_fs_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*

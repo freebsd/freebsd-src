@@ -1899,8 +1899,6 @@ struct usb2_pipe_methods musbotg_device_bulk_methods =
 	.close = musbotg_device_bulk_close,
 	.enter = musbotg_device_bulk_enter,
 	.start = musbotg_device_bulk_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1938,8 +1936,6 @@ struct usb2_pipe_methods musbotg_device_ctrl_methods =
 	.close = musbotg_device_ctrl_close,
 	.enter = musbotg_device_ctrl_enter,
 	.start = musbotg_device_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1977,8 +1973,6 @@ struct usb2_pipe_methods musbotg_device_intr_methods =
 	.close = musbotg_device_intr_close,
 	.enter = musbotg_device_intr_enter,
 	.start = musbotg_device_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -2068,8 +2062,6 @@ struct usb2_pipe_methods musbotg_device_isoc_methods =
 	.close = musbotg_device_isoc_close,
 	.enter = musbotg_device_isoc_enter,
 	.start = musbotg_device_isoc_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*

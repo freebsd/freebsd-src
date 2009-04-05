@@ -1541,18 +1541,14 @@ usb2_pipe_enter(struct usb2_xfer *xfer)
 	/* enter the transfer */
 	(pipe->methods->enter) (xfer);
 
-	/* check cancelability */
-	if (pipe->methods->enter_is_cancelable) {
-		xfer->flags_int.can_cancel_immed = 1;
-		/* check for transfer error */
-		if (xfer->error) {
-			/* some error has happened */
-			usb2_transfer_done(xfer, 0);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
-			return;
-		}
-	} else {
-		xfer->flags_int.can_cancel_immed = 0;
+	xfer->flags_int.can_cancel_immed = 1;
+
+	/* check for transfer error */
+	if (xfer->error) {
+		/* some error has happened */
+		usb2_transfer_done(xfer, 0);
+		USB_BUS_UNLOCK(xfer->xroot->bus);
+		return;
 	}
 
 	/* start the transfer */
@@ -1866,8 +1862,8 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 	struct usb2_xfer *xfer = pq->curr;
 	struct usb2_xfer_root *info = xfer->xroot;
 
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
-	if (!mtx_owned(xfer->xroot->xfer_mtx)) {
+	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
+	if (!mtx_owned(info->xfer_mtx)) {
 		/*
 	       	 * Cases that end up here:
 		 *
@@ -1898,22 +1894,22 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 	/* get next USB transfer in the queue */
 	info->done_q.curr = NULL;
 
-	USB_BUS_UNLOCK(xfer->xroot->bus);
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_NOTOWNED);
+	USB_BUS_UNLOCK(info->bus);
+	USB_BUS_LOCK_ASSERT(info->bus, MA_NOTOWNED);
 
 	/* set correct USB state for callback */
 	if (!xfer->flags_int.transferring) {
 		xfer->usb2_state = USB_ST_SETUP;
 		if (!xfer->flags_int.started) {
 			/* we got stopped before we even got started */
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(info->bus);
 			goto done;
 		}
 	} else {
 
 		if (usb2_callback_wrapper_sub(xfer)) {
 			/* the callback has been deferred */
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(info->bus);
 			goto done;
 		}
 #if USB_HAVE_POWERD
@@ -1941,7 +1937,7 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 	(xfer->callback) (xfer);
 
 	/* pickup the USB mutex again */
-	USB_BUS_LOCK(xfer->xroot->bus);
+	USB_BUS_LOCK(info->bus);
 
 	/*
 	 * Check if we got started after that we got cancelled, but
@@ -1963,7 +1959,7 @@ done:
 	    (!xfer->flags_int.transferring)) {
 		/* "usb2_transfer_drain()" is waiting for end of transfer */
 		xfer->flags_int.draining = 0;
-		usb2_cv_broadcast(&xfer->xroot->cv_drain);
+		usb2_cv_broadcast(&info->cv_drain);
 	}
 
 	/* do the next callback, if any */
@@ -2122,15 +2118,12 @@ usb2_transfer_start_cb(void *arg)
 	/* start the transfer */
 	(pipe->methods->start) (xfer);
 
-	/* check cancelability */
-	if (pipe->methods->start_is_cancelable) {
-		xfer->flags_int.can_cancel_immed = 1;
-		if (xfer->error) {
-			/* some error has happened */
-			usb2_transfer_done(xfer, 0);
-		}
-	} else {
-		xfer->flags_int.can_cancel_immed = 0;
+	xfer->flags_int.can_cancel_immed = 1;
+
+	/* check for error */
+	if (xfer->error) {
+		/* some error has happened */
+		usb2_transfer_done(xfer, 0);
 	}
 }
 
@@ -2276,15 +2269,12 @@ usb2_pipe_start(struct usb2_xfer_queue *pq)
 	/* start USB transfer */
 	(pipe->methods->start) (xfer);
 
-	/* check cancelability */
-	if (pipe->methods->start_is_cancelable) {
-		xfer->flags_int.can_cancel_immed = 1;
-		if (xfer->error) {
-			/* some error has happened */
-			usb2_transfer_done(xfer, 0);
-		}
-	} else {
-		xfer->flags_int.can_cancel_immed = 0;
+	xfer->flags_int.can_cancel_immed = 1;
+
+	/* check for error */
+	if (xfer->error) {
+		/* some error has happened */
+		usb2_transfer_done(xfer, 0);
 	}
 }
 
