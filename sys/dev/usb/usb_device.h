@@ -90,7 +90,6 @@ struct usb2_device_flags {
 					 * strings */
 	uint8_t	remote_wakeup:1;	/* set if remote wakeup is enabled */
 	uint8_t	uq_bus_powered:1;	/* set if BUS powered quirk is present */
-	uint8_t	uq_power_claim:1;	/* set if power claim quirk is present */
 };
 
 /*
