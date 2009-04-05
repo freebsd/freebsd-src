@@ -597,10 +597,14 @@ installcheck_UGID:
 #
 # Installs everything compiled by a 'buildworld'.
 #
+.if ${MK_INFO} != "no"
+_install-info=	install-info
+.endif
+
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cap_mkdb cat chflags chmod chown \
-	    date echo egrep find grep install-info \
+	    date echo egrep find grep ${_install-info} \
 	    ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
