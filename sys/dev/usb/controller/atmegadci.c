@@ -77,9 +77,7 @@ SYSCTL_INT(_hw_usb2_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
 /* prototypes */
 
 struct usb2_bus_methods atmegadci_bus_methods;
-struct usb2_pipe_methods atmegadci_device_bulk_methods;
-struct usb2_pipe_methods atmegadci_device_ctrl_methods;
-struct usb2_pipe_methods atmegadci_device_intr_methods;
+struct usb2_pipe_methods atmegadci_device_non_isoc_methods;
 struct usb2_pipe_methods atmegadci_device_isoc_fs_methods;
 
 static atmegadci_cmd_t atmegadci_setup_rx;
@@ -1343,117 +1341,41 @@ atmegadci_do_poll(struct usb2_bus *bus)
 
 /*------------------------------------------------------------------------*
  * at91dci bulk support
- *------------------------------------------------------------------------*/
-static void
-atmegadci_device_bulk_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_bulk_close(struct usb2_xfer *xfer)
-{
-	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-atmegadci_device_bulk_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_bulk_start(struct usb2_xfer *xfer)
-{
-	/* setup TDs */
-	atmegadci_setup_standard_chain(xfer);
-	atmegadci_start_standard_chain(xfer);
-}
-
-struct usb2_pipe_methods atmegadci_device_bulk_methods =
-{
-	.open = atmegadci_device_bulk_open,
-	.close = atmegadci_device_bulk_close,
-	.enter = atmegadci_device_bulk_enter,
-	.start = atmegadci_device_bulk_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
-
-/*------------------------------------------------------------------------*
  * at91dci control support
- *------------------------------------------------------------------------*/
-static void
-atmegadci_device_ctrl_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_ctrl_close(struct usb2_xfer *xfer)
-{
-	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-atmegadci_device_ctrl_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_ctrl_start(struct usb2_xfer *xfer)
-{
-	/* setup TDs */
-	atmegadci_setup_standard_chain(xfer);
-	atmegadci_start_standard_chain(xfer);
-}
-
-struct usb2_pipe_methods atmegadci_device_ctrl_methods =
-{
-	.open = atmegadci_device_ctrl_open,
-	.close = atmegadci_device_ctrl_close,
-	.enter = atmegadci_device_ctrl_enter,
-	.start = atmegadci_device_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
-
-/*------------------------------------------------------------------------*
  * at91dci interrupt support
  *------------------------------------------------------------------------*/
 static void
-atmegadci_device_intr_open(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_open(struct usb2_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_device_intr_close(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_close(struct usb2_xfer *xfer)
 {
 	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-atmegadci_device_intr_enter(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_enter(struct usb2_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_device_intr_start(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_start(struct usb2_xfer *xfer)
 {
 	/* setup TDs */
 	atmegadci_setup_standard_chain(xfer);
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods atmegadci_device_intr_methods =
+struct usb2_pipe_methods atmegadci_device_non_isoc_methods =
 {
-	.open = atmegadci_device_intr_open,
-	.close = atmegadci_device_intr_close,
-	.enter = atmegadci_device_intr_enter,
-	.start = atmegadci_device_intr_start,
+	.open = atmegadci_device_non_isoc_open,
+	.close = atmegadci_device_non_isoc_close,
+	.enter = atmegadci_device_non_isoc_enter,
+	.start = atmegadci_device_non_isoc_start,
 	.enter_is_cancelable = 1,
 	.start_is_cancelable = 1,
 };
@@ -1551,10 +1473,6 @@ struct usb2_pipe_methods atmegadci_device_isoc_fs_methods =
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-
-/*
- * USB descriptors for the virtual Root HUB:
- */
 
 static const struct usb2_device_descriptor atmegadci_devd = {
 	.bLength = sizeof(struct usb2_device_descriptor),
@@ -2083,34 +2001,21 @@ atmegadci_xfer_setup(struct usb2_setup_params *parm)
 	/*
 	 * compute maximum number of TDs
 	 */
-	if (parm->methods == &atmegadci_device_ctrl_methods) {
+	if ((xfer->pipe->edesc->bmAttributes & UE_XFERTYPE) == UE_CONTROL) {
 
-		ntd = xfer->nframes + 1 /* STATUS */ + 1	/* SYNC 1 */
+		ntd = xfer->nframes + 1 /* STATUS */ + 1 /* SYNC 1 */
 		    + 1 /* SYNC 2 */ ;
-
-	} else if (parm->methods == &atmegadci_device_bulk_methods) {
-
-		ntd = xfer->nframes + 1 /* SYNC */ ;
-
-	} else if (parm->methods == &atmegadci_device_intr_methods) {
-
-		ntd = xfer->nframes + 1 /* SYNC */ ;
-
-	} else if (parm->methods == &atmegadci_device_isoc_fs_methods) {
-
-		ntd = xfer->nframes + 1 /* SYNC */ ;
-
 	} else {
 
-		ntd = 0;
+		ntd = xfer->nframes + 1 /* SYNC */ ;
 	}
 
 	/*
 	 * check if "usb2_transfer_setup_sub" set an error
 	 */
-	if (parm->err) {
+	if (parm->err)
 		return;
-	}
+
 	/*
 	 * allocate transfer descriptors
 	 */
@@ -2119,19 +2024,13 @@ atmegadci_xfer_setup(struct usb2_setup_params *parm)
 	/*
 	 * get profile stuff
 	 */
-	if (ntd) {
+	ep_no = xfer->endpoint & UE_ADDR;
+	atmegadci_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
-		ep_no = xfer->endpoint & UE_ADDR;
-		atmegadci_get_hw_ep_profile(parm->udev, &pf, ep_no);
-
-		if (pf == NULL) {
-			/* should not happen */
-			parm->err = USB_ERR_INVAL;
-			return;
-		}
-	} else {
-		ep_no = 0;
-		pf = NULL;
+	if (pf == NULL) {
+		/* should not happen */
+		parm->err = USB_ERR_INVAL;
+		return;
 	}
 
 	/* align data */
@@ -2188,23 +2087,10 @@ atmegadci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 			/* not supported */
 			return;
 		}
-		switch (edesc->bmAttributes & UE_XFERTYPE) {
-		case UE_CONTROL:
-			pipe->methods = &atmegadci_device_ctrl_methods;
-			break;
-		case UE_INTERRUPT:
-			pipe->methods = &atmegadci_device_intr_methods;
-			break;
-		case UE_ISOCHRONOUS:
+		if ((edesc->bmAttributes & UE_XFERTYPE) == UE_ISOCHRONOUS)
 			pipe->methods = &atmegadci_device_isoc_fs_methods;
-			break;
-		case UE_BULK:
-			pipe->methods = &atmegadci_device_bulk_methods;
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
+		else
+			pipe->methods = &atmegadci_device_non_isoc_methods;
 	}
 }
 
