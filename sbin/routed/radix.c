@@ -54,12 +54,11 @@ int	max_keylen;
 static struct radix_mask *rn_mkfreelist;
 static struct radix_node_head *mask_rnhead;
 static char *addmask_key;
-static uint8_t normal_chars[] =
+static const uint8_t normal_chars[] =
     { 0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff};
 static char *rn_zeros, *rn_ones;
 
 #define rn_masktop (mask_rnhead->rnh_treetop)
-#undef Bcmp
 #define Bcmp(a, b, l) (l == 0 ? 0 \
 		       : memcmp((caddr_t)(a), (caddr_t)(b), (size_t)l))
 

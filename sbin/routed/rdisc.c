@@ -173,6 +173,8 @@ set_rdisc_mg(struct interface *ifp,
 	struct group_req gr;
 	struct sockaddr_in *sin;
 
+	assert(ifp != NULL);
+
 	if (rdisc_sock < 0) {
 		/* Create the raw socket so that we can hear at least
 		 * broadcast router discovery packets.
@@ -944,7 +946,6 @@ read_d(void)
 #endif
 		union {
 			struct ip ip;
-			u_short s[512/2];
 			u_char	b[512];
 		} pkt;
 	} buf;
