@@ -14,6 +14,26 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090405: removal of if_ppp(4) and if_sl(4)
+OLD_FILES+=sbin/slattach
+OLD_FILES+=sbin/startslip
+OLD_FILES+=usr/include/net/if_ppp.h
+OLD_FILES+=usr/include/net/if_pppvar.h
+OLD_FILES+=usr/include/net/if_slvar.h
+OLD_FILES+=usr/include/net/ppp_comp.h
+OLD_FILES+=usr/include/net/slip.h
+OLD_FILES+=usr/sbin/sliplogin
+OLD_FILES+=usr/sbin/pppd
+OLD_FILES+=usr/sbin/pppstats
+OLD_FILES+=usr/share/man/man1/startslip.1.gz
+OLD_FILES+=usr/share/man/man4/if_ppp.4.gz
+OLD_FILES+=usr/share/man/man4/if_sl.4.gz
+OLD_FILES+=usr/share/man/man4/ppp.4.gz
+OLD_FILES+=usr/share/man/man4/sl.4.gz
+OLD_FILES+=usr/share/man/man8/pppd.8.gz
+OLD_FILES+=usr/share/man/man8/pppstats.8.gz
+OLD_FILES+=usr/share/man/man8/slattach.8.gz
+OLD_FILES+=usr/share/man/man8/sliplogin.8.gz
 # 20090319: uscanner(4) has been removed
 OLD_FILES+=usr/share/man/man4/uscanner.4.gz
 # 20090313: k8temp(4) renamed to amdtemp(4)
