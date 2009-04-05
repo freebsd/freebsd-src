@@ -38,9 +38,9 @@
 #include <fcntl.h>
 #include <sys/file.h>
 
-__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n"
+__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993 "
 	    "The Regents of the University of California."
-	    "  All rights reserved.\n");
+	    "  All rights reserved.");
 #ifdef __NetBSD__
 __RCSID("$NetBSD$");
 #include <util.h>
