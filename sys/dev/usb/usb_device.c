@@ -174,7 +174,15 @@ usb2_get_pipe(struct usb2_device *udev, uint8_t iface_index,
 
 	/* setup expected endpoint direction mask and value */
 
-	if (setup->direction == UE_DIR_ANY) {
+	if (setup->direction == UE_DIR_RX) {
+		ea_mask = (UE_DIR_IN | UE_DIR_OUT);
+		ea_val = (udev->flags.usb2_mode == USB_MODE_DEVICE) ?
+		    UE_DIR_OUT : UE_DIR_IN;
+	} else if (setup->direction == UE_DIR_TX) {
+		ea_mask = (UE_DIR_IN | UE_DIR_OUT);
+		ea_val = (udev->flags.usb2_mode == USB_MODE_DEVICE) ?
+		    UE_DIR_IN : UE_DIR_OUT;
+	} else if (setup->direction == UE_DIR_ANY) {
 		/* match any endpoint direction */
 		ea_mask = 0;
 		ea_val = 0;
