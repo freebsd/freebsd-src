@@ -955,7 +955,8 @@ ifinit(void)
 					trace_act("interface %s has been off"
 						  " %ld seconds; forget it",
 						  ifp->int_name,
-						  now.tv_sec-ifp->int_data.ts);
+						  (long)now.tv_sec-
+						      ifp->int_data.ts);
 					ifdel(ifp);
 				}
 				continue;
