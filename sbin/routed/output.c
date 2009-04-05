@@ -139,7 +139,7 @@ output(enum output_type type,
 		flags = MSG_DONTROUTE;
 		break;
 	case OUT_MULTICAST:
-		if (ifp->int_if_flags & (IFF_POINTOPOINT|IFF_MULTICAST) ==
+		if ((ifp->int_if_flags & (IFF_POINTOPOINT|IFF_MULTICAST)) ==
 		    IFF_POINTOPOINT) {
 			msg = "Send pt-to-pt";
 		} else if (ifp->int_state & IS_DUP) {

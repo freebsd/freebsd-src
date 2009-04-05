@@ -846,7 +846,7 @@ rn_walktree(struct radix_node_head *h,
 }
 
 int
-rn_inithead(void **head, int off)
+rn_inithead(struct radix_node_head **head, int off)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *t, *tt, *ttt;
@@ -887,7 +887,7 @@ rn_init(void)
 	addmask_key = cplim = rn_ones + max_keylen;
 	while (cp < cplim)
 		*cp++ = -1;
-	if (rn_inithead((void **)&mask_rnhead, 0) == 0)
+	if (rn_inithead(&mask_rnhead, 0) == 0)
 		panic("rn_init 2");
 }
 

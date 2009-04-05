@@ -1631,7 +1631,7 @@ rtinit(void)
 	/* Initialize the radix trees */
 	max_keylen = sizeof(struct sockaddr_in);
 	rn_init();
-	rn_inithead((void**)&rhead, 32);
+	rn_inithead(&rhead, 32);
 
 	/* mark all of the slots in the table free */
 	ag_avail = ag_slots;
@@ -2124,8 +2124,8 @@ age(naddr bad_gate)
 			       " %ld:%ld",
 			       ifp->int_name,
 			       naddr_ntoa(ifp->int_dstaddr),
-			       (now.tv_sec - ifp->int_act_time)/60,
-			       (now.tv_sec - ifp->int_act_time)%60);
+			       (long)(now.tv_sec - ifp->int_act_time)/60,
+			       (long)(now.tv_sec - ifp->int_act_time)%60);
 			if_sick(ifp);
 		}
 
