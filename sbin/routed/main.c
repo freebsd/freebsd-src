@@ -54,38 +54,39 @@ __RCSID("$Revision: 2.31 $");
 pid_t	mypid;
 
 naddr	myaddr;				/* system address */
-char	myname[MAXHOSTNAMELEN+1];
+static char myname[MAXHOSTNAMELEN+1];
 
-int	verbose;
+static int verbose;
 
 int	supplier;			/* supply or broadcast updates */
 int	supplier_set;
-int	ipforwarding = 1;		/* kernel forwarding on */
+static int ipforwarding = 1;		/* kernel forwarding on */
 
-int	default_gateway;		/* 1=advertise default */
-int	background = 1;
+static int default_gateway;		/* 1=advertise default */
+static int background = 1;
 int	ridhosts;			/* 1=reduce host routes */
 int	mhome;				/* 1=want multi-homed host route */
 int	advertise_mhome;		/* 1=must continue advertising it */
 int	auth_ok = 1;			/* 1=ignore auth if we do not care */
 
 struct timeval epoch;			/* when started */
-struct timeval clk, prev_clk;
+struct timeval clk;
+static struct timeval prev_clk;
 static int usec_fudge;
 struct timeval now;			/* current idea of time */
 time_t	now_stale;
 time_t	now_expire;
 time_t	now_garbage;
 
-struct timeval next_bcast;		/* next general broadcast */
+static struct timeval next_bcast;	/* next general broadcast */
 struct timeval no_flash = {		/* inhibit flash update */
 	EPOCH+SUPPLY_INTERVAL, 0
 };
 
-struct timeval flush_kern_timer;
+static struct timeval flush_kern_timer;
 
-fd_set	fdbits;
-int	sock_max;
+static fd_set fdbits;
+static int sock_max;
 int	rip_sock = -1;			/* RIP socket */
 struct interface *rip_sock_mcast;	/* current multicast interface */
 int	rt_sock;			/* routing socket */
@@ -94,6 +95,8 @@ int	rt_sock_seqno;
 
 static  int get_rip_sock(naddr, int);
 static void timevalsub(struct timeval *, struct timeval *, struct timeval *);
+static void sigalrm(int s UNUSED);
+static void sigterm(int sig);
 
 int
 main(int argc,
@@ -543,7 +546,7 @@ usage:
 
 
 /* ARGSUSED */
-void
+static void
 sigalrm(int s UNUSED)
 {
 	/* Historically, SIGALRM would cause the daemon to check for
@@ -555,7 +558,7 @@ sigalrm(int s UNUSED)
 
 
 /* watch for fatal signals */
-void
+static void
 sigterm(int sig)
 {
 	stopint = sig;

@@ -51,10 +51,11 @@ __RCSID("$Revision: 2.23 $");
 #define min(a,b) (((a)<(b))?(a):(b))
 
 int	max_keylen;
-struct radix_mask *rn_mkfreelist;
-struct radix_node_head *mask_rnhead;
+static struct radix_mask *rn_mkfreelist;
+static struct radix_node_head *mask_rnhead;
 static char *addmask_key;
-static char normal_chars[] = {0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, -1};
+static uint8_t normal_chars[] =
+    { 0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff};
 static char *rn_zeros, *rn_ones;
 
 #define rn_masktop (mask_rnhead->rnh_treetop)
@@ -63,6 +64,10 @@ static char *rn_zeros, *rn_ones;
 		       : memcmp((caddr_t)(a), (caddr_t)(b), (size_t)l))
 
 static int rn_satisfies_leaf(char *, struct radix_node *, int);
+static struct radix_node *rn_addmask(void *n_arg, int search, int skip);
+static struct radix_node *rn_addroute(void *v_arg, void *n_arg,
+	    struct radix_node_head *head, struct radix_node treenodes[2]);
+static struct radix_node *rn_match(void *v_arg, struct radix_node_head *head);
 
 /*
  * The data structure for the keys is a radix tree with one way
@@ -98,7 +103,7 @@ static int rn_satisfies_leaf(char *, struct radix_node *, int);
  * that governs a subtree.
  */
 
-struct radix_node *
+static struct radix_node *
 rn_search(void *v_arg,
 	  struct radix_node *head)
 {
@@ -114,7 +119,7 @@ rn_search(void *v_arg,
 	return (x);
 }
 
-struct radix_node *
+static struct radix_node *
 rn_search_m(void *v_arg,
 	    struct radix_node *head,
 	    void *m_arg)
@@ -132,7 +137,7 @@ rn_search_m(void *v_arg,
 	return x;
 }
 
-int
+static int
 rn_refines(void* m_arg, void *n_arg)
 {
 	caddr_t m = m_arg, n = n_arg;
@@ -158,7 +163,7 @@ rn_refines(void* m_arg, void *n_arg)
 	return (!masks_are_equal);
 }
 
-struct radix_node *
+static struct radix_node *
 rn_lookup(void *v_arg, void *m_arg, struct radix_node_head *head)
 {
 	struct radix_node *x;
@@ -197,7 +202,7 @@ rn_satisfies_leaf(char *trial,
 	return 1;
 }
 
-struct radix_node *
+static struct radix_node *
 rn_match(void *v_arg,
 	 struct radix_node_head *head)
 {
@@ -321,7 +326,7 @@ int	rn_saveinfo;
 int	rn_debug =  1;
 #endif
 
-struct radix_node *
+static struct radix_node *
 rn_newpair(void *v, int b, struct radix_node nodes[2])
 {
 	struct radix_node *tt = nodes, *t = tt + 1;
@@ -336,7 +341,7 @@ rn_newpair(void *v, int b, struct radix_node nodes[2])
 	return t;
 }
 
-struct radix_node *
+static struct radix_node *
 rn_insert(void* v_arg,
 	  struct radix_node_head *head,
 	  int *dupentry,
@@ -404,7 +409,7 @@ on1:
 	return (tt);
 }
 
-struct radix_node *
+static struct radix_node *
 rn_addmask(void *n_arg, int search, int skip)
 {
 	caddr_t netmask = (caddr_t)n_arg;
@@ -512,7 +517,7 @@ rn_new_radix_mask(struct radix_node *tt,
 	return m;
 }
 
-struct radix_node *
+static struct radix_node *
 rn_addroute(void *v_arg,
 	    void *n_arg,
 	    struct radix_node_head *head,
@@ -655,7 +660,7 @@ on2:
 	return tt;
 }
 
-struct radix_node *
+static struct radix_node *
 rn_delete(void *v_arg,
 	  void *netmask_arg,
 	  struct radix_node_head *head)
