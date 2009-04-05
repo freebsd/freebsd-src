@@ -262,9 +262,9 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	 * Set "actlen" to a known value in case the caller does not
 	 * check the return value:
 	 */
-	if (actlen) {
+	if (actlen)
 		*actlen = 0;
-	}
+
 #if (USB_HAVE_USER_IO == 0)
 	if (flags & USB_USER_DATA_PTR)
 		return (USB_ERR_INVAL);
@@ -273,14 +273,13 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 		DPRINTF("USB device mode\n");
 		(usb2_temp_get_desc_p) (udev, req, &desc, &temp);
 		if (length > temp) {
-			if (!(flags & USB_SHORT_XFER_OK)) {
+			if (!(flags & USB_SHORT_XFER_OK))
 				return (USB_ERR_SHORT_XFER);
-			}
 			length = temp;
 		}
-		if (actlen) {
+		if (actlen)
 			*actlen = length;
-		}
+
 		if (length > 0) {
 #if USB_HAVE_USER_IO
 			if (flags & USB_USER_DATA_PTR) {
@@ -305,6 +304,59 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	 */
 
 	sx_xlock(udev->default_sx);
+
+	if (udev->parent_hub == NULL) {
+		struct usb2_sw_transfer *std = &udev->bus->roothub_req;
+
+		/* root HUB code - stripped down */
+
+		if (req->bmRequestType & UT_READ) {
+			std->ptr = NULL;
+		} else {
+			if (length != 0) {
+			    DPRINTFN(1, "Root HUB does not support "
+				"writing data!\n");
+			    err = USB_ERR_INVAL;
+			    goto done;
+			}
+		}
+		/* setup request */
+		std->req = *req;
+		std->err = 0;
+		std->len = 0;
+
+		USB_BUS_LOCK(udev->bus);
+		(udev->bus->methods->roothub_exec) (udev->bus);
+		USB_BUS_UNLOCK(udev->bus);
+
+		err = std->err;
+		if (err)
+			goto done;
+
+		if (length > std->len) {
+			length = std->len;
+			if (!(flags & USB_SHORT_XFER_OK)) {
+				err = USB_ERR_SHORT_XFER;
+				goto done;
+			}
+		}
+
+		if (actlen)
+			*actlen = length;
+
+		if (length > 0) {
+#if USB_HAVE_USER_IO
+			if (flags & USB_USER_DATA_PTR) {
+				if (copyout(std->ptr, data, length)) {
+					err = USB_ERR_INVAL;
+					goto done;
+				}
+			} else
+#endif
+				bcopy(std->ptr, data, length);
+		}
+		goto done;
+	}
 
 	/*
 	 * Setup a new USB transfer or use the existing one, if any:

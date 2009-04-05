@@ -132,16 +132,13 @@ extern struct usb2_pipe_methods uhci_device_bulk_methods;
 extern struct usb2_pipe_methods uhci_device_ctrl_methods;
 extern struct usb2_pipe_methods uhci_device_intr_methods;
 extern struct usb2_pipe_methods uhci_device_isoc_methods;
-extern struct usb2_pipe_methods uhci_root_ctrl_methods;
-extern struct usb2_pipe_methods uhci_root_intr_methods;
 
-static void	uhci_root_ctrl_poll(struct uhci_softc *);
 static void	uhci_do_poll(struct usb2_bus *);
 static void	uhci_device_done(struct usb2_xfer *, usb2_error_t);
 static void	uhci_transfer_intr_enqueue(struct usb2_xfer *);
-static void	uhci_root_intr_check(void *);
 static void	uhci_timeout(void *);
 static uint8_t	uhci_check_transfer(struct usb2_xfer *);
+static void	uhci_root_intr(uhci_softc_t *sc);
 
 void
 uhci_iterate_hw_softc(struct usb2_bus *bus, usb2_bus_mem_sub_cb_t *cb)
@@ -317,6 +314,13 @@ done_2:
 	UWRITE4(sc, UHCI_FLBASEADDR, buf_res.physaddr);
 	UWRITE2(sc, UHCI_FRNUM, sc->sc_saved_frnum);
 	UWRITE1(sc, UHCI_SOF, sc->sc_saved_sof);
+
+	USB_BUS_UNLOCK(&sc->sc_bus);
+
+	/* stop root interrupt */
+	usb2_callout_drain(&sc->sc_root_intr);
+
+	USB_BUS_LOCK(&sc->sc_bus);
 }
 
 static void
@@ -358,7 +362,8 @@ uhci_start(uhci_softc_t *sc)
 	    "cannot start HC controller\n");
 
 done:
-	return;
+	/* start root interrupt */
+	uhci_root_intr(sc);
 }
 
 static struct uhci_qh *
@@ -408,12 +413,13 @@ uhci_init(uhci_softc_t *sc)
 
 	DPRINTF("start\n");
 
+	usb2_callout_init_mtx(&sc->sc_root_intr, &sc->sc_bus.bus_mtx, 0);
+
 #if USB_DEBUG
 	if (uhcidebug > 2) {
 		uhci_dumpregs(sc);
 	}
 #endif
-
 	sc->sc_saved_sof = 0x40;	/* default value */
 	sc->sc_saved_frnum = 0;		/* default frame number */
 
@@ -1505,7 +1511,6 @@ uhci_do_poll(struct usb2_bus *bus)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 	uhci_interrupt_poll(sc);
-	uhci_root_ctrl_poll(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -2307,30 +2312,8 @@ struct usb2_pipe_methods uhci_device_isoc_methods =
 /*------------------------------------------------------------------------*
  * uhci root control support
  *------------------------------------------------------------------------*
- * simulate a hardware hub by handling
- * all the necessary requests
+ * Simulate a hardware hub by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-
-static void
-uhci_root_ctrl_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-uhci_root_ctrl_close(struct usb2_xfer *xfer)
-{
-	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_ctrl.xfer == xfer) {
-		sc->sc_root_ctrl.xfer = NULL;
-	}
-	uhci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-/* data structures and routines
- * to emulate the root hub:
- */
 
 static const
 struct usb2_device_descriptor uhci_devd =
@@ -2358,7 +2341,6 @@ static const struct uhci_config_desc uhci_confd = {
 		.bmAttributes = UC_SELF_POWERED,
 		.bMaxPower = 0		/* max power */
 	},
-
 	.ifcd = {
 		.bLength = sizeof(struct usb2_interface_descriptor),
 		.bDescriptorType = UDESC_INTERFACE,
@@ -2367,7 +2349,6 @@ static const struct uhci_config_desc uhci_confd = {
 		.bInterfaceSubClass = UISUBCLASS_HUB,
 		.bInterfaceProtocol = UIPROTO_FSHUB,
 	},
-
 	.endpd = {
 		.bLength = sizeof(struct usb2_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
@@ -2511,34 +2492,10 @@ done:
 }
 
 static void
-uhci_root_ctrl_enter(struct usb2_xfer *xfer)
+uhci_roothub_exec(struct usb2_bus *bus)
 {
-	return;
-}
-
-static void
-uhci_root_ctrl_start(struct usb2_xfer *xfer)
-{
-	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
-
-	DPRINTF("\n");
-
-	sc->sc_root_ctrl.xfer = xfer;
-
-	usb2_bus_roothub_exec(xfer->xroot->bus);
-}
-
-static void
-uhci_root_ctrl_task(struct usb2_bus *bus)
-{
-	uhci_root_ctrl_poll(UHCI_BUS2SC(bus));
-}
-
-static void
-uhci_root_ctrl_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
-{
-	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
+	uhci_softc_t *sc = UHCI_BUS2SC(bus);
+	struct usb2_sw_transfer *std = &sc->sc_bus.roothub_req;
 	char *ptr;
 	uint16_t x;
 	uint16_t port;
@@ -2549,13 +2506,6 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_SETUP) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			uhci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
 	/* buffer reset */
 	std->ptr = sc->sc_hub_desc.temp;
 	std->len = 0;
@@ -2856,92 +2806,13 @@ done:
 	return;
 }
 
-static void
-uhci_root_ctrl_poll(struct uhci_softc *sc)
-{
-	usb2_sw_transfer(&sc->sc_root_ctrl,
-	    &uhci_root_ctrl_done);
-}
-
-struct usb2_pipe_methods uhci_root_ctrl_methods =
-{
-	.open = uhci_root_ctrl_open,
-	.close = uhci_root_ctrl_close,
-	.enter = uhci_root_ctrl_enter,
-	.start = uhci_root_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 0,
-};
-
-/*------------------------------------------------------------------------*
- * uhci root interrupt support
- *------------------------------------------------------------------------*/
-static void
-uhci_root_intr_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-uhci_root_intr_close(struct usb2_xfer *xfer)
-{
-	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_intr.xfer == xfer) {
-		sc->sc_root_intr.xfer = NULL;
-	}
-	uhci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-uhci_root_intr_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-uhci_root_intr_start(struct usb2_xfer *xfer)
-{
-	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_intr.xfer = xfer;
-
-	usb2_transfer_timeout_ms(xfer,
-	    &uhci_root_intr_check, xfer->interval);
-}
-
-static void
-uhci_root_intr_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
-{
-	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
-
-	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
-
-	if (std->state != USB_SW_TR_PRE_DATA) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer is transferred */
-			uhci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
-	/* setup buffer */
-	std->ptr = sc->sc_hub_idata;
-	std->len = sizeof(sc->sc_hub_idata);
-done:
-	return;
-}
-
 /*
- * this routine is executed periodically and simulates interrupts
- * from the root controller interrupt pipe for port status change
+ * This routine is executed periodically and simulates interrupts from
+ * the root controller interrupt pipe for port status change:
  */
 static void
-uhci_root_intr_check(void *arg)
+uhci_root_intr(uhci_softc_t *sc)
 {
-	struct usb2_xfer *xfer = arg;
-	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
-
 	DPRINTFN(21, "\n");
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -2956,26 +2827,16 @@ uhci_root_intr_check(void *arg)
 	    UHCI_PORTSC_OCIC | UHCI_PORTSC_RD)) {
 		sc->sc_hub_idata[0] |= 1 << 2;
 	}
-	if (sc->sc_hub_idata[0] == 0) {
-		/*
-		 * no change or controller not running, try again in a while
-		 */
-		uhci_root_intr_start(xfer);
-	} else {
-		usb2_sw_transfer(&sc->sc_root_intr,
-		    &uhci_root_intr_done);
+
+	/* restart timer */
+	usb2_callout_reset(&sc->sc_root_intr, hz,
+	    (void *)&uhci_root_intr, sc);
+
+	if (sc->sc_hub_idata[0] != 0) {
+		uhub_root_intr(&sc->sc_bus, sc->sc_hub_idata,
+		    sizeof(sc->sc_hub_idata));
 	}
 }
-
-struct usb2_pipe_methods uhci_root_intr_methods =
-{
-	.open = uhci_root_intr_open,
-	.close = uhci_root_intr_close,
-	.enter = uhci_root_intr_enter,
-	.start = uhci_root_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
 
 static void
 uhci_xfer_setup(struct usb2_setup_params *parm)
@@ -3188,19 +3049,7 @@ uhci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
 		/* not supported */
 		return;
 	}
-	if (udev->device_index == sc->sc_addr) {
-		switch (edesc->bEndpointAddress) {
-		case USB_CONTROL_ENDPOINT:
-			pipe->methods = &uhci_root_ctrl_methods;
-			break;
-		case UE_DIR_IN | UHCI_INTR_ENDPT:
-			pipe->methods = &uhci_root_intr_methods;
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
-	} else {
+	if (udev->device_index != sc->sc_addr) {
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
 			pipe->methods = &uhci_device_ctrl_methods;
@@ -3374,5 +3223,5 @@ struct usb2_bus_methods uhci_bus_methods =
 	.device_resume = uhci_device_resume,
 	.device_suspend = uhci_device_suspend,
 	.set_hw_power = uhci_set_hw_power,
-	.roothub_exec = uhci_root_ctrl_task,
+	.roothub_exec = uhci_roothub_exec,
 };

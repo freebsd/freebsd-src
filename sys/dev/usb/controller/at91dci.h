@@ -204,8 +204,6 @@ struct at91dci_softc {
 	struct usb2_bus sc_bus;
 	union at91dci_hub_temp sc_hub_temp;
 	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
 	struct usb2_device *sc_devices[AT91_MAX_DEVICES];
 	struct resource *sc_io_res;

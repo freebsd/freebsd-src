@@ -78,5 +78,6 @@ void	usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe);
 void	usb2_needs_explore_all(void);
 void	usb2_bus_power_update(struct usb2_bus *bus);
 void	usb2_bus_powerd(struct usb2_bus *bus);
+void	uhub_root_intr(struct usb2_bus *, const uint8_t *, uint8_t);
 
 #endif					/* _USB2_HUB_H_ */
