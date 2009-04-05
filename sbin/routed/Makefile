@@ -7,6 +7,6 @@ MAN=   routed.8
 SUBDIR= rtquery
 LDADD=	-lmd
 DPADD=	${LIBMD}
-WARNS?=	0
+WARNS?=	6
 
 .include <bsd.prog.mk>
