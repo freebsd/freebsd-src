@@ -189,7 +189,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
 		if (bi != NULL && hdr->e_machine == bi->machine &&
-		    bi->brand_note != NULL) {
+		    (bi->flags & BI_BRAND_NOTE) != 0) {
 			ret = __elfN(check_note)(imgp, bi->brand_note, osrel);
 			if (ret)
 				return (bi);

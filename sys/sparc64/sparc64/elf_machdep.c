@@ -100,7 +100,7 @@ static Elf64_Brandinfo freebsd_brand_info = {
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -116,7 +116,7 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
