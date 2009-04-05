@@ -289,7 +289,6 @@ MAN=	aac.4 \
 	ppbus.4 \
 	ppc.4 \
 	ppi.4 \
-	ppp.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
@@ -324,7 +323,6 @@ MAN=	aac.4 \
 	sio.4 \
 	sis.4 \
 	sk.4 \
-	sl.4 \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
@@ -531,7 +529,6 @@ MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
 MLINKS+=pcn.4 if_pcn.4
-MLINKS+=ppp.4 if_ppp.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
@@ -544,7 +541,6 @@ MLINKS+=scsi.4 CAM.4 \
 MLINKS+=sf.4 if_sf.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
-MLINKS+=sl.4 if_sl.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=sn.4 if_sn.4
 MLINKS+=snd_envy24.4 snd_ak452x.4
