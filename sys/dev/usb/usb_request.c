@@ -833,6 +833,40 @@ usb2_req_get_string_desc(struct usb2_device *udev, struct mtx *mtx, void *sdesc,
 }
 
 /*------------------------------------------------------------------------*
+ *	usb2_req_get_config_desc_ptr
+ *
+ * This function is used in device side mode to retrieve the pointer
+ * to the generated config descriptor. This saves allocating space for
+ * an additional config descriptor when setting the configuration.
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb2_error_t
+usb2_req_get_config_desc_ptr(struct usb2_device *udev,
+    struct usb2_config_descriptor **ppcd, uint8_t config_index)
+{
+	uint16_t len;
+
+	struct usb2_device_request req;
+
+	if (udev->flags.usb2_mode != USB_MODE_DEVICE)
+		return (USB_ERR_INVAL);
+
+	req.bmRequestType = UT_READ_CLASS_DEVICE;
+	req.bRequest = UR_GET_DESCRIPTOR;
+	USETW2(req.wValue, UDESC_CONFIG, config_index);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+
+	(usb2_temp_get_desc_p) (udev, &req, 
+	    __DECONST(const void **, ppcd), &len);
+
+	return (*ppcd ? USB_ERR_NORMAL_COMPLETION : USB_ERR_INVAL);
+}
+
+/*------------------------------------------------------------------------*
  *	usb2_req_get_config_desc
  *
  * Returns:
