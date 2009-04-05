@@ -640,7 +640,7 @@ rt_xaddrs(struct rt_addrinfo *info,
 void
 ifinit(void)
 {
-	static char *sysctl_buf;
+	static struct ifa_msghdr *sysctl_buf;
 	static size_t sysctl_buf_size = 0;
 	uint complaints = 0;
 	static u_int prev_complaints = 0;
@@ -659,7 +659,8 @@ ifinit(void)
 	size_t needed;
 	int mib[6];
 	struct if_msghdr *ifm;
-	struct ifa_msghdr *ifam, *ifam_lim, *ifam2;
+	void *ifam_lim;
+	struct ifa_msghdr *ifam, *ifam2;
 	int in, ierr, out, oerr;
 	struct intnet *intnetp;
 	struct rt_addrinfo info;
@@ -702,10 +703,9 @@ ifinit(void)
 				      "ifinit sysctl");
 	}
 
-	ifam_lim = (struct ifa_msghdr *)(sysctl_buf + needed);
-	for (ifam = (struct ifa_msghdr *)sysctl_buf;
-	     ifam < ifam_lim;
-	     ifam = ifam2) {
+	/* XXX: thanks to malloc(3), alignment can be presumed OK */
+	ifam_lim = (char *)sysctl_buf + needed;
+	for (ifam = sysctl_buf; (void *)ifam < ifam_lim; ifam = ifam2) {
 
 		ifam2 = (struct ifa_msghdr*)((char*)ifam + ifam->ifam_msglen);
 
