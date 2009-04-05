@@ -44,7 +44,6 @@ struct usb2_clear_stall_msg {
 struct usb2_pipe {
 	struct usb2_xfer_queue pipe_q;	/* queue of USB transfers */
 
-	struct usb2_xfer *xfer_block;	/* blocking USB transfer */
 	struct usb2_endpoint_descriptor *edesc;
 	struct usb2_pipe_methods *methods;	/* set by HC driver */
 
