@@ -89,7 +89,7 @@ static void	usb2_loc_fill(struct usb2_fs_privdata *,
 		    struct usb2_cdev_privdata *);
 static void	usb2_close(void *);
 static usb2_error_t usb2_ref_device(struct usb2_cdev_privdata *, int);
-static usb2_error_t usb2_uref_location(struct usb2_cdev_privdata *);
+static usb2_error_t usb2_usb_ref_location(struct usb2_cdev_privdata *);
 static void	usb2_unref_device(struct usb2_cdev_privdata *);
 
 static d_open_t usb2_open;
@@ -264,7 +264,7 @@ error:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_uref_location
+ *	usb2_usb_ref_location
  *
  * This function is used to upgrade an USB reference to include the
  * USB device reference on a USB location.
@@ -274,7 +274,7 @@ error:
  *  Else: Failure.
  *------------------------------------------------------------------------*/
 static usb2_error_t
-usb2_uref_location(struct usb2_cdev_privdata *cpd)
+usb2_usb_ref_location(struct usb2_cdev_privdata *cpd)
 {
 	/*
 	 * Check if we already got an USB reference on this location:
@@ -1038,7 +1038,7 @@ usb2_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread*
 		err = (f->methods->f_ioctl) (f, cmd, addr, fflags);
 		DPRINTFN(2, "f_ioctl cmd 0x%lx = %d\n", cmd, err);
 		if (err == ENOIOCTL) {
-			if (usb2_uref_location(cpd)) {
+			if (usb2_usb_ref_location(cpd)) {
 				err = ENXIO;
 				goto done;
 			}
