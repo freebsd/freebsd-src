@@ -426,6 +426,7 @@ ubt_attach(device_t dev)
 	struct usb2_attach_arg		*uaa = device_get_ivars(dev);
 	struct ubt_softc		*sc = device_get_softc(dev);
 	struct usb2_endpoint_descriptor	*ed;
+	struct usb2_interface_descriptor *id;
 	uint16_t			wMaxPacketSize;
 	uint8_t				alt_index, i, j;
 	uint8_t				iface_index[2] = { 0, 1 };
@@ -496,31 +497,34 @@ ubt_attach(device_t dev)
 	alt_index = 0;
 	i = 0;
 	j = 0;
+	ed = NULL;
 
-	/* Search through all the descriptors looking for bidir mode */
-	while (1) {
-		uint16_t temp;
+	/* 
+	 * Search through all the descriptors looking for the largest
+	 * packet size:
+	 */
+	while ((ed = (struct usb2_endpoint_descriptor *)usb2_desc_foreach(
+	    usb2_get_config_descriptor(uaa->device), 
+	    (struct usb2_descriptor *)ed))) {
 
-		ed = usb2_find_edesc(usb2_get_config_descriptor(uaa->device),
-				1, i, j);
-		if (ed == NULL) {
-			if (j != 0) {
-				/* next interface */
-				j = 0;
-				i ++;
-				continue;
+		if ((ed->bDescriptorType == UDESC_INTERFACE) &&
+		    (ed->bLength >= sizeof(*id))) {
+			id = (struct usb2_interface_descriptor *)ed;
+			i = id->bInterfaceNumber;
+			j = id->bAlternateSetting;
+		}
+
+		if ((ed->bDescriptorType == UDESC_ENDPOINT) &&
+		    (ed->bLength >= sizeof(*ed)) &&
+		    (i == 1)) {
+			uint16_t temp;
+
+			temp = UGETW(ed->wMaxPacketSize);
+			if (temp > wMaxPacketSize) {
+				wMaxPacketSize = temp;
+				alt_index = j;
 			}
-
-			break;	/* end of interfaces */
 		}
-
-		temp = UGETW(ed->wMaxPacketSize);
-		if (temp > wMaxPacketSize) {
-			wMaxPacketSize = temp;
-			alt_index = i;
-		}
-
-		j ++;
 	}
 
 	/* Set alt configuration on interface #1 only if we found it */
