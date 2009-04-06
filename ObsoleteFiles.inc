@@ -34,6 +34,11 @@ OLD_FILES+=usr/share/man/man8/pppd.8.gz
 OLD_FILES+=usr/share/man/man8/pppstats.8.gz
 OLD_FILES+=usr/share/man/man8/slattach.8.gz
 OLD_FILES+=usr/share/man/man8/sliplogin.8.gz
+# 20090321: libpcap upgraded to 1.0.0
+OLD_LIBS+=lib/libpcap.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libpcap.so.5
+.endif
 # 20090319: uscanner(4) has been removed
 OLD_FILES+=usr/share/man/man4/uscanner.4.gz
 # 20090313: k8temp(4) renamed to amdtemp(4)
@@ -44,8 +49,17 @@ OLD_FILES+=usr/lib/libusb20.a
 OLD_FILES+=usr/lib/libusb20.so
 OLD_FILES+=usr/lib/libusb20_p.a
 OLD_FILES+=usr/include/libusb20_compat01.h
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libusb20.so.1
+OLD_FILES+=usr/lib32/libusb20.a
+OLD_FILES+=usr/lib32/libusb20.so
+OLD_FILES+=usr/lib32/libusb20_p.a
+.endif
 # 20090226: libmp(3) functions renamed
 OLD_LIBS+=usr/lib/libmp.so.6
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libmp.so.6
+.endif
 # 20090223: changeover of USB stacks
 OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
 OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
