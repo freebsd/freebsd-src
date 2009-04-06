@@ -150,6 +150,8 @@ static int	if_getgroupmembers(struct ifgroupreq *);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
+static int	vnet_net_iattach(const void *);
+
 #ifdef VIMAGE_GLOBALS
 struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	ifgrouphead ifg_head;
@@ -391,24 +393,33 @@ filt_netdev(struct knote *kn, long hint)
 static void
 if_init(void *dummy __unused)
 {
-	INIT_VNET_NET(curvnet);
 
 #ifndef VIMAGE_GLOBALS
 	vnet_mod_register(&vnet_net_modinfo);
 #endif
+	vnet_net_iattach(NULL);
+
+	IFNET_LOCK_INIT();
+	ifdev_setbyindex(0, make_dev(&net_cdevsw, 0, UID_ROOT, GID_WHEEL,
+	    0600, "network"));
+	if_clone_init();
+}
+
+static int
+vnet_net_iattach(const void *unused __unused)
+{
+	INIT_VNET_NET(curvnet);
 
 	V_if_index = 0;
 	V_ifindex_table = NULL;
 	V_if_indexlim = 8;
 
-	IFNET_LOCK_INIT();
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
 	knlist_init(&V_ifklist, NULL, NULL, NULL, NULL);
 	if_grow();				/* create initial table */
-	ifdev_setbyindex(0, make_dev(&net_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "network"));
-	if_clone_init();
+
+	return (0);
 }
 
 static void

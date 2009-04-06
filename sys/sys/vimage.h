@@ -81,6 +81,7 @@ struct vnet_modlink {
 #define VNET_SYMMAP_END		{ NULL, 0 }
 
 /* Non-VIMAGE null-macros */
+#define	IS_DEFAULT_VNET(arg) 1
 #define	CURVNET_SET(arg)
 #define	CURVNET_SET_QUIET(arg)
 #define	CURVNET_RESTORE()

@@ -103,6 +103,8 @@ struct vnet_ipsec vnet_ipsec_0;
 #endif
 #endif
 
+static int ipsec_iattach(const void *);
+
 #ifdef VIMAGE_GLOBALS
 /* NB: name changed so netstat doesn't use it. */
 struct ipsecstat ipsec4stat;
@@ -1758,8 +1760,18 @@ static void
 ipsec_attach(void)
 {
 
+	ipsec_iattach(NULL);
+}
+
+static int
+ipsec_iattach(const void *unused __unused)
+{
+	INIT_VNET_IPSEC(curvnet);
+
 	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
 	V_ip4_def_policy.refcnt = 1;			/* NB: disallow free. */
+
+	return (0);
 }
 SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL);
 
