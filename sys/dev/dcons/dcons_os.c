@@ -72,7 +72,7 @@
 
 
 #ifndef DCONS_POLL_HZ
-#define DCONS_POLL_HZ	100
+#define DCONS_POLL_HZ	25
 #endif
 
 #ifndef DCONS_BUF_SIZE
