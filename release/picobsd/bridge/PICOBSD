@@ -89,7 +89,10 @@ device		uart
 #
 device	miibus 
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		nfe		# nVidia nForce MCP on-board Ethernet
+#device		xl		# 3Com
 device		rl		# RealTek 8129/8139
+device		re		# RealTek 8139C+/8169/8169S/8110S
 device		sis		# National/SiS
 device		dc		# DEC/Intel 21143 and various workalikes
 device		ed
@@ -103,6 +106,8 @@ device		md		# Memory "disks"
 #device		gif	4	# IPv6 and IPv4 tunneling
 #device		faith	1	# IPv6-to-IPv4 relaying (translation)
 device		tap
+
+#options               DEVICE_POLLING
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
