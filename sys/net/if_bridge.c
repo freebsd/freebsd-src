@@ -829,9 +829,7 @@ bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 	ifr.ifr_reqcap = set;
 
 	if (ifp->if_capenable != set) {
-		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
-		IFF_UNLOCKGIANT(ifp);
 		if (error)
 			if_printf(sc->sc_ifp,
 			    "error setting interface capabilities on %s\n",

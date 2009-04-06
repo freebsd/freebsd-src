@@ -176,6 +176,9 @@ int cacheline_size = 32;
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
+int hw_direct_map = 0;
+int ppc64 = 0;
+
 static void cpu_e500_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
 
@@ -806,14 +809,10 @@ int
 ptrace_single_step(struct thread *td)
 {
 	struct trapframe *tf;
-	u_int reg;
-
-	reg = mfspr(SPR_DBCR0);
-	reg |= DBCR0_IC | DBCR0_IDM;
-	mtspr(SPR_DBCR0, reg);
 
 	tf = td->td_frame;
 	tf->srr1 |= PSL_DE;
+	tf->cpu.booke.dbcr0 |= (DBCR0_IDM | DBCR0_IC);
 	return (0);
 }
 
@@ -824,6 +823,7 @@ ptrace_clear_single_step(struct thread *td)
 
 	tf = td->td_frame;
 	tf->srr1 &= ~PSL_DE;
+	tf->cpu.booke.dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
 	return (0);
 }
 

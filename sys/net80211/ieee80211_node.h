@@ -69,7 +69,7 @@ struct ieee80211vap;
 /*
  * Information element ``blob''.  We use this structure
  * to capture management frame payloads that need to be
- * retained.  Information elemnts within the payload that
+ * retained.  Information elements within the payload that
  * we need to consult have references recorded.
  */
 struct ieee80211_ies {

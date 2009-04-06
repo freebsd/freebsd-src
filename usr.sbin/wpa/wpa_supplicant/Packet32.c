@@ -109,8 +109,7 @@ PacketGetVersion(void)
 }
 
 void *
-PacketOpenAdapter(iface)
-	CHAR			*iface;
+PacketOpenAdapter(CHAR *iface)
 {
 	struct adapter		*a;
 	int			s;
@@ -164,10 +163,7 @@ PacketOpenAdapter(iface)
 }
 
 int
-PacketRequest(iface, set, oid)
-	void			*iface;
-	BOOLEAN			set;
-	PACKET_OID_DATA		*oid;
+PacketRequest(void *iface, BOOLEAN set, PACKET_OID_DATA *oid)
 {
 	struct adapter		*a;
 	uint32_t		retval;
@@ -239,9 +235,7 @@ PacketRequest(iface, set, oid)
 }
 
 int
-PacketGetAdapterNames(namelist, len)
-	CHAR			*namelist;
-	ULONG			*len;
+PacketGetAdapterNames(CHAR *namelist, ULONG *len)
 {
 	int			mib[6];
 	size_t			needed;
@@ -341,8 +335,7 @@ PacketGetAdapterNames(namelist, len)
 }
 
 void
-PacketCloseAdapter(iface)
-	void			*iface;
+PacketCloseAdapter(void *iface)
 {	
 	struct adapter		*a;
 	struct ifreq		ifr;

@@ -57,3 +57,5 @@ KDTRACE_FRAME		opt_kdtrace.h
 
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
+
+XENHVM			opt_global.h

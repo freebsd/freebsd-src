@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-WPA_SUPPLICANT_DISTDIR?= ${.CURDIR}/../../../contrib/wpa_supplicant
-.PATH: ${WPA_SUPPLICANT_DISTDIR}
+.include "${.CURDIR}/../Makefile.inc"
+
+.PATH.c:${WPA_SUPPLICANT_DISTDIR}
 
 PROG=	wpa_passphrase
 SRCS=	wpa_passphrase.c sha1.c md5.c

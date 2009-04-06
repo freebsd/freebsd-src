@@ -3556,5 +3556,4 @@ emu_modevent(module_t mod __unused, int cmd, void *data __unused)
 static devclass_t emu_devclass;
 
 DRIVER_MODULE(snd_emu10kx, pci, emu_driver, emu_devclass, emu_modevent, NULL);
-DRIVER_MODULE(snd_emu10kx, cardbus, emu_driver, emu_devclass, emu_modevent, NULL);
 MODULE_VERSION(snd_emu10kx, SND_EMU10KX_PREFVER);

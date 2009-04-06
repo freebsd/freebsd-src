@@ -122,9 +122,13 @@ struct pkthdr {
 	int		 csum_flags;	/* flags regarding checksum */
 	int		 csum_data;	/* data field used by csum routines */
 	u_int16_t	 tso_segsz;	/* TSO segment size */
-	u_int16_t	 ether_vtag;	/* Ethernet 802.1p+q vlan tag */
+	union {
+		u_int16_t vt_vtag;	/* Ethernet 802.1p+q vlan tag */
+		u_int16_t vt_nrecs;	/* # of IGMPv3 records in this chain */
+	} PH_vt;
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 };
+#define ether_vtag	PH_vt.vt_vtag
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is

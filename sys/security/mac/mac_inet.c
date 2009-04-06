@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
@@ -16,6 +16,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +45,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -50,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/file.h>
@@ -79,9 +84,12 @@ mac_inpcb_label_alloc(int flag)
 	label = mac_labelzone_alloc(flag);
 	if (label == NULL)
 		return (NULL);
-	MAC_CHECK(inpcb_init_label, label, flag);
+	if (flag & M_WAITOK)
+		MAC_CHECK(inpcb_init_label, label, flag);
+	else
+		MAC_CHECK_NOSLEEP(inpcb_init_label, label, flag);
 	if (error) {
-		MAC_PERFORM(inpcb_destroy_label, label);
+		MAC_PERFORM_NOSLEEP(inpcb_destroy_label, label);
 		mac_labelzone_free(label);
 		return (NULL);
 	}
@@ -111,9 +119,12 @@ mac_ipq_label_alloc(int flag)
 	if (label == NULL)
 		return (NULL);
 
-	MAC_CHECK(ipq_init_label, label, flag);
+	if (flag & M_WAITOK)
+		MAC_CHECK(ipq_init_label, label, flag);
+	else
+		MAC_CHECK_NOSLEEP(ipq_init_label, label, flag);
 	if (error) {
-		MAC_PERFORM(ipq_destroy_label, label);
+		MAC_PERFORM_NOSLEEP(ipq_destroy_label, label);
 		mac_labelzone_free(label);
 		return (NULL);
 	}
@@ -137,7 +148,7 @@ static void
 mac_inpcb_label_free(struct label *label)
 {
 
-	MAC_PERFORM(inpcb_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(inpcb_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -155,7 +166,7 @@ static void
 mac_ipq_label_free(struct label *label)
 {
 
-	MAC_PERFORM(ipq_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(ipq_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -173,7 +184,8 @@ void
 mac_inpcb_create(struct socket *so, struct inpcb *inp)
 {
 
-	MAC_PERFORM(inpcb_create, so, so->so_label, inp, inp->inp_label);
+	MAC_PERFORM_NOSLEEP(inpcb_create, so, so->so_label, inp,
+	    inp->inp_label);
 }
 
 void
@@ -183,7 +195,7 @@ mac_ipq_reassemble(struct ipq *q, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(ipq_reassemble, q, q->ipq_label, m, label);
+	MAC_PERFORM_NOSLEEP(ipq_reassemble, q, q->ipq_label, m, label);
 }
 
 void
@@ -194,7 +206,7 @@ mac_netinet_fragment(struct mbuf *m, struct mbuf *frag)
 	mlabel = mac_mbuf_to_label(m);
 	fraglabel = mac_mbuf_to_label(frag);
 
-	MAC_PERFORM(netinet_fragment, m, mlabel, frag, fraglabel);
+	MAC_PERFORM_NOSLEEP(netinet_fragment, m, mlabel, frag, fraglabel);
 }
 
 void
@@ -204,7 +216,7 @@ mac_ipq_create(struct mbuf *m, struct ipq *q)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(ipq_create, m, label, q, q->ipq_label);
+	MAC_PERFORM_NOSLEEP(ipq_create, m, label, q, q->ipq_label);
 }
 
 void
@@ -215,7 +227,8 @@ mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m)
 	INP_LOCK_ASSERT(inp);
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(inpcb_create_mbuf, inp, inp->inp_label, m, mlabel);
+	MAC_PERFORM_NOSLEEP(inpcb_create_mbuf, inp, inp->inp_label, m,
+	    mlabel);
 }
 
 int
@@ -227,7 +240,7 @@ mac_ipq_match(struct mbuf *m, struct ipq *q)
 	label = mac_mbuf_to_label(m);
 
 	result = 1;
-	MAC_BOOLEAN(ipq_match, &&, m, label, q, q->ipq_label);
+	MAC_BOOLEAN_NOSLEEP(ipq_match, &&, m, label, q, q->ipq_label);
 
 	return (result);
 }
@@ -240,7 +253,7 @@ mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m)
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp);
-	MAC_PERFORM(netinet_arp_send, ifp, ifp->if_label, m, mlabel);
+	MAC_PERFORM_NOSLEEP(netinet_arp_send, ifp, ifp->if_label, m, mlabel);
 	MAC_IFNET_UNLOCK(ifp);
 }
 
@@ -252,7 +265,7 @@ mac_netinet_icmp_reply(struct mbuf *mrecv, struct mbuf *msend)
 	mrecvlabel = mac_mbuf_to_label(mrecv);
 	msendlabel = mac_mbuf_to_label(msend);
 
-	MAC_PERFORM(netinet_icmp_reply, mrecv, mrecvlabel, msend,
+	MAC_PERFORM_NOSLEEP(netinet_icmp_reply, mrecv, mrecvlabel, msend,
 	    msendlabel);
 }
 
@@ -263,7 +276,7 @@ mac_netinet_icmp_replyinplace(struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(netinet_icmp_replyinplace, m, label);
+	MAC_PERFORM_NOSLEEP(netinet_icmp_replyinplace, m, label);
 }
 
 void
@@ -274,7 +287,8 @@ mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m)
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp);
-	MAC_PERFORM(netinet_igmp_send, ifp, ifp->if_label, m, mlabel);
+	MAC_PERFORM_NOSLEEP(netinet_igmp_send, ifp, ifp->if_label, m,
+	    mlabel);
 	MAC_IFNET_UNLOCK(ifp);
 }
 
@@ -285,7 +299,7 @@ mac_netinet_tcp_reply(struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(netinet_tcp_reply, m, label);
+	MAC_PERFORM_NOSLEEP(netinet_tcp_reply, m, label);
 }
 
 void
@@ -295,8 +309,11 @@ mac_ipq_update(struct mbuf *m, struct ipq *q)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(ipq_update, m, label, q, q->ipq_label);
+	MAC_PERFORM_NOSLEEP(ipq_update, m, label, q, q->ipq_label);
 }
+
+MAC_CHECK_PROBE_DEFINE2(inpcb_check_deliver, "struct inpcb *",
+    "struct mbuf *");
 
 int
 mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
@@ -308,10 +325,15 @@ mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_CHECK(inpcb_check_deliver, inp, inp->inp_label, m, label);
+	MAC_CHECK_NOSLEEP(inpcb_check_deliver, inp, inp->inp_label, m,
+	    label);
+	MAC_CHECK_PROBE2(inpcb_check_deliver, error, inp, m);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(inpcb_check_visible, "struct ucred *",
+    "struct inpcb *");
 
 int
 mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp)
@@ -320,7 +342,8 @@ mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp)
 
 	INP_LOCK_ASSERT(inp);
 
-	MAC_CHECK(inpcb_check_visible, cred, inp, inp->inp_label);
+	MAC_CHECK_NOSLEEP(inpcb_check_visible, cred, inp, inp->inp_label);
+	MAC_CHECK_PROBE2(inpcb_check_visible, error, cred, inp);
 
 	return (error);
 }
@@ -331,7 +354,9 @@ mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 	SOCK_LOCK_ASSERT(so);
-	MAC_PERFORM(inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
+
+	MAC_PERFORM_NOSLEEP(inpcb_sosetlabel, so, so->so_label, inp,
+	    inp->inp_label);
 }
 
 void
@@ -345,7 +370,7 @@ mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend)
 	mrecvlabel = mac_mbuf_to_label(mrecv);
 	msendlabel = mac_mbuf_to_label(msend);
 
-	MAC_PERFORM(netinet_firewall_reply, mrecv, mrecvlabel, msend,
+	MAC_PERFORM_NOSLEEP(netinet_firewall_reply, mrecv, mrecvlabel, msend,
 	    msendlabel);
 }
 
@@ -355,8 +380,10 @@ mac_netinet_firewall_send(struct mbuf *m)
 	struct label *label;
 
 	M_ASSERTPKTHDR(m);
+
 	label = mac_mbuf_to_label(m);
-	MAC_PERFORM(netinet_firewall_send, m, label);
+
+	MAC_PERFORM_NOSLEEP(netinet_firewall_send, m, label);
 }
 
 /*
@@ -373,7 +400,7 @@ mac_syncache_destroy(struct label **label)
 {
 
 	if (*label != NULL) {
-		MAC_PERFORM(syncache_destroy_label, *label);
+		MAC_PERFORM_NOSLEEP(syncache_destroy_label, *label);
 		mac_labelzone_free(*label);
 		*label = NULL;
 	}
@@ -395,9 +422,9 @@ mac_syncache_init(struct label **label)
 		 * MAC_PERFORM so we can propagate allocation failures back
 		 * to the syncache code.
 		 */
-		MAC_CHECK(syncache_init_label, *label, M_NOWAIT);
+		MAC_CHECK_NOSLEEP(syncache_init_label, *label, M_NOWAIT);
 		if (error) {
-			MAC_PERFORM(syncache_destroy_label, *label);
+			MAC_PERFORM_NOSLEEP(syncache_destroy_label, *label);
 			mac_labelzone_free(*label);
 		}
 		return (error);
@@ -411,7 +438,8 @@ mac_syncache_create(struct label *label, struct inpcb *inp)
 {
 
 	INP_WLOCK_ASSERT(inp);
-	MAC_PERFORM(syncache_create, label, inp);
+
+	MAC_PERFORM_NOSLEEP(syncache_create, label, inp);
 }
 
 void
@@ -420,6 +448,8 @@ mac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m)
 	struct label *mlabel;
 
 	M_ASSERTPKTHDR(m);
+
 	mlabel = mac_mbuf_to_label(m);
-	MAC_PERFORM(syncache_create_mbuf, sc_label, m, mlabel);
+
+	MAC_PERFORM_NOSLEEP(syncache_create_mbuf, sc_label, m, mlabel);
 }

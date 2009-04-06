@@ -214,19 +214,12 @@ struct inpcb {
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
 #define	in6p_hops	inp_depend6.inp6_hops	/* default hop limit */
-#define	in6p_ip6_nxt	inp_ip_p
 #define	in6p_flowinfo	inp_flow
-#define	in6p_vflag	inp_vflag
 #define	in6p_options	inp_depend6.inp6_options
 #define	in6p_outputopts	inp_depend6.inp6_outputopts
 #define	in6p_moptions	inp_depend6.inp6_moptions
 #define	in6p_icmp6filt	inp_depend6.inp6_icmp6filt
 #define	in6p_cksum	inp_depend6.inp6_cksum
-#define	in6p_flags	inp_flags  /* for KAME src sync over BSD*'s */
-#define	in6p_socket	inp_socket  /* for KAME src sync over BSD*'s */
-#define	in6p_lport	inp_lport  /* for KAME src sync over BSD*'s */
-#define	in6p_fport	inp_fport  /* for KAME src sync over BSD*'s */
-#define	in6p_ppcb	inp_ppcb  /* for KAME src sync over BSD*'s */
 
 /*
  * The range of the generation count, as used in this implementation, is 9e19.
@@ -391,39 +384,38 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
 #define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
-#define	INP_TIMEWAIT	0x8		/* inpcb in TIMEWAIT, ppcb is tcptw */
-#define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
-#define	INP_DROPPED	0x20		/* protocol drop flag */
-#define	INP_SOCKREF	0x40		/* strong socket reference */
 
 /*
  * Flags for inp_flag.
  */
-#define	INP_RECVOPTS		0x01	/* receive incoming IP options */
-#define	INP_RECVRETOPTS		0x02	/* receive IP options for reply */
-#define	INP_RECVDSTADDR		0x04	/* receive IP dst address */
-#define	INP_HDRINCL		0x08	/* user supplies entire IP header */
-#define	INP_HIGHPORT		0x10	/* user wants "high" port binding */
-#define	INP_LOWPORT		0x20	/* user wants "low" port binding */
-#define	INP_ANONPORT		0x40	/* port chosen for user */
-#define	INP_RECVIF		0x80	/* receive incoming interface */
-#define	INP_MTUDISC		0x100	/* user can do MTU discovery */
-#define	INP_FAITH		0x200	/* accept FAITH'ed connections */
-#define	INP_RECVTTL		0x400	/* receive incoming IP TTL */
-#define	INP_DONTFRAG		0x800	/* don't fragment packet */
-#define	INP_NONLOCALOK		0x1000	/* Allow bind to spoof any address */
+#define	INP_RECVOPTS		0x00000001 /* receive incoming IP options */
+#define	INP_RECVRETOPTS		0x00000002 /* receive IP options for reply */
+#define	INP_RECVDSTADDR		0x00000004 /* receive IP dst address */
+#define	INP_HDRINCL		0x00000008 /* user supplies entire IP header */
+#define	INP_HIGHPORT		0x00000010 /* user wants "high" port binding */
+#define	INP_LOWPORT		0x00000020 /* user wants "low" port binding */
+#define	INP_ANONPORT		0x00000040 /* port chosen for user */
+#define	INP_RECVIF		0x00000080 /* receive incoming interface */
+#define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
+#define	INP_FAITH		0x00000200 /* accept FAITH'ed connections */
+#define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
+#define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
+#define	INP_NONLOCALOK		0x00001000 /* Allow bind to spoof any address */
 					/* - requires options IP_NONLOCALBIND */
-
-#define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
-
-#define	IN6P_PKTINFO		0x010000 /* receive IP6 dst and I/F */
-#define	IN6P_HOPLIMIT		0x020000 /* receive hoplimit */
-#define	IN6P_HOPOPTS		0x040000 /* receive hop-by-hop options */
-#define	IN6P_DSTOPTS		0x080000 /* receive dst options after rthdr */
-#define	IN6P_RTHDR		0x100000 /* receive routing header */
-#define	IN6P_RTHDRDSTOPTS	0x200000 /* receive dstoptions before rthdr */
-#define	IN6P_TCLASS		0x400000 /* receive traffic class value */
-#define	IN6P_AUTOFLOWLABEL	0x800000 /* attach flowlabel automatically */
+#define	INP_INHASHLIST		0x00002000 /* in_pcbinshash() has been called */
+#define	IN6P_IPV6_V6ONLY	0x00008000 /* restrict AF_INET6 socket for v6 */
+#define	IN6P_PKTINFO		0x00010000 /* receive IP6 dst and I/F */
+#define	IN6P_HOPLIMIT		0x00020000 /* receive hoplimit */
+#define	IN6P_HOPOPTS		0x00040000 /* receive hop-by-hop options */
+#define	IN6P_DSTOPTS		0x00080000 /* receive dst options after rthdr */
+#define	IN6P_RTHDR		0x00100000 /* receive routing header */
+#define	IN6P_RTHDRDSTOPTS	0x00200000 /* receive dstoptions before rthdr */
+#define	IN6P_TCLASS		0x00400000 /* receive traffic class value */
+#define	IN6P_AUTOFLOWLABEL	0x00800000 /* attach flowlabel automatically */
+#define	INP_TIMEWAIT		0x01000000 /* in TIMEWAIT, ppcb is tcptw */
+#define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
+#define	INP_DROPPED		0x04000000 /* protocol drop flag */
+#define	INP_SOCKREF		0x08000000 /* strong socket reference */
 #define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
 #define	IN6P_MTU		0x80000000 /* receive path MTU */
 
@@ -433,21 +425,6 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
 				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL|IN6P_RFC2292|\
 				 IN6P_MTU)
-#define	INP_UNMAPPABLEOPTS	(IN6P_HOPOPTS|IN6P_DSTOPTS|IN6P_RTHDR|\
-				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL)
-
- /* for KAME src sync over BSD*'s */
-#define	IN6P_HIGHPORT		INP_HIGHPORT
-#define	IN6P_LOWPORT		INP_LOWPORT
-#define	IN6P_ANONPORT		INP_ANONPORT
-#define	IN6P_RECVIF		INP_RECVIF
-#define	IN6P_MTUDISC		INP_MTUDISC
-#define	IN6P_FAITH		INP_FAITH
-#define	IN6P_CONTROLOPTS	INP_CONTROLOPTS
-	/*
-	 * socket AF version is {newer than,or include}
-	 * actual datagram AF version
-	 */
 
 #define	INPLOOKUP_WILDCARD	1
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)

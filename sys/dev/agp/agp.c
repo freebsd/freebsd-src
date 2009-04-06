@@ -295,7 +295,7 @@ agp_generic_detach(device_t dev)
  * Default AGP aperture size detection which simply returns the size of
  * the aperture's PCI resource.
  */
-int
+u_int32_t
 agp_generic_get_aperture(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
@@ -532,7 +532,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	int error;
 
 	/* Do some sanity checks first. */
-	if (offset < 0 || (offset & (AGP_PAGE_SIZE - 1)) != 0 ||
+	if ((offset & (AGP_PAGE_SIZE - 1)) != 0 ||
 	    offset + mem->am_size > AGP_GET_APERTURE(dev)) {
 		device_printf(dev, "binding memory at bad offset %#x\n",
 		    (int)offset);

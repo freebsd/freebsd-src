@@ -1075,6 +1075,7 @@ struct ed_ring	{
 #define ED_CHIP_TYPE_TC5299J	5
 #define ED_CHIP_TYPE_RTL8019	6
 #define ED_CHIP_TYPE_RTL8029	7
+#define ED_CHIP_TYPE_AX88790	8
 
 /*
  * MII bus definitions.  These are common to both DL100xx and AX88x90
@@ -1091,6 +1092,6 @@ struct ed_ring	{
 #define ED_MII_PHY_BITS		5
 #define ED_MII_REG_BITS		5
 #define ED_MII_TURNAROUND_BITS	2
-#define ED_MII_DATA_BITS	16
 #define ED_MII_ACK_BITS		1
+#define ED_MII_DATA_BITS	16
 #define ED_MII_IDLE_BITS	1

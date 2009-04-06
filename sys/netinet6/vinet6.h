@@ -155,6 +155,9 @@ struct vnet_inet6 {
 	struct ip6_pktopts		_ip6_opts;
 };
 
+/* Size guard. See sys/vimage.h. */
+VIMAGE_CTASSERT(SIZEOF_vnet_inet6, sizeof(struct vnet_inet6));
+
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
 extern struct vnet_inet6 vnet_inet6_0;

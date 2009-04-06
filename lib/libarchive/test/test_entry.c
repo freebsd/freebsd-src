@@ -287,20 +287,20 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(0, archive_entry_xattr_next(e, &xname, &xval, &xsize));
 	assertEqualString(xname, "xattr1");
 	assertEqualString(xval, "xattrvalue1");
-	assertEqualInt(xsize, 12);
+	assertEqualInt((int)xsize, 12);
 	assertEqualInt(1, archive_entry_xattr_count(e));
 	assertEqualInt(ARCHIVE_WARN,
 	    archive_entry_xattr_next(e, &xname, &xval, &xsize));
 	assertEqualString(xname, NULL);
 	assertEqualString(xval, NULL);
-	assertEqualInt(xsize, 0);
+	assertEqualInt((int)xsize, 0);
 	archive_entry_xattr_clear(e);
 	assertEqualInt(0, archive_entry_xattr_reset(e));
 	assertEqualInt(ARCHIVE_WARN,
 	    archive_entry_xattr_next(e, &xname, &xval, &xsize));
 	assertEqualString(xname, NULL);
 	assertEqualString(xval, NULL);
-	assertEqualInt(xsize, 0);
+	assertEqualInt((int)xsize, 0);
 	archive_entry_xattr_add_entry(e, "xattr1", "xattrvalue1", 12);
 	assertEqualInt(1, archive_entry_xattr_reset(e));
 	archive_entry_xattr_add_entry(e, "xattr2", "xattrvalue2", 12);
@@ -311,7 +311,7 @@ DEFINE_TEST(test_entry)
 	    archive_entry_xattr_next(e, &xname, &xval, &xsize));
 	assertEqualString(xname, NULL);
 	assertEqualString(xval, NULL);
-	assertEqualInt(xsize, 0);
+	assertEqualInt((int)xsize, 0);
 
 
 	/*
@@ -437,12 +437,12 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(0, archive_entry_xattr_next(e2, &xname, &xval, &xsize));
 	assertEqualString(xname, "xattr1");
 	assertEqualString(xval, "xattrvalue");
-	assertEqualInt(xsize, 11);
+	assertEqualInt((int)xsize, 11);
 	assertEqualInt(ARCHIVE_WARN,
 	    archive_entry_xattr_next(e2, &xname, &xval, &xsize));
 	assertEqualString(xname, NULL);
 	assertEqualString(xval, NULL);
-	assertEqualInt(xsize, 0);
+	assertEqualInt((int)xsize, 0);
 #endif
 
 	/* Change the original */
@@ -783,7 +783,7 @@ DEFINE_TEST(test_entry)
 	/*
 	 * Exercise the character-conversion logic, if we can.
 	 */
-	if (NULL == setlocale(LC_ALL, "de_DE.UTF-8")) {
+	if (NULL == setlocale(LC_ALL, LOCALE_DE)) {
 		skipping("Can't exercise charset-conversion logic without"
 			" a suitable locale.");
 	} else {
@@ -827,8 +827,8 @@ DEFINE_TEST(test_entry)
 		 * "c89 plus GNU extensions.")
 		 */
 		wcscpy(wbuff, L"xxxAyyyBzzz");
-		wbuff[3] = 0x12345678;
-		wbuff[7] = 0x5678;
+		wbuff[3] = (wchar_t)0x12345678;
+		wbuff[7] = (wchar_t)0x5678;
 		/* A wide filename that cannot be converted to narrow. */
 		archive_entry_copy_pathname_w(e, wbuff);
 		failure("Converting wide characters from Unicode should fail.");

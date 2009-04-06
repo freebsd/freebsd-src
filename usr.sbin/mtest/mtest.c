@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Bruce M. Simpson.
+ * Copyright (c) 2007-2009 Bruce Simpson.
  * Copyright (c) 2000 Wilbert De Graaf.
  * All rights reserved.
  *
@@ -55,25 +55,20 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <unistd.h>
 
-/* The following two socket options are private to the kernel and libc. */
-
-#ifndef IP_SETMSFILTER
-#define IP_SETMSFILTER 74 /* atomically set filter list */
-#endif
-#ifndef IP_GETMSFILTER
-#define IP_GETMSFILTER 75 /* get filter list */
-#endif
-
 static void	process_file(char *, int);
 static void	process_cmd(char*, int, FILE *fp);
 static void	usage(void);
-#ifdef WITH_IGMPV3
-static int	inaddr_cmp(const void *a, const void *b);
-#endif
 
 #define	MAX_ADDRS	20
 #define	STR_SIZE	20
 #define	LINE_LENGTH	80
+
+static int
+inaddr_cmp(const void *a, const void *b)
+{
+	return ((int)((const struct in_addr *)a)->s_addr -
+	    ((const struct in_addr *)b)->s_addr);
+}
 
 int
 main(int argc, char **argv)
@@ -145,17 +140,13 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 	char			 str1[STR_SIZE];
 	char			 str2[STR_SIZE];
 	char			 str3[STR_SIZE];
-#ifdef WITH_IGMPV3
-	char			 filtbuf[IP_MSFILTER_SIZE(MAX_ADDRS)];
-#endif
+	struct in_addr		 sources[MAX_ADDRS];
 	struct ifreq		 ifr;
 	struct ip_mreq		 imr;
 	struct ip_mreq_source	 imrs;
-#ifdef WITH_IGMPV3
-	struct ip_msfilter	*imsfp;
-#endif
 	char			*line;
-	int			 n, opt, f, flags;
+	uint32_t		 fmode;
+	int			 i, n, opt, f, flags;
 
 	line = cmd;
 	while (isblank(*++line))
@@ -181,20 +172,51 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 
 	case 'j':
 	case 'l':
-		sscanf(line, "%s %s", str1, str2);
-		if (((imr.imr_multiaddr.s_addr = inet_addr(str1)) ==
-		    INADDR_NONE) ||
-		    ((imr.imr_interface.s_addr = inet_addr(str2)) ==
-		    INADDR_NONE)) {
-			printf("-1\n");
-			break;
+		str3[0] = '\0';
+		sscanf(line, "%s %s %s", str1, str2, str3);
+		if ((imrs.imr_sourceaddr.s_addr = inet_addr(str3)) !=
+		    INADDR_NONE) {
+			/*
+			 * inclusive mode join with source, possibly
+			 * on existing membership.
+			 */
+			if (((imrs.imr_multiaddr.s_addr = inet_addr(str1)) ==
+			    INADDR_NONE) ||
+			    ((imrs.imr_interface.s_addr = inet_addr(str2)) ==
+			    INADDR_NONE)) {
+				printf("-1\n");
+				break;
+			}
+			opt = (*cmd == 'j') ? IP_ADD_SOURCE_MEMBERSHIP :
+			    IP_DROP_SOURCE_MEMBERSHIP;
+			if (setsockopt( s, IPPROTO_IP, opt, &imrs,
+			    sizeof(imrs)) != 0) {
+				warn("setsockopt %s", (*cmd == 'j') ?
+				    "IP_ADD_SOURCE_MEMBERSHIP" :
+				    "IP_DROP_SOURCE_MEMBERSHIP");
+			} else {
+				printf("ok\n");
+			}
+		} else {
+			/* exclusive mode join w/o source. */
+			if (((imr.imr_multiaddr.s_addr = inet_addr(str1)) ==
+			    INADDR_NONE) ||
+			    ((imr.imr_interface.s_addr = inet_addr(str2)) ==
+			    INADDR_NONE)) {
+				printf("-1\n");
+				break;
+			}
+			opt = (*cmd == 'j') ? IP_ADD_MEMBERSHIP :
+			    IP_DROP_MEMBERSHIP;
+			if (setsockopt( s, IPPROTO_IP, opt, &imr,
+			    sizeof(imr)) != 0) {
+				warn("setsockopt %s", (*cmd == 'j') ?
+				    "IP_ADD_MEMBERSHIP" :
+				    "IP_DROP_MEMBERSHIP");
+			} else {
+				printf("ok\n");
+			}
 		}
-		opt = (*cmd == 'j') ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP;
-		if (setsockopt( s, IPPROTO_IP, opt, &imr,
-		    sizeof(imr)) != 0)
-			warn("setsockopt IP_ADD_MEMBERSHIP/IP_DROP_MEMBERSHIP");
-		else
-			printf("ok\n");
 		break;
 
 	case 'a':
@@ -233,6 +255,7 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 		printf("warning: IFF_ALLMULTI cannot be set from userland "
 		    "in FreeBSD; command ignored.\n");
 		break;
+
 	case 'p':
 		if (sscanf(line, "%s %u", ifr.ifr_name, &f) != 2) {
 			printf("-1\n");
@@ -257,7 +280,6 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 			printf( "changed to 0x%08x\n", flags );
 		break;
 
-#ifdef WITH_IGMPV3
 	/*
 	 * Set the socket to include or exclude filter mode, and
 	 * add some sources to the filterlist, using the full-state,
@@ -265,42 +287,38 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 	 */
 	case 'i':
 	case 'e':
-		/* XXX: SIOCSIPMSFILTER will be made an internal API. */
+		n = 0;
+		fmode = (*cmd == 'i') ? MCAST_INCLUDE : MCAST_EXCLUDE;
 		if ((sscanf(line, "%s %s %d", str1, str2, &n)) != 3) {
 			printf("-1\n");
 			break;
 		}
-		imsfp = (struct ip_msfilter *)filtbuf;
-		if (((imsfp->imsf_multiaddr.s_addr = inet_addr(str1)) ==
+		/* recycle imrs struct for convenience */
+		if (((imrs.imr_multiaddr.s_addr = inet_addr(str1)) ==
 		    INADDR_NONE) ||
-		    ((imsfp->imsf_interface.s_addr = inet_addr(str2)) ==
-		    INADDR_NONE) || (n > MAX_ADDRS)) {
+		    ((imrs.imr_interface.s_addr = inet_addr(str2)) ==
+		    INADDR_NONE) || (n < 0 || n > MAX_ADDRS)) {
 			printf("-1\n");
 			break;
 		}
-		imsfp->imsf_fmode = (*cmd == 'i') ? MCAST_INCLUDE :
-		    MCAST_EXCLUDE;
-		imsfp->imsf_numsrc = n;
 		for (i = 0; i < n; i++) {
 			fgets(str1, sizeof(str1), fp);
-			if ((imsfp->imsf_slist[i].s_addr = inet_addr(str1)) ==
+			if ((sources[i].s_addr = inet_addr(str1)) ==
 			    INADDR_NONE) {
 				printf("-1\n");
 				return;
 			}
 		}
-		if (ioctl(s, SIOCSIPMSFILTER, imsfp) != 0)
-			warn("setsockopt SIOCSIPMSFILTER");
+		if (setipv4sourcefilter(s, imrs.imr_interface,
+		    imrs.imr_multiaddr, fmode, n, sources) != 0)
+			warn("getipv4sourcefilter");
 		else
 			printf("ok\n");
 		break;
-#endif /* WITH_IGMPV3 */
 
 	/*
 	 * Allow or block traffic from a source, using the
 	 * delta based api.
-	 * XXX: Currently we allow this to be used with the ASM-only
-	 *      implementation of RFC3678 in FreeBSD 7. 
 	 */
 	case 't':
 	case 'b':
@@ -314,24 +332,14 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 			printf("-1\n");
 			break;
 		}
-
-#ifdef WITH_IGMPV3
-		/* XXX: SIOCSIPMSFILTER will be made an internal API. */
-		/* First determine out current filter mode. */
-		imsfp = (struct ip_msfilter *)filtbuf;
-		imsfp->imsf_multiaddr.s_addr = imrs.imr_multiaddr.s_addr;
-		imsfp->imsf_interface.s_addr = imrs.imr_interface.s_addr;
-		imsfp->imsf_numsrc = 5;
-		if (ioctl(s, SIOCSIPMSFILTER, imsfp) != 0) {
-			/* It's only okay for 't' to fail */
-			if (*cmd != 't') {
-				warn("ioctl SIOCSIPMSFILTER");
-				break;
-			} else {
-				imsfp->imsf_fmode = MCAST_INCLUDE;
-			}
+		/* First determine our current filter mode. */
+		n = 0;
+		if (getipv4sourcefilter(s, imrs.imr_interface,
+		    imrs.imr_multiaddr, &fmode, &n, NULL) != 0) {
+			warn("getipv4sourcefilter");
+			break;
 		}
-		if (imsfp->imsf_fmode == MCAST_EXCLUDE) {
+		if (fmode == MCAST_EXCLUDE) {
 			/* Any source */
 			opt = (*cmd == 't') ? IP_UNBLOCK_SOURCE :
 			    IP_BLOCK_SOURCE;
@@ -340,60 +348,37 @@ process_cmd(char *cmd, int s, FILE *fp __unused)
 			opt = (*cmd == 't') ? IP_ADD_SOURCE_MEMBERSHIP :
 			    IP_DROP_SOURCE_MEMBERSHIP;
 		}
-#else /* !WITH_IGMPV3 */
-		/*
-		 * Don't look before we leap; we may only block or unblock
-		 * sources on a socket in exclude mode.
-		 */
-		opt = (*cmd == 't') ? IP_UNBLOCK_SOURCE : IP_BLOCK_SOURCE;
-#endif /* WITH_IGMPV3 */
 		if (setsockopt(s, IPPROTO_IP, opt, &imrs, sizeof(imrs)) == -1)
 			warn("ioctl IP_ADD_SOURCE_MEMBERSHIP/IP_DROP_SOURCE_MEMBERSHIP/IP_UNBLOCK_SOURCE/IP_BLOCK_SOURCE");
 		else
 			printf("ok\n");
 		break;
 
-#ifdef WITH_IGMPV3
 	case 'g':
-		/* XXX: SIOCSIPMSFILTER will be made an internal API. */
 		if ((sscanf(line, "%s %s %d", str1, str2, &n)) != 3) {
 			printf("-1\n");
 			break;
 		}
-		imsfp = (struct ip_msfilter *)filtbuf;
-		if (((imsfp->imsf_multiaddr.s_addr = inet_addr(str1)) ==
+		/* recycle imrs struct for convenience */
+		if (((imrs.imr_multiaddr.s_addr = inet_addr(str1)) ==
 		    INADDR_NONE) ||
-		    ((imsfp->imsf_interface.s_addr = inet_addr(str2)) ==
+		    ((imrs.imr_interface.s_addr = inet_addr(str2)) ==
 		    INADDR_NONE) || (n < 0 || n > MAX_ADDRS)) {
 			printf("-1\n");
 			break;
 		}
-		imsfp->imsf_numsrc = n;
-		if (ioctl(s, SIOCSIPMSFILTER, imsfp) != 0) {
-			warn("setsockopt SIOCSIPMSFILTER");
+		if (getipv4sourcefilter(s, imrs.imr_interface,
+		    imrs.imr_multiaddr, &fmode, &n, sources) != 0) {
+			warn("getipv4sourcefilter");
 			break;
 		}
-		printf("%s\n", (imsfp->imsf_fmode == MCAST_INCLUDE) ?
-		    "include" : "exclude");
-		printf("%d\n", imsfp->imsf_numsrc);
-		if (n >= imsfp->imsf_numsrc) {
-			n = imsfp->imsf_numsrc;
-			qsort(imsfp->imsf_slist, n, sizeof(struct in_addr),
-			    &inaddr_cmp);
-			for (i = 0; i < n; i++)
-				printf("%s\n", inet_ntoa(imsfp->imsf_slist[i]));
-		}
+		printf("%s\n", (fmode == MCAST_INCLUDE) ? "include" :
+		    "exclude");
+		printf("%d\n", n);
+		qsort(sources, n, sizeof(struct in_addr), &inaddr_cmp);
+		for (i = 0; i < n; i++)
+			printf("%s\n", inet_ntoa(sources[i]));
 		break;
-#endif	/* !WITH_IGMPV3 */
-
-#ifndef WITH_IGMPV3
-	case 'i':
-	case 'e':
-	case 'g':
-		printf("warning: IGMPv3 is not supported by this version "
-		    "of FreeBSD; command ignored.\n");
-		break;
-#endif	/* WITH_IGMPV3 */
 
 	case '\n':
 		break;
@@ -407,31 +392,18 @@ static void
 usage(void)
 {
 
-	printf("j g.g.g.g i.i.i.i          - join IP multicast group\n");
-	printf("l g.g.g.g i.i.i.i          - leave IP multicast group\n");
+	printf("j g.g.g.g i.i.i.i [s.s.s.s] - join IP multicast group\n");
+	printf("l g.g.g.g i.i.i.i [s.s.s.s] - leave IP multicast group\n");
 	printf("a ifname e.e.e.e.e.e       - add ether multicast address\n");
 	printf("d ifname e.e.e.e.e.e       - delete ether multicast address\n");
 	printf("m ifname 1/0               - set/clear ether allmulti flag\n");
 	printf("p ifname 1/0               - set/clear ether promisc flag\n");
-#ifdef WITH_IGMPv3
 	printf("i g.g.g.g i.i.i.i n        - set n include mode src filter\n");
 	printf("e g.g.g.g i.i.i.i n        - set n exclude mode src filter\n");
-#endif
 	printf("t g.g.g.g i.i.i.i s.s.s.s  - allow traffic from src\n");
 	printf("b g.g.g.g i.i.i.i s.s.s.s  - block traffic from src\n");
-#ifdef WITH_IGMPV3
 	printf("g g.g.g.g i.i.i.i n        - get and show n src filters\n");
-#endif
 	printf("f filename                 - read command(s) from file\n");
 	printf("s seconds                  - sleep for some time\n");
 	printf("q                          - quit\n");
 }
-
-#ifdef WITH_IGMPV3
-static int
-inaddr_cmp(const void *a, const void *b)
-{
-	return((int)((const struct in_addr *)a)->s_addr -
-	    ((const struct in_addr *)b)->s_addr);
-}
-#endif

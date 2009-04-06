@@ -129,10 +129,6 @@ typedef dev_t			os_dev_t;
 #define	copy_from_user(dst, src, len)	copyin((src), (dst), (len))
 #endif
 
-#ifndef memmove
-#define	memmove(dst, src, len)		bcopy((src), (dst), (len))
-#endif
-
 #ifndef barrier
 #define	barrier()	__asm__ __volatile__("": : :"memory")
 #endif

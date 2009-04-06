@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, 2006 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #define	SMBIOS_SIG		"_SM_"
 #define	SMBIOS_DMI_SIG		"_DMI_"
 
+static uint32_t	smbios_enabled_memory = 0;
+static uint32_t	smbios_old_enabled_memory = 0;
 static uint8_t	smbios_enabled_sockets = 0;
 static uint8_t	smbios_populated_sockets = 0;
 
@@ -89,16 +91,27 @@ smbios_detect(void)
 	for (dmi = addr = PTOV(paddr), i = 0;
 	     dmi - addr < length && i < count; i++)
 		dmi = smbios_parse_table(dmi);
-	sprintf(buf, "%d", smbios_enabled_sockets);
-	setenv("smbios.socket.enabled", buf, 1);
-	sprintf(buf, "%d", smbios_populated_sockets);
-	setenv("smbios.socket.populated", buf, 1);
+	if (smbios_enabled_memory > 0 || smbios_old_enabled_memory > 0) {
+		sprintf(buf, "%u", smbios_enabled_memory > 0 ?
+		    smbios_enabled_memory : smbios_old_enabled_memory);
+		setenv("smbios.memory.enabled", buf, 1);
+	}
+	if (smbios_enabled_sockets > 0) {
+		sprintf(buf, "%u", smbios_enabled_sockets);
+		setenv("smbios.socket.enabled", buf, 1);
+	}
+	if (smbios_populated_sockets > 0) {
+		sprintf(buf, "%u", smbios_populated_sockets);
+		setenv("smbios.socket.populated", buf, 1);
+	}
 }
 
 static uint8_t *
 smbios_parse_table(const uint8_t *dmi)
 {
 	uint8_t		*dp;
+	uint16_t	size;
+	uint8_t		osize;
 
 	switch(dmi[0]) {
 	case 0:		/* Type 0: BIOS */
@@ -159,10 +172,43 @@ smbios_parse_table(const uint8_t *dmi)
 			smbios_populated_sockets++;
 		break;
 
+	case 6:		/* Type 6: Memory Module Information (Obsolete) */
+		/*
+		 * Offset 0Ah: Enabled Size
+		 *
+		 * Bit 7	Bank connection
+		 *		1 - Double-bank connection
+		 *		0 - Single-bank connection
+		 * Bit 6:0	Size (n), where 2**n is the size in MB
+		 *		7Dh - Not determinable (Installed Size only)
+		 *		7Eh - Module is installed, but no memory
+		 *		      has been enabled
+		 *		7Fh - Not installed
+		 */
+		osize = dmi[0x0a] & 0x7f;
+		if (osize > 0 && osize < 22)
+			smbios_old_enabled_memory += (1U << (osize + 10));
+		break;
+
+	case 17:	/* Type 17: Memory Device */
+		/*
+		 * Offset 0Ch: Size
+		 *
+		 * Bit 15	Granularity
+		 *		1 - Value is in kilobytes units
+		 *		0 - Value is in megabytes units
+		 * Bit 14:0	Size
+		 */
+		size = *(uint16_t *)(dmi + 0x0c);
+		if (size != 0 && size != 0xffff)
+			smbios_enabled_memory += (size & 0x8000) != 0 ?
+			    (size & 0x7fff) : ((uint32_t)size << 10);
+		break;
+
 	default: /* skip other types */
 		break;
 	}
-	
+
 	/* find structure terminator */
 	dp = __DECONST(uint8_t *, dmi + dmi[1]);
 	while (dp[0] != 0 || dp[1] != 0)

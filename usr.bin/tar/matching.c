@@ -188,7 +188,7 @@ excluded(struct bsdtar *bsdtar, const char *pathname)
  * gtar.  In particular, 'a*b' will match 'foo/a1111/222b/bar'
  *
  */
-int
+static int
 match_exclusion(struct match *match, const char *pathname)
 {
 	const char *p;

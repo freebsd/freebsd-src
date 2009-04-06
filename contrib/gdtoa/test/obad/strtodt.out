@@ -1,6 +1,0 @@
-Line 31 of testnos3: got 4585747a b143e354; expected 4585747a b143e353
-Line 46 of testnos3: got 64fdcf7d f8f573b8; expected 64fdcf7d f8f573b7
-Line 47 of testnos3: got 650dcf7d f8f573b8; expected 650dcf7d f8f573b7
-Line 72 of testnos3: got 3cc70385 6844bdbe; expected 3cc70385 6844bdbf
-Line 73 of testnos3: got 3cb70385 6844bdbe; expected 3cb70385 6844bdbf
-5 bad conversions

@@ -336,6 +336,13 @@ teken_get_curattr(teken_t *t)
 	return (&t->t_curattr);
 }
 
+void
+teken_set_curattr(teken_t *t, const teken_attr_t *a)
+{
+
+	t->t_curattr = *a;
+}
+
 const teken_attr_t *
 teken_get_defattr(teken_t *t)
 {
@@ -353,8 +360,6 @@ teken_set_defattr(teken_t *t, const teken_attr_t *a)
 void
 teken_set_winsize(teken_t *t, const teken_pos_t *p)
 {
-
-	teken_assert(p->tp_col <= T_NUMCOL);
 
 	t->t_winsize = *p;
 	/* XXX: bounds checking with cursor/etc! */

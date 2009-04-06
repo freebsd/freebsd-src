@@ -85,14 +85,12 @@ device		bpf		# Berkeley packet filter
 #device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		usb		# USB Bus (required)
-device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 device		urio		# Diamond Rio 500 MP3 player
-device		uscanner	# Scanners
 
 device		miibus
 device		aue		# ADMtek USB Ethernet

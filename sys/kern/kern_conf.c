@@ -312,18 +312,8 @@ no_strategy(struct bio *bp)
 static int
 no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 {
-	/*
-	 * Return true for read/write.  If the user asked for something
-	 * special, return POLLNVAL, so that clients have a way of
-	 * determining reliably whether or not the extended
-	 * functionality is present without hard-coding knowledge
-	 * of specific filesystem implementations.
-	 * Stay in sync with vop_nopoll().
-	 */
-	if (events & ~POLLSTANDARD)
-		return (POLLNVAL);
 
-	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
+	return (poll_no_poll(events));
 }
 
 #define no_dump		(dumper_t *)enodev

@@ -552,7 +552,6 @@ munmap(td, uap)
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
 	vm_map_t map;
-	vm_map_entry_t freelist;
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
@@ -572,7 +571,6 @@ munmap(td, uap)
 	map = &td->td_proc->p_vmspace->vm_map;
 	if (addr < vm_map_min(map) || addr + size > vm_map_max(map))
 		return (EINVAL);
-	freelist = NULL;
 	vm_map_lock(map);
 #ifdef HWPMC_HOOKS
 	/*
@@ -595,9 +593,8 @@ munmap(td, uap)
 	}
 #endif
 	/* returns nothing but KERN_SUCCESS anyway */
-	vm_map_delete(map, addr, addr + size, &freelist);
+	vm_map_delete(map, addr, addr + size);
 	vm_map_unlock(map);
-	vm_map_entry_free_freelist(map, freelist);
 	return (0);
 }
 
@@ -623,10 +620,6 @@ mprotect(td, uap)
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
 	prot = uap->prot & VM_PROT_ALL;
-#if defined(VM_PROT_READ_IS_EXEC)
-	if (prot & VM_PROT_READ)
-		prot |= VM_PROT_EXECUTE;
-#endif
 
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -1443,14 +1436,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		docow |= MAP_DISABLE_SYNCER;
 	if (flags & MAP_NOCORE)
 		docow |= MAP_DISABLE_COREDUMP;
-
-#if defined(VM_PROT_READ_IS_EXEC)
-	if (prot & VM_PROT_READ)
-		prot |= VM_PROT_EXECUTE;
-
-	if (maxprot & VM_PROT_READ)
-		maxprot |= VM_PROT_EXECUTE;
-#endif
 
 	if (flags & MAP_STACK)
 		rv = vm_map_stack(map, *addr, size, prot, maxprot,

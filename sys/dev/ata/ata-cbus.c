@@ -314,6 +314,28 @@ ata_cbuschannel_detach(device_t dev)
 }
 
 static int
+ata_cbuschannel_suspend(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_suspend(dev);
+}
+
+static int
+ata_cbuschannel_resume(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_resume(dev);
+}
+
+static int
 ata_cbuschannel_banking(device_t dev, int flags)
 {
     struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -360,8 +382,8 @@ static device_method_t ata_cbuschannel_methods[] = {
     DEVMETHOD(device_probe,     ata_cbuschannel_probe),
     DEVMETHOD(device_attach,    ata_cbuschannel_attach),
     DEVMETHOD(device_detach,    ata_cbuschannel_detach),
-    DEVMETHOD(device_suspend,   ata_suspend),
-    DEVMETHOD(device_resume,    ata_resume),
+    DEVMETHOD(device_suspend,   ata_cbuschannel_suspend),
+    DEVMETHOD(device_resume,    ata_cbuschannel_resume),
 
     /* ATA methods */
     DEVMETHOD(ata_locking,      ata_cbuschannel_banking),

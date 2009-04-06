@@ -101,8 +101,9 @@
  * Map a region of device bus space into CPU virtual address space.
  */
 
-__inline int	bus_space_map(bus_space_tag_t t, bus_addr_t addr,
-		    bus_size_t size, int flags, bus_space_handle_t *bshp);
+static __inline int bus_space_map(bus_space_tag_t t, bus_addr_t addr,
+				  bus_size_t size, int flags,
+				  bus_space_handle_t *bshp);
 
 static __inline int
 bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,

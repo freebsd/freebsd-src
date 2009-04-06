@@ -318,7 +318,7 @@ do_execve(td, args, mac_p)
 	struct mac *mac_p;
 {
 	struct proc *p = td->td_proc;
-	struct nameidata nd, *ndp;
+	struct nameidata nd;
 	struct ucred *newcred = NULL, *oldcred;
 	struct uidinfo *euip;
 	register_t *stack_base;
@@ -379,6 +379,8 @@ do_execve(td, args, mac_p)
 	imgp->ps_strings = 0;
 	imgp->auxarg_size = 0;
 	imgp->args = args;
+	imgp->execpath = imgp->freepath = NULL;
+	imgp->execpathp = 0;
 
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
@@ -396,8 +398,7 @@ do_execve(td, args, mac_p)
 	 * interpreter if this is an interpreted binary.
 	 */
 	if (args->fname != NULL) {
-		ndp = &nd;
-		NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
+		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
 		    | MPSAFE | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 	}
 
@@ -405,12 +406,12 @@ do_execve(td, args, mac_p)
 
 interpret:
 	if (args->fname != NULL) {
-		error = namei(ndp);
+		error = namei(&nd);
 		if (error)
 			goto exec_fail;
 
-		vfslocked = NDHASGIANT(ndp);
-		binvp  = ndp->ni_vp;
+		vfslocked = NDHASGIANT(&nd);
+		binvp  = nd.ni_vp;
 		imgp->vp = binvp;
 	} else {
 		AUDIT_ARG(fd, args->fd);
@@ -495,7 +496,7 @@ interpret:
 		imgp->vp->v_vflag &= ~VV_TEXT;
 		/* free name buffer and old vnode */
 		if (args->fname != NULL)
-			NDFREE(ndp, NDF_ONLY_PNBUF);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
 		mac_execve_interpreter_enter(binvp, &interpvplabel);
 #endif
@@ -509,7 +510,7 @@ interpret:
 		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = 0;
 		/* set new name to that of the interpreter */
-		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
+		NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		args->fname = imgp->interpreter_name;
 		goto interpret;
@@ -520,6 +521,15 @@ interpret:
 	 * of the sv_copyout_strings/sv_fixup operations require the vnode.
 	 */
 	VOP_UNLOCK(imgp->vp, 0);
+
+	/*
+	 * Do the best to calculate the full path to the image file.
+	 */
+	if (imgp->auxargs != NULL &&
+	    ((args->fname != NULL && args->fname[0] == '/') ||
+	     vn_fullpath(td, imgp->vp, &imgp->execpath, &imgp->freepath) != 0))
+		imgp->execpath = args->fname;
+
 	/*
 	 * Copy out strings (args and env) and initialize stack base
 	 */
@@ -588,10 +598,9 @@ interpret:
 
 	/* name this process - nameiexec(p, ndp) */
 	if (args->fname) {
-		len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
-		bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
+		len = min(nd.ni_cnd.cn_namelen,MAXCOMLEN);
+		bcopy(nd.ni_cnd.cn_nameptr, p->p_comm, len);
 	} else {
-		len = MAXCOMLEN;
 		if (vn_commname(binvp, p->p_comm, MAXCOMLEN + 1) == 0)
 			len = MAXCOMLEN;
 		else {
@@ -852,7 +861,7 @@ exec_fail_dealloc:
 
 	if (imgp->vp != NULL) {
 		if (args->fname)
-			NDFREE(ndp, NDF_ONLY_PNBUF);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (imgp->opened)
 			VOP_CLOSE(imgp->vp, FREAD, td->td_ucred, td);
 		vput(imgp->vp);
@@ -860,6 +869,8 @@ exec_fail_dealloc:
 
 	if (imgp->object != NULL)
 		vm_object_deallocate(imgp->object);
+
+	free(imgp->freepath, M_TEMP);
 
 	if (error == 0) {
 		/*
@@ -1061,8 +1072,6 @@ exec_copyin_args(struct image_args *args, char *fname,
 	int error;
 	size_t length;
 
-	error = 0;
-
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
 		return (EFAULT);
@@ -1168,18 +1177,24 @@ exec_copyout_strings(imgp)
 	register_t *stack_base;
 	struct ps_strings *arginfo;
 	struct proc *p;
+	size_t execpath_len;
 	int szsigcode;
 
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+		execpath_len = strlen(imgp->execpath) + 1;
+	else
+		execpath_len = 0;
 	p = imgp->proc;
 	szsigcode = 0;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 	if (p->p_sysent->sv_szsigcode != NULL)
 		szsigcode = *(p->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
+	    roundup(execpath_len, sizeof(char *)) -
 	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
@@ -1188,6 +1203,15 @@ exec_copyout_strings(imgp)
 	if (szsigcode)
 		copyout(p->p_sysent->sv_sigcode, ((caddr_t)arginfo -
 		    szsigcode), szsigcode);
+
+	/*
+	 * Copy the image path for the rtld.
+	 */
+	if (execpath_len != 0) {
+		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
+		copyout(imgp->execpath, (void *)imgp->execpathp,
+		    execpath_len);
+	}
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -1206,9 +1230,8 @@ exec_copyout_strings(imgp)
 		 * for argument of Runtime loader.
 		 */
 		vectp = (char **)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size) *
+		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
 		    sizeof(char *));
-
 	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of

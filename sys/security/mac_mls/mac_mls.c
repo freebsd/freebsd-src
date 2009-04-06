@@ -2398,8 +2398,7 @@ mls_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 
 static int
 mls_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_mls *subj, *obj;
 
@@ -2516,11 +2515,11 @@ mls_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (accmode & (VREAD | VEXEC | VSTAT)) {
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
 		if (!mls_dominate_effective(subj, obj))
 			return (EACCES);
 	}
-	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & VMODIFY_PERMS) {
 		if (!mls_dominate_effective(obj, subj))
 			return (EACCES);
 	}
@@ -2739,8 +2738,7 @@ mls_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 
 static int
 mls_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_mls *subj, *obj;
 

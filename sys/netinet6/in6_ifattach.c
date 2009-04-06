@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -904,10 +906,8 @@ in6_purgemaddrs(struct ifnet *ifp)
 	struct in6_multi *in6m;
 	struct in6_multi *oin6m;
 
-	IFF_LOCKGIANT(ifp);
 	LIST_FOREACH_SAFE(in6m, &in6_multihead, in6m_entry, oin6m) {
 		if (in6m->in6m_ifp == ifp)
 			in6_delmulti(in6m);
 	}
-	IFF_UNLOCKGIANT(ifp);
 }

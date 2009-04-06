@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	tgmath
-CFLAGS+= -fno-builtin -std=c99
+CSTD=	c99
+CFLAGS+= -fno-builtin
 NO_MAN=
 
 .include <bsd.prog.mk>

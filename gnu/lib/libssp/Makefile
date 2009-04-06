@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+SHLIBDIR?=	/lib
+
 .include <bsd.own.mk>
 MK_SSP=		no
 
@@ -11,7 +13,6 @@ SRCDIR=	${GCCLIB}/libssp
 
 LIB=		ssp
 SHLIB_MAJOR=	0
-SHLIBDIR?=	/lib
 NO_PROFILE=
 
 SRCS=	ssp.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \

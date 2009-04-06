@@ -163,13 +163,36 @@ ata_isa_detach(device_t dev)
     return (error);
 }
 
+static int
+ata_isa_suspend(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_suspend(dev);
+}
+
+static int
+ata_isa_resume(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_resume(dev);
+}
+
+
 static device_method_t ata_isa_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_isa_probe),
     DEVMETHOD(device_attach,    ata_isa_attach),
     DEVMETHOD(device_detach,    ata_isa_detach),
-    DEVMETHOD(device_suspend,   ata_suspend),
-    DEVMETHOD(device_resume,    ata_resume),
+    DEVMETHOD(device_suspend,   ata_isa_suspend),
+    DEVMETHOD(device_resume,    ata_isa_resume),
 
     { 0, 0 }
 };

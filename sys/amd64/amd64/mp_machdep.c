@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/apicreg.h>
 #include <machine/cputypes.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -100,9 +101,8 @@ extern pt_entry_t *KPTphys;
 /* SMP page table page */
 extern pt_entry_t *SMPpt;
 
-extern int  _udatasel;
-
 struct pcb stoppcbs[MAXCPU];
+struct xpcb *stopxpcbs = NULL;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -151,6 +151,7 @@ struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
 	int	cpu_disabled:1;
+	int	cpu_hyperthread:1;
 } static cpu_info[MAX_APIC_ID + 1];
 int cpu_apic_ids[MAXCPU];
 int apic_cpuids[MAX_APIC_ID + 1];
@@ -343,6 +344,9 @@ cpu_mp_start(void)
 	/* Install an inter-CPU IPI for CPU stop/restart */
 	setidt(IPI_STOP, IDTVEC(cpustop), SDT_SYSIGT, SEL_KPL, 0);
 
+	/* Install an inter-CPU IPI for CPU suspend/resume */
+	setidt(IPI_SUSPEND, IDTVEC(cpususpend), SDT_SYSIGT, SEL_KPL, 0);
+
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
 		boot_cpu_id = PCPU_GET(apic_id);
@@ -352,11 +356,6 @@ cpu_mp_start(void)
 		    ("BSP's APIC ID doesn't match boot_cpu_id"));
 	cpu_apic_ids[0] = boot_cpu_id;
 	apic_cpuids[boot_cpu_id] = 0;
-
-	assign_cpu_ids();
-
-	/* Start each Application Processor */
-	start_all_aps();
 
 	/* Setup the initial logical CPUs info. */
 	logical_cpus = logical_cpus_mask = 0;
@@ -404,6 +403,11 @@ cpu_mp_start(void)
 			hyperthreading_cpus = logical_cpus;
 	}
 
+	assign_cpu_ids();
+
+	/* Start each Application Processor */
+	start_all_aps();
+
 	set_interrupt_apic_ids();
 }
 
@@ -415,18 +419,26 @@ void
 cpu_mp_announce(void)
 {
 	int i, x;
+	const char *hyperthread;
 
 	/* List CPUs */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
 	for (i = 1, x = 0; x <= MAX_APIC_ID; x++) {
 		if (!cpu_info[x].cpu_present || cpu_info[x].cpu_bsp)
 			continue;
+		if (cpu_info[x].cpu_hyperthread) {
+			hyperthread = "/HT";
+		} else {
+			hyperthread = "";
+		}
 		if (cpu_info[x].cpu_disabled)
-			printf("  cpu (AP): APIC ID: %2d (disabled)\n", x);
+			printf("  cpu (AP%s): APIC ID: %2d (disabled)\n",
+			    hyperthread, x);
 		else {
 			KASSERT(i < mp_ncpus,
 			    ("mp_ncpus and actual cpus are out of whack"));
-			printf(" cpu%d (AP): APIC ID: %2d\n", i++, x);
+			printf(" cpu%d (AP%s): APIC ID: %2d\n", i++,
+			    hyperthread, x);
 		}
 	}
 }
@@ -449,7 +461,8 @@ init_secondary(void)
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
-	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
+	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
+	    IOPAGES * PAGE_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	/* The NMI stack runs on IST2. */
@@ -458,12 +471,13 @@ init_secondary(void)
 
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
-	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	   (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
 	for (x = 0; x < NGDT; x++) {
-		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
+		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1))
 			ssdtosd(&gdt_segs[x], &gdt[NGDT * cpu + x]);
 	}
+	ssdtosyssd(&gdt_segs[GPROC0_SEL],
+	    (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
 	ap_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	ap_gdt.rd_base =  (long) &gdt[NGDT * cpu];
 	lgdt(&ap_gdt);			/* does magic intra-segment return */
@@ -477,8 +491,14 @@ init_secondary(void)
 	pc->pc_prvspace = pc;
 	pc->pc_curthread = 0;
 	pc->pc_tssp = &common_tss[cpu];
+	pc->pc_commontssp = &common_tss[cpu];
 	pc->pc_rsp0 = 0;
+	pc->pc_tss = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
+	    GPROC0_SEL];
+	pc->pc_fs32p = &gdt[NGDT * cpu + GUFS32_SEL];
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
+	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
+	    GUSERLDT_SEL];
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
 	np->np_pcpu = (register_t) pc;
@@ -587,7 +607,7 @@ init_secondary(void)
 	load_cr4(rcr4() | CR4_PGE);
 	load_ds(_udatasel);
 	load_es(_udatasel);
-	load_fs(_udatasel);
+	load_fs(_ufssel);
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
@@ -642,10 +662,27 @@ assign_cpu_ids(void)
 {
 	u_int i;
 
+	TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
+	    &hyperthreading_allowed);
+
 	/* Check for explicitly disabled CPUs. */
 	for (i = 0; i <= MAX_APIC_ID; i++) {
 		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp)
 			continue;
+
+		if (hyperthreading_cpus > 1 && i % hyperthreading_cpus != 0) {
+			cpu_info[i].cpu_hyperthread = 1;
+#if defined(SCHED_ULE)
+			/*
+			 * Don't use HT CPU if it has been disabled by a
+			 * tunable.
+			 */
+			if (hyperthreading_allowed == 0) {
+				cpu_info[i].cpu_disabled = 1;
+				continue;
+			}
+#endif
+		}
 
 		/* Don't use this CPU if it has been disabled by a tunable. */
 		if (resource_disabled("lapic", i)) {
@@ -1119,6 +1156,41 @@ cpustop_handler(void)
 }
 
 /*
+ * Handle an IPI_SUSPEND by saving our current context and spinning until we
+ * are resumed.
+ */
+void
+cpususpend_handler(void)
+{
+	struct savefpu *stopfpu;
+	register_t cr3, rf;
+	int cpu = PCPU_GET(cpuid);
+	int cpumask = PCPU_GET(cpumask);
+
+	rf = intr_disable();
+	cr3 = rcr3();
+	stopfpu = &stopxpcbs[cpu].xpcb_pcb.pcb_save;
+	if (savectx2(&stopxpcbs[cpu])) {
+		fpugetregs(curthread, stopfpu);
+		wbinvd();
+		atomic_set_int(&stopped_cpus, cpumask);
+	} else
+		fpusetregs(curthread, stopfpu);
+
+	/* Wait for resume */
+	while (!(started_cpus & cpumask))
+		ia32_pause();
+
+	atomic_clear_int(&started_cpus, cpumask);
+	atomic_clear_int(&stopped_cpus, cpumask);
+
+	/* Restore CR3 and enable interrupts */
+	load_cr3(cr3);
+	lapic_setup(0);
+	intr_restore(rf);
+}
+
+/*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
  */
@@ -1198,6 +1270,16 @@ sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+#ifdef SCHED_ULE
+	/*
+	 * SCHED_ULE doesn't allow enabling/disabling HT cores at
+	 * run-time.
+	 */
+	if (allowed != hyperthreading_allowed)
+		return (ENOTSUP);
+	return (error);
+#endif
+
 	if (allowed)
 		hlt_cpus_mask &= ~hyperthreading_cpus_mask;
 	else
@@ -1242,8 +1324,6 @@ cpu_hlt_setup(void *dummy __unused)
 		 * of hlt_logical_cpus.
 		 */
 		if (hyperthreading_cpus_mask) {
-			TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
-			    &hyperthreading_allowed);
 			SYSCTL_ADD_PROC(&logical_cpu_clist,
 			    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
 			    "hyperthreading_allowed", CTLTYPE_INT|CTLFLAG_RW,

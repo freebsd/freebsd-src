@@ -528,8 +528,6 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
-# ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
-#       (requires sppp)
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
@@ -554,17 +552,11 @@ hint.mse.0.irq="5"
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
-# sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
 
 # Order for ISA/EISA devices is important here
 
-device		ar
-hint.ar.0.at="isa"
-hint.ar.0.port="0x300"
-hint.ar.0.irq="10"
-hint.ar.0.maddr="0xd0000"
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# pci/cardbus chip support
 #device		ath_ar5210	# AR5210 chips
@@ -619,11 +611,6 @@ hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
-device		sr
-hint.sr.0.at="isa"
-hint.sr.0.port="0x300"
-hint.sr.0.irq="5"
-hint.sr.0.maddr="0xd0000"
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"

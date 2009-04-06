@@ -1,0 +1,7 @@
+$FreeBSD$
+*/README.*
+*/msdos
+*/SUNOS4
+*/Win32
+*/ChmodBPF
+*/*.plist

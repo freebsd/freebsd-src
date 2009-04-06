@@ -64,9 +64,13 @@ struct trapframe {
 	register_t	tf_r13;
 	register_t	tf_r14;
 	register_t	tf_r15;
-	register_t	tf_trapno;
+	uint32_t	tf_trapno;
+	uint16_t	tf_fs;
+	uint16_t	tf_gs;
 	register_t	tf_addr;
-	register_t	tf_flags;
+	uint32_t	tf_flags;
+	uint16_t	tf_es;
+	uint16_t	tf_ds;
 	/* below portion defined in hardware */
 	register_t	tf_err;
 	register_t	tf_rip;
@@ -75,5 +79,8 @@ struct trapframe {
 	register_t	tf_rsp;
 	register_t	tf_ss;
 };
+
+#define	TF_HASSEGS	0x1
+/* #define	_MC_HASBASES	0x2 */
 
 #endif /* _MACHINE_FRAME_H_ */

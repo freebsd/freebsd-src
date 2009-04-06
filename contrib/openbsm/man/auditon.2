@@ -1,4 +1,5 @@
 .\"-
+.\" Copyright (c) 2008-2009 Apple Inc.
 .\" Copyright (c) 2005 Robert N. M. Watson
 .\" Copyright (c) 2005 Tom Rhodes
 .\" Copyright (c) 2005 Wayne J. Salamon
@@ -25,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditon.2#14 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditon.2#15 $
 .\"
 .Dd July 10, 2008
 .Dt AUDITON 2
@@ -405,9 +406,15 @@ trigger values:
 file),
 .Dv AUDIT_TRIGGER_CLOSE_AND_DIE
 (close the current log file and exit),
-or
 .Dv AUDIT_TRIGGER_NO_SPACE
 (no disk space left for audit log file).
+.Dv AUDIT_TRIGGER_ROTATE_USER
+(request audit log file rotation).
+.Dv AUDIT_TRIGGER_INITIALIZE
+(initialize audit subsystem for Mac OS X only).
+or
+.Dv AUDIT_TRIGGER_EXPIRE_TRAILS
+(request audit log file expiration).
 .El
 .Sh RETURN VALUES
 .Rv -std

@@ -82,9 +82,7 @@ SUBDIR=	adjkerntz \
 	${_sconfig} \
 	setkey \
 	shutdown \
-	slattach \
 	spppcontrol \
-	${_startslip} \
 	${_sunlabel} \
 	swapon \
 	sysctl \
@@ -128,10 +126,6 @@ _quotacheck=	quotacheck
 
 .if ${MK_ROUTED} != "no"
 _routed=	routed
-.endif
-
-.if ${MK_SLIP} != "no"
-_startslip=	startslip
 .endif
 
 .if ${MACHINE_ARCH} == "i386"

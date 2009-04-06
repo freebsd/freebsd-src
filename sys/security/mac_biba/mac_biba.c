@@ -2775,8 +2775,7 @@ biba_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 
 static int
 biba_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_biba *subj, *obj;
 
@@ -2893,11 +2892,11 @@ biba_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (accmode & (VREAD | VEXEC | VSTAT)) {
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
 		if (!biba_dominate_effective(obj, subj))
 			return (EACCES);
 	}
-	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & VMODIFY_PERMS) {
 		if (!biba_dominate_effective(subj, obj))
 			return (EACCES);
 	}
@@ -3116,8 +3115,7 @@ biba_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 
 static int
 biba_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_biba *subj, *obj;
 

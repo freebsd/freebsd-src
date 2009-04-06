@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=2.5.903a
-SRCS=	bsdtar.c cmdline.c getdate.y matching.c read.c siginfo.c subst.c tree.c util.c write.c
+BSDTAR_VERSION_STRING=2.6.901a
+SRCS=	bsdtar.c cmdline.c getdate.c matching.c read.c siginfo.c subst.c tree.c util.c write.c
 WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz

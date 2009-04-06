@@ -55,20 +55,25 @@ typedef	__size_t	size_t;
 #endif
 
 __BEGIN_DECLS
-#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __XSI_VISIBLE >= 600
 void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
 #endif
 void	*memchr(const void *, int, size_t) __pure;
+#if __BSD_VISIBLE
 void	*memrchr(const void *, int, size_t) __pure;
+#endif
 int	 memcmp(const void *, const void *, size_t) __pure;
 void	*memcpy(void * __restrict, const void * __restrict, size_t);
 #if __BSD_VISIBLE
-void	*memmem(const void *, size_t, const void *, size_t);
+void	*memmem(const void *, size_t, const void *, size_t) __pure;
 #endif
 void	*memmove(void *, const void *, size_t);
 void	*memset(void *, int, size_t);
+#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+char	*stpcpy(char * __restrict, const char * __restrict);
+char	*stpncpy(char * __restrict, const char * __restrict, size_t);
+#endif
 #if __BSD_VISIBLE
-char	*stpcpy(char *, const char *);
 char	*strcasestr(const char *, const char *) __pure;
 #endif
 char	*strcat(char * __restrict, const char * __restrict);
@@ -85,8 +90,8 @@ char	*strerror(int);
 int	 strerror_r(int, char *, size_t);
 #endif
 #if __BSD_VISIBLE
-size_t	 strlcat(char *, const char *, size_t);
-size_t	 strlcpy(char *, const char *, size_t);
+size_t	 strlcat(char * __restrict, const char * __restrict, size_t);
+size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
 #endif
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
@@ -95,14 +100,19 @@ void	 strmode(int, char *);
 char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
 char	*strncpy(char * __restrict, const char * __restrict, size_t);
-#if __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
 char	*strndup(const char *, size_t) __malloc_like;
+size_t	 strnlen(const char *, size_t) __pure;
+#endif
+#if __BSD_VISIBLE
 char	*strnstr(const char *, const char *, size_t) __pure;
 #endif
 char	*strpbrk(const char *, const char *) __pure;
 char	*strrchr(const char *, int) __pure;
 #if __BSD_VISIBLE
 char	*strsep(char **, const char *);
+#endif
+#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
 char	*strsignal(int);
 #endif
 size_t	 strspn(const char *, const char *) __pure;

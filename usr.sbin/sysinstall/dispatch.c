@@ -47,6 +47,7 @@ static int dispatch_systemExecute(dialogMenuItem *unused);
 static int dispatch_msgConfirm(dialogMenuItem *unused);
 static int dispatch_mediaOpen(dialogMenuItem *unused);
 static int dispatch_mediaClose(dialogMenuItem *unused);
+static int cfgModuleFire(dialogMenuItem *self);
 
 static struct _word {
     char *name;
@@ -90,6 +91,7 @@ static struct _word {
     { "installVarDefaults",	installVarDefaults	},
     { "loadConfig",		dispatch_load_file	},
     { "loadFloppyConfig",	dispatch_load_floppy	},
+    { "loadCDROMConfig",	dispatch_load_cdrom	},
     { "mediaOpen",		dispatch_mediaOpen	},
     { "mediaClose",		dispatch_mediaClose	},
     { "mediaSetCDROM",		mediaSetCDROM		},
@@ -242,8 +244,9 @@ dispatchCommand(char *str)
 	msgConfirm("Null or zero-length string passed to dispatchCommand");
 	return DITEM_FAILURE;
     }
-    /* If it's got a newline, trim it */
-    if ((cp = index(str, '\n')) != NULL)
+
+    /* Fixup DOS abuse */
+    if ((cp = index(str, '\r')) != NULL)
 	*cp = '\0';
 
     /* If it's got a `=' sign in there, assume it's a variable setting */
@@ -294,9 +297,12 @@ dispatch_load_fp(FILE *fp)
     INITQUE(*head);
 
     while (fgets(buf, sizeof buf, fp)) {
-
-	if ((cp = strchr(buf, '\n')) != NULL)
+	/* Fix up DOS abuse */
+	if ((cp = index(buf, '\r')) != NULL)
 	    *cp = '\0';
+	/* If it's got a new line, trim it */
+       if ((cp = index(buf, '\n')) != NULL)
+            *cp = '\0';
 	if (*buf == '\0' || *buf == '#')
 	    continue;
 
@@ -326,7 +332,7 @@ dispatch_execute(qelement *head)
 
     while (!EMPTYQUE(*head)) {
 	item = (command_buffer *) head->q_forw;
-	
+
 	if (DITEM_STATUS(dispatchCommand(item->string)) != DITEM_SUCCESS) {
 	    msgConfirm("Command `%s' failed - rest of script aborted.\n",
 		       item->string);
@@ -401,8 +407,7 @@ dispatch_load_floppy(dialogMenuItem *self)
 
     mediaClose();
     cp = variable_get_value(VAR_INSTALL_CFG,
-			    "Specify the name of a configuration file\n"
-			    "residing on a MSDOS or UFS floppy.", 0);
+			    "Specify the name of a configuration file", 0);
     if (!cp || !*cp) {
 	variable_unset(VAR_INSTALL_CFG);
 	what |= DITEM_FAILURE;
@@ -443,3 +448,189 @@ dispatch_load_floppy(dialogMenuItem *self)
     return what;
 }
 
+int
+dispatch_load_cdrom(dialogMenuItem *self)
+{
+    int             what = DITEM_SUCCESS;
+    extern char    *distWanted;
+    char           *cp;
+    FILE           *fp;
+    qelement	   *list;
+
+    mediaClose();
+    cp = variable_get_value(VAR_INSTALL_CFG,
+			    "Specify the name of a configuration file\n"
+			    "residing on the CDROM.", 0);
+    if (!cp || !*cp) {
+	variable_unset(VAR_INSTALL_CFG);
+	what |= DITEM_FAILURE;
+	return what;
+    }
+
+    distWanted = cp;
+    /* Try to open the floppy drive */
+    if (DITEM_STATUS(mediaSetCDROM(NULL)) == DITEM_FAILURE) {
+	msgConfirm("Unable to set media device to CDROM.");
+	what |= DITEM_FAILURE;
+	mediaClose();
+	return what;
+    }
+
+    if (!DEVICE_INIT(mediaDevice)) {
+	msgConfirm("Unable to CDROM filesystem.");
+	what |= DITEM_FAILURE;
+	mediaClose();
+	return what;
+    }
+
+    fp = DEVICE_GET(mediaDevice, cp, TRUE);
+    if (fp) {
+	list = dispatch_load_fp(fp);
+	fclose(fp);
+	mediaClose();
+
+	what |= dispatch_execute(list);
+    }
+    else {
+	if (!variable_get(VAR_NO_ERROR))
+	    msgConfirm("Configuration file '%s' not found.", cp);
+	variable_unset(VAR_INSTALL_CFG);
+	what |= DITEM_FAILURE;
+	mediaClose();
+    }
+    return what;
+}
+
+/*
+ * Create a menu based on available disk devices
+ */
+int
+dispatch_load_menu(dialogMenuItem *self)
+{
+    DMenu	*menu;
+    Device	**devlist;
+    char	*err;
+    int		what, i, j, msize, count;
+    DeviceType	dtypes[] = {DEVICE_TYPE_FLOPPY, DEVICE_TYPE_CDROM, DEVICE_TYPE_DOS, DEVICE_TYPE_UFS};
+
+    fprintf(stderr, "dispatch_load_menu called\n");
+
+    msize = sizeof(DMenu) + (sizeof(dialogMenuItem) * 2);
+    count = 0;
+    err = NULL;
+    what = DITEM_SUCCESS;
+
+    if ((menu = malloc(msize)) == NULL) {
+	err = "Failed to allocate memory for menu";
+	goto errout;
+    }
+
+    bcopy(&MenuConfig, menu, sizeof(DMenu));
+
+    bzero(&menu->items[count], sizeof(menu->items[0]));
+    menu->items[count].prompt = strdup("X Exit");
+    menu->items[count].title = strdup("Exit this menu (returning to previous)");
+    menu->items[count].fire = dmenuExit;
+    count++;
+
+    for (i = 0; i < sizeof(dtypes) / sizeof(dtypes[0]); i++) {
+	if ((devlist = deviceFind(NULL, dtypes[i])) == NULL) {
+	    fprintf(stderr, "No devices found for type %d\n", dtypes[i]);
+	    continue;
+	}
+
+	for (j = 0; devlist[j] != NULL; j++) {
+	    fprintf(stderr, "device type %d device name %s\n", dtypes[i], devlist[j]->name);
+	    msize += sizeof(dialogMenuItem);
+	    if ((menu = realloc(menu, msize)) == NULL) {
+		err = "Failed to allocate memory for menu item";
+		goto errout;
+	    }
+
+	    bzero(&menu->items[count], sizeof(menu->items[0]));
+	    menu->items[count].fire = cfgModuleFire;
+
+	    menu->items[count].prompt = strdup(devlist[j]->name);
+	    menu->items[count].title = strdup(devlist[j]->description);
+	    /* XXX: dialog(3) sucks */
+	    menu->items[count].aux = (long)devlist[j];
+	    count++;
+	}
+    }
+
+    menu->items[count].prompt = NULL;
+    menu->items[count].title = NULL;
+
+    dmenuOpenSimple(menu, FALSE);
+
+  errout:
+    for (i = 0; i < count; i++) {
+	free(menu->items[i].prompt);
+	free(menu->items[i].title);
+    }
+
+    free(menu);
+
+    if (err != NULL) {
+	what |= DITEM_FAILURE;
+	if (!variable_get(VAR_NO_ERROR))
+	    msgConfirm(err);
+    }
+
+    return (what);
+
+}
+
+static int
+cfgModuleFire(dialogMenuItem *self) {
+    Device	*d;
+    FILE	*fp;
+    int		what = DITEM_SUCCESS;
+    extern char *distWanted;
+    qelement	*list;
+    char	*cp;
+
+    d = (Device *)self->aux;
+
+    msgDebug("cfgModuleFire: User selected %s (%s)\n", self->prompt, d->devname);
+
+    mediaClose();
+
+    cp = variable_get_value(VAR_INSTALL_CFG,
+			    "Specify the name of a configuration file", 0);
+    if (!cp || !*cp) {
+	variable_unset(VAR_INSTALL_CFG);
+	what |= DITEM_FAILURE;
+	return what;
+    }
+
+    distWanted = cp;
+
+    mediaDevice = d;
+    if (!DEVICE_INIT(mediaDevice)) {
+	msgConfirm("Unable to mount filesystem.");
+	what |= DITEM_FAILURE;
+	mediaClose();
+	return what;
+    }
+    msgDebug("getting fp for %s\n", cp);
+
+    fp = DEVICE_GET(mediaDevice, cp, TRUE);
+    if (fp) {
+	msgDebug("opened OK, processing..\n");
+
+	list = dispatch_load_fp(fp);
+	fclose(fp);
+	mediaClose();
+
+	what |= dispatch_execute(list);
+    } else {
+	if (!variable_get(VAR_NO_ERROR))
+	    msgConfirm("Configuration file '%s' not found.", cp);
+	variable_unset(VAR_INSTALL_CFG);
+	what |= DITEM_FAILURE;
+	mediaClose();
+    }
+
+    return(what);
+ }

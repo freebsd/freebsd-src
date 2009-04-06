@@ -48,7 +48,7 @@
 #include <machine/setjmp.h>
 
 __BEGIN_DECLS
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __BSD_VISIBLE || __XSI_VISIBLE >= 600
 void	_longjmp(jmp_buf, int) __dead2;
 int	_setjmp(jmp_buf);
 #endif

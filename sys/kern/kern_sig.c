@@ -2585,7 +2585,6 @@ postsig(sig)
 	sig_t action;
 	ksiginfo_t ksi;
 	sigset_t returnmask;
-	int code;
 
 	KASSERT(sig != 0, ("postsig"));
 
@@ -2653,10 +2652,7 @@ postsig(sig)
 			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 		}
 		td->td_ru.ru_nsignals++;
-		if (p->p_sig != sig) {
-			code = 0;
-		} else {
-			code = p->p_code;
+		if (p->p_sig == sig) {
 			p->p_code = 0;
 			p->p_sig = 0;
 		}

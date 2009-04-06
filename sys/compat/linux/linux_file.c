@@ -1109,6 +1109,9 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	} else if (strcmp(fstypename, "proc") == 0) {
 		strcpy(fstypename, "linprocfs");
 		fsdata = NULL;
+	} else if (strcmp(fstypename, "vfat") == 0) {
+		strcpy(fstypename, "msdosfs");
+		fsdata = NULL;
 	} else {
 		return (ENODEV);
 	}
@@ -1134,6 +1137,12 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 		error = kernel_vmount(fsflags,
 			"fstype", fstypename,
 			"fspath", mntonname,
+			NULL);
+	} else if (strcmp(fstypename, "msdosfs") == 0) {
+		error = kernel_vmount(fsflags,
+			"fstype", fstypename,
+			"fspath", mntonname,
+			"from", mntfromname,
 			NULL);
 	} else
 		error = EOPNOTSUPP;

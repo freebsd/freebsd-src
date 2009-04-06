@@ -160,8 +160,10 @@ SYSCTL_DECL(_net_inet_ip);
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, hash_size,
     CTLFLAG_RW, &dn_hash_size, 0, "Default hash table size");
+#if 0	/* curr_time is 64 bit */
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, curr_time,
     CTLFLAG_RD, &curr_time, 0, "Current tick");
+#endif
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, ready_heap,
     CTLFLAG_RD, &ready_heap.size, 0, "Size of ready heap");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, extract_heap,

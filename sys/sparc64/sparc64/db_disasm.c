@@ -82,14 +82,14 @@ struct sparc_insn {
 	  const char* format;
 };
 
-static const char* regs[] = {
+static const char *const regs[] = {
 	"g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
 	"o0", "o1", "o2", "o3", "o4", "o5", "sp", "o7",
 	"l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7",
 	"i0", "i1", "i2", "i3", "i4", "i5", "fp", "i7"
 };
 
-static const char* priv_regs[] = {
+static const char *const priv_regs[] = {
 	"tpc", "tnpc", "tstate", "tt", "tick", "tba", "pstate", "tl",
 	"pil", "cwp", "cansave", "canrestore", "cleanwin", "otherwin",
 	"wstate", "fq",
@@ -97,18 +97,18 @@ static const char* priv_regs[] = {
 	"", "", "", "", "", "", "", "ver"
 };
 
-static const char* state_regs[] = {
+static const char *const state_regs[] = {
 	"y", "", "ccr", "asi", "tick", "pc", "fprs", "asr",
 	"", "", "", "", "", "", "", "",
 	"pcr", "pic", "dcr", "gsr", "set_softint", "clr_softint", "softint",
 	"tick_cmpr", "sys_tick", "sys_tick_cmpr", "", "", "", "", "", "", ""
 };
 
-static const char* ccodes[] = {
+static const char *const ccodes[] = {
 	"fcc0", "fcc1", "fcc2", "fcc3", "icc", "", "xcc", ""
 };
 
-static const char* prefetch[] = {
+static const char *const prefetch[] = {
 	"n_reads", "one_read", "n_writes", "one_write", "page"
 };
 

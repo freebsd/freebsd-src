@@ -33,55 +33,55 @@
  */
 
 #ifndef _RESOURCE_VAR_H_
-#define _RESOURCE_VAR_H_
+#define	_RESOURCE_VAR_H_
 
 typedef int cm_resource_type;
 
 struct physaddr {
-        uint64_t                np_quad;
+	uint64_t		np_quad;
 #ifdef notdef
-        uint32_t                np_low;
-        uint32_t                np_high;
+	uint32_t		np_low;
+	uint32_t		np_high;
 #endif
 };
 
 typedef struct physaddr physaddr;
 
 enum interface_type {
-        InterfaceTypeUndefined = -1,
-        Internal,
-        Isa,
-        Eisa,
-        MicroChannel,
-        TurboChannel,
-        PCIBus,
-        VMEBus,
-        NuBus,
-        PCMCIABus,
-        CBus,
-        MPIBus,
-        MPSABus,
-        ProcessorInternal,
-        InternalPowerBus,
-        PNPISABus,
-        PNPBus,
-        MaximumInterfaceType
+	InterfaceTypeUndefined = -1,
+	Internal,
+	Isa,
+	Eisa,
+	MicroChannel,
+	TurboChannel,
+	PCIBus,
+	VMEBus,
+	NuBus,
+	PCMCIABus,
+	CBus,
+	MPIBus,
+	MPSABus,
+	ProcessorInternal,
+	InternalPowerBus,
+	PNPISABus,
+	PNPBus,
+	MaximumInterfaceType
 };
 
 typedef enum interface_type interface_type;
 
-#define CmResourceTypeNull                0   /* ResType_All or ResType_None (0x0000) */
-#define CmResourceTypePort                1   /* ResType_IO (0x0002) */
-#define CmResourceTypeInterrupt           2   /* ResType_IRQ (0x0004) */
-#define CmResourceTypeMemory              3   /* ResType_Mem (0x0001) */
-#define CmResourceTypeDma                 4   /* ResType_DMA (0x0003) */
-#define CmResourceTypeDeviceSpecific      5   /* ResType_ClassSpecific (0xFFFF) */
-#define CmResourceTypeBusNumber           6   /* ResType_BusNumber (0x0006) */
-#define CmResourceTypeMaximum             7
-#define CmResourceTypeNonArbitrated     128   /* Not arbitrated if 0x80 bit set */
-#define CmResourceTypeConfigData        128   /* ResType_Reserved (0x8000) */
-#define CmResourceTypeDevicePrivate     129   /* ResType_DevicePrivate (0x8001) */
-#define CmResourceTypePcCardConfig      130   /* ResType_PcCardConfig (0x8002) */
+#define	CmResourceTypeNull                0   /* ResType_All or ResType_None (0x0000) */
+#define	CmResourceTypePort                1   /* ResType_IO (0x0002) */
+#define	CmResourceTypeInterrupt           2   /* ResType_IRQ (0x0004) */
+#define	CmResourceTypeMemory              3   /* ResType_Mem (0x0001) */
+#define	CmResourceTypeDma                 4   /* ResType_DMA (0x0003) */
+#define	CmResourceTypeDeviceSpecific      5   /* ResType_ClassSpecific (0xFFFF) */
+#define	CmResourceTypeBusNumber           6   /* ResType_BusNumber (0x0006) */
+#define	CmResourceTypeMaximum             7
+#define	CmResourceTypeNonArbitrated     128   /* Not arbitrated if 0x80 bit set */
+#define	CmResourceTypeConfigData        128   /* ResType_Reserved (0x8000) */
+#define	CmResourceTypeDevicePrivate     129   /* ResType_DevicePrivate (0x8001) */
+#define	CmResourceTypePcCardConfig      130   /* ResType_PcCardConfig (0x8002) */
 
 enum cm_share_disposition {
     CmResourceShareUndetermined = 0,    /* Reserved */
@@ -94,41 +94,41 @@ typedef enum cm_share_disposition cm_share_disposition;
 
 /* Define the bit masks for Flags when type is CmResourceTypeInterrupt */
 
-#define CM_RESOURCE_INTERRUPT_LEVEL_SENSITIVE 0
-#define CM_RESOURCE_INTERRUPT_LATCHED         1
+#define	CM_RESOURCE_INTERRUPT_LEVEL_SENSITIVE	0
+#define	CM_RESOURCE_INTERRUPT_LATCHED		1
 
 /* Define the bit masks for Flags when type is CmResourceTypeMemory */
 
-#define CM_RESOURCE_MEMORY_READ_WRITE       0x0000
-#define CM_RESOURCE_MEMORY_READ_ONLY        0x0001
-#define CM_RESOURCE_MEMORY_WRITE_ONLY       0x0002
-#define CM_RESOURCE_MEMORY_PREFETCHABLE     0x0004
+#define	CM_RESOURCE_MEMORY_READ_WRITE		0x0000
+#define	CM_RESOURCE_MEMORY_READ_ONLY		0x0001
+#define	CM_RESOURCE_MEMORY_WRITE_ONLY		0x0002
+#define	CM_RESOURCE_MEMORY_PREFETCHABLE		0x0004
 
-#define CM_RESOURCE_MEMORY_COMBINEDWRITE    0x0008
-#define CM_RESOURCE_MEMORY_24               0x0010
-#define CM_RESOURCE_MEMORY_CACHEABLE        0x0020
+#define	CM_RESOURCE_MEMORY_COMBINEDWRITE	0x0008
+#define	CM_RESOURCE_MEMORY_24			0x0010
+#define	CM_RESOURCE_MEMORY_CACHEABLE		0x0020
 
 /* Define the bit masks for Flags when type is CmResourceTypePort */
 
-#define CM_RESOURCE_PORT_MEMORY                             0x0000
-#define CM_RESOURCE_PORT_IO                                 0x0001
-#define CM_RESOURCE_PORT_10_BIT_DECODE                      0x0004
-#define CM_RESOURCE_PORT_12_BIT_DECODE                      0x0008
-#define CM_RESOURCE_PORT_16_BIT_DECODE                      0x0010
-#define CM_RESOURCE_PORT_POSITIVE_DECODE                    0x0020
-#define CM_RESOURCE_PORT_PASSIVE_DECODE                     0x0040
-#define CM_RESOURCE_PORT_WINDOW_DECODE                      0x0080
+#define	CM_RESOURCE_PORT_MEMORY			0x0000
+#define	CM_RESOURCE_PORT_IO			0x0001
+#define	CM_RESOURCE_PORT_10_BIT_DECODE		0x0004
+#define	CM_RESOURCE_PORT_12_BIT_DECODE		0x0008
+#define	CM_RESOURCE_PORT_16_BIT_DECODE		0x0010
+#define	CM_RESOURCE_PORT_POSITIVE_DECODE	0x0020
+#define	CM_RESOURCE_PORT_PASSIVE_DECODE		0x0040
+#define	CM_RESOURCE_PORT_WINDOW_DECODE		0x0080
 
 /* Define the bit masks for Flags when type is CmResourceTypeDma */
 
-#define CM_RESOURCE_DMA_8                   0x0000
-#define CM_RESOURCE_DMA_16                  0x0001
-#define CM_RESOURCE_DMA_32                  0x0002
-#define CM_RESOURCE_DMA_8_AND_16            0x0004
-#define CM_RESOURCE_DMA_BUS_MASTER          0x0008
-#define CM_RESOURCE_DMA_TYPE_A              0x0010
-#define CM_RESOURCE_DMA_TYPE_B              0x0020
-#define CM_RESOURCE_DMA_TYPE_F              0x0040
+#define	CM_RESOURCE_DMA_8			0x0000
+#define	CM_RESOURCE_DMA_16			0x0001
+#define	CM_RESOURCE_DMA_32			0x0002
+#define	CM_RESOURCE_DMA_8_AND_16		0x0004
+#define	CM_RESOURCE_DMA_BUS_MASTER		0x0008
+#define	CM_RESOURCE_DMA_TYPE_A			0x0010
+#define	CM_RESOURCE_DMA_TYPE_B			0x0020
+#define	CM_RESOURCE_DMA_TYPE_F			0x0040
 
 struct cm_partial_resource_desc {
 	uint8_t			cprd_type;

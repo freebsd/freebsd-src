@@ -96,7 +96,7 @@ read_rip(int sock,
 			       cc+sizeof(inbuf.ifname));
 
 		/* check the remote interfaces first */
-		for (aifp = remote_if; aifp; aifp = aifp->int_rlink) {
+		LIST_FOREACH(aifp, &remote_if, remote_list) {
 			if (aifp->int_addr == from.sin_addr.s_addr)
 				break;
 		}
@@ -931,7 +931,7 @@ ck_passwd(struct interface *aifp,
 	u_char hash[RIP_AUTH_PW_LEN];
 	int i, len;
 
-
+	assert(aifp != NULL);
 	if ((void *)NA >= lim || NA->a_family != RIP_AF_AUTH) {
 		msglim(use_authp, from, "missing password from %s",
 		       naddr_ntoa(from));
@@ -980,7 +980,7 @@ ck_passwd(struct interface *aifp,
 					       "unknown MD5 RIPv2 auth len %#x"
 					       " instead of %#x from %s",
 					       NA->au.a_md5.md5_auth_len,
-					       RIP_AUTH_MD5_HASH_LEN,
+					       (unsigned)RIP_AUTH_MD5_HASH_LEN,
 					       naddr_ntoa(from));
 				if (na2->a_family != RIP_AF_AUTH)
 					msglim(use_authp, from,

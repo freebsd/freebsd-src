@@ -47,6 +47,7 @@
 #define HID0_SLEEP	0x00200000  /* Enable sleep mode */
 #define HID0_DPM	0x00100000  /* Enable Dynamic power management */
 #define HID0_RISEG	0x00080000  /* Read I-SEG */
+#define HID0_TG		0x00040000  /* Timebase Granularity (OEA64) */
 #define HID0_BHTCLR	0x00040000  /* Clear branch history table (7450) */
 #define HID0_EIEC	0x00040000  /* Enable internal error checking */
 #define HID0_XAEN	0x00020000  /* Enable eXtended Addressing (7450) */

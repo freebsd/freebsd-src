@@ -58,11 +58,22 @@ typedef	__pid_t		pid_t;
 #endif
 #endif
 
+#if __POSIX_VISIBLE || __XSI_VISIBLE
+struct pthread;		/* XXX */
+typedef struct pthread *__pthread_t;
+#if !defined(_PTHREAD_T_DECLARED) && __POSIX_VISIBLE >= 200809
+typedef __pthread_t pthread_t;
+#define	_PTHREAD_T_DECLARED
+#endif
+#endif /* __POSIX_VISIBLE || __XSI_VISIBLE */
+
 __BEGIN_DECLS
 int	raise(int);
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
 int	kill(__pid_t, int);
+int	pthread_kill(__pthread_t, int);
+int	pthread_sigmask(int, const __sigset_t *, __sigset_t *);
 int	sigaction(int, const struct sigaction * __restrict,
 	    struct sigaction * __restrict);
 int	sigaddset(sigset_t *, int);
@@ -91,8 +102,12 @@ int	sigaltstack(const stack_t * __restrict, stack_t * __restrict);
 int	sigpause(int);
 #endif
 
-#if __POSIX_VISIBLE >= 200112
+#if __XSI_VISIBLE >= 600
 int	siginterrupt(int, int);
+#endif
+
+#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+void	psignal(unsigned int, const char *);
 #endif
 
 #if __BSD_VISIBLE
@@ -102,7 +117,6 @@ int	sigreturn(const struct __ucontext *);
 int	sigsetmask(int);
 int	sigstack(const struct sigstack *, struct sigstack *);
 int	sigvec(int, struct sigvec *, struct sigvec *);
-void	psignal(unsigned int, const char *);
 #endif
 __END_DECLS
 

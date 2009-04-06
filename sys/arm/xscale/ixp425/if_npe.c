@@ -363,6 +363,9 @@ npe_attach(device_t dev)
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_STATS;
+	/* device supports oversided vlan frames */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -1108,7 +1111,6 @@ npe_rxdone(int qid, void *arg)
 			mrx->m_len = be32toh(hw->ix_ne[0].len) & 0xffff;
 			mrx->m_pkthdr.len = mrx->m_len;
 			mrx->m_pkthdr.rcvif = ifp;
-			mrx->m_flags |= M_HASFCS;
 
 			ifp->if_ipackets++;
 			ifp->if_input(ifp, mrx);
@@ -1222,9 +1224,8 @@ if (ifp->if_drv_flags & IFF_DRV_RUNNING) return;/*XXX*/
 		| NPE_TX_CNTRL1_2DEFER		/* 2-part deferal */
 		| NPE_TX_CNTRL1_PAD_EN);	/* pad runt frames */
 	/* XXX pad strip? */
-	WR4(sc, NPE_MAC_RX_CNTRL1,
-		  NPE_RX_CNTRL1_CRC_EN		/* include CRC/FCS */
-		| NPE_RX_CNTRL1_PAUSE_EN);	/* ena pause frame handling */
+	/* ena pause frame handling */
+	WR4(sc, NPE_MAC_RX_CNTRL1, NPE_RX_CNTRL1_PAUSE_EN);
 	WR4(sc, NPE_MAC_RX_CNTRL2, 0);
 
 	npe_setmac(sc, IF_LLADDR(ifp));

@@ -14,6 +14,109 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090405: removal of if_ppp(4) and if_sl(4)
+OLD_FILES+=sbin/slattach
+OLD_FILES+=sbin/startslip
+OLD_FILES+=usr/include/net/if_ppp.h
+OLD_FILES+=usr/include/net/if_pppvar.h
+OLD_FILES+=usr/include/net/if_slvar.h
+OLD_FILES+=usr/include/net/ppp_comp.h
+OLD_FILES+=usr/include/net/slip.h
+OLD_FILES+=usr/sbin/sliplogin
+OLD_FILES+=usr/sbin/pppd
+OLD_FILES+=usr/sbin/pppstats
+OLD_FILES+=usr/share/man/man1/startslip.1.gz
+OLD_FILES+=usr/share/man/man4/if_ppp.4.gz
+OLD_FILES+=usr/share/man/man4/if_sl.4.gz
+OLD_FILES+=usr/share/man/man4/ppp.4.gz
+OLD_FILES+=usr/share/man/man4/sl.4.gz
+OLD_FILES+=usr/share/man/man8/pppd.8.gz
+OLD_FILES+=usr/share/man/man8/pppstats.8.gz
+OLD_FILES+=usr/share/man/man8/slattach.8.gz
+OLD_FILES+=usr/share/man/man8/sliplogin.8.gz
+# 20090321: libpcap upgraded to 1.0.0
+OLD_LIBS+=lib/libpcap.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libpcap.so.5
+.endif
+# 20090319: uscanner(4) has been removed
+OLD_FILES+=usr/share/man/man4/uscanner.4.gz
+# 20090313: k8temp(4) renamed to amdtemp(4)
+OLD_FILES+=usr/share/man/man4/k8temp.4.gz
+# 20090308: libusb.so.1 renamed
+OLD_LIBS+=usr/lib/libusb20.so.1
+OLD_FILES+=usr/lib/libusb20.a
+OLD_FILES+=usr/lib/libusb20.so
+OLD_FILES+=usr/lib/libusb20_p.a
+OLD_FILES+=usr/include/libusb20_compat01.h
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libusb20.so.1
+OLD_FILES+=usr/lib32/libusb20.a
+OLD_FILES+=usr/lib32/libusb20.so
+OLD_FILES+=usr/lib32/libusb20_p.a
+.endif
+# 20090226: libmp(3) functions renamed
+OLD_LIBS+=usr/lib/libmp.so.6
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libmp.so.6
+.endif
+# 20090223: changeover of USB stacks
+OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_cdc.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_defs.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_devid.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_devtable.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_endian.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_error.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_hid.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_mfunc.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_revision.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_standard.h
+OLD_DIRS+=usr/include/dev/usb2/include
+OLD_DIRS+=usr/include/dev/usb2
+OLD_FILES+=usr/include/dev/usb/dsbr100io.h
+OLD_FILES+=usr/include/dev/usb/ehcireg.h
+OLD_FILES+=usr/include/dev/usb/ehcivar.h
+OLD_FILES+=usr/include/dev/usb/hid.h
+OLD_FILES+=usr/include/dev/usb/if_auereg.h
+OLD_FILES+=usr/include/dev/usb/if_axereg.h
+OLD_FILES+=usr/include/dev/usb/if_cdcereg.h
+OLD_FILES+=usr/include/dev/usb/if_cuereg.h
+OLD_FILES+=usr/include/dev/usb/if_kuereg.h
+OLD_FILES+=usr/include/dev/usb/if_ruereg.h
+OLD_FILES+=usr/include/dev/usb/if_rumreg.h
+OLD_FILES+=usr/include/dev/usb/if_rumvar.h
+OLD_FILES+=usr/include/dev/usb/if_udavreg.h
+OLD_FILES+=usr/include/dev/usb/if_upgtvar.h
+OLD_FILES+=usr/include/dev/usb/if_uralreg.h
+OLD_FILES+=usr/include/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/dev/usb/if_zydfw.h
+OLD_FILES+=usr/include/dev/usb/if_zydreg.h
+OLD_FILES+=usr/include/dev/usb/kue_fw.h
+OLD_FILES+=usr/include/dev/usb/ohcireg.h
+OLD_FILES+=usr/include/dev/usb/ohcivar.h
+OLD_FILES+=usr/include/dev/usb/rio500_usb.h
+OLD_FILES+=usr/include/dev/usb/rt2573_ucode.h
+OLD_FILES+=usr/include/dev/usb/sl811hsreg.h
+OLD_FILES+=usr/include/dev/usb/sl811hsvar.h
+OLD_FILES+=usr/include/dev/usb/ubser.h
+OLD_FILES+=usr/include/dev/usb/ucomvar.h
+OLD_FILES+=usr/include/dev/usb/udbp.h
+OLD_FILES+=usr/include/dev/usb/uftdireg.h
+OLD_FILES+=usr/include/dev/usb/ugraphire_rdesc.h
+OLD_FILES+=usr/include/dev/usb/uhcireg.h
+OLD_FILES+=usr/include/dev/usb/uhcivar.h
+OLD_FILES+=usr/include/dev/usb/usb_ethersubr.h
+OLD_FILES+=usr/include/dev/usb/usb_mem.h
+OLD_FILES+=usr/include/dev/usb/usb_port.h
+OLD_FILES+=usr/include/dev/usb/usb_quirks.h
+OLD_FILES+=usr/include/dev/usb/usbcdc.h
+OLD_FILES+=usr/include/dev/usb/usbdi.h
+OLD_FILES+=usr/include/dev/usb/usbdi_util.h
+OLD_FILES+=usr/include/dev/usb/usbdivar.h
+OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
 # 20090203: removal of pccard header files
 OLD_FILES+=usr/include/pccard/cardinfo.h
 OLD_FILES+=usr/include/pccard/cis.h
@@ -1371,6 +1474,8 @@ OLD_FILES+=lib/geom/geom_concat.so.1
 OLD_FILES+=lib/geom/geom_label.so.1
 OLD_FILES+=lib/geom/geom_nop.so.1
 OLD_FILES+=lib/geom/geom_stripe.so.1
+# 20040713: fla(4) removed.
+OLD_FILES+=usr/share/man/man4/fla.4.gz
 # 200407XX
 OLD_FILES+=usr/sbin/kernbb
 OLD_FILES+=usr/sbin/ntp-genkeys
@@ -1674,7 +1779,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386"
+.if ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign
@@ -1707,9 +1812,6 @@ OLD_FILES+=usr/lib/libss.a
 OLD_FILES+=usr/lib/libss_p.a
 OLD_FILES+=usr/lib/libtelnet.a
 OLD_FILES+=usr/lib/libtelnet_p.a
-OLD_FILES+=usr/lib/libusb.a
-OLD_FILES+=usr/lib/libusb.so
-OLD_FILES+=usr/lib/libusb_p.a
 OLD_FILES+=usr/sbin/diskpart
 # 200202XX
 OLD_FILES+=usr/bin/gprof4

@@ -698,6 +698,7 @@ userAddUser(dialogMenuItem *self)
     CLEAR(ugroup);
     CLEAR(gecos);
     CLEAR(passwd);
+    CLEAR(confpasswd);
     CLEAR(umemb);
     CLEAR(homedir);
     CLEAR(shell);

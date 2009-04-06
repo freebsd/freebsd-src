@@ -11,5 +11,7 @@ SRCS=	acksend.c candidate.c correct.c master.c networkdelta.c readmsg.c \
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
+WARNS?=	1
+
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>

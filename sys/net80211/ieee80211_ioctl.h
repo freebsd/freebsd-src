@@ -217,7 +217,8 @@ struct ieee80211_stats {
 	uint8_t		is_rx_authfail_code;	/* last rx'd auth fail reason */
 	uint32_t	is_beacon_miss;		/* beacon miss notification */
 	uint32_t	is_rx_badstate;		/* rx discard state != RUN */
-	uint32_t	is_spare[12];
+	uint32_t	is_ff_flush;		/* ff's flush'd from stageq */
+	uint32_t	is_spare[11];
 };
 
 /*

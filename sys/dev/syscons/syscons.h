@@ -368,7 +368,7 @@ typedef int	sc_term_init_t(scr_stat *scp, void **tcp, int code);
 #define SC_TE_COLD_INIT	0
 #define SC_TE_WARM_INIT	1
 typedef int	sc_term_term_t(scr_stat *scp, void **tcp);
-typedef void	sc_term_puts_t(scr_stat *scp, u_char *buf, int len);
+typedef void	sc_term_puts_t(scr_stat *scp, u_char *buf, int len, int kernel);
 typedef int	sc_term_ioctl_t(scr_stat *scp, struct tty *tp, u_long cmd,
 				caddr_t data, struct thread *td);
 typedef int	sc_term_reset_t(scr_stat *scp, int code);
@@ -553,7 +553,7 @@ void		sc_save_font(scr_stat *scp, int page, int size, int width,
 void		sc_show_font(scr_stat *scp, int page);
 
 void		sc_touch_scrn_saver(void);
-void		sc_puts(scr_stat *scp, u_char *buf, int len);
+void		sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 void		sc_draw_cursor_image(scr_stat *scp);
 void		sc_remove_cursor_image(scr_stat *scp);
 void		sc_set_cursor_image(scr_stat *scp);

@@ -63,9 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_input.h>
-#ifdef IEEE80211_SUPPORT_TDMA
-#include <net80211/ieee80211_tdma.h>
-#endif
 
 #define	IS_UP_AUTO(_vap) \
 	(IFNET_IS_UP_RUNNING(vap->iv_ifp) && \
@@ -587,21 +584,6 @@ ieee80211_ioctl_getmaccmd(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return (acl == NULL ? EINVAL : acl->iac_getioctl(vap, ireq));
 }
 
-/*
- * Return the current ``state'' of an Atheros capbility.
- * If associated in station mode report the negotiated
- * setting. Otherwise report the current setting.
- */
-static int
-getathcap(struct ieee80211vap *vap, int cap)
-{
-	if (vap->iv_opmode == IEEE80211_M_STA &&
-	    vap->iv_state == IEEE80211_S_RUN)
-		return IEEE80211_ATH_CAP(vap, vap->iv_bss, cap) != 0;
-	else
-		return (vap->iv_flags & cap) != 0;
-}
-
 static __noinline int
 ieee80211_ioctl_getcurchan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
@@ -749,6 +731,30 @@ ieee80211_ioctl_getstavlan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	error = copyout(&vlan, ireq->i_data, sizeof(vlan));
 	ieee80211_free_node(ni);
 	return error;
+}
+
+/*
+ * Dummy ioctl get handler so the linker set is defined.
+ */
+static int
+dummy_ioctl_get(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	return ENOSYS;
+}
+IEEE80211_IOCTL_GET(dummy, dummy_ioctl_get);
+
+static int
+ieee80211_ioctl_getdefault(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	ieee80211_ioctl_getfunc * const *get;
+	int error;
+
+	SET_FOREACH(get, ieee80211_ioctl_getset) {
+		error = (*get)(vap, ireq);
+		if (error != ENOSYS)
+			return error;
+	}
+	return EINVAL;
 }
 
 /*
@@ -953,12 +959,6 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_PUREG:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_PUREG) != 0;
 		break;
-	case IEEE80211_IOC_FF:
-		ireq->i_val = getathcap(vap, IEEE80211_F_FF);
-		break;
-	case IEEE80211_IOC_TURBOP:
-		ireq->i_val = getathcap(vap, IEEE80211_F_TURBOP);
-		break;
 	case IEEE80211_IOC_BGSCAN:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_BGSCAN) != 0;
 		break;
@@ -1104,16 +1104,8 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			ireq->i_val =
 			    (vap->iv_flags_ext & IEEE80211_FEXT_RIFS) != 0;
 		break;
-#ifdef IEEE80211_SUPPORT_TDMA
-	case IEEE80211_IOC_TDMA_SLOT:
-	case IEEE80211_IOC_TDMA_SLOTCNT:
-	case IEEE80211_IOC_TDMA_SLOTLEN:
-	case IEEE80211_IOC_TDMA_BINTERVAL:
-		error = ieee80211_tdma_ioctl_get80211(vap, ireq);
-		break;
-#endif
 	default:
-		error = EINVAL;
+		error = ieee80211_ioctl_getdefault(vap, ireq);
 		break;
 	}
 	return error;
@@ -1879,6 +1871,7 @@ setcurchan(struct ieee80211vap *vap, struct ieee80211_channel *c)
 			vap->iv_bss->ni_chan = ic->ic_curchan;
 		} else
 			ic->ic_curchan = vap->iv_des_chan;
+			ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 	} else {
 		/*
 		 * Need to go through the state machine in case we
@@ -1894,6 +1887,7 @@ setcurchan(struct ieee80211vap *vap, struct ieee80211_channel *c)
 			 * there is immediate feedback; e.g. via ifconfig.
 			 */
 			ic->ic_curchan = vap->iv_des_chan;
+			ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 		}
 	}
 	return error;
@@ -2476,6 +2470,30 @@ isvapht(const struct ieee80211vap *vap)
 	    IEEE80211_IS_CHAN_HT(bss->ni_chan);
 }
 
+/*
+ * Dummy ioctl set handler so the linker set is defined.
+ */
+static int
+dummy_ioctl_set(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	return ENOSYS;
+}
+IEEE80211_IOCTL_SET(dummy, dummy_ioctl_set);
+
+static int
+ieee80211_ioctl_setdefault(struct ieee80211vap *vap, struct ieee80211req *ireq)
+{
+	ieee80211_ioctl_setfunc * const *set;
+	int error;
+
+	SET_FOREACH(set, ieee80211_ioctl_setset) {
+		error = (*set)(vap, ireq);
+		if (error != ENOSYS)
+			return error;
+	}
+	return EINVAL;
+}
+
 static __noinline int
 ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211req *ireq)
 {
@@ -2852,24 +2870,6 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (isvap11g(vap))
 			error = ENETRESET;
 		break;
-	case IEEE80211_IOC_FF:
-		if (ireq->i_val) {
-			if ((vap->iv_caps & IEEE80211_C_FF) == 0)
-				return EOPNOTSUPP;
-			vap->iv_flags |= IEEE80211_F_FF;
-		} else
-			vap->iv_flags &= ~IEEE80211_F_FF;
-		error = ERESTART;
-		break;
-	case IEEE80211_IOC_TURBOP:
-		if (ireq->i_val) {
-			if ((vap->iv_caps & IEEE80211_C_TURBOP) == 0)
-				return EOPNOTSUPP;
-			vap->iv_flags |= IEEE80211_F_TURBOP;
-		} else
-			vap->iv_flags &= ~IEEE80211_F_TURBOP;
-		error = ENETRESET;
-		break;
 	case IEEE80211_IOC_BGSCAN:
 		if (ireq->i_val) {
 			if ((vap->iv_caps & IEEE80211_C_BGSCAN) == 0)
@@ -3131,16 +3131,8 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (isvapht(vap))
 			error = ERESTART;
 		break;
-#ifdef IEEE80211_SUPPORT_TDMA
-	case IEEE80211_IOC_TDMA_SLOT:
-	case IEEE80211_IOC_TDMA_SLOTCNT:
-	case IEEE80211_IOC_TDMA_SLOTLEN:
-	case IEEE80211_IOC_TDMA_BINTERVAL:
-		error = ieee80211_tdma_ioctl_set80211(vap, ireq);
-		break;
-#endif
 	default:
-		error = EINVAL;
+		error = ieee80211_ioctl_setdefault(vap, ireq);
 		break;
 	}
 	/*

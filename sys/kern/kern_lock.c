@@ -333,16 +333,17 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
     const char *wmesg, int pri, int timo, const char *file, int line)
 {
 	GIANT_DECLARE;
-	uint64_t waittime;
 	struct lock_class *class;
 	const char *iwmesg;
 	uintptr_t tid, v, x;
 	u_int op;
-	int contested, error, ipri, itimo, queue, wakeup_swapper;
+	int error, ipri, itimo, queue, wakeup_swapper;
+#ifdef LOCK_PROFILING
+	uint64_t waittime = 0;
+	int contested = 0;
+#endif
 
-	contested = 0;
 	error = 0;
-	waittime = 0;
 	tid = (uintptr_t)curthread;
 	op = (flags & LK_TYPE_MASK);
 	iwmesg = (wmesg == LK_WMESG_DEFAULT) ? lk->lock_object.lo_name : wmesg;
@@ -686,7 +687,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				lk->lk_recurse--;
 				break;
 			}
-			lock_profile_release_lock(&lk->lock_object);
+			if (tid != LK_KERNPROC)
+				lock_profile_release_lock(&lk->lock_object);
 
 			if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid,
 			    LK_UNLOCKED))
@@ -874,6 +876,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	 */
 	if (LK_HOLDER(lk->lk_lock) != tid)
 		return;
+	lock_profile_release_lock(&lk->lock_object);
 	LOCK_LOG_LOCK("XDISOWN", &lk->lock_object, 0, 0, file, line);
 	WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
 	TD_LOCKS_DEC(curthread);

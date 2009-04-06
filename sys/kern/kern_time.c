@@ -1085,7 +1085,8 @@ itimer_find(struct proc *p, int timerid)
 	struct itimer *it;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_itimers == NULL) || (timerid >= TIMER_MAX) ||
+	if ((p->p_itimers == NULL) ||
+	    (timerid < 0) || (timerid >= TIMER_MAX) ||
 	    (it = p->p_itimers->its_timers[timerid]) == NULL) {
 		return (NULL);
 	}
@@ -1367,10 +1368,8 @@ realtimer_expire(void *arg)
 	struct timespec cts, ts;
 	struct timeval tv;
 	struct itimer *it;
-	struct proc *p;
 
 	it = (struct itimer *)arg;
-	p = it->it_proc;
 
 	realtimer_clocktime(it->it_clockid, &cts);
 	/* Only fire if time is reached. */

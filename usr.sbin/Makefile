@@ -129,8 +129,6 @@ SUBDIR=	${_ac} \
 	powerd \
 	${_ppp} \
 	${_pppctl} \
-	${_pppd} \
-	${_pppstats} \
 	${_praliases} \
 	${_praudit} \
 	procctl \
@@ -166,7 +164,6 @@ SUBDIR=	${_ac} \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
-	${_sliplogin} \
 	${_slstat} \
 	smbmsg \
 	snapinfo \
@@ -363,8 +360,6 @@ _portsnap=	portsnap
 .if ${MK_PPP} != "no"
 _ppp=		ppp
 #_pppctl handled below
-_pppd=		pppd
-_pppstats=	pppstats
 .endif
 
 .if ${MK_QUOTAS} != "no"
@@ -383,11 +378,6 @@ _mailstats=	mailstats
 _makemap=	makemap
 _praliases=	praliases
 _sendmail=	sendmail
-.endif
-
-.if ${MK_SLIP} != "no"
-_sliplogin=	sliplogin
-_slstat=	slstat
 .endif
 
 .if ${MK_SYSINSTALL} != "no"

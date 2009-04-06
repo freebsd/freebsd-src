@@ -1,4 +1,4 @@
-OpenBSM 1.1 alpha 4
+OpenBSM 1.1 beta 1
 
   Introduction
 
@@ -56,4 +56,4 @@ Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
 
-$P4: //depot/projects/trustedbsd/openbsm/README#34 $
+$P4: //depot/projects/trustedbsd/openbsm/README#35 $

@@ -241,11 +241,11 @@ SYSCTL_INT(_vfs_nfs4, OID_AUTO, access_cache_misses, CTLFLAG_RD,
 			 | NFSV3ACCESS_DELETE | NFSV3ACCESS_LOOKUP)
 static int
 nfs4_v3_access_otw(struct vnode *vp, int wmode, struct thread *td,
-    struct ucred *cred)
+    struct ucred *cred, uint32_t *retmode)
 {
 	const int v3 = 1;
 	u_int32_t *tl;
-	int error = 0, attrflag;
+	int error = 0, attrflag, i, lrupos;
 
 	return (0);
 
@@ -264,11 +264,26 @@ nfs4_v3_access_otw(struct vnode *vp, int wmode, struct thread *td,
 	nfsm_request(vp, NFSPROC_ACCESS, td, cred);
 	nfsm_postop_attr(vp, attrflag);
 	if (!error) {
+		lrupos = 0;
 		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		rmode = fxdr_unsigned(u_int32_t, *tl);
-		np->n_mode = rmode;
-		np->n_modeuid = cred->cr_uid;
-		np->n_modestamp = time_second;
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++) {
+			if (np->n_accesscache[i].uid == cred->cr_uid) {
+				np->n_accesscache[i].mode = rmode;
+				np->n_accesscache[i].stamp = time_second;
+				break;
+			}
+			if (i > 0 && np->n_accesscache[i].stamp <
+			    np->n_accesscache[lrupos].stamp)
+				lrupos = i;
+		}
+		if (i == NFS_ACCESSCACHESIZE) {
+			np->n_accesscache[lrupos].uid = cred->cr_uid;
+			np->n_accesscache[lrupos].mode = rmode;
+			np->n_accesscache[lrupos].stamp = time_second;
+		}
+		if (retmode != NULL)
+			*retmode = rmode;
 	}
 	m_freem(mrep);
 nfsmout:
@@ -285,8 +300,8 @@ static int
 nfs4_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int error = 0;
-	u_int32_t mode, wmode;
+	int error = 0, i, gotahit;
+	u_int32_t mode, rmode, wmode;
 	int v3 = NFS_ISV3(vp);	/* v3 \in v4 */
 	struct nfsnode *np = VTONFS(vp);
 	caddr_t bpos, dpos;
@@ -350,19 +365,27 @@ nfs4_access(struct vop_access_args *ap)
 		 * Does our cached result allow us to give a definite yes to
 		 * this request?
 		 */
-		if (time_second < np->n_modestamp + nfs4_access_cache_timeout &&
-		    ap->a_cred->cr_uid == np->n_modeuid &&
-		    (np->n_mode & mode) == mode) {
-			nfsstats.accesscache_hits++;
-		} else {
+		gotahit = 0;
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++) {
+			if (ap->a_cred->cr_uid == np->n_accesscache[i].uid) {
+				if (time_second < (np->n_accesscache[i].stamp +
+				    nfs4_access_cache_timeout) &&
+				    (np->n_accesscache[i].mode & mode) == mode) {
+					nfsstats.accesscache_hits++;
+					gotahit = 1;
+				}
+				break;
+			}
+		}
+		if (gotahit == 0) {
 			/*
 			 * Either a no, or a don't know.  Go to the wire.
 			 */
 			nfsstats.accesscache_misses++;
 		        error = nfs4_v3_access_otw(vp, wmode, ap->a_td,
-			    ap->a_cred);
+			    ap->a_cred, &rmode);
 			if (error == 0) {
-				if ((np->n_mode & mode) != mode)
+				if ((rmode & mode) != mode)
 					error = EACCES;
 			}
 		}

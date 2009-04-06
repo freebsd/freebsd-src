@@ -83,6 +83,7 @@ static struct option {
 	{ "file",                 1, 'f' },
 	{ "files-from",           1, 'T' },
 	{ "format",               1, OPTION_FORMAT },
+	{ "format-options",       1, OPTION_FORMAT_OPTIONS },
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },

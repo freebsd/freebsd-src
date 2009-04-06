@@ -201,6 +201,7 @@ MAN=	accept_filter.9 \
 	random.9 \
 	random_harvest.9 \
 	redzone.9 \
+	refcount.9 \
 	resettodr.9 \
 	resource_int_value.9 \
 	rijndael.9 \
@@ -920,6 +921,9 @@ MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
 	random.9 read_random.9 \
 	random.9 srandom.9
+MLINKS+=refcount.9 refcount_acquire.9 \
+	refcount.9 refcount_init.9 \
+	refcount.9 refcount_release.9
 MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
@@ -1243,7 +1247,10 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_filteropt.9 \
 	vfs_getopt.9 vfs_flagopt.9 \
 	vfs_getopt.9 vfs_getopts.9 \
-	vfs_getopt.9 vfs_scanopt.9
+	vfs_getopt.9 vfs_scanopt.9 \
+	vfs_getopt.9 vfs_setopt.9 \
+	vfs_getopt.9 vfs_setopt_part.9 \
+	vfs_getopt.9 vfs_setopts.9
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9 \

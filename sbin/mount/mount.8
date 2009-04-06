@@ -163,6 +163,15 @@ is run with the
 flag but without the
 .Fl l
 flag.
+.It Cm mountprog Ns = Ns Aq Ar program
+Force
+.Nm
+to use the specified program to mount the file system, instead of calling
+.Xr nmount 2
+directly.  For example:
+.Bd -literal
+mount -t foofs -o mountprog=/mydir/fooprog /dev/acd0 /mnt
+.Ed
 .It Cm multilabel
 Enable multi-label Mandatory Access Control, or MAC, on the specified file
 system.

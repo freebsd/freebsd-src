@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/eventhandler.h>
 #include <sys/kthread.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
@@ -81,8 +82,12 @@ TUNABLE_INT("kern.geom.eli.batch", &g_eli_batch);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RW, &g_eli_batch, 0,
     "Use crypto operations batching");
 
+static eventhandler_tag g_eli_pre_sync = NULL;
+
 static int g_eli_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
+static void g_eli_init(struct g_class *mp);
+static void g_eli_fini(struct g_class *mp);
 
 static g_taste_t g_eli_taste;
 static g_dumpconf_t g_eli_dumpconf;
@@ -92,7 +97,9 @@ struct g_class g_eli_class = {
 	.version = G_VERSION,
 	.ctlreq = g_eli_config,
 	.taste = g_eli_taste,
-	.destroy_geom = g_eli_destroy_geom
+	.destroy_geom = g_eli_destroy_geom,
+	.init = g_eli_init,
+	.fini = g_eli_fini
 };
 
 
@@ -1073,6 +1080,53 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	    sc->sc_ekeylen);
 	sbuf_printf(sb, "%s<EncryptionAlgorithm>%s</EncryptionAlgorithm>\n", indent,
 	    g_eli_algo2str(sc->sc_ealgo));
+}
+
+static void
+g_eli_shutdown_pre_sync(void *arg, int howto)
+{
+	struct g_class *mp;
+	struct g_geom *gp, *gp2;
+	struct g_provider *pp;
+	struct g_eli_softc *sc;
+	int error;
+
+	mp = arg;
+	DROP_GIANT();
+	g_topology_lock();
+	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+		sc = gp->softc;
+		if (sc == NULL)
+			continue;
+		pp = LIST_FIRST(&gp->provider);
+		KASSERT(pp != NULL, ("No provider? gp=%p (%s)", gp, gp->name));
+		if (pp->acr + pp->acw + pp->ace == 0)
+			error = g_eli_destroy(sc, 1);
+		else {
+			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
+			gp->access = g_eli_access;
+		}
+	}
+	g_topology_unlock();
+	PICKUP_GIANT();
+}
+
+static void
+g_eli_init(struct g_class *mp)
+{
+
+	g_eli_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+	    g_eli_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
+	if (g_eli_pre_sync == NULL)
+		G_ELI_DEBUG(0, "Warning! Cannot register shutdown event.");
+}
+
+static void
+g_eli_fini(struct g_class *mp)
+{
+
+	if (g_eli_pre_sync != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_eli_pre_sync);
 }
 
 DECLARE_GEOM_CLASS(g_eli_class, g_eli);

@@ -316,17 +316,25 @@ int	tvtohz(struct timeval *tv);
 #include <time.h>
 
 #include <sys/cdefs.h>
+#include <sys/select.h>
 
 __BEGIN_DECLS
+int	setitimer(int, const struct itimerval *, struct itimerval *);
+int	utimes(const char *, const struct timeval *);
+
+#if __BSD_VISIBLE
 int	adjtime(const struct timeval *, struct timeval *);
 int	futimes(int, const struct timeval *);
+int	futimesat(int, const char *, const struct timeval [2]);
+int	lutimes(const char *, const struct timeval *);
+int	settimeofday(const struct timeval *, const struct timezone *);
+#endif
+
+#if __XSI_VISIBLE
 int	getitimer(int, struct itimerval *);
 int	gettimeofday(struct timeval *, struct timezone *);
-int	lutimes(const char *, const struct timeval *);
-int	setitimer(int, const struct itimerval *, struct itimerval *);
-int	settimeofday(const struct timeval *, const struct timezone *);
-int	utimes(const char *, const struct timeval *);
-int	futimesat(int, const char *, const struct timeval [2]);
+#endif
+
 __END_DECLS
 
 #endif /* !_KERNEL */

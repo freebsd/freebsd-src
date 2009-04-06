@@ -33,19 +33,23 @@
  */
 #if defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
-#include "../../config.h"
+#include "config.h"
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
-#include "../config_freebsd.h"
+#include "config_freebsd.h"
 #elif defined(_WIN32)
 /* Win32 can't run the 'configure' script. */
-#include "../config_windows.h"
+#include "config_windows.h"
 #else
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#ifndef _WIN32
 #include <dirent.h>
+#else
+#include <direct.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -66,6 +70,17 @@
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
 #define	__FBSDID(a)     /* null */
+#endif
+
+#ifdef _WIN32
+#define snprintf	sprintf_s
+#define LOCALE_DE	"deu"
+#else
+#define LOCALE_DE	"de_DE.UTF-8"
+#endif
+
+#ifndef O_BINARY
+#define	O_BINARY 0
 #endif
 
 /*
@@ -142,6 +157,9 @@ char *slurpfile(size_t *, const char *fmt, ...);
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
 
+/* Get external gzip program name */
+const char *external_gzip_program(int un);
+
 /*
  * Special interfaces for libarchive test harness.
  */
@@ -151,6 +169,8 @@ void extract_reference_file(const char *);
 
 /* Special customized read-from-memory interface. */
 int read_open_memory(struct archive *, void *, size_t, size_t);
+/* "2" version exercises a slightly different set of libarchive APIs. */
+int read_open_memory2(struct archive *, void *, size_t, size_t);
 
 /*
  * ARCHIVE_VERSION_STAMP first appeared in 1.9 and libarchive 2.2.4.
@@ -169,3 +189,14 @@ int read_open_memory(struct archive *, void *, size_t, size_t);
   test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
 #define assertEqualStringA(a,v1,v2)   \
   test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
+
+/*
+ * A compression is not supported
+ * Use this define after archive_read_next_header() is called
+ */
+#define UnsupportedCompress(r, a) \
+	(r != ARCHIVE_OK && \
+	 (strcmp(archive_error_string(a), \
+	    "Unrecognized archive format") == 0 && \
+	  archive_compression(a) == ARCHIVE_COMPRESSION_NONE))
+

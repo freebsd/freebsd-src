@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.
- * Copyright (c) 2007-2008 Robert N. M. Watson
+ * Copyright (c) 2007-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -384,7 +384,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	 * This entire block sorely needs a rewrite.
 	 */
 				if (t &&
-				    ((t->inp_vflag & INP_TIMEWAIT) == 0) &&
+				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
@@ -397,7 +397,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, wild, cred);
-			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
+			if (t && (t->inp_flags & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
 				 * state recycled, we treat the address as
@@ -1031,8 +1031,8 @@ in_pcbdrop(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	inp->inp_vflag |= INP_DROPPED;
-	if (inp->inp_lport) {
+	inp->inp_flags |= INP_DROPPED;
+	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
 		LIST_REMOVE(inp, inp_hash);
@@ -1041,7 +1041,7 @@ in_pcbdrop(struct inpcb *inp)
 			LIST_REMOVE(phd, phd_hash);
 			free(phd, M_PCB);
 		}
-		inp->inp_lport = 0;
+		inp->inp_flags &= ~INP_INHASHLIST;
 	}
 }
 
@@ -1421,6 +1421,8 @@ in_pcbinshash(struct inpcb *inp)
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	KASSERT((inp->inp_flags & INP_INHASHLIST) == 0,
+	    ("in_pcbinshash: INP_INHASHLIST"));
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
@@ -1457,6 +1459,7 @@ in_pcbinshash(struct inpcb *inp)
 	inp->inp_phd = phd;
 	LIST_INSERT_HEAD(&phd->phd_pcblist, inp, inp_portlist);
 	LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
+	inp->inp_flags |= INP_INHASHLIST;
 	return (0);
 }
 
@@ -1475,6 +1478,8 @@ in_pcbrehash(struct inpcb *inp)
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	KASSERT(inp->inp_flags & INP_INHASHLIST,
+	    ("in_pcbrehash: !INP_INHASHLIST"));
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
@@ -1502,7 +1507,7 @@ in_pcbremlists(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
-	if (inp->inp_lport) {
+	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
 		LIST_REMOVE(inp, inp_hash);
@@ -1511,6 +1516,7 @@ in_pcbremlists(struct inpcb *inp)
 			LIST_REMOVE(phd, phd_hash);
 			free(phd, M_PCB);
 		}
+		inp->inp_flags &= ~INP_INHASHLIST;
 	}
 	LIST_REMOVE(inp, inp_list);
 	pcbinfo->ipi_count--;
@@ -1812,6 +1818,22 @@ db_print_inpflags(int inp_flags)
 		db_printf("%sIN6P_AUTOFLOWLABEL", comma ? ", " : "");
 		comma = 1;
 	}
+	if (inp_flags & INP_TIMEWAIT) {
+		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_ONESBCAST) {
+		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_DROPPED) {
+		db_printf("%sINP_DROPPED", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_SOCKREF) {
+		db_printf("%sINP_SOCKREF", comma ? ", " : "");
+		comma  = 1;
+	}
 	if (inp_flags & IN6P_RFC2292) {
 		db_printf("%sIN6P_RFC2292", comma ? ", " : "");
 		comma = 1;
@@ -1838,22 +1860,6 @@ db_print_inpvflag(u_char inp_vflag)
 	}
 	if (inp_vflag & INP_IPV6PROTO) {
 		db_printf("%sINP_IPV6PROTO", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_TIMEWAIT) {
-		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_ONESBCAST) {
-		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_DROPPED) {
-		db_printf("%sINP_DROPPED", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_SOCKREF) {
-		db_printf("%sINP_SOCKREF", comma ? ", " : "");
 		comma  = 1;
 	}
 }

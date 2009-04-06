@@ -82,12 +82,17 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 		/* Contention */
 		ret = mtx_sleep((void *)&dev->lock.lock_queue, &dev->dev_lock,
-		    PZERO | PCATCH, "drmlk2", 0);
+		    PCATCH, "drmlk2", 0);
 		if (ret != 0)
 			break;
 	}
 	DRM_UNLOCK();
-	DRM_DEBUG("%d %s\n", lock->context, ret ? "interrupted" : "has lock");
+
+	if (ret == ERESTART)
+		DRM_DEBUG("restarting syscall\n");
+	else
+		DRM_DEBUG("%d %s\n", lock->context,
+		    ret ? "interrupted" : "has lock");
 
 	if (ret != 0)
 		return ret;
@@ -114,13 +119,6 @@ int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		    DRM_CURRENTPID, lock->context);
 		return EINVAL;
 	}
-
-	DRM_SPINLOCK(&dev->tsk_lock);
-	if (dev->locked_task_call != NULL) {
-		dev->locked_task_call(dev);
-		dev->locked_task_call = NULL;
-	}
-	DRM_SPINUNLOCK(&dev->tsk_lock);
 
 	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
 

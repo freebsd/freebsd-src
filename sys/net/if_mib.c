@@ -29,6 +29,8 @@
  * $FreeBSD$
  */
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -38,6 +40,7 @@
 
 #include <net/if.h>
 #include <net/if_mib.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 /*

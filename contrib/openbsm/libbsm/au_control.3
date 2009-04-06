@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#9 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#10 $
 .\"
 .Dd April 19, 2005
 .Dt AU_CONTROL 3
@@ -33,6 +33,7 @@
 .Nm endac ,
 .Nm getacdir ,
 .Nm getacmin ,
+.Nm getacexpire ,
 .Nm getacfilesz ,
 .Nm getacflg ,
 .Nm getacna ,
@@ -52,6 +53,8 @@
 .Fn getacdir "char *name" "int len"
 .Ft int
 .Fn getacmin "int *min_val"
+.Ft int
+.Fn getacexpire "int *andflg, time_t *age, size_t *size"
 .Ft int
 .Fn getacfilesz "size_t *size_val"
 .Ft int
@@ -99,6 +102,24 @@ returns the minimum free disk space for the audit log target file system via
 the passed
 .Fa min_val
 variable.
+.Pp
+The
+.Fn getacexpire
+function 
+returns the audit trail file expiration parameters in the passed
+.Vt int
+buffer
+.Fa andflg ,
+.Vt time_t
+buffer
+.Fa age
+and 
+.Vt size_t
+buffer
+.Fa size .
+If the parameter is not specified in the
+.Xr audit_control 5
+file it is set to zero.
 .Pp
 The
 .Fn getacfilesz
@@ -153,6 +174,7 @@ to a numeric audit policy mask returned via
 The
 .Fn getacdir ,
 .Fn getacmin ,
+.Fn getacexpire ,
 .Fn getacflg ,
 .Fn getacna ,
 .Fn getacpol ,

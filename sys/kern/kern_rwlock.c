@@ -282,8 +282,10 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	int spintries = 0;
 	int i;
 #endif
+#ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
+#endif
 	uintptr_t v;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -584,9 +586,11 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	int spintries = 0;
 	int i;
 #endif
-	uint64_t waittime = 0;
 	uintptr_t v, x;
+#ifdef LOCK_PROFILING
+	uint64_t waittime = 0;
 	int contested = 0;
+#endif
 
 	if (rw_wlocked(rw)) {
 		KASSERT(rw->lock_object.lo_flags & RW_RECURSE,
@@ -732,7 +736,6 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p unrecursing", __func__, rw);
 		return;
 	}
-	v = rw->rw_lock;
 
 	KASSERT(rw->rw_lock & (RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS),
 	    ("%s: neither of the waiter flags are set", __func__));

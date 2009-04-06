@@ -182,7 +182,7 @@ tcp_timer_delack(void *xtp)
 	}
 	INP_WLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_delack)
+	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_delack)
 	    || !callout_active(&tp->t_timers->tt_delack)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
@@ -229,7 +229,7 @@ tcp_timer_2msl(void *xtp)
 	}
 	INP_WLOCK(inp);
 	tcp_free_sackholes(tp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_2msl) ||
+	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_2msl) ||
 	    !callout_active(&tp->t_timers->tt_2msl)) {
 		INP_WUNLOCK(tp->t_inpcb);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -301,7 +301,7 @@ tcp_timer_keep(void *xtp)
 		return;
 	}
 	INP_WLOCK(inp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_keep)
+	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_keep)
 	    || !callout_active(&tp->t_timers->tt_keep)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -397,7 +397,7 @@ tcp_timer_persist(void *xtp)
 		return;
 	}
 	INP_WLOCK(inp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_persist)
+	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_persist)
 	    || !callout_active(&tp->t_timers->tt_persist)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -471,7 +471,7 @@ tcp_timer_rexmt(void * xtp)
 		return;
 	}
 	INP_WLOCK(inp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_rexmt)
+	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_rexmt)
 	    || !callout_active(&tp->t_timers->tt_rexmt)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);

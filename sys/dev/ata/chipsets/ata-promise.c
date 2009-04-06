@@ -690,8 +690,11 @@ ata_promise_mio_command(struct ata_request *request)
 
     ATA_OUTL(ctlr->r_res2, (ch->unit + 1) << 2, 0x00000001);
 
-    /* set portmultiplier port */
-    ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), atadev->unit & 0x0f);
+    if ((ctlr->chip->cfg2 == PR_SATA2) ||
+        ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2))) {
+	/* set portmultiplier port */
+	ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), atadev->unit & 0x0f);
+    }
 
     /* XXX SOS add ATAPI commands support later */
     switch (request->u.ata.command) {
@@ -766,7 +769,7 @@ ata_promise_mio_reset(device_t dev)
 	if ((ctlr->chip->cfg2 == PR_SATA) ||
 	    ((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2))) {
 
-	    if (ata_sata_phy_reset(dev))
+	    if (ata_sata_phy_reset(dev, -1, 1))
 		ata_generic_reset(dev);
 
 	    /* reset and enable plug/unplug intr */
@@ -802,7 +805,7 @@ ata_promise_mio_reset(device_t dev)
 		     (ATA_INL(ctlr->r_res2, 0x414 + (ch->unit << 8)) &
 		     ~0x00000003) | 0x00000001);
 
-	    if (ata_sata_phy_reset(dev)) {
+	    if (ata_sata_phy_reset(dev, -1, 1)) {
 		u_int32_t signature = ch->hw.softreset(dev, ATA_PM);
 
 		if (1 | bootverbose)

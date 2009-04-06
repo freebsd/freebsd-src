@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
 #include <nfsclient/nfsmount.h>
+#include <nfsclient/nfs_kdtrace.h>
 #include <nfsclient/nfs_lock.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
@@ -84,6 +86,26 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/vinet.h>
+
+#include <machine/stdarg.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+dtrace_nfsclient_accesscache_flush_probe_func_t
+    dtrace_nfsclient_accesscache_flush_done_probe;
+uint32_t nfsclient_accesscache_flush_done_id;
+
+dtrace_nfsclient_accesscache_get_probe_func_t
+    dtrace_nfsclient_accesscache_get_hit_probe,
+    dtrace_nfsclient_accesscache_get_miss_probe;
+uint32_t nfsclient_accesscache_get_hit_id;
+uint32_t nfsclient_accesscache_get_miss_id;
+
+dtrace_nfsclient_accesscache_load_probe_func_t
+    dtrace_nfsclient_accesscache_load_done_probe;
+uint32_t nfsclient_accesscache_load_done_id;
+#endif /* !KDTRACE_HOOKS */
 
 /* Defs */
 #define	TRUE	1
@@ -208,6 +230,11 @@ static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
+static int	nfs_prime_access_cache = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, prime_access_cache, CTLFLAG_RW,
+	   &nfs_prime_access_cache, 0,
+	   "Prime NFS ACCESS cache when fetching attributes");
+
 static int	nfsv3_commit_on_close = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW,
 	   &nfsv3_commit_on_close, 0, "write+commit on close, else only write");
@@ -265,11 +292,11 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_misses, CTLFLAG_RD,
 
 static int
 nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
-    struct ucred *cred)
+    struct ucred *cred, uint32_t *retmode)
 {
 	const int v3 = 1;
 	u_int32_t *tl;
-	int error = 0, attrflag;
+	int error = 0, attrflag, i, lrupos;
 
 	struct mbuf *mreq, *mrep, *md, *mb;
 	caddr_t bpos, dpos;
@@ -286,16 +313,38 @@ nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
 	nfsm_request(vp, NFSPROC_ACCESS, td, cred);
 	nfsm_postop_attr(vp, attrflag);
 	if (!error) {
+		lrupos = 0;
 		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		rmode = fxdr_unsigned(u_int32_t, *tl);
 		mtx_lock(&np->n_mtx);
-		np->n_mode = rmode;
-		np->n_modeuid = cred->cr_uid;
-		np->n_modestamp = time_second;
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++) {
+			if (np->n_accesscache[i].uid == cred->cr_uid) {
+				np->n_accesscache[i].mode = rmode;
+				np->n_accesscache[i].stamp = time_second;
+				break;
+			}
+			if (i > 0 && np->n_accesscache[i].stamp <
+			    np->n_accesscache[lrupos].stamp)
+				lrupos = i;
+		}
+		if (i == NFS_ACCESSCACHESIZE) {
+			np->n_accesscache[lrupos].uid = cred->cr_uid;
+			np->n_accesscache[lrupos].mode = rmode;
+			np->n_accesscache[lrupos].stamp = time_second;
+		}
 		mtx_unlock(&np->n_mtx);
+		if (retmode != NULL)
+			*retmode = rmode;
+		KDTRACE_NFS_ACCESSCACHE_LOAD_DONE(vp, cred->cr_uid, rmode, 0);
 	}
 	m_freem(mrep);
 nfsmout:
+#ifdef KDTRACE_HOOKS
+	if (error) {
+		KDTRACE_NFS_ACCESSCACHE_LOAD_DONE(vp, cred->cr_uid, 0,
+		    error);
+	}
+#endif
 	return (error);
 }
 
@@ -309,8 +358,8 @@ static int
 nfs_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int error = 0;
-	u_int32_t mode, wmode;
+	int error = 0, i, gotahit;
+	u_int32_t mode, rmode, wmode;
 	int v3 = NFS_ISV3(vp);
 	struct nfsnode *np = VTONFS(vp);
 
@@ -367,26 +416,40 @@ nfs_access(struct vop_access_args *ap)
 		 * Does our cached result allow us to give a definite yes to
 		 * this request?
 		 */
+		gotahit = 0;
 		mtx_lock(&np->n_mtx);
-		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
-		    (ap->a_cred->cr_uid == np->n_modeuid) &&
-		    ((np->n_mode & mode) == mode)) {
-			nfsstats.accesscache_hits++;
-		} else {
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++) {
+			if (ap->a_cred->cr_uid == np->n_accesscache[i].uid) {
+				if (time_second < (np->n_accesscache[i].stamp +
+				    nfsaccess_cache_timeout) &&
+				    (np->n_accesscache[i].mode & mode) == mode) {
+					nfsstats.accesscache_hits++;
+					gotahit = 1;
+				}
+				break;
+			}
+		}
+		mtx_unlock(&np->n_mtx);
+#ifdef KDTRACE_HOOKS
+		if (gotahit)
+			KDTRACE_NFS_ACCESSCACHE_GET_HIT(vp,
+			    ap->a_cred->cr_uid, mode);
+		else
+			KDTRACE_NFS_ACCESSCACHE_GET_MISS(vp,
+			    ap->a_cred->cr_uid, mode);
+#endif
+		if (gotahit == 0) {
 			/*
 			 * Either a no, or a don't know.  Go to the wire.
 			 */
 			nfsstats.accesscache_misses++;
-			mtx_unlock(&np->n_mtx);
-		        error = nfs3_access_otw(vp, wmode, ap->a_td,ap->a_cred);
-			mtx_lock(&np->n_mtx);
+		        error = nfs3_access_otw(vp, wmode, ap->a_td, ap->a_cred,
+			    &rmode);
 			if (!error) {
-				if ((np->n_mode & mode) != mode) {
+				if ((rmode & mode) != mode)
 					error = EACCES;
-				}
 			}
 		}
-		mtx_unlock(&np->n_mtx);
 		return (error);
 	} else {
 		if ((error = nfsspec_access(ap)) != 0) {
@@ -468,6 +531,7 @@ nfs_open(struct vop_open_args *ap)
 		if (error == EINTR || error == EIO)
 			return (error);
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		if (vp->v_type == VDIR)
 			np->n_direofoffset = 0;
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
@@ -484,6 +548,7 @@ nfs_open(struct vop_open_args *ap)
 		    td->td_proc == NULL ||
 		    np->n_ac_ts_pid != td->td_proc->p_pid) {
 			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		}
 		mtx_unlock(&np->n_mtx);						
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
@@ -644,6 +709,12 @@ nfs_getattr(struct vop_getattr_args *ap)
 	 */
 	if (nfs_getattrcache(vp, &vattr) == 0)
 		goto nfsmout;
+	if (v3 && nfs_prime_access_cache && nfsaccess_cache_timeout > 0) {
+		nfsstats.accesscache_misses++;
+		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred, NULL);
+		if (nfs_getattrcache(vp, &vattr) == 0)
+			goto nfsmout;
+	}
 	nfsstats.rpccnt[NFSPROC_GETATTR]++;
 	mreq = nfsm_reqhead(vp, NFSPROC_GETATTR, NFSX_FH(v3));
 	mb = mreq;
@@ -799,7 +870,7 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred)
 	struct nfsnode *np = VTONFS(vp);
 	caddr_t bpos, dpos;
 	u_int32_t *tl;
-	int error = 0, wccflag = NFSV3_WCCRATTR;
+	int error = 0, i, wccflag = NFSV3_WCCRATTR;
 	struct mbuf *mreq, *mrep, *md, *mb;
 	int v3 = NFS_ISV3(vp);
 
@@ -832,7 +903,11 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred)
 	}
 	nfsm_request(vp, NFSPROC_SETATTR, curthread, cred);
 	if (v3) {
-		np->n_modestamp = 0;
+		mtx_lock(&np->n_mtx);
+		for (i = 0; i < NFS_ACCESSCACHESIZE; i++)
+			np->n_accesscache[i].stamp = 0;
+		mtx_unlock(&np->n_mtx);
+		KDTRACE_NFS_ACCESSCACHE_FLUSH_DONE(vp);
 		nfsm_wcc_data(vp, wccflag);
 	} else
 		nfsm_loadattr(vp, NULL);
@@ -912,14 +987,12 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
 		    vattr.va_mtime.tv_sec == np->n_dmtime) {
 			nfsstats.lookupcache_hits++;
-			if ((cnp->cn_nameiop == CREATE ||
-			    cnp->cn_nameiop == RENAME) &&
-			    (flags & ISLASTCN))
-				cnp->cn_flags |= SAVENAME;
 			return (ENOENT);
 		}
 		cache_purge_negative(dvp);
+		mtx_lock(&np->n_mtx);
 		np->n_dmtime = 0;
+		mtx_unlock(&np->n_mtx);
 	}
 	error = 0;
 	newvp = NULLVP;
@@ -1030,8 +1103,10 @@ nfsmout:
 			 * name cache entry for this directory was
 			 * added.
 			 */
+			mtx_lock(&np->n_mtx);
 			if (np->n_dmtime == 0)
 				np->n_dmtime = np->n_vattr.va_mtime.tv_sec;
+			mtx_unlock(&np->n_mtx);
 			cache_enter(dvp, NULL, cnp);
 		}
 		return (ENOENT);
@@ -1386,8 +1461,10 @@ nfsmout:
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
-	if (!wccflag)
+	if (!wccflag) {
 		VTONFS(dvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
+	}
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
 	return (error);
 }
@@ -1518,8 +1595,10 @@ nfsmout:
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
-	if (!wccflag)
+	if (!wccflag) {
 		VTONFS(dvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
+	}
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
 	return (error);
 }
@@ -1583,6 +1662,7 @@ nfs_remove(struct vop_remove_args *ap)
 	} else if (!np->n_sillyrename)
 		error = nfs_sillyrename(dvp, vp, cnp);
 	np->n_attrstamp = 0;
+	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	return (error);
 }
 
@@ -1628,8 +1708,10 @@ nfs_removerpc(struct vnode *dvp, const char *name, int namelen,
 nfsmout:
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
-	if (!wccflag)
+	if (!wccflag) {
 		VTONFS(dvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
+	}
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
 	return (error);
 }
@@ -1774,10 +1856,14 @@ nfsmout:
 	mtx_lock(&(VTONFS(tdvp))->n_mtx);
 	VTONFS(tdvp)->n_flag |= NMODIFIED;
 	mtx_unlock(&(VTONFS(tdvp))->n_mtx);
-	if (!fwccflag)
+	if (!fwccflag) {
 		VTONFS(fdvp)->n_attrstamp = 0;
-	if (!twccflag)
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(fdvp);
+	}
+	if (!twccflag) {
 		VTONFS(tdvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(tdvp);
+	}
 	return (error);
 }
 
@@ -1825,10 +1911,14 @@ nfsmout:
 	mtx_lock(&(VTONFS(tdvp))->n_mtx);
 	VTONFS(tdvp)->n_flag |= NMODIFIED;
 	mtx_unlock(&(VTONFS(tdvp))->n_mtx);
-	if (!attrflag)
+	if (!attrflag) {
 		VTONFS(vp)->n_attrstamp = 0;
-	if (!wccflag)
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	}
+	if (!wccflag) {
 		VTONFS(tdvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(tdvp);
+	}
 	return (error);
 }
 
@@ -1913,8 +2003,10 @@ nfsmout:
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
-	if (!wccflag)
+	if (!wccflag) {
 		VTONFS(dvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
+	}
 	return (error);
 }
 
@@ -1969,8 +2061,10 @@ nfsmout:
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
-	if (!wccflag)
+	if (!wccflag) {
 		VTONFS(dvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
+	}
 	if (error == 0 && newvp == NULL) {
 		error = nfs_lookitup(dvp, cnp->cn_nameptr, len, cnp->cn_cred,
 			cnp->cn_thread, &np);
@@ -2019,8 +2113,10 @@ nfsmout:
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
-	if (!wccflag)
+	if (!wccflag) {
 		VTONFS(dvp)->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
+	}
 	cache_purge(dvp);
 	cache_purge(vp);
 	/*

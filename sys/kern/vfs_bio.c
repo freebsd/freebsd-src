@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include "opt_compat.h"
 #include "opt_directio.h"
 #include "opt_swap.h"
 
@@ -105,33 +106,44 @@ static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
-static int flushbufqueues(int, int);
+static int buf_do_flush(struct vnode *vp);
+static int flushbufqueues(struct vnode *, int, int);
 static void buf_daemon(void);
 static void bremfreel(struct buf *bp);
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+static int sysctl_bufspace(SYSCTL_HANDLER_ARGS);
+#endif
 
 int vmiodirenable = TRUE;
 SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
     "Use the VM system for directory writes");
-int runningbufspace;
-SYSCTL_INT(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
+long runningbufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
     "Amount of presently outstanding async buffer io");
-static int bufspace;
-SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
-    "KVA memory used for bufs");
-static int maxbufspace;
-SYSCTL_INT(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
+static long bufspace;
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+SYSCTL_PROC(_vfs, OID_AUTO, bufspace, CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RD,
+    &bufspace, 0, sysctl_bufspace, "L", "Virtual memory used for buffers");
+#else
+SYSCTL_LONG(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
+    "Virtual memory used for buffers");
+#endif
+static long maxbufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
     "Maximum allowed value of bufspace (including buf_daemon)");
-static int bufmallocspace;
-SYSCTL_INT(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD, &bufmallocspace, 0,
+static long bufmallocspace;
+SYSCTL_LONG(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD, &bufmallocspace, 0,
     "Amount of malloced memory for buffers");
-static int maxbufmallocspace;
-SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW, &maxbufmallocspace, 0,
+static long maxbufmallocspace;
+SYSCTL_LONG(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW, &maxbufmallocspace, 0,
     "Maximum amount of malloced memory for buffers");
-static int lobufspace;
-SYSCTL_INT(_vfs, OID_AUTO, lobufspace, CTLFLAG_RD, &lobufspace, 0,
+static long lobufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, lobufspace, CTLFLAG_RD, &lobufspace, 0,
     "Minimum amount of buffers we want to have");
-int hibufspace;
-SYSCTL_INT(_vfs, OID_AUTO, hibufspace, CTLFLAG_RD, &hibufspace, 0,
+long hibufspace;
+SYSCTL_LONG(_vfs, OID_AUTO, hibufspace, CTLFLAG_RD, &hibufspace, 0,
     "Maximum allowed value of bufspace (excluding buf_daemon)");
 static int bufreusecnt;
 SYSCTL_INT(_vfs, OID_AUTO, bufreusecnt, CTLFLAG_RW, &bufreusecnt, 0,
@@ -142,11 +154,11 @@ SYSCTL_INT(_vfs, OID_AUTO, buffreekvacnt, CTLFLAG_RW, &buffreekvacnt, 0,
 static int bufdefragcnt;
 SYSCTL_INT(_vfs, OID_AUTO, bufdefragcnt, CTLFLAG_RW, &bufdefragcnt, 0,
     "Number of times we have had to repeat buffer allocation to defragment");
-static int lorunningspace;
-SYSCTL_INT(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
+static long lorunningspace;
+SYSCTL_LONG(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
     "Minimum preferred space used for in-progress I/O");
-static int hirunningspace;
-SYSCTL_INT(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
+static long hirunningspace;
+SYSCTL_LONG(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
     "Maximum amount of space to use for in-progress I/O");
 int dirtybufferflushes;
 SYSCTL_INT(_vfs, OID_AUTO, dirtybufferflushes, CTLFLAG_RW, &dirtybufferflushes,
@@ -187,6 +199,9 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW, &getnewbufcalls, 0,
 static int getnewbufrestarts;
 SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
     "Number of times getnewbuf has had to restart a buffer aquisition");
+static int flushbufqtarget = 100;
+SYSCTL_INT(_vfs, OID_AUTO, flushbufqtarget, CTLFLAG_RW, &flushbufqtarget, 0,
+    "Amount of work to do in flushbufqueues when helping bufdaemon");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -247,6 +262,7 @@ static struct mtx nblock;
 #define QUEUE_DIRTY_GIANT 3	/* B_DELWRI buffers that need giant */
 #define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
 #define QUEUE_EMPTY	5	/* empty buffer headers */
+#define QUEUE_SENTINEL	1024	/* not an queue index, but mark for sentinel */
 
 /* Queues for free buffers with various properties */
 static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES] = { { 0 } };
@@ -264,6 +280,25 @@ const char *buf_wmesg = BUF_WMESG;
 #define VFS_BIO_NEED_DIRTYFLUSH	0x02	/* waiting for dirty buffer flush */
 #define VFS_BIO_NEED_FREE	0x04	/* wait for free bufs, hi hysteresis */
 #define VFS_BIO_NEED_BUFSPACE	0x08	/* wait for buf space, lo hysteresis */
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+static int
+sysctl_bufspace(SYSCTL_HANDLER_ARGS)
+{
+	long lvalue;
+	int ivalue;
+
+	if (sizeof(int) == sizeof(long) || req->oldlen == sizeof(long))
+		return (sysctl_handle_long(oidp, arg1, arg2, req));
+	lvalue = *(long *)arg1;
+	if (lvalue > INT_MAX)
+		/* On overflow, still write out a long to trigger ENOMEM. */
+		return (sysctl_handle_long(oidp, &lvalue, 0, req));
+	ivalue = lvalue;
+	return (sysctl_handle_int(oidp, &ivalue, 0, req));
+}
+#endif
 
 #ifdef DIRECTIO
 extern void ffs_rawread_setup(void);
@@ -324,7 +359,7 @@ runningbufwakeup(struct buf *bp)
 {
 
 	if (bp->b_runningbufspace) {
-		atomic_subtract_int(&runningbufspace, bp->b_runningbufspace);
+		atomic_subtract_long(&runningbufspace, bp->b_runningbufspace);
 		bp->b_runningbufspace = 0;
 		mtx_lock(&rbreqlock);
 		if (runningbufreq && runningbufspace <= lorunningspace) {
@@ -444,7 +479,8 @@ bd_speedup(void)
 caddr_t
 kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 {
-	int maxbuf;
+	int tuned_nbuf;
+	long maxbuf;
 
 	/*
 	 * physmem_est is in pages.  Convert it to kilobytes (assumes
@@ -474,11 +510,17 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 
 		if (maxbcache && nbuf > maxbcache / BKVASIZE)
 			nbuf = maxbcache / BKVASIZE;
+		tuned_nbuf = 1;
+	} else
+		tuned_nbuf = 0;
 
-		/* XXX Avoid integer overflows later on with maxbufspace. */
-		maxbuf = (INT_MAX / 3) / BKVASIZE;
-		if (nbuf > maxbuf)
-			nbuf = maxbuf;
+	/* XXX Avoid unsigned long overflows later on with maxbufspace. */
+	maxbuf = (LONG_MAX / 3) / BKVASIZE;
+	if (nbuf > maxbuf) {
+		if (!tuned_nbuf)
+			printf("Warning: nbufs lowered from %d to %ld\n", nbuf,
+			    maxbuf);
+		nbuf = maxbuf;
 	}
 
 	/*
@@ -548,8 +590,8 @@ bufinit(void)
 	 * this may result in KVM fragmentation which is not handled optimally
 	 * by the system.
 	 */
-	maxbufspace = nbuf * BKVASIZE;
-	hibufspace = imax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
+	maxbufspace = (long)nbuf * BKVASIZE;
+	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
 	lobufspace = hibufspace - MAXBSIZE;
 
 	lorunningspace = 512 * 1024;
@@ -577,7 +619,7 @@ bufinit(void)
  * be met.  We try to size hidirtybuffers to 3/4 our buffer space assuming
  * BKVASIZE'd (8K) buffers.
  */
-	while (hidirtybuffers * BKVASIZE > 3 * hibufspace / 4) {
+	while ((long)hidirtybuffers * BKVASIZE > 3 * hibufspace / 4) {
 		hidirtybuffers >>= 1;
 	}
 	lodirtybuffers = hidirtybuffers / 2;
@@ -613,7 +655,7 @@ bfreekva(struct buf *bp)
 
 	if (bp->b_kvasize) {
 		atomic_add_int(&buffreekvacnt, 1);
-		atomic_subtract_int(&bufspace, bp->b_kvasize);
+		atomic_subtract_long(&bufspace, bp->b_kvasize);
 		vm_map_remove(buffer_map, (vm_offset_t) bp->b_kvabase,
 		    (vm_offset_t) bp->b_kvabase + bp->b_kvasize);
 		bp->b_kvasize = 0;
@@ -837,7 +879,7 @@ bufwrite(struct buf *bp)
 	 * Normal bwrites pipeline writes
 	 */
 	bp->b_runningbufspace = bp->b_bufsize;
-	atomic_add_int(&runningbufspace, bp->b_runningbufspace);
+	atomic_add_long(&runningbufspace, bp->b_runningbufspace);
 
 	if (!TD_IS_IDLETHREAD(curthread))
 		curthread->td_ru.ru_oublock++;
@@ -1327,9 +1369,23 @@ brelse(struct buf *bp)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
 
+	/*
+	 * If the buffer has junk contents signal it and eventually
+	 * clean up B_DELWRI and diassociate the vnode so that gbincore()
+	 * doesn't find it.
+	 */
+	if (bp->b_bufsize == 0 || (bp->b_ioflags & BIO_ERROR) != 0 ||
+	    (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF)) != 0)
+		bp->b_flags |= B_INVAL;
+	if (bp->b_flags & B_INVAL) {
+		if (bp->b_flags & B_DELWRI)
+			bundirty(bp);
+		if (bp->b_vp)
+			brelvp(bp);
+	}
+
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
-		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 1");
@@ -1342,7 +1398,6 @@ brelse(struct buf *bp)
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
 	    (bp->b_ioflags & BIO_ERROR)) {
-		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 2");
@@ -1363,19 +1418,6 @@ brelse(struct buf *bp)
 			TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
 	}
 	mtx_unlock(&bqlock);
-
-	/*
-	 * If B_INVAL and B_DELWRI is set, clear B_DELWRI.  We have already
-	 * placed the buffer on the correct queue.  We must also disassociate
-	 * the device and vnode for a B_INVAL buffer so gbincore() doesn't
-	 * find it.
-	 */
-	if (bp->b_flags & B_INVAL) {
-		if (bp->b_flags & B_DELWRI)
-			bundirty(bp);
-		if (bp->b_vp)
-			brelvp(bp);
-	}
 
 	/*
 	 * Fixup numfreebuffers count.  The bp is on an appropriate queue
@@ -1673,21 +1715,23 @@ vfs_bio_awrite(struct buf *bp)
  */
 
 static struct buf *
-getnewbuf(int slpflag, int slptimeo, int size, int maxsize)
+getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int size, int maxsize,
+    int gbflags)
 {
+	struct thread *td;
 	struct buf *bp;
 	struct buf *nbp;
 	int defrag = 0;
 	int nqindex;
 	static int flushingbufs;
 
+	td = curthread;
 	/*
 	 * We can't afford to block since we might be holding a vnode lock,
 	 * which may prevent system daemons from running.  We deal with
 	 * low-memory situations by proactively returning memory and running
 	 * async I/O rather then sync I/O.
 	 */
-
 	atomic_add_int(&getnewbufcalls, 1);
 	atomic_subtract_int(&getnewbufrestarts, 1);
 restart:
@@ -1919,8 +1963,9 @@ restart:
 	 */
 
 	if (bp == NULL) {
-		int flags;
+		int flags, norunbuf;
 		char *waitmsg;
+		int fl;
 
 		if (defrag) {
 			flags = VFS_BIO_NEED_BUFSPACE;
@@ -1938,9 +1983,35 @@ restart:
 		mtx_unlock(&bqlock);
 
 		bd_speedup();	/* heeeelp */
+		if (gbflags & GB_NOWAIT_BD)
+			return (NULL);
 
 		mtx_lock(&nblock);
 		while (needsbuffer & flags) {
+			if (vp != NULL && (td->td_pflags & TDP_BUFNEED) == 0) {
+				mtx_unlock(&nblock);
+				/*
+				 * getblk() is called with a vnode
+				 * locked, and some majority of the
+				 * dirty buffers may as well belong to
+				 * the vnode. Flushing the buffers
+				 * there would make a progress that
+				 * cannot be achieved by the
+				 * buf_daemon, that cannot lock the
+				 * vnode.
+				 */
+				norunbuf = ~(TDP_BUFNEED | TDP_NORUNNINGBUF) |
+				    (td->td_pflags & TDP_NORUNNINGBUF);
+				/* play bufdaemon */
+				td->td_pflags |= TDP_BUFNEED | TDP_NORUNNINGBUF;
+				fl = buf_do_flush(vp);
+				td->td_pflags &= norunbuf;
+				mtx_lock(&nblock);
+				if (fl != 0)
+					continue;
+				if ((needsbuffer & flags) == 0)
+					break;
+			}
 			if (msleep(&needsbuffer, &nblock,
 			    (PRIBIO + 4) | slpflag, waitmsg, slptimeo)) {
 				mtx_unlock(&nblock);
@@ -1983,7 +2054,7 @@ restart:
 
 				bp->b_kvabase = (caddr_t) addr;
 				bp->b_kvasize = maxsize;
-				atomic_add_int(&bufspace, bp->b_kvasize);
+				atomic_add_long(&bufspace, bp->b_kvasize);
 				atomic_add_int(&bufreusecnt, 1);
 			}
 			vm_map_unlock(buffer_map);
@@ -2009,6 +2080,35 @@ static struct kproc_desc buf_kp = {
 };
 SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start, &buf_kp);
 
+static int
+buf_do_flush(struct vnode *vp)
+{
+	int flushed;
+
+	flushed = flushbufqueues(vp, QUEUE_DIRTY, 0);
+	/* The list empty check here is slightly racy */
+	if (!TAILQ_EMPTY(&bufqueues[QUEUE_DIRTY_GIANT])) {
+		mtx_lock(&Giant);
+		flushed += flushbufqueues(vp, QUEUE_DIRTY_GIANT, 0);
+		mtx_unlock(&Giant);
+	}
+	if (flushed == 0) {
+		/*
+		 * Could not find any buffers without rollback
+		 * dependencies, so just write the first one
+		 * in the hopes of eventually making progress.
+		 */
+		flushbufqueues(vp, QUEUE_DIRTY, 1);
+		if (!TAILQ_EMPTY(
+			    &bufqueues[QUEUE_DIRTY_GIANT])) {
+			mtx_lock(&Giant);
+			flushbufqueues(vp, QUEUE_DIRTY_GIANT, 1);
+			mtx_unlock(&Giant);
+		}
+	}
+	return (flushed);
+}
+
 static void
 buf_daemon()
 {
@@ -2022,7 +2122,7 @@ buf_daemon()
 	/*
 	 * This process is allowed to take the buffer cache to the limit
 	 */
-	curthread->td_pflags |= TDP_NORUNNINGBUF;
+	curthread->td_pflags |= TDP_NORUNNINGBUF | TDP_BUFNEED;
 	mtx_lock(&bdlock);
 	for (;;) {
 		bd_request = 0;
@@ -2037,30 +2137,8 @@ buf_daemon()
 		 * normally would so they can run in parallel with our drain.
 		 */
 		while (numdirtybuffers > lodirtybuffers) {
-			int flushed;
-
-			flushed = flushbufqueues(QUEUE_DIRTY, 0);
-			/* The list empty check here is slightly racy */
-			if (!TAILQ_EMPTY(&bufqueues[QUEUE_DIRTY_GIANT])) {
-				mtx_lock(&Giant);
-				flushed += flushbufqueues(QUEUE_DIRTY_GIANT, 0);
-				mtx_unlock(&Giant);
-			}
-			if (flushed == 0) {
-				/*
-				 * Could not find any buffers without rollback
-				 * dependencies, so just write the first one
-				 * in the hopes of eventually making progress.
-				 */
-				flushbufqueues(QUEUE_DIRTY, 1);
-				if (!TAILQ_EMPTY(
-				    &bufqueues[QUEUE_DIRTY_GIANT])) {
-					mtx_lock(&Giant);
-					flushbufqueues(QUEUE_DIRTY_GIANT, 1);
-					mtx_unlock(&Giant);
-				}
+			if (buf_do_flush(NULL) == 0)
 				break;
-			}
 			uio_yield();
 		}
 
@@ -2106,7 +2184,7 @@ SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
     0, "Number of buffers flushed with dependecies that require rollbacks");
 
 static int
-flushbufqueues(int queue, int flushdeps)
+flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 {
 	struct buf sentinel;
 	struct vnode *vp;
@@ -2116,20 +2194,37 @@ flushbufqueues(int queue, int flushdeps)
 	int flushed;
 	int target;
 
-	target = numdirtybuffers - lodirtybuffers;
-	if (flushdeps && target > 2)
-		target /= 2;
+	if (lvp == NULL) {
+		target = numdirtybuffers - lodirtybuffers;
+		if (flushdeps && target > 2)
+			target /= 2;
+	} else
+		target = flushbufqtarget;
 	flushed = 0;
 	bp = NULL;
+	sentinel.b_qindex = QUEUE_SENTINEL;
 	mtx_lock(&bqlock);
-	TAILQ_INSERT_TAIL(&bufqueues[queue], &sentinel, b_freelist);
+	TAILQ_INSERT_HEAD(&bufqueues[queue], &sentinel, b_freelist);
 	while (flushed != target) {
-		bp = TAILQ_FIRST(&bufqueues[queue]);
-		if (bp == &sentinel)
+		bp = TAILQ_NEXT(&sentinel, b_freelist);
+		if (bp != NULL) {
+			TAILQ_REMOVE(&bufqueues[queue], &sentinel, b_freelist);
+			TAILQ_INSERT_AFTER(&bufqueues[queue], bp, &sentinel,
+			    b_freelist);
+		} else
 			break;
-		TAILQ_REMOVE(&bufqueues[queue], bp, b_freelist);
-		TAILQ_INSERT_TAIL(&bufqueues[queue], bp, b_freelist);
-
+		/*
+		 * Skip sentinels inserted by other invocations of the
+		 * flushbufqueues(), taking care to not reorder them.
+		 */
+		if (bp->b_qindex == QUEUE_SENTINEL)
+			continue;
+		/*
+		 * Only flush the buffers that belong to the
+		 * vnode locked by the curthread.
+		 */
+		if (lvp != NULL && bp->b_vp != lvp)
+			continue;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 			continue;
 		if (bp->b_pin_count > 0) {
@@ -2177,16 +2272,27 @@ flushbufqueues(int queue, int flushdeps)
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
+		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_CANRECURSE) == 0) {
 			mtx_unlock(&bqlock);
 			CTR3(KTR_BUF, "flushbufqueue(%p) vp %p flags %X",
 			    bp, bp->b_vp, bp->b_flags);
-			vfs_bio_awrite(bp);
+			if (curproc == bufdaemonproc)
+				vfs_bio_awrite(bp);
+			else {
+				bremfree(bp);
+				bwrite(bp);
+			}
 			vn_finished_write(mp);
 			VOP_UNLOCK(vp, 0);
 			flushwithdeps += hasdeps;
 			flushed++;
-			waitrunningbufspace();
+
+			/*
+			 * Sleeping on runningbufspace while holding
+			 * vnode lock leads to deadlock.
+			 */
+			if (curproc == bufdaemonproc)
+				waitrunningbufspace();
 			numdirtywakeup((lodirtybuffers + hidirtybuffers) / 2);
 			mtx_lock(&bqlock);
 			continue;
@@ -2568,7 +2674,7 @@ loop:
 		maxsize = vmio ? size + (offset & PAGE_MASK) : size;
 		maxsize = imax(maxsize, bsize);
 
-		bp = getnewbuf(slpflag, slptimeo, size, maxsize);
+		bp = getnewbuf(vp, slpflag, slptimeo, size, maxsize, flags);
 		if (bp == NULL) {
 			if (slpflag || slptimeo)
 				return NULL;
@@ -2643,14 +2749,17 @@ loop:
  * set to B_INVAL.
  */
 struct buf *
-geteblk(int size)
+geteblk(int size, int flags)
 {
 	struct buf *bp;
 	int maxsize;
 
 	maxsize = (size + BKVAMASK) & ~BKVAMASK;
-	while ((bp = getnewbuf(0, 0, size, maxsize)) == 0)
-		continue;
+	while ((bp = getnewbuf(NULL, 0, 0, size, maxsize, flags)) == NULL) {
+		if ((flags & GB_NOWAIT_BD) &&
+		    (curthread->td_pflags & TDP_BUFNEED) != 0)
+			return (NULL);
+	}
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;	/* b_dep cleared by getnewbuf() */
 	BUF_ASSERT_HELD(bp);
@@ -2707,7 +2816,7 @@ allocbuf(struct buf *bp, int size)
 				} else {
 					free(bp->b_data, M_BIOBUF);
 					if (bp->b_bufsize) {
-						atomic_subtract_int(
+						atomic_subtract_long(
 						    &bufmallocspace,
 						    bp->b_bufsize);
 						bufspacewakeup();
@@ -2744,7 +2853,7 @@ allocbuf(struct buf *bp, int size)
 				bp->b_bufsize = mbsize;
 				bp->b_bcount = size;
 				bp->b_flags |= B_MALLOC;
-				atomic_add_int(&bufmallocspace, mbsize);
+				atomic_add_long(&bufmallocspace, mbsize);
 				return 1;
 			}
 			origbuf = NULL;
@@ -2758,7 +2867,7 @@ allocbuf(struct buf *bp, int size)
 				origbufsize = bp->b_bufsize;
 				bp->b_data = bp->b_kvabase;
 				if (bp->b_bufsize) {
-					atomic_subtract_int(&bufmallocspace,
+					atomic_subtract_long(&bufmallocspace,
 					    bp->b_bufsize);
 					bufspacewakeup();
 					bp->b_bufsize = 0;
