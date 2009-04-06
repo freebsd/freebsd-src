@@ -23,5 +23,5 @@ for i in *; do
     [ -f $i.gz ] && rm $i
 done
 gzip -d *.gz
-. rc1
+. /etc/rc1
 exit 0
