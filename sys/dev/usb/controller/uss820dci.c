@@ -29,7 +29,7 @@
  * This file contains the driver for the USS820 series USB Device
  * Controller
  *
- * NOTE: The datasheet does not document everything!
+ * NOTE: The datasheet does not document everything.
  */
 
 #include <dev/usb/usb.h>

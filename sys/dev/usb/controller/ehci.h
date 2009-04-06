@@ -40,7 +40,7 @@
 
 #define	EHCI_MAX_DEVICES MIN(USB_MAX_DEVICES, 128)
 
-/* PCI config registers */
+/* PCI config registers  */
 #define	PCI_CBMEM		0x10	/* configuration base MEM */
 #define	PCI_INTERFACE_EHCI	0x20
 #define	PCI_USBREV		0x60	/* RO USB protocol revision */

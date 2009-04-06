@@ -41,7 +41,7 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 
-/* function prototypes */
+/* function prototypes  */
 
 static device_probe_t usb2_probe;
 static device_attach_t usb2_attach;

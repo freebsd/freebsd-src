@@ -27,9 +27,8 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * This file contains the driver for the ATMEGA series USB OTG
- * Controller. This driver currently only supports the DCI mode of the
- * USB hardware.
+ * This file contains the driver for the ATMEGA series USB OTG Controller. This
+ * driver currently only supports the DCI mode of the USB hardware.
  */
 
 /*

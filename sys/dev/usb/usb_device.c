@@ -55,7 +55,7 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 
-/* function prototypes */
+/* function prototypes  */
 
 static void	usb2_init_pipe(struct usb2_device *, uint8_t,
 		    struct usb2_endpoint_descriptor *, struct usb2_pipe *);

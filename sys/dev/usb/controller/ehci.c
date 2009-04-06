@@ -39,7 +39,7 @@
  */
 
 /*
- * TODO:
+ * TODO: 
  * 1) command failures are not recovered correctly
  */
 

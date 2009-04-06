@@ -25,8 +25,8 @@
  */
 
 /*
- * Thanks to Mentor Graphics for providing a reference driver for this
- * USB chip at their homepage.
+ * Thanks to Mentor Graphics for providing a reference driver for this USB chip
+ * at their homepage.
  */
 
 /*

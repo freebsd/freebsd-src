@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
  * USB Open Host Controller driver.
  *
  * OHCI spec: http://www.compaq.com/productinfo/development/openhci.html
- * USB spec: http://www.usb.org/developers/docs/usbspec.zip
+ * USB spec:  http://www.usb.org/developers/docs/usbspec.zip
  */
 
 #include <dev/usb/usb.h>
