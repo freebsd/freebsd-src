@@ -808,15 +808,15 @@ inet_makenetandmask(net, sin, bits)
 	 * CIDR address.
 	 */
 	if ((bits == 0)  && (addr != 0)) {
-		int i, j;
-		for(i=0,j=1; i<32; i++)  {
+		u_long i, j;
+		for(i=0,j=0xff; i<4; i++)  {
 			if (addr & j) {
 				break;
 			}
-			j <<= 1;
+			j <<= 8;
 		}
 		/* i holds the first non zero bit */
-		bits = 32 - i;	
+		bits = 32 - (i*8);	
 	}
 	mask = 0xffffffff << (32 - bits);
 
