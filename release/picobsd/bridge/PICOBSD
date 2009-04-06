@@ -3,8 +3,8 @@
 #
 # Line starting with #PicoBSD contains PicoBSD build parameters
 #marker         def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD	5000	init	8192		32768
-options MD_ROOT_SIZE=5000      # same as def_sz
+#PicoBSD	8000	init	8192		32768
+options MD_ROOT_SIZE=8000      # same as def_sz
 
 hints	"PICOBSD.hints"
 
@@ -45,7 +45,7 @@ options		DUMMYNET
 device		if_bridge
 options		HZ=1000
 
-device		random	# ssh needs /dev/random
+device		random			# used by ssh
 device		pci
 
 # Floppy drives
@@ -65,7 +65,6 @@ device		atkbd
 device		vga			# VGA screen
 
 # syscons is the default console driver, resembling an SCO console
-
 device		sc
 
 # Serial (COM) ports
@@ -89,16 +88,12 @@ device		sio
 # The following Ethernet NICs are all PCI devices.
 #
 device	miibus 
-#device		de		# DEC/Intel DC21x4x (``Tulip'')
-#device		lnc
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		nfe		# nVidia nForce MCP on-board Ethernet
 #device		xl		# 3Com
 device		rl		# RealTek 8129/8139
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		sis		# National/SiS
-#device		vx		# 3Com 3c590, 3c595 (``Vortex'')
-#device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		dc		# DEC/Intel 21143 and various workalikes
 device		ed
 
