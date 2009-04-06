@@ -713,7 +713,7 @@ newroute(argc, argv)
 #ifdef INET6
 		if (af == AF_INET6) {
 			rtm_addrs &= ~RTA_NETMASK;
-			memset((void *)&so_mask, 0, sizeof(so_mask));
+				memset((void *)&so_mask, 0, sizeof(so_mask));
 		}
 #endif 
 	}
@@ -803,21 +803,22 @@ inet_makenetandmask(net, sin, bits)
 		addr = net << IN_CLASSC_NSHIFT;
 	else
 		addr = net;
-
-	if (bits != 0)
-		mask = 0xffffffff << (32 - bits);
-	else if (net == 0)
-		mask = 0;
-	else if (IN_CLASSA(addr))
-		mask = IN_CLASSA_NET;
-	else if (IN_CLASSB(addr))
-		mask = IN_CLASSB_NET;
-	else if (IN_CLASSC(addr))
-		mask = IN_CLASSC_NET;
-	else if (IN_MULTICAST(addr))
-		mask = IN_CLASSD_NET;
-	else
-		mask = 0xffffffff;
+	/*
+	 * If no /xx was specified we must cacluate the 
+	 * CIDR address.
+	 */
+	if ((bits == 0)  && (addr != 0)) {
+		int i, j;
+		for(i=0,j=1; i<32; i++)  {
+			if (addr & j) {
+				break;
+			}
+			j <<= 1;
+		}
+		/* i holds the first non zero bit */
+		bits = 32 - i;	
+	}
+	mask = 0xffffffff << (32 - bits);
 
 	sin->sin_addr.s_addr = htonl(addr);
 	sin = &so_mask.sin;
