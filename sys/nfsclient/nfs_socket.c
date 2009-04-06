@@ -1364,7 +1364,7 @@ wait_for_pinned_req:
 			 * lookup cache, just in case.
 			 */
 			if (error == ESTALE)
-				cache_purge(vp);
+				nfs_purgecache(vp);
 			/*
 			 * Skip wcc data on NFS errors for now. NetApp filers return corrupt
 			 * postop attrs in the wcc data for NFS err EROFS. Not sure if they 
